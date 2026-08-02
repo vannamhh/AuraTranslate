@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Review Mode — nối đoạn, diff, thu hoạch thuật ngữ</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --add-bg:#e7f0e4; --add-ink:#3f5b34;
+  --del-bg:#f7e6e3; --del-ink:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.6}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.85;margin-top:4px;max-width:860px}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+.cur{color:var(--primary);font-weight:600}
+
+/* ---- bước nối đoạn ---- */
+.pad{padding:20px 24px 24px}
+.h2{font-family:var(--read);font-size:19px;margin-bottom:3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:16px}
+.alignbox{background:var(--surface);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.abh{background:var(--sunken);border-bottom:1px solid var(--line);padding:7px 13px;font-size:11.5px;color:var(--ink-2);display:flex;justify-content:space-between}
+.arow{display:grid;grid-template-columns:1fr 34px 1fr;gap:0;border-bottom:1px solid var(--line-2);align-items:center}
+.arow:last-child{border-bottom:0}
+.ac{padding:9px 13px;font-family:var(--read);font-size:13.5px;line-height:1.6;min-width:0}
+.ac.dim{color:var(--ink-2)}
+.link{text-align:center;font-size:14px;color:var(--ink-2)}
+.link.ok{color:var(--confirmed)}
+.link.q{color:var(--tm-text);font-weight:700}
+.arow.need{background:var(--tm-bg)}
+.arow.need .ac{color:var(--ink)}
+.actions{margin-top:16px;display:flex;align-items:center;gap:11px}
+.btn{border-radius:4px;padding:7px 16px;font-size:12.5px;border:1px solid var(--line);background:var(--surface)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.hint{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+/* ---- diff side by side ---- */
+.split{display:grid;grid-template-columns:1fr 1fr;height:430px;background:var(--surface)}
+.pane{display:flex;flex-direction:column;border-right:1px solid var(--line);min-width:0;position:relative}
+.pane:last-child{border-right:0}
+.pane.focus::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--primary)}
+.ph{height:34px;display:flex;align-items:center;padding:0 15px;gap:8px}
+.pt{font-size:12px;color:var(--ink-2)}
+.pane.focus .pt{color:var(--primary);font-weight:600}
+.pb{padding:2px 16px 14px;flex:1;overflow:hidden;font-family:var(--read);font-size:14.5px;line-height:1.9}
+.blk{padding:6px 0 6px 12px;border-left:2px solid transparent;margin-bottom:3px}
+.blk.chg{border-left-color:var(--tm);background:var(--tm-bg)}
+.blk.acc{border-left-color:var(--confirmed);background:#f1f6ee}
+ins{background:var(--add-bg);color:var(--add-ink);text-decoration:none;border-radius:2px;padding:0 2px}
+del{background:var(--del-bg);color:var(--del-ink);border-radius:2px;padding:0 2px}
+.blkbar{font-family:var(--ui);font-size:10.5px;color:var(--ink-2);margin-bottom:3px;display:flex;gap:9px;align-items:center}
+.mini{font-family:var(--ui);font-size:11px;border:1px solid var(--line);border-radius:3px;padding:1px 7px;background:var(--surface)}
+.mini.pri{border-color:var(--primary);color:var(--primary);font-weight:600}
+.status{height:32px;border-top:1px solid var(--line);display:flex;align-items:center;padding:0 16px;gap:18px;font-size:11.5px;color:var(--ink-2)}
+
+/* ---- thu hoạch thuật ngữ ---- */
+.harvest{max-width:1150px;margin:0 auto;background:var(--bg);border-radius:9px;box-shadow:0 13px 40px rgba(0,0,0,.3);padding:22px 26px 26px}
+.hbox{background:var(--surface);border-left:2px solid var(--tm);border-radius:0 4px 4px 0;padding:15px 18px}
+.hrow{display:flex;align-items:baseline;gap:13px;padding:9px 0;border-bottom:1px solid var(--line-2)}
+.hrow:last-child{border-bottom:0}
+.term{font-family:var(--read);font-size:15px}
+.arrow{color:var(--ink-2)}
+.count{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+.keys{margin-left:14px;display:flex;gap:6px}
+</style>
+</head>
+<body>
+
+<!-- ===== BƯỚC 1 — NỐI ĐOẠN ===== -->
+<div class="hd">
+  <b>Nhập bản Reviewer — bước nối đoạn</b>
+  <div class="sub">Reviewer không cài app, nên file là cầu nối duy nhất. Máy khớp được phần lớn; những chỗ không khớp <i>phải hiện ra cho người nối tay</i>, không bao giờ khớp im lặng.</div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span>chuong-40-50-reviewed.docx</span></div>
+  </div>
+
+  <div class="pad">
+    <div class="h2">Khớp cấu trúc đoạn</div>
+    <div class="h2s">Đã khớp 213/220 đoạn. <b style="color:var(--tm-text)">7 đoạn cần bạn nối tay</b> — reviewer đã gộp một số đoạn lại.</div>
+
+    <div class="alignbox">
+      <div class="abh"><span>Bản của bạn</span><span>Bản Reviewer đã sửa</span></div>
+
+      <div class="arow">
+        <div class="ac dim">Hắn đả khai cánh cửa ấy, bước vào giữa bóng tối.</div>
+        <div class="link ok">→</div>
+        <div class="ac dim">Hắn mở cánh cửa ấy, bước vào giữa bóng tối.</div>
+      </div>
+
+      <div class="arow need">
+        <div class="ac">Gió thổi tới từ cuối hành lang.<br><span style="color:var(--ink-2);font-size:12.5px">Mang theo mùi gỉ sắt.</span></div>
+        <div class="link q">?</div>
+        <div class="ac">Gió từ cuối hành lang thổi tới, mang theo mùi gỉ sắt.</div>
+      </div>
+
+      <div class="arow need">
+        <div class="ac">Thiếu niên không quay đầu lại.</div>
+        <div class="link q">?</div>
+        <div class="ac dim" style="font-style:italic;color:var(--ink-2)">— không có đoạn tương ứng —</div>
+      </div>
+
+      <div class="arow">
+        <div class="ac dim">Hắn biết cánh cửa sau lưng một khi đã khép…</div>
+        <div class="link ok">→</div>
+        <div class="ac dim">Hắn biết một khi cánh cửa sau lưng đã khép…</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <span class="btn pri">Nối hai đoạn của tôi thành một</span>
+      <span class="btn">Bỏ qua đoạn này</span>
+      <span class="btn">Xem 5 chỗ còn lại</span>
+      <span class="hint">2 / 7 · <span class="k">↑ ↓</span> chuyển · <span class="k">↵</span> nối</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== BƯỚC 2 — REVIEW MODE DIFF ===== -->
+<div class="hd">
+  <b>Review Mode — bố cục hai cửa sổ, nguyên văn ẩn đi</b>
+  <div class="sub">Đây là một <i>preset bố cục</i> của Workspace, không phải cửa sổ thứ hai. Nguyên văn ẩn hẳn để mắt chỉ so hai bản dịch với nhau.</div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right">Bố cục <span class="cur">Review Mode</span> <span class="k">⌘3</span> · Nguyên văn đã ẩn</div>
+  </div>
+
+  <div class="split">
+    <div class="pane focus">
+      <div class="ph"><span class="pt">Bản dịch của tôi</span></div>
+      <div class="pb">
+        <div class="blk acc">
+          <div class="blkbar">Đoạn 1 · đã chấp nhận thay đổi</div>
+          Hắn mở cánh cửa ấy, bước vào giữa bóng tối.
+        </div>
+        <div class="blk chg">
+          <div class="blkbar">Đoạn 2 · reviewer có sửa
+            <span class="mini pri">Chấp nhận ↵</span><span class="mini">Bỏ qua ⌫</span>
+          </div>
+          Gió thổi tới từ cuối <del>hành lang</del>, mang theo mùi gỉ sắt.
+        </div>
+        <div class="blk">
+          <div class="blkbar">Đoạn 3 · không đổi</div>
+          Thiếu niên không quay đầu lại.
+        </div>
+        <div class="blk chg">
+          <div class="blkbar">Đoạn 4 · reviewer có sửa</div>
+          Hắn biết <del>cánh cửa sau lưng một khi</del> đã khép, thì không sao đẩy ra được nữa.
+        </div>
+      </div>
+    </div>
+
+    <div class="pane">
+      <div class="ph"><span class="pt">Bản Reviewer đã sửa</span></div>
+      <div class="pb">
+        <div class="blk acc">
+          <div class="blkbar">Đoạn 1</div>
+          Hắn mở cánh cửa ấy, bước vào giữa bóng tối.
+        </div>
+        <div class="blk chg">
+          <div class="blkbar">Đoạn 2</div>
+          Gió thổi tới từ cuối <ins>hàng lang</ins>, mang theo mùi gỉ sắt.
+        </div>
+        <div class="blk">
+          <div class="blkbar">Đoạn 3</div>
+          Thiếu niên không quay đầu lại.
+        </div>
+        <div class="blk chg">
+          <div class="blkbar">Đoạn 4</div>
+          Hắn biết <ins>một khi cánh cửa sau lưng</ins> đã khép, thì không sao đẩy ra được nữa.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>11 thay đổi · đã xử lý 1</span>
+    <span><span class="k">↵</span> chấp nhận &nbsp; <span class="k">⌫</span> bỏ qua &nbsp; <span class="k">↑ ↓</span> chuyển thay đổi</span>
+    <span style="margin-left:auto">Thay đổi được chấp nhận đưa câu về trạng thái <b style="color:var(--tm-text)">chưa xác nhận</b></span>
+  </div>
+</div>
+
+
+<!-- ===== BƯỚC 3 — THU HOẠCH THUẬT NGỮ ===== -->
+<div class="hd">
+  <b>Thu hoạch thuật ngữ — chạy độc lập với Review Mode</b>
+  <div class="sub">Đây là FR quan trọng nhất của luồng này. Nó xuất hiện <i>dù bạn có mở Review Mode hay không</i> — vì chưa ai biết vì sao người dịch thường không xem lại bản review, nên công sức của reviewer phải chuyển hoá thành giá trị kể cả trong kịch bản xấu nhất.</div>
+</div>
+
+<div class="harvest">
+  <div class="h2">Reviewer đã đổi thuật ngữ một cách nhất quán</div>
+  <div class="h2s">Thêm vào Glossary Tác phẩm? Mỗi mục ghi xuất xứ <i>“thu hoạch từ bản review”</i>. Không mục nào tự vào Glossary.</div>
+
+  <div class="hbox">
+    <div class="hrow">
+      <span class="term">Bắc Lương vương</span><span class="arrow">→</span><span class="term" style="color:var(--primary)">vương Bắc Lương</span>
+      <span class="count">đổi ở <b>23 / 24</b> lần xuất hiện</span>
+      <span class="keys"><span class="mini pri">Nhận N</span><span class="mini">Bỏ B</span></span>
+    </div>
+    <div class="hrow">
+      <span class="term">đả khai</span><span class="arrow">→</span><span class="term" style="color:var(--primary)">mở</span>
+      <span class="count">đổi ở <b>19 / 19</b> lần xuất hiện</span>
+      <span class="keys"><span class="mini pri">Nhận N</span><span class="mini">Bỏ B</span></span>
+    </div>
+    <div class="hrow">
+      <span class="term">hành lang</span><span class="arrow">→</span><span class="term" style="color:var(--primary)">hàng lang</span>
+      <span class="count" style="color:var(--tm-text)">đổi ở <b>4 / 11</b> lần — không nhất quán</span>
+      <span class="keys"><span class="mini">Nhận N</span><span class="mini">Bỏ B</span></span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <span class="btn pri">Nhận 2 mục đã chọn</span>
+    <span class="btn">Để lại trong bảng chờ</span>
+    <span class="hint">Tỷ lệ đổi hiện ra để bạn tự phán xét mức nhất quán — hệ thống không quyết thay</span>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Chốt bản dịch lần đầu gặp — FR114</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.6}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.85;margin-top:4px;max-width:870px}
+.rowlab{max-width:1150px;margin:26px auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600}
+.rowlab span{font-weight:400;opacity:.8;font-size:12px;margin-left:10px}
+.win{max-width:1150px;margin:0 auto;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+.right{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+.g22{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto;height:330px;background:var(--surface)}
+.panel{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line);overflow:hidden;position:relative}
+.panel:last-child{border-right:0}
+.panel.focus::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--primary)}
+.ph{height:34px;display:flex;align-items:center;padding:0 15px;gap:8px;flex:none}
+.pt{font-size:12px;color:var(--ink-2)}
+.panel.focus .pt{color:var(--primary);font-weight:600}
+.tabs{margin-left:auto;display:flex;gap:11px;font-size:11.5px;color:var(--ink-2)}
+.tabs .on{color:var(--primary);font-weight:600}
+.body{padding:2px 16px 12px;flex:1;overflow:hidden}
+.zh{font-family:var(--read);font-size:16.5px;line-height:2.05}
+.hv{font-family:var(--read);color:var(--ink-2);font-size:12.5px;font-style:italic;line-height:1.95}
+
+/* ---- FR50: hai kiểu đánh dấu, PHÂN BIỆT ĐƯỢC ---- */
+.locked{color:var(--primary);border-bottom:1px solid var(--primary)}
+.pending{color:var(--tm-text);border-bottom:1px dashed var(--tm);background:var(--tm-bg);border-radius:2px 2px 0 0;padding:0 1px}
+
+.doc{font-family:var(--read);font-size:15px;line-height:1.95;padding-left:8px}
+.gutter{width:22px;flex:none;position:relative}
+.gmark{position:absolute;left:8px;width:2px;border-radius:1px}
+.edwrap{display:flex;height:100%}
+.caret{display:inline-block;width:1.5px;height:1.05em;background:var(--primary);vertical-align:-2px;margin:0 1px}
+
+/* ---- dải chốt: KHÔNG phải hộp thoại ---- */
+.strip{border-top:1px solid var(--line);background:var(--surface);padding:13px 18px}
+.strip.on{background:var(--tm-bg);border-top:2px solid var(--tm)}
+.sh{display:flex;align-items:baseline;gap:12px;margin-bottom:11px}
+.sterm{font-family:var(--read);font-size:22px}
+.smeta{font-size:11.5px;color:var(--ink-2)}
+.sorigin{margin-left:auto;font-size:11px;color:var(--ink-2)}
+.opts{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.opt{border:1px solid var(--line);border-radius:4px;padding:6px 13px;background:var(--surface);font-family:var(--read);font-size:14px;display:flex;align-items:baseline;gap:9px}
+.opt kbd{font-family:ui-monospace,monospace;font-size:10px;color:var(--ink-2);border:1px solid var(--line);border-radius:2px;padding:0 4px}
+.opt .src{font-family:var(--ui);font-size:10.5px;color:var(--ink-2)}
+.opt.pri{border-color:var(--primary);background:var(--accent-bg)}
+.opt.pri kbd{border-color:var(--primary);color:var(--primary)}
+.typing{border:1px solid var(--line);border-radius:4px;padding:6px 13px;background:var(--surface);font-family:var(--read);font-size:14px;color:var(--ink-2);min-width:150px}
+.defer{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+.why{margin-top:11px;font-size:11.5px;color:var(--ink-2);line-height:1.65}
+.why b{color:var(--tm-text)}
+
+/* ---- sau khi chốt ---- */
+.done{border-top:1px solid var(--line);background:var(--surface);padding:11px 18px;font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:12px;line-height:1.6}
+.done b{color:var(--confirmed)}
+.legend{max-width:1150px;margin:15px auto 0;display:flex;gap:9px;flex-wrap:wrap}
+.chip{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px}
+.chip b{color:var(--primary)}
+.chip.warn{background:#f6e9db;color:#7a5d25}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <b>Chốt bản dịch lần đầu gặp — FR114</b>
+  <div class="sub">Người dịch đang giữa dòng chảy khi thuật ngữ <i>chờ chốt</i> xuất hiện. Nên đây <b>không phải hộp thoại chặn</b> mà là một dải mọc lên ở đáy panel, không cướp con trỏ, không dừng việc đang gõ.</div>
+</div>
+
+<!-- ============ TRẠNG THÁI 1: ĐANG HỎI ============ -->
+<div class="rowlab">① Dải chốt hiện ra <span>con trỏ vẫn ở Editor, gõ tiếp được ngay</span></div>
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right">Chương 47 · Glossary 214 mục · <b style="color:var(--tm-text)">3 chờ chốt</b></div>
+  </div>
+
+  <div class="g22">
+    <div class="panel">
+      <div class="ph"><span class="pt">Nguyên văn</span>
+        <div class="tabs"><span class="on">Trung</span><span>Hán Việt</span></div>
+      </div>
+      <div class="body zh">
+        <span class="locked">徐鳳年</span>立於<span class="pending">聽潮閣</span>之上，遠望北方。<br>
+        風雪連綿三千里，<span class="locked">北涼</span>鐵騎甲天下。
+        <div class="hv" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+          <b style="color:var(--primary);font-weight:600">Từ Phượng Niên</b> lập ư <b style="color:var(--tm-text);font-weight:600">Thính Triều Các</b> chi thượng, viễn vọng bắc phương.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel focus">
+      <div class="ph"><span class="pt">Bản dịch</span>
+        <div class="tabs"><span>18/34 đã xác nhận</span></div>
+      </div>
+      <div class="body">
+        <div class="edwrap">
+          <div class="gutter"><div class="gmark" style="top:6px;height:30px;background:var(--confirmed)"></div><div class="gmark" style="top:40px;height:52px;background:var(--primary)"></div></div>
+          <div class="doc">
+            Từ Phượng Niên đứng trên Thính Triều Các, nhìn về phương bắc.<br>
+            Gió tuyết trải dài ba nghìn dặm, thiết kỵ Bắc Lương đứng đầu thiên hạ<span class="caret"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="strip on">
+    <div class="sh">
+      <span class="sterm">聽潮閣</span>
+      <span class="smeta">chờ chốt bản dịch · xuất hiện <b>644 lần</b> trong Tác phẩm</span>
+      <span class="sorigin">xuất xứ: đề xuất khi nhập tài liệu · phân loại: địa danh</span>
+    </div>
+
+    <div class="opts">
+      <span class="opt pri"><kbd>↵</kbd>Thính Triều Các<span class="src">bạn vừa viết</span></span>
+      <span class="opt"><kbd>2</kbd>Thính Triều Các<span class="src">âm Hán Việt</span></span>
+      <span class="opt"><kbd>3</kbd>Gác Nghe Sóng<span class="src">TM · 1 lần</span></span>
+      <span class="typing">gõ cách khác…</span>
+      <span class="defer">Chưa chắc? <span class="k">Esc</span> để sau — không hỏi lại trong Chương này</span>
+    </div>
+
+    <div class="why">
+      Chốt xong thì <b>Smart RAG Injector bắt đầu ép AI dùng đúng cách gọi này</b> ở mọi câu sau. Trước khi chốt, thuật ngữ vẫn được đánh dấu nhưng không tham gia ép AI.
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <span class="chip"><b>Không cướp con trỏ.</b> Dải mọc ở đáy, con trỏ vẫn nhấp nháy trong Editor — gõ tiếp là dải tự lùi</span>
+  <span class="chip">Đề xuất đầu tiên là <b>thứ bạn vừa viết</b> — ngữ cảnh tốt nhất có sẵn, không phải trường trống</span>
+  <span class="chip">Ba nguồn gợi ý: bản dịch đang gõ · âm Hán Việt · Translation Memory</span>
+  <span class="chip warn"><b>Hoãn thì không hỏi lại trong cùng Chương.</b> 644 lần xuất hiện mà hỏi mỗi lần thì thành phiền toái, không phải trợ giúp</span>
+</div>
+
+
+<!-- ============ TRẠNG THÁI 2: ĐÃ CHỐT ============ -->
+<div class="rowlab">② Sau khi chốt <span>đánh dấu đổi từ nét đứt sang nét liền — FR50 đòi phân biệt được</span></div>
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right">Chương 47 · Glossary 215 mục · <b style="color:var(--tm-text)">2 chờ chốt</b></div>
+  </div>
+
+  <div class="g22" style="height:250px">
+    <div class="panel">
+      <div class="ph"><span class="pt">Nguyên văn</span>
+        <div class="tabs"><span class="on">Trung</span><span>Hán Việt</span></div>
+      </div>
+      <div class="body zh">
+        <span class="locked">徐鳳年</span>立於<span class="locked">聽潮閣</span>之上，遠望北方。<br>
+        風雪連綿三千里，<span class="locked">北涼</span>鐵騎甲天下。
+        <div class="hv" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+          Ba thuật ngữ trong câu này nay đều đã chốt.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ph"><span class="pt">Đề xuất của AI</span>
+        <div class="tabs"><span>Xem prompt</span></div>
+      </div>
+      <div class="body">
+        <div style="font-size:11px;color:var(--ink-2);margin-bottom:9px">Câu kế tiếp · đang sinh…</div>
+        <div style="font-family:var(--read);font-size:14.5px;line-height:1.85">
+          Trên <b style="color:var(--primary)">Thính Triều Các</b> có trăm vạn quyển sách<span style="opacity:.35">▏</span>
+        </div>
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-2);line-height:1.9">
+          Đã chèn <span style="color:var(--primary)">3 thuật ngữ</span> Glossary — <b>tăng 1</b> so với câu trước
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="done">
+    <span><b>聽潮閣 → Thính Triều Các đã chốt.</b> Mục Glossary chuyển sang trạng thái đã chốt, xuất xứ giữ nguyên <i>đề xuất khi nhập tài liệu</i>, ngày chốt ghi hôm nay.</span>
+    <span style="margin-left:auto"><span class="k">⌘Z</span> hoàn tác</span>
+  </div>
+</div>
+
+<div class="legend">
+  <span class="chip"><b style="color:var(--tm-text)">Nét đứt trên nền vàng</b> = chờ chốt &nbsp;·&nbsp; <b style="color:var(--primary)">nét liền</b> = đã chốt. Đây là yêu cầu của FR50, không phải trang trí</span>
+  <span class="chip">Panel AI báo <b>tăng 1 thuật ngữ</b> ngay câu kế — người dùng thấy được việc mình vừa làm có tác dụng thật</span>
+  <span class="chip">Hoàn tác được — chốt sai không phải là ngõ cụt</span>
+</div>
+
+</body>
+</html>

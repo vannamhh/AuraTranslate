@@ -1,0 +1,323 @@
+<meta charset="utf-8">
+<title>Nguồn từ điển — bật/tắt, ghi công, gỡ lớp — FR36 · FR37 · FR38 · FR109 · FR112</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.7}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:880px;color:#e2ddd2}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+/* ---- panel Lookup thu nhỏ ---- */
+.lk{display:grid;grid-template-columns:1fr 300px}
+.lkmain{border-right:1px solid var(--line);min-width:0}
+.ph{height:34px;display:flex;align-items:center;padding:0 15px;gap:9px;border-bottom:1px solid var(--line-2)}
+.pt{font-size:12px;color:var(--ink-2)}
+.pane.focus .pt{color:var(--primary);font-weight:600}
+.pane{position:relative}
+.pane.focus::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--primary);z-index:2}
+.tabs{margin-left:auto;display:flex;gap:11px;font-size:11.5px;color:var(--ink-2)}
+.tabs .on{color:var(--primary);font-weight:600}
+
+/* dải chip nguồn — FR37 */
+.chips{display:flex;flex-wrap:wrap;gap:7px;padding:11px 15px;border-bottom:1px solid var(--line-2);background:var(--sunken)}
+.schip{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid var(--line);border-radius:20px;padding:3px 10px;color:var(--primary);background:var(--surface)}
+.schip i{font-style:normal;font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-2);margin-left:6px}
+.schip.off{color:var(--ink-2);border-style:dashed;background:transparent}
+.chips .lbl{font-size:11px;color:var(--ink-2);align-self:center;margin-right:3px}
+.chips .hint{margin-left:auto;font-size:11px;color:var(--ink-2);align-self:center}
+
+/* bản ghi từ điển */
+.rec{padding:13px 15px 13px 28px;border-bottom:1px solid var(--line-2);position:relative}
+.rec::before{content:"";position:absolute;left:15px;top:15px;bottom:15px;width:2px;background:var(--line-2);border-radius:2px}
+.srcl{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--primary);margin-bottom:5px}
+.pos{font-family:var(--read);font-style:italic;font-size:13px;color:var(--ink-2);margin-right:8px}
+.gloss{font-family:var(--read);font-size:14.5px;line-height:1.66}
+.exm{font-family:var(--read);font-style:italic;font-size:12.5px;line-height:1.66;color:var(--ink-2);margin-top:5px}
+.quote{font-family:var(--read);font-size:12.5px;line-height:1.66;margin-top:6px;padding-left:11px;border-left:2px solid var(--primary);color:var(--ink-2)}
+.hw{font-family:var(--read);font-size:24px;line-height:1.3;padding:12px 15px 3px}
+.hwsub{font-size:11.5px;color:var(--ink-2);padding:0 15px 11px;border-bottom:1px solid var(--line-2)}
+.discl{margin:0;padding:9px 15px;background:var(--tm-bg);border-left:2px solid var(--tm);font-size:12px;line-height:1.66;color:var(--tm-text)}
+
+/* cột phải: lớp nguồn */
+.side{padding:13px 15px}
+.sh{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin:0 0 9px}
+.sh+.sh{margin-top:18px}
+.li{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--line-2);font-size:12px;line-height:1.6}
+.li:last-child{border-bottom:0}
+.li .nm{flex:1}
+.li .st{font-size:10.5px;color:var(--ink-2)}
+.li .sw{width:8px;height:8px;border-radius:2px;flex:none;position:relative;top:1px}
+.sw.on{background:var(--confirmed)}
+.sw.off{background:transparent;border:1px solid var(--orn)}
+.note{font-size:11.5px;line-height:1.7;color:var(--ink-2);margin-top:11px;padding-top:11px;border-top:1px solid var(--line-2)}
+
+/* ---- màn hình Attribution ---- */
+.pad{padding:22px 26px 26px}
+.h2{font-family:var(--read);font-size:20px;margin-bottom:3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:18px;line-height:1.7;max-width:760px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  padding:0 11px 7px 0;border-bottom:1px solid var(--line)}
+td{padding:9px 11px 9px 0;border-bottom:1px solid var(--line-2);vertical-align:top;line-height:1.66}
+td.nm{font-family:var(--read);font-size:14px}
+.tag{display:inline-block;font-size:10px;letter-spacing:.05em;border-radius:2px;padding:1px 7px;white-space:nowrap}
+.t-base{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.t-det{background:var(--tm-bg);color:var(--tm-text);font-weight:600}
+.lic{font-family:ui-monospace,monospace;font-size:11px;color:var(--ink-2)}
+.legal{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:14px 16px}
+.card h4{margin:0 0 7px;font-family:var(--read);font-size:15px;font-weight:600}
+.card p{margin:0 0 8px;font-size:12px;line-height:1.75;color:var(--ink-2)}
+.card p:last-child{margin-bottom:0}
+.card b{color:var(--ink)}
+.btnrow{margin-top:18px;display:flex;gap:10px;align-items:center}
+.btn{border-radius:4px;padding:6px 15px;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.btnrow .hint{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+/* ---- so sánh gỡ lớp ---- */
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.half{border-right:1px solid var(--line);min-width:0}
+.half:last-child{border-right:0}
+.halfh{padding:10px 15px;background:var(--sunken);border-bottom:1px solid var(--line);font-size:11.5px;color:var(--ink-2)}
+.halfh b{color:var(--ink);font-weight:600}
+.chip-inline{font-size:10.5px;border:1px solid var(--line);border-radius:20px;padding:1px 8px;color:var(--ink-2);margin-left:7px}
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fchip{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.6}
+.fchip b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Nguồn từ điển — bật/tắt, ghi công, và gỡ lớp</b>
+  <div class="sub">Ba bề mặt của cùng một kiến trúc: <b>nền có giấy phép sạch + lớp gỡ rời được</b> (FR36).
+  Người dùng bật tắt từng nguồn ngay trong panel Lookup (FR37); màn hình Attribution ghi công đầy đủ và nói rõ
+  nguồn nào dùng theo giấy phép mở, nguồn nào dùng theo phép riêng tác giả cấp (FR38, FR109); và phần cuối chứng minh
+  bằng hình rằng gỡ một lớp <b>không làm hỏng tra cứu</b> — điều kiện của chính sách gỡ bỏ dữ liệu (FR112).</div>
+</div>
+
+<div class="rowlab">1 · Bật tắt nguồn ngay tại chỗ tra <span>không phải vào Cài đặt — quyết định về nguồn là quyết định lúc đang tra · FR37</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Tuyết Trung Hãn Đao Hành · Chương 47</span><span class="k">⌘2</span></span>
+  </div>
+
+  <div class="lk">
+    <div class="lkmain pane focus">
+      <div class="ph">
+        <span class="pt">Tra cứu</span>
+        <span class="tabs"><span class="on">Từ điển</span><span>Concordance</span><span>Lịch sử</span><span class="k">F3</span></span>
+      </div>
+
+      <div class="chips">
+        <span class="lbl">Nguồn</span>
+        <span class="schip">CVDICT<i>4</i></span>
+        <span class="schip">Unihan<i>1</i></span>
+        <span class="schip">HVTĐTD<i>3</i></span>
+        <span class="schip">Thiều Chửu<i>2</i></span>
+        <span class="schip off">CC-CEDICT</span>
+        <span class="schip off">VietPhrase</span>
+        <span class="hint">Bấm để tắt · <span class="k">⌥1…6</span></span>
+      </div>
+
+      <div class="hw">走廊</div>
+      <div class="hwsub">tẩu lang · zǒuláng · 4 nguồn đang bật có mục từ này</div>
+
+      <div class="discl">CVDICT và Thiều Chửu ghi khác nhau. Cả hai hiện bên dưới, không hợp nhất.</div>
+
+      <div class="rec">
+        <div class="srcl">CVDICT</div>
+        <span class="pos">danh từ</span><span class="gloss">hành lang, dãy nhà có mái nối hai toà</span>
+        <div class="exm">走廊尽头有一扇门 — cuối hành lang có một cánh cửa</div>
+      </div>
+
+      <div class="rec">
+        <div class="srcl">Thiều Chửu</div>
+        <span class="pos">danh từ</span><span class="gloss">nhà cầu, lối đi có mái che dọc theo nhà</span>
+        <div class="quote">「廊」 hiên nhà, mái hiên chạy dọc — Thiều Chửu, 1942</div>
+      </div>
+
+      <div class="rec">
+        <div class="srcl">HVTĐTD</div>
+        <span class="pos">danh từ</span><span class="gloss">hành lang; đường đi có mái, thường nối các gian nhà trong một khuôn viên</span>
+        <div class="exm">Ví dụ và trích dẫn của nguồn này <b>bằng tiếng Việt</b> — đây là điều lớp nền không cho được</div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="sh">Lớp nền — không tắt được</div>
+      <div class="li"><span class="sw on"></span><span class="nm">CVDICT</span><span class="st">CC-BY-SA 4.0</span></div>
+      <div class="li"><span class="sw on"></span><span class="nm">Unihan</span><span class="st">Unicode</span></div>
+      <div class="li"><span class="sw off"></span><span class="nm">CC-CEDICT</span><span class="st">CC-BY-SA 4.0</span></div>
+      <div class="li"><span class="sw on"></span><span class="nm">en.wiktionary</span><span class="st">CC-BY-SA</span></div>
+
+      <div class="sh">Lớp gỡ rời — gỡ được cả file</div>
+      <div class="li"><span class="sw on"></span><span class="nm">HVTĐTD</span><span class="st">phép riêng</span></div>
+      <div class="li"><span class="sw on"></span><span class="nm">Thiều Chửu</span><span class="st">chưa xác minh</span></div>
+      <div class="li"><span class="sw off"></span><span class="nm">Cổ hán văn</span><span class="st">chưa xác minh</span></div>
+      <div class="li"><span class="sw off"></span><span class="nm">VietPhrase</span><span class="st">không rõ</span></div>
+
+      <div class="note"><b>Tắt</b> chỉ giấu nguồn khỏi kết quả — dữ liệu vẫn nằm trong bản cài.
+      <b>Gỡ</b> là xoá file dữ liệu khỏi bản phát hành, việc của người đóng gói chứ không phải của người dùng (FR112).</div>
+    </div>
+  </div>
+</div>
+
+<div class="rowlab">2 · Màn hình Attribution <span>ghi công đầy đủ, và nói thẳng nguồn nào rủi ro tới đâu · FR38 · FR109</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span>Library</span><span>Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Giới thiệu · Nguồn dữ liệu</span></span>
+  </div>
+
+  <div class="pad">
+    <div class="h2">Nguồn dữ liệu và ghi công</div>
+    <div class="h2s">AuraTranslate không hợp nhất các từ điển thành một câu trả lời duy nhất. Mỗi nguồn có khiếm khuyết
+    riêng đã biết, nên mỗi định nghĩa luôn hiện kèm nguồn của nó (FR31) và bất đồng giữa các nguồn được hiển thị chứ
+    không bị giấu (FR32). Bảng này là bản ghi công theo yêu cầu CC-BY-SA, đồng thời là bản khai rủi ro xuất xứ.</div>
+
+    <table>
+      <tr>
+        <th style="width:19%">Nguồn</th><th style="width:15%">Giấy phép</th><th style="width:9%">Lớp</th>
+        <th style="width:31%">Vai trò</th><th>Ghi chú xuất xứ</th>
+      </tr>
+      <tr>
+        <td class="nm">CVDICT</td><td class="lic">CC-BY-SA 4.0</td><td><span class="tag t-base">nền</span></td>
+        <td>Từ và cụm từ Trung → Việt, hơn 122.000 mục</td>
+        <td>Dịch bằng mô hình ngôn ngữ rồi rà soát tay — khiếm khuyết đã biết, ghi ra để người dùng tự phán xét</td>
+      </tr>
+      <tr>
+        <td class="nm">Unihan</td><td class="lic">Unicode License</td><td><span class="tag t-base">nền</span></td>
+        <td>Âm Hán Việt cho từng ký tự — nền của tab Hán Việt</td>
+        <td>Sạch</td>
+      </tr>
+      <tr>
+        <td class="nm">CC-CEDICT</td><td class="lic">CC-BY-SA 4.0</td><td><span class="tag t-base">nền</span></td>
+        <td>Đối chiếu chéo — ý kiến thứ ba khi các nguồn Việt bất đồng</td>
+        <td>Sạch</td>
+      </tr>
+      <tr>
+        <td class="nm">kaikki.org · viwiktionary</td><td class="lic">CC-BY-SA + GFDL</td><td><span class="tag t-base">nền</span></td>
+        <td>Từ loại, nghĩa và ví dụ cho tiếng Anh — 133.319 mục, 100% có từ loại</td>
+        <td>Sạch</td>
+      </tr>
+      <tr>
+        <td class="nm">en.wiktionary</td><td class="lic">CC-BY-SA + GFDL</td><td><span class="tag t-base">nền</span></td>
+        <td>Khung từ loại và câu ví dụ cho tiếng Trung, ghép nghĩa tiếng Việt từ CVDICT</td>
+        <td>Sạch. Nhãn từ loại và bản dịch ví dụ ở v1 <b>bằng tiếng Anh</b>, có đánh dấu là nhãn ngoại ngữ (FR35)</td>
+      </tr>
+      <tr>
+        <td class="nm">Hán Việt Từ Điển Trích Dẫn</td><td class="lic">phép riêng tác giả</td><td><span class="tag t-det">gỡ rời</span></td>
+        <td>Nguồn duy nhất có từ loại, ví dụ và trích dẫn <b>bằng tiếng Việt</b></td>
+        <td>© Đặng Thế Kiệt — tác giả cho phép bằng văn bản ngày 2026-08-02.
+        Phần dữ liệu này <b>không thuộc GPL v3</b></td>
+      </tr>
+      <tr>
+        <td class="nm">Thiều Chửu (1942)</td><td class="lic">phạm vi công cộng</td><td><span class="tag t-det">gỡ rời</span></td>
+        <td>Tự điển ký tự chuẩn mực</td>
+        <td>Bản gốc nhiều khả năng đã hết hạn bản quyền, nhưng <b>bản số hoá chưa được xác minh</b></td>
+      </tr>
+      <tr>
+        <td class="nm">Cổ hán văn</td><td class="lic">phạm vi công cộng</td><td><span class="tag t-det">gỡ rời</span></td>
+        <td>Trích dẫn minh hoạ cách dùng cổ văn — Tam tự kinh, Thiên tự văn, Bách gia tính</td>
+        <td>Văn bản gốc đã rất cổ, nhưng <b>phần chú giải hiện đại còn bản quyền</b></td>
+      </tr>
+      <tr>
+        <td class="nm">VietPhrase</td><td class="lic">không xác định</td><td><span class="tag t-det">gỡ rời</span></td>
+        <td>Cách cộng đồng dịch giả thực sự dịch, tích luỹ hơn một thập kỷ</td>
+        <td><b>Không xác định được tác giả.</b> Đóng gói tách rời, có quy trình gỡ khi chủ sở hữu lên tiếng (FR112)</td>
+      </tr>
+    </table>
+
+    <div class="legal">
+      <div class="card">
+        <h4>Giấy phép của phần mềm</h4>
+        <p>AuraTranslate phát hành theo <b>GPL v3</b>. Chọn v3 chứ không phải v2 để tương thích với crate Apache-2.0,
+        phủ gần trọn hệ sinh thái Rust.</p>
+        <p>Phần dữ liệu <b>Hán Việt Từ Điển Trích Dẫn không nằm trong GPL v3</b> — nó thuộc © Đặng Thế Kiệt và được
+        dùng theo phép riêng tác giả cấp. GPL không thể áp lên phần dự án không sở hữu.</p>
+      </div>
+      <div class="card">
+        <h4>Nếu bạn là chủ sở hữu một nguồn ở đây</h4>
+        <p>Các lớp đánh dấu <b>gỡ rời</b> được đóng gói tách rời có chủ ý. Gỡ một lớp là <b>xoá một file dữ liệu</b>,
+        không đổi mã và không làm hỏng chức năng tra cứu — sản phẩm chạy đầy đủ trên các lớp nền (FR36).</p>
+        <p>Yêu cầu gỡ bỏ sẽ được thực hiện ở <b>bản phát hành kế tiếp</b>. Đường liên hệ nằm trong trang dự án.</p>
+      </div>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn pri">Mở văn bản giấy phép</button>
+      <button class="btn">Sao chép bản ghi công</button>
+      <span class="hint">Toàn bộ giấy phép kèm trong bản phát hành · <span class="k">Tab</span> để duyệt bảng</span>
+    </div>
+  </div>
+</div>
+
+<div class="rowlab">3 · Gỡ lớp thì chuyện gì xảy ra <span>đây là test nghiệm thu của FR36, dựng thành hình để không ai hiểu nhầm</span></div>
+<div class="win">
+  <div class="pair">
+    <div class="half">
+      <div class="halfh"><b>Có lớp HVTĐTD</b><span class="chip-inline">bản cài đầy đủ</span></div>
+      <div class="hw" style="padding-top:14px">廊</div>
+      <div class="hwsub">lang · láng</div>
+      <div class="rec">
+        <div class="srcl">HVTĐTD</div>
+        <span class="pos">danh từ</span><span class="gloss">hiên nhà; mái hiên chạy dọc theo nhà</span>
+        <div class="exm">Từ loại, ví dụ và trích dẫn đều <b>bằng tiếng Việt</b></div>
+        <div class="quote">「廊廟」 nơi bàn việc nước, chỉ triều đình</div>
+      </div>
+      <div class="rec">
+        <div class="srcl">CVDICT</div>
+        <span class="pos">danh từ</span><span class="gloss">hành lang, hiên</span>
+      </div>
+    </div>
+
+    <div class="half">
+      <div class="halfh"><b>Đã gỡ lớp HVTĐTD</b><span class="chip-inline">xoá một file dữ liệu</span></div>
+      <div class="hw" style="padding-top:14px">廊</div>
+      <div class="hwsub">lang · láng</div>
+      <div class="rec">
+        <div class="srcl">CVDICT</div>
+        <span class="pos">danh từ</span><span class="gloss">hành lang, hiên</span>
+      </div>
+      <div class="rec">
+        <div class="srcl">en.wiktionary</div>
+        <span class="pos" lang="en">noun</span><span class="gloss">corridor; veranda
+          <span class="tag t-det" style="margin-left:7px">nhãn tiếng Anh</span></span>
+        <div class="exm" lang="en">走廊 — corridor</div>
+      </div>
+      <div class="discl" style="border-left-color:var(--confirmed);background:#f1f6ee;color:var(--ink-2)">
+        Tra cứu vẫn trả kết quả. Rơi về nhãn tiếng Anh của lớp nền — <b>mất chất lượng, không mất chức năng</b>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fchip"><b>FR37</b> bật tắt từng nguồn ngay trong panel Lookup</span>
+  <span class="fchip"><b>FR31 · FR32</b> mọi định nghĩa hiện nguồn · bất đồng hiện cả hai, không hợp nhất</span>
+  <span class="fchip"><b>FR38 · FR109</b> màn hình Attribution trong ứng dụng</span>
+  <span class="fchip"><b>FR36</b> gỡ lớp gỡ rời không làm hỏng tra cứu</span>
+  <span class="fchip"><b>FR112</b> chính sách gỡ bỏ dữ liệu nói thành lời, ngay trên màn hình</span>
+</div>

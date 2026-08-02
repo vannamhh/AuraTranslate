@@ -1,0 +1,277 @@
+<meta charset="utf-8">
+<title>Quản lý Glossary — hai tầng, xuất xứ, chờ chốt, CSV — FR46–FR51 · FR114</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.7}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.tbt{margin-left:14px;font-size:12.5px;color:var(--ink-2)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+/* thanh phạm vi + lọc */
+.bar{display:flex;align-items:center;gap:13px;padding:11px 18px;background:var(--sunken);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
+.seg span{font-size:12px;padding:5px 13px;color:var(--ink-2);border-right:1px solid var(--line)}
+.seg span:last-child{border-right:0}
+.seg .on{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.srch{flex:1;max-width:290px;background:var(--surface);border:1px solid var(--line);border-radius:4px;
+  padding:6px 11px;font-size:12.5px;color:var(--ink-2)}
+.pill{font-size:11px;border:1px solid var(--line);border-radius:20px;padding:4px 11px;color:var(--ink-2);background:var(--surface)}
+.pill.on{border-color:var(--primary);color:var(--primary);font-weight:600;background:var(--accent-bg)}
+.pill.warn{border-color:var(--tm);color:var(--tm-text);font-weight:600;background:var(--tm-bg)}
+.bar .r{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+/* bảng */
+.wrap{background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  padding:10px 12px 8px 0;border-bottom:1px solid var(--line);background:var(--surface)}
+th:first-child{padding-left:26px}
+td{padding:9px 12px 9px 0;border-bottom:1px solid var(--line-2);vertical-align:top;line-height:1.66}
+td:first-child{padding-left:26px;position:relative}
+td:first-child::before{content:"";position:absolute;left:15px;top:12px;bottom:12px;width:2px;border-radius:2px;background:transparent}
+tr.g td:first-child::before{background:var(--primary)}
+tr.wait td:first-child::before{background:var(--tm)}
+tr.wait td{background:var(--tm-bg)}
+tr.over td:first-child::before{background:var(--primary)}
+tr.shadow td{color:var(--ink-2)}
+.term{font-family:var(--read);font-size:15px;color:var(--ink)}
+tr.shadow .term{color:var(--ink-2)}
+.rd{font-size:10.5px;color:var(--ink-2);display:block;margin-top:1px}
+.tr{font-family:var(--read);font-size:14px}
+.tr.pending{color:var(--tm-text);font-style:italic}
+.tag{display:inline-block;font-size:10px;letter-spacing:.05em;border-radius:2px;padding:1px 7px;white-space:nowrap}
+.t-g{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.t-w{background:#f3e8d2;color:var(--tm-text);font-weight:600}
+.t-n{background:var(--sunken);color:var(--ink-2)}
+.orig{font-size:11px;color:var(--ink-2);line-height:1.66}
+.note{font-family:var(--read);font-size:12.5px;color:var(--ink-2);line-height:1.66}
+.when{font-size:11px;color:var(--ink-2);white-space:nowrap}
+
+/* dải giải thích */
+.expl{padding:13px 18px;font-size:12px;line-height:1.75;color:var(--ink-2);border-top:1px solid var(--line-2);background:var(--bg)}
+.expl b{color:var(--ink)}
+.warnbox{margin:0;padding:12px 18px;background:var(--tm-bg);border-left:2px solid var(--tm);
+  font-size:12.5px;line-height:1.75;color:var(--tm-text)}
+.warnbox b{color:var(--ink)}
+.okbox{margin:0;padding:12px 18px;background:#f1f6ee;border-left:2px solid var(--confirmed);
+  font-size:12.5px;line-height:1.75;color:var(--ink-2)}
+.okbox b{color:var(--ink)}
+
+.btnrow{display:flex;gap:10px;align-items:center;padding:14px 18px;border-top:1px solid var(--line-2);background:var(--bg)}
+.btn{border-radius:4px;padding:6px 15px;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.btnrow .hint{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+/* khối nhập CSV */
+.pad{padding:20px 24px 24px}
+.h2{font-family:var(--read);font-size:19px;margin:0 0 3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:17px;line-height:1.75;max-width:720px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.card{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:14px 16px}
+.card h4{margin:0 0 8px;font-family:var(--read);font-size:15px;font-weight:600}
+.mono{font-family:ui-monospace,monospace;font-size:11.5px;line-height:1.8;color:var(--ink-2);
+  background:var(--bg);border:1px solid var(--line-2);border-radius:3px;padding:9px 11px;overflow-x:auto;white-space:pre}
+.card p{margin:9px 0 0;font-size:12px;line-height:1.75;color:var(--ink-2)}
+.card p b{color:var(--ink)}
+.dupe{display:flex;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid var(--line-2);font-size:12.5px;line-height:1.66}
+.dupe:last-child{border-bottom:0}
+.dupe .t{font-family:var(--read);font-size:14px;min-width:96px}
+.dupe .a{flex:1;color:var(--ink-2)}
+.dupe .ch{font-size:11px;border:1px solid var(--line);border-radius:20px;padding:2px 10px;color:var(--ink-2)}
+.dupe .ch.on{border-color:var(--primary);color:var(--primary);font-weight:600;background:var(--accent-bg)}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.6}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Quản lý Glossary — nơi các quyết định biên tập được cất giữ</b>
+  <div class="sub">Bảng chờ (<i>glossary-queue</i>) là chỗ ứng viên <b>vào</b> Glossary. Màn hình này là chỗ chúng
+  <b>sống</b>: sửa, xoá, tra lại xuất xứ, chốt những mục còn treo, và mang đi chia sẻ với người dịch khác.
+  Ba việc khó nằm ở đây — <b>hai tầng ghi đè nhau</b> (FR46), <b>bản dịch chờ chốt</b> (FR114), và
+  <b>trộn hai bộ khi nhập CSV</b> (FR49).</div>
+</div>
+
+<div class="rowlab">1 · Tầng Tác phẩm — và chỗ nó che mất tầng Toàn cục <span>FR46 · FR47 · FR114</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="tbt">Glossary · Tuyết Trung Hãn Đao Hành</span>
+    <span class="right"><span class="k">⌘G</span></span>
+  </div>
+
+  <div class="bar">
+    <span class="seg"><span>Toàn cục <b>412</b></span><span class="on">Tác phẩm <b>1.847</b></span><span>Cả hai</span></span>
+    <span class="srch">Tìm thuật ngữ hoặc bản dịch…</span>
+    <span class="pill on">Tất cả</span>
+    <span class="pill">Tên người</span>
+    <span class="pill">Địa danh</span>
+    <span class="pill">Thuật ngữ</span>
+    <span class="pill warn">Chờ chốt · 23</span>
+    <span class="r">Sắp theo: <b>tần suất trong Tác phẩm</b></span>
+  </div>
+
+  <div class="wrap">
+    <table>
+      <tr>
+        <th style="width:16%">Thuật ngữ nguồn</th><th style="width:17%">Bản dịch</th><th style="width:11%">Phân loại</th>
+        <th style="width:19%">Xuất xứ</th><th style="width:8%">Dùng</th><th>Ghi chú</th><th style="width:10%">Thêm ngày</th>
+      </tr>
+
+      <tr class="g">
+        <td><span class="term">徐鳳年</span><span class="rd">Từ Phượng Niên</span></td>
+        <td><span class="tr">Từ Phượng Niên</span></td>
+        <td><span class="tag t-n">tên người</span></td>
+        <td><span class="orig">đề xuất khi nhập tài liệu<br>âm Hán Việt, nhận một phím</span></td>
+        <td class="when">1.204×</td>
+        <td class="note">Nhân vật chính</td>
+        <td class="when">02-08</td>
+      </tr>
+
+      <tr class="g">
+        <td><span class="term">聽潮閣</span><span class="rd">Thính Triều Các</span></td>
+        <td><span class="tr">Thính Triều Các</span></td>
+        <td><span class="tag t-n">địa danh</span></td>
+        <td><span class="orig">đề xuất khi nhập tài liệu</span></td>
+        <td class="when">312×</td>
+        <td class="note">Không dịch nghĩa thành “gác nghe sóng” — cộng đồng đã quen âm Hán Việt</td>
+        <td class="when">02-08</td>
+      </tr>
+
+      <tr class="over">
+        <td><span class="term">北涼王</span><span class="rd">Bắc Lương vương</span></td>
+        <td><span class="tr">vương Bắc Lương</span></td>
+        <td><span class="tag t-n">tên người</span></td>
+        <td><span class="orig">thu hoạch từ bản review<br>reviewer đổi ở 23/24 lần</span></td>
+        <td class="when">418×</td>
+        <td class="note">Ghi đè mục cùng tên ở tầng Toàn cục</td>
+        <td class="when">03-08</td>
+      </tr>
+
+      <tr class="shadow">
+        <td style="padding-left:44px"><span class="term">北涼王</span><span class="rd">tầng Toàn cục — đang bị che</span></td>
+        <td><span class="tr">Bắc Lương vương</span></td>
+        <td><span class="tag t-n">tên người</span></td>
+        <td><span class="orig">nhập thủ công</span></td>
+        <td class="when">—</td>
+        <td class="note">Vẫn nguyên vẹn ở tầng Toàn cục, các Tác phẩm khác vẫn dùng bản này</td>
+        <td class="when">14-06</td>
+      </tr>
+
+      <tr class="wait">
+        <td><span class="term">氣機</span><span class="rd">khí cơ</span></td>
+        <td><span class="tr pending">chờ chốt bản dịch</span></td>
+        <td><span class="tag t-n">thuật ngữ</span></td>
+        <td><span class="orig">đề xuất khi nhập tài liệu<br>âm Hán Việt không phải cách dịch phù hợp</span></td>
+        <td class="when">31×</td>
+        <td class="note">Sẽ hỏi một lần khi gặp lần đầu trong Workspace</td>
+        <td class="when">02-08</td>
+      </tr>
+
+      <tr class="wait">
+        <td><span class="term" lang="en">spirit vein</span><span class="rd">—</span></td>
+        <td><span class="tr pending">chờ chốt bản dịch</span></td>
+        <td><span class="tag t-n">thuật ngữ</span></td>
+        <td><span class="orig">đề xuất khi nhập tài liệu<br>ứng viên tiếng Anh, không có âm Hán Việt để đề xuất</span></td>
+        <td class="when">17×</td>
+        <td class="note">Khớp mờ ở cấp hình thái từ — bắt được cả <i lang="en">spirit veins</i></td>
+        <td class="when">02-08</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="warnbox"><b>23 mục còn chờ chốt bản dịch — và đó không phải việc tồn đọng cần dọn ở đây.</b>
+  Mục chờ chốt <b>không tham gia ép AI</b> (FR70): chèn một trường trống vào prompt là vô nghĩa, tệ hơn là gợi ý cho
+  mô hình rằng thuật ngữ đó không có bản dịch quy ước. Nhưng cách chốt đúng là <b>chốt lúc gặp trong Workspace</b>,
+  nơi có ngữ cảnh — không phải ngồi đây điền một danh sách trần 23 dòng. Bộ lọc này tồn tại để <i>nhìn thấy</i>,
+  không phải để <i>ép làm</i>.</div>
+
+  <div class="okbox"><b>Hàng thụt vào là mục bị che, không phải mục trùng.</b> Khi một thuật ngữ tồn tại ở cả hai
+  tầng thì tầng Tác phẩm thắng (FR46). Bản Toàn cục vẫn còn nguyên và các Tác phẩm khác vẫn dùng nó — nên giấu nó đi
+  sẽ khiến người dùng tưởng mình đã sửa cho tất cả. Hiện nó ra là cách duy nhất nói thật.</div>
+
+  <div class="btnrow">
+    <button class="btn pri">Thêm thuật ngữ</button>
+    <button class="btn">Xuất CSV</button>
+    <button class="btn">Nhập CSV</button>
+    <button class="btn">Chuyển mục đã chọn lên tầng Toàn cục</button>
+    <span class="hint">Sửa tại chỗ — nhấp đúp vào ô · <span class="k">⌫</span> xoá mục đang chọn</span>
+  </div>
+</div>
+
+<div class="rowlab">2 · Nhập CSV từ người dịch khác <span>chỗ hai bộ Glossary gặp nhau và bất đồng · FR49 · FR79</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="tbt">Nhập Glossary</span>
+  </div>
+
+  <div class="pad">
+    <div class="h2">Nhập từ <span style="font-family:ui-monospace,monospace;font-size:15px">tien-hiep-chung.csv</span></div>
+    <div class="h2s">Chia sẻ trong cộng đồng đi bằng <b>trao đổi file</b>, không bằng server hay tài khoản —
+    Glossary qua CSV/TSV, prompt qua file văn bản, Translation Memory qua TMX. Đúng cách QuickTranslator từng lan toả.
+    Không có định dạng gói, không có hạ tầng phân phối.</div>
+
+    <div class="two">
+      <div class="card">
+        <h4>Đọc được gì trong file</h4>
+        <div class="mono">thuật_ngữ,bản_dịch,phân_loại,ghi_chú
+金丹,kim đan,thuật ngữ,
+元嬰,nguyên anh,thuật ngữ,
+北涼王,Bắc Lương vương,tên người,
+走火入魔,tẩu hoả nhập ma,thuật ngữ,</div>
+        <p><b>604 dòng · 4 cột nhận ra được.</b> Cột <span style="font-family:ui-monospace,monospace">xuất_xứ</span>
+        và <span style="font-family:ui-monospace,monospace">ngày_thêm</span> không có trong file — mọi mục vào với
+        xuất xứ <b>nhập thủ công</b> và ngày hôm nay.</p>
+        <p>Nhập vào tầng: <span class="pill on" style="display:inline-block">Toàn cục</span>
+        <span class="pill" style="display:inline-block">Tác phẩm này</span></p>
+      </div>
+
+      <div class="card">
+        <h4>7 mục bất đồng với bộ đang có</h4>
+        <div class="dupe"><span class="t">北涼王</span><span class="a">đang có <b>vương Bắc Lương</b> · file ghi <b>Bắc Lương vương</b></span>
+          <span class="ch on">giữ của tôi</span><span class="ch">lấy của file</span></div>
+        <div class="dupe"><span class="t">走火入魔</span><span class="a">đang có <b>tẩu hoả nhập ma</b> · file ghi <b>đi lệch đường</b></span>
+          <span class="ch on">giữ của tôi</span><span class="ch">lấy của file</span></div>
+        <div class="dupe"><span class="t">金丹</span><span class="a">đang có <b>kim đan</b> · file ghi <b>kim đan</b></span>
+          <span class="ch" style="border-style:dashed">giống nhau — bỏ qua</span></div>
+        <div class="dupe"><span class="t">元嬰</span><span class="a">chưa có — mục mới</span>
+          <span class="ch on">thêm vào</span></div>
+        <p><b>Mặc định là giữ của tôi.</b> Một file lạ không được phép ghi đè quyết định biên tập của người dùng
+        chỉ vì nó tới sau — đó đúng là thứ FR55 cấm ở đường tự động, và không có lý do gì nới lỏng ở đường thủ công.</p>
+      </div>
+    </div>
+
+    <div class="btnrow" style="border-top:0;padding-left:0;padding-right:0">
+      <button class="btn pri">Nhập 597 mục mới · giữ 7 mục đang có</button>
+      <button class="btn">Huỷ</button>
+      <span class="hint">Không ghi xuống đĩa trước khi bấm — cùng khuôn với màn hình xem trước kết quả tách</span>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR46</b> hai tầng, tầng Tác phẩm thắng — và mục bị che vẫn hiện ra</span>
+  <span class="fc"><b>FR47</b> xuất xứ mỗi mục: thủ công · đề xuất khi nhập · thu hoạch từ bản review</span>
+  <span class="fc"><b>FR49</b> tìm, sửa, xoá, nhập và xuất CSV để chia sẻ giữa người dịch</span>
+  <span class="fc"><b>FR51</b> khớp phân theo ngôn ngữ: Trung chính xác, Anh khớp mờ ở cấp hình thái từ</span>
+  <span class="fc"><b>FR114</b> chờ chốt nhìn thấy được ở đây, nhưng chốt trong Workspace nơi có ngữ cảnh</span>
+  <span class="fc"><b>FR70</b> chỉ mục đã chốt tham gia ép AI</span>
+</div>

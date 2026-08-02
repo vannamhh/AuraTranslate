@@ -1,0 +1,366 @@
+<meta charset="utf-8">
+<title>Cài đặt — hai tầng scope, AI, phím tắt, bố cục — FR22 · FR65–68 · FR103 · FR111</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.7}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.tbt{margin-left:14px;font-size:12.5px;color:var(--ink-2)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+/* ---- thanh scope — trái tim của FR103 ---- */
+.scope{display:flex;align-items:center;gap:0;padding:0 16px;height:40px;background:var(--sunken);border-bottom:1px solid var(--line)}
+.slbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin-right:13px}
+.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
+.seg span{font-size:12px;padding:5px 14px;color:var(--ink-2);border-right:1px solid var(--line)}
+.seg span:last-child{border-right:0}
+.seg .on{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.scope .msg{margin-left:16px;font-size:11.5px;color:var(--ink-2);line-height:1.66}
+.scope .msg b{color:var(--ink)}
+.scope .r{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+/* ---- khung hai cột ---- */
+.grid{display:grid;grid-template-columns:186px 1fr}
+.nav{border-right:1px solid var(--line);padding:12px 0;background:var(--bg)}
+.nav a{display:block;padding:7px 16px 7px 14px;font-size:12.5px;color:var(--ink-2);text-decoration:none;border-left:2px solid transparent}
+.nav a.on{color:var(--primary);font-weight:600;border-left-color:var(--primary);background:var(--accent-bg)}
+.main{padding:20px 26px 26px;background:var(--surface);min-width:0}
+
+.h2{font-family:var(--read);font-size:19px;margin:0 0 3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:20px;line-height:1.75;max-width:660px}
+.sh{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  margin:24px 0 11px;padding-bottom:6px;border-bottom:1px solid var(--line-2)}
+.sh:first-of-type{margin-top:0}
+
+/* ---- hàng thiết lập ---- */
+.f{display:grid;grid-template-columns:200px 1fr;gap:18px;padding:11px 0 11px 13px;border-bottom:1px solid var(--line-2);
+  position:relative;align-items:start}
+.f::before{content:"";position:absolute;left:0;top:13px;bottom:13px;width:2px;border-radius:2px;background:transparent}
+.f.over::before{background:var(--primary)}
+.f.inh::before{background:var(--line)}
+.fl{font-size:12.5px;line-height:1.66;padding-top:5px}
+.fl .d{font-size:11px;color:var(--ink-2);line-height:1.7;margin-top:2px}
+.fv{min-width:0}
+.inp{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 11px;font-family:var(--ui);
+  font-size:12.5px;color:var(--ink);display:flex;align-items:center;gap:9px;line-height:1.6}
+.inp.wide{max-width:400px}
+.inp .cv{margin-left:auto;font-size:11px;color:var(--ink-2)}
+.inp.ghost{background:transparent;border-style:dashed;color:var(--ink-2)}
+.mark{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;border-radius:2px;padding:1px 7px;
+  margin-left:9px;white-space:nowrap}
+.m-over{background:var(--accent-bg);color:var(--primary)}
+.m-inh{background:var(--sunken);color:var(--ink-2)}
+.act{margin-top:6px;font-size:11.5px;color:var(--primary)}
+.act.plain{color:var(--ink-2)}
+.pillrow{display:flex;gap:7px;flex-wrap:wrap}
+.pill{font-size:11.5px;border:1px solid var(--line);border-radius:20px;padding:4px 12px;color:var(--ink-2);background:var(--bg)}
+.pill.on{border-color:var(--primary);color:var(--primary);font-weight:600;background:var(--accent-bg)}
+.mono{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--ink-2)}
+
+.keyn{background:var(--tm-bg);border-left:2px solid var(--tm);border-radius:0 3px 3px 0;padding:10px 13px;
+  font-size:12px;line-height:1.75;color:var(--tm-text);margin-top:11px}
+.keyn b{color:var(--ink)}
+.okn{background:#f1f6ee;border-left:2px solid var(--confirmed);border-radius:0 3px 3px 0;padding:10px 13px;
+  font-size:12px;line-height:1.75;color:var(--ink-2);margin-top:11px}
+.okn b{color:var(--ink)}
+
+/* ---- bảng phím tắt ---- */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  padding:0 11px 7px 0;border-bottom:1px solid var(--line)}
+td{padding:8px 11px 8px 0;border-bottom:1px solid var(--line-2);vertical-align:middle;line-height:1.66}
+tr.conflict td{background:var(--tm-bg)}
+.cid{font-family:ui-monospace,monospace;font-size:11px;color:var(--ink-2)}
+.kc{font-family:ui-monospace,monospace;font-size:11.5px;border:1px solid var(--line);border-radius:3px;
+  padding:2px 8px;background:var(--bg);color:var(--ink);white-space:nowrap}
+.kc.cf{border-color:var(--tm);color:var(--tm-text)}
+.kc.none{border-style:dashed;color:var(--ink-2)}
+.srch{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 11px;font-size:12.5px;
+  color:var(--ink-2);max-width:320px;margin-bottom:16px}
+
+.btnrow{margin-top:20px;display:flex;gap:10px;align-items:center}
+.btn{border-radius:4px;padding:6px 15px;font-size:12.5px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.btnrow .hint{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+/* ---- dải bố cục + cập nhật ---- */
+.two{display:grid;grid-template-columns:1fr 1fr}
+.half{padding:20px 24px 24px;border-right:1px solid var(--line);min-width:0}
+.half:last-child{border-right:0}
+.lay{display:flex;gap:12px;margin-top:13px}
+.lp{border:1px solid var(--line);border-radius:4px;padding:8px;width:118px;background:var(--bg)}
+.lp.on{border-color:var(--primary);background:var(--accent-bg)}
+.lpg{display:grid;gap:2px;height:56px;margin-bottom:7px}
+.lpg i{background:var(--sunken);border-radius:1px;display:block}
+.lp.on .lpg i{background:#d6e2e2}
+.g22{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g2{grid-template-columns:1fr 1fr}
+.lpn{font-size:11.5px;line-height:1.66}
+.lpk{font-size:10.5px;color:var(--ink-2);margin-top:2px}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.6}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Cài đặt — hai tầng scope là cơ chế, không phải một mục trong menu</b>
+  <div class="sub">FR103 nói mọi cấu hình tồn tại ở hai tầng và tầng Tác phẩm ghi đè tầng Toàn cục. Câu đó dễ viết,
+  khó dựng: nhìn vào một ô thiết lập, người dùng phải biết <b>giá trị này đến từ đâu</b> và <b>sửa ở đây thì ảnh hưởng
+  tới đâu</b>. Toàn bộ màn hình này xoay quanh việc trả lời hai câu đó bằng hình, không bằng chữ giải thích.</div>
+</div>
+
+<div class="rowlab">1 · Cấu hình AI ở tầng Tác phẩm <span>vạch lề nói giá trị đến từ đâu · FR65–FR68 · FR103</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="tbt">Cài đặt</span>
+    <span class="right"><span class="k">⌘,</span></span>
+  </div>
+
+  <div class="scope">
+    <span class="slbl">Phạm vi</span>
+    <span class="seg"><span>Toàn cục</span><span class="on">Tác phẩm</span></span>
+    <span class="msg">Đang sửa <b>Tuyết Trung Hãn Đao Hành</b> — thay đổi ở đây không chạm tới Tác phẩm khác</span>
+    <span class="r">2 mục đang ghi đè <span class="k">⌘⇧R</span> trả về kế thừa</span>
+  </div>
+
+  <div class="grid">
+    <nav class="nav">
+      <a href="#" class="on">AI và mô hình</a>
+      <a href="#">Prompt</a>
+      <a href="#">Glossary</a>
+      <a href="#">Translation Memory</a>
+      <a href="#">Từ điển và nguồn</a>
+      <a href="#">Phím tắt</a>
+      <a href="#">Bố cục</a>
+      <a href="#">Chế độ đọc</a>
+      <a href="#">Dữ liệu và sao lưu</a>
+      <a href="#">Cập nhật</a>
+    </nav>
+
+    <div class="main">
+      <div class="h2">AI và mô hình</div>
+      <div class="h2s">Ứng dụng chạy đầy đủ khi không cấu hình AI (FR77) — Library, Workspace, từ điển, Glossary,
+      Translation Memory và export/import đều không cần một khoá nào. Phần này chỉ bật thêm C6 và C7.</div>
+
+      <div class="sh">Kết nối</div>
+
+      <div class="f over">
+        <div class="fl">Nhà cung cấp<div class="d">BYOK và mô hình chạy máy dùng chung một đường cấu hình — cả hai đều là endpoint tương thích OpenAI</div></div>
+        <div class="fv">
+          <div class="pillrow">
+            <span class="pill">Anthropic</span><span class="pill">OpenAI</span>
+            <span class="pill on">Ollama · máy này</span><span class="pill">LM Studio</span><span class="pill">Endpoint khác</span>
+          </div>
+          <div class="act">Ghi đè Toàn cục — ở tầng Toàn cục đang là <b>Anthropic</b><span class="mark m-over">ghi đè</span></div>
+        </div>
+      </div>
+
+      <div class="f over">
+        <div class="fl">Endpoint<div class="d">Địa chỉ máy chủ tương thích OpenAI</div></div>
+        <div class="fv">
+          <div class="inp wide"><span class="mono">http://localhost:11434/v1</span><span class="cv">đã kết nối</span></div>
+          <div class="act plain">Tác phẩm này chạy mô hình cục bộ vì bản gốc chưa công bố — không gửi ra ngoài<span class="mark m-over">ghi đè</span></div>
+        </div>
+      </div>
+
+      <div class="f inh">
+        <div class="fl">Khoá API<div class="d">Chỉ cần cho nhà cung cấp qua mạng</div></div>
+        <div class="fv">
+          <div class="inp wide ghost"><span>Đã lưu trong Keychain của macOS</span><span class="cv">không hiển thị lại</span></div>
+          <div class="act plain">Kế thừa Toàn cục<span class="mark m-inh">kế thừa</span></div>
+          <div class="okn"><b>Khoá không bao giờ nằm trong file.</b> Không ghi vào <span class="mono">.atproj</span>,
+          không ghi vào file cấu hình, không ghi vào log, không đồng bộ đi đâu (FR67, NFR11).
+          Ứng dụng chỉ giữ một tham chiếu tới Keychain — chính nó cũng không đọc lại được giá trị để hiện ra đây.</div>
+        </div>
+      </div>
+
+      <div class="sh">Mô hình và tham số sinh</div>
+
+      <div class="f inh">
+        <div class="fl">Mô hình</div>
+        <div class="fv">
+          <div class="inp wide ghost"><span class="mono">qwen2.5:14b-instruct</span><span class="cv">kế thừa</span></div>
+          <div class="act">Ghi đè cho Tác phẩm này<span class="mark m-inh">kế thừa</span></div>
+        </div>
+      </div>
+
+      <div class="f inh">
+        <div class="fl">Nhiệt độ<div class="d">Thấp cho bản dịch bám sát, cao cho câu văn tự do hơn</div></div>
+        <div class="fv"><div class="inp wide ghost"><span class="mono">0.3</span><span class="cv">kế thừa</span></div></div>
+      </div>
+
+      <div class="f inh">
+        <div class="fl">Số token tối đa mỗi lần gọi</div>
+        <div class="fv"><div class="inp wide ghost"><span class="mono">2048</span><span class="cv">kế thừa</span></div></div>
+      </div>
+
+      <div class="sh">Chi phí</div>
+
+      <div class="f inh">
+        <div class="fl">Hiện token và ước tính chi phí<div class="d">Trên mỗi lần gọi, ngay ở panel Đề xuất AI</div></div>
+        <div class="fv">
+          <div class="inp wide ghost"><span>Bật</span><span class="cv">kế thừa</span></div>
+          <div class="okn">Mô hình cục bộ không tính tiền, nên với Tác phẩm này số hiện ra là
+          <b>token và thời gian sinh</b>, không có cột tiền. Không làm tròn thành “một chút chi phí” — số liệu là số liệu.</div>
+        </div>
+      </div>
+
+      <div class="btnrow">
+        <button class="btn pri">Thử kết nối</button>
+        <button class="btn">Trả toàn bộ mục về kế thừa</button>
+        <span class="hint">Lưu ngay khi rời ô — không có nút Lưu</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rowlab">2 · Phím tắt — điều kiện nghiệm thu của NFR17 nằm ở đây <span>FR22 · toàn bộ cấu hình lại được</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="tbt">Cài đặt</span>
+    <span class="right"><span class="k">⌘,</span></span>
+  </div>
+
+  <div class="scope">
+    <span class="slbl">Phạm vi</span>
+    <span class="seg"><span class="on">Toàn cục</span><span>Tác phẩm</span></span>
+    <span class="msg">Phím tắt chỉ tồn tại ở tầng Toàn cục — một thao tác không nên đổi phím theo từng Tác phẩm</span>
+    <span class="r">247 lệnh · <b style="color:var(--tm-text)">3 chưa gán phím</b></span>
+  </div>
+
+  <div class="grid">
+    <nav class="nav">
+      <a href="#">AI và mô hình</a>
+      <a href="#">Prompt</a>
+      <a href="#">Glossary</a>
+      <a href="#">Translation Memory</a>
+      <a href="#">Từ điển và nguồn</a>
+      <a href="#" class="on">Phím tắt</a>
+      <a href="#">Bố cục</a>
+      <a href="#">Chế độ đọc</a>
+      <a href="#">Dữ liệu và sao lưu</a>
+      <a href="#">Cập nhật</a>
+    </nav>
+
+    <div class="main">
+      <div class="h2">Phím tắt</div>
+      <div class="h2s">Mọi thao tác của ứng dụng đi qua một sổ đăng ký lệnh duy nhất, kể cả thao tác bấm chuột.
+      Nhờ vậy câu hỏi <b>“thao tác nào chưa gán được phím”</b> là câu hỏi liệt kê được tự động — không phải kiểm bằng mắt.</div>
+
+      <div class="srch">Tìm lệnh hoặc bấm tổ hợp phím để tra ngược…</div>
+
+      <table>
+        <tr><th style="width:30%">Lệnh</th><th style="width:26%">Mã lệnh</th><th style="width:16%">Phím</th><th>Ghi chú</th></tr>
+        <tr><td>Tra cụm đang chọn</td><td class="cid">lookup.query.selection</td><td><span class="kc">tự động</span></td><td>Auto-Lookup chạy khi vùng chọn dừng — không cần phím</td></tr>
+        <tr><td>Xác nhận segment</td><td class="cid">editor.segment.confirm</td><td><span class="kc">⌘↵</span></td><td></td></tr>
+        <tr><td>Segment chưa dịch kế tiếp</td><td class="cid">editor.segment.nextUntranslated</td><td><span class="kc">⌥↓</span></td><td></td></tr>
+        <tr><td>Gộp hai segment</td><td class="cid">editor.segment.merge</td><td><span class="kc">⌘M</span></td><td></td></tr>
+        <tr><td>Tách segment</td><td class="cid">editor.segment.split</td><td><span class="kc">⌘/</span></td><td></td></tr>
+        <tr><td>Đưa bản dịch AI sang Editor</td><td class="cid">ai.result.moveToEditor</td><td><span class="kc">⌘⇧↵</span></td><td>Luôn do người dùng chủ động (FR72)</td></tr>
+        <tr class="conflict"><td>Dịch cả lô segment đang chọn</td><td class="cid">ai.translate.batch</td><td><span class="kc cf">⌘⇧T</span></td><td><b>Trùng với</b> “Chuyển sang tab Hán Việt” — một trong hai phải đổi</td></tr>
+        <tr class="conflict"><td>Chuyển sang tab Hán Việt</td><td class="cid">source.tab.hanviet</td><td><span class="kc cf">⌘⇧T</span></td><td>Gán sau, nên đang bị chặn</td></tr>
+        <tr><td>Bật tắt Sync Scrolling</td><td class="cid">workspace.syncScroll.toggle</td><td><span class="kc">⌘⇧S</span></td><td></td></tr>
+        <tr><td>Ghim mục từ đang xem</td><td class="cid">lookup.entry.pin</td><td><span class="kc">⌘D</span></td><td></td></tr>
+        <tr><td>Xuất Chương ra .docx hai cột</td><td class="cid">export.chapter.docx</td><td><span class="kc none">chưa gán</span></td><td>Một trong 3 lệnh chưa có phím</td></tr>
+      </table>
+
+      <div class="keyn"><b>Xung đột không được giải im lặng.</b> Lệnh gán sau bị chặn chứ không cướp phím của lệnh gán
+      trước — cướp phím im lặng nghĩa là một thao tác quen tay đột nhiên làm việc khác. Hàng xung đột hiện màu
+      cho tới khi người dùng quyết định.</div>
+
+      <div class="btnrow">
+        <button class="btn pri">Xuất bộ phím tắt</button>
+        <button class="btn">Nhập bộ phím tắt</button>
+        <button class="btn">Trả về mặc định</button>
+        <span class="hint">Bấm vào ô phím rồi gõ tổ hợp mới · <span class="k">⌫</span> để bỏ gán</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rowlab">3 · Bố cục và cập nhật <span>FR17 · FR18 · FR111</span></div>
+<div class="win">
+  <div class="two">
+    <div class="half">
+      <div class="h2">Bố cục</div>
+      <div class="h2s">Panel kéo thả để dock, undock, gộp thành tab và đổi kích thước. Mỗi panel ẩn được hoàn toàn —
+      người dịch không dùng AI phải giấu được panel Đề xuất AI, và đó là ca sử dụng thật chứ không phải trường hợp biên.</div>
+
+      <div class="lay">
+        <div class="lp on">
+          <div class="lpg g22"><i></i><i></i><i></i><i></i></div>
+          <div class="lpn">Bốn panel 2×2</div><div class="lpk">⌥1 · mặc định</div>
+        </div>
+        <div class="lp">
+          <div class="lpg g4"><i></i><i></i><i></i><i></i></div>
+          <div class="lpn">Bốn cột</div><div class="lpk">⌥2</div>
+        </div>
+        <div class="lp">
+          <div class="lpg g2"><i></i><i></i></div>
+          <div class="lpn">Không dùng AI</div><div class="lpk">⌥3 · tự đặt</div>
+        </div>
+      </div>
+
+      <div class="okn"><b>Preset là của người dùng, không phải của sản phẩm.</b> Ba cái đầu là điểm khởi đầu;
+      thêm, đổi tên và xoá được. Bố cục đang dùng tự lưu và khôi phục ở phiên sau mà không cần bấm gì.</div>
+
+      <div class="btnrow">
+        <button class="btn">Lưu bố cục hiện tại thành preset</button>
+        <span class="hint">Panel đã ẩn: <b>không có</b></span>
+      </div>
+    </div>
+
+    <div class="half">
+      <div class="h2">Cập nhật</div>
+      <div class="h2s">Ứng dụng <b>chỉ kiểm tra và báo</b> có bản mới. Không tự tải, không tự cài.</div>
+
+      <div class="f" style="border-bottom:0;padding-left:0">
+        <div class="fl">Kiểm tra bản mới khi khởi động</div>
+        <div class="fv"><div class="inp" style="max-width:150px"><span>Bật</span></div></div>
+      </div>
+
+      <div class="keyn"><b>Vì sao không có nút “Cập nhật ngay”.</b> Bản phát hành <b>không được ký số</b> — dự án
+      không có kinh phí cho notarization của Apple hay chứng chỉ EV của Windows. Không có chữ ký thì không có gì xác
+      minh được bản tải về là chính chủ, nên một cơ chế tự cập nhật ở đây là một đường tấn công thật chứ không phải
+      một tiện ích. Đường an toàn hơn: tải tay từ GitHub Releases rồi đối chiếu checksum.</div>
+
+      <div class="okn"><b>Phiên bản 0.4.2</b> · đã kiểm 3 giờ trước · chưa có bản mới<br>
+      Bản cài này khớp checksum SHA-256 công bố kèm bản phát hành, dựng công khai qua GitHub Actions.</div>
+
+      <div class="btnrow">
+        <button class="btn pri">Kiểm tra ngay</button>
+        <button class="btn">Mở trang phát hành</button>
+        <button class="btn">Xem checksum</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR103</b> hai tầng scope đọc được bằng vạch lề: đặc là ghi đè, nhạt là kế thừa</span>
+  <span class="fc"><b>FR65 · FR66</b> BYOK và mô hình cục bộ dùng chung một đường cấu hình</span>
+  <span class="fc"><b>FR67 · NFR11</b> khoá nằm trong Keychain, không hiện lại được kể cả với ứng dụng</span>
+  <span class="fc"><b>FR68</b> cấu hình AI đặt Toàn cục, ghi đè theo Tác phẩm</span>
+  <span class="fc"><b>FR22 · NFR17</b> mọi lệnh có mã, mọi mã gán được phím, xung đột không giải im lặng</span>
+  <span class="fc"><b>FR17 · FR18</b> preset bố cục lưu và chuyển bằng phím</span>
+  <span class="fc"><b>FR111</b> chỉ báo, không tự tải — hệ quả của việc không ký số</span>
+</div>

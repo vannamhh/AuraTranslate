@@ -1,0 +1,248 @@
+<meta charset="utf-8">
+<title>Tìm kiếm xuyên Library — hai chế độ dấu — FR8 · FR9 · FR10 · NFR8</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.66}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2;line-height:1.75}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600;line-height:1.66}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+/* thanh tìm */
+.bar{padding:15px 22px 12px;display:flex;align-items:center;gap:13px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.search{flex:1;max-width:420px;background:var(--surface);border:1px solid var(--primary);border-radius:4px;
+  padding:7px 12px;display:flex;align-items:center;gap:9px;font-size:13px}
+.search .q{font-family:var(--read);font-size:14.5px}
+.search .cnt{margin-left:auto;font-size:11px;color:var(--ink-2)}
+.dia{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;font-size:11.5px}
+.dia span{padding:5px 12px;color:var(--ink-2);background:var(--surface);border-right:1px solid var(--line)}
+.dia span:last-child{border-right:0}
+.dia .on{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.scopes{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;font-size:11.5px}
+.scopes span{padding:5px 12px;color:var(--ink-2);background:var(--surface);border-right:1px solid var(--line)}
+.scopes span:last-child{border-right:0}
+.scopes .on{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.filters{margin-left:auto;display:flex;gap:8px;font-size:11.5px;color:var(--ink-2)}
+.filters span{border:1px solid var(--line);border-radius:20px;padding:4px 12px;background:var(--surface)}
+.filters .on{border-color:var(--primary);color:var(--primary);font-weight:600;background:var(--accent-bg)}
+
+/* dải trạng thái chế độ dấu */
+.mode-note{padding:10px 22px;font-size:12px;line-height:1.75;background:var(--accent-bg);
+  border-bottom:1px solid var(--line);color:var(--ink-2)}
+.mode-note b{color:var(--ink)}
+.mode-note.relax{background:var(--tm-bg);color:var(--tm-text)}
+.mode-note.relax b{color:var(--ink)}
+
+/* kết quả */
+.res{background:var(--surface)}
+.wk{padding:13px 22px 6px;display:flex;align-items:baseline;gap:11px;border-top:1px solid var(--line-2)}
+.wk:first-child{border-top:0}
+.wk .t{font-family:var(--read);font-size:16px}
+.wk .m{font-size:11px;color:var(--ink-2)}
+.wk .n{margin-left:auto;font-size:11px;color:var(--ink-2)}
+.hitrow{display:grid;grid-template-columns:132px 1fr;gap:14px;padding:8px 22px 8px 34px;position:relative;
+  border-bottom:1px solid var(--line-2);align-items:start}
+.hitrow::before{content:"";position:absolute;left:22px;top:11px;bottom:11px;width:2px;border-radius:2px;background:var(--line-2)}
+.hitrow.src::before{background:var(--ink-2)}
+.hitrow.tgt::before{background:var(--primary)}
+.hitrow .ch{font-size:11.5px;color:var(--ink-2);line-height:1.66;padding-top:1px}
+.hitrow .ch b{display:block;color:var(--ink);font-weight:600}
+.hitrow .sn{font-family:var(--read);font-size:13.5px;line-height:1.75;min-width:0}
+.hitrow .sn.zh{font-size:14.5px;line-height:1.9}
+mark{background:var(--accent-bg);color:var(--primary);border-radius:2px;padding:0 3px;font-weight:600}
+mark.loose{background:#f3e8d2;color:var(--tm-text)}
+.side{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)}
+
+.more{padding:10px 22px;font-size:12px;color:var(--ink-2);text-align:center;border-bottom:1px solid var(--line-2);line-height:1.66}
+
+/* hộp giải thích */
+.box{margin:0;padding:13px 22px;font-size:12.5px;line-height:1.75}
+.box.warn{background:var(--tm-bg);border-left:2px solid var(--tm);color:var(--tm-text)}
+.box.ok{background:#f1f6ee;border-left:2px solid var(--confirmed);color:var(--ink-2)}
+.box b{color:var(--ink)}
+.box code{font-family:ui-monospace,monospace;font-size:11.5px}
+
+/* trạng thái rỗng */
+.empty{padding:44px 22px;text-align:center}
+.empty .rule{width:34px;height:2px;background:var(--orn);border-radius:1px;margin:0 auto 14px}
+.empty .big{font-family:var(--read);font-size:16.5px;line-height:1.66;margin-bottom:8px}
+.empty .small{font-size:12.5px;color:var(--ink-2);line-height:1.8;max-width:430px;margin:0 auto}
+.empty .sugg{margin-top:16px;display:inline-block;background:var(--sunken);border-radius:4px;padding:11px 15px;
+  text-align:left;font-size:12.5px;line-height:1.8;color:var(--ink-2)}
+.empty .sugg b{color:var(--primary)}
+
+.status{height:32px;display:flex;align-items:center;padding:0 18px;gap:16px;border-top:1px solid var(--line);
+  font-size:11px;color:var(--ink-2);background:var(--bg)}
+.status .r{margin-left:auto}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.66}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Tìm kiếm xuyên Library — và cái bẫy dấu tiếng Việt</b>
+  <div class="sub">Giai đoạn 0 đo được `unicode61` mặc định <b>xoá dấu</b>, gộp <code>má / ma / mà / mả / mã / mạ</code>
+  thành một kết quả duy nhất. Với một công cụ dịch tiếng Việt đó là lỗi phá vỡ độ chính xác của toàn bộ tìm kiếm —
+  nhưng người dùng vẫn thường gõ không dấu cho nhanh. Nên cần <b>cả hai chế độ</b>, không phải chọn một, và người dùng
+  phải luôn biết mình đang ở chế độ nào.</div>
+</div>
+
+<div class="rowlab">1 · Chính xác dấu — mặc định <span>tìm đồng thời trong văn bản nguồn và bản dịch của mọi Tác phẩm · FR8</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>1.847 Chương · 12 Tác phẩm</span><span class="k">⌘1</span></span>
+  </div>
+
+  <div class="bar">
+    <div class="search"><span class="q">mảnh giáp</span><span class="cnt">34 kết quả · 91 ms</span></div>
+    <span class="dia"><span class="on">Chính xác dấu</span><span>Khoan dung không dấu</span></span>
+    <span class="scopes"><span class="on">Cả hai</span><span>Nguyên văn</span><span>Bản dịch</span></span>
+    <span class="filters">
+      <span class="on">Mọi trạng thái</span><span>Trung → Việt</span><span>Sửa gần đây</span>
+    </span>
+  </div>
+
+  <div class="mode-note"><b>Chế độ chính xác dấu.</b> <code>mảnh</code> không khớp <code>manh</code>,
+  <code>mành</code> hay <code>mạnh</code>. Đây là chỉ mục <b>chính</b> — chỉ mục xoá dấu chỉ tồn tại như một
+  chỉ mục phụ và không bao giờ là mặc định.</div>
+
+  <div class="res">
+    <div class="wk"><span class="t">Tuyết Trung Hãn Đao Hành</span><span class="m">Trung → Việt · đang dịch</span><span class="n">19 kết quả</span></div>
+
+    <div class="hitrow tgt">
+      <div class="ch"><b>Chương 47</b>câu 88 · đã xác nhận</div>
+      <div class="sn">Trên vai hắn còn dính một <mark>mảnh giáp</mark> vỡ, mép sắc như răng cưa.</div>
+    </div>
+    <div class="hitrow tgt">
+      <div class="ch"><b>Chương 112</b>câu 12 · đã xác nhận</div>
+      <div class="sn">Người lính cúi xuống nhặt <mark>mảnh giáp</mark> lên, lau vệt máu đã khô.</div>
+    </div>
+    <div class="hitrow src">
+      <div class="ch"><b>Chương 112</b>câu 12 · nguyên văn <span class="side">nguồn</span></div>
+      <div class="sn zh">士兵彎腰撿起那片<mark>甲</mark>，擦掉已經乾涸的血跡。</div>
+    </div>
+    <div class="more">⋯ 16 kết quả nữa trong Tác phẩm này</div>
+
+    <div class="wk"><span class="t">Đại Đường Song Long Truyện</span><span class="m">Trung → Việt · tạm ngưng</span><span class="n">11 kết quả</span></div>
+    <div class="hitrow tgt">
+      <div class="ch"><b>Chương 8</b>câu 204 · chưa xác nhận</div>
+      <div class="sn">Từng <mark>mảnh giáp</mark> rơi xuống nền đá, tiếng vang dội khắp gian điện trống.</div>
+    </div>
+    <div class="more">⋯ 10 kết quả nữa trong Tác phẩm này</div>
+
+    <div class="wk"><span class="t">Hợp đồng phân phối 2025</span><span class="m">Anh → Việt · đã xong</span><span class="n">4 kết quả</span></div>
+    <div class="hitrow tgt">
+      <div class="ch"><b>Chương 1</b>câu 31 · đã xác nhận</div>
+      <div class="sn">Bên B chịu trách nhiệm với từng <mark>mảnh</mark> hàng hoá <mark>giáp</mark> ranh khu vực phân phối.</div>
+    </div>
+  </div>
+
+  <div class="box ok"><b>Kết quả trả về đủ ba thứ để đi tiếp: Tác phẩm, Chương và đoạn văn bản khớp.</b>
+  Vạch lề nói câu đó nằm ở phía nào — <b>đậm là bản dịch, nhạt là nguyên văn</b> — vì cùng một câu có thể khớp ở cả
+  hai phía và gộp chúng lại sẽ giấu mất chuyện đó. Bấm một kết quả là vào thẳng Workspace đúng Chương, đúng câu.</div>
+
+  <div class="status">
+    <span>Chỉ mục: 1.847 Chương · dựng lại lần cuối 2 ngày trước</span>
+    <span class="r"><span class="k">↵</span> mở · <span class="k">⌘↵</span> mở ở Chế độ đọc · <span class="k">Esc</span> đóng tìm kiếm</span>
+  </div>
+</div>
+
+<div class="rowlab">2 · Không có kết quả → hệ thống tự nới, và nói rõ là mình đã nới <span>FR9</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>1.847 Chương · 12 Tác phẩm</span></span>
+  </div>
+
+  <div class="bar">
+    <div class="search"><span class="q">manh giap</span><span class="cnt">34 kết quả · nới lỏng</span></div>
+    <span class="dia"><span>Chính xác dấu</span><span class="on">Khoan dung không dấu</span></span>
+    <span class="scopes"><span class="on">Cả hai</span><span>Nguyên văn</span><span>Bản dịch</span></span>
+    <span class="filters"><span class="on">Mọi trạng thái</span></span>
+  </div>
+
+  <div class="mode-note relax"><b>Không có kết quả nào khớp chính xác <code>manh giap</code> — đã tự chuyển sang
+  khoan dung không dấu.</b> Kết quả dưới đây gộp mọi biến thể dấu, nên chúng <b>không tương đương nhau</b>.
+  <span style="white-space:nowrap">Quay lại chính xác dấu: <span class="k">⌘⇧D</span></span></div>
+
+  <div class="res">
+    <div class="wk"><span class="t">Tuyết Trung Hãn Đao Hành</span><span class="m">Trung → Việt · đang dịch</span><span class="n">19 kết quả</span></div>
+    <div class="hitrow tgt">
+      <div class="ch"><b>Chương 47</b>câu 88</div>
+      <div class="sn">Trên vai hắn còn dính một <mark class="loose">mảnh giáp</mark> vỡ, mép sắc như răng cưa.</div>
+    </div>
+    <div class="hitrow tgt">
+      <div class="ch"><b>Chương 63</b>câu 141</div>
+      <div class="sn">Gió thổi <mark class="loose">mạnh</mark>, cờ trên thành <mark class="loose">giáp</mark> mặt nhau mà rách.</div>
+    </div>
+    <div class="hitrow tgt">
+      <div class="ch"><b>Chương 90</b>câu 7</div>
+      <div class="sn">Tấm <mark class="loose">mành</mark> trúc buông xuống, che kín cửa <mark class="loose">giáp</mark> phía đông.</div>
+    </div>
+    <div class="more">⋯ 16 kết quả nữa</div>
+  </div>
+
+  <div class="box warn"><b>Màu khớp đổi theo chế độ, và đó là chủ ý.</b> Ở chế độ chính xác, phần khớp mang màu nhấn
+  — nó nói <i>“đúng chữ bạn tìm”</i>. Ở chế độ nới lỏng, nó chuyển sang màu vàng của <i>gợi ý chưa chắc</i>, cùng màu
+  mà Translation Memory dùng cho câu chưa xác nhận. <b>Ba câu trên chứa <code>mảnh</code>, <code>mạnh</code> và
+  <code>mành</code> — ba từ khác hẳn nhau.</b> Nếu tô cùng một màu với chế độ chính xác thì giao diện đang nói dối
+  về độ chắc chắn của chính nó.</div>
+</div>
+
+<div class="rowlab">3 · Không có gì cả — hai câu khác nhau cho hai lý do khác nhau</div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></span>
+  </div>
+  <div class="bar">
+    <div class="search"><span class="q">thiết kỵ tây bắc</span><span class="cnt">0 kết quả</span></div>
+    <span class="dia"><span>Chính xác dấu</span><span class="on">Khoan dung không dấu</span></span>
+    <span class="filters"><span class="on">Chỉ Tác phẩm đã xong</span><span>Trung → Việt</span></span>
+  </div>
+
+  <div class="empty">
+    <div class="rule"></div>
+    <div class="big">Không có kết quả, kể cả khi bỏ dấu</div>
+    <div class="small">Đã tìm trong nguyên văn và bản dịch của mọi Tác phẩm. Bộ lọc đang thu hẹp phạm vi
+    xuống <b>Tác phẩm đã xong</b> và <b>Trung → Việt</b> — 1.203 trong 1.847 Chương không được tìm tới.</div>
+    <div class="sugg">
+      <b>Bỏ bộ lọc</b> để tìm trong cả 1.847 Chương<br>
+      <b>Tra Concordance</b> nếu bạn đang tìm cách mình từng dịch một cụm<br>
+      <b>Quét lại thư mục</b> nếu Tác phẩm vừa được copy vào từ máy khác
+    </div>
+  </div>
+
+  <div class="box ok"><b>Trạng thái rỗng phải nêu vì sao rỗng.</b> Ở đây lý do thật không phải “không có gì” mà là
+  <b>bộ lọc đang chặn 1.203 Chương</b> — nói ra con số đó là khác biệt giữa một câu vô dụng và một câu giải quyết
+  được vấn đề. Người dùng là dịch giả chuyên nghiệp: không minh hoạ to, không dấu chấm than, không xin lỗi.</div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR8</b> full-text xuyên toàn bộ Library, đồng thời nguyên văn và bản dịch</span>
+  <span class="fc"><b>FR9</b> chính xác dấu là mặc định · chỉ nới khi rỗng hoặc khi người dùng yêu cầu</span>
+  <span class="fc"><b>FR10</b> lọc và sắp theo trạng thái, lĩnh vực, ngôn ngữ nguồn, ngày sửa</span>
+  <span class="fc"><b>NFR8</b> chỉ mục chính phân biệt dấu · chỉ mục xoá dấu chỉ là phụ</span>
+  <span class="fc"><b>NFR3</b> p95 dưới 500 ms trên thư viện 5.000 Chương — ngưỡng tạm, hiệu chỉnh ở Giai đoạn 3</span>
+</div>

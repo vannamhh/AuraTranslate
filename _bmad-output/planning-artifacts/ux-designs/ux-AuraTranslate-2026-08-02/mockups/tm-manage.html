@@ -1,0 +1,320 @@
+<meta charset="utf-8">
+<title>Quản lý Translation Memory — xuất xứ, nhiều bản dịch, TMX — FR57 · FR62 · FR63 · FR64 · FR118</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.66}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2;line-height:1.75}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600;line-height:1.66}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.tbt{margin-left:14px;font-size:12.5px;color:var(--ink-2)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+/* thanh lọc */
+.bar{display:flex;align-items:center;gap:12px;padding:11px 20px;background:var(--sunken);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
+.seg span{font-size:12px;padding:5px 13px;color:var(--ink-2);border-right:1px solid var(--line)}
+.seg span:last-child{border-right:0}
+.seg .on{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.srch{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:6px 11px;
+  font-size:12.5px;color:var(--ink-2);min-width:210px}
+.pill{font-size:11px;border:1px solid var(--line);border-radius:20px;padding:4px 11px;color:var(--ink-2);background:var(--surface)}
+.pill.on{border-color:var(--primary);color:var(--primary);font-weight:600;background:var(--accent-bg)}
+.pill.other{border-color:var(--tm);color:var(--tm-text);font-weight:600;background:var(--tm-bg)}
+.bar .r{margin-left:auto;font-size:11.5px;color:var(--ink-2);line-height:1.66}
+
+/* dải sức khoẻ TM */
+.health{display:flex;align-items:center;gap:18px;padding:13px 20px;border-bottom:1px solid var(--line);
+  background:var(--bg);flex-wrap:wrap}
+.mix{flex:1;min-width:260px;max-width:400px}
+.mix .track{height:5px;background:var(--sunken);border-radius:3px;overflow:hidden;display:flex}
+.mix .track i{display:block;height:100%}
+.mix .lg{margin-top:7px;display:flex;gap:16px;font-size:11.5px;color:var(--ink-2);flex-wrap:wrap;line-height:1.66}
+.mix .lg span{display:flex;align-items:center;gap:6px}
+.sw{width:8px;height:8px;border-radius:2px}
+.sw.own{background:var(--primary)}
+.sw.other{background:var(--tm)}
+.sw.imp{background:var(--orn)}
+.hnote{font-size:12px;color:var(--ink-2);line-height:1.8;max-width:430px}
+.hnote b{color:var(--ink)}
+
+/* danh sách cặp */
+.list{background:var(--surface)}
+.pair{display:grid;grid-template-columns:1fr 1fr 128px 92px;gap:16px;padding:11px 20px 11px 32px;
+  position:relative;border-bottom:1px solid var(--line-2);align-items:start}
+.pair::before{content:"";position:absolute;left:20px;top:13px;bottom:13px;width:2px;border-radius:2px;background:var(--primary)}
+.pair.other::before{background:var(--tm)}
+.pair.imp::before{background:var(--orn)}
+.pair.multi{background:var(--tm-bg)}
+.src{font-family:var(--read);font-size:14.5px;line-height:1.85;min-width:0}
+.tgt{font-family:var(--read);font-size:14.5px;line-height:1.85;min-width:0}
+.meta{font-size:11px;color:var(--ink-2);line-height:1.8}
+.meta b{display:block;color:var(--ink);font-weight:600}
+.own-t{color:var(--primary);font-weight:600}
+.other-t{color:var(--tm-text);font-weight:600}
+.imp-t{color:var(--ink-2);font-weight:600}
+.acts{display:flex;flex-direction:column;gap:5px}
+.btn{border-radius:4px;padding:4px 11px;font-size:11.5px;border:1px solid var(--line);background:var(--bg);color:var(--ink);text-align:center}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.btn.wide{padding:6px 15px;font-size:12.5px}
+
+/* nhóm nhiều bản dịch */
+.mhead{padding:9px 20px 5px 32px;font-size:11px;color:var(--tm-text);position:relative;line-height:1.66;background:var(--tm-bg);
+  border-bottom:1px solid #eadfc7}
+.mhead::before{content:"";position:absolute;left:20px;top:9px;bottom:5px;width:2px;border-radius:2px;background:var(--tm)}
+.mhead b{color:var(--ink)}
+.alt{padding-left:46px}
+.alt::before{left:34px}
+
+.box{padding:12px 20px;font-size:12.5px;line-height:1.8}
+.box.warn{background:var(--tm-bg);border-left:2px solid var(--tm);color:var(--tm-text)}
+.box.ok{background:#f1f6ee;border-left:2px solid var(--confirmed);color:var(--ink-2)}
+.box.info{background:var(--accent-bg);border-left:2px solid var(--primary);color:var(--ink-2)}
+.box b{color:var(--ink)}
+.box code{font-family:ui-monospace,monospace;font-size:11.5px}
+
+.btnrow{display:flex;gap:10px;align-items:center;padding:14px 20px;border-top:1px solid var(--line-2);background:var(--bg);flex-wrap:wrap}
+.btnrow .hint{margin-left:auto;font-size:11.5px;color:var(--ink-2);line-height:1.66}
+
+/* TMX */
+.pad{padding:20px 24px 24px}
+.h2{font-family:var(--read);font-size:19px;margin:0 0 3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:17px;line-height:1.8;max-width:760px}
+.halves{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.card{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:15px 17px}
+.card h4{margin:0 0 9px;font-family:var(--read);font-size:15px;font-weight:600}
+.card p{margin:10px 0 0;font-size:12px;line-height:1.8;color:var(--ink-2)}
+.card p b{color:var(--ink)}
+.mono{font-family:ui-monospace,monospace;font-size:11px;line-height:1.85;color:var(--ink-2);
+  background:var(--bg);border:1px solid var(--line-2);border-radius:3px;padding:10px 12px;overflow-x:auto;white-space:pre}
+.mono b{color:var(--ink);font-weight:600}
+.chk{display:flex;align-items:baseline;gap:9px;padding:7px 0;font-size:12.5px;line-height:1.66;border-bottom:1px solid var(--line-2)}
+.chk:last-of-type{border-bottom:0}
+.cbox{width:11px;height:11px;border:1px solid var(--line);border-radius:2px;flex:none;position:relative;top:2px}
+.cbox.on{background:var(--primary);border-color:var(--primary)}
+.chk .s{margin-left:auto;font-size:11px;color:var(--ink-2)}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.66}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Quản lý Translation Memory — và rủi ro chỉ nhìn thấy được ở đây</b>
+  <div class="sub">TM tự đầy lên, không có nút thêm, không có thao tác thủ công nào. Chính vì vậy nó là kho duy nhất
+  trong sản phẩm mà người dùng <b>không bao giờ nhìn tới cho đến khi có chuyện</b>. Màn hình này tồn tại cho ba việc:
+  dọn khi cần (FR62), thấy được rằng cùng một câu có nhiều cách dịch (FR63), và — quan trọng nhất —
+  <b>phát hiện TM đang đầy lên bằng văn phong của người khác</b> (FR118).</div>
+</div>
+
+<div class="rowlab">1 · Xuất xứ là cột đầu tiên, không phải một bộ lọc phụ <span>FR118 · R13</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="tbt">Translation Memory · Tuyết Trung Hãn Đao Hành</span>
+    <span class="right"><span class="k">⌘M</span></span>
+  </div>
+
+  <div class="bar">
+    <span class="seg"><span>Toàn cục <b>38.204</b></span><span class="on">Tác phẩm <b>12.409</b></span><span>Cả hai</span></span>
+    <span class="srch">Tìm trong câu nguồn hoặc câu đích…</span>
+    <span class="pill on">Mọi xuất xứ</span>
+    <span class="pill">Của tôi 11.882</span>
+    <span class="pill other">Của người khác 527</span>
+    <span class="r">Sắp theo: <b>ghi gần nhất</b></span>
+  </div>
+
+  <div class="health">
+    <div class="mix">
+      <div class="track">
+        <i style="width:95.7%;background:var(--primary)"></i>
+        <i style="width:4.3%;background:var(--tm)"></i>
+      </div>
+      <div class="lg">
+        <span><i class="sw own"></i>Tôi dịch 11.882 · 95,7%</span>
+        <span><i class="sw other"></i>Người khác dịch 527 · 4,3%</span>
+        <span><i class="sw imp"></i>Nhập từ tài liệu song ngữ 0</span>
+      </div>
+    </div>
+    <div class="hnote"><b>Tỷ lệ này là thứ đáng theo dõi, không phải một con số trang trí.</b> Smart RAG Injector
+    ưu tiên cặp của chính bạn; phần của người khác chỉ được chèn khi không đủ, và khi chèn thì đánh dấu rõ trong
+    prompt là văn phong tham khảo.</div>
+  </div>
+
+  <div class="list">
+    <div class="pair">
+      <div class="src">他知道身後那扇門一旦關上，就再也推不開了。</div>
+      <div class="tgt">Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa.</div>
+      <div class="meta"><b class="own-t">Tôi dịch</b>Chương 47 · câu 88<br>12 phút trước</div>
+      <div class="acts"><button class="btn">Sửa</button><button class="btn">Xoá</button></div>
+    </div>
+
+    <div class="pair">
+      <div class="src">少年沒有回頭。</div>
+      <div class="tgt">Thiếu niên không quay đầu lại.</div>
+      <div class="meta"><b class="own-t">Tôi dịch</b>Chương 47 · câu 87<br>14 phút trước</div>
+      <div class="acts"><button class="btn">Sửa</button><button class="btn">Xoá</button></div>
+    </div>
+
+    <div class="mhead">Cùng một câu nguồn, <b>3 bản dịch khác nhau</b> — cả ba đều được giữ, không bản nào ghi đè bản nào</div>
+
+    <div class="pair multi">
+      <div class="src">風從走廊盡頭吹來。</div>
+      <div class="tgt">Gió thổi tới từ cuối hành lang.</div>
+      <div class="meta"><b class="own-t">Tôi dịch</b>Chương 47 · câu 86<br>03-08</div>
+      <div class="acts"><button class="btn">Sửa</button><button class="btn">Xoá</button></div>
+    </div>
+    <div class="pair multi alt">
+      <div class="src" style="color:var(--ink-2)">— cùng câu nguồn —</div>
+      <div class="tgt">Gió từ cuối hành lang thổi lại.</div>
+      <div class="meta"><b class="own-t">Tôi dịch</b>Chương 12 · câu 4<br>14-07</div>
+      <div class="acts"><button class="btn">Sửa</button><button class="btn">Xoá</button></div>
+    </div>
+    <div class="pair multi alt other">
+      <div class="src" style="color:var(--ink-2)">— cùng câu nguồn —</div>
+      <div class="tgt">Từ phía cuối hành lang có gió thổi tới.</div>
+      <div class="meta"><b class="other-t">Người khác dịch</b>Chương 5 · câu 61<br>28-06</div>
+      <div class="acts"><button class="btn">Sửa</button><button class="btn">Xoá</button></div>
+    </div>
+
+    <div class="pair other">
+      <div class="src">徐鳳年沒有說話。</div>
+      <div class="tgt">Từ Phượng Niên chẳng nói năng gì.</div>
+      <div class="meta"><b class="other-t">Người khác dịch</b>Chương 5 · câu 62<br>28-06</div>
+      <div class="acts"><button class="btn">Sửa</button><button class="btn">Xoá</button></div>
+    </div>
+  </div>
+
+  <div class="box ok"><b>Ba bản dịch cho một câu nguồn không phải lỗi cần dọn.</b> Người dịch đổi cách diễn đạt theo
+  ngữ cảnh, và cả ba đều đúng ở chỗ của nó. Hệ thống giữ tất cả kèm ngày và hiển thị tất cả để người dùng tự chọn —
+  ghi đè bản cũ sẽ xoá mất chính thứ khiến TM có giá trị: <b>bạn đã từng nghĩ gì</b>, không chỉ bạn đang nghĩ gì.</div>
+
+  <div class="box info"><b>Xuất xứ được suy ra từ hành vi, không hỏi người dùng lấy một lần.</b> Bạn gõ bản dịch rồi
+  xác nhận, hoặc <b>sửa</b> câu sẵn có rồi xác nhận → <i>tôi dịch</i>, vì câu sau khi sửa là chữ của bạn. Bạn duyệt
+  <b>nguyên văn</b> một câu sẵn có mà không sửa gì → <i>người khác dịch</i>. Hệ thống biết được vì nó thấy bạn có gõ
+  hay không.</div>
+
+  <div class="btnrow">
+    <button class="btn wide pri">Xuất TMX</button>
+    <button class="btn wide">Nhập TMX</button>
+    <button class="btn wide">Xoá toàn bộ cặp <i>của người khác</i></button>
+    <span class="hint"><span class="k">⌫</span> xoá cặp đang chọn · sửa tại chỗ bằng nhấp đúp</span>
+  </div>
+</div>
+
+<div class="rowlab">2 · Kịch bản mà FR118 tồn tại để chặn <span>lệch dần, và không có gì báo · R13</span></div>
+<div class="win">
+  <div class="bar">
+    <span class="seg"><span>Toàn cục <b>38.204</b></span><span class="on">Tác phẩm <b>9.140</b></span><span>Cả hai</span></span>
+    <span class="pill">Mọi xuất xứ</span>
+    <span class="pill">Của tôi 1.204</span>
+    <span class="pill other on">Của người khác 7.936</span>
+    <span class="r">Tác phẩm: <b>Trường An Loạn</b> — bạn đang ở vai biên tập</span>
+  </div>
+
+  <div class="health">
+    <div class="mix">
+      <div class="track">
+        <i style="width:13.2%;background:var(--primary)"></i>
+        <i style="width:86.8%;background:var(--tm)"></i>
+      </div>
+      <div class="lg">
+        <span><i class="sw own"></i>Tôi dịch 1.204 · 13,2%</span>
+        <span><i class="sw other"></i>Người khác dịch 7.936 · <b style="color:var(--tm-text)">86,8%</b></span>
+      </div>
+    </div>
+    <div class="hnote"><b>Tác phẩm này do người khác dịch, bạn chỉ biên tập.</b> 86,8% cặp TM mang văn phong không
+    phải của bạn — và đó là chuyện <b>bình thường</b> ở vai biên tập, không phải lỗi.</div>
+  </div>
+
+  <div class="box warn"><b>Chuyện gì sẽ xảy ra nếu không có FR117 và FR118.</b> Mọi câu bạn duyệt qua đều đổ chung
+  vào một kho TM không phân biệt. Vài tháng sau, kho TM toàn cục của bạn đầy lên bằng văn phong của người khác,
+  Smart RAG Injector chèn những câu đó vào prompt như thể chúng là chuẩn của bạn, và <b>AI học sai người</b>.
+  Nguy hiểm nằm ở chỗ nó <b>lệch dần và không có gì báo</b> — bản dịch cứ ngày một xa dần giọng của chính bạn mà
+  không có một thời điểm nào để nhận ra.</div>
+
+  <div class="box ok"><b>Và vì sao lời giải không phải là “đừng ghi”.</b> Biên tập 200 chương mà không ghi gì thì
+  toàn bộ bài học biến mất — kể cả những câu <b>chính bạn viết lại từ đầu</b>. Xuất xứ ở cấp cặp phân biệt được hai
+  loại đó, nên không phải hy sinh gì cả: 1.204 câu bạn thật sự viết vẫn vào TM với xuất xứ <i>của tôi</i> và vẫn được
+  Smart RAG ưu tiên. <b>Không tốn thêm một thao tác nào của người dùng.</b></div>
+
+  <div class="btnrow">
+    <button class="btn wide">Chỉ dùng cặp <i>của tôi</i> cho Tác phẩm này</button>
+    <button class="btn wide">Xuất riêng 1.204 cặp của tôi</button>
+    <span class="hint">Hai thao tác này là lối thoát, không phải việc phải làm — mặc định đã đúng</span>
+  </div>
+</div>
+
+<div class="rowlab">3 · TMX — dữ liệu sống lâu hơn phần mềm <span>FR64 · NFR9 · trụ định vị #3</span></div>
+<div class="win">
+  <div class="pad">
+    <div class="h2">Xuất Translation Memory</div>
+    <div class="h2s">TMX là định dạng chuẩn của ngành, mọi CAT tool đọc được. Đây không phải một tính năng tiện ích
+    mà là <b>điều kiện của lời hứa local-first</b>: người dùng không bị khoá vào <code>.atproj</code>, và nếu
+    AuraTranslate biến mất thì mười năm tích luỹ vẫn đi tiếp được sang công cụ khác.</div>
+
+    <div class="halves">
+      <div class="card">
+        <h4>Chọn phạm vi</h4>
+        <div class="chk"><span class="cbox on"></span><span>TM của Tác phẩm này</span><span class="s">12.409 cặp</span></div>
+        <div class="chk"><span class="cbox"></span><span>TM toàn cục</span><span class="s">38.204 cặp</span></div>
+        <div class="chk"><span class="cbox on"></span><span>Chỉ cặp xuất xứ <i>tôi dịch</i></span><span class="s">11.882 cặp</span></div>
+        <div class="chk"><span class="cbox"></span><span>Kèm mọi bản dịch khi một câu có nhiều bản</span><span class="s">+ 1.640 cặp</span></div>
+        <p><b>Lọc theo xuất xứ khi xuất là quan trọng.</b> Chia sẻ TM cho người dịch khác mà kèm cả phần văn phong
+        của người thứ ba là truyền tiếp một sự pha trộn mà người nhận không biết mình đang nhận.</p>
+      </div>
+
+      <div class="card">
+        <h4>Xuất xứ đi theo file, không rơi lại</h4>
+        <div class="mono">&lt;tu&gt;
+  &lt;prop type="x-origin"&gt;<b>own</b>&lt;/prop&gt;
+  &lt;prop type="x-work"&gt;Tuyết Trung…&lt;/prop&gt;
+  &lt;tuv xml:lang="zh"&gt;
+    &lt;seg&gt;少年沒有回頭。&lt;/seg&gt;
+  &lt;/tuv&gt;
+  &lt;tuv xml:lang="vi"&gt;
+    &lt;seg&gt;Thiếu niên không quay đầu lại.&lt;/seg&gt;
+  &lt;/tuv&gt;
+&lt;/tu&gt;</div>
+        <p>Xuất xứ được ghi bằng <code>&lt;prop&gt;</code> — trường mở rộng hợp lệ của TMX. Công cụ khác
+        <b>bỏ qua nó một cách an toàn</b>, còn AuraTranslate đọc lại được khi nhập.</p>
+        <p><b>Nhập TMX từ nguồn ngoài thì xuất xứ là gì?</b> Nếu file không có trường đó, mọi cặp vào với
+        <i>người khác dịch</i>. Đây là lựa chọn thận trọng có chủ ý: coi văn phong lạ là của mình sẽ làm hỏng
+        đúng thứ FR118 tồn tại để bảo vệ, và sai theo hướng ngược lại thì chỉ tốn một lần lọc.</p>
+      </div>
+    </div>
+
+    <div class="box info" style="margin-top:18px;border-radius:0 3px 3px 0"><b>TM có phạm vi kép, tương ứng hai tầng
+    của Glossary.</b> TM riêng theo Tác phẩm giữ cách dịch đặc thù của tài liệu đó; TM toàn cục tích luỹ giọng văn
+    chung của bạn qua mọi Tác phẩm. Khi khớp, cả hai đều được tra — nhưng cặp cùng Tác phẩm được ưu tiên khi
+    điểm khớp ngang nhau, vì ngữ cảnh gần hơn.</div>
+
+    <div class="btnrow" style="border-top:0;padding-left:0;padding-right:0">
+      <button class="btn wide pri">Xuất 11.882 cặp ra TMX</button>
+      <button class="btn wide">Nhập TMX…</button>
+      <span class="hint">Nhập có màn hình xem trước và xử lý trùng, cùng khuôn với nhập Glossary</span>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR56</b> ghi tự động khi xác nhận segment — không có thao tác thủ công nào</span>
+  <span class="fc"><b>FR57</b> phạm vi kép: TM Tác phẩm và TM toàn cục</span>
+  <span class="fc"><b>FR62</b> xem, sửa, xoá · lọc theo xuất xứ để rà lại hoặc dọn</span>
+  <span class="fc"><b>FR63</b> nhiều bản dịch cho một câu nguồn đều được giữ kèm ngày</span>
+  <span class="fc"><b>FR64 · NFR9</b> xuất và nhập TMX — người dùng không bị khoá vào <code>.atproj</code></span>
+  <span class="fc"><b>FR117 · FR118</b> xuất xứ suy ra từ hành vi · TM không trộn phong cách</span>
+</div>

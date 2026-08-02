@@ -1,0 +1,270 @@
+<meta charset="utf-8">
+<title>Bộ prompt theo thể loại — hai tầng, soạn, chia sẻ — FR69 · FR79</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.7}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.tbt{margin-left:14px;font-size:12.5px;color:var(--ink-2)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+.bar{display:flex;align-items:center;gap:13px;padding:11px 18px;background:var(--sunken);border-bottom:1px solid var(--line)}
+.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
+.seg span{font-size:12px;padding:5px 13px;color:var(--ink-2);border-right:1px solid var(--line)}
+.seg span:last-child{border-right:0}
+.seg .on{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.bar .msg{font-size:11.5px;color:var(--ink-2);line-height:1.66}
+.bar .msg b{color:var(--ink)}
+.bar .r{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+.cols{display:grid;grid-template-columns:238px 1fr;background:var(--surface)}
+.list{border-right:1px solid var(--line);padding:9px 0;min-width:0}
+.gh{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);padding:11px 16px 6px}
+.it{padding:8px 16px 8px 14px;border-left:2px solid transparent;line-height:1.66}
+.it .n{font-family:var(--read);font-size:14px}
+.it .m{font-size:11px;color:var(--ink-2);margin-top:1px}
+.it.on{border-left-color:var(--primary);background:var(--accent-bg)}
+.it.on .n{color:var(--primary);font-weight:600}
+.it .tagx{font-size:10px;letter-spacing:.05em;border-radius:2px;padding:1px 6px;margin-left:6px;
+  background:var(--accent-bg);color:var(--primary);font-weight:600}
+
+.ed{padding:18px 24px 24px;min-width:0}
+.h2{font-family:var(--read);font-size:19px;margin:0 0 3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:16px;line-height:1.75;max-width:700px}
+.meta{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:15px}
+.pill{font-size:11px;border:1px solid var(--line);border-radius:20px;padding:4px 11px;color:var(--ink-2);background:var(--bg)}
+.pill.on{border-color:var(--primary);color:var(--primary);font-weight:600;background:var(--accent-bg)}
+
+.sh{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line-2)}
+.sh+.sh{margin-top:20px}
+.ta{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:13px 15px;
+  font-family:var(--read);font-size:13.5px;line-height:1.85;color:var(--ink);white-space:pre-wrap}
+.ta .var{background:var(--accent-bg);color:var(--primary);border-radius:2px;padding:0 4px;
+  font-family:ui-monospace,monospace;font-size:11.5px}
+.vars{margin-top:13px}
+.vrow{display:flex;align-items:baseline;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-2);font-size:12px;line-height:1.66}
+.vrow:last-child{border-bottom:0}
+.vrow code{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--primary);min-width:150px}
+.vrow .d{color:var(--ink-2);flex:1}
+.vrow .s{font-size:10.5px;color:var(--ink-2);white-space:nowrap}
+
+.okbox{background:#f1f6ee;border-left:2px solid var(--confirmed);border-radius:0 3px 3px 0;padding:11px 14px;
+  font-size:12px;line-height:1.75;color:var(--ink-2);margin-top:15px}
+.okbox b{color:var(--ink)}
+.warnbox{background:var(--tm-bg);border-left:2px solid var(--tm);border-radius:0 3px 3px 0;padding:11px 14px;
+  font-size:12px;line-height:1.75;color:var(--tm-text);margin-top:15px}
+.warnbox b{color:var(--ink)}
+
+.btnrow{margin-top:19px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{border-radius:4px;padding:6px 15px;font-size:12.5px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.btnrow .hint{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+/* khối chia sẻ */
+.pad{padding:20px 24px 24px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.card{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:14px 16px}
+.card h4{margin:0 0 8px;font-family:var(--read);font-size:15px;font-weight:600}
+.card p{margin:9px 0 0;font-size:12px;line-height:1.75;color:var(--ink-2)}
+.card p b{color:var(--ink)}
+.mono{font-family:ui-monospace,monospace;font-size:11.5px;line-height:1.8;color:var(--ink-2);
+  background:var(--bg);border:1px solid var(--line-2);border-radius:3px;padding:9px 11px;overflow-x:auto;white-space:pre}
+.chk{display:flex;align-items:baseline;gap:9px;padding:6px 0;font-size:12.5px;line-height:1.66;border-bottom:1px solid var(--line-2)}
+.chk:last-of-type{border-bottom:0}
+.box{width:11px;height:11px;border:1px solid var(--line);border-radius:2px;flex:none;position:relative;top:2px}
+.box.on{background:var(--primary);border-color:var(--primary)}
+.chk .s{margin-left:auto;font-size:11px;color:var(--ink-2)}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.6}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Bộ prompt theo thể loại</b>
+  <div class="sub">Phạm vi đã chốt là <b>mọi lĩnh vực</b> với cặp ngôn ngữ cố định — truyện, tài liệu kỹ thuật,
+  báo chí, hợp đồng. Custom prompt chính là thứ khiến <b>một công cụ phục vụ được nhiều lĩnh vực</b> mà không cần
+  nhiều chế độ riêng, nên nó là cơ chế chính chứ không phải tính năng phụ. Và vì nó là file văn bản mở, nó cũng là
+  thứ cộng đồng chia sẻ cho nhau dễ nhất (FR79).</div>
+</div>
+
+<div class="rowlab">1 · Soạn prompt <span>phần chèn động không nằm trong ô soạn — Smart RAG Injector ghép vào lúc gọi · FR69 · FR70</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="tbt">Prompt</span>
+    <span class="right"><span class="k">⌘,</span></span>
+  </div>
+
+  <div class="bar">
+    <span class="seg"><span>Toàn cục <b>9</b></span><span class="on">Tác phẩm <b>2</b></span><span>Cả hai</span></span>
+    <span class="msg">Tác phẩm <b>Tuyết Trung Hãn Đao Hành</b> — prompt ở tầng này thắng prompt cùng tên ở Toàn cục</span>
+    <span class="r">Đang dùng: <b>Tiên hiệp · giọng cổ trang</b></span>
+  </div>
+
+  <div class="cols">
+    <div class="list">
+      <div class="gh">Tác phẩm này</div>
+      <div class="it on">
+        <div class="n">Tiên hiệp · giọng cổ trang</div>
+        <div class="m">sửa 3 giờ trước<span class="tagx">đang dùng</span></div>
+      </div>
+      <div class="it">
+        <div class="n">Đoạn hội thoại</div>
+        <div class="m">dùng khi segment là lời thoại</div>
+      </div>
+
+      <div class="gh">Toàn cục</div>
+      <div class="it"><div class="n">Tiên hiệp</div><div class="m">bị prompt cùng tên ở trên che</div></div>
+      <div class="it"><div class="n">Truyện hiện đại</div><div class="m">giọng đời thường</div></div>
+      <div class="it"><div class="n">Tài liệu kỹ thuật</div><div class="m">bám sát, không diễn giải</div></div>
+      <div class="it"><div class="n">Báo chí</div><div class="m">câu ngắn, chủ động</div></div>
+      <div class="it"><div class="n">Hợp đồng</div><div class="m">giữ nguyên cấu trúc điều khoản</div></div>
+      <div class="it"><div class="n">Học thuật</div><div class="m">giữ thuật ngữ chuyên ngành</div></div>
+      <div class="it"><div class="n">Anh → Việt cơ bản</div><div class="m">mặc định cho tài liệu tiếng Anh</div></div>
+    </div>
+
+    <div class="ed">
+      <div class="h2">Tiên hiệp · giọng cổ trang</div>
+      <div class="h2s">Prompt tầng Tác phẩm. Sửa ở đây không chạm tới bản Toàn cục cùng tên — bản đó vẫn phục vụ
+      các Tác phẩm tiên hiệp khác.</div>
+
+      <div class="meta">
+        <span class="pill on">Trung → Việt</span>
+        <span class="pill">Áp cho mọi segment</span>
+        <span class="pill">Áp cho lời thoại</span>
+        <span class="pill">Áp cho tả cảnh</span>
+      </div>
+
+      <div class="sh">Nội dung prompt</div>
+      <div class="ta">Bạn dịch tiểu thuyết tiên hiệp Trung Quốc sang tiếng Việt.
+
+Giọng văn: cổ trang, trang trọng vừa phải, không sáo rỗng. Ưu tiên từ Hán Việt cho
+danh xưng, chức vị và tên công pháp; dùng từ thuần Việt cho tả cảnh và tâm lý.
+
+Giữ nguyên cách xuống dòng của bản gốc. Không thêm lời giải thích, không thêm chú thích.
+
+Với thuật ngữ có trong danh sách dưới đây, <b>bắt buộc dùng đúng bản dịch đã cho</b>.
+
+<span class="var">{{glossary_terms}}</span>
+
+Tham khảo cách người dịch này đã xử lý những câu tương tự:
+
+<span class="var">{{tm_similar_segments}}</span>
+
+Câu cần dịch:
+
+<span class="var">{{source_segment}}</span></div>
+
+      <div class="sh">Biến chèn động</div>
+      <div class="vars">
+        <div class="vrow"><code>{{glossary_terms}}</code>
+          <span class="d">Thuật ngữ Glossary xuất hiện trong câu nguồn, kèm bản dịch <b>đã chốt</b></span>
+          <span class="s">bắt buộc có</span></div>
+        <div class="vrow"><code>{{tm_similar_segments}}</code>
+          <span class="d">Segment tương tự tìm được trong Translation Memory, <b>ưu tiên cặp của chính bạn</b></span>
+          <span class="s">nên có</span></div>
+        <div class="vrow"><code>{{source_segment}}</code>
+          <span class="d">Câu nguồn đang dịch</span>
+          <span class="s">bắt buộc có</span></div>
+        <div class="vrow"><code>{{chapter_context}}</code>
+          <span class="d">Hai câu trước và hai câu sau, cho ngữ cảnh</span>
+          <span class="s">chưa dùng</span></div>
+      </div>
+
+      <div class="okbox"><b>Ô soạn không chứa nội dung thật của phần chèn.</b> Nó chỉ đánh dấu <i>chèn vào đâu</i>.
+      Nội dung thật được Smart RAG Injector quét ra ngay trước mỗi lần gọi, nên nó khác nhau ở từng câu.
+      Muốn xem bản cuối cùng đã gửi đi thì mở <b>Xem prompt</b> — đó là công cụ chẩn đoán duy nhất khi AI không tuân
+      thủ Glossary.</div>
+
+      <div class="warnbox"><b>Bỏ <code>{{glossary_terms}}</code> ra khỏi prompt là tự tắt Glossary Enforcement.</b>
+      Không có gì chặn bạn làm vậy — nhưng khi đó AI sẽ không còn bị ép dùng thuật ngữ đã chốt, và tỷ lệ tuân thủ
+      Glossary ở tầng B của bảng chỉ số sẽ tụt mà không có gì báo. Cảnh báo này hiện ngay lúc lưu.</div>
+
+      <div class="btnrow">
+        <button class="btn pri">Dùng prompt này</button>
+        <button class="btn">Xem prompt cuối cùng đã gửi</button>
+        <button class="btn">Nhân bản</button>
+        <button class="btn">Xoá</button>
+        <span class="hint">Lưu ngay khi rời ô</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rowlab">2 · Chia sẻ với người dịch khác <span>file văn bản mở, không định dạng gói, không server · FR79</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="tbt">Xuất bộ prompt</span>
+  </div>
+
+  <div class="pad">
+    <div class="h2">Xuất bộ prompt</div>
+    <div class="h2s">Ranh giới đã chốt cho v1: cộng đồng chia sẻ <b>chỉ qua trao đổi file</b> — Glossary bằng CSV/TSV,
+    prompt bằng file văn bản, Translation Memory bằng TMX. Không xây định dạng gói riêng, không xây hạ tầng phân phối,
+    không có server và không có tài khoản. Chia sẻ đi qua GitHub và diễn đàn, đúng cách QuickTranslator từng lan toả.</div>
+
+    <div class="two">
+      <div class="card">
+        <h4>Chọn prompt để xuất</h4>
+        <div class="chk"><span class="box on"></span><span>Tiên hiệp · giọng cổ trang</span><span class="s">Tác phẩm</span></div>
+        <div class="chk"><span class="box on"></span><span>Đoạn hội thoại</span><span class="s">Tác phẩm</span></div>
+        <div class="chk"><span class="box"></span><span>Tiên hiệp</span><span class="s">Toàn cục</span></div>
+        <div class="chk"><span class="box on"></span><span>Truyện hiện đại</span><span class="s">Toàn cục</span></div>
+        <div class="chk"><span class="box"></span><span>Tài liệu kỹ thuật</span><span class="s">Toàn cục</span></div>
+        <div class="chk"><span class="box"></span><span>Hợp đồng</span><span class="s">Toàn cục</span></div>
+        <p><b>Prompt không mang theo Glossary.</b> Tên biến được giữ nguyên, nhưng nội dung chèn đến từ Glossary của
+        <b>người nhận</b>, không phải của bạn. Muốn chia sẻ cả thuật ngữ thì xuất CSV riêng.</p>
+      </div>
+
+      <div class="card">
+        <h4>File sẽ tạo ra</h4>
+        <div class="mono">tien-hiep-co-trang.prompt.md
+doan-hoi-thoai.prompt.md
+truyen-hien-dai.prompt.md</div>
+        <p>Mỗi prompt là <b>một file Markdown đọc được bằng mắt</b> — phần đầu là metadata, phần thân là nội dung
+        prompt nguyên văn. Mở bằng bất kỳ trình soạn thảo nào, sửa bằng tay, gửi qua bất kỳ đường nào.</p>
+        <div class="mono" style="margin-top:11px">---
+tên: Tiên hiệp · giọng cổ trang
+cặp ngôn ngữ: zh-vi
+biến: glossary_terms, tm_similar_segments,
+      source_segment
+---
+Bạn dịch tiểu thuyết tiên hiệp Trung Quốc…</div>
+        <p><b>Không mã hoá, không nén, không khoá.</b> Dữ liệu phải sống lâu hơn phần mềm — một prompt không đọc được
+        khi AuraTranslate biến mất thì không phải là dữ liệu của người dùng.</p>
+      </div>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn pri">Xuất 3 file</button>
+      <button class="btn">Nhập từ file</button>
+      <span class="hint">Nhập cũng có màn hình xem trước và xử lý trùng tên, cùng khuôn với nhập Glossary</span>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR69</b> prompt theo thể loại, hai tầng, tầng Tác phẩm thắng</span>
+  <span class="fc"><b>FR70</b> biến chèn động là chỗ Glossary và TM nhân giá trị cho nhau</span>
+  <span class="fc"><b>FR71</b> đường sang “Xem prompt cuối cùng đã gửi” nằm ngay tại chỗ soạn</span>
+  <span class="fc"><b>FR79</b> xuất nhập bằng file văn bản mở, đọc được bằng mắt</span>
+  <span class="fc"><b>NFR9</b> không mã hoá, không khoá — dữ liệu sống lâu hơn phần mềm</span>
+</div>

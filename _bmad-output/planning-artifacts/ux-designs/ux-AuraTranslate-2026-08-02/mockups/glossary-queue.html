@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Bảng chờ Glossary — duyệt 340 ứng viên bằng một phím</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.6}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.85;margin-top:4px;max-width:870px}
+.win{max-width:1150px;margin:0 auto;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+.right{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+/* ---- đầu trang: tiến độ + nhịp ---- */
+.top{padding:18px 24px 14px;border-bottom:1px solid var(--line)}
+.h1{font-family:var(--read);font-size:20px;margin-bottom:3px}
+.h1s{font-size:12px;color:var(--ink-2)}
+.bar{margin-top:13px;height:4px;background:var(--sunken);border-radius:2px;overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.bar .acc{background:var(--confirmed);width:13.8%}
+.bar .rej{background:var(--orn);width:24.4%}
+.legend{margin-top:8px;display:flex;gap:18px;font-size:11.5px;color:var(--ink-2)}
+.legend b{color:var(--ink)}
+.sw{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:5px}
+
+/* ---- bộ lọc ---- */
+.filters{padding:12px 24px;display:flex;gap:9px;align-items:center;border-bottom:1px solid var(--line-2);flex-wrap:wrap}
+.chipf{font-size:11.5px;border:1px solid var(--line);border-radius:20px;padding:4px 12px;background:var(--surface);color:var(--ink-2)}
+.chipf.on{border-color:var(--primary);color:var(--primary);font-weight:600;background:var(--accent-bg)}
+.bulk{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+/* ---- danh sách ---- */
+.list{padding:6px 24px 20px}
+.row{display:flex;align-items:baseline;gap:14px;padding:7px 11px;border-radius:4px;border-left:2px solid transparent}
+.row .term{font-family:var(--read);font-size:15px;min-width:130px}
+.row .cat{font-size:11px;color:var(--ink-2);min-width:120px}
+.row .n{font-size:11.5px;color:var(--ink-2);min-width:76px}
+.row .peek{font-family:var(--read);font-size:12.5px;color:var(--ink-2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Hàng đã xử lý lùi lại bằng MÀU CHỮ, không bằng opacity — opacity kéo mọi chữ
+   xuống dưới AA bất kể token có đạt hay không (DESIGN.md § Sàn tương phản). */
+.row.done{border-left-color:var(--confirmed);color:var(--ink-2)}
+.row.skip{border-left-color:var(--orn);color:var(--ink-2)}
+.row.done .term::after{content:" ✓";color:var(--confirmed);font-size:12px}
+.row.skip .term::after{content:" ✕";color:var(--ink-2);font-size:12px}
+
+/* ---- hàng đang chọn: nở ra ---- */
+.focus{background:var(--surface);border-left-color:var(--primary);border-radius:4px;padding:14px 16px;margin:8px 0;display:block;box-shadow:0 1px 0 var(--line-2)}
+.fhead{display:flex;align-items:baseline;gap:14px}
+.fterm{font-family:var(--read);font-size:26px}
+.fmeta{font-size:11.5px;color:var(--ink-2)}
+.fpos{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+.guess{margin-top:11px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.glabel{font-size:11px;color:var(--ink-2);margin-right:3px}
+.gopt{font-size:11.5px;border:1px solid var(--line);border-radius:20px;padding:3px 11px;color:var(--ink-2);background:var(--bg)}
+.gopt.on{border-color:var(--primary);color:var(--primary);background:var(--accent-bg);font-weight:600}
+.gopt sup{font-family:ui-monospace,monospace;font-size:9px;margin-left:4px}
+.ctx{margin-top:13px;padding-left:13px;border-left:2px solid var(--line-2)}
+.ctxl{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);margin-bottom:5px}
+.ctxq{font-family:var(--read);font-size:14px;line-height:1.75}
+.ctxq mark{background:var(--accent-bg);color:var(--primary);border-radius:2px;padding:0 2px}
+.notrans{margin-top:13px;background:var(--tm-bg);border-left:2px solid var(--tm);border-radius:0 3px 3px 0;padding:9px 12px;font-size:12px;color:var(--tm-text);line-height:1.6}
+.notrans b{font-weight:700}
+.keys{margin-top:14px;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.key{font-size:12px;border-radius:4px;padding:5px 13px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.key.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.key kbd{font-family:ui-monospace,monospace;font-size:10.5px;opacity:.85;margin-right:6px}
+.stopnote{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+.status{height:34px;border-top:1px solid var(--line);display:flex;align-items:center;padding:0 20px;gap:20px;font-size:11.5px;color:var(--ink-2)}
+.note{max-width:1150px;margin:16px auto 0;display:flex;gap:9px;flex-wrap:wrap}
+.chip{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px}
+.chip b{color:var(--primary)}
+.chip.warn{background:#f6e9db;color:#7a5d25}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <b>Bảng chờ Glossary — duyệt 340 ứng viên</b>
+  <div class="sub">Danh sách xếp theo tần suất là bản đồ; hàng đang chọn nở ra thành thẻ quyết định. Nhờ vậy vừa thấy tổng thể (FR53 đòi danh sách) vừa giữ được nhịp một phím một quyết định. Không gõ chữ nào.</div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right">Tuyết Trung Hãn Đao Hành · bảng chờ</div>
+  </div>
+
+  <div class="top">
+    <div class="h1">Ứng viên thuật ngữ từ lần nhập</div>
+    <div class="h1s">Chuỗi lặp từ 5 lần trở lên và không có trong từ điển nhúng. Ngưỡng 5 chỉnh được trong cấu hình.</div>
+    <div class="bar"><i class="acc"></i><i class="rej"></i></div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--confirmed)"></span>Đã nhận <b>47</b></span>
+      <span><span class="sw" style="background:var(--orn)"></span>Đã bỏ <b>83</b></span>
+      <span><span class="sw" style="background:var(--sunken)"></span>Còn lại <b>210</b></span>
+      <span style="margin-left:auto">Nhịp hiện tại <b>~2,1 giây</b> mỗi quyết định · còn khoảng <b>7 phút</b></span>
+    </div>
+  </div>
+
+  <div class="filters">
+    <span class="chipf on">Tất cả 340</span>
+    <span class="chipf">Đoán là tên người 118</span>
+    <span class="chipf">Đoán là địa danh 34</span>
+    <span class="chipf">Chưa đoán được 188</span>
+    <span class="bulk">Bỏ hàng loạt: <span class="k">dưới 8 lần</span> · <span class="k">chỉ xuất hiện trong 1 Chương</span></span>
+  </div>
+
+  <div class="list">
+    <div class="row done">
+      <span class="term">徐鳳年</span><span class="cat">tên người</span><span class="n">1 284 lần</span>
+      <span class="peek">…北涼世子徐鳳年提刀而立…</span>
+    </div>
+    <div class="row skip">
+      <span class="term">忽然之間</span><span class="cat">chưa đoán được</span><span class="n">312 lần</span>
+      <span class="peek">…忽然之間風停了…  cụm thông dụng, không phải thuật ngữ</span>
+    </div>
+
+    <!-- HÀNG ĐANG CHỌN -->
+    <div class="focus">
+      <div class="fhead">
+        <span class="fterm">北涼</span>
+        <span class="fmeta">xuất hiện <b>892 lần</b> · trong <b>1 640 / 2 000</b> Chương</span>
+        <span class="fpos">217 / 340</span>
+      </div>
+
+      <div class="guess">
+        <span class="glabel">Phân loại:</span>
+        <span class="gopt">tên người<sup>1</sup></span>
+        <span class="gopt on">địa danh<sup>2</sup></span>
+        <span class="gopt">thuật ngữ chuyên ngành<sup>3</sup></span>
+        <span class="gopt">khác<sup>4</sup></span>
+        <span style="font-size:11px;color:var(--ink-2);margin-left:6px">máy đoán — bấm số để đổi</span>
+      </div>
+
+      <div class="ctx">
+        <div class="ctxl">Ngữ cảnh · Chương 3</div>
+        <div class="ctxq">風雪連綿三千里，<mark>北涼</mark>鐵騎甲天下。</div>
+      </div>
+      <div class="ctx" style="margin-top:9px">
+        <div class="ctxl">Ngữ cảnh · Chương 47</div>
+        <div class="ctxq">他自<mark>北涼</mark>而來，帶著一身風霜。</div>
+      </div>
+
+      <div class="notrans">
+        <b>Nhận bây giờ chưa cần bản dịch.</b> Mục vào Glossary ở trạng thái <i>chờ chốt bản dịch</i> — lần đầu bạn gặp <b>北涼</b> khi dịch, hệ thống hỏi một lần rồi khoá lại. Sau đó Smart RAG Injector mới ép AI dùng đúng.
+      </div>
+
+      <div class="keys">
+        <span class="key pri"><kbd>N</kbd>Nhận</span>
+        <span class="key"><kbd>B</kbd>Bỏ</span>
+        <span class="key"><kbd>Space</kbd>Để lại, tính sau</span>
+        <span class="key"><kbd>↑ ↓</kbd>Chuyển</span>
+        <span class="stopnote">Dừng bất cứ lúc nào — <span class="k">Esc</span>. Lần sau mở lại đúng chỗ này.</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <span class="term">聽潮閣</span><span class="cat">địa danh</span><span class="n">644 lần</span>
+      <span class="peek">…聽潮閣上有百萬藏書…</span>
+    </div>
+    <div class="row">
+      <span class="term">溫華</span><span class="cat">tên người</span><span class="n">531 lần</span>
+      <span class="peek">…溫華背著一把木劍…</span>
+    </div>
+    <div class="row">
+      <span class="term">春秋十三甲</span><span class="cat">thuật ngữ chuyên ngành</span><span class="n">402 lần</span>
+      <span class="peek">…春秋十三甲之首…</span>
+    </div>
+    <div class="row">
+      <span class="term">武帝城</span><span class="cat">địa danh</span><span class="n">377 lần</span>
+      <span class="peek">…武帝城外老劍神…</span>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>Không mục nào tự vào Glossary — mọi mục ở đây chờ bạn quyết</span>
+    <span style="margin-left:auto">Xuất xứ ghi tự động: <i>đề xuất khi nhập tài liệu</i></span>
+  </div>
+</div>
+
+<div class="note">
+  <span class="chip"><b>Danh sách + thẻ nở</b>: danh sách cho tổng thể, thẻ cho nhịp một phím — không phải chọn một trong hai</span>
+  <span class="chip">Phân loại máy đoán sẵn, đổi bằng <b>số 1–4</b>, vẫn không phải gõ</span>
+  <span class="chip"><b>Dừng giữa chừng được</b> — 340 mục là việc của nhiều buổi, không phải một lượt</span>
+  <span class="chip">Bỏ hàng loạt vẫn là <b>quyết định tường minh</b> của người dùng, không phải máy tự lọc</span>
+  <span class="chip warn">Trạng thái <b>chờ chốt bản dịch</b> là thứ SPEC CHƯA CÓ — xem ghi chú trong EXPERIENCE.md</span>
+</div>
+
+</body>
+</html>

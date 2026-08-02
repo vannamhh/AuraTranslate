@@ -1,0 +1,217 @@
+<meta charset="utf-8">
+<title>Lịch sử tra cứu và mục đã ghim — FR41</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.7}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:880px;color:#e2ddd2}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+.pane{position:relative;display:flex;flex-direction:column;min-width:0}
+.pane.focus::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--primary);z-index:2}
+.ph{height:34px;display:flex;align-items:center;padding:0 15px;gap:9px;border-bottom:1px solid var(--line-2);flex:none}
+.pt{font-size:12px;color:var(--ink-2)}
+.pane.focus .pt{color:var(--primary);font-weight:600}
+.tabs{margin-left:auto;display:flex;gap:11px;font-size:11.5px;color:var(--ink-2)}
+.tabs .on{color:var(--primary);font-weight:600}
+
+.two{display:grid;grid-template-columns:1fr 1fr;height:452px;background:var(--surface)}
+.two .pane{border-right:1px solid var(--line)}
+.two .pane:last-child{border-right:0}
+.body{flex:1;overflow:hidden}
+
+/* --- ghim --- */
+.sect{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  padding:12px 15px 6px;display:flex;align-items:baseline;gap:8px}
+.sect .n{font-weight:400;letter-spacing:0;text-transform:none;font-size:11px}
+.sect .act{margin-left:auto;font-weight:400;letter-spacing:0;text-transform:none;font-size:11px}
+
+.row{display:flex;align-items:baseline;gap:11px;padding:8px 15px 8px 26px;position:relative;border-bottom:1px solid var(--line-2);line-height:1.66}
+.row::before{content:"";position:absolute;left:15px;top:11px;bottom:11px;width:2px;border-radius:2px;background:transparent}
+.row.pin::before{background:var(--tm)}
+.row.cur{background:var(--accent-bg)}
+.row.cur::before{background:var(--primary)}
+.row .w{font-family:var(--read);font-size:15.5px;min-width:74px}
+.row .rd{font-size:11px;color:var(--ink-2);min-width:88px}
+.row .gl{font-family:var(--read);font-size:13px;color:var(--ink-2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .src{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--primary)}
+.row .when{font-size:10.5px;color:var(--ink-2);min-width:56px;text-align:right}
+.row .cnt{font-size:10.5px;color:var(--tm-text);min-width:34px;text-align:right}
+
+.hint{padding:11px 15px;font-size:11.5px;color:var(--ink-2);line-height:1.7;border-top:1px solid var(--line-2)}
+.hint b{color:var(--ink)}
+
+/* --- bộ lọc phiên --- */
+.fbar{display:flex;align-items:center;gap:8px;padding:9px 15px;background:var(--sunken);border-bottom:1px solid var(--line-2)}
+.fchip{font-size:11px;border:1px solid var(--line);border-radius:20px;padding:3px 11px;color:var(--ink-2);background:var(--surface)}
+.fchip.on{border-color:var(--primary);color:var(--primary);font-weight:600;background:var(--accent-bg)}
+.fbar .r{margin-left:auto;font-size:11px;color:var(--ink-2)}
+
+/* --- trạng thái rỗng --- */
+.empty{margin:auto;text-align:center;max-width:300px;padding:26px 0}
+.empty .big{font-family:var(--read);font-size:16px;line-height:1.66;margin-bottom:8px}
+.empty .small{font-size:12px;color:var(--ink-2);line-height:1.75}
+.empty .keys{margin-top:13px;font-size:11.5px;color:var(--ink-2)}
+.rule{width:34px;height:2px;background:var(--orn);border-radius:1px;margin:0 auto 14px}
+.wrapempty{flex:1;display:flex}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.6}
+.fc b{color:var(--primary)}
+.warn{max-width:1150px;margin:0 auto 34px;background:var(--tm-bg);border-left:2px solid var(--tm);border-radius:0 4px 4px 0;
+  padding:13px 17px;font-size:12.5px;line-height:1.75;color:var(--tm-text)}
+.warn b{color:var(--ink)}
+</style>
+
+<div class="hd">
+  <b>Lịch sử tra cứu và mục đã ghim</b>
+  <div class="sub">FR41 là yêu cầu duy nhất trong C3 chưa có bề mặt: nút <b>Ghim</b> đã tồn tại trong panel Lookup
+  nhưng không có nơi nào xem lại thứ đã ghim, và lịch sử tra cứu trong phiên chưa được dựng.
+  Cả hai vào thành <b>tab thứ ba của panel Lookup</b> — không thêm cửa sổ, không thêm chế độ.</div>
+</div>
+
+<div class="rowlab">Tab Lịch sử — ghim ở trên, tra gần đây ở dưới <span>cùng một danh sách, hai vùng, ranh giới là một tiêu đề</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Tuyết Trung Hãn Đao Hành · Chương 47</span><span class="k">⌘2</span></span>
+  </div>
+
+  <div class="two">
+    <div class="pane focus">
+      <div class="ph">
+        <span class="pt">Tra cứu</span>
+        <span class="tabs"><span>Từ điển</span><span>Concordance</span><span class="on">Lịch sử</span><span class="k">F3</span></span>
+      </div>
+
+      <div class="fbar">
+        <span class="fchip on">Phiên này</span>
+        <span class="fchip">Chương 47</span>
+        <span class="fchip">Cả Tác phẩm</span>
+        <span class="r">Xoá lịch sử phiên <span class="k">⌘⌫</span></span>
+      </div>
+
+      <div class="body">
+        <div class="sect">Đã ghim <span class="n">4</span><span class="act">Bỏ ghim <span class="k">⌘D</span></span></div>
+
+        <div class="row pin">
+          <span class="w">聽潮閣</span><span class="rd">Thính Triều Các</span>
+          <span class="gl">gác nghe sóng — tên kiến trúc</span><span class="src">Glossary</span><span class="cnt">12×</span>
+        </div>
+        <div class="row pin">
+          <span class="w">氣機</span><span class="rd">khí cơ</span>
+          <span class="gl">luồng khí vận hành trong người luyện võ</span><span class="src">CVDICT</span><span class="cnt">31×</span>
+        </div>
+        <div class="row pin">
+          <span class="w">春秋</span><span class="rd">xuân thu</span>
+          <span class="gl">mùa xuân và mùa thu; năm tháng; tên bộ sử</span><span class="src">Thiều Chửu</span><span class="cnt">8×</span>
+        </div>
+        <div class="row pin">
+          <span class="w">徐驍</span><span class="rd">Từ Kiêu</span>
+          <span class="gl">tên nhân vật — đã chốt trong Glossary Tác phẩm</span><span class="src">Glossary</span><span class="cnt">44×</span>
+        </div>
+
+        <div class="sect">Tra gần đây <span class="n">phiên này · 218 lượt</span></div>
+
+        <div class="row cur">
+          <span class="w">走廊</span><span class="rd">tẩu lang</span>
+          <span class="gl">hành lang — CVDICT và Thiều Chửu ghi khác nhau</span><span class="when">vừa xong</span>
+        </div>
+        <div class="row">
+          <span class="w">鐵鏽</span><span class="rd">thiết tú</span>
+          <span class="gl">không nguồn nào có mục từ này</span><span class="when">2 ph</span>
+        </div>
+        <div class="row">
+          <span class="w">少年</span><span class="rd">thiếu niên</span>
+          <span class="gl">người trẻ tuổi, thường chỉ nam</span><span class="when">4 ph</span>
+        </div>
+        <div class="row">
+          <span class="w">推開</span><span class="rd">thôi khai</span>
+          <span class="gl">đẩy ra, đẩy mở</span><span class="when">6 ph</span>
+        </div>
+        <div class="row">
+          <span class="w">回頭</span><span class="rd">hồi đầu</span>
+          <span class="gl">quay đầu lại; nghĩ lại, hối cải</span><span class="when">7 ph</span>
+        </div>
+      </div>
+
+      <div class="hint"><b>Ghim là của người, lịch sử là của máy.</b> Mục ghim sống qua các phiên và theo Tác phẩm;
+      lịch sử tra chỉ sống trong phiên và xoá được bất cứ lúc nào. Không có telemetry nào rời khỏi máy (FR104).</div>
+    </div>
+
+    <div class="pane">
+      <div class="ph">
+        <span class="pt">Nguyên văn</span>
+        <span class="tabs"><span class="on">Tiếng Trung</span><span>Hán Việt</span><span>Song song</span></span>
+      </div>
+      <div class="body" style="padding:12px 16px;font-family:var(--read);font-size:16.5px;line-height:2.05">
+        風從<span style="background:var(--accent-bg);border-radius:2px;padding:0 2px">走廊</span>盡頭吹來，帶著鐵鏽和一種他叫不出名字的冷香。<br>
+        少年沒有回頭。<br>
+        他知道身後那扇門一旦關上，就再也推不開了。
+      </div>
+      <div class="hint">Mỗi lần bôi đen là một dòng vào lịch sử. Tra lại một mục đã có <b>đẩy nó lên đầu</b>
+      và tăng số đếm, không tạo dòng trùng — nếu không, một Chương sẽ sinh ra hàng trăm dòng giống nhau.</div>
+    </div>
+  </div>
+</div>
+
+<div class="warn"><b>Vì sao FR41 đáng một tab chứ không phải một menu.</b> Giả định <b>A9</b> của PRD nói thẳng rằng
+đây là suy đoán từ thói quen dùng, chưa có người dùng nào xác nhận — và bỏ FR41 không ảnh hưởng nhóm năng lực nào khác.
+Nên bề mặt này cố tình <b>không tiêu tốn gì</b>: nó là tab thứ ba của một panel đã có, dùng lại đúng hàng bản ghi của
+danh sách kết quả. Nếu A9 sai, gỡ tab này đi là hết — không có màn hình nào chết theo.</div>
+
+<div class="rowlab">Hai trạng thái rỗng — khác nhau, nên nói khác nhau</div>
+<div class="win">
+  <div class="two" style="height:250px">
+    <div class="pane">
+      <div class="ph"><span class="pt">Tra cứu</span>
+        <span class="tabs"><span>Từ điển</span><span>Concordance</span><span class="on">Lịch sử</span></span></div>
+      <div class="wrapempty">
+        <div class="empty">
+          <div class="rule"></div>
+          <div class="big">Chưa tra gì trong phiên này</div>
+          <div class="small">Bôi đen một cụm ở bất kỳ panel nào — mỗi lượt tra tự vào đây, không cần lưu tay.</div>
+          <div class="keys">Lịch sử xoá khi đóng ứng dụng</div>
+        </div>
+      </div>
+    </div>
+    <div class="pane">
+      <div class="ph"><span class="pt">Tra cứu</span>
+        <span class="tabs"><span>Từ điển</span><span>Concordance</span><span class="on">Lịch sử</span></span></div>
+      <div class="wrapempty">
+        <div class="empty">
+          <div class="rule"></div>
+          <div class="big">Chưa ghim mục nào</div>
+          <div class="small">Ghim một mục từ đang xem để nó theo bạn qua các phiên và các Chương của Tác phẩm này.</div>
+          <div class="keys"><span class="k">⌘D</span> khi đang xem một mục từ</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR41</b> lịch sử tra cứu trong phiên · ghim mục từ để tra lại nhanh</span>
+  <span class="fc"><b>Không thêm cửa sổ</b> — tab thứ ba của panel Lookup đã có</span>
+  <span class="fc"><b>A9</b> giả định chưa xác nhận, nên bề mặt cố tình rẻ và gỡ được</span>
+  <span class="fc"><b>NFR17</b> mọi thao tác có phím: <span class="k">F3</span> <span class="k">⌘D</span> <span class="k">⌘⌫</span></span>
+</div>

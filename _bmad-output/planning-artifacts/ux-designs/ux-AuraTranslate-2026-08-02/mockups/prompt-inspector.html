@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Xem prompt cuối cùng đã gửi — FR71</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.6}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.85;margin-top:4px;max-width:880px}
+.win{max-width:1150px;margin:0 auto;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.k{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+.right{margin-left:auto;font-size:11.5px;color:var(--ink-2);display:flex;gap:12px;align-items:center}
+
+.ph{height:36px;display:flex;align-items:center;padding:0 18px;gap:20px;border-bottom:1px solid var(--line);background:var(--surface)}
+.tab{font-size:12px;color:var(--ink-2);padding-bottom:2px}
+.tab.on{color:var(--primary);font-weight:600;border-bottom:2px solid var(--primary)}
+.meta{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+.split{display:grid;grid-template-columns:1fr 310px;background:var(--surface)}
+.doc{padding:18px 22px 24px;border-right:1px solid var(--line);min-width:0}
+.side{padding:18px 18px 24px;background:var(--bg)}
+
+/* ---- khối prompt, phân tầng bằng vạch trái ---- */
+.blk{padding-left:14px;border-left:2px solid var(--line-2);margin-bottom:16px}
+.blk.glos{border-left-color:var(--primary)}
+.blk.tm{border-left-color:var(--tm)}
+.blk.src{border-left-color:var(--ink)}
+.bh{display:flex;align-items:baseline;gap:9px;margin-bottom:6px}
+.blabel{font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;color:var(--ink-2)}
+.blk.glos .blabel{color:var(--primary)}
+.blk.tm .blabel{color:var(--tm-text)}
+.blk.src .blabel{color:var(--ink)}
+.scope{font-size:10px;border:1px solid var(--line);border-radius:2px;padding:0 5px;color:var(--ink-2)}
+.scope.proj{border-color:var(--primary);color:var(--primary)}
+.tok{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--ink-2)}
+.txt{font-family:var(--mono);font-size:12px;line-height:1.75;color:var(--ink);white-space:pre-wrap}
+.txt .zh{font-family:var(--read);font-size:14px}
+.dyn{background:var(--accent-bg);border-radius:2px;padding:0 3px}
+.dyntm{background:var(--tm-bg);border-radius:2px;padding:0 3px}
+
+/* ---- phần bị loại: cái đáng giá nhất ---- */
+.excl{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+.eh{font-family:var(--read);font-size:16px;margin-bottom:4px}
+.es{font-size:11.5px;color:var(--ink-2);margin-bottom:12px}
+.erow{display:flex;align-items:baseline;gap:12px;padding:9px 0;border-bottom:1px solid var(--line-2)}
+.erow:last-child{border-bottom:0}
+.eterm{font-family:var(--read);font-size:15px;min-width:96px}
+.ewhy{font-size:12.5px;color:var(--ink-2);flex:1;line-height:1.5}
+.ewhy b{color:var(--tm-text)}
+.efix{font-size:11.5px;color:var(--primary);font-weight:600}
+
+/* ---- sidebar ---- */
+.sh{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);font-weight:700;margin-bottom:9px}
+.brow{display:flex;align-items:baseline;gap:8px;padding:5px 0;font-size:12px}
+.brow .sw{width:8px;height:8px;border-radius:2px;flex:none}
+.brow .n{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.bar{height:5px;border-radius:3px;overflow:hidden;display:flex;margin:11px 0 6px;background:var(--sunken)}
+.bar i{display:block;height:100%}
+.total{font-size:12px;color:var(--ink-2);padding-top:9px;border-top:1px solid var(--line);margin-top:9px;line-height:1.8}
+.total b{color:var(--ink)}
+.acts{margin-top:18px;display:flex;flex-direction:column;gap:7px}
+.btn{border:1px solid var(--line);border-radius:4px;padding:7px 12px;font-size:12px;background:var(--surface);text-align:center}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.note{font-size:11px;color:var(--ink-2);line-height:1.6;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+
+.legend{max-width:1150px;margin:15px auto 0;display:flex;gap:9px;flex-wrap:wrap}
+.chip{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px}
+.chip b{color:var(--primary)}
+.chip.warn{background:#f6e9db;color:#7a5d25}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <b>Xem prompt cuối cùng đã gửi — FR71</b>
+  <div class="sub">PRD gọi đây là <i>công cụ chẩn đoán duy nhất khi AI không tuân thủ Glossary</i>. Mà lỗi kiểu đó gần như luôn là <b>một thứ đáng lẽ phải có mà không có</b> — nên màn hình này hiện cả phần <b>bị loại và lý do</b>, chứ không chỉ phần đã chèn.</div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span>Chương 47 · câu 19</span><span class="k">Esc đóng</span></div>
+  </div>
+
+  <div class="ph">
+    <span class="tab">Kết quả</span>
+    <span class="tab on">Prompt đã gửi</span>
+    <span class="meta">gửi lúc 14:02:37 · mô hình <b>claude-sonnet-5</b> · lắp bởi RagInjector</span>
+  </div>
+
+  <div class="split">
+    <div class="doc">
+
+      <div class="blk">
+        <div class="bh"><span class="blabel">Prompt hệ thống</span><span class="scope">Global</span><span class="tok">86 token</span></div>
+        <div class="txt">Bạn là người dịch chuyên nghiệp Trung → Việt. Giữ giọng văn của bản gốc. Không thêm giải thích, không thêm chú thích. Chỉ trả về bản dịch.</div>
+      </div>
+
+      <div class="blk">
+        <div class="bh"><span class="blabel">Prompt theo thể loại</span><span class="scope proj">Tác phẩm — ghi đè Global</span><span class="tok">104 token</span></div>
+        <div class="txt">Thể loại: tiên hiệp. Giữ nguyên xưng hô cổ phong (hắn, nàng, ngươi). Không hiện đại hoá từ ngữ. Tên chiêu thức và công pháp giữ dạng Hán Việt.</div>
+      </div>
+
+      <div class="blk glos">
+        <div class="bh"><span class="blabel">Glossary chèn động</span><span class="scope proj">Tác phẩm</span><span class="tok">42 token</span></div>
+        <div class="txt">Dùng đúng các cách gọi sau:
+<span class="dyn">徐鳳年 → Từ Phượng Niên</span>
+<span class="dyn">北涼 → Bắc Lương</span>
+<span class="dyn">聽潮閣 → Thính Triều Các</span></div>
+      </div>
+
+      <div class="blk tm">
+        <div class="bh"><span class="blabel">Translation Memory chèn động</span><span class="scope proj">Tác phẩm</span><span class="tok">118 token</span></div>
+        <div class="txt">Những câu tương tự trước đây được dịch thế này:
+<span class="dyntm"><span class="zh">風雪連綿三千里</span> → Gió tuyết trải dài ba nghìn dặm</span>
+<span class="dyntm"><span class="zh">鐵騎甲天下</span> → thiết kỵ đứng đầu thiên hạ</span></div>
+      </div>
+
+      <div class="blk src">
+        <div class="bh"><span class="blabel">Câu cần dịch</span><span class="tok">62 token</span></div>
+        <div class="txt"><span class="zh">聽潮閣上有百萬藏書，徐鳳年卻只取了一卷。</span></div>
+      </div>
+
+      <!-- ==== PHẦN BỊ LOẠI ==== -->
+      <div class="excl">
+        <div class="eh">Đã cân nhắc nhưng không chèn</div>
+        <div class="es">Ba mục dưới đây khớp với câu này nhưng bị loại. Đây thường là chỗ trả lời câu hỏi <i>“vì sao AI không dùng đúng thuật ngữ của tôi?”</i></div>
+
+        <div class="erow">
+          <span class="eterm">百萬藏書</span>
+          <span class="ewhy">Có trong Glossary nhưng đang ở trạng thái <b>chờ chốt bản dịch</b> — mục chưa chốt không tham gia ép AI (FR70).</span>
+          <span class="efix">Chốt ngay ⌘K</span>
+        </div>
+
+        <div class="erow">
+          <span class="eterm">一卷</span>
+          <span class="ewhy">Có trong Glossary <b>toàn cục</b>, nhưng Glossary Tác phẩm định nghĩa lại cùng thuật ngữ này — tầng Tác phẩm thắng, và bản Tác phẩm không khớp dạng chữ trong câu.</span>
+          <span class="efix">Xem mục</span>
+        </div>
+
+        <div class="erow">
+          <span class="eterm" style="font-family:var(--read);font-size:13.5px">4 câu TM</span>
+          <span class="ewhy">Khớp mờ dưới ngưỡng, hoặc đã vượt giới hạn số câu TM chèn mỗi lần gọi.</span>
+          <span class="efix">Xem cả 4</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==== SIDEBAR ==== -->
+    <div class="side">
+      <div class="sh">Ngân sách token</div>
+      <div class="bar">
+        <i style="background:var(--orn);width:22.7%"></i>
+        <i style="background:var(--orn);opacity:.55;width:25.2%"></i>
+        <i style="background:var(--primary);width:10.2%"></i>
+        <i style="background:var(--tm);width:28.6%"></i>
+        <i style="background:var(--ink);width:15%"></i>
+      </div>
+      <div class="brow"><span class="sw" style="background:var(--orn)"></span>Prompt hệ thống<span class="n">86</span></div>
+      <div class="brow"><span class="sw" style="background:var(--orn);opacity:.55"></span>Theo thể loại<span class="n">104</span></div>
+      <div class="brow"><span class="sw" style="background:var(--primary)"></span>Glossary<span class="n">42</span></div>
+      <div class="brow"><span class="sw" style="background:var(--tm)"></span>Translation Memory<span class="n">118</span></div>
+      <div class="brow"><span class="sw" style="background:var(--ink)"></span>Câu cần dịch<span class="n">62</span></div>
+
+      <div class="total">
+        Tổng gửi đi <b>412 token</b><br>
+        Phần chèn động chiếm <b>38,8%</b><br>
+        Ước tính <b>~0,004 USD</b>
+      </div>
+
+      <div class="acts">
+        <span class="btn pri">Chép toàn bộ prompt</span>
+        <span class="btn">Gửi lại với prompt này</span>
+        <span class="btn">Mở prompt Tác phẩm để sửa</span>
+      </div>
+
+      <div class="note">
+        Đây là <b>đúng chuỗi đã gửi</b>, không phải bản dựng lại — RagInjector lắp prompt bằng một hàm thuần và màn hình này đọc chính kết quả đó.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <span class="chip"><b>Phần “đã cân nhắc nhưng không chèn”</b> là thứ làm màn hình này chẩn đoán được, thay vì chỉ để ngắm</span>
+  <span class="chip">Màu tầng <b>tái dùng ngữ nghĩa sẵn có</b>: Glossary = accent, TM = nâu vàng — không phát minh bảng màu mới</span>
+  <span class="chip">Nhãn <b>Global</b> vs <b>Tác phẩm</b> trả lời được câu “tôi sửa prompt chung rồi mà sao không đổi gì?”</span>
+  <span class="chip warn">Mỗi dòng bị loại có <b>lối sửa ngay</b> — chẩn đoán mà không sửa được thì mới đi nửa đường</span>
+</div>
+
+</body>
+</html>

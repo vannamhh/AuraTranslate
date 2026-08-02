@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Chế độ đọc — ba mức typography (hướng B)</title>
+<style>
+:root{
+  --bg:#f4f1ea; --paper:#fbfaf6; --line:#e2dccf;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --accent:#2f5d63;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  /* dark */
+  --d-paper:#26241f; --d-ink:#e8e3d8; --d-ink-2:#a29a8c; --d-line:#3b382f; --d-accent:#7fb3ba;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 13px;color:#f4f1ea;line-height:1.6}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.85;margin-top:4px;max-width:840px}
+.rowlabel{max-width:1150px;margin:26px auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600;display:flex;align-items:baseline;gap:12px}
+.rowlabel span{font-weight:400;opacity:.8;font-size:12px}
+
+.win{max-width:1150px;margin:0 auto;background:var(--paper);border-radius:9px;overflow:hidden;box-shadow:0 12px 38px rgba(0,0,0,.3)}
+.win.dark{background:var(--d-paper)}
+.tb{height:36px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.win.dark .tb{border-color:var(--d-line)}
+.dot{width:9px;height:9px;border-radius:50%;background:#d5cfc2}
+.win.dark .dot{background:#4a463c}
+.modes{margin-left:16px;display:flex;gap:16px}
+.modes span{font-size:12px;color:var(--ink-2)}
+.win.dark .modes span{color:var(--d-ink-2)}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--accent);padding-bottom:2px}
+.win.dark .modes .on{color:var(--d-ink);border-color:var(--d-accent)}
+.tools{margin-left:auto;display:flex;align-items:center;gap:13px;font-size:11.5px;color:var(--ink-2)}
+.win.dark .tools{color:var(--d-ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10px;border:1px solid var(--line);border-radius:3px;padding:1px 5px}
+.win.dark .k{border-color:var(--d-line)}
+.tog{display:inline-flex;align-items:center;gap:5px}
+.sw{width:24px;height:13px;border-radius:8px;background:#ddd6c7;position:relative}
+.sw.on{background:var(--accent)}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:9px;height:9px;border-radius:50%;background:#fff}
+.sw.on::after{left:13px}
+
+.page{padding:34px 0 40px;display:flex;justify-content:center}
+.col{font-family:var(--read);color:var(--ink)}
+.win.dark .col{color:var(--d-ink)}
+.chapno{font-family:var(--ui);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6px}
+.win.dark .chapno{color:var(--d-ink-2)}
+.chaptitle{font-size:1.35em;margin:0 0 1.5em;font-weight:600;letter-spacing:.01em}
+.col p{margin:0 0 1.15em;text-align:left}
+.fig{margin:1.9em 0;text-align:center}
+.fig .ph{background:#ece6d8;border:1px solid var(--line);border-radius:3px;height:130px;display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-family:var(--ui);font-size:11.5px}
+.win.dark .fig .ph{background:#302d26;border-color:var(--d-line);color:var(--d-ink-2)}
+.fig figcaption{font-family:var(--ui);font-size:11px;color:var(--ink-2);margin-top:7px;font-style:italic}
+.win.dark .fig figcaption{color:var(--d-ink-2)}
+.brk{margin:2.2em 0;text-align:center;color:var(--orn);letter-spacing:.7em}
+.win.dark .brk{color:var(--d-ink-2)}
+.nextch{font-family:var(--ui);font-size:11.5px;color:var(--ink-2);border-top:1px solid var(--line);padding-top:13px;margin-top:2em;display:flex;justify-content:space-between}
+.win.dark .nextch{color:var(--d-ink-2);border-color:var(--d-line)}
+/* song ngữ */
+.bi{border-left:2px solid var(--line);padding-left:15px;margin:0 0 1.15em}
+.win.dark .bi{border-color:var(--d-line)}
+.bi .zh{display:block;color:var(--ink-2);font-size:.86em;line-height:1.75;margin-bottom:.3em}
+.win.dark .bi .zh{color:var(--d-ink-2)}
+
+/* ==== BA MỨC ==== */
+.p-thoang{width:62ch;font-size:19px;line-height:1.95;letter-spacing:.004em}
+.p-can  {width:68ch;font-size:17.5px;line-height:1.8}
+.p-dac  {width:76ch;font-size:16px;line-height:1.66}
+
+.note{max-width:1150px;margin:11px auto 0;display:flex;gap:9px;flex-wrap:wrap}
+.chip{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px}
+.chip b{color:var(--accent)}
+.chip.warn{background:#f6e9db;color:#7a5d25}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <b>Chế độ đọc — ba mức typography</b>
+  <div class="sub">Cùng một đoạn văn, chỉ khác chiều rộng dòng, cỡ chữ và giãn dòng. Văn bản chọn cố tình dày dấu (<i>ế ộ ữ ẳ ị ườ</i>) vì dấu tiếng Việt chồng cả trên lẫn dưới — mức giãn dòng nào chạm dấu sẽ lộ ra ngay ở đây chứ không lộ ra trên chữ Latin.</div>
+</div>
+
+<!-- ============ MỨC 1 — THOÁNG ============ -->
+<div class="rowlabel">① Thoáng <span>62 ký tự / dòng · 19px · giãn 1.95</span></div>
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span>Workspace</span><span class="on">Chế độ đọc</span></div>
+    <div class="tools">
+      <span class="tog">Song ngữ <span class="sw"></span></span>
+      <span>A<sup>-</sup> <b>A</b> A<sup>+</sup></span>
+      <span class="k">⌘+ / ⌘−</span>
+      <span>◐ Sáng</span>
+    </div>
+  </div>
+  <div class="page"><div class="col p-thoang">
+    <div class="chapno">Chương 47</div>
+    <h2 class="chaptitle">Cánh cửa cuối hành lang</h2>
+    <p>Hắn đả khai cánh cửa ấy, bước vào giữa bóng tối. Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ hương lạnh mà hắn không gọi được tên.</p>
+    <p>Thiếu niên không quay đầu lại. Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa. Những bậc đá dưới chân trơn ướt, mỗi bước đều nghe rõ tiếng vọng dội ngược lên từ chỗ sâu hơn.</p>
+  </div></div>
+</div>
+<div class="note">
+  <span class="chip">Dấu <b>hoàn toàn</b> không chạm nhau, kể cả <i>ườ</i> chồng lên <i>ộ</i> ở dòng dưới</span>
+  <span class="chip">Đọc rất êm, nhưng một màn hình 27 inch sẽ thấy trống hai bên</span>
+</div>
+
+<!-- ============ MỨC 2 — CÂN ============ -->
+<div class="rowlabel">② Cân <span>68 ký tự / dòng · 17,5px · giãn 1.8 — mức mình đề xuất làm mặc định</span></div>
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span>Workspace</span><span class="on">Chế độ đọc</span></div>
+    <div class="tools">
+      <span class="tog">Song ngữ <span class="sw on"></span></span>
+      <span>A<sup>-</sup> <b>A</b> A<sup>+</sup></span>
+      <span class="k">⌘+ / ⌘−</span>
+      <span>◐ Sáng</span>
+    </div>
+  </div>
+  <div class="page"><div class="col p-can">
+    <div class="chapno">Chương 47</div>
+    <h2 class="chaptitle">Cánh cửa cuối hành lang</h2>
+    <div class="bi">
+      <span class="zh">他打開了那扇門，走進了黑暗之中。風從走廊盡頭吹來，帶著鐵鏽的氣味。</span>
+      Hắn đả khai cánh cửa ấy, bước vào giữa bóng tối. Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ hương lạnh mà hắn không gọi được tên.
+    </div>
+    <div class="bi">
+      <span class="zh">少年沒有回頭。他知道身後那扇門一旦關上，便再也推不開了。</span>
+      Thiếu niên không quay đầu lại. Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa.
+    </div>
+    <figure class="fig">
+      <div class="ph">hình nhúng — hiển thị đúng vị trí trong văn bản (FR43)</div>
+      <figcaption>Bản đồ Bắc Lương — alt-text đã dịch, tham gia TM như mọi câu khác</figcaption>
+    </figure>
+    <p>Những bậc đá dưới chân trơn ướt, mỗi bước đều nghe rõ tiếng vọng dội ngược lên từ chỗ sâu hơn.</p>
+    <div class="nextch"><span>← Chương 46 · Tuyết đêm</span><span>Chương 48 · Người gác đèn →</span></div>
+  </div></div>
+</div>
+<div class="note">
+  <span class="chip">Đang bật <b>song ngữ</b> — nguyên văn xám nhạt phía trên, bản dịch bên dưới, ngăn bằng vạch lề</span>
+  <span class="chip">Đọc liên tục qua nhiều Chương, chuyển chương ở cuối trang</span>
+  <span class="chip">Dấu vẫn thoáng ở mức 1.8</span>
+</div>
+
+<!-- ============ MỨC 3 — ĐẶC ============ -->
+<div class="rowlabel">③ Đặc <span>76 ký tự / dòng · 16px · giãn 1.66</span></div>
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span>Workspace</span><span class="on">Chế độ đọc</span></div>
+    <div class="tools">
+      <span class="tog">Song ngữ <span class="sw"></span></span>
+      <span>A<sup>-</sup> <b>A</b> A<sup>+</sup></span>
+      <span class="k">⌘+ / ⌘−</span>
+      <span>◐ Sáng</span>
+    </div>
+  </div>
+  <div class="page"><div class="col p-dac">
+    <div class="chapno">Chương 47</div>
+    <h2 class="chaptitle">Cánh cửa cuối hành lang</h2>
+    <p>Hắn đả khai cánh cửa ấy, bước vào giữa bóng tối. Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ hương lạnh mà hắn không gọi được tên.</p>
+    <p>Thiếu niên không quay đầu lại. Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa. Những bậc đá dưới chân trơn ướt, mỗi bước đều nghe rõ tiếng vọng dội ngược lên từ chỗ sâu hơn của toà tháp.</p>
+  </div></div>
+</div>
+<div class="note">
+  <span class="chip warn">⚠ Giãn 1.66: dấu <i>ườ</i> ở dòng trên bắt đầu sát dấu <i>ộ</i> ở dòng dưới — chưa chạm, nhưng đây là sàn</span>
+  <span class="chip">Chứa nhiều chữ nhất mỗi màn — hợp khi rà soát hơn là khi thưởng thức</span>
+</div>
+
+<!-- ============ NỀN TỐI ============ -->
+<div class="rowlabel">Nền tối <span>cùng mức ② Cân — nền không đen tuyền, chữ không trắng tinh</span></div>
+<div class="win dark">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span>Workspace</span><span class="on">Chế độ đọc</span></div>
+    <div class="tools">
+      <span class="tog">Song ngữ <span class="sw"></span></span>
+      <span>A<sup>-</sup> <b>A</b> A<sup>+</sup></span>
+      <span class="k">⌘+ / ⌘−</span>
+      <span>◑ Tối</span>
+    </div>
+  </div>
+  <div class="page"><div class="col p-can">
+    <div class="chapno">Chương 47</div>
+    <h2 class="chaptitle">Cánh cửa cuối hành lang</h2>
+    <p>Hắn đả khai cánh cửa ấy, bước vào giữa bóng tối. Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ hương lạnh mà hắn không gọi được tên.</p>
+    <p>Thiếu niên không quay đầu lại. Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa. Những bậc đá dưới chân trơn ướt, mỗi bước đều nghe rõ tiếng vọng dội ngược lên từ chỗ sâu hơn.</p>
+    <div class="nextch"><span>← Chương 46 · Tuyết đêm</span><span>Chương 48 · Người gác đèn →</span></div>
+  </div></div>
+</div>
+<div class="note">
+  <span class="chip">Nền <b>#26241f</b> nâu rất tối, chữ <b>#e8e3d8</b> ngà — tránh tương phản đen/trắng tuyệt đối gây loá khi đọc lâu</span>
+  <span class="chip">Vẫn đạt WCAG AA (NFR17)</span>
+</div>
+
+</body>
+</html>

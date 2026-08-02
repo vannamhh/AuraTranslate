@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Nhập tài liệu song ngữ — FR115 · FR116</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.6}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.85;margin-top:4px;max-width:870px}
+.rowlab{max-width:1150px;margin:28px auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600}
+.rowlab span{font-weight:400;opacity:.8;font-size:12px;margin-left:10px}
+.win{max-width:1150px;margin:0 auto;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.right{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+.pad{padding:20px 24px 24px}
+.h1{font-family:var(--read);font-size:20px;margin-bottom:3px}
+.h1s{font-size:12px;color:var(--ink-2);margin-bottom:18px}
+.two{display:grid;grid-template-columns:290px 1fr;gap:22px}
+.fl{font-size:11px;color:var(--ink-2);margin-bottom:5px;display:block}
+.fd{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:7px 10px;font-size:12.5px;margin-bottom:13px}
+.fd.mono{font-family:var(--mono);font-size:12px}
+.fd.focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--accent-bg)}
+
+/* gán cột */
+.colmap{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}
+.col{border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
+.colh{padding:5px 9px;font-size:10.5px;background:var(--sunken);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px}
+.colh b{font-size:11px}
+.col.src .colh{background:var(--accent-bg);color:var(--primary)}
+.col.tgt .colh{background:#eef2e9;color:var(--confirmed)}
+.colb{padding:7px 9px;font-family:var(--read);font-size:12.5px;line-height:1.6;color:var(--ink-2);height:58px;overflow:hidden}
+.swap{text-align:center;font-size:11.5px;color:var(--primary);margin-bottom:13px}
+
+.sum{font-size:12.5px;padding:7px 0;border-top:1px solid var(--line-2);display:flex;justify-content:space-between}
+.warnbox{background:var(--tm-bg);border-left:2px solid var(--tm);border-radius:0 3px 3px 0;padding:10px 13px;margin-top:14px;font-size:12px;color:var(--tm-text);line-height:1.6}
+.warnbox b{font-weight:700}
+.infobox{background:var(--accent-bg);border-left:2px solid var(--primary);border-radius:0 3px 3px 0;padding:10px 13px;margin-top:11px;font-size:12px;color:var(--primary);line-height:1.6}
+
+/* xem trước cặp */
+.prev{background:var(--surface);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.prevh{background:var(--sunken);border-bottom:1px solid var(--line);padding:6px 12px;font-size:11px;color:var(--ink-2);display:grid;grid-template-columns:52px 1fr 1fr;gap:12px}
+.pr{padding:8px 12px;border-bottom:1px solid var(--line-2);display:grid;grid-template-columns:52px 1fr 1fr;gap:12px;align-items:start;font-family:var(--read);font-size:13px;line-height:1.6}
+.pr:last-child{border-bottom:0}
+.rn{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);padding-top:2px}
+.chap{background:var(--sunken);font-weight:600;font-size:13.5px}
+.pr.mis{background:var(--tm-bg)}
+.cnt{font-family:var(--ui);font-size:10px;color:var(--tm-text);font-weight:700;white-space:nowrap}
+.ell{padding:7px 12px;color:var(--ink-2);text-align:center;font-size:12px;border-bottom:1px solid var(--line-2)}
+.acts{margin-top:18px;display:flex;align-items:center;gap:11px}
+.btn{border-radius:4px;padding:8px 17px;font-size:13px;border:1px solid var(--line);background:var(--surface)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.hint{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+/* ==== màn nối câu ==== */
+.join{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
+.jh{background:var(--sunken);padding:7px 13px;font-size:11px;color:var(--ink-2);border-bottom:1px solid var(--line)}
+.jc{padding:12px 14px;border-right:1px solid var(--line)}
+.jc:last-child{border-right:0}
+.sent{padding:8px 11px;border-left:2px solid var(--line-2);margin-bottom:7px;font-family:var(--read);font-size:14px;line-height:1.65;background:var(--bg);border-radius:0 3px 3px 0}
+.sent .n{font-family:var(--ui);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);display:block;margin-bottom:3px}
+.sent.p1{border-left-color:var(--primary)}
+.sent.p2{border-left-color:var(--confirmed)}
+.sent.p3{border-left-color:var(--tm)}
+.sent.merged{border-left-color:var(--primary);background:var(--accent-bg)}
+.sent.merged .n{color:var(--primary)}
+.jbar{grid-column:1 / -1;background:var(--tm-bg);border-top:1px solid var(--line);padding:10px 14px;font-size:12px;color:var(--tm-text);display:flex;align-items:center;gap:12px}
+.jbar b{font-weight:700}
+.jk{margin-left:auto;display:flex;gap:8px}
+.mini{font-size:11.5px;border:1px solid var(--line);border-radius:4px;padding:4px 11px;background:var(--surface);color:var(--ink)}
+.mini.pri{border-color:var(--primary);background:var(--primary);color:var(--surface);font-weight:600}
+
+.legend{max-width:1150px;margin:15px auto 0;display:flex;gap:9px;flex-wrap:wrap}
+.chip{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px}
+.chip b{color:var(--primary)}
+.chip.warn{background:#f6e9db;color:#7a5d25}
+</style>
+</head>
+<body>
+
+<!-- ================= MÀN 1 ================= -->
+<div class="hd">
+  <b>Nhập tài liệu song ngữ — FR115</b>
+  <div class="sub">File hai cột từ người khác dịch. Trước màn hình này không có đường nào đưa nó vào app mà không mất bản dịch: <code>FR13</code>/<code>FR14</code> chỉ nhận văn bản nguồn, <code>FR90</code> đòi Tác phẩm phải tồn tại sẵn.</div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right">bac-luong-ch01-50-song-ngu.docx · bảng 2 cột · 1 284 hàng</div>
+  </div>
+
+  <div class="pad">
+    <div class="h1">Nhập tài liệu song ngữ</div>
+    <div class="h1s">File có sẵn cả văn bản gốc lẫn bản dịch. Khai báo cột nào là gì, xem trước, rồi mới ghi.</div>
+
+    <div class="two">
+      <div>
+        <label class="fl">Cột nào là gì</label>
+        <div class="colmap">
+          <div class="col src">
+            <div class="colh"><b>Cột A</b> → nguồn</div>
+            <div class="colb">他打開了那扇門，走進了黑暗之中。風從走廊盡頭吹來…</div>
+          </div>
+          <div class="col tgt">
+            <div class="colh"><b>Cột B</b> → bản dịch</div>
+            <div class="colb">Hắn mở cánh cửa ấy, bước vào giữa bóng tối. Gió thổi tới…</div>
+          </div>
+        </div>
+        <div class="swap">⇄ Đổi vai hai cột</div>
+
+        <label class="fl">Ngôn ngữ nguồn — cố định sau khi tạo</label>
+        <div class="fd">Trung → Việt</div>
+
+        <label class="fl">Mẫu nhận diện đầu Chương — áp lên cột nguồn</label>
+        <div class="fd mono focus">^第(\d+)章\s*(.*)$</div>
+
+        <label class="fl">Tên Tác phẩm</label>
+        <div class="fd" style="font-family:var(--read);font-size:13.5px">Bắc Lương Đao Hành</div>
+
+        <div class="sum"><span>Hàng dữ liệu</span><b>1 284</b></div>
+        <div class="sum"><span>Chương nhận ra</span><b>50</b></div>
+        <div class="sum"><span>Cặp câu khớp thẳng</span><b>2 106</b></div>
+        <div class="sum"><span>Cặp cần nối tay</span><b style="color:var(--tm-text)">47</b></div>
+
+        <div class="warnbox">
+          <b>47 hàng có số câu hai bên lệch nhau.</b><br>
+          Thường là người dịch gộp hai câu Trung thành một câu Việt. Bước sau sẽ đưa từng chỗ ra để bạn nối.
+        </div>
+
+        <div class="infobox">
+          Mọi Chương vào trạng thái <b>Đang dịch</b>, mọi câu <b>chưa xác nhận</b> — kể cả khi bản dịch trông đã xong. Bạn vẫn đi qua từng câu để duyệt hoặc sửa.
+        </div>
+      </div>
+
+      <div>
+        <div class="prev">
+          <div class="prevh"><span>hàng</span><span>Cột A — nguồn</span><span>Cột B — bản dịch</span></div>
+
+          <div class="pr chap"><span class="rn">1</span><span>第一章 北涼有雪</span><span>Chương 1: Bắc Lương có tuyết</span></div>
+          <div class="pr">
+            <span class="rn">2</span>
+            <span>他打開了那扇門，走進了黑暗之中。</span>
+            <span>Hắn mở cánh cửa ấy, bước vào giữa bóng tối.</span>
+          </div>
+          <div class="pr mis">
+            <span class="rn">3</span>
+            <span>風從走廊盡頭吹來，帶著鐵鏽的氣味。少年沒有回頭。<span class="cnt"> · 2 câu</span></span>
+            <span>Gió thổi tới từ cuối hành lang mang theo mùi gỉ sắt, thiếu niên không quay đầu lại.<span class="cnt"> · 1 câu ⚠</span></span>
+          </div>
+          <div class="pr">
+            <span class="rn">4</span>
+            <span>他知道身後那扇門一旦關上，便再也推不開了。</span>
+            <span>Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa.</span>
+          </div>
+          <div class="ell">⋯ 1 278 hàng nữa · 46 chỗ lệch nữa</div>
+          <div class="pr chap"><span class="rn">1281</span><span>第五十章 歸途</span><span>Chương 50: Đường về</span></div>
+        </div>
+
+        <div class="acts">
+          <span class="btn pri">Xem 47 chỗ lệch rồi nhập</span>
+          <span class="btn">Nhập luôn, nối sau</span>
+          <span class="btn">Huỷ</span>
+          <span class="hint">Chưa có gì được ghi xuống đĩa</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <span class="chip">Gán cột bằng cách <b>nhìn nội dung thật</b>, không phải đoán từ tiêu đề cột</span>
+  <span class="chip">Mẫu đầu Chương áp lên <b>cột nguồn</b> — tái dùng đúng cơ chế FR14</span>
+  <span class="chip"><b>Nhập luôn, nối sau</b> là lối thoát hợp lệ: 47 chỗ lệch không nên chặn 2 106 cặp đã khớp</span>
+</div>
+
+
+<!-- ================= MÀN 2 ================= -->
+<div class="rowlab">② Nối câu lệch — FR116 <span>máy khớp, người sửa · không gian khớp chỉ trong một hàng</span></div>
+
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right">Chỗ lệch <b>1 / 47</b> · hàng 3 · Chương 1</div>
+  </div>
+
+  <div class="pad">
+    <div class="h1">Số câu hai bên lệch nhau</div>
+    <div class="h1s">Bên nguồn tách được <b>2 câu</b>, bên dịch chỉ có <b>1 câu</b>. Người dịch đã gộp — bạn xác nhận cách ghép.</div>
+
+    <div class="join">
+      <div>
+        <div class="jh">Cột A — nguồn · 2 câu</div>
+        <div class="jc">
+          <div class="sent p1"><span class="n">câu 1</span>風從走廊盡頭吹來，帶著鐵鏽的氣味。</div>
+          <div class="sent p2"><span class="n">câu 2</span>少年沒有回頭。</div>
+        </div>
+      </div>
+      <div>
+        <div class="jh">Cột B — bản dịch · 1 câu</div>
+        <div class="jc">
+          <div class="sent merged"><span class="n">máy đề xuất — gộp cả hai câu nguồn thành một segment</span>Gió thổi tới từ cuối hành lang mang theo mùi gỉ sắt, thiếu niên không quay đầu lại.</div>
+        </div>
+      </div>
+
+      <div class="jbar">
+        <span><b>Máy đề xuất:</b> gộp câu nguồn 1 và 2 thành một segment, khớp với câu dịch duy nhất. Cặp TM ghi theo cách ghép này.</span>
+        <span class="jk">
+          <span class="mini pri">Đúng ↵</span>
+          <span class="mini">Tách bản dịch ra 2</span>
+          <span class="mini">Bỏ qua hàng này</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="acts">
+      <span class="btn pri">Xác nhận và sang chỗ lệch tiếp theo</span>
+      <span class="btn">Nhận tất cả đề xuất của máy</span>
+      <span class="hint"><span class="k">↵</span> đúng · <span class="k">↑ ↓</span> chuyển · <span class="k">Esc</span> để sau — mở lại đúng chỗ này</span>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <span class="chip"><b>Không gian khớp chỉ trong một hàng</b> — cặp hàng đã cho sẵn ranh giới, nên nhẹ hơn hẳn FR91</span>
+  <span class="chip">Gộp hai câu nguồn thành một segment là <b>đúng ngữ nghĩa AD-5</b>, không phải mẹo hiển thị</span>
+  <span class="chip"><b>Nhận tất cả đề xuất</b> có sẵn — 47 chỗ mà chỗ nào cũng bắt bấm thì thành gánh nặng</span>
+  <span class="chip warn">Segment nhập theo đường này mang xuất xứ <b>nhập từ tài liệu song ngữ</b> (FR117) — nên TM không nhận nhầm là văn phong của bạn</span>
+</div>
+
+</body>
+</html>

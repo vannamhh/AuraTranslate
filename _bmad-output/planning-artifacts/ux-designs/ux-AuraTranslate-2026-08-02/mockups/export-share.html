@@ -1,0 +1,429 @@
+<meta charset="utf-8">
+<title>Xuất cho Reviewer — .docx hai cột, .md, phạm vi — FR87 · FR88 · FR89</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.66}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2;line-height:1.75}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600;line-height:1.66}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.tbt{margin-left:14px;font-size:12.5px;color:var(--ink-2)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+.cols{display:grid;grid-template-columns:296px 1fr;background:var(--surface)}
+.left{border-right:1px solid var(--line);min-width:0;display:flex;flex-direction:column}
+.lh{padding:13px 16px 9px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-2);display:flex;align-items:baseline;gap:9px;border-bottom:1px solid var(--line-2)}
+.lh .n{font-weight:400;letter-spacing:0;text-transform:none;font-size:11px;margin-left:auto}
+.scoperow{display:flex;gap:0;border-bottom:1px solid var(--line-2)}
+.scoperow span{flex:1;text-align:center;font-size:11.5px;padding:7px 4px;color:var(--ink-2);
+  border-right:1px solid var(--line-2);line-height:1.66}
+.scoperow span:last-child{border-right:0}
+.scoperow .on{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.tree{flex:1;padding:6px 0;overflow:hidden}
+.ti{display:flex;align-items:center;gap:9px;padding:5px 16px 5px 14px;border-left:2px solid transparent;
+  font-size:12.5px;line-height:1.66}
+.ti.on{border-left-color:var(--primary);background:var(--accent-bg)}
+.cbox{width:11px;height:11px;border:1px solid var(--line);border-radius:2px;flex:none;background:var(--bg)}
+.cbox.on{background:var(--primary);border-color:var(--primary)}
+.cbox.part{background:var(--bg);border-color:var(--primary);position:relative}
+.cbox.part::after{content:"";position:absolute;left:2px;right:2px;top:4px;height:3px;background:var(--primary);border-radius:1px}
+.ti .no{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--ink-2);min-width:26px}
+.ti .nm{font-family:var(--read);font-size:13.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ti .st{font-size:10px;border-radius:2px;padding:1px 6px;white-space:nowrap}
+.s-done{background:#eaf0e2;color:var(--confirmed);font-weight:600}
+.s-doing{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.s-pause{background:var(--tm-bg);color:var(--tm-text);font-weight:600}
+.ti.work{font-weight:600;padding-left:14px}
+.ti.work .nm{font-size:14.5px}
+.ti.chap{padding-left:30px}
+
+.right-pane{padding:18px 22px 22px;min-width:0}
+.h2{font-family:var(--read);font-size:19px;margin:0 0 3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:16px;line-height:1.8;max-width:640px}
+.sh{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line-2)}
+.sh:first-of-type{margin-top:0}
+
+.fmts{display:flex;gap:12px;flex-wrap:wrap}
+.fmt{border:1px solid var(--line);border-radius:4px;padding:11px 14px;background:var(--bg);min-width:186px;flex:1}
+.fmt.on{border-color:var(--primary);background:var(--accent-bg)}
+.fmt .n{font-family:var(--read);font-size:15px;line-height:1.66}
+.fmt .d{font-size:11.5px;color:var(--ink-2);line-height:1.75;margin-top:3px}
+.fmt.on .n{color:var(--primary);font-weight:600}
+
+.opt{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-2);
+  font-size:12.5px;line-height:1.75}
+.opt:last-of-type{border-bottom:0}
+.opt .t{flex:1;min-width:0}
+.opt .t .d{font-size:11.5px;color:var(--ink-2);line-height:1.8;margin-top:2px}
+.opt .s{font-size:11px;color:var(--ink-2);white-space:nowrap;padding-top:1px}
+
+.box{padding:12px 15px;font-size:12.5px;line-height:1.8;border-radius:0 3px 3px 0;margin-top:14px}
+.box.warn{background:var(--tm-bg);border-left:2px solid var(--tm);color:var(--tm-text)}
+.box.ok{background:#f1f6ee;border-left:2px solid var(--confirmed);color:var(--ink-2)}
+.box.info{background:var(--accent-bg);border-left:2px solid var(--primary);color:var(--ink-2)}
+.box b{color:var(--ink)}
+.box code{font-family:ui-monospace,monospace;font-size:11.5px}
+
+.btnrow{margin-top:19px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{border-radius:4px;padding:6px 15px;font-size:12.5px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.btnrow .hint{margin-left:auto;font-size:11.5px;color:var(--ink-2);line-height:1.66}
+
+/* xem trước file */
+.pad{padding:20px 24px 24px}
+.halves{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.paper{background:#fff;border:1px solid var(--line);border-radius:3px;padding:16px 18px;overflow:hidden}
+.papert{font-family:var(--read);font-size:15px;font-weight:600;margin-bottom:11px;color:#1e1c19;line-height:1.66}
+table.doc{width:100%;border-collapse:collapse;font-family:var(--read);font-size:12px;color:#1e1c19}
+table.doc th{background:#f2efe8;font-family:var(--ui);font-size:9.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:#57524a;padding:5px 8px;border:1px solid #d8d2c5;text-align:left}
+table.doc td{padding:6px 8px;border:1px solid #d8d2c5;vertical-align:top;line-height:1.8}
+table.doc td.n{font-family:ui-monospace,monospace;font-size:9.5px;color:#7a746a;text-align:right;width:26px}
+table.doc tr.unconf td{background:#fdf8ec}
+table.doc.block td{border:1px solid #d8d2c5;width:50%;padding:9px 11px}
+table.doc.block td:first-child{border-right:0}
+table.doc.block td:last-child{border-left:0}
+table.doc .flag{font-family:var(--ui);font-size:9px;letter-spacing:.05em;color:#8a6d2e;display:block;margin-top:3px}
+.mono{font-family:ui-monospace,monospace;font-size:11px;line-height:1.9;color:var(--ink-2);
+  background:var(--bg);border:1px solid var(--line-2);border-radius:3px;padding:11px 13px;overflow-x:auto;white-space:pre}
+.mono b{color:var(--ink);font-weight:600}
+.mono i{color:var(--tm-text);font-style:normal}
+.card{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:15px 17px}
+.card h4{margin:0 0 9px;font-family:var(--read);font-size:15px;font-weight:600}
+.card p{margin:10px 0 0;font-size:12px;line-height:1.8;color:var(--ink-2)}
+.card p b{color:var(--ink)}
+.cap{font-size:11.5px;color:var(--ink-2);margin-top:9px;line-height:1.8}
+.cap b{color:var(--ink)}
+
+/* vòng khứ hồi */
+.loop{display:grid;grid-template-columns:1fr 34px 1fr 34px 1fr;align-items:center;gap:0;margin-top:4px}
+.step{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:12px 14px;line-height:1.75}
+.step .l{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin-bottom:5px}
+.step .n{font-family:var(--read);font-size:14.5px;line-height:1.66}
+.step .d{font-size:11.5px;color:var(--ink-2);margin-top:4px;line-height:1.8}
+.step.here{border-color:var(--primary);background:var(--accent-bg)}
+.step.here .n{color:var(--primary);font-weight:600}
+.arw{text-align:center;font-size:15px;color:var(--ink-2)}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.66}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Xuất — hình dạng file là một hợp đồng với lần nhập sau</b>
+  <div class="sub">Reviewer <b>không bắt buộc cài AuraTranslate</b>, nên trao đổi file là cầu nối duy nhất tới nhóm
+  review. Nhưng xuất không phải một thao tác kết thúc — nó là <b>nửa đầu của một vòng</b>. Mọi quyết định ở màn hình
+  này quyết định luôn việc <b>segment alignment có khớp lại được hay không</b> khi file quay về (FR91), và việc
+  thu hoạch thuật ngữ có chạy được hay không (FR54).</div>
+</div>
+
+<div class="rowlab">1 · Chọn phạm vi và định dạng <span>một Chương, nhiều Chương đã chọn, hoặc cả Tác phẩm · FR89</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="tbt">Xuất</span>
+    <span class="right"><span class="k">⌘⇧E</span></span>
+  </div>
+
+  <div class="cols">
+    <div class="left">
+      <div class="lh">Phạm vi <span class="n">11 Chương · 1.847 câu</span></div>
+      <div class="scoperow">
+        <span>Chương này</span><span class="on">Đã chọn</span><span>Cả Tác phẩm</span>
+      </div>
+      <div class="tree">
+        <div class="ti work"><span class="cbox part"></span><span class="nm">Tuyết Trung Hãn Đao Hành</span></div>
+        <div class="ti chap"><span class="cbox"></span><span class="no">39</span><span class="nm">Ngựa trắng qua ải</span><span class="st s-done">Đã xong</span></div>
+        <div class="ti chap on"><span class="cbox on"></span><span class="no">40</span><span class="nm">Đêm dài Bắc Lương</span><span class="st s-done">Đã xong</span></div>
+        <div class="ti chap on"><span class="cbox on"></span><span class="no">41</span><span class="nm">Kiếm khách áo trắng</span><span class="st s-done">Đã xong</span></div>
+        <div class="ti chap on"><span class="cbox on"></span><span class="no">42</span><span class="nm">Trên đài cao</span><span class="st s-done">Đã xong</span></div>
+        <div class="ti chap on"><span class="cbox on"></span><span class="no">43</span><span class="nm">Thư từ phương nam</span><span class="st s-done">Đã xong</span></div>
+        <div class="ti chap on"><span class="cbox on"></span><span class="no">44</span><span class="nm">Người quét sân</span><span class="st s-done">Đã xong</span></div>
+        <div class="ti chap on"><span class="cbox on"></span><span class="no">45</span><span class="nm">Gió cuối hành lang</span><span class="st s-done">Đã xong</span></div>
+        <div class="ti chap on"><span class="cbox on"></span><span class="no">46</span><span class="nm">Ba nghìn dặm</span><span class="st s-done">Đã xong</span></div>
+        <div class="ti chap on"><span class="cbox on"></span><span class="no">47</span><span class="nm">Ngói vỡ trên nóc Thính Triều Các</span><span class="st s-doing">Đang dịch</span></div>
+        <div class="ti chap"><span class="cbox"></span><span class="no">48</span><span class="nm">Người quét sân trở lại</span><span class="st s-doing">Đang dịch</span></div>
+      </div>
+    </div>
+
+    <div class="right-pane">
+      <div class="h2">Xuất cho Reviewer</div>
+      <div class="h2s">Reviewer sẽ mở file này bằng Word hoặc Google Docs và sửa trực tiếp trong đó. Họ không thấy
+      Glossary, không thấy Translation Memory, không thấy trạng thái xác nhận — nên thứ gì cần họ biết phải nằm
+      ngay trong file.</div>
+
+      <div class="sh">Định dạng</div>
+      <div class="fmts">
+        <div class="fmt on">
+          <div class="n">.docx — bảng hai cột</div>
+          <div class="d">Trái nguyên văn, phải bản dịch, <b>đối xứng theo từng câu</b>. Đây là định dạng nhập lại được</div>
+        </div>
+        <div class="fmt">
+          <div class="n">.docx — một khối, hai cột</div>
+          <div class="d">Đối xứng theo <b>đoạn</b>, <b>một hàng duy nhất</b> cho cả Chương, không đường kẻ.
+            Để copy trọn bản dịch sang website</div>
+        </div>
+        <div class="fmt">
+          <div class="n">.md — Markdown</div>
+          <div class="d">Giữ liên kết hình ảnh và alt-text đã dịch. Nhập lại được, nhưng khớp câu khó hơn</div>
+        </div>
+        <div class="fmt">
+          <div class="n">.txt — văn bản thuần</div>
+          <div class="d">Chỉ bản dịch, không cấu trúc. <b>Đọc thì tốt, nhập lại thì không</b></div>
+        </div>
+      </div>
+
+      <div class="sh">Nội dung</div>
+      <div class="opt">
+        <span class="cbox on"></span>
+        <span class="t">Đánh số câu ở cột đầu
+          <span class="d">Số này là <b>neo để khớp lại</b> khi file quay về. Bỏ nó đi thì alignment phải đoán bằng
+          nội dung, và tỷ lệ phải nối tay tăng vọt</span></span>
+        <span class="s">nên giữ</span>
+      </div>
+      <div class="opt">
+        <span class="cbox on"></span>
+        <span class="t">Đánh dấu câu chưa xác nhận
+          <span class="d">7 câu trong Chương 47 chưa xác nhận. Nền vàng nhạt cộng một dòng ghi chú trong ô —
+          reviewer biết mình đang đọc bản dở, không phải bản đã chốt</span></span>
+        <span class="s">7 câu</span>
+      </div>
+      <div class="opt">
+        <span class="cbox"></span>
+        <span class="t">Kèm cột ghi chú trống cho Reviewer
+          <span class="d">Cột thứ ba để reviewer viết lý do sửa. <b>Không đọc lại được khi nhập</b> — chỉ để người đọc</span></span>
+        <span class="s">tuỳ chọn</span>
+      </div>
+      <div class="opt">
+        <span class="cbox on"></span>
+        <span class="t">Kèm thuật ngữ Glossary đã chốt của các Chương này
+          <span class="d">Một bảng ở đầu file, 84 thuật ngữ. Reviewer thấy được cách gọi nào đã là quy ước,
+          nên sẽ sửa <b>có chủ đích</b> thay vì sửa vì không biết</span></span>
+        <span class="s">84 mục</span>
+      </div>
+
+      <div class="box info"><b>Tuỳ chọn cuối là thứ khiến FR54 chạy đúng.</b> Thu hoạch thuật ngữ dựa trên việc
+      reviewer đổi <i>X</i> thành <i>Y</i> một cách <b>nhất quán</b>. Nếu reviewer không biết <i>X</i> là quy ước
+      đã chốt, họ sẽ sửa lúc nhớ lúc quên — và một thay đổi 12/24 lần thì hệ thống không dám đề xuất gì cả.
+      Gửi kèm Glossary biến sự bất nhất đó thành <b>một quyết định có ý thức</b> của reviewer.</div>
+
+      <div class="btnrow">
+        <button class="btn pri">Xuất 8 Chương ra .docx</button>
+        <button class="btn">Xem trước</button>
+        <span class="hint">Tên file: <span style="font-family:ui-monospace,monospace">tuyet-trung-chuong-40-47.docx</span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rowlab">2 · File thật ra như thế nào <span>đối xứng theo segment là điều kiện của FR91 · FR87 · FR88</span></div>
+<div class="win">
+  <div class="pad">
+    <div class="halves">
+      <div>
+        <div class="paper">
+          <div class="papert">Chương 47 · Ngói vỡ trên nóc Thính Triều Các</div>
+          <table class="doc">
+            <tr><th class="n">#</th><th style="width:44%">Nguyên văn</th><th>Bản dịch</th></tr>
+            <tr>
+              <td class="n">86</td>
+              <td>風從走廊盡頭吹來，帶著鐵鏽和一種他叫不出名字的冷香。</td>
+              <td>Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ hương lạnh mà hắn không gọi được tên.</td>
+            </tr>
+            <tr>
+              <td class="n">87</td>
+              <td>少年沒有回頭。</td>
+              <td>Thiếu niên không quay đầu lại.</td>
+            </tr>
+            <tr class="unconf">
+              <td class="n">88</td>
+              <td>他知道身後那扇門一旦關上，就再也推不開了。</td>
+              <td>Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa.
+                <span class="flag">— câu chưa xác nhận —</span></td>
+            </tr>
+            <tr>
+              <td class="n">89</td>
+              <td>雪落了三日，蓋滿了石階。</td>
+              <td>Tuyết rơi suốt ba ngày, phủ kín bậc thềm đá.</td>
+            </tr>
+          </table>
+        </div>
+        <div class="cap"><b>Một hàng là một câu, không phải một đoạn.</b> Đây là chỗ định dạng xuất phục vụ lần nhập
+        sau: reviewer gộp hai hàng lại thì hệ thống thấy được ngay là <i>hai câu đã thành một</i> và đưa ra cho người
+        nối tay. Nếu xuất theo đoạn, chuyện đó chìm vào bên trong một ô và không ai phát hiện.</div>
+      </div>
+
+      <div>
+        <div class="mono"><b>## Chương 47 · Ngói vỡ trên nóc Thính Triều Các</b>
+
+Gió thổi tới từ cuối hành lang, mang theo mùi
+gỉ sắt và một thứ hương lạnh mà hắn không gọi
+được tên. Thiếu niên không quay đầu lại.
+
+<i>&lt;!-- câu 88 · chưa xác nhận --&gt;</i>
+Hắn biết cánh cửa sau lưng một khi đã khép,
+thì không sao đẩy ra được nữa.
+
+<b>![Bản đồ Bắc Lương và sáu châu lân cận](images/ban-do-bac-luong.png)</b>
+
+Tuyết rơi suốt ba ngày, phủ kín bậc thềm đá.</div>
+        <div class="cap"><b>Alt-text trong ngoặc vuông là <i>bản dịch đã xác nhận</i>, không phải nguyên văn.</b>
+        Alt-text là một segment dịch được như mọi segment khác — nó tham gia Translation Memory, Glossary và luồng
+        xác nhận. Nếu không, câu <i>"bảo lưu liên kết hình ảnh và alt-text"</i> chỉ có nghĩa là <b>giữ lại</b>,
+        chứ không phải <b>dịch</b>.</div>
+        <div class="box warn" style="margin-top:12px"><b>Alt-text chưa dịch thì xuất cái gì?</b> Giữ nguyên văn
+        tiếng Trung và ghi chú <code>&lt;!-- alt chưa dịch --&gt;</code>. Bỏ trống sẽ làm mất luôn thông tin;
+        điền tạm bản dịch máy sẽ đẩy một câu chưa ai duyệt ra ngoài dưới danh nghĩa bản dịch của bạn.</div>
+      </div>
+    </div>
+
+    <div class="box ok"><b>Bốn định dạng, bốn mục đích khác nhau — và màn hình nói thẳng cái nào nhập lại được.</b>
+    <code>.docx</code> hai cột theo câu là đường khứ hồi chuẩn. <code>.docx</code> một khối là để <b>đăng bài</b>,
+    không phải để review. <code>.md</code> nhập lại được nhưng ranh giới câu phải suy ra từ dấu câu nên tỷ lệ nối
+    tay cao hơn. <code>.txt</code> <b>không nhập lại được</b> — nó dành cho người chỉ muốn đọc. Nói ra ở lúc chọn
+    rẻ hơn nhiều so với để người dùng phát hiện sau khi reviewer đã sửa xong 8 Chương.</div>
+  </div>
+</div>
+
+<div class="rowlab">2b · <b>.docx một khối</b> — để copy trọn sang website <span>đối xứng theo đoạn · một hàng · không đường kẻ</span></div>
+<div class="win">
+  <div class="pad">
+    <div class="halves">
+      <div>
+        <div class="paper">
+          <div class="papert">Chương 47 · Ngói vỡ trên nóc Thính Triều Các</div>
+          <table class="doc block">
+            <tr>
+              <td>
+                風從走廊盡頭吹來，帶著鐵鏽和一種他叫不出名字的冷香。少年沒有回頭。他知道身後那扇門一旦關上，就再也推不開了。<br><br>
+                雪落了三日，蓋滿了石階。掃院子的老人抬起頭，看了他一眼，又低下去。<br><br>
+                徐鳳年沒有說話，只是把刀又往腰間按了按。遠處傳來馬蹄聲，很輕，像是怕驚動誰。
+              </td>
+              <td>
+                Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ hương lạnh mà hắn không gọi được tên.
+                Thiếu niên không quay đầu lại. Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa.<br><br>
+                Tuyết rơi suốt ba ngày, phủ kín bậc thềm đá. Ông lão quét sân ngẩng đầu, nhìn hắn một cái rồi lại cúi xuống.<br><br>
+                Từ Phượng Niên chẳng nói năng gì, chỉ ấn thanh đao vào bên hông thêm một lần nữa.
+                Xa xa vọng tới tiếng vó ngựa, rất khẽ, như sợ làm kinh động ai đó.
+              </td>
+            </tr>
+          </table>
+        </div>
+        <div class="cap"><b>Một hàng, hai ô, không đường kẻ ngang.</b> Bôi đen cột phải là được trọn bản dịch —
+        dán sang trình soạn thảo của website ra <b>văn bản liền mạch với đúng cách xuống đoạn</b>, không kèm
+        mảnh vụn bảng biểu. Đây là thứ mà bảng chia theo câu không làm được: mỗi ô là một vùng riêng, dán sang
+        web sẽ ra một bảng hoặc một chuỗi dòng đứt đoạn.</div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h4>Đoạn đối xứng nghĩa là gì ở đây</h4>
+          <p>Hai ô giữ <b>đúng số lần xuống đoạn</b> như nhau, nên đoạn thứ ba bên trái nằm ngang đoạn thứ ba bên
+          phải. Đối chiếu bằng mắt vẫn được, mà cột phải vẫn là một khối liền để copy.</p>
+          <p><b>Câu không còn là đơn vị hiển thị.</b> Ba câu trong một đoạn được nối lại thành văn xuôi liên tục —
+          đúng hình dạng mà một bài đăng cần, và <b>không</b> phải hình dạng mà segment alignment cần.</p>
+        </div>
+
+        <div class="box warn"><b>Định dạng này không nhập lại được, và đó là đánh đổi có ý thức.</b> Không có số
+        câu, không có ranh giới câu trong file. Nếu reviewer sửa trên bản này rồi gửi về, alignment phải đoán lại
+        toàn bộ ranh giới câu từ dấu chấm — tỷ lệ phải nối tay sẽ cao tới mức việc nhập không còn ý nghĩa.
+        <b>Gửi cho reviewer thì dùng bản chia theo câu; đăng bài thì dùng bản này.</b></div>
+
+        <div class="box info"><b>Câu chưa xác nhận không được đánh dấu ở định dạng này.</b> Một nền vàng hay một
+        dòng ghi chú xen giữa văn xuôi sẽ đi thẳng vào bài đăng. Thay vào đó, màn hình xuất <b>cảnh báo trước</b>:
+        <i>“Chương 47 còn 7 câu chưa xác nhận — bản xuất sẽ không phân biệt chúng.”</i> Quyết định là của người dùng,
+        nhưng họ phải biết trước khi bấm, không phải phát hiện sau khi bài đã lên.</div>
+
+        <div class="box ok"><b>Ảnh nhúng giữ nguyên vị trí trong ô.</b> Alt-text đã dịch đi kèm, cùng quy tắc với
+        bản <code>.md</code> — nên bài đăng ra vẫn có ảnh đúng chỗ và chú thích tiếng Việt.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rowlab">3 · Xuất là nửa đầu của một vòng <span>và nửa sau vẫn chạy kể cả khi người dùng bỏ qua Review Mode · FR95</span></div>
+<div class="win">
+  <div class="pad">
+    <div class="h2">Vòng khứ hồi</div>
+    <div class="h2s">Nguyên nhân gốc của việc người dịch không xem lại bản review vẫn chưa xác định — nên
+    <b>không thể khẳng định Review Mode sẽ được dùng thật</b>. Vòng dưới đây được thiết kế để công sức của reviewer
+    chuyển hoá thành giá trị <b>kể cả trong kịch bản xấu nhất</b>, nơi bước 4 không bao giờ được mở tới.</div>
+
+    <div class="loop">
+      <div class="step here">
+        <div class="l">1 · bạn</div>
+        <div class="n">Xuất .docx hai cột</div>
+        <div class="d">Kèm số câu, dấu câu chưa xác nhận, và 84 thuật ngữ đã chốt</div>
+      </div>
+      <div class="arw">→</div>
+      <div class="step">
+        <div class="l">2 · reviewer</div>
+        <div class="n">Sửa trong Word</div>
+        <div class="d">Không cài AuraTranslate. Có thể gộp đoạn, có thể đổi thuật ngữ</div>
+      </div>
+      <div class="arw">→</div>
+      <div class="step">
+        <div class="l">3 · bạn</div>
+        <div class="n">Nhập lại</div>
+        <div class="d">Máy khớp theo số câu, chỗ không khớp hiện ra để nối tay</div>
+      </div>
+    </div>
+
+    <div class="loop" style="margin-top:16px">
+      <div class="step">
+        <div class="l">4 · tuỳ chọn</div>
+        <div class="n">Review Mode</div>
+        <div class="d">Hai cửa sổ side-by-side, bôi màu thêm/xoá/sửa, chấp nhận từng thay đổi</div>
+      </div>
+      <div class="arw">·</div>
+      <div class="step" style="border-color:var(--confirmed);background:#f1f6ee">
+        <div class="l">5 · chạy độc lập</div>
+        <div class="n">Thu hoạch thuật ngữ</div>
+        <div class="d"><b>Không phụ thuộc bước 4.</b> Nhập file là cơ chế này chạy, kể cả khi bạn không bao giờ mở
+        Review Mode</div>
+      </div>
+      <div class="arw">→</div>
+      <div class="step" style="border-color:var(--confirmed);background:#f1f6ee">
+        <div class="l">6 · từ chương sau</div>
+        <div class="n">AI dùng đúng cách gọi</div>
+        <div class="d">Thuật ngữ mới vào Glossary, Smart RAG Injector ép AI tuân theo</div>
+      </div>
+    </div>
+
+    <div class="box ok"><b>Bước 5 tách rời khỏi bước 4 là quyết định quan trọng nhất của cả nhóm năng lực này.</b>
+    Vòng lặp học hỏi được đóng lại <b>ở tầng hệ thống</b> thay vì trông chờ vào kỷ luật con người. Nếu bạn không
+    bao giờ mở Review Mode, công cụ vẫn hấp thụ bài học của reviewer — và bạn vẫn thấy nó, dưới dạng một đề xuất
+    Glossary chứ không phải một màn hình phải ngồi lướt.</div>
+
+    <div class="box warn"><b>Cái giá của việc xuất <code>.txt</code> hoặc <code>.docx</code> một khối.</b>
+    Chọn định dạng không nhập lại được là <b>cắt đứt vòng ở bước 3</b> — reviewer vẫn sửa, nhưng không có đường nào
+    đưa bài học đó về. Hai định dạng này phục vụ <b>đầu ra cuối cùng</b>: đọc, và đăng bài. Chúng nằm ở cuối vòng
+    chứ không nằm trong vòng. Màn hình xuất nói điều này ngay lúc chọn định dạng, không để trong tài liệu hướng dẫn.</div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR87</b> .docx bảng hai cột, đối xứng theo segment</span>
+  <span class="fc"><b>FR121</b> .docx một khối, đối xứng theo đoạn, để đăng bài</span>
+  <span class="fc"><b>FR88</b> .md và text thuần, bảo lưu liên kết ảnh và alt-text <b>đã dịch</b></span>
+  <span class="fc"><b>FR89</b> phạm vi một Chương · nhiều Chương đã chọn · cả Tác phẩm</span>
+  <span class="fc"><b>FR44</b> alt-text là segment dịch được, có trạng thái xác nhận riêng</span>
+  <span class="fc"><b>FR91</b> số câu là neo để khớp lại — hình dạng xuất quyết định chất lượng nhập</span>
+  <span class="fc"><b>FR95</b> thu hoạch thuật ngữ chạy độc lập với Review Mode</span>
+</div>

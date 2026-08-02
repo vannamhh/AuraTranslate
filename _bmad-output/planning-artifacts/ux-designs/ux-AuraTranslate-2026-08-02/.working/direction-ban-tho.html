@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Hướng A — Bàn thợ</title>
+<style>
+/* ============ HƯỚNG A — BÀN THỢ ============
+   Bảng màu (light):
+   --bg        #eceef1  nền ứng dụng, xám lạnh
+   --panel     #ffffff  mặt panel
+   --chrome    #dfe3e8  thanh tiêu đề panel
+   --line      #c8cdd4  đường kẻ
+   --ink       #1c2126  chữ chính
+   --ink-2     #5c666f  chữ phụ
+   --accent    #9a6212  hổ phách — dấu thuật ngữ Glossary
+   --accent-bg #fdf3e0
+   --confirm   #1f6a4d  segment đã xác nhận
+   Dark: nền #171a1d, panel #1f2327, chữ #dfe3e8, accent #d9a441
+============================================ */
+:root{
+  --bg:#eceef1; --panel:#fff; --chrome:#dfe3e8; --line:#c8cdd4;
+  --ink:#1c2126; --ink-2:#5c666f; --accent:#9a6212; --accent-bg:#fdf3e0;
+  --confirm:#1f6a4d;
+  --ui: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#8b9099;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.note{max-width:1180px;margin:0 auto 14px;color:#fff;font-size:13px;line-height:1.6}
+.note b{font-size:15px}
+.app{max-width:1180px;margin:0 auto;background:var(--bg);border:1px solid #6d737b;border-radius:6px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.titlebar{height:30px;background:var(--chrome);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 10px;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;background:#b9bfc7}
+.modes{margin-left:14px;display:flex;gap:1px}
+.modes span{padding:3px 11px;font-size:11.5px;color:var(--ink-2);border-radius:3px}
+.modes .on{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:inset 0 0 0 1px var(--line)}
+.crumb{margin-left:auto;color:var(--ink-2);font-size:11.5px}
+.grid{display:grid;grid-template-columns:1.15fr 1fr 1fr 1.15fr;height:520px;gap:1px;background:var(--line)}
+.panel{background:var(--panel);display:flex;flex-direction:column;min-width:0}
+.phead{height:26px;background:var(--chrome);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 8px;gap:6px;flex:none}
+.ptitle{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
+.tabs{margin-left:auto;display:flex;gap:2px}
+.tab{font-size:10.5px;padding:2px 7px;color:var(--ink-2);border-radius:2px}
+.tab.on{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:inset 0 0 0 1px var(--line)}
+.key{font-size:9.5px;font-family:ui-monospace,monospace;color:var(--ink-2);border:1px solid var(--line);border-radius:2px;padding:0 3px;background:var(--bg)}
+.body{padding:9px 10px;overflow:hidden;line-height:1.62;flex:1}
+.zh{font-size:15px;line-height:1.85}
+.hv{color:var(--ink-2);font-size:11px;letter-spacing:.02em}
+mark{background:var(--accent-bg);color:var(--accent);border-bottom:1.5px solid var(--accent);padding:0 1px;font-weight:600}
+.sel{background:#cfe0f5;box-shadow:0 0 0 1px #7ba7d9}
+/* ---- Lookup: bản ghi có cấu trúc, KHÔNG hợp nhất nguồn ---- */
+.q{font-size:20px;font-weight:700;padding:2px 0 6px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.q small{font-size:11px;font-weight:400;color:var(--ink-2);margin-left:7px}
+.rec{border:1px solid var(--line);border-radius:3px;margin-bottom:7px;overflow:hidden}
+.rechd{display:flex;align-items:center;gap:6px;background:var(--bg);padding:3px 7px;border-bottom:1px solid var(--line)}
+.src{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#fff;background:var(--ink-2);border-radius:2px;padding:1px 5px}
+.pos{font-size:10.5px;font-style:italic;color:var(--ink-2)}
+.recbd{padding:5px 7px}
+.gloss{font-size:13px}
+.ex{font-size:11.5px;color:var(--ink-2);margin-top:3px;padding-left:8px;border-left:2px solid var(--line)}
+.cite{font-size:11px;color:var(--ink-2);margin-top:3px;padding-left:8px;border-left:2px solid var(--accent)}
+.cite i{color:var(--accent);font-style:normal;font-weight:600}
+.warn{font-size:10.5px;color:var(--accent);background:var(--accent-bg);border:1px solid #e8d3a8;border-radius:3px;padding:3px 6px;margin-bottom:7px}
+/* ---- Editor ---- */
+.seg{padding:5px 7px;border-left:3px solid transparent;margin-bottom:2px;border-radius:0 3px 3px 0}
+.seg.done{border-left-color:var(--confirm);background:#f2f8f5}
+.seg.now{border-left-color:#3d7ab8;background:#f0f5fb;box-shadow:inset 0 0 0 1px #b9d2ea}
+.seg.tm{border-left-color:var(--accent);background:var(--accent-bg)}
+.segmeta{font-size:9.5px;color:var(--ink-2);letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px;display:flex;gap:5px;align-items:center}
+.pill{font-size:9px;border:1px solid var(--line);border-radius:2px;padding:0 3px;background:var(--panel)}
+.status{height:24px;background:var(--chrome);border-top:1px solid var(--line);display:flex;align-items:center;padding:0 10px;gap:14px;font-size:10.5px;color:var(--ink-2)}
+.status b{color:var(--confirm)}
+</style>
+</head>
+<body>
+<div class="note">
+<b>Hướng A — Bàn thợ.</b> Nhạc cụ nghề nghiệp: đặc thông tin, chrome xám lạnh lùi hẳn ra sau, mọi pixel dành cho nội dung. Kiểu chữ nhỏ và đều, panel viền rõ để mắt định vị nhanh khi bốn khung cùng chạy. Hổ phách là màu duy nhất có tiếng nói — chỉ dùng cho thuật ngữ Glossary đã chốt và trích dẫn có xuất xứ.
+</div>
+
+<div class="app">
+  <div class="titlebar">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="crumb">Tuyết Trung Hãn Đao Hành · Chương 47 &nbsp;·&nbsp; 128/2000 chương</div>
+  </div>
+
+  <div class="grid">
+    <!-- SOURCE -->
+    <div class="panel">
+      <div class="phead"><span class="ptitle">Source</span>
+        <div class="tabs"><span class="tab on">Nguyên văn</span><span class="tab">Hán Việt</span></div>
+      </div>
+      <div class="body zh">
+        他<mark>打</mark>開了那扇門，走進了黑暗之中。<br>
+        風從<span class="sel">走廊</span>盡頭吹來，帶著鐵鏽的氣味。<br>
+        <span style="color:var(--ink-2)">少年沒有回頭。他知道身後那扇門一旦關上，便再也推不開了。</span>
+        <div class="hv" style="margin-top:9px;padding-top:7px;border-top:1px dashed var(--line)">
+          tha <b style="color:var(--accent)">đả</b> khai liễu na phiến môn, tẩu tiến liễu hắc ám chi trung.
+        </div>
+      </div>
+    </div>
+
+    <!-- LOOKUP -->
+    <div class="panel">
+      <div class="phead"><span class="ptitle">Lookup</span><span class="key">F3</span>
+        <div class="tabs"><span class="tab on">Từ điển</span><span class="tab">Concordance</span></div>
+      </div>
+      <div class="body">
+        <div class="q">走廊 <small>zǒuláng</small></div>
+        <div class="warn">⚠ Hai nguồn ghi khác nhau — hiển thị cả hai, không hợp nhất</div>
+
+        <div class="rec">
+          <div class="rechd"><span class="src">CVDICT</span><span class="pos">danh từ</span></div>
+          <div class="recbd">
+            <div class="gloss">hành lang, hàng lang</div>
+            <div class="ex">走廊盡頭 — cuối hành lang</div>
+          </div>
+        </div>
+
+        <div class="rec">
+          <div class="rechd"><span class="src" style="background:var(--accent)">THIỀU CHỬU</span><span class="pos">danh từ</span></div>
+          <div class="recbd">
+            <div class="gloss">dãy nhà có mái nối hai toà; hiên chạy dài</div>
+            <div class="cite"><i>Trích:</i> “廊, 東西序也” — Thuyết Văn Giải Tự</div>
+          </div>
+        </div>
+
+        <div class="rec">
+          <div class="rechd"><span class="src">CC-CEDICT</span><span class="pos">noun</span></div>
+          <div class="recbd"><div class="gloss">corridor · aisle · passageway</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI -->
+    <div class="panel">
+      <div class="phead"><span class="ptitle">AI Translation</span><span class="key">⌘↵</span>
+        <div class="tabs"><span class="tab">Prompt đã gửi</span></div>
+      </div>
+      <div class="body">
+        <div style="font-size:10px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">
+          Segment 2 · đang sinh…
+        </div>
+        <div style="line-height:1.7">
+          Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt<span style="background:var(--ink);color:var(--ink)">▏</span>
+        </div>
+        <div style="margin-top:12px;padding-top:9px;border-top:1px solid var(--line);font-size:10.5px;color:var(--ink-2)">
+          Đã chèn <b style="color:var(--accent)">2 thuật ngữ</b> Glossary · <b>3 segment</b> TM tương tự<br>
+          <span style="font-family:ui-monospace,monospace">412 token · ~0,004 USD</span>
+        </div>
+        <div style="margin-top:9px;font-size:10.5px;color:var(--ink-2)">
+          <span class="key">⌘⇧↵</span> đưa sang Editor &nbsp; <span class="key">Esc</span> huỷ
+        </div>
+      </div>
+    </div>
+
+    <!-- EDITOR -->
+    <div class="panel">
+      <div class="phead"><span class="ptitle">Editor</span>
+        <div class="tabs"><span class="tab">12/34 đã xác nhận</span></div>
+      </div>
+      <div class="body">
+        <div class="seg done">
+          <div class="segmeta">Segment 1 <span class="pill">đã xác nhận</span></div>
+          Hắn <mark>đả khai</mark> cánh cửa ấy, bước vào giữa bóng tối.
+        </div>
+        <div class="seg now">
+          <div class="segmeta">Segment 2 <span class="pill">đang sửa</span></div>
+          Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt.
+        </div>
+        <div class="seg tm">
+          <div class="segmeta">Segment 3 <span class="pill">gợi ý từ TM · khớp 100%</span></div>
+          Thiếu niên không quay đầu lại.
+        </div>
+        <div class="seg" style="color:var(--ink-2)">
+          <div class="segmeta">Segment 4 <span class="pill">chưa dịch</span></div>
+          —
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>Tra cứu: <b>ngoại tuyến</b></span>
+    <span>Glossary Tác phẩm: 214 mục</span>
+    <span>TM: 8.412 cặp</span>
+    <span style="margin-left:auto">Đã lưu 2 giây trước</span>
+  </div>
+</div>
+</body>
+</html>

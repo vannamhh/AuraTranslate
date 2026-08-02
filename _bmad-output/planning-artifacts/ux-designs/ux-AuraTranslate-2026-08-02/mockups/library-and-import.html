@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Library + màn hình xem trước kết quả tách</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.6}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.85;margin-top:4px;max-width:840px}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+
+/* ---- thanh tìm kiếm + lọc ---- */
+.bar{padding:16px 22px 12px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line)}
+.search{flex:1;max-width:420px;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:7px 11px;display:flex;align-items:center;gap:9px}
+.search input{border:0;background:transparent;font-family:var(--ui);font-size:13px;color:var(--ink);width:100%;outline:none}
+.dia{display:flex;gap:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;font-size:11.5px}
+.dia span{padding:5px 11px;color:var(--ink-2);background:var(--surface)}
+.dia .on{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.filters{margin-left:auto;display:flex;gap:9px;font-size:11.5px;color:var(--ink-2)}
+.filters span{border:1px solid var(--line);border-radius:20px;padding:4px 12px;background:var(--surface)}
+.filters .on{border-color:var(--primary);color:var(--primary);font-weight:600}
+
+/* ---- lưới Tác phẩm ---- */
+.grid{padding:20px 22px 26px;display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.card{background:var(--surface);border-radius:4px;overflow:hidden;border:1px solid var(--line-2)}
+.cover{height:112px;background:var(--sunken);display:flex;align-items:flex-end;padding:10px;position:relative}
+.cover.c1{background:linear-gradient(160deg,#3d4f52,#26312f)}
+.cover.c2{background:linear-gradient(160deg,#5c4a3a,#3a2f26)}
+.cover.c3{background:var(--sunken)}
+.cover.c4{background:linear-gradient(160deg,#4a4658,#2e2c3a)}
+.lang{position:absolute;top:9px;right:9px;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;background:rgba(251,250,246,.9);color:var(--ink-2);border-radius:2px;padding:1px 6px}
+.cover.c3 .lang{background:var(--surface)}
+.noimg{font-size:11px;color:var(--ink-2);font-style:italic;font-family:var(--read)}
+.cbody{padding:11px 12px 13px}
+.ctitle{font-family:var(--read);font-size:15px;line-height:1.35;margin-bottom:5px}
+.cmeta{font-size:11px;color:var(--ink-2);margin-bottom:9px}
+.prog{height:3px;background:var(--sunken);border-radius:2px;overflow:hidden;margin-bottom:6px}
+.prog i{display:block;height:100%;background:var(--confirmed)}
+.cstat{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2)}
+.badge{font-size:10px;letter-spacing:.05em;border-radius:2px;padding:1px 6px}
+.b-doing{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.b-done{background:#eaf0e2;color:var(--confirmed);font-weight:600}
+.b-pause{background:var(--tm-bg);color:var(--tm-text);font-weight:600}
+.b-new{background:var(--sunken);color:var(--ink-2)}
+
+/* ---- màn hình xem trước tách ---- */
+.dlg{padding:22px 26px 26px}
+.dlgh{font-family:var(--read);font-size:20px;margin-bottom:3px}
+.dlgs{font-size:12px;color:var(--ink-2);margin-bottom:18px}
+.two{display:grid;grid-template-columns:300px 1fr;gap:22px}
+.fieldl{font-size:11px;color:var(--ink-2);margin-bottom:5px;display:block}
+.field{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:7px 10px;font-family:ui-monospace,monospace;font-size:12px;margin-bottom:14px}
+.field.focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--accent-bg)}
+.sumline{font-size:12.5px;padding:8px 0;border-top:1px solid var(--line-2);display:flex;justify-content:space-between}
+.sumline b{font-weight:600}
+.warnbox{background:var(--tm-bg);border-left:2px solid var(--tm);border-radius:0 3px 3px 0;padding:10px 13px;margin-top:15px;font-size:12px;color:var(--tm-text);line-height:1.6}
+.warnbox b{font-weight:700}
+.prev{background:var(--surface);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.prevh{background:var(--sunken);border-bottom:1px solid var(--line);padding:6px 12px;font-size:11px;color:var(--ink-2);display:flex;justify-content:space-between}
+.row{padding:7px 12px;border-bottom:1px solid var(--line-2);display:flex;gap:12px;align-items:baseline;font-size:12.5px}
+.row:last-child{border-bottom:0}
+.rn{font-family:ui-monospace,monospace;font-size:11px;color:var(--ink-2);width:44px;flex:none}
+.rt{font-family:var(--read);font-size:13.5px}
+.rlen{margin-left:auto;font-size:11px;color:var(--ink-2)}
+.row.bad{background:#fdf2f0}
+.row.bad .rt{color:var(--error)}
+.row.bad .rlen{color:var(--error)}
+.ell{padding:7px 12px;color:var(--ink-2);font-size:12px;text-align:center;border-bottom:1px solid var(--line-2)}
+.actions{margin-top:20px;display:flex;align-items:center;gap:12px}
+.btn{border-radius:4px;padding:8px 18px;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.hint{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <b>Library — điểm vào ứng dụng</b>
+  <div class="sub">Mở app là thấy màn hình này, không phải màn hình dịch. Nỗi đau gốc không chỉ là dịch chậm mà là không nắm được mình đang có những gì.</div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span>Nhập tài liệu</span><span class="k">⌘N</span></div>
+  </div>
+
+  <div class="bar">
+    <div class="search">
+      <span style="color:var(--ink-2)">⌕</span>
+      <input value="hành lang" readonly>
+    </div>
+    <div class="dia"><span class="on">Chính xác dấu</span><span>Không dấu</span></div>
+    <div class="filters">
+      <span class="on">Đang dịch</span><span>Lĩnh vực</span><span>Ngôn ngữ nguồn</span><span>Sửa gần nhất ↓</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="cover c1"><span class="lang">Trung</span></div>
+      <div class="cbody">
+        <div class="ctitle">Tuyết Trung Hãn Đao Hành</div>
+        <div class="cmeta">Tiên hiệp · sửa 2 giờ trước</div>
+        <div class="prog"><i style="width:6.4%"></i></div>
+        <div class="cstat"><span>128 / 2000 chương</span><span class="badge b-doing">Đang dịch</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cover c2"><span class="lang">Anh</span></div>
+      <div class="cbody">
+        <div class="ctitle">The Pragmatic Programmer — bản dịch cộng đồng</div>
+        <div class="cmeta">Kỹ thuật · sửa hôm qua</div>
+        <div class="prog"><i style="width:71%"></i></div>
+        <div class="cstat"><span>27 / 38 chương</span><span class="badge b-doing">Đang dịch</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cover c3"><span class="lang">Anh</span><span class="noimg">chưa có bìa</span></div>
+      <div class="cbody">
+        <div class="ctitle">Hợp đồng phân phối — Q3/2026</div>
+        <div class="cmeta">Pháp lý · sửa 3 ngày trước</div>
+        <div class="prog"><i style="width:100%;background:var(--confirmed)"></i></div>
+        <div class="cstat"><span>1 / 1 chương</span><span class="badge b-done">Đã xong</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cover c4"><span class="lang">Trung</span></div>
+      <div class="cbody">
+        <div class="ctitle">Nhân Đạo Đại Thánh</div>
+        <div class="cmeta">Tiên hiệp · sửa 2 tháng trước</div>
+        <div class="prog"><i style="width:19%"></i></div>
+        <div class="cstat"><span>84 / 441 chương</span><span class="badge b-pause">Tạm ngưng</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="hd">
+  <b>Màn hình xem trước kết quả tách — nhịp then chốt của KF-1</b>
+  <div class="sub">Đây là chỗ dễ hỏng nhất trong toàn sản phẩm. Nếu xem trước không phơi ra những chỗ mẫu bắt nhầm, người dịch phát hiện 14 chương sai <i>sau khi</i> đã dịch 200 chương. Không byte nào ghi xuống đĩa trước khi bấm xác nhận ở màn hình này.</div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span>tuyet-trung-han-dao-hanh.txt · 41,2 MB</span></div>
+  </div>
+
+  <div class="dlg">
+    <div class="dlgh">Tách thành nhiều Chương</div>
+    <div class="dlgs">File lớn hơn một Chương thông thường. Tách theo mẫu phân tách, xem trước rồi mới xác nhận.</div>
+
+    <div class="two">
+      <div>
+        <label class="fieldl">Mẫu phân tách</label>
+        <div class="field focus">^Chương\s+(\d+)[::．.]\s*(.*)$</div>
+
+        <label class="fieldl">Tên Tác phẩm</label>
+        <div class="field" style="font-family:var(--read);font-size:13.5px">Tuyết Trung Hãn Đao Hành</div>
+
+        <label class="fieldl">Ngôn ngữ nguồn — cố định sau khi tạo</label>
+        <div class="field" style="font-family:var(--ui);font-size:12.5px">Trung → Việt</div>
+
+        <div class="sumline"><span>Chương nhận ra</span><b>2 000</b></div>
+        <div class="sumline"><span>Trạng thái ban đầu</span><b>Chưa bắt đầu</b></div>
+        <div class="sumline"><span>Ứng viên Glossary sẽ quét</span><b>~340</b></div>
+
+        <div class="warnbox">
+          <b>14 dòng khớp mẫu nhưng đáng ngờ.</b><br>
+          Chúng ngắn bất thường hoặc nằm giữa một Chương khác — nhiều khả năng là câu trong truyện chứ không phải tiêu đề. Xem cột phải, sửa mẫu rồi xem lại.
+        </div>
+      </div>
+
+      <div>
+        <div class="prev">
+          <div class="prevh"><span>Xem trước — 2 000 Chương</span><span>độ dài</span></div>
+          <div class="row"><span class="rn">001</span><span class="rt">Chương 1: Bắc Lương có tuyết</span><span class="rlen">4 210 chữ</span></div>
+          <div class="row"><span class="rn">002</span><span class="rt">Chương 2: Người cưỡi lừa</span><span class="rlen">3 980 chữ</span></div>
+          <div class="row"><span class="rn">003</span><span class="rt">Chương 3: Đao cũ</span><span class="rlen">4 502 chữ</span></div>
+          <div class="ell">⋯</div>
+          <div class="row bad"><span class="rn">417</span><span class="rt">Chương trình luyện khí gồm ba bước</span><span class="rlen">38 chữ ⚠</span></div>
+          <div class="row bad"><span class="rn">418</span><span class="rt">Chương pháp nhà họ Từ đã thất truyền</span><span class="rlen">51 chữ ⚠</span></div>
+          <div class="ell">⋯ 12 dòng đáng ngờ nữa</div>
+          <div class="row"><span class="rn">1999</span><span class="rt">Chương 1998: Gió tây</span><span class="rlen">4 118 chữ</span></div>
+          <div class="row"><span class="rn">2000</span><span class="rt">Chương 1999: Về nhà</span><span class="rlen">5 003 chữ</span></div>
+        </div>
+
+        <div class="actions">
+          <span class="btn pri">Xác nhận và nhập 2 000 Chương</span>
+          <span class="btn">Chỉ hiện 14 dòng đáng ngờ</span>
+          <span class="btn">Huỷ</span>
+          <span class="hint">Chưa có gì được ghi xuống đĩa</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

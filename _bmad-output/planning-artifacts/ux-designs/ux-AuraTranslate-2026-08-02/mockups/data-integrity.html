@@ -1,0 +1,311 @@
+<meta charset="utf-8">
+<title>Dữ liệu — quét lại, mục mồ côi, lịch sử phiên bản, sao lưu — FR98–FR102</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.66}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2;line-height:1.75}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600;line-height:1.66}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.tbt{margin-left:14px;font-size:12.5px;color:var(--ink-2)}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+.pad{padding:20px 24px 24px}
+.h2{font-family:var(--read);font-size:19px;margin:0 0 3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:17px;line-height:1.8;max-width:760px}
+.sh{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line-2)}
+.sh:first-of-type{margin-top:0}
+.sh .n{font-weight:400;letter-spacing:0;text-transform:none;font-size:11px;margin-left:9px}
+
+/* hàng kết quả quét */
+.srow{display:grid;grid-template-columns:1fr 176px 148px;gap:16px;align-items:center;
+  padding:10px 12px 10px 15px;position:relative;border-bottom:1px solid var(--line-2)}
+.srow::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:2px;border-radius:2px;background:var(--line)}
+.srow.new::before{background:var(--confirmed)}
+.srow.moved::before{background:var(--primary)}
+.srow.orphan::before{background:var(--tm)}
+.srow .nm{font-family:var(--read);font-size:14.5px;line-height:1.66;min-width:0}
+.srow .p{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--ink-2);display:block;margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srow .p del{color:var(--ink-2);text-decoration:line-through}
+.srow .st{font-size:11.5px;color:var(--ink-2);line-height:1.75}
+.srow .st b{color:var(--ink)}
+.acts{display:flex;gap:7px;justify-content:flex-end}
+.btn{border-radius:4px;padding:5px 12px;font-size:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.btn.sm{padding:3px 10px;font-size:11.5px}
+
+.box{padding:12px 15px;font-size:12.5px;line-height:1.8;border-radius:0 3px 3px 0;margin-top:14px}
+.box.warn{background:var(--tm-bg);border-left:2px solid var(--tm);color:var(--tm-text)}
+.box.ok{background:#f1f6ee;border-left:2px solid var(--confirmed);color:var(--ink-2)}
+.box.info{background:var(--accent-bg);border-left:2px solid var(--primary);color:var(--ink-2)}
+.box b{color:var(--ink)}
+.box code{font-family:ui-monospace,monospace;font-size:11.5px}
+
+.btnrow{margin-top:19px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btnrow .hint{margin-left:auto;font-size:11.5px;color:var(--ink-2);line-height:1.66}
+
+/* lịch sử phiên bản */
+.two{display:grid;grid-template-columns:270px 1fr;background:var(--surface)}
+.vlist{border-right:1px solid var(--line);padding:9px 0}
+.vh{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);padding:10px 16px 7px}
+.v{padding:9px 16px 9px 14px;border-left:2px solid transparent;line-height:1.66}
+.v.on{border-left-color:var(--primary);background:var(--accent-bg)}
+.v .w{font-size:12px;color:var(--ink-2)}
+.v.on .w{color:var(--primary);font-weight:600}
+.v .who{font-size:11px;color:var(--ink-2);margin-top:2px}
+.v .tagx{font-size:10px;border-radius:2px;padding:1px 6px;margin-left:6px}
+.tg-cur{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.tg-ai{background:var(--sunken);color:var(--ink-2)}
+.tg-tm{background:var(--tm-bg);color:var(--tm-text);font-weight:600}
+.tg-rev{background:#eaf0e2;color:var(--confirmed);font-weight:600}
+
+.vmain{padding:16px 22px 20px;min-width:0}
+.src{font-family:var(--read);font-size:15px;line-height:1.9;padding:11px 14px;background:var(--bg);
+  border-left:2px solid var(--ink-2);border-radius:0 3px 3px 0;margin-bottom:15px}
+.src .l{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-2);display:block;margin-bottom:5px}
+.vd{font-family:var(--read);font-size:15px;line-height:1.95;padding:12px 15px;background:var(--surface);
+  border:1px solid var(--line);border-radius:4px}
+.vd .l{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-2);display:block;margin-bottom:6px}
+ins{background:#e7f0e4;color:#3f5b34;text-decoration:none;border-radius:2px;padding:0 3px}
+del{background:#f7e6e3;color:#8f2f22;border-radius:2px;padding:0 3px}
+.vmeta{margin-top:11px;display:flex;gap:16px;font-size:11.5px;color:var(--ink-2);flex-wrap:wrap;line-height:1.66}
+
+/* sao lưu */
+.tree{font-family:ui-monospace,monospace;font-size:11.5px;line-height:1.9;color:var(--ink-2);
+  background:var(--bg);border:1px solid var(--line-2);border-radius:3px;padding:12px 14px;white-space:pre;overflow-x:auto}
+.tree b{color:var(--ink);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:15px 17px}
+.card h4{margin:0 0 9px;font-family:var(--read);font-size:15px;font-weight:600}
+.card p{margin:10px 0 0;font-size:12px;line-height:1.8;color:var(--ink-2)}
+.card p b{color:var(--ink)}
+.half2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+
+.status{height:32px;display:flex;align-items:center;padding:0 18px;gap:16px;border-top:1px solid var(--line);
+  font-size:11px;color:var(--ink-2);background:var(--bg)}
+.status .r{margin-left:auto}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.66}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Tầng dữ liệu — nơi lời hứa local-first phải chứng minh được</b>
+  <div class="sub">Ba trụ định vị đầu là chuyện tính năng; trụ thứ ba — <b>“dữ liệu phải sống lâu hơn phần mềm”</b> —
+  là chuyện của tầng này. Nó chỉ có thật khi người dùng <b>nhìn thấy</b> ba điều: <code>.atproj</code> là nguồn sự
+  thật còn chỉ mục chỉ là dẫn xuất (FR98), copy thư mục là sao lưu đủ dùng (FR102), và mọi phiên bản cũ của một câu
+  đều lấy lại được (FR101).</div>
+</div>
+
+<div class="rowlab">1 · Quét lại thư mục <span>.atproj mới, đã di chuyển, và mục mồ côi · FR99</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Quét lại thư mục</span></span>
+  </div>
+
+  <div class="pad">
+    <div class="h2">Kết quả quét</div>
+    <div class="h2s">Đã quét <span style="font-family:ui-monospace,monospace">~/AuraTranslate/</span> và 2 thư mục
+    theo dõi khác · 14 <code>.atproj</code> tìm thấy · 1,2 giây. Chỉ mục Library là <b>dẫn xuất</b> — nó ghi lại
+    những gì đĩa đang có, không phải ngược lại. Không thao tác nào dưới đây chạm vào nội dung của một
+    <code>.atproj</code>.</div>
+
+    <div class="sh">Mới xuất hiện <span class="n">chưa có trong chỉ mục</span></div>
+    <div class="srow new">
+      <div class="nm">Tiếu Ngạo Giang Hồ
+        <span class="p">~/AuraTranslate/tieu-ngao-giang-ho.atproj</span></div>
+      <div class="st"><b>142 Chương</b> · Trung → Việt<br>copy vào 3 ph trước</div>
+      <div class="acts"><button class="btn pri sm">Thêm vào Library</button><button class="btn sm">Bỏ qua</button></div>
+    </div>
+
+    <div class="sh">Đã di chuyển <span class="n">cùng Tác phẩm, đường dẫn khác</span></div>
+    <div class="srow moved">
+      <div class="nm">Hợp đồng phân phối 2025
+        <span class="p"><del>~/Desktop/hop-dong-2025.atproj</del> → ~/AuraTranslate/luu-tru/hop-dong-2025.atproj</span></div>
+      <div class="st"><b>1 Chương</b> · Anh → Việt<br>khớp theo mã Tác phẩm</div>
+      <div class="acts"><button class="btn pri sm">Cập nhật đường dẫn</button></div>
+    </div>
+
+    <div class="sh">Mồ côi <span class="n">có trong chỉ mục, không còn trên đĩa</span></div>
+    <div class="srow orphan">
+      <div class="nm">Truyện ngắn tháng 6
+        <span class="p">~/AuraTranslate/truyen-ngan-thang-6.atproj</span></div>
+      <div class="st"><b>8 Chương</b> · sửa lần cuối 21-06<br>không tìm thấy ở đường dẫn cũ</div>
+      <div class="acts"><button class="btn sm">Tìm lại…</button><button class="btn sm">Gỡ khỏi Library</button></div>
+    </div>
+
+    <div class="box warn"><b>Mục mồ côi không tự biến mất.</b> Ứng dụng <b>không</b> biết được thư mục đó bị xoá,
+    bị đổi tên, hay chỉ đang nằm trên một ổ cứng ngoài chưa cắm vào. Ba chuyện đó khác hẳn nhau và chỉ người dùng
+    phân biệt được — nên nó nằm đây chờ, chứ không bị dọn im lặng. <b>Gỡ khỏi Library</b> chỉ xoá dòng trong chỉ mục;
+    nếu thư mục vẫn còn ở đâu đó, lần quét sau nó lại hiện ra nguyên vẹn.</div>
+
+    <div class="box info"><b>Chỉ mục mất không làm mất dữ liệu.</b> Toàn bộ chỉ mục Library dựng lại được hoàn toàn
+    từ các <code>.atproj</code> — nó chỉ tồn tại để tìm kiếm xuyên Tác phẩm chạy nhanh. Xoá nó đi rồi quét lại là một
+    thao tác an toàn, không phải một thao tác nguy hiểm, và màn hình này nói ra điều đó thay vì để người dùng
+    sợ không dám bấm.</div>
+
+    <div class="btnrow">
+      <button class="btn pri">Áp dụng 2 thay đổi</button>
+      <button class="btn">Quét lại</button>
+      <button class="btn">Thêm thư mục theo dõi…</button>
+      <button class="btn">Dựng lại toàn bộ chỉ mục</button>
+      <span class="hint">Dựng lại toàn bộ mất khoảng 40 giây với 14 Tác phẩm</span>
+    </div>
+  </div>
+</div>
+
+<div class="rowlab">2 · Lịch sử phiên bản của một câu <span>xem lại và khôi phục · FR101</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Chương 47 · câu 88</span><span class="k">⌘H</span></span>
+  </div>
+
+  <div class="two">
+    <div class="vlist">
+      <div class="vh">5 phiên bản</div>
+      <div class="v on">
+        <div class="w">12 phút trước<span class="tagx tg-cur">đang dùng</span></div>
+        <div class="who">bạn sửa · đã xác nhận</div>
+      </div>
+      <div class="v">
+        <div class="w">14 phút trước<span class="tagx tg-rev">từ bản review</span></div>
+        <div class="who">chấp nhận thay đổi của reviewer</div>
+      </div>
+      <div class="v">
+        <div class="w">Hôm qua 21:04</div>
+        <div class="who">bạn sửa · đã xác nhận</div>
+      </div>
+      <div class="v">
+        <div class="w">Hôm qua 20:58<span class="tagx tg-ai">từ AI</span></div>
+        <div class="who">đưa sang từ panel Đề xuất</div>
+      </div>
+      <div class="v">
+        <div class="w">Hôm qua 20:57<span class="tagx tg-tm">từ TM</span></div>
+        <div class="who">khớp 100% từ Chương 12</div>
+      </div>
+    </div>
+
+    <div class="vmain">
+      <div class="src"><span class="l">Nguyên văn — không đổi</span>
+        風從走廊盡頭吹來，帶著鐵鏽和一種他叫不出名字的冷香。</div>
+
+      <div class="vd"><span class="l">So với phiên bản trước · 14 phút trước</span>
+        Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt <del>cùng</del><ins>và</ins> một thứ
+        <del>mùi lạnh</del><ins>hương lạnh</ins> mà hắn không gọi được tên.</div>
+
+      <div class="vmeta">
+        <span>Xuất xứ: <b style="color:var(--ink)">tôi dịch</b></span>
+        <span>Đã ghi vào Translation Memory</span>
+        <span>Cặp TM cũ vẫn còn, không bị ghi đè</span>
+      </div>
+
+      <div class="box ok"><b>Khôi phục là tạo phiên bản mới, không phải xoá phiên bản sau.</b> Lấy lại bản
+      “hôm qua 21:04” sẽ đẩy nó lên thành phiên bản thứ sáu — lịch sử chỉ dài thêm, không bao giờ ngắn đi.
+      Người dịch đổi ý rồi đổi lại là chuyện thường, và một thao tác hoàn tác làm mất bản hiện tại thì lần sau
+      họ sẽ không dám bấm nữa.</div>
+
+      <div class="box info"><b>Cùng một câu nguồn có thể có nhiều bản dịch trong TM, và cả hai đều được giữ.</b>
+      Hệ thống không ghi đè cặp cũ khi bạn sửa — nó giữ tất cả kèm ngày và hiển thị tất cả để bạn tự chọn.
+      Đây là chỗ Translation Memory khác một bảng tra: nó ghi lại <i>bạn đã từng nghĩ gì</i>, không chỉ
+      <i>bạn đang nghĩ gì</i>.</div>
+
+      <div class="btnrow">
+        <button class="btn pri">Khôi phục phiên bản này</button>
+        <button class="btn">So với bản đang dùng</button>
+        <span class="hint"><span class="k">↑</span> <span class="k">↓</span> duyệt phiên bản · <span class="k">Esc</span> đóng</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>Đã lưu 3 giây trước</span>
+    <span class="r">Auto-save khi ngừng gõ ~2 giây · trần 5 giây buộc ghi dù đang gõ liên tục</span>
+  </div>
+</div>
+
+<div class="rowlab">3 · Sao lưu là copy thư mục <span>không có thao tác xuất riêng nào · FR96 · FR97 · FR102</span></div>
+<div class="win">
+  <div class="pad">
+    <div class="h2">Một Tác phẩm trên đĩa</div>
+    <div class="h2s">Người dùng copy, sao lưu và di chuyển tự do. Không cần mở ứng dụng, không cần một thao tác
+    xuất riêng, không cần biết định dạng bên trong. <b>Copy thư mục sang máy khác là mở được nguyên vẹn.</b></div>
+
+    <div class="half2">
+      <div>
+        <div class="tree"><b>tuyet-trung-han-dao-hanh.atproj/</b>
+├── project.toml          <span style="color:var(--ink-2)">tên · ngôn ngữ nguồn · lĩnh vực</span>
+├── chapters/
+│   ├── 0001.chapter
+│   ├── 0002.chapter
+│   └── …                 <span style="color:var(--ink-2)">2.014 tệp</span>
+├── segments.db           <span style="color:var(--ink-2)">segment · xác nhận · xuất xứ</span>
+├── history.db            <span style="color:var(--ink-2)">lịch sử phiên bản từng câu</span>
+├── glossary.db           <span style="color:var(--ink-2)">Glossary của Tác phẩm này</span>
+├── tm.db                 <span style="color:var(--ink-2)">Translation Memory của Tác phẩm</span>
+├── prompts/              <span style="color:var(--ink-2)">prompt riêng của Tác phẩm</span>
+├── images/               <span style="color:var(--ink-2)">hình nhúng, không phụ thuộc đường dẫn ngoài</span>
+└── cover.jpg</div>
+        <div class="box ok"><b>Tự chứa nghĩa là không có gì nằm ngoài thư mục này.</b> Hình nhúng ở trong,
+        không phải liên kết tới nơi khác trên máy — nếu không, copy sang máy khác sẽ ra một Tác phẩm đầy ô trống mà
+        không có gì báo trước.</div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h4>Cái gì <b>không</b> nằm trong <code>.atproj</code></h4>
+          <p><b>Chỉ mục Library</b> — dẫn xuất, dựng lại được, nằm ở thư mục cấu hình ứng dụng.</p>
+          <p><b>Glossary và TM toàn cục</b> — chúng thuộc về bạn chứ không thuộc về một Tác phẩm. Xuất riêng bằng
+          CSV và TMX.</p>
+          <p><b>Khoá API</b> — nằm trong Keychain của hệ điều hành. Copy Tác phẩm sang máy khác <b>không mang khoá
+          theo</b>, và đó là chủ ý.</p>
+          <p><b>Phím tắt và preset bố cục</b> — cấu hình toàn cục.</p>
+        </div>
+
+        <div class="box warn"><b>Copy khi ứng dụng đang mở Tác phẩm đó thì sao?</b> Bản copy có thể thiếu tối đa
+        <b>5 giây</b> công việc cuối — đúng bằng trần của auto-save. Không hỏng, chỉ cũ hơn một câu đang gõ dở.
+        Muốn chắc chắn thì đóng Tác phẩm trước khi copy, và câu này hiện ngay ở thanh trạng thái chứ không nằm
+        trong tài liệu hướng dẫn.</div>
+
+        <div class="btnrow">
+          <button class="btn">Mở thư mục Tác phẩm</button>
+          <button class="btn">Xuất TMX</button>
+          <button class="btn">Xuất Glossary CSV</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR96 · FR97</b> mỗi Tác phẩm là một <code>.atproj</code> tự chứa, nguồn sự thật</span>
+  <span class="fc"><b>FR98</b> chỉ mục là dẫn xuất, dựng lại được hoàn toàn — mất chỉ mục không mất dữ liệu</span>
+  <span class="fc"><b>FR99</b> quét lại: mới xuất hiện · đã di chuyển · mồ côi, và không dọn im lặng</span>
+  <span class="fc"><b>FR101</b> lịch sử phiên bản từng câu · khôi phục là thêm phiên bản, không xoá</span>
+  <span class="fc"><b>FR102</b> copy thư mục là sao lưu đủ dùng</span>
+  <span class="fc"><b>FR63</b> nhiều bản dịch cho cùng một segment nguồn đều được giữ</span>
+  <span class="fc"><b>NFR18</b> mất tối đa 5 giây công việc — nói ra ở đúng chỗ nó có hệ quả</span>
+</div>

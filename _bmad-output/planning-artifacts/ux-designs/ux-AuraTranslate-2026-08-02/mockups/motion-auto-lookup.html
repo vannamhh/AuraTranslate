@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Chuyển động Auto-Lookup — đặc tả sống</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.6}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.85;margin-top:4px;max-width:870px}
+.rowlab{max-width:1150px;margin:28px auto 10px;color:#f4f1ea;font-size:13.5px;font-weight:600}
+.rowlab span{font-weight:400;opacity:.8;font-size:12px;margin-left:10px}
+.pair{max-width:1150px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+.panel{background:var(--surface);border-radius:6px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25);height:300px;display:flex;flex-direction:column}
+.ph{height:32px;display:flex;align-items:center;padding:0 14px;gap:8px;border-bottom:1px solid var(--line-2);flex:none}
+.pt{font-size:11.5px;color:var(--ink-2)}
+.tag{margin-left:auto;font-size:10px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;border-radius:2px;padding:2px 7px}
+.tag.bad{background:#f7e6e3;color:var(--error)}
+.tag.good{background:#eaf0e2;color:#4a5c33}
+.pb{padding:0 15px 12px;flex:1;overflow:hidden}
+
+/* ---- vùng neo cố định ---- */
+.anchor{height:74px;flex:none;padding-top:11px;border-bottom:1px solid var(--line);margin-bottom:10px}
+.hw{font-family:var(--read);font-size:26px;line-height:1.15}
+.hw small{font-family:var(--ui);font-size:11px;color:var(--ink-2);margin-left:8px}
+.spine{margin-top:7px;font-size:11px;color:var(--ink-2)}
+.rec{padding-left:12px;border-left:2px solid var(--line-2);margin-bottom:10px}
+.rec.hl{border-left-color:var(--primary)}
+.src{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--primary);font-weight:700}
+.gloss{font-family:var(--read);font-size:14px;line-height:1.55;margin-top:2px}
+.ex{font-family:var(--read);font-size:12px;font-style:italic;color:var(--ink-2);margin-top:3px}
+
+/* ================== DEMO 1: LAYOUT NHẢY vs NEO ================== */
+@keyframes swapBad{
+  0%,42%   {content:""}
+  43%,100% {}
+}
+.cycleBad .s1{animation:showA 4s infinite}
+.cycleBad .s2{animation:showB 4s infinite}
+.cycleGood .s1{animation:showA 4s infinite}
+.cycleGood .s2{animation:showB 4s infinite}
+@keyframes showA{0%,47%{opacity:1;display:block}48%,100%{opacity:0}}
+@keyframes showB{0%,47%{opacity:0}48%,100%{opacity:1}}
+.stack{position:relative}
+.stack > div{position:absolute;left:0;right:0;top:0}
+/* bản xấu: đầu mục nằm trong dòng chảy nên bị đẩy */
+.badflow .hw{font-family:var(--read);font-size:26px}
+.badflow{animation:shift 4s infinite}
+@keyframes shift{0%,47%{padding-top:11px}48%,100%{padding-top:44px}}
+
+/* ================== DEMO 2: FADE ================== */
+.fadeSlow{animation:fslow 3s infinite}
+@keyframes fslow{0%{opacity:0;transform:translateY(6px)}22%{opacity:1;transform:none}92%{opacity:1}100%{opacity:0}}
+.fadeRight{animation:fright 3s infinite}
+@keyframes fright{0%{opacity:.4}5%{opacity:1}100%{opacity:1}}
+
+/* ================== DEMO 3: TRA LIÊN TIẾP ================== */
+.rapidBad .w1{animation:rb1 2.4s infinite}
+.rapidBad .w2{animation:rb2 2.4s infinite}
+.rapidBad .w3{animation:rb3 2.4s infinite}
+@keyframes rb1{0%{opacity:0}6%{opacity:1}25%{opacity:1}31%{opacity:0}100%{opacity:0}}
+@keyframes rb2{0%,25%{opacity:0}31%{opacity:1}50%{opacity:1}56%{opacity:0}100%{opacity:0}}
+@keyframes rb3{0%,50%{opacity:0}56%{opacity:1}92%{opacity:1}100%{opacity:0}}
+.rapidGood .w1{animation:rg1 2.4s steps(1,end) infinite}
+.rapidGood .w2{animation:rg2 2.4s steps(1,end) infinite}
+.rapidGood .w3{animation:rg3 2.4s steps(1,end) infinite}
+@keyframes rg1{0%{opacity:1}25%{opacity:0}100%{opacity:0}}
+@keyframes rg2{0%{opacity:0}25%{opacity:1}50%{opacity:0}100%{opacity:0}}
+@keyframes rg3{0%{opacity:0}50%{opacity:1}100%{opacity:1}}
+
+.legend{max-width:1150px;margin:14px auto 0;display:flex;gap:9px;flex-wrap:wrap}
+.chip{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px}
+.chip b{color:var(--primary)}
+.chip.warn{background:#f7e6e3;color:var(--error)}
+.chip.ok{background:#eaf0e2;color:#4a5c33}
+.spec{max-width:1150px;margin:30px auto 0;background:var(--surface);border-radius:6px;padding:20px 24px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.spec h3{font-family:var(--read);font-size:18px;margin:0 0 12px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line)}
+td{padding:8px 10px 8px 0;border-bottom:1px solid var(--line-2);vertical-align:top;line-height:1.6}
+td b{color:var(--primary)}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <b>Chuyển động Auto-Lookup</b>
+  <div class="sub">Thao tác lặp nhiều nhất trong sản phẩm — hàng trăm lần mỗi Chương, mỗi lần dưới 100ms. Ở nhịp đó, chuyển động sai làm mỏi mắt nhanh hơn là không có chuyển động nào.</div>
+</div>
+
+<!-- ===== 1. LAYOUT NHẢY ===== -->
+<div class="rowlab">① Thủ phạm thật không phải thiếu hiệu ứng — mà là layout nhảy <span>xem vùng đầu mục</span></div>
+<div class="pair">
+  <div class="panel">
+    <div class="ph"><span class="pt">Tra cứu</span><span class="tag bad">✗ đầu mục trôi</span></div>
+    <div class="pb badflow">
+      <div class="hw">走廊 <small>zǒuláng</small></div>
+      <div class="spine" style="margin-bottom:11px">3 nguồn · 4 nghĩa</div>
+      <div class="rec"><div class="src">CVDICT</div><div class="gloss">hành lang, hàng lang</div></div>
+      <div class="rec hl"><div class="src">Thiều Chửu</div><div class="gloss">dãy nhà có mái nối hai toà</div></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="ph"><span class="pt">Tra cứu</span><span class="tag good">✓ đầu mục neo cứng</span></div>
+    <div class="pb">
+      <div class="anchor">
+        <div class="hw">走廊 <small>zǒuláng</small></div>
+        <div class="spine">3 nguồn · 4 nghĩa</div>
+      </div>
+      <div class="rec"><div class="src">CVDICT</div><div class="gloss">hành lang, hàng lang</div></div>
+      <div class="rec hl"><div class="src">Thiều Chửu</div><div class="gloss">dãy nhà có mái nối hai toà</div></div>
+    </div>
+  </div>
+</div>
+<div class="legend">
+  <span class="chip warn">Bên trái: đầu mục nằm trong dòng chảy nên mỗi mục từ đẩy nó lên xuống — mắt mất điểm neo</span>
+  <span class="chip ok">Bên phải: vùng đầu mục <b>cao cố định</b>, đầu mục luôn ở cùng một toạ độ. Chỉ phần dưới thay đổi</span>
+</div>
+
+<!-- ===== 2. FADE ===== -->
+<div class="rowlab">② Hiệu ứng vào: đừng làm chậm thứ nhanh nhất trong sản phẩm</div>
+<div class="pair">
+  <div class="panel">
+    <div class="ph"><span class="pt">Tra cứu</span><span class="tag bad">✗ 220ms · mờ từ 0 · trượt lên</span></div>
+    <div class="pb">
+      <div class="anchor"><div class="hw">鐵鏽 <small>tiěxiù</small></div><div class="spine">2 nguồn · 2 nghĩa</div></div>
+      <div class="fadeSlow">
+        <div class="rec"><div class="src">CVDICT</div><div class="gloss">gỉ sắt</div><div class="ex">鐵鏽的氣味 — mùi gỉ sắt</div></div>
+        <div class="rec hl"><div class="src">Thiều Chửu</div><div class="gloss">rỉ sắt; chất bám trên sắt lâu ngày</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="ph"><span class="pt">Tra cứu</span><span class="tag good">✓ 90ms · mờ từ 0.4 · không trượt</span></div>
+    <div class="pb">
+      <div class="anchor"><div class="hw">鐵鏽 <small>tiěxiù</small></div><div class="spine">2 nguồn · 2 nghĩa</div></div>
+      <div class="fadeRight">
+        <div class="rec"><div class="src">CVDICT</div><div class="gloss">gỉ sắt</div><div class="ex">鐵鏽的氣味 — mùi gỉ sắt</div></div>
+        <div class="rec hl"><div class="src">Thiều Chửu</div><div class="gloss">rỉ sắt; chất bám trên sắt lâu ngày</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="legend">
+  <span class="chip warn">Mờ từ <b>0</b> và trượt lên: mắt phải chờ nội dung hiện thành hình — cảm giác chậm dù backend chỉ tốn 0,05ms</span>
+  <span class="chip ok">Mờ từ <b>0.4</b>, không dịch chuyển: nội dung đọc được ngay từ khung hình đầu, hiệu ứng chỉ làm dịu cú chuyển</span>
+  <span class="chip">Cấm <code>translate</code> — dịch chuyển lặp hàng trăm lần mỗi chương gây mỏi rõ rệt</span>
+</div>
+
+<!-- ===== 3. TRA LIÊN TIẾP ===== -->
+<div class="rowlab">③ Ca khó: bôi đen ba từ liên tiếp trong hai giây</div>
+<div class="pair">
+  <div class="panel">
+    <div class="ph"><span class="pt">Tra cứu</span><span class="tag bad">✗ hiệu ứng xếp hàng</span></div>
+    <div class="pb rapidBad">
+      <div class="anchor" style="position:relative">
+        <div class="w1" style="position:absolute"><div class="hw">風 <small>fēng</small></div><div class="spine">4 nguồn</div></div>
+        <div class="w2" style="position:absolute"><div class="hw">走廊 <small>zǒuláng</small></div><div class="spine">3 nguồn</div></div>
+        <div class="w3" style="position:absolute"><div class="hw">鐵鏽 <small>tiěxiù</small></div><div class="spine">2 nguồn</div></div>
+      </div>
+      <div style="color:var(--ink-2);font-size:12px;padding-top:6px">Mỗi lần tra chạy trọn hiệu ứng của nó → chồng lấn → nhấp nháy</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="ph"><span class="pt">Tra cứu</span><span class="tag good">✓ hiệu ứng bị cắt, nhảy thẳng</span></div>
+    <div class="pb rapidGood">
+      <div class="anchor" style="position:relative">
+        <div class="w1" style="position:absolute"><div class="hw">風 <small>fēng</small></div><div class="spine">4 nguồn</div></div>
+        <div class="w2" style="position:absolute"><div class="hw">走廊 <small>zǒuláng</small></div><div class="spine">3 nguồn</div></div>
+        <div class="w3" style="position:absolute"><div class="hw">鐵鏽 <small>tiěxiù</small></div><div class="spine">2 nguồn</div></div>
+      </div>
+      <div style="color:var(--ink-2);font-size:12px;padding-top:6px">Tra mới <b>huỷ</b> hiệu ứng đang chạy và hiện ngay ở độ mờ đầy</div>
+    </div>
+  </div>
+</div>
+<div class="legend">
+  <span class="chip ok"><b>Quy tắc quan trọng nhất:</b> hiệu ứng phải cắt được và <b>không xếp hàng</b>. Tra nhanh liên tiếp thì thành không có hiệu ứng — đúng như người dùng muốn</span>
+</div>
+
+<!-- ===== ĐẶC TẢ ===== -->
+<div class="spec">
+  <h3>Đặc tả chuyển động — Auto-Lookup</h3>
+  <table>
+    <tr><th style="width:210px">Tình huống</th><th>Quy tắc</th></tr>
+    <tr><td><b>Vùng đầu mục</b></td><td>Cao <b>cố định</b>, không phụ thuộc nội dung. Đầu mục và thanh nhịp luôn ở cùng toạ độ. Chỉ phần dưới thay đổi.</td></tr>
+    <tr><td><b>Nội dung mới vào</b></td><td><b>90ms</b>, opacity <b>0.4 → 1</b>, <code>ease-out</code>. Không <code>translate</code>, không <code>scale</code>.</td></tr>
+    <tr><td><b>Nội dung cũ</b></td><td>Bị thay thẳng, <b>không có hiệu ứng ra</b>. Hiệu ứng ra ở đây chỉ kéo dài thời gian chờ.</td></tr>
+    <tr><td><b>Tra liên tiếp</b></td><td>Tra mới <b>huỷ</b> hiệu ứng đang chạy và đặt thẳng opacity 1. Hiệu ứng <b>không xếp hàng</b>, không cộng dồn.</td></tr>
+    <tr><td><b>Vị trí cuộn</b></td><td>Về đầu <b>tức thì</b>. Không bao giờ cuộn có hiệu ứng — cuộn mượt ở đây làm mất luôn cảm giác tức thì.</td></tr>
+    <tr><td><b>Bôi đen đang kéo</b></td><td>Không tra khi con trỏ còn đang kéo. Chỉ tra khi vùng chọn <b>đã dừng</b> — nếu không sẽ tra hàng loạt cụm dở dang.</td></tr>
+    <tr><td><b>Khi vượt 250ms</b></td><td>Hiện <b>vạch tiến trình mảnh</b> ở đáy vùng đầu mục, không dùng spinner. Ca này lẽ ra không xảy ra (NFR1 p95 &lt; 100ms) nhưng nếu xảy ra mà im lặng thì trông như hỏng.</td></tr>
+    <tr><td><b>Không tìm thấy</b></td><td>Cùng hiệu ứng 90ms. Trạng thái rỗng <b>không</b> được hiện chậm hơn trạng thái có kết quả — chậm hơn sẽ bị hiểu là đang tìm tiếp.</td></tr>
+    <tr><td><b><code>prefers-reduced-motion</code></b></td><td>Bỏ <b>toàn bộ</b> hiệu ứng, thay bằng đổi tức thì. Thuộc sàn khả năng tiếp cận, không phải tuỳ chọn thêm.</td></tr>
+  </table>
+</div>
+
+</body>
+</html>

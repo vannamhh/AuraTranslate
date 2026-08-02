@@ -1,0 +1,304 @@
+<meta charset="utf-8">
+<title>Khớp mờ Translation Memory — phần trăm, diff, thuật toán theo ngôn ngữ — FR58 · FR59 · FR61</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --add-bg:#e7f0e4; --add-ink:#3f5b34; --del-bg:#f7e6e3; --del-ink:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.66}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2;line-height:1.75}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600;line-height:1.66}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;background:var(--surface)}
+.pane{position:relative;display:flex;flex-direction:column;border-right:1px solid var(--line);min-width:0}
+.pane:last-child{border-right:0}
+.pane.focus::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--primary);z-index:3}
+.ph{height:34px;display:flex;align-items:center;padding:0 15px;gap:9px;border-bottom:1px solid var(--line-2);flex:none}
+.pt{font-size:12px;color:var(--ink-2)}
+.pane.focus .pt{color:var(--primary);font-weight:600}
+.phr{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--ink-2)}
+.body{flex:1;padding:11px 16px 14px;min-width:0}
+
+/* Editor liền mạch */
+.ed{display:grid;grid-template-columns:22px 1fr}
+.g{position:relative}
+.g i{position:absolute;left:8px;width:2px;border-radius:2px}
+.txt{font-family:var(--read);font-size:15px;line-height:1.95}
+.txt .s{display:block;padding:1px 0}
+.s.conf{color:var(--ink)}
+.s.tm{background:var(--tm-bg);border-radius:2px;box-shadow:0 0 0 3px var(--tm-bg)}
+.s.cur{background:var(--accent-bg);border-radius:2px;box-shadow:0 0 0 3px var(--accent-bg)}
+.s.none{color:var(--ink-2)}
+.caret{display:inline-block;width:1.5px;height:1.05em;background:var(--primary);vertical-align:-2px;margin:0 1px}
+
+/* dải TM mọc dưới câu đang sửa */
+.band{margin:9px 0 4px 22px;border:1px solid var(--tm);border-left-width:2px;border-radius:0 4px 4px 0;
+  background:var(--tm-bg);overflow:hidden}
+.bandh{display:flex;align-items:center;gap:10px;padding:7px 13px;border-bottom:1px solid #eadfc7;
+  font-size:11px;color:var(--tm-text);line-height:1.66}
+.bandh b{color:var(--ink);font-weight:600}
+.bandh .r{margin-left:auto}
+.m{display:grid;grid-template-columns:52px 1fr 96px;gap:12px;align-items:start;padding:9px 13px;
+  border-bottom:1px solid #eadfc7;background:var(--surface)}
+.m:last-child{border-bottom:0}
+.pct{font-family:ui-monospace,monospace;font-size:14px;font-weight:600;color:var(--tm-text);text-align:right;padding-top:1px}
+.pct.hi{color:var(--confirmed)}
+.pct s{display:block;font-family:var(--ui);font-size:9.5px;font-weight:400;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-2);text-decoration:none;margin-top:2px}
+.mt{min-width:0}
+.msrc{font-family:var(--read);font-size:13px;line-height:1.8;color:var(--ink-2);margin-bottom:4px}
+.mtgt{font-family:var(--read);font-size:14.5px;line-height:1.8}
+.mmeta{margin-top:5px;display:flex;gap:12px;font-size:10.5px;color:var(--ink-2);flex-wrap:wrap;line-height:1.66}
+.mmeta .own{color:var(--primary);font-weight:600}
+.mmeta .other{color:var(--tm-text);font-weight:600}
+.macts{display:flex;flex-direction:column;gap:5px;align-items:stretch}
+ins{background:var(--add-bg);color:var(--add-ink);text-decoration:none;border-radius:2px;padding:0 3px}
+del{background:var(--del-bg);color:var(--del-ink);border-radius:2px;padding:0 3px}
+.btn{border-radius:4px;padding:4px 11px;font-size:11.5px;border:1px solid var(--line);background:var(--bg);color:var(--ink);text-align:center}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+
+.box{padding:12px 15px;font-size:12.5px;line-height:1.8;border-radius:0 3px 3px 0;margin-top:13px}
+.box.warn{background:var(--tm-bg);border-left:2px solid var(--tm);color:var(--tm-text)}
+.box.ok{background:#f1f6ee;border-left:2px solid var(--confirmed);color:var(--ink-2)}
+.box.info{background:var(--accent-bg);border-left:2px solid var(--primary);color:var(--ink-2)}
+.box b{color:var(--ink)}
+.box code{font-family:ui-monospace,monospace;font-size:11.5px}
+
+/* bảng thuật toán */
+.pad{padding:20px 24px 24px}
+.h2{font-family:var(--read);font-size:19px;margin:0 0 3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:17px;line-height:1.8;max-width:760px}
+.halves{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.card{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:15px 17px}
+.card h4{margin:0 0 4px;font-family:var(--read);font-size:15px;font-weight:600}
+.card .algo{font-family:ui-monospace,monospace;font-size:11px;color:var(--ink-2);margin-bottom:11px;line-height:1.66}
+.ex{border-top:1px solid var(--line-2);padding-top:10px;margin-top:10px}
+.ex .l{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin-bottom:5px}
+.ex .a{font-family:var(--read);font-size:14px;line-height:1.8}
+.ex .b{font-family:var(--read);font-size:14px;line-height:1.8;margin-top:3px}
+.ex .sc{margin-top:7px;font-size:11.5px;color:var(--ink-2);line-height:1.66}
+.ex .sc b{color:var(--tm-text)}
+.card p{margin:10px 0 0;font-size:12px;line-height:1.8;color:var(--ink-2)}
+.card p b{color:var(--ink)}
+
+.status{height:32px;display:flex;align-items:center;padding:0 18px;gap:16px;border-top:1px solid var(--line);
+  font-size:11px;color:var(--ink-2);background:var(--bg)}
+.status .r{margin-left:auto}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.66}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Khớp mờ — chỗ Translation Memory trả công cho nhiều năm tích luỹ</b>
+  <div class="sub">Khớp 100% đã có bề mặt: câu được điền sẵn, vạch lề nâu vàng, chờ người xác nhận. Nhưng
+  <b>khớp tuyệt đối là trường hợp hiếm</b> — phần lớn giá trị của TM nằm ở những câu <i>gần giống</i>, nơi người dịch
+  sửa vài chữ thay vì dịch lại từ đầu. Bề mặt đó chưa có, và nó mang một quyết định: <b>gợi ý gần giống hiện ở đâu
+  mà không phá Editor liền mạch.</b></div>
+</div>
+
+<div class="rowlab">1 · Dải TM mọc dưới câu đang sửa <span>không panel riêng, không hộp thoại · FR59</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Tuyết Trung Hãn Đao Hành · Chương 47</span><span class="k">⌘2</span></span>
+  </div>
+
+  <div class="two">
+    <div class="pane">
+      <div class="ph"><span class="pt">Nguyên văn</span>
+        <span class="phr"><span>Tiếng Trung</span><span>Hán Việt</span></span></div>
+      <div class="body">
+        <div class="txt" style="font-size:16.5px;line-height:2.05">
+          <span class="s conf">風從走廊盡頭吹來，帶著鐵鏽和一種他叫不出名字的冷香。</span>
+          <span class="s conf">少年沒有回頭。</span>
+          <span class="s cur">他知道身後那扇門一旦關上，就再也推不開了。</span>
+          <span class="s none">雪落了三日，蓋滿了石階。</span>
+        </div>
+        <div class="box info"><b>Câu đang sửa không có trong TM ở dạng nguyên vẹn.</b> Nhưng ba câu gần giống nó thì có
+        — và ở tiếng Trung, <i>gần giống</i> được đo bằng n-gram ký tự vì không có ranh giới từ để cắt.</div>
+      </div>
+    </div>
+
+    <div class="pane focus">
+      <div class="ph"><span class="pt">Bản dịch</span>
+        <span class="phr"><span>câu 3 / 184</span><span class="k">⌘↵</span></span></div>
+      <div class="body">
+        <div class="ed">
+          <div class="g">
+            <i style="top:2px;height:30px;background:var(--confirmed)"></i>
+            <i style="top:36px;height:30px;background:var(--confirmed)"></i>
+            <i style="top:70px;height:30px;background:var(--primary)"></i>
+          </div>
+          <div class="txt">
+            <span class="s conf">Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt.</span>
+            <span class="s conf">Thiếu niên không quay đầu lại.</span>
+            <span class="s cur"><span class="caret"></span></span>
+          </div>
+        </div>
+
+        <div class="band">
+          <div class="bandh">Translation Memory — <b>3 câu gần giống</b>
+            <span class="r"><span class="k">⌥1</span> <span class="k">⌥2</span> <span class="k">⌥3</span> nhận · <span class="k">Esc</span> ẩn dải</span></div>
+
+          <div class="m">
+            <div class="pct hi">92%<s>khớp</s></div>
+            <div class="mt">
+              <div class="msrc">他知道身後那扇門一旦關上，就再也<del>打不開</del><ins>推不開</ins>了。</div>
+              <div class="mtgt">Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao
+                <del>mở ra</del><ins>đẩy ra</ins> được nữa.</div>
+              <div class="mmeta"><span>Chương 12 · câu 44</span><span class="own">văn phong của tôi</span><span>14-07</span></div>
+            </div>
+            <div class="macts"><button class="btn pri">Nhận</button><button class="btn">Xem cả câu</button></div>
+          </div>
+
+          <div class="m">
+            <div class="pct">71%<s>khớp</s></div>
+            <div class="mt">
+              <div class="msrc">他知道<del>那條路</del><ins>身後那扇門</ins>一旦<del>走上</del><ins>關上</ins>，就再也<del>回不了頭</del><ins>推不開</ins>了。</div>
+              <div class="mtgt">Hắn biết <del>con đường ấy</del><ins>cánh cửa sau lưng</ins> một khi đã
+                <del>bước lên</del><ins>khép</ins>, thì <del>không quay đầu lại</del><ins>không sao đẩy ra</ins> được nữa.</div>
+              <div class="mmeta"><span>Chương 31 · câu 8</span><span class="own">văn phong của tôi</span><span>18-07</span></div>
+            </div>
+            <div class="macts"><button class="btn">Nhận</button><button class="btn">Xem cả câu</button></div>
+          </div>
+
+          <div class="m">
+            <div class="pct">68%<s>khớp</s></div>
+            <div class="mt">
+              <div class="msrc">他知道門一旦關上，就<del>什麼也聽不見</del><ins>再也推不開</ins>了。</div>
+              <div class="mtgt">Anh ta biết cửa một khi đóng lại thì <del>chẳng còn nghe thấy gì</del><ins>không sao đẩy ra</ins> nữa.</div>
+              <div class="mmeta"><span>Đại Đường Song Long · Chương 3</span><span class="other">văn phong người khác</span><span>02-06</span></div>
+            </div>
+            <div class="macts"><button class="btn">Nhận</button><button class="btn">Xem cả câu</button></div>
+          </div>
+        </div>
+
+        <div class="box ok"><b>Diff nằm ở cả hai phía, và đó là điểm chính.</b> Chỉ hiện phần trăm thì người dùng vẫn
+        phải đọc cả hai câu để tìm chỗ khác. Hiện diff <b>ở câu nguồn</b> nói <i>bản gốc khác chỗ nào</i>; hiện diff
+        <b>ở câu đích</b> nói <i>bản dịch cũ cần sửa chỗ nào</i>. Hai thông tin khác nhau, và người dịch cần cả hai
+        để quyết trong hai giây.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>TM: 12.409 cặp · 11.882 của tôi · 527 của người khác</span>
+    <span class="r">Ngưỡng hiện gợi ý: <b>từ 65% trở lên</b>, tối đa 3 câu · đổi trong Cài đặt</span>
+  </div>
+</div>
+
+<div class="rowlab">2 · Dải TM và dải chốt Glossary không được cùng mọc <span>va chạm giữa hai mẫu đã có — phải quyết</span></div>
+<div class="win">
+  <div class="pad">
+    <div class="h2">Một dải một lúc, và thứ tự đã chốt</div>
+    <div class="h2s">Hai bề mặt đã dựng trước đều dùng cùng một mẫu <b>“dải mọc dưới câu đang sửa, không phải hộp thoại”</b>:
+    dải chốt bản dịch Glossary lần đầu gặp thuật ngữ, và nay là dải gợi ý TM. Một câu hoàn toàn có thể kích hoạt
+    cả hai cùng lúc — nó vừa chứa thuật ngữ chờ chốt, vừa có câu gần giống trong TM. Chồng hai dải lên nhau
+    đẩy văn bản xuống hai lần và phá đúng thứ Editor liền mạch tồn tại để giữ.</div>
+
+    <div class="halves">
+      <div class="card">
+        <h4>Thứ tự ưu tiên</h4>
+        <p><b>1 · Dải chốt Glossary thắng.</b> Nó <b>chặn</b> — thuật ngữ chưa chốt thì không tham gia ép AI, nên
+        để nó treo là để một lỗ hổng chạy tiếp qua từng câu sau. Nó cũng chỉ hỏi <b>một lần trong cả Tác phẩm</b>.</p>
+        <p><b>2 · Dải TM nhường.</b> Nó <b>không chặn gì cả</b> — bỏ qua một gợi ý TM chỉ tốn công gõ lại một câu,
+        và câu đó vẫn nằm nguyên trong TM cho lần sau.</p>
+        <p>Sau khi chốt xong thuật ngữ, dải TM mọc lên ngay tại chỗ dải cũ vừa thu lại — <b>không cần thao tác nào</b>,
+        và vị trí không nhảy vì hai dải cùng chiều cao đầu mục.</p>
+      </div>
+      <div class="card">
+        <h4>Khi nào dải TM không mọc</h4>
+        <p><b>Khi có khớp 100%.</b> Câu đã được điền sẵn với vạch lề nâu vàng — mọc thêm một dải để gợi ý những câu
+        <i>kém giống hơn</i> là tiếng ồn.</p>
+        <p><b>Khi câu cao nhất dưới ngưỡng.</b> Mặc định 65%. Dưới mức đó, sửa một bản dịch cũ tốn công hơn dịch lại,
+        và gợi ý sai còn <b>neo suy nghĩ</b> người dịch vào một cách diễn đạt không phù hợp.</p>
+        <p><b>Khi người dùng đã bấm <span class="k">Esc</span></b> ở câu đó. Ẩn dải là quyết định theo từng câu,
+        không phải một công tắc toàn cục — lần sau vẫn mọc.</p>
+      </div>
+    </div>
+
+    <div class="box warn"><b>Đây là phát hiện của lần dựng này, không phải điều PRD đã nói.</b> FR59 và FR114 được
+    viết độc lập và không FR nào nhắc tới FR kia. Va chạm chỉ lộ ra khi cả hai dùng chung một mẫu thị giác trên cùng
+    một dòng văn bản. Quy tắc ở trên là <b>quyết định ở tầng thiết kế</b> — nếu nó sai thì sửa ở đây, không phải mở
+    lại PRD.</div>
+  </div>
+</div>
+
+<div class="rowlab">3 · Khớp mờ đo bằng gì <span>thuật toán phân theo ngôn ngữ · FR61 · FR40</span></div>
+<div class="win">
+  <div class="pad">
+    <div class="h2">Hai ngôn ngữ nguồn, hai cách đo</div>
+    <div class="h2s">Một thuật toán khớp duy nhất cho cả hai cặp ngôn ngữ sẽ hỏng ở một bên. Tiếng Trung viết liền
+    không có dấu cách nên không cắt được thành từ; tiếng Anh cắt được nhưng lại có biến thể hình thái làm hai câu
+    giống hệt về nghĩa trông khác nhau về chữ.</div>
+
+    <div class="halves">
+      <div class="card">
+        <h4>Trung → Việt</h4>
+        <div class="algo">n-gram ký tự · không tách từ</div>
+        <div class="ex">
+          <div class="l">Câu đang dịch</div>
+          <div class="a">他知道身後那扇門一旦關上，就再也推不開了。</div>
+          <div class="l" style="margin-top:9px">Câu trong TM</div>
+          <div class="b">他知道身後那扇門一旦關上，就再也打不開了。</div>
+          <div class="sc">Lệch <b>1 ký tự trên 21</b> → <b>92%</b>. Không cần biết đâu là ranh giới từ,
+          vì phép đo chạy trên chuỗi ký tự.</div>
+        </div>
+        <p><b>Vì sao không tách từ:</b> tách từ tiếng Trung là một bài toán riêng, sai ở một tỷ lệ nhất định, và mỗi
+        lần sai sẽ làm điểm khớp lệch theo cách không giải thích được cho người dùng. N-gram ký tự thô hơn nhưng
+        <b>không bao giờ sai kiểu đó</b>.</p>
+      </div>
+
+      <div class="card">
+        <h4>Anh → Việt</h4>
+        <div class="algo">token n-gram · sau khi rút gọn hình thái</div>
+        <div class="ex">
+          <div class="l">Câu đang dịch</div>
+          <div class="a" lang="en">The doors were closing behind the travellers.</div>
+          <div class="l" style="margin-top:9px">Câu trong TM</div>
+          <div class="b" lang="en">The door closed behind the traveller.</div>
+          <div class="sc">Sau khi rút gọn: <code>door · close · behind · travel</code> khớp cả bốn →
+          <b>88%</b> thay vì 45% nếu so chữ thô.</div>
+        </div>
+        <p><b>Giới hạn đã biết và chấp nhận:</b> đây là <i>stemming</i>, không phải <i>lemmatization</i> thật —
+        hệ sinh thái Rust chưa có lemmatizer trưởng thành. Đủ cho khớp TM và khớp Glossary, nhưng
+        <b>không xử lý được biến thể bất quy tắc</b>: <code lang="en">went</code> không rút về
+        <code lang="en">go</code>. Ghi rõ ở đây thay vì để người dùng tự phát hiện.</p>
+      </div>
+    </div>
+
+    <div class="box info"><b>Phần trăm khớp là con số của máy, không phải phán xét về chất lượng.</b> Một câu khớp 92%
+    vẫn có thể sai hoàn toàn về nghĩa nếu ký tự khác biệt duy nhất là một từ phủ định. Vì vậy dải TM
+    <b>không bao giờ tự điền</b> ở mức dưới 100% — kể cả 99%. Người đọc diff rồi bấm nhận; máy không được suy ra
+    rằng gần giống nghĩa là đúng.</div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR58</b> khớp 100% điền sẵn, đánh dấu là gợi ý chờ xác nhận — hệ thống không tự coi là xong</span>
+  <span class="fc"><b>FR59</b> khớp mờ hiện phần trăm và diff, ở <b>cả câu nguồn lẫn câu đích</b></span>
+  <span class="fc"><b>FR61</b> Trung dùng n-gram ký tự · Anh dùng token n-gram sau stemming</span>
+  <span class="fc"><b>FR40</b> giới hạn của stemming ghi rõ, không giấu</span>
+  <span class="fc"><b>FR118</b> mỗi gợi ý nói rõ văn phong của tôi hay của người khác</span>
+  <span class="fc"><b>Quyết định thiết kế mới</b> — thứ tự ưu tiên giữa dải Glossary và dải TM</span>
+</div>

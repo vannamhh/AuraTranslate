@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Hướng C — Kế thừa, sạch hơn</title>
+<style>
+/* ====== HƯỚNG C — KẾ THỪA QUICKTRANSLATOR, SẠCH HƠN ======
+   Bảng màu (light):
+   --bg        #f0f0f0  nền hệ điều hành
+   --panel     #ffffff  mặt panel
+   --chrome    #e4e4e4  thanh tiêu đề panel
+   --line      #b4b4b4  đường kẻ, đậm và rõ
+   --ink       #101010  chữ chính, tương phản cao
+   --ink-2     #4a4a4a  chữ phụ
+   --accent    #0a5fb4  xanh hệ thống — tiêu điểm, tab đang mở
+   --accent-bg #dceaf8
+   --mark      #b45309  cam đất — thuật ngữ Glossary
+   --mark-bg   #fef0dc
+   --confirm   #15803d
+   Dark: nền #202020, panel #2b2b2b, chữ #f0f0f0, accent #56a0e8
+========================================================= */
+:root{
+  --bg:#f0f0f0; --panel:#fff; --chrome:#e4e4e4; --line:#b4b4b4;
+  --ink:#101010; --ink-2:#4a4a4a; --accent:#0a5fb4; --accent-bg:#dceaf8;
+  --mark:#b45309; --mark-bg:#fef0dc; --confirm:#15803d;
+  --ui: ui-sans-serif,-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#7a7a7a;font-family:var(--ui);font-size:14px;color:var(--ink);padding:24px}
+.note{max-width:1180px;margin:0 auto 14px;color:#fff;font-size:13px;line-height:1.6}
+.note b{font-size:15px}
+.app{max-width:1180px;margin:0 auto;background:var(--bg);border:1px solid #555;border-radius:4px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.titlebar{height:34px;background:linear-gradient(#f7f7f7,#e8e8e8);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 10px;gap:8px}
+.dot{width:11px;height:11px;border-radius:50%;background:#c4c4c4;border:1px solid #ababab}
+.modes{margin-left:14px;display:flex;gap:0}
+.modes span{padding:5px 15px;font-size:13px;color:var(--ink-2);border:1px solid transparent;border-bottom:0}
+.modes .on{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--line);border-radius:4px 4px 0 0;margin-bottom:-1px}
+.crumb{margin-left:auto;color:var(--ink-2);font-size:12.5px}
+.grid{display:grid;grid-template-columns:1.15fr 1fr 1fr 1.15fr;height:530px;gap:5px;padding:5px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.panel.focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+.phead{height:29px;background:var(--chrome);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 9px;gap:7px;flex:none}
+.ptitle{font-size:12.5px;font-weight:700}
+.tabs{margin-left:auto;display:flex;gap:3px}
+.tab{font-size:12px;padding:2px 9px;color:var(--ink-2);border:1px solid transparent;border-radius:3px}
+.tab.on{background:var(--panel);color:var(--accent);font-weight:600;border-color:var(--line)}
+.key{font-size:11px;font-family:ui-monospace,monospace;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2)}
+.body{padding:10px 11px;overflow:hidden;line-height:1.72;flex:1}
+.zh{font-size:16px;line-height:1.95}
+.hv{color:var(--ink-2);font-size:12.5px}
+mark{background:var(--mark-bg);color:var(--mark);border:1px solid #f0d5aa;border-radius:2px;padding:0 2px;font-weight:600}
+.sel{background:var(--accent-bg);outline:2px solid var(--accent)}
+/* ---- Lookup ---- */
+.q{font-size:23px;font-weight:700;padding:2px 0 8px;border-bottom:2px solid var(--line);margin-bottom:10px}
+.q small{font-size:12.5px;font-weight:400;color:var(--ink-2);margin-left:8px}
+.warn{font-size:12px;color:#8a4a00;background:var(--mark-bg);border:1px solid #f0d5aa;border-radius:3px;padding:5px 8px;margin-bottom:10px;font-weight:600}
+.rec{border:1px solid var(--line);border-radius:3px;margin-bottom:9px;overflow:hidden}
+.rechd{display:flex;align-items:center;gap:8px;background:var(--chrome);padding:4px 8px;border-bottom:1px solid var(--line)}
+.src{font-size:11.5px;font-weight:700;color:var(--accent)}
+.pos{font-size:12px;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);border-radius:2px;padding:0 5px}
+.recbd{padding:7px 8px}
+.gloss{font-size:14px}
+.ex{font-size:12.5px;color:var(--ink-2);margin-top:5px;background:var(--bg);border-radius:3px;padding:4px 7px}
+.cite{font-size:12.5px;color:var(--ink-2);margin-top:5px;background:var(--mark-bg);border-radius:3px;padding:4px 7px}
+.cite i{color:var(--mark);font-style:normal;font-weight:700}
+/* ---- Editor ---- */
+.seg{padding:7px 9px;border:1px solid transparent;border-radius:3px;margin-bottom:4px}
+.seg.done{border-color:#bbe3c9;background:#f0faf3}
+.seg.now{border-color:var(--accent);background:var(--accent-bg)}
+.seg.tm{border-color:#f0d5aa;background:var(--mark-bg)}
+.segmeta{font-size:11.5px;color:var(--ink-2);margin-bottom:3px;display:flex;gap:6px;align-items:center}
+.badge{font-size:11px;font-weight:700;border-radius:2px;padding:0 5px;background:var(--chrome);border:1px solid var(--line)}
+.badge.ok{background:#dcf5e5;border-color:#8fd4a8;color:var(--confirm)}
+.status{height:28px;background:var(--chrome);border-top:1px solid var(--line);display:flex;align-items:center;padding:0 11px;gap:16px;font-size:12px;color:var(--ink-2)}
+.status b{color:var(--confirm)}
+</style>
+</head>
+<body>
+<div class="note">
+<b>Hướng C — Kế thừa QuickTranslator, sạch hơn.</b> Giữ nguyên mô hình mà cộng đồng đã quen: panel có khung viền rõ và thanh tiêu đề riêng, tab kiểu hệ điều hành, tương phản cao, chữ to hơn hai hướng kia. Không cố tỏ ra hiện đại — cố tỏ ra <i>quen tay</i>. Panel đang có tiêu điểm được viền xanh, nên điều hướng bằng bàn phím luôn nhìn thấy mình đang ở đâu.
+</div>
+
+<div class="app">
+  <div class="titlebar">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="crumb">Tuyết Trung Hãn Đao Hành · Chương 47 · 128/2000</div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="phead"><span class="ptitle">Source</span>
+        <div class="tabs"><span class="tab on">Nguyên văn</span><span class="tab">Hán Việt</span></div>
+      </div>
+      <div class="body zh">
+        他<mark>打</mark>開了那扇門，走進了黑暗之中。<br>
+        風從<span class="sel">走廊</span>盡頭吹來，帶著鐵鏽的氣味。<br>
+        <span style="color:var(--ink-2)">少年沒有回頭。</span>
+        <div class="hv" style="margin-top:11px;padding-top:9px;border-top:1px solid var(--line)">
+          tha <b style="color:var(--mark)">đả</b> khai liễu na phiến môn, tẩu tiến liễu hắc ám chi trung.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel focus">
+      <div class="phead"><span class="ptitle">Lookup</span><span class="key">F3</span>
+        <div class="tabs"><span class="tab on">Từ điển</span><span class="tab">Concordance</span></div>
+      </div>
+      <div class="body">
+        <div class="q">走廊 <small>zǒuláng</small></div>
+        <div class="warn">⚠ Hai nguồn ghi khác nhau — hiển thị cả hai</div>
+
+        <div class="rec">
+          <div class="rechd"><span class="src">CVDICT</span><span class="pos">danh từ</span></div>
+          <div class="recbd">
+            <div class="gloss">hành lang, hàng lang</div>
+            <div class="ex">走廊盡頭 — cuối hành lang</div>
+          </div>
+        </div>
+
+        <div class="rec">
+          <div class="rechd"><span class="src" style="color:var(--mark)">Thiều Chửu</span><span class="pos">danh từ</span></div>
+          <div class="recbd">
+            <div class="gloss">dãy nhà có mái nối hai toà; hiên chạy dài</div>
+            <div class="cite"><i>Trích:</i> “廊, 東西序也” — Thuyết Văn Giải Tự</div>
+          </div>
+        </div>
+
+        <div class="rec">
+          <div class="rechd"><span class="src">CC-CEDICT</span><span class="pos">noun</span></div>
+          <div class="recbd"><div class="gloss">corridor · aisle · passageway</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><span class="ptitle">AI Translation</span><span class="key">Ctrl+↵</span>
+        <div class="tabs"><span class="tab">Prompt đã gửi</span></div>
+      </div>
+      <div class="body">
+        <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px">Segment 2 · đang sinh…</div>
+        <div>Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt<span style="opacity:.4">▏</span></div>
+        <div style="margin-top:16px;padding:8px;background:var(--bg);border:1px solid var(--line);border-radius:3px;font-size:12.5px;color:var(--ink-2);line-height:1.8">
+          Đã chèn <b style="color:var(--mark)">2 thuật ngữ</b> Glossary · <b>3 segment</b> TM<br>
+          412 token · ước tính ~0,004 USD
+        </div>
+        <div style="margin-top:11px;font-size:12.5px;color:var(--ink-2)">
+          <span class="key">Ctrl+⇧+↵</span> đưa sang Editor &nbsp; <span class="key">Esc</span> huỷ
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><span class="ptitle">Editor</span>
+        <div class="tabs"><span class="tab">12/34 đã xác nhận</span></div>
+      </div>
+      <div class="body">
+        <div class="seg done">
+          <div class="segmeta">Segment 1 <span class="badge ok">✓ đã xác nhận</span></div>
+          Hắn <mark>đả khai</mark> cánh cửa ấy, bước vào giữa bóng tối.
+        </div>
+        <div class="seg now">
+          <div class="segmeta">Segment 2 <span class="badge">đang sửa</span></div>
+          Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt.
+        </div>
+        <div class="seg tm">
+          <div class="segmeta">Segment 3 <span class="badge">TM khớp 100% · cần xác nhận</span></div>
+          Thiếu niên không quay đầu lại.
+        </div>
+        <div class="seg" style="color:var(--ink-2)">
+          <div class="segmeta">Segment 4 <span class="badge">chưa dịch</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>Tra cứu: <b>ngoại tuyến</b></span>
+    <span>Glossary Tác phẩm: 214 mục</span>
+    <span>TM: 8.412 cặp</span>
+    <span style="margin-left:auto">Đã lưu 2 giây trước</span>
+  </div>
+</div>
+</body>
+</html>

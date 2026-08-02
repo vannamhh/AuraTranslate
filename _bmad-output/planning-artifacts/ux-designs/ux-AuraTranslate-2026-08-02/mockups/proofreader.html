@@ -1,0 +1,391 @@
+<meta charset="utf-8">
+<title>AI Proofreader — đánh dấu tại chỗ trên Editor liền mạch — FR80–FR86</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --err-bg:#fbeeeb;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.66}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2;line-height:1.75}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600;line-height:1.66}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.tbt{margin-left:14px;font-size:12.5px;color:var(--ink-2)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;background:var(--surface)}
+.pane{position:relative;display:flex;flex-direction:column;border-right:1px solid var(--line);min-width:0}
+.pane:last-child{border-right:0}
+.pane.focus::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--primary);z-index:3}
+.ph{height:34px;display:flex;align-items:center;padding:0 15px;gap:9px;border-bottom:1px solid var(--line-2);flex:none}
+.pt{font-size:12px;color:var(--ink-2)}
+.pane.focus .pt{color:var(--primary);font-weight:600}
+.phr{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--ink-2)}
+.body{flex:1;padding:11px 16px 14px;min-width:0}
+
+/* Editor liền mạch — vạch lề GIỮ NGUYÊN cho trạng thái segment */
+.ed{display:grid;grid-template-columns:22px 1fr}
+.g{position:relative}
+.g i{position:absolute;left:8px;width:2px;border-radius:2px}
+.txt{font-family:var(--read);font-size:15px;line-height:1.95}
+.txt .s{display:block;padding:1px 0}
+.s.cur{background:var(--accent-bg);border-radius:2px;box-shadow:0 0 0 3px var(--accent-bg)}
+.caret{display:inline-block;width:1.5px;height:1.05em;background:var(--primary);vertical-align:-2px;margin:0 1px}
+
+/* PHÁT HIỆN — gạch chân dưới đúng cụm, không chạm vạch lề, không chia ô */
+.f{text-decoration:underline;text-decoration-style:wavy;text-decoration-thickness:1px;text-underline-offset:4px}
+.f.obj{text-decoration-color:var(--error)}
+.f.subj{text-decoration-color:var(--tm)}
+.f.on{background:var(--err-bg);border-radius:2px}
+.f.subj.on{background:var(--tm-bg)}
+
+/* dải phát hiện mọc dưới câu */
+.band{margin:9px 0 4px 22px;border:1px solid var(--error);border-left-width:2px;border-radius:0 4px 4px 0;
+  background:var(--err-bg);overflow:hidden}
+.band.subj{border-color:var(--tm);background:var(--tm-bg)}
+.bandh{display:flex;align-items:center;gap:10px;padding:7px 13px;font-size:11px;color:var(--error);line-height:1.66;
+  border-bottom:1px solid #f0ddd8}
+.band.subj .bandh{color:var(--tm-text);border-bottom-color:#eadfc7}
+.bandh b{color:var(--ink);font-weight:600}
+.bandh .r{margin-left:auto;color:var(--ink-2)}
+.bb{background:var(--surface);padding:11px 13px}
+.kind{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
+.kind.obj{color:var(--error)}
+.kind.subj{color:var(--tm-text)}
+.why{font-size:12.5px;line-height:1.8;color:var(--ink-2);margin-bottom:9px}
+.why b{color:var(--ink)}
+.sugg{font-family:var(--read);font-size:14.5px;line-height:1.85;padding:9px 12px;background:var(--bg);
+  border-left:2px solid var(--confirmed);border-radius:0 3px 3px 0}
+.sugg .l{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-2);display:block;margin-bottom:4px}
+ins{background:#e7f0e4;color:#3f5b34;text-decoration:none;border-radius:2px;padding:0 3px}
+del{background:#f7e6e3;color:#8f2f22;border-radius:2px;padding:0 3px}
+.bacts{margin-top:11px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border-radius:4px;padding:5px 13px;font-size:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.bacts .nav{margin-left:auto;font-size:11px;color:var(--ink-2)}
+
+.box{padding:12px 15px;font-size:12.5px;line-height:1.8;border-radius:0 3px 3px 0;margin-top:13px}
+.box.warn{background:var(--tm-bg);border-left:2px solid var(--tm);color:var(--tm-text)}
+.box.ok{background:#f1f6ee;border-left:2px solid var(--confirmed);color:var(--ink-2)}
+.box.info{background:var(--accent-bg);border-left:2px solid var(--primary);color:var(--ink-2)}
+.box.err{background:var(--err-bg);border-left:2px solid var(--error);color:var(--ink-2)}
+.box b{color:var(--ink)}
+.box code{font-family:ui-monospace,monospace;font-size:11.5px}
+
+/* chạy proofreader */
+.pad{padding:20px 24px 24px}
+.h2{font-family:var(--read);font-size:19px;margin:0 0 3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:17px;line-height:1.8;max-width:760px}
+.halves{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.card{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:15px 17px}
+.card h4{margin:0 0 9px;font-family:var(--read);font-size:15px;font-weight:600}
+.card p{margin:10px 0 0;font-size:12px;line-height:1.8;color:var(--ink-2)}
+.card p b{color:var(--ink)}
+.scopes{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.sc{border:1px solid var(--line);border-radius:4px;padding:9px 13px;background:var(--bg);flex:1;min-width:132px}
+.sc.on{border-color:var(--primary);background:var(--accent-bg)}
+.sc .n{font-size:13px;line-height:1.66}
+.sc.on .n{color:var(--primary);font-weight:600}
+.sc .d{font-size:11px;color:var(--ink-2);margin-top:3px;line-height:1.75}
+
+/* bảng loại lỗi */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  padding:0 11px 7px 0;border-bottom:1px solid var(--line)}
+td{padding:9px 11px 9px 0;border-bottom:1px solid var(--line-2);vertical-align:top;line-height:1.8}
+.mark{display:inline-block;border-bottom:1.5px solid var(--error);padding-bottom:1px;font-family:var(--read);font-size:13.5px}
+.mark.subj{border-bottom-color:var(--tm)}
+
+/* bỏ qua có ghi nhớ */
+.drow{display:grid;grid-template-columns:1fr 176px 108px;gap:14px;align-items:start;padding:10px 0;
+  border-bottom:1px solid var(--line-2);font-size:12.5px;line-height:1.8}
+.drow:last-of-type{border-bottom:0}
+.drow .q{font-family:var(--read);font-size:13.5px;min-width:0}
+.drow .m{font-size:11px;color:var(--ink-2);line-height:1.75}
+.drow .m b{color:var(--ink);display:block}
+
+.fpr{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:4px}
+.gauge{flex:1;min-width:230px;max-width:340px}
+.gauge .track{height:5px;background:var(--sunken);border-radius:3px;overflow:hidden;display:flex}
+.gauge .track i{display:block;height:100%}
+.gauge .lg{margin-top:7px;display:flex;gap:15px;font-size:11.5px;color:var(--ink-2);flex-wrap:wrap;line-height:1.66}
+.gauge .lg span{display:flex;align-items:center;gap:6px}
+.sw{width:8px;height:8px;border-radius:2px}
+.sw.acc{background:var(--confirmed)}
+.sw.dis{background:var(--error)}
+.sw.skip{background:var(--orn)}
+
+.status{height:32px;display:flex;align-items:center;padding:0 18px;gap:16px;border-top:1px solid var(--line);
+  font-size:11px;color:var(--ink-2);background:var(--bg)}
+.status .r{margin-left:auto;display:flex;gap:16px}
+
+.btnrow{margin-top:19px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btnrow .hint{margin-left:auto;font-size:11.5px;color:var(--ink-2);line-height:1.66}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.66}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>AI Proofreader — và bài toán thật của nó</b>
+  <div class="sub">C7 không thiếu màn hình, nó thiếu <b>một quyết định</b>. FR86 bắt phát hiện phải đánh dấu
+  <b>ngay tại chỗ trên Editor</b>, chứ không phải một danh sách rời bắt người dùng tự đối chiếu vị trí. Nhưng Editor
+  cố tình <b>liền mạch, không ô không bảng</b>, và <b>vạch lề đã dùng hết năm giá trị</b> cho trạng thái segment.
+  Ba trang dưới đây trả lời: phát hiện hiện ra bằng gì, và nó nhường chỗ cho ai.</div>
+</div>
+
+<div class="rowlab">1 · Quyết định: phát hiện là <b>gạch chân dưới đúng cụm</b> <span>không chạm vạch lề, không chia ô, không panel rời</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Chương 47 · đã quét 184 câu</span><span class="k">⌘P</span></span>
+  </div>
+
+  <div class="two">
+    <div class="pane">
+      <div class="ph"><span class="pt">Nguyên văn</span>
+        <span class="phr"><span>Tiếng Trung</span><span>Hán Việt</span></span></div>
+      <div class="body">
+        <div class="txt" style="font-size:16.5px;line-height:2.05;color:var(--ink-2)">
+          風從走廊盡頭吹來，帶著鐵鏽和一種他叫不出名字的冷香。<br>
+          少年沒有回頭。<br>
+          <span style="color:var(--ink)">他知道身後那扇門一旦關上，就再也推不開了。</span><br>
+          老人搖了搖頭，說這孩子不是不聰明，是太聰明了。
+        </div>
+        <div class="box info"><b>Proofreader đối chiếu bản dịch với bản gốc, nên panel Nguyên văn là bằng chứng.</b>
+        Câu đang xét được làm nổi ở đây để người dùng tự phán xét — máy nghi ngờ, người quyết định.</div>
+      </div>
+    </div>
+
+    <div class="pane focus">
+      <div class="ph"><span class="pt">Bản dịch</span>
+        <span class="phr"><span><b style="color:var(--error)">6</b> phát hiện</span><span class="k">F8</span> kế tiếp</span></div>
+      <div class="body">
+        <div class="ed">
+          <div class="g">
+            <i style="top:2px;height:58px;background:var(--confirmed)"></i>
+            <i style="top:64px;height:30px;background:var(--confirmed)"></i>
+            <i style="top:98px;height:58px;background:var(--primary)"></i>
+          </div>
+          <div class="txt">
+            <span class="s">Gió thổi tới từ cuối hành lang, mang theo mùi <span class="f obj">gỉ sét</span>
+              và một thứ hương lạnh mà hắn không gọi được tên.</span>
+            <span class="s">Thiếu niên không quay đầu lại.</span>
+            <span class="s cur">Hắn biết cánh cửa sau lưng một khi đã khép, thì
+              <span class="f subj on">không sao đẩy ra được nữa</span>.<span class="caret"></span></span>
+          </div>
+        </div>
+
+        <div class="band subj">
+          <div class="bandh">Proofreader — <b>phát hiện 3 trên 6</b>
+            <span class="r"><span class="k">F8</span> kế tiếp · <span class="k">⇧F8</span> trước · <span class="k">Esc</span> ẩn</span></div>
+          <div class="bb">
+            <div class="kind subj">Nghi dịch thoát nghĩa quá xa</div>
+            <div class="why">Bản gốc <b>推不開</b> nghĩa là <b>đẩy không ra</b> — chỉ trạng thái vật lý của cánh cửa.
+            Bản dịch thêm <b>“không sao… được nữa”</b>, mang sắc thái bất lực và dứt khoát mà câu gốc không có.
+            Có thể là chủ ý văn phong.</div>
+            <div class="sugg"><span class="l">Đề xuất</span>
+              Hắn biết cánh cửa sau lưng một khi đã khép, thì <del>không sao đẩy ra được nữa</del><ins>đẩy thế nào cũng không ra</ins>.</div>
+            <div class="bacts">
+              <button class="btn pri">Nhận đề xuất</button>
+              <button class="btn">Bỏ qua</button>
+              <button class="btn">Không phải lỗi</button>
+              <span class="nav">3 / 6</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="box ok"><b>Vạch lề không bị đụng tới.</b> Nó vẫn nói đúng một điều nó vẫn luôn nói: câu này
+        đã xác nhận hay chưa. Phát hiện của proofreader nằm ở <b>tầng khác</b> — gạch chân dưới đúng cụm chữ có
+        vấn đề, chứ không phải dưới cả câu. Hai lớp thông tin, hai chỗ đọc, không lớp nào nuốt lớp nào.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>Đã lưu 4 giây trước</span>
+    <span>Chương 47 · câu 88 / 184</span>
+    <span class="r">
+      <span><b style="color:var(--error)">2</b> chính tả và ngữ pháp</span>
+      <span><b style="color:var(--tm-text)">4</b> nghi về nghĩa</span>
+      <span>Quét lúc 14:02 · 2.610 token · ~0,024 USD</span>
+    </span>
+  </div>
+</div>
+
+<div class="rowlab">2 · Hai loại phát hiện, hai màu, và lý do <span>màu là thông tin — không thêm màu mới nào vào bảng · FR83</span></div>
+<div class="win">
+  <div class="pad">
+    <div class="h2">Vì sao chỉ hai màu, và vì sao đúng hai màu đó</div>
+    <div class="h2s">Bảng màu chỉ có một màu nhấn và ba màu mang nghĩa. Proofreader <b>không được thêm màu mới</b> —
+    thêm một màu là phá nguyên tắc <i>“chỗ nào bạn thấy màu, chỗ đó đang nói một điều có thật”</i>. Nên hai loại
+    phát hiện mượn đúng hai màu đã có nghĩa sẵn, và nghĩa đó khớp.</div>
+
+    <table>
+      <tr><th style="width:26%">Loại</th><th style="width:22%">Màu gạch chân</th><th>Vì sao đúng màu đó</th></tr>
+      <tr>
+        <td><span class="mark">gỉ sét</span><br>
+          <span style="font-size:11.5px;color:var(--ink-2);line-height:1.8">Chính tả và ngữ pháp tiếng Việt (FR80)</span></td>
+        <td><b style="color:var(--error)">error</b><br>
+          <span style="font-size:11.5px;color:var(--ink-2)">màu của lỗi</span></td>
+        <td><b>Có đáp án đúng.</b> <i>gỉ sét</i> hay <i>gỉ sắt</i> là chuyện tra được, không phải chuyện bàn.
+          Đây là loại phát hiện mà máy thường đúng, và người dùng chỉ cần liếc rồi bấm.</td>
+      </tr>
+      <tr>
+        <td><span class="mark subj">không sao đẩy ra được nữa</span><br>
+          <span style="font-size:11.5px;color:var(--ink-2);line-height:1.8">Nghi dịch sai, dịch thoát nghĩa quá xa, câu tối nghĩa (FR81)</span></td>
+        <td><b style="color:var(--tm-text)">tm-rule</b><br>
+          <span style="font-size:11.5px;color:var(--ink-2)">màu của gợi ý chưa chắc</span></td>
+        <td><b>Không có đáp án đúng.</b> Đây là <i>phán đoán</i> của mô hình về nghĩa, và nó sai ở một tỷ lệ thật.
+          Màu này trong toàn ứng dụng đã luôn nghĩa là <b>“máy đề xuất, chưa ai xác nhận”</b> — đúng bản chất của
+          nhóm phát hiện này.</td>
+      </tr>
+    </table>
+
+    <div class="box info"><b>Gạch chân lượn sóng, không phải nền màu.</b> Nền màu phủ cả cụm sẽ cạnh tranh với nền
+    của câu đang sửa và nền của gợi ý TM — ba lớp nền chồng nhau trên một trang văn bản là đúng thứ
+    “Bàn viết” tồn tại để tránh. Gạch chân nằm <b>dưới đường chân chữ</b>, không đụng vào chữ, không đụng vào nền,
+    và biến mất hoàn toàn khi phát hiện được xử lý.</div>
+
+    <div class="box warn"><b>Ràng buộc kèm theo cho tiếng Việt.</b> Gạch chân đặt ở <code>text-underline-offset: 4px</code>
+    chứ không phải mặc định — dấu nằm dưới của <code>ạ</code> <code>ộ</code> <code>ợ</code> sẽ chạm vào đường gạch
+    ở khoảng cách mặc định. Đây là cùng loại ràng buộc với sàn giãn dòng 1.66, và cũng vô hình nếu chỉ thử bằng
+    chữ Latin.</div>
+  </div>
+</div>
+
+<div class="rowlab">3 · Dải proofreader chen vào đâu trong thứ tự đã có <span>mở rộng luật “một dải một lúc”</span></div>
+<div class="win">
+  <div class="pad">
+    <div class="h2">Ba dải, một chỗ</div>
+    <div class="h2s">Dải mọc dưới câu đang sửa nay có ba nguồn: chốt bản dịch Glossary, phát hiện Proofreader,
+    và gợi ý TM khớp mờ. Thứ tự cũ được mở rộng theo đúng nguyên tắc cũ — <b>cái nào chặn thì thắng, cái nào chỉ
+    gợi ý thì nhường</b>.</div>
+
+    <div class="halves">
+      <div class="card">
+        <h4>Thứ tự ưu tiên</h4>
+        <p><b>1 · Chốt Glossary.</b> Chặn thật — thuật ngữ chưa chốt không tham gia ép AI, để treo là để lỗ hổng
+        chạy tiếp qua mọi câu sau. Hỏi <b>một lần trong cả Tác phẩm</b>.</p>
+        <p><b>2 · Proofreader.</b> Không chặn hệ thống, nhưng <b>đang chờ một quyết định về chính câu này</b>,
+        và bỏ qua thì nó <b>tích lại</b> — 6 phát hiện chưa xử lý trong một Chương là 6 lần phải quay lại.</p>
+        <p><b>3 · Gợi ý TM.</b> Nhường cả hai. Bỏ qua chỉ tốn công gõ lại một câu, và câu đó vẫn nằm nguyên trong
+        TM cho lần sau.</p>
+        <p>Xử lý xong dải trên thì dải dưới mọc ngay tại chỗ vừa thu — không thao tác nào, và vị trí không nhảy
+        vì cả ba cùng chiều cao đầu mục.</p>
+      </div>
+
+      <div class="card">
+        <h4>Khi nào Proofreader không chạy</h4>
+        <p><b>Không bao giờ chạy nền.</b> Với BYOK, quét nền liên tục là tính phí ngoài ý muốn; với mô hình cục bộ
+        nó chiếm tài nguyên máy suốt phiên. Cả hai đều là chi phí người dùng không chọn.</p>
+        <div class="scopes" style="margin-top:11px">
+          <div class="sc on"><div class="n">Câu này</div><div class="d">⌘P</div></div>
+          <div class="sc"><div class="n">Vùng chọn</div><div class="d">12 câu</div></div>
+          <div class="sc"><div class="n">Cả Chương</div><div class="d">184 câu · ~0,024 USD</div></div>
+        </div>
+        <p style="margin-top:11px"><b>Chi phí hiện trước khi bấm</b>, cùng khuôn với dịch theo lô. Quét cả Chương
+        <b>huỷ được giữa chừng</b> và giữ lại phát hiện của phần đã quét.</p>
+        <p><b>Proofreader không bao giờ tự sửa văn bản.</b> Không có chế độ “sửa tất cả”. Mọi thay đổi đi qua một
+        lần bấm của người dùng, từng phát hiện một.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rowlab">4 · Bỏ qua có ghi nhớ — và cái giá của việc không có nó <span>FR84 · tiêu chí nghiệm thu của FR81</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="tbt">Proofreader · Tuyết Trung Hãn Đao Hành</span>
+  </div>
+
+  <div class="pad">
+    <div class="h2">Đã đánh dấu “không phải lỗi”</div>
+    <div class="h2s">Khi người dùng nói một phát hiện <b>không phải lỗi</b>, lần quét sau không báo lại phát hiện đó
+    trong cùng Tác phẩm. Không có cơ chế này thì proofreader lặp lại cùng một cảnh báo sai ở mỗi lần quét, và người
+    dùng sẽ <b>tắt hẳn nó đi</b> — mất luôn phần cảnh báo đúng.</div>
+
+    <div class="drow">
+      <div class="q">Từ Phượng Niên <b style="font-weight:400;border-bottom:1.5px solid var(--tm)">chẳng nói năng gì</b></div>
+      <div class="m"><b>Nghi dịch thoát nghĩa</b>Đề xuất: “không nói gì”</div>
+      <div class="m">bỏ qua 03-08<br>đã chặn <b style="display:inline">4 lần</b></div>
+    </div>
+    <div class="drow">
+      <div class="q"><b style="font-weight:400;border-bottom:1.5px solid var(--tm)">Thính Triều Các</b></div>
+      <div class="m"><b>Nghi tên riêng chưa dịch</b>Đề xuất: “gác Nghe Sóng”</div>
+      <div class="m">bỏ qua 02-08<br>đã chặn <b style="display:inline">31 lần</b></div>
+    </div>
+    <div class="drow">
+      <div class="q">Trên đài cao, gió <b style="font-weight:400;border-bottom:1.5px solid var(--error)">thổi ù ù</b></div>
+      <div class="m"><b>Nghi từ láy không chuẩn</b>Đề xuất: “thổi ào ào”</div>
+      <div class="m">bỏ qua 03-08<br>đã chặn <b style="display:inline">2 lần</b></div>
+    </div>
+
+    <div class="box ok"><b>Cột “đã chặn N lần” là thứ biến một tính năng phòng thủ thành một tính năng nhìn thấy được.</b>
+    Mục <i>Thính Triều Các</i> đã chặn 31 cảnh báo sai — nghĩa là nếu không có FR84, người dùng đã phải bấm bỏ qua
+    31 lần cho cùng một chuyện. Đó là con số biến “tính năng này có ích không” thành một câu trả lời có bằng chứng.</div>
+
+    <div class="sh" style="margin-top:24px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);padding-bottom:6px;border-bottom:1px solid var(--line-2)">
+      Tỷ lệ báo động giả — chỉ số nghiệm thu của FR81</div>
+
+    <div class="fpr" style="margin-top:14px">
+      <div class="gauge">
+        <div class="track">
+          <i style="width:61%;background:var(--confirmed)"></i>
+          <i style="width:22%;background:var(--error)"></i>
+          <i style="width:17%;background:var(--orn)"></i>
+        </div>
+        <div class="lg">
+          <span><i class="sw acc"></i>Đã nhận 61%</span>
+          <span><i class="sw dis"></i>Không phải lỗi 22%</span>
+          <span><i class="sw skip"></i>Bỏ qua 17%</span>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--ink-2);line-height:1.8;max-width:420px">
+        <b style="color:var(--ink)">Độ chính xác của proofreader không nghiệm thu được theo lối thông thường</b> —
+        không có đáp án đúng để đối chiếu. Thứ đo được là <b style="color:var(--ink)">tỷ lệ báo động giả</b>:
+        số phát hiện bị đánh dấu <i>không phải lỗi</i> trên tổng số. Ngưỡng là
+        <b style="color:var(--ink)">đủ thấp để người dùng không tắt hẳn tính năng</b>.
+      </div>
+    </div>
+
+    <div class="box warn"><b>Vì sao con số này nằm trong ứng dụng chứ không nằm trong một báo cáo nội bộ.</b>
+    Nó là chỉ số duy nhất phản ánh đúng giá trị thật của proofreader, và nó neo trực tiếp vào thao tác
+    <i>“không phải lỗi”</i> mà người dùng vẫn bấm hằng ngày. Đặt nó ở đây nghĩa là <b>khi tính năng này trở nên
+    vô dụng, người dùng sẽ thấy trước khi họ kịp bực</b> — và có thể tắt nó có ý thức thay vì âm thầm phớt lờ.</div>
+
+    <div class="btnrow">
+      <button class="btn">Khôi phục mục đã bỏ qua</button>
+      <button class="btn">Xoá toàn bộ ghi nhớ của Tác phẩm này</button>
+      <span class="hint">Ghi nhớ theo Tác phẩm, không theo Chương — một tên riêng không nên phải bỏ qua lại ở mỗi Chương</span>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR80</b> chính tả và ngữ pháp tiếng Việt</span>
+  <span class="fc"><b>FR81</b> đối chiếu với bản gốc: dịch sai · thoát nghĩa quá xa · câu tối nghĩa</span>
+  <span class="fc"><b>FR82</b> chạy theo yêu cầu trên câu / vùng chọn / Chương — <b>không chạy nền</b></span>
+  <span class="fc"><b>FR83</b> mỗi phát hiện có loại lỗi, giải thích ngắn, đề xuất sửa · nhận hoặc bỏ từng cái</span>
+  <span class="fc"><b>FR84</b> bỏ qua có ghi nhớ theo Tác phẩm, kèm số lần đã chặn</span>
+  <span class="fc"><b>FR85</b> không bao giờ tự sửa văn bản</span>
+  <span class="fc"><b>FR86</b> đánh dấu tại chỗ trên Editor — gạch chân dưới đúng cụm, không chia ô, không chạm vạch lề</span>
+</div>

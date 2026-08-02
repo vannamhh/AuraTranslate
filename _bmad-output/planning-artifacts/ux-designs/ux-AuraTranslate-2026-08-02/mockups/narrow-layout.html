@@ -1,0 +1,264 @@
+<meta charset="utf-8">
+<title>Bố cục màn hình hẹp — ngưỡng và thứ tự hy sinh — FR16 · FR17 · FR20</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.66}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2;line-height:1.75}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600;line-height:1.66}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.wrap{max-width:1150px;margin:0 auto 34px}
+.tb{height:32px;display:flex;align-items:center;padding:0 13px;gap:7px;border-bottom:1px solid var(--line)}
+.dot{width:8px;height:8px;border-radius:50%;background:#d5cfc2}
+.tbt{margin-left:11px;font-size:11.5px;color:var(--ink-2)}
+.right{margin-left:auto;font-size:10.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+/* khung mô phỏng bố cục */
+.pane{position:relative;display:flex;flex-direction:column;min-width:0;background:var(--surface)}
+.ph{height:26px;display:flex;align-items:center;padding:0 11px;gap:7px;border-bottom:1px solid var(--line-2);flex:none}
+.pt{font-size:10.5px;color:var(--ink-2)}
+.pane.focus .pt{color:var(--primary);font-weight:600}
+.pane.focus::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--primary);z-index:3}
+.tabs{margin-left:auto;display:flex;gap:9px;font-size:10px;color:var(--ink-2)}
+.tabs .on{color:var(--primary);font-weight:600}
+.pb{flex:1;padding:7px 11px;overflow:hidden;font-family:var(--read);font-size:11px;line-height:1.85;color:var(--ink-2)}
+.pb .zh{font-size:11.5px;line-height:1.95;color:var(--ink)}
+.pb .vi{color:var(--ink)}
+.pb .dim{color:var(--ink-2)}
+
+.g22{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px;background:var(--line);height:330px}
+.g21{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1.55fr 1fr;gap:1px;background:var(--line);height:330px}
+.g11{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);height:330px}
+
+.stbar{height:24px;display:flex;align-items:center;padding:0 13px;gap:13px;border-top:1px solid var(--line);
+  font-size:10px;color:var(--ink-2);background:var(--bg)}
+.stbar .r{margin-left:auto}
+
+/* nhãn kích thước */
+.sz{display:flex;align-items:baseline;gap:10px;margin-bottom:7px;color:#f4f1ea;font-size:12px;line-height:1.66}
+.sz b{font-family:ui-monospace,monospace;font-size:12.5px}
+.sz i{font-style:normal;color:#d8d3c8}
+
+.grid3{display:grid;grid-template-columns:1fr 1fr;gap:22px;max-width:1150px;margin:0 auto 34px}
+
+.box{padding:12px 15px;font-size:12.5px;line-height:1.8;border-radius:0 3px 3px 0;margin-top:13px}
+.box.warn{background:var(--tm-bg);border-left:2px solid var(--tm);color:var(--tm-text)}
+.box.ok{background:#f1f6ee;border-left:2px solid var(--confirmed);color:var(--ink-2)}
+.box.info{background:var(--accent-bg);border-left:2px solid var(--primary);color:var(--ink-2)}
+.box b{color:var(--ink)}
+.box code{font-family:ui-monospace,monospace;font-size:11.5px}
+
+.pad{padding:20px 24px 24px;background:var(--bg);border-radius:9px;max-width:1150px;margin:0 auto 34px;
+  box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.h2{font-family:var(--read);font-size:19px;margin:0 0 3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:17px;line-height:1.8;max-width:780px}
+table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--surface)}
+th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  padding:9px 12px 8px;border-bottom:1px solid var(--line);background:var(--surface)}
+td{padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:top;line-height:1.8}
+td.bp{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--ink);white-space:nowrap}
+.halves{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.card{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:15px 17px}
+.card h4{margin:0 0 9px;font-family:var(--read);font-size:15px;font-weight:600}
+.card p{margin:10px 0 0;font-size:12px;line-height:1.8;color:var(--ink-2)}
+.card p b{color:var(--ink)}
+.card ol{margin:9px 0 0;padding-left:20px;font-size:12px;line-height:1.85;color:var(--ink-2)}
+.card ol li{margin-bottom:5px}
+.card ol b{color:var(--ink)}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.66}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Bố cục màn hình hẹp — cái gì được hy sinh trước</b>
+  <div class="sub">Lưới 2×2 giả định màn hình rộng. Trên một MacBook 13 inch, vấn đề thật <b>không phải chiều ngang
+  mà là chiều cao</b>: bốn panel chia đôi theo chiều dọc để lại cho Editor khoảng 13 dòng chữ — và Editor là chỗ mắt
+  ở lâu nhất. Trang này chốt ngưỡng, và chốt luôn <b>thứ tự hy sinh</b>.</div>
+</div>
+
+<div class="wrap">
+  <div class="sz"><b>1440 × 900</b><i>MacBook Pro 13" · vùng làm việc còn 1440 × 792 sau thanh tiêu đề và thanh trạng thái</i></div>
+  <div class="rowlab" style="margin-bottom:9px">Trên ngưỡng — 2×2 giữ nguyên <span>không đổi gì</span></div>
+  <div class="win">
+    <div class="tb">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="tbt">Tuyết Trung Hãn Đao Hành · Chương 47</span>
+      <span class="right">Bốn panel 2×2 · <span class="k">⌥1</span></span>
+    </div>
+    <div class="g22">
+      <div class="pane">
+        <div class="ph"><span class="pt">Nguyên văn</span><span class="tabs"><span class="on">Trung</span><span>Hán Việt</span></span></div>
+        <div class="pb"><span class="zh">風從走廊盡頭吹來，帶著鐵鏽和一種他叫不出名字的冷香。少年沒有回頭。他知道身後那扇門一旦關上，就再也推不開了。</span></div>
+      </div>
+      <div class="pane focus">
+        <div class="ph"><span class="pt">Bản dịch</span><span class="tabs"><span>câu 88 / 184</span></span></div>
+        <div class="pb"><span class="vi">Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ hương lạnh mà hắn không gọi được tên. Thiếu niên không quay đầu lại. Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa.</span></div>
+      </div>
+      <div class="pane">
+        <div class="ph"><span class="pt">Tra cứu</span><span class="tabs"><span class="on">Từ điển</span><span>Concordance</span><span>Lịch sử</span></span></div>
+        <div class="pb"><b style="font-size:15px;color:var(--ink)">走廊</b> · tẩu lang<br><span class="dim">CVDICT · danh từ</span><br>hành lang, dãy nhà có mái nối hai toà</div>
+      </div>
+      <div class="pane">
+        <div class="ph"><span class="pt">Đề xuất AI</span><span class="tabs"><span>Ollama · qwen2.5</span></span></div>
+        <div class="pb">Hắn biết cánh cửa sau lưng một khi đã khép thì không tài nào đẩy ra được nữa.</div>
+      </div>
+    </div>
+    <div class="stbar"><span>Đã lưu 3 giây trước</span><span class="r">Editor: 14 dòng nhìn thấy</span></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="sz"><b>1440 × 810</b><i>MacBook Air 13" ở tỷ lệ mặc định · cùng chiều ngang, thấp hơn 90px</i></div>
+  <div class="rowlab" style="margin-bottom:9px">Dưới ngưỡng chiều cao — hàng dưới gộp thành một panel có tab <span>ngưỡng: chiều cao vùng làm việc &lt; 820px</span></div>
+  <div class="win">
+    <div class="tb">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="tbt">Tuyết Trung Hãn Đao Hành · Chương 47</span>
+      <span class="right">Hẹp · hàng dưới đã gộp tab · <span class="k">⌥1</span></span>
+    </div>
+    <div class="g21">
+      <div class="pane">
+        <div class="ph"><span class="pt">Nguyên văn</span><span class="tabs"><span class="on">Trung</span><span>Hán Việt</span></span></div>
+        <div class="pb"><span class="zh">風從走廊盡頭吹來，帶著鐵鏽和一種他叫不出名字的冷香。少年沒有回頭。他知道身後那扇門一旦關上，就再也推不開了。雪落了三日，蓋滿了石階。</span></div>
+      </div>
+      <div class="pane focus">
+        <div class="ph"><span class="pt">Bản dịch</span><span class="tabs"><span>câu 88 / 184</span></span></div>
+        <div class="pb"><span class="vi">Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ hương lạnh mà hắn không gọi được tên. Thiếu niên không quay đầu lại. Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa. Tuyết rơi suốt ba ngày, phủ kín bậc thềm đá.</span></div>
+      </div>
+      <div class="pane" style="grid-column:1 / -1">
+        <div class="ph"><span class="pt">Tra cứu</span>
+          <span class="tabs"><span class="on">Từ điển</span><span>Concordance</span><span>Lịch sử</span><span style="margin-left:9px;padding-left:11px;border-left:1px solid var(--line)">Đề xuất AI</span></span></div>
+        <div class="pb"><b style="font-size:15px;color:var(--ink)">走廊</b> · tẩu lang &nbsp; <span class="dim">CVDICT · danh từ</span> — hành lang, dãy nhà có mái nối hai toà<br>
+          <span class="dim">Thiều Chửu · danh từ</span> — nhà cầu, lối đi có mái che dọc theo nhà</div>
+      </div>
+    </div>
+    <div class="stbar"><span>Đã lưu 3 giây trước</span><span class="r">Editor: 14 dòng nhìn thấy — <b style="color:var(--confirmed)">không đổi</b></span></div>
+  </div>
+</div>
+
+<div class="box info" style="max-width:1150px;margin:-22px auto 34px;background:var(--accent-bg);border-radius:0 4px 4px 0;padding:14px 18px">
+  <b>Cặp Nguyên văn | Bản dịch là bất khả xâm phạm.</b> Preset 2×2 đặt hai panel này <b>cạnh nhau theo chiều ngang</b>
+  vì đối chiếu ngang là thao tác lặp hàng trăm lần mỗi Chương, và vì Sync Scrolling chỉ có nghĩa khi hai cột chạy
+  song song. Mọi cách thu gọn đều phải giữ nguyên cặp này — thứ bị hy sinh là <b>hàng dưới</b>, không bao giờ là
+  hàng trên. Đổi lại, Editor <b>giữ nguyên 14 dòng</b> dù màn hình thấp hơn 90px.
+</div>
+
+<div class="wrap">
+  <div class="sz"><b>1180 × 740</b><i>cửa sổ chia đôi màn hình, hoặc màn hình ngoài nhỏ</i></div>
+  <div class="rowlab" style="margin-bottom:9px">Rất hẹp — hàng dưới thu thành ngăn kéo, mở khi cần <span>ngưỡng: chiều cao &lt; 700px hoặc chiều ngang &lt; 1100px</span></div>
+  <div class="win">
+    <div class="tb">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="tbt">Chương 47</span>
+      <span class="right">Rất hẹp · <span class="k">F3</span> mở Tra cứu · <span class="k">⌘T</span> mở AI</span>
+    </div>
+    <div class="g11">
+      <div class="pane">
+        <div class="ph"><span class="pt">Nguyên văn</span><span class="tabs"><span class="on">Trung</span><span>Hán Việt</span></span></div>
+        <div class="pb"><span class="zh">風從走廊盡頭吹來，帶著鐵鏽和一種他叫不出名字的冷香。少年沒有回頭。他知道身後那扇門一旦關上，就再也推不開了。雪落了三日，蓋滿了石階。掃院子的老人抬起頭，看了他一眼。</span></div>
+      </div>
+      <div class="pane focus">
+        <div class="ph"><span class="pt">Bản dịch</span><span class="tabs"><span>câu 88 / 184</span></span></div>
+        <div class="pb"><span class="vi">Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ hương lạnh mà hắn không gọi được tên. Thiếu niên không quay đầu lại. Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa. Tuyết rơi suốt ba ngày, phủ kín bậc thềm đá. Ông lão quét sân ngẩng đầu, nhìn hắn một cái.</span></div>
+      </div>
+    </div>
+    <div class="stbar">
+      <span>Đã lưu 3 giây trước</span>
+      <span style="color:var(--primary);font-weight:600">走廊 · tẩu lang — hành lang &nbsp;<span class="k">F3</span> xem đủ</span>
+      <span class="r">Editor: 17 dòng nhìn thấy</span>
+    </div>
+  </div>
+</div>
+
+<div class="box warn" style="max-width:1150px;margin:-22px auto 34px;background:var(--tm-bg);border-radius:0 4px 4px 0;padding:14px 18px">
+  <b>Ở mức rất hẹp, Auto-Lookup không được im lặng.</b> Panel Tra cứu đã đóng, nhưng bôi đen vẫn phải trả kết quả —
+  nếu không, thao tác lặp nhiều nhất trong sản phẩm biến mất mà không có gì báo. Lời giải:
+  <b>dòng kết quả rút gọn hiện ngay ở thanh trạng thái</b> — nghĩa đầu tiên của nguồn đầu tiên — và
+  <span class="k">F3</span> mở ngăn kéo đầy đủ. Người dùng vẫn tra được mà không phải mở panel, và vẫn biết là có
+  kết quả để mở.
+</div>
+
+<div class="pad">
+  <div class="h2">Ngưỡng và thứ tự hy sinh</div>
+  <div class="h2s">Ngưỡng đo theo <b>vùng làm việc</b> — chiều cao cửa sổ trừ thanh tiêu đề 38px và thanh trạng thái
+  32px — chứ không đo theo kích thước màn hình. Người dùng thường không chạy toàn màn hình, và một cửa sổ 1440px
+  trên màn 4K vẫn là một cửa sổ hẹp.</div>
+
+  <table>
+    <tr><th style="width:20%">Vùng làm việc</th><th style="width:28%">Bố cục</th><th>Đổi lại được gì</th></tr>
+    <tr>
+      <td class="bp">≥ 1100 × 820</td>
+      <td><b>2×2 đầy đủ</b><br>bốn panel cùng hiện</td>
+      <td>Mặc định. Không thu gọn gì.</td>
+    </tr>
+    <tr>
+      <td class="bp">≥ 1100 × 700<br>&lt; 820 cao</td>
+      <td><b>Hàng dưới gộp thành một panel có tab</b><br>Tra cứu và Đề xuất AI chung một khung</td>
+      <td>Editor <b>giữ nguyên chiều cao</b>. Mất khả năng nhìn từ điển và bản AI cùng lúc — thao tác hiếm hơn nhiều
+      so với đọc Editor.</td>
+    </tr>
+    <tr>
+      <td class="bp">&lt; 1100 rộng<br>hoặc &lt; 700 cao</td>
+      <td><b>Chỉ Nguyên văn | Bản dịch</b><br>hàng dưới thành ngăn kéo trượt lên</td>
+      <td>Editor cao nhất có thể. Tra cứu rút gọn về thanh trạng thái, mở đầy đủ bằng <span class="k">F3</span>.</td>
+    </tr>
+    <tr>
+      <td class="bp">&lt; 860 rộng</td>
+      <td><b>Không hỗ trợ</b><br>một dải báo, không tự đổi bố cục</td>
+      <td>Dưới mức này thì hai cột văn bản không còn đủ rộng để đọc. Nói ra là trung thực hơn là đưa ra một bố cục
+      dùng không nổi.</td>
+    </tr>
+  </table>
+
+  <div class="halves" style="margin-top:20px">
+    <div class="card">
+      <h4>Thứ tự hy sinh — chốt một lần cho mọi bề mặt</h4>
+      <ol>
+        <li><b>Đề xuất AI</b> nhường trước. Ứng dụng chạy đầy đủ không cần AI, và nhiều người dịch ẩn hẳn panel này.</li>
+        <li><b>Tra cứu</b> nhường thứ hai — nhưng <b>không bao giờ mất hẳn</b>: nó rút về thanh trạng thái. Đây là
+          điều kiện tồn tại của sản phẩm, không phải một panel tuỳ chọn.</li>
+        <li><b>Bản dịch</b> và <b>Nguyên văn</b> không bao giờ nhường. Mất một trong hai là không còn dịch được.</li>
+      </ol>
+      <p>Thứ tự này áp cho mọi cách thu gọn về sau, kể cả những cách chưa nghĩ ra.</p>
+    </div>
+
+    <div class="card">
+      <h4>Ba thứ khác cũng phải co theo</h4>
+      <p><b>Dải mọc dưới câu</b> — ở mức hẹp, dải TM hiện tối đa <b>2</b> gợi ý thay vì 3. Dải chốt Glossary và dải
+      Proofreader giữ nguyên: chúng chỉ có một nội dung, không cắt được.</p>
+      <p><b>Lưới Library</b> — 4 cột xuống 3, rồi xuống 2. Thẻ Tác phẩm giữ nguyên tỷ lệ, không bóp méo bìa.</p>
+      <p><b>Chế độ đọc</b> — không đổi gì. Chiều rộng đã đo bằng <code>ch</code>, nên ở màn hẹp nó chỉ mất phần lề
+      hai bên. <b>Số ký tự mỗi dòng giữ nguyên</b> — đó chính là lý do đo bằng <code>ch</code> ngay từ đầu.</p>
+    </div>
+  </div>
+
+  <div class="box ok"><b>Bố cục tự đổi, nhưng người dùng ghi đè được và ứng dụng nhớ.</b> Ngưỡng chỉ quyết định
+  <b>mặc định</b>. Ai muốn 2×2 trên màn hình 700px cao thì bật lại được, và lựa chọn đó được lưu theo từng preset —
+  cùng cơ chế với preset bố cục. Tự đổi mà không cho cãi lại là đúng kiểu phần mềm biết hơn người dùng,
+  và đó không phải sản phẩm này.</div>
+
+  <div class="box info"><b>Ngưỡng này là điểm khởi đầu, không phải hằng số.</b> Chúng đặt bằng phán đoán thiết kế
+  trên chiều cao dòng đã chốt (Editor 15px / 1.95 ≈ 29px mỗi dòng), chưa đo trên máy thật. Cần hiệu chỉnh khi có
+  bản chạy được — cùng loại với ngưỡng tạm A6, A7, A8 của PRD.</div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR16 · FR20</b> cặp Nguyên văn | Bản dịch cạnh nhau là bất khả xâm phạm</span>
+  <span class="fc"><b>FR17</b> gộp tab và ẩn panel đều là năng lực sẵn có của hệ bố cục, không tự viết</span>
+  <span class="fc"><b>FR21</b> Auto-Lookup không im lặng ở mọi mức — rút về thanh trạng thái khi panel đóng</span>
+  <span class="fc"><b>FR11</b> Chế độ đọc không đổi gì vì đo bằng <code>ch</code></span>
+  <span class="fc"><b>FR18</b> ngưỡng chỉ quyết định mặc định — người dùng ghi đè và ứng dụng nhớ</span>
+</div>

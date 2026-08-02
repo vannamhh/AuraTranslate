@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Workspace 2×2 — nền tối</title>
+<style>
+:root{
+  --bg:#201e1b; --surface:#26241f; --sunken:#1b1a17; --accent-bg:#2c3a3b; --tm-bg:#302b21;
+  --ink:#e8e3d8; --ink-2:#a29a8c; --orn:#6a6459;
+  --line:#3b382f; --line-2:#302d26;
+  --primary:#7fb3ba; --confirmed:#9cb37a; --tm:#b99a5e; --tm-text:#d3b276;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#131211;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 13px;color:#cfc9bd;line-height:1.6}
+.hd b{font-size:16px;color:#e8e3d8}
+.hd .sub{font-size:12.5px;opacity:.8;margin-top:4px;max-width:860px}
+.app{max-width:1150px;margin:0 auto;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 16px 46px rgba(0,0,0,.6)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#413d34}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.preset{margin-left:auto;font-size:11.5px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;background:var(--sunken);color:var(--ink-2)}
+.cur{color:var(--primary);font-weight:600}
+
+/* ===== PHÂN TÁCH BẰNG KHE TỐI, KHÔNG PHẢI ĐƯỜNG KẺ SÁNG ===== */
+.g22{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;height:610px;background:var(--bg);gap:2px;padding:2px}
+.panel{background:var(--surface);display:flex;flex-direction:column;min-width:0;overflow:hidden;position:relative;border-radius:3px}
+.panel.focus::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--primary)}
+.ph{height:34px;display:flex;align-items:center;padding:0 15px;gap:8px;flex:none}
+.pt{font-size:12px;color:var(--ink-2)}
+.panel.focus .pt{color:var(--primary);font-weight:600}
+.tabs{margin-left:auto;display:flex;gap:11px}
+.tab{font-size:11.5px;color:var(--ink-2)}
+.tab.on{color:var(--primary);font-weight:600}
+.key{font-size:10px;font-family:ui-monospace,monospace;color:var(--ink-2)}
+.body{padding:2px 16px 12px;overflow:hidden;flex:1}
+.zh{font-family:var(--read);font-size:16.5px;line-height:2.05}
+.hv{font-family:var(--read);color:var(--ink-2);font-size:12.5px;font-style:italic;line-height:1.95}
+mark{background:transparent;color:var(--primary);border-bottom:1px solid var(--primary)}
+.sel{background:var(--accent-bg);border-radius:2px;padding:0 1px}
+/* lookup */
+.q{font-family:var(--read);font-size:24px;padding:2px 0 3px}
+.q small{font-family:var(--ui);font-size:11.5px;color:var(--ink-2);margin-left:9px}
+.warn{font-size:11.5px;color:var(--tm-text);padding:4px 0 8px;border-bottom:1px solid var(--line);margin-bottom:11px;font-style:italic}
+.rec{margin-bottom:13px;padding-left:13px;border-left:2px solid var(--line)}
+.rec.hl{border-left-color:var(--primary)}
+.rechd{display:flex;align-items:baseline;gap:9px;margin-bottom:3px}
+.src{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--primary);font-weight:700}
+.pos{font-size:11.5px;color:var(--ink-2);font-family:var(--read);font-style:italic}
+.gloss{font-family:var(--read);font-size:14.5px;line-height:1.6}
+.ex,.cite{font-family:var(--read);font-size:12.5px;color:var(--ink-2);margin-top:4px}
+.ex{font-style:italic}
+.cite i{color:var(--primary);font-style:normal;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+/* editor liền mạch */
+.edwrap{display:flex;height:100%}
+.gutter{width:22px;flex:none;padding-top:4px;position:relative}
+.gmark{position:absolute;left:8px;width:2px;border-radius:1px}
+.doc{flex:1;font-family:var(--read);font-size:15px;line-height:1.95;padding-left:8px;min-width:0}
+.sent{position:relative}
+.bd{color:var(--orn);opacity:0;font-size:11px;padding:0 1px}
+.sent:hover .bd{opacity:.75}
+.caretsent{background:var(--accent-bg);border-radius:2px;box-shadow:0 0 0 3px var(--accent-bg)}
+.caret{display:inline-block;width:1.5px;height:1.05em;background:var(--primary);vertical-align:-2px;margin:0 1px}
+.tmsent{background:var(--tm-bg);border-radius:2px;box-shadow:0 0 0 3px var(--tm-bg)}
+.merged{margin-top:12px;font-family:var(--ui);font-size:11.5px;color:var(--tm-text);background:var(--tm-bg);border-left:2px solid var(--tm);padding:6px 10px;border-radius:0 3px 3px 0;display:flex;align-items:center;gap:10px}
+.undo{margin-left:auto;color:var(--primary);font-weight:600}
+.status{height:32px;border-top:1px solid var(--line);display:flex;align-items:center;padding:0 16px;gap:20px;font-size:11.5px;color:var(--ink-2)}
+
+/* ===== so sánh hai cơ chế phân tách ===== */
+.cmp{max-width:1150px;margin:26px auto 0;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.cbox{border-radius:6px;overflow:hidden}
+.clab{font-size:12.5px;color:#cfc9bd;margin-bottom:8px}
+.clab b{color:#e8e3d8}
+.demoA{background:var(--surface);display:grid;grid-template-columns:1fr 1fr;height:104px}
+.demoA > div{padding:11px 13px;font-size:12px;color:var(--ink-2)}
+.demoA > div:first-child{border-right:1px solid var(--line)}
+.demoB{background:var(--bg);display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:2px;height:104px}
+.demoB > div{background:var(--surface);border-radius:3px;padding:11px 13px;font-size:12px;color:var(--ink-2)}
+.legend{max-width:1150px;margin:16px auto 0;display:flex;gap:9px;flex-wrap:wrap}
+.chip{font-size:11.5px;background:#2a2823;border-radius:20px;padding:5px 13px;color:#cfc9bd}
+.chip b{color:var(--primary)}
+.chip.ok{background:#2c3a2a;color:#9cb37a}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <b>Workspace 2×2 — nền tối</b>
+  <div class="sub">Cùng màn hình, cùng nội dung với bản nền sáng. Câu hỏi cần kiểm: bốn panel cạnh nhau có giữ được sự phân tách không, hay chìm thành một khối nâu.</div>
+</div>
+
+<div class="app">
+  <div class="tb">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="preset">Bố cục <span class="cur">2×2 nguồn–đích</span> <span class="k">⌘1</span> · 4 cột <span class="k">⌘2</span></div>
+  </div>
+
+  <div class="g22">
+    <!-- NGUYÊN VĂN -->
+    <div class="panel">
+      <div class="ph"><span class="pt">Nguyên văn</span>
+        <div class="tabs"><span class="tab on">Trung</span><span class="tab">Hán Việt</span></div>
+      </div>
+      <div class="body zh">
+        他<mark>打</mark>開了那扇門，走進了黑暗之中。<br>
+        風從<span class="sel">走廊</span>盡頭吹來，帶著鐵鏽的氣味。<br>
+        少年沒有回頭。他知道身後那扇門一旦關上，<br>便再也推不開了。
+        <div class="hv" style="margin-top:14px;padding-top:11px;border-top:1px solid var(--line)">
+          tha <b style="color:var(--primary);font-weight:600">đả</b> khai liễu na phiến môn, tẩu tiến liễu hắc ám chi trung.
+        </div>
+      </div>
+    </div>
+
+    <!-- BẢN DỊCH -->
+    <div class="panel focus">
+      <div class="ph"><span class="pt">Bản dịch</span>
+        <div class="tabs"><span class="tab">12/34 đã xác nhận</span><span class="key">⌘M gộp · ⌘/ tách</span></div>
+      </div>
+      <div class="body">
+        <div class="edwrap">
+          <div class="gutter">
+            <div class="gmark" style="top:6px;height:52px;background:var(--confirmed)"></div>
+            <div class="gmark" style="top:64px;height:52px;background:var(--primary)"></div>
+            <div class="gmark" style="top:122px;height:30px;background:var(--tm)"></div>
+          </div>
+          <div class="doc">
+            <span class="sent">Hắn <mark>đả khai</mark> cánh cửa ấy, bước vào giữa bóng tối.<span class="bd">⏐</span></span>
+            <span class="sent caretsent">Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt<span class="caret"></span>.<span class="bd">⏐</span></span>
+            <span class="sent tmsent">Thiếu niên không quay đầu lại.<span class="bd">⏐</span></span>
+            <span class="sent" style="color:var(--ink-2)">Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa.</span>
+            <div class="merged">
+              <span><b>Đã gộp hai câu.</b> Câu mới chưa xác nhận — lịch sử hai câu cũ vẫn tra lại được.</span>
+              <span class="undo">Hoàn tác ⌘Z</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRA CỨU -->
+    <div class="panel">
+      <div class="ph"><span class="pt">Tra cứu</span><span class="key">F3</span>
+        <div class="tabs"><span class="tab on">Từ điển</span><span class="tab">Concordance</span></div>
+      </div>
+      <div class="body">
+        <div class="q">走廊 <small>zǒuláng</small></div>
+        <div class="warn">Hai nguồn ghi khác nhau — cả hai đều được giữ nguyên</div>
+        <div class="rec">
+          <div class="rechd"><span class="src">CVDICT</span><span class="pos">danh từ</span></div>
+          <div class="gloss">hành lang, hàng lang</div>
+          <div class="ex">走廊盡頭 — cuối hành lang</div>
+        </div>
+        <div class="rec hl">
+          <div class="rechd"><span class="src">Thiều Chửu</span><span class="pos">danh từ</span></div>
+          <div class="gloss">dãy nhà có mái nối hai toà; hiên chạy dài</div>
+          <div class="cite"><i>Trích dẫn</i> · “廊, 東西序也” — Thuyết Văn Giải Tự</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI -->
+    <div class="panel">
+      <div class="ph"><span class="pt">Đề xuất của AI</span><span class="key">⌘↵</span>
+        <div class="tabs"><span class="tab">Xem prompt</span></div>
+      </div>
+      <div class="body">
+        <div style="font-size:11px;color:var(--ink-2);margin-bottom:9px">Câu đang sửa · đang sinh…</div>
+        <div style="font-family:var(--read);font-size:14.5px;line-height:1.85">
+          Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt<span style="opacity:.4">▏</span>
+        </div>
+        <div style="margin-top:20px;padding-top:13px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-2);line-height:2">
+          Đã chèn <span style="color:var(--primary)">2 thuật ngữ</span> Glossary và <span style="color:var(--primary)">3 câu</span> TM tương tự<br>
+          412 token · ước tính ~0,004 USD
+        </div>
+        <div style="margin-top:13px;font-size:11.5px;color:var(--ink-2)">
+          <span class="k">⌘⇧↵</span> đưa sang bản dịch &nbsp;·&nbsp; <span class="k">Esc</span> huỷ
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>Tra cứu ngoại tuyến</span><span>Glossary 214 mục</span><span>TM 8.412 cặp</span>
+    <span style="margin-left:auto">Đã lưu 2 giây trước</span>
+  </div>
+</div>
+
+<!-- ===== phát hiện: cơ chế phân tách phải đảo ngược ===== -->
+<div class="cmp">
+  <div>
+    <div class="clab"><b>✗ Đường kẻ sáng</b> — cách làm của theme sáng, bê nguyên sang</div>
+    <div class="cbox demoA">
+      <div>Panel A</div><div>Panel B</div>
+    </div>
+  </div>
+  <div>
+    <div class="clab"><b>✓ Khe tối</b> — nền ứng dụng lộ ra 2px giữa các panel</div>
+    <div class="cbox demoB">
+      <div>Panel A</div><div>Panel B</div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <span class="chip">Ở nền tối, đường kẻ <b>#3b382f</b> trên mặt <b>#26241f</b> chỉ đạt tỉ lệ <b>1,39</b> — gần như vô hình</span>
+  <span class="chip ok">Khe tối để nền <b>#201e1b</b> lộ ra giữa các panel — mắt đọc được ngay, không cần thêm màu nào</span>
+  <span class="chip">Ba vạch trạng thái ở Editor <b>không chụm</b>: vàng-lục · lam · hổ phách</span>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,347 @@
+<meta charset="utf-8">
+<title>Danh sách Chương — trạng thái, tiến độ, tổ chức lại — FR5 · FR6 · FR7 · FR12 · FR15</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.66}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2;line-height:1.75}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600;line-height:1.66}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+/* đầu Tác phẩm */
+.wh{display:grid;grid-template-columns:78px 1fr;gap:18px;padding:18px 22px 16px;border-bottom:1px solid var(--line)}
+.cov{height:106px;border-radius:3px;background:linear-gradient(160deg,#3d4f52,#26312f)}
+.wmeta{min-width:0}
+.wt{font-family:var(--read);font-size:22px;line-height:1.3;margin-bottom:5px}
+.wsub{font-size:11.5px;color:var(--ink-2);line-height:1.75;margin-bottom:11px}
+.pgrid{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pbar{flex:1;min-width:220px;max-width:330px}
+.pbar .track{height:4px;background:var(--sunken);border-radius:2px;overflow:hidden;display:flex}
+.pbar .track i{display:block;height:100%}
+.pbar .lg{margin-top:6px;display:flex;gap:14px;font-size:11px;color:var(--ink-2);flex-wrap:wrap}
+.pbar .lg span{display:flex;align-items:center;gap:5px}
+.sw{width:8px;height:8px;border-radius:2px}
+.sw.done{background:var(--confirmed)}
+.sw.doing{background:var(--primary)}
+.sw.pause{background:var(--tm)}
+.sw.new{background:var(--sunken);border:1px solid var(--line)}
+
+/* trạng thái Tác phẩm — suy ra vs ghi đè */
+.wstat{border:1px solid var(--line);border-radius:4px;background:var(--surface);padding:9px 13px;min-width:238px}
+.wstat .l{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin-bottom:5px}
+.wstat .v{font-size:13px;display:flex;align-items:center;gap:8px;line-height:1.66}
+.wstat .why{font-size:11px;color:var(--ink-2);margin-top:4px;line-height:1.75}
+.wstat .why b{color:var(--ink)}
+.badge{font-size:10.5px;letter-spacing:.04em;border-radius:2px;padding:1px 8px;font-weight:600}
+.b-doing{background:var(--accent-bg);color:var(--primary)}
+.b-done{background:#eaf0e2;color:var(--confirmed)}
+.b-pause{background:var(--tm-bg);color:var(--tm-text)}
+.b-new{background:var(--sunken);color:var(--ink-2);font-weight:400}
+
+/* thanh công cụ danh sách */
+.lbar{display:flex;align-items:center;gap:11px;padding:10px 22px;background:var(--sunken);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.srch{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:5px 11px;font-size:12.5px;color:var(--ink-2);min-width:200px}
+.pill{font-size:11px;border:1px solid var(--line);border-radius:20px;padding:4px 11px;color:var(--ink-2);background:var(--surface)}
+.pill.on{border-color:var(--primary);color:var(--primary);font-weight:600;background:var(--accent-bg)}
+.lbar .r{margin-left:auto;font-size:11.5px;color:var(--ink-2);line-height:1.66}
+
+/* danh sách chương */
+.list{background:var(--surface)}
+.crow{display:grid;grid-template-columns:26px 62px 1fr 108px 92px 74px;gap:13px;align-items:center;
+  padding:8px 22px 8px 34px;position:relative;border-bottom:1px solid var(--line-2)}
+.crow::before{content:"";position:absolute;left:22px;top:10px;bottom:10px;width:2px;border-radius:2px;background:transparent}
+.crow.done::before{background:var(--confirmed)}
+.crow.doing::before{background:var(--primary)}
+.crow.pause::before{background:var(--tm)}
+.crow.sel{background:var(--accent-bg)}
+.crow .grip{font-size:12px;color:var(--ink-2);text-align:center}
+.crow .no{font-family:ui-monospace,monospace;font-size:11px;color:var(--ink-2)}
+.crow .nm{font-family:var(--read);font-size:14.5px;line-height:1.66;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crow .seg{font-size:11px;color:var(--ink-2);line-height:1.66}
+.crow .when{font-size:11px;color:var(--ink-2)}
+.crow.new .nm{color:var(--ink-2)}
+.mini{height:3px;background:var(--sunken);border-radius:2px;overflow:hidden;margin-top:4px}
+.mini i{display:block;height:100%;background:var(--confirmed)}
+
+.grp{padding:11px 22px 6px 22px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-2);border-top:1px solid var(--line-2);display:flex;align-items:baseline;gap:9px}
+.grp .n{font-weight:400;letter-spacing:0;text-transform:none;font-size:11px}
+.grp:first-child{border-top:0}
+.collapsed{padding:12px 22px;font-size:12.5px;color:var(--ink-2);text-align:center;border-bottom:1px solid var(--line-2);line-height:1.75}
+.collapsed b{color:var(--ink)}
+
+/* thanh thao tác nhiều chọn */
+.selbar{display:flex;align-items:center;gap:10px;padding:11px 22px;background:var(--accent-bg);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.selbar .c{font-size:12.5px;font-weight:600;color:var(--primary)}
+.btn{border-radius:4px;padding:5px 13px;font-size:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.selbar .r{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+
+.box{margin:0;padding:13px 22px;font-size:12.5px;line-height:1.8}
+.box.warn{background:var(--tm-bg);border-left:2px solid var(--tm);color:var(--tm-text)}
+.box.ok{background:#f1f6ee;border-left:2px solid var(--confirmed);color:var(--ink-2)}
+.box b{color:var(--ink)}
+
+/* hộp gộp chương */
+.pad{padding:20px 24px 24px}
+.h2{font-family:var(--read);font-size:19px;margin:0 0 3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:16px;line-height:1.8;max-width:740px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.card{background:var(--surface);border:1px solid var(--line-2);border-radius:4px;padding:14px 16px}
+.card h4{margin:0 0 9px;font-family:var(--read);font-size:15px;font-weight:600}
+.card p{margin:9px 0 0;font-size:12px;line-height:1.8;color:var(--ink-2)}
+.card p b{color:var(--ink)}
+.mrow{display:flex;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid var(--line-2);font-size:12.5px;line-height:1.66}
+.mrow:last-of-type{border-bottom:0}
+.mrow .n{font-family:ui-monospace,monospace;font-size:11px;color:var(--ink-2);min-width:34px}
+.mrow .t{font-family:var(--read);font-size:13.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow .s{font-size:11px;color:var(--ink-2);white-space:nowrap}
+.arrow{text-align:center;font-size:15px;color:var(--ink-2);padding:7px 0}
+
+.status{height:32px;display:flex;align-items:center;padding:0 18px;gap:16px;border-top:1px solid var(--line);
+  font-size:11px;color:var(--ink-2);background:var(--bg)}
+.status .r{margin-left:auto}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.66}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Danh sách Chương — bề mặt giữa Library và Workspace</b>
+  <div class="sub">Lưới Tác phẩm cho thấy <i>mình có những gì</i>; Workspace là chỗ dịch. Giữa hai cái đó thiếu một
+  bề mặt, và nó gánh bốn thứ: <b>bốn trạng thái vòng đời</b> ở tầng Chương (FR5), <b>trạng thái Tác phẩm suy ra
+  tự động nhưng ghi đè được</b> (FR6), <b>tiến độ</b> (FR7), và <b>tổ chức lại sau khi nhập</b> — đổi tên, sắp xếp,
+  gộp, tách (FR15). Ràng buộc lớn nhất: nó phải chịu được <b>2000 Chương</b>.</div>
+</div>
+
+<div class="rowlab">1 · Một Tác phẩm 2000 chương <span>bốn trạng thái, và vì sao phải là bốn chứ không phải ba · FR5 · FR7</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Tuyết Trung Hãn Đao Hành</span><span class="k">⌘1</span></span>
+  </div>
+
+  <div class="wh">
+    <div class="cov"></div>
+    <div class="wmeta">
+      <div class="wt">Tuyết Trung Hãn Đao Hành</div>
+      <div class="wsub">Trung → Việt · tiên hiệp · tạo 02-08 · sửa gần nhất 12 phút trước · 2.014 Chương</div>
+      <div class="pgrid">
+        <div class="pbar">
+          <div class="track">
+            <i style="width:2.3%;background:var(--confirmed)"></i>
+            <i style="width:0.4%;background:var(--primary)"></i>
+            <i style="width:0.6%;background:var(--tm)"></i>
+          </div>
+          <div class="lg">
+            <span><i class="sw done"></i>Đã xong 47</span>
+            <span><i class="sw doing"></i>Đang dịch 8</span>
+            <span><i class="sw pause"></i>Tạm ngưng 12</span>
+            <span><i class="sw new"></i>Chưa bắt đầu 1.947</span>
+          </div>
+        </div>
+        <div class="wstat">
+          <div class="l">Trạng thái Tác phẩm</div>
+          <div class="v"><span class="badge b-doing">Đang dịch</span><span style="font-size:11px;color:var(--ink-2)">suy ra tự động</span></div>
+          <div class="why">Có Chương <b>đang dịch</b> nên Tác phẩm là <b>đang dịch</b>. Ghi đè thủ công <span class="k">⌘E</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lbar">
+    <span class="srch">Tìm Chương theo tên hoặc số…</span>
+    <span class="pill on">Tất cả 2.014</span>
+    <span class="pill">Đang dịch 8</span>
+    <span class="pill">Tạm ngưng 12</span>
+    <span class="pill">Đã xong 47</span>
+    <span class="pill">Chưa bắt đầu 1.947</span>
+    <span class="r">Sắp theo: <b>thứ tự Chương</b> · <span class="k">⌘F</span> tìm trong nội dung</span>
+  </div>
+
+  <div class="list">
+    <div class="grp">Đang dịch <span class="n">8 Chương · nơi bạn đang ở</span></div>
+
+    <div class="crow doing sel">
+      <span class="grip">⠿</span><span class="no">47</span>
+      <span class="nm">Ngói vỡ trên nóc Thính Triều Các
+        <span class="mini"><i style="width:48%"></i></span></span>
+      <span class="seg">88 / 184 câu</span>
+      <span class="badge b-doing">Đang dịch</span>
+      <span class="when">12 ph trước</span>
+    </div>
+    <div class="crow doing">
+      <span class="grip">⠿</span><span class="no">48</span>
+      <span class="nm">Người quét sân<span class="mini"><i style="width:11%"></i></span></span>
+      <span class="seg">19 / 167 câu</span>
+      <span class="badge b-doing">Đang dịch</span>
+      <span class="when">hôm qua</span>
+    </div>
+
+    <div class="grp">Tạm ngưng <span class="n">12 Chương · đã làm dở rồi bỏ — nhóm cần quay lại</span></div>
+    <div class="crow pause">
+      <span class="grip">⠿</span><span class="no">31</span>
+      <span class="nm">Ba nghìn dặm cưỡi ngựa<span class="mini"><i style="width:71%"></i></span></span>
+      <span class="seg">131 / 184 câu</span>
+      <span class="badge b-pause">Tạm ngưng</span>
+      <span class="when">18-07</span>
+    </div>
+    <div class="crow pause">
+      <span class="grip">⠿</span><span class="no">33</span>
+      <span class="nm">Đao chưa rút khỏi vỏ<span class="mini"><i style="width:22%"></i></span></span>
+      <span class="seg">38 / 172 câu</span>
+      <span class="badge b-pause">Tạm ngưng</span>
+      <span class="when">14-07</span>
+    </div>
+
+    <div class="grp">Đã xong <span class="n">47 Chương</span></div>
+    <div class="crow done">
+      <span class="grip">⠿</span><span class="no">1</span>
+      <span class="nm">Thiếu niên rời thành</span>
+      <span class="seg">156 câu</span>
+      <span class="badge b-done">Đã xong</span>
+      <span class="when">03-08</span>
+    </div>
+    <div class="crow done">
+      <span class="grip">⠿</span><span class="no">2</span>
+      <span class="nm">Gió cuối hành lang</span>
+      <span class="seg">143 câu · <b style="color:var(--tm-text)">4 câu chưa xác nhận</b></span>
+      <span class="badge b-done">Đã xong</span>
+      <span class="when">03-08</span>
+    </div>
+
+    <div class="grp">Chưa bắt đầu <span class="n">1.947 Chương</span></div>
+    <div class="crow new"><span class="grip">⠿</span><span class="no">56</span><span class="nm">Đêm dài Bắc Lương</span><span class="seg">171 câu</span><span class="badge b-new">Chưa bắt đầu</span><span class="when">—</span></div>
+    <div class="crow new"><span class="grip">⠿</span><span class="no">57</span><span class="nm">Kiếm khách áo trắng</span><span class="seg">168 câu</span><span class="badge b-new">Chưa bắt đầu</span><span class="when">—</span></div>
+    <div class="collapsed"><b>1.945 Chương chưa bắt đầu nữa</b> — gấp lại theo mặc định. Nhóm này gần như không bao giờ
+    cần nhìn tới, và trải nó ra sẽ chôn ba nhóm bên trên.</div>
+  </div>
+
+  <div class="box warn"><b>Vì sao <i>Tạm ngưng</i> phải tách khỏi <i>Chưa bắt đầu</i>.</b> Nhập một bộ 2000 chương thì
+  1.947 chương chưa hề được đụng tới. Xếp chúng vào <i>Tạm ngưng</i> làm mất nghĩa của chính trạng thái đó —
+  <i>Tạm ngưng</i> phải giữ nguyên nghĩa <b>“đã làm dở rồi bỏ”</b>, vì <b>đó mới là nhóm cần quay lại</b>.
+  Thứ tự nhóm trên màn hình phản ánh đúng thứ tự đáng chú ý, không phải thứ tự số Chương.</div>
+
+  <div class="box ok"><b>Chương 2 đã xong nhưng còn 4 câu chưa xác nhận — và màn hình nói ra.</b> Chương được đánh dấu
+  xong bằng tay (FR6) trong khi vẫn còn câu chưa xác nhận là chuyện bình thường. Hiện nó như đã hoàn chỉnh là
+  nói dối về trạng thái công việc. Cùng lý do khiến Chế độ đọc phải đánh dấu nhẹ những câu đó.</div>
+
+  <div class="status">
+    <span><span class="k">↵</span> mở Chương ở Workspace, đúng câu dở lần trước</span>
+    <span class="r"><span class="k">Space</span> xem trước · <span class="k">F2</span> đổi tên · <span class="k">⌘E</span> đổi trạng thái</span>
+  </div>
+</div>
+
+<div class="rowlab">2 · Ghi đè trạng thái Tác phẩm <span>thứ hệ thống không suy ra được · FR6</span></div>
+<div class="win">
+  <div class="wh" style="border-bottom:0;padding-bottom:14px">
+    <div class="cov" style="background:linear-gradient(160deg,#5c4a3a,#3a2f26)"></div>
+    <div class="wmeta">
+      <div class="wt">Đại Đường Song Long Truyện</div>
+      <div class="wsub">Trung → Việt · võ hiệp · sửa gần nhất 18-07 · 63 Chương</div>
+      <div class="pgrid">
+        <div class="pbar">
+          <div class="track">
+            <i style="width:33%;background:var(--confirmed)"></i>
+            <i style="width:8%;background:var(--tm)"></i>
+          </div>
+          <div class="lg">
+            <span><i class="sw done"></i>Đã xong 21</span>
+            <span><i class="sw pause"></i>Tạm ngưng 5</span>
+            <span><i class="sw new"></i>Chưa bắt đầu 37</span>
+          </div>
+        </div>
+        <div class="wstat" style="border-color:var(--tm);background:var(--tm-bg)">
+          <div class="l">Trạng thái Tác phẩm</div>
+          <div class="v"><span class="badge b-pause">Tạm ngưng</span><span style="font-size:11px;color:var(--tm-text)">ghi đè thủ công</span></div>
+          <div class="why">Suy ra tự động sẽ là <b>Đang dịch</b>. Bạn đã đặt <b>Tạm ngưng</b> ngày 18-07.
+          <span style="white-space:nowrap">Bỏ ghi đè <span class="k">⌘⇧E</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box ok"><b><i>Tạm ngưng</i> ở tầng Tác phẩm là quyết định của người, hệ thống không suy ra được.</b>
+  Nhìn từ dữ liệu, bộ này y hệt một bộ đang dịch dở — có Chương xong, có Chương chưa. Chỉ người dùng biết mình
+  <b>đã quyết định gác nó lại</b>. Nên ô trạng thái nói rõ ba điều: giá trị đang dùng, giá trị máy sẽ suy ra nếu bỏ
+  ghi đè, và ngày quyết định. Không có ba điều đó thì vài tháng sau chính người dùng cũng không nhớ nổi vì sao nó
+  nằm đấy.</div>
+</div>
+
+<div class="rowlab">3 · Tổ chức lại sau khi nhập <span>mẫu tách sai thì sửa ở đây, không phải nhập lại từ đầu · FR15</span></div>
+<div class="win">
+  <div class="selbar">
+    <span class="c">3 Chương đang chọn</span>
+    <button class="btn pri">Gộp thành một Chương</button>
+    <button class="btn">Tách…</button>
+    <button class="btn">Đổi tên hàng loạt…</button>
+    <button class="btn">Đổi trạng thái</button>
+    <button class="btn">Xuất…</button>
+    <span class="r">Kéo <span style="font-size:12px">⠿</span> để sắp xếp lại · <span class="k">Esc</span> bỏ chọn</span>
+  </div>
+
+  <div class="pad">
+    <div class="h2">Gộp 3 Chương thành một</div>
+    <div class="h2s">Mẫu phân tách lúc nhập đã bắt nhầm: dòng <i>“Chương trình luyện khí”</i> trong thân bài bị nhận
+    là tiêu đề chương, cắt một Chương thành ba mảnh. Đây là chỗ sửa nó — <b>không phải nhập lại cả bộ 2000 chương</b>.</div>
+
+    <div class="two">
+      <div class="card">
+        <h4>Sẽ gộp theo thứ tự này</h4>
+        <div class="mrow"><span class="n">88</span><span class="t">Bí thuật trên vách đá</span><span class="s">142 câu · đang dịch</span></div>
+        <div class="mrow"><span class="n">89</span><span class="t">Chương trình luyện khí</span><span class="s">31 câu · chưa bắt đầu</span></div>
+        <div class="mrow"><span class="n">90</span><span class="t">— không tên —</span><span class="s">76 câu · chưa bắt đầu</span></div>
+        <div class="arrow">↓</div>
+        <div class="mrow"><span class="n">88</span><span class="t"><b>Bí thuật trên vách đá</b></span><span class="s">249 câu</span></div>
+        <p>Tên giữ theo Chương <b>đầu tiên</b>, sửa lại được ngay sau khi gộp. Các Chương phía sau <b>dồn số lên</b>:
+        Chương 91 cũ thành 89.</p>
+      </div>
+
+      <div class="card">
+        <h4>Chuyện gì xảy ra với công việc đã làm</h4>
+        <p><b>Không câu nào mất.</b> 142 câu đã dịch ở Chương 88 giữ nguyên bản dịch, giữ nguyên trạng thái xác nhận,
+        giữ nguyên lịch sử phiên bản. Cặp Translation Memory đã ghi không bị đụng tới — TM gắn ở tầng Tác phẩm,
+        không gắn theo Chương.</p>
+        <p><b>Trạng thái Chương mới:</b> <span class="badge b-doing">Đang dịch</span> — suy ra từ việc có câu đã dịch
+        và có câu chưa. Không ai coi nó là xong.</p>
+        <p><b>Hoàn tác được bằng <span class="k">⌘Z</span></b> ngay sau khi gộp. Sau khi đóng Tác phẩm thì phải tách
+        tay lại — nên màn hình này nói trước thay vì để phát hiện sau.</p>
+      </div>
+    </div>
+
+    <div class="box warn" style="margin-top:18px;border-radius:0 3px 3px 0">
+      <b>Ranh giới câu được tính lại ở chỗ nối.</b> Câu cuối của Chương 88 và câu đầu của Chương 89 có thể vốn là
+      <b>một câu bị mẫu tách cắt đôi</b>. Sau khi gộp, chỗ nối được đánh dấu để bạn kiểm — chứ hệ thống
+      <b>không tự nối hai câu lại</b>. Tự nối là đoán, và đoán sai ở đây thì hỏng một cặp TM mà không ai biết.
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR5</b> bốn trạng thái ở cả hai tầng · Chương mới nhập mặc định <i>Chưa bắt đầu</i></span>
+  <span class="fc"><b>FR6</b> trạng thái Tác phẩm suy ra tự động, ghi đè thủ công được — và nói rõ mình đang bị ghi đè</span>
+  <span class="fc"><b>FR7</b> tiến độ: số Chương đã xong trên tổng, kèm thanh trực quan</span>
+  <span class="fc"><b>FR12</b> mở Chương là vào Workspace đúng chỗ, khôi phục vị trí lần trước</span>
+  <span class="fc"><b>FR15</b> đổi tên, sắp xếp lại, gộp và tách Chương sau khi nhập</span>
+  <span class="fc"><b>FR120</b> câu chưa xác nhận trong Chương đã xong được nói ra, không giấu</span>
+</div>

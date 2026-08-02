@@ -1,0 +1,291 @@
+<meta charset="utf-8">
+<title>Dịch theo lô — huỷ giữa chừng, lỗi, chi phí — FR73 · FR74 · FR75 · FR76</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.7}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;height:462px;background:var(--surface)}
+.pane{position:relative;display:flex;flex-direction:column;border-right:1px solid var(--line);min-width:0}
+.pane:last-child{border-right:0}
+.pane.focus::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--primary);z-index:2}
+.ph{height:34px;display:flex;align-items:center;padding:0 15px;gap:9px;border-bottom:1px solid var(--line-2);flex:none}
+.pt{font-size:12px;color:var(--ink-2)}
+.pane.focus .pt{color:var(--primary);font-weight:600}
+.phr{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--ink-2)}
+.body{flex:1;overflow:hidden;padding:10px 16px 12px}
+
+/* vạch tiến trình mảnh — không spinner */
+.prog{height:2px;background:var(--line-2);flex:none;position:relative}
+.prog i{display:block;height:100%;background:var(--primary)}
+
+/* Editor liền mạch với máng vạch lề */
+.ed{display:grid;grid-template-columns:22px 1fr;gap:0;font-family:var(--read);font-size:15px;line-height:1.95}
+.g{position:relative}
+.g i{position:absolute;left:8px;width:2px;border-radius:2px}
+.txt span.s{display:block;padding:1px 0}
+.s.conf{color:var(--ink)}
+.s.tmp{background:var(--tm-bg);border-radius:2px;box-shadow:0 0 0 3px var(--tm-bg)}
+.s.sel{background:var(--accent-bg);border-radius:2px;box-shadow:0 0 0 3px var(--accent-bg)}
+.s.none{color:var(--ink-2)}
+
+/* danh sách lô ở panel AI */
+.brow{display:flex;align-items:baseline;gap:10px;padding:7px 0 7px 13px;position:relative;border-bottom:1px solid var(--line-2);
+  font-size:12.5px;line-height:1.66}
+.brow::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:2px;border-radius:2px;background:var(--line)}
+.brow.done::before{background:var(--confirmed)}
+.brow.now::before{background:var(--primary)}
+.brow.wait::before{background:var(--line)}
+.brow.stop::before{background:var(--orn)}
+.brow.err::before{background:var(--error)}
+.brow .no{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--ink-2);min-width:26px}
+.brow .tx{font-family:var(--read);font-size:13.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow.wait .tx,.brow.stop .tx{color:var(--ink-2)}
+.brow .st{font-size:10.5px;color:var(--ink-2);white-space:nowrap}
+.brow .st.e{color:var(--error)}
+.cursor{display:inline-block;width:1.5px;height:1em;background:var(--primary);vertical-align:-2px;margin-left:2px}
+
+.sect{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  padding:4px 0 8px;display:flex;align-items:baseline;gap:9px}
+.sect .n{font-weight:400;letter-spacing:0;text-transform:none;font-size:11px}
+
+.foot-bar{display:flex;align-items:center;gap:10px;padding:10px 15px;border-top:1px solid var(--line-2);background:var(--bg);flex:none}
+.btn{border-radius:4px;padding:5px 13px;font-size:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:var(--surface);font-weight:600}
+.btn.stop{border-color:var(--error);color:var(--error)}
+.foot-bar .cost{margin-left:auto;font-size:11px;color:var(--ink-2)}
+.foot-bar .cost b{color:var(--ink);font-weight:600}
+
+.errbar{background:#fbeeeb;border-left:2px solid var(--error);border-radius:0 3px 3px 0;padding:11px 14px;
+  font-size:12.5px;line-height:1.75;color:var(--ink-2);margin:10px 0 0}
+.errbar b{color:var(--error)}
+.errbar .btns{margin-top:10px;display:flex;gap:9px}
+.okbar{background:#f1f6ee;border-left:2px solid var(--confirmed);border-radius:0 3px 3px 0;padding:11px 14px;
+  font-size:12.5px;line-height:1.75;color:var(--ink-2);margin:10px 0 0}
+.okbar b{color:var(--ink)}
+.warnbar{background:var(--tm-bg);border-left:2px solid var(--tm);border-radius:0 3px 3px 0;padding:11px 14px;
+  font-size:12.5px;line-height:1.75;color:var(--tm-text);margin:10px 0 0}
+.warnbar b{color:var(--ink)}
+
+.status{height:32px;display:flex;align-items:center;padding:0 16px;gap:16px;border-top:1px solid var(--line);
+  font-size:11px;color:var(--ink-2);background:var(--bg)}
+.status .r{margin-left:auto;display:flex;gap:16px}
+
+.note{max-width:1150px;margin:0 auto 34px;background:var(--tm-bg);border-left:2px solid var(--tm);border-radius:0 4px 4px 0;
+  padding:13px 17px;font-size:12.5px;line-height:1.75;color:var(--tm-text)}
+.note b{color:var(--ink)}
+
+/* bảng chi phí */
+.pad{padding:20px 24px 24px}
+.h2{font-family:var(--read);font-size:19px;margin:0 0 3px}
+.h2s{font-size:12px;color:var(--ink-2);margin-bottom:16px;line-height:1.75;max-width:720px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);
+  padding:0 11px 7px 0;border-bottom:1px solid var(--line)}
+td{padding:8px 11px 8px 0;border-bottom:1px solid var(--line-2);line-height:1.66}
+td.num{font-family:ui-monospace,monospace;font-size:11.5px;text-align:right;color:var(--ink-2)}
+tr.tot td{font-weight:600;border-bottom:0;padding-top:11px}
+tr.tot td.num{color:var(--ink)}
+
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;border-radius:20px;padding:5px 13px;line-height:1.6}
+.fc b{color:var(--primary)}
+</style>
+
+<div class="hd">
+  <b>Dịch theo lô — và ba thứ phải đúng khi nó chạy</b>
+  <div class="sub">Dịch từng segment thì dễ. Dịch một lô mới lộ ra ba câu hỏi thật: <b>huỷ giữa chừng thì phần đã
+  làm đi đâu</b> (FR73), <b>lỗi ở segment thứ 6 của lô 20 thì sao</b> (FR75), và <b>người dùng biết mình đang tiêu
+  bao nhiêu</b> (FR76). Với BYOK, mỗi lần gọi là tiền của người dùng — nên không có chỗ nào ở đây được phép tự thử lại.</div>
+</div>
+
+<div class="rowlab">1 · Lô đang chạy <span>kết quả chảy dần, và không có gì tự đi sang Bản dịch · FR73 · FR74 · FR72</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Tuyết Trung Hãn Đao Hành · Chương 47</span><span class="k">⌘2</span></span>
+  </div>
+
+  <div class="two">
+    <div class="pane">
+      <div class="ph"><span class="pt">Bản dịch</span>
+        <span class="phr"><span>12 câu đang chọn</span><span class="k">⇧↓</span></span></div>
+      <div class="body">
+        <div class="ed">
+          <div class="g">
+            <i style="top:2px;height:30px;background:var(--confirmed)"></i>
+            <i style="top:36px;height:30px;background:var(--confirmed)"></i>
+            <i style="top:70px;height:58px;background:var(--primary)"></i>
+            <i style="top:132px;height:58px;background:var(--primary)"></i>
+            <i style="top:194px;height:30px;background:var(--primary)"></i>
+          </div>
+          <div class="txt">
+            <span class="s conf">Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt.</span>
+            <span class="s conf">Thiếu niên không quay đầu lại.</span>
+            <span class="s sel">Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa.</span>
+            <span class="s sel">Trên Thính Triều Các có trăm vạn quyển sách, mà chẳng quyển nào dạy hắn cách rời đi.</span>
+            <span class="s none">…</span>
+          </div>
+        </div>
+        <div class="okbar"><b>Chọn rồi mới dịch.</b> Lô là <b>các câu đang chọn</b>, không phải “cả Chương” —
+        một nút dịch cả Chương là nút tiêu tiền mà không nhìn thấy đáy.</div>
+      </div>
+    </div>
+
+    <div class="pane focus">
+      <div class="ph"><span class="pt">Đề xuất AI</span>
+        <span class="phr"><span>Ollama · qwen2.5:14b</span><span class="k">⌘T</span></span></div>
+      <div class="prog"><i style="width:41%"></i></div>
+      <div class="body">
+        <div class="sect">Lô 12 câu <span class="n">đã xong 5 · đang câu 6 · còn 6</span></div>
+
+        <div class="brow done"><span class="no">1</span><span class="tx">Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt.</span><span class="st">218 tk</span></div>
+        <div class="brow done"><span class="no">2</span><span class="tx">Thiếu niên không quay đầu lại.</span><span class="st">96 tk</span></div>
+        <div class="brow done"><span class="no">3</span><span class="tx">Hắn biết cánh cửa sau lưng một khi đã khép…</span><span class="st">271 tk</span></div>
+        <div class="brow done"><span class="no">4</span><span class="tx">Trên Thính Triều Các có trăm vạn quyển sách…</span><span class="st">344 tk</span></div>
+        <div class="brow done"><span class="no">5</span><span class="tx">Tuyết rơi suốt ba ngày, phủ kín bậc thềm đá.</span><span class="st">203 tk</span></div>
+        <div class="brow now"><span class="no">6</span><span class="tx">Ông lão quét sân ngẩng đầu, nhìn hắn một cái rồi lại<span class="cursor"></span></span><span class="st">đang sinh</span></div>
+        <div class="brow wait"><span class="no">7</span><span class="tx">徐鳳年沒有說話，只是把刀又往腰間按了按。</span><span class="st">chờ</span></div>
+        <div class="brow wait"><span class="no">8</span><span class="tx">遠處傳來馬蹄聲，很輕，像是怕驚動誰。</span><span class="st">chờ</span></div>
+        <div class="brow wait"><span class="no">9</span><span class="tx">他忽然覺得，這座城其實從來沒有留過他。</span><span class="st">chờ</span></div>
+
+        <div class="warnbar"><b>Kết quả nằm lại ở đây.</b> Không có đường nào để bản dịch AI tự chảy sang Bản dịch —
+        đưa sang là thao tác của người, từng câu bằng <span class="k">⌘⇧↵</span> hoặc cả lô đã duyệt bằng
+        <span class="k">⌘⇧⌥↵</span>.</div>
+      </div>
+
+      <div class="foot-bar">
+        <button class="btn stop">Huỷ lô <span class="k" style="border:0;background:transparent">Esc</span></button>
+        <button class="btn">Đưa 5 câu đã xong sang Bản dịch</button>
+        <span class="cost">2.132 token · <b>~0,021 USD</b> cho lô này</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>Đã lưu 3 giây trước</span>
+    <span>Chương 47 · câu 6/184</span>
+    <span class="r">
+      <span>Glossary: 1.847 mục</span>
+      <span>TM: 12.409 cặp</span>
+      <span>Phiên này: 18.640 token · ~0,18 USD</span>
+    </span>
+  </div>
+</div>
+
+<div class="note"><b>Huỷ không phải là hoàn tác.</b> Bấm Huỷ dừng ở ranh giới câu hiện tại: câu đang sinh dở
+bị bỏ, năm câu đã xong <b>vẫn còn nguyên trong panel Đề xuất</b> và vẫn đưa sang được. Vứt luôn cả năm câu đó là
+vứt tiền người dùng đã trả — mà họ chỉ muốn dừng chứ không muốn mất.</div>
+
+<div class="rowlab">2 · Lỗi ở giữa lô <span>không mất công việc, không tự thử lại · FR75</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Tuyết Trung Hãn Đao Hành · Chương 47</span></span>
+  </div>
+
+  <div class="two" style="height:392px">
+    <div class="pane">
+      <div class="ph"><span class="pt">Đề xuất AI</span>
+        <span class="phr"><span>Anthropic · claude-sonnet-5</span></span></div>
+      <div class="body">
+        <div class="sect">Lô 12 câu <span class="n">dừng ở câu 6</span></div>
+        <div class="brow done"><span class="no">1–5</span><span class="tx">Năm câu đầu đã sinh xong, còn nguyên</span><span class="st">1.132 tk</span></div>
+        <div class="brow err"><span class="no">6</span><span class="tx">Ông lão quét sân ngẩng đầu…</span><span class="st e">không phản hồi</span></div>
+        <div class="brow stop"><span class="no">7–12</span><span class="tx">Sáu câu còn lại chưa gọi</span><span class="st">chưa tính phí</span></div>
+
+        <div class="errbar">
+          <b>Nhà cung cấp không phản hồi.</b> Lô dừng ở câu 6. Năm câu đã sinh xong vẫn còn ở panel này và đưa sang
+          được. Sáu câu chưa gọi thì chưa tính phí.
+          <div class="btns">
+            <button class="btn pri">Thử lại từ câu 6</button>
+            <button class="btn">Đưa 5 câu đã xong sang</button>
+            <button class="btn">Bỏ lô</button>
+          </div>
+        </div>
+
+        <div class="warnbar"><b>Không có thử lại tự động.</b> Không phải vì khó làm, mà vì với BYOK mỗi lần gọi là
+        tiền của người dùng — một vòng thử lại ba lần trong im lặng là ba lần tính phí mà họ không chọn.
+        Ứng dụng nói ra chuyện gì đã xảy ra rồi đứng yên chờ.</div>
+      </div>
+    </div>
+
+    <div class="pane">
+      <div class="ph"><span class="pt">Bản dịch</span>
+        <span class="phr"><span>không đổi</span></span></div>
+      <div class="body">
+        <div class="ed">
+          <div class="g">
+            <i style="top:2px;height:30px;background:var(--confirmed)"></i>
+            <i style="top:36px;height:30px;background:var(--confirmed)"></i>
+            <i style="top:70px;height:58px;background:var(--primary)"></i>
+          </div>
+          <div class="txt">
+            <span class="s conf">Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt.</span>
+            <span class="s conf">Thiếu niên không quay đầu lại.</span>
+            <span class="s sel">Hắn biết cánh cửa sau lưng một khi đã khép, thì không sao đẩy ra được nữa.</span>
+          </div>
+        </div>
+        <div class="okbar"><b>Lỗi ở panel AI không chạm tới Bản dịch.</b> Không có gì bị ghi đè, không có gì bị xoá,
+        con trỏ vẫn ở đúng chỗ. Người dùng gõ tiếp được ngay mà không phải dọn dẹp gì.</div>
+        <div class="okbar" style="border-left-color:var(--primary)"><b>Và nếu không cấu hình AI thì sao.</b>
+        Panel này chỉ <b>mời cấu hình</b>, không cảnh báo — chưa cấu hình AI không phải trạng thái lỗi.
+        Library, Workspace, từ điển, Glossary, TM và export/import đều chạy đầy đủ mà không cần một khoá nào.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rowlab">3 · Chi phí — số liệu là số liệu <span>FR76</span></div>
+<div class="win">
+  <div class="pad">
+    <div class="h2">Token và chi phí phiên này</div>
+    <div class="h2s">Hiện trên mỗi lần gọi, và cộng dồn ở thanh trạng thái. Không làm tròn thành “một chút chi phí”,
+    không giấu sau một lần bấm. Đây là số ước tính theo bảng giá đã cấu hình — nó không thay thế hoá đơn thật của
+    nhà cung cấp, và màn hình nói rõ điều đó thay vì để người dùng tự đoán.</div>
+
+    <table>
+      <tr><th style="width:26%">Việc</th><th style="width:16%">Mô hình</th><th style="width:10%">Số lần gọi</th>
+        <th style="width:13%">Token vào</th><th style="width:13%">Token ra</th><th style="width:12%">Ước tính</th><th>Ghi chú</th></tr>
+      <tr><td>Dịch từng câu</td><td>claude-sonnet-5</td><td class="num">64</td><td class="num">9.204</td><td class="num">4.118</td><td class="num">~0,092 USD</td><td></td></tr>
+      <tr><td>Dịch theo lô</td><td>claude-sonnet-5</td><td class="num">17</td><td class="num">3.870</td><td class="num">1.448</td><td class="num">~0,038 USD</td><td>Một lô bị huỷ giữa chừng</td></tr>
+      <tr><td>Proofreader</td><td>claude-sonnet-5</td><td class="num">3</td><td class="num">2.610</td><td class="num">890</td><td class="num">~0,024 USD</td><td>Chạy theo yêu cầu, không chạy nền</td></tr>
+      <tr><td>Dịch theo lô</td><td>qwen2.5:14b · máy này</td><td class="num">31</td><td class="num">7.140</td><td class="num">2.980</td><td class="num">—</td><td>Mô hình cục bộ · 4 ph 12 s thời gian sinh</td></tr>
+      <tr class="tot"><td>Tổng phiên</td><td></td><td class="num">115</td><td class="num">22.824</td><td class="num">9.436</td><td class="num">~0,154 USD</td><td></td></tr>
+    </table>
+
+    <div class="warnbar"><b>Cột chi phí trống khi mô hình chạy trên máy.</b> Nó không tính tiền, nên điền một số vào
+    đó là bịa. Thay vào đó ghi <b>thời gian sinh</b> — thứ người dùng thật sự trả cho mô hình cục bộ.</div>
+  </div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>FR73</b> dịch từng segment và theo lô · huỷ được giữa chừng, giữ phần đã xong</span>
+  <span class="fc"><b>FR74</b> kết quả chảy dần theo dòng, không bắt chờ trọn câu trả lời</span>
+  <span class="fc"><b>FR75</b> lỗi nêu rõ nguyên nhân · không mất công việc · <b>không tự thử lại</b></span>
+  <span class="fc"><b>FR76</b> token và ước tính chi phí mỗi lần gọi, cộng dồn ở thanh trạng thái</span>
+  <span class="fc"><b>FR72</b> kết quả không tự ghi vào Editor — đưa sang là thao tác của người</span>
+  <span class="fc"><b>FR77</b> chưa cấu hình AI không phải trạng thái lỗi</span>
+</div>
