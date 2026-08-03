@@ -16,7 +16,11 @@ name = "auratranslate_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+# ⚠️ Ghim bằng `=`, không bằng cú pháp mặc định của Cargo. `"2.6.3"` trong Cargo NGHĨA
+# LÀ `^2.6.3` — một dải rộng, đúng thứ Task 6 cấm (*"ghim chính xác, không dùng dải
+# rộng"*). Lock giữ đúng số cho tới lần `cargo update` đầu tiên; `=` thì giữ mãi, và
+# giữ manifest khớp với bảng Stack thay vì chỉ Cargo.lock khớp.
+tauri-build = { version = "=2.6.3", features = [] }
 
 # ── Bảng Stack, ghim CHÍNH XÁC (Ice chốt 2026-08-03: cài trọn bảng ở commit đầu) ──
 # Phần lớn crate dưới đây chưa có mã nào gọi tới. Đó là chủ ý: bảng Stack trở thành
@@ -25,26 +29,27 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 # feature `protocol-asset` BẮT BUỘC khi bật `assetProtocol` — nó là cơ chế cưỡng chế
 # duy nhất của AC3 (bẫy #4 của Story 1.1).
-tauri = { version = "2.11.5", features = ["protocol-asset"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+tauri = { version = "=2.11.5", features = ["protocol-asset"] }
+# Số chính xác đọc từ Cargo.lock 2026-08-03, khớp bảng Stack sau Task 7.
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
 # feature `bundled` biên dịch SQLite từ nguồn C — lần build đầu chậm hơn hẳn.
-rusqlite = { version = "0.40.1", features = ["bundled"] }
+rusqlite = { version = "=0.40.1", features = ["bundled"] }
 # Phụ thuộc bắc cầu của `rusqlite`; khai tường minh để lock ghim đúng số bảng Stack.
-libsqlite3-sys = "0.38.1"
-jieba-rs = "0.10.3"          # core::matching — nhánh tiếng Trung (AD-17)
-tantivy-stemmers = "0.4.0"   # core::matching — nhánh tiếng Anh (AD-17)
-docx-rs = "0.4.22"           # core::export (AD-38)
+libsqlite3-sys = "=0.38.1"
+jieba-rs = "=0.10.3"          # core::matching — nhánh tiếng Trung (AD-17)
+tantivy-stemmers = "=0.4.0"   # core::matching — nhánh tiếng Anh (AD-17)
+docx-rs = "=0.4.22"           # core::export (AD-38)
 # TRỰC TIẾP, không qua `tauri-plugin-keyring` (AD-29). core::ai / Story 4.3.
 # Feature mặc định `v1` đã kéo sẵn backend gốc của cả ba nền tảng
 # (`apple-native-keyring-store/keychain` · `windows-native-keyring-store` ·
 # `zbus-secret-service-keyring-store`) — kiểm bằng cách đọc `[features]` của chính
 # crate, 2026-08-03. Nghĩa là KHÔNG cần khai feature tay, và cũng KHÔNG có nguy cơ
 # rơi vào kho giả. Story 4.3 chỉ cần dùng; nếu đổi feature thì đọc lại chỗ này trước.
-keyring = "4.1.6"
+keyring = "=4.1.6"
 # core::ai (điểm ra mạng 1) và core::webimport::Fetcher (điểm ra mạng 3), AD-15.
 # Chưa có một dòng mã nào gọi tới ở story này — xem Completion Notes về AC5.
-reqwest = "0.13.4"
+reqwest = "=0.13.4"
 
 # `similar` vs `dissimilar`: hàng Deferred của ARCHITECTURE-SPINE, chốt ở Giai đoạn 5
 # (Story 8.1) sau khi thử cả hai trên bản review thật. Cài một trong hai hôm nay là

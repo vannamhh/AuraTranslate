@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self' asset: http://asset.localhost; img-src 'self' asset: http://asset.localhost data:",
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' ipc: http://ipc.localhost; font-src 'self' asset: http://asset.localhost; img-src 'self' asset: http://asset.localhost data:",
       "assetProtocol": {
         "enable": true,
         "scope": ["$RESOURCE/dict/**", "$RESOURCE/fonts/**"]
@@ -33,7 +33,9 @@
     "active": true,
     "targets": ["dmg", "msi"],
     "resources": {
-      "resources/fonts/*": "fonts/"
+      "resources/fonts/*.otf": "fonts/",
+      "resources/fonts/*.ttf": "fonts/",
+      "resources/fonts/*.txt": "fonts/"
     },
     "icon": [
       "icons/32x32.png",
@@ -43,7 +45,7 @@
       "icons/icon.ico"
     ],
     "windows": {
-      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "webviewInstallMode": { "type": "offlineInstaller" },
       "wix": { "language": "en-US" }
     }
   }

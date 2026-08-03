@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "Cửa sổ duy nhất. Không plugin filesystem — AD-1, AD-29.",
+  "description": "Cửa sổ duy nhất. Không plugin filesystem — AD-1, AD-29. Ba tập quyền dưới đây là tập TỐI THIỂU thật, không phải bundle `core:default`: path (resolveResource), event (Channel/emit — AD-22), resources (dọn resource table). Xem src-tauri/SECURITY-NOTES.md.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:path:default", "core:event:default", "core:resources:default"]
 }

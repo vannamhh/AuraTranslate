@@ -15,8 +15,17 @@ const selftestEnabled = import.meta.env.VITE_SCOPE_SELFTEST === '1'
 
 onMounted(async () => {
   if (!selftestEnabled) return
-  const { runScopeCheck } = await import('./selftest/scopeCheck')
-  report.value = await runScopeCheck()
+  try {
+    const { runScopeCheck } = await import('./selftest/scopeCheck')
+    report.value = await runScopeCheck()
+  } catch (err) {
+    // Một rejection không bắt ở đây là lượt chạy treo: Rust chờ một event không bao
+    // giờ tới. Phát FAIL tường minh thay vì im lặng — script bọc mới đọc được VERDICT.
+    const { emit } = await import('@tauri-apps/api/event')
+    const text = `AuraTranslate — asset protocol scope self-check (Story 1.2, AC3)\n\n[FAIL] self-check gãy trước khi chạy: ${String(err)}\n\nVERDICT: FAIL`
+    console.log(text)
+    await emit('selftest:scope-check', { verdict: 'FAIL', results: [], text })
+  }
 })
 </script>
 

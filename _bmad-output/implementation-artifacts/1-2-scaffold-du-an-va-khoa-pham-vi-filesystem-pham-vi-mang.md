@@ -4,7 +4,7 @@ baseline_commit: 754f0f9a1a4f1da5b297cdbfa20bc9596a304139
 
 # Story 1.2: Scaffold dự án và khoá phạm vi filesystem, phạm vi mạng
 
-Status: review
+Status: done
 
 Epic: 1 — Nền móng ứng dụng & Tra cứu ngoại tuyến tức thì
 Covers: FR104 · NFR12 · NFR14 · **NFR13** *(nghiệm thu bằng vắng mặt — xem `implementation-readiness-report-2026-08-03.md:631`)* · **UX-DR4** *(Ice gộp vào đây 2026-08-03 — trước đó không nằm trong Covers của story nào)*
@@ -166,6 +166,71 @@ So that ***"không ai đọc được tài liệu của bạn"* là ràng buộc
     → **Ice chốt 2026-08-03: bàn giao sang Story 1.3**, nơi lệnh này chỉ là `cargo check` bình thường trên runner Windows. **Không** thêm `cargo-xwin` — đó là phụ thuộc ngoài bảng Stack và vẫn không thay được bản Windows chạy thật mà AC6 đòi.
   - [x] ⚠️ **Không cố dựng `.msi` trên macOS.** Story 1.1 đã đâm vào đúng rào này: `tauri-cli` từ chối target `msi` vì WiX v3 là chương trình Windows. Rào ở **tầng đóng gói**, không ở tầng biên dịch.
   - [x] **Bàn giao tường minh sang Story 1.3** — bản build Windows thật và phép so hành vi. `epics.md` Story 1.3 đã mang sẵn AC nhận bàn giao này (*"AC hai nền tảng của Story 1.2 … được cưỡng chế bằng CI"*). Ghi vào Completion Notes rằng AC6 **đóng một nửa ở đây, nửa còn lại ở 1.3** — đúng khuôn Story 1.1 đã bàn giao phép đo `.msi`. ⛔ **Không đánh dấu AC6 là đạt trọn nếu chưa có bản Windows chạy thật.**
+
+### Review Findings
+
+*Ghi bởi `bmad-code-review` 2026-08-03 — ba lớp song song (Blind Hunter · Edge Case Hunter · Acceptance Auditor) trên commit `a89b5ca`. Sáu phát hiện đã loại là nhiễu/dương tính giả. Ice chốt bốn quyết định cùng ngày; **toàn bộ mục `patch` đã áp dụng**.*
+
+> **Một đính chính có lợi cho story.** Hai reviewer độc lập đều kết luận chiều ÂM của Kiểm 3 *"đạt vì CSP chặn, không phải vì scope chặn"*. Đọc `tauri-2.11.5/src/manager/mod.rs:438-452` thì **họ sai ở chế độ dev**: Tauri chỉ chèn header CSP vào HTML nó tự phục vụ qua asset protocol, còn `tauri dev` nạp HTML từ Vite (`devUrl`) nên **không có CSP nào được áp**. Số đo `HTTP 403` trong Completion Notes là thật và đúng hàng rào `assetProtocol.scope`. Vấn đề thật là dạng ngược lại — xem mục Defer đầu tiên.
+
+**Quyết định của Ice — 2026-08-03:**
+
+| # | Vấn đề | Ice quyết | Kết quả |
+|---|---|---|---|
+| 1 | Tổ hợp CSP + asset protocol của bản release chưa được kiểm | **Bàn giao Story 1.3** | → Defer |
+| 2 | `webviewInstallMode` vs lời hứa "fully offline" | **Đổi sang `offlineInstaller`** | → Patch, đã áp |
+| 3 | `core:default` là bundle quyền, không phải tập tối thiểu | **Thu hẹp ngay** | → Patch, đã áp |
+| 4 | Hai script cưỡng chế không chạy trên Windows | **Viết lại bằng Node** | → Patch, đã áp |
+
+> ⚠️ **Hệ quả của quyết định #2 phải theo dõi:** `offlineInstaller` nhúng trọn WebView2 Runtime, và Story 1.1 đã cảnh báo *một mình nó* đủ làm `.msi` phình ~150 MB và **vỡ NFR6**. Ice chọn ưu tiên lời hứa offline hơn ngưỡng dung lượng. **NFR6 phải đo lại trên bản `.msi` thật** — bàn giao sang Story 1.3 / 10.2 cùng hai phép đo `.msi` đã bàn giao từ Story 1.1. Đừng coi con số NFR6 cũ còn áp dụng.
+
+**Đã vá — 17 mục:**
+
+- [x] [Review][Patch] **CSP thiếu `connect-src` → IPC tụt xuống `postMessage` trong MỌI phiên release** [`src-tauri/tauri.conf.json:25`] — không khai `connect-src` nên nó rơi về `default-src 'self'`, mà IPC của Tauri v2 gọi `fetch(convertFileSrc(cmd, 'ipc'))` (`tauri-2.11.5/scripts/ipc-protocol.js:37`); `set_csp()` **không** tự thêm `ipc:`. Hậu quả: lời gọi IPC đầu tiên mỗi phiên release bị chặn, in đúng một `console.warn`, rồi mọi IPC sau — **gồm `fetchChannelDataCommand`, đường dữ liệu của Channel (AD-22)** — chạy qua `postMessage` dạng chuỗi. Story 4.x sẽ đo throughput streaming trên đường đã hạ cấp. **Đã thêm `connect-src 'self' ipc: http://ipc.localhost`** và viết lại test để nó không cấm chính cách sửa đúng.
+- [x] [Review][Patch] **Kiểm 1 đạt RỖNG khi `cargo` gãy vì bất kỳ lý do gì** — `cargo tree -i` trả **exit 101** cho cả *"crate vắng mặt"* lẫn *"manifest hỏng / offline / thiếu cargo"* (đã đo cả hai). **Đã sửa:** đọc cây MỘT LẦN bằng `cargo tree --prefix none`, lỗi đọc cây là **lỗi cứng** (exit 1, in "đây là lỗi hạ tầng, không phải đạt"), rồi tìm tên trong danh sách. Đã kiểm chứng: manifest không tồn tại → **exit 1**, không còn ra sáu dòng `OK`.
+- [x] [Review][Patch] **Cây rỗng đọc thành "sạch"** — `npm ls --all` trên checkout chưa `npm ci` trả 1 mục và exit 0 → *"cây npm sạch (1 mục)"*. **Đã sửa:** thêm **ngưỡng sàn** (Rust ≥ 200, npm ≥ 30; số thật 326 và 104); dưới sàn là lỗi quét, không phải đạt.
+- [x] [Review][Patch] **`check-scope` không có timeout — treo vô hạn thay vì trả mã khác 0** — nhánh "không tìm thấy VERDICT" chỉ chạy *sau khi* tiến trình đã thoát, tức đúng trường hợp nó không xử lý được. **Đã sửa:** timeout cứng (mặc định 300 s, chỉnh bằng `AURA_SCOPE_TIMEOUT_MS`), hết giờ là `SIGKILL` + exit 1.
+- [x] [Review][Patch] **Mẫu quét chạy trên đường dẫn tuyệt đối → tên thư mục cha quyết định kết quả** — repo nằm trong `~/work/analytics/` hay `~/Dropbox/` là FAIL vĩnh viễn. **Đã sửa:** dùng `npm ls --all --json`, chỉ so trên **tên gói**, không bao giờ so trên đường dẫn. Tiện thể bắt được cả gói cài lồng mà bản cũ (`[ -d node_modules/$pkg ]`) bỏ sót.
+- [x] [Review][Patch] **`mktemp -t` gãy trên GNU coreutils** — **Đã sửa:** bản Node không dùng tệp tạm, gom log trong bộ nhớ.
+- [x] [Review][Patch] **`csp_allows_no_remote_origin` có bốn lối lách** [`config_invariants.rs`] — (1) `http://asset.localhost.evil.com` sống sót phép `replace` dạng tiền tố; (2) origin không scheme (`cdn.example.com`) không chứa `//` nên lọt; (3) `data:` bị **đếm** chứ không bị **định vị**, chuyển sang `script-src` vẫn xanh; (4) chỉ `unsafe-eval` bị cấm, `script-src 'self' 'unsafe-inline'` xanh toàn suite. **Đã sửa:** tách CSP thành map `chỉ thị → nguồn`, dùng **danh sách CHO PHÉP** thay danh sách cấm. **Kiểm đỏ cả bốn + hai lối nữa: 6/6 đỏ đúng chỗ, khôi phục → 12/12 xanh.**
+- [x] [Review][Patch] **Bộ test đóng đinh sai bề mặt** — Tauri nạp **mọi** tệp trong `capabilities/`, và merge `tauri.<platform>.conf.json` + `devCsp` tự động. **Đã thêm** `capabilities_directory_holds_exactly_the_one_reviewed_file` và `no_dev_csp_and_no_platform_config_overrides`; cả hai kiểm chứng đỏ.
+- [x] [Review][Patch] **`lib.rs` quyết mã thoát bằng `contains` trên JSON thô** — **Đã sửa:** parse một lần, đọc `v["verdict"]`; payload không parse được ⇒ **FAIL** (không bao giờ là "đạt").
+- [x] [Review][Patch] **Chiều ÂM của Kiểm 3 coi MỌI non-2xx và MỌI exception là "bị từ chối"** — nuốt luôn 404 và mọi lỗi không liên quan. **Đã sửa:** chỉ **HTTP 403** mới tính đạt; 404 và "không có response" đều là FAIL kèm lý do phân biệt được.
+- [x] [Review][Patch] **`SECURITY-NOTES.md` tự mâu thuẫn ở đúng chỗ nó dặn đừng báo cáo sai** — hàng `$RESOURCE/dict/**` xếp vào cột *"framework cưỡng chế"* trong khi Rust mở `.db` không đi qua `assetProtocol.scope`. **Đã sửa** bảng + thêm ghi chú nói thẳng nó đã lọt vào một lần rồi (tiền lệ AD-41).
+- [x] [Review][Patch] **Chú thích test khẳng định `productName` quyết định tên tiến trình** — đĩa xác nhận binary là `auratranslate` (từ `package.name`). **Đã sửa** thông điệp assert thành `pgrep -x auratranslate`, để Story 1.3 chép đúng.
+- [x] [Review][Patch] **`Cargo.toml` không "ghim chính xác"** — cú pháp mặc định của Cargo **là** caret. **Đã sửa:** `=2.11.5`, `=2.6.3`, `=1.0.229`, `=1.0.151`, `=0.40.1`, `=0.38.1`, `=0.10.3`, `=0.4.0`, `=0.4.22`, `=4.1.6`, `=0.13.4`. `cargo update --dry-run` → *Locking 0 packages*, manifest nay khớp bảng Stack chứ không chỉ lock khớp.
+- [x] [Review][Patch] **`webviewInstallMode` → `offlineInstaller`** *(Ice chốt)* — xem cảnh báo NFR6 phía trên.
+- [x] [Review][Patch] **`capabilities/main.json` thu hẹp còn ba tập tối thiểu** *(Ice chốt)* — `core:path:default` + `core:event:default` + `core:resources:default` thay `core:default` (một bundle kéo theo window/webview/menu/tray/app). Test và `SECURITY-NOTES.md` cập nhật kèm bảng "tập nào ai cần". ⚠️ **Chưa chạy thử lúc chạy thật** — xem §Việc còn lại bên dưới.
+- [x] [Review][Patch] **Hai script viết lại bằng Node** *(Ice chốt)* — `scripts/check-deps.mjs` · `scripts/check-scope.mjs`, bản `.sh` đã xoá, `package.json` trỏ sang `node scripts/…`.
+- [x] [Review][Patch] **Cụm sáu điểm nhỏ** — (a) `bundle.resources` đổi từ glob `resources/fonts/*` sang ba glob theo đuôi (`*.otf`/`*.ttf`/`*.txt`) để `README.md` nội bộ không đi vào bản phát hành; (b) listener `AURA_SCOPE_SELFTEST` nay gate bằng `#[cfg(debug_assertions)]` — hai đầu frontend/backend đối xứng; (c) gỡ `// eslint-disable-next-line` cho linter không tồn tại; (d) `env.d.ts` shim đổi sang `DefineComponent<{}, {}, any>`; (e) chiều DƯƠNG của Kiểm 3 phân biệt "thiếu tệp (404)" với "scope chặn"; (f) sửa ba số lệch trong Dev Agent Record (`package-lock.json` 93 mục chứ không 59 · bỏ khẳng định "bảy tệp" · rà giấy phép 16 ✓ / 3 ⚠️).
+- [x] [Review][Patch] **`App.vue` bắt rejection trong `onMounted`** — trước đây một lỗi ở đó là lượt chạy treo im lặng; nay phát `VERDICT: FAIL` tường minh.
+
+**Hoãn — thật, nhưng không thuộc story này:**
+
+- [x] [Review][Defer] **Tổ hợp CSP + asset protocol của bản RELEASE chưa phép kiểm nào chạm tới** — deferred *(Ice chốt 2026-08-03)*. **Lý do:** kiểm trên release đòi một bản build release, mà Story 1.3 đã nhận sẵn việc dựng bản đó trên cả hai nền tảng — dựng riêng ở 1.2 là pipeline thứ hai mà AC của 1.3 cấm tường minh. Bối cảnh: `check-scope` chạy `tauri dev`, nơi Tauri **không** áp CSP (webview nạp từ Vite). Ở release thì có CSP, và `fetch` tới asset protocol sẽ do `connect-src` quyết — một tổ hợp chưa ai đo.
+- [x] [Review][Defer] **`$RESOURCE/dict/**` nằm trong scope nhưng không nằm trong `bundle.resources`** [`src-tauri/tauri.conf.json:28` ↔ `:35-39`] — deferred, có chủ ý và story đã ghi lý do (thư mục còn rỗng; glob không khớp tệp nào có thể làm `tauri build` gãy). Nhưng **không phép kiểm nào nối scope với `bundle.resources`**, nên Story 10.1 có thể ship một bản không có byte từ điển nào mà test scope vẫn xanh — lỗi chỉ lộ ở lần tra cứu đầu tiên của người dùng thật. Chủ sở hữu: Story 1.9 / 10.1.
+- [x] [Review][Defer] **`panic = "abort"` + `strip = true` + không crash reporter → crash release là hộp đen, và giết đường checkpoint của AD-12** [`src-tauri/Cargo.toml`] — deferred, profile cố ý đóng băng để giữ số đo NFR6 của Story 1.1 so sánh được. Nhưng `core::store` có một writer nối tiếp (AD-11) tự quyết checkpoint (AD-12); một `panic!` trong luồng đó với `panic = "abort"` chấm dứt tiến trình ngay — không unwind, không `Drop`, không cơ hội flush WAL. Chủ sở hữu: Story 1.7 + lượt đo lại NFR6.
+- [x] [Review][Defer] **NFR16 ("không chuỗi tiếng Việt trong `.vue`") không có cơ chế cưỡng chế nào** [`src/App.vue:5`] — deferred, chỉ được bảo vệ bằng một comment, trong khi thứ khó vi phạm hơn hẳn thì có cả script + mã thoát. Chủ sở hữu: Story 1.5.
+- [x] [Review][Defer] **`.shell { min-height: 100vh }` + margin 8px mặc định của `<body>` sinh thanh cuộn ở cửa sổ trống** [`src/App.vue`] — deferred, chưa có reset CSS toàn cục. Chủ sở hữu: Story 1.4.
+
+**Kiểm 3 sau khi thu hẹp capabilities — đã chạy, `VERDICT: PASS`:**
+
+Đây là phần *"chạy thử"* của quyết định #3, và nó là bằng chứng lúc chạy thật chứ không phải suy từ tài liệu. Lượt chạy đầu thất bại vì cổng 1420 bị một dự án khác chiếm — script báo *"Không tìm thấy dòng VERDICT"* và **exit 1**, không treo, không đọc thành "đạt" (đúng hành vi vừa vá vào). Sau khi rảnh cổng:
+
+```
+[PASS] in-scope: $RESOURCE/fonts/SourceSans3[wght].ttf
+        expect=allowed  loaded via asset://localhost/…/fonts/SourceSans3%5Bwght%5D.ttf
+[PASS] out-of-scope: /etc/hosts
+        expect=denied  denied with HTTP 403
+
+VERDICT: PASS        →  npm run check:scope  exit 0
+```
+
+Ba tập quyền tối thiểu đủ dùng, chứng minh từng cái: `resolveResource()` chạy ⇒ `core:path:default` đủ · Rust nhận event và tự thoát ⇒ `core:event:default` đủ · `/etc/hosts` trả **403** ⇒ `assetProtocol.scope` vẫn cưỡng chế, và assertion siết *"chỉ 403 mới tính đạt"* vẫn xanh (bản cũ nhận cả 404 và mọi exception).
+
+**Đã kiểm chứng trong lượt vá này:** `cargo test` **12/12 xanh** (trước 9) · kiểm đỏ **7/7** đúng chỗ rồi khôi phục xanh · `npm run check:deps` đạt, và **exit 1 khi cargo gãy** (đúng lỗi vừa sửa) · `npm run check:scope` **`VERDICT: PASS`, exit 0** · `npm run build` (hai lượt `vue-tsc` + `vite build`) sạch · mã self-check **vẫn không lọt** vào bundle release (`grep` `dist/assets/*.js` → 0).
+
+**Cả ba phép kiểm cưỡng chế nay chạy được bằng một lệnh, trên cả macOS lẫn Windows, và đều đã kiểm chứng đỏ/xanh.**
 
 ---
 
@@ -525,23 +590,27 @@ Chưa có framework test nào trong repo, và **story này không phải chỗ c
 | Node / npm | v22.22.2 / 10.9.7 |
 | `@tauri-apps/cli` | 2.11.4 |
 | Target Rust đã cài | `x86_64-apple-darwin`, `x86_64-pc-windows-msvc` |
-| `Cargo.lock` | 579 gói · `package-lock.json` 59 gói |
+| `Cargo.lock` | 579 gói · `package-lock.json` **93 mục `packages`** |
+
+> ⚠️ **Sửa 2026-08-03 sau rà soát mã:** dòng trên từng ghi *"`package-lock.json` 59 gói"* — nhãn sai. **59** là số mục duy nhất của `npm ls --all` (cây đã cài); bản thân lock có **93** mục `packages` (28 non-dev · 64 dev · 44 optional). Một người rà soát sau sẽ tưởng lock nhỏ hơn thực tế.
 
 **Lệnh chạy lại ba phép kiểm — Story 1.3 chép đúng ba dòng này vào workflow:**
 
 ```bash
-npm run check:deps     # Kiểm 1 + Kiểm 2 — scripts/check-deps.sh   (13 phép kiểm)
-npm run check:scope    # Kiểm 3          — scripts/check-scope.sh  (2 chiều)
-cargo test --manifest-path src-tauri/Cargo.toml   # 9 test bất biến cấu hình
+npm run check:deps     # Kiểm 1 + Kiểm 2 — scripts/check-deps.mjs   (13 phép kiểm)
+npm run check:scope    # Kiểm 3          — scripts/check-scope.mjs  (2 chiều)
+cargo test --manifest-path src-tauri/Cargo.toml   # 12 test bất biến cấu hình
 ```
+
+> **Cả hai script viết lại bằng Node 2026-08-03 (Ice chốt sau rà soát mã).** Bản `.sh` không chạy được trên Windows — `npm run` ở đó đi qua `cmd.exe`, không có bash — trong khi AC6 đòi hành vi tương đương hai nền tảng và chính Kiểm 3 dò `C:\Windows\win.ini`. Lượt viết lại sửa luôn bốn lỗi cưỡng chế; xem §Review Findings.
 
 Cả ba trả **mã thoát khác 0 khi thất bại** — đã kiểm chứng bằng cách phá cấu hình rồi khôi phục, không phải giả định:
 
 | Phép kiểm | Cách phá để thử | Kết quả đỏ | Kết quả xanh |
 |---|---|---|---|
 | `cargo test` | `csp` → chuỗi có `https://cdn.example.com` + `'unsafe-inline'`; scope thêm `$APPDATA/**` | **4/9 FAILED** đúng bốn test tương ứng | 9/9 ok |
-| `check-deps.sh` | tạo `node_modules/@tauri-apps/plugin-fs/` | `FAIL`, **exit 1** | exit 0 |
-| `check-scope.sh` | `assetProtocol.scope` thêm `/etc/**` | `LEAK — read 4135 bytes`, **exit 1** | exit 0 |
+| `check-deps.mjs` | tạo `node_modules/@tauri-apps/plugin-fs/` | `FAIL`, **exit 1** | exit 0 |
+| `check-scope.mjs` | `assetProtocol.scope` thêm `/etc/**` | `LEAK — read 4135 bytes`, **exit 1** | exit 0 |
 
 **Build:** `CI=true npx tauri build --bundles dmg` → `Finished release profile in 5m 01s`, ra `AuraTranslate_0.1.0_x64.dmg` = **22.944.022 byte (22,94 MB)**. Bẫy #1 của Story 1.1 (`bundle_dmg.sh` chết ở AppleScript) **không phát sinh** nhờ `CI=true`.
 
@@ -638,11 +707,11 @@ tổng số socket của tiến trình : 0
 
 **18/18 mẫu cho `socket=0`.** Mạnh hơn mức Dev Notes mong đợi: Dev Notes dự tính *"K kết nối, tất cả tới 127.0.0.1"*, nhưng bản release **không mở socket nào cả** — kể cả loopback, vì frontend đã đóng gói và không còn dev server.
 
-**⚠️ `reqwest` CÓ trong cây phụ thuộc, và đó KHÔNG phải vi phạm AC5.** Cài trọn bảng Stack nghĩa là nó nằm đó nhưng **chưa một dòng mã nào gọi tới**. AC5 nói *"không có **lời gọi** ra ngoài nào"*. Ba điểm ra mạng của AD-15 mở ở Story 4.x (`TranslationProvider`), 6.7 (`Fetcher`), 10.7 (kiểm tra phiên bản) — **không có điểm thứ tư**. Ghi chú này in ra ở cuối mỗi lượt `check-deps.sh` để người rà soát sau không hiểu nhầm.
+**⚠️ `reqwest` CÓ trong cây phụ thuộc, và đó KHÔNG phải vi phạm AC5.** Cài trọn bảng Stack nghĩa là nó nằm đó nhưng **chưa một dòng mã nào gọi tới**. AC5 nói *"không có **lời gọi** ra ngoài nào"*. Ba điểm ra mạng của AD-15 mở ở Story 4.x (`TranslationProvider`), 6.7 (`Fetcher`), 10.7 (kiểm tra phiên bản) — **không có điểm thứ tư**. Ghi chú này in ra ở cuối mỗi lượt `check-deps.mjs` để người rà soát sau không hiểu nhầm.
 
 Quét crash reporter/analytics trên **cả hai cây**: Rust **343 mục**, npm **59 mục**, **0 hit**. Mẫu quét phân biệt `segment-io` với `segment` (module `core/segment/` của chính dự án).
 
-**NFR13 (không tài khoản, không đăng nhập, không đồng bộ đám mây) đóng ở đây, nghiệm thu bằng VẮNG MẶT**: không màn hình đăng nhập, không SDK auth, không client đồng bộ. Đã thêm hẳn một phép kiểm riêng vào `check-deps.sh` quét `auth0|okta|firebase-auth|supabase|clerk|cognito|dropbox|googleapis|onedrive|icloud` trên cả hai cây → **0 hit**.
+**NFR13 (không tài khoản, không đăng nhập, không đồng bộ đám mây) đóng ở đây, nghiệm thu bằng VẮNG MẶT**: không màn hình đăng nhập, không SDK auth, không client đồng bộ. Đã thêm hẳn một phép kiểm riêng vào `check-deps.mjs` quét `auth0|okta|firebase-auth|supabase|clerk|cognito|dropbox|googleapis|onedrive|icloud` trên cả hai cây → **0 hit**.
 
 #### AC6 — ⛔ KHÔNG đạt trọn, và ít hơn cả mức story dự tính
 
@@ -676,7 +745,7 @@ Lỗi là `cc-rs: command did not execute successfully … "cc" … --target=x86
 
 Bốn tệp vào `src-tauri/resources/fonts/`, **SHA-256 đối chiếu từng tệp với `font-spike-results-2026-08-03.md §Phép đo 5` trước khi commit: 4/4 `OK`**. Tổng **27.253.184 byte**, khớp đúng con số bắt buộc → không lấy nhầm `NotoSerifTC` (bản subset 45 MB) thay `NotoSerifCJKtc`.
 
-Ba tệp `LICENSE` gốc đi kèm (`LICENSE-notoserifcjk.txt`, `OFL-sourceserif4.txt`, `OFL-sourcesans3.txt`) — FR38, FR109. **Đã xác minh cả bảy tệp có mặt trong `.app` đã đóng gói** (`Contents/Resources/fonts/`), không chỉ trong repo.
+Ba tệp `LICENSE` gốc đi kèm (`LICENSE-notoserifcjk.txt`, `OFL-sourceserif4.txt`, `OFL-sourcesans3.txt`) — FR38, FR109. **Đã xác minh các tệp font + LICENSE có mặt trong `.app` đã đóng gói** (`Contents/Resources/fonts/`), không chỉ trong repo.
 
 `.gitignore` không chặn `.otf`/`.ttf` — kiểm bằng `git check-ignore` (rỗng) và `git add -n` (8/8 tệp vào staging). Không giả định.
 
@@ -686,7 +755,7 @@ Ba tệp `LICENSE` gốc đi kèm (`LICENSE-notoserifcjk.txt`, `OFL-sourceserif4
 
 #### Task 7 — rà giấy phép: bốn hàng phải phân xử bằng mắt
 
-19 hàng phần mềm rà bằng cách **mở tệp trong nguồn đã tải**. **15 khớp nhãn.** Bốn hàng còn lại, và bài học lặp lại tiền lệ `source-han-serif` của Story 1.1:
+19 hàng phần mềm rà bằng cách **mở tệp trong nguồn đã tải**. **16 hàng mang ✓, 3 hàng mang ⚠️.** Bốn hàng phải phân xử bằng mắt — một trong bốn (`tantivy-stemmers`) phân xử xong thành ✓, ba hàng còn lại giữ ⚠️. *(Sửa 2026-08-03 sau rà soát mã: prose cũ ghi "15 khớp nhãn", lệch với bảng đã sửa.)* Bốn hàng đó, và bài học lặp lại tiền lệ `source-han-serif` của Story 1.1:
 
 - **`tantivy-stemmers` 0.4.0 — suýt chấm SAI.** Tệp `LICENSE` dùng gạch đầu dòng thay vì điều khoản đánh số, nên bộ nhận dạng tự động của tôi đọc thành BSD-2. Đọc bằng mắt: mệnh đề *"Neither the name … may be used to endorse"* **có mặt** → đúng **BSD-3-Clause**, nhãn đúng. *(Tệp còn sót placeholder `{{ project }}` chưa thay — lỗi hình thức của thượng nguồn.)* **Bài học mới: lần này chính bộ nhận dạng tự động cũng là dẫn xuất.**
 - **`jieba-rs` 0.10.3** — bản `.crate` không kèm `LICENSE` (`license.workspace = true`, tệp thật ở gốc workspace không được đóng gói). `README.md` **trong nguồn đã tải** ghi nguyên văn *"This work is released under the MIT license."* → MIT.
@@ -699,7 +768,7 @@ Bảy hàng mới đã thêm vào bảng Stack (`tauri-build` · `serde` · `ser
 
 1. **Icon.** `tauri build` cần bộ icon, story không nhắc. Tôi dựng một PNG 1024px **tạm** (nền mực đậm + chữ `A` dựng bằng chính `Source Serif 4` của dự án) rồi `npx tauri icon`. Đã xoá thư mục `android/`/`ios/` mà lệnh sinh ra — dự án là desktop hai nền tảng (AD-24). **Đây là icon tạm, không phải nhận diện thương hiệu; chưa story nào sở hữu việc đó.**
 2. **`tsconfig` project reference gãy.** `tsconfig.node.json` có `composite: true` + `noEmit: true` → `TS6310: Referenced project may not disable emit` với TypeScript 5.9.3. Bỏ `references`/`composite`, kiểm hai config bằng hai lượt `vue-tsc` trong script `build`.
-3. **`tauri dev` NUỐT mã thoát của ứng dụng.** Kiểm 3 ban đầu để Rust gọi `app.exit(1)`; app thoát 1 nhưng `npm run check:scope` vẫn trả **0**. Đó đúng là *"script in ra cảnh báo rồi trả 0"* mà §Testing standards cấm. Nên `scripts/check-scope.sh` đọc dòng `VERDICT:` từ log và **tự quyết mã thoát** — kèm nhánh *"không tìm thấy VERDICT ⇒ exit 1"*, để một lượt chạy chết giữa chừng không đọc thành "đạt".
+3. **`tauri dev` NUỐT mã thoát của ứng dụng.** Kiểm 3 ban đầu để Rust gọi `app.exit(1)`; app thoát 1 nhưng `npm run check:scope` vẫn trả **0**. Đó đúng là *"script in ra cảnh báo rồi trả 0"* mà §Testing standards cấm. Nên `scripts/check-scope.mjs` đọc dòng `VERDICT:` từ log và **tự quyết mã thoát** — kèm nhánh *"không tìm thấy VERDICT ⇒ exit 1"*, để một lượt chạy chết giữa chừng không đọc thành "đạt".
 
 #### Bàn giao tường minh
 
@@ -741,7 +810,7 @@ Không có chuỗi tiếng Việt nào là **văn bản hiển thị** trong `.r
 - `src-tauri/resources/fonts/NotoSerifCJKtc-Regular.otf` · `SourceSerif4[opsz,wght].ttf` · `SourceSerif4-Italic[opsz,wght].ttf` · `SourceSans3[wght].ttf`
 - `src-tauri/resources/fonts/LICENSE-notoserifcjk.txt` · `OFL-sourceserif4.txt` · `OFL-sourcesans3.txt`
 - `src-tauri/icons/*` *(icon tạm sinh bằng `npx tauri icon`; `source-icon.png` là bản gốc 1024px)*
-- `scripts/check-deps.sh` · `scripts/check-scope.sh`
+- `scripts/check-deps.mjs` · `scripts/check-scope.mjs` *(viết lại từ `.sh` sau rà soát mã — cross-platform, xem §Review Findings)*
 - `tools/dict-build/README.md`
 
 **Sửa:**
@@ -761,6 +830,6 @@ Không có chuỗi tiếng Việt nào là **văn bản hiển thị** trong `.r
 | Ngày | Thay đổi |
 |---|---|
 | 2026-08-03 | Story được dựng bằng `bmad-create-story`. Phân tích `epics.md` §Story 1.2 + §Additional Requirements · `ARCHITECTURE-SPINE.md` (43 AD, Stack, Structural Seed, Consistency Conventions) · `prd.md` FR104/NFR11–NFR16 · Story 1.1 (bốn bẫy Tauri, tiền lệ bàn giao) · `font-spike-results-2026-08-03.md` (CSP + assetProtocol đã kiểm chứng) · `implementation-readiness-report` (NFR13 đóng ở đây). Kiểm chứng lại toàn bộ phiên bản trên npm/crates.io và toolchain cục bộ ngày 2026-08-03 — phát hiện hai bẫy phiên bản (`typescript` latest = 7.0.2; `@tauri-apps/cli` không có 2.11.5) |
-| 2026-08-03 | **Commit mã nguồn đầu tiên của dự án.** Cây nguồn 25/25 đường dẫn, 15 `mod.rs`, không starter template. Cài trọn bảng Stack: `Cargo.lock` 579 gói · `package-lock.json` 59 gói, cả 19 hàng khớp đúng số ghim. Ba hàng rào lên đúng chỗ: `assetProtocol.scope` hai mục (đo được: `/etc/hosts` → HTTP 403), CSP tường minh với **`style-src` hạ xuống `'self'`** và kiểm chứng trên bản release, capabilities đúng `["core:default"]`. Ba phép kiểm cưỡng chế chạy được bằng lệnh và **đã kiểm chứng đỏ/xanh**: 9 test bất biến cấu hình · `check-deps.sh` 13 phép kiểm · `check-scope.sh` hai chiều. `.dmg` 22.944.022 byte. Quan sát mạng bản release: **18/18 mẫu, 0 socket**. Bốn tệp font + ba `LICENSE` vào repo, SHA-256 4/4 khớp, tổng 27.253.184 byte đúng con số bắt buộc — UX-DR4 đóng. Rà NFR15 19 hàng bằng cách mở tệp: 15 khớp, 4 phải phân xử bằng mắt |
+| 2026-08-03 | **Commit mã nguồn đầu tiên của dự án.** Cây nguồn 25/25 đường dẫn, 15 `mod.rs`, không starter template. Cài trọn bảng Stack: `Cargo.lock` 579 gói · `package-lock.json` 59 gói, cả 19 hàng khớp đúng số ghim. Ba hàng rào lên đúng chỗ: `assetProtocol.scope` hai mục (đo được: `/etc/hosts` → HTTP 403), CSP tường minh với **`style-src` hạ xuống `'self'`** và kiểm chứng trên bản release, capabilities đúng ba tập tối thiểu. Ba phép kiểm cưỡng chế chạy được bằng lệnh và **đã kiểm chứng đỏ/xanh**: 12 test bất biến cấu hình · `check-deps.mjs` 13 phép kiểm · `check-scope.mjs` hai chiều. `.dmg` 22.944.022 byte. Quan sát mạng bản release: **18/18 mẫu, 0 socket**. Bốn tệp font + ba `LICENSE` vào repo, SHA-256 4/4 khớp, tổng 27.253.184 byte đúng con số bắt buộc — UX-DR4 đóng. Rà NFR15 19 hàng bằng cách mở tệp: 15 khớp, 4 phải phân xử bằng mắt |
 | 2026-08-03 | **Bốn thứ trong Dev Notes sai khi chạm vào thật, đã ghi thành mục riêng thay vì sửa lặng.** (1) Công thức nghiệm thu AC5 sai **hai chỗ**: `pgrep -n AuraTranslate` trả rỗng vì tên tiến trình là `auratranslate` (từ `package.name`, không từ `productName`); và `lsof -p PID -iTCP -iUDP` là phép **HOẶC** — thiếu cờ `-a` nên lượt đo đầu cho ra 274 socket / 234 "ra ngoài" của Lark, AnyDesk, `ssh`. Story 1.3 phải dùng bản đã sửa. (2) `tauri.conf.json` **không mang được chú thích** — `tauri-build` từ chối field lạ; chú thích chuyển sang `SECURITY-NOTES.md` cạnh nó và **neo bằng test**. (3) `cargo check --target x86_64-pc-windows-msvc` **không chạy được**: ba crate build native C (`zstd-sys` qua `jieba-rs`, `libsqlite3-sys`, `aws-lc-sys`) cần toolchain C của MSVC mà máy không có — *target Rust đã cài ≠ cross-compile được*, cùng hình dạng rào WiX của Story 1.1. (4) Ghi chú `keyring` của bản nháp sai: feature mặc định `v1` **đã** kéo backend gốc cả ba nền tảng. Thêm ba việc story không lường: icon, `tsconfig` `TS6310`, và **`tauri dev` nuốt mã thoát** khiến Kiểm 3 phải tự quyết mã thoát từ dòng `VERDICT:` |
 | 2026-08-03 | **Ice quyết bốn điểm.** (1) Cài **trọn** bảng Stack — Task 6/7 và §Bảng ghim phiên bản viết lại thành hai bảng đầy đủ Rust + frontend; phát hiện hàng `similar`/`dissimilar` **không cài được** vì còn ở bảng Deferred, ghi thành mục riêng thay vì bỏ im lặng. (2) **Tệp font vào repo ở story này** — Task 9 đổi từ *"chờ xác nhận"* thành nhiệm vụ thật, kèm đối chiếu SHA-256 và ba tệp `LICENSE`; UX-DR4 đóng ở đây. (3) `core/i18n/` **có tạo**, theo bảng Consistency Conventions — thêm §`core/i18n/` là gì nêu rõ nó giữ **danh mục `message_key`**, không giữ văn bản hiển thị; hình dạng thật bàn giao sang Story 1.5. (4) **Bỏ `tauri-plugin-fs`** — soát lại tài liệu xác nhận Ice nhớ đúng: plugin này chỉ có trong báo cáo technical research (bộ `sql · keyring · fs · dialog`), và kiến trúc đã bác từng cái theo cùng một lý do (AD-1 + AD-29). Task 4 và §Phạm vi tĩnh viết lại quanh `assetProtocol.scope` — cơ chế Story 1.1 đã kiểm chứng thật trên bản release; AD-23 tách thành hai nửa với hai cơ chế cưỡng chế khác nhau, nói thẳng nửa `$APPDATA` nghiệm thu bằng vắng mặt |

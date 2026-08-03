@@ -40,9 +40,16 @@ AD-23 khai ba vùng nhưng **hai cơ chế cưỡng chế khác nhau**:
 
 | Vùng AD-23 | Ai chạm tới | Cưỡng chế bằng |
 |---|---|---|
-| `$RESOURCE/dict/**` chỉ đọc | Rust mở `.db` | `assetProtocol.scope` — framework cưỡng chế |
-| `$RESOURCE/fonts/**` chỉ đọc | frontend nạp `@font-face` | `assetProtocol.scope` — framework cưỡng chế |
+| `$RESOURCE/fonts/**` chỉ đọc | **frontend** nạp `@font-face` | `assetProtocol.scope` — framework cưỡng chế |
+| `$RESOURCE/dict/**` chỉ đọc | **chỉ Rust** mở `.db` | kỷ luật mã Rust — **nghiệm thu bằng vắng mặt** |
 | `$APPDATA/**` đọc + ghi | **chỉ Rust** | kỷ luật mã Rust + AD-7, AD-11 — **nghiệm thu bằng vắng mặt** |
+
+> ⚠️ **Hàng `dict` từng bị ghi sai ở chính bảng này** (rà soát 2026-08-03): nó được xếp
+> vào cột *"framework cưỡng chế"*, mâu thuẫn với điều 3 ngay bên dưới. Rust mở `.db` bằng
+> `rusqlite::Connection::open` thì **không** đi qua `assetProtocol.scope` — scope chỉ canh
+> webview. Mục `$RESOURCE/dict/**` trong `scope` là dự phòng cho một nhu cầu đọc từ
+> frontend mà **hôm nay chưa có**; nó không cưỡng chế được gì đối với đường Rust.
+> Đây đúng loại tuyên bố mà đoạn ⛔ cuối mục này cấm — và nó đã lọt vào một lần rồi.
 
 ⛔ **Không đưa `$APPDATA` vào `assetProtocol.scope`.** Frontend không có việc gì với
 `global.db` hay `library-index.db` (AD-1, AD-11).
@@ -72,4 +79,38 @@ có bề mặt để rào**.
 
 Cùng lý do đó đã loại `tauri-plugin-sql` (dùng `rusqlite` trực tiếp, AD-11),
 `tauri-plugin-keyring` (dùng crate `keyring` trực tiếp, AD-29), `tauri-plugin-dialog`.
-Ice chốt 2026-08-03. `scripts/check-deps.sh` cưỡng chế bằng lệnh.
+Ice chốt 2026-08-03. `scripts/check-deps.mjs` cưỡng chế bằng lệnh.
+
+## `connect-src` phải chứa kênh IPC — nếu không, IPC âm thầm tụt hạng
+
+`connect-src 'self' ipc: http://ipc.localhost` **không** phải nới CSP: `ipc:` là giao thức
+nội bộ của chính Tauri, không có gì ra mạng.
+
+**Bỏ nó ra thì không có lỗi nào nổ.** `connect-src` rơi về `default-src 'self'`, mà IPC của
+Tauri v2 gọi `fetch(convertFileSrc(cmd, 'ipc'))` — lời gọi đó bị CSP chặn, Tauri in đúng
+một dòng `console.warn('IPC custom protocol failed, Tauri will now use the postMessage
+interface instead')`, đặt `customProtocolIpcFailed = true`, rồi **mọi** lời gọi IPC sau đó
+đi qua `postMessage` dạng chuỗi — gồm cả `fetchChannelDataCommand`, đường dữ liệu của
+Channel (AD-22). Story 4.x sẽ đo throughput streaming AI trên một đường đã bị hạ cấp mà
+không biết vì sao.
+
+Neo bằng test `csp_scheme_sources_are_pinned_to_the_directive_that_needs_them`.
+
+## `capabilities/main.json` — ba tập quyền, không phải `core:default`
+
+`core:default` là một **bundle**: nó kéo theo `core:window:default`, `core:webview:default`,
+`core:menu:default`, `core:tray:default`, `core:app:default`. Dự án này dựng cả một script
+để cấm `tauri-plugin-fs` vì lý do bề mặt IPC — mở sẵn nhóm kia là tự mâu thuẫn.
+
+Tập tối thiểu thật, mỗi cái có người dùng cụ thể:
+
+| Tập quyền | Ai cần |
+|---|---|
+| `core:path:default` | `resolveResource()` — đường nạp font của Story 1.4 |
+| `core:event:default` | `emit`/`listen` và Channel (AD-22) |
+| `core:resources:default` | dọn resource table của Channel |
+
+Thêm một tập nữa là mở một bề mặt IPC mới — **phải là một AD mới trước đã**. Neo bằng test
+`main_capability_grants_the_minimum_and_no_plugin_permission`, và bằng
+`capabilities_directory_holds_exactly_the_one_reviewed_file` (Tauri nạp **mọi** tệp trong
+thư mục `capabilities/`, không chỉ `main.json`).
