@@ -53,6 +53,11 @@ pnpm-debug.log*
 *.db
 *.tmp
 
+_bmad-output/*.diff
+_bmad-output/*.patch
+_bmad-output/append.py
+_bmad-output/adversarial_findings.md
+
 # Các công cụ AI/editor cục bộ: giữ ở local, không push lên GitHub
 /_bmad/
 /.agent/

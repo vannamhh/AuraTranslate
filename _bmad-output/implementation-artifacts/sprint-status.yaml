@@ -1,0 +1,217 @@
+# generated: 2026-08-03T12:05:28
+# last_updated: 2026-08-03T12:05:28
+# project: AuraTranslate
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; sprint-status surfaces open ones
+
+generated: 2026-08-03T12:05:28
+last_updated: 2026-08-03T12:05:28
+project: AuraTranslate
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Nền móng ứng dụng & Tra cứu ngoại tuyến tức thì
+  epic-1: backlog
+  1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep: backlog
+  1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang: backlog
+  1-3-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong: backlog
+  1-4-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc: backlog
+  1-5-commandregistry-ba-che-do-va-tieu-diem-ban-phim: backlog
+  1-6-tang-ghi-du-lieu-mot-writer-noi-tiep-va-luoc-do-co-phien-ban: backlog
+  1-7-phan-giai-cau-hinh-hai-tang: backlog
+  1-8-dung-du-lieu-tu-dien-lop-nen: backlog
+  1-9-dong-goi-bon-lop-go-roi-thanh-file-doc-lap: backlog
+  1-10-ba-nhanh-truy-van-tieng-trung: backlog
+  1-11-matcher-dung-chung: backlog
+  1-12-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon: backlog
+  1-13-khung-bon-panel: backlog
+  1-14-tac-pham-tren-dia-va-duong-vao-van-ban-toi-thieu: backlog
+  1-15-panel-source-va-tab-han-viet: backlog
+  1-16-panel-lookup-ban-ghi-co-cau-truc: backlog
+  1-17-auto-lookup: backlog
+  1-18-bat-tat-nguon-tu-dien-va-ghi-cong: backlog
+  1-19-lich-su-tra-cuu-va-muc-da-ghim: backlog
+  1-20-phim-tat-cau-hinh-lai-duoc: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Biên tập theo segment — một vòng dịch tay hoàn chỉnh
+  epic-2: backlog
+  2-1-tach-segment-cap-cau-va-co-ket-doan: backlog
+  2-2-panel-editor-lien-mach: backlog
+  2-3-hop-dong-flush-va-trang-thai-da-luu: backlog
+  2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi: backlog
+  2-5-xac-nhan-segment-va-may-trang-thai: backlog
+  2-6-lich-su-phien-ban-segment-va-khoi-phuc: backlog
+  2-7-xuat-xu-ban-dich-cap-segment: backlog
+  2-8-gop-va-tach-segment-tuong-minh: backlog
+  2-9-gop-ngam-khi-go-de-len-ranh-gioi: backlog
+  2-10-dieu-huong-segment: backlog
+  2-11-chuyen-chuong-trong-workspace: backlog
+  2-12-sync-scrolling: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Glossary — chốt thuật ngữ một lần, dùng mãi
+  epic-3: backlog
+  3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai: backlog
+  3-2-bang-cho-ung-vien-tach-han-khoi-glossary: backlog
+  3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao: backlog
+  3-4-khop-thuat-ngu-theo-ngon-ngu-va-danh-dau-trong-panel-source: backlog
+  3-5-quet-ung-vien-khi-nhap-tai-lieu: backlog
+  3-6-de-xuat-ban-dich-bang-am-han-viet: backlog
+  3-7-duyet-hang-loat-mot-phim: backlog
+  3-8-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap: backlog
+  3-9-quan-ly-glossary: backlog
+  3-10-xuat-va-nhap-glossary-qua-csv-tsv: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: AI mở & Smart RAG Injector
+  epic-4: backlog
+  4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi: backlog
+  4-2-cau-hinh-nha-cung-cap-ai: backlog
+  4-3-api-key-trong-keychain: backlog
+  4-4-bo-prompt-theo-the-loai: backlog
+  4-5-xuat-va-nhap-bo-prompt: backlog
+  4-6-smart-rag-injector-la-mot-ham-thuan: backlog
+  4-7-xem-prompt-cuoi-cung-da-gui: backlog
+  4-8-dich-mot-segment-voi-ket-qua-chay-dan: backlog
+  4-9-dich-theo-lo-va-huy-giua-chung: backlog
+  4-10-loi-mang-va-loi-api: backlog
+  4-11-so-token-va-uoc-tinh-chi-phi: backlog
+  4-12-bo-cuc-man-hinh-hep-va-hieu-chinh-nguong: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Library — kho tác phẩm, tìm kiếm, và đọc lại thành quả
+  epic-5: backlog
+  5-1-mo-hinh-library-hai-tang: backlog
+  5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat: backlog
+  5-3-quet-lai-thu-muc: backlog
+  5-4-bon-trang-thai-vong-doi: backlog
+  5-5-tien-do-tac-pham: backlog
+  5-6-luoi-tac-pham-loc-va-sap-xep: backlog
+  5-7-danh-sach-chuong-va-mo-chuong-vao-workspace: backlog
+  5-8-to-chuc-lai-chuong-sau-khi-nhap: backlog
+  5-9-tim-kiem-full-text-xuyen-library: backlog
+  5-10-hai-che-do-dau: backlog
+  5-11-che-do-doc-typography-va-bo-cuc-doc-dai: backlog
+  5-12-che-do-doc-chi-doc-phan-da-xong: backlog
+  5-13-danh-dau-cho-can-sua-khi-dang-doc: backlog
+  5-14-do-nfr3-nfr4-nfr5-va-ghi-lai-trang-thai-ba-nguong-tam: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Đường nhập — mọi nguồn văn bản vào được, và không hỏng im lặng
+  epic-6: backlog
+  6-1-mui-tham-do-ba-lua-chon-thu-vien: backlog
+  6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon: backlog
+  6-3-bang-ma-phat-hien-va-dai-doi-chieu-nam-ban-dung-that: backlog
+  6-4-chuan-hoa-xuong-dong-va-khoang-trang: backlog
+  6-5-luat-lam-sach-lo-ra-va-hien-thu-sap-xoa: backlog
+  6-6-tach-chuong-theo-mau-phan-tach: backlog
+  6-7-doc-docx: backlog
+  6-8-nhap-tu-url-bang-danh-sach-link: backlog
+  6-9-allowlist-mang-hai-tang-va-nhat-ky-domain: backlog
+  6-10-boc-noi-dung-chinh-va-sua-ranh-gioi-bang-ban-phim: backlog
+  6-11-bo-loc-can-xem: backlog
+  6-12-anh-tai-ve-atproj-neo-vi-tri-va-url-goc: backlog
+  6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai: backlog
+  6-14-hien-thi-anh-dung-vi-tri: backlog
+  6-15-xuat-xu-tai-lieu-o-tang-chuong: backlog
+  6-16-nhap-tai-lieu-song-ngu-hai-cot: backlog
+  6-17-khop-cau-trong-tung-cap-hang: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Translation Memory — không dịch lại, không tra lại thứ đã dịch
+  epic-7: backlog
+  7-1-ghi-tm-tu-dong-khoa-theo-cap-van-ban: backlog
+  7-2-xuat-xu-tren-tung-cap-tm: backlog
+  7-3-tm-pham-vi-kep-va-thu-tu-sap-xep-hai-khoa: backlog
+  7-4-khop-tuyet-doi-100: backlog
+  7-5-khop-mo: backlog
+  7-6-thuat-toan-khop-theo-ngon-ngu: backlog
+  7-7-concordance: backlog
+  7-8-nhieu-ban-dich-cho-cung-mot-cau-nguon: backlog
+  7-9-quan-ly-translation-memory: backlog
+  7-10-xuat-va-nhap-tmx: backlog
+  7-11-smart-rag-uu-tien-cap-cua-chinh-nguoi-dung: backlog
+  epic-7-retrospective: optional
+
+  # Epic 8: Cầu nối Reviewer — xuất, nhập lại, đối chiếu, và hấp thụ bài học
+  epic-8: backlog
+  8-1-mui-tham-do-thu-vien-diff: backlog
+  8-2-pham-vi-xuat: backlog
+  8-3-xuat-docx-bang-hai-cot-theo-segment: backlog
+  8-4-xuat-docx-mot-khoi-theo-doan-cho-dang-bai: backlog
+  8-5-xuat-md-va-text-thuan: backlog
+  8-6-chon-cach-xuat-hinh-anh: backlog
+  8-7-khoi-ghi-nguon: backlog
+  8-8-cong-kiem-hinh-dang-bang-docx: backlog
+  8-9-nhap-lai-file-reviewer-da-sua: backlog
+  8-10-segment-alignment-may-khop-nguoi-sua: backlog
+  8-11-review-mode-bo-cuc-hai-cua-so-side-by-side: backlog
+  8-12-diff-boi-mau-an-van-ban-goc: backlog
+  8-13-chap-nhan-tung-thay-doi: backlog
+  8-14-thu-hoach-thuat-ngu-tu-ban-review: backlog
+  8-15-thu-hoach-chay-doc-lap-voi-review-mode: backlog
+  epic-8-retrospective: optional
+
+  # Epic 9: AI Proofreader — bắt lỗi trước khi bàn giao
+  epic-9: backlog
+  9-1-quet-chinh-ta-va-ngu-phap-tieng-viet: backlog
+  9-2-doi-chieu-ban-dich-voi-ban-goc: backlog
+  9-3-chay-theo-yeu-cau-khong-chay-nen: backlog
+  9-4-hinh-dang-mot-phat-hien-va-xu-ly-tung-cai-mot: backlog
+  9-5-hien-thi-tai-cho-bang-gach-chan-luon-song: backlog
+  9-6-bo-qua-co-ghi-nho: backlog
+  9-7-proofreader-khong-tu-sua-van-ban: backlog
+  9-8-do-ty-le-bao-dong-gia: backlog
+  epic-9-retrospective: optional
+
+  # Epic 10: Phát hành & tin cậy — vượt rào cản không ký số
+  epic-10: backlog
+  10-1-build-cong-khai-qua-github-actions: backlog
+  10-2-phat-hanh-cho-macos-va-windows: backlog
+  10-3-checksum-sha-256: backlog
+  10-4-man-hinh-attribution: backlog
+  10-5-giay-phep-trong-ban-phat-hanh: backlog
+  10-6-huong-dan-cai-dat-co-anh-chup-man-hinh: backlog
+  10-7-cap-nhat-chi-kiem-tra-va-thong-bao: backlog
+  10-8-chinh-sach-go-bo-du-lieu: backlog
+  10-9-nghiem-thu-cuoi-cac-nguong-phi-chuc-nang: backlog
+  epic-10-retrospective: optional
