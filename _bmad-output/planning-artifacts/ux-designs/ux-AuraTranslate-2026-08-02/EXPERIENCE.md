@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-08-02
+updated: 2026-08-03
 design: DESIGN.md
 sources:
   - _bmad-output/specs/spec-AuraTranslate/SPEC.md
@@ -32,7 +32,10 @@ Cửa sổ ứng dụng
 │   ├── lưới Tác phẩm — bìa, tên, tiến độ, trạng thái
 │   ├── tìm kiếm xuyên thư viện — hai chế độ dấu
 │   ├── bộ lọc — trạng thái · lĩnh vực · ngôn ngữ nguồn · ngày sửa
-│   └── nhập tài liệu → màn hình xem trước kết quả tách
+│   ├── nhập tài liệu → màn xem trước hợp nhất
+│   │     ├── từ file · dán văn bản · file song ngữ hai cột
+│   │     └── từ URL — dán danh sách link, mỗi dòng một Chương
+│   └── xuất → chọn cách xuất ảnh · khối ghi nguồn
 ├── Workspace ............... mở một Chương là vào đây
 │   ├── preset 2×2 (mặc định)   Nguyên văn | Bản dịch
 │   │                           Tra cứu    | Đề xuất AI
@@ -79,6 +82,20 @@ Xử lý xong dải trên thì dải dưới mọc ngay tại chỗ vừa thu �
 
 > **Va chạm này không có trong PRD.** `FR59`, `FR83` và `FR114` được viết độc lập, không FR nào nhắc tới FR kia; nó chỉ lộ ra khi cả ba dùng chung một mẫu thị giác trên cùng một dòng văn bản. Đây là **quyết định ở tầng thiết kế** — sai thì sửa ở đây, không phải mở lại PRD.
 
+**Màn xem trước hợp nhất — một màn hình, ba tầng, không phải ba hộp thoại** *(quyết định 2026-08-03)*. Bảng mã (FR126), ranh giới bóc (FR123) và luật làm sạch (FR124) mô tả **cùng một văn bản ở cùng một thời điểm**; AD-39 đã chốt chúng là một pipeline thứ tự cố định và *"xem trước hiển thị kết quả sau toàn bộ chuỗi"*. Đặc tả riêng ở mục **Đường nhập** bên dưới.
+
+**Khối nội dung — đơn vị của mọi thao tác trong màn xem trước.** Nội dung chia thành khối theo đoạn. Mỗi khối mang đúng một trong ba trạng thái, đọc ở vạch lề như segment trong Editor:
+
+| Vạch | Nghĩa |
+|---|---|
+| `confirmed` | giữ lại, người dùng đã chạm tay |
+| `tm-rule` | giữ lại, **máy đoán, chưa ai xác nhận** |
+| `ornament` mờ | đã loại — khối chìm xuống `surface-sunken`, chữ rút về `on-surface-variant` |
+
+**Phân biệt giữ lại với loại bỏ bằng độ lùi, không bằng màu nhấn thứ hai.** Khối bị loại đổi cả kiểu chữ — từ chữ đọc `source-cjk` sang chữ giao diện cỡ nhỏ — nên mắt biết ngay nó không còn là nội dung. Hệ thống này vốn phân biệt bằng độ lùi (`ornament`, `surface-sunken`, `outline-faint`) chứ không bằng sắc màu; đây là dùng lại ngữ pháp sẵn có. Xanh mực `primary` vẫn chỉ dành cho ba việc cũ.
+
+**Ranh giới do máy đoán dùng `tm-rule`, và đó không phải màu mới.** Trong toàn ứng dụng `tm-rule` đã luôn nghĩa là *máy đề xuất, chưa ai xác nhận* — đúng y nghĩa của một ranh giới thuật toán vừa đặt. Người dùng chạm vào thì nó thành `confirmed`, cùng ngữ pháp với trạng thái segment.
+
 **Phát hiện Proofreader — gạch chân, không phải vạch lề** *(quyết định 2026-08-03)*. `FR86` bắt đánh dấu tại chỗ trên Editor, nhưng vạch lề đã dùng hết năm giá trị cho trạng thái segment và Editor cố tình không có ô. Lời giải: phát hiện là **gạch chân lượn sóng dưới đúng cụm chữ có vấn đề**, ở `text-underline-offset: 4px` để không chạm dấu nằm dưới của `ạ` `ộ` `ợ`. Hai lớp thông tin, hai chỗ đọc — vạch lề nói *trạng thái câu*, gạch chân nói *chỗ nghi ngờ*.
 
 Hai màu, không thêm màu mới nào vào bảng: **`error`** cho chính tả và ngữ pháp (`FR80` — có đáp án đúng), **`tm-rule`** cho nghi về nghĩa (`FR81` — là phán đoán, và màu này trong toàn ứng dụng đã luôn nghĩa là *máy đề xuất, chưa ai xác nhận*).
@@ -103,6 +120,10 @@ Hệ thống **không bao giờ tự coi một câu là xong**. Khớp TM 100% v
 
 **Lỗi mạng và lỗi API** — nêu rõ nguyên nhân, giữ nguyên công việc đang làm, và **chỉ thử lại khi người dùng bấm** (FR75). Không tự động thử lại: với BYOK mỗi lần gọi là tiền của người dùng.
 
+**Trạng thái bảng mã** *(2026-08-03)* — ba giá trị: **nguồn tự khai** (`.docx`, hoặc HTTP có `charset` tin được) · **tự đoán, tin cậy cao** · **tự đoán, tin cậy thấp**. Chỉ giá trị thứ ba mở dải đối chiếu năm ứng viên. Không có trạng thái lỗi: một file đọc sai bảng mã **không hỏng**, nó chỉ ra chữ không đọc được — và đó là thứ mắt phân xử, không phải thứ hệ thống phán quyết.
+
+**Trạng thái một Chương trong lần nhập nhiều link** — **sạch** hoặc **cần xem**. *Cần xem* gom bốn nguyên nhân: bảng mã tin cậy thấp · phần bóc ra ngắn bất thường so với trung vị các Chương khác · luật làm sạch xoá quá nhiều · link hỏng. Bộ đếm ở đầu màn xem trước luôn hiện cả hai con số.
+
 **Đã lưu** — thanh trạng thái ghi "Đã lưu N giây trước". Không hộp thoại, không dấu chấm "chưa lưu" gây lo lắng: NFR18 bảo đảm mất tối đa 5 giây.
 
 ## Interaction Primitives
@@ -114,6 +135,21 @@ Hệ thống **không bao giờ tự coi một câu là xong**. Khớp TM 100% v
 **Gộp ngầm** — gõ đè lên đúng vị trí ranh giới **là** ra lệnh gộp. Hệ thống thực hiện đúng ngữ nghĩa AD-5: hai câu cũ về hưu và vẫn tra lại được lịch sử, câu mới bắt đầu ở trạng thái chưa xác nhận với lịch sử rỗng. Một dòng báo ở lề, hoàn tác bằng `⌘Z`. **Không chặn, không hỏi lại** — chặn lại sẽ phá đúng cảm giác tự do mà Editor liền mạch tồn tại để có.
 
 **Đưa bản dịch AI sang Editor** — `⌘⇧↵`, luôn do người dùng chủ động (FR72). Không có đường nào để kết quả AI tự chảy vào Bản dịch.
+
+**Sửa ranh giới bóc — bàn phím là đường chính** *(2026-08-03)*. Bản năng thiết kế cho việc chọn vùng văn bản là **kéo chuột**, và đó là chỗ màn xem trước dễ thủng NFR17 nhất. Mô hình thao tác đi theo khối, không theo con trỏ ký tự:
+
+| Phím | Việc |
+|---|---|
+| `J` `K` hoặc `↑` `↓` | đi giữa các khối |
+| `Space` | bật/tắt giữ khối đang chọn |
+| `[` `]` | đặt đầu và cuối vùng giữ một lần |
+| `E` | mở bộ chọn bảng mã |
+| `R` | bật/tắt luật làm sạch đang khớp khối này |
+| `⌥←` `⌥→` | Chương trước / sau trong cùng lần nhập |
+| `⌥W` | chỉ xem các Chương **cần xem** |
+| `⌘↵` | xác nhận nhập |
+
+Kéo chuột vẫn dùng được, nhưng nó là **đường thứ hai**. Mọi phím trên là command đăng ký trong `CommandRegistry` như mọi thao tác khác (AD-34).
 
 **Sync Scrolling** — đồng bộ cuộn giữa Nguyên văn, Đề xuất AI và Bản dịch, có công tắc rõ ràng (FR20). Đây là lý do preset 2×2 đặt Nguyên văn và Bản dịch **cạnh nhau**: đối chiếu theo chiều ngang là thao tác lặp hàng trăm lần mỗi Chương.
 
@@ -130,6 +166,67 @@ Hệ thống **không bao giờ tự coi một câu là xong**. Khớp TM 100% v
 
 **Ngoài phạm vi v1:** hỗ trợ trình đọc màn hình (ARIA đầy đủ, VoiceOver/NVDA). Ranh giới có chủ ý, ghi ở PRD §3.2 — không phải thiếu sót cần vá lén.
 
+## Đường nhập — màn xem trước hợp nhất
+
+*(Mục bổ sung 2026-08-03 cho FR122–FR128. Đây là bề mặt **đầu tiên** người dùng chạm vào sản phẩm, và là nơi hai lỗi đắt nhất của ứng dụng có thể xảy ra im lặng.)*
+
+### Thứ tự nhìn đi theo quan hệ nhân quả
+
+Ba tầng nằm trên **một** màn hình, xếp dọc theo đúng thứ tự chúng phụ thuộc nhau:
+
+| Tầng | Việc | FR |
+|---|---|---|
+| **1** | Bảng mã | FR126 |
+| **2** | Ranh giới nội dung | FR123 |
+| **3** | Luật làm sạch | FR124 |
+
+**Bảng mã đứng trên cùng vì bảng mã sai thì mọi thứ dưới nó vô nghĩa** — bóc nội dung trên chữ rác, luật khớp vào chữ rác. Đặt nó xuống dưới hay giấu vào Cài đặt sẽ khiến người dùng ngồi sửa ranh giới trên một văn bản đã hỏng. Chuẩn hoá xuống dòng và khoảng trắng (FR125) không có tầng riêng: nó chạy ngầm và kết quả là thứ ba tầng trên đang hiển thị.
+
+Không có nút *"Tiếp theo"* giữa các tầng. Đổi bảng mã ở tầng 1 thì tầng 2 và 3 dựng lại **ngay, trong bộ nhớ** — chưa segment nào tồn tại nên không có gì phải cho về hưu (AD-39). Đây chính là cách thoả điều kiện nghiệm thu *"sửa được mà không phải nhập lại từ đầu"* của FR126.
+
+### Lỗi bảng mã tự lộ ra bằng mắt, không bằng cảnh báo
+
+Khi độ tin cậy dò thấp, một dải mở ra **ngay trên văn bản** với năm ứng viên, mỗi ứng viên kèm **bản dựng thật** của cùng một đoạn 6–8 ký tự đầu Chương:
+
+```
+UTF-8      GB18030     GBK        Big5       UTF-16
+ç¬¬ä¸€ç«   第一章 雪   第一章 雪   姼銝€蝡    ⽦Ɫ畜
+không ra   ✓ đang      cũng ra    không ra   không ra
+chữ        chọn        chữ        chữ        chữ
+```
+
+**Người dịch Việt nhận ra `第一章` với `ç¬¬ä¸€ç«` trong một phần giây** — nhanh hơn và chắc chắn hơn mọi câu cảnh báo mô tả vấn đề. Đây là lý do mẫu chữ đặt ở cỡ `read` chứ không cỡ giao diện: phải đủ lớn để phân biệt được nét chữ Hán.
+
+> **Vì sao không dùng hộp thoại cảnh báo.** FR126 cùng hạng lỗi *thất bại im lặng* với FR39 — một cảnh báo chỉ nói *"có thể sai"* thì người dùng vẫn không biết chọn gì. Đối chiếu năm bản dựng biến một phán đoán kỹ thuật thành một **câu hỏi thị giác** mà người dùng trả lời được ngay.
+
+### Ranh giới cứng của FR122 phải đếm được
+
+Dưới ô dán link, hai con số đứng cạnh nhau: **`N` link · sẽ tạo `N` Chương**, kèm một câu — *"Chỉ tải đúng N link này. Không tìm thêm link nào khác."*
+
+Hai con số **bằng nhau là bằng chứng đọc được** rằng ứng dụng không tự đi tìm gì. Nếu về sau có ai thêm tính năng quét mục lục, hai số này lệch và màn hình tự tố cáo. Mạnh hơn một câu cam kết viết trong tài liệu hướng dẫn.
+
+### Bộ lọc "cần xem" là thứ giữ cho màn hình dùng được ở quy mô thật
+
+Dán 50 link mà bắt duyệt tay 50 màn xem trước thì tới lần thứ mười người dùng sẽ bấm xác nhận mù — và mục đích của cả màn hình này mất sạch. Đầu màn hình luôn hiện **hai con số**: *`N` Chương cần xem* và *`M` Chương sạch*, `⌥W` lọc về nhóm đầu.
+
+### Luật làm sạch hiện thứ sắp bị xoá, trước khi xoá
+
+Chỗ bị luật xoá hiện **gạch ngang tại chỗ trong văn bản** bằng nét `ornament`, kèm nhãn luật đã khớp. Danh sách luật ở tầng 3 cho bật/tắt từng luật và ghi **hai con số**: khớp bao nhiêu chỗ *trong Chương này* và bao nhiêu chỗ *trong cả lần nhập*.
+
+Mỗi luật mang nhãn tầng — **Toàn cục** hoặc **Tác phẩm** — và **cả hai tầng cùng áp** (ngữ nghĩa hợp nhất, AD-18). Đây là loại làm sạch duy nhất có thể **xoá nhầm nội dung thật**, nên nó tuân đúng nguyên tắc *máy đề xuất, người duyệt* của FR55: không luật nào chạy mà người dùng không nhìn thấy nó vừa làm gì.
+
+### Xuất xứ tài liệu tự điền, sửa tại chỗ
+
+Bốn trường của FR128 — tác giả · báo/website · URL bài gốc · ngày đăng — gom **một khối ở đầu mỗi Chương** trong màn xem trước, tự điền từ trang. Trường không tìm thấy hiện chữ nghiêng *"không tìm thấy"* thay vì để trống, để người dùng biết hệ thống **đã tìm** chứ không phải quên.
+
+Với Tác phẩm nhập từ file hay dán tay, cùng khối đó mở được từ danh sách Chương. Bốn trường ở **tầng Chương** chứ không tầng Tác phẩm — truyện web mỗi Chương một link riêng.
+
+### Nhật ký domain (NFR19)
+
+Hai chỗ: một dòng tóm tắt ở chân màn xem trước — *"Đã gọi `N` domain · xem"* — và bảng đầy đủ trong **Cài đặt › Quyền riêng tư**.
+
+Hai tầng allowlist của AD-41 phân biệt bằng **nhãn chữ**, không bằng màu: `Tài liệu` cho host người dùng dán link, `Ảnh` cho host mà những trang đó tham chiếu tới. Mỗi hàng ghi **vì sao được phép** — đó là thứ biến lời hứa *"không telemetry"* thành thứ người dùng kiểm được.
+
 ## Chế độ đọc — đặc tả typography
 
 PRD bàn giao mục này có chủ ý. Bound đã chốt:
@@ -144,7 +241,9 @@ PRD bàn giao mục này có chủ ý. Bound đã chốt:
 
 Điều khiển hai tầng: **ba preset trên thanh công cụ**, thanh trượt cỡ chữ và giãn dòng chi tiết **sau một lần bấm**. Người dịch chỉnh một lần rồi dùng mãi — nhưng FR11 bắt buộc chỉnh được nên không được giấu hẳn.
 
-Mặc định **chỉ hiển thị bản dịch tiếng Việt**; công tắc song ngữ đặt nguyên văn **ở lề trái**, cỡ nhỏ, màu `on-surface-variant` — **không chen giữa dòng đọc**, vì một khối chữ Hán trên mỗi đoạn làm gãy nhịp đọc tiếng Việt. Hình nhúng hiển thị **đúng vị trí trong văn bản** (FR43), chú thích là alt-text **đã dịch** (FR44). Cuối trang là chuyển Chương liền mạch — đọc nhiều Chương không phải quay về Library.
+Mặc định **chỉ hiển thị bản dịch tiếng Việt**; công tắc song ngữ đặt nguyên văn **ở lề trái**, cỡ nhỏ, màu `on-surface-variant` — **không chen giữa dòng đọc**, vì một khối chữ Hán trên mỗi đoạn làm gãy nhịp đọc tiếng Việt. Hình nhúng hiển thị **đúng vị trí trong văn bản** (FR43). **Chú thích hiện dưới ảnh là `caption` đã dịch (FR129) — không phải alt-text.** Alt-text (FR44) cũng được dịch nhưng **không hiện trên trang**: nó là thứ trình đọc màn hình đọc lên, không phải thứ mắt nhìn. Ảnh không có caption thì **không chừa chỗ trống** dưới ảnh. Cuối trang là chuyển Chương liền mạch — đọc nhiều Chương không phải quay về Library.
+
+> **Sửa 2026-08-03.** Câu cũ viết *"chú thích là alt-text đã dịch"* — gộp hai thứ làm một. Vô hại khi mọi ảnh đến từ `.docx` của người dùng; **sai ngay khi nhập bài báo từ web**, nơi caption ghi bối cảnh và nguồn ảnh còn alt-text mô tả cái đang có trong ảnh. AD-42 chốt cả hai là `Segment` mang trường **vai**, và `ASSET` mang **neo vị trí riêng** — vì ảnh web thường không có `alt` nào để giữ chỗ.
 
 Chiều rộng đo bằng `ch` chứ không bằng `px`, nên số ký tự mỗi dòng giữ nguyên khi đổi cỡ chữ.
 
@@ -191,6 +290,23 @@ Luồng PRD đánh dấu **nhiều chỗ dễ hỏng nhất**. `FR13 → FR14 �
 
 **Vì sao bước 6 tách rời khỏi bước 4-5:** nguyên nhân gốc của việc người dịch không xem lại bản review vẫn chưa xác định (Q1). Nếu Ice không bao giờ mở Review Mode, công sức của reviewer **vẫn** phải chuyển hoá thành giá trị.
 
+### KF-4 · Ice dán 50 link và gặp một file mã GBK
+
+`FR122 → FR126 → FR123 → FR124 → FR128`
+
+*(Hành trình bổ sung 2026-08-03. Đây là **lần đầu tiên** Ice chạm vào sản phẩm với một bộ truyện mới — nên nó cũng là chỗ ấn tượng đầu tiên được quyết.)*
+
+1. Ice mở một trang truyện, copy 50 link chương vào clipboard. Từ Library, chọn **Nhập từ website**, dán.
+2. Dưới ô dán hiện hai con số: **50 link · sẽ tạo 50 Chương**, kèm câu *"Chỉ tải đúng 50 link này. Không tìm thêm link nào khác."* Ice liếc qua, thấy hai số bằng nhau, bấm **Tải**.
+3. Màn xem trước mở ra ở Chương 1. Đầu màn hình: **7 Chương cần xem · 43 Chương sạch**.
+4. **Nhịp then chốt.** Ice bấm `⌥W` để lọc về nhóm cần xem, và Chương 3 hiện ra với chữ `ç¬¬ä¸€ç«`. Ngay trên văn bản là một dải năm ô — cùng đoạn đầu Chương dựng bằng năm bảng mã. Ice **không đọc chữ nào**; mắt chạm ô thứ hai thấy `第一章 雪`, bấm. Cả màn hình dựng lại. Chữ Hán hiện đúng ở cả ba tầng.
+5. Ở tầng 2, thuật toán bóc đã cắt mất đoạn cuối Chương. Ice bấm `K` xuống khối cuối, `Space` — khối chuyển từ *đã loại* sang *giữ*, vạch lề đổi từ `ornament` sang `confirmed`.
+6. Ở tầng 3, một luật đang xoá `【本站首发】` ở 91 chỗ trong cả 50 Chương. Ice nhìn hai con số, để nguyên. Một luật khác định xoá `求推荐票` — Ice tắt nó vì có Chương dùng cụm đó trong lời thoại thật.
+7. Ice bấm `⌘↵`. 50 Chương vào Library ở trạng thái **Chưa bắt đầu**, mỗi Chương mang sẵn tác giả và URL bài gốc.
+8. Chân màn hình ghi *"Đã gọi 2 domain · xem"*. Ice bấm vào, thấy `truyen-example.com` nhãn **Tài liệu** và `img-cdn-example.net` nhãn **Ảnh** — và một dòng giải thích vì sao domain thứ hai được phép.
+
+**Vì sao bước 4 là climax chứ không phải bước 7:** đây là khoảnh khắc một lỗi vốn **không báo gì cả** trở thành một câu hỏi trả lời được trong một giây. Không có dải đối chiếu, Ice sẽ thấy *"tách được 1 chương"* ở bước 7 và không đời nào đoán ra nguyên nhân nằm ở bảng mã.
+
 ## Mockups
 
 Bản dựng là minh hoạ của spine, không phải nguồn sự thật — **khi mâu thuẫn, `DESIGN.md` và `EXPERIENCE.md` thắng.** Toàn bộ dùng token đã kiểm tương phản.
@@ -210,6 +326,8 @@ Bản dựng là minh hoạ của spine, không phải nguồn sự thật — *
 | Trạng thái rỗng và trạng thái lỗi | [`mockups/empty-states.html`](mockups/empty-states.html) | State Patterns |
 | **Chế độ đọc trọn vẹn** — đánh dấu, biên giới, mục lục, song ngữ ở lề | [`mockups/reading-mode.html`](mockups/reading-mode.html) | FR119 · FR120 · FR11 |
 | Ba mức typography Chế độ đọc, sáng và tối | [`mockups/reading-mode-typography.html`](mockups/reading-mode-typography.html) | Chế độ đọc — tham chiếu chữ nghĩa |
+| **Nhập từ URL + màn xem trước hợp nhất** — dán link, đối chiếu bảng mã, sửa ranh giới bóc, luật làm sạch, nhật ký domain; sáng và tối | [`mockups/web-import.html`](mockups/web-import.html) | KF-4 · FR122–FR128 · NFR19 |
+| **Xuất — cách xuất ảnh và khối ghi nguồn**, kèm danh sách ảnh không có link gốc | [`mockups/export-images-attribution.html`](mockups/export-images-attribution.html) | FR130 · FR131 · FR128 |
 
 ### Bổ sung 2026-08-03 — bề mặt của Giai đoạn 1 và 2
 
@@ -254,9 +372,9 @@ Bản dựng là minh hoạ của spine, không phải nguồn sự thật — *
 
 **Bản đồ năng lực nay đã phủ kín: cả 10 nhóm C1–C10 đều có bề mặt.**
 
-> **Ngoại lệ token có chủ ý trong file này.** Khối xem trước `.docx` dùng màu viết cứng (`#fff`, `#1e1c19`, `#f2efe8`…) vì nó **mô phỏng một tài liệu Word**, không phải bề mặt của ứng dụng. Áp token giấy ngà vào đó sẽ nói dối về thứ reviewer thật sự nhìn thấy. Các màu này vẫn đã kiểm đạt AA. Đừng "sửa" chúng về token.
+> **Ngoại lệ token có chủ ý.** Khối xem trước `.docx` — trong `export-share.html` và `export-images-attribution.html` — dùng màu viết cứng (`#fff`, `#1e1c19`, `#f2efe8`…) vì nó **mô phỏng một tài liệu Word**, không phải bề mặt của ứng dụng. Áp token giấy ngà vào đó sẽ nói dối về thứ reviewer thật sự nhìn thấy. Các màu này vẫn đã kiểm đạt AA. Đừng "sửa" chúng về token.
 
-**Đã kiểm toán 2026-08-03.** Cả **27 file** dùng token hiện hành: không màu nào trượt WCAG AA, không biến nào đã bị bỏ, không chỗ nào dùng `opacity` để làm mờ chữ, tất cả khai `Source Serif 4` / `Source Han Serif` / `Source Sans 3` (giữ chuỗi dự phòng phía sau để render được khi máy chưa cài font).
+**Đã kiểm toán 2026-08-03.** Cả **29 file** dùng token hiện hành: không màu nào trượt WCAG AA, không biến nào đã bị bỏ, không chỗ nào dùng `opacity` để làm mờ chữ, tất cả khai `Source Serif 4` / `Source Han Serif` / `Source Sans 3` (giữ chuỗi dự phòng phía sau để render được khi máy chưa cài font).
 
 > **Lần kiểm toán ngày 2026-08-02 đã bỏ sót.** Nó tuyên bố *"cả 8 file"* trong khi bảng đã có 13, và tuyên bố không màu nào trượt AA trong khi sáu chỗ dùng `ornament` hoặc `tm-rule` làm màu chữ ở **2,5:1** — kể cả một câu văn bản dịch nguyên vẹn ở `key-screen-workspace.html`. Đã sửa hết ngày 2026-08-03. **Lỗ hổng đứng sau nó** là `DESIGN.md` chỉ đặt luật cho *token màu* mà không đặt luật cho `opacity`, nên bảng chờ Glossary lùi hàng đã duyệt bằng `opacity: 0.4` mà vẫn qua được mọi lần kiểm. Luật `opacity` nay đã có trong `DESIGN.md § Sàn tương phản`.
 
@@ -298,6 +416,17 @@ Hệ quả cho thiết kế đã áp vào mockup: thẻ quyết định hiện *
 
 - ~~**Chưa dựng bố cục ở màn hình hẹp**~~ — ✅ **đóng 2026-08-03.** Ngưỡng đo theo **vùng làm việc** (chiều cao cửa sổ trừ thanh tiêu đề 38px và thanh trạng thái 32px), không theo kích thước màn hình: **≥ 1100×820** giữ 2×2 · **< 820 cao** gộp hàng dưới thành một panel có tab · **< 1100 rộng hoặc < 700 cao** chỉ còn Nguyên văn | Bản dịch, Tra cứu rút về ngăn kéo · **< 860 rộng** báo không hỗ trợ. Thứ tự hy sinh: Đề xuất AI trước, Tra cứu sau (nhưng rút về thanh trạng thái chứ **không bao giờ mất hẳn**), cặp Nguyên văn | Bản dịch **không bao giờ nhường**. Ngưỡng là điểm khởi đầu, cần hiệu chỉnh trên máy thật — cùng loại với A6/A7/A8. Xem [`mockups/narrow-layout.html`](mockups/narrow-layout.html).
 - **Font thật chưa đo.** `DESIGN.md` đã chốt hệ font nhúng nhưng dung lượng, giấy phép và biến thể vùng đều chờ một mũi thăm dò kỹ thuật — không phải việc thiết kế.
+- ~~**`AD-39` thiếu bước tách Chương của `FR14`**~~ — ✅ **đóng 2026-08-03.** Phát hiện khi dựng màn xem trước, bàn giao ngược cho `bmad-architecture`, Winston sửa Rule của AD-39 tại chỗ (không thêm AD mới, 43 AD giữ nguyên ID). Chuỗi pipeline nay có bước **tách Chương theo mẫu phân tách**, đặt **sau chuẩn hoá (FR125), trước xem trước** — đúng vị trí và đúng lý do đã nêu: màn xem trước của FR14 hiện *"đã nhận ra N Chương"* nên bước này phải xong trước khi màn đó dựng. `Prevents` của AD-39 nhận thêm ca hỏng cụ thể: đặt tách Chương **trước** bước giải mã bảng mã thì mẫu chạy trên chữ rác, cả file 40 MB ra **đúng một Chương**, không lỗi nào được ném — đúng lỗi thất bại im lặng mà FR126 tồn tại để chặn.
+
+  **Bản chốt khác đề xuất ban đầu của tầng thiết kế ở một chỗ, và bản chốt là bản đúng.** Tôi đề nghị khai điều kiện áp dụng theo **danh sách đường nhập** (*áp cho file, không áp cho URL*); Winston khai theo **hình dạng đầu vào** — đầu vào đến thành **một dòng chưa chia Chương** thì có tách, đầu vào **đã một đơn vị một Chương** thì không. Danh sách sai ngay khi có đường nhập thứ tư; hình dạng thì đúng mãi. Người đọc mục này về sau: **bản chốt là tiêu chí hình dạng.**
+
+  **Hệ quả tôi đọc sai và nay đã sửa:** tôi bàn giao rằng FR115 (nhập song ngữ) *không* cần tách Chương. Sai — một `.docx` hai cột chứa cả bộ truyện cũng đến thành một dòng chưa chia Chương, nên theo tiêu chí hình dạng nó **có** cần. Và [`mockups/bilingual-import.html`](mockups/bilingual-import.html) dựng **từ hôm trước** vốn đã có sẵn trường *"Mẫu nhận diện đầu Chương — **áp lên cột nguồn**"*: tầng thiết kế đã trả lời câu hỏi này trước khi nó được đặt ra.
+
+- 🟡 **`FR115` chưa nói mẫu phân tách khớp vào cột nào — nhưng tầng thiết kế đã chọn** *(mở 2026-08-03)*. Spine ghi đây là câu hỏi ba lựa chọn còn để ngỏ. **Hẹp hơn thế:** `bilingual-import.html` đã chọn **cột nguồn**, và đó là lựa chọn đúng — đầu Chương gốc mang dạng `第N章` ổn định và máy khớp được, còn cột đích do người khác dịch có thể ghi *"Chương 5"*, ghi khác đi, hoặc bỏ hẳn dòng tiêu đề. Khớp vào cột đích là đặt độ tin cậy của cả lần nhập vào thói quen của một người dịch khác.
+
+  **Ảnh hưởng tới giao diện: không.** Màn xem trước song ngữ đã có sẵn trường mẫu phân tách và dòng *"N Chương nhận ra"*; nếu về sau PRD chốt khác thì chỉ đổi **nhãn của trường**, không đổi bố cục hay luồng thao tác.
+
+  Còn lại là việc tầng sản phẩm: **PRD nên phê chuẩn lựa chọn này thành chữ**, thay vì để nó chỉ sống trong một bản dựng. *Chủ: chủ dự án — trước Giai đoạn 3.*
 - ~~**Mâu thuẫn giãn dòng `ui` trong `DESIGN.md`**~~ — ✅ **đóng 2026-08-03.** Sàn 1.66 áp cho **chữ nội dung họ `read`**; họ `ui` được phép ở **1.4 và 1.5** cho nhãn một dòng, nhưng **quay lại 1.66 khi chuỗi có khả năng xuống dòng** (mô tả dưới ô thiết lập, câu trạng thái, hộp giải thích). Ranh giới là *chữ có chạy thành đoạn hay không*, không phải cỡ chữ. Xem `DESIGN.md § Giãn dòng`.
 
 ### ✅ Bề mặt theo bản đồ năng lực — đã phủ kín 2026-08-03

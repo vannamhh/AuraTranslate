@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Nhập từ URL + màn xem trước hợp nhất</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.6}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.85;margin-top:4px;max-width:860px}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.k{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface);white-space:nowrap}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.lbl{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+
+/* ============ BƯỚC 1 — dán link ============ */
+.step{padding:22px 26px 26px}
+.sh{font-family:var(--read);font-size:20px;margin-bottom:3px}
+.ss{font-size:12px;color:var(--ink-2);margin-bottom:18px;max-width:700px;line-height:1.6}
+.pastewrap{display:grid;grid-template-columns:1fr 300px;gap:22px}
+.paste{background:var(--surface);border:1px solid var(--primary);border-radius:4px;box-shadow:0 0 0 3px var(--accent-bg);overflow:hidden}
+.paste .ph{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--line-2);background:var(--sunken)}
+.paste .lines{font-family:var(--mono);font-size:11.5px;line-height:1.95;padding:10px 12px;color:var(--ink-2)}
+.paste .lines b{color:var(--ink);font-weight:400}
+.count{margin-top:10px;padding:11px 13px;background:var(--surface);border:1px solid var(--line);border-radius:4px}
+.count .big{font-size:13.5px;color:var(--ink);margin-bottom:5px}
+.count .big b{font-weight:700}
+.count .vow{font-size:12px;color:var(--ink-2);line-height:1.65;border-top:1px solid var(--line-2);padding-top:8px;margin-top:8px}
+.count .vow b{color:var(--ink);font-weight:600}
+.side .fieldl{font-size:11px;color:var(--ink-2);margin-bottom:5px;display:block}
+.side .field{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:7px 10px;font-size:12.5px;margin-bottom:14px}
+.side .field.mono{font-family:var(--mono);font-size:12px}
+.radio{display:flex;gap:9px;align-items:flex-start;padding:8px 0;font-size:12.5px}
+.radio i{width:12px;height:12px;border-radius:50%;border:1px solid var(--orn);flex:none;margin-top:2px;background:var(--surface)}
+.radio.on i{border:4px solid var(--primary);background:var(--surface)}
+.radio .d{font-size:11.5px;color:var(--ink-2);margin-top:2px;line-height:1.5}
+
+/* ============ BƯỚC 2 — màn xem trước hợp nhất ============ */
+.prevtop{display:flex;align-items:center;gap:14px;padding:13px 26px;border-bottom:1px solid var(--line);background:var(--sunken)}
+.chapnav{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.chapnav .cur{font-family:var(--read);font-size:15px}
+.filterchip{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-2)}
+.filterchip .on{border:1px solid var(--tm);background:var(--tm-bg);color:var(--tm-text);font-weight:600;border-radius:20px;padding:4px 12px}
+.warncount{border-radius:20px;padding:4px 12px;border:1px solid var(--line);background:var(--surface)}
+
+/* --- tầng 1: bảng mã --- */
+.tier{padding:16px 26px;border-bottom:1px solid var(--line-2)}
+.tierh{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.tiern{font-family:var(--mono);font-size:10.5px;color:var(--orn)}
+.encbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.encchip{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:6px 11px;font-size:12px}
+.encchip.guess{border-color:var(--tm);background:var(--tm-bg);color:var(--tm-text);font-weight:600}
+.candrow{margin-top:11px;background:var(--surface);border:1px solid var(--tm);border-left-width:2px;border-radius:0 4px 4px 0;padding:12px 14px}
+.candlead{font-size:12px;color:var(--tm-text);line-height:1.6;margin-bottom:10px}
+.candlead b{font-weight:700}
+.cands{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}
+.cand{border:1px solid var(--line);border-radius:4px;background:var(--surface);padding:9px 10px;text-align:center}
+.cand.sel{border-color:var(--primary);box-shadow:0 0 0 3px var(--accent-bg)}
+.cand .nm{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);margin-bottom:6px}
+.cand .sm{font-family:var(--read);font-size:17px;line-height:1.5;color:var(--ink);word-break:break-all}
+.cand.bad .sm{color:var(--ink-2)}
+.cand .verdict{font-size:10.5px;margin-top:6px;color:var(--ink-2)}
+.cand.sel .verdict{color:var(--primary);font-weight:600}
+
+/* --- tầng 2: ranh giới bóc --- */
+.blocks{background:var(--surface);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.blk{display:grid;grid-template-columns:22px 1fr;border-bottom:1px solid var(--line-2)}
+.blk:last-child{border-bottom:0}
+.gut{background:var(--sunken);border-right:1px solid var(--line-2);position:relative}
+.gut i{position:absolute;left:8px;top:9px;bottom:9px;width:2px;border-radius:2px;display:block}
+.blk.keep .gut i{background:var(--confirmed)}
+.blk.auto .gut i{background:var(--tm)}
+.blk.drop .gut i{background:var(--orn)}
+.bd{padding:11px 15px}
+.blk.drop{background:var(--sunken)}
+.blk.drop .bd{color:var(--ink-2)}
+.blk.focus{box-shadow:inset 2px 0 0 var(--primary)}
+.blk.focus .gut{background:var(--accent-bg)}
+.btext{font-family:var(--read);font-size:16.5px;line-height:2.05}
+.blk.drop .btext{font-size:13.5px;line-height:1.7;font-family:var(--ui)}
+.btag{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.btag .t{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.t-keep{color:var(--confirmed)}
+.t-auto{color:var(--tm-text)}
+.t-drop{color:var(--ink-2)}
+.brule{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);background:var(--sunken);border:1px solid var(--line-2);border-radius:3px;padding:1px 6px}
+.blk.drop .brule{background:var(--surface)}
+.strike{text-decoration:line-through;text-decoration-color:var(--orn);text-decoration-thickness:1px;color:var(--ink-2)}
+.boundary{display:flex;align-items:center;gap:9px;padding:5px 15px;background:var(--tm-bg);border-bottom:1px solid var(--line-2);font-size:11.5px;color:var(--tm-text)}
+.boundary .lbl{color:var(--tm-text)}
+
+/* --- tầng 3: luật làm sạch --- */
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.rule{display:flex;align-items:flex-start;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:9px 12px}
+.rule.off{background:var(--sunken)}
+.tick{width:13px;height:13px;border-radius:2px;border:1px solid var(--orn);flex:none;margin-top:2px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--surface)}
+.rule.on .tick{background:var(--primary);border-color:var(--primary);color:#fbfaf6}
+.rule .rx{font-family:var(--mono);font-size:11px;color:var(--ink);margin-bottom:3px;word-break:break-all}
+.rule.off .rx{color:var(--ink-2)}
+.rule .meta{font-size:11px;color:var(--ink-2)}
+.rule .tier2{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);border:1px solid var(--line);border-radius:2px;padding:0 5px;margin-left:auto;flex:none}
+
+/* --- xuất xứ FR128 --- */
+.orig{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+.of{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:7px 10px}
+.of .ol{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin-bottom:4px}
+.of .ov{font-size:12.5px;color:var(--ink)}
+.of .ov.url{font-family:var(--mono);font-size:11px;word-break:break-all}
+.of .ov.empty{color:var(--ink-2);font-style:italic;font-family:var(--read)}
+
+/* --- chân màn hình --- */
+.foot{display:flex;align-items:center;gap:16px;padding:14px 26px;border-top:1px solid var(--line);background:var(--sunken)}
+.keys{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-2);align-items:center}
+.keys span{display:inline-flex;align-items:center;gap:5px}
+.btns{margin-left:auto;display:flex;gap:10px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:7px 15px;font-size:12.5px;color:var(--ink)}
+.btn.p{background:var(--primary);border-color:var(--primary);color:#fbfaf6;font-weight:600}
+.btn.p .kp{font-family:var(--mono);font-size:10.5px;color:#d7e3e4;font-weight:400}
+.dark .btn.p .kp{color:#3f5f63}
+.domlog{font-size:11.5px;color:var(--ink-2)}
+.domlog b{color:var(--ink);font-weight:600}
+
+/* --- bảng nhật ký domain --- */
+.dtable{width:100%;border-collapse:collapse;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.dtable th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);padding:8px 12px;border-bottom:1px solid var(--line);background:var(--sunken)}
+.dtable td{padding:8px 12px;border-bottom:1px solid var(--line-2);vertical-align:top}
+.dtable tr:last-child td{border-bottom:0}
+.dtable .mono{font-family:var(--mono);font-size:11.5px}
+.tg{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-radius:2px;padding:1px 6px;border:1px solid var(--line)}
+.tg-doc{color:var(--primary);background:var(--accent-bg);border-color:var(--primary)}
+.tg-img{color:var(--ink-2);background:var(--sunken)}
+
+.note{max-width:1150px;margin:0 auto 30px;color:#efeade;font-size:12.5px;line-height:1.75}
+.note b{color:#fff}
+.note code{font-family:var(--mono);font-size:11.5px;background:rgba(0,0,0,.22);padding:1px 5px;border-radius:3px}
+
+/* ---- tối ---- */
+.dark{--bg:#201e1b;--surface:#26241f;--sunken:#1b1a17;--accent-bg:#2c3a3b;--tm-bg:#302b21;
+  --ink:#e8e3d8;--ink-2:#a29a8c;--orn:#6a6459;--line:#3b382f;--line-2:#302d26;
+  --primary:#7fb3ba;--confirmed:#9cb37a;--tm:#b99a5e;--tm-text:#d3b276;--error:#e5867a}
+.dark .btn.p{color:#1b1a17}
+.dark .rule.on .tick{color:#1b1a17}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <b>Nhập từ URL — bước dán link</b>
+  <div class="sub">FR122. Ranh giới cứng hiện thành một con số đếm được, không phải một lời hứa trong tài liệu hướng dẫn.</div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span class="k">⌘1</span></div>
+  </div>
+
+  <div class="step">
+    <div class="sh">Nhập từ website</div>
+    <div class="ss">Dán danh sách link, mỗi dòng một Chương. Thứ tự các dòng là thứ tự Chương.</div>
+
+    <div class="pastewrap">
+      <div>
+        <div class="paste">
+          <div class="ph"><span class="lbl">Danh sách link</span><span class="k">⌘V</span></div>
+          <div class="lines">
+            1 &nbsp;<b>https://truyen-example.com/tuyet-trung-han/chuong-1</b><br>
+            2 &nbsp;<b>https://truyen-example.com/tuyet-trung-han/chuong-2</b><br>
+            3 &nbsp;<b>https://truyen-example.com/tuyet-trung-han/chuong-3</b><br>
+            4 &nbsp;<b>https://truyen-example.com/tuyet-trung-han/chuong-4</b><br>
+            <span style="color:var(--orn)">…</span><br>
+            50 <b>https://truyen-example.com/tuyet-trung-han/chuong-50</b>
+          </div>
+        </div>
+
+        <div class="count">
+          <div class="big"><b>50</b> link · sẽ tạo <b>50</b> Chương · <b>1</b> domain</div>
+          <div class="vow">Chỉ tải đúng <b>50</b> link này. <b>Không tìm thêm link nào khác</b> — không đọc trang mục lục, không đi theo nút “chương sau”.</div>
+        </div>
+      </div>
+
+      <div class="side">
+        <span class="fieldl">Đưa vào</span>
+        <div class="radio on"><i></i><div><div>Tác phẩm mới</div><div class="d">Tạo một Tác phẩm rồi thêm cả 50 Chương vào đó</div></div></div>
+        <div class="radio"><i></i><div><div>Tác phẩm đã có</div><div class="d">Thêm Chương vào cuối một Tác phẩm sẵn có</div></div></div>
+
+        <span class="fieldl" style="margin-top:14px">Tên Tác phẩm</span>
+        <div class="field">Tuyết Trung Hãn Đao Hành</div>
+
+        <span class="fieldl">Ngôn ngữ nguồn</span>
+        <div class="field">Trung → Việt</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="keys"><span><span class="k">Tab</span> chuyển vùng</span><span><span class="k">⌘↵</span> tải và xem trước</span></div>
+    <div class="btns"><span class="btn">Huỷ</span><span class="btn p">Tải 50 link</span></div>
+  </div>
+</div>
+
+<div class="note">
+  <b>Vì sao con số xuất hiện hai lần.</b> “50 link” và “sẽ tạo 50 Chương” là hai con số phải bằng nhau, và người dùng thấy chúng bằng nhau <b>trước khi</b> bấm. Đó là bằng chứng đọc được rằng ứng dụng không tự đi tìm gì thêm — mạnh hơn mọi câu cam kết viết trong tài liệu. Nếu về sau có ai thêm tính năng tự quét mục lục, hai con số này sẽ lệch, và màn hình tự tố cáo.
+</div>
+
+<!-- ==================== MÀN XEM TRƯỚC HỢP NHẤT ==================== -->
+
+<div class="hd">
+  <b>Màn xem trước hợp nhất — một màn hình, ba tầng, theo đúng thứ tự nhân quả</b>
+  <div class="sub">FR126 · FR123 · FR124 · FR125 xảy ra ở cùng một khoảnh khắc và AD-39 đã chốt chúng là một pipeline thứ tự cố định. Bảng mã đứng trên cùng vì bảng mã sai thì mọi thứ dưới nó vô nghĩa.</div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span>Xem trước · chưa ghi gì xuống đĩa</span></div>
+  </div>
+
+  <div class="prevtop">
+    <div class="chapnav">
+      <span class="k">⌥←</span>
+      <span class="cur">Chương 3 / 50</span>
+      <span class="k">⌥→</span>
+    </div>
+    <div class="filterchip">
+      <span class="on">7 Chương cần xem</span>
+      <span class="warncount">43 Chương sạch</span>
+      <span class="k">⌥W</span>
+    </div>
+  </div>
+
+  <!-- TẦNG 1 -->
+  <div class="tier">
+    <div class="tierh"><span class="tiern">1</span><span class="lbl">Bảng mã</span></div>
+    <div class="encbar">
+      <span class="encchip guess">GB18030 · tự đoán · độ tin cậy thấp</span>
+      <span style="font-size:11.5px;color:var(--ink-2)">Nguồn không khai bảng mã</span>
+      <span class="k">E</span>
+    </div>
+
+    <div class="candrow">
+      <div class="candlead"><b>Chữ trông không giống ngôn ngữ nào.</b> Cùng một đoạn đầu Chương, dựng bằng năm bảng mã — chọn cái đọc ra chữ.</div>
+      <div class="cands">
+        <div class="cand bad"><div class="nm">UTF-8</div><div class="sm">ç¬¬ä¸€ç«</div><div class="verdict">không ra chữ</div></div>
+        <div class="cand sel"><div class="nm">GB18030</div><div class="sm">第一章 雪</div><div class="verdict">✓ đang chọn</div></div>
+        <div class="cand"><div class="nm">GBK</div><div class="sm">第一章 雪</div><div class="verdict">cũng ra chữ</div></div>
+        <div class="cand bad"><div class="nm">Big5</div><div class="sm">姼銝€蝡</div><div class="verdict">không ra chữ</div></div>
+        <div class="cand bad"><div class="nm">UTF-16</div><div class="sm">⽦Ɫ畜</div><div class="verdict">không ra chữ</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TẦNG 2 -->
+  <div class="tier">
+    <div class="tierh"><span class="tiern">2</span><span class="lbl">Ranh giới nội dung</span>
+      <span style="font-size:11.5px;color:var(--ink-2)">— 6 khối giữ · 3 khối loại</span></div>
+
+    <div class="blocks">
+      <div class="blk drop">
+        <div class="gut"><i></i></div>
+        <div class="bd">
+          <div class="btag"><span class="t t-drop">Đã loại</span><span class="brule">khung điều hướng</span></div>
+          <div class="btext">Trang chủ › Truyện dịch › Tuyết Trung Hãn Đao Hành › Chương 3</div>
+        </div>
+      </div>
+
+      <div class="boundary"><span class="lbl">Đầu vùng giữ</span><span>máy đặt — chưa ai xác nhận</span><span class="k">[</span></div>
+
+      <div class="blk auto focus">
+        <div class="gut"><i></i></div>
+        <div class="bd">
+          <div class="btag"><span class="t t-auto">Giữ · máy đoán</span><span class="brule">khối đang chọn</span></div>
+          <div class="btext">第一章　雪中悍刀行</div>
+        </div>
+      </div>
+
+      <div class="blk keep">
+        <div class="gut"><i></i></div>
+        <div class="bd">
+          <div class="btag"><span class="t t-keep">Giữ</span></div>
+          <div class="btext">北凉世子徐凤年站在听潮阁顶，望着远处翻涌的雪云。<span class="strike">【本站首发，请勿转载】</span>他伸手接住一片雪花。</div>
+        </div>
+      </div>
+
+      <div class="blk keep">
+        <div class="gut"><i></i></div>
+        <div class="bd">
+          <div class="btag"><span class="t t-keep">Giữ</span></div>
+          <div class="btext">老黄提着酒葫芦从楼梯口走上来，脚步很轻。</div>
+        </div>
+      </div>
+
+      <div class="boundary"><span class="lbl">Cuối vùng giữ</span><span>máy đặt — chưa ai xác nhận</span><span class="k">]</span></div>
+
+      <div class="blk drop">
+        <div class="gut"><i></i></div>
+        <div class="bd">
+          <div class="btag"><span class="t t-drop">Đã loại</span><span class="brule">khối bài liên quan</span></div>
+          <div class="btext">Có thể bạn thích: Đấu Phá Thương Khung · Già Thiên · Nhất Niệm Vĩnh Hằng</div>
+        </div>
+      </div>
+
+      <div class="blk drop">
+        <div class="gut"><i></i></div>
+        <div class="bd">
+          <div class="btag"><span class="t t-drop">Đã loại</span><span class="brule">khung bình luận</span></div>
+          <div class="btext">28 bình luận · Đăng nhập để bình luận</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TẦNG 3 -->
+  <div class="tier">
+    <div class="tierh"><span class="tiern">3</span><span class="lbl">Luật làm sạch</span>
+      <span style="font-size:11.5px;color:var(--ink-2)">— 2 luật khớp trong Chương này, xoá 3 chỗ</span></div>
+
+    <div class="rules">
+      <div class="rule on">
+        <span class="tick">✓</span>
+        <div style="flex:1">
+          <div class="rx">【[^】]*首发[^】]*】</div>
+          <div class="meta">Khớp 2 chỗ trong Chương này · term 91 chỗ trong cả 50 Chương</div>
+        </div>
+        <span class="tier2">Toàn cục</span>
+      </div>
+      <div class="rule on">
+        <span class="tick">✓</span>
+        <div style="flex:1">
+          <div class="rx">^本章由.*整理$</div>
+          <div class="meta">Khớp 1 chỗ trong Chương này · 47 chỗ trong cả 50 Chương</div>
+        </div>
+        <span class="tier2">Tác phẩm</span>
+      </div>
+      <div class="rule off">
+        <span class="tick"></span>
+        <div style="flex:1">
+          <div class="rx">求推荐票|求收藏</div>
+          <div class="meta">Đã tắt · nếu bật sẽ xoá thêm 12 chỗ</div>
+        </div>
+        <span class="tier2">Toàn cục</span>
+      </div>
+      <div class="rule off">
+        <span class="tick"></span>
+        <div style="flex:1">
+          <div class="rx">＿＋ thêm luật mới</div>
+          <div class="meta">Chuỗi hoặc biểu thức chính quy</div>
+        </div>
+        <span class="tier2">&nbsp;</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- XUẤT XỨ -->
+  <div class="tier">
+    <div class="tierh"><span class="tiern">4</span><span class="lbl">Xuất xứ tài liệu · tầng Chương</span>
+      <span style="font-size:11.5px;color:var(--ink-2)">— tự điền từ trang, sửa được</span></div>
+    <div class="orig">
+      <div class="of"><div class="ol">Tác giả</div><div class="ov">烽火戏诸侯</div></div>
+      <div class="of"><div class="ol">Báo / website</div><div class="ov">truyen-example.com</div></div>
+      <div class="of"><div class="ol">URL bài gốc</div><div class="ov url">/tuyet-trung-han/chuong-3</div></div>
+      <div class="of"><div class="ol">Ngày đăng</div><div class="ov empty">không tìm thấy</div></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="keys">
+      <span><span class="k">J</span><span class="k">K</span> khối</span>
+      <span><span class="k">Space</span> giữ / loại</span>
+      <span><span class="k">[</span><span class="k">]</span> đặt biên</span>
+      <span><span class="k">E</span> bảng mã</span>
+      <span><span class="k">R</span> luật</span>
+      <span><span class="k">⌥←→</span> Chương</span>
+    </div>
+    <div class="btns">
+      <span class="domlog">Đã gọi <b>2</b> domain · <span style="text-decoration:underline">xem</span></span>
+      <span class="btn">Huỷ</span>
+      <span class="btn p">Nhập 50 Chương &nbsp;<span class="kp">⌘↵</span></span>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>Ba tầng, một lần xác nhận.</b> Không có “Tiếp theo” giữa các tầng — chúng cùng sống trên một màn hình vì chúng mô tả <b>cùng một văn bản ở cùng một thời điểm</b>. Đổi bảng mã ở tầng 1 thì tầng 2 và tầng 3 dựng lại ngay, trong bộ nhớ; chưa segment nào tồn tại nên không có gì phải cho về hưu (AD-39).<br><br>
+  <b>Không có màu nhấn thứ hai.</b> Giữ lại và loại bỏ phân biệt bằng <b>độ lùi</b> — khối bị loại chìm xuống <code>surface-sunken</code>, chữ rút về <code>on-surface-variant</code>, đổi từ chữ đọc sang chữ giao diện cỡ nhỏ. Ranh giới do máy đoán dùng <code>tm-rule</code>, màu vốn đã luôn có nghĩa <i>máy đề xuất, chưa ai xác nhận</i> trong toàn ứng dụng; chạm tay vào thì nó thành <code>confirmed</code>. Xanh mực vẫn chỉ dành cho ba việc cũ.<br><br>
+  <b>Bộ lọc “7 Chương cần xem” là thứ giữ cho màn hình này dùng được ở quy mô 50 link.</b> Không có nó, người dùng phải duyệt tay 50 lần và sẽ bấm xác nhận mù ở lần thứ mười.
+</div>
+
+<!-- ==================== NHẬT KÝ DOMAIN ==================== -->
+
+<div class="hd">
+  <b>Nhật ký domain — NFR19</b>
+  <div class="sub">Hai tầng allowlist của AD-41 phân biệt bằng nhãn chữ, không bằng màu. Tầng 2 là thứ người dùng cần đọc được: ứng dụng đã mở tới host nào ngoài danh sách họ dán.</div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span>Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span>Cài đặt › Quyền riêng tư</span></div>
+  </div>
+  <div class="step">
+    <div class="sh">Đã gọi ra mạng</div>
+    <div class="ss">Ứng dụng chỉ ra mạng khi bạn bấm. Danh sách này ghi mọi lần gọi, không rút gọn.</div>
+    <table class="dtable">
+      <tr><th>Thời điểm</th><th>Domain</th><th>Tầng</th><th>Vì sao được phép</th><th>Kết quả</th></tr>
+      <tr>
+        <td class="mono">14:02:11</td>
+        <td class="mono">truyen-example.com</td>
+        <td><span class="tg tg-doc">Tài liệu</span></td>
+        <td>Có trong danh sách link bạn dán</td>
+        <td>50 trang</td>
+      </tr>
+      <tr>
+        <td class="mono">14:02:19</td>
+        <td class="mono">img-cdn-example.net</td>
+        <td><span class="tg tg-img">Ảnh</span></td>
+        <td>Ảnh được trang trên tham chiếu tới</td>
+        <td>12 ảnh</td>
+      </tr>
+      <tr>
+        <td class="mono">13:41:55</td>
+        <td class="mono">api.anthropic.com</td>
+        <td><span class="tg tg-doc">AI</span></td>
+        <td>Bạn bấm dịch bằng AI</td>
+        <td>8 lượt</td>
+      </tr>
+    </table>
+    <div style="margin-top:13px;font-size:12px;color:var(--ink-2);line-height:1.7;max-width:760px">
+      Tầng <b>Ảnh</b> chỉ tải được ảnh, không bao giờ tải được tài liệu — và chỉ mở ra từ những trang bạn đã dán link. Hết một lần nhập là hết hiệu lực.
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TỐI ==================== -->
+
+<div class="hd">
+  <b>Cùng màn xem trước, chế độ tối</b>
+  <div class="sub">Cùng token, không màu nào ngoài bảng. Đối chiếu bảng mã vẫn đọc được ở cả hai theme — đó là điều kiện để nó làm được việc của nó.</div>
+</div>
+
+<div class="win dark">
+  <div class="tb">
+    <span class="dot" style="background:#4a4740"></span><span class="dot" style="background:#4a4740"></span><span class="dot" style="background:#4a4740"></span>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span>Xem trước · chưa ghi gì xuống đĩa</span></div>
+  </div>
+
+  <div class="tier">
+    <div class="tierh"><span class="tiern">1</span><span class="lbl">Bảng mã</span></div>
+    <div class="encbar">
+      <span class="encchip guess">GB18030 · tự đoán · độ tin cậy thấp</span>
+      <span class="k">E</span>
+    </div>
+    <div class="candrow">
+      <div class="candlead"><b>Chữ trông không giống ngôn ngữ nào.</b> Cùng một đoạn đầu Chương, dựng bằng năm bảng mã.</div>
+      <div class="cands">
+        <div class="cand bad"><div class="nm">UTF-8</div><div class="sm">ç¬¬ä¸€ç«</div><div class="verdict">không ra chữ</div></div>
+        <div class="cand sel"><div class="nm">GB18030</div><div class="sm">第一章 雪</div><div class="verdict">✓ đang chọn</div></div>
+        <div class="cand"><div class="nm">GBK</div><div class="sm">第一章 雪</div><div class="verdict">cũng ra chữ</div></div>
+        <div class="cand bad"><div class="nm">Big5</div><div class="sm">姼銝€蝡</div><div class="verdict">không ra chữ</div></div>
+        <div class="cand bad"><div class="nm">UTF-16</div><div class="sm">⽦Ɫ畜</div><div class="verdict">không ra chữ</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tier">
+    <div class="tierh"><span class="tiern">2</span><span class="lbl">Ranh giới nội dung</span></div>
+    <div class="blocks">
+      <div class="blk drop">
+        <div class="gut"><i></i></div>
+        <div class="bd">
+          <div class="btag"><span class="t t-drop">Đã loại</span><span class="brule">khung điều hướng</span></div>
+          <div class="btext">Trang chủ › Truyện dịch › Tuyết Trung Hãn Đao Hành › Chương 3</div>
+        </div>
+      </div>
+      <div class="boundary"><span class="lbl">Đầu vùng giữ</span><span>máy đặt — chưa ai xác nhận</span><span class="k">[</span></div>
+      <div class="blk auto focus">
+        <div class="gut"><i></i></div>
+        <div class="bd">
+          <div class="btag"><span class="t t-auto">Giữ · máy đoán</span></div>
+          <div class="btext">第一章　雪中悍刀行</div>
+        </div>
+      </div>
+      <div class="blk keep">
+        <div class="gut"><i></i></div>
+        <div class="bd">
+          <div class="btag"><span class="t t-keep">Giữ</span></div>
+          <div class="btext">北凉世子徐凤年站在听潮阁顶，望着远处翻涌的雪云。<span class="strike">【本站首发，请勿转载】</span>他伸手接住一片雪花。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="keys">
+      <span><span class="k">J</span><span class="k">K</span> khối</span>
+      <span><span class="k">Space</span> giữ / loại</span>
+      <span><span class="k">[</span><span class="k">]</span> đặt biên</span>
+      <span><span class="k">E</span> bảng mã</span>
+    </div>
+    <div class="btns">
+      <span class="domlog">Đã gọi <b>2</b> domain · <span style="text-decoration:underline">xem</span></span>
+      <span class="btn p">Nhập 50 Chương</span>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>Bàn phím là đường chính, không phải đường phụ (NFR17).</b> Bản năng thiết kế cho việc chọn vùng văn bản là kéo chuột — và đó là chỗ màn hình này dễ thủng sàn khả năng tiếp cận nhất. Lời giải: nội dung chia thành <b>khối</b>, <code>J</code>/<code>K</code> đi giữa các khối, <code>Space</code> bật tắt giữ, <code>[</code> và <code>]</code> đặt hai biên một lần. Kéo chuột vẫn dùng được nhưng nó là đường thứ hai.
+</div>
+
+</body>
+</html>

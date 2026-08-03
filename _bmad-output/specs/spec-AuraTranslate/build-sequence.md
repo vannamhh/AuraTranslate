@@ -7,7 +7,7 @@
 | **0** | Bốn mũi thăm dò: độ trễ Auto-Lookup, kích thước database, tokenizer lai, độ phủ kaikki.org | — | ✅ **Hoàn tất 2026-08-02** |
 | **1** | Embedded Dictionary (kèm **lớp HVTĐTD**) + panel Source (kèm tab Hán Việt) + panel Lookup + Auto-Lookup | CAP-3, một phần CAP-2 | **Kế tiếp** |
 | **2** | Panel Editor + AI Translation (BYOK/local) + Glossary + Smart RAG Injector | CAP-2, CAP-4, CAP-6 | |
-| **3** | Library: mô hình dữ liệu, trạng thái vòng đời, tìm kiếm, chế độ đọc | CAP-1, CAP-9 | |
+| **3** | Library: mô hình dữ liệu, trạng thái vòng đời, tìm kiếm, chế độ đọc, **và toàn bộ đường nhập** — file, dán tay, URL, song ngữ, kèm pipeline làm sạch/chuẩn hoá/bảng mã | CAP-1, CAP-9 | |
 | **4** | Translation Memory + tái sử dụng segment + xuất TMX | CAP-5 | |
 | **5** | Export/Import `.docx`/`.md` + segment alignment + Diff Viewer | CAP-8 | |
 | **6** | AI Proofreader | CAP-7 | |
@@ -32,7 +32,7 @@ Chi tiết đầy đủ ở `ARCHITECTURE-SPINE.md` mục *Deferred*. Neo theo g
 | Giai đoạn | Mở lại quyết định gì |
 |---|---|
 | **2** | Thư viện editor cho panel Editor · cách phân tích khung SSE (rà giấy phép trước) · ngưỡng kích thước WAL buộc checkpoint · nhịp auto-save cụ thể đạt NFR18 mà không phạm NFR2 |
-| **3** | Ngưỡng NFR3/NFR4/NFR5 (`[A6] [A7] [A8]`, đóng Q4) · chiến lược ảo hoá danh sách dài · cấu trúc chi tiết chỉ mục FTS cho tìm kiếm Library |
+| **3** | Ngưỡng NFR3/NFR4/NFR5 (`[A6] [A7] [A8]`, đóng Q4) · chiến lược ảo hoá danh sách dài · cấu trúc chi tiết chỉ mục FTS cho tìm kiếm Library · **thư viện bóc nội dung (`[A12]`) và thư viện phát hiện bảng mã (`[A13]`)** · **HTTP client cho đường nhập URL** |
 | **5** | `similar` vs `dissimilar` cho Diff Viewer · thuật toán segment alignment |
 
 ~~HVTĐTD (Q3)~~ — ✅ **đã đóng 2026-08-02**, tác giả đồng ý. Lớp này vào Giai đoạn 1 dưới dạng một file `.db` gỡ rời; **không đổi kiến trúc**, đúng như dự liệu.

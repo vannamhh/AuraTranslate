@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Xuất — cách xuất ảnh và khối ghi nguồn</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Source Han Serif","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.6}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.85;margin-top:4px;max-width:860px}
+.win{max-width:1150px;margin:0 auto 34px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.k{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface);white-space:nowrap}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.lbl{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+
+.step{padding:22px 26px 26px}
+.sh{font-family:var(--read);font-size:20px;margin-bottom:3px}
+.ss{font-size:12px;color:var(--ink-2);margin-bottom:20px;max-width:720px;line-height:1.6}
+.cols{display:grid;grid-template-columns:1fr 380px;gap:26px}
+.sec{margin-bottom:22px}
+.sech{display:flex;align-items:baseline;gap:9px;margin-bottom:10px}
+
+.radio{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;font-size:12.5px;border:1px solid var(--line);border-radius:4px;background:var(--surface);margin-bottom:8px}
+.radio i{width:12px;height:12px;border-radius:50%;border:1px solid var(--orn);flex:none;margin-top:3px;background:var(--surface)}
+.radio.on{border-color:var(--primary);box-shadow:0 0 0 3px var(--accent-bg)}
+.radio.on i{border:4px solid var(--primary)}
+.radio .d{font-size:11.5px;color:var(--ink-2);margin-top:3px;line-height:1.55}
+.radio.dis{background:var(--sunken);color:var(--ink-2)}
+.radio.dis i{border-color:var(--line)}
+
+.gapbox{margin-top:2px;margin-bottom:10px;background:var(--tm-bg);border-left:2px solid var(--tm);border-radius:0 3px 3px 0;padding:11px 14px;font-size:12px;color:var(--tm-text);line-height:1.65}
+.gapbox b{font-weight:700}
+.gaplist{margin-top:8px;font-family:var(--mono);font-size:11px;line-height:1.85;color:var(--tm-text)}
+
+.tickrow{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+.tick{width:13px;height:13px;border-radius:2px;border:1px solid var(--orn);flex:none;margin-top:2px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--surface)}
+.tickrow.on .tick{background:var(--primary);border-color:var(--primary);color:#fbfaf6}
+.tickrow .d{font-size:11.5px;color:var(--ink-2);margin-top:3px;line-height:1.55}
+.defaultnote{font-size:11px;color:var(--ink-2);margin-top:7px;line-height:1.6;padding-left:23px}
+
+.fields{margin-top:11px;display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.of{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:7px 10px}
+.of.dim{background:var(--sunken)}
+.of .ol{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin-bottom:4px}
+.of .ov{font-size:12.5px;color:var(--ink)}
+.of .ov.mono{font-family:var(--mono);font-size:11px;word-break:break-all}
+.of .ov.empty{color:var(--ink-2);font-style:italic;font-family:var(--read)}
+.glob{font-size:10px;color:var(--ink-2);border:1px solid var(--line);border-radius:2px;padding:0 5px;margin-left:6px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+
+/* xem trước tài liệu Word — ngoại lệ token có chủ ý, mô phỏng tài liệu thật */
+.docprev{background:#fff;border:1px solid var(--line);border-radius:3px;padding:22px 24px;color:#1e1c19;font-family:var(--read);box-shadow:0 2px 10px rgba(0,0,0,.07)}
+.docprev .attr{border-bottom:1px solid #d9d4c8;padding-bottom:11px;margin-bottom:14px;font-size:12px;line-height:1.75;color:#4a453d}
+.docprev .attr b{color:#1e1c19}
+.docprev h4{font-size:16px;margin:0 0 9px;font-weight:600}
+.docprev p{font-size:13.5px;line-height:1.75;margin:0 0 9px}
+.docprev .imgbox{background:#f2efe8;border:1px solid #d9d4c8;border-radius:2px;padding:16px;text-align:center;font-size:11.5px;color:#6b6459;margin:12px 0 5px;font-family:var(--ui)}
+.docprev .cap{font-size:11.5px;color:#4a453d;font-style:italic;text-align:center;margin-bottom:12px}
+.docprev .src{font-family:var(--mono);font-size:10px;color:#8a8377;text-align:center;margin-bottom:12px}
+.prevlabel{font-size:11px;color:var(--ink-2);margin-bottom:7px}
+
+.foot{display:flex;align-items:center;gap:16px;padding:14px 26px;border-top:1px solid var(--line);background:var(--sunken)}
+.btns{margin-left:auto;display:flex;gap:10px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:7px 15px;font-size:12.5px;color:var(--ink)}
+.btn.p{background:var(--primary);border-color:var(--primary);color:#fbfaf6;font-weight:600}
+.keys{display:flex;gap:14px;font-size:11.5px;color:var(--ink-2);align-items:center}
+
+.note{max-width:1150px;margin:0 auto 30px;color:#efeade;font-size:12.5px;line-height:1.75}
+.note b{color:#fff}
+.note code{font-family:var(--mono);font-size:11.5px;background:rgba(0,0,0,.22);padding:1px 5px;border-radius:3px}
+
+.dark{--bg:#201e1b;--surface:#26241f;--sunken:#1b1a17;--accent-bg:#2c3a3b;--tm-bg:#302b21;
+  --ink:#e8e3d8;--ink-2:#a29a8c;--orn:#6a6459;--line:#3b382f;--line-2:#302d26;
+  --primary:#7fb3ba;--confirmed:#9cb37a;--tm:#b99a5e;--tm-text:#d3b276;--error:#e5867a}
+.dark .btn.p{color:#1b1a17}
+.dark .tickrow.on .tick{color:#1b1a17}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <b>Màn hình xuất — cách xuất ảnh (FR130) và khối ghi nguồn (FR131)</b>
+  <div class="sub">Cả hai nói ngay lúc chọn, không để trong tài liệu hướng dẫn — cùng hạng ràng buộc với cảnh báo “không nhập lại được” của FR121.</div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span>Xuất · Chương 1–12 của Tuyết Trung Hãn Đao Hành</span></div>
+  </div>
+
+  <div class="step">
+    <div class="sh">Xuất</div>
+    <div class="ss">Định dạng <b>.docx một khối theo đoạn</b> · phạm vi <b>12 Chương đã chọn</b>.</div>
+
+    <div class="cols">
+      <div>
+        <!-- FR130 -->
+        <div class="sec">
+          <div class="sech"><span class="lbl">Hình ảnh</span><span style="font-size:11.5px;color:var(--ink-2)">— 34 ảnh trong phạm vi xuất</span></div>
+
+          <div class="radio on">
+            <i></i>
+            <div>
+              <div>Theo <b>link gốc</b></div>
+              <div class="d">Tài liệu trỏ tới đường dẫn ảnh của bài gốc trên web. Người đăng dán vào trình soạn thảo là ảnh tự hiện.</div>
+            </div>
+          </div>
+
+          <div class="gapbox">
+            <b>6 trong 34 ảnh không có link gốc</b> — chúng do bạn tự thêm nên không có đường dẫn web nào để trỏ tới. Chọn cách này thì <b>6 ảnh đó sẽ không xuất hiện trong file</b>.
+            <div class="gaplist">
+              Chương 4 · 2 ảnh<br>
+              Chương 9 · 1 ảnh<br>
+              Chương 11 · 3 ảnh
+            </div>
+          </div>
+
+          <div class="radio">
+            <i></i>
+            <div>
+              <div>Theo <b>file ảnh</b></div>
+              <div class="d">Ảnh đi kèm tài liệu, lấy từ <code style="font-family:var(--mono);font-size:11px">.atproj</code>. Đủ cả 34 ảnh, nhưng người đăng phải tải từng ảnh lên website.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FR131 -->
+        <div class="sec">
+          <div class="sech"><span class="lbl">Khối ghi nguồn</span></div>
+
+          <div class="tickrow">
+            <span class="tick"></span>
+            <div style="flex:1">
+              <div>Chèn khối ghi nguồn vào đầu tài liệu</div>
+              <div class="d">Năm trường dưới đây được ghép thành một khối ở đầu mỗi Chương.</div>
+            </div>
+          </div>
+          <div class="defaultnote">Mặc định tắt. Bản dịch truyện thường không cần khối này — bật khi bàn giao bài báo cho người khác đăng.</div>
+
+          <div class="fields">
+            <div class="of"><div class="ol">Tác giả</div><div class="ov">烽火戏诸侯</div></div>
+            <div class="of"><div class="ol">Báo / website</div><div class="ov">truyen-example.com</div></div>
+            <div class="of"><div class="ol">URL bài gốc</div><div class="ov mono">/tuyet-trung-han/chuong-3</div></div>
+            <div class="of"><div class="ol">Ngày đăng gốc</div><div class="ov empty">không có</div></div>
+            <div class="of dim" style="grid-column:span 2">
+              <div class="ol">Người dịch <span class="glob">Toàn cục</span></div>
+              <div class="ov">Ice</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- xem trước -->
+      <div>
+        <div class="prevlabel">Xem trước — Chương 3, khối ghi nguồn <b>đang bật</b></div>
+        <div class="docprev">
+          <div class="attr">
+            Tác giả: <b>烽火戏诸侯</b><br>
+            Nguồn: <b>truyen-example.com</b> · /tuyet-trung-han/chuong-3<br>
+            Người dịch: <b>Ice</b>
+          </div>
+          <h4>Chương 3 — Tuyết Trung Hãn Đao Hành</h4>
+          <p>Thế tử Bắc Lương Từ Phượng Niên đứng trên đỉnh Thính Triều Các, nhìn tầng mây tuyết cuộn trào phía xa. Chàng đưa tay hứng lấy một bông tuyết.</p>
+          <div class="imgbox">[ ảnh — trỏ tới link gốc ]</div>
+          <div class="cap">Thính Triều Các nhìn từ hướng đông</div>
+          <div class="src">img-cdn-example.net/thinh-trieu-cac.jpg</div>
+          <p>Lão Hoàng xách bầu rượu từ đầu cầu thang bước lên, bước chân rất nhẹ.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="keys"><span><span class="k">Tab</span> chuyển vùng</span><span><span class="k">Space</span> chọn</span><span><span class="k">⌘↵</span> xuất</span></div>
+    <div class="btns"><span class="btn">Huỷ</span><span class="btn p">Xuất 12 Chương</span></div>
+  </div>
+</div>
+
+<div class="note">
+  <b>Danh sách “6 ảnh không có link gốc” đếm được và chỉ đích danh Chương.</b> Một câu chung chung kiểu “một số ảnh có thể thiếu” là vô dụng — người dùng không biết có nên lo hay không. Con số cộng danh sách Chương cho họ quyết định trong ba giây: sáu ảnh rải ba Chương thì đổi sang <i>theo file ảnh</i>, hay chấp nhận mất.<br><br>
+  <b>Khối cảnh báo dùng <code>tm-rule</code>, không phải <code>error</code>.</b> Đây không phải lỗi — đây là <i>máy nói cho người một dữ kiện để người quyết</i>, đúng nghĩa mà màu này mang trong toàn ứng dụng. Dùng đỏ ở đây sẽ nói dối rằng có gì đó hỏng.<br><br>
+  <b>Khối xem trước tài liệu dùng màu viết cứng</b> (<code>#fff</code>, <code>#1e1c19</code>, <code>#f2efe8</code>) vì nó mô phỏng <b>một tài liệu Word</b>, không phải bề mặt ứng dụng — cùng ngoại lệ có chủ ý đã ghi trong <code>EXPERIENCE.md</code> cho <code>export-share.html</code>. Các màu này vẫn đạt AA.
+</div>
+
+<!-- tối -->
+<div class="hd">
+  <b>Cùng màn hình, chế độ tối</b>
+  <div class="sub">Khối cảnh báo và ô chọn giữ nguyên tương phản AA; chỉ khối mô phỏng tài liệu Word giữ màu giấy trắng vì nó không phải bề mặt ứng dụng.</div>
+</div>
+
+<div class="win dark">
+  <div class="tb">
+    <span class="dot" style="background:#4a4740"></span><span class="dot" style="background:#4a4740"></span><span class="dot" style="background:#4a4740"></span>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span>Xuất · 12 Chương</span></div>
+  </div>
+  <div class="step">
+    <div class="sec">
+      <div class="sech"><span class="lbl">Hình ảnh</span><span style="font-size:11.5px;color:var(--ink-2)">— 34 ảnh trong phạm vi xuất</span></div>
+      <div class="radio on">
+        <i></i>
+        <div><div>Theo <b>link gốc</b></div><div class="d">Tài liệu trỏ tới đường dẫn ảnh của bài gốc trên web.</div></div>
+      </div>
+      <div class="gapbox">
+        <b>6 trong 34 ảnh không có link gốc</b> — chọn cách này thì 6 ảnh đó sẽ không xuất hiện trong file.
+        <div class="gaplist">Chương 4 · 2 ảnh<br>Chương 9 · 1 ảnh<br>Chương 11 · 3 ảnh</div>
+      </div>
+      <div class="radio">
+        <i></i>
+        <div><div>Theo <b>file ảnh</b></div><div class="d">Ảnh đi kèm tài liệu. Đủ cả 34 ảnh.</div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sech"><span class="lbl">Khối ghi nguồn</span></div>
+      <div class="tickrow on">
+        <span class="tick">✓</span>
+        <div style="flex:1"><div>Chèn khối ghi nguồn vào đầu tài liệu</div><div class="d">Đang bật cho bản bàn giao bài báo.</div></div>
+      </div>
+      <div class="fields">
+        <div class="of"><div class="ol">Tác giả</div><div class="ov">Sarah Chen</div></div>
+        <div class="of"><div class="ol">Báo / website</div><div class="ov">The Atlantic</div></div>
+        <div class="of"><div class="ol">URL bài gốc</div><div class="ov mono">/technology/2026/07/…</div></div>
+        <div class="of"><div class="ol">Ngày đăng gốc</div><div class="ov">21/07/2026</div></div>
+        <div class="of dim" style="grid-column:span 2"><div class="ol">Người dịch <span class="glob">Toàn cục</span></div><div class="ov">Ice</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">
+    <div class="keys"><span><span class="k">⌘↵</span> xuất</span></div>
+    <div class="btns"><span class="btn p">Xuất 12 Chương</span></div>
+  </div>
+</div>
+
+</body>
+</html>

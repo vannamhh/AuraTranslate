@@ -1,0 +1,62 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Dependency and build output
+node_modules/
+dist/
+build/
+out/
+coverage/
+.target/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test / cache folders
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# Package manager lockfiles (optional)
+# Uncomment if you do not want to track them
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Rust / Tauri
+/target/
+
+# Local database / temp files
+*.sqlite
+*.db
+*.tmp
+
+# Các công cụ AI/editor cục bộ: giữ ở local, không push lên GitHub
+/_bmad/
+/.agent/
+/.agents/
+/.claude/
+/.kiro/
+/.zencoder/

@@ -4,10 +4,10 @@ type: architecture-spine
 purpose: build-substrate
 altitude: feature
 paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview mỏng'
-scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 118 FR, 18 NFR'
+scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-08-02'
+updated: '2026-08-03'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md'
@@ -43,6 +43,7 @@ graph LR
   subgraph rust["Rust core"]
     CMD["commands (bề mặt IPC)"]
     CORE["domain: segment · matching · glossary · tm · library · export"]
+    WEBIMP["webimport: Fetcher | Extractor<br/>(không phải port — AD-40)"]
     AI["ai (C6, C7)"]
     PORTS["ports: DictionarySource · TranslationProvider · ProjectStore"]
   end
@@ -50,17 +51,23 @@ graph LR
     DICT[("dict *.db")]
     PROJ[("*.atproj/")]
     LLM["endpoint OpenAI-compatible"]
+    WEB["website người dùng dán link<br/>(điểm ra mạng thứ ba — AD-15, AD-41)"]
   end
   UI -->|"IPC command + Channel"| CMD
   CMD --> CORE
   CMD --> AI
+  CMD --> WEBIMP
   AI --> CORE
+  WEBIMP --> CORE
   CORE --> PORTS
   AI --> PORTS
   PORTS --> DICT
   PORTS --> PROJ
   PORTS --> LLM
+  WEBIMP -.->|"chỉ Fetcher, chỉ khi người dùng bấm"| WEB
 ```
+
+`webimport` **không đi qua cổng** — nó nạp nội dung vào `core`, và `core` mới ghi qua `ProjectStore`. Đó là hình dạng của quyết định ở AD-40: ba cổng giữ nguyên, điểm ra mạng thứ ba được **đặt tên và cô lập** thay vì được trait hoá.
 
 ## Invariants & Rules
 
@@ -76,6 +83,8 @@ graph LR
 - **Prevents:** FR36 và FR77 thoái hoá thành kỷ luật cá nhân; đồng thời tránh trait hoá tràn lan.
 - **Rule:** chỉ `DictionarySource`, `TranslationProvider`, `ProjectStore` là port. Thêm port thứ tư là một quyết định kiến trúc, phải ghi thành `AD` mới.
 
+  **Đường nhập từ URL (FR122) đã được xét theo thủ tục này và KHÔNG nâng thành cổng** — xem AD-40. Số cổng giữ nguyên **ba**.
+
 ### AD-3 — Segment mang ID bền, không bao giờ tái dùng
 
 - **Binds:** C2, C5, C7, C9
@@ -88,6 +97,8 @@ graph LR
 - **Prevents:** một lần cải thiện quy tắc tách câu (FR23 `[A4]`) âm thầm tách lại toàn bộ Thư viện, làm lịch sử phiên bản, trạng thái xác nhận và ghi nhớ proofreader của mọi Chương cũ trỏ sai chỗ.
 - **Rule:** tách segment chạy khi nhập Chương và kết quả **lưu xuống** `.atproj`. Đường nhập song ngữ (FR115) tính ranh giới ở **cả hai phía** cùng lúc — khác đường nhập thường vốn chỉ tạo phía nguồn — nhưng vẫn đúng bất biến: tính **một lần** lúc nhập, không bao giờ tính lại. Không có đường mã nào tính lại ranh giới lúc nạp Chương. Quy tắc tách câu mới chỉ áp dụng qua thao tác **tái tách chủ động** của người dùng trên từng Chương, kèm cảnh báo về dữ liệu sẽ về hưu.
 
+  **Văn bản đưa vào bước tách là văn bản đã đi hết pipeline nhập (AD-39)** — đã giải mã bảng mã (FR126), đã làm sạch (FR124), đã chuẩn hoá đoạn và khoảng trắng (FR125). Không bước nào trong ba bước đó được cài thành lớp hiển thị đắp lên sau: ranh giới đã lưu sẽ không khớp thứ người dùng nhìn thấy, và không có gì báo.
+
 ### AD-5 — Gộp/tách segment là về hưu + tạo mới
 
 - **Binds:** C2, C5, C7, C9
@@ -95,6 +106,8 @@ graph LR
 - **Rule:** segment cũ đánh dấu về hưu (lịch sử phiên bản của nó vẫn tra lại được); segment mới bắt đầu ở trạng thái **chưa xác nhận** với lịch sử rỗng. Cặp TM đã ghi ở lại nguyên. Cùng triết lý FR58: hệ thống không bao giờ tự coi một segment là đã xong.
 
   **Không áp cho FR116.** Thao tác nối câu lúc nhập song ngữ xảy ra **trước khi segment được ghi xuống đĩa**, trong màn xem trước — chưa có segment nào tồn tại để cho về hưu. Cài FR116 thành thao tác gộp *sau khi* nhập sẽ tạo rồi cho về hưu ngay hàng nghìn segment.
+
+  **Chỗ đánh dấu khi đọc (FR119) trỏ tới segment về hưu thì ở lại, không bị xoá im lặng** — hiện kèm ghi chú *câu này đã đổi*, vẫn mở được về đúng vị trí trong Chương. Cùng triết lý FR58 mà quy tắc này đang mang: hệ thống không tự quyết thay người dùng rằng một thứ đã hết giá trị.
 
 ### AD-6 — Translation Memory khoá theo cặp văn bản, không theo segment
 
@@ -127,6 +140,8 @@ graph LR
 - **Binds:** C1, C2, C9
 - **Prevents:** Library phải mở hàng trăm database chỉ để lấy tên, bìa và tiến độ (đe doạ NFR4 `< 3 s` với 5.000 Chương); ảnh phải qua IPC mỗi lần render (FR42, FR43).
 - **Rule:** `<Tên>.atproj/` chứa `meta.json` (metadata Library đọc được **không cần mở SQLite**), `project.db`, và `assets/` (ảnh là file thật, hiển thị qua asset protocol). Sao lưu = copy thư mục (FR102, đúng nguyên văn).
+
+  **Ảnh tải từ web (FR127) là file thật trong `assets/` như mọi ảnh khác** — không có loại ảnh thứ hai chỉ mang link. URL gốc là **metadata đi kèm** trong `project.db`, có thể rỗng với ảnh người dùng tự thêm. Đây là điều kiện để FR45 (mang đi được) và mệnh đề *không ảnh ngoài* của AD-15 cùng đúng.
 
 ### AD-10 — Mỗi lớp từ điển gỡ rời là một file `.db` độc lập
 
@@ -187,17 +202,29 @@ graph TD
 - **Prevents:** FR71 (xem prompt cuối cùng đã gửi) trở thành công việc đắt và không bao giờ chính xác 100% — mà đó lại là công cụ chẩn đoán duy nhất khi AI không tuân thủ Glossary.
 - **Rule:** Smart RAG Injector là một hàm thuần nhận (câu nguồn, scope, Glossary, TM) và trả về **prompt đã lắp hoàn chỉnh**. Lời gọi AI nhận prompt đã lắp làm đầu vào. Không nối chuỗi rải rác ở chỗ gọi.
 
-### AD-15 — Đúng hai điểm ra mạng trong toàn bộ ứng dụng
+### AD-15 — Đúng ba điểm ra mạng trong toàn bộ ứng dụng
 
 - **Binds:** tất cả
 - **Prevents:** NFR12 (không telemetry) bị vi phạm vô tình qua crash reporter, thư viện analytics, hoặc một font CDN trong frontend.
-- **Rule:** (1) adapter `TranslationProvider`; (2) kiểm tra phiên bản mới (FR111, chỉ kiểm tra và thông báo). **Không có điểm thứ ba.** CSP của Tauri cấm mọi origin từ xa — không CDN, không font ngoài, không ảnh ngoài. Mọi tài nguyên frontend đóng gói trong bản cài.
+- **Rule:** (1) adapter `TranslationProvider`; (2) kiểm tra phiên bản mới (FR111, chỉ kiểm tra và thông báo); (3) `Fetcher` của đường nhập từ URL (FR122, AD-40). **Không có điểm thứ tư.**
+
+  **Cả ba chỉ chạy theo một thao tác người dùng.** Điểm thứ ba mang thêm ràng buộc của NFR19: **không tải nền, không prefetch, không kiểm tra ngầm, không tải lại ảnh đã có** *(khoá so sánh khai ở AD-41)*, và danh sách domain đã gọi phải **xem được trong ứng dụng**. Cưỡng chế ở AD-41.
+
+  CSP của Tauri **giữ nguyên, không nới**: cấm mọi origin từ xa — không CDN, không font ngoài, **không ảnh ngoài**. Mọi tài nguyên frontend đóng gói trong bản cài. Mệnh đề *không ảnh ngoài* chính là lý do FR127 tải ảnh về `.atproj` thay vì giữ link, nên điểm ra mạng thứ ba **củng cố** CSP chứ không xin ngoại lệ khỏi nó.
+
+  > **Điểm thứ ba khác hai điểm kia ở một chỗ:** đích đến của (1) và (2) là **host do ứng dụng biết trước**; đích đến của (3) là **host do người dùng dán vào lúc chạy**. Khác biệt này là toàn bộ lý do AD-41 tồn tại.
 
 ### AD-16 — Nội dung nhập từ ngoài không bao giờ render thành HTML
 
 - **Binds:** C8, C1, C2
 - **Prevents:** XSS trong một webview có quyền gọi IPC — mối đe doạ thật đứng sau đề xuất tách cửa sổ của research.
-- **Rule:** `.docx`, `.md`, `.txt` từ reviewer được Rust phân tích thành **mô hình dữ liệu có cấu trúc**; Vue render từ mô hình đó. Không tồn tại đường nào đưa chuỗi từ file ngoài vào `v-html` hoặc tương đương.
+- **Rule:** **mọi** nội dung từ ngoài — `.docx`, `.md`, `.txt` từ reviewer, **và HTML tải từ internet (FR122)** — được Rust phân tích thành **mô hình dữ liệu có cấu trúc**; Vue render từ mô hình đó. Không tồn tại đường nào đưa chuỗi từ nguồn ngoài vào `v-html` hoặc tương đương.
+
+  **HTML từ internet là ca nặng nhất và được siết thêm một bậc.** File từ reviewer đến từ một người quen biết; trang web đến từ một host bất kỳ người dùng dán vào. Ba ràng buộc bổ sung:
+
+  1. **Phân tích và bóc chạy trọn ở Rust** (`Extractor`, AD-40). Không byte HTML thô nào đi qua IPC — thứ đi qua IPC là mô hình đã bóc.
+  2. **Mô hình nội dung không có nhánh nào mang HTML.** Nó mang đoạn, câu, ảnh, caption — không mang chuỗi đánh dấu. Không có trường nào để một giai đoạn sau nhét HTML vào rồi render.
+  3. **Ảnh trong nội dung tham chiếu file trong `assets/`, không bao giờ tham chiếu URL từ xa** — cùng một hàng rào với mệnh đề *không ảnh ngoài* của AD-15, phát biểu ở tầng mô hình dữ liệu.
 
 ### AD-17 — Một component Matcher dùng chung
 
@@ -217,6 +244,10 @@ graph TD
   | Prompt | **ghi đè** | FR69 |
   | Cấu hình AI | **ghi đè** | FR68 |
   | Translation Memory | **hợp nhất** — trả kết quả cả hai tầng | FR57 |
+  | Luật làm sạch khi nhập | **hợp nhất** — luật toàn cục **cộng** luật Tác phẩm cùng áp | FR124 |
+  | Tên người dịch | **ghi đè** | FR131 |
+
+  > **Vì sao luật làm sạch là *hợp nhất* chứ không *ghi đè*:** rác web chia làm hai loại có vòng đời khác nhau — loại chung cho mọi nguồn (dòng *"nguồn: xxx"*, lời nhắn người đăng) thuộc tầng toàn cục, loại riêng của một site hay một bộ truyện thuộc tầng Tác phẩm. Ngữ nghĩa *ghi đè* buộc người dùng chép lại toàn bộ luật chung vào từng Tác phẩm chỉ để thêm một mẫu riêng. Đây là loại dữ liệu **cộng dồn**, giống TM chứ không giống Glossary.
 
   **Thứ tự sắp xếp kết quả TM có hai khoá, khai tường minh vì hai chiều này chồng lên nhau:** khoá **chính** là **xuất xứ** (cặp *của tôi* trước, FR118); khoá **phụ** là **tầng** (Tác phẩm trước Global). Xuất xứ thắng vì một cặp TM toàn cục do **chính người dùng** dịch vẫn giống văn phong của họ hơn một cặp Tác phẩm do người khác dịch — mà mục đích của FR70 là học văn phong. Không khai thứ tự này thì Giai đoạn 4 và Giai đoạn 6 sẽ cài lệch nhau.
 
@@ -251,6 +282,8 @@ graph TD
 - **Binds:** tất cả
 - **Prevents:** *"không ai đọc được tài liệu của bạn"* thoái hoá thành lời hứa thay vì ràng buộc do framework cưỡng chế.
 - **Rule:** scope **tĩnh** khai trong capabilities — `$RESOURCE/dict/**` (chỉ đọc), `$RESOURCE/fonts/**` (chỉ đọc, font nhúng), `$APPDATA/**` (đọc + ghi, cho `global.db` và `library-index.db`). Scope **động** cấp lúc chạy chỉ khi người dùng chọn qua hộp thoại — thư mục gốc Library (mặc định `~/Documents/AuraTranslate/`) và đường dẫn export từng lần. Không đường mã nào chạm path ngoài scope.
+
+  **Phạm vi mạng không nằm ở đây và không cưỡng chế được bằng cùng cơ chế** — xem AD-41.
 
 ### AD-24 — Một cửa sổ OS, ba chế độ
 
@@ -363,16 +396,152 @@ graph TD
 
   Âm Hán Việt cho đề xuất bản dịch (FR113) đọc **qua cổng `DictionarySource`**, không cài lại. Thêm cạnh `glossary/ → dict/` vào đồ thị phụ thuộc; không tạo chu trình.
 
+### AD-37 — Cấu trúc đoạn là dữ liệu được lưu, không phải thứ suy ra lúc xuất
+
+- **Binds:** C1, C2, C8, C9
+- **Prevents:** FR121 hứa hai ô của bảng giữ **đúng số lần xuống đoạn như nhau**, nhưng không có gì trong mô hình dữ liệu biết đoạn nằm ở đâu — segment là câu. Giai đoạn 5 sẽ tự đoán ranh giới đoạn từ văn bản gốc lúc xuất, và cột phải **không có văn bản gốc để đoán** nên phải suy ngược qua segment bằng một quy tắc thứ hai. Hai quy tắc đoán trên cùng một Chương cho ra số đoạn lệch nhau, và nghiệm thu của FR121 hỏng ở chỗ không ai nhìn. Đồng thời một lần cải thiện quy tắc đoán sẽ **đổi im lặng** kết quả xuất của mọi Chương cũ — đúng loại hành vi AD-4 tồn tại để cấm.
+- **Rule:** `SEGMENT` mang **cờ kết đoạn**, tính lúc nhập **cùng lượt** với ranh giới câu và **lưu xuống** `.atproj`. Không đường mã nào suy ra đoạn từ nội dung lúc xuất, lúc nạp hay lúc render.
+
+  **Một cờ duy nhất dùng chung cho cả nguyên văn và bản dịch.** Đây là thứ làm cho lời hứa của FR121 đúng **theo định nghĩa** thay vì nhờ hai đường mã tình cờ đồng ý với nhau.
+
+  Đường nhập song ngữ (FR115) lấy cờ từ **ranh giới hàng** của bảng nguồn, không đoán lại từ nội dung — nhất quán với AD-4, vốn đã cho đường này tính ranh giới ở cả hai phía cùng lúc.
+
+  Cờ mô tả *"sau câu này là xuống dòng"*. Ba ca biên phải khai, vì cả ba đều là chỗ hai giai đoạn chọn khác nhau mà vẫn tin mình đúng:
+
+  | Ca | Cờ đi đâu |
+  |---|---|
+  | **Gộp** segment (AD-5) | Theo **câu cuối** của nhóm gộp. Chỗ xuống dòng cũ nay nằm giữa câu mới nên nó mất thật; giữ lại sẽ sinh đoạn rỗng lúc xuất |
+  | **Tách** segment (AD-5) | Theo **mảnh cuối**; mọi mảnh trước nhận cờ **tắt**. Một đoạn tách làm ba câu vẫn là một đoạn |
+  | **Segment cuối Chương** | Cờ **tắt**, luôn luôn. Đoạn cuối kết thúc vì hết Chương, không vì một lần xuống dòng. Không khai điều này thì một giai đoạn sẽ bật cờ và mỗi Chương xuất ra thừa một dòng trống ở cuối — nhân với 2000 Chương |
+
+### AD-38 — Nhập `.docx` phân biệt hai hình dạng bảng trước khi chạy alignment
+
+- **Binds:** C8
+- **Prevents:** bản `.docx` một khối (FR121) và bản `.docx` theo segment (FR87) **cùng phần mở rộng, cùng là bảng hai cột**. Xuất một khối để đăng bài rồi vài tháng sau kéo lại vào app: FR91 chạy alignment trên một hàng chứa hàng trăm câu và **ghi đè cả Chương đã xác nhận bằng một khối văn bản duy nhất** — không báo lỗi, vì đó vẫn là một bảng hai cột hợp lệ. Hỏng dữ liệu im lặng, không phải bất tiện.
+- **Rule:** kiểm hình dạng là **cổng vào** của đường nhập `.docx` trong `core/export/` — module sở hữu cả phân tích `.docx` lẫn alignment — chạy ở Rust **trước** alignment và trước **mọi** lệnh ghi. Bảng có **đúng một hàng** *và* ô chứa **nhiều hơn một đoạn** → **từ chối** kèm câu giải thích rằng đây là bản dành cho đăng bài và không nhập lại được; không chạy alignment, không ghi gì. Mọi hình dạng khác đi tiếp qua FR91.
+
+  Nhận dạng bằng **hình dạng**, không bằng metadata hay tên file: file do người khác tạo không mang dấu của ta, và tên file thì ai cũng đổi được.
+
+  **Ca sót lại, chấp nhận có ý thức:** Chương ngắn chỉ có **một đoạn** nhưng nhiều câu — hai hình dạng không phân biệt được. Hẹp hơn hẳn ca gốc và hậu quả nhẹ vì đúng là một đoạn thật.
+
+### AD-39 — Đường nhập là một pipeline có thứ tự cố định, dùng chung cho mọi nguồn
+
+- **Binds:** C1, C2, C9
+- **Prevents:** FR126 (bảng mã), FR125 (chuẩn hoá đoạn) và **tách Chương theo mẫu phân tách** (FR14) đều phải chạy **trước** bước tính ranh giới segment, mà AD-4 lại nói ranh giới tính **một lần** lúc nhập rồi **lưu xuống**. Một giai đoạn đặt chuẩn hoá *sau* bước tách, hoặc cài nó thành lớp hiển thị, thì ranh giới đã lưu không khớp thứ người dùng nhìn thấy — và **không có gì báo**. Đồng thời ngăn ba đường nhập (file, URL, song ngữ) mỗi đường tự chọn một thứ tự riêng.
+
+  **Ca hỏng cụ thể nhất, và là ca dễ viết test nhất:** một giai đoạn đặt bước **tách Chương trước bước giải mã bảng mã**. Mẫu phân tách khi đó chạy trên chữ rác, không khớp gì, và cả file 40 MB ra **đúng một Chương**. Không lỗi nào được ném; màn xem trước hiện *"đã nhận ra 1 Chương"* và người dùng không có đường nào lần ra nguyên nhân. Đây **chính là** lỗi thất bại im lặng mà FR126 tồn tại để chặn — để hở nó trong chuỗi này là AD-39 tự mâu thuẫn với lý do nó ra đời.
+- **Rule:** **một** chuỗi duy nhất, cùng thứ tự cho mọi nguồn:
+
+  ```text
+  byte thô
+    → giải mã bảng mã            (FR126 — nguồn KHÔNG mang khai báo bảng mã)
+    → bóc nội dung chính         (FR123 — chỉ nguồn là trang web)
+    → làm sạch theo luật         (FR124 — mọi nguồn)
+    → chuẩn hoá đoạn & khoảng trắng  (FR125 — mọi nguồn)
+    → TÁCH CHƯƠNG theo mẫu phân tách (FR14 — chỉ nguồn đến thành MỘT dòng chưa chia Chương)
+    → XEM TRƯỚC + sửa tay        (FR14, FR115, FR123, FR126)
+    → tách segment + cờ kết đoạn (AD-4, AD-37)
+    → ghi xuống .atproj          (AD-11)
+  ```
+
+  Các đường nhập chỉ khác nhau ở **bước đầu vào** và ở việc **bỏ qua** bước không áp dụng — không đường nào **đổi thứ tự** hay chèn bước sau lệnh ghi.
+
+  **Điều kiện áp dụng của bước tách Chương phát biểu theo *hình dạng đầu vào*, không theo danh sách đường nhập** — danh sách sẽ sai ngay khi có đường thứ tư, hình dạng thì đúng mãi:
+
+  | Đầu vào đến dưới dạng | Tách Chương |
+  |---|---|
+  | **Một dòng văn bản chưa chia Chương** — file `.txt`/`.md`/`.docx`, văn bản dán tay | **Có.** Đây là FR14 |
+  | **Đã một đơn vị một Chương** — mỗi link trong danh sách của FR122 | **Không.** Một link đã là một Chương |
+
+  > **Đường song ngữ (FR115) rơi vào hàng trên theo đúng tiêu chí hình dạng** — một file `.docx` hai cột chứa cả bộ truyện cũng đến thành một dòng chưa chia Chương. **Mẫu phân tách áp lên cột nguồn** *(PRD chốt 2026-08-03)*: đầu Chương ở cột gốc mang dạng ổn định máy khớp được, còn cột đích do người khác dịch nên có thể ghi khác đi hoặc bỏ hẳn dòng tiêu đề.
+
+  **Tách Chương và tách segment là hai bước khác nhau, và chúng nằm hai phía của màn xem trước** — khác đơn vị (Chương và câu), khác điều kiện áp dụng, khác quyền của người dùng. Người dùng **sửa được mẫu phân tách** ngay trên màn xem trước và thấy kết quả tách Chương đổi theo; người dùng **không sửa ranh giới câu** ở đó. Gộp hai bước làm một sẽ hoặc mất đường sửa mẫu, hoặc mở một đường sửa ranh giới câu mà AD-4 không cho phép.
+
+  **Chuỗi này sống ở `core/segment/`**, module vốn đã sở hữu tách/gộp/về hưu (AD-3, AD-4, AD-5). Các module nguồn — `webimport/` cho URL (AD-40), `export/` cho `.docx` (AD-38), đọc file thuần cho `.txt`/`.md` — chỉ **cung cấp bước đầu vào** rồi trao lại; không module nào giữ bản sao của các bước dùng chung. Hai bản cài đặt của chuỗi này là hai kết quả chuẩn hoá trên cùng một văn bản, và vi phạm luôn AD-1.
+
+  **Bước giải mã bảng mã áp cho nguồn không tự khai bảng mã** — `.txt`, `.md`, và phản hồi HTTP (nơi khai báo có thể sai hoặc vắng). `.docx` **bỏ qua bước này**: nó là zip chứa XML đã khai encoding, chạy bộ dò thống kê trên byte zip cho ra kết quả vô nghĩa.
+
+  **Màn xem trước luôn hiển thị kết quả sau toàn bộ chuỗi**, không phải sau một bước giữa chừng. Đây là điều kiện để nghiệm thu FR126 (*sửa bảng mã mà không phải nhập lại từ đầu*) có nghĩa: đổi bảng mã chạy lại chuỗi từ bước một, trong bộ nhớ, **trước khi** có bất kỳ segment nào tồn tại.
+
+  Hệ quả cho FR116: thao tác nối câu lúc nhập song ngữ nằm **trong bước xem trước**, đúng như AD-5 đã khai — chưa có segment nào để cho về hưu.
+
+### AD-40 — `Fetcher` và `Extractor` tách rời; không nâng thành cổng thứ tư
+
+- **Binds:** C1
+- **Prevents:** hai thứ trái ngược nhau. **(a)** Gộp HTTP với phân tích HTML thành một khối → khi bộ đọc riêng theo site xuất hiện thì phải gỡ dính trước khi thêm được gì, và điểm ra mạng của AD-15 nằm lẫn trong một module cũng phân tích HTML nên NFR19 không kiểm chứng được bằng test. **(b)** Nâng ngay thành port thứ tư → AD-2 vừa tuyên *"đúng ba cổng, không hơn"* đã lên bốn, và lên vì một thứ v1 tuyên bố **không làm** (FR123: không có bộ đọc riêng theo site).
+- **Rule:** hai module Rust thường trong `core/webimport/`, **không trait hoá**:
+
+  | Module | Trách nhiệm | Số cài đặt |
+  |---|---|---|
+  | `Fetcher` | URL → byte + `content-type` + charset khai báo | **Đúng một, mãi mãi.** Đây là điểm ra mạng thứ ba của AD-15 và là chỗ duy nhất AD-41 phải canh |
+  | `Extractor` | byte → **mô hình nội dung có cấu trúc** | **Điểm mở rộng đã đặt tên.** v1 có đúng một cài đặt dùng chung (FR123) |
+
+  `Fetcher` **không bao giờ** phân tích nội dung; `Extractor` **không bao giờ** chạm mạng. Ranh giới này là thứ làm NFR19 nghiệm thu được: mọi lời gọi mạng nằm trong một module không biết gì về HTML.
+
+  **Khi bộ đọc riêng theo site xuất hiện**, nó thay `Extractor` tại chỗ. **Chỉ lúc đó** mới xét nâng `Extractor` thành cổng thứ tư, theo đúng thủ tục AD-2 — không xét trước.
+
+  > Ba cổng hiện có mỗi cái biến **một FR khó** thành hệ quả cấu trúc: FR36 (gỡ lớp), FR77 (chạy không cần AI), FR96–FR98 (nguồn sự thật). Một cổng thứ tư hôm nay không phục vụ FR nào đang tồn tại. Đó là lý do nó chưa được dựng, chứ không phải vì nó sai về nguyên tắc.
+
+### AD-41 — Phạm vi mạng cưỡng chế ở tầng ứng dụng, và yếu hơn phạm vi filesystem
+
+- **Binds:** C1, C9, C10
+- **Prevents:** NFR19 thoái hoá thành lời hứa; và tệ hơn — người ta tưởng nó **cứng ngang** AD-23 rồi thôi không viết test.
+- **Rule:** allowlist sống **đúng một lần nhập**; hết lần nhập thì hết hiệu lực. `Fetcher` từ chối mọi host ngoài allowlist, **kể cả khi gặp chuyển hướng**. Mọi lời gọi ghi `(thời điểm, domain, tầng, kết quả)` vào một nhật ký **người dùng xem được trong ứng dụng** (NFR19).
+
+  **Allowlist có hai tầng, và phải phân biệt được với nhau:**
+
+  | Tầng | Nguồn | Cho phép tải gì |
+  |---|---|---|
+  | **Tầng 1 — người dùng cấp** | Host của các link trong danh sách vừa dán | Tài liệu |
+  | **Tầng 2 — dẫn xuất** | Host của tài nguyên **được tham chiếu từ trang đã tải ở tầng 1**, trong **cùng lần nhập** | **Chỉ ảnh.** Không bao giờ tài liệu |
+
+  > **Vì sao bắt buộc có tầng 2:** bài ở `example.com` nhưng ảnh nằm ở `cdn.example.net` hoặc một CDN ảnh dùng chung. Chỉ có tầng 1 thì FR127 **hỏng trên phần lớn website thật** — và hỏng im lặng, vì Chương nhập vào trông bình thường, chỉ thiếu ảnh.
+  >
+  > **Vì sao tầng 2 không được tải tài liệu:** đó là ranh giới giữa *"lấy tài nguyên của trang bạn đã chọn"* và *"tự đi tìm nội dung"* — thứ FR122 cấm tuyệt đối. Tầng 2 hiện trong nhật ký **dưới nhãn riêng** để người dùng thấy được nó đã mở tới đâu.
+
+  **Không tải lại ảnh đã có**, so theo `source_url` **trong phạm vi cùng một Tác phẩm**. Băm nội dung là tối ưu lưu trữ, không phải điều kiện tải — hai bản cài dùng hai khoá khác nhau sẽ cho số lời gọi mạng khác nhau, và bộ test dưới đây mất tính xác định.
+
+  **Nói thẳng chỗ yếu, vì giấu nó mới nguy hiểm:** capabilities của Tauri là khai báo **tĩnh lúc build**, nên **không diễn đạt được** *"chỉ các domain trong danh sách vừa dán lúc chạy"*. AD-23 được framework cưỡng chế; AD-41 **không** — nó là hàng rào trong mã ứng dụng. Hệ quả bắt buộc: **AD-41 phải có bộ test riêng** — từ chối host ngoài hai tầng; từ chối chuyển hướng ra ngoài; từ chối tài liệu ở tầng 2; không lời gọi nào khi người dùng không bấm — vì không có framework nào bắt lỗi thay.
+
+  Ràng buộc *không tự đi tìm link* của FR122 là thứ khiến hàng rào này khả thi: tầng 1 **hữu hạn và biết trước** ngay khi người dùng bấm, và tầng 2 chỉ mở ra từ những trang tầng 1 đã tải.
+
+### AD-42 — Caption và alt-text là hai `Segment` khác vai, không phải trường của `ASSET`
+
+- **Binds:** C1, C2, C8
+- **Prevents:** một giai đoạn mô hình hoá caption thành **cột text trên `ASSET`** vì rẻ hơn, giai đoạn khác thành `Segment`. Cột text **không tham gia** Translation Memory, Glossary hay luồng xác nhận — nên FR129 hỏng **im lặng**, đúng ở chỗ không ai nhìn: caption vẫn hiện ra, vẫn dịch được bằng tay, chỉ là không bao giờ vào TM.
+- **Rule:** cả alt-text lẫn caption là `Segment` bình thường mang thêm một trường **vai** (`alt` \| `caption`). Cả hai tham gia TM, Glossary và luồng xác nhận như mọi segment khác.
+
+  **`ASSET` mang neo vị trí của chính nó trong Chương** — độc lập với việc có hay không có segment đi kèm. Segment alt và caption **treo vào neo đó**:
+
+  | Vai | Vị trí | Vì sao |
+  |---|---|---|
+  | `alt` | tại neo của ảnh | Quy ước cũ (FR42–FR44), nay phát biểu theo neo thay vì theo `ord` trần |
+  | `caption` | ngay sau neo của ảnh | Caption là chữ người đọc **nhìn thấy dưới ảnh** — thứ tự đọc phải đúng ở cả Chế độ đọc lẫn khi xuất |
+
+  > **Vì sao neo phải ở `ASSET` chứ không ở segment alt-text:** ảnh trên web **thường không có thuộc tính `alt`**. Quy ước cũ giả định *ảnh nào cũng có alt-text* nên để segment alt giữ vị trí — giả định đó đứng được khi mọi ảnh đến từ `.docx` của người dùng, và **gãy ngay khi nhập từ web**. Không có neo riêng thì một ảnh không alt không caption sẽ mất vị trí, và FR42 với FR43 hỏng ở đúng chỗ không ai kiểm.
+
+  Một ảnh có **nhiều nhất một** segment mỗi vai. Ảnh không có caption thì **không sinh segment rỗng** — segment rỗng sẽ trôi vào TM và vào bộ đếm tiến độ.
+
+### AD-43 — Xuất xứ là dữ liệu ở `CHAPTER`; khối ghi nguồn dựng lúc xuất
+
+- **Binds:** C1, C8, C9
+- **Prevents:** lưu sẵn **chuỗi ghi nguồn đã định dạng** thì sửa một trường ở FR128 không lan sang bản xuất kế tiếp, và cùng một dữ kiện có hai nguồn sự thật. Cùng loại lỗi mà AD-33 đã bịt cho `meta.json`.
+- **Rule:** bốn trường xuất xứ của FR128 là **dữ liệu trên `CHAPTER`** trong `project.db` — nguồn sự thật duy nhất. Khối ghi nguồn của FR131 **dựng lúc xuất** từ bốn trường đó cộng tên người dịch (cấu hình toàn cục, qua `ScopeResolver` theo AD-18). Không lưu chuỗi đã định dạng ở bất kỳ đâu.
+
+  **Đường xuất kiểm trước, không bỏ qua trong im lặng.** Khi FR130 chọn *theo link gốc*, đường xuất phải **quét phạm vi xuất trước** và **liệt kê ảnh không có `source_url`**. Không đường mã nào được bỏ ảnh thiếu URL mà không báo — cùng hạng ràng buộc với *"không nhập lại được"* của FR121 và cảnh báo câu chưa xác nhận: thông tin xuất hiện **lúc chọn**, không nằm trong tài liệu hướng dẫn.
+
 ## Consistency Conventions
 
 | Concern | Convention |
 |---|---|
 | **Đặt tên thực thể** | Thuật ngữ §5.2 PRD ánh xạ cố định sang định danh tiếng Anh trong mã: Tác phẩm → `Work` · Chương → `Chapter` · Segment → `Segment` · Chế độ đọc → `ReadingMode` · Review Mode → `ReviewMode` · Panel Lookup → `LookupPanel` · Smart RAG Injector → `RagInjector` · Chỉ mục Library → `LibraryIndex` · Lớp nền / lớp gỡ rời → `BaseLayer` / `DetachableLayer` · Hán Việt → `HanViet` · Segment alignment → `Alignment`. Cấm dùng `Project`, `Book`, `Novel`, `Document` cho `Work` *(đuôi file `.atproj` là ngoại lệ lịch sử, không kéo theo tên thực thể)* |
-| **Module Rust** | Một module cho một khái niệm miền, không phải cho một nhóm năng lực: `segment/ matching/ glossary/ tm/ dict/ library/ export/ ai/ store/ scope/ i18n/`. Nhóm năng lực C1–C10 là từ vựng sản phẩm, không xuất hiện trong tên module |
+| **Module Rust** | Một module cho một khái niệm miền, không phải cho một nhóm năng lực: `segment/ matching/ glossary/ tm/ dict/ library/ export/ webimport/ ai/ store/ scope/ i18n/`. Nhóm năng lực C1–C10 là từ vựng sản phẩm, không xuất hiện trong tên module |
 | **File & thư mục** | Rust `snake_case`; Vue component `PascalCase.vue`; tài nguyên chuỗi `vi.json` phẳng theo khoá chấm (`lookup.empty_result`) |
 | **Định danh** | `Work` = UUID v4 · `Chapter`, `Segment`, mục Glossary, mục TM = số nguyên cục bộ trong database chứa nó. Id đã về hưu không bao giờ tái dùng |
 | **Ghi nhớ proofreader** | Khoá theo `(work, chữ ký phát hiện)`, **không** theo `segment.id` — FR84 nói phạm vi là *"trong cùng Tác phẩm"*, và nhờ vậy ghi nhớ sống sót qua gộp/tách segment |
-| **Segment alt-text** | Alt-text của ảnh là một `Segment` bình thường, mang `ord` **đúng vị trí ảnh** trong Chương, không phải một danh sách rời (FR42, FR43, FR44) |
+| **Segment của ảnh** | Alt-text và caption đều là `Segment` bình thường mang trường **vai**, không phải danh sách rời và không phải cột trên `ASSET` (AD-42). `alt` mang `ord` **đúng vị trí ảnh**; `caption` mang `ord` **ngay sau ảnh** (FR42–FR44, FR129) |
+| **Đường nhập** | Mọi nguồn đi qua **cùng một pipeline, cùng thứ tự** (AD-39). Xem trước luôn hiện kết quả **sau toàn bộ chuỗi** |
+| **Ra mạng** | Đúng ba điểm, cả ba theo thao tác người dùng (AD-15). Điểm nhập từ URL đi qua `Fetcher` và chỉ `Fetcher` (AD-40), canh bởi allowlist một-lần-nhập (AD-41) |
 | **Ngày giờ** | Lưu ISO-8601 UTC trong database; định dạng hiển thị chỉ ở frontend |
 | **Thao tác giao diện** | Luôn đăng ký trong `CommandRegistry` rồi mới bind vào chuột/phím (AD-34). Không thao tác nào chỉ tồn tại trong một handler chuột |
 | **Màu** | Chỉ từ token đã kiểm tương phản WCAG AA ở cả hai theme; không giá trị màu trong component (AD-34) |
@@ -457,11 +626,15 @@ erDiagram
   WORK ||--o{ GLOSSARY_CANDIDATE : "bảng chờ"
   WORK ||--o{ TM_UNIT : "tầng Tác phẩm — cặp mang xuất xứ"
   WORK ||--o{ PROMPT : "tầng Tác phẩm"
-  WORK ||--o{ ASSET : "ảnh"
-  CHAPTER ||--o{ SEGMENT : "chứa — segment mang xuất xứ"
+  WORK ||--o{ ASSET : "ảnh — file thật trong assets/, mang source_url tuỳ chọn"
+  CHAPTER ||--o{ ASSET : "neo vị trí ảnh — độc lập với segment đi kèm"
+  CHAPTER ||--o{ SEGMENT : "chứa — segment mang xuất xứ và cờ kết đoạn"
+  CHAPTER ||--o| SOURCE_ORIGIN : "xuất xứ tài liệu — tác giả · site · URL · ngày đăng"
+  WORK ||--o{ READING_MARK : "chỗ đánh dấu khi đọc, phạm vi Tác phẩm"
+  READING_MARK }o--|| SEGMENT : "trỏ tới — sống sót khi segment về hưu"
   SEGMENT ||--o{ SEGMENT_VERSION : "lịch sử"
   WORK ||--o{ PROOF_IGNORE : "không phải lỗi, phạm vi Tác phẩm"
-  SEGMENT }o--|| ASSET : "alt-text"
+  SEGMENT }o--|| ASSET : "alt-text hoặc caption — phân biệt bằng trường vai"
   GLOSSARY_CANDIDATE }o--|| GLOSSARY_ENTRY : "được duyệt thành"
   DICT_ENTRY ||--o{ DICT_SENSE : "nhiều từ loại"
   DICT_SENSE ||--o{ DICT_EXAMPLE : "ví dụ theo từ loại"
@@ -469,6 +642,8 @@ erDiagram
   DICT_ENTRY ||--o{ CHAR_IDX : "chỉ mục đảo ngược"
   LIBRARY_INDEX_ROW }o--|| WORK : "dẫn xuất từ"
 ```
+
+`SOURCE_ORIGIN` là **nguồn sự thật** của xuất xứ tài liệu (FR128); khối ghi nguồn khi xuất (FR131) dựng từ nó lúc chạy, không lưu sẵn (AD-43). `meta.json` vẫn chỉ là cache dẫn xuất (AD-33).
 
 `DICT_*` và `CHAR_IDX` nằm trong các file từ điển chỉ đọc. `WORK` và mọi thứ dưới nó nằm trong `.atproj`. Bản sao tầng Global của `GLOSSARY_ENTRY`, `TM_UNIT`, `PROMPT` nằm trong `global.db`. `LIBRARY_INDEX_ROW` nằm trong `library-index.db` và **dẫn xuất hoàn toàn**.
 
@@ -486,7 +661,10 @@ AuraTranslate/
         tm/            # khoá theo cặp văn bản (AD-6)
         dict/          # đường tra cứu ba nhánh (AD-26), không hợp nhất (AD-19)
         library/       # chỉ mục + quét lại (AD-8)
-        export/        # docx/md/TMX + alignment
+        export/        # docx/md/TMX + alignment + khối ghi nguồn (AD-43)
+        webimport/     # fetcher.rs — ĐIỂM RA MẠNG THỨ BA, không phân tích nội dung
+                       # extractor.rs — điểm mở rộng đã đặt tên, v1 một cài đặt
+                       # pipeline nhập theo thứ tự cố định (AD-39, AD-40, AD-41)
         ai/            # C6, C7 — KHÔNG module nào khác import (AD-13)
         scope/         # ScopeResolver (AD-18)
         store/         # Writer nối tiếp + Reader pool + checkpoint (AD-11, AD-12)
@@ -508,21 +686,27 @@ AuraTranslate/
 
 | Nhóm năng lực | Lives in | Governed by |
 |---|---|---|
-| **C1** Library | `core/library/`, `core/segment/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34 |
-| **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35 |
+| **C1** Library | `core/library/`, `core/segment/`, `core/webimport/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34, AD-37, AD-39, AD-40, AD-41, AD-42, AD-43 |
+| **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42 |
 | **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27 |
 | **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36 |
 | **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31 |
 | **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36 |
 | **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22 |
-| **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34 |
-| **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35 |
-| **C10** Phát hành & tin cậy | `tools/dict-build/`, `dict-manifest.toml`, GitHub Actions | AD-10, AD-15, AD-25 |
+| **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43 |
+| **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35, AD-37, AD-39, AD-41, AD-43 |
+| **C10** Phát hành & tin cậy | `tools/dict-build/`, `dict-manifest.toml`, GitHub Actions | AD-10, AD-15, AD-25, AD-41 |
 
 ## Deferred
 
 | Hoãn cái gì | Vì sao chờ được | Điều kiện mở lại |
 |---|---|---|
+| **Thư viện cho đường ĐỌC `.docx`** | `docx-rs` 0.4.22 (ghim, tương thích GPLv3) **có** `read_docx` và đủ kiểu `Table` · `TableRow` · `TableCell` · `TableCellContent`, nên AD-38 khả thi về nguyên tắc. Nhưng crate này **định vị là bộ ghi**, tài liệu nội tuyến chỉ 5,53%, và hệ sinh thái đã sinh ra fork chuyên đọc (`docx-reader`) — dấu hiệu đường đọc là phần yếu. AD-37 và AD-38 **không ràng buộc crate nào**: bất biến là *cấu trúc đoạn được lưu* và *kiểm hình dạng ở cổng vào trước mọi lệnh ghi*, đúng với bất kỳ thư viện nào | **Mũi thăm dò trước Giai đoạn 5:** đọc thử một `.docx` bảng hai cột thật, lấy được số hàng và số đoạn trong từng ô. Không đạt thì rà `docx-reader` hoặc `rdocx` — **cả hai chưa xác nhận giấy phép**, phải rà GPLv3 (NFR15) trước khi đưa vào Stack, cùng khuôn với hàng SSE |
+| **Thư viện bóc nội dung chính** (FR123) | Ứng viên dẫn đầu **`dom_smoothie` 0.18.0, MIT** *(tương thích GPLv3, cập nhật 2026-06-07, ~214 k lượt tải gần đây)* — cổng Readability còn được bảo trì. `readability` 0.3.0 (MIT) nhiều lượt tải hơn nhưng **đứng im từ 12/2023**, không chọn làm nền. AD-40 **không ràng buộc crate nào**: bất biến là ranh giới `Fetcher` \| `Extractor`, đúng với bất kỳ thư viện nào — kể cả tự viết | **Mũi thăm dò ở Giai đoạn 3**, cùng lúc dựng đường nhập *(sửa 2026-08-03: bản đầu ghi "trước Giai đoạn 1" nhưng `build-sequence.md` đặt toàn bộ Library và đường nhập ở Giai đoạn 3, và cả hai giả định đều có đường lui bằng tay nên không phải rủi ro tầng PRD cần dò sớm)*: bóc thử trên các site Ice thật sự dùng, đo tỉ lệ bóc sai. Đường sửa tay của FR123 là điều kiện nghiệm thu nên tỉ lệ sai cao **không chặn**, chỉ đổi mức đầu tư vào màn xem trước |
+| **Thư viện phát hiện bảng mã** (FR126) | Cặp **`chardetng` 1.0.0** + **`encoding_rs` 0.8.35** là đường đi chuẩn của hệ sinh thái *(chardetng: Apache-2.0 OR MIT; encoding_rs: (Apache-2.0 OR MIT) AND BSD-3-Clause — **cả hai tương thích GPLv3**)*. `chardetng` là bộ dò của Firefox cho nội dung web cũ, đúng bài toán GBK/Big5 của FR126 | **Mũi thăm dò ở Giai đoạn 3, chạy cùng lúc với mũi thăm dò bóc nội dung:** dò thử trên `.txt` GBK và Big5 thật lấy từ diễn đàn. Điều kiện nghiệm thu của FR126 đã định sẵn phép thử. Nếu tỉ lệ dò đúng thấp thì **không đổi kiến trúc** — đường đổi tay ở màn xem trước đã là phương án dự phòng theo thiết kế |
+| **HTTP client cho `Fetcher`** | `reqwest` đã có trong Stack cho `TranslationProvider`; nhiều khả năng dùng lại, không thêm phụ thuộc. Chưa chốt vì `Fetcher` có nhu cầu khác — theo dõi chuyển hướng để cưỡng chế allowlist (AD-41), giới hạn kích thước, timeout | Giai đoạn 3, cùng lúc dựng `Fetcher` |
+| ~~**Ranh giới Chương ở đường nhập song ngữ** (FR115)~~ | ✅ **Đã đóng 2026-08-03** — PRD chốt **mẫu phân tách áp lên cột nguồn**. Đúng như dự liệu: AD-39 đã cố định phần bất biến (bước tách Chương nằm sau chuẩn hoá, trước xem trước) nên câu trả lời **không đổi kiến trúc**, chỉ điền vào một hàm. Hàng này vốn **rộng hơn thực tế** — nó ghi ba lựa chọn để ngỏ, trong khi tầng thiết kế đã chọn cột nguồn từ hôm trước và ghi kèm biểu thức thật trong `bilingual-import.html`; PRD chỉ phê chuẩn thành chữ. Bài học: trước khi ghi một hàng Deferred, **soát xem tầng dưới đã trả lời chưa** | — |
+| **Hành vi khi một link trong danh sách hỏng** (404, timeout, tường chặn) | Dán 50 link mà link thứ 30 hỏng thì làm gì: dừng, bỏ qua, hay giữ chỗ trống. Đây là **hành vi bên trong một module**, không phải hợp đồng giữa các module — hai đơn vị chọn khác nhau vẫn ghép được. AD-39 đã cố định phần bất biến: mọi thứ xảy ra **trước bước ghi**, nên không có ca ghi nửa chừng | Giai đoạn 3, khi dựng màn xem trước của FR123 — quyết cùng lúc với cách hiển thị Chương bóc lỗi |
 | **`similar` vs `dissimilar`** cho Diff Viewer | Cả hai tương thích GPLv3; đánh đổi (diff cấp grapheme vs semantic cleanup) chỉ phân xử được bằng dữ liệu thật | Giai đoạn 5 — thử cả hai trên bản review thật |
 | **Thuật toán segment alignment** (FR91) | Mẫu ngành đã chốt (*máy khớp, người sửa*); chi tiết thuật toán không tạo ra divergence giữa các đơn vị khác | Giai đoạn 5 |
 | **Ngưỡng kích thước WAL buộc checkpoint** (AD-12) **+ nhịp flush cụ thể** (AD-35) | Chỉ dò được bằng đo trên Editor thật, giống cách Giai đoạn 0 xử lý trigram. Hai thứ này đo trên **cùng một** Editor và đánh đổi lẫn nhau — phải dò cùng lúc sao cho đạt NFR18 (mất ≤ 5 s) mà không phạm NFR2 (không frame nào vượt 50 ms) | Giai đoạn 2 |

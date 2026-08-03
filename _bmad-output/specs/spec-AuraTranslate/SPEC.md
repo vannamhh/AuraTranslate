@@ -25,12 +25,12 @@ sources:
 ## Capabilities
 
 - **CAP-1 — Library**
-  - **intent:** Người dịch mở ứng dụng vào Library, nắm được mình đang có những gì, tìm lại và đọc lại mọi thứ đã dịch. `FR1–FR15, FR43, FR45, FR115, FR116`
-  - **success:** Tìm full-text phân biệt dấu xuyên toàn Library trả kết quả kèm Tác phẩm · Chương · đoạn khớp, p95 < 500 ms trên 5.000 Chương; mở một Chương đưa thẳng vào Workspace đúng vị trí làm việc lần trước; Chế độ đọc đọc liên tục qua nhiều Chương, không có công cụ biên tập, hiển thị ảnh nhúng đúng vị trí; nhập một file lớn tách thành nhiều Chương có màn hình xem trước trước khi xác nhận; **nhập file song ngữ hai cột tạo Tác phẩm hoàn chỉnh** với segment nguồn và đích đã khớp cặp, mọi câu ở trạng thái chưa xác nhận.
+  - **intent:** Người dịch mở ứng dụng vào Library, đưa văn bản gốc vào từ bất kỳ nguồn nào mình có, nắm được mình đang có những gì, tìm lại và đọc lại mọi thứ đã dịch. `FR1–FR15, FR43, FR45, FR115, FR116, FR119, FR120, FR122–FR128`
+  - **success:** Tìm full-text phân biệt dấu xuyên toàn Library trả kết quả kèm Tác phẩm · Chương · đoạn khớp, p95 < 500 ms trên 5.000 Chương; mở một Chương đưa thẳng vào Workspace đúng vị trí làm việc lần trước; Chế độ đọc đọc liên tục qua các Chương **đã xong**, dừng ở biên tường minh, không có công cụ biên tập, hiển thị ảnh nhúng đúng vị trí, và đánh dấu được chỗ cần sửa mà không cắt phiên đọc; nhập một file lớn tách thành nhiều Chương có màn hình xem trước trước khi xác nhận; **nhập file song ngữ hai cột tạo Tác phẩm hoàn chỉnh** với segment nguồn và đích đã khớp cặp, mọi câu ở trạng thái chưa xác nhận; **dán một danh sách link tạo được Tác phẩm mà ứng dụng không gọi tới một host nào ngoài danh sách đó cùng host ảnh của chính những trang ấy**; **nhập một `.txt` mã GBK 2000 chương ra chữ Hán đúng, và khi hệ thống đoán sai bảng mã thì sửa được ngay trên màn xem trước mà không phải nhập lại từ đầu**; **ảnh tải từ web nằm trong `.atproj` — copy Tác phẩm sang máy ngoại tuyến vẫn đủ ảnh**.
 
 - **CAP-2 — Workspace**
-  - **intent:** Người dịch làm trọn một vòng dịch trong **một** cửa sổ bốn panel, thay cho bốn năm cửa sổ rời. `FR16–FR26, FR42, FR44, FR78, FR117`
-  - **success:** Source · Lookup · AI Translation · Editor dock/undock/gộp tab/ẩn hoàn toàn được, bố cục khôi phục sau khi khởi động lại và lưu được nhiều preset; bôi đen ở bất kỳ panel nào cho kết quả tra cứu ở Panel Lookup mà không copy/paste; Editor phân đoạn ở cấp câu, gộp và tách segment bằng tay được; mọi phím tắt cấu hình lại được; **một vòng dịch hoàn chỉnh chạy được từ đầu tới cuối mà không chạm chuột**.
+  - **intent:** Người dịch làm trọn một vòng dịch trong **một** cửa sổ bốn panel, thay cho bốn năm cửa sổ rời. `FR16–FR26, FR42, FR44, FR78, FR117, FR129`
+  - **success:** Source · Lookup · AI Translation · Editor dock/undock/gộp tab/ẩn hoàn toàn được, bố cục khôi phục sau khi khởi động lại và lưu được nhiều preset; bôi đen ở bất kỳ panel nào cho kết quả tra cứu ở Panel Lookup mà không copy/paste; Editor phân đoạn ở cấp câu, gộp và tách segment bằng tay được; mọi phím tắt cấu hình lại được; **alt-text và chú thích ảnh là hai segment dịch riêng, cả hai vào Translation Memory như mọi segment khác**; **một vòng dịch hoàn chỉnh chạy được từ đầu tới cuối mà không chạm chuột**.
 
 - **CAP-3 — Embedded Dictionary & Lookup**
   - **intent:** Người dịch tra cứu tức thì, hoàn toàn ngoại tuyến, và luôn nhìn thấy định nghĩa đó đến từ đâu. `FR27–FR41`
@@ -53,8 +53,8 @@ sources:
   - **success:** Chạy **theo yêu cầu** trên segment/Chương/vùng chọn, không chạy nền; mỗi phát hiện có loại lỗi · vị trí · giải thích ngắn · đề xuất sửa, chấp nhận hoặc bỏ qua từng cái; đánh dấu *"không phải lỗi"* thì lần quét sau không báo lại trong cùng Tác phẩm; **không tự sửa văn bản**; kết quả hiển thị ngay tại chỗ trên Editor; tỷ lệ báo động giả đủ thấp để người dùng không tắt hẳn tính năng.
 
 - **CAP-8 — Cầu nối Reviewer**
-  - **intent:** Người dịch trao đổi bản dịch với reviewer **không cài app**, hấp thụ được bài học từ bản họ sửa, và lấy ra được bản sạch để **đăng bài**. `FR87–FR95, FR121`
-  - **success:** Xuất `.docx` bảng hai cột đối xứng theo segment, và `.md`/text thuần bảo lưu liên kết ảnh cùng alt-text **đã dịch**; **`.docx` một khối đối xứng theo đoạn — một hàng duy nhất cho cả Chương, không đường kẻ ngang — bôi đen cột phải dán sang trình soạn thảo website ra văn bản liền mạch không mảnh vụn bảng biểu**, và màn hình xuất nói rõ ngay lúc chọn rằng định dạng này không nhập lại được, cảnh báo trước khi xuất nếu còn câu chưa xác nhận nhưng **không đánh dấu chúng trong file**; nhập lại file reviewer đã sửa khớp cấu trúc đoạn, segment không khớp được **hiện ra cho người dùng nối tay**; Review Mode hai cửa sổ side-by-side ẩn văn bản gốc, bôi màu thêm/xoá/sửa, chấp nhận từng thay đổi một; **nhập bản review kích hoạt thu hoạch thuật ngữ ngay cả khi người dùng không bao giờ mở Review Mode**.
+  - **intent:** Người dịch trao đổi bản dịch với reviewer **không cài app**, hấp thụ được bài học từ bản họ sửa, và bàn giao được bản dựng lại thành bài — cho chính mình đăng, hoặc cho một **người đăng** không biết gì về công cụ. `FR87–FR95, FR121, FR130, FR131`
+  - **success:** Xuất `.docx` bảng hai cột đối xứng theo segment, và `.md`/text thuần bảo lưu liên kết ảnh cùng alt-text **đã dịch**; **`.docx` một khối đối xứng theo đoạn — một hàng duy nhất cho cả Chương, không đường kẻ ngang — bôi đen cột phải dán sang trình soạn thảo website ra văn bản liền mạch không mảnh vụn bảng biểu**, và màn hình xuất nói rõ ngay lúc chọn rằng định dạng này không nhập lại được, cảnh báo trước khi xuất nếu còn câu chưa xác nhận nhưng **không đánh dấu chúng trong file**; nhập lại file reviewer đã sửa khớp cấu trúc đoạn, segment không khớp được **hiện ra cho người dùng nối tay**; Review Mode hai cửa sổ side-by-side ẩn văn bản gốc, bôi màu thêm/xoá/sửa, chấp nhận từng thay đổi một; **nhập bản review kích hoạt thu hoạch thuật ngữ ngay cả khi người dùng không bao giờ mở Review Mode**; **mỗi lần xuất chọn được ảnh theo link gốc hay theo file ảnh, và khi phạm vi xuất có ảnh không mang URL gốc thì màn hình xuất liệt kê chúng ra trước chứ không im lặng bỏ qua**; **khối ghi nguồn — tác giả · báo/website · URL bài gốc · ngày đăng · người dịch — bật được cho mọi định dạng xuất và mặc định tắt**.
 
 - **CAP-9 — Dự án & dữ liệu**
   - **intent:** Dữ liệu người dùng sống lâu hơn phần mềm và mang đi được, không khoá vào công cụ. `FR96–FR104`
@@ -66,7 +66,8 @@ sources:
 
 ## Constraints
 
-- **Local-first tuyệt đối.** Không tài khoản, không đăng nhập, không cloud sync, không telemetry. Toàn ứng dụng có **đúng hai** điểm ra mạng: lời gọi AI do người dùng chủ động kích hoạt, và kiểm tra phiên bản mới. Không có điểm thứ ba — kể cả CDN font, ảnh ngoài hay crash reporter.
+- **Local-first tuyệt đối.** Không tài khoản, không đăng nhập, không cloud sync, không telemetry. Toàn ứng dụng có **đúng ba** điểm ra mạng, **cả ba chỉ chạy theo một thao tác người dùng**: lời gọi AI, kiểm tra phiên bản mới, và tải nội dung ở đường nhập từ URL. Không có điểm thứ tư — và chính sách nội dung của webview vẫn **cấm mọi origin từ xa**: không CDN font, **không ảnh ngoài**, không crash reporter. Điểm thứ ba **củng cố** lệnh cấm ảnh ngoài chứ không xin ngoại lệ khỏi nó — đó là lý do ảnh từ web phải tải về `.atproj`. *(Sửa 2026-08-03; trước đó là hai điểm.)*
+- **Ứng dụng không bao giờ tự quyết định tải nội dung gì.** Phạm vi và thứ tự hoàn toàn do người dùng cấp qua danh sách link. Loại thẳng quét trang mục lục, lần theo *"chương sau"*, và mọi hình thức crawl. Đây cũng là thứ khiến allowlist **hữu hạn và biết trước**, nên ràng buộc mạng kiểm chứng được bằng test thay vì bằng lời hứa.
 - **Ứng dụng phải hoạt động đầy đủ khi không cấu hình AI.** Mọi năng lực ngoài CAP-6 và CAP-7 chạy được mà không cần một API key nào.
 - **Toàn bộ dữ liệu từ điển nhúng trong bản cài.** Ngân sách 150–200 MB, **không có cơ chế tải thêm sau khi cài đặt**. Tra cứu hoạt động 100% ngoại tuyến.
 - **Mọi định nghĩa phải hiển thị nguồn — không ngoại lệ, không chế độ ẩn.** Khi các nguồn bất đồng, hiển thị đồng thời; trong toàn hệ thống không tồn tại bước hợp nhất nguồn. Mỗi nguồn có khiếm khuyết riêng đã biết, nên một công cụ hợp nhất mọi từ điển thành một câu trả lời duy nhất là một công cụ giấu đi sai sót.
@@ -97,11 +98,16 @@ sources:
 - Định dạng gói và hạ tầng phân phối cho chia sẻ cộng đồng. Chia sẻ chỉ qua trao đổi file: Glossary CSV/TSV, prompt file văn bản, TM qua TMX. Không server, không tài khoản.
 - Cơ chế tải từ điển sau khi cài.
 - Bản giao diện tiếng Anh ở v1.
+- Định dạng **`.epub`** và **`.pdf`** ở đường nhập.
+- **Quét trang mục lục** để tự tìm link chương, và **lần theo "chương sau"** để tự đi hết bộ truyện.
+- **Bộ đọc riêng cho từng website** — v1 chỉ có một thuật toán bóc nội dung dùng chung.
 - User Journey trong tầng đặc tả này — AuraTranslate là công cụ chuyên nghiệp một người vận hành, hình dạng đúng là *capability spec*. `bmad-ux` tự dựng hành trình từ FR; ba luồng trọng yếu ghi ở cuối `requirements.md`.
 
 ## Success signal
 
-Một người dịch Việt trên **macOS** nhập trọn một bộ 2000 chương, dịch xong một Chương từ đầu tới cuối trong **một cửa sổ duy nhất** — tra cứu ngoại tuyến tức thì có ghi nguồn, AI đề xuất theo đúng Glossary và văn phong tích luỹ của chính họ — rồi xuất `.docx` cho reviewer, nhập bản đã sửa về, và **Glossary tự dày lên từ chính những sửa đổi đó mà không cần họ mở Diff Viewer**. Toàn bộ chặng này không có tài khoản, không có byte nào rời khỏi máy ngoài lời gọi AI họ chủ động bấm, và copy thư mục `.atproj` sang máy khác mở lại được nguyên vẹn.
+Một người dịch Việt trên **macOS** nhập trọn một bộ 2000 chương, dịch xong một Chương từ đầu tới cuối trong **một cửa sổ duy nhất** — tra cứu ngoại tuyến tức thì có ghi nguồn, AI đề xuất theo đúng Glossary và văn phong tích luỹ của chính họ — rồi xuất `.docx` cho reviewer, nhập bản đã sửa về, và **Glossary tự dày lên từ chính những sửa đổi đó mà không cần họ mở Diff Viewer**. Toàn bộ chặng này không có tài khoản, không có byte nào rời khỏi máy ngoài lời gọi AI và các trang họ chủ động dán link, và copy thư mục `.atproj` sang máy khác mở lại được nguyên vẹn.
+
+Và ở vai còn lại: cùng người đó dán một link bài báo tiếng Anh, dịch xong, xuất một file mà **người đăng — không cài app, không hỏi thêm câu nào — dựng lại được trọn bài** kèm ảnh đúng chỗ, chú thích đã dịch, và khối ghi nguồn đầy đủ tác giả cùng link bài gốc.
 
 ## Assumptions
 
@@ -115,6 +121,8 @@ Một người dịch Việt trên **macOS** nhập trọn một bộ 2000 chư�
 - **A8** — Ngưỡng bộ nhớ nhàn rỗi < 300 MB là hợp lý. Ngưỡng tạm.
 - **A9** — Người dùng thật sự cần lịch sử tra cứu và ghim mục từ. Suy đoán từ thói quen dùng; bỏ đi không ảnh hưởng nhóm năng lực nào khác.
 - **A10** — Ngưỡng khởi điểm 5 lần lặp cho ứng viên Glossary là hợp lý. Cấu hình lại được nên sai không gây thiệt hại lâu dài.
+- **A12** — Một thuật toán bóc nội dung dùng chung đạt tỷ lệ đúng chấp nhận được trên các website chủ dự án thật sự dùng. **Chưa đo.** Ứng viên dẫn đầu `dom_smoothie` 0.18.0 (MIT, tương thích GPL v3), chưa ghim. Đường sửa ranh giới bằng tay của FR123 là đường lui đã có sẵn, nên sai nhiều **không chặn tiến độ** — chỉ đổi mức đầu tư vào màn xem trước. Mũi thăm dò ở **Giai đoạn 3**, cùng lúc dựng đường nhập.
+- **A13** — Bộ dò bảng mã đoán đúng ở tỷ lệ chấp nhận được trên `.txt` GBK và Big5 lấy từ diễn đàn. **Chưa đo.** Ứng viên `chardetng` 1.0.0 + `encoding_rs` 0.8.35 (đều tương thích GPL v3), chưa ghim. Đường đổi bảng mã bằng tay ở màn xem trước là phương án dự phòng **theo thiết kế**, không phải vá. Cùng mũi thăm dò với A12, ở Giai đoạn 3.
 - **A11** — Bốn ngưỡng bố cục màn hình hẹp là hợp lý, đo theo **vùng làm việc** (chiều cao cửa sổ trừ thanh tiêu đề và thanh trạng thái) chứ không theo kích thước màn hình: **≥ 1100×820** giữ 2×2 · **< 820 cao** gộp hàng dưới thành một panel có tab · **< 1100 rộng hoặc < 700 cao** chỉ còn Nguyên văn | Bản dịch, Tra cứu rút về ngăn kéo · **< 860 rộng** báo không hỗ trợ. Ngưỡng tạm đặt trên mockup, chưa chạy máy thật (Q9). Xem `EXPERIENCE.md`.
 
 ## Open Questions

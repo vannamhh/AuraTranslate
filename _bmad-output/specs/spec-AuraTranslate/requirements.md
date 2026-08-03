@@ -1,6 +1,6 @@
 # Yêu cầu chức năng & phi chức năng — AuraTranslate
 
-> Companion của `SPEC.md`. Catalog line-item của **121 FR** và **18 NFR**.
+> Companion của `SPEC.md`. Catalog line-item của **131 FR** và **19 NFR**.
 >
 > **Quy ước đánh số:** mỗi `FRn` là ID toàn cục **không bao giờ được đánh số lại**. Yêu cầu bổ sung về sau nhận số mới ở cuối dãy, kể cả khi nằm giữa tài liệu. `NFRn` dùng dãy riêng. Ký hiệu `[An]` trỏ về `assumptions[]` của `SPEC.md`.
 
@@ -13,11 +13,15 @@
 | **Người dịch nghiêm túc** — *primary* | Dịch Anh/Trung → Việt trên **mọi lĩnh vực**: truyện, tài liệu kỹ thuật, báo chí, hợp đồng. Sẵn sàng dành nửa ngày cho một Chương vì chất lượng quan trọng hơn sản lượng | Là người dùng **duy nhất bắt buộc cài app** |
 | **Reviewer** — *secondary* | Đọc và sửa bản dịch | **Không bắt buộc cài app.** Nhiều người sẽ không rời Google Docs, và điều đó được chấp nhận |
 | **Người biên tập** — *cùng một người, vai khác* | Điều phối người khác dịch rồi tự biên tập lại bản dịch của họ **ngay trong app** | Không phải người dùng thứ hai — **là chính người dùng primary ở một vai khác**, đổi theo từng Tác phẩm |
+| **Người dịch bài đăng** — *cùng một người, vai khác* | Dịch bài báo, bài viết tiếng Anh rồi **bàn giao cho người khác đăng** lên website. Đơn vị công việc là một bài, không phải một bộ truyện | Không phải người dùng thứ ba — **là chính người dùng primary ở một vai khác**, đổi theo từng Tác phẩm |
+| **Người đăng** — *bên thứ ba* | Nhận bản dịch và dựng lại thành bài trên website | **Không cài app, không biết gì về công cụ.** Chỉ có file trong tay |
 | **Cộng đồng dịch giả Việt Nam** — *hưởng lợi rộng* | Những người bị bỏ lại khi QuickTranslator ngừng phát triển, đặc biệt trên macOS | Đối tượng của chiến lược đón nhận ở CAP-10 |
 
 **Hệ quả kiến trúc từ vai Reviewer:** AuraTranslate là ứng dụng **một người dùng**. Cộng tác diễn ra qua trao đổi file, không qua tài khoản hay đồng bộ đám mây. Luồng Export/Import của CAP-8 vì vậy **không phải tính năng phụ — nó là cầu nối duy nhất** tới nhóm review.
 
 **Hệ quả từ vai Người biên tập:** vai này **không** cần Review Mode (FR92–FR94) — Review Mode so *bản của tôi* với *bản reviewer đã sửa*, còn ở đây chỉ có **một bản** đang hoàn thiện. Môi trường đúng là Workspace bình thường với bản dịch điền sẵn (FR115). Thứ thật sự cần là **xuất xứ cấp segment** (FR117) và **bảo vệ TM** (FR118), vì hai vai dùng chung một kho TM.
+
+**Hệ quả từ vai Người dịch bài đăng** *(bổ sung 2026-08-03)*: vai này khác vai dịch truyện ở **ba điểm**, và cả ba đẩy yêu cầu về phía **đường xuất** chứ không phải đường dịch — (1) có bên thứ ba không cài app và không đọc hướng dẫn, file bàn giao là toàn bộ thứ họ có; (2) ghi tác giả và link bài gốc thường **là điều kiện của giấy phép bài gốc**, không phải phép lịch sự; (3) file bàn giao phải mang theo **thứ dựng lại được bài** — ảnh, chú thích ảnh, khối ghi nguồn — chứ không chỉ mang chữ. Sinh ra FR128, FR129, FR130, FR131. **Mô hình dữ liệu không đổi:** FR2 đã lường trước, *"bài báo"* là Tác phẩm có đúng một Chương.
 
 **Hệ quả cho phạm vi:** người dùng primary làm việc trên *mọi lĩnh vực* với cặp ngôn ngữ cố định — đó là lý do custom prompt theo thể loại (FR69) là cơ chế chính, chứ không phải nhiều chế độ riêng theo lĩnh vực.
 
@@ -64,12 +68,39 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
   > Bắt buộc: một bộ truyện 2000 chương không thể nhập tay từng chương. Không có FR14 thì mô hình hai tầng ở FR1 không dùng được trên thực tế.
 - **FR15.** Sau khi nhập: đổi tên, sắp xếp lại thứ tự, gộp và tách Chương.
 
+### Nhập từ URL website
+
+*(FR122–FR123 và FR127–FR128 mang số cuối dãy — bổ sung 2026-08-03 sau khi chủ dự án làm rõ rằng **văn bản gốc chủ yếu đến từ website**, không phải từ file tải sẵn.)*
+
+- **FR122.** **Nhập từ URL bằng danh sách link:** người dùng dán danh sách link, **mỗi dòng một Chương**, xử lý **đúng thứ tự đã cho**. Tạo Tác phẩm mới hoặc thêm Chương vào Tác phẩm sẵn có.
+  - **Ranh giới cứng:** ứng dụng **không quét trang mục lục**, **không lần theo "chương sau"**, **không tự tìm bất kỳ link nào ngoài danh sách được cấp**.
+  > Ranh giới nằm trong FR chứ không phải Non-goal vì nó là **thuộc tính của tính năng**: ứng dụng không bao giờ tự quyết định tải cái gì. Đó là thứ khiến allowlist ở NFR19 hữu hạn và biết trước, nên ràng buộc mạng kiểm chứng được bằng test.
+- **FR123.** **Bóc nội dung chính bằng một thuật toán dùng chung**, có **màn hình xem trước bắt buộc** và **sửa ranh giới bóc bằng tay**. v1 **không có bộ đọc riêng cho từng website** — nguồn bài đến từ site bất kỳ, không đoán trước được.
+  - **Nghiệm thu bao gồm đường sửa tay.** Thuật toán chung **chắc chắn bóc sai** trên một số site; một bản chỉ có thuật toán mà không có đường sửa là **chưa đạt**.
+- **FR127.** **Ảnh trong nội dung tải từ web được tải về và lưu bên trong `.atproj`; URL gốc lưu kèm làm metadata.**
+  > Ba lý do độc lập, mỗi lý do đủ để quyết định: FR45 đòi ảnh không phụ thuộc đường dẫn ngoài; chính sách nội dung của webview cấm mọi origin từ xa nên ảnh trỏ ra web **không hiển thị được**; và ảnh trỏ ra web nghĩa là mỗi lần mở Chương là một lần gọi về server nguồn, trái NFR12. URL gốc vẫn phải giữ vì nó là **đầu vào của FR130**.
+- **FR128.** **Xuất xứ tài liệu nguồn, ghi ở tầng Chương** — bốn trường: **tên tác giả bài gốc · tên báo hoặc website nguồn · URL bài gốc · ngày đăng bài gốc**. Tự điền khi nhập từ URL, **sửa lại được**, và **nhập tay được** cả khi văn bản đến từ file hoặc dán trực tiếp.
+  > Tầng Chương chứ không tầng Tác phẩm: bộ truyện nhập từ web có **mỗi Chương một link riêng**, gắn ở tầng Tác phẩm là mất thông tin từ Chương thứ hai. Với bài báo, Tác phẩm bằng đúng một Chương (FR2) nên hai tầng trùng nhau.
+
+### Làm sạch và chuẩn hoá văn bản nhập
+
+*(FR124–FR126 bổ sung 2026-08-03. **Áp cho mọi đường nhập văn bản** — URL, file và dán tay: một file `.txt` tải từ diễn đàn mang đúng những loại rác và đúng những vấn đề bảng mã như một trang web.)*
+
+- **FR124.** **Luật làm sạch rác nằm trong thân nội dung** — watermark, dòng *"nguồn: xxx.com"*, lời nhắn của người đăng, link quảng cáo chèn giữa văn bản. Luật là **danh sách mẫu** (chuỗi hoặc regex) người dùng **xem được, sửa được, tắt được**; màn xem trước **hiện những gì sắp bị xoá trước khi xoá**.
+  > Luật phải lộ ra vì đây là loại làm sạch **duy nhất có thể xoá nhầm nội dung thật** — nó thao tác bên trong vùng cần giữ, không phải bên ngoài như FR123. Một luật ẩn xoá nhầm một câu trong 2000 chương thì không ai phát hiện được.
+- **FR125.** **Chuẩn hoá xuống dòng và khoảng trắng:** gộp dòng bị ngắt tuỳ tiện, xoá dòng trống thừa, thống nhất cách phân đoạn. Chạy **trước** khi tách segment, nên **kết quả chuẩn hoá là thứ được lưu xuống**, không phải một lớp hiển thị đắp lên trên.
+- **FR126.** **Phát hiện và sửa bảng mã ký tự — áp cho mọi đường nhập văn bản.** Tự phát hiện **UTF-8 · GB18030 · GBK · Big5 · UTF-16**; **hiện bảng mã đã đoán ngay trên màn hình xem trước**, cho đổi tay và **thấy kết quả đổi ngay lập tức**.
+  - **Nghiệm thu:** nhập một file `.txt` mã GBK chứa 2000 chương phải ra chữ Hán đúng; khi đoán sai, người dùng sửa được **mà không phải nhập lại từ đầu**.
+  > **Cùng hạng lỗi THẤT BẠI IM LẶNG với FR39.** Đọc file GBK theo UTF-8 không phải lúc nào cũng báo lỗi; ca hay gặp hơn là ra chuỗi **hợp lệ về kỹ thuật nhưng vô nghĩa** — màn xem trước hiện bình thường, mẫu phân tách của FR14 không khớp gì, và người dùng thấy *"tách được 1 chương"* mà không hiểu vì sao. Không viết thành nghiệm thu tường minh thì lỗi này lọt vào sản phẩm ở **đúng thao tác đầu tiên người dùng làm với ứng dụng**.
+
 ### Nhập tài liệu song ngữ
 
 *(FR115–FR116 mang số cuối dãy — bổ sung 2026-08-02 sau khi chủ dự án làm rõ có Tác phẩm do người khác dịch và bàn giao dưới dạng file hai cột.)*
 
 - **FR115.** **Nhập tài liệu song ngữ tạo Tác phẩm hoàn chỉnh** từ file hai cột (bảng `.docx`, bảng `.md`, `.csv`/`.tsv`). Người dùng khai báo **cột nào là nguồn, cột nào là đích** và ngôn ngữ nguồn. Kết quả: Tác phẩm đầy đủ với segment nguồn, segment đích, đã khớp cặp. **Bắt buộc xem trước trước khi ghi xuống đĩa**, cùng khuôn FR14. Mọi Chương vào trạng thái **Đang dịch**, mọi segment **chưa xác nhận** — kể cả khi bản dịch trông đã hoàn chỉnh.
+  **Ranh giới Chương lấy từ mẫu phân tách của FR14, và mẫu đó áp lên *cột nguồn*** *(làm rõ 2026-08-03 — không phải yêu cầu mới)*. Một file hai cột chứa cả bộ truyện là **một dòng văn bản chưa chia Chương**, đúng hình dạng đầu vào mà FR14 xử lý; người dùng cấu hình mẫu như mọi đường nhập file khác, và màn xem trước hiện số Chương nhận ra được trước khi xác nhận.
   > FR13/FR14 chỉ nhận văn bản **nguồn**; FR90 đòi Tác phẩm **phải tồn tại sẵn**. Tác phẩm do người khác dịch rơi vào giữa hai đường đó. Trạng thái chưa xác nhận là nhất quán với FR58: hệ thống **không bao giờ tự coi một câu là đã xong**.
+  > **Vì sao mẫu áp lên cột nguồn:** đầu Chương ở cột gốc mang **dạng ổn định máy khớp được** — `第五章`, `Chapter 5`. Cột đích do **người khác dịch** nên có thể ghi *"Chương 5"*, ghi khác đi, hoặc bỏ hẳn dòng tiêu đề. Khớp mẫu vào cột đích là đặt độ tin cậy của **cả lần nhập** vào thói quen của một người dịch mà người dùng không kiểm soát được — và khi hỏng thì hỏng lặng lẽ: ra một Chương duy nhất chứa cả bộ truyện.
 - **FR116.** **Khớp câu trong phạm vi từng cặp hàng.** Hàng trong bảng hai cột thường là **đoạn**, segment là **câu** (FR23). Hệ thống tách hai phía thành câu và khớp **bên trong từng cặp hàng**; chỗ số câu lệch nhau **phải hiện ra cho người dùng nối tay** — mẫu *máy khớp, người sửa* của FR91.
   > Nhẹ hơn FR91 vì cặp hàng đã cho sẵn ranh giới: không gian khớp chỉ trong một hàng, không phải cả Chương. Số câu lệch là chuyện thường gặp khi dịch Trung sang Việt.
 
@@ -93,6 +124,8 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
 - **FR19.** Panel Source hiển thị văn bản gốc (Anh hoặc Trung) kèm **tab Hán Việt** cho tài liệu tiếng Trung — xem ở chế độ chuyển đổi hoặc song song.
 - **FR42.** Panel Source hiển thị hình ảnh nhúng **đúng vị trí** trong văn bản gốc.
 - **FR44.** **Alt-text của hình ảnh là một segment dịch được** — tham gia Translation Memory, Glossary và luồng xác nhận như mọi segment khác. Điều kiện để yêu cầu bảo lưu alt-text khi xuất `.md` (FR88) có nghĩa thật: alt-text phải được *dịch*, không chỉ được *giữ lại*.
+- **FR129.** **Chú thích ảnh (caption) là một segment dịch được, tách bạch với alt-text.** Tham gia Translation Memory, Glossary và luồng xác nhận như mọi segment khác; xuất ra ở mọi định dạng có ảnh. *(Số cuối dãy, bổ sung 2026-08-03 cùng vai **Người dịch bài đăng**.)*
+  > Là FR riêng chứ không gộp vào FR44: caption và alt-text là **hai văn bản phục vụ hai người đọc khác nhau** — caption là dòng chữ người đọc **nhìn thấy dưới ảnh**, alt-text là mô tả **trình đọc màn hình đọc lên**. Bài báo thật có cả hai và nội dung khác nhau. Gộp làm một nghĩa là hoặc mất caption, hoặc đẩy một bản dịch sai chỗ vào bài đăng.
 
 ### Thao tác xuyên panel
 
@@ -280,8 +313,19 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
   - **Câu chưa xác nhận không được đánh dấu trong file xuất** — nền màu hay dòng ghi chú xen giữa văn xuôi sẽ đi thẳng vào bài đăng. Thay vào đó **cảnh báo trước lúc xuất** khi phạm vi còn câu chưa xác nhận.
   - *Là FR riêng chứ không phải tuỳ chọn của FR87: khác đơn vị (đoạn vs segment), khác mục đích (đăng bài vs review), khác vị trí trong vòng khứ hồi. Gộp thành hai ô tick sẽ khiến người dùng chọn nhầm bản cắt đứt vòng học hỏi mà không biết.*
 
-- **FR88.** Xuất **`.md` hoặc text thuần**, **bảo lưu liên kết hình ảnh và alt-text đã dịch** (FR44).
+- **FR88.** Xuất **`.md` hoặc text thuần**, **bảo lưu hình ảnh và alt-text đã dịch** (FR44) **cùng chú thích ảnh đã dịch** (FR129). Hình ảnh tham chiếu theo **kiểu người dùng chọn ở FR130**.
 - **FR89.** Xuất theo một Chương, nhiều Chương đã chọn, hoặc cả Tác phẩm.
+
+*(FR130–FR131 mang số cuối dãy — bổ sung 2026-08-03 cùng vai **Người dịch bài đăng**.)*
+
+- **FR130.** **Chọn cách xuất hình ảnh: theo link gốc, hoặc theo file ảnh.** Lựa chọn nằm trên màn hình xuất, áp cho từng lần xuất, cùng khuôn phạm vi xuất ở FR89.
+  - **Theo link gốc** — tài liệu xuất trỏ tới **URL ảnh của bài gốc** (FR127); đây là thứ người đăng cần để dựng lại bài trên website.
+  - **Theo file ảnh** — ảnh đi kèm tài liệu xuất, lấy từ `.atproj`.
+  - **Ràng buộc:** chỉ chọn được *theo link gốc* khi ảnh **có URL gốc lưu kèm**. Ảnh người dùng tự thêm không có URL — khi phạm vi xuất chứa ảnh như vậy, **màn hình xuất phải nói rõ ảnh nào sẽ không có link**, không được im lặng bỏ qua.
+  > Cùng hạng ràng buộc với *"không nhập lại được"* của FR121: thông tin phải xuất hiện **ngay lúc chọn**, không nằm trong tài liệu hướng dẫn. Phát hiện ảnh thiếu **sau khi đã gửi file đi** là mất một vòng qua lại với người đăng.
+- **FR131.** **Xuất khối ghi nguồn.** Năm trường: bốn trường xuất xứ của FR128 — **tác giả · tên báo/website · URL bài gốc · ngày đăng gốc** — cộng **tên người dịch**, đặt **một lần ở cấu hình toàn cục**. Bật/tắt được, áp cho **mọi định dạng xuất**: FR87, FR88, FR121.
+  - **Mặc định tắt.** Luồng đăng truyện **chỉ cần đúng định dạng file, không cần tiêu đề hay ghi chú đầu bài** *(quyết định 2026-08-03)*. FR131 không đảo quyết định đó — nó phục vụ vai **Người dịch bài đăng**; truyện xuất ra vẫn sạch trừ khi người dùng chủ động bật.
+  > Ghi nguồn phải là thao tác của công cụ chứ không của người đăng: với bài báo, ghi tác giả và link bài gốc thường **là điều kiện của giấy phép bài gốc**. Người đăng không cài app, không biết bài này dịch từ đâu, và đang làm việc từ một file — thứ gì không nằm trong file thì không tồn tại với họ.
 
 ### Nhập
 
@@ -378,8 +422,11 @@ Phần lớn ngưỡng dưới đây **không phải phỏng đoán** — chúng
 | ID | Yêu cầu |
 |---|---|
 | **NFR11** | API key lưu trong **keychain / credential manager của hệ điều hành**. Không bao giờ ghi vào file cấu hình, file dự án hay log |
-| **NFR12** | **Không telemetry.** Không có luồng dữ liệu ra ngoài nào ngoài lời gọi AI do người dùng chủ động kích hoạt |
+| **NFR12** | **Không telemetry.** Không có luồng dữ liệu ra ngoài nào ngoài **hai** luồng do người dùng chủ động kích hoạt: lời gọi AI, và tải nội dung ở đường nhập từ URL *(mở rộng 2026-08-03 cùng FR122; trước đó chỉ có lời gọi AI)* |
 | **NFR13** | Không tài khoản, không đăng nhập, không đồng bộ đám mây |
+| **NFR19** | **Đường nhập từ URL chỉ ra mạng khi người dùng chủ động bấm.** Không tải nền, không prefetch, không kiểm tra ngầm, không tải lại ảnh đã có. Danh sách domain ứng dụng đã gọi phải **xem được trong ứng dụng** *(số cuối dãy, bổ sung 2026-08-03)* |
+
+> **NFR19 giải thích:** FR122 mở một điểm ra mạng thứ ba mà NFR12 trước đây không biết tới. Không có NFR19, lời hứa *"không telemetry"* trở thành thứ **không kiểm chứng được** — người dùng không có cách nào phân biệt một lời gọi hợp lệ với một lời gọi không nên có. Danh sách domain xem được biến lời hứa thành thứ **quan sát được**, và nó rẻ vì FR122 vốn đã cấm ứng dụng tự tìm link ngoài danh sách người dùng cấp.
 
 ### Nền tảng & giấy phép
 
