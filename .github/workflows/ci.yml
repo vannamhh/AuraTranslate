@@ -1,0 +1,373 @@
+# AuraTranslate — CI tối thiểu. Story 1.3 (Epic 1). NFR14 · NFR15 · NFR6 (nửa Windows).
+#
+# ══════════════════════════════════════════════════════════════════════════════════
+#  ĐÂY KHÔNG PHẢI FR107.
+#
+#  Không build công khai kiểm chứng được, không checksum SHA-256, không đụng
+#  `dict-manifest.toml`, không GitHub Release. FR107 đóng ở **Story 10.1** với phạm vi
+#  nguyên vẹn. Nếu bạn tới đây để thêm một bước phát hành — dừng lại, đó là story khác.
+# ══════════════════════════════════════════════════════════════════════════════════
+#
+#  ⛔ MỘT PIPELINE DUY NHẤT. AC4 của Story 1.3 cấm tường minh việc dựng tệp workflow
+#  thứ hai. Từ đây tới Epic 10 (chín epic, ~127 story), MỌI luật cưỡng chế bằng test
+#  đều gắn vào chính tệp này — xem khối "CHỖ MÓC CHO EPIC SAU" ở cuối job `check`.
+#
+#  Phiên bản action kiểm chứng qua GitHub API ngày 2026-08-03:
+#    actions/checkout v7.0.1 · actions/setup-node v7.0.0 · Swatinem/rust-cache v2.9.1
+#  Toolchain ghim `1.97.1` — đúng số máy Ice đang chạy, để hai nền tảng CI và máy dev
+#  cùng một toolchain. `@stable` sẽ trôi (hôm nay là 1.100.0) và làm số đo AC6 hết so
+#  sánh được.
+
+name: CI
+
+on:
+  # ⚠️ MỌI nhánh. Nhánh mặc định của repo này là `master`, KHÔNG phải `main` — viết cứng
+  # `branches: [main]` thì CI không bao giờ chạy và KHÔNG lỗi nào được ném.
+  push:
+  pull_request:
+
+# ⛔ Không `paths`/`paths-ignore`. AC1 nói "một commit BẤT KỲ". Lọc đường dẫn là đúng chỗ
+# một thay đổi thật lọt qua vì nó nằm chung commit với một tệp `.md`.
+
+concurrency:
+  # Đòn bẩy rẻ nhất cho AC7 và cho §Ngân sách CI: push liên tiếp thì huỷ lượt cũ.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  # Tối thiểu. Story này không ghi gì lên repo (AC5 — không phát hành).
+  contents: read
+
+jobs:
+  check:
+    name: check (${{ matrix.os }})
+    strategy:
+      # ⚠️ AC1 — "kết quả hai nền tảng hiện TÁCH BẠCH, không gộp". Một nền tảng đỏ KHÔNG
+      # được huỷ nền tảng kia; gộp lại là mất đúng thứ AC1 đòi.
+      fail-fast: false
+      matrix:
+        # Ghim ảnh, không dùng `-latest`: story này ghi số dung lượng ở MỖI lần chạy
+        # (AC6), nên ảnh runner đổi dưới chân là một hồi quy giả.
+        # ⚠️ `macos-26` là arm64 (Apple Silicon). Story 1.1/1.2 đo trên Intel x86_64 —
+        # số `.dmg` ở đây KHÔNG so được với `22.944.022 byte` của Story 1.1.
+        os: [macos-26, windows-2025]
+    runs-on: ${{ matrix.os }}
+
+    # Lưới an toàn cho AC7 và cho §Ngân sách CI: repo là PRIVATE, macOS tính hệ số ×10.
+    # Mặc định của GitHub là 360 phút — một job treo trên macOS tiêu 3.600 phút hạn mức
+    # trước khi ai kịp nhận ra. Treo phải là một lỗi tường minh, không phải một hoá đơn.
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          # Máy Ice v22.22.2; Vite 8 đòi `^20.19.0 || >=22.12.0`.
+          node-version: '22'
+          cache: 'npm'
+
+      - uses: dtolnay/rust-toolchain@1.97.1
+
+      # ⚠️ BẮT BUỘC, không phải tối ưu (AC7). Cache lạnh phải biên dịch `aws-lc-sys`,
+      # `libsqlite3-sys` (SQLite từ nguồn C) và `zstd-sys`. Không có bước này thì AC7
+      # chết ngay lượt thứ hai.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # ⚠️ `npm ci`, KHÔNG `npm install`. Đây là hình dạng cưỡng chế được của NFR15:
+      # không phụ thuộc nào vào được cây mà không hiện thành diff lockfile trong commit,
+      # nên lượt rà giấy phép của Story 1.2 Task 7 luôn có chỗ bám.
+      - name: npm ci
+        run: npm ci
+
+      # 13 phép kiểm — cây phụ thuộc (AC2/AC5 của Story 1.2). Chạy trên CẢ HAI nền tảng:
+      # script có ngưỡng sàn (Rust ≥ 200, npm ≥ 30) nên cây rỗng không đọc thành "sạch".
+      # Số thật: macOS 343 crate, Windows ~346. Chạm sàn = lỗi quét, không phải đạt.
+      #
+      # ⛔ Không thêm `cargo-deny` / `cargo-audit` / `license-checker`. Chúng nằm ngoài
+      # bảng Stack, và NFR15 đòi ĐỌC TỆP GIẤY PHÉP trong nguồn đã tải — đúng thứ một bộ
+      # nhận dạng tự động làm sai (`tantivy-stemmers` suýt bị chấm sai BSD-2 ở Story 1.2).
+      - name: check dependency tree (NFR15, AC2/AC5 của Story 1.2)
+        run: npm run check:deps
+
+      # ⚠️⚠️ THỨ TỰ BẮT BUỘC — bước này PHẢI đứng TRƯỚC `cargo test`.
+      # `tauri::generate_context!` nhúng `frontendDist: "../dist"` LÚC BIÊN DỊCH. `dist/`
+      # chưa tồn tại thì `cargo test` gãy ở khâu biên dịch, không ở một assert. Trên máy
+      # dev bẫy này vô hình vì `dist/` còn lại từ lượt build trước; trên runner sạch nó
+      # là lỗi đầu tiên.
+      - name: npm run build (PHẢI trước cargo test)
+        run: npm run build
+
+      # ⚠️ Không `--all-features`, và ⛔ không `--release`: profile release có
+      # `lto = true` + `codegen-units = 1`, biên dịch lâu gấp nhiều lần mà không kiểm
+      # thêm được gì. `--locked` là nửa Rust của NFR15.
+      - name: cargo test
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+
+      # ── AC8 — Kiểm 3 NGOÀI chế độ dev, trên cả hai nền tảng ─────────────────────
+      #
+      # Đóng `deferred-work.md:13` (tổ hợp CSP + asset protocol chưa phép kiểm nào chạm
+      # tới). Script tự dựng `tauri build --debug` rồi chạy nhị phân với timeout cứng và
+      # đọc dòng `VERDICT:` — xem doc-comment của `scripts/check-scope-bundled.mjs`.
+      #
+      # ⚠️ Bước này biên dịch profile `dev`, còn bước build dưới biên dịch `release`. Hai
+      # profile KHÔNG dùng chung artifact, nên đây là hai lượt biên dịch — chi phí thật
+      # lên AC7, đặc biệt trên macOS (hệ số ×10). `rust-cache` giữ cả hai, nên giá này
+      # chỉ đắt ở lượt cache lạnh. ĐO SỐ THẬT rồi hãy bàn cắt gì.
+      #
+      # ⛔ Nếu webview không mở được trên runner (không phiên đồ hoạ, WebView2 vắng mặt,
+      # treo): script hết giờ và exit 1 kèm lý do. Theo mệnh đề cuối AC8, đó là lúc GHI
+      # RÕ và trả lại cho Ice — không đánh dấu đạt, không lặng lẽ bỏ qua bước này.
+      - name: check scope ngoài chế độ dev (AC8 — CSP + asset protocol)
+        run: npm run check:scope:bundled
+
+      # ── Bản build ứng dụng THẬT (AC1, AC3) ──────────────────────────────────────
+      #
+      # ⚠️ Truyền `--bundles` TƯỜNG MINH. `tauri.conf.json` khai `targets: ["dmg","msi"]`,
+      # và `tauri-cli` 2.11.4 trên macOS TỪ CHỐI giá trị `msi`:
+      #   `error: invalid value 'msi' for '--bundles'  [possible values: ios, app, dmg]`
+      # (đo lại 2026-08-03 qua `npx tauri build --help`). Để `tauri build` trần đọc
+      # `bundle.targets` là cược vào một hành vi lọc chưa ai đo — AC1 không đáng cược.
+      #
+      # `CI=true` GitHub Actions đặt sẵn (xác nhận: `--ci` khai `[env: CI=]`). Trên macOS
+      # nó tránh bẫy #1 của Story 1.1 — `bundle_dmg.sh` chết ở bước AppleScript.
+
+      - name: tauri build (macOS — .dmg)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          START=$(date +%s)
+          npx tauri build --bundles dmg
+          ELAPSED=$(( $(date +%s) - START ))
+
+          # ⚠️ Glob, không `ls | head`: dưới `set -o pipefail` một `head` đóng ống sớm
+          # làm cả pipeline trả khác 0, và bước sẽ đỏ vì một lý do không liên quan.
+          shopt -s nullglob
+          DMGS=(src-tauri/target/release/bundle/dmg/*.dmg)
+          if [ ${#DMGS[@]} -eq 0 ]; then
+            echo "Không tìm thấy .dmg sau khi build — đây là lỗi, không phải 'không có gì để đo'." >&2
+            exit 1
+          fi
+          DMG="${DMGS[0]}"
+          BYTES=$(stat -f%z "$DMG")
+          ARCH=$(uname -m)
+          # ⚠️ Hoist ra biến, đừng gọi `$(…)` thẳng trong `echo`: `echo` luôn thành công
+          # nên `set -e` KHÔNG bắt được lệnh con gãy, và ta chỉ còn một ô rỗng trong bảng
+          # — số đo biến mất mà bước vẫn xanh. Đã vấp thật lúc chạy khô 2026-08-03.
+          RUSTC_V=$(rustc --version)
+          TAURI_V=$(npx tauri --version)
+
+          {
+            echo "### macOS — bản build ứng dụng"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| runner | \`${{ matrix.os }}\` |"
+            echo "| kiến trúc | **$ARCH** |"
+            echo "| \`.dmg\` | **$BYTES byte** |"
+            echo "| thời gian bước | ${ELAPSED}s |"
+            echo "| rustc | \`$RUSTC_V\` |"
+            echo "| tauri-cli | \`$TAURI_V\` |"
+            echo ""
+            echo "> ⚠️ **Đừng đọc số này thành hồi quy so với Story 1.1.** Story 1.1 đo"
+            echo "> \`22.944.022 byte\` trên **Intel x86_64**; runner này là **$ARCH**."
+            echo "> Baseline khác kiến trúc thì khác dung lượng. Đây cũng là bằng chứng"
+            echo "> đầu tiên của dự án trên Apple Silicon (thu hẹp \`deferred-work.md:5\`,"
+            echo "> chưa đóng vì chưa ai đo universal binary)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── AC6 · Task 5 + Task 6 — hai (ba) phép đo `.msi`, GHI Ở MỖI LẦN CHẠY ──────
+      #
+      # Cả ba bản dựng trong CÙNG MỘT bước, có chủ ý: khâu biên dịch Rust dùng chung,
+      # các bản sau chỉ tốn khâu đóng gói. Tách ra job riêng là trả tiền biên dịch nhiều
+      # lần cho đúng một số đo (§Ngân sách CI, AC7).
+      #
+      # ⚠️ Ba lệnh ghi ra CÙNG một đường dẫn `bundle/msi/*.msi`. Mỗi bản được DỌN SANG
+      # chỗ khác ngay sau khi dựng, trước khi lệnh sau chạy đè.
+      #
+      # 🔴 Chiều trừ ĐẢO so với §Công thức đo trên Windows của mũi thăm dò: công thức đó
+      # viết cho app thăm dò (mặc định KHÔNG font, bản B chồng thêm). Từ Story 1.2 font
+      # NẰM SẴN trong `tauri.conf.json`. Nên: **có font = build thường**, **không font =
+      # `--config src-tauri/tauri.nofonts.conf.json`**.
+      #
+      # 🔴 Và lớp phủ đó dùng `"resources": null`, KHÔNG phải `{}`. Tauri merge theo
+      # JSON Merge Patch (RFC 7396): patch là object rỗng ⇒ duyệt 0 khoá ⇒ KHÔNG ĐỔI GÌ.
+      # Đã đo thật trên macOS 2026-08-03 bằng ba bản `.app` debug:
+      #     không `--config`  → 54.712 KiB, có fonts/
+      #     `resources: null` → 28.068 KiB, fonts/ BIẾN MẤT   ✅
+      #     `resources: {}`   → 54.712 KiB, fonts/ vẫn còn    ← no-op, y hệt bản đầu
+      # `src-tauri/tests/config_invariants.rs` neo lớp phủ đó lại bằng một test.
+      - name: đo .msi — có font · không font · runtime nhúng (AC6, NFR6)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msiDir = 'src-tauri\target\release\bundle\msi'
+          $hold   = Join-Path $env:RUNNER_TEMP 'msi'
+          New-Item -ItemType Directory -Force -Path $hold | Out-Null
+
+          function Build-Msi {
+            param([string]$Label, [string[]]$ExtraArgs)
+            $sw = [Diagnostics.Stopwatch]::StartNew()
+            & npx tauri build --bundles msi @ExtraArgs
+            if ($LASTEXITCODE -ne 0) { throw "tauri build ($Label) trả mã $LASTEXITCODE" }
+            $sw.Stop()
+            $msi = Get-ChildItem "$msiDir\*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $msi) { throw "không tìm thấy .msi sau khi dựng bản '$Label'" }
+            $bytes = $msi.Length
+            # Dọn đi NGAY — lệnh sau ghi ra đúng đường dẫn này.
+            Move-Item $msi.FullName (Join-Path $hold "$Label.msi") -Force
+            [pscustomobject]@{ Label = $Label; Bytes = $bytes; Seconds = [int]$sw.Elapsed.TotalSeconds }
+          }
+
+          # Bản chính — cấu hình repo NGUYÊN VẸN (`offlineInstaller`, có font).
+          $withFonts = Build-Msi -Label 'co-font' -ExtraArgs @()
+
+          # Bản không font — nửa kia của phép trừ đo bộ font.
+          $noFonts = Build-Msi -Label 'khong-font' `
+            -ExtraArgs @('--config', 'src-tauri/tauri.nofonts.conf.json')
+
+          # Bản downloadBootstrapper — tách dòng "WebView2 Runtime nhúng" BẰNG PHÉP TRỪ
+          # thay vì mượn con số ≈127 MB của tài liệu Tauri.
+          # ⛔ `tauri.conf.json` KHÔNG bị sửa: Ice chốt `offlineInstaller` ngày 2026-08-03
+          # sau khi cân với lời hứa "fully offline". Lớp phủ này chỉ tồn tại trong lượt đo
+          # — nó cố ý KHÔNG được commit, để không ai nhặt nhầm nó thành cấu hình thật.
+          $bootstrapCfg = Join-Path $env:RUNNER_TEMP 'bootstrapper.conf.json'
+          '{ "bundle": { "windows": { "webviewInstallMode": { "type": "downloadBootstrapper" } } } }' |
+            Set-Content -Path $bootstrapCfg -Encoding utf8
+          $noRuntime = Build-Msi -Label 'downloadBootstrapper' -ExtraArgs @('--config', $bootstrapCfg)
+
+          $fontBytes    = $withFonts.Bytes - $noFonts.Bytes
+          $runtimeBytes = $withFonts.Bytes - $noRuntime.Bytes
+          $payloadBytes = $withFonts.Bytes - $runtimeBytes
+          $mib = { param($b) [math]::Round($b / 1MB, 2) }
+          $mb  = { param($b) [math]::Round($b / 1000000, 2) }
+
+          # ── Cổng hỏng-im-lặng ───────────────────────────────────────────────────
+          # Chênh lệch 0 KHÔNG phải một số đo — nó là dấu hiệu lớp phủ `--config` không
+          # có hiệu lực, và đó đúng là hình dạng "CI xanh với số vô nghĩa" mà cả AC6 tồn
+          # tại để chặn. Đỏ ở đây, đừng ghi ra một con số không có thật.
+          if ($fontBytes -le 0) {
+            throw "Chênh lệch font = $fontBytes byte. Lớp phủ tauri.nofonts.conf.json KHÔNG có hiệu lực. Kiểm tra ``bundle.resources`` có đúng là ``null`` (KHÔNG phải ``{}``) — RFC 7396: patch là object rỗng thì duyệt 0 khoá và không đổi gì."
+          }
+          if ($runtimeBytes -le 0) {
+            throw "Chênh lệch WebView2 = $runtimeBytes byte. Lớp phủ downloadBootstrapper KHÔNG có hiệu lực; dòng 'runtime nhúng' sẽ là số bịa."
+          }
+
+          # Dải ước của mũi thăm dò Story 1.1: 16,0–20,3 MiB. Rơi ngoài dải là PHÁT HIỆN
+          # đáng ghi, KHÔNG phải lỗi build — cơ chế vẫn chạy đúng, chỉ là số khác dự đoán.
+          $fontMiB = & $mib $fontBytes
+          $inBand  = ($fontMiB -ge 16.0) -and ($fontMiB -le 20.3)
+          if ($inBand) {
+            $bandNote = "✅ trong dải ước **16,0–20,3 MiB**"
+          } else {
+            $bandNote = "⚠️ **NGOÀI dải ước 16,0–20,3 MiB** — phát hiện đáng ghi. Xem lại mức nén CAB mà Tauri đặt cho WiX (``MSZIP`` vs ``LZX``), thứ chưa xác minh được từ macOS."
+          }
+
+          # Chế độ WebView2 đọc từ CHÍNH cấu hình trong repo, không chép từ tài liệu.
+          $conf = Get-Content 'src-tauri\tauri.conf.json' -Raw | ConvertFrom-Json
+          $wvMode = $conf.bundle.windows.webviewInstallMode.type
+
+          # Cùng lý do như bên macOS: gọi `$(…)` thẳng trong chuỗi thì lệnh con gãy chỉ
+          # để lại một ô rỗng, không làm bước đỏ. Bắt trước, để trống là đỏ.
+          $rustcV = (rustc --version)
+          $tauriV = (npx tauri --version)
+          if (-not $rustcV -or -not $tauriV) { throw "không đọc được phiên bản toolchain — số đo không truy nguyên được thì không phải số đo" }
+
+          $payloadMB = & $mb $payloadBytes
+          if ($payloadMB -gt 200) {
+            $ceilingNote = "🔴 **VƯỢT trần** — đây là thay đổi tầng PRD, **cần Ice quyết**."
+          } elseif ($payloadMB -ge 150) {
+            $ceilingNote = "⚠️ trong dải trần 150–200 MB, dư địa đang mỏng."
+          } else {
+            $ceilingNote = "✅ dưới trần 150–200 MB."
+          }
+
+          # ⚠️ Mảng chuỗi, KHÔNG here-string. Terminator `"@` của PowerShell bắt buộc nằm ở
+          # cột 0, còn block scalar của YAML thì kết thúc ngay khi gặp một dòng dedent —
+          # hai luật đó loại trừ nhau, và hệ quả là tệp workflow không parse được.
+          $summary = @(
+            "### Windows — ba phép đo ``.msi`` (AC6 · NFR6)"
+            ""
+            "| | |"
+            "|---|---|"
+            "| runner | ``${{ matrix.os }}`` |"
+            "| chế độ WebView2 **đang dùng thật** | **``$wvMode``** *(đọc từ chính ``tauri.conf.json``, không chép từ tài liệu)* |"
+            "| rustc | ``$rustcV`` |"
+            "| tauri-cli | ``$tauriV`` |"
+            ""
+            "| Bản dựng | byte | MiB | thời gian |"
+            "|---|---:|---:|---:|"
+            "| có font *(bản chính)* | $($withFonts.Bytes) | $(& $mib $withFonts.Bytes) | $($withFonts.Seconds)s |"
+            "| không font | $($noFonts.Bytes) | $(& $mib $noFonts.Bytes) | $($noFonts.Seconds)s |"
+            "| ``downloadBootstrapper`` | $($noRuntime.Bytes) | $(& $mib $noRuntime.Bytes) | $($noRuntime.Seconds)s |"
+            ""
+            "**Bộ font = $fontBytes byte = $fontMiB MiB** — $bandNote"
+            ""
+            "#### NFR6 — hai dòng nghiệm thu *(Ice nới trần 2026-08-03)*"
+            ""
+            "| Dòng | byte | MB | Đối chiếu trần 150–200 MB? |"
+            "|---|---:|---:|---|"
+            "| **Payload sản phẩm** *(mã + font; dữ liệu từ điển cộng vào ở Story 1.9)* | $payloadBytes | $payloadMB | **CÓ** — $ceilingNote |"
+            "| **WebView2 Runtime nhúng** *(tách bằng PHÉP TRỪ, không mượn số ≈127 MB của tài liệu)* | $runtimeBytes | $(& $mb $runtimeBytes) | **KHÔNG** — nằm ngoài ngân sách theo NFR6 đã sửa |"
+            ""
+            "> **Số tổng người dùng thật tải về: $($withFonts.Bytes) byte = $(& $mb $withFonts.Bytes) MB.**"
+            "> Hai dòng trên là cách *ta* hạch toán; người tải về chỉ thấy con số này, và sau"
+            "> Story 1.9 nó còn cộng thêm ~130 MB dữ liệu từ điển. Nếu nó thành rào cản tải"
+            "> xuống thì đường quay lui còn mở ở **Story 10.2** — ``downloadBootstrapper`` (mất"
+            "> mệnh đề cài offline) hoặc **NSIS** thay ``.msi`` (chạm ``deferred-work.md:6``)."
+            "> ⛔ Không tự chọn ở story này."
+            ""
+            "> ⛔ **Đừng đổi ``webviewInstallMode`` để số đẹp lại.** Nhiệm vụ của story này là"
+            "> ĐO và BÁO CÁO. Ice đã chốt ``offlineInstaller`` ngày 2026-08-03 sau khi cân với"
+            "> lời hứa *fully offline*."
+          )
+          $summary -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      # ⛔ KHÔNG upload `.msi`/`.dmg` lên đâu cả ở story này.
+      #  - Lên GitHub Release / kèm checksum ⇒ đó là FR107, Story 10.1 (AC5).
+      #  - Lên `actions/upload-artifact` thì AC5 cho phép (artifact của lượt chạy, không
+      #    phải bản phát hành) — nhưng repo là PRIVATE và bản `.msi` ≈ 150 MB *mỗi lần
+      #    push*. Đó là hoá đơn lưu trữ đổi lấy một tệp gần như không ai mở, trong khi
+      #    AC7 đang đếm từng phút. Con số — thứ story này thật sự cần — đã nằm ở
+      #    `$GITHUB_STEP_SUMMARY`, đọc được mà không phải mở log.
+      #  Cần tệp thật để soi tay? Thêm một bước `upload-artifact` TẠM rồi gỡ đi.
+
+      # ── Công thức quan sát mạng (AC5 của Story 1.2) — CHÚ THÍCH, không phải một bước ──
+      #
+      #   PID=$(pgrep -x auratranslate | tail -n1)
+      #   lsof -nP -a -p "$PID" -iTCP -iUDP
+      #
+      # Story 1.2 bàn giao bản ĐÃ SỬA này để nó không thất truyền, KHÔNG phải để chạy mỗi
+      # push. Hai lý do, cả hai đã đo:
+      #  1. Nó cần một phiên chạy THẬT có tương tác — một tiến trình vừa khởi động rồi
+      #     thoát ngay không nói được gì về việc ứng dụng có ra mạng hay không.
+      #  2. Thiếu cờ `-a` thì `lsof -p PID -iTCP -iUDP` là phép HOẶC, không phải VÀ: lượt
+      #     đo đầu của Story 1.2 cho ra **274 socket, 234 "ra ngoài"** — của Lark,
+      #     AnyDesk, `ssh`, Affinity. Và `pgrep -n AuraTranslate` trả RỖNG: tên tiến
+      #     trình lấy từ `package.name` của Cargo (`auratranslate` chữ thường), không từ
+      #     `productName`.
+      # Đưa nó vào CI dạng một bước là dựng một cổng báo động giả — CI đỏ vĩnh viễn vì lý
+      # do không liên quan tới commit, và ai cũng học cách bỏ qua màu đỏ. Đó là cách hỏng
+      # đắt hơn hẳn việc không có phép kiểm.
+
+      # ══════════════════════════════════════════════════════════════════════════════
+      #  CHỖ MÓC CHO EPIC SAU — AC4 của Story 1.3
+      #
+      #  ⛔ Gắn vào ĐÂY, trong job `check` này. KHÔNG dựng workflow thứ hai.
+      #
+      #  Ba luật đã biết sẽ tới, cả ba cùng một hình dạng — *chạy một lệnh, mã thoát
+      #  khác 0 là đỏ* — y hệt bước `check:deps` ở trên. Thêm MỘT bước, không phải sắp
+      #  xếp lại job:
+      #
+      #    Story 1.4  · lint cấm màu viết thẳng trong component      (AD-34)
+      #    Story 4.1  · test cưỡng chế ranh giới module `ai/`        (AD-13)
+      #    Epic 6     · bốn test allowlist mạng                      (AD-41)
+      #
+      #  Đặt bước mới ngay dưới khối này. Chúng chạy trên CẢ HAI nền tảng của matrix mà
+      #  không phải khai gì thêm — đó là lý do job được viết thành một job có matrix chứ
+      #  không phải hai job song song.
+      # ══════════════════════════════════════════════════════════════════════════════

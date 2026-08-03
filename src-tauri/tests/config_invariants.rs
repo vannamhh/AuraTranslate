@@ -326,3 +326,71 @@ fn build_block_points_at_the_real_frontend() {
     assert_eq!(build["devUrl"], "http://localhost:1420");
     assert_eq!(build["frontendDist"], "../dist");
 }
+
+// ── Story 1.3 · AC6 — lớp phủ đo dung lượng font ────────────────────────────────
+
+/// `tauri.nofonts.conf.json` là NỬA KIA của phép trừ đo bộ font trong `.msi`/`.dmg`.
+/// CI dựng hai bản từ CÙNG một khâu biên dịch: bản thường (có font) và bản
+/// `--config src-tauri/tauri.nofonts.conf.json` (không font); hiệu là dung lượng font.
+///
+/// 🔴 **Vì sao test này tồn tại: `{}` và `null` khác nhau, và `{}` hỏng IM LẶNG.**
+/// Tauri merge cấu hình theo **JSON Merge Patch (RFC 7396)** — `json_patch::merge`,
+/// gọi từ `tauri-utils-2.9.3/src/config/parse.rs:7,185`. Đọc `json-patch-3.0.1/src/lib.rs:661-681`:
+/// hàm duyệt **từng khoá của patch**; khoá có giá trị `null` thì `map.remove(key)`,
+/// còn lại thì merge đệ quy. Patch là object **rỗng** ⇒ vòng lặp chạy **0 lần** ⇒ tài
+/// liệu **không đổi**.
+///
+/// ⇒ Với `{ "bundle": { "resources": {} } }` thì bản "không font" **vẫn có font**, hai
+/// số bằng nhau, chênh lệch **0 MiB**, và **không lỗi nào được ném** — CI xanh với một
+/// con số vô nghĩa. §Công thức đo trên Windows của báo cáo mũi thăm dò viết đúng chữ
+/// `{}` đó; đây là chỗ sửa nó lại, và chỗ khoá nó lại.
+///
+/// ⚠️ Tên tệp là `tauri.nofonts.conf.json`, KHÔNG phải `tauri.windows.conf.json`: Tauri
+/// tự merge `tauri.<platform>.conf.json` vào **mọi** lượt build, và
+/// `no_dev_csp_and_no_platform_config_overrides` ở trên cấm đúng điều đó.
+#[test]
+fn nofonts_overlay_drops_resources_with_an_explicit_null() {
+    let path = manifest_dir().join("tauri.nofonts.conf.json");
+    assert!(
+        path.exists(),
+        "thiếu {} — không có nó thì AC6 của Story 1.3 không có nửa kia của phép trừ",
+        path.display()
+    );
+
+    let conf = read_json("tauri.nofonts.conf.json");
+
+    let root = conf
+        .as_object()
+        .expect("`tauri.nofonts.conf.json` phải là một object JSON");
+    let keys: Vec<&str> = root.keys().map(String::as_str).collect();
+    assert_eq!(
+        keys,
+        vec!["bundle"],
+        "Lớp phủ này chỉ được làm ĐÚNG MỘT việc: gỡ `bundle.resources`. Mọi khoá thêm \
+         vào đây đều lặng lẽ đổi bản build đang được đem đi trừ, và phép đo font hết \
+         nghĩa. Thấy: {keys:?}"
+    );
+
+    let bundle = root["bundle"]
+        .as_object()
+        .expect("`bundle` phải là object");
+    let bundle_keys: Vec<&str> = bundle.keys().map(String::as_str).collect();
+    assert_eq!(
+        bundle_keys,
+        vec!["resources"],
+        "cùng lý do như trên — đúng một khoá. Thấy: {bundle_keys:?}"
+    );
+
+    // Điểm mấu chốt. `conf["bundle"]["resources"]` cũng trả `Null` khi khoá VẮNG MẶT,
+    // nên phải hỏi qua `get()`: khoá phải CÓ MẶT và giá trị phải là `null` tường minh.
+    let resources = bundle
+        .get("resources")
+        .expect("`bundle.resources` phải CÓ MẶT — vắng mặt là một no-op y hệt `{}`");
+    assert!(
+        resources.is_null(),
+        "`bundle.resources` phải là `null` tường minh, không phải `{resources}`.\n\
+         RFC 7396: chỉ `null` mới XOÁ khoá. `{{}}` duyệt 0 khoá và không đổi gì — bản \
+         'không font' vẫn có font, chênh lệch bằng 0, CI xanh, phép đo vô nghĩa.\n\
+         Đọc doc-comment của test này trước khi sửa."
+    );
+}

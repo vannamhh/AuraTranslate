@@ -333,7 +333,7 @@ NFR5: Bộ nhớ khi nhàn rỗi: **< 300 MB**. **[A8]** Ngưỡng tạm.
 
 #### Dữ liệu & lưu trữ
 
-NFR6: Kích thước bản cài kèm toàn bộ từ điển: ngân sách **150–200 MB**, **không có cơ chế tải thêm sau khi cài**. **[A2]** Đo được 130 MB với ba nguồn đầu tiên.
+NFR6: Kích thước bản cài kèm toàn bộ từ điển: ngân sách **150–200 MB** cho **payload sản phẩm** (mã + font + dữ liệu từ điển), **không có cơ chế tải thêm sau khi cài**. **[A2]** Đo được 130 MB với ba nguồn đầu tiên. **Bản WebView2 Runtime nhúng trên Windows (`offlineInstaller`, ≈ 127 MB) nằm NGOÀI ngân sách này** — nó là runtime của hệ điều hành, nhúng để giữ lời hứa *cài được khi không có mạng*. *(Ice chốt 2026-08-03; xem `prd.md` §7.2, ghi chú dưới bảng.)* **Hệ quả nghiệm thu: mọi phép đo dung lượng phải tách hai dòng** — payload sản phẩm (đối chiếu với trần) và WebView2 Runtime nhúng (ghi ra, không đối chiếu).
 
 NFR7: Tra cứu khi ngoại tuyến: **100% hoạt động không cần mạng**.
 
@@ -764,7 +764,7 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | NFR3 Tìm kiếm Library p95 < 500 ms | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A6]` / Q4 — đóng ở Story 6.18, không đóng ở Epic 5 |
 | NFR4 Khởi động < 3 s | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A7]` / Q4 — như NFR3 |
 | NFR5 Bộ nhớ nhàn rỗi < 300 MB | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A8]` / Q4 — như NFR3 |
-| NFR6 Kích thước bản cài 150–200 MB | Epic 1 | Mũi thăm dò font chạy **trước** Epic 1; đo lại ở Epic 10 |
+| NFR6 Kích thước bản cài 150–200 MB *(payload sản phẩm; WebView2 Runtime nhúng nằm ngoài — sửa 2026-08-03)* | Epic 1 | Mũi thăm dò font chạy **trước** Epic 1 (Story 1.1, xong) · nửa Windows đo ở **Story 1.3** · đối chiếu tổng ở **Story 1.9** · nghiệm thu cuối ở Epic 10 |
 | NFR7 Tra cứu offline 100% | Epic 1 | |
 | NFR8 Chỉ mục chính phân biệt dấu | Epic 1 (từ điển) · Epic 5 (Library) | AD-27 áp cho cả hai chỉ mục |
 | NFR9 Mang dữ liệu đi | Epic 1 (`.atproj`) · Epic 3 (CSV) · Epic 7 (TMX) | |
@@ -811,6 +811,7 @@ Epic này cũng đặt xuống các bất biến mà chín epic sau đều dựa
 **Ghi chú cài đặt:**
 - **Story 1.3 dựng CI hai nền tảng ngay sau scaffold.** Lý do: AC *"hành vi tương đương trên macOS và Windows"* của Story 1.2 (NFR14) là một phép kiểm tay phải nhớ làm, và nó phải giữ đúng suốt **chín epic** trước khi FR107 dựng build công khai ở Epic 10. Một khác biệt nền tảng lọt vào ở Epic 2 mà chỉ lộ ra ở Epic 10 là lớp lỗi đắt nhất có thể tránh bằng một job CI. **Đây không phải FR107** — không build công khai, không checksum, không `dict-manifest.toml`; FR107 giữ nguyên phạm vi ở Story 10.1. *(Bổ sung 2026-08-03 sau rà soát mức sẵn sàng triển khai.)*
 - ~~**Mũi thăm dò font phải chạy TRƯỚC epic này**~~ — ✅ **đã chạy 2026-08-03 (Story 1.1).** `.dmg` đo thật: chênh lệch do font **20,300 MiB = 21,29 MB**, tổng với database 130 MB = **151,29 MB**, dưới trần NFR6. SIL OFL 1.1 cả ba, tương thích GPL v3, ba hàng đã vào bảng Stack. Biến thể vùng chốt **TC**. `.msi` **chuyển sang Story 1.3** (xem AC1 đã thu hẹp). Mệnh đề chặn Epic 1 **đã gỡ**. **Rủi ro còn mở, không chặn:** trần NFR6 là trần của **cả bản cài đã gồm font**, nên phép tính đúng là trừ dư địa — 200 − 21,29 (font) − 1,40 (baseline app **rỗng**) − 130 (ba nguồn đầu) = **còn ~47 MB** cho các nguồn từ điển còn lại, chỉ mục FTS phụ (~17 MB), **và toàn bộ mã sản phẩm chưa viết**. Đối chiếu lại ở Story 1.9, nơi nay đã có AC thật. Vượt trần vẫn là thay đổi **tầng PRD**, không phải tầng kiến trúc. Số đo: [`research/font-spike-results-2026-08-03.md`](research/font-spike-results-2026-08-03.md).
+- **NFR6 đã sửa 2026-08-03 — Ice quyết, và dư địa ~47 MB ở dòng trên KHÔNG đổi.** Story 1.2 đổi `webviewInstallMode` sang `offlineInstaller` để giữ lời hứa *cài được khi không có mạng*; chế độ đó nhúng trọn WebView2 Runtime (**≈ 127 MB**, tải lúc build) và một mình nó đủ đẩy `.msi` vượt trần **trước khi có một byte từ điển nào**. Cách xử lý đã chốt: **trần 150–200 MB là trần của payload sản phẩm; runtime nhúng nằm ngoài**, ghi thành dòng riêng trong mọi phép đo. Nhờ vậy trần vẫn là **một** con số chung cho macOS lẫn Windows và phép trừ dư địa ở dòng trên giữ nguyên. Đường quay lui (`downloadBootstrapper`, hoặc NSIS thay `.msi`) để mở ở **Story 10.2**, đi cùng hàng *"chưa khai artifact phát hành chính thức cho Windows"*.
 - Không dùng starter template ngoài; scaffold theo **cây nguồn** ở Structural Seed và **Stack ghim phiên bản**.
 - AD-26 ba nhánh truy vấn tiếng Trung là điều kiện nghiệm thu của FR39 — **`LIKE` bị cấm trên đường nóng**.
 - AD-10: mỗi lớp gỡ rời một file `.db` tự mang metadata giấy phép; **trường giấy phép không được là enum các giấy phép mở** (HVTĐTD dùng theo phép riêng, không thuộc GPL v3).
@@ -1116,7 +1117,8 @@ So that một khác biệt nền tảng lọt vào ở Epic 2 không nằm im t�
 **Given** runner Windows của CI đã chạy được
 **When** CI chạy trên một commit bất kỳ
 **Then** dung lượng `.msi` **có font** và **không font** được ghi lại thành số cụ thể, và **chênh lệch** được đối chiếu với dải ước **16,0–20,3 MiB** của mũi thăm dò
-**And** chế độ cài WebView2 đang dùng được ghi kèm — `downloadBootstrapper`; `embedBootstrapper` hay `offlineInstaller` **một mình nó** đủ làm `.msi` phình ~150 MB và vỡ NFR6 kể cả khi font bằng 0
+**And** chế độ cài WebView2 đang dùng được ghi kèm — ⚠️ **nay là `offlineInstaller`**, không còn `downloadBootstrapper`: Ice đổi ngày 2026-08-03 sau code review Story 1.2, ưu tiên lời hứa *cài được khi không có mạng*. Nó cộng **≈ 127 MB** (tải lúc build) vào `.msi`, và theo NFR6 đã sửa cùng ngày thì **phần đó nằm ngoài ngân sách 150–200 MB** — nên phép đo phải **tách hai dòng**: payload sản phẩm và WebView2 Runtime nhúng
+**And** chế độ này **triệt tiêu trong phép trừ** (cả hai bản build đều mang nó), nên **chênh lệch** do font vẫn đối chiếu sạch với dải ước 16,0–20,3 MiB
 **And** hai số này ghi lại ở **mỗi lần CI chạy**, không phải một lần rồi thôi — đây là lưới bắt hồi quy khi bộ font hoặc cấu hình WebView2 đổi
 **And** phép cộng với dung lượng database **không** thuộc story này — CI ở đây không tải dữ liệu từ điển; phép đối chiếu tổng với trần NFR6 đóng ở **Story 1.9**
 
@@ -1363,6 +1365,7 @@ So that bản phát hành kiểm chứng được và không parser nào lọt v
 **Given** **mọi** artifact dữ liệu sẽ đóng gói — `dict-core.db` **và** bốn lớp gỡ rời của Story 1.10, không chỉ `dict-core.db`
 **When** đo tổng
 **Then** cộng thêm **21,29 MB bộ font** (đo thật ở Story 1.1) và **baseline ứng dụng thật** rồi đối chiếu lại với trần **NFR6**
+**And** phép đối chiếu tính trên **payload sản phẩm**; **bản WebView2 Runtime nhúng của `.msi` KHÔNG được cộng vào** — ghi thành dòng riêng *(NFR6 sửa 2026-08-03)*. Cộng nhầm nó vào là làm con số vượt trần vì một lý do NFR6 đã tuyên bố không tính
 **And** phép đối chiếu quy về **byte** trước rồi mới đổi sang MB thập phân — 200 MB là **trần**, 150 MB là mốc kỳ vọng chứ không phải điều kiện đạt
 **And** nếu vượt trần, đó là quyết định **tầng PRD** — **không** tự subset font, **không** tự bỏ một nguồn từ điển, **không** tự đổi sang font hệ điều hành
 
@@ -6325,8 +6328,9 @@ So that v1 phát hành với bằng chứng chứ không với giả định.
 
 **Given** bản cài hoàn chỉnh kèm toàn bộ dữ liệu từ điển và font
 **When** đo dung lượng
-**Then** nằm trong ngân sách **150–200 MB** của NFR6
-**And** con số thật được ghi vào ghi chú phát hành
+**Then** **payload sản phẩm** nằm trong ngân sách **150–200 MB** của NFR6
+**And** **bản WebView2 Runtime nhúng của `.msi` ghi thành dòng riêng, không cộng vào phép đối chiếu** *(NFR6 sửa 2026-08-03)*
+**And** con số thật của **cả hai dòng** được ghi vào ghi chú phát hành — người dùng tải về thấy dung lượng tổng, nên giấu dòng thứ hai là nói thiếu
 
 **Given** dung lượng vượt trần
 **When** xảy ra

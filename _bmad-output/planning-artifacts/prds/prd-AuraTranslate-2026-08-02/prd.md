@@ -823,11 +823,13 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 
 | ID | Yêu cầu | Ngưỡng |
 |---|---|---|
-| **NFR6** | Kích thước bản cài kèm toàn bộ từ điển | **[A2]** Ngân sách **150–200 MB**, **không có cơ chế tải thêm sau khi cài** *(đo được 130 MB với ba nguồn đầu tiên)* |
+| **NFR6** | Kích thước bản cài kèm toàn bộ từ điển | **[A2]** Ngân sách **150–200 MB** cho **payload sản phẩm** — mã, font, dữ liệu từ điển — **không có cơ chế tải thêm sau khi cài** *(đo được 130 MB với ba nguồn đầu tiên)*. **Bản WebView2 Runtime nhúng trên Windows nằm NGOÀI ngân sách này**; xem giải thích dưới bảng |
 | **NFR7** | Tra cứu khi ngoại tuyến | **100%** hoạt động không cần mạng |
 | **NFR8** | Độ chính xác dấu tiếng Việt | Chỉ mục tìm kiếm **chính** phải **phân biệt dấu**. Chế độ xoá dấu chỉ được tồn tại như một chỉ mục **phụ**, không bao giờ là mặc định |
 | **NFR9** | Khả năng mang dữ liệu đi | TM xuất được TMX; Glossary và prompt xuất được định dạng văn bản mở; `.atproj` tự chứa và mở được trên máy khác |
 | **NFR10** | Toàn vẹn dữ liệu | Mất chỉ mục Library **không được** làm mất dữ liệu — chỉ mục dựng lại được hoàn toàn từ `.atproj` |
+
+> **NFR6 sửa 2026-08-03 — Ice quyết, sau khi Story 1.2 đổi `webviewInstallMode` sang `offlineInstaller`.** Bản `.msi` trên Windows nhúng trọn WebView2 Runtime (**≈ 127 MB**, tải lúc build) để giữ lời hứa *cài được khi không có mạng* — cùng lời hứa mà NFR7 và NFR12 đang mang. Runtime đó là thành phần của hệ điều hành, không phải payload của sản phẩm, nên **nó không tính vào ngân sách 150–200 MB**. Hệ quả bắt buộc, không được bỏ: **mọi phép đo dung lượng phải tách hai dòng** — *payload sản phẩm* (đối chiếu với trần) và *WebView2 Runtime nhúng* (ghi ra, không đối chiếu). Nhờ cách phát biểu này, trần vẫn là **một** con số chung cho macOS lẫn Windows, và dư địa còn lại (**~47 MB** sau font và ba nguồn từ điển đầu — đo ở Story 1.1) **không đổi**. Đường quay lui vẫn còn nếu về sau thấy `.msi` quá lớn để người dùng tải: đổi về `downloadBootstrapper` (mất mệnh đề cài offline) hoặc phát hành NSIS thay `.msi` — cả hai là quyết định ở Story 10.2, không phải ở tầng kiến trúc.
 
 > **NFR8 giải thích:** Giai đoạn 0 đo được `unicode61` mặc định gộp `má / ma / mà / mả / mã / mạ` thành một kết quả duy nhất. Với một công cụ dịch tiếng Việt, đây là lỗi phá vỡ độ chính xác của toàn bộ tìm kiếm. Chi phí của việc lập chỉ mục hai lần đã biết: **~17 MB mỗi chỉ mục**, nằm gọn trong ngân sách NFR6.
 
@@ -1017,7 +1019,7 @@ Hai yêu cầu dưới đây không thuộc riêng giai đoạn nào và chung m
 | # | Giả định | Xuất hiện ở | Nếu sai thì sao |
 |---|---|---|---|
 | **A1** | Vòng IPC Tauri thật và thời gian render frontend nằm gọn trong ngân sách 100 ms của NFR1 | NFR1 | Chưa đo được ở môi trường dòng lệnh. Rủi ro đã giảm mạnh nhờ payload 679 byte — nếu chậm, nguyên nhân sẽ ở frontend, không phải đường dữ liệu |
-| **A2** | Ngân sách 150–200 MB đủ cho toàn bộ nguồn từ điển | NFR6 | Unihan, Thiều Chửu, Cổ hán văn, VietPhrase chưa nạp vào database đo thử. Nếu vượt, phải cân nhắc lại lời hứa "không tải thêm sau cài" |
+| **A2** | Ngân sách 150–200 MB đủ cho toàn bộ nguồn từ điển — **tính trên payload sản phẩm, không tính WebView2 Runtime nhúng** *(khoanh lại 2026-08-03)* | NFR6 | Unihan, Thiều Chửu, Cổ hán văn, VietPhrase chưa nạp vào database đo thử. Nếu vượt, phải cân nhắc lại lời hứa "không tải thêm sau cài". **Phần WebView2 đã được tách ra khỏi giả định này**, nên A2 nay đo đúng một thứ và đo chung cho cả hai nền tảng |
 | **A3** | Bản Thiều Chửu số hoá và bản Cổ hán văn dùng được về mặt pháp lý — **giả định này sẽ KHÔNG được kiểm chứng trước khi phát hành** (quyết định 2026-08-02, §8.6) | §8.2, §8.6, R7 | Gỡ hai lớp đó khỏi bản phát hành kế tiếp qua FR112. Sản phẩm vẫn chạy đầy đủ trên các lớp nền có giấy phép sạch (FR36) |
 | **A4** | Tách câu tự động đúng ở tỷ lệ chấp nhận được | FR23 | FR78 (gộp/tách tay) là đường lui, nhưng nếu sai quá nhiều thì thao tác thủ công sẽ nuốt hết giá trị của TM |
 | **A5** | Người dùng sẵn sàng vượt qua cảnh báo Gatekeeper/SmartScreen để cài | §9.1 | Đây là rào cản đón nhận lớn nhất và không kiểm soát được bằng thiết kế |
