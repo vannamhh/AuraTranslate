@@ -161,6 +161,33 @@ Bảng màu lấy từ giấy và mực, không lấy từ màn hình.
 
 **Nền tối không phải là đảo ngược.** Nền `#26241f` là nâu rất tối, chữ `#e8e3d8` là ngà — không phải đen tuyền và trắng tinh. Tương phản tuyệt đối gây loá sau vài chương, và Chế độ đọc tồn tại chính vì những phiên dài đó.
 
+### Bảng token màu — **16 token mỗi theme**
+
+> **Đây là nguồn sự thật của bộ token màu.** *(Bổ sung 2026-08-03: bảng này vốn được nhiều chỗ tham chiếu — kể cả mục "Giãn dòng" ngay dưới và acceptance criteria của story dựng token — nhưng chưa bao giờ được viết ra. Giá trị lấy từ bản dựng đã kiểm tương phản.)*
+
+| # | Token | Sáng | Tối | Vai trò |
+|---|---|---|---|---|
+| 1 | `background` | `#f4f1ea` | `#201e1b` | Nền ngoài cùng; ở theme tối còn là **khe phân tách panel** |
+| 2 | `surface` | `#fbfaf6` | `#26241f` | Mặt phẳng làm việc của panel |
+| 3 | `surface-sunken` | `#f0ece1` | `#1b1a17` | Vùng lùi — chiều sâu duy nhất của sản phẩm |
+| 4 | `surface-accent` | `#e6eeee` | `#2c3a3b` | Nền nhấn nhẹ |
+| 5 | `surface-tm` | `#faf6ee` | `#302b21` | Nền gợi ý Translation Memory |
+| 6 | `on-surface` | `#2b2723` | `#e8e3d8` | Chữ chính |
+| 7 | `on-surface-variant` | `#6b6459` | `#a29a8c` | Chữ phụ — **sàn thấp nhất cho mọi chữ** |
+| 8 | `outline` | `#e2dccf` | `#3b382f` | Nét phân tách |
+| 9 | `outline-faint` | `#efeade` | `#302d26` | Nét phân tách mờ |
+| 10 | `ornament` | `#a9a196` | `#6a6459` | **Màu của nét, không bao giờ là màu của chữ** |
+| 11 | `primary` | `#2f5d63` | `#7fb3ba` | Màu nhấn **duy nhất** — thuật ngữ đã chốt, nhãn nguồn, tiêu điểm |
+| 12 | `on-primary` | `#fbfaf6` | `#1b1a17` | Chữ trên nền `primary` |
+| 13 | `confirmed` | `#5a6b3f` | `#9cb37a` | Câu đã xác nhận |
+| 14 | `tm-rule` | `#b99a5e` | `#b99a5e` | Vạch gợi ý TM — **là vạch, không phải chữ** |
+| 15 | `tm-text` | `#7a5d25` | `#d3b276` | Chữ trong khối gợi ý TM |
+| 16 | `error` | `#8f2f22` | `#e5867a` | Lỗi |
+
+Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component** (AD-34) — thứ cần kiểm tra tập trung thì không được rải rác.
+
+> **Vì sao 16 chứ không phải 17.** Một số bản nháp ghi *"17 token"*. Con số đúng là **16** — đếm trên chính bảng này. `tm-rule` giữ **cùng một giá trị ở cả hai theme** (nó là vạch, không chịu ràng buộc tương phản chữ), nên nó dễ bị đếm thành hai. Đừng thêm một token thứ 17 để cho khớp một con số cũ: mọi token mới đều phải qua vòng kiểm tương phản ở mục dưới.
+
 ### Sàn tương phản — đã kiểm, đừng hạ
 
 Ba màu trong bản dựng đầu **không đạt WCAG AA** và đã được sửa ở bảng token. Ghi lại để không ai khôi phục chúng:
@@ -212,6 +239,39 @@ Ba việc **chưa xong** và không được coi là đã chốt:
 1. **Rà giấy phép tường minh** theo `NFR15`. Áp cho font y như cho crate.
 2. **Đo dung lượng thật.** Ước tính 30–50 MB trên nền database đã 130 MB, ngân sách `NFR6` là 150–200 MB. Nếu vượt trần thì đây là thay đổi ở tầng PRD, không phải tầng thiết kế.
 3. **Chọn biến thể vùng** cho Han: TC hay SC. Coverage như nhau — chỉ khác **dáng chữ ưu tiên** ở các mã chung. TC hợp mạch cổ văn và Hán Việt; SC hợp truyện mạng đương đại.
+
+### Bảng token typography — **14 token, bốn họ chữ**
+
+> **Nguồn sự thật của bộ token chữ.** *(Bổ sung 2026-08-03 cùng lý do với bảng token màu.)*
+
+Bốn họ chữ: **`read`** (`Source Serif 4`) · **`read-cjk`** (`Source Han Serif`, chỉ Regular) · **`ui`** (`Source Sans 3`) · **`mono`**.
+
+| # | Token | Cỡ / giãn dòng / khác | Họ | Dùng ở |
+|---|---|---|---|---|
+| 1 | `read-lg` | 19px / 1.95 / `0.004em` | `read` | Chế độ đọc — mức **Thoáng** (62ch) |
+| 2 | `read-md` | 17.5px / 1.8 | `read` | Chế độ đọc — mức **Cân** (68ch, mặc định) |
+| 3 | `read-sm` | 16px / 1.66 | `read` | Chế độ đọc — mức **Đặc** (76ch) |
+| 4 | `read-title` | 23px / 600 / 1.3 | `read` | Tiêu đề Chương |
+| 5 | `source-cjk` | 16.5px / 2.05 | `read-cjk` | Nguyên văn tiếng Trung ở Panel Source |
+| 6 | `source-hanviet` | 12.5px / italic / 1.95 | `read` | Âm Hán Việt |
+| 7 | `editor` | 15px / 1.95 | `read` | Bản dịch trong Editor |
+| 8 | `lookup-headword` | 24px / 1.3 | `read` | Đầu mục Panel Lookup |
+| 9 | `lookup-gloss` | 14.5px / 1.6 | `read` | Nghĩa |
+| 10 | `lookup-example` | 12.5px / italic / 1.6 | `read` | Ví dụ và trích dẫn |
+| 11 | `ui-md` | 12px / 1.5 | `ui` | Tiêu đề panel |
+| 12 | `ui-sm` | 11.5px / 1.5 | `ui` | Nhãn phụ |
+| 13 | `ui-label` | 10px / 700 / 1.4 / `0.1em` | `ui` | Nhãn nguồn từ điển |
+| 14 | `ui-mono` | 10.5px / 1.4 | `mono` | Phím tắt, số liệu |
+
+### Bảng token khoảng cách và hình dạng
+
+Đơn vị **4px**.
+
+| Nhóm | Token |
+|---|---|
+| **Spacing** | `panel-inline 16px` · `panel-block 12px` · `head-height 34px` · `titlebar-height 38px` · `status-height 32px` · `gutter-width 22px` |
+| **Thước đọc** | `read-measure-lg 62ch` · `read-measure-md 68ch` · `read-measure-sm 76ch` |
+| **Bo góc** | `none 0` · `sm 2px` · **mặc định `3px`** · `md 4px` · `window 9px` · `full 9999px` |
 
 ### Giãn dòng 1.66 là sàn cứng — của chữ nội dung
 

@@ -31,7 +31,7 @@ Tài liệu này cung cấp bản phân rã epic và story đầy đủ cho Aura
 
 **Tổng: 131 FR**, phân theo mười nhóm năng lực C1–C10 (đồng nghĩa CAP-1–CAP-10 trong SPEC).
 
-#### C1 — Library (FR1–FR15, FR43, FR45, FR115, FR116, FR119, FR120, FR122–FR128)
+#### C1 — Library (FR1–FR15, FR43, FR45, FR115, FR116, FR119, FR120, FR122–FR128, FR132)
 
 FR1: Library tổ chức theo hai tầng **Tác phẩm → Chương**; một Tác phẩm tương ứng một dự án dịch, một Chương là một đơn vị dịch có văn bản nguồn và văn bản đích riêng.
 
@@ -88,6 +88,8 @@ FR126: **Phát hiện và sửa bảng mã ký tự — áp cho mọi đường 
 FR127: **Ảnh trong nội dung tải từ web được tải về và lưu bên trong `.atproj`; URL gốc lưu kèm làm metadata.**
 
 FR128: **Xuất xứ tài liệu nguồn, ghi ở tầng Chương** — bốn trường: tên tác giả bài gốc · tên báo/website nguồn · URL bài gốc · ngày đăng bài gốc. Tự điền khi nhập từ URL, **sửa lại được**, và **nhập tay được** cả khi văn bản đến từ file hoặc dán trực tiếp.
+
+FR132: **Bộ lọc "cần xem" trên màn hình xem trước nhập** — đầu màn luôn hiện **hai con số** (*N Chương cần xem* · *M Chương sạch*) kèm **một thao tác lọc** về nhóm đầu. Áp cho **mọi đường nhập** đi qua màn xem trước. Một Chương vào nhóm *cần xem* khi có dấu hiệu cần mắt người: bảng mã đoán độ tin cậy thấp (FR126), ranh giới bóc bất thường (FR123), luật làm sạch khớp chỗ nghi ngờ (FR124), hoặc số Chương tách ra không khớp số đơn vị đầu vào (FR14). Bộ lọc **không bỏ qua** Chương nào — nó đổi thứ tự chú ý, không đổi phạm vi nhập.
 
 #### C2 — Workspace (FR16–FR26, FR42, FR44, FR78, FR117, FR129)
 
@@ -488,7 +490,7 @@ Trích từ cặp spine `DESIGN.md` (visual identity + design tokens) và `EXPER
 
 #### Design tokens
 
-UX-DR1: **Cài đặt bộ token màu hai theme, đúng 17 token mỗi theme.** Sáng: `background #f4f1ea` · `surface #fbfaf6` · `surface-sunken #f0ece1` · `surface-accent #e6eeee` · `surface-tm #faf6ee` · `on-surface #2b2723` · `on-surface-variant #6b6459` · `outline #e2dccf` · `outline-faint #efeade` · `ornament #a9a196` · `primary #2f5d63` · `on-primary #fbfaf6` · `confirmed #5a6b3f` · `tm-rule #b99a5e` · `tm-text #7a5d25` · `error #8f2f22`. Tối: `background #201e1b` · `surface #26241f` · `surface-sunken #1b1a17` · `surface-accent #2c3a3b` · `surface-tm #302b21` · `on-surface #e8e3d8` · `on-surface-variant #a29a8c` · `outline #3b382f` · `outline-faint #302d26` · `ornament #6a6459` · `primary #7fb3ba` · `on-primary #1b1a17` · `confirmed #9cb37a` · `tm-rule #b99a5e` · `tm-text #d3b276` · `error #e5867a`. Sống ở `src/tokens/`, **cấm giá trị màu viết thẳng trong component** (AD-34).
+UX-DR1: **Cài đặt bộ token màu hai theme, đúng 16 token mỗi theme** *(sửa 2026-08-03: bản trước ghi 17, không khớp danh sách liệt kê ngay bên dưới — bảng token đầy đủ nay ở `DESIGN.md § Bảng token màu`).* Sáng: `background #f4f1ea` · `surface #fbfaf6` · `surface-sunken #f0ece1` · `surface-accent #e6eeee` · `surface-tm #faf6ee` · `on-surface #2b2723` · `on-surface-variant #6b6459` · `outline #e2dccf` · `outline-faint #efeade` · `ornament #a9a196` · `primary #2f5d63` · `on-primary #fbfaf6` · `confirmed #5a6b3f` · `tm-rule #b99a5e` · `tm-text #7a5d25` · `error #8f2f22`. Tối: `background #201e1b` · `surface #26241f` · `surface-sunken #1b1a17` · `surface-accent #2c3a3b` · `surface-tm #302b21` · `on-surface #e8e3d8` · `on-surface-variant #a29a8c` · `outline #3b382f` · `outline-faint #302d26` · `ornament #6a6459` · `primary #7fb3ba` · `on-primary #1b1a17` · `confirmed #9cb37a` · `tm-rule #b99a5e` · `tm-text #d3b276` · `error #e5867a`. Sống ở `src/tokens/`, **cấm giá trị màu viết thẳng trong component** (AD-34).
 
 UX-DR2: **Cài đặt 14 token typography**: `read-lg` (19px/1.95/0.004em) · `read-md` (17.5px/1.8) · `read-sm` (16px/1.66) · `read-title` (23px/600/1.3) · `source-cjk` (16.5px/2.05) · `source-hanviet` (12.5px/italic/1.95) · `editor` (15px/1.95) · `lookup-headword` (24px/1.3) · `lookup-gloss` (14.5px/1.6) · `lookup-example` (12.5px/italic/1.6) · `ui-md` (12px/1.5) · `ui-sm` (11.5px/1.5) · `ui-label` (10px/700/1.4/0.1em) · `ui-mono` (10.5px/1.4). Bốn họ chữ: `read` · `read-cjk` · `ui` · `mono`.
 
@@ -608,7 +610,11 @@ UX-DR48: **Khối xem trước `.docx` trong màn hình xuất dùng màu viết
 
 ### FR Coverage Map
 
-Mỗi FR trong dãy FR1–FR131 ánh xạ về **đúng một** epic sở hữu nghiệm thu của nó. Không FR nào bị bỏ, không FR nào có hai chủ.
+Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** — epic chịu trách nhiệm chính về nghiệm thu của nó. Không FR nào bị bỏ.
+
+> **Bốn FR có nghiệm thu chia hai epic, đánh dấu ⇄ trong bảng.** *(Sửa 2026-08-03: bản trước tuyên bố "không FR nào có hai chủ", trong khi chính các ô ghi chú của bảng mô tả việc chia đôi. Câu tuyên bố sai làm bảng mất giá trị như công cụ kiểm tra — người tin nó sẽ đóng FR70 khi Epic 4 xong và không bao giờ quay lại Epic 7.)*
+>
+> Việc chia đôi là **quyết định đúng, không phải thiếu sót**: không thể nghiệm thu nửa Translation Memory của FR70 trước khi Translation Memory tồn tại. Điều bắt buộc là **cả hai nửa đều có chủ**, và epic thứ hai phải ghi FR đó vào acceptance criteria của mình.
 
 | FR | Epic | Ghi chú |
 |---|---|---|
@@ -624,7 +630,7 @@ Mỗi FR trong dãy FR1–FR131 ánh xạ về **đúng một** epic sở hữu 
 | FR10 | Epic 5 | Lọc và sắp xếp |
 | FR11 | Epic 5 | Chế độ đọc |
 | FR12 | Epic 5 | Mở Chương → Workspace đúng vị trí |
-| FR13 | Epic 1 | Đường vào văn bản tối thiểu (dán tay + `.txt`/`.md`); **nhánh `.docx` đóng ở Epic 6** |
+| FR13 ⇄ | Epic 1 ⇄ Epic 6 | Đường vào văn bản tối thiểu (dán tay + `.txt`/`.md`); **nhánh `.docx` đóng ở Epic 6** |
 | FR14 | Epic 6 | Nhập hàng loạt + mẫu phân tách + xem trước |
 | FR15 | Epic 5 | Đổi tên, sắp xếp, gộp/tách Chương (AD-32) |
 | FR16 | Epic 1 | Khung bốn panel một cửa sổ |
@@ -655,7 +661,7 @@ Mỗi FR trong dãy FR1–FR131 ánh xạ về **đúng một** epic sở hữu 
 | FR41 | Epic 1 | Lịch sử tra cứu + ghim |
 | FR42 | Epic 6 | Ảnh trong Panel Source — cần `ASSET` từ đường nhập |
 | FR43 | Epic 6 | Ảnh trong Chế độ đọc — cần `ASSET` |
-| FR44 | Epic 6 | Alt-text là Segment vai `alt` (AD-42). *Phần cấu trúc ở 6.13; phần nghiệm thu TM ở 7.1* |
+| FR44 ⇄ | Epic 6 ⇄ Epic 7 | Alt-text là Segment vai `alt` (AD-42). *Phần cấu trúc ở 6.13; phần nghiệm thu TM ở 7.1* |
 | FR45 | Epic 6 | Ảnh lưu trong `.atproj/assets/` |
 | FR46 | Epic 3 | Glossary hai tầng |
 | FR47 | Epic 3 | Trường của một mục Glossary |
@@ -681,7 +687,7 @@ Mỗi FR trong dãy FR1–FR131 ánh xạ về **đúng một** epic sở hữu 
 | FR67 | Epic 4 | API key trong keychain (AD-29) |
 | FR68 | Epic 4 | Cấu hình AI hai tầng |
 | FR69 | Epic 4 | Custom prompt theo thể loại |
-| FR70 | Epic 4 | Smart RAG Injector — **nửa TM đóng ở Epic 7** |
+| FR70 ⇄ | Epic 4 ⇄ Epic 7 | Smart RAG Injector — **nửa TM đóng ở Epic 7** |
 | FR71 | Epic 4 | Xem prompt cuối cùng đã gửi |
 | FR72 | Epic 4 | Kết quả không tự ghi vào Editor |
 | FR73 | Epic 4 | Dịch từng segment và theo lô, huỷ được |
@@ -740,11 +746,12 @@ Mỗi FR trong dãy FR1–FR131 ánh xạ về **đúng một** epic sở hữu 
 | FR126 | Epic 6 | Phát hiện và sửa bảng mã |
 | FR127 | Epic 6 | Ảnh web tải về `.atproj`, giữ URL gốc |
 | FR128 | Epic 6 | Xuất xứ tài liệu ở tầng Chương |
-| FR129 | Epic 6 | Caption là Segment vai `caption` (AD-42). *Phần cấu trúc ở 6.13; phần nghiệm thu TM ở 7.1* |
+| FR129 ⇄ | Epic 6 ⇄ Epic 7 | Caption là Segment vai `caption` (AD-42). *Phần cấu trúc ở 6.13; phần nghiệm thu TM ở 7.1* |
 | FR130 | Epic 8 | Chọn cách xuất ảnh: link gốc hay file ảnh |
 | FR131 | Epic 8 | Khối ghi nguồn, mặc định tắt |
+| FR132 | Epic 6 | Bộ lọc "cần xem" trên màn xem trước — *N cần xem · M sạch* |
 
-**Tổng kiểm:** 131/131 FR được ánh xạ. Epic 1: 27 · Epic 2: 9 · Epic 3: **11** · Epic 4: **14** · Epic 5: 17 · Epic 6: 15 · Epic 7: 10 · Epic 8: 13 · Epic 9: 7 · Epic 10: 8.
+**Tổng kiểm:** 132/132 FR được ánh xạ. Epic 1: 27 · Epic 2: 9 · Epic 3: **11** · Epic 4: **14** · Epic 5: 17 · Epic 6: **16** · Epic 7: 10 · Epic 8: 13 · Epic 9: 7 · Epic 10: 8.
 
 > *(FR79 chuyển từ Epic 3 sang Epic 4 ngày soạn story — sửa một vi phạm luật phụ thuộc: bộ prompt chỉ được định nghĩa ở FR69.)*
 
@@ -754,9 +761,9 @@ Mỗi FR trong dãy FR1–FR131 ánh xạ về **đúng một** epic sở hữu 
 |---|---|---|
 | NFR1 Auto-Lookup p95 < 100 ms | Epic 1 | Đóng `[A1]` — backend chỉ tiêu 0,05 ms, phần còn lại là IPC + render |
 | NFR2 Auto-save không gai trễ | Epic 2 | Đo cùng lúc với NFR18 |
-| NFR3 Tìm kiếm Library p95 < 500 ms | Epic 5 | Đóng `[A6]` / Q4 |
-| NFR4 Khởi động < 3 s | Epic 5 | Đóng `[A7]` / Q4 |
-| NFR5 Bộ nhớ nhàn rỗi < 300 MB | Epic 5 | Đóng `[A8]` / Q4 |
+| NFR3 Tìm kiếm Library p95 < 500 ms | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A6]` / Q4 — đóng ở Story 6.18, không đóng ở Epic 5 |
+| NFR4 Khởi động < 3 s | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A7]` / Q4 — như NFR3 |
+| NFR5 Bộ nhớ nhàn rỗi < 300 MB | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A8]` / Q4 — như NFR3 |
 | NFR6 Kích thước bản cài 150–200 MB | Epic 1 | Mũi thăm dò font chạy **trước** Epic 1; đo lại ở Epic 10 |
 | NFR7 Tra cứu offline 100% | Epic 1 | |
 | NFR8 Chỉ mục chính phân biệt dấu | Epic 1 (từ điển) · Epic 5 (Library) | AD-27 áp cho cả hai chỉ mục |
@@ -765,7 +772,7 @@ Mỗi FR trong dãy FR1–FR131 ánh xạ về **đúng một** epic sở hữu 
 | NFR11 API key trong keychain | Epic 4 | |
 | NFR12 Không telemetry | Epic 1 (thiết lập) · Epic 6 (điểm ra mạng thứ ba) | |
 | NFR13 Không tài khoản, không cloud sync | Epic 1 | Ràng buộc nền, nghiệm thu bằng vắng mặt |
-| NFR14 Native macOS + Windows tương đương | Epic 1 (thiết lập) · Epic 10 (nghiệm thu cuối) | |
+| NFR14 Native macOS + Windows tương đương | Epic 1 (thiết lập **+ CI cưỡng chế, Story 1.3**) · Epic 10 (nghiệm thu cuối) | CI hai nền tảng chạy từ Epic 1 nên khoảng giữa không còn bỏ trống |
 | NFR15 Tương thích GPL v3 | **Mọi epic** | Rà **trước khi** thêm mỗi phụ thuộc; ghi vào bảng Stack |
 | NFR16 Chuỗi giao diện ngoài mã nguồn | **Mọi epic**, thiết lập ở Epic 1 | Yêu cầu cắt ngang |
 | NFR17 Sàn khả năng tiếp cận | **Mọi epic**, thiết lập ở Epic 1 | Yêu cầu cắt ngang; nghiệm thu cuối ở Epic 7 (vòng dịch trọn Chương không chạm chuột) |
@@ -783,7 +790,7 @@ Mỗi FR trong dãy FR1–FR131 ánh xạ về **đúng một** epic sở hữu 
 | 3 | 2b | 11 | Miền Glossary, cưỡng chế bởi AD-20/AD-36 |
 | 4 | 2c | 14 | `ai/` phải cô lập được **bằng test** (AD-13 → FR77) |
 | 5 | 3a | 17 | Library + tầng dữ liệu dẫn xuất |
-| 6 | 3b | 15 | **Ranh giới rủi ro:** hai giả định chưa đo (A12, A13), hai lớp lỗi im lặng |
+| 6 | 3b | 16 | **Ranh giới rủi ro:** hai giả định chưa đo (A12, A13), hai lớp lỗi im lặng |
 | 7 | 4 | 10 | Translation Memory |
 | 8 | 5 | 13 | Cầu nối Reviewer |
 | 9 | 6 | 7 | Ứng viên cắt số 1 nếu R1 nổ — phải tách được sạch |
@@ -802,6 +809,7 @@ Epic này cũng đặt xuống các bất biến mà chín epic sau đều dựa
 **NFRs:** NFR1, NFR6, NFR7, NFR8 *(từ điển)*, NFR9 *(`.atproj`)*, NFR13, NFR14 *(thiết lập)*, NFR15, NFR16, NFR17
 
 **Ghi chú cài đặt:**
+- **Story 1.3 dựng CI hai nền tảng ngay sau scaffold.** Lý do: AC *"hành vi tương đương trên macOS và Windows"* của Story 1.2 (NFR14) là một phép kiểm tay phải nhớ làm, và nó phải giữ đúng suốt **chín epic** trước khi FR107 dựng build công khai ở Epic 10. Một khác biệt nền tảng lọt vào ở Epic 2 mà chỉ lộ ra ở Epic 10 là lớp lỗi đắt nhất có thể tránh bằng một job CI. **Đây không phải FR107** — không build công khai, không checksum, không `dict-manifest.toml`; FR107 giữ nguyên phạm vi ở Story 10.1. *(Bổ sung 2026-08-03 sau rà soát mức sẵn sàng triển khai.)*
 - **Mũi thăm dò font phải chạy TRƯỚC epic này** — đo thật `.dmg`/`.msi` trước và sau khi nhúng font, rà SIL OFL theo NFR15, chọn biến thể vùng TC/SC. Vượt trần NFR6 là thay đổi **tầng PRD**, không phải tầng kiến trúc.
 - Không dùng starter template ngoài; scaffold theo **cây nguồn** ở Structural Seed và **Stack ghim phiên bản**.
 - AD-26 ba nhánh truy vấn tiếng Trung là điều kiện nghiệm thu của FR39 — **`LIKE` bị cấm trên đường nóng**.
@@ -846,6 +854,8 @@ Người dịch bôi đen một cụm từ ở bất kỳ panel nào và thêm v
 
 ---
 
+> **Thứ tự story đã đổi 2026-08-03.** *Trạng thái chờ chốt* (FR114) nay đứng ở **Story 3.6**, trước *Đề xuất bản dịch bằng âm Hán Việt* (FR113, nay **Story 3.7**) và *Duyệt hàng loạt* (FR53, nay **Story 3.8**). Lý do: FR113 có **nhánh dự phòng là FR114** — ứng viên không đề xuất được thì đi đường chờ chốt. Thứ tự cũ bắt story đề xuất nghiệm thu một nhánh chưa tồn tại. Xoay lên thay vì hoán vị hai story, vì *Duyệt hàng loạt* dùng **cả hai** nên nó phải đứng cuối.
+
 ### Epic 4: AI mở & Smart RAG Injector
 
 Người dịch cấu hình **một API key của chính mình** hoặc trỏ tới Ollama/LM Studio qua **cùng một đường cấu hình**, rồi gọi AI dịch từng segment hoặc theo lô — kết quả chảy dần theo dòng, huỷ được giữa chừng, kèm số token và ước tính chi phí. Trước mỗi lần gọi, hệ thống tự chèn các thuật ngữ Glossary **đã chốt** xuất hiện trong câu; người dùng **mở xem được prompt cuối cùng đã gửi đi**, gồm toàn bộ phần chèn động. Kết quả nằm ở panel AI Translation và **không bao giờ tự chảy vào Editor**. Và gỡ sạch cấu hình AI thì Epic 1, 2, 3 vẫn chạy đầy đủ — điều này được **cưỡng chế bằng test tự động**, không bằng kỷ luật.
@@ -888,9 +898,9 @@ Mở ứng dụng là vào Library, không phải vào màn hình dịch. Ngư�
 
 Đây là **bề mặt đầu tiên người dùng chạm vào sản phẩm**, và là nơi hai lỗi đắt nhất của ứng dụng có thể xảy ra mà không báo gì cả. Người dịch nhập một bộ 2000 chương từ một file `.txt` 40 MB, hoặc **dán 50 link web**, hoặc một file song ngữ hai cột do người khác dịch — tất cả đi qua **một màn xem trước hợp nhất** cho thấy bảng mã đã đoán, ranh giới nội dung đã bóc, và những gì luật làm sạch **sắp xoá** — trước khi một byte nào ghi xuống đĩa. Gặp file GBK, năm bản dựng thật hiện cạnh nhau và người dịch Việt nhận ra `第一章` với `ç¬¬ä¸€ç«` trong một phần giây. Ảnh trong bài web tải về nằm trong `.atproj` nên copy Tác phẩm sang máy ngoại tuyến vẫn đủ ảnh; alt-text và caption là **hai segment dịch được riêng biệt**. Và ứng dụng **không bao giờ tự quyết định tải cái gì** — hai con số *N link · sẽ tạo N Chương* đứng cạnh nhau là bằng chứng đọc được.
 
-**FRs covered:** FR13 *(hoàn thiện nhánh `.docx`)*, FR14, FR42, FR43, FR44, FR45, FR115, FR116, FR122, FR123, FR124, FR125, FR126, FR127, FR128, FR129
+**FRs covered:** FR13 *(hoàn thiện nhánh `.docx`)*, FR14, FR42, FR43, FR44, FR45, FR115, FR116, FR122, FR123, FR124, FR125, FR126, FR127, FR128, FR129, FR132
 
-**NFRs:** NFR12 *(điểm ra mạng thứ ba)*, NFR19
+**NFRs:** NFR12 *(điểm ra mạng thứ ba)*, NFR19, **NFR3 · NFR4 · NFR5** *(đóng ở Story 6.18 — Epic 5 chỉ đo sơ bộ vì chưa có đường tạo 5.000 Chương)*
 
 **Ghi chú cài đặt:**
 - **AD-39 là xương sống của epic này:** một pipeline, **cùng thứ tự cho mọi nguồn**. Ca hỏng cụ thể nhất và dễ viết test nhất — đặt bước tách Chương **trước** bước giải mã bảng mã: mẫu chạy trên chữ rác, cả file 40 MB ra **đúng một Chương**, không lỗi nào được ném.
@@ -902,6 +912,10 @@ Mở ứng dụng là vào Library, không phải vào màn hình dịch. Ngư�
 - **Quyết định còn treo, đóng trong epic này:** hành vi khi một link trong danh sách hỏng (404, timeout, tường chặn) — dừng, bỏ qua, hay giữ chỗ trống. AD-39 đã cố định phần bất biến (mọi thứ xảy ra **trước bước ghi**) nên không có ca ghi nửa chừng.
 
 ---
+
+> **Thứ tự story đã đổi 2026-08-03, và epic có thêm một story.** *Đọc `.docx`* chuyển từ vị trí 7 xuống **Story 6.12**, sau *Ảnh tải về `.atproj`* (**Story 6.11**) — vì `.docx` có ảnh và phải đi vào **đường xử lý tài sản** do story ảnh mở ra. Các story 6.7–6.11 dồn lên một bậc. Xoay xuống thay vì hoán vị, vì đường xử lý tài sản lại cần `Fetcher` của *Nhập từ URL* (**Story 6.7**) — hoán vị thẳng sẽ đẩy story ảnh lên trước cả đường tải, tạo ra một phụ thuộc tiến mới.
+>
+> **Story 6.18** *(đo lại NFR3, NFR4, NFR5)* là story mới: Story 5.14 ở Epic 5 **không thể** hoàn thành mục đích của nó vì Epic 5 chưa có đường nào tạo ra 5.000 Chương — nhập hàng loạt (FR14) nằm ở chính epic này. Trước bổ sung này, phép đo *"phải chạy lại sau Epic 6"* là một lời nhắc không có chủ. **Q4 của PRD đã được sửa** từ *"Giai đoạn 3"* thành *"sau Giai đoạn 3b"* cho khớp.
 
 ### Epic 7: Translation Memory — không dịch lại, không tra lại thứ đã dịch
 
@@ -940,6 +954,8 @@ Với vai **Người dịch bài đăng**: chọn xuất ảnh theo link gốc h
 
 ---
 
+> **Thứ tự story đã đổi 2026-08-03.** *Chọn cách xuất hình ảnh* (FR130) nay là **Story 8.5**, trước *Xuất `.md` và text thuần* (FR88, nay **Story 8.6**) — vì FR88 xuất ảnh **theo kiểu người dùng chọn ở FR130**, nên story xuất `.md` không nghiệm thu được nhánh ảnh nếu lựa chọn đó chưa tồn tại.
+
 ### Epic 9: AI Proofreader — bắt lỗi trước khi bàn giao
 
 Người dịch chạy proofreader **theo yêu cầu** trên một segment, một Chương hoặc vùng đang chọn — **không bao giờ chạy nền**, vì với BYOK quét nền là tính phí ngoài ý muốn và với local LLM là chiếm tài nguyên máy suốt phiên. Mỗi phát hiện gồm loại lỗi, vị trí, giải thích ngắn và đề xuất sửa, hiện **gạch chân lượn sóng ngay dưới đúng cụm chữ có vấn đề** chứ không phải một danh sách rời. Chấp nhận hoặc bỏ qua từng cái; đánh dấu *"không phải lỗi"* thì lần quét sau **không báo lại trong cùng Tác phẩm**. Và proofreader **không bao giờ tự sửa văn bản**.
@@ -977,6 +993,8 @@ Người dịch mở AuraTranslate, đưa một văn bản tiếng Trung hoặc 
 
 ### Story 1.1: Mũi thăm dò font — đo dung lượng thật và rà giấy phép
 
+**Covers:** NFR6 · NFR15 · mũi thăm dò bắt buộc — chặn mọi story khác của Epic 1
+
 As a chủ dự án,
 I want biết chắc bộ font nhúng nằm trong ngân sách NFR6 và giấy phép cho phép phân phối lại,
 So that tôi không phải bóc font ra sau khi đã dựng nửa giao diện trên nó.
@@ -1005,6 +1023,8 @@ So that tôi không phải bóc font ra sau khi đã dựng nửa giao diện tr
 ---
 
 ### Story 1.2: Scaffold dự án và khoá phạm vi filesystem, phạm vi mạng
+
+**Covers:** FR104 · NFR12 · NFR14
 
 As a người dựng,
 I want một khung dự án dựng theo đúng cây nguồn đã chốt với phạm vi filesystem và CSP khoá từ commit đầu tiên,
@@ -1043,7 +1063,50 @@ So that *"không ai đọc được tài liệu của bạn"* là ràng buộc d
 
 ---
 
-### Story 1.3: Bộ token màu và chữ hai theme, có kiểm tương phản tự động
+### Story 1.3: CI tối thiểu — hai nền tảng, mỗi lần push
+
+**Covers:** NFR14 · NFR15 · lưới an toàn cho AC hai nền tảng của Story 1.2 (không phải FR107)
+
+As a chủ dự án,
+I want mỗi lần push đều được build và chạy test trên cả macOS lẫn Windows,
+So that một khác biệt nền tảng lọt vào ở Epic 2 không nằm im tới tận Epic 10 mới lộ ra.
+
+**Acceptance Criteria:**
+
+**Given** một commit bất kỳ được đẩy lên
+**When** CI chạy
+**Then** `cargo test` và build ứng dụng chạy trên **cả macOS lẫn Windows**
+**And** kết quả hai nền tảng hiện **tách bạch**, không gộp thành một trạng thái chung
+
+**Given** một test trượt, hoặc một nền tảng build hỏng
+**When** CI kết thúc
+**Then** trạng thái là **đỏ**
+**And** commit đó không được coi là xong
+
+**Given** AC hai nền tảng của Story 1.2 (NFR14 — *hành vi tương đương trên macOS và Windows*)
+**When** kiểm
+**Then** nó được **cưỡng chế bằng CI**, không còn là một phép kiểm tay phải nhớ làm
+
+**Given** các luật cưỡng chế bằng test sinh ra ở epic sau — lint cấm màu viết thẳng (AD-34), test ranh giới `ai/` (AD-13), bốn test allowlist (AD-41)
+**When** chúng tồn tại
+**Then** gắn vào **chính pipeline này**
+**And** không dựng pipeline thứ hai
+
+**Given** phạm vi của story này
+**When** so với FR107
+**Then** đây **không phải** FR107 — không build công khai để người ngoài kiểm chứng, không checksum, không `dict-manifest.toml`
+**And** FR107 vẫn đóng ở Story 10.1 với phạm vi nguyên vẹn
+
+**Given** dữ liệu từ điển 150–200 MB
+**When** CI chạy ở epic này
+**Then** **không tải dữ liệu từ điển** — job chỉ biên dịch và chạy các test không phụ thuộc dữ liệu
+**And** thời gian chạy đủ ngắn để không ai muốn tắt nó đi
+
+---
+
+### Story 1.4: Bộ token màu và chữ hai theme, có kiểm tương phản tự động
+
+**Covers:** NFR17 · AD-34 · UX-DR1, UX-DR2, UX-DR3, UX-DR5, UX-DR6, UX-DR10, UX-DR11, UX-DR14, UX-DR16
 
 As a người dựng,
 I want mọi màu và mọi cỡ chữ đến từ một bộ token đã kiểm tương phản,
@@ -1051,9 +1114,10 @@ So that một lần đổi nhầm không thể âm thầm đẩy chữ xuống d
 
 **Acceptance Criteria:**
 
-**Given** bảng token ở `DESIGN.md`
+**Given** bốn bảng token ở `DESIGN.md` — *Bảng token màu*, *Bảng token typography*, *Bảng token khoảng cách và hình dạng*
 **When** `src/tokens/` dựng xong
-**Then** có đủ 17 token màu cho theme sáng và 17 cho theme tối, 14 token typography, bốn họ chữ, bộ spacing và bộ rounded
+**Then** có đủ **16 token màu cho theme sáng và 16 cho theme tối**, **14 token typography**, **bốn họ chữ** (`read` · `read-cjk` · `ui` · `mono`), bộ spacing và bộ rounded
+**And** mỗi token khớp **đúng giá trị** ở bảng, không phải một giá trị gần đúng
 
 **Given** một component bất kỳ
 **When** lint chạy
@@ -1085,7 +1149,9 @@ So that một lần đổi nhầm không thể âm thầm đẩy chữ xuống d
 
 ---
 
-### Story 1.4: Tài nguyên chuỗi giao diện và hình dạng lỗi qua IPC
+### Story 1.5: Tài nguyên chuỗi giao diện và hình dạng lỗi qua IPC
+
+**Covers:** NFR16 · AD-21
 
 As a người dựng,
 I want không một chuỗi hiển thị nào nằm trong mã nguồn, kể cả chuỗi lỗi,
@@ -1117,7 +1183,9 @@ So that thêm một ngôn ngữ về sau không phải rà lại toàn bộ code
 
 ---
 
-### Story 1.5: CommandRegistry, ba chế độ, và tiêu điểm bàn phím
+### Story 1.6: CommandRegistry, ba chế độ, và tiêu điểm bàn phím
+
+**Covers:** FR22
 
 As a người dịch,
 I want mọi thao tác của ứng dụng gọi được bằng bàn phím và luôn thấy rõ mình đang ở đâu,
@@ -1156,7 +1224,9 @@ So that một phiên làm việc dài không bắt tôi rời tay khỏi bàn ph
 
 ---
 
-### Story 1.6: Tầng ghi dữ liệu — một writer nối tiếp và lược đồ có phiên bản
+### Story 1.7: Tầng ghi dữ liệu — một writer nối tiếp và lược đồ có phiên bản
+
+**Covers:** AD-11 · AD-12 · AD-30 · NFR10
 
 As a người dịch,
 I want ứng dụng không bao giờ khựng lại vì đang ghi dữ liệu và không bao giờ làm hỏng dữ liệu cũ khi tôi nâng cấp,
@@ -1198,7 +1268,9 @@ So that tôi tin được vào một công cụ mình dùng hàng năm.
 
 ---
 
-### Story 1.7: Phân giải cấu hình hai tầng
+### Story 1.8: Phân giải cấu hình hai tầng
+
+**Covers:** FR103
 
 As a người dịch,
 I want cấu hình riêng của một Tác phẩm đè lên cấu hình chung một cách nhất quán ở mọi nơi,
@@ -1229,7 +1301,9 @@ So that tôi không phải nhớ chỗ nào theo luật nào.
 
 ---
 
-### Story 1.8: Dựng dữ liệu từ điển lớp nền
+### Story 1.9: Dựng dữ liệu từ điển lớp nền
+
+**Covers:** FR27 · NFR6
 
 As a chủ dự án,
 I want năm nguồn từ điển có giấy phép sạch gộp thành một artifact SQLite có phiên bản và checksum,
@@ -1265,7 +1339,9 @@ So that bản phát hành kiểm chứng được và không parser nào lọt v
 
 ---
 
-### Story 1.9: Đóng gói bốn lớp gỡ rời thành file độc lập
+### Story 1.10: Đóng gói bốn lớp gỡ rời thành file độc lập
+
+**Covers:** FR27, FR36
 
 As a chủ dự án,
 I want gỡ một nguồn dữ liệu khỏi bản phát hành chỉ bằng cách xoá một file,
@@ -1296,7 +1372,9 @@ So that chính sách gỡ bỏ thực thi được mà không đổi một dòng
 
 ---
 
-### Story 1.10: Ba nhánh truy vấn tiếng Trung
+### Story 1.11: Ba nhánh truy vấn tiếng Trung
+
+**Covers:** FR39 · NFR1
 
 As a người dịch,
 I want tra một chữ Hán đơn hay một từ hai chữ đều ra kết quả,
@@ -1338,7 +1416,9 @@ So that công cụ không im lặng trả về rỗng ở đúng những từ t�
 
 ---
 
-### Story 1.11: Matcher dùng chung
+### Story 1.12: Matcher dùng chung
+
+**Covers:** FR40
 
 As a người dựng,
 I want một component khớp ngôn ngữ duy nhất phục vụ cả từ điển, Glossary và Translation Memory,
@@ -1369,7 +1449,9 @@ So that ba nơi không bao giờ bắt được những biến thể khác nhau 
 
 ---
 
-### Story 1.12: Đường tra cứu giữ nguyên bất đồng giữa các nguồn
+### Story 1.13: Đường tra cứu giữ nguyên bất đồng giữa các nguồn
+
+**Covers:** FR29, FR30, FR31, FR32, FR34, FR35
 
 As a người dịch,
 I want thấy mỗi định nghĩa đến từ đâu và thấy các nguồn nói khác nhau,
@@ -1416,7 +1498,9 @@ So that tôi tự phán xét thay vì tin một câu trả lời đã bị gộp
 
 ---
 
-### Story 1.13: Khung bốn panel
+### Story 1.14: Khung bốn panel
+
+**Covers:** FR16, FR17, FR18
 
 As a người dịch,
 I want bốn panel trong một cửa sổ duy nhất và sắp xếp được theo cách tôi làm việc,
@@ -1449,13 +1533,21 @@ So that tôi không phải mở bốn năm cửa sổ rời như trước.
 **When** mở lần đầu
 **Then** là lưới 2×2 — `Nguyên văn | Bản dịch` ở hàng trên, `Tra cứu | Đề xuất AI` ở hàng dưới
 
+**Given** UX-DR15 khai **thứ tự hy sinh panel** là quyết định, không phải số hiệu chỉnh được
+**When** dựng cơ chế ẩn/hiện panel
+**Then** cơ chế phải cho phép ẩn theo đúng thứ tự đó — **Đề xuất AI nhường trước · Tra cứu nhường sau nhưng rút về thanh trạng thái, không bao giờ mất hẳn · cặp `Nguyên văn | Bản dịch` không bao giờ nhường**
+**And** **ngưỡng kích thước cụ thể** đóng ở Story 4.12, không đóng ở đây
+**And** không được cài cơ chế ẩn theo cách khiến Story 4.12 phải mổ lại bố cục để nhét thứ tự này vào
+
 **Given** panel AI Translation và Editor chưa có nội dung ở epic này
 **When** hiển thị
 **Then** chúng nêu rõ trạng thái bằng chuỗi trong `vi.json`, không phải một khung trống không giải thích
 
 ---
 
-### Story 1.14: Tác phẩm trên đĩa và đường vào văn bản tối thiểu
+### Story 1.15: Tác phẩm trên đĩa và đường vào văn bản tối thiểu
+
+**Covers:** FR13, FR96, FR97, FR102
 
 As a người dịch,
 I want đưa một đoạn văn bản vào công cụ và biết chắc nó nằm trong một thư mục tôi copy đi được,
@@ -1499,7 +1591,9 @@ So that dữ liệu của tôi không bị khoá trong ứng dụng.
 
 ---
 
-### Story 1.15: Panel Source và tab Hán Việt
+### Story 1.16: Panel Source và tab Hán Việt
+
+**Covers:** FR19, FR33
 
 As a người dịch tiếng Trung,
 I want thấy âm Hán Việt của từng ký tự ngay cạnh nguyên văn,
@@ -1531,7 +1625,9 @@ So that tôi đọc được văn bản mà không phải tra từng chữ một
 
 ---
 
-### Story 1.16: Panel Lookup — bản ghi có cấu trúc
+### Story 1.17: Panel Lookup — bản ghi có cấu trúc
+
+**Covers:** FR28, FR32
 
 As a người dịch,
 I want kết quả tra cứu hiện thành bản ghi có cấu trúc chứ không phải một đoạn văn,
@@ -1575,7 +1671,9 @@ So that mắt tôi nhặt được thứ cần trong một giây.
 
 ---
 
-### Story 1.17: Auto-Lookup
+### Story 1.18: Auto-Lookup
+
+**Covers:** FR21
 
 As a người dịch,
 I want bôi đen một cụm từ là thấy ngay nghĩa của nó,
@@ -1628,7 +1726,9 @@ So that tôi không phải copy, paste hay chuyển cửa sổ hàng trăm lần
 
 ---
 
-### Story 1.18: Bật tắt nguồn từ điển và ghi công
+### Story 1.19: Bật tắt nguồn từ điển và ghi công
+
+**Covers:** FR37, FR38
 
 As a người dịch,
 I want tắt một nguồn từ điển tôi không tin và luôn thấy được ghi công đầy đủ,
@@ -1664,7 +1764,9 @@ So that tôi kiểm soát được thứ mình đang đọc.
 
 ---
 
-### Story 1.19: Lịch sử tra cứu và mục đã ghim
+### Story 1.20: Lịch sử tra cứu và mục đã ghim
+
+**Covers:** FR41
 
 As a người dịch,
 I want xem lại những gì mình vừa tra và ghim những mục hay dùng,
@@ -1698,7 +1800,9 @@ So that tôi không phải tra lại cùng một chữ năm lần trong một Ch
 
 ---
 
-### Story 1.20: Phím tắt cấu hình lại được
+### Story 1.21: Phím tắt cấu hình lại được
+
+**Covers:** FR22
 
 As a người dịch,
 I want đổi mọi phím tắt theo thói quen của mình,
@@ -1738,6 +1842,8 @@ So that công cụ chạy theo tay tôi chứ không ngược lại.
 Người dịch dịch trọn một Chương **bằng tay, không cần AI và không cần Glossary**: văn bản tách thành segment cấp câu, gộp hoặc tách khi máy tách sai, xác nhận từng câu với vạch lề đổi màu, điều hướng tới segment chưa dịch kế tiếp, chuyển Chương ngay trong Workspace. Sập ứng dụng giữa phiên gõ **mất tối đa 5 giây công việc**, và không frame nào vượt 50 ms trong lúc auto-save chạy. Mọi phiên bản cũ của một segment xem lại và khôi phục được.
 
 ### Story 2.1: Tách segment cấp câu và cờ kết đoạn
+
+**Covers:** FR23
 
 As a người dịch,
 I want văn bản được chia thành từng câu ngay khi nhập và ranh giới đó ổn định mãi mãi,
@@ -1785,6 +1891,8 @@ So that lịch sử và trạng thái công việc của tôi không bao giờ t
 
 ### Story 2.2: Panel Editor liền mạch
 
+**Covers:** UX-DR13 · AD-1
+
 As a người dịch,
 I want gõ trên một trang văn bản liền chứ không phải một cái bảng, mà vẫn đọc được trạng thái từng câu,
 So that tôi viết tự do trong khi sổ sách segment vẫn sạch.
@@ -1823,6 +1931,8 @@ So that tôi viết tự do trong khi sổ sách segment vẫn sạch.
 ---
 
 ### Story 2.3: Hợp đồng flush và trạng thái đã lưu
+
+**Covers:** FR100
 
 As a người dịch,
 I want không bao giờ mất quá năm giây công việc dù ứng dụng có sập giữa lúc tôi đang gõ,
@@ -1865,6 +1975,8 @@ So that tôi không phải bận tâm về việc lưu.
 
 ### Story 2.4: Mũi thăm dò — đo NFR18 và NFR2 đồng thời
 
+**Covers:** NFR2 · NFR18 · AD-35 · mũi thăm dò bắt buộc
+
 As a chủ dự án,
 I want biết chắc nhịp auto-save đạt được cả hai ngưỡng cùng lúc,
 So that tôi không phát hiện ra chúng xung khắc sau khi đã xây tám story lên trên.
@@ -1897,6 +2009,8 @@ So that tôi không phát hiện ra chúng xung khắc sau khi đã xây tám st
 ---
 
 ### Story 2.5: Xác nhận segment và máy trạng thái
+
+**Covers:** FR24
 
 As a người dịch,
 I want đánh dấu một câu là đạt chuẩn của mình và thấy nó đổi màu ngay,
@@ -1933,6 +2047,8 @@ So that tôi biết mình đang ở đâu trong một Chương dài.
 
 ### Story 2.6: Lịch sử phiên bản segment và khôi phục
 
+**Covers:** FR101
+
 As a người dịch,
 I want xem lại các bản dịch trước của một câu và quay về một trong số đó,
 So that tôi thử một cách diễn đạt khác mà không sợ mất bản cũ.
@@ -1963,6 +2079,8 @@ So that tôi thử một cách diễn đạt khác mà không sợ mất bản c
 ---
 
 ### Story 2.7: Xuất xứ bản dịch cấp segment
+
+**Covers:** FR117
 
 As a người dịch làm cả vai biên tập,
 I want hệ thống tự biết câu nào là chữ của tôi và câu nào là của người khác,
@@ -2002,6 +2120,8 @@ So that kho Translation Memory về sau không bị trộn phong cách.
 ---
 
 ### Story 2.8: Gộp và tách segment tường minh
+
+**Covers:** FR78
 
 As a người dịch,
 I want sửa lại chỗ máy tách câu sai,
@@ -2045,6 +2165,8 @@ So that một dấu chấm trong chữ viết tắt không phá cấu trúc cả
 
 ### Story 2.9: Gộp ngầm khi gõ đè lên ranh giới
 
+**Covers:** FR78
+
 As a người dịch,
 I want viết lại hai câu Trung thành một câu Việt bằng cách gõ tự do,
 So that tôi không phải dừng lại ra lệnh cho công cụ giữa dòng suy nghĩ.
@@ -2074,6 +2196,8 @@ So that tôi không phải dừng lại ra lệnh cho công cụ giữa dòng su
 ---
 
 ### Story 2.10: Điều hướng segment
+
+**Covers:** FR25
 
 As a người dịch,
 I want nhảy tới câu chưa dịch tiếp theo bằng một phím,
@@ -2114,6 +2238,8 @@ So that tôi không phải cuộn tìm bằng mắt trong một Chương dài.
 
 ### Story 2.11: Chuyển Chương trong Workspace
 
+**Covers:** FR26
+
 As a người dịch,
 I want sang Chương kế tiếp mà không phải quay về Library,
 So that mạch làm việc của tôi không bị cắt.
@@ -2147,6 +2273,8 @@ So that mạch làm việc của tôi không bị cắt.
 ---
 
 ### Story 2.12: Sync Scrolling
+
+**Covers:** FR20
 
 As a người dịch,
 I want nguyên văn và bản dịch cuộn cùng nhau,
@@ -2191,6 +2319,8 @@ Người dịch bôi đen một cụm từ ở bất kỳ panel nào và thêm v
 
 ### Story 3.1: Mô hình Glossary hai tầng và vòng đời ba trạng thái
 
+**Covers:** FR46, FR47
+
 As a người dịch,
 I want một thuật ngữ tôi chốt riêng cho một Tác phẩm đè lên cách dịch chung của mình,
 So that tên nhân vật của bộ truyện này không lẫn sang bộ khác.
@@ -2232,6 +2362,8 @@ So that tên nhân vật của bộ truyện này không lẫn sang bộ khác.
 
 ### Story 3.2: Bảng chờ ứng viên tách hẳn khỏi Glossary
 
+**Covers:** FR55
+
 As a người dịch,
 I want chắc chắn không đề xuất nào của máy lọt vào Glossary sau lưng tôi,
 So that công cụ không bao giờ tự quyết cách dịch thay tôi.
@@ -2268,6 +2400,8 @@ So that công cụ không bao giờ tự quyết cách dịch thay tôi.
 
 ### Story 3.3: Thêm nhanh thuật ngữ từ bất kỳ panel nào
 
+**Covers:** FR48
+
 As a người dịch,
 I want chốt một thuật ngữ ngay khi gặp nó mà không rời câu đang dịch,
 So that tôi không bỏ qua chỉ vì ngại mở một màn hình khác.
@@ -2302,6 +2436,8 @@ So that tôi không bỏ qua chỉ vì ngại mở một màn hình khác.
 ---
 
 ### Story 3.4: Khớp thuật ngữ theo ngôn ngữ và đánh dấu trong Panel Source
+
+**Covers:** FR50, FR51
 
 As a người dịch,
 I want thấy ngay câu đang dịch chứa thuật ngữ nào đã chốt,
@@ -2341,6 +2477,8 @@ So that tôi không dịch lệch khỏi chính quyết định của mình.
 ---
 
 ### Story 3.5: Quét ứng viên khi nhập tài liệu
+
+**Covers:** FR52
 
 As a người dịch,
 I want công cụ tự tìm ra những cái tên lặp đi lặp lại trong một bộ truyện,
@@ -2382,92 +2520,9 @@ So that tôi không phải đọc hết 2000 chương mới biết mình cần c
 
 ---
 
-### Story 3.6: Đề xuất bản dịch bằng âm Hán Việt
+### Story 3.6: Trạng thái chờ chốt và dải mọc chốt lần đầu gặp
 
-As a người dịch truyện Trung,
-I want công cụ tự điền sẵn *"Bắc Lương"* khi nó thấy `北涼`,
-So that tôi chỉ việc gật đầu thay vì gõ lại hàng trăm cái tên.
-
-**Acceptance Criteria:**
-
-**Given** một ứng viên tiếng Trung trong bảng chờ
-**When** sinh đề xuất
-**Then** đề xuất bản dịch là **âm Hán Việt** của chuỗi đó
-
-**Given** âm Hán Việt
-**When** đọc
-**Then** đọc **qua cổng `DictionarySource`**
-**And** không có cài đặt thứ hai nào của dữ liệu Hán Việt bên trong `glossary/`
-
-**Given** đồ thị phụ thuộc module
-**When** kiểm
-**Then** có cạnh `glossary/ → dict/`
-**And** không tạo chu trình
-
-**Given** ngắt kết nối mạng
-**When** sinh đề xuất
-**Then** vẫn chạy đầy đủ
-
-**Given** người dùng nhận một ứng viên có đề xuất
-**When** xảy ra
-**Then** mục vào Glossary ở trạng thái **đã chốt** với cả thuật ngữ lẫn bản dịch
-
-**Given** một mục đã vào Glossary từ đề xuất
-**When** người dùng muốn sửa
-**Then** sửa được như mọi mục khác
-
-**Given** một ứng viên tiếng Anh, hoặc một chuỗi tiếng Trung không tra được âm Hán Việt
-**When** sinh đề xuất
-**Then** không đề xuất gì
-**And** mục sẽ đi theo đường chờ chốt của Story 3.8
-
----
-
-### Story 3.7: Duyệt hàng loạt một phím
-
-As a người dịch,
-I want duyệt 340 ứng viên bằng một phím mỗi mục,
-So that mười phút là xong thay vì cả buổi ngồi gõ.
-
-**Acceptance Criteria:**
-
-**Given** bảng chờ có nhiều ứng viên
-**When** mở
-**Then** hiện danh sách xếp theo **tần suất giảm dần**
-
-**Given** mỗi dòng ứng viên
-**When** hiển thị
-**Then** có số lần xuất hiện, ít nhất một ví dụ ngữ cảnh, và **bản dịch đề xuất khi có**
-
-**Given** một ứng viên đang chọn
-**When** người dùng bấm phím nhận
-**Then** mục vào Glossary **cùng bản dịch đề xuất nếu có**
-**And** con trỏ tự chuyển sang ứng viên kế tiếp
-
-**Given** một ứng viên đang chọn
-**When** người dùng bấm phím bỏ
-**Then** ứng viên rời bảng chờ và con trỏ chuyển tiếp
-
-**Given** toàn bộ luồng duyệt
-**When** thực hiện
-**Then** **không phải gõ chữ nào**
-
-**Given** phân loại của một ứng viên
-**When** người dùng muốn đổi
-**Then** đổi bằng **phím số**
-
-**Given** người dùng đóng bảng chờ giữa chừng
-**When** mở lại
-**Then** quay đúng vị trí đang duyệt
-
-**Given** hàng đã duyệt và hàng đã bỏ
-**When** hiển thị
-**Then** lùi ra sau bằng cách **đổi màu chữ** sang `on-surface-variant` cộng dấu `✓` / `✕`
-**And** **không dùng `opacity` để làm mờ chữ**
-
----
-
-### Story 3.8: Trạng thái chờ chốt và dải mọc chốt lần đầu gặp
+**Covers:** FR114
 
 As a người dịch,
 I want quyết định cách dịch một thuật ngữ khi tôi đang nhìn đúng câu chứa nó,
@@ -2512,7 +2567,98 @@ So that quyết định đó có ngữ cảnh thay vì là một dòng trong dan
 
 ---
 
+### Story 3.7: Đề xuất bản dịch bằng âm Hán Việt
+
+**Covers:** FR113
+
+As a người dịch truyện Trung,
+I want công cụ tự điền sẵn *"Bắc Lương"* khi nó thấy `北涼`,
+So that tôi chỉ việc gật đầu thay vì gõ lại hàng trăm cái tên.
+
+**Acceptance Criteria:**
+
+**Given** một ứng viên tiếng Trung trong bảng chờ
+**When** sinh đề xuất
+**Then** đề xuất bản dịch là **âm Hán Việt** của chuỗi đó
+
+**Given** âm Hán Việt
+**When** đọc
+**Then** đọc **qua cổng `DictionarySource`**
+**And** không có cài đặt thứ hai nào của dữ liệu Hán Việt bên trong `glossary/`
+
+**Given** đồ thị phụ thuộc module
+**When** kiểm
+**Then** có cạnh `glossary/ → dict/`
+**And** không tạo chu trình
+
+**Given** ngắt kết nối mạng
+**When** sinh đề xuất
+**Then** vẫn chạy đầy đủ
+
+**Given** người dùng nhận một ứng viên có đề xuất
+**When** xảy ra
+**Then** mục vào Glossary ở trạng thái **đã chốt** với cả thuật ngữ lẫn bản dịch
+
+**Given** một mục đã vào Glossary từ đề xuất
+**When** người dùng muốn sửa
+**Then** sửa được như mọi mục khác
+
+**Given** một ứng viên tiếng Anh, hoặc một chuỗi tiếng Trung không tra được âm Hán Việt
+**When** sinh đề xuất
+**Then** không đề xuất gì
+**And** mục sẽ đi theo đường chờ chốt của Story 3.6
+
+---
+
+### Story 3.8: Duyệt hàng loạt một phím
+
+**Covers:** FR53
+
+As a người dịch,
+I want duyệt 340 ứng viên bằng một phím mỗi mục,
+So that mười phút là xong thay vì cả buổi ngồi gõ.
+
+**Acceptance Criteria:**
+
+**Given** bảng chờ có nhiều ứng viên
+**When** mở
+**Then** hiện danh sách xếp theo **tần suất giảm dần**
+
+**Given** mỗi dòng ứng viên
+**When** hiển thị
+**Then** có số lần xuất hiện, ít nhất một ví dụ ngữ cảnh, và **bản dịch đề xuất khi có**
+
+**Given** một ứng viên đang chọn
+**When** người dùng bấm phím nhận
+**Then** mục vào Glossary **cùng bản dịch đề xuất nếu có**
+**And** con trỏ tự chuyển sang ứng viên kế tiếp
+
+**Given** một ứng viên đang chọn
+**When** người dùng bấm phím bỏ
+**Then** ứng viên rời bảng chờ và con trỏ chuyển tiếp
+
+**Given** toàn bộ luồng duyệt
+**When** thực hiện
+**Then** **không phải gõ chữ nào**
+
+**Given** phân loại của một ứng viên
+**When** người dùng muốn đổi
+**Then** đổi bằng **phím số**
+
+**Given** người dùng đóng bảng chờ giữa chừng
+**When** mở lại
+**Then** quay đúng vị trí đang duyệt
+
+**Given** hàng đã duyệt và hàng đã bỏ
+**When** hiển thị
+**Then** lùi ra sau bằng cách **đổi màu chữ** sang `on-surface-variant` cộng dấu `✓` / `✕`
+**And** **không dùng `opacity` để làm mờ chữ**
+
+---
+
 ### Story 3.9: Quản lý Glossary
+
+**Covers:** FR49
 
 As a người dịch,
 I want rà lại và dọn Glossary của mình,
@@ -2552,6 +2698,8 @@ So that một quyết định sai từ nửa năm trước không kéo dài mãi
 ---
 
 ### Story 3.10: Xuất và nhập Glossary qua CSV/TSV
+
+**Covers:** FR49
 
 As a người dịch,
 I want gửi bộ thuật ngữ của mình cho một người dịch khác bằng một file,
@@ -2597,6 +2745,8 @@ Người dịch cấu hình **một API key của chính mình** hoặc trỏ t�
 
 ### Story 4.1: Module `ai/` cô lập và test cưỡng chế ranh giới
 
+**Covers:** FR77
+
 As a người dịch không dùng AI,
 I want gỡ sạch cấu hình AI mà mọi thứ khác vẫn chạy đầy đủ,
 So that công cụ này là của tôi chứ không phải một vỏ bọc quanh một dịch vụ đám mây.
@@ -2637,6 +2787,8 @@ So that công cụ này là của tôi chứ không phải một vỏ bọc quan
 
 ### Story 4.2: Cấu hình nhà cung cấp AI
 
+**Covers:** FR65, FR66, FR68
+
 As a người dịch,
 I want dùng API key của chính mình hoặc một mô hình chạy trên máy tôi qua cùng một chỗ cấu hình,
 So that tôi không bị khoá vào một nhà cung cấp nào.
@@ -2673,6 +2825,8 @@ So that tôi không bị khoá vào một nhà cung cấp nào.
 ---
 
 ### Story 4.3: API key trong keychain
+
+**Covers:** FR67 · NFR11
 
 As a người dịch,
 I want khoá API của mình không bao giờ nằm trong một file nào trên máy,
@@ -2712,6 +2866,8 @@ So that một lần chia sẻ thư mục dự án không làm lộ nó.
 
 ### Story 4.4: Bộ prompt theo thể loại
 
+**Covers:** FR69
+
 As a người dịch làm nhiều lĩnh vực,
 I want một bộ prompt riêng cho tiên hiệp và một bộ khác cho báo chí,
 So that một công cụ phục vụ được mọi lĩnh vực mà không cần nhiều chế độ riêng.
@@ -2748,6 +2904,8 @@ So that một công cụ phục vụ được mọi lĩnh vực mà không cần
 
 ### Story 4.5: Xuất và nhập bộ prompt
 
+**Covers:** FR79
+
 As a người dịch,
 I want gửi bộ prompt tiên hiệp của mình cho người khác bằng một file,
 So that cộng đồng chia sẻ quy chuẩn dịch mà không cần hạ tầng nào.
@@ -2783,6 +2941,8 @@ So that cộng đồng chia sẻ quy chuẩn dịch mà không cần hạ tầng
 ---
 
 ### Story 4.6: Smart RAG Injector là một hàm thuần
+
+**Covers:** FR70
 
 As a người dịch,
 I want AI luôn nhận đúng những thuật ngữ tôi đã chốt cho câu đang dịch,
@@ -2829,6 +2989,8 @@ So that nó không gọi nhân vật của tôi bằng một cái tên khác ở
 
 ### Story 4.7: Xem prompt cuối cùng đã gửi
 
+**Covers:** FR71
+
 As a người dịch,
 I want nhìn được vào hộp đen,
 So that khi AI không tuân thủ Glossary tôi biết vì sao chứ không phải đoán.
@@ -2862,6 +3024,8 @@ So that khi AI không tuân thủ Glossary tôi biết vì sao chứ không ph�
 ---
 
 ### Story 4.8: Dịch một segment với kết quả chảy dần
+
+**Covers:** FR72, FR74
 
 As a người dịch,
 I want thấy bản dịch AI hiện dần ngay khi mô hình đang sinh, và nó nằm yên ở panel riêng,
@@ -2903,6 +3067,8 @@ So that tôi đọc sớm được mà vẫn là người quyết định đưa 
 
 ### Story 4.9: Dịch theo lô và huỷ giữa chừng
 
+**Covers:** FR73
+
 As a người dịch,
 I want cho AI dịch trước một loạt câu rồi biên tập lại, và dừng nó bất cứ lúc nào,
 So that tôi không bị khoá vào một lệnh đã lỡ bấm.
@@ -2942,6 +3108,8 @@ So that tôi không bị khoá vào một lệnh đã lỡ bấm.
 ---
 
 ### Story 4.10: Lỗi mạng và lỗi API
+
+**Covers:** FR75
 
 As a người dịch dùng API key của chính mình,
 I want một lần lỗi không tốn thêm tiền của tôi và không làm mất câu tôi đang gõ,
@@ -2983,6 +3151,8 @@ So that tôi tin được vào công cụ khi mạng chập chờn.
 
 ### Story 4.11: Số token và ước tính chi phí
 
+**Covers:** FR76
+
 As a người dịch trả tiền cho từng lời gọi,
 I want thấy mỗi lần bấm tốn bao nhiêu,
 So that tôi biết mình đang tiêu gì.
@@ -3017,6 +3187,8 @@ So that tôi biết mình đang tiêu gì.
 ---
 
 ### Story 4.12: Bố cục màn hình hẹp và hiệu chỉnh ngưỡng
+
+**Covers:** UX-DR15 · A11 · Q9 — đóng ngưỡng, thứ tự hy sinh panel đã chốt ở Story 1.14
 
 As a người dịch làm trên một laptop nhỏ,
 I want cặp Nguyên văn và Bản dịch không bao giờ bị nhường chỗ cho panel khác,
@@ -3076,6 +3248,8 @@ Mở ứng dụng là vào Library, không phải vào màn hình dịch. Ngư�
 
 ### Story 5.1: Mô hình Library hai tầng
 
+**Covers:** FR1, FR2, FR3, FR4
+
 As a người dịch,
 I want mọi thứ tôi dịch nằm trong một cấu trúc hai tầng đơn giản,
 So that một bài báo và một bộ 2000 chương dùng chung một mô hình.
@@ -3117,6 +3291,8 @@ So that một bài báo và một bộ 2000 chương dùng chung một mô hình
 
 ### Story 5.2: Chỉ mục Library dẫn xuất, một đường ghi duy nhất
 
+**Covers:** FR98
+
 As a người dịch,
 I want xoá một file chỉ mục hỏng mà không mất gì cả,
 So that thao tác sửa chữa hiển nhiên nhất không phải là thao tác nguy hiểm nhất.
@@ -3156,6 +3332,8 @@ So that thao tác sửa chữa hiển nhiên nhất không phải là thao tác 
 ---
 
 ### Story 5.3: Quét lại thư mục
+
+**Covers:** FR99
 
 As a người dịch,
 I want copy một thư mục `.atproj` vào là nó xuất hiện trong Library,
@@ -3198,6 +3376,8 @@ So that tôi quản lý dữ liệu của mình bằng file như mọi thứ kh�
 
 ### Story 5.4: Bốn trạng thái vòng đời
 
+**Covers:** FR5, FR6
+
 As a người dịch có 2000 chương chưa đụng tới,
 I want phân biệt *"chưa bắt đầu"* với *"đã làm dở rồi bỏ"*,
 So that tôi biết chương nào thật sự cần quay lại.
@@ -3237,6 +3417,8 @@ So that tôi biết chương nào thật sự cần quay lại.
 
 ### Story 5.5: Tiến độ Tác phẩm
 
+**Covers:** FR7
+
 As a người dịch,
 I want liếc qua Library là biết mình còn bao nhiêu,
 So that tôi không phải mở từng Tác phẩm ra đếm.
@@ -3268,6 +3450,8 @@ So that tôi không phải mở từng Tác phẩm ra đếm.
 ---
 
 ### Story 5.6: Lưới Tác phẩm, lọc và sắp xếp
+
+**Covers:** FR10
 
 As a người dịch,
 I want mở ứng dụng là thấy ngay mình đang có gì,
@@ -3307,6 +3491,8 @@ So that Library là điểm vào chứ không phải một màn hình phụ.
 
 ### Story 5.7: Danh sách Chương và mở Chương vào Workspace
 
+**Covers:** FR12
+
 As a người dịch,
 I want mở đúng chương đang dở và thấy con trỏ ở đúng câu tôi bỏ dở,
 So that tôi không mất năm phút tìm lại chỗ mỗi lần ngồi vào.
@@ -3345,6 +3531,8 @@ So that tôi không mất năm phút tìm lại chỗ mỗi lần ngồi vào.
 ---
 
 ### Story 5.8: Tổ chức lại Chương sau khi nhập
+
+**Covers:** FR15
 
 As a người dịch,
 I want sửa lại thứ tự và ranh giới Chương sau khi nhập mà không mất công đã dịch,
@@ -3388,6 +3576,8 @@ So that một lần tách sai không bắt tôi làm lại từ đầu.
 
 ### Story 5.9: Tìm kiếm full-text xuyên Library
 
+**Covers:** FR8 · NFR3
+
 As a người dịch,
 I want tìm một câu tôi từng dịch ở đâu đó trong cả thư viện,
 So that công sức cũ của tôi tìm lại được.
@@ -3419,6 +3609,12 @@ So that công sức cũ của tôi tìm lại được.
 **When** thực hiện
 **Then** đọc từ `library-index.db`
 
+**Given** một truy vấn không khớp gì trong cả Library
+**When** tìm ở chế độ chính xác dấu
+**Then** hiện trạng thái rỗng nêu **vì sao rỗng** và **làm gì tiếp** — mời thử chế độ khoan dung không dấu (Story 5.10)
+**And** **khác** với trạng thái chưa gõ gì vào ô tìm kiếm
+**And** không phải một danh sách trống không giải thích
+
 **Given** một thư viện lớn
 **When** tìm
 **Then** đo và ghi lại p95 để đối chiếu ngưỡng NFR3
@@ -3426,6 +3622,8 @@ So that công sức cũ của tôi tìm lại được.
 ---
 
 ### Story 5.10: Hai chế độ dấu
+
+**Covers:** FR9
 
 As a người dịch hay gõ không dấu cho nhanh,
 I want công cụ vẫn tìm ra thứ tôi cần,
@@ -3462,6 +3660,8 @@ So that tôi không phải chọn giữa nhanh và chính xác.
 ---
 
 ### Story 5.11: Chế độ đọc — typography và bố cục đọc dài
+
+**Covers:** FR11
 
 As a người dịch,
 I want đọc lại bản dịch của mình như đọc một trang sách,
@@ -3512,6 +3712,8 @@ So that tôi thưởng thức thành quả chứ không nhìn một bảng dữ 
 
 ### Story 5.12: Chế độ đọc chỉ đọc phần đã xong
 
+**Covers:** FR120
+
 As a người dịch,
 I want Chế độ đọc không bao giờ ném nguyên văn tiếng Trung vào giữa trang đọc tiếng Việt của tôi,
 So that phiên đọc không bị gãy.
@@ -3546,6 +3748,8 @@ So that phiên đọc không bị gãy.
 ---
 
 ### Story 5.13: Đánh dấu chỗ cần sửa khi đang đọc
+
+**Covers:** FR119
 
 As a người dịch đang đọc lại bản của mình,
 I want đánh dấu một câu sai rồi đọc tiếp ngay,
@@ -3590,6 +3794,8 @@ So that tôi không mất chỗ nào mà cũng không đứt phiên đọc.
 
 ### Story 5.14: Đo NFR3, NFR4, NFR5 và ghi lại trạng thái ba ngưỡng tạm
 
+**Covers:** NFR3 · NFR4 · NFR5 *(đo **sơ bộ** — phép đo nghiệm thu ở Story 6.18)*
+
 As a chủ dự án,
 I want có số đo thật thay vì ba giả định,
 So that tôi biết ngưỡng nào cần hiệu chỉnh và ngưỡng nào **chưa kiểm được**.
@@ -3616,6 +3822,7 @@ So that tôi biết ngưỡng nào cần hiệu chỉnh và ngưỡng nào **ch�
 **Given** không có đường nào tạo ra 5.000 Chương trước Epic 6
 **When** báo cáo
 **Then** nêu tường minh rằng phép đo đầy đủ **phải chạy lại sau Epic 6**
+**And** phép chạy lại đó là **Story 6.18**, có chủ và có nghiệm thu riêng — không phải một lời nhắc trôi nổi
 
 **Given** dữ liệu sinh giả dùng để đo tốc độ
 **When** dùng
@@ -3633,6 +3840,8 @@ So that tôi biết ngưỡng nào cần hiệu chỉnh và ngưỡng nào **ch�
 Đây là **bề mặt đầu tiên người dùng chạm vào sản phẩm**, và là nơi hai lỗi đắt nhất của ứng dụng có thể xảy ra mà không báo gì cả. Người dịch nhập một bộ 2000 chương từ một file `.txt` 40 MB, hoặc **dán 50 link web**, hoặc một file song ngữ hai cột do người khác dịch — tất cả đi qua **một màn xem trước hợp nhất** cho thấy bảng mã đã đoán, ranh giới nội dung đã bóc, và những gì luật làm sạch **sắp xoá** — trước khi một byte nào ghi xuống đĩa. Ảnh trong bài web tải về nằm trong `.atproj`; alt-text và caption là **hai segment dịch được riêng biệt**. Và ứng dụng **không bao giờ tự quyết định tải cái gì**.
 
 ### Story 6.1: Mũi thăm dò ba lựa chọn thư viện
+
+**Covers:** A12 · A13 · mũi thăm dò bắt buộc
 
 As a chủ dự án,
 I want biết trước ba thư viện nền của đường nhập có dùng được không và có tương thích GPL v3 không,
@@ -3671,6 +3880,8 @@ So that tôi không phát hiện ra một crate không rà được giấy phép
 ---
 
 ### Story 6.2: Pipeline nhập một chuỗi thứ tự cố định, dùng chung mọi nguồn
+
+**Covers:** AD-39 — pipeline dùng chung cho mọi FR nhập của epic này
 
 As a người dịch,
 I want mọi nguồn văn bản đi qua đúng một chuỗi xử lý theo đúng một thứ tự,
@@ -3711,6 +3922,8 @@ So that thứ tôi nhìn thấy ở màn xem trước chính là thứ được 
 ---
 
 ### Story 6.3: Bảng mã — phát hiện và dải đối chiếu năm bản dựng thật
+
+**Covers:** FR126
 
 As a người dịch nhập một file tải từ diễn đàn Trung Quốc,
 I want thấy ngay bằng mắt rằng bảng mã đang sai và sửa được trong một giây,
@@ -3756,6 +3969,8 @@ So that tôi không ngồi sửa ranh giới trên một văn bản đã hỏng.
 
 ### Story 6.4: Chuẩn hoá xuống dòng và khoảng trắng
 
+**Covers:** FR125
+
 As a người dịch,
 I want văn bản tải về được dọn cho gọn trước khi tách câu,
 So that một dòng bị ngắt tuỳ tiện không biến thành hai segment.
@@ -3790,6 +4005,8 @@ So that một dòng bị ngắt tuỳ tiện không biến thành hai segment.
 ---
 
 ### Story 6.5: Luật làm sạch lộ ra và hiện thứ sắp xoá
+
+**Covers:** FR124
 
 As a người dịch,
 I want thấy chính xác luật nào sắp xoá chữ nào trước khi nó xoá,
@@ -3834,6 +4051,8 @@ So that một luật ẩn không xoá nhầm một câu thật trong 2000 chươ
 
 ### Story 6.6: Tách Chương theo mẫu phân tách
 
+**Covers:** FR14
+
 As a người dịch có một file 40 MB chứa cả bộ truyện,
 I want cấu hình mẫu nhận diện đầu chương và thấy ngay kết quả tách,
 So that tôi không phát hiện ra 14 chương sai sau khi đã dịch 200 chương.
@@ -3874,43 +4093,9 @@ So that tôi không phát hiện ra 14 chương sai sau khi đã dịch 200 chư
 
 ---
 
-### Story 6.7: Đọc `.docx`
+### Story 6.7: Nhập từ URL bằng danh sách link
 
-As a người dịch,
-I want mở một file `.docx` như mọi định dạng khác,
-So that tôi không phải chuyển đổi thủ công trước khi đưa vào công cụ.
-
-**Acceptance Criteria:**
-
-**Given** một file `.docx` văn bản thường
-**When** nhập
-**Then** văn bản đọc ra đúng và đi vào pipeline từ bước **sau** giải mã bảng mã
-
-**Given** một `.docx` chứa **bảng**
-**When** đọc
-**Then** lấy được số hàng, số ô, và **số đoạn bên trong từng ô**
-
-**Given** khả năng lấy số đoạn trong ô
-**When** kiểm
-**Then** đây là **điều kiện tiên quyết của AD-38** ở Epic 8 — không có nó thì cổng kiểm hình dạng `.docx` không cài được
-
-**Given** `docx-rs` 0.4.22 không đọc được số đoạn trong ô
-**When** xảy ra
-**Then** rà `docx-reader` hoặc `rdocx`
-**And** **rà tương thích GPL v3 trước khi** đưa vào Stack
-
-**Given** một `.docx` chứa ảnh
-**When** đọc
-**Then** ảnh được nhận ra và đi vào đường xử lý tài sản của Story 6.12
-
-**Given** một `.docx` hỏng hoặc không đọc được
-**When** nhập
-**Then** báo lỗi nêu rõ vấn đề
-**And** không ghi một phần
-
----
-
-### Story 6.8: Nhập từ URL bằng danh sách link
+**Covers:** FR122
 
 As a người dịch lấy truyện từ website,
 I want dán một danh sách link và biết chắc ứng dụng chỉ tải đúng những link đó,
@@ -3950,7 +4135,9 @@ So that công cụ local-first của tôi không âm thầm biến thành một 
 
 ---
 
-### Story 6.9: Allowlist mạng hai tầng và nhật ký domain
+### Story 6.8: Allowlist mạng hai tầng và nhật ký domain
+
+**Covers:** NFR19 · NFR12 · AD-40 · AD-41 *(bộ test riêng bắt buộc)*
 
 As a người dịch,
 I want kiểm chứng được bằng mắt rằng ứng dụng chỉ gọi tới những nơi tôi cho phép,
@@ -4013,7 +4200,9 @@ So that lời hứa *"không telemetry"* là thứ tôi quan sát được chứ
 
 ---
 
-### Story 6.10: Bóc nội dung chính và sửa ranh giới bằng bàn phím
+### Story 6.9: Bóc nội dung chính và sửa ranh giới bằng bàn phím
+
+**Covers:** FR123
 
 As a người dịch,
 I want sửa lại chỗ thuật toán bóc thiếu hoặc bóc thừa, bằng bàn phím,
@@ -4075,7 +4264,9 @@ So that một tỉ lệ sai chấp nhận được vẫn ra một công cụ dù
 
 ---
 
-### Story 6.11: Bộ lọc "cần xem"
+### Story 6.10: Bộ lọc "cần xem"
+
+**Covers:** FR132
 
 As a người dịch dán 50 link cùng lúc,
 I want công cụ chỉ cho tôi những Chương thật sự cần nhìn,
@@ -4086,6 +4277,7 @@ So that tôi không bấm xác nhận mù ở Chương thứ mười.
 **Given** một lần nhập nhiều Chương
 **When** hiển thị màn xem trước
 **Then** đầu màn hình luôn hiện **hai con số**: *`N` Chương cần xem* và *`M` Chương sạch*
+**And** đây là nghiệm thu của **FR132** — bộ lọc này là điều kiện để FR123, FR124 và FR126 còn tác dụng ở quy mô năm mươi Chương, không phải một tiện ích giao diện
 
 **Given** một Chương
 **When** phân loại
@@ -4113,7 +4305,9 @@ So that tôi không bấm xác nhận mù ở Chương thứ mười.
 
 ---
 
-### Story 6.12: Ảnh tải về `.atproj`, neo vị trí, và URL gốc
+### Story 6.11: Ảnh tải về `.atproj`, neo vị trí, và URL gốc
+
+**Covers:** FR45, FR127
 
 As a người dịch,
 I want ảnh trong bài nằm ngay trong thư mục Tác phẩm của tôi,
@@ -4157,7 +4351,47 @@ So that copy sang một máy ngoại tuyến vẫn đủ ảnh.
 
 ---
 
+### Story 6.12: Đọc `.docx`
+
+**Covers:** FR13
+
+As a người dịch,
+I want mở một file `.docx` như mọi định dạng khác,
+So that tôi không phải chuyển đổi thủ công trước khi đưa vào công cụ.
+
+**Acceptance Criteria:**
+
+**Given** một file `.docx` văn bản thường
+**When** nhập
+**Then** văn bản đọc ra đúng và đi vào pipeline từ bước **sau** giải mã bảng mã
+
+**Given** một `.docx` chứa **bảng**
+**When** đọc
+**Then** lấy được số hàng, số ô, và **số đoạn bên trong từng ô**
+
+**Given** khả năng lấy số đoạn trong ô
+**When** kiểm
+**Then** đây là **điều kiện tiên quyết của AD-38** ở Epic 8 — không có nó thì cổng kiểm hình dạng `.docx` không cài được
+
+**Given** `docx-rs` 0.4.22 không đọc được số đoạn trong ô
+**When** xảy ra
+**Then** rà `docx-reader` hoặc `rdocx`
+**And** **rà tương thích GPL v3 trước khi** đưa vào Stack
+
+**Given** một `.docx` chứa ảnh
+**When** đọc
+**Then** ảnh được nhận ra và đi vào đường xử lý tài sản của Story 6.11
+
+**Given** một `.docx` hỏng hoặc không đọc được
+**When** nhập
+**Then** báo lỗi nêu rõ vấn đề
+**And** không ghi một phần
+
+---
+
 ### Story 6.13: Alt-text và caption là hai `Segment` mang trường vai
+
+**Covers:** FR44, FR129
 
 As a người dịch bài báo,
 I want dịch riêng chú thích ảnh và mô tả cho trình đọc màn hình,
@@ -4208,6 +4442,8 @@ So that bài đăng ra không mất chú thích và không đẩy nhầm một b
 
 ### Story 6.14: Hiển thị ảnh đúng vị trí
 
+**Covers:** FR42, FR43
+
 As a người dịch,
 I want thấy ảnh nằm đúng chỗ của nó trong bài, cả khi dịch lẫn khi đọc lại,
 So that tôi hiểu được ngữ cảnh của đoạn văn quanh nó.
@@ -4245,6 +4481,8 @@ So that tôi hiểu được ngữ cảnh của đoạn văn quanh nó.
 ---
 
 ### Story 6.15: Xuất xứ tài liệu ở tầng Chương
+
+**Covers:** FR128
 
 As a người dịch bài báo,
 I want tác giả và link bài gốc được ghi lại tự động ngay lúc nhập,
@@ -4285,6 +4523,8 @@ So that nghĩa vụ ghi nguồn không phụ thuộc vào trí nhớ của tôi 
 ---
 
 ### Story 6.16: Nhập tài liệu song ngữ hai cột
+
+**Covers:** FR115
 
 As a người biên tập,
 I want đưa một bản dịch do người khác làm vào công cụ mà không mất bản dịch đó,
@@ -4333,6 +4573,8 @@ So that tôi biên tập lại nó trong môi trường của mình thay vì tro
 
 ### Story 6.17: Khớp câu trong từng cặp hàng
 
+**Covers:** FR116
+
 As a người biên tập,
 I want nối tay những chỗ số câu hai bên lệch nhau,
 So that một lần khớp im lặng không đẩy bản dịch lệch đi một câu suốt cả chương.
@@ -4371,11 +4613,50 @@ So that một lần khớp im lặng không đẩy bản dịch lệch đi một
 
 ---
 
+### Story 6.18: Đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương thật
+
+**Covers:** NFR3 · NFR4 · NFR5 *(nghiệm thu — đóng A6, A7, Q4)*
+
+As a chủ dự án,
+I want ba ngưỡng tạm được đo lại trên một thư viện 5.000 Chương dựng bằng chính đường nhập của sản phẩm,
+So that Q4 đóng được bằng số đo chứ không bằng phán đoán.
+
+**Acceptance Criteria:**
+
+**Given** đường nhập hàng loạt (FR14) đã tồn tại ở epic này
+**When** dựng bộ dữ liệu đo
+**Then** tạo được một thư viện **5.000 Chương** bằng **chính đường nhập của sản phẩm**, không bằng một script nhét thẳng vào database
+**And** đây là điều kiện Story 5.14 không có được: ở Epic 5 chưa có đường nào tạo ra ngần ấy Chương
+
+**Given** thư viện 5.000 Chương
+**When** đo
+**Then** ghi lại **p95 tìm kiếm full-text** (NFR3), **thời gian khởi động tới lúc Library dùng được** (NFR4), và **bộ nhớ khi nhàn rỗi** (NFR5)
+**And** đo trên **cả macOS lẫn Windows**
+
+**Given** số đo và ba ngưỡng tạm A6, A7, A8
+**When** đối chiếu
+**Then** mỗi ngưỡng nhận **đúng một** trong ba kết luận: **giữ nguyên** · **sửa thành số đo được** · **vượt quá xa nên là thay đổi tầng PRD cần chủ dự án quyết**
+**And** kết luận được ghi vào PRD, không chỉ ghi trong một lần chạy
+
+**Given** Story 5.14 đã ghi số sơ bộ trên thư viện nhỏ
+**When** story này hoàn tất
+**Then** kết quả ở đây **thay thế** số đó
+**And** Story 5.14 được đánh dấu rõ là phép đo **sơ bộ**, không phải phép đo nghiệm thu
+
+**Given** ba kết luận đã ghi
+**When** hoàn tất
+**Then** **Q4 đóng**
+**And** không còn ngưỡng nào của NFR3, NFR4, NFR5 mang nhãn ngưỡng tạm
+
+---
+
 ## Epic 7: Translation Memory — không dịch lại, không tra lại thứ đã dịch
 
 Mỗi lần người dịch xác nhận một segment, cặp *(nguồn → đích)* **tự vào Translation Memory, không một thao tác thủ công nào**. Từ đó về sau: câu y hệt được **điền sẵn nhưng vẫn ở trạng thái chưa xác nhận**; câu tương tự hiện kèm phần trăm khớp và diff phần khác biệt; và Concordance trả lời *"cụm này trước đây tôi dịch thế nào?"* ngay trong Panel Lookup. TM xuất được TMX mở ở CAT tool khác. Và vì chủ dự án làm **cả hai vai**, mỗi cặp TM mang **xuất xứ**, và Smart RAG Injector **ưu tiên cặp của chính người dùng**.
 
 ### Story 7.1: Ghi TM tự động, khoá theo cặp văn bản
+
+**Covers:** FR44, FR56, FR129
 
 As a người dịch,
 I want mỗi câu tôi xác nhận tự vào kho mà không phải bấm thêm gì,
@@ -4418,6 +4699,8 @@ So that kho của tôi dày lên như một hệ quả của việc làm, không
 
 ### Story 7.2: Xuất xứ trên từng cặp TM
 
+**Covers:** FR118
+
 As a người dịch làm cả vai biên tập,
 I want mỗi cặp trong kho biết nó là chữ của ai,
 So that kho của tôi không âm thầm đầy lên bằng văn phong người khác.
@@ -4448,6 +4731,8 @@ So that kho của tôi không âm thầm đầy lên bằng văn phong người 
 ---
 
 ### Story 7.3: TM phạm vi kép và thứ tự sắp xếp hai khoá
+
+**Covers:** FR57
 
 As a người dịch,
 I want kết quả TM ưu tiên đúng thứ giống văn phong tôi nhất,
@@ -4488,6 +4773,8 @@ So that gợi ý đầu tiên tôi thấy là gợi ý đáng dùng nhất.
 
 ### Story 7.4: Khớp tuyệt đối 100%
 
+**Covers:** FR58
+
 As a người dịch,
 I want câu y hệt tôi từng dịch được điền sẵn nhưng vẫn chờ tôi gật đầu,
 So that công cụ không bao giờ tự coi một câu là xong thay tôi.
@@ -4523,6 +4810,8 @@ So that công cụ không bao giờ tự coi một câu là xong thay tôi.
 ---
 
 ### Story 7.5: Khớp mờ
+
+**Covers:** FR59
 
 As a người dịch,
 I want thấy câu gần giống mình từng dịch và biết nó khác chỗ nào,
@@ -4562,6 +4851,8 @@ So that tôi sửa nhanh thay vì dịch lại từ đầu.
 
 ### Story 7.6: Thuật toán khớp theo ngôn ngữ
 
+**Covers:** FR61
+
 As a người dựng,
 I want TM khớp bằng đúng cơ chế mà từ điển và Glossary đang dùng,
 So that ba nơi không bao giờ bắt được những biến thể khác nhau.
@@ -4592,6 +4883,8 @@ So that ba nơi không bao giờ bắt được những biến thể khác nhau.
 
 ### Story 7.7: Concordance
 
+**Covers:** FR60
+
 As a người dịch,
 I want hỏi *"cụm này trước đây tôi dịch thế nào?"* ngay tại chỗ tôi đang tra từ điển,
 So that tôi không phải nhớ hai chỗ khác nhau cho hai loại tra cứu.
@@ -4618,10 +4911,10 @@ So that tôi không phải nhớ hai chỗ khác nhau cho hai loại tra cứu.
 **When** hiển thị
 **Then** trạng thái rỗng nêu rõ lý do, khác với trạng thái rỗng của từ điển
 
-**Given** trạng thái rỗng *"không tìm thấy"* của tra cứu từ điển ở Story 1.16
+**Given** trạng thái rỗng *"không tìm thấy"* của tra cứu từ điển ở Story 1.17
 **When** Concordance đã tồn tại
 **Then** bổ sung đường trỏ sang Concordance vào trạng thái rỗng đó
-**And** đây là chỗ lời hứa bị hoãn ở Story 1.16 được trả
+**And** đây là chỗ lời hứa bị hoãn ở Story 1.17 được trả
 
 **Given** Translation Memory còn trống
 **When** người dùng mở Concordance lần đầu
@@ -4634,6 +4927,8 @@ So that tôi không phải nhớ hai chỗ khác nhau cho hai loại tra cứu.
 ---
 
 ### Story 7.8: Nhiều bản dịch cho cùng một câu nguồn
+
+**Covers:** FR63
 
 As a người dịch,
 I want giữ lại cả hai cách tôi từng dịch một câu,
@@ -4664,6 +4959,8 @@ So that tôi tự chọn theo ngữ cảnh thay vì bị công cụ chọn hộ.
 ---
 
 ### Story 7.9: Quản lý Translation Memory
+
+**Covers:** FR62
 
 As a người dịch,
 I want rà lại kho của mình và dọn phần không phải văn phong của tôi,
@@ -4707,6 +5004,8 @@ So that tôi kiểm soát được thứ AI đang học từ tôi.
 
 ### Story 7.10: Xuất và nhập TMX
 
+**Covers:** FR64
+
 As a người dịch,
 I want mang kho dịch của mình sang một công cụ khác,
 So that dữ liệu của tôi sống lâu hơn phần mềm và tôi không bị khoá vào `.atproj`.
@@ -4745,6 +5044,8 @@ So that dữ liệu của tôi sống lâu hơn phần mềm và tôi không b�
 ---
 
 ### Story 7.11: Smart RAG ưu tiên cặp của chính người dùng
+
+**Covers:** FR70, FR118
 
 As a người dịch,
 I want AI học văn phong của chính tôi chứ không phải của người tôi biên tập hộ,
@@ -4788,6 +5089,8 @@ Reviewer **không cài AuraTranslate**, nên trao đổi file là cầu nối du
 
 ### Story 8.1: Mũi thăm dò thư viện diff
 
+**Covers:** NFR15 · mũi thăm dò bắt buộc
+
 As a chủ dự án,
 I want chọn thư viện diff bằng dữ liệu thật thay vì bằng mô tả trên trang crate,
 So that Review Mode bôi màu đúng chỗ mắt người cần nhìn.
@@ -4818,6 +5121,8 @@ So that Review Mode bôi màu đúng chỗ mắt người cần nhìn.
 ---
 
 ### Story 8.2: Phạm vi xuất
+
+**Covers:** FR89
 
 As a người dịch,
 I want chọn xuất một chương, vài chương, hay cả bộ,
@@ -4859,6 +5164,8 @@ So that tôi gửi đúng phần reviewer cần mà không phải cắt file b�
 
 ### Story 8.3: Xuất `.docx` bảng hai cột theo segment
 
+**Covers:** FR87
+
 As a người dịch,
 I want gửi reviewer một file mà mỗi câu nằm một hàng,
 So that họ sửa ở đâu tôi cũng nhập ngược về đúng chỗ đó được.
@@ -4892,6 +5199,8 @@ So that họ sửa ở đâu tôi cũng nhập ngược về đúng chỗ đó �
 ---
 
 ### Story 8.4: Xuất `.docx` một khối theo đoạn cho đăng bài
+
+**Covers:** FR121
 
 As a người dịch bài đăng,
 I want bôi đen cột phải và dán thẳng sang trình soạn thảo website,
@@ -4932,45 +5241,9 @@ So that người đăng nhận được văn bản liền mạch chứ không ph
 
 ---
 
-### Story 8.5: Xuất `.md` và text thuần
+### Story 8.5: Chọn cách xuất hình ảnh
 
-As a người dịch,
-I want một bản Markdown giữ nguyên ảnh, chú thích và mô tả đã dịch,
-So that người đăng dựng lại được trọn bài chứ không chỉ nhận chữ.
-
-**Acceptance Criteria:**
-
-**Given** phạm vi xuất đã chọn
-**When** xuất `.md`
-**Then** sinh ra Markdown hợp lệ
-
-**Given** phạm vi xuất đã chọn
-**When** xuất text thuần
-**Then** sinh ra văn bản không đánh dấu
-
-**Given** một Chương có ảnh
-**When** xuất `.md`
-**Then** ảnh được tham chiếu theo kiểu người dùng chọn ở Story 8.6
-
-**Given** một ảnh có alt-text đã dịch
-**When** xuất `.md`
-**Then** **alt-text đã dịch** được đưa vào, không phải alt-text gốc
-
-**Given** một ảnh có caption đã dịch
-**When** xuất
-**Then** **caption đã dịch** được đưa vào, tách bạch với alt-text
-
-**Given** cấu trúc đoạn
-**When** xuất
-**Then** đọc từ cờ kết đoạn đã lưu, không suy ra từ nội dung
-
-**Given** định dạng text thuần
-**When** người dùng chọn
-**Then** màn hình xuất nói rõ nó **không nhập lại được**, cùng nhóm với `.docx` một khối
-
----
-
-### Story 8.6: Chọn cách xuất hình ảnh
+**Covers:** FR130
 
 As a người dịch bài đăng,
 I want chọn xuất ảnh theo link gốc để người đăng dựng lại bài trên website,
@@ -5012,7 +5285,49 @@ So that họ không phải tự đi tìm lại từng tấm ảnh.
 
 ---
 
+### Story 8.6: Xuất `.md` và text thuần
+
+**Covers:** FR88
+
+As a người dịch,
+I want một bản Markdown giữ nguyên ảnh, chú thích và mô tả đã dịch,
+So that người đăng dựng lại được trọn bài chứ không chỉ nhận chữ.
+
+**Acceptance Criteria:**
+
+**Given** phạm vi xuất đã chọn
+**When** xuất `.md`
+**Then** sinh ra Markdown hợp lệ
+
+**Given** phạm vi xuất đã chọn
+**When** xuất text thuần
+**Then** sinh ra văn bản không đánh dấu
+
+**Given** một Chương có ảnh
+**When** xuất `.md`
+**Then** ảnh được tham chiếu theo kiểu người dùng chọn ở Story 8.5
+
+**Given** một ảnh có alt-text đã dịch
+**When** xuất `.md`
+**Then** **alt-text đã dịch** được đưa vào, không phải alt-text gốc
+
+**Given** một ảnh có caption đã dịch
+**When** xuất
+**Then** **caption đã dịch** được đưa vào, tách bạch với alt-text
+
+**Given** cấu trúc đoạn
+**When** xuất
+**Then** đọc từ cờ kết đoạn đã lưu, không suy ra từ nội dung
+
+**Given** định dạng text thuần
+**When** người dùng chọn
+**Then** màn hình xuất nói rõ nó **không nhập lại được**, cùng nhóm với `.docx` một khối
+
+---
+
 ### Story 8.7: Khối ghi nguồn
+
+**Covers:** FR131
 
 As a người dịch bài đăng,
 I want khối ghi nguồn nằm sẵn trong file bàn giao,
@@ -5055,6 +5370,8 @@ So that người đăng — không cài app, không hỏi thêm câu nào — v�
 
 ### Story 8.8: Cổng kiểm hình dạng bảng `.docx`
 
+**Covers:** AD-38 — cổng kiểm hình dạng bảng `.docx`
+
 As a người dịch,
 I want ứng dụng từ chối một file mà việc nhập nó sẽ phá dữ liệu của tôi,
 So that một lần kéo nhầm file không ghi đè cả Chương đã xác nhận.
@@ -5095,6 +5412,8 @@ So that một lần kéo nhầm file không ghi đè cả Chương đã xác nh�
 
 ### Story 8.9: Nhập lại file reviewer đã sửa
 
+**Covers:** FR90
+
 As a người dịch,
 I want đưa bản reviewer đã sửa trở lại đúng Tác phẩm của mình,
 So that công sức họ bỏ ra không dừng lại ở một file trong hộp thư.
@@ -5129,6 +5448,8 @@ So that công sức họ bỏ ra không dừng lại ở một file trong hộp 
 ---
 
 ### Story 8.10: Segment alignment — máy khớp, người sửa
+
+**Covers:** FR91
 
 As a người dịch,
 I want thấy rõ những đoạn hệ thống không khớp được và tự nối chúng,
@@ -5172,6 +5493,8 @@ So that một lần khớp im lặng không đẩy cả chương lệch đi mộ
 
 ### Story 8.11: Review Mode — bố cục hai cửa sổ side-by-side
 
+**Covers:** FR92
+
 As a người dịch,
 I want đặt bản của mình cạnh bản reviewer đã sửa,
 So that tôi lướt qua từng chỗ khác biệt thay vì đọc lại cả chương.
@@ -5210,6 +5533,8 @@ So that tôi lướt qua từng chỗ khác biệt thay vì đọc lại cả ch
 
 ### Story 8.12: Diff bôi màu, ẩn văn bản gốc
 
+**Covers:** FR93
+
 As a người dịch,
 I want chỉ nhìn hai bản dịch và chỗ chúng khác nhau,
 So that mắt tôi không phải lọc qua nguyên văn tiếng Trung khi đang so hai bản tiếng Việt.
@@ -5247,6 +5572,8 @@ So that mắt tôi không phải lọc qua nguyên văn tiếng Trung khi đang 
 ---
 
 ### Story 8.13: Chấp nhận từng thay đổi
+
+**Covers:** FR94
 
 As a người dịch,
 I want chọn lấy những sửa đổi tôi đồng ý và bỏ những chỗ tôi không,
@@ -5287,6 +5614,8 @@ So that reviewer là người góp ý chứ không phải người quyết đị
 
 ### Story 8.14: Thu hoạch thuật ngữ từ bản review
 
+**Covers:** FR54
+
 As a người dịch,
 I want công cụ nhận ra reviewer đã đổi cách gọi một nhân vật,
 So that từ chương sau AI dùng đúng cách gọi đó thay vì lặp lại lỗi cũ.
@@ -5322,6 +5651,8 @@ So that từ chương sau AI dùng đúng cách gọi đó thay vì lặp lại 
 ---
 
 ### Story 8.15: Thu hoạch chạy độc lập với Review Mode
+
+**Covers:** FR95
 
 As a người dịch,
 I want công sức của reviewer chuyển thành giá trị kể cả khi tôi không mở Diff Viewer,
@@ -5361,6 +5692,8 @@ Người dịch chạy proofreader **theo yêu cầu** trên một segment, mộ
 
 ### Story 9.1: Quét chính tả và ngữ pháp tiếng Việt
 
+**Covers:** FR80
+
 As a người dịch,
 I want bắt những lỗi chính tả và ngữ pháp tôi không còn nhìn ra sau bốn tiếng dịch,
 So that bản bàn giao không mang những lỗi mà chính tôi thấy ngay nếu đọc lại hôm sau.
@@ -5393,6 +5726,8 @@ So that bản bàn giao không mang những lỗi mà chính tôi thấy ngay n�
 
 ### Story 9.2: Đối chiếu bản dịch với bản gốc
 
+**Covers:** FR81
+
 As a người dịch,
 I want biết chỗ nào tôi dịch lệch nghĩa hoặc viết ra một câu tối nghĩa,
 So that reviewer không phải là người đầu tiên phát hiện ra chúng.
@@ -5423,6 +5758,8 @@ So that reviewer không phải là người đầu tiên phát hiện ra chúng.
 ---
 
 ### Story 9.3: Chạy theo yêu cầu, không chạy nền
+
+**Covers:** FR82
 
 As a người dịch dùng API key của chính mình,
 I want proofreader chỉ chạy khi tôi bảo nó chạy,
@@ -5461,6 +5798,8 @@ So that tôi không bị tính phí cho những lần quét tôi không yêu c�
 ---
 
 ### Story 9.4: Hình dạng một phát hiện và xử lý từng cái một
+
+**Covers:** FR83
 
 As a người dịch,
 I want mỗi cảnh báo nói rõ nó là lỗi gì và đề nghị sửa thế nào,
@@ -5502,6 +5841,8 @@ So that tôi phán xét được thay vì phải tự đoán ý của máy.
 
 ### Story 9.5: Hiển thị tại chỗ bằng gạch chân lượn sóng
 
+**Covers:** FR86
+
 As a người dịch,
 I want thấy chính xác cụm chữ nào có vấn đề ngay trên câu tôi đang đọc,
 So that tôi không phải tự đối chiếu vị trí từ một danh sách rời.
@@ -5541,6 +5882,8 @@ So that tôi không phải tự đối chiếu vị trí từ một danh sách r
 
 ### Story 9.6: Bỏ qua có ghi nhớ
 
+**Covers:** FR84
+
 As a người dịch,
 I want một cảnh báo tôi đã bác bỏ đừng quay lại lần sau,
 So that tôi không tắt hẳn proofreader và mất luôn những cảnh báo đúng.
@@ -5576,6 +5919,8 @@ So that tôi không tắt hẳn proofreader và mất luôn những cảnh báo 
 
 ### Story 9.7: Proofreader không tự sửa văn bản
 
+**Covers:** FR85
+
 As a người dịch,
 I want chắc chắn không dòng nào trong bản dịch của tôi tự đổi,
 So that tôi vẫn là người quyết định từng chữ trong bản của mình.
@@ -5605,6 +5950,8 @@ So that tôi vẫn là người quyết định từng chữ trong bản của m
 ---
 
 ### Story 9.8: Đo tỷ lệ báo động giả
+
+**Covers:** FR81
 
 As a chủ dự án,
 I want biết proofreader có đủ chính xác để đáng dùng hay không,
@@ -5645,6 +5992,8 @@ Một người dịch phổ thông tải bản cài từ GitHub Releases, đối
 
 ### Story 10.1: Build công khai qua GitHub Actions
 
+**Covers:** FR107
+
 As a người dùng cẩn thận,
 I want kiểm chứng được binary khớp với mã nguồn,
 So that tôi tin được một bản cài không ai ký tên vào.
@@ -5681,6 +6030,8 @@ So that tôi tin được một bản cài không ai ký tên vào.
 
 ### Story 10.2: Phát hành cho macOS và Windows
 
+**Covers:** FR105
+
 As a người dịch trên macOS,
 I want một bản cài cho hệ điều hành của mình,
 So that tôi không bị bỏ lại như thời QuickTranslator.
@@ -5716,6 +6067,8 @@ So that tôi không bị bỏ lại như thời QuickTranslator.
 
 ### Story 10.3: Checksum SHA-256
 
+**Covers:** FR106
+
 As a người dùng cẩn thận,
 I want đối chiếu được file mình tải với thứ dự án công bố,
 So that tôi có một cách xác minh thay cho chữ ký số.
@@ -5741,6 +6094,8 @@ So that tôi có một cách xác minh thay cho chữ ký số.
 ---
 
 ### Story 10.4: Màn hình Attribution
+
+**Covers:** FR109
 
 As a người dịch,
 I want thấy mọi nguồn từ điển và giấy phép của chúng ngay trong ứng dụng,
@@ -5782,6 +6137,8 @@ So that tôi biết mình đang đọc dữ liệu của ai.
 
 ### Story 10.5: Giấy phép trong bản phát hành
 
+**Covers:** FR110
+
 As a người đóng góp,
 I want thấy toàn bộ giấy phép đi kèm bản phát hành,
 So that tôi biết mình dùng lại được những gì và với điều kiện nào.
@@ -5812,6 +6169,8 @@ So that tôi biết mình dùng lại được những gì và với điều ki�
 ---
 
 ### Story 10.6: Hướng dẫn cài đặt có ảnh chụp màn hình
+
+**Covers:** FR108
 
 As a người dịch không rành kỹ thuật,
 I want được chỉ từng bước cách vượt qua cảnh báo của hệ điều hành,
@@ -5846,6 +6205,8 @@ So that tôi không bỏ cuộc ở màn hình đầu tiên.
 ---
 
 ### Story 10.7: Cập nhật chỉ kiểm tra và thông báo
+
+**Covers:** FR111
 
 As a người dịch,
 I want ứng dụng không bao giờ tự tải và tự cài một thứ gì,
@@ -5883,6 +6244,8 @@ So that một bản không ký số không trở thành đường tấn công v�
 ---
 
 ### Story 10.8: Chính sách gỡ bỏ dữ liệu
+
+**Covers:** FR112
 
 As a chủ dự án,
 I want gỡ một nguồn dữ liệu khỏi bản phát hành kế tiếp trong vài phút,
@@ -5922,6 +6285,8 @@ So that một khiếu nại không biến thành một đợt sửa mã nguồn.
 ---
 
 ### Story 10.9: Nghiệm thu cuối các ngưỡng phi chức năng
+
+**Covers:** nghiệm thu cuối toàn bộ NFR1–NFR19
 
 As a chủ dự án,
 I want một cổng cuối kiểm lại những ngưỡng chỉ đo được khi sản phẩm đã đủ,

@@ -422,11 +422,11 @@ Hệ quả cho thiết kế đã áp vào mockup: thẻ quyết định hiện *
 
   **Hệ quả tôi đọc sai và nay đã sửa:** tôi bàn giao rằng FR115 (nhập song ngữ) *không* cần tách Chương. Sai — một `.docx` hai cột chứa cả bộ truyện cũng đến thành một dòng chưa chia Chương, nên theo tiêu chí hình dạng nó **có** cần. Và [`mockups/bilingual-import.html`](mockups/bilingual-import.html) dựng **từ hôm trước** vốn đã có sẵn trường *"Mẫu nhận diện đầu Chương — **áp lên cột nguồn**"*: tầng thiết kế đã trả lời câu hỏi này trước khi nó được đặt ra.
 
-- 🟡 **`FR115` chưa nói mẫu phân tách khớp vào cột nào — nhưng tầng thiết kế đã chọn** *(mở 2026-08-03)*. Spine ghi đây là câu hỏi ba lựa chọn còn để ngỏ. **Hẹp hơn thế:** `bilingual-import.html` đã chọn **cột nguồn**, và đó là lựa chọn đúng — đầu Chương gốc mang dạng `第N章` ổn định và máy khớp được, còn cột đích do người khác dịch có thể ghi *"Chương 5"*, ghi khác đi, hoặc bỏ hẳn dòng tiêu đề. Khớp vào cột đích là đặt độ tin cậy của cả lần nhập vào thói quen của một người dịch khác.
+- ~~**`FR115` chưa nói mẫu phân tách khớp vào cột nào**~~ — ✅ **đóng 2026-08-03.** `bilingual-import.html` chọn **cột nguồn**, và cả hai tầng trên đã phê chuẩn lựa chọn đó thành chữ: **PRD §6.1 `FR115`** nay ghi *"Ranh giới Chương lấy từ mẫu phân tách của FR14, và mẫu đó áp lên **cột nguồn**"*, và **`ARCHITECTURE-SPINE.md` AD-39** ghi *"Mẫu phân tách áp lên cột nguồn (PRD chốt 2026-08-03)"*. Lý do giữ nguyên như tầng thiết kế đã nêu: đầu Chương gốc mang dạng `第N章` ổn định và máy khớp được, còn cột đích do người khác dịch có thể ghi *"Chương 5"*, ghi khác đi, hoặc bỏ hẳn dòng tiêu đề — khớp vào cột đích là đặt độ tin cậy của cả lần nhập vào thói quen của một người dịch mà người dùng không kiểm soát được.
 
-  **Ảnh hưởng tới giao diện: không.** Màn xem trước song ngữ đã có sẵn trường mẫu phân tách và dòng *"N Chương nhận ra"*; nếu về sau PRD chốt khác thì chỉ đổi **nhãn của trường**, không đổi bố cục hay luồng thao tác.
+  **Ảnh hưởng tới giao diện: không.** Màn xem trước song ngữ đã có sẵn trường mẫu phân tách và dòng *"N Chương nhận ra"*.
 
-  Còn lại là việc tầng sản phẩm: **PRD nên phê chuẩn lựa chọn này thành chữ**, thay vì để nó chỉ sống trong một bản dựng. *Chủ: chủ dự án — trước Giai đoạn 3.*
+  > *(Mục này từng được ghi là 🟡 còn mở với việc cần làm **"PRD nên phê chuẩn lựa chọn này thành chữ"**. Việc đó đã xong ở cả PRD lẫn Architecture trước khi mục này được rà lại; đánh dấu đóng ngày 2026-08-03 trong đợt rà mức sẵn sàng triển khai.)*
 - ~~**Mâu thuẫn giãn dòng `ui` trong `DESIGN.md`**~~ — ✅ **đóng 2026-08-03.** Sàn 1.66 áp cho **chữ nội dung họ `read`**; họ `ui` được phép ở **1.4 và 1.5** cho nhãn một dòng, nhưng **quay lại 1.66 khi chuỗi có khả năng xuống dòng** (mô tả dưới ô thiết lập, câu trạng thái, hộp giải thích). Ranh giới là *chữ có chạy thành đoạn hay không*, không phải cỡ chữ. Xem `DESIGN.md § Giãn dòng`.
 
 ### ✅ Bề mặt theo bản đồ năng lực — đã phủ kín 2026-08-03

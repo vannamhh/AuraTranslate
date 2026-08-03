@@ -177,7 +177,7 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 
 | # | Nhóm năng lực | Vai trò | Dải FR |
 |---|---|---|---|
-| **C1** | Library — kho tài liệu & trải nghiệm đọc | Điểm vào ứng dụng | FR1–FR15, FR43, FR45, FR115, FR116, FR119, FR120, FR122–FR128 |
+| **C1** | Library — kho tài liệu & trải nghiệm đọc | Điểm vào ứng dụng | FR1–FR15, FR43, FR45, FR115, FR116, FR119, FR120, FR122–FR128, FR132 |
 | **C2** | Workspace — môi trường dịch bốn panel | Trung tâm thao tác | FR16–FR26, FR42, FR44, FR78, FR117, FR129 |
 | **C3** | Embedded Dictionary & Lookup | Điều kiện tồn tại | FR27–FR41 |
 | **C4** | Glossary & thuật ngữ | Nơi quyết định biên tập được ghi lại | FR46–FR55, FR79, FR113, FR114 |
@@ -188,7 +188,7 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 | **C9** | Dự án & dữ liệu — `.atproj`, chỉ mục, scope | Nền của C1–C8 | FR96–FR104 |
 | **C10** | Phát hành & tin cậy | Vượt rào cản không ký số | FR105–FR112 |
 
-**Tổng: 131 yêu cầu chức năng.**
+**Tổng: 132 yêu cầu chức năng.**
 
 ### 5.2 Glossary thuật ngữ
 
@@ -323,6 +323,18 @@ Màn xem trước hiện phần đã bóc của **từng Chương** và cho ngư
 **FR128.** **Xuất xứ tài liệu nguồn, ghi ở tầng Chương.** Bốn trường: **tên tác giả bài gốc · tên báo hoặc website nguồn · URL bài gốc · ngày đăng bài gốc**. Tự điền khi nhập từ URL (FR122), **sửa lại được**, và **nhập tay được** cả khi văn bản đến từ file hoặc dán trực tiếp.
 
 > **Vì sao ở tầng Chương chứ không tầng Tác phẩm:** một bộ truyện nhập từ web có **mỗi Chương một link riêng** — gắn ở tầng Tác phẩm là mất thông tin ngay từ Chương thứ hai. Với bài báo, Tác phẩm bằng đúng một Chương (FR2) nên hai tầng trùng nhau và không mất gì. Tầng Chương đúng cho cả hai; tầng Tác phẩm chỉ đúng cho một.
+
+> *(FR132 mang số cuối dãy theo quy ước không đánh số lại — bổ sung 2026-08-03 sau khi rà soát mức sẵn sàng triển khai phát hiện tầng thiết kế đã đặc tả yêu cầu này và epics đã dành hẳn một story cho nó, nhưng PRD chưa có.)*
+
+**FR132.** **Bộ lọc "cần xem" trên màn hình xem trước nhập.** Đầu màn xem trước luôn hiển thị **hai con số** — *`N` Chương cần xem* và *`M` Chương sạch* — kèm **một thao tác lọc** đưa danh sách về chỉ nhóm cần xem. Áp cho **mọi đường nhập** đi qua màn xem trước, không riêng đường URL.
+
+Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu hiệu cần mắt người: bảng mã đoán được với độ tin cậy thấp (FR126), ranh giới nội dung bóc ra bất thường (FR123), luật làm sạch khớp vào chỗ nghi ngờ (FR124), hoặc số Chương tách ra không khớp số đơn vị đầu vào (FR14).
+
+> **🔑 Vì sao đây là một FR chứ không phải một tiện ích giao diện:** FR123, FR124 và FR126 đều bắt buộc có **màn xem trước để người dùng duyệt**, và cả ba đều dựa trên giả định *người dùng thật sự nhìn*. Giả định đó **đúng ở quy mô một Chương và sai ở quy mô năm mươi**. Dán 50 link mà bắt duyệt tay 50 màn xem trước thì tới lần thứ mười người dùng sẽ bấm xác nhận mù — và khi đó **mục đích của cả ba FR kia mất sạch**, trong khi màn hình vẫn hiện ra đầy đủ và không có gì báo rằng nó đã ngừng có tác dụng.
+>
+> Đây cùng hạng lỗi với FR39 và FR126: **thứ hỏng mà không báo hỏng**. Khác biệt là nó hỏng ở phía người dùng chứ không ở phía máy, nên nó càng cần được viết thành yêu cầu nghiệm thu thay vì để tầng thiết kế tự lo.
+
+> **Ranh giới:** bộ lọc **không tự bỏ qua** Chương nào. Nhóm *sạch* vẫn nhập đầy đủ và vẫn xem được; bộ lọc chỉ đổi thứ tự chú ý, không đổi phạm vi nhập. Đây vẫn là *máy đề xuất, người duyệt* của FR55.
 
 #### Làm sạch và chuẩn hoá văn bản nhập
 
@@ -801,7 +813,7 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 |---|---|---|---|
 | **NFR1** | Độ trễ Auto-Lookup **đầu-cuối**: từ lúc thả chuột sau khi bôi đen, tới lúc kết quả hiển thị ở Panel Lookup | **p95 < 100 ms** **[A1]** | Backend đã đo **p50 0,022 ms · p95 0,046 ms**, payload 679 byte — tức backend chỉ tiêu **0,05 ms** trong ngân sách 100 ms. **Toàn bộ phần còn lại (~99,95 ms) dành cho vòng IPC Tauri và render frontend** |
 | **NFR2** | Auto-save không làm gián đoạn thao tác gõ | **Không frame nào vượt 50 ms** trong lúc auto-save chạy | Cụ thể hoá yêu cầu "không có gai trễ" của brief; là điều kiện nghiệm thu cho rủi ro R9 |
-| **NFR3** | Tìm kiếm full-text toàn Library | **p95 < 500 ms** trên thư viện 5.000 Chương | **[A6]** Ngưỡng tạm, đặt bằng phán đoán kỹ thuật, hiệu chỉnh sau khi đo trên thư viện thật ở Giai đoạn 3 |
+| **NFR3** | Tìm kiếm full-text toàn Library | **p95 < 500 ms** trên thư viện 5.000 Chương | **[A6]** Ngưỡng tạm, đặt bằng phán đoán kỹ thuật, hiệu chỉnh sau khi đo trên thư viện thật **sau Giai đoạn 3b** |
 | **NFR4** | Khởi động ứng dụng tới lúc Library dùng được | **< 3 giây** trên thư viện 5.000 Chương | **[A7]** Ngưỡng tạm, như A6 |
 | **NFR5** | Bộ nhớ khi nhàn rỗi | **< 300 MB** | **[A8]** Ngưỡng tạm. Baseline Tauri v2 ghi nhận 20–100 MB; phần dôi dành cho chỉ mục và dữ liệu Tác phẩm đang mở |
 
@@ -1009,7 +1021,7 @@ Hai yêu cầu dưới đây không thuộc riêng giai đoạn nào và chung m
 | **A3** | Bản Thiều Chửu số hoá và bản Cổ hán văn dùng được về mặt pháp lý — **giả định này sẽ KHÔNG được kiểm chứng trước khi phát hành** (quyết định 2026-08-02, §8.6) | §8.2, §8.6, R7 | Gỡ hai lớp đó khỏi bản phát hành kế tiếp qua FR112. Sản phẩm vẫn chạy đầy đủ trên các lớp nền có giấy phép sạch (FR36) |
 | **A4** | Tách câu tự động đúng ở tỷ lệ chấp nhận được | FR23 | FR78 (gộp/tách tay) là đường lui, nhưng nếu sai quá nhiều thì thao tác thủ công sẽ nuốt hết giá trị của TM |
 | **A5** | Người dùng sẵn sàng vượt qua cảnh báo Gatekeeper/SmartScreen để cài | §9.1 | Đây là rào cản đón nhận lớn nhất và không kiểm soát được bằng thiết kế |
-| **A6** | Ngưỡng tìm kiếm Library **p95 < 500 ms** trên 5.000 Chương là hợp lý | NFR3 | Ngưỡng tạm đặt bằng phán đoán kỹ thuật. Hiệu chỉnh ở Giai đoạn 3 (Q4) |
+| **A6** | Ngưỡng tìm kiếm Library **p95 < 500 ms** trên 5.000 Chương là hợp lý | NFR3 | Ngưỡng tạm đặt bằng phán đoán kỹ thuật. Hiệu chỉnh **sau Giai đoạn 3b** (Q4) — Giai đoạn 3 chưa có đường tạo 5.000 Chương |
 | **A7** | Ngưỡng khởi động **< 3 giây** trên 5.000 Chương là hợp lý | NFR4 | Như A6 |
 | **A8** | Ngưỡng bộ nhớ nhàn rỗi **< 300 MB** là hợp lý | NFR5 | Như A6 |
 | **A9** | Người dùng thật sự cần lịch sử tra cứu và ghim mục từ | FR41 | Suy đoán từ thói quen dùng, chưa có input xác nhận. Bỏ FR41 không ảnh hưởng nhóm năng lực nào khác |
@@ -1054,7 +1066,7 @@ Hai yêu cầu dưới đây không thuộc riêng giai đoạn nào và chung m
 | **Q1** | **Vì sao người dịch không xem lại bản review?** Nguyên nhân gốc chưa xác định | Chủ dự án | **Để ngỏ có chủ ý.** Ghi nhận hiện tượng như dữ kiện quan sát được, không suy diễn động cơ. FR95 khiến câu trả lời không còn chặn tiến độ |
 | ~~Q2~~ | ~~Giao diện có cần bản tiếng Anh không?~~ | — | ✅ **Đóng 2026-08-02** — v1 chỉ tiếng Việt, nhưng bắt buộc tách chuỗi giao diện ra file tài nguyên riêng ngay từ đầu (NFR16) |
 | ~~Q3~~ | ~~HVTĐTD có được đồng ý không?~~ | — | ✅ **Đóng 2026-08-02** — tác giả Đặng Thế Kiệt xác nhận cho phép bằng văn bản. Xem §8.3 |
-| **Q4** | **Hiệu chỉnh ngưỡng tạm A6, A7, A8** (NFR3 tìm kiếm Library, NFR4 khởi động, NFR5 bộ nhớ) | Chủ dự án | Đo trên thư viện thật ở Giai đoạn 3. **Không chặn tiến độ** — ngưỡng tạm đã đủ để nghiệm thu |
+| **Q4** | **Hiệu chỉnh ngưỡng tạm A6, A7, A8** (NFR3 tìm kiếm Library, NFR4 khởi động, NFR5 bộ nhớ) | Chủ dự án | Đo trên thư viện thật **sau Giai đoạn 3b**, không phải ở Giai đoạn 3. **Không chặn tiến độ** — ngưỡng tạm đã đủ để nghiệm thu. *(Sửa 2026-08-03: Giai đoạn 3 dựng Library nhưng **không có đường nào tạo ra 5.000 Chương** — nhập hàng loạt là FR14, thuộc Giai đoạn 3b. Phép đo ở Giai đoạn 3 chỉ ra được số sơ bộ trên thư viện nhỏ; phép đo đủ điều kiện phải chạy lại sau khi đường nhập hàng loạt tồn tại.)* |
 | **Q5** | **Baseline cho counter-metrics §4.3** | Chủ dự án | Cần vài tháng dùng thật mới có số so sánh |
 | ~~Q6~~ | ~~Khả năng tiếp cận có nằm trong v1 không?~~ | — | ✅ **Đóng 2026-08-02** — thành **NFR17**. Sàn bàn phím + tương phản WCAG AA; trình đọc màn hình ngoài phạm vi v1 (§3.2) |
 | ~~Q7~~ | ~~Mất tối đa bao nhiêu công việc khi app sập là chấp nhận được?~~ | — | ✅ **Đóng 2026-08-02** — thành **NFR18**, ngưỡng ≤ 5 giây |

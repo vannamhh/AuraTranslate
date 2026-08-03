@@ -1,5 +1,5 @@
-# generated: 2026-08-03T12:05:28
-# last_updated: 2026-08-03T12:05:28
+# generated: 2026-08-03T13:04:45
+# last_updated: 2026-08-03T13:04:45
 # project: AuraTranslate
 # project_key: NOKEY
 # tracking_system: file-system
@@ -40,8 +40,8 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
-generated: 2026-08-03T12:05:28
-last_updated: 2026-08-03T12:05:28
+generated: 2026-08-03T13:04:45
+last_updated: 2026-08-03T13:04:45
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -52,24 +52,25 @@ development_status:
   epic-1: backlog
   1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep: backlog
   1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang: backlog
-  1-3-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong: backlog
-  1-4-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc: backlog
-  1-5-commandregistry-ba-che-do-va-tieu-diem-ban-phim: backlog
-  1-6-tang-ghi-du-lieu-mot-writer-noi-tiep-va-luoc-do-co-phien-ban: backlog
-  1-7-phan-giai-cau-hinh-hai-tang: backlog
-  1-8-dung-du-lieu-tu-dien-lop-nen: backlog
-  1-9-dong-goi-bon-lop-go-roi-thanh-file-doc-lap: backlog
-  1-10-ba-nhanh-truy-van-tieng-trung: backlog
-  1-11-matcher-dung-chung: backlog
-  1-12-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon: backlog
-  1-13-khung-bon-panel: backlog
-  1-14-tac-pham-tren-dia-va-duong-vao-van-ban-toi-thieu: backlog
-  1-15-panel-source-va-tab-han-viet: backlog
-  1-16-panel-lookup-ban-ghi-co-cau-truc: backlog
-  1-17-auto-lookup: backlog
-  1-18-bat-tat-nguon-tu-dien-va-ghi-cong: backlog
-  1-19-lich-su-tra-cuu-va-muc-da-ghim: backlog
-  1-20-phim-tat-cau-hinh-lai-duoc: backlog
+  1-3-ci-toi-thieu-hai-nen-tang-moi-lan-push: backlog
+  1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong: backlog
+  1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc: backlog
+  1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim: backlog
+  1-7-tang-ghi-du-lieu-mot-writer-noi-tiep-va-luoc-do-co-phien-ban: backlog
+  1-8-phan-giai-cau-hinh-hai-tang: backlog
+  1-9-dung-du-lieu-tu-dien-lop-nen: backlog
+  1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap: backlog
+  1-11-ba-nhanh-truy-van-tieng-trung: backlog
+  1-12-matcher-dung-chung: backlog
+  1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon: backlog
+  1-14-khung-bon-panel: backlog
+  1-15-tac-pham-tren-dia-va-duong-vao-van-ban-toi-thieu: backlog
+  1-16-panel-source-va-tab-han-viet: backlog
+  1-17-panel-lookup-ban-ghi-co-cau-truc: backlog
+  1-18-auto-lookup: backlog
+  1-19-bat-tat-nguon-tu-dien-va-ghi-cong: backlog
+  1-20-lich-su-tra-cuu-va-muc-da-ghim: backlog
+  1-21-phim-tat-cau-hinh-lai-duoc: backlog
   epic-1-retrospective: optional
 
   # Epic 2: Biên tập theo segment — một vòng dịch tay hoàn chỉnh
@@ -95,9 +96,9 @@ development_status:
   3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao: backlog
   3-4-khop-thuat-ngu-theo-ngon-ngu-va-danh-dau-trong-panel-source: backlog
   3-5-quet-ung-vien-khi-nhap-tai-lieu: backlog
-  3-6-de-xuat-ban-dich-bang-am-han-viet: backlog
-  3-7-duyet-hang-loat-mot-phim: backlog
-  3-8-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap: backlog
+  3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap: backlog
+  3-7-de-xuat-ban-dich-bang-am-han-viet: backlog
+  3-8-duyet-hang-loat-mot-phim: backlog
   3-9-quan-ly-glossary: backlog
   3-10-xuat-va-nhap-glossary-qua-csv-tsv: backlog
   epic-3-retrospective: optional
@@ -144,17 +145,18 @@ development_status:
   6-4-chuan-hoa-xuong-dong-va-khoang-trang: backlog
   6-5-luat-lam-sach-lo-ra-va-hien-thu-sap-xoa: backlog
   6-6-tach-chuong-theo-mau-phan-tach: backlog
-  6-7-doc-docx: backlog
-  6-8-nhap-tu-url-bang-danh-sach-link: backlog
-  6-9-allowlist-mang-hai-tang-va-nhat-ky-domain: backlog
-  6-10-boc-noi-dung-chinh-va-sua-ranh-gioi-bang-ban-phim: backlog
-  6-11-bo-loc-can-xem: backlog
-  6-12-anh-tai-ve-atproj-neo-vi-tri-va-url-goc: backlog
+  6-7-nhap-tu-url-bang-danh-sach-link: backlog
+  6-8-allowlist-mang-hai-tang-va-nhat-ky-domain: backlog
+  6-9-boc-noi-dung-chinh-va-sua-ranh-gioi-bang-ban-phim: backlog
+  6-10-bo-loc-can-xem: backlog
+  6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc: backlog
+  6-12-doc-docx: backlog
   6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai: backlog
   6-14-hien-thi-anh-dung-vi-tri: backlog
   6-15-xuat-xu-tai-lieu-o-tang-chuong: backlog
   6-16-nhap-tai-lieu-song-ngu-hai-cot: backlog
   6-17-khop-cau-trong-tung-cap-hang: backlog
+  6-18-do-lai-nfr3-nfr4-nfr5-tren-thu-vien-5-000-chuong-that: backlog
   epic-6-retrospective: optional
 
   # Epic 7: Translation Memory — không dịch lại, không tra lại thứ đã dịch
@@ -178,8 +180,8 @@ development_status:
   8-2-pham-vi-xuat: backlog
   8-3-xuat-docx-bang-hai-cot-theo-segment: backlog
   8-4-xuat-docx-mot-khoi-theo-doan-cho-dang-bai: backlog
-  8-5-xuat-md-va-text-thuan: backlog
-  8-6-chon-cach-xuat-hinh-anh: backlog
+  8-5-chon-cach-xuat-hinh-anh: backlog
+  8-6-xuat-md-va-text-thuan: backlog
   8-7-khoi-ghi-nguon: backlog
   8-8-cong-kiem-hinh-dang-bang-docx: backlog
   8-9-nhap-lai-file-reviewer-da-sua: backlog
