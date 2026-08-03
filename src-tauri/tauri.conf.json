@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' ipc: http://ipc.localhost; font-src 'self' asset: http://asset.localhost; img-src 'self' asset: http://asset.localhost data:",
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' ipc: http://ipc.localhost; font-src 'self' asset: http://asset.localhost; img-src 'self' asset: http://asset.localhost data:; base-uri 'self'; form-action 'none'; object-src 'none'; frame-ancestors 'none'",
       "assetProtocol": {
         "enable": true,
         "scope": ["$RESOURCE/dict/**", "$RESOURCE/fonts/**"]
@@ -35,7 +35,8 @@
     "resources": {
       "resources/fonts/*.otf": "fonts/",
       "resources/fonts/*.ttf": "fonts/",
-      "resources/fonts/*.txt": "fonts/"
+      "resources/fonts/*.txt": "fonts/",
+      "resources/license/*.txt": "license/"
     },
     "icon": [
       "icons/32x32.png",

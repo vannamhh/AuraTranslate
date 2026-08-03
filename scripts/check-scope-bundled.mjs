@@ -34,7 +34,6 @@ import { dirname, join } from 'node:path'
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, existsSync } from 'node:fs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const TIMEOUT_MS = Number(process.env.AURA_SCOPE_TIMEOUT_MS ?? 300_000)
 const IS_WIN = process.platform === 'win32'
 
 const die = (msg) => {
@@ -42,13 +41,60 @@ const die = (msg) => {
   process.exit(1)
 }
 
+/**
+ * Đọc timeout từ môi trường — và TỪ CHỐI giá trị vô nghĩa thay vì ép nó thành số.
+ * Giống hệt `check-scope.mjs`; xem doc-comment ở đó cho lý do đầy đủ. Tóm tắt: `??` chỉ
+ * bắt `undefined`/`null`, nên `AURA_SCOPE_TIMEOUT_MS=""` cho `Number('') === 0` và
+ * `setTimeout` ép về ~1 ms ⇒ script luôn exit 1 với chẩn đoán *"webview không mở được"*,
+ * sai vĩnh viễn.
+ */
+function readTimeoutMs(raw, fallback = 300_000) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return fallback
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n <= 0) {
+    die(
+      `AURA_SCOPE_TIMEOUT_MS = ${JSON.stringify(raw)} không phải một số mili-giây dương.\n` +
+        'Đây là lỗi cấu hình. Sửa biến hoặc bỏ hẳn nó để dùng mặc định 300000.',
+    )
+  }
+  return n
+}
+
+const TIMEOUT_MS = readTimeoutMs(process.env.AURA_SCOPE_TIMEOUT_MS)
+
 // ── Tên nhị phân: đọc từ Cargo.toml, KHÔNG từ `productName` ──────────────────────
 // Story 1.2 đã vấp đúng chỗ này: `productName` là "AuraTranslate" nhưng tên tiến trình
 // và tên nhị phân lấy từ `package.name` của Cargo — `auratranslate` chữ thường. Công
 // thức `pgrep -n AuraTranslate` của bản nháp trả RỖNG vì lý do đó. Đọc, đừng đoán.
+//
+// ⚠️ Và đọc từ ĐÚNG section. Bản trước dùng `/^\s*name\s*=\s*"([^"]+)"/m` — match đầu
+// tiên trong CẢ TỆP. Hôm nay nó đúng chỉ vì `[package] name` (dòng 2) tình cờ đứng
+// trước `[lib] name = "auratranslate_lib"` (dòng 15). Không có gì cưỡng chế thứ tự đó:
+// thêm một khối `[workspace]`/`[[bin]]` lên trên, hay sắp xếp lại manifest, là script đi
+// tìm `auratranslate_lib.exe` rồi chết với *"Không tìm thấy nhị phân đã dựng"* — một
+// thông báo trỏ sai hoàn toàn nguyên nhân, và trỏ sai SAU KHI đã trả trọn chi phí một
+// lượt biên dịch debug trên runner (macOS ×10).
 const cargoToml = readFileSync(join(REPO_ROOT, 'src-tauri', 'Cargo.toml'), 'utf8')
-const binName = cargoToml.match(/^\s*name\s*=\s*"([^"]+)"/m)?.[1]
-if (!binName) die('Không đọc được `package.name` từ src-tauri/Cargo.toml')
+
+/** Đọc một khoá chuỗi trong đúng một section `[header]` của TOML. */
+function tomlSectionValue(toml, section, key) {
+  const lines = toml.split(/\r?\n/)
+  let inSection = false
+  for (const line of lines) {
+    const header = line.match(/^\s*\[([^\]]+)\]/)
+    if (header) {
+      inSection = header[1].trim() === section
+      continue
+    }
+    if (!inSection) continue
+    const m = line.match(new RegExp(`^\\s*${key}\\s*=\\s*"([^"]+)"`))
+    if (m) return m[1]
+  }
+  return undefined
+}
+
+const binName = tomlSectionValue(cargoToml, 'package', 'name')
+if (!binName) die('Không đọc được `[package] name` từ src-tauri/Cargo.toml')
 
 const conf = JSON.parse(readFileSync(join(REPO_ROOT, 'src-tauri', 'tauri.conf.json'), 'utf8'))
 const productName = conf.productName
@@ -132,7 +178,7 @@ child.on('error', (err) => {
   die(`Không chạy được nhị phân: ${err.message}`)
 })
 
-child.on('close', () => {
+child.on('close', (code, signal) => {
   clearTimeout(timer)
   console.log('')
 
@@ -158,6 +204,20 @@ child.on('close', () => {
   const mode = log.split('\n').find((l) => l.trim().startsWith('mode:'))?.trim() ?? '(không rõ chế độ)'
 
   if (verdict === 'VERDICT: PASS') {
+    // ⚠️ Dòng in ra CHƯA phải phán quyết cuối. Móc Rust kết thúc bằng `app.exit(code)`
+    // với `code = 0` khi PASS (`src-tauri/src/lib.rs`), nên một lượt PASS THẬT phải
+    // thoát 0 và không mang tín hiệu nào. Nếu nhị phân in `VERDICT: PASS` rồi chết vì
+    // panic ở luồng khác hay SIGSEGV của webview lúc dọn dẹp, bản trước vẫn báo "ĐẠT" —
+    // §Testing standards của story nói thẳng *"mã thoát là phán quyết"*, nên bỏ qua
+    // `code`/`signal` là bỏ đúng nửa phán quyết.
+    if (signal || code !== 0) {
+      console.log('\x1b[31mSelf-check in PASS nhưng tiến trình KHÔNG thoát sạch.\x1b[0m')
+      console.log(`   mã thoát = ${code}, tín hiệu = ${signal ?? 'không'}`)
+      console.log('   Móc Rust gọi `app.exit(0)` khi PASS, nên đây là một cái chết SAU khi')
+      console.log('   phán quyết đã in — panic ở luồng khác, hoặc webview đổ lúc dọn dẹp.')
+      console.log('   Một nhị phân crash lúc thoát không phải một nhị phân đã đạt.')
+      process.exit(1)
+    }
     console.log(`\x1b[32mKiểm 3 ngoài chế độ dev: ĐẠT.\x1b[0m  ${mode}`)
     console.log('')
     console.log('⚠️ Đọc đúng phạm vi của kết quả này:')

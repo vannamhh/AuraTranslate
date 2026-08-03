@@ -63,7 +63,8 @@ import { emit } from '@tauri-apps/api/event'
 import { resolveResource } from '@tauri-apps/api/path'
 
 /** Khớp với `SCOPE_SELFTEST_EVENT` ở `src-tauri/src/lib.rs`. */
-const SELFTEST_EVENT = 'selftest:scope-check'
+export { SELFTEST_EVENT } from './eventName'
+import { SELFTEST_EVENT } from './eventName'
 
 /**
  * `unmeasured` KHÔNG phải `passed`. Nó tồn tại để một thứ không đo được không bao giờ
@@ -83,10 +84,37 @@ export interface ScopeCheckResult {
 
 export interface ScopeCheckReport {
   verdict: 'PASS' | 'FAIL'
-  mode: 'dev-no-csp' | 'bundled-csp'
+  /**
+   * `undetermined` là một trạng thái THẬT, không phải chỗ dựa tạm: nó nghĩa là phép
+   * thăm dò không phân biệt được ta đang ở chế độ nào, và khi đó **không** phép kiểm
+   * nào chạy. Nó luôn đi kèm `verdict: 'FAIL'` — xem `runScopeCheck`.
+   */
+  mode: 'dev-no-csp' | 'bundled-csp' | 'undetermined'
   results: ScopeCheckResult[]
   text: string
 }
+
+/**
+ * Hạn chờ sự kiện `securitypolicyviolation` sau khi `fetch` thăm dò ném.
+ *
+ * ⚠️ Bản trước dùng `setTimeout(…, 100)` **cố định** và nhận **bất kỳ** vi phạm nào —
+ * hai lỗi riêng biệt, mỗi cái hỏng về một phía:
+ *
+ *   - **Dương tính giả:** ở chế độ dev, `fetch` ném vì lý do bất kỳ (webview lỗi,
+ *     `convertFileSrc` gãy) mà đúng lúc đó có một vi phạm CSP từ nguồn khác — một
+ *     extension, devtools, một `<img>` nào đó — thì ta kết luận "đang ở bundled",
+ *     chiều ÂM chuyển thành `unmeasured`, và `unmeasured` KHÔNG làm đỏ verdict. Hàng
+ *     rào 403 bị bỏ qua **im lặng** với `VERDICT: PASS`.
+ *   - **Âm tính giả:** ở bundled, WebView2 phát sự kiện muộn hơn 100 ms (runner tải
+ *     nặng, cold start) thì ta rơi vào nhánh dev, `checkOutOfScopeDenied` lại bị CSP
+ *     chặn, và kết quả là **CI đỏ oan** với chẩn đoán sai hoàn toàn.
+ *
+ * Nay: (1) chờ theo **sự kiện**, giải ngay khi vi phạm tới nên không tốn thời gian ở ca
+ * thường; (2) hạn dài hơn hẳn, chỉ chạm tới khi thật sự không có vi phạm nào; (3) chỉ
+ * đếm vi phạm của **`connect-src`** — đúng chỉ thị chặn `fetch` của chính ta, không
+ * phải mọi vi phạm trong trang.
+ */
+const CSP_DETECT_TIMEOUT_MS = 2_000
 
 const IN_SCOPE_FONT = 'fonts/SourceSans3[wght].ttf'
 
@@ -240,29 +268,67 @@ export async function runScopeCheck(): Promise<ScopeCheckReport> {
   // sai đúng nghĩa: một cái là hàng rào ta muốn có, một cái là hàng rào ta không biết
   // mình đang đâm vào.
   const cspBlocked: string[] = []
+  let resolveConnectSrcBlocked: ((blocked: boolean) => void) | null = null
   const onViolation = (e: SecurityPolicyViolationEvent) => {
-    cspBlocked.push(e.effectiveDirective || e.violatedDirective)
+    const directive = e.effectiveDirective || e.violatedDirective
+    cspBlocked.push(directive)
+    // CHỈ `connect-src` mới nói lên điều gì về `fetch` của ta. Một vi phạm `img-src` từ
+    // một chỗ khác trong trang không chứng minh CSP đang chặn phép thăm dò này.
+    if (directive.startsWith('connect-src')) resolveConnectSrcBlocked?.(true)
   }
   document.addEventListener('securitypolicyviolation', onViolation)
 
+  const connectSrcBlocked = new Promise<boolean>((resolve) => {
+    resolveConnectSrcBlocked = resolve
+    setTimeout(() => resolve(false), CSP_DETECT_TIMEOUT_MS)
+  })
+
   // Một `fetch` thăm dò quyết chế độ. ⚠️ Không đoán từ `import.meta.env`: cờ lúc build
   // nói ta ĐỊNH chạy ở đâu, còn thứ cần biết là CSP có THẬT SỰ đang áp hay không.
-  let cspApplies = false
+  let probeThrew = false
   try {
     await fetch(inUrl)
   } catch {
-    // Cho sự kiện violation kịp phát — nó bất đồng bộ với promise của `fetch`.
-    await new Promise((r) => setTimeout(r, 100))
-    cspApplies = cspBlocked.length > 0
+    probeThrew = true
   }
 
-  const mode: ScopeCheckReport['mode'] = cspApplies ? 'bundled-csp' : 'dev-no-csp'
-  const results: ScopeCheckResult[] = cspApplies
-    ? [
-        await checkInScopeLoadsViaFontSrc(inUrl),
-        unmeasurableOutOfScope(outTarget, [...new Set(cspBlocked)]),
-      ]
-    : [await checkInScopeLoads(inUrl), await checkOutOfScopeDenied(outTarget, outUrl)]
+  // `fetch` chạy được ⇒ chắc chắn `connect-src` không chặn ⇒ chế độ dev, không cần chờ.
+  const cspApplies = probeThrew ? await connectSrcBlocked : false
+
+  let mode: ScopeCheckReport['mode']
+  let results: ScopeCheckResult[]
+
+  if (!probeThrew) {
+    mode = 'dev-no-csp'
+    results = [await checkInScopeLoads(inUrl), await checkOutOfScopeDenied(outTarget, outUrl)]
+  } else if (cspApplies) {
+    mode = 'bundled-csp'
+    results = [
+      await checkInScopeLoadsViaFontSrc(inUrl),
+      unmeasurableOutOfScope(outTarget, [...new Set(cspBlocked)]),
+    ]
+  } else {
+    // ⛔ `fetch` ném NHƯNG không có vi phạm `connect-src` nào trong hạn chờ. Đây không
+    // phải chế độ dev (ở dev `fetch` chạy được), cũng không chứng minh được là bundled.
+    // Bản trước lặng lẽ coi ca này là dev rồi chạy tiếp — và mọi phép kiểm sau đó đo
+    // trên một giả định sai. Trạng thái không biết phải hiện ra thành FAIL, không
+    // thành một nhánh mặc định.
+    mode = 'undetermined'
+    results = [
+      result(
+        'phát hiện chế độ',
+        'allowed',
+        'fail',
+        `\`fetch\` tới ${inUrl} ném, nhưng không có vi phạm \`connect-src\` nào trong ` +
+          `${CSP_DETECT_TIMEOUT_MS}ms.\n        ` +
+          'Không phải chế độ dev (ở đó `fetch` chạy được), và không chứng minh được là ' +
+          'bundled-csp.\n        ' +
+          `Chỉ thị đã vi phạm (nếu có): ${[...new Set(cspBlocked)].join(' · ') || 'không có'}.\n        ` +
+          'Nhìn trước: `resolveResource` trả sai đường, webview hỏng, hoặc asset ' +
+          'protocol không bật. ⛔ Không phép kiểm nào chạy ở lượt này — đừng đọc thành đạt.',
+      ),
+    ]
+  }
 
   document.removeEventListener('securitypolicyviolation', onViolation)
 
@@ -271,9 +337,12 @@ export async function runScopeCheck(): Promise<ScopeCheckReport> {
   const verdict = results.some((r) => r.status === 'fail') ? 'FAIL' : 'PASS'
 
   const label = (s: ScopeCheckStatus) => (s === 'pass' ? 'PASS' : s === 'fail' ? 'FAIL' : '----')
-  const modeNote = cspApplies
-    ? `  (CSP đang áp — chỉ thị đã chặn: ${[...new Set(cspBlocked)].join(', ')})`
-    : '  (Tauri không áp CSP ở chế độ dev)'
+  const modeNote =
+    mode === 'bundled-csp'
+      ? `  (CSP đang áp — chỉ thị đã chặn: ${[...new Set(cspBlocked)].join(', ')})`
+      : mode === 'dev-no-csp'
+        ? '  (Tauri không áp CSP ở chế độ dev)'
+        : '  (KHÔNG xác định được chế độ — không phép kiểm nào chạy)'
 
   const lines = [
     'AuraTranslate — asset protocol scope self-check (Story 1.2 AC3 · Story 1.3 AC8)',

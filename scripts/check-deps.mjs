@@ -34,6 +34,16 @@ import { dirname, join } from 'node:path'
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CARGO_MANIFEST = join(REPO_ROOT, 'src-tauri', 'Cargo.toml')
 
+// ⚠️ BẮT BUỘC cho mọi lệnh `npm`/`npx` trên Windows. `npm` ở đó là `npm.cmd`, mà
+// `libuv` chỉ dò `.com`/`.exe` khi tìm PATH ⇒ spawn không shell trả **ENOENT**; và từ
+// bản vá CVE-2024-27980, Node còn từ chối thẳng việc spawn `.cmd`/`.bat` khi
+// `shell: false`. Không có cờ này thì cả cổng phụ thuộc chết ở dòng đầu trên Windows —
+// và vì `abort()` gọi `exit 1`, JOB WINDOWS DỪNG TẠI ĐÂY: `cargo test`, AC8 và cả ba
+// phép đo `.msi` của AC6 không bao giờ chạy. `check-scope.mjs` và
+// `check-scope-bundled.mjs` đã có cờ này từ đầu; tệp này bị sót.
+// ⚠️ `cargo` là `cargo.exe` nên KHÔNG cần shell — và không truyền là đúng hơn.
+const IS_WIN = process.platform === 'win32'
+
 // Ngưỡng sàn — số thật đo 2026-08-03 là 343 (Rust) và 59 (npm). Sàn đặt thấp hơn hẳn
 // để một lần thêm/bớt phụ thuộc bình thường không làm đỏ, nhưng một CÂY RỖNG (chưa
 // `npm ci`, cargo không resolve được) thì không thể lọt qua thành "sạch".
@@ -58,9 +68,14 @@ function abort(what, err) {
 // ── Đọc cây Rust MỘT LẦN ─────────────────────────────────────────────────────────
 let rustCrates = []
 try {
+  // ⚠️ `--locked` KHÔNG phải trang trí. `cargo tree` được phép giải lại cây và GHI LẠI
+  // `Cargo.lock`. Thiếu cờ này thì (a) cây được quét ở đây có thể không phải cây được
+  // `cargo test` biên dịch, và (b) một lượt ghi lại lock làm `cargo test --locked` ở
+  // bước SAU đỏ vì một lý do không liên quan tới commit — trong khi comment của
+  // `ci.yml` khẳng định `--locked` là nửa Rust của NFR15.
   const out = execFileSync(
     'cargo',
-    ['tree', '--manifest-path', CARGO_MANIFEST, '--prefix', 'none', '--no-dedupe'],
+    ['tree', '--locked', '--manifest-path', CARGO_MANIFEST, '--prefix', 'none', '--no-dedupe'],
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )
   rustCrates = [...new Set(out.split('\n').map((l) => l.trim()).filter(Boolean))]
@@ -87,6 +102,7 @@ try {
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
       stdio: ['ignore', 'pipe', 'ignore'],
+      shell: IS_WIN, // xem chú thích ở khai báo IS_WIN — thiếu cờ này là ENOENT trên Windows
     })
   } catch (err) {
     raw = err.stdout

@@ -106,23 +106,6 @@ jobs:
       - name: cargo test
         run: cargo test --locked --manifest-path src-tauri/Cargo.toml
 
-      # ── AC8 — Kiểm 3 NGOÀI chế độ dev, trên cả hai nền tảng ─────────────────────
-      #
-      # Đóng `deferred-work.md:13` (tổ hợp CSP + asset protocol chưa phép kiểm nào chạm
-      # tới). Script tự dựng `tauri build --debug` rồi chạy nhị phân với timeout cứng và
-      # đọc dòng `VERDICT:` — xem doc-comment của `scripts/check-scope-bundled.mjs`.
-      #
-      # ⚠️ Bước này biên dịch profile `dev`, còn bước build dưới biên dịch `release`. Hai
-      # profile KHÔNG dùng chung artifact, nên đây là hai lượt biên dịch — chi phí thật
-      # lên AC7, đặc biệt trên macOS (hệ số ×10). `rust-cache` giữ cả hai, nên giá này
-      # chỉ đắt ở lượt cache lạnh. ĐO SỐ THẬT rồi hãy bàn cắt gì.
-      #
-      # ⛔ Nếu webview không mở được trên runner (không phiên đồ hoạ, WebView2 vắng mặt,
-      # treo): script hết giờ và exit 1 kèm lý do. Theo mệnh đề cuối AC8, đó là lúc GHI
-      # RÕ và trả lại cho Ice — không đánh dấu đạt, không lặng lẽ bỏ qua bước này.
-      - name: check scope ngoài chế độ dev (AC8 — CSP + asset protocol)
-        run: npm run check:scope:bundled
-
       # ── Bản build ứng dụng THẬT (AC1, AC3) ──────────────────────────────────────
       #
       # ⚠️ Truyền `--bundles` TƯỜNG MINH. `tauri.conf.json` khai `targets: ["dmg","msi"]`,
@@ -159,6 +142,14 @@ jobs:
           # — số đo biến mất mà bước vẫn xanh. Đã vấp thật lúc chạy khô 2026-08-03.
           RUSTC_V=$(rustc --version)
           TAURI_V=$(npx tauri --version)
+          # ⚠️ Hoist thôi CHƯA đủ. `set -e` bắt được mã thoát khác 0, nhưng một lệnh
+          # thoát 0 mà in ra chuỗi RỖNG (npx bị chặn đầu ra, wrapper in sang stderr) thì
+          # nó không thấy — và ta lại còn đúng một ô trống trong bảng với bước vẫn xanh.
+          # Bên PowerShell đã có `throw` cho ca này từ đầu; bên bash thì chưa. Nay có.
+          if [ -z "$RUSTC_V" ] || [ -z "$TAURI_V" ]; then
+            echo "không đọc được phiên bản toolchain (rustc='$RUSTC_V' tauri='$TAURI_V') — số đo không truy nguyên được thì không phải số đo" >&2
+            exit 1
+          fi
 
           {
             echo "### macOS — bản build ứng dụng"
@@ -240,8 +231,18 @@ jobs:
             Set-Content -Path $bootstrapCfg -Encoding utf8
           $noRuntime = Build-Msi -Label 'downloadBootstrapper' -ExtraArgs @('--config', $bootstrapCfg)
 
+          # ⚠️ ĐỌC TRƯỚC KHI TIN BA CON SỐ NÀY — cả ba là HIỆU SỐ CỦA KHO NÉN, không phải
+          # dung lượng thành phần. MSI nén theo cabinet TOÀN CỤC: bỏ ~27 MB font không
+          # làm cabinet nhỏ đi đúng 27 MB, và bỏ WebView2 runtime còn đổi luôn tỉ lệ nén
+          # của phần còn lại. Chúng đủ tốt để bắt hồi quy (so lượt này với lượt trước),
+          # KHÔNG đủ để khẳng định "bộ font nặng đúng X".
           $fontBytes    = $withFonts.Bytes - $noFonts.Bytes
           $runtimeBytes = $withFonts.Bytes - $noRuntime.Bytes
+          # ⚠️ Đây là một ĐỒNG NHẤT THỨC, không phải phép đo thứ ba: thay $runtimeBytes
+          # vào thì nó rút gọn đúng bằng $noRuntime.Bytes — tức dung lượng bản
+          # `downloadBootstrapper`, vẫn còn stub bootstrapper bên trong. Giữ phép trừ ở
+          # dạng này cho khớp bảng hai dòng của NFR6, nhưng ĐỪNG đọc nó thành "mã + font":
+          # nó là "toàn bộ .msi TRỪ phần runtime nhúng", một PROXY cho payload.
           $payloadBytes = $withFonts.Bytes - $runtimeBytes
           $mib = { param($b) [math]::Round($b / 1MB, 2) }
           $mb  = { param($b) [math]::Round($b / 1000000, 2) }
@@ -311,8 +312,17 @@ jobs:
             ""
             "| Dòng | byte | MB | Đối chiếu trần 150–200 MB? |"
             "|---|---:|---:|---|"
-            "| **Payload sản phẩm** *(mã + font; dữ liệu từ điển cộng vào ở Story 1.9)* | $payloadBytes | $payloadMB | **CÓ** — $ceilingNote |"
+            "| **Payload sản phẩm** *(= toàn bộ ``.msi`` TRỪ runtime nhúng — proxy, xem ghi chú dưới; dữ liệu từ điển cộng vào ở Story 1.9)* | $payloadBytes | $payloadMB | **CÓ** — $ceilingNote |"
             "| **WebView2 Runtime nhúng** *(tách bằng PHÉP TRỪ, không mượn số ≈127 MB của tài liệu)* | $runtimeBytes | $(& $mb $runtimeBytes) | **KHÔNG** — nằm ngoài ngân sách theo NFR6 đã sửa |"
+            ""
+            "> ⚠️ **Ba con số trên là hiệu số của kho nén, không phải dung lượng thành phần.**"
+            "> ``.msi`` nén theo cabinet **toàn cục**: bỏ bộ font không làm cabinet nhỏ đi đúng"
+            "> bằng bộ font, và bỏ runtime còn đổi tỉ lệ nén của phần còn lại. Dòng *Payload*"
+            "> rút gọn đúng bằng dung lượng bản ``downloadBootstrapper`` (vẫn còn stub"
+            "> bootstrapper trong đó), nên nó là **proxy** cho payload chứ không phải \"mã + font\"."
+            "> Dùng để **bắt hồi quy giữa các lượt**; đừng dùng để khẳng định một thành phần nặng bao nhiêu."
+            "> *(Từ lượt rà soát 2026-08-03, ``bundle.resources`` còn mang thêm ``license/COPYING.txt``"
+            "> ≈ 35 KB — nó nằm trong phần bị lớp phủ ``nofonts`` gỡ, nên có mặt trong ``\$fontBytes``.)*"
             ""
             "> **Số tổng người dùng thật tải về: $($withFonts.Bytes) byte = $(& $mb $withFonts.Bytes) MB.**"
             "> Hai dòng trên là cách *ta* hạch toán; người tải về chỉ thấy con số này, và sau"
@@ -326,6 +336,58 @@ jobs:
             "> lời hứa *fully offline*."
           )
           $summary -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      # ══════════════════════════════════════════════════════════════════════════════
+      #  HAI PHÉP KIỂM CẦN WEBVIEW — CỐ Ý ĐỨNG CUỐI, SAU MỌI PHÉP ĐO
+      #
+      #  🔴 Vì sao thứ tự này là bắt buộc, không phải sở thích: cả hai bước dưới đây mở
+      #  một cửa sổ thật trên runner, và §Rủi ro đã biết #1 của Story 1.3 nói thẳng rằng
+      #  đường đó **chưa ai trong dự án này đo**. Ở bản trước, bước AC8 đứng NGAY TRƯỚC
+      #  hai bước build/đo, không có `continue-on-error` — mà mặc định của GitHub Actions
+      #  là bước sau chỉ chạy khi bước trước `success()`. Nghĩa là kịch bản dễ xảy ra
+      #  nhất ở lượt chạy đầu (webview không mở được ⇒ script hết giờ ⇒ exit 1) sẽ làm
+      #  job dừng và **KHÔNG một byte `.msi` nào được đo** — vô hiệu hoá đúng AC6, cái AC
+      #  mà cả story này tồn tại để đóng, và AC6 đòi ghi số ở **MỖI** lần CI chạy.
+      #
+      #  ⛔ Đừng chuyển hai bước này lên trước hai bước đo. Nếu cần chúng chạy kể cả khi
+      #  một bước trước đỏ thì thêm `if: '!cancelled()'`, ĐỪNG đổi thứ tự.
+      # ══════════════════════════════════════════════════════════════════════════════
+
+      # ── AC8 — Kiểm 3 NGOÀI chế độ dev, trên cả hai nền tảng ─────────────────────
+      #
+      # Đóng `deferred-work.md:13` (tổ hợp CSP + asset protocol chưa phép kiểm nào chạm
+      # tới). Script tự dựng `tauri build --debug` rồi chạy nhị phân với timeout cứng và
+      # đọc dòng `VERDICT:` — xem doc-comment của `scripts/check-scope-bundled.mjs`.
+      #
+      # ⚠️ Bước này biên dịch profile `dev`, còn hai bước build trên biên dịch `release`.
+      # Hai profile KHÔNG dùng chung artifact, nên đây là hai lượt biên dịch — chi phí
+      # thật lên AC7, đặc biệt trên macOS (hệ số ×10). `rust-cache` giữ cả hai, nên giá
+      # này chỉ đắt ở lượt cache lạnh. ĐO SỐ THẬT rồi hãy bàn cắt gì.
+      #
+      # ⛔ Nếu webview không mở được trên runner (không phiên đồ hoạ, WebView2 vắng mặt,
+      # treo): script hết giờ và exit 1 kèm lý do. Theo mệnh đề cuối AC8, đó là lúc GHI
+      # RÕ và trả lại cho Ice — không đánh dấu đạt, không lặng lẽ bỏ qua bước này.
+      - name: check scope ngoài chế độ dev (AC8 — CSP + asset protocol)
+        run: npm run check:scope:bundled
+
+      # ── Kiểm 3 CHIỀU ÂM — chế độ dev, nơi duy nhất đọc được HTTP 403 ────────────
+      #
+      # 🔴 Vì sao bước này phải tồn tại (Ice chốt 2026-08-03, lượt rà soát Story 1.3):
+      # bước AC8 ở trên chạy ở chế độ **bundled**, nơi CSP chặn `connect-src` nên chiều
+      # ÂM trả `[----] unmeasured` (`src/selftest/scopeCheck.ts`), và `unmeasured`
+      # **KHÔNG làm đỏ verdict** — có chủ ý, nhưng hệ quả là: nếu không có bước này thì
+      # ai đó nới `assetProtocol.scope` thành `["**"]` lúc chạy, CI vẫn XANH ở mọi bước.
+      # `cargo test` bắt được thay đổi **cấu hình**, nhưng nó không chứng minh **hàng rào
+      # lúc chạy** — đúng thứ Story 1.2 dựng self-check để chứng minh.
+      #
+      # Chế độ dev là nơi DUY NHẤT `fetch` chạm thẳng asset protocol và đọc được mã HTTP
+      # thật, nên chỉ ở đây mới phân biệt được **403 (scope chặn)** với **404 (thiếu tệp)**.
+      #
+      # ⚠️ Nó cần một phiên đồ hoạ (`tauri dev`) và có thể trượt trên runner. Nếu trượt:
+      # ⛔ ĐỪNG gỡ bước này. Lượt chạy đó chính là bằng chứng để ghi rõ lý do và trả lại
+      # cho Ice theo mệnh đề cuối AC8 — không đánh dấu đạt, không lặng lẽ bỏ.
+      - name: check scope chiều âm (chế độ dev — 403 thật)
+        run: npm run check:scope
 
       # ⛔ KHÔNG upload `.msi`/`.dmg` lên đâu cả ở story này.
       #  - Lên GitHub Release / kèm checksum ⇒ đó là FR107, Story 10.1 (AC5).

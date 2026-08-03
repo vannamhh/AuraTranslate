@@ -25,14 +25,38 @@ fn read_json(rel: &str) -> serde_json::Value {
 /// tiền tố; origin không scheme (`cdn.example.com`) không chứa `//` nên lọt; `data:`
 /// bị ĐẾM chứ không bị ĐỊNH VỊ nên chuyển sang `script-src` vẫn xanh; và
 /// `'unsafe-inline'` trong `script-src` không bị cấm ở đâu cả.
+///
+/// 🔴 **Lối lách thứ NĂM, do chính bản viết lại tạo ra — đã sửa ở đây.** Bản trước
+/// `.collect()` thẳng vào `BTreeMap`, và `FromIterator` giữ mục **CUỐI** khi khoá trùng.
+/// Trình duyệt làm NGƯỢC LẠI: trong **một** policy, chỉ thị xuất hiện lần đầu là thứ
+/// được thi hành, mọi lần lặp sau bị **bỏ qua** (CSP Level 3 §"Should directive be
+/// executed"). Nên
+/// `"… font-src https://cdn.evil.com; font-src 'self' asset: …"` đi qua sạch sẽ toàn bộ
+/// tệp test này — map chỉ thấy bản lành — trong khi webview thật nạp font từ CDN.
+///
+/// Nay hàm **giữ bản ĐẦU**, đúng ngữ nghĩa trình duyệt, và
+/// `csp_declares_each_directive_exactly_once` cấm hẳn việc khai trùng để không ai phải
+/// nhớ luật này lần nữa.
 fn csp_directives(csp: &str) -> std::collections::BTreeMap<String, Vec<String>> {
-    csp.split(';')
-        .filter_map(|part| {
-            let mut it = part.split_whitespace();
-            let name = it.next()?.to_owned();
-            Some((name, it.map(str::to_owned).collect()))
-        })
-        .collect()
+    let mut map = std::collections::BTreeMap::new();
+    for part in csp.split(';') {
+        let mut it = part.split_whitespace();
+        let Some(name) = it.next() else { continue };
+        map.entry(name.to_owned())
+            .or_insert_with(|| it.map(str::to_owned).collect::<Vec<String>>());
+    }
+    map
+}
+
+/// Đếm số lần MỖI tên chỉ thị xuất hiện trong chuỗi CSP thô.
+fn csp_directive_counts(csp: &str) -> std::collections::BTreeMap<String, usize> {
+    let mut counts = std::collections::BTreeMap::new();
+    for part in csp.split(';') {
+        if let Some(name) = part.split_whitespace().next() {
+            *counts.entry(name.to_owned()).or_insert(0usize) += 1;
+        }
+    }
+    counts
 }
 
 /// Nguồn cục bộ được phép, đã cân nhắc từng cái. Mọi thứ ngoài danh sách này là
@@ -46,13 +70,28 @@ fn csp_directives(csp: &str) -> std::collections::BTreeMap<String, Vec<String>> 
 ///   `connect-src` thì `fetch` IPC bị CSP chặn và Tauri âm thầm tụt xuống
 ///   `postMessage` — chỉ có một `console.warn`. Xem SECURITY-NOTES.md.
 /// - `data:` — CHỈ ở `img-src`, cưỡng chế riêng bên dưới.
+/// - `'none'` — tập nguồn RỖNG. Chặt hơn `'self'`, dùng cho bốn chỉ thị siết ở
+///   `csp_declares_the_directives_that_do_not_inherit_default_src`.
 const ALLOWED_LOCAL_SOURCES: &[&str] = &[
     "'self'",
+    "'none'",
     "asset:",
     "http://asset.localhost",
     "ipc:",
     "http://ipc.localhost",
 ];
+
+/// Bốn chỉ thị **KHÔNG kế thừa `default-src`** theo spec CSP — vắng mặt nghĩa là
+/// **không giới hạn**, không phải "rơi về `'self'`". Đây là điểm mù của
+/// `csp_allows_no_remote_origin`: nó chỉ duyệt các chỉ thị ĐANG CÓ MẶT, nên sự vắng
+/// mặt vô hình với toàn bộ suite.
+///
+/// `base-uri` đáng lo nhất: AD-16 tồn tại vì nội dung nhập từ web là không tin được,
+/// mà một điểm chèn DOM đủ để ghi `<base href="https://…">` và trỏ lại **mọi** đường
+/// dẫn tương đối — một đường ra mạng nằm ngoài ba điểm của AD-15. `form-action` là
+/// cùng lớp: `<form action="https://…">` không bị `default-src` ngăn.
+const DIRECTIVES_THAT_DO_NOT_INHERIT_DEFAULT_SRC: &[&str] =
+    &["base-uri", "form-action", "object-src", "frame-ancestors"];
 
 /// Test này tồn tại để chứng minh `tests/` `use` được mã sản phẩm — lý do Task 1 bắt
 /// bố cục `lib.rs` + `main.rs`.
@@ -187,6 +226,61 @@ fn no_dev_csp_and_no_platform_config_overrides() {
 }
 
 #[test]
+fn csp_declares_each_directive_exactly_once() {
+    // 🔴 Trình duyệt thi hành lần xuất hiện ĐẦU của một chỉ thị và BỎ QUA mọi lần sau.
+    // Một `BTreeMap` thì ngược lại — nó giữ bản cuối. Khoảng chênh đó là một lối lách
+    // trọn vẹn: khai `font-src` hai lần, bản đầu mở ra CDN và bản sau viết lành, thì
+    // mọi test ở tệp này đọc bản lành còn webview nạp bản mở.
+    //
+    // `csp_directives` nay giữ bản đầu (đúng ngữ nghĩa trình duyệt). Test này đóng nốt
+    // đường còn lại: cấm hẳn việc khai trùng, để không ai phải nhớ luật ưu tiên nữa.
+    let conf = read_json("tauri.conf.json");
+    let csp = conf["app"]["security"]["csp"].as_str().unwrap();
+
+    let dupes: Vec<String> = csp_directive_counts(csp)
+        .into_iter()
+        .filter(|(_, n)| *n > 1)
+        .map(|(name, n)| format!("`{name}` ×{n}"))
+        .collect();
+
+    assert!(
+        dupes.is_empty(),
+        "CSP khai trùng chỉ thị: {}.\n\
+         Trình duyệt thi hành lần xuất hiện ĐẦU và bỏ qua các lần sau — nên bản thứ hai \
+         chỉ làm bộ test này đọc sai, không làm webview an toàn hơn. Gộp thành một chỉ \
+         thị duy nhất.\n\
+         CSP: {csp}",
+        dupes.join(", ")
+    );
+}
+
+#[test]
+fn csp_declares_the_directives_that_do_not_inherit_default_src() {
+    // Bốn chỉ thị này KHÔNG rơi về `default-src`. Vắng mặt = không giới hạn, và sự vắng
+    // mặt là thứ `csp_allows_no_remote_origin` không thể thấy vì nó chỉ duyệt những gì
+    // đã được khai. Đây là chỗ bịt điểm mù đó.
+    let conf = read_json("tauri.conf.json");
+    let csp = conf["app"]["security"]["csp"].as_str().unwrap();
+    let directives = csp_directives(csp);
+
+    for needed in DIRECTIVES_THAT_DO_NOT_INHERIT_DEFAULT_SRC {
+        let sources = directives.get(*needed).unwrap_or_else(|| {
+            panic!(
+                "CSP thiếu `{needed}` — chỉ thị này KHÔNG kế thừa `default-src`, nên vắng \
+                 mặt nghĩa là KHÔNG GIỚI HẠN, không phải 'rơi về self'.\n\
+                 Đọc doc-comment của DIRECTIVES_THAT_DO_NOT_INHERIT_DEFAULT_SRC trước khi \
+                 sửa test này.\n\
+                 CSP: {csp}"
+            )
+        });
+        assert!(
+            !sources.is_empty(),
+            "`{needed}` khai rỗng — viết `'none'` tường minh: {csp}"
+        );
+    }
+}
+
+#[test]
 fn csp_style_src_stays_at_self() {
     // Story 1.2 hạ `style-src` từ `'self' 'unsafe-inline'` (app thăm dò của Story 1.1)
     // xuống `'self'` và kiểm chứng trên bản build release. Mở lại `'unsafe-inline'`
@@ -275,20 +369,44 @@ fn capabilities_directory_holds_exactly_the_one_reviewed_file() {
     // Tauri nạp MỌI tệp trong `capabilities/`. Test trên chỉ đọc `main.json`, nên thêm
     // một `extra.json` với `"permissions": ["fs:default"]` là cấp một bề mặt IPC mới
     // mà không test nào đỏ — đúng loại hỏng im lặng mà cả tệp này tồn tại để chặn.
+    //
+    // 🔴 Bản trước bịt lỗ đó **chưa kín**, theo đúng hai cách:
+    //   1. `.filter(|n| n.ends_with(".json"))` — Tauri nhận **ba** phần mở rộng.
+    //      `tauri-utils/src/acl/build.rs`: `CAPABILITY_FILE_EXTENSIONS = ["json","json5","toml"]`.
+    //      Nên `capabilities/extra.toml` được nạp thật mà test vẫn xanh.
+    //   2. `fs::read_dir` **không đệ quy**, còn Tauri nạp bằng glob `"{capabilities}/**/*"`.
+    //      Nên `capabilities/sub/extra.json` cũng lọt.
+    // Nay: liệt kê **mọi** tệp, **mọi** phần mở rộng, **đệ quy**.
     let dir = manifest_dir().join("capabilities");
-    let mut files: Vec<String> = fs::read_dir(&dir)
-        .unwrap_or_else(|e| panic!("read {}: {e}", dir.display()))
-        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-        .filter(|n| n.ends_with(".json"))
-        .collect();
+    let mut files = Vec::new();
+    collect_files_recursively(&dir, &dir, &mut files);
     files.sort();
 
     assert_eq!(
         files,
-        vec!["main.json"],
-        "Mọi tệp trong `capabilities/` đều được Tauri nạp. Thêm tệp thứ hai là mở một \
-         bề mặt IPC mới — cập nhật test này CÙNG LÚC, đừng chỉ thêm tệp"
+        vec!["main.json".to_owned()],
+        "Mọi tệp trong `capabilities/` đều được Tauri nạp — MỌI phần mở rộng \
+         (`.json`, `.json5`, `.toml`) và MỌI thư mục con (glob của Tauri là `**/*`). \
+         Thêm tệp thứ hai là mở một bề mặt IPC mới — cập nhật \
+         `main_capability_grants_the_minimum_and_no_plugin_permission` CÙNG LÚC, \
+         đừng chỉ thêm tệp"
     );
+}
+
+/// Liệt kê mọi tệp dưới `dir`, đường dẫn tương đối so với `base`, dùng `/` trên mọi
+/// nền tảng để thông báo lỗi đọc giống nhau ở macOS và Windows (NFR14).
+fn collect_files_recursively(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<String>) {
+    let entries =
+        fs::read_dir(dir).unwrap_or_else(|e| panic!("read {}: {e}", dir.display()));
+    for entry in entries {
+        let path = entry.expect("đọc mục trong capabilities/").path();
+        if path.is_dir() {
+            collect_files_recursively(base, &path, out);
+        } else {
+            let rel = path.strip_prefix(base).unwrap_or(&path);
+            out.push(rel.to_string_lossy().replace('\\', "/"));
+        }
+    }
 }
 
 // ── AC1 / AC6 — những thứ sai một lần là sai ở 300 chỗ ──────────────────────────
