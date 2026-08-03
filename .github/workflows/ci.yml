@@ -92,6 +92,19 @@ jobs:
       - name: check dependency tree (NFR15, AC2/AC5 của Story 1.2)
         run: npm run check:deps
 
+      # Bảy phép kiểm token — AD-34 · NFR17 (Story 1.4). Đây chính là chỗ móc mang tên
+      # "lint cấm màu viết thẳng (AD-34)" mà AC4 của Story 1.3 đã chừa sẵn: MỘT bước
+      # trong job `check` đã có, ⛔ KHÔNG phải một tệp workflow thứ hai.
+      #
+      # ⚠️ ĐẶT TRƯỚC `npm run build`, có lý do đo được: bước này chạy trong vài giây và
+      # không cần `dist/`, nên một token sai phải đỏ TRƯỚC khi tốn một lượt biên dịch
+      # Rust. Trên nhánh Windows lượt đó là hàng chục phút.
+      #
+      # ⚠️ Bước này KHÔNG cần cửa sổ đồ hoạ — nó chỉ đọc tệp. Đừng đẩy nó xuống cụm cuối
+      # nơi `check:scope` và `check:scope:bundled` đang đứng chờ webview.
+      - name: check design tokens (AD-34, NFR17 — Story 1.4)
+        run: npm run check:tokens
+
       # ⚠️⚠️ THỨ TỰ BẮT BUỘC — bước này PHẢI đứng TRƯỚC `cargo test`.
       # `tauri::generate_context!` nhúng `frontendDist: "../dist"` LÚC BIÊN DỊCH. `dist/`
       # chưa tồn tại thì `cargo test` gãy ở khâu biên dịch, không ở một assert. Trên máy
@@ -425,9 +438,14 @@ jobs:
       #  khác 0 là đỏ* — y hệt bước `check:deps` ở trên. Thêm MỘT bước, không phải sắp
       #  xếp lại job:
       #
-      #    Story 1.4  · lint cấm màu viết thẳng trong component      (AD-34)
+      #    Story 1.4  · lint cấm màu viết thẳng trong component      (AD-34)  ✅ ĐÃ GẮN
       #    Story 4.1  · test cưỡng chế ranh giới module `ai/`        (AD-13)
       #    Epic 6     · bốn test allowlist mạng                      (AD-41)
+      #
+      #  ✅ Hàng 1 đóng 2026-08-03: bước `check design tokens` nằm NGAY TRÊN
+      #  `npm run build` chứ không dưới khối này — nó không cần `dist/` và chạy trong
+      #  vài giây, nên để một token sai đỏ sau cả lượt biên dịch Rust là lãng phí thuần
+      #  tuý. Hai hàng còn lại vẫn theo chỉ dẫn dưới đây.
       #
       #  Đặt bước mới ngay dưới khối này. Chúng chạy trên CẢ HAI nền tảng của matrix mà
       #  không phải khai gì thêm — đó là lý do job được viết thành một job có matrix chứ

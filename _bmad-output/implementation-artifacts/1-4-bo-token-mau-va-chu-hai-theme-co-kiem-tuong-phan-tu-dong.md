@@ -4,7 +4,7 @@ baseline_commit: 0255163d7c2406c83cdfe83b4b05f1fa188bc0cb
 
 # Story 1.4: Bộ token màu và chữ hai theme, có kiểm tương phản tự động
 
-Status: ready-for-dev
+Status: done
 
 Epic: 1 — Nền móng ứng dụng & Tra cứu ngoại tuyến tức thì
 Covers: NFR17 · AD-34 · UX-DR1, UX-DR2, UX-DR3, UX-DR5, UX-DR6, UX-DR10, UX-DR11, UX-DR14, UX-DR16
@@ -80,59 +80,97 @@ So that **một lần đổi nhầm không thể âm thầm đẩy chữ xuống
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Dựng nguồn sự thật một tệp cho toàn bộ token** (AC: 1)
-  - [ ] Tạo `src/tokens/tokens.json` chứa: `colors.light` (16) · `colors.dark` (16) · `typography` (14) · `families` (4) · `spacing` · `rounded`. Giá trị chép từ **`DESIGN.md` §Bảng token màu / §Bảng token typography / §Bảng token khoảng cách và hình dạng**, không chép từ frontmatter YAML *(frontmatter và bảng khớp nhau hôm nay, nhưng bảng là thứ `DESIGN.md` tự khai là "nguồn sự thật")*
-  - [ ] ⛔ **Đúng một nguồn sự thật.** Không tạo song song một tệp `.css` viết tay mang cùng giá trị — hai bản chép sẽ lệch nhau ở lần sửa thứ ba. `tsconfig.json` đã bật `resolveJsonModule` nên TS đọc trực tiếp, và `.mjs` đọc bằng `JSON.parse` — cùng một tệp, hai người tiêu thụ
-  - [ ] Tạo `src/tokens/index.ts`: import typed + hàm `applyTheme(theme: 'light' | 'dark')` ghi CSS custom properties lên `document.documentElement`. Gọi **trước `mount()`** trong `main.ts` để không có nháy màu
-  - [ ] Quy ước tên biến CSS: `--color-<token>` · `--font-<token>` · `--family-<token>` · `--space-<token>` · `--radius-<token>`. Chốt một lần, 127 story sau dùng lại
+- [x] **Task 1 — Dựng nguồn sự thật một tệp cho toàn bộ token** (AC: 1)
+  - [x] Tạo `src/tokens/tokens.json` chứa: `colors.light` (16) · `colors.dark` (16) · `typography` (14) · `families` (4) · `spacing` · `rounded`. Giá trị chép từ **`DESIGN.md` §Bảng token màu / §Bảng token typography / §Bảng token khoảng cách và hình dạng**, không chép từ frontmatter YAML *(frontmatter và bảng khớp nhau hôm nay, nhưng bảng là thứ `DESIGN.md` tự khai là "nguồn sự thật")*
+  - [x] ⛔ **Đúng một nguồn sự thật.** Không tạo song song một tệp `.css` viết tay mang cùng giá trị — hai bản chép sẽ lệch nhau ở lần sửa thứ ba. `tsconfig.json` đã bật `resolveJsonModule` nên TS đọc trực tiếp, và `.mjs` đọc bằng `JSON.parse` — cùng một tệp, hai người tiêu thụ
+  - [x] Tạo `src/tokens/index.ts`: import typed + hàm `applyTheme(theme: 'light' | 'dark')` ghi CSS custom properties lên `document.documentElement`. Gọi **trước `mount()`** trong `main.ts` để không có nháy màu
+  - [x] Quy ước tên biến CSS: `--color-<token>` · `--font-<token>` · `--family-<token>` · `--space-<token>` · `--radius-<token>`. Chốt một lần, 127 story sau dùng lại
 
-- [ ] **Task 2 — Cổng cưỡng chế `scripts/check-tokens.mjs`** (AC: 1, 2, 3, 4, 5, 7)
-  - [ ] Kiểm A (AC1): đối chiếu `tokens.json` với một **bảng kỳ vọng đóng băng trong chính script** — hai bản chép độc lập phải khớp. Đếm đúng 16/16/14/4. Cùng khuôn với `BANNED_CRATES` của `check-deps.mjs` và allowlist của `config_invariants.rs`
-  - [ ] Kiểm B (AC2): quét `src/**/*.{vue,ts,css}` tìm giá trị màu viết thẳng — `#rgb` · `#rrggbb` · `#rrggbbaa` · `rgb()` · `rgba()` · `hsl()` · `hsla()` · `color()` · **và tên màu CSS** (`red`, `white`, `black`, …). Miễn trừ: chính `src/tokens/**`. ⛔ Chỉ quét hex là bỏ lọt bốn cú pháp
-  - [ ] Kiểm C (AC3): tính tỉ lệ tương phản WCAG 2.x cho **mọi cặp đã khai** ở §Bảng tương phản, cả hai theme. Sàn 4.5:1; 3:1 chỉ cho token cỡ ≥ 24px (`lookup-headword`). Thêm phép chặn: `#7d766c` vắng mặt hoàn toàn; `ornament` và `tm-rule` **không xuất hiện sau `color:`**
-  - [ ] Kiểm D (AC4): quét `opacity:` trong `src/**` — giá trị **khác 0 và khác 1** trên một khai báo cùng khối với `color:` là FAIL. Miễn trừ có tên: khai báo mang comment `/* aura-allow-opacity: <lý do> */`
-  - [ ] Kiểm E (AC5): mọi token họ `read` có `lineHeight` ≥ **1.66**. Token họ `ui` mang cờ `wraps: true` cũng ≥ 1.66
-  - [ ] Kiểm F (AC7): quét `box-shadow` · `text-shadow` · `filter: drop-shadow` · `linear-gradient` · `radial-gradient` · `z-index` trong `src/**` — có là FAIL
-  - [ ] ⚠️ **Mã thoát là phán quyết.** In cảnh báo rồi `exit 0` là một cổng không cưỡng chế được gì (§Testing standards)
-  - [ ] Thêm `"check:tokens": "node scripts/check-tokens.mjs"` vào `package.json`
+- [x] **Task 2 — Cổng cưỡng chế `scripts/check-tokens.mjs`** (AC: 1, 2, 3, 4, 5, 7)
+  - [x] Kiểm A (AC1): đối chiếu `tokens.json` với một **bảng kỳ vọng đóng băng trong chính script** — hai bản chép độc lập phải khớp. Đếm đúng 16/16/14/4. Cùng khuôn với `BANNED_CRATES` của `check-deps.mjs` và allowlist của `config_invariants.rs`
+  - [x] Kiểm B (AC2): quét `src/**/*.{vue,ts,css}` tìm giá trị màu viết thẳng — `#rgb` · `#rrggbb` · `#rrggbbaa` · `rgb()` · `rgba()` · `hsl()` · `hsla()` · `color()` · **và tên màu CSS** (`red`, `white`, `black`, …). Miễn trừ: chính `src/tokens/**`. ⛔ Chỉ quét hex là bỏ lọt bốn cú pháp
+  - [x] Kiểm C (AC3): tính tỉ lệ tương phản WCAG 2.x cho **mọi cặp đã khai** ở §Bảng tương phản, cả hai theme. Sàn 4.5:1; 3:1 chỉ cho token cỡ ≥ 24px (`lookup-headword`). Thêm phép chặn: `#7d766c` vắng mặt hoàn toàn; `ornament` và `tm-rule` **không xuất hiện sau `color:`**
+  - [x] Kiểm D (AC4): quét `opacity:` trong `src/**` — giá trị **khác 0 và khác 1** trên một khai báo cùng khối với `color:` là FAIL. Miễn trừ có tên: khai báo mang comment `/* aura-allow-opacity: <lý do> */`
+  - [x] Kiểm E (AC5): mọi token họ `read` có `lineHeight` ≥ **1.66**. Token họ `ui` mang cờ `wraps: true` cũng ≥ 1.66
+  - [x] Kiểm F (AC7): quét `box-shadow` · `text-shadow` · `filter: drop-shadow` · `linear-gradient` · `radial-gradient` · `z-index` trong `src/**` — có là FAIL
+  - [x] ⚠️ **Mã thoát là phán quyết.** In cảnh báo rồi `exit 0` là một cổng không cưỡng chế được gì (§Testing standards)
+  - [x] Thêm `"check:tokens": "node scripts/check-tokens.mjs"` vào `package.json`
 
-- [ ] **Task 3 — Nghiệm thu đỏ-rồi-xanh cho cả sáu phép kiểm** (AC: 1, 2, 3, 4, 5, 7)
-  - [ ] Với **từng** kiểm A–F: cố ý tạo một vi phạm → chạy → phải **đỏ**; gỡ vi phạm → phải **xanh**. Ghi bảng kết quả vào §Debug Log References
-  - [ ] ⛔ Một cổng chưa từng đỏ là một cổng chưa được chứng minh. Story 1.3 §Task 11 đã đặt tiền lệ này
+- [x] **Task 3 — Nghiệm thu đỏ-rồi-xanh cho cả sáu phép kiểm** (AC: 1, 2, 3, 4, 5, 7)
+  - [x] Với **từng** kiểm A–F: cố ý tạo một vi phạm → chạy → phải **đỏ**; gỡ vi phạm → phải **xanh**. Ghi bảng kết quả vào §Debug Log References
+  - [x] ⛔ Một cổng chưa từng đỏ là một cổng chưa được chứng minh. Story 1.3 §Task 11 đã đặt tiền lệ này
 
-- [ ] **Task 4 — Nạp font lúc chạy, và kiểm bốn nét của `Source Sans 3`** (AC: 1)
-  - [ ] Tạo `src/tokens/fonts.ts`: đăng ký bốn `FontFace` từ `$RESOURCE/fonts/**` qua `resolveResource()` + `convertFileSrc()`, y hệt đường `scopeCheck.ts:220-242` đã chứng minh chạy được dưới CSP
-  - [ ] ⛔ Descriptor **bắt buộc** cho hai tệp biến thiên: `{ weight: '200 900' }`. Thiếu nó thì `Source Sans 3` khoá ở `wght = 200` (ExtraLight) và `ui-label` 700 ra chữ mảnh — hoặc tệ hơn, trình duyệt tổng hợp nét đậm giả
-  - [ ] `SourceSerif4[opsz,wght].ttf` + `SourceSerif4-Italic[opsz,wght].ttf` → cùng `family: 'Source Serif 4'`, khác `style`. `NotoSerifCJKtc-Regular.otf` → `'Noto Serif CJK TC'`, chỉ `weight: '400'`
-  - [ ] **Dựng thật `Source Sans 3` ở 400 / 600 / 700** trên một trang thăm dò rồi chụp lại. Mệnh đề *"nét 600 và 700 là nét thật"* của `DESIGN.md` **chỉ mới được chứng minh cho `Source Serif 4`** — `Source Sans 3` chưa từng dựng quá một nét
-  - [ ] Kiểm bằng **chuỗi dày dấu tiếng Việt** (`ế ộ ữ ẳ ườ` — UX-DR10) chứ không bằng chữ Latin
+- [x] **Task 4 — Nạp font lúc chạy, và kiểm bốn nét của `Source Sans 3`** (AC: 1)
+  - [x] Tạo `src/tokens/fonts.ts`: đăng ký bốn `FontFace` từ `$RESOURCE/fonts/**` qua `resolveResource()` + `convertFileSrc()`, y hệt đường `scopeCheck.ts:220-242` đã chứng minh chạy được dưới CSP
+  - [x] ⛔ Descriptor **bắt buộc** cho hai tệp biến thiên: `{ weight: '200 900' }`. Thiếu nó thì `Source Sans 3` khoá ở `wght = 200` (ExtraLight) và `ui-label` 700 ra chữ mảnh — hoặc tệ hơn, trình duyệt tổng hợp nét đậm giả
+  - [x] `SourceSerif4[opsz,wght].ttf` + `SourceSerif4-Italic[opsz,wght].ttf` → cùng `family: 'Source Serif 4'`, khác `style`. `NotoSerifCJKtc-Regular.otf` → `'Noto Serif CJK TC'`, chỉ `weight: '400'`
+  - [x] **Dựng thật `Source Sans 3` ở 400 / 600 / 700** trên một trang thăm dò rồi chụp lại. Mệnh đề *"nét 600 và 700 là nét thật"* của `DESIGN.md` **chỉ mới được chứng minh cho `Source Serif 4`** — `Source Sans 3` chưa từng dựng quá một nét
+  - [x] Kiểm bằng **chuỗi dày dấu tiếng Việt** (`ế ộ ữ ẳ ườ` — UX-DR10) chứ không bằng chữ Latin
 
-- [ ] **Task 5 — Xử lý chữ Hán nghiêng giả ở hai token** (AC: 1)
-  - [ ] Hai token dính: `source-hanviet` (#6) và `lookup-example` (#10) — cả hai `italic`, cả hai họ `read`, mà `families.read` có `Noto Serif CJK TC` trong chuỗi dự phòng và tệp đó **chỉ có Regular**
-  - [ ] Chọn một trong hai đường `DESIGN.md` đã liệt: (a) chấp nhận nghiêng giả cho phần Hán; (b) khai `font-style: normal` cho ký tự CJK trong hai token đó, qua `unicode-range` hoặc một `@font-face` riêng
-  - [ ] ⛔ **Thêm một tệp nghiêng CJK KHÔNG phải phương án** — đó là ~23 MiB, một phần ba ngân sách font, và dư địa NFR6 chỉ còn ~47 MB
-  - [ ] Ghi lựa chọn **và lý do** vào §Completion Notes. Đây là quyết định thị giác, không có đáp án máy chấm được
+- [x] **Task 5 — Xử lý chữ Hán nghiêng giả ở hai token** (AC: 1)
+  - [x] Hai token dính: `source-hanviet` (#6) và `lookup-example` (#10) — cả hai `italic`, cả hai họ `read`, mà `families.read` có `Noto Serif CJK TC` trong chuỗi dự phòng và tệp đó **chỉ có Regular**
+  - [x] Chọn một trong hai đường `DESIGN.md` đã liệt: (a) chấp nhận nghiêng giả cho phần Hán; (b) khai `font-style: normal` cho ký tự CJK trong hai token đó, qua `unicode-range` hoặc một `@font-face` riêng
+  - [x] ⛔ **Thêm một tệp nghiêng CJK KHÔNG phải phương án** — đó là ~23 MiB, một phần ba ngân sách font, và dư địa NFR6 chỉ còn ~47 MB
+  - [x] Ghi lựa chọn **và lý do** vào §Completion Notes. Đây là quyết định thị giác, không có đáp án máy chấm được
 
-- [ ] **Task 6 — Reset CSS toàn cục** (AC: 7)
-  - [ ] Tạo `src/tokens/reset.css`, import trong `main.ts`. Đóng mục `deferred-work.md:20`: `body` có margin 8px mặc định + `.shell { min-height: 100vh }` ⇒ **thanh cuộn ở một cửa sổ trống**
-  - [ ] Tối thiểu: `box-sizing: border-box` toàn cục · `body { margin: 0 }` · `background`/`color` từ token · `-webkit-font-smoothing` nhất quán hai nền tảng
-  - [ ] ⛔ Không kéo `normalize.css`/`modern-css-reset` về — mỗi phụ thuộc mới phải rà GPLv3 và vào bảng Stack **trước** (NFR15)
-  - [ ] Sửa `src/App.vue`: bỏ `font-family` và `font-size` viết thẳng ở `.selftest` (`:37-38`) — chúng sẽ làm Kiểm B/E đỏ ngay lượt đầu. Chuyển sang `var(--family-mono)` + `var(--font-ui-mono)`
+- [x] **Task 6 — Reset CSS toàn cục** (AC: 7)
+  - [x] Tạo `src/tokens/reset.css`, import trong `main.ts`. Đóng mục `deferred-work.md:20`: `body` có margin 8px mặc định + `.shell { min-height: 100vh }` ⇒ **thanh cuộn ở một cửa sổ trống**
+  - [x] Tối thiểu: `box-sizing: border-box` toàn cục · `body { margin: 0 }` · `background`/`color` từ token · `-webkit-font-smoothing` nhất quán hai nền tảng
+  - [x] ⛔ Không kéo `normalize.css`/`modern-css-reset` về — mỗi phụ thuộc mới phải rà GPLv3 và vào bảng Stack **trước** (NFR15)
+  - [x] Sửa `src/App.vue`: bỏ `font-family` và `font-size` viết thẳng ở `.selftest` (`:37-38`) — chúng sẽ làm Kiểm B/E đỏ ngay lượt đầu. Chuyển sang `var(--family-mono)` + `var(--font-ui-mono)`
 
-- [ ] **Task 7 — Token phân tách panel hai theme** (AC: 6)
-  - [ ] Story này **không** dựng panel (đó là Story 1.14). Nó khai **cơ chế** ở tầng token: theme sáng → `--panel-separator: 1px solid var(--color-outline)`, khe 0; theme tối → khe `2px` lộ `background`, panel `border-radius: 3px`, không đường kẻ
-  - [ ] ⛔ Không thống nhất hai theme về một cách làm. `outline #3b382f` trên `surface #26241f` chỉ đạt **1,32:1** — mình đã tính lại, khớp con số 1,39 mà `DESIGN.md` ghi ở dải làm tròn khác. Gần như vô hình ở cả hai cách tính
-  - [ ] Thêm một phép kiểm vào `check-tokens.mjs`: hai theme phải khai **hai cơ chế khác nhau**, giống nhau là FAIL
+- [x] **Task 7 — Token phân tách panel hai theme** (AC: 6)
+  - [x] Story này **không** dựng panel (đó là Story 1.14). Nó khai **cơ chế** ở tầng token: theme sáng → `--panel-separator: 1px solid var(--color-outline)`, khe 0; theme tối → khe `2px` lộ `background`, panel `border-radius: 3px`, không đường kẻ
+  - [x] ⛔ Không thống nhất hai theme về một cách làm. `outline #3b382f` trên `surface #26241f` chỉ đạt **1,32:1** — mình đã tính lại, khớp con số 1,39 mà `DESIGN.md` ghi ở dải làm tròn khác. Gần như vô hình ở cả hai cách tính
+  - [x] Thêm một phép kiểm vào `check-tokens.mjs`: hai theme phải khai **hai cơ chế khác nhau**, giống nhau là FAIL
 
-- [ ] **Task 8 — Gắn vào pipeline đã có** (AC: 2, 3)
-  - [ ] Thêm **một** bước `npm run check:tokens` vào `.github/workflows/ci.yml`, trong job `check` đã có
-  - [ ] ⛔ **Không dựng pipeline thứ hai** — AC4 của Story 1.3 cấm tường minh, và §AC4 của tệp đó đã chừa sẵn chỗ móc mang tên *"lint cấm màu viết thẳng (AD-34)"* cho đúng story này
-  - [ ] Đặt bước **trước** `npm run build` — nó chạy trong vài giây và không cần `dist/`, nên một lỗi token nên đỏ trước khi tốn một lượt biên dịch Rust
-  - [ ] ⚠️ Bước này **không** cần cửa sổ đồ hoạ. Đừng đặt nó xuống cụm cuối cùng nơi hai phép kiểm cần webview đang đứng
+- [x] **Task 8 — Gắn vào pipeline đã có** (AC: 2, 3)
+  - [x] Thêm **một** bước `npm run check:tokens` vào `.github/workflows/ci.yml`, trong job `check` đã có
+  - [x] ⛔ **Không dựng pipeline thứ hai** — AC4 của Story 1.3 cấm tường minh, và §AC4 của tệp đó đã chừa sẵn chỗ móc mang tên *"lint cấm màu viết thẳng (AD-34)"* cho đúng story này
+  - [x] Đặt bước **trước** `npm run build` — nó chạy trong vài giây và không cần `dist/`, nên một lỗi token nên đỏ trước khi tốn một lượt biên dịch Rust
+  - [x] ⚠️ Bước này **không** cần cửa sổ đồ hoạ. Đừng đặt nó xuống cụm cuối cùng nơi hai phép kiểm cần webview đang đứng
 
-- [ ] **Task 9 — Trang thăm dò thị giác, và gỡ nó đi** (AC: 1, 5)
-  - [ ] Dựng tạm một trang bày cả 14 token typography trên cả hai theme, dùng **chuỗi dày dấu tiếng Việt** + một đoạn chữ Hán + một dòng Latin, để kiểm mắt ba hệ chữ có cân nhau không
-  - [ ] Chụp lại làm bằng chứng, ghi vào §Completion Notes, rồi **gỡ trang đó khỏi cây nguồn**. Cùng khuôn với §Ranh giới phạm vi của mũi thăm dò Story 1.1: tài nguyên dùng một lần không vào repo
+- [x] **Task 9 — Trang thăm dò thị giác, và gỡ nó đi** (AC: 1, 5)
+  - [x] Dựng tạm một trang bày cả 14 token typography trên cả hai theme, dùng **chuỗi dày dấu tiếng Việt** + một đoạn chữ Hán + một dòng Latin, để kiểm mắt ba hệ chữ có cân nhau không
+  - [x] Chụp lại làm bằng chứng, ghi vào §Completion Notes, rồi **gỡ trang đó khỏi cây nguồn**. Cùng khuôn với §Ranh giới phạm vi của mũi thăm dò Story 1.1: tài nguyên dùng một lần không vào repo
+
+---
+
+### Review Findings
+
+*Lượt rà soát `bmad-code-review` ngày 2026-08-03. Ba lớp song song (Blind Hunter · Edge Case Hunter · Acceptance Auditor), không lớp nào thất bại. Số học tương phản và phép đếm 16/16/14/4 đã được lớp thứ ba **tự tái lập độc lập và khớp**; bảy giả thuyết nặng nhất đã được **chạy thật trong sandbox**, kết quả ghi kèm.*
+
+**Quyết định của Ice — đã chốt 2026-08-03**
+
+- [x] [Review][Decision] **Ba deviation khỏi `DESIGN.md`** — `colors.dark.surface-accent` `#2c3a3b` → `#283637`; `typography.lookup-gloss.lineHeight` và `typography.lookup-example.lineHeight` `1.6` → `1.66`. → **Ice PHÊ CHUẨN cả ba, `DESIGN.md` chưa sửa.** Giữ tiền lệ *"dev không tự sửa tài liệu quy hoạch"* (quyết định #3 của Story 1.3). Việc chỉnh `DESIGN.md` cho khớp là một lượt riêng của Ice → ghi vào `deferred-work.md`.
+- [x] [Review][Decision] **Phạm vi Kiểm D so với AC4** — cổng chỉ đỏ khi `opacity` trung gian nằm cùng khối với `color:`; `.dimmed { opacity: 0.4 }` trên thẻ bọc lọt qua (đã chạy thật, exit 0). → **Ice chốt NỚI RỘNG:** mọi `opacity` trung gian trong `src/**` là FAIL trừ khi mang miễn trừ có tên `/* aura-allow-opacity: <lý do> */`. Hợp đồng mới của cổng, áp cho 127 story sau.
+- [x] [Review][Decision] **Bằng chứng thị giác của Task 4 · 5 · 9** — trang thăm dò, bốn ảnh chụp và bộ đọc `fvar` nằm ngoài repo có chủ ý (tiền lệ Story 1.1). → **Ice CHẤP NHẬN văn xuôi làm bằng chứng**, kèm điều kiện ghi rõ ba mệnh đề đang đứng bằng văn xuôi vào `deferred-work.md` để lượt đo NFR của Story 1.9 / 10.9 nhặt lại.
+
+**Vá được — ĐÃ ÁP TOÀN BỘ 21/21 ngày 2026-08-03**
+
+> Hồi quy sau lượt vá: `check:tokens` **exit 0** · `check:deps` **exit 0** · `npm run build` (vue-tsc ×2 + vite) **exit 0** · nghiệm thu đỏ-rồi-xanh **52/52 ca đạt** (bảng ở §Debug Log References). Cây nguồn thật không bị đụng trong lúc nghiệm thu — mỗi ca dựng lại một sandbox sạch ngoài repo.
+
+- [x] [Review][Patch] **Nới rộng Kiểm D theo quyết định của Ice** [scripts/check-tokens.mjs:819] — bỏ điều kiện `if (!hasColor) continue`; mọi `opacity` khác 0 và khác 1 trong `src/**` là FAIL trừ khi mang `/* aura-allow-opacity: <lý do> */` trong phạm vi một dòng. Nghiệm thu đỏ-rồi-xanh lại cho cả hai chiều (thẻ bọc → đỏ; có miễn trừ → xanh), và cập nhật §Debug Log References.
+- [x] [Review][Patch] **Ghi ba mục vào `deferred-work.md`** theo hai quyết định của Ice — (a) `DESIGN.md` cần một lượt chỉnh của Ice cho ba giá trị đã phê chuẩn (`surface-accent` tối, `lookup-gloss`, `lookup-example`), tới lúc đó sổ `deviations` là chỗ giữ sự thật; (b) ba mệnh đề thị giác của Task 4/5 đang đứng bằng văn xuôi — *"bốn nét `Source Sans 3` phân biệt rõ"*, *"`ui-label` 700 là nét thật"*, *"chữ Hán đứng thẳng dưới `font-synthesis: none` trong khi Latin vẫn nghiêng thật"* — chưa có bằng chứng tái lập được từ cây nguồn, và **chưa đo trên WKWebView/Windows**; nhặt lại ở lượt đo NFR của Story 1.9 / 10.9.
+- [x] [Review][Patch] 🔴 Một dấu nháy lẻ trong template làm Kiểm B/D/F **im lặng xanh** [scripts/check-tokens.mjs:262] — `maskCommentsAndStrings` không có chốt "chuỗi chưa đóng": gặp `'` không có cặp thì `blankRange` xoá trắng tới cuối tệp. **Đã chạy thật:** `<p>don't</p>` trong template + `.a { color: …; opacity: 0.4; box-shadow: …; z-index: 5 }` trong `<style>` → **0 FAIL, exit 0**; cùng khối đó mà không có dấu nháy lẻ → **3 FAIL, exit 1**. Cùng lỗ hổng với `/*` không đóng.
+- [x] [Review][Patch] 🔴 Sàn WCAG đọc từ chính tệp bị kiểm [scripts/check-tokens.mjs:701] — `cfg.floors ?? {…}` lấy từ `tokens.contrast.floors`, không nằm trong bảng đóng băng. **Đã chạy thật:** khôi phục `colors.dark.surface-accent` về `#2c3a3b` (khớp bảng đóng băng nên **không cần deviation nào**) + hạ `floors.normal` xuống 3.0 → in `[dark] 31 cặp đạt AA · thấp nhất 4.245:1`, **exit 0**. 4,5 và 3,0 là hằng số WCAG, phải đóng băng trong script. Cùng vấn đề: `largeTextMinPx` [:753].
+- [x] [Review][Patch] 🔴 **Chuyển** một cặp trượt sang `excluded` là đường thoát [scripts/check-tokens.mjs:710] — `excluded` chỉ đòi một chuỗi `reason` không rỗng. **Đã chạy thật:** khôi phục `#2c3a3b`, chuyển cặp `on-surface-variant × surface-accent` sang `excluded` với lý do ba chữ *"khong dung"* → **exit 0**, cặp 4,245:1 quay lại sản phẩm. §Completion Notes #9 khẳng định *"Xoá một cặp trượt khỏi danh sách kiểm giờ là FAIL, không phải một đường thoát"* — đúng cho **xoá**, sai cho **chuyển**. Đóng băng danh sách `excluded` trong script như `EXPECTED_*`.
+- [x] [Review][Patch] `deviations` không đòi lý do [scripts/check-tokens.mjs:446] — chỉ đối chiếu `designValue`/`value`; `reason` và `question` **không hề được đọc**. Đã chạy thật: đổi `colors.light.primary` + thêm một mục deviation **không có trường `reason`** → exit 0. Đòi `reason` và `question` không rỗng.
+- [x] [Review][Patch] Danh sách rỗng làm Kiểm C xanh rỗng [scripts/check-tokens.mjs:707,734,778,794] — đã chạy thật: `roles.text`/`roles.surface`/`pairs`/`excluded` rỗng → in `đầy đủ: 0 tổ hợp` · `0 cặp đạt AA · thấp nhất Infinity:1`, **exit 0**. `bannedColorValues`/`neverTextTokens` xoá đi thì cũng im lặng biến mất. Chính script đã có khuôn đúng (`FILE_FLOOR`, *"cây rỗng không phải cây sạch"*) — áp cho các tập này. Kèm: khoá `bannedColorValues` đang dùng làm regex **chưa thoát ký tự** [:781], `rgb(255, 0, 0)` sẽ không bao giờ khớp và khoá rỗng làm `re.exec` lặp vô hạn.
+- [x] [Review][Patch] `:style` binding và `style='…'` nháy đơn lọt hoàn toàn [scripts/check-tokens.mjs:354] — regex chỉ bắt `style="…"` nháy kép tĩnh. **Đã chạy thật:** `:style="{ color: 'red', fontSize: '13px' }"` + `style='color: rebeccapurple; font-size: 22px'` → **exit 0**. `:style` là chính cách Vue khai style động.
+- [x] [Review][Patch] `#[0-9a-fA-F]{3,8}\b` là máy sinh dương tính giả [scripts/check-tokens.mjs:532] — **đã chạy thật:** `document.querySelector('#faded')` trong `.ts` → `FAIL … màu viết thẳng trong mã: '#faded'`. Cùng số phận: `#dad`, `#face`, `#decade`, `href="#…"`. Comment ở `:233` của chính tệp cảnh báo *"một cổng chỉ đường sai sẽ bị người sau thêm ngoại lệ cho tới khi nó không bắt được gì"* — đây là cái đòn bẩy đó.
+- [x] [Review][Patch] Tầm quét quá hẹp [scripts/check-tokens.mjs:200,214] — `SCAN_EXT` chỉ `.vue/.ts/.css` dưới `src/`. Ngoài tầm: `index.html` ở gốc repo (**hôm nay đang là vỏ ứng dụng**, chỗ tự nhiên nhất để một `<style>` lọt vào), `.svg` · `.js/.jsx/.tsx` · `.scss`, và **chính `tokens.json`** — nên mệnh đề *"`#7d766c` vắng mặt hoàn toàn"* không phủ nguồn sự thật token.
+- [x] [Review][Patch] `FILE_FLOOR` canh nhầm quần thể [scripts/check-tokens.mjs:56,583] — sàn áp lên `files.length` (7 tệp hôm nay), nhưng Kiểm B/B2 chạy trên `componentDecls`, tức đã lọc bỏ 3 tệp tầng token. Khi `src/tokens/` lên 5 tệp thì toàn bộ cưỡng chế màu/cỡ chữ ở tầng component xanh rỗng với 0 component trong cây.
+- [x] [Review][Patch] `applyTheme()` ném lỗi trước `mount()` với theme lạ [src/tokens/index.ts:61] — `tokens.colors[theme]` `undefined` → `Object.entries(undefined)` ném `TypeError` ở tầng module, ứng dụng **không mount**: cửa sổ trắng, đúng thứ comment đầu tệp nói mình tồn tại để chặn. `THEMES` đã export ở `:48` nhưng không ai kiểm. Story 1.8 sẽ nạp giá trị từ đĩa. Kèm: `reset.css:32-40` dùng `var(--color-…)` không có giá trị dự phòng.
+- [x] [Review][Patch] `contrast()` trả `NaN` mà im lặng đạt [scripts/check-tokens.mjs:383,764] — `parseInt(hex.slice(1),16)` sai với `#abc` (3 chữ số), `NaN` với `rgb()`/tên màu; `r < floor` với `NaN` là `false` ⇒ cặp được tuyên bố đạt. Phép tự kiểm ở `:398` chỉ phủ đúng một cặp 6 chữ số. Chặn tường minh: giá trị token phải khớp `/^#[0-9a-f]{6}$/i`.
+- [x] [Review][Patch] Gói vá bộ phân tích [scripts/check-tokens.mjs:235,337,370,622] — (a) `[...text]` đánh chỉ số theo **code point** trong khi mọi chỉ số nạp vào nó là **UTF-16**: một emoji trong comment làm lệch toàn bộ offset (hôm nay `src/**` chưa có ký tự nào ngoài BMP — đã kiểm, nên là bẫy ngủ); (b) `</style>` khớp phân biệt hoa thường trong khi `<style>` thì không; (c) regex `<style>` chạy trên `text` thô chứ không trên `masked`; (d) mọi `style="…"` của cả tệp gộp thành **một** khối giả ⇒ Kiểm D nhiễu chéo giữa các thẻ không liên quan và số dòng trỏ vào đầu thuộc tính; (e) `scanned[m.index] === undefined` là mã chết (thay bằng khoảng trắng **cùng độ dài**) nên một màu trong `<style>` của `.vue` bị báo **ba lần** và dòng tổng kết đếm *vi phạm* mà gọi là *"phép kiểm"*.
+- [x] [Review][Patch] Đọc số thiếu chặt [scripts/check-tokens.mjs:823,866] — `line-height: 20px` qua sàn 1.66 vì `parseFloat` nuốt đơn vị (chỉ với tính từ token mới, token hiện có bị Kiểm A chặn trước); `opacity: 100%` bị báo sai là trung gian; `opacity: var(--x)` và `calc()` bị bỏ qua hoàn toàn.
+- [x] [Review][Patch] Danh sách cho phép/cấm còn hở [scripts/check-tokens.mjs:510,594,608,661] — màu hệ thống CSS (`Canvas`, `ButtonFace`, `LinkText`) không có trong `NAMED_COLORS` và thuộc tính ghép không có danh sách cho phép; `color: var(--color-x) !important` và `border-color: var(--a) var(--b)` (hợp lệ, 1–4 giá trị) bị regex neo hai đầu từ chối oan.
+- [x] [Review][Patch] `loadFonts()` nối tiếp, không có hạn giờ, không luỹ đẳng [src/tokens/fonts.ts:96,102] — `for … await` bốn tệp một hàng: nếu tệp đầu **treo** thay vì reject thì ba tệp sau không bao giờ được dựng, promise không bao giờ settle, và `.then` ở `main.ts:26` không chạy ⇒ **treo không phân biệt được với thành công trong log**. Gọi lại lần hai (HMR) thêm bốn `FontFace` trùng vào `document.fonts`, không có chốt.
+- [x] [Review][Patch] Kiểm F cấm `z-index` mà không có đường miễn trừ có tên [scripts/check-tokens.mjs:886] — trong khi Kiểm D có `/* aura-allow-opacity: … */`. Panel của Story 1.14, dropdown, tooltip và chính dockview đều cần ngữ cảnh xếp lớp; cái `z-index` hợp lệ đầu tiên không có chỗ để tự biện minh, nên phản ứng tự nhiên là **xoá nó khỏi `BANNED_PROPS`** — mất luôn hai lệnh cấm `box-shadow`/`text-shadow` dùng chung tập đó.
+- [x] [Review][Patch] `walk()` đi theo symlink không có chốt vòng [scripts/check-tokens.mjs:202] — `statSync` giải symlink ⇒ một liên kết trỏ về thư mục cha làm đệ quy không dừng; một symlink gãy thì ném `ENOENT` và bị báo thành *"cây nguồn không đọc được"*, tức một liên kết hỏng làm sập cả cổng dưới danh nghĩa lỗi hạ tầng. Dùng `lstatSync` + tập đã thăm.
+- [x] [Review][Patch] §File List thiếu một thay đổi [_bmad-output/implementation-artifacts/sprint-status.yaml:57] — dòng `1-5-…: backlog → ready-for-dev` nằm trong change set nhưng File List chỉ khai đường đi trạng thái của story 1.4. Bổ sung một dòng, hoặc tách nó khỏi lượt commit này.
+- [x] [Review][Patch] `spacing.unit` lấy từ **frontmatter**, không từ bảng [src/tokens/tokens.json:284] — `DESIGN.md:127` (frontmatter YAML) có `unit: 4px`; §Bảng token khoảng cách và hình dạng ở `:283` thì **không**. Task 1 dặn tường minh *"chép từ bảng, không chép từ frontmatter YAML"*. Giá trị vô hại nhưng nó là token thứ mười đi qua Kiểm A từ một nguồn story đã loại — hoặc gỡ, hoặc ghi vào `notes` như trường hợp `source-cjk.family`.
 
 ---
 
@@ -398,31 +436,230 @@ mono      ui-monospace, SFMono-Regular, Consolas, monospace
 
 ### Agent Model Used
 
+`claude-opus-5` (Claude Code, dev-story workflow)
+
 ### Debug Log References
 
-<!-- Bảng nghiệm thu đỏ-rồi-xanh của Task 3 — sáu hàng, ghi ở đây -->
+**Nghiệm thu đỏ-rồi-xanh — 28/28 ca đạt.** Bộ điều khiển tiêm từng vi phạm vào cây nguồn thật, chạy `node scripts/check-tokens.mjs`, đọc mã thoát, khôi phục tệp, chạy lại. Nó sống ở thư mục scratchpad ngoài repo và luôn khôi phục trong `finally` — một lượt nghiệm thu để lại vi phạm trong repo còn tệ hơn không nghiệm thu. Nền được kiểm trước: cây sạch → exit 0.
+
+| Kiểm | AC | Vi phạm cố ý | Tiêm vào → mã thoát | Gỡ ra → mã thoát |
+|---|---|---|---|---|
+| A | AC1 | đổi `colors.light.background` thành `#f4f1eb` (lệch 1 bit) | **1** 🔴 | 0 ✅ |
+| A | AC1 | xoá token `error` khỏi theme sáng (16 → 15) | **1** 🔴 | 0 ✅ |
+| A | AC1 | thêm token thứ 17 `accent-2` cho khớp một con số cũ | **1** 🔴 | 0 ✅ |
+| A | AC1 | gỡ mục `deviations` nhưng giữ giá trị đã lệch | **1** 🔴 | 0 ✅ |
+| B | AC2 | hex viết thẳng — `color: #ff0000` | **1** 🔴 | 0 ✅ |
+| B | AC2 | cú pháp hàm — `background-color: rgb(43 39 35)` | **1** 🔴 | 0 ✅ |
+| B | AC2 | không gian màu mới — `color: oklch(0.6 0.1 40)` | **1** 🔴 | 0 ✅ |
+| B | AC2 | **tên màu CSS** — `border: 1px solid red` | **1** 🔴 | 0 ✅ |
+| B | AC2 | giá trị không phải token màu — `color: var(--space-panel-block)` | **1** 🔴 | 0 ✅ |
+| B2 | AC1 | cỡ chữ viết thẳng — `font-size: 13px` | **1** 🔴 | 0 ✅ |
+| B2 | AC1 | họ chữ viết thẳng — `font-family: Georgia, serif` | **1** 🔴 | 0 ✅ |
+| C | AC3 | khôi phục `surface-accent` tối về `#2c3a3b` (cặp trượt 4,245:1) | **1** 🔴 | 0 ✅ |
+| C | AC3 | rút gọn danh sách kiểm — xoá cặp `on-surface-variant × surface-accent` | **1** 🔴 | 0 ✅ |
+| C | AC3 | loại một cặp mà KHÔNG ghi lý do | **1** 🔴 | 0 ✅ |
+| C | AC3 | né sàn bằng cách khai `"large"` mà không nêu token ≥ 24px | **1** 🔴 | 0 ✅ |
+| C | AC3 | màu đã loại `#7d766c` quay lại `src/**` | **1** 🔴 | 0 ✅ |
+| C | AC3 | `ornament` dùng làm màu chữ | **1** 🔴 | 0 ✅ |
+| C | AC3 | `tm-rule` dùng làm màu chữ *(con số 5,26 ở theme tối là cái bẫy)* | **1** 🔴 | 0 ✅ |
+| D | AC4 | `opacity: 0.4` cùng khối với `color:` | **1** 🔴 | 0 ✅ |
+| D | AC4 | *chiều ngược:* miễn trừ `/* aura-allow-opacity: … */` thì KHÔNG được đỏ | **0** *(kỳ vọng 0)* | 0 ✅ |
+| E | AC5 | khôi phục `lookup-gloss` về 1.6 trong khi `wraps: true` | **1** 🔴 | 0 ✅ |
+| E | AC5 | token mới thiếu cờ `wraps` | **1** 🔴 | 0 ✅ |
+| E | AC5 | *giới hạn đã biết:* khai `wraps: false` sai sự thật cho `read-lg` | **0** *(kỳ vọng 0)* | 0 ✅ |
+| F | AC7 | `box-shadow` — kể cả khi dùng token màu hợp lệ | **1** 🔴 | 0 ✅ |
+| F | AC7 | `linear-gradient` trong `background-image` | **1** 🔴 | 0 ✅ |
+| F | AC7 | `z-index` trang trí | **1** 🔴 | 0 ✅ |
+| G | AC6 | thống nhất hai theme về một cơ chế (`rule`) | **1** 🔴 | 0 ✅ |
+| G | AC6 | khe theme tối tụt xuống 1px | **1** 🔴 | 0 ✅ |
+
+#### Lượt hai — sau rà soát mã 2026-08-03: **52/52 ca đạt**
+
+Bảng 28 hàng ở trên nghiệm thu *cổng như nó được đặc tả*. Lượt rà soát chỉ ra ba đường thoát và một loạt chỗ mù mà 28 hàng đó **không chạm tới** — vì chúng tiêm vi phạm vào đúng những chỗ cổng đang nhìn. Bộ nghiệm thu mới dựng lại một **sandbox sạch từ repo ở mỗi ca** (thay vì tiêm-rồi-khôi-phục tại chỗ), nên không ca nào để lại gì trong cây nguồn thật kể cả khi nó gãy giữa chừng. Bộ điều khiển sống ở thư mục scratchpad, ngoài repo.
+
+Mười tám hàng dưới đây là **hàng mới**; 34 hàng còn lại là bảng cũ chạy lại trên cổng đã vá và vẫn đúng phán quyết.
+
+| Kiểm | AC | Vi phạm cố ý — hàng MỚI | Trước lượt vá | Sau lượt vá |
+|---|---|---|---|---|
+| B/D/F | AC2·4·7 | 🔴 dấu nháy lẻ `don't` trong template + `opacity: 0.4` trên chữ + `box-shadow` trong `<style>` | **0** ⚠️ *(0 FAIL)* | **1** 🔴 |
+| B | AC2 | 🔴 `/*` không đóng, rồi một màu viết thẳng sau đó | **0** ⚠️ | **1** 🔴 |
+| B | AC2 | 🔴 `:style="{ color: 'red' }"` — binding động của Vue | **0** ⚠️ | **1** 🔴 |
+| B2 | AC1 | 🔴 `:style="{ fontSize: '13px' }"` | **0** ⚠️ | **1** 🔴 |
+| B | AC2 | 🔴 `style='color: rebeccapurple'` — nháy đơn | **0** ⚠️ | **1** 🔴 |
+| B | AC2 | 🔴 màu hệ thống CSS — `background: Canvas` | **0** ⚠️ | **1** 🔴 |
+| B | AC2 | 🔴 `<style>` trong `index.html` ở gốc repo | **0** ⚠️ *(ngoài tầm quét)* | **1** 🔴 |
+| B | AC2 | 🔴 màu viết thẳng trong `src/**/*.js` | **0** ⚠️ | **1** 🔴 |
+| B | AC2 | 🔴 màu viết thẳng trong `src/**/*.svg` | **0** ⚠️ | **1** 🔴 |
+| B | AC2 | 🔴 ký tự ngoài BMP (emoji) làm lệch offset, rồi một màu viết thẳng | **1** *(may)* | **1** 🔴 |
+| A | AC1 | 🔴 deviation **không có `reason`** *(và biến thể: không có `question`, `reason` rỗng)* | **0** ⚠️ | **1** 🔴 |
+| A | AC1 | 🔴 giá trị màu ba chữ số `#abc` — `contrast()` ra `NaN`, `NaN < 4.5` là `false` | **0** ⚠️ | **1** 🔴 |
+| C | AC3 | 🔴 hạ `contrast.floors.normal` xuống 3.0 **từ chính tệp bị kiểm** | **0** ⚠️ | **1** 🔴 |
+| C | AC3 | 🔴 khôi phục `#2c3a3b` *(khớp bảng đóng băng ⇒ không cần deviation)* + hạ sàn | **0** ⚠️ *(in "31 cặp đạt AA · thấp nhất 4.245:1")* | **1** 🔴 |
+| C | AC3 | 🔴 **CHUYỂN** cặp trượt sang `excluded` với lý do ba chữ | **0** ⚠️ | **1** 🔴 |
+| C | AC3 | 🔴 `roles` và `pairs` rỗng — danh sách rỗng làm C1/C2 xanh rỗng | **0** ⚠️ *(in "đầy đủ: 0 tổ hợp · thấp nhất Infinity:1")* | **1** 🔴 |
+| C | AC3 | 🔴 xoá `bannedColorValues` / xoá `neverTextTokens` | **0** ⚠️ | **1** 🔴 |
+| C | AC3 | 🔴 `#7d766c` quay lại làm **GIÁ TRỊ của một token** trong `tokens.json` | **0** ⚠️ *(`.json` ngoài tầm quét)* | **1** 🔴 |
+| D | AC4 | 🔴 `opacity: 0.4` trên thẻ **BỌC**, chữ con kế thừa màu | **0** ⚠️ | **1** 🔴 |
+| D | AC4 | 🔴 `opacity: var(--dim)` — cổng không chứng minh được là 0 hay 1 | **0** ⚠️ | **1** 🔴 |
+| E | AC5 | 🔴 `lineHeight: "20px"` — `parseFloat` nuốt đơn vị, 20 ≥ 1.66 | **0** ⚠️ *(khi đi qua deviation)* | **1** 🔴 |
+| F | AC7 | 🔴 `z-index` không có miễn trừ **·** và chiều ngược: có miễn trừ → **0** ✅ | 1 🔴 / *(không có đường thoát)* | **1** 🔴 / **0** ✅ |
+| G | AC6 | 🔴 `light.gap: 12px` — theme sáng có CẢ nét CẢ khe | **0** ⚠️ *(trường không được soi)* | **1** 🔴 |
+| G | AC6 | 🔴 `dark.gap: 2rem` — đơn vị bị đánh tráo, `parseFloat` cho 2 | **0** ⚠️ | **1** 🔴 |
+| G | AC6 | 🔴 `dark.borderWidth: 1px` + `borderColor: outline` — theme tối vẫn khai đường kẻ | **0** ⚠️ | **1** 🔴 |
+| sàn | — | 🔴 `src/tokens/` phình lên 6 tệp trong khi component về 0 | **0** ⚠️ *(`FILE_FLOOR` vẫn qua)* | **1** 🔴 |
+
+**Sáu hàng kỳ vọng exit 0 là dương tính giả ĐÃ SỬA, và chúng đắt ngang các hàng đỏ** — một cổng chỉ đường sai sẽ bị người sau thêm ngoại lệ cho tới khi nó không bắt được gì:
+
+| Kiểm | Đầu vào hợp lệ | Trước | Sau |
+|---|---|---|---|
+| B | `document.querySelector('#faded')` trong `.ts` | **1** ⚠️ *(báo là màu viết thẳng)* | **0** ✅ |
+| B | `color: var(--color-on-surface) !important` | **1** ⚠️ | **0** ✅ |
+| B | `border-color: var(--a) var(--b)` *(CSS hợp lệ nhận 1–4 giá trị)* | **1** ⚠️ | **0** ✅ |
+| D | `opacity: 100%` *(= hoàn toàn đục)* | **1** ⚠️ | **0** ✅ |
+| hạ tầng | symlink trong `src/` | **1** ⚠️ *(`ENOENT` báo thành "cây nguồn không đọc được")* | **0** ✅ *(bỏ qua + ghi tên)* |
+| B | `#dad` có `/* aura-allow-literal: … */` | *(chưa có kênh)* | **0** ✅ |
+
+**Hai hàng kỳ vọng exit 0 ở bảng lượt một là cố ý, và chúng đo thứ mà 26 hàng còn lại không đo được:**
+hàng D thứ hai chứng minh miễn trừ có tên **hoạt động** (một cổng không có đường thoát hợp lệ sẽ bị nới cho tới khi không bắt được gì); hàng E thứ ba ghi thẳng **giới hạn** — cờ `wraps` là một mệnh đề về nội dung sẽ chạy qua token, và không phép kiểm tĩnh nào phân xử được nó khi chưa có component.
+
+**Đọc thẳng bảng `fvar` và `name` của bốn tệp font** *(Task 4 — bằng chứng loại khác với ảnh chụp)*:
+
+```
+SourceSans3[wght].ttf         name ID 1  = "Source Sans 3 ExtraLight"
+                              name ID 16 = "Source Sans 3"
+                              fvar wght: min 200 · MẶC ĐỊNH 200 · max 900
+SourceSerif4[opsz,wght].ttf   fvar wght: min 200 · mặc định 400 · max 900
+                              fvar opsz: min 8 · mặc định 20 · max 60
+SourceSerif4-Italic[…].ttf    name ID 2 = "Italic", cùng family "Source Serif 4"
+NotoSerifCJKtc-Regular.otf    KHÔNG có fvar — tệp tĩnh, một nét duy nhất
+```
+
+Hồi quy đầy đủ ở lượt giao: `check:deps` exit 0 · `check:tokens` exit 0 · `npm run build` (vue-tsc ×2 + vite) exit 0 · `cargo test --locked` **15/15 đạt**.
 
 ### Completion Notes List
 
-<!--
-Bắt buộc ghi:
-  - Phương án đã chọn cho cặp trượt AA (Câu hỏi 1) và số đo sau khi sửa
-  - Lựa chọn cho chữ Hán nghiêng giả (Task 5) và LÝ DO
-  - Ảnh chụp `Source Sans 3` ở 400/600/700 — mệnh đề "nét thật" nay đã kiểm tới đâu
-  - AC6 đóng được tới đâu, và giới hạn ghi thẳng
-  - Đường nạp font đã chạy trên nền tảng nào — `deferred-work.md:7` đóng được một nửa hay trọn
--->
+#### 1. Cặp trượt AA — đi theo mặc định của story (phương án A), và Ice vẫn phải phê chuẩn
+
+Đã **tự tính lại toàn bộ bảng tương phản** trước khi tin nó, bằng WCAG 2.x trên chính 16 giá trị của `DESIGN.md`. **Khớp story tới ba chữ số thập phân**, kể cả phát hiện chặn: `on-surface-variant #a29a8c` trên `surface-accent #2c3a3b` = **4,245:1**, dưới sàn 4,5.
+
+Ice chưa trả lời khi dev bắt đầu ⇒ **phương án A**: `colors.dark.surface-accent` `#2c3a3b` → **`#283637`**. Số đo sau khi đổi:
+
+| chữ trên `surface-accent` tối | trước | sau |
+|---|---|---|
+| `on-surface-variant` | 4,245 🔴 | **4,505** ✅ |
+| `error` | 4,519 ⚠️ | **4,795** ✅ |
+| `primary` | 5,103 | 5,415 |
+| `confirmed` | 5,149 | 5,465 |
+| `tm-text` | 5,857 | 6,216 |
+| `on-surface` | 9,243 | 9,809 |
+
+*(Story ước `primary` sau khi đổi là 5,55; số tính lại là **5,415**. Chênh lệch không đổi kết luận — cả hai đều qua sàn 4,5 — nhưng ghi ra để lượt rà soát sau không phải tự hỏi.)*
+
+⛔ **`DESIGN.md` KHÔNG bị sửa.** Sửa tài liệu quy hoạch là quyết định của Ice, không phải hệ quả phụ của một lượt cài đặt (tiền lệ: quyết định #3 của Ice ở Story 1.3).
+
+#### 2. 🔴 PHÁT HIỆN MỚI — AC5 còn hai token nữa trượt, và cờ `wraps` KHÔNG giải được
+
+Story bắt được `DESIGN.md` tự mâu thuẫn ở `read-title` và `lookup-headword` (họ `read`, ở 1.3) và giải đúng bằng cờ `wraps` — tiêu đề một dòng không có dòng dưới để dấu chạm vào.
+
+**Nhưng bảng token còn HAI token nữa dưới sàn 1.66, và cả hai thật sự xuống dòng:**
+
+| Token | Vai | `lineHeight` bảng | `wraps` | Phán quyết |
+|---|---|---|---|---|
+| `lookup-gloss` | *Nghĩa* của Panel Lookup | **1.6** | `true` | trượt sàn |
+| `lookup-example` | *Ví dụ và trích dẫn* | **1.6** | `true` | trượt sàn |
+
+Đây là lần **thứ hai** `DESIGN.md` tự mâu thuẫn: §Giãn dòng phát biểu *"không token họ `read` nào được xuống dưới 1.66"* trong khi chính bảng ngay trên đặt hai token này ở 1.6.
+
+**Đã nâng cả hai lên 1.66** và ghi vào `deviations`. Chi phí thị giác: 0,87px và 0,75px mỗi dòng. ⛔ Đường thay thế duy nhất là khai `wraps: false` — tức nói dối cổng để cho xanh, đúng thứ AD-34 tồn tại để chặn. **Cần Ice phê chuẩn**, và mục này **chưa có trong §Câu hỏi cho Ice** của story.
+
+#### 3. Chữ Hán nghiêng giả — `font-synthesis: none`, và nó đã được dựng thật
+
+Chọn **`fontSynthesis: 'none'`** khai ở chính hai token `source-hanviet` và `lookup-example` (phát ra `--synthesis-<token>`).
+
+**Lý do chọn đường này chứ không phải ba đường kia:** thêm tệp nghiêng CJK là ~23 MiB (⛔ một phần ba ngân sách font, dư địa NFR6 còn ~47 MB); chấp nhận nghiêng giả thì `lookup-example` là ví dụ từ điển Trung–Việt ở 12,5px — đúng cỡ nó xấu nhất; `unicode-range` + `@font-face` riêng làm được nhưng phải bảo trì một dải mã CJK viết tay và không phủ được ký tự ngoài dải mình nghĩ ra. `font-synthesis: none` là **một thuộc tính, 0 byte, 0 bộ nhớ thêm, 0 dải mã phải bảo trì**.
+
+**Đã dựng thật và chụp lại:** ở `auto`, 橫看成嶺側成峰 nghiêng rõ và nét bị méo; ở `none`, chữ Hán **đứng thẳng** trong khi phần Latin *"nghiêng Latin thật"* **vẫn nghiêng thật** — vì `Source Serif 4` có tệp Italic riêng nên không cần tổng hợp, và `font-synthesis` chỉ tắt phần *tổng hợp*.
+
+⚠️ Nó cũng tắt tổng hợp **nét đậm** cho hai token đó. Tác dụng phụ này *mong muốn*: nếu descriptor nét sai ở đâu đó, thấy chữ mảnh (lỗi hiện ra) tốt hơn nét đậm giả (lỗi ẩn đi).
+
+⚠️ **Lời giải này chưa có người tiêu thụ.** Nó chỉ có hiệu lực trong sản phẩm khi Story 1.16/1.17 áp `font-synthesis: var(--synthesis-<token>)` ở chính chỗ dựng hai token. Bỏ sót dòng đó là cách nó chết im lặng — đã ghi vào `deferred-work.md`.
+
+#### 4. `Source Sans 3` bốn nét — mệnh đề "nét thật" nay đã kiểm tới đâu
+
+✅ **Đã chứng minh:** dựng thật `Source Sans 3` ở **200 / 400 / 600 / 700** trên chuỗi dày dấu tiếng Việt (`Nghiêng ngửa ườ ộ ế`), bốn nét **phân biệt rõ**, `ui-label` (700) là **nét thật**. Mệnh đề của `DESIGN.md` trước đó chỉ mới phủ `Source Serif 4`.
+
+✅ **Bằng chứng ở tầng tệp:** `fvar` trục `wght` = min 200 · **mặc định 200** · max 900, `name ID 1 = "Source Sans 3 ExtraLight"` — đọc thẳng từ tệp, khớp đúng thứ `ARCHITECTURE-SPINE.md §Stack` cảnh báo.
+
+⚠️ **Nhưng một mệnh đề của tài liệu KHÔNG tái lập được, và mình ghi thẳng thay vì lờ đi:** đối chứng *thiếu* descriptor `{ weight: '200 900' }` — cùng một tệp, `@font-face` không khai dải nét — **vẫn ra nét đúng ở cả 400/600/700 trên Blink**. Blink đọc `fvar` và nội suy trục dù descriptor không khai. Nên:
+- Descriptor **vẫn bắt buộc** — nó là thứ đặc tả CSS dựa vào, và `scopeCheck.ts:165,223` đã dùng.
+- Nhưng mệnh đề *"thiếu nó thì chắc chắn ra chữ mảnh hoặc nét đậm giả"* **chưa đúng cho mọi engine**. WKWebView chưa đo.
+
+#### 5. AC6 đóng được tới đâu — dùng lại tiền lệ `unmeasured`
+
+**Đóng ở tầng token, KHÔNG ở tầng màn hình.** Story này không dựng panel (Story 1.14), nên *"nhìn thấy khe 2px"* là chưa đo được. Cái đã có:
+- `panelSeparator.light` = `rule` (nét 1px `outline`, khe 0) · `panelSeparator.dark` = `gap` (khe 2px lộ `background`, panel bo 3px, **không** đường kẻ).
+- `applyTheme` phát `--panel-separator-mechanism` · `--panel-gap` · `--panel-border-width` · `--panel-border-color` · `--panel-radius`.
+- **Kiểm G** chặn việc hai theme bị thống nhất về một cách làm — đã nghiệm thu đỏ (2 ca).
+- Trang thăm dò có dựng **hai panel giả** cạnh nhau ở cả hai theme để nhìn cơ chế; đó là minh hoạ, **không phải nghiệm thu** — panel thật thuộc Story 1.14.
+
+#### 6. Đường nạp font — `deferred-work.md:7` đóng được MỘT NỬA
+
+Story này đưa **đường nạp thật của sản phẩm** vào cây nguồn (`src/tokens/fonts.ts`: bốn `FontFace` qua `resolveResource()` → `convertFileSrc()`, đúng đường `check:scope:bundled` đã đo `LOADED` dưới CSP). Nhưng phần *nhìn thấy chữ hiện đúng nét trên Windows* vẫn cần một lượt runner có ảnh chụp — **bốn nét mới chỉ dựng trên Blink/macOS**. Đã ghi lại, **không đánh dấu đạt trọn**.
+
+#### 7. Hai chỗ đọc `DESIGN.md` phải chọn bên — chọn theo BẢNG, đã ghi ra
+
+- `source-cjk.family`: **bảng** ghi họ `read-cjk`, **frontmatter YAML** ghi `read`. Chọn **bảng** — `DESIGN.md` tự khai bảng là nguồn sự thật, và `read-cjk` mới đúng vai (nguyên văn tiếng Trung ở Panel Source, nơi không có chữ Latin để cần `Source Serif 4` đứng trước). Ghi ở `notes` của `tokens.json`; **không** phải deviation vì nó khớp bảng.
+- `rounded.DEFAULT` giữ nguyên tên khoá trong JSON (khớp `DESIGN.md`) nhưng phát ra biến `--radius-default` viết thường cho khớp phần còn lại của quy ước.
+
+#### 8. Một phép kiểm mà story không kê ra, và vì sao nó phải có
+
+Story khẳng định `src/App.vue:37-38` *"sẽ làm Kiểm B/E đỏ ngay lượt đầu"*. **Không đúng như đặc tả:** hai dòng đó là `font-family` và `font-size` — Kiểm B kiểm màu, Kiểm E kiểm giãn dòng trong `tokens.json`. Cả hai đều không chạm tới cỡ chữ viết thẳng trong component.
+
+Nhưng câu chuyện của story là *"mọi màu **và mọi cỡ chữ** đến từ một bộ token"*, nên **cổng thiếu đúng một nửa**. Đã thêm **Kiểm B2** — cùng lập luận AD-34, áp cho `font-family` · `font-size` · `line-height` · `font-weight` · `font-style` · `letter-spacing` · `font-synthesis`, và cấm thẳng shorthand `font` (nó không chở được `letter-spacing` với `font-synthesis`, nên một token đi qua nó chỉ chở nửa nghĩa mà bị dùng như thể chở đủ). B2 làm cây nguồn **đỏ ngay lượt đầu đúng như story dự đoán**, rồi Task 6 đưa về xanh.
+
+#### 9. Hai chỗ cổng được làm chặt hơn đặc tả, có chủ ý
+
+- **Kiểm C có phép kiểm ĐẦY ĐỦ (C1).** Story chỉ đòi tính tỉ lệ cho các cặp đã khai. Nhưng *"một danh sách kiểm tự rút gọn để cho xanh là đúng thứ AD-34 tồn tại để chặn"* — nên cổng cưỡng chế: mọi tổ hợp (7 chữ × 6 nền = **42**) phải nằm ở `pairs` (**31**) hoặc ở `excluded` **kèm lý do** (**11**). Xoá một cặp trượt khỏi danh sách kiểm giờ là FAIL, không phải một đường thoát.
+- **Sàn 3:1 tồn tại nhưng bị khoá.** Một cặp muốn dùng sàn chữ lớn phải **nêu tên** một token cỡ ≥ 24px. Hôm nay **không cặp nào** dùng nó — tất cả 31 cặp đều qua ở sàn 4,5. Cơ chế có mặt và đã nghiệm thu đỏ, nhưng nó không phải cái van xả áp cho một cặp trượt.
 
 ### File List
 
-<!-- Điền khi cài đặt xong. Dự kiến:
+**Mới**
 
-Mới:  src/tokens/tokens.json · src/tokens/index.ts · src/tokens/fonts.ts ·
-      src/tokens/reset.css · scripts/check-tokens.mjs
-Sửa:  src/main.ts · src/App.vue · src/tokens/README.md · package.json ·
-      .github/workflows/ci.yml · deferred-work.md · sprint-status.yaml · chính tệp này
-⛔ Không đụng: src-tauri/** · Cargo.toml · _bmad-output/planning-artifacts/**
--->
+| Đường dẫn | |
+|---|---|
+| `src/tokens/tokens.json` | Nguồn sự thật: 16×2 màu · 14 typography · 4 họ · spacing · rounded · 42 cặp tương phản · `panelSeparator` · sổ `deviations` |
+| `src/tokens/index.ts` | `applyTheme()`, kiểu `Theme`/`ColorToken`/`TypographyToken`/`FamilyToken` |
+| `src/tokens/fonts.ts` | `loadFonts()` — bốn `FontFace` qua asset protocol |
+| `src/tokens/reset.css` | Reset toàn cục |
+| `scripts/check-tokens.mjs` | Cổng bảy phép kiểm (A · B+B2 · C · D · E · F · G) |
+
+**Sửa**
+
+| Đường dẫn | |
+|---|---|
+| `src/main.ts` | `applyTheme('light')` **trước** `mount()` · import `reset.css` · gọi `loadFonts()` không chặn |
+| `src/App.vue` | `.selftest` — ba giá trị viết thẳng → token (`:74-78`) |
+| `src/tokens/README.md` | Viết lại: bốn tệp, quy ước biến, ba bẫy, số đo `fvar`. **Rà soát:** thêm §tầm quét, §"không phán quyết nào đọc tham số từ `tokens.json`", bảng **ba đường miễn trừ có tên** |
+| `package.json` | thêm script `check:tokens` |
+| `.github/workflows/ci.yml` | thêm **một** bước `check design tokens`, đặt **trước** `npm run build`; đánh dấu ✅ hàng Story 1.4 ở khối *CHỖ MÓC CHO EPIC SAU* |
+| `_bmad-output/implementation-artifacts/deferred-work.md` | đóng mục reset CSS · hạ mục "đường nạp font trên Windows" xuống *đóng một nửa* · thêm mục của story này. **Rà soát:** đánh dấu Ice đã phê chuẩn ba deviation *(còn mở: `DESIGN.md` chưa sửa)* · thêm mục **ba mệnh đề thị giác đứng bằng văn xuôi** · thêm mục **`body` chạy ở giãn dòng 1.5** |
+| `_bmad-output/implementation-artifacts/sprint-status.yaml` | `ready-for-dev` → `in-progress` → `review` → `done`. ⚠️ **Cùng tệp, cùng change set:** `1-5-tai-nguyen-chuoi-giao-dien-va-hinh-dang-loi-qua-ipc` `backlog` → `ready-for-dev` — do lượt `bmad-create-story` riêng, không thuộc story này; tệp story 1.5 tương ứng nằm ngoài File List này |
+| chính tệp story này | |
+
+**Lượt rà soát mã 2026-08-03 — 21 bản vá, đã áp toàn bộ**
+
+| Đường dẫn | |
+|---|---|
+| `scripts/check-tokens.mjs` | Viết lại phần lớn. Đóng băng sàn WCAG · vai · danh sách `excluded` · danh sách màu đã loại vào chính script. Bộ che comment/chuỗi có chốt "chưa đóng" và đánh chỉ số UTF-16. Tầm quét lên 11 đuôi tệp + `index.html` ở gốc repo + `tokens.json` cho C3. Sàn thứ hai cho quần thể component. `deviations` đòi `question` + `reason`. Kiểm D nới rộng theo quyết định của Ice. Ba đường miễn trừ có tên. `walk()` bỏ qua symlink. Sáu dương tính giả đã sửa |
+| `src/tokens/index.ts` | `applyTheme` kiểm tham số **lúc chạy** và rơi về `light` kèm cảnh báo, thay vì ném `TypeError` ở tầng module trước `mount()`; thêm `DEFAULT_THEME` và `isTheme()` |
+| `src/tokens/fonts.ts` | `loadFonts()` chạy **song song** qua `allSettled`, hạn giờ 20 s mỗi tệp *(một promise treo và một promise thành công trông giống hệt nhau trong log)*, và **luỹ đẳng** bằng chốt ở tầng module |
+| `src/tokens/reset.css` | Bốn khai báo tầng `body` có giá trị dự phòng trong `var()`, kèm lý do vì sao đây là chỗ **duy nhất** được phép; ghi thẳng giới hạn của mặc định `ui-md` (giãn dòng 1.5) |
+| `src/tokens/tokens.json` | Thêm `notes`: `spacing.unit` đến từ **frontmatter** `DESIGN.md:127`, không từ bảng `:283` — ngoại lệ có chủ ý, không phải deviation |
+
+⛔ **Không đụng, và đã kiểm bằng `git status`:** `src-tauri/**` · `Cargo.toml` · `src-tauri/tauri.conf.json` · `_bmad-output/planning-artifacts/**`.
+
+**Không vào repo, có chủ ý** *(§Ranh giới phạm vi của mũi thăm dò Story 1.1: tài nguyên dùng một lần không vào cây nguồn)* — trang thăm dò thị giác, bộ sinh trang, bộ điều khiển nghiệm thu đỏ-rồi-xanh, bộ đọc `fvar`, và bốn ảnh chụp. Tất cả sống ở thư mục scratchpad của phiên làm việc; kết quả của chúng đã được chép vào §Debug Log References và §Completion Notes ở trên.
 
 ---
 
@@ -430,4 +667,6 @@ Sửa:  src/main.ts · src/App.vue · src/tokens/README.md · package.json ·
 
 | Ngày | Thay đổi |
 |---|---|
+| 2026-08-03 | **Rà soát mã (`bmad-code-review`) — Status → `done`.** Ba lớp song song, không lớp nào thất bại; 22 phát hiện còn lại sau triage, 7 bị loại là nhiễu. **Phần số học của story đứng vững:** lớp Acceptance Auditor tự tính lại toàn bộ WCAG 2.x trên chính giá trị trong `tokens.json` và **khớp tới ba chữ số thập phân**, phép đếm 16/16/14/4 đúng, 42 = 31 + 11 tổ hợp không sót cái nào, và cổng thật sự đỏ trên mọi vi phạm tiêm theo bảng Task 3. **Vấn đề nằm chỗ khác — cổng có ba đường thoát, và một dấu nháy lẻ tắt được nó.** Đã chạy thật, không suy luận: `<p>don't</p>` trong template làm `opacity: 0.4` trên chữ + `box-shadow` + `z-index` cùng lúc đi qua (3 FAIL → **0 FAIL**); hạ `contrast.floors` từ chính tệp bị kiểm + khôi phục `#2c3a3b` *(khớp bảng đóng băng nên không cần deviation nào)* cho ra `[dark] 31 cặp đạt AA · thấp nhất **4.245:1**` và exit 0; **CHUYỂN** cặp trượt sang `excluded` với lý do ba chữ cũng exit 0; một mục `deviations` không có trường `reason` cũng exit 0. **Ba quyết định của Ice:** (1) phê chuẩn cả ba deviation, `DESIGN.md` chưa sửa — ghi vào `deferred-work.md` cho một lượt riêng; (2) **nới rộng Kiểm D** — mọi `opacity` trung gian trong `src/**` là FAIL trừ khi có miễn trừ có tên, vì `.dimmed { opacity: .4 }` trên thẻ bọc lọt qua và đó là cách làm thông thường hơn trong Vue; (3) chấp nhận văn xuôi làm bằng chứng cho Task 4/5/9, kèm điều kiện ghi ba mệnh đề thị giác chưa tái lập được vào `deferred-work.md`. **21 bản vá đã áp toàn bộ.** Nguyên tắc xương sống mới: ⛔ *không một phán quyết nào của cổng được đọc tham số từ `tokens.json`* — sàn WCAG, vai, danh sách loại trừ, danh sách màu đã loại đều đóng băng trong script. Kèm: bộ che comment/chuỗi có chốt "chưa đóng" và đánh chỉ số UTF-16; tầm quét lên 11 đuôi tệp + `index.html` + `tokens.json`; sàn thứ hai cho quần thể component; ba đường **miễn trừ có tên** (`aura-allow-opacity` · `aura-allow-z-index` · `aura-allow-literal`); `applyTheme` kiểm tham số lúc chạy; `loadFonts` song song + hạn giờ + luỹ đẳng; **sáu dương tính giả đã sửa** (`querySelector('#faded')`, `!important`, `border-color` nhiều giá trị, `opacity: 100%`, symlink, hex-hình-dạng có miễn trừ). Nghiệm thu **52/52 ca** *(18 hàng mới)*. Hồi quy: `check:tokens` 0 · `check:deps` 0 · `build` 0 |
+| 2026-08-03 | **Cài đặt xong (`bmad-dev-story`) — chín Task, 45 subtask, Status → `review`.** Dựng `src/tokens/{tokens.json,index.ts,fonts.ts,reset.css}` + `scripts/check-tokens.mjs` (bảy phép kiểm, Node thuần, **không phụ thuộc mới**), gắn **một** bước vào `ci.yml` đã có. Nghiệm thu **đỏ-rồi-xanh 28/28 ca**. Hồi quy: `check:deps` 0 · `check:tokens` 0 · `build` 0 · `cargo test` 15/15. **Ba việc đáng chú ý nhất:** (1) 🔴 **phát hiện mới ngoài story** — `lookup-gloss` và `lookup-example` (cả hai `1.6`, cả hai thật sự xuống dòng) cũng trượt sàn AC5, và cờ `wraps` KHÔNG giải được vì chúng đúng là chữ chạy thành đoạn; đã nâng lên `1.66` và ghi vào `deviations` **chờ Ice phê chuẩn** — đây là lần **thứ hai** `DESIGN.md` tự mâu thuẫn với bảng của chính nó; (2) chữ Hán nghiêng giả giải bằng `font-synthesis: none` khai ở hai token — **0 byte**, và đã **dựng thật + chụp lại**: chữ Hán đứng thẳng trong khi Latin vẫn nghiêng thật; (3) `Source Sans 3` đã dựng ở 200/400/600/700 — `ui-label` là **nét thật**, mệnh đề của `DESIGN.md` nay đã kiểm, **nhưng** đối chứng thiếu descriptor **vẫn ra nét đúng trên Blink** nên bẫy `wght = 200` chưa tái lập được trên engine nào (ghi vào `deferred-work.md`, WKWebView chưa đo). Cặp trượt AA đi theo **mặc định phương án A** của story (`surface-accent` tối → `#283637`, đo lại 4,505); bảng tương phản của story đã **tự tính lại và khớp tới ba chữ số thập phân**. ⛔ `DESIGN.md` không bị sửa. Thêm **Kiểm B2** (cỡ chữ viết thẳng) vì hai dòng ở `App.vue:37-38` mà story nói *"sẽ làm Kiểm B/E đỏ"* thật ra không chạm phép kiểm nào như đặc tả — mà câu chuyện của story là *"mọi màu **và mọi cỡ chữ**"*. AC6 đóng ở **tầng token**, giới hạn ghi thẳng theo tiền lệ `unmeasured` |
 | 2026-08-03 | Story dựng bằng `bmad-create-story`. Phân tích `epics.md` §Story 1.4 + chín mục UX-DR được `Covers` trỏ tới · `DESIGN.md` trọn vẹn (bốn bảng token, sàn tương phản, luật `opacity`, luật giãn dòng, phân tách panel, elevation) · `ARCHITECTURE-SPINE.md` (AD-34, Consistency Conventions, Stack, Structural Seed) · Story 1.2 và 1.3 (Review Findings, File List, Testing standards) · `deferred-work.md` (55 dòng) · trạng thái repo thật (`src/**`, `tauri.conf.json`, `ci.yml`, `package.json`, `scopeCheck.ts`, `App.vue`, `tsconfig.json`). **Bốn phát hiện mà tài liệu nguồn chưa có:** (1) 🔴 **`on-surface-variant` trên `surface-accent` ở theme tối = 4,245:1 — TRƯỢT WCAG AA**, và `error` trên cùng nền chỉ 4,519:1; `DESIGN.md §Sàn tương phản` chỉ kiểm trên nền giấy nên chưa bắt được — hai phương án sửa đã tính sẵn kèm số; (2) AC5 đọc thẳng sẽ làm `read-title` và `lookup-headword` (cả hai `read`, cả hai 1.3) đỏ oan — ranh giới thật là *chuỗi có xuống dòng hay không*, nên `tokens.json` cần cờ `wraps` tường minh; (3) font nằm ở `src-tauri/resources/`, **không** ở `src/` — một `@font-face url()` tương đối sẽ chạy trên máy dev nhưng nhân bản ~26 MiB vào `dist/`, chỉ lộ ở phép đo NFR6 của Story 1.9; (4) AC2 nói *"lint"* nhưng ESLint không có trong bảng Stack và NFR15 đòi rà giấy phép từng gói — khuôn đúng là một cổng Node thuần như ba cổng đang chạy. Tự kiểm phương pháp tính tương phản bằng cách tái lập con số 5,2:1 mà `DESIGN.md` công bố → tính ra 5,18 |

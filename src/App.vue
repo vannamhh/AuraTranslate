@@ -70,9 +70,12 @@ onMounted(async () => {
 }
 
 .selftest {
-  padding: 1rem;
-  font-family: ui-monospace, monospace;
-  font-size: 0.8125rem;
+  padding: var(--space-panel-inline);
+  /* Story 1.4: mọi cỡ chữ đến từ token. `--face-ui-mono` trỏ về `--family-mono` qua
+     chính token, nên một lần đổi họ chữ của `ui-mono` đi theo mà không phải sửa ở đây. */
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  line-height: var(--leading-ui-mono);
   white-space: pre-wrap;
 }
 </style>

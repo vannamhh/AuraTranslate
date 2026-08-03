@@ -1,0 +1,77 @@
+/*
+ * Reset CSS toàn cục. Story 1.4 — AC7.
+ *
+ * Đóng `deferred-work.md` mục "`.shell { min-height: 100vh }` + margin 8px mặc định của
+ * `<body>` sinh thanh cuộn ở cửa sổ trống": `index.html` không nạp stylesheet nào và
+ * không có tệp CSS toàn cục nào tồn tại, nên 100vh + 8px = 8px tràn, ở MỌI cửa sổ.
+ *
+ * ⛔ KHÔNG kéo `normalize.css` / `modern-css-reset` về. Mỗi phụ thuộc mới phải rà tương
+ * thích GPLv3 bằng cách mở tệp giấy phép trong nguồn đã tải (NFR15) và vào bảng Stack
+ * TRƯỚC. Bốn quy tắc dưới đây không đáng một lượt rà giấy phép.
+ *
+ * ⚠️ Tệp này chạy TRƯỚC khi `applyTheme()` kịp ghi biến ở lượt tải đầu nếu ai đó đổi thứ
+ * tự trong `main.ts` — và khi đó `var(--color-background)` rơi về rỗng, nền thành trắng
+ * tinh của trình duyệt. Giữ `applyTheme()` trước `mount()`.
+ */
+
+/* Một mô hình hộp cho toàn bộ ứng dụng. Panel có padding và border ở Story 1.14; thiếu
+   dòng này thì mọi phép tính chiều rộng ở đó lệch đúng bằng padding. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * ⚠️ Bốn khai báo dưới đây mang GIÁ TRỊ DỰ PHÒNG trong chính `var()`.
+ *
+ * Đây là tệp duy nhất trong dự án được phép làm vậy, và lý do rất hẹp: nó chạy ở tầng
+ * `body`, tức là chỗ mà một `applyTheme()` không chạy được sẽ biến thành nền TRẮNG TINH
+ * và chữ đen serif — loá mắt, và trông giống một trang chưa nạp xong hơn là một lỗi.
+ * Với dự phòng thì cùng sự cố đó ra một cửa sổ vẫn đúng hướng "Bàn viết", còn `console`
+ * vẫn mang cảnh báo của `applyTheme`. Bốn giá trị này chép từ `tokens.json`
+ * `colors.light` và `typography.ui-md`, và chúng là bản chép DUY NHẤT được phép tồn tại
+ * ngoài `tokens.json` — ⛔ đừng nhân khuôn này ra component. Kiểm B miễn trừ
+ * `src/tokens/**` nên cổng không chặn, nhưng cổng không phải là lý do.
+ */
+body {
+  background-color: var(--color-background, #f4f1ea);
+  color: var(--color-on-surface, #2b2723);
+
+  /* Mặc định của ứng dụng là chữ BỘ MÁY, không phải chữ nội dung: mọi thứ chạy qua
+     `body` mà chưa khai token riêng đều là nhãn giao diện. Chữ nội dung luôn khai token
+     `read-*` tường minh ở chính chỗ dựng nó.
+
+     ⚠️ `ui-md` khai `wraps: false` (giãn dòng 1.5, dưới sàn 1.66 của AC5) — hợp lệ vì
+     nó là nhãn MỘT DÒNG. Mặc định của `body` KHÔNG cấp cho chữ chạy thành đoạn cái quyền
+     ở 1.5: mọi bề mặt đọc phải khai token `read-*` của chính nó. Chỗ nào quên là chỗ đó
+     chạy ở 1.5 mà cổng không thấy — Kiểm E chỉ đọc `tokens.json`, không đọc component.
+     Ghi vào `deferred-work.md` để lượt rà soát của Story 1.14/1.17 đối chiếu. */
+  font-family: var(--face-ui-md, ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--font-ui-md, 12px);
+  line-height: var(--leading-ui-md, 1.5);
+
+  /*
+   * ⚠️ Đây là đòn bẩy CHỈ CÓ TÁC DỤNG TRÊN macOS (WKWebView). WebView2 bỏ qua nó.
+   * Chọn `antialiased` để kéo macOS về gần cách DirectWrite của Windows dựng nét — mặc
+   * định của macOS là subpixel-AA, dày hơn hẳn, và hai nền tảng ra hai độ đậm khác nhau
+   * là đúng thứ NFR14 tồn tại để chặn.
+   *
+   * ⛔ Mệnh đề "nhất quán hai nền tảng" ở trên là LÝ LẼ, chưa phải PHÉP ĐO: chưa có ảnh
+   * chụp cạnh nhau của cùng một chuỗi trên hai runner. Ghi vào `deferred-work.md`.
+   */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/*
+ * Không elevation (AC7): chiều sâu duy nhất là sắc độ. Không có `box-shadow`,
+ * `z-index` hay gradient nào trong tệp này, và `check-tokens.mjs` Kiểm F canh điều đó
+ * trên toàn bộ `src/**` — kể cả chính tệp này, không miễn trừ.
+ */
