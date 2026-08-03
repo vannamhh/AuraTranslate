@@ -47,9 +47,17 @@ pnpm-debug.log*
 
 # Rust / Tauri
 /target/
+/src-tauri/target/
+# Lược đồ do `tauri-build` sinh ra ở lần build đầu — không phải mã nguồn.
+/src-tauri/gen/schemas/
+
+# TypeScript
+*.tsbuildinfo
 
 # Local database / temp files
 *.sqlite
+# ⛔ Dòng `*.db` là CỐ Ý và ĐÚNG: nó giữ file từ điển ra ngoài git theo AD-25.
+# Chúng tải theo `dict-manifest.toml`. Đừng gỡ dòng này.
 *.db
 *.tmp
 

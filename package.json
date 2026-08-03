@@ -1,0 +1,28 @@
+{
+  "name": "auratranslate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AuraTranslate — dictionary lookup and translation workspace, fully offline",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.node.json && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "check:deps": "./scripts/check-deps.sh",
+    "check:scope": "./scripts/check-scope.sh"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1",
+    "dockview-vue": "7.0.4",
+    "vue": "3.5.40"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
+    "@vitejs/plugin-vue": "6.0.8",
+    "typescript": "5.9.3",
+    "vite": "8.2.0",
+    "vue-tsc": "3.3.9"
+  }
+}

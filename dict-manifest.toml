@@ -1,0 +1,31 @@
+# dict-manifest.toml — AD-25
+#
+# Dữ liệu từ điển là **artifact có phiên bản và checksum**, không phải nội dung repo.
+# File `.db` phát hành qua GitHub Release ("dict-vN") và tải về theo bảng dưới đây;
+# `.gitignore` giữ chúng ra ngoài git bằng dòng `*.db`.
+#
+# Mỗi mục PHẢI có đủ ba trường:
+#
+#   url             = "https://github.com/…/releases/download/dict-vN/<tên>.db"
+#   sha256          = "<64 ký tự hex>"   # đối chiếu sau khi tải, trước khi dùng
+#   source_version  = "…"                # phiên bản NGUỒN THÔ đã sinh ra file này
+#                                        # (không phải phiên bản của file .db)
+#
+# ⛔ Không điền giá trị giả để "cho có". Một checksum sai trong manifest hỏng im lặng
+# đúng kiểu tệ nhất: file tải về vẫn dùng được, chỉ là không ai biết nó là bản nào.
+#
+# Lớp nền và mỗi lớp gỡ rời là MỘT file `.db` độc lập (AD-10) → mỗi lớp một mục.
+#
+# **Story sở hữu nội dung: 1.9** (sinh dữ liệu) và **10.1** (đưa vào bản phát hành).
+# Story 1.2 chỉ dựng khung này.
+
+# [base]
+# url            = ""
+# sha256         = ""
+# source_version = ""
+
+# [[detachable]]
+# name           = ""
+# url            = ""
+# sha256         = ""
+# source_version = ""

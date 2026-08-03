@@ -563,18 +563,25 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | Name | Version | Giấy phép |
 |---|---|---|
 | Rust | edition 2024 | — |
-| `tauri` | 2.11.5 | Apache-2.0 OR MIT |
-| Vue | 3.5.40 | MIT |
-| TypeScript | 5.x | Apache-2.0 |
-| `dockview-vue` | 7.0.4 *(peer `vue ^3.4.0`)* | MIT |
-| Vite | 8.2.0 | MIT |
-| `rusqlite` *(feature `bundled`)* | 0.40.1 | MIT |
-| `libsqlite3-sys` | 0.38.1 | MIT |
-| `jieba-rs` | 0.10.3 | MIT |
-| `tantivy-stemmers` | 0.4.0 | BSD-3-Clause |
-| `docx-rs` | 0.4.22 | MIT |
-| `keyring` | 4.1.6 | MIT OR Apache-2.0 |
-| `reqwest` | mới nhất lúc dựng | Apache-2.0 OR MIT |
+| `tauri` *(feature `protocol-asset`)* | 2.11.5 | Apache-2.0 OR MIT ✓ |
+| `tauri-build` | 2.6.3 | Apache-2.0 OR MIT ✓ |
+| `serde` *(feature `derive`)* | 1.0.229 | MIT OR Apache-2.0 ✓ |
+| `serde_json` | 1.0.151 | MIT OR Apache-2.0 ✓ |
+| Vue | 3.5.40 | MIT ✓ |
+| TypeScript | **5.9.3** *(dải 5.x)* | Apache-2.0 ✓ |
+| `dockview-vue` | 7.0.4 *(peer `vue ^3.4.0`)* | MIT ⚠️ |
+| Vite | 8.2.0 | MIT ✓ |
+| `@vitejs/plugin-vue` | 6.0.8 | MIT ✓ |
+| `vue-tsc` | 3.3.9 | MIT ✓ |
+| `@tauri-apps/api` | 2.11.1 | Apache-2.0 OR MIT ✓ |
+| `@tauri-apps/cli` | **2.11.4** *(≠ số crate)* | Apache-2.0 OR MIT ✓ |
+| `rusqlite` *(feature `bundled`)* | 0.40.1 | MIT ✓ |
+| `libsqlite3-sys` | 0.38.1 | MIT ✓ |
+| `jieba-rs` | 0.10.3 | MIT ⚠️ |
+| `tantivy-stemmers` | 0.4.0 | BSD-3-Clause ✓ |
+| `docx-rs` | 0.4.22 | MIT ⚠️ |
+| `keyring` | 4.1.6 | MIT OR Apache-2.0 ✓ |
+| `reqwest` | **0.13.4** | MIT OR Apache-2.0 ✓ |
 | `similar` **hoặc** `dissimilar` | 3.1.1 / mới nhất | Apache-2.0 / Apache-2.0 OR MIT |
 | `Noto Serif CJK TC` *(chỉ Regular; = Source Han Serif 2.003R đổi nhãn)* | 2.003 | SIL OFL 1.1 |
 | `Source Serif 4` *(kênh Google, font biến thiên)* | 4.004 | SIL OFL 1.1 |
@@ -582,9 +589,24 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 
 Ba họ font rà theo NFR15 ngày 2026-08-03 ở Story 1.1, bằng cách **mở tệp `LICENSE` trong bản release đã tải mà đọc** chứ không tin nhãn của GitHub. Tương thích GPL v3 theo diện **gộp gói** — font nằm cạnh mã, không liên kết vào mã. Phiên bản và tên họ ghi ở đây đọc từ bảng `name` của chính tệp: `Source Serif 4` trên kênh Google là **4.004**, đi sau bản Adobe 4.005R một phát hành. *(Tên họ lấy ở **name ID 16** với `Source Sans 3` — ID 1 của tệp đó là `Source Sans 3 ExtraLight` vì nó là font biến thiên có mặc định trục `wght = 200`; hai tệp kia lấy ở **ID 1**.)* Ràng buộc kèm theo: **chỉ `Source Sans 3` khai Reserved Font Name `'Source'`** — subset riêng tệp đó thì bắt buộc đổi tên font nội bộ; hai tệp kia không khai nên subset thoải mái. Cả ba tệp giấy phép gốc phải đi kèm bản phát hành (FR38, FR109). Số đo và lý do đầy đủ: [`research/font-spike-results-2026-08-03.md`](../../research/font-spike-results-2026-08-03.md).
 
+**Rà NFR15 lượt hai — 2026-08-03, Story 1.2**, cùng phương pháp Story 1.1: **mở tệp giấy phép trong nguồn ĐÃ TẢI mà đọc** (`~/.cargo/registry/src/…`, `node_modules/…`), không tin nhãn của registry. Cột `Giấy phép` ở trên nay mang dấu: **✓** = đã tự tay mở tệp và văn bản khớp nhãn (15/19 hàng phần mềm); **⚠️** = nhãn đúng nhưng **bằng chứng yếu hơn**, ghi ra để không ai tưởng cả bảng cùng một độ chắc. Mọi giấy phép trong bảng đều thuộc nhóm dễ dãi (MIT · Apache-2.0 · BSD-3-Clause · BSD-2-Clause · ISC · OFL 1.1) và **tương thích GPL v3 theo chiều đi vào**.
+
+Ba hàng **⚠️** và một hàng suýt bị chấm sai, đọc thẳng từ tệp:
+
+| Hàng | Điều thật sự tìm thấy | Kết luận |
+|---|---|---|
+| `jieba-rs` 0.10.3 | Bản `.crate` **không kèm tệp `LICENSE`** — `Cargo.toml` khai `license.workspace = true` và tệp thật nằm ở gốc workspace, không được đóng gói. `README.md` **trong chính nguồn đã tải** ghi nguyên văn *"This work is released under the MIT license."* | MIT — xác nhận bằng văn bản trong nguồn, không bằng nhãn |
+| `docx-rs` 0.4.22 | **Không tệp `LICENSE`, README không có mục giấy phép.** Bằng chứng duy nhất: `license = "MIT"` trong `Cargo.toml.orig` + một dòng header `// MIT license (LICENSE-MIT or …)` trong `src/xml_json/mod.rs` | MIT — **bằng chứng yếu nhất trong cả bảng**. Nếu Giai đoạn 5 đổi sang `docx-reader`/`rdocx` (hàng Deferred đã nêu), rà lại từ đầu |
+| `dockview-vue` 7.0.4 | Gói npm **không kèm tệp giấy phép**; `package.json` khai `MIT`. Gói chạy kèm `dockview-core` 7.0.4 mang banner `@license MIT` **nhúng trong chính bundle đã phát hành** | MIT |
+| `tantivy-stemmers` 0.4.0 | **Suýt chấm sai**: tệp `LICENSE` dùng gạch đầu dòng thay vì điều khoản đánh số, nên bộ nhận dạng tự động đọc thành BSD-2. Đọc bằng mắt thì mệnh đề *"Neither the name … may be used to endorse"* **có mặt** → đúng **BSD-3-Clause**. *(Tệp còn để sót placeholder `{{ project }}` chưa thay — lỗi hình thức của thượng nguồn, không đổi bản chất giấy phép.)* | BSD-3-Clause, nhãn đúng |
+
+> `LICENSE.md` của Vite gộp giấy phép của các gói nó vendor vào (MIT + BSD-2-Clause + ISC) — đó là hình dạng bình thường của một bundler, bản thân Vite là MIT.
+
 SQLite đến từ `libsqlite3-sys` feature `bundled` — phiên bản do crate ghim, không phải SQLite của hệ điều hành. Sàn tối thiểu mà kiến trúc cần: FTS5 `trigram` (≥ 3.34) và `remove_diacritics 0` (≥ 3.27); mọi bản `bundled` hiện hành đều vượt xa.
 
-**Không dùng, đã loại có lý do:** `tauri-plugin-stronghold` (đã khai tử) · `tauri-plugin-keyring` (AD-29) · `tauri-wire` (payload 679 byte) · WAL2 (không phải tính năng đã phát hành) · `LIKE` trên đường nóng tra cứu (AD-26).
+**Không dùng, đã loại có lý do:** `tauri-plugin-stronghold` (đã khai tử) · `tauri-plugin-keyring` (AD-29) · `tauri-wire` (payload 679 byte) · **`tauri-plugin-fs`** (AD-1 + AD-29 — plugin tồn tại để phơi API ra JavaScript, mà frontend chỉ render và giữ state UI; cài rồi thu hẹp scope là tự tạo bề mặt tấn công rồi rào lại. Ice chốt 2026-08-03) · **`tauri-plugin-sql`** (AD-11 — `rusqlite` trực tiếp, writer nối tiếp trong Rust) · **`tauri-plugin-dialog`** (cùng lý do `fs`) · WAL2 (không phải tính năng đã phát hành) · `LIKE` trên đường nóng tra cứu (AD-26).
+
+Sáu tên trên **được cưỡng chế bằng lệnh**, không bằng kỷ luật: `scripts/check-deps.sh` (Story 1.2) chạy `cargo tree -i` cho từng tên và trả mã thoát khác 0 nếu bất kỳ tên nào xuất hiện. Story 1.3 gắn script này vào CI.
 
 ## Structural Seed
 
