@@ -450,7 +450,7 @@ Trích từ `ARCHITECTURE-SPINE.md` (43 bất biến AD-1…AD-43), `build-seque
 
 | Mũi thăm dò | Khi nào | Đóng cái gì |
 |---|---|---|
-| **Đo dung lượng thật + rà giấy phép SIL OFL của font nhúng** (Source Serif 4 · Source Han Serif Regular · Source Sans 3), và chọn biến thể vùng TC/SC | **Trước Giai đoạn 1** | Ước 30–50 MB trên nền DB 130 MB, trần NFR6 là 150–200 MB. **Vượt trần là thay đổi tầng PRD, không phải tầng kiến trúc** |
+| ~~**Đo dung lượng thật + rà giấy phép SIL OFL của font nhúng**, và chọn biến thể vùng TC/SC~~ | ✅ **Đã xong 2026-08-03 (Story 1.1)** | Đo thật: font chiếm **21,29 MB**; tổng với database hiện tại **151,29 MB**, dưới trần. SIL OFL 1.1 cả ba, tương thích GPL v3. Biến thể vùng chốt **TC**. *(Ước 30–50 MB của bản này **quá cao** — số thật 25,991 MiB trên đĩa.)* **Rủi ro còn mở:** dư địa dưới trần chỉ còn ~47 MB cho các nguồn từ điển còn lại **cộng toàn bộ mã sản phẩm** — vẫn là thay đổi **tầng PRD** nếu vỡ |
 | **Ngưỡng kích thước WAL buộc checkpoint (AD-12) + nhịp flush cụ thể (AD-35)** — đo trên Editor thật, cùng lúc | **Giai đoạn 2** | Đạt NFR18 (≤5 s) mà không phạm NFR2 (không frame >50 ms) |
 | **Thư viện editor cho panel Editor** · **cách phân tích khung SSE** (rà GPLv3 trước — `reqwest-sse`, `sseer` **chưa xác nhận giấy phép**) | Giai đoạn 2 | AD-31 và AD-22 đã cố định hợp đồng nên lựa chọn không lan ra ngoài module |
 | **Thư viện bóc nội dung** (`dom_smoothie` 0.18.0 MIT, chưa ghim) — bóc thử trên các site thật, đo tỉ lệ bóc sai. **[A12]** | Giai đoạn 3 | Tỉ lệ sai cao **không chặn** — đường sửa tay FR123 là nghiệm thu |
@@ -810,7 +810,7 @@ Epic này cũng đặt xuống các bất biến mà chín epic sau đều dựa
 
 **Ghi chú cài đặt:**
 - **Story 1.3 dựng CI hai nền tảng ngay sau scaffold.** Lý do: AC *"hành vi tương đương trên macOS và Windows"* của Story 1.2 (NFR14) là một phép kiểm tay phải nhớ làm, và nó phải giữ đúng suốt **chín epic** trước khi FR107 dựng build công khai ở Epic 10. Một khác biệt nền tảng lọt vào ở Epic 2 mà chỉ lộ ra ở Epic 10 là lớp lỗi đắt nhất có thể tránh bằng một job CI. **Đây không phải FR107** — không build công khai, không checksum, không `dict-manifest.toml`; FR107 giữ nguyên phạm vi ở Story 10.1. *(Bổ sung 2026-08-03 sau rà soát mức sẵn sàng triển khai.)*
-- **Mũi thăm dò font phải chạy TRƯỚC epic này** — đo thật `.dmg`/`.msi` trước và sau khi nhúng font, rà SIL OFL theo NFR15, chọn biến thể vùng TC/SC. Vượt trần NFR6 là thay đổi **tầng PRD**, không phải tầng kiến trúc.
+- ~~**Mũi thăm dò font phải chạy TRƯỚC epic này**~~ — ✅ **đã chạy 2026-08-03 (Story 1.1).** `.dmg` đo thật: chênh lệch do font **20,300 MiB = 21,29 MB**, tổng với database 130 MB = **151,29 MB**, dưới trần NFR6. SIL OFL 1.1 cả ba, tương thích GPL v3, ba hàng đã vào bảng Stack. Biến thể vùng chốt **TC**. `.msi` **chuyển sang Story 1.3** (xem AC1 đã thu hẹp). Mệnh đề chặn Epic 1 **đã gỡ**. **Rủi ro còn mở, không chặn:** trần NFR6 là trần của **cả bản cài đã gồm font**, nên phép tính đúng là trừ dư địa — 200 − 21,29 (font) − 1,40 (baseline app **rỗng**) − 130 (ba nguồn đầu) = **còn ~47 MB** cho các nguồn từ điển còn lại, chỉ mục FTS phụ (~17 MB), **và toàn bộ mã sản phẩm chưa viết**. Đối chiếu lại ở Story 1.9, nơi nay đã có AC thật. Vượt trần vẫn là thay đổi **tầng PRD**, không phải tầng kiến trúc. Số đo: [`research/font-spike-results-2026-08-03.md`](research/font-spike-results-2026-08-03.md).
 - Không dùng starter template ngoài; scaffold theo **cây nguồn** ở Structural Seed và **Stack ghim phiên bản**.
 - AD-26 ba nhánh truy vấn tiếng Trung là điều kiện nghiệm thu của FR39 — **`LIKE` bị cấm trên đường nóng**.
 - AD-10: mỗi lớp gỡ rời một file `.db` tự mang metadata giấy phép; **trường giấy phép không được là enum các giấy phép mở** (HVTĐTD dùng theo phép riêng, không thuộc GPL v3).
@@ -993,7 +993,7 @@ Người dịch mở AuraTranslate, đưa một văn bản tiếng Trung hoặc 
 
 ### Story 1.1: Mũi thăm dò font — đo dung lượng thật và rà giấy phép
 
-**Covers:** NFR6 · NFR15 · mũi thăm dò bắt buộc — chặn mọi story khác của Epic 1
+**Covers:** NFR6 · NFR15 · ~~mũi thăm dò bắt buộc — chặn mọi story khác của Epic 1~~ → ✅ **mệnh đề chặn đã gỡ 2026-08-03**, kết quả đã ghi (AC4 đạt điều kiện *"kết quả được ghi lại"*)
 
 As a chủ dự án,
 I want biết chắc bộ font nhúng nằm trong ngân sách NFR6 và giấy phép cho phép phân phối lại,
@@ -1001,10 +1001,15 @@ So that tôi không phải bóc font ra sau khi đã dựng nửa giao diện tr
 
 **Acceptance Criteria:**
 
+> ⚠️ **AC1 đã thu hẹp 2026-08-03 — Ice quyết trong lúc chạy Story 1.1.** Bản gốc đòi đo **cả `.dmg` lẫn `.msi`**. `tauri-cli` 2.11.4 trên macOS từ chối target `msi` (*"possible values: ios, app, dmg"*) vì `.msi` dựng bằng WiX v3 mà `candle`/`light` là chương trình Windows — rào ở tầng đóng gói, không phải tầng biên dịch Rust. **Hai phép đo `.msi` chuyển sang Story 1.3**, nơi CI đã có runner Windows và chi phí gần bằng 0. Lý do chấp nhận đo muộn: ước 16,0–20,3 MiB nằm gọn trong trần, và phương pháp ước đã tự kiểm sai số 0,1 % trên chính phép đo macOS; rủi ro Windows thật sự nằm ở **chế độ cài WebView2** chứ không ở font, mà thứ đó chỉ CI mới bắt được. Bản gốc giữ ở đây dưới dạng gạch ngang để đọc lại được.
+
+~~**Given** ba họ font đã chốt — `Source Serif 4`, `Source Han Serif` (chỉ Regular), `Source Sans 3` · **When** đóng gói thử một `.dmg` **và một `.msi`** có nhúng font, và một cặp không nhúng · **Then** chênh lệch dung lượng được ghi lại thành số cụ thể cho **từng nền tảng** · **And** con số đó cộng với 130 MB database đã đo phải nằm trong trần 150–200 MB của NFR6~~
+
 **Given** ba họ font đã chốt — `Source Serif 4`, `Source Han Serif` (chỉ Regular), `Source Sans 3`
-**When** đóng gói thử một `.dmg` và một `.msi` có nhúng font, và một cặp không nhúng
-**Then** chênh lệch dung lượng được ghi lại thành số cụ thể cho từng nền tảng
+**When** đóng gói thử một `.dmg` có nhúng font và một `.dmg` không nhúng
+**Then** chênh lệch dung lượng được ghi lại thành số cụ thể
 **And** con số đó cộng với 130 MB database đã đo phải nằm trong trần 150–200 MB của NFR6
+**And** phép đo tương ứng cho `.msi` được **bàn giao sang Story 1.3** kèm công thức chạy, chứ không bị bỏ im lặng
 
 **Given** giấy phép SIL OFL của ba họ font
 **When** rà theo NFR15
@@ -1061,11 +1066,20 @@ So that *"không ai đọc được tài liệu của bạn"* là ràng buộc d
 **When** build trên macOS và trên Windows
 **Then** cả hai ra bản chạy được với hành vi tương đương (NFR14)
 
+> **Bổ sung 2026-08-03 — nhận bàn giao từ Story 1.1.** Bốn tệp font đã đo và đã chốt hiện **chỉ tồn tại trong thư mục scratchpad của phiên làm việc 2026-08-03**, đúng theo `§Ranh giới phạm vi` của mũi thăm dò (mã và tài nguyên dùng một lần không vào repo). Story này là story đầu tiên dựng cây nguồn thật, nên nó là nơi đưa chúng vào. Nguồn, SHA-256 và tên tệp chính xác: [`research/font-spike-results-2026-08-03.md`](research/font-spike-results-2026-08-03.md) §Phép đo 5.
+
+**Given** bốn tệp font đã chốt ở Story 1.1
+**When** dựng cây nguồn
+**Then** chúng nằm ở `src-tauri/resources/fonts/`, và **SHA-256 từng tệp khớp đúng bảng §Phép đo 5** của báo cáo mũi thăm dò — lệch một byte là **dừng**, không tự tải bản khác thay vào
+**And** nguồn tải ghi rõ trong repo: `notofonts/noto-cjk` tag `Serif2.003` cho `NotoSerifCJKtc-Regular.otf`; `google/fonts` cho `SourceSerif4[opsz,wght].ttf` · `SourceSerif4-Italic[opsz,wght].ttf` · `SourceSans3[wght].ttf`
+**And** **ba tệp giấy phép SIL OFL gốc** đi kèm bản phát hành (FR38, FR109) — nghĩa vụ này đến từ kết luận rà NFR15 của Story 1.1 và trước đây chưa story nào cưỡng chế nó
+**And** ⛔ **không** tải font qua `fonts.googleapis.com` hay bất kỳ origin từ xa nào lúc chạy (AD-15)
+
 ---
 
 ### Story 1.3: CI tối thiểu — hai nền tảng, mỗi lần push
 
-**Covers:** NFR14 · NFR15 · lưới an toàn cho AC hai nền tảng của Story 1.2 (không phải FR107)
+**Covers:** NFR14 · NFR15 · **NFR6** *(nửa Windows, nhận bàn giao từ Story 1.1 ngày 2026-08-03)* · lưới an toàn cho AC hai nền tảng của Story 1.2 (không phải FR107)
 
 As a chủ dự án,
 I want mỗi lần push đều được build và chạy test trên cả macOS lẫn Windows,
@@ -1096,6 +1110,17 @@ So that một khác biệt nền tảng lọt vào ở Epic 2 không nằm im t�
 **When** so với FR107
 **Then** đây **không phải** FR107 — không build công khai để người ngoài kiểm chứng, không checksum, không `dict-manifest.toml`
 **And** FR107 vẫn đóng ở Story 10.1 với phạm vi nguyên vẹn
+
+> **Bổ sung 2026-08-03 — nhận bàn giao từ Story 1.1.** Nửa Windows của AC1 Story 1.1 chuyển vào đây vì `.msi` chỉ dựng được trên Windows. Công thức, cấu hình và số macOS để đối chiếu: [`research/font-spike-results-2026-08-03.md`](research/font-spike-results-2026-08-03.md) §Công thức đo trên Windows.
+
+**Given** runner Windows của CI đã chạy được
+**When** CI chạy trên một commit bất kỳ
+**Then** dung lượng `.msi` **có font** và **không font** được ghi lại thành số cụ thể, và **chênh lệch** được đối chiếu với dải ước **16,0–20,3 MiB** của mũi thăm dò
+**And** chế độ cài WebView2 đang dùng được ghi kèm — `downloadBootstrapper`; `embedBootstrapper` hay `offlineInstaller` **một mình nó** đủ làm `.msi` phình ~150 MB và vỡ NFR6 kể cả khi font bằng 0
+**And** hai số này ghi lại ở **mỗi lần CI chạy**, không phải một lần rồi thôi — đây là lưới bắt hồi quy khi bộ font hoặc cấu hình WebView2 đổi
+**And** phép cộng với dung lượng database **không** thuộc story này — CI ở đây không tải dữ liệu từ điển; phép đối chiếu tổng với trần NFR6 đóng ở **Story 1.9**
+
+> ⚠️ **AC trên đã sửa 2026-08-03 sau rà soát.** Bản đầu tiên của nó đòi *"dựng **bản phát hành**"* và *"chênh lệch cộng với **dung lượng database**"* — cả hai đều mâu thuẫn trực tiếp với hai AC sẵn có của chính story này (*"đây **không phải** FR107 — không build công khai"* và *"**không tải dữ liệu từ điển**"*), và Story 1.3 còn chạy **trước** Story 1.9 nên chưa có `dict-core.db` để cộng. AC đã thu về đúng thứ CI push-time làm được: chỉ đo chênh lệch.
 
 **Given** dữ liệu từ điển 150–200 MB
 **When** CI chạy ở epic này
@@ -1333,9 +1358,13 @@ So that bản phát hành kiểm chứng được và không parser nào lọt v
 **Then** chỉ mục **chính** dùng `remove_diacritics 0`
 **And** chỉ mục xoá dấu tồn tại như chỉ mục **phụ**, không bao giờ là mặc định
 
-**Given** `dict-core.db` hoàn tất
-**When** đo kích thước
-**Then** con số được ghi lại và đối chiếu với ngân sách NFR6
+> **Bổ sung 2026-08-03 — nhận bàn giao từ Story 1.1.** Đây là nơi đóng phép đối chiếu NFR6 **thật**, vì đây là story đầu tiên có dữ liệu thật để đo. Mũi thăm dò font đã ăn **21,29 MB** trong ngân sách và con số đó phải được cộng vào chứ không để riêng. Số đo và cách đọc `[A2]`: [`research/font-spike-results-2026-08-03.md`](research/font-spike-results-2026-08-03.md) §Cần Ice quyết.
+
+**Given** **mọi** artifact dữ liệu sẽ đóng gói — `dict-core.db` **và** bốn lớp gỡ rời của Story 1.10, không chỉ `dict-core.db`
+**When** đo tổng
+**Then** cộng thêm **21,29 MB bộ font** (đo thật ở Story 1.1) và **baseline ứng dụng thật** rồi đối chiếu lại với trần **NFR6**
+**And** phép đối chiếu quy về **byte** trước rồi mới đổi sang MB thập phân — 200 MB là **trần**, 150 MB là mốc kỳ vọng chứ không phải điều kiện đạt
+**And** nếu vượt trần, đó là quyết định **tầng PRD** — **không** tự subset font, **không** tự bỏ một nguồn từ điển, **không** tự đổi sang font hệ điều hành
 
 ---
 

@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-08-02
+updated: 2026-08-03
 sources:
   - _bmad-output/specs/spec-AuraTranslate/SPEC.md
   - _bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md
@@ -105,17 +105,17 @@ typography:
     fontSize: 10.5px
     lineHeight: '1.4'
 families:
-  read: '"Source Serif 4", "Noto Serif CJK SC", "Noto Serif CJK TC", serif'
-  read-cjk: '"Noto Serif CJK SC", "Noto Serif CJK TC"'
+  read: '"Source Serif 4", "Noto Serif CJK TC", serif'
+  read-cjk: '"Noto Serif CJK TC", serif'
   ui: '"Source Sans 3", ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif'
   mono: 'ui-monospace, SFMono-Regular, Consolas, monospace'
 fonts-bundled:
   policy: 'Nhúng trong bản cài. Không CDN, không tải sau khi cài (AD-15, FR27). Tải tệp về rồi đóng gói — CẤM fonts.googleapis.com, đó vẫn là origin từ xa.'
   channel: 'Kênh Google cho cả ba họ (Ice chốt 2026-08-03). Latin: google/fonts ofl/sourceserif4 + ofl/sourcesans3, font biến thiên. CJK: notofonts/noto-cjk release Serif2.003 — cùng một font với Source Han Serif 2.003R, khác nhãn.'
-  license: 'SIL OFL 1.1 — tương thích GPL v3 theo diện gộp gói. Noto Serif CJK và Source Serif 4 (bản Google Fonts) KHÔNG khai Reserved Font Name; Source Sans 3 CÓ khai RFN "Source" nên subset tệp đó phải đổi tên font. Kết luận rà theo NFR15 chốt ở Story 1.1.'
+  license: 'SIL OFL 1.1 — ĐÃ RÀ 2026-08-03 (Story 1.1), tương thích GPL v3 theo diện gộp gói. Xác minh bằng cách mở tệp LICENSE trong bản release đã tải, không tin nhãn GitHub. Noto Serif CJK và Source Serif 4 (bản Google Fonts) KHÔNG khai Reserved Font Name; Source Sans 3 CÓ khai RFN "Source" nên subset tệp đó phải đổi tên font. Ba tệp giấy phép gốc đi kèm bản phát hành (FR38, FR109). Ba hàng font đã vào bảng Stack của ARCHITECTURE-SPINE.md.'
   weights: 'Latin dùng font biến thiên nên phủ trọn dải nét 200–900 chỉ với 3 tệp — nét 600 và 700 trong bảng token được lo trọn, không cần đóng gói thêm. CJK chỉ Regular, để ghìm dung lượng.'
-  size-budget: 'CHƯA ĐO — ước ≈21,6 MB trên đĩa (≈19 MB CJK + ≈2,6 MB Latin biến thiên). Chênh lệch installer thật chốt ở Story 1.1.'
-  region-variant: 'CHƯA CHỐT — Noto Serif CJK SC hay TC; coverage như nhau, chỉ khác dáng chữ ưu tiên ở mã dùng chung. Bắt buộc dùng bản vùng ĐẦY ĐỦ (NotoSerifCJKsc / NotoSerifCJKtc), KHÔNG dùng bản subset theo ngôn ngữ (NotoSerifSC / NotoSerifTC).'
+  size-budget: 'ĐÃ ĐO 2026-08-03 (Story 1.1). Trên đĩa 25,991 MiB cho 4 tệp (23,405 CJK + 2,586 Latin) — ước 21,6 MB của bản trước quá thấp vì phần CJK là 23,4 MiB chứ không phải 19 MB. Chênh lệch .dmg thật: 20,300 MiB = 21,29 MB (1,337 → 21,637 MiB). Tổng với database 130 MB hiện tại = 151,29 MB, DƯỚI trần NFR6. .msi chưa đo được trên macOS (tauri-cli từ chối target msi) — ước 16,0–20,3 MiB, đóng ở Story 1.3. RỦI RO: trần 150–200 MB là trần của CẢ BẢN CÀI ĐÃ GỒM FONT, nên phép tính là trừ dư địa chứ không cộng lên trần — 200 − 21,29 font − 1,40 baseline app RỖNG − 130 ba nguồn đầu = còn ~47 MB cho các nguồn từ điển còn lại, chỉ mục FTS phụ, VÀ toàn bộ mã sản phẩm chưa viết. Đối chiếu lại ở Story 1.9.'
+  region-variant: 'CHỐT TC 2026-08-03 (Story 1.1) — NotoSerifCJKtc-Regular.otf. Lý do: phạm vi dự án là dịch thuật tổng quát chứ không phải ngách truyện mạng, và hai lớp từ điển Cổ hán văn + HVTĐTD đều là ngữ liệu cổ văn. Khác biệt nặng nhất không phải dáng chữ mà là VỊ TRÍ DẤU CÂU: TC đặt 「，。」 giữa ô chữ, SC đặt góc dưới trái — hiện ở mọi dòng. Chi phí đổi ý bằng 0: hai tệp lệch nhau 1.176 byte. Vẫn bắt buộc bản vùng ĐẦY ĐỦ (NotoSerifCJKtc), KHÔNG dùng bản subset theo ngôn ngữ (NotoSerifTC).'
 rounded:
   none: 0
   sm: 2px
@@ -239,11 +239,11 @@ Vì vậy cả ba đến từ **một chương trình thiết kế duy nhất**:
 
 **Lấy tệp từ kênh Google không có nghĩa là gọi Google lúc chạy.** `fonts.googleapis.com` vẫn bị `AD-15` cấm tuyệt đối như mọi origin từ xa. Kênh phát hành là chỗ **tải tệp về lúc dựng**; luật đóng gói không đổi.
 
-Ba việc chưa xong ở bản trước, nay còn hai:
+Ba việc chưa xong ở bản trước, **nay xong cả ba** *(Story 1.1, 2026-08-03 — số đo và bằng chứng ở [`research/font-spike-results-2026-08-03.md`](../../research/font-spike-results-2026-08-03.md))*:
 
-1. ~~**Rà giấy phép tường minh** theo `NFR15`~~ — ✅ **đã rà 2026-08-03.** Cả ba là **SIL OFL 1.1**, tương thích `GPL v3` theo diện **gộp gói** (font nằm cạnh mã, không liên kết vào mã). Một khác biệt phải nhớ: `Noto Serif CJK` và `Source Serif 4` bản Google Fonts **không khai** Reserved Font Name, nhưng `Source Sans 3` **có khai** RFN `'Source'` — nên nếu subset riêng tệp Sans thì phải đổi tên font. Kết luận ghi vào bảng Stack của `ARCHITECTURE-SPINE.md` ở Story 1.1.
-2. **Đo dung lượng thật.** Ước **≈21,6 MB** trên đĩa (≈19 MB CJK + ≈2,6 MB Latin biến thiên) — thấp hơn hẳn ước tính 30–50 MB của bản trước, nhờ font biến thiên. Vẫn phải đo **chênh lệch installer** thật vì `.dmg` và `.msi` đều nén. Ngân sách `NFR6` là 150–200 MB trên nền database đã 130 MB. Nếu vượt trần thì đây là thay đổi ở tầng PRD, không phải tầng thiết kế.
-3. **Chọn biến thể vùng** cho Han: `Noto Serif CJK SC` hay `Noto Serif CJK TC`. Coverage như nhau — chỉ khác **dáng chữ ưu tiên** ở các mã chung. TC hợp mạch cổ văn và Hán Việt; SC hợp truyện mạng đương đại.
+1. ~~**Rà giấy phép tường minh** theo `NFR15`~~ — ✅ **đã rà 2026-08-03.** Cả ba là **SIL OFL 1.1**, tương thích `GPL v3` theo diện **gộp gói** (font nằm cạnh mã, không liên kết vào mã). Một khác biệt phải nhớ: `Noto Serif CJK` và `Source Serif 4` bản Google Fonts **không khai** Reserved Font Name, nhưng `Source Sans 3` **có khai** RFN `'Source'` — nên nếu subset riêng tệp Sans thì phải đổi tên font. Kết luận ghi vào bảng Stack của `ARCHITECTURE-SPINE.md` ở Story 1.1. *(Xác minh lại bằng chính tệp `LICENSE` trong bản release đã tải, không tin nhãn GitHub — cả ba khớp dự đoán.)*
+2. ~~**Đo dung lượng thật.**~~ — ✅ **đã đo 2026-08-03.** Trên đĩa **25,991 MiB** cho bốn tệp. Ước 21,6 MB của bản trước **quá thấp**: phần CJK là **23,405 MiB** chứ không phải ≈19 MB, vì phép chia zip 7 nét cho 7 giả định các nét bằng nhau mà chúng không bằng. Chênh lệch `.dmg` thật: **20,300 MiB = 21,29 MB** (1,337 → 21,637 MiB). Tổng với database 130 MB hiện tại = **151,29 MB — dưới trần `NFR6`**. `.msi` chưa đo được trên macOS; ước 16,0–20,3 MiB, đóng ở Story 1.3. **Rủi ro còn mở:** trần 150–200 MB là trần của **cả bản cài, đã bao gồm font**, nên phép tính đúng là **trừ dư địa** chứ không cộng lên trần — 200 − 21,29 (font) − 1,40 (baseline app **rỗng**) − 130 (ba nguồn đầu) = **còn ~47 MB** cho các nguồn từ điển còn lại, chỉ mục FTS phụ, **và toàn bộ mã sản phẩm chưa viết**. Đây là thay đổi ở tầng PRD, không phải tầng thiết kế, và đã ghi vào mục *Cần Ice quyết* của báo cáo.
+3. ~~**Chọn biến thể vùng** cho Han~~ — ✅ **chốt `Noto Serif CJK TC` 2026-08-03.** Coverage như nhau, đúng như đã nói. Nhưng khác biệt **nặng nhất lại không phải dáng chữ**: TC đặt 「，」 và 「。」 **giữa ô chữ**, SC đặt chúng ở **góc dưới bên trái** — thứ này hiện ở **mọi dòng**, không chỉ ở vài mã hiếm, và Panel Nguyên văn là nơi mắt ở lâu nhất. Chọn TC vì phạm vi dự án là dịch thuật **tổng quát** (Ice bác giả định ngách truyện mạng từ giai đoạn brief) và vì hai lớp từ điển của chính sản phẩm — Cổ hán văn, HVTĐTD — đều là ngữ liệu cổ văn. **Đổi ý không tốn gì:** hai tệp lệch nhau 1.176 byte.
 
 > ⚠️ **Một cái bẫy đặt tên phải viết ra, vì nó hỏng im lặng.** Google phát hành **hai loại tệp khác nhau** với tên gần giống: `NotoSerifCJKsc` / `NotoSerifCJKtc` là **biến thể vùng đầy đủ** — phủ trọn kho mã CJK, chỉ khác dáng chữ ưu tiên; còn `NotoSerifSC` / `NotoSerifTC` là **subset theo ngôn ngữ**, chỉ phủ bộ mã một vùng. Mục 3 ở trên nói tới loại thứ nhất. Lấy nhầm loại thứ hai thì phần lớn chữ vẫn hiện bình thường, chỉ **ô vuông rỗng** ở những mã thuộc hệ chữ kia — mà người dùng mục tiêu dịch **cả** truyện mạng giản thể **lẫn** cổ văn phồn thể. *(Bẫy này còn nhân đôi khi đối chiếu chéo với nhãn Adobe: `NotoSerifTC` tương đương `SourceHanSerifTW`, **không** tương đương `SourceHanSerifTC`.)*
 
@@ -251,9 +251,11 @@ Ba việc chưa xong ở bản trước, nay còn hai:
 
 > **Nguồn sự thật của bộ token chữ.** *(Bổ sung 2026-08-03 cùng lý do với bảng token màu.)*
 
-Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`** (`Noto Serif CJK`, chỉ Regular) · **`ui`** (`Source Sans 3`, biến thiên) · **`mono`**.
+Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`** (`Noto Serif CJK TC`, chỉ Regular) · **`ui`** (`Source Sans 3`, biến thiên) · **`mono`**.
 
-> **Nét 600 và 700 trong bảng dưới không cần tệp riêng.** `read-title` dùng nét 600 và `ui-label` dùng nét 700 — cả hai đều nằm trong dải 200–900 của font biến thiên, nên chúng là nét **thật**, không phải nét tổng hợp giả. Riêng `read-cjk` chỉ có Regular: chữ Hán rơi vào token nét 600 hoặc nghiêng sẽ bị webview tổng hợp giả. Bảng token hiện **không có** token nào vừa là `read-cjk` vừa đòi nét đậm hay nghiêng, nên ca này chưa phát sinh — nhưng thêm một token như vậy về sau là thêm một tệp font, không phải thêm một dòng CSS.
+> **Nét 600 và 700 trong bảng dưới không cần tệp riêng** — cả hai nằm trong dải 200–900 của font biến thiên nên là nét **thật**, không phải tổng hợp giả. **Bằng chứng dựng thật chỉ phủ một nửa:** ảnh chụp Story 1.1 dựng `Source Serif 4` ở 200/400/600/700 + Italic thành năm dòng riêng, thấy rõ nét 600 của `read-title` là nét thật. Nhưng `Source Sans 3` chỉ được dựng **một dòng ở một nét**, nên **`ui-label` (700, họ `ui`) chưa từng được kiểm** — và nó là token nằm trên đúng tệp có mặc định trục `wght = 200` và `name ID 1 = Source Sans 3 ExtraLight`. **Story 1.4 phải dựng `Source Sans 3` ở 400/600/700 rồi mới coi mệnh đề này là đã kiểm.**
+>
+> ⚠️ **Chữ Hán nghiêng giả CÓ phát sinh, không phải chưa.** Bản đầu của ghi chú này soát theo tiêu chí *"không token nào vừa là `read-cjk` vừa đòi nét đậm hay nghiêng"* — sai tiêu chí. Điều kiện sinh lỗi không phải *token khai họ nào*, mà là **ký tự CJK được dựng dưới một token nghiêng hoặc đậm bất kỳ**. Mà `families.read` có `Noto Serif CJK TC` trong chuỗi dự phòng, nên chữ Hán rơi vào nó qua fallback — và tệp ấy chỉ có Regular. Hai token đang dính: **`source-hanviet` (6)** và **`lookup-example` (10)**, cả hai `italic`, cả hai họ `read`. Token 10 là *"Ví dụ và trích dẫn"* của Panel Lookup: với từ điển Trung–Việt thì ví dụ **chắc chắn** có chữ Hán, ở cỡ 12,5px — cỡ mà nghiêng giả xấu nhất. Phát hiện khi rà soát 2026-08-03. **Hướng xử lý thuộc Story 1.4**: hoặc chấp nhận nghiêng giả cho phần Hán, hoặc khai `font-style: normal` cho ký tự CJK trong hai token đó. Thêm một tệp nghiêng CJK **không** phải phương án — đó là thêm ~23 MiB, một phần ba ngân sách font hiện tại.
 
 | # | Token | Cỡ / giãn dòng / khác | Họ | Dùng ở |
 |---|---|---|---|---|

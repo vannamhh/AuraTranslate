@@ -15,6 +15,7 @@ sources:
   - '_bmad-output/planning-artifacts/briefs/brief-AuraTranslate-2026-08-02/brief.md'
   - '_bmad-output/planning-artifacts/research/technical-auratranslate-tauri-rust-local-first-research-2026-08-02.md'
   - '_bmad-output/planning-artifacts/research/phase-0-spike-results-2026-08-02.md'
+  - '_bmad-output/planning-artifacts/research/font-spike-results-2026-08-03.md'
 companions:
   - '.memlog.md'
 ---
@@ -575,6 +576,11 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `keyring` | 4.1.6 | MIT OR Apache-2.0 |
 | `reqwest` | mới nhất lúc dựng | Apache-2.0 OR MIT |
 | `similar` **hoặc** `dissimilar` | 3.1.1 / mới nhất | Apache-2.0 / Apache-2.0 OR MIT |
+| `Noto Serif CJK TC` *(chỉ Regular; = Source Han Serif 2.003R đổi nhãn)* | 2.003 | SIL OFL 1.1 |
+| `Source Serif 4` *(kênh Google, font biến thiên)* | 4.004 | SIL OFL 1.1 |
+| `Source Sans 3` *(kênh Google, font biến thiên)* | 3.052 | SIL OFL 1.1 |
+
+Ba họ font rà theo NFR15 ngày 2026-08-03 ở Story 1.1, bằng cách **mở tệp `LICENSE` trong bản release đã tải mà đọc** chứ không tin nhãn của GitHub. Tương thích GPL v3 theo diện **gộp gói** — font nằm cạnh mã, không liên kết vào mã. Phiên bản và tên họ ghi ở đây đọc từ bảng `name` của chính tệp: `Source Serif 4` trên kênh Google là **4.004**, đi sau bản Adobe 4.005R một phát hành. *(Tên họ lấy ở **name ID 16** với `Source Sans 3` — ID 1 của tệp đó là `Source Sans 3 ExtraLight` vì nó là font biến thiên có mặc định trục `wght = 200`; hai tệp kia lấy ở **ID 1**.)* Ràng buộc kèm theo: **chỉ `Source Sans 3` khai Reserved Font Name `'Source'`** — subset riêng tệp đó thì bắt buộc đổi tên font nội bộ; hai tệp kia không khai nên subset thoải mái. Cả ba tệp giấy phép gốc phải đi kèm bản phát hành (FR38, FR109). Số đo và lý do đầy đủ: [`research/font-spike-results-2026-08-03.md`](../../research/font-spike-results-2026-08-03.md).
 
 SQLite đến từ `libsqlite3-sys` feature `bundled` — phiên bản do crate ghim, không phải SQLite của hệ điều hành. Sàn tối thiểu mà kiến trúc cần: FTS5 `trigram` (≥ 3.34) và `remove_diacritics 0` (≥ 3.27); mọi bản `bundled` hiện hành đều vượt xa.
 
@@ -715,8 +721,8 @@ AuraTranslate/
 | **Thư viện editor cho panel Editor** | Editor theo segment, không phải rich text tự do — yêu cầu hẹp hơn nhiều so với dự đoán ban đầu. AD-31 đã cố định hợp đồng trạng thái mà editor phải tuân, nên lựa chọn thư viện không lan ra ngoài module | Giai đoạn 2 |
 | **Cách phân tích khung SSE** | `reqwest` đã ghim; các crate SSE mà research nêu (`reqwest-sse`, `sseer`) **chưa xác nhận giấy phép** — không được đưa vào Stack khi chưa rà GPLv3 (NFR15). Phân tích khung SSE bằng tay cũng là phương án hợp lệ và tránh hẳn một phụ thuộc chưa vetted. AD-22 đã cố định phần bất biến (Channel, không auto-reconnect, huỷ được) | Giai đoạn 2 — rà giấy phép trước khi thêm |
 | **Chiến lược ảo hoá danh sách dài** (2000 Chương, Chương nhiều nghìn segment) | Là quyết định trình bày trong một module, không phải hợp đồng giữa các module | Giai đoạn 3 |
-| **Dung lượng và giấy phép font nhúng** | Hệ font đã chốt (Source Serif 4 · Source Han Serif Regular · Source Sans 3) nhưng **chưa đo và chưa rà**. Ước 30–50 MB trên nền database đã đo 130 MB, trần NFR6 là 150–200 MB. Nếu vượt trần thì là thay đổi **tầng PRD**, không phải tầng kiến trúc | Mũi thăm dò đo thật `.dmg`/`.msi` trước và sau, kèm rà SIL OFL theo NFR15 — **trước Giai đoạn 1** |
-| **Biến thể vùng cho Source Han Serif** | TC hay SC: coverage như nhau vì phủ theo Unicode, chỉ khác dáng chữ ưu tiên ở mã chung | Cùng mũi thăm dò font |
+| ~~**Dung lượng và giấy phép font nhúng**~~ | ✅ **Đã đóng 2026-08-03** (Story 1.1) — đo thật: chênh lệch `.dmg` do font là **20,300 MiB = 21,29 MB**, tổng với database 130 MB hiện tại là **151,29 MB**, **dưới trần NFR6**. Giấy phép: **SIL OFL 1.1** cả ba, tương thích GPL v3 theo diện gộp gói, đã ghi ba hàng vào bảng Stack. Ước 30–50 MB của bản trước **quá cao**; nhưng ước 21,6 MB sau đó lại **quá thấp** vì phần CJK là 23,41 MiB chứ không phải 19 MB. **Còn nợ hai việc, cả hai đã có AC thật, không chặn:** `.msi` chưa đo được (`tauri-cli` trên macOS từ chối target `msi`) → **AC mới của Story 1.3**; và dư địa dưới trần chỉ còn **~47 MB** cho các nguồn từ điển còn lại **cộng toàn bộ mã sản phẩm chưa viết** → **AC mới của Story 1.9**. *(Rà soát 2026-08-03: bản đầu của hàng này ghi "200 MB database + 20,30 MiB font = 220 MB vượt trần" — **đọc sai `[A2]`**, vì 150–200 MB là trần của cả bản cài **đã bao gồm font**. Phép tính đúng là trừ dư địa, không phải cộng lên trần.)* | — |
+| ~~**Biến thể vùng cho Source Han Serif**~~ | ✅ **Đã đóng 2026-08-03** (Story 1.1) — chốt **TC** (`NotoSerifCJKtc-Regular.otf`). Lý do: phạm vi dự án là dịch thuật **tổng quát** chứ không phải ngách truyện mạng (Ice chốt ở giai đoạn brief), và hai lớp từ điển của chính sản phẩm — Cổ hán văn và HVTĐTD — đều là ngữ liệu cổ văn. Khác biệt nặng nhất hoá ra **không** phải dáng chữ mà là **vị trí dấu câu**: TC đặt 「，。」 giữa ô chữ, SC đặt góc dưới trái — xuất hiện ở mọi dòng, không chỉ vài mã hiếm. **Chi phí đổi ý bằng 0**: hai tệp lệch nhau 1.176 byte | — |
 | **Nhiều thư mục gốc Library** | AD-23 đã cho phép về mặt cấu trúc; có cần hay không là câu hỏi sản phẩm | Sau khi dùng thật |
 | **Cấu trúc chi tiết chỉ mục FTS cho tìm kiếm Library** | AD-27 đã cố định phần bất biến (phân biệt dấu là chính); phần còn lại là hình dạng bảng mà code sở hữu | Giai đoạn 3 |
 | **Nguyên nhân gốc vòng phản hồi đứt** (Q1) | PRD để ngỏ có chủ ý; FR95 + AD-20 khiến câu trả lời không chặn tiến độ | — |
