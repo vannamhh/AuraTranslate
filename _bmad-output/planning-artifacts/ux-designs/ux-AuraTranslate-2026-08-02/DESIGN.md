@@ -105,16 +105,17 @@ typography:
     fontSize: 10.5px
     lineHeight: '1.4'
 families:
-  read: '"Source Serif 4", "Source Han Serif", serif'
-  read-cjk: '"Source Han Serif"'
+  read: '"Source Serif 4", "Noto Serif CJK SC", "Noto Serif CJK TC", serif'
+  read-cjk: '"Noto Serif CJK SC", "Noto Serif CJK TC"'
   ui: '"Source Sans 3", ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif'
   mono: 'ui-monospace, SFMono-Regular, Consolas, monospace'
 fonts-bundled:
-  policy: 'Nhúng trong bản cài. Không CDN, không tải sau khi cài (AD-15, FR27).'
-  license: 'SIL OFL — CẦN RÀ TƯỜNG MINH theo NFR15 trước khi thêm'
-  weights: 'Chỉ Regular cho Source Han Serif, để ghìm dung lượng'
-  size-budget: 'CHƯA ĐO — ước tính 30–50 MB, phải đo thật trước khi chốt (xem mũi thăm dò)'
-  region-variant: 'CHƯA CHỐT — TC hay SC; coverage như nhau, chỉ khác dáng chữ ưu tiên'
+  policy: 'Nhúng trong bản cài. Không CDN, không tải sau khi cài (AD-15, FR27). Tải tệp về rồi đóng gói — CẤM fonts.googleapis.com, đó vẫn là origin từ xa.'
+  channel: 'Kênh Google cho cả ba họ (Ice chốt 2026-08-03). Latin: google/fonts ofl/sourceserif4 + ofl/sourcesans3, font biến thiên. CJK: notofonts/noto-cjk release Serif2.003 — cùng một font với Source Han Serif 2.003R, khác nhãn.'
+  license: 'SIL OFL 1.1 — tương thích GPL v3 theo diện gộp gói. Noto Serif CJK và Source Serif 4 (bản Google Fonts) KHÔNG khai Reserved Font Name; Source Sans 3 CÓ khai RFN "Source" nên subset tệp đó phải đổi tên font. Kết luận rà theo NFR15 chốt ở Story 1.1.'
+  weights: 'Latin dùng font biến thiên nên phủ trọn dải nét 200–900 chỉ với 3 tệp — nét 600 và 700 trong bảng token được lo trọn, không cần đóng gói thêm. CJK chỉ Regular, để ghìm dung lượng.'
+  size-budget: 'CHƯA ĐO — ước ≈21,6 MB trên đĩa (≈19 MB CJK + ≈2,6 MB Latin biến thiên). Chênh lệch installer thật chốt ở Story 1.1.'
+  region-variant: 'CHƯA CHỐT — Noto Serif CJK SC hay TC; coverage như nhau, chỉ khác dáng chữ ưu tiên ở mã dùng chung. Bắt buộc dùng bản vùng ĐẦY ĐỦ (NotoSerifCJKsc / NotoSerifCJKtc), KHÔNG dùng bản subset theo ngôn ngữ (NotoSerifSC / NotoSerifTC).'
 rounded:
   none: 0
   sm: 2px
@@ -230,21 +231,29 @@ Ranh giới này không được nhoè. Nếu một chuỗi nói về tác phẩ
 
 Ba hệ chữ xuất hiện cùng lúc trên một màn hình: **Hán** ở panel Nguyên văn, **Việt có dấu** ở Bản dịch, **Latin** ở nhãn giao diện. Nếu chúng lệch nhau về chiều cao chữ thường và độ đậm nét, mắt phải tự hiệu chỉnh mỗi lần nhảy panel — loại mỏi tích luỹ mà người dùng không chỉ ra được nguyên nhân, chỉ thấy "dùng lâu thấy nặng đầu".
 
-Vì vậy cả ba đến từ **một chương trình thiết kế duy nhất**: `Source Serif 4` · `Source Han Serif` · `Source Sans 3`. Chúng cân nhau **theo thiết kế**, không phải do ghép may mắn.
+Vì vậy cả ba đến từ **một chương trình thiết kế duy nhất**: `Source Serif 4` · `Noto Serif CJK` · `Source Sans 3`. Chúng cân nhau **theo thiết kế**, không phải do ghép may mắn.
+
+> **Về cái tên `Noto Serif CJK`** *(sửa 2026-08-03)*. Bản trước ghi `Source Han Serif`. **Đó là cùng một font** — dự án chung Adobe + Google công bố 2017, phát hành song song dưới hai nhãn; hai release trùng ngày và trùng khít dung lượng từng asset. Đổi sang nhãn Noto không đổi một nét chữ nào, và đổi vì hai lý do có thật: bản Noto **không khai Reserved Font Name** nên về sau subset để ghìm dung lượng sẽ không kéo theo việc đổi tên font và sửa lan man vào bảng token; và cùng kênh đó có sẵn `Source Serif 4` với `Source Sans 3` ở dạng **font biến thiên**, nhẹ hơn hẳn.
 
 **Font được nhúng trong bản cài**, không dùng font hệ điều hành. Lý do không phải thẩm mỹ: panel Nguyên văn là nơi mắt ở lâu nhất trong sản phẩm, và dùng font hệ thống nghĩa là macOS ra PingFang còn Windows ra YaHei — **hai sản phẩm khác nhau**, phá `NFR14` ngay ở chỗ dễ thấy nhất.
 
-Ba việc **chưa xong** và không được coi là đã chốt:
+**Lấy tệp từ kênh Google không có nghĩa là gọi Google lúc chạy.** `fonts.googleapis.com` vẫn bị `AD-15` cấm tuyệt đối như mọi origin từ xa. Kênh phát hành là chỗ **tải tệp về lúc dựng**; luật đóng gói không đổi.
 
-1. **Rà giấy phép tường minh** theo `NFR15`. Áp cho font y như cho crate.
-2. **Đo dung lượng thật.** Ước tính 30–50 MB trên nền database đã 130 MB, ngân sách `NFR6` là 150–200 MB. Nếu vượt trần thì đây là thay đổi ở tầng PRD, không phải tầng thiết kế.
-3. **Chọn biến thể vùng** cho Han: TC hay SC. Coverage như nhau — chỉ khác **dáng chữ ưu tiên** ở các mã chung. TC hợp mạch cổ văn và Hán Việt; SC hợp truyện mạng đương đại.
+Ba việc chưa xong ở bản trước, nay còn hai:
+
+1. ~~**Rà giấy phép tường minh** theo `NFR15`~~ — ✅ **đã rà 2026-08-03.** Cả ba là **SIL OFL 1.1**, tương thích `GPL v3` theo diện **gộp gói** (font nằm cạnh mã, không liên kết vào mã). Một khác biệt phải nhớ: `Noto Serif CJK` và `Source Serif 4` bản Google Fonts **không khai** Reserved Font Name, nhưng `Source Sans 3` **có khai** RFN `'Source'` — nên nếu subset riêng tệp Sans thì phải đổi tên font. Kết luận ghi vào bảng Stack của `ARCHITECTURE-SPINE.md` ở Story 1.1.
+2. **Đo dung lượng thật.** Ước **≈21,6 MB** trên đĩa (≈19 MB CJK + ≈2,6 MB Latin biến thiên) — thấp hơn hẳn ước tính 30–50 MB của bản trước, nhờ font biến thiên. Vẫn phải đo **chênh lệch installer** thật vì `.dmg` và `.msi` đều nén. Ngân sách `NFR6` là 150–200 MB trên nền database đã 130 MB. Nếu vượt trần thì đây là thay đổi ở tầng PRD, không phải tầng thiết kế.
+3. **Chọn biến thể vùng** cho Han: `Noto Serif CJK SC` hay `Noto Serif CJK TC`. Coverage như nhau — chỉ khác **dáng chữ ưu tiên** ở các mã chung. TC hợp mạch cổ văn và Hán Việt; SC hợp truyện mạng đương đại.
+
+> ⚠️ **Một cái bẫy đặt tên phải viết ra, vì nó hỏng im lặng.** Google phát hành **hai loại tệp khác nhau** với tên gần giống: `NotoSerifCJKsc` / `NotoSerifCJKtc` là **biến thể vùng đầy đủ** — phủ trọn kho mã CJK, chỉ khác dáng chữ ưu tiên; còn `NotoSerifSC` / `NotoSerifTC` là **subset theo ngôn ngữ**, chỉ phủ bộ mã một vùng. Mục 3 ở trên nói tới loại thứ nhất. Lấy nhầm loại thứ hai thì phần lớn chữ vẫn hiện bình thường, chỉ **ô vuông rỗng** ở những mã thuộc hệ chữ kia — mà người dùng mục tiêu dịch **cả** truyện mạng giản thể **lẫn** cổ văn phồn thể. *(Bẫy này còn nhân đôi khi đối chiếu chéo với nhãn Adobe: `NotoSerifTC` tương đương `SourceHanSerifTW`, **không** tương đương `SourceHanSerifTC`.)*
 
 ### Bảng token typography — **14 token, bốn họ chữ**
 
 > **Nguồn sự thật của bộ token chữ.** *(Bổ sung 2026-08-03 cùng lý do với bảng token màu.)*
 
-Bốn họ chữ: **`read`** (`Source Serif 4`) · **`read-cjk`** (`Source Han Serif`, chỉ Regular) · **`ui`** (`Source Sans 3`) · **`mono`**.
+Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`** (`Noto Serif CJK`, chỉ Regular) · **`ui`** (`Source Sans 3`, biến thiên) · **`mono`**.
+
+> **Nét 600 và 700 trong bảng dưới không cần tệp riêng.** `read-title` dùng nét 600 và `ui-label` dùng nét 700 — cả hai đều nằm trong dải 200–900 của font biến thiên, nên chúng là nét **thật**, không phải nét tổng hợp giả. Riêng `read-cjk` chỉ có Regular: chữ Hán rơi vào token nét 600 hoặc nghiêng sẽ bị webview tổng hợp giả. Bảng token hiện **không có** token nào vừa là `read-cjk` vừa đòi nét đậm hay nghiêng, nên ca này chưa phát sinh — nhưng thêm một token như vậy về sau là thêm một tệp font, không phải thêm một dòng CSS.
 
 | # | Token | Cỡ / giãn dòng / khác | Họ | Dùng ở |
 |---|---|---|---|---|
