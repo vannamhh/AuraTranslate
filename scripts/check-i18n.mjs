@@ -219,8 +219,13 @@ const vueFiles = keep(vueAll)
  *
  * ⚠️ Sàn áp lên quần thể SAU miễn trừ — đó mới là quần thể Kiểm A thật sự chạy trên.
  * Đo trước miễn trừ thì một `EXEMPT` phình ra tới mức nuốt cả `src/` vẫn qua sàn.
+ *
+ * ⚠️ Số cập nhật ở Story 1.7 (tầng ghi dữ liệu): **23** tệp `.rs` sau miễn trừ — 27 tệp
+ * đi qua `walk`, 4 tệp `tests/**` miễn trừ. Cây mọc thêm 5 tệp dưới
+ * `src-tauri/src/core/store/` và 2 tệp test. Sàn giữ nguyên tỷ lệ dư địa cũ (~78% số
+ * thật): nó tồn tại để bắt một cây bị CẮT MẤT, ⛔ không phải để đếm tệp mới.
  */
-const RS_FLOOR = 14
+const RS_FLOOR = 18
 const VUE_FLOOR = 1
 if (rsFiles.length < RS_FLOOR || vueFiles.length < VUE_FLOOR) {
   abort(

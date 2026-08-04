@@ -1,6 +1,11 @@
 {
   "err.unknown": "Thao tác không hoàn tất vì một lỗi chưa được phân loại.",
   "err.io.read_failed": "Không đọc được tệp tại {path} — nội dung chưa được nạp.",
+  "err.store.schema_too_new": "Kho dữ liệu {store} được tạo bởi một bản AuraTranslate mới hơn (lược đồ {found}, bản này đọc được tới {supported}) — chưa mở được, và không có gì trong đó bị thay đổi.",
+  "err.store.open_failed": "Không mở được kho dữ liệu {store} — dữ liệu chưa được nạp.",
+  "err.store.wal_unavailable": "Kho dữ liệu {store} không bật được chế độ ghi an toàn (đang ở {mode}) — chưa mở được.",
+  "err.store.write_failed": "Không ghi được vào kho dữ liệu {store} — thay đổi vừa rồi chưa được lưu.",
+  "err.store.read_failed": "Không đọc được từ kho dữ liệu {store} — nội dung chưa được nạp.",
   "command.mode.library": "Library",
   "command.mode.workspace": "Workspace",
   "command.mode.reading": "Chế độ đọc",

@@ -107,6 +107,30 @@ message_keys! {
     /// Mang tham số `path`. Tồn tại để chứng minh đường nội suy tham số chạy thật
     /// từ Rust qua dây tới `createResolver` phía frontend.
     IoReadFailed => "err.io.read_failed" ["path"],
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TẦNG GHI DỮ LIỆU — Story 1.7 (AD-11 · AD-12 · AD-30)
+    //
+    // Năm khoá, và đúng năm: mỗi cái ứng với một cách `core::store::StoreError` hỏng
+    // thật ở story này. ⛔ Không khoá nào cho một tính năng chưa tồn tại — `project.db`
+    // (Story 1.15) và `library-index.db` (Epic 5) sẽ tự mang khoá của chúng, cùng lúc
+    // với mã cần chúng.
+    //
+    // ⚠️ `params` mang DỮ LIỆU: tên kho (`global`), phiên bản lược đồ, chế độ journal
+    // đọc được về. ⛔ Không mang câu — xem doc-comment của `IpcError`.
+    // ─────────────────────────────────────────────────────────────────────────
+    /// Database mang phiên bản lược đồ **mới hơn** bản ứng dụng đang chạy (AD-30, AC7).
+    /// Ứng dụng từ chối mở và ⛔ không ghi vào nó một byte nào.
+    StoreSchemaTooNew => "err.store.schema_too_new" ["store", "found", "supported"],
+    /// Không mở được kho — tệp hỏng, không có quyền, hoặc một bước di trú gãy.
+    StoreOpenFailed => "err.store.open_failed" ["store"],
+    /// `PRAGMA journal_mode = WAL` đọc lại ra chế độ khác. `mode` là chế độ ĐỌC ĐƯỢC VỀ.
+    /// Không có WAL thì NFR2 và NFR18 mất bảo đảm, nên đây là lỗi chứ không phải cảnh báo.
+    StoreWalUnavailable => "err.store.wal_unavailable" ["store", "mode"],
+    /// Một job ghi trượt ⇒ giao dịch đã rollback, ⛔ không có nửa ghi nào trên đĩa.
+    StoreWriteFailed => "err.store.write_failed" ["store"],
+    /// Một job đọc trượt.
+    StoreReadFailed => "err.store.read_failed" ["store"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.
