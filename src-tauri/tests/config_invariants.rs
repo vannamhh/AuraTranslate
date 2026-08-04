@@ -296,8 +296,21 @@ fn csp_style_src_stays_at_self() {
 
 // ── AC3 — phạm vi filesystem tĩnh ───────────────────────────────────────────────
 
+/// 🔴 Story 1.9, Task 10 — Ice chốt 2026-08-04: **gỡ** `$RESOURCE/dict/**` khỏi
+/// `assetProtocol.scope`. Webview KHÔNG BAO GIỜ đọc tệp từ điển — AD-1 và AD-11 đặt
+/// mọi truy cập dữ liệu ở Rust, và `rusqlite` mở tệp bằng đường dẫn hệ thống, ⛔ không
+/// đi qua asset protocol. Mục scope đó là một QUYỀN THỪA; mâu thuẫn với `connect-src`
+/// (`deferred-work.md:56-57`) chỉ là hệ quả của việc nó thừa.
+///
+/// ⚠️ Tên hàm đã ĐỔI cùng lúc với giá trị — một tên còn nói `..._the_two_...` trong khi
+/// scope chỉ còn MỘT mục là để lại một cái tên nói dối, và tên test là thứ lượt rà soát
+/// sau đọc TRƯỚC tiên.
+///
+/// 🔴 Lưới thay thế: sau lượt này, KHÔNG còn dòng nào trong `tauri.conf.json` nhắc tới
+/// `dict` cho tới Story 10.1 (đóng gói `.db` vào `bundle.resources` + lưới mới). Xem
+/// mục Story 10.1 mới trong `deferred-work.md`.
 #[test]
-fn asset_protocol_scope_has_exactly_the_two_readonly_resource_areas() {
+fn asset_protocol_scope_has_exactly_the_one_readonly_resource_area() {
     let conf = read_json("tauri.conf.json");
     let ap = &conf["app"]["security"]["assetProtocol"];
 
@@ -312,8 +325,9 @@ fn asset_protocol_scope_has_exactly_the_two_readonly_resource_areas() {
 
     assert_eq!(
         scope,
-        vec!["$RESOURCE/dict/**", "$RESOURCE/fonts/**"],
-        "AD-23: đúng hai mục, không hơn, không đổi thứ tự"
+        vec!["$RESOURCE/fonts/**"],
+        "AD-23 (Story 1.9 Task 10): đúng MỘT mục — webview không bao giờ đọc tệp từ \
+         điển, `$RESOURCE/dict/**` là quyền thừa đã gỡ"
     );
 }
 

@@ -92,6 +92,16 @@ jobs:
       - name: check dependency tree (NFR15, AC2/AC5 của Story 1.2)
         run: npm run check:deps
 
+      # Hai cổng `tools/dict-build` — AC2/AC4 của Story 1.9. Đặt KỀ `check:deps` vì
+      # cùng họ: cả hai đọc cây phụ thuộc/mã nguồn tĩnh, xong trong vài giây, không cần
+      # `dist/`. ⛔ Không đọc `.db`, không tải gì — AC cuối của Story 1.3 vẫn đúng
+      # nguyên: CI không tải dữ liệu từ điển.
+      - name: check tools/dict-build isolation and merge vocabulary (AC2, AC4 — Story 1.9)
+        run: npm run check:dict
+
+      - name: check dict-manifest.toml shape (AC3 — Story 1.9)
+        run: npm run check:dict-manifest
+
       # Bảy phép kiểm token — AD-34 · NFR17 (Story 1.4). Đây chính là chỗ móc mang tên
       # "lint cấm màu viết thẳng (AD-34)" mà AC4 của Story 1.3 đã chừa sẵn: MỘT bước
       # trong job `check` đã có, ⛔ KHÔNG phải một tệp workflow thứ hai.

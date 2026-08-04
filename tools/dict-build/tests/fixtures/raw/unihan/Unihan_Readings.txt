@@ -1,0 +1,35 @@
+# Unihan_Readings.txt
+# Date: 2025-07-24 00:00:00 GMT [KL]
+# Unicode Version 17.0.0
+#
+# Unicode Character Database
+# © 2025 Unicode®, Inc.
+# Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
+# For terms of use and license, see https://www.unicode.org/terms_of_use.html
+#
+# For documentation, see https://www.unicode.org/reports/tr38/
+#
+# This file contains data on the following fields from the Unihan database:
+U+5C71	kCantonese	saan1
+U+5C71	kDefinition	mountain, hill, peak
+U+5C71	kFanqie	所閒
+U+5C71	kHangul	산:0E
+U+5C71	kHanyuPinlu	shān(1704)
+U+5C71	kHanyuPinyin	10759.110:shān
+U+5C71	kJapanese	サン セン やま
+U+5C71	kJapaneseKun	YAMA
+U+5C71	kJapaneseOn	SAN SEN
+U+5C71	kKorean	SAN
+U+5C71	kMandarin	shān
+U+5C71	kSMSZD2003Readings	shān粵saan1
+U+5C71	kTGHZ2013	323.120:shān
+U+5C71	kTang	*shrɛn
+U+5C71	kVietnamese	sơn
+U+5C71	kXHC1983	0995.070:shān
+U+4E2D	kCantonese	zung1
+U+56FD	kCantonese	gwok3
+U+56FD	kDefinition	nation, country, nation-state
+U+56FD	kHangul	국:N
+U+570B	kCantonese	gwok3
+U+570B	kDefinition	nation, country, nation-state
+U+570B	kFanqie	古或

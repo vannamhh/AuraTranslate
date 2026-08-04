@@ -1,0 +1,1 @@
+cvdict-commit=c379d909e308343a247e51619f7839a2060a271c (fixture, real commit at 2026-08-04)

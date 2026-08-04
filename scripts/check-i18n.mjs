@@ -137,6 +137,14 @@ const EXEMPT = [
       'phát biểu trên `.rs` và `.vue`. Mục này khai trước cho ngày một `.vue` chẩn đoán ' +
       'xuất hiện ở đó — và để lý do nằm cạnh chỗ cưỡng chế thay vì trong trí nhớ ai đó.',
   ],
+  [
+    'tools/**',
+    'build tool (Story 1.9, `tools/dict-build`) — KHÔNG vào bản phát hành (AD-25), ' +
+      'không có bề mặt giao diện để render, và thông báo lỗi của nó là CHẨN ĐOÁN cho ' +
+      'người dựng trên máy Ice/CI, không phải chuỗi người dùng cuối thấy. Đóng ' +
+      '`deferred-work.md:44` — "gốc quét cứng ở src/ và src-tauri/… mở lại khi cây mọc ' +
+      'nhánh thứ ba": `tools/` LÀ nhánh thứ ba, và đây là lượt mở lại đó.',
+  ],
 ]
 
 /** `a/b/**` khớp mọi thứ dưới `a/b/`. Không hỗ trợ `*` giữa đường — không cần. */
@@ -191,10 +199,15 @@ try {
   // "`.rs` dưới `src/`" — và `tests/**` được miễn trừ CÓ TÊN ở `EXEMPT`, không phải
   // bằng một glob lặng lẽ hẹp lại. `target/` bị loại ở `SKIP_DIRS`: nó chứa mã sinh ra
   // và nguồn của crate bên thứ ba, không phải mã của dự án.
-  rsAll = walk(join(REPO_ROOT, 'src-tauri'), '.rs').sort()
+  //
+  // 🔴 `tools/` là NHÁNH THỨ BA (Story 1.9, Task 9) — đóng `deferred-work.md:44`.
+  // Miễn trừ TRỌN ở `EXEMPT` (`tools/**`), nên thêm gốc này KHÔNG được đổi quần thể
+  // in ra sau miễn trừ; nếu số nhảy lên, miễn trừ chưa ăn — sửa miễn trừ, ⛔ đừng chỉnh
+  // sàn cho vừa (xem doc-comment `RS_FLOOR` bên dưới).
+  rsAll = [...walk(join(REPO_ROOT, 'src-tauri'), '.rs'), ...walk(join(REPO_ROOT, 'tools'), '.rs')].sort()
   vueAll = walk(join(REPO_ROOT, 'src'), '.vue').sort()
 } catch (err) {
-  abort('cây nguồn (`src-tauri/**` và `src/**`)', err)
+  abort('cây nguồn (`src-tauri/**`, `tools/**` và `src/**`)', err)
 }
 
 const exemptedFiles = []
@@ -233,6 +246,12 @@ const vueFiles = keep(vueAll)
  * #10 ghi lại nguyên văn vì sao: *"sàn tồn tại để bắt một cây bị cắt mất, không phải để
  * đếm tệp mới"* — đặt nó bằng số thật là tự tạo một cổng đỏ ở story sau, và cổng đỏ vì
  * một lý do không có thật là cổng bị gỡ.
+ *
+ * ⚠️ Story 1.9 (dữ liệu từ điển lớp nền) thêm gốc quét `tools/**` (nhánh thứ ba, đóng
+ * `deferred-work.md:44`) VÀ miễn trừ nó TRỌN ở `EXEMPT`. Quần thể SAU miễn trừ vì vậy
+ * **không đổi** — vẫn 27 tệp `.rs` + 5 tệp `.vue` (đã cập nhật sau Story 1.8; xem lịch
+ * sử ở trên). Sàn `RS_FLOOR`/`VUE_FLOOR` giữ nguyên 21/1 — thêm một nhánh MIỄN TRỪ TRỌN
+ * không phải lý do dời sàn.
  */
 const RS_FLOOR = 21
 const VUE_FLOOR = 1

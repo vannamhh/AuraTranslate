@@ -19,10 +19,15 @@
 # **Story sở hữu nội dung: 1.9** (sinh dữ liệu) và **10.1** (đưa vào bản phát hành).
 # Story 1.2 chỉ dựng khung này.
 
-# [base]
-# url            = ""
-# sha256         = ""
-# source_version = ""
+[base]
+# ⚠️ Release `dict-v1` CHƯA TỒN TẠI trên GitHub tại thời điểm story này giao (2026-08-04)
+# — URL dưới đây ĐÚNG HÌNH DẠNG và đúng tag dự kiến (cổng `check:dict-manifest` kiểm
+# hình dạng, không kiểm tồn tại), nhưng sẽ trả 404 tới khi Ice chạy lệnh ở §Completion
+# Notes để tạo release và tải `dict-core.db` lên. ⛔ Không đoán một tag khác chỉ để URL
+# phản hồi 200 — dict-v1 là tag đúng, chỉ chưa được tạo.
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-core.db"
+sha256         = "358cf0f8afcc52c210caa205cd1b0b175eb9562de1b0917e48850a629cd8bdb5"
+source_version = "cvdict@c379d909e3 (2026-08-04) · cc-cedict@2026-08-04 · unihan@17.0.0 · viwiktionary@2026-08-04 · en-wiktionary@2026-08-04"
 
 # [[detachable]]
 # name           = ""

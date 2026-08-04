@@ -15,7 +15,9 @@
     "check:i18n": "node scripts/check-i18n.mjs",
     "check:commands": "node scripts/check-commands.mjs",
     "check:scope": "node scripts/check-scope.mjs",
-    "check:scope:bundled": "node scripts/check-scope-bundled.mjs"
+    "check:scope:bundled": "node scripts/check-scope-bundled.mjs",
+    "check:dict": "node scripts/check-dict-build.mjs",
+    "check:dict-manifest": "node scripts/check-dict-manifest.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",

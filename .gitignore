@@ -61,6 +61,15 @@ pnpm-debug.log*
 *.db
 *.tmp
 
+# tools/dict-build — nguồn thô tải về + artifact trung gian (Story 1.9). ⛔ Cargo.lock
+# của crate này KHÔNG bị ignore — nó là binary, phải commit.
+tools/dict-build/raw/
+tools/dict-build/out/
+tools/dict-build/work/
+# `/target/` ở trên chỉ neo vào GỐC repo (dấu `/` đầu) — không phủ workspace RIÊNG của
+# build tool (chính điều kiện AC4 đòi). Khai tường minh, ⛔ đừng gộp vào dòng `/target/`.
+tools/dict-build/target/
+
 _bmad-output/*.diff
 _bmad-output/*.patch
 _bmad-output/append.py
