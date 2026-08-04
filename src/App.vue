@@ -7,7 +7,7 @@
 //
 // Self-check phạm vi asset protocol (Kiểm 3 của Task 8) chạy khi bật cờ
 // `VITE_SCOPE_SELFTEST=1`; xem `src/selftest/scopeCheck.ts`.
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import type { ScopeCheckReport } from './selftest/scopeCheck'
 // ⚠️ Import TĨNH có chủ ý, và chỉ hằng này thôi. `./selftest/eventName` là một module
 // rỗng ngoài một chuỗi, nên nó vào bundle chính mà không tốn gì — còn `./selftest/
@@ -26,13 +26,39 @@ import { emitFailureLine, fallbackReportText } from './selftest/fallbackReport'
 // cưỡng chế điều đó bằng cú pháp trên mọi `.vue` của cây nguồn.
 import { dispatch } from './commands'
 import { currentMode } from './modes/modeState'
-import { t } from './i18n'
+import { t, tError } from './i18n'
+// ── Story 1.8 — bề mặt hiển thị lỗi kho, đóng `deferred-work.md:177` ────────────────
+//
+// 🔴 `configError` chỉ khác `null` khi **Rust đã trả lời** bằng một lỗi thật. Một phiên
+// `npm run dev` không có cầu IPC cho `null` — dựng một lỗi giả ở đó làm mọi lần chạy dev
+// mọc một dải *"Không mở được kho dữ liệu"*, tức dạy đúng người đọc bỏ qua đúng dải này.
+// Xem `src/config/bootstrap.ts` §BootstrapResult.
+import { configError } from './config/bootstrap'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
 
 const report = ref<ScopeCheckReport | null>(null)
 const selftestEnabled = import.meta.env.VITE_SCOPE_SELFTEST === '1'
+
+// ── Lượt review 2026-08-04 — công bố lỗi kho cho trình đọc màn hình ─────────────────
+//
+// 🔴 `configError` đã có giá trị TRƯỚC lượt vẽ đầu tiên: `boot()` (`src/main.ts`) `await`
+// xong cấu hình rồi mới `mount()`, nên nếu dải `role="status"` bên dưới đọc thẳng
+// `configError` thì nội dung của nó đã có mặt ngay từ khi node đó lần đầu vào DOM. Theo
+// ngữ nghĩa live-region của ARIA, một vùng chỉ được đảm bảo công bố khi nội dung của nó
+// ĐỔI sau khi vùng đã tồn tại — nội dung có sẵn từ lượt vẽ đầu không được đảm bảo đọc.
+// Đó đúng là ca *"kho chết lúc khởi động"* mà dải này dựng ra để phục vụ.
+//
+// Chốt: `announcedConfigError` khởi tạo RỖNG, nên node `role="status"` vào DOM trước với
+// nội dung trống, rồi được điền ở một lượt render SAU (`nextTick`) — một lượt ĐỔI nội
+// dung thật mà trình đọc màn hình quan sát được, không phải nội dung có sẵn từ đầu.
+const announcedConfigError = ref('')
+
+onMounted(async () => {
+  await nextTick()
+  if (configError.value) announcedConfigError.value = tError(configError.value)
+})
 
 onMounted(async () => {
   if (!selftestEnabled) return
@@ -75,6 +101,35 @@ onMounted(async () => {
 
 <template>
   <main class="shell">
+    <!--
+      🔴 DẢI BÁO LỖI KHÔNG CHẶN — Story 1.8, đóng `deferred-work.md:177`.
+
+      Trước story này, một `$APPDATA` không ghi được chỉ ra `stderr`: `lib.rs::open_global_store`
+      ghi chẩn đoán rồi đi tiếp, và người dùng nhận đúng thứ tệ nhất — im lặng. Nay nó nói ra.
+
+      ⚠️ **KHÔNG CHẶN**, và đó là cả điểm: ứng dụng vẫn dùng được bằng cấu hình mặc định.
+      Một modal ở đây biến một lỗi *"lựa chọn của bạn sẽ không được nhớ"* thành một bức
+      tường — và AD-22 cùng tinh thần: hỏng thì hiện ra, đừng sập.
+
+      ⛔ Nội dung đi qua `tError(err)`, ⛔ không phải một chuỗi viết thẳng: NFR16 nói mọi
+      văn bản hiển thị sống ở `vi.json` và chỉ ở đó. ⛔ `err.code` không bao giờ ra màn
+      hình (AD-21) — nó chỉ để rẽ nhánh.
+
+      ⚠️ `role="status"` chứ không `role="alert"`: `alert` cắt ngang trình đọc màn hình
+      giữa câu, và đây là một thông báo về trạng thái, không phải một tình huống khẩn.
+
+      🔴 HAI NODE, KHÔNG MỘT — xem doc-comment của `announcedConfigError` ở khối script
+      phía trên.
+      `.sr-announcer` mang `role="status"` và LUÔN có mặt trong DOM (không `v-if`) để
+      trình đọc màn hình công bố được nội dung ĐỔI sau `nextTick`; dải `.config-error`
+      hiển thị cho người dùng sáng mắt và vẫn dùng `v-if` bình thường — không cần đợi gì,
+      họ đọc bằng mắt ngay khi nó xuất hiện.
+    -->
+    <p class="sr-announcer" role="status">{{ announcedConfigError }}</p>
+    <p v-if="configError" class="config-error">
+      {{ tError(configError) }}
+    </p>
+
     <header class="titlebar">
       <nav class="modes">
         <button
@@ -135,6 +190,51 @@ onMounted(async () => {
   flex-direction: column;
   height: 100vh;
   margin: 0;
+}
+
+/*
+ * `.sr-announcer` — vùng công bố cho trình đọc màn hình (lượt review 2026-08-04).
+ *
+ * ⚠️ "Visually hidden" bằng `clip`/`position: absolute`, ⛔ KHÔNG `display: none`: một
+ * phần tử `display: none` bị loại khỏi accessibility tree, tức trình đọc màn hình coi nó
+ * chưa từng tồn tại — và một `role="status"` "chưa từng tồn tại" thì lượt điền nội dung
+ * sau đó lại đúng vấn đề ban đầu (node với nội dung mới CÙNG lúc mới xuất hiện). Node
+ * này phải LUÔN hiện diện trong accessibility tree, chỉ ẩn về mặt THỊ GIÁC.
+ *
+ * Các giá trị `1px`/`-1px` ở đây là kích thước hình học của kỹ thuật ẩn, ⛔ không phải
+ * màu hay cỡ chữ — `check:tokens` Kiểm B/D chỉ cưỡng chế hai loại đó.
+ */
+.sr-announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * Dải báo lỗi cấu hình (Story 1.8). Chỉ token đã có — `check:tokens` Kiểm B2 đỏ với một
+ * giá trị màu hay cỡ chữ viết thẳng, và ở đây không có gì cần lách.
+ *
+ * ⚠️ `flex: none` là bắt buộc, không phải làm đẹp: `.shell` là một flex container dọc cao
+ * đúng `100vh`. Không có nó, dải này chạy ở `flex: 0 1 auto` và bị co lại khi `.modeport`
+ * đòi chỗ — tức đúng thông báo mà story này dựng ra để người dùng đọc lại là thứ bị bóp
+ * mất trước tiên. Cùng bài học với `.selftest` ngay dưới.
+ */
+.config-error {
+  flex: none;
+  margin: 0;
+  padding: var(--space-panel-inline);
+  border-bottom: 1px solid var(--color-outline);
+  color: var(--color-error);
+  background: var(--color-surface);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
 }
 
 .titlebar {

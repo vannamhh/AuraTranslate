@@ -224,8 +224,17 @@ const vueFiles = keep(vueAll)
  * đi qua `walk`, 4 tệp `tests/**` miễn trừ. Cây mọc thêm 5 tệp dưới
  * `src-tauri/src/core/store/` và 2 tệp test. Sàn giữ nguyên tỷ lệ dư địa cũ (~78% số
  * thật): nó tồn tại để bắt một cây bị CẮT MẤT, ⛔ không phải để đếm tệp mới.
+ *
+ * ⚠️ Số cập nhật ở Story 1.8 (phân giải cấu hình hai tầng): **27** tệp `.rs` sau miễn trừ
+ * — 33 tệp đi qua `walk`, 6 tệp `tests/**` miễn trừ. Cây mọc thêm 3 tệp dưới
+ * `src-tauri/src/core/scope/`, `src-tauri/src/commands/config.rs`, và 2 tệp test.
+ *
+ * 🔴 Sàn đặt ở **21** (~78% của 27), ⛔ **không** đặt bằng 27. Story 1.7 §Completion Notes
+ * #10 ghi lại nguyên văn vì sao: *"sàn tồn tại để bắt một cây bị cắt mất, không phải để
+ * đếm tệp mới"* — đặt nó bằng số thật là tự tạo một cổng đỏ ở story sau, và cổng đỏ vì
+ * một lý do không có thật là cổng bị gỡ.
  */
-const RS_FLOOR = 18
+const RS_FLOOR = 21
 const VUE_FLOOR = 1
 if (rsFiles.length < RS_FLOOR || vueFiles.length < VUE_FLOOR) {
   abort(

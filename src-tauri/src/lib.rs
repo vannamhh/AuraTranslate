@@ -34,15 +34,30 @@ pub fn run() {
     #[cfg(debug_assertions)]
     let selftest = std::env::var(SCOPE_SELFTEST_ENV).as_deref() == Ok("1");
 
-    let builder = tauri::Builder::default().setup(move |app| {
-        #[cfg(debug_assertions)]
-        if selftest {
-            wire_scope_selftest(app.handle());
-        }
+    let builder = tauri::Builder::default()
+        // ─────────────────────────────────────────────────────────────────────────
+        // 🔴 BỀ MẶT IPC ĐẦU TIÊN CỦA DỰ ÁN — Story 1.8
+        // ─────────────────────────────────────────────────────────────────────────
+        // ⚠️ ⛔ **Không** thêm mục ACL vào `capabilities/main.json` cho hai command này.
+        // Trong Tauri v2, command do **chính ứng dụng** khai không cần quyền — ACL canh
+        // command của **plugin**. `tests/config_invariants.rs:333` khoá tệp đó ở đúng ba
+        // quyền, và nới nó ra là nới đúng thứ AD-23 tồn tại để siết.
+        //
+        // ⚠️ Tên trên dây là tên hàm, nên đường dẫn trỏ vào module `wire` — xem
+        // `commands/config.rs`.
+        .invoke_handler(tauri::generate_handler![
+            crate::commands::config::wire::bootstrap_config,
+            crate::commands::config::wire::put_config,
+        ])
+        .setup(move |app| {
+            #[cfg(debug_assertions)]
+            if selftest {
+                wire_scope_selftest(app.handle());
+            }
 
-        open_global_store(app);
-        Ok(())
-    });
+            open_global_store(app);
+            Ok(())
+        });
 
     // ⚠️ `build(ctx)?.run(callback)` thay cho `run(ctx)`, và phép đổi này KHÔNG có tác
     // dụng phụ nào: `Builder::run` trong `tauri-2.11.5/src/app.rs:2449-2452` **chính là**
@@ -70,11 +85,13 @@ pub fn run() {
 /// 🔴 MỞ KHO TRƯỢT ⇒ GHI CHẨN ĐOÁN RÕ RỒI **ĐI TIẾP**, ⛔ KHÔNG CHẶN KHỞI ĐỘNG
 /// ─────────────────────────────────────────────────────────────────────────────
 /// Hai lý do, và lý do thứ hai là thứ sẽ đỏ ngay hôm nay nếu làm khác:
-/// 1. Chưa có bề mặt nào để **nói** với người dùng — story này ⛔ không dựng
-///    `#[tauri::command]` nào (xem story §*"Vì sao vẫn KHÔNG có command"*). Một
-///    `return Err(…)` ở đây làm cửa sổ không mở, và người dùng nhận đúng thứ tệ nhất:
-///    im lặng. Bề mặt hiển thị thuộc **Story 1.8**, nơi `From<StoreError> for IpcError`
-///    đã dựng sẵn ở `core::store` chỉ còn phải nối dây.
+/// 1. ⚠️ **Cập nhật Story 1.8 — lý do này nay đã ĐỔI, và mệnh lệnh thì không.** Lúc viết,
+///    chưa có bề mặt nào để **nói** với người dùng, nên một `return Err(…)` ở đây làm cửa
+///    sổ không mở và người dùng nhận đúng thứ tệ nhất: im lặng. Nay đã có bề mặt —
+///    `commands::config::bootstrap_config` trả `store.open_failed` khi `try_state` rỗng,
+///    và `src/App.vue` vẽ nó thành một dải báo lỗi **không chặn**. Nên việc *"đi tiếp"* ở
+///    đây từ hôm nay là **đúng** thay vì chỉ là ít tệ nhất: ứng dụng lên bằng cấu hình mặc
+///    định và nói ra rằng nó không đọc được kho, thay vì không lên.
 /// 2. `scripts/check-scope.mjs` và `check-scope-bundled.mjs` chạy nhị phân rồi đọc dòng
 ///    `VERDICT:`. Một `setup()` trả `Err` làm **hai cổng của Story 1.2/1.3 đỏ** vì tầng
 ///    ghi dữ liệu, không vì phạm vi mà chúng canh.

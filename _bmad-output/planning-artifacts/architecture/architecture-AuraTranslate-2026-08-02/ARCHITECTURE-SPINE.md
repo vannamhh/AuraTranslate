@@ -243,10 +243,41 @@ graph TD
   |---|---|---|
   | Glossary | **ghi đè** — tầng Tác phẩm thắng theo từng thuật ngữ | FR46 |
   | Prompt | **ghi đè** | FR69 |
-  | Cấu hình AI | **ghi đè** | FR68 |
+  | Cấu hình AI | **ghi đè** — *theo từng **trường**, không theo cả struct* | FR68 |
   | Translation Memory | **hợp nhất** — trả kết quả cả hai tầng | FR57 |
   | Luật làm sạch khi nhập | **hợp nhất** — luật toàn cục **cộng** luật Tác phẩm cùng áp | FR124 |
   | Tên người dịch | **ghi đè** | FR131 |
+  | Phím tắt | **chỉ toàn cục** | FR103 |
+  | Preset bố cục | **chỉ toàn cục** | FR103 |
+  | Lựa chọn ứng dụng (theme, chế độ cuối) | **chỉ toàn cục** | FR103 |
+
+  > **Ngữ nghĩa thứ ba — *chỉ toàn cục* — thêm ở Story 1.8, Ice phê chuẩn 2026-08-04.**
+  > FR103 đặt phím tắt và preset bố cục ở tầng Global **và không cho chúng đối ứng ở tầng
+  > Tác phẩm**; `mockups/settings.html:246` nói thẳng: *"Phím tắt chỉ tồn tại ở tầng Toàn
+  > cục — một thao tác không nên đổi phím theo từng Tác phẩm."* Khai chúng bằng một trong
+  > hai ngữ nghĩa cũ đều sai, và sai **im lặng**: *ghi đè* mở một tầng Tác phẩm mà UX đã
+  > cấm, nên Story 1.14/1.21 sẽ dựng thanh chuyển phạm vi cho một thứ không nên có; *hợp
+  > nhất* thì vô nghĩa. Một tầng Tác phẩm cho các loại này trả lỗi, ⛔ không bị bỏ qua im
+  > lặng — bỏ qua im lặng là cách một tầng bị cấm vẫn được ghi xuống đĩa rồi không bao giờ
+  > có tác dụng.
+  >
+  > **Cấu hình AI ghi đè theo từng *trường*, không theo cả struct** *(làm rõ ở Story 1.8,
+  > cùng lượt ký)*. Bảng này trước đây chỉ ghi *"ghi đè"*, và Story 4.2 cũng chỉ nói *"ghi
+  > đè được theo Tác phẩm đó"*. Chỉ `mockups/settings.html` lộ ra rằng trong **cùng một**
+  > cấu hình có trường `ghi đè` và trường `kế thừa` cùng lúc (`:172`, `:188`, `:200`) — tức
+  > Epic 4 phân giải nó như một map `khoá trường → giá trị`, y hệt Glossary.
+  >
+  > **⛔ `ngôn ngữ nguồn` KHÔNG phải một loại ở bảng này.** FR103 liệt kê nó ở tầng Tác
+  > phẩm, nhưng Story 5.1 định nghĩa nó là trường **bất biến** trong `meta.json` — đặt lúc
+  > tạo, không đổi được (`prd.md:765-774`: *"cố định, đặt lúc tạo"*, mệnh đề mà
+  > `epics.md:296` làm rơi mất) — và nó **không có đối ứng ở tầng Global**, nên không có gì
+  > để ghi đè. Nó là thuộc tính của `Work`, không phải cấu hình hai tầng.
+  >
+  > **Cưỡng chế:** bảng này sống bằng máy ở `src-tauri/src/core/scope/kinds.rs`, sinh từ
+  > macro `scope_kinds!` — **không tồn tại cú pháp nào khai được một loại mà không kèm ngữ
+  > nghĩa**. `tests/scope_contract.rs::the_semantics_table_matches_ad_18_row_by_row` đối
+  > chiếu từng hàng; `tests/scope_boundary.rs` cấm mọi module ngoài `core/scope/**` mang từ
+  > vựng phân giải hai tầng.
 
   > **Vì sao luật làm sạch là *hợp nhất* chứ không *ghi đè*:** rác web chia làm hai loại có vòng đời khác nhau — loại chung cho mọi nguồn (dòng *"nguồn: xxx"*, lời nhắn người đăng) thuộc tầng toàn cục, loại riêng của một site hay một bộ truyện thuộc tầng Tác phẩm. Ngữ nghĩa *ghi đè* buộc người dùng chép lại toàn bộ luật chung vào từng Tác phẩm chỉ để thêm một mẫu riêng. Đây là loại dữ liệu **cộng dồn**, giống TM chứ không giống Glossary.
 

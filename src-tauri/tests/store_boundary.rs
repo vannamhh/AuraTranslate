@@ -41,7 +41,15 @@ const STORE_DIR: &str = "core/store";
 /// Số thật lúc dựng (Story 1.7): **22** tệp — 17 kế thừa + 5 tệp của `core/store/`. Sàn
 /// đặt **dưới** số thật đúng khuôn `RS_FLOOR`/`VUE_FLOOR` của `check-i18n.mjs`: nó bắt
 /// một cây bị cắt mất, ⛔ không bắt việc thêm tệp mới.
-const RS_FLOOR: usize = 18;
+///
+/// ⚠️ Story 1.8: số thật là **26** — thêm 3 tệp `core/scope/` và `commands/config.rs`. Sàn
+/// lên **20** (~77%).
+///
+/// 🔴 ⛔ **Quần thể này KHÁC quần thể của `check-i18n.mjs`** — ở đây là `src-tauri/src/**`
+/// (26 tệp), ở đó là `src-tauri/**` sau miễn trừ `tests/**` (27 tệp, gồm `build.rs`). Hai
+/// con số gần nhau và chúng **không** thay thế nhau được; chép số của tệp kia sang đây là
+/// đặt một cái sàn cho một cây khác.
+const RS_FLOOR: usize = 20;
 
 /// Những chuỗi mà **chỉ** `core::store` được mang.
 ///

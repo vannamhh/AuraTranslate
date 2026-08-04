@@ -117,20 +117,48 @@ export type CommandDeps = {
   setMode: (mode: ModeId) => void
   /** Tiêm được để Kiểm D lái hai nền tảng. Mặc định đọc từ `detectIsMac()`. */
   isMac?: boolean
+  /**
+   * Hợp âm đọc **từ đĩa** (`global.db`, loại `shortcut`) — Story 1.8, AC5.
+   *
+   * ⚠️ **TIÊM VÀO, ⛔ không `invoke` ở tệp này.** `scripts/check-commands.mjs` (Kiểm
+   * C/D/E) và `scripts/check-i18n.mjs` (Kiểm E) nạp thẳng tệp này bằng **Node thuần**,
+   * nên một `import` giá trị của `@tauri-apps/api` giết ba phép kiểm hành vi cùng lúc.
+   * Đường nạp sống ở `src/config/bootstrap.ts`; `src/main.ts` nối hai đầu — đúng cùng
+   * cửa mà `setMode` đã đi qua từ Story 1.6.
+   *
+   * Khoá là id thao tác, giá trị là danh sách hợp âm. Thiếu một id ⇒ dùng mặc định của
+   * chính hàm này; ⛔ `undefined` (chưa nạp gì) khác hẳn `{}` (đã nạp, chưa ai đặt gì)
+   * chỉ ở chỗ đọc, không ở kết quả.
+   */
+  bindings?: Readonly<Record<string, readonly string[]>>
 }
 
 /**
- * Đăng ký bộ command khởi động và dựng keymap. Gọi **một lần**, từ `src/main.ts`.
+ * Hợp âm cho một thao tác: đĩa thắng, ⛔ nhưng chỉ khi đĩa **có nói gì**.
  *
- * ⚠️ Gọi lần thứ hai ⇒ `register()` ném vì id trùng. Đó là hành vi ĐÚNG (AC2) chứ không
- * phải một chỗ cần nới: hai lượt cài đặt trong một tiến trình nghĩa là hai keymap cùng
- * nghe một cửa sổ, và cái sau sẽ dispatch mọi hợp âm hai lần.
+ * ⚠️ `?? fallback` chứ không `|| fallback`: một mảng rỗng trên đĩa là một phát biểu hợp lệ
+ * — *"thao tác này cố ý không có phím"* — và `||` sẽ lặng lẽ dựng lại hợp âm mặc định cho
+ * nó. Story 1.21 (màn gán phím) dựa vào việc gỡ hết phím là một trạng thái lưu được.
  */
-export function installCommands(deps: CommandDeps): Keymap {
-  const { setMode } = deps
+function chordsFor(
+  id: CommandId,
+  bindings: CommandDeps['bindings'],
+  fallback: readonly string[] | undefined,
+): readonly string[] | undefined {
+  return bindings?.[id] ?? fallback
+}
 
+/**
+ * Đăng ký bộ command khởi động vào **một** registry. Tách ra để dùng được hai lần: một lần
+ * trên registry thật, một lần trên một registry nháp — xem [`bindingsAreUsable`].
+ */
+function registerAll(
+  target: Registry,
+  setMode: (mode: ModeId) => void,
+  bindings: CommandDeps['bindings'],
+): void {
   for (const mode of MODE_IDS) {
-    registry.register({
+    target.register({
       id: `mode.${mode}`,
       // §Quyết định thiết kế #4 — tiền tố `command.` là bắt buộc, không dùng thẳng id
       // làm khoá: `command.mode.library` cho nhãn hôm nay, `command.mode.library.hint`
@@ -138,7 +166,7 @@ export function installCommands(deps: CommandDeps): Keymap {
       // trong `vi.json` liệt kê đúng bộ nhãn thao tác.
       labelKey: `command.mode.${mode}`,
       // `Mod` — KHÔNG phải `Meta`. Xem §Trap 1 ở đầu `./keys.ts`.
-      keys: [`Mod+${MODE_IDS.indexOf(mode) + 1}`],
+      keys: chordsFor(`mode.${mode}`, bindings, [`Mod+${MODE_IDS.indexOf(mode) + 1}`]),
       run: () => {
         setMode(mode)
         // ⛔ KHÔNG gọi `enterFocus` ở đây. Phần tử của chế độ vừa chọn chưa có trong
@@ -160,16 +188,79 @@ export function installCommands(deps: CommandDeps): Keymap {
    *
    * ⛔ Nhưng handler thì CHẠY THẬT. Một command rỗng đăng ký cho đủ số là đúng thứ story
    * này tồn tại để chặn.
+   *
+   * ⚠️ Mặc định là `undefined` — nhưng nếu `global.db` có một hợp âm cho id này thì nó
+   * ĐƯỢC dùng: gán phím là quyền của người dùng, và Story 1.21 là màn hình để làm việc đó,
+   * không phải một cái khoá lên chính dữ liệu đó.
    */
-  registry.register({
+  target.register({
     id: 'focus.next_panel',
     labelKey: 'command.focus.next_panel',
+    keys: chordsFor('focus.next_panel', bindings, undefined),
     run: () => {
       focus.next(PANEL_PREFIX)
     },
   })
+}
 
-  keymap = createKeymap(registry, { isMac: deps.isMac ?? detectIsMac() })
+/**
+ * 🔴 §Bẫy 5 — **hợp âm đọc từ đĩa gây xung đột ⇒ ứng dụng không mở được**.
+ *
+ * `keys.ts:270` phát hiện hai command trùng hợp âm và `createKeymap` **ném**;
+ * `installCommands` chạy **trước `mount()`**. Một `global.db` sửa tay *(hoặc một lượt nhập
+ * cấu hình từ máy khác)* là đủ để một cú ném ở đó cho ra **cửa sổ trắng** — và người dùng
+ * mất luôn đường vào để sửa chính cái làm hỏng.
+ *
+ * Chốt: thử dựng keymap trên một registry **nháp** trước. Xung đột ⇒ ghi chẩn đoán rõ rồi
+ * **rơi về hợp âm mặc định**, và ứng dụng lên bình thường.
+ *
+ * ⚠️ Registry nháp chứ ⛔ không thử trên registry thật rồi dọn: `register()` ném với id
+ * trùng (AC2 của Story 1.6, và đó là hành vi đúng), nên không có lượt đăng ký thứ hai nào
+ * để dọn về. Nháp là đường duy nhất không phải nới một phép cưỡng chế đang đúng.
+ *
+ * ⛔ Đây ⛔ **không** phải màn giải quyết xung đột — đó là **Story 1.21**. Ở đây chỉ có
+ * *"đừng chết"*.
+ */
+function bindingsAreUsable(
+  bindings: NonNullable<CommandDeps['bindings']>,
+  isMac: boolean,
+): boolean {
+  try {
+    const scratch = createRegistry()
+    // `setMode` rỗng: registry nháp không bao giờ được `dispatch`, nó chỉ tồn tại để
+    // `createKeymap` có cái để phân giải hợp âm trên.
+    registerAll(scratch, () => {}, bindings)
+    createKeymap(scratch, { isMac })
+    return true
+  } catch (err) {
+    console.error(
+      '[commands] hợp âm đọc từ `global.db` không dựng được keymap — rơi về hợp âm mặc ' +
+        'định. Lựa chọn phím tắt của bạn KHÔNG bị xoá, chỉ tạm không áp; màn hình gán ' +
+        `phím (Story 1.21) là chỗ sửa. Nguyên nhân: ${String(err)}`,
+    )
+    return false
+  }
+}
+
+/**
+ * Đăng ký bộ command khởi động và dựng keymap. Gọi **một lần**, từ `src/main.ts`.
+ *
+ * ⚠️ Gọi lần thứ hai ⇒ `register()` ném vì id trùng. Đó là hành vi ĐÚNG (AC2) chứ không
+ * phải một chỗ cần nới: hai lượt cài đặt trong một tiến trình nghĩa là hai keymap cùng
+ * nghe một cửa sổ, và cái sau sẽ dispatch mọi hợp âm hai lần.
+ */
+export function installCommands(deps: CommandDeps): Keymap {
+  const isMac = deps.isMac ?? detectIsMac()
+
+  // Hợp âm từ đĩa chỉ được dùng khi chúng dựng được một keymap — xem `bindingsAreUsable`.
+  const bindings =
+    deps.bindings !== undefined && bindingsAreUsable(deps.bindings, isMac)
+      ? deps.bindings
+      : undefined
+
+  registerAll(registry, deps.setMode, bindings)
+
+  keymap = createKeymap(registry, { isMac })
   return keymap
 }
 

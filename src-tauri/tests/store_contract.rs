@@ -40,8 +40,8 @@ use std::time::{Duration, Instant};
 
 use auratranslate_lib::core::i18n::{IpcError, MessageKey};
 use auratranslate_lib::core::store::{
-    GLOBAL_MIGRATIONS, Migration, SCHEMA_MIGRATION_LOG_DDL, Store, StoreError, StoreKind,
-    StoreSpec, Tuning,
+    GLOBAL_MIGRATIONS, Migration, SCHEMA_MIGRATION_LOG_DDL, SqlResult, Store, StoreError,
+    StoreKind, StoreSpec, Tuning,
 };
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -711,10 +711,21 @@ fn close_truncates_the_wal_to_nothing() {
 
 /// Bộ di trú **hai bước** để nghiệm thu AC6 vế *"đúng một bước chạy"* và vế sao lưu.
 ///
-/// ⚠️ `GLOBAL_MIGRATIONS` hôm nay có **đúng một** bước, nên `target - 1 == 0` — mà 0 là
-/// *"chưa có lược đồ"*, tức không có gì để sao lưu. Ca 10 của story vì thế **không thể**
-/// nghiệm thu trên bộ di trú thật, và đó chính là lý do `StoreSpec::migrations` là một
-/// trường chứ không phải một hằng tra theo `kind`.
+/// ⚠️ **Cập nhật Story 1.8.** Câu trước đây ở chỗ này — *"`GLOBAL_MIGRATIONS` hôm nay có
+/// đúng một bước, nên `target - 1 == 0`… Ca 10 vì thế không thể nghiệm thu trên bộ di trú
+/// thật"* — đã **thôi đúng**: bước 2 (`CONFIG_VALUE_DDL`) làm `target - 1 == 1`, tức Ca 10
+/// nay nghiệm thu được trên bộ di trú thật.
+///
+/// ⛔ **Nhưng `TWO_STEP` và `spec_with_migrations` GIỮ NGUYÊN**, và lý do không đổi một
+/// chữ nào: `StoreSpec.migrations` là một **trường** chứ không phải một hằng tra theo
+/// `kind` (Story 1.7 §Completion Notes #2), và fixture cục bộ là cách duy nhất nghiệm thu
+/// AC6 vế *"một bước gãy giữa chừng ⇒ rollback"* (`BROKEN_STEP_TWO`) mà **không** phải
+/// thêm mã sản phẩm chỉ để test gọi. Story 1.15 dùng đúng trường đó cho `project.db`.
+///
+/// 🔴 Ba ca dưới đây chạy trên fixture cục bộ, ⛔ **không** phụ thuộc `GLOBAL_MIGRATIONS`.
+/// Sửa các con số của chúng cho *"nhất quán"* với bộ di trú thật là hướng hỏng ĐẮT: hai ca
+/// nghiệm thu **sao lưu trước khi di trú** và **rollback khi bước gãy** im lặng mất hiệu
+/// lực, và CI vẫn xanh.
 static TWO_STEP: [Migration; 2] = [
     Migration {
         to_version: 1,
@@ -749,6 +760,13 @@ fn spec_with_migrations(dir: &Path, migrations: &'static [Migration]) -> StoreSp
 }
 
 /// **Ca 9** — database mới tinh (`user_version = 0`) di trú lên target và ghi sổ.
+///
+/// 🔴 Ca **DUY NHẤT** ở tệp này chạy trên `GLOBAL_MIGRATIONS` THẬT (qua `spec_with`), nên
+/// nó là ca duy nhất phải đổi khi một story thêm một bước di trú. Đó là công việc của nó,
+/// không phải một phiền nhiễu: nó canh rằng số phiên bản đổi là một quyết định **có người
+/// ký**, chứ không phải một hiệu ứng phụ của một lượt sửa lược đồ.
+///
+/// ⚠️ Cập nhật Story 1.8: bước 2 thêm bảng `config_value` ⇒ target là **2**.
 #[test]
 fn a_fresh_database_migrates_up_to_target_and_logs_it() {
     let dir = temp_dir("fresh-migrate");
@@ -756,36 +774,63 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
 
     assert_eq!(
         store.schema_version(),
-        1,
-        "`GLOBAL_MIGRATIONS` có một bước, nên một database mới phải kết thúc ở phiên bản 1"
+        2,
+        "`GLOBAL_MIGRATIONS` có hai bước (Story 1.7 sổ di trú · Story 1.8 `config_value`), \
+         nên một database mới phải kết thúc ở phiên bản 2"
     );
 
-    let (rows, version, app_version, applied_at) = store
+    let (rows, versions, app_version, applied_at) = store
         .read(|conn| {
             let rows: i64 =
                 conn.query_row("SELECT COUNT(*) FROM schema_migration_log", [], |r| r.get(0))?;
-            let (version, app_version, applied_at): (i64, String, String) = conn.query_row(
-                "SELECT version, app_version, applied_at FROM schema_migration_log",
+            let mut stmt =
+                conn.prepare("SELECT version FROM schema_migration_log ORDER BY version")?;
+            let versions: Vec<i64> = stmt
+                .query_map([], |r| r.get(0))?
+                .collect::<SqlResult<Vec<i64>>>()?;
+            let (app_version, applied_at): (String, String) = conn.query_row(
+                "SELECT app_version, applied_at FROM schema_migration_log WHERE version = 1",
                 [],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )?;
-            Ok((rows, version, app_version, applied_at))
+            Ok((rows, versions, app_version, applied_at))
         })
         .expect("đọc sổ di trú");
 
-    assert_eq!(rows, 1, "sổ di trú phải có đúng một bản ghi");
-    assert_eq!(version, 1);
+    assert_eq!(rows, 2, "sổ di trú phải có đúng một bản ghi cho MỖI bước");
+    assert_eq!(
+        versions,
+        vec![1, 2],
+        "cả hai bước phải có mặt trong sổ — một bước chạy mà không ghi sổ là đúng ca \
+         *sổ nói chưa chạy mà lược đồ thì đã*"
+    );
     assert_eq!(app_version, env!("CARGO_PKG_VERSION"));
     assert!(
         applied_at.ends_with('Z') && applied_at.contains('T') && applied_at.len() >= 20,
         "`applied_at` phải là ISO-8601 UTC (Consistency Conventions). Nhận: {applied_at}"
     );
 
+    // Bước 2 thật sự đã dựng bảng, không chỉ tăng số phiên bản.
+    let config_table: i64 = store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'config_value'",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .expect("đọc sqlite_master");
+    assert_eq!(
+        config_table, 1,
+        "bước 2 phải dựng bảng `config_value` — một `user_version = 2` mà không có bảng là \
+         một lược đồ nói dối"
+    );
+
     // `PRAGMA user_version` thật sự đã đổi, không chỉ trường trong bộ nhớ.
     let on_disk: i64 = store
         .read(|conn| conn.query_row("PRAGMA user_version", [], |r| r.get(0)))
         .expect("đọc user_version");
-    assert_eq!(on_disk, 1);
+    assert_eq!(on_disk, 2);
 
     drop(store);
     cleanup(&dir);

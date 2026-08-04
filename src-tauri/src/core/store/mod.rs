@@ -91,7 +91,7 @@ pub(crate) mod schema;
 pub(crate) mod writer;
 
 pub use checkpoint::CheckpointStats;
-pub use schema::{GLOBAL_MIGRATIONS, Migration, SCHEMA_MIGRATION_LOG_DDL};
+pub use schema::{CONFIG_VALUE_DDL, GLOBAL_MIGRATIONS, Migration, SCHEMA_MIGRATION_LOG_DDL};
 
 /// Kiểu giao dịch mà một job ghi nhận được. Tái xuất để chỗ gọi **không phải gõ
 /// `rusqlite`** — xem [`ReadHandle`] cho cùng lý do.

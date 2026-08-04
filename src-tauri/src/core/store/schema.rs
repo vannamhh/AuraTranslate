@@ -69,14 +69,61 @@ pub struct Migration {
     pub sql: &'static str,
 }
 
-/// Bộ di trú của `global.db`. Hôm nay đúng **một** bước — xem [`SCHEMA_MIGRATION_LOG_DDL`].
+/// Lược đồ bảng cấu hình khoá-giá trị — **bước 2 của `global.db`**, Story 1.8 AC5.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỘT BẢNG, KHÔNG PHẢI BA — và ⛔ không phải một bảng cho MỌI loại
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Hai cám dỗ đối nghịch, cả hai đều sai:
+///
+/// - **Ba bảng** (`keybinding` + `layout_preset` + `app_config`) là dựng lược đồ cho hai
+///   tính năng chưa tồn tại (Story 1.14, Story 1.21). Quy tắc đã khoá ngay trên đây:
+///   *mỗi story sở hữu bước di trú của chính nó, cùng lúc với bảng mà nó cần*.
+/// - **Một bảng cho tất cả** — tức cả Glossary, TM, Prompt và luật làm sạch cùng nhét vào
+///   cột `value TEXT` — là dựng một lược đồ EAV mà bốn epic sau phải bóc ra: Glossary có
+///   phân loại/xuất xứ/vòng đời ba trạng thái (Story 3.1), TM có cặp văn bản + xuất xứ
+///   (AD-6), luật làm sạch có mẫu regex + cờ bật tắt (Story 6.5).
+///
+/// **Chốt:** bảng này phục vụ **riêng** ba loại `Semantics::GlobalOnly` của
+/// `core::scope::ScopeKind` — `shortcut`, `layout_preset`, `app_config`. Mỗi module miền
+/// mang bảng riêng của nó, ở epic của nó.
+///
+/// ⚠️ Cột `kind` là chuỗi chứ không phải một `CHECK` liệt kê ba giá trị: một `CHECK` biến
+/// mọi loại `GlobalOnly` mới thành một bước di trú, trong khi phép cưỡng chế thật đã nằm
+/// ở `ScopeKind` phía Rust — nơi trình biên dịch làm việc đó (AC4).
+///
+/// ⚠️ ⛔ Không cột `tier`. Bảng này **là** tầng Global; một cột tầng ở đây là mời người
+/// sau ghi một hàng `tier = 'work'` vào `global.db`, tức đúng thứ
+/// `ScopeError::WorkTierForbidden` tồn tại để từ chối.
+pub const CONFIG_VALUE_DDL: &str = "\
+CREATE TABLE config_value (
+  kind       TEXT NOT NULL,
+  key        TEXT NOT NULL,
+  value      TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (kind, key)
+);";
+
+/// Bộ di trú của `global.db`. Hôm nay **hai** bước.
 ///
 /// ⛔ Không thêm bước cho một lược đồ chưa tồn tại. Mỗi story sở hữu bước di trú của
 /// chính nó, cùng lúc với bảng mà nó cần.
-pub const GLOBAL_MIGRATIONS: &[Migration] = &[Migration {
-    to_version: 1,
-    sql: SCHEMA_MIGRATION_LOG_DDL,
-}];
+///
+/// ⚠️ Thêm một bước ở đây làm `tests/store_contract.rs` đỏ ở **đúng một** ca
+/// (`a_fresh_database_migrates_up_to_target_and_logs_it`, ca duy nhất chạy trên bộ di trú
+/// THẬT), và đó là hành vi đúng: số phiên bản đổi phải là một quyết định có người ký, chứ
+/// không phải một hiệu ứng phụ. ⛔ Đừng "sửa cho nhất quán" các con số trong `TWO_STEP` /
+/// `BROKEN_STEP_TWO` — chúng là fixture cục bộ và không phụ thuộc hằng này.
+pub const GLOBAL_MIGRATIONS: &[Migration] = &[
+    Migration {
+        to_version: 1,
+        sql: SCHEMA_MIGRATION_LOG_DDL,
+    },
+    Migration {
+        to_version: 2,
+        sql: CONFIG_VALUE_DDL,
+    },
+];
 
 /// Phiên bản cao nhất mà một bộ di trú đạt tới. Bộ rỗng ⇒ 0.
 ///

@@ -19,3 +19,22 @@
 //! quên tham số mà chuỗi đòi (`params: BTreeMap::new()` cho một khoá có `{path}`) biên
 //! dịch sạch và qua mọi phép kiểm còn lại — rồi đặt nguyên văn `{path}` lên màn hình
 //! người dùng. Danh sách tham số bắt buộc khai cạnh khoá trong `message_keys!`.
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! KHUÔN ĐÃ CHỐT (Story 1.8) — **hàm thuần trước, `#[tauri::command]` là vỏ**
+//! ─────────────────────────────────────────────────────────────────────────────
+//! Mỗi bề mặt IPC gồm hai lớp, và thứ tự phụ thuộc chỉ đi một chiều:
+//!
+//! 1. một **hàm thuần** nhận `Option<&Store>` *(hoặc thứ tương đương đã phân giải)* —
+//!    đây là đường sản phẩm, và đây là thứ `tests/**` gọi được **mà không cần webview**;
+//! 2. một `#[tauri::command]` mỏng trong module `wire` chỉ lấy `State` qua `try_state`
+//!    rồi gọi xuống lớp 1.
+//!
+//! 🔴 `try_state`, ⛔ **không** `state()`: `lib.rs::open_global_store` ghi chẩn đoán rồi
+//! **đi tiếp** khi mở kho thất bại, nên `app.manage(store)` có thể chưa từng chạy. Một
+//! `state::<Store>()` thẳng tay panic, và `panic = "abort"` giết cả tiến trình.
+//!
+//! ⚠️ **Tên command trên dây là tên hàm** — nên vỏ phải mang đúng cái tên mà `invoke()`
+//! gọi, và đó là lý do nó sống trong một module lồng thay vì mang một hậu tố.
+
+pub mod config;

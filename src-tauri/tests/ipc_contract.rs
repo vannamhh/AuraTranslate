@@ -5,28 +5,33 @@
 //! đọc được.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! NGHIỆM THU AC3 KHI CHƯA CÓ MỘT `#[tauri::command]` NÀO
+//! NGHIỆM THU AC3 BẰNG `serde_json` — VÌ ĐÓ CHÍNH LÀ THỨ CHẠY TRÊN DÂY
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `src-tauri/src/commands/mod.rs` hôm nay chỉ có doc-comment — chưa một hàm IPC nào
-//! tồn tại. Câu hỏi hợp lý: nghiệm thu *"lỗi đi qua ranh giới IPC"* bằng gì khi chưa
-//! có ranh giới nào để đi qua?
-//!
-//! **Bằng test serialize, và nó nghiệm thu đúng thứ AC3 nói.** Tauri v2 đưa giá trị
-//! trả về của `#[tauri::command]` qua IPC bằng **chính `serde_json`**, không có tầng
-//! biến đổi nào chen giữa (kiểm trên `tauri = 2.11.5`). `serde_json::to_value(…)` cho
-//! ra **đúng byte** mà frontend sẽ nhận. Đây là bằng chứng về dây, không phải một
-//! phép mô phỏng.
+//! Tauri v2 đưa giá trị trả về của `#[tauri::command]` qua IPC bằng **chính
+//! `serde_json`**, không có tầng biến đổi nào chen giữa (kiểm trên `tauri = 2.11.5`).
+//! `serde_json::to_value(…)` cho ra **đúng byte** mà frontend sẽ nhận. Đây là bằng
+//! chứng về dây, không phải một phép mô phỏng.
 //!
 //! ⛔ Đừng dựng một `#[tauri::command]` giả để "chứng minh cho thật". Nó là mã sản
 //! phẩm không ai gọi; chạy nó cần một webview, tức một bước CI cần phiên đồ hoạ và
-//! một lượt biên dịch profile `dev` riêng (đắt nhất trên macOS, hệ số ×10); và vòng
-//! chạy thật đến **miễn phí** từ Story 1.6, khi command thật đầu tiên xuất hiện. Hợp
-//! đồng đã bị khoá lại từ đây, nên nếu vòng đó lệch thì lệch ở phía command mới.
+//! một lượt biên dịch profile `dev` riêng (đắt nhất trên macOS, hệ số ×10).
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! 🔴 CẬP NHẬT STORY 1.8 — GIÁ TRỊ ĐEM SERIALIZE NAY ĐẾN TỪ ĐƯỜNG SẢN PHẨM
+//! ─────────────────────────────────────────────────────────────────────────────
+//! Lúc viết, `src-tauri/src/commands/` chưa có một hàm IPC nào, nên
+//! `ipc_error_wire_shape` dựng một `IpcError` bằng tay rồi khẳng định về chính nó — một
+//! **mệnh đề vòng** mà `deferred-work.md:49` giao đích danh Story 1.8 phải chữa.
+//!
+//! Nay dự án có hai command thật, và cả hai đều là vỏ mỏng của một **hàm thuần** nhận
+//! `Option<&Store>`. Test gọi thẳng hàm thuần đó: không cần webview, không cần fixture,
+//! và thứ được serialize là thứ máy người dùng phát ra.
 
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 
+use auratranslate_lib::commands::config::{BootstrapConfig, bootstrap_config};
 use auratranslate_lib::core::i18n::{IpcError, MessageKey};
 
 /// `CARGO_MANIFEST_DIR` trỏ `src-tauri/`, nên phải lùi một cấp. Cùng khuôn
@@ -68,13 +73,42 @@ fn read_vi_json() -> BTreeMap<String, String> {
 /// 🔴 Phép kiểm quan trọng nhất ở đây là `keys()` so với **bốn chuỗi nguyên văn**.
 /// `#[serde(rename_all = "camelCase")]` trên `IpcError` biên dịch sạch và không làm
 /// đỏ bất cứ thứ gì khác trong repo — chỉ dòng này đỏ.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 ĐÃ CHỮA MỆNH ĐỀ VÒNG — Story 1.8 đóng `deferred-work.md:49`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Bản trước dựng một `IpcError` bằng tay ngay tại đây rồi khẳng định về **chính cái
+/// nó vừa dựng**. Nó chứng minh `Serialize` của `IpcError` đúng, và không chứng minh
+/// được rằng có **đường sản phẩm nào** thật sự phát ra hình dạng đó — hai mệnh đề khác
+/// nhau, và mệnh đề thứ hai là thứ AD-21 nói.
+///
+/// Nay giá trị đến từ `commands::config::bootstrap_config(None)` — **đường sản phẩm
+/// thật**, đúng hàm mà `#[tauri::command]` cùng tên bọc lại, chạy đúng nhánh mà một
+/// `$APPDATA` không ghi được sẽ chạy trên máy người dùng.
+///
+/// ⛔ Và ⛔ **không** phải một command giả dựng lên cho vừa lời hứa cũ:
+/// `deferred-work.md:49` cấm đích danh đường đó. Hàm này nhận `Option<&Store>` để test
+/// gọi được **mà không cần webview** (§Quyết định #6), chứ không phải để test có một
+/// thứ riêng để gọi.
 #[test]
 fn ipc_error_wire_shape() {
-    let err = IpcError::new(
-        "io.read_failed",
-        MessageKey::IoReadFailed,
-        BTreeMap::from([("path".to_owned(), "/tmp/a.txt".to_owned())]),
-        false,
+    // `None` = kho chưa bao giờ được `manage` — nhánh mà `lib.rs::open_global_store` để
+    // ngỏ khi `$APPDATA` không ghi được, và là bề mặt lỗi mà `deferred-work.md:177` chờ.
+    let err = bootstrap_config(None).expect_err(
+        "`bootstrap_config(None)` phải trả lỗi: không có kho thì không có gì để đọc. \
+         Một `Ok` ở đây nghĩa là hàm đã im lặng bịa ra một cấu hình.",
+    );
+
+    assert_eq!(
+        err.code(),
+        "store.open_failed",
+        "kho vắng mặt phải nói đúng tên của nó — frontend rẽ nhánh trên `code`"
+    );
+    assert_eq!(err.message_key(), MessageKey::StoreOpenFailed);
+    assert!(
+        !err.retryable(),
+        "một kho chưa bao giờ mở được không tự mở ra ở lần bấm thứ hai — \
+         `retryable` ở đây là nói dối (AD-22)"
     );
 
     let value = serde_json::to_value(&err).expect("IpcError phải serialize được");
@@ -93,7 +127,7 @@ fn ipc_error_wire_shape() {
 
     assert_eq!(
         object.get("message_key").and_then(|v| v.as_str()),
-        Some("err.io.read_failed"),
+        Some("err.store.open_failed"),
         "`message_key` phải serialize thành KHOÁ CHẤM, không phải tên biến thể. \
          Nhận `\"IoReadFailed\"` nghĩa là `Serialize` viết tay đã bị thay bằng `#[derive(Serialize)]` \
          — một chuỗi hợp lệ mà frontend không tra được, tức hỏng im lặng."
@@ -102,10 +136,11 @@ fn ipc_error_wire_shape() {
     assert_eq!(
         object.get("params").and_then(|v| v.as_object()),
         Some(&serde_json::Map::from_iter([(
-            "path".to_owned(),
-            serde_json::Value::String("/tmp/a.txt".to_owned())
+            "store".to_owned(),
+            serde_json::Value::String("global".to_owned())
         )])),
-        "`params` phải là object `chuỗi -> chuỗi`; giá trị số hay object lồng là sai hợp đồng"
+        "`params` phải là object `chuỗi -> chuỗi` và mang DỮ LIỆU (tên kho), ⛔ không mang \
+         câu — `detail` thô của SQLite không bao giờ đi vào đây (Story 1.7 §Completion Notes #5)"
     );
     assert_eq!(
         object.get("retryable").and_then(|v| v.as_bool()),
@@ -114,8 +149,37 @@ fn ipc_error_wire_shape() {
     );
     assert_eq!(
         object.get("code").and_then(|v| v.as_str()),
-        Some("io.read_failed"),
+        Some("store.open_failed"),
         "`code` phải đi nguyên văn — frontend rẽ nhánh trên nó"
+    );
+
+    // 🔴 Đối chứng dương của việc chữa mệnh đề vòng: đường thành công cũng phải serialize
+    // đúng hình dạng đã hứa. Không có nó thì `bootstrap_config` được phép chỉ đúng ở
+    // nhánh lỗi — tức nửa đường sản phẩm vẫn chưa ai quan sát.
+    let ok_shape = serde_json::to_value(BootstrapConfig {
+        theme: "light".to_owned(),
+        mode: "library".to_owned(),
+        shortcuts: BTreeMap::new(),
+        layout_presets: BTreeMap::new(),
+    })
+    .expect("BootstrapConfig phải serialize được");
+    // ⚠️ Sắp xếp trước khi so: `serde_json::Map` là `BTreeMap` hay `IndexMap` tuỳ feature
+    // `preserve_order`, tức thứ tự khoá là chi tiết cài đặt của một crate. Mệnh đề ở đây
+    // là về **chính tả tên khoá**, không về thứ tự — buộc nó vào thứ tự là tự tạo một ca
+    // đỏ giả vào ngày ai đó bật một feature không liên quan.
+    let mut ok_keys: Vec<&str> = ok_shape
+        .as_object()
+        .expect("BootstrapConfig phải serialize thành một JSON object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    ok_keys.sort_unstable();
+    assert_eq!(
+        ok_keys,
+        vec!["layout_presets", "mode", "shortcuts", "theme"],
+        "khoá trên dây là `snake_case`. Nhận được: {ok_keys:?}. Nghi phạm số một: \
+         `#[serde(rename_all = \"camelCase\")]` trên `BootstrapConfig` — nó biến \
+         `layout_presets` thành `layoutPresets` và chỗ đọc nhận `undefined`."
     );
 
     // ⛔ Không văn bản hiển thị nào được đi qua dây. Mệnh đề trung tâm của AD-21, và
