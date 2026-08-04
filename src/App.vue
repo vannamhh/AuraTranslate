@@ -14,6 +14,11 @@ import type { ScopeCheckReport } from './selftest/scopeCheck'
 // scopeCheck` thì KHÔNG được import tĩnh: làm vậy là kéo cả mã self-check vào bản
 // release, phá đúng bất biến mà `#[cfg(debug_assertions)]` phía Rust đang giữ.
 import { SELFTEST_EVENT } from './selftest/eventName'
+// Cùng khuôn, cùng lý do an toàn bundle — nhưng vì AC2 của Story 1.5: hai chuỗi chẩn
+// đoán dưới đây từng nằm nguyên văn trong template literal ở tệp này, và một chuỗi
+// tiếng Việt trong `.vue` là vi phạm NFR16 mà `npm run check:i18n` bắt được.
+// ⛔ Chúng KHÔNG thuộc `vi.json` — đọc doc-comment của `fallbackReport.ts`.
+import { emitFailureLine, fallbackReportText } from './selftest/fallbackReport'
 
 const report = ref<ScopeCheckReport | null>(null)
 const selftestEnabled = import.meta.env.VITE_SCOPE_SELFTEST === '1'
@@ -35,7 +40,7 @@ onMounted(async () => {
     // Cả hai đều cho một unhandled rejection trong `onMounted` ⇒ không event nào được
     // phát ⇒ script bọc treo tới timeout rồi báo "webview không mở được", trong khi
     // webview mở bình thường. Nên: bọc lần hai, và luôn còn `console.log` làm đường lui.
-    const text = `AuraTranslate — asset protocol scope self-check (Story 1.2 AC3 · Story 1.3 AC8)\nmode:     undetermined  (self-check gãy trước khi chạy)\n\n[FAIL] self-check gãy trước khi chạy: ${String(err)}\n\nVERDICT: FAIL`
+    const text = fallbackReportText(err)
     console.log(text)
     try {
       const { emit } = await import('@tauri-apps/api/event')
@@ -51,7 +56,7 @@ onMounted(async () => {
       // Không còn đường nào phát về Rust. Dòng `VERDICT: FAIL` ở trên đã ra stdout, và
       // đó chính là thứ `scripts/check-scope*.mjs` đọc — nên lượt chạy vẫn kết luận
       // được, chỉ là qua log thay vì qua mã thoát của ứng dụng.
-      console.log(`[FAIL] không phát được event self-check về Rust: ${String(emitErr)}`)
+      console.log(emitFailureLine(emitErr))
     }
   }
 })

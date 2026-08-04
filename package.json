@@ -12,6 +12,7 @@
     "tauri": "tauri",
     "check:deps": "node scripts/check-deps.mjs",
     "check:tokens": "node scripts/check-tokens.mjs",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "check:scope": "node scripts/check-scope.mjs",
     "check:scope:bundled": "node scripts/check-scope-bundled.mjs"
   },

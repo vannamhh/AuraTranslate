@@ -1,1 +1,4 @@
-{}
+{
+  "err.unknown": "Thao tác không hoàn tất vì một lỗi chưa được phân loại.",
+  "err.io.read_failed": "Không đọc được tệp tại {path} — nội dung chưa được nạp."
+}
