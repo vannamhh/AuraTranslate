@@ -1,4 +1,13 @@
 {
   "err.unknown": "Thao tác không hoàn tất vì một lỗi chưa được phân loại.",
-  "err.io.read_failed": "Không đọc được tệp tại {path} — nội dung chưa được nạp."
+  "err.io.read_failed": "Không đọc được tệp tại {path} — nội dung chưa được nạp.",
+  "command.mode.library": "Library",
+  "command.mode.workspace": "Workspace",
+  "command.mode.reading": "Chế độ đọc",
+  "command.focus.next_panel": "Sang panel kế tiếp",
+  "mode.library.status": "Library chưa có Tác phẩm nào.",
+  "mode.workspace.status": "Chưa có Chương nào được mở.",
+  "mode.reading.status": "Chưa có bản dịch nào để đọc lại.",
+  "panel.source.title": "Nguyên văn",
+  "panel.editor.title": "Bản dịch"
 }

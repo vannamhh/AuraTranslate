@@ -119,6 +119,26 @@ jobs:
       - name: check UI strings and IPC error shape (NFR16, AD-21 — Story 1.5)
         run: npm run check:i18n
 
+      # Năm phép kiểm CommandRegistry — AD-34 · FR22 · NFR17 (Story 1.6). Cổng thứ tư,
+      # cùng khuôn và cùng lý do đặt chỗ với ba bước ngay trên: chỉ đọc tệp, xong trong
+      # vài giây, không cần `dist/`, không cần phiên đồ hoạ. Một `@click` tự cài đặt thao
+      # tác tại chỗ phải đỏ TRƯỚC khi tốn một lượt biên dịch Rust.
+      #
+      # ⛔ Đừng đẩy bước này xuống cụm cuối nơi `check:scope` / `check:scope:bundled` đứng
+      # — hai bước đó chờ webview, bước này thì không.
+      #
+      # 🔴 Kiểm D là phép kiểm DUY NHẤT trong dự án đứng giữa `⌘1` và người dùng Windows:
+      # nó nạp `src/commands/keys.ts` rồi lái CẢ HAI ca `isMac`. Một cài đặt chỉ đọc
+      # `event.metaKey` đi qua cả hai nhánh của ma trận này (không có test nào chạm tầng
+      # bàn phím) rồi hỏng ở tay người dùng — vi phạm NFR14 nặng nhất còn lọt được.
+      #
+      # ⚠️ Kiểm C/D/E `import()` thẳng `src/commands/*.ts` — chúng dựa vào việc Node ≥ 22.18
+      # bóc kiểu TypeScript mặc định, đúng đường mà Kiểm E của `check:i18n` đã chạy thật từ
+      # Story 1.5. `node-version` của job đang là '22'; hạ số đó xuống là làm ba phép kiểm
+      # hành vi `abort()` với exit 1, không phải im lặng bỏ qua.
+      - name: check CommandRegistry and keyboard focus (AD-34, FR22, NFR17 — Story 1.6)
+        run: npm run check:commands
+
       # ⚠️⚠️ THỨ TỰ BẮT BUỘC — bước này PHẢI đứng TRƯỚC `cargo test`.
       # `tauri::generate_context!` nhúng `frontendDist: "../dist"` LÚC BIÊN DỊCH. `dist/`
       # chưa tồn tại thì `cargo test` gãy ở khâu biên dịch, không ở một assert. Trên máy
@@ -465,6 +485,13 @@ jobs:
       #  `check UI strings and IPC error shape` (NFR16 · AD-21), đặt kề bước token vì
       #  cùng lý do. Ghi ra đây để sổ này vẫn là sổ đầy đủ: danh sách trên là *đã biết
       #  lúc viết*, không phải *tất cả sẽ có*.
+      #
+      #  ✅ Story 1.6 đóng luật thứ hai ngoài danh sách — `check CommandRegistry and
+      #  keyboard focus` (AD-34 · FR22 · NFR17), cùng cụm với ba bước trên vì cùng hình
+      #  dạng: chỉ đọc tệp, không cần `dist/`, không cần webview. Trong đó **Kiểm D** là
+      #  phép kiểm duy nhất của dự án lái cả hai nhánh `Mod → ⌘ | Ctrl`; nó chạy được
+      #  trên MỘT nền tảng vì nền tảng là một tham số tiêm vào, không phải một lời gọi
+      #  `navigator` — nên nó vẫn canh được người dùng Windows kể cả ở lượt chạy macOS.
       #
       #  Đặt bước mới ngay dưới khối này. Chúng chạy trên CẢ HAI nền tảng của matrix mà
       #  không phải khai gì thêm — đó là lý do job được viết thành một job có matrix chứ
