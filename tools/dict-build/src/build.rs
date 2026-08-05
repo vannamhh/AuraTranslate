@@ -97,7 +97,7 @@ where
     Ok(())
 }
 
-/// Dựng lớp NỀN — `dict-core.db`. `raw_dir` chứa BỐN thư mục con (`cvdict/`,
+/// Dựng lớp NỀN — `dict-core.db`. `raw_dir` chứa NĂM thư mục con (`cvdict/`,
 /// `cc_cedict/`, `unihan/`, `viwiktionary/`, `en_wiktionary/`) theo quy ước đã ghi ở
 /// `tools/dict-build/README.md`. `out_path` là `.db` đích.
 ///

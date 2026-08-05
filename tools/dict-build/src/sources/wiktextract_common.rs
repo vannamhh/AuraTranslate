@@ -54,6 +54,11 @@ pub fn parse_line(
     filter_lang_code: Option<&str>,
     entry_lang: &str,
 ) -> Result<Option<RawEntry>, ParseIssue> {
+    debug_assert!(
+        matches!(entry_lang, "zh" | "en"),
+        "entry_lang không thuộc tập đã biết {{\"zh\",\"en\"}}: {entry_lang:?}"
+    );
+
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return Ok(None);
