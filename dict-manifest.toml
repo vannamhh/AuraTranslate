@@ -23,14 +23,42 @@
 # ⚠️ Release `dict-v1` CHƯA TỒN TẠI trên GitHub tại thời điểm story này giao (2026-08-04)
 # — URL dưới đây ĐÚNG HÌNH DẠNG và đúng tag dự kiến (cổng `check:dict-manifest` kiểm
 # hình dạng, không kiểm tồn tại), nhưng sẽ trả 404 tới khi Ice chạy lệnh ở §Completion
-# Notes để tạo release và tải `dict-core.db` lên. ⛔ Không đoán một tag khác chỉ để URL
+# Notes để tạo release và tải cả ba tệp lên. ⛔ Không đoán một tag khác chỉ để URL
 # phản hồi 200 — dict-v1 là tag đúng, chỉ chưa được tạo.
+#
+# 🔴 SHA-256 CẬP NHẬT ở Story 1.10 (2026-08-05): lượt chạy Task 10 dùng `--layer all`
+# (mặc định), nên nó dựng lại CẢ BA tệp — kể cả dict-core.db, và `insert_meta` dùng chung
+# thêm một HÀNG `dict_meta('layer','base')` vào đó. 0 dòng đổi ở schema.rs/năm parser nền,
+# nhưng tệp NHỊ PHÂN vẫn khác ⇒ giữ số cũ sẽ là một checksum SAI cho tệp thật sẽ lên
+# release. Ice chốt sau lượt code review: giữ tệp mới + checksum mới.
+# ⚠️ Đính chính: `--layer thieu-chuu`/`--layer vietphrase` chạy ĐƠN LẺ được và ⛔ không
+# chạm base — nên việc dựng lại là hệ quả của LỆNH đã chạy, ⛔ không phải bất khả kháng.
+#
+# 🔴 CHECKSUM Ở ĐÂY GIỜ TÁI LẬP ĐƯỢC (AD-25, sửa sau lượt code review): `dict_meta
+# ('built_at')` không còn lấy từ `strftime('now')` — nó dẫn xuất từ CHÍNH nguồn thô
+# (`SOURCE_DATE_EPOCH`, hoặc mtime mới nhất trong `raw/`). Cùng một cây nguồn thô ⇒ cùng
+# một tệp `.db` byte-for-byte ⇒ cùng SHA-256. Trước đó, hai lượt build liên tiếp từ cùng
+# một cây fixture ra hai hash khác nhau, tức mọi số dưới đây chỉ đúng cho ĐÚNG MỘT lượt
+# chạy và ⛔ không cổng nào bắt được sai lệch.
+# ✅ BA SỐ DƯỚI ĐÂY đến từ lượt dựng lại 2026-08-05T09:33 SAU khi vá — cùng lượt chạy
+# `--layer all` sinh ra cả ba tệp, `built_at = 2026-08-04T23:53:16Z` (dẫn xuất từ mtime
+# nguồn thô, giống nhau ở cả ba). Dựng lại từ cùng cây `raw/` ⇒ ra ĐÚNG ba số này.
+# Xác nhận: `dict-thieu-chuu.db` cho cùng hash qua ba lượt dựng vào ba thư mục đích khác
+# nhau. Từ đây, `cargo run` lại ⛔ không còn làm hỏng manifest.
 url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-core.db"
-sha256         = "358cf0f8afcc52c210caa205cd1b0b175eb9562de1b0917e48850a629cd8bdb5"
+sha256         = "741e166673534ab4e9666b3f9638aef40f27850762f94df42537d0d4b3450a34"
 source_version = "cvdict@c379d909e3 (2026-08-04) · cc-cedict@2026-08-04 · unihan@17.0.0 · viwiktionary@2026-08-04 · en-wiktionary@2026-08-04"
 
-# [[detachable]]
-# name           = ""
-# url            = ""
-# sha256         = ""
-# source_version = ""
+# Hai lớp gỡ rời trong phạm vi Story 1.10 (Ice chốt 2026-08-05: Thiều Chửu + VietPhrase).
+# Cùng release `dict-v1` với [base] — ba tệp thuộc MỘT thế hệ dữ liệu (§Quyết định #6).
+[[detachable]]
+name           = "thieu-chuu"
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-thieu-chuu.db"
+sha256         = "e9417c12f5adc256e8cc7d49c42d09c3378fb9082fc6fd678beadf7ebe43c9d5"
+source_version = "catusf/tudien@2.2 (2022-10-10)"
+
+[[detachable]]
+name           = "vietphrase"
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-vietphrase.db"
+sha256         = "9d304210c16cd65abe9f5ed529d1b00542c3aa19cfe14d3eb6bfcc8a1a78f735"
+source_version = "truyencuatui/VietPhrase@master (tải 2026-08-05, chuyển UTF-8)"

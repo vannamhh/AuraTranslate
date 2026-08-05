@@ -1,0 +1,35 @@
+Tuyên bố xuất xứ và giấy phép — VietPhrase
+============================================
+
+Nguồn gốc
+---------
+Dữ liệu VietPhrase (tệp VietPhrase.txt, dạng "<đầu mục Hán>=<nghĩa1>/<nghĩa2>/…")
+là dữ liệu cộng đồng, phổ biến rộng rãi trong cộng đồng dịch truyện Trung-Việt
+qua nhiều năm dưới tên "VietPhrase" / "Từ điển VietPhrase". Bản dùng ở đây lấy
+từ kho mã nguồn mở github.com/truyencuatui/VietPhrase (nhánh master), đóng
+băng năm 2020.
+
+Trạng thái bản quyền — KHÔNG XÁC ĐỊNH ĐƯỢC TÁC GIẢ
+-----------------------------------------------------
+Kho "truyencuatui/VietPhrase" KHÔNG kèm tệp LICENSE, KHÔNG khai tên tác giả
+gốc, và không có nguồn nào khác truy ra được ai là (những) người biên soạn
+ban đầu. Đây là tình trạng "orphan work" điển hình của dữ liệu cộng đồng lan
+truyền qua nhiều bản sao trước khi có ý thức về giấy phép.
+
+⚠️ "Không xác định được tác giả" KHÁC với "không có bản quyền" (public domain).
+Dữ liệu này KHÔNG được coi là phạm vi công cộng — nó có thể vẫn thuộc bản
+quyền của (những) tác giả chưa xác định được danh tính. `license_kind` của
+nguồn này ghi `unknown`, KHÔNG ghi `public-domain`, để không đánh lừa người
+dùng về trạng thái pháp lý thật của dữ liệu.
+
+Vì sao vẫn đóng gói
+--------------------
+AuraTranslate đóng gói nguồn này theo FR36 (mỗi lớp dữ liệu là một file `.db`
+độc lập, gỡ được bằng cách xoá file) và chính sách gỡ bỏ FR112: nếu tác giả
+gốc xuất hiện và yêu cầu gỡ, chủ dự án chỉ cần xoá một file `dict-vietphrase.db`
+khỏi bản phát hành kế tiếp — không cần đổi một dòng mã nào khác trong sản
+phẩm, và các lớp dữ liệu khác (nền, Thiều Chửu) không bị ảnh hưởng.
+
+Nếu bạn là tác giả hoặc đại diện hợp pháp của dữ liệu VietPhrase và muốn dữ
+liệu này được gỡ khỏi AuraTranslate, xin liên hệ chủ dự án qua kho mã nguồn
+của AuraTranslate trên GitHub.

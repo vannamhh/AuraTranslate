@@ -1,0 +1,45 @@
+Tuyên bố xuất xứ và giấy phép — Từ điển Thiều Chửu (Hán Việt Tự Điển)
+======================================================================
+
+Tác phẩm gốc
+------------
+"Hán Việt Tự Điển" do Thiều Chửu (tên thật: Nguyễn Hữu Kha, 1902–1954) biên
+soạn, xuất bản lần đầu năm 1942. Tác giả mất năm 1954. Theo luật bản quyền
+hiện hành (bảo hộ quyền tác giả tới 50–75 năm sau khi tác giả mất, tuỳ luật
+áp dụng), tác phẩm gốc đã HẾT THỜI HẠN BẢO HỘ QUYỀN TÀI SẢN và thuộc PHẠM VI
+CÔNG CỘNG (public domain).
+
+Bản số hoá dùng trong AuraTranslate
+------------------------------------
+Dữ liệu văn bản dùng ở đây (tệp TudienThienChuu.txt) là bản số hoá lấy từ kho
+mã nguồn mở "catusf/tudien" (phiên bản 2.2, 2022-10-10), và đã được xác minh
+khớp byte-for-byte (cùng SHA-256) với bản trong kho đó. Kho "catusf/tudien"
+phát hành bản số hoá này theo giấy phép:
+
+    CC0 1.0 Universal (Public Domain Dedication)
+
+Toàn văn giấy phép CC0 1.0 nằm ở tệp cạnh đây: CC0-1.0.txt. Người số hoá đã
+từ bỏ mọi quyền tài sản có thể có đối với công sức số hoá, đưa bản số hoá này
+vào phạm vi công cộng một cách tường minh.
+
+⚠️ Nghĩa vụ ghi công — quyền nhân thân (moral rights)
+-------------------------------------------------------
+Phạm vi công cộng của quyền TÀI SẢN KHÔNG xoá bỏ quyền NHÂN THÂN của tác giả
+(quyền được nêu tên, quyền bảo vệ sự toàn vẹn của tác phẩm). Tại nhiều hệ
+thống pháp luật — bao gồm pháp luật Việt Nam — quyền nhân thân của tác giả
+được bảo hộ VÔ THỜI HẠN, kể cả sau khi tác phẩm đã vào phạm vi công cộng.
+
+Vì vậy, MỌI lần trình bày dữ liệu từ nguồn này (màn hình Attribution, tài
+liệu phát hành, v.v.) BẮT BUỘC nêu rõ tên tác giả:
+
+    Thiều Chửu (Nguyễn Hữu Kha, 1902–1954)
+
+Đây là NGHĨA VỤ PHÁP LÝ, không phải một phép lịch sự tuỳ chọn.
+
+Tóm tắt cho người dùng cuối
+----------------------------
+- Bạn được tự do sử dụng, sao chép, sửa đổi, và phân phối lại dữ liệu này
+  cho bất kỳ mục đích nào, kể cả thương mại, không cần xin phép.
+- Bạn KHÔNG có nghĩa vụ pháp lý phải ghi công về mặt quyền tài sản (CC0), nhưng
+  AuraTranslate vẫn ghi công tên tác giả trong sản phẩm vì quyền nhân thân nêu
+  trên là nghĩa vụ độc lập với giấy phép CC0 của bản số hoá.

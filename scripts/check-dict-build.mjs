@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Cổng `tools/dict-build` — Task 7 của Story 1.9. Ba phép kiểm, đúng khuôn doctrine
- * `check-deps.mjs`/`check-i18n.mjs`: script trả mã thoát khác 0 khi thất bại, lỗi hạ
- * tầng KHÔNG được báo thành "đạt", miễn trừ CÓ TÊN và CÓ LÝ DO, in ra mỗi lượt chạy.
+ * Cổng `tools/dict-build` — Task 7 của Story 1.9, siết thêm ở Task 8 của Story 1.10.
+ * Năm phép kiểm, đúng khuôn doctrine `check-deps.mjs`/`check-i18n.mjs`: script trả mã
+ * thoát khác 0 khi thất bại, lỗi hạ tầng KHÔNG được báo thành "đạt", miễn trừ CÓ TÊN và
+ * CÓ LÝ DO, in ra mỗi lượt chạy.
  *
  * Kiểm A — từ vựng HỢP NHẤT (AD-19, §Quyết định #4 của Story 1.9). Quét
  *          `tools/dict-build/src/**\/*.rs` tìm token cấm; miễn trừ khai bằng comment
@@ -11,6 +12,13 @@
  *          và KHÔNG phụ thuộc nào trỏ `path` sang `src-tauri`.
  * Kiểm C — sàn số tệp (bài học `check-deps.mjs:15-17`, `store_boundary.rs:44`): cây
  *          rỗng ⛔ không được đọc thành sạch.
+ * Kiểm D — chống TRÔI giữa `sources_meta.rs` (Rust) và `dict-manifest.toml` (Story
+ *          1.10): mã lớp gỡ rời khai trong `DETACHABLE_ALL` phải khớp CHÍNH XÁC tập
+ *          `name` mà `check-dict-manifest.mjs` đòi ở `[[detachable]]`.
+ * Kiểm E — cách ly lớp (AD-19, §Bẫy 3 của Story 1.10): `src/sources/{thieu_chuu,
+ *          vietphrase}.rs` và đường dựng lớp gỡ rời (`build.rs`) ⛔ không token
+ *          `dict-core`/`dict_core` — đường dựng lớp gỡ rời không bao giờ được PHÉP mở
+ *          `dict-core.db`. Cùng cơ chế miễn trừ với Kiểm A.
  *
  * Chạy:  npm run check:dict
  */
@@ -43,7 +51,10 @@ const posix = (p) => relative(REPO_ROOT, p).split(sep).join('/')
 // Đọc cây `tools/dict-build/src/**/*.rs` — SÀN chống "cây rỗng đọc thành sạch"
 // (Kiểm C).
 // ═════════════════════════════════════════════════════════════════════════════════
-const RS_FILE_FLOOR = 10 // số thật 2026-08-04: 18 tệp .rs dưới src/
+// 🔴 Sàn phải SÁT số thật, ⛔ không để hở đúng bằng số tệp mà story vừa thêm — sàn 18
+// với số thật 20 cho phép xoá CẢ HAI parser lớp gỡ rời mà Kiểm C vẫn xanh (Review
+// Findings 1.10). Thêm/bớt tệp .rs ⇒ cập nhật con số này cùng lượt.
+const RS_FILE_FLOOR = 20 // số thật 2026-08-05 (Story 1.10): 20 tệp .rs dưới src/
 
 function walkRs(dir, out = []) {
   let entries
@@ -209,6 +220,240 @@ if (workspaceTrue.test(cargoToml)) {
   fail('Cargo.toml có `workspace = true` — dấu hiệu crate này đã bị kéo vào workspace khác')
 } else {
   pass('không khai `workspace = true` cho phụ thuộc nào')
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Kiểm D — chống trôi giữa Rust (`sources_meta.rs`) và `dict-manifest.toml` (Story 1.10)
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm D — chống trôi giữa DETACHABLE_ALL (Rust) và [[detachable]] (manifest)')
+
+const sourcesMetaPath = join(SRC_ROOT, 'sources_meta.rs')
+let sourcesMetaText = ''
+try {
+  sourcesMetaText = readFileSync(sourcesMetaPath, 'utf8')
+} catch (err) {
+  abort(`${posix(sourcesMetaPath)}`, err)
+}
+
+// Bước 1 — lấy danh sách TÊN HẰNG trong mảng `DETACHABLE_ALL: [&SourceMeta; N] = [&X, &Y];`
+const detachableArrayMatch = sourcesMetaText.match(/DETACHABLE_ALL\s*:\s*\[[^\]]*\]\s*=\s*\[([^\]]*)\]/)
+let rustDetachableCodes = []
+if (!detachableArrayMatch) {
+  fail("không tìm thấy khai báo 'DETACHABLE_ALL' trong sources_meta.rs — Kiểm D không chạy được")
+} else {
+  const constNames = detachableArrayMatch[1]
+    .split(',')
+    .map((s) => s.trim().replace(/^&/, ''))
+    .filter(Boolean)
+
+  // Bước 2 — với MỖI tên hằng, tìm khối `pub const <TÊN>: SourceMeta = SourceMeta { ... };`
+  // rồi lấy trường `code: "..."` bên trong.
+  for (const name of constNames) {
+    const constRe = new RegExp(`pub const ${name}\\s*:\\s*SourceMeta\\s*=\\s*SourceMeta\\s*\\{([\\s\\S]*?)\\};`)
+    const constMatch = sourcesMetaText.match(constRe)
+    if (!constMatch) {
+      fail(`DETACHABLE_ALL khai '${name}' nhưng không tìm thấy khối 'pub const ${name}: SourceMeta { ... }'`)
+      continue
+    }
+    const codeMatch = constMatch[1].match(/code\s*:\s*"([^"]*)"/)
+    if (!codeMatch) {
+      fail(`khối '${name}' không có trường 'code: "..."'`)
+      continue
+    }
+    rustDetachableCodes.push(codeMatch[1])
+  }
+  pass(`DETACHABLE_ALL (Rust) khai ${rustDetachableCodes.length} mã lớp: ${JSON.stringify(rustDetachableCodes)}`)
+}
+
+const manifestPath = join(REPO_ROOT, 'dict-manifest.toml')
+let manifestText = ''
+try {
+  manifestText = readFileSync(manifestPath, 'utf8')
+} catch (err) {
+  abort(`${posix(manifestPath)}`, err)
+}
+
+// Chỉ lấy `name = "..."` xuất hiện SAU một dòng `[[detachable]]` — tránh vô tình khớp
+// `name` của một section khác nếu manifest mở rộng thêm bảng trong tương lai.
+const manifestDetachableNames = []
+{
+  const lines = manifestText.split(/\r\n|\n/)
+  let inDetachableBlock = false
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (/^\[\[detachable\]\]$/.test(trimmed)) {
+      inDetachableBlock = true
+      continue
+    }
+    if (/^\[/.test(trimmed)) {
+      inDetachableBlock = false
+      continue
+    }
+    if (inDetachableBlock) {
+      const m = trimmed.match(/^name\s*=\s*"([^"]*)"/)
+      if (m) manifestDetachableNames.push(m[1])
+    }
+  }
+}
+
+const rustSet = new Set(rustDetachableCodes)
+const manifestSet = new Set(manifestDetachableNames)
+const missingFromManifest = rustDetachableCodes.filter((c) => !manifestSet.has(c))
+const extraInManifest = manifestDetachableNames.filter((n) => !rustSet.has(n))
+
+// 🔴 SÀN của Kiểm D — cùng doctrine với sàn số tệp của Kiểm C: một cây RỖNG ⛔ không
+// được đọc thành sạch. Trước đây cả hai nhánh dưới đều bị chặn bởi
+// `rustDetachableCodes.length > 0`, nên `DETACHABLE_ALL` rỗng cho ra 0 failure và cổng
+// chống-trôi in "Tất cả phép kiểm đạt" đúng lúc cả hai lớp biến mất khỏi Rust.
+if (rustDetachableCodes.length === 0) {
+  fail(
+    "DETACHABLE_ALL (Rust) khai 0 mã lớp gỡ rời — Kiểm D không có gì để đối chiếu. " +
+      'Một danh sách rỗng ⛔ không phải "đạt": story hôm nay có HAI lớp gỡ rời.'
+  )
+} else if (missingFromManifest.length === 0 && extraInManifest.length === 0) {
+  pass(`dict-manifest.toml [[detachable]] khớp CHÍNH XÁC DETACHABLE_ALL: ${JSON.stringify(manifestDetachableNames)}`)
+} else {
+  if (missingFromManifest.length) {
+    fail(`DETACHABLE_ALL có mã lớp KHÔNG có mục [[detachable]] tương ứng trong manifest: ${JSON.stringify(missingFromManifest)}`)
+  }
+  if (extraInManifest.length) {
+    fail(`dict-manifest.toml có [[detachable]] 'name' KHÔNG khớp mã lớp nào trong DETACHABLE_ALL: ${JSON.stringify(extraInManifest)}`)
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Kiểm E — cách ly lớp (§Bẫy 3 của Story 1.10): đường dựng lớp gỡ rời KHÔNG BAO GIỜ
+// được phép mở dict-core.db. Cùng cơ chế miễn trừ với Kiểm A.
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm E — cách ly lớp (§Bẫy 3: đường dựng lớp gỡ rời không mở dict-core.db)')
+
+const ISOLATION_TOKENS = ['dict-core', 'dict_core']
+
+// Phạm vi quét DẪN XUẤT, ⛔ không viết cứng từng đường dẫn: mọi parser lớp gỡ rời khai
+// trong DETACHABLE_ALL (theo `code` → tên module `snake_case`) cộng đường điều phối
+// `build.rs`. Đổi tên một parser hay thêm parser thứ ba ⇒ phạm vi tự đi theo.
+const detachableModuleFiles = rustDetachableCodes.map(
+  (code) => `tools/dict-build/src/sources/${code.replace(/-/g, '_')}.rs`
+)
+const ISOLATION_SCOPE = [...detachableModuleFiles, 'tools/dict-build/src/build.rs']
+const isolationFiles = rsFiles.filter((f) => ISOLATION_SCOPE.includes(posix(f)))
+
+// 🔴 SÀN của Kiểm E — cùng doctrine với Kiểm C và Kiểm D. Trước đây danh sách viết cứng
+// ⛔ không có sàn: đổi tên `sources/thieu_chuu.rs` làm `isolationFiles` co về 0 phần tử,
+// vòng lặp ⛔ không tìm thấy vi phạm nào, và cổng in OK đúng lúc §Bẫy 3 mất hiệu lực.
+const missingIsolationFiles = ISOLATION_SCOPE.filter(
+  (want) => !isolationFiles.some((f) => posix(f) === want)
+)
+if (missingIsolationFiles.length) {
+  fail(
+    `Kiểm E không quét được ${missingIsolationFiles.length} tệp thuộc phạm vi cách ly (đổi tên/xoá tệp?): ${JSON.stringify(missingIsolationFiles)}`
+  )
+}
+
+let isolationExemptCount = 0
+const isolationViolations = []
+for (const file of isolationFiles) {
+  const text = readFileSync(file, 'utf8')
+  const lines = text.split(/\r\n|\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (/^\s*\/\//.test(line)) continue // comment thuần — không phải mã, chỉ dùng để tra miễn trừ
+    const lowerLine = line.toLowerCase()
+    for (const token of ISOLATION_TOKENS) {
+      if (!lowerLine.includes(token.toLowerCase())) continue
+      let exempted = false
+      for (let j = i - 1; j >= 0 && /^\s*\/\//.test(lines[j]); j--) {
+        const allowMatch = lines[j].match(ALLOW_RE)
+        if (allowMatch && allowMatch[1] === token) {
+          exempted = true
+          break
+        }
+      }
+      if (exempted) {
+        isolationExemptCount += 1
+        continue
+      }
+      isolationViolations.push({ file: posix(file), line: i + 1, token, text: line.trim() })
+    }
+  }
+}
+
+if (isolationViolations.length) {
+  fail(`${isolationViolations.length} lần dùng token 'dict-core'/'dict_core' không có miễn trừ hợp lệ trong đường dựng lớp gỡ rời:`)
+  for (const v of isolationViolations) {
+    detail(`${v.file}:${v.line} — token '${v.token}' — ${v.text}`)
+  }
+} else {
+  pass(`không token 'dict-core'/'dict_core' nào ngoài miễn trừ hợp lệ (${isolationFiles.length} tệp đã quét)`)
+}
+console.log(`       miễn trừ đã dùng: ${isolationExemptCount}`)
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Kiểm F — chống trôi `source_version` giữa Rust và manifest. Hằng `SOURCE_VERSION`
+// trong mỗi module parser lớp gỡ rời và `source_version` của mục `[[detachable]]` tương
+// ứng là HAI chuỗi chép tay: nâng nguồn lên @2.3 mà chỉ sửa một bên cho ra một release
+// mang dữ liệu 2.3 nhưng metadata công bố 2.2 — đúng lớp lỗi mà `version_or_warn` đã
+// được viết ra để chặn cho lớp nền.
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm F — chống trôi source_version giữa Rust và dict-manifest.toml')
+
+// `source_version` của từng mục `[[detachable]]`, khoá theo `name`.
+const manifestSourceVersions = new Map()
+{
+  const lines = manifestText.split(/\r\n|\n/)
+  let inBlock = false
+  let currentName = null
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (/^\[\[detachable\]\]$/.test(trimmed)) {
+      inBlock = true
+      currentName = null
+      continue
+    }
+    if (/^\[/.test(trimmed)) {
+      inBlock = false
+      currentName = null
+      continue
+    }
+    if (!inBlock) continue
+    const nameMatch = trimmed.match(/^name\s*=\s*"([^"]*)"/)
+    if (nameMatch) currentName = nameMatch[1]
+    const versionMatch = trimmed.match(/^source_version\s*=\s*"([^"]*)"/)
+    if (versionMatch && currentName) manifestSourceVersions.set(currentName, versionMatch[1])
+  }
+}
+
+let sourceVersionChecked = 0
+for (const code of rustDetachableCodes) {
+  const modulePath = join(REPO_ROOT, 'tools', 'dict-build', 'src', 'sources', `${code.replace(/-/g, '_')}.rs`)
+  let moduleText = ''
+  try {
+    moduleText = readFileSync(modulePath, 'utf8')
+  } catch {
+    fail(`không đọc được module parser của lớp '${code}': tools/dict-build/src/sources/${code.replace(/-/g, '_')}.rs`)
+    continue
+  }
+  const constMatch = moduleText.match(/pub const SOURCE_VERSION\s*:\s*&str\s*=\s*"([^"]*)"\s*;/)
+  if (!constMatch) {
+    fail(`module của lớp '${code}' không khai 'pub const SOURCE_VERSION: &str = "…";'`)
+    continue
+  }
+  const manifestValue = manifestSourceVersions.get(code)
+  if (manifestValue === undefined) {
+    fail(`lớp '${code}' không có 'source_version' trong mục [[detachable]] tương ứng`)
+    continue
+  }
+  if (constMatch[1] !== manifestValue) {
+    fail(`source_version của lớp '${code}' LỆCH giữa Rust và manifest`)
+    detail(`Rust     : ${JSON.stringify(constMatch[1])}`)
+    detail(`manifest : ${JSON.stringify(manifestValue)}`)
+    continue
+  }
+  sourceVersionChecked += 1
+}
+
+if (sourceVersionChecked === rustDetachableCodes.length && rustDetachableCodes.length > 0) {
+  pass(`source_version khớp giữa Rust và manifest cho cả ${sourceVersionChecked} lớp gỡ rời`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────

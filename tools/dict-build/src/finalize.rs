@@ -20,6 +20,25 @@ pub fn sibling_path(path: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(s)
 }
 
+/// Dọn sạch mọi tệp cũ ở `out_path`/tệp `.tmp` cạnh nó (cộng `-wal`/`-shm`) — LUÔN là một
+/// lượt dựng MỚI từ đầu, ⛔ không phải cập nhật tệp cũ. Trả về đường dẫn tệp TẠM để dựng
+/// vào. Dùng chung cho CẢ BA đường dựng — base lẫn từng lớp gỡ rời (Task 5, Story 1.10).
+pub fn prepare_fresh_output(out_path: &Path) -> std::io::Result<PathBuf> {
+    let tmp_path = sibling_path(out_path, ".tmp");
+    for p in [out_path, &tmp_path] {
+        if p.exists() {
+            std::fs::remove_file(p)?;
+        }
+        for suffix in ["-wal", "-shm"] {
+            let sib = sibling_path(p, suffix);
+            if sib.exists() {
+                std::fs::remove_file(&sib)?;
+            }
+        }
+    }
+    Ok(tmp_path)
+}
+
 /// `rebuild` cả ba bảng FTS5 external-content — KHÔNG có bước này thì `MATCH` trả 0
 /// hàng, không lỗi (Bẫy 3). Chạy TRƯỚC `VACUUM`.
 pub fn rebuild_fts(conn: &Connection) -> rusqlite::Result<()> {
@@ -91,6 +110,39 @@ pub fn sha256_and_size(path: &Path) -> std::io::Result<(String, u64)> {
     let digest = hasher.finalize();
     let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
     Ok((hex, size))
+}
+
+/// 🔴 Phần ĐUÔI dùng chung cho MỌI lượt dựng — base lẫn TỪNG lớp gỡ rời (Task 5, Bẫy 2:
+/// một trong hai đường dựng bỏ `journal_mode = DELETE` là bẫy đắt nhất, nhân đôi so với
+/// Story 1.9 vì giờ có ba đường dựng). rebuild FTS → ANALYZE/VACUUM →
+/// `journal_mode = DELETE` → kiểm no-wal → băm → `rename` từ `.tmp` sang `out_path`.
+/// Trả `(sha256, size_bytes, journal_mode)` — caller (`build.rs`) đóng gói vào
+/// `BuildReport` cùng `per_source`/`char_idx_pairs` mà nó tự biết.
+pub fn finish(
+    conn: Connection,
+    tmp_path: &Path,
+    out_path: &Path,
+) -> Result<(String, u64, String), Box<dyn std::error::Error>> {
+    rebuild_fts(&conn)?;
+    analyze_and_vacuum(&conn)?;
+    let journal_mode = set_journal_mode_delete(&conn)?;
+    // PRAGMA journal_mode không báo lỗi khi bị SQLite âm thầm từ chối đổi — nó chỉ trả
+    // về chế độ ĐANG thật sự có hiệu lực. Không xác nhận ở đây thì một lượt chuyển chế
+    // độ bị từ chối vẫn cho ra ExitCode::SUCCESS (Bẫy 1).
+    if journal_mode.to_lowercase() != "delete" {
+        return Err(format!(
+            "journal_mode vẫn là '{journal_mode}' sau khi yêu cầu DELETE — Bẫy 1 chưa được khép kín"
+        )
+        .into());
+    }
+    drop(conn); // đóng kết nối TRƯỚC khi kiểm tệp -wal/-shm cạnh .db
+
+    verify_no_wal_artifacts(tmp_path).map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+    let (sha256, size_bytes) = sha256_and_size(tmp_path)?;
+
+    std::fs::rename(tmp_path, out_path)?;
+
+    Ok((sha256, size_bytes, journal_mode))
 }
 
 #[cfg(test)]

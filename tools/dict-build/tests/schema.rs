@@ -91,7 +91,7 @@ fn fts_without_rebuild_silently_returns_zero_rows_not_an_error() {
 #[test]
 fn schema_version_is_recorded_in_both_places() {
     let conn = open_with_schema();
-    insert::insert_meta(&conn).unwrap();
+    insert::insert_meta(&conn, "base", "2026-08-05T00:00:00Z").unwrap();
 
     let user_version: i64 = conn
         .query_row("PRAGMA user_version", [], |r| r.get(0))

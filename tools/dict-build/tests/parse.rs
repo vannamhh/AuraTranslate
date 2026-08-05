@@ -1,5 +1,5 @@
 //! Nghiệm thu tích hợp trên FIXTURE (Task 4/11 của Story 1.9) — chạy TRỌN pipeline
-//! `build::run` (schema → 5 parser → chèn → char_idx → rebuild FTS → VACUUM →
+//! `build::run_base` (schema → 5 parser → chèn → char_idx → rebuild FTS → VACUUM →
 //! journal_mode=DELETE) trên dữ liệu fixture thật (trích từ CVDICT/CC-CEDICT/Unihan/
 //! kaikki.org thật, không phải bịa).
 //!
@@ -19,7 +19,7 @@ fn fixtures_raw_dir() -> PathBuf {
 fn build_fixture_db() -> (tempfile::TempDir, PathBuf, build::BuildReport) {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("dict-core-fixture.db");
-    let report = build::run(&fixtures_raw_dir(), &out).expect("fixture build should succeed");
+    let report = build::run_base(&fixtures_raw_dir(), &out).expect("fixture build should succeed");
     (dir, out, report)
 }
 
@@ -59,7 +59,7 @@ fn malformed_en_wiktionary_line_is_recorded_with_its_real_skip_reason() {
 
 /// Group A vá lỗi "nhiều dòng JSONL cùng headword ⇒ nhiều `dict_entry`" bằng cách gộp
 /// theo headword TRONG một nguồn (`wiktextract_common::parse`). Test này khoá lại hành
-/// vi đó ở tầng TÍCH HỢP, qua `build::run` THẬT, trên dữ liệu THẬT: fixture
+/// vi đó ở tầng TÍCH HỢP, qua `build::run_base` THẬT, trên dữ liệu THẬT: fixture
 /// `en_wiktionary/Chinese.jsonl` có `馬` ở BA dòng JSONL thật — hai dòng nghĩa dùng
 /// được cộng một dòng `tags:["no-gloss"]` thật (Review Findings Group B).
 #[test]
@@ -105,7 +105,7 @@ fn en_wiktionary_same_headword_ma_merges_into_one_entry_with_multiple_senses() {
 fn wal_check_survives_output_path_without_dot_db_extension() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("dict-core-fixture"); // KHÔNG có đuôi .db, cố ý
-    let report = build::run(&fixtures_raw_dir(), &out).expect("build must succeed regardless of extension");
+    let report = build::run_base(&fixtures_raw_dir(), &out).expect("build must succeed regardless of extension");
     assert_eq!(report.journal_mode.to_lowercase(), "delete");
     assert!(!dict_build::finalize::sibling_path(&out, "-wal").exists());
     assert!(!dict_build::finalize::sibling_path(&out, "-shm").exists());
@@ -123,7 +123,7 @@ fn rebuilding_over_a_stale_output_and_wal_artifacts_still_succeeds() {
     std::fs::write(dict_build::finalize::sibling_path(&out, "-wal"), b"stale wal").unwrap();
     std::fs::write(dict_build::finalize::sibling_path(&out, "-shm"), b"stale shm").unwrap();
 
-    let report = build::run(&fixtures_raw_dir(), &out).expect("build must succeed over stale artifacts");
+    let report = build::run_base(&fixtures_raw_dir(), &out).expect("build must succeed over stale artifacts");
     assert!(report.per_source.iter().all(|s| s.entries > 0));
     assert!(!dict_build::finalize::sibling_path(&out, "-wal").exists());
     assert!(!dict_build::finalize::sibling_path(&out, "-shm").exists());
@@ -344,6 +344,55 @@ fn built_file_uses_delete_journal_mode_with_no_wal_artifacts() {
         .query_row("PRAGMA journal_mode", [], |r| r.get(0))
         .unwrap();
     assert_eq!(mode.to_lowercase(), "delete");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// Story 1.10, Task 9 — hai nhóm ca MỚI, mỗi lớp gỡ rời một nhóm, chạy TÍCH HỢP qua
+// `build::run_detachable_by_code` trên FIXTURE thật (không phải dữ liệu bịa).
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+fn build_detachable_fixture_db(code: &str) -> (tempfile::TempDir, PathBuf, build::BuildReport) {
+    let dir = tempfile::tempdir().unwrap();
+    let out_dir = dir.path().join("out");
+    std::fs::create_dir_all(&out_dir).unwrap();
+    let (name, report) = build::run_detachable_by_code(&fixtures_raw_dir(), &out_dir, code)
+        .unwrap_or_else(|e| panic!("detachable fixture build for '{code}' should succeed: {e}"));
+    let out_path = out_dir.join(name);
+    (dir, out_path, report)
+}
+
+/// 🔴 Thiều Chửu, dòng 108 hỏng thật (chỉ 2 cột, thẻ HTML rơi rớt `</h4>`) — nghiệm thu
+/// TÍCH HỢP: chạy trọn `build::run_detachable_by_code("thieu-chuu")` trên fixture có
+/// chứa đúng dòng 108 thật, và `SourceStats` phải đếm được đúng một dòng bị bỏ vì đó.
+#[test]
+fn thieu_chuu_line_108_is_recorded_as_a_parse_issue_through_the_real_build_pipeline() {
+    let (_dir, _out, report) = build_detachable_fixture_db("thieu-chuu");
+    assert_eq!(report.per_source.len(), 1);
+    let stats = &report.per_source[0];
+    assert_eq!(stats.source_code, "thieu-chuu");
+    assert!(stats.lines_skipped > 0, "expected at least one skipped line (real line 108)");
+    assert!(
+        stats.skip_reasons.keys().any(|r| r.contains("3 tab-separated columns")),
+        "expected a column-count ParseIssue reason for real line 108, got {:?}",
+        stats.skip_reasons
+    );
+}
+
+/// 🔴 VietPhrase, nghĩa rỗng/placeholder `()` (spam quảng cáo thật, ví dụ `txt8 小说下载网`)
+/// — nghiệm thu TÍCH HỢP qua `build::run_detachable_by_code("vietphrase")` trên fixture
+/// thật chứa hai dòng rác đó.
+#[test]
+fn vietphrase_placeholder_gloss_lines_are_recorded_as_parse_issues_through_the_real_build_pipeline() {
+    let (_dir, _out, report) = build_detachable_fixture_db("vietphrase");
+    assert_eq!(report.per_source.len(), 1);
+    let stats = &report.per_source[0];
+    assert_eq!(stats.source_code, "vietphrase");
+    assert!(stats.lines_skipped >= 2, "expected at least the two real placeholder-gloss junk lines to be skipped");
+    assert!(
+        stats.skip_reasons.keys().any(|r| r.contains("placeholder")),
+        "expected a placeholder-gloss ParseIssue reason, got {:?}",
+        stats.skip_reasons
+    );
 }
 
 /// AC3 vế cơ chế: SHA-256 và kích thước byte được in ra và khớp tệp thật.

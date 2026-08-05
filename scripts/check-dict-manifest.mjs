@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * Cổng `dict-manifest.toml` — Task 8 của Story 1.9 (AC3, đóng `deferred-work.md:79`:
- * *"đặt ra luật ba trường rồi không cưỡng chế bằng gì cả"*).
+ * *"đặt ra luật ba trường rồi không cưỡng chế bằng gì cả"*), siết thêm ở Task 7 của
+ * Story 1.10 (AC5): `[[detachable]]` giờ đòi ĐÚNG hai mục, đúng hai `name` — không dư
+ * không thiếu. Con số này đổi CÙNG LÚC với dữ liệu khi story nối tiếp thêm lớp thứ ba —
+ * đó là điều kiện để cổng bắt được một lớp BỊ RƠI MẤT, chứ không chỉ một lớp bị điền sai.
  *
  * 🔴 Cổng này KHÔNG đọc tệp `.db` và KHÔNG tải gì từ mạng — nó phải xanh trên một
  * runner CI không có byte dữ liệu từ điển nào (AC cuối của Story 1.3: CI ⛔ không tải
@@ -225,15 +228,82 @@ if (!baseList) {
   validateEntry('[base]', baseList[0], false)
 }
 
+// 🔴 Story 1.10: đúng HAI lớp gỡ rời trong phạm vi hôm nay (Thiều Chửu · VietPhrase).
+// ⚠️ Đòi ĐÚNG hai, ⛔ không phải "≥ 1" — khi story nối tiếp thêm lớp thứ ba, con số này
+// đổi CÙNG LÚC với dữ liệu, đó là điều kiện để cổng bắt được một lớp bị RƠI MẤT.
+const EXPECTED_DETACHABLE_NAMES = ['thieu-chuu', 'vietphrase']
+
 const detachableList = tables.get('detachable') ?? []
-if (detachableList.length === 0) {
-  pass('[[detachable]] — 0 mục hôm nay, hợp lệ (Story 1.10 sẽ thêm)')
-} else if (forms.get('detachable') !== 'array') {
+if (forms.get('detachable') === 'single') {
   fail(`[[detachable]] khai sai dạng ngoặc — phải là mảng bảng [[detachable]], không phải bảng đơn [detachable]`)
+} else if (detachableList.length !== EXPECTED_DETACHABLE_NAMES.length) {
+  fail(
+    `[[detachable]] có ${detachableList.length} mục, cần ĐÚNG ${EXPECTED_DETACHABLE_NAMES.length} mục (${JSON.stringify(EXPECTED_DETACHABLE_NAMES)}) — không dư không thiếu`,
+  )
 } else {
   detachableList.forEach((obj, idx) => {
     validateEntry(`[[detachable]] #${idx + 1}`, obj, true)
   })
+  const actualNames = detachableList.map((o) => o.name).filter((n) => typeof n === 'string')
+  const actualSet = new Set(actualNames)
+  const expectedSet = new Set(EXPECTED_DETACHABLE_NAMES)
+  const missing = EXPECTED_DETACHABLE_NAMES.filter((n) => !actualSet.has(n))
+  const extra = actualNames.filter((n) => !expectedSet.has(n))
+  const duplicated = actualNames.length !== actualSet.size
+  if (missing.length === 0 && extra.length === 0 && !duplicated) {
+    pass(`[[detachable]] có đúng hai mục, đúng tên: ${JSON.stringify(actualNames)}`)
+  } else {
+    if (missing.length) fail(`[[detachable]] thiếu 'name': ${JSON.stringify(missing)}`)
+    if (extra.length) fail(`[[detachable]] có 'name' không mong đợi: ${JSON.stringify(extra)}`)
+    if (duplicated) fail(`[[detachable]] có 'name' trùng lặp: ${JSON.stringify(actualNames)}`)
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 `url` phải khớp `name` của CHÍNH mục đó, và ⛔ không mục nào dùng chung `url`/
+// `sha256` với mục khác.
+//
+// URL_RE chỉ ghim host/org/repo/tiền-tố-tag rồi DỪNG, còn Kiểm D của check-dict-build
+// chỉ so tập `name` — nên hoán đổi `url` giữa hai mục `[[detachable]]` đi qua MỌI phép
+// kiểm hôm nay, và người dùng tải `dict-thieu-chuu.db` sẽ nhận nội dung VietPhrase.
+// Quy tắc tên tệp là hàm XÁC ĐỊNH ở phía Rust (`build::output_file_name` → `dict-<code>.db`,
+// §Quyết định #3), nên nó kiểm được từ đây mà ⛔ không cần đọc một byte `.db` nào.
+// ═════════════════════════════════════════════════════════════════════════════════
+{
+  const all = [
+    ...(baseList && baseList.length === 1 ? [{ label: '[base]', obj: baseList[0], fileName: 'dict-core.db' }] : []),
+    ...detachableList
+      .filter((o) => typeof o.name === 'string' && o.name !== '')
+      .map((o) => ({ label: `[[detachable]] '${o.name}'`, obj: o, fileName: `dict-${o.name}.db` })),
+  ]
+
+  let fileNameMismatch = 0
+  for (const { label, obj, fileName } of all) {
+    if (typeof obj.url !== 'string') continue
+    if (!obj.url.endsWith(`/${fileName}`)) {
+      fail(`${label}: 'url' phải kết thúc bằng '/${fileName}' (quy tắc dict-<code>.db của build::output_file_name) — '${obj.url}'`)
+      fileNameMismatch += 1
+    }
+  }
+  if (fileNameMismatch === 0 && all.length > 0) {
+    pass(`mọi 'url' kết thúc đúng tên tệp suy ra từ 'name' (${all.length} mục)`)
+  }
+
+  for (const field of ['url', 'sha256']) {
+    const seen = new Map()
+    const dupes = []
+    for (const { label, obj } of all) {
+      const value = obj[field]
+      if (typeof value !== 'string' || value === '') continue
+      if (seen.has(value)) dupes.push(`${seen.get(value)} ↔ ${label}`)
+      else seen.set(value, label)
+    }
+    if (dupes.length) {
+      fail(`hai mục dùng CHUNG '${field}' — một lớp sẽ không bao giờ được tải thật: ${JSON.stringify(dupes)}`)
+    } else if (all.length > 0) {
+      pass(`mọi '${field}' là duy nhất giữa các mục (${all.length} mục)`)
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────

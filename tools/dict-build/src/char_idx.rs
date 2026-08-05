@@ -7,7 +7,11 @@ use rusqlite::Connection;
 /// Một ký tự được coi là "Hán" nếu nằm trong một trong các khối CJK Unified Ideographs
 /// (kể cả các khối mở rộng) — dải rộng có chủ ý hơn dải BMP đơn thuần, vì cả CVDICT lẫn
 /// Unihan đều có đầu mục ngoài BMP (ví dụ `𠧜` đã thấy thật trong mẫu en.wiktionary).
-fn is_han(c: char) -> bool {
+///
+/// `pub(crate)` vì `sources::thieu_chuu` cần đúng bộ dải này để nhận ra chữ Hán trong
+/// trích dẫn — MỘT nguồn sự thật, ⛔ không sao chép bảng dải sang module khác (Review
+/// Findings 1.10: hai bản sao cùng tên sẽ trôi khỏi nhau khi bổ sung CJK Ext H/I).
+pub(crate) fn is_han(c: char) -> bool {
     let cp = c as u32;
     matches!(cp,
         0x3400..=0x4DBF     // CJK Extension A

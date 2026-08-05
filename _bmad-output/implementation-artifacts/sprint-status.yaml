@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-04T23:55:00
+last_updated: 2026-08-05T09:36:25
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -59,7 +59,7 @@ development_status:
   1-7-tang-ghi-du-lieu-mot-writer-noi-tiep-va-luoc-do-co-phien-ban: done
   1-8-phan-giai-cau-hinh-hai-tang: done
   1-9-dung-du-lieu-tu-dien-lop-nen: done
-  1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap: ready-for-dev
+  1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap: done
   1-11-ba-nhanh-truy-van-tieng-trung: backlog
   1-12-matcher-dung-chung: backlog
   1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon: backlog

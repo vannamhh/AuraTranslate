@@ -70,6 +70,13 @@ tools/dict-build/work/
 # build tool (chính điều kiện AC4 đòi). Khai tường minh, ⛔ đừng gộp vào dòng `/target/`.
 tools/dict-build/target/
 
+# 🔴 Kho NGUỒN THÔ cục bộ của Ice — ~344 MB nhị phân (`tudien-2.2.zip` 289 MB,
+# `VietPhrase.txt` 24 MB, `hanodict_tbl_dictionary.pbix` 31 MB). ⛔ KHÔNG vào git: một
+# `git add -A` vô ý nhét ngần ấy byte vào lịch sử VĨNH VIỄN, không gỡ ra được.
+# Cách lấy lại và SHA-256 để đối chiếu: `tools/dict-build/README.md`.
+# ⚠️ `tudien-2.2.zip` LÀ bằng chứng giấy phép CC0 của Thiều Chửu — giữ tệp ở máy, ⛔ không xoá.
+docs/dics/
+
 _bmad-output/*.diff
 _bmad-output/*.patch
 _bmad-output/append.py

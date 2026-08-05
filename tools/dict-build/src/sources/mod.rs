@@ -7,6 +7,8 @@ pub mod cc_cedict;
 pub mod cedict_common;
 pub mod cvdict;
 pub mod en_wiktionary;
+pub mod thieu_chuu;
 pub mod unihan;
+pub mod vietphrase;
 pub mod viwiktionary;
 pub mod wiktextract_common;

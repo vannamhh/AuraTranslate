@@ -5,10 +5,19 @@
 //! - CC BY-SA 4.0: `creativecommons.org/licenses/by-sa/4.0/legalcode.txt`
 //! - Unicode License v3: `unicode.org/license.txt`
 //! - GFDL 1.3: `gnu.org/licenses/fdl-1.3.txt`
+//!
+//! Hai lớp GỠ RỜI của Story 1.10 mang thêm hai văn bản:
+//! - CC0 1.0 Universal (Thiều Chửu): `creativecommons.org/publicdomain/zero/1.0/legalcode.txt`
+//! - Tuyên bố xuất xứ soạn tay cho Thiều Chửu và VietPhrase (`thieu-chuu.txt`,
+//!   `vietphrase.txt`) — KHÔNG phải giấy phép mở có sẵn để tải, nên là văn bản do dự
+//!   án soạn, ghi rõ nguồn và trạng thái pháp lý đã kiểm chứng (§Thông tin kỹ thuật).
 
 pub const CC_BY_SA_4_0: &str = include_str!("../assets/licenses/CC-BY-SA-4.0.txt");
 pub const UNICODE_LICENSE_V3: &str = include_str!("../assets/licenses/Unicode-License-v3.txt");
 pub const GFDL_1_3: &str = include_str!("../assets/licenses/GFDL-1.3.txt");
+pub const CC0_1_0: &str = include_str!("../assets/licenses/CC0-1.0.txt");
+pub const THIEU_CHUU_DECLARATION: &str = include_str!("../assets/licenses/thieu-chuu.txt");
+pub const VIETPHRASE_DECLARATION: &str = include_str!("../assets/licenses/vietphrase.txt");
 
 /// Wiktionary (cả hai ấn bản) song hành hai giấy phép — nội dung mới hơn CC BY-SA 4.0,
 /// nội dung cũ hơn có thể chỉ có GFDL. Ghi cả hai nguyên văn, nối bằng dòng phân cách rõ
@@ -21,4 +30,23 @@ pub fn cc_by_sa_and_gfdl() -> String {
          =======================================================================\n\n\
          {GFDL_1_3}"
     )
+}
+
+/// Thiều Chửu: tuyên bố xuất xứ (nguồn, nghĩa vụ ghi công quyền nhân thân) ĐI TRƯỚC,
+/// rồi toàn văn CC0 1.0 — người đọc `license_text` thấy ngay bối cảnh trước khi đọc
+/// văn bản giấy phép hình thức (Story 1.10, AC2).
+pub fn thieu_chuu_license_text() -> String {
+    format!(
+        "{THIEU_CHUU_DECLARATION}\n\n\
+         =======================================================================\n\
+         Toàn văn giấy phép CC0 1.0 Universal — áp dụng cho bản số hoá\n\
+         =======================================================================\n\n\
+         {CC0_1_0}"
+    )
+}
+
+/// VietPhrase: KHÔNG có giấy phép mở nào để đính kèm (`license_kind = 'unknown'`) —
+/// `license_text` là tuyên bố xuất xứ, không hơn không kém (Story 1.10, AC3).
+pub fn vietphrase_license_text() -> String {
+    VIETPHRASE_DECLARATION.to_string()
 }
