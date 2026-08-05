@@ -24,9 +24,24 @@ fn build_fixture_db() -> (tempfile::TempDir, PathBuf, build::BuildReport) {
 }
 
 #[test]
-fn all_five_sources_produce_at_least_one_entry() {
+fn all_six_sources_produce_at_least_one_entry() {
     let (_dir, _out, report) = build_fixture_db();
-    assert_eq!(report.per_source.len(), 5);
+    assert_eq!(report.per_source.len(), 6);
+
+    let codes: Vec<&str> = report.per_source.iter().map(|s| s.source_code.as_str()).collect();
+    assert_eq!(
+        codes,
+        vec![
+            "cvdict",
+            "cc-cedict",
+            "unihan",
+            "viwiktionary",
+            "en-wiktionary",
+            "viwiktionary-en"
+        ],
+        "thứ tự chèn = thứ tự dict_source.id (§Quyết định #7)"
+    );
+
     for s in &report.per_source {
         assert!(
             s.entries > 0,
@@ -154,7 +169,9 @@ fn all_sources_have_a_real_non_unknown_source_version() {
         .unwrap()
         .collect::<Result<_, _>>()
         .unwrap();
-    assert_eq!(rows.len(), 5);
+    // 5 → 6 ở Story 1.10b (nguồn nền `viwiktionary-en`). Mệnh đề test KHOÁ — ⛔ không
+    // nguồn nào rơi về `unknown` âm thầm — ⛔ không đổi.
+    assert_eq!(rows.len(), 6);
     for (code, version) in rows {
         assert!(!version.is_empty(), "{code} has an empty source_version");
         assert_ne!(version, "unknown", "{code} silently fell back to 'unknown' source_version");
@@ -260,6 +277,289 @@ fn ac5_primary_fts_is_diacritic_sensitive_secondary_is_not() {
         hits_primary_no_diacritics, 0,
         "primary FTS must NOT match the undiacritized query — remove_diacritics 0 is the whole point"
     );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// Story 1.10b — nguồn NỀN thứ sáu `viwiktionary-en` (vai A: mục từ TIẾNG ANH, FR34)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+/// Đếm `dict_entry` theo `(dict_source.code, dict_entry.lang)` — đúng truy vấn nghiệm
+/// thu của AC3, dùng chung cho ba test dưới đây.
+fn count_entries(conn: &Connection, source_code: &str, lang: &str) -> i64 {
+    conn.query_row(
+        "SELECT COUNT(*) FROM dict_entry e JOIN dict_source s ON s.id = e.source_id
+         WHERE s.code = ?1 AND e.lang = ?2",
+        rusqlite::params![source_code, lang],
+        |r| r.get(0),
+    )
+    .unwrap()
+}
+
+/// 🔴 **AC3 — test dễ trượt IM LẶNG nhất của story.** Trước Story 1.10b
+/// `wiktextract_common::parse_line` viết cứng `lang: "zh"`, nên nguồn này sẽ đổ toàn bộ
+/// đầu mục tiếng Anh vào `dict_entry` MANG NHÃN TIẾNG TRUNG với build XANH và mọi test
+/// khác XANH. Khẳng định dương (`… WHERE lang='en'` > 0) một mình ⛔ **không** bắt được
+/// lỗi đó — nên đây là khẳng định dương **CỘNG** đối chứng âm.
+#[test]
+fn viwiktionary_en_entries_are_all_tagged_lang_en() {
+    let (_dir, out, _report) = build_fixture_db();
+    let conn = Connection::open(&out).unwrap();
+
+    let en = count_entries(&conn, "viwiktionary-en", "en");
+    assert!(en > 0, "nguồn vai A phải sinh đầu mục tiếng Anh");
+
+    // 🔴 ĐỐI CHỨNG ÂM BẮT BUỘC — mệnh đề thật sự của AC3.
+    let zh = count_entries(&conn, "viwiktionary-en", "zh");
+    assert_eq!(
+        zh, 0,
+        "🔴 §Bẫy 1: nguồn vai A ⛔ KHÔNG được sinh một hàng lang='zh' nào — \
+         nếu số này > 0 thì `entry_lang` chưa đi tới `RawEntry.lang`"
+    );
+
+    // Và 100% hàng của nguồn này mang `lang='en'`, ⛔ không sót một nhãn lạ nào.
+    let total: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM dict_entry e JOIN dict_source s ON s.id = e.source_id
+             WHERE s.code = 'viwiktionary-en'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(total, en, "100% hàng của viwiktionary-en phải mang lang='en'");
+}
+
+/// 🔴 **AC3, đối chứng âm CHIỀU NGƯỢC — chống hồi quy cho vai B.** Tham số hoá `lang`
+/// đụng vào một hàm dùng chung cho ba nguồn; nếu `viwiktionary` (vai B) vô tình nhận
+/// `entry_lang = "en"`, lớp từ loại tiếng Trung của PRD §8.3 biến mất mà ⛔ không test
+/// nào khác kêu.
+#[test]
+fn viwiktionary_role_b_still_produces_zero_english_rows() {
+    let (_dir, out, _report) = build_fixture_db();
+    let conn = Connection::open(&out).unwrap();
+
+    let zh = count_entries(&conn, "viwiktionary", "zh");
+    assert!(zh > 0, "vai B phải vẫn sinh đầu mục tiếng Trung");
+
+    let en = count_entries(&conn, "viwiktionary", "en");
+    assert_eq!(
+        en, 0,
+        "vai B ⛔ KHÔNG được sinh một hàng lang='en' nào — hành vi của nó phải KHÔNG đổi"
+    );
+
+    // Cùng phép kiểm cho nguồn thứ năm, vì nó dùng chung đúng hàm đó.
+    assert_eq!(count_entries(&conn, "en-wiktionary", "en"), 0);
+    assert!(count_entries(&conn, "en-wiktionary", "zh") > 0);
+}
+
+/// **AD-19** ở tầng tích hợp: hai vai đọc **CÙNG MỘT tệp thô** nhưng phải hạ cánh xuống
+/// **hai `source_id` rời nhau**, ⛔ không hàng nào mang cả hai và ⛔ không headword nào
+/// bị gộp xuyên nguồn. Đây là mệnh đề mà miễn trừ `dict-build:allow .entry(` tuyên bố.
+#[test]
+fn viwiktionary_and_viwiktionary_en_read_the_same_file_into_two_separate_sources() {
+    let (_dir, out, _report) = build_fixture_db();
+    let conn = Connection::open(&out).unwrap();
+
+    let id_a: i64 = conn
+        .query_row(
+            "SELECT id FROM dict_source WHERE code = 'viwiktionary-en'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let id_b: i64 = conn
+        .query_row("SELECT id FROM dict_source WHERE code = 'viwiktionary'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_ne!(id_a, id_b, "hai vai phải là hai source_id khác nhau");
+
+    // Cùng một dump ⇒ `source_version` giống nhau. Đó là ĐÚNG, ⛔ không phải trùng lặp.
+    let (v_a, v_b): (String, String) = (
+        conn.query_row(
+            "SELECT source_version FROM dict_source WHERE code = 'viwiktionary-en'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap(),
+        conn.query_row(
+            "SELECT source_version FROM dict_source WHERE code = 'viwiktionary'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap(),
+    );
+    assert_eq!(v_a, v_b, "cùng tệp thô ⇒ cùng source_version");
+
+    // ⛔ Không headword nào thuộc cả hai nguồn — nếu có, phép gộp đã chạy xuyên nguồn.
+    let shared: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM dict_entry a JOIN dict_entry b ON a.headword = b.headword
+             WHERE a.source_id = ?1 AND b.source_id = ?2",
+            rusqlite::params![id_a, id_b],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        shared, 0,
+        "AD-19: ⛔ không headword nào được xuất hiện dưới CẢ HAI source_id"
+    );
+}
+
+/// 🔴 **FR34 nghiệm thu bằng TEST THẬT, ⛔ không bằng suy luận** — tiêu chí thành công
+/// #2 của sprint change proposal. *"Mục từ tiếng Anh phải có nhãn từ loại và nghĩa tiếng
+/// Việt"*: `pos` khác NULL · `pos_lang = 'vi'` · `gloss` khác rỗng.
+#[test]
+fn an_english_entry_carries_pos_label_and_vietnamese_gloss() {
+    let (_dir, out, _report) = build_fixture_db();
+    let conn = Connection::open(&out).unwrap();
+
+    // `dictionary` — trích nguyên văn dòng 151 của tệp thô thật.
+    let (pos, pos_lang, gloss): (Option<String>, Option<String>, String) = conn
+        .query_row(
+            "SELECT sn.pos, sn.pos_lang, sn.gloss
+             FROM dict_sense sn
+             JOIN dict_entry e ON e.id = sn.entry_id
+             JOIN dict_source s ON s.id = e.source_id
+             WHERE s.code = 'viwiktionary-en' AND e.headword = 'dictionary'
+             LIMIT 1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .unwrap();
+
+    assert_eq!(pos.as_deref(), Some("Danh từ"), "FR34: phải có nhãn từ loại");
+    assert_eq!(
+        pos_lang.as_deref(),
+        Some("vi"),
+        "ấn bản vi có pos_title sẵn tiếng Việt ⇒ pos_lang='vi', ⛔ không phải 'en' (FR35)"
+    );
+    assert!(!gloss.is_empty(), "FR34: phải có nghĩa tiếng Việt");
+    assert!(
+        gloss.contains("Từ điển"),
+        "nghĩa phải là tiếng VIỆT, ⛔ không phải định nghĩa tiếng Anh; got {gloss:?}"
+    );
+
+    // §Quyết định #5: mục tiếng Anh CÓ `sounds[].ipa` nhưng ⛔ KHÔNG tag Pinyin ⇒
+    // `reading` phải là NULL. IPA ⛔ không bị bóc vào cột đó ở story này.
+    let reading: Option<String> = conn
+        .query_row(
+            "SELECT e.reading FROM dict_entry e JOIN dict_source s ON s.id = e.source_id
+             WHERE s.code = 'viwiktionary-en' AND e.headword = 'dictionary'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(reading, None, "§Quyết định #5: IPA ⛔ không bóc vào `reading`");
+}
+
+/// Phép gộp theo headword chạy đúng cho **cả vai A** — đúng cách `馬` chứng minh cho
+/// `en_wiktionary`. `lock` có mặt ở BA dòng JSONL thật (dòng 194/195/196 của tệp thô),
+/// ba từ loại khác nhau ⇒ phải thành MỘT `dict_entry` với NHIỀU `dict_sense`.
+#[test]
+fn english_headword_on_two_lines_becomes_one_entry() {
+    let (_dir, out, _report) = build_fixture_db();
+    let conn = Connection::open(&out).unwrap();
+
+    let entries: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM dict_entry e JOIN dict_source s ON s.id = e.source_id
+             WHERE s.code = 'viwiktionary-en' AND e.headword = 'lock'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(entries, 1, "ba dòng JSONL cùng headword phải thành MỘT dict_entry");
+
+    let distinct_pos: i64 = conn
+        .query_row(
+            "SELECT COUNT(DISTINCT sn.pos) FROM dict_sense sn
+             JOIN dict_entry e ON e.id = sn.entry_id
+             JOIN dict_source s ON s.id = e.source_id
+             WHERE s.code = 'viwiktionary-en' AND e.headword = 'lock'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        distinct_pos, 3,
+        "FR30: một từ nhiều từ loại ⇒ nhiều dict_sense dưới MỘT entry_id"
+    );
+
+    // Đường VÍ DỤ của vai A phải thật sự được pipeline chạm tới (fixture cũ có 0 ví dụ
+    // tiếng Anh, nên nhánh này chưa từng được test nào nghiệm thu).
+    let examples: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM dict_example x
+             JOIN dict_sense sn ON sn.id = x.sense_id
+             JOIN dict_entry e ON e.id = sn.entry_id
+             JOIN dict_source s ON s.id = e.source_id
+             WHERE s.code = 'viwiktionary-en'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(examples > 0, "AC2 đối chiếu 27.396 ví dụ — đường ví dụ phải chạy");
+}
+
+/// **AC8 / AD-27 trên dữ liệu TIẾNG ANH** — khuôn từ
+/// `ac5_primary_fts_is_diacritic_sensitive_secondary_is_not`, chỉ đổi sang nghĩa tiếng
+/// Việt của một mục từ tiếng Anh (`dictionary` ⇒ `"Từ điển."`).
+///
+/// NFR8 giữ nguyên hiệu lực khi nguồn thứ sáu vào: chỉ mục CHÍNH phân biệt dấu, chỉ mục
+/// PHỤ xoá dấu. ⛔ Không bỏ `sense_fts_nd` để tiết kiệm dung lượng — phá AC4 của Story
+/// 1.10 (lược đồ đồng nhất giữa các tệp).
+///
+/// ⚠️ **Cặp đối lập là `điển` / `đien`, ⛔ KHÔNG phải `điển` / `dien`.** `đ` (U+0111
+/// LATIN SMALL LETTER D WITH STROKE) là một **CHỮ CÁI**, ⛔ không phải một dấu phụ tổ
+/// hợp — `remove_diacritics=2` bóc `ể → e` nhưng để nguyên `đ`. Đã đo thật trên
+/// `dict-core.db` dựng từ fixture: `'dien'` cho **0** hit ở CẢ HAI chỉ mục, `'đien'` cho
+/// **0** ở chính và **2** ở phụ. Một lượt rà tương lai thấy `'dien'` = 0 rồi kết luận
+/// "chỉ mục phụ hỏng" là đọc sai nguyên nhân.
+#[test]
+fn primary_fts_is_diacritic_sensitive_on_an_english_entry_gloss() {
+    let (_dir, out, _report) = build_fixture_db();
+    let conn = Connection::open(&out).unwrap();
+
+    // Đếm hit CÓ RÀNG BUỘC NGUỒN — một hit từ nguồn tiếng Trung ⛔ không nghiệm thu
+    // được mệnh đề "NFR8 giữ hiệu lực trên dữ liệu TIẾNG ANH".
+    let hits_from_role_a = |table: &str, needle: &str| -> i64 {
+        conn.query_row(
+            &format!(
+                "SELECT COUNT(*) FROM {table} f
+                 JOIN dict_sense sn ON sn.id = f.rowid
+                 JOIN dict_entry e ON e.id = sn.entry_id
+                 JOIN dict_source s ON s.id = e.source_id
+                 WHERE f.{table} MATCH ?1 AND s.code = 'viwiktionary-en' AND e.lang = 'en'"
+            ),
+            rusqlite::params![needle],
+            |r| r.get(0),
+        )
+        .unwrap()
+    };
+
+    // "điển" CÓ DẤU — chỉ mục chính phải bắt được, trên đúng mục từ TIẾNG ANH.
+    assert!(
+        hits_from_role_a("sense_fts", "điển") > 0,
+        "chỉ mục chính phải khớp 'điển' có dấu (nghĩa của mục từ tiếng Anh `dictionary`)"
+    );
+
+    // Chỉ mục PHỤ (remove_diacritics=2) phải khớp cả bản ĐÃ BÓC DẤU.
+    assert!(
+        hits_from_role_a("sense_fts_nd", "đien") > 0,
+        "chỉ mục phụ phải khớp truy vấn đã bóc dấu 'đien'"
+    );
+
+    // 🔴 Và chỉ mục CHÍNH ⛔ KHÔNG được khớp bản đã bóc dấu — toàn bộ ý nghĩa của AD-27,
+    // giữ nguyên hiệu lực trên dữ liệu tiếng Anh.
+    assert_eq!(
+        hits_from_role_a("sense_fts", "đien"),
+        0,
+        "chỉ mục chính ⛔ KHÔNG được khớp truy vấn đã bóc dấu — remove_diacritics 0"
+    );
+
+    // Đối chứng: chỉ mục phụ ⛔ không phải "khớp mọi thứ" — một chuỗi ⛔ không có trong
+    // nghĩa nào vẫn phải cho 0.
+    assert_eq!(hits_from_role_a("sense_fts_nd", "zzzkhongcothat"), 0);
 }
 
 /// AD-26 dữ liệu (không phải đường tra cứu — Story 1.11): `entry_fts` (trigram trên

@@ -333,7 +333,7 @@ NFR5: Bộ nhớ khi nhàn rỗi: **< 300 MB**. **[A8]** Ngưỡng tạm.
 
 #### Dữ liệu & lưu trữ
 
-NFR6: Kích thước bản cài kèm toàn bộ từ điển: ngân sách **150–200 MB** cho **payload sản phẩm** (mã + font + dữ liệu từ điển), **không có cơ chế tải thêm sau khi cài**. **[A2]** Đo được 130 MB với ba nguồn đầu tiên. **Bản WebView2 Runtime nhúng trên Windows (`offlineInstaller`, ≈ 127 MB) nằm NGOÀI ngân sách này** — nó là runtime của hệ điều hành, nhúng để giữ lời hứa *cài được khi không có mạng*. *(Ice chốt 2026-08-03; xem `prd.md` §7.2, ghi chú dưới bảng.)* **Hệ quả nghiệm thu: mọi phép đo dung lượng phải tách hai dòng** — payload sản phẩm (đối chiếu với trần) và WebView2 Runtime nhúng (ghi ra, không đối chiếu).
+NFR6: Kích thước bản cài kèm toàn bộ từ điển: trần **400.000.000 byte** *(400 MB thập phân)* cho **payload sản phẩm** (mã + font + dữ liệu từ điển), **không có cơ chế tải thêm sau khi cài**. **[A2]** 🔄 **Trần nâng từ 150–200 MB lên 400.000.000 byte — Ice chốt 2026-08-05 trên số đo thật của Story 1.10:** payload bảy nguồn = **343.991.430 byte**, ĐẠT, dư **56.008.570**. Lời hứa *"không tải thêm sau khi cài"* **GIỮ NGUYÊN** — nó chống đỡ cho NFR7 và NFR12. ⚠️ Dư địa đó ⛔ **không** dành cho tính năng mới: **HVTĐTD** và **Cổ hán văn** chưa dựng, và VietPhrase một mình đã ăn 160.083.968 byte. *(xem `prd.md` §7.2, "NFR6 sửa lần hai 2026-08-05")* **Bản WebView2 Runtime nhúng trên Windows (`offlineInstaller`, ≈ 127 MB) nằm NGOÀI ngân sách này** — nó là runtime của hệ điều hành, nhúng để giữ lời hứa *cài được khi không có mạng*. *(Ice chốt 2026-08-03; xem `prd.md` §7.2, ghi chú dưới bảng.)* **Hệ quả nghiệm thu: mọi phép đo dung lượng phải tách hai dòng** — payload sản phẩm (đối chiếu với trần) và WebView2 Runtime nhúng (ghi ra, không đối chiếu).
 
 NFR7: Tra cứu khi ngoại tuyến: **100% hoạt động không cần mạng**.
 
@@ -651,7 +651,7 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | FR31 | Epic 1 | Mọi định nghĩa hiển thị nguồn |
 | FR32 | Epic 1 | Bất đồng hiển thị đồng thời |
 | FR33 | Epic 1 | Tab Hán Việt |
-| FR34 | Epic 1 | Mục từ tiếng Anh |
+| FR34 | Epic 1 | Mục từ tiếng Anh — **dữ liệu: Story 1.10b · tra cứu: Story 1.11b** *(thêm 2026-08-05 qua `correct-course`)* |
 | FR35 | Epic 1 | Mục từ tiếng Trung + nhãn ngoại ngữ |
 | FR36 | Epic 1 | Lớp nền + lớp gỡ rời (nghiệm thu bằng test xoá file) |
 | FR37 | Epic 1 | Bật/tắt từng nguồn |
@@ -764,7 +764,7 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | NFR3 Tìm kiếm Library p95 < 500 ms | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A6]` / Q4 — đóng ở Story 6.18, không đóng ở Epic 5 |
 | NFR4 Khởi động < 3 s | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A7]` / Q4 — như NFR3 |
 | NFR5 Bộ nhớ nhàn rỗi < 300 MB | Epic 5 *(sơ bộ)* · **Epic 6 *(đóng)*** | `[A8]` / Q4 — như NFR3 |
-| NFR6 Kích thước bản cài 150–200 MB *(payload sản phẩm; WebView2 Runtime nhúng nằm ngoài — sửa 2026-08-03)* | Epic 1 | Mũi thăm dò font chạy **trước** Epic 1 (Story 1.1, xong) · nửa Windows đo ở **Story 1.3** · đối chiếu tổng ở **Story 1.9** · nghiệm thu cuối ở Epic 10 |
+| NFR6 Kích thước bản cài **≤ 400.000.000 byte** *(payload sản phẩm; WebView2 Runtime nhúng nằm ngoài — sửa 2026-08-03, trần nâng 2026-08-05)* | Epic 1 | Mũi thăm dò font chạy **trước** Epic 1 (Story 1.1, xong) · nửa Windows đo ở **Story 1.3** · đối chiếu tổng ở **Story 1.9** · 🔄 **đo lại với hai lớp gỡ rời ở Story 1.10 (xong): 343.991.430 byte, ĐẠT trần mới** · **hai lớp gỡ rời còn lại phải đo TRƯỚC khi hứa đóng gói** *(story nối tiếp 1.10)* · nghiệm thu cuối ở Epic 10 |
 | NFR7 Tra cứu offline 100% | Epic 1 | |
 | NFR8 Chỉ mục chính phân biệt dấu | Epic 1 (từ điển) · Epic 5 (Library) | AD-27 áp cho cả hai chỉ mục |
 | NFR9 Mang dữ liệu đi | Epic 1 (`.atproj`) · Epic 3 (CSV) · Epic 7 (TMX) | |
@@ -811,7 +811,7 @@ Epic này cũng đặt xuống các bất biến mà chín epic sau đều dựa
 **Ghi chú cài đặt:**
 - **Story 1.3 dựng CI hai nền tảng ngay sau scaffold.** Lý do: AC *"hành vi tương đương trên macOS và Windows"* của Story 1.2 (NFR14) là một phép kiểm tay phải nhớ làm, và nó phải giữ đúng suốt **chín epic** trước khi FR107 dựng build công khai ở Epic 10. Một khác biệt nền tảng lọt vào ở Epic 2 mà chỉ lộ ra ở Epic 10 là lớp lỗi đắt nhất có thể tránh bằng một job CI. **Đây không phải FR107** — không build công khai, không checksum, không `dict-manifest.toml`; FR107 giữ nguyên phạm vi ở Story 10.1. *(Bổ sung 2026-08-03 sau rà soát mức sẵn sàng triển khai.)*
 - ~~**Mũi thăm dò font phải chạy TRƯỚC epic này**~~ — ✅ **đã chạy 2026-08-03 (Story 1.1).** `.dmg` đo thật: chênh lệch do font **20,300 MiB = 21,29 MB**, tổng với database 130 MB = **151,29 MB**, dưới trần NFR6. SIL OFL 1.1 cả ba, tương thích GPL v3, ba hàng đã vào bảng Stack. Biến thể vùng chốt **TC**. `.msi` **chuyển sang Story 1.3** (xem AC1 đã thu hẹp). Mệnh đề chặn Epic 1 **đã gỡ**. **Rủi ro còn mở, không chặn:** trần NFR6 là trần của **cả bản cài đã gồm font**, nên phép tính đúng là trừ dư địa — 200 − 21,29 (font) − 1,40 (baseline app **rỗng**) − 130 (ba nguồn đầu) = **còn ~47 MB** cho các nguồn từ điển còn lại, chỉ mục FTS phụ (~17 MB), **và toàn bộ mã sản phẩm chưa viết**. Đối chiếu lại ở Story 1.9, nơi nay đã có AC thật. Vượt trần vẫn là thay đổi **tầng PRD**, không phải tầng kiến trúc. Số đo: [`research/font-spike-results-2026-08-03.md`](research/font-spike-results-2026-08-03.md).
-- **NFR6 đã sửa 2026-08-03 — Ice quyết, và dư địa ~47 MB ở dòng trên KHÔNG đổi.** Story 1.2 đổi `webviewInstallMode` sang `offlineInstaller` để giữ lời hứa *cài được khi không có mạng*; chế độ đó nhúng trọn WebView2 Runtime (**≈ 127 MB**, tải lúc build) và một mình nó đủ đẩy `.msi` vượt trần **trước khi có một byte từ điển nào**. Cách xử lý đã chốt: **trần 150–200 MB là trần của payload sản phẩm; runtime nhúng nằm ngoài**, ghi thành dòng riêng trong mọi phép đo. Nhờ vậy trần vẫn là **một** con số chung cho macOS lẫn Windows và phép trừ dư địa ở dòng trên giữ nguyên. Đường quay lui (`downloadBootstrapper`, hoặc NSIS thay `.msi`) để mở ở **Story 10.2**, đi cùng hàng *"chưa khai artifact phát hành chính thức cho Windows"*.
+- **NFR6 đã sửa 2026-08-03, rồi sửa LẦN HAI 2026-08-05 — trần nay là 400.000.000 byte.** ⚠️ Con số *dư địa ~47 MB* ở dòng trên là **bản ghi tại thời điểm 2026-08-03**, ⛔ không còn sống: payload thật với bảy nguồn là **343.991.430 byte**, dư **56.008.570**. Story 1.2 đổi `webviewInstallMode` sang `offlineInstaller` để giữ lời hứa *cài được khi không có mạng*; chế độ đó nhúng trọn WebView2 Runtime (**≈ 127 MB**, tải lúc build) và một mình nó đủ đẩy `.msi` vượt trần **trước khi có một byte từ điển nào**. Cách xử lý đã chốt: **trần 150–200 MB là trần của payload sản phẩm; runtime nhúng nằm ngoài**, ghi thành dòng riêng trong mọi phép đo. Nhờ vậy trần vẫn là **một** con số chung cho macOS lẫn Windows và phép trừ dư địa ở dòng trên giữ nguyên. Đường quay lui (`downloadBootstrapper`, hoặc NSIS thay `.msi`) để mở ở **Story 10.2**, đi cùng hàng *"chưa khai artifact phát hành chính thức cho Windows"*.
 - Không dùng starter template ngoài; scaffold theo **cây nguồn** ở Structural Seed và **Stack ghim phiên bản**.
 - AD-26 ba nhánh truy vấn tiếng Trung là điều kiện nghiệm thu của FR39 — **`LIKE` bị cấm trên đường nóng**.
 - AD-10: mỗi lớp gỡ rời một file `.db` tự mang metadata giấy phép; **trường giấy phép không được là enum các giấy phép mở** (HVTĐTD dùng theo phép riêng, không thuộc GPL v3).
@@ -1124,7 +1124,7 @@ So that một khác biệt nền tảng lọt vào ở Epic 2 không nằm im t�
 
 > ⚠️ **AC trên đã sửa 2026-08-03 sau rà soát.** Bản đầu tiên của nó đòi *"dựng **bản phát hành**"* và *"chênh lệch cộng với **dung lượng database**"* — cả hai đều mâu thuẫn trực tiếp với hai AC sẵn có của chính story này (*"đây **không phải** FR107 — không build công khai"* và *"**không tải dữ liệu từ điển**"*), và Story 1.3 còn chạy **trước** Story 1.9 nên chưa có `dict-core.db` để cộng. AC đã thu về đúng thứ CI push-time làm được: chỉ đo chênh lệch.
 
-**Given** dữ liệu từ điển 150–200 MB
+**Given** dữ liệu từ điển ~320 MB cho ba tệp `.db` *(số thật 2026-08-05)*
 **When** CI chạy ở epic này
 **Then** **không tải dữ liệu từ điển** — job chỉ biên dịch và chạy các test không phụ thuộc dữ liệu
 **And** thời gian chạy đủ ngắn để không ai muốn tắt nó đi
@@ -1404,6 +1404,33 @@ So that chính sách gỡ bỏ thực thi được mà không đổi một dòng
 
 ---
 
+### Story 1.10b: Dựng dữ liệu từ điển tiếng Anh
+
+> ➕ **Story THÊM 2026-08-05 qua `correct-course`** — xem `sprint-change-proposal-2026-08-05.md`.
+> **Vì sao nó thiếu:** `viwiktionary` mang HAI VAI trên cùng một tệp thô (`lang_code=en` cho FR34 · `lang_code=zh` cho lớp từ loại ZH), nhưng PRD §8.2/§8.3 ⛔ chưa bao giờ nói đó là hai vai song song, nên Story 1.9 chỉ cài vai B. PRD đã sửa hết mơ hồ 2026-08-05.
+
+**Covers:** FR34 · NFR6 *(đo lại)* · NFR8
+
+As a chủ dự án,
+I want đầu mục tiếng Anh có mặt trong dữ liệu từ điển đóng gói,
+So that cặp Anh → Việt có nền dữ liệu như cặp Trung → Việt đã có.
+
+🟢 **Dữ liệu ĐÃ ĐO THẬT** (mũi thăm dò 2026-08-05, đã hoàn tác khỏi cây mã): **119.039** đầu mục · **190.543** nghĩa · **27.396** ví dụ · **40.333.312** byte. Nguồn thô **đã nằm trong `raw/viwiktionary/`** — ⛔ không phải tải gì thêm.
+
+**Given** `raw/viwiktionary/vi-extract.jsonl` đã có · **When** dựng dữ liệu từ điển
+**Then** `viwiktionary` vai A dựng thành nguồn thứ **sáu**, dùng lại `wiktextract_common::parse(reader, "vi", Some("en"))` — ⛔ không parser mới, ⛔ không crate mới
+**And** đối chiếu số đo: **119.039** đầu mục · **190.543** nghĩa · **27.396** ví dụ — lệch quá **1%** ⇒ parser sai, ⛔ không phải *"nguồn vốn thế"*
+**And** mọi mục của nguồn này mang `dict_entry.lang = 'en'`; **đối chứng âm bắt buộc:** nguồn này sinh **0** hàng `lang='zh'`
+**And** `dict_source` mang đủ bốn trường giấy phép, `attribution` nêu Wiktionary tiếng Việt + kaikki.org + CC-BY-SA 4.0 và GFDL
+**And** bảng kế toán **NFR6** cập nhật với số **thật** và đối chiếu trần **400.000.000 byte**
+**And** `check-dict-build.mjs` (Kiểm C/D/E/F) đi theo nguồn mới; `RS_FILE_FLOOR` cập nhật nếu số tệp `.rs` đổi
+
+🔴 **Quyết định phải chốt TRONG story:** lớp này vào **`dict-core.db`** *(nguồn nền — khuyến nghị: giấy phép sạch cùng loại với `viwiktionary` vai B, và FR34 thuộc phạm vi lõi)* hay thành **tệp `.db` riêng**? ⚠️ Nếu vào `dict-core.db` thì **phải dựng lại** tệp đó và điền lại `[base].sha256` — nay rẻ và tái lập được sau bản vá `built_at` của Story 1.10.
+
+⛔ **Không** chạm `src-tauri/**`. ⛔ **Không** đổi một dòng DDL nào của `schema.rs`. Đường tra cứu là **Story 1.11b**.
+
+---
+
 ### Story 1.11: Ba nhánh truy vấn tiếng Trung
 
 **Covers:** FR39 · NFR1
@@ -1445,6 +1472,25 @@ So that công cụ không im lặng trả về rỗng ở đúng những từ t�
 **Given** ba nhánh truy vấn
 **When** đo p95 phía backend
 **Then** nằm trong ngân sách backend của NFR1
+
+---
+
+### Story 1.11b: Đường tra cứu tiếng Anh
+
+> ➕ **Story THÊM 2026-08-05 qua `correct-course`.**
+> 🔴 **CHẶN:** cần một **AD mới** cho đường tra cứu tiếng Anh trước khi bắt đầu — chủ sở hữu **Winston**. `AD-26` tên đầy đủ là *"Ba nhánh truy vấn **tiếng Trung**"*, và nhánh `char_idx` ⛔ không áp được cho tiếng Anh: mũi thăm dò sinh đúng **9** cặp `char_idx` trên **119.039** đầu mục.
+
+**Covers:** FR34 · FR19 · FR40 *(dùng chung `Matcher` với Story 1.12)*
+
+As a người dịch,
+I want bôi đen một từ tiếng Anh và thấy ngay nghĩa tiếng Việt kèm từ loại,
+So that cặp Anh → Việt dùng được thật, không chỉ có trong tài liệu.
+
+**Given** dữ liệu tiếng Anh đã đóng gói *(Story 1.10b)* · **When** tra một từ tiếng Anh
+**Then** đi qua **cùng cổng `DictionarySource`** của Story 1.13 — ⛔ không mã riêng cho từng ngôn ngữ, ngoài phần **chiến lược truy vấn** mà AD mới quy định
+**And** biến thể hình thái *(FR40, **stemming** — ⛔ không phải lemmatization)* dùng `Matcher` của **AD-17**, ⛔ không cài riêng một bản thứ hai
+**And** mục từ tiếng Anh hiển thị **nhãn từ loại** + **nghĩa tiếng Việt** *(FR34)*, ghi rõ nguồn, ⛔ không hợp nhất *(AD-19)*
+**And** **NFR1** *(< 100 ms)* đo **trên đường tiếng Anh**, ⛔ không suy ra từ số đo tiếng Trung
 
 ---
 
@@ -6048,7 +6094,7 @@ So that tôi tin được một bản cài không ai ký tên vào.
 **Given** repo
 **When** kiểm
 **Then** chứa **mã build tool** và `dict-manifest.toml`
-**And** **không chứa** nguồn thô 1,13 GB hay các file `.db` 150–200 MB
+**And** **không chứa** nguồn thô 1,13 GB hay các file `.db` (~320 MB cho ba tệp)
 
 **Given** parser định dạng từ điển
 **When** kiểm bản phát hành
@@ -6328,7 +6374,7 @@ So that v1 phát hành với bằng chứng chứ không với giả định.
 
 **Given** bản cài hoàn chỉnh kèm toàn bộ dữ liệu từ điển và font
 **When** đo dung lượng
-**Then** **payload sản phẩm** nằm trong ngân sách **150–200 MB** của NFR6
+**Then** **payload sản phẩm** nằm dưới trần **400.000.000 byte** của NFR6 *(trần nâng 2026-08-05; đo ở Story 1.10 = 343.991.430 byte)*
 **And** **bản WebView2 Runtime nhúng của `.msi` ghi thành dòng riêng, không cộng vào phép đối chiếu** *(NFR6 sửa 2026-08-03)*
 **And** con số thật của **cả hai dòng** được ghi vào ghi chú phát hành — người dùng tải về thấy dung lượng tổng, nên giấu dòng thứ hai là nói thiếu
 

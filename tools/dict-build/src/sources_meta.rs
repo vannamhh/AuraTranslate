@@ -1,4 +1,4 @@
-//! Siêu dữ liệu tĩnh của năm nguồn — MỘT chỗ khai `code` · `display_name` ·
+//! Siêu dữ liệu tĩnh của mọi nguồn — MỘT chỗ khai `code` · `display_name` ·
 //! `license_*` · `attribution` · `source_url`, khớp khuôn `scope_kinds!`/`message_keys!`
 //! của `src-tauri` (Dev Notes bàn giao #6 của Story 1.9): một khai báo, dùng ở nhiều
 //! chỗ (chèn `dict_source`, README, và sau này màn hình Attribution — Story 10.4).
@@ -101,6 +101,26 @@ pub const EN_WIKTIONARY: SourceMeta = SourceMeta {
     source_url: "https://kaikki.org/dictionary/Chinese/kaikki.org-dictionary-Chinese.jsonl",
 };
 
+/// viwiktionary **VAI A** — mục từ TIẾNG ANH của cùng tệp thô mà [`VIWIKTIONARY`] (vai
+/// B) đọc. Nguồn NỀN thứ sáu, thêm ở Story 1.10b để FR34 có dữ liệu.
+///
+/// 🔴 `license_ref` dùng LẠI [`LicenseRef::CcBySaAndGfdl`] của vai B — ⛔ **không** thêm
+/// biến thể `enum` mới. Cùng tệp `vi-extract.jsonl`, cùng kho kaikki.org, cùng
+/// CC-BY-SA 4.0 + GFDL 1.3: một biến thể thứ hai chỉ nhân đôi cùng một văn bản và tạo
+/// chỗ cho hai bản trôi khỏi nhau.
+///
+/// ⚠️ `display_name` **phải khác** vai B. Màn hình Attribution (Story 10.4) liệt kê cả
+/// sáu nguồn nền; hai dòng "Wiktionary tiếng Việt" giống hệt nhau là lỗi hiển thị.
+pub const VIWIKTIONARY_EN: SourceMeta = SourceMeta {
+    code: "viwiktionary-en",
+    display_name: "Wiktionary tiếng Việt (mục tiếng Anh)",
+    license_kind: "open",
+    license_id: Some("CC-BY-SA-4.0"),
+    license_ref: LicenseRef::CcBySaAndGfdl,
+    attribution: "Wiktionary tiếng Việt (vi.wiktionary.org), mục tiếng Anh, qua Wiktextract/kaikki.org. Phân phối theo CC BY-SA 4.0 và GFDL.",
+    source_url: "https://kaikki.org/dictionary/downloads/vi/vi-extract.jsonl",
+};
+
 /// Thiều Chửu (1942, Nguyễn Hữu Kha †1954) — lớp GỠ RỜI, Story 1.10.
 /// `license_kind = "public-domain"` + `license_id = "CC0-1.0"`: tác phẩm gốc hết hạn
 /// bảo hộ, VÀ bản số hoá phát hành CC0 1.0 (đã đối chiếu SHA-256 byte-for-byte với kho
@@ -130,10 +150,22 @@ pub const VIETPHRASE: SourceMeta = SourceMeta {
     source_url: "https://github.com/truyencuatui/VietPhrase",
 };
 
-/// Đúng NĂM nguồn NỀN của Story 1.9, đúng thứ tự chèn — ⛔ không hơn không kém (Bẫy 10).
-/// Đổi tên từ `ALL` (Story 1.9) → `BASE_ALL` (Story 1.10) khi tách hai danh sách; nội
-/// dung ⛔ giữ nguyên.
-pub const BASE_ALL: [&SourceMeta; 5] = [&CVDICT, &CC_CEDICT, &UNIHAN, &VIWIKTIONARY, &EN_WIKTIONARY];
+/// Đúng SÁU nguồn NỀN, đúng thứ tự chèn — ⛔ không hơn không kém (Bẫy 10).
+/// Đổi tên từ `ALL` (Story 1.9) → `BASE_ALL` (Story 1.10) khi tách hai danh sách.
+///
+/// 🔴 **Thứ tự chèn = thứ tự `dict_source.id`.** `viwiktionary-en` (Story 1.10b) thêm
+/// vào **CUỐI** để năm nguồn cũ giữ nguyên `id 1..5`. Chèn nó vào giữa — cạnh
+/// `viwiktionary` "cho gọn" — làm mọi `id` sau nó dịch đi: vô hại hôm nay (mọi FK nằm
+/// trong cùng tệp, cùng lượt dựng), nhưng nó khiến hai lượt dựng khác nhau ra hai bảng
+/// `id` khác nhau mà ⛔ không đổi lại được gì.
+pub const BASE_ALL: [&SourceMeta; 6] = [
+    &CVDICT,
+    &CC_CEDICT,
+    &UNIHAN,
+    &VIWIKTIONARY,
+    &EN_WIKTIONARY,
+    &VIWIKTIONARY_EN,
+];
 
 /// Đúng HAI lớp gỡ rời trong phạm vi Story 1.10 (Ice chốt 2026-08-05). HVTĐTD và Cổ hán
 /// văn chuyển sang story nối tiếp — xem `deferred-work.md`. ⛔ KHÔNG dựng tệp `.db` rỗng
@@ -147,15 +179,69 @@ mod tests {
 
     /// Bẫy 10 / Bẫy 4: Thiều Chửu · Cổ hán văn · VietPhrase · HVTĐTD KHÔNG thuộc
     /// `BASE_ALL` — chúng là lớp gỡ rời (Story 1.10; Thiều Chửu + VietPhrase giao ở
-    /// story này, hai lớp còn lại ở story nối tiếp). Test này khoá đúng năm mã nguồn NỀN
+    /// story này, hai lớp còn lại ở story nối tiếp). Test này khoá đúng các mã nguồn NỀN
     /// của `epics.md`.
+    ///
+    /// ⚠️ Story 1.10b nâng 5 → 6 vì nó thêm một nguồn **NỀN** thật (`viwiktionary-en`,
+    /// vai A của cùng tệp thô), ⛔ **không** vì nó kéo một lớp gỡ rời vào `BASE_ALL`.
+    /// Mệnh đề mà test này khoá — bốn lớp gỡ rời KHÔNG thuộc `BASE_ALL` — ⛔ không đổi.
     #[test]
-    fn exactly_five_sources_with_the_epics_md_codes() {
-        assert_eq!(BASE_ALL.len(), 5);
+    fn exactly_six_sources_with_the_epics_md_codes() {
+        assert_eq!(BASE_ALL.len(), 6);
         let codes: Vec<&str> = BASE_ALL.iter().map(|s| s.code).collect();
         assert_eq!(
             codes,
-            vec!["cvdict", "cc-cedict", "unihan", "viwiktionary", "en-wiktionary"]
+            vec![
+                "cvdict",
+                "cc-cedict",
+                "unihan",
+                "viwiktionary",
+                "en-wiktionary",
+                "viwiktionary-en"
+            ]
+        );
+    }
+
+    /// 🔴 AC4: hai vai của cùng một tệp thô là **hai nguồn phân biệt được** — khác `code`
+    /// (khoá máy) VÀ khác `display_name` (nhãn người đọc). Màn hình Attribution của Story
+    /// 10.4 liệt kê cả hai; hai dòng "Wiktionary tiếng Việt" giống hệt nhau là một lỗi
+    /// hiển thị, ⛔ không phải chi tiết thẩm mỹ.
+    #[test]
+    fn viwiktionary_and_viwiktionary_en_are_two_distinct_sources() {
+        assert_ne!(VIWIKTIONARY.code, VIWIKTIONARY_EN.code);
+        assert_ne!(VIWIKTIONARY.display_name, VIWIKTIONARY_EN.display_name);
+        assert_eq!(VIWIKTIONARY.code, "viwiktionary");
+        assert_eq!(VIWIKTIONARY_EN.code, "viwiktionary-en");
+    }
+
+    /// AC4: `attribution` của vai A phải nêu rõ **mục tiếng Anh**, nếu không màn
+    /// Attribution ⛔ không phân biệt được nó với vai B.
+    #[test]
+    fn viwiktionary_en_attribution_says_it_is_the_english_entries() {
+        assert!(VIWIKTIONARY_EN.attribution.contains("mục tiếng Anh"));
+        assert!(VIWIKTIONARY_EN.attribution.contains("vi.wiktionary.org"));
+        assert!(VIWIKTIONARY_EN.attribution.contains("kaikki.org"));
+        assert!(VIWIKTIONARY_EN.attribution.contains("CC BY-SA 4.0"));
+        assert!(VIWIKTIONARY_EN.attribution.contains("GFDL"));
+        assert!(VIWIKTIONARY_EN.display_name.contains("mục tiếng Anh"));
+    }
+
+    /// AC4: cả bốn trường giấy phép khác rỗng, và `license_text` là **văn bản thật**
+    /// (dùng lại `LicenseRef::CcBySaAndGfdl` của vai B — cùng tệp, cùng giấy phép),
+    /// ⛔ không phải chuỗi giữ chỗ.
+    #[test]
+    fn viwiktionary_en_carries_all_four_license_fields_filled() {
+        assert_eq!(VIWIKTIONARY_EN.license_kind, "open");
+        assert_eq!(VIWIKTIONARY_EN.license_id, Some("CC-BY-SA-4.0"));
+        assert!(!VIWIKTIONARY_EN.attribution.is_empty());
+        assert!(!VIWIKTIONARY_EN.source_url.is_empty());
+
+        let text = VIWIKTIONARY_EN.license_text();
+        assert!(!text.is_empty());
+        assert_eq!(
+            text,
+            VIWIKTIONARY.license_text(),
+            "cùng tệp thô ⇒ cùng giấy phép ⇒ cùng văn bản, ⛔ không thêm biến thể enum"
         );
     }
 

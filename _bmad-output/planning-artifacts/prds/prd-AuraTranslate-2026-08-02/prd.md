@@ -2,7 +2,7 @@
 title: "PRD: AuraTranslate"
 status: final
 created: 2026-08-02
-updated: 2026-08-03
+updated: 2026-08-05
 ---
 
 # PRD: AuraTranslate
@@ -150,7 +150,7 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 | Mất dữ liệu khi ứng dụng sập | **≤ 5 giây** công việc | Quyết định 2026-08-02, xem NFR18 |
 | Thao tác hoàn toàn bằng bàn phím | Một vòng dịch trọn một Chương **không chạm chuột** | Quyết định 2026-08-02, xem NFR17 |
 | Khả năng mang dữ liệu đi | Xuất được **TMX** | Trụ định vị #3 |
-| Kích thước bản cài | Trong ngân sách 150–200 MB, **không tải thêm sau khi cài** | Đo được 130 MB với 3 nguồn |
+| Kích thước bản cài | Dưới trần **400.000.000 byte**, **không tải thêm sau khi cài** | Đo được **343.991.430 byte** với 7 nguồn *(2026-08-05)* |
 
 ### 4.2 Tầng B — Chỉ số kết quả công việc
 
@@ -823,15 +823,39 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 
 | ID | Yêu cầu | Ngưỡng |
 |---|---|---|
-| **NFR6** | Kích thước bản cài kèm toàn bộ từ điển | **[A2]** Ngân sách **150–200 MB** cho **payload sản phẩm** — mã, font, dữ liệu từ điển — **không có cơ chế tải thêm sau khi cài** *(đo được 130 MB với ba nguồn đầu tiên)*. **Bản WebView2 Runtime nhúng trên Windows nằm NGOÀI ngân sách này**; xem giải thích dưới bảng |
+| **NFR6** | Kích thước bản cài kèm toàn bộ từ điển | **[A2]** Trần **400.000.000 byte** *(400 MB thập phân)* cho **payload sản phẩm** — mã, font, dữ liệu từ điển — **không có cơ chế tải thêm sau khi cài**. *(Đo thật 2026-08-05, bảy nguồn: **343.991.430 byte** — ĐẠT, dư 56.008.570.)* **Bản WebView2 Runtime nhúng trên Windows nằm NGOÀI trần này**; xem giải thích dưới bảng |
 | **NFR7** | Tra cứu khi ngoại tuyến | **100%** hoạt động không cần mạng |
 | **NFR8** | Độ chính xác dấu tiếng Việt | Chỉ mục tìm kiếm **chính** phải **phân biệt dấu**. Chế độ xoá dấu chỉ được tồn tại như một chỉ mục **phụ**, không bao giờ là mặc định |
 | **NFR9** | Khả năng mang dữ liệu đi | TM xuất được TMX; Glossary và prompt xuất được định dạng văn bản mở; `.atproj` tự chứa và mở được trên máy khác |
 | **NFR10** | Toàn vẹn dữ liệu | Mất chỉ mục Library **không được** làm mất dữ liệu — chỉ mục dựng lại được hoàn toàn từ `.atproj` |
 
-> **NFR6 sửa 2026-08-03 — Ice quyết, sau khi Story 1.2 đổi `webviewInstallMode` sang `offlineInstaller`.** Bản `.msi` trên Windows nhúng trọn WebView2 Runtime (**≈ 127 MB**, tải lúc build) để giữ lời hứa *cài được khi không có mạng* — cùng lời hứa mà NFR7 và NFR12 đang mang. Runtime đó là thành phần của hệ điều hành, không phải payload của sản phẩm, nên **nó không tính vào ngân sách 150–200 MB**. Hệ quả bắt buộc, không được bỏ: **mọi phép đo dung lượng phải tách hai dòng** — *payload sản phẩm* (đối chiếu với trần) và *WebView2 Runtime nhúng* (ghi ra, không đối chiếu). Nhờ cách phát biểu này, trần vẫn là **một** con số chung cho macOS lẫn Windows, và dư địa còn lại (**~47 MB** sau font và ba nguồn từ điển đầu — đo ở Story 1.1) **không đổi**. Đường quay lui vẫn còn nếu về sau thấy `.msi` quá lớn để người dùng tải: đổi về `downloadBootstrapper` (mất mệnh đề cài offline) hoặc phát hành NSIS thay `.msi` — cả hai là quyết định ở Story 10.2, không phải ở tầng kiến trúc.
+> **NFR6 sửa 2026-08-03 — Ice quyết, sau khi Story 1.2 đổi `webviewInstallMode` sang `offlineInstaller`.** Bản `.msi` trên Windows nhúng trọn WebView2 Runtime (**≈ 127 MB**, tải lúc build) để giữ lời hứa *cài được khi không có mạng* — cùng lời hứa mà NFR7 và NFR12 đang mang. Runtime đó là thành phần của hệ điều hành, không phải payload của sản phẩm, nên **nó không tính vào trần NFR6** *(lúc đó là 150–200 MB; nay 400.000.000 byte — xem sửa lần hai bên dưới. Mệnh đề "WebView2 nằm ngoài trần" ⛔ không đổi)*. Hệ quả bắt buộc, không được bỏ: **mọi phép đo dung lượng phải tách hai dòng** — *payload sản phẩm* (đối chiếu với trần) và *WebView2 Runtime nhúng* (ghi ra, không đối chiếu). Nhờ cách phát biểu này, trần vẫn là **một** con số chung cho macOS lẫn Windows. Đường quay lui vẫn còn nếu về sau thấy `.msi` quá lớn để người dùng tải: đổi về `downloadBootstrapper` (mất mệnh đề cài offline) hoặc phát hành NSIS thay `.msi` — cả hai là quyết định ở Story 10.2, không phải ở tầng kiến trúc.
 
-> **NFR8 giải thích:** Giai đoạn 0 đo được `unicode61` mặc định gộp `má / ma / mà / mả / mã / mạ` thành một kết quả duy nhất. Với một công cụ dịch tiếng Việt, đây là lỗi phá vỡ độ chính xác của toàn bộ tìm kiếm. Chi phí của việc lập chỉ mục hai lần đã biết: **~17 MB mỗi chỉ mục**, nằm gọn trong ngân sách NFR6.
+> **NFR6 sửa lần hai 2026-08-05 — Ice quyết, trên SỐ ĐO THẬT: trần 150–200 MB → 400.000.000 byte.**
+>
+> Story 1.10 dựng xong hai lớp gỡ rời và đo thật. Kết quả **vượt** trần cũ, và trần cũ là thứ được sửa — ⛔ không phải sản phẩm.
+>
+> | Khoản | Byte |
+> |---|---:|
+> | Baseline `.dmg` không font/từ điển | 2.334.696 |
+> | Văn bản giấy phép trong bundle | 35.149 |
+> | Bộ font | 21.285.713 |
+> | `dict-core.db` *(5 nguồn nền)* | 154.464.256 |
+> | `dict-thieu-chuu.db` | 5.787.648 |
+> | `dict-vietphrase.db` | **160.083.968** |
+> | **Payload sản phẩm hôm nay** | **343.991.430** |
+> | Trần mới | 400.000.000 |
+> | **Dư địa** | **56.008.570** |
+>
+> **Vì sao nâng trần thay vì cắt dữ liệu.** Ba đường ra kia đều đắt hơn thứ chúng cứu: bỏ một nguồn là bỏ năng lực sản phẩm; bỏ chỉ mục `sense_fts_nd` của riêng lớp gỡ rời làm lược đồ giữa các tệp `.db` khác nhau, buộc đường đọc phải hỏi *"tệp này có bảng đó không?"* trước mỗi truy vấn — tức **mã riêng cho từng nguồn**, đúng thứ FR36 tồn tại để chặn; và tối ưu cờ biên dịch tiết kiệm một lượng **chưa đo được**. Con số 150–200 MB là một **phán đoán trước khi có dữ liệu** *(đặt lúc mới đo 130 MB với ba nguồn)*, ⛔ không phải một ràng buộc từ người dùng hay từ nền tảng.
+>
+> 🔴 **Lời hứa GIỮ NGUYÊN: ⛔ không tải thêm sau khi cài.** Đây là lý do phương án *"NFR6 không tính lớp gỡ rời"* bị loại: nó chỉ đúng nếu lớp gỡ rời **thôi nằm trong bộ cài**, tức phải tải sau — mà lời hứa đó đang chống đỡ cho **NFR7** *(tra cứu ngoại tuyến 100%)* và **NFR12**. Trần dời được; lời hứa thì không.
+>
+> ⚠️ **Cái giá phải nói thẳng:** người dùng tải **~344 MB** ngay từ đầu *(Windows thêm ~127 MB WebView2)*. Đây là đánh đổi có ý thức để đổi lấy *"cài xong là dùng được, không cần mạng"*.
+>
+> ⚠️ **Dư địa 56.008.570 byte KHÔNG dành cho tính năng mới.** Hai lớp gỡ rời còn lại — **HVTĐTD** và **Cổ hán văn** — **chưa dựng** *(chưa có nguồn thô; xem `deferred-work.md`)*. VietPhrase một mình ăn 160 MB, nên nếu một trong hai lớp đó hành xử tương tự thì trần 400.000.000 **sẽ vượt lần nữa**. **Đo trước khi hứa** — đây chính là chỗ **[A2]** vẫn còn mở.
+
+> **NFR8 giải thích:** Giai đoạn 0 đo được `unicode61` mặc định gộp `má / ma / mà / mả / mã / mạ` thành một kết quả duy nhất. Với một công cụ dịch tiếng Việt, đây là lỗi phá vỡ độ chính xác của toàn bộ tìm kiếm. Chi phí của việc lập chỉ mục hai lần đã biết: **~17 MB mỗi chỉ mục** *(số đo Giai đoạn 0, trên ba nguồn đầu)*, nằm gọn trong trần NFR6. ⚠️ **Hiệu chỉnh 2026-08-05:** trên dữ liệu thật, chi phí chỉ mục **theo tỷ lệ với nguồn**, ⛔ không phải một hằng số — VietPhrase nở **6,7×** từ 23.844.586 byte thô lên 160.083.968 byte *(đầu mục ngắn, rất nhiều, cộng ba chỉ mục FTS5)*. Chỉ mục phụ vẫn giữ, ⛔ không đánh đổi: bỏ nó ở riêng một lớp làm lược đồ giữa các tệp `.db` khác nhau và phá chính điều kiện của FR36.
 
 ### 7.3 Bảo mật & quyền riêng tư
 
@@ -888,17 +912,44 @@ Chọn **v3 chứ không phải v2** vì v3 tương thích với crate Apache-2.
 | **Nền** | **CVDICT** | CC-BY-SA 4.0 | Từ và cụm từ ZH→VI, >122.000 mục | ✅ Sạch |
 | **Nền** | **Unihan** | Unicode License | Âm Hán Việt, nền tab Hán Việt | ✅ Sạch |
 | **Nền** | **CC-CEDICT** | CC-BY-SA 4.0 | Đối chiếu chéo — ý kiến thứ ba khi các nguồn Việt bất đồng | ✅ Sạch |
-| **Nền** | **kaikki.org / Wiktextract** *(viwiktionary)* | CC-BY-SA + GFDL | **Từ loại + nghĩa + ví dụ cho tiếng Anh** — 133.319 mục, 100% có từ loại | ✅ Sạch |
+| **Nền** | **kaikki.org / Wiktextract** *(viwiktionary — **vai A: mục TIẾNG ANH**)* | CC-BY-SA + GFDL | **Từ loại + nghĩa tiếng Việt + ví dụ cho ĐẦU MỤC TIẾNG ANH** — nền của **FR34**, cột dữ liệu duy nhất cho cặp **Anh → Việt**. 🟢 **ĐÃ ĐO 2026-08-05** *(mũi thăm dò)*: **119.039** đầu mục · **190.543** nghĩa · **27.396 ví dụ** · **40.333.312 byte** | 🔴 **CHƯA DỰNG vào bản phát hành** — xem cảnh báo dưới bảng |
+| **Nền** | **kaikki.org / Wiktextract** *(viwiktionary — **vai B: mục tiếng Trung**)* | CC-BY-SA + GFDL | Lớp từ loại cho **đầu mục tiếng Trung** — độ phủ thấp có chủ ý (2,76%), xem §8.3 | ✅ Sạch — đã dựng, 1.598 mục |
 | **Nền** | **en.wiktionary** *(qua Wiktextract)* | CC-BY-SA + GFDL | **Khung từ loại + câu ví dụ cho tiếng Trung**, ghép nghĩa tiếng Việt từ CVDICT | ✅ Sạch — xem 8.3 |
-| **Gỡ rời** | **Thiều Chửu** (1942) | Phạm vi công cộng *(bản số hoá **không xác minh** — xem §8.6)* | Tự điển ký tự chuẩn mực | 🟡 Rủi ro đã chấp nhận |
+| **Gỡ rời** | **Thiều Chửu** (1942) | **Phạm vi công cộng + bản số hoá CC0 1.0** *(🟢 đã xác minh 2026-08-05 — SHA-256 byte-for-byte với `catusf/tudien`; §8.6)* | Tự điển ký tự chuẩn mực | ✅ **Sạch** — nghĩa vụ ghi công tác giả vĩnh viễn |
 | **Gỡ rời** | **Cổ hán văn** — Tam tự kinh, Thiên tự văn, Bách gia tính | Văn bản gốc thuộc phạm vi công cộng *(bản chú giải **không xác minh** — xem §8.6)* | Trích dẫn minh hoạ cách dùng cổ văn | 🟡 Rủi ro đã chấp nhận |
 | **Gỡ rời** | **VietPhrase** | ❓ Không xác định được tác giả | Cách cộng đồng dịch giả **thực sự** dịch, tích luỹ hơn một thập kỷ | 🟡 Đóng gói tách rời, có chính sách gỡ (FR112) |
 | **Gỡ rời** | **Hán Việt Từ Điển Trích Dẫn** | © Đặng Thế Kiệt — **đã được tác giả cho phép bằng văn bản, 2026-08-02** | Nguồn duy nhất có từ loại + ví dụ + trích dẫn **bằng tiếng Việt** cho Hán Việt | ✅ Được phép — lớp gỡ rời cao cấp, xem 8.3 |
 | — | ~~Trần Văn Chánh (1999)~~ | Còn bản quyền | — | ⛔ Đã loại |
 
+> 🔴 **CẢNH BÁO 2026-08-05 — `viwiktionary` mang HAI VAI trên CÙNG MỘT tệp thô, và chỉ MỘT vai đã được cài.**
+>
+> `kaikki.org/dictionary/downloads/vi/vi-extract.jsonl` là bản trích **toàn ấn bản** `vi.wiktionary.org` — nó chứa mục từ của **mọi** ngôn ngữ mà ấn bản đó có. Lọc theo `lang_code` quyết định vai:
+>
+> | Vai | Lọc | Phục vụ | Trạng thái |
+> |---|---|---|---|
+> | **A — mục tiếng Anh** | `lang_code = "en"` | **FR34**, cặp **Anh → Việt** | 🔴 **chưa dựng** — 141.407 mục đang bị vứt bỏ |
+> | **B — mục tiếng Trung** | `lang_code = "zh"` | Lớp từ loại ZH *(§8.3)* | ✅ đã dựng — 1.598 mục |
+>
+> **Vì sao vai A rơi mất:** bảng trên *(trước lần sửa này)* giao viwiktionary vai **tiếng Anh**, rồi **§8.3** — tiêu đề *"Lớp từ loại tiếng **Trung**"* — bàn cùng nguồn đó ở vai **tiếng Trung**. PRD ⛔ **không nói ở đâu rằng đó là hai vai song song**, nên Story 1.9 đọc §8.3 và cài đúng một vai: `viwiktionary.rs` lọc `lang_code == "zh"` và bỏ **411.810** dòng còn lại. Kết quả đo trên `dict-core.db` đã dựng: **473.499 đầu mục, 100% `lang='zh'`, 0 mục tiếng Anh**.
+>
+> ⇒ **FR34 hiện ⛔ KHÔNG có đường dữ liệu nào.** Đây là lỗi **mơ hồ của PRD**, ⛔ không phải lỗi cài đặt — hàng bảng trên đã tách đôi để nó ⛔ không lặp lại.
+>
+> ⚠️ **Hệ quả với NFR6 — ĐÃ ĐO, và biên còn lại rất mỏng.** Trần 400.000.000 byte chốt 2026-08-05 được đặt trên payload **chưa có** lớp tiếng Anh. Mũi thăm dò cùng ngày cho số thật:
+>
+> | | Byte |
+> |---|---:|
+> | Payload hôm nay *(7 nguồn, thiếu tiếng Anh)* | 343.991.430 |
+> | **+ Lớp tiếng Anh** *(đo thật)* | **40.333.312** |
+> | **Payload dự phóng** | **384.324.742** — vẫn **ĐẠT** |
+> | Dư địa còn lại cho **HVTĐTD + Cổ hán văn** | **15.675.258** |
+>
+> 🔴 **15,7 MB cho HAI lớp chưa dựng.** Thiều Chửu chỉ tốn 5.787.648 byte nên *có thể* vừa — nhưng **VietPhrase tốn 160.083.968**. Nếu HVTĐTD giàu ví dụ và trích dẫn như mô tả ở §8.3, nó ⛔ **không vừa**. **Đo cả hai TRƯỚC khi hứa đóng gói** — xem **[A2]** ở §11.
+
 ### 8.3 Lớp từ loại tiếng Trung — quyết định "B rồi C", nay đã có cả hai
 
-Giai đoạn 0 đo được kaikki.org chỉ phủ **2,76%** đầu mục tiếng Trung của CVDICT, và chỉ **0,067%** có kèm ví dụ. Lựa chọn kaikki.org làm lớp từ loại **đúng cho tiếng Anh nhưng sai cho tiếng Trung**.
+> ⚠️ **Phạm vi của §8.3 này: CHỈ đầu mục tiếng Trung — vai B của viwiktionary.** Vai A *(đầu mục **tiếng Anh**, nền của FR34)* ⛔ **không** nằm trong §8.3 và ⛔ **không** bị kết luận nào ở đây chi phối. Chính chỗ này từng làm vai A rơi mất — xem cảnh báo cuối §8.2.
+
+Giai đoạn 0 đo được kaikki.org chỉ phủ **2,76%** đầu mục tiếng Trung của CVDICT, và chỉ **0,067%** có kèm ví dụ. Lựa chọn kaikki.org làm lớp từ loại **đúng cho tiếng Anh nhưng sai cho tiếng Trung** — 🔴 và câu đó đáng lẽ phải kéo theo hệ quả *"nên VẪN dùng nó cho tiếng Anh"*, nhưng PRD ⛔ chưa bao giờ nói tiếp vế đó.
 
 Quyết định khi đó là **chạy song song hai đường**: gửi thư xin phép HVTĐTD ngay, đồng thời dựng lớp C làm nền bắt buộc để **tiến độ dự án không phụ thuộc vào một lời đồng ý**. **Cả hai đường nay đều về đích.**
 
@@ -936,7 +987,7 @@ Cả VietPhrase và HVTĐTD đều dùng **chung một khuôn mẫu** (FR36): g�
 
 | Việc đã bỏ | Rủi ro còn lại |
 |---|---|
-| Xác minh bản quyền **bản Thiều Chửu số hoá cụ thể** **[A3]** | Bản gốc 1942 nhiều khả năng đã thuộc phạm vi công cộng, nhưng **bản số hoá có thể kèm tuyên bố quyền riêng** |
+| ~~Xác minh bản quyền **bản Thiều Chửu số hoá cụ thể** **[A3]**~~ | ✅ **ĐÃ XÁC MINH 2026-08-05 (Story 1.10) — rủi ro này ĐÓNG cho Thiều Chửu.** Tệp dùng thật khớp **byte-for-byte** *(SHA-256 `20ec62ba…75f5f`)* với `tudien-2.2/dict/TudienThienChuu.txt` trong kho **`catusf/tudien`**, phát hành theo **CC0 1.0 Universal** — người số hoá **từ bỏ mọi quyền**. ⇒ Mệnh đề *"bản số hoá có thể kèm tuyên bố quyền riêng"* ⛔ **không còn áp** cho bản này. Việc đã bỏ hoá ra **đã được làm**, ⛔ không phải bị bỏ qua. ⚠️ **Nghĩa vụ CÒN LẠI, vĩnh viễn:** ghi công **Thiều Chửu (Nguyễn Hữu Kha, 1902–1954)** — quyền nhân thân được bảo hộ **vô thời hạn** kể cả khi tác phẩm đã vào phạm vi công cộng; CC0 ⛔ **không** miễn trừ điều này. Đã cưỡng chế bằng test `thieu_chuu_attribution_names_the_author` |
 | Chọn **bản Cổ hán văn không có chú giải hiện đại** | Văn bản gốc đã rất cổ, nhưng **phần chú giải của người biên soạn hiện đại thì còn bản quyền** |
 | Xác nhận **phạm vi phân phối lại của HVTĐTD** trước khi đóng gói *(quyết định 2026-08-02, đóng Q8)* | Tác giả đã cho phép *"sử dụng data"*, nhưng **không nói rõ có bao gồm phân phối lại kèm bản cài công khai** hay không. Mặc định cho phép, gỡ khi tác giả yêu cầu |
 | Kiểm tra điều khoản sử dụng của các website trước khi mở đường nhập từ URL *(quyết định 2026-08-03, cùng FR122)* | Tải nội dung từ website để dịch **có thể trái điều khoản của site đó**, và ranh giới thay đổi theo từng site. Chấp nhận có ý thức, không kiểm tra trước |
@@ -945,7 +996,7 @@ Cả VietPhrase và HVTĐTD đều dùng **chung một khuôn mẫu** (FR36): g�
 
 **Cái giá phải trả:** rủi ro chuyển từ **chủ động** (biết trước, xử lý trước) sang **phản ứng** (xử lý khi có khiếu nại). Với một bản phát hành công khai mang tên thật, đây là đánh đổi thật chứ không phải hình thức.
 
-> **Hệ quả bắt buộc:** vì không xác minh trước, **Thiều Chửu và Cổ hán văn phải được đóng gói như lớp gỡ rời** (FR36), **không phải lớp nền** — khác với giả định ban đầu ở bảng §8.2. Kiến trúc phải phản ánh điều này. Cùng lý do đó áp cho **HVTĐTD**: đã được phép nhưng phạm vi phân phối lại không xác nhận trước, nên lớp này giữ nguyên hình dạng gỡ rời.
+> **Hệ quả bắt buộc:** vì không xác minh trước, **Cổ hán văn phải được đóng gói như lớp gỡ rời** (FR36), **không phải lớp nền** *(🔄 2026-08-05: **Thiều Chửu** nay đã xác minh sạch, nhưng **vẫn giữ hình dạng lớp gỡ rời** — hạ tầng đã dựng xong ở Story 1.10, và một nguồn gỡ rời được ⛔ không bao giờ là bất lợi)* — khác với giả định ban đầu ở bảng §8.2. Kiến trúc phải phản ánh điều này. Cùng lý do đó áp cho **HVTĐTD**: đã được phép nhưng phạm vi phân phối lại không xác nhận trước, nên lớp này giữ nguyên hình dạng gỡ rời.
 
 > **Điểm khác của HVTĐTD so với hai nguồn kia:** chủ sở hữu **đã biết mặt, đã hồi âm và đang giữ liên lạc**. Nếu có bất đồng về phạm vi, nó sẽ đến dưới dạng một yêu cầu trực tiếp chứ không phải im lặng kéo dài — nên biện pháp phản ứng ở đây rẻ hơn hẳn.
 
@@ -1019,8 +1070,8 @@ Hai yêu cầu dưới đây không thuộc riêng giai đoạn nào và chung m
 | # | Giả định | Xuất hiện ở | Nếu sai thì sao |
 |---|---|---|---|
 | **A1** | Vòng IPC Tauri thật và thời gian render frontend nằm gọn trong ngân sách 100 ms của NFR1 | NFR1 | Chưa đo được ở môi trường dòng lệnh. Rủi ro đã giảm mạnh nhờ payload 679 byte — nếu chậm, nguyên nhân sẽ ở frontend, không phải đường dữ liệu |
-| **A2** | Ngân sách 150–200 MB đủ cho toàn bộ nguồn từ điển — **tính trên payload sản phẩm, không tính WebView2 Runtime nhúng** *(khoanh lại 2026-08-03)* | NFR6 | Unihan, Thiều Chửu, Cổ hán văn, VietPhrase chưa nạp vào database đo thử. Nếu vượt, phải cân nhắc lại lời hứa "không tải thêm sau cài". **Phần WebView2 đã được tách ra khỏi giả định này**, nên A2 nay đo đúng một thứ và đo chung cho cả hai nền tảng |
-| **A3** | Bản Thiều Chửu số hoá và bản Cổ hán văn dùng được về mặt pháp lý — **giả định này sẽ KHÔNG được kiểm chứng trước khi phát hành** (quyết định 2026-08-02, §8.6) | §8.2, §8.6, R7 | Gỡ hai lớp đó khỏi bản phát hành kế tiếp qua FR112. Sản phẩm vẫn chạy đầy đủ trên các lớp nền có giấy phép sạch (FR36) |
+| **A2** | Trần **400.000.000 byte** đủ cho toàn bộ nguồn từ điển — **tính trên payload sản phẩm, không tính WebView2 Runtime nhúng** *(khoanh lại 2026-08-03; trần nâng 2026-08-05)*. 🟢 **Đã kiểm chứng MỘT PHẦN**: năm nguồn nền + Thiều Chửu + VietPhrase đo thật = **343.991.430 byte**, ĐẠT. 🔴 **Còn mở** cho **HVTĐTD**, **Cổ hán văn**, và **lớp tiếng Anh** *(đã đo 40.333.312 byte nhưng chưa vào bản phát hành)* — dự phóng đủ bảy nguồn + tiếng Anh = **384.324.742 byte**, chỉ còn **15.675.258** cho hai lớp cuối | NFR6 | A2 đã **sai một lần** theo đúng cách nó dự báo: trần cũ 150–200 MB bị vượt. Ice giải bằng cách **nâng trần, giữ lời hứa "không tải thêm sau cài"** — ⛔ không phải bằng cách bỏ nguồn hay tải sau *(NFR6 sửa lần hai)*. Nếu **sai lần hai** *(hai lớp còn lại ăn hết 56.008.570 byte dư địa)*, đường ra ⛔ không còn là nâng trần tiếp: ở mức đó, phải cân nhắc lại chính lời hứa **"không tải thêm sau cài"** — tức chạm vào **NFR7** và **NFR12**. **Đo hai lớp đó TRƯỚC khi hứa đóng gói chúng.** |
+| **A3** | Bản Thiều Chửu số hoá và bản Cổ hán văn dùng được về mặt pháp lý. 🔄 **Tách đôi 2026-08-05:** **Thiều Chửu** ⇒ 🟢 **ĐÃ KIỂM CHỨNG, thôi là giả định** — CC0 1.0, đối chiếu SHA-256 byte-for-byte với kho `catusf/tudien` *(Story 1.10)*. **Cổ hán văn** ⇒ 🔴 **vẫn là giả định chưa kiểm chứng**, và nay còn chưa có cả nguồn thô | §8.2, §8.6, R7 | Chỉ còn áp cho **Cổ hán văn**: gỡ khỏi bản phát hành kế tiếp qua FR112. Sản phẩm vẫn chạy đầy đủ trên các lớp nền có giấy phép sạch (FR36). ⚠️ Với Thiều Chửu, thứ thay thế rủi ro pháp lý là một **nghĩa vụ vĩnh viễn**: ghi công tác giả *(quyền nhân thân, ⛔ không hết hạn, CC0 không miễn trừ)* |
 | **A4** | Tách câu tự động đúng ở tỷ lệ chấp nhận được | FR23 | FR78 (gộp/tách tay) là đường lui, nhưng nếu sai quá nhiều thì thao tác thủ công sẽ nuốt hết giá trị của TM |
 | **A5** | Người dùng sẵn sàng vượt qua cảnh báo Gatekeeper/SmartScreen để cài | §9.1 | Đây là rào cản đón nhận lớn nhất và không kiểm soát được bằng thiết kế |
 | **A6** | Ngưỡng tìm kiếm Library **p95 < 500 ms** trên 5.000 Chương là hợp lý | NFR3 | Ngưỡng tạm đặt bằng phán đoán kỹ thuật. Hiệu chỉnh **sau Giai đoạn 3b** (Q4) — Giai đoạn 3 chưa có đường tạo 5.000 Chương |
@@ -1051,7 +1102,7 @@ Hai yêu cầu dưới đây không thuộc riêng giai đoạn nào và chung m
 | **R4** | **Glossary khởi động từ con số không** — Glossary Enforcement chỉ phát huy khi Glossary đã đầy | 🟡 | FR52–FR54: ba cơ chế đề xuất tự động, tất cả đều qua duyệt (FR55) |
 | **R5** | **Phát hành không ký số** — rào cản đón nhận với người dùng phổ thông | 🟡 | §9.1. Không thể xoá bỏ bằng kỹ thuật, chỉ giảm nhẹ bằng minh bạch |
 | **R6** | **VietPhrase không rõ xuất xứ** | 🟡 | Lớp gỡ rời (FR36) + chính sách gỡ (FR112) + ghi công rõ (FR38) |
-| **R7** | **Xuất xứ Thiều Chửu và Cổ hán văn không được xác minh** — quyết định chủ động không kiểm tra trước khi phát hành | 🔴 | **Không còn biện pháp phòng ngừa.** Chỉ còn biện pháp phản ứng: cả hai đóng gói làm **lớp gỡ rời** (FR36) + chính sách gỡ bỏ (FR112). Xem §8.6 |
+| **R7** | ~~Xuất xứ Thiều Chửu và~~ **Cổ hán văn không được xác minh** — 🔄 **thu hẹp 2026-08-05: chỉ còn áp cho Cổ hán văn.** **Thiều Chửu đã xác minh** *(CC0 1.0, SHA-256 byte-for-byte, Story 1.10)* ⇒ gỡ khỏi rủi ro này | 🟡 *(hạ từ 🔴)* | Với **Cổ hán văn**: vẫn ⛔ không có biện pháp phòng ngừa — đóng gói làm **lớp gỡ rời** (FR36) + chính sách gỡ bỏ (FR112). ⚠️ Trên thực tế rủi ro đang **đóng băng**: Cổ hán văn chưa có nguồn thô nên chưa được đóng gói *(xem `deferred-work.md`)*. Với **Thiều Chửu**: rủi ro pháp lý thay bằng **nghĩa vụ ghi công vĩnh viễn**, đã cưỡng chế bằng test. Xem §8.6 |
 | **R8** | **Segment alignment khi nhập bản review** sai lệch | 🟡 | Bài toán đã giải trong ngành CAT tool; FR91 áp mẫu chuẩn *máy khớp, người sửa* |
 | **R9** | **Gai trễ auto-save** làm gián đoạn khi gõ | 🟡 | NFR2 là ngưỡng nghiệm thu tường minh; giải pháp kỹ thuật thuộc Architecture |
 | **R10** | **Không có lemmatization thật trong hệ sinh thái Rust** | 🟢 | Stemming đủ cho khớp Glossary; giới hạn đã ghi rõ trong FR40 thay vì giấu đi |

@@ -20,7 +20,7 @@ pub const SOURCE_CODE: &str = "en-wiktionary";
 /// Gộp theo `headword` TRONG nguồn này qua `wiktextract_common::parse` (xem doc-comment
 /// ở đó — AC1 mệnh đề 4, Review Findings Group A).
 pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, ParseIssue>> {
-    wiktextract_common::parse(reader, "en", Some("zh"))
+    wiktextract_common::parse(reader, "en", Some("zh"), "zh")
 }
 
 #[cfg(test)]

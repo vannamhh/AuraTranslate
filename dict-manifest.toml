@@ -45,9 +45,22 @@
 # nguồn thô, giống nhau ở cả ba). Dựng lại từ cùng cây `raw/` ⇒ ra ĐÚNG ba số này.
 # Xác nhận: `dict-thieu-chuu.db` cho cùng hash qua ba lượt dựng vào ba thư mục đích khác
 # nhau. Từ đây, `cargo run` lại ⛔ không còn làm hỏng manifest.
+#
+# 🔴 SHA-256 CẬP NHẬT LẦN HAI ở **Story 1.10b** (2026-08-05T11:19) — LÝ DO: `dict-core.db`
+# nhận **nguồn NỀN THỨ SÁU** `viwiktionary-en` (119.039 đầu mục TIẾNG ANH, FR34). Trước
+# story đó tệp này có 473.499 đầu mục **100% `lang='zh'`** và ⛔ không một byte dữ liệu
+# tiếng Anh nào, nên một nửa mục tiêu Epic 1 ("văn bản tiếng Trung HOẶC tiếng Anh")
+# ⛔ không nghiệm thu được. Nguồn thô ⛔ KHÔNG đổi — `vi-extract.jsonl` nay được đọc HAI
+# LẦN với hai bộ lọc `lang_code` (vai B = mục tiếng Trung, vai A = mục tiếng Anh).
+#   • 154.464.256 → **194.998.272 byte** (+40.534.016)
+#   • `built_at` ⛔ KHÔNG đổi (`2026-08-04T23:53:16Z`) — đúng như thiết kế: cùng cây
+#     `raw/` ⇒ cùng dấu thời gian. Chỉ `builder_version` đổi `0.2.0` → `0.3.0`.
+#   • Lượt chạy dùng **`--layer base`**, ⛔ KHÔNG `--layer all` ⇒ hai tệp `[[detachable]]`
+#     dưới đây ⛔ KHÔNG bị dựng lại (mtime + SHA-256 đã đối chiếu trước/sau: giữ nguyên),
+#     nên hai checksum của chúng vẫn ĐÚNG và ⛔ không được đụng tới.
 url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-core.db"
-sha256         = "741e166673534ab4e9666b3f9638aef40f27850762f94df42537d0d4b3450a34"
-source_version = "cvdict@c379d909e3 (2026-08-04) · cc-cedict@2026-08-04 · unihan@17.0.0 · viwiktionary@2026-08-04 · en-wiktionary@2026-08-04"
+sha256         = "2145c7aebb914fb9bf4def6a356bd5ad2fd73328c787de26e29e8abecb4f305a"
+source_version = "cvdict@c379d909e3 (2026-08-04) · cc-cedict@2026-08-04 · unihan@17.0.0 · viwiktionary@2026-08-04 · en-wiktionary@2026-08-04 · viwiktionary-en@2026-08-04"
 
 # Hai lớp gỡ rời trong phạm vi Story 1.10 (Ice chốt 2026-08-05: Thiều Chửu + VietPhrase).
 # Cùng release `dict-v1` với [base] — ba tệp thuộc MỘT thế hệ dữ liệu (§Quyết định #6).

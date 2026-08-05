@@ -650,6 +650,15 @@ Thiều Chửu + VietPhrase giao ở story này. HVTĐTD + Cổ hán văn chuy�
 
 ⛔ **Không dựng tệp `.db` rỗng** cho hai lớp thiếu dữ liệu — một tệp rỗng đi qua **mọi** phép kiểm cấu trúc của AC1/AC4 và chỉ hỏng ở đúng người dùng.
 
+#### #3 — 🔴 CHẤP NHẬN VƯỢT TRẦN NFR6 ✅ **CHỐT 2026-08-05** *(sau khi có số đo thật)*
+
+Payload **343.991.430 byte** / trần **200.000.000** — vượt **143.991.430 byte**, **chấp
+nhận**. ⛔ Không bỏ nguồn, ⛔ không bỏ chỉ mục, ⛔ không đụng `Cargo.toml` *(lần thứ năm)*,
+⛔ không subset font. Chi tiết đầy đủ và việc còn lại ở tầng PRD: §Câu hỏi cho Ice #1.
+
+🔴 **Đây là quyết định của Ice, ⛔ không phải một phép đo bị bỏ qua.** Lượt rà nào sau này
+đọc `prd.md` và thấy trần 200.000.000 sẽ kết luận "VƯỢT ⇒ chưa đạt" — đọc mục này trước.
+
 #### #2 — Hai nguồn không dùng đã chuyển sang `docs/dics/_khong-dung/` ✅ **CHỐT**
 
 **Trần Văn Chánh** *(PRD đã loại vì còn bản quyền)* và **Trung Việt** *(nguồn thứ năm chưa được PRD nhận)*. Giữ lại thay vì xoá, kèm README nêu lý do, để lượt rà sau ⛔ không phải quyết lại từ đầu. Dev ⛔ không lấy gì ra từ đó.
@@ -658,7 +667,33 @@ Thiều Chửu + VietPhrase giao ở story này. HVTĐTD + Cổ hán văn chuy�
 
 ## Câu hỏi cho Ice
 
-### #1 — 🔴 NFR6 đã **VƯỢT** trần — số THẬT, không còn là ước tính. Xử lý thế nào?
+### #1 — ✅ ĐÃ CHỐT: NFR6 **VƯỢT** trần — Ice **CHẤP NHẬN VƯỢT**
+
+> ## ✅ **QUYẾT ĐỊNH CỦA ICE — 2026-08-05: CHẤP NHẬN VƯỢT TRẦN.**
+>
+> Payload sản phẩm **343.991.430 byte** trên trần **200.000.000** — vượt **143.991.430
+> byte** — được **chấp nhận có ý thức, trên số ĐO THẬT**. Không phương án (a)/(b)/(c)/(d)
+> nào ở bảng dưới được kích hoạt; bảng giữ lại làm bản ghi cho lượt rà sau.
+>
+> **Hệ quả — điều gì KHÔNG xảy ra:**
+> - ⛔ **Không bỏ nguồn nào.** Cả Thiều Chửu lẫn VietPhrase đều đi vào bản phát hành.
+> - ⛔ **Không bỏ `sense_fts_nd`** của bất kỳ lớp nào — phá AC4, ⛔ không đánh đổi ở bất kỳ giá nào.
+> - ⛔ **Không đụng `Cargo.toml`** *(hai khoản `deferred-work.md:75`)* — chốt lần thứ **năm**.
+>   Mục [D4] vì vậy trở lại đúng bản chất ban đầu: một khoản tối ưu **AC7 (thời gian
+>   build)**, ⛔ không còn là đòn bẩy AC6 (dung lượng) đang chờ.
+> - ⛔ **Không subset font.**
+>
+> 🔴 **Việc CÒN LẠI, tầng PRD, chủ sở hữu là Ice — dev ⛔ không sửa `prd.md`:**
+> trần 200.000.000 byte của NFR6 giờ **mâu thuẫn với sản phẩm thật**. Cần một trong hai:
+> 1. **Nâng trần** lên một con số phản ánh sản phẩm có đủ hai lớp gỡ rời; **hoặc**
+> 2. **Ghi rằng NFR6 ⛔ không tính lớp gỡ rời** — cách diễn giải tự nhiên nhất, vì
+>    VietPhrase *(160.083.968 byte, tức 46,5 % toàn bộ payload)* là lớp **gỡ rời**, mà
+>    **FR36** nói sản phẩm phải chạy **đầy đủ** khi **không có** nó. Theo cách đọc này,
+>    payload lõi bắt buộc là **183.907.462 byte** — vẫn **DƯỚI** trần, dư 16.092.538 byte.
+>
+> ⚠️ Tới khi PRD được cập nhật, mọi lượt rà NFR6 sau sẽ đọc ra *"VƯỢT"* và ⛔ không có
+> cách nào biết nó đã được chấp nhận nếu chỉ đọc `prd.md`. Đó là lý do quyết định này
+> được ghi ở **cả ba** chỗ: đây, `deferred-work.md` mục [D4], và §Change Log.
 
 🔴 **Cập nhật 2026-08-05 (dev):** ước tính ở §Quyết định #7 (hai lớp ≈ 69 MB) đã được đo
 THẬT ở Task 10/11 — hai lớp gỡ rời chiếm **165.871.616 byte** *(5.787.648 + 160.083.968)*,
@@ -675,7 +710,7 @@ FTS5)*. **Tổng payload hôm nay: 343.991.430 byte — VƯỢT trần 200.000.0
 | (c) Cho phép trước: gỡ hai khoản `deferred-work.md:75` | Đảo quyết định *"không đụng `Cargo.toml`"* đã chốt **ba lần**. Tiết kiệm chưa đo được |
 | (d) Xem lại **NFR6 có tính lớp gỡ rời không** | Câu hỏi tự nhiên nhất: VietPhrase là lớp **gỡ rời**, mà FR36 nói sản phẩm phải chạy đầy đủ khi **không có** nó. Đây là sửa NFR6 ⇒ **quyết định tầng PRD**, ⛔ ngoài tầm dev |
 
-**Mặc định nếu Ice không trả lời: (a).**
+~~**Mặc định nếu Ice không trả lời: (a).**~~ → ✅ Ice đã trả lời: **chấp nhận vượt trần**, xem khối trên.
 
 ### #2 — 🟢 Xác nhận: hai tệp lên cùng release `dict-v1`?
 
@@ -1154,6 +1189,7 @@ Từ đây, `cargo run` lại ⛔ không còn làm hỏng manifest.
 
 | Ngày | Thay đổi |
 |---|---|
+| 2026-08-05 | ✅ **Ice chốt: CHẤP NHẬN VƯỢT trần NFR6** — 343.991.430 / 200.000.000 byte, vượt **143.991.430 byte**, chấp nhận trên số đo thật. ⛔ Không bỏ nguồn · ⛔ không bỏ `sense_fts_nd` · ⛔ không đụng `Cargo.toml` *(lần thứ năm)* · ⛔ không subset font. §Câu hỏi #1 và `deferred-work.md` [D4] cập nhật theo. 🔴 **Còn lại ở tầng PRD (chủ sở hữu: Ice):** trần NFR6 mâu thuẫn với sản phẩm thật — nâng trần, hoặc ghi rằng NFR6 ⛔ không tính lớp gỡ rời *(theo cách đọc đó, payload lõi 183.907.462 byte vẫn DƯỚI trần, dư 16.092.538)*. |
 | 2026-08-05 | **Lượt code review + áp dụng vá.** Ba lớp song song; fixture xác minh SẠCH (43/43 dòng khớp nguyên văn); AC1/AC2/AC4/AC5 và Bẫy 1–9 ĐẠT trên tệp thật. 4 `decision-needed` *(Ice chốt cả bốn)* · 13 `patch` · 4 `defer` · 7 bác — **17/17 đã vá và xác minh**. Thay đổi hành vi: `split_senses` tách theo cả `<br>` **và** số thứ tự ⇒ **22.681** sense *(+23)*; `dict_citation` chuyển sang cột `work` *(263 hàng, `author` = 0)*; `built_at` dẫn xuất từ nguồn thô ⇒ **build tái lập được** *(AD-25)*; `vietphrase.license_id` là `NULL` thật; `run_all` kiểm nguồn TRƯỚC khi xoá tệp; sàn cho Kiểm D/E; Kiểm F mới *(chống trôi `source_version`)*; `docs/dics/` vào `.gitignore`. **110** test dict-build *(từ 88)*, `src-tauri` giữ đúng **62**, 7/7 cổng xanh. ✅ Đã dựng lại đủ ba tệp và điền lại `sha256` (2026-08-05T09:33) — kích thước cả ba GIỮ NGUYÊN từng byte nên AC6 và phán quyết VƯỢT không đổi; AC1/AC3/AC4 nghiệm thu lại trên tệp thật; tái lập xác nhận qua ba thư mục đích. |
 | 2026-08-05 | **Story 1.10 triển khai đầy đủ** — Task 0–12. Hai lớp gỡ rời (Thiều Chửu, VietPhrase) đóng gói thành `dict-thieu-chuu.db`/`dict-vietphrase.db` độc lập, dùng lại nguyên lược đồ base (AC1/AC4, `sqlite_master` byte-identical trên fixture). Metadata giấy phép/ghi công tự mang trong từng tệp (AC2/AC3). `dict-manifest.toml` điền thật, cổng siết đúng hai mục (AC5). NFR6 đóng với phán quyết **VƯỢT** 143.991.430 byte trên trần 200.000.000 (AC6) — số thật, không phải ước tính, chuyển quyết định cho Ice. 88 test Rust `tools/dict-build` (từ 62), `src-tauri` giữ nguyên 62. Phát hiện phụ: `--layer all` dựng lại `dict-core.db` (thêm 1 hàng `dict_meta`), SHA-256 đổi — đã cập nhật `[base]` trong manifest, ghi rõ ở §Câu hỏi cho Ice #4. |
 | 2026-08-04 | Story tạo — phân tích context đầy đủ, trạng thái `ready-for-dev`. 🔴 Bốn câu hỏi cho Ice, #1 **chặn** *(nguồn thô cho bốn lớp)* |

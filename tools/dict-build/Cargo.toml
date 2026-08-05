@@ -9,7 +9,7 @@
 
 [package]
 name = "dict-build"
-version = "0.2.0"
+version = "0.3.0"
 description = "Build tool nội bộ: dựng dict-core.db (năm nguồn nền) cùng một tệp .db độc lập cho mỗi lớp gỡ rời (Thiều Chửu, VietPhrase). KHÔNG vào bản phát hành (AD-25)."
 edition = "2024"
 # Khớp toolchain CI (`rust-version` của `src-tauri/Cargo.toml` là 1.85, cũ hơn CI thật —

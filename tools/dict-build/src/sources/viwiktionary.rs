@@ -1,11 +1,21 @@
-//! viwiktionary — kaikki.org, ẤN BẢN TIẾNG VIỆT (`vi.wiktionary.org`), trích thô toàn
-//! ấn bản: `kaikki.org/dictionary/downloads/vi/vi-extract.jsonl`. Giấy phép
-//! CC-BY-SA + GFDL.
+//! viwiktionary — **VAI B: mục từ TIẾNG TRUNG** — kaikki.org, ẤN BẢN TIẾNG VIỆT
+//! (`vi.wiktionary.org`), trích thô toàn ấn bản:
+//! `kaikki.org/dictionary/downloads/vi/vi-extract.jsonl`. Giấy phép CC-BY-SA + GFDL.
 //!
 //! ⚠️ Không giống trang `Chinese` của ấn bản `en` (đã lọc sẵn theo kaikki), tệp này
 //! chứa MỌI ngôn ngữ mà ấn bản `vi` có mục từ (`Tiếng Anh`, `Tiếng Mông Cổ`, …) — lọc
 //! `lang_code == "zh"` là việc của module này, ⛔ không phải việc của kaikki. Đây CHÍNH
 //! LÀ ý nghĩa của "bản trích theo ngôn ngữ của ấn bản vi" trong §Thông tin kỹ thuật.
+//!
+//! 🔴 **Chính vì thế cùng tệp này còn mang một VAI THỨ HAI.** Lọc `lang_code == "en"`
+//! trên đúng những byte đó cho ra 119.039 mục từ tiếng Anh — nguồn
+//! [`super::viwiktionary_en`], dựng ở Story 1.10b để phục vụ FR34. Hai vai là **hai
+//! nguồn rời nhau**, hai `source_id`, hai lượt `File::open`. ⛔ Không gộp chúng thành
+//! một lượt đọc — lý do đầy đủ ở doc-comment của [`super::viwiktionary_en`].
+//!
+//! ⛔ Module này giữ nguyên `code = "viwiktionary"` (⛔ **không** đổi thành
+//! `viwiktionary-zh` "cho đối xứng"): `dict_source.code` là khoá đối chiếu xuyên tệp mà
+//! `dict-manifest.toml`, PRD §8.2/§8.3 và `epics.md` đều đã ghi.
 //!
 //! `pos_title` ở ấn bản này ĐÃ sẵn tiếng Việt (đã kiểm thật: `"Động từ"`) ⇒ dùng thẳng,
 //! `pos_lang = 'vi'` (FR35 chỉ đòi đánh dấu NGOẠI NGỮ; tiếng Việt là ngôn ngữ hiển thị
@@ -29,7 +39,7 @@ pub const SOURCE_CODE: &str = "viwiktionary";
 /// Gộp theo `headword` TRONG nguồn này qua `wiktextract_common::parse` (xem doc-comment
 /// ở đó — AC1 mệnh đề 4, Review Findings Group A).
 pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, ParseIssue>> {
-    wiktextract_common::parse(reader, "vi", Some("zh"))
+    wiktextract_common::parse(reader, "vi", Some("zh"), "zh")
 }
 
 #[cfg(test)]

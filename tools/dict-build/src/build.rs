@@ -97,9 +97,14 @@ where
     Ok(())
 }
 
-/// Dựng lớp NỀN — `dict-core.db`. `raw_dir` chứa năm thư mục con (`cvdict/`,
+/// Dựng lớp NỀN — `dict-core.db`. `raw_dir` chứa BỐN thư mục con (`cvdict/`,
 /// `cc_cedict/`, `unihan/`, `viwiktionary/`, `en_wiktionary/`) theo quy ước đã ghi ở
 /// `tools/dict-build/README.md`. `out_path` là `.db` đích.
+///
+/// ⚠️ **SÁU nguồn nhưng NĂM thư mục:** `viwiktionary/vi-extract.jsonl` được đọc HAI LẦN
+/// với hai bộ lọc `lang_code` khác nhau, cho ra hai nguồn rời nhau (`viwiktionary` vai B
+/// = mục tiếng Trung, `viwiktionary-en` vai A = mục tiếng Anh). Xem doc-comment
+/// `sources::viwiktionary_en`.
 ///
 /// Dựng vào một tệp TẠM cùng thư mục với `out_path`, chỉ đổi tên sang `out_path` SAU KHI
 /// mọi bước (rebuild FTS, ANALYZE/VACUUM, journal_mode=DELETE, kiểm no-wal, băm) đã
@@ -120,7 +125,7 @@ pub fn run_base(raw_dir: &Path, out_path: &Path) -> Result<BuildReport, Box<dyn 
 
     let mut per_source = Vec::new();
 
-    // Mọi lượt chèn (dict_meta + năm nguồn + char_idx) chạy trong MỘT transaction —
+    // Mọi lượt chèn (dict_meta + sáu nguồn + char_idx) chạy trong MỘT transaction —
     // trước đây mỗi INSERT tự autocommit, nên một lỗi giữa chừng để lại hàng mồ côi
     // (Review Findings Group A; đây cũng là điều kiện để doc-comment "cùng giao dịch"
     // của `char_idx::insert_for_entry` đúng nghĩa đen). `VACUUM`/thay `journal_mode`
@@ -240,6 +245,38 @@ pub fn run_base(raw_dir: &Path, out_path: &Path) -> Result<BuildReport, Box<dyn 
                 source_id,
                 &mut stats,
                 sources::en_wiktionary::parse(BufReader::new(f)),
+            )?;
+            require_nonempty(&stats)?;
+            per_source.push(stats);
+        }
+
+        // ── viwiktionary (vai A — mục tiếng Anh) ───────────────────────────────
+        //
+        // 🔴 ĐỌC CÙNG MỘT TỆP với khối `viwiktionary` ở trên, khác đúng bộ lọc
+        // `lang_code` — `vi-extract.jsonl` là bản trích TOÀN ấn bản `vi.wiktionary.org`
+        // nên mang HAI VAI song song (vai B: mục tiếng Trung; vai A: mục tiếng Anh,
+        // FR34). Chi tiết đầy đủ ở doc-comment `sources::viwiktionary_en`.
+        //
+        // ⛔ KHÔNG tái dùng reader của vai B và ⛔ KHÔNG gộp hai vai vào một lượt đọc:
+        // `wiktextract_common::parse` gộp theo headword TRONG một lượt gọi, nên một lượt
+        // gọi phát cả hai vai sẽ hợp nhất một headword xuyên `source_id` — đúng thứ
+        // AD-19 cấm. Hai `File::open`, hai lượt `parse`, hai `source_id`.
+        {
+            let dir = raw_dir.join("viwiktionary");
+            let path = dir.join("vi-extract.jsonl");
+            // Cùng hàm, cùng tệp ⇒ CÙNG giá trị với vai B. Đó là ĐÚNG: cùng một dump.
+            let version = version_or_warn(
+                sources::viwiktionary_en::SOURCE_CODE,
+                file_mtime_date(&path),
+            );
+            let source_id = insert::insert_source(&tx, &sources_meta::VIWIKTIONARY_EN, &version)?;
+            let mut stats = SourceStats::new(sources::viwiktionary_en::SOURCE_CODE);
+            let f = File::open(&path)?;
+            ingest(
+                &tx,
+                source_id,
+                &mut stats,
+                sources::viwiktionary_en::parse(BufReader::new(f)),
             )?;
             require_nonempty(&stats)?;
             per_source.push(stats);

@@ -153,7 +153,7 @@ Giữ lại để người đọc sau không đề xuất lại những gì đã
 | **FVDP / OVDP** (Anh-Việt) | kaikki.org phủ luôn cặp Anh–Việt **và** kèm từ loại. Bỏ FVDP còn gỡ luôn ràng buộc GPL v2+ lan truyền |
 | **Trần Văn Chánh (1999)** | Còn bản quyền |
 | **GPL v2** | Không tương thích crate Apache-2.0 — phủ gần trọn hệ sinh thái Rust |
-| **Cơ chế tải từ điển sau khi cài** | Không cần: tổng ước tính 150–200 MB, chấp nhận được cho desktop app |
+| **Cơ chế tải từ điển sau khi cài** | **Vẫn loại**, nhưng lý do đã đổi *(2026-08-05)*. Lý do cũ *"tổng ước tính 150–200 MB, chấp nhận được"* **sai** — số thật là **343.991.430 byte**. Lý do mới, mạnh hơn: lời hứa *"không tải thêm sau khi cài"* chống đỡ cho **NFR7** *(tra cứu ngoại tuyến 100%)* và **NFR12**; tải sau khi cài làm hỏng chính điều kiện tồn tại của sản phẩm. Ice chọn **nâng trần lên 400.000.000 byte** và chấp nhận bộ cài ~344 MB thay vì đổi cơ chế |
 | **Định dạng gói chia sẻ cộng đồng** | Ngoài phạm vi v1. Trao đổi file (CSV/TSV, TMX, file prompt) là đủ |
 | **Ký số qua Azure Key Vault + `relic`** | Không có kinh phí. Giữ lại làm tham chiếu cho thời điểm dự án có tài trợ |
 
@@ -179,7 +179,7 @@ Phương án rẻ nhất cho lập trình viên độc lập khi có kinh phí: 
 | Hạng mục | Vì sao chưa đo | Rủi ro còn lại |
 |---|---|---|
 | **Vòng IPC Tauri thật** + thời gian render frontend | Cần app có cửa sổ, không đo được ở môi trường dòng lệnh | Đã giảm mạnh nhờ payload 679 byte. Nếu Auto-Lookup chậm, nguyên nhân sẽ ở frontend |
-| **Unihan, Thiều Chửu, Cổ hán văn, VietPhrase** trong database | Chưa nạp thử | Ước tính tổng 150–200 MB dựa trên ba nguồn đã có |
+| **Unihan, Thiều Chửu, Cổ hán văn, VietPhrase** trong database | 🟢 **Ba trong bốn đã nạp và đo thật 2026-08-05** *(Unihan · Thiều Chửu · VietPhrase — Story 1.9/1.10)*. **Cổ hán văn** vẫn chưa — chưa có nguồn thô | Ước cũ *"tổng 150–200 MB dựa trên ba nguồn đã có"* **sai gấp đôi**: thật là **343.991.430 byte**. Riêng VietPhrase nở **6,7×** từ nguồn thô *(23.844.586 → 160.083.968 byte)*, ⛔ không phải hệ số 2,67× dùng để ước. **Bài học: hệ số nở phụ thuộc HÌNH DẠNG dữ liệu** — nhiều đầu mục ngắn tốn chỉ mục hơn ít đầu mục dài |
 | **`jieba-rs` và `tantivy-stemmers`** chạy thật | Mới xác minh giấy phép và độ trưởng thành | Chưa có số đo chất lượng tách từ / stemming |
 | **Tìm kiếm Library trên thư viện thật** | Chưa có Library | Ngưỡng NFR3, NFR4 còn là `[ASSUMPTION]` |
 

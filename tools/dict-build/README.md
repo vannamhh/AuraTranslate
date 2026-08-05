@@ -1,8 +1,11 @@
 Parser dữ liệu từ điển sống ở đây và **không vào bản phát hành** (AD-25).
 
 Nguồn thô của lớp NỀN (**Story 1.9**, crate này): CVDICT · CC-CEDICT · Unihan ·
-viwiktionary · en.wiktionary. Chạy qua đây trên máy người dựng, ra `dict-core.db`
-phát hành qua GitHub Release và tải theo `../../dict-manifest.toml`.
+viwiktionary *(vai B)* · en.wiktionary, cộng **viwiktionary vai A** *(**Story 1.10b**)*.
+Chạy qua đây trên máy người dựng, ra `dict-core.db` phát hành qua GitHub Release và tải
+theo `../../dict-manifest.toml`.
+
+> 🔴 **SÁU nguồn nền nhưng NĂM thư mục nguồn thô.** Xem §Một tệp thô, hai vai.
 
 Bốn lớp GỠ RỜI (Thiều Chửu · Cổ hán văn · VietPhrase · HVTĐTD) thuộc **Story 1.10**
 (AD-10) — mỗi lớp một tệp `.db` riêng, dùng lại đúng lược đồ `dict_source` của
@@ -18,7 +21,7 @@ là một binary, không phải library).
 
 ```
 tools/dict-build/
-  Cargo.toml / Cargo.lock   # version 0.2.0 từ Story 1.10
+  Cargo.toml / Cargo.lock   # version 0.3.0 từ Story 1.10b
   assets/licenses/          # văn bản giấy phép NGUYÊN VĂN, include_str! lúc biên dịch
   src/
     main.rs                 # CLI --raw --out-dir [--layer], chỉ gọi build::run — logic thật ở lib.rs
@@ -29,8 +32,9 @@ tools/dict-build/
     insert.rs                 # RawEntry → hàng SQL
     char_idx.rs                # (ch, entry_id), phủ cả phồn lẫn giản (Bẫy 8)
     finalize.rs                # rebuild FTS · ANALYZE · VACUUM · journal_mode=DELETE — DÙNG CHUNG mọi lớp
-    licenses.rs / sources_meta.rs   # BASE_ALL[5] + DETACHABLE_ALL[2] (Story 1.10)
+    licenses.rs / sources_meta.rs   # BASE_ALL[6] + DETACHABLE_ALL[2] (Story 1.10b)
     sources/{cvdict,cc_cedict,unihan,viwiktionary,en_wiktionary}.rs   # lớp NỀN — Story 1.9
+    sources/viwiktionary_en.rs                                        # lớp NỀN — Story 1.10b (vai A)
     sources/{thieu_chuu,vietphrase}.rs                                # lớp GỠ RỜI — Story 1.10
     sources/{cedict_common,wiktextract_common}.rs   # code đọc dùng chung, KHÔNG hợp nhất nghĩa
   tests/
@@ -59,12 +63,52 @@ báo lỗi tường minh nêu tên tham số thay thế thay vì âm thầm hi�
 | NỀN (Story 1.9) | `cvdict/` | `CVDICT.u8` + `SOURCE_VERSION.txt` |
 | | `cc_cedict/` | `cedict.txt` |
 | | `unihan/` | `Unihan_Readings.txt` + `Unihan_Variants.txt` |
-| | `viwiktionary/` | `vi-extract.jsonl` |
+| | `viwiktionary/` | `vi-extract.jsonl` — 🔴 **đọc HAI LẦN**, xem §Một tệp thô, hai vai |
 | | `en_wiktionary/` | `Chinese.jsonl` |
 | GỠ RỜI (Story 1.10) | `thieu_chuu/` | `TudienThienChuu.txt` |
 | | `vietphrase/` | `VietPhrase.txt` |
 
-Năm nguồn NỀN tải theo bảng ở Dev Notes §Thông tin kỹ thuật của Story 1.9. Build tool
+### 🔴 Một tệp thô, HAI vai — `viwiktionary/vi-extract.jsonl`
+
+**Sáu nguồn nền nhưng chỉ năm thư mục nguồn thô.** Đây là điều một người dựng lại crate
+này từ đầu ⛔ **không đoán ra được** từ bảng thư mục ở trên, nên nó được ghi ra đây.
+
+`vi-extract.jsonl` là bản trích **TOÀN ẤN BẢN** `vi.wiktionary.org` — nó chứa mục từ của
+**mọi** ngôn ngữ mà ấn bản đó có, ⛔ không chỉ tiếng Trung. `build.rs::run_base` mở nó
+**hai lần** với hai bộ lọc `lang_code` khác nhau, cho ra **hai nguồn rời nhau**:
+
+| Vai | `dict_source.code` | Module | `filter_lang_code` | `dict_entry.lang` | `pos_lang` | Đầu mục thật |
+|---|---|---|---|---|---|---:|
+| **B** | `viwiktionary` | `sources/viwiktionary.rs` | `"zh"` | `zh` | `vi` | **1.598** |
+| **A** | `viwiktionary-en` | `sources/viwiktionary_en.rs` | `"en"` | **`en`** | `vi` | **119.039** |
+
+Vai A thêm ở **Story 1.10b** để **FR34** *(mục từ tiếng Anh có nhãn từ loại + nghĩa
+tiếng Việt)* có dữ liệu — trước đó `dict-core.db` có 473.499 đầu mục **100% `lang='zh'`**
+và cặp Anh → Việt ⛔ không có một byte nào để đứng lên.
+
+**Ba luật đi kèm, ⛔ không phải sở thích:**
+
+1. ⛔ **Không gộp hai vai thành một lượt đọc để "tiết kiệm".**
+   `wiktextract_common::parse` gộp theo headword **trong một lượt gọi**; một lượt gọi
+   phát cả hai vai ⇒ hai nguồn dùng chung một bảng băm ⇒ một headword có mặt ở cả hai
+   vai bị gộp thành MỘT `dict_entry` mang MỘT `source_id`. Đó **là** hợp nhất xuyên
+   nguồn — đúng thứ **AD-19** cấm và đúng thứ miễn trừ `dict-build:allow` ở
+   `wiktextract_common.rs` tuyên bố ⛔ không bao giờ xảy ra. Hai `File::open`, hai lượt
+   `parse`, hai `source_id`.
+2. ⛔ **Không đổi tên `viwiktionary` → `viwiktionary-zh` "cho đối xứng".**
+   `dict_source.code` là khoá đối chiếu **xuyên tệp**; `dict-manifest.toml`, PRD §8.2/§8.3
+   và `epics.md` đều đã ghi tên đó.
+3. 🔴 **`pos_lang = "vi"` cho CẢ HAI vai.** Ấn bản `vi` mang `pos_title` **đã sẵn tiếng
+   Việt** kể cả trên mục từ tiếng Anh *(đã kiểm thật: `dictionary` ⇒ `"Danh từ"`)*.
+   FR35 chỉ đòi đánh dấu nhãn **NGOẠI NGỮ**; nhãn ở đây là tiếng Việt.
+
+⚠️ **`char_idx` gần như rỗng cho vai A** — đo thật: **9** cặp trên 119.039 đầu mục
+(`is_han` chỉ nhận khối CJK, đầu mục tiếng Anh là chữ Latin). **Đó là ĐÚNG**, ⛔ không
+phải lỗi — và nó là bằng chứng kỹ thuật khiến `AD-26` nhánh 2 ⛔ không áp được cho tiếng
+Anh. ⛔ Không "sửa" `is_han` để nhận chữ Latin.
+
+Năm THƯ MỤC nguồn NỀN *(⇒ sáu nguồn — `viwiktionary/` đọc hai lần)* tải theo bảng ở Dev
+Notes §Thông tin kỹ thuật của Story 1.9. Build tool
 **không tự tải** gì từ mạng (§Quyết định #6: AD-15 khoá điểm ra mạng, một nguồn tải
 ngầm là artifact không ai biết phiên bản).
 
@@ -162,19 +206,20 @@ phải một cưỡng chế.
 | `sha2` | 0.10.9 | MIT OR Apache-2.0 |
 | `tempfile` (dev-only, test) | 3.x | MIT OR Apache-2.0 |
 
-## Giấy phép bảy nguồn dữ liệu (5 nền + 2 gỡ rời)
+## Giấy phép tám nguồn dữ liệu (6 nền + 2 gỡ rời)
 
 | Nguồn | `license_kind` | Giấy phép | Văn bản |
 |---|---|---|---|
 | CVDICT | `open` | CC BY-SA 4.0 | `assets/licenses/CC-BY-SA-4.0.txt` |
 | CC-CEDICT | `open` | CC BY-SA 4.0 | `assets/licenses/CC-BY-SA-4.0.txt` |
 | Unihan | `open` | Unicode License v3 | `assets/licenses/Unicode-License-v3.txt` |
-| viwiktionary | `open` | CC BY-SA 4.0 + GFDL 1.3 | `assets/licenses/{CC-BY-SA-4.0,GFDL-1.3}.txt` |
+| viwiktionary *(vai B — mục tiếng Trung)* | `open` | CC BY-SA 4.0 + GFDL 1.3 | `assets/licenses/{CC-BY-SA-4.0,GFDL-1.3}.txt` |
 | en.wiktionary (mục tiếng Trung) | `open` | CC BY-SA 4.0 + GFDL 1.3 | như trên |
+| **viwiktionary-en** *(vai A — mục tiếng Anh, **Story 1.10b**)* | `open` | CC BY-SA 4.0 + GFDL 1.3 | như trên — **cùng tệp thô ⇒ cùng giấy phép**, ⛔ không thêm văn bản mới |
 | Thiều Chửu *(Story 1.10)* | `public-domain` | CC0 1.0 *(bản số hoá)* | `assets/licenses/{CC0-1.0,thieu-chuu}.txt` |
 | VietPhrase *(Story 1.10)* | `unknown` | không xác định được tác giả | `assets/licenses/vietphrase.txt` |
 
-Mỗi văn bản là bản tải/soạn THẬT — năm nguồn nền từ nguồn chính thức
+Mỗi văn bản là bản tải/soạn THẬT — các nguồn nền từ nguồn chính thức
 (creativecommons.org / unicode.org / gnu.org), 2026-08-04; hai nguồn gỡ rời soạn
 2026-08-05 kèm xuất xứ đã kiểm chứng (§Thông tin kỹ thuật, Story 1.10) — không phải
 bản tóm tắt tự viết cho phần văn bản giấy phép nguyên văn. Ghi vào cột
