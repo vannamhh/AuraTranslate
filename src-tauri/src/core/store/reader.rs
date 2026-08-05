@@ -55,14 +55,53 @@ impl ReaderPool {
         kind: StoreKind,
         tuning: &Tuning,
     ) -> Result<ReaderPool, StoreError> {
+        Self::open_with(
+            path,
+            kind,
+            tuning,
+            pragmas::open_connection,
+            pragmas::apply_reader_pragmas,
+        )
+    }
+
+    /// Pool đọc trên một tệp **CHỈ ĐỌC** — đường của [`StoreKind::Dict`] (Story 1.11).
+    ///
+    /// Khác [`ReaderPool::open`] **đúng hai hàm**: cờ mở (`READ_ONLY`, ⛔ không `CREATE`)
+    /// và bộ pragma (⛔ không `verify_wal`, ⛔ không `wal_autocheckpoint`). Mọi thứ còn
+    /// lại — `Mutex` + `Condvar` + `Lease` + `Drop` trả kết nối về — **dùng lại nguyên**.
+    ///
+    /// ⛔ Đó là lý do tệp này ⛔ không có bản sao thứ hai của thân pool: hai bản sẽ trôi
+    /// khỏi nhau, và bản ít được đọc hơn sẽ là bản mang lỗi rò kết nối.
+    pub(crate) fn open_readonly(
+        path: &Path,
+        kind: StoreKind,
+        tuning: &Tuning,
+    ) -> Result<ReaderPool, StoreError> {
+        Self::open_with(
+            path,
+            kind,
+            tuning,
+            pragmas::open_readonly_connection,
+            pragmas::apply_dict_reader_pragmas,
+        )
+    }
+
+    /// Thân dùng chung. Hai tham số hàm là **toàn bộ** khác biệt giữa hai đường mở.
+    fn open_with(
+        path: &Path,
+        kind: StoreKind,
+        tuning: &Tuning,
+        open_one: fn(&Path, StoreKind) -> Result<Connection, StoreError>,
+        apply_pragmas: fn(&Connection, StoreKind, &Tuning) -> Result<(), StoreError>,
+    ) -> Result<ReaderPool, StoreError> {
         // Sàn 1: một pool rỗng làm `read()` chờ mãi trên `Condvar` — một cách treo mà
         // không lỗi nào được ném. `Tuning` là dữ liệu, kể cả trong test, nên chặn ở đây.
         let size = tuning.pool_size.max(1);
 
         let mut idle = Vec::with_capacity(size);
         for _ in 0..size {
-            let conn = pragmas::open_connection(path, kind)?;
-            pragmas::apply_reader_pragmas(&conn, kind, tuning)?;
+            let conn = open_one(path, kind)?;
+            apply_pragmas(&conn, kind, tuning)?;
             idle.push(conn);
         }
 

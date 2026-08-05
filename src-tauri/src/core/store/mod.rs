@@ -87,10 +87,12 @@ use crate::core::i18n::{IpcError, MessageKey};
 pub(crate) mod checkpoint;
 pub(crate) mod pragmas;
 pub(crate) mod reader;
+pub mod readonly;
 pub(crate) mod schema;
 pub(crate) mod writer;
 
 pub use checkpoint::CheckpointStats;
+pub use readonly::ReadOnlyDb;
 pub use schema::{CONFIG_VALUE_DDL, GLOBAL_MIGRATIONS, Migration, SCHEMA_MIGRATION_LOG_DDL};
 
 /// Kiểu giao dịch mà một job ghi nhận được. Tái xuất để chỗ gọi **không phải gõ
@@ -102,6 +104,12 @@ pub use rusqlite::Error as SqlError;
 pub use rusqlite::Result as SqlResult;
 /// Một hàng kết quả, cho các hàm trợ giúp nhận `&Row` ở chỗ gọi.
 pub use rusqlite::Row;
+/// Trait ràng buộc tham số, cho chỗ gọi cần một danh sách tham số **không đồng nhất kiểu**.
+///
+/// ⚠️ Tái xuất vì cùng lý do với bốn kiểu trên: không có nó, một module muốn viết
+/// `&[&dyn ToSql]` phải gõ tên crate, và `store_boundary.rs` — đúng như nó phải làm —
+/// sẽ gọi đó là một vi phạm.
+pub use rusqlite::ToSql;
 
 /// Kết nối đọc đã đặt `PRAGMA query_only = 1`.
 ///
@@ -131,6 +139,21 @@ pub enum StoreKind {
     Project,
     /// `$APPDATA/library-index.db` — chỉ mục dẫn xuất, **Epic 5**, ⛔ không di trú (AD-8).
     LibraryIndex,
+
+    /// Một tệp từ điển `.db` — **CHỈ ĐỌC, LUÔN LUÔN** (AD-7). Story 1.11.
+    ///
+    /// 🔴 Loại này khác hẳn ba loại trên và cái khác nằm ở chỗ nó **không có** gì:
+    /// ⛔ không [`StoreSpec`], ⛔ không writer, ⛔ không luồng checkpoint, ⛔ không bộ
+    /// di trú, ⛔ không `journal_mode = WAL`. Nó đi qua [`ReadOnlyDb`], ⛔ không qua
+    /// [`Store`] — vì cả bốn thứ vừa kể đều **GHI VÀO** tệp, và một tệp từ điển được
+    /// giao kèm checksum trong `dict-manifest.toml` (AD-25). Ghi vào nó một byte là
+    /// làm checksum thành sai, và ⛔ không cổng nào bắt được điều đó
+    /// (`check-dict-manifest.mjs` cố ý ⛔ không đọc `.db`).
+    ///
+    /// ⚠️ Cả ba tệp từ điển ở `journal_mode = delete` — `tools/dict-build` đặt thế có
+    /// chủ ý (`finalize.rs`). Nên `apply_reader_pragmas` (nó gọi `verify_wal`) ⛔ không
+    /// dùng được ở đây; đường của loại này là `apply_dict_reader_pragmas`.
+    Dict,
 }
 
 impl StoreKind {
@@ -141,6 +164,7 @@ impl StoreKind {
             StoreKind::Global => "global",
             StoreKind::Project => "project",
             StoreKind::LibraryIndex => "library-index",
+            StoreKind::Dict => "dict",
         }
     }
 }
@@ -484,6 +508,22 @@ impl Store {
             tuning,
             migrations,
         } = spec;
+
+        // ── 0. `Dict` đi qua `ReadOnlyDb`, ⛔ không bao giờ qua đây ───────────────
+        //
+        // 🔴 `StoreSpec` mọi trường đều `pub`, nên hệ kiểu không tự ngăn ai đó dựng
+        // `StoreSpec { kind: StoreKind::Dict, .. }` rồi gọi `Store::open`. Nếu lọt qua,
+        // bước 4 dưới đây đặt `journal_mode = WAL` — GHI VÀO tệp, làm checksum của
+        // `dict-manifest.toml` (AD-25) thành sai. Chặn ở đây, sớm hơn cả bước 1, để
+        // ⛔ không byte nào của tệp từ điển bị chạm dù chỉ bằng cách mở kết nối ghi.
+        if kind == StoreKind::Dict {
+            return Err(StoreError::OpenFailed {
+                store: kind,
+                detail: "Store::open refuses StoreKind::Dict; dictionary files are read-only \
+                         and must open through ReadOnlyDb::open instead"
+                    .to_string(),
+            });
+        }
 
         // ── 1. Mở kết nối ghi bằng CỜ TƯỜNG MINH ─────────────────────────────────
         let mut conn = pragmas::open_connection(&path, kind)?;

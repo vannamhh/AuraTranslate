@@ -52,6 +52,37 @@ pub(crate) fn open_connection(path: &Path, kind: StoreKind) -> Result<Connection
     })
 }
 
+/// Mở một tệp **CHỈ ĐỌC** bằng cờ tường minh — đường của [`StoreKind::Dict`] (AC7).
+///
+/// `SQLITE_OPEN_READ_ONLY | SQLITE_OPEN_NO_MUTEX`. Ba thứ **vắng mặt** ở đây đều là
+/// quyết định, không phải sơ suất:
+///
+/// - ⛔ **Không `SQLITE_OPEN_URI`** — cùng nguyên lý lẽ với [`open_connection`]: một thư
+///   mục người dùng chứa `?` trong tên (`.../Sach ? tap 2/dict-core.db`) bị SQLite đọc
+///   thành URI kèm query string, và tệp mở ra ở một chỗ khác chỗ ta nghĩ. Đường dẫn ở
+///   đây LUÔN là đường dẫn hệ tệp.
+/// - 🔴 ⛔ **Không `SQLITE_OPEN_CREATE`** — và đây là lý do MỚI, riêng của đường chỉ đọc.
+///   Với `CREATE`, một đường dẫn gõ sai (hoặc một tệp `$RESOURCE` chưa được đóng gói)
+///   không trả lỗi: SQLite **dựng một tệp rỗng mới toanh**, mọi truy vấn sau đó trả
+///   rỗng, ⛔ không lỗi nào được ném, và người dùng chỉ thấy *"tra từ không ra kết quả"*.
+///   Không `CREATE` thì đường dẫn sai là một `Err` ngay tại chỗ mở.
+/// - ⛔ **Không `SQLITE_OPEN_READ_WRITE`** — AD-7: dữ liệu từ điển chỉ đọc, luôn luôn.
+///
+/// `NO_MUTEX` giữ nguyên vì cùng lý do với [`open_connection`]: `Connection` là `Send`
+/// nhưng ⛔ không `Sync`, nên trình biên dịch tự canh việc một kết nối không bị dùng
+/// đồng thời từ hai luồng.
+pub(crate) fn open_readonly_connection(
+    path: &Path,
+    kind: StoreKind,
+) -> Result<Connection, StoreError> {
+    let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+
+    Connection::open_with_flags(path, flags).map_err(|e| StoreError::OpenFailed {
+        store: kind,
+        detail: format!("open readonly {}: {e}", path.display()),
+    })
+}
+
 /// Đọc một PRAGMA trả **một hàng một cột** thành chuỗi.
 ///
 /// ⚠️ Đọc thành `String` cho mọi PRAGMA, kể cả những cái trả số: `PRAGMA busy_timeout`
@@ -189,6 +220,44 @@ pub(crate) fn apply_reader_pragmas(
 ) -> Result<(), StoreError> {
     verify_wal(conn, kind)?;
     apply_connection_pragmas(conn, kind, tuning)?;
+    set_and_verify(conn, "query_only", "1", "1", kind)?;
+    Ok(())
+}
+
+/// Kết nối ĐỌC trên một tệp **từ điển**: `busy_timeout` + `query_only = 1`. Hết. (AC7)
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO KHÔNG TÁI DÙNG [`apply_reader_pragmas`] — HAI ĐƯỜNG HỎNG NỐI TIẾP
+/// ─────────────────────────────────────────────────────────────────────────────
+/// [`apply_reader_pragmas`] gọi `verify_wal`. Cả ba tệp từ điển ở `journal_mode = delete`
+/// — `tools/dict-build/src/finalize.rs::set_journal_mode_delete` đặt thế **có chủ ý**, và
+/// tệp đi kèm một checksum trong `dict-manifest.toml` (AD-25). Nên:
+///
+/// 1. Tái dùng thẳng ⇒ [`StoreError::WalUnavailable`] `{ mode: "delete" }` ngay lượt mở
+///    đầu tiên. Hỏng **ồn ào** — đây là đường ít tệ hơn.
+/// 2. Cám dỗ tiếp theo, *"thì đặt WAL cho nó"* ⇒ `PRAGMA journal_mode = WAL` **GHI VÀO**
+///    database. SHA-256 của tệp đổi, `dict-manifest.toml` thành sai, AD-25 vỡ, và ⛔
+///    không cổng nào bắt (`check-dict-manifest.mjs` cố ý ⛔ không đọc `.db`). Trên một
+///    `$RESOURCE` chỉ-đọc thật thì lệnh chỉ **trượt** — tức hành vi khác nhau giữa máy
+///    dev và bản phát hành.
+///
+/// → Nên đường của tệp từ điển ⛔ **không** chạm `journal_mode` theo bất kỳ chiều nào:
+///   ⛔ không đặt, ⛔ không xác nhận.
+///
+/// ⛔ **Không `wal_autocheckpoint`** — nó chỉ có nghĩa trên một database WAL, và ở đây
+/// ⛔ không có WAL nào. Đặt nó là khai một ý định sai cho người đọc sau.
+///
+/// ⚠️ `query_only` đặt **CUỐI CÙNG**, cùng thứ tự và cùng lý do với
+/// [`apply_reader_pragmas`]. Nó chồng lên `SQLITE_OPEN_READ_ONLY` chứ ⛔ không thay thế:
+/// cờ mở là cưỡng chế của tầng tệp, `query_only` là cưỡng chế của tầng câu lệnh và nó
+/// **đọc lại xác nhận được** — mà một bất biến đọc lại được là một bất biến test được.
+pub(crate) fn apply_dict_reader_pragmas(
+    conn: &Connection,
+    kind: StoreKind,
+    tuning: &Tuning,
+) -> Result<(), StoreError> {
+    let ms = tuning.busy_timeout.as_millis().to_string();
+    set_and_verify(conn, "busy_timeout", &ms, &ms, kind)?;
     set_and_verify(conn, "query_only", "1", "1", kind)?;
     Ok(())
 }

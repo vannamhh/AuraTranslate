@@ -1132,4 +1132,5 @@ fn store_kind_names_are_stable_machine_identifiers() {
     assert_eq!(StoreKind::Global.as_str(), "global");
     assert_eq!(StoreKind::Project.as_str(), "project");
     assert_eq!(StoreKind::LibraryIndex.as_str(), "library-index");
+    assert_eq!(StoreKind::Dict.as_str(), "dict");
 }

@@ -7,7 +7,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-08-03'
+updated: '2026-08-05'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md'
@@ -233,6 +233,8 @@ graph TD
 - **Prevents:** ba lần cài đặt riêng ở ba giai đoạn khác nhau → Glossary bắt được biến thể mà TM không bắt được, không ai biết vì sao.
 - **Rule:** FR40 (từ điển), FR51 (Glossary), FR61 (TM) dùng **chung một** component. Tiếng Trung: khớp chính xác + n-gram ký tự, tách từ qua `jieba-rs` khi cần. Tiếng Anh: stemming rồi token n-gram. Giới hạn đã tuyên bố: là stemming, không phải lemmatization (FR40).
 
+  ⚠️ **AD này nói *mọi nơi cần khớp ngôn ngữ dùng chung MỘT cài đặt* — nó ⛔ KHÔNG nói mọi đường đều phải gọi Matcher.** Đường tra cứu **từ điển** tiếng Anh ⛔ không gọi, và AD-44 ③ ghi số đo làm lý do: đầu ra stemmer ⛔ không phải một từ nên nó khớp vào hư không, trong khi corpus từ điển đã có sẵn mọi dạng biến thể làm đầu mục riêng. Glossary (FR51) và TM (FR61) thì **có** — ở đó thuật ngữ do **người dùng tự viết**, corpus ⛔ không mang tính chất đó, và stemming thật sự đáng tiền. Phân biệt này ⛔ không nới lỏng AD-17: vẫn **đúng một** cài đặt, chỉ là ⛔ không phải đường nào cũng là người tiêu thụ nó.
+
 ### AD-18 — Một ScopeResolver, ngữ nghĩa khai báo tường minh
 
 - **Binds:** C4, C5, C6, C9
@@ -333,7 +335,11 @@ graph TD
 
 - **Binds:** C3, C1
 - **Prevents:** truy vấn 1–2 ký tự trả về rỗng trong 0,01 ms mà **không báo lỗi** — biểu hiện thành *"tra từ không ra kết quả"*, rất khó lần ra nguyên nhân.
-- **Rule:** tra chính xác đầu mục → chỉ mục B-tree (0,02 ms, đường nóng Auto-Lookup). Chuỗi con 1–2 ký tự → bảng đảo ngược `char_idx` (0,15–4,5 ms). Chuỗi con 3+ ký tự → FTS5 `trigram` (0,13–0,19 ms). `LIKE` **cấm** trên đường nóng (đo được 20–50 ms).
+- **Rule:** tra chính xác đầu mục → chỉ mục B-tree (đường nóng Auto-Lookup). Chuỗi con 1–2 ký tự → bảng đảo ngược `char_idx`. Chuỗi con 3+ ký tự → FTS5 `trigram`. `LIKE` **cấm** trên đường nóng (đo được 20–50 ms).
+
+  🔴 **Phạm vi là TIẾNG TRUNG, và mệnh đề này thuộc Rule chứ ⛔ không chỉ thuộc tiêu đề.** Cả ba nhánh là cơ chế cho chữ Hán; nhánh `char_idx` ⛔ **không** áp được cho tiếng Anh *(đo: **9** cặp trên **119.039** đầu mục)*. Đường tiếng Anh và vị từ điều phối giữa hai đường: **AD-44**.
+
+  ⚠️ **Dải hiệu năng mà bản đầu của AD này công bố — 0,02 ms · 0,15–4,5 ms · 0,13–0,19 ms — nay LỖI THỜI, ⛔ đừng trích tiếp như số hiện hành.** Số đó đo ở Giai đoạn 0 trên một database **ba** nguồn. Đo lại 2026-08-05 trên `dict-core.db` **sáu** nguồn, bản release, p95: nhánh 1 **0,083 ms** · nhánh 2 một ký tự **7,324 ms** · nhánh 2 hai ký tự **1,039 ms** · nhánh 3 **0,448 ms**. Nhánh 2 với truy vấn **một ký tự** vượt **1,6×** cận trên của dải cũ — chi phí nằm ở **số hàng** *(`char_idx` của `山` đi từ ~2.576 lên **3.177**)*, ⛔ không ở chỉ mục, nên nó ⛔ **không** sửa được bằng một chỉ mục mới. Mỗi nguồn từ điển thêm vào sẽ làm nó dày thêm.
 
 ### AD-27 — Chỉ mục FTS chính phân biệt dấu `[ADOPTED]`
 
@@ -562,6 +568,70 @@ graph TD
 
   **Đường xuất kiểm trước, không bỏ qua trong im lặng.** Khi FR130 chọn *theo link gốc*, đường xuất phải **quét phạm vi xuất trước** và **liệt kê ảnh không có `source_url`**. Không đường mã nào được bỏ ảnh thiếu URL mà không báo — cùng hạng ràng buộc với *"không nhập lại được"* của FR121 và cảnh báo câu chưa xác nhận: thông tin xuất hiện **lúc chọn**, không nằm trong tài liệu hướng dẫn.
 
+### AD-44 — Đường tra cứu tiếng Anh: điều phối theo **hình dạng truy vấn**, và khoá chữ hoa **thay cho** stemming
+
+- **Binds:** C3, C4, C1
+- **Prevents:** năm cách tách rời nhau để đường tiếng Anh hỏng, và **cả năm đều cho một lượt CI xanh**.
+  1. **AD-26 bị đọc như thể áp cho mọi ngôn ngữ.** Tiêu đề nó nói *"tiếng Trung"*, thân Rule thì không — nên một giai đoạn sẽ cho tiếng Anh đi qua `char_idx`. Đo thật: lớp tiếng Anh sinh **9** cặp `char_idx` trên **119.039** đầu mục *(0,0076%)*. Truy vấn 1–2 ký tự trả rỗng trong 0,01 ms, ⛔ không lỗi nào được ném — **đúng lớp lỗi AD-26 ra đời để chặn, tái sinh ở ngôn ngữ khác**.
+  2. **Điều phối theo ngôn ngữ của Tác phẩm.** Bôi đen `API` trong một truyện tiếng Trung ⇒ lọc `lang='zh'` ⇒ **0 hàng**, dù mục `API` có thật ở `lang='en'`. Rỗng im lặng, sinh ra bởi chính hàng rào chống rỗng im lặng.
+  3. **Chữ HOA.** `headword = 'running'` ⇒ **1** hàng; `headword = 'Running'` ⇒ **0**. Bôi đen một từ ở **đầu câu** là thao tác thường ngày, và nó trả rỗng ⛔ không báo gì.
+  4. **Một giai đoạn "vá thiếu sót FR40"** bằng cách nhét stemming vào đường nóng — đổi một phụ thuộc lấy **0 recall đo được** *(xem bảng dưới)*, rồi ai đọc lại cũng tưởng đó là cải thiện.
+  5. **Adapter `DictionarySource` theo NGÔN NGỮ thay vì theo TỆP.** Nó phá mệnh đề *"gỡ một lớp = xoá một file"* của AD-10 và làm FR36 ⛔ không nghiệm thu được bằng test thật nữa.
+- **Rule:**
+
+  **① Vị từ điều phối là hình dạng CHUỖI TRUY VẤN, ⛔ không phải ngôn ngữ của Tác phẩm.**
+
+  Truy vấn chứa **bất kỳ ký tự Hán nào** → đường tiếng Trung (AD-26), lọc `dict_entry.lang = 'zh'`. Ngược lại → đường tiếng Anh, lọc `lang = 'en'`.
+
+  > Điều này ⛔ **không** mâu thuẫn quy tắc *"chế độ tra do chỗ gọi quyết, ⛔ không đoán từ nội dung"*: `LookupMode` *(chính xác / chuỗi con)* là một luật về **ý định người dùng** và phải do chỗ gọi khai; script của chuỗi là một **thuộc tính của dữ liệu**, deterministic và kiểm được ⛔ không cần một Tác phẩm nào tồn tại.
+
+  🔴 **Định nghĩa *"ký tự Hán"* là MỘT, và nó là định nghĩa mà `char_idx` được dựng theo** — `tools/dict-build/src/char_idx.rs::is_han`. Hai workspace tách rời có chủ ý và ⛔ không có cổng kiểm chéo; hai định nghĩa lệch nhau sẽ định tuyến một truy vấn sang đường tiếng Trung rồi tra vào một `char_idx` chưa bao giờ lập chỉ mục ký tự đó ⇒ rỗng, ⛔ không lỗi.
+
+  🔴 **Vị từ chạy ĐÚNG MỘT LẦN cho mỗi lượt tra, và chạy TRÊN tầng gom — ⛔ không bên trong adapter của từng tệp `.db`.** Adapter nhận về một nhánh **đã quyết** cộng bộ lọc `lang`; nó ⛔ không tự quyết lại. Để vị từ chạy trong adapter là để mỗi tệp tự phân xử một câu hỏi thuộc về **cả lượt tra**, và hai tệp sẽ trả lời khác nhau ngay khi định nghĩa `is_han` của chúng lệch nhau.
+
+  🔴 **⛔ Không tồn tại sổ đăng ký *"tệp `.db` nào chứa ngôn ngữ nào"*.** Mọi tệp đang gắn đều được tra; `lang` lọc **trong SQL**. Một sổ đăng ký là **nguồn sự thật thứ hai cho một dữ kiện đã nằm trong dữ liệu** — cùng lớp lỗi mà AD-8 và AD-33 tồn tại để chặn — và nó sai **im lặng** vào đúng ngày một lớp gỡ rời được thêm hay gỡ đi (FR112).
+
+  **Vị từ là NHỊ PHÂN, ⛔ không có nhánh thứ ba.** Truy vấn ⛔ không chứa ký tự Hán nào — kể cả rỗng, toàn chữ số, toàn dấu câu, hay một hệ chữ viết thứ ba — đi đường tiếng Anh. Một kết quả rỗng ở đó là **"không có kết quả"** thật, ⛔ không phải một trạng thái không-hỗ-trợ; trạng thái không-hỗ-trợ chỉ tồn tại ở đúng ca ④.
+
+  **② Đường tiếng Anh có HAI nhánh, ⛔ không phải ba.**
+
+  | Chế độ | Độ dài *(ký tự)* | Nhánh | Chỉ mục |
+  |---|---|---|---|
+  | Tra chính xác đầu mục | bất kỳ | B-tree | `idx_entry_headword` |
+  | Chuỗi con | **≥ 3** | FTS5 `trigram` | `entry_fts` |
+  | Chuỗi con | **1–2** | 🔴 **⛔ không có nhánh** — xem ④ | — |
+
+  **③ Tập khoá của nhánh tra chính xác = `{nguyên văn, dạng hạ chữ thường}`, trong MỘT truy vấn.**
+
+  `headword IN (?1, ?2)` — một lượt qua B-tree. ⛔ **Không fallback dây chuyền** *(tra nguyên văn, rỗng thì tra lại dạng hạ chữ thường)*: nó làm mỗi lượt tra chạy hai truy vấn, tức số đo NFR1 mất nghĩa, và làm nhánh trả về nói dối về đường đã đi.
+
+  🔴 Hạ chữ thường là **THÊM** một khoá, ⛔ **không phải THAY** khoá gốc — **1.635** đầu mục tiếng Anh mang chữ hoa có nghĩa (`API` · `Wikipedia` · `English`), và **184** nhóm đầu mục chỉ phân biệt nhau bằng chữ hoa. Phép hạ chữ thường **⛔ không phụ thuộc locale** *(`I` luôn ra `i`)*: một phép fold theo locale làm cùng một truy vấn cho hai kết quả trên hai máy cài ngôn ngữ hệ điều hành khác nhau.
+
+  🔴 **Stemming ⛔ KHÔNG nằm trên đường nóng tra từ điển** — ghi ra để một giai đoạn sau ⛔ không "vá" nó vào. Hai dữ kiện, và chúng ⛔ **không cùng độ chắc** — đừng trích cái yếu như cái mạnh:
+
+  **Dữ kiện MẠNH, đo trên `dict-core.db` thật — đây là thứ quyết định đứng lên:** corpus đã có sẵn mọi dạng biến thể làm **đầu mục riêng**. Mẫu thử **16/16** có mặt, **gồm cả bất quy tắc** `went` · `gone` · `children` · `happiest` — thứ stemming về nguyên tắc ⛔ **không bao giờ** làm được. Quy mô: **7.656** đầu mục `-ing` · **8.855** `-ed` · **19.616** `-s` · **228** `-est` trên **119.039**. ⇒ Nhánh tra chính xác một mình đã phủ FR40 **rộng hơn** thứ stemming phủ được.
+
+  **Dữ kiện YẾU HƠN, corroborating:** đầu ra của một stemmer là một *stem*, ⛔ không phải một *lemma*, nên nó ⛔ không cần là một đầu mục. Ba dạng stem Porter kinh điển tra vào `dict-core.db` cho **0** hàng — `dictionari` · `studi` · `happi` — trong khi `run` cho **1**.
+
+  > ⚠️ **Chỗ yếu nói thẳng:** *số hàng* ở trên là **đo thật**, nhưng *ba chuỗi stem đó* lấy từ hành vi kinh điển của Porter chứ ⛔ **chưa chạy qua stemmer mà sản phẩm sẽ dùng**. Chuỗi thật có thể khác *(`tantivy-stemmers` phơi nhiều biến thể; Porter và Porter2/English ⛔ không cho cùng kết quả)*. Quyết định ⛔ **không** đứng trên dữ kiện này — nó đứng trên dữ kiện mạnh — nhưng ai muốn **mở lại** câu hỏi stemming thì việc đầu tiên là chạy stemmer thật và thay bảng này bằng số đo, ⛔ đừng chép tiếp.
+
+  ⚠️ **Giới hạn phải khai kèm:** dữ kiện mạnh là tính chất của **nguồn hôm nay**, ⛔ không phải của mọi nguồn tiếng Anh. Một nguồn thứ hai nghèo dạng biến thể hơn **mở lại** câu hỏi này — xem hàng Deferred.
+
+  **④ Chuỗi con 1–2 ký tự tiếng Anh khai là KHÔNG HỖ TRỢ, và trả một trạng thái PHÂN BIỆT ĐƯỢC với *"không có kết quả"*.**
+
+  ⛔ Không làm tràn qua nhánh tra chính xác *(nhánh trả về sẽ nói dối)*; ⛔ không hạ ngưỡng trigram xuống 1 *(FTS5 `trigram` ⛔ không lập chỉ mục token ngắn hơn ba ký tự — đo: `entry_fts MATCH '"山"'` ⇒ **0** hàng)*. Tinh thần AD-26 giữ nguyên và đây là chỗ nó được phát biểu tổng quát: **rỗng im lặng bị cấm; rỗng có lý do thì không.** Panel Lookup (FR41) nói *"truy vấn quá ngắn"*, ⛔ không hiện một khung rỗng.
+
+  **⑤ Ranh giới *"mã riêng cho từng ngôn ngữ"* — được phép ĐÚNG MỘT CHỖ.**
+
+  | Chỗ | Mã riêng theo ngôn ngữ |
+  |---|---|
+  | **Chiến lược truy vấn** *(chọn nhánh · SQL · tập khoá)* trong `core/dict/` | ✅ **Được phép** — đây là toàn bộ nội dung của AD này |
+  | Cổng `DictionarySource` | ⛔ **Cấm.** Một adapter cho mỗi **tệp `.db`** (AD-10), ⛔ không bao giờ cho mỗi **ngôn ngữ** |
+  | Hình dạng bản ghi kết quả | ⛔ **Cấm.** `lang` là một **trường**, ⛔ không phải một **kiểu** — ⛔ không tồn tại bản ghi kết quả thứ hai dành riêng cho tiếng Anh |
+  | Hợp nhất kết quả `zh` với `en` | ⛔ **Cấm** — cùng luật AD-19, ⛔ không có bước hợp nhất nào ở bất kỳ đâu |
+
+  **⑥ NFR1 đo TRÊN đường tiếng Anh, ⛔ không suy ra từ số đo tiếng Trung.** Hai đường đi qua chỉ mục khác nhau trên phân bố dữ liệu khác nhau; một con số mượn là một con số ⛔ không ai đo.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -581,7 +651,7 @@ graph TD
 | **Hình dạng lỗi** | `{ code, message_key, params, retryable }` qua mọi ranh giới IPC. Không văn bản hiển thị trong Rust (AD-21) |
 | **Chuỗi giao diện** | Toàn bộ nằm trong file tài nguyên từ dòng code đầu tiên (NFR16). Không chuỗi tiếng Việt trong `.rs` hay `.vue` |
 | **Ghi dữ liệu** | Mọi ghi qua `store::Writer` của kho tương ứng (AD-11). `.atproj` ghi trước, `library-index.db` ghi sau (AD-8) |
-| **Tra cứu** | Kết quả luôn mang `source`; không hợp nhất giữa nguồn (AD-19) |
+| **Tra cứu** | Kết quả luôn mang `source`; không hợp nhất giữa nguồn (AD-19). Đường zh hay en chọn theo **hình dạng chuỗi truy vấn**, không theo ngôn ngữ Tác phẩm; mọi nhánh lọc `dict_entry.lang` tường minh (AD-44) |
 | **Phân giải hai tầng** | Luôn qua `ScopeResolver`; ngữ nghĩa ghi đè hay hợp nhất tra ở AD-18 |
 | **Gọi AI** | Luôn qua prompt đã lắp bởi `RagInjector` (AD-14); luôn huỷ được; không bao giờ tự thử lại |
 | **Nội dung ngoài** | Luôn phân tích thành mô hình dữ liệu trước khi render (AD-16) |
@@ -720,7 +790,8 @@ AuraTranslate/
         matching/      # jieba + stemmer — DÙNG CHUNG (AD-17)
         glossary/      # + bảng chờ đề xuất (AD-20)
         tm/            # khoá theo cặp văn bản (AD-6)
-        dict/          # đường tra cứu ba nhánh (AD-26), không hợp nhất (AD-19)
+        dict/          # ba nhánh zh (AD-26) + hai nhánh en và vị từ điều phối (AD-44)
+                       # không hợp nhất nguồn, không hợp nhất zh với en (AD-19)
         library/       # chỉ mục + quét lại (AD-8)
         export/        # docx/md/TMX + alignment + khối ghi nguồn (AD-43)
         webimport/     # fetcher.rs — ĐIỂM RA MẠNG THỨ BA, không phân tích nội dung
@@ -749,8 +820,8 @@ AuraTranslate/
 |---|---|---|
 | **C1** Library | `core/library/`, `core/segment/`, `core/webimport/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34, AD-37, AD-39, AD-40, AD-41, AD-42, AD-43 |
 | **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42 |
-| **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27 |
-| **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36 |
+| **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
+| **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44 |
 | **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31 |
 | **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36 |
 | **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22 |
@@ -778,6 +849,8 @@ AuraTranslate/
 | **Chiến lược ảo hoá danh sách dài** (2000 Chương, Chương nhiều nghìn segment) | Là quyết định trình bày trong một module, không phải hợp đồng giữa các module | Giai đoạn 3 |
 | ~~**Dung lượng và giấy phép font nhúng**~~ | ✅ **Đã đóng 2026-08-03** (Story 1.1) — đo thật: chênh lệch `.dmg` do font là **20,300 MiB = 21,29 MB**, tổng với database 130 MB hiện tại là **151,29 MB**, **dưới trần NFR6**. Giấy phép: **SIL OFL 1.1** cả ba, tương thích GPL v3 theo diện gộp gói, đã ghi ba hàng vào bảng Stack. Ước 30–50 MB của bản trước **quá cao**; nhưng ước 21,6 MB sau đó lại **quá thấp** vì phần CJK là 23,41 MiB chứ không phải 19 MB. **Còn nợ hai việc, cả hai đã có AC thật, không chặn:** `.msi` chưa đo được (`tauri-cli` trên macOS từ chối target `msi`) → **AC mới của Story 1.3**; và dư địa dưới trần chỉ còn **~47 MB** cho các nguồn từ điển còn lại **cộng toàn bộ mã sản phẩm chưa viết** → **AC mới của Story 1.9** 🔄 **CẬP NHẬT 2026-08-05 — dòng "dư địa ~47 MB" là BẢN GHI tại thời điểm 2026-08-03, ⛔ không còn là ràng buộc đang sống.** NFR6 sửa lần hai: trần nâng **150–200 MB → 400.000.000 byte**; payload đo thật với BẢY nguồn = **343.991.430 byte**, ĐẠT, dư **56.008.570**. Xem `prd.md` §7.2.. *(Rà soát 2026-08-03: bản đầu của hàng này ghi "200 MB database + 20,30 MiB font = 220 MB vượt trần" — **đọc sai `[A2]`**, vì 150–200 MB là trần của cả bản cài **đã bao gồm font**. Phép tính đúng là trừ dư địa, không phải cộng lên trần.)* | — |
 | ~~**Biến thể vùng cho Source Han Serif**~~ | ✅ **Đã đóng 2026-08-03** (Story 1.1) — chốt **TC** (`NotoSerifCJKtc-Regular.otf`). Lý do: phạm vi dự án là dịch thuật **tổng quát** chứ không phải ngách truyện mạng (Ice chốt ở giai đoạn brief), và hai lớp từ điển của chính sản phẩm — Cổ hán văn và HVTĐTD — đều là ngữ liệu cổ văn. Khác biệt nặng nhất hoá ra **không** phải dáng chữ mà là **vị trí dấu câu**: TC đặt 「，。」 giữa ô chữ, SC đặt góc dưới trái — xuất hiện ở mọi dòng, không chỉ vài mã hiếm. **Chi phí đổi ý bằng 0**: hai tệp lệch nhau 1.176 byte | — |
+| **Stemming trên đường tra cứu TỪ ĐIỂN tiếng Anh** (AD-44 ③) | Đo thật 2026-08-05: nó mua được **~0 recall**. Đầu ra Porter ⛔ không phải một từ *(`dictionari` · `studi` · `happi` đều ⇒ **0** hàng)*, còn thứ thật sự phủ FR40 là một **tính chất của corpus** — Wiktionary đã có sẵn mọi dạng biến thể làm đầu mục riêng, **16/16** mẫu thử gồm cả bất quy tắc. Một phụ thuộc trên đường nóng đổi lấy 0 là một phép đánh đổi âm. AD-44 ⛔ không cấm stemming vĩnh viễn — nó ghi **số đo** làm lý do để lần mở lại là một quyết định có bằng chứng, ⛔ không phải một lượt "vá thiếu sót" | **Nguồn từ điển tiếng Anh THỨ HAI** vào bản phát hành: đo lại tỉ lệ đầu mục là dạng biến thể trên nguồn đó *(hôm nay: 7.656 `-ing` · 8.855 `-ed` · 19.616 `-s` · 228 `-est` trên 119.039)*. Nghèo hơn hẳn ⇒ mở lại, và lúc đó cân **cả** phương án đánh chỉ mục stem lúc build *(đắt: đổi `schema.rs`, dựng lại `dict-core.db`, điền lại `[base].sha256`, đo lại NFR6)* |
+| **Cụm từ nhiều chữ ở đường tra cứu tiếng Anh** | **8.283** đầu mục tiếng Anh chứa dấu cách. Chúng đi nhánh tra chính xác như mọi đầu mục khác và AD-44 ⛔ không cần một nhánh riêng cho chúng — nhưng hành vi khi người dùng bôi đen một **cụm** thì chưa đo, và đó là câu hỏi về *chọn gì để tra* chứ ⛔ không phải về *tra thế nào*, tức thuộc Auto-Lookup | Story 1.18 (Auto-Lookup) — đo trên văn bản tiếng Anh thật cùng lượt với ngưỡng bôi đen |
 | **Nhiều thư mục gốc Library** | AD-23 đã cho phép về mặt cấu trúc; có cần hay không là câu hỏi sản phẩm | Sau khi dùng thật |
 | **Cấu trúc chi tiết chỉ mục FTS cho tìm kiếm Library** | AD-27 đã cố định phần bất biến (phân biệt dấu là chính); phần còn lại là hình dạng bảng mà code sở hữu | Giai đoạn 3 |
 | **Nguyên nhân gốc vòng phản hồi đứt** (Q1) | PRD để ngỏ có chủ ý; FR95 + AD-20 khiến câu trả lời không chặn tiến độ | — |
