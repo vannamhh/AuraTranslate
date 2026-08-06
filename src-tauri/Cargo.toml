@@ -50,6 +50,12 @@ keyring = "=4.1.6"
 # core::ai (điểm ra mạng 1) và core::webimport::Fetcher (điểm ra mạng 3), AD-15.
 # Chưa có một dòng mã nào gọi tới ở story này — xem Completion Notes về AC5.
 reqwest = "=0.13.4"
+# core::store::schema (work.id UUID v4, AD-28). Story 1.15: đã có BẮC CẦU qua `tauri`
+# (Cargo.lock trước story này đã khoá `uuid 1.24.0`), nên khai tường minh ở đây thêm
+# ĐÚNG 0 byte payload vào cây. Ghim bằng `=`, không bằng cú pháp mặc định của Cargo —
+# `"1.24.0"` trần nghĩa là `^1.24.0`. Rà NFR15 (MIT OR Apache-2.0, đọc trong nguồn đã
+# tải) ghi ở story `1-15…md` §Debug Log References.
+uuid = { version = "=1.24.0", features = ["v4"] }
 
 # `similar` vs `dissimilar`: hàng Deferred của ARCHITECTURE-SPINE, chốt ở Giai đoạn 5
 # (Story 8.1) sau khi thử cả hai trên bản review thật. Cài một trong hai hôm nay là

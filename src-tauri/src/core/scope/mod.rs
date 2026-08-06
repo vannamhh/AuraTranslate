@@ -162,34 +162,61 @@ impl std::error::Error for ScopeError {}
 
 /// Chỗ **DUY NHẤT** phân giải được hai tầng (AC1).
 ///
-/// ⚠️ Hôm nay `work` **luôn** là `None` và [`ScopeResolver::global_only`] là hàm dựng duy
-/// nhất tồn tại — xem *"vì sao tầng Tác phẩm là `Option::None`"* ở doc-comment của module.
-/// Story 1.15 thêm hàm dựng thứ hai, và ba method dưới đây không phải đổi chữ ký.
+/// ⚠️ Story 1.15 **đã** thêm hàm dựng thứ hai ([`ScopeResolver::with_work`]), nên `work`
+/// ⛔ **không còn luôn** là `None` — và ba method dưới đây vẫn ⛔ không đổi chữ ký, đúng
+/// như `deferred-work.md` đòi.
+///
+/// 🔴 **Nhưng ⛔ đừng đọc câu trên thành "phân giải hai tầng đã chạy thật"** — nó chưa.
+/// Đường phân giải sản phẩm (`core::scope::store`) vẫn dựng `global_only()`, vì
+/// `project.db` ⛔ **chưa có bảng nào ở tầng Tác phẩm để tra** (Glossary là Epic 3, TM là
+/// Epic 7, prompt là Epic 4). Thêm một bảng như thế hôm nay vi phạm luật của
+/// `store::schema`: *"⛔ Không thêm bước cho một lược đồ chưa tồn tại"*. Consumer đầu tiên
+/// **thật** của tầng này là epic đầu tiên mang dữ liệu tầng Tác phẩm — xem `deferred-work.md`.
 #[derive(Debug, Clone, Default)]
 pub struct ScopeResolver {
-    /// `None` = *"chưa mở Tác phẩm nào"*, trạng thái **duy nhất** tồn tại hôm nay.
+    /// `None` = *"chưa mở Tác phẩm nào"* — trạng thái lúc khởi động, và trạng thái của mọi
+    /// đường phân giải sản phẩm hôm nay. `Some` chỉ đến từ [`ScopeResolver::with_work`].
     work: Option<WorkScope>,
 }
 
-/// Chỗ Story 1.15 điền tầng Tác phẩm vào.
+/// Tầng Tác phẩm — **điền thật** ở Story 1.15.
 ///
-/// ⚠️ Rỗng có chủ ý, và ⛔ **đừng đoán trước hình dạng của nó**: `.atproj` là một thư mục
-/// (AD-9), `project.db` nằm trong đó chứ không ở `$APPDATA`, và `meta.json` chưa được
-/// thiết kế. Viết sẵn trường hôm nay là viết mã không ai gọi, và nó sẽ sai theo đúng cách
-/// mà không test nào bắt (`core/store/mod.rs:122-134`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct WorkScope;
+/// 🔴 Chỉ mang `work_id`, ⛔ **không** mang `Store`/kết nối/đường dẫn: `ScopeResolver` là
+/// một giá trị thuần (`Debug, Clone`), ⛔ không sở hữu tài nguyên I/O — vòng đời của
+/// `Store` project sống ở `lib.rs` (Task 7), tách khỏi vòng đời của resolver. `work_id`
+/// đủ để ba method phân giải bên dưới biết **có** một Tác phẩm đang mở hay không
+/// ([`ScopeResolver::has_work_tier`]), mà không cần đoán trước hình dạng dữ liệu Work-tier
+/// nào Epic 3/Epic 7 sẽ cần — đó vẫn là việc của epic đó, ⛔ không phải story này.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct WorkScope {
+    /// UUID v4 của Tác phẩm đang mở (AD-28). Dữ liệu chẩn đoán, ⛔ không phải khoá tra cứu
+    /// nghiệp vụ — ba method phân giải bên dưới chưa có bảng nào ở tầng Work để tra.
+    pub work_id: String,
+}
 
 impl ScopeResolver {
-    /// Hàm dựng **duy nhất** hôm nay: chưa mở Tác phẩm nào.
-    ///
-    /// AC5 nguyên văn: *"tầng Global phân giải được khi ứng dụng chạy mà chưa mở Tác phẩm
-    /// nào"* — và đó không phải một ca biên, đó là trạng thái duy nhất tồn tại.
+    /// Chưa mở Tác phẩm nào. AC5 nguyên văn: *"tầng Global phân giải được khi ứng dụng
+    /// chạy mà chưa mở Tác phẩm nào"*.
     pub const fn global_only() -> Self {
         Self { work: None }
     }
 
-    /// Đã mở một Tác phẩm chưa. Hôm nay **luôn** `false`.
+    /// **Hàm dựng thứ hai** — Story 1.15 cắm tầng Tác phẩm thật vào (nợ `deferred-work.md`).
+    ///
+    /// ⚠️ Ba method phân giải bên dưới **không đổi chữ ký** — chúng nhận `global`/`work` là
+    /// dữ liệu qua tham số, ⛔ không đọc `self.work`. `with_work` tồn tại để
+    /// [`Self::has_work_tier`] phản ánh đúng thực tế *"một Tác phẩm đang mở"*, cho những
+    /// chỗ hỏi câu đó mà không cần một tra cứu hai tầng nào — cùng lý do `ScopeResolver`
+    /// tồn tại như MỘT giá trị, không phải một hằng số toàn cục.
+    pub const fn with_work(work: WorkScope) -> Self {
+        Self { work: Some(work) }
+    }
+
+    /// Đã mở một Tác phẩm chưa — `true` sau [`Self::with_work`], `false` sau
+    /// [`Self::global_only`].
+    ///
+    /// ⚠️ Trả `true` nghĩa là *"resolver này mang một Tác phẩm"*, ⛔ **không** nghĩa là
+    /// *"có dữ liệu tầng Tác phẩm để tra"* — xem doc-comment của [`ScopeResolver`].
     pub const fn has_work_tier(&self) -> bool {
         self.work.is_some()
     }

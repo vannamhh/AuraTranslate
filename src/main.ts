@@ -30,6 +30,12 @@ import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 // để Kiểm C/D/E của `npm run check:commands` chạy trên chính bộ command của sản phẩm. Cùng
 // cửa mà `setMode` và `bindings` đã đi qua từ Story 1.6 / 1.8.
 import { applyPreset, panelRing, togglePanel } from './layout/dockController'
+// ── Story 1.15 — form nhập Tác phẩm ở Library ───────────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với ba cổng bố cục ở trên: `libraryImport.ts` là một module
+// Vue thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/project.ts` — import nó ở
+// `src/commands/index.ts` giết Kiểm C/D/E.
+import { submitFilePath, submitPastedText } from './modes/libraryImport'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -155,6 +161,8 @@ async function boot(): Promise<void> {
       applyPreset,
       togglePanel,
       panelRing,
+      submitPastedText,
+      submitFilePath,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa

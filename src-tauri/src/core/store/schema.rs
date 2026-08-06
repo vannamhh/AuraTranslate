@@ -125,6 +125,100 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     },
 ];
 
+/// Lược đồ bảng `work` — **bước 1 của `project.db`**, Story 1.15, AC4.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 ĐÚNG MỘT HÀNG, và `CHECK (id = 1)` là cơ chế bắt buộc số đó
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `project.db` mang **một** Tác phẩm — hình dạng `.atproj/` của AD-9 khoá điều đó ở tầng
+/// thư mục. Bảng này phản ánh đúng bất biến ở tầng lược đồ thay vì để nó thành một quy ước
+/// không ai canh: một `INSERT` thứ hai vi phạm `CHECK` và **SQLite** từ chối, không phải
+/// một `debug_assert!` mà bản release im lặng bỏ qua.
+///
+/// `work_id` là UUID v4 (AD-28) — sinh **một lần** lúc tạo, ⛔ không đổi được, và là khoá
+/// dựng lại `meta.json` (xem [`super::super::readonly`] không áp — đây là `project.db`).
+/// `source_lang` là trường **bất biến** (AD-18): AC1 nói *"ngôn ngữ nguồn được đặt lúc tạo
+/// và ⛔ không đổi được về sau"* — bất biến này được cưỡng chế ở tầng ứng dụng
+/// (`core/segment/import.rs`, ⛔ không có `UPDATE` nào chạm cột này), ⛔ không phải một
+/// `CHECK`/trigger SQL, vì SQLite không có cú pháp "cột chỉ ghi một lần".
+pub const WORK_DDL: &str = "\
+CREATE TABLE work (
+  id          INTEGER PRIMARY KEY,
+  work_id     TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  source_lang TEXT NOT NULL,
+  genre       TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL,
+  CHECK (id = 1)
+);";
+
+/// Lược đồ bảng `chapter` — **bước 1 của `project.db`**, Story 1.15, AC4.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `AUTOINCREMENT`, ⛔ KHÔNG `INTEGER PRIMARY KEY` TRẦN
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `INTEGER PRIMARY KEY` trần là bí danh của `rowid`, và SQLite **tái dùng** rowid đã xoá
+/// khi nó là rowid lớn nhất từng cấp — cụ thể, xoá hàng cuối rồi chèn hàng mới sẽ nhận
+/// lại đúng `id` vừa mất. AD-3 nói id đã về hưu ⛔ **không bao giờ** được tái dùng.
+/// `AUTOINCREMENT` giữ một sổ riêng (`sqlite_sequence`) và không bao giờ phát lại một giá
+/// trị đã dùng, đổi lại chi phí ghi nhỏ mà không ai đo được ở quy mô một cuốn sách.
+///
+/// `ord` là **cột riêng** cho thứ tự hiển thị (AD-3, AD-32) — sắp lại được (Epic 2 gộp/tách
+/// Chương) mà ⛔ không đụng `id`. ⛔ **Không** `UNIQUE` trên `ord` ở story này: Epic 2 tự
+/// quyết cơ chế sắp lại (có thể để hở tạm thời trong một giao dịch nhiều bước).
+///
+/// `status` mang trạng thái vòng đời ban đầu *Chưa bắt đầu* (FR5) — chuỗi tự do ở tầng
+/// SQL, cưỡng chế giá trị hợp lệ là việc của tầng Rust gọi nó (cùng khuôn với
+/// `config_value.kind` ở `CONFIG_VALUE_DDL`, xem doc-comment ở trên).
+///
+/// ⛔ **Không** bảng `segment` — Quyết định #4 của story: AD-4 đóng băng ranh giới segment
+/// tính một lần lúc nhập; một bộ tách "tạm" ở đây là đóng băng vĩnh viễn ranh giới sai.
+/// `source_text` mang **nguyên khối** văn bản nguồn của Chương; Story 2.1 sở hữu bước tách
+/// tường minh biến nó thành các hàng `segment`.
+pub const CHAPTER_DDL: &str = "\
+CREATE TABLE chapter (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ord         INTEGER NOT NULL,
+  title       TEXT,
+  source_text TEXT NOT NULL,
+  status      TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);";
+
+/// Bộ di trú của `project.db`. Hôm nay **ba** bước — Story 1.15.
+///
+/// ⚠️ **Ba bước, ⛔ không phải một** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
+/// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
+/// hai chuỗi ở **compile time** mà không thêm phụ thuộc) chỉ nhận **literal**, ⛔ không
+/// nhận một `const` đặt tên. Nối [`SCHEMA_MIGRATION_LOG_DDL`] (hằng **tái dùng** từ
+/// `global.db`) với [`WORK_DDL`]/[`CHAPTER_DDL`] thành một chuỗi duy nhất buộc phải chép
+/// lại nguyên văn của hằng kia — đúng thứ *"tái dùng, ⛔ đừng viết lại"* cấm. Ba bước tách
+/// rời, mỗi bước một hằng, giữ **mỗi** DDL có **đúng một** nguồn sự thật, cùng khuôn
+/// [`GLOBAL_MIGRATIONS`] đã tách `SCHEMA_MIGRATION_LOG_DDL` (bước 1) khỏi
+/// `CONFIG_VALUE_DDL` (bước 2). "Mỗi bước một giao dịch" là bất biến sẵn có của
+/// [`migrate`] — ⛔ không AC nào của story này đòi `work`/`chapter` phải cùng một giao dịch
+/// SQL với nhật ký di trú.
+///
+/// ⛔ Không thêm bước cho một lược đồ chưa tồn tại — cùng luật với [`GLOBAL_MIGRATIONS`].
+/// ⛔ **Không** bảng `segment`/Glossary/TM/prompt/asset ở đây; mỗi epic mang bảng riêng của
+/// nó cùng lúc với bước di trú cần nó.
+pub const PROJECT_MIGRATIONS: &[Migration] = &[
+    Migration {
+        to_version: 1,
+        sql: SCHEMA_MIGRATION_LOG_DDL,
+    },
+    Migration {
+        to_version: 2,
+        sql: WORK_DDL,
+    },
+    Migration {
+        to_version: 3,
+        sql: CHAPTER_DDL,
+    },
+];
+
 /// Phiên bản cao nhất mà một bộ di trú đạt tới. Bộ rỗng ⇒ 0.
 ///
 /// 🔴 Chỉ đáng tin **sau** [`validate_strictly_increasing`]: hàm này tin `.last()` là

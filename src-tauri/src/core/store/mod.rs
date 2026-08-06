@@ -93,7 +93,10 @@ pub(crate) mod writer;
 
 pub use checkpoint::CheckpointStats;
 pub use readonly::ReadOnlyDb;
-pub use schema::{CONFIG_VALUE_DDL, GLOBAL_MIGRATIONS, Migration, SCHEMA_MIGRATION_LOG_DDL};
+pub use schema::{
+    CHAPTER_DDL, CONFIG_VALUE_DDL, GLOBAL_MIGRATIONS, Migration, PROJECT_MIGRATIONS,
+    SCHEMA_MIGRATION_LOG_DDL, WORK_DDL,
+};
 
 /// Kiểu giao dịch mà một job ghi nhận được. Tái xuất để chỗ gọi **không phải gõ
 /// `rusqlite`** — xem [`ReadHandle`] cho cùng lý do.
@@ -126,10 +129,10 @@ pub type ReadHandle<'a> = &'a rusqlite::Connection;
 
 /// Năm loại kho của AD-7 mà story này chạm tới — **khai hết, dựng đúng một**.
 ///
-/// ⛔ Chỉ [`StoreKind::Global`] có mã khởi tạo hôm nay. `project.db` là **Story 1.15**
-/// *(nó nằm trong một `.atproj` do người dùng chọn, không phải `$APPDATA`)*;
-/// `library-index.db` là **Epic 5**, và AD-8 còn nói nó **không di trú** — xoá rồi dựng
-/// lại — tức nó cần một nhánh khác mà story đó phải tự quyết. Viết sẵn mã cho hai loại
+/// ⛔ [`StoreKind::Global`] và [`StoreKind::Project`] có mã khởi tạo hôm nay — Story 1.15
+/// dựng vế thứ hai (`project.db`, nằm trong một `.atproj` do người dùng chọn, ⛔ không phải
+/// `$APPDATA`). `library-index.db` là **Epic 5**, và AD-8 còn nói nó **không di trú** — xoá
+/// rồi dựng lại — tức nó cần một nhánh khác mà story đó phải tự quyết. Viết sẵn mã cho loại
 /// kia hôm nay là mã không ai gọi, và nó sẽ sai theo đúng cách mà không test nào bắt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum StoreKind {
@@ -257,14 +260,27 @@ pub struct StoreSpec {
 impl StoreSpec {
     /// Kho `global.db` với bộ di trú và `Tuning` mặc định.
     ///
-    /// ⛔ Không có `StoreSpec::project` hay `StoreSpec::library_index` hôm nay — xem
-    /// [`StoreKind`].
+    /// ⛔ Không có `StoreSpec::library_index` hôm nay — xem [`StoreKind`].
     pub fn global(path: PathBuf) -> Self {
         Self {
             kind: StoreKind::Global,
             path,
             tuning: Tuning::default(),
             migrations: GLOBAL_MIGRATIONS,
+        }
+    }
+
+    /// Kho `project.db` của một `.atproj` — **Story 1.15**, bộ di trú [`PROJECT_MIGRATIONS`]
+    /// và `Tuning` mặc định.
+    ///
+    /// `path` **đã phân giải** — chỗ gọi (`core::library::atproj`) quyết định
+    /// `<Tên>.atproj/project.db` nằm ở đâu; module này không tự đoán.
+    pub fn project(path: PathBuf) -> Self {
+        Self {
+            kind: StoreKind::Project,
+            path,
+            tuning: Tuning::default(),
+            migrations: PROJECT_MIGRATIONS,
         }
     }
 }

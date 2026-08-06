@@ -256,6 +256,7 @@ dependencies = [
  "tantivy-stemmers",
  "tauri",
  "tauri-build",
+ "uuid",
 ]
 
 [[package]]

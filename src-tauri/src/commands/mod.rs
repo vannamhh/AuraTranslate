@@ -38,3 +38,4 @@
 //! gọi, và đó là lý do nó sống trong một module lồng thay vì mang một hậu tố.
 
 pub mod config;
+pub mod project;

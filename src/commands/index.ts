@@ -159,6 +159,18 @@ export type CommandDeps = {
   applyPreset?: (presetId: string) => boolean
   /** Ẩn/hiện một panel. Handler của bốn `layout.toggle_*` (AC3). */
   togglePanel?: (panelId: string) => boolean
+
+  // ── Story 1.15 — nộp form nhập Tác phẩm ở Library ───────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `applyPreset`/`togglePanel`: state của form
+  // (`name`, `pastedText`, `filePath`, …) sống trong `src/modes/libraryImport.ts`, một
+  // module Vue thật — import thẳng nó ở đây giết Kiểm C/D/E cùng lý do `@tauri-apps/api`
+  // bị cấm. `src/main.ts` nối `submitPastedText`/`submitFilePath` vào `installCommands`.
+
+  /** Nộp `pastedText` hiện tại. Handler của `library.import_text` (AC1 nhánh dán). */
+  submitPastedText?: () => void
+  /** Nộp `filePath` hiện tại. Handler của `library.import_file` (AC1 nhánh tệp/NFR17). */
+  submitFilePath?: () => void
   /**
    * Các panel đang HIỆN, theo **thứ tự bố cục** (AC9).
    *
@@ -335,6 +347,31 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
       },
     })
   }
+
+  /**
+   * `library.import_text` / `library.import_file` — Story 1.15, AC1.
+   *
+   * ⚠️ Cố ý ⛔ KHÔNG gán phím: nộp một form là một thao tác cần đọc lại giá trị đã gõ
+   * trước khi kích hoạt, ⛔ không phải một lối tắt đáng nhớ — cùng lý lẽ mà các
+   * `layout.toggle_*` cố ý không gán phím ở Story 1.6 (§QĐ #3 phía trên). Hai nút bấm
+   * tương ứng vẫn tới được bằng bàn phím qua Tab + Enter/Space, chuẩn HTML gốc.
+   */
+  target.register({
+    id: 'library.import_text',
+    labelKey: 'command.library.import_text',
+    run: () => {
+      if (deps.submitPastedText === undefined) return portMissing('library.import_text', 'submitPastedText')
+      deps.submitPastedText()
+    },
+  })
+  target.register({
+    id: 'library.import_file',
+    labelKey: 'command.library.import_file',
+    run: () => {
+      if (deps.submitFilePath === undefined) return portMissing('library.import_file', 'submitFilePath')
+      deps.submitFilePath()
+    },
+  })
 }
 
 /**

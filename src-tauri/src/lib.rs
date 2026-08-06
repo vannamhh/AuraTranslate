@@ -29,6 +29,29 @@ pub const SCOPE_SELFTEST_EVENT: &str = "selftest:scope-check";
 /// Tên tệp kho toàn cục dưới `$APPDATA`. Xem [`open_global_store`].
 const GLOBAL_DB_FILE: &str = "global.db";
 
+/// Nhãn cửa sổ duy nhất — khớp `tauri.conf.json::windows[0].label`.
+const MAIN_WINDOW_LABEL: &str = "main";
+
+/// Tên event forward-tới-JS khi người dùng kéo-thả tệp vào cửa sổ — Story 1.15, Quyết
+/// định #1(b). Khớp `src/modes/libraryImport.ts::DRAG_DROP_EVENT`.
+pub const DRAG_DROP_EVENT: &str = "aura://file-dropped";
+
+/// Một thao tác kéo vừa **vào** cửa sổ. Khớp `src/modes/libraryImport.ts`.
+///
+/// 🔴 Vì sao cần một event RIÊNG cho việc này, thay vì để webview tự bắt `dragenter` của
+/// DOM: `drag_drop_enabled` mặc định `true` ở Tauri v2 (`tauri.conf.json` ⛔ không override),
+/// nghĩa là bộ xử lý kéo-thả tầng **hệ điều hành** giành lấy thao tác và webview ⛔ **không
+/// bao giờ** thấy `dragenter`/`dragover`/`dragleave` của DOM. Vùng kéo-thả vì thế ⛔ không
+/// có một tín hiệu trực quan nào — người dùng ⛔ không biết vùng đó còn sống. Lỗi tìm ra ở
+/// lượt code review 2026-08-06.
+///
+/// ⚠️ Đi cùng đường với [`DRAG_DROP_EVENT`] — cùng `on_window_event`, ⛔ **0** permission
+/// mới, ⛔ 0 phụ thuộc mới.
+pub const DRAG_ENTER_EVENT: &str = "aura://file-drag-enter";
+
+/// Thao tác kéo đã **rời** cửa sổ hoặc bị huỷ. Khớp `src/modes/libraryImport.ts`.
+pub const DRAG_LEAVE_EVENT: &str = "aura://file-drag-leave";
+
 /// Thư mục con của `$RESOURCE` chứa các tệp `.db` từ điển. Xem [`open_dict_layers`].
 ///
 /// 🔴 Đây là một **THƯ MỤC**, ⛔ không phải một danh sách tên tệp — và khác biệt đó là cả
@@ -56,6 +79,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             crate::commands::config::wire::bootstrap_config,
             crate::commands::config::wire::put_config,
+            crate::commands::project::wire::create_work_from_text,
+            crate::commands::project::wire::create_work_from_file,
         ])
         .setup(move |app| {
             #[cfg(debug_assertions)]
@@ -65,6 +90,8 @@ pub fn run() {
 
             open_global_store(app);
             open_dict_layers(app);
+            open_work_slot(app);
+            wire_drag_drop(app);
             Ok(())
         });
 
@@ -78,6 +105,7 @@ pub fn run() {
         if matches!(event, tauri::RunEvent::Exit) {
             close_global_store(handle);
             close_dict_layers(handle);
+            close_open_work(handle);
         }
     });
 }
@@ -238,6 +266,100 @@ fn close_dict_layers(handle: &tauri::AppHandle) {
     if let Some(layers) = handle.try_state::<crate::core::dict::DictLayers>() {
         layers.close();
     }
+}
+
+/// Đăng ký state cho kho **thứ hai** — Tác phẩm đang mở (Story 1.15, Task 7).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO ĐÂY LÀ MỘT KHO **THỨ HAI**, ⛔ KHÔNG PHẢI MỘT NHÁNH CỦA KHO TOÀN CỤC
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `global.db` mở **một lần** ở `setup()` và sống suốt vòng đời tiến trình
+/// ([`open_global_store`]). `.atproj/project.db` mở/đóng theo thao tác của người dùng —
+/// **N** Tác phẩm có thể mở rồi đóng trong một phiên, ⛔ không phải một lần lúc khởi động.
+/// ⇒ state ở đây là `Mutex<Option<OpenWork>>` (rỗng lúc khởi động), ⛔ không phải
+/// `OpenWork` trần — mọi `#[tauri::command]` sau này lấy nó qua `try_state`, cùng khuôn
+/// [`crate::commands::config`].
+///
+/// ⚠️ **Hệ quả đã biết, ghi ra thay vì giấu** (`deferred-work.md`): mở một kho thứ hai
+/// nghĩa là **luồng checkpoint thứ hai + pool đọc thứ hai** (4 kết nối nữa) mỗi khi một
+/// Tác phẩm mở — sáu số `Tuning` vẫn TẠM (chủ: Story 2.4), chưa cái nào được đo với hai
+/// kho cùng chạy song song. Và mục `Checkpointer::shutdown()` của `deferred-work.md`
+/// (treo lửng lúc thoát) đổi từ "vô hại" sang "rủi ro thật" đúng từ story này: đây là
+/// story ĐẦU TIÊN khởi động lại một kho (mở Tác phẩm khác) mà ⛔ không thoát tiến trình.
+fn open_work_slot(app: &tauri::App) {
+    use tauri::Manager as _;
+    app.manage(crate::commands::project::OpenWorkState::new(None));
+}
+
+/// `RunEvent::Exit` ⇒ đóng Tác phẩm đang mở (nếu có), cùng khuôn [`close_global_store`].
+///
+/// ⚠️ Trên Windows một tệp `project.db` còn mở là một `remove_dir_all` thất bại (NFR14) —
+/// đúng lớp lỗi mà [`close_global_store`] đã học, áp y hệt cho kho thứ hai.
+///
+/// ⛔ Vẫn còn hở, và ghi thẳng ra thay vì đánh dấu đạt: `panic = "abort"` nghĩa là một lần
+/// thoát cứng **không** đi qua đây — cùng món nợ đã ghi cho [`close_global_store`].
+fn close_open_work(handle: &tauri::AppHandle) {
+    use tauri::Manager as _;
+
+    if let Some(state) = handle.try_state::<crate::commands::project::OpenWorkState>() {
+        let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(open) = guard.take() {
+            open.store.close();
+        }
+    }
+}
+
+/// Nối `WindowEvent::DragDrop` gốc tới một event JS — Story 1.15, Quyết định #1(b).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO ĐÂY LÀ ĐƯỜNG DUY NHẤT, VÀ VÌ SAO NÓ CẦN **ĐÚNG 0** PERMISSION MỚI
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `WebviewWindow::on_window_event` đăng ký một callback THẲNG trên dispatcher runtime —
+/// hoàn toàn KHÔNG đi qua hệ thống invoke/ACL/capabilities (đó không phải một
+/// `#[tauri::command]`). Mũi thăm dò của Task 0 (đọc mã nguồn `tauri-runtime-2.11.3` và
+/// `tauri-2.11.5` đã ghim, xem story `1-15…md` §Debug Log References) xác nhận: nhận
+/// `WindowEvent::DragDrop` ở đây cần 0 permission — không phải "ba permission hiện có có
+/// đủ không", câu hỏi đó không áp dụng cho đường này.
+///
+/// `app.emit(...)` **CÓ** đi qua hệ thống event, và đó là chỗ `core:event:default` (đã
+/// cấp từ Story 1.2) thật sự cần — để JS *nghe* được, không phải để Rust *nhận* được.
+///
+/// Rust chỉ chuyển tiếp **đường dẫn**, ⛔ **không đọc nội dung tệp** — AD-1/AD-16 đòi mọi
+/// nội dung ngoài do Rust phân tích; phía JS gọi lại `create_work_from_file` với đường
+/// dẫn này, và Rust đọc tệp ở đó (`core::segment::import::import_file`), ⛔ không phải ở
+/// đây.
+fn wire_drag_drop(app: &tauri::App) {
+    use tauri::Emitter as _;
+    use tauri::Manager as _;
+
+    let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        eprintln!("drag-drop: main window not found, drag-drop import disabled");
+        return;
+    };
+
+    let handle = app.handle().clone();
+    window.on_window_event(move |event| {
+        let tauri::WindowEvent::DragDrop(drag) = event else {
+            return;
+        };
+
+        // ⚠️ `DragDropEvent` là `#[non_exhaustive]` — nhánh `_` bắt buộc, và nó cũng là
+        // chỗ `Over` rơi vào: `Over` bắn liên tục theo từng chuyển động chuột, forward nó
+        // qua IPC là một trận lụt event ⛔ không ai dùng tới (`Enter` đã đủ để bật cờ).
+        let result = match drag {
+            tauri::DragDropEvent::Drop { paths, .. } => {
+                let payload: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
+                handle.emit(DRAG_DROP_EVENT, payload)
+            }
+            tauri::DragDropEvent::Enter { .. } => handle.emit(DRAG_ENTER_EVENT, ()),
+            tauri::DragDropEvent::Leave => handle.emit(DRAG_LEAVE_EVENT, ()),
+            _ => return,
+        };
+
+        if let Err(err) = result {
+            eprintln!("drag-drop: emit failed: {err}");
+        }
+    });
 }
 
 /// Nghe kết quả Kiểm 3 từ webview, in ra stdout, rồi thoát với mã tương ứng.

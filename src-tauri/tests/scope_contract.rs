@@ -755,11 +755,21 @@ fn the_workspace_layout_survives_a_write_and_a_reopen() {
 // §Quyết định #7 — từ vựng lỗi qua IPC đúng bằng từ vựng của `StoreError`
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// 🔴 Mọi nhánh lỗi của hai hàm command chỉ sinh ra `IpcError` **dẫn xuất từ `StoreError`**.
+/// 🔴 Mọi nhánh lỗi của **hai hàm command của `commands::config`** chỉ sinh ra `IpcError`
+/// **dẫn xuất từ `StoreError`**.
 ///
 /// `ScopeError` là **lỗi lập trình**: nó ⛔ không `impl From<..> for IpcError` và ⛔ không
 /// bao giờ vượt ranh giới IPC. Story 1.7 §Completion Notes #3: *"⛔ Không khoá nào cho
 /// tính năng chưa tồn tại"* — và story này ⛔ không thêm khoá `MessageKey` nào.
+///
+/// ⚠️ **Story 1.15 phá mệnh đề này ở TẦNG DỰ ÁN, có ý thức — ⛔ không ở test này.** Tên
+/// ca đọc như một lời hứa toàn cục *"mọi lỗi command đều là lỗi kho"*, nhưng
+/// `commands::project::create_work_from_file` giờ trả `import.unsupported_format` /
+/// `import.not_utf8` khi `.docx` hay bảng mã lạ bị từ chối — hai lỗi xảy ra **trước** khi
+/// có gì chạm `project.db`, nên gọi chúng là "lỗi kho" sẽ sai hơn. Ca này **chỉ** còn đúng
+/// cho hai hàm của `commands::config`, và tên của nó không còn là một phát biểu đúng cho
+/// toàn dự án — xem `tests/project_contract.rs::a_docx_rejection_carries_the_dedicated_message_key`
+/// cho vế tương ứng của `commands::project`.
 #[test]
 fn every_command_error_comes_from_the_store_vocabulary() {
     // Ba nhánh lỗi tồn tại hôm nay, và cả ba phải nói bằng từ vựng của kho.
@@ -820,4 +830,38 @@ fn every_command_error_comes_from_the_store_vocabulary() {
 
     drop(store);
     cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Hàm dựng thứ hai của `ScopeResolver` — bổ sung ở lượt code review 2026-08-06
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// `ScopeResolver::with_work` ship ở Story 1.15 với **0 test** — ca này đóng lỗ đó.
+///
+/// ⚠️ Ca này khẳng định **đúng một** điều: resolver có mang một Tác phẩm hay không. Nó ⛔
+/// **không** khẳng định *"phân giải hai tầng đã chạy trên dữ liệu thật"* — điều đó vẫn
+/// chưa đúng, vì `project.db` ⛔ chưa có bảng nào ở tầng Tác phẩm để tra (Glossary là Epic
+/// 3, TM là Epic 7). Xem `deferred-work.md` và doc-comment của `ScopeResolver`.
+#[test]
+fn the_second_constructor_carries_a_work_tier_and_the_first_one_does_not() {
+    use auratranslate_lib::core::scope::{ScopeResolver, WorkScope};
+
+    let global = ScopeResolver::global_only();
+    assert!(
+        !global.has_work_tier(),
+        "global_only() KHONG duoc mang tang Tac pham"
+    );
+
+    let with_work = ScopeResolver::with_work(WorkScope {
+        work_id: "0192f3c4-5678-4abc-8def-0123456789ab".to_owned(),
+    });
+    assert!(
+        with_work.has_work_tier(),
+        "with_work() PHAI mang tang Tac pham — day la ca duy nhat canh menh de do"
+    );
+
+    // Mot ban sao mang theo dung tang do — `ScopeResolver` la mot GIA TRI (Clone), ⛔
+    // khong phai mot tay cam tai nguyen.
+    let copied = with_work.clone();
+    assert!(copied.has_work_tier());
 }

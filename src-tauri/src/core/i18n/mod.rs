@@ -131,6 +131,35 @@ message_keys! {
     StoreWriteFailed => "err.store.write_failed" ["store"],
     /// Một job đọc trượt.
     StoreReadFailed => "err.store.read_failed" ["store"],
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TẦNG TÁC PHẨM + ĐƯỜNG NHẬP — Story 1.15 (AD-9 · AD-33 · AD-39)
+    //
+    // Bốn khoá, và đúng bốn: `.docx`/bảng mã lạ bị từ chối TRƯỚC khi chạm đĩa
+    // (AC8) là lỗi ĐƯỜNG NHẬP, ⛔ không phải lỗi kho — `StoreError` không có biến
+    // thể nào mô tả đúng "định dạng chưa nhận". `meta.json` mang số phiên bản
+    // RIÊNG của chính nó (AC7), độc lập với `PRAGMA user_version` của `project.db`.
+    // ─────────────────────────────────────────────────────────────────────────
+    /// Định dạng tệp đưa vào chưa được nhận ở phiên bản hiện tại (`.docx`, v.v.) — AC8.
+    /// `format` là phần mở rộng đọc được, dữ liệu chứ không phải câu.
+    ImportUnsupportedFormat => "err.import.unsupported_format" ["format"],
+    /// Nội dung tệp không giải mã được bằng UTF-8 — Quyết định #6, cùng khuôn với `.docx`.
+    ImportNotUtf8 => "err.import.not_utf8" ["path"],
+    /// Tệp đưa vào ⛔ không có phần mở rộng nào — hạng RIÊNG, ⛔ không phải
+    /// `ImportUnsupportedFormat` với `format` rỗng (nó cho ra một câu vỡ). Code review
+    /// 2026-08-06.
+    ImportMissingExtension => "err.import.missing_extension" ["path"],
+    /// Tệp vượt trần kích thước nhập (100 MB — Ice chốt 2026-08-06). `size`/`limit` là
+    /// **số byte thô**: dữ liệu, ⛔ không phải câu (AD-21).
+    ImportTooLarge => "err.import.too_large" ["size", "limit"],
+    /// Không dựng được `<Tên>.atproj/` trên đĩa (AC2, AC8).
+    ProjectCreateFailed => "err.project.create_failed" [],
+    // ⛔ **KHÔNG có `ProjectMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
+    // 2026-08-06). Cơ chế từ chối một `meta.json` mới hơn vẫn còn nguyên và vẫn có test
+    // (`MetaError::SchemaTooNew` + `WorkMeta::read`), nhưng ⛔ không đường sản phẩm nào
+    // gọi `WorkMeta::read` — story này ⛔ không dựng màn hình "mở lại một `.atproj`".
+    // Một khoá cho một tính năng chưa tồn tại là đúng thứ Story 1.7 §CN #3 cấm. 🔴 Story
+    // nào dựng đường mở lại (ứng viên: Epic 5) thêm lại khoá này CÙNG LƯỢT với màn hình.
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.
