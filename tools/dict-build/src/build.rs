@@ -8,7 +8,7 @@ use std::path::Path;
 use rusqlite::Connection;
 
 use crate::model::SourceStats;
-use crate::{finalize, insert, sources, sources_meta};
+use crate::{finalize, insert, nom_guard, sources, sources_meta};
 
 /// Tổng hợp kết quả một lượt build — in ra bảng cuối, và caller dùng để quyết định mã
 /// thoát (một nguồn đọc hỏng nặng vẫn nên dừng và báo, ⛔ không lặng lẽ sinh tệp thiếu —
@@ -17,9 +17,47 @@ use crate::{finalize, insert, sources, sources_meta};
 pub struct BuildReport {
     pub per_source: Vec<SourceStats>,
     pub char_idx_pairs: i64,
+    /// AC5 — kết quả lưới chống tái diễn lỗi Unihan (`nom_guard`).
+    pub suspicious_han_viet: nom_guard::SuspiciousHanViet,
     pub sha256: String,
     pub size_bytes: u64,
     pub journal_mode: String,
+}
+
+/// AC5: chạy lưới chống tái diễn TRƯỚC `finalize::finish` (tệp chưa `.tmp` → `out_path`)
+/// — một lượt vượt ngưỡng dừng LẠI ở đây, ⛔ không sinh ra một tệp `.db` mang đúng lỗi
+/// Unihan đã sửa ở nguồn khác. Dùng chung cho CẢ base lẫn từng lớp gỡ rời (§Bẫy 2: một
+/// đường dựng bỏ sót là bẫy đắt nhất).
+///
+/// Review Findings — `external_labeled_nom`: xem doc-comment
+/// `nom_guard::count_suspicious_in_db`. `run_base` truyền lát rỗng (nguồn
+/// `en-wiktionary-vi` đã tự có mặt trong `dict-core.db`); `run_detachable_layer` truyền
+/// nhãn nạp từ `raw/en_wiktionary_vi/` — ⛔ không tệp gỡ rời nào tự có nguồn đó (AD-10).
+fn check_han_viet_against_nom_labels(
+    conn: &Connection,
+    external_labeled_nom: &[(String, String)],
+) -> Result<nom_guard::SuspiciousHanViet, Box<dyn std::error::Error>> {
+    let result = nom_guard::count_suspicious_in_db(conn, external_labeled_nom)?;
+    println!(
+        "AC5 — lưới chống tái diễn lỗi Unihan: {}/{} ký tự có han_viet đáng ngờ ({:.1}%)",
+        result.suspicious,
+        result.total_checked,
+        result.ratio() * 100.0
+    );
+    if result.exceeds_threshold() {
+        return Err(format!(
+            "AC5: {}/{} ({:.1}%) ký tự có han_viet TRÙNG một âm Nôm đã gắn nhãn — vượt \
+             ngưỡng {:.0}%. Một nguồn đang ghi (hoặc mới thêm) có thể đang lặp lại đúng lỗi \
+             Unihan (ghi âm Nôm vào han_viet). RÀ LẠI nguồn trước khi tiếp tục — ⛔ không tự \
+             sửa dữ liệu, ⛔ không hạ ngưỡng để qua cổng.",
+            result.suspicious,
+            result.total_checked,
+            result.ratio() * 100.0,
+            nom_guard::SUSPICIOUS_RATIO_THRESHOLD * 100.0
+        )
+        .into());
+    }
+    Ok(result)
 }
 
 /// Đọc TỐI ĐA `max_lines` dòng đầu của tệp — dùng để dò header (`source_version`), ⛔
@@ -282,20 +320,87 @@ pub fn run_base(raw_dir: &Path, out_path: &Path) -> Result<BuildReport, Box<dyn 
             per_source.push(stats);
         }
 
+        // ── en.wiktionary (extract Vietnamese — âm Hán Việt/Nôm gắn nhãn) ──────
+        //
+        // Story 1.10c, nguồn NỀN thứ bảy — thêm ở CUỐI để sáu `dict_source.id` cũ giữ
+        // nguyên (§Quyết định #7, doc-comment `sources_meta::BASE_ALL`). Quyết định #3a:
+        // LƯỚI chống tái diễn lỗi Unihan (AC5), ⛔ không một nguồn nghĩa — dùng
+        // `parse_readings` (khác `wiktextract_common::parse` dùng ở các khối trên).
+        {
+            let dir = raw_dir.join("en_wiktionary_vi");
+            let path = dir.join("kaikki-en-vi.jsonl");
+            let version = version_or_warn(
+                sources::en_wiktionary_vi::SOURCE_CODE,
+                file_mtime_date(&path),
+            );
+            let source_id = insert::insert_source(&tx, &sources_meta::EN_WIKTIONARY_VI, &version)?;
+            let mut stats = SourceStats::new(sources::en_wiktionary_vi::SOURCE_CODE);
+            let f = File::open(&path)?;
+            ingest(
+                &tx,
+                source_id,
+                &mut stats,
+                sources::en_wiktionary_vi::parse(BufReader::new(f)),
+            )?;
+            require_nonempty(&stats)?;
+            per_source.push(stats);
+        }
+
         tx.commit()?;
     }
 
     let char_idx_pairs: i64 = conn.query_row("SELECT COUNT(*) FROM char_idx", [], |r| r.get(0))?;
+    // dict-core.db đã tự chứa hàng `en-wiktionary-vi` (nguồn nền thứ bảy, khối ngay
+    // trên) — không cần nạp nhãn Nôm từ bên ngoài, xem doc-comment
+    // `check_han_viet_against_nom_labels`.
+    let suspicious_han_viet = check_han_viet_against_nom_labels(&conn, &[])?;
 
     let (sha256, size_bytes, journal_mode) = finalize::finish(conn, &tmp_path, out_path)?;
 
     Ok(BuildReport {
         per_source,
         char_idx_pairs,
+        suspicious_han_viet,
         sha256,
         size_bytes,
         journal_mode,
     })
+}
+
+/// Review Findings — nạp cặp `(headword, nom_reading)` **có nhãn tường minh**
+/// (`nom_guard::LABELED_NOM_SOURCE`) từ nguồn thô `en-wiktionary-vi`, dùng để đối chiếu
+/// AC5 cho một lớp GỠ RỜI (lớp đó tự nó không bao giờ chứa nguồn này — AD-10). Đọc
+/// TRỰC TIẾP từ raw JSONL, ⛔ không từ `dict-core.db` đã dựng — lớp gỡ rời dựng ĐỘC LẬP
+/// với base (`--layer <code>` đơn lẻ vẫn phải đúng), nên không thể giả định `dict-core.db`
+/// đã tồn tại lúc này.
+///
+/// Thiếu tệp thô (vd một lượt `--layer thieu-chuu` cục bộ chưa tải `en_wiktionary_vi/`)
+/// ⇒ CẢNH BÁO ra stderr, trả về RỖNG — phép kiểm AC5 khi đó lại rơi về `0/0` cho lớp này
+/// (đúng hành vi TRƯỚC bản vá này), ⛔ không chặn build của một lớp không liên quan.
+fn load_en_wiktionary_vi_labeled_nom(raw_dir: &Path) -> Vec<(String, String)> {
+    let path = raw_dir.join("en_wiktionary_vi").join("kaikki-en-vi.jsonl");
+    let file = match File::open(&path) {
+        Ok(f) => f,
+        Err(_) => {
+            eprintln!(
+                "dict-build: CẢNH BÁO — không đọc được '{}', lưới AC5 của lớp gỡ rời này rơi về 0/0",
+                path.display()
+            );
+            return Vec::new();
+        }
+    };
+    sources::en_wiktionary_vi::parse(BufReader::new(file))
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            // Review Findings — loại âm "tự-trùng-vai" (cũng gắn han-viet-reading cho
+            // CÙNG ký tự) khỏi vế "nhãn Nôm đã xác nhận", xem doc-comment
+            // `nom_guard::nom_only_readings` — không siết vế này báo động giả 63,4% khi
+            // đối chiếu với Thiều Chửu (nguồn Hán Việt chuẩn) trên dữ liệu thật.
+            let nom_only =
+                nom_guard::nom_only_readings(entry.han_viet.as_deref(), entry.nom_reading.as_deref())?;
+            Some((entry.headword, nom_only))
+        })
+        .collect()
 }
 
 /// Dựng MỘT lớp gỡ rời — MỘT nguồn, MỘT tệp `.db`, dùng LẠI đúng lược đồ của lớp nền
@@ -305,7 +410,12 @@ pub fn run_base(raw_dir: &Path, out_path: &Path) -> Result<BuildReport, Box<dyn 
 /// Dùng chung `finalize::prepare_fresh_output` + `finalize::finish` với `run_base` —
 /// đây LÀ điều kiện của Task 5 (Bẫy 2: một trong hai đường dựng bỏ sót
 /// `journal_mode = DELETE` là bẫy đắt nhất, nhân đôi vì giờ có ba đường dựng).
+///
+/// Review Findings — `raw_dir`: chỉ dùng để nạp nhãn Nôm `en-wiktionary-vi` cho AC5
+/// (`load_en_wiktionary_vi_labeled_nom`), ⛔ không dùng để đọc nguồn CHÍNH của lớp này —
+/// nguồn chính vẫn LUÔN qua `raw_file_path`, giữ nguyên bất biến ở dòng trên.
 fn run_detachable_layer<F, I>(
+    raw_dir: &Path,
     raw_file_path: &Path,
     out_path: &Path,
     meta: &sources_meta::SourceMeta,
@@ -344,12 +454,15 @@ where
     }
 
     let char_idx_pairs: i64 = conn.query_row("SELECT COUNT(*) FROM char_idx", [], |r| r.get(0))?;
+    let external_labeled_nom = load_en_wiktionary_vi_labeled_nom(raw_dir);
+    let suspicious_han_viet = check_han_viet_against_nom_labels(&conn, &external_labeled_nom)?;
 
     let (sha256, size_bytes, journal_mode) = finalize::finish(conn, &tmp_path, out_path)?;
 
     Ok(BuildReport {
         per_source,
         char_idx_pairs,
+        suspicious_han_viet,
         sha256,
         size_bytes,
         journal_mode,
@@ -387,6 +500,12 @@ const DETACHABLE_LAYERS: &[DetachableLayer] = &[
         source_version: sources::vietphrase::SOURCE_VERSION,
         parse: |r| Box::new(sources::vietphrase::parse(r)),
     },
+    DetachableLayer {
+        meta: &sources_meta::TRAN_VAN_CHANH,
+        raw_relative_path: &["tran_van_chanh", "Tu-dien-ThienChuu-TranVanChanh.tab"],
+        source_version: sources::tran_van_chanh::SOURCE_VERSION,
+        parse: |r| Box::new(sources::tran_van_chanh::parse(r)),
+    },
 ];
 
 fn raw_path_for(raw_dir: &Path, relative: &[&str]) -> std::path::PathBuf {
@@ -422,6 +541,7 @@ pub fn run_detachable_by_code(
     let raw_path = raw_path_for(raw_dir, layer.raw_relative_path);
     let name = output_file_name(layer.meta.code);
     let report = run_detachable_layer(
+        raw_dir,
         &raw_path,
         &out_dir.join(&name),
         layer.meta,
@@ -634,6 +754,12 @@ pub fn print_report(report: &BuildReport) {
         }
     }
     println!("\nchar_idx cặp (ch, entry_id): {}", report.char_idx_pairs);
+    println!(
+        "AC5 han_viet đáng ngờ:        {}/{} ({:.1}%)",
+        report.suspicious_han_viet.suspicious,
+        report.suspicious_han_viet.total_checked,
+        report.suspicious_han_viet.ratio() * 100.0
+    );
     println!("journal_mode sau khi đóng:    {}", report.journal_mode);
     println!("SHA-256:                      {}", report.sha256);
     println!(

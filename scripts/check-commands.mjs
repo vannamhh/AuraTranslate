@@ -197,14 +197,14 @@ const tsFiles = keep(tsAll)
  * ⚠️ Và sàn ĐẾM TỆP thì một tệp RỖNG vẫn qua — đó là giới hạn thật của cơ chế này, và nó
  * được bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
  */
-const VUE_FLOOR = 9
-const TS_FLOOR = 16
+const VUE_FLOOR = 10 // số THẬT 2026-08-06: 12 tệp `.vue`
+const TS_FLOOR = 19 // số THẬT 2026-08-06: 23 tệp `.ts`
 /**
  * ⚠️ Sàn command: **11** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
  * hai `layout.preset_*` · bốn `layout.toggle_*`. Một bộ đăng ký rỗng làm Kiểm B, D và E
  * xanh mà không kiểm gì.
  */
-const COMMAND_FLOOR = 10
+const COMMAND_FLOOR = 13 // số THẬT 2026-08-06: 16 command
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
@@ -218,8 +218,8 @@ const COMMAND_FLOOR = 10
  * literal. Sàn đặt đúng bằng số thật: hôm nay không có lý do chính đáng nào để một trong
  * hai con số đó giảm, và ngày Story 1.14 dựng panel thật thì chúng chỉ tăng.
  */
-const CLICK_FLOOR = 3
-const DISPATCH_FLOOR = 3
+const CLICK_FLOOR = 6 // số THẬT 2026-08-06: 8 thuộc tính `@click`
+const DISPATCH_FLOOR = 6 // số THẬT 2026-08-06: 8 lời gọi `dispatch()`
 
 if (vueFiles.length < VUE_FLOOR || tsFiles.length < TS_FLOOR) {
   abort(

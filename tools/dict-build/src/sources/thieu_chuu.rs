@@ -89,6 +89,7 @@ pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, Par
             headword_simp: None,
             reading: None,
             han_viet,
+            nom_reading: None,
             senses,
         }))
     })

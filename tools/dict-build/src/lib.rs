@@ -9,6 +9,7 @@ pub mod finalize;
 pub mod insert;
 pub mod licenses;
 pub mod model;
+pub mod nom_guard;
 pub mod schema;
 pub mod sources;
 pub mod sources_meta;

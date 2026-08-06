@@ -2,9 +2,10 @@
 /**
  * Cổng `dict-manifest.toml` — Task 8 của Story 1.9 (AC3, đóng `deferred-work.md:79`:
  * *"đặt ra luật ba trường rồi không cưỡng chế bằng gì cả"*), siết thêm ở Task 7 của
- * Story 1.10 (AC5): `[[detachable]]` giờ đòi ĐÚNG hai mục, đúng hai `name` — không dư
- * không thiếu. Con số này đổi CÙNG LÚC với dữ liệu khi story nối tiếp thêm lớp thứ ba —
- * đó là điều kiện để cổng bắt được một lớp BỊ RƠI MẤT, chứ không chỉ một lớp bị điền sai.
+ * Story 1.10 (AC5): `[[detachable]]` giờ đòi ĐÚNG N mục, đúng N `name` — không dư không
+ * thiếu. Con số này đổi CÙNG LÚC với dữ liệu khi story nối tiếp thêm một lớp — đó là
+ * điều kiện để cổng bắt được một lớp BỊ RƠI MẤT, chứ không chỉ một lớp bị điền sai.
+ * Story 1.10c nâng N từ hai lên BA (`tran-van-chanh`).
  *
  * 🔴 Cổng này KHÔNG đọc tệp `.db` và KHÔNG tải gì từ mạng — nó phải xanh trên một
  * runner CI không có byte dữ liệu từ điển nào (AC cuối của Story 1.3: CI ⛔ không tải
@@ -228,10 +229,11 @@ if (!baseList) {
   validateEntry('[base]', baseList[0], false)
 }
 
-// 🔴 Story 1.10: đúng HAI lớp gỡ rời trong phạm vi hôm nay (Thiều Chửu · VietPhrase).
-// ⚠️ Đòi ĐÚNG hai, ⛔ không phải "≥ 1" — khi story nối tiếp thêm lớp thứ ba, con số này
-// đổi CÙNG LÚC với dữ liệu, đó là điều kiện để cổng bắt được một lớp bị RƠI MẤT.
-const EXPECTED_DETACHABLE_NAMES = ['thieu-chuu', 'vietphrase']
+// 🔴 Story 1.10c: đúng BA lớp gỡ rời trong phạm vi hôm nay (Thiều Chửu · VietPhrase ·
+// Trần Văn Chánh). ⚠️ Đòi ĐÚNG ba, ⛔ không phải "≥ 1" — khi story nối tiếp thêm lớp thứ
+// tư, con số này đổi CÙNG LÚC với dữ liệu, đó là điều kiện để cổng bắt được một lớp bị
+// RƠI MẤT.
+const EXPECTED_DETACHABLE_NAMES = ['thieu-chuu', 'vietphrase', 'tran-van-chanh']
 
 const detachableList = tables.get('detachable') ?? []
 if (forms.get('detachable') === 'single') {
@@ -251,7 +253,7 @@ if (forms.get('detachable') === 'single') {
   const extra = actualNames.filter((n) => !expectedSet.has(n))
   const duplicated = actualNames.length !== actualSet.size
   if (missing.length === 0 && extra.length === 0 && !duplicated) {
-    pass(`[[detachable]] có đúng hai mục, đúng tên: ${JSON.stringify(actualNames)}`)
+    pass(`[[detachable]] có đúng ${EXPECTED_DETACHABLE_NAMES.length} mục, đúng tên: ${JSON.stringify(actualNames)}`)
   } else {
     if (missing.length) fail(`[[detachable]] thiếu 'name': ${JSON.stringify(missing)}`)
     if (extra.length) fail(`[[detachable]] có 'name' không mong đợi: ${JSON.stringify(extra)}`)

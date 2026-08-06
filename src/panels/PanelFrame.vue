@@ -30,18 +30,36 @@ import { ref, useTemplateRef, onBeforeUnmount, onDeactivated, onMounted } from '
 import { declareFocus, releaseFocus } from '../commands'
 import { t } from '../i18n'
 
-const props = defineProps<{
-  /** Điểm vào focus: `panel.source`. Phải có mặt trong `FOCUS_OWNERS` (Kiểm E của cổng). */
-  owner: string
-  /**
-   * Khoá `vi.json` của câu trạng thái. ⛔ Không nhận chuỗi đã dịch — NFR16.
-   *
-   * ⚠️ Tiêu đề ⛔ KHÔNG còn ở đây: nó sống trên tab (`PanelTab.vue`). Prop `titleKey` cũ
-   * đã bị gỡ cùng `<header>` — giữ lại một prop không ai render là cách một khoá chết
-   * lặng lẽ ở lại trong `vi.json` qua chín epic.
-   */
-  statusKey: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** Điểm vào focus: `panel.source`. Phải có mặt trong `FOCUS_OWNERS` (Kiểm E của cổng). */
+    owner: string
+    /**
+     * Khoá `vi.json` của câu trạng thái. ⛔ Không nhận chuỗi đã dịch — NFR16.
+     *
+     * ⚠️ Tiêu đề ⛔ KHÔNG còn ở đây: nó sống trên tab (`PanelTab.vue`). Prop `titleKey` cũ
+     * đã bị gỡ cùng `<header>` — giữ lại một prop không ai render là cách một khoá chết
+     * lặng lẽ ở lại trong `vi.json` qua chín epic.
+     *
+     * ⚠️ **Luôn viết LITERAL ở chỗ gọi**, ⛔ không qua biến — Kiểm E của
+     * `npm run check:commands` đọc TĨNH thuộc tính này (Story 1.16 · Quyết định #5). Một
+     * biểu thức ở đó bị đếm rồi bỏ qua, tức mất lưới — dù panel có nội dung thật hay
+     * không, `status-key` vẫn phải là một chuỗi literal.
+     */
+    statusKey: string
+    /**
+     * Có vẽ `<p class="status">` hay không — Story 1.16 · Quyết định #5.
+     *
+     * 🔴 Mặc định `true`: ba panel chưa có nội dung thật (Lookup, AI, Editor) tiếp tục hiện
+     * câu trạng thái y hệt trước story này — ⛔ không hồi quy. Panel Source (Task 6) truyền
+     * `:show-status="false"` khi một Chương đã nạp xong, và **đó là boolean qua prop**,
+     * ⛔ không phải bind điều kiện lên `status-key` (đúng lý do Quyết định #5 chọn đường
+     * này thay vì đường kia).
+     */
+    showStatus?: boolean
+  }>(),
+  { showStatus: true },
+)
 
 const root = useTemplateRef<HTMLElement>('root')
 
@@ -138,7 +156,7 @@ onBeforeUnmount(() => {
       thái của nó bằng một chuỗi trong `vi.json`. Một khung trống câm là thứ người dùng
       đọc thành "hỏng".
     -->
-    <p class="status">{{ t(props.statusKey) }}</p>
+    <p v-if="props.showStatus" class="status">{{ t(props.statusKey) }}</p>
     <div class="panel-body">
       <slot />
     </div>

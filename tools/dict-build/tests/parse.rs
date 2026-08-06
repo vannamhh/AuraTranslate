@@ -24,9 +24,9 @@ fn build_fixture_db() -> (tempfile::TempDir, PathBuf, build::BuildReport) {
 }
 
 #[test]
-fn all_six_sources_produce_at_least_one_entry() {
+fn all_seven_sources_produce_at_least_one_entry() {
     let (_dir, _out, report) = build_fixture_db();
-    assert_eq!(report.per_source.len(), 6);
+    assert_eq!(report.per_source.len(), 7);
 
     let codes: Vec<&str> = report.per_source.iter().map(|s| s.source_code.as_str()).collect();
     assert_eq!(
@@ -37,7 +37,8 @@ fn all_six_sources_produce_at_least_one_entry() {
             "unihan",
             "viwiktionary",
             "en-wiktionary",
-            "viwiktionary-en"
+            "viwiktionary-en",
+            "en-wiktionary-vi",
         ],
         "thứ tự chèn = thứ tự dict_source.id (§Quyết định #7)"
     );
@@ -169,9 +170,10 @@ fn all_sources_have_a_real_non_unknown_source_version() {
         .unwrap()
         .collect::<Result<_, _>>()
         .unwrap();
-    // 5 → 6 ở Story 1.10b (nguồn nền `viwiktionary-en`). Mệnh đề test KHOÁ — ⛔ không
-    // nguồn nào rơi về `unknown` âm thầm — ⛔ không đổi.
-    assert_eq!(rows.len(), 6);
+    // 5 → 6 ở Story 1.10b (nguồn nền `viwiktionary-en`); 6 → 7 ở Story 1.10c (nguồn nền
+    // `en-wiktionary-vi`). Mệnh đề test KHOÁ — ⛔ không nguồn nào rơi về `unknown` âm
+    // thầm — ⛔ không đổi.
+    assert_eq!(rows.len(), 7);
     for (code, version) in rows {
         assert!(!version.is_empty(), "{code} has an empty source_version");
         assert_ne!(version, "unknown", "{code} silently fell back to 'unknown' source_version");
@@ -695,6 +697,38 @@ fn vietphrase_placeholder_gloss_lines_are_recorded_as_parse_issues_through_the_r
     );
 }
 
+/// Story 1.10c: lớp gỡ rời thứ ba `tran-van-chanh` — nghiệm thu TÍCH HỢP qua
+/// `build::run_detachable_by_code("tran-van-chanh")` trên fixture thật (4 dòng trích
+/// nguyên văn từ `Tu-dien-ThienChuu-TranVanChanh.tab`, gồm CẢ hình dạng `[tích]` một âm
+/// và `[đáng, đương]` nhiều âm).
+#[test]
+fn tran_van_chanh_builds_from_fixture_with_verbatim_multi_reading_kept() {
+    let (_dir, out, report) = build_detachable_fixture_db("tran-van-chanh");
+    assert_eq!(report.per_source.len(), 1);
+    let stats = &report.per_source[0];
+    assert_eq!(stats.source_code, "tran-van-chanh");
+    assert_eq!(stats.entries, 4, "fixture có 4 dòng thật, mỗi dòng một dict_entry (TVC không gộp theo headword)");
+
+    let conn = Connection::open(&out).unwrap();
+    let han_viet: String = conn
+        .query_row(
+            "SELECT han_viet FROM dict_entry WHERE headword = '檔'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(han_viet, "đáng, đương", "Task 5: nhiều âm giữ NGUYÊN chuỗi, ⛔ không chuẩn hoá");
+
+    let tich_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM dict_entry WHERE headword = '躄'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(tich_count, 2, "'躄' xuất hiện ở 2 dòng thật của fixture — mỗi dòng một dict_entry riêng");
+}
+
 /// AC3 vế cơ chế: SHA-256 và kích thước byte được in ra và khớp tệp thật.
 #[test]
 fn build_report_includes_a_real_sha256_and_matching_size() {
@@ -713,4 +747,157 @@ fn build_report_includes_a_real_sha256_and_matching_size() {
     hasher.update(&bytes);
     let real_hash: String = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect();
     assert_eq!(report.sha256, real_hash, "reported SHA-256 must match the real file's actual content");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// Review Findings (code review 2026-08-06) — bốn patch cho Story 1.10c.
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+/// Review Findings — AC1 đòi "nghiệm thu bằng một con số" rằng ⛔ không hàng
+/// `kVietnamese` nào bị mất khi đổi vai. Đếm số dòng `kVietnamese` trong nguồn thô
+/// (TRƯỚC) và đối chiếu CHÍNH XÁC với số hàng `dict_entry.nom_reading` khác NULL của
+/// nguồn `unihan` sau lượt dựng (SAU) — phải bằng nhau. Cộng khẳng định AC2: `han_viet`
+/// của `unihan` LUÔN rỗng, ⛔ không giá trị nào rơi trở lại vai cũ. Test hành vi qua
+/// biên (build fixture thật), ⛔ không test cài đặt nội bộ — một sửa đổi tương lai ở
+/// `unihan.rs` làm rơi hàng sẽ bị bắt ở đây.
+#[test]
+fn ac1_unihan_kvietnamese_row_count_matches_raw_source_before_and_after_role_swap() {
+    let readings_path = fixtures_raw_dir().join("unihan").join("Unihan_Readings.txt");
+    let raw = std::fs::read_to_string(&readings_path).expect("đọc fixture Unihan_Readings.txt");
+    let raw_kvietnamese_count = raw
+        .lines()
+        .filter(|l| l.split('\t').nth(1) == Some("kVietnamese"))
+        .count();
+    assert!(raw_kvietnamese_count > 0, "fixture phải có ít nhất một dòng kVietnamese để test có ý nghĩa");
+
+    let (_dir, out, _report) = build_fixture_db();
+    let conn = Connection::open(&out).unwrap();
+    let nom_reading_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM dict_entry e JOIN dict_source s ON s.id = e.source_id \
+             WHERE s.code = 'unihan' AND e.nom_reading IS NOT NULL",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        nom_reading_count as usize, raw_kvietnamese_count,
+        "AC1: số hàng nom_reading của unihan phải khớp CHÍNH XÁC số dòng kVietnamese trong nguồn thô — không hàng nào bị mất hoặc thêm"
+    );
+
+    let han_viet_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM dict_entry e JOIN dict_source s ON s.id = e.source_id \
+             WHERE s.code = 'unihan' AND e.han_viet IS NOT NULL",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(han_viet_count, 0, "AC2: unihan ⛔ không bao giờ ghi han_viet — kVietnamese ⛔ không được rơi lại vai cũ");
+}
+
+/// Review Findings — AC4 đòi `tran-van-chanh` phủ **≥ 12.081** đầu mục MỘT KÝ TỰ có
+/// `han_viet`, và đòi "mức phủ tụt xuống ghi thành số" khi xoá tệp đó (FR36). Cả hai
+/// vế trước đây ⛔ không có cổng tự động — số trong story chỉ là một ghi chú tường
+/// thuật. Test này ĐO THẬT trên `raw/**` (không phải fixture nhỏ): hợp các headword
+/// MỘT KÝ TỰ có `han_viet` của Thiều Chửu + en-wiktionary-vi, CÓ và KHÔNG có
+/// `tran-van-chanh`, và khoá ngưỡng ≥ 12.081 cho riêng TVC.
+///
+/// `#[ignore]` — cùng lý do `nom_guard_real_data.rs`: phụ thuộc `tools/dict-build/raw/**`
+/// thật (`.gitignore`, AD-25), không có trên CI. Chạy tay: `cargo test --test parse
+/// ac4_fr36 -- --ignored --nocapture`.
+#[test]
+#[ignore = "cần tools/dict-build/raw/thieu_chuu + raw/en_wiktionary_vi + raw/tran_van_chanh thật, không có trên CI"]
+fn ac4_fr36_coverage_drop_is_measured_on_real_data() {
+    use std::collections::HashSet;
+
+    let raw_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("raw");
+    let tc_path = raw_dir.join("thieu_chuu").join("TudienThienChuu.txt");
+    let vi_path = raw_dir.join("en_wiktionary_vi").join("kaikki-en-vi.jsonl");
+    let tvc_path = raw_dir.join("tran_van_chanh").join("Tu-dien-ThienChuu-TranVanChanh.tab");
+    if !tc_path.is_file() || !vi_path.is_file() || !tvc_path.is_file() {
+        eprintln!("bỏ qua: thiếu raw/thieu_chuu, raw/en_wiktionary_vi hoặc raw/tran_van_chanh thật cục bộ");
+        return;
+    }
+
+    fn single_char_han_viet_headwords(
+        entries: impl Iterator<Item = dict_build::model::RawEntry>,
+    ) -> HashSet<String> {
+        entries
+            .filter(|e| e.han_viet.is_some() && e.headword.chars().count() == 1)
+            .map(|e| e.headword)
+            .collect()
+    }
+
+    let tc_entries = dict_build::sources::thieu_chuu::parse(std::io::BufReader::new(
+        std::fs::File::open(&tc_path).unwrap(),
+    ))
+    .filter_map(Result::ok);
+    let tc_set = single_char_han_viet_headwords(tc_entries);
+
+    let vi_entries = dict_build::sources::en_wiktionary_vi::parse(std::io::BufReader::new(
+        std::fs::File::open(&vi_path).unwrap(),
+    ))
+    .filter_map(Result::ok);
+    let vi_set = single_char_han_viet_headwords(vi_entries);
+
+    let tvc_entries = dict_build::sources::tran_van_chanh::parse(std::io::BufReader::new(
+        std::fs::File::open(&tvc_path).unwrap(),
+    ))
+    .filter_map(Result::ok);
+    let tvc_set = single_char_han_viet_headwords(tvc_entries);
+
+    assert!(
+        tvc_set.len() >= 12_081,
+        "AC4: tran-van-chanh phải phủ ≥ 12.081 đầu mục một ký tự có han_viet, đo được {}",
+        tvc_set.len()
+    );
+
+    let without_tvc: HashSet<&String> = tc_set.union(&vi_set).collect();
+    let with_tvc: HashSet<&String> = without_tvc.iter().copied().chain(tvc_set.iter()).collect();
+
+    println!(
+        "AC4/FR36 — mức phủ đo THẬT: {} (Thiều Chửu ∪ en-wiktionary-vi, KHÔNG có tran-van-chanh) \
+         → {} (CÓ tran-van-chanh) — TVC đóng góp riêng {} đầu mục",
+        without_tvc.len(),
+        with_tvc.len(),
+        tvc_set.len()
+    );
+
+    assert!(
+        with_tvc.len() > without_tvc.len(),
+        "FR36: xoá tran-van-chanh phải làm mức phủ TỤT XUỐNG một con số đo được, ⛔ không phải 0"
+    );
+}
+
+/// Review Findings — `tran_van_chanh.rs::parse` KHÔNG lọc/phân biệt headword một ký tự
+/// với headword nhiều ký tự (từ) — tệp thô trộn cả hai (22.030 dòng, chỉ 12.081 là một
+/// ký tự). Đây là quyết định CÓ Ý THỨC (nhất quán với MỌI parser khác trong crate này —
+/// ⛔ không nguồn nào lọc theo độ dài headword; Story 1.16 mới là nơi tiêu thụ cột
+/// `han_viet` cho riêng ký tự đơn), ⛔ không phải một lỗ hổng bị bỏ sót — khoá lại bằng
+/// test để một sửa đổi tương lai không âm thầm đổi hành vi này mà không ai biết.
+#[test]
+fn tran_van_chanh_does_not_filter_multi_character_headwords_by_design() {
+    let text = "一二三\t[tam] một cụm từ nhiều ký tự, KHÔNG phải một chữ Hán đơn.\n";
+    let entries: Vec<_> = dict_build::sources::tran_van_chanh::parse(std::io::Cursor::new(text.as_bytes()))
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(entries.len(), 1, "headword nhiều ký tự vẫn được nạp — không bị lọc/từ chối");
+    assert_eq!(entries[0].headword, "一二三");
+    assert_eq!(entries[0].headword.chars().count(), 3);
+}
+
+/// Review Findings — `tran_van_chanh.rs::parse` bắt `]` ĐẦU TIÊN làm điểm đóng ngoặc
+/// âm đọc; một dấu `[` lồng bên trong (dữ liệu hỏng/lạc dấu) trước đây lọt thẳng vào
+/// chuỗi `han_viet` đã parse thay vì bị từ chối như một `ParseIssue`.
+#[test]
+fn tran_van_chanh_rejects_a_nested_open_bracket_in_the_reading() {
+    let text = "字\t[[tích] định nghĩa.\n";
+    let results: Vec<_> = dict_build::sources::tran_van_chanh::parse(std::io::Cursor::new(text.as_bytes())).collect();
+    assert_eq!(results.len(), 1);
+    assert!(
+        results[0].is_err(),
+        "dấu '[' lồng trong ngoặc âm đọc phải bị từ chối như một ParseIssue, không lọt vào han_viet"
+    );
+    assert!(results[0].as_ref().unwrap_err().reason.contains('['));
 }

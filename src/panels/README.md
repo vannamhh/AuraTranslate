@@ -10,7 +10,7 @@ Component đặt tên `PascalCase.vue` (Consistency Conventions). Panel Lookup �
 |---|---|---|
 | `PanelFrame.vue` — vỏ panel + **hợp đồng thị giác tiêu điểm** (AC5, UX-DR8, UX-DR17) | **1.6** | ✅ đã dựng |
 | Bốn panel thật trong `dockview`, lưới 2×2, preset bố cục, ngưỡng màn hình hẹp | **1.14** | ⬜ |
-| Nội dung panel Source + tab Hán Việt | **1.16** | ⬜ |
+| Nội dung panel Source + tab Hán Việt | **1.16** | ✅ đã dựng |
 | Nội dung panel Lookup — bản ghi từ điển có cấu trúc | **1.17** | ⬜ |
 | Panel AiTranslation | **Epic 4** | ⬜ |
 | Panel Editor | **Epic 2** | ⬜ |
@@ -36,7 +36,9 @@ Bốn biến do `applyTheme()` ghi (`--panel-border-width` · `--panel-border-co
 
 ## Chữ trong thân panel
 
-⚠️ Thân panel hôm nay **để trống**. Ngày Story 1.16/1.17 đổ chữ vào, bề mặt đó **phải khai token `read-*` / `source-*` / `lookup-*` của chính nó**. Mặc định kế thừa từ `body` là `ui-md` ở giãn dòng **1.5** — dưới sàn 1.66 của AC5 Story 1.4 — và Kiểm E của `check-tokens.mjs` chỉ đọc `tokens.json` nên hoàn toàn mù với việc component nào đang kế thừa gì. Xem mục tương ứng ở `deferred-work.md`.
+⚠️ Ba panel còn lại (Lookup, AiTranslation, Editor) hôm nay **để trống**. Ngày chúng đổ chữ vào, bề mặt đó **phải khai token `read-*` / `source-*` / `lookup-*` của chính nó**. Mặc định kế thừa từ `body` là `ui-md` ở giãn dòng **1.5** — dưới sàn 1.66 của AC5 Story 1.4 — và Kiểm E của `check-tokens.mjs` chỉ đọc `tokens.json` nên hoàn toàn mù với việc component nào đang kế thừa gì. Xem mục tương ứng ở `deferred-work.md`.
+
+**Panel Source (Story 1.16) đã đóng nửa của nó**: nguyên văn khai `source-cjk` (tiếng Trung) hoặc `source-latin` (tiếng Anh — token thứ 16, Quyết định #6) tuỳ `work.source_lang`; tab Hán Việt khai `source-hanviet`. State (Chương đã nạp, tab/kiểu xem đang chọn, âm Hán Việt đã tra) sống ở `src/panels/sourcePanelState.ts` — module-level, sống sót qua một lượt đổi preset (AC9). Xem doc-comment đầu `SourcePanel.vue`/`SourceHanViet.vue`.
 
 ## Điểm vào focus
 

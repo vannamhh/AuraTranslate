@@ -46,8 +46,8 @@ pub fn insert_source(
 /// `dict_sense` — không hàng nào chèn được nếu thiếu.
 pub fn insert_entry(conn: &Connection, source_id: i64, entry: &RawEntry) -> rusqlite::Result<i64> {
     conn.execute(
-        "INSERT INTO dict_entry (source_id, lang, headword, headword_simp, reading, han_viet)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        "INSERT INTO dict_entry (source_id, lang, headword, headword_simp, reading, han_viet, nom_reading)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         params![
             source_id,
             entry.lang,
@@ -55,6 +55,7 @@ pub fn insert_entry(conn: &Connection, source_id: i64, entry: &RawEntry) -> rusq
             entry.headword_simp,
             entry.reading,
             entry.han_viet,
+            entry.nom_reading,
         ],
     )?;
     let entry_id = conn.last_insert_rowid();

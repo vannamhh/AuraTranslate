@@ -37,5 +37,7 @@
 //! ⚠️ **Tên command trên dây là tên hàm** — nên vỏ phải mang đúng cái tên mà `invoke()`
 //! gọi, và đó là lý do nó sống trong một module lồng thay vì mang một hậu tố.
 
+pub mod chapter;
 pub mod config;
+pub mod dict;
 pub mod project;

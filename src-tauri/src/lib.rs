@@ -81,6 +81,8 @@ pub fn run() {
             crate::commands::config::wire::put_config,
             crate::commands::project::wire::create_work_from_text,
             crate::commands::project::wire::create_work_from_file,
+            crate::commands::chapter::wire::read_open_chapter,
+            crate::commands::dict::wire::read_han_viet,
         ])
         .setup(move |app| {
             #[cfg(debug_assertions)]

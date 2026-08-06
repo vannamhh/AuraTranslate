@@ -52,7 +52,7 @@ fn sqlite_master_is_byte_identical_across_all_outputs() {
     let base_sig = sqlite_master_signature(&base_conn);
     let base_uv = user_version(&base_conn);
 
-    assert_eq!(report.detachable.len(), 2, "expected exactly two detachable layers built");
+    assert_eq!(report.detachable.len(), 3, "expected exactly three detachable layers built");
     for (name, _) in &report.detachable {
         let conn = Connection::open(out_dir.join(name)).unwrap();
         assert_eq!(
@@ -76,6 +76,7 @@ fn each_detachable_file_holds_exactly_one_dict_source_row_with_its_own_code() {
     for (name, expected_code) in [
         (build::output_file_name("thieu-chuu"), "thieu-chuu"),
         (build::output_file_name("vietphrase"), "vietphrase"),
+        (build::output_file_name("tran-van-chanh"), "tran-van-chanh"),
     ] {
         assert!(report.detachable.iter().any(|(n, _)| n == &name));
         let conn = Connection::open(out_dir.join(&name)).unwrap();
@@ -98,7 +99,7 @@ fn dict_core_holds_zero_rows_for_any_detachable_code() {
     let conn = Connection::open(out_dir.join(&report.base.0)).unwrap();
     let count: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM dict_source WHERE code IN ('thieu-chuu', 'vietphrase')",
+            "SELECT COUNT(*) FROM dict_source WHERE code IN ('thieu-chuu', 'vietphrase', 'tran-van-chanh')",
             [],
             |r| r.get(0),
         )
@@ -126,6 +127,28 @@ fn detachable_files_do_not_contain_each_others_rows() {
         .query_row("SELECT COUNT(*) FROM dict_source WHERE code = 'thieu-chuu'", [], |r| r.get(0))
         .unwrap();
     assert_eq!(has_thieu_chuu, 0);
+
+    // Story 1.10c — lớp gỡ rời thứ ba, cùng phép kiểm cách ly cả hai chiều.
+    let tvc_path = out_dir.join(build::output_file_name("tran-van-chanh"));
+    let tvc_conn = Connection::open(&tvc_path).unwrap();
+    for code in ["thieu-chuu", "vietphrase"] {
+        let has: i64 = tvc_conn
+            .query_row(
+                &format!("SELECT COUNT(*) FROM dict_source WHERE code = '{code}'"),
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(has, 0, "dict-tran-van-chanh.db must not contain {code}'s rows");
+    }
+    let has_tvc_in_tc: i64 = tc_conn
+        .query_row("SELECT COUNT(*) FROM dict_source WHERE code = 'tran-van-chanh'", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(has_tvc_in_tc, 0);
+    let has_tvc_in_vp: i64 = vp_conn
+        .query_row("SELECT COUNT(*) FROM dict_source WHERE code = 'tran-van-chanh'", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(has_tvc_in_vp, 0);
 }
 
 /// AC2: mỗi tệp lớp gỡ rời tự mang metadata giấy phép/ghi công của chính nó — cả bốn
@@ -276,7 +299,7 @@ fn a_failed_run_all_leaves_the_previous_output_untouched() {
         let len = std::fs::metadata(out_dir.join(&name)).unwrap().len();
         before.push((name, len));
     }
-    assert_eq!(before.len(), 3);
+    assert_eq!(before.len(), 4);
 
     std::fs::remove_dir_all(raw_dir.join("vietphrase")).unwrap();
     assert!(build::run_all(&raw_dir, &out_dir).is_err());

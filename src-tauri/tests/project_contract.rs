@@ -17,6 +17,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use auratranslate_lib::commands::chapter::read_open_chapter;
 use auratranslate_lib::commands::project::{create_work_from_file, create_work_from_text};
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
@@ -566,4 +567,65 @@ fn a_folder_name_survives_both_platforms_rules() {
     assert_eq!(sanitize_name("Tap 1: Khoi dau"), "Tap 1_ Khoi dau");
     assert_eq!(sanitize_name("   "), "Untitled");
     assert_eq!(sanitize_name("ten."), "ten");
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.16, AC8 — đường IPC đọc Chương đang mở
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 **AC8** — chưa Tác phẩm nào mở ⇒ một lỗi CÓ TÊN RIÊNG, ⛔ không phải một lỗi kho
+/// (`store.*`): `OpenWorkState` rỗng là một trạng thái sản phẩm bình thường, ⛔ không một
+/// tệp nào hỏng.
+#[test]
+fn reading_the_open_chapter_without_a_work_open_is_a_named_error() {
+    let err = read_open_chapter(None).expect_err("chua Tac pham nao mo phai la mot loi");
+
+    assert_eq!(err.code(), "project.no_work_open");
+    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+    assert!(!err.retryable(), "khong Tac pham nao mo khong phai mot loi tam thoi");
+    assert!(
+        err.params().is_empty(),
+        "khoa nay khong doi tham so nao: {:?}",
+        err.params()
+    );
+}
+
+/// 🔴 **AC8** — Chương đang mở trả đúng `source_text` + `source_lang` của chính Tác phẩm
+/// vừa tạo (Story 1.15 luôn ghi đúng MỘT Chương, `ord = 1`).
+#[test]
+fn reading_the_open_chapter_reflects_the_single_chapter_just_created() {
+    let root = temp_dir("read-chapter");
+
+    let opened = create_work_from_text(&root, "Doc Chuong", "zh", "tieu thuyet", "noi dung mau 你好".to_owned())
+        .expect("tao tac pham that bai");
+
+    let chapter = read_open_chapter(Some(&opened)).expect("doc Chuong dang mo that bai");
+
+    assert_eq!(chapter.source_text, "noi dung mau 你好");
+    assert_eq!(chapter.source_lang, "zh");
+    assert!(chapter.chapter_id > 0);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// `source_lang` đọc từ Tác phẩm, ⛔ không đoán từ nội dung — một Chương tiếng Anh với
+/// nội dung có chữ Hán bên trong vẫn phải mang `source_lang = "en"`.
+#[test]
+fn the_source_lang_is_read_from_the_work_never_guessed_from_the_text() {
+    let root = temp_dir("read-chapter-lang");
+
+    let opened = create_work_from_text(&root, "Ngon Ngu That", "en", "", "a quote: 你好".to_owned())
+        .expect("tao tac pham that bai");
+
+    let chapter = read_open_chapter(Some(&opened)).expect("doc Chuong dang mo that bai");
+    assert_eq!(
+        chapter.source_lang, "en",
+        "source_lang phai la truong bat bien cua Tac pham, khong doan tu noi dung"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
 }

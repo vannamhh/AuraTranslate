@@ -18,6 +18,10 @@ pub const GFDL_1_3: &str = include_str!("../assets/licenses/GFDL-1.3.txt");
 pub const CC0_1_0: &str = include_str!("../assets/licenses/CC0-1.0.txt");
 pub const THIEU_CHUU_DECLARATION: &str = include_str!("../assets/licenses/thieu-chuu.txt");
 pub const VIETPHRASE_DECLARATION: &str = include_str!("../assets/licenses/vietphrase.txt");
+/// Story 1.10c — tuyên bố xuất xứ soạn tay cho Trần Văn Chánh, nêu RÕ rủi ro pháp lý
+/// (AC8): CC0 của người số hoá không xoá bản quyền tác phẩm gốc của tác giả còn sống.
+pub const TRAN_VAN_CHANH_DECLARATION: &str =
+    include_str!("../assets/licenses/tran-van-chanh.txt");
 
 /// Wiktionary (cả hai ấn bản) song hành hai giấy phép — nội dung mới hơn CC BY-SA 4.0,
 /// nội dung cũ hơn có thể chỉ có GFDL. Ghi cả hai nguyên văn, nối bằng dòng phân cách rõ
@@ -49,4 +53,20 @@ pub fn thieu_chuu_license_text() -> String {
 /// `license_text` là tuyên bố xuất xứ, không hơn không kém (Story 1.10, AC3).
 pub fn vietphrase_license_text() -> String {
     VIETPHRASE_DECLARATION.to_string()
+}
+
+/// Trần Văn Chánh: tuyên bố xuất xứ (rủi ro pháp lý ĐI TRƯỚC, AC8) rồi toàn văn CC0 1.0
+/// của người số hoá — cùng khuôn `thieu_chuu_license_text`, nhưng ⛔ **không** giống về
+/// Ý NGHĨA: ở đây CC0 chỉ phủ công sức số hoá, KHÔNG phủ bản quyền tác phẩm gốc (còn
+/// hiệu lực) — tuyên bố xuất xứ nói rõ điều này trước khi văn bản CC0 xuất hiện, để
+/// người đọc ⛔ không hiểu lầm CC0 = "nguồn sạch".
+pub fn tran_van_chanh_license_text() -> String {
+    format!(
+        "{TRAN_VAN_CHANH_DECLARATION}\n\n\
+         =======================================================================\n\
+         Toàn văn CC0 1.0 Universal của NGƯỜI SỐ HOÁ — KHÔNG áp dụng cho bản quyền\n\
+         tác phẩm gốc (xem cảnh báo pháp lý ở trên)\n\
+         =======================================================================\n\n\
+         {CC0_1_0}"
+    )
 }

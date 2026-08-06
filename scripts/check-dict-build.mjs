@@ -54,8 +54,11 @@ const posix = (p) => relative(REPO_ROOT, p).split(sep).join('/')
 // 🔴 Sàn phải SÁT số thật, ⛔ không để hở đúng bằng số tệp mà story vừa thêm — sàn 18
 // với số thật 20 cho phép xoá CẢ HAI parser lớp gỡ rời mà Kiểm C vẫn xanh (Review
 // Findings 1.10). Thêm/bớt tệp .rs ⇒ cập nhật con số này cùng lượt.
-const RS_FILE_FLOOR = 21 // số thật 2026-08-05 (Story 1.10b): 21 tệp .rs dưới src/
+const RS_FILE_FLOOR = 24 // số thật 2026-08-06 (Story 1.10c): 24 tệp .rs dưới src/
 //                        20 → 21: `sources/viwiktionary_en.rs` (nguồn nền thứ sáu, vai A)
+//                        21 → 24: `sources/en_wiktionary_vi.rs` (nguồn nền thứ bảy) ·
+//                        `sources/tran_van_chanh.rs` (lớp gỡ rời thứ ba) · `nom_guard.rs`
+//                        (lưới chống tái diễn lỗi Unihan, AC5)
 
 function walkRs(dir, out = []) {
   let entries

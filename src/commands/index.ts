@@ -171,6 +171,18 @@ export type CommandDeps = {
   submitPastedText?: () => void
   /** Nộp `filePath` hiện tại. Handler của `library.import_file` (AC1 nhánh tệp/NFR17). */
   submitFilePath?: () => void
+
+  // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `applyPreset`/`submitPastedText`: state sống ở
+  // `src/panels/sourcePanelState.ts`, một module Vue thật (`ref`) — import thẳng nó ở đây
+  // giết Kiểm C/D/E cùng lý do `@tauri-apps/api` bị cấm.
+
+  /** Chọn tab của Panel Source. Handler của `source.select_tab_*` (AC6). */
+  selectSourceTab?: (tab: 'original' | 'han_viet') => void
+  /** Đổi kiểu xem (chuyển đổi ↔ song song) của tab Hán Việt. Handler của
+   * `source.toggle_han_viet_view` (AC6). */
+  toggleHanVietView?: () => void
   /**
    * Các panel đang HIỆN, theo **thứ tự bố cục** (AC9).
    *
@@ -370,6 +382,54 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
     run: () => {
       if (deps.submitFilePath === undefined) return portMissing('library.import_file', 'submitFilePath')
       deps.submitFilePath()
+    },
+  })
+
+  /**
+   * `source.select_tab_original` / `source.select_tab_han_viet` / `source.toggle_han_viet_view`
+   * — Story 1.16, AC6. **CÓ phím** (⛔ không thao tác nào chỉ tới được bằng chuột — khác hẳn
+   * §Quyết định #3 của `layout.toggle_*` ở trên, cố ý KHÔNG có phím vì lý do khác).
+   *
+   * ⚠️ HAI command CHỌN tab (⛔ không MỘT command đổi/toggle) — cùng khuôn
+   * `layout.preset_grid`/`layout.preset_columns`: bấm đúng tab đang chọn là một thao tác
+   * VÔ HẠI (idempotent), ⛔ không lật sang tab kia. Một toggle duy nhất cho hai nút bấm sẽ
+   * lật nhầm khi người dùng bấm đúng tab đang mở.
+   */
+  target.register({
+    id: 'source.select_tab_original',
+    labelKey: 'command.source.select_tab_original',
+    keys: chordsFor('source.select_tab_original', bindings, ['Mod+Alt+O']),
+    run: () => {
+      if (deps.selectSourceTab === undefined) {
+        return portMissing('source.select_tab_original', 'selectSourceTab')
+      }
+      deps.selectSourceTab('original')
+    },
+  })
+  target.register({
+    id: 'source.select_tab_han_viet',
+    labelKey: 'command.source.select_tab_han_viet',
+    // 🔴 `Mod+Alt+J`, ⛔ KHÔNG `Mod+Alt+H`: `⌘⌥H` là "Hide Others" của macOS và hệ điều
+    // hành nuốt nó trước khi webview thấy. `check:commands` chỉ kiểm trùng **nội bộ** bộ
+    // command — nó ⛔ không biết gì về phím của OS, nên lưới ở đây là con người. Ice chốt ở
+    // lượt code review 2026-08-06. (`Mod+Alt+O`/`Mod+Alt+V` ⛔ không mang nghĩa hệ thống.)
+    keys: chordsFor('source.select_tab_han_viet', bindings, ['Mod+Alt+J']),
+    run: () => {
+      if (deps.selectSourceTab === undefined) {
+        return portMissing('source.select_tab_han_viet', 'selectSourceTab')
+      }
+      deps.selectSourceTab('han_viet')
+    },
+  })
+  target.register({
+    id: 'source.toggle_han_viet_view',
+    labelKey: 'command.source.toggle_han_viet_view',
+    keys: chordsFor('source.toggle_han_viet_view', bindings, ['Mod+Alt+V']),
+    run: () => {
+      if (deps.toggleHanVietView === undefined) {
+        return portMissing('source.toggle_han_viet_view', 'toggleHanVietView')
+      }
+      deps.toggleHanVietView()
     },
   })
 }

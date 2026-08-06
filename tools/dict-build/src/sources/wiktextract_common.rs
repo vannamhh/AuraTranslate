@@ -177,6 +177,7 @@ pub fn parse_line(
         headword_simp: None,
         reading,
         han_viet: None,
+        nom_reading: None,
         senses,
     }))
 }
@@ -241,6 +242,189 @@ pub fn parse<R: BufRead>(
     let entries = order.into_iter().filter_map(move |hw| by_headword.remove(&hw)).map(Ok);
 
     issues.into_iter().map(Err).chain(entries)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.10c — `en-wiktionary-vi`, đường đọc THỨ HAI cho khuôn JSONL Wiktextract
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ Vì sao hai hàm riêng thay vì tham số hoá `parse_line`/`parse`: nguồn này KHÔNG
+// trích `glosses`/`examples` (Quyết định #3a — giá trị của nó nằm ở NHÃN gắn trên
+// `senses[].related[].tags`, không ở nghĩa). Với dữ liệu THẬT, gọi thẳng `parse_line`
+// trên các dòng ký tự Hán-Nôm sẽ LUÔN lỗi "no usable glosses" — mọi dòng `pos:
+// "character"` chỉ mang `senses: [{"tags": ["no-gloss"], "related": [...]}]`, không một
+// `glosses` nào. Đây vẫn là "dùng lại `wiktextract_common.rs`" theo đúng nghĩa story đòi
+// (`⚠️ wiktextract_common.rs đã có sẵn — dùng lại, đừng viết parser thứ hai`): MỘT tệp,
+// MỘT chỗ hiểu khuôn JSONL Wiktextract — chỉ khác trường nào được trích ra khỏi nó.
+
+/// Đọc MỘT dòng JSONL, trích âm HÁN VIỆT / NÔM có gắn nhãn TƯỜNG MINH từ
+/// `senses[].related[].tags` — dùng cho `en-wiktionary-vi` (Quyết định #3a của Story
+/// 1.10c, AC3).
+///
+/// 🔴 Lọc `pos == "character"` — đo thật trên dữ liệu: 1861/1864 dòng mang nhãn
+/// `han-viet-reading` có `pos: "character"`; ba dòng còn lại là TỪ (`夢想`, `公僕`,
+/// `金甌`), ngoài phạm vi "âm một ký tự" mà AC3/story đo (§Phát hiện, song song với
+/// `Unihan kVietnamese` — cũng chỉ phủ TỪNG KÝ TỰ).
+///
+/// ⛔ **Không suy đoán nhãn.** Một `related` thiếu `tags` hoặc mang `tags` khác
+/// `han-viet-reading`/`nom-reading` bị BỎ QUA — ⛔ không được hiểu ngầm là một trong hai
+/// loại. Một MỤC không mang nhãn nào trong CẢ HAI tập bị bỏ hẳn (`Err`), ⛔ không nạp một
+/// hàng rỗng (Bẫy 3 của story).
+///
+/// Nhiều âm cùng loại trên một mục ⇒ nối bằng `,`, GIỮ NGUYÊN chuỗi, không nhân bản entry
+/// — cùng tinh thần `thieu_chuu.rs:70` (âm đọc không phải điều kiện tách `dict_entry`).
+/// ⚠️ Đây là quy ước tách thứ TƯ trong cùng lược đồ (Thiều Chửu dùng `|`, TVC dùng `,`
+/// [trùng ký hiệu, khác nguồn], Unihan dùng khoảng trắng) — Bẫy 4 của story: KHÔNG chuẩn
+/// hoá bốn quy ước này về một ở đây; Story 1.16 tách bằng một luật duy nhất (`|`, `,`,
+/// khoảng trắng đều là ranh giới).
+pub fn parse_reading_line(
+    line_no: usize,
+    raw: &str,
+    filter_lang_code: Option<&str>,
+) -> Result<Option<RawEntry>, ParseIssue> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+
+    let v: Value = serde_json::from_str(trimmed).map_err(|e| ParseIssue {
+        line: line_no,
+        reason: format!("invalid JSON: {e}"),
+    })?;
+
+    let lang_code = v.get("lang_code").and_then(Value::as_str);
+    if let Some(want) = filter_lang_code {
+        if lang_code != Some(want) {
+            return Err(ParseIssue {
+                line: line_no,
+                reason: format!("lang_code != {want} (filtered, expected — không phải lỗi đọc)"),
+            });
+        }
+    }
+
+    let pos = v.get("pos").and_then(Value::as_str);
+    if pos != Some("character") {
+        return Err(ParseIssue {
+            line: line_no,
+            reason: "pos != character (filtered, expected — không phải lỗi đọc)".to_string(),
+        });
+    }
+
+    let word = v
+        .get("word")
+        .and_then(Value::as_str)
+        .ok_or_else(|| ParseIssue {
+            line: line_no,
+            reason: "missing 'word' field".to_string(),
+        })?;
+
+    let mut han_viet: Vec<String> = Vec::new();
+    let mut nom_reading: Vec<String> = Vec::new();
+
+    if let Some(senses) = v.get("senses").and_then(Value::as_array) {
+        for sense in senses {
+            let Some(related) = sense.get("related").and_then(Value::as_array) else {
+                continue;
+            };
+            for rel in related {
+                let Some(tags) = rel.get("tags").and_then(Value::as_array) else {
+                    continue;
+                };
+                let Some(reading_word) = rel.get("word").and_then(Value::as_str) else {
+                    continue;
+                };
+                let is_hv = tags.iter().any(|t| t.as_str() == Some("han-viet-reading"));
+                let is_nom = tags.iter().any(|t| t.as_str() == Some("nom-reading"));
+                // dict-build:allow .entry( — dedup TRONG một dòng/một nguồn, không hợp
+                // nhất xuyên nguồn (AD-19).
+                if is_hv && !han_viet.iter().any(|w| w == reading_word) {
+                    han_viet.push(reading_word.to_string());
+                }
+                if is_nom && !nom_reading.iter().any(|w| w == reading_word) {
+                    nom_reading.push(reading_word.to_string());
+                }
+            }
+        }
+    }
+
+    if han_viet.is_empty() && nom_reading.is_empty() {
+        return Err(ParseIssue {
+            line: line_no,
+            reason: "no han-viet-reading/nom-reading tags on this entry".to_string(),
+        });
+    }
+
+    Ok(Some(RawEntry {
+        lang: "zh".to_string(),
+        headword: word.to_string(),
+        headword_simp: None,
+        reading: None,
+        han_viet: (!han_viet.is_empty()).then(|| han_viet.join(",")),
+        nom_reading: (!nom_reading.is_empty()).then(|| nom_reading.join(",")),
+        senses: Vec::new(),
+    }))
+}
+
+/// Gộp mọi dòng JSONL CÙNG headword TRONG một lượt gọi — hiếm trên dữ liệu thật (2 ca:
+/// `k`, `𦄂`), nhưng cùng quy ước với [`parse`] (AD-19: gộp TRONG một nguồn hợp lệ, xuyên
+/// nguồn thì không).
+pub fn parse_readings<R: BufRead>(
+    reader: R,
+    filter_lang_code: Option<&str>,
+) -> impl Iterator<Item = Result<RawEntry, ParseIssue>> {
+    let mut issues: Vec<ParseIssue> = Vec::new();
+    let mut order: Vec<String> = Vec::new();
+    let mut by_headword: HashMap<String, RawEntry> = HashMap::new();
+
+    for (idx, line) in reader.lines().enumerate() {
+        let line_no = idx + 1;
+        let raw = match line {
+            Ok(l) => l,
+            Err(e) => {
+                issues.push(ParseIssue {
+                    line: line_no,
+                    reason: format!("I/O error: {e}"),
+                });
+                continue;
+            }
+        };
+        match parse_reading_line(line_no, &raw, filter_lang_code) {
+            Ok(None) => {}
+            Ok(Some(entry)) => {
+                if let Some(existing) = by_headword.get_mut(&entry.headword) {
+                    existing.han_viet =
+                        union_reading_lists(existing.han_viet.take(), entry.han_viet);
+                    existing.nom_reading =
+                        union_reading_lists(existing.nom_reading.take(), entry.nom_reading);
+                } else {
+                    order.push(entry.headword.clone());
+                    by_headword.insert(entry.headword.clone(), entry);
+                }
+            }
+            Err(issue) => issues.push(issue),
+        }
+    }
+
+    let entries = order.into_iter().filter_map(move |hw| by_headword.remove(&hw)).map(Ok);
+
+    issues.into_iter().map(Err).chain(entries)
+}
+
+/// Hợp hai chuỗi âm đọc phân tách bằng `,`, khử trùng lặp, giữ thứ tự xuất hiện.
+fn union_reading_lists(a: Option<String>, b: Option<String>) -> Option<String> {
+    match (a, b) {
+        (None, x) => x,
+        (x, None) => x,
+        (Some(a), Some(b)) => {
+            let mut parts: Vec<String> = a.split(',').map(str::to_string).collect();
+            for p in b.split(',') {
+                if !parts.iter().any(|existing| existing == p) {
+                    parts.push(p.to_string());
+                }
+            }
+            Some(parts.join(","))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -396,5 +580,93 @@ mod tests {
             .collect::<Result<_, _>>()
             .unwrap();
         assert_eq!(entries.len(), 2);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════
+    // Story 1.10c — `parse_reading_line`/`parse_readings` (en-wiktionary-vi)
+    // ═════════════════════════════════════════════════════════════════════════════
+
+    /// 🔴 Ca thật `北` trích nguyên văn từ kaikki.org/dictionary/Vietnamese (2026-08-06):
+    /// một `han-viet-reading` ("bắc") cộng NHIỀU `nom-reading`. Đây đúng là ví dụ
+    /// `EXPERIENCE.md:410` dùng cho FR113 (`北涼 → Bắc Lương`).
+    #[test]
+    fn real_shaped_bac_character_yields_han_viet_and_nom_reading() {
+        let json = r#"{"pos": "character", "word": "北", "lang": "Vietnamese", "lang_code": "vi", "senses": [{"tags": ["no-gloss"], "related": [{"word": "bắc", "tags": ["han-viet-reading"]}, {"word": "bậc", "tags": ["nom-reading"]}, {"word": "bấc", "tags": ["nom-reading"]}]}]}"#;
+        let entry = parse_reading_line(1, json, Some("vi")).unwrap().unwrap();
+        assert_eq!(entry.headword, "北");
+        assert_eq!(entry.han_viet.as_deref(), Some("bắc"));
+        assert_eq!(entry.nom_reading.as_deref(), Some("bậc,bấc"));
+        assert!(entry.senses.is_empty(), "Quyết định #3a: ⛔ không nạp dict_sense");
+    }
+
+    /// AC3: nhiều âm CÙNG LOẠI trên một mục ⇒ nối bằng `,`, GIỮ NGUYÊN chuỗi, khử trùng
+    /// lặp — ca thật `西` (tây, tê).
+    #[test]
+    fn multiple_han_viet_readings_on_one_character_are_comma_joined() {
+        let json = r#"{"pos": "character", "word": "西", "lang_code": "vi", "senses": [{"related": [{"word": "tây", "tags": ["han-viet-reading"]}, {"word": "tê", "tags": ["han-viet-reading"]}, {"word": "tây", "tags": ["han-viet-reading"]}]}]}"#;
+        let entry = parse_reading_line(1, json, Some("vi")).unwrap().unwrap();
+        assert_eq!(entry.han_viet.as_deref(), Some("tây,tê"), "trùng lặp 'tây' phải bị khử");
+    }
+
+    /// Bẫy 3 của story: một mục KHÔNG mang tag nào trong hai tập ⇒ BỎ (`Err`), ⛔ không
+    /// suy đoán và ⛔ không nạp một hàng rỗng.
+    #[test]
+    fn a_character_with_no_han_viet_or_nom_tags_is_not_ingested() {
+        let json = r#"{"pos": "character", "word": "字", "lang_code": "vi", "senses": [{"related": [{"word": "chữ", "tags": ["letter"]}]}]}"#;
+        let result = parse_reading_line(1, json, Some("vi"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().reason.contains("no han-viet-reading/nom-reading"));
+    }
+
+    /// AC3: chỉ đọc mục `pos == "character"` — ba từ đa âm tiết thật (`夢想`, `公僕`,
+    /// `金甌`) mang `han-viet-reading` nhưng `pos != "character"` bị LỌC, không phải lỗi
+    /// đọc.
+    #[test]
+    fn non_character_pos_is_filtered_not_an_entry() {
+        let json = r#"{"pos": "noun", "word": "公僕", "lang_code": "vi", "senses": [{"related": [{"word": "công bộc", "tags": ["han-viet-reading"]}]}]}"#;
+        let result = parse_reading_line(1, json, Some("vi"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().reason.contains("pos != character"));
+    }
+
+    /// Đối chứng âm cho Bẫy 2 của story: một `related` mang nhãn KHÁC (`letter`,
+    /// `Latin`+`character`) ⛔ không được hiểu ngầm là han-viet-reading hay nom-reading.
+    #[test]
+    fn unrelated_tags_are_never_misread_as_han_viet_or_nom() {
+        let json = r#"{"pos": "character", "word": "A", "lang_code": "vi", "senses": [{"related": [{"word": "a", "tags": ["Latin", "character"]}]}]}"#;
+        let result = parse_reading_line(1, json, Some("vi"));
+        assert!(result.is_err(), "tag lạ ⛔ không được biến thành han-viet-reading/nom-reading ngầm định");
+    }
+
+    #[test]
+    fn filtered_lang_code_is_an_error_not_a_silent_skip() {
+        let json = r#"{"pos": "character", "word": "北", "lang_code": "en", "senses": [{"related": [{"word": "bắc", "tags": ["han-viet-reading"]}]}]}"#;
+        let result = parse_reading_line(1, json, Some("vi"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().reason.contains("filtered, expected"));
+    }
+
+    /// `parse_readings` gộp CÙNG headword TRONG một lượt gọi (ca hiếm nhưng thật: `k`,
+    /// `𦄂`) — hợp cả hai tập, khử trùng lặp, ⛔ không nhân đôi entry.
+    #[test]
+    fn parse_readings_unions_duplicate_headword_lines() {
+        let text = "\
+{\"pos\": \"character\", \"word\": \"k\", \"lang_code\": \"vi\", \"senses\": [{\"related\": [{\"word\": \"ca\", \"tags\": [\"han-viet-reading\"]}]}]}
+{\"pos\": \"character\", \"word\": \"k\", \"lang_code\": \"vi\", \"senses\": [{\"related\": [{\"word\": \"cơ\", \"tags\": [\"nom-reading\"]}]}]}
+";
+        let entries: Vec<RawEntry> = parse_readings(Cursor::new(text.as_bytes()), Some("vi"))
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].han_viet.as_deref(), Some("ca"));
+        assert_eq!(entries[0].nom_reading.as_deref(), Some("cơ"));
+    }
+
+    #[test]
+    fn parse_readings_skips_blank_lines_and_reports_invalid_json() {
+        let text = "\n{not json\n";
+        let results: Vec<_> = parse_readings(Cursor::new(text.as_bytes()), Some("vi")).collect();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].is_err());
     }
 }

@@ -38,8 +38,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::core::dict::{
-    DictLayers, LookupMode, QueryBranch, QueryRoute, SENSE_BATCH, SUPPORTED_SCHEMA_VERSION,
-    SenseRecord, SkipReason, is_han, lookup_grouped,
+    DictLayers, HAN_VIET_BATCH, HanVietHit, LookupMode, QueryBranch, QueryRoute, SENSE_BATCH,
+    SUPPORTED_SCHEMA_VERSION, SenseRecord, SkipReason, is_han, lookup_grouped, lookup_han_viet,
 };
 use auratranslate_lib::ports::DictionarySource;
 
@@ -80,7 +80,8 @@ CREATE TABLE dict_entry (
   headword      TEXT NOT NULL,
   headword_simp TEXT,
   reading       TEXT,
-  han_viet      TEXT
+  han_viet      TEXT,
+  nom_reading   TEXT
 );";
 
 const DICT_SENSE_DDL: &str = "\
@@ -1944,4 +1945,481 @@ fn read_dict_build_schema() -> String {
             schema_rs.display()
         )
     })
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.16, Task 2 — `DictionarySource::han_viet`, method thứ ba trên cổng
+//
+// 🔴 Tái dùng NGUYÊN VẸN fixture ba lớp ở trên (Story 1.13) — KHÔNG một bộ fixture thứ
+// hai (Testing standards của story). `EntrySeed`/`build_layer` không mang cột
+// `han_viet`/`nom_reading`, nên các ca dưới đây GHI THẲNG cột đó bằng một UPDATE sau khi
+// `build_all_layers` đã dựng xong ba tệp — cùng tinh thần "đo/ghi trên dữ liệu thật" mà
+// story đòi, chỉ khác là dữ liệu THẬT ở đây là chính fixture đã có, không phải một fixture
+// song song.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Cập nhật `dict_entry.han_viet` của MỘT hàng trong một tệp fixture đã dựng.
+fn set_han_viet(dir: &Path, file: &str, entry_id: i64, han_viet: &str) {
+    let conn = rusqlite::Connection::open(dir.join(file))
+        .unwrap_or_else(|e| panic!("mở {file} để ghi han_viet: {e}"));
+    conn.execute(
+        "UPDATE dict_entry SET han_viet = ?1 WHERE id = ?2",
+        rusqlite::params![han_viet, entry_id],
+    )
+    .unwrap_or_else(|e| panic!("cập nhật han_viet cho id {entry_id} trong {file}: {e}"));
+    conn.close().unwrap_or_else(|(_, e)| panic!("đóng {file}: {e}"));
+}
+
+/// 🔴 **Quyết định #2** — đọc âm Hán Việt cho một ký tự, mang theo `source_code` của
+/// chính hàng đã khớp.
+#[test]
+fn han_viet_reads_the_raw_reading_and_its_source_code() {
+    let dir = temp_dir("hanviet-basic");
+    build_all_layers(&dir);
+    // `id = 1` của `zzz.db` (lớp nền) là đầu mục `山`, nguồn `fx-core-a`.
+    set_han_viet(&dir, "zzz.db", 1, "sơn");
+
+    let layers = DictLayers::open(&dir);
+    let base = layers.layer("base").expect("lớp nền");
+
+    let hits = base.han_viet(&["山", "國"]).expect("tra hai ký tự");
+
+    assert_eq!(
+        hits,
+        vec![HanVietHit {
+            character: "山".to_owned(),
+            reading: "sơn".to_owned(),
+            source_code: "fx-core-a".to_owned(),
+        }],
+        "chỉ `山` mang han_viet; `國` chưa được ghi ⇒ ⛔ KHÔNG một hàng nào cho nó \
+         (bộ lọc `IS NOT NULL`, ⛔ không một ô trống câm)"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **Bẫy 8 (tái sinh ở method mới)** — câu SQL phải phủ CẢ `headword` LẪN
+/// `headword_simp`. `id = 6` của `zzz.db` là `國` / giản thể `国`.
+#[test]
+fn han_viet_covers_both_the_traditional_and_the_simplified_headword() {
+    let dir = temp_dir("hanviet-simp");
+    build_all_layers(&dir);
+    set_han_viet(&dir, "zzz.db", 6, "quốc");
+
+    let layers = DictLayers::open(&dir);
+    let base = layers.layer("base").expect("lớp nền");
+
+    let traditional = base.han_viet(&["國"]).expect("tra phồn thể");
+    assert_eq!(
+        traditional,
+        vec![HanVietHit {
+            character: "國".to_owned(),
+            reading: "quốc".to_owned(),
+            source_code: "fx-core-b".to_owned(),
+        }]
+    );
+
+    let simplified = base.han_viet(&["国"]).expect("tra giản thể");
+    assert_eq!(
+        simplified,
+        vec![HanVietHit {
+            character: "国".to_owned(),
+            reading: "quốc".to_owned(),
+            source_code: "fx-core-b".to_owned(),
+        }],
+        "bỏ vế `headword_simp` làm ca này trả rỗng — đúng Bẫy 8 của Story 1.9, tái sinh"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **Quyết định #3, tiền đề của nó** — `reading` đi ra **CHƯA TÁCH**, dù tệp dùng dấu
+/// `|` (khuôn Thiều Chửu) hay khoảng trắng (khuôn Unihan). Tách nhiều âm là việc của tầng
+/// gom (Task 3), method này ⛔ không được tự ý cắt chuỗi.
+#[test]
+fn han_viet_leaves_multi_reading_strings_unsplit() {
+    let dir = temp_dir("hanviet-multi");
+    build_all_layers(&dir);
+    // `id = 1` của `mmm.db` (hv-fixture) và `id = 2` của `aaa.db` (vp-fixture) đều là `山`.
+    set_han_viet(&dir, "mmm.db", 1, "đinh|chênh");
+    set_han_viet(&dir, "aaa.db", 2, "tợ tử");
+
+    let layers = DictLayers::open(&dir);
+
+    let hv = layers.layer("hv-fixture").expect("lớp Hán Việt");
+    assert_eq!(
+        hv.han_viet(&["山"]).expect("tra lớp hv-fixture"),
+        vec![HanVietHit {
+            character: "山".to_owned(),
+            reading: "đinh|chênh".to_owned(),
+            source_code: "fx-hv".to_owned(),
+        }]
+    );
+
+    let vp = layers.layer("vp-fixture").expect("lớp VietPhrase");
+    assert_eq!(
+        vp.han_viet(&["山"]).expect("tra lớp vp-fixture"),
+        vec![HanVietHit {
+            character: "山".to_owned(),
+            reading: "tợ tử".to_owned(),
+            source_code: "fx-vp".to_owned(),
+        }]
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// Tập ký tự rỗng ⇒ danh sách rỗng, ⛔ **không** một lượt chạm database nào — cùng luật
+/// [`an_entry_without_senses_is_an_empty_list_not_an_error`].
+#[test]
+fn an_empty_char_batch_touches_no_database_row() {
+    let dir = temp_dir("hanviet-empty");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+    let base = layers.layer("base").expect("lớp nền");
+
+    let empty: &[&str] = &[];
+    assert!(base.han_viet(empty).expect("tập rỗng").is_empty());
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC13-tương-đương của method mới, đo được ở tầng hành vi.**
+///
+/// Cùng khuôn [`reading_senses_across_many_batches_never_duplicates_or_drops_a_row`]:
+/// một tập ký tự trải trên NHIỀU LÔ *(200 ký tự ⇒ 4 lô ở cỡ [`HAN_VIET_BATCH`] = 64)*
+/// phải cho **đúng cùng** kết quả (không tính thứ tự) với một tập chỉ mang hai ký tự
+/// thật — chỉ khác là 198 ký tự còn lại là **giả** (Khu vực dùng riêng Unicode, U+E000+),
+/// dựng RẺ hơn hẳn 200 đầu mục thật mà vẫn buộc lượt tra trải qua nhiều lô.
+#[test]
+fn han_viet_across_many_batches_never_duplicates_or_drops_a_row() {
+    let dir = temp_dir("hanviet-batches");
+    build_all_layers(&dir);
+    set_han_viet(&dir, "zzz.db", 1, "sơn");
+    set_han_viet(&dir, "zzz.db", 6, "quốc");
+
+    let layers = DictLayers::open(&dir);
+    let base = layers.layer("base").expect("lớp nền");
+
+    let mut straight = base.han_viet(&["山", "國", "国"]).expect("ba ký tự thật");
+    straight.sort_by(|a, b| (a.character.as_str(), a.source_code.as_str())
+        .cmp(&(b.character.as_str(), b.source_code.as_str())));
+
+    // 200 ký tự giả (Khu vực dùng riêng, ⛔ không đầu mục nào khớp) cộng ba ký tự thật
+    // chen vào giữa — bốn lô, lô cuối đệm, và ba ký tự thật rơi vào NHIỀU lô khác nhau.
+    //
+    // 🔴 `国` VÀ `國` là **cùng một hàng** (`id = 6` của `zzz.db`: `headword = 國`,
+    // `headword_simp = 国`) nhưng nằm ở **HAI LÔ KHÁC NHAU** — đây là điều kiện tiên quyết
+    // của lỗi trùng-hàng, và bản đầu của test này ⛔ **không** dựng nổi nó: cả `山` lẫn `國`
+    // đều chỉ khớp qua MỘT trường, nên ⛔ không hàng nào có thể trả lời ở hai lô.
+    //
+    // Với phép lọc theo **tập đầy đủ** (bản đầu của `read_han_viet`), lô chứa `国` và lô
+    // chứa `國` mỗi lô đẩy **cả hai** hit ⇒ **5 hit thay vì 3**, và test này ĐỎ. Đó chính là
+    // đối chứng âm mà §Testing standards đòi cho mỗi mệnh đề mới.
+    let mut many: Vec<String> = (0u32..200)
+        .map(|i| char::from_u32(0xE000 + i).expect("PUA hợp lệ").to_string())
+        .collect();
+    many.insert(10, "山".to_owned());
+    many.insert(20, "国".to_owned());
+    many.insert(150, "國".to_owned());
+    assert!(
+        many.len() > HAN_VIET_BATCH * 3,
+        "phải trải qua ÍT NHẤT bốn lô: {}",
+        many.len()
+    );
+
+    let refs: Vec<&str> = many.iter().map(String::as_str).collect();
+    let mut batched = base.han_viet(&refs).expect("nhiều lô");
+    batched.sort_by(|a, b| (a.character.as_str(), a.source_code.as_str())
+        .cmp(&(b.character.as_str(), b.source_code.as_str())));
+
+    assert_eq!(
+        batched, straight,
+        "chia lô là chi tiết CÀI ĐẶT — nó ⛔ KHÔNG được đổi kết quả. Trùng hàng ở đây là \
+         một phép đệm sai; thiếu hàng là một lô bị bỏ; một hàng LẠ là ký tự giả (PUA) bị \
+         khớp nhầm."
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.16, Task 3 — tầng gom `lookup_han_viet` (AC5, Quyết định #1 & #3)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 **Quyết định #1, mệnh đề 1** — lớp GỠ RỜI đọc TRƯỚC lớp NỀN. `id = 1` của cả
+/// `zzz.db` (nền, nguồn `fx-core-a`) LẪN `mmm.db` (gỡ rời `hv-fixture`, nguồn `fx-hv`)
+/// đều là `山` — hai lớp BẤT ĐỒNG về âm, và lớp gỡ rời phải thắng.
+#[test]
+fn detachable_layers_outrank_the_base_layer() {
+    let dir = temp_dir("hanviet-priority");
+    build_all_layers(&dir);
+    set_han_viet(&dir, "zzz.db", 1, "sơn-tu-lop-nen");
+    set_han_viet(&dir, "mmm.db", 1, "sơn-tu-lop-go-roi");
+
+    let layers = DictLayers::open(&dir);
+    let result = lookup_han_viet(&layers, &["山"]);
+
+    assert_eq!(result.characters.len(), 1);
+    let reading = result.characters[0]
+        .reading
+        .as_ref()
+        .expect("山 phải có âm — cả hai lớp đều có");
+    assert_eq!(
+        reading.primary, "sơn-tu-lop-go-roi",
+        "lớp gỡ rời (hv-fixture) phải thắng lớp nền (base) — Quyết định #1"
+    );
+    assert_eq!(reading.source_code, "fx-hv");
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **Quyết định #1, mệnh đề 3** — mỗi ký tự mang `source_code`, và tầng gom liệt kê
+/// TOÀN BỘ nguồn đã đóng góp cho lượt hiện tại (một dòng, ⛔ không một nhãn mỗi ký tự).
+#[test]
+fn each_character_carries_its_source_and_the_lookup_lists_every_source_used() {
+    let dir = temp_dir("hanviet-sources");
+    build_all_layers(&dir);
+    // `山` thắng ở hv-fixture (gỡ rời); `國`/`国` chỉ có ở lớp nền.
+    set_han_viet(&dir, "mmm.db", 1, "sơn");
+    set_han_viet(&dir, "zzz.db", 6, "quốc");
+
+    let layers = DictLayers::open(&dir);
+    let result = lookup_han_viet(&layers, &["山", "國"]);
+
+    assert_eq!(
+        result.characters[0].reading.as_ref().unwrap().source_code,
+        "fx-hv"
+    );
+    assert_eq!(
+        result.characters[1].reading.as_ref().unwrap().source_code,
+        "fx-core-b"
+    );
+    assert_eq!(
+        result.sources_used,
+        vec!["fx-core-b".to_owned(), "fx-hv".to_owned()],
+        "danh sách nguồn đã dùng phải DEDUPED và SẮP THEO code"
+    );
+    assert!(result.layers_loaded);
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **Quyết định #3(a)** — tách nhiều âm bằng MỘT luật trên CẢ HAI hình dạng thật.
+#[test]
+fn multiple_readings_split_on_both_the_pipe_and_whitespace_conventions() {
+    let dir = temp_dir("hanviet-split");
+    build_all_layers(&dir);
+    set_han_viet(&dir, "mmm.db", 1, "đinh|chênh"); // khuôn Thiều Chửu
+    set_han_viet(&dir, "aaa.db", 2, "tợ tử"); // khuôn Unihan/en-wiktionary-vi
+
+    let layers = DictLayers::open(&dir);
+
+    let hv_only = lookup_han_viet(&layers, &["山"]);
+    // hv-fixture thắng ưu tiên (gỡ rời trước gỡ rời khác theo thứ tự layers() ổn định:
+    // hv-fixture đứng trước vp-fixture).
+    let reading = hv_only.characters[0].reading.as_ref().unwrap();
+    assert_eq!(reading.primary, "đinh", "âm ĐẦU TIÊN sau khi tách");
+    assert_eq!(reading.all, vec!["đinh".to_owned(), "chênh".to_owned()]);
+
+    // 🔴 **Đóng lớp TRƯỚC khi xoá tệp** — Luật 2 ở đầu chính tệp test này: Windows từ chối
+    // xoá một tệp đang mở (NFR14). Bản đầu xoá `mmm.db` khi `layers` vẫn giữ kết nối, nên
+    // nó xanh trên macOS và ĐỎ trên máy người khác — đúng lớp lỗi chỉ lộ ra ở CI nền tảng
+    // kia. Test anh em `removing_every_detachable_layer_…` làm đúng từ đầu.
+    layers.close();
+
+    // Xoá lớp thắng để buộc kết quả rơi xuống vp-fixture, xem đúng luật tách khoảng trắng.
+    fs::remove_file(dir.join("mmm.db")).expect("xoa mmm.db");
+    let layers2 = DictLayers::open(&dir);
+    let vp_only = lookup_han_viet(&layers2, &["山"]);
+    let reading2 = vp_only.characters[0].reading.as_ref().unwrap();
+    assert_eq!(reading2.primary, "tợ");
+    assert_eq!(reading2.all, vec!["tợ".to_owned(), "tử".to_owned()]);
+    assert_eq!(reading2.source_code, "fx-vp");
+
+    layers2.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **Quy ước THỨ BA: dấu phẩy** — Trần Văn Chánh và en-wiktionary-vi, cả hai hình dạng
+/// thật *(bắt ở lượt code review 2026-08-06)*.
+///
+/// Bản đầu của [`split_readings`] chỉ cắt trên `|` và khoảng trắng, và mục bàn giao của
+/// `1-10c` đã cảnh báo đích danh ba quy ước. Đo trên tệp `.db` thật:
+/// `dict-core.db` **284/1.145 = 24,8 %** hàng dùng `,` *(chính lớp NỀN mà FR36 rơi về)*;
+/// `dict-tran-van-chanh.db` **2.326** hàng *(lớp gỡ rời ưu tiên CAO NHẤT)*.
+///
+/// Hai hình dạng ĐỀU tồn tại thật và hỏng theo hai kiểu khác nhau — test này giữ cả hai:
+/// - `"tây,tê"` *(⛔ không khoảng trắng)* → bản đầu trả **một** phần tử `"tây,tê"`.
+/// - `"chiêm, thiềm"` *(phẩy + khoảng trắng)* → bản đầu trả `primary = "chiêm,"`, **dấu
+///   phẩy đuôi lên màn hình** (`str::trim` chỉ cắt khoảng trắng).
+#[test]
+fn multiple_readings_split_on_the_comma_convention_too() {
+    let dir = temp_dir("hanviet-split-comma");
+    build_all_layers(&dir);
+    set_han_viet(&dir, "mmm.db", 1, "tây,tê"); // khuôn en-wiktionary-vi: ⛔ không khoảng trắng
+    set_han_viet(&dir, "zzz.db", 6, "chiêm, thiềm"); // khuôn Trần Văn Chánh: phẩy + khoảng trắng
+
+    let layers = DictLayers::open(&dir);
+
+    let no_space = lookup_han_viet(&layers, &["山"]);
+    let r1 = no_space.characters[0].reading.as_ref().expect("山 phải có âm");
+    assert_eq!(
+        r1.primary, "tây",
+        "`tây,tê` phải tách thành HAI âm — một luật áp cho MỌI tệp (Quyết định #3a)"
+    );
+    assert_eq!(r1.all, vec!["tây".to_owned(), "tê".to_owned()]);
+
+    let with_space = lookup_han_viet(&layers, &["國"]);
+    let r2 = with_space.characters[0].reading.as_ref().expect("國 phải có âm");
+    assert_eq!(
+        r2.primary, "chiêm",
+        "⛔ KHÔNG được mang dấu phẩy đuôi — `str::trim` chỉ cắt khoảng trắng"
+    );
+    assert_eq!(r2.all, vec!["chiêm".to_owned(), "thiềm".to_owned()]);
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC4 — ba trạng thái, ⛔ không một.** (1) ký tự có âm; (2) ký tự ⛔ không có âm ở
+/// bất kỳ lớp nào (nhưng CÓ lớp đang gắn); (3) ⛔ không lớp nào đang gắn.
+#[test]
+fn three_distinct_states_never_collapse_into_one() {
+    let dir = temp_dir("hanviet-states");
+    build_all_layers(&dir);
+    set_han_viet(&dir, "zzz.db", 1, "sơn");
+
+    // (1) và (2) cùng lúc: `山` có âm, `高` (từ `高山`, KHÔNG match vì headword 2 ký tự)
+    // ⛔ không có âm dù CÓ lớp đang gắn.
+    let layers = DictLayers::open(&dir);
+    let result = lookup_han_viet(&layers, &["山", "高"]);
+    assert!(result.layers_loaded, "ca (1)/(2): CÓ lớp đang gắn");
+    assert!(result.characters[0].reading.is_some(), "山 CÓ âm");
+    assert!(
+        result.characters[1].reading.is_none(),
+        "高 đã tra mà KHÔNG có âm — KHÁC ca 0 lớp gắn"
+    );
+    layers.close();
+
+    // (3): tập lớp hoàn toàn rỗng — trạng thái BÌNH THƯỜNG có tên (AD-25).
+    let empty_dir = temp_dir("hanviet-states-empty");
+    let empty_layers = DictLayers::open(&empty_dir);
+    let empty_result = lookup_han_viet(&empty_layers, &["山"]);
+    assert!(!empty_result.layers_loaded, "ca (3): KHÔNG lớp nào đang gắn");
+    assert!(
+        empty_result.characters[0].reading.is_none(),
+        "0 lớp ⇒ ⛔ không âm nào, nhưng lý do PHẢI phân biệt được qua `layers_loaded`"
+    );
+
+    cleanup(&dir);
+    cleanup(&empty_dir);
+}
+
+/// 🔴 **AC5 / FR36 — nghiệm thu ở mức DEGRADATION, bằng test THẬT xoá tệp.**
+///
+/// Xoá CẢ HAI lớp gỡ rời ⇒ tab vẫn trả âm từ lớp NỀN, ⛔ không một đường nào hỏng. Phủ
+/// giảm là kết quả ĐÚNG, ⛔ không phải một lỗi cần sửa.
+#[test]
+fn removing_every_detachable_layer_still_serves_readings_from_the_base_layer() {
+    let dir = temp_dir("hanviet-fr36");
+    build_all_layers(&dir);
+    set_han_viet(&dir, "zzz.db", 1, "sơn"); // lớp NỀN mang âm của 山
+    set_han_viet(&dir, "mmm.db", 1, "am-tu-hv"); // lớp gỡ rời BAN ĐẦU thắng ưu tiên
+
+    let layers_before = DictLayers::open(&dir);
+    let before = lookup_han_viet(&layers_before, &["山"]);
+    assert_eq!(
+        before.characters[0].reading.as_ref().unwrap().source_code,
+        "fx-hv",
+        "trước khi xoá: lớp gỡ rời thắng"
+    );
+    layers_before.close();
+
+    // FR36: gỡ = xoá tệp — xoá CẢ HAI lớp gỡ rời khỏi đĩa.
+    fs::remove_file(dir.join("mmm.db")).expect("xoa hv-fixture");
+    fs::remove_file(dir.join("aaa.db")).expect("xoa vp-fixture");
+
+    let layers_after = DictLayers::open(&dir);
+    assert_eq!(
+        layer_ids(&layers_after),
+        vec!["base"],
+        "chỉ còn lớp nền sau khi xoá cả hai lớp gỡ rời"
+    );
+
+    let after = lookup_han_viet(&layers_after, &["山"]);
+    assert!(after.layers_loaded, "lớp nền vẫn nạp được ⇒ ⛔ không một đường nào hỏng");
+    let reading = after.characters[0]
+        .reading
+        .as_ref()
+        .expect("mất lớp gỡ rời KHÔNG được làm mất luôn âm của lớp nền");
+    assert_eq!(reading.source_code, "fx-core-a", "rơi về ĐÚNG lớp nền");
+    assert_eq!(reading.primary, "sơn");
+
+    layers_after.close();
+    cleanup(&dir);
+}
+
+/// Đầu ra giữ ĐÚNG vị trí và ĐÚNG số lượng của `chars` truyền vào — kể cả ký tự lặp lại
+/// nhiều lần trong văn bản (Panel Source zip trực tiếp với văn bản gốc theo vị trí).
+#[test]
+fn the_output_keeps_one_slot_per_input_character_including_repeats() {
+    let dir = temp_dir("hanviet-positions");
+    build_all_layers(&dir);
+    set_han_viet(&dir, "zzz.db", 1, "sơn");
+
+    let layers = DictLayers::open(&dir);
+    let result = lookup_han_viet(&layers, &["山", "高", "山", "山"]);
+
+    assert_eq!(result.characters.len(), 4, "4 ký tự vào ⇒ 4 phần tử ra");
+    assert_eq!(result.characters[0].character, "山");
+    assert_eq!(result.characters[1].character, "高");
+    assert_eq!(result.characters[2].character, "山");
+    assert_eq!(result.characters[3].character, "山");
+    assert!(result.characters[0].reading.is_some());
+    assert!(result.characters[1].reading.is_none());
+    assert!(result.characters[2].reading.is_some());
+    assert!(result.characters[3].reading.is_some());
+
+    layers.close();
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.16, Task 6/7 chuẩn bị — bề mặt IPC `commands::dict::read_han_viet`
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// `layers = None` phải đối xử GIỐNG HỆT một tập lớp rỗng — ⛔ không một nhánh lỗi riêng.
+#[test]
+fn read_han_viet_command_treats_a_missing_state_like_an_empty_layer_set() {
+    let result = auratranslate_lib::commands::dict::read_han_viet(None, &["山".to_owned()]);
+    assert!(!result.layers_loaded);
+    assert_eq!(result.characters.len(), 1);
+    assert!(result.characters[0].reading.is_none());
+    assert!(result.sources_used.is_empty());
+}
+
+/// Vỏ IPC gọi ĐÚNG XUỐNG tầng gom — cùng kết quả với gọi thẳng `lookup_han_viet`.
+#[test]
+fn read_han_viet_command_matches_the_grouping_layer_directly() {
+    let dir = temp_dir("hanviet-command");
+    build_all_layers(&dir);
+    set_han_viet(&dir, "zzz.db", 1, "sơn");
+
+    let layers = DictLayers::open(&dir);
+    let via_command =
+        auratranslate_lib::commands::dict::read_han_viet(Some(&layers), &["山".to_owned(), "高".to_owned()]);
+    let direct = lookup_han_viet(&layers, &["山", "高"]);
+
+    assert_eq!(via_command, direct);
+
+    layers.close();
+    cleanup(&dir);
 }

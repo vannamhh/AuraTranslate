@@ -270,8 +270,8 @@ const vueFiles = keep(vueAll)
  * vẫn qua. Sàn nội dung tương ứng của cổng này là Kiểm B (`16` khoá `vi.json`, object
  * phẳng) và Kiểm E (hành vi thật của `resolve.ts`).
  */
-const RS_FLOOR = 26
-const VUE_FLOOR = 9
+const RS_FLOOR = 32 // số THẬT 2026-08-06: 40 tệp `.rs`
+const VUE_FLOOR = 10 // số THẬT 2026-08-06: 12 tệp `.vue`
 if (rsFiles.length < RS_FLOOR || vueFiles.length < VUE_FLOOR) {
   abort(
     `quần thể quét — ${rsFiles.length} tệp \`.rs\` (sàn ${RS_FLOOR}) · ` +

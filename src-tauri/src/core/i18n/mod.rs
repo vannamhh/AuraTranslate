@@ -154,6 +154,9 @@ message_keys! {
     ImportTooLarge => "err.import.too_large" ["size", "limit"],
     /// Không dựng được `<Tên>.atproj/` trên đĩa (AC2, AC8).
     ProjectCreateFailed => "err.project.create_failed" [],
+    /// Đường đọc Chương gọi trước khi có Tác phẩm nào mở (Story 1.16, AC8) —
+    /// `OpenWorkState` rỗng, ⛔ không phải một lỗi kho.
+    ProjectNoWorkOpen => "err.project.no_work_open" [],
     // ⛔ **KHÔNG có `ProjectMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
     // 2026-08-06). Cơ chế từ chối một `meta.json` mới hơn vẫn còn nguyên và vẫn có test
     // (`MetaError::SchemaTooNew` + `WorkMeta::read`), nhưng ⛔ không đường sản phẩm nào

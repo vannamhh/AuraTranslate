@@ -76,7 +76,8 @@ CREATE TABLE dict_entry (
   headword      TEXT NOT NULL,
   headword_simp TEXT,
   reading       TEXT,
-  han_viet      TEXT
+  han_viet      TEXT,
+  nom_reading   TEXT
 );";
 
 const DICT_SENSE_DDL: &str = "\

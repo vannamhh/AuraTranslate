@@ -77,6 +77,7 @@
 //! ⇒ ⛔ **Không cache, ⛔ không chỉ mục ngược trong bộ nhớ, ⛔ không xếp hạng, ⛔ không
 //! `LIMIT`** ở đây. Bốn thứ đó thuộc 1.17/1.18 và phụ thuộc hành vi người dùng thật.
 
+mod han_viet;
 mod layer;
 mod query;
 mod senses;
@@ -84,6 +85,7 @@ mod senses;
 use crate::core::store::{ReadHandle, SqlResult};
 use crate::ports::DictionarySource;
 
+pub use han_viet::HAN_VIET_BATCH;
 pub use layer::{DictLayer, DictLayers, SUPPORTED_SCHEMA_VERSION, SkipReason, SkippedLayer};
 pub use senses::SENSE_BATCH;
 
@@ -456,6 +458,25 @@ pub struct CitationRecord {
     pub ord: i64,
 }
 
+/// Một hàng thô của cột `dict_entry.han_viet` — Story 1.16, Quyết định #2.
+///
+/// 🔴 **`reading` chưa tách nhiều âm.** Một chuỗi như `"đinh|chênh"` (Thiều Chửu, phân
+/// tách bằng `|`) hay `"tợ tử"` (nguồn khác, phân tách bằng khoảng trắng) đi qua **nguyên
+/// văn** — tách chuỗi là việc của **tầng gom** ([`lookup_han_viet`], Quyết định #3), ⛔
+/// không phải của method này. Cổng `DictionarySource::han_viet` chỉ đọc **một tệp**, và
+/// một tệp ⛔ không biết quy ước phân tách nào đang áp — biết điều đó là biết *"tệp nào
+/// chứa gì"*, đúng thứ AD-44 ① vá A2 cấm.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HanVietHit {
+    /// Ký tự đã khớp — **giá trị nằm trong tập truy vấn** (`headword` hoặc
+    /// `headword_simp` của hàng, tuỳ bên nào khớp), ⛔ không phải luôn là `headword`.
+    pub character: String,
+    /// `dict_entry.han_viet` nguyên văn — có thể mang nhiều âm chưa tách.
+    pub reading: String,
+    /// `dict_source.code` — cùng luật khoá-theo-chuỗi với [`EntryHit::source_code`].
+    pub source_code: String,
+}
+
 /// Một nhóm kết quả = **một nguồn**.
 ///
 /// 🔴 **AD-19: ⛔ không có bước hợp nhất nào, ở bất kỳ đâu.** Hai nguồn bất đồng về cùng
@@ -592,5 +613,248 @@ pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode) -> Gro
         branch,
         groups,
         skipped,
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.16 — TẦNG GOM ÂM HÁN VIỆT: thứ tự ưu tiên theo LỚP, tách nhiều âm, một lượt
+// cho cả CHƯƠNG (AC5, Quyết định #1 & #3)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Danh tính của lớp **nền** — cùng giá trị với `layer::BASE_LAYER`, ⛔ không phải một
+/// hằng thứ hai đứng ĐỘC LẬP với nó: cả hai đều đọc từ `dict_meta('layer')` của chính
+/// tệp, ⛔ **không** phải một sổ đăng ký tên tệp (AD-44 ① vá A2). So sánh `layer() ==
+/// "base"` khác về bản chất với so `code == "thieu-chuu"`: `"base"`/`"gỡ rời"` là một
+/// PHÂN LOẠI CẤU TRÚC mà chính tầng dữ liệu đã gắn nhãn cho mọi tệp (đúng một trong hai),
+/// ⛔ không phải danh tính của MỘT nguồn cụ thể nào.
+///
+/// 🔴 **MỘT hằng, ⛔ không hai bản chép.** Bản đầu của Story 1.16 khai một hằng thứ hai ở
+/// đây cạnh [`layer::BASE_LAYER`] đã có. Hai hằng độc lập cho cùng một giá trị, ⛔ không
+/// một lưới canh nào: đổi một bên mà quên bên kia làm [`priority_order`] **đảo ngược im
+/// lặng** — lớp nền thắng mọi lớp gỡ rời, tức lật đúng Quyết định #1 của story mà ⛔ không
+/// một cổng nào đỏ. Lượt code review 2026-08-06 gộp lại thành một `pub(super)`.
+use layer::BASE_LAYER as BASE_LAYER_NAME;
+
+/// Âm Hán Việt của **một** ký tự, đã qua tầng gom — hoặc **không có âm nào**.
+///
+/// 🔴 `Option`, ⛔ **không** một chuỗi rỗng: *"ký tự này ⛔ không có âm ở bất kỳ lớp nào"*
+/// và *"ký tự này có một âm rỗng"* là hai câu khác nhau, và câu thứ hai ⛔ không tồn tại
+/// trong dữ liệu thật — `HAN_VIET_SQL` đã lọc `IS NOT NULL`.
+///
+/// ⚠️ `Serialize` — kiểu này đi qua IPC nguyên vẹn (`commands::dict::wire::read_han_viet`),
+/// cùng tiền lệ `core::library::WorkMeta`. ⛔ Không `#[serde(rename_all = "camelCase")]` —
+/// mọi trường đã `snake_case`, đúng như trên dây (AD-21).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct CharacterReading {
+    /// Ký tự trong nguyên văn — có thể LẶP LẠI giữa các phần tử của
+    /// [`HanVietLookup::characters`], vì đầu ra giữ **đúng vị trí** của `chars` chỗ gọi
+    /// truyền vào (Panel Source render theo vị trí, ⛔ không theo tập ký tự duy nhất).
+    pub character: String,
+    /// `None` ⇔ ⛔ không lớp nào (đang gắn) mang âm cho ký tự này — trạng thái **đã tra mà
+    /// không có**, khác với ca "0 lớp gắn" (đọc ở [`HanVietLookup::layers_loaded`]).
+    pub reading: Option<HanVietReading>,
+}
+
+/// Âm Hán Việt đã CHỌN cho một ký tự — kết quả của thứ tự ưu tiên theo lớp.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct HanVietReading {
+    /// Âm **ĐẦU TIÊN** sau khi tách nhiều âm (Quyết định #3) — cái tab hiện lên màn hình.
+    pub primary: String,
+    /// Toàn bộ danh sách âm đã tách, giữ nguyên thứ tự của nguồn — Story 1.17 (Panel
+    /// Lookup) và 3.7 (FR113) cần danh sách đầy đủ, ⛔ không chỉ âm đầu tiên.
+    pub all: Vec<String>,
+    /// `dict_source.code` của lớp đã THẮNG ưu tiên cho ký tự này (FR31 — nguồn bắt buộc
+    /// trên mọi bản ghi).
+    pub source_code: String,
+}
+
+/// Kết quả của một lượt gom âm Hán Việt cho **toàn bộ** ký tự do chỗ gọi truyền vào.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct HanVietLookup {
+    /// Một phần tử cho **mỗi** ký tự chỗ gọi truyền vào, ĐÚNG vị trí và ĐÚNG số lượng —
+    /// kể cả ký tự lặp lại nhiều lần trong văn bản.
+    pub characters: Vec<CharacterReading>,
+    /// `dict_source.code` của MỌI nguồn đã đóng góp ít nhất một âm cho lượt này — deduped,
+    /// sắp theo `code`. Quyết định #1, mệnh đề 3: hiển thị **một** dòng `ui-label` liệt kê
+    /// nguồn cho cả lượt, ⛔ không một nhãn cho mỗi ký tự.
+    pub sources_used: Vec<String>,
+    /// `false` ⇔ **không một lớp từ điển nào đang gắn** — trạng thái BÌNH THƯỜNG có tên
+    /// (AD-25, `src-tauri/resources/dict/` rỗng trong git), và nó phải hiện ra bằng một
+    /// chuỗi KHÁC với ca "đã tra mà ký tự này không có âm" (AC4 — ba trạng thái, ⛔ không
+    /// một; doctrine `QueryBranch::NoBranchQueryTooShort` của Story 1.13 áp lại ở đây).
+    pub layers_loaded: bool,
+}
+
+/// Tách một chuỗi `dict_entry.han_viet` **thô** thành các âm riêng biệt — Quyết định #3(a).
+///
+/// 🔴 **MỘT luật áp cho MỌI tệp**: cắt trên `|` **và** `,` **và** khoảng trắng. ⛔ Không mã
+/// riêng cho từng tệp/nguồn (AD-10) — an toàn vì một âm Hán Việt là MỘT âm tiết tiếng Việt,
+/// và nó ⛔ không bao giờ tự chứa `|`, `,` hay khoảng trắng.
+///
+/// 🔴 **BA quy ước tồn tại song song, ⛔ không phải hai** — đo trên bốn tệp `.db` thật ở
+/// `tools/dict-build/out/`, lượt code review 2026-08-06:
+///
+/// | Tệp | hàng có `han_viet` | chứa `,` | chứa `\|` | chứa khoảng trắng |
+/// |---|---|---|---|---|
+/// | `dict-core.db` *(lớp NỀN)* | 1.145 | **284 = 24,8 %** | 0 | 1 |
+/// | `dict-tran-van-chanh.db` *(gỡ rời, ưu tiên CAO NHẤT)* | 22.030 | **2.326** | 0 | 2.397 |
+/// | `dict-thieu-chuu.db` | 9.897 | 0 | 1.639 | 15 |
+///
+/// ⚠️ **Bản đầu của Story 1.16 bỏ sót `,`** và mục bàn giao của `1-10c` đã cảnh báo đích
+/// danh ba quy ước. Hai kiểu hỏng thật nó gây ra:
+/// - `西 → "tây,tê"` *(⛔ không khoảng trắng)* tách ra **một** phần tử ⇒ tab hiện nguyên
+///   chuỗi `tây,tê` như thể đó là **một** âm.
+/// - `譫 → "chiêm, thiềm"` tách trên khoảng trắng ⇒ `["chiêm,", "thiềm"]` ⇒ `primary` mang
+///   **dấu phẩy đuôi** lên màn hình — `.map(str::trim)` chỉ cắt khoảng trắng, ⛔ không cắt `,`.
+///
+/// 🔴 Và nó rơi vào đúng chỗ tệ nhất: **24,8 % của lớp NỀN** — chính lớp mà FR36 rơi về khi
+/// mọi lớp gỡ rời bị xoá.
+///
+/// Hàm **thuần**, ⛔ không chạm database — điều kiện để test chạy trên cả hai hình dạng
+/// thật mà ⛔ không cần một tệp `.db` nào.
+fn split_readings(raw: &str) -> Vec<String> {
+    raw.split(|c: char| c == '|' || c == ',' || c.is_whitespace())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Lớp nào đọc TRƯỚC lớp nào, cho MỘT lượt gom — tính **đúng một lần**, ⛔ không lặp lại
+/// cho mỗi ký tự (cùng doctrine `route`/`branch` của [`lookup_grouped`]).
+///
+/// Quy tắc **phát biểu được**, ⛔ viết cứng tên lớp: *"lớp gỡ rời đứng trước dữ liệu tổng
+/// hợp"* — trong nhóm lớp gỡ rời, giữ nguyên thứ tự ổn định của [`DictLayers::layers`]
+/// (`base` trước rồi mã lớp tăng dần); lớp NỀN bị đẩy xuống cuối, sau MỌI lớp gỡ rời.
+fn priority_order(layers: &DictLayers) -> Vec<&DictLayer> {
+    let mut detachable: Vec<&DictLayer> = Vec::new();
+    let mut base: Vec<&DictLayer> = Vec::new();
+    for layer in layers.layers() {
+        if layer.layer() == BASE_LAYER_NAME {
+            base.push(layer);
+        } else {
+            detachable.push(layer);
+        }
+    }
+    detachable.extend(base);
+    detachable
+}
+
+/// **Tầng gom âm Hán Việt** — Story 1.16, AC5.
+///
+/// 🔴 Đọc theo LÔ, một lượt gọi [`DictionarySource::han_viet`] cho **mỗi lớp** (⛔ không
+/// cho mỗi ký tự) — dedupe `chars` **trước khi tra**, cùng lý do `senses.rs`/`han_viet.rs`.
+/// Đầu ra giữ nguyên vị trí VÀ số lượng của `chars` (kể cả ký tự lặp) — chỗ gọi (Panel
+/// Source) zip trực tiếp với văn bản gốc, ⛔ không tự tra lại theo tập duy nhất.
+pub fn lookup_han_viet(layers: &DictLayers, chars: &[&str]) -> HanVietLookup {
+    use std::collections::HashMap;
+
+    let order = priority_order(layers);
+
+    let mut seen = std::collections::HashSet::new();
+    let unique: Vec<&str> = chars.iter().copied().filter(|c| seen.insert(*c)).collect();
+
+    // Mỗi lớp trả về các hàng KHỚP (⛔ chưa chọn ưu tiên) cho TOÀN BỘ tập ký tự duy nhất —
+    // một lượt gọi cho mỗi lớp, ⛔ không N lượt cho N ký tự.
+    let mut by_layer: Vec<(&str, HashMap<&str, &HanVietHit>)> = Vec::new();
+    let mut hits_storage: Vec<Vec<HanVietHit>> = Vec::new();
+
+    for layer in &order {
+        match layer.han_viet(&unique) {
+            Ok(hits) => hits_storage.push(hits),
+            // Một lớp hỏng lúc tra ⛔ không được làm hỏng cả lượt gom — cùng luật
+            // `lookup_grouped`. FR36 nghiệm thu ở mức "vẫn chạy", ⛔ không "không lỗi nào
+            // từng xảy ra".
+            Err(_) => hits_storage.push(Vec::new()),
+        }
+    }
+    for (layer, hits) in order.iter().zip(hits_storage.iter()) {
+        // 🔴 Hàng ĐẦU TIÊN thắng cho mỗi ký tự TRONG CÙNG một lớp — `HAN_VIET_SQL` sắp
+        // `ORDER BY e.id`, và `read_han_viet` lọc theo tập của **chính lô** nên mọi hit của
+        // một ký tự đều phát ra từ đúng một lô ⇒ đây là đầu mục có `id` nhỏ nhất mang ký tự
+        // đó, xác định.
+        //
+        // ⚠️ Mệnh đề này ĐỨNG được **nhờ** phép lọc theo lô ở `han_viet.rs`. Với phép lọc
+        // theo tập đầy đủ (bản đầu của Story 1.16), `out` nối theo thứ tự LÔ chứ ⛔ không
+        // theo `e.id`, và `or_insert` dưới đây chọn theo thứ tự đến — tức âm phụ thuộc vị
+        // trí ký tự trong Chương. ⛔ Đừng nới phép lọc đó ra mà không đọc lại dòng này.
+        let mut per_char: HashMap<&str, &HanVietHit> = HashMap::new();
+        for hit in hits {
+            per_char.entry(hit.character.as_str()).or_insert(hit);
+        }
+        by_layer.push((layer.layer(), per_char));
+    }
+
+    let mut sources_used: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut resolved: HashMap<&str, HanVietReading> = HashMap::new();
+
+    for char_key in &unique {
+        for (_layer_name, per_char) in &by_layer {
+            if let Some(hit) = per_char.get(char_key) {
+                let all = split_readings(&hit.reading);
+                let Some(primary) = all.first().cloned() else {
+                    // Chuỗi thô toàn `|`/khoảng trắng — dữ liệu hỏng ở tầng nguồn; bỏ qua
+                    // hàng này, ⛔ không panic, và tiếp tục xét lớp ưu tiên kế tiếp.
+                    continue;
+                };
+                sources_used.insert(hit.source_code.clone());
+                resolved.insert(
+                    char_key,
+                    HanVietReading {
+                        primary,
+                        all,
+                        source_code: hit.source_code.clone(),
+                    },
+                );
+                break;
+            }
+        }
+    }
+
+    let characters = chars
+        .iter()
+        .map(|c| CharacterReading {
+            character: (*c).to_owned(),
+            reading: resolved.get(c).cloned(),
+        })
+        .collect();
+
+    HanVietLookup {
+        characters,
+        sources_used: sources_used.into_iter().collect(),
+        layers_loaded: !layers.layers().is_empty(),
+    }
+}
+
+// ⚠️ Ca hành vi trên HAI HÌNH DẠNG THẬT ("đinh|chênh" · "tợ tử") sống ở
+// `tests/dict_sources.rs::multiple_readings_split_on_both_the_pipe_and_whitespace_conventions`
+// — KHÔNG lặp lại ở đây bằng chuỗi tiếng Việt: `src-tauri/src/**/*.rs` nằm trong phạm vi
+// Kiểm A của `check-i18n.mjs` (⛔ không chuỗi tiếng Việt CÓ DẤU ở vị trí mã), trong khi
+// `src-tauri/tests/**` được miễn trừ (thông báo test, không vượt IPC). Unit test dưới đây
+// dùng chuỗi ASCII trung tính — cùng cơ chế tách, chỉ khác bộ ký tự — cho các ca biên mà
+// test hành vi ở `tests/` không phủ (đệm nhiều dấu phân tách liên tiếp, một âm duy nhất).
+#[cfg(test)]
+mod split_readings_tests {
+    use super::split_readings;
+
+    #[test]
+    fn splits_on_the_pipe_convention() {
+        assert_eq!(split_readings("ab|cd"), vec!["ab", "cd"]);
+    }
+
+    #[test]
+    fn splits_on_the_whitespace_convention() {
+        assert_eq!(split_readings("ab cd"), vec!["ab", "cd"]);
+    }
+
+    #[test]
+    fn a_single_reading_is_a_list_of_one() {
+        assert_eq!(split_readings("ab"), vec!["ab"]);
+    }
+
+    #[test]
+    fn consecutive_delimiters_never_produce_an_empty_reading() {
+        assert_eq!(split_readings("a||b  c"), vec!["a", "b", "c"]);
+        assert_eq!(split_readings(" a "), vec!["a"]);
     }
 }

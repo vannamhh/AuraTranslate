@@ -218,12 +218,84 @@ pub type OpenWorkState = std::sync::Mutex<Option<OpenWork>>;
 /// phải đường sản phẩm bình thường), `new_work` bị drop ngay khi hàm này return — Tác
 /// phẩm vừa tạo đóng lại tức thì. Đây là im lặng có chủ ý: cùng khuôn
 /// `close_global_store`/`try_state`, ⛔ không panic khi state vắng mặt.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 AC10 (Story 1.16) — `Store` CŨ THẢ **NGOÀI** VÙNG KHOÁ, ⛔ KHÔNG bên trong
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Lượt review 2026-08-06 dự báo đúng: `*guard = Some(new_work)` chạy `Drop` của giá trị
+/// CŨ (đóng `Store` — TRUNCATE có trần, `core::store::Store::close`) **trong khi `guard`
+/// vẫn giữ khoá**, vì Rust drop giá trị bị ghi đè ngay tại chỗ gán, và `guard` chỉ nhả khoá
+/// ở cuối khối. Hôm nay vô hại (chưa command nào khác đọc `OpenWorkState`), nhưng story
+/// này thêm command **đầu tiên đọc** nó (`commands::chapter::wire::read_open_chapter`) —
+/// đóng một `Store` giữ khoá mutex chặn mọi lượt đọc đó trong lúc TRUNCATE chạy.
+///
+/// Khuôn đúng: `Mutex::replace` trả **giá trị cũ**, gán trong một khối con để `guard` nhả
+/// khoá ngay khi khối đó kết thúc, RỒI mới `drop(old)` — Store cũ đóng khi ⛔ không ai còn
+/// giữ khoá.
 fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
     use tauri::Manager as _;
 
     if let Some(state) = app.try_state::<OpenWorkState>() {
-        let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        *guard = Some(new_work);
+        drop(swap_locked(&state, new_work));
+    }
+}
+
+/// Thay giá trị bên trong `mutex` bằng `new`, trả về giá trị **CŨ** — ⛔ **không** tự
+/// `drop` nó ở đây. Đó là toàn bộ điểm của hàm này (AC10): `guard` nhả khoá ở cuối khối
+/// `lock()`/`replace()`, và giá trị cũ chỉ bị drop **sau đó**, ở chỗ gọi
+/// ([`replace_open_work`]) — chứ ⛔ không trong khi khoá vẫn còn giữ.
+///
+/// Tách thành một hàm **thuần theo kiểu** (`T` bất kỳ, ⛔ không riêng `OpenWork`) là điều
+/// kiện để [`tests::swap_locked_drops_the_old_value_after_the_lock_is_released`] kiểm
+/// được đúng thuộc tính đó bằng một kiểu dò tự khoá lại chính `mutex` trong `Drop` của nó
+/// — dựng một `OpenWork` thật (mở `Store`) chỉ để kiểm thứ tự khoá/drop là một chi phí
+/// không cần thiết cho một mệnh đề thuần về **thứ tự**.
+fn swap_locked<T>(mutex: &std::sync::Mutex<Option<T>>, new: T) -> Option<T> {
+    let mut guard = mutex.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    guard.replace(new)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::swap_locked;
+    use std::sync::{Arc, Mutex};
+
+    /// 🔴 **AC10 (Story 1.16)** — kiểm bằng chính cơ chế mà lỗi biểu hiện: giá trị CŨ,
+    /// lúc bị drop, tự khoá LẠI cùng một mutex. Bản lỗi (`*guard = Some(new)`) drop giá
+    /// trị cũ trong khi `guard` vẫn sống ⇒ `try_lock()` bên dưới trả `Err` và test đỏ.
+    /// Bản đã vá nhả khoá trước, nên `try_lock()` thành công.
+    #[test]
+    fn swap_locked_drops_the_old_value_after_the_lock_is_released() {
+        struct ReentrantProbe(Arc<Mutex<Option<ReentrantProbe>>>);
+
+        impl Drop for ReentrantProbe {
+            fn drop(&mut self) {
+                assert!(
+                    self.0.try_lock().is_ok(),
+                    "gia tri CU dang bi drop trong khi mutex van con khoa -- AC10 vo hieu"
+                );
+            }
+        }
+
+        let mutex: Arc<Mutex<Option<ReentrantProbe>>> = Arc::new(Mutex::new(None));
+
+        let first = swap_locked(&mutex, ReentrantProbe(Arc::clone(&mutex)));
+        assert!(first.is_none(), "mutex rong luc dau ⇒ khong co gia tri CU nao");
+
+        let second = swap_locked(&mutex, ReentrantProbe(Arc::clone(&mutex)));
+        assert!(second.is_some());
+        drop(second); // Drop cua ReentrantProbe tu assert ⇒ day la phep kiem that su.
+
+        // 🔴 Lay gia tri CON LAI ra roi tha NGOAI khoa — hai viec trong mot dong.
+        //
+        // (1) Pha chu trinh `Arc`: gia tri cuoi nam TRONG chinh mutex ma no giu mot `Arc`
+        //     toi, nen refcount ⛔ khong bao gio ve 0 ⇒ `Drop` cua no ⛔ khong bao gio chay
+        //     va bo nho ro o cuoi test. Bat o luot code review 2026-08-06.
+        // (2) Cho phep chinh phep kiem chay them mot lan nua: `take()` trong mot khoi rieng
+        //     nha `guard` TRUOC, roi `drop(last)` chay `try_lock()` khi mutex da ranh.
+        let last = { mutex.lock().unwrap().take() };
+        assert!(last.is_some(), "mutex phai con dung mot gia tri sau ca hai luot swap");
+        drop(last);
     }
 }
 

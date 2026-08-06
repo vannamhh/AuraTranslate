@@ -20,6 +20,7 @@ import { ref } from 'vue'
 import { listen } from '@tauri-apps/api/event'
 import type { UnlistenFn } from '@tauri-apps/api/event'
 import { createWorkFromFile, createWorkFromText } from '../config/project'
+import { resetSourcePanel } from '../panels/sourcePanelState'
 import type { CreatedWork } from '../config/project'
 import type { IpcError } from '../i18n'
 
@@ -98,6 +99,12 @@ function finishSubmit(created: CreatedWork | null, error: IpcError | null): void
   busy.value = false
   lastError.value = error
   createdWork.value = created
+
+  // 🔴 Tác phẩm MỚI ⇒ vứt state Panel Source của Tác phẩm CŨ. `replace_open_work` phía Rust
+  // vừa trỏ `OpenWorkState` sang chỗ khác, còn cờ module-level của panel thì ⛔ không hay
+  // biết — bỏ dòng này là để người dùng đọc nội dung Tác phẩm A dưới nhãn Tác phẩm B.
+  // Đây là điểm nghẽn DUY NHẤT mà cả hai nhánh nhập đều đi qua (xem `resetSourcePanel`).
+  if (created !== null) resetSourcePanel()
 }
 
 /** Nhánh dán văn bản — nộp `pastedText` hiện tại. */

@@ -23,55 +23,51 @@
 # ⚠️ Release `dict-v1` CHƯA TỒN TẠI trên GitHub tại thời điểm story này giao (2026-08-04)
 # — URL dưới đây ĐÚNG HÌNH DẠNG và đúng tag dự kiến (cổng `check:dict-manifest` kiểm
 # hình dạng, không kiểm tồn tại), nhưng sẽ trả 404 tới khi Ice chạy lệnh ở §Completion
-# Notes để tạo release và tải cả ba tệp lên. ⛔ Không đoán một tag khác chỉ để URL
+# Notes để tạo release và tải cả bốn tệp lên. ⛔ Không đoán một tag khác chỉ để URL
 # phản hồi 200 — dict-v1 là tag đúng, chỉ chưa được tạo.
 #
-# 🔴 SHA-256 CẬP NHẬT ở Story 1.10 (2026-08-05): lượt chạy Task 10 dùng `--layer all`
-# (mặc định), nên nó dựng lại CẢ BA tệp — kể cả dict-core.db, và `insert_meta` dùng chung
-# thêm một HÀNG `dict_meta('layer','base')` vào đó. 0 dòng đổi ở schema.rs/năm parser nền,
-# nhưng tệp NHỊ PHÂN vẫn khác ⇒ giữ số cũ sẽ là một checksum SAI cho tệp thật sẽ lên
-# release. Ice chốt sau lượt code review: giữ tệp mới + checksum mới.
-# ⚠️ Đính chính: `--layer thieu-chuu`/`--layer vietphrase` chạy ĐƠN LẺ được và ⛔ không
-# chạm base — nên việc dựng lại là hệ quả của LỆNH đã chạy, ⛔ không phải bất khả kháng.
-#
-# 🔴 CHECKSUM Ở ĐÂY GIỜ TÁI LẬP ĐƯỢC (AD-25, sửa sau lượt code review): `dict_meta
-# ('built_at')` không còn lấy từ `strftime('now')` — nó dẫn xuất từ CHÍNH nguồn thô
-# (`SOURCE_DATE_EPOCH`, hoặc mtime mới nhất trong `raw/`). Cùng một cây nguồn thô ⇒ cùng
-# một tệp `.db` byte-for-byte ⇒ cùng SHA-256. Trước đó, hai lượt build liên tiếp từ cùng
-# một cây fixture ra hai hash khác nhau, tức mọi số dưới đây chỉ đúng cho ĐÚNG MỘT lượt
-# chạy và ⛔ không cổng nào bắt được sai lệch.
-# ✅ BA SỐ DƯỚI ĐÂY đến từ lượt dựng lại 2026-08-05T09:33 SAU khi vá — cùng lượt chạy
-# `--layer all` sinh ra cả ba tệp, `built_at = 2026-08-04T23:53:16Z` (dẫn xuất từ mtime
-# nguồn thô, giống nhau ở cả ba). Dựng lại từ cùng cây `raw/` ⇒ ra ĐÚNG ba số này.
-# Xác nhận: `dict-thieu-chuu.db` cho cùng hash qua ba lượt dựng vào ba thư mục đích khác
-# nhau. Từ đây, `cargo run` lại ⛔ không còn làm hỏng manifest.
-#
-# 🔴 SHA-256 CẬP NHẬT LẦN HAI ở **Story 1.10b** (2026-08-05T11:19) — LÝ DO: `dict-core.db`
-# nhận **nguồn NỀN THỨ SÁU** `viwiktionary-en` (119.039 đầu mục TIẾNG ANH, FR34). Trước
-# story đó tệp này có 473.499 đầu mục **100% `lang='zh'`** và ⛔ không một byte dữ liệu
-# tiếng Anh nào, nên một nửa mục tiêu Epic 1 ("văn bản tiếng Trung HOẶC tiếng Anh")
-# ⛔ không nghiệm thu được. Nguồn thô ⛔ KHÔNG đổi — `vi-extract.jsonl` nay được đọc HAI
-# LẦN với hai bộ lọc `lang_code` (vai B = mục tiếng Trung, vai A = mục tiếng Anh).
-#   • 154.464.256 → **194.998.272 byte** (+40.534.016)
-#   • `built_at` ⛔ KHÔNG đổi (`2026-08-04T23:53:16Z`) — đúng như thiết kế: cùng cây
-#     `raw/` ⇒ cùng dấu thời gian. Chỉ `builder_version` đổi `0.2.0` → `0.3.0`.
-#   • Lượt chạy dùng **`--layer base`**, ⛔ KHÔNG `--layer all` ⇒ hai tệp `[[detachable]]`
-#     dưới đây ⛔ KHÔNG bị dựng lại (mtime + SHA-256 đã đối chiếu trước/sau: giữ nguyên),
-#     nên hai checksum của chúng vẫn ĐÚNG và ⛔ không được đụng tới.
+# 🔴 SHA-256 CẬP NHẬT LẦN BA ở **Story 1.10c** (2026-08-06) — LƯỢC ĐỒ LÊN v2 + NGUỒN NỀN
+# THỨ BẢY. `SCHEMA_VERSION` 1→2 (cột `dict_entry.nom_reading` mới, AC6) buộc dựng lại
+# **cả bốn** tệp bằng `--layer all` — kể cả `dict-thieu-chuu.db`/`dict-vietphrase.db` dù
+# nguồn thô của chúng KHÔNG đổi (lược đồ đổi ⇒ nhị phân đổi, đúng bài học `--layer all`
+# đã ghi ở trên). `dict-core.db` thêm nguồn nền thứ bảy `en-wiktionary-vi` (2.232 đầu
+# mục — âm Hán Việt/Nôm gắn nhãn, Quyết định #3a: KHÔNG dict_sense) và `unihan` đổi vai
+# (`kVietnamese` → `nom_reading`, AC1 — không mất dữ liệu, xem story §Debug Log).
+#   • dict-core.db:        194.998.272 → **195.813.376 byte** (+815.104)
+#   • dict-thieu-chuu.db:    5.787.648 →   **5.795.840 byte** (+8.192, thêm cột NULL)
+#   • dict-vietphrase.db:  160.083.968 → **160.788.480 byte** (+704.512, thêm cột NULL)
+#   • `built_at` của dict-core.db đổi (`2026-08-06T08:38:53Z`) vì `raw/en_wiktionary_vi/`
+#     mới có mtime mới nhất; `built_at` của thieu-chuu/vietphrase GIỮ NGUYÊN
+#     (`2026-08-04T23:53:16Z` — nguồn thô của chúng không đổi, chỉ lược đồ đổi).
+#     `builder_version` 0.3.0 → 0.4.0.
+# ✅ Xác nhận TÁI LẬP ĐƯỢC: hai lượt `--layer all` độc lập vào hai thư mục đích khác
+# nhau cho ra ĐÚNG bốn SHA-256 dưới đây, cả bốn tệp.
 url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-core.db"
-sha256         = "2145c7aebb914fb9bf4def6a356bd5ad2fd73328c787de26e29e8abecb4f305a"
-source_version = "cvdict@c379d909e3 (2026-08-04) · cc-cedict@2026-08-04 · unihan@17.0.0 · viwiktionary@2026-08-04 · en-wiktionary@2026-08-04 · viwiktionary-en@2026-08-04"
+sha256         = "3bcfa98bf428aec30cf61ee8242b55168e399df4778c7ed8e95170e906a183e9"
+source_version = "cvdict@c379d909e3 (2026-08-04) · cc-cedict@2026-08-04 · unihan@17.0.0 · viwiktionary@2026-08-04 · en-wiktionary@2026-08-04 · viwiktionary-en@2026-08-04 · en-wiktionary-vi@2026-08-06"
 
-# Hai lớp gỡ rời trong phạm vi Story 1.10 (Ice chốt 2026-08-05: Thiều Chửu + VietPhrase).
-# Cùng release `dict-v1` với [base] — ba tệp thuộc MỘT thế hệ dữ liệu (§Quyết định #6).
+# Ba lớp gỡ rời trong phạm vi Story 1.10c (Ice chốt 2026-08-06: + Trần Văn Chánh, cạnh
+# Thiều Chửu + VietPhrase đã có từ Story 1.10). Cùng release `dict-v1` với [base] — bốn
+# tệp thuộc MỘT thế hệ dữ liệu (§Quyết định #6 của Story 1.9/1.10).
 [[detachable]]
 name           = "thieu-chuu"
 url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-thieu-chuu.db"
-sha256         = "e9417c12f5adc256e8cc7d49c42d09c3378fb9082fc6fd678beadf7ebe43c9d5"
+sha256         = "bd60ded6597cd36494b3596166f2e55c371d72360f58bcff936d8578feb35dbb"
 source_version = "catusf/tudien@2.2 (2022-10-10)"
 
 [[detachable]]
 name           = "vietphrase"
 url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-vietphrase.db"
-sha256         = "9d304210c16cd65abe9f5ed529d1b00542c3aa19cfe14d3eb6bfcc8a1a78f735"
+sha256         = "0add27583f0e3f262c04f9fbfae382f4fdff05313bf70554b00fc3891535f375"
 source_version = "truyencuatui/VietPhrase@master (tải 2026-08-05, chuyển UTF-8)"
+
+# 🔴 Lớp gỡ rời THỨ BA — Story 1.10c. Rủi ro pháp lý CHƯA đóng (Trần Văn Chánh, 1999,
+# CÒN trong bản quyền — tác giả còn sống; CC0 của người số hoá catusf/tudien KHÔNG xoá
+# được bản quyền tác phẩm gốc). Đóng gói làm lớp gỡ rời CHÍNH VÌ rủi ro đó — FR112 thực
+# thi được bằng xoá đúng MỘT tệp này, không đụng ba tệp còn lại. Xem
+# `assets/licenses/tran-van-chanh.txt` và `sources_meta::TRAN_VAN_CHANH` (AC8).
+[[detachable]]
+name           = "tran-van-chanh"
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-tran-van-chanh.db"
+sha256         = "8a437f506ec5f551d7ada94075d7748a1fbfd8e0ca682f59c219adea8983018f"
+source_version = "catusf/tudien@a7dd918ecc67de8c2d15034f885d919b9295eba4 (2025-12-19)"

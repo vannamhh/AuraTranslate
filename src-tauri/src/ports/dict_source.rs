@@ -30,7 +30,7 @@
 //! [`crate::core::dict::DictLayer`], và đường mở tệp ở lại `core/store/**`
 //! (`store_boundary.rs::only_core_store_may_name_rusqlite`).
 
-use crate::core::dict::{LookupResult, QueryBranch, QueryRoute, SenseRecord, SourceInfo};
+use crate::core::dict::{HanVietHit, LookupResult, QueryBranch, QueryRoute, SenseRecord, SourceInfo};
 use crate::core::store::StoreError;
 
 /// Một tệp `.db` từ điển, nhìn qua cổng.
@@ -86,4 +86,18 @@ pub trait DictionarySource {
     /// một tệp `.db`**. Truyền id của tệp khác vào đây là đọc nhầm nghĩa mà ⛔ không lỗi
     /// nào được ném; đó là lý do pha hai đi **qua một lớp cụ thể** chứ ⛔ không qua tập lớp.
     fn senses(&self, entry_ids: &[i64]) -> Result<Vec<SenseRecord>, StoreError>;
+
+    /// **Method thứ ba** — âm Hán Việt cho một **LÔ ký tự**. Story 1.16, Quyết định #2.
+    ///
+    /// 🔴 Đọc theo **LÔ**, ⛔ **không** một lời gọi cho mỗi ký tự — cùng luật [`Self::senses`],
+    /// và cùng lý do: một Chương 3.000 ký tự ⇒ ~1.500 ký tự riêng × ba tệp là ba bậc độ lớn
+    /// nếu gọi từng ký tự một.
+    ///
+    /// ⚠️ **⛔ Không** phải đường nóng NFR1 (Auto-Lookup, Story 1.18) — method này chạy
+    /// **một lần cho mỗi lượt nạp Chương**, ⛔ không hàng trăm lần mỗi phiên.
+    ///
+    /// Trả về **các hàng khớp thô**, chưa tách nhiều âm và chưa chọn ưu tiên giữa các lớp
+    /// — cả hai là việc của tầng gom ([`crate::core::dict::lookup_han_viet`]), ⛔ không
+    /// phải việc của adapter (cùng doctrine `route`/`branch` của [`Self::lookup`]).
+    fn han_viet(&self, chars: &[&str]) -> Result<Vec<HanVietHit>, StoreError>;
 }

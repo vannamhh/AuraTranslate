@@ -36,6 +36,11 @@ import { applyPreset, panelRing, togglePanel } from './layout/dockController'
 // Vue thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/project.ts` — import nó ở
 // `src/commands/index.ts` giết Kiểm C/D/E.
 import { submitFilePath, submitPastedText } from './modes/libraryImport'
+// ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `libraryImport.ts`: `sourcePanelState.ts` dùng `ref` của
+// Vue — import nó ở `src/commands/index.ts` giết Kiểm C/D/E.
+import { selectSourceTab, toggleHanVietView } from './panels/sourcePanelState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -163,6 +168,8 @@ async function boot(): Promise<void> {
       panelRing,
       submitPastedText,
       submitFilePath,
+      selectSourceTab,
+      toggleHanVietView,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa

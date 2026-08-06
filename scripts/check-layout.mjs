@@ -92,7 +92,7 @@ function walk(dir, out = [], seen = new Set()) {
  * dưới số thật một khoảng nhỏ để một lượt xoá tệp có chủ ý ⛔ không làm cổng `abort()`,
  * nhưng một lượt quét hỏng thì có.
  */
-const FILE_FLOOR = 24
+const FILE_FLOOR = 28 // số THẬT 2026-08-06: 35 tệp `src/**`
 
 let files = []
 try {

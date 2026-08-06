@@ -3,9 +3,11 @@
 //! Story 1.9). Cùng hình dạng cho mọi nguồn là điều kiện để AC2 vế "không hợp nhất"
 //! kiểm được — xem doc-comment `model::RawEntry`.
 //!
-//! **Sáu nguồn NỀN** (`dict-core.db`): `cvdict` · `cc_cedict` · `unihan` ·
-//! `viwiktionary` *(vai B)* · `en_wiktionary` · `viwiktionary_en` *(vai A)*.
-//! **Hai lớp GỠ RỜI** (mỗi lớp một tệp `.db`, AD-10): `thieu_chuu` · `vietphrase`.
+//! **Bảy nguồn NỀN** (`dict-core.db`): `cvdict` · `cc_cedict` · `unihan` ·
+//! `viwiktionary` *(vai B)* · `en_wiktionary` · `viwiktionary_en` *(vai A)* ·
+//! `en_wiktionary_vi` *(Story 1.10c)*.
+//! **Ba lớp GỠ RỜI** (mỗi lớp một tệp `.db`, AD-10): `thieu_chuu` · `vietphrase` ·
+//! `tran_van_chanh` *(Story 1.10c)*.
 //!
 //! ⚠️ `viwiktionary` và `viwiktionary_en` đọc **CÙNG MỘT tệp thô** với hai bộ lọc
 //! `lang_code` khác nhau — hai vai song song, hai `source_id` rời nhau. Đọc doc-comment
@@ -15,7 +17,9 @@ pub mod cc_cedict;
 pub mod cedict_common;
 pub mod cvdict;
 pub mod en_wiktionary;
+pub mod en_wiktionary_vi;
 pub mod thieu_chuu;
+pub mod tran_van_chanh;
 pub mod unihan;
 pub mod vietphrase;
 pub mod viwiktionary;

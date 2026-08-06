@@ -9,7 +9,12 @@
 //! dựng một bộ di trú.
 
 /// Phiên bản lược đồ hiện tại. Ghi vào cả `PRAGMA user_version` lẫn `dict_meta`.
-pub const SCHEMA_VERSION: u32 = 1;
+///
+/// 🔴 1 → 2 ở Story 1.10c: thêm cột `dict_entry.nom_reading` (AC6). `schema.rs` KHÔNG di
+/// trú (xem doc-comment module) — bờ đọc (`src-tauri/src/core/dict/layer.rs::
+/// SUPPORTED_SCHEMA_VERSION`) phải nâng CÙNG LƯỢT, nếu không mọi tệp `.db` mới bị từ chối
+/// bằng `SchemaTooNew` (§Bẫy 1 của story).
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// Siêu dữ liệu của chính tệp — khoá/giá trị, đọc được bằng mắt qua `sqlite3` CLI.
 pub const DICT_META_DDL: &str = "\
@@ -38,8 +43,16 @@ CREATE TABLE dict_source (
 );";
 
 /// Một đầu mục. `headword_simp` NULL khi nguồn không phân biệt phồn/giản.
-/// `han_viet` là ÂM ĐỌC (Unihan `kVietnamese`), ⛔ không phải NGHĨA — trộn hai thứ vào
-/// `dict_sense` làm Panel Lookup hiện âm đọc như một định nghĩa (§Thông tin kỹ thuật #3).
+///
+/// 🔴 Story 1.10c AC2 — HAI cột âm đọc tiếng Việt, ranh giới TÁCH BẠCH:
+/// - `han_viet` là ÂM ĐỌC, ⛔ không phải NGHĨA — trộn vào `dict_sense` làm Panel Lookup
+///   hiện âm đọc như một định nghĩa (§Thông tin kỹ thuật #3). Sau story 1.10c, giá trị ở
+///   đây LUÔN đến từ một nhãn "âm Hán Việt" gắn tường minh (Thiều Chửu · en-wiktionary-vi
+///   · Trần Văn Chánh) — ⛔ KHÔNG BAO GIỜ từ `Unihan kVietnamese` (đó là âm NÔM, xem
+///   `nom_reading`; §Phát hiện của story đo được 92,4% giá trị cũ trùng một âm Nôm).
+/// - `nom_reading` là ÂM ĐỌC tiếng Việt khi ký tự dùng làm chữ NÔM, ⛔ không phải âm Hán
+///   Việt. `Unihan kVietnamese` đổ vào ĐÂY (AC1: đổi vai, không mất dữ liệu); nhãn
+///   `nom-reading` của en-wiktionary-vi cũng đổ vào ĐÂY (AC3).
 pub const DICT_ENTRY_DDL: &str = "\
 CREATE TABLE dict_entry (
   id            INTEGER PRIMARY KEY,
@@ -48,7 +61,8 @@ CREATE TABLE dict_entry (
   headword      TEXT NOT NULL,
   headword_simp TEXT,
   reading       TEXT,
-  han_viet      TEXT
+  han_viet      TEXT,
+  nom_reading   TEXT
 );";
 
 /// Một nghĩa. FR29: một từ nhiều từ loại ⇒ nhiều hàng ở đây, ⛔ không gộp thành một

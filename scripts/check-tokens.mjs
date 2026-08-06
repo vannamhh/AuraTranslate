@@ -215,13 +215,14 @@ const EXPECTED_ROUNDED = {
 }
 
 /**
- * Đếm bắt buộc — 16 / 16 / 15 / 4. ⛔ 16, KHÔNG phải 17: `tm-rule` cùng giá trị hai theme.
+ * Đếm bắt buộc — 16 / 16 / 16 / 4. ⛔ 16, KHÔNG phải 17: `tm-rule` cùng giá trị hai theme.
  *
- * ⚠️ `typography` là **15** kể từ Story 1.14 (`ui-md-strong`, AC10), ⛔ không phải 14 như
- * §Bảng token typography của `DESIGN.md` còn ghi. Lệch đó là CÓ CHỦ Ý và có chữ ký — xem
- * `deviations[0]` trong `tokens.json`. Sửa `DESIGN.md` cho khớp là một lượt riêng của Ice.
+ * ⚠️ `typography` là **16** kể từ Story 1.16 (`source-latin`, Quyết định #6) — trước đó
+ * đã là **15** kể từ Story 1.14 (`ui-md-strong`, AC10), ⛔ không phải 14 như §Bảng token
+ * typography của `DESIGN.md` còn ghi. Cả hai lệch đó CÓ CHỦ Ý và có chữ ký — xem
+ * `deviations` trong `tokens.json`. Sửa `DESIGN.md` cho khớp là một lượt riêng của Ice.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 16, typography: 15, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 16, typography: 16, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -1562,8 +1563,9 @@ console.log('     minh khe 2px hiện ra đúng trên màn hình.')
 console.log('  2. Kiểm C kiểm DANH SÁCH ĐÃ KHAI, không phải những cặp tình cờ tồn tại trong mã.')
 console.log('     Khi Story 1.14 dựng panel thật, cặp mới phải được thêm vào `contrast.pairs` —')
 console.log('     phép kiểm đầy đủ (C1) là thứ bắt việc quên thêm.')
-console.log('  3. BỐN deviation khỏi bảng DESIGN.md đang được áp — ba cái Ice PHÊ CHUẨN 2026-08-03,')
-console.log('     cái thứ tư (`typography.ui-md-strong`, token NGOÀI bảng) là Story 1.14 · AC10.')
+console.log('  3. NĂM deviation khỏi bảng DESIGN.md đang được áp — ba cái Ice PHÊ CHUẨN 2026-08-03,')
+console.log('     cái thứ tư (`typography.ui-md-strong`, token NGOÀI bảng) là Story 1.14 · AC10,')
+console.log('     cái thứ năm (`typography.source-latin`, token NGOÀI bảng) là Story 1.16 · QĐ #6.')
 console.log('     `DESIGN.md` chưa được sửa cho khớp — đó là một lượt riêng của Ice, không phải')
 console.log('     của dev. Xem `deviations` trong `tokens.json`.')
 console.log('  4. Cờ `wraps` là mệnh đề về NỘI DUNG sẽ chạy qua token; không phép kiểm tĩnh nào')

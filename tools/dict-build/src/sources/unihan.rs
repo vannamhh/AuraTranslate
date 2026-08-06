@@ -2,12 +2,20 @@
 //! `U+XXXX<TAB>kProperty<TAB>value`, UTF-8/NFC. Giấy phép **Unicode License**.
 //!
 //! Chỉ dùng bốn thuộc tính (§Thông tin kỹ thuật của Story 1.9): `kDefinition` (nghĩa
-//! tiếng Anh), `kMandarin` (pinyin), `kVietnamese` (âm Hán Việt — nạp vào
-//! `dict_entry.han_viet`, ⛔ KHÔNG thành `dict_sense`), `kSimplifiedVariant` (nối sang
-//! `headword_simp`). Vì bốn thuộc tính này rải trên nhiều tệp khác nhau nhưng property
-//! name tự mô tả (không cần biết tệp gốc), `build.rs` NỐI nội dung các tệp cần dùng
-//! thành MỘT reader rồi đưa vào đây — dòng nào mang property lạ bị bỏ qua êm (không
-//! phải lỗi, chỉ là thuộc tính ngoài phạm vi story này).
+//! tiếng Anh), `kMandarin` (pinyin), `kVietnamese` (nạp vào `dict_entry.nom_reading`, ⛔
+//! KHÔNG thành `dict_sense`), `kSimplifiedVariant` (nối sang `headword_simp`). Vì bốn
+//! thuộc tính này rải trên nhiều tệp khác nhau nhưng property name tự mô tả (không cần
+//! biết tệp gốc), `build.rs` NỐI nội dung các tệp cần dùng thành MỘT reader rồi đưa vào
+//! đây — dòng nào mang property lạ bị bỏ qua êm (không phải lỗi, chỉ là thuộc tính ngoài
+//! phạm vi story này).
+//!
+//! 🔴 **Story 1.10c AC1 — `kVietnamese` ĐỔI VAI.** Unicode định nghĩa thuộc tính này là
+//! *"the Vietnamese pronunciation(s) of this character"* — với một chữ NÔM thì phát âm
+//! tiếng Việt của nó CHÍNH LÀ âm Nôm, không phải âm Hán Việt. Đo trên phần giao với Thiều
+//! Chửu (từ điển Hán Việt thật): 1.243/3.239 = 38,4% hai nguồn cho ÂM ĐẦU KHÁC NHAU; đối
+//! chiếu máy với nhãn `nom-reading` của en.wiktionary: 92,4% giá trị `kVietnamese` trùng
+//! MỘT âm Nôm đã gắn nhãn. Giá trị này giờ đổ vào `dict_entry.nom_reading`, ⛔ KHÔNG BAO
+//! GIỜ vào `han_viet` — xem doc-comment `schema.rs::DICT_ENTRY_DDL` và AC2.
 //!
 //! Một ký tự trải nhiều dòng (mỗi dòng một thuộc tính) ⇒ không thể lazy theo từng dòng
 //! như CEDICT/JSONL. Hàm này gom cả tệp vào bộ nhớ, tích luỹ theo mã điểm, rồi sinh
@@ -171,7 +179,10 @@ pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, Par
                 headword: ch.to_string(),
                 headword_simp: a.simplified_variant.map(|c| c.to_string()),
                 reading: a.mandarin,
-                han_viet: a.vietnamese,
+                // AC1: kVietnamese là âm NÔM, ⛔ không phải âm Hán Việt — đổ vào
+                // nom_reading, ⛔ KHÔNG vào han_viet (§Phát hiện của story).
+                han_viet: None,
+                nom_reading: a.vietnamese,
                 senses,
             }
         });
@@ -198,7 +209,9 @@ U+4E2D\tkVietnamese\ttrung
         let e = &entries[0];
         assert_eq!(e.headword, "中");
         assert_eq!(e.reading.as_deref(), Some("zhong1"));
-        assert_eq!(e.han_viet.as_deref(), Some("trung"));
+        // AC1: kVietnamese đổ vào nom_reading, ⛔ KHÔNG vào han_viet.
+        assert_eq!(e.nom_reading.as_deref(), Some("trung"));
+        assert_eq!(e.han_viet, None);
         assert_eq!(e.senses.len(), 1);
         assert_eq!(e.senses[0].pos_lang.as_deref(), Some("en"));
     }

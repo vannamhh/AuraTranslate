@@ -50,6 +50,7 @@ pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, Par
                         Some(l.pinyin)
                     },
                     han_viet: None,
+                    nom_reading: None,
                     senses,
                 }))
             }

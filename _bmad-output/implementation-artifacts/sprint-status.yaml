@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-06T18:30:00
+last_updated: 2026-08-06T21:00:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -61,13 +61,21 @@ development_status:
   1-9-dung-du-lieu-tu-dien-lop-nen: done
   1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap: done
   1-10b-dung-du-lieu-tu-dien-tieng-anh: done
+  # 🔴 Chèn 2026-08-06, CHẠY NGAY SAU 1-15 (không theo thứ tự số — nó thuộc HỌ tầng dữ liệu
+  # 1-9/1-10/1-10b nên mang số đó, nhưng phát hiện ra ở Task 0 của Story 1.16).
+  # Lý do tồn tại: dict_entry.han_viet của LỚP NỀN mang âm NÔM (Unihan kVietnamese), không
+  # phải âm Hán Việt — đo được 92,4% trùng một âm nom-reading đã gắn nhãn của en.wiktionary.
+  # 🔴 CHẶN 1-16 (tab Hán Việt) và 3-7 (FR113). Ice chốt: tầng dữ liệu trước, giao diện sau.
+  1-10c-am-han-viet-dung-nguon-va-dung-nhan: done
   1-11-ba-nhanh-truy-van-tieng-trung: done
   1-11b-duong-tra-cuu-tieng-anh: done
   1-12-matcher-dung-chung: done
   1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon: done
   1-14-khung-bon-panel: done
   1-15-tac-pham-tren-dia-va-duong-vao-van-ban-toi-thieu: done
-  1-16-panel-source-va-tab-han-viet: backlog
+  # ⛔ CHẶN bởi 1-10c — story file đã dựng đầy đủ, nhưng KHÔNG bắt đầu trước khi 1-10c `done`.
+  # Không có trạng thái `blocked` trong lược đồ này; mệnh đề chặn sống ở đầu story file.
+  1-16-panel-source-va-tab-han-viet: done
   1-17-panel-lookup-ban-ghi-co-cau-truc: backlog
   1-18-auto-lookup: backlog
   1-19-bat-tat-nguon-tu-dien-va-ghi-cong: backlog

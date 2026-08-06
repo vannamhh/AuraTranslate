@@ -38,7 +38,7 @@ use std::path::{Path, PathBuf};
 use crate::core::store::{ReadHandle, ReadOnlyDb, SqlError, SqlResult, StoreError, StoreKind};
 use crate::ports::DictionarySource;
 
-use super::{LookupResult, QueryBranch, QueryRoute, SenseRecord, SourceInfo, senses};
+use super::{HanVietHit, LookupResult, QueryBranch, QueryRoute, SenseRecord, SourceInfo, han_viet, senses};
 
 /// Phiên bản lược đồ tệp `.db` mà đường đọc này hiểu.
 ///
@@ -46,13 +46,20 @@ use super::{LookupResult, QueryBranch, QueryRoute, SenseRecord, SourceInfo, sens
 /// rời **có chủ ý** (AC4 của Story 1.9) nên ⛔ không có import chéo nào giữ hai hằng dính
 /// nhau — `tests/dict_sources.rs::the_supported_schema_version_matches_dict_build` đọc tệp
 /// kia **dưới dạng văn bản** và canh đúng mệnh đề đó.
-pub const SUPPORTED_SCHEMA_VERSION: u32 = 1;
+///
+/// 🔴 1 → 2 ở Story 1.10c, CÙNG LƯỢT với `tools/dict-build`: cột `dict_entry.nom_reading`
+/// mới (AC6). Một tệp `.db` **v2** phải mở được; một tệp `.db` **v3** giả lập vẫn bị từ
+/// chối bằng `SkipReason::SchemaTooNew` (AD-30 — mở tiến, ⛔ không mở lùi).
+pub const SUPPORTED_SCHEMA_VERSION: u32 = 2;
 
 /// Danh tính của lớp **nền**. Mọi giá trị khác là một lớp **gỡ rời**.
 ///
 /// ⚠️ Đây ⛔ **không** phải một mã nguồn (`dict_source.code`) — nó là giá trị của
 /// `dict_meta('layer')`, do `tools/dict-build/src/insert.rs:140` ghi vào từng tệp.
-const BASE_LAYER: &str = "base";
+///
+/// 🔴 `pub(super)` chứ ⛔ không `private`: tầng gom (`mod.rs::priority_order`) cần **chính
+/// hằng này**, ⛔ không một bản chép thứ hai — xem `mod.rs::BASE_LAYER_NAME`.
+pub(super) const BASE_LAYER: &str = "base";
 
 /// Vì sao một tệp trong thư mục ⛔ **không** trở thành một lớp.
 ///
@@ -342,6 +349,10 @@ impl DictionarySource for DictLayer {
 
     fn senses(&self, entry_ids: &[i64]) -> Result<Vec<SenseRecord>, StoreError> {
         self.db.read(|conn| senses::read_senses(conn, entry_ids))
+    }
+
+    fn han_viet(&self, chars: &[&str]) -> Result<Vec<HanVietHit>, StoreError> {
+        self.db.read(|conn| han_viet::read_han_viet(conn, chars))
     }
 }
 

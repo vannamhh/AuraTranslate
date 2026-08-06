@@ -1,0 +1,45 @@
+Tuyên bố xuất xứ và giấy phép — Trần Văn Chánh (dữ liệu Hán Việt bổ sung)
+==========================================================================
+
+Tác phẩm gốc
+------------
+Nội dung Hán Việt trong lớp dữ liệu này bắt nguồn từ "Từ điển Hán Việt" do Trần Văn
+Chánh biên soạn, xuất bản năm 1999. Tác giả CÒN SỐNG. Theo luật bản quyền hiện hành,
+tác phẩm này CÒN TRONG THỜI HẠN BẢO HỘ — nó KHÔNG thuộc phạm vi công cộng.
+
+Bản số hoá dùng trong AuraTranslate
+------------------------------------
+Dữ liệu văn bản dùng ở đây (tệp Tu-dien-ThienChuu-TranVanChanh.tab) lấy từ kho mã nguồn
+mở "catusf/tudien" (nhánh master, commit a7dd918ecc67de8c2d15034f885d919b9295eba4,
+2025-12-19). Kho "catusf/tudien" khai giấy phép CC0 1.0 Universal cho TOÀN BỘ repo,
+bao gồm tệp này.
+
+🔴 CẢNH BÁO PHÁP LÝ — vì sao CC0 của người số hoá KHÔNG đủ
+--------------------------------------------------------------
+Tuyên bố CC0 của người SỐ HOÁ chỉ có thể từ bỏ quyền mà chính người đó SỞ HỮU — tức
+công sức số hoá/biên tập tệp văn bản. Nó KHÔNG và KHÔNG THỂ xoá bỏ bản quyền của tác
+phẩm GỐC khi tác giả gốc (Trần Văn Chánh) chưa hề tuyên bố từ bỏ quyền của chính mình.
+Đây CHÍNH LÀ lập luận mà AuraTranslate đã dùng theo chiều NGƯỢC LẠI để xác minh Thiều
+Chửu SẠCH (tác giả mất 1954 ⇒ hết hạn bảo hộ, xem thieu-chuu.txt) — ở đây điều kiện đó
+KHÔNG thoả: tác giả còn sống, tác phẩm còn trong thời hạn bảo hộ.
+
+Dự án CHƯA xin phép trực tiếp tác giả Trần Văn Chánh. `license_kind` của nguồn này ghi
+`copyrighted`, KHÔNG ghi `public-domain` và KHÔNG ghi một mã giấy phép mở nào
+(`license_id = NULL`) — CC0 của người số hoá KHÔNG được trình bày như thể nó là giấy
+phép hợp lệ cho toàn bộ nội dung.
+
+Vì sao vẫn đóng gói — và đóng gói NHƯ THẾ NÀO
+------------------------------------------------
+AuraTranslate đóng gói nguồn này làm LỚP GỠ RỜI (FR36, AD-10): một tệp `.db` độc lập,
+gỡ được khỏi bản phát hành chỉ bằng cách xoá một tệp, không đụng một dòng mã nào khác
+và không làm hỏng chức năng tra cứu (lớp nền + hai lớp gỡ rời còn lại vẫn hoạt động đầy
+đủ). Đây là đúng tư thế phản ứng dự án đã dùng cho VietPhrase và Cổ hán văn (`prd.md
+§8.6`, quyết định 2026-08-02: chấp nhận rủi ro có ý thức, có đường lui).
+
+Nếu bạn là tác giả Trần Văn Chánh hoặc đại diện hợp pháp và muốn dữ liệu này được gỡ
+khỏi AuraTranslate, xin liên hệ chủ dự án qua kho mã nguồn của AuraTranslate trên
+GitHub — yêu cầu sẽ được xử lý bằng cách xoá tệp `dict-tran-van-chanh.db` khỏi bản phát
+hành kế tiếp.
+
+Toàn văn tuyên bố CC0 1.0 của người số hoá (áp dụng cho công sức số hoá, KHÔNG áp dụng
+cho bản quyền tác phẩm gốc — xem cảnh báo trên) nằm ở tệp cạnh đây: CC0-1.0.txt.
