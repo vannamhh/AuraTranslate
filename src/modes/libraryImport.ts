@@ -20,7 +20,7 @@ import { ref } from 'vue'
 import { listen } from '@tauri-apps/api/event'
 import type { UnlistenFn } from '@tauri-apps/api/event'
 import { createWorkFromFile, createWorkFromText } from '../config/project'
-import { resetSourcePanel } from '../panels/sourcePanelState'
+import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
 import { resetLookupPanel } from '../panels/lookupPanelState'
 import type { CreatedWork } from '../config/project'
 import type { IpcError } from '../i18n'
@@ -110,6 +110,28 @@ function finishSubmit(created: CreatedWork | null, error: IpcError | null): void
   if (created !== null) {
     resetSourcePanel()
     resetLookupPanel()
+
+    // 🔴 **VỨT state cũ là CHƯA ĐỦ — phải NẠP LẠI ngay tại đây.**
+    //
+    // `resetSourcePanel()` gỡ cờ `chapterRequested`, nhưng ⛔ ai gọi lại hàm nạp. Chỗ
+    // DUY NHẤT gọi `ensureChapterLoaded()` là `SourcePanel.vue::onMounted`, mà ba chế độ
+    // sống trong `<KeepAlive>` (`App.vue`, §Quyết định thiết kế #6) — `src/modes/README.md`
+    // viết thẳng: *"lần hiện thứ hai trở đi ⛔ có `mounted`"*. Nên với thứ tự thao tác
+    // THƯỜNG GẶP NHẤT:
+    //
+    //   mở app → xem Workspace trước (nạp hụt: ⛔ Tác phẩm nào đang mở)
+    //          → sang Library tạo Tác phẩm  (`replace_open_work` phía Rust ĐÃ trỏ đúng)
+    //          → quay lại Workspace          (KeepAlive ⇒ ⛔ `mounted` ⇒ ⛔ nạp lại)
+    //
+    // …Panel Source ở lại *"Chưa có Chương nào được mở"* **vĩnh viễn** dù Tác phẩm đã mở
+    // thật — người dùng phải khởi động lại app. Bắt bằng test tay 2026-08-07.
+    //
+    // ⚠️ Vá ở ĐÂY chứ ⛔ đổi `onMounted` → `onActivated` ở `SourcePanel.vue`: panel sống
+    // trong cây của dockview, nên nó có nhận được `activated` hay ⛔ là một câu hỏi về nội
+    // tình thư viện thứ ba — còn `finishSubmit` là điểm nghẽn mà **cả hai** nhánh nhập đã
+    // đi qua, và *"Tác phẩm đang mở vừa đổi"* là một dữ kiện mà chính chỗ này biết CHẮC.
+    // Cùng lý do reset đứng ở đây thay vì rải ra từng panel.
+    void ensureChapterLoaded()
   }
 }
 
