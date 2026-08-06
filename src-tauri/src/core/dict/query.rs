@@ -74,6 +74,44 @@ fn run(db: ReadHandle<'_>, sql: &str, params: &[&dyn ToSql]) -> SqlResult<Vec<En
     rows.collect()
 }
 
+/// 🔴 **Quyết định #4 (Story 1.17)** — cắt `hits` còn tối đa `limit` phần tử, trả kèm cờ
+/// **`truncated`**: `true` ⇔ còn hàng bị cắt bỏ.
+///
+/// ⚠️ Chỗ gọi phải truyền vào một `hits` đã **XÁC MINH ĐẦY ĐỦ** ([`verify_substring`] đã
+/// chạy nếu nhánh cần nó) — cắt TRƯỚC khi xác minh là Bẫy 11: trang hiện ra ít hơn `limit`
+/// mục thật và một dòng "còn M nữa" nói dối, vì `verify_substring` loại thêm hàng sau khi
+/// đã cắt.
+fn cap(mut hits: Vec<EntryHit>, limit: usize) -> (Vec<EntryHit>, bool) {
+    let limit = effective_limit(limit);
+    let truncated = hits.len() > limit;
+    hits.truncate(limit);
+    (hits, truncated)
+}
+
+/// 🔴 **Sàn DƯỚI của cỡ trang — `limit == 0` ⛔ không được đọc thành "⛔ trả gì cả".**
+///
+/// [`lookup`](super::lookup) và bạn bè là `pub`, nên `0` đi vào được. Một `LIMIT 0` cho
+/// `groups` **rỗng** kèm `truncated = true`, và panel khi đó hiện ĐỒNG THỜI *"⛔ tìm thấy"*
+/// và *"danh sách ⛔ đầy đủ"* — hai câu loại trừ nhau, ⛔ câu nào đúng. Một cỡ trang `0`
+/// ⛔ phải một yêu cầu hợp lệ mà là một lỗi chỗ gọi; hành vi ít gây hại nhất là coi nó như
+/// `1` và để cờ `truncated` nói phần còn lại.
+fn effective_limit(limit: usize) -> usize {
+    limit.max(1)
+}
+
+/// 🔴 **Trần hàng để ĐẶT VÀO SQL — ⛔ `limit as i64`.**
+///
+/// `usize::MAX` là thành ngữ tự nhiên nhất cho *"⛔ giới hạn"*, và `usize::MAX as i64` là
+/// **-1**: `saturating_add(1)` biến nó thành `LIMIT 0` ⇒ **0 hàng, `truncated = false`** —
+/// mất sạch dữ liệu, im lặng, ở một hàm `pub`. `saturating_add` ⛔ cứu được gì vì phép tràn
+/// đã xảy ra ở bước ép kiểu TRƯỚC nó. `try_from` + `unwrap_or(i64::MAX)` bão hoà đúng
+/// chiều: một trần lớn hơn số hàng khả dĩ đọc ra là *"lấy hết"*, ⛔ *"⛔ lấy gì"*.
+///
+/// Lấy `limit + 1` hàng để [`cap`] phân biệt được *"vừa đủ `limit`"* với *"còn nữa"*.
+fn fetch_rows(limit: usize) -> i64 {
+    i64::try_from(effective_limit(limit)).unwrap_or(i64::MAX).saturating_add(1)
+}
+
 /// 🔴 Phép **xác minh chuỗi con**, chạy ở Rust — dùng chung cho nhánh 2 và nhánh 3.
 ///
 /// Giữ một hàng khi `query` là chuỗi con của `headword` **hoặc** của `headword_simp`,
@@ -114,13 +152,20 @@ fn verify_substring(hits: Vec<EntryHit>, query: &str) -> Vec<EntryHit> {
 /// nên vế `OR` đi qua kế hoạch `MULTI-INDEX OR` của SQLite. `EXPLAIN QUERY PLAN` nguyên
 /// văn nằm ở §Debug Log References của story — thấy `SCAN dict_entry` thì câu này phải
 /// tách thành hai truy vấn `UNION`.
-pub(super) fn exact(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<EntryHit>> {
+///
+/// 🔴 **`LIMIT ?2` — Quyết định #4 (Story 1.17), tham số RÀNG BUỘC.** Nhánh này ⛔ không
+/// có bước xác minh (⛔ không [`verify_substring`]) nên `LIMIT` ở SQL an toàn — đo được
+/// kế hoạch vẫn `MULTI-INDEX OR` + `USE TEMP B-TREE FOR ORDER BY` cho ca này, nhưng nhánh
+/// 1 luôn rất nhanh (< 1 ms mọi ca đo) nên `LIMIT` ở đây chủ yếu cắt băng thông IPC.
+pub(super) fn exact(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
     let sql = format!(
         "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
          WHERE (e.headword = ?1 OR e.headword_simp = ?1) AND e.lang = 'zh' \
-         ORDER BY e.id"
+         ORDER BY e.id LIMIT ?2"
     );
-    run(db, &sql, &[&query])
+    let fetch = fetch_rows(limit);
+    let hits = run(db, &sql, &[&query, &fetch])?;
+    Ok(cap(hits, limit))
 }
 
 /// **Nhánh 2** — bảng đảo ngược `char_idx`, cho chuỗi con **1–2 ký tự**.
@@ -144,7 +189,7 @@ pub(super) fn exact(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<EntryHit>>
 /// tra cứu **tiếng Trung**; đường tra cứu tiếng Anh là [`exact_en`] và [`fts_trigram_en`]
 /// (Story 1.11b), ⛔ **không** một nhánh thứ tư ở đây. Story 1.11 viết dòng này khi hai
 /// hàm đó chưa tồn tại; chúng ⛔ vẫn không tồn tại **trong nhánh này**, và đó là điểm.
-pub(super) fn char_idx(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<EntryHit>> {
+pub(super) fn char_idx(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
     debug_assert!(
         query.chars().count() <= 2,
         "char_idx() expects a query of at most 2 characters (pick_branch() must filter \
@@ -156,19 +201,36 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<EntryHi
     let Some(first) = chars.next() else {
         // Truy vấn rỗng: ⛔ không hàng nào, và ⛔ không một lượt chạm database nào. Một
         // `SELECT` với tham số rỗng ở đây trả về đúng thứ này sau khi quét, chỉ chậm hơn.
-        return Ok(Vec::new());
+        return Ok((Vec::new(), false));
     };
 
     let Some(second) = chars.next() else {
+        // 🔴 **1 ký tự — ⛔ không bước xác minh** (xem doc-comment hàm này ở trên: một ký
+        // tự có mặt trong `char_idx` ⇔ nó là chuỗi con). `LIMIT ?2` ở SQL AN TOÀN và CẮT
+        // ĐƯỢC THỜI GIAN THẬT — đo (§Debug Log References của story): `char_idx` khai
+        // `PRIMARY KEY (ch, entry_id) WITHOUT ROWID`, nên `EXPLAIN QUERY PLAN` cho
+        // `LIST SUBQUERY` (driven bởi `SEARCH char_idx USING PRIMARY KEY`, đã sắp theo
+        // `entry_id` tăng dần) rồi `SEARCH e USING INTEGER PRIMARY KEY (rowid=?)` — streaming,
+        // ⛔ không `USE TEMP B-TREE FOR ORDER BY`. Đo tay: 9–12 ms (⛔ `LIMIT`) → ~1 ms
+        // (`LIMIT 20`), ~10×. Đây là nhánh ĐẮT NHẤT của cả sáu — vượt trần NFR1 (`:419`).
         let sql = format!(
             "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
              WHERE e.id IN (SELECT entry_id FROM char_idx WHERE ch = ?1) \
                AND e.lang = 'zh' \
-             ORDER BY e.id"
+             ORDER BY e.id LIMIT ?2"
         );
-        return run(db, &sql, &[&first.to_string()]);
+        let fetch = fetch_rows(limit);
+        let hits = run(db, &sql, &[&first.to_string(), &fetch])?;
+        return Ok(cap(hits, limit));
     };
 
+    // 🔴 **2 ký tự — Bẫy 11.** `verify_substring` PHẢI chạy trên TOÀN BỘ ứng viên trước khi
+    // cắt: một `LIMIT` ở SQL cắt ứng viên trước khi xác minh cho ra < `limit` mục thật và
+    // một dòng "còn M nữa" NÓI DỐI (`verify_substring` loại thêm dương tính giả sau khi đã
+    // cắt). ⇒ ⛔ không `LIMIT` ở SQL cho nhánh này — cắt ở RUST, SAU verify. Đo (§Debug Log):
+    // kế hoạch của nhánh này (`INTERSECT USING TEMP B-TREE`) ⛔ không `USE TEMP B-TREE FOR
+    // ORDER BY` ở outer query nên vốn đã streaming; và nhánh 2-ký-tự vốn dưới trần NFR1
+    // (3,451 ms p95, `:419`) nên không cần SQL `LIMIT` để đạt NFR1.
     let sql = format!(
         "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
          WHERE e.id IN ( \
@@ -180,7 +242,8 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<EntryHi
          ORDER BY e.id"
     );
     let candidates = run(db, &sql, &[&first.to_string(), &second.to_string()])?;
-    Ok(verify_substring(candidates, query))
+    let verified = verify_substring(candidates, query);
+    Ok(cap(verified, limit))
 }
 
 /// **Nhánh 3** — FTS5 `entry_fts` (`trigram`), cho chuỗi con **≥ 3 ký tự**.
@@ -197,9 +260,14 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<EntryHi
 /// 🔴 Dấu `"` bên trong truy vấn được **nhân đôi** trước khi bọc — đó là cách thoát của
 /// FTS5. ⛔ Không bỏ qua, ⛔ không xoá ký tự: xoá là im lặng trả về kết quả của một truy
 /// vấn khác truy vấn người dùng gõ.
-pub(super) fn fts_trigram(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<EntryHit>> {
+pub(super) fn fts_trigram(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
     let phrase = format!("\"{}\"", query.replace('"', "\"\""));
 
+    // 🔴 Cùng Bẫy 11 của `char_idx` 2 ký tự: `verify_substring` phải chạy trên TOÀN BỘ ứng
+    // viên trước khi cắt. ⛔ Không `LIMIT` ở SQL. Đo (`EXPLAIN QUERY PLAN`): nhánh này CÓ
+    // `USE TEMP B-TREE FOR ORDER BY` — một `LIMIT` ở SQL ⛔ sẽ không cắt được thời gian dù
+    // đặt trước hay sau verify — nhưng nhánh 3 vốn dưới trần NFR1 (0,6–2,0 ms mọi ca đo,
+    // §Debug Log), nên vô hại: `LIMIT` chỉ mua băng thông IPC ở nhánh này, cắt ở Rust đủ.
     let sql = format!(
         "SELECT {COLUMNS} FROM entry_fts f \
          JOIN dict_entry e ON e.id = f.rowid {JOIN_SOURCE} \
@@ -207,7 +275,8 @@ pub(super) fn fts_trigram(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<Entr
          ORDER BY e.id"
     );
     let candidates = run(db, &sql, &[&phrase])?;
-    Ok(verify_substring(candidates, query))
+    let verified = verify_substring(candidates, query);
+    Ok(cap(verified, limit))
 }
 
 /// **Nhánh tra chính xác của đường tiếng Anh** — tập khoá `{nguyên văn, hạ chữ thường}`
@@ -245,15 +314,18 @@ pub(super) fn fts_trigram(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<Entr
 /// ⚠️ ⛔ **Không** vế `headword_simp`: nó **luôn `NULL`** trên toàn bộ 119.039 mục tiếng
 /// Anh, nên một vế `OR e.headword_simp = ?` chỉ thêm một nhánh kế hoạch ⛔ không bao giờ
 /// khớp.
-pub(super) fn exact_en(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<EntryHit>> {
+pub(super) fn exact_en(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
     let lowered = query.to_lowercase();
 
+    // ⛔ Không bước xác minh (cùng lý do `exact`) ⇒ `LIMIT ?3` ở SQL an toàn.
     let sql = format!(
         "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
          WHERE e.headword IN (?1, ?2) AND e.lang = 'en' \
-         ORDER BY e.id"
+         ORDER BY e.id LIMIT ?3"
     );
-    run(db, &sql, &[&query, &lowered])
+    let fetch = fetch_rows(limit);
+    let hits = run(db, &sql, &[&query, &lowered, &fetch])?;
+    Ok(cap(hits, limit))
 }
 
 /// **Nhánh chuỗi con của đường tiếng Anh** — FTS5 `entry_fts` (`trigram`), **≥ 3 ký tự**.
@@ -271,9 +343,10 @@ pub(super) fn exact_en(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<EntryHi
 /// `None` với tiếng Anh — ⛔ ĐỪNG bỏ hàm vì thế.** Nó là hàng rào chống **dương tính giả**
 /// của trigram, và hàng rào đó ⛔ không phụ thuộc ngôn ngữ: FTS5 trả lời *"chứa các
 /// trigram này"*, ⛔ không trả lời *"chứa chuỗi này"*.
-pub(super) fn fts_trigram_en(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<EntryHit>> {
+pub(super) fn fts_trigram_en(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
     let phrase = format!("\"{}\"", query.replace('"', "\"\""));
 
+    // Cùng lý do `fts_trigram`: ⛔ không `LIMIT` ở SQL, cắt ở Rust sau verify.
     let sql = format!(
         "SELECT {COLUMNS} FROM entry_fts f \
          JOIN dict_entry e ON e.id = f.rowid {JOIN_SOURCE} \
@@ -281,5 +354,108 @@ pub(super) fn fts_trigram_en(db: ReadHandle<'_>, query: &str) -> SqlResult<Vec<E
          ORDER BY e.id"
     );
     let candidates = run(db, &sql, &[&phrase])?;
-    Ok(verify_substring(candidates, query))
+    let verified = verify_substring(candidates, query);
+    Ok(cap(verified, limit))
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.17 — ĐẾM ĐẦY ĐỦ THEO NGUỒN (Quyết định #4, §hệ quả ③ đường (a))
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Gom `hits` thành `(source_code, số đầu mục)`, sắp theo `code` — cùng thứ tự tất định
+/// mà tầng gom dùng cho `groups`, nên hai danh sách zip được với nhau ở chỗ gọi.
+fn tally(hits: &[EntryHit]) -> Vec<(String, i64)> {
+    let mut counts: Vec<(String, i64)> = Vec::new();
+    for hit in hits {
+        match counts.iter_mut().find(|(code, _)| *code == hit.source_code) {
+            Some((_, n)) => *n += 1,
+            None => counts.push((hit.source_code.clone(), 1)),
+        }
+    }
+    counts.sort_by(|a, b| a.0.cmp(&b.0));
+    counts
+}
+
+/// Chạy một câu `COUNT(*) … GROUP BY s.code` và dựng danh sách đã sắp.
+fn run_counts(db: ReadHandle<'_>, sql: &str, params: &[&dyn ToSql]) -> SqlResult<Vec<(String, i64)>> {
+    let mut stmt = db.prepare_cached(sql)?;
+    let rows = stmt.query_map(params, |row| Ok((row.get(0)?, row.get(1)?)))?;
+    rows.collect()
+}
+
+/// 🔴 **Đếm ĐẦY ĐỦ theo nguồn — số mà thanh nhịp nói ra khi trần đã cắt** (AC12).
+///
+/// ⚠️ **Hai hình dạng, ⛔ không một.** Ba nhánh ⛔ cần xác minh (`exact` · `exact_en` ·
+/// `char_idx` 1 ký tự) đếm bằng **SQL thuần** — rẻ, ⛔ chạm một hàng `dict_entry` nào.
+/// Ba nhánh CÓ xác minh (`char_idx` 2 ký tự · cả hai `fts_trigram`) **⛔ đếm được bằng
+/// SQL**: `COUNT(*)` ở đó đếm **ứng viên**, mà ứng viên chứa dương tính giả (đo thật:
+/// `中國` ⇒ 390 ứng viên, **40** sai). Một `COUNT` trên ứng viên là một con số **to hơn sự
+/// thật**, và thanh nhịp khi đó nói dối theo chiều ngược lại — đúng Bẫy 11, chỉ đổi dấu.
+/// ⇒ chúng đi qua **cùng** đường lấy-rồi-xác-minh, rồi đếm ở Rust.
+///
+/// 🔴 Chỗ gọi chỉ được chạy hàm này khi `truncated == true` — xem
+/// [`DictionarySource::count_by_source`](crate::ports::DictionarySource::count_by_source).
+pub(super) fn count_by_source(
+    db: ReadHandle<'_>,
+    query: &str,
+    route: super::QueryRoute,
+    branch: super::QueryBranch,
+) -> SqlResult<Vec<(String, i64)>> {
+    use super::{QueryBranch, QueryRoute};
+
+    match branch {
+        QueryBranch::ExactBtree => match route {
+            QueryRoute::Zh => {
+                let sql = format!(
+                    "SELECT s.code, COUNT(*) FROM dict_entry e {JOIN_SOURCE} \
+                     WHERE (e.headword = ?1 OR e.headword_simp = ?1) AND e.lang = 'zh' \
+                     GROUP BY s.code ORDER BY s.code"
+                );
+                run_counts(db, &sql, &[&query])
+            }
+            QueryRoute::En => {
+                let lowered = query.to_lowercase();
+                let sql = format!(
+                    "SELECT s.code, COUNT(*) FROM dict_entry e {JOIN_SOURCE} \
+                     WHERE e.headword IN (?1, ?2) AND e.lang = 'en' \
+                     GROUP BY s.code ORDER BY s.code"
+                );
+                run_counts(db, &sql, &[&query, &lowered])
+            }
+        },
+
+        QueryBranch::CharIdx => {
+            let mut chars = query.chars();
+            let Some(first) = chars.next() else {
+                return Ok(Vec::new());
+            };
+
+            if chars.next().is_none() {
+                // 1 ký tự — ⛔ bước xác minh (xem `char_idx`) ⇒ `COUNT` ở SQL ĐÚNG.
+                let sql = format!(
+                    "SELECT s.code, COUNT(*) FROM dict_entry e {JOIN_SOURCE} \
+                     WHERE e.id IN (SELECT entry_id FROM char_idx WHERE ch = ?1) \
+                       AND e.lang = 'zh' \
+                     GROUP BY s.code ORDER BY s.code"
+                );
+                return run_counts(db, &sql, &[&first.to_string()]);
+            }
+
+            // 2 ký tự — PHẢI xác minh trước khi đếm (xem doc-comment hàm này).
+            let (hits, _) = char_idx(db, query, usize::MAX)?;
+            Ok(tally(&hits))
+        }
+
+        QueryBranch::FtsTrigram => {
+            // Cả hai đường: ứng viên trigram PHẢI qua `verify_substring` trước khi đếm.
+            let (hits, _) = match route {
+                QueryRoute::Zh => fts_trigram(db, query, usize::MAX)?,
+                QueryRoute::En => fts_trigram_en(db, query, usize::MAX)?,
+            };
+            Ok(tally(&hits))
+        }
+
+        // ⛔ Không câu SQL nào chạy ở nhánh này (AD-44 ④) ⇒ ⛔ có gì để đếm.
+        QueryBranch::NoBranchQueryTooShort => Ok(Vec::new()),
+    }
 }

@@ -161,11 +161,14 @@ pub(super) fn read_senses(db: ReadHandle<'_>, entry_ids: &[i64]) -> SqlResult<Ve
     let entry_ids = entry_ids.as_slice();
 
     let mut senses = run_batched(db, &SENSE_SQL, entry_ids, |row| {
+        let pos_lang: Option<String> = row.get(3)?;
         Ok(SenseRecord {
             sense_id: row.get(0)?,
             entry_id: row.get(1)?,
             pos: row.get(2)?,
-            pos_lang: row.get(3)?,
+            // FR35 — vị từ quyết ở RUST, ⛔ ở webview (AD-1). Xem `is_foreign_lang`.
+            pos_is_foreign: super::is_foreign_lang(pos_lang.as_deref()),
+            pos_lang,
             gloss: row.get(4)?,
             note: row.get(5)?,
             ord: row.get(6)?,
@@ -184,12 +187,15 @@ pub(super) fn read_senses(db: ReadHandle<'_>, entry_ids: &[i64]) -> SqlResult<Ve
 
     let mut examples: HashMap<i64, Vec<ExampleRecord>> = HashMap::new();
     for (sense_id, example) in run_batched(db, &EXAMPLE_SQL, &sense_ids, |row| {
+        let translation_lang: Option<String> = row.get(3)?;
         Ok((
             row.get::<_, i64>(0)?,
             ExampleRecord {
                 text: row.get(1)?,
                 translation: row.get(2)?,
-                translation_lang: row.get(3)?,
+                // AC4 — "cùng luật" nghĩa là cùng MỘT hàm, ⛔ hai bản chép.
+                translation_is_foreign: super::is_foreign_lang(translation_lang.as_deref()),
+                translation_lang,
                 ord: row.get(4)?,
             },
         ))

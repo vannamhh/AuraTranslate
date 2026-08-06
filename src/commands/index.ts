@@ -183,6 +183,28 @@ export type CommandDeps = {
   /** Đổi kiểu xem (chuyển đổi ↔ song song) của tab Hán Việt. Handler của
    * `source.toggle_han_viet_view` (AC6). */
   toggleHanVietView?: () => void
+
+  // ── Story 1.17 — một lượt tra Panel Lookup ──────────────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `selectSourceTab`: `lookupPanelState.ts` dùng
+  // `ref`/`computed` của Vue — import thẳng nó ở đây giết Kiểm C/D/E cùng lý do
+  // `@tauri-apps/api` bị cấm.
+
+  /**
+   * Chạy một lượt tra Panel Lookup. Handler của `lookup.lookup_selection` (Quyết định #1a).
+   *
+   * ⚠️ `runLookup` thật là `async`; kiểu `() => void` ở đây khớp cùng khuôn
+   * `submitPastedText`/`submitFilePath` — promise trả về bị bỏ qua có chủ ý (fire-and-forget,
+   * state cập nhật qua `ref` module-level).
+   */
+  runLookup?: (query: string) => void
+  /**
+   * 🔴 Chỗ lấy vùng chọn — **Quyết định #1a, ranh giới với Story 1.18**. Đây ⛔ **không**
+   * phải hợp đồng vùng chọn dùng chung cho bốn panel (đó là Story 1.18); nó là một dep
+   * TỐI THIỂU chỉ để story này nghiệm thu được mà ⛔ lấn phạm vi. Story 1.18 thay ĐÚNG dep
+   * này bằng hợp đồng thật, ⛔ phải chạm `runLookup`/component nào khác.
+   */
+  currentSelection?: () => string
   /**
    * Các panel đang HIỆN, theo **thứ tự bố cục** (AC9).
    *
@@ -430,6 +452,29 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
         return portMissing('source.toggle_han_viet_view', 'toggleHanVietView')
       }
       deps.toggleHanVietView()
+    },
+  })
+
+  /**
+   * `lookup.lookup_selection` — Story 1.17, Quyết định #1a.
+   *
+   * 🔴 **CÓ phím** (⛔ không thao tác chỉ tới được bằng chuột — cùng lý lẽ với
+   * `source.select_tab_*`, khác `layout.toggle_*` cố ý không gán phím). ⚠️ Vùng chọn RỖNG
+   * là thao tác VÔ HẠI (⛔ không lỗi) — cùng luật `selectSourceTab`/`toggleHanVietView` khi
+   * thao tác không áp dụng.
+   */
+  target.register({
+    id: 'lookup.lookup_selection',
+    labelKey: 'command.lookup.lookup_selection',
+    keys: chordsFor('lookup.lookup_selection', bindings, ['Mod+Alt+L']),
+    run: () => {
+      if (deps.runLookup === undefined) return portMissing('lookup.lookup_selection', 'runLookup')
+      if (deps.currentSelection === undefined) {
+        return portMissing('lookup.lookup_selection', 'currentSelection')
+      }
+      const text = deps.currentSelection()
+      if (text.trim() === '') return
+      deps.runLookup(text)
     },
   })
 }

@@ -70,18 +70,21 @@ const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
  * sàn trong khi số component có thể về 0, và toàn bộ AD-34 xanh rỗng.
  *
  * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md:48` và `:146`.
+ * NÂNG LẠI 2026-08-06 — Story 1.17 · Task 10 (AC13): sàn 1.14 (26/23) đã tụt xuống
+ * ~62–65% số thật sau ba story liên tiếp (1.15/1.16/1.17) — dưới hẳn tỷ lệ ~81% mà chính
+ * comment này đặt ra, tức sàn đã "canh không được gì" đúng như cảnh báo ở dưới.
  *
- * Số THẬT sau Story 1.14: **32** tệp trong tầm quét, trong đó **29** là component (ngoài
- * `src/tokens/**`). Trước story này là 21/18. Cây mọc thêm bốn panel, `PanelTab`,
- * `WorkspaceDock`, `dockview-theme.css`, và bốn tệp `.ts` của `src/layout/`.
+ * Số THẬT sau Story 1.17: **40** tệp trong tầm quét, trong đó **37** là component (ngoài
+ * `src/tokens/**`). Sau Story 1.14 là 32/29. Cây mọc thêm `LookupPanel.vue` (nội dung
+ * thật), `LookupRecord.vue`, `lookupPanelState.ts`, cộng các tệp trước đó của 1.15/1.16.
  *
  * ⚠️ Sàn đặt ở ~81% số thật — cùng tỷ lệ dư địa mà `RS_FLOOR` của `check-i18n.mjs` giữ,
  * và cùng lý lẽ: sàn tồn tại để bắt một cây bị **CẮT MẤT**, ⛔ không phải để đếm tệp mới.
  * Đặt nó bằng số thật là tự tạo một cổng đỏ ở story sau, và một cổng đỏ vì một lý do
  * không có thật là một cổng sắp bị gỡ.
  */
-const FILE_FLOOR = 26
-const COMPONENT_FILE_FLOOR = 23
+const FILE_FLOOR = 32
+const COMPONENT_FILE_FLOOR = 30
 
 let failures = 0
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
@@ -215,14 +218,15 @@ const EXPECTED_ROUNDED = {
 }
 
 /**
- * Đếm bắt buộc — 16 / 16 / 16 / 4. ⛔ 16, KHÔNG phải 17: `tm-rule` cùng giá trị hai theme.
+ * Đếm bắt buộc — 16 / 17 / 16 / 4. ⛔ 16 màu, KHÔNG phải 17: `tm-rule` cùng giá trị hai theme.
  *
- * ⚠️ `typography` là **16** kể từ Story 1.16 (`source-latin`, Quyết định #6) — trước đó
- * đã là **15** kể từ Story 1.14 (`ui-md-strong`, AC10), ⛔ không phải 14 như §Bảng token
- * typography của `DESIGN.md` còn ghi. Cả hai lệch đó CÓ CHỦ Ý và có chữ ký — xem
- * `deviations` trong `tokens.json`. Sửa `DESIGN.md` cho khớp là một lượt riêng của Ice.
+ * ⚠️ `typography` là **17** kể từ Story 1.17 (`ui-md-wrap`, Quyết định #7) — trước đó đã
+ * là **16** kể từ Story 1.16 (`source-latin`, Quyết định #6), và **15** kể từ Story 1.14
+ * (`ui-md-strong`, AC10), ⛔ không phải 14 như §Bảng token typography của `DESIGN.md` còn
+ * ghi. Cả ba lệch đó CÓ CHỦ Ý và có chữ ký — xem `deviations` trong `tokens.json`. Sửa
+ * `DESIGN.md` cho khớp là một lượt riêng của Ice.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 16, typography: 16, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 16, typography: 17, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -1563,9 +1567,10 @@ console.log('     minh khe 2px hiện ra đúng trên màn hình.')
 console.log('  2. Kiểm C kiểm DANH SÁCH ĐÃ KHAI, không phải những cặp tình cờ tồn tại trong mã.')
 console.log('     Khi Story 1.14 dựng panel thật, cặp mới phải được thêm vào `contrast.pairs` —')
 console.log('     phép kiểm đầy đủ (C1) là thứ bắt việc quên thêm.')
-console.log('  3. NĂM deviation khỏi bảng DESIGN.md đang được áp — ba cái Ice PHÊ CHUẨN 2026-08-03,')
+console.log('  3. SÁU deviation khỏi bảng DESIGN.md đang được áp — ba cái Ice PHÊ CHUẨN 2026-08-03,')
 console.log('     cái thứ tư (`typography.ui-md-strong`, token NGOÀI bảng) là Story 1.14 · AC10,')
-console.log('     cái thứ năm (`typography.source-latin`, token NGOÀI bảng) là Story 1.16 · QĐ #6.')
+console.log('     cái thứ năm (`typography.source-latin`, token NGOÀI bảng) là Story 1.16 · QĐ #6,')
+console.log('     cái thứ sáu (`typography.ui-md-wrap`, token NGOÀI bảng) là Story 1.17 · QĐ #7.')
 console.log('     `DESIGN.md` chưa được sửa cho khớp — đó là một lượt riêng của Ice, không phải')
 console.log('     của dev. Xem `deviations` trong `tokens.json`.')
 console.log('  4. Cờ `wraps` là mệnh đề về NỘI DUNG sẽ chạy qua token; không phép kiểm tĩnh nào')

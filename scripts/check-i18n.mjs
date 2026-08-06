@@ -270,8 +270,11 @@ const vueFiles = keep(vueAll)
  * vẫn qua. Sàn nội dung tương ứng của cổng này là Kiểm B (`16` khoá `vi.json`, object
  * phẳng) và Kiểm E (hành vi thật của `resolve.ts`).
  */
-const RS_FLOOR = 32 // số THẬT 2026-08-06: 40 tệp `.rs`
-const VUE_FLOOR = 10 // số THẬT 2026-08-06: 12 tệp `.vue`
+// 🔴 NÂNG 2026-08-07 (code review) — cùng lý do `CLICK_FLOOR` của `check-commands.mjs`:
+// AC13 gọi đích danh sàn này (*"`RS_FLOOR` **32** vs 39"*) và bản đầu đánh dấu nó *"không
+// đổi"* thay vì nâng. 32/40 = 80%, sát mép dưới; 34/40 = 85%, khớp doctrine.
+const RS_FLOOR = 34 // số THẬT 2026-08-07: 40 tệp `.rs`
+const VUE_FLOOR = 11 // số THẬT 2026-08-06 (sau Story 1.17): 13 tệp `.vue`
 if (rsFiles.length < RS_FLOOR || vueFiles.length < VUE_FLOOR) {
   abort(
     `quần thể quét — ${rsFiles.length} tệp \`.rs\` (sàn ${RS_FLOOR}) · ` +

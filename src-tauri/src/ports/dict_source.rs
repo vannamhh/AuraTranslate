@@ -70,11 +70,16 @@ pub trait DictionarySource {
     /// [`crate::core::dict::pick_branch`]) và truyền cùng giá trị xuống **mọi** tệp. Để mỗi
     /// tệp tự tính lại là để chỉ còn một `debug_assert_eq!` — vô tác dụng ở bản release —
     /// giữ chúng khớp nhau.
+    ///
+    /// 🔴 `limit` — **Quyết định #4 (Story 1.17)**, cũng nhận từ chỗ gọi và cũng là một
+    /// GIÁ TRỊ của cả lượt tra, truyền cùng xuống mọi tệp (cùng doctrine `route`/`branch`).
+    /// Trần số hàng **của riêng tệp này**; [`LookupResult::truncated`] báo khi trần đã cắt.
     fn lookup(
         &self,
         query: &str,
         route: QueryRoute,
         branch: QueryBranch,
+        limit: usize,
     ) -> Result<LookupResult, StoreError>;
 
     /// **Pha hai** — đọc nghĩa · ví dụ · trích dẫn cho một tập đầu mục **do chỗ gọi chọn**.
@@ -86,6 +91,27 @@ pub trait DictionarySource {
     /// một tệp `.db`**. Truyền id của tệp khác vào đây là đọc nhầm nghĩa mà ⛔ không lỗi
     /// nào được ném; đó là lý do pha hai đi **qua một lớp cụ thể** chứ ⛔ không qua tập lớp.
     fn senses(&self, entry_ids: &[i64]) -> Result<Vec<SenseRecord>, StoreError>;
+
+    /// **Đếm ĐẦY ĐỦ theo nguồn** — Story 1.17, Quyết định #4 §hệ quả ③, đường (a).
+    ///
+    /// 🔴 **Chỉ chạy khi [`LookupResult::truncated`] là `true`.** Đó là điều kiện tồn tại
+    /// của method này, ⛔ không phải một lời khuyên tối ưu: phần lớn lượt tra ⛔ chạm trần,
+    /// và bắt mọi lượt trả thêm giá một `COUNT` để phục vụ một thiểu số là đúng thứ §hệ quả
+    /// ③ cân nhắc rồi loại.
+    ///
+    /// Trả `(source_code, số đầu mục khớp)` cho **mọi** nguồn có ít nhất một đầu mục khớp
+    /// trong tệp này — kể cả nguồn mà trần vừa cắt mất hoàn toàn khỏi [`Self::lookup`]. Đây
+    /// là thứ duy nhất cho phép thanh nhịp nói một con số **đúng** thay vì con số của phần
+    /// đã bị cắt (AC12: *"thanh nhịp ⛔ không bao giờ khẳng định một con số nó ⛔ không biết"*).
+    ///
+    /// ⚠️ Cùng `route`/`branch` với lượt [`Self::lookup`] vừa chạy — một phép đếm trên một
+    /// nhánh khác là một phép đếm của một câu hỏi khác.
+    fn count_by_source(
+        &self,
+        query: &str,
+        route: QueryRoute,
+        branch: QueryBranch,
+    ) -> Result<Vec<(String, i64)>, StoreError>;
 
     /// **Method thứ ba** — âm Hán Việt cho một **LÔ ký tự**. Story 1.16, Quyết định #2.
     ///

@@ -197,14 +197,26 @@ const tsFiles = keep(tsAll)
  * ⚠️ Và sàn ĐẾM TỆP thì một tệp RỖNG vẫn qua — đó là giới hạn thật của cơ chế này, và nó
  * được bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
  */
-const VUE_FLOOR = 10 // số THẬT 2026-08-06: 12 tệp `.vue`
-const TS_FLOOR = 19 // số THẬT 2026-08-06: 23 tệp `.ts`
+// 🔴 NÂNG SÀN 2026-08-06 — Story 1.17 · Task 10 (AC13). Số THẬT sau story: 13 tệp `.vue` ·
+// 24 tệp `.ts` · 17 command · 8 `@click` · 12 lời gọi `dispatch()` (trước story: 12/23/16/8/12).
+//
+// ⚠️ **Sửa sổ sách 2026-08-07 (code review).** Bản đầu ghi *"trước story: … 8"* cho
+// `dispatch()` và dùng con số đó để biện minh cho một lượt nâng sàn 6 → 10. Đếm lại bằng
+// CHÍNH `DISPATCH_CALL_RE` của cổng: **12 trước, 12 sau** — Story 1.17 ⛔ thêm hay bớt một
+// lời gọi `dispatch()` nào (`git diff` trên `src/**` ⛔ một dòng `dispatch(` nào). Số "8"
+// là ghi chép cũ chưa cập nhật từ 1.16, và nó đã bị chép lại thành một mệnh đề nhân quả
+// SAI. Sàn 10 vẫn đúng theo số thật 12 nên ⛔ hạ lại; chỉ **lý do** được sửa cho khớp sự
+// thật — một con số bịa trong đúng tệp mà cả kiến trúc dựa vào để tin các con số là chính
+// thứ rot mà AC13 tồn tại để chặn.
+const VUE_FLOOR = 11 // số THẬT 2026-08-06 (sau Story 1.17): 13 tệp `.vue`
+const TS_FLOOR = 20 // số THẬT 2026-08-06 (sau Story 1.17): 24 tệp `.ts`
 /**
- * ⚠️ Sàn command: **11** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
- * hai `layout.preset_*` · bốn `layout.toggle_*`. Một bộ đăng ký rỗng làm Kiểm B, D và E
- * xanh mà không kiểm gì.
+ * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
+ * hai `layout.preset_*` · bốn `layout.toggle_*` · hai `library.import_*` · ba
+ * `source.select_tab_*`/`toggle_han_viet_view` · `lookup.lookup_selection` (Story 1.17).
+ * Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà không kiểm gì.
  */
-const COMMAND_FLOOR = 13 // số THẬT 2026-08-06: 16 command
+const COMMAND_FLOOR = 14 // số THẬT 2026-08-06 (sau Story 1.17): 17 command
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
@@ -218,8 +230,12 @@ const COMMAND_FLOOR = 13 // số THẬT 2026-08-06: 16 command
  * literal. Sàn đặt đúng bằng số thật: hôm nay không có lý do chính đáng nào để một trong
  * hai con số đó giảm, và ngày Story 1.14 dựng panel thật thì chúng chỉ tăng.
  */
-const CLICK_FLOOR = 6 // số THẬT 2026-08-06: 8 thuộc tính `@click`
-const DISPATCH_FLOOR = 6 // số THẬT 2026-08-06: 8 lời gọi `dispatch()`
+// 🔴 NÂNG 2026-08-07 (code review) — AC13 gọi ĐÍCH DANH sàn này (*"`CLICK/DISPATCH_FLOOR`
+// **6** vs 8"*) và đòi *"**mọi** hằng `*_FLOOR` bị vượt được nâng theo số thật"*. Bản đầu
+// đánh dấu nó *"không đổi ở Story 1.17"* thay vì nâng — 6/8 = 75%, dưới hẳn doctrine
+// ~81-85% mà **mọi** sàn khác trong cùng lượt tuân theo. Đúng cách 1.16 để lọt và bị bắt.
+const CLICK_FLOOR = 7 // số THẬT 2026-08-07: 8 thuộc tính `@click`
+const DISPATCH_FLOOR = 10 // số THẬT 2026-08-06 (sau Story 1.17): 12 lời gọi `dispatch()`
 
 if (vueFiles.length < VUE_FLOOR || tsFiles.length < TS_FLOOR) {
   abort(

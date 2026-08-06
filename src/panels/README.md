@@ -11,7 +11,7 @@ Component đặt tên `PascalCase.vue` (Consistency Conventions). Panel Lookup �
 | `PanelFrame.vue` — vỏ panel + **hợp đồng thị giác tiêu điểm** (AC5, UX-DR8, UX-DR17) | **1.6** | ✅ đã dựng |
 | Bốn panel thật trong `dockview`, lưới 2×2, preset bố cục, ngưỡng màn hình hẹp | **1.14** | ⬜ |
 | Nội dung panel Source + tab Hán Việt | **1.16** | ✅ đã dựng |
-| Nội dung panel Lookup — bản ghi từ điển có cấu trúc | **1.17** | ⬜ |
+| Nội dung panel Lookup — bản ghi từ điển có cấu trúc | **1.17** | ✅ đã dựng |
 | Panel AiTranslation | **Epic 4** | ⬜ |
 | Panel Editor | **Epic 2** | ⬜ |
 
@@ -36,9 +36,11 @@ Bốn biến do `applyTheme()` ghi (`--panel-border-width` · `--panel-border-co
 
 ## Chữ trong thân panel
 
-⚠️ Ba panel còn lại (Lookup, AiTranslation, Editor) hôm nay **để trống**. Ngày chúng đổ chữ vào, bề mặt đó **phải khai token `read-*` / `source-*` / `lookup-*` của chính nó**. Mặc định kế thừa từ `body` là `ui-md` ở giãn dòng **1.5** — dưới sàn 1.66 của AC5 Story 1.4 — và Kiểm E của `check-tokens.mjs` chỉ đọc `tokens.json` nên hoàn toàn mù với việc component nào đang kế thừa gì. Xem mục tương ứng ở `deferred-work.md`.
+⚠️ Hai panel còn lại (AiTranslation, Editor) hôm nay **để trống**. Ngày chúng đổ chữ vào, bề mặt đó **phải khai token `read-*` / `source-*` / `lookup-*` của chính nó**. Mặc định kế thừa từ `body` là `ui-md` ở giãn dòng **1.5** — dưới sàn 1.66 của AC5 Story 1.4 — và Kiểm E của `check-tokens.mjs` chỉ đọc `tokens.json` nên hoàn toàn mù với việc component nào đang kế thừa gì. Xem mục tương ứng ở `deferred-work.md`.
 
 **Panel Source (Story 1.16) đã đóng nửa của nó**: nguyên văn khai `source-cjk` (tiếng Trung) hoặc `source-latin` (tiếng Anh — token thứ 16, Quyết định #6) tuỳ `work.source_lang`; tab Hán Việt khai `source-hanviet`. State (Chương đã nạp, tab/kiểu xem đang chọn, âm Hán Việt đã tra) sống ở `src/panels/sourcePanelState.ts` — module-level, sống sót qua một lượt đổi preset (AC9). Xem doc-comment đầu `SourcePanel.vue`/`SourceHanViet.vue`.
+
+**Panel Lookup (Story 1.17) đã dựng xong bản ghi có cấu trúc**: đầu mục khai `lookup-headword`, nghĩa khai `lookup-gloss`, ví dụ/trích dẫn/ghi chú/từ loại khai `lookup-example`, nhãn nguồn + nhãn ngoại ngữ khai `ui-label`. Khối một nguồn sống ở `src/panels/LookupRecord.vue` (nhận `group`/`senses` đã lọc sẵn); vùng đầu mục cố định + thanh nhịp + bốn trạng thái rỗng + hai banner sống ở `LookupPanel.vue`. State (truy vấn, kết quả pha một+hai, năm vị từ trạng thái) sống ở `src/panels/lookupPanelState.ts` — module-level, sống sót qua đổi preset, reset khi đổi Tác phẩm (AC10). Đường kích hoạt là phím `Mod+Alt+L` (`lookup.lookup_selection`), lấy vùng chọn qua `window.getSelection()` — dep TỐI THIỂU, Story 1.18 sẽ thay bằng hợp đồng vùng chọn dùng chung cho bốn panel. ⚠️ **Món nợ chưa đóng**: hình dạng hiển thị cho mục từ TIẾNG ANH (`deferred-work.md:317`) dùng tạm cấu trúc khối giống tiếng Trung — chủ sở hữu vẫn là Sally (UX), ⛔ chưa phải chữ ký chính thức.
 
 ## Điểm vào focus
 

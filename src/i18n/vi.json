@@ -28,6 +28,7 @@
   "command.source.select_tab_original": "Xem nguyên văn",
   "command.source.select_tab_han_viet": "Xem âm Hán Việt",
   "command.source.toggle_han_viet_view": "Đổi kiểu xem âm Hán Việt",
+  "command.lookup.lookup_selection": "Tra cứu đoạn đang chọn",
   "mode.library.status": "Library chưa có Tác phẩm nào.",
   "mode.library.empty_body": "Một Tác phẩm là một dự án dịch, lưu thành một thư mục trên máy. Copy thư mục đó đi đâu cũng mở lại được.",
   "mode.library.field_name": "Tên Tác phẩm",
@@ -60,6 +61,17 @@
   "panel.source.han_viet_sources_prefix": "Nguồn:",
   "panel.source.parallel_view_unavailable": "Chương quá dài để xem song song — chỉ còn kiểu chuyển đổi khả dụng.",
   "panel.lookup.status": "Chọn một từ trong Nguyên văn để tra cứu.",
+  "panel.lookup.not_found": "Không tìm thấy trong từ điển. Thử tra từng chữ trong cụm vừa chọn.",
+  "panel.lookup.query_too_short": "Truy vấn quá ngắn để tra chuỗi con — gõ thêm ít nhất ba ký tự.",
+  "panel.lookup.no_layers": "Chưa gắn lớp từ điển nào — không có kết quả để tra.",
+  "panel.lookup.some_layer_failed": "Một phần từ điển không trả lời — kết quả có thể chưa đầy đủ.",
+  "panel.lookup.list_incomplete": "Danh sách nguồn chưa đầy đủ — còn kết quả chưa hiện.",
+  "panel.lookup.sources_disagree": "Có nhiều hơn một nguồn cho mục này — đối chiếu từng khối để tự chọn.",
   "panel.ai_translation.status": "Chưa có nhà cung cấp AI nào được cấu hình. Thêm một khoá trong Cài đặt để bật đề xuất tự động.",
-  "panel.editor.status": "Chưa có Chương nào để dịch."
+  "panel.editor.status": "Chưa có Chương nào để dịch.",
+  "panel.lookup.lookup_failed": "Không tra cứu được — thử lại, hoặc kiểm tra lại các lớp từ điển đang gắn.",
+  "panel.lookup.query_truncated": "Vùng chọn quá dài — chỉ phần đầu được đem đi tra.",
+  "panel.lookup.unit_sources": "nguồn",
+  "panel.lookup.unit_senses": "nghĩa",
+  "panel.lookup.at_least": "ít nhất"
 }

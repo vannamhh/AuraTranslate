@@ -42,6 +42,11 @@ use auratranslate_lib::core::dict::{
 };
 use auratranslate_lib::core::store::{ReadOnlyDb, StoreKind};
 
+/// 🔴 Trần pha một (Quyết định #4, Story 1.17) — mọi fixture của tệp này có dưới mười
+/// hàng, nên một trần lớn giữ nguyên hành vi trước story: ⛔ không ca nào trong tệp này
+/// nhắm tới việc đo `truncated` — xem `dict_sources.rs` cho các ca đó (AC12).
+const UNLIMITED: usize = 10_000;
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // DDL — CHÉP NGUYÊN VĂN từ `tools/dict-build/src/schema.rs`
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -307,7 +312,7 @@ fn open_fixture(path: &Path) -> ReadOnlyDb {
 
 /// Tra qua đường sản phẩm và trả về danh sách đầu mục đã khớp.
 fn hits(db: &ReadOnlyDb, query: &str, mode: LookupMode, route: QueryRoute) -> Vec<String> {
-    db.read(|conn| lookup(conn, query, mode, route))
+    db.read(|conn| lookup(conn, query, mode, route, UNLIMITED))
         .unwrap_or_else(|e| panic!("tra {query:?}: {e:?}"))
         .hits
         .into_iter()
@@ -384,13 +389,13 @@ fn the_branch_that_ran_is_part_of_the_returned_value() {
     {
         let db = open_fixture(&path);
         let one = db
-            .read(|c| lookup(c, "山", LookupMode::Substring, QueryRoute::Zh))
+            .read(|c| lookup(c, "山", LookupMode::Substring, QueryRoute::Zh, UNLIMITED))
             .unwrap();
         let three = db
-            .read(|c| lookup(c, "中國人", LookupMode::Substring, QueryRoute::Zh))
+            .read(|c| lookup(c, "中國人", LookupMode::Substring, QueryRoute::Zh, UNLIMITED))
             .unwrap();
         let exact = db
-            .read(|c| lookup(c, "中國", LookupMode::Exact, QueryRoute::Zh))
+            .read(|c| lookup(c, "中國", LookupMode::Exact, QueryRoute::Zh, UNLIMITED))
             .unwrap();
 
         assert_eq!(one.branch, QueryBranch::CharIdx);
@@ -667,7 +672,7 @@ fn results_carry_the_source_code_not_the_id() {
     {
         let db = open_fixture(&path);
         let result = db
-            .read(|conn| lookup(conn, "山", LookupMode::Substring, QueryRoute::Zh))
+            .read(|conn| lookup(conn, "山", LookupMode::Substring, QueryRoute::Zh, UNLIMITED))
             .unwrap();
 
         assert!(!result.hits.is_empty());
@@ -715,7 +720,7 @@ fn an_fts_query_with_syntax_characters_does_not_error() {
         let db = open_fixture(&path);
         for query in ["a*b", "a-b-c", "a\"b\"c", "x(y):z", "NEAR foo", "^abc"] {
             let outcome =
-                db.read(|conn| lookup(conn, query, LookupMode::Substring, QueryRoute::Zh));
+                db.read(|conn| lookup(conn, query, LookupMode::Substring, QueryRoute::Zh, UNLIMITED));
             assert!(
                 outcome.is_ok(),
                 "truy vấn {query:?} làm tra cứu BÁO LỖI thay vì trả rỗng: {:?}",
@@ -956,7 +961,7 @@ fn an_english_substring_query_matches_a_headword_of_different_case() {
     {
         let db = open_fixture(&path);
         let result = db
-            .read(|conn| lookup(conn, "api", LookupMode::Substring, QueryRoute::En))
+            .read(|conn| lookup(conn, "api", LookupMode::Substring, QueryRoute::En, UNLIMITED))
             .unwrap();
 
         assert_eq!(result.branch, QueryBranch::FtsTrigram);
@@ -985,7 +990,7 @@ fn an_english_substring_query_of_three_characters_uses_the_trigram_branch() {
     {
         let db = open_fixture(&path);
         let result = db
-            .read(|conn| lookup(conn, "dic", LookupMode::Substring, QueryRoute::En))
+            .read(|conn| lookup(conn, "dic", LookupMode::Substring, QueryRoute::En, UNLIMITED))
             .unwrap();
 
         assert_eq!(result.branch, QueryBranch::FtsTrigram);
@@ -1032,7 +1037,7 @@ fn a_short_english_substring_query_reports_not_supported_not_no_results() {
         // `chars().count() < 3`, ⛔ không phải hai mệnh đề với một ca đặc biệt ở giữa.
         for query in ["", "l", "lo"] {
             let result = db
-                .read(|conn| lookup(conn, query, LookupMode::Substring, QueryRoute::En))
+                .read(|conn| lookup(conn, query, LookupMode::Substring, QueryRoute::En, UNLIMITED))
                 .unwrap_or_else(|e| panic!("tra {query:?}: {e:?}"));
 
             assert_eq!(
@@ -1049,7 +1054,7 @@ fn a_short_english_substring_query_reports_not_supported_not_no_results() {
         // khớp gì trả về một nhánh KHÁC với `hits` cũng rỗng. Không có phép so này, hai
         // trạng thái đọc giống hệt nhau ở phía chỗ gọi.
         let ran = db
-            .read(|conn| lookup(conn, "zzz", LookupMode::Substring, QueryRoute::En))
+            .read(|conn| lookup(conn, "zzz", LookupMode::Substring, QueryRoute::En, UNLIMITED))
             .unwrap();
         assert_eq!(ran.branch, QueryBranch::FtsTrigram);
         assert!(ran.hits.is_empty());
@@ -1092,7 +1097,7 @@ fn a_too_short_english_query_prepares_no_sql_at_all() {
 
         for query in ["", "l", "lo"] {
             let outcome =
-                db.read(|conn| lookup(conn, query, LookupMode::Substring, QueryRoute::En));
+                db.read(|conn| lookup(conn, query, LookupMode::Substring, QueryRoute::En, UNLIMITED));
             let result = outcome.unwrap_or_else(|e| {
                 panic!(
                     "truy vấn {query:?} đã CHUẨN BỊ một câu SQL trên một database ⛔ không \
@@ -1105,7 +1110,7 @@ fn a_too_short_english_query_prepares_no_sql_at_all() {
         }
 
         // Đối chứng dương: một truy vấn ĐỦ DÀI **có** chạm database, nên nó đỏ ở đây.
-        let outcome = db.read(|conn| lookup(conn, "dic", LookupMode::Substring, QueryRoute::En));
+        let outcome = db.read(|conn| lookup(conn, "dic", LookupMode::Substring, QueryRoute::En, UNLIMITED));
         assert!(
             outcome.is_err(),
             "một truy vấn 3 ký tự ⛔ KHÔNG chạm database — vậy thì ca ở trên ⛔ không kiểm \
@@ -1202,7 +1207,7 @@ fn both_english_branches_filter_out_chinese_entries() {
 
         // ── Nhánh trigram ────────────────────────────────────────────────────────
         let forced = db
-            .read(|conn| lookup(conn, "中國人", LookupMode::Substring, QueryRoute::En))
+            .read(|conn| lookup(conn, "中國人", LookupMode::Substring, QueryRoute::En, UNLIMITED))
             .unwrap();
         assert_eq!(
             forced.branch,
@@ -1250,7 +1255,7 @@ fn an_english_fts_query_with_syntax_characters_does_not_error() {
             "^abc",
         ] {
             let outcome =
-                db.read(|conn| lookup(conn, query, LookupMode::Substring, QueryRoute::En));
+                db.read(|conn| lookup(conn, query, LookupMode::Substring, QueryRoute::En, UNLIMITED));
             assert!(
                 outcome.is_ok(),
                 "truy vấn {query:?} làm tra cứu BÁO LỖI thay vì trả rỗng: {:?}",
@@ -1277,10 +1282,10 @@ fn both_routes_return_the_same_record_shape() {
         let db = open_fixture(&path);
 
         let zh = db
-            .read(|conn| lookup(conn, "山", LookupMode::Substring, QueryRoute::Zh))
+            .read(|conn| lookup(conn, "山", LookupMode::Substring, QueryRoute::Zh, UNLIMITED))
             .unwrap();
         let en = db
-            .read(|conn| lookup(conn, "API", LookupMode::Exact, QueryRoute::En))
+            .read(|conn| lookup(conn, "API", LookupMode::Exact, QueryRoute::En, UNLIMITED))
             .unwrap();
 
         assert!(!zh.hits.is_empty() && !en.hits.is_empty());
@@ -1391,7 +1396,7 @@ fn bench_three_branches_on_the_real_dictionary() {
     println!("\n── AC2/AC3/AC4 + AD-44: số hàng ──");
     for (query, mode, route, expected_branch, expected_rows) in cases {
         let result = db
-            .read(|conn| lookup(conn, query, *mode, *route))
+            .read(|conn| lookup(conn, query, *mode, *route, UNLIMITED))
             .unwrap_or_else(|e| panic!("tra {query:?}: {e:?}"));
 
         assert_eq!(
@@ -1451,13 +1456,13 @@ fn bench_three_branches_on_the_real_dictionary() {
 
     for (query, mode, route, label) in bench {
         for _ in 0..WARMUP {
-            let _ = db.read(|conn| lookup(conn, query, *mode, *route)).unwrap();
+            let _ = db.read(|conn| lookup(conn, query, *mode, *route, UNLIMITED)).unwrap();
         }
 
         let mut samples = Vec::with_capacity(RUNS);
         for _ in 0..RUNS {
             let start = std::time::Instant::now();
-            let _ = db.read(|conn| lookup(conn, query, *mode, *route)).unwrap();
+            let _ = db.read(|conn| lookup(conn, query, *mode, *route, UNLIMITED)).unwrap();
             samples.push(start.elapsed().as_secs_f64() * 1000.0);
         }
         samples.sort_by(|a, b| a.partial_cmp(b).expect("⛔ không có NaN trong phép đo"));

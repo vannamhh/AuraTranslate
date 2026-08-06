@@ -74,8 +74,15 @@
 //! duy nhất là một `LIMIT` — tức module này sẽ tự quyết một **chính sách sản phẩm** mà
 //! Story 1.11 đã giao tường minh cho **Panel Lookup (1.17)**.
 //!
-//! ⇒ ⛔ **Không cache, ⛔ không chỉ mục ngược trong bộ nhớ, ⛔ không xếp hạng, ⛔ không
-//! `LIMIT`** ở đây. Bốn thứ đó thuộc 1.17/1.18 và phụ thuộc hành vi người dùng thật.
+//! ⇒ ⛔ **Không cache, ⛔ không chỉ mục ngược trong bộ nhớ, ⛔ không xếp hạng** ở đây. Ba
+//! thứ đó thuộc 1.18 và phụ thuộc hành vi người dùng thật.
+//!
+//! 🔴 **CẬP NHẬT — Story 1.17 (2026-08-06):** `LIMIT` **có** ở đây, nhưng **⛔ không phải
+//! một hằng cục bộ** — [`lookup`], [`lookup_with_branch`], [`lookup_grouped`] nhận `limit`
+//! làm **tham số từ chỗ gọi** (cùng doctrine `route`/`branch`), và Panel Lookup
+//! (`commands/dict.rs`) là nơi quyết giá trị đó. Trần áp **sau** phép xác minh chuỗi con
+//! (`query.rs::verify_substring`) cho hai nhánh cần nó (Bẫy 11); [`LookupResult::truncated`]
+//! báo khi trần đã cắt — xem §Quyết định #4 của story để có đo đạc đầy đủ.
 
 mod han_viet;
 mod layer;
@@ -95,11 +102,19 @@ pub use senses::SENSE_BATCH;
 /// với nó"* xuống **mọi** chỗ gọi, và mỗi chỗ gọi sẽ trả lời khác nhau. Một truy vấn ⛔
 /// không thuộc hệ chữ nào của hai từ điển vẫn chạy một nhánh **thật** ở đường `En` và trả
 /// **rỗng có lý do** — thứ nghiệm thu được — thay vì rỗng vì ⛔ không ai chọn nhánh.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// ⚠️ **`Serialize`** (Story 1.17, Quyết định #2) — ra dây bằng **chuỗi định danh máy**
+/// qua `#[serde(rename = …)]` **từng biến thể**, ⛔ không `#[serde(rename_all)]`: một
+/// `usize` trên dây là thứ đảo nghĩa im lặng khi ai đó chèn một biến thể mới, và một câu
+/// snake_case tự động của `En` sẽ ra `"en"` đúng nhưng ⛔ đảm bảo cho mọi biến thể tương
+/// lai — rename từng cái là tường minh, không đoán.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum QueryRoute {
     /// Truy vấn chứa ít nhất một ký tự Hán ⇒ ba nhánh của AD-26, lọc `lang = 'zh'`.
+    #[serde(rename = "zh")]
     Zh,
     /// Mọi thứ còn lại ⇒ hai nhánh của AD-44 ②, lọc `lang = 'en'`.
+    #[serde(rename = "en")]
     En,
 }
 
@@ -172,18 +187,27 @@ pub enum LookupMode {
 /// 🔴 Nhánh phải **quan sát được từ ngoài**, và đó là điều kiện để Bẫy `len()` ở trên
 /// nghiệm thu được: một `eprintln!` ⛔ không khẳng định được trong test, nên một cài đặt
 /// chọn sai nhánh sẽ đi qua mọi phép kiểm *"kết quả khác rỗng"* mà không ai thấy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// ⚠️ **`Serialize`** (Story 1.17, Quyết định #2) — cùng doctrine [`QueryRoute`]: chuỗi
+/// định danh máy qua `#[serde(rename = …)]` từng biến thể. `NoBranchQueryTooShort` ra dây
+/// là `"query_too_short"` — ⛔ không phải một chuyển đổi snake_case cơ học của tên biến
+/// thể (sẽ ra `"no_branch_query_too_short"`), vì Panel Lookup đọc mã này để nói *"truy
+/// vấn quá ngắn"*, và cái tên ngắn gọn hơn khớp thẳng câu đó.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum QueryBranch {
     /// Nhánh 1 — B-tree trên `headword` / `headword_simp`. Dùng ở **cả hai** đường.
+    #[serde(rename = "exact_btree")]
     ExactBtree,
     /// Nhánh 2 — bảng đảo ngược `char_idx`, cho chuỗi con 1–2 ký tự. **Chỉ** đường `zh`.
     ///
     /// ⛔ Đường tiếng Anh ⛔ **không bao giờ** đi nhánh này, và đó là một **số đo** chứ ⛔
     /// không phải một sở thích: lớp `viwiktionary-en` sinh **đúng 9** cặp `char_idx` trên
     /// **119.039** đầu mục (0,0076%). Bảng đảo ngược ⛔ không áp được cho tiếng Anh.
+    #[serde(rename = "char_idx")]
     CharIdx,
     /// Nhánh 3 — FTS5 `entry_fts` với tokenizer `trigram`, cho chuỗi con ≥ 3 ký tự.
     /// Dùng ở **cả hai** đường.
+    #[serde(rename = "fts_trigram")]
     FtsTrigram,
     /// 🔴 ⛔ **Không nhánh nào chạy** — chuỗi con tiếng Anh < 3 ký tự (AD-44 ④).
     ///
@@ -204,6 +228,7 @@ pub enum QueryBranch {
     /// ⚠️ **Bất đối xứng có chủ ý với đường `zh`:** ở đó một truy vấn rỗng trả
     /// [`QueryBranch::CharIdx`] với `hits` rỗng (hành vi Story 1.11). ⛔ **Đừng "đồng bộ"
     /// hai bên** — hai bảng nhánh khác nhau vì hai chỉ mục khác nhau.
+    #[serde(rename = "query_too_short")]
     NoBranchQueryTooShort,
 }
 
@@ -212,7 +237,9 @@ pub enum QueryBranch {
 /// ⛔ Không `dict_sense`, ⛔ không `dict_example`, ⛔ không `dict_citation` ở đây — đọc
 /// nghĩa là **Story 1.13** (FR29–FR32), và hình dạng của nó phụ thuộc vào quyết định
 /// nhóm-theo-nguồn mà story này ⛔ không được phép đoán trước.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// ⚠️ **`Serialize`** (Story 1.17, Quyết định #2a) — mọi trường đã `snake_case`, đúng như
+/// trên dây; ⛔ `#[serde(rename_all)]`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct EntryHit {
     /// `dict_entry.id` — chỉ duy nhất **trong một tệp `.db`**.
     pub entry_id: i64,
@@ -249,6 +276,14 @@ pub struct LookupResult {
     pub branch: QueryBranch,
     /// Các đầu mục khớp, thứ tự của `dict_entry.id` tăng dần.
     pub hits: Vec<EntryHit>,
+    /// 🔴 **Quyết định #4 (Story 1.17), hệ quả ②.** `true` ⇔ trần `limit` đã cắt bớt kết
+    /// quả **của tệp này** — có thể còn đầu mục khớp khác, kể cả của một nguồn khác trong
+    /// cùng tệp, mà lượt tra này ⛔ không thấy được. ⛔ **Không** phải một lỗi: đây là
+    /// đường (b) đã chốt ở §hệ quả ② — panel nói ra "danh sách nguồn chưa đầy đủ" thay vì
+    /// đảm bảo mọi nguồn có mặt bằng một truy vấn per-source đắt hơn (đo: `ROW_NUMBER()
+    /// OVER (PARTITION BY source_id)` không dừng sớm được và CHẬM HƠN cả không có `limit`
+    /// nào — xem §Debug Log References của story).
+    pub truncated: bool,
 }
 
 /// Chọn nhánh cho một truy vấn. **Hàm thuần, `pub`, ⛔ không chạm database.**
@@ -323,9 +358,10 @@ pub fn lookup(
     query: &str,
     mode: LookupMode,
     route: QueryRoute,
+    limit: usize,
 ) -> SqlResult<LookupResult> {
     let branch = pick_branch(query, mode, route);
-    lookup_with_branch(db, query, route, branch)
+    lookup_with_branch(db, query, route, branch, limit)
 }
 
 /// Cùng đường tra của [`lookup`], nhưng nhận **`branch` đã tính sẵn** thay vì tự gọi
@@ -342,30 +378,32 @@ pub(crate) fn lookup_with_branch(
     query: &str,
     route: QueryRoute,
     branch: QueryBranch,
+    limit: usize,
 ) -> SqlResult<LookupResult> {
-    let hits = match branch {
+    let (hits, truncated) = match branch {
         QueryBranch::ExactBtree => match route {
-            QueryRoute::Zh => query::exact(db, query)?,
-            QueryRoute::En => query::exact_en(db, query)?,
+            QueryRoute::Zh => query::exact(db, query, limit)?,
+            QueryRoute::En => query::exact_en(db, query, limit)?,
         },
 
         // Nhánh 2 là **của riêng đường `zh`** — [`pick_branch`] ⛔ không bao giờ chọn nó
         // cho đường `En`. Câu SQL bên trong lọc `lang = 'zh'`, nên tổ hợp đó (nếu ai đó
         // dựng ra bằng tay) trả rỗng chứ ⛔ không trả nhầm hàng tiếng Anh.
-        QueryBranch::CharIdx => query::char_idx(db, query)?,
+        QueryBranch::CharIdx => query::char_idx(db, query, limit)?,
 
         QueryBranch::FtsTrigram => match route {
-            QueryRoute::Zh => query::fts_trigram(db, query)?,
-            QueryRoute::En => query::fts_trigram_en(db, query)?,
+            QueryRoute::Zh => query::fts_trigram(db, query, limit)?,
+            QueryRoute::En => query::fts_trigram_en(db, query, limit)?,
         },
 
         // 🔴 ⛔ **Không một câu SQL nào được chuẩn bị** — đó là mệnh đề của AD-44 ④, ⛔
         // không phải một phép tối ưu. Trạng thái *"không hỗ trợ"* phải **phân biệt được**
         // với một lượt tra đã chạy mà ⛔ không tìm thấy gì, và `branch` là chỗ nó khai ra.
-        QueryBranch::NoBranchQueryTooShort => Vec::new(),
+        // ⛔ `limit` không áp cho nhánh này — ⛔ không câu SQL nào chạy nên ⛔ không gì bị cắt.
+        QueryBranch::NoBranchQueryTooShort => (Vec::new(), false),
     };
 
-    Ok(LookupResult { branch, hits })
+    Ok(LookupResult { branch, hits, truncated })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -383,7 +421,8 @@ pub(crate) fn lookup_with_branch(
 /// ⚠️ Bốn trường giấy phép của `dict_source` (`license_kind` · `license_id` ·
 /// `attribution` · `source_url`) ⛔ **không** đọc ở đây — chúng thuộc Story 1.19 *(bật/tắt
 /// nguồn và ghi công)* và 10.4 *(màn hình Attribution)*.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// ⚠️ **`Serialize`** (Story 1.17, Quyết định #2a).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct SourceInfo {
     /// `dict_source.code` — định danh máy đọc, **duy nhất trong toàn tập lớp**.
     pub code: String,
@@ -396,7 +435,8 @@ pub struct SourceInfo {
 /// 🔴 **FR29: một từ nhiều từ loại ⇒ nhiều mục riêng biệt**, ⛔ không nối `gloss` thành một
 /// chuỗi. Một chuỗi nối là một quyết định trình bày chôn vào tầng dữ liệu, và 1.17 ⛔ không
 /// gỡ ngược ra được.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// ⚠️ **`Serialize`** (Story 1.17, Quyết định #2a).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct SenseRecord {
     /// `dict_sense.entry_id` — đầu mục mang nghĩa này, trong **chính tệp** của nó.
     pub entry_id: i64,
@@ -414,6 +454,15 @@ pub struct SenseRecord {
     /// ⛔ Tầng này ⛔ **không** dịch, ⛔ không viết lại, ⛔ không ẩn nhãn ngoại ngữ — 1.17
     /// **hiển thị** dấu hiệu đó; việc của story này là làm cho nó ⛔ **không mất trên đường đi**.
     pub pos_lang: Option<String>,
+    /// 🔴 **FR35 — nhãn này CÓ PHẢI nhãn NGOẠI NGỮ không.** Quyết định của **Rust**, ⛔ của
+    /// webview (AD-1: quy tắc nghiệp vụ ở Rust).
+    ///
+    /// ⚠️ **⛔ Đồng nghĩa với `pos_lang.is_some()`** — và đó là điểm. Một nhãn ghi
+    /// `pos_lang = "vi"` là nhãn **tiếng Việt**: nó có ngôn ngữ, nhưng ⛔ **không** ngoại
+    /// ngữ, nên FR35 ⛔ đòi đánh dấu nó. Bản đầu của 1.17 bật dấu hiệu theo `pos_lang
+    /// !== null` ở webview và dán chip `VI` lên đúng những nhãn bản ngữ (bắt ở code review
+    /// 2026-08-07). Xem [`is_foreign_lang`] cho định nghĩa *"bản ngữ"*.
+    pub pos_is_foreign: bool,
     /// Nghĩa. `NOT NULL` trong lược đồ.
     pub gloss: String,
     /// Ghi chú — phần **thứ sáu** trong sáu phần FR28 liệt kê.
@@ -430,8 +479,34 @@ pub struct SenseRecord {
     pub citations: Vec<CitationRecord>,
 }
 
+/// 🔴 **Ngôn ngữ BẢN NGỮ của ứng dụng** — tiếng Việt. AuraTranslate là công cụ dịch **sang
+/// tiếng Việt**, nên *"ngoại ngữ"* của FR35 nghĩa là *"⛔ phải tiếng Việt"*.
+///
+/// ⚠️ Một hằng có tên chứ ⛔ một chuỗi `"vi"` rải trong mã: ngày ứng dụng có ngôn ngữ đích
+/// thứ hai, đây là chỗ **duy nhất** phải đọc lại.
+pub const NATIVE_LANG: &str = "vi";
+
+/// 🔴 **FR35 — vị từ *"đây có phải nhãn NGOẠI NGỮ không"*, MỘT bản, ở Rust** (AD-1).
+///
+/// `None` ⇒ `false`: nguồn ⛔ ghi ngôn ngữ thì ⛔ có gì để đánh dấu, và AC4 cấm đích danh
+/// việc mặc định thành *"tiếng Việt"* hay đoán từ nội dung nhãn.
+/// `Some("vi")` ⇒ `false` — nhãn **bản ngữ**, ⛔ ngoại ngữ.
+/// Mọi giá trị khác ⇒ `true`.
+///
+/// ⚠️ So khớp **⛔ phân biệt hoa/thường** (`"EN"` = `"en"`): mã ngôn ngữ trong `dict_sense`
+/// đến từ mười nguồn dựng khác nhau, và một `"VI"` viết hoa ở một nguồn ⛔ được phép biến
+/// một nhãn bản ngữ thành ngoại ngữ. Cùng lý do và cùng cách với `verify_substring`:
+/// [`str::eq_ignore_ascii_case`] ⛔ phụ thuộc locale.
+pub fn is_foreign_lang(lang: Option<&str>) -> bool {
+    match lang {
+        None => false,
+        Some(lang) => !lang.eq_ignore_ascii_case(NATIVE_LANG),
+    }
+}
+
 /// Một ví dụ minh hoạ của **một nghĩa**.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// ⚠️ **`Serialize`** (Story 1.17, Quyết định #2a).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExampleRecord {
     /// Câu ví dụ như nguồn ghi.
     pub text: String,
@@ -441,12 +516,17 @@ pub struct ExampleRecord {
     /// Anh"* mà ⛔ không phải đoán từ nội dung. Bỏ trường này là làm FR35 ⛔ không nghiệm
     /// thu được ở 1.17, và lỗi lộ ra ở **story sau**.
     pub translation_lang: Option<String>,
+    /// 🔴 **FR35, cùng luật [`SenseRecord::pos_is_foreign`]** — AC4 nói *"cùng luật áp cho
+    /// `ExampleRecord::translation_lang`"*, nên phép quyết định cũng ở **cùng một chỗ**
+    /// ([`is_foreign_lang`]), ⛔ hai bản chép.
+    pub translation_is_foreign: bool,
     /// Thứ tự trong nguồn. Cùng cảnh báo với [`SenseRecord::ord`].
     pub ord: i64,
 }
 
 /// Một **trích dẫn văn bản** của một nghĩa — bảng RIÊNG với ví dụ vì nó mang **xuất xứ**.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// ⚠️ **`Serialize`** (Story 1.17, Quyết định #2a).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CitationRecord {
     /// Đoạn được trích.
     pub text: String,
@@ -482,7 +562,8 @@ pub struct HanVietHit {
 /// 🔴 **AD-19: ⛔ không có bước hợp nhất nào, ở bất kỳ đâu.** Hai nguồn bất đồng về cùng
 /// một đầu mục ⇒ **cả hai nhóm có mặt**, nghĩa giữ nguyên, ⛔ không nhóm nào bị chọn làm
 /// *"câu trả lời"* (FR32). Người dịch tự phán xét — đó là toàn bộ điểm của Epic 1.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// ⚠️ **`Serialize`** (Story 1.17, Quyết định #2a).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct SourceGroup {
     /// Danh tính lớp chứa nguồn này — `"base"` hoặc mã lớp gỡ rời.
     ///
@@ -497,10 +578,26 @@ pub struct SourceGroup {
     /// nhóm**. *"Đã tra mà không khớp"* và *"lớp ⛔ không nạp được"* ⛔ không được phép trông
     /// giống nhau ở 1.17 — cái sau nằm ở [`GroupedLookup::skipped`].
     pub entries: Vec<EntryHit>,
+
+    /// 🔴 **Tổng số đầu mục khớp CỦA NGUỒN NÀY, ⛔ bị trần cắt** — Quyết định #4 §hệ quả
+    /// ③, đường (a). `None` ⇔ trần ⛔ chạm lớp này ⇒ [`Self::entries`] đã là **toàn bộ** và
+    /// `entries.len()` chính là số thật.
+    ///
+    /// ⚠️ Trường này tồn tại để thanh nhịp ⛔ **khẳng định một con số nó ⛔ biết** (AC12):
+    /// khi trần đã cắt, `entries.len()` là một **cận dưới**, ⛔ phải số thật — và một nguồn
+    /// có thể bị cắt **sạch** khỏi [`GroupedLookup::groups`] mà vẫn có `total_entries > 0`
+    /// ở đây (xem [`GroupedLookup::hidden_sources`]).
+    pub total_entries: Option<i64>,
 }
 
 /// Kết quả **pha một** của một lượt tra trên **cả tập lớp**.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// ⚠️ **`Serialize`** (Story 1.17, Quyết định #2a/#2a.2) — derive thẳng, **⛔ một ngoại
+/// lệ**: [`Self::skipped`] đi qua [`serialize_skipped_as_wire_codes`] thay vì serialize
+/// [`SkippedLayer`] nguyên vẹn — [`SkipReason`] mang lỗi thô SQLite (`detail: String`) mà
+/// AD-21 cấm đi lên giao diện. Kiểu Rust của trường **không đổi** (`Vec<SkippedLayer>`);
+/// chỉ hình dạng TRÊN DÂY đổi.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct GroupedLookup {
     /// Đường đã đi — một **GIÁ TRỊ của cả lượt tra**, ⛔ không phải của từng tệp.
     ///
@@ -524,7 +621,62 @@ pub struct GroupedLookup {
     ///
     /// 🔴 **Giá trị, ⛔ không phải một dòng log** — nó là thứ duy nhất phân biệt *"⛔ không
     /// có kết quả"* với *"một phần từ điển ⛔ không trả lời"*.
+    ///
+    /// 🔴 **Trên dây (Quyết định #2a.2), trường này ra một MẢNG CHUỖI mã máy** — `["open_
+    /// failed", "schema_too_new", …]`, ⛔ **không** `path`, ⛔ **không** `detail`. Panel chỉ
+    /// cần *"một phần từ điển ⛔ không trả lời"* (độ dài mảng > 0) cộng mã để chẩn đoán —
+    /// ⛔ cần biết tệp nào hỏng thế nào. Xem [`serialize_skipped_as_wire_codes`].
+    #[serde(serialize_with = "serialize_skipped_as_wire_codes")]
     pub skipped: Vec<SkippedLayer>,
+
+    /// 🔴 **Quyết định #4 (Story 1.17), hệ quả ②** — danh tính các LỚP mà trần `limit` đã
+    /// cắt bớt kết quả. ⛔ **Không** phải `skipped` (lớp đó vẫn nạp và tra được bình
+    /// thường) — nó là dấu hiệu *"tệp này có thể còn đầu mục khớp khác, kể cả của một
+    /// nguồn khác, mà lượt tra vừa rồi ⛔ không thấy"*. Panel Lookup đọc trường này để nói
+    /// "danh sách nguồn chưa đầy đủ", ⛔ không im (AC12).
+    pub truncated_layers: Vec<String>,
+
+    /// 🔴 **Các nguồn có đầu mục khớp mà trần đã cắt SẠCH khỏi [`Self::groups`]** —
+    /// Quyết định #4 §hệ quả ③. Mỗi mục là `(display_name, số đầu mục)`.
+    ///
+    /// ⚠️ Đây là câu trả lời cho đúng ca mà AC12 dựng ra: `dict-core.db` mang nhiều nguồn
+    /// trong **một** tệp, và một trần cấp-tệp có thể lấy hết chỗ cho nguồn có `entry_id`
+    /// nhỏ hơn, làm nguồn kia **biến mất hoàn toàn**. Panel đọc trường này để nói ra
+    /// **nguồn nào** đang vắng thay vì một câu chung chung — FR31 đòi *"mọi định nghĩa
+    /// hiển thị nguồn"*, và một nguồn bị giấu tên là ⛔ hiển thị.
+    ///
+    /// Rỗng ⇔ ⛔ nguồn nào bị cắt sạch (kể cả khi [`Self::truncated_layers`] khác rỗng —
+    /// trần có thể chỉ cắt bớt đầu mục **trong** các nguồn vẫn còn mặt).
+    pub hidden_sources: Vec<(String, i64)>,
+
+    /// 🔴 **AC6 (Story 1.17), ca thứ năm** — `false` ⇔ **không một lớp từ điển nào đang
+    /// gắn** — trạng thái BÌNH THƯỜNG có tên (AD-25, `src-tauri/resources/dict/` rỗng
+    /// trong git), và nó phải hiện ra bằng một chuỗi KHÁC với ca *"đã tra mà ⛔ không tìm
+    /// thấy"*.
+    ///
+    /// ⚠️ **Vì sao trường này phải tồn tại tường minh**: `groups` rỗng VÀ `skipped` rỗng
+    /// xảy ra ở CẢ HAI ca — *"0 lớp"* (thư mục từ điển rỗng, `layers.layers()` rỗng) VÀ
+    /// *"đã tra mà ⛔ không khớp"* (có lớp, tra xong, ⛔ không hàng nào khớp). Hai ca đó
+    /// **⛔ không phân biệt được** chỉ từ `groups`/`skipped` — đúng doctrine
+    /// `HanVietLookup::layers_loaded` của Story 1.16 đã áp lại ở đây.
+    pub layers_loaded: bool,
+}
+
+/// 🔴 Chuyển `Vec<SkippedLayer>` thành một mảng **mã máy** — điều kiện `serialize_with`
+/// của [`GroupedLookup::skipped`]. `SkippedLayer`/[`SkipReason`] **⛔ không bao giờ**
+/// `derive(Serialize)`: bốn biến thể của `SkipReason` mang `detail: String` là lỗi thô
+/// SQLite, và đi qua dây nguyên vẹn là vi phạm AD-21 ở đúng chỗ ⛔ cổng nào nhìn thấy
+/// (`check-i18n.mjs` Kiểm A quét **chuỗi trong mã**, ⛔ không quét **dữ liệu chạy qua dây**).
+fn serialize_skipped_as_wire_codes<S>(skipped: &[SkippedLayer], serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::ser::SerializeSeq;
+    let mut seq = serializer.serialize_seq(Some(skipped.len()))?;
+    for item in skipped {
+        seq.serialize_element(item.reason.wire_code())?;
+    }
+    seq.end()
 }
 
 /// **Pha một** — tra `query` trên **toàn bộ** tập lớp và nhóm kết quả theo nguồn.
@@ -537,7 +689,11 @@ pub struct GroupedLookup {
 ///
 /// ⛔ **Hàm này ⛔ không đọc nghĩa.** Xem §HAI PHA ở doc-comment module về vì sao — và về vì
 /// sao một `LIMIT` ở đây là một quyết định sản phẩm thuộc về Story 1.17.
-pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode) -> GroupedLookup {
+///
+/// 🔴 `limit` **nhận từ chỗ gọi** (cùng doctrine `route`/`branch`): Panel Lookup
+/// (`commands/dict.rs`) là nơi quyết chính sách trang, ⛔ không phải tầng gom — cùng lý do
+/// [`pick_route`] ⛔ không tự chạy trong adapter.
+pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode, limit: usize) -> GroupedLookup {
     let route = pick_route(query);
     let branch = pick_branch(query, mode, route);
 
@@ -545,9 +701,11 @@ pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode) -> Gro
     // Danh sách lớp hỏng lúc **mở** đi cùng **mọi** lượt tra: 1.17 ⛔ không có đường nào
     // khác để biết một phần từ điển đang vắng mặt.
     let mut skipped: Vec<SkippedLayer> = layers.skipped().to_vec();
+    let mut truncated_layers: Vec<String> = Vec::new();
+    let mut hidden_sources: Vec<(String, i64)> = Vec::new();
 
     for layer in layers.layers() {
-        let result = match layer.lookup(query, route, branch) {
+        let result = match layer.lookup(query, route, branch, limit) {
             Ok(result) => result,
             Err(err) => {
                 // Một lớp hỏng lúc **tra** ⛔ không được làm hỏng cả lượt tra — các lớp còn
@@ -561,6 +719,10 @@ pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode) -> Gro
                 continue;
             }
         };
+
+        if result.truncated {
+            truncated_layers.push(layer.layer().to_owned());
+        }
 
         // Nhóm **trong phạm vi một lớp** trước, rồi nối vào kết quả: thứ tự nhóm vì thế là
         // (thứ tự lớp, mã nguồn) — tất định, ⛔ không phụ thuộc thứ tự hàng SQLite trả về.
@@ -601,10 +763,34 @@ pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode) -> Gro
                 layer: layer.layer().to_owned(),
                 source: source.clone(),
                 entries: vec![hit],
+                total_entries: None,
             });
         }
 
         in_layer.sort_by(|a, b| a.source.code.cmp(&b.source.code));
+
+        // 🔴 §Hệ quả ③ đường (a) — **CHỈ KHI** trần đã cắt lớp này. Phần lớn lượt tra ⛔
+        // chạm trần, và bắt chúng trả giá một `COUNT` để phục vụ thiểu số là đúng thứ
+        // §hệ quả ③ đã cân nhắc rồi loại. Một `COUNT` hỏng ⛔ được làm hỏng cả lượt tra:
+        // ⛔ có số đếm thì `total_entries` ở lại `None` và thanh nhịp đọc như cận dưới,
+        // ⛔ không phải panic hay một lượt tra rỗng.
+        if result.truncated {
+            if let Ok(counts) = layer.count_by_source(query, route, branch) {
+                for (code, total) in &counts {
+                    if let Some(group) = in_layer.iter_mut().find(|g| g.source.code == *code) {
+                        group.total_entries = Some(*total);
+                        continue;
+                    }
+                    // Nguồn có đầu mục khớp mà trần đã cắt SẠCH khỏi trang này — đúng ca
+                    // FR31 mà AC12 dựng ra. Tên hiển thị lấy từ CHÍNH tệp (AC2), ⛔ một
+                    // bảng tra dựng lại ở tầng gom.
+                    if let Some(source) = layer.source(code) {
+                        hidden_sources.push((source.display_name.clone(), *total));
+                    }
+                }
+            }
+        }
+
         groups.append(&mut in_layer);
     }
 
@@ -613,6 +799,9 @@ pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode) -> Gro
         branch,
         groups,
         skipped,
+        truncated_layers,
+        hidden_sources,
+        layers_loaded: !layers.layers().is_empty(),
     }
 }
 

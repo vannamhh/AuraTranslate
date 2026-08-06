@@ -189,27 +189,32 @@ const originalTokenClass = computed(() => (showHanVietTab.value ? 'tok-source-cj
 /*
  * Lỗi đọc Chương, và ca Chương rỗng — hai thứ TRƯỚC ĐÂY im lặng.
  *
- * ⚠️ Dùng `ui-md` như `.parallel-note`, và nó mang **cùng một lỗ hổng bảng token**: ⛔
- * không một token `ui-*` nào khai `wraps: true`, trong khi cả ba câu này chắc chắn xuống
- * dòng trong một panel hẹp. Đây là lỗ hổng **của bảng token** — cùng hạng với hàng
- * `source-latin` còn thiếu mà Quyết định #6 vừa vá — ⛔ không phải một lỗi của chỗ dùng.
- * Đóng nó là quyết định của Ice *(đổi cờ `wraps` của `ui-md`, `deferred-work.md:115`, hoặc
- * thêm token thứ 17)*, nên lượt code review 2026-08-06 GHI RA thay vì tự chế một token.
+ * 🔴 Story 1.17 · Quyết định #7 (Ice chốt 2026-08-06) ĐÓNG lỗ hổng bảng token
+ * `deferred-work.md:115`: token thứ 17 `ui-md-wrap` (12px/1.66/`wraps: true`) thay `ui-md`
+ * (12px/1.5, dưới sàn 1.66) — ⛔ chỉ token mới cho chuỗi mới của 1.17 mà để câu này ở lại
+ * `ui-md` là món nợ `:115` vẫn KHÔNG đóng.
  */
 .load-error {
   margin: 0;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
   color: var(--color-on-surface-variant);
 }
 
-/* Quyết định #7/Task 8 — Chương vượt trần render của kiểu song song. */
+/*
+ * Quyết định #7/Task 8 — Chương vượt trần render của kiểu song song.
+ *
+ * 🔴 Story 1.17 · Quyết định #7 — đổi từ `ui-sm` (11,5px/1.5) sang token thứ 17
+ * `ui-md-wrap` (12px/1.66). ⚠️ Hệ quả NHÌN THẤY ĐƯỢC: cỡ chữ đổi 11,5px → 12px — Ice chốt
+ * dùng CHUNG một token cho cả ba chỗ (⛔ thêm `ui-sm-wrap` riêng), xem `tokens.json`
+ * `deviations.typography.ui-md-wrap`.
+ */
 .parallel-note {
   margin: 0 0 var(--space-panel-block) 0;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
   color: var(--color-on-surface-variant);
 }
 

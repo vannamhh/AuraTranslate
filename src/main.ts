@@ -41,6 +41,11 @@ import { submitFilePath, submitPastedText } from './modes/libraryImport'
 // ⚠️ Cùng lý do và cùng cửa với `libraryImport.ts`: `sourcePanelState.ts` dùng `ref` của
 // Vue — import nó ở `src/commands/index.ts` giết Kiểm C/D/E.
 import { selectSourceTab, toggleHanVietView } from './panels/sourcePanelState'
+// ── Story 1.17 — một lượt tra Panel Lookup ───────────────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `sourcePanelState.ts`: `lookupPanelState.ts` dùng
+// `ref`/`computed` của Vue.
+import { runLookup } from './panels/lookupPanelState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -170,6 +175,11 @@ async function boot(): Promise<void> {
       submitFilePath,
       selectSourceTab,
       toggleHanVietView,
+      runLookup,
+      // 🔴 Quyết định #1a (Story 1.17) — dep TỐI THIỂU, ⛔ không hợp đồng vùng chọn dùng
+      // chung của Story 1.18. `window.getSelection()` là API trình duyệt chuẩn, ⛔ không
+      // cần một module riêng — Story 1.18 thay ĐÚNG dep này bằng hợp đồng thật.
+      currentSelection: () => window.getSelection()?.toString() ?? '',
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa

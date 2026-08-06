@@ -217,12 +217,17 @@ const sourcesLine = computed(() => sourcesUsed.value.join(', '))
   overflow: auto;
 }
 
-/* Một dòng trạng thái cho CẢ bề mặt — ⛔ không nhân theo số ký tự. */
+/*
+ * Một dòng trạng thái cho CẢ bề mặt — ⛔ không nhân theo số ký tự.
+ *
+ * 🔴 Story 1.17 · Quyết định #7 (Ice chốt 2026-08-06) — token thứ 17 `ui-md-wrap`
+ * (12px/1.66/`wraps: true`) thay `ui-md` (12px/1.5, dưới sàn), đóng `deferred-work.md:115`.
+ */
 .hv-notice {
   margin: 0 0 var(--space-panel-block) 0;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
   color: var(--color-on-surface-variant);
 }
 

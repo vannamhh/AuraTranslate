@@ -198,7 +198,35 @@ impl fmt::Display for SkipReason {
     }
 }
 
+impl SkipReason {
+    /// 🔴 **Quyết định #2 (Story 1.17)** — mã máy đi qua IPC, ⛔ **thay cho** chính kiểu này.
+    ///
+    /// `SkipReason` ⛔ **không bao giờ** `derive(Serialize)` — bốn biến thể của nó mang
+    /// `detail: String` là **lỗi thô của SQLite**, và đi qua dây nguyên vẹn là vi phạm
+    /// AD-21 ở đúng chỗ khó thấy nhất (`check-i18n.mjs` Kiểm A quét **chuỗi trong mã**, ⛔
+    /// không quét **dữ liệu chạy qua dây**). Panel Lookup chỉ cần biết *"một phần từ điển
+    /// ⛔ không trả lời"* và mã máy này để chẩn đoán — ⛔ cần biết tệp nào hỏng thế nào.
+    pub(crate) fn wire_code(&self) -> &'static str {
+        match self {
+            SkipReason::OpenFailed { .. } => "open_failed",
+            SkipReason::MetaUnreadable { .. } => "meta_unreadable",
+            SkipReason::MetaRowMissing { .. } => "meta_row_missing",
+            SkipReason::SchemaTooNew { .. } => "schema_too_new",
+            SkipReason::SchemaVersionDisagrees { .. } => "schema_version_disagrees",
+            SkipReason::SourcesUnreadable { .. } => "sources_unreadable",
+            SkipReason::DuplicateLayer { .. } => "duplicate_layer",
+            SkipReason::DuplicateSourceCode { .. } => "duplicate_source_code",
+            SkipReason::DuplicateSourceCodeInFile { .. } => "duplicate_source_code_in_file",
+            SkipReason::LookupFailed { .. } => "lookup_failed",
+        }
+    }
+}
+
 /// Một lớp ⛔ không nạp được — **đường dẫn + lý do**, cả hai là dữ liệu.
+///
+/// ⚠️ **⛔ Không** `derive(Serialize)` — xem [`SkipReason::wire_code`]. `GroupedLookup`
+/// (Story 1.17) tự tay chuyển `Vec<SkippedLayer>` thành `Vec<&str>` mã máy khi đi qua dây,
+/// ⛔ không serialize kiểu này thẳng.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SkippedLayer {
     /// Tệp nào.
@@ -332,6 +360,7 @@ impl DictionarySource for DictLayer {
         query: &str,
         route: QueryRoute,
         branch: QueryBranch,
+        limit: usize,
     ) -> Result<LookupResult, StoreError> {
         // 🔴 Đi qua `super::lookup_with_branch`, ⛔ **KHÔNG** gọi thẳng `query::char_idx` /
         // `query::exact` / `query::fts_trigram`: điều kiện `≤ 2 ký tự` của `char_idx()` chỉ
@@ -342,13 +371,26 @@ impl DictionarySource for DictLayer {
         // 🔴 `branch` **nhận từ chỗ gọi**, ⛔ **không** tính lại qua `pick_branch` ở đây:
         // tầng gom ([`super::lookup_grouped`]) tính nó **ĐÚNG MỘT LẦN** cho cả lượt tra và
         // truyền cùng giá trị xuống mọi lớp (Task 4.1) — hai tệp tính riêng thì chỉ còn
-        // cách khớp nhau bằng một `debug_assert_eq!` vô tác dụng ở bản release.
+        // cách khớp nhau bằng một `debug_assert_eq!` vô tác dụng ở bản release. `limit`
+        // (Story 1.17) đi theo cùng doctrine.
         self.db
-            .read(|conn| super::lookup_with_branch(conn, query, route, branch))
+            .read(|conn| super::lookup_with_branch(conn, query, route, branch, limit))
     }
 
     fn senses(&self, entry_ids: &[i64]) -> Result<Vec<SenseRecord>, StoreError> {
         self.db.read(|conn| senses::read_senses(conn, entry_ids))
+    }
+
+    fn count_by_source(
+        &self,
+        query: &str,
+        route: QueryRoute,
+        branch: QueryBranch,
+    ) -> Result<Vec<(String, i64)>, StoreError> {
+        // Cùng doctrine `lookup`: `route`/`branch` nhận từ chỗ gọi, ⛔ tính lại ở đây —
+        // một phép đếm trên một nhánh khác lượt tra vừa chạy là phép đếm của câu hỏi khác.
+        self.db
+            .read(|conn| super::query::count_by_source(conn, query, route, branch))
     }
 
     fn han_viet(&self, chars: &[&str]) -> Result<Vec<HanVietHit>, StoreError> {

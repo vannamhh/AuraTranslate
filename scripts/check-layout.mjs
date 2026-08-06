@@ -92,7 +92,7 @@ function walk(dir, out = [], seen = new Set()) {
  * dưới số thật một khoảng nhỏ để một lượt xoá tệp có chủ ý ⛔ không làm cổng `abort()`,
  * nhưng một lượt quét hỏng thì có.
  */
-const FILE_FLOOR = 28 // số THẬT 2026-08-06: 35 tệp `src/**`
+const FILE_FLOOR = 30 // số THẬT 2026-08-06 (sau Story 1.17): 37 tệp `src/**`
 
 let files = []
 try {
@@ -395,6 +395,10 @@ const ALLOWED_GLOBAL_MEMBERS = new Set([
   // Bàn phím toàn ứng dụng (FR22) và lượt ghi bố cục cuối cùng (AC4).
   'window.addEventListener',
   'window.removeEventListener',
+  // Story 1.17, Quyết định #1a — vùng chọn cho `lookup.lookup_selection` (dep TỐI THIỂU,
+  // ⛔ hợp đồng vùng chọn dùng chung của Story 1.18). API DOM chuẩn, ⛔ mở cửa sổ/kho thứ
+  // hai — AC1/AC12 của story này canh đúng hai thứ đó, ⛔ canh API đọc vùng chọn văn bản.
+  'window.getSelection',
   // Token ghi lên `:root` (Story 1.4) · sổ điểm vào focus (AD-34 §2) · hộp chẩn đoán khởi
   // động (`main.ts`) · nạp font (Story 1.4).
   'document.documentElement',
