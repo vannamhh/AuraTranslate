@@ -47,8 +47,17 @@ export type FocusRegistry = {
   enter(owner: FocusOwner): boolean
   /** Owner được `enter()` thành công gần nhất — `null` khi chưa có lần nào. */
   current(): FocusOwner | null
-  /** Xoay vòng focus giữa các owner có tiền tố `prefix` (`'panel.'`). Handler của `focus.next_panel`. */
+  /** Xoay vòng focus giữa các owner có tiền tố `prefix` (`'panel.'`), theo thứ tự KHAI BÁO. */
   next(prefix: string): boolean
+  /**
+   * Xoay vòng trên một vòng ĐƯỢC TRUYỀN VÀO, theo `step` (`+1` xuôi, `-1` ngược).
+   *
+   * 🔴 Story 1.14 · AC9 — vòng xoay phải đi theo **thứ tự bố cục hiện tại** (trái→phải,
+   * trên→dưới của lưới đang hiện), ⛔ không theo thứ tự `declare()`. Hai thứ đó khác nhau
+   * ngay khi người dùng kéo một panel sang chỗ khác, và [`next`] ⛔ không biết gì về lưới.
+   * Chỗ biết là `src/layout/dockController.ts`; nó truyền vòng xuống đây.
+   */
+  cycle(ring: readonly FocusOwner[], step: number): boolean
 }
 
 export function createFocusRegistry(): FocusRegistry {
@@ -217,28 +226,51 @@ export function createFocusRegistry(): FocusRegistry {
     return last === null ? -1 : ring.indexOf(last)
   }
 
-  const next = (prefix: string): boolean => {
-    const ring = owners().filter((o) => o.startsWith(prefix))
+  /**
+   * Xoay vòng trên một vòng đã cho — thân chung của [`next`] và của `focus.next_panel` /
+   * `focus.prev_panel` (Story 1.14 · AC9).
+   *
+   * ⚠️ `step` được chuẩn hoá về `+1` / `-1` rồi mới dùng. Một `step` bằng 0 sẽ làm vòng
+   * lặp dưới đây thử đúng một owner `ring.length` lần — im lặng và vô nghĩa.
+   */
+  const cycle = (ring: readonly FocusOwner[], step: number): boolean => {
     if (ring.length === 0) {
-      console.error(`[focus] không owner nào mang tiền tố \`${prefix}\` — không có vòng để xoay.`)
+      console.error(
+        '[focus] vòng xoay RỖNG — không có panel nào để đi tới. Kiểm rằng bố cục đã dựng ' +
+          'xong và ít nhất một panel đang hiện (AC3 cho phép ẩn, nhưng không cho phép ẩn hết).',
+      )
       return false
     }
+    const dir = step < 0 ? -1 : 1
     const at = indexOfLiveFocus(ring)
     /**
      * ⚠️ Thử HẾT vòng, không bỏ cuộc ở thành viên hỏng đầu tiên. Bản đầu tính đúng một
      * ứng viên và trả về kết quả của nó, nên một panel đang bị `<KeepAlive>` đỗ *(tức
      * `enter()` trả `false` theo phép kiểm `isConnected` ở trên)* làm cả thao tác chết,
      * kể cả khi panel kế tiếp trong vòng còn sống và nhận focus được.
+     *
+     * ⚠️ `+ ring.length` trước `%`: JavaScript cho `-1 % 4 === -1`, nên chiều lùi sẽ đọc
+     * `ring[-1]` là `undefined` và `enter(undefined)` chỉ ghi một chẩn đoán vô nghĩa.
      */
-    for (let step = 1; step <= ring.length; step += 1) {
-      if (enter(ring[(at + step) % ring.length] as FocusOwner)) return true
+    for (let n = 1; n <= ring.length; n += 1) {
+      const at2 = ((at + dir * n) % ring.length + ring.length) % ring.length
+      if (enter(ring[at2] as FocusOwner)) return true
     }
     console.error(
-      `[focus] không owner nào trong vòng \`${prefix}\` nhận được focus — cả ${ring.length} ` +
-        'điểm vào đều chưa dựng xong hoặc đã tháo khỏi DOM.',
+      `[focus] không owner nào trong vòng nhận được focus — cả ${ring.length} điểm vào đều ` +
+        'chưa dựng xong hoặc đã tháo khỏi DOM.',
     )
     return false
   }
 
-  return { declare, release, has, owners, enter, current, next }
+  const next = (prefix: string): boolean => {
+    const ring = owners().filter((o) => o.startsWith(prefix))
+    if (ring.length === 0) {
+      console.error(`[focus] không owner nào mang tiền tố \`${prefix}\` — không có vòng để xoay.`)
+      return false
+    }
+    return cycle(ring, 1)
+  }
+
+  return { declare, release, has, owners, enter, current, next, cycle }
 }

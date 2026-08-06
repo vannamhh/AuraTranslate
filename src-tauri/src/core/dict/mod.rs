@@ -56,10 +56,36 @@
 //! nhiều tệp, ⛔ không nhóm theo nguồn, ⛔ không đọc `dict_sense`/`dict_example`/
 //! `dict_citation`, và ⛔ không hợp nhất đầu mục trùng — cả bốn là **Story 1.13**, và
 //! AD-19 nói cái cuối cùng ⛔ không bao giờ xảy ra.
+//!
+//! 🔄 **Story 1.13 đã giao ba trong bốn thứ đó, và mệnh đề trên ⛔ không đổi một chữ:**
+//! [`lookup`] **vẫn** chạy trên một tệp. Việc gom sống ở [`lookup_grouped`] — một tầng
+//! **TRÊN** nó — việc nhóm theo nguồn ở [`SourceGroup`], việc đọc nghĩa ở
+//! [`DictionarySource::senses`]. Thứ thứ tư *(hợp nhất đầu mục trùng)* ⛔ **vẫn không tồn
+//! tại**, và `tests/dict_boundary.rs` nay canh nó bằng máy.
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! 🔴 HAI PHA, VÀ VÌ SAO ⛔ KHÔNG PHẢI MỘT (Story 1.13 §Quyết định #1B)
+//! ─────────────────────────────────────────────────────────────────────────────
+//! [`lookup_grouped`] trả **nhóm theo nguồn + đầu mục** *(rẻ)*; [`DictionarySource::senses`]
+//! đọc nghĩa cho một tập đầu mục **do chỗ gọi chọn**. Lý do là một **số đo**: nhánh
+//! `char_idx` một ký tự (`山`) trả **3.177** đầu mục ở p95 **7,324 ms** trên bản release —
+//! chi phí của **một** tệp, **⛔ chưa đọc một hàng `dict_sense` nào**. Đọc nghĩa cho từng
+//! đó đầu mục × ba tệp ngay trong pha một vượt trần 10 ms một cách chắc chắn, và đường ra
+//! duy nhất là một `LIMIT` — tức module này sẽ tự quyết một **chính sách sản phẩm** mà
+//! Story 1.11 đã giao tường minh cho **Panel Lookup (1.17)**.
+//!
+//! ⇒ ⛔ **Không cache, ⛔ không chỉ mục ngược trong bộ nhớ, ⛔ không xếp hạng, ⛔ không
+//! `LIMIT`** ở đây. Bốn thứ đó thuộc 1.17/1.18 và phụ thuộc hành vi người dùng thật.
 
+mod layer;
 mod query;
+mod senses;
 
 use crate::core::store::{ReadHandle, SqlResult};
+use crate::ports::DictionarySource;
+
+pub use layer::{DictLayer, DictLayers, SUPPORTED_SCHEMA_VERSION, SkipReason, SkippedLayer};
+pub use senses::SENSE_BATCH;
 
 /// Đường tra cứu — **đã quyết ở tầng trên**, adapter ⛔ không tự quyết lại (AD-44 ①).
 ///
@@ -297,7 +323,24 @@ pub fn lookup(
     route: QueryRoute,
 ) -> SqlResult<LookupResult> {
     let branch = pick_branch(query, mode, route);
+    lookup_with_branch(db, query, route, branch)
+}
 
+/// Cùng đường tra của [`lookup`], nhưng nhận **`branch` đã tính sẵn** thay vì tự gọi
+/// [`pick_branch`] lại từ đầu.
+///
+/// 🔴 **Chỗ gọi duy nhất: tầng gom (Story 1.13, [`DictLayer::lookup`]).** `branch` là một
+/// **GIÁ TRỊ của cả lượt tra** ([`GroupedLookup::branch`]) — tính **ĐÚNG MỘT LẦN** ở
+/// [`lookup_grouped`] và phải đi xuống **mọi** tệp là **cùng một** giá trị, ⛔ không phải
+/// N lần tính lại độc lập rồi tin một `debug_assert_eq!` — thứ **vô tác dụng ở bản
+/// release** — giữ chúng khớp nhau. [`lookup`] (hàm ở trên) vẫn giữ nguyên bốn tham số cho
+/// mọi chỗ gọi khác *(`tests/dict_lookup.rs`, thuộc Story 1.11/1.11b, ⛔ không đổi)*.
+pub(crate) fn lookup_with_branch(
+    db: ReadHandle<'_>,
+    query: &str,
+    route: QueryRoute,
+    branch: QueryBranch,
+) -> SqlResult<LookupResult> {
     let hits = match branch {
         QueryBranch::ExactBtree => match route {
             QueryRoute::Zh => query::exact(db, query)?,
@@ -321,4 +364,233 @@ pub fn lookup(
     };
 
     Ok(LookupResult { branch, hits })
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.13 — TẦNG GOM: nhóm theo nguồn, ⛔ KHÔNG hợp nhất (AD-19)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Một nguồn từ điển, khoá theo **`code` (chuỗi)**.
+///
+/// 🔴 ⛔ **Không** `source_id: i64`, và đây là bẫy **im lặng nhất** của cả đường gom: mỗi
+/// tệp `.db` mang bảng `dict_source` **RIÊNG**, nên `id = 1` tồn tại ở **cả ba** tệp và trỏ
+/// ba nguồn khác nhau. Gom theo `id` dán nhãn *"Thiều Chửu"* cho một nghĩa thật ra của
+/// CVDICT — **FR31 vỡ, ⛔ không lỗi, ⛔ không test hành vi nào đỏ** trừ khi ca test dùng
+/// **ít nhất hai tệp**.
+///
+/// ⚠️ Bốn trường giấy phép của `dict_source` (`license_kind` · `license_id` ·
+/// `attribution` · `source_url`) ⛔ **không** đọc ở đây — chúng thuộc Story 1.19 *(bật/tắt
+/// nguồn và ghi công)* và 10.4 *(màn hình Attribution)*.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceInfo {
+    /// `dict_source.code` — định danh máy đọc, **duy nhất trong toàn tập lớp**.
+    pub code: String,
+    /// `dict_source.display_name` — tên hiển thị **của chính tệp chứa nó**.
+    pub display_name: String,
+}
+
+/// Một **mục nghĩa** = một hàng `dict_sense`.
+///
+/// 🔴 **FR29: một từ nhiều từ loại ⇒ nhiều mục riêng biệt**, ⛔ không nối `gloss` thành một
+/// chuỗi. Một chuỗi nối là một quyết định trình bày chôn vào tầng dữ liệu, và 1.17 ⛔ không
+/// gỡ ngược ra được.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SenseRecord {
+    /// `dict_sense.entry_id` — đầu mục mang nghĩa này, trong **chính tệp** của nó.
+    pub entry_id: i64,
+    /// `dict_sense.id` — khoá để ví dụ và trích dẫn treo vào (FR30).
+    pub sense_id: i64,
+    /// Nhãn từ loại. `None` khi nguồn ⛔ không ghi.
+    pub pos: Option<String>,
+    /// 🔴 **FR35** — nhãn ngoại ngữ là một **TRƯỜNG**, ⛔ không đoán từ nội dung [`Self::pos`].
+    ///
+    /// `tools/dict-build/src/schema.rs:57-58` viết sẵn lý do trường này tồn tại: *"`pos_lang`
+    /// tồn tại vì **FR35** — nhãn từ loại ngoại ngữ phải được **ĐÁNH DẤU RÕ**, ⛔ không đoán
+    /// được từ nội dung `pos`"*. ⛔ **Không** một bảng tra `"noun" ⇒ tiếng Anh` nào, ở bất kỳ
+    /// tầng nào: một bảng như thế sai im lặng với mọi nhãn nó chưa gặp.
+    ///
+    /// ⛔ Tầng này ⛔ **không** dịch, ⛔ không viết lại, ⛔ không ẩn nhãn ngoại ngữ — 1.17
+    /// **hiển thị** dấu hiệu đó; việc của story này là làm cho nó ⛔ **không mất trên đường đi**.
+    pub pos_lang: Option<String>,
+    /// Nghĩa. `NOT NULL` trong lược đồ.
+    pub gloss: String,
+    /// Ghi chú — phần **thứ sáu** trong sáu phần FR28 liệt kê.
+    pub note: Option<String>,
+    /// Thứ tự trong nguồn.
+    ///
+    /// ⚠️ ⛔ **Không duy nhất**: `tools/dict-build/src/sources/vietphrase.rs` tách `/` vô
+    /// điều kiện và sinh nhiều hàng **cùng `ord`**. Thứ tự tất định đến từ khoá phụ
+    /// [`Self::sense_id`], ⛔ không từ trường này một mình.
+    pub ord: i64,
+    /// **FR30** — ví dụ treo theo **TỪ LOẠI** (`sense_id`), ⛔ không theo đầu mục.
+    pub examples: Vec<ExampleRecord>,
+    /// **FR30** — bảng **RIÊNG** với ví dụ: trích dẫn mang **xuất xứ**.
+    pub citations: Vec<CitationRecord>,
+}
+
+/// Một ví dụ minh hoạ của **một nghĩa**.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExampleRecord {
+    /// Câu ví dụ như nguồn ghi.
+    pub text: String,
+    /// Bản dịch của ví dụ, nếu nguồn có.
+    pub translation: Option<String>,
+    /// 🔴 Ngôn ngữ của [`Self::translation`] — thứ để nói *"bản dịch ví dụ này là tiếng
+    /// Anh"* mà ⛔ không phải đoán từ nội dung. Bỏ trường này là làm FR35 ⛔ không nghiệm
+    /// thu được ở 1.17, và lỗi lộ ra ở **story sau**.
+    pub translation_lang: Option<String>,
+    /// Thứ tự trong nguồn. Cùng cảnh báo với [`SenseRecord::ord`].
+    pub ord: i64,
+}
+
+/// Một **trích dẫn văn bản** của một nghĩa — bảng RIÊNG với ví dụ vì nó mang **xuất xứ**.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CitationRecord {
+    /// Đoạn được trích.
+    pub text: String,
+    /// Tác phẩm. `None` khi nguồn ⛔ không ghi.
+    pub work: Option<String>,
+    /// Tác giả. `None` khi nguồn ⛔ không ghi.
+    pub author: Option<String>,
+    /// Thứ tự trong nguồn. Cùng cảnh báo với [`SenseRecord::ord`].
+    pub ord: i64,
+}
+
+/// Một nhóm kết quả = **một nguồn**.
+///
+/// 🔴 **AD-19: ⛔ không có bước hợp nhất nào, ở bất kỳ đâu.** Hai nguồn bất đồng về cùng
+/// một đầu mục ⇒ **cả hai nhóm có mặt**, nghĩa giữ nguyên, ⛔ không nhóm nào bị chọn làm
+/// *"câu trả lời"* (FR32). Người dịch tự phán xét — đó là toàn bộ điểm của Epic 1.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceGroup {
+    /// Danh tính lớp chứa nguồn này — `"base"` hoặc mã lớp gỡ rời.
+    ///
+    /// 🔴 Đây là đường vào **pha hai**: [`DictLayers::layer`] nhận đúng chuỗi này, và
+    /// [`SenseRecord::entry_id`] chỉ có nghĩa **trong tệp của lớp đó**.
+    pub layer: String,
+    /// Nguồn — khoá là [`SourceInfo::code`].
+    pub source: SourceInfo,
+    /// Các đầu mục khớp, thứ tự `dict_entry.id` tăng dần.
+    ///
+    /// ⚠️ ⛔ **Không bao giờ rỗng**: một nguồn đã tra mà ⛔ không khớp gì ⇒ ⛔ **không sinh
+    /// nhóm**. *"Đã tra mà không khớp"* và *"lớp ⛔ không nạp được"* ⛔ không được phép trông
+    /// giống nhau ở 1.17 — cái sau nằm ở [`GroupedLookup::skipped`].
+    pub entries: Vec<EntryHit>,
+}
+
+/// Kết quả **pha một** của một lượt tra trên **cả tập lớp**.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GroupedLookup {
+    /// Đường đã đi — một **GIÁ TRỊ của cả lượt tra**, ⛔ không phải của từng tệp.
+    ///
+    /// 🔴 [`pick_route`] chạy **ĐÚNG MỘT LẦN**, ở đây, và **cùng một** giá trị đi xuống
+    /// **mọi** tệp (AD-44 ①). Để mỗi tệp tự tính là để hai tệp trả lời khác nhau ngay khi
+    /// định nghĩa [`is_han`] của chúng lệch nhau.
+    pub route: QueryRoute,
+
+    /// Nhánh đã chạy — cũng là thuộc tính của **cả lượt tra**.
+    ///
+    /// 🔴 Gồm cả [`QueryBranch::NoBranchQueryTooShort`]: *"rỗng **có lý do**"*, ⛔ không
+    /// phải *"⛔ không có kết quả"* (AD-44 ④). Panel Lookup (1.17) đọc **đúng trường này**
+    /// để nói *"truy vấn quá ngắn"* thay vì *"⛔ không tìm thấy"* — hai câu đó dẫn người
+    /// dùng đi hai đường khác nhau.
+    pub branch: QueryBranch,
+
+    /// Một nhóm cho một nguồn, ⛔ không nhóm rỗng nào. Xem [`SourceGroup`].
+    pub groups: Vec<SourceGroup>,
+
+    /// Các lớp ⛔ không nạp được, hoặc nạp được mà lượt tra trên chúng hỏng.
+    ///
+    /// 🔴 **Giá trị, ⛔ không phải một dòng log** — nó là thứ duy nhất phân biệt *"⛔ không
+    /// có kết quả"* với *"một phần từ điển ⛔ không trả lời"*.
+    pub skipped: Vec<SkippedLayer>,
+}
+
+/// **Pha một** — tra `query` trên **toàn bộ** tập lớp và nhóm kết quả theo nguồn.
+///
+/// 🔴 [`pick_route`] gọi **ĐÚNG MỘT LẦN**, ở đây; [`pick_branch`] cũng vậy. Cùng một
+/// [`QueryRoute`] đi xuống **mọi** tệp (AD-44 ①, vá A1).
+///
+/// ⚠️ `mode` là **tham số từ chỗ gọi**, ⛔ không đoán từ nội dung — cùng luật [`LookupMode`]
+/// đã chốt ở Story 1.11.
+///
+/// ⛔ **Hàm này ⛔ không đọc nghĩa.** Xem §HAI PHA ở doc-comment module về vì sao — và về vì
+/// sao một `LIMIT` ở đây là một quyết định sản phẩm thuộc về Story 1.17.
+pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode) -> GroupedLookup {
+    let route = pick_route(query);
+    let branch = pick_branch(query, mode, route);
+
+    let mut groups: Vec<SourceGroup> = Vec::new();
+    // Danh sách lớp hỏng lúc **mở** đi cùng **mọi** lượt tra: 1.17 ⛔ không có đường nào
+    // khác để biết một phần từ điển đang vắng mặt.
+    let mut skipped: Vec<SkippedLayer> = layers.skipped().to_vec();
+
+    for layer in layers.layers() {
+        let result = match layer.lookup(query, route, branch) {
+            Ok(result) => result,
+            Err(err) => {
+                // Một lớp hỏng lúc **tra** ⛔ không được làm hỏng cả lượt tra — các lớp còn
+                // lại vẫn trả lời, và lý do đi ra theo **giá trị** (AC4, cùng luật).
+                skipped.push(SkippedLayer {
+                    path: layer.path().to_path_buf(),
+                    reason: SkipReason::LookupFailed {
+                        detail: err.to_string(),
+                    },
+                });
+                continue;
+            }
+        };
+
+        // Nhóm **trong phạm vi một lớp** trước, rồi nối vào kết quả: thứ tự nhóm vì thế là
+        // (thứ tự lớp, mã nguồn) — tất định, ⛔ không phụ thuộc thứ tự hàng SQLite trả về.
+        let mut in_layer: Vec<SourceGroup> = Vec::new();
+        for hit in result.hits {
+            if let Some(group) = in_layer
+                .iter_mut()
+                .find(|group| group.source.code == hit.source_code)
+            {
+                group.entries.push(hit);
+                continue;
+            }
+
+            // 🔴 `display_name` lấy từ **chính tệp** chứa đầu mục, ⛔ không từ một bảng tra
+            // `id → nguồn` dựng lại ở tầng gom (`deferred-work.md`, mục *"Khoá theo `code`
+            // chứ ⛔ không theo `id`"*).
+            let Some(source) = layer.source(&hit.source_code) else {
+                // `dict_source` của tệp ⛔ không có `code` mà chính `JOIN` của nó vừa trả
+                // về là bất khả trong một tệp toàn vẹn — bỏ hàng còn hơn dựng một nhãn
+                // nguồn ⛔ không ai xác nhận được. `debug_assert!` bắt ca này sớm lúc phát
+                // triển; `eprintln!` giữ nó **nhìn thấy được** ở bản release, nơi assert
+                // vô tác dụng — cùng bẫy AC5 nêu tên cho `char_idx()`, ⛔ không lặp lại ở
+                // đây một lần nữa dưới dạng im lặng tuyệt đối.
+                debug_assert!(
+                    false,
+                    "a hit carries a source code that its own file does not declare"
+                );
+                eprintln!(
+                    "dict[layers] {} has a hit with source code {} that its own dict_source \
+                     does not declare; dropping the entry",
+                    layer.path().display(),
+                    hit.source_code
+                );
+                continue;
+            };
+
+            in_layer.push(SourceGroup {
+                layer: layer.layer().to_owned(),
+                source: source.clone(),
+                entries: vec![hit],
+            });
+        }
+
+        in_layer.sort_by(|a, b| a.source.code.cmp(&b.source.code));
+        groups.append(&mut in_layer);
+    }
+
+    GroupedLookup {
+        route,
+        branch,
+        groups,
+        skipped,
+    }
 }

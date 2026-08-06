@@ -161,6 +161,11 @@ fn ipc_error_wire_shape() {
         mode: "library".to_owned(),
         shortcuts: BTreeMap::new(),
         layout_presets: BTreeMap::new(),
+        // ⚠️ Story 1.14 — trường thứ năm. Struct literal ở đây KHÔNG biên dịch được cho tới
+        // khi nó có mặt, và đó là hành vi ĐÚNG: một trường mới đi qua IPC phải làm ai đó
+        // dừng lại. ⛔ Đừng "sửa" bằng `..Default::default()` — nó sẽ nuốt luôn trường thứ
+        // sáu, thứ bảy, và danh sách khoá đóng băng dưới đây mất hết giá trị.
+        workspace_layout: String::new(),
     })
     .expect("BootstrapConfig phải serialize được");
     // ⚠️ Sắp xếp trước khi so: `serde_json::Map` là `BTreeMap` hay `IndexMap` tuỳ feature
@@ -176,7 +181,7 @@ fn ipc_error_wire_shape() {
     ok_keys.sort_unstable();
     assert_eq!(
         ok_keys,
-        vec!["layout_presets", "mode", "shortcuts", "theme"],
+        vec!["layout_presets", "mode", "shortcuts", "theme", "workspace_layout"],
         "khoá trên dây là `snake_case`. Nhận được: {ok_keys:?}. Nghi phạm số một: \
          `#[serde(rename_all = \"camelCase\")]` trên `BootstrapConfig` — nó biến \
          `layout_presets` thành `layoutPresets` và chỗ đọc nhận `undefined`."

@@ -68,9 +68,20 @@ const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
  * đúng quần thể mà Kiểm B/B2 cưỡng chế trên đó — tệp KHÔNG thuộc `src/tokens/**`. Sàn
  * đầu không thay được sàn sau: khi `src/tokens/` mọc thêm tệp, `files.length` vẫn qua
  * sàn trong khi số component có thể về 0, và toàn bộ AD-34 xanh rỗng.
+ *
+ * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md:48` và `:146`.
+ *
+ * Số THẬT sau Story 1.14: **32** tệp trong tầm quét, trong đó **29** là component (ngoài
+ * `src/tokens/**`). Trước story này là 21/18. Cây mọc thêm bốn panel, `PanelTab`,
+ * `WorkspaceDock`, `dockview-theme.css`, và bốn tệp `.ts` của `src/layout/`.
+ *
+ * ⚠️ Sàn đặt ở ~81% số thật — cùng tỷ lệ dư địa mà `RS_FLOOR` của `check-i18n.mjs` giữ,
+ * và cùng lý lẽ: sàn tồn tại để bắt một cây bị **CẮT MẤT**, ⛔ không phải để đếm tệp mới.
+ * Đặt nó bằng số thật là tự tạo một cổng đỏ ở story sau, và một cổng đỏ vì một lý do
+ * không có thật là một cổng sắp bị gỡ.
  */
-const FILE_FLOOR = 5
-const COMPONENT_FILE_FLOOR = 4
+const FILE_FLOOR = 26
+const COMPONENT_FILE_FLOOR = 23
 
 let failures = 0
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
@@ -154,6 +165,15 @@ const EXPECTED_TYPOGRAPHY = {
   'lookup-gloss': { family: 'read', fontSize: '14.5px', lineHeight: '1.6' },
   'lookup-example': { family: 'read', fontSize: '12.5px', lineHeight: '1.6', fontStyle: 'italic' },
   'ui-md': { family: 'ui', fontSize: '12px', lineHeight: '1.5' },
+  /*
+   * ⚠️ `ui-md-strong` (Story 1.14 · AC10) CỐ Ý VẮNG MẶT ở đây.
+   *
+   * Nó tồn tại trong `tokens.json` nhưng KHÔNG có trong §Bảng token typography của
+   * `DESIGN.md`, và bảng dưới đây là bản chép ĐỘC LẬP của bảng đó — 14 hàng, đúng 14.
+   * Chữ ký cho hàng thứ 15 sống ở `tokens.deviations`, và `compare()` cưỡng chế rằng nó
+   * phải có `question` + `reason` không rỗng. Xem lý lẽ đầy đủ ở phần `extra` của
+   * `compare()`. ⛔ Đừng "sửa" bằng cách thêm một hàng vào đây.
+   */
   'ui-sm': { family: 'ui', fontSize: '11.5px', lineHeight: '1.5' },
   'ui-label': {
     family: 'ui',
@@ -194,8 +214,14 @@ const EXPECTED_ROUNDED = {
   full: '9999px',
 }
 
-/** Đếm bắt buộc — 16/16/14/4. ⛔ 16, KHÔNG phải 17: `tm-rule` cùng giá trị hai theme. */
-const EXPECTED_COUNTS = { colorsPerTheme: 16, typography: 14, families: 4 }
+/**
+ * Đếm bắt buộc — 16 / 16 / 15 / 4. ⛔ 16, KHÔNG phải 17: `tm-rule` cùng giá trị hai theme.
+ *
+ * ⚠️ `typography` là **15** kể từ Story 1.14 (`ui-md-strong`, AC10), ⛔ không phải 14 như
+ * §Bảng token typography của `DESIGN.md` còn ghi. Lệch đó là CÓ CHỦ Ý và có chữ ký — xem
+ * `deviations[0]` trong `tokens.json`. Sửa `DESIGN.md` cho khớp là một lượt riêng của Ice.
+ */
+const EXPECTED_COUNTS = { colorsPerTheme: 16, typography: 15, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -668,10 +694,38 @@ function compare(group, expected, actual, pick = (v) => v) {
     fail(`${group}: thiếu ${missing.length} token — ${missing.join(', ')}`)
     bad += missing.length
   }
-  if (extra.length) {
-    fail(`${group}: thừa ${extra.length} token — ${extra.join(', ')}`)
+  /**
+   * 🔴 TOKEN THỪA — token có trong `tokens.json` mà bảng của `DESIGN.md` KHÔNG có.
+   *
+   * ⚠️ Đây là một chỗ lệch THẬT và nó phải đi qua sổ `deviations` như mọi chỗ lệch khác.
+   * Story 1.14 · AC10 là lần đầu tiên ca này xảy ra (`typography.ui-md-strong`), và
+   * đường thoát dễ mà nó mở ra rất đắt: **thêm hàng vào bảng đóng băng ngay trên**. Làm
+   * vậy là để bảng — thứ khối chú thích ở đầu tệp gọi là *"bản chép ĐỘC LẬP thứ hai của
+   * DESIGN.md"* — lặng lẽ trôi khỏi `DESIGN.md`, và người sau đối chiếu hai bên sẽ thấy
+   * lệch mà không có gì nói vì sao. Hai bản chép chỉ bắt được lỗi khi cả hai còn chép
+   * cùng một thứ.
+   *
+   * ⇒ Bảng đóng băng ở lại đúng 14 hàng của `DESIGN.md`. Hàng thứ 15 sống trong
+   * `tokens.json` và **được cấp phép bằng một mục `deviations` có `question` và `reason`
+   * không rỗng** — tức một chữ ký, đúng như khối chú thích đầu bảng đòi.
+   *
+   * Quy ước `designValue`/`value` cho ca này, để mục deviation đọc được thành câu:
+   *   designValue: "(không có trong bảng)"   value: "(token mới)"
+   */
+  const EXTRA_WANT = '(không có trong bảng)'
+  const EXTRA_GOT = '(token mới)'
+  const unsigned = extra.filter((k) => !deviationOk(`${group}.${k}`, EXTRA_WANT, EXTRA_GOT))
+  for (const k of extra.filter((x) => !unsigned.includes(x))) {
+    pass(`${group}.${k} — token NGOÀI bảng DESIGN.md, có deviation ký tên`)
+  }
+  if (unsigned.length) {
+    fail(`${group}: thừa ${unsigned.length} token KHÔNG có chữ ký — ${unsigned.join(', ')}`)
     detail('⛔ Đừng thêm token để cho khớp một con số cũ. Mọi token mới phải qua Kiểm C.')
-    bad += extra.length
+    detail(
+      `⛔ Và đừng thêm hàng vào bảng đóng băng ở đầu tệp này: khai một mục \`deviations\` ` +
+        `\`{ path: "${group}.${unsigned[0]}", designValue: "${EXTRA_WANT}", value: "${EXTRA_GOT}", question, reason }\`.`,
+    )
+    bad += unsigned.length
   }
 
   for (const key of expKeys) {
@@ -1334,6 +1388,90 @@ if (fBad === 0) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm H — focus ring: `outline: none` CHỈ trên gốc `tabindex="-1"` (NFR17)')
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 ĐÓNG `deferred-work.md:140` — Story 1.14 · AC11.2.
+//
+// Ghi chú của chính cổng này *(và của `check-commands.mjs`)* đã nêu tên lỗ suốt bốn story:
+// *"Một `*:focus { outline: none }` phá NFR17 mà vẫn qua được cả cổng này lẫn
+// `check-commands.mjs`"* (§Trap 4 của Story 1.6). Nó là một dòng CSS, nó xoá đường đi bàn
+// phím của MỌI nút và ô nhập trong sản phẩm, và ⛔ không một phép kiểm nào nhìn thấy.
+//
+// ─────────────────────────────────────────────────────────────────────────────────
+// LUẬT — hẹp có chủ ý, và ⛔ không phải một danh sách cấm
+// ─────────────────────────────────────────────────────────────────────────────────
+// `outline: none` *(hoặc `outline: 0`, hoặc `outline-style: none`)* HỢP LỆ khi và chỉ khi
+// selector của nó chọn **gốc `tabindex="-1"` của một chế độ hoặc một panel** — tức những
+// phần tử ⛔ KHÔNG nằm trong thứ tự Tab của trình duyệt và chỉ nhận focus qua `el.focus()`
+// của `focus.ts`. Vẽ một vòng focus quanh cả một chế độ là nhiễu thị giác cho một lượt dời
+// focus mà chính ứng dụng vừa thực hiện.
+//
+// Mọi ca khác đi qua **miễn trừ CÓ TÊN** `/* aura-allow-outline-none: <lý do> */`, cùng
+// khuôn `aura-allow-z-index` mà Kiểm F đã dùng và đã nghiệm thu.
+//
+// ⚠️ Cổng đọc SELECTOR, ⛔ không đọc HTML — nó ⛔ không chứng minh được rằng phần tử khớp
+// selector đó THẬT SỰ mang `tabindex="-1"`. Nó chứng minh được điều quan trọng hơn và
+// kiểm được: selector ⛔ không quét rộng. `*:focus`, `:focus`, `button:focus`,
+// `.panel *:focus` đều đỏ. Giới hạn này in ra ở cuối lượt chạy.
+
+/** Lớp gốc của chế độ/panel — chúng mang `tabindex="-1"` và ⛔ không vào thứ tự Tab. */
+const FOCUS_ROOT_CLASSES = ['.mode', '.panel', '.dock']
+const OUTLINE_OFF_RE = /^(?:none|0|0px)$/
+
+/** Selector có chọn ĐÚNG một gốc chế độ/panel, ⛔ không quét rộng hơn? */
+function isFocusRootSelector(prelude) {
+  const parts = prelude
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s !== '')
+  if (parts.length === 0) return false
+  return parts.every((sel) => {
+    // ⛔ Bộ chọn hậu duệ / anh em: `.panel *:focus`, `.mode > button:focus` — chúng chạm
+    // tới phần tử CON, và con thì có nút, có ô nhập, có tab. Đó là đúng ca §Trap 4.
+    if (/[\s>+~]/.test(sel)) return false
+    if (!sel.endsWith(':focus') && !sel.endsWith(':focus-visible')) return false
+    const base = sel.replace(/:focus(-visible)?$/, '')
+    return FOCUS_ROOT_CLASSES.includes(base)
+  })
+}
+
+let hBad = 0
+let hExempt = 0
+let hOk = 0
+for (const p of parsed) {
+  for (const block of p.blocks) {
+    for (const d of block.decls) {
+      const isOutlineOff =
+        (d.prop === 'outline' || d.prop === 'outline-style') &&
+        OUTLINE_OFF_RE.test(stripImportant(d.value).toLowerCase())
+      if (!isOutlineOff) continue
+      const line = lineOf(p.text, d.index)
+      if (isFocusRootSelector(block.prelude)) {
+        hOk += 1
+        continue
+      }
+      if (exemptAt(p, d.index, 'outline-none')) {
+        pass(`${rel(p.file)}:${line} — \`${d.prop}: ${d.value}\` có miễn trừ có tên`)
+        hExempt += 1
+        continue
+      }
+      fail(`${rel(p.file)}:${line} — \`${d.prop}: ${d.value}\` trên \`${block.prelude}\``)
+      detail(`Chỉ ${FOCUS_ROOT_CLASSES.join(' · ')} ở dạng \`<lớp>:focus\` được tắt focus ring.`)
+      detail('Nút, ô nhập và tab PHẢI giữ vòng focus của trình duyệt — đó là nửa còn lại của NFR17.')
+      detail('Nếu đây thật sự là một gốc `tabindex="-1"`: thêm `/* aura-allow-outline-none: <lý do> */`.')
+      hBad += 1
+    }
+  }
+}
+if (hBad === 0) {
+  pass(
+    `${hOk} lượt tắt focus ring, tất cả trên gốc chế độ/panel (${hExempt} miễn trừ có tên) — ` +
+      '⛔ không `*:focus`, ⛔ không bộ chọn hậu duệ',
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 console.log('\nKiểm G — phân tách panel ĐẢO NGƯỢC giữa hai theme (AC6)')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
@@ -1424,8 +1562,10 @@ console.log('     minh khe 2px hiện ra đúng trên màn hình.')
 console.log('  2. Kiểm C kiểm DANH SÁCH ĐÃ KHAI, không phải những cặp tình cờ tồn tại trong mã.')
 console.log('     Khi Story 1.14 dựng panel thật, cặp mới phải được thêm vào `contrast.pairs` —')
 console.log('     phép kiểm đầy đủ (C1) là thứ bắt việc quên thêm.')
-console.log('  3. Ba deviation khỏi bảng DESIGN.md đang được áp — Ice đã PHÊ CHUẨN 2026-08-03,')
-console.log('     và `DESIGN.md` chưa được sửa cho khớp. Xem `deviations` trong `tokens.json`.')
+console.log('  3. BỐN deviation khỏi bảng DESIGN.md đang được áp — ba cái Ice PHÊ CHUẨN 2026-08-03,')
+console.log('     cái thứ tư (`typography.ui-md-strong`, token NGOÀI bảng) là Story 1.14 · AC10.')
+console.log('     `DESIGN.md` chưa được sửa cho khớp — đó là một lượt riêng của Ice, không phải')
+console.log('     của dev. Xem `deviations` trong `tokens.json`.')
 console.log('  4. Cờ `wraps` là mệnh đề về NỘI DUNG sẽ chạy qua token; không phép kiểm tĩnh nào')
 console.log('     phân xử được nó khi chưa có component. Cổng chỉ bắt được việc THIẾU cờ.')
 process.exit(0)

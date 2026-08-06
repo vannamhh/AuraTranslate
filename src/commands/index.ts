@@ -37,8 +37,11 @@ export type ModeId = 'library' | 'workspace' | 'reading'
 export const MODE_IDS: readonly ModeId[] = ['library', 'workspace', 'reading']
 
 /**
- * Tiền tố của vòng xoay `focus.next_panel`. Hôm nay vòng có hai panel; Story 1.14 dựng
- * lưới 2×2 với `dockview` và vòng lên bốn.
+ * Tiền tố của vòng xoay panel.
+ *
+ * ⚠️ Story 1.14 KHÔNG còn dùng nó cho `focus.next_panel`: vòng xoay nay đi theo **thứ tự
+ * bố cục** do `deps.panelRing()` cấp, ⛔ không theo thứ tự `declare()` (AC9). Hằng số ở
+ * lại vì `focusRegistry.next(prefix)` vẫn là đường lui khai được và Story 1.21 sẽ đọc nó.
  */
 const PANEL_PREFIX = 'panel.'
 
@@ -50,12 +53,20 @@ const PANEL_PREFIX = 'panel.'
  * `.vue`. Chiều thứ hai là thứ bắt được một chế độ quên khai điểm vào — đúng ca mà AC4
  * nói *"focus không bao giờ rơi về `body`"* và cũng đúng ca mà không con mắt nào bắt
  * được sau khi có mười panel.
+ *
+ * ⚠️ **BẢY** mục kể từ Story 1.14: ba chế độ + **bốn** panel. Trước đó là năm — hai panel
+ * của `WorkspaceMode` được dựng thẳng bằng `PanelFrame`. Nay cả bốn sống trong dockview.
+ *
+ * 🔴 Thứ tự ở đây là thứ tự KHAI BÁO, ⛔ **không** phải thứ tự vòng xoay focus. Vòng xoay
+ * đi theo lưới đang hiện (AC9) — xem `deps.panelRing`.
  */
 export const FOCUS_OWNERS: readonly FocusOwner[] = [
   'mode.library',
   'mode.workspace',
   'mode.reading',
   'panel.source',
+  'panel.lookup',
+  'panel.ai_translation',
   'panel.editor',
 ]
 
@@ -131,6 +142,49 @@ export type CommandDeps = {
    * chỉ ở chỗ đọc, không ở kết quả.
    */
   bindings?: Readonly<Record<string, readonly string[]>>
+
+  // ── Story 1.14 — ba cổng của tầng bố cục ────────────────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `setMode`: `DockviewApi` chỉ tồn tại sau
+  // `@ready`, tức SAU `mount()`, trong khi `installCommands()` chạy TRƯỚC. Ba hàm này
+  // hỏi *"cái dock đang sống là cái nào"* tại thời điểm CHẠY — cài đặt ở
+  // `src/layout/dockController.ts`, nối ở `src/main.ts`.
+  //
+  // 🔴 **Tuỳ chọn, và đó là chủ ý.** Kiểm C/D/E của cổng gọi `installCommands()` trong
+  // Node thuần, nơi ⛔ không có dockview và cũng ⛔ không cần có: chúng kiểm văn phạm id,
+  // nhãn, hợp âm và sổ focus. Handler vắng cổng thì **KÊU** (`console.error` nêu đích
+  // danh) chứ ⛔ không ném và ⛔ không im — cùng kỷ luật với `focus.ts`.
+
+  /** Áp một preset bố cục đã khai. Handler của `layout.preset_*` (AC5). */
+  applyPreset?: (presetId: string) => boolean
+  /** Ẩn/hiện một panel. Handler của bốn `layout.toggle_*` (AC3). */
+  togglePanel?: (panelId: string) => boolean
+  /**
+   * Các panel đang HIỆN, theo **thứ tự bố cục** (AC9).
+   *
+   * 🔴 ⛔ Không phải thứ tự `declare()`, và khác biệt đó là cả nội dung của AC9: hai thứ
+   * tự tách nhau ngay lần đầu người dùng kéo một panel sang chỗ khác, và một vòng xoay
+   * đi theo thứ tự khai báo sẽ nhảy lung tung trên màn hình mà ⛔ không cổng nào đỏ.
+   */
+  panelRing?: () => readonly string[]
+}
+
+/** Bốn panel của Workspace, theo thứ tự khai báo. ⚠️ Chép từ `src/layout/workspaceLayout.ts`. */
+const PANEL_SUFFIXES: readonly string[] = ['source', 'lookup', 'ai_translation', 'editor']
+
+/**
+ * Cổng vắng mặt ⇒ **kêu**, ⛔ không ném và ⛔ không im.
+ *
+ * ⚠️ Ném ở đây là một hợp âm bấm nhầm lúc đang ở Library giết luôn handler bàn phím
+ * (`keys.ts::handle` gọi `registry.dispatch` không bọc `try`). Im lặng thì tệ hơn: một
+ * phím tắt không làm gì và ⛔ không ai lần được về dòng nào.
+ */
+function portMissing(commandId: string, port: string): void {
+  console.error(
+    `[commands] \`${commandId}\` chạy nhưng cổng \`${port}\` chưa được tiêm — thao tác ` +
+      'KHÔNG có hiệu lực. `src/main.ts` là chỗ nối `installCommands()` với ' +
+      '`src/layout/dockController.ts`.',
+  )
 }
 
 /**
@@ -152,11 +206,8 @@ function chordsFor(
  * Đăng ký bộ command khởi động vào **một** registry. Tách ra để dùng được hai lần: một lần
  * trên registry thật, một lần trên một registry nháp — xem [`bindingsAreUsable`].
  */
-function registerAll(
-  target: Registry,
-  setMode: (mode: ModeId) => void,
-  bindings: CommandDeps['bindings'],
-): void {
+function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps['bindings']): void {
+  const setMode = deps.setMode
   for (const mode of MODE_IDS) {
     target.register({
       id: `mode.${mode}`,
@@ -177,30 +228,113 @@ function registerAll(
   }
 
   /**
-   * 🔴 CỐ Ý KHÔNG GÁN PHÍM — §Quyết định thiết kế #5, ba lý do độc lập:
-   *   1. bốn panel chưa tồn tại, nên vòng xoay chưa biết gồm những gì và theo thứ tự nào
-   *      (Story 1.14, `dockview`, UX-DR13);
-   *   2. mọi phím ứng cử đều đang hoặc sắp có chủ — `Tab` là thứ tự tiêu điểm của trình
-   *      duyệt, `⌘1..3` đã là chế độ, `⌘⇧↵` là UX-DR35, `⌘M` `⌘/` là UX-DR32;
-   *   3. AC6 cần một phần tử THẬT để chứng minh: một `unbound()` luôn trả mảng rỗng là
-   *      một AC chưa được chứng minh, và Story 1.21 sẽ phát hiện nó hỏng khi đã có 40
-   *      command.
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 1.14 · §QUYẾT ĐỊNH #1 và #2 — HỌ PHÍM `Mod+Alt+…`
+   * ═══════════════════════════════════════════════════════════════════════════════
    *
-   * ⛔ Nhưng handler thì CHẠY THẬT. Một command rỗng đăng ký cho đủ số là đúng thứ story
-   * này tồn tại để chặn.
+   * `mockups/key-screen-workspace.html:89` vẽ `⌘1` `⌘2` cho **preset bố cục**. Xung đột
+   * đó **đã bị phân xử ở Story 1.6: chế độ thắng** (UX-DR34 · `EXPERIENCE.md:49` · AC3
+   * Story 1.6). Mockup ⛔ chưa sửa và dev ⛔ không sửa nó — sửa tài liệu quy hoạch là một
+   * lượt riêng của Ice. Việc còn lại là chọn phím KHÁC, và đây là chỗ chọn.
    *
-   * ⚠️ Mặc định là `undefined` — nhưng nếu `global.db` có một hợp âm cho id này thì nó
-   * ĐƯỢC dùng: gán phím là quyền của người dùng, và Story 1.21 là màn hình để làm việc đó,
-   * không phải một cái khoá lên chính dữ liệu đó.
+   * Chốt: **`Mod+Alt+<số>` cho preset · `Mod+Alt+<mũi tên>` cho đi lại giữa panel.**
+   *   - giữ nguyên "số thứ tự preset" mà mockup dạy, chỉ thêm một phím bổ trợ;
+   *   - `Mod+Alt+3` để TRỐNG cho **Review Mode** ở Story 8.11 — đúng thứ tự mockup;
+   *   - một họ phím cho cả hai nhóm, nên người dùng học một lần;
+   *   - ⛔ không đụng `Tab` (thứ tự tiêu điểm của trình duyệt), ⛔ không đụng `⌥←` `⌥→`
+   *     trần (*Chương trước/sau*, `EXPERIENCE.md:148`, Story 2.11), ⛔ không đụng `⌘⇧…`
+   *     (không gian của UX-DR35).
+   *
+   * ⚠️ Khớp bằng `event.code` (`Digit1`, `ArrowRight`) nên việc `⌥1` sinh ký tự `¡` trên
+   * macOS ⛔ không thành vấn đề — xem `keys.ts` §"KHỚP BẰNG `event.code`".
+   * ⚠️ `Alt` đã có trong `parseChord`; `Digit1`/`Digit2`/`ArrowLeft`/`ArrowRight` đều phân
+   * giải được. ⛔ Không thêm tên phím mới vào `NAMED_CODES`.
    */
-  target.register({
-    id: 'focus.next_panel',
-    labelKey: 'command.focus.next_panel',
-    keys: chordsFor('focus.next_panel', bindings, undefined),
-    run: () => {
-      focus.next(PANEL_PREFIX)
-    },
-  })
+  for (const preset of ['grid', 'columns']) {
+    const id = `layout.preset_${preset}`
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: chordsFor(id, bindings, [`Mod+Alt+${preset === 'grid' ? 1 : 2}`]),
+      run: () => {
+        if (deps.applyPreset === undefined) return portMissing(id, 'applyPreset')
+        deps.applyPreset(id)
+      },
+    })
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 BỐN COMMAND ẨN/HIỆN PANEL — HANDLER THẬT, CỐ Ý ⛔ KHÔNG GÁN PHÍM (AC3, §QĐ #3)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * AC6 của Story 1.6 nghiệm thu bằng việc `unbound()` trả về **ít nhất một phần tử
+   * thật**. Trước story này phần tử duy nhất đó là `focus.next_panel` — mà story này vừa
+   * gán phím cho nó (§QĐ #2). Nếu bốn command dưới đây cũng có phím thì `unbound()` trả
+   * mảng rỗng, **AC6 của Story 1.6 mất bằng chứng**, và ⛔ không cổng nào đỏ. Đó là §Bẫy 5
+   * của story, ghi ra bằng chữ.
+   *
+   * ⚠️ Nên đây là một **lỗ NFR17 mở ra CÓ Ý THỨC**: hôm nay ẩn/hiện panel chỉ tới được
+   * bằng chuột. Lỗ này **có tên và có chủ** — màn hình gán phím là **Story 1.21**, và
+   * `deferred-work.md` mang một mục cho nó. Một lỗ có tên tốt hơn một bằng chứng bị xoá.
+   *
+   * ⛔ Và handler thì CHẠY THẬT. Một command rỗng đăng ký cho đủ số là đúng thứ
+   * `CommandRegistry` tồn tại để chặn (`registry.ts` ném khi thiếu `run`).
+   *
+   * ⚠️ `keys: chordsFor(id, bindings, undefined)` — mặc định ⛔ không phím, NHƯNG nếu
+   * `global.db` có một hợp âm cho id này thì nó ĐƯỢC dùng: gán phím là quyền của người
+   * dùng, và Story 1.21 là màn hình để làm việc đó, ⛔ không phải một cái khoá lên chính
+   * dữ liệu đó.
+   */
+  for (const suffix of PANEL_SUFFIXES) {
+    const id = `layout.toggle_${suffix}`
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: chordsFor(id, bindings, undefined),
+      run: () => {
+        if (deps.togglePanel === undefined) return portMissing(id, 'togglePanel')
+        deps.togglePanel(`panel.${suffix}`)
+      },
+    })
+  }
+
+  /**
+   * `focus.next_panel` / `focus.prev_panel` — AC9, đóng `deferred-work.md:134` và `:161`.
+   *
+   * 🔴 Trước story này ⛔ **không có đường bàn phím nào vào panel**: §Quyết định #5 của
+   * Story 1.6 cố ý để trống vì *"bốn panel chưa tồn tại, nên vòng xoay chưa biết gồm những
+   * gì"*. Nay chúng tồn tại, nên `deferred-work.md:161` — *"⛔ Không đánh dấu AC4 đạt trọn
+   * cho tới lúc đó"* — đóng ở đây.
+   *
+   * 🔴 Vòng xoay đi theo **thứ tự bố cục hiện tại**, ⛔ không theo thứ tự `declare()`.
+   * `deps.panelRing()` là chỗ biết lưới; `focus.cycle` chỉ biết đi trên một vòng đã cho.
+   * Panel đã ẩn (AC3) ⛔ không có trong vòng — vì `visiblePanelsInLayoutOrder()` chỉ đọc
+   * những panel THẬT SỰ đang trong dockview.
+   *
+   * ⚠️ Có `prev` chứ ⛔ không chỉ `next`: một vòng bốn panel đi được một chiều thì lùi một
+   * bước tốn ba lần bấm.
+   */
+  for (const [id, step] of [
+    ['focus.next_panel', 1],
+    ['focus.prev_panel', -1],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: chordsFor(id, bindings, [`Mod+Alt+Arrow${step > 0 ? 'Right' : 'Left'}`]),
+      run: () => {
+        if (deps.panelRing === undefined) {
+          // ⚠️ Đường lui là thứ tự KHAI BÁO — đúng hành vi của Story 1.6, và đúng thứ
+          // Kiểm C/E của cổng chạy trên. ⛔ Không im lặng: nó ⛔ không phải hành vi sản phẩm.
+          portMissing(id, 'panelRing')
+          focus.next(PANEL_PREFIX)
+          return
+        }
+        focus.cycle(deps.panelRing(), step)
+      },
+    })
+  }
 }
 
 /**
@@ -227,9 +361,9 @@ function bindingsAreUsable(
 ): boolean {
   try {
     const scratch = createRegistry()
-    // `setMode` rỗng: registry nháp không bao giờ được `dispatch`, nó chỉ tồn tại để
+    // Deps rỗng: registry nháp không bao giờ được `dispatch`, nó chỉ tồn tại để
     // `createKeymap` có cái để phân giải hợp âm trên.
-    registerAll(scratch, () => {}, bindings)
+    registerAll(scratch, { setMode: () => {} }, bindings)
     createKeymap(scratch, { isMac })
     return true
   } catch (err) {
@@ -258,7 +392,7 @@ export function installCommands(deps: CommandDeps): Keymap {
       ? deps.bindings
       : undefined
 
-  registerAll(registry, deps.setMode, bindings)
+  registerAll(registry, deps, bindings)
 
   keymap = createKeymap(registry, { isMac })
   return keymap

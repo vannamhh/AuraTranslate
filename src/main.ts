@@ -1,12 +1,35 @@
 import { createApp, watch } from 'vue'
 import App from './App.vue'
 import './tokens/reset.css'
+// ── Story 1.14 — dockview: MỘT lượt import CSS cho cả ứng dụng ──────────────────────
+//
+// ⚠️ Import ở đây chứ ⛔ không trong `WorkspaceDock.vue`: một `<style>` scoped của Vue
+// ⛔ không chở được stylesheet của thư viện, và `@import` trong tệp scoped sẽ nhân bản
+// theo mỗi lượt dựng component. `main.ts` là chỗ `reset.css` đã đi qua — cùng cửa.
+//
+// 🔴 Thứ tự BẮT BUỘC: `dockview.css` TRƯỚC `dockview-theme.css`. Tệp thư viện khai giá
+// trị mặc định cho 113 biến `--dv-*`; lớp `.dockview-theme-aura` của ta ghi đè chúng bằng
+// token. Đảo thứ tự thì với những khai báo cùng độ đặc hiệu, bản của thư viện thắng.
+//
+// ⚠️ CSP `style-src 'self'` ⛔ KHÔNG được nới, và ⛔ không cần: đo thật trên
+// `dist/styles/dockview.css` (3.436 dòng) — ⛔ không `@import`, ⛔ không `url(...)`,
+// ⛔ không `@font-face`. Vite gộp nó thành một tệp CSS cùng gốc, hợp lệ. Chỗ DUY NHẤT
+// dockview tạo `<style>` lúc chạy là đường `addPopoutGroup`, và `scripts/check-layout.mjs`
+// cấm đường đó (AC1).
+import 'dockview-vue/dist/styles/dockview.css'
+import './layout/dockview-theme.css'
 import { applyTheme, DEFAULT_THEME, isTheme } from './tokens'
 import { loadFonts } from './tokens/fonts'
 import { attachKeyboard, installCommands } from './commands'
 import type { ModeId } from './commands'
 import { currentMode, setMode } from './modes/modeState'
 import { loadBootstrapConfig, putConfig } from './config/bootstrap'
+// ── Story 1.14 — ba cổng của tầng bố cục ────────────────────────────────────────────
+//
+// ⚠️ Import ở ĐÂY, ⛔ không ở `src/commands/index.ts`: tệp đó phải nạp được bằng Node thuần
+// để Kiểm C/D/E của `npm run check:commands` chạy trên chính bộ command của sản phẩm. Cùng
+// cửa mà `setMode` và `bindings` đã đi qua từ Story 1.6 / 1.8.
+import { applyPreset, panelRing, togglePanel } from './layout/dockController'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -125,6 +148,13 @@ async function boot(): Promise<void> {
     installCommands({
       setMode,
       bindings: config === null ? undefined : toBindings(config.shortcuts),
+      // ⚠️ Ba hàm này TRA CỨU cái dock đang sống tại thời điểm CHẠY — chúng ⛔ không ôm một
+      // `DockviewApi` nào ở đây, vì lúc này chưa `mount()` nên chưa có cái nào tồn tại.
+      // ⛔ Đừng "đơn giản hoá" bằng cách truyền thẳng `api`: xem doc-comment đầu
+      // `src/layout/dockController.ts`.
+      applyPreset,
+      togglePanel,
+      panelRing,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa

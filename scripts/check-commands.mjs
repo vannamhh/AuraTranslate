@@ -143,7 +143,20 @@ let vueAll = []
 let tsAll = []
 try {
   vueAll = walk(SRC_ROOT, ['.vue']).sort()
-  tsAll = walk(SRC_ROOT, ['.ts']).sort()
+  /**
+   * 🔴 BỐN PHẦN MỞ RỘNG, ⛔ KHÔNG PHẢI MỘT — đóng `deferred-work.md:163` (Story 1.14 · AC11.3).
+   *
+   * `endsWith('.ts')` là `false` với `.tsx`, `.mts` VÀ `.cts` — cả ba đều là TypeScript và
+   * cả ba đều `import()` được bằng Node. Hôm nay cây ⛔ không có tệp nào như vậy, nên lỗ
+   * này chưa từng để lọt gì; nhưng ngày đầu tiên một `.mts` xuất hiện, nó rơi ra khỏi Kiểm
+   * A/B *(quét `dispatch()`)* và khỏi sổ điểm vào focus **mà ⛔ không một dòng nào báo** —
+   * đúng hình dạng im lặng mà mọi cổng ở đây tồn tại để chặn.
+   *
+   * ⚠️ `.d.ts` ⛔ KHÔNG bị loại: một tệp khai báo ⛔ không chở `dispatch()` nào, nên nó chỉ
+   * làm quần thể to thêm mà ⛔ không làm phán quyết sai. Loại nó đòi thêm một luật, và một
+   * luật thừa là một chỗ để sai.
+   */
+  tsAll = walk(SRC_ROOT, ['.ts', '.tsx', '.mts', '.cts']).sort()
 } catch (err) {
   abort('cây nguồn `src/**`', err)
 }
@@ -170,12 +183,28 @@ const tsFiles = keep(tsAll)
  * Số THẬT lúc dựng (2026-08-04): **5** tệp `.vue` (`App` · ba chế độ · `PanelFrame`) ·
  * **13** tệp `.ts` · **4** command. Sàn đặt dưới số thật một khoảng nhỏ để một lần xoá
  * tệp có chủ ý không làm cổng `abort()`, nhưng một lượt quét hỏng thì có.
+ *
+ * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md:48` và `:146`.
+ *
+ * Số THẬT sau Story 1.14: **11** tệp `.vue` *(`App` · ba chế độ · `PanelFrame` ·
+ * `PanelTab` · bốn panel · `WorkspaceDock`)* · **18** tệp `.ts` · **11** command.
+ *
+ * ⚠️ Nâng sàn ⛔ **KHÔNG** phải "sửa cho vừa". Ba con số trên là quần thể ĐO ĐƯỢC hôm nay
+ * và chúng nằm trong comment này chính để lượt nâng sau đối chiếu được — cùng khuôn mà
+ * `RS_FLOOR` của `check-i18n.mjs` đã dùng. Sàn thấp hơn số thật một khoảng nhỏ; một lượt
+ * quét hỏng (glob sai, `SKIP_DIRS` nuốt nhầm) tụt sâu hơn khoảng đó rất nhiều.
+ *
+ * ⚠️ Và sàn ĐẾM TỆP thì một tệp RỖNG vẫn qua — đó là giới hạn thật của cơ chế này, và nó
+ * được bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
  */
-const VUE_FLOOR = 4
-const TS_FLOOR = 10
-/** ⚠️ Sàn command: 4 hôm nay (`mode.library` · `mode.workspace` · `mode.reading` ·
- *  `focus.next_panel`). Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà không kiểm gì. */
-const COMMAND_FLOOR = 4
+const VUE_FLOOR = 9
+const TS_FLOOR = 16
+/**
+ * ⚠️ Sàn command: **11** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
+ * hai `layout.preset_*` · bốn `layout.toggle_*`. Một bộ đăng ký rỗng làm Kiểm B, D và E
+ * xanh mà không kiểm gì.
+ */
+const COMMAND_FLOOR = 10
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
@@ -1275,7 +1304,16 @@ for (const isMac of [true, false]) {
  */
 const T_LITERAL_RE = /\bt\(\s*(['"])([^'"]*)\1\s*\)/g
 const T_ANY_RE = /\bt\(\s*/g
-const KEY_ATTR_RE = /^:?title-key$|^:?titleKey$/
+/**
+ * Thuộc tính mang một KHOÁ `vi.json` literal xuống một component vỏ.
+ *
+ * ⚠️ Danh sách này phải mọc theo vỏ. Story 1.14 gỡ `title-key` khỏi `PanelFrame` (tiêu đề
+ * chuyển lên tab — §Quyết định #4A) và thêm `status-key`; nếu chỉ đổi tên prop mà không
+ * đổi ở đây thì khoá trạng thái của **bốn** panel mới rơi ra khỏi mọi lưới, và một
+ * `status-key="panel.lokup.status"` gõ sai sẽ hiện khoá thô ra màn hình với cả bốn cổng
+ * xanh (`resolve.ts` cố ý không sập với khoá thiếu — AC4 Story 1.5).
+ */
+const KEY_ATTR_RE = /^:?title-key$|^:?titleKey$|^:?status-key$|^:?statusKey$/
 let nonLiteralTCalls = 0
 const callSiteKeys = []
 

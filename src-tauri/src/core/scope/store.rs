@@ -51,6 +51,24 @@ const KEY_THEME: &str = "theme";
 /// Khoá của [`ScopeKind::AppConfig`] mang chế độ cuối cùng người dùng ở.
 const KEY_MODE: &str = "mode";
 
+/// Khoá của [`ScopeKind::AppConfig`] mang **bố cục panel đang hiển thị** — Story 1.14, AC4.
+///
+/// ⚠️ Ở [`ScopeKind::AppConfig`] chứ ⛔ **không** ở `ScopeKind::LayoutPreset`, và ranh giới
+/// đó do `kinds.rs` phân xử: `LayoutPreset` mang **preset đã ĐẶT TÊN** — dữ liệu người dùng
+/// tự tạo và tự gọi tên, thứ màn hình của Story 1.21 liệt kê ra. Bố cục *đang hiển thị* thì
+/// cùng loại với `theme` và `mode`: nó là *"lần cuối ứng dụng ở trạng thái nào"*, ⛔ không
+/// phải một mục trong một danh sách.
+///
+/// ⛔ Nhét nó vào `layout_presets` dưới một khoá dành riêng (`__current`) là bẻ nghĩa của
+/// *"đã đặt tên"*, và Story 1.21 sẽ hiện `__current` ra màn hình như một preset thật.
+///
+/// ⚠️ Giá trị là một chuỗi JSON do frontend `stringify` — tầng này ⛔ **không** phân tích nó
+/// và ⛔ không kiểm hình dạng. `SerializedDockview` là hình dạng của dockview, tức của
+/// frontend (AD-1: *"bố cục panel là state UI của frontend"*); kiểm nó ở đây là dựng một bản
+/// chép thứ hai của một lược đồ thư viện, và bản chép đó sẽ trôi ở lần nâng đầu tiên. Chốt
+/// chống JSON hỏng nằm ở `WorkspaceDock.vue::restore` — `try` → rơi về preset mặc định.
+const KEY_LAYOUT: &str = "workspace_layout";
+
 /// Ba loại `GlobalOnly` đã phân giải, sẵn sàng cho tầng adapter.
 ///
 /// ⚠️ Giữ nguyên [`Resolved`] thay vì làm phẳng ngay, vì đó là **bằng chứng** rằng đường
@@ -83,6 +101,18 @@ impl GlobalConfig {
         self.app
             .get(KEY_MODE)
             .map_or(DEFAULT_MODE, |r| r.value().as_str())
+    }
+
+    /// Bố cục panel đang hiển thị, ở dạng chuỗi JSON của frontend — Story 1.14, AC4.
+    ///
+    /// ⚠️ **Chuỗi rỗng** khi chưa ai lưu gì, ⛔ không `Option`: nó đi qua IPC tới một
+    /// TypeScript `string`, và ở đó `''` với `undefined` phải dẫn về **cùng một** nhánh
+    /// *"dựng preset mặc định"*. Hai đại diện cho một trạng thái là hai nhánh phải nhớ
+    /// giữ đồng bộ — cùng lý lẽ với [`DEFAULT_THEME`] ở đầu tệp này.
+    ///
+    /// ⛔ Tầng này ⛔ không kiểm chuỗi có phải JSON hợp lệ không. Xem [`KEY_LAYOUT`].
+    pub fn workspace_layout(&self) -> &str {
+        self.app.get(KEY_LAYOUT).map_or("", |r| r.value().as_str())
     }
 
     /// Hợp âm phím tắt theo id thao tác. Rỗng nghĩa là *"dùng hợp âm mặc định"*.

@@ -10,9 +10,21 @@
   "command.mode.workspace": "Workspace",
   "command.mode.reading": "Chế độ đọc",
   "command.focus.next_panel": "Sang panel kế tiếp",
+  "command.focus.prev_panel": "Về panel trước",
+  "command.layout.preset_grid": "Bố cục lưới 2×2",
+  "command.layout.preset_columns": "Bố cục bốn cột",
+  "command.layout.toggle_source": "Ẩn hoặc hiện Nguyên văn",
+  "command.layout.toggle_lookup": "Ẩn hoặc hiện Tra cứu",
+  "command.layout.toggle_ai_translation": "Ẩn hoặc hiện Đề xuất AI",
+  "command.layout.toggle_editor": "Ẩn hoặc hiện Bản dịch",
   "mode.library.status": "Library chưa có Tác phẩm nào.",
-  "mode.workspace.status": "Chưa có Chương nào được mở.",
   "mode.reading.status": "Chưa có bản dịch nào để đọc lại.",
   "panel.source.title": "Nguyên văn",
-  "panel.editor.title": "Bản dịch"
+  "panel.lookup.title": "Tra cứu",
+  "panel.ai_translation.title": "Đề xuất AI",
+  "panel.editor.title": "Bản dịch",
+  "panel.source.status": "Chưa có Chương nào được mở.",
+  "panel.lookup.status": "Chọn một từ trong Nguyên văn để tra cứu.",
+  "panel.ai_translation.status": "Chưa có nhà cung cấp AI nào được cấu hình. Thêm một khoá trong Cài đặt để bật đề xuất tự động.",
+  "panel.editor.status": "Chưa có Chương nào để dịch."
 }

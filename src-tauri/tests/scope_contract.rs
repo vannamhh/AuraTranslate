@@ -682,6 +682,70 @@ fn an_empty_store_bootstraps_to_complete_defaults() {
         "chưa ai đặt phím tắt hay preset nào ⇒ map rỗng, và `installCommands` dùng hợp âm \
          mặc định của nó"
     );
+    // Story 1.14 · AC4 — *"kho rỗng ⇒ chuỗi rỗng ⇒ preset mặc định"*.
+    //
+    // ⚠️ Mệnh đề là **chuỗi RỖNG**, ⛔ không `null` và ⛔ không một chuỗi JSON dựng sẵn ở
+    // Rust. Dựng preset mặc định là việc của frontend (AD-1: bố cục panel là state UI của
+    // frontend), và trả một JSON mặc định từ đây là dựng bản chép thứ hai của lược đồ
+    // dockview trong Rust — nó sẽ trôi ở lần nâng thư viện đầu tiên.
+    assert_eq!(
+        config.workspace_layout, "",
+        "kho rỗng ⇒ bố cục rỗng ⇒ `WorkspaceDock.vue::restore` dựng preset mặc định (lưới 2×2)"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Vòng ghi → đọc của **bố cục panel** qua đường sản phẩm — Story 1.14 · AC4.
+///
+/// ⚠️ Cùng khuôn với [`the_last_mode_survives_a_write_and_a_reopen`], và cố ý: hai giá trị
+/// đi cùng một cửa (`ScopeKind::AppConfig`), nên chúng phải được nghiệm thu bằng cùng một
+/// hình dạng test. Một cái có vòng chạy thật còn cái kia không là chỗ hai đường lặng lẽ
+/// tách nhau.
+///
+/// 🔴 Đây là **nửa Rust** của AC4. Nửa kia — *"đóng ứng dụng rồi mở lại thấy đúng bố cục"* —
+/// là hành vi webview và nó được nghiệm thu bằng lượt chạy tay có bảng (§Debug Log
+/// References). ⛔ Không đánh dấu vế đó đạt dựa trên test này.
+#[test]
+fn the_workspace_layout_survives_a_write_and_a_reopen() {
+    let dir = temp_dir("layout-roundtrip");
+
+    // Một `SerializedDockview` rút gọn. ⚠️ Tầng Rust ⛔ KHÔNG phân tích chuỗi này — nó chỉ
+    // phải đi qua NGUYÊN VẸN. Dùng một JSON có dấu nháy kép lồng nhau chính vì vậy: nếu
+    // đường ghi/đọc làm hỏng escaping ở đâu đó, chuỗi trả về sẽ khác.
+    let layout = r#"{"grid":{"root":{"type":"leaf","data":{"views":["panel.source"]}}},"panels":{}}"#;
+
+    {
+        let store = open_store(&dir);
+        assert_eq!(
+            bootstrap_config(Some(&store))
+                .expect("bootstrap")
+                .workspace_layout,
+            "",
+            "kho rỗng ⇒ chuỗi rỗng"
+        );
+
+        put_config(Some(&store), "app_config", "workspace_layout", layout).expect("ghi bố cục");
+        drop(store);
+    }
+
+    let store = open_store(&dir);
+    let config = bootstrap_config(Some(&store)).expect("bootstrap sau khi mở lại");
+    assert_eq!(
+        config.workspace_layout, layout,
+        "bố cục phải sống qua một lượt đóng/mở NGUYÊN VĂN — nếu không thì lượt `putConfig` \
+         của `WorkspaceMode.vue` đang ghi vào hư không, và người dùng sắp lại panel mỗi \
+         lần mở ứng dụng"
+    );
+
+    // ⛔ Bố cục ⛔ KHÔNG được rò sang `layout_presets`: hai thứ đó là hai loại scope khác
+    // nhau (`kinds.rs:206-213`), và trộn chúng làm Story 1.21 hiện bố cục hiện tại ra màn
+    // hình như một preset người dùng tự đặt tên.
+    assert!(
+        config.layout_presets.is_empty(),
+        "`workspace_layout` sống ở `app_config`, ⛔ không ở `layout_preset`"
+    );
 
     drop(store);
     cleanup(&dir);

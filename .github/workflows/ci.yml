@@ -149,6 +149,14 @@ jobs:
       - name: check CommandRegistry and keyboard focus (AD-34, FR22, NFR17 — Story 1.6)
         run: npm run check:commands
 
+      # Bốn phép kiểm bố cục — AC1 · AC4 · AC7 · AC12 (Story 1.14). Cổng thứ năm, cùng
+      # khuôn và cùng lý do đặt chỗ với ba bước ngay trên: chỉ đọc/chạy mã thuần, xong
+      # trong vài giây, không cần `dist/`, không cần phiên đồ hoạ. Một `addPopoutGroup`
+      # hay một `localStorage` lọt vào `src/**` phải đỏ TRƯỚC khi tốn một lượt biên dịch
+      # Rust — đúng thứ AC12 đòi ("Sáu cổng phải xanh").
+      - name: check workspace layout (AC1, AC4, AC7, AC12 — Story 1.14)
+        run: npm run check:layout
+
       # ⚠️⚠️ THỨ TỰ BẮT BUỘC — bước này PHẢI đứng TRƯỚC `cargo test`.
       # `tauri::generate_context!` nhúng `frontendDist: "../dist"` LÚC BIÊN DỊCH. `dist/`
       # chưa tồn tại thì `cargo test` gãy ở khâu biên dịch, không ở một assert. Trên máy

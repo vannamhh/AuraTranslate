@@ -252,9 +252,26 @@ const vueFiles = keep(vueAll)
  * **không đổi** — vẫn 27 tệp `.rs` + 5 tệp `.vue` (đã cập nhật sau Story 1.8; xem lịch
  * sử ở trên). Sàn `RS_FLOOR`/`VUE_FLOOR` giữ nguyên 21/1 — thêm một nhánh MIỄN TRỪ TRỌN
  * không phải lý do dời sàn.
+ *
+ * 🔴 NÂNG SÀN 2026-08-06 — Story 1.14 · AC11.1, đóng `deferred-work.md:48` và `:146`.
+ *
+ * Số THẬT sau Story 1.14: **32** tệp `.rs` sau miễn trừ · **11** tệp `.vue`. Quần thể
+ * `.vue` nhảy từ 5 lên 11 vì bốn panel + `PanelTab` + `WorkspaceDock` ra đời.
+ *
+ * `VUE_FLOOR = 1` là con số ⛔ **không còn canh được gì**: nó đúng ở ngày `PanelFrame` là
+ * `.vue` duy nhất, và từ đó tới nay một lượt quét khớp 2 trong 11 tệp vẫn đi qua. Nay
+ * nâng lên **9** (~82% của 11), cùng tỷ lệ dư địa mà `RS_FLOOR` đang giữ.
+ *
+ * ⚠️ `RS_FLOOR` lên **26** (~81% của 32). Nâng vì con số thật đã đi xa khỏi 21 sau các
+ * story 1.9–1.13, ⛔ không phải vì story này thêm tệp `.rs` nào — Story 1.14 thêm đúng
+ * **không** tệp Rust mới, nó chỉ sửa hai tệp có sẵn.
+ *
+ * ⚠️ Và nhắc lại vì nó là lý do sàn này tồn tại ở dạng này: sàn ĐẾM TỆP thì một tệp RỖNG
+ * vẫn qua. Sàn nội dung tương ứng của cổng này là Kiểm B (`16` khoá `vi.json`, object
+ * phẳng) và Kiểm E (hành vi thật của `resolve.ts`).
  */
-const RS_FLOOR = 21
-const VUE_FLOOR = 1
+const RS_FLOOR = 26
+const VUE_FLOOR = 9
 if (rsFiles.length < RS_FLOOR || vueFiles.length < VUE_FLOOR) {
   abort(
     `quần thể quét — ${rsFiles.length} tệp \`.rs\` (sàn ${RS_FLOOR}) · ` +
@@ -717,6 +734,78 @@ function scanTemplate(text, from, to, hits) {
   }
 }
 
+/**
+ * Thu **text node** của template — nguyên liệu của Kiểm A2 (Story 1.14 · §Quyết định #6).
+ *
+ * ⚠️ Cùng máy trạng thái với [`scanTemplate`], khác đúng một chỗ: nó ghi lại **đoạn văn
+ * bản giữa hai thẻ** thay vì ghi ký tự có dấu. Dùng chung máy trạng thái là chủ ý — hai
+ * bản chép sẽ lệch nhau ở lần sửa thứ ba, và lúc đó Kiểm A với Kiểm A2 nhìn hai template
+ * khác nhau trong cùng một tệp.
+ *
+ * ⛔ Giá trị attribute ⛔ KHÔNG được thu: `title="Đã lưu"` đã là vi phạm của **Kiểm A**
+ * (chuỗi có dấu ở vị trí mã). Thu nó lần nữa ở đây là báo một lỗi hai lần.
+ */
+function collectTextNodes(text, from, to, out) {
+  let i = from
+  let state = 'text'
+  let quote = ''
+  let runStart = from
+  const flush = (end) => {
+    if (end > runStart) out.push({ start: runStart, raw: text.slice(runStart, end) })
+  }
+  while (i < to) {
+    const ch = text[i]
+    if (state === 'text') {
+      if (text.startsWith('<!--', i)) {
+        flush(i)
+        const end = text.indexOf('-->', i + 4)
+        i = end === -1 || end >= to ? to : end + 3
+        runStart = i
+        continue
+      }
+      if (ch === '<' && /[A-Za-z/]/.test(text[i + 1] ?? '')) {
+        flush(i)
+        state = 'tag'
+        i += 1
+        continue
+      }
+      i += 1
+      continue
+    }
+    if (state === 'tag') {
+      if (ch === '"' || ch === "'") {
+        state = 'attr'
+        quote = ch
+        i += 1
+        continue
+      }
+      if (ch === '>') {
+        state = 'text'
+        i += 1
+        runStart = i
+        continue
+      }
+      i += 1
+      continue
+    }
+    if (ch === quote) state = 'tag'
+    i += 1
+  }
+  if (state === 'text') flush(to)
+}
+
+function textNodesOf(text) {
+  const out = []
+  const regions = vueRegions(text)
+  let cursor = 0
+  for (const r of regions) {
+    if (r.start > cursor) collectTextNodes(text, cursor, r.start, out)
+    cursor = r.end
+  }
+  if (cursor < text.length) collectTextNodes(text, cursor, text.length, out)
+  return out
+}
+
 function scanVue(text) {
   const hits = []
   const regions = vueRegions(text)
@@ -791,6 +880,124 @@ for (const [pattern, why] of EXEMPT) {
   detail(`  ${pattern} — ${n} tệp · ${why}`)
 }
 if (skippedLinks.length) detail(`symlink bỏ qua: ${skippedLinks.join(', ')}`)
+
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm A2 — mọi TEXT NODE của template phải đi qua `t()` (NFR16)')
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 ĐÓNG `deferred-work.md:36` — Story 1.14 · §Quyết định #6.
+//
+// Kiểm A đo **DẤU**, ⛔ không đo **CHUỖI HIỂN THỊ**. Hệ quả đã ghi nguyên văn từ Story 1.5:
+// `<button>Dong</button>` — một nhãn tiếng Việt viết không dấu, hiển thị ra màn hình,
+// ⛔ không đi qua `vi.json` — **đi qua Kiểm A xanh**. Cùng với nó: `<span>Save</span>`,
+// `<p>3 results</p>`, mọi thứ không mang dấu.
+//
+// Ice chốt 2026-08-04: *"giữ nguyên cổng, ⛔ không mở rộng phạm vi trong Story 1.5 […]
+// **Mở lại ở Story 1.14**, khi bốn panel thật có nhãn thật để định nghĩa 'đúng' nghĩa là
+// gì."* Nay chúng có nhãn thật, và "đúng" là: **mọi văn bản người dùng đọc được đến từ
+// `vi.json`** (NFR16, AD-21).
+//
+// ─────────────────────────────────────────────────────────────────────────────────
+// LUẬT
+// ─────────────────────────────────────────────────────────────────────────────────
+// Một text node HỢP LỆ khi, sau khi gỡ hết các khối `{{ … }}`, phần còn lại ⛔ không có
+// chữ cái hay chữ số — VÀ mọi khối `{{ … }}` đã gỡ đều mở đầu bằng `t(` hoặc `tError(`.
+//
+// ⚠️ Phần "còn lại ⛔ không có chữ cái" cho phép dấu phân cách thị giác (`·`, `|`, `—`,
+// dấu phẩy) đứng giữa hai lời gọi — chúng là **hình dạng**, ⛔ không phải văn bản dịch
+// được. Một chữ cái duy nhất lọt vào đó thì đã là một chuỗi hiển thị.
+//
+// Đường ra là **miễn trừ CÓ TÊN** `<!-- aura-allow-text: <lý do> -->` ngay trên node.
+// ⚠️ Mọi miễn trừ được IN RA ở mỗi lượt chạy — cùng kỷ luật với `EXEMPT` ở đầu tệp: một
+// miễn trừ ⛔ không được soi là một chỗ mù.
+
+const INTERPOLATION_RE = /\{\{([\s\S]*?)\}\}/g
+const ALLOWED_CALL_RE = /^\s*(?:t|tError)\s*\(/
+const HAS_WORD_RE = /[\p{L}\p{N}]/u
+
+let a2Bad = 0
+let a2Checked = 0
+let a2Exempt = 0
+const a2Files = new Set()
+
+for (const file of vueFiles) {
+  let text
+  try {
+    text = readFileSync(file, 'utf8')
+  } catch (err) {
+    abort(`tệp \`${posix(file)}\``, err)
+  }
+  for (const node of textNodesOf(text)) {
+    // Gỡ các khối `{{ … }}` và giữ lại biểu thức để soi riêng.
+    const exprs = []
+    const rest = node.raw.replace(new RegExp(INTERPOLATION_RE.source, 'g'), (_, e) => {
+      exprs.push(e)
+      return ' '
+    })
+    const strayText = HAS_WORD_RE.test(rest)
+    const badCalls = exprs.filter((e) => !ALLOWED_CALL_RE.test(e))
+    if (!strayText && badCalls.length === 0) {
+      if (exprs.length > 0) a2Checked += 1
+      continue
+    }
+    a2Checked += 1
+    const { line, col } = positionOf(text, node.start)
+    /**
+     * Miễn trừ có tên: comment HTML **đứng ngay trước** node.
+     *
+     * ⚠️ *"Ngay trước"* đo bằng CẤU TRÚC, ⛔ không bằng SỐ DÒNG. Bản đầu nhìn lại hai dòng
+     * và trượt ngay ở ca đầu tiên gặp thật (`src/App.vue`): một comment giải thích tử tế
+     * chiếm sáu dòng, và cửa sổ hai dòng ⛔ không với tới `aura-allow-text`. Một cổng có
+     * đường thoát mà đường đó ⛔ không dùng được thì đường thoát chỉ là trang trí.
+     *
+     * Luật: từ đầu node lùi ngược, bỏ qua khoảng trắng **và tối đa MỘT thẻ mở**; nếu chạm
+     * `-->` thì lùi tới `<!--` khớp và soi TRỌN comment đó, dài bao nhiêu cũng được.
+     *
+     * ⚠️ *"tối đa một thẻ mở"* là vế thứ hai mà lượt dựng bỏ sót: comment giải thích đứng
+     * trước **phần tử** (`<!-- … --> <p …>{{ x }}</p>`), còn text node thì bắt đầu sau
+     * `>`. Bỏ vế này thì miễn trừ chỉ dùng được khi comment nằm BÊN TRONG thẻ — một chỗ
+     * ⛔ không ai viết comment cả.
+     */
+    let cut = node.start
+    const skipSpace = () => {
+      while (cut > 0 && /\s/.test(text[cut - 1])) cut -= 1
+    }
+    skipSpace()
+    if (text[cut - 1] === '>' && !text.startsWith('-->', cut - 3)) {
+      const open = text.lastIndexOf('<', cut - 1)
+      if (open !== -1) {
+        cut = open
+        skipSpace()
+      }
+    }
+    let window = ''
+    if (text.startsWith('-->', cut - 3)) {
+      const open = text.lastIndexOf('<!--', cut)
+      if (open !== -1) window = text.slice(open, cut)
+    }
+    if (/aura-allow-text\s*:\s*\S/.test(window)) {
+      pass(`${posix(file)}:${line}:${col} — text node có miễn trừ có tên`)
+      a2Exempt += 1
+      continue
+    }
+    a2Files.add(posix(file))
+    if (strayText) {
+      fail(`${posix(file)}:${line}:${col} — văn bản KHÔNG đi qua \`t()\`: ${JSON.stringify(rest.trim().slice(0, 60))}`)
+      detail('NFR16: mọi văn bản hiển thị sống ở `src/i18n/vi.json` và CHỈ ở đó.')
+    }
+    for (const e of badCalls) {
+      fail(`${posix(file)}:${line}:${col} — \`{{${e.trim().slice(0, 50)}}}\` ⛔ không phải \`t()\`/\`tError()\``)
+      detail('Nếu biểu thức này ĐÃ mang chuỗi đã dịch: `<!-- aura-allow-text: <lý do> -->`.')
+    }
+    a2Bad += 1
+  }
+}
+if (a2Bad === 0) {
+  pass(
+    `${a2Checked} text node mang nội dung trên ${vueFiles.length} tệp \`.vue\` — tất cả đi qua ` +
+      `\`t()\`/\`tError()\` (${a2Exempt} miễn trừ có tên)`,
+  )
+}
 
 // ═════════════════════════════════════════════════════════════════════════════════
 console.log('\nKiểm B — `vi.json` phẳng, khoá chấm có tiền tố miền (AC1)')

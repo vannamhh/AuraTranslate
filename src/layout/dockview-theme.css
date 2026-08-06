@@ -1,0 +1,210 @@
+/*
+ * Theme `dockview` của AuraTranslate — Story 1.14 · Task 1 · AC1 · AC12 · AD-34 §3.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────
+ * 🔴 VÌ SAO KHÔNG DÙNG MỘT THEME DỰNG SẴN CỦA DOCKVIEW
+ * ─────────────────────────────────────────────────────────────────────────────────
+ * `dockview.css` chở 12 theme dựng sẵn (`dockview-theme-light`, `-dark`, `-abyss`, …) và
+ * cả 12 VIẾT MÀU THẲNG: `#f3f3f3`, `rgba(51, 51, 51, 0.7)`, `dodgerblue`… Bật một trong
+ * số đó là đưa vào sản phẩm một bảng màu THỨ HAI chưa ai kiểm tương phản — và
+ * `npm run check:tokens` **vẫn xanh**, vì nó chỉ quét `src/**` chứ không quét
+ * `node_modules/**`. Đúng thứ AD-34 §3 tồn tại để chặn, và đúng §Bẫy 1 của story.
+ *
+ * Nên: một lớp của riêng dự án, và MỌI giá trị ở đây là `var(--color-*)` /
+ * `var(--space-*)` / `var(--radius-*)` / `var(--font-*)` / `var(--panel-*)` do
+ * `applyTheme()` ghi. ⛔ Không một hex, không một `rgba()`, không một tên màu CSS.
+ *
+ * ⚠️ 113 biến `--dv-*` tồn tại trong `dockview.css`; phần lớn (`--dv-color-abyss-*`,
+ * `--dv-color-gh-*`, `--dv-color-mocha-*`, …) chỉ phục vụ 12 theme dựng sẵn. Ở đây chỉ
+ * khai những biến mà các lớp `.dv-*` THẬT SỰ đọc.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────
+ * ⚠️ CHÍN BIẾN `--dv-tab-group-color-*` CỐ Ý ĐỂ TRỐNG
+ * ─────────────────────────────────────────────────────────────────────────────────
+ * `--dv-tab-group-color-grey` … `-orange` là bảng chín màu chip của tính năng "tab group
+ * có màu". Sản phẩm này ⛔ không tạo tab group có màu ở bất kỳ đâu, nên chín biến đó
+ * không bao giờ được đọc. Khai chúng đòi chín màu MỚI phải qua Kiểm C — tức mở một bảng
+ * màu thứ hai để phục vụ một tính năng không dùng. Ngày nào sản phẩm dùng tới, đó là một
+ * quyết định thiết kế có chữ ký, ⛔ không phải một lượt điền cho đủ.
+ */
+
+.dockview-theme-aura {
+  /* ── Nền và đường kẻ ───────────────────────────────────────────────────────── */
+  --dv-group-view-background-color: var(--color-surface);
+  --dv-tabs-and-actions-container-background-color: var(--color-surface-sunken);
+  --dv-separator-border: var(--color-outline);
+  --dv-paneview-header-border-color: var(--color-outline);
+  --dv-paneview-active-outline-color: var(--color-primary);
+  --dv-tab-divider-color: var(--color-outline-faint);
+
+  /*
+   * ⚠️ Bốn cặp nền/chữ của tab: dockview chọn cặp theo (group hoạt động?) × (tab đang
+   * hiện?). `PanelTab.vue` tự khai màu chữ của nó nên bốn biến `*-tab-color` dưới đây là
+   * đường lui — chúng vẫn phải là token, vì một ngày `PanelTab` không phủ hết mọi ca thì
+   * thứ lộ ra phải nằm trong bộ đã kiểm tương phản chứ không phải `rgb(51, 51, 51)`.
+   */
+  --dv-activegroup-visiblepanel-tab-background-color: var(--color-surface);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--color-surface-sunken);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--color-surface);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-surface-sunken);
+  --dv-activegroup-visiblepanel-tab-color: var(--color-primary);
+  --dv-activegroup-hiddenpanel-tab-color: var(--color-on-surface-variant);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--color-on-surface-variant);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-on-surface-variant);
+
+  /* ── Thanh kéo (sash) giữa hai panel ───────────────────────────────────────── */
+  /*
+   * `--color-background` chứ không `transparent`: đây là mép giữa hai panel, và ở theme
+   * tối chính `background` là thứ phải lộ ra (`panelSeparator.dark.mechanism = "gap"`).
+   * Khi rê chuột lên nó chuyển `primary` — thao tác đổi kích thước của FR17 phải NHÌN
+   * THẤY ĐƯỢC trước khi bấm.
+   */
+  --dv-sash-color: var(--color-background);
+  --dv-active-sash-color: var(--color-primary);
+  --dv-tabs-container-scrollbar-color: var(--color-ornament);
+  --dv-scrollbar-background-color: var(--color-ornament);
+  --dv-icon-hover-background-color: var(--color-surface-sunken);
+
+  /* ── Kéo–thả: đích thả (FR17) ──────────────────────────────────────────────── */
+  /*
+   * ⚠️ Nền ĐỤC, ⛔ không `rgba(…, 0.5)` như 12 theme dựng sẵn. Một lớp phủ nửa trong suốt
+   * là một màu THỨ BA không nằm trong bảng đã kiểm — nó tuỳ thuộc thứ nằm dưới. `surface-
+   * accent` là token có sẵn cho đúng vai "một mảng được nhấn", và viền `primary` nói rõ
+   * mép của vùng sắp nhận.
+   */
+  --dv-drag-over-background-color: var(--color-surface-accent);
+  --dv-drag-over-border-color: var(--color-primary);
+  --dv-drag-over-border: 1px solid var(--color-primary);
+
+  /* ── Nhóm nổi (undock — AC2) ───────────────────────────────────────────────── */
+  /*
+   * 🔴 `--dv-floating-box-shadow: none` — AC7 của Story 1.4 cấm elevation, và Kiểm F của
+   * `check-tokens.mjs` cưỡng chế điều đó trên `src/**`. Biến này mang tên `--dv-floating-
+   * box-shadow` nên nó ⛔ KHÔNG khớp `box-shadow` mà Kiểm F đọc — tức cổng ⛔ không bắt
+   * được nó. Đặt `none` ở đây là giữ đúng luật ở chỗ cổng không với tới, ⛔ không phải vì
+   * cổng bắt.
+   */
+  --dv-floating-box-shadow: none;
+  --dv-floating-border: 1px solid var(--color-outline);
+  --dv-floating-group-border: 1px solid var(--color-outline);
+  --dv-floating-titlebar-height: var(--space-head-height);
+  --dv-floating-titlebar-background-color: var(--color-surface-sunken);
+  --dv-floating-titlebar-border-bottom: 1px solid var(--color-outline);
+  /*
+   * ⚠️ `1` chứ không `0.5` như mọi theme dựng sẵn. Cùng lý lẽ với Kiểm D của
+   * `check-tokens.mjs`: `opacity` trung gian trên một khối CÓ CHỮ hạ tương phản của chữ
+   * xuống dưới sàn AA, và ở đây khối đang kéo chở đúng nội dung panel. Phản hồi kéo–thả
+   * đã có đủ ở lớp phủ đích thả ngay phía trên.
+   * ⚠️ Tên biến là `--dv-floating-group-dragging-opacity`, ⛔ không phải `opacity` — Kiểm D
+   * ⛔ không thấy dòng này. Cùng ghi chú với `--dv-floating-box-shadow`.
+   */
+  --dv-floating-group-dragging-opacity: 1;
+
+  /* ── Menu ngữ cảnh ─────────────────────────────────────────────────────────── */
+  --dv-context-menu-background-color: var(--color-surface);
+  --dv-context-menu-color: var(--color-on-surface);
+
+  /* ── Hình dạng và kích thước ───────────────────────────────────────────────── */
+  /*
+   * 🔴 `--panel-radius` chứ không một con số: nó là `0` ở theme sáng và `3px` ở theme tối
+   * (`panelSeparator.*.radius`), tức chính cơ chế ĐẢO NGƯỢC mà AC6 của Story 1.4 khai và
+   * UX-DR14 đòi. Viết thẳng một giá trị ở đây là thống nhất hai theme về một cách làm.
+   */
+  --dv-border-radius: var(--panel-radius);
+  --dv-tab-border-radius: var(--radius-none);
+  --dv-sash-border-radius: var(--radius-none);
+  --dv-dropdown-border-radius: var(--radius-default);
+  --dv-tab-group-chip-border-radius: var(--radius-sm);
+
+  --dv-tabs-and-actions-container-height: var(--space-head-height);
+  --dv-tabs-and-actions-container-font-size: var(--font-ui-md);
+  --dv-tab-font-size: var(--font-ui-md);
+  --dv-tab-group-chip-font-size: var(--font-ui-sm);
+  --dv-tab-group-chip-padding: var(--space-unit) calc(var(--space-unit) * 2);
+  --dv-tab-close-icon-size: var(--font-ui-md);
+  --dv-tab-margin: 0;
+  --dv-spacing-padding: 0px;
+  --dv-tab-group-color: var(--color-primary);
+  --dv-tab-group-line-height: calc(var(--space-unit) / 2);
+  --dv-tab-group-line-opacity: 1;
+
+  /*
+   * ⚠️ Ngữ cảnh xếp lớp CƠ HỌC của lớp phủ kéo–thả, ⛔ không phải elevation. Cùng phân
+   * biệt mà Kiểm F của `check-tokens.mjs` đã ghi khi cho `z-index` một đường miễn trừ có
+   * tên còn `box-shadow` thì không. Tên biến ở đây (`--dv-overlay-z-index`) ⛔ không khớp
+   * `z-index` nên cổng không đọc tới — ghi lý do ra thay vì để nó im lặng.
+   */
+  --dv-overlay-z-index: 999;
+
+  --dv-transition-duration: 70ms;
+  --dv-active-sash-transition-duration: 0.1s;
+  --dv-active-sash-transition-delay: 0.5s;
+}
+
+/*
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * PHÂN TÁCH PANEL — hai cơ chế, một nguồn (AC6 của Story 1.4 · UX-DR14 · Task 1)
+ * ═════════════════════════════════════════════════════════════════════════════════
+ *
+ * `.dv-groupview` là HỘP PANEL thật kể từ story này: nó bọc CẢ thanh tab (§Quyết định #4A
+ * — tab bar của dockview LÀ thanh tiêu đề panel) LẪN thân panel. Nên nét/khe/bo góc thuộc
+ * về nó, ⛔ không thuộc `PanelFrame` — `PanelFrame` chỉ còn giữ vạch tiêu điểm.
+ *
+ * Bốn biến dưới đây do `applyTheme()` ghi và chúng ĐẢO NGƯỢC giữa hai theme:
+ *   sáng → `--panel-border-width: 1px` · `--panel-border-color: var(--color-outline)`
+ *          `--panel-gap: 0px`  · `--panel-radius: var(--radius-none)`
+ *   tối  → `--panel-border-width: 0px` · `--panel-border-color: transparent`
+ *          `--panel-gap: 2px`  · `--panel-radius: var(--radius-default)`
+ *
+ * ⇒ Một khai báo, hai kết quả. Component ⛔ không bao giờ phải hỏi mình đang ở theme nào.
+ */
+.dockview-theme-aura .dv-groupview {
+  box-sizing: border-box;
+  border: var(--panel-border-width) solid var(--panel-border-color);
+  border-radius: var(--panel-radius);
+}
+
+/*
+ * 🔴 NỬA KHE MỖI BÊN — và đó là số học, không phải khẩu vị.
+ *
+ * `--panel-gap` là khoảng cách GIỮA HAI PANEL. Mỗi panel tự đệm một nửa, nên hai panel
+ * cạnh nhau cộng lại đúng `--panel-gap`. Đệm cả khe mỗi bên cho ra 4px ở theme tối — gấp
+ * đôi thứ `panelSeparator.dark.gap` khai, và Kiểm G ⛔ không bắt được vì nó đọc
+ * `tokens.json` chứ ⛔ không đọc tệp này.
+ *
+ * ⚠️ `:has(> .dv-groupview)` để chỉ LÁ của lưới được đệm. `.dv-view` xuất hiện ở MỌI tầng
+ * splitview lồng nhau; đệm mọi tầng thì khe cộng dồn theo độ sâu và lưới 2×2 với lưới 4
+ * cột cho ra hai con số khác nhau. `dockview.css` tự dùng `:has()` (`.dv-resize-container:
+ * has(> .dv-groupview)`) nên đây ⛔ không phải một phụ thuộc trình duyệt mới.
+ */
+.dockview-theme-aura .dv-view:has(> .dv-groupview) {
+  box-sizing: border-box;
+  padding: calc(var(--panel-gap) / 2);
+}
+
+/*
+ * Vỏ ngoài cùng mang `background` để khe 2px của theme tối có thứ để lộ ra.
+ * ⚠️ `--color-background`, ⛔ không `--color-surface`: hai màu đó khác nhau đúng bằng cái
+ * làm cho khe nhìn thấy được.
+ */
+.dockview-theme-aura .dv-dockview {
+  background-color: var(--color-background);
+}
+
+/*
+ * Thanh tab = thanh tiêu đề panel (§Quyết định #4A). Đường kẻ dưới nó là ranh giới giữa
+ * tiêu đề và thân — cùng vai với `border-bottom` của `.titlebar` ở `App.vue`.
+ */
+.dockview-theme-aura .dv-tabs-and-actions-container {
+  border-bottom: 1px solid var(--color-outline);
+}
+
+/*
+ * ⚠️ `.dv-tab` của dockview mặc định có `padding: 0 8px` và một `min-width`. Ghì nó về
+ * khoảng cách theo `--space-unit` để thanh tiêu đề panel khớp mockup (thanh 34px, tiêu đề
+ * sát mép trái đúng `--space-panel-inline`).
+ */
+.dockview-theme-aura .dv-tabs-container > .dv-tab {
+  padding: 0;
+  min-width: 0;
+}

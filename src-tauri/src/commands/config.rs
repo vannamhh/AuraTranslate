@@ -61,8 +61,19 @@ pub struct BootstrapConfig {
     pub mode: String,
     /// Hợp âm phím tắt theo id thao tác. Rỗng = dùng hợp âm mặc định của `installCommands`.
     pub shortcuts: BTreeMap<String, String>,
-    /// Preset bố cục đã đặt tên. Nội dung của chúng là **Story 1.14**.
+    /// Preset bố cục đã đặt tên. **Story 1.14** dựng hai preset dựng sẵn ở frontend; map
+    /// này mang những preset **người dùng tự đặt tên**, và màn hình để làm việc đó là
+    /// **Story 1.21**. Rỗng hôm nay ⛔ không phải một thiếu sót.
     pub layout_presets: BTreeMap<String, String>,
+    /// Bố cục panel **đang hiển thị**, chuỗi JSON của frontend — Story 1.14, AC4.
+    ///
+    /// ⚠️ Trường thứ **năm** trên dây. `tests/ipc_contract.rs` đóng băng danh sách tên
+    /// trường và nó phải được sửa cùng lượt — đó là hành vi ĐÚNG: một trường mới đi qua
+    /// IPC mà không ai đối chiếu là đúng thứ phép kiểm đó tồn tại để chặn.
+    ///
+    /// ⛔ Vẫn ⛔ KHÔNG `#[serde(rename_all = "camelCase")]` — nó biến `workspace_layout`
+    /// thành `workspaceLayout` và `src/config/bootstrap.ts` nhận `undefined`.
+    pub workspace_layout: String,
 }
 
 /// Kho vắng mặt ⇒ lỗi *mở kho*, và đó là câu đúng theo nghĩa đen.
@@ -103,6 +114,7 @@ pub fn bootstrap_config(store: Option<&Store>) -> Result<BootstrapConfig, IpcErr
         mode: config.mode().to_owned(),
         shortcuts: config.shortcuts(),
         layout_presets: config.layout_presets(),
+        workspace_layout: config.workspace_layout().to_owned(),
     })
 }
 

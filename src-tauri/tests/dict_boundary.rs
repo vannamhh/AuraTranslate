@@ -359,3 +359,454 @@ fn exactly_one_definition_of_is_han_exists_under_src_tauri() {
         carriers.len()
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.13 · AC2 — RUNTIME ⛔ KHÔNG CÓ MÃ RIÊNG CHO TỪNG NGUỒN
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để bốn cổng dưới đây là thật.
+///
+/// Số thật lúc dựng (Story 1.13): **31**. Sàn **20**, cùng khuôn mọi sàn khác của dự án:
+/// nó bắt một cây **bị cắt**, ⛔ không bắt việc thêm tệp. *"Cây rỗng đọc thành sạch"* — một
+/// gốc quét gõ sai làm `walk` khớp 0 tệp và **cả bốn** cổng xanh mà ⛔ không kiểm gì cả.
+const SRC_ONLY_RS_FLOOR: usize = 20;
+
+/// Chín mã nguồn đang tồn tại hoặc đã được đặt tên trong quy hoạch.
+///
+/// 🔴 **⛔ Không một chuỗi nào trong đây được xuất hiện ở VỊ TRÍ MÃ dưới `src-tauri/src/**`.**
+/// AD-10 nói *"Runtime **không có mã riêng cho từng nguồn**"* và `epics.md:1543` lặp lại —
+/// cả hai là **văn xuôi**. Đây là chỗ mệnh đề đó thành máy.
+///
+/// ⚠️ Hình dạng vi phạm **rẻ nhất** là một `if code == "vietphrase"` để *"sửa cho gọn"*
+/// đúng 18 đầu mục trùng của §Quyết định #2 — và nó sẽ được viết bởi một người thật lòng
+/// nghĩ mình đang vá một lỗi. `tools/dict-build/src/build.rs:365` đã đặt đúng luật này cho
+/// phía **dựng** (*"⛔ KHÔNG viết thành `if code == \"...\"`"*); đây là phía **đọc**.
+///
+/// ⚠️ Comment **được phép** nhắc tên nguồn, và đó ⛔ không phải một ngoại lệ mà là chính
+/// điểm: doc-comment của `query.rs` **giải thích** phân bố dữ liệu bằng số đo có tên nguồn,
+/// và một cổng đỏ trên câu giải thích chính luật nó canh là một cổng **bị gỡ trong tuần**.
+const SOURCE_CODES: [&str; 9] = [
+    "cvdict",
+    "cc-cedict",
+    "unihan",
+    "viwiktionary-en",
+    "viwiktionary",
+    "en-wiktionary",
+    "thieu-chuu",
+    "vietphrase",
+    "hvtdtd",
+];
+
+/// Mọi tệp `.rs` dưới `src-tauri/src/**`, kèm đường dẫn tương đối POSIX.
+fn src_only_sources() -> Vec<(String, String)> {
+    let root = src_root();
+    let mut files = Vec::new();
+    walk(&root, &mut files);
+    files.sort();
+
+    files
+        .into_iter()
+        .map(|file| {
+            let rel = rel_posix(&root, &file);
+            let text =
+                fs::read_to_string(&file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
+            (rel, text)
+        })
+        .collect()
+}
+
+/// Sàn quần thể của bốn cổng Story 1.13 — chạy trước chúng.
+#[test]
+fn the_whole_src_tree_is_large_enough_to_be_real() {
+    let files = src_only_sources();
+    assert!(
+        files.len() >= SRC_ONLY_RS_FLOOR,
+        "chỉ tìm thấy {} tệp `.rs` dưới `src-tauri/src/**` (sàn {SRC_ONLY_RS_FLOOR}). Cây \
+         quá nhỏ để là thật.",
+        files.len()
+    );
+
+    // Đối chứng dương: quần thể **thật sự** chứa vùng mã mà bốn cổng canh.
+    for expected in [
+        "core/dict/layer.rs",
+        "core/dict/senses.rs",
+        "ports/dict_source.rs",
+    ] {
+        assert!(
+            files.iter().any(|(rel, _)| rel == expected),
+            "quần thể quét ⛔ KHÔNG chứa `{expected}` — bốn cổng của Story 1.13 đang canh \
+             một chỗ trống"
+        );
+    }
+}
+
+/// 🔴 **AC2** — ⛔ không một literal mã nguồn nào ở **vị trí mã** dưới `src-tauri/src/**`.
+///
+/// Vì sao AD-10 đáng một cổng: tập lớp đến từ **quét thư mục** và danh tính lớp đến từ
+/// **dữ liệu trong chính tệp**. Một `if code == "…"` ở đường đọc là một **nguồn sự thật thứ
+/// hai** cho một dữ kiện đã nằm trong dữ liệu (AD-44 ① vá A2), và nó sai **im lặng** vào
+/// đúng ngày một lớp gỡ rời được thêm hay gỡ đi (FR112).
+#[test]
+fn the_runtime_never_names_a_single_dictionary_source() {
+    // 🔴 **Đối chứng dương thường trực** — ⛔ không phải một lượt đột biến chạy tay rồi
+    // quên. Phép so khớp phải chứng minh nó **bắt được** hình dạng vi phạm, ngay ở đây,
+    // mỗi lượt CI. ⛔ Không có nó, cổng dưới đây xanh y hệt trên một bộ so khớp hỏng.
+    for code in SOURCE_CODES {
+        let planted = format!("    let _ = \"{code}\";");
+        assert!(
+            contains_forbidden_token(&planted, code),
+            "bộ so khớp ⛔ KHÔNG bắt được `{code}` trong `{planted}` — cổng dưới đây đang \
+             canh một chỗ trống"
+        );
+    }
+
+    let files = src_only_sources();
+    let mut violations: Vec<String> = Vec::new();
+
+    for (rel, text) in &files {
+        for (index, line) in text.lines().enumerate() {
+            let code = line.trim_start();
+            if code.starts_with("//") {
+                continue;
+            }
+            for needle in SOURCE_CODES {
+                if contains_forbidden_token(code, needle) {
+                    violations.push(format!("{rel}:{}  {needle}  |  {code}", index + 1));
+                }
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} chỗ dưới `src-tauri/src/**` viết mã riêng cho một nguồn cụ thể:\n{}\n\n\
+         AD-10: *\"Runtime KHÔNG có mã riêng cho từng nguồn\"*. Tập lớp đến từ QUÉT THƯ MỤC \
+         (AC3), danh tính lớp từ `dict_meta('layer')` của CHÍNH tệp, và nguồn từ \
+         `dict_source` của CHÍNH tệp.\n\n\
+         Nếu bạn vừa định viết `if code == \"…\"` để dọn 18 đầu mục trùng của VietPhrase: \
+         §Quyết định #2 của Story 1.13 chốt **để nguyên**, và lý do chính là dòng bạn vừa \
+         định viết.",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+/// 🔴 **AC2 vế thứ hai** — ⛔ không một **tên tệp `.db`** nào viết cứng ở vị trí mã.
+///
+/// *"Gỡ một lớp = xoá một file"* (FR36) là **sai** ngay khi một danh sách tên tệp tồn tại
+/// trong mã: xoá tệp thì danh sách vẫn còn, và nó nói dối về thứ đang có.
+#[test]
+fn the_layer_set_never_hardcodes_a_db_filename() {
+    // Đối chứng dương thường trực — cùng lý do với cổng trên.
+    assert!(
+        mentions_a_dict_db_file("    let path = dir.join(\"dict-core.db\");"),
+        "bộ so khớp ⛔ KHÔNG bắt được một tên tệp `.db` viết cứng"
+    );
+    assert!(
+        !mentions_a_dict_db_file("const GLOBAL_DB_FILE: &str = \"global.db\";"),
+        "bộ so khớp đỏ nhầm trên `global.db` — đó là kho ghi của Story 1.7, ⛔ không phải \
+         một lớp từ điển"
+    );
+
+    let files = src_only_sources();
+    let mut violations: Vec<String> = Vec::new();
+
+    for (rel, text) in &files {
+        for (index, line) in text.lines().enumerate() {
+            let code = line.trim_start();
+            if code.starts_with("//") {
+                continue;
+            }
+            if mentions_a_dict_db_file(code) {
+                violations.push(format!("{rel}:{}  |  {code}", index + 1));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} chỗ viết cứng một tên tệp `.db` của từ điển:\n{}\n\n\
+         Tập lớp đến từ `DictLayers::open(dir)` — nó thử mở MỌI tệp `*.db` trong thư mục. \
+         Một danh sách tên tệp là một sổ đăng ký (AD-44 ① vá A2), và nó làm FR36 *\"xoá một \
+         file\"* thành một mệnh đề sai.",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+/// Một dòng mã có nhắc tới một tên tệp `.db` của **từ điển** ⛔ không.
+fn mentions_a_dict_db_file(code: &str) -> bool {
+    let lowered = code.to_ascii_lowercase();
+    lowered.contains("dict-") && lowered.contains(".db")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.13 · AC6 — ⛔ KHÔNG TỒN TẠI MỘT HÀM HỢP NHẤT NGHĨA GIỮA CÁC NGUỒN
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Động từ của một phép hợp nhất.
+///
+/// ⚠️ **Biến cách bất quy tắc phải liệt kê RIÊNG**, ⛔ không suy ra từ dạng gốc bằng
+/// `contains`: `"merging"` ⛔ **không** chứa chuỗi con `"merge"` (bỏ `e` câm trước `-ing`),
+/// và `"unified"`/`"unifies"` ⛔ không chứa `"unify"` (`y → i` trước `-ed`/`-es`) — hai lỗi
+/// chính tả tiếng Anh này từng làm `fn merge_entries(...)`/`fn unified_glosses(...)` lọt
+/// qua cổng mà ⛔ không ai biết. Đối chứng dương của bài test khoá cả bốn dạng.
+const MERGE_VERBS: [&str; 13] = [
+    "merge",
+    "merging",
+    "unify",
+    "unified",
+    "unifies",
+    "dedup",
+    "coalesce",
+    "coalescing",
+    "consolidate",
+    "consolidating",
+    "combine",
+    "combining",
+    "flatten",
+];
+
+/// Danh từ của thứ bị hợp nhất — **thứ AD-19 cấm động vào**.
+///
+/// 🔴 Cổng ghép **động từ + danh từ**, ⛔ không cấm động từ một mình: `core/scope/resolve.rs`
+/// có `merge_by_key` và `resolve_merge` **hợp lệ** — chúng hợp nhất **cấu hình hai tầng**
+/// (Story 1.8), ⛔ không hợp nhất nghĩa giữa các nguồn. Một cổng cấm chữ `merge` trần sẽ đỏ
+/// trên chúng, và người sửa tiếp theo sẽ gỡ nó bằng một **danh sách miễn trừ** — rồi miễn
+/// trừ thứ hai sẽ là một hàm thật sự vi phạm.
+///
+/// ⚠️ `"entry"` **không** chứa được `"entries"` (số nhiều bất quy tắc `y → ies`) — liệt kê
+/// riêng, cùng lý do với `MERGE_VERBS`.
+const MERGE_NOUNS: [&str; 7] = [
+    "sense", "gloss", "source", "meaning", "entry", "entries", "dict",
+];
+
+/// 🔴 **AC6 mệnh đề cuối** — ⛔ **không tồn tại** một hàm hợp nhất nghĩa giữa các nguồn.
+#[test]
+fn no_function_merges_meanings_across_sources() {
+    // Đối chứng dương thường trực, và nó khai luôn **ranh giới** của cổng.
+    for planted in [
+        "fn merge_senses(",
+        "fn dedupe_source_groups(",
+        "    pub fn unify_dict_entries(&self) {",
+        // 🔴 Ba dạng biến cách bất quy tắc — xem cảnh báo ở `MERGE_VERBS`/`MERGE_NOUNS`.
+        "fn merge_entries(",
+        "fn unified_glosses(",
+        "    pub fn coalescing_dict_sources(&self) {",
+    ] {
+        assert!(
+            merging_function_name(planted).is_some(),
+            "bộ so khớp ⛔ KHÔNG bắt được `{planted}`"
+        );
+    }
+    for allowed in [
+        "fn merge_by_key<K, V>(",
+        "pub(crate) fn resolve_merge<V>(",
+        "    pub fn apply_merge<V>(",
+    ] {
+        assert!(
+            merging_function_name(allowed).is_none(),
+            "bộ so khớp đỏ nhầm trên `{allowed}` — hợp nhất CẤU HÌNH hai tầng (Story 1.8) \
+             ⛔ không phải hợp nhất NGHĨA giữa các nguồn (AD-19)"
+        );
+    }
+
+    let files = src_only_sources();
+    let mut violations: Vec<String> = Vec::new();
+
+    for (rel, text) in &files {
+        for (index, line) in text.lines().enumerate() {
+            let code = line.trim_start();
+            if code.starts_with("//") {
+                continue;
+            }
+            if let Some(name) = merging_function_name(code) {
+                violations.push(format!("{rel}:{}  {name}  |  {code}", index + 1));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} hàm dưới `src-tauri/src/**` mang hình dạng một phép HỢP NHẤT nguồn:\n{}\n\n\
+         🔴 **AD-19** — ⛔ KHÔNG tồn tại bước hợp nhất nguồn, ở bất kỳ đâu. **FR31**: mỗi \
+         định nghĩa mang xuất xứ của nó. **FR32**: hai nguồn bất đồng ⇒ CẢ HAI có mặt, ⛔ \
+         không nguồn nào được chọn làm *câu trả lời*.\n\n\
+         Đó là toàn bộ lời hứa của Epic 1 với người dịch: *tôi tự phán xét thay vì tin một \
+         câu trả lời đã bị gộp lại*. Một hàm gộp ở đây lấy đúng thứ đó đi.\n\n\
+         ⚠️ Trùng đầu mục TRONG một nguồn (18 đầu mục của VietPhrase) là một câu hỏi KHÁC, \
+         và §Quyết định #2 của Story 1.13 chốt **để nguyên** — xem `deferred-work.md`.",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+/// Tên hàm của `code` nếu nó mang **cả** một động từ hợp nhất **lẫn** một danh từ bị cấm.
+fn merging_function_name(code: &str) -> Option<String> {
+    let after_fn = code.split("fn ").nth(1)?;
+    let name: String = after_fn
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+        .collect();
+    if name.is_empty() {
+        return None;
+    }
+
+    let lowered = name.to_ascii_lowercase();
+    let has_verb = MERGE_VERBS.iter().any(|verb| lowered.contains(verb));
+    let has_noun = MERGE_NOUNS.iter().any(|noun| lowered.contains(noun));
+
+    (has_verb && has_noun).then_some(name)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.13 · AC1 — `ports/` KHAI HÌNH DẠNG, ⛔ KHÔNG MANG CÀI ĐẶT
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 **AC1** — `ports/**` ⛔ không gõ `rusqlite`, ⛔ không `Connection::open`, ⛔ không
+/// chạm filesystem.
+///
+/// ⚠️ `store_boundary.rs::only_core_store_may_name_rusqlite` **đã** quét `src/**` và sẽ đỏ
+/// trên hai chuỗi đầu; cổng này ⛔ **không** thay nó và ⛔ **không** nới nó. Nó thêm vế
+/// **filesystem** — thứ cổng kia ⛔ không canh — và nó nói bằng ngôn ngữ của AD-2 khi đỏ,
+/// nên người đọc biết mình vừa phá **cổng** chứ ⛔ không phải vừa phá *"một quy ước về
+/// rusqlite"*.
+#[test]
+fn ports_declare_shape_and_never_open_anything() {
+    // ⚠️ `"fs::"` **⛔ không** `"std::fs"`: `use std::{fs, path::Path};` — một kiểu import
+    // gộp hoàn toàn bình thường — ⛔ không mang chuỗi con `"std::fs"` ở đâu cả, nhưng lời
+    // gọi `fs::read(…)`/`fs::metadata(…)` sau đó vẫn chạm filesystem y hệt. `"fs::"` bắt
+    // được lời gọi đó bất kể nó được `use` theo kiểu nào — kể cả đường đủ `std::fs::…`, vì
+    // `"fs::"` là chuỗi con của nó.
+    const FORBIDDEN_IN_PORTS: [&str; 6] = [
+        "rusqlite",
+        "Connection::open",
+        "fs::",
+        "File::open",
+        "read_dir",
+        "PathBuf",
+    ];
+
+    let root = src_root();
+    let mut files = Vec::new();
+    walk(&root.join("ports"), &mut files);
+    files.sort();
+
+    assert!(
+        files.len() >= 2,
+        "chỉ {} tệp `.rs` dưới `src/ports/**` — cây quá nhỏ để là thật",
+        files.len()
+    );
+
+    let mut violations: Vec<String> = Vec::new();
+    let mut declares_the_port = false;
+
+    for file in &files {
+        let rel = rel_posix(&root, file);
+        let text =
+            fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
+
+        if text.contains("trait DictionarySource") {
+            declares_the_port = true;
+        }
+
+        for (index, line) in text.lines().enumerate() {
+            let code = line.trim_start();
+            if code.starts_with("//") {
+                continue;
+            }
+            for needle in FORBIDDEN_IN_PORTS {
+                if contains_forbidden_token(code, needle) {
+                    violations.push(format!("{rel}:{}  {needle}  |  {code}", index + 1));
+                }
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} chỗ dưới `src/ports/**` mang CÀI ĐẶT thay vì HÌNH DẠNG:\n{}\n\n\
+         AD-2 khai ĐÚNG BA cổng, và một cổng khai *cái gì*, ⛔ không khai *bằng cách nào*. \
+         Đường mở tệp sống ở `core/store/**` (xem doc-comment `readonly.rs:1-14` về vì sao \
+         nó ở đấy chứ ⛔ không ở `core/dict/`); cài đặt của cổng này là \
+         `core::dict::DictLayer`.",
+        violations.len(),
+        violations.join("\n")
+    );
+
+    // Đối chứng dương: `ports/**` **có thật** khai cổng thứ nhất. ⛔ Không có vế này, cổng
+    // trên xanh y hệt trên một `ports/` chỉ còn `mod.rs`.
+    assert!(
+        declares_the_port,
+        "`src/ports/**` ⛔ KHÔNG khai `trait DictionarySource`. Cổng ở trên đang canh một \
+         chỗ trống — AD-2 nói cổng thứ nhất tồn tại, và Story 1.13 là story dựng nó."
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.13 · AC7 — `ORDER BY ord` TRẦN LÀ MỘT CA FLAKY CHỜ SẴN
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 **AC7** — mọi `ORDER BY` nhắc `ord` dưới `core/dict/**` phải mang **khoá phụ `id`**.
+///
+/// `tools/dict-build/src/sources/vietphrase.rs` tách `/` **vô điều kiện** và sinh nhiều
+/// `dict_sense` **cùng `ord`** (`deferred-work.md`, Story 1.10). Với `ORDER BY ord` trần,
+/// SQLite ⛔ **không hứa** một thứ tự ổn định giữa các hàng bằng nhau — hai lượt chạy cho
+/// hai thứ tự, tức một ca **flaky**, và một ca flaky **bị gỡ** chứ ⛔ không được sửa.
+///
+/// ⚠️ Đây là cổng bổ sung cho ca hành vi
+/// `dict_sources.rs::senses_sharing_one_ord_are_still_ordered_deterministically`, và **cả
+/// hai đều cần**: trên một fixture nhỏ SQLite thường trả đúng thứ tự **do may mắn**, nên ca
+/// hành vi một mình ⛔ không phân biệt được may mắn với đúng.
+#[test]
+fn every_ord_ordering_carries_its_tiebreaker() {
+    // Đối chứng dương thường trực.
+    assert!(
+        ordering_lacks_a_tiebreaker("ORDER BY s.ord\""),
+        "bộ so khớp ⛔ KHÔNG bắt được một `ORDER BY ord` trần"
+    );
+    assert!(
+        !ordering_lacks_a_tiebreaker("ORDER BY s.entry_id, s.ord, s.id\","),
+        "bộ so khớp đỏ nhầm trên một câu ĐÃ có khoá phụ"
+    );
+    assert!(
+        !ordering_lacks_a_tiebreaker("ORDER BY e.id\""),
+        "bộ so khớp đỏ nhầm trên `ORDER BY e.id` — ⛔ không nhắc `ord` thì ⛔ không có gì \
+         để phá vỡ thế hoà"
+    );
+
+    let files = dict_sources();
+    let mut violations: Vec<String> = Vec::new();
+
+    for (rel, text) in &files {
+        for (index, line) in text.lines().enumerate() {
+            let code = line.trim_start();
+            if code.starts_with("//") {
+                continue;
+            }
+            if ordering_lacks_a_tiebreaker(code) {
+                violations.push(format!("{rel}:{}  |  {code}", index + 1));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} câu `ORDER BY` dưới `core/dict/**` sắp theo `ord` mà ⛔ KHÔNG có khoá phụ \
+         `id`:\n{}\n\n\
+         `ord` ⛔ KHÔNG duy nhất: VietPhrase sinh nhiều `dict_sense` cùng `ord` cho một đầu \
+         mục. Thiếu khoá phụ ⇒ hai lượt chạy cho hai thứ tự ⇒ một ca flaky, và một ca flaky \
+         BỊ GỠ chứ ⛔ không được sửa.\n\n\
+         Đường sửa: `ORDER BY … , x.ord, x.id`.",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+/// Câu `ORDER BY` của `code` có sắp theo `ord` mà thiếu khoá phụ `id` ⛔ không.
+fn ordering_lacks_a_tiebreaker(code: &str) -> bool {
+    let Some(clause) = code.split("ORDER BY").nth(1) else {
+        return false;
+    };
+    contains_forbidden_token(clause, "ord") && !contains_forbidden_token(clause, "id")
+}

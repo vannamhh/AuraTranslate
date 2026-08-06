@@ -1,9 +1,26 @@
 <script setup lang="ts">
 // Vỏ panel + **hợp đồng thị giác tiêu điểm**. Story 1.6 · AC4 · AC5 · UX-DR8 · UX-DR17.
+// Story 1.14 · §Quyết định #4A — mổ lại theo đúng chỗ mà doc-comment cũ đã lường trước.
 //
-// ⛔ Đây là VỎ, không phải panel. Bốn panel thật (`Source` · `Lookup` · `AiTranslation` ·
-// `Editor`) và nội dung của chúng thuộc Story 1.14 / 1.16 / 1.17; `dockview`, dock/undock/
-// tab/preset bố cục thuộc Story 1.14. Thân panel ở đây **để trống**.
+// ─────────────────────────────────────────────────────────────────────────────────
+// 🔴 `<header>` ĐÃ BỊ GỠ — §Quyết định #4A của Story 1.14
+// ─────────────────────────────────────────────────────────────────────────────────
+// UX-DR17 và `mockups/key-screen-workspace.html:31-34` vẽ MỘT thanh 34px cho mỗi panel.
+// dockview cũng vẽ một tab bar riêng cho mỗi group. Hai thanh chồng nhau là hỏng thị giác
+// ngay lượt dựng đầu, nên story chọn: **tab bar của dockview LÀ thanh tiêu đề panel**
+// (`src/panels/PanelTab.vue`), và vỏ này bỏ `<header>` của nó.
+//
+// ⛔ Đường ngược lại — ẩn tab bar của dockview, giữ `<header>` ở đây — bị loại vì ẩn tab
+// bar là ẩn luôn affordance kéo-thả và gộp-tab mà FR17 đòi; dựng lại chúng bằng tay là tự
+// viết lại dockview, đúng thứ `EXPERIENCE.md:21` cấm.
+//
+// ⚠️ Nét/khe/bo góc phân tách panel cũng đã chuyển sang `.dv-groupview`
+// (`src/layout/dockview-theme.css`): hộp panel thật nay bọc CẢ thanh tab LẪN thân, nên
+// một `border` ở đây chỉ viền được nửa dưới và thanh tiêu đề nằm ngoài khung.
+//
+// 🔴 VẠCH TIÊU ĐIỂM 2px Ở LẠI ĐÂY, ⛔ không chuyển sang tab (§Quyết định #4A, AC5 Story
+// 1.6): nó là mệnh đề về *panel nào đang giữ focus DOM*, và chỗ duy nhất đọc được điều đó
+// là phần tử gốc `tabindex="-1"` ngay dưới.
 //
 // ⚠️ Ngày Story 1.16/1.17 đổ chữ thật vào thân, bề mặt đó phải khai token `read-*` /
 // `source-*` / `lookup-*` của chính nó. Mặc định kế thừa từ `body` là `ui-md` ở giãn dòng
@@ -16,8 +33,14 @@ import { t } from '../i18n'
 const props = defineProps<{
   /** Điểm vào focus: `panel.source`. Phải có mặt trong `FOCUS_OWNERS` (Kiểm E của cổng). */
   owner: string
-  /** Khoá `vi.json` của tiêu đề. ⛔ Không nhận chuỗi đã dịch — NFR16. */
-  titleKey: string
+  /**
+   * Khoá `vi.json` của câu trạng thái. ⛔ Không nhận chuỗi đã dịch — NFR16.
+   *
+   * ⚠️ Tiêu đề ⛔ KHÔNG còn ở đây: nó sống trên tab (`PanelTab.vue`). Prop `titleKey` cũ
+   * đã bị gỡ cùng `<header>` — giữ lại một prop không ai render là cách một khoá chết
+   * lặng lẽ ở lại trong `vi.json` qua chín epic.
+   */
+  statusKey: string
 }>()
 
 const root = useTemplateRef<HTMLElement>('root')
@@ -29,6 +52,10 @@ const root = useTemplateRef<HTMLElement>('root')
  * rơi về `body`"*, tức mệnh đề về `document.activeElement`. Một cờ do ứng dụng tự giữ sẽ
  * vẫn sáng đúng một panel trong khi focus thật đã rơi ra ngoài — vạch dọc nói dối, và
  * đúng nửa NFR17 mà AC5 tồn tại để giữ thì mất.
+ *
+ * 🔴 Story 1.14: dockview có con trỏ `activePanel` riêng. ⛔ **Đừng** dùng nó làm nguồn sự
+ * thật cho vạch này — nó là *"tab nào đang chọn"*, ⛔ không phải *"focus DOM đang ở đâu"*,
+ * và hai thứ đó tách nhau ngay lần đầu người dùng bấm chuột vào thân một panel khác.
  */
 const focused = ref(false)
 
@@ -56,6 +83,10 @@ const onFocusOut = (event: FocusEvent): void => {
  * lại thấy vạch 2px `primary` trên panel trong khi focus THẬT đã ở gốc chế độ (do
  * `onActivated` → `enterFocus`). Đúng cái mệnh đề *"vạch không nói dối"* mà comment của
  * `focused` ở trên tồn tại để giữ, vỡ trên đúng đường mà story bắt buộc phải đi.
+ *
+ * 🔴 Story 1.14 — `<DockviewPortals>` teleport panel về đúng cây component của host, nên
+ * `onDeactivated` VẪN chạy khi rời Workspace. Đó là lý do vỏ này ⛔ không phải đổi gì để
+ * sống trong dockview; ⛔ đừng "tối ưu" bằng cách bỏ hook này.
  */
 onDeactivated(() => {
   focused.value = false
@@ -69,6 +100,10 @@ onDeactivated(() => {
  * `dockview` của Story 1.14 mang tới), owner ĐÃ ĐĂNG KÝ không bao giờ được gỡ: nó rò
  * vĩnh viễn vào `byOwner`, và mọi lượt mount lại nó sau đó ném *"đã khai rồi"*. Cổng
  * không thấy được ca này — lời gọi owner phi-literal bị đếm rồi bỏ qua.
+ *
+ * 🔴 Story 1.14 làm ca đó THẬT: `hidePanel()` gọi `api.removePanel()` và `showPanel()`
+ * dựng lại một instance mới với cùng `owner`. Không có `release()` đúng cặp thì lượt hiện
+ * lại thứ hai ném.
  */
 const owner = props.owner
 
@@ -84,7 +119,7 @@ onBeforeUnmount(() => {
   <!--
     `tabindex="-1"` để `focus.ts` dời được focus vào đây bằng `el.focus()`. Panel KHÔNG
     vào thứ tự Tab của trình duyệt: đường đi giữa các panel là `focus.next_panel`, và nó
-    nhận phím ở Story 1.14/1.21.
+    nhận hợp âm `Mod+Alt+→` từ Story 1.14 (§Quyết định #2).
   -->
   <section
     ref="root"
@@ -94,10 +129,19 @@ onBeforeUnmount(() => {
     @focusin="onFocusIn"
     @focusout="onFocusOut"
   >
-    <header class="panel-head">
-      <span class="panel-title">{{ t(props.titleKey) }}</span>
-    </header>
-    <div class="panel-body" />
+    <!--
+      ⛔ Thân panel CHƯA có nội dung ở story này — nó là **khung bố cục**, không phải một
+      lượt dựng nội dung. `Source` là Story 1.16, `Lookup` là 1.17, `Editor` là Epic 2,
+      `AiTranslation` là Epic 4.
+
+      🔴 Nhưng ⛔ KHÔNG để trống KHÔNG GIẢI THÍCH (AC8, UX-DR27): mỗi panel nêu rõ trạng
+      thái của nó bằng một chuỗi trong `vi.json`. Một khung trống câm là thứ người dùng
+      đọc thành "hỏng".
+    -->
+    <p class="status">{{ t(props.statusKey) }}</p>
+    <div class="panel-body">
+      <slot />
+    </div>
   </section>
 </template>
 
@@ -108,22 +152,25 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: 100%;
   overflow: hidden;
   background-color: var(--color-surface);
+  padding: var(--space-panel-block) var(--space-panel-inline);
+  box-sizing: border-box;
   /*
-   * Phân tách panel ĐẢO NGƯỢC giữa hai theme (AC6 của Story 1.4): theme sáng dùng NÉT
-   * 1px `outline`, theme tối dùng KHE 2px lộ `background` cộng bo góc 3px. Bốn biến dưới
-   * đây do `applyTheme()` ghi, nên một component KHÔNG bao giờ phải biết mình đang ở
-   * theme nào — và hai cơ chế không bị thống nhất về một cách làm.
+   * ⚠️ Nét/khe/bo góc phân tách panel KHÔNG còn ở đây — chúng chuyển sang `.dv-groupview`
+   * (`src/layout/dockview-theme.css`) ở Story 1.14, vì hộp panel thật nay bọc cả thanh
+   * tab. Bốn biến `--panel-*` vẫn là nguồn duy nhất; chỉ đổi chỗ tiêu thụ.
+   * ⛔ Đừng khai lại `border` ở đây: hai chỗ cùng vẽ một đường kẻ cho ra nét đôi ở theme
+   * sáng và không ai nối được nó về một trong hai.
    */
-  border: var(--panel-border-width) solid var(--panel-border-color);
-  border-radius: var(--panel-radius);
 }
 
 /*
  * ⚠️ `outline: none` CHỈ ở gốc `tabindex="-1"` — xem lý do đầy đủ ở `LibraryMode.vue`.
  * ⛔ KHÔNG phải `*:focus { outline: none }` (§Trap 4). Nút, ô nhập và tab của các story
  * sau vẫn phải giữ focus ring của trình duyệt.
+ * Kiểm H của `check-tokens.mjs` (Story 1.14 · AC11.2) cưỡng chế mệnh đề đó bằng máy.
  */
 .panel:focus {
   outline: none;
@@ -147,38 +194,17 @@ onBeforeUnmount(() => {
   background-color: var(--color-primary);
 }
 
-.panel-head {
-  display: flex;
-  align-items: center;
+/* UX-DR27 — câu trạng thái, `ui-md` màu chữ phụ. ⛔ Không màu `error`, kể cả ở panel AI. */
+.status {
+  margin: 0;
   flex: none;
-  height: var(--space-head-height);
-  padding: 0 var(--space-panel-inline);
-}
-
-/* UX-DR17 — tiêu đề `ui-md` màu `on-surface-variant`. */
-.panel-title {
+  color: var(--color-on-surface-variant);
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
 }
 
-/*
- * Vế thứ hai của AC5: tiêu đề chuyển `primary` **in đậm**.
- *
- * ⚠️ `var(--weight-read-title)` là 600 — đúng con số mà `DESIGN.md §Components` và
- * `mockups/key-screen-workspace.html:34` ghi. Nó MƯỢN trọng lượng của một token khác vì
- * bộ token không có biến trọng lượng cho nhãn giao diện đậm: `ui-md` khai 400, `ui-label`
- * khai 700. Viết thẳng `600` thì Kiểm B2 của `check-tokens.mjs` đỏ, và ⛔ khai một biến
- * CSS cục bộ `--weight-…: 600` để lách cổng là đúng thứ AD-34 tồn tại để chặn.
- * Đã mở một mục `deferred-work.md` giao Story 1.14 quyết token thật.
- */
-.panel.focused .panel-title {
-  color: var(--color-primary);
-  font-weight: var(--weight-read-title);
-}
-
-/* ⛔ Thân để TRỐNG — nội dung là Story 1.16 (Source) và 1.17 (Lookup). */
+/* ⛔ Thân để TRỐNG — nội dung là Story 1.16 (Source), 1.17 (Lookup), Epic 2/4. */
 .panel-body {
   flex: 1;
   min-height: 0;

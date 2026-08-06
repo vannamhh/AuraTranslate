@@ -125,6 +125,13 @@ onMounted(async () => {
       hiển thị cho người dùng sáng mắt và vẫn dùng `v-if` bình thường — không cần đợi gì,
       họ đọc bằng mắt ngay khi nó xuất hiện.
     -->
+    <!--
+      aura-allow-text: `announcedConfigError` mang KẾT QUẢ của `tError(configError)` —
+      chuỗi ĐÃ dịch, đã đi qua `vi.json`. Nó phải là một `ref` chứ không phải một lời gọi
+      `tError()` tại chỗ, vì `role="status"` chỉ công bố được nội dung ĐỔI sau khi node đã
+      tồn tại (xem doc-comment của `announcedConfigError` ở khối script). Kiểm A2 đọc cú
+      pháp chứ không đọc được điều đó — nên đây là chỗ một con người ký.
+    -->
     <p class="sr-announcer" role="status">{{ announcedConfigError }}</p>
     <p v-if="configError" class="config-error">
       {{ tError(configError) }}
@@ -178,6 +185,12 @@ onMounted(async () => {
       </KeepAlive>
     </div>
 
+    <!--
+      aura-allow-text: báo cáo self-check phạm vi asset protocol — CHẨN ĐOÁN cho log CI,
+      chỉ dựng khi `VITE_SCOPE_SELFTEST=1` và ⛔ không vào bản phát hành. `vi.json` là tài
+      nguyên HIỂN THỊ; trộn chẩn đoán vào đó là hỏng chính ranh giới Story 1.5 dựng — cùng
+      lý do mà `src/selftest/**` được miễn trừ TRỌN ở `EXEMPT` của cổng này.
+    -->
     <pre v-if="report" class="selftest" :data-verdict="report.verdict">{{ report.text }}</pre>
   </main>
 </template>
@@ -279,13 +292,14 @@ onMounted(async () => {
  * Tab đang hiện — theo `mockups/key-screen-workspace.html:23`. Chữ đậm màu `on-surface`
  * cộng một gạch chân 2px `primary`.
  *
- * ⚠️ Cùng lý do mượn trọng lượng như `PanelFrame.vue`: bộ token không có biến trọng
- * lượng cho nhãn giao diện đậm, và viết thẳng `600` thì Kiểm B2 đỏ. Đã mở mục
- * `deferred-work.md` giao Story 1.14 quyết token thật.
+ * `var(--weight-ui-md-strong)` là token thứ 15, thêm ở Story 1.14 · AC10 để đóng
+ * `deferred-work.md:138`. Trước nó, tab này MƯỢN `--weight-read-title` (một token của
+ * tiêu đề Chương, 23px họ `read`) chỉ để lấy con số 600 — rủi ro đã ghi: đổi giá trị
+ * `--weight-read-title` thì tab chế độ đổi theo mà không ai biết. Nay không còn mượn.
  */
 .mode-tab.on {
   color: var(--color-on-surface);
-  font-weight: var(--weight-read-title);
+  font-weight: var(--weight-ui-md-strong);
   border-bottom-color: var(--color-primary);
 }
 

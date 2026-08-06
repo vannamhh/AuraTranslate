@@ -29,6 +29,14 @@ pub const SCOPE_SELFTEST_EVENT: &str = "selftest:scope-check";
 /// Tên tệp kho toàn cục dưới `$APPDATA`. Xem [`open_global_store`].
 const GLOBAL_DB_FILE: &str = "global.db";
 
+/// Thư mục con của `$RESOURCE` chứa các tệp `.db` từ điển. Xem [`open_dict_layers`].
+///
+/// 🔴 Đây là một **THƯ MỤC**, ⛔ không phải một danh sách tên tệp — và khác biệt đó là cả
+/// FR36: tập lớp là **mọi** tệp `*.db` tìm thấy trong nó, nên *"gỡ một lớp = xoá một file"*
+/// đúng theo nghĩa đen. `tests/dict_boundary.rs::the_layer_set_never_hardcodes_a_db_filename`
+/// canh vế đó bằng máy.
+const DICT_RESOURCE_DIR: &str = "dict";
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(debug_assertions)]
@@ -56,6 +64,7 @@ pub fn run() {
             }
 
             open_global_store(app);
+            open_dict_layers(app);
             Ok(())
         });
 
@@ -68,6 +77,7 @@ pub fn run() {
     app.run(|handle, event| {
         if matches!(event, tauri::RunEvent::Exit) {
             close_global_store(handle);
+            close_dict_layers(handle);
         }
     });
 }
@@ -147,6 +157,86 @@ fn close_global_store(handle: &tauri::AppHandle) {
 
     if let Some(store) = handle.try_state::<crate::core::store::Store>() {
         store.close();
+    }
+}
+
+/// Mở **tập lớp từ điển** dưới `$RESOURCE/dict/` và đưa nó vào state (Story 1.13, AC3/AC4).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO MỞ Ở `setup()` CHỨ KHÔNG PHẢI Ở PHÍM ĐẦU TIÊN NGƯỜI DÙNG GÕ
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Mở một lớp là mở một **pool kết nối SQLite**. Làm việc đó lúc tra cứu lần đầu là đặt N
+/// lượt mở tệp lên đúng đường nóng của NFR1 *(100 ms đầu-cuối, backend giữ ≤ 10 ms)* — một
+/// hình dạng **chắc chắn** vỡ ngân sách đó, và vỡ đúng vào lần tra đầu tiên của mỗi phiên,
+/// tức đúng ấn tượng đầu tiên. Mở một lần lúc khởi động là cùng khuôn [`open_global_store`].
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 ⛔ KHÔNG CÓ LỚP NÀO LÀ MỘT TRẠNG THÁI **BÌNH THƯỜNG CÓ TÊN**
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `src-tauri/resources/dict/` hôm nay **rỗng** trong git *(⛔ không tệp `.db` nào — AD-25)*
+/// và `bundle.resources` **chưa** mang thư mục đó *(Story 10.1)*. Nên một bản dựng hôm nay
+/// lên với **không lớp nào**, và đó ⛔ **không** phải một lỗi — nó là chính hình dạng FR36
+/// đòi hỏi: *"gỡ một lớp = xoá một file"*, và trường hợp giới hạn của mệnh đề đó là **gỡ
+/// hết**.
+///
+/// [`DictLayers::open`] vì thế ⛔ **không bao giờ** trả lỗi; thứ nó trả về là một tập lớp
+/// rỗng cộng một danh sách `skipped` **có tên**. Ở đây danh sách đó ra stderr; Story 1.17
+/// nối nó lên giao diện qua bề mặt IPC của Panel Lookup.
+///
+/// ⚠️ Chuỗi chẩn đoán viết **KHÔNG DẤU** — cùng bài học `lib.rs:99-100`:
+/// `scripts/check-i18n.mjs` Kiểm A quét `src-tauri/**/*.rs` và tệp này ⛔ không được miễn trừ.
+fn open_dict_layers(app: &tauri::App) {
+    use tauri::Manager as _;
+
+    // ⛔ Không ghép chuỗi bằng tay — `app.path()` là đường duy nhất, và đây là chỗ NFR14
+    // (hành vi tương đương hai nền tảng) hỏng đầu tiên nếu ai đó tự dựng đường dẫn.
+    let dir = match app.path().resource_dir() {
+        Ok(dir) => dir.join(DICT_RESOURCE_DIR),
+        Err(err) => {
+            // ⚠️ Vẫn phải `app.manage(...)` một tập lớp — RỖNG là được, nhưng CHƯA quản lý
+            // thì không: một chỗ gọi sau này lấy `DictLayers` ra từ state (vd. một
+            // `#[tauri::command]` của Story 1.17) mà state trống hẳn sẽ panic thay vì đọc
+            // một tập lớp rỗng có tên.
+            eprintln!("dict[layers] cannot resolve the resource directory: {err}");
+            app.manage(crate::core::dict::DictLayers::empty());
+            return;
+        }
+    };
+
+    let layers = crate::core::dict::DictLayers::open(&dir);
+
+    // Một dòng cho **mỗi** lớp bị bỏ qua: `SkipReason` mang sẵn đường dẫn và lý do, nên
+    // người đọc stderr biết **tệp nào** và **vì sao**, ⛔ không phải *"từ điển không lên"*.
+    for skipped in layers.skipped() {
+        eprintln!(
+            "dict[layers] skipping {}: {}",
+            skipped.path.display(),
+            skipped.reason
+        );
+    }
+    eprintln!(
+        "dict[layers] {} layer(s) loaded from {}",
+        layers.layers().len(),
+        dir.display()
+    );
+
+    app.manage(layers);
+}
+
+/// `RunEvent::Exit` ⇒ đóng **mọi** tệp từ điển đang mở (NFR14, FR112).
+///
+/// 🔴 Vế này ⛔ **không** bỏ được, và lý do ⛔ không phải là gọn gàng: trên Windows một tệp
+/// còn mở là một tệp **⛔ không thay được** — tức một bản cập nhật ⛔ không ghi đè nổi
+/// `dict-*.db`, và **FR112** *(chính sách gỡ bỏ dữ liệu)* đứng trên đúng khả năng xoá được
+/// tệp. Cùng bài học NFR14 đã học ở [`close_global_store`].
+///
+/// ⛔ Vẫn còn hở, và ghi thẳng ra thay vì đánh dấu đạt: `panic = "abort"` nghĩa là một lần
+/// thoát cứng **không** đi qua đây. Cùng món nợ đã ghi cho [`close_global_store`].
+fn close_dict_layers(handle: &tauri::AppHandle) {
+    use tauri::Manager as _;
+
+    if let Some(layers) = handle.try_state::<crate::core::dict::DictLayers>() {
+        layers.close();
     }
 }
 

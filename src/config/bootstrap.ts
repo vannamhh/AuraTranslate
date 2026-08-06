@@ -51,6 +51,19 @@ export type BootstrapConfig = {
   mode: string
   shortcuts: Record<string, string>
   layout_presets: Record<string, string>
+  /**
+   * Bố cục panel ĐANG HIỂN THỊ, đã `JSON.stringify` (Story 1.14 · AC4 · §Quyết định #5A).
+   *
+   * ⚠️ Chuỗi RỖNG = chưa có gì trên đĩa ⇒ preset mặc định (lưới 2×2). Cùng luật với
+   * `DEFAULT_THEME` / `DEFAULT_MODE`: tầng Rust quyết mặc định, ⛔ không để `?? '…'` phía
+   * này gánh — `??` chỉ bắt `null`/`undefined`, còn `''` là một giá trị.
+   *
+   * 🔴 ⛔ Đừng đọc trường này thành *"preset bố cục"*. `layout_presets` ở trên là **preset
+   * đã ĐẶT TÊN** (`ScopeKind::LayoutPreset`, `GlobalOnly`); trường này là *"lần cuối người
+   * dùng để bốn panel ở đâu"* và nó sống trong `ScopeKind::AppConfig` cùng cửa với `theme`
+   * và `mode`. `kinds.rs:206-213` phân xử ranh giới đó.
+   */
+  workspace_layout: string
 }
 
 /**
@@ -94,7 +107,30 @@ function isIpcError(value: unknown): value is IpcError {
 const CMD_BOOTSTRAP = 'bootstrap_config'
 const CMD_PUT = 'put_config'
 
+/**
+ * Loại scope và khoá của bố cục đang hiển thị — Story 1.14 · AC4.
+ *
+ * ⚠️ Hai hằng số, ⛔ không hai chuỗi viết thẳng ở chỗ gọi: `put_config` nhận `kind` và
+ * `key` dưới dạng **chuỗi trên dây**, nên một lỗi gõ ở đây ⛔ không có kiểu nào bắt được —
+ * `scope::save_value` sẽ trả `store.write_failed` lúc CHẠY và lượt lưu im lặng biến mất.
+ * Khớp `ScopeKind::AppConfig => "app_config"` (`kinds.rs`) và `KEY_LAYOUT` (`store.rs`).
+ */
+export const SCOPE_APP_CONFIG = 'app_config'
+export const KEY_LAYOUT = 'workspace_layout'
+
 const lastError = ref<IpcError | null>(null)
+const layout = ref('')
+
+/**
+ * Bố cục đã lưu, đọc **một lần** lúc khởi động (AC4).
+ *
+ * ⚠️ Một `ref` chứ ⛔ không một hằng: `loadBootstrapConfig()` là `async` và chạy trước
+ * `mount()`, nên giá trị chỉ có sau vòng IPC. `WorkspaceMode` đọc nó qua template (Vue tự
+ * bóc `.value`), và nó ⛔ không bao giờ đổi sau đó — lượt GHI đi đường khác (`putConfig`),
+ * ⛔ không quay ngược về đây. Một vòng đọc–ghi hai chiều ở đây sẽ làm mỗi lượt lưu kích
+ * hoạt một lượt dựng lại bố cục.
+ */
+export const bootstrapLayout: DeepReadonly<Ref<string>> = readonly(layout)
 
 /**
  * Lỗi cấu hình gần nhất mà **Rust trả lời**, để `App.vue` vẽ một dải báo lỗi **không
@@ -115,6 +151,11 @@ export async function loadBootstrapConfig(): Promise<BootstrapResult> {
   try {
     const config = await invoke<BootstrapConfig>(CMD_BOOTSTRAP)
     lastError.value = null
+    // ⚠️ `?? ''` là canh gác LÚC CHẠY, ⛔ không phải một mặc định thứ hai: giá trị vừa vượt
+    // ranh giới IPC nên kiểu TypeScript ⛔ không nói được gì về nó, và một bản Rust cũ hơn
+    // (trước Story 1.14) ⛔ không có trường này. Chuỗi rỗng ⇒ preset mặc định — cùng nhánh
+    // với "kho rỗng", ⛔ không phải một nhánh lỗi.
+    layout.value = typeof config?.workspace_layout === 'string' ? config.workspace_layout : ''
     return { config, error: null }
   } catch (err) {
     if (isIpcError(err)) {
