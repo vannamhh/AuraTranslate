@@ -5,13 +5,20 @@
 // 🔴 CHẾ ĐỘ SONG SONG: MỘT NODE CHO MỖI KÝ TỰ — VÀ VÙNG CHỌN LÀ ĐIỀU KIỆN TIÊN QUYẾT
 // CỦA STORY 1.18/3.4
 // ─────────────────────────────────────────────────────────────────────────────────
-// Quyết định #4(a): mỗi ký tự Hán là một khối dọc `chữ trên / âm dưới`. AC6 cưỡng chế
-// bằng một phép kiểm thật: `window.getSelection().toString()` trên một đoạn bôi đen phải
-// bằng ĐÚNG chuỗi ký tự nguồn — không lẫn âm Hán Việt, không lẫn khoảng trắng chèn
-// thêm. Hai điều kiện giữ mệnh đề đó:
-//   1. `.hv-reading` mang `user-select: none` — nằm trong luồng chọn của trình duyệt
-//      nhưng KHÔNG BAO GIỜ được thêm vào chuỗi đã chọn.
-//   2. Template KHÔNG được để lọt một khoảng trắng/newline THẬT giữa hai phần tử
+// Quyết định #4(a): mỗi ký tự Hán là một khối dọc `chữ trên / âm dưới`. Từ 2026-08-07
+// khối đó là một `<ruby>` THẬT (`<rt>` mang âm, `ruby-position: under`) — không còn một
+// `.hv-reading` `position: absolute` tự dựng; xem khối lý do trong `<style>`.
+//
+// AC6 cưỡng chế bằng một phép kiểm thật: `window.getSelection().toString()` trên một đoạn
+// bôi đen phải bằng ĐÚNG chuỗi ký tự nguồn — không lẫn âm Hán Việt, không lẫn khoảng
+// trắng chèn thêm. Ba điều kiện giữ mệnh đề đó:
+//   1. `<rt>` mang `user-select: none` — nằm trong luồng chọn của trình duyệt nhưng KHÔNG
+//      BAO GIỜ được thêm vào chuỗi đã chọn. Đo 2026-08-07: thiếu nó ⇒ `"台đài北"`, có ⇒
+//      `"台北"`. Đây là hàng rào cho lượt COPY/PASTE của người dùng.
+//   2. `resolveParallel()` đọc node văn bản TRỰC TIẾP của `<ruby>`, không `textContent`
+//      (nó gộp cả `<rt>`). Đây là hàng rào cho TRUY VẤN TRA CỨU — đường riêng, vì
+//      `user-select` không ràng buộc `Selection.modify()` trên WebKit (AC11/AC12).
+//   3. Template KHÔNG được để lọt một khoảng trắng/newline THẬT giữa hai phần tử
 //      `<span>` liền nhau trong `v-for` — một khoảng trắng như vậy là một ký tự CHÈN
 //      THÊM vào vùng chọn mà văn bản nguồn không có. Xem cách viết dính liền `><` dưới
 //      template.
@@ -20,7 +27,7 @@
 // 🔴 AC7 — `font-synthesis` PHẢI ĐƯỢC TIÊU THỤ, ĐỪNG BỎ SÓT DÒNG NÀY
 // ─────────────────────────────────────────────────────────────────────────────────
 // `deferred-work.md:133` ghi nguyên văn: "Bỏ sót dòng đó là cách lời giải này chết im
-// lặng." Đây là NGƯỜI TIÊU THỤ ĐẦU TIÊN của token `source-hanviet` — xem `.hv-reading`
+// lặng." Đây là NGƯỜI TIÊU THỤ ĐẦU TIÊN của token `source-hanviet` — xem `rt`
 // trong `<style>` dưới đây, cả năm biến `--*-source-hanviet`, không chỉ `font-synthesis`.
 import { computed, useTemplateRef } from 'vue'
 import { t } from '../i18n'
@@ -108,7 +115,7 @@ const segments = computed(() => buildSegments(props.sourceText))
  * nào có trong git (AD-25) nên đó là trạng thái **mặc định của mọi bản build hôm nay**:
  * một Chương 3.000 ký tự cho ra ~45.000 ký tự `"chưa có dữ liệuchưa có dữ liệu…"`.
  *
- * ⚠️ Màu đi ở `.hv-reading` qua `--color-on-surface-variant`. Không `ornament` *(UX-DR5:
+ * ⚠️ Màu đi ở `rt` qua `--color-on-surface-variant`. Không `ornament` *(UX-DR5:
  * màu của NÉT, không bao giờ của chữ)*, không `opacity` *(UX-DR6)*.
  */
 const READING_PLACEHOLDER = '·'
@@ -152,6 +159,25 @@ const READING_PLACEHOLDER = '·'
  * đếm bằng đơn vị mã, và một âm Hán Việt là chữ Latin có dấu (có thể nhiều đơn vị mã).
  */
 /**
+ * Ký tự này có TỰ MANG khoảng cách hai bên không — tức đặt một âm đọc sát nó vẫn đọc được?
+ *
+ * 🔴 `true` cho khoảng trắng (hiển nhiên) và cho **dấu câu TOÀN RỘNG** của chữ Hán
+ * (`，` `。` `《` `》` `：` `；` `！` `？` `、` …): một glyph toàn rộng chiếm trọn ô em nhưng
+ * vẽ dấu ở một góc, nên phần còn lại của ô ĐÃ là khoảng trắng thị giác. Chèn thêm một dấu
+ * cách ở đó đẩy dấu câu rời khỏi chữ — đúng thứ chú thích gốc của story 1.16 cảnh báo.
+ *
+ * 🔴 `false` cho chữ số và chữ Latin NỬA RỘNG (`8` `5` `A`): chúng không có phần đệm nào,
+ * nên `会8月` cho ra `"hội8nguyệt"` nếu không tách. Ice báo 2026-08-07.
+ *
+ * ⚠️ Dải toàn rộng lấy theo khối Unicode, không liệt kê tay từng dấu: `U+3000–U+303F`
+ * (CJK Symbols and Punctuation) · `U+FF00–U+FFEF` (Halfwidth and Fullwidth Forms — phần
+ * TOÀN rộng nằm ở đây, `U+FF01–U+FF5E`) · `U+FE30–U+FE4F` (CJK Compatibility Forms).
+ */
+const FULLWIDTH_OR_SPACE = /[\s　-〿！-～︰-﹏]/
+const selfSpacing = (ch: string | undefined): boolean =>
+  ch === undefined || FULLWIDTH_OR_SPACE.test(ch)
+
+/**
  * ⚠️ `starts[i]` — vị trí trong `text` nơi PHẦN CỦA CHÍNH segment `i` bắt đầu *(không tính
  * khoảng trắng phân tách attribute ngược cho segment `i - 1` ở dưới)*. Lượt review 2026-08-07
  * thêm bảng này: `resolveSelection` cần nó để CẮT `seg.text` đúng biên khi vùng chọn dừng
@@ -162,6 +188,8 @@ const switchView = computed<{ text: string; map: number[]; starts: number[] }>((
   const map: number[] = []
   const starts: number[] = []
   let prevWasReading = false
+  /** Ký tự CUỐI của mẩu `text` vừa đi qua — `null` nếu segment trước không phải `text`. */
+  let pendingTextTail: string | undefined | null = null
 
   const push = (piece: string, segIndex: number): void => {
     out += piece
@@ -176,17 +204,30 @@ const switchView = computed<{ text: string; map: number[]; starts: number[] }>((
       return
     }
     if (seg.kind === 'text') {
+      // 🔴 SỬA 2026-08-07 (Ice báo: `"hội8nguyệt5nhật"`). Bản trước KHÔNG chèn khoảng trắng
+      // ở ranh giới âm↔mẩu-text, với lý do *"dấu câu vốn đã tự mang khoảng cách của nó"*.
+      // Lý do đó CHỈ đúng cho dấu câu TOÀN RỘNG (`，` `。` `《` — chúng chiếm trọn một ô em
+      // nên nhìn như đã có khoảng trắng hai bên). Nó SAI cho chữ số và chữ Latin nửa rộng:
+      // `8` `5` không có phần đệm nào, nên `会8月5日` cho ra `"hội8nguyệt5nhật"` — dính liền,
+      // không đọc được. ⇒ chèn khoảng trắng khi ký tự CHẠM VÀO ranh giới không tự mang
+      // khoảng cách. Xem [`selfSpacing`].
+      if (prevWasReading && !selfSpacing(seg.text[0])) push(' ', index - 1)
       starts[index] = out.length
       push(seg.text, index)
       prevWasReading = false
+      pendingTextTail = seg.text[seg.text.length - 1]
       return
     }
     // Khoảng trắng phân tách hai âm liền nhau thuộc về segment ĐỨNG TRƯỚC: bôi đen trúng
     // nó thì ký tự nguồn gần nhất vẫn đúng, không rơi ra ngoài bảng.
     if (prevWasReading) push(' ', index - 1)
+    // Vế đối xứng của khối trên: mẩu `text` vừa đi qua kết thúc bằng một ký tự không tự
+    // mang khoảng cách (`8`) và ngay sau là một âm (`nguyệt`) ⇒ cũng phải tách.
+    else if (pendingTextTail !== null && !selfSpacing(pendingTextTail)) push(' ', index - 1)
     starts[index] = out.length
     push(seg.reading ?? READING_PLACEHOLDER, index)
     prevWasReading = true
+    pendingTextTail = null
   })
 
   return { text: out, map, starts }
@@ -234,13 +275,13 @@ const surface = computed<HTMLElement | null>(() =>
 )
 
 /**
- * 🔴 **KIỂU SONG SONG — ĐỌC CÁC NODE `.hv-char`, không TIN `Selection.toString()`.**
+ * 🔴 **KIỂU SONG SONG — ĐỌC NODE VĂN BẢN CỦA `<ruby>`, không TIN `Selection.toString()`.**
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * VÌ SAO ĐỔI, VÀ ĐÂY LÀ MỘT SỐ ĐO, KHÔNG PHẢI MỘT SỞ THÍCH (Story 1.18 · AC12)
  * ─────────────────────────────────────────────────────────────────────────────
  * AC6 của Story 1.16 đo bằng một cú **kéo chuột thật** (Playwright) và kết luận đúng:
- * `.hv-reading` mang `user-select: none` nên `toString()` trả về đúng chuỗi ký tự nguồn.
+ * âm đọc mang `user-select: none` nên `toString()` trả về đúng chuỗi ký tự nguồn.
  *
  * AC12 đòi chạy **LẠI** phép kiểm đó trong story này, không tin số đo cũ — và lượt chạy lại
  * (2026-08-07, hai engine) lật một nửa kết luận:
@@ -248,7 +289,7 @@ const surface = computed<HTMLElement | null>(() =>
  * | vùng chọn cả đoạn | Chromium | WKWebView (macOS) |
  * |---|---|---|
  * | `Selection.toString()` | ✅ đúng | ❌ `他tha打đả開khai…` — **rò âm Hán Việt** |
- * | đọc node `.hv-char`    | ✅ đúng | ✅ đúng |
+ * | đọc node `<ruby>`     | ✅ đúng | ✅ đúng |
  *
  * `user-select: none` chi phối vùng chọn do **NGƯỜI DÙNG KÉO** tạo ra. Nó **không ràng buộc**
  * `Selection.modify()` trên WebKit — và `Selection.modify()` chính là đường mà **AC11 của
@@ -258,7 +299,7 @@ const surface = computed<HTMLElement | null>(() =>
  * ⇒ Đọc thẳng ký tự NGUỒN từ những `.hv-unit` mà vùng chọn chạm tới. Một nguồn sự thật,
  * đúng trên cả hai engine, và không phụ thuộc việc engine nào tôn trọng `user-select` ở đâu.
  *
- * ⚠️ `user-select: none` ở `.hv-reading` **không được gỡ** — nó vẫn là thứ giữ cho vùng chọn
+ * ⚠️ `user-select: none` ở `<rt>` **không được gỡ** — nó vẫn là thứ giữ cho vùng chọn
  * do chuột kéo *trông đúng* trên màn hình. Hàm này là hàng rào thứ hai, không phải bản thay.
  */
 function resolveParallel(selection: Selection): string | null {
@@ -277,11 +318,19 @@ function resolveParallel(selection: Selection): string | null {
       out += '\n'
       continue
     }
-    // `.hv-unit` mang hai con: `.hv-char` (ký tự nguồn, MỘT ký tự — không cắt được nửa) và
-    // `.hv-reading` (âm — không lấy).
-    const charEl = child.querySelector('.hv-char')
-    if (charEl !== null) {
-      out += charEl.textContent ?? ''
+    // `.hv-unit` mang một `<ruby>`: node văn bản đầu là KÝ TỰ NGUỒN (một ký tự — không cắt
+    // được nửa), theo sau là `<rt>` mang âm Hán Việt.
+    //
+    // 🔴 `ruby.textContent` GỘP CẢ `<rt>` — đo được 2026-08-07 trên Chromium:
+    // `Selection.toString()` của một vùng chọn hai ký tự trả `"台đài北"`, không `"台北"`.
+    // `<rt>` mang `user-select: none` (đo lại: trả đúng `"台北"`), nhưng hàm này KHÔNG dựa
+    // vào đó — `user-select` không ràng buộc `Selection.modify()` trên WebKit (xem
+    // doc-comment ở trên), và `textContent` thì bỏ qua nó hoàn toàn. ⇒ lấy đúng node văn
+    // bản TRỰC TIẾP đầu tiên của `<ruby>`, không `textContent`.
+    const rubyEl = child.querySelector('ruby')
+    if (rubyEl !== null) {
+      const baseNode = Array.from(rubyEl.childNodes).find((n) => n.nodeType === Node.TEXT_NODE)
+      out += baseNode?.textContent ?? ''
       continue
     }
     // 🔴 Một `<span>` trơn là mẩu KHÔNG-Hán *(dấu câu, chữ Latin — có thể NHIỀU ký tự)*. Lượt
@@ -381,11 +430,10 @@ useSelectionSurface(surface, 'source', resolveSelection)
       }}</span><span
         v-else
         class="hv-unit"
-        :style="{ '--hv-reading-len': (seg.reading ?? READING_PLACEHOLDER).length }"
       ><!-- aura-allow-text: một ký tự Hán của nguyên
-        văn — DỮ LIỆU. --><span class="hv-char">{{ seg.char
-      }}</span><!-- aura-allow-text: âm Hán Việt đã gom (DỮ LIỆU từ điển) hoặc ký tự giữ
-        chỗ `READING_PLACEHOLDER`. --><span class="hv-reading">{{ seg.reading ?? READING_PLACEHOLDER }}</span></span></template
+        văn — DỮ LIỆU. --><ruby>{{ seg.char
+      }}<!-- aura-allow-text: âm Hán Việt đã gom (DỮ LIỆU từ điển) hoặc ký tự giữ chỗ
+        `READING_PLACEHOLDER`. --><rt>{{ seg.reading ?? READING_PLACEHOLDER }}</rt></ruby></span></template
     ></p>
   </div>
 </template>
@@ -447,11 +495,17 @@ useSelectionSurface(surface, 'source', resolveSelection)
 /*
  * Song song — đoạn dài, mỗi ký tự một khối dọc (Quyết định #4a).
  *
- * ⚠️ `line-height` LÀ TOKEN `source-cjk` (2.05) — không một con số viết thẳng: Kiểm B2
- * của `check-tokens.mjs` từ chối MỌI giá trị `line-height` không phải `var(--…)`, không
- * có miễn trừ cho nhóm thuộc tính chữ (khác Kiểm B màu/Kiểm F z-index, có miễn trừ có tên).
- * Giãn dòng 2.05 của chính token đã để đủ khoảng trống cho âm đọc (`.hv-reading`, ~12.5px)
- * nằm trong phần leading giữa hai dòng, không đè lên dòng kế tiếp.
+ * ⚠️ `line-height` DÙNG CHUNG token `source-cjk` với tab "Nguyên văn" thuần — và điều đó
+ * chỉ đúng được kể từ khi âm đọc chuyển sang `<ruby>` (xem khối dưới): `<rt>` chiếm chỗ
+ * THẬT trong layout nên trình duyệt tự tính chiều cao dòng, không cần một con số giãn thêm.
+ * Đo 2026-08-07: không đè ở mọi mức đã thử, kể cả `normal`.
+ *
+ * 🔴 LỊCH SỬ — HAI TOKEN VÀ HAI LƯỢT VÁ ĐÃ BỊ GỠ, ghi lại để không ai dựng lại chúng:
+ * lượt 1 kéo `line-height` lên **4.8** (token riêng `source-cjk-parallel`) để âm đọc
+ * `position: absolute` thôi đè dòng sau; lượt 2 hạ xuống **3.2** bằng cách neo âm đọc vào
+ * một `.hv-char` mang `line-height: normal`. Cả hai đều VÁ TRIỆU CHỨNG: gốc rễ là âm đọc
+ * không chiếm chỗ trong layout. `<ruby>` bỏ được cả hai, nên token `source-cjk-parallel`
+ * đã được **gỡ khỏi `tokens.json`** — bộ token về lại 17.
  */
 .hv-parallel {
   margin: 0;
@@ -463,54 +517,78 @@ useSelectionSurface(surface, 'source', resolveSelection)
 }
 
 /*
- * 🔴 BỀ RỘNG Ô NỞ THEO ĐỘ DÀI ÂM — và nó KHÔNG đụng tới vùng chọn (AC6).
+ * Vỏ của một ký tự Hán + âm đọc. GIỮ NGUYÊN dù `<ruby>` bên trong đã tự lo bố cục —
+ * `resolveParallel()` duyệt `host.children` và phân biệt "ô Hán" với "mẩu không-Hán" bằng
+ * chính lớp này, nên nó là một mốc CẤU TRÚC, không một mốc trang trí.
  *
- * Vấn đề bản đầu: `.hv-reading` là `position: absolute` ⇒ nó ra khỏi luồng và **không
- * góp một pixel nào** vào bề rộng `.hv-unit` (đúng bằng một glyph CJK). Âm `"chênh"` ở
- * 12,5px rộng gần gấp đôi ô đó, nên mọi cụm Hán liền nhau cho ra các âm **đè lên nhau** —
- * kiểu song song, thứ AC6 đòi, không đọc được. Bắt ở lượt code review 2026-08-06.
- *
- * 🔴 VÌ SAO CÁCH NÀY AN TOÀN VỚI AC6, trong khi cách hiển nhiên thì không: mọi cách đưa
- * âm **trở lại luồng** (một bản chép ẩn để đo, một `display: block` bên trong) đều dựng
- * lại một **hộp dòng** mới — đúng thứ làm `Selection.toString()` chèn `\n` và là lý do
- * `.hv-reading` được đẩy ra `position: absolute` ngay từ đầu. Ở đây không một node văn
- * bản nào được thêm: chỉ **bề rộng** của ô đổi. `Selection.toString()` nối các NODE VĂN
- * BẢN, không đọc bề rộng — nên chuỗi bôi đen không đổi một ký tự nào.
- *
- * `--hv-reading-len` do template đặt (số ký tự của âm đang hiện). `0.56em` là bề rộng
- * trung bình một glyph Latin thường ở họ chữ nghiêng — một **sàn xấp xỉ** để không đè,
- * không phải một phép đo pixel-perfect; token vẫn là thứ quyết cỡ chữ (AD-34 ③).
+ * 🔴 KHÔNG khai `min-width` ở đây nữa. Bản trước giãn ô theo độ dài âm
+ * (`--hv-reading-len × 0.56em`) vì `.hv-reading` `position: absolute` không góp bề rộng —
+ * nhưng nó đẩy các ký tự Hán rời xa nhau, làm kéo chọn một từ ghép rất khó nhắm (Ice báo
+ * 2026-08-07). `<ruby>` tự nới ô vừa đúng bề rộng `<rt>`, nên chỗ giãn nay do
+ * `padding-inline` của `<rt>` quyết — một chỗ, không hai.
  */
 .hv-unit {
-  position: relative;
   display: inline-block;
   vertical-align: bottom;
-  text-align: center;
-  min-width: calc(var(--font-source-hanviet) * 0.56 * var(--hv-reading-len, 1));
 }
 
 /*
- * 🔴 AC6 — BẮT ĐƯỢC LÚC ĐO THẬT (Playwright, không phải lời hứa): `display: inline-flex;
- * flex-direction: column` (bản đầu) làm Chromium chèn MỘT `\n` vào `Selection.toString()`
- * ở MỖI ranh giới `.hv-unit` — vùng chọn nhận `"他\n打\n開了…"` thay vì `"他打開了…"`, dù
- * `.hv-reading` đã `user-select: none`. Nguyên nhân: cả flex container LẪN một `display:
- * block` bên trong một inline-block đều tạo một **hộp dòng (line box) mới**, và thuật toán
- * `Selection.toString()` của Chromium chèn ngắt dòng ở MỌI ranh giới hộp dòng — bất kể nội
- * dung trong đó có được chọn hay không.
+ * 🔴 ÂM ĐỌC ĐI BẰNG `<ruby>`/`<rt>` — Ice chốt 2026-08-07 sau BA lượt vá thất bại.
  *
- * ⇒ ĐƯỜNG ĐÚNG: `.hv-reading` ra khỏi luồng bố cục bằng `position: absolute`. Một phần tử
- * định vị tuyệt đối không tham gia tính hộp dòng của phần tử cha, nên `.hv-char` ở lại
- * ĐÚNG MỘT hộp dòng với các ký tự lân cận — không ranh giới nào để `Selection.toString()`
- * chèn `\n` vào. Đã đo lại: `他打開了那扇門，走進了黑暗之中。` chọn ra ĐÚNG chính nó.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * VÌ SAO BỎ `position: absolute` — VÀ VÌ SAO RÀNG BUỘC CŨ KHÔNG CÒN GIỮ NỮA
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Story 1.16 đẩy `.hv-reading` ra khỏi luồng bằng `position: absolute` vì đo được
+ * (Playwright) rằng `display: inline-flex; flex-direction: column` làm Chromium chèn một
+ * `\n` vào `Selection.toString()` ở MỖI ranh giới `.hv-unit` — mọi thứ tạo một **hộp dòng
+ * mới** đều bị. Lý lẽ đó ĐÚNG lúc nó được viết, và nó đã **hết hiệu lực**: `resolveParallel()`
+ * nay đọc thẳng node DOM thay vì tin `toString()` (lượt sửa AC12) ⇒ chuỗi truy vấn không
+ * còn phụ thuộc việc engine chèn `\n` hay không.
+ *
+ * 🔴 CÁI GIÁ CỦA `position: absolute` mà ba lượt vá liên tiếp mới lộ hết — âm đọc KHÔNG
+ * chiếm chỗ trong layout, nên:
+ *   ① không gì chừa chỗ cho nó ⇒ đè lên dòng sau (vá lần 1: kéo `line-height` lên 4.8);
+ *   ② `top: 100%` neo theo hộp dòng đã giãn ⇒ âm đọc trôi xa ký tự của nó (vá lần 2: neo
+ *      vào `.hv-char` mang `line-height: normal`, hạ được xuống 3.2);
+ *   ③ hai thứ vá xong vẫn còn BA lỗi Ice bắt bằng mắt: vùng tô khi bôi đen trùm cả hộp
+ *      dòng cao (trình duyệt tô theo hộp dòng, không theo glyph); âm đọc DÒNG CUỐI bị cắt
+ *      và cuộn không tới (không gì đẩy `scrollHeight` ra); và `min-width` giãn ô theo độ
+ *      dài âm làm chữ Hán rời rạc, kéo chọn từ ghép rất khó nhắm.
+ *
+ * ⇒ `<ruby>` là cơ chế trình duyệt sinh ra ĐÚNG cho việc này. Đo 2026-08-07 (Chromium):
+ * âm đọc dòng cuối cách đáy vùng cuộn 31px và cuộn tới được (① + dòng cuối: XONG); vùng
+ * tô ôm sát glyph (②: XONG); chữ Hán liền nhau tự nhiên (③: XONG); và **không đè ở MỌI
+ * mức `line-height` đã thử — kể cả `normal`** ⇒ token `source-cjk-parallel` của vá lần 1/2
+ * trở nên THỪA và đã được gỡ, `.hv-parallel` về lại `source-cjk` như tab thuần.
+ *
+ * ⚠️ `<rt>` PHẢI mang `user-select: none`: đo được `Selection.toString()` trả `"台đài北"`
+ * (lẫn âm đọc) khi thiếu nó, `"台北"` khi có. Đây là hàng rào cho lượt **copy/paste của
+ * người dùng**; hàng rào cho **truy vấn tra cứu** là `resolveParallel()` đọc node trực
+ * tiếp — hai đường khác nhau, cần cả hai.
+ *
+ * ⚠️ `padding-inline` trên `<rt>` là thứ giữ cho âm đọc TÁCH BẠCH (Ice: *"âm hán việt
+ * không được đè lên nhau, phải có khoảng cách để đọc"*). Nó nới bề rộng ô ruby ⇒ chữ Hán
+ * giãn ra theo — Ice chốt chấp nhận (*"chữ hán xa nhau cũng được"*). Không có nó, âm đọc
+ * dính thành một chuỗi liền: `phảnđốitrungcộngkhoác…` (đo thật).
  */
-.hv-reading {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
+ruby {
+  /* ⚠️ Tiền tố `-webkit-` đứng TRƯỚC bản chuẩn, có chủ ý: WKWebView (macOS — một trong hai
+     engine đích, NFR14) có lịch sử chỉ nhận `-webkit-ruby-position`, và môi trường đo của
+     lượt sửa này chỉ có Chromium nên vế đó CHƯA nghiệm thu được. Bản chuẩn viết sau để nó
+     thắng ở engine hiểu cả hai. Nếu đo được trên WKWebView mà bản chuẩn chạy, gỡ dòng
+     tiền tố — đừng để nó nằm lại như một lời khấn. */
+  -webkit-ruby-position: under;
+  ruby-position: under;
+}
+
+rt {
   /* 🔴 AC6 — loại khỏi vùng chọn, KHÔNG bao giờ đi vào `window.getSelection()`. */
   user-select: none;
+  /* 🔴 Khoảng cách giữa hai âm đọc liền nhau — xem khối trên. `--space-unit` (4px) là
+     đơn vị nền của bộ token và đúng bằng con số đã đo, nên KHÔNG khai một token mới:
+     `EXPECTED_SPACING` là bảng ĐÓNG BĂNG, thêm hàng vào đó cần một mục `deviations`
+     cho một thứ mà token sẵn có đã phục vụ đúng. Khe thị giác = 2× giá trị này. */
+  padding-inline: var(--space-unit);
   /* 🔴 AC7 — người tiêu thụ ĐẦU TIÊN của `source-hanviet`. Năm biến, không chỉ synthesis. */
   font-family: var(--face-source-hanviet);
   font-size: var(--font-source-hanviet);

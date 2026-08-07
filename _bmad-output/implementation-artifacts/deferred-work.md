@@ -596,6 +596,11 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - 📝 **`HanVietLookup.sources_used` mang `dict_source.code` thô** (`fx-hv`, `thieu-chuu`, …), không `display_name` đẹp ("Thiều Chửu"). FR31 (nhãn nguồn bắt buộc) thoả bằng `code`; ánh xạ sang tên hiển thị là việc của màn hình Attribution — **Story 10.4** (đã ghi rõ trong Ranh giới phạm vi của chính story 1.16). Nếu 10.4 cần `display_name` ở đây sớm hơn dự tính, cách rẻ nhất là thêm nó vào `HanVietReading`/`sources_used` qua `layer.source(code)` — hạ tầng đã sẵn (`DictLayer::source`), chỉ chưa nối.
 - 📝 **§Câu hỏi cho Ice #2 (báo hay không báo ký tự nhiều âm) và #3 (hình dạng placeholder ký tự không âm) — dùng MẶC ĐỊNH ĐỀ XUẤT của story, CHƯA được Ice xác nhận lại trong phiên dev-story này.** #2: không đánh dấu gì cho ca nhiều âm (danh sách đầy đủ vẫn đi qua IPC qua `HanVietReading.all`, sẵn cho Story 1.17/3.7). #3: hai chuỗi `vi.json` riêng theo `layersLoaded` (`panel.source.han_viet_unknown`/`han_viet_unavailable`), không dùng `ornament`/`opacity`. Nếu Ice muốn một hướng khác, cả hai đổi được mà không đụng tầng dữ liệu.
 
+- 🔴 **Kiểu song song CHỒNG CHỮ thật — claim "giãn dòng 2.05 đủ chỗ cho âm đọc" của Task 8 SAI, đo lại lật.** Ice báo lỗi trực tiếp 2026-08-07 (`.hv-parallel` đọc không được, âm đọc đè lên dòng Hán kế tiếp) sau khi story đã Status `done`. Đo lại bằng `getBoundingClientRect`: ở `line-height: 2.05` (token `source-cjk`), `.hv-reading` (`position: absolute; top: 100%`) đè **19,8px** vào dòng sau — chiều cao hộp dòng chỉ do KÝ TỰ quyết, âm đọc không góp một pixel nào nên toàn bộ chiều cao của nó ăn vào dòng kế tiếp, không nằm "trong phần leading" như comment gốc khẳng định.
+  → ⚠️ **VÁ LẦN 1 (4.8, neo `top:100%` vào `.hv-unit`) SAI THEO CÁCH KHÁC — Ice bắt lại bằng ảnh chụp thật cùng ngày.** `.hv-unit` kế thừa chính line-height đã giãn (4.8), nên `top:100%` đẩy âm đọc xuống ĐÁY một hộp CAO — âm đọc trôi XA khỏi ký tự của nó, trôi GẦN dòng SAU hơn, đọc như thể thuộc dòng sau. Phép đo `getBoundingClientRect` (chỉ đo độ đè giữa hai dòng) không lộ ra lỗi này.
+  → ⚠️ **VÁ LẦN 2 (3.2, neo vào một `.hv-char` mang `line-height: normal`) VẪN CÒN BA LỖI.** Neo đúng dòng rồi, nhưng Ice báo tiếp: ① **vùng tô khi bôi đen trùm cả hộp dòng cao** (trình duyệt tô selection theo hộp dòng, không theo glyph — line-height 3.2 nghĩa là vệt tô cao gấp ba chữ), trải nghiệm rất khó chịu; ② **âm đọc dòng CUỐI bị cắt, cuộn không tới** (`position: absolute` không đẩy `scrollHeight` của `.hv-surface`); ③ `min-width` giãn ô theo độ dài âm làm **chữ Hán rời rạc**, kéo chọn một từ ghép rất khó nhắm.
+  → ✅ **ĐÓNG 2026-08-07 (VÁ LẦN 3 — ĐỔI CƠ CHẾ, Ice chốt).** Âm đọc nay đi bằng `<ruby>`/`<rt>` + `ruby-position: under`, bỏ hẳn `position: absolute`. 🔴 **Ràng buộc gốc buộc phải dùng `absolute` đã HẾT HIỆU LỰC**: Story 1.16 chọn nó vì mọi thứ tạo một hộp dòng mới làm Chromium chèn `\n` vào `Selection.toString()` — nhưng `resolveParallel()` nay đọc thẳng node DOM thay vì tin `toString()` (lượt sửa AC12 của story 1.18), nên chuỗi truy vấn không còn phụ thuộc điều đó. Đo lại (Chromium): âm đọc dòng cuối **cách đáy vùng cuộn 31px và cuộn tới được** (② xong) · vùng tô **ôm sát glyph** (① xong) · chữ Hán **liền nhau tự nhiên** (③ xong) · **không đè ở MỌI mức line-height đã thử, kể cả `normal`** ⇒ token `source-cjk-parallel` của hai lượt vá trước trở nên THỪA và **đã được gỡ** — bộ token về lại **17**, `.hv-parallel` dùng chung `source-cjk` với tab thuần. Hai hàng rào AC6/AC12 nay TÁCH ĐÔI, cần cả hai: `<rt>` mang `user-select: none` giữ cho **copy/paste của người dùng** sạch (đo: thiếu ⇒ `"台đài北"`, có ⇒ `"台北"`), còn **truy vấn tra cứu** đi đường `resolveParallel()` đọc node văn bản trực tiếp của `<ruby>` (không `textContent` — nó gộp cả `<rt>`). Khoảng cách giữa hai âm đọc do `padding-inline: var(--space-unit)` trên `<rt>` (dùng lại token 4px sẵn có, KHÔNG thêm hàng vào bảng đóng băng `EXPECTED_SPACING`) — Ice chốt *"chữ hán xa nhau cũng được, âm hán việt không được đè lên nhau"*. ⚠️ **Mọi số đo trên font hệ thống thay thế, chỉ Chromium** (môi trường đo không có `Noto Serif CJK TC`/`Source Serif 4` thật, không có WKWebView) — cần Ice xác nhận bằng mắt trên `tauri dev` thật, cả hai nền tảng. ⚠️ **`ruby-position: under` là thuộc tính có khác biệt engine đã biết** (WebKit từng cần `-webkit-ruby-position`); chưa đo được trên WKWebView.
+
 ---
 
 ## Deferred from: code review of 1-16-panel-source-va-tab-han-viet (2026-08-06)
@@ -665,3 +670,60 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - 📝 **`SURFACE_CALL_RE` không khớp dạng gọi thay thế** — gọi trực tiếp `registerSelectionSurface(...)` thay vì qua `useSelectionSurface(...)`, đối số đầu chứa dấu phẩy (vd `pick(a, b)`), hoặc `role` viết sai hoa/thường (`'Source'`) đều không được đếm đúng. Chưa có ca thật nào trong mã hôm nay dùng các dạng đó — mọi panel đều gọi `useSelectionSurface(ref, 'source'|'display')` literal, đúng quy ước. Cùng lớp giới hạn với các cổng regex khác trong tệp (NFR15 cấm phụ thuộc một bộ phân tích cú pháp thật). Nhặt lại nếu một story sau đổi cách gọi.
 
 - 📝 **`SELECTION_PANEL_FILES` (`scripts/check-commands.mjs:1627`) là danh sách chép tay từ `src/layout/workspaceLayout.ts`, không tự đồng bộ khi Workspace có panel văn bản mới.** Một panel mới (vd Story 3.4 — Glossary) mà không được thêm tay vào danh sách này sẽ không bị Kiểm F đòi đăng ký — cùng lớp lỗi "sổ đăng ký không tự cập nhật" mà AD-34 §2 (`FOCUS_OWNERS`) tồn tại để chặn ở chỗ khác, nhưng ở đây chưa có một đối chiếu hai chiều. Cùng khuôn với `PANEL_SUFFIXES` đã dùng nơi khác trong tệp — không phải một quy ước mới của story này. Chủ: story nào thêm panel văn bản mới tiếp theo.
+
+## Deferred from: nghiệm thu tay tab Hán Việt (Ice, 2026-08-07)
+
+> Bối cảnh: sau khi Story 1.18 đóng, Ice chạy thật và báo một chuỗi lỗi thị giác ở tab Hán
+> Việt. Phần lớn đã VÁ XONG trong cùng phiên *(âm đọc chuyển sang `<ruby>`; số dính liền âm;
+> cỡ chữ 12,5→14,5px; bỏ nghiêng — xem mục §1-16 ở trên và `deviations` trong `tokens.json`)*.
+> Mục dưới đây là phần **KHÔNG vá trong phiên**, đã đo đủ để giao thành một story riêng.
+
+- 🔴 **DOUBLE-CLICK ở tab Hán Việt chỉ chọn được MỘT ký tự / MỘT âm, trong khi ở tab nguyên
+  văn tiếng Trung nó chọn đúng CẢ CỤM TỪ.** Ice báo 2026-08-07: *"ở phần văn bản gốc thì
+  double click sẽ chọn được cả cụm từ, vậy tại sao khi chuyển đổi sang phần hán việt lại
+  không chọn được, nó phải nên được xử lý theo phần văn bản gốc chứ"*. Hệ quả thật: tra một
+  từ ghép ở tab Hán Việt phải KÉO CHỌN thủ công từng lần, trong khi tab bên cạnh chỉ cần bấm
+  hai phát — một bất đối xứng người dùng không có lý do gì để chấp nhận.
+
+  🔴 **PHÂN TÍCH ĐẦU TIÊN CỦA DEV SAI, VÀ ICE LẬT NÓ.** Dev kết luận *"phải tự xây tách từ,
+  một story lớn, cần bộ tách từ ở Rust"*. Sai: bộ tách từ **đã có sẵn trong engine** — nó
+  chính là thứ làm double-click chạy đúng ở tab nguyên văn. Truy được qua **`Intl.Segmenter`**,
+  nội tại của JS engine ⇒ **0 phụ thuộc mới, NFR15 giữ nguyên**, và **0 dòng Rust**.
+
+  **SỐ ĐO ĐÃ CÓ — story sau đừng đo lại từ đầu** *(Chromium, 2026-08-07)*:
+
+  | Đo | Kết quả |
+  |---|---|
+  | `Intl.Segmenter('zh',{granularity:'word'})` có mặt | ✅ có |
+  | Tách câu mẫu | `台湾 / 地方 / 议会 / 接连 / 通过 / 提案 / ， / 反对 / 中共 / 跨 / 境 / 镇压 / 。 / 北市 / 议会 / 8 / 月 / 5 / 日` — ĐÚNG |
+  | Kiểu **song song**: một `<ruby>` mỗi KÝ TỰ *(hiện tại)* | double-click ⇒ `""` — **hỏng hoàn toàn** |
+  | Kiểu **song song**: một `<ruby>` mỗi **TỪ** (`台湾`+`thai loan`) | double-click ⇒ `台湾` ✅ |
+  | Kiểu **chuyển đổi**: âm cách nhau bằng dấu cách *(hiện tại)* | double-click ⇒ `thai` — một âm |
+  | Kiểu **chuyển đổi**: nối âm trong cùng từ bằng `U+2060`, khe hở vẽ bằng CSS `margin` | double-click ⇒ `thai⁠loan` ✅ |
+  | `U+00A0` · `U+2009` *(thin space)* làm chất nối | ❌ vẫn cắt ở dấu cách |
+
+  ⚠️ **Chi tiết dễ cài sai:** `U+2060` rộng **bằng 0**, nên dùng nó THAY dấu cách sẽ làm chữ
+  dính (`thailoan`). Đường chạy được là **tách hai vai**: `U+2060` giữ *tính liền từ* cho
+  trình duyệt, còn *khoảng cách nhìn thấy* do CSS vẽ (`margin` trên từng âm). Đã đo đúng.
+
+  **Phạm vi thật của story — đây KHÔNG phải một lượt sửa CSS:**
+  - `.hv-switch` từ **một text node thuần** thành có cấu trúc span ⇒ **`resolveSelection()`
+    phải viết lại**: nó đang đòi `range.startContainer` chính là text node duy nhất, và đang
+    ánh xạ ngược bằng bảng `switchView.map`/`starts` dựng theo offset của chuỗi phẳng đó.
+  - `.hv-parallel` từ một `<ruby>` mỗi ký tự sang một `<ruby>` mỗi **từ** ⇒ `buildSegments()`
+    và `resolveParallel()` đổi theo *(segment `han` nay mang một CỤM, không một ký tự)*.
+  - 🔴 **AC6 (Story 1.16) và AC12 (Story 1.18) canh đúng bề mặt này** — cả hai phải **đo
+    LẠI** sau khi đổi, không suy từ số đo cũ: chuỗi copy/paste của người dùng (`<rt>` +
+    `user-select:none`) và chuỗi truy vấn tra cứu (`resolveParallel`/`resolveSelection` đọc
+    node) là **hai đường riêng**, cần kiểm cả hai.
+  - Lợi ích kèm theo, không phải mục tiêu chính: gom âm theo TỪ làm âm đọc bám đúng cụm
+    (`thai loan` nằm dưới `台湾`), đọc tự nhiên hơn hẳn so với rải đều theo ký tự.
+
+  ⚠️ **HAI THỨ CHƯA ĐO ĐƯỢC, đừng khai đạt nếu chưa làm:** ① `Intl.Segmenter` trên
+  **WKWebView** *(có từ Safari 14.1 nên nhiều khả năng có, nhưng môi trường đo chỉ có
+  Chromium — cùng món nợ hai nền tảng mà 1.6/1.14/1.16/1.17/1.18 đã để lại)*; ② **chất lượng
+  tách từ trên văn bản TIỂU THUYẾT thật** — mẫu đã đo là văn bản tin tức, và tiểu thuyết mang
+  tên riêng, từ cổ, thành ngữ mà ICU có thể cắt khác.
+
+  **Chủ: một story riêng — Ice chốt 2026-08-07** *(*"đồng ý làm thành một lượt riêng có đo
+  lại AC6/AC12 đàng hoàng"*)*.

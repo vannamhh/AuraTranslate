@@ -1,5 +1,5 @@
 # generated: 2026-08-03T13:04:45
-# last_updated: 2026-08-07T00:00:00
+# last_updated: 2026-08-07T12:00:00
 # project: AuraTranslate
 # project_key: NOKEY
 # tracking_system: file-system
@@ -81,6 +81,15 @@ development_status:
   # này ở lượt code review 1.16) và `:635` (hợp đồng vùng chọn thật thay dep TỐI THIỂU của
   # 1.17). Bảy quyết định phải chốt ở Task 0; #1 chặn thật, #3 chặn phạm vi.
   1-18-auto-lookup: done
+  # 🔴 Chèn 2026-08-07 từ một lượt NGHIỆM THU TAY của Ice, không từ `epics.md` — không FR nào
+  # đặc tả nó. Mang số `18b` theo tiền lệ `1-10b`/`1-10c`: thuộc HỌ bề mặt Hán Việt (1.16 dựng,
+  # 1.18 chạm), không phải một năng lực mới của epic.
+  # Lý do tồn tại: double-click ở tab Hán Việt chỉ chọn được MỘT ký tự, trong khi tab nguyên văn
+  # tiếng Trung chọn đúng cả CỤM TỪ — Ice bắt bằng mắt. Bộ tách từ đã có sẵn trong engine
+  # (`Intl.Segmenter`), nên 0 phụ thuộc mới và 0 dòng Rust.
+  # 🔴 CHẠY TRƯỚC Story 3.4 (Glossary highlight — cùng bề mặt, cũng cần ranh giới TỪ).
+  # ⚠️ Phá cấu trúc mà AC6/1.16 và AC11+AC12/1.18 đứng lên ⇒ cả ba phải ĐO LẠI, không suy số cũ.
+  1-18b-tach-tu-tieng-trung-tab-han-viet: ready-for-dev
   1-19-bat-tat-nguon-tu-dien-va-ghi-cong: backlog
   1-20-lich-su-tra-cuu-va-muc-da-ghim: backlog
   1-21-phim-tat-cau-hinh-lai-duoc: backlog

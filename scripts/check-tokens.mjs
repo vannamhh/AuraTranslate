@@ -225,6 +225,11 @@ const EXPECTED_ROUNDED = {
  * (`ui-md-strong`, AC10), không phải 14 như §Bảng token typography của `DESIGN.md` còn
  * ghi. Cả ba lệch đó CÓ CHỦ Ý và có chữ ký — xem `deviations` trong `tokens.json`. Sửa
  * `DESIGN.md` cho khớp là một lượt riêng của Ice.
+ *
+ * ⚠️ Con số này đã LÊN 18 rồi XUỐNG lại 17 trong ngày 2026-08-07: token
+ * `source-cjk-parallel` được thêm để vá lỗi chồng chữ ở kiểu song song, rồi bị GỠ khi
+ * `<ruby>` thay `position: absolute` làm cơ chế âm đọc — ruby chiếm chỗ thật nên không
+ * cần một giãn dòng riêng. Ghi lại để lần sau không ai dựng lại token đó.
  */
 const EXPECTED_COUNTS = { colorsPerTheme: 16, typography: 17, families: 4 }
 
@@ -1567,10 +1572,12 @@ console.log('     minh khe 2px hiện ra đúng trên màn hình.')
 console.log('  2. Kiểm C kiểm DANH SÁCH ĐÃ KHAI, không phải những cặp tình cờ tồn tại trong mã.')
 console.log('     Khi Story 1.14 dựng panel thật, cặp mới phải được thêm vào `contrast.pairs` —')
 console.log('     phép kiểm đầy đủ (C1) là thứ bắt việc quên thêm.')
-console.log('  3. SÁU deviation khỏi bảng DESIGN.md đang được áp — ba cái Ice PHÊ CHUẨN 2026-08-03,')
+console.log('  3. TÁM deviation khỏi bảng DESIGN.md đang được áp — ba cái Ice PHÊ CHUẨN 2026-08-03,')
 console.log('     cái thứ tư (`typography.ui-md-strong`, token NGOÀI bảng) là Story 1.14 · AC10,')
 console.log('     cái thứ năm (`typography.source-latin`, token NGOÀI bảng) là Story 1.16 · QĐ #6,')
-console.log('     cái thứ sáu (`typography.ui-md-wrap`, token NGOÀI bảng) là Story 1.17 · QĐ #7.')
+console.log('     cái thứ sáu (`typography.ui-md-wrap`, token NGOÀI bảng) là Story 1.17 · QĐ #7,')
+console.log('     hai cái cuối (`source-hanviet.fontSize` 12,5→14,5px · `.fontStyle` nghiêng→thường)')
+console.log('     là Ice chốt trực tiếp 2026-08-07 — âm Hán Việt quá nhỏ và khó đọc khi in nghiêng.')
 console.log('     `DESIGN.md` chưa được sửa cho khớp — đó là một lượt riêng của Ice, không phải')
 console.log('     của dev. Xem `deviations` trong `tokens.json`.')
 console.log('  4. Cờ `wraps` là mệnh đề về NỘI DUNG sẽ chạy qua token; không phép kiểm tĩnh nào')
