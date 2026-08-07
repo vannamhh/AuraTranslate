@@ -17,7 +17,7 @@ Ba chế độ đầu là **ngang hàng**, không phân cấp, và chuyển bằ
 | Nội dung Chế độ đọc: typography đọc dài, song ngữ, ba mức chữ | **Epic 5** | ⬜ |
 | Review Mode | **Epic 8** | ⬜ |
 
-Ba tệp `.vue` hôm nay là **khung rỗng có chủ ý**: một câu trạng thái lấy từ `vi.json`, gốc mang `tabindex="-1"`, và một điểm vào focus đã khai. ⛔ Đừng đổ nội dung vào chúng trước story sở hữu.
+Ba tệp `.vue` hôm nay là **khung rỗng có chủ ý**: một câu trạng thái lấy từ `vi.json`, gốc mang `tabindex="-1"`, và một điểm vào focus đã khai. Đừng đổ nội dung vào chúng trước story sở hữu.
 
 ---
 
@@ -25,7 +25,7 @@ Ba tệp `.vue` hôm nay là **khung rỗng có chủ ý**: một câu trạng t
 
 **1. `<KeepAlive>`, không phải `v-if` trần** *(`App.vue`)*. UX-DR34 và FR12 hứa chuyển chế độ **giữ ngữ cảnh** — *"rời Workspace sang Chế độ đọc rồi quay lại thì vẫn đúng Chương, đúng câu, đúng vị trí cuộn"*. Hôm nay chưa có ngữ cảnh nào để mất nên hai cách cho kết quả quan sát được y hệt; khác biệt hiện ra ở Epic 2, khi Editor mang văn bản đang gõ. Hệ quả trực tiếp: mỗi chế độ vào focus trong **`onActivated`**, không phải `onMounted` — lần hiện thứ hai trở đi không có `mounted`.
 
-**2. Hướng phụ thuộc là `modes/` → `commands/`, một chiều.** ⛔ Đừng đảo lại: `src/commands/**` phải nạp được bằng Node thuần để `npm run check:commands` khẳng định hành vi, và một cạnh trỏ về đây là kéo `vue` vào cổng. Đó là lý do `setMode` được **tiêm vào** `installCommands()` từ `src/main.ts` thay vì `commands/index.ts` tự import.
+**2. Hướng phụ thuộc là `modes/` → `commands/`, một chiều.** Đừng đảo lại: `src/commands/**` phải nạp được bằng Node thuần để `npm run check:commands` khẳng định hành vi, và một cạnh trỏ về đây là kéo `vue` vào cổng. Đó là lý do `setMode` được **tiêm vào** `installCommands()` từ `src/main.ts` thay vì `commands/index.ts` tự import.
 
 **3. Không `#[tauri::command]` nào cho việc đổi chế độ.** Chuyển chế độ, tiêu điểm và bố cục panel là **state UI**, và AD-1 nói thẳng đó là phần frontend được phép sở hữu. Một vòng IPC cho một thao tác phải mượt là quy tắc nghiệp vụ giả đặt sai chỗ.
 

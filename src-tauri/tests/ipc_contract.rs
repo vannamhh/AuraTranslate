@@ -12,7 +12,7 @@
 //! `serde_json::to_value(…)` cho ra **đúng byte** mà frontend sẽ nhận. Đây là bằng
 //! chứng về dây, không phải một phép mô phỏng.
 //!
-//! ⛔ Đừng dựng một `#[tauri::command]` giả để "chứng minh cho thật". Nó là mã sản
+//! Đừng dựng một `#[tauri::command]` giả để "chứng minh cho thật". Nó là mã sản
 //! phẩm không ai gọi; chạy nó cần một webview, tức một bước CI cần phiên đồ hoạ và
 //! một lượt biên dịch profile `dev` riêng (đắt nhất trên macOS, hệ số ×10).
 //!
@@ -53,7 +53,7 @@ fn vi_json_path() -> PathBuf {
 /// hai phía — `scripts/check-i18n.mjs` Kiểm B nói bằng thông báo rõ ràng cho người
 /// sửa, chỗ này chặn bằng kiểu cho người viết Rust.
 ///
-/// ⛔ `panic!` kèm đường dẫn, không `unwrap()` trần: một lỗi đọc file phải chỉ ra
+/// không `panic!` kèm đường dẫn, không `unwrap()` trần: một lỗi đọc file phải chỉ ra
 /// được đang đọc cái gì.
 fn read_vi_json() -> BTreeMap<String, String> {
     let path = vi_json_path();
@@ -86,7 +86,7 @@ fn read_vi_json() -> BTreeMap<String, String> {
 /// thật**, đúng hàm mà `#[tauri::command]` cùng tên bọc lại, chạy đúng nhánh mà một
 /// `$APPDATA` không ghi được sẽ chạy trên máy người dùng.
 ///
-/// ⛔ Và ⛔ **không** phải một command giả dựng lên cho vừa lời hứa cũ:
+/// Và **không** phải một command giả dựng lên cho vừa lời hứa cũ:
 /// `deferred-work.md:49` cấm đích danh đường đó. Hàm này nhận `Option<&Store>` để test
 /// gọi được **mà không cần webview** (§Quyết định #6), chứ không phải để test có một
 /// thứ riêng để gọi.
@@ -139,7 +139,7 @@ fn ipc_error_wire_shape() {
             "store".to_owned(),
             serde_json::Value::String("global".to_owned())
         )])),
-        "`params` phải là object `chuỗi -> chuỗi` và mang DỮ LIỆU (tên kho), ⛔ không mang \
+        "`params` phải là object `chuỗi -> chuỗi` và mang DỮ LIỆU (tên kho), không mang \
          câu — `detail` thô của SQLite không bao giờ đi vào đây (Story 1.7 §Completion Notes #5)"
     );
     assert_eq!(
@@ -163,7 +163,7 @@ fn ipc_error_wire_shape() {
         layout_presets: BTreeMap::new(),
         // ⚠️ Story 1.14 — trường thứ năm. Struct literal ở đây KHÔNG biên dịch được cho tới
         // khi nó có mặt, và đó là hành vi ĐÚNG: một trường mới đi qua IPC phải làm ai đó
-        // dừng lại. ⛔ Đừng "sửa" bằng `..Default::default()` — nó sẽ nuốt luôn trường thứ
+        // dừng lại. Đừng "sửa" bằng `..Default::default()` — nó sẽ nuốt luôn trường thứ
         // sáu, thứ bảy, và danh sách khoá đóng băng dưới đây mất hết giá trị.
         workspace_layout: String::new(),
     })
@@ -187,7 +187,7 @@ fn ipc_error_wire_shape() {
          `layout_presets` thành `layoutPresets` và chỗ đọc nhận `undefined`."
     );
 
-    // ⛔ Không văn bản hiển thị nào được đi qua dây. Mệnh đề trung tâm của AD-21, và
+    // Không văn bản hiển thị nào được đi qua dây. Mệnh đề trung tâm của AD-21, và
     // nó kiểm được bằng máy: chuỗi hiển thị của dự án là tiếng Việt có dấu.
     //
     // ⚠️ Một BỘ KÝ TỰ TƯỜNG MINH, không phải một dải `'à'..='ỹ'`. Dải đó chạy từ

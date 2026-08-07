@@ -4,28 +4,28 @@
 //!
 //! ⚠️ Không giống trang `Chinese` của ấn bản `en` (đã lọc sẵn theo kaikki), tệp này
 //! chứa MỌI ngôn ngữ mà ấn bản `vi` có mục từ (`Tiếng Anh`, `Tiếng Mông Cổ`, …) — lọc
-//! `lang_code == "zh"` là việc của module này, ⛔ không phải việc của kaikki. Đây CHÍNH
+//! `lang_code == "zh"` là việc của module này, không phải việc của kaikki. Đây CHÍNH
 //! LÀ ý nghĩa của "bản trích theo ngôn ngữ của ấn bản vi" trong §Thông tin kỹ thuật.
 //!
 //! 🔴 **Chính vì thế cùng tệp này còn mang một VAI THỨ HAI.** Lọc `lang_code == "en"`
 //! trên đúng những byte đó cho ra 119.039 mục từ tiếng Anh — nguồn
 //! [`super::viwiktionary_en`], dựng ở Story 1.10b để phục vụ FR34. Hai vai là **hai
-//! nguồn rời nhau**, hai `source_id`, hai lượt `File::open`. ⛔ Không gộp chúng thành
+//! nguồn rời nhau**, hai `source_id`, hai lượt `File::open`. Không gộp chúng thành
 //! một lượt đọc — lý do đầy đủ ở doc-comment của [`super::viwiktionary_en`].
 //!
-//! ⛔ Module này giữ nguyên `code = "viwiktionary"` (⛔ **không** đổi thành
+//! Module này giữ nguyên `code = "viwiktionary"` (**không** đổi thành
 //! `viwiktionary-zh` "cho đối xứng"): `dict_source.code` là khoá đối chiếu xuyên tệp mà
 //! `dict-manifest.toml`, PRD §8.2/§8.3 và `epics.md` đều đã ghi.
 //!
 //! `pos_title` ở ấn bản này ĐÃ sẵn tiếng Việt (đã kiểm thật: `"Động từ"`) ⇒ dùng thẳng,
 //! `pos_lang = 'vi'` (FR35 chỉ đòi đánh dấu NGOẠI NGỮ; tiếng Việt là ngôn ngữ hiển thị
-//! mặc định nên không cần đánh dấu, nhưng cột vẫn ghi `'vi'` tường minh — ⛔ không để
+//! mặc định nên không cần đánh dấu, nhưng cột vẫn ghi `'vi'` tường minh — không để
 //! NULL, vì NULL ở đây không phân biệt được với "không rõ ngôn ngữ nhãn").
 //!
 //! ⚠️ Độ phủ THẤP là ĐÚNG, không phải lỗi đọc (đã đo Giai đoạn 0: 2,76% đầu mục tiếng
 //! Trung của CVDICT, chỉ 0,067% có ví dụ) — phần lớn dòng bị lọc vì không phải `zh`, và
 //! phần lớn còn lại bị bỏ vì `senses` toàn `no-gloss` (đã thấy thật trên dữ liệu, ví dụ
-//! `词典` với tag `no-gloss`). Cả hai đều rơi vào `skip_reasons` có tên, ⛔ không lẫn với
+//! `词典` với tag `no-gloss`). Cả hai đều rơi vào `skip_reasons` có tên, không lẫn với
 //! lỗi JSON thật.
 
 use std::io::BufRead;

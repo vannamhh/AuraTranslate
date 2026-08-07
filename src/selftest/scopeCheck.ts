@@ -16,7 +16,7 @@
  *   `npm run check:scope`          — chế độ dev, qua `tauri dev`
  *   `npm run check:scope:bundled`  — chế độ bundled, qua `tauri build --debug` (Story 1.3)
  * Cả hai đặt CẢ HAI cờ — `VITE_SCOPE_SELFTEST=1` (frontend chạy self-check) và
- * `AURA_SCOPE_SELFTEST=1` (Rust nghe kết quả và quyết mã thoát). ⛔ Chỉ bật một cờ thì
+ * `AURA_SCOPE_SELFTEST=1` (Rust nghe kết quả và quyết mã thoát). Chỉ bật một cờ thì
  * lượt chạy treo: frontend phát event vào hư không, hoặc Rust chờ một event không bao giờ tới.
  *
  * ─────────────────────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@
  * ⇒ Ở chế độ bundled, chiều DƯƠNG chuyển sang `FontFace` — đúng đường mà Story 1.4 sẽ
  * dùng thật, và do `font-src` quyết chứ không do `connect-src`.
  *
- * ⛔ Còn chiều ÂM thì **KHÔNG đo được** ở chế độ này, và ta ghi thẳng như vậy thay vì
+ * Còn chiều ÂM thì **KHÔNG đo được** ở chế độ này, và ta ghi thẳng như vậy thay vì
  * lấy một lỗi bất kỳ làm bằng chứng. Lý do đã đo: `FontFace` trả **cùng một**
  * `NetworkError` cho cả ba ca khác hẳn nhau —
  *
@@ -174,7 +174,7 @@ async function checkInScopeLoads(url: string): Promise<ScopeCheckResult> {
 /**
  * Chiều ÂM: một đường dẫn ngoài scope phải bị asset protocol từ chối.
  *
- * ⛔ Chỉ **HTTP 403** mới tính là đạt. Một `catch` bắt tất cả, hay một `!res.ok`
+ * Chỉ **HTTP 403** mới tính là đạt. Một `catch` bắt tất cả, hay một `!res.ok`
  * bắt tất cả, sẽ nuốt luôn 404 (tệp không tồn tại) và mọi lỗi không liên quan —
  * lúc đó phép kiểm xanh kể cả khi `scope` mở toang, tức là ta tin vào một hàng rào
  * không tồn tại. Đúng thứ doc-comment đầu tệp này tồn tại để chặn.
@@ -308,7 +308,7 @@ export async function runScopeCheck(): Promise<ScopeCheckReport> {
       unmeasurableOutOfScope(outTarget, [...new Set(cspBlocked)]),
     ]
   } else {
-    // ⛔ `fetch` ném NHƯNG không có vi phạm `connect-src` nào trong hạn chờ. Đây không
+    // `fetch` KHÔNG ném NHƯNG không có vi phạm `connect-src` nào trong hạn chờ. Đây không
     // phải chế độ dev (ở dev `fetch` chạy được), cũng không chứng minh được là bundled.
     // Bản trước lặng lẽ coi ca này là dev rồi chạy tiếp — và mọi phép kiểm sau đó đo
     // trên một giả định sai. Trạng thái không biết phải hiện ra thành FAIL, không
@@ -325,7 +325,7 @@ export async function runScopeCheck(): Promise<ScopeCheckReport> {
           'bundled-csp.\n        ' +
           `Chỉ thị đã vi phạm (nếu có): ${[...new Set(cspBlocked)].join(' · ') || 'không có'}.\n        ` +
           'Nhìn trước: `resolveResource` trả sai đường, webview hỏng, hoặc asset ' +
-          'protocol không bật. ⛔ Không phép kiểm nào chạy ở lượt này — đừng đọc thành đạt.',
+          'protocol không bật. Không phép kiểm nào chạy ở lượt này — đừng đọc thành đạt.',
       ),
     ]
   }

@@ -11,12 +11,12 @@
  * Kiểm B — cách ly workspace (AC4). `tools/dict-build/Cargo.toml` phải có `[workspace]`
  *          và KHÔNG phụ thuộc nào trỏ `path` sang `src-tauri`.
  * Kiểm C — sàn số tệp (bài học `check-deps.mjs:15-17`, `store_boundary.rs:44`): cây
- *          rỗng ⛔ không được đọc thành sạch.
+ *          rỗng không được đọc thành sạch.
  * Kiểm D — chống TRÔI giữa `sources_meta.rs` (Rust) và `dict-manifest.toml` (Story
  *          1.10): mã lớp gỡ rời khai trong `DETACHABLE_ALL` phải khớp CHÍNH XÁC tập
  *          `name` mà `check-dict-manifest.mjs` đòi ở `[[detachable]]`.
  * Kiểm E — cách ly lớp (AD-19, §Bẫy 3 của Story 1.10): `src/sources/{thieu_chuu,
- *          vietphrase}.rs` và đường dựng lớp gỡ rời (`build.rs`) ⛔ không token
+ *          vietphrase}.rs` và đường dựng lớp gỡ rời (`build.rs`) không token
  *          `dict-core`/`dict_core` — đường dựng lớp gỡ rời không bao giờ được PHÉP mở
  *          `dict-core.db`. Cùng cơ chế miễn trừ với Kiểm A.
  *
@@ -51,7 +51,7 @@ const posix = (p) => relative(REPO_ROOT, p).split(sep).join('/')
 // Đọc cây `tools/dict-build/src/**/*.rs` — SÀN chống "cây rỗng đọc thành sạch"
 // (Kiểm C).
 // ═════════════════════════════════════════════════════════════════════════════════
-// 🔴 Sàn phải SÁT số thật, ⛔ không để hở đúng bằng số tệp mà story vừa thêm — sàn 18
+// 🔴 Sàn phải SÁT số thật, không để hở đúng bằng số tệp mà story vừa thêm — sàn 18
 // với số thật 20 cho phép xoá CẢ HAI parser lớp gỡ rời mà Kiểm C vẫn xanh (Review
 // Findings 1.10). Thêm/bớt tệp .rs ⇒ cập nhật con số này cùng lượt.
 const RS_FILE_FLOOR = 24 // số thật 2026-08-06 (Story 1.10c): 24 tệp .rs dưới src/
@@ -102,7 +102,7 @@ if (rsFiles.length < RS_FILE_FLOOR) {
 //
 // Bốn tên cuối (`combine_senses` · `or_insert` · `or_insert_with` · `entry(`) là hình
 // dạng THẬT của Bẫy 6 (`HashMap::entry(hw).or_insert(sense)` nuốt nguồn thứ hai),
-// không phải từ khoá ngữ nghĩa suông. ⛔ Không cấm `distinct`/`DISTINCT` — dùng hợp lệ
+// không phải từ khoá ngữ nghĩa suông. Không cấm `distinct`/`DISTINCT` — dùng hợp lệ
 // khi sinh `char_idx`.
 // ═════════════════════════════════════════════════════════════════════════════════
 console.log('\nKiểm A — từ vựng hợp nhất (AD-19, Bẫy 6)')
@@ -305,14 +305,14 @@ const manifestSet = new Set(manifestDetachableNames)
 const missingFromManifest = rustDetachableCodes.filter((c) => !manifestSet.has(c))
 const extraInManifest = manifestDetachableNames.filter((n) => !rustSet.has(n))
 
-// 🔴 SÀN của Kiểm D — cùng doctrine với sàn số tệp của Kiểm C: một cây RỖNG ⛔ không
+// 🔴 SÀN của Kiểm D — cùng doctrine với sàn số tệp của Kiểm C: một cây RỖNG không
 // được đọc thành sạch. Trước đây cả hai nhánh dưới đều bị chặn bởi
 // `rustDetachableCodes.length > 0`, nên `DETACHABLE_ALL` rỗng cho ra 0 failure và cổng
 // chống-trôi in "Tất cả phép kiểm đạt" đúng lúc cả hai lớp biến mất khỏi Rust.
 if (rustDetachableCodes.length === 0) {
   fail(
     "DETACHABLE_ALL (Rust) khai 0 mã lớp gỡ rời — Kiểm D không có gì để đối chiếu. " +
-      'Một danh sách rỗng ⛔ không phải "đạt": story hôm nay có HAI lớp gỡ rời.'
+      'Một danh sách rỗng không phải "đạt": story hôm nay có HAI lớp gỡ rời.'
   )
 } else if (missingFromManifest.length === 0 && extraInManifest.length === 0) {
   pass(`dict-manifest.toml [[detachable]] khớp CHÍNH XÁC DETACHABLE_ALL: ${JSON.stringify(manifestDetachableNames)}`)
@@ -333,7 +333,7 @@ console.log('\nKiểm E — cách ly lớp (§Bẫy 3: đường dựng lớp g�
 
 const ISOLATION_TOKENS = ['dict-core', 'dict_core']
 
-// Phạm vi quét DẪN XUẤT, ⛔ không viết cứng từng đường dẫn: mọi parser lớp gỡ rời khai
+// Phạm vi quét DẪN XUẤT, không viết cứng từng đường dẫn: mọi parser lớp gỡ rời khai
 // trong DETACHABLE_ALL (theo `code` → tên module `snake_case`) cộng đường điều phối
 // `build.rs`. Đổi tên một parser hay thêm parser thứ ba ⇒ phạm vi tự đi theo.
 const detachableModuleFiles = rustDetachableCodes.map(
@@ -343,8 +343,8 @@ const ISOLATION_SCOPE = [...detachableModuleFiles, 'tools/dict-build/src/build.r
 const isolationFiles = rsFiles.filter((f) => ISOLATION_SCOPE.includes(posix(f)))
 
 // 🔴 SÀN của Kiểm E — cùng doctrine với Kiểm C và Kiểm D. Trước đây danh sách viết cứng
-// ⛔ không có sàn: đổi tên `sources/thieu_chuu.rs` làm `isolationFiles` co về 0 phần tử,
-// vòng lặp ⛔ không tìm thấy vi phạm nào, và cổng in OK đúng lúc §Bẫy 3 mất hiệu lực.
+// không có sàn: đổi tên `sources/thieu_chuu.rs` làm `isolationFiles` co về 0 phần tử,
+// vòng lặp không tìm thấy vi phạm nào, và cổng in OK đúng lúc §Bẫy 3 mất hiệu lực.
 const missingIsolationFiles = ISOLATION_SCOPE.filter(
   (want) => !isolationFiles.some((f) => posix(f) === want)
 )

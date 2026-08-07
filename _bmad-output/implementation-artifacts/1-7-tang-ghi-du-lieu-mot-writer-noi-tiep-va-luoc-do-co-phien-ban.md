@@ -69,7 +69,7 @@ So that tôi tin được vào một công cụ mình dùng hàng năm.
 **Then** kích thước không phình vô hạn — có ngưỡng kích thước buộc checkpoint
 
 *Đạt nghĩa là* **cơ chế** có thật và test chứng minh nó kích hoạt: ghi liên tục cho `.db-wal` vượt ngưỡng ⇒ checkpoint chạy **dù chưa tới lúc rảnh** ⇒ kích thước `.db-wal` **chững lại** thay vì tiếp tục lên.
-⚠️ **PASSIVE không làm tệp nhỏ đi** — nó chép frame về database rồi cho SQLite **dùng lại** chỗ đó, nên tệp giữ nguyên cỡ và ngừng lớn. Đó chính là *"không phình vô hạn"*; ⛔ đừng viết test đòi nó co lại (§Bẫy 8). **Con số ngưỡng là tạm** — xem §Quyết định #8.
+⚠️ **PASSIVE không làm tệp nhỏ đi** — nó chép frame về database rồi cho SQLite **dùng lại** chỗ đó, nên tệp giữ nguyên cỡ và ngừng lớn. Đó chính là *"không phình vô hạn"*; đừng viết test đòi nó co lại (§Bẫy 8). **Con số ngưỡng là tạm** — xem §Quyết định #8.
 
 ### AC6 — Lược đồ có phiên bản; di trú chỉ tiến, trong một giao dịch, sau khi sao lưu
 
@@ -77,7 +77,7 @@ So that tôi tin được vào một công cụ mình dùng hàng năm.
 **When** mở bằng một bản ứng dụng mới hơn
 **Then** chạy các bước di trú **chỉ tiến** trong một giao dịch, sau khi đã sao lưu
 
-*Đạt nghĩa là:* phiên bản nằm ở `PRAGMA user_version`; các bước di trú chạy theo thứ tự tăng dần, **mỗi bước trong một giao dịch**, và **bản sao lưu được tạo trước bước đầu tiên** — bằng `wal_checkpoint(TRUNCATE)` rồi copy tệp, ⛔ không phải copy tệp trần (§Bẫy 5).
+*Đạt nghĩa là:* phiên bản nằm ở `PRAGMA user_version`; các bước di trú chạy theo thứ tự tăng dần, **mỗi bước trong một giao dịch**, và **bản sao lưu được tạo trước bước đầu tiên** — bằng `wal_checkpoint(TRUNCATE)` rồi copy tệp, không phải copy tệp trần (§Bẫy 5).
 
 ### AC7 — Phiên bản mới hơn ứng dụng ⇒ từ chối mở, không ghi một byte
 
@@ -96,56 +96,56 @@ So that tôi tin được vào một công cụ mình dùng hàng năm.
   - [x] `npm run build` *(bắt buộc trước `cargo test` — `generate_context!` nhúng `dist/` lúc biên dịch)*
   - [x] `cargo test --manifest-path src-tauri/Cargo.toml` · `npm run check:deps` · `check:tokens` · `check:i18n` · `check:commands`
   - [x] Ghi lại: số tệp `.rs` dưới `src-tauri/**`, số test Rust đang có, `RS_FLOOR` hiện tại của `check-i18n.mjs`
-  - [x] ⛔ Không sửa gì ở task này. Sáu lệnh phải exit 0 **trước** khi gõ dòng đầu tiên; một cái đỏ sẵn thì dừng và báo.
+  - [x] Không sửa gì ở task này. Sáu lệnh phải exit 0 **trước** khi gõ dòng đầu tiên; một cái đỏ sẵn thì dừng và báo.
 
 - [x] **Task 2 — `core::store` khung kiểu và lỗi** (AC1, AC2, AC7)
   - [x] `src-tauri/src/core/store/mod.rs` — `pub struct Store`, `pub struct StoreSpec`, `pub enum StoreKind`, `pub struct Tuning`, `pub enum StoreError`. Giữ nguyên doc-comment đang có, viết tiếp bên dưới.
   - [x] `StoreError` mang `MessageKey` + `params` **ngay từ hôm nay** (§Quyết định #6), và có `impl From<StoreError> for IpcError`.
-  - [x] ⛔ `core::store` **không `use tauri::…`** — xem §Quyết định #1. Đường lấy `$APPDATA` nằm ở `lib.rs`.
-  - [x] ⛔ `rusqlite::Connection` không xuất hiện trong bất kỳ chữ ký `pub` nào thoát khỏi module.
+  - [x] không `core::store` **không `use tauri::…`** — xem §Quyết định #1. Đường lấy `$APPDATA` nằm ở `lib.rs`.
+  - [x] không `rusqlite::Connection` không xuất hiện trong bất kỳ chữ ký `pub` nào thoát khỏi module.
 
 - [x] **Task 3 — Writer nối tiếp** (AC1, AC2)
   - [x] `store/writer.rs` — một luồng sở hữu `Connection` ghi; `mpsc::Receiver<Job>`; `Writer::write(closure) -> Result<T, StoreError>` chặn và trả kết quả qua kênh phản hồi riêng của từng lời gọi.
   - [x] Mỗi job chạy trong **một giao dịch**; job trả `Err` ⇒ rollback; job trả `Ok` ⇒ commit.
   - [x] 🔴 Luồng writer **không được panic**: lỗi là **giá trị** đi ngược qua kênh. `catch_unwind` **vô dụng** ở đây (§Bẫy 6).
-  - [x] Writer chết hoặc kênh đứt ⇒ `StoreError::WriterGone`, ⛔ **không treo**. Test cho ca này.
+  - [x] Writer chết hoặc kênh đứt ⇒ `StoreError::WriterGone`, **không treo**. Test cho ca này.
 
 - [x] **Task 4 — Pool đọc, cưỡng chế chỉ-đọc bằng SQLite** (AC1, AC2)
-  - [x] `store/reader.rs` — `Mutex<Vec<Connection>>` + `Condvar`, kích thước từ `Tuning`. ⛔ Không thêm `r2d2`/`deadpool`/`parking_lot` (§Ranh giới phạm vi).
+  - [x] `store/reader.rs` — `Mutex<Vec<Connection>>` + `Condvar`, kích thước từ `Tuning`. Không thêm `r2d2`/`deadpool`/`parking_lot` (§Ranh giới phạm vi).
   - [x] Mỗi kết nối pool đặt `busy_timeout`, `wal_autocheckpoint = 0` **và `query_only = 1`**, cả ba **đọc lại để xác nhận**.
   - [x] `Store::read(|conn| …)` mượn một kết nối, trả lại khi xong **kể cả khi closure trả `Err`**.
   - [x] Test: một `INSERT` qua đường đọc phải **thất bại** với lỗi của SQLite — đó là bằng chứng của AC2 vế "khả năng hiển thị của kiểu".
 
 - [x] **Task 5 — PRAGMA khởi tạo, đặt rồi ĐỌC LẠI** (AC3)
   - [x] `store/pragmas.rs` — hàm áp `journal_mode = WAL`, `wal_autocheckpoint = 0`, `busy_timeout = <Tuning>`, rồi đọc lại cả ba.
-  - [x] `journal_mode` đọc về khác `"wal"` (không phân biệt hoa thường) ⇒ `StoreError::WalUnavailable`, ⛔ không đi tiếp.
+  - [x] `journal_mode` đọc về khác `"wal"` (không phân biệt hoa thường) ⇒ `StoreError::WalUnavailable`, không đi tiếp.
   - [x] Test đối chứng âm: mở một database `:memory:` hoặc một cây thư mục dựng sẵn ở chế độ `delete` để chứng minh nhánh lỗi **thật sự chạy**, không chỉ tồn tại.
 
 - [x] **Task 6 — Phiên bản lược đồ, từ chối mở lùi, di trú chỉ tiến** (AC6, AC7)
   - [x] `store/schema.rs` — `struct Migration { to_version: u32, sql: &'static str }`, `const GLOBAL_MIGRATIONS`, `GLOBAL_TARGET_VERSION`.
   - [x] 🔴 **Thứ tự trong `open()` là hợp đồng, không phải sở thích** (§Bẫy 4): mở kết nối → đọc `user_version` → **nếu > target thì đóng và trả lỗi NGAY** → mới đặt PRAGMA → mới di trú.
-  - [x] Di trú: với mỗi bước, một giao dịch, chạy `sql`, `PRAGMA user_version = to_version`, commit. ⛔ Không có bước lùi, không có bước "sửa cho vừa".
+  - [x] Di trú: với mỗi bước, một giao dịch, chạy `sql`, `PRAGMA user_version = to_version`, commit. Không có bước lùi, không có bước "sửa cho vừa".
   - [x] Sao lưu **trước bước đầu tiên** và chỉ khi `user_version >= 1`: `wal_checkpoint(TRUNCATE)` → xác nhận `busy == 0` → `fs::copy` sang `<tên>.db.bak-v<n>` cạnh tệp gốc.
   - [x] Di trú `global.db` bước 1: bảng `schema_migration_log` (§Quyết định #7).
 
 - [x] **Task 7 — Luồng checkpoint** (AC4, AC5)
   - [x] `store/checkpoint.rs` — luồng nền, `Connection` **riêng**, đặt cùng bộ PRAGMA như pool *(trừ `query_only` — checkpoint cần ghi)*.
   - [x] Nhịp: thức dậy theo `tick`; chạy PASSIVE khi *(a)* đã qua `idle` kể từ job ghi cuối, **hoặc** *(b)* `.db-wal` vượt `wal_threshold_bytes` — vế (b) chạy **kể cả khi chưa rảnh** (AC5).
-  - [x] Đọc `(busy, log, checkpointed)` của mỗi lượt; `busy != 0` ⇒ ghi chẩn đoán, ⛔ không coi là đã xong.
-  - [x] `Store::close()` chạy TRUNCATE với **trần thời gian**, rồi dừng luồng. Trần hết mà chưa xong ⇒ ghi chẩn đoán rồi thoát, ⛔ không treo tiến trình (§Bẫy 7).
+  - [x] Đọc `(busy, log, checkpointed)` của mỗi lượt; `busy != 0` ⇒ ghi chẩn đoán, không coi là đã xong.
+  - [x] `Store::close()` chạy TRUNCATE với **trần thời gian**, rồi dừng luồng. Trần hết mà chưa xong ⇒ ghi chẩn đoán rồi thoát, không treo tiến trình (§Bẫy 7).
 
 - [x] **Task 8 — Nối vào vòng đời ứng dụng** (AC3, AC4)
   - [x] `src-tauri/src/lib.rs`: đổi `builder.run(ctx)` thành `builder.build(ctx)?.run(|handle, event| …)`. *(Kiểm chứng 2026-08-04: `Builder::run` trong `tauri-2.11.5/src/app.rs:2449-2452` **chính là** `self.build(context)?.run(|_, _| {})` — phép đổi này không thay đổi hành vi nào khác.)*
   - [x] Trong `setup()`: `app.path().app_data_dir()` → `fs::create_dir_all` → `Store::open(global_spec)` → `app.manage(…)`.
   - [x] Trong callback: `RunEvent::Exit` ⇒ `Store::close()`.
   - [x] 🔴 **Kiểm chứng lại hai cổng của Story 1.2/1.3** sau khi sửa `lib.rs`: `npm run check:scope` và `npm run check:scope:bundled` phải vẫn exit 0. Móc self-check gọi `app.exit(code)`, và `AppHandle::exit` đi **qua vòng lặp sự kiện** (`tauri-2.11.5/src/app.rs:574-580`) nên callback mới **có chạy** trên đường đó — một `close()` treo ở đây làm hai cổng đỏ vì lý do không liên quan tới chúng.
-  - [x] ⛔ Không thêm một `#[tauri::command]` nào (§Ranh giới phạm vi).
+  - [x] Không thêm một `#[tauri::command]` nào (§Ranh giới phạm vi).
 
 - [x] **Task 9 — Từ vựng lỗi** (AC3, AC6, AC7)
   - [x] Thêm khoá vào `message_keys!` trong `src-tauri/src/core/i18n/mod.rs` **kèm bảng tham số bắt buộc**, và chuỗi tương ứng vào `src/i18n/vi.json`.
   - [x] Bộ đề xuất: `err.store.schema_too_new` `["store","found","supported"]` · `err.store.open_failed` `["store"]` · `err.store.wal_unavailable` `["store","mode"]` · `err.store.write_failed` `["store"]`.
   - [x] ⚠️ Cả hai chiều bị khoá: `tests/ipc_contract.rs` đòi mọi khoá có trong `vi.json`, và `check:i18n` đối chiếu placeholder theo **cả hai chiều**. Thêm khoá mà quên chuỗi ⇒ đỏ; thêm chuỗi có `{x}` mà quên khai `params` ⇒ đỏ.
-  - [x] ⚠️ Giọng văn theo UX-DR47 *(tiền lệ: Story 1.5 §AC5)*. ⛔ `params` mang **dữ liệu**, không mang câu.
+  - [x] ⚠️ Giọng văn theo UX-DR47 *(tiền lệ: Story 1.5 §AC5)*. không `params` mang **dữ liệu**, không mang câu.
 
 - [x] **Task 10 — Test hành vi** (AC1–AC7)
   - [x] `src-tauri/tests/store_contract.rs`, khai phạm vi ở dòng 1 theo khuôn `config_invariants.rs` và `ipc_contract.rs`.
@@ -158,17 +158,17 @@ So that tôi tin được vào một công cụ mình dùng hàng năm.
     | 3 | `INSERT` qua đường `read()` | AC2 | **Err** của SQLite |
     | 4 | Mở mới ⇒ đọc lại ba PRAGMA | AC3 | `wal` · `0` · đúng số `Tuning` |
     | 5 | `journal_mode` không đặt được | AC3 | `StoreError::WalUnavailable`, `open()` **trả Err** |
-    | 6 | Ghi rồi để rảnh quá `idle` | AC4 | Một lượt PASSIVE chạy với `busy == 0` và `checkpointed > 0`. ⛔ **Không** assert tệp nhỏ đi |
+    | 6 | Ghi rồi để rảnh quá `idle` | AC4 | Một lượt PASSIVE chạy với `busy == 0` và `checkpointed > 0`. **Không** assert tệp nhỏ đi |
     | 7 | Ghi liên tục cho `.db-wal` vượt ngưỡng, rồi ghi tiếp cùng lượng nữa | AC5 | Checkpoint chạy **trước** khi tới lúc rảnh; cỡ `.db-wal` sau đợt hai **không lớn hơn đáng kể** đợt một *(chững lại, không phình)* |
     | 8 | `close()` | AC4 | `.db-wal` về 0 byte hoặc biến mất — **chỉ TRUNCATE** làm được điều này |
     | 9 | DB `user_version = 0` (mới tinh) | AC6 | Di trú lên target; `schema_migration_log` có bản ghi |
     | 10 | DB `user_version = target - 1` | AC6 | Đúng **một** bước chạy; tệp `.bak-v…` tồn tại |
     | 11 | Một bước di trú ném lỗi giữa chừng | AC6 | Giao dịch rollback; `user_version` **không đổi** |
     | 12 | DB `user_version = target + 1` | AC7 | `Err`; **băm tệp `.db` không đổi**; `.db-wal`/`.db-shm` **không được tạo** |
-    | 13 | Writer bị dừng rồi gọi `write()` | AC1 | `StoreError::WriterGone` trong thời gian hữu hạn, ⛔ không treo |
+    | 13 | Writer bị dừng rồi gọi `write()` | AC1 | `StoreError::WriterGone` trong thời gian hữu hạn, không treo |
 
   - [x] `src-tauri/tests/store_boundary.rs` — quét cây nguồn cho AC2 vế test, có sàn số tệp.
-  - [x] ⚠️ Mỗi test dùng thư mục tạm **riêng** (`std::env::temp_dir()` + pid + bộ đếm nguyên tử). ⛔ Không thêm `tempfile`.
+  - [x] ⚠️ Mỗi test dùng thư mục tạm **riêng** (`std::env::temp_dir()` + pid + bộ đếm nguyên tử). Không thêm `tempfile`.
   - [x] ⚠️ Dọn dẹp: **drop `Store` trước** khi xoá thư mục — Windows từ chối xoá tệp đang mở (NFR14).
 
 - [x] **Task 11 — Nghiệm thu đỏ-rồi-xanh, có bảng** (AC1–AC7)
@@ -180,12 +180,12 @@ So that tôi tin được vào một công cụ mình dùng hàng năm.
   - [x] Nâng `RS_FLOOR` trong `scripts/check-i18n.mjs:223` cho khớp cây mới. ⚠️ Đọc `:190` trước — bộ đếm quét `src-tauri/**`, gồm cả `tests/` *(đang được miễn trừ khỏi Kiểm A ở `:128`, nhưng miễn trừ ≠ không đếm)*. Đặt sàn **dưới** số thật, đúng khuôn các sàn khác.
   - [x] Chứng minh sàn có tác dụng: đặt sàn cao hơn số thật ⇒ cổng đỏ; đặt lại ⇒ xanh.
   - [x] Cập nhật doc-comment đầu `core/store/mod.rs`: mô tả hình dạng đã dựng, ba `Tuning` tạm và **chủ sở hữu con số** *(Story 2.4)*.
-  - [x] ⛔ **Không thêm bước CI mới** — xem §Quyết định #9.
+  - [x] **Không thêm bước CI mới** — xem §Quyết định #9.
 
 - [x] **Task 13 — Đóng sổ nợ** (không AC)
-  - [x] `deferred-work.md:22` *(`panic = "abort"` giết đường checkpoint của AD-12)* — mục này **ghi đích danh Story 1.7**. ⛔ **Không sửa `[profile.release]`** (§Câu hỏi cho Ice #1). Cập nhật mục đó: ghi thứ story này **đã** làm được *(writer không panic; TRUNCATE lúc thoát)* và thứ **vẫn còn hở** *(thoát cứng thì không có lần flush cuối)*, rồi giao lại đúng chủ.
+  - [x] `deferred-work.md:22` *(`panic = "abort"` giết đường checkpoint của AD-12)* — mục này **ghi đích danh Story 1.7**. **Không sửa `[profile.release]`** (§Câu hỏi cho Ice #1). Cập nhật mục đó: ghi thứ story này **đã** làm được *(writer không panic; TRUNCATE lúc thoát)* và thứ **vẫn còn hở** *(thoát cứng thì không có lần flush cuối)*, rồi giao lại đúng chủ.
   - [x] Mở mục mới trong `deferred-work.md` cho ba con số tạm của `Tuning`, giao **Story 2.4**.
-  - [x] ⛔ Không sửa `_bmad-output/planning-artifacts/**` — tiền lệ quyết định #3 của Ice ở Story 1.3.
+  - [x] Không sửa `_bmad-output/planning-artifacts/**` — tiền lệ quyết định #3 của Ice ở Story 1.3.
 
 ### Review Findings
 
@@ -230,11 +230,11 @@ So that tôi tin được vào một công cụ mình dùng hàng năm.
 | Test hành vi + test ranh giới nguồn | Một bước CI mới — §Quyết định #9 |
 | `ScopeResolver`? **Không** — AD-18, **Story 1.8** | `meta.json` và số phiên bản của nó — **Story 1.15** (AD-33) |
 
-⛔ **Không đụng tới:** `src-tauri/tauri.conf.json` · `src-tauri/capabilities/**` · `Cargo.toml` *(gồm cả `[profile.release]` — §Câu hỏi #1)* · `package.json` · `.github/workflows/ci.yml` · `src/selftest/**` · `src/tokens/**` · `src/commands/**` · `_bmad-output/planning-artifacts/**`.
+**Không đụng tới:** `src-tauri/tauri.conf.json` · `src-tauri/capabilities/**` · `Cargo.toml` *(gồm cả `[profile.release]` — §Câu hỏi #1)* · `package.json` · `.github/workflows/ci.yml` · `src/selftest/**` · `src/tokens/**` · `src/commands/**` · `_bmad-output/planning-artifacts/**`.
 
-⛔ **Không thêm một phụ thuộc nào.** Không `r2d2` / `r2d2_sqlite` / `deadpool` / `bb8`, không `parking_lot`, không `crossbeam`, không `tokio`, không `tempfile`, không `chrono` / `time`, ⛔ **không bật thêm feature nào của `rusqlite`** *(feature `backup` và `hooks` đều đang tắt — xem §Thông tin kỹ thuật)*. NFR15 đòi **mở tệp giấy phép trong nguồn đã tải mà đọc** rồi mới vào bảng Stack; đó là quyết định của Ice, không phải hệ quả phụ của story này. `check-deps.mjs` sẽ đỏ.
+**Không thêm một phụ thuộc nào.** Không `r2d2` / `r2d2_sqlite` / `deadpool` / `bb8`, không `parking_lot`, không `crossbeam`, không `tokio`, không `tempfile`, không `chrono` / `time`, **không bật thêm feature nào của `rusqlite`** *(feature `backup` và `hooks` đều đang tắt — xem §Thông tin kỹ thuật)*. NFR15 đòi **mở tệp giấy phép trong nguồn đã tải mà đọc** rồi mới vào bảng Stack; đó là quyết định của Ice, không phải hệ quả phụ của story này. `check-deps.mjs` sẽ đỏ.
 
-⛔ **Không dựng `tauri-plugin-sql`.** Bảng Stack loại nó đích danh với lý do là chính AD-11.
+**Không dựng `tauri-plugin-sql`.** Bảng Stack loại nó đích danh với lý do là chính AD-11.
 
 ---
 
@@ -262,7 +262,7 @@ Cái story này **có** đóng góp cho món nợ đó: `StoreError` mang sẵn 
 | Cổng đã có | `check:deps` · `check:tokens` · `check:i18n` · `check:commands` · `check:scope` · `check:scope:bundled` |
 | Bước CI trong job `check` | `check:deps` → `check:tokens` → `check:i18n` → `check:commands` → `npm run build` → `cargo test` → build/đo → `check:scope:bundled` → `check:scope` |
 | `lib.rs` | `builder.run(generate_context!())` — **chưa có callback `RunEvent`**; có móc self-check `#[cfg(debug_assertions)]` gọi `app.exit(code)` |
-| `ports/mod.rs` | **rỗng** — `ProjectStore` là cổng của **Story 1.15**, ⛔ không khai trait ở story này |
+| `ports/mod.rs` | **rỗng** — `ProjectStore` là cổng của **Story 1.15**, không khai trait ở story này |
 | Node máy Ice / CI | **v22.22.2** / `node-version: '22'` |
 | Rust | `edition = "2024"`, `rust-version = "1.85"`, toolchain CI `1.97.1` |
 
@@ -306,12 +306,12 @@ AC7 nói nguyên văn *"không ghi vào nó một byte nào"*. Thứ tự tự n
 **5. 🔴 Sao lưu bằng `fs::copy` tệp `.db` trần là một bản sao KHÔNG ĐẦY ĐỦ khi WAL đang bật.**
 Dữ liệu đã commit nhưng chưa checkpoint sống trong `.db-wal`, không trong `.db`. Copy mình tệp `.db` cho ra một bản sao **thiếu đúng những thay đổi gần nhất** — và bản sao đó trông hoàn toàn hợp lệ. Đây là bản sao lưu mà AC6 dựa vào để cho phép di trú, nên nó hỏng ở đúng chỗ đắt nhất.
 → **`wal_checkpoint(TRUNCATE)` → xác nhận `busy == 0` → rồi mới `fs::copy`.**
-→ ⛔ Feature `backup` của `rusqlite` **đang tắt** *(chỉ `bundled` được bật)*, nên `Connection::backup` **không tồn tại**; bật nó là thêm bề mặt API mới vào một crate đã ghim, không nằm trong phạm vi story này.
+→ không Feature `backup` của `rusqlite` **đang tắt** *(chỉ `bundled` được bật)*, nên `Connection::backup` **không tồn tại**; bật nó là thêm bề mặt API mới vào một crate đã ghim, không nằm trong phạm vi story này.
 
 **6. 🔴 `panic = "abort"` làm `catch_unwind` vô dụng, và giết đường checkpoint.**
 `Cargo.toml` `[profile.release]` đặt `panic = "abort"` *(cố ý đóng băng để giữ số đo NFR6 của Story 1.1 so sánh được)*. Hệ quả: một `panic!` trong luồng writer **chấm dứt tiến trình ngay** — không unwind, không `Drop`, không cơ hội flush WAL; và trên Windows release `windows_subsystem = "windows"` khiến nó cũng không in ra đâu. `deferred-work.md:22` đã ghi mục này và **giao đích danh Story 1.7**.
 → **Luồng writer không được panic. Lỗi là giá trị.** Mọi `unwrap()` / `expect()` trong `core::store` là một lỗi thiết kế, không phải một lối tắt.
-→ ⛔ **Đừng "giải quyết" bằng cách sửa `[profile.release]`** — xem §Câu hỏi cho Ice #1.
+→ **Đừng "giải quyết" bằng cách sửa `[profile.release]`** — xem §Câu hỏi cho Ice #1.
 
 **7. ⚠️ `close()` treo làm hai cổng của Story 1.2/1.3 đỏ vì lý do không liên quan.**
 `wal_checkpoint(TRUNCATE)` **chờ mọi reader rời đi**. Một kết nối pool đang giữ một giao dịch đọc dài làm TRUNCATE chờ tới hết `busy_timeout`. Trên đường thoát, khoản chờ đó cộng vào thời gian đóng cửa sổ. Mà `scripts/check-scope.mjs` và `check-scope-bundled.mjs` chạy nhị phân **với timeout cứng** và đọc dòng `VERDICT:` — một `close()` chậm biến thành *"self-check chưa chạy tới nơi"* và exit 1, tức hai cổng đỏ vì tầng ghi dữ liệu, không vì phạm vi mà chúng canh.
@@ -321,7 +321,7 @@ Dữ liệu đã commit nhưng chưa checkpoint sống trong `.db-wal`, không t
 Một lượt checkpoint chép frame từ WAL về database rồi **quay đầu đọc/ghi WAL về đầu tệp để dùng lại**. Tệp `.db-wal` **giữ nguyên cỡ**; nó chỉ ngừng lớn. Đó **chính là** thứ AC5 đòi — *"không phình vô hạn"*, không phải *"co lại"*. Chỉ `TRUNCATE` mới cắt tệp về 0.
 
 Đường hỏng cụ thể, và nó rất dễ đi vào: dev viết test case 6 assert `.db-wal` nhỏ đi → đỏ → kết luận "PASSIVE không chạy" → đổi luồng nền sang TRUNCATE cho xanh. Lúc đó test xanh, AC5 trông như đạt, và **AD-12 bị vi phạm ở đúng chỗ nó tồn tại để bảo vệ**: TRUNCATE **chờ mọi reader rời đi**, nên nó là lượt checkpoint duy nhất có thể chặn — đặt nó vào đường chạy nền là dựng lại đúng cái gai trễ mà `wal_autocheckpoint = 0` vừa gỡ ra, và NFR2 mất hiệu lực. Không test nào đỏ, không lỗi nào được ném.
-→ **PASSIVE ở đường nền; TRUNCATE chỉ ở `close()` và ngay trước khi sao lưu để di trú.** Bằng chứng của một lượt PASSIVE là `checkpointed > 0` với `busy == 0`, ⛔ không phải cỡ tệp.
+→ **PASSIVE ở đường nền; TRUNCATE chỉ ở `close()` và ngay trước khi sao lưu để di trú.** Bằng chứng của một lượt PASSIVE là `checkpointed > 0` với `busy == 0`, không phải cỡ tệp.
 → ⚠️ Kéo theo: WAL chỉ được dùng lại khi lượt checkpoint chép **hết**. Một reader giữ ảnh chụp cũ làm `log > checkpointed`, và tệp **vẫn lớn tiếp** — đó là lý do §Quyết định #8 để `pool_size` nhỏ.
 
 ---
@@ -345,7 +345,7 @@ Cả hai đều là cưỡng chế của SQLite chứ không phải kỷ luật,
 
 #### #3 — Hàng đợi là `std::sync::mpsc`, không phải một crate mới
 
-`Sender<T>` là `Send` **và `Sync`** kể từ Rust 1.72; toolchain CI là 1.97.1 và `rust-version` khai 1.85, nên `Store` để được trong `app.manage(…)` mà không cần bọc `Mutex`. ⛔ Không kéo `crossbeam` về cho một hàng đợi FIFO mà `std` đã có.
+`Sender<T>` là `Send` **và `Sync`** kể từ Rust 1.72; toolchain CI là 1.97.1 và `rust-version` khai 1.85, nên `Store` để được trong `app.manage(…)` mà không cần bọc `Mutex`. Không kéo `crossbeam` về cho một hàng đợi FIFO mà `std` đã có.
 
 Hình dạng *(hình dạng, không phải bản chép — dev viết bản cuối)*:
 
@@ -375,17 +375,17 @@ where
 
 #### #4 — `Connection` là `Send` nhưng KHÔNG `Sync`; đó là hàng rào, không phải phiền nhiễu
 
-`rusqlite-0.40.1/src/lib.rs:364` chỉ có `unsafe impl Send for Connection {}` — **không** có `Sync`. `OpenFlags::default()` gồm `SQLITE_OPEN_NO_MUTEX` *(`src/lib.rs:1256-1266`)*, tức chế độ multi-thread: một kết nối không được dùng đồng thời từ hai luồng. Trình biên dịch cưỡng chế điều đó thay ta. ⛔ Đừng tìm cách lách bằng `Arc<Connection>` hay `unsafe impl`.
+`rusqlite-0.40.1/src/lib.rs:364` chỉ có `unsafe impl Send for Connection {}` — **không** có `Sync`. `OpenFlags::default()` gồm `SQLITE_OPEN_NO_MUTEX` *(`src/lib.rs:1256-1266`)*, tức chế độ multi-thread: một kết nối không được dùng đồng thời từ hai luồng. Trình biên dịch cưỡng chế điều đó thay ta. Đừng tìm cách lách bằng `Arc<Connection>` hay `unsafe impl`.
 
 ⚠️ `OpenFlags::default()` cũng gồm `SQLITE_OPEN_URI`. Mở **bằng cờ tường minh**, đừng dựa vào mặc định — đường dẫn thư mục người dùng chứa `?` sẽ bị đọc thành URI query.
 
 #### #5 — Một `Store` cho mỗi kho, cùng một kiểu; hôm nay dựng đúng một thực thể
 
-`StoreKind::{ Global, Project, LibraryIndex }` được khai **hết** vì AD-7 đã cố định năm loại kho và ranh giới sở hữu; nhưng chỉ `Global` được **dựng** hôm nay. ⛔ Không viết mã khởi tạo cho `project.db` *(Story 1.15)* hay `library-index.db` *(Epic 5)* — đó là mã không ai gọi, và AD-8 còn nói `library-index.db` **không di trú** *(xoá và dựng lại)*, tức nó cần một nhánh khác mà story đó phải tự quyết.
+`StoreKind::{ Global, Project, LibraryIndex }` được khai **hết** vì AD-7 đã cố định năm loại kho và ranh giới sở hữu; nhưng chỉ `Global` được **dựng** hôm nay. Không viết mã khởi tạo cho `project.db` *(Story 1.15)* hay `library-index.db` *(Epic 5)* — đó là mã không ai gọi, và AD-8 còn nói `library-index.db` **không di trú** *(xoá và dựng lại)*, tức nó cần một nhánh khác mà story đó phải tự quyết.
 
 #### #6 — `StoreError` mang `MessageKey` từ hôm nay
 
-Không phải để hiển thị *(chưa có gì hiển thị nó)*, mà để **Story 1.8 không phải phát minh một từ vựng lỗi thứ hai** ở chỗ gọi. `IpcError::new` là chỗ duy nhất `message_key` gặp `params` *(doc-comment của nó nói rõ vì sao)*, nên `From<StoreError> for IpcError` phải đi qua đó, ⛔ không dựng struct literal.
+Không phải để hiển thị *(chưa có gì hiển thị nó)*, mà để **Story 1.8 không phải phát minh một từ vựng lỗi thứ hai** ở chỗ gọi. `IpcError::new` là chỗ duy nhất `message_key` gặp `params` *(doc-comment của nó nói rõ vì sao)*, nên `From<StoreError> for IpcError` phải đi qua đó, không dựng struct literal.
 
 ⚠️ `check-i18n.mjs` Kiểm A quét `src-tauri/**/*.rs` tìm **ký tự có dấu tiếng Việt ở vị trí mã**. `src-tauri/tests/**` được miễn trừ *(`:128`)* nhưng `src/core/store/**` thì **không**. Mọi chuỗi chẩn đoán trong module — kể cả trong `debug_assert!` — viết **không dấu**. Tiền lệ: `core/i18n/mod.rs` đã bị cổng bắt đúng ca này trong lượt review 2026-08-04 và phải viết lại thông báo không dấu.
 
@@ -401,7 +401,7 @@ CREATE TABLE schema_migration_log (
 );
 ```
 
-- `applied_at` lấy bằng `strftime('%Y-%m-%dT%H:%M:%fZ','now')` **của chính SQLite** — ISO-8601 UTC theo Consistency Conventions, và ⛔ không phải thêm `chrono`/`time` cho một dòng.
+- `applied_at` lấy bằng `strftime('%Y-%m-%dT%H:%M:%fZ','now')` **của chính SQLite** — ISO-8601 UTC theo Consistency Conventions, và không phải thêm `chrono`/`time` cho một dòng.
 - `app_version` lấy từ `env!("CARGO_PKG_VERSION")`.
 - Bản ghi được chèn **trong cùng giao dịch** với bước di trú sinh ra nó. Ghi ngoài giao dịch là mở đúng ca "sổ nói đã chạy mà lược đồ thì chưa".
 
@@ -420,7 +420,7 @@ Mặc định của story này, khai là **tạm** ngay trong `Tuning` và trong
 | `wal_threshold_bytes` | **4 MiB** | Bằng đúng ngưỡng autocheckpoint mặc định của SQLite *(1000 trang × 4096 B)* — ta tắt cái đó ở AC3 nên lấy lại đúng số nó bỏ lại, tức không đổi hành vi theo một hướng chưa ai đo |
 | `close_truncate_budget` | **2 s** | Trần của Bẫy 7 |
 
-⛔ Đừng chôn chúng thành số trần rải rác. Một `struct Tuning` với `Default`, và §Task 13 mở mục bàn giao cho **Story 2.4**.
+Đừng chôn chúng thành số trần rải rác. Một `struct Tuning` với `Default`, và §Task 13 mở mục bàn giao cho **Story 2.4**.
 
 #### #9 — Không thêm bước CI mới
 
@@ -428,7 +428,7 @@ Bốn cổng `.mjs` hiện có là cổng **frontend** — chúng tồn tại v�
 
 Điều này khớp với hai thứ đang có: khối *"CHỖ MÓC CHO EPIC SAU"* của `ci.yml` chỉ chờ **ba luật đã biết** *(1.4 ✅, 4.1, Epic 6)*; và §Ngân sách CI đang mở một mục lo về thời gian chạy trên Windows *(`deferred-work.md`, `timeout-minutes: 60`)*. Thêm một bước không cần thiết là đi ngược cả hai.
 
-⛔ **Nhưng vẫn phải chạy `npm run check:scope` và `check:scope:bundled` bằng tay** sau khi sửa `lib.rs` — §Task 8.
+**Nhưng vẫn phải chạy `npm run check:scope` và `check:scope:bundled` bằng tay** sau khi sửa `lib.rs` — §Task 8.
 
 ---
 
@@ -446,15 +446,15 @@ Bốn cổng `.mjs` hiện có là cổng **frontend** — chúng tồn tại v�
 ### Bàn giao từ các story trước — thứ ảnh hưởng trực tiếp tới story này
 
 **Từ Story 1.2 (scaffold):**
-- Bảng Stack được cài **trọn** ở commit đầu, ghim bằng `=`: `rusqlite = "=0.40.1"` *(feature `bundled`)* và `libsqlite3-sys = "=0.38.1"` đã có mặt và **chưa có một dòng mã nào gọi tới**. Story này là chỗ tiêu thụ đầu tiên. ⛔ Không đổi số, ⛔ không thêm feature.
-- `lib.rs` mang móc self-check `#[cfg(debug_assertions)]` mà **hai cổng đọc kết quả** — ⛔ sửa `lib.rs` mà chạm khối đó là làm mù `check:scope` và `check:scope:bundled`.
-- `capabilities/main.json` giữ **ba** quyền tối thiểu, và `tests/config_invariants.rs` khoá đúng ba chuỗi đó. Story này ⛔ không cần thêm quyền nào: `app.path()` phía Rust không đi qua ACL.
-- `assetProtocol.scope` ⛔ **không bao giờ chứa `$APPDATA`** — test `asset_protocol_scope_never_contains_appdata` cấm, và `global.db` sống ở đó. Webview không được thấy tệp này.
+- Bảng Stack được cài **trọn** ở commit đầu, ghim bằng `=`: `rusqlite = "=0.40.1"` *(feature `bundled`)* và `libsqlite3-sys = "=0.38.1"` đã có mặt và **chưa có một dòng mã nào gọi tới**. Story này là chỗ tiêu thụ đầu tiên. Không đổi số, không thêm feature.
+- `lib.rs` mang móc self-check `#[cfg(debug_assertions)]` mà **hai cổng đọc kết quả** — không sửa `lib.rs` mà chạm khối đó là làm mù `check:scope` và `check:scope:bundled`.
+- `capabilities/main.json` giữ **ba** quyền tối thiểu, và `tests/config_invariants.rs` khoá đúng ba chuỗi đó. Story này không cần thêm quyền nào: `app.path()` phía Rust không đi qua ACL.
+- `assetProtocol.scope` **không bao giờ chứa `$APPDATA`** — test `asset_protocol_scope_never_contains_appdata` cấm, và `global.db` sống ở đó. Webview không được thấy tệp này.
 
 **Từ Story 1.5 (i18n · hình dạng lỗi):**
-- `MessageKey` khai qua `macro_rules! message_keys!` — **một khai báo sinh ba thứ** *(`enum` · `ALL` · `as_str`)* **cộng** bảng `required_params()`. Thêm khoá là thêm **một dòng** trong macro; ⛔ đừng viết tay `ALL`.
-- `IpcError` có **trường riêng tư**, dựng **chỉ** qua `IpcError::new` — đó là chỗ duy nhất `message_key` gặp `params`. ⛔ `#[serde(rename_all = "camelCase")]` là cấm.
-- `IpcError::new` khi thiếu tham số: `debug_assert!` ở debug, rơi về `MessageKey::Unknown` ở release — ⛔ **không panic**, vì `panic = "abort"` trong đường báo lỗi giết luôn tiến trình *"và cuốn theo cả `core::store`"* — doc-comment đó viết sẵn cho story này.
+- `MessageKey` khai qua `macro_rules! message_keys!` — **một khai báo sinh ba thứ** *(`enum` · `ALL` · `as_str`)* **cộng** bảng `required_params()`. Thêm khoá là thêm **một dòng** trong macro; đừng viết tay `ALL`.
+- `IpcError` có **trường riêng tư**, dựng **chỉ** qua `IpcError::new` — đó là chỗ duy nhất `message_key` gặp `params`. không `#[serde(rename_all = "camelCase")]` là cấm.
+- `IpcError::new` khi thiếu tham số: `debug_assert!` ở debug, rơi về `MessageKey::Unknown` ở release — **không panic**, vì `panic = "abort"` trong đường báo lỗi giết luôn tiến trình *"và cuốn theo cả `core::store`"* — doc-comment đó viết sẵn cho story này.
 
 **Từ Story 1.3 (CI):** job `check` là **workflow duy nhất**; `cargo test` chạy trên **cả hai** nền tảng sau `npm run build`. Nhánh Windows đang là nhánh chậm và `timeout-minutes: 60` là một phỏng đoán chưa đo — đó là lý do §Testing standards cấm `sleep` dài.
 
@@ -506,7 +506,7 @@ src-tauri/tests/
 
 Hình dạng nhiều tệp trong một thư mục module là khuôn mà chính spine đã dùng cho `webimport/` *(`fetcher.rs` · `extractor.rs`)*. Rust `snake_case` theo Consistency Conventions.
 
-**Không có chỗ lệch nào so với cây nguồn đã khai.** ⛔ Không thêm thư mục thứ mười ba vào `core/`; ⛔ không khai trait nào trong `ports/` *(`ProjectStore` là Story 1.15)*.
+**Không có chỗ lệch nào so với cây nguồn đã khai.** Không thêm thư mục thứ mười ba vào `core/`; không khai trait nào trong `ports/` *(`ProjectStore` là Story 1.15)*.
 
 ---
 
@@ -538,7 +538,7 @@ Hình dạng nhiều tệp trong một thư mục module là khuôn mà chính s
 
 1. **`[profile.release]` `panic = "abort"` — giữ hay đổi?**
    `deferred-work.md:22` giao mục này cho Story 1.7 + lượt đo lại NFR6. Nhưng cùng tệp đó *(mục [D4])* ghi Ice đã chốt **không đụng `Cargo.toml`**, và cảnh báo rằng sửa profile làm **số `.dmg`/`.msi` khác đi**, nên nếu làm thì phải làm **trước** khi chốt baseline NFR6 — tức thuộc **Story 1.9 / 10.9**, không phải hôm nay.
-   → **Mặc định: giữ nguyên.** Story này đóng phần đóng được bằng thiết kế *(writer không panic; TRUNCATE lúc thoát)* và ghi thẳng phần còn hở *(thoát cứng không có lần flush cuối)* vào `deferred-work.md`. ⛔ Không sửa `Cargo.toml`.
+   → **Mặc định: giữ nguyên.** Story này đóng phần đóng được bằng thiết kế *(writer không panic; TRUNCATE lúc thoát)* và ghi thẳng phần còn hở *(thoát cứng không có lần flush cuối)* vào `deferred-work.md`. Không sửa `Cargo.toml`.
 
 2. **`schema_migration_log` — có phải là bảng đúng cho bước di trú 1 không?**
    Xem §Quyết định #7. Đường thay thế duy nhất là để `global.db` ở phiên bản 0 và **không có bước di trú nào**, khi đó AC6 chỉ nghiệm thu được bằng một bộ di trú giả trong test — đúng hình dạng "mệnh đề vòng" mà lượt review Story 1.5 đã bắt.
@@ -546,7 +546,7 @@ Hình dạng nhiều tệp trong một thư mục module là khuôn mà chính s
 
 3. **Sáu con số `Tuning` — chấp nhận mặc định tạm không?**
    Xem §Quyết định #8. Không con số nào đo được hôm nay vì chưa có Editor.
-   → **Mặc định: dùng bảng ở #8**, khai là tạm trong mã, mở mục bàn giao **Story 2.4**. ⛔ Không viết trong Completion Notes rằng chúng đã hiệu chỉnh.
+   → **Mặc định: dùng bảng ở #8**, khai là tạm trong mã, mở mục bàn giao **Story 2.4**. Không viết trong Completion Notes rằng chúng đã hiệu chỉnh.
 
 4. **`Store` mở lúc `setup()` hay lúc dùng lần đầu?**
    AC3 nói *"`global.db` **khi khởi tạo**"*, và mở sớm làm một `$APPDATA` không ghi được lộ ra ngay lúc khởi động thay vì lúc người dùng đang gõ.
@@ -609,7 +609,7 @@ Phương pháp: vá một chỗ → chạy đúng ca liên quan → ghi mã tho�
 
 Nguyên nhân **không** phải cơ chế: SQLite chỉ quay `.db-wal` về đầu tệp trong `walRestartLog`, và hàm đó chỉ chạy khi một giao dịch ghi **bắt đầu** đúng lúc `nBackfill == mxFrame`. Với nhịp ghi dày hơn nhịp checkpoint, gần như mọi lượt ghi bắt đầu trên một WAL còn tồn đọng ⇒ không lượt nào quay đầu.
 
-⛔ Đường sửa SAI mà rất dễ đi vào: đổi luồng nền sang TRUNCATE cho tệp co lại — test xanh, AC5 trông như đạt, và AD-12 bị phá ở đúng chỗ nó tồn tại để bảo vệ *(§Bẫy 8)*.
+Đường sửa SAI mà rất dễ đi vào: đổi luồng nền sang TRUNCATE cho tệp co lại — test xanh, AC5 trông như đạt, và AD-12 bị phá ở đúng chỗ nó tồn tại để bảo vệ *(§Bẫy 8)*.
 ✅ Đường đã đi: chỉnh **nhịp của phép đo**, không chỉnh cơ chế — tick 3 ms **ngắn hơn hẳn** gap 10 ms, blob 32 KiB lớn hơn nửa ngưỡng 64 KiB. Lý do ghi ngay trong ca test. Cộng thêm một mệnh đề thứ hai ít phụ thuộc nhịp hơn: `.db-wal` phải nhỏ hơn **một phần tư** tổng lượng đã ghi.
 
 ⚠️ Ca `only_core_store_may_name_rusqlite` đỏ ở lượt đầu trên `core/dict/mod.rs:6` — một **doc-comment** ghi *"crate dành cho module này: `rusqlite` — dùng chung cài đặt với `core::store`"*. Đã sửa phép quét để bỏ qua dòng comment *(cùng luật `check-i18n.mjs` Kiểm A áp cho chuỗi tiếng Việt, và cùng lý do: một cổng đỏ trên câu giải thích chính luật nó canh là một cổng bị gỡ trong tuần)*. Comment đuôi dòng vẫn bị bắt.
@@ -640,29 +640,29 @@ Hai cổng cuối chạy **sau** khi sửa `lib.rs` *(Task 8)*, và đó là đi
 - **AC1** — `Store::write` đi qua **một** `Connection` sống trong **một** luồng, nhận việc qua `std::sync::mpsc`. `writes_are_serialized` chứng minh bằng **một bảng ghi vào chính database**: `COUNT(DISTINCT thread) = 1` *(đúng một luồng writer)*, `MAX(depth_seen) = 1` *(không job nào lồng nhau, đo bằng một bộ đếm trong DB)*, `open_before = 0` ở mọi hàng, và đúng 400/400 hàng. `reads_run_in_parallel_while_the_writer_works` đo **đỉnh số reader cùng lúc = 4** trong khi một luồng ghi chạy song song.
 - **AC2** — **cả hai** cơ chế: *(1)* `rusqlite::Connection` không thoát khỏi module — đường đọc trả kết nối đã đặt `query_only = 1` nên **SQLite** từ chối lệnh ghi *(`writing_through_the_read_path_is_refused_by_sqlite` khẳng định lỗi mang chữ `readonly`, tức đến từ SQLite chứ không từ một phép kiểm tự viết)*; *(2)* `store_boundary.rs` quét cây nguồn với **sàn số tệp**, cấm mọi nhắc tới `rusqlite` ngoài `src/core/store/**`.
 - **AC3** — ba PRAGMA **đặt rồi ĐỌC LẠI**, và đọc về sai thì `open()` **trả lỗi**. Nghiệm thu trên **cả hai** loại kết nối *(Bẫy 3)*. Ca âm dùng `:memory:` — một database WAL không dùng được.
-- **AC4** — luồng nền có `Connection` **của riêng nó**; `(busy, log, checkpointed)` được **đọc và xét** *(`busy != 0` ⇒ ghi chẩn đoán và ⛔ không xoá cờ `dirty`)*; `RunEvent::Exit` chạy TRUNCATE với **trần thời gian**.
-- **AC5** — điều kiện **(b)** *(vượt ngưỡng)* chạy **kể cả khi chưa rảnh**: ca test đặt `idle_before_passive` một giờ nên mọi lượt quan sát được đều là bằng chứng của vế (b). ⛔ Không ca nào đòi `.db-wal` co lại.
-- **AC6** — `PRAGMA user_version`, mỗi bước một giao dịch, sao lưu bằng `wal_checkpoint(TRUNCATE)` → xác nhận `busy == 0` → `fs::copy` *(⛔ không copy tệp trần — Bẫy 5)*. Bước 1 của `global.db` là `schema_migration_log`.
+- **AC4** — luồng nền có `Connection` **của riêng nó**; `(busy, log, checkpointed)` được **đọc và xét** *(`busy != 0` ⇒ ghi chẩn đoán và không xoá cờ `dirty`)*; `RunEvent::Exit` chạy TRUNCATE với **trần thời gian**.
+- **AC5** — điều kiện **(b)** *(vượt ngưỡng)* chạy **kể cả khi chưa rảnh**: ca test đặt `idle_before_passive` một giờ nên mọi lượt quan sát được đều là bằng chứng của vế (b). Không ca nào đòi `.db-wal` co lại.
+- **AC6** — `PRAGMA user_version`, mỗi bước một giao dịch, sao lưu bằng `wal_checkpoint(TRUNCATE)` → xác nhận `busy == 0` → `fs::copy` *(không copy tệp trần — Bẫy 5)*. Bước 1 của `global.db` là `schema_migration_log`.
 - **AC7** — hợp đồng thứ tự trong `open()`. Ca test so **byte-for-byte** tệp `.db` trước/sau **cộng** khẳng định `.db-wal`/`.db-shm` không được tạo.
 
 **Quyết định và ghi chú cần biết trước khi đọc mã:**
 
-1. **`ReadHandle<'a>` là bí danh của `&rusqlite::Connection`, ⛔ không phải một kiểu bọc.** Task 2 cấm `rusqlite::Connection` xuất hiện trong chữ ký `pub`; Task 4 lại đòi `Store::read(|conn| …)`. Bí danh giữ được cả hai *(chỗ gọi không bao giờ gõ tên `rusqlite`)* mà không phải viết hàng trăm dòng chuyển tiếp **không thêm một phép cưỡng chế nào**. Cưỡng chế thật vẫn là `query_only` + `store_boundary.rs`. Lý do ghi ở doc-comment của `ReadHandle`. Cùng lý lẽ: `core::store` **tái xuất** `Transaction`, `SqlError`, `SqlResult`, `Row`.
+1. **`ReadHandle<'a>` là bí danh của `&rusqlite::Connection`, không phải một kiểu bọc.** Task 2 cấm `rusqlite::Connection` xuất hiện trong chữ ký `pub`; Task 4 lại đòi `Store::read(|conn| …)`. Bí danh giữ được cả hai *(chỗ gọi không bao giờ gõ tên `rusqlite`)* mà không phải viết hàng trăm dòng chuyển tiếp **không thêm một phép cưỡng chế nào**. Cưỡng chế thật vẫn là `query_only` + `store_boundary.rs`. Lý do ghi ở doc-comment của `ReadHandle`. Cùng lý lẽ: `core::store` **tái xuất** `Transaction`, `SqlError`, `SqlResult`, `Row`.
 2. **`StoreSpec.migrations` là một TRƯỜNG, không phải một hằng tra theo `kind`.** Đây là cách duy nhất nghiệm thu được ca 10 *(`user_version = target - 1` ⇒ đúng một bước + tệp `.bak`)* và ca 11 *(rollback)* mà **không** thêm mã sản phẩm chỉ để test gọi: `GLOBAL_MIGRATIONS` hôm nay có đúng **một** bước, nên `target - 1 = 0`, mà 0 là *"chưa có lược đồ"* — không có gì để sao lưu. Story 1.15 dùng đúng trường này cho `project.db`.
-3. **Thêm khoá thứ NĂM ngoài bộ bốn story đề xuất: `err.store.read_failed`.** Bộ đề xuất là *"bộ đề xuất"*, và AC2 đòi một `INSERT` qua đường đọc phải **thất bại** — tức story này **ném thật** một lỗi đọc. Cho nó mượn `err.store.open_failed` là nói sai chuyện đang xảy ra. ⛔ Không khoá nào cho tính năng chưa tồn tại.
+3. **Thêm khoá thứ NĂM ngoài bộ bốn story đề xuất: `err.store.read_failed`.** Bộ đề xuất là *"bộ đề xuất"*, và AC2 đòi một `INSERT` qua đường đọc phải **thất bại** — tức story này **ném thật** một lỗi đọc. Cho nó mượn `err.store.open_failed` là nói sai chuyện đang xảy ra. Không khoá nào cho tính năng chưa tồn tại.
 4. **`StoreError` có 7 biến thể nhưng 5 khoá.** `WriterGone`/`WriteFailed` chung một câu cho người dùng nhưng **khác `code`**; `PoolClosed`/`ReadFailed` cũng vậy. AD-21 cho phép đúng điều đó — `code` và `message_key` là hai trường, không phải một trường hai tên.
-5. **`detail` (văn bản lỗi thô của SQLite) ⛔ KHÔNG đi vào `params`.** Nó là một câu, và AD-21 nói `params` mang **dữ liệu**. Nó ở lại trong `Debug`/`Display`/stderr. `every_store_error_converts_to_a_complete_ipc_error` khẳng định điều này bằng máy.
-6. **Lỗi mở kho ⇒ ghi chẩn đoán rồi ĐI TIẾP, ⛔ không chặn khởi động** *(`lib.rs::open_global_store`)*. Hai lý do: chưa có bề mặt nào để **nói** với người dùng *(story này không dựng command nào)*, và một `setup()` trả `Err` làm hai cổng `check:scope*` đỏ. Đã ghi vào `deferred-work.md` và giao **Story 1.8**.
-7. **⛔ SÁU con số `Tuning` CHƯA CÁI NÀO ĐƯỢC ĐO.** Khai là tạm trong `Default`, trong doc-comment của từng trường, trong doc-comment module, và trong một mục riêng của `deferred-work.md` giao **Story 2.4**. ⛔ Đừng đọc chúng như đã hiệu chỉnh.
-8. **⛔ Không phụ thuộc mới, không feature mới, không bước CI mới, không `#[tauri::command]` nào.** Pool đọc là `Mutex<Vec<Connection>>` + `Condvar` + một guard trả kết nối trong `Drop`; hàng đợi là `std::sync::mpsc`; thư mục tạm trong test là `std::env::temp_dir()` + pid + bộ đếm nguyên tử. `check:deps` xanh.
-9. **⛔ Không `unwrap()`/`expect()` nào trong `core::store`.** Mutex khoá qua `unwrap_or_else(|e| e.into_inner())`; nhánh *"không đạt tới được"* của `Lease::conn` trả **một giá trị lỗi** chứ không panic. Lý do là Bẫy 6, và nó áp cho cả những nhánh không thể xảy ra.
-10. **`RS_FLOOR` nâng 14 → 18** cho quần thể mới **23** tệp `.rs` sau miễn trừ, giữ nguyên tỷ lệ dư địa cũ (~78%). Sàn tồn tại để bắt một cây bị **cắt mất**, ⛔ không phải để đếm tệp mới. ⛔ `VUE_FLOOR` không đụng tới *(ngoài phạm vi story này)*.
+5. **`detail` (văn bản lỗi thô của SQLite) KHÔNG đi vào `params`.** Nó là một câu, và AD-21 nói `params` mang **dữ liệu**. Nó ở lại trong `Debug`/`Display`/stderr. `every_store_error_converts_to_a_complete_ipc_error` khẳng định điều này bằng máy.
+6. **Lỗi mở kho ⇒ ghi chẩn đoán rồi ĐI TIẾP, không chặn khởi động** *(`lib.rs::open_global_store`)*. Hai lý do: chưa có bề mặt nào để **nói** với người dùng *(story này không dựng command nào)*, và một `setup()` trả `Err` làm hai cổng `check:scope*` đỏ. Đã ghi vào `deferred-work.md` và giao **Story 1.8**.
+7. **SÁU con số `Tuning` CHƯA CÁI NÀO ĐƯỢC ĐO.** Khai là tạm trong `Default`, trong doc-comment của từng trường, trong doc-comment module, và trong một mục riêng của `deferred-work.md` giao **Story 2.4**. Đừng đọc chúng như đã hiệu chỉnh.
+8. **Không phụ thuộc mới, không feature mới, không bước CI mới, không `#[tauri::command]` nào.** Pool đọc là `Mutex<Vec<Connection>>` + `Condvar` + một guard trả kết nối trong `Drop`; hàng đợi là `std::sync::mpsc`; thư mục tạm trong test là `std::env::temp_dir()` + pid + bộ đếm nguyên tử. `check:deps` xanh.
+9. **Không `unwrap()`/`expect()` nào trong `core::store`.** Mutex khoá qua `unwrap_or_else(|e| e.into_inner())`; nhánh *"không đạt tới được"* của `Lease::conn` trả **một giá trị lỗi** chứ không panic. Lý do là Bẫy 6, và nó áp cho cả những nhánh không thể xảy ra.
+10. **`RS_FLOOR` nâng 14 → 18** cho quần thể mới **23** tệp `.rs` sau miễn trừ, giữ nguyên tỷ lệ dư địa cũ (~78%). Sàn tồn tại để bắt một cây bị **cắt mất**, không phải để đếm tệp mới. không `VUE_FLOOR` không đụng tới *(ngoài phạm vi story này)*.
 
-**Việc chưa làm được — ghi thẳng, ⛔ không đánh dấu đạt:**
+**Việc chưa làm được — ghi thẳng, không đánh dấu đạt:**
 
 - **NFR10 mới đóng nửa cơ chế.** Nửa *"xoá chỉ mục rồi dựng lại"* nghiệm thu ở **Epic 5** (AD-8).
 - **Thoát cứng không có lần flush cuối** — `panic = "abort"`, `SIGKILL`, mất điện đều không đi qua `RunEvent::Exit`. Dữ liệu **không mất** *(WAL bảo đảm điều đó)*; thứ mất là lượt dọn dẹp. Đã cập nhật `deferred-work.md:22` và giao lại **Story 1.9 / 10.9**.
-- **Ngưỡng 4 MiB chưa ai đo** — ca AC5 chạy trên ngưỡng thu nhỏ 64 KiB, chứng minh **cơ chế**, ⛔ không chứng minh **con số**.
+- **Ngưỡng 4 MiB chưa ai đo** — ca AC5 chạy trên ngưỡng thu nhỏ 64 KiB, chứng minh **cơ chế**, không chứng minh **con số**.
 - **Chưa lượt CI thật nào** — cùng danh sách với bốn phép nghiệm thu của Story 1.3 đang chờ runner.
 - **Kho `project.db` và `library-index.db` chưa có mã khởi tạo** — có chủ ý *(Story 1.15 · Epic 5)*.
 
@@ -688,7 +688,7 @@ Hai cổng cuối chạy **sau** khi sửa `lib.rs` *(Task 8)*, và đó là đi
 - `_bmad-output/implementation-artifacts/deferred-work.md` — cập nhật mục `panic = "abort"`; mở mục mới cho Story 1.7
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — trạng thái story
 
-⛔ **Không đụng:** `src-tauri/Cargo.toml` *(gồm `[profile.release]`)* · `tauri.conf.json` · `capabilities/**` · `package.json` · `.github/workflows/ci.yml` · `src/selftest/**` · `src/tokens/**` · `src/commands/**` · `ports/mod.rs` · `_bmad-output/planning-artifacts/**`.
+**Không đụng:** `src-tauri/Cargo.toml` *(gồm `[profile.release]`)* · `tauri.conf.json` · `capabilities/**` · `package.json` · `.github/workflows/ci.yml` · `src/selftest/**` · `src/tokens/**` · `src/commands/**` · `ports/mod.rs` · `_bmad-output/planning-artifacts/**`.
 
 ---
 

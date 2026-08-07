@@ -1,12 +1,12 @@
 //! Một **tệp `.db` = một lớp** (AD-10), và tập lớp phát hiện bằng **QUÉT THƯ MỤC**.
 //!
-//! ⛔ **Tệp này ⛔ không bao giờ gọi vị từ điều phối** — `route` đi xuống từ tầng gom như
+//! **Tệp này không bao giờ gọi vị từ điều phối** — `route` đi xuống từ tầng gom như
 //! một tham số (AD-44 ①). `tests/dict_boundary.rs` cưỡng chế điều đó bằng máy, đếm **tệp**.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 VÌ SAO ⛔ KHÔNG TỒN TẠI MỘT SỔ ĐĂNG KÝ
+//! 🔴 VÌ SAO KHÔNG TỒN TẠI MỘT SỔ ĐĂNG KÝ
 //! ─────────────────────────────────────────────────────────────────────────────
-//! AD-44 ① vá A2: *"⛔ **Không tồn tại sổ đăng ký "tệp `.db` nào chứa ngôn ngữ nào"**. Một
+//! AD-44 ① vá A2: *"**Không tồn tại sổ đăng ký "tệp `.db` nào chứa ngôn ngữ nào"**. Một
 //! sổ như thế là nguồn sự thật thứ hai cho một dữ kiện đã nằm trong dữ liệu […] và nó sai
 //! **im lặng** vào đúng ngày một lớp gỡ rời được thêm hay gỡ đi (FR112)."*
 //!
@@ -14,21 +14,21 @@
 //! và vì FR36 nói *"gỡ một lớp = xoá một file"* — một danh sách tên tệp viết cứng trong mã
 //! làm mệnh đề đó thành **sai**. Nên:
 //!
-//! - Tập lớp = **mọi** tệp `*.db` trong một thư mục, ⛔ không một danh sách tên nào.
-//! - Danh tính lớp đọc từ **`dict_meta('layer')` của chính tệp**, ⛔ không từ tên tệp.
-//! - Nguồn đọc từ **`dict_source` của chính tệp**, ⛔ không từ một bảng tra ở tầng gom.
+//! - Tập lớp = **mọi** tệp `*.db` trong một thư mục, không một danh sách tên nào.
+//! - Danh tính lớp đọc từ **`dict_meta('layer')` của chính tệp**, không từ tên tệp.
+//! - Nguồn đọc từ **`dict_source` của chính tệp**, không từ một bảng tra ở tầng gom.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! ⚠️ CHÍNH SÁCH PHIÊN BẢN SỐNG Ở ĐÂY, ⛔ KHÔNG Ở `ReadOnlyDb`
+//! ⚠️ CHÍNH SÁCH PHIÊN BẢN SỐNG Ở ĐÂY, KHÔNG Ở `ReadOnlyDb`
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `core/store/readonly.rs:57-60` giao thẳng: *"⛔ **Không đọc `PRAGMA user_version`, ⛔
-//! không di trú, ⛔ không kiểm phiên bản lược đồ ở đây.** Việc từ chối một tệp mới hơn ứng
+//! `core/store/readonly.rs:57-60` giao thẳng: *"**Không đọc `PRAGMA user_version`, không
+//! không di trú, không kiểm phiên bản lược đồ ở đây.** Việc từ chối một tệp mới hơn ứng
 //! dụng là quyết định của **tầng gọi (Story 1.13**, nơi biết mình đang mở *lớp* nào và làm
 //! gì khi một lớp bị từ chối)"*. Đẩy phép kiểm ngược vào `ReadOnlyDb` là **chôn một chính
 //! sách vào một cơ chế**.
 //!
 //! ⚠️ Mọi chuỗi chẩn đoán ở tệp này viết **KHÔNG DẤU** — `scripts/check-i18n.mjs` Kiểm A
-//! quét `src-tauri/**/*.rs` và tệp này ⛔ không nằm trong danh sách miễn trừ. Comment thì
+//! quét `src-tauri/**/*.rs` và tệp này không nằm trong danh sách miễn trừ. Comment thì
 //! được, **chuỗi thì không**.
 
 use std::fmt;
@@ -43,39 +43,39 @@ use super::{HanVietHit, LookupResult, QueryBranch, QueryRoute, SenseRecord, Sour
 /// Phiên bản lược đồ tệp `.db` mà đường đọc này hiểu.
 ///
 /// 🔴 Phải **bằng** `tools/dict-build/src/schema.rs::SCHEMA_VERSION`. Hai workspace tách
-/// rời **có chủ ý** (AC4 của Story 1.9) nên ⛔ không có import chéo nào giữ hai hằng dính
+/// rời **có chủ ý** (AC4 của Story 1.9) nên không có import chéo nào giữ hai hằng dính
 /// nhau — `tests/dict_sources.rs::the_supported_schema_version_matches_dict_build` đọc tệp
 /// kia **dưới dạng văn bản** và canh đúng mệnh đề đó.
 ///
 /// 🔴 1 → 2 ở Story 1.10c, CÙNG LƯỢT với `tools/dict-build`: cột `dict_entry.nom_reading`
 /// mới (AC6). Một tệp `.db` **v2** phải mở được; một tệp `.db` **v3** giả lập vẫn bị từ
-/// chối bằng `SkipReason::SchemaTooNew` (AD-30 — mở tiến, ⛔ không mở lùi).
+/// chối bằng `SkipReason::SchemaTooNew` (AD-30 — mở tiến, không mở lùi).
 pub const SUPPORTED_SCHEMA_VERSION: u32 = 2;
 
 /// Danh tính của lớp **nền**. Mọi giá trị khác là một lớp **gỡ rời**.
 ///
-/// ⚠️ Đây ⛔ **không** phải một mã nguồn (`dict_source.code`) — nó là giá trị của
+/// ⚠️ Đây **không** phải một mã nguồn (`dict_source.code`) — nó là giá trị của
 /// `dict_meta('layer')`, do `tools/dict-build/src/insert.rs:140` ghi vào từng tệp.
 ///
-/// 🔴 `pub(super)` chứ ⛔ không `private`: tầng gom (`mod.rs::priority_order`) cần **chính
-/// hằng này**, ⛔ không một bản chép thứ hai — xem `mod.rs::BASE_LAYER_NAME`.
+/// 🔴 `pub(super)` chứ không `private`: tầng gom (`mod.rs::priority_order`) cần **chính
+/// hằng này**, không một bản chép thứ hai — xem `mod.rs::BASE_LAYER_NAME`.
 pub(super) const BASE_LAYER: &str = "base";
 
-/// Vì sao một tệp trong thư mục ⛔ **không** trở thành một lớp.
+/// Vì sao một tệp trong thư mục **không** trở thành một lớp.
 ///
-/// 🔴 Một **GIÁ TRỊ**, ⛔ không phải một dòng `eprintln!`: *"Rỗng im lặng bị cấm; rỗng có
-/// lý do thì không"* (AD-44 ④). Panel Lookup (1.17) phải phân biệt được *"đã tra mà ⛔
-/// không khớp"* với *"lớp ⛔ không nạp được"* — hai câu đó dẫn người dùng đi hai đường khác
+/// 🔴 Một **GIÁ TRỊ**, không phải một dòng `eprintln!`: *"Rỗng im lặng bị cấm; rỗng có
+/// lý do thì không"* (AD-44 ④). Panel Lookup (1.17) phải phân biệt được *"đã tra mà không
+/// không khớp"* với *"lớp không nạp được"* — hai câu đó dẫn người dùng đi hai đường khác
 /// nhau, và chúng chỉ phân biệt được nếu lý do đi ra theo **kết quả**.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SkipReason {
-    /// ⛔ Không mở được tệp.
+    /// Không mở được tệp.
     OpenFailed {
-        /// Lỗi thô, chỉ để chẩn đoán. ⛔ Không đi lên giao diện.
+        /// Lỗi thô, chỉ để chẩn đoán. Không đi lên giao diện.
         detail: String,
     },
 
-    /// Mở được, nhưng ⛔ không đọc nổi `dict_meta` — tệp ⛔ không mang lược đồ từ điển.
+    /// Mở được, nhưng không đọc nổi `dict_meta` — tệp không mang lược đồ từ điển.
     MetaUnreadable {
         /// Lỗi thô, chỉ để chẩn đoán.
         detail: String,
@@ -83,11 +83,11 @@ pub enum SkipReason {
 
     /// `dict_meta` có, nhưng thiếu một hàng bắt buộc (`layer` hoặc `schema_version`).
     MetaRowMissing {
-        /// Khoá vắng mặt — **dữ liệu**, ⛔ không phải một câu.
+        /// Khoá vắng mặt — **dữ liệu**, không phải một câu.
         key: String,
     },
 
-    /// 🔴 Tệp **mới hơn** ứng dụng. ⛔ Không đoán, ⛔ không di trú — từ chối có tên.
+    /// 🔴 Tệp **mới hơn** ứng dụng. Không đoán, không di trú — từ chối có tên.
     SchemaTooNew {
         /// `PRAGMA user_version` đọc được từ tệp.
         file_version: u32,
@@ -98,16 +98,16 @@ pub enum SkipReason {
     /// 🔴 **Hai chỗ ghi phiên bản NÓI KHÁC NHAU.**
     ///
     /// Story 1.9 §Quyết định #2 ghi cả `PRAGMA user_version` lẫn
-    /// `dict_meta('schema_version')` **có chủ ý**. Hai chỗ đó lệch nghĩa là tệp ⛔ **không**
+    /// `dict_meta('schema_version')` **có chủ ý**. Hai chỗ đó lệch nghĩa là tệp **không**
     /// do `tools/dict-build` viết ra — và tin nửa nào cũng là **đoán**.
     SchemaVersionDisagrees {
         /// `PRAGMA user_version`.
         user_version: u32,
-        /// `dict_meta('schema_version')` — nguyên văn, kể cả khi ⛔ không phải một số.
+        /// `dict_meta('schema_version')` — nguyên văn, kể cả khi không phải một số.
         meta_version: String,
     },
 
-    /// ⛔ Không đọc nổi `dict_source` của tệp.
+    /// Không đọc nổi `dict_source` của tệp.
     SourcesUnreadable {
         /// Lỗi thô, chỉ để chẩn đoán.
         detail: String,
@@ -121,7 +121,7 @@ pub enum SkipReason {
 
     /// 🔴 Hai lớp khai **cùng một `dict_source.code`** — một **lỗi dữ liệu có tên**.
     ///
-    /// ⛔ **Không** im lặng gộp hai tệp vào một nhóm: khoá gom là `code`, nên hai tệp cùng
+    /// **Không** im lặng gộp hai tệp vào một nhóm: khoá gom là `code`, nên hai tệp cùng
     /// `code` làm một nhóm mang nghĩa của hai nguồn khác nhau — đúng thứ AD-19 cấm, xảy ra
     /// ở tầng dữ liệu thay vì ở tầng mã.
     DuplicateSourceCode {
@@ -132,7 +132,7 @@ pub enum SkipReason {
     },
 
     /// 🔴 **CHÍNH tệp này** khai hai hàng `dict_source` cùng một `code` — lỗi dữ liệu ngay
-    /// trong nó, ⛔ không phải một va chạm giữa hai tệp.
+    /// trong nó, không phải một va chạm giữa hai tệp.
     ///
     /// `source()` chỉ có thể trả **một** [`SourceInfo`] cho một `code`; im lặng giữ hàng
     /// đầu và bỏ hàng sau là giấu một dữ kiện thay vì báo nó — đối xứng với
@@ -143,7 +143,7 @@ pub enum SkipReason {
         code: String,
     },
 
-    /// Lớp nạp được nhưng **một lượt tra trên nó** hỏng. ⛔ Không làm hỏng cả lượt tra.
+    /// Lớp nạp được nhưng **một lượt tra trên nó** hỏng. Không làm hỏng cả lượt tra.
     LookupFailed {
         /// Lỗi thô, chỉ để chẩn đoán.
         detail: String,
@@ -152,7 +152,7 @@ pub enum SkipReason {
 
 impl fmt::Display for SkipReason {
     /// ⚠️ **KHÔNG DẤU** — xem doc-comment module. Đây là chuỗi chẩn đoán cho người đang
-    /// đọc stderr, ⛔ không phải một câu cho người dùng (câu là việc của `core/i18n`).
+    /// đọc stderr, không phải một câu cho người dùng (câu là việc của `core/i18n`).
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SkipReason::OpenFailed { detail } => write!(f, "cannot open the file: {detail}"),
@@ -199,13 +199,13 @@ impl fmt::Display for SkipReason {
 }
 
 impl SkipReason {
-    /// 🔴 **Quyết định #2 (Story 1.17)** — mã máy đi qua IPC, ⛔ **thay cho** chính kiểu này.
+    /// 🔴 **Quyết định #2 (Story 1.17)** — mã máy đi qua IPC, không **thay cho** chính kiểu này.
     ///
-    /// `SkipReason` ⛔ **không bao giờ** `derive(Serialize)` — bốn biến thể của nó mang
+    /// `SkipReason` **không bao giờ** `derive(Serialize)` — bốn biến thể của nó mang
     /// `detail: String` là **lỗi thô của SQLite**, và đi qua dây nguyên vẹn là vi phạm
-    /// AD-21 ở đúng chỗ khó thấy nhất (`check-i18n.mjs` Kiểm A quét **chuỗi trong mã**, ⛔
+    /// AD-21 ở đúng chỗ khó thấy nhất (`check-i18n.mjs` Kiểm A quét **chuỗi trong mã**, không
     /// không quét **dữ liệu chạy qua dây**). Panel Lookup chỉ cần biết *"một phần từ điển
-    /// ⛔ không trả lời"* và mã máy này để chẩn đoán — ⛔ cần biết tệp nào hỏng thế nào.
+    /// không trả lời"* và mã máy này để chẩn đoán — không cần biết tệp nào hỏng thế nào.
     pub(crate) fn wire_code(&self) -> &'static str {
         match self {
             SkipReason::OpenFailed { .. } => "open_failed",
@@ -222,11 +222,11 @@ impl SkipReason {
     }
 }
 
-/// Một lớp ⛔ không nạp được — **đường dẫn + lý do**, cả hai là dữ liệu.
+/// Một lớp không nạp được — **đường dẫn + lý do**, cả hai là dữ liệu.
 ///
-/// ⚠️ **⛔ Không** `derive(Serialize)` — xem [`SkipReason::wire_code`]. `GroupedLookup`
+/// ⚠️ **Không** `derive(Serialize)` — xem [`SkipReason::wire_code`]. `GroupedLookup`
 /// (Story 1.17) tự tay chuyển `Vec<SkippedLayer>` thành `Vec<&str>` mã máy khi đi qua dây,
-/// ⛔ không serialize kiểu này thẳng.
+/// không serialize kiểu này thẳng.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SkippedLayer {
     /// Tệp nào.
@@ -237,7 +237,7 @@ pub struct SkippedLayer {
 
 /// **Một tệp `.db`**, mở chỉ đọc, đã biết danh tính lớp và các nguồn của mình.
 ///
-/// 🔴 Đơn vị là **một tệp**, ⛔ không bao giờ một **ngôn ngữ** — xem
+/// 🔴 Đơn vị là **một tệp**, không bao giờ một **ngôn ngữ** — xem
 /// [`crate::ports::dict_source`].
 pub struct DictLayer {
     db: ReadOnlyDb,
@@ -248,7 +248,7 @@ pub struct DictLayer {
 impl DictLayer {
     /// Mở một tệp và đọc **danh tính của nó từ chính nó**.
     ///
-    /// Thứ tự bốn phép kiểm ⛔ không tuỳ tiện: phiên bản trước danh tính, vì một tệp của
+    /// Thứ tự bốn phép kiểm không tuỳ tiện: phiên bản trước danh tính, vì một tệp của
     /// một lược đồ **chưa biết** thì mọi thứ đọc được từ nó đều là phỏng đoán.
     fn open(path: PathBuf) -> Result<DictLayer, SkipReason> {
         let db = ReadOnlyDb::open(path, StoreKind::Dict).map_err(|err| SkipReason::OpenFailed {
@@ -258,7 +258,7 @@ impl DictLayer {
         let meta = db
             .read(|conn| {
                 // ⚠️ `PRAGMA user_version` trả một số **có dấu** ở tầng SQLite; đọc nó vào
-                // `i64` rồi thu hẹp là cách duy nhất ⛔ không im lặng đổi nghĩa một giá trị
+                // `i64` rồi thu hẹp là cách duy nhất không im lặng đổi nghĩa một giá trị
                 // âm thành một phiên bản hợp lệ.
                 let user_version: i64 =
                     conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
@@ -274,8 +274,8 @@ impl DictLayer {
 
         let (raw_version, layer, schema_version) = meta;
 
-        // Một giá trị âm hay lớn hơn `u32` ⛔ không phải một phiên bản ứng dụng này biết;
-        // nó đi cùng đường với *"quá mới"*, ⛔ không đi đường *"chắc là 1"*.
+        // Một giá trị âm hay lớn hơn `u32` không phải một phiên bản ứng dụng này biết;
+        // nó đi cùng đường với *"quá mới"*, không đi đường *"chắc là 1"*.
         let file_version = u32::try_from(raw_version).unwrap_or(u32::MAX);
         if file_version > SUPPORTED_SCHEMA_VERSION {
             return Err(SkipReason::SchemaTooNew {
@@ -362,13 +362,13 @@ impl DictionarySource for DictLayer {
         branch: QueryBranch,
         limit: usize,
     ) -> Result<LookupResult, StoreError> {
-        // 🔴 Đi qua `super::lookup_with_branch`, ⛔ **KHÔNG** gọi thẳng `query::char_idx` /
+        // 🔴 Đi qua `super::lookup_with_branch`, **KHÔNG** gọi thẳng `query::char_idx` /
         // `query::exact` / `query::fts_trigram`: điều kiện `≤ 2 ký tự` của `char_idx()` chỉ
         // là một `debug_assert!` — **vô tác dụng ở bản release**, nơi nó âm thầm cắt truy
         // vấn còn hai ký tự đầu thay vì báo lỗi. `deferred-work.md` nêu đích danh *"tầng
         // gom Story 1.13"* là ca sẽ cắn.
         //
-        // 🔴 `branch` **nhận từ chỗ gọi**, ⛔ **không** tính lại qua `pick_branch` ở đây:
+        // 🔴 `branch` **nhận từ chỗ gọi**, **không** tính lại qua `pick_branch` ở đây:
         // tầng gom ([`super::lookup_grouped`]) tính nó **ĐÚNG MỘT LẦN** cho cả lượt tra và
         // truyền cùng giá trị xuống mọi lớp (Task 4.1) — hai tệp tính riêng thì chỉ còn
         // cách khớp nhau bằng một `debug_assert_eq!` vô tác dụng ở bản release. `limit`
@@ -387,7 +387,7 @@ impl DictionarySource for DictLayer {
         route: QueryRoute,
         branch: QueryBranch,
     ) -> Result<Vec<(String, i64)>, StoreError> {
-        // Cùng doctrine `lookup`: `route`/`branch` nhận từ chỗ gọi, ⛔ tính lại ở đây —
+        // Cùng doctrine `lookup`: `route`/`branch` nhận từ chỗ gọi, không tính lại ở đây —
         // một phép đếm trên một nhánh khác lượt tra vừa chạy là phép đếm của câu hỏi khác.
         self.db
             .read(|conn| super::query::count_by_source(conn, query, route, branch))
@@ -410,7 +410,7 @@ impl fmt::Debug for DictLayer {
 
 /// Tập lớp của **một thư mục** — mọi tệp `*.db` trong đó, cộng danh sách bị bỏ qua.
 ///
-/// 🔴 `Send + Sync` là điều kiện để nó vào `app.manage(…)` mà chỗ gọi ⛔ không phải bọc
+/// 🔴 `Send + Sync` là điều kiện để nó vào `app.manage(…)` mà chỗ gọi không phải bọc
 /// thêm `Mutex` — cùng lý do với [`ReadOnlyDb`] và `Store`.
 #[derive(Debug)]
 pub struct DictLayers {
@@ -421,13 +421,13 @@ pub struct DictLayers {
 impl DictLayers {
     /// Quét `dir`, thử mở **mọi** tệp `*.db`, trả về tập lớp đã sắp tất định.
     ///
-    /// 🔴 **⛔ Không bao giờ trả lỗi.** Thư mục ⛔ không tồn tại, hoặc rỗng ⇒ **tập lớp
-    /// RỖNG**. Đó ⛔ không phải một sự khoan dung: `src-tauri/resources/dict/` hôm nay rỗng
-    /// trong git (AD-25) và `bundle.resources` chưa mang nó (Story 10.1), nên *"⛔ không có
+    /// 🔴 **Không bao giờ trả lỗi.** Thư mục không tồn tại, hoặc rỗng ⇒ **tập lớp
+    /// RỖNG**. Đó không phải một sự khoan dung: `src-tauri/resources/dict/` hôm nay rỗng
+    /// trong git (AD-25) và `bundle.resources` chưa mang nó (Story 10.1), nên *"không có
     /// lớp nào"* là một trạng thái **bình thường có tên** — và nó là chính hình dạng FR36
     /// đòi hỏi.
     ///
-    /// ⚠️ `dir` **nhận từ chỗ gọi**; module này ⛔ không tự phân giải `$RESOURCE` — đường đó
+    /// ⚠️ `dir` **nhận từ chỗ gọi**; module này không tự phân giải `$RESOURCE` — đường đó
     /// sống ở `lib.rs`, đúng khuôn `$APPDATA` của `Store`.
     pub fn open(dir: &Path) -> DictLayers {
         let mut paths: Vec<PathBuf> = match fs::read_dir(dir) {
@@ -435,9 +435,9 @@ impl DictLayers {
                 .filter_map(|entry| match entry {
                     Ok(entry) => Some(entry.path()),
                     Err(err) => {
-                        // Một `DirEntry` hỏng giữa chừng ⛔ không được biến mất im lặng —
+                        // Một `DirEntry` hỏng giữa chừng không được biến mất im lặng —
                         // nó khác hẳn *"thư mục rỗng"*, dù kết quả trả về vẫn phải là tập
-                        // lớp rỗng-có-thể, ⛔ không phải một lỗi hay panic (AC3).
+                        // lớp rỗng-có-thể, không phải một lỗi hay panic (AC3).
                         eprintln!(
                             "dict[layers] cannot read a directory entry under {}: {err}",
                             dir.display()
@@ -446,7 +446,7 @@ impl DictLayers {
                     }
                 })
                 .filter(|path| {
-                    // ⚠️ So đuôi **⛔ không phân biệt hoa/thường**: Windows coi `X.DB` và
+                    // ⚠️ So đuôi **không phân biệt hoa/thường**: Windows coi `X.DB` và
                     // `x.db` là một tệp, và một phép so phân biệt hoa/thường ở đây làm cùng
                     // một thư mục cho hai tập lớp trên hai nền tảng (NFR14).
                     path.extension()
@@ -454,8 +454,8 @@ impl DictLayers {
                         .is_some_and(|ext| ext.eq_ignore_ascii_case("db"))
                 })
                 .collect(),
-            // Thư mục ⛔ không tồn tại là trạng thái BÌNH THƯỜNG có tên (AC3) — im lặng.
-            // Mọi lỗi KHÁC (quyền truy cập, …) ⛔ không được trông giống hệt nó: chúng đi
+            // Thư mục không tồn tại là trạng thái BÌNH THƯỜNG có tên (AC3) — im lặng.
+            // Mọi lỗi KHÁC (quyền truy cập, …) không được trông giống hệt nó: chúng đi
             // cùng một tập lớp rỗng, nhưng kèm một dòng chẩn đoán.
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => Vec::new(),
             Err(err) => {
@@ -478,7 +478,7 @@ impl DictLayers {
             }
         }
 
-        // 🔴 Thứ tự lớp là một **GIÁ TRỊ quan sát được**, ⛔ không phải thứ tự thư mục:
+        // 🔴 Thứ tự lớp là một **GIÁ TRỊ quan sát được**, không phải thứ tự thư mục:
         // `base` trước, rồi mã lớp tăng dần, rồi đường dẫn để hai lớp cùng mã vẫn tất định.
         opened.sort_by(|a, b| order_key(a).cmp(&order_key(b)));
 
@@ -489,8 +489,8 @@ impl DictLayers {
                     path: layer.path().to_path_buf(),
                     reason,
                 });
-                // ⚠️ Đóng ngay: một lớp bị từ chối ⛔ không được giữ một tệp mở, vì trên
-                // Windows một tệp còn mở là một bản cập nhật ⛔ không thay được tệp đó
+                // ⚠️ Đóng ngay: một lớp bị từ chối không được giữ một tệp mở, vì trên
+                // Windows một tệp còn mở là một bản cập nhật không thay được tệp đó
                 // (NFR14, FR112).
                 layer.close();
                 continue;
@@ -499,18 +499,18 @@ impl DictLayers {
         }
 
         // Danh sách bỏ qua sắp theo đường dẫn: một danh sách chẩn đoán mà thứ tự đổi giữa
-        // hai lượt chạy là một danh sách ⛔ không so sánh được trong test.
+        // hai lượt chạy là một danh sách không so sánh được trong test.
         skipped.sort_by(|a, b| a.path.cmp(&b.path));
 
         DictLayers { layers, skipped }
     }
 
-    /// Tập lớp **rỗng theo tên**, ⛔ không quét gì cả.
+    /// Tập lớp **rỗng theo tên**, không quét gì cả.
     ///
-    /// 🔴 Dùng khi chỗ gọi **đã biết chắc** ⛔ không có gì để quét — ví dụ `$RESOURCE` của
+    /// 🔴 Dùng khi chỗ gọi **đã biết chắc** không có gì để quét — ví dụ `$RESOURCE` của
     /// chính Tauri không phân giải được. Cùng bất biến với [`Self::open`] trên một thư mục
-    /// ⛔ không tồn tại: *"⛔ không có lớp nào"* luôn phải là một trạng thái **quản lý
-    /// được**, ⛔ không phải một `app.manage` bị bỏ qua.
+    /// không tồn tại: *"không có lớp nào"* luôn phải là một trạng thái **quản lý
+    /// được**, không phải một `app.manage` bị bỏ qua.
     pub fn empty() -> DictLayers {
         DictLayers {
             layers: Vec::new(),
@@ -523,7 +523,7 @@ impl DictLayers {
         &self.layers
     }
 
-    /// Các lớp ⛔ không nạp được, mỗi mục mang **đường dẫn + lý do**.
+    /// Các lớp không nạp được, mỗi mục mang **đường dẫn + lý do**.
     pub fn skipped(&self) -> &[SkippedLayer] {
         &self.skipped
     }
@@ -532,8 +532,8 @@ impl DictLayers {
     ///
     /// 🔴 Đây là đường **pha hai** (§Quyết định #1B): [`crate::core::dict::SourceGroup`]
     /// mang `layer`, nên chỗ gọi cầm một nhóm là cầm đủ thứ để hỏi tiếp nghĩa của nó. Trả
-    /// [`Option`] chứ ⛔ không một danh sách rỗng: *"lớp đó ⛔ không có ở đây"* và *"lớp đó
-    /// ⛔ không có nghĩa nào"* là hai câu khác nhau.
+    /// [`Option`] chứ không một danh sách rỗng: *"lớp đó không có ở đây"* và *"lớp đó
+    /// không có nghĩa nào"* là hai câu khác nhau.
     pub fn layer(&self, layer: &str) -> Option<&DictLayer> {
         self.layers.iter().find(|found| found.layer == layer)
     }
@@ -541,7 +541,7 @@ impl DictLayers {
     /// Đóng **mọi** lớp. Idempotent.
     ///
     /// 🔴 Gọi ở `RunEvent::Exit` — NFR14 và FR112: một tệp từ điển còn mở trên Windows là
-    /// một bản cập nhật ⛔ không thay được tệp đó, và chính sách gỡ bỏ dữ liệu đứng trên
+    /// một bản cập nhật không thay được tệp đó, và chính sách gỡ bỏ dữ liệu đứng trên
     /// đúng khả năng xoá được tệp.
     pub fn close(&self) {
         for layer in &self.layers {
@@ -552,8 +552,8 @@ impl DictLayers {
 
 /// Một hàng của `dict_meta`, hoặc [`None`] khi khoá vắng mặt.
 ///
-/// 🔴 *"Khoá vắng mặt"* ⛔ **không** phải một lỗi đọc, và trộn hai thứ đó là làm một tệp
-/// thiếu hàng `layer` đọc giống hệt một tệp ⛔ không phải database. Hai ca đó có hai lý do
+/// 🔴 *"Khoá vắng mặt"* **không** phải một lỗi đọc, và trộn hai thứ đó là làm một tệp
+/// thiếu hàng `layer` đọc giống hệt một tệp không phải database. Hai ca đó có hai lý do
 /// bỏ qua riêng ([`SkipReason::MetaRowMissing`] · [`SkipReason::MetaUnreadable`]) chính vì
 /// người đọc chẩn đoán phải phân biệt được chúng.
 fn meta_row(conn: ReadHandle<'_>, key: &str) -> SqlResult<Option<String>> {
@@ -571,7 +571,7 @@ fn order_key(layer: &DictLayer) -> (bool, &str, &Path) {
     (layer.layer != BASE_LAYER, &layer.layer, layer.path())
 }
 
-/// Lớp mới có va vào một lớp đã nhận ⛔ không — theo **danh tính** hoặc theo **mã nguồn**.
+/// Lớp mới có va vào một lớp đã nhận không — theo **danh tính** hoặc theo **mã nguồn**.
 fn conflict_with(accepted: &[DictLayer], candidate: &DictLayer) -> Option<SkipReason> {
     if accepted.iter().any(|layer| layer.layer == candidate.layer) {
         return Some(SkipReason::DuplicateLayer {

@@ -161,7 +161,7 @@ _Source: [Using Ollama with Rust 2026](https://rustify.rs/articles/rust-ollama-l
 
 | Phương án | Đánh giá |
 |---|---|
-| **`tauri-plugin-stronghold`** | ⛔ **Không còn được khuyến nghị, sẽ bị loại bỏ ở Tauri v3.** Phần lớn hướng dẫn cũ vẫn chỉ dùng cái này 🟢 |
+| **`tauri-plugin-stronghold`** | **Không còn được khuyến nghị, sẽ bị loại bỏ ở Tauri v3.** Phần lớn hướng dẫn cũ vẫn chỉ dùng cái này 🟢 |
 | **`tauri-plugin-keyring`** | ✅ **Khuyến nghị.** Truy cập keychain/keyring gốc của hệ điều hành (macOS Keychain, Windows Credential Manager) để lưu API key an toàn 🟢 |
 | **`tauri-plugin-store`** | Lưu key-value thường — ❌ **không dùng cho bí mật** 🟢 |
 
@@ -273,7 +273,7 @@ Yêu cầu từ brief: xuất `.docx` **dạng bảng hai cột** (gốc | dịc
 |---|---|---|
 | **`docx-rs`** | Crate DOCX phổ biến nhất — **1 triệu+ lượt tải, 500+ sao**, đọc và ghi | **MIT** ✅ 🟢 |
 | **`rdocx`** | Mới hơn, API cấp cao lấy cảm hứng từ python-docx: đoạn văn, **bảng**, ảnh, header/footer, style, list. Có sẵn layout engine render ra PDF/HTML/Markdown | 🔴 Cần xác nhận |
-| **`ooxml-rs`** | ⛔ Hiện **chỉ hỗ trợ XLSX** — không dùng được cho Word | — |
+| **`ooxml-rs`** | không Hiện **chỉ hỗ trợ XLSX** — không dùng được cho Word | — |
 
 > **Khuyến nghị:** `docx-rs` cho bản đầu vì độ trưởng thành và giấy phép MIT đã xác nhận. `rdocx` có API bảng thân thiện hơn cho yêu cầu hai cột — đáng đánh giá, nhưng phải xác nhận giấy phép trước.
 >
@@ -638,7 +638,7 @@ Sáu mục tiêu nghiên cứu đều có câu trả lời. Quan trọng hơn, n
 - 🟢 **"AI mở" là phần dễ nhất, không phải khó nhất.** Ollama và LM Studio đều phơi API tương thích OpenAI; BYOK và local LLM dùng chung một đường code.
 - 🔴 **Mọi nguồn từ điển Trung–Việt đều có khiếm khuyết riêng.** CVDICT dịch máy bằng GPT-4o; `zhm2vi` trộn nghĩa hiện đại với Hán-Nôm không phân biệt; VietPhrase không rõ xuất xứ nhưng đã qua kiểm chứng thực tế.
 - 🟢 **Structural Index Mapping không phải bài toán mới** — đó là *segment alignment*, đã có lời giải và mẫu UX chuẩn trong ngành CAT tool.
-- ⛔ **Stronghold đã bị khai tử.** Phần lớn hướng dẫn Tauri vẫn chỉ dùng nó để lưu API key; phải dùng `tauri-plugin-keyring`.
+- **Stronghold đã bị khai tử.** Phần lớn hướng dẫn Tauri vẫn chỉ dùng nó để lưu API key; phải dùng `tauri-plugin-keyring`.
 - 🟢 **Bundle từ điển chỉ vài chục MB**, không cần cơ chế tải về sau khi cài.
 
 **Năm khuyến nghị hành động:**

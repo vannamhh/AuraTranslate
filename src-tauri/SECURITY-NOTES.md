@@ -13,7 +13,7 @@ AD-15 cấm **origin từ xa** — CDN, font ngoài, ảnh ngoài. Asset protoco
 cục bộ** cho tài nguyên đã nằm trong bản cài; không có một byte nào ra mạng. Story 1.1 đã
 nạp năm tệp font qua đúng đường này trên **bản build release** và kiểm chứng được.
 
-⛔ **Đừng gỡ `asset:` khỏi `font-src` / `img-src` để "siết CSP"** — làm vậy là làm hỏng
+**Đừng gỡ `asset:` khỏi `font-src` / `img-src` để "siết CSP"** — làm vậy là làm hỏng
 đường nạp font mà Story 1.4 sẽ dựng trên đó.
 
 ⚠️ **`http://asset.localhost` là dạng của Windows.** Bỏ nó đi thì macOS vẫn chạy và
@@ -49,9 +49,9 @@ AD-23 khai ba vùng nhưng **hai cơ chế cưỡng chế khác nhau**:
 > `rusqlite::Connection::open` thì **không** đi qua `assetProtocol.scope` — scope chỉ canh
 > webview. Mục `$RESOURCE/dict/**` trong `scope` là dự phòng cho một nhu cầu đọc từ
 > frontend mà **hôm nay chưa có**; nó không cưỡng chế được gì đối với đường Rust.
-> Đây đúng loại tuyên bố mà đoạn ⛔ cuối mục này cấm — và nó đã lọt vào một lần rồi.
+> Đây đúng loại tuyên bố mà đoạn CẤM cuối mục này nói tới — và nó đã lọt vào một lần rồi.
 
-⛔ **Không đưa `$APPDATA` vào `assetProtocol.scope`.** Frontend không có việc gì với
+**Không đưa `$APPDATA` vào `assetProtocol.scope`.** Frontend không có việc gì với
 `global.db` hay `library-index.db` (AD-1, AD-11).
 
 **Ba điều phải hiểu đúng, nếu không sẽ báo cáo sai:**
@@ -65,7 +65,7 @@ AD-23 khai ba vùng nhưng **hai cơ chế cưỡng chế khác nhau**:
    *"chỉ ba vùng này chạm tới"* đúng, nhưng nó đúng nhờ **vắng mặt bề mặt** (không plugin
    `fs`, không `dialog`, không `sql`), **không** nhờ một dòng khai báo.
 
-⛔ **Đừng viết vào báo cáo rằng "framework đã cưỡng chế mọi truy cập file".** Viết đúng
+**Đừng viết vào báo cáo rằng "framework đã cưỡng chế mọi truy cập file".** Viết đúng
 ba dòng của bảng trên. Tiền lệ AD-41: *giấu chỗ yếu mới là chỗ nguy hiểm*.
 
 ## Vì sao không có plugin `fs`

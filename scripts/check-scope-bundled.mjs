@@ -12,13 +12,13 @@
  * webview vẫn nạp HTML từ `frontendDist` qua asset protocol ⇒ Tauri **có** chèn CSP.
  * Đó đúng là tổ hợp mà `tauri dev` không bao giờ chạm tới.
  *
- * ⛔ Và đó cũng là **giới hạn** của phép kiểm này, ghi thẳng ra đây để không ai đọc quá:
+ * Và đó cũng là **giới hạn** của phép kiểm này, ghi thẳng ra đây để không ai đọc quá:
  * nó chứng minh **tổ hợp CSP + asset protocol**. Nó **KHÔNG** chứng minh hành vi của
  * nhị phân profile **release**. Hai đường không được nhập làm một —
- *   ⛔ đừng bật `debug-assertions = true` trong `[profile.release]` để "làm cho đúng
+ *   đừng bật `debug-assertions = true` trong `[profile.release]` để "làm cho đúng
  *      hơn": profile đó đang được cố ý đóng băng để số đo NFR6 của Story 1.1 còn so
  *      sánh được (`Cargo.toml:56-61`), và đổi nó là làm hỏng chính AC6 của story này;
- *   ⛔ đừng gỡ `#[cfg(debug_assertions)]` khỏi móc self-check — Story 1.2 đặt nó ở đó
+ *   đừng gỡ `#[cfg(debug_assertions)]` khỏi móc self-check — Story 1.2 đặt nó ở đó
  *      có lý do đã ghi thành chữ: *"một móc như vậy không có việc gì trong bản phát hành"*.
  *
  * Vì sao là Node chứ không phải bash: `npm run` trên Windows chạy qua `cmd.exe` — không
@@ -185,7 +185,7 @@ child.on('close', (code, signal) => {
   if (timedOut) {
     console.log(`\x1b[31mHết ${TIMEOUT_MS / 1000}s mà self-check chưa phát VERDICT — đã giết tiến trình.\x1b[0m`)
     console.log('Treo, không phải đạt. Nhiều khả năng webview không mở được trên máy này.')
-    console.log('⛔ Theo AC8: ghi rõ lý do và trả lại cho Ice. Đừng đánh dấu đạt, đừng lặng lẽ bỏ.')
+    console.log('không Theo AC8: ghi rõ lý do và trả lại cho Ice. Đừng đánh dấu đạt, đừng lặng lẽ bỏ.')
     process.exit(1)
   }
 
@@ -223,8 +223,8 @@ child.on('close', (code, signal) => {
     console.log('⚠️ Đọc đúng phạm vi của kết quả này:')
     console.log('   ✅ CHỨNG MINH: tổ hợp CSP + asset protocol — tài nguyên trong scope nạp được')
     console.log('      dưới CSP, qua `font-src` (đúng đường Story 1.4 sẽ dùng).')
-    console.log('   ⛔ KHÔNG chứng minh: hành vi của nhị phân profile RELEASE.')
-    console.log('   ⛔ KHÔNG chứng minh: chiều âm dưới CSP — xem dòng [----] ở trên và')
+    console.log('   KHÔNG chứng minh: hành vi của nhị phân profile RELEASE.')
+    console.log('   KHÔNG chứng minh: chiều âm dưới CSP — xem dòng [----] ở trên và')
     console.log('      doc-comment của src/selftest/scopeCheck.ts.')
     process.exit(0)
   }

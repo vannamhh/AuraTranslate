@@ -90,7 +90,7 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
 **When** ứng dụng chạy ở chế độ **không phải dev** — webview nạp HTML do chính Tauri phục vụ, nên CSP **có** hiệu lực
 **Then** cả hai chiều của Kiểm 3 vẫn đúng: tài nguyên **trong** `$RESOURCE/fonts/**` nạp được, `/etc/hosts` · `C:\Windows\win.ini` bị **từ chối**
 **And** kết quả này lấy được **trên cả hai nền tảng**, trong chính pipeline này
-**And** ⛔ nếu không chạy được trong CI thì **ghi rõ lý do và trả lại cho Ice**, không đánh dấu đạt và không lặng lẽ bỏ
+**And** không nếu không chạy được trong CI thì **ghi rõ lý do và trả lại cho Ice**, không đánh dấu đạt và không lặng lẽ bỏ
 
 ---
 
@@ -100,15 +100,15 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
   - [x] Đọc §Bốn thứ sẽ hỏng im lặng. **Ba trong bốn cái đều cho ra một lượt CI XANH với số vô nghĩa** — đó là thứ đắt nhất, đắt hơn một lượt CI đỏ.
   - [x] Đọc §NFR6 trên Windows đã vỡ trước khi đo. Story này là nơi con số đó lộ ra; **cách phản ứng đúng là báo cáo, không phải sửa cấu hình cho số đẹp lại**.
   - [x] Đọc §Ngân sách CI. Repo là **private** (API trả `Not Found` cho người không đăng nhập, 2026-08-03) ⇒ macOS tính **hệ số ×10**. Đây là ràng buộc thật lên AC7.
-  - [x] ⛔ **Không** chạm vào `src/`, `src-tauri/src/`, `src-tauri/tauri.conf.json` trừ đúng hai chỗ §Ranh giới phạm vi cho phép.
+  - [x] **Không** chạm vào `src/`, `src-tauri/src/`, `src-tauri/tauri.conf.json` trừ đúng hai chỗ §Ranh giới phạm vi cho phép.
 
 - [x] **Task 2 — Một tệp workflow, và chỉ một** (AC: 1, 2, 4)
-  - [x] Tạo **`.github/workflows/ci.yml`**. ⛔ **Không tạo tệp workflow thứ hai** ở story này và ghi chú tường minh trong tệp rằng AC4 cấm điều đó.
+  - [x] Tạo **`.github/workflows/ci.yml`**. **Không tạo tệp workflow thứ hai** ở story này và ghi chú tường minh trong tệp rằng AC4 cấm điều đó.
   - [x] Trigger: `on: push` (mọi nhánh) **và** `on: pull_request`. ⚠️ Nhánh mặc định của repo là **`master`**, không phải `main` — đừng viết cứng `branches: [main]`, CI sẽ không bao giờ chạy và **không lỗi nào được ném**.
-  - [x] ⛔ **Không** dùng `paths`/`paths-ignore` để bỏ qua commit tài liệu. AC1 nói *"một commit bất kỳ"*; lọc đường dẫn là chỗ một thay đổi thật lọt qua vì nó nằm chung commit với một tệp `.md`.
+  - [x] **Không** dùng `paths`/`paths-ignore` để bỏ qua commit tài liệu. AC1 nói *"một commit bất kỳ"*; lọc đường dẫn là chỗ một thay đổi thật lọt qua vì nó nằm chung commit với một tệp `.md`.
   - [x] `concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }` — huỷ lượt cũ khi push liên tiếp. Đây là đòn bẩy rẻ nhất cho AC7 và cho §Ngân sách CI.
   - [x] `permissions: { contents: read }` — tối thiểu. Story này không ghi gì lên repo (AC5: không phát hành).
-  - [x] ⛔ **Không** dùng `tauri-apps/tauri-action`. Nó tồn tại để tạo GitHub Release — đúng thứ AC5 nói **không thuộc story này**; FR107 giữ nguyên phạm vi ở Story 10.1.
+  - [x] **Không** dùng `tauri-apps/tauri-action`. Nó tồn tại để tạo GitHub Release — đúng thứ AC5 nói **không thuộc story này**; FR107 giữ nguyên phạm vi ở Story 10.1.
 
 - [x] **Task 3 — Job `check`: ma trận hai nền tảng, THỨ TỰ BƯỚC là bắt buộc** (AC: 1, 2, 3)
   - [x] Một job duy nhất, `strategy.matrix.os` hai giá trị → GitHub hiện **hai check run riêng biệt**, đúng AC1 (*"tách bạch, không gộp"*).
@@ -118,14 +118,14 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
   - [x] Chuỗi bước: `checkout` → `setup-node` (cache npm) → `rust-toolchain` (ghim) → `rust-cache` → `npm ci` → `npm run check:deps` → `npm run build` → `cargo test --locked --manifest-path src-tauri/Cargo.toml`.
   - [x] Phiên bản action đã kiểm chứng 2026-08-03 ở §Phiên bản action. Dùng đúng bảng đó; nếu một major mới gãy thì **tụt một major và ghi lý do**, đừng thả trôi.
   - [x] `Swatinem/rust-cache@v2` — **bắt buộc**, không phải tối ưu. Không có nó thì `aws-lc-sys` + `libsqlite3-sys` (biên dịch SQLite từ nguồn C) + `zstd-sys` biên dịch lại mỗi lượt và AC7 chết ngay lượt thứ hai.
-  - [x] ⚠️ `cargo test` **không** cần `--all-features`; và ⛔ **không** thêm `--release` cho bước test — profile release có `lto = true` + `codegen-units = 1`, biên dịch lâu gấp nhiều lần mà không kiểm thêm được gì.
+  - [x] ⚠️ `cargo test` **không** cần `--all-features`; và **không** thêm `--release` cho bước test — profile release có `lto = true` + `codegen-units = 1`, biên dịch lâu gấp nhiều lần mà không kiểm thêm được gì.
 
 - [ ] **Task 4 — Bản build ứng dụng thật trên hai nền tảng** (AC: 1, 3)
   - [x] macOS: `npx tauri build --bundles dmg`. Windows: `npx tauri build --bundles msi`.
   - [x] ⚠️ **Truyền `--bundles` tường minh, đừng để `tauri build` trần đọc `bundle.targets`.** `tauri.conf.json` đang khai `["dmg", "msi"]`; `tauri-cli` trên macOS **từ chối** giá trị `msi` (*"possible values: ios, app, dmg"* — đã đo ở Story 1.1). Bẫy #3 ở §Bốn thứ sẽ hỏng im lặng.
   - [x] `CI=true` cho mọi lệnh build. Trên macOS nó tránh bẫy #1 của Story 1.1 (`bundle_dmg.sh` chết ở bước AppleScript). GitHub Actions **đã đặt sẵn `CI=true`** — xác nhận lại, đừng giả định.
   - [x] Ghi **thời gian từng bước** và dung lượng artifact ra `$GITHUB_STEP_SUMMARY`. Story 1.1 đo `.dmg` **22.944.022 byte trên Intel**; runner nay là **arm64** nên số sẽ khác — ghi kèm kiến trúc để không ai đọc thành hồi quy.
-  - [x] ⛔ **Không** upload artifact lên GitHub Release, **không** sinh checksum SHA-256, **không** đụng `dict-manifest.toml` (AC5). Dùng `actions/upload-artifact` để giữ `.msi`/`.dmg` cho lượt rà soát thì được — đó là artifact của lượt chạy, không phải bản phát hành.
+  - [x] **Không** upload artifact lên GitHub Release, **không** sinh checksum SHA-256, **không** đụng `dict-manifest.toml` (AC5). Dùng `actions/upload-artifact` để giữ `.msi`/`.dmg` cho lượt rà soát thì được — đó là artifact của lượt chạy, không phải bản phát hành.
   - [ ] `cargo check --target x86_64-pc-windows-msvc` mà Story 1.2 **không chạy được trên máy Ice** nay đóng ở đây, dưới dạng `cargo test` + `tauri build` chạy **native** trên runner Windows. `windows-2025` có sẵn VS 2022 Build Tools nên rào biên dịch C của ba crate (`zstd-sys`, `libsqlite3-sys`, `aws-lc-sys`) **không còn**. Ghi xác nhận vào Completion Notes.
 
 - [ ] **Task 5 — Hai phép đo `.msi`, và chiều trừ đã ĐẢO** (AC: 6, 7)
@@ -142,7 +142,7 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
   - [x] Đọc dung lượng bằng `(Get-Item "src-tauri\target\release\bundle\msi\*.msi").Length` (PowerShell) hoặc tương đương trong Node. In **byte**, không in "MB làm tròn".
   - [ ] Đối chiếu chênh lệch với dải **16,0–20,3 MiB**. **Rơi NGOÀI dải mới là phát hiện đáng ghi** — khi đó xem lại mức nén CAB mà Tauri đặt cho WiX (`MSZIP` vs `LZX`), thứ chưa xác minh được từ macOS.
   - [x] Ghi kèm: chế độ WebView2 **đang dùng thật** (đọc từ `tauri.conf.json`, đừng chép từ tài liệu), `rustc --version`, `npx tauri --version`, nhãn ảnh runner. Tất cả vào `$GITHUB_STEP_SUMMARY` để đọc được mà không phải mở log.
-  - [x] ⛔ **Đừng đổi `webviewInstallMode` để số đẹp lại.** Ice đã chốt `offlineInstaller` ngày 2026-08-03 sau khi cân với lời hứa *"fully offline"*. Nhiệm vụ của story này là **đo và báo cáo**, xem Task 6.
+  - [x] **Đừng đổi `webviewInstallMode` để số đẹp lại.** Ice đã chốt `offlineInstaller` ngày 2026-08-03 sau khi cân với lời hứa *"fully offline"*. Nhiệm vụ của story này là **đo và báo cáo**, xem Task 6.
 
 - [ ] **Task 6 — NFR6: tách hai dòng, đối chiếu đúng một dòng** (AC: 6)
   - [x] Ghi **dung lượng tuyệt đối** của `.msi` bản có font, không chỉ chênh lệch.
@@ -152,9 +152,9 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
     | **Payload sản phẩm** | mã + font + *(sau Story 1.9)* dữ liệu từ điển | **Có** — 150–200 MB |
     | **WebView2 Runtime nhúng** | phần `offlineInstaller` nhúng vào, ≈ 127 MB | **Không** — chỉ ghi ra |
   - [x] **Tách bằng phép trừ, không bằng ước lượng, nếu làm được rẻ:** một bản `.msi` thứ ba dựng với `webviewInstallMode = downloadBootstrapper` (qua `--config`, giống hệt cách Task 5 dựng bản không font) trừ khỏi bản chính cho ra **đúng** phần runtime nhúng. Biên dịch đã dùng chung, bản thứ ba chỉ tốn khâu đóng gói. Nếu không làm được thì dùng ≈ 127 MB của tài liệu Tauri và **ghi rõ đó là số mượn từ tài liệu, không phải số đo** — đúng tinh thần cột ✓/⚠️ mà Story 1.2 đưa vào bảng Stack.
-  - [x] ⛔ **Không** sửa `webviewInstallMode` trong `tauri.conf.json`. Cấu hình trong repo giữ nguyên `offlineInstaller`; bản thứ ba chỉ tồn tại trong một lượt đo.
+  - [x] **Không** sửa `webviewInstallMode` trong `tauri.conf.json`. Cấu hình trong repo giữ nguyên `offlineInstaller`; bản thứ ba chỉ tồn tại trong một lượt đo.
   - [ ] Kết luận NFR6 vào Completion Notes theo khuôn Story 1.1: **payload** vượt trần ⇒ **thay đổi tầng PRD cần Ice quyết**. **Runtime nhúng vượt bao nhiêu cũng KHÔNG phải vi phạm NFR6** — Ice đã đưa nó ra ngoài ngân sách ngày 2026-08-03, và `prd.md` §7.2 + `epics.md` §NFR6 đã ghi thành chữ.
-  - [x] ⚠️ **Nhưng vẫn nói thẳng con số tổng.** Người dùng tải về thấy dung lượng tổng, không thấy hai dòng của ta. Nếu `.msi` tổng lớn tới mức thành rào cản tải xuống thì ghi thành mục riêng cuối Completion Notes để Ice cân ở **Story 10.2** — nơi đường quay lui còn mở: `downloadBootstrapper` (mất mệnh đề cài offline) hoặc **NSIS** thay `.msi` (chạm hàng Deferred *"chưa khai artifact phát hành chính thức cho Windows"*, `deferred-work.md:6`). ⛔ Không tự chọn.
+  - [x] ⚠️ **Nhưng vẫn nói thẳng con số tổng.** Người dùng tải về thấy dung lượng tổng, không thấy hai dòng của ta. Nếu `.msi` tổng lớn tới mức thành rào cản tải xuống thì ghi thành mục riêng cuối Completion Notes để Ice cân ở **Story 10.2** — nơi đường quay lui còn mở: `downloadBootstrapper` (mất mệnh đề cài offline) hoặc **NSIS** thay `.msi` (chạm hàng Deferred *"chưa khai artifact phát hành chính thức cho Windows"*, `deferred-work.md:6`). Không tự chọn.
 
 - [ ] **Task 7 — AC8: Kiểm 3 ngoài chế độ dev, trên cả hai nền tảng** (AC: 8)
   - [x] Hiểu đúng cái đã chặn Story 1.2 trước khi gõ: móc self-check phía Rust là **`#[cfg(debug_assertions)]`** (`src-tauri/src/lib.rs:31,37,55`) nên **không tồn tại trong bản release**; và mã self-check phía frontend chỉ vào bundle khi **build** với `VITE_SCOPE_SELFTEST=1` (`src/App.vue:14`). Bẫy #4 ở §Bốn thứ sẽ hỏng im lặng.
@@ -166,16 +166,16 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
     rồi chạy nhị phân với `AURA_SCOPE_SELFTEST=1` và đọc dòng `VERDICT:`.
   - [x] ⚠️ **`resolveResource()` là chỗ đường này gãy nếu làm ẩu.** Chiều DƯƠNG của Kiểm 3 nạp `fonts/SourceSans3[wght].ttf` qua `resolveResource`. Với bản `.app` trên macOS, tệp nằm ở `Contents/Resources/fonts/` — có sẵn. Với `--no-bundle` trên Windows, **không có** thư mục resource nào cạnh `.exe`; phải **chép `src-tauri/resources/fonts/` sang cạnh nhị phân** trước khi chạy, đúng hình dạng mà `bundle.resources` khai (`"resources/fonts/*.otf" → "fonts/"`). Không chép thì chiều dương trả **404**, và self-check đã phân biệt được *"thiếu tệp"* với *"scope chặn"* nên nó sẽ **FAIL đúng**, không đọc nhầm thành đạt — nhưng lượt chạy vẫn vô nghĩa.
   - [x] Đọc phán quyết **từ dòng `VERDICT:`** như `scripts/check-scope.mjs` đang làm, và **timeout cứng**. Bài học Story 1.2: `tauri dev` **nuốt mã thoát**, và một phép kiểm không bao giờ trả gì thì job chạy tới hạn mức rồi bị huỷ.
-  - [x] ⛔ **KHÔNG** bật `debug-assertions = true` trong `[profile.release]` để "làm cho đúng hơn". Profile release đang được **cố ý đóng băng** để số đo NFR6 của Story 1.1 còn so sánh được (`Cargo.toml:56-61`). Đổi nó là làm hỏng chính AC6 của story này.
-  - [x] ⛔ **KHÔNG** gỡ `#[cfg(debug_assertions)]` khỏi móc self-check. Story 1.2 đặt nó ở đó có lý do đã ghi thành chữ: *"một móc như vậy không có việc gì trong bản phát hành"*.
+  - [x] **KHÔNG** bật `debug-assertions = true` trong `[profile.release]` để "làm cho đúng hơn". Profile release đang được **cố ý đóng băng** để số đo NFR6 của Story 1.1 còn so sánh được (`Cargo.toml:56-61`). Đổi nó là làm hỏng chính AC6 của story này.
+  - [x] **KHÔNG** gỡ `#[cfg(debug_assertions)]` khỏi móc self-check. Story 1.2 đặt nó ở đó có lý do đã ghi thành chữ: *"một móc như vậy không có việc gì trong bản phát hành"*.
   - [x] Ghi **thẳng giới hạn** vào Completion Notes: phép kiểm này chứng minh **tổ hợp CSP + asset protocol**, nó **không** chứng minh hành vi của **nhị phân profile release**. Nói nửa vời ở đây là tái lập đúng lỗi mà mục Defer của Story 1.2 tồn tại để sửa.
   - [ ] Nếu webview không mở được trên runner (không có phiên đồ hoạ, WebView2 vắng mặt, treo): **dừng, ghi lại bằng chứng, và trả lại cho Ice** theo mệnh đề cuối của AC8. Xem §Rủi ro đã biết.
 
 - [x] **Task 8 — NFR15 và cây phụ thuộc: cưỡng chế bằng lock, chạy trên cả hai nền tảng** (AC: 1, 2)
   - [x] `npm ci` (**không** `npm install`) và `cargo …  --locked` ở mọi lệnh cargo. Đây là hình dạng cưỡng chế được của NFR15 trong CI: **không phụ thuộc nào vào được cây mà không hiện thành diff lockfile trong commit**, nên lượt rà giấy phép của Story 1.2 Task 7 luôn có chỗ bám.
   - [x] `npm run check:deps` chạy trên **cả hai** nền tảng. Script đã có **ngưỡng sàn** (Rust ≥ 200, npm ≥ 30) nên cây rỗng không đọc thành "sạch"; số thật trên Windows là **346 crate** (macOS 343) — nếu sàn chạm, đó là lỗi quét chứ không phải đạt.
-  - [x] ⛔ **Không thêm `cargo-deny`, `cargo-audit`, `license-checker` hay công cụ rà giấy phép nào.** Chúng nằm ngoài bảng Stack, và NFR15 đòi **đọc tệp giấy phép trong nguồn đã tải** — đúng thứ một bộ nhận dạng tự động làm sai, đã có tiền lệ: `tantivy-stemmers` suýt bị chấm sai BSD-2 ở Story 1.2. Nếu Ice muốn một cổng tự động thì đó là quyết định riêng, không phải việc lặng lẽ thêm ở đây.
-  - [x] ⛔ **Không** đưa phép quan sát mạng bằng `lsof` vào CI. Story 1.2 bàn giao **công thức đã sửa** (`pgrep -x auratranslate` + `lsof -nP -a -p …`) để nó không mất, chứ không phải để chạy mỗi push: nó cần một phiên chạy thật có tương tác, và `lsof` thiếu cờ `-a` từng cho ra **274 socket của Lark/AnyDesk/ssh**. Ghi công thức vào `.github/workflows/ci.yml` dưới dạng chú thích, kèm một dòng nói rõ vì sao nó **không** là một bước.
+  - [x] **Không thêm `cargo-deny`, `cargo-audit`, `license-checker` hay công cụ rà giấy phép nào.** Chúng nằm ngoài bảng Stack, và NFR15 đòi **đọc tệp giấy phép trong nguồn đã tải** — đúng thứ một bộ nhận dạng tự động làm sai, đã có tiền lệ: `tantivy-stemmers` suýt bị chấm sai BSD-2 ở Story 1.2. Nếu Ice muốn một cổng tự động thì đó là quyết định riêng, không phải việc lặng lẽ thêm ở đây.
+  - [x] **Không** đưa phép quan sát mạng bằng `lsof` vào CI. Story 1.2 bàn giao **công thức đã sửa** (`pgrep -x auratranslate` + `lsof -nP -a -p …`) để nó không mất, chứ không phải để chạy mỗi push: nó cần một phiên chạy thật có tương tác, và `lsof` thiếu cờ `-a` từng cho ra **274 socket của Lark/AnyDesk/ssh**. Ghi công thức vào `.github/workflows/ci.yml` dưới dạng chú thích, kèm một dòng nói rõ vì sao nó **không** là một bước.
 
 - [x] **Task 9 — Chỗ móc cho chín epic sau** (AC: 4)
   - [x] Trong `ci.yml`, đặt một khối chú thích **có tên** liệt kê ba luật đã biết sẽ gắn vào: lint cấm màu viết thẳng (AD-34 → Story 1.4) · test ranh giới `ai/` (AD-13 → Story 4.1) · bốn test allowlist (AD-41 → Epic 6), kèm câu *"gắn vào job này, không dựng workflow thứ hai — AC4 Story 1.3"*.
@@ -187,7 +187,7 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
   - [x] Rà lại một lượt cuối: không bước nào tải dữ liệu từ điển, không bước nào tạo release, không bước nào sinh checksum (AC5, AC7).
 
 - [ ] **Task 11 — Nghiệm thu: đỏ thật rồi xanh thật** (AC: 2)
-  - [ ] ⛔ **Một pipeline chưa từng đỏ là một pipeline chưa được nghiệm thu.** Cố ý phá rồi khôi phục, ghi kết quả từng lượt:
+  - [ ] **Một pipeline chưa từng đỏ là một pipeline chưa được nghiệm thu.** Cố ý phá rồi khôi phục, ghi kết quả từng lượt:
     | Phá cái gì | Phải đỏ ở đâu |
     |---|---|
     | Thêm một origin từ xa vào `csp` của `tauri.conf.json` | `cargo test` — các test CSP, **cả hai** nền tảng *(Story 1.2 đo: phá cả `csp` lẫn `scope` cho **4/9 FAILED**; ghi số thật của lượt này, đừng chép)* |
@@ -225,7 +225,7 @@ npm run check:scope:bundled   # mode: bundled-csp                → exit 0  (69
 python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"   # parse OK
 ```
 
-⚠️ **`npm run check:scope` chạy được ở máy này trong 11s và đọc đúng 403 cả hai chiều** — nên bước CI mới của D1 có cơ sở thật, không phải một phép cược. Nhưng **runner** vẫn là ẩn số: đây là macOS có phiên đồ hoạ, còn `macos-26`/`windows-2025` thì chưa ai đo. Nếu nó trượt ở đó, mệnh đề ⛔ của AC8 áp dụng — ghi lý do, trả lại cho Ice, **không** gỡ bước.
+⚠️ **`npm run check:scope` chạy được ở máy này trong 11s và đọc đúng 403 cả hai chiều** — nên bước CI mới của D1 có cơ sở thật, không phải một phép cược. Nhưng **runner** vẫn là ẩn số: đây là macOS có phiên đồ hoạ, còn `macos-26`/`windows-2025` thì chưa ai đo. Nếu nó trượt ở đó, mệnh đề không của AC8 áp dụng — ghi lý do, trả lại cho Ice, **không** gỡ bước.
 
 ⚠️ **Ba số đo sẽ dịch so với mốc cũ**, và đó là hệ quả có chủ ý của bản vá, không phải hồi quy: `bundle.resources` nay mang thêm `license/COPYING.txt` (≈ 35 KB) nên `$fontBytes` của AC6 gồm cả nó; `check:deps` nay báo 326 crate / 104 gói *(so với 343/59 ghi trong story — cây đã đổi từ lúc dựng story, cả hai vẫn trên sàn 200/30)*.
 
@@ -233,10 +233,10 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"   # p
 
 | # | Vấn đề | Ice quyết | Thành |
 |---|---|---|---|
-| D1 | `npm run check:scope` bị bỏ khỏi CI ⇒ không phép kiểm tự động nào còn chứng minh chiều ÂM | **Thêm vào CI.** Nó cần phiên đồ hoạ và có thể trượt trên runner — nếu trượt thì chính lượt chạy đầu là bằng chứng để ghi lý do theo mệnh đề ⛔ của AC8 | **patch** (mục cuối §Cần vá) |
+| D1 | `npm run check:scope` bị bỏ khỏi CI ⇒ không phép kiểm tự động nào còn chứng minh chiều ÂM | **Thêm vào CI.** Nó cần phiên đồ hoạ và có thể trượt trên runner — nếu trượt thì chính lượt chạy đầu là bằng chứng để ghi lý do theo mệnh đề không của AC8 | **patch** (mục cuối §Cần vá) |
 | D2 | AC8 đang được tính là ĐẠT dù chiều âm là `unmeasured` | **Chốt sau lượt CI đầu có D1.** Nếu `check:scope` chạy được trên runner thì chiều âm có lưới tự động và AC8 đóng trọn; nếu không thì hạ xuống "đóng một nửa, đã trả lại cho Ice" | **defer** |
 | D3 | `on: push` + `on: pull_request` ⇒ ma trận chạy hai lần trên nhánh có PR | **Giữ cả hai.** AC7 nghiệm thu bằng số thật — để lượt CI đầu đo đúng giá của việc nhân đôi rồi mới quyết, đúng §Ngân sách CI (*"ghi số và dừng"*) | **defer** |
-| D4 | `reqwest` default features + `crate-type` thừa `staticlib`/`cdylib` — chi phí AC7 nằm trong `Cargo.toml` | **Không đổi.** §File List ⛔ cấm đụng `Cargo.toml`, và bảng Stack được cài trọn có chủ ý ở Story 1.2. Chờ số AC7 thật rồi mới bàn tối ưu | **defer** |
+| D4 | `reqwest` default features + `crate-type` thừa `staticlib`/`cdylib` — chi phí AC7 nằm trong `Cargo.toml` | **Không đổi.** §File List không cấm đụng `Cargo.toml`, và bảng Stack được cài trọn có chủ ý ở Story 1.2. Chờ số AC7 thật rồi mới bàn tối ưu | **defer** |
 
 #### Cần vá
 
@@ -256,18 +256,18 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"   # p
 - [x] [Review][Patch] **Bước macOS thiếu cổng chống ô rỗng mà bước Windows có** [`.github/workflows/ci.yml:160-161` vs `:277-278`] — Windows kiểm `if (-not $rustcV -or -not $tauriV) { throw … }`; macOS chỉ hoist `RUSTC_V=$(rustc --version)` / `TAURI_V=$(npx tauri --version)`. `set -e` bắt được **mã thoát khác 0** nhưng không bắt được lệnh exit 0 in ra chuỗi rỗng ⇒ bảng `$GITHUB_STEP_SUMMARY` của macOS có ô trống mà bước vẫn xanh. Chính "số đo biến mất mà bước vẫn xanh" mà comment `:157-159` tuyên bố đã sửa — sửa mới nửa nền tảng.
 - [x] [Review][Patch] **`$payloadBytes` là một đồng nhất thức, không phải phép đo — và nó lái một cổng cứng tầng PRD** [`.github/workflows/ci.yml:249-251`] — `$runtimeBytes = $withFonts − $noRuntime` rồi `$payloadBytes = $withFonts − $runtimeBytes` rút gọn **đúng bằng** `$noRuntime.Bytes`, tức dung lượng bản `downloadBootstrapper` (vẫn còn stub bootstrapper trong đó) chứ không phải "mã + font" như nhãn ghi. Thêm nữa MSI nén theo cabinet **toàn cục**: bỏ 27 MB font không làm cabinet nhỏ đi đúng 27 MB, và bỏ runtime đổi luôn tỉ lệ nén phần còn lại — nên cả `$fontBytes` lẫn `$runtimeBytes` là hiệu số của kho nén, không phải dung lượng thành phần. Vậy mà `$payloadMB -gt 200` phát *"🔴 VƯỢT trần — cần Ice quyết"*. Fix: đổi nhãn thành *"bản không nhúng runtime (proxy cho payload)"* và ghi rõ giới hạn của phép trừ ngay trong bảng summary.
 
-- [x] [Review][Patch] **[D1] Gắn `npm run check:scope` vào pipeline — chiều ÂM phải có lưới tự động** [`.github/workflows/ci.yml`] — Ice chốt 2026-08-03. Thêm một bước chạy `npm run check:scope` (chế độ dev, nơi `fetch` đọc được **HTTP 403** thật) vào job `check`, chạy trên cả hai nền tảng. Hôm nay chỉ có `check:scope:bundled`, mà ở chế độ bundled chiều âm là `unmeasured` (`scopeCheck.ts:260-263`) và `unmeasured` **không** làm đỏ verdict (`:271`) ⇒ mở toang `assetProtocol.scope` lúc chạy vẫn cho CI xanh ở mọi bước. Script cần **phiên đồ hoạ** (`tauri dev`) nên có thể trượt trên runner — nếu trượt, đó chính là bằng chứng để ghi lý do và trả lại cho Ice theo mệnh đề ⛔ của AC8, **không** phải lý do lặng lẽ bỏ bước. ⚠️ Vá kèm hai thứ: bước này phải chịu chung cách xếp thứ tự của patch *"AC8 đứng trước bước đo `.msi`"* (đừng để nó chặn AC6), và nó phụ thuộc patch *"SIGKILL chỉ giết wrapper `npx`"* — không sửa chỗ đó thì timeout của `check-scope.mjs` có thể không bao giờ chạy và job treo tới `timeout-minutes: 60`.
+- [x] [Review][Patch] **[D1] Gắn `npm run check:scope` vào pipeline — chiều ÂM phải có lưới tự động** [`.github/workflows/ci.yml`] — Ice chốt 2026-08-03. Thêm một bước chạy `npm run check:scope` (chế độ dev, nơi `fetch` đọc được **HTTP 403** thật) vào job `check`, chạy trên cả hai nền tảng. Hôm nay chỉ có `check:scope:bundled`, mà ở chế độ bundled chiều âm là `unmeasured` (`scopeCheck.ts:260-263`) và `unmeasured` **không** làm đỏ verdict (`:271`) ⇒ mở toang `assetProtocol.scope` lúc chạy vẫn cho CI xanh ở mọi bước. Script cần **phiên đồ hoạ** (`tauri dev`) nên có thể trượt trên runner — nếu trượt, đó chính là bằng chứng để ghi lý do và trả lại cho Ice theo mệnh đề không của AC8, **không** phải lý do lặng lẽ bỏ bước. ⚠️ Vá kèm hai thứ: bước này phải chịu chung cách xếp thứ tự của patch *"AC8 đứng trước bước đo `.msi`"* (đừng để nó chặn AC6), và nó phụ thuộc patch *"SIGKILL chỉ giết wrapper `npx`"* — không sửa chỗ đó thì timeout của `check-scope.mjs` có thể không bao giờ chạy và job treo tới `timeout-minutes: 60`.
 
 #### Hoãn — đã ghi vào `deferred-work.md`
 
 - [x] [Review][Defer] **[D2] Trạng thái AC8 chốt sau lượt CI đầu có D1** — deferred, Ice chốt 2026-08-03: nếu `check:scope` chạy được trên runner thì chiều âm có lưới tự động và AC8 đóng trọn; nếu không thì hạ `deferred-work.md:14` xuống *"đóng một nửa, đã trả lại cho Ice"* và thêm AC8 vào danh sách "còn thiếu" thành mục thứ năm
 - [x] [Review][Defer] **[D3] `on: push` + `on: pull_request` nhân đôi lượt chạy trên nhánh có PR** [`ci.yml:26-27,34`] — deferred, Ice chốt giữ cả hai: AC7 nghiệm thu bằng số thật, để lượt CI đầu đo đúng giá của việc nhân đôi (macOS ×10, repo private) rồi mới quyết — đúng §Ngân sách CI *"ghi số và dừng"*
-- [x] [Review][Defer] **[D4] `reqwest` default features (kéo `aws-lc-sys`) + `crate-type` thừa `staticlib`/`cdylib`** [`src-tauri/Cargo.toml:16,52`] — deferred, Ice chốt không đổi: §File List ⛔ cấm đụng `Cargo.toml` và bảng Stack được cài trọn có chủ ý ở Story 1.2; chờ số AC7 thật rồi mới bàn tối ưu
+- [x] [Review][Defer] **[D4] `reqwest` default features (kéo `aws-lc-sys`) + `crate-type` thừa `staticlib`/`cdylib`** [`src-tauri/Cargo.toml:16,52`] — deferred, Ice chốt không đổi: §File List không cấm đụng `Cargo.toml` và bảng Stack được cài trọn có chủ ý ở Story 1.2; chờ số AC7 thật rồi mới bàn tối ưu
 - [x] [Review][Defer] `timeout-minutes: 60` nhiều khả năng không đủ cho nhánh Windows cache lạnh [`ci.yml:59`] — deferred, cần số đo từ lượt chạy thật
 - [x] [Review][Defer] `--config` vô hiệu hoá mọi bất biến của `config_invariants.rs`, và danh sách chặn lớp phủ nền tảng chỉ liệt kê biến thể `.json` [`config_invariants.rs:166-190` vs `ci.yml:237,247`] — deferred
 - [x] [Review][Defer] Cổng phụ thuộc dùng **danh sách cấm** trong khi `config_invariants.rs:92-94` lập luận danh sách cấm là sai; thiếu `tauri-plugin-shell` · `-http` · `-process` · `-opener` [`check-deps.mjs:121-142`] — deferred
 - [x] [Review][Defer] `walk()` đệ quy không có bộ nhớ đã-thăm [`check-deps.mjs:95-99`] — deferred
-- [x] [Review][Defer] `deferred-work.md:7` (*"đường nạp font chưa từng chạy trên Windows"*) nay đã lỗi thời và không được cập nhật; §File List ⛔ khai *"không đụng `planning-artifacts/**`"* nhưng dải commit có sửa `epics.md` (+14/−) và `prd.md` (+6/−) — deferred
+- [x] [Review][Defer] `deferred-work.md:7` (*"đường nạp font chưa từng chạy trên Windows"*) nay đã lỗi thời và không được cập nhật; §File List không khai *"không đụng `planning-artifacts/**`"* nhưng dải commit có sửa `epics.md` (+14/−) và `prd.md` (+6/−) — deferred
 - [x] [Review][Defer] Không có clippy · rustfmt · ESLint · Prettier · test runner frontend · quét CVE; `scripts/*.mjs` (chính tầng cưỡng chế) không được type-check vì `tsconfig.json` chỉ include `src/**` — deferred
 - [x] [Review][Defer] `dict-manifest.toml:9-18` đặt luật "ba trường BẮT BUỘC" và cảnh báo checksum sai *"hỏng im lặng đúng kiểu tệ nhất"* nhưng không parser/test nào đọc nó — deferred, chủ sở hữu Story 1.9/10.1
 - [x] [Review][Defer] Trích dẫn dòng trong comment cưỡng chế đã rữa: `check-scope-bundled.mjs:20` trỏ `Cargo.toml:56-61` cho `[profile.release]` nhưng khối đó ở `:61-66`; các trích `deferred-work.md:5,13` không phân giải được từ gốc repo — deferred
@@ -288,7 +288,7 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"   # p
 | Một tệp `.github/workflows/ci.yml` | Bất kỳ mã sản phẩm nào (`src/`, `src-tauri/src/`) |
 | Chạy ba lệnh Story 1.2 để lại, trên hai nền tảng | Build công khai / checksum / Release — **đó là FR107, Story 10.1** |
 | Hai phép đo `.msi` + chế độ WebView2 | Tải dữ liệu từ điển hay cộng với dung lượng database — **đó là Story 1.9** |
-| `src-tauri/tauri.nofonts.conf.json` (đúng một khoá) | Sửa `tauri.conf.json` — ⛔ kể cả `webviewInstallMode` |
+| `src-tauri/tauri.nofonts.conf.json` (đúng một khoá) | Sửa `tauri.conf.json` — không kể cả `webviewInstallMode` |
 | Một test mới neo tệp cấu hình đó | Bộ token màu / lint màu — **đó là Story 1.4** |
 | Chỗ móc **có tên** cho luật của epic sau | Cài đặt các luật đó — chúng chưa tồn tại |
 | Đo NFR6 thành **hai dòng** và báo cáo cả số tổng | Đổi `webviewInstallMode` · chọn NSIS thay `.msi` — **Story 10.2** |
@@ -395,7 +395,7 @@ Chia theo hai dòng nghiệm thu:
 2. **`Swatinem/rust-cache@v2`** — bắt buộc. Cache lạnh phải biên dịch `aws-lc-sys`, `libsqlite3-sys` (SQLite từ nguồn C) và `zstd-sys`; cache nóng thì chỉ crate của chính dự án + khâu link LTO.
 3. **Mọi bản `.msi` trong CÙNG một job** — bản có font, bản không font, và (nếu làm ở Task 6) bản `downloadBootstrapper`: biên dịch dùng chung, các bản sau chỉ tốn khâu đóng gói.
 
-**Nếu sau khi đo, AC7 vẫn không đạt:** ⛔ đừng tự cắt một nền tảng, đừng tự chuyển sang `schedule`, đừng tự thêm `paths-ignore`. Ghi **số thật** vào Completion Notes — thời gian tường và phút tính phí ước tính của cả hai nền tảng, cache lạnh và cache nóng — rồi để Ice quyết. Ba lựa chọn còn lại đều là đánh đổi về phạm vi chứ không phải kỹ thuật: giảm tần suất job nặng · bỏ bản build release khỏi mỗi push · nâng hạn mức trả phí.
+**Nếu sau khi đo, AC7 vẫn không đạt:** đừng tự cắt một nền tảng, đừng tự chuyển sang `schedule`, đừng tự thêm `paths-ignore`. Ghi **số thật** vào Completion Notes — thời gian tường và phút tính phí ước tính của cả hai nền tảng, cache lạnh và cache nóng — rồi để Ice quyết. Ba lựa chọn còn lại đều là đánh đổi về phạm vi chứ không phải kỹ thuật: giảm tần suất job nặng · bỏ bản build release khỏi mỗi push · nâng hạn mức trả phí.
 
 ### Runner — vì sao ghim ảnh, và một số sẽ khác Story 1.1
 
@@ -617,8 +617,8 @@ Ca giữa là ca giết phép kiểm: nếu `scope` mở toang thì `/etc/hosts`
 `npm run check:scope:bundled` (mới) dựng `tauri build --debug` rồi chạy nhị phân với timeout cứng và đọc `VERDICT:`. Profile `dev` giữ `debug_assertions` ⇒ móc self-check còn; webview nạp HTML qua asset protocol ⇒ **CSP có áp**. Đó đúng là tổ hợp `tauri dev` không bao giờ chạm tới.
 
 - ✅ **Chứng minh:** tổ hợp CSP + asset protocol — tài nguyên trong `$RESOURCE/fonts/**` nạp được dưới CSP qua `font-src`, **đúng đường Story 1.4 sẽ dùng thật**.
-- ⛔ **KHÔNG chứng minh:** hành vi của nhị phân profile **release**. Móc là `#[cfg(debug_assertions)]`, và profile release đang bị cố ý đóng băng để giữ số đo NFR6 so sánh được. Không gỡ `cfg`, không bật `debug-assertions` trong `[profile.release]` — cả hai đều làm hỏng thứ khác.
-- ⛔ **KHÔNG chứng minh:** chiều âm dưới CSP (xem phát hiện 3). Chiều âm vẫn có bằng chứng **403** từ chế độ dev (Story 1.2), trên **cùng mã Rust** cưỡng chế scope — CSP chỉ chồng thêm một lớp.
+- **KHÔNG chứng minh:** hành vi của nhị phân profile **release**. Móc là `#[cfg(debug_assertions)]`, và profile release đang bị cố ý đóng băng để giữ số đo NFR6 so sánh được. Không gỡ `cfg`, không bật `debug-assertions` trong `[profile.release]` — cả hai đều làm hỏng thứ khác.
+- **KHÔNG chứng minh:** chiều âm dưới CSP (xem phát hiện 3). Chiều âm vẫn có bằng chứng **403** từ chế độ dev (Story 1.2), trên **cùng mã Rust** cưỡng chế scope — CSP chỉ chồng thêm một lớp.
 - ⚠️ Mới chạy trên **macOS**. Trên Windows đường đi là `--no-bundle` + tự chép `resources/fonts/` sang cạnh nhị phân; đã cài đặt, **chưa ai đo**.
 
 #### Nghiệm thu đỏ-rồi-xanh (Task 11) — 3/4 hàng, tại chỗ
@@ -659,7 +659,7 @@ Lượt chạy khô bước macOS lộ ra chính lỗi mà story cảnh báo, �
 #### Còn thiếu gì để đóng story — đúng bốn thứ, tất cả cần runner
 
 1. **AC6** — ba số `.msi` và hai dòng nghiệm thu NFR6. `.msi` **chỉ dựng được trên Windows**.
-2. **AC7** — thời gian tường + phút tính phí, cache lạnh và nóng, hai nền tảng. ⚠️ **Rủi ro đã biết trước:** job biên dịch Rust **hai profile** (`dev` cho AC8, `release` cho AC1/AC6) và dựng **ba** bản `.msi`. Story giả định *"bản thứ hai chỉ tốn khâu đóng gói"* — điều đó đúng với **bundler**, nhưng `tauri-build` nhúng config vào nhị phân lúc biên dịch, nên đổi `--config` **có thể** kích hoạt một lượt link lại, mà profile release có `lto = true` + `codegen-units = 1`. Nếu AC7 trượt, đây là chỗ nhìn trước tiên. ⛔ Theo §Ngân sách CI: **ghi số và dừng**, không tự cắt nền tảng, không tự thêm `paths-ignore`.
+2. **AC7** — thời gian tường + phút tính phí, cache lạnh và nóng, hai nền tảng. ⚠️ **Rủi ro đã biết trước:** job biên dịch Rust **hai profile** (`dev` cho AC8, `release` cho AC1/AC6) và dựng **ba** bản `.msi`. Story giả định *"bản thứ hai chỉ tốn khâu đóng gói"* — điều đó đúng với **bundler**, nhưng `tauri-build` nhúng config vào nhị phân lúc biên dịch, nên đổi `--config` **có thể** kích hoạt một lượt link lại, mà profile release có `lto = true` + `codegen-units = 1`. Nếu AC7 trượt, đây là chỗ nhìn trước tiên. Theo §Ngân sách CI: **ghi số và dừng**, không tự cắt nền tảng, không tự thêm `paths-ignore`.
 3. **Task 11 hàng 4** — `#[cfg(windows)] compile_error!` phải làm **chỉ** job Windows đỏ, macOS **vẫn xanh**. Đây là phép kiểm thật của `fail-fast: false` và của AC1 *"tách bạch"*.
 4. **AC3 / Task 4** — mệnh đề *rào biên dịch C biến mất trên `windows-2025`* mới là kỳ vọng đọc từ tài liệu. Cùng chỗ: **WiX v3** — mũi thăm dò nói *"Tauri CLI tự tải lần build đầu"*, tài liệu Tauri nói phải cài sẵn; **hai nguồn nói khác nhau**, lượt chạy đầu phân xử. Và `.msi` cần tính năng **VBSCRIPT** của Windows — nếu gãy ở khâu WiX thì nhìn chỗ này trước.
 
@@ -694,9 +694,9 @@ Chạy được ngay khi có `gh`: `git push` → CI tự chạy (`on: push`, m�
 | `src/App.vue` | *(lượt rà soát)* Bọc `catch` lần hai; dùng hằng tên event; payload thêm `mode` |
 | `scripts/check-scope.mjs` · `check-scope-bundled.mjs` | *(lượt rà soát)* `readTimeoutMs` từ chối `""`/NaN; `killTree()` giết cả cây + lưới an toàn 5s; kiểm `code`/`signal`; đọc `[package] name` đúng section |
 
-⛔ **Không** đụng tới: `src-tauri/src/**` · `src-tauri/Cargo.toml` · `_bmad-output/planning-artifacts/**`.
+**Không** đụng tới: `src-tauri/src/**` · `src-tauri/Cargo.toml` · `_bmad-output/planning-artifacts/**`.
 
-> ⚠️ **Bảng trên đã sửa hai chỗ khai sai mà lượt rà soát bắt được.** (1) `src-tauri/tauri.conf.json` **có** bị sửa (CSP + `bundle.resources`) nên nó rời khỏi danh sách ⛔ — thay đổi là hệ quả của hai patch đã được duyệt, không phải một lượt sửa lén. (2) Dòng ⛔ cũ khai *"không đụng `_bmad-output/planning-artifacts/**`"* là **sai sự thật** ngay từ trước lượt rà soát: dải commit của story có sửa `epics.md` (+14/−) và `prd.md` (+6/−) theo đúng quyết định #3 của Ice. Đã ghi vào `deferred-work.md` §lượt rà soát.
+> ⚠️ **Bảng trên đã sửa hai chỗ khai sai mà lượt rà soát bắt được.** (1) `src-tauri/tauri.conf.json` **có** bị sửa (CSP + `bundle.resources`) nên nó rời khỏi danh sách không — thay đổi là hệ quả của hai patch đã được duyệt, không phải một lượt sửa lén. (2) Dòng không cũ khai *"không đụng `_bmad-output/planning-artifacts/**`"* là **sai sự thật** ngay từ trước lượt rà soát: dải commit của story có sửa `epics.md` (+14/−) và `prd.md` (+6/−) theo đúng quyết định #3 của Ice. Đã ghi vào `deferred-work.md` §lượt rà soát.
 
 ## Change Log
 

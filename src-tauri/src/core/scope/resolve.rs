@@ -1,4 +1,4 @@
-//! Ba hàm phân giải — **THUẦN**, ⛔ không chạm đĩa, ⛔ không chạm [`super::super::store`].
+//! Ba hàm phân giải — **THUẦN**, không chạm đĩa, không chạm [`super::super::store`].
 //!
 //! AC1 · AC2 · AC3. Chúng nhận **dữ liệu đã nạp** từ chỗ gọi và trả về dữ liệu đã phân
 //! giải; mỗi module miền tự sở hữu bảng của nó và tự nạp hai tầng (§Quyết định #1).
@@ -30,7 +30,7 @@ use super::{ScopeError, Tier};
 /// Tức đúng cái *"một truy vấn riêng"* mà Story 3.1 cấm.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 TRẢ VỀ KẾ THỪA = **XOÁ HÀNG TẦNG WORK**, ⛔ KHÔNG PHẢI CHÉP GIÁ TRỊ GLOBAL XUỐNG
+/// 🔴 TRẢ VỀ KẾ THỪA = **XOÁ HÀNG TẦNG WORK**, KHÔNG PHẢI CHÉP GIÁ TRỊ GLOBAL XUỐNG
 /// ─────────────────────────────────────────────────────────────────────────────
 /// Chưa cài hôm nay (chưa có tầng Work), nhưng luật phải đọc được **ở đây** vì hai đường
 /// này **không phân biệt được ở khoảnh khắc bấm nút** rồi phân kỳ mãi mãi sau đó: chép
@@ -80,7 +80,7 @@ impl<V> Resolved<V> {
 
 /// Một mục của kết quả hợp nhất, **mang nhãn tầng của chính nó** (AC3 mệnh đề 2).
 ///
-/// ⚠️ Nhãn nằm trên **từng mục**, ⛔ không phải cả tập mang một nhãn. Story 6.5 đòi
+/// ⚠️ Nhãn nằm trên **từng mục**, không phải cả tập mang một nhãn. Story 6.5 đòi
 /// *"mỗi luật mang nhãn tầng — Toàn cục hoặc Tác phẩm"*, và một `(Tier, Vec<V>)` không
 /// diễn đạt được một danh sách đã trộn thứ tự theo xuất xứ.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -106,9 +106,9 @@ impl<V> Tiered<V> {
     }
 }
 
-/// Cổng ngữ nghĩa: gọi sai hàm cho `kind` ⇒ `Err`, ⛔ **không im lặng làm theo ý người gọi**.
+/// Cổng ngữ nghĩa: gọi sai hàm cho `kind` ⇒ `Err`, **không im lặng làm theo ý người gọi**.
 ///
-/// 🔴 `Err` chứ ⛔ không `panic!`/`unwrap()`, và ở **cả debug lẫn release**: `Cargo.toml`
+/// 🔴 `Err` chứ không `panic!`/`unwrap()`, và ở **cả debug lẫn release**: `Cargo.toml`
 /// ghim `panic = "abort"` ở `[profile.release]`, nên một panic ở đây giết cả tiến trình
 /// và cuốn theo writer nối tiếp của AD-11/AD-12.
 fn require(kind: ScopeKind, called: Semantics) -> Result<(), ScopeError> {
@@ -165,7 +165,7 @@ where
 /// **Hợp nhất hai tầng** — AC3.
 ///
 /// Ba mệnh đề, và cả ba đều cưỡng chế được ở đây:
-/// 1. Kết quả chứa mục của **cả hai** tầng, ⛔ không khử trùng lặp *(AD-19: giữ nguyên
+/// 1. Kết quả chứa mục của **cả hai** tầng, không khử trùng lặp *(AD-19: giữ nguyên
 ///    bất đồng — hai nguồn nói khác nhau là **thông tin**, không phải nhiễu)*.
 /// 2. **Mỗi mục mang nhãn tầng** — xem [`Tiered`].
 /// 3. **Tầng là khoá PHỤ, không bao giờ là khoá chính.**
@@ -177,14 +177,14 @@ where
 /// Global), và giải thích: *"một cặp TM toàn cục do **chính người dùng** dịch vẫn giống
 /// văn phong của họ hơn một cặp Tác phẩm do người khác dịch."*
 ///
-/// `core::scope` ⛔ **không được biết** *xuất xứ* là gì — đó là dữ liệu trên bản ghi TM
+/// `core::scope` **không được biết** *xuất xứ* là gì — đó là dữ liệu trên bản ghi TM
 /// (Story 7.2). Kéo nó vào đây là kéo cả miền TM vào bộ phân giải. Nên khoá chính đi vào
 /// bằng tham số, còn khoá phụ thì **luôn** được áp và chỗ gọi **không có cách nào tắt**
 /// — đó chính là vế của AD-18 mà story này cưỡng chế. AD-18 còn nói trước hậu quả của
 /// việc đảo hai khoá: *"Không khai thứ tự này thì Giai đoạn 4 và Giai đoạn 6 sẽ cài lệch
 /// nhau."*
 ///
-/// ⚠️ `sort_by`, ⛔ **không** `sort_unstable_by`: bản unstable phá thứ tự nguồn trong
+/// ⚠️ `sort_by`, **không** `sort_unstable_by`: bản unstable phá thứ tự nguồn trong
 /// nhóm bằng nhau, tức hai lượt chạy trên cùng dữ liệu cho hai danh sách khác nhau. Với
 /// `primary = None` thì tầng là khoá **duy nhất**, nên toàn bộ thứ tự trong mỗi tầng đến
 /// từ tính ổn định của phép sắp xếp.
@@ -274,7 +274,7 @@ where
 {
     // 🔴 TẦNG DƯỚI VÀO TRƯỚC, NGUYÊN VẸN. Đây là dòng phân biệt cài đặt đúng với cài
     // đặt làm 411 mục Glossary toàn cục biến mất — xem doc-comment của `resolve_override`.
-    // ⛔ Không có nhánh nào trả về sớm với chỉ một tầng, và đó là chủ ý.
+    // Không có nhánh nào trả về sớm với chỉ một tầng, và đó là chủ ý.
     let mut out: BTreeMap<K, Resolved<V>> = global
         .iter()
         .map(|(k, v)| (k.clone(), Resolved::new(v.clone(), Tier::Global, None)))

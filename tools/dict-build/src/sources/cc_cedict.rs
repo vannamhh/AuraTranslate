@@ -1,6 +1,6 @@
 //! CC-CEDICT — `mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz`.
 //! Khuôn `phồn giản [pinyin] /nghĩa/nghĩa/`. Giấy phép CC BY-SA 4.0.
-//! `source_version` lấy từ dòng header `#! date=` NGAY TRONG tệp, ⛔ không viết cứng
+//! `source_version` lấy từ dòng header `#! date=` NGAY TRONG tệp, không viết cứng
 //! (§Thông tin kỹ thuật của Story 1.9).
 
 use std::io::BufRead;

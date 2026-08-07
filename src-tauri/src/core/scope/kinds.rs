@@ -15,11 +15,11 @@
 //! (`core/i18n/mod.rs:62`), và vì cùng một lý do: *một khai báo, nhiều thứ sinh ra, nên
 //! chúng không trôi khỏi nhau được*.
 //!
-//! ⛔ **Không `impl Default for Semantics`, không `#[derive(Default)]`.** Một ngữ nghĩa
+//! **Không `impl Default for Semantics`, không `#[derive(Default)]`.** Một ngữ nghĩa
 //! mặc định là chính xác cái lỗ mà AC4 tồn tại để bịt: nó biến *"quên khai"* thành
 //! *"khai một thứ hợp lệ mà không ai chọn"*, và lỗi đó không đỏ ở đâu cả.
 //!
-//! ⛔ **Không nhánh `_ =>` trong bất kỳ `match` nào trên [`ScopeKind`].** Sức mạnh duy
+//! **Không nhánh `_ =>` trong bất kỳ `match` nào trên [`ScopeKind`].** Sức mạnh duy
 //! nhất của một `enum` đóng là việc trình biên dịch đỏ khi có biến thể mới; một nhánh
 //! bắt-tất-cả đổi nó lấy sự yên tĩnh.
 //!
@@ -37,7 +37,7 @@
 //! Ba hàng này đã được Ice phê chuẩn 2026-08-04 và ghi vào bảng AD-18.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! ⛔ `ngôn ngữ nguồn` KHÔNG PHẢI MỘT LOẠI Ở ĐÂY — và đừng thêm nó vào
+//! `ngôn ngữ nguồn` KHÔNG PHẢI MỘT LOẠI Ở ĐÂY — và đừng thêm nó vào
 //! ─────────────────────────────────────────────────────────────────────────────
 //! FR103 liệt kê nó ở tầng Tác phẩm, nên cám dỗ là hiển nhiên. Nhưng Story 5.1 định
 //! nghĩa nó là trường **bất biến** trong `meta.json`, đặt lúc tạo Tác phẩm và không đổi
@@ -50,7 +50,7 @@
 //! `src-tauri/**/*.rs` tìm ký tự có dấu tiếng Việt ở **vị trí mã**, và `src/core/**`
 //! không nằm trong danh sách miễn trừ. Doc-comment thì có dấu thoải mái.
 
-/// **Ba** ngữ nghĩa phân giải, và đúng ba. ⛔ Không `Default`.
+/// **Ba** ngữ nghĩa phân giải, và đúng ba. Không `Default`.
 ///
 /// Mỗi biến thể ứng với đúng một trong ba hàm phân giải của [`super::resolve`], và
 /// [`super::ScopeResolver`] từ chối gọi chéo — xem [`super::ScopeError::WrongSemantics`].
@@ -59,14 +59,14 @@ pub enum Semantics {
     /// **Ghi đè theo TỪNG KHOÁ** — tầng Tác phẩm thắng trên khoá trùng, và chỉ trên
     /// khoá trùng.
     ///
-    /// 🔴 ⛔ **Không phải ghi đè theo cả tập.** AD-18 viết *"tầng Tác phẩm thắng theo
+    /// 🔴 **Không phải ghi đè theo cả tập.** AD-18 viết *"tầng Tác phẩm thắng theo
     /// từng thuật ngữ"*; Story 3.4 nói cùng luật ở chiều ngược lại: *"áp cả hai, tầng
     /// Tác phẩm thắng khi trùng"*. Một cài đặt *"work rỗng thì dùng global, work không
     /// rỗng thì dùng work"* làm 412 mục Glossary toàn cục biến mất ngay khi người dùng
     /// thêm một mục riêng cho Tác phẩm — xem [`super::resolve::resolve_override`].
     Override,
 
-    /// **Cả hai tầng cùng áp**, ⛔ không khử trùng lặp *(AD-19: giữ nguyên bất đồng)*.
+    /// **Cả hai tầng cùng áp**, không khử trùng lặp *(AD-19: giữ nguyên bất đồng)*.
     ///
     /// Mỗi mục mang nhãn tầng của **chính nó**, không phải cả tập mang một nhãn — Story
     /// 6.5 đòi *"mỗi luật mang nhãn tầng"*, và màn quản lý Glossary đòi hiện mục toàn
@@ -76,7 +76,7 @@ pub enum Semantics {
     /// Chỉ tồn tại ở tầng Global; một tầng Tác phẩm cho loại này là **lỗi lập trình**.
     ///
     /// Hàng thứ ba, **mở rộng bảng AD-18** — xem doc-comment của module. Một giá trị
-    /// tầng Work đi vào đây trả [`super::ScopeError::WorkTierForbidden`] chứ ⛔ không
+    /// tầng Work đi vào đây trả [`super::ScopeError::WorkTierForbidden`] chứ không
     /// bị bỏ qua im lặng: bỏ qua im lặng là cách một tầng bị cấm vẫn được ghi vào đĩa
     /// rồi không bao giờ có tác dụng, tức đúng lớp lỗi *"trông như đang chạy"*.
     GlobalOnly,
@@ -113,7 +113,7 @@ macro_rules! scope_kinds {
             pub const ALL: &'static [ScopeKind] = &[$(ScopeKind::$variant),+];
 
             /// Định danh máy đọc — thứ đi trên dây và thứ nằm ở cột `kind` của
-            /// `config_value`. ⛔ Không phải nhãn hiển thị (AD-21, NFR16).
+            /// `config_value`. Không phải nhãn hiển thị (AD-21, NFR16).
             pub const fn as_str(self) -> &'static str {
                 match self {
                     $(ScopeKind::$variant => $wire),+
@@ -122,7 +122,7 @@ macro_rules! scope_kinds {
 
             /// Ngữ nghĩa phân giải của loại này. **Bảng AD-18, đọc được bằng máy.**
             ///
-            /// ⛔ Không nhánh `_ =>`: xem doc-comment của module.
+            /// Không nhánh `_ =>`: xem doc-comment của module.
             pub const fn semantics(self) -> Semantics {
                 match self {
                     $(ScopeKind::$variant => Semantics::$semantics),+
@@ -134,7 +134,7 @@ macro_rules! scope_kinds {
             /// ⚠️ Nhánh `_ => None` ở đây **không** vi phạm luật cấm `_ =>`: luật đó nói
             /// về `match` **trên `ScopeKind`**, nơi một nhánh bắt-tất-cả nuốt mất biến
             /// thể mới. Đây là `match` trên `&str` — một tập vô hạn và không tin được —
-            /// nên nhánh cuối là bắt buộc, và nó trả `None` chứ ⛔ không đoán.
+            /// nên nhánh cuối là bắt buộc, và nó trả `None` chứ không đoán.
             pub fn from_wire(raw: &str) -> Option<ScopeKind> {
                 match raw {
                     $($wire => Some(ScopeKind::$variant),)+
@@ -149,7 +149,7 @@ macro_rules! scope_kinds {
 // BẢNG AD-18 — chín hàng. Sáu hàng gốc + ba hàng `GlobalOnly` của FR103.
 //
 // Cột "Chủ sở hữu dữ liệu" là một mệnh đề về PHẠM VI: story này khai NGỮ NGHĨA của cả
-// chín loại, và ⛔ không khai BẢNG của loại nào ngoài ba loại `GlobalOnly` cuối. Xem
+// chín loại, và không khai BẢNG của loại nào ngoài ba loại `GlobalOnly` cuối. Xem
 // §Quyết định #1: nhét Glossary (phân loại/xuất xứ/vòng đời ba trạng thái) và TM (cặp
 // văn bản + xuất xứ) vào một cột `value TEXT` là dựng một lược đồ EAV mà bốn epic sau
 // phải bóc ra.
@@ -170,7 +170,7 @@ scope_kinds! {
     /// | ghi đè"* và Story 4.2 chỉ nói *"ghi đè được theo Tác phẩm đó"*; chỉ
     /// `mockups/settings.html` lộ ra rằng trong **cùng một** cấu hình có trường `ghi đè`
     /// và trường `kế thừa` cùng lúc (`:172`, `:188`, `:200`). Nghĩa là Epic 4 phân giải
-    /// nó như một map `khoá trường -> giá trị`, y hệt Glossary — ⛔ **không** như một
+    /// nó như một map `khoá trường -> giá trị`, y hệt Glossary — **không** như một
     /// giá trị nguyên khối. *(Ice ký 2026-08-04; chốt ở đây rẻ hơn chốt ở Epic 4.)*
     AiConfig => "ai_config" : Override,
 

@@ -1,6 +1,6 @@
 //! Bộ đọc dòng dùng chung cho CVDICT và CC-CEDICT — cả hai cùng khuôn văn bản
 //! (`phồn giản [pinyin] /nghĩa/nghĩa/`, §Thông tin kỹ thuật của Story 1.9). Đây là
-//! chia sẻ CODE PARSE-DÒNG, ⛔ không phải hợp nhất NGHĨA giữa hai nguồn — mỗi module
+//! chia sẻ CODE PARSE-DÒNG, không phải hợp nhất NGHĨA giữa hai nguồn — mỗi module
 //! gọi hàm này vẫn tự gắn `source_id` của chính nó, và không hàng `dict_sense` nào đi
 //! qua đây biết tới nguồn kia. AD-19 cấm hợp nhất *nghĩa*, không cấm dùng lại một hàm
 //! tách chuỗi.
@@ -20,8 +20,8 @@ pub struct CedictLine {
 /// (không phải lỗi — đó là header/comment hợp lệ của định dạng).
 ///
 /// Trả `Err` kèm lý do khi dòng KHÔNG rỗng, KHÔNG phải comment, nhưng không khớp
-/// khuôn `TRAD SIMP [PINYIN] /defs/` — dòng hỏng phải được ĐẾM (§Quyết định #8), ⛔
-/// không được `panic!`, ⛔ không được nuốt im lặng.
+/// khuôn `TRAD SIMP [PINYIN] /defs/` — dòng hỏng phải được ĐẾM (§Quyết định #8), không
+/// không được `panic!`, không được nuốt im lặng.
 pub fn parse_line(line_no: usize, raw: &str) -> Result<Option<CedictLine>, ParseIssue> {
     let trimmed = raw.trim_end_matches(['\r', '\n']);
     if trimmed.trim().is_empty() || trimmed.trim_start().starts_with('#') {

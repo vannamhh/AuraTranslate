@@ -2,7 +2,7 @@
 # của workspace nào khác. Đây là toàn bộ AC4 ở tầng cấu trúc (§Quyết định #1 · §Bẫy 2
 # của Story 1.9): cây phụ thuộc của `src-tauri` và cây phụ thuộc của build tool này
 # không giao nhau về mặt vật lý — có `Cargo.lock` riêng, feature unification riêng.
-# ⛔ Không xoá khối này. ⛔ Không thêm `[workspace]` ở gốc repo mà quên loại trừ
+# Không xoá khối này. Không thêm `[workspace]` ở gốc repo mà quên loại trừ
 # `tools/dict-build` — làm vậy sẽ hút build tool vào cây phụ thuộc sản phẩm mà không
 # lỗi nào được ném.
 [workspace]
@@ -17,7 +17,7 @@ edition = "2024"
 rust-version = "1.97.1"
 publish = false
 
-# ⛔ Không ghim bằng `=` như `src-tauri/Cargo.toml`. Đây không phải bảng Stack của sản
+# Không ghim bằng `=` như `src-tauri/Cargo.toml`. Đây không phải bảng Stack của sản
 # phẩm — AD-25 nói giấy phép/phiên bản parser không ràng buộc sản phẩm, nên dải mặc định
 # của Cargo (`"x.y.z"` = `^x.y.z`) là đủ. Giấy phép từng crate ghi ở README.md cạnh đây.
 [dependencies]

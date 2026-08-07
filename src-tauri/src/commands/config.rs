@@ -17,7 +17,7 @@
 //! thì **không phải** command giả — nó là chính thứ chạy trên máy người dùng.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 ⛔ `State<Store>` KHÔNG PHẢI LÚC NÀO CŨNG CÓ — và nhánh vắng mặt là cả lý do tồn tại
+//! 🔴 không `State<Store>` KHÔNG PHẢI LÚC NÀO CŨNG CÓ — và nhánh vắng mặt là cả lý do tồn tại
 //! ─────────────────────────────────────────────────────────────────────────────
 //! `lib.rs:84-116` ghi chẩn đoán rồi **đi tiếp** khi mở kho thất bại, nên `app.manage(store)`
 //! **có thể chưa từng chạy**. Một `state::<Store>()` thẳng tay sẽ panic — và `panic = "abort"`
@@ -26,12 +26,12 @@
 //! chỉ ra `stderr`.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! ⛔ KHÔNG KHOÁ `MessageKey` MỚI, KHÔNG CHUỖI `vi.json` MỚI — §Quyết định #7
+//! KHÔNG KHOÁ `MessageKey` MỚI, KHÔNG CHUỖI `vi.json` MỚI — §Quyết định #7
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Mọi lỗi hai hàm này phát ra đều là lỗi **kho**, và cả năm khoá đã có từ Story 1.7 kèm
 //! `From<StoreError> for IpcError` và test `every_store_error_converts_to_a_complete_ipc_error`.
-//! `core::scope::ScopeError` là **lỗi lập trình** — nó ⛔ không `impl From<..> for IpcError`
-//! và ⛔ không bao giờ vượt ranh giới này.
+//! `core::scope::ScopeError` là **lỗi lập trình** — nó không `impl From<..> for IpcError`
+//! và không bao giờ vượt ranh giới này.
 //!
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — `scripts/check-i18n.mjs` Kiểm A quét
 //! `src-tauri/**/*.rs` và `src/commands/**` không nằm trong danh sách miễn trừ.
@@ -46,12 +46,12 @@ use crate::core::store::{Store, StoreError, StoreKind};
 
 /// Cấu hình mà frontend cần **trước** lượt render đầu tiên.
 ///
-/// ⛔⛔ **KHÔNG `#[serde(rename_all = "camelCase")]`.** Thói quen viết Tauri là đặt nó lên
+/// **KHÔNG `#[serde(rename_all = "camelCase")]`.** Thói quen viết Tauri là đặt nó lên
 /// mọi struct qua IPC cho hợp phong cách JS; ở đây nó biến `layout_presets` thành
 /// `layoutPresets` và chỗ đọc nhận `undefined`. Cùng luật, cùng lý do với [`IpcError`] —
 /// bốn tên trường của AD-21 là **dây**, không phải sở thích. Khoá trên dây là `snake_case`.
 ///
-/// ⚠️ `BTreeMap`, ⛔ không `HashMap`: thứ tự khoá ổn định thì test so JSON mới ổn định qua
+/// ⚠️ `BTreeMap`, không `HashMap`: thứ tự khoá ổn định thì test so JSON mới ổn định qua
 /// từng lượt chạy. Cùng lý do mà `IpcError::params` là `BTreeMap`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BootstrapConfig {
@@ -63,7 +63,7 @@ pub struct BootstrapConfig {
     pub shortcuts: BTreeMap<String, String>,
     /// Preset bố cục đã đặt tên. **Story 1.14** dựng hai preset dựng sẵn ở frontend; map
     /// này mang những preset **người dùng tự đặt tên**, và màn hình để làm việc đó là
-    /// **Story 1.21**. Rỗng hôm nay ⛔ không phải một thiếu sót.
+    /// **Story 1.21**. Rỗng hôm nay không phải một thiếu sót.
     pub layout_presets: BTreeMap<String, String>,
     /// Bố cục panel **đang hiển thị**, chuỗi JSON của frontend — Story 1.14, AC4.
     ///
@@ -71,19 +71,19 @@ pub struct BootstrapConfig {
     /// trường và nó phải được sửa cùng lượt — đó là hành vi ĐÚNG: một trường mới đi qua
     /// IPC mà không ai đối chiếu là đúng thứ phép kiểm đó tồn tại để chặn.
     ///
-    /// ⛔ Vẫn ⛔ KHÔNG `#[serde(rename_all = "camelCase")]` — nó biến `workspace_layout`
+    /// Vẫn KHÔNG `#[serde(rename_all = "camelCase")]` — nó biến `workspace_layout`
     /// thành `workspaceLayout` và `src/config/bootstrap.ts` nhận `undefined`.
     pub workspace_layout: String,
 }
 
 /// Kho vắng mặt ⇒ lỗi *mở kho*, và đó là câu đúng theo nghĩa đen.
 ///
-/// 🔴 Đi qua `From<StoreError> for IpcError`, ⛔ không dựng `IpcError` bằng struct literal
-/// và ⛔ không gọi `IpcError::new` với khoá gõ tay. Lý do: `IpcError::new` là chỗ **duy
+/// 🔴 Đi qua `From<StoreError> for IpcError`, không dựng `IpcError` bằng struct literal
+/// và không gọi `IpcError::new` với khoá gõ tay. Lý do: `IpcError::new` là chỗ **duy
 /// nhất** `message_key` gặp `params`, và `From` là chỗ duy nhất một `StoreError` chọn
 /// khoá của nó. Hai lần "duy nhất" đó chỉ có giá trị nếu không ai đi vòng.
 ///
-/// ⚠️ `detail` mang lý do cho người chẩn đoán và ⛔ **không** đi vào `params` — AD-21 nói
+/// ⚠️ `detail` mang lý do cho người chẩn đoán và **không** đi vào `params` — AD-21 nói
 /// `params` mang **dữ liệu**, không mang câu (Story 1.7 §Completion Notes #5).
 fn store_is_missing() -> IpcError {
     StoreError::OpenFailed {
@@ -102,7 +102,7 @@ fn store_is_missing() -> IpcError {
 /// - kho vắng mặt ⇒ `store.open_failed`;
 /// - đường đọc trượt ⇒ `store.read_failed` *(qua `From<StoreError>`)*.
 ///
-/// ⛔ Không nhánh nào sinh ra một [`IpcError`] **không** dẫn xuất từ `StoreError` —
+/// Không nhánh nào sinh ra một [`IpcError`] **không** dẫn xuất từ `StoreError` —
 /// `tests/scope_contract.rs::every_command_error_comes_from_the_store_vocabulary` canh
 /// mệnh đề đó.
 pub fn bootstrap_config(store: Option<&Store>) -> Result<BootstrapConfig, IpcError> {
@@ -121,7 +121,7 @@ pub fn bootstrap_config(store: Option<&Store>) -> Result<BootstrapConfig, IpcErr
 /// Ghi một giá trị cấu hình xuống tầng Global — **hàm thuần**.
 ///
 /// `kind` đến từ bên kia ranh giới nên nó là dữ liệu **không tin được**; phép phân giải và
-/// phép từ chối nằm ở [`scope::save_value`], ⛔ không ở đây. Adapter không phán xét.
+/// phép từ chối nằm ở [`scope::save_value`], không ở đây. Adapter không phán xét.
 ///
 /// # Lỗi
 /// kho vắng mặt ⇒ `store.open_failed`; `kind` lạ hoặc đường ghi trượt ⇒ `store.write_failed`.
@@ -136,7 +136,7 @@ pub fn put_config(
     Ok(())
 }
 
-/// Hai vỏ `#[tauri::command]`. ⛔ **Không một quy tắc nào sống ở đây.**
+/// Hai vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 ///
 /// ⚠️ Module lồng chứ không phải hai hàm cạnh nhau, và đó là một ràng buộc chứ không phải
 /// một cách sắp xếp: **tên command trên dây là tên hàm**. Frontend gọi
@@ -144,13 +144,13 @@ pub fn put_config(
 /// tên đó đã thuộc về hàm thuần ở trên. Một hậu tố `_command` sẽ đổi tên trên dây và
 /// `invoke` sẽ không tìm thấy gì.
 ///
-/// ⛔ Đừng đảo hướng: hàm thuần là **đường sản phẩm**, vỏ là thứ có thể bỏ đi trong test.
+/// Đừng đảo hướng: hàm thuần là **đường sản phẩm**, vỏ là thứ có thể bỏ đi trong test.
 pub mod wire {
     use super::{BootstrapConfig, IpcError, Store};
 
     /// Vỏ IPC của [`super::bootstrap_config`].
     ///
-    /// ⚠️ `try_state`, ⛔ không `state()` — xem doc-comment của module về `panic = "abort"`.
+    /// ⚠️ `try_state`, không `state()` — xem doc-comment của module về `panic = "abort"`.
     #[tauri::command]
     pub fn bootstrap_config(app: tauri::AppHandle) -> Result<BootstrapConfig, IpcError> {
         use tauri::Manager as _;

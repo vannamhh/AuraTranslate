@@ -5,7 +5,7 @@
  * `<body>` sinh thanh cuộn ở cửa sổ trống": `index.html` không nạp stylesheet nào và
  * không có tệp CSS toàn cục nào tồn tại, nên 100vh + 8px = 8px tràn, ở MỌI cửa sổ.
  *
- * ⛔ KHÔNG kéo `normalize.css` / `modern-css-reset` về. Mỗi phụ thuộc mới phải rà tương
+ * KHÔNG kéo `normalize.css` / `modern-css-reset` về. Mỗi phụ thuộc mới phải rà tương
  * thích GPLv3 bằng cách mở tệp giấy phép trong nguồn đã tải (NFR15) và vào bảng Stack
  * TRƯỚC. Bốn quy tắc dưới đây không đáng một lượt rà giấy phép.
  *
@@ -37,7 +37,7 @@ body {
  * Với dự phòng thì cùng sự cố đó ra một cửa sổ vẫn đúng hướng "Bàn viết", còn `console`
  * vẫn mang cảnh báo của `applyTheme`. Bốn giá trị này chép từ `tokens.json`
  * `colors.light` và `typography.ui-md`, và chúng là bản chép DUY NHẤT được phép tồn tại
- * ngoài `tokens.json` — ⛔ đừng nhân khuôn này ra component. Kiểm B miễn trừ
+ * ngoài `tokens.json` — đừng nhân khuôn này ra component. Kiểm B miễn trừ
  * `src/tokens/**` nên cổng không chặn, nhưng cổng không phải là lý do.
  */
 body {
@@ -63,7 +63,7 @@ body {
    * định của macOS là subpixel-AA, dày hơn hẳn, và hai nền tảng ra hai độ đậm khác nhau
    * là đúng thứ NFR14 tồn tại để chặn.
    *
-   * ⛔ Mệnh đề "nhất quán hai nền tảng" ở trên là LÝ LẼ, chưa phải PHÉP ĐO: chưa có ảnh
+   * Mệnh đề "nhất quán hai nền tảng" ở trên là LÝ LẼ, chưa phải PHÉP ĐO: chưa có ảnh
    * chụp cạnh nhau của cùng một chuỗi trên hai runner. Ghi vào `deferred-work.md`.
    */
   -webkit-font-smoothing: antialiased;

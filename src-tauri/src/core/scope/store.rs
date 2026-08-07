@@ -1,7 +1,7 @@
 //! Nạp và ghi tầng Global qua [`core::store`](crate::core::store) — AC5.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 ⛔ TỆP NÀY KHÔNG BAO GIỜ GÕ TÊN CRATE SQLITE — **kể cả trong comment đuôi dòng**
+//! 🔴 không TỆP NÀY KHÔNG BAO GIỜ GÕ TÊN CRATE SQLITE — **kể cả trong comment đuôi dòng**
 //! ─────────────────────────────────────────────────────────────────────────────
 //! `tests/store_boundary.rs:54` cấm hai chuỗi ngoài `core/store/**`, và bộ quét chỉ miễn
 //! trừ **dòng bắt đầu bằng `//`**. Story 1.7 đã ghi lại nguyên văn: *"Comment đuôi dòng
@@ -10,15 +10,15 @@
 //! không có lý do chính đáng nào để gõ tên crate ở đây.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! ⛔ `core::scope` KHÔNG SỞ HỮU KHO CỦA MỌI LOẠI
+//! `core::scope` KHÔNG SỞ HỮU KHO CỦA MỌI LOẠI
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Bảng `config_value` phục vụ **riêng** ba loại [`Semantics::GlobalOnly`]. Glossary, TM,
 //! Prompt, Cấu hình AI và Luật làm sạch sẽ mang **bảng riêng của chúng** ở epic của
 //! chúng, và tự nạp hai tầng rồi đưa qua [`super::ScopeResolver`] — xem §Quyết định #1 và
 //! doc-comment của [`crate::core::store::CONFIG_VALUE_DDL`].
 //!
-//! ⛔ **Không gọi [`Store::write`] bên trong một job ghi.** `writer.rs:104` trả
-//! `WriteFailed` chứ ⛔ không xếp hàng, và đó là chốt chống deadlock chứ không phải một
+//! **Không gọi [`Store::write`] bên trong một job ghi.** `writer.rs:104` trả
+//! `WriteFailed` chứ không xếp hàng, và đó là chốt chống deadlock chứ không phải một
 //! lỗi cần lách.
 //!
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — xem doc-comment của [`super::kinds`].
@@ -53,17 +53,17 @@ const KEY_MODE: &str = "mode";
 
 /// Khoá của [`ScopeKind::AppConfig`] mang **bố cục panel đang hiển thị** — Story 1.14, AC4.
 ///
-/// ⚠️ Ở [`ScopeKind::AppConfig`] chứ ⛔ **không** ở `ScopeKind::LayoutPreset`, và ranh giới
+/// ⚠️ Ở [`ScopeKind::AppConfig`] chứ **không** ở `ScopeKind::LayoutPreset`, và ranh giới
 /// đó do `kinds.rs` phân xử: `LayoutPreset` mang **preset đã ĐẶT TÊN** — dữ liệu người dùng
 /// tự tạo và tự gọi tên, thứ màn hình của Story 1.21 liệt kê ra. Bố cục *đang hiển thị* thì
-/// cùng loại với `theme` và `mode`: nó là *"lần cuối ứng dụng ở trạng thái nào"*, ⛔ không
+/// cùng loại với `theme` và `mode`: nó là *"lần cuối ứng dụng ở trạng thái nào"*, không
 /// phải một mục trong một danh sách.
 ///
-/// ⛔ Nhét nó vào `layout_presets` dưới một khoá dành riêng (`__current`) là bẻ nghĩa của
+/// Nhét nó vào `layout_presets` dưới một khoá dành riêng (`__current`) là bẻ nghĩa của
 /// *"đã đặt tên"*, và Story 1.21 sẽ hiện `__current` ra màn hình như một preset thật.
 ///
-/// ⚠️ Giá trị là một chuỗi JSON do frontend `stringify` — tầng này ⛔ **không** phân tích nó
-/// và ⛔ không kiểm hình dạng. `SerializedDockview` là hình dạng của dockview, tức của
+/// ⚠️ Giá trị là một chuỗi JSON do frontend `stringify` — tầng này **không** phân tích nó
+/// và không kiểm hình dạng. `SerializedDockview` là hình dạng của dockview, tức của
 /// frontend (AD-1: *"bố cục panel là state UI của frontend"*); kiểm nó ở đây là dựng một bản
 /// chép thứ hai của một lược đồ thư viện, và bản chép đó sẽ trôi ở lần nâng đầu tiên. Chốt
 /// chống JSON hỏng nằm ở `WorkspaceDock.vue::restore` — `try` → rơi về preset mặc định.
@@ -74,7 +74,7 @@ const KEY_LAYOUT: &str = "workspace_layout";
 /// ⚠️ Giữ nguyên [`Resolved`] thay vì làm phẳng ngay, vì đó là **bằng chứng** rằng đường
 /// đọc này đi qua [`ScopeResolver`] thật chứ không phải một truy vấn tắt chạy song song
 /// với nó — tức đúng vế *"đúng một `ScopeResolver`"* của AC1, quan sát được ở kiểu trả về.
-/// Hôm nay mọi mục mang `tier: Global` và `shadowed: None`; ⛔ đừng đọc điều đó thành
+/// Hôm nay mọi mục mang `tier: Global` và `shadowed: None`; đừng đọc điều đó thành
 /// *"trường tier là thừa"* — Story 1.15 không phải đổi chữ ký nào.
 #[derive(Debug, Clone)]
 pub struct GlobalConfig {
@@ -93,7 +93,7 @@ impl GlobalConfig {
 
     /// Chế độ cuối cùng, hoặc [`DEFAULT_MODE`].
     ///
-    /// ⚠️ ⛔ Không kiểm tính hợp lệ ở đây: một `global.db` sửa tay có thể mang `"lbrary"`,
+    /// ⚠️ Không kiểm tính hợp lệ ở đây: một `global.db` sửa tay có thể mang `"lbrary"`,
     /// và chốt tương ứng đã nằm ở `src/modes/modeState.ts` — nơi nó rơi về mặc định và
     /// **kêu to**. Kiểm hai lần ở hai tầng với hai danh sách chép tay là cách hai danh
     /// sách đó trôi khỏi nhau.
@@ -105,12 +105,12 @@ impl GlobalConfig {
 
     /// Bố cục panel đang hiển thị, ở dạng chuỗi JSON của frontend — Story 1.14, AC4.
     ///
-    /// ⚠️ **Chuỗi rỗng** khi chưa ai lưu gì, ⛔ không `Option`: nó đi qua IPC tới một
+    /// ⚠️ **Chuỗi rỗng** khi chưa ai lưu gì, không `Option`: nó đi qua IPC tới một
     /// TypeScript `string`, và ở đó `''` với `undefined` phải dẫn về **cùng một** nhánh
     /// *"dựng preset mặc định"*. Hai đại diện cho một trạng thái là hai nhánh phải nhớ
     /// giữ đồng bộ — cùng lý lẽ với [`DEFAULT_THEME`] ở đầu tệp này.
     ///
-    /// ⛔ Tầng này ⛔ không kiểm chuỗi có phải JSON hợp lệ không. Xem [`KEY_LAYOUT`].
+    /// Tầng này không kiểm chuỗi có phải JSON hợp lệ không. Xem [`KEY_LAYOUT`].
     pub fn workspace_layout(&self) -> &str {
         self.app.get(KEY_LAYOUT).map_or("", |r| r.value().as_str())
     }
@@ -154,7 +154,7 @@ fn flatten(map: &BTreeMap<String, Resolved<String>>) -> BTreeMap<String, String>
 /// tồn tại — `.atproj` là Story 1.15. Xem doc-comment của [`super`].
 ///
 /// # Lỗi
-/// [`StoreError::ReadFailed`] / [`StoreError::PoolClosed`] từ đường đọc. ⛔ Không lỗi nào
+/// [`StoreError::ReadFailed`] / [`StoreError::PoolClosed`] từ đường đọc. Không lỗi nào
 /// của [`super::ScopeError`] thoát ra được: ba lời gọi dưới đây dùng đúng hàm cho ngữ
 /// nghĩa của chúng, và `the_three_global_only_kinds_are_exactly_three` canh mệnh đề đó.
 pub fn load_global_config(store: &Store) -> Result<GlobalConfig, StoreError> {
@@ -215,16 +215,16 @@ pub(crate) fn load_kind(
 /// Ghi (hoặc cập nhật) **một** giá trị ở tầng Global.
 ///
 /// `kind` là chuỗi vì nó đến từ bên kia ranh giới IPC — dữ liệu không tin được. Một khoá
-/// lạ ⇒ [`StoreError::WriteFailed`], ⛔ không đoán và ⛔ không ghi gì cả.
+/// lạ ⇒ [`StoreError::WriteFailed`], không đoán và không ghi gì cả.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
 /// ⚠️ VÌ SAO MỘT `kind` LẠ TRẢ LỖI **KHO** CHỨ KHÔNG PHẢI MỘT LOẠI LỖI MỚI
 /// ─────────────────────────────────────────────────────────────────────────────
-/// §Quyết định #7 khoá hai điều: story này ⛔ không thêm khoá `MessageKey` nào, và
-/// [`super::ScopeError`] ⛔ không bao giờ vượt ranh giới IPC. Nên câu duy nhất còn lại để
+/// §Quyết định #7 khoá hai điều: story này không thêm khoá `MessageKey` nào, và
+/// [`super::ScopeError`] không bao giờ vượt ranh giới IPC. Nên câu duy nhất còn lại để
 /// nói với người dùng là câu thật: **thay đổi vừa rồi chưa được lưu** — đó chính là
 /// `store.write_failed`. Nó không phải một cách nói tránh: không byte nào được ghi, và
-/// `detail` mang lý do đầy đủ cho người đang chẩn đoán *(⛔ và `detail` không bao giờ đi
+/// `detail` mang lý do đầy đủ cho người đang chẩn đoán *(không và `detail` không bao giờ đi
 /// lên giao diện — `From<StoreError> for IpcError` đã chặn)*.
 ///
 /// ⚠️ Một loại **không** phải [`Semantics::GlobalOnly`] cũng bị từ chối ở đây: bảng
@@ -256,7 +256,7 @@ pub fn save_value(store: &Store, kind: &str, key: &str, value: &str) -> Result<(
     let value = value.to_owned();
 
     store.write(move |tx: &Transaction<'_>| {
-        // `strftime` của CHÍNH SQLite — ISO-8601 UTC theo Consistency Conventions, và ⛔
+        // `strftime` của CHÍNH SQLite — ISO-8601 UTC theo Consistency Conventions, và không
         // không phải thêm một phụ thuộc ngày giờ cho một cột (NFR15 đòi rà GPLv3 trước).
         tx.execute(
             "INSERT INTO config_value (kind, key, value, updated_at)

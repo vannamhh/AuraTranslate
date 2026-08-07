@@ -5,7 +5,7 @@
 //!
 //! Review Findings — nhãn Nôm đối chứng đi qua `nom_guard::nom_only_readings` TRƯỚC khi
 //! so (đúng đường production dùng từ bản vá code review 2026-08-06). Con số đỏ vì vậy
-//! là **79,5%** *(882/1.109)*, ⛔ không còn **92,4%** như bản đo gốc của §Phát hiện ② —
+//! là **79,5%** *(882/1.109)*, không còn **92,4%** như bản đo gốc của §Phát hiện ② —
 //! chênh lệch là vì bản vá loại các âm "tự-trùng-vai" (cũng gắn `han-viet-reading` cho
 //! CÙNG ký tự) khỏi vế đối chứng để tránh báo động giả trên các nguồn hợp lệ (đo thật:
 //! Thiều Chửu tụt từ 63,4% xuống 5,2%, xem `deferred-work.md`). 79,5% vẫn CÁCH XA ngưỡng
@@ -32,7 +32,7 @@ fn kvietnamese_reproduces_the_historical_92_percent_overlap_on_real_data() {
 
     // §Phát hiện của story: `kVietnamese` là hình dạng LỖI — nạp thẳng vào `han_viet`,
     // dán nhãn nguồn "unihan-pre-1.10c-bug" để `count_suspicious` so nó XUYÊN NGUỒN với
-    // nhãn nom-reading thật của en-wiktionary-vi (⛔ không phải mã nguồn `unihan` thật
+    // nhãn nom-reading thật của en-wiktionary-vi (không phải mã nguồn `unihan` thật
     // của story này, vốn giờ chỉ ghi `nom_reading`, không còn ghi `han_viet` nữa).
     let unihan_bytes = std::fs::read(&unihan_path).expect("đọc Unihan_Readings.txt thật");
     let unihan_entries: Vec<dict_build::model::RawEntry> =

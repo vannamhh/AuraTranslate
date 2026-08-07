@@ -9,7 +9,7 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 1. **Mỗi ca một thư mục tạm riêng.** `cargo test` chạy các ca **song song trong cùng
 //!    một tiến trình**; hai ca dùng chung một đường dẫn `.db` sẽ đỏ ngẫu nhiên và bị đọc
-//!    thành flaky. Tên gồm pid + một bộ đếm nguyên tử. ⛔ Không thêm `tempfile`.
+//!    thành flaky. Tên gồm pid + một bộ đếm nguyên tử. Không thêm `tempfile`.
 //! 2. **Drop `Store` TRƯỚC khi xoá thư mục.** Windows từ chối xoá tệp đang mở — một
 //!    `remove_dir_all` sớm cho ra một test đỏ **chỉ trên nhánh Windows** của ma trận,
 //!    đúng lớp lỗi NFR14 mà Story 1.3 dựng CI để bắt.
@@ -130,7 +130,7 @@ fn store_is_send_and_sync() {
 /// **Ca 1** — 8 luồng × 50 job ghi đồng thời.
 ///
 /// 🔴 Ba mệnh đề, và cả ba được chứng minh bằng **một bảng đếm ghi vào chính database**,
-/// ⛔ không bằng suy luận (AC1 nói nguyên văn như vậy):
+/// không bằng suy luận (AC1 nói nguyên văn như vậy):
 ///
 /// 1. **Đúng MỘT luồng writer** — mỗi job ghi lại `thread::current().id()` của luồng đã
 ///    chạy nó. Hơn một giá trị khác nhau nghĩa là có hơn một kết nối ghi.
@@ -366,7 +366,7 @@ fn write_after_close_fails_instead_of_hanging() {
 /// **Ca 3** — một `INSERT` qua đường `read()` phải **thất bại**, với lỗi của SQLite.
 ///
 /// 🔴 Đây là bằng chứng của AC2 vế *"khả năng hiển thị của kiểu"*: cưỡng chế đến từ
-/// `PRAGMA query_only = 1`, tức từ **SQLite**, ⛔ không từ việc người viết tự nhớ.
+/// `PRAGMA query_only = 1`, tức từ **SQLite**, không từ việc người viết tự nhớ.
 #[test]
 fn writing_through_the_read_path_is_refused_by_sqlite() {
     let dir = temp_dir("read-only");
@@ -459,7 +459,7 @@ fn the_three_pragmas_read_back_on_every_connection() {
     cleanup(&dir);
 }
 
-/// **Ca 5** — `journal_mode` không đặt được ⇒ `open()` **trả Err**, ⛔ không đi tiếp.
+/// **Ca 5** — `journal_mode` không đặt được ⇒ `open()` **trả Err**, không đi tiếp.
 ///
 /// 🔴 Đây là ca đối chứng âm của Bẫy 1, và nó là ca quan trọng nhất của AC3: một bản chỉ
 /// *đặt* mà không *đọc lại* đi qua ca 4 (trên đĩa WAL bật được) và **xanh ở đây luôn** —
@@ -529,7 +529,7 @@ fn wait_until(deadline: Duration, mut check: impl FnMut() -> bool) -> bool {
 /// **Ca 6** — ghi rồi để rảnh quá `idle` ⇒ một lượt PASSIVE với `busy == 0` và
 /// `checkpointed > 0`.
 ///
-/// ⛔ **Ca này KHÔNG assert `.db-wal` nhỏ đi, và đó là một quyết định, không phải một
+/// **Ca này KHÔNG assert `.db-wal` nhỏ đi, và đó là một quyết định, không phải một
 /// chỗ bỏ sót.** PASSIVE chép frame về database rồi cho SQLite **dùng lại** chỗ đó —
 /// tệp giữ nguyên cỡ và **ngừng lớn**. Một assert "nhỏ đi" ở đây đỏ, và cách "sửa" tự
 /// nhiên nhất là đổi luồng nền sang TRUNCATE — lúc đó test xanh, AC5 trông như đạt, và
@@ -563,7 +563,7 @@ fn an_idle_pause_triggers_one_passive_checkpoint() {
     );
     assert_eq!(
         stats.passive_busy, 0,
-        "một lượt PASSIVE bị chặn (`busy != 0`) — ⛔ đó KHÔNG phải một lượt đã xong. \
+        "một lượt PASSIVE bị chặn (`busy != 0`) — không đó KHÔNG phải một lượt đã xong. \
          Chẩn đoán: {:?}",
         store.diagnostics()
     );
@@ -584,7 +584,7 @@ fn an_idle_pause_triggers_one_passive_checkpoint() {
 /// sẽ lớn gấp đôi ở đợt hai. Một phiên gõ liên tục hàng giờ không bao giờ "rảnh" — đó
 /// chính là ca mà AC5 nói tới.
 ///
-/// Kỳ vọng là **chững lại**, ⛔ không phải co lại (xem ca 6).
+/// Kỳ vọng là **chững lại**, không phải co lại (xem ca 6).
 #[test]
 fn the_wal_stops_growing_once_it_crosses_the_threshold() {
     let dir = temp_dir("wal-threshold");
@@ -644,7 +644,7 @@ fn the_wal_stops_growing_once_it_crosses_the_threshold() {
 
     // ── Mệnh đề 1: CHỮNG LẠI ────────────────────────────────────────────────────
     // Đợt hai ghi đúng lượng bằng đợt một, nên một WAL "phình vô hạn" sẽ xấp xỉ gấp đôi.
-    // ⛔ Đây KHÔNG phải chỗ đòi tệp co lại — PASSIVE chép frame rồi cho SQLite dùng lại
+    // Đây KHÔNG phải chỗ đòi tệp co lại — PASSIVE chép frame rồi cho SQLite dùng lại
     // chỗ đó, tệp giữ nguyên cỡ và ngừng lớn. Xem ca 6.
     assert!(
         after_second <= after_first * 2,
@@ -716,13 +716,13 @@ fn close_truncates_the_wal_to_nothing() {
 /// thật"* — đã **thôi đúng**: bước 2 (`CONFIG_VALUE_DDL`) làm `target - 1 == 1`, tức Ca 10
 /// nay nghiệm thu được trên bộ di trú thật.
 ///
-/// ⛔ **Nhưng `TWO_STEP` và `spec_with_migrations` GIỮ NGUYÊN**, và lý do không đổi một
+/// **Nhưng `TWO_STEP` và `spec_with_migrations` GIỮ NGUYÊN**, và lý do không đổi một
 /// chữ nào: `StoreSpec.migrations` là một **trường** chứ không phải một hằng tra theo
 /// `kind` (Story 1.7 §Completion Notes #2), và fixture cục bộ là cách duy nhất nghiệm thu
 /// AC6 vế *"một bước gãy giữa chừng ⇒ rollback"* (`BROKEN_STEP_TWO`) mà **không** phải
 /// thêm mã sản phẩm chỉ để test gọi. Story 1.15 dùng đúng trường đó cho `project.db`.
 ///
-/// 🔴 Ba ca dưới đây chạy trên fixture cục bộ, ⛔ **không** phụ thuộc `GLOBAL_MIGRATIONS`.
+/// 🔴 Ba ca dưới đây chạy trên fixture cục bộ, **không** phụ thuộc `GLOBAL_MIGRATIONS`.
 /// Sửa các con số của chúng cho *"nhất quán"* với bộ di trú thật là hướng hỏng ĐẮT: hai ca
 /// nghiệm thu **sao lưu trước khi di trú** và **rollback khi bước gãy** im lặng mất hiệu
 /// lực, và CI vẫn xanh.
@@ -950,7 +950,7 @@ fn a_failing_migration_rolls_back_and_leaves_the_version_alone() {
 }
 
 /// **Ca 12** — phiên bản mới hơn ứng dụng ⇒ `Err`, **byte-for-byte không đổi**, và
-/// ⛔ `.db-wal` / `.db-shm` **không được tạo ra**.
+/// `.db-wal` / `.db-shm` **không được tạo ra**.
 ///
 /// 🔴 Đây là AC dễ trượt nhất của cả story, và nó trượt **im lặng**. Thứ tự tự nhiên
 /// nhất để viết `open()` — mở, đặt PRAGMA cho xong, rồi mới xét lược đồ — vi phạm AC7,
@@ -1114,7 +1114,7 @@ fn every_store_error_converts_to_a_complete_ipc_error() {
             );
         }
 
-        // ⛔ Không câu nào lọt vào `params`. AD-21: tham số mang DỮ LIỆU. `detail` mang
+        // Không câu nào lọt vào `params`. AD-21: tham số mang DỮ LIỆU. `detail` mang
         // văn bản lỗi thô của SQLite và nó phải ở lại trong `Debug`, không lên dây.
         let params: &BTreeMap<String, String> = ipc.params();
         for (key, value) in params {

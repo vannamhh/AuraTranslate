@@ -61,13 +61,13 @@ So that **tôi không phải bóc font ra sau khi đã dựng nửa giao diện 
   - [x] Tạo app Tauri v2 tối thiểu **trong thư mục scratchpad của phiên, KHÔNG trong repo AuraTranslate**. `create-tauri-app` được phép ở đây và **chỉ** ở đây.
   - [x] App chỉ cần một cửa sổ hiển thị một đoạn văn bản thử — không cần panel, không cần IPC, không cần database.
   - [x] Ghim `tauri` 2.11.5 · Vue 3.5.40 · Vite 8.2.0 đúng bảng Stack, để số đo dùng lại được cho bản thật. *(Crate `tauri` = 2.11.5 đúng như ghim. `@tauri-apps/cli` dùng **2.11.4** vì bản 2.11.5 của gói npm không tồn tại — hai kênh đánh số riêng, xem Debug Log.)*
-  - [x] ⛔ **Không** commit app này. ⛔ **Không** dùng nó làm scaffold cho Story 1.2 — xem §Ranh giới phạm vi. *(Đã xác minh: `git status` không có `src-tauri/`, `package.json`, `Cargo.toml`.)*
+  - [x] **Không** commit app này. **Không** dùng nó làm scaffold cho Story 1.2 — xem §Ranh giới phạm vi. *(Đã xác minh: `git status` không có `src-tauri/`, `package.json`, `Cargo.toml`.)*
 
 - [x] **Task 2 — Tải đúng tệp font từ kênh Google** (AC: 1, 3)
   - [x] **Kênh đã chốt: Google cho cả ba họ font** (Ice quyết 2026-08-03). Không phải việc của mũi thăm dò nữa — xem §Hai kênh phát hành để biết lý do và các ràng buộc kèm theo.
   - [x] Latin — tải từ `google/fonts`, **font biến thiên**: `ofl/sourceserif4/SourceSerif4[opsz,wght].ttf` · `ofl/sourceserif4/SourceSerif4-Italic[opsz,wght].ttf` · `ofl/sourcesans3/SourceSans3[wght].ttf`. **Ba tệp, phủ trọn dải nét 200–900** — không cần tệp riêng cho nét 600 và 700. *(Dựng thật xác nhận nét 600 và 700 là nét thật.)*
   - [x] CJK — tải từ release `notofonts/noto-cjk` tag **`Serif2.003`**, lấy **chỉ nét Regular** của biến thể vùng đầy đủ (`09_NotoSerifCJKsc.zip` hoặc `10_NotoSerifCJKtc.zip`, chốt ở Task 6). *(Tải cả hai để so ở Task 6; chỉ TC vào bộ phát hành.)*
-  - [x] ⛔ **Không** tải qua `fonts.googleapis.com`. Tải tệp về đóng gói; AD-15 cấm mọi origin từ xa lúc chạy.
+  - [x] **Không** tải qua `fonts.googleapis.com`. Tải tệp về đóng gói; AD-15 cấm mọi origin từ xa lúc chạy.
   - [x] Ghi lại dung lượng **trên đĩa** của từng tệp trước khi đóng gói (số này khác với chênh lệch installer — xem §Bẫy đo lường). *(Kèm SHA-256 từng tệp.)*
   - [x] Ghi nhận trong báo cáo: `Noto Serif CJK` chỉ có Regular nên chữ Hán rơi vào token nét đậm hoặc nghiêng sẽ bị **tổng hợp giả**. Bảng token hiện không có token nào như vậy nên ca này chưa phát sinh — chỉ cần xác nhận lại là đúng, **không** tự ý thêm nét. *(Đã soát bảng 14 token, xác nhận đúng. Không thêm nét nào.)*
 
@@ -189,7 +189,7 @@ Xác minh 2026-08-03 qua GitHub API. Cả ba họ font đều có **hai kênh ph
 
 **Ba ràng buộc kèm theo, không được bỏ:**
 
-- ⛔ **Cấm dùng `fonts.googleapis.com`.** AD-15 cấm mọi origin từ xa; đổi kênh lấy font là đổi chỗ **tải về**, không đổi luật **đóng gói**. Tệp vẫn phải nằm trong bản cài.
+- **Cấm dùng `fonts.googleapis.com`.** AD-15 cấm mọi origin từ xa; đổi kênh lấy font là đổi chỗ **tải về**, không đổi luật **đóng gói**. Tệp vẫn phải nằm trong bản cài.
 - `Noto Serif CJK` **không phục vụ qua Google Fonts API** (quá lớn) — chỉ tải được từ release `notofonts/noto-cjk`.
 - **Font biến thiên không giúp cho CJK.** `02_NotoSerifCJK-OTF-VF.zip` nặng 214,5 MB. Lợi thế VF chỉ có ở phần Latin; phần Hán vẫn lấy tĩnh chỉ-Regular.
 - Chọn kênh Google thì **tên họ font đổi** (`Noto Serif CJK TC` thay `Source Han Serif`) → phải sửa chuỗi trong bảng token và trong `families.read` / `families.read-cjk` của `DESIGN.md`. Sửa tài liệu, không đổi thiết kế.

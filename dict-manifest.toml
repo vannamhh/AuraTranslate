@@ -11,7 +11,7 @@
 #   source_version  = "…"                # phiên bản NGUỒN THÔ đã sinh ra file này
 #                                        # (không phải phiên bản của file .db)
 #
-# ⛔ Không điền giá trị giả để "cho có". Một checksum sai trong manifest hỏng im lặng
+# Không điền giá trị giả để "cho có". Một checksum sai trong manifest hỏng im lặng
 # đúng kiểu tệ nhất: file tải về vẫn dùng được, chỉ là không ai biết nó là bản nào.
 #
 # Lớp nền và mỗi lớp gỡ rời là MỘT file `.db` độc lập (AD-10) → mỗi lớp một mục.
@@ -23,7 +23,7 @@
 # ⚠️ Release `dict-v1` CHƯA TỒN TẠI trên GitHub tại thời điểm story này giao (2026-08-04)
 # — URL dưới đây ĐÚNG HÌNH DẠNG và đúng tag dự kiến (cổng `check:dict-manifest` kiểm
 # hình dạng, không kiểm tồn tại), nhưng sẽ trả 404 tới khi Ice chạy lệnh ở §Completion
-# Notes để tạo release và tải cả bốn tệp lên. ⛔ Không đoán một tag khác chỉ để URL
+# Notes để tạo release và tải cả bốn tệp lên. Không đoán một tag khác chỉ để URL
 # phản hồi 200 — dict-v1 là tag đúng, chỉ chưa được tạo.
 #
 # 🔴 SHA-256 CẬP NHẬT LẦN BA ở **Story 1.10c** (2026-08-06) — LƯỢC ĐỒ LÊN v2 + NGUỒN NỀN

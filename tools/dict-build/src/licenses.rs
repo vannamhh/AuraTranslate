@@ -1,5 +1,5 @@
 //! Văn bản giấy phép NGUYÊN VĂN, tải thật từ nguồn chính thức 2026-08-04 (Story 1.9,
-//! Task 3/11) — ⛔ không phải bản tóm tắt tự viết. `include_str!` nhúng lúc biên dịch,
+//! Task 3/11) — không phải bản tóm tắt tự viết. `include_str!` nhúng lúc biên dịch,
 //! khớp khuôn `generate_context!` nhúng `dist/` của `src-tauri` (Dev Notes bàn giao #3).
 //!
 //! - CC BY-SA 4.0: `creativecommons.org/licenses/by-sa/4.0/legalcode.txt`
@@ -56,10 +56,10 @@ pub fn vietphrase_license_text() -> String {
 }
 
 /// Trần Văn Chánh: tuyên bố xuất xứ (rủi ro pháp lý ĐI TRƯỚC, AC8) rồi toàn văn CC0 1.0
-/// của người số hoá — cùng khuôn `thieu_chuu_license_text`, nhưng ⛔ **không** giống về
+/// của người số hoá — cùng khuôn `thieu_chuu_license_text`, nhưng **không** giống về
 /// Ý NGHĨA: ở đây CC0 chỉ phủ công sức số hoá, KHÔNG phủ bản quyền tác phẩm gốc (còn
 /// hiệu lực) — tuyên bố xuất xứ nói rõ điều này trước khi văn bản CC0 xuất hiện, để
-/// người đọc ⛔ không hiểu lầm CC0 = "nguồn sạch".
+/// người đọc không hiểu lầm CC0 = "nguồn sạch".
 pub fn tran_van_chanh_license_text() -> String {
     format!(
         "{TRAN_VAN_CHANH_DECLARATION}\n\n\

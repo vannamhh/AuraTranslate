@@ -49,7 +49,7 @@ so that **thêm một ngôn ngữ về sau không phải rà lại toàn bộ co
 **Then** nó mang hình dạng `{ code, message_key, params, retryable }`
 **And** không mang văn bản hiển thị
 
-> **Bốn tên trường là hợp đồng nguyên văn**, viết đúng `snake_case` như trên dây. ⛔ `#[serde(rename_all = "camelCase")]` trên struct này là **phá hợp đồng** — nó biến `message_key` thành `messageKey` và mọi frontend đọc theo AD-21 sẽ nhận `undefined`. Nghiệm thu bằng một test so **đúng bốn khoá, đúng chính tả**.
+> **Bốn tên trường là hợp đồng nguyên văn**, viết đúng `snake_case` như trên dây. không `#[serde(rename_all = "camelCase")]` trên struct này là **phá hợp đồng** — nó biến `message_key` thành `messageKey` và mọi frontend đọc theo AD-21 sẽ nhận `undefined`. Nghiệm thu bằng một test so **đúng bốn khoá, đúng chính tả**.
 
 ### AC4 — `message_key` thiếu thì hiện khoá nguyên văn và ghi cảnh báo, không sập
 
@@ -73,12 +73,12 @@ so that **thêm một ngôn ngữ về sau không phải rà lại toàn bộ co
 - [x] **Task 1 — Chụp ảnh vi phạm hiện có TRƯỚC khi viết một dòng mã** (AC: 2)
   - [x] Chạy phép đếm dưới đây trên `HEAD` và chép kết quả vào §Debug Log References. Đây là đường cơ sở; không có nó thì không chứng minh được cổng ở Task 6 thật sự bắt được gì
   - [x] Số đã đo lúc dựng story (`HEAD = 0255163`) ở §Trạng thái repo hiện tại — đối chiếu, lệch thì dừng và đọc lại §🔴 Phát hiện chặn
-  - [x] ⛔ **Đừng "dọn" gì ở task này.** Task 1 chỉ đo
+  - [x] **Đừng "dọn" gì ở task này.** Task 1 chỉ đo
 
 - [x] **Task 2 — `src/i18n/resolve.ts`: hàm phân giải thuần, không import gì** (AC: 1, 4)
   - [x] Tạo `src/i18n/resolve.ts` chứa `createResolver(catalog: Record<string, string>)` trả về `t(key, params?)`
-  - [x] ⛔ **Tệp này KHÔNG được `import` bất cứ thứ gì** — không Vue, không JSON, không `@tauri-apps/api`. Lý do ở §Vì sao `resolve.ts` phải thuần: nó là tệp duy nhất `check-i18n.mjs` nạp được để kiểm **hành vi** AC4, và Node chỉ bóc kiểu được cho TS "erasable-only"
-  - [x] ⛔ Không `enum`, không `namespace`, không parameter property — ba thứ Node từ chối bóc kiểu. Dùng union type chuỗi nếu cần
+  - [x] **Tệp này KHÔNG được `import` bất cứ thứ gì** — không Vue, không JSON, không `@tauri-apps/api`. Lý do ở §Vì sao `resolve.ts` phải thuần: nó là tệp duy nhất `check-i18n.mjs` nạp được để kiểm **hành vi** AC4, và Node chỉ bóc kiểu được cho TS "erasable-only"
+  - [x] Không `enum`, không `namespace`, không parameter property — ba thứ Node từ chối bóc kiểu. Dùng union type chuỗi nếu cần
   - [x] Hành vi khoá thiếu (AC4): trả **đúng khoá nguyên văn**, `console.warn` **một lần cho mỗi khoá** (dedupe bằng `Set`), **không ném**
   - [x] ⚠️ Dedupe không phải tối ưu vặt: một khoá thiếu trong template Vue chạy lại mỗi lần render — không dedupe thì console ngập và cảnh báo thật chìm mất
   - [x] Nội suy tham số: cú pháp `{ten_tham_so}`, tên khớp `[a-z_][a-z0-9_]*`. Tham số thiếu ⇒ **giữ nguyên placeholder** + `console.warn`, không ném, không thay bằng `undefined`
@@ -87,8 +87,8 @@ so that **thêm một ngôn ngữ về sau không phải rà lại toàn bộ co
 
 - [x] **Task 3 — `vi.json`: hình dạng phẳng và bộ khoá mồi tối thiểu** (AC: 1, 5)
   - [x] `src/i18n/vi.json` hiện là `{}` (3 byte). Viết lại thành object **phẳng**, khoá chấm
-  - [x] ⛔ **KHÔNG lồng object.** `{"lookup": {"empty_result": "…"}}` là sai hình dạng — xem AC1
-  - [x] ⛔ **KHÔNG dựng sẵn một từ vựng khoá cho tính năng chưa tồn tại.** Story này sở hữu **cơ chế**, không sở hữu **từ vựng**. Mỗi story sau tự thêm khoá của nó. Một `vi.json` 200 khoá cho panel chưa ai dựng là 200 chuỗi không ai kiểm được, và chúng sẽ sai
+  - [x] **KHÔNG lồng object.** `{"lookup": {"empty_result": "…"}}` là sai hình dạng — xem AC1
+  - [x] **KHÔNG dựng sẵn một từ vựng khoá cho tính năng chưa tồn tại.** Story này sở hữu **cơ chế**, không sở hữu **từ vựng**. Mỗi story sau tự thêm khoá của nó. Một `vi.json` 200 khoá cho panel chưa ai dựng là 200 chuỗi không ai kiểm được, và chúng sẽ sai
   - [x] Bộ mồi tối thiểu — đủ để chứng minh cả bốn AC, không hơn:
     - `err.unknown` — khoá dự phòng cuối cùng của AD-21. Mọi lỗi Rust chưa phân loại được rơi vào đây thay vì rơi vào một chuỗi viết tay
     - `err.io.read_failed` với tham số `{path}` — chứng minh đường nội suy tham số chạy thật
@@ -98,12 +98,12 @@ so that **thêm một ngôn ngữ về sau không phải rà lại toàn bộ co
 - [x] **Task 4 — Rust: danh mục `MessageKey` và kiểu `IpcError`** (AC: 3)
   - [x] `src-tauri/src/core/i18n/mod.rs` hiện **chỉ có doc-comment** và nói thẳng: *"Hình dạng thật của danh mục là quyết định của **Story 1.5**"*. Đây là chỗ trả lời
   - [x] Dùng `macro_rules! message_keys!` khai **một chỗ duy nhất** sinh ra cả `enum MessageKey`, `MessageKey::ALL` và `as_str()` — xem khung ở §Danh mục `MessageKey`. Lý do: `ALL` và `as_str()` viết tay sẽ trôi khỏi nhau, và test đồng bộ với `vi.json` chạy trên `ALL` nên `ALL` thiếu một biến thể là test xanh giả
-  - [x] `Serialize` cho `MessageKey` = `serialize_str(self.as_str())`. ⛔ Không `#[derive(Serialize)]` trần trên enum — mặc định của serde cho unit variant là **tên biến thể** (`IoReadFailed`), không phải khoá chấm
+  - [x] `Serialize` cho `MessageKey` = `serialize_str(self.as_str())`. Không `#[derive(Serialize)]` trần trên enum — mặc định của serde cho unit variant là **tên biến thể** (`IoReadFailed`), không phải khoá chấm
   - [x] Khai `IpcError` với **đúng bốn trường, đúng chính tả**: `code` · `message_key` · `params` · `retryable`
   - [x] `params: BTreeMap<String, String>` — **BTree, không Hash**: thứ tự khoá ổn định thì test so JSON mới ổn định. **Giá trị là `String`**, kể cả số: định dạng số và ngày giờ chỉ ở frontend (`ARCHITECTURE-SPINE.md#Consistency Conventions` — *"Ngày giờ: lưu ISO-8601 UTC; định dạng hiển thị chỉ ở frontend"*, cùng nguyên tắc)
-  - [x] ⛔ **`params` cũng không được mang văn bản hiển thị.** Một `params: {"reason": "Nhà cung cấp không phản hồi"}` là AD-21 bị thủng qua cửa sau. Tham số mang **dữ liệu** (đường dẫn, số đếm, tên nhà cung cấp), không mang **câu**
-  - [x] `code`: định danh máy đọc, ổn định qua mọi lần sửa lời văn. ⚠️ `code` và `message_key` **được phép 1:1 hôm nay** nhưng **là hai trường, không phải một trường hai tên**: frontend rẽ nhánh trên `code`, hiển thị `message_key`. ⛔ `code` không bao giờ được đưa ra màn hình
-  - [x] `retryable: bool` — chỉ là **quyền hiển thị một nút thử lại**. ⛔ Không mã nào được tự thử lại khi thấy `true`: AD-22 cấm auto-retry, và với BYOK nó là tính tiền hai lần
+  - [x] không **`params` cũng không được mang văn bản hiển thị.** Một `params: {"reason": "Nhà cung cấp không phản hồi"}` là AD-21 bị thủng qua cửa sau. Tham số mang **dữ liệu** (đường dẫn, số đếm, tên nhà cung cấp), không mang **câu**
+  - [x] `code`: định danh máy đọc, ổn định qua mọi lần sửa lời văn. ⚠️ `code` và `message_key` **được phép 1:1 hôm nay** nhưng **là hai trường, không phải một trường hai tên**: frontend rẽ nhánh trên `code`, hiển thị `message_key`. không `code` không bao giờ được đưa ra màn hình
+  - [x] `retryable: bool` — chỉ là **quyền hiển thị một nút thử lại**. Không mã nào được tự thử lại khi thấy `true`: AD-22 cấm auto-retry, và với BYOK nó là tính tiền hai lần
   - [x] Ba test trong `src-tauri/tests/` (xem §Testing standards để biết đặt ở đâu):
     - `ipc_error_wire_shape` — `serde_json::to_value(IpcError…)` có **đúng bốn khoá**, đúng chính tả `message_key` (không `messageKey`), `message_key` serialize thành **chuỗi khoá chấm**
     - `every_message_key_exists_in_vi_json` — đọc `../src/i18n/vi.json` (đường dẫn qua `CARGO_MANIFEST_DIR`, cùng khuôn `config_invariants.rs:11-19`), khẳng định **mọi** `MessageKey::ALL` có mặt. Chiều ngược lại **không** kiểm: `vi.json` có nhiều khoá chỉ frontend dùng, đó là bình thường
@@ -112,8 +112,8 @@ so that **thêm một ngôn ngữ về sau không phải rà lại toàn bộ co
 - [x] **Task 5 — Dời hai chuỗi chẩn đoán ra khỏi `App.vue`** (AC: 2)
   - [x] `src/App.vue:38` và `:54` chứa **văn bản tiếng Việt trong template literal** — cổng Task 6 sẽ đỏ ở chính hai dòng này. Đây là phát hiện thật, không phải giả định: xem §🔴 Phát hiện chặn
   - [x] Tạo `src/selftest/fallbackReport.ts` mang hai chuỗi đó, đúng khuôn tiền lệ `src/selftest/eventName.ts` — module bé, import tĩnh được vào bundle chính mà không kéo `scopeCheck.ts` theo
-  - [x] ⛔ **Đừng** đưa hai chuỗi này vào `vi.json`. Chúng là chẩn đoán cho log CI, không phải chuỗi giao diện; `vi.json` là tài nguyên **hiển thị**. Trộn hai thứ là làm hỏng chính ranh giới story này dựng
-  - [x] ⛔ **Đừng** import từ `./selftest/scopeCheck` — `App.vue:12-16` đã ghi rõ vì sao import tĩnh tệp đó là phá bất biến *"mã self-check không vào bundle release"*
+  - [x] **Đừng** đưa hai chuỗi này vào `vi.json`. Chúng là chẩn đoán cho log CI, không phải chuỗi giao diện; `vi.json` là tài nguyên **hiển thị**. Trộn hai thứ là làm hỏng chính ranh giới story này dựng
+  - [x] **Đừng** import từ `./selftest/scopeCheck` — `App.vue:12-16` đã ghi rõ vì sao import tĩnh tệp đó là phá bất biến *"mã self-check không vào bundle release"*
   - [x] Sau khi dời: `src/App.vue` phải **sạch tiếng Việt ở vị trí mã**, chỉ còn tiếng Việt trong comment
 
 - [x] **Task 6 — `scripts/check-i18n.mjs`: cổng có mã thoát** (AC: 1, 2, 5)
@@ -125,28 +125,28 @@ so that **thêm một ngôn ngữ về sau không phải rà lại toàn bộ co
     - **Kiểm C** — placeholder trong mọi giá trị khớp `\{[a-z_][a-z0-9_]*\}`; `{}` rỗng hoặc `{Ten}` hoa là FAIL
     - **Kiểm D** — giọng văn UX-DR47 phần máy chấm được: không `chúng tôi`, không `bạn` đứng thành tiếng riêng trong giá trị `vi.json`
     - **Kiểm E** — hành vi AC4: nạp `src/i18n/resolve.ts`, khẳng định ba đường — khoá có · khoá thiếu trả khoá nguyên văn không ném · tham số nội suy đúng
-  - [x] ⛔ **NGƯỠNG SÀN, bắt buộc.** Quét được 0 tệp `.rs` hoặc 0 tệp `.vue` ⇒ `abort()`, **không** phải "đạt". Đây là bẫy số 2 mà `check-deps.mjs:15-17` đã đâm vào một lần: *"cây rỗng đọc thành sạch"*. Sàn hôm nay: **≥ 14 tệp `.rs`**, **≥ 1 tệp `.vue`**
-  - [x] Danh sách miễn trừ viết **ngay trong script**, mỗi mục kèm **một câu lý do**. ⛔ Không miễn trừ im lặng bằng cách thu hẹp glob — xem §Ranh giới quét
+  - [x] **NGƯỠNG SÀN, bắt buộc.** Quét được 0 tệp `.rs` hoặc 0 tệp `.vue` ⇒ `abort()`, **không** phải "đạt". Đây là bẫy số 2 mà `check-deps.mjs:15-17` đã đâm vào một lần: *"cây rỗng đọc thành sạch"*. Sàn hôm nay: **≥ 14 tệp `.rs`**, **≥ 1 tệp `.vue`**
+  - [x] Danh sách miễn trừ viết **ngay trong script**, mỗi mục kèm **một câu lý do**. Không miễn trừ im lặng bằng cách thu hẹp glob — xem §Ranh giới quét
 
 - [x] **Task 7 — Chứng minh từng cổng bằng ĐỎ trước, XANH sau** (AC: 2, 4, 5)
   - [x] Với **mỗi** kiểm A–E: cố ý tạo một vi phạm → chạy → phải **đỏ**, và **đỏ đúng dòng đúng lý do** → gỡ vi phạm → phải **xanh**
   - [x] Vi phạm mẫu, mỗi kiểm một cái: A — thêm `const x = 'Đã lưu'` vào một `.vue`; B — lồng một object trong `vi.json`; C — đổi một placeholder thành `{Path}`; D — thêm `"Bạn hãy thử lại."`; E — sửa `resolve.ts` cho ném khi thiếu khoá
   - [x] Ghi bảng kết quả (kiểm · vi phạm · thông báo nhận được · mã thoát) vào §Debug Log References
-  - [x] ⛔ **Một cổng chưa từng đỏ là một cổng chưa được chứng minh.** Story 1.3 §Task 11 và Story 1.4 §Task 3 đã đặt tiền lệ này; đừng phá
+  - [x] **Một cổng chưa từng đỏ là một cổng chưa được chứng minh.** Story 1.3 §Task 11 và Story 1.4 §Task 3 đã đặt tiền lệ này; đừng phá
 
 - [x] **Task 8 — Gắn MỘT bước vào pipeline đã có** (AC: 2)
   - [x] `package.json` → thêm `"check:i18n": "node scripts/check-i18n.mjs"`, đúng khuôn ba script đã có
   - [x] `.github/workflows/ci.yml` → thêm **một** bước `npm run check:i18n` trong job `check` đã có
-  - [x] ⛔ **Không dựng workflow thứ hai.** AC4 của Story 1.3 cấm tường minh; khối *"CHỖ MÓC CHO EPIC SAU"* ở `ci.yml:420-435` là chỗ đã chừa sẵn
+  - [x] **Không dựng workflow thứ hai.** AC4 của Story 1.3 cấm tường minh; khối *"CHỖ MÓC CHO EPIC SAU"* ở `ci.yml:420-435` là chỗ đã chừa sẵn
   - [x] Đặt bước **trước** `npm run build` (`ci.yml:100`), cạnh `check:deps` (`ci.yml:92`): nó chạy trong vài giây, không cần `dist/`, không cần cửa sổ đồ hoạ. Một chuỗi lọt vào nên đỏ **trước** khi tốn một lượt biên dịch Rust
-  - [x] ⛔ **Đừng đặt nó xuống cụm cuối** nơi `check:scope` / `check:scope:bundled` đang đứng — hai bước đó cần webview, bước này thì không
-  - [x] ⛔ **Đừng sắp xếp lại các bước đã có.** Thêm một bước, không mổ lại job
+  - [x] **Đừng đặt nó xuống cụm cuối** nơi `check:scope` / `check:scope:bundled` đang đứng — hai bước đó cần webview, bước này thì không
+  - [x] **Đừng sắp xếp lại các bước đã có.** Thêm một bước, không mổ lại job
   - [x] ⚠️ **Story 1.4 cũng đang thêm một bước (`check:tokens`) vào đúng chỗ này và chưa dev xong.** Cái nào vào trước thì cái sau đặt bước của mình **kề bên**, không đụng bước kia. Nếu `check:tokens` chưa có mặt, **đừng thêm hộ**
 
 - [x] **Task 9 — Đóng sổ: doc-comment, mục Deferred, README** (AC: 1, 2, 3)
   - [x] Sửa `src-tauri/src/core/i18n/mod.rs`: thay câu *"Hình dạng thật … là quyết định của Story 1.5"* bằng **câu trả lời**, kèm lý do chọn macro
   - [x] Sửa `src-tauri/src/commands/mod.rs:7-8` — doc-comment ở đó đã trỏ tới `core::i18n`; cập nhật cho khớp tên kiểu thật (`IpcError`, `MessageKey`)
-  - [x] `deferred-work.md:19` → đánh dấu **đã đóng**, ghi cơ chế đóng nó (`scripts/check-i18n.mjs` + bước CI). ⛔ Đừng xoá dòng cũ — khuôn của tệp đó là gạch ngang rồi ghi kết quả, không phải xoá
+  - [x] `deferred-work.md:19` → đánh dấu **đã đóng**, ghi cơ chế đóng nó (`scripts/check-i18n.mjs` + bước CI). Đừng xoá dòng cũ — khuôn của tệp đó là gạch ngang rồi ghi kết quả, không phải xoá
   - [x] Tạo `src/i18n/README.md` theo khuôn năm README đã có ở `src/{commands,layout,modes,panels,tokens}/`: hình dạng phẳng · cách thêm khoá · miễn trừ · lệnh chạy cổng
 
 ---
@@ -158,19 +158,19 @@ so that **thêm một ngôn ngữ về sau không phải rà lại toàn bộ co
 ### Quyết định của Ice — 2026-08-04, đã chốt trong lượt review
 
 - [x] **[Review][Patch] Cổng đo *dấu tiếng Việt*, không đo *chuỗi hiển thị* — `deferred-work.md:19` đã đánh ✅ ĐÃ ĐÓNG trên cơ sở đó** — `scripts/check-i18n.mjs:77-79` phát hiện 134 ký tự có dấu. `<button>Xem</button>`, `<button>Save</button>`, `Dong`, `Trang` đều **xanh**. AC2 nói nguyên văn *"grep chuỗi tiếng Việt"* nên cài đặt đúng phát biểu — nhưng NFR16 mà script tự trích ở `:870` là *"chuỗi hiển thị sống ở `vi.json` và chỉ ở đó"*, rộng hơn hẳn thứ cổng làm được.
-  → ✅ **Ice chốt: giữ nguyên Kiểm A, sửa `deferred-work.md:19` từ ✅ ĐÃ ĐÓNG thành ĐÓNG MỘT PHẦN**, ghi giới hạn *"chỉ bắt chuỗi CÓ DẤU; nhãn không dấu (`Xem`, `Dong`) và nhãn tiếng Anh lọt"* nằm cạnh giới hạn `.ts` đã ghi. ⛔ Không mở rộng phạm vi cổng trong story này — một phép kiểm cấu trúc `.vue` (text node phải là `{{ t('…') }}`) là phạm vi mới và sẽ báo thừa trên `App.vue` hiện tại.
+  → ✅ **Ice chốt: giữ nguyên Kiểm A, sửa `deferred-work.md:19` từ ✅ ĐÃ ĐÓNG thành ĐÓNG MỘT PHẦN**, ghi giới hạn *"chỉ bắt chuỗi CÓ DẤU; nhãn không dấu (`Xem`, `Dong`) và nhãn tiếng Anh lọt"* nằm cạnh giới hạn `.ts` đã ghi. Không mở rộng phạm vi cổng trong story này — một phép kiểm cấu trúc `.vue` (text node phải là `{{ t('…') }}`) là phạm vi mới và sẽ báo thừa trên `App.vue` hiện tại.
 - [x] **[Review][Patch] Không phép kiểm nào nối `params` phía Rust với placeholder trong `vi.json`** — `src-tauri/src/core/i18n/mod.rs:127-150` khai `IpcError` là struct trường công khai, không constructor. Một chỗ gọi ở Story 1.6 viết `IpcError { message_key: MessageKey::IoReadFailed, params: BTreeMap::new(), .. }` sẽ **xanh cả ba cổng** (`ipc_contract.rs:146-171` chỉ kiểm khoá **có mặt**; Kiểm C `:667-683` chỉ kiểm **hình dạng** placeholder) và người dùng đọc được nguyên văn *"Không đọc được tệp tại {path}"*. Đây đúng lớp "hỏng im lặng" story tuyên bố đóng.
   → ✅ **Ice chốt: constructor `IpcError::new()` cưỡng chế.** Khai bảng tham số bắt buộc **ngay trong `message_keys!`** (một khai báo duy nhất, không trôi được — cùng lý lẽ đã chọn macro cho `ALL`/`as_str`), đóng trường struct lại để chỉ dựng được qua `new()`, và thêm một test duyệt `MessageKey::ALL` đối chiếu bảng ấy với placeholder bóc từ `vi.json`. Đóng lỗ hổng ở **tầng kiểu**, không chỉ ở tầng test.
 
 ### Cần vá
 
-- [x] [Review][Patch] `resolve.ts` chứa **byte NUL thô** → git phân loại là binary, toàn bộ nội dung tệp **vắng mặt khỏi mọi diff** (`Binary files /dev/null and b/src/i18n/resolve.ts differ`) và `grep`/`git grep` bỏ qua. Tệp mang ⛔ dày nhất của story lại là tệp không ai review được bằng diff. Sửa: dùng `\u0000` viết bằng escape (hoặc bất kỳ ký tự ASCII nào) làm dấu phân cách khoá dedupe — tương đương từng byte về hành vi [`src/i18n/resolve.ts:94`]
+- [x] [Review][Patch] `resolve.ts` chứa **byte NUL thô** → git phân loại là binary, toàn bộ nội dung tệp **vắng mặt khỏi mọi diff** (`Binary files /dev/null and b/src/i18n/resolve.ts differ`) và `grep`/`git grep` bỏ qua. Tệp mang không dày nhất của story lại là tệp không ai review được bằng diff. Sửa: dùng `\u0000` viết bằng escape (hoặc bất kỳ ký tự ASCII nào) làm dấu phân cách khoá dedupe — tương đương từng byte về hành vi [`src/i18n/resolve.ts:94`]
 - [x] [Review][Patch] Kiểm A: một `char` literal Rust chứa `"` (ví dụ `matches!(c, '"')`) mở một string ma; sau đó `"/*"` trong một string thật bị đọc thành block comment không bao giờ đóng ⇒ **vi phạm AC2 thật ở phần còn lại của tệp lọt hoàn toàn**. Đã dựng lại: chèn `let q = '"'; let s = "/*"; let msg = "Đã lưu";` ⇒ cổng **exit 0**; đối chứng chỉ có `"Đã lưu"` ⇒ exit 1. Comment `:229-231` lập luận không cần theo dõi `'…'` vì char literal *"cùng một phán quyết"* với mã — đúng, nhưng chỉ khi máy **bỏ qua** nó, mà máy hiện đang để nó mở string [`scripts/check-i18n.mjs:229-231,269-273`]
 - [x] [Review][Patch] Kiểm A: `scanScript` không có trạng thái regex literal ⇒ `/^https?:\/\//` mở một line comment giả và che nốt dòng. Đã dựng lại: `const _re = /^https?:\/\//; const _nhan = 'Đã lưu'` ⇒ **exit 0**. Đây đúng chiều báo sót mà header `:51-55` tuyên bố không thể xảy ra [`scripts/check-i18n.mjs:372-376`]
 - [x] [Review][Patch] Kiểm A: `<!--` xuất hiện ở **bất kỳ đâu** trong template — kể cả trong giá trị attribute — làm mù phần còn lại của vùng; và `text.indexOf('-->', i + 4)` **không bị chặn bởi `to`** nên một `-->` trong `<script>` phía sau cũng nuốt được text node. Đã dựng lại: `<div title="a <!-- b"></div>` + `<button>Lưu</button>` ⇒ **exit 0**; đối chứng không có attribute ⇒ exit 1 [`scripts/check-i18n.mjs:520-523`]
 - [x] [Review][Patch] Kiểm A và Kiểm D chỉ nhận dạng tiếng Việt **dựng sẵn (NFC)**; văn bản NFD (dán từ nguồn chuẩn hoá kiểu macOS) lọt cả hai. Đã dựng lại: `<button>Lưu</button>` với `ư` = `u`+U+031B ⇒ **exit 0**; bản NFC ⇒ exit 1. Sửa: `.normalize('NFC')` trên nội dung tệp trước khi quét và trên giá trị `vi.json` trước khi so ở Kiểm D [`scripts/check-i18n.mjs:77-79,698`]
 - [x] [Review][Patch] Kiểm E dựng resolver trên một catalog **giả** tự viết ở `:810-814`; `vi.json` thật, `src/i18n/index.ts`, `t` và `tError` **không được nạp bởi bất cứ test hay cổng nào**. Thay `index.ts:42` bằng `export const t = (k) => k` thì mọi cổng vẫn xanh — nghĩa là AC1 (*"chuỗi phân giải từ `vi.json`"*) không có bằng chứng thực thi ở đâu cả, và `tError` — hàm được thêm riêng để chịu payload không tin được — có **không** assert nào. Sửa: Kiểm E nạp thêm `vi.json` thật và khẳng định hai khoá mồi phân giải đúng + `err.io.read_failed` nội suy `{path}` [`scripts/check-i18n.mjs:754,810-814` · `src/i18n/index.ts:42,57`]
-- [x] [Review][Patch] `resolve.ts` nội suy `null` / `undefined` / số thẳng ra câu — vi phạm chính ⛔ doc-comment của nó ở `:61-63`. `has(params, name)` đúng nên nhánh "tham số thiếu" bị bỏ qua. Đã chạy thật: `t('err.io.read_failed', {path: null})` ⇒ *"Không đọc được tệp tại **null** — nội dung chưa được nạp."*; `{path: undefined}` ⇒ *"… tại **undefined** …"*. Sửa: kiểm `typeof params[name] === 'string'`, không phải chỉ `has()` [`src/i18n/resolve.ts:89,99`]
+- [x] [Review][Patch] `resolve.ts` nội suy `null` / `undefined` / số thẳng ra câu — vi phạm chính không doc-comment của nó ở `:61-63`. `has(params, name)` đúng nên nhánh "tham số thiếu" bị bỏ qua. Đã chạy thật: `t('err.io.read_failed', {path: null})` ⇒ *"Không đọc được tệp tại **null** — nội dung chưa được nạp."*; `{path: undefined}` ⇒ *"… tại **undefined** …"*. Sửa: kiểm `typeof params[name] === 'string'`, không phải chỉ `has()` [`src/i18n/resolve.ts:89,99`]
 - [x] [Review][Patch] `t()` trả về **không phải chuỗi** khi `key` không phải chuỗi: `t(undefined)` ⇒ `undefined`, `t(1)` ⇒ số `1`, trong khi `Translate` khai `=> string`. `tError` tự phòng ở `:58` nhưng `t` xuất khẩu trực tiếp thì không [`src/i18n/resolve.ts:81-84`]
 - [x] [Review][Patch] `tError` cảnh báo **mỗi lần gọi** khi `message_key` thiếu — không dedupe, đúng lũ log mà `resolve.ts:66-73` dựng hai `Set` để chặn. Một lỗi lặp qua mỗi lượt render sẽ ngập console [`src/i18n/index.ts:57-61`]
 - [x] [Review][Patch] Kiểm C: phép đếm ngoặc cân bằng qua được ca đảo và ca kép. `"Xong } roi {"` ⇒ 1 `{` · 1 `}` cân bằng, `matchAll` không khớp gì ⇒ **xanh**, ngoặc thô ra màn hình. `"{{path}}"` ⇒ cân bằng, khớp `{path}` bên trong ⇒ xanh, rồi `resolve.ts` in ra `{/tmp/a.txt}` với ngoặc thừa [`scripts/check-i18n.mjs:669-682`]
@@ -212,9 +212,9 @@ so that **thêm một ngôn ngữ về sau không phải rà lại toàn bộ co
 | **Bộ khoá mồi hai cái**, đúng hai cái | Từ vựng khoá cho tính năng chưa dựng — mỗi story sau tự thêm |
 | `deferred-work.md:19` | Bản tiếng Anh của giao diện — v1 **chỉ tiếng Việt** (NFR16) |
 
-⛔ **Không đụng tới:** `src-tauri/tauri.conf.json` · `Cargo.toml` · `package.json` *(trừ đúng một dòng `scripts`)* · `src/selftest/scopeCheck.ts` · `_bmad-output/planning-artifacts/**`.
+**Không đụng tới:** `src-tauri/tauri.conf.json` · `Cargo.toml` · `package.json` *(trừ đúng một dòng `scripts`)* · `src/selftest/scopeCheck.ts` · `_bmad-output/planning-artifacts/**`.
 
-⛔ **Không thêm một phụ thuộc nào.** Xem §Vì sao không dùng `vue-i18n`.
+**Không thêm một phụ thuộc nào.** Xem §Vì sao không dùng `vue-i18n`.
 
 ---
 
@@ -233,8 +233,8 @@ Số đếm dòng có ký tự dấu tiếng Việt, đo trên `HEAD = 0255163`:
 
 **Ba nhóm, ba phán quyết khác nhau:**
 
-1. **Comment tiếng Việt ở mọi nơi — KHÔNG phải vi phạm.** Toàn bộ dự án này tự tài liệu hoá bằng tiếng Việt; đó là quy ước có chủ ý, đọc `lib.rs`, `check-deps.mjs`, `eventName.ts` là thấy. NFR16 nói về **chuỗi hiển thị**, không nói về comment. ⛔ Một cổng bắt comment sẽ đỏ vĩnh viễn ở mọi tệp và sẽ bị gỡ trong tuần — đúng cách hỏng đắt hơn hẳn việc không có cổng, mà `ci.yml:410-418` đã ghi thành bài học.
-2. **Thông báo `assert!` trong `src-tauri/tests/**` — miễn trừ, nhưng phải KHAI.** Chúng không bao giờ vượt IPC, không bao giờ được render, và người đọc chúng là người đang sửa test. Dịch chúng sang tiếng Anh là mất giá trị tài liệu để đổi lấy con số không. **⛔ Nhưng miễn trừ phải là một dòng viết ra trong script kèm lý do, không phải một glob lặng lẽ hẹp lại.** Cùng luật mà Story 1.4 §Kiểm C áp cho cặp màu không dùng: *một danh sách kiểm tự rút gọn để cho xanh là đúng thứ cổng tồn tại để chặn.*
+1. **Comment tiếng Việt ở mọi nơi — KHÔNG phải vi phạm.** Toàn bộ dự án này tự tài liệu hoá bằng tiếng Việt; đó là quy ước có chủ ý, đọc `lib.rs`, `check-deps.mjs`, `eventName.ts` là thấy. NFR16 nói về **chuỗi hiển thị**, không nói về comment. Một cổng bắt comment sẽ đỏ vĩnh viễn ở mọi tệp và sẽ bị gỡ trong tuần — đúng cách hỏng đắt hơn hẳn việc không có cổng, mà `ci.yml:410-418` đã ghi thành bài học.
+2. **Thông báo `assert!` trong `src-tauri/tests/**` — miễn trừ, nhưng phải KHAI.** Chúng không bao giờ vượt IPC, không bao giờ được render, và người đọc chúng là người đang sửa test. Dịch chúng sang tiếng Anh là mất giá trị tài liệu để đổi lấy con số không. **không Nhưng miễn trừ phải là một dòng viết ra trong script kèm lý do, không phải một glob lặng lẽ hẹp lại.** Cùng luật mà Story 1.4 §Kiểm C áp cho cặp màu không dùng: *một danh sách kiểm tự rút gọn để cho xanh là đúng thứ cổng tồn tại để chặn.*
 3. **`src/App.vue:38,54` — vi phạm thật, dời.** `.vue` nằm nguyên văn trong AC2. Hai chuỗi này là chẩn đoán cho log CI chứ không phải giao diện, nên chúng thuộc `src/selftest/**` (miễn trừ như nhóm 2) chứ không thuộc `vi.json`. Dời sang `src/selftest/fallbackReport.ts` giải cả hai vế: `App.vue` sạch, và miễn trừ gom về **một thư mục** thay vì rải rác.
 
 > **Câu hỏi cho Ice ở §Câu hỏi cho Ice** về nhóm 2. **Nếu Ice chưa trả lời khi dev bắt đầu: miễn trừ `src-tauri/tests/**`, ghi rõ lý do trong script và trong Completion Notes.** Tiền lệ: quyết định #3 của Ice ở Story 1.3, và §Phát hiện chặn của Story 1.4.
@@ -318,7 +318,7 @@ message_keys! {
 }
 ```
 
-`Serialize` viết tay ngay dưới, một hàm bốn dòng. ⛔ Đừng `#[derive(Serialize)]` — xem §Bốn thứ sẽ hỏng im lặng #2.
+`Serialize` viết tay ngay dưới, một hàm bốn dòng. Đừng `#[derive(Serialize)]` — xem §Bốn thứ sẽ hỏng im lặng #2.
 
 ---
 
@@ -328,7 +328,7 @@ message_keys! {
 
 **Câu trả lời: bằng test serialize, và nó nghiệm thu đúng thứ AC3 nói.** Tauri v2 đưa giá trị trả về của `#[tauri::command]` qua IPC bằng **chính `serde_json`** — không có tầng biến đổi nào chen giữa. `serde_json::to_value(IpcError…)` cho ra **đúng byte** mà frontend sẽ nhận. Một test so bốn khoá và chính tả của chúng là bằng chứng về dây, không phải một phép mô phỏng.
 
-⛔ **Đừng dựng một `#[tauri::command]` giả để "chứng minh cho thật".** Ba lý do:
+**Đừng dựng một `#[tauri::command]` giả để "chứng minh cho thật".** Ba lý do:
 
 1. Nó là mã sản phẩm không ai gọi — đúng thứ §Ranh giới phạm vi loại ra.
 2. Chạy nó cần một webview, nghĩa là một bước CI cần phiên đồ hoạ. `ci.yml:360-368` đã ghi giá của loại bước đó: một lượt biên dịch profile `dev` **riêng**, đắt nhất trên macOS (hệ số ×10). Trả giá đó cho một hàm sẽ bị xoá ở story sau là sai chỗ.
@@ -349,10 +349,10 @@ Dự án **không có bộ chạy test frontend**, và thêm một (`vitest`) l�
 Điều kiện, và cả ba đều là lý do `resolve.ts` không được import gì:
 
 - Node **chỉ bóc kiểu**, không phân giải `./vi.json` theo luật bundler của Vite, không hiểu `.vue`.
-- Cú pháp phải **"erasable-only"**: ⛔ không `enum`, ⛔ không `namespace`, ⛔ không parameter property (`constructor(private x)`). `type` / `interface` / annotation đều được.
+- Cú pháp phải **"erasable-only"**: không `enum`, không `namespace`, không parameter property (`constructor(private x)`). `type` / `interface` / annotation đều được.
 - Nên: `resolve.ts` = hàm thuần + kiểu. `index.ts` = chỗ duy nhất chạm `vi.json` và Vue.
 
-⚠️ **Nếu `import()` thất bại** (Node cũ, cờ tắt): `abort()` với thông báo nêu rõ *"Kiểm E KHÔNG chạy được"* và **exit 1**. ⛔ Không bỏ qua Kiểm E rồi exit 0 — `check-deps.mjs:60-66` đã đặt luật này thành chữ: *"Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật."*
+⚠️ **Nếu `import()` thất bại** (Node cũ, cờ tắt): `abort()` với thông báo nêu rõ *"Kiểm E KHÔNG chạy được"* và **exit 1**. Không bỏ qua Kiểm E rồi exit 0 — `check-deps.mjs:60-66` đã đặt luật này thành chữ: *"Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật."*
 
 ---
 
@@ -395,7 +395,7 @@ const EXEMPT = [
 ]
 ```
 
-⛔ Miễn trừ **không** được cài bằng cách thu hẹp glob quét. Glob quét cả cây; miễn trừ là một bước lọc **có tên và có lý do**, và script **in ra** số tệp đã miễn trừ ở mỗi lượt chạy để nó không lặng lẽ phình lên.
+Miễn trừ **không** được cài bằng cách thu hẹp glob quét. Glob quét cả cây; miễn trừ là một bước lọc **có tên và có lý do**, và script **in ra** số tệp đã miễn trừ ở mỗi lượt chạy để nó không lặng lẽ phình lên.
 
 ---
 
@@ -451,7 +451,7 @@ scripts/
 
 **Quy ước đặt tên** *(`ARCHITECTURE-SPINE.md#Consistency Conventions:540`)*: Rust `snake_case` · Vue component `PascalCase.vue` · tài nguyên chuỗi **phẳng theo khoá chấm**.
 
-⚠️ **Khoá `vi.json` và id `CommandRegistry` dùng CÙNG một hình dạng nhưng KHÔNG cùng một không gian tên.** Story 1.6 AC2 nói *"dùng khoá chấm có tiền tố miền, **cùng hình dạng khoá `vi.json`**"* — cùng hình dạng, hai danh mục. ⛔ Đừng dựng một bảng tra dùng chung; một command và nhãn của nó là hai thứ đổi độc lập với nhau.
+⚠️ **Khoá `vi.json` và id `CommandRegistry` dùng CÙNG một hình dạng nhưng KHÔNG cùng một không gian tên.** Story 1.6 AC2 nói *"dùng khoá chấm có tiền tố miền, **cùng hình dạng khoá `vi.json`**"* — cùng hình dạng, hai danh mục. Đừng dựng một bảng tra dùng chung; một command và nhãn của nó là hai thứ đổi độc lập với nhau.
 
 ---
 
@@ -483,7 +483,7 @@ npm run check:deps                                 # hồi quy: không phụ thu
 | Commit | Bài học áp thẳng vào story này |
 |---|---|
 | `0255163` | Chỉ đụng `_bmad-output/**`. Tài liệu quy hoạch và mã đi hai commit khác nhau — giữ nếp đó |
-| `a2a5612` *(bash → Node)* | Cổng viết bằng **Node**, không bash. Ice đã đổi một script rồi vì Windows không có bash; ⛔ đừng viết `check-i18n.sh` |
+| `a2a5612` *(bash → Node)* | Cổng viết bằng **Node**, không bash. Ice đã đổi một script rồi vì Windows không có bash; đừng viết `check-i18n.sh` |
 | `a89b5ca` | Scaffold để lại **doc-comment thay cho mã** ở mọi module chưa tới lượt. `core/i18n/mod.rs` là một trong số đó, và nó **chỉ định đích danh Story 1.5**. Thay doc-comment bằng câu trả lời là một phần của định nghĩa "xong" |
 
 Hai commit gần nhất còn cho thấy một nếp viết mã của repo: **mọi quyết định không hiển nhiên đều có một khối comment giải thích *vì sao*, kèm cả cái bẫy đã đâm phải.** Đọc `check-deps.mjs:9-28` hay `eventName.ts:1-21` để lấy đúng giọng. `check-i18n.mjs` và `core/i18n/mod.rs` phải viết cùng giọng đó — đặc biệt là ghi lại vì sao miễn trừ `tests/**` và vì sao quét có trạng thái.
@@ -634,7 +634,7 @@ npm run check:tokens   → hồi quy sau khi sửa App.vue · exit 0
 
 `src/i18n/index.ts` là **chỗ duy nhất** chạm `vi.json`; nơi tiêu thụ chỉ thấy `t` và `tError`. Hình dạng phẳng bị cưỡng chế ở **hai phía**: Kiểm B nói bằng thông báo cho người sửa, còn `read_vi_json()` phía Rust deserialize vào `BTreeMap<String, String>` nên một object lồng gãy ngay ở kiểu. Đây là chỗ story cho phép chọn một trong hai (*"hoặc để `check-i18n.mjs` gánh — chọn một, đừng làm cả hai"*): **đã chọn Kiểm B làm phép kiểm CÓ TÊN**, và không viết một test `vi_json_is_flat` riêng.
 
-> ⚠️ **Sửa lại sau lượt code review 2026-08-04.** Câu trên từng viết là *"tính phẳng phía Rust là hệ quả của kiểu đích, không phải một test thứ ba trùng lặp"* — mà doc-comment của `read_vi_json` trong cùng lượt lại viết *"cưỡng chế ở **cả hai phía**"*, và ca R5 xác nhận `cargo test` cũng đỏ khi `vi.json` lồng. Hai tài liệu do cùng một lượt viết ra mâu thuẫn nhau. **Phát biểu đúng:** không có test `vi_json_is_flat` nào tồn tại, nhưng tính phẳng **vẫn** được cưỡng chế ở cả hai phía — Kiểm B bằng một phép kiểm có tên và có thông báo, phía Rust bằng kiểu đích `BTreeMap<String, String>`. ⛔ Của story (*"chọn một, đừng làm cả hai"*) nhắm vào việc viết **hai phép kiểm có tên** cho cùng một bất biến; một hệ quả của kiểu không phải một phép kiểm thứ hai, nhưng nó cũng không phải "không có gì", và bảo là không có gì thì sai.
+> ⚠️ **Sửa lại sau lượt code review 2026-08-04.** Câu trên từng viết là *"tính phẳng phía Rust là hệ quả của kiểu đích, không phải một test thứ ba trùng lặp"* — mà doc-comment của `read_vi_json` trong cùng lượt lại viết *"cưỡng chế ở **cả hai phía**"*, và ca R5 xác nhận `cargo test` cũng đỏ khi `vi.json` lồng. Hai tài liệu do cùng một lượt viết ra mâu thuẫn nhau. **Phát biểu đúng:** không có test `vi_json_is_flat` nào tồn tại, nhưng tính phẳng **vẫn** được cưỡng chế ở cả hai phía — Kiểm B bằng một phép kiểm có tên và có thông báo, phía Rust bằng kiểu đích `BTreeMap<String, String>`. Của story (*"chọn một, đừng làm cả hai"*) nhắm vào việc viết **hai phép kiểm có tên** cho cùng một bất biến; một hệ quả của kiểu không phải một phép kiểm thứ hai, nhưng nó cũng không phải "không có gì", và bảo là không có gì thì sai.
 
 #### AC2 — grep không ra kết quả ✅, cưỡng chế bằng mã thoát
 
@@ -661,7 +661,7 @@ Nghiệm thu bằng **Kiểm E gọi hàm thật**, bảy mệnh đề, cả hai
 | Khoá | Chuỗi | Vì sao chọn chữ đó |
 |---|---|---|
 | `err.unknown` | *"Thao tác không hoàn tất vì một lỗi chưa được phân loại."* | **Nêu hệ quả trước, nguyên nhân sau** — người dịch cần biết *việc của họ có xong không* trước khi biết vì sao. **Vô nhân xưng**: không chủ ngữ người. **Không đổ lỗi**: *"chưa được phân loại"* đặt thiếu sót ở phía phần mềm, không ở phía người dùng. **Không cảm xúc**: không *"rất tiếc"*, không *"đã có lỗi xảy ra!"* |
-| `err.io.read_failed` | *"Không đọc được tệp tại {path} — nội dung chưa được nạp."* | Story gợi hình dạng *"Không đọc được tệp tại {path}."*; **đã thêm vế hệ quả** vì quy tắc 2 đòi *nêu hệ quả, không chỉ nêu sự kiện* — vế đầu là sự kiện, vế sau nói cho người đọc biết trạng thái nào đang đúng. `{path}` là **dữ liệu**, không phải câu, và nó chứng minh đường nội suy chạy thật từ Rust qua dây tới `createResolver`. ⛔ Không viết *"Bạn đã chọn một tệp không đọc được."* |
+| `err.io.read_failed` | *"Không đọc được tệp tại {path} — nội dung chưa được nạp."* | Story gợi hình dạng *"Không đọc được tệp tại {path}."*; **đã thêm vế hệ quả** vì quy tắc 2 đòi *nêu hệ quả, không chỉ nêu sự kiện* — vế đầu là sự kiện, vế sau nói cho người đọc biết trạng thái nào đang đúng. `{path}` là **dữ liệu**, không phải câu, và nó chứng minh đường nội suy chạy thật từ Rust qua dây tới `createResolver`. Không viết *"Bạn đã chọn một tệp không đọc được."* |
 
 Đúng **hai** khoá, và đó là một quyết định — story sở hữu **cơ chế**, không sở hữu **từ vựng**.
 
@@ -678,7 +678,7 @@ Cả ba đều là hệ quả trực tiếp của một lượt nghiệm thu ch�
 1. **`call()` helper trong Kiểm E** — sửa khiếm khuyết mà ca E phát hiện (xem §Debug Log).
 2. **`message_key_catalog_has_no_duplicate_keys`** thay cho `vi_json_is_flat` trong bộ ba test Rust. Story cho phép để Kiểm B gánh tính phẳng; chỗ trống đó dùng cho một lỗ hổng mà **không** phép kiểm nào khác chạm tới: hai biến thể `MessageKey` trỏ cùng một khoá chấm. Hậu quả của nó đúng bằng hậu quả của một khoá thiếu — một trong hai lỗi sẽ hiện ra câu của lỗi kia — và cả `ALL`-vs-`vi.json` lẫn Kiểm B đều xanh với nó. Ca R4 chứng minh.
 3. **`tError` có tham số thứ hai `params?`** mà Task 2 không nêu (*"Thêm `tError(err: IpcError): string`"*). Nó phục vụ chỗ gọi cần nội suy dữ liệu mà payload không mang, và vì `t` đã là hàm công khai nên nó không mở thêm quyền gì. *(Mục này thêm vào sau lượt code review 2026-08-04 — bản đầu để nó lặng lẽ.)*
-4. **Một dòng bổ sung vào khối *"CHỖ MÓC CHO EPIC SAU"* của `ci.yml`** — khối đó liệt kê ba luật *đã biết lúc viết*; ghi rằng Story 1.5 gắn thêm một luật ngoài danh sách để sổ vẫn là sổ đầy đủ. ⛔ Không sắp xếp lại bước nào, không dựng workflow thứ hai.
+4. **Một dòng bổ sung vào khối *"CHỖ MÓC CHO EPIC SAU"* của `ci.yml`** — khối đó liệt kê ba luật *đã biết lúc viết*; ghi rằng Story 1.5 gắn thêm một luật ngoài danh sách để sổ vẫn là sổ đầy đủ. Không sắp xếp lại bước nào, không dựng workflow thứ hai.
 
 #### Giới hạn ghi thẳng, KHÔNG đánh dấu đạt
 
@@ -686,7 +686,7 @@ Cả ba đều là hệ quả trực tiếp của một lượt nghiệm thu ch�
 
 ⚠️ **Miễn trừ `src/selftest/**` hôm nay khớp 0 tệp** (thư mục chỉ có `.ts`) và con số đó được **in ra có chủ ý** thay vì gỡ mục đi — nó khai trước cho ngày một `.vue` chẩn đoán xuất hiện ở đó, và giữ lý do nằm cạnh chỗ cưỡng chế.
 
-⚠️ **Chưa chạy trên runner nào.** Mọi số ở trên đo trên macOS 26 / Node v22.22.2. Kiểm E dựa vào Node ≥ 22.18 bóc kiểu TypeScript mặc định; CI khai `node-version: '22'`, nên đường này *phải* chạy — nhưng *phải* chưa phải *đã*. ⛔ Nếu runner có Node 22.x < 22.18 thì Kiểm E `abort()` với exit 1 kèm thông báo nêu đích danh phiên bản đang chạy — **không** im lặng bỏ qua. Story 1.3 vẫn `in-progress` chờ một lượt runner thật; bước này sẽ được xác nhận trong cùng lượt đó.
+⚠️ **Chưa chạy trên runner nào.** Mọi số ở trên đo trên macOS 26 / Node v22.22.2. Kiểm E dựa vào Node ≥ 22.18 bóc kiểu TypeScript mặc định; CI khai `node-version: '22'`, nên đường này *phải* chạy — nhưng *phải* chưa phải *đã*. Nếu runner có Node 22.x < 22.18 thì Kiểm E `abort()` với exit 1 kèm thông báo nêu đích danh phiên bản đang chạy — **không** im lặng bỏ qua. Story 1.3 vẫn `in-progress` chờ một lượt runner thật; bước này sẽ được xác nhận trong cùng lượt đó.
 
 ---
 
@@ -696,7 +696,7 @@ Cả ba đều là hệ quả trực tiếp của một lượt nghiệm thu ch�
 
 | Tệp | Vai |
 |---|---|
-| `src/i18n/resolve.ts` | Hàm phân giải thuần — `createResolver` → `t(key, params?)`. ⛔ Không `import` gì |
+| `src/i18n/resolve.ts` | Hàm phân giải thuần — `createResolver` → `t(key, params?)`. Không `import` gì |
 | `src/i18n/index.ts` | Chỗ duy nhất chạm `vi.json`; export `t`, `tError`, kiểu `IpcError` |
 | `src/i18n/README.md` | Khuôn theo năm README đã có ở `src/*/` |
 | `src/selftest/fallbackReport.ts` | Hai chuỗi chẩn đoán dời khỏi `App.vue` (Task 5) |
@@ -717,7 +717,7 @@ Cả ba đều là hệ quả trực tiếp của một lượt nghiệm thu ch�
 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | `1-5-…` → `in-progress` → `review` |
 | `_bmad-output/implementation-artifacts/1-5-…-qua-ipc.md` | Chính tệp này — frontmatter `baseline_commit`, 60 checkbox, Dev Agent Record, File List, Change Log, Status |
 
-⛔ **Không đụng tới** (đúng §Ranh giới phạm vi): `src-tauri/tauri.conf.json` · `Cargo.toml` · `src/selftest/scopeCheck.ts` · `_bmad-output/planning-artifacts/**`. **Không thêm một phụ thuộc nào** — `check:deps` xanh sau khi xong, bảng Stack 19 hàng không đổi.
+**Không đụng tới** (đúng §Ranh giới phạm vi): `src-tauri/tauri.conf.json` · `Cargo.toml` · `src/selftest/scopeCheck.ts` · `_bmad-output/planning-artifacts/**`. **Không thêm một phụ thuộc nào** — `check:deps` xanh sau khi xong, bảng Stack 19 hàng không đổi.
 
 ---
 

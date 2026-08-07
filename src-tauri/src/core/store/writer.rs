@@ -22,7 +22,7 @@
 //! → Mọi `unwrap()` / `expect()` trong module này là một **lỗi thiết kế**, không phải
 //!   một lối tắt. Mutex khoá qua `unwrap_or_else(|e| e.into_inner())`; kênh phản hồi gửi
 //!   bằng `let _ = tx.send(…)`.
-//! → ⛔ Đừng "giải quyết" bằng cách sửa `[profile.release]` — `deferred-work.md`, và
+//! → Đừng "giải quyết" bằng cách sửa `[profile.release]` — `deferred-work.md`, và
 //!   quyết định đó thuộc Story 1.9 / 10.9 cùng lượt đo lại NFR6.
 
 use std::cell::Cell;
@@ -60,7 +60,7 @@ pub(crate) struct Writer {
     ///
     /// 🔴 Đây là cơ chế đóng: [`Writer::shutdown`] **lấy** `Sender` ra và thả nó, kênh
     /// đứt, `recv()` của luồng trả `Err`, luồng thoát. Mọi [`Writer::write`] sau đó thấy
-    /// `None` và trả [`StoreError::WriterGone`] **ngay**, ⛔ không treo.
+    /// `None` và trả [`StoreError::WriterGone`] **ngay**, không treo.
     ///
     /// ⚠️ Khoá được giữ **trong suốt lời `send`**, có chủ ý. Bản dùng `Sender::clone()`
     /// rồi thả khoá trước khi gửi có một khe hở thật: bản sao giữ kênh sống, nên luồng
@@ -88,7 +88,7 @@ impl Writer {
                 ON_WRITER_THREAD.with(|flag| flag.set(true));
                 let mut conn = conn;
                 // `recv()` trả `Err` khi mọi `Sender` đã bị thả — đó là tín hiệu dừng, và
-                // nó là tín hiệu DUY NHẤT. ⛔ Không có cờ dừng thứ hai để hai thứ lệch nhau.
+                // nó là tín hiệu DUY NHẤT. Không có cờ dừng thứ hai để hai thứ lệch nhau.
                 while let Ok(task) = rx.recv() {
                     // Chỉ mốc "lần ghi cuối" khi job THẬT SỰ commit — một job rollback
                     // không thêm gì vào WAL, và coi nó là "vừa ghi" trì hoãn PASSIVE vô cớ.
@@ -116,7 +116,7 @@ impl Writer {
     /// Xếp một job vào hàng đợi và **chặn** cho tới khi nó chạy xong.
     ///
     /// Mỗi job là một giao dịch: `Ok` ⇒ commit, `Err` ⇒ rollback. Hình dạng này đến từ
-    /// §Quyết định #3 của story và ⛔ không phải chỗ để sáng tạo.
+    /// §Quyết định #3 của story và không phải chỗ để sáng tạo.
     pub(crate) fn write<T, F>(&self, job: F) -> Result<T, StoreError>
     where
         F: FnOnce(&Transaction<'_>) -> SqlResult<T> + Send + 'static,
@@ -127,7 +127,7 @@ impl Writer {
         // ⚠️ Gọi lồng: job đang chạy TRÊN luồng writer gọi lại `Store::write`/`Writer::write`.
         // Task lồng vào hàng đợi rồi chờ đúng luồng đang bận chạy job ngoài xử lý nó —
         // không ai còn rảnh để dequeue, và `reply_rx.recv()` dưới đây sẽ chặn mãi. Bắt ở
-        // đây, ⛔ không để `recv()` tự lộ ra thành một treo không giải thích được.
+        // đây, không để `recv()` tự lộ ra thành một treo không giải thích được.
         if ON_WRITER_THREAD.with(Cell::get) {
             return Err(StoreError::WriteFailed {
                 store: kind,

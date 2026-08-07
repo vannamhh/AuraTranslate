@@ -39,14 +39,14 @@ pub const DRAG_DROP_EVENT: &str = "aura://file-dropped";
 /// Một thao tác kéo vừa **vào** cửa sổ. Khớp `src/modes/libraryImport.ts`.
 ///
 /// 🔴 Vì sao cần một event RIÊNG cho việc này, thay vì để webview tự bắt `dragenter` của
-/// DOM: `drag_drop_enabled` mặc định `true` ở Tauri v2 (`tauri.conf.json` ⛔ không override),
-/// nghĩa là bộ xử lý kéo-thả tầng **hệ điều hành** giành lấy thao tác và webview ⛔ **không
-/// bao giờ** thấy `dragenter`/`dragover`/`dragleave` của DOM. Vùng kéo-thả vì thế ⛔ không
-/// có một tín hiệu trực quan nào — người dùng ⛔ không biết vùng đó còn sống. Lỗi tìm ra ở
+/// DOM: `drag_drop_enabled` mặc định `true` ở Tauri v2 (`tauri.conf.json` không override),
+/// nghĩa là bộ xử lý kéo-thả tầng **hệ điều hành** giành lấy thao tác và webview **không
+/// bao giờ** thấy `dragenter`/`dragover`/`dragleave` của DOM. Vùng kéo-thả vì thế không
+/// có một tín hiệu trực quan nào — người dùng không biết vùng đó còn sống. Lỗi tìm ra ở
 /// lượt code review 2026-08-06.
 ///
-/// ⚠️ Đi cùng đường với [`DRAG_DROP_EVENT`] — cùng `on_window_event`, ⛔ **0** permission
-/// mới, ⛔ 0 phụ thuộc mới.
+/// ⚠️ Đi cùng đường với [`DRAG_DROP_EVENT`] — cùng `on_window_event`, **0** permission
+/// mới, 0 phụ thuộc mới.
 pub const DRAG_ENTER_EVENT: &str = "aura://file-drag-enter";
 
 /// Thao tác kéo đã **rời** cửa sổ hoặc bị huỷ. Khớp `src/modes/libraryImport.ts`.
@@ -54,7 +54,7 @@ pub const DRAG_LEAVE_EVENT: &str = "aura://file-drag-leave";
 
 /// Thư mục con của `$RESOURCE` chứa các tệp `.db` từ điển. Xem [`open_dict_layers`].
 ///
-/// 🔴 Đây là một **THƯ MỤC**, ⛔ không phải một danh sách tên tệp — và khác biệt đó là cả
+/// 🔴 Đây là một **THƯ MỤC**, không phải một danh sách tên tệp — và khác biệt đó là cả
 /// FR36: tập lớp là **mọi** tệp `*.db` tìm thấy trong nó, nên *"gỡ một lớp = xoá một file"*
 /// đúng theo nghĩa đen. `tests/dict_boundary.rs::the_layer_set_never_hardcodes_a_db_filename`
 /// canh vế đó bằng máy.
@@ -69,7 +69,7 @@ pub fn run() {
         // ─────────────────────────────────────────────────────────────────────────
         // 🔴 BỀ MẶT IPC ĐẦU TIÊN CỦA DỰ ÁN — Story 1.8
         // ─────────────────────────────────────────────────────────────────────────
-        // ⚠️ ⛔ **Không** thêm mục ACL vào `capabilities/main.json` cho hai command này.
+        // ⚠️ **Không** thêm mục ACL vào `capabilities/main.json` cho hai command này.
         // Trong Tauri v2, command do **chính ứng dụng** khai không cần quyền — ACL canh
         // command của **plugin**. `tests/config_invariants.rs:333` khoá tệp đó ở đúng ba
         // quyền, và nới nó ra là nới đúng thứ AD-23 tồn tại để siết.
@@ -123,7 +123,7 @@ pub fn run() {
 /// bộ khác biệt giữa một thông báo khó chịu và một đoạn công sức đã mất.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 MỞ KHO TRƯỢT ⇒ GHI CHẨN ĐOÁN RÕ RỒI **ĐI TIẾP**, ⛔ KHÔNG CHẶN KHỞI ĐỘNG
+/// 🔴 MỞ KHO TRƯỢT ⇒ GHI CHẨN ĐOÁN RÕ RỒI **ĐI TIẾP**, KHÔNG CHẶN KHỞI ĐỘNG
 /// ─────────────────────────────────────────────────────────────────────────────
 /// Hai lý do, và lý do thứ hai là thứ sẽ đỏ ngay hôm nay nếu làm khác:
 /// 1. ⚠️ **Cập nhật Story 1.8 — lý do này nay đã ĐỔI, và mệnh lệnh thì không.** Lúc viết,
@@ -142,7 +142,7 @@ pub fn run() {
 fn open_global_store(app: &tauri::App) {
     use tauri::Manager as _;
 
-    // ⛔ Không viết cứng `$APPDATA` — `app.path()` là đường duy nhất, và đây là chỗ NFR14
+    // Không viết cứng `$APPDATA` — `app.path()` là đường duy nhất, và đây là chỗ NFR14
     // (hành vi tương đương hai nền tảng) hỏng đầu tiên nếu ai đó ghép chuỗi bằng tay.
     let dir = match app.path().app_data_dir() {
         Ok(dir) => dir,
@@ -181,7 +181,7 @@ fn open_global_store(app: &tauri::App) {
 /// cũng chạy callback này, và một `close()` treo ở đây làm `check:scope` /
 /// `check:scope:bundled` đỏ vì một lý do không liên quan tới phạm vi chúng canh.
 ///
-/// ⛔ Vẫn còn hở, và ghi thẳng ra thay vì đánh dấu đạt: `panic = "abort"` nghĩa là một
+/// Vẫn còn hở, và ghi thẳng ra thay vì đánh dấu đạt: `panic = "abort"` nghĩa là một
 /// lần thoát cứng **không** đi qua đây. Xem `deferred-work.md`.
 fn close_global_store(handle: &tauri::AppHandle) {
     use tauri::Manager as _;
@@ -202,24 +202,24 @@ fn close_global_store(handle: &tauri::AppHandle) {
 /// tức đúng ấn tượng đầu tiên. Mở một lần lúc khởi động là cùng khuôn [`open_global_store`].
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 ⛔ KHÔNG CÓ LỚP NÀO LÀ MỘT TRẠNG THÁI **BÌNH THƯỜNG CÓ TÊN**
+/// 🔴 KHÔNG CÓ LỚP NÀO LÀ MỘT TRẠNG THÁI **BÌNH THƯỜNG CÓ TÊN**
 /// ─────────────────────────────────────────────────────────────────────────────
-/// `src-tauri/resources/dict/` hôm nay **rỗng** trong git *(⛔ không tệp `.db` nào — AD-25)*
+/// `src-tauri/resources/dict/` hôm nay **rỗng** trong git *(không tệp `.db` nào — AD-25)*
 /// và `bundle.resources` **chưa** mang thư mục đó *(Story 10.1)*. Nên một bản dựng hôm nay
-/// lên với **không lớp nào**, và đó ⛔ **không** phải một lỗi — nó là chính hình dạng FR36
+/// lên với **không lớp nào**, và đó **không** phải một lỗi — nó là chính hình dạng FR36
 /// đòi hỏi: *"gỡ một lớp = xoá một file"*, và trường hợp giới hạn của mệnh đề đó là **gỡ
 /// hết**.
 ///
-/// [`DictLayers::open`] vì thế ⛔ **không bao giờ** trả lỗi; thứ nó trả về là một tập lớp
+/// [`DictLayers::open`] vì thế **không bao giờ** trả lỗi; thứ nó trả về là một tập lớp
 /// rỗng cộng một danh sách `skipped` **có tên**. Ở đây danh sách đó ra stderr; Story 1.17
 /// nối nó lên giao diện qua bề mặt IPC của Panel Lookup.
 ///
 /// ⚠️ Chuỗi chẩn đoán viết **KHÔNG DẤU** — cùng bài học `lib.rs:99-100`:
-/// `scripts/check-i18n.mjs` Kiểm A quét `src-tauri/**/*.rs` và tệp này ⛔ không được miễn trừ.
+/// `scripts/check-i18n.mjs` Kiểm A quét `src-tauri/**/*.rs` và tệp này không được miễn trừ.
 fn open_dict_layers(app: &tauri::App) {
     use tauri::Manager as _;
 
-    // ⛔ Không ghép chuỗi bằng tay — `app.path()` là đường duy nhất, và đây là chỗ NFR14
+    // Không ghép chuỗi bằng tay — `app.path()` là đường duy nhất, và đây là chỗ NFR14
     // (hành vi tương đương hai nền tảng) hỏng đầu tiên nếu ai đó tự dựng đường dẫn.
     let dir = match app.path().resource_dir() {
         Ok(dir) => dir.join(DICT_RESOURCE_DIR),
@@ -237,7 +237,7 @@ fn open_dict_layers(app: &tauri::App) {
     let layers = crate::core::dict::DictLayers::open(&dir);
 
     // Một dòng cho **mỗi** lớp bị bỏ qua: `SkipReason` mang sẵn đường dẫn và lý do, nên
-    // người đọc stderr biết **tệp nào** và **vì sao**, ⛔ không phải *"từ điển không lên"*.
+    // người đọc stderr biết **tệp nào** và **vì sao**, không phải *"từ điển không lên"*.
     for skipped in layers.skipped() {
         eprintln!(
             "dict[layers] skipping {}: {}",
@@ -256,12 +256,12 @@ fn open_dict_layers(app: &tauri::App) {
 
 /// `RunEvent::Exit` ⇒ đóng **mọi** tệp từ điển đang mở (NFR14, FR112).
 ///
-/// 🔴 Vế này ⛔ **không** bỏ được, và lý do ⛔ không phải là gọn gàng: trên Windows một tệp
-/// còn mở là một tệp **⛔ không thay được** — tức một bản cập nhật ⛔ không ghi đè nổi
+/// 🔴 Vế này **không** bỏ được, và lý do không phải là gọn gàng: trên Windows một tệp
+/// còn mở là một tệp **không thay được** — tức một bản cập nhật không ghi đè nổi
 /// `dict-*.db`, và **FR112** *(chính sách gỡ bỏ dữ liệu)* đứng trên đúng khả năng xoá được
 /// tệp. Cùng bài học NFR14 đã học ở [`close_global_store`].
 ///
-/// ⛔ Vẫn còn hở, và ghi thẳng ra thay vì đánh dấu đạt: `panic = "abort"` nghĩa là một lần
+/// Vẫn còn hở, và ghi thẳng ra thay vì đánh dấu đạt: `panic = "abort"` nghĩa là một lần
 /// thoát cứng **không** đi qua đây. Cùng món nợ đã ghi cho [`close_global_store`].
 fn close_dict_layers(handle: &tauri::AppHandle) {
     use tauri::Manager as _;
@@ -274,12 +274,12 @@ fn close_dict_layers(handle: &tauri::AppHandle) {
 /// Đăng ký state cho kho **thứ hai** — Tác phẩm đang mở (Story 1.15, Task 7).
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 VÌ SAO ĐÂY LÀ MỘT KHO **THỨ HAI**, ⛔ KHÔNG PHẢI MỘT NHÁNH CỦA KHO TOÀN CỤC
+/// 🔴 VÌ SAO ĐÂY LÀ MỘT KHO **THỨ HAI**, KHÔNG PHẢI MỘT NHÁNH CỦA KHO TOÀN CỤC
 /// ─────────────────────────────────────────────────────────────────────────────
 /// `global.db` mở **một lần** ở `setup()` và sống suốt vòng đời tiến trình
 /// ([`open_global_store`]). `.atproj/project.db` mở/đóng theo thao tác của người dùng —
-/// **N** Tác phẩm có thể mở rồi đóng trong một phiên, ⛔ không phải một lần lúc khởi động.
-/// ⇒ state ở đây là `Mutex<Option<OpenWork>>` (rỗng lúc khởi động), ⛔ không phải
+/// **N** Tác phẩm có thể mở rồi đóng trong một phiên, không phải một lần lúc khởi động.
+/// ⇒ state ở đây là `Mutex<Option<OpenWork>>` (rỗng lúc khởi động), không phải
 /// `OpenWork` trần — mọi `#[tauri::command]` sau này lấy nó qua `try_state`, cùng khuôn
 /// [`crate::commands::config`].
 ///
@@ -288,7 +288,7 @@ fn close_dict_layers(handle: &tauri::AppHandle) {
 /// Tác phẩm mở — sáu số `Tuning` vẫn TẠM (chủ: Story 2.4), chưa cái nào được đo với hai
 /// kho cùng chạy song song. Và mục `Checkpointer::shutdown()` của `deferred-work.md`
 /// (treo lửng lúc thoát) đổi từ "vô hại" sang "rủi ro thật" đúng từ story này: đây là
-/// story ĐẦU TIÊN khởi động lại một kho (mở Tác phẩm khác) mà ⛔ không thoát tiến trình.
+/// story ĐẦU TIÊN khởi động lại một kho (mở Tác phẩm khác) mà không thoát tiến trình.
 fn open_work_slot(app: &tauri::App) {
     use tauri::Manager as _;
     app.manage(crate::commands::project::OpenWorkState::new(None));
@@ -299,7 +299,7 @@ fn open_work_slot(app: &tauri::App) {
 /// ⚠️ Trên Windows một tệp `project.db` còn mở là một `remove_dir_all` thất bại (NFR14) —
 /// đúng lớp lỗi mà [`close_global_store`] đã học, áp y hệt cho kho thứ hai.
 ///
-/// ⛔ Vẫn còn hở, và ghi thẳng ra thay vì đánh dấu đạt: `panic = "abort"` nghĩa là một lần
+/// Vẫn còn hở, và ghi thẳng ra thay vì đánh dấu đạt: `panic = "abort"` nghĩa là một lần
 /// thoát cứng **không** đi qua đây — cùng món nợ đã ghi cho [`close_global_store`].
 fn close_open_work(handle: &tauri::AppHandle) {
     use tauri::Manager as _;
@@ -327,9 +327,9 @@ fn close_open_work(handle: &tauri::AppHandle) {
 /// `app.emit(...)` **CÓ** đi qua hệ thống event, và đó là chỗ `core:event:default` (đã
 /// cấp từ Story 1.2) thật sự cần — để JS *nghe* được, không phải để Rust *nhận* được.
 ///
-/// Rust chỉ chuyển tiếp **đường dẫn**, ⛔ **không đọc nội dung tệp** — AD-1/AD-16 đòi mọi
+/// Rust chỉ chuyển tiếp **đường dẫn**, **không đọc nội dung tệp** — AD-1/AD-16 đòi mọi
 /// nội dung ngoài do Rust phân tích; phía JS gọi lại `create_work_from_file` với đường
-/// dẫn này, và Rust đọc tệp ở đó (`core::segment::import::import_file`), ⛔ không phải ở
+/// dẫn này, và Rust đọc tệp ở đó (`core::segment::import::import_file`), không phải ở
 /// đây.
 fn wire_drag_drop(app: &tauri::App) {
     use tauri::Emitter as _;
@@ -348,7 +348,7 @@ fn wire_drag_drop(app: &tauri::App) {
 
         // ⚠️ `DragDropEvent` là `#[non_exhaustive]` — nhánh `_` bắt buộc, và nó cũng là
         // chỗ `Over` rơi vào: `Over` bắn liên tục theo từng chuyển động chuột, forward nó
-        // qua IPC là một trận lụt event ⛔ không ai dùng tới (`Enter` đã đủ để bật cờ).
+        // qua IPC là một trận lụt event không ai dùng tới (`Enter` đã đủ để bật cờ).
         let result = match drag {
             tauri::DragDropEvent::Drop { paths, .. } => {
                 let payload: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();

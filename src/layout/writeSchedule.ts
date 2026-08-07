@@ -2,30 +2,30 @@
  * Nhịp ghi bố cục xuống đĩa — **tầng THUẦN**. Story 1.14 · AC4 · §Quyết định #5 · AD-11.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 VÌ SAO TỆP NÀY TỒN TẠI RIÊNG — §BẪY 3 CỦA STORY, VÀ NÓ ⛔ KHÔNG LÀM CỔNG NÀO ĐỎ
+ * 🔴 VÌ SAO TỆP NÀY TỒN TẠI RIÊNG — §BẪY 3 CỦA STORY, VÀ NÓ KHÔNG LÀM CỔNG NÀO ĐỎ
  * ─────────────────────────────────────────────────────────────────────────────
  * `onDidLayoutChange` của dockview bắn **liên tục** trong lúc kéo sash. Ghi một lượt
  * `putConfig` ở mỗi lần bắn thì một cú kéo 3 giây là **hàng trăm** job xếp hàng qua
- * `store::Writer` nối tiếp — đúng thứ AD-11/AD-12 tồn tại để chặn. ⛔ Không cổng nào đỏ vì
- * đó, và biểu hiện sẽ hiện ra ở **Epic 2** dưới dạng *"gõ bị khựng"* mà ⛔ không ai lần
+ * `store::Writer` nối tiếp — đúng thứ AD-11/AD-12 tồn tại để chặn. Không cổng nào đỏ vì
+ * đó, và biểu hiện sẽ hiện ra ở **Epic 2** dưới dạng *"gõ bị khựng"* mà không ai lần
  * được về dòng nào.
  *
  * Nên nhịp ghi được tách khỏi `.vue` và làm **thuần**: `scripts/check-layout.mjs` `import()`
  * tệp này bằng Node thuần, đẩy một chuỗi sự kiện dày rồi **ĐẾM số lượt ghi**. Đó là bằng
  * chứng mà AC4 đòi, thay cho một lượt đếm tay trong console.
  *
- * ⇒ Luật "erasable-only": ⛔ không `import` gì cả, ⛔ không `enum`, ⛔ không `namespace`.
- * ⚠️ Và ⛔ **không đọc `Date.now()` bên trong**: mọi thời điểm ĐI VÀO qua tham số. Một hàm
+ * ⇒ Luật "erasable-only": không `import` gì cả, không `enum`, không `namespace`.
+ * ⚠️ Và **không đọc `Date.now()` bên trong**: mọi thời điểm ĐI VÀO qua tham số. Một hàm
  * tự đọc đồng hồ thì cổng phải `sleep` thật để kiểm nó — tức một phép kiểm chậm và chập
  * chờn thay vì một phép kiểm tức thời và tất định.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * ⚠️ ĐÂY LÀ *MƯỢN HÌNH DẠNG* CỦA AD-35, ⛔ KHÔNG PHẢI "ÁP AD-35 CHO BỐ CỤC"
+ * ⚠️ ĐÂY LÀ *MƯỢN HÌNH DẠNG* CỦA AD-35, KHÔNG PHẢI "ÁP AD-35 CHO BỐ CỤC"
  * ─────────────────────────────────────────────────────────────────────────────
- * AD-35 là hợp đồng ghi của **Editor**. Bố cục ⛔ không có `SegmentVersion`, ⛔ không có
- * lịch sử, và mất một lượt kéo sash ⛔ **không phải mất công việc** — nó là mất 40 pixel
+ * AD-35 là hợp đồng ghi của **Editor**. Bố cục không có `SegmentVersion`, không có
+ * lịch sử, và mất một lượt kéo sash **không phải mất công việc** — nó là mất 40 pixel
  * chiều rộng mà người dùng kéo lại trong một giây. Cái được mượn là **hình dạng** *(idle
- * cộng một trần cứng)*, ⛔ không phải các bảo đảm.
+ * cộng một trần cứng)*, không phải các bảo đảm.
  */
 
 /**
@@ -35,7 +35,7 @@
 export const IDLE_MS = 500
 
 /**
- * 🔴 TRẦN CỨNG — và nó ⛔ **KHÔNG BAO GIỜ ĐƯỢC RESET BỞI SỰ KIỆN KẾ TIẾP**.
+ * 🔴 TRẦN CỨNG — và nó **KHÔNG BAO GIỜ ĐƯỢC RESET BỞI SỰ KIỆN KẾ TIẾP**.
  *
  * Đây là khác biệt giữa "debounce" và thứ tệp này làm. Một debounce thuần: kéo sash liên
  * tục 60 giây ⇒ **không một lượt ghi nào** xảy ra, và một lần tắt máy đột ngột ở giây 59
@@ -54,7 +54,7 @@ export type WriteSchedule = {
   onWrite(now: number): void
   /** Có thay đổi chưa ghi không? Điều kiện của lượt ghi lúc rời chế độ / đóng cửa sổ. */
   isDirty(): boolean
-  /** Mốc phải ghi đang chờ, hoặc `null` khi sạch. Để chỗ gọi ⛔ không phải tự nhớ. */
+  /** Mốc phải ghi đang chờ, hoặc `null` khi sạch. Để chỗ gọi không phải tự nhớ. */
   deadline(): number | null
 }
 
@@ -72,7 +72,7 @@ export function createWriteSchedule(
      * 🔴 `Math.min`, và cả điểm của tệp này nằm ở đây.
      *
      * `now + idleMs` là vế debounce: nó **trượt về sau** theo mỗi sự kiện.
-     * `firstChangeAt + hardCapMs` là trần: `firstChangeAt` ⛔ **không** được gán lại cho
+     * `firstChangeAt + hardCapMs` là trần: `firstChangeAt` **không** được gán lại cho
      * tới khi [`onWrite`] chạy, nên vế này **đứng yên** dù sự kiện có dày tới đâu.
      * Lấy cái nhỏ hơn ⇒ trần luôn thắng khi dòng sự kiện đủ dài.
      */
@@ -81,7 +81,7 @@ export function createWriteSchedule(
   }
 
   const onWrite = (now: number): void => {
-    // `now` ⛔ không được dùng để tính gì — nó ở trong chữ ký để chỗ gọi ⛔ không thể "quên
+    // `now` không được dùng để tính gì — nó ở trong chữ ký để chỗ gọi không thể "quên
     // mất mình đang ở thời điểm nào", và để một lượt log/telemetry sau này có sẵn mốc.
     void now
     firstChangeAt = null
@@ -99,9 +99,9 @@ export function createWriteSchedule(
 /**
  * Chạy một dòng sự kiện qua lịch ghi và trả về **thời điểm của từng lượt ghi**.
  *
- * ⚠️ Đây ⛔ **không phải** một tiện ích cho test — nó là mô phỏng chính xác vòng lặp mà
+ * ⚠️ Đây **không phải** một tiện ích cho test — nó là mô phỏng chính xác vòng lặp mà
  * `WorkspaceDock.vue` chạy (`setTimeout` tới `deadline()`, ghi, `onWrite`), viết ở dạng
- * ⛔ không có đồng hồ và ⛔ không có timer. Nhờ vậy `scripts/check-layout.mjs` khẳng định
+ * không có đồng hồ và không có timer. Nhờ vậy `scripts/check-layout.mjs` khẳng định
  * được một mệnh đề ĐỊNH LƯỢNG — *"kéo sash 3 giây ⇒ ≤ 2 lượt ghi"* — thay vì một lượt đếm
  * tay trong console mà không ai chạy lại được.
  *

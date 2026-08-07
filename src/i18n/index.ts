@@ -18,7 +18,7 @@ export type { MessageCatalog, MessageParams, Translate } from './resolve'
 /**
  * Hình dạng lỗi qua ranh giới IPC — AD-21, **hợp đồng nguyên văn**.
  *
- * ⛔ Bốn tên trường viết đúng `snake_case` như trên dây. Phía Rust (`core::i18n`)
+ * Bốn tên trường viết đúng `snake_case` như trên dây. Phía Rust (`core::i18n`)
  * KHÔNG đặt `#[serde(rename_all = "camelCase")]` lên struct này; nếu ai đó thêm vào,
  * `message_key` thành `messageKey`, mọi chỗ đọc theo AD-21 nhận `undefined`, và
  * TypeScript ở đây không hề biết. Test `ipc_error_wire_shape` phía Rust là thứ giữ
@@ -26,9 +26,9 @@ export type { MessageCatalog, MessageParams, Translate } from './resolve'
  *
  * ⚠️ `code` và `message_key` được phép 1:1 hôm nay nhưng là HAI trường, không phải
  * một trường hai tên: rẽ nhánh trên `code`, hiển thị `message_key`.
- * ⛔ `code` không bao giờ được đưa ra màn hình.
+ * `code` không bao giờ được đưa ra màn hình.
  *
- * ⚠️ `retryable` chỉ là **quyền hiển thị một nút thử lại**. ⛔ Không mã nào được tự
+ * ⚠️ `retryable` chỉ là **quyền hiển thị một nút thử lại**. Không mã nào được tự
  * thử lại khi thấy `true` — AD-22 cấm auto-retry, và với BYOK nó là tính tiền hai lần.
  */
 export type IpcError = {

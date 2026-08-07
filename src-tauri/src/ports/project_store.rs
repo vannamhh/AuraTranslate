@@ -1,12 +1,12 @@
 //! Cổng **thứ ba** trong đúng ba của AD-2 — một Tác phẩm **đã mở**, nhìn qua một trait.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 CHỈ KHAI HÌNH DẠNG, ⛔ KHÔNG MANG CÀI ĐẶT — cùng luật với [`super::DictionarySource`]
+//! 🔴 CHỈ KHAI HÌNH DẠNG, KHÔNG MANG CÀI ĐẶT — cùng luật với [`super::DictionarySource`]
 //! ─────────────────────────────────────────────────────────────────────────────
 //! `tests/dict_boundary.rs::ports_declare_shape_and_never_open_anything` quét thư mục này:
-//! ⛔ không `rusqlite`, ⛔ không `Connection::open`, ⛔ không `fs::`, ⛔ không `PathBuf` — ở
+//! không `rusqlite`, không `Connection::open`, không `fs::`, không `PathBuf` — ở
 //! **vị trí mã**. Cài đặt thật (mở `.atproj/`, đọc/ghi `project.db` và `meta.json`) sống ở
-//! `core::library` (`atproj.rs`, `meta.rs`) và `core::store` (`StoreSpec::project`), ⛔
+//! `core::library` (`atproj.rs`, `meta.rs`) và `core::store` (`StoreSpec::project`), không
 //! không ở đây.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
@@ -20,7 +20,7 @@
 //! Đây là cùng hoàn cảnh `TranslationProvider` (Epic 4) đang ở: khai trước, cắm cài đặt
 //! sau, khi có consumer thật.
 //!
-//! ⛔ **Và tệp này ⛔ không gõ tên crate SQLite, ⛔ không `Connection::open`, ⛔ không chạm
+//! **Và tệp này không gõ tên crate SQLite, không `Connection::open`, không chạm
 //! filesystem.** Kiểu bản ghi ([`WorkMeta`]) sống ở [`crate::core::library`]; lỗi
 //! ([`StoreError`]) sống ở [`crate::core::store`]. Trait này **tham chiếu** chúng.
 
@@ -29,7 +29,7 @@ use crate::core::store::StoreError;
 
 /// Một Tác phẩm **đã mở**, nhìn qua cổng.
 ///
-/// 🔴 Đơn vị là **một Tác phẩm đang mở**, ⛔ không phải "một cách mở tệp" — cùng tinh thần
+/// 🔴 Đơn vị là **một Tác phẩm đang mở**, không phải "một cách mở tệp" — cùng tinh thần
 /// với AD-44 ⑤ cấm một adapter theo ngôn ngữ ở [`super::DictionarySource`]: người gọi cổng
 /// này không cần biết `.atproj/` có mấy tệp bên trong, chỉ cần biết Tác phẩm nào và Chương
 /// nào.

@@ -7,7 +7,7 @@ baseline_commit: b482dc174e9f2e804ae5286d6c512c6820f74ba6
 Status: done
 
 > **Lượt code review 2026-08-04 đã đóng.** 2 quyết định *(Ice phân xử)* · 27 patch **đã vá và chứng minh đỏ-rồi-xanh 20 ca** · 4 mục hoãn có lý do · 3 mục loại bỏ. Sáu lệnh nghiệm thu đều exit 0 sau lượt vá.
-> 🔴 **AC4 đóng ở mức ĐẠT MỘT PHẦN** theo quyết định của Ice: vế khai báo đạt trọn và đã kiểm được bằng cổng; vế *"mỗi **panel** dời focus DOM tường minh"* chưa có đường chạy được trong sản phẩm hôm nay và được giao cho **Story 1.14 / 1.21**. Chi tiết và lý do ở §Review Findings và `deferred-work.md`. ⛔ Đừng đọc `done` ở đây thành "cả sáu AC đạt trọn".
+> 🔴 **AC4 đóng ở mức ĐẠT MỘT PHẦN** theo quyết định của Ice: vế khai báo đạt trọn và đã kiểm được bằng cổng; vế *"mỗi **panel** dời focus DOM tường minh"* chưa có đường chạy được trong sản phẩm hôm nay và được giao cho **Story 1.14 / 1.21**. Chi tiết và lý do ở §Review Findings và `deferred-work.md`. Đừng đọc `done` ở đây thành "cả sáu AC đạt trọn".
 
 **Covers:** FR22 *(nửa cấu trúc — nửa "cấu hình lại được" đóng ở Story 1.21)* · NFR17 · AD-34 §1 và §2 · AD-24 · UX-DR7, UX-DR8, UX-DR17 *(phần tiêu điểm)*, UX-DR34
 **Epic:** 1 — Nền móng ứng dụng & Tra cứu ngoại tuyến tức thì
@@ -70,7 +70,7 @@ so that **một phiên làm việc dài không bắt tôi rời tay khỏi bàn 
 **Then** nó dời focus DOM tường minh tới điểm vào đã khai
 **And** focus không bao giờ rơi về `body`
 
-> **Hai vế, hai cơ chế khác nhau.** Vế đầu là **dữ liệu** — mỗi chế độ/panel *khai* một điểm vào — và dữ liệu thì máy kiểm được. Vế sau là **hành vi DOM lúc chạy**, mà dự án không có bộ chạy test frontend *(và không được thêm — xem §Không thêm phụ thuộc)*. Đường đi đã chốt: khai báo cưỡng chế bằng cổng; hành vi cưỡng chế bằng **một chốt lúc chạy tự kêu** (`console.error` khi `document.activeElement` rơi về `body` sau một lần chuyển) cộng một lượt nghiệm thu tay có ghi bảng. ⛔ **Không đánh dấu đạt cho vế DOM bằng suy luận** — ghi giới hạn vào `deferred-work.md` theo đúng tiền lệ `unmeasured` của Story 1.3 và AC6 của Story 1.4.
+> **Hai vế, hai cơ chế khác nhau.** Vế đầu là **dữ liệu** — mỗi chế độ/panel *khai* một điểm vào — và dữ liệu thì máy kiểm được. Vế sau là **hành vi DOM lúc chạy**, mà dự án không có bộ chạy test frontend *(và không được thêm — xem §Không thêm phụ thuộc)*. Đường đi đã chốt: khai báo cưỡng chế bằng cổng; hành vi cưỡng chế bằng **một chốt lúc chạy tự kêu** (`console.error` khi `document.activeElement` rơi về `body` sau một lần chuyển) cộng một lượt nghiệm thu tay có ghi bảng. **Không đánh dấu đạt cho vế DOM bằng suy luận** — ghi giới hạn vào `deferred-work.md` theo đúng tiền lệ `unmeasured` của Story 1.3 và AC6 của Story 1.4.
 
 ### AC5 — Panel có tiêu điểm: vạch dọc 2px `primary` mép trái + tiêu đề `primary` in đậm
 
@@ -79,9 +79,9 @@ so that **một phiên làm việc dài không bắt tôi rời tay khỏi bàn 
 **Then** có vạch dọc 2px `primary` ở mép trái và tiêu đề chuyển `primary` in đậm
 **And** không dùng viền bao quanh để báo tiêu điểm
 
-> ⛔ **"Không dùng viền bao quanh" áp cho *panel*, KHÔNG phải một lệnh xoá focus ring toàn ứng dụng.** Một `*:focus { outline: none }` là cách nhanh nhất phá NFR17 mà vẫn qua được mọi cổng hiện có. Xem §Trap 4.
+> **"Không dùng viền bao quanh" áp cho *panel*, KHÔNG phải một lệnh xoá focus ring toàn ứng dụng.** Một `*:focus { outline: none }` là cách nhanh nhất phá NFR17 mà vẫn qua được mọi cổng hiện có. Xem §Trap 4.
 >
-> ⛔ **Vạch không được làm bằng `box-shadow`.** `check-tokens.mjs` Kiểm F cấm `box-shadow` và `text-shadow` **không có đường miễn trừ** (AC7 Story 1.4 — không elevation). Cách đúng đã có sẵn trong chính mockup: một `::before` `position:absolute; left:0; width:2px; background: var(--color-primary)`.
+> **Vạch không được làm bằng `box-shadow`.** `check-tokens.mjs` Kiểm F cấm `box-shadow` và `text-shadow` **không có đường miễn trừ** (AC7 Story 1.4 — không elevation). Cách đúng đã có sẵn trong chính mockup: một `::before` `position:absolute; left:0; width:2px; background: var(--color-primary)`.
 
 ### AC6 — `CommandRegistry` liệt kê được các thao tác chưa gán phím nào
 
@@ -99,12 +99,12 @@ so that **một phiên làm việc dài không bắt tôi rời tay khỏi bàn 
   - [x] Đọc §Ranh giới phạm vi, §Bốn cái bẫy, §Quyết định thiết kế **trước** khi gõ dòng đầu tiên
   - [x] Chạy bốn cổng đang có trên `HEAD` và chép kết quả vào §Debug Log References — đây là đường cơ sở: `npm run check:deps` · `npm run check:tokens` · `npm run check:i18n` · `npm run build`
   - [x] Đối chiếu với §Trạng thái repo hiện tại. Lệch thì **ghi từng chỗ lệch kèm commit gây ra nó** rồi đi tiếp, đừng dừng — tiền lệ Task 1 của Story 1.5
-  - [x] ⛔ **Đừng "dọn" gì ở task này.** Task 1 chỉ đo
+  - [x] **Đừng "dọn" gì ở task này.** Task 1 chỉ đo
 
 - [x] **Task 2 — `src/commands/registry.ts`: registry thuần, không `import` gì** (AC: 1, 2, 6)
   - [x] Tạo `src/commands/registry.ts` với `createRegistry()` — hình dạng API ở §Quyết định thiết kế #1
-  - [x] ⛔ **Tệp này KHÔNG được `import` bất cứ thứ gì** — không Vue, không `./focus`, không `@tauri-apps/api`. Đây là điều kiện để `check-commands.mjs` nạp được nó mà kiểm **hành vi**, đúng khuôn `resolve.ts` của Story 1.5 đã chạy thật *(Node ≥ 22.18 bóc kiểu TypeScript mặc định; máy Ice v22.22.2 ✅, CI `node-version: '22'` ✅)*
-  - [x] ⛔ Không `enum`, không `namespace`, không parameter property — ba thứ Node từ chối bóc kiểu. Dùng union type chuỗi
+  - [x] **Tệp này KHÔNG được `import` bất cứ thứ gì** — không Vue, không `./focus`, không `@tauri-apps/api`. Đây là điều kiện để `check-commands.mjs` nạp được nó mà kiểm **hành vi**, đúng khuôn `resolve.ts` của Story 1.5 đã chạy thật *(Node ≥ 22.18 bóc kiểu TypeScript mặc định; máy Ice v22.22.2 ✅, CI `node-version: '22'` ✅)*
+  - [x] Không `enum`, không `namespace`, không parameter property — ba thứ Node từ chối bóc kiểu. Dùng union type chuỗi
   - [x] `register(spec)` cưỡng chế **ba** thứ, mỗi thứ **ném** với thông báo nêu đích danh id: id trùng (AC2) · id sai văn phạm `^[a-z0-9]+(\.[a-z0-9_]+)+$` (AC2) · `labelKey` rỗng
   - [x] `dispatch(id)` với id **chưa đăng ký** ⇒ **ném**. Đây là nửa cưỡng chế lúc chạy của AC1: cổng canh cú pháp `.vue`, `dispatch` canh mọi đường còn lại
   - [x] `unbound()` trả về các command có `keys` rỗng/vắng (AC6). ⚠️ Trả **bản sao**, không trả tham chiếu vào kho nội bộ — Story 1.21 sẽ dựng màn hình gán phím trên chính hàm này
@@ -113,7 +113,7 @@ so that **một phiên làm việc dài không bắt tôi rời tay khỏi bàn 
 - [x] **Task 3 — `src/commands/keys.ts`: tầng bàn phím trung lập nền tảng** (AC: 1, 3)
   - [x] Chuỗi hợp âm viết ở dạng **trung lập**: `Mod+1`, `Mod+Shift+Enter`. `Mod` = `⌘` trên macOS, `Ctrl` ở nơi khác
   - [x] 🔴 Nhận biết nền tảng đi qua **một tham số tiêm được** (`createKeymap(registry, { isMac })`), không đọc thẳng `navigator` ở tầng module — nếu không thì cổng không lái được nó và §Trap 1 không nghiệm thu được
-  - [x] ⛔ **KHÔNG dùng `tauri-plugin-global-shortcut`.** Ba lý do, mỗi lý do đủ để loại: (1) một phụ thuộc mới phải rà GPLv3 và vào bảng Stack **trước khi** thêm (NFR15) — chưa ai rà; (2) nó đăng ký phím ở **tầng hệ điều hành**, tức `⌘1` bị cướp khỏi mọi ứng dụng khác trong khi AuraTranslate chạy nền; (3) *"Global Hotkeys"* của FR22 nghĩa là **toàn ứng dụng**, không phải toàn hệ điều hành — đọc danh sách thao tác nó liệt kê là thấy
+  - [x] **KHÔNG dùng `tauri-plugin-global-shortcut`.** Ba lý do, mỗi lý do đủ để loại: (1) một phụ thuộc mới phải rà GPLv3 và vào bảng Stack **trước khi** thêm (NFR15) — chưa ai rà; (2) nó đăng ký phím ở **tầng hệ điều hành**, tức `⌘1` bị cướp khỏi mọi ứng dụng khác trong khi AuraTranslate chạy nền; (3) *"Global Hotkeys"* của FR22 nghĩa là **toàn ứng dụng**, không phải toàn hệ điều hành — đọc danh sách thao tác nó liệt kê là thấy
   - [x] Khớp phím **chữ và số** bằng `event.code` (`Digit1`), không bằng `event.key` — bố cục bàn phím không phải US làm `event.key` trôi
   - [x] Hợp âm khớp ⇒ `preventDefault()` rồi `dispatch`. Không khớp ⇒ **không đụng vào event**
   - [x] 🔴 **Luật vùng gõ, chốt từ hôm nay dù chưa có ô nhập nào:** hợp âm **không có phím bổ trợ** thì **không** dispatch khi focus đang ở `input` / `textarea` / `[contenteditable]`. Chế độ đọc dùng `M`, `B`, `1 2 3` trần (UX-DR46) và Editor của Epic 2 là một vùng gõ tự do — không có luật này thì gõ chữ "b" trong bản dịch sẽ bật chế độ song ngữ. Rẻ hôm nay, đắt ở Epic 2
@@ -122,23 +122,23 @@ so that **một phiên làm việc dài không bắt tôi rời tay khỏi bàn 
 - [x] **Task 4 — `src/commands/focus.ts`: sổ điểm vào focus + chốt chống rơi về `body`** (AC: 4)
   - [x] `declare(owner, resolve)` — `owner` là id của chế độ hoặc panel; `resolve()` trả `HTMLElement | null`
   - [x] `enter(owner)` dời focus **tường minh** (`el.focus()`), trả `false` + `console.error` nêu đích danh `owner` khi không tìm thấy phần tử
-  - [x] Chốt AC4 vế sau: sau mỗi lần `enter`, kiểm ở **frame kế tiếp** (`requestAnimationFrame`) rằng `document.activeElement` không phải `document.body`; rơi về `body` ⇒ `console.error` nêu owner. ⛔ **Đừng tự "sửa" bằng cách focus lại vòng lặp** — một vòng focus tự phục hồi sẽ đánh nhau với người dùng và với hộp thoại của OS; chốt này để **kêu**, không để vá
+  - [x] Chốt AC4 vế sau: sau mỗi lần `enter`, kiểm ở **frame kế tiếp** (`requestAnimationFrame`) rằng `document.activeElement` không phải `document.body`; rơi về `body` ⇒ `console.error` nêu owner. **Đừng tự "sửa" bằng cách focus lại vòng lặp** — một vòng focus tự phục hồi sẽ đánh nhau với người dùng và với hộp thoại của OS; chốt này để **kêu**, không để vá
   - [x] `owners()` liệt kê các owner đã khai — đầu vào cho Kiểm C của cổng
   - [x] Phần tử đích phải nhận được focus: `tabindex="-1"` trên gốc mỗi chế độ/panel
 
 - [x] **Task 5 — Ba chế độ + vỏ cửa sổ một cửa sổ** (AC: 3, 4)
   - [x] `src/modes/LibraryMode.vue` · `WorkspaceMode.vue` · `ReadingMode.vue` — mỗi tệp là một khung rỗng có **một** câu trạng thái lấy từ `vi.json`, gốc mang `tabindex="-1"` và khai điểm vào focus
-  - [x] ⛔ **Đừng dựng bốn trạng thái rỗng của UX-DR31** — chúng thuộc Story 1.14/1.15/5.x và cần nội dung thật để viết đúng. Một câu mỗi chế độ, đúng một câu
+  - [x] **Đừng dựng bốn trạng thái rỗng của UX-DR31** — chúng thuộc Story 1.14/1.15/5.x và cần nội dung thật để viết đúng. Một câu mỗi chế độ, đúng một câu
   - [x] `src/modes/modeState.ts` — chế độ đang hiện, kiểu `'library' | 'workspace' | 'reading'`. Tệp này **được phép** `import` Vue (khác `registry.ts`)
   - [x] 🔴 **Ba chế độ giữ sống, không huỷ-dựng lại:** bọc bằng `<KeepAlive>`. UX-DR34 và FR12 hứa *"chuyển chế độ luôn giữ ngữ cảnh — rời Workspace sang Chế độ đọc rồi quay lại thì vẫn đúng Chương, đúng câu, đúng vị trí cuộn"*. Hôm nay chưa có ngữ cảnh nào để mất, nên một cài đặt `v-if` sẽ **xanh mọi phép kiểm** và đúng tới ngày Epic 2 có nội dung — rồi hỏng ở một chỗ không ai nối lại được với story này
   - [x] `App.vue`: thanh tiêu đề cao `var(--space-titlebar-height)` với **ba tab chế độ**, mỗi tab `@click="dispatch('mode.…')"` — đây là chỗ AC1 có mã thật để kiểm thay vì kiểm trên hư không
-  - [x] ⛔ **Đừng đụng khối self-check trong `App.vue`** (`VITE_SCOPE_SELFTEST`, `fallbackReport`, import động `scopeCheck`) — đọc comment `App.vue:12-16` trước khi sửa tệp này
+  - [x] **Đừng đụng khối self-check trong `App.vue`** (`VITE_SCOPE_SELFTEST`, `fallbackReport`, import động `scopeCheck`) — đọc comment `App.vue:12-16` trước khi sửa tệp này
 
 - [x] **Task 6 — `src/panels/PanelFrame.vue`: vỏ panel và hợp đồng thị giác tiêu điểm** (AC: 4, 5)
   - [x] Thanh tiêu đề `var(--space-head-height)`, tiêu đề `ui-md` màu `on-surface-variant` (UX-DR17)
   - [x] Có tiêu điểm ⇒ `::before` vạch dọc **2px** `var(--color-primary)` mép trái + tiêu đề đổi sang `var(--color-primary)` và `font-weight: 600`
-  - [x] ⛔ Không `box-shadow`, không `text-shadow` — Kiểm F của `check-tokens.mjs` cấm, **không có miễn trừ**
-  - [x] ⛔ Không màu viết thẳng, không cỡ chữ viết thẳng — Kiểm B và B2 của `check-tokens.mjs`
+  - [x] Không `box-shadow`, không `text-shadow` — Kiểm F của `check-tokens.mjs` cấm, **không có miễn trừ**
+  - [x] Không màu viết thẳng, không cỡ chữ viết thẳng — Kiểm B và B2 của `check-tokens.mjs`
   - [x] `WorkspaceMode.vue` dựng **hai** `PanelFrame` — `panel.source` và `panel.editor`, đúng cặp mà UX-DR15 nói *"không bao giờ nhường"*. Hai chứ không bốn: một cái không đủ để nhìn thấy tương phản có/không tiêu điểm; bốn cái là dựng trước Story 1.14
   - [x] Thân panel **để trống** — nội dung là Story 1.16/1.17
 
@@ -146,7 +146,7 @@ so that **một phiên làm việc dài không bắt tôi rời tay khỏi bàn 
   - [x] `src/commands/index.ts` — chỗ **duy nhất** đăng ký, đúng khuôn "một chỗ chạm" của `src/i18n/index.ts`
   - [x] Bốn command: `mode.library` → `Mod+1` · `mode.workspace` → `Mod+2` · `mode.reading` → `Mod+3` · `focus.next_panel` → **không gán phím** *(lý do ở §Quyết định thiết kế #5)*
   - [x] Mỗi command mang `labelKey = 'command.' + id` — xem §Quyết định thiết kế #4 về vì sao có tiền tố
-  - [x] `focus.next_panel` **có handler chạy thật** (xoay vòng focus giữa các panel đã khai), chỉ thiếu phím. ⛔ Không đăng ký một command rỗng cho đủ số
+  - [x] `focus.next_panel` **có handler chạy thật** (xoay vòng focus giữa các panel đã khai), chỉ thiếu phím. Không đăng ký một command rỗng cho đủ số
 
 - [x] **Task 8 — Chuỗi giao diện vào `vi.json`** (AC: 3, 5)
   - [x] Thêm khoá cho: ba nhãn chế độ · hai tiêu đề panel · một câu trạng thái mỗi chế độ · nhãn `focus.next_panel`
@@ -164,15 +164,15 @@ so that **một phiên làm việc dài không bắt tôi rời tay khỏi bàn 
     - **Kiểm C (AC1, AC2, AC6)** — nạp `src/commands/registry.ts` thật, khẳng định **hành vi**: id trùng ném · id sai văn phạm ném · `dispatch` id lạ ném · `unbound()` trả đúng tập
     - **Kiểm D (AC3)** — nạp `src/commands/keys.ts` thật với `isMac: true` rồi `isMac: false`, khẳng định **cùng một hợp âm `Mod+1` khớp `metaKey` ở ca một và `ctrlKey` ở ca hai** *(đây là phép kiểm chặn §Trap 1)*
     - **Kiểm E (AC4)** — mọi `labelKey` của command đã đăng ký **có mặt trong `vi.json`**; mọi owner focus đã khai là **duy nhất và không rỗng**
-  - [x] ⛔ **NGƯỠNG SÀN, bắt buộc.** 0 tệp `.vue` quét được ⇒ `abort()`, không phải "đạt". Đây là bẫy đã đâm một lần ở `check-deps.mjs:15-17` (*"cây rỗng đọc thành sạch"*) và story trước phải dựng lại nó lần nữa
-  - [x] Miễn trừ — nếu có — viết **ngay trong script**, mỗi mục kèm **một câu lý do**. ⛔ Không miễn trừ im lặng bằng cách thu hẹp glob
+  - [x] **NGƯỠNG SÀN, bắt buộc.** 0 tệp `.vue` quét được ⇒ `abort()`, không phải "đạt". Đây là bẫy đã đâm một lần ở `check-deps.mjs:15-17` (*"cây rỗng đọc thành sạch"*) và story trước phải dựng lại nó lần nữa
+  - [x] Miễn trừ — nếu có — viết **ngay trong script**, mỗi mục kèm **một câu lý do**. Không miễn trừ im lặng bằng cách thu hẹp glob
 
 - [x] **Task 10 — Chứng minh từng cổng bằng ĐỎ trước, XANH sau** (AC: 1, 2, 3, 4, 6)
   - [x] Với **mỗi** kiểm A–E: cố ý tạo một vi phạm → chạy → phải **đỏ đúng dòng đúng lý do** → gỡ → phải **xanh**
   - [x] Vi phạm mẫu: A — `@click="mode = 'library'"` nội tuyến; B — đổi một id thành `mode_library`; C — đăng ký hai lần cùng id; D — sửa `keys.ts` chỉ đọc `metaKey`; E — xoá một khoá nhãn khỏi `vi.json`
   - [x] **Ít nhất hai ca đối chứng ÂM**: một `@click` hợp lệ và một comment chứa chữ `dispatch(` — cả hai phải **exit 0**. Story 1.5 dựng bốn ca âm và chúng là nửa quan trọng bằng nửa kia
   - [x] Ghi bảng (kiểm · vi phạm · thông báo nhận được · mã thoát) vào §Debug Log References
-  - [x] ⛔ **Một cổng chưa từng đỏ là một cổng chưa được chứng minh** — tiền lệ Story 1.3 §Task 11, Story 1.4 §Task 3, Story 1.5 §Task 7
+  - [x] **Một cổng chưa từng đỏ là một cổng chưa được chứng minh** — tiền lệ Story 1.3 §Task 11, Story 1.4 §Task 3, Story 1.5 §Task 7
 
 - [x] **Task 11 — Nghiệm thu tay phần DOM, ghi thành bảng** (AC: 3, 4, 5)
   - [x] `npm run tauri dev`, rồi chạy đúng kịch bản này và ghi kết quả từng dòng vào §Debug Log References:
@@ -180,21 +180,21 @@ so that **một phiên làm việc dài không bắt tôi rời tay khỏi bàn 
     - Bấm ba tab chế độ bằng chuột — cùng kết quả, và console **không** có `console.error` nào từ chốt focus
     - Trong Workspace, panel có tiêu điểm hiện **vạch dọc 2px** mép trái và tiêu đề đổi màu + đậm; panel kia **không** có
     - Đổi theme sang `dark` *(gọi `applyTheme('dark')` trong console)* — vạch vẫn nhìn thấy được trên `surface` tối
-  - [x] ⚠️ **Ca Windows**: nếu không có máy Windows, ghi thẳng *"chưa đo"* và mở một mục trong `deferred-work.md`. ⛔ **Đừng viết "tương đương" bằng suy luận** — đó đúng là thứ NFR14 tồn tại để chặn, và Story 1.1 → 1.3 đã có tiền lệ bàn giao một phép đo sang chỗ có runner
+  - [x] ⚠️ **Ca Windows**: nếu không có máy Windows, ghi thẳng *"chưa đo"* và mở một mục trong `deferred-work.md`. **Đừng viết "tương đương" bằng suy luận** — đó đúng là thứ NFR14 tồn tại để chặn, và Story 1.1 → 1.3 đã có tiền lệ bàn giao một phép đo sang chỗ có runner
   - [x] Chụp lại: chốt focus có **thật sự kêu** không? Ép một ca xấu (`enter()` tới một owner chưa khai) và xác nhận `console.error` xuất hiện
 
 - [x] **Task 12 — Gắn MỘT bước vào pipeline đã có** (AC: 1)
   - [x] `package.json` → thêm `"check:commands": "node scripts/check-commands.mjs"`, đúng khuôn bốn script đã có
   - [x] `.github/workflows/ci.yml` → thêm **một** bước `npm run check:commands` trong job `check` đã có, đặt **cạnh `check:i18n` (`:119-120`)**, tức **trước** `npm run build` (`:127-128`): nó chạy trong vài giây, không cần `dist/`, không cần phiên đồ hoạ
-  - [x] ⛔ **Không dựng workflow thứ hai** — AC4 của Story 1.3 cấm tường minh. Khối *"CHỖ MÓC CHO EPIC SAU"* ở cuối `ci.yml` là chỗ đã chừa sẵn; thêm một dòng vào sổ đó
-  - [x] ⛔ **Đừng sắp xếp lại các bước đã có.** Thêm một bước, không mổ lại job
-  - [x] ⛔ **Đừng đặt xuống cụm cuối** nơi `check:scope` / `check:scope:bundled` đứng — hai bước đó cần webview, bước này thì không
+  - [x] **Không dựng workflow thứ hai** — AC4 của Story 1.3 cấm tường minh. Khối *"CHỖ MÓC CHO EPIC SAU"* ở cuối `ci.yml` là chỗ đã chừa sẵn; thêm một dòng vào sổ đó
+  - [x] **Đừng sắp xếp lại các bước đã có.** Thêm một bước, không mổ lại job
+  - [x] **Đừng đặt xuống cụm cuối** nơi `check:scope` / `check:scope:bundled` đứng — hai bước đó cần webview, bước này thì không
 
 - [x] **Task 13 — Đóng sổ: README, `deferred-work.md`, doc-comment** (AC: tất cả)
   - [x] `src/commands/README.md` — hiện chỉ ghi *"Story sở hữu nội dung: 1.6"*. Thay bằng nội dung thật: hình dạng API, văn phạm id, cách thêm một command, vì sao `registry.ts` phải thuần, lệnh chạy cổng. Giữ nguyên khối cảnh báo *"Đừng nhầm với `src-tauri/src/commands/`"*
-  - [x] `src/modes/README.md` và `src/panels/README.md` — ghi phần story này đã sở hữu và phần còn lại vẫn thuộc 1.14/1.16/1.17. ⛔ Đừng xoá dòng *"Story sở hữu nội dung: 1.14"*, hãy làm rõ ranh giới
+  - [x] `src/modes/README.md` và `src/panels/README.md` — ghi phần story này đã sở hữu và phần còn lại vẫn thuộc 1.14/1.16/1.17. Đừng xoá dòng *"Story sở hữu nội dung: 1.14"*, hãy làm rõ ranh giới
   - [x] `deferred-work.md` — mở mục cho: vế DOM của AC4 chưa có test tự động · ca Windows nếu chưa đo · `focus.next_panel` chưa có phím *(nhận ở Story 1.14/1.21)*
-  - [x] 🔴 `deferred-work.md:38` ghi *"Hoãn tới **Story 1.6**, khi `#[tauri::command]` thật đầu tiên cho một đường thật để quan sát"` — **story này KHÔNG tạo `#[tauri::command]` nào** (§Ranh giới phạm vi). Sửa mục đó để trỏ sang story thật sự mở đường IPC đầu tiên, **kèm một câu lý do**. ⛔ Đừng đánh dấu đã đóng, và ⛔ đừng dựng một command giả để "làm cho đúng lời hứa cũ"
+  - [x] 🔴 `deferred-work.md:38` ghi *"Hoãn tới **Story 1.6**, khi `#[tauri::command]` thật đầu tiên cho một đường thật để quan sát"` — **story này KHÔNG tạo `#[tauri::command]` nào** (§Ranh giới phạm vi). Sửa mục đó để trỏ sang story thật sự mở đường IPC đầu tiên, **kèm một câu lý do**. Đừng đánh dấu đã đóng, và đừng dựng một command giả để "làm cho đúng lời hứa cũ"
 
 ---
 
@@ -213,9 +213,9 @@ so that **một phiên làm việc dài không bắt tôi rời tay khỏi bàn 
 | Nghiệm thu tay có bảng cho phần DOM | Một `#[tauri::command]` nào — xem mục ngay dưới |
 | Ngưỡng bố cục màn hình hẹp? **Không** — UX-DR15 đóng ở 1.14 và 4.12 | Giữ ngữ cảnh thật khi chuyển chế độ (FR12) — Epic 2/5, nhưng cơ chế phải **không cản** nó |
 
-⛔ **Không đụng tới:** `src-tauri/**` *(story này không có phần Rust — xem ngay dưới)* · `src-tauri/tauri.conf.json` · `Cargo.toml` · `package.json` *(trừ đúng một dòng `scripts`)* · `src/selftest/**` · `src/tokens/tokens.json` · `_bmad-output/planning-artifacts/**`.
+**Không đụng tới:** `src-tauri/**` *(story này không có phần Rust — xem ngay dưới)* · `src-tauri/tauri.conf.json` · `Cargo.toml` · `package.json` *(trừ đúng một dòng `scripts`)* · `src/selftest/**` · `src/tokens/tokens.json` · `_bmad-output/planning-artifacts/**`.
 
-⛔ **Không thêm một phụ thuộc nào.** Không `pinia`, không `vue-router`, không `mousetrap`/`hotkeys-js`, không `tauri-plugin-global-shortcut`, không `vitest`. Mỗi phụ thuộc mới phải rà tương thích GPLv3 **bằng cách mở tệp giấy phép trong nguồn đã tải** và vào bảng Stack **trước khi** thêm (NFR15, `ARCHITECTURE-SPINE.md#Consistency Conventions`) — đó là quyết định của Ice, không phải hệ quả phụ của story này. `check-deps.mjs` sẽ đỏ.
+**Không thêm một phụ thuộc nào.** Không `pinia`, không `vue-router`, không `mousetrap`/`hotkeys-js`, không `tauri-plugin-global-shortcut`, không `vitest`. Mỗi phụ thuộc mới phải rà tương thích GPLv3 **bằng cách mở tệp giấy phép trong nguồn đã tải** và vào bảng Stack **trước khi** thêm (NFR15, `ARCHITECTURE-SPINE.md#Consistency Conventions`) — đó là quyết định của Ice, không phải hệ quả phụ của story này. `check-deps.mjs` sẽ đỏ.
 
 ---
 
@@ -225,7 +225,7 @@ so that **một phiên làm việc dài không bắt tôi rời tay khỏi bàn 
 
 Chuyển chế độ, tiêu điểm bàn phím, bố cục panel — cả ba là **state UI**, và AD-1 nói thẳng đó là phần frontend được phép sở hữu: *"frontend chỉ render và giữ state UI (focus, cuộn, vùng chọn, bố cục panel)"*. Một `#[tauri::command]` cho việc đổi chế độ sẽ là quy tắc nghiệp vụ giả đặt sai chỗ, cộng một vòng IPC cho một thao tác phải mượt.
 
-⛔ **Đừng dựng một `#[tauri::command]` chỉ để đóng mục `deferred-work.md:38`.** Story 1.5 đã từ chối đúng cám dỗ này với ba lý do còn nguyên giá trị: nó là mã sản phẩm không ai gọi; chạy nó cần webview và một lượt biên dịch profile `dev` riêng *(đắt nhất trên macOS, hệ số ×10)*; và vòng chạy thật đến **miễn phí** ở story đầu tiên có nhu cầu IPC thật.
+**Đừng dựng một `#[tauri::command]` chỉ để đóng mục `deferred-work.md:38`.** Story 1.5 đã từ chối đúng cám dỗ này với ba lý do còn nguyên giá trị: nó là mã sản phẩm không ai gọi; chạy nó cần webview và một lượt biên dịch profile `dev` riêng *(đắt nhất trên macOS, hệ số ×10)*; và vòng chạy thật đến **miễn phí** ở story đầu tiên có nhu cầu IPC thật.
 
 **Việc phải làm:** Task 13 sửa mục `:38` trỏ sang story đó *(ứng cử viên gần nhất: **1.8** phân giải cấu hình hai tầng, hoặc **1.9/1.11** khi đường tra cứu cần Rust)* kèm một câu lý do. Đây là loại nợ nếu để trôi thì ba story nữa sẽ không ai truy được nguồn gốc.
 
@@ -287,8 +287,8 @@ Cùng lý lẽ, cùng cơ chế, cùng bằng chứng như `src/i18n/resolve.ts`
 
 - Dự án **không có bộ chạy test frontend**, và thêm `vitest` là thêm một phụ thuộc phải rà GPLv3 trước (NFR15). Đó là quyết định của Ice.
 - **Node ≥ 22.18 bóc kiểu TypeScript mặc định**, nên `check-commands.mjs` `import()` thẳng được `registry.ts`. Máy Ice v22.22.2 ✅, CI `node-version: '22'` ✅.
-- Điều kiện: cú pháp **"erasable-only"** — ⛔ không `enum`, ⛔ không `namespace`, ⛔ không parameter property. `type` / `interface` / annotation đều được.
-- ⚠️ `import()` thất bại ⇒ `abort()` nêu rõ *"Kiểm C KHÔNG chạy được"* và **exit 1**. ⛔ Không bỏ qua rồi exit 0 — `check-deps.mjs:60-66`: *"Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật."*
+- Điều kiện: cú pháp **"erasable-only"** — không `enum`, không `namespace`, không parameter property. `type` / `interface` / annotation đều được.
+- ⚠️ `import()` thất bại ⇒ `abort()` nêu rõ *"Kiểm C KHÔNG chạy được"* và **exit 1**. Không bỏ qua rồi exit 0 — `check-deps.mjs:60-66`: *"Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật."*
 
 Hình dạng API *(hình dạng, không phải bản chép — dev viết bản cuối)*:
 
@@ -325,7 +325,7 @@ export function createRegistry(): Registry
 
 **Phân xử: chế độ thắng.** Ba lý do: AC của epic là hợp đồng nghiệm thu, mockup là bản phác; UX-DR34 là một mục UX-DR đánh số, dòng trong mockup thì không; và ba chế độ là **cấu trúc toàn ứng dụng** (AD-24) còn preset bố cục chỉ sống trong Workspace.
 
-**Việc phải làm:** ghi xung đột này vào §Completion Notes và mở một mục `deferred-work.md` nói rõ **Story 1.14 phải chọn phím khác cho preset bố cục (FR18)**. ⛔ Đừng sửa mockup — dev không sửa tài liệu quy hoạch *(tiền lệ quyết định #3 của Ice ở Story 1.3)*.
+**Việc phải làm:** ghi xung đột này vào §Completion Notes và mở một mục `deferred-work.md` nói rõ **Story 1.14 phải chọn phím khác cho preset bố cục (FR18)**. Đừng sửa mockup — dev không sửa tài liệu quy hoạch *(tiền lệ quyết định #3 của Ice ở Story 1.3)*.
 
 #### #4 — `labelKey = 'command.' + id`, không dùng thẳng `id` làm khoá
 
@@ -341,7 +341,7 @@ Ba lý do độc lập, mỗi lý do đủ đứng một mình:
 2. **Mọi phím ứng cử đều đang có chủ hoặc sắp có chủ.** `Tab` là thứ tự tiêu điểm của trình duyệt; `⌘1..3` đã là chế độ; `⌘⇧↵` là đưa bản dịch AI sang (UX-DR35); `⌘M` `⌘/` là gộp/tách (UX-DR32). Đặt bừa một phím hôm nay là tạo một mục phải gỡ ở Story 1.21.
 3. **AC6 cần một phần tử thật để chứng minh.** `unbound()` trả mảng rỗng thì nhánh có nghĩa của nó không bao giờ chạy, và Story 1.21 sẽ phát hiện nó hỏng khi đã có 40 command.
 
-⛔ **Nhưng handler phải chạy thật** — nó xoay vòng focus giữa các panel đã khai. Một command rỗng đăng ký cho đủ số là đúng thứ story này tồn tại để chặn.
+**Nhưng handler phải chạy thật** — nó xoay vòng focus giữa các panel đã khai. Một command rỗng đăng ký cho đủ số là đúng thứ story này tồn tại để chặn.
 
 #### #6 — `<KeepAlive>` cho ba chế độ, từ hôm nay
 
@@ -381,7 +381,7 @@ Mọi `labelKey` của command đã đăng ký **có mặt** trong `vi.json` *(n
 - **Không có bộ chạy test frontend** và **không được thêm** — mọi cưỡng chế frontend đi qua một cổng `.mjs` có mã thoát, đúng khuôn bốn cổng đang chạy.
 - **Test Rust** đặt ở `src-tauri/tests/` *(integration, `use auratranslate_lib::…`)*. Story này **không thêm test Rust** — không có phần Rust.
 - **Nghiệm thu đỏ-rồi-xanh là bắt buộc**, kèm ít nhất hai ca **đối chứng âm**. Tiền lệ: Story 1.3 §Task 11 · Story 1.4 §Task 3 (28 ca) · Story 1.5 §Task 7 (16 ca cổng + 5 ca test Rust).
-- **Phần DOM nghiệm thu bằng tay, có bảng ghi lại**, và **giới hạn ghi thẳng vào `deferred-work.md`** — ⛔ không đánh dấu đạt bằng suy luận.
+- **Phần DOM nghiệm thu bằng tay, có bảng ghi lại**, và **giới hạn ghi thẳng vào `deferred-work.md`** — không đánh dấu đạt bằng suy luận.
 - **Lệnh chạy trước khi báo xong:** `npm run check:commands` · `check:i18n` · `check:tokens` · `check:deps` · `npm run build` · `cargo test`. Cả sáu phải exit 0.
 
 ---
@@ -391,17 +391,17 @@ Mọi `labelKey` của command đã đăng ký **có mặt** trong `vi.json` *(n
 **Từ Story 1.4 (token):**
 - Biến CSS đã có: `--color-<token>` · `--family-<họ>` · `--space-<token>` · `--radius-<token>` · bảy biến typography mỗi token (`--font-` `--leading-` `--weight-` `--style-` `--tracking-` `--synthesis-` `--face-`). Dùng thẳng, đừng khai lại.
 - Cần cho story này: `--color-primary` · `--color-on-surface-variant` · `--space-titlebar-height` (38px) · `--space-head-height` (34px) · `--space-panel-inline` · `--radius-default` (3px) · `--font-ui-md` / `--leading-ui-md` / `--face-ui-md`.
-- ⛔ Kiểm F cấm `box-shadow` · `text-shadow` · `drop-shadow` · gradient **không miễn trừ**; `z-index` có miễn trừ **có tên**.
+- Kiểm F cấm `box-shadow` · `text-shadow` · `drop-shadow` · gradient **không miễn trừ**; `z-index` có miễn trừ **có tên**.
 - ⚠️ `deferred-work.md` mở sẵn một mục: *"`body` chạy ở giãn dòng 1.5 và không phép kiểm nào canh được"* — lưới thật là **lượt rà soát khi Story 1.14/1.16/1.17 dựng panel**. `PanelFrame` của story này là bề mặt chữ đầu tiên sau `App.vue`; nếu thân panel về sau chở chữ chạy thành đoạn thì nó phải khai token `read-*` của chính nó.
 
 **Từ Story 1.5 (i18n):**
-- `t(key, params?)` và `tError(err, params?)` từ `./i18n` *(đường dẫn tương đối — **không có alias `@`**)*. `vi.json` là object **PHẲNG**, khoá chấm, ⛔ không lồng object.
+- `t(key, params?)` và `tError(err, params?)` từ `./i18n` *(đường dẫn tương đối — **không có alias `@`**)*. `vi.json` là object **PHẲNG**, khoá chấm, không lồng object.
 - Khoá thiếu ⇒ hiện khoá nguyên văn + `console.warn` một lần, **không sập**. Nghĩa là một `labelKey` gõ sai sẽ hiện `command.mode.libary` ra tab — Kiểm E là thứ bắt nó **trước** khi tới màn hình.
 - ⚠️ `check-i18n.mjs` Kiểm A sẽ quét mọi `.vue` mới của story này. Comment tiếng Việt **không** phải vi phạm; chuỗi ở vị trí mã thì là.
 
 **Từ Story 1.3 (CI):** job `check` là **workflow duy nhất**. Khối *"CHỖ MÓC CHO EPIC SAU"* ở cuối `ci.yml` là sổ ghi các luật gắn thêm — thêm một dòng, đừng dựng pipeline thứ hai.
 
-**Từ Story 1.2 (scaffold):** `App.vue` mang khối self-check phạm vi asset protocol chạy sau cờ `VITE_SCOPE_SELFTEST=1`, và `scripts/check-scope*.mjs` **đọc dòng `VERDICT:`** trong `src/selftest/fallbackReport.ts`. ⛔ Sửa `App.vue` mà chạm vào khối đó là làm mù hai cổng của Story 1.2/1.3.
+**Từ Story 1.2 (scaffold):** `App.vue` mang khối self-check phạm vi asset protocol chạy sau cờ `VITE_SCOPE_SELFTEST=1`, và `scripts/check-scope*.mjs` **đọc dòng `VERDICT:`** trong `src/selftest/fallbackReport.ts`. Sửa `App.vue` mà chạm vào khối đó là làm mù hai cổng của Story 1.2/1.3.
 
 ---
 
@@ -443,11 +443,11 @@ Ba điểm của Vue 3.5 đáng dùng ở story này, tất cả đã có sẵn 
 ### Câu hỏi cho Ice — đã có mặc định, không chặn
 
 1. **`src/commands/focus.ts` có phải chỗ đúng cho sổ điểm vào focus không?** Cây nguồn ở `ARCHITECTURE-SPINE.md` liệt kê sáu thư mục frontend và không thư mục nào tên `focus/`. Đặt nó cạnh `CommandRegistry` là đọc AD-34 như một khối *(§1 thao tác và §2 focus là hai mệnh đề của cùng một AD)*. Hai chỗ khác đều tệ hơn: `src/modes/` thì panel cũng khai điểm vào, `src/layout/` thì thuộc `dockview` của Story 1.14.
-   → **Mặc định: `src/commands/focus.ts`**, và `src/commands/README.md` ghi rõ nó chứa cả hai nửa của AD-34. ⛔ Không thêm thư mục thứ bảy vào cây nguồn.
+   → **Mặc định: `src/commands/focus.ts`**, và `src/commands/README.md` ghi rõ nó chứa cả hai nửa của AD-34. Không thêm thư mục thứ bảy vào cây nguồn.
 2. **`WorkspaceMode` dựng hai `PanelFrame` — có phải dựng trước Story 1.14 không?** AC5 nói *"một panel có tiêu điểm"*, và không có panel nào thì AC5 nghiệm thu bằng suy luận.
    → **Mặc định: đúng hai**, đúng cặp `Nguyên văn | Bản dịch` mà UX-DR15 nói không bao giờ nhường, thân để trống, ghi rõ trong README rằng Story 1.14 thay chỗ chúng bằng bốn panel trong `dockview`.
 3. **Xung đột `⌘1` `⌘2` giữa mockup và UX-DR34** — xem §Quyết định thiết kế #3.
-   → **Mặc định: chế độ thắng**, mở mục `deferred-work.md` giao Story 1.14 chọn phím khác cho preset bố cục. ⛔ Dev không sửa mockup.
+   → **Mặc định: chế độ thắng**, mở mục `deferred-work.md` giao Story 1.14 chọn phím khác cho preset bố cục. Dev không sửa mockup.
 
 ---
 
@@ -522,7 +522,7 @@ Trạng thái repo khớp **đúng** §Trạng thái repo hiện tại, không m
 | `⌘3` | `Chế độ đọc` · `isBody = false` | AC3, AC4 |
 | `⌘1` | `Library` · `isBody = false` | AC3, AC4 |
 | `⌘1/2/3` khớp | `event.defaultPrevented === true` | AC3 |
-| **`Ctrl+1` trên macOS** | **không khớp**, `defaultPrevented === false` — ⛔ không đụng vào event | AC3, §Trap 1 |
+| **`Ctrl+1` trên macOS** | **không khớp**, `defaultPrevented === false` — không đụng vào event | AC3, §Trap 1 |
 | Bấm **chuột** vào ba tab chế độ | đổi chế độ như phím; console **không** có `console.error` nào từ chốt focus | AC1, AC4 |
 | Panel có tiêu điểm *(theme sáng)* | `::before` `width 2px` · `background rgb(47,93,99)` = `#2f5d63` = `--color-primary` · `left 0px`; tiêu đề `color #2f5d63`, `font-weight 600` | **AC5** |
 | Panel **không** có tiêu điểm | không `::before` (`content: none`); tiêu đề `rgb(107,100,89)` = `#6b6459` = `on-surface-variant`, `font-weight 400` | **AC5** |
@@ -531,9 +531,9 @@ Trạng thái repo khớp **đúng** §Trạng thái repo hiện tại, không m
 | **Ép ca xấu** — gỡ `tabindex` khỏi một điểm vào rồi `enterFocus('panel.editor')` | `activeElement` rơi về `body`, và chốt **KÊU**: `[focus] sau khi vào 'panel.editor', focus rơi về 'body' — AC4 nói điều đó KHÔNG được xảy ra…` | **AC4** |
 | Toàn phiên | đúng **một** dòng `[focus]` trong console, và nó là dòng của ca xấu ép ra ở trên | AC4 |
 
-**⚠️ Giới hạn của lượt đo này — ghi thẳng, ⛔ không suy luận thành "tương đương":**
+**⚠️ Giới hạn của lượt đo này — ghi thẳng, không suy luận thành "tương đương":**
 
-1. **Chạy trên Blink (Chrome), KHÔNG phải WKWebView, và KHÔNG qua `npm run tauri dev`.** Lý do đo được, không phải quên: cổng `1420` mà `vite.config.ts` ghim (`strictPort: true`) đang bị **một dự án khác của Ice** (`gdrive_suite_manager`, PID 65328) chiếm lúc đo; `devUrl` trong `tauri.conf.json` trỏ cứng vào đó, và §Ranh giới phạm vi ⛔ cấm đụng tệp đó. ⛔ Tiến trình của dự án kia **không** bị đụng tới. Lượt đo chạy qua `npx vite --port 1431` rồi lái bằng Chrome; máy chủ tạm đã dừng, cổng 1431 đã trả lại.
+1. **Chạy trên Blink (Chrome), KHÔNG phải WKWebView, và KHÔNG qua `npm run tauri dev`.** Lý do đo được, không phải quên: cổng `1420` mà `vite.config.ts` ghim (`strictPort: true`) đang bị **một dự án khác của Ice** (`gdrive_suite_manager`, PID 65328) chiếm lúc đo; `devUrl` trong `tauri.conf.json` trỏ cứng vào đó, và §Ranh giới phạm vi không cấm đụng tệp đó. Tiến trình của dự án kia **không** bị đụng tới. Lượt đo chạy qua `npx vite --port 1431` rồi lái bằng Chrome; máy chủ tạm đã dừng, cổng 1431 đã trả lại.
 2. **Tầng phân phối phím của hệ điều hành chưa đo.** Chrome nuốt `⌘2` để chuyển tab, nên hợp âm được dựng bằng `new KeyboardEvent('keydown', { code, metaKey })` phát trên `window` — tức **tầng ứng dụng** (listener capture, phân giải hợp âm, `preventDefault`, `dispatch`) đã đo đủ; **tầng OS → webview** thì chưa.
 3. **Ca Windows: CHƯA ĐO.** Không có máy Windows. Kiểm D chứng minh tầng phân giải đúng ở cả hai nhánh `Mod → ⌘ | Ctrl`, nhưng không chứng minh `Ctrl+1` tới được webview trên Windows.
 
@@ -564,7 +564,7 @@ Hệ quả: hướng phụ thuộc là `modes/` → `commands/`, **một chiều
 
 #### Sáu quyết định thiết kế của story — đã áp đủ
 
-`#1` registry thuần, zero import ✓ · `#2` hợp âm trung lập + `isMac` tiêm được ✓ · `#3` chế độ thắng preset bố cục *(mục `deferred-work.md` giao Story 1.14 chọn phím khác; ⛔ mockup không bị sửa)* ✓ · `#4` `labelKey = 'command.' + id`, **Kiểm E cưỡng chế quy ước này** ✓ · `#5` `focus.next_panel` không phím nhưng **handler chạy thật** (xoay vòng trong nhóm `panel.`, đã đo) ✓ · `#6` `<KeepAlive>` ✓.
+`#1` registry thuần, zero import ✓ · `#2` hợp âm trung lập + `isMac` tiêm được ✓ · `#3` chế độ thắng preset bố cục *(mục `deferred-work.md` giao Story 1.14 chọn phím khác; không mockup không bị sửa)* ✓ · `#4` `labelKey = 'command.' + id`, **Kiểm E cưỡng chế quy ước này** ✓ · `#5` `focus.next_panel` không phím nhưng **handler chạy thật** (xoay vòng trong nhóm `panel.`, đã đo) ✓ · `#6` `<KeepAlive>` ✓.
 
 #### Chuỗi đã soạn — bản cuối và lý do chọn chữ
 
@@ -574,8 +574,8 @@ Hệ quả: hướng phụ thuộc là `modes/` → `commands/`, **một chiều
 | `command.mode.workspace` | `Workspace` | PRD §5.2 gạch bỏ *"màn hình dịch"*. Cùng lỗ hổng cổng như trên |
 | `command.mode.reading` | `Chế độ đọc` | PRD §5.2 — thuật ngữ tiếng Việt đã chốt, `ReadingMode` chỉ là tên component |
 | `command.focus.next_panel` | `Sang panel kế tiếp` | Nhãn thao tác cho màn hình gán phím của Story 1.21. Động từ trước, ngắn, không xưng hô |
-| `mode.library.status` | `Library chưa có Tác phẩm nào.` | UX-DR47: **nói việc**. Dùng `Tác phẩm` chứ không `dự án`/`Project` (PRD §5.2). ⛔ Không hứa hẹn *"hãy nhập tài liệu"* — đường nhập là Epic 6 và một lời mời tới chỗ chưa có là nói dối |
-| `mode.workspace.status` | `Chưa có Chương nào được mở.` | `Chương` là thuật ngữ đã chốt (⛔ không `document`/`file`). Vô nhân xưng, nêu đúng sự thật |
+| `mode.library.status` | `Library chưa có Tác phẩm nào.` | UX-DR47: **nói việc**. Dùng `Tác phẩm` chứ không `dự án`/`Project` (PRD §5.2). Không hứa hẹn *"hãy nhập tài liệu"* — đường nhập là Epic 6 và một lời mời tới chỗ chưa có là nói dối |
+| `mode.workspace.status` | `Chưa có Chương nào được mở.` | `Chương` là thuật ngữ đã chốt (không `document`/`file`). Vô nhân xưng, nêu đúng sự thật |
 | `mode.reading.status` | `Chưa có bản dịch nào để đọc lại.` | Nêu **hệ quả** chứ không chỉ sự kiện: nói rõ chế độ này đọc *bản dịch đã xong*, đúng định nghĩa PRD §5.2 |
 | `panel.source.title` | `Nguyên văn` | Nguyên văn mockup `key-screen-workspace.html`; cặp *Nguyên văn | Bản dịch* của UX-DR15 |
 | `panel.editor.title` | `Bản dịch` | Cùng nguồn |
@@ -584,11 +584,11 @@ Cả chín chuỗi qua Kiểm D của `check-i18n` (vô nhân xưng, không *"ch
 
 #### Xung đột đã phân xử: `⌘1` `⌘2` — chế độ, không phải preset bố cục
 
-`mockups/key-screen-workspace.html:89` vẽ `Bố cục 2×2 nguồn–đích ⌘1 · 4 cột ⌘2`. AC3 của story này, UX-DR34 và `EXPERIENCE.md:49` đều nói `⌘1 ⌘2 ⌘3` là **ba chế độ**. **Chế độ thắng** — AC của epic là hợp đồng nghiệm thu còn mockup là bản phác; UX-DR34 là một mục đánh số còn dòng trong mockup thì không; và ba chế độ là cấu trúc toàn ứng dụng (AD-24) còn preset bố cục chỉ sống trong Workspace. **Story 1.14 phải chọn phím khác cho preset bố cục (FR18)** — đã mở mục. ⛔ Mockup **không** bị sửa: dev không sửa tài liệu quy hoạch (tiền lệ quyết định #3 của Ice ở Story 1.3).
+`mockups/key-screen-workspace.html:89` vẽ `Bố cục 2×2 nguồn–đích ⌘1 · 4 cột ⌘2`. AC3 của story này, UX-DR34 và `EXPERIENCE.md:49` đều nói `⌘1 ⌘2 ⌘3` là **ba chế độ**. **Chế độ thắng** — AC của epic là hợp đồng nghiệm thu còn mockup là bản phác; UX-DR34 là một mục đánh số còn dòng trong mockup thì không; và ba chế độ là cấu trúc toàn ứng dụng (AD-24) còn preset bố cục chỉ sống trong Workspace. **Story 1.14 phải chọn phím khác cho preset bố cục (FR18)** — đã mở mục. Mockup **không** bị sửa: dev không sửa tài liệu quy hoạch (tiền lệ quyết định #3 của Ice ở Story 1.3).
 
 #### Một lời hứa cũ đã sửa, KHÔNG phải đã đóng
 
-`deferred-work.md:38` ghi *"Hoãn tới **Story 1.6**, khi `#[tauri::command]` thật đầu tiên…"*. Story này giao **0 dòng Rust**: không AC nào cần nó, và AD-1 nói thẳng chuyển chế độ/tiêu điểm/bố cục panel là state UI mà frontend được phép sở hữu. Mục đã được sửa để trỏ sang **Story 1.8** *(hoặc 1.9/1.11)* kèm lý do. ⛔ Không dựng command giả, ⛔ không đánh dấu đóng.
+`deferred-work.md:38` ghi *"Hoãn tới **Story 1.6**, khi `#[tauri::command]` thật đầu tiên…"*. Story này giao **0 dòng Rust**: không AC nào cần nó, và AD-1 nói thẳng chuyển chế độ/tiêu điểm/bố cục panel là state UI mà frontend được phép sở hữu. Mục đã được sửa để trỏ sang **Story 1.8** *(hoặc 1.9/1.11)* kèm lý do. Không dựng command giả, không đánh dấu đóng.
 
 #### Bốn cái bẫy — đã đóng cái nào, bằng gì
 
@@ -597,11 +597,11 @@ Cả chín chuỗi qua Kiểm D của `check-i18n` (vô nhân xưng, không *"ch
 | **1. `event.metaKey`** ⇒ Windows không chuyển chế độ được, CI vẫn xanh | ✅ Đóng bằng **Kiểm D** — hợp âm trung lập, `isMac` tiêm được, cổng lái **cả hai** ca. Ca D1 chứng minh cổng đỏ đúng lúc |
 | **2. Đăng ký trùng id ghi đè im lặng** | ✅ Đóng — `register()` **ném**, Kiểm C chứng minh (ca C1) |
 | **3. Nhãn tiếng Anh viết thẳng trong `.vue`** | 🟡 **KHÔNG đóng được ở story này.** `check-i18n` Kiểm A đo **dấu**, không đo chuỗi hiển thị, nên `Library`/`Workspace` viết thẳng vẫn xanh. Story này là story đầu tiên dựng nhãn thật và nó **đứng đúng trên lỗ đó** — cả chín nhãn đi qua `t()` vì người viết giữ luật. Mục đã mở từ Story 1.5, thuộc Story 1.14 |
-| **4. `outline: none` toàn ứng dụng** | 🟡 **Tránh được, không cưỡng chế được.** `outline: none` chỉ ở gốc `tabindex="-1"` của chế độ và panel, kèm lý do ngay cạnh mỗi dòng CSS (4 chỗ). ⛔ Không cổng nào canh — đã mở mục |
+| **4. `outline: none` toàn ứng dụng** | 🟡 **Tránh được, không cưỡng chế được.** `outline: none` chỉ ở gốc `tabindex="-1"` của chế độ và panel, kèm lý do ngay cạnh mỗi dòng CSS (4 chỗ). Không cổng nào canh — đã mở mục |
 
 #### Ba chỗ lệch nhỏ khỏi chữ của story, ghi ra thay vì để im
 
-1. **`font-weight: var(--weight-read-title)`** ở `PanelFrame.vue` và `App.vue` thay vì `600` viết thẳng. Bộ token **không có** biến trọng lượng cho nhãn giao diện đậm; viết thẳng thì Kiểm B2 của `check-tokens` đỏ (đúng), và ⛔ khai một biến CSS cục bộ để lách cổng là đúng thứ AD-34 tồn tại để chặn. Mượn kèm comment ở cả hai chỗ; Story 1.14 quyết token thật.
+1. **`font-weight: var(--weight-read-title)`** ở `PanelFrame.vue` và `App.vue` thay vì `600` viết thẳng. Bộ token **không có** biến trọng lượng cho nhãn giao diện đậm; viết thẳng thì Kiểm B2 của `check-tokens` đỏ (đúng), và không khai một biến CSS cục bộ để lách cổng là đúng thứ AD-34 tồn tại để chặn. Mượn kèm comment ở cả hai chỗ; Story 1.14 quyết token thật.
 2. **Ba tab chế độ là `<button>`, không phải `<span>`** như mockup vẽ. Một tab chế độ là thao tác, nên nó phải vào được thứ tự Tab và nhận `Enter`/`Space` — NFR17 nói *"mọi thao tác gọi được bằng bàn phím"*, và một `<span @click>` không gọi được bằng bàn phím ở bất kỳ trình duyệt nào.
 3. **`focus.ts` `import` một thứ: `COMMAND_ID_RE` từ `./registry.ts`.** Owner focus dùng **chung** văn phạm với command id, và chép lại biểu thức là tạo đúng ca "hai phép kiểm cưỡng chế hai văn phạm cho cùng một thứ" mà lượt review Story 1.5 đã bắt. `registry.ts` thuần nên Node vẫn nạp được `focus.ts`.
 
@@ -630,18 +630,18 @@ Cả chín chuỗi qua Kiểm D của `check-i18n` (vô nhân xưng, không *"ch
 
 | Tệp | Sửa gì |
 |---|---|
-| `src/App.vue` | Thanh tiêu đề + ba tab chế độ (`@click="dispatch('mode.…')"`) · `<KeepAlive>` ba chế độ · CSS vỏ. ⛔ Khối self-check (`VITE_SCOPE_SELFTEST`, `fallbackReport`, import động `scopeCheck`) **không bị chạm** |
-| `src/main.ts` | `installCommands({ setMode })` + `void attachKeyboard(window)`, **trước `mount()`**. ⛔ Thứ tự `applyTheme()` → `mount()` giữ nguyên |
+| `src/App.vue` | Thanh tiêu đề + ba tab chế độ (`@click="dispatch('mode.…')"`) · `<KeepAlive>` ba chế độ · CSS vỏ. Khối self-check (`VITE_SCOPE_SELFTEST`, `fallbackReport`, import động `scopeCheck`) **không bị chạm** |
+| `src/main.ts` | `installCommands({ setMode })` + `void attachKeyboard(window)`, **trước `mount()`**. Thứ tự `applyTheme()` → `mount()` giữ nguyên |
 | `src/i18n/vi.json` | +9 khoá (2 → 11) |
 | `src/commands/README.md` | Nội dung thật: bốn tệp, ràng buộc "zero import", văn phạm id, cách thêm command, hợp âm, điểm vào focus, lệnh chạy cổng. Giữ nguyên khối cảnh báo `src-tauri/src/commands/` |
 | `src/modes/README.md` | Bảng ranh giới sở hữu 1.6 ↔ 1.14/1.15/Epic 5/Epic 8 + ba quyết định đã chốt |
 | `src/panels/README.md` | Bảng ranh giới sở hữu + hợp đồng thị giác tiêu điểm đã đo + hai cơ chế phân tách panel |
 | `package.json` | +1 dòng `scripts`: `"check:commands"` |
-| `.github/workflows/ci.yml` | +**một** bước trong job `check` đã có, kề `check:i18n`, **trước** `npm run build` + một dòng vào sổ *"CHỖ MÓC CHO EPIC SAU"*. ⛔ Không workflow thứ hai, ⛔ không sắp xếp lại bước nào |
-| `_bmad-output/implementation-artifacts/deferred-work.md` | Sửa lời hứa `:38` *(⛔ không đóng)* + mở 10 mục mới cho Story 1.6 |
+| `.github/workflows/ci.yml` | +**một** bước trong job `check` đã có, kề `check:i18n`, **trước** `npm run build` + một dòng vào sổ *"CHỖ MÓC CHO EPIC SAU"*. Không workflow thứ hai, không sắp xếp lại bước nào |
+| `_bmad-output/implementation-artifacts/deferred-work.md` | Sửa lời hứa `:38` *(không đóng)* + mở 10 mục mới cho Story 1.6 |
 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | `1-6-…` → `in-progress` → `review` |
 
-**⛔ Không đụng tới** *(đã kiểm bằng `git status`)*: `src-tauri/**` · `tauri.conf.json` · `Cargo.toml` · `src/selftest/**` · `src/tokens/**` · `_bmad-output/planning-artifacts/**` · `index.html` · `vite.config.ts` · `tsconfig.json`. **Không một phụ thuộc nào được thêm** — `package.json` chỉ nhận đúng một dòng `scripts`.
+**Không đụng tới** *(đã kiểm bằng `git status`)*: `src-tauri/**` · `tauri.conf.json` · `Cargo.toml` · `src/selftest/**` · `src/tokens/**` · `_bmad-output/planning-artifacts/**` · `index.html` · `vite.config.ts` · `tsconfig.json`. **Không một phụ thuộc nào được thêm** — `package.json` chỉ nhận đúng một dòng `scripts`.
 
 ### Review Findings
 
@@ -657,7 +657,7 @@ Cả hai mục đã được quyết. Mục Kiểm E chuyển thành **patch** *
 
 **Patch — sửa được, không cần hỏi**
 
-- [x] [Review][Patch] **[Ice chốt: hướng CHẶT]** Kiểm E coi `owner="x"` trong template là một KHAI BÁO, nên panel có thể không khai gì mà cổng vẫn xanh — `scripts/check-commands.mjs:1076-1084` đẩy thuộc tính `owner=` vào **cả** `referencedOwners` **lẫn** `declaredOwners`; chiều ngược lại ở `:1097` chỉ hỏi `declaredOwners.has(owner)`, nên thuộc tính một mình đã thoả. Dựng lại được hai lần: (a) xoá hẳn `declareFocus(props.owner, …)` khỏi `PanelFrame.vue` → cổng in `OK 5 điểm vào focus … đều được declareFocus()`, trong khi thực tế **không panel nào khai**, vòng xoay rỗng, focus không bao giờ tới được panel; (b) thêm `'panel.ghost'` vào `FOCUS_OWNERS` cộng một `<div owner="panel.ghost" />` trần → `OK 6 điểm vào focus`. Đây đúng ca mà comment `:1094-1096` nói chiều này tồn tại để chặn — chặn được với **chế độ** *(literal, ca E5 đỏ đúng)* nhưng **không** với panel nhận owner qua prop. **Cách sửa đã chốt:** thuộc tính `owner=` chỉ vào `referencedOwners`; cổng nối **attribute ↔ component** và đòi mọi component nhận `owner=` phải chứa một `declareFocus(<biến>, …)`. ⛔ Không khai giới hạn thay cho sửa [scripts/check-commands.mjs:1076-1107]
+- [x] [Review][Patch] **[Ice chốt: hướng CHẶT]** Kiểm E coi `owner="x"` trong template là một KHAI BÁO, nên panel có thể không khai gì mà cổng vẫn xanh — `scripts/check-commands.mjs:1076-1084` đẩy thuộc tính `owner=` vào **cả** `referencedOwners` **lẫn** `declaredOwners`; chiều ngược lại ở `:1097` chỉ hỏi `declaredOwners.has(owner)`, nên thuộc tính một mình đã thoả. Dựng lại được hai lần: (a) xoá hẳn `declareFocus(props.owner, …)` khỏi `PanelFrame.vue` → cổng in `OK 5 điểm vào focus … đều được declareFocus()`, trong khi thực tế **không panel nào khai**, vòng xoay rỗng, focus không bao giờ tới được panel; (b) thêm `'panel.ghost'` vào `FOCUS_OWNERS` cộng một `<div owner="panel.ghost" />` trần → `OK 6 điểm vào focus`. Đây đúng ca mà comment `:1094-1096` nói chiều này tồn tại để chặn — chặn được với **chế độ** *(literal, ca E5 đỏ đúng)* nhưng **không** với panel nhận owner qua prop. **Cách sửa đã chốt:** thuộc tính `owner=` chỉ vào `referencedOwners`; cổng nối **attribute ↔ component** và đòi mọi component nhận `owner=` phải chứa một `declareFocus(<biến>, …)`. Không khai giới hạn thay cho sửa [scripts/check-commands.mjs:1076-1107]
 - [x] [Review][Patch] Kiểm A chỉ biết cách viết `@click`/`v-on:click` — `:onClick="() => {…}"`, `v-on="{ click: … }"` và `@[dyn]` đều là listener click thật trong Vue 3, đều cài thao tác tại chỗ, và đều đi qua cổng XANH *(dựng lại độc lập bởi hai lớp)*. §GIỚI HẠN `:33-36` chỉ khai `@keydown`/`@input`/`@change`/`@submit`, **không** khai các cách viết khác của click ⇒ miễn trừ im lặng [scripts/check-commands.mjs:543]
 - [x] [Review][Patch] Kiểm E chỉ dựng bộ command **thật** với `isMac: true`; Kiểm D lái hai nền tảng nhưng trên `fakeRegistry`. Vì `claimed` khoá theo hợp âm **đã phân giải**, một xung đột chỉ tồn tại trên một nhánh: đăng ký thêm `keys: ['Ctrl+1']` → cổng xanh trên cả hai nền tảng CI, nhưng `installCommands({ isMac: false })` **ném** `hợp âm 'Ctrl+1' (Ctrl+Digit1) đã thuộc về 'mode.library'`. Comment CI `ci.yml:17-20` khẳng định phép kiểm này *"đứng giữa `⌘1` và người dùng Windows"* — với keymap thật thì không [scripts/check-commands.mjs:971]
 - [x] [Review][Patch] `vueRegions` quét `<script>`/`<style>` trên text **thô**, không phải text đã che comment — đúng loại lỗi không-trạng-thái mà tệp tự hào đã tránh cho `<!--` ở `:348-351`. Chèn `<p>{{ '<style>' }}</p>` mở một vùng CSS giả chạy tới `</style>` thật, nuốt trọn một `<button @click="stealEverything()">` phía sau; cổng xanh và bản tóm tắt vẫn in `3 @click` [scripts/check-commands.mjs:400-417]
@@ -683,7 +683,7 @@ Cả hai mục đã được quyết. Mục Kiểm E chuyển thành **patch** *
 - [x] [Review][Patch] `attachKeymap` không có canh gác gọi lại — `installCommands` ném ở lần gọi thứ hai nhưng `attachKeyboard` thì không: hai lần gọi cài hai listener capture trên cùng target và mọi hợp âm dispatch **hai lần**. `setMode` tình cờ idempotent nên nó ẩn; `focus.next_panel` sẽ nhảy cách một panel [src/commands/keys.ts:268-274]
 - [x] [Review][Patch] Hợp âm trùng phím bổ trợ được nhận im lặng: `'Mod+Mod+1'` đặt `meta` hai lần và biên dịch ra cùng `resolved` với `'Mod+1'`; lỗi gõ chỉ lộ nếu hợp âm đúng cũng được đăng ký [src/commands/keys.ts:143-167]
 - [x] [Review][Patch] Chuỗi ký tự **không** được che *(`:184-187` là quyết định cố ý)*, nên `const HINT = "dispatch('khong.co.that')"` cho một FAIL giả. Hướng an toàn, nhưng nó **không nằm** trong ba giới hạn cổng tự khai — cùng loại "hành vi không khai báo" mà Task 9 cấm ở chiều ngược lại [scripts/check-commands.mjs:184-187]
-- [x] [Review][Patch] `src/modes/README.md` **xoá** dòng story ⛔ cấm xoá: `-**Story sở hữu nội dung: 1.14** (khung bốn panel). Chế độ đọc thuộc Epic 5, Review Mode thuộc Epic 8.` Task 13 ghi *"⛔ Đừng xoá dòng 'Story sở hữu nội dung: 1.14', hãy làm rõ ranh giới"*. Bảng thay thế **có** làm rõ ranh giới nên ý được giữ, nhưng chữ của ràng buộc thì không. `src/panels/README.md:18` giữ đúng [src/modes/README.md]
+- [x] [Review][Patch] `src/modes/README.md` **xoá** dòng story không cấm xoá: `-**Story sở hữu nội dung: 1.14** (khung bốn panel). Chế độ đọc thuộc Epic 5, Review Mode thuộc Epic 8.` Task 13 ghi *"Đừng xoá dòng 'Story sở hữu nội dung: 1.14', hãy làm rõ ranh giới"*. Bảng thay thế **có** làm rõ ranh giới nên ý được giữ, nhưng chữ của ràng buộc thì không. `src/panels/README.md:18` giữ đúng [src/modes/README.md]
 
 **Defer — có thật, chưa tới lúc**
 
@@ -718,14 +718,14 @@ Ice chốt **vá cả 27**. Vì 12 mục nằm trong `scripts/check-commands.mjs
 | ✅ | **E10** · `title-key` gõ sai ở chỗ gọi component | 1 | 1 | `WorkspaceMode.vue:40:51 — khoá panel.sorce.title (qua title-key) KHÔNG có trong vi.json` |
 | ✅ | **N7** · thêm một `@click` HỢP LỆ | 0 | 0 | — |
 | ✅ | **N8** · `{{ '<style>' }}` một mình, không vi phạm | 0 | 0 | — |
-| ✅ | **N9** · `dispatch(<biến>)` — đếm, ⛔ không FAIL | 0 | 0 | — |
+| ✅ | **N9** · `dispatch(<biến>)` — đếm, không FAIL | 0 | 0 | — |
 | ✅ | **N10** · comment chứa `dispatch('khong.co.that')` | 0 | 0 | — |
 
 > **Ca E8 là ca đáng giá nhất của lượt này.** Trước khi vá, thêm `keys: ['Ctrl+1']` vào bộ command cho cổng **XANH trên cả hai nền tảng CI** rồi ném lúc khởi động **chỉ trên Windows** — tức cửa sổ trắng, vì lượt ném xảy ra trước `mount()`. Comment ở `ci.yml:17-20` khẳng định Kiểm D *"đứng giữa `⌘1` và người dùng Windows"*; với keymap thật thì trước lượt vá này nó không đứng ở đó.
 
 > **Hai chỗ lượt vá tự phát hiện thêm, ngoài 27 mục:**
 > - Phép kiểm `repeat` của Kiểm D đang khẳng định **sai thuộc tính** — nó đo giá trị trả về của `handle()`, gộp *"không lặp thao tác"* và *"hợp âm đã khớp không rơi xuống webview"* thành một mệnh đề và ép cài đặt phải bỏ một trong hai. Đã tách thành hai khẳng định: `preventDefault()` vẫn chạy, và `fired.length` không tăng.
-> - Hộp lỗi khởi động thêm vào `src/main.ts` ban đầu dùng màu và cỡ chữ viết thẳng ⇒ `check:tokens` Kiểm B **đỏ đúng**. ⛔ Không dùng miễn trừ `aura-allow-literal`: `applyTheme('light')` chạy **trước** khối `try` đó nên token đã có sẵn trên `documentElement`, và hộp lỗi nay dùng `var(--color-error)` · `var(--color-background)` · `var(--font-ui-mono)`.
+> - Hộp lỗi khởi động thêm vào `src/main.ts` ban đầu dùng màu và cỡ chữ viết thẳng ⇒ `check:tokens` Kiểm B **đỏ đúng**. Không dùng miễn trừ `aura-allow-literal`: `applyTheme('light')` chạy **trước** khối `try` đó nên token đã có sẵn trên `documentElement`, và hộp lỗi nay dùng `var(--color-error)` · `var(--color-background)` · `var(--font-ui-mono)`.
 
 #### Lượt chạy cuối sau khi vá — sáu lệnh, sáu mã thoát
 

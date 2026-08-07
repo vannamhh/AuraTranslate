@@ -32,11 +32,11 @@ tError(payloadLoiTuRust)             // nhận nguyên `{ code, message_key, par
 }
 ```
 
-⛔ **Không lồng object.** `{"lookup": {"empty_result": "…"}}` là **sai hình dạng** — nguồn: `ARCHITECTURE-SPINE.md §Consistency Conventions` (*"tài nguyên chuỗi `vi.json` **phẳng** theo khoá chấm"*). Cưỡng chế ở hai phía: `check-i18n.mjs` Kiểm B nói bằng thông báo rõ ràng, và test Rust `every_message_key_exists_in_vi_json` deserialize vào `BTreeMap<String, String>` nên một object lồng gãy ngay ở đó.
+**Không lồng object.** `{"lookup": {"empty_result": "…"}}` là **sai hình dạng** — nguồn: `ARCHITECTURE-SPINE.md §Consistency Conventions` (*"tài nguyên chuỗi `vi.json` **phẳng** theo khoá chấm"*). Cưỡng chế ở hai phía: `check-i18n.mjs` Kiểm B nói bằng thông báo rõ ràng, và test Rust `every_message_key_exists_in_vi_json` deserialize vào `BTreeMap<String, String>` nên một object lồng gãy ngay ở đó.
 
 Khoá phải khớp `^[a-z0-9]+(\.[a-z0-9_]+)+$` — chữ thường, gạch dưới, và **bắt buộc có tiền tố miền** (≥ 1 dấu chấm). Placeholder là `{ten_tham_so}`, tên khớp `[a-z_][a-z0-9_]*`; `{}`, `{Path}`, `{0}`, `{ path }` đều là FAIL ở cổng.
 
-⚠️ **Khoá `vi.json` và id `CommandRegistry` dùng CÙNG một hình dạng nhưng KHÔNG cùng một không gian tên** (Story 1.6 AC2). Cùng hình dạng, hai danh mục. ⛔ Đừng dựng một bảng tra dùng chung: một command và nhãn của nó là hai thứ đổi độc lập với nhau.
+⚠️ **Khoá `vi.json` và id `CommandRegistry` dùng CÙNG một hình dạng nhưng KHÔNG cùng một không gian tên** (Story 1.6 AC2). Cùng hình dạng, hai danh mục. Đừng dựng một bảng tra dùng chung: một command và nhãn của nó là hai thứ đổi độc lập với nhau.
 
 ## Thêm một khoá
 
@@ -45,9 +45,9 @@ Khoá phải khớp `^[a-z0-9]+(\.[a-z0-9_]+)+$` — chữ thường, gạch dư
 3. Nếu **Rust** phát ra khoá đó: thêm một biến thể vào `message_keys!` ở `src-tauri/src/core/i18n/mod.rs`, **kèm danh sách tham số trong ngoặc vuông** — `IoReadFailed => "err.io.read_failed" ["path"]`. ⚠️ Chỉ thêm ở đó: `MessageKey::ALL`, `as_str()` và `required_params()` sinh từ cùng một khai báo nên không phải sửa ba chỗ, và `every_message_key_declares_the_params_its_string_needs` đối chiếu danh sách ấy với placeholder trong `vi.json` theo **cả hai chiều**.
 4. `npm run check:i18n` **và** `cargo test --manifest-path src-tauri/Cargo.toml`.
 
-⛔ **Dựng `IpcError` chỉ qua `IpcError::new()`.** Bốn trường là riêng tư có chủ ý — `new` là chỗ duy nhất nối `message_key` với `params`, và một struct literal đi vòng qua nó (`params: BTreeMap::new()` cho một khoá đòi `{path}`) biên dịch sạch, qua mọi phép kiểm khác, rồi đặt nguyên văn `{path}` lên màn hình người dùng.
+**Dựng `IpcError` chỉ qua `IpcError::new()`.** Bốn trường là riêng tư có chủ ý — `new` là chỗ duy nhất nối `message_key` với `params`, và một struct literal đi vòng qua nó (`params: BTreeMap::new()` cho một khoá đòi `{path}`) biên dịch sạch, qua mọi phép kiểm khác, rồi đặt nguyên văn `{path}` lên màn hình người dùng.
 
-⛔ **Đừng dựng sẵn một từ vựng khoá cho tính năng chưa tồn tại.** Thư mục này sở hữu **cơ chế**, không sở hữu **từ vựng**; mỗi story sau tự thêm khoá của nó cùng lúc với tính năng cần nó. Một `vi.json` 200 khoá cho panel chưa ai dựng là 200 chuỗi không ai nghiệm thu được, và chúng sẽ sai. Hôm nay có đúng **hai** khoá mồi, và đó là một quyết định.
+**Đừng dựng sẵn một từ vựng khoá cho tính năng chưa tồn tại.** Thư mục này sở hữu **cơ chế**, không sở hữu **từ vựng**; mỗi story sau tự thêm khoá của nó cùng lúc với tính năng cần nó. Một `vi.json` 200 khoá cho panel chưa ai dựng là 200 chuỗi không ai nghiệm thu được, và chúng sẽ sai. Hôm nay có đúng **hai** khoá mồi, và đó là một quyết định.
 
 ## Giọng văn — năm quy tắc, và cái nào máy chấm được
 
@@ -82,9 +82,9 @@ Ba quy tắc "mắt" nghiệm thu bằng cách chép chuỗi mới vào Completi
 | Đường dẫn | Cho phép gì | Vì sao có |
 |---|---|---|
 | `src-tauri/tests/**` | thông báo `assert!` tiếng Việt | Không vượt IPC, không được render; người đọc chúng là người đang sửa test. Dịch sang tiếng Anh là mất giá trị tài liệu để đổi lấy con số không |
-| `src/selftest/**` | chẩn đoán cho log CI | Debug-only, `import()` động, không vào bundle release. ⚠️ Hôm nay khớp **0 tệp** và con số đó được in ra có chủ ý: thư mục chỉ có `.ts`, mà Kiểm A đi trên `.rs` và `.vue`. ⛔ Nghĩa là chuỗi tiếng Việt trong `src/selftest/*.ts` được che bởi **lỗ phạm vi**, không bởi miễn trừ này — đừng dùng "dời sang `.ts`" như một cách cho cổng xanh |
+| `src/selftest/**` | chẩn đoán cho log CI | Debug-only, `import()` động, không vào bundle release. ⚠️ Hôm nay khớp **0 tệp** và con số đó được in ra có chủ ý: thư mục chỉ có `.ts`, mà Kiểm A đi trên `.rs` và `.vue`. Nghĩa là chuỗi tiếng Việt trong `src/selftest/*.ts` được che bởi **lỗ phạm vi**, không bởi miễn trừ này — đừng dùng "dời sang `.ts`" như một cách cho cổng xanh |
 
-⛔ **Miễn trừ không được cài bằng cách thu hẹp glob quét.** Glob quét cả cây; miễn trừ là một bước lọc **có tên và có lý do**, và cổng **in ra số tệp đã miễn trừ ở mỗi lượt chạy** để nó không lặng lẽ phình lên. Cùng luật mà `check-tokens.mjs` áp cho danh sách cặp màu loại trừ.
+**Miễn trừ không được cài bằng cách thu hẹp glob quét.** Glob quét cả cây; miễn trừ là một bước lọc **có tên và có lý do**, và cổng **in ra số tệp đã miễn trừ ở mỗi lượt chạy** để nó không lặng lẽ phình lên. Cùng luật mà `check-tokens.mjs` áp cho danh sách cặp màu loại trừ.
 
 ## Ba thứ sẽ hỏng im lặng nếu không ai nói trước
 
@@ -100,8 +100,8 @@ Serde mặc định serialize unit variant thành **tên biến thể**: `Messag
 
 Dự án **không có bộ chạy test frontend** (thêm `vitest` là thêm một phụ thuộc phải rà GPLv3 và vào bảng Stack trước — NFR15, quyết định của Ice). Đường thay thế: **Node ≥ 22.18 bóc kiểu TypeScript mặc định**, nên cổng `import()` thẳng được `resolve.ts`. Điều kiện:
 
-- ⛔ Không một dòng `import` nào — Node không phân giải `./vi.json` theo luật bundler của Vite và không hiểu `.vue`.
-- ⛔ Cú pháp phải **"erasable-only"**: không `enum`, không `namespace`, không parameter property. `type` / `interface` / annotation thì được.
+- Không một dòng `import` nào — Node không phân giải `./vi.json` theo luật bundler của Vite và không hiểu `.vue`.
+- Cú pháp phải **"erasable-only"**: không `enum`, không `namespace`, không parameter property. `type` / `interface` / annotation thì được.
 
 ⇒ `resolve.ts` = hàm thuần + kiểu. `index.ts` = chỗ duy nhất chạm `vi.json` và Vue.
 

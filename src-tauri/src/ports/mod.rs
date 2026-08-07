@@ -10,8 +10,8 @@
 //! | `TranslationProvider` | chưa khai | Epic 4 *(module AI)* |
 //! | [`ProjectStore`] | ✅ **đã khai** *(chưa có cài đặt — xem doc-comment của module)* | Story 1.15 *(`.atproj` trên đĩa)* |
 //!
-//! ⛔ **Không** trait thứ tư ở đây. AD-2 khai **đúng ba**, và một cổng thứ tư phải là một
-//! AD mới chứ ⛔ không phải một suy luận tại chỗ.
+//! **Không** trait thứ tư ở đây. AD-2 khai **đúng ba**, và một cổng thứ tư phải là một
+//! AD mới chứ không phải một suy luận tại chỗ.
 
 pub mod dict_source;
 pub mod project_store;

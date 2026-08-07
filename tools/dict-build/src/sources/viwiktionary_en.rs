@@ -3,7 +3,7 @@
 //! # 🔴 Một tệp thô, HAI nguồn — đọc chỗ này trước khi sửa gì
 //!
 //! Module này đọc **CHÍNH XÁC CÙNG MỘT TỆP** với [`super::viwiktionary`]:
-//! `raw/viwiktionary/vi-extract.jsonl`. Đó ⛔ **không phải nhầm lẫn** và ⛔ **không phải
+//! `raw/viwiktionary/vi-extract.jsonl`. Đó **không phải nhầm lẫn** và **không phải
 //! thứ cần gộp lại**.
 //!
 //! `vi-extract.jsonl` là bản trích **TOÀN ẤN BẢN** `vi.wiktionary.org` — nó chứa mục từ
@@ -17,11 +17,11 @@
 //!
 //! Trước Story 1.10b chỉ vai B được dựng, nên `dict-core.db` có 473.499 đầu mục **100%
 //! `lang='zh'`** và FR34 — *"mục từ tiếng Anh phải có nhãn từ loại và nghĩa tiếng
-//! Việt"* — ⛔ không có một byte dữ liệu nào để đứng lên. Nguyên nhân gốc là mơ hồ của
+//! Việt"* — không có một byte dữ liệu nào để đứng lên. Nguyên nhân gốc là mơ hồ của
 //! PRD (§8.2 giao vai A, §8.3 bàn cùng tệp ở vai B, không chỗ nào nói đó là hai vai song
-//! song), ⛔ không phải lỗi cài đặt của Story 1.9.
+//! song), không phải lỗi cài đặt của Story 1.9.
 //!
-//! # ⛔ KHÔNG gộp hai vai thành một lượt đọc
+//! # KHÔNG gộp hai vai thành một lượt đọc
 //!
 //! Tệp 273 MB đọc hai lần trông lãng phí. Đừng. [`super::wiktextract_common::parse`] gộp
 //! theo headword **trong một lượt gọi**; một lượt gọi phát cả hai vai ⇒ hai nguồn dùng
@@ -30,7 +30,7 @@
 //! thứ miễn trừ `dict-build:allow .entry(` tuyên bố không bao giờ xảy ra. Hai `File::open`,
 //! hai lượt `parse` độc lập, hai `source_id`.
 //!
-//! # `pos_lang = "vi"`, ⛔ không phải `"en"`
+//! # `pos_lang = "vi"`, không phải `"en"`
 //!
 //! Ấn bản `vi` mang `pos_title` **đã sẵn tiếng Việt** kể cả trên mục từ tiếng Anh — đã
 //! kiểm thật trên fixture: `API` ⇒ `"Danh từ"`, `Wikipedia` ⇒ `"Danh từ riêng"`. FR35 chỉ
@@ -57,7 +57,7 @@ mod tests {
     use std::io::Cursor;
 
     /// 🔴 AC3. Dòng `lang_code:"en"` phải ra `lang == "en"`; dòng `lang_code:"zh"` phải
-    /// bị **LỌC** thành `ParseIssue`, ⛔ không lọt vào nguồn này.
+    /// bị **LỌC** thành `ParseIssue`, không lọt vào nguồn này.
     #[test]
     fn keeps_english_lines_tagged_en_and_filters_chinese_ones() {
         let text = "\
@@ -70,13 +70,13 @@ mod tests {
         let issue = results[0].as_ref().unwrap_err();
         assert!(
             issue.reason.contains("filtered, expected"),
-            "dòng zh phải bị LỌC có chủ ý, ⛔ không phải lỗi đọc: {}",
+            "dòng zh phải bị LỌC có chủ ý, không phải lỗi đọc: {}",
             issue.reason
         );
 
         let entry = results[1].as_ref().unwrap();
         assert_eq!(entry.headword, "dictionary");
-        assert_eq!(entry.lang, "en", "🔴 AC3: ⛔ KHÔNG được mang nhãn 'zh'");
+        assert_eq!(entry.lang, "en", "🔴 AC3: KHÔNG được mang nhãn 'zh'");
         assert_eq!(entry.senses[0].pos.as_deref(), Some("Danh từ"));
         assert_eq!(
             entry.senses[0].pos_lang.as_deref(),
@@ -86,7 +86,7 @@ mod tests {
         assert_eq!(entry.senses[0].gloss, "từ điển");
     }
 
-    /// Đối chứng âm: nguồn này ⛔ **không** sinh nổi một hàng `lang = "zh"` nào, kể cả
+    /// Đối chứng âm: nguồn này **không** sinh nổi một hàng `lang = "zh"` nào, kể cả
     /// khi tệp thô đầy dòng tiếng Trung — vì bộ lọc chặn chúng TRƯỚC khi dán nhãn.
     #[test]
     fn produces_zero_entries_tagged_zh_no_matter_the_input() {
@@ -103,7 +103,7 @@ mod tests {
     }
 
     /// AD-19 ở mức module: hai vai đọc cùng một tệp phải cho hai tập đầu mục **rời
-    /// nhau**, ⛔ không headword nào đi qua cả hai.
+    /// nhau**, không headword nào đi qua cả hai.
     #[test]
     fn the_two_roles_read_the_same_bytes_into_disjoint_entry_sets() {
         let text = "\
@@ -123,7 +123,7 @@ mod tests {
         assert_eq!(role_b, vec!["字典".to_string()]);
         assert!(
             role_a.iter().all(|h| !role_b.contains(h)),
-            "AD-19: ⛔ không headword nào được thuộc cả hai vai"
+            "AD-19: không headword nào được thuộc cả hai vai"
         );
     }
 }

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
 
-/// Đường dẫn "anh em" của `path` — nối THẲNG `suffix` vào tên tệp đầy đủ, ⛔ không thay
+/// Đường dẫn "anh em" của `path` — nối THẲNG `suffix` vào tên tệp đầy đủ, không thay
 /// đuôi `.db` bằng `with_extension` (sai khi `path` không có đúng đuôi `.db`: SQLite đặt
 /// tên WAL/SHM bằng cách nối `-wal`/`-shm` vào TÊN TỆP CHÍNH, không phải bằng cách đổi
 /// đuôi). `foo.db` → `foo.db-wal`; `foo` (không đuôi) → `foo-wal` — cả hai case đều khớp
@@ -21,7 +21,7 @@ pub fn sibling_path(path: &Path, suffix: &str) -> PathBuf {
 }
 
 /// Dọn sạch mọi tệp cũ ở `out_path`/tệp `.tmp` cạnh nó (cộng `-wal`/`-shm`) — LUÔN là một
-/// lượt dựng MỚI từ đầu, ⛔ không phải cập nhật tệp cũ. Trả về đường dẫn tệp TẠM để dựng
+/// lượt dựng MỚI từ đầu, không phải cập nhật tệp cũ. Trả về đường dẫn tệp TẠM để dựng
 /// vào. Dùng chung cho CẢ BA đường dựng — base lẫn từng lớp gỡ rời (Task 5, Story 1.10).
 pub fn prepare_fresh_output(out_path: &Path) -> std::io::Result<PathBuf> {
     let tmp_path = sibling_path(out_path, ".tmp");
@@ -90,7 +90,7 @@ pub fn verify_no_wal_artifacts(db_path: &Path) -> Result<(), String> {
 /// SHA-256 và kích thước byte của tệp cuối — in ra để `dict-manifest.toml` chép-dán
 /// (AC3), và là dữ liệu bảng kế toán AC6.
 ///
-/// Băm theo LUỒNG (khối 64 KiB), ⛔ không nạp trọn tệp vào bộ nhớ qua `std::fs::read` —
+/// Băm theo LUỒNG (khối 64 KiB), không nạp trọn tệp vào bộ nhớ qua `std::fs::read` —
 /// tệp này đã ~155 MB và sẽ còn lớn hơn sau khi Story 1.10 thêm bốn lớp gỡ rời.
 pub fn sha256_and_size(path: &Path) -> std::io::Result<(String, u64)> {
     use std::io::Read;

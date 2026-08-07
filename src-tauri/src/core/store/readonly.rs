@@ -6,25 +6,25 @@
 //! `tests/store_boundary.rs::only_core_store_may_name_rusqlite` cấm hai chuỗi
 //! `"rusqlite"` và `"Connection::open"` ở **mọi** tệp ngoài `src/core/store/**`. Cổng đó
 //! canh AD-11 (*"không module nào được tự mở kết nối ghi"*). Một tệp từ điển là chỉ đọc
-//! nên AD-11 không áp — nhưng cổng ⛔ **không phân biệt được điều đó**, và nới nó là sai
+//! nên AD-11 không áp — nhưng cổng **không phân biệt được điều đó**, và nới nó là sai
 //! đường: một cổng có hai miễn trừ là một cổng sẽ có ba, và miễn trừ thứ ba sẽ là một
 //! module **có** ghi.
 //!
 //! → Đường mở tệp ở lại đây. `core/dict/` chỉ nhận một [`ReadHandle`] và viết SQL trên
-//!   nó, ⛔ không bao giờ gõ tên crate SQLite. Cổng giữ **đúng một** miễn trừ.
+//!   nó, không bao giờ gõ tên crate SQLite. Cổng giữ **đúng một** miễn trừ.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! ⛔ VÌ SAO KHÔNG TÁI DÙNG [`Store`]
+//! VÌ SAO KHÔNG TÁI DÙNG [`Store`]
 //! ─────────────────────────────────────────────────────────────────────────────
 //! [`Store::open`] mở `READ_WRITE | CREATE`, đặt `journal_mode = WAL`, chạy bộ di trú,
 //! rồi dựng một luồng writer và một luồng checkpoint. **Cả bốn đều GHI VÀO tệp**, và một
 //! tệp từ điển được giao kèm checksum trong `dict-manifest.toml` (AD-25) — ghi vào nó
-//! một byte là làm checksum thành sai, mà ⛔ không cổng nào bắt được.
+//! một byte là làm checksum thành sai, mà không cổng nào bắt được.
 //!
 //! [`ReadOnlyDb`] là phần còn lại sau khi bỏ hết bốn thứ đó: một pool đọc, và không gì
 //! khác.
 //!
-//! ⛔ **Không `use tauri::…`** ở tệp này — `store_boundary.rs::core_store_does_not_depend_on_tauri`
+//! **Không `use tauri::…`** ở tệp này — `store_boundary.rs::core_store_does_not_depend_on_tauri`
 //! quét cả `core/store/**`. Đường lấy `$RESOURCE` sống ở chỗ gọi, đúng khuôn `$APPDATA`
 //! của [`Store`].
 
@@ -32,10 +32,10 @@ use std::path::{Path, PathBuf};
 
 use super::{ReadHandle, SqlResult, StoreError, StoreKind, Tuning, reader};
 
-/// Một tệp `.db` chỉ đọc: một pool kết nối, ⛔ không writer, ⛔ không checkpoint.
+/// Một tệp `.db` chỉ đọc: một pool kết nối, không writer, không checkpoint.
 ///
 /// `Send + Sync` cùng lý do với [`Store`] — điều kiện để nó vào `app.manage(…)` ở
-/// Story 1.13 mà chỗ gọi ⛔ không phải bọc thêm `Mutex`.
+/// Story 1.13 mà chỗ gọi không phải bọc thêm `Mutex`.
 ///
 /// ⚠️ [`ReadOnlyDb::close`] chạy trong [`Drop`] nếu chưa ai gọi. Cùng bài học NFR14 của
 /// [`Store`]: trên Windows một tệp còn mở là một `remove_dir_all` thất bại, và một tệp
@@ -49,12 +49,12 @@ pub struct ReadOnlyDb {
 impl ReadOnlyDb {
     /// Mở một tệp `.db` **đã tồn tại**, chỉ đọc.
     ///
-    /// 🔴 Đường dẫn ⛔ không tồn tại ⇒ [`StoreError::OpenFailed`], và ⛔ **không một tệp
-    /// nào được tạo ra** — cờ mở ⛔ không có `SQLITE_OPEN_CREATE`. Xem
+    /// 🔴 Đường dẫn không tồn tại ⇒ [`StoreError::OpenFailed`], và **không một tệp
+    /// nào được tạo ra** — cờ mở không có `SQLITE_OPEN_CREATE`. Xem
     /// `pragmas::open_readonly_connection` về vì sao vế đó là hợp đồng chứ không phải
     /// cẩn thận thừa.
     ///
-    /// ⛔ **Không đọc `PRAGMA user_version`, ⛔ không di trú, ⛔ không kiểm phiên bản
+    /// **Không đọc `PRAGMA user_version`, không di trú, không kiểm phiên bản
     /// lược đồ ở đây.** Việc từ chối một tệp mới hơn ứng dụng là quyết định của tầng gọi
     /// (Story 1.13, nơi biết mình đang mở *lớp* nào và làm gì khi một lớp bị từ chối);
     /// đặt nó ở đây là chôn một chính sách vào một cơ chế.
@@ -69,7 +69,7 @@ impl ReadOnlyDb {
         // đây**: `pool_size` (số kết nối) và `busy_timeout` (trạng thái từng kết nối).
         // Bốn trường còn lại — `checkpoint_tick`, `idle_before_passive`,
         // `wal_threshold_bytes`, `close_truncate_budget` — đều nói về WAL và về luồng
-        // checkpoint, và một tệp chỉ đọc ⛔ không có cả hai. Chúng bị bỏ qua, ⛔ không
+        // checkpoint, và một tệp chỉ đọc không có cả hai. Chúng bị bỏ qua, không
         // phải bị quên.
         let tuning = Tuning::default();
 
@@ -87,7 +87,7 @@ impl ReadOnlyDb {
     /// 🔴 Chỉ-đọc ở đây được **SQLite** cưỡng chế hai lần: cờ mở `SQLITE_OPEN_READ_ONLY`
     /// ở tầng tệp, và `PRAGMA query_only = 1` ở tầng câu lệnh. Một `INSERT` gửi qua
     /// đường này trả [`StoreError::ReadFailed`] — đó là **bằng chứng dương** của AC7,
-    /// ⛔ không phải một sự cố.
+    /// không phải một sự cố.
     pub fn read<T, F>(&self, job: F) -> Result<T, StoreError>
     where
         F: FnOnce(ReadHandle<'_>) -> SqlResult<T>,
@@ -97,7 +97,7 @@ impl ReadOnlyDb {
 
     /// Đóng pool: thả mọi kết nối. Idempotent.
     ///
-    /// ⛔ Không TRUNCATE, ⛔ không checkpoint — ⛔ không có WAL nào để cắt. Đó là toàn bộ
+    /// Không TRUNCATE, không checkpoint — không có WAL nào để cắt. Đó là toàn bộ
     /// khác biệt với [`Store::close`], và nó là hệ quả của việc tệp này chưa bao giờ
     /// được ghi.
     pub fn close(&self) {
@@ -122,7 +122,7 @@ impl Drop for ReadOnlyDb {
 }
 
 impl std::fmt::Debug for ReadOnlyDb {
-    /// ⛔ Không in `Connection` — nó không `Debug` và cũng không có gì đọc được.
+    /// Không in `Connection` — nó không `Debug` và cũng không có gì đọc được.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ReadOnlyDb")
             .field("kind", &self.kind.as_str())

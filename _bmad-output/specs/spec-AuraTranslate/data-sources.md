@@ -21,7 +21,7 @@ Chọn **v3 chứ không phải v2** vì v3 tương thích với crate Apache-2.
 | **Gỡ rời** | **Cổ hán văn** — Tam tự kinh, Thiên tự văn, Bách gia tính | Văn bản gốc phạm vi công cộng *(bản chú giải **không xác minh**)* | Trích dẫn minh hoạ cách dùng cổ văn | 🟡 Rủi ro đã chấp nhận |
 | **Gỡ rời** | **VietPhrase** | ❓ Không xác định được tác giả | Cách cộng đồng dịch giả **thực sự** dịch, tích luỹ hơn một thập kỷ | 🟡 Đóng gói tách rời, có chính sách gỡ (FR112) |
 | **Gỡ rời** | **Hán Việt Từ Điển Trích Dẫn** (HVTĐTD) | © Đặng Thế Kiệt — **đã được tác giả cho phép bằng văn bản, 2026-08-02** | Nguồn duy nhất có từ loại + ví dụ + trích dẫn **bằng tiếng Việt** cho Hán Việt | ✅ Được phép — lớp gỡ rời cao cấp |
-| — | ~~Trần Văn Chánh (1999)~~ | Còn bản quyền | — | ⛔ Đã loại |
+| — | ~~Trần Văn Chánh (1999)~~ | Còn bản quyền | — | không Đã loại |
 
 ## Lớp từ loại tiếng Trung — quyết định "B rồi C", nay đã có cả hai
 

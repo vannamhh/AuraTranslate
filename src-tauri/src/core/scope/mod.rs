@@ -18,7 +18,7 @@
 //!
 //! 1. **Kiểu** — [`Semantics`] và ba hàm phân giải chỉ tồn tại trong module này. Không
 //!    module nào gọi được [`ScopeResolver::apply_override`] cho một loại đã khai
-//!    [`Semantics::Merge`]: gọi sai trả [`ScopeError::WrongSemantics`], ⛔ không im lặng
+//!    [`Semantics::Merge`]: gọi sai trả [`ScopeError::WrongSemantics`], không im lặng
 //!    làm theo ý người gọi.
 //! 2. **Test** — `tests/scope_boundary.rs` quét cây nguồn: một danh sách token cấm chỉ
 //!    được xuất hiện dưới `src/core/scope/**`.
@@ -37,21 +37,21 @@
 //! - Mọi chữ ký nhận tầng Tác phẩm là `Option<&…>`, và đường sản phẩm hôm nay luôn `None`.
 //! - Nhánh `Some(..)` **vẫn phải đúng và vẫn phải có test** — `tests/scope_contract.rs`
 //!   cấp dữ liệu tầng Work bằng tay. Đó là hợp đồng mà Story 1.15 cắm `project.db` vào.
-//! - ⛔ Không dựng `StoreSpec::work()`, không mở kho thứ hai, không đoán `meta.json`.
+//! - Không dựng `StoreSpec::work()`, không mở kho thứ hai, không đoán `meta.json`.
 //!
 //! Nói cách khác: **story này giao xong hợp đồng hai tầng, và giao xong một tầng.**
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! ⛔ MODULE NÀY KHÔNG `use tauri::…` — cùng lý do Quyết định #1 của Story 1.7
+//! MODULE NÀY KHÔNG `use tauri::…` — cùng lý do Quyết định #1 của Story 1.7
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Test dựng được trên một thư mục tạm mà không cần webview. Đường lấy `AppHandle`/`State`
 //! nằm ở `commands/`, và `tests/scope_boundary.rs` canh mệnh đề này.
 //!
-//! ⛔ **Không khai trait nào.** AD-2 khoá số cổng ở **ba** và nói rõ `ScopeResolver`
+//! **Không khai trait nào.** AD-2 khoá số cổng ở **ba** và nói rõ `ScopeResolver`
 //! **không phải** một cổng; AD-40 đã lập tiền lệ *"hai module Rust thường, không trait
 //! hoá"*. `ports/mod.rs` giữ nguyên 5 dòng.
 //!
-//! ⛔ **Không cache.** Consumer đường nóng duy nhất là khớp Glossary khi gõ (Story 3.4,
+//! **Không cache.** Consumer đường nóng duy nhất là khớp Glossary khi gõ (Story 3.4,
 //! dưới trần NFR2 *không frame nào vượt 50 ms*), và hôm nay nó chưa tồn tại. Dựng cache
 //! bây giờ là dựng một cơ chế vô hiệu hoá mà không có gì để vô hiệu hoá.
 //!
@@ -68,10 +68,10 @@ pub use kinds::{ScopeKind, Semantics};
 pub use resolve::{Resolved, Tiered};
 pub use store::{DEFAULT_MODE, DEFAULT_THEME, GlobalConfig, load_global_config, save_value};
 
-/// Hai tầng của AD-18. **`Work`, ⛔ không phải `Project`.**
+/// Hai tầng của AD-18. **`Work`, không phải `Project`.**
 ///
 /// Consistency Conventions (`ARCHITECTURE-SPINE.md:538`) cấm `Project` cho thực thể Tác
-/// phẩm. `StoreKind::Project` đặt tên cho **tệp** `project.db`, ⛔ không cho tầng — hai
+/// phẩm. `StoreKind::Project` đặt tên cho **tệp** `project.db`, không cho tầng — hai
 /// khái niệm khác nhau tình cờ nằm cạnh nhau, và gộp tên chúng là mở đúng loại nhầm lẫn
 /// mà một quy ước đặt tên tồn tại để chặn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -83,7 +83,7 @@ pub enum Tier {
 }
 
 impl Tier {
-    /// Định danh máy đọc. ⛔ Không phải nhãn hiển thị (AD-21, NFR16).
+    /// Định danh máy đọc. Không phải nhãn hiển thị (AD-21, NFR16).
     pub const fn as_str(self) -> &'static str {
         match self {
             Tier::Global => "global",
@@ -107,10 +107,10 @@ impl Tier {
 
 /// Mọi cách phân giải hai tầng hỏng.
 ///
-/// 🔴 **Lỗi LẬP TRÌNH, không phải lỗi người dùng** — và đó là lý do nó ⛔ **không**
-/// `impl From<ScopeError> for IpcError` và ⛔ **không bao giờ** vượt ranh giới IPC.
+/// 🔴 **Lỗi LẬP TRÌNH, không phải lỗi người dùng** — và đó là lý do nó **không**
+/// `impl From<ScopeError> for IpcError` và **không bao giờ** vượt ranh giới IPC.
 ///
-/// Story 1.7 §Completion Notes #3 khoá quy tắc: *"⛔ Không khoá `MessageKey` nào cho tính
+/// Story 1.7 §Completion Notes #3 khoá quy tắc: *"Không khoá `MessageKey` nào cho tính
 /// năng chưa tồn tại."* Cả hai biến thể dưới đây chỉ xảy ra khi mã gọi sai hàm cho loại
 /// của nó — không có gì để nói với người dùng, và một câu tiếng Việt cho một lỗi mà chỉ
 /// người viết mã gây ra được là một khoá chuỗi không ai nghiệm thu được.
@@ -163,14 +163,14 @@ impl std::error::Error for ScopeError {}
 /// Chỗ **DUY NHẤT** phân giải được hai tầng (AC1).
 ///
 /// ⚠️ Story 1.15 **đã** thêm hàm dựng thứ hai ([`ScopeResolver::with_work`]), nên `work`
-/// ⛔ **không còn luôn** là `None` — và ba method dưới đây vẫn ⛔ không đổi chữ ký, đúng
+/// **không còn luôn** là `None` — và ba method dưới đây vẫn không đổi chữ ký, đúng
 /// như `deferred-work.md` đòi.
 ///
-/// 🔴 **Nhưng ⛔ đừng đọc câu trên thành "phân giải hai tầng đã chạy thật"** — nó chưa.
+/// 🔴 **Nhưng đừng đọc câu trên thành "phân giải hai tầng đã chạy thật"** — nó chưa.
 /// Đường phân giải sản phẩm (`core::scope::store`) vẫn dựng `global_only()`, vì
-/// `project.db` ⛔ **chưa có bảng nào ở tầng Tác phẩm để tra** (Glossary là Epic 3, TM là
+/// `project.db` **chưa có bảng nào ở tầng Tác phẩm để tra** (Glossary là Epic 3, TM là
 /// Epic 7, prompt là Epic 4). Thêm một bảng như thế hôm nay vi phạm luật của
-/// `store::schema`: *"⛔ Không thêm bước cho một lược đồ chưa tồn tại"*. Consumer đầu tiên
+/// `store::schema`: *"Không thêm bước cho một lược đồ chưa tồn tại"*. Consumer đầu tiên
 /// **thật** của tầng này là epic đầu tiên mang dữ liệu tầng Tác phẩm — xem `deferred-work.md`.
 #[derive(Debug, Clone, Default)]
 pub struct ScopeResolver {
@@ -181,15 +181,15 @@ pub struct ScopeResolver {
 
 /// Tầng Tác phẩm — **điền thật** ở Story 1.15.
 ///
-/// 🔴 Chỉ mang `work_id`, ⛔ **không** mang `Store`/kết nối/đường dẫn: `ScopeResolver` là
-/// một giá trị thuần (`Debug, Clone`), ⛔ không sở hữu tài nguyên I/O — vòng đời của
+/// 🔴 Chỉ mang `work_id`, **không** mang `Store`/kết nối/đường dẫn: `ScopeResolver` là
+/// một giá trị thuần (`Debug, Clone`), không sở hữu tài nguyên I/O — vòng đời của
 /// `Store` project sống ở `lib.rs` (Task 7), tách khỏi vòng đời của resolver. `work_id`
 /// đủ để ba method phân giải bên dưới biết **có** một Tác phẩm đang mở hay không
 /// ([`ScopeResolver::has_work_tier`]), mà không cần đoán trước hình dạng dữ liệu Work-tier
-/// nào Epic 3/Epic 7 sẽ cần — đó vẫn là việc của epic đó, ⛔ không phải story này.
+/// nào Epic 3/Epic 7 sẽ cần — đó vẫn là việc của epic đó, không phải story này.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct WorkScope {
-    /// UUID v4 của Tác phẩm đang mở (AD-28). Dữ liệu chẩn đoán, ⛔ không phải khoá tra cứu
+    /// UUID v4 của Tác phẩm đang mở (AD-28). Dữ liệu chẩn đoán, không phải khoá tra cứu
     /// nghiệp vụ — ba method phân giải bên dưới chưa có bảng nào ở tầng Work để tra.
     pub work_id: String,
 }
@@ -204,7 +204,7 @@ impl ScopeResolver {
     /// **Hàm dựng thứ hai** — Story 1.15 cắm tầng Tác phẩm thật vào (nợ `deferred-work.md`).
     ///
     /// ⚠️ Ba method phân giải bên dưới **không đổi chữ ký** — chúng nhận `global`/`work` là
-    /// dữ liệu qua tham số, ⛔ không đọc `self.work`. `with_work` tồn tại để
+    /// dữ liệu qua tham số, không đọc `self.work`. `with_work` tồn tại để
     /// [`Self::has_work_tier`] phản ánh đúng thực tế *"một Tác phẩm đang mở"*, cho những
     /// chỗ hỏi câu đó mà không cần một tra cứu hai tầng nào — cùng lý do `ScopeResolver`
     /// tồn tại như MỘT giá trị, không phải một hằng số toàn cục.
@@ -215,7 +215,7 @@ impl ScopeResolver {
     /// Đã mở một Tác phẩm chưa — `true` sau [`Self::with_work`], `false` sau
     /// [`Self::global_only`].
     ///
-    /// ⚠️ Trả `true` nghĩa là *"resolver này mang một Tác phẩm"*, ⛔ **không** nghĩa là
+    /// ⚠️ Trả `true` nghĩa là *"resolver này mang một Tác phẩm"*, **không** nghĩa là
     /// *"có dữ liệu tầng Tác phẩm để tra"* — xem doc-comment của [`ScopeResolver`].
     pub const fn has_work_tier(&self) -> bool {
         self.work.is_some()

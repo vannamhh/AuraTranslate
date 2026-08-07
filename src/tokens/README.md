@@ -13,7 +13,7 @@ Token màu và chữ — **đã kiểm tương phản WCAG AA ở cả hai theme
 | `fonts.ts` | `loadFonts()` — đăng ký bốn `FontFace` từ `$RESOURCE/fonts/**` |
 | `reset.css` | Reset toàn cục. Import trong `main.ts` |
 
-⛔ **Không tạo một tệp `.css` viết tay mang cùng giá trị.** `tsconfig.json` đã bật `resolveJsonModule` nên TS đọc `tokens.json` trực tiếp, và `scripts/check-tokens.mjs` đọc bằng `JSON.parse` — cùng một tệp, hai người tiêu thụ. Hai bản chép sẽ lệch nhau ở lần sửa thứ ba.
+**Không tạo một tệp `.css` viết tay mang cùng giá trị.** `tsconfig.json` đã bật `resolveJsonModule` nên TS đọc `tokens.json` trực tiếp, và `scripts/check-tokens.mjs` đọc bằng `JSON.parse` — cùng một tệp, hai người tiêu thụ. Hai bản chép sẽ lệch nhau ở lần sửa thứ ba.
 
 ## Quy ước tên biến CSS — chốt một lần, 127 story sau dùng lại
 
@@ -43,7 +43,7 @@ Tầm quét là `src/**` cộng `index.html` ở gốc repo, trên tám đuôi t
 
 Điều đáng biết nhất về cổng này: Kiểm C không kiểm những cặp màu *tình cờ tồn tại trong mã* mà kiểm **danh sách đã khai** ở `tokens.json`, và nó cưỡng chế **tính đầy đủ** — mọi tổ hợp (chữ × nền) phải nằm ở `contrast.pairs` hoặc ở `contrast.excluded`. Khi bạn dựng component mới với một cặp màu mới, **thêm cặp đó vào `pairs`**; im lặng bỏ qua là FAIL.
 
-⛔ **Không một phán quyết nào của cổng đọc tham số từ `tokens.json`.** Sàn WCAG (4,5 / 3,0), danh sách vai, danh sách cặp loại trừ, danh sách màu đã loại — tất cả đóng băng trong chính `check-tokens.mjs`. `tokens.json` được phép *nhắc lại* chúng cho người đọc và cổng đối chiếu hai bản, nhưng nó không phải nơi phán quyết đọc ngưỡng của mình ra. Lượt rà soát 2026-08-03 chạy thật ba đường thoát và cả ba cho exit 0 trong khi sản phẩm mang một cặp 4,245:1: hạ `contrast.floors` · **chuyển** cặp trượt sang `excluded` với một chuỗi lý do bất kỳ · thêm một mục `deviations` không có lý do. Cả ba nay đều đỏ.
+**Không một phán quyết nào của cổng đọc tham số từ `tokens.json`.** Sàn WCAG (4,5 / 3,0), danh sách vai, danh sách cặp loại trừ, danh sách màu đã loại — tất cả đóng băng trong chính `check-tokens.mjs`. `tokens.json` được phép *nhắc lại* chúng cho người đọc và cổng đối chiếu hai bản, nhưng nó không phải nơi phán quyết đọc ngưỡng của mình ra. Lượt rà soát 2026-08-03 chạy thật ba đường thoát và cả ba cho exit 0 trong khi sản phẩm mang một cặp 4,245:1: hạ `contrast.floors` · **chuyển** cặp trượt sang `excluded` với một chuỗi lý do bất kỳ · thêm một mục `deviations` không có lý do. Cả ba nay đều đỏ.
 
 ### Ba đường miễn trừ CÓ TÊN — và không có đường thứ tư
 
@@ -53,7 +53,7 @@ Khi cổng đỏ oan, đường ra là **viết một câu giải thích**, khô
 |---|---|---|
 | `/* aura-allow-opacity: <lý do> */` | một `opacity` trung gian | Kiểm D đỏ với **mọi** `opacity` khác 0 và khác 1 trong `src/**` (Ice chốt 2026-08-03) — kể cả trên thẻ bọc, kể cả `var()`/`calc()` không tĩnh. Nét và nền thật thì khai ra. |
 | `/* aura-allow-z-index: <lý do> */` | một `z-index` | Ngữ cảnh xếp lớp là nhu cầu **cơ học** (dropdown, tooltip, dockview), khác với bóng đổ là quyết định thị giác mà AC7 cấm thẳng. `box-shadow`/`text-shadow` **không** có đường này. |
-| `/* aura-allow-literal: <lý do> */` | một chuỗi hình dạng hex trong mã | `#dad`, `#decade`, `href="#face"` là hex hợp lệ mà không phải màu. ⛔ Đừng nới regex — một cổng chỉ đường sai sẽ bị người sau thêm ngoại lệ cho tới khi nó không bắt được gì. |
+| `/* aura-allow-literal: <lý do> */` | một chuỗi hình dạng hex trong mã | `#dad`, `#decade`, `href="#face"` là hex hợp lệ mà không phải màu. Đừng nới regex — một cổng chỉ đường sai sẽ bị người sau thêm ngoại lệ cho tới khi nó không bắt được gì. |
 
 Miễn trừ phải nằm trong phạm vi **một dòng** của khai báo, và phần `<lý do>` không được rỗng.
 
@@ -93,8 +93,8 @@ Vì sao đường này chứ không phải hai đường kia:
 
 | Đường | Phán quyết |
 |---|---|
-| Thêm tệp nghiêng CJK | ⛔ ~23 MiB, một phần ba ngân sách font, dư địa NFR6 chỉ còn ~47 MB |
-| Chấp nhận nghiêng giả | ⛔ `lookup-example` là ví dụ từ điển Trung–Việt ở 12,5px — đúng cỡ mà nghiêng giả xấu nhất |
+| Thêm tệp nghiêng CJK | ~23 MiB, một phần ba ngân sách font, dư địa NFR6 chỉ còn ~47 MB |
+| Chấp nhận nghiêng giả | `lookup-example` là ví dụ từ điển Trung–Việt ở 12,5px — đúng cỡ mà nghiêng giả xấu nhất |
 | `unicode-range` + `@font-face` riêng | Làm được, nhưng phải bảo trì một dải mã CJK viết tay ở tầng token, và nó không phủ được ký tự nằm ngoài dải mình nghĩ ra |
 | **`font-synthesis: none`** | ✅ Một thuộc tính, **0 byte**, 0 bộ nhớ thêm, không dải mã nào phải bảo trì |
 
@@ -104,4 +104,4 @@ Vì sao đường này chứ không phải hai đường kia:
 
 ## Ba deviation khỏi bảng `DESIGN.md` đang chờ Ice phê chuẩn
 
-Xem khối `deviations` trong `tokens.json` — mỗi mục có số đo và lý do, và `check-tokens.mjs` cưỡng chế rằng **không có chỗ lệch nào khác**. ⛔ Không sửa `DESIGN.md`: đó là quyết định của Ice, không phải hệ quả phụ của một lượt cài đặt.
+Xem khối `deviations` trong `tokens.json` — mỗi mục có số đo và lý do, và `check-tokens.mjs` cưỡng chế rằng **không có chỗ lệch nào khác**. Không sửa `DESIGN.md`: đó là quyết định của Ice, không phải hệ quả phụ của một lượt cài đặt.

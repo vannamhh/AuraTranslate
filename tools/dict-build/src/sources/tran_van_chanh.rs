@@ -6,7 +6,7 @@
 //! tran-van-chanh.txt`
 //!
 //! *Từ điển Hán Việt* (Trần Văn Chánh, 1999) **còn trong bản quyền** — tác giả còn sống.
-//! `catusf/tudien` khai CC0-1.0 cho **repo**, nhưng CC0 do **người số hoá** tuyên bố ⛔
+//! `catusf/tudien` khai CC0-1.0 cho **repo**, nhưng CC0 do **người số hoá** tuyên bố không
 //! **không** xoá được bản quyền của tác phẩm **gốc**. Giảm thiểu: đóng gói làm **lớp gỡ
 //! rời** ⇒ FR112 thực thi bằng xoá một tệp (AC8).
 //!
@@ -20,20 +20,20 @@
 //! Nhiều âm tách bằng `,` — **GIỮ NGUYÊN chuỗi trong ngoặc**, đúng tiền lệ
 //! `thieu_chuu.rs:70` (âm đọc không phải điều kiện tách `dict_entry`). ⚠️ Đây là quy ước
 //! tách thứ HAI dùng dấu phẩy trong cùng lược đồ nhưng ở một NGUỒN khác `en-wiktionary-vi`
-//! — cả hai đều "giữ nguyên", ⛔ không được chuẩn hoá về nhau ở đây (Bẫy 4 của story).
+//! — cả hai đều "giữ nguyên", không được chuẩn hoá về nhau ở đây (Bẫy 4 của story).
 //!
 //! Toàn bộ phần sau `]` là MỘT `gloss` — tệp không mang cấu trúc `<br>`/số thứ tự thống
 //! nhất như Thiều Chửu (một số dòng dùng số khoanh tròn ①②③, một số khác không), nên
-//! Task 5 của story ⛔ không đòi tách nhiều nghĩa; xem Testing standards.
+//! Task 5 của story không đòi tách nhiều nghĩa; xem Testing standards.
 //!
 //! # Review Findings — headword nhiều ký tự KHÔNG bị lọc, có chủ ý
 //!
 //! Tệp thô trộn cả headword MỘT KÝ TỰ (12.081 đầu mục, con số AC4 đo) lẫn headword
-//! NHIỀU KÝ TỰ (từ/cụm từ — phần còn lại của 22.030 dòng). Parser này ⛔ **không** lọc
+//! NHIỀU KÝ TỰ (từ/cụm từ — phần còn lại của 22.030 dòng). Parser này **không** lọc
 //! theo độ dài headword — nhất quán với MỌI parser khác trong crate (`thieu_chuu.rs`,
-//! `unihan.rs`, … ⛔ không nguồn nào tự lọc theo độ dài headword ở tầng build). Việc
+//! `unihan.rs`, … không nguồn nào tự lọc theo độ dài headword ở tầng build). Việc
 //! đọc CHỈ ký tự đơn (nếu một tính năng cần) thuộc về tầng TIÊU THỤ — Story 1.16 —
-//! ⛔ không phải tầng dựng dữ liệu này. Test khoá hành vi này:
+//! không phải tầng dựng dữ liệu này. Test khoá hành vi này:
 //! `tran_van_chanh_does_not_filter_multi_character_headwords_by_design`
 //! (`tools/dict-build/tests/parse.rs`).
 
@@ -44,7 +44,7 @@ use crate::model::{ParseIssue, RawEntry, RawSense};
 pub const SOURCE_CODE: &str = "tran-van-chanh";
 
 /// `catusf/tudien` không gắn thẻ phiên bản cho tệp này — ghim **commit SHA** của
-/// `master` tại thời điểm tải (Task 1 của story: *"ghim commit SHA, ⛔ không `master`"*).
+/// `master` tại thời điểm tải (Task 1 của story: *"ghim commit SHA, không `master`"*).
 pub const SOURCE_VERSION: &str = "catusf/tudien@a7dd918ecc67de8c2d15034f885d919b9295eba4 (2025-12-19)";
 
 /// Cùng chữ ký với các parser còn lại: `parse(reader) -> impl Iterator<Item = Result<RawEntry>>`.
@@ -161,7 +161,7 @@ mod tests {
     }
 
     /// Task 5: hình dạng thật `[đáng, đương]` — NHIỀU âm, giữ nguyên dấu phẩy + khoảng
-    /// trắng đúng như nguồn (⛔ không chuẩn hoá).
+    /// trắng đúng như nguồn (không chuẩn hoá).
     #[test]
     fn multi_reading_bracket_shape_keeps_the_verbatim_separator() {
         let text = "檔\t[đáng, đương] ① Tủ đựng hồ sơ: 歸檔 Cất vào tủ hồ sơ.\n";
@@ -220,7 +220,7 @@ mod tests {
         assert_eq!(entries[1].han_viet.as_deref(), Some("hạnh"));
     }
 
-    /// `SOURCE_CODE` ⛔ không được trôi khỏi `sources_meta::TRAN_VAN_CHANH.code`.
+    /// `SOURCE_CODE` không được trôi khỏi `sources_meta::TRAN_VAN_CHANH.code`.
     #[test]
     fn source_code_matches_its_source_meta() {
         assert_eq!(SOURCE_CODE, crate::sources_meta::TRAN_VAN_CHANH.code);

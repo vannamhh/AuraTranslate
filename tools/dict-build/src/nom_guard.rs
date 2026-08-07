@@ -37,7 +37,7 @@ impl SuspiciousHanViet {
         }
     }
 
-    /// AC5 — ngưỡng phán quyết có tên, ⛔ không phải một số trần rải rác trong mã.
+    /// AC5 — ngưỡng phán quyết có tên, không phải một số trần rải rác trong mã.
     pub fn exceeds_threshold(&self) -> bool {
         self.ratio() > SUSPICIOUS_RATIO_THRESHOLD
     }
@@ -46,7 +46,7 @@ impl SuspiciousHanViet {
 /// Cắt một chuỗi âm đọc trên CẢ BA quy ước phân tách đã biết trong lược đồ này — `|`
 /// (Thiều Chửu), `,` (Trần Văn Chánh, en-wiktionary-vi), khoảng trắng (Unihan cũ) — bỏ
 /// mảnh rỗng, trim từng mảnh. Bẫy 4 của story: ba quy ước tồn tại song song trong dữ
-/// liệu THẬT; hàm này chỉ dùng để SO SÁNH nội bộ của phép kiểm AC5, ⛔ không ghi ngược
+/// liệu THẬT; hàm này chỉ dùng để SO SÁNH nội bộ của phép kiểm AC5, không ghi ngược
 /// giá trị đã tách vào `.db` — Story 1.16 mới là nơi chuẩn hoá đường ĐỌC.
 pub fn split_readings(raw: &str) -> Vec<&str> {
     raw.split(['|', ',', ' '])
@@ -63,8 +63,8 @@ pub fn split_readings(raw: &str) -> Vec<&str> {
 /// hàng loạt: đo THẬT trên `thieu-chuu` (nguồn Hán Việt chuẩn, dùng làm đối chứng ở
 /// chính §Phát hiện ① của story) cho **369/582 = 63,4%** "đáng ngờ" — vượt ngưỡng — chỉ
 /// vì `en-wiktionary-vi` tự gắn CẢ HAI nhãn cho cùng một âm rất thường xuyên (445/1.145
-/// = 38,9%, thực tế ngôn ngữ học, ⛔ không phải lỗi gán nhãn — xem doc-comment
-/// `count_suspicious`). Một âm CŨNG được gắn `han-viet-reading` ⇒ ⛔ không phải bằng
+/// = 38,9%, thực tế ngôn ngữ học, không phải lỗi gán nhãn — xem doc-comment
+/// `count_suspicious`). Một âm CŨNG được gắn `han-viet-reading` ⇒ không phải bằng
 /// chứng "chỉ là âm Nôm" nữa, nên loại khỏi vế đối chứng — đúng tinh thần hai-trục
 /// (HV/Nôm) của §Phát hiện ② thay vì một-trục.
 pub fn nom_only_readings(han_viet: Option<&str>, nom_reading: Option<&str>) -> Option<String> {
@@ -90,9 +90,9 @@ pub fn nom_only_readings(han_viet: Option<&str>, nom_reading: Option<&str>) -> O
 /// dữ liệu nào (kể cả dữ liệu Unihan CŨ).
 ///
 /// 🔴 **Chỉ đối chiếu XUYÊN NGUỒN** — một âm Nôm do CHÍNH nguồn đang được kiểm gắn nhãn
-/// ⛔ không tính vào phép so. Lý do: `en-wiktionary-vi` tự nó gắn CẢ HAI nhãn trên CÙNG
+/// không tính vào phép so. Lý do: `en-wiktionary-vi` tự nó gắn CẢ HAI nhãn trên CÙNG
 /// một ký tự khá thường xuyên (đo thật: 445/1.145 = 38,9% — một âm hợp lệ ở CẢ hai vai
-/// là thực tế ngôn ngữ học bình thường, ⛔ không phải lỗi gán nhãn). So một nguồn đã tự
+/// là thực tế ngôn ngữ học bình thường, không phải lỗi gán nhãn). So một nguồn đã tự
 /// phân biệt HV/Nôm với CHÍNH nó là một phép so vô nghĩa và sẽ luôn cho dương tính giả
 /// cao. Phép kiểm này tồn tại để bắt một nguồn KHÁC (như `unihan` cũ) ghi vào `han_viet`
 /// một giá trị mà nguồn ĐÃ CÓ NHÃN xác nhận là âm Nôm — xuyên nguồn mới là đúng câu hỏi.
@@ -103,7 +103,7 @@ pub fn count_suspicious<'a>(
     let mut nom_by_char: HashMap<&str, Vec<(&str, &str)>> = HashMap::new();
     for (ch, source_code, raw) in nom_rows {
         // dict-build:allow .entry( — dựng CHỈ MỤC ĐỌC tạm thời để ĐỐI CHIẾU (AC5), giữ
-        // NGUYÊN mã nguồn của từng âm; ⛔ không ghi vào dict_entry/dict_sense và ⛔
+        // NGUYÊN mã nguồn của từng âm; không ghi vào dict_entry/dict_sense và không
         // không hợp nhất Ý NGHĨA xuyên nguồn (AD-19) — mỗi phần tử vẫn mang `source_code`
         // riêng, dùng để LOẠI so sánh cùng nguồn ở vòng lặp dưới.
         let readings = nom_by_char.entry(ch).or_default();
@@ -120,7 +120,7 @@ pub fn count_suspicious<'a>(
     let mut han_viet_by_char_source: HashMap<(&str, &str), std::collections::HashSet<&str>> =
         HashMap::new();
     for (ch, source_code, raw) in han_viet_rows {
-        // dict-build:allow .entry( — GỘP (dedupe) readings của cùng (ký tự, nguồn), ⛔
+        // dict-build:allow .entry( — GỘP (dedupe) readings của cùng (ký tự, nguồn), không
         // không hợp nhất xuyên nguồn (AD-19) — khoá map vẫn giữ NGUYÊN `source_code`.
         let readings = han_viet_by_char_source.entry((ch, source_code)).or_default();
         readings.extend(split_readings(raw));
@@ -134,7 +134,7 @@ pub fn count_suspicious<'a>(
         }
         // Chỉ đối chiếu được nếu ký tự này có ÍT NHẤT MỘT âm Nôm gắn nhãn từ một nguồn
         // KHÁC — không có gì để so thì không đếm vào `total_checked` (đối tượng đo là
-        // "tỉ lệ đáng ngờ TRONG SỐ những ký tự đối chiếu được", ⛔ không phải trong số
+        // "tỉ lệ đáng ngờ TRONG SỐ những ký tự đối chiếu được", không phải trong số
         // MỌI ký tự có han_viet — đa số ký tự Unihan không có mặt trong en.wiktionary,
         // pha loãng tỉ lệ và che mất chẩn đoán nếu tính vào mẫu số).
         let Some(nom_candidates) = nom_by_char
@@ -160,8 +160,8 @@ pub fn count_suspicious<'a>(
 /// Given clause của AC5: *"nhãn han-viet-reading/nom-reading CỦA EN.WIKTIONARY"*.
 ///
 /// `unihan` CŨNG ghi `nom_reading` (Story 1.10c AC1 — `kVietnamese` đổi vai), nhưng giá
-/// trị đó là một SUY DIỄN THỐNG KÊ của story này (§Phát hiện: 92,4% trùng, ⛔ không phải
-/// 100%) — Unicode ⛔ chưa bao giờ tự gắn nhãn "đây là âm Nôm" cho từng giá trị riêng lẻ.
+/// trị đó là một SUY DIỄN THỐNG KÊ của story này (§Phát hiện: 92,4% trùng, không phải
+/// 100%) — Unicode chưa bao giờ tự gắn nhãn "đây là âm Nôm" cho từng giá trị riêng lẻ.
 /// Dùng `nom_reading` của `unihan` làm "nhãn đã xác nhận" để đối chiếu sẽ tự tạo dương
 /// tính giả cao (đo thật: 323/460 = 70,2% khi so `han_viet` của `en-wiktionary-vi` với
 /// `nom_reading` của CHÍNH `unihan` — hai tập âm đọc CÙNG một ký tự tự nhiên trùng nhau
@@ -303,7 +303,7 @@ mod tests {
     }
 
     /// Đối chứng âm: ký tự KHÔNG có dữ liệu Nôm nào từ một nguồn khác ⇒ KHÔNG đối chiếu
-    /// được — loại khỏi `total_checked` (⛔ không đếm là "đã kiểm, sạch"), vì không có gì
+    /// được — loại khỏi `total_checked` (không đếm là "đã kiểm, sạch"), vì không có gì
     /// để so là một câu khác với "đã so và không trùng".
     #[test]
     fn a_character_with_no_comparable_nom_data_is_excluded_from_total_checked() {
@@ -311,7 +311,7 @@ mod tests {
         let nom: Vec<(&str, &str, &str)> = vec![];
         let result = count_suspicious(hv, nom);
         assert_eq!(result.suspicious, 0);
-        assert_eq!(result.total_checked, 0, "không có dữ liệu Nôm để so ⇒ không đối chiếu được, ⛔ không phải 'sạch'");
+        assert_eq!(result.total_checked, 0, "không có dữ liệu Nôm để so ⇒ không đối chiếu được, không phải 'sạch'");
     }
 
     #[test]
@@ -335,7 +335,7 @@ mod tests {
         // Hai nguồn: `unihan` (nom_reading suy diễn, KHÔNG phải nhãn tường minh) và
         // `en-wiktionary-vi` (han_viet nhãn tường minh). Chọn giá trị TRÙNG nhau để mô
         // phỏng đúng hình dạng đo được thật (Unihan và en-wiktionary-vi tự nhiên trùng
-        // âm khá thường xuyên, ⛔ không phải bằng chứng gán nhãn sai).
+        // âm khá thường xuyên, không phải bằng chứng gán nhãn sai).
         for (code, display) in [("unihan", "Unihan"), ("en-wiktionary-vi", "EN-WIKT-VI")] {
             conn.execute(
                 "INSERT INTO dict_source (code, display_name, license_kind, license_text, attribution, source_version, source_url)

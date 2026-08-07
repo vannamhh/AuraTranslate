@@ -4,7 +4,7 @@
 //!
 //! Story 1.10, Task 4: thay `--out <file>` (một tệp) bằng `--out-dir <dir>` (nhiều tệp,
 //! tên cố định trong mã — `build::output_file_name`). `--layer` mặc định `all`, dựng
-//! ĐỦ BA tệp và hỏng nếu bất kỳ lớp nào thiếu nguồn thô — ⛔ không chế độ bỏ qua (§Bẫy 7).
+//! ĐỦ BA tệp và hỏng nếu bất kỳ lớp nào thiếu nguồn thô — không chế độ bỏ qua (§Bẫy 7).
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -29,7 +29,7 @@ fn parse_args() -> Result<Args, String> {
     parse_args_from(std::env::args().skip(1))
 }
 
-/// Tách khỏi `parse_args` để test được — trước đây lớp CLI ⛔ không có một test nào dù
+/// Tách khỏi `parse_args` để test được — trước đây lớp CLI không có một test nào dù
 /// mở rộng CLI là Task 4 của Story 1.10 (Review Findings).
 fn parse_args_from<I: IntoIterator<Item = String>>(args: I) -> Result<Args, String> {
     let mut raw = None;
@@ -66,7 +66,7 @@ fn parse_args_from<I: IntoIterator<Item = String>>(args: I) -> Result<Args, Stri
             "--out-dir" => set_once(&mut out_dir, "--out-dir", PathBuf::from(value_for("--out-dir", &mut it)?))?,
             "--layer" => set_once(&mut layer_str, "--layer", value_for("--layer", &mut it)?)?,
             // 🔴 `--out` (tham số cũ, MỘT tệp) không còn được nhận — lỗi TƯỜNG MINH nêu
-            // tên tham số thay thế. ⛔ Không nhận âm thầm để "tương thích ngược": một
+            // tên tham số thay thế. Không nhận âm thầm để "tương thích ngược": một
             // lượt build ghi nhầm chỗ là một tệp cũ bị đè.
             "--out" => {
                 return Err(

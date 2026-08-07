@@ -294,7 +294,7 @@ Không có một bộ từ điển đơn lẻ nào vừa chuẩn, vừa đủ, v
 |---|---|---|---|
 | Âm Hán Việt (ký tự) | **Unihan** (Unicode Consortium) | Unicode License — dễ dãi | Nền tảng chuẩn quốc tế cho âm đọc |
 | Tự điển ký tự | **Thiều Chửu** (1942) | Nhiều khả năng đã hết bản quyền — **cần xác minh** | Được coi là bộ chuẩn mực về Hán Việt suốt hơn 60 năm |
-| Tự điển ký tự (hiện đại) | **Trần Văn Chánh** (NXB Trẻ, 1999) | ⛔ **Còn bản quyền** | Đầy đủ và hiện đại hơn, nhưng **không dùng được nếu không xin phép** |
+| Tự điển ký tự (hiện đại) | **Trần Văn Chánh** (NXB Trẻ, 1999) | **Còn bản quyền** | Đầy đủ và hiện đại hơn, nhưng **không dùng được nếu không xin phép** |
 | Từ/cụm từ | **VietPhrase** | Cộng đồng — **cần xác minh** | Chính bộ dữ liệu đứng sau QuickTranslator; hợp ngữ cảnh dịch thực tế |
 | Đối chiếu chéo | **CC-CEDICT** | **CC-BY-SA 4.0** — an toàn | 124.727 mục (bản 2026-07-22), có quy trình biên tập duyệt |
 | Hỗn hợp Hán-Nôm | `Trannosaur/published_dicts` | **CC-BY-SA 4.0** | Trộn định nghĩa tiếng Việt hiện đại với Hán-Nôm |
@@ -317,7 +317,7 @@ Vấn đề Ice nêu là có thật, nhưng **không giải được bằng các
 | CC-CEDICT | CC-BY-SA 4.0 | An toàn — cần ghi nguồn và chia sẻ lại phần dữ liệu phái sinh cùng giấy phép |
 | Unihan | Unicode License | An toàn |
 | Thiều Chửu (1942) | Cần xác minh tình trạng | Nhiều khả năng đã hết bản quyền, nhưng **phải kiểm chứng trước khi phát hành** |
-| Trần Văn Chánh (1999) | Còn bản quyền | ⛔ Loại khỏi bản phát hành |
+| Trần Văn Chánh (1999) | Còn bản quyền | không Loại khỏi bản phát hành |
 | VietPhrase | Không rõ | Phải xác minh nguồn gốc dữ liệu |
 
 **Hai việc phải làm trước khi viết dòng code nhúng từ điển đầu tiên:**
@@ -336,7 +336,7 @@ Ice chốt **GPL** làm giấy phép dự án. Hệ quả:
 | Unihan | ✅ Dùng được |
 | Thiều Chửu (1942) | ⚠️ Vẫn cần xác minh tình trạng bản quyền |
 | VietPhrase | ⚠️ Vẫn cần truy nguồn gốc dữ liệu |
-| Trần Văn Chánh (1999) | ⛔ Loại — còn bản quyền |
+| Trần Văn Chánh (1999) | không Loại — còn bản quyền |
 
 **Hệ quả kèm theo cần ghi nhớ ở PRD/Architecture:**
 

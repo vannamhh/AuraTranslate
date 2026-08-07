@@ -9,12 +9,12 @@
 //! `crate::core::i18n::MessageKey` — một danh mục đóng, nên một khoá không có trong
 //! đó **không biên dịch được** thay vì lộ ra lúc chạy.
 //!
-//! ⛔ Đừng đặt `#[serde(rename_all = "camelCase")]` lên `IpcError` (thói quen viết
+//! Đừng đặt `#[serde(rename_all = "camelCase")]` lên `IpcError` (thói quen viết
 //! Tauri). Bốn tên trường là dây, không phải sở thích — `tests/ipc_contract.rs` khoá
-//! chúng lại. ⛔ `params` mang DỮ LIỆU, không mang câu: Rust không bao giờ trả về văn
+//! chúng lại. không `params` mang DỮ LIỆU, không mang câu: Rust không bao giờ trả về văn
 //! bản hiển thị.
 //!
-//! ⛔ **Dựng lỗi CHỈ qua `IpcError::new(code, message_key, params, retryable)`** — bốn
+//! **Dựng lỗi CHỈ qua `IpcError::new(code, message_key, params, retryable)`** — bốn
 //! trường là riêng tư, và đó là chỗ duy nhất `message_key` gặp `params`. Một chỗ gọi
 //! quên tham số mà chuỗi đòi (`params: BTreeMap::new()` cho một khoá có `{path}`) biên
 //! dịch sạch và qua mọi phép kiểm còn lại — rồi đặt nguyên văn `{path}` lên màn hình
@@ -30,7 +30,7 @@
 //! 2. một `#[tauri::command]` mỏng trong module `wire` chỉ lấy `State` qua `try_state`
 //!    rồi gọi xuống lớp 1.
 //!
-//! 🔴 `try_state`, ⛔ **không** `state()`: `lib.rs::open_global_store` ghi chẩn đoán rồi
+//! 🔴 `try_state`, **không** `state()`: `lib.rs::open_global_store` ghi chẩn đoán rồi
 //! **đi tiếp** khi mở kho thất bại, nên `app.manage(store)` có thể chưa từng chạy. Một
 //! `state::<Store>()` thẳng tay panic, và `panic = "abort"` giết cả tiến trình.
 //!

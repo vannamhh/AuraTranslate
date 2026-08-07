@@ -5,9 +5,9 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! BỐN LUẬT CỦA TỆP NÀY — thừa kế nguyên vẹn từ `store_contract.rs`
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 1. **Mỗi ca một thư mục tạm riêng** (pid + `AtomicU64`). ⛔ Không thêm `tempfile`.
+//! 1. **Mỗi ca một thư mục tạm riêng** (pid + `AtomicU64`). Không thêm `tempfile`.
 //! 2. **Drop `Store`/`OpenWork` TRƯỚC khi xoá thư mục** — Windows từ chối xoá tệp đang mở.
-//! 3. ⛔ Không `sleep` dài.
+//! 3. Không `sleep` dài.
 //! 4. Không ca nào treo khi nó trượt.
 //!
 //! ⚠️ `Store::write` nhận một closure lấy `&Transaction` — kiểu tái xuất từ `core::store` —
@@ -273,18 +273,18 @@ fn a_docx_is_refused_before_a_single_byte_is_written() {
 //
 // Bản trước của `a_failed_import_leaves_no_half_built_folder_behind` **tự tay tạo**
 // `Nua Voi.atproj/` trước khi gọi `create_work`, rồi assert `!expected_dir.exists()` —
-// tức là nó **ĐÒI HỎI** `create_work` xoá một thư mục ⛔ không phải do nó tạo. Ca đó xanh,
+// tức là nó **ĐÒI HỎI** `create_work` xoá một thư mục không phải do nó tạo. Ca đó xanh,
 // và nó khoá lại thành hợp đồng đúng đường mất dữ liệu mà lượt code review 2026-08-06 tìm
 // ra: tạo Tác phẩm trùng tên ⇒ `INSERT ... VALUES (1, …)` đụng `CHECK (id = 1)` ⇒ nhánh
 // dọn dẹp `remove_dir_all` cả `.atproj` của người dùng.
 //
-// ⚠️ **Vì sao ⛔ không còn một ca "trượt giữa chừng" bơm lỗi từ bên ngoài:** sau khi
-// `create_work_folder` chuyển sang **tạo độc quyền** (`fs::create_dir`, ⛔ không `_all`),
-// ⛔ không còn cách nào từ ngoài ép một lượt gọi đi vào một thư mục đã có — mọi thư mục
+// ⚠️ **Vì sao không còn một ca "trượt giữa chừng" bơm lỗi từ bên ngoài:** sau khi
+// `create_work_folder` chuyển sang **tạo độc quyền** (`fs::create_dir`, không `_all`),
+// không còn cách nào từ ngoài ép một lượt gọi đi vào một thư mục đã có — mọi thư mục
 // đã tồn tại đều bị bỏ qua và lượt gọi nhận một tên mới. Đó chính là điều làm đường xoá
-// nhầm ⛔ **không tới được nữa**, và nó là một bất biến **theo cấu trúc**, ⛔ không phải
-// theo một phép kiểm lúc chạy. Vế "⛔ không để lại thư mục nửa vời" của AC8 vì thế được
-// canh bằng ba ca **từ chối trước khi ghi** ở trên/dưới (`.docx`, ⛔ không UTF-8, quá
+// nhầm **không tới được nữa**, và nó là một bất biến **theo cấu trúc**, không phải
+// theo một phép kiểm lúc chạy. Vế "không để lại thư mục nửa vời" của AC8 vì thế được
+// canh bằng ba ca **từ chối trước khi ghi** ở trên/dưới (`.docx`, không UTF-8, quá
 // nặng) — cả ba assert thư mục gốc **rỗng tuyệt đối**.
 #[test]
 fn creating_a_work_over_an_existing_folder_never_touches_it() {
@@ -328,7 +328,7 @@ fn creating_a_work_over_an_existing_folder_never_touches_it() {
     );
     assert_ne!(first_id, second_id, "hai Tac pham phai la hai work_id khac nhau");
 
-    // ③ ⚠️ Hệ quả đã biết, khoá lại bằng một assert để ⛔ không ai đọc nhầm: `meta.name`
+    // ③ ⚠️ Hệ quả đã biết, khoá lại bằng một assert để không ai đọc nhầm: `meta.name`
     //    giữ **nguyên tên người dùng gõ** ở CẢ HAI — hai Tác phẩm hiển thị giống hệt nhau,
     //    chỉ tên thư mục khác. Đó là cái giá của tự-đánh-số so với từ-chối.
     let second_meta = WorkMeta::read(&second_dir).expect("doc meta.json moi that bai");
@@ -337,7 +337,7 @@ fn creating_a_work_over_an_existing_folder_never_touches_it() {
     cleanup(&root);
 }
 
-/// Ba lần liên tiếp cùng một tên ⇒ ba thư mục, ⛔ không hai.
+/// Ba lần liên tiếp cùng một tên ⇒ ba thư mục, không hai.
 #[test]
 fn repeated_names_keep_climbing_the_suffix_instead_of_colliding() {
     let root = temp_dir("collision-climb");
@@ -399,7 +399,7 @@ fn pasted_text_and_a_read_file_travel_the_same_import_path() {
     cleanup(&source_dir);
 }
 
-/// Đối chứng dương AC8 — `.docx` bị từ chối bằng đúng khoá `MessageKey`, ⛔ không bằng
+/// Đối chứng dương AC8 — `.docx` bị từ chối bằng đúng khoá `MessageKey`, không bằng
 /// một lỗi kho chung chung.
 #[test]
 fn a_docx_rejection_carries_the_dedicated_message_key() {
@@ -420,12 +420,12 @@ fn a_docx_rejection_carries_the_dedicated_message_key() {
 // Bổ sung ở lượt code review 2026-08-06
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// AC5 vế hai — *"⛔ **không** đường dẫn tuyệt đối nào của máy cũ nằm trong `meta.json`
+/// AC5 vế hai — *"**không** đường dẫn tuyệt đối nào của máy cũ nằm trong `meta.json`
 /// hay `project.db`"*.
 ///
-/// 🔴 AC5 viết cùng khuôn AC3: *"test chứng minh, ⛔ không phải một lời khẳng định"*. Vế
-/// "mở lại được ở đường dẫn khác" đã có ca riêng; vế này trước lượt review ⛔ **không có
-/// ca nào** — mệnh đề đúng về cấu trúc (⛔ không trường/cột nào chứa đường dẫn) nhưng ⛔
+/// 🔴 AC5 viết cùng khuôn AC3: *"test chứng minh, không phải một lời khẳng định"*. Vế
+/// "mở lại được ở đường dẫn khác" đã có ca riêng; vế này trước lượt review **không có
+/// ca nào** — mệnh đề đúng về cấu trúc (không trường/cột nào chứa đường dẫn) nhưng không
 /// không gì canh việc một story sau thêm một cột như thế.
 #[test]
 fn no_absolute_path_of_this_machine_is_written_inside_the_project() {
@@ -464,9 +464,9 @@ fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
 }
 
 /// Quyết định của Ice ở lượt code review 2026-08-06 — BOM là tạo tác **giải mã**, cắt ở
-/// story này; CRLF là **chuẩn hoá**, ⛔ không đụng (Epic 6).
+/// story này; CRLF là **chuẩn hoá**, không đụng (Epic 6).
 ///
-/// 🔴 `EF BB BF` là UTF-8 **hợp lệ**, nên nó đi lọt `String::from_utf8` mà ⛔ không cổng
+/// 🔴 `EF BB BF` là UTF-8 **hợp lệ**, nên nó đi lọt `String::from_utf8` mà không cổng
 /// nào kêu — và AD-4 đóng băng ranh giới segment tính lúc nhập, nên một `U+FEFF` nằm lại
 /// sẽ thành ký tự đầu của segment #1 **vĩnh viễn**.
 #[test]
@@ -490,7 +490,7 @@ fn a_utf8_bom_is_stripped_but_line_endings_are_left_alone() {
         "CRLF phai duoc GIU NGUYEN — chuan hoa xuong dong la FR124/125, Epic 6"
     );
 
-    // ⛔ Chỉ cắt ở ĐẦU: một U+FEFF giữa văn bản là zero-width no-break space, nội dung thật.
+    // Chỉ cắt ở ĐẦU: một U+FEFF giữa văn bản là zero-width no-break space, nội dung thật.
     let inner = write_file(&source_dir, "giua.txt", "AB\u{feff}CD".as_bytes());
     let imported_inner = import_file(&inner).expect("nhap that bai");
     assert_eq!(imported_inner.source_text, "AB\u{feff}CD");
@@ -505,8 +505,8 @@ fn a_file_past_the_size_ceiling_is_refused_before_a_single_byte_is_written() {
     let root = temp_dir("too-large");
     let source_dir = temp_dir("too-large-src");
 
-    // ⚠️ ⛔ Không ghi 100 MB thật ra đĩa trong một test — dựng một tệp THƯA (sparse):
-    // `set_len` khai kích thước mà ⛔ không cấp phát khối nào.
+    // ⚠️ Không ghi 100 MB thật ra đĩa trong một test — dựng một tệp THƯA (sparse):
+    // `set_len` khai kích thước mà không cấp phát khối nào.
     let path = source_dir.join("khong lo.txt");
     let file = fs::File::create(&path).expect("tao tep that bai");
     file.set_len(100 * 1024 * 1024 + 1).expect("set_len that bai");
@@ -524,7 +524,7 @@ fn a_file_past_the_size_ceiling_is_refused_before_a_single_byte_is_written() {
     cleanup(&source_dir);
 }
 
-/// Tệp ⛔ không có phần mở rộng ⇒ một hạng lỗi RIÊNG, ⛔ không phải `unsupported_format`
+/// Tệp không có phần mở rộng ⇒ một hạng lỗi RIÊNG, không phải `unsupported_format`
 /// với `format` rỗng (nó cho ra câu vỡ *"Định dạng . chưa được nhận"*).
 #[test]
 fn a_file_with_no_extension_gets_its_own_message_instead_of_a_broken_sentence() {
@@ -554,10 +554,10 @@ fn a_folder_name_survives_both_platforms_rules() {
     assert!(sanitize_name("CON.txt").ends_with('_'), "CON.txt phai duoc them hau to");
     assert!(sanitize_name("nul.md").ends_with('_'), "so sanh khong phan biet hoa thuong");
     assert!(sanitize_name("COM1").ends_with('_'));
-    // ⛔ Không phải tên thiết bị thì ⛔ không đụng.
+    // Không phải tên thiết bị thì không đụng.
     assert_eq!(sanitize_name("CONtent"), "CONtent");
 
-    // ② Trần theo BYTE, cắt ở biên ký tự — ⛔ không panic giữa một ký tự nhiều byte.
+    // ② Trần theo BYTE, cắt ở biên ký tự — không panic giữa một ký tự nhiều byte.
     let long = "Đ".repeat(300); // 600 byte
     let cut = sanitize_name(&long);
     assert!(cut.len() <= 180, "ten phai bi cat theo tran byte, dai that: {}", cut.len());
@@ -573,8 +573,8 @@ fn a_folder_name_survives_both_platforms_rules() {
 // Story 1.16, AC8 — đường IPC đọc Chương đang mở
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// 🔴 **AC8** — chưa Tác phẩm nào mở ⇒ một lỗi CÓ TÊN RIÊNG, ⛔ không phải một lỗi kho
-/// (`store.*`): `OpenWorkState` rỗng là một trạng thái sản phẩm bình thường, ⛔ không một
+/// 🔴 **AC8** — chưa Tác phẩm nào mở ⇒ một lỗi CÓ TÊN RIÊNG, không phải một lỗi kho
+/// (`store.*`): `OpenWorkState` rỗng là một trạng thái sản phẩm bình thường, không một
 /// tệp nào hỏng.
 #[test]
 fn reading_the_open_chapter_without_a_work_open_is_a_named_error() {
@@ -610,7 +610,7 @@ fn reading_the_open_chapter_reflects_the_single_chapter_just_created() {
     cleanup(&dir);
 }
 
-/// `source_lang` đọc từ Tác phẩm, ⛔ không đoán từ nội dung — một Chương tiếng Anh với
+/// `source_lang` đọc từ Tác phẩm, không đoán từ nội dung — một Chương tiếng Anh với
 /// nội dung có chữ Hán bên trong vẫn phải mang `source_lang = "en"`.
 #[test]
 fn the_source_lang_is_read_from_the_work_never_guessed_from_the_text() {

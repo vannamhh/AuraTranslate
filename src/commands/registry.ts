@@ -2,7 +2,7 @@
  * `CommandRegistry` — nửa thứ nhất của AD-34. Story 1.6 · FR22 · NFR17.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * ⛔ TỆP NÀY KHÔNG ĐƯỢC `import` BẤT CỨ THỨ GÌ — điều kiện kỹ thuật, không phải
+ * TỆP NÀY KHÔNG ĐƯỢC `import` BẤT CỨ THỨ GÌ — điều kiện kỹ thuật, không phải
  * sở thích kiến trúc.
  * ─────────────────────────────────────────────────────────────────────────────
  * AC1, AC2 và AC6 là mệnh đề về HÀNH VI LÚC CHẠY (*"id trùng bị phát hiện lúc
@@ -17,7 +17,7 @@
  * `.vue`, không phân giải `./vi.json` theo luật bundler của Vite. Một dòng
  * `import` giá trị ở đây là Kiểm C chết, và ba AC quay về nghiệm thu bằng mắt.
  *
- * ⛔ Cùng lý do: KHÔNG `enum`, KHÔNG `namespace`, KHÔNG parameter property
+ * Cùng lý do: KHÔNG `enum`, KHÔNG `namespace`, KHÔNG parameter property
  * (`constructor(private x)`). Ba thứ đó Node từ chối bóc kiểu vì chúng SINH MÃ
  * chứ không chỉ mang chú thích. `type` / `interface` / annotation thì được.
  *
@@ -33,7 +33,7 @@ export type CommandSpec = {
   id: CommandId
   /** Khoá chuỗi giao diện trong `vi.json`. Quy ước: `'command.' + id`. */
   labelKey: string
-  /** Thao tác thật. ⛔ Không đăng ký một command rỗng cho đủ số. */
+  /** Thao tác thật. Không đăng ký một command rỗng cho đủ số. */
   run: () => void
   /** Hợp âm TRUNG LẬP nền tảng: `'Mod+1'`. Vắng hoặc rỗng ⇒ lọt vào `unbound()`. */
   keys?: readonly string[]
@@ -119,7 +119,7 @@ export function createRegistry(): Registry {
       )
     }
     if (typeof spec.run !== 'function') {
-      // ⛔ Một command rỗng đăng ký cho đủ số là đúng thứ story này tồn tại để chặn.
+      // Một command rỗng đăng ký cho đủ số là đúng thứ story này tồn tại để chặn.
       throw new TypeError(`[commands] \`${id}\` thiếu \`run\` — command phải có thao tác thật.`)
     }
     byId.set(id, frozen(spec))
@@ -132,7 +132,7 @@ export function createRegistry(): Registry {
     /**
      * Nửa cưỡng chế LÚC CHẠY của AC1. Cổng canh cú pháp `@click` trong `.vue`;
      * `dispatch` canh mọi đường còn lại — một `dispatch` gọi từ `.ts`, từ một handler
-     * bàn phím, từ một chỗ Story 1.21 chưa tồn tại. ⛔ Không rơi im lặng: một id gõ
+     * bàn phím, từ một chỗ Story 1.21 chưa tồn tại. Không rơi im lặng: một id gõ
      * sai mà không ném là một nút bấm không làm gì và không ai biết vì sao.
      */
     if (!spec) {

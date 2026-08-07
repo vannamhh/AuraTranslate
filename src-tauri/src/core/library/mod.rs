@@ -10,7 +10,7 @@
 //!   (Quyết định #3), dựng lại được từ `project.db` (AD-33).
 //! - [`atproj`] — dựng `<Tên>.atproj/` + `assets/` trên đĩa (AC2, AC5, AC6).
 //!
-//! ⚠️ Story này ⛔ **không** dựng `library-index.db` — màn hình Library đọc thẳng
+//! ⚠️ Story này **không** dựng `library-index.db` — màn hình Library đọc thẳng
 //! `meta.json` chỉ vì chưa có chỉ mục (Story 5.2 sở hữu `library-index.db`).
 
 pub mod atproj;
@@ -38,12 +38,12 @@ pub enum ProjectError {
     },
 }
 
-// ⛔ **KHÔNG có biến thể `MetaTooNew` ở đây, và đó là một quyết định** — Ice chốt ở lượt
+// **KHÔNG có biến thể `MetaTooNew` ở đây, và đó là một quyết định** — Ice chốt ở lượt
 // code review 2026-08-06. Cơ chế từ chối một `meta.json` mới hơn **vẫn còn nguyên và vẫn
 // có test** ([`MetaError::SchemaTooNew`] + `WorkMeta::read` +
 // `tests/project_contract.rs::a_newer_meta_schema_is_refused_without_touching_a_single_byte`).
-// Thứ bị gỡ là **bề mặt HIỂN THỊ** của nó: story này ⛔ không dựng màn hình "mở lại một
-// `.atproj` đã có", nên `WorkMeta::read` ⛔ không có một chỗ gọi sản phẩm nào, nên một
+// Thứ bị gỡ là **bề mặt HIỂN THỊ** của nó: story này không dựng màn hình "mở lại một
+// `.atproj` đã có", nên `WorkMeta::read` không có một chỗ gọi sản phẩm nào, nên một
 // `MessageKey` + một khoá `vi.json` cho nó là **một khoá cho tính năng chưa tồn tại** —
 // đúng thứ Story 1.7 §Completion Notes #3 cấm, và `tests/scope_contract.rs` trích lại
 // nguyên văn. 🔴 **Story nào dựng đường mở lại `.atproj` (ứng viên: Epic 5, lưới Tác phẩm)
@@ -67,7 +67,7 @@ impl From<MetaError> for ProjectError {
         match err {
             MetaError::Io { detail, .. } => ProjectError::CreateFailed { detail },
             // ⚠️ Gộp vào `CreateFailed` **có chủ ý** — hai con số giữ lại trong chuỗi chẩn
-            // đoán, ⛔ không mất. Xem khối comment ở trên về vì sao ⛔ không có một hạng
+            // đoán, không mất. Xem khối comment ở trên về vì sao không có một hạng
             // lỗi hiển thị riêng cho ca này hôm nay.
             MetaError::SchemaTooNew { found, supported } => ProjectError::CreateFailed {
                 detail: format!("meta schema {found} is newer than supported {supported}"),
@@ -76,7 +76,7 @@ impl From<MetaError> for ProjectError {
     }
 }
 
-/// 🔴 Đi qua [`IpcError::new`], ⛔ không dựng struct literal — cùng luật với
+/// 🔴 Đi qua [`IpcError::new`], không dựng struct literal — cùng luật với
 /// `From<StoreError> for IpcError`.
 impl From<ProjectError> for IpcError {
     fn from(err: ProjectError) -> Self {

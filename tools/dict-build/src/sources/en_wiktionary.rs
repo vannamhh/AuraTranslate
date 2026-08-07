@@ -2,7 +2,7 @@
 //! **tiếng Anh**: `kaikki.org/dictionary/Chinese/kaikki.org-dictionary-Chinese.jsonl`.
 //! Giấy phép CC-BY-SA + GFDL.
 //!
-//! ⚠️ ⛔ KHÔNG phải `zh.wiktionary` (ấn bản tiếng Trung) — Giai đoạn 0 đã BÁC nó vì
+//! ⚠️ KHÔNG phải `zh.wiktionary` (ấn bản tiếng Trung) — Giai đoạn 0 đã BÁC nó vì
 //! định nghĩa và nhãn từ loại đều bằng tiếng Trung (Bẫy 11 của Story 1.9). Trang
 //! `Chinese` này đã được kaikki lọc sẵn theo NGÔN NGỮ MỤC TIÊU (`lang_code=zh`) từ ấn
 //! bản tiếng Anh — không cần lọc thêm ở đây, nhưng vẫn kiểm phòng hờ dữ liệu lẫn dòng.

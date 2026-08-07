@@ -24,7 +24,7 @@
 //! `check-i18n.mjs:211-234`. Một đường dẫn gõ sai làm `walk` khớp 0 tệp ⇒ vòng lặp dưới
 //! đây xanh mà không kiểm gì cả ⇒ cổng chết im lặng ngay ngày nó ra đời.
 //!
-//! ⚠️ Phạm vi quét là `src-tauri/src/**`, ⛔ **không** gồm `tests/**`. Miễn trừ này **có
+//! ⚠️ Phạm vi quét là `src-tauri/src/**`, **không** gồm `tests/**`. Miễn trừ này **có
 //! tên và có lý do**, đúng khuôn `EXEMPT` của `check-i18n.mjs`: ba ca của AC6/AC7 trong
 //! `store_contract.rs` cần dựng một database ở một phiên bản lược đồ và một chế độ
 //! journal cho trước — tức đúng thứ `core::store` tồn tại để mã sản phẩm không làm được.
@@ -40,12 +40,12 @@ const STORE_DIR: &str = "core/store";
 ///
 /// Số thật lúc dựng (Story 1.7): **22** tệp — 17 kế thừa + 5 tệp của `core/store/`. Sàn
 /// đặt **dưới** số thật đúng khuôn `RS_FLOOR`/`VUE_FLOOR` của `check-i18n.mjs`: nó bắt
-/// một cây bị cắt mất, ⛔ không bắt việc thêm tệp mới.
+/// một cây bị cắt mất, không bắt việc thêm tệp mới.
 ///
 /// ⚠️ Story 1.8: số thật là **26** — thêm 3 tệp `core/scope/` và `commands/config.rs`. Sàn
 /// lên **20** (~77%).
 ///
-/// 🔴 ⛔ **Quần thể này KHÁC quần thể của `check-i18n.mjs`** — ở đây là `src-tauri/src/**`
+/// 🔴 **Quần thể này KHÁC quần thể của `check-i18n.mjs`** — ở đây là `src-tauri/src/**`
 /// (26 tệp), ở đó là `src-tauri/**` sau miễn trừ `tests/**` (27 tệp, gồm `build.rs`). Hai
 /// con số gần nhau và chúng **không** thay thế nhau được; chép số của tệp kia sang đây là
 /// đặt một cái sàn cho một cây khác.
@@ -150,7 +150,7 @@ fn only_core_store_may_name_rusqlite() {
             // gọi vượt qua nó. Một cổng đỏ trên câu giải thích chính luật nó canh là một
             // cổng bị gỡ trong tuần.
             //
-            // ⛔ Chỉ dòng bắt đầu bằng `//` được bỏ qua. Comment đuôi dòng
+            // Chỉ dòng bắt đầu bằng `//` được bỏ qua. Comment đuôi dòng
             // (`Connection::open(p); // ghi chú`) vẫn bị bắt, vì phần mã vẫn ở đầu dòng.
             if code.starts_with("//") {
                 continue;
@@ -212,7 +212,7 @@ fn core_store_actually_uses_rusqlite() {
     );
 }
 
-/// `core::store` ⛔ **không** `use tauri::…` — Quyết định #1.
+/// `core::store` **không** `use tauri::…` — Quyết định #1.
 ///
 /// Vì sao thành một test chứ không một comment: mệnh đề này hỏng bằng **một dòng `use`**
 /// mà mọi thứ khác vẫn xanh, và cái giá chỉ hiện ra ở Story 1.15 (`project.db` nằm trong

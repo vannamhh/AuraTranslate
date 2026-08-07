@@ -64,7 +64,7 @@ fn fts_without_rebuild_silently_returns_zero_rows_not_an_error() {
     )
     .unwrap();
 
-    // ⛔ Không rebuild — đúng hình dạng lỗi của Bẫy 3.
+    // Không rebuild — đúng hình dạng lỗi của Bẫy 3.
     let hits: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM sense_fts WHERE sense_fts MATCH 'mountain'",
@@ -135,7 +135,7 @@ fn dict_example_and_dict_citation_sense_id_foreign_key_is_enforced_live() {
         [],
     )
     .unwrap();
-    // ⛔ Không hàng `dict_sense` nào được chèn — `sense_id = 999` không tồn tại.
+    // Không hàng `dict_sense` nào được chèn — `sense_id = 999` không tồn tại.
     let example_result = conn.execute(
         "INSERT INTO dict_example (sense_id, text, ord) VALUES (999, 'x', 0)",
         [],

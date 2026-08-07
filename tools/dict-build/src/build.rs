@@ -11,7 +11,7 @@ use crate::model::SourceStats;
 use crate::{finalize, insert, nom_guard, sources, sources_meta};
 
 /// Tổng hợp kết quả một lượt build — in ra bảng cuối, và caller dùng để quyết định mã
-/// thoát (một nguồn đọc hỏng nặng vẫn nên dừng và báo, ⛔ không lặng lẽ sinh tệp thiếu —
+/// thoát (một nguồn đọc hỏng nặng vẫn nên dừng và báo, không lặng lẽ sinh tệp thiếu —
 /// thi hành ở `require_nonempty`, Review Findings Group A).
 #[derive(Debug)]
 pub struct BuildReport {
@@ -25,14 +25,14 @@ pub struct BuildReport {
 }
 
 /// AC5: chạy lưới chống tái diễn TRƯỚC `finalize::finish` (tệp chưa `.tmp` → `out_path`)
-/// — một lượt vượt ngưỡng dừng LẠI ở đây, ⛔ không sinh ra một tệp `.db` mang đúng lỗi
+/// — một lượt vượt ngưỡng dừng LẠI ở đây, không sinh ra một tệp `.db` mang đúng lỗi
 /// Unihan đã sửa ở nguồn khác. Dùng chung cho CẢ base lẫn từng lớp gỡ rời (§Bẫy 2: một
 /// đường dựng bỏ sót là bẫy đắt nhất).
 ///
 /// Review Findings — `external_labeled_nom`: xem doc-comment
 /// `nom_guard::count_suspicious_in_db`. `run_base` truyền lát rỗng (nguồn
 /// `en-wiktionary-vi` đã tự có mặt trong `dict-core.db`); `run_detachable_layer` truyền
-/// nhãn nạp từ `raw/en_wiktionary_vi/` — ⛔ không tệp gỡ rời nào tự có nguồn đó (AD-10).
+/// nhãn nạp từ `raw/en_wiktionary_vi/` — không tệp gỡ rời nào tự có nguồn đó (AD-10).
 fn check_han_viet_against_nom_labels(
     conn: &Connection,
     external_labeled_nom: &[(String, String)],
@@ -48,8 +48,8 @@ fn check_han_viet_against_nom_labels(
         return Err(format!(
             "AC5: {}/{} ({:.1}%) ký tự có han_viet TRÙNG một âm Nôm đã gắn nhãn — vượt \
              ngưỡng {:.0}%. Một nguồn đang ghi (hoặc mới thêm) có thể đang lặp lại đúng lỗi \
-             Unihan (ghi âm Nôm vào han_viet). RÀ LẠI nguồn trước khi tiếp tục — ⛔ không tự \
-             sửa dữ liệu, ⛔ không hạ ngưỡng để qua cổng.",
+             Unihan (ghi âm Nôm vào han_viet). RÀ LẠI nguồn trước khi tiếp tục — không tự \
+             sửa dữ liệu, không hạ ngưỡng để qua cổng.",
             result.suspicious,
             result.total_checked,
             result.ratio() * 100.0,
@@ -60,7 +60,7 @@ fn check_han_viet_against_nom_labels(
     Ok(result)
 }
 
-/// Đọc TỐI ĐA `max_lines` dòng đầu của tệp — dùng để dò header (`source_version`), ⛔
+/// Đọc TỐI ĐA `max_lines` dòng đầu của tệp — dùng để dò header (`source_version`), không
 /// không đọc trọn tệp chỉ để xem vài dòng đầu (Review Findings Group A). Dòng nào không
 /// giải mã được UTF-8 thì BỎ QUA thay vì hỏng cả lượt đọc — đây chỉ là dò header, không
 /// phải đường parse chính (đường đó đã có `ParseIssue` riêng cho từng dòng).
@@ -74,7 +74,7 @@ fn read_header_lines(path: &Path, max_lines: usize) -> std::io::Result<Vec<Strin
 }
 
 /// Tìm `# Unicode Version X.Y.Z` trong vài dòng đầu của một tệp Unihan — `source_version`
-/// của Unihan (§Thông tin kỹ thuật của Story 1.9), ⛔ không viết cứng.
+/// của Unihan (§Thông tin kỹ thuật của Story 1.9), không viết cứng.
 fn unihan_source_version(header_lines: &[String]) -> Option<String> {
     for l in header_lines.iter().take(16) {
         if let Some(rest) = l.strip_prefix("# Unicode Version ") {
@@ -100,7 +100,7 @@ fn version_or_warn(source_code: &str, detected: Option<String>) -> String {
 }
 
 /// Một nguồn cho ra 0 entry là nguồn đọc hỏng nặng (tệp sai/rỗng/hỏng mã hoá) — dừng và
-/// báo, ⛔ không lặng lẽ sinh tệp thiếu nguồn (doc-comment `BuildReport`, Review Findings
+/// báo, không lặng lẽ sinh tệp thiếu nguồn (doc-comment `BuildReport`, Review Findings
 /// Group A: trước đây build vẫn `ExitCode::SUCCESS` dù một nguồn đọc ra 0 entry).
 fn require_nonempty(stats: &SourceStats) -> Result<(), Box<dyn std::error::Error>> {
     if stats.entries == 0 {
@@ -149,10 +149,10 @@ where
 /// xong — một lượt build hỏng giữa chừng không còn để lại tệp dở dang TẠI `out_path`
 /// (Review Findings Group A; trước đây chỉ phân biệt được qua exit code/stderr). Mọi
 /// tệp cũ ở `out_path`/`tmp_path` (cộng `-wal`/`-shm` cạnh chúng) bị xoá trước khi dựng,
-/// vì đây LUÔN là một lượt dựng MỚI từ đầu, ⛔ không phải cập nhật tệp cũ.
+/// vì đây LUÔN là một lượt dựng MỚI từ đầu, không phải cập nhật tệp cũ.
 ///
 /// Đổi tên từ `run` (Story 1.9) → `run_base` (Story 1.10) khi thêm hai đường dựng lớp
-/// gỡ rời dùng chung phần đuôi (`finalize::finish`) — nội dung hàm này ⛔ không đổi.
+/// gỡ rời dùng chung phần đuôi (`finalize::finish`) — nội dung hàm này không đổi.
 pub fn run_base(raw_dir: &Path, out_path: &Path) -> Result<BuildReport, Box<dyn std::error::Error>> {
     let tmp_path = finalize::prepare_fresh_output(out_path)?;
 
@@ -229,7 +229,7 @@ pub fn run_base(raw_dir: &Path, out_path: &Path) -> Result<BuildReport, Box<dyn 
 
             // §Bẫy: kProperty tự mô tả, không phụ thuộc tên tệp gốc — nối Readings +
             // Variants thành MỘT reader (module doc-comment của `sources::unihan`).
-            // Đọc BYTE THÔ (`std::fs::read`), ⛔ không `read_to_string` — một byte
+            // Đọc BYTE THÔ (`std::fs::read`), không `read_to_string` — một byte
             // UTF-8 lỗi ở BẤT KỲ ĐÂU trong tệp trước đây hỏng cả lượt build (`?` ném
             // trước khi bất kỳ `ParseIssue` nào được đếm); đọc byte thô rồi để
             // `BufRead::lines()` giải mã TỪNG DÒNG cho phép lỗi cục bộ rơi đúng vào
@@ -295,7 +295,7 @@ pub fn run_base(raw_dir: &Path, out_path: &Path) -> Result<BuildReport, Box<dyn 
         // nên mang HAI VAI song song (vai B: mục tiếng Trung; vai A: mục tiếng Anh,
         // FR34). Chi tiết đầy đủ ở doc-comment `sources::viwiktionary_en`.
         //
-        // ⛔ KHÔNG tái dùng reader của vai B và ⛔ KHÔNG gộp hai vai vào một lượt đọc:
+        // KHÔNG tái dùng reader của vai B và KHÔNG gộp hai vai vào một lượt đọc:
         // `wiktextract_common::parse` gộp theo headword TRONG một lượt gọi, nên một lượt
         // gọi phát cả hai vai sẽ hợp nhất một headword xuyên `source_id` — đúng thứ
         // AD-19 cấm. Hai `File::open`, hai lượt `parse`, hai `source_id`.
@@ -324,7 +324,7 @@ pub fn run_base(raw_dir: &Path, out_path: &Path) -> Result<BuildReport, Box<dyn 
         //
         // Story 1.10c, nguồn NỀN thứ bảy — thêm ở CUỐI để sáu `dict_source.id` cũ giữ
         // nguyên (§Quyết định #7, doc-comment `sources_meta::BASE_ALL`). Quyết định #3a:
-        // LƯỚI chống tái diễn lỗi Unihan (AC5), ⛔ không một nguồn nghĩa — dùng
+        // LƯỚI chống tái diễn lỗi Unihan (AC5), không một nguồn nghĩa — dùng
         // `parse_readings` (khác `wiktextract_common::parse` dùng ở các khối trên).
         {
             let dir = raw_dir.join("en_wiktionary_vi");
@@ -370,13 +370,13 @@ pub fn run_base(raw_dir: &Path, out_path: &Path) -> Result<BuildReport, Box<dyn 
 /// Review Findings — nạp cặp `(headword, nom_reading)` **có nhãn tường minh**
 /// (`nom_guard::LABELED_NOM_SOURCE`) từ nguồn thô `en-wiktionary-vi`, dùng để đối chiếu
 /// AC5 cho một lớp GỠ RỜI (lớp đó tự nó không bao giờ chứa nguồn này — AD-10). Đọc
-/// TRỰC TIẾP từ raw JSONL, ⛔ không từ `dict-core.db` đã dựng — lớp gỡ rời dựng ĐỘC LẬP
+/// TRỰC TIẾP từ raw JSONL, không từ `dict-core.db` đã dựng — lớp gỡ rời dựng ĐỘC LẬP
 /// với base (`--layer <code>` đơn lẻ vẫn phải đúng), nên không thể giả định `dict-core.db`
 /// đã tồn tại lúc này.
 ///
 /// Thiếu tệp thô (vd một lượt `--layer thieu-chuu` cục bộ chưa tải `en_wiktionary_vi/`)
 /// ⇒ CẢNH BÁO ra stderr, trả về RỖNG — phép kiểm AC5 khi đó lại rơi về `0/0` cho lớp này
-/// (đúng hành vi TRƯỚC bản vá này), ⛔ không chặn build của một lớp không liên quan.
+/// (đúng hành vi TRƯỚC bản vá này), không chặn build của một lớp không liên quan.
 fn load_en_wiktionary_vi_labeled_nom(raw_dir: &Path) -> Vec<(String, String)> {
     let path = raw_dir.join("en_wiktionary_vi").join("kaikki-en-vi.jsonl");
     let file = match File::open(&path) {
@@ -404,7 +404,7 @@ fn load_en_wiktionary_vi_labeled_nom(raw_dir: &Path) -> Vec<(String, String)> {
 }
 
 /// Dựng MỘT lớp gỡ rời — MỘT nguồn, MỘT tệp `.db`, dùng LẠI đúng lược đồ của lớp nền
-/// (§Quyết định #1 của Story 1.10, AC4). 🔴 Hàm này ⛔ **không bao giờ** mở
+/// (§Quyết định #1 của Story 1.10, AC4). 🔴 Hàm này **không bao giờ** mở
 /// `dict-core.db` (§Bẫy 3) — nó chỉ biết `raw_file_path` của CHÍNH nguồn đang dựng.
 ///
 /// Dùng chung `finalize::prepare_fresh_output` + `finalize::finish` với `run_base` —
@@ -412,7 +412,7 @@ fn load_en_wiktionary_vi_labeled_nom(raw_dir: &Path) -> Vec<(String, String)> {
 /// `journal_mode = DELETE` là bẫy đắt nhất, nhân đôi vì giờ có ba đường dựng).
 ///
 /// Review Findings — `raw_dir`: chỉ dùng để nạp nhãn Nôm `en-wiktionary-vi` cho AC5
-/// (`load_en_wiktionary_vi_labeled_nom`), ⛔ không dùng để đọc nguồn CHÍNH của lớp này —
+/// (`load_en_wiktionary_vi_labeled_nom`), không dùng để đọc nguồn CHÍNH của lớp này —
 /// nguồn chính vẫn LUÔN qua `raw_file_path`, giữ nguyên bất biến ở dòng trên.
 fn run_detachable_layer<F, I>(
     raw_dir: &Path,
@@ -476,7 +476,7 @@ where
 /// trả về một kiểu iterator cụ thể khác nhau.
 ///
 /// Thêm HVTĐTD/Cổ hán văn ở story nối tiếp = thêm MỘT phần tử vào `DETACHABLE_LAYERS`,
-/// ⛔ KHÔNG sửa `run_detachable_layer`/`run_all`/CLI — viết thành `if code == "..." {}`
+/// KHÔNG sửa `run_detachable_layer`/`run_all`/CLI — viết thành `if code == "..." {}`
 /// mới là hình dạng "mã riêng cho từng nguồn" mà AC4 cấm, chỉ dịch bẫy đó từ runtime
 /// sang phía build.
 struct DetachableLayer {
@@ -512,7 +512,7 @@ fn raw_path_for(raw_dir: &Path, relative: &[&str]) -> std::path::PathBuf {
     relative.iter().fold(raw_dir.to_path_buf(), |acc, seg| acc.join(seg))
 }
 
-/// Tên tệp cố định trong Rust cho MỘT mã lớp — ⛔ không tham số hoá (§Quyết định #3 của
+/// Tên tệp cố định trong Rust cho MỘT mã lớp — không tham số hoá (§Quyết định #3 của
 /// Story 1.10): `dict-core.db` cho `"base"`, `dict-<code>.db` cho lớp gỡ rời. `name`
 /// trong manifest, tên tệp, và `dict_source.code` LUÔN là cùng một chuỗi.
 pub fn output_file_name(layer_code: &str) -> String {
@@ -524,7 +524,7 @@ pub fn output_file_name(layer_code: &str) -> String {
     }
 }
 
-/// Dựng MỘT lớp gỡ rời theo `code` — tra `DETACHABLE_LAYERS` (bảng, ⛔ không `if`/`match`
+/// Dựng MỘT lớp gỡ rời theo `code` — tra `DETACHABLE_LAYERS` (bảng, không `if`/`match`
 /// theo chuỗi từng nguồn). Dùng cho `--layer <code>` đơn lẻ.
 pub fn run_detachable_by_code(
     raw_dir: &Path,
@@ -536,7 +536,7 @@ pub fn run_detachable_by_code(
         .find(|l| l.meta.code == code)
         .ok_or_else(|| format!("mã lớp gỡ rời không xác định: '{code}'"))?;
     // Đối xứng với `run_all` — nếu không, `Connection::open` trả SQLITE_CANTOPEN
-    // ("unable to open database file"), một thông điệp ⛔ không hề nhắc tới thư mục thiếu.
+    // ("unable to open database file"), một thông điệp không hề nhắc tới thư mục thiếu.
     std::fs::create_dir_all(out_dir)?;
     let raw_path = raw_path_for(raw_dir, layer.raw_relative_path);
     let name = output_file_name(layer.meta.code);
@@ -563,9 +563,9 @@ pub struct AllLayersReport {
 /// `finalize::prepare_fresh_output` xoá `out_path` **trước** khi mở nguồn thô, nên một
 /// lượt `--layer all` thiếu nguồn ở lớp thứ hai sẽ: dựng xong hai tệp mới, **xoá mất**
 /// tệp tốt của lớp thứ ba từ lượt trước, rồi thoát 1 để lại một `.tmp` mồ côi. Kết quả
-/// là `out/` chứa một bộ KHÔNG đầy đủ và trộn thế hệ mà ⛔ không dấu hiệu nào — trong khi
+/// là `out/` chứa một bộ KHÔNG đầy đủ và trộn thế hệ mà không dấu hiệu nào — trong khi
 /// §Quyết định #6 đòi ba tệp thuộc **một** thế hệ dữ liệu. Kiểm trước là cách rẻ nhất
-/// biến ca đó thành một lỗi sạch, ⛔ không đụng tệp nào.
+/// biến ca đó thành một lỗi sạch, không đụng tệp nào.
 fn require_all_raw_sources_present(raw_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let missing: Vec<String> = DETACHABLE_LAYERS
         .iter()
@@ -575,7 +575,7 @@ fn require_all_raw_sources_present(raw_dir: &Path) -> Result<(), Box<dyn std::er
         .collect();
     if !missing.is_empty() {
         return Err(format!(
-            "thiếu {} nguồn thô của lớp gỡ rời, ⛔ không tệp .db nào bị đụng tới: {}",
+            "thiếu {} nguồn thô của lớp gỡ rời, không tệp .db nào bị đụng tới: {}",
             missing.len(),
             missing.join(", ")
         )
@@ -585,7 +585,7 @@ fn require_all_raw_sources_present(raw_dir: &Path) -> Result<(), Box<dyn std::er
 }
 
 /// `--layer all` (mặc định): dựng ĐÚNG base + hai lớp gỡ rời hôm nay — hỏng nếu BẤT KỲ
-/// lớp nào thiếu nguồn thô. ⛔ Không có chế độ "bỏ qua lớp thiếu nguồn" (§Bẫy 7).
+/// lớp nào thiếu nguồn thô. Không có chế độ "bỏ qua lớp thiếu nguồn" (§Bẫy 7).
 pub fn run_all(raw_dir: &Path, out_dir: &Path) -> Result<AllLayersReport, Box<dyn std::error::Error>> {
     std::fs::create_dir_all(out_dir)?;
     require_all_raw_sources_present(raw_dir)?;
@@ -628,7 +628,7 @@ mod distribution_table_tests {
     }
 
     /// `.find()` theo `code` là cách điều phối duy nhất — mã trùng làm một lớp bị dựng
-    /// hai lần (đè lên chính nó) còn lớp kia ⛔ không bao giờ chạy, với exit code SUCCESS.
+    /// hai lần (đè lên chính nó) còn lớp kia không bao giờ chạy, với exit code SUCCESS.
     #[test]
     fn distribution_table_has_no_duplicate_codes() {
         let codes: Vec<&str> = DETACHABLE_LAYERS.iter().map(|l| l.meta.code).collect();
@@ -637,7 +637,7 @@ mod distribution_table_tests {
     }
 
     /// Tên tệp đầu ra của MỌI lớp phải rời nhau — một lớp gỡ rời mang `code = "core"`
-    /// sẽ ghi đè `dict-core.db` mà `base_and_detachable_code_sets_are_disjoint` ⛔ không
+    /// sẽ ghi đè `dict-core.db` mà `base_and_detachable_code_sets_are_disjoint` không
     /// bắt được (nó chỉ so tập `code`, không so tập TÊN TỆP).
     #[test]
     fn every_layer_writes_to_a_distinct_output_file() {
@@ -651,7 +651,7 @@ mod distribution_table_tests {
 /// `source_version` cho hai nguồn Wiktionary — không có header ngày tháng trong nội
 /// dung, nên dùng thời điểm sửa đổi cuối của tệp đã tải (ngày dump, xấp xỉ đúng tinh
 /// thần "phiên bản nguồn thô" khi nguồn không tự khai).
-/// 🔴 `built_at` TẤT ĐỊNH — dẫn xuất từ chính NGUỒN THÔ, ⛔ không từ đồng hồ hệ thống.
+/// 🔴 `built_at` TẤT ĐỊNH — dẫn xuất từ chính NGUỒN THÔ, không từ đồng hồ hệ thống.
 ///
 /// Cùng một cây nguồn thô ⇒ cùng một `built_at` ⇒ cùng một tệp `.db` byte-for-byte ⇒
 /// cùng một SHA-256. Đây là điều kiện để mọi giá trị `sha256` trong `dict-manifest.toml`
@@ -661,7 +661,7 @@ mod distribution_table_tests {
 /// Thứ tự ưu tiên:
 /// 1. `SOURCE_DATE_EPOCH` (quy ước reproducible-builds) — cho phép ghim cứng khi phát hành.
 /// 2. `mtime` MỚI NHẤT trong số các nguồn thô đã đọc — một thuộc tính của ĐẦU VÀO.
-/// 3. Epoch 0, kèm cảnh báo — chỉ xảy ra khi ⛔ không đọc được metadata nào.
+/// 3. Epoch 0, kèm cảnh báo — chỉ xảy ra khi không đọc được metadata nào.
 fn built_at(inputs: &[&Path]) -> String {
     let secs = std::env::var("SOURCE_DATE_EPOCH")
         .ok()
@@ -669,14 +669,14 @@ fn built_at(inputs: &[&Path]) -> String {
         .or_else(|| newest_mtime_secs(inputs))
         .unwrap_or_else(|| {
             eprintln!(
-                "dict-build: ⚠️  không đọc được mtime của nguồn thô và ⛔ không có SOURCE_DATE_EPOCH — dict_meta('built_at') dùng epoch 0"
+                "dict-build: ⚠️  không đọc được mtime của nguồn thô và không có SOURCE_DATE_EPOCH — dict_meta('built_at') dùng epoch 0"
             );
             0
         });
     iso8601_utc(secs).unwrap_or_else(|| "1970-01-01T00:00:00Z".to_string())
 }
 
-/// `mtime` lớn nhất tìm được dưới `inputs` (đệ quy cho thư mục). `None` khi ⛔ không đọc
+/// `mtime` lớn nhất tìm được dưới `inputs` (đệ quy cho thư mục). `None` khi không đọc
 /// được gì.
 fn newest_mtime_secs(inputs: &[&Path]) -> Option<i64> {
     fn walk(path: &Path, best: &mut Option<i64>) {
@@ -684,7 +684,7 @@ fn newest_mtime_secs(inputs: &[&Path]) -> Option<i64> {
             if let Ok(entries) = std::fs::read_dir(path) {
                 let mut children: Vec<std::path::PathBuf> =
                     entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
-                // Sắp xếp để lượt duyệt ⛔ không phụ thuộc thứ tự trả về của hệ tệp.
+                // Sắp xếp để lượt duyệt không phụ thuộc thứ tự trả về của hệ tệp.
                 children.sort();
                 for child in children {
                     walk(&child, best);
@@ -708,7 +708,7 @@ fn newest_mtime_secs(inputs: &[&Path]) -> Option<i64> {
     best
 }
 
-/// Epoch giây → ISO-8601 UTC. Dùng chính SQLite để đổi, ⛔ không kéo `chrono`/`time`
+/// Epoch giây → ISO-8601 UTC. Dùng chính SQLite để đổi, không kéo `chrono`/`time`
 /// (§Quyết định #6 của Story 1.9: 0 crate mới).
 fn iso8601_utc(secs: i64) -> Option<String> {
     let conn = Connection::open_in_memory().ok()?;

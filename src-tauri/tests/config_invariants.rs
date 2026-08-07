@@ -298,7 +298,7 @@ fn csp_style_src_stays_at_self() {
 
 /// 🔴 Story 1.9, Task 10 — Ice chốt 2026-08-04: **gỡ** `$RESOURCE/dict/**` khỏi
 /// `assetProtocol.scope`. Webview KHÔNG BAO GIỜ đọc tệp từ điển — AD-1 và AD-11 đặt
-/// mọi truy cập dữ liệu ở Rust, và `rusqlite` mở tệp bằng đường dẫn hệ thống, ⛔ không
+/// mọi truy cập dữ liệu ở Rust, và `rusqlite` mở tệp bằng đường dẫn hệ thống, không
 /// đi qua asset protocol. Mục scope đó là một QUYỀN THỪA; mâu thuẫn với `connect-src`
 /// (`deferred-work.md:56-57`) chỉ là hệ quả của việc nó thừa.
 ///
@@ -370,7 +370,7 @@ fn main_capability_grants_the_minimum_and_no_plugin_permission() {
         ],
         "Tối thiểu THẬT, ba tập: path (resolveResource) · event (emit/Channel, AD-22) · \
          resources (dọn resource table).\n\
-         ⛔ Đừng quay lại `core:default`: nó là một BUNDLE kéo theo cả \
+         Đừng quay lại `core:default`: nó là một BUNDLE kéo theo cả \
          `core:window:default`, `core:webview:default`, `core:menu:default`, \
          `core:tray:default`, `core:app:default` — dự án này dựng cả một script để cấm \
          `tauri-plugin-fs` vì bề mặt IPC, mở sẵn nhóm kia là tự mâu thuẫn.\n\

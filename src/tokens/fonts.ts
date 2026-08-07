@@ -2,7 +2,7 @@
  * Nạp bốn tệp font LÚC CHẠY, từ `$RESOURCE/fonts/**` qua asset protocol. Story 1.4.
  *
  * ─────────────────────────────────────────────────────────────────────────────────
- * ⛔ BA ĐƯỜNG KHÔNG ĐI ĐƯỢC — cả ba đều *trông* hợp lý và cả ba đã được đo là hỏng
+ * BA ĐƯỜNG KHÔNG ĐI ĐƯỢC — cả ba đều *trông* hợp lý và cả ba đã được đo là hỏng
  * ─────────────────────────────────────────────────────────────────────────────────
  *
  * 1. `@font-face { src: url('./fonts/…') }` trong CSS. Font KHÔNG nằm trong `src/` —

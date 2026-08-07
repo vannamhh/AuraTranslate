@@ -9,7 +9,7 @@
 //!
 //! - **0 = chưa có lược đồ.** Không có gì để sao lưu, và không có gì mất khi di trú.
 //! - Bước di trú đầu tiên đánh số **1**.
-//! - `to_version` tăng dần nghiêm ngặt. ⛔ Không có bước lùi, ⛔ không có bước
+//! - `to_version` tăng dần nghiêm ngặt. Không có bước lùi, không có bước
 //!   *"sửa cho vừa"* — một bước như vậy là hai đường lược đồ khác nhau cho cùng một số,
 //!   và chúng sẽ rẽ nhau ở máy người dùng chứ không ở đây.
 //!
@@ -26,7 +26,7 @@
 //!   rồi mới `fs::copy`.
 //!
 //! ⚠️ Feature `backup` của `rusqlite` đang **TẮT** (`Cargo.toml:75`) ⇒
-//! `Connection::backup` **không tồn tại**. ⛔ Bật nó là thêm bề mặt API mới vào một crate
+//! `Connection::backup` **không tồn tại**. Bật nó là thêm bề mặt API mới vào một crate
 //! đã ghim — ngoài phạm vi story này, và `check-deps.mjs` sẽ đỏ.
 
 use std::path::Path;
@@ -45,7 +45,7 @@ use super::{StoreError, StoreKind, pragmas};
 /// lượt review Story 1.5 đã bắt (`deferred-work.md:38`).
 ///
 /// - `applied_at` lấy bằng `strftime` **của chính SQLite** — ISO-8601 UTC theo
-///   Consistency Conventions, và ⛔ không phải thêm `chrono`/`time` cho một dòng.
+///   Consistency Conventions, và không phải thêm `chrono`/`time` cho một dòng.
 /// - `app_version` lấy từ `env!("CARGO_PKG_VERSION")`.
 /// - Bản ghi được chèn **trong cùng giao dịch** với bước sinh ra nó. Ghi ngoài giao dịch
 ///   là mở đúng ca *"sổ nói đã chạy mà lược đồ thì chưa"*.
@@ -72,7 +72,7 @@ pub struct Migration {
 /// Lược đồ bảng cấu hình khoá-giá trị — **bước 2 của `global.db`**, Story 1.8 AC5.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 MỘT BẢNG, KHÔNG PHẢI BA — và ⛔ không phải một bảng cho MỌI loại
+/// 🔴 MỘT BẢNG, KHÔNG PHẢI BA — và không phải một bảng cho MỌI loại
 /// ─────────────────────────────────────────────────────────────────────────────
 /// Hai cám dỗ đối nghịch, cả hai đều sai:
 ///
@@ -92,7 +92,7 @@ pub struct Migration {
 /// mọi loại `GlobalOnly` mới thành một bước di trú, trong khi phép cưỡng chế thật đã nằm
 /// ở `ScopeKind` phía Rust — nơi trình biên dịch làm việc đó (AC4).
 ///
-/// ⚠️ ⛔ Không cột `tier`. Bảng này **là** tầng Global; một cột tầng ở đây là mời người
+/// ⚠️ Không cột `tier`. Bảng này **là** tầng Global; một cột tầng ở đây là mời người
 /// sau ghi một hàng `tier = 'work'` vào `global.db`, tức đúng thứ
 /// `ScopeError::WorkTierForbidden` tồn tại để từ chối.
 pub const CONFIG_VALUE_DDL: &str = "\
@@ -106,13 +106,13 @@ CREATE TABLE config_value (
 
 /// Bộ di trú của `global.db`. Hôm nay **hai** bước.
 ///
-/// ⛔ Không thêm bước cho một lược đồ chưa tồn tại. Mỗi story sở hữu bước di trú của
+/// Không thêm bước cho một lược đồ chưa tồn tại. Mỗi story sở hữu bước di trú của
 /// chính nó, cùng lúc với bảng mà nó cần.
 ///
 /// ⚠️ Thêm một bước ở đây làm `tests/store_contract.rs` đỏ ở **đúng một** ca
 /// (`a_fresh_database_migrates_up_to_target_and_logs_it`, ca duy nhất chạy trên bộ di trú
 /// THẬT), và đó là hành vi đúng: số phiên bản đổi phải là một quyết định có người ký, chứ
-/// không phải một hiệu ứng phụ. ⛔ Đừng "sửa cho nhất quán" các con số trong `TWO_STEP` /
+/// không phải một hiệu ứng phụ. Đừng "sửa cho nhất quán" các con số trong `TWO_STEP` /
 /// `BROKEN_STEP_TWO` — chúng là fixture cục bộ và không phụ thuộc hằng này.
 pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
@@ -135,11 +135,11 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
 /// không ai canh: một `INSERT` thứ hai vi phạm `CHECK` và **SQLite** từ chối, không phải
 /// một `debug_assert!` mà bản release im lặng bỏ qua.
 ///
-/// `work_id` là UUID v4 (AD-28) — sinh **một lần** lúc tạo, ⛔ không đổi được, và là khoá
+/// `work_id` là UUID v4 (AD-28) — sinh **một lần** lúc tạo, không đổi được, và là khoá
 /// dựng lại `meta.json` (xem [`super::super::readonly`] không áp — đây là `project.db`).
 /// `source_lang` là trường **bất biến** (AD-18): AC1 nói *"ngôn ngữ nguồn được đặt lúc tạo
-/// và ⛔ không đổi được về sau"* — bất biến này được cưỡng chế ở tầng ứng dụng
-/// (`core/segment/import.rs`, ⛔ không có `UPDATE` nào chạm cột này), ⛔ không phải một
+/// và không đổi được về sau"* — bất biến này được cưỡng chế ở tầng ứng dụng
+/// (`core/segment/import.rs`, không có `UPDATE` nào chạm cột này), không phải một
 /// `CHECK`/trigger SQL, vì SQLite không có cú pháp "cột chỉ ghi một lần".
 pub const WORK_DDL: &str = "\
 CREATE TABLE work (
@@ -156,23 +156,23 @@ CREATE TABLE work (
 /// Lược đồ bảng `chapter` — **bước 1 của `project.db`**, Story 1.15, AC4.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 `AUTOINCREMENT`, ⛔ KHÔNG `INTEGER PRIMARY KEY` TRẦN
+/// 🔴 `AUTOINCREMENT`, KHÔNG `INTEGER PRIMARY KEY` TRẦN
 /// ─────────────────────────────────────────────────────────────────────────────
 /// `INTEGER PRIMARY KEY` trần là bí danh của `rowid`, và SQLite **tái dùng** rowid đã xoá
 /// khi nó là rowid lớn nhất từng cấp — cụ thể, xoá hàng cuối rồi chèn hàng mới sẽ nhận
-/// lại đúng `id` vừa mất. AD-3 nói id đã về hưu ⛔ **không bao giờ** được tái dùng.
+/// lại đúng `id` vừa mất. AD-3 nói id đã về hưu **không bao giờ** được tái dùng.
 /// `AUTOINCREMENT` giữ một sổ riêng (`sqlite_sequence`) và không bao giờ phát lại một giá
 /// trị đã dùng, đổi lại chi phí ghi nhỏ mà không ai đo được ở quy mô một cuốn sách.
 ///
 /// `ord` là **cột riêng** cho thứ tự hiển thị (AD-3, AD-32) — sắp lại được (Epic 2 gộp/tách
-/// Chương) mà ⛔ không đụng `id`. ⛔ **Không** `UNIQUE` trên `ord` ở story này: Epic 2 tự
+/// Chương) mà không đụng `id`. **Không** `UNIQUE` trên `ord` ở story này: Epic 2 tự
 /// quyết cơ chế sắp lại (có thể để hở tạm thời trong một giao dịch nhiều bước).
 ///
 /// `status` mang trạng thái vòng đời ban đầu *Chưa bắt đầu* (FR5) — chuỗi tự do ở tầng
 /// SQL, cưỡng chế giá trị hợp lệ là việc của tầng Rust gọi nó (cùng khuôn với
 /// `config_value.kind` ở `CONFIG_VALUE_DDL`, xem doc-comment ở trên).
 ///
-/// ⛔ **Không** bảng `segment` — Quyết định #4 của story: AD-4 đóng băng ranh giới segment
+/// **Không** bảng `segment` — Quyết định #4 của story: AD-4 đóng băng ranh giới segment
 /// tính một lần lúc nhập; một bộ tách "tạm" ở đây là đóng băng vĩnh viễn ranh giới sai.
 /// `source_text` mang **nguyên khối** văn bản nguồn của Chương; Story 2.1 sở hữu bước tách
 /// tường minh biến nó thành các hàng `segment`.
@@ -189,20 +189,20 @@ CREATE TABLE chapter (
 
 /// Bộ di trú của `project.db`. Hôm nay **ba** bước — Story 1.15.
 ///
-/// ⚠️ **Ba bước, ⛔ không phải một** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
+/// ⚠️ **Ba bước, không phải một** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
-/// hai chuỗi ở **compile time** mà không thêm phụ thuộc) chỉ nhận **literal**, ⛔ không
+/// hai chuỗi ở **compile time** mà không thêm phụ thuộc) chỉ nhận **literal**, không
 /// nhận một `const` đặt tên. Nối [`SCHEMA_MIGRATION_LOG_DDL`] (hằng **tái dùng** từ
 /// `global.db`) với [`WORK_DDL`]/[`CHAPTER_DDL`] thành một chuỗi duy nhất buộc phải chép
-/// lại nguyên văn của hằng kia — đúng thứ *"tái dùng, ⛔ đừng viết lại"* cấm. Ba bước tách
+/// lại nguyên văn của hằng kia — đúng thứ *"tái dùng, đừng viết lại"* cấm. Ba bước tách
 /// rời, mỗi bước một hằng, giữ **mỗi** DDL có **đúng một** nguồn sự thật, cùng khuôn
 /// [`GLOBAL_MIGRATIONS`] đã tách `SCHEMA_MIGRATION_LOG_DDL` (bước 1) khỏi
 /// `CONFIG_VALUE_DDL` (bước 2). "Mỗi bước một giao dịch" là bất biến sẵn có của
-/// [`migrate`] — ⛔ không AC nào của story này đòi `work`/`chapter` phải cùng một giao dịch
+/// [`migrate`] — không AC nào của story này đòi `work`/`chapter` phải cùng một giao dịch
 /// SQL với nhật ký di trú.
 ///
-/// ⛔ Không thêm bước cho một lược đồ chưa tồn tại — cùng luật với [`GLOBAL_MIGRATIONS`].
-/// ⛔ **Không** bảng `segment`/Glossary/TM/prompt/asset ở đây; mỗi epic mang bảng riêng của
+/// Không thêm bước cho một lược đồ chưa tồn tại — cùng luật với [`GLOBAL_MIGRATIONS`].
+/// **Không** bảng `segment`/Glossary/TM/prompt/asset ở đây; mỗi epic mang bảng riêng của
 /// nó cùng lúc với bước di trú cần nó.
 pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
@@ -266,7 +266,7 @@ pub(crate) fn read_user_version(conn: &Connection, kind: StoreKind) -> Result<u3
         })?;
 
     // `user_version` là INTEGER 32-bit có dấu trong header SQLite. Một số âm ở đó nghĩa
-    // là tệp không do ứng dụng này viết ra; ⛔ đừng ép kiểu im lặng thành một số dương
+    // là tệp không do ứng dụng này viết ra; đừng ép kiểu im lặng thành một số dương
     // khổng lồ rồi kết luận "lược đồ quá mới".
     u32::try_from(raw).map_err(|_| StoreError::OpenFailed {
         store: kind,
@@ -288,7 +288,7 @@ pub(crate) fn backup_before_migration(
     let outcome = pragmas::wal_checkpoint(conn, "TRUNCATE", kind)?;
 
     // 🔴 `busy != 0` nghĩa là TRUNCATE **không chép hết** — tức `.db` vẫn thiếu phần nằm
-    // trong WAL, tức bản sao sắp tạo ra là bản sao không đầy đủ. ⛔ Không đi tiếp: một
+    // trong WAL, tức bản sao sắp tạo ra là bản sao không đầy đủ. Không đi tiếp: một
     // bản sao lưu sai còn tệ hơn không có, vì nó làm người ta dám di trú.
     if outcome.busy != 0 {
         return Err(StoreError::OpenFailed {
@@ -344,7 +344,7 @@ pub(crate) fn migrate(
         })?;
 
         // ⚠️ `strftime` của SQLite, không phải đồng hồ của Rust: ISO-8601 UTC theo
-        // Consistency Conventions mà ⛔ không phải kéo `chrono`/`time` về cho một dòng.
+        // Consistency Conventions mà không phải kéo `chrono`/`time` về cho một dòng.
         tx.execute(
             "INSERT INTO schema_migration_log (version, applied_at, app_version) \
              VALUES (?1, strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?2)",
@@ -356,7 +356,7 @@ pub(crate) fn migrate(
         })?;
 
         // ⚠️ `PRAGMA` không nhận tham số ràng buộc. Giá trị là `u32` của chính chương
-        // trình, ⛔ không bao giờ là dữ liệu người dùng.
+        // trình, không bao giờ là dữ liệu người dùng.
         tx.execute_batch(&format!("PRAGMA user_version = {}", m.to_version))
             .map_err(|e| StoreError::OpenFailed {
                 store: kind,

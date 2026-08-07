@@ -67,14 +67,14 @@ So that ***"không ai đọc được tài liệu của bạn"* là ràng buộc
 ## Tasks / Subtasks
 
 - [x] **Task 1 — Dựng khung Tauri v2 bằng tay, không qua `create-tauri-app`** (AC: 1)
-  - [x] ⛔ **Không chạy `create-tauri-app`, không chạy `npm create tauri-app`, không copy app thăm dò của Story 1.1.** AC1 mang mệnh đề nguyên văn *"không dùng bất kỳ starter template cộng đồng nào"*, và §Ranh giới phạm vi của Story 1.1 đã cấm tường minh việc dùng app thăm dò làm scaffold.
+  - [x] **Không chạy `create-tauri-app`, không chạy `npm create tauri-app`, không copy app thăm dò của Story 1.1.** AC1 mang mệnh đề nguyên văn *"không dùng bất kỳ starter template cộng đồng nào"*, và §Ranh giới phạm vi của Story 1.1 đã cấm tường minh việc dùng app thăm dò làm scaffold.
   - [x] Tạo `package.json` ở gốc repo (npm — máy đã có npm 10.9.7, Node v22.22.2, đủ cho Vite 8).
   - [x] Tạo `src-tauri/Cargo.toml`, `src-tauri/build.rs`, `src-tauri/tauri.conf.json`.
   - [x] **Bố cục crate: `src/lib.rs` (crate root, giữ `pub fn run()`) + `src/main.rs` (chỉ gọi `run()`).** Đây là quy ước của **chính framework Tauri v2**, không phải starter template cộng đồng — và nó là điều kiện để `tests/` có thể `use` được mã sản phẩm (Task 8 cần).
   - [x] Khai `[lib] name = "auratranslate_lib"`, `crate-type = ["staticlib", "cdylib", "rlib"]`. ⚠️ **Khai `[lib]` mà không có `src/lib.rs` là bẫy #2 của Story 1.1** — `cargo metadata` gãy trước cả khi biên dịch. Tạo tệp trước, khai sau.
   - [x] Cửa sổ duy nhất mang label `main` (AD-24 — một cửa sổ OS, ba chế độ). Label này bị `capabilities` tham chiếu ở Task 4.
   - [x] `productName` = `AuraTranslate`. Tên này quyết định tên tiến trình — công thức quan sát mạng ở §Nghiệm thu AC5 `pgrep` theo đúng chuỗi này.
-  - [x] ⛔ **Không** để `identifier` mặc định kiểu `com.tauri.dev` — Tauri từ chối build. Dùng `com.auratranslate.desktop`. ⚠️ **Đừng kết thúc identifier bằng `.app`** — nó đụng phần mở rộng bundle của macOS.
+  - [x] **Không** để `identifier` mặc định kiểu `com.tauri.dev` — Tauri từ chối build. Dùng `com.auratranslate.desktop`. ⚠️ **Đừng kết thúc identifier bằng `.app`** — nó đụng phần mở rộng bundle của macOS.
   - [x] Khối `build` của `tauri.conf.json`: `beforeDevCommand: "npm run dev"` · `beforeBuildCommand: "npm run build"` · `devUrl: "http://localhost:1420"` · `frontendDist: "../dist"`. Bốn trường này sai một cái là `tauri dev` treo hoặc `tauri build` đóng gói một thư mục rỗng — **và bản rỗng vẫn build thành công**, hỏng im lặng.
   - [x] `vite.config.ts` cần bốn thiết lập cho Tauri: `server.port = 1420` + `server.strictPort = true` (nếu Vite tự nhảy cổng thì `devUrl` trỏ sai) · `server.host` để trống cho desktop · `clearScreen: false` (giữ lại lỗi Rust trên terminal) · `envPrefix: ['VITE_', 'TAURI_']`.
 
@@ -99,10 +99,10 @@ So that ***"không ai đọc được tài liệu của bạn"* là ràng buộc
   - [x] ℹ️ `src-tauri/gen/schemas/` do `tauri-build` sinh ra ở lần build đầu. Trước lần build đầu, dòng `"$schema": "../gen/schemas/desktop-schema.json"` trong capabilities **chưa phân giải được** — đó là chuyện của editor tooling, **không phải lỗi**. Đừng gỡ dòng `$schema` để "sửa" nó.
 
 - [x] **Task 4 — Phạm vi filesystem tĩnh theo AD-23, KHÔNG qua plugin `fs`** (AC: 3)
-  - [x] ⛔ **Không cài `tauri-plugin-fs`, `tauri-plugin-sql`, `tauri-plugin-dialog`, `tauri-plugin-store`.** Lý do đầy đủ ở §Vì sao không có plugin `fs` — đọc trước khi làm task này.
+  - [x] **Không cài `tauri-plugin-fs`, `tauri-plugin-sql`, `tauri-plugin-dialog`, `tauri-plugin-store`.** Lý do đầy đủ ở §Vì sao không có plugin `fs` — đọc trước khi làm task này.
   - [x] Tạo `src-tauri/capabilities/main.json` khai `"windows": ["main"]`, permissions **tối thiểu**: `core:default` (cần cho `resolveResource`/`convertFileSrc`) và không gì khác. Không thêm quyền plugin nào.
   - [x] Khai phạm vi tĩnh trong `app.security.assetProtocol.scope` của `tauri.conf.json` — **đúng hai mục, không hơn**: `$RESOURCE/dict/**` và `$RESOURCE/fonts/**`, cả hai **chỉ đọc theo bản chất giao thức**. Khung JSON ở §Phạm vi tĩnh.
-  - [x] ⛔ **Không đưa `$APPDATA` vào `assetProtocol.scope`.** Frontend không có việc gì với `global.db` hay `library-index.db` (AD-1, AD-11). Nửa `$APPDATA/**` của AD-23 là phạm vi của **mã Rust**, xem §Phạm vi tĩnh.
+  - [x] **Không đưa `$APPDATA` vào `assetProtocol.scope`.** Frontend không có việc gì với `global.db` hay `library-index.db` (AD-1, AD-11). Nửa `$APPDATA/**` của AD-23 là phạm vi của **mã Rust**, xem §Phạm vi tĩnh.
   - [x] Bật feature `protocol-asset` trong `Cargo.toml` — **bắt buộc** khi bật `assetProtocol`; `tauri-build` báo lỗi nếu thiếu (bẫy #4 của Story 1.1).
   - [x] Phía Rust: mọi đường dẫn `$APPDATA` lấy qua `app.path().app_data_dir()`, **không viết cứng** `~/Library/Application Support/…`. Đường dẫn viết cứng là chỗ NFR14 (hành vi tương đương hai nền tảng) hỏng đầu tiên.
 
@@ -111,8 +111,8 @@ So that ***"không ai đọc được tài liệu của bạn"* là ràng buộc
   - [x] Khai CSP **tường minh trong `tauri.conf.json`**, không để `null`. `csp: null` là **tắt CSP**, không phải "dùng mặc định" — đây là chỗ AC4 hỏng im lặng dễ nhất.
   - [x] Ghi một chú thích ngay cạnh khối `security` nêu: *`font-src asset:` và `img-src asset:` KHÔNG phải nới CSP theo nghĩa AD-15 cấm — AD-15 cấm origin **từ xa**; asset protocol là tài nguyên cục bộ đã nằm trong bản cài.* Chú thích này tồn tại để một giai đoạn sau không gỡ nhầm.
   - [x] Thử hạ `style-src` xuống `'self'` trước; chỉ giữ `'unsafe-inline'` nếu bản build **release** thật sự cần, và **ghi lý do vào Completion Notes**. Xem §Một quyết định phải cân, không được chép máy móc.
-  - [x] ⛔ Không thêm bất kỳ `devCsp` nào nới ra ngoài `'self'` + kênh HMR cục bộ.
-  - [x] ⛔ Không thêm `http`/`https` client nào ở story này. Ba điểm ra mạng của AD-15 thuộc Story 4.x, 6.7, 10.7 — **không có điểm thứ tư**.
+  - [x] Không thêm bất kỳ `devCsp` nào nới ra ngoài `'self'` + kênh HMR cục bộ.
+  - [x] Không thêm `http`/`https` client nào ở story này. Ba điểm ra mạng của AD-15 thuộc Story 4.x, 6.7, 10.7 — **không có điểm thứ tư**.
 
 - [x] **Task 6 — Cài TRỌN bảng Stack, ghim chính xác** *(Ice chốt 2026-08-03)* (AC: 2)
   - [x] Cài **toàn bộ** các hàng của bảng Stack ngay ở commit này, không đợi story cần tới. Bảng đầy đủ kèm bẫy kênh phát hành ở §Bảng ghim phiên bản.
@@ -161,11 +161,11 @@ So that ***"không ai đọc được tài liệu của bạn"* là ràng buộc
 
 - [x] **Task 11 — AC6: làm được phần nào ở đây, bàn giao phần nào cho 1.3** (AC: 6) *(phạm vi thu hẹp — Ice chốt 2026-08-03, xem subtask đầu)*
   - [ ] ~~Chạy `cargo check --target x86_64-pc-windows-msvc` (target đã cài sẵn trên máy — xác minh 2026-08-03). Đây là bằng chứng **tầng biên dịch**: không có mã phụ thuộc nền tảng lọt vào.~~
-    → ⛔ **KHÔNG LÀM ĐƯỢC TRÊN MÁY NÀY. Ô cố ý để trống, không tick bừa.** Lệnh gãy ở ba crate build **native C** — `zstd-sys` (qua `jieba-rs` → `include-flate`), `libsqlite3-sys` (qua `rusqlite` feature `bundled`), `aws-lc-sys` (qua `reqwest` → `rustls`) — với lỗi `cc-rs: command did not execute successfully … --target=x86_64-pc-windows-msvc`. Máy không có `cl.exe`/`clang-cl`/`lld-link`. **Tiền đề của subtask này sai:** *target Rust đã cài ≠ cross-compile được*; rào nằm ở **tầng biên dịch C**, cùng hình dạng rào WiX/`.msi` mà Story 1.1 đâm phải ở tầng đóng gói.
+    → **KHÔNG LÀM ĐƯỢC TRÊN MÁY NÀY. Ô cố ý để trống, không tick bừa.** Lệnh gãy ở ba crate build **native C** — `zstd-sys` (qua `jieba-rs` → `include-flate`), `libsqlite3-sys` (qua `rusqlite` feature `bundled`), `aws-lc-sys` (qua `reqwest` → `rustls`) — với lỗi `cc-rs: command did not execute successfully … --target=x86_64-pc-windows-msvc`. Máy không có `cl.exe`/`clang-cl`/`lld-link`. **Tiền đề của subtask này sai:** *target Rust đã cài ≠ cross-compile được*; rào nằm ở **tầng biên dịch C**, cùng hình dạng rào WiX/`.msi` mà Story 1.1 đâm phải ở tầng đóng gói.
     → **Bằng chứng tầng biên dịch lấy được thay thế, không phải bằng 0:** `cargo metadata --filter-platform x86_64-pc-windows-msvc` **OK**, cây phụ thuộc phân giải trọn vẹn cho Windows (**346 crate**, gồm `webview2-com` 0.38.2 · `windows-core` 0.61.2 · `windows-sys` 0.59.0/0.61.2) → không phụ thuộc nào là macOS-only; và `grep` xác nhận mã nguồn dự án **không có** `cfg(target_os)`/`cfg(windows)`/`cfg(unix)` lẫn đường dẫn viết cứng.
     → **Ice chốt 2026-08-03: bàn giao sang Story 1.3**, nơi lệnh này chỉ là `cargo check` bình thường trên runner Windows. **Không** thêm `cargo-xwin` — đó là phụ thuộc ngoài bảng Stack và vẫn không thay được bản Windows chạy thật mà AC6 đòi.
   - [x] ⚠️ **Không cố dựng `.msi` trên macOS.** Story 1.1 đã đâm vào đúng rào này: `tauri-cli` từ chối target `msi` vì WiX v3 là chương trình Windows. Rào ở **tầng đóng gói**, không ở tầng biên dịch.
-  - [x] **Bàn giao tường minh sang Story 1.3** — bản build Windows thật và phép so hành vi. `epics.md` Story 1.3 đã mang sẵn AC nhận bàn giao này (*"AC hai nền tảng của Story 1.2 … được cưỡng chế bằng CI"*). Ghi vào Completion Notes rằng AC6 **đóng một nửa ở đây, nửa còn lại ở 1.3** — đúng khuôn Story 1.1 đã bàn giao phép đo `.msi`. ⛔ **Không đánh dấu AC6 là đạt trọn nếu chưa có bản Windows chạy thật.**
+  - [x] **Bàn giao tường minh sang Story 1.3** — bản build Windows thật và phép so hành vi. `epics.md` Story 1.3 đã mang sẵn AC nhận bàn giao này (*"AC hai nền tảng của Story 1.2 … được cưỡng chế bằng CI"*). Ghi vào Completion Notes rằng AC6 **đóng một nửa ở đây, nửa còn lại ở 1.3** — đúng khuôn Story 1.1 đã bàn giao phép đo `.msi`. **Không đánh dấu AC6 là đạt trọn nếu chưa có bản Windows chạy thật.**
 
 ### Review Findings
 
@@ -342,7 +342,7 @@ Kiểm chứng lại trên crates.io và npm ngày **2026-08-03**. **Cả mườ
 | `keyring` | **4.1.6** | **trực tiếp**, KHÔNG qua `tauri-plugin-keyring` (AD-29) |
 | `reqwest` | *mới nhất* → **0.13.4** | bảng Stack ghi *"mới nhất lúc dựng"*; số thật hôm nay là 0.13.4 — **ghi ngược vào bảng** (Task 7) |
 | `serde` / `serde_json` | mới nhất | phụ thuộc mới, chưa có trong bảng — thêm hàng ở Task 7 |
-| `similar` **hoặc** `dissimilar` | ⛔ **không cài** | xem §Một hàng của bảng Stack chưa cài được |
+| `similar` **hoặc** `dissimilar` | **không cài** | xem §Một hàng của bảng Stack chưa cài được |
 
 **Frontend — `package.json`:**
 
@@ -356,7 +356,7 @@ Kiểm chứng lại trên crates.io và npm ngày **2026-08-03**. **Cả mườ
 | `@tauri-apps/api` | 2.11.1 | latest hôm nay |
 | `@vitejs/plugin-vue` | 6.0.8 | peer `vite: ^5 \|\| ^6 \|\| ^7 \|\| ^8` ✓ · `engines.node` giống Vite ✓ |
 | `vue-tsc` | 3.3.9 | peer `typescript >= 5.0.0` ✓ hợp với ghim 5.9.3 |
-| ~~`@tauri-apps/plugin-fs`~~ | ⛔ **không cài** | §Vì sao không có plugin `fs` |
+| ~~`@tauri-apps/plugin-fs`~~ | **không cài** | §Vì sao không có plugin `fs` |
 
 **Toolchain trên máy, xác minh 2026-08-03:** `rustc` 1.97.1 (edition 2024 cần ≥ 1.85 ✓) · `cargo` 1.97.1 · Node v22.22.2 · npm 10.9.7 · target đã cài: `x86_64-apple-darwin`, **`x86_64-pc-windows-msvc`** (Task 11 dùng).
 
@@ -429,7 +429,7 @@ AD-23 khai ba vùng. Chúng **không** cùng một cơ chế cưỡng chế, và
 
 > **Vì sao viết dài chỗ này thay vì chỉ đưa đoạn JSON.** AD-41 đã lập tiền lệ nói thẳng chỗ hàng rào yếu: *"capabilities của Tauri là khai báo tĩnh lúc build… AD-23 được framework cưỡng chế; AD-41 không."* Cùng tinh thần — **giấu chỗ yếu mới là chỗ nguy hiểm**.
 >
-> ⛔ **Đừng viết vào Completion Notes rằng "framework đã cưỡng chế mọi truy cập file".** Viết đúng ba dòng của bảng trên: hai vùng `$RESOURCE` do framework canh, vùng `$APPDATA` do kỷ luật Rust giữ và nghiệm thu bằng vắng mặt bề mặt.
+> **Đừng viết vào Completion Notes rằng "framework đã cưỡng chế mọi truy cập file".** Viết đúng ba dòng của bảng trên: hai vùng `$RESOURCE` do framework canh, vùng `$APPDATA` do kỷ luật Rust giữ và nghiệm thu bằng vắng mặt bề mặt.
 
 ### CSP — ba chỗ AC4 hỏng im lặng
 
@@ -501,7 +501,7 @@ error: invalid value 'msi' for '--bundles [<BUNDLES>...]'
 
 **Bàn giao tường minh, không bỏ im lặng** — đúng khuôn Story 1.1 đã bàn giao hai phép đo `.msi`. Story 1.3 nhận thêm cả hai phép đo dung lượng `.msi` (có font / không font) và chế độ cài WebView2 (`downloadBootstrapper`; `embedBootstrapper` hay `offlineInstaller` **một mình nó** đủ làm `.msi` phình ~150 MB và vỡ NFR6 kể cả khi font bằng 0).
 
-⛔ **Đừng đánh dấu AC6 đạt trọn.** Ghi *"đạt phần biên dịch; phần build và so hành vi bàn giao sang 1.3"*.
+**Đừng đánh dấu AC6 đạt trọn.** Ghi *"đạt phần biên dịch; phần build và so hành vi bàn giao sang 1.3"*.
 
 ### Bẫy đã gặp thật ở Story 1.1 — năm cái, sẽ gặp lại
 
@@ -527,7 +527,7 @@ Chưa có framework test nào trong repo, và **story này không phải chỗ c
 - **Gốc repo là gốc dự án Node.** `package.json`, `index.html`, `vite.config.ts`, `src/` nằm ở gốc; `src-tauri/` là thư mục con. Đây là hình dạng mà Structural Seed vẽ (`src/` và `src-tauri/` ngang hàng) — **đừng** lồng frontend vào một thư mục `frontend/` hay `ui/`.
 - **`dict-manifest.toml` ở gốc repo**, không phải trong `src-tauri/` — Structural Seed đặt nó ngang hàng với `tools/`.
 - **`tools/dict-build/` chưa là crate.** Chưa có `Cargo.toml`, chưa có workspace. Story 1.9 quyết hình dạng của nó. Dựng sẵn một workspace hôm nay là quyết định thay cho story chưa tới.
-- **Quy ước đặt tên** (Consistency Conventions): Rust `snake_case`; Vue component `PascalCase.vue`; khoá chuỗi `vi.json` **phẳng theo khoá chấm** (`lookup.empty_result`). Ánh xạ tên thực thể đã cố định: Tác phẩm → `Work` (⛔ **cấm** `Project`, `Book`, `Novel`, `Document`) · Chương → `Chapter` · Panel Lookup → `LookupPanel` · Smart RAG Injector → `RagInjector` · Hán Việt → `HanViet`. Đuôi `.atproj` là ngoại lệ lịch sử, **không** kéo theo tên thực thể.
+- **Quy ước đặt tên** (Consistency Conventions): Rust `snake_case`; Vue component `PascalCase.vue`; khoá chuỗi `vi.json` **phẳng theo khoá chấm** (`lookup.empty_result`). Ánh xạ tên thực thể đã cố định: Tác phẩm → `Work` (không **cấm** `Project`, `Book`, `Novel`, `Document`) · Chương → `Chapter` · Panel Lookup → `LookupPanel` · Smart RAG Injector → `RagInjector` · Hán Việt → `HanViet`. Đuôi `.atproj` là ngoại lệ lịch sử, **không** kéo theo tên thực thể.
 - **Không chuỗi tiếng Việt nào trong `.rs` hay `.vue`** (NFR16, AD-21) — áp **từ dòng code đầu tiên**, kể cả ở story scaffold này. Doc-comment và chú thích mã là ngoại lệ hiển nhiên (chúng không hiển thị ra giao diện); **văn bản hiển thị** thì không.
 - Bốn tệp quy hoạch có thể phải sửa: `ARCHITECTURE-SPINE.md` (bảng Stack — Task 7) và `.memlog.md` của nó. **Đừng sửa `epics.md`** trừ khi Ice chỉ đạo tường minh — Story 1.1 đã lập tiền lệ: sửa `epics.md` là **ngoài phạm vi mặc định của `dev-story`**.
 
@@ -620,7 +620,7 @@ Cả ba trả **mã thoát khác 0 khi thất bại** — đã kiểm chứng b�
 
 Ghi trước, vì đây là phần một người rà soát cần nhất — và ba trong bốn cái đều **hỏng im lặng**.
 
-1. **⛔ Công thức nghiệm thu AC5 trong §Nghiệm thu AC5 SAI HAI CHỖ, và cả hai đều cho ra số vô nghĩa mà trông như số thật.**
+1. **Công thức nghiệm thu AC5 trong §Nghiệm thu AC5 SAI HAI CHỖ, và cả hai đều cho ra số vô nghĩa mà trông như số thật.**
    - `pgrep -n AuraTranslate` trả **rỗng**. Tên tiến trình lấy từ `package.name` của Cargo (**`auratranslate`**, chữ thường), không từ `productName`; `CFBundleExecutable` = `auratranslate`. `pgrep` phân biệt hoa thường.
    - Nặng hơn: **`lsof -nP -p "$PID" -iTCP -iUDP` là phép HOẶC, không phải VÀ.** lsof trả *"file của PID"* **hợp** *"mọi file mạng của mọi tiến trình"*. Kể cả khi PID đúng, lượt đo đầu cho ra **274 socket, 234 'ra ngoài'** — của Lark, AnyDesk, `ssh`, Affinity… **Phải có cờ `-a`.**
    - Công thức đúng: `PID=$(pgrep -x auratranslate | tail -n1)` rồi `lsof -nP -a -p "$PID" -iTCP -iUDP`. **Story 1.3 phải dùng bản đã sửa** — bản trong story sẽ cho CI đỏ vĩnh viễn vì báo động giả.
@@ -664,7 +664,7 @@ Cả hai bẫy phiên bản mà Dev Notes cảnh báo đều **thật và đã t
 
 #### AC3 — phạm vi filesystem
 
-⛔ **Không viết rằng "framework đã cưỡng chế mọi truy cập file".** Sự thật chia làm hai:
+**Không viết rằng "framework đã cưỡng chế mọi truy cập file".** Sự thật chia làm hai:
 
 | Vùng AD-23 | Cưỡng chế bằng | Bằng chứng |
 |---|---|---|
@@ -713,7 +713,7 @@ Quét crash reporter/analytics trên **cả hai cây**: Rust **343 mục**, npm 
 
 **NFR13 (không tài khoản, không đăng nhập, không đồng bộ đám mây) đóng ở đây, nghiệm thu bằng VẮNG MẶT**: không màn hình đăng nhập, không SDK auth, không client đồng bộ. Đã thêm hẳn một phép kiểm riêng vào `check-deps.mjs` quét `auth0|okta|firebase-auth|supabase|clerk|cognito|dropbox|googleapis|onedrive|icloud` trên cả hai cây → **0 hit**.
 
-#### AC6 — ⛔ KHÔNG đạt trọn, và ít hơn cả mức story dự tính
+#### AC6 — KHÔNG đạt trọn, và ít hơn cả mức story dự tính
 
 Story dự tính *"đóng một nửa ở đây (tầng biên dịch), nửa còn lại ở 1.3"*. **Nửa tầng biên dịch cũng không đóng được.**
 
@@ -739,7 +739,7 @@ Lỗi là `cc-rs: command did not execute successfully … "cc" … --target=x86
 2. Hai phép đo dung lượng `.msi` (có font / không font) + chế độ cài WebView2 *(đã bàn giao từ Story 1.1)*.
 3. **MỚI: chính `cargo check` cho Windows.** Trên runner Windows nó là `cargo check` bình thường. **Ice chốt 2026-08-03: bàn giao, KHÔNG thêm `cargo-xwin`** — công cụ đó nằm ngoài bảng Stack, kéo theo MSVC SDK của Microsoft, và vẫn không thay được bản Windows chạy thật mà AC6 đòi.
 
-**Trạng thái AC6:** ⛔ **không đạt trọn, và đạt ít hơn mức story dự tính.** Ghi đúng như vậy, không ghi "đạt phần biên dịch".
+**Trạng thái AC6:** **không đạt trọn, và đạt ít hơn mức story dự tính.** Ghi đúng như vậy, không ghi "đạt phần biên dịch".
 
 #### Task 9 — font, và UX-DR4
 

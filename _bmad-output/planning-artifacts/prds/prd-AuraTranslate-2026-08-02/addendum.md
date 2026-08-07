@@ -179,7 +179,7 @@ Phương án rẻ nhất cho lập trình viên độc lập khi có kinh phí: 
 | Hạng mục | Vì sao chưa đo | Rủi ro còn lại |
 |---|---|---|
 | **Vòng IPC Tauri thật** + thời gian render frontend | Cần app có cửa sổ, không đo được ở môi trường dòng lệnh | Đã giảm mạnh nhờ payload 679 byte. Nếu Auto-Lookup chậm, nguyên nhân sẽ ở frontend |
-| **Unihan, Thiều Chửu, Cổ hán văn, VietPhrase** trong database | 🟢 **Ba trong bốn đã nạp và đo thật 2026-08-05** *(Unihan · Thiều Chửu · VietPhrase — Story 1.9/1.10)*. **Cổ hán văn** vẫn chưa — chưa có nguồn thô | Ước cũ *"tổng 150–200 MB dựa trên ba nguồn đã có"* **sai gấp đôi**: thật là **343.991.430 byte**. Riêng VietPhrase nở **6,7×** từ nguồn thô *(23.844.586 → 160.083.968 byte)*, ⛔ không phải hệ số 2,67× dùng để ước. **Bài học: hệ số nở phụ thuộc HÌNH DẠNG dữ liệu** — nhiều đầu mục ngắn tốn chỉ mục hơn ít đầu mục dài |
+| **Unihan, Thiều Chửu, Cổ hán văn, VietPhrase** trong database | 🟢 **Ba trong bốn đã nạp và đo thật 2026-08-05** *(Unihan · Thiều Chửu · VietPhrase — Story 1.9/1.10)*. **Cổ hán văn** vẫn chưa — chưa có nguồn thô | Ước cũ *"tổng 150–200 MB dựa trên ba nguồn đã có"* **sai gấp đôi**: thật là **343.991.430 byte**. Riêng VietPhrase nở **6,7×** từ nguồn thô *(23.844.586 → 160.083.968 byte)*, không phải hệ số 2,67× dùng để ước. **Bài học: hệ số nở phụ thuộc HÌNH DẠNG dữ liệu** — nhiều đầu mục ngắn tốn chỉ mục hơn ít đầu mục dài |
 | **`jieba-rs` và `tantivy-stemmers`** chạy thật | Mới xác minh giấy phép và độ trưởng thành | Chưa có số đo chất lượng tách từ / stemming |
 | **Tìm kiếm Library trên thư viện thật** | Chưa có Library | Ngưỡng NFR3, NFR4 còn là `[ASSUMPTION]` |
 

@@ -2,7 +2,7 @@
 // Chế độ 3/3 — đọc lại bản dịch đã hoàn thành, không có công cụ biên tập. Story 1.6 ·
 // AC3 · AC4.
 //
-// ⛔ KHUNG RỖNG có chủ ý. Typography đọc dài, công tắc song ngữ, ba mức chữ, đánh dấu
+// KHUNG RỖNG có chủ ý. Typography đọc dài, công tắc song ngữ, ba mức chữ, đánh dấu
 // "cần sửa" — toàn bộ thuộc Epic 5 (UX-DR46). Một câu trạng thái, đúng một câu.
 //
 // ⚠️ Ngày Epic 5 đổ chữ THẬT vào đây, bề mặt này phải khai token `read-*` của chính nó.
@@ -38,7 +38,7 @@ onActivated(() => {
 }
 
 /* Xem lý do đầy đủ ở `LibraryMode.vue` — `outline: none` chỉ áp cho gốc `tabindex="-1"`,
-   ⛔ không bao giờ áp cho `*:focus` (§Trap 4). */
+   không bao giờ áp cho `*:focus` (§Trap 4). */
 .mode:focus {
   outline: none;
 }

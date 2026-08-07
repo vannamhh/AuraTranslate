@@ -37,7 +37,7 @@
  * 2. **Vế DOM của AC4 KHÔNG kiểm được ở đây.** *"Focus không bao giờ rơi về `body`"* là
  *    hành vi lúc chạy trong một webview thật. Cổng canh vế KHAI BÁO; vế hành vi có một
  *    chốt tự kêu ở `focus.ts` cộng một lượt nghiệm thu tay có bảng, và giới hạn đó ghi ở
- *    `deferred-work.md`. ⛔ Không đánh dấu đạt bằng suy luận.
+ *    `deferred-work.md`. Không đánh dấu đạt bằng suy luận.
  * 3. **Không canh focus ring.** `outline: none` trải toàn ứng dụng vẫn qua được cổng này
  *    và cả `check-tokens.mjs` (§Trap 4 của story). Luật đang do người viết giữ.
  * 4. **Chuỗi ký tự KHÔNG được che** — cố ý, vì Kiểm B phải đọc được nội dung
@@ -49,7 +49,7 @@
  * 5. **Khối `<script>`/`<style>` phải ở ĐẦU DÒNG.** `vueRegions` neo `^` (cờ `m`) vì bản
  *    quét không neo đọc một `<style>` nằm trong mustache hay attribute thành một vùng
  *    thật, rồi nuốt mọi `@click` phía sau. Thẻ không ở đầu dòng được ĐẾM và IN RA ở Kiểm A
- *    — ⛔ không bỏ qua im lặng.
+ *    — không bỏ qua im lặng.
  * 6. **`t(<biến>)` và `:title-key="<biểu thức>"` không đọc tĩnh được.** Kiểm E xác nhận
  *    khoá `t('…')` literal và `title-key="…"` literal; phần còn lại được đếm và in ra.
  *    `PanelFrame` nhận khoá qua prop, nên đường đó chỉ kiểm được ở chỗ GỌI component.
@@ -91,7 +91,7 @@ function abort(what, err) {
 // ═════════════════════════════════════════════════════════════════════════════════
 // MIỄN TRỪ — mỗi mục một câu lý do, và cổng IN RA số tệp đã miễn trừ ở mỗi lượt chạy
 //
-// ⛔ Miễn trừ KHÔNG được cài bằng cách thu hẹp glob quét (cùng luật với `check-i18n.mjs`).
+// Miễn trừ KHÔNG được cài bằng cách thu hẹp glob quét (cùng luật với `check-i18n.mjs`).
 // Hôm nay danh sách RỖNG, và con số 0 in ra có chủ ý: khối này tồn tại để lần đầu ai đó
 // cần một ngoại lệ thì phải viết lý do ra đây, chứ không phải sửa một dấu sao.
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -144,16 +144,16 @@ let tsAll = []
 try {
   vueAll = walk(SRC_ROOT, ['.vue']).sort()
   /**
-   * 🔴 BỐN PHẦN MỞ RỘNG, ⛔ KHÔNG PHẢI MỘT — đóng `deferred-work.md:163` (Story 1.14 · AC11.3).
+   * 🔴 BỐN PHẦN MỞ RỘNG, KHÔNG PHẢI MỘT — đóng `deferred-work.md:163` (Story 1.14 · AC11.3).
    *
    * `endsWith('.ts')` là `false` với `.tsx`, `.mts` VÀ `.cts` — cả ba đều là TypeScript và
-   * cả ba đều `import()` được bằng Node. Hôm nay cây ⛔ không có tệp nào như vậy, nên lỗ
+   * cả ba đều `import()` được bằng Node. Hôm nay cây không có tệp nào như vậy, nên lỗ
    * này chưa từng để lọt gì; nhưng ngày đầu tiên một `.mts` xuất hiện, nó rơi ra khỏi Kiểm
-   * A/B *(quét `dispatch()`)* và khỏi sổ điểm vào focus **mà ⛔ không một dòng nào báo** —
+   * A/B *(quét `dispatch()`)* và khỏi sổ điểm vào focus **mà không một dòng nào báo** —
    * đúng hình dạng im lặng mà mọi cổng ở đây tồn tại để chặn.
    *
-   * ⚠️ `.d.ts` ⛔ KHÔNG bị loại: một tệp khai báo ⛔ không chở `dispatch()` nào, nên nó chỉ
-   * làm quần thể to thêm mà ⛔ không làm phán quyết sai. Loại nó đòi thêm một luật, và một
+   * ⚠️ `.d.ts` KHÔNG bị loại: một tệp khai báo không chở `dispatch()` nào, nên nó chỉ
+   * làm quần thể to thêm mà không làm phán quyết sai. Loại nó đòi thêm một luật, và một
    * luật thừa là một chỗ để sai.
    */
   tsAll = walk(SRC_ROOT, ['.ts', '.tsx', '.mts', '.cts']).sort()
@@ -189,7 +189,7 @@ const tsFiles = keep(tsAll)
  * Số THẬT sau Story 1.14: **11** tệp `.vue` *(`App` · ba chế độ · `PanelFrame` ·
  * `PanelTab` · bốn panel · `WorkspaceDock`)* · **18** tệp `.ts` · **11** command.
  *
- * ⚠️ Nâng sàn ⛔ **KHÔNG** phải "sửa cho vừa". Ba con số trên là quần thể ĐO ĐƯỢC hôm nay
+ * ⚠️ Nâng sàn **KHÔNG** phải "sửa cho vừa". Ba con số trên là quần thể ĐO ĐƯỢC hôm nay
  * và chúng nằm trong comment này chính để lượt nâng sau đối chiếu được — cùng khuôn mà
  * `RS_FLOOR` của `check-i18n.mjs` đã dùng. Sàn thấp hơn số thật một khoảng nhỏ; một lượt
  * quét hỏng (glob sai, `SKIP_DIRS` nuốt nhầm) tụt sâu hơn khoảng đó rất nhiều.
@@ -202,21 +202,21 @@ const tsFiles = keep(tsAll)
 //
 // ⚠️ **Sửa sổ sách 2026-08-07 (code review).** Bản đầu ghi *"trước story: … 8"* cho
 // `dispatch()` và dùng con số đó để biện minh cho một lượt nâng sàn 6 → 10. Đếm lại bằng
-// CHÍNH `DISPATCH_CALL_RE` của cổng: **12 trước, 12 sau** — Story 1.17 ⛔ thêm hay bớt một
-// lời gọi `dispatch()` nào (`git diff` trên `src/**` ⛔ một dòng `dispatch(` nào). Số "8"
+// CHÍNH `DISPATCH_CALL_RE` của cổng: **12 trước, 12 sau** — Story 1.17 không thêm hay bớt một
+// lời gọi `dispatch()` nào (`git diff` trên `src/**` không một dòng `dispatch(` nào). Số "8"
 // là ghi chép cũ chưa cập nhật từ 1.16, và nó đã bị chép lại thành một mệnh đề nhân quả
-// SAI. Sàn 10 vẫn đúng theo số thật 12 nên ⛔ hạ lại; chỉ **lý do** được sửa cho khớp sự
+// SAI. Sàn 10 vẫn đúng theo số thật 12 nên không hạ lại; chỉ **lý do** được sửa cho khớp sự
 // thật — một con số bịa trong đúng tệp mà cả kiến trúc dựa vào để tin các con số là chính
 // thứ rot mà AC13 tồn tại để chặn.
 const VUE_FLOOR = 11 // số THẬT 2026-08-06 (sau Story 1.17): 13 tệp `.vue`
-const TS_FLOOR = 20 // số THẬT 2026-08-06 (sau Story 1.17): 24 tệp `.ts`
+const TS_FLOOR = 21 // số THẬT 2026-08-07 (sau Story 1.18): 26 tệp `.ts`
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
  * hai `layout.preset_*` · bốn `layout.toggle_*` · hai `library.import_*` · ba
  * `source.select_tab_*`/`toggle_han_viet_view` · `lookup.lookup_selection` (Story 1.17).
  * Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà không kiểm gì.
  */
-const COMMAND_FLOOR = 14 // số THẬT 2026-08-06 (sau Story 1.17): 17 command
+const COMMAND_FLOOR = 18 // số THẬT 2026-08-07 (sau Story 1.18): 22 command
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
@@ -235,7 +235,7 @@ const COMMAND_FLOOR = 14 // số THẬT 2026-08-06 (sau Story 1.17): 17 command
 // đánh dấu nó *"không đổi ở Story 1.17"* thay vì nâng — 6/8 = 75%, dưới hẳn doctrine
 // ~81-85% mà **mọi** sàn khác trong cùng lượt tuân theo. Đúng cách 1.16 để lọt và bị bắt.
 const CLICK_FLOOR = 7 // số THẬT 2026-08-07: 8 thuộc tính `@click`
-const DISPATCH_FLOOR = 10 // số THẬT 2026-08-06 (sau Story 1.17): 12 lời gọi `dispatch()`
+const DISPATCH_FLOOR = 11 // số THẬT 2026-08-07 (sau Story 1.18): 13 lời gọi `dispatch()`
 
 if (vueFiles.length < VUE_FLOOR || tsFiles.length < TS_FLOOR) {
   abort(
@@ -479,7 +479,7 @@ function maskTemplate(text, from, to, chars) {
 }
 
 /**
- * Số lần thấy một `<script`/`<style` KHÔNG ở đầu dòng. Đếm và in ra, ⛔ không bỏ im lặng.
+ * Số lần thấy một `<script`/`<style` KHÔNG ở đầu dòng. Đếm và in ra, không bỏ im lặng.
  * Xem lý do ở `vueRegions`.
  */
 let looseBlockTags = 0
@@ -586,7 +586,7 @@ const excerpt = (text, index) =>
 // Bóc thuộc tính trong vùng template — CÓ TRẠNG THÁI
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// ⛔ Không `replace` ngây thơ. Lượt review Story 1.5 đã dựng lại được ba lỗ thủng của một
+// Không `replace` ngây thơ. Lượt review Story 1.5 đã dựng lại được ba lỗ thủng của một
 // bộ quét không trạng thái (char literal chứa `"`, regex literal, `<!--` trong giá trị
 // attribute). Giá trị attribute được phép chứa `>` — `@click="a > b ? f() : g()"` là
 // template Vue hợp lệ — nên chỗ đóng của một giá trị là DẤU NHÁY, không phải `>`.
@@ -663,7 +663,7 @@ const CLICK_ATTR_RE = /^(@|v-on:)click(\.[A-Za-z0-9.\-]+)?$/
  *   - `v-on="{ click: … }"` — dạng object, một handler click hạng nhất;
  *   - `@[evtName]="…"` / `v-on:[evtName]="…"` — tên sự kiện động, không đọc tĩnh được.
  *
- * ⛔ Cả ba KHÔNG thể chứng minh tĩnh là "đúng một `dispatch()`", nên chúng bị TỪ CHỐI
+ * Cả ba KHÔNG thể chứng minh tĩnh là "đúng một `dispatch()`", nên chúng bị TỪ CHỐI
  * chứ không được suy đoán. Đây là chỗ §Task 9 nói *"miễn trừ — nếu có — viết ngay trong
  * script"*: không có miễn trừ nào ở đây, có một lời từ chối.
  */
@@ -748,11 +748,11 @@ for (const p of parsed) {
 
 /**
  * ⚠️ `dispatch(<biến>)` và `` dispatch(`mode.${x}`) `` KHÔNG đọc tĩnh được — nhưng chúng
- * phải được ĐẾM và IN RA, ⛔ không bỏ qua im lặng. Đây đúng là kỷ luật mà bộ quét owner
+ * phải được ĐẾM và IN RA, không bỏ qua im lặng. Đây đúng là kỷ luật mà bộ quét owner
  * của Kiểm E đã áp cho `nonLiteralOwnerCalls`; Kiểm B thiếu nó, nên một lượt chuyển sang
  * id động làm cả phép kiểm này rỗng đi mà không ai thấy.
  *
- * ⛔ Không FAIL: một `dispatch` id động là hợp lệ về nguyên tắc (Story 1.21 sẽ gọi từ màn
+ * Không FAIL: một `dispatch` id động là hợp lệ về nguyên tắc (Story 1.21 sẽ gọi từ màn
  * hình gán phím). Lưới cho ca đó là `dispatch()` NÉM lúc chạy với id chưa đăng ký.
  */
 const DISPATCH_ANY_RE = /\bdispatch\(\s*(['"`]?)/g
@@ -773,7 +773,7 @@ console.log('\nKiểm C — hành vi thật của `src/commands/registry.ts` (AC
 // ⚠️ Đường đi này tồn tại nhờ Node ≥ 22.18 bóc kiểu TypeScript mặc định — và đó chính là
 // lý do `registry.ts` KHÔNG được `import` gì (doc-comment ở đầu tệp đó ghi đầy đủ).
 //
-// ⛔ `import()` thất bại ⇒ `abort()` và exit 1, KHÔNG phải bỏ qua rồi exit 0.
+// `import()` thất bại ⇒ `abort()` và exit 1, KHÔNG phải bỏ qua rồi exit 0.
 
 if (!existsSync(REGISTRY_TS)) {
   abort(`\`${posix(REGISTRY_TS)}\``, new Error('Tệp không tồn tại — Kiểm C KHÔNG chạy được.'))
@@ -788,8 +788,8 @@ const loadTs = async (path, which) => {
       new Error(
         `${err?.message || err}\n\n` +
           `Node đang chạy: ${process.version}. Phép kiểm này cần Node ≥ 22.18 (bóc kiểu ` +
-          'TypeScript mặc định), và tệp phải là cú pháp "erasable-only": ⛔ không `enum`, ' +
-          '⛔ không `namespace`, ⛔ không parameter property, ⛔ không `import` một module ' +
+          'TypeScript mặc định), và tệp phải là cú pháp "erasable-only": không `enum`, ' +
+          'không `namespace`, không parameter property, không `import` một module ' +
           'cần bundler (`.vue`, `.json`, `vue`).',
       ),
     )
@@ -895,7 +895,7 @@ const expectEq = (what, got, want) => {
   expectThrow('`labelKey` rỗng ⇒ ném', () => {
     createRegistry().register({ id: 'a.b', labelKey: '  ', run: noop })
   })
-  expectThrow('thiếu `run` ⇒ ném (⛔ không đăng ký command rỗng cho đủ số)', () => {
+  expectThrow('thiếu `run` ⇒ ném (không đăng ký command rỗng cho đủ số)', () => {
     createRegistry().register({ id: 'a.b', labelKey: 'command.a.b' })
   })
   expectThrow('`dispatch` một id LẠ ⇒ ném (AC1, nửa cưỡng chế lúc chạy)', () => {
@@ -954,7 +954,7 @@ const expectEq = (what, got, want) => {
 // owner rỗng ném · `enter` dời focus tường minh · vòng xoay đúng thứ tự). Nó KHÔNG
 // nghiệm thu mệnh đề *"`document.activeElement` không bao giờ là `body`"* — đó là hành vi
 // của một webview thật, và chốt tự kêu ở `focus.ts` cộng nghiệm thu tay là thứ canh nó.
-// ⛔ Không đọc khối này thành "AC4 đã đạt".
+// Không đọc khối này thành "AC4 đã đạt".
 const FOCUS_TS = join(SRC_ROOT, 'commands', 'focus.ts')
 if (!existsSync(FOCUS_TS)) {
   abort(`\`${posix(FOCUS_TS)}\``, new Error('Tệp không tồn tại — Kiểm C KHÔNG chạy được.'))
@@ -1032,7 +1032,7 @@ console.log('\nKiểm D — HAI NỀN TẢNG, cùng một hợp âm (AC3, NFR14)
 // 🔴 ĐÂY LÀ PHÉP KIỂM DUY NHẤT TRONG TOÀN BỘ DỰ ÁN ĐỨNG GIỮA §Trap 1 VÀ NGƯỜI DÙNG
 // WINDOWS. `⌘1` là ký hiệu macOS của một phím TRỪU TƯỢNG; trên Windows nó là `Ctrl+1`.
 // Một `if (e.metaKey && e.key === '1')` đi qua CẢ HAI nền tảng của CI (không test nào
-// chạm tầng bàn phím) rồi hỏng ở tay người dùng. ⛔ Đừng rút gọn xuống một ca.
+// chạm tầng bàn phím) rồi hỏng ở tay người dùng. Đừng rút gọn xuống một ca.
 
 if (!existsSync(KEYS_TS)) {
   abort(`\`${posix(KEYS_TS)}\``, new Error('Tệp không tồn tại — Kiểm D KHÔNG chạy được.'))
@@ -1098,7 +1098,7 @@ let dBad = 0
   check('[Windows] khớp rồi thì `preventDefault()` đã gọi', b.prevented(), 1)
   const c = ev({ metaKey: true })
   check('[Windows] `Mod+1` KHÔNG khớp khi `metaKey`', win.handle(c.event), false)
-  check('[Windows] không khớp thì ⛔ KHÔNG đụng vào event', c.prevented(), 0)
+  check('[Windows] không khớp thì KHÔNG đụng vào event', c.prevented(), 0)
 
   check('cả hai nền tảng cùng dispatch đúng một id', fired.join('|'), 'mode.library|mode.library')
 
@@ -1151,7 +1151,7 @@ let dBad = 0
   const beforeIme = fired.length
   const ime = ev({ metaKey: true, isComposing: true })
   check('`isComposing: true` ⇒ KHÔNG khớp', mac.handle(ime.event), false)
-  check('`isComposing: true` ⇒ ⛔ KHÔNG đụng vào event', ime.prevented(), 0)
+  check('`isComposing: true` ⇒ KHÔNG đụng vào event', ime.prevented(), 0)
   check('`isComposing: true` ⇒ không dispatch', fired.length, beforeIme)
 
   // 🔴 Luật vùng gõ hỏi phím bổ trợ CHÍNH (`⌘`/`Ctrl`), không hỏi "có bổ trợ nào không".
@@ -1604,6 +1604,121 @@ if (bBad === 0) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm F — BỐN panel đăng ký hợp đồng vùng chọn (Story 1.18, AC2)')
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 VÌ SAO AC2 ĐÒI MỘT CỔNG, KHÔNG CHỈ ĐÒI MÃ
+//
+// `epics.md:1762` nói Auto-Lookup gắn vào *"một hợp đồng vùng chọn dùng chung cho **mọi**
+// panel văn bản"*, và AI Translation + Editor *"nhận được cùng hành vi khi chúng có nội
+// dung ở các epic sau, **không cần cài lại**"*. Một cài đặt chỉ chạy cho `SourcePanel`
+// **đạt AC1 và trượt AC2**.
+//
+// Và khác biệt đó không để lại **triệu chứng nào**: Panel AI Translation và Editor hôm nay không
+// có chữ, nên một lượt đăng ký thiếu ở đó im lặng tuyệt đối cho tới **Epic 2 / Epic 4** —
+// hai epic sau, và tới lúc đó không ai nhớ AC này tồn tại. Đây chính xác là lớp lỗi mà AD-34
+// §2 dựng sổ `FOCUS_OWNERS` đối chiếu HAI CHIỀU để chặn; cổng này áp cùng khuôn.
+//
+// ⚠️ **Đếm lời gọi LITERAL** — cùng luật `owner`/`status-key` của Kiểm E: cổng đọc TĨNH,
+// nên một `useSelectionSurface(el, role)` với `role` là biến bị đếm rồi **bỏ qua**, tức
+// mất lưới. Vai phải là một chuỗi viết thẳng.
+
+/** Bốn panel của Workspace — ⚠️ chép từ `src/layout/workspaceLayout.ts`, cùng khuôn `PANEL_SUFFIXES`. */
+const SELECTION_PANEL_FILES = [
+  'src/panels/SourcePanel.vue',
+  'src/panels/LookupPanel.vue',
+  'src/panels/AiTranslationPanel.vue',
+  'src/panels/EditorPanel.vue',
+]
+
+/**
+ * Sàn = 5, không 4 — lượt review 2026-08-07 bắt được rằng sàn cũ (4, đúng số panel trong
+ * `SELECTION_PANEL_FILES`) không canh được gì cho bề mặt THỨ NĂM: `SourceHanViet.vue` cũng
+ * gọi `useSelectionSurface` (AC11/AC12), nhưng nó KHÔNG nằm trong bốn panel Workspace nên
+ * không được kiểm ① canh riêng. Với sàn cũ, xoá đúng lời gọi đó vẫn để lại 4 lời gọi —
+ * ĐÚNG sàn, cổng xanh, và mất lưới cho toàn bộ đường bàn phím Hán Việt mà AC11/AC12 vừa
+ * đóng. Sàn = SỐ THẬT hôm nay (AC13); Story 1.20/3.4 sẽ THÊM bề mặt, không bớt.
+ */
+const SELECTION_SURFACE_FLOOR = 5
+
+const SURFACE_CALL_RE = /useSelectionSurface\s*\(\s*[^,)]+,\s*'(source|display)'/g
+
+/**
+ * MỌI lời gọi, bất kể hình dạng đối số.
+ *
+ * ⚠️ Số *"truyền vai bằng biến"* tính bằng **phép TRỪ**, không bằng một regex phủ định thứ hai:
+ * bản đầu viết `,\s*(?!['"])` và nó khớp **mọi** lời gọi — `\s*` lùi được về rỗng, nên phủ
+ * định nhìn vào dấu **cách** thay vì vào dấu nháy, và cổng báo cả 5 lời gọi literal là
+ * phi-literal (bắt lúc chạy cổng, 2026-08-07). Một phép trừ không có chỗ để trôi như vậy.
+ */
+const SURFACE_ANY_CALL_RE = /useSelectionSurface\s*\(/g
+
+let fBad = 0
+const surfaceCalls = []
+let anySurfaceCalls = 0
+
+for (const p of parsed) {
+  if (!p.file.endsWith('.vue')) continue
+  let m
+  const re = new RegExp(SURFACE_CALL_RE.source, 'g')
+  while ((m = re.exec(p.masked ?? p.text))) {
+    surfaceCalls.push({ file: posix(p.file), role: m[1], index: m.index })
+  }
+  const any = new RegExp(SURFACE_ANY_CALL_RE.source, 'g')
+  while ((m = any.exec(p.masked ?? p.text))) anySurfaceCalls += 1
+}
+const nonLiteralSurfaceCalls = anySurfaceCalls - surfaceCalls.length
+
+// ① Mỗi panel trong sổ phải có ĐÚNG một lời gọi — chiều thứ nhất.
+for (const want of SELECTION_PANEL_FILES) {
+  const hits = surfaceCalls.filter((c) => c.file.endsWith(want))
+  if (hits.length === 0) {
+    fail(`${want} — không đăng ký hợp đồng vùng chọn (AC2)`)
+    detail('Thêm `useSelectionSurface(ref, \'source\')` — hoặc `\'display\'` nếu bề mặt này CỐ Ý')
+    detail('không được là nguồn (Panel Lookup, Bẫy 1). Một panel văn bản đứng ngoài sổ mà không ai')
+    detail('giải thích là đúng thứ AC2 tồn tại để chặn.')
+    fBad += 1
+  } else if (hits.length > 1) {
+    fail(`${want} — ${hits.length} lời gọi đăng ký, phải đúng MỘT`)
+    fBad += 1
+  }
+}
+
+// ② Panel Lookup phải mang vai `display`, không `source` — AC3 / Bẫy 1.
+const lookupCall = surfaceCalls.find((c) => c.file.endsWith('src/panels/LookupPanel.vue'))
+if (lookupCall !== undefined && lookupCall.role !== 'display') {
+  fail(`src/panels/LookupPanel.vue — đăng ký vai \`${lookupCall.role}\`, phải là \`display\``)
+  detail('🔴 Bẫy 1 — VÒNG TỰ THAY THẾ. Panel Lookup tự nó chứa chữ (nghĩa, ví dụ, trích dẫn),')
+  detail('nên làm nguồn nghĩa là bôi đen một nghĩa để đọc kỹ sẽ phát một lượt tra mới THAY')
+  detail('CHÍNH đoạn đang đọc, cộng một hiệu ứng, cộng một lượt cuộn về đầu. AC3.')
+  fBad += 1
+}
+
+// ③ Sàn NỘI DUNG — cùng lý lẽ `CLICK_FLOOR`: `fBad === 0` trên một danh sách rỗng là một
+//    lượt xanh vô nghĩa (một lượt đổi tên hàm làm regex không khớp gì nữa).
+if (surfaceCalls.length < SELECTION_SURFACE_FLOOR) {
+  fail(`lời gọi đăng ký vùng chọn quét được — ${surfaceCalls.length} (sàn ${SELECTION_SURFACE_FLOOR})`)
+  detail('Sàn này canh chính CỔNG: nếu regex thôi khớp thì mọi phép kiểm trên đều xanh rỗng.')
+  fBad += 1
+}
+
+if (nonLiteralSurfaceCalls > 0) {
+  console.log(
+    `\x1b[33m⚠️  ${nonLiteralSurfaceCalls} lời gọi \`useSelectionSurface\` truyền vai bằng BIẾN\x1b[0m — ` +
+      'cổng đọc tĩnh nên chúng bị đếm rồi BỎ QUA. Viết vai thành chuỗi literal.',
+  )
+}
+
+if (fBad === 0) {
+  pass(
+    `${surfaceCalls.length} bề mặt đăng ký hợp đồng vùng chọn trên ${SELECTION_PANEL_FILES.length} panel ` +
+      `(sàn ${SELECTION_SURFACE_FLOOR}) — ` +
+      `${surfaceCalls.filter((c) => c.role === 'source').length} nguồn · ` +
+      `${surfaceCalls.filter((c) => c.role === 'display').length} hiển thị`,
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 console.log('')
 if (skippedLinks.length) {
   console.log(`\x1b[33mĐã BỎ QUA ${skippedLinks.length} symlink:\x1b[0m ${skippedLinks.join(' · ')}`)
@@ -1631,7 +1746,7 @@ console.log('  1. Kiểm A chỉ canh `@click`. `@keydown`/`@input`/`@submit` KH
 console.log('     ngày một `@keydown` mang thao tác thật xuất hiện, luật phải được xem lại.')
 console.log('  2. Vế DOM của AC4 (*"focus không rơi về `body`"*) KHÔNG kiểm được ở đây — nó là')
 console.log('     hành vi lúc chạy trong một webview thật. Chốt tự kêu ở `src/commands/focus.ts`')
-console.log('     cộng nghiệm thu tay; giới hạn ghi ở `deferred-work.md`. ⛔ Không đánh dấu đạt.')
+console.log('     cộng nghiệm thu tay; giới hạn ghi ở `deferred-work.md`. Không đánh dấu đạt.')
 console.log('  3. Cổng KHÔNG canh focus ring. Một `*:focus { outline: none }` phá NFR17 mà vẫn')
 console.log('     qua được cả cổng này lẫn `check-tokens.mjs` (§Trap 4 của Story 1.6).')
 process.exit(0)

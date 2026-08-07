@@ -2,7 +2,7 @@
 //! `dict-thieu-chuu.db` + `dict-vietphrase.db`) từ FIXTURE thật vào một thư mục tạm qua
 //! `build::run_all`, rồi kiểm AC1/AC2/AC3/AC4 trên kết quả THẬT.
 //!
-//! ⚠️ Test parity `sqlite_master` chạy trên FIXTURE, ⛔ không trên tệp thật — phải xanh
+//! ⚠️ Test parity `sqlite_master` chạy trên FIXTURE, không trên tệp thật — phải xanh
 //! trên runner CI không có byte dữ liệu từ điển nào (Testing standards).
 
 use std::path::PathBuf;
@@ -43,7 +43,7 @@ fn user_version(conn: &Connection) -> i64 {
 
 /// 🔴 AC4 — vì đường tra cứu chưa tồn tại (1.11/1.13), AC này nghiệm thu ở TẦNG CẤU
 /// TRÚC: `sqlite_master` (kèm `PRAGMA user_version`) của cả ba tệp phải GIỐNG NHAU TỪNG
-/// KÝ TỰ. ⛔ Không so `dict_meta` — `built_at` khác nhau theo thiết kế.
+/// KÝ TỰ. Không so `dict_meta` — `built_at` khác nhau theo thiết kế.
 #[test]
 fn sqlite_master_is_byte_identical_across_all_outputs() {
     let (_dir, out_dir, report) = build_all_fixture_dbs();
@@ -188,7 +188,7 @@ fn thieu_chuu_attribution_names_the_author_in_the_built_file() {
 }
 
 /// AC3 đối chứng âm — lỗi gán nhãn dễ mắc nhất của story: `vietphrase` phải là `unknown`,
-/// ⛔ KHÔNG `public-domain`, trên DỮ LIỆU THẬT vừa dựng.
+/// KHÔNG `public-domain`, trên DỮ LIỆU THẬT vừa dựng.
 #[test]
 fn vietphrase_is_unknown_not_public_domain_in_the_built_file() {
     let (_dir, out_dir, report) = build_all_fixture_dbs();
@@ -204,7 +204,7 @@ fn vietphrase_is_unknown_not_public_domain_in_the_built_file() {
         .unwrap();
     assert_eq!(license_kind, "unknown");
     assert_ne!(license_kind, "public-domain");
-    // 🔴 AC3 chốt cứng `NULL`, ⛔ không phải chuỗi rỗng. Mệnh đề `||` cũ chấp nhận cả
+    // 🔴 AC3 chốt cứng `NULL`, không phải chuỗi rỗng. Mệnh đề `||` cũ chấp nhận cả
     // hai, tức nó xanh cho đúng giá trị mà AC cấm (Review Findings 1.10).
     assert_eq!(license_id, None, "AC3: license_id của vietphrase phải là NULL");
 }
@@ -246,7 +246,7 @@ fn every_layer_uses_delete_journal_mode_with_no_wal_artifacts() {
 
 /// 🔴 Bẫy 3 cưỡng chế ở tầng dữ liệu: đường dựng lớp gỡ rời không bao giờ mở
 /// `dict-core.db` — nếu nó có, một chữ Hán trùng giữa base và lớp gỡ rời sẽ cho ra bản
-/// ghi RIÊNG ở mỗi tệp, ⛔ không bị lọc trùng xuyên tệp (AD-19: không hợp nhất nguồn).
+/// ghi RIÊNG ở mỗi tệp, không bị lọc trùng xuyên tệp (AD-19: không hợp nhất nguồn).
 #[test]
 fn a_headword_shared_with_base_still_gets_its_own_row_in_the_detachable_file() {
     let (_dir, out_dir, report) = build_all_fixture_dbs();
@@ -266,9 +266,9 @@ fn a_headword_shared_with_base_still_gets_its_own_row_in_the_detachable_file() {
     assert!(tc_count > 0, "'山' must have its own row in dict-thieu-chuu.db, not be filtered out by a base lookup");
 }
 
-/// 🔴 §Bẫy 7 — `--layer all` hỏng khi BẤT KỲ lớp nào thiếu nguồn thô. ⛔ Không có chế độ
+/// 🔴 §Bẫy 7 — `--layer all` hỏng khi BẤT KỲ lớp nào thiếu nguồn thô. Không có chế độ
 /// "bỏ qua lớp thiếu nguồn": nó sống sót vào lúc phát hành và cho ra một bản cài thiếu
-/// một lớp với lượt build XANH. Lời hứa này trước đây ⛔ không có test nào.
+/// một lớp với lượt build XANH. Lời hứa này trước đây không có test nào.
 #[test]
 fn run_all_fails_when_any_layer_is_missing_its_raw_source() {
     let dir = tempfile::tempdir().unwrap();
@@ -282,8 +282,8 @@ fn run_all_fails_when_any_layer_is_missing_its_raw_source() {
     assert!(msg.contains("vietphrase"), "thông điệp lỗi phải nêu đích danh lớp thiếu: {msg}");
 }
 
-/// 🔴 Một lượt `--layer all` hỏng giữa chừng ⛔ KHÔNG được đụng tới tệp `.db` của lượt
-/// trước. `prepare_fresh_output` xoá tệp đích TRƯỚC khi mở nguồn thô, nên nếu ⛔ không
+/// 🔴 Một lượt `--layer all` hỏng giữa chừng KHÔNG được đụng tới tệp `.db` của lượt
+/// trước. `prepare_fresh_output` xoá tệp đích TRƯỚC khi mở nguồn thô, nên nếu không
 /// kiểm nguồn từ đầu, out-dir còn lại một bộ KHÔNG đầy đủ và trộn thế hệ — trong khi
 /// §Quyết định #6 đòi ba tệp thuộc MỘT thế hệ dữ liệu.
 #[test]
@@ -311,14 +311,14 @@ fn a_failed_run_all_leaves_the_previous_output_untouched() {
     }
     assert!(
         !out_dir.join(format!("{}.tmp", build::output_file_name("vietphrase"))).exists(),
-        "một lượt hỏng ⛔ không được để lại tệp .tmp mồ côi"
+        "một lượt hỏng không được để lại tệp .tmp mồ côi"
     );
 }
 
 /// 🔴 AD-25 — cùng một cây nguồn thô ⇒ cùng một SHA-256. Trước đây `dict_meta('built_at')`
 /// lấy từ `strftime('now')` với độ phân giải mili-giây, nên hai lượt build liên tiếp từ
 /// CÙNG một fixture ra hai tệp khác byte: mọi giá trị `sha256` trong `dict-manifest.toml`
-/// chỉ đúng cho đúng một lượt chạy, và ⛔ không cổng nào bắt được.
+/// chỉ đúng cho đúng một lượt chạy, và không cổng nào bắt được.
 #[test]
 fn two_builds_from_the_same_raw_tree_produce_identical_checksums() {
     let raw = fixtures_raw_dir();

@@ -3,30 +3,30 @@ import App from './App.vue'
 import './tokens/reset.css'
 // ── Story 1.14 — dockview: MỘT lượt import CSS cho cả ứng dụng ──────────────────────
 //
-// ⚠️ Import ở đây chứ ⛔ không trong `WorkspaceDock.vue`: một `<style>` scoped của Vue
-// ⛔ không chở được stylesheet của thư viện, và `@import` trong tệp scoped sẽ nhân bản
+// ⚠️ Import ở đây chứ không trong `WorkspaceDock.vue`: một `<style>` scoped của Vue
+// không chở được stylesheet của thư viện, và `@import` trong tệp scoped sẽ nhân bản
 // theo mỗi lượt dựng component. `main.ts` là chỗ `reset.css` đã đi qua — cùng cửa.
 //
 // 🔴 Thứ tự BẮT BUỘC: `dockview.css` TRƯỚC `dockview-theme.css`. Tệp thư viện khai giá
 // trị mặc định cho 113 biến `--dv-*`; lớp `.dockview-theme-aura` của ta ghi đè chúng bằng
 // token. Đảo thứ tự thì với những khai báo cùng độ đặc hiệu, bản của thư viện thắng.
 //
-// ⚠️ CSP `style-src 'self'` ⛔ KHÔNG được nới, và ⛔ không cần: đo thật trên
-// `dist/styles/dockview.css` (3.436 dòng) — ⛔ không `@import`, ⛔ không `url(...)`,
-// ⛔ không `@font-face`. Vite gộp nó thành một tệp CSS cùng gốc, hợp lệ. Chỗ DUY NHẤT
+// ⚠️ CSP `style-src 'self'` KHÔNG được nới, và không cần: đo thật trên
+// `dist/styles/dockview.css` (3.436 dòng) — không `@import`, không `url(...)`,
+// không `@font-face`. Vite gộp nó thành một tệp CSS cùng gốc, hợp lệ. Chỗ DUY NHẤT
 // dockview tạo `<style>` lúc chạy là đường `addPopoutGroup`, và `scripts/check-layout.mjs`
 // cấm đường đó (AC1).
 import 'dockview-vue/dist/styles/dockview.css'
 import './layout/dockview-theme.css'
 import { applyTheme, DEFAULT_THEME, isTheme } from './tokens'
 import { loadFonts } from './tokens/fonts'
-import { attachKeyboard, installCommands } from './commands'
+import { attachKeyboard, dispatch, installCommands } from './commands'
 import type { ModeId } from './commands'
 import { currentMode, setMode } from './modes/modeState'
 import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 // ── Story 1.14 — ba cổng của tầng bố cục ────────────────────────────────────────────
 //
-// ⚠️ Import ở ĐÂY, ⛔ không ở `src/commands/index.ts`: tệp đó phải nạp được bằng Node thuần
+// ⚠️ Import ở ĐÂY, không ở `src/commands/index.ts`: tệp đó phải nạp được bằng Node thuần
 // để Kiểm C/D/E của `npm run check:commands` chạy trên chính bộ command của sản phẩm. Cùng
 // cửa mà `setMode` và `bindings` đã đi qua từ Story 1.6 / 1.8.
 import { applyPreset, panelRing, togglePanel } from './layout/dockController'
@@ -46,6 +46,17 @@ import { selectSourceTab, toggleHanVietView } from './panels/sourcePanelState'
 // ⚠️ Cùng lý do và cùng cửa với `sourcePanelState.ts`: `lookupPanelState.ts` dùng
 // `ref`/`computed` của Vue.
 import { runLookup } from './panels/lookupPanelState'
+// ── Story 1.18 — hợp đồng vùng chọn dùng chung ──────────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `lookupPanelState.ts`: `selectionContract.ts` dùng
+// `watch`/`onBeforeUnmount` của Vue và chạm DOM.
+import {
+  attachSelectionWatcher,
+  currentSelectionText,
+  focusSelectionSource,
+  selectionCommands,
+} from './panels/selectionContract'
+import { installTimingProbe, markDispatch } from './panels/lookupTiming'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -54,7 +65,7 @@ import { runLookup } from './panels/lookupPanelState'
  * hợp âm ngăn nhau bằng dấu phẩy, khoảng trắng thừa bị cắt, phần rỗng bị bỏ.
  *
  * 🔴 Nên một giá trị RỖNG trên đĩa nghĩa là *"thao tác này cố ý không có phím"* — một
- * phát biểu hợp lệ mà Story 1.21 phải lưu được — chứ ⛔ không phải *"chưa ai đặt gì"*.
+ * phát biểu hợp lệ mà Story 1.21 phải lưu được — chứ không phải *"chưa ai đặt gì"*.
  * Hai thứ đó phân biệt nhau ở chỗ khoá **có mặt hay không** trong `shortcuts`, không ở
  * giá trị của nó.
  */
@@ -83,7 +94,7 @@ function toBindings(
  * nhịp sau là một cú nháy TRẮNG vào mặt người đang dùng theme tối — đúng lớp lỗi mà khối
  * *"THỨ TỰ BẮT BUỘC"* số 1 tồn tại để chặn, chỉ khác nguồn.
  *
- * ⛔ `loadBootstrapConfig()` **không bao giờ ném** (xem `src/config/bootstrap.ts`), nên
+ * `loadBootstrapConfig()` **không bao giờ ném** (xem `src/config/bootstrap.ts`), nên
  * không có đường nào để lượt khởi động chết ở dòng đầu tiên.
  *
  * 🔴 **`loadFonts()` khởi động TRƯỚC `await loadBootstrapConfig()`, không phải sau** — lượt
@@ -98,7 +109,7 @@ async function boot(): Promise<void> {
   // trắng vào lúc khởi động. Chữ hiện bằng font hệ thống trong vài trăm mili-giây đầu rồi
   // đổi — `display: 'swap'` ở `fonts.ts` là thứ quyết định đó.
   //
-  // ⛔ Không `await` ở đây, và cũng không nuốt lỗi im lặng: `loadFonts()` đã tự bắt mọi
+  // Không `await` ở đây, và cũng không nuốt lỗi im lặng: `loadFonts()` đã tự bắt mọi
   // lỗi và trả về báo cáo, nên `catch` dưới đây chỉ còn bắt được lỗi của chính đường dẫn.
   void loadFonts()
     .then((results) => {
@@ -120,7 +131,7 @@ async function boot(): Promise<void> {
   // Theme nay đến TỪ ĐĨA (Story 1.8, AC5). `DEFAULT_THEME` là đường lui khi chưa đọc được
   // gì — nền giấy, đúng hướng "Bàn viết".
   //
-  // ⚠️ `isTheme` ở đây chứ ⛔ không phải một `as Theme`: giá trị vừa vượt ranh giới IPC từ
+  // ⚠️ `isTheme` ở đây chứ không phải một `as Theme`: giá trị vừa vượt ranh giới IPC từ
   // một tệp trên đĩa, tức đúng loại dữ liệu mà kiểu TypeScript không nói được gì về nó.
   // `applyTheme` tự chốt lần nữa lúc chạy (`tokens/index.ts:72`), và hai lớp chốt ở đây rẻ
   // hơn một `documentElement` không có token nào.
@@ -133,7 +144,7 @@ async function boot(): Promise<void> {
   // trong khoảng giữa hai lệnh sẽ ném — hẹp, nhưng có thật, và đúng loại lỗi chỉ lộ ra
   // trên máy chậm hơn máy dev.
   //
-  // ⛔ Đăng ký ở đây chứ KHÔNG ở trong `App.vue`: một lượt HMR dựng lại component sẽ gọi
+  // Đăng ký ở đây chứ KHÔNG ở trong `App.vue`: một lượt HMR dựng lại component sẽ gọi
   // `installCommands()` lần thứ hai, và `register()` ném vì id trùng — đúng hành vi AC2,
   // sai chỗ để gặp nó.
   //
@@ -158,15 +169,15 @@ async function boot(): Promise<void> {
   // một registry nháp trước, và một xung đột ⇒ rơi về hợp âm mặc định thay vì ném
   // (`installCommands` §Bẫy 5). Khối `try` này vẫn ở lại — nó canh phần CÒN LẠI.
   //
-  // ⛔ Không nuốt lỗi: vẫn `throw` lại sau khi đã vẽ. Mục đích của khối này là làm cho lần
+  // Không nuốt lỗi: vẫn `throw` lại sau khi đã vẽ. Mục đích của khối này là làm cho lần
   // ném đó NHÌN THẤY ĐƯỢC, không phải làm cho nó biến mất.
   try {
     installCommands({
       setMode,
       bindings: config === null ? undefined : toBindings(config.shortcuts),
-      // ⚠️ Ba hàm này TRA CỨU cái dock đang sống tại thời điểm CHẠY — chúng ⛔ không ôm một
+      // ⚠️ Ba hàm này TRA CỨU cái dock đang sống tại thời điểm CHẠY — chúng không ôm một
       // `DockviewApi` nào ở đây, vì lúc này chưa `mount()` nên chưa có cái nào tồn tại.
-      // ⛔ Đừng "đơn giản hoá" bằng cách truyền thẳng `api`: xem doc-comment đầu
+      // Đừng "đơn giản hoá" bằng cách truyền thẳng `api`: xem doc-comment đầu
       // `src/layout/dockController.ts`.
       applyPreset,
       togglePanel,
@@ -176,10 +187,23 @@ async function boot(): Promise<void> {
       selectSourceTab,
       toggleHanVietView,
       runLookup,
-      // 🔴 Quyết định #1a (Story 1.17) — dep TỐI THIỂU, ⛔ không hợp đồng vùng chọn dùng
-      // chung của Story 1.18. `window.getSelection()` là API trình duyệt chuẩn, ⛔ không
-      // cần một module riêng — Story 1.18 thay ĐÚNG dep này bằng hợp đồng thật.
-      currentSelection: () => window.getSelection()?.toString() ?? '',
+      // 🔴 STORY 1.18 — LƯỢT GỠ DEP TỐI THIỂU MÀ STORY 1.17 ĐÃ HẸN.
+      //
+      // Bản 1.17 là `() => window.getSelection()?.toString() ?? ''` — một dep TỐI THIỂU cố
+      // ý, kèm lời hứa ghi thành chữ ở đây và ở `commands/index.ts` rằng 1.18 sẽ thay đúng
+      // dòng này. Nay nó được thay, và lời hứa không ở lại quá hạn.
+      //
+      // Khác biệt thật: bản cũ trả về **mọi** vùng chọn trong tài liệu — kể cả trong Panel
+      // Lookup (vòng tự thay thế, Bẫy 1) và trong ô nhập của Library (`:635`). Hợp đồng chỉ
+      // trả về vùng chọn thuộc một bề mặt đã **đăng ký làm nguồn** (AC3), và nó biết cách
+      // lấy **ký tự Hán nguồn** từ tab Hán Việt kiểu chuyển đổi.
+      currentSelection: currentSelectionText,
+      // Story 1.18 · AC11 — bôi đen bằng bàn phím, đóng `deferred-work.md:608`.
+      focusSelectionSource,
+      extendSelectionLeft: selectionCommands.extendLeft,
+      extendSelectionRight: selectionCommands.extendRight,
+      extendSelectionWordLeft: selectionCommands.extendWordLeft,
+      extendSelectionWordRight: selectionCommands.extendWordRight,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
@@ -211,7 +235,7 @@ async function boot(): Promise<void> {
     throw err
   }
 
-  // Chế độ cuối cùng, đọc từ đĩa (AC5). ⛔ Đi qua `setMode` chứ không gán thẳng: `setMode`
+  // Chế độ cuối cùng, đọc từ đĩa (AC5). Đi qua `setMode` chứ không gán thẳng: `setMode`
   // chốt tính hợp lệ lúc chạy và rơi về mặc định kèm cảnh báo, nên một `global.db` sửa tay
   // mang `"lbrary"` không dựng ra một chế độ thứ tư.
   //
@@ -227,6 +251,40 @@ async function boot(): Promise<void> {
 
   createApp(App).mount('#app')
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔴 STORY 1.18 — AUTO-LOOKUP: GẮN HỢP ĐỒNG VÙNG CHỌN, **SAU** `mount()`
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //
+  // ⚠️ SAU `mount()` chứ không trước, và đó không phải một sở thích: listener sống trên
+  // `document` nên nó gắn được bất cứ lúc nào, nhưng các panel chỉ **đăng ký bề mặt của
+  // chúng** trong `onMounted`. Gắn trước `mount()` để lại một khoảng mà mỗi `mouseup` chạy
+  // qua một sổ đăng ký RỖNG — vô hại hôm nay, nhưng nó là đúng loại "hẹp, nhưng có thật"
+  // mà khối THỨ TỰ BẮT BUỘC #2 ở trên tồn tại để chặn.
+  //
+  // 🔴 Hợp đồng phát `dispatch('lookup.lookup_selection')` — **không gọi thẳng `runLookup`**
+  // (Quyết định #4a). Nhờ vậy `Mod+Alt+L` và Auto-Lookup là **đúng MỘT đường**, nên không có
+  // ca nào một đường sửa mà đường kia quên, và **Story 1.20 (lịch sử tra cứu) chỉ có một
+  // chỗ để cắm vào**. Một lời gọi thẳng dựng đường thứ hai mà `check:commands` **không nhìn
+  // thấy** (Kiểm A chỉ canh `@click`).
+  //
+  // `void`: `attachSelectionWatcher` trả hàm gỡ, và cửa sổ này sống đúng bằng vòng đời
+  // tiến trình — cùng lý lẽ `attachKeyboard` ở trên.
+  void attachSelectionWatcher(document, () => {
+    // Mốc ĐẦU của phép đo NFR1 — *"từ lúc thả chuột"* (`epics.md:1774`), tức TRƯỚC
+    // `dispatch`. Khi cờ đo TẮT (mặc định) đây là một lời gọi rỗng. Quyết định #7.
+    markDispatch(currentSelectionText())
+    dispatch('lookup.lookup_selection')
+  })
+
+  // Cửa bật/tắt phép đo NFR1 cho devtools — không chạy gì khi chưa ai gọi `enable()`.
+  //
+  // 🔴 CHỈ treo ở dev (`import.meta.env.DEV`) — lượt review 2026-08-07 bắt được rằng
+  // `Reflect.set(globalThis, …)` cố ý né Kiểm C của `check-layout.mjs` (danh sách đó phục
+  // vụ Story 4.12, không phải cổng đo thủ công), và vì vậy không đi qua AC13. Chấp nhận
+  // né cổng đó ở dev; KHÔNG chấp nhận nó treo vô điều kiện trên cửa sổ production thật —
+  // Ice chốt ở lượt review Nhóm A.
+  if (import.meta.env.DEV) installTimingProbe()
+
   // ⚠️ Đăng ký SAU lượt đặt chế độ ban đầu, có chủ ý: nếu không, chính lượt đặt đó kích
   // hoạt một lượt ghi và mỗi lần khởi động lại viết lại đúng giá trị vừa đọc lên.
   //
@@ -234,7 +292,7 @@ async function boot(): Promise<void> {
   // phép kiểm nào canh"*. Nay nó được lưu, và `scope_contract.rs::the_last_mode_survives_a_
   // write_and_a_reopen` canh vòng ghi-đọc-mở-lại.
   //
-  // ⛔ `putConfig` không bao giờ ném; một lượt lưu trượt chỉ ghi chẩn đoán. Chọn chế độ là
+  // `putConfig` không bao giờ ném; một lượt lưu trượt chỉ ghi chẩn đoán. Chọn chế độ là
   // một thao tác phải MƯỢT (AD-34), và một hộp thoại lỗi ở đây là quy tắc nghiệp vụ giả
   // đặt sai chỗ.
   watch(currentMode, (mode) => {

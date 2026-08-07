@@ -8,15 +8,15 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 1. **Mỗi ca một thư mục tạm riêng** (pid + `AtomicU64`). `cargo test` chạy song song
 //!    trong cùng một tiến trình; hai ca dùng chung một `.db` sẽ đỏ ngẫu nhiên và bị đọc
-//!    thành flaky. ⛔ Không thêm `tempfile`.
+//!    thành flaky. Không thêm `tempfile`.
 //! 2. **Drop `Store` TRƯỚC khi xoá thư mục.** Windows từ chối xoá tệp đang mở — một
 //!    `remove_dir_all` sớm cho ra một test đỏ **chỉ trên nhánh Windows**, đúng lớp lỗi
 //!    NFR14 mà CI hai nền tảng của Story 1.3 tồn tại để bắt.
-//! 3. ⛔ **Không `sleep` dài.** Phần lớn ca ở đây là hàm thuần và không chạm đĩa gì cả.
+//! 3. **Không `sleep` dài.** Phần lớn ca ở đây là hàm thuần và không chạm đĩa gì cả.
 //! 4. **Không ca nào treo khi nó trượt.**
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! ⚠️ TỆP NÀY ⛔ KHÔNG `use rusqlite` — và đó là một mệnh đề, không phải may mắn
+//! ⚠️ TỆP NÀY KHÔNG `use rusqlite` — và đó là một mệnh đề, không phải may mắn
 //! ─────────────────────────────────────────────────────────────────────────────
 //! `deferred-work.md:179` ghi rằng `tests/**` được **miễn trừ** khỏi phép quét ranh giới,
 //! và mở lại mục đó nếu test mới chạm `rusqlite` trực tiếp. Không cần: `Store::write` nhận
@@ -133,7 +133,7 @@ fn the_kind_table_has_every_variant() {
         );
 
         // Khoá dây đi vào cột `kind` của `config_value` và lên dây IPC: `snake_case` ASCII,
-        // ⛔ không hoa, ⛔ không dấu, ⛔ không gạch nối.
+        // không hoa, không dấu, không gạch nối.
         assert!(
             !kind.as_str().is_empty()
                 && kind
@@ -148,7 +148,7 @@ fn the_kind_table_has_every_variant() {
     assert_eq!(
         ScopeKind::from_wire("khong_ton_tai"),
         None,
-        "một khoá lạ phải trả `None`, ⛔ không đoán về một biến thể nào"
+        "một khoá lạ phải trả `None`, không đoán về một biến thể nào"
     );
 }
 
@@ -288,7 +288,7 @@ fn an_override_carries_the_shadowed_value() {
         temperature.shadowed(),
         None,
         "một khoá KHÔNG tồn tại ở tầng Global thì không che gì cả — `shadowed` phải là \
-         `None`, ⛔ không phải chuỗi rỗng"
+         `None`, không phải chuỗi rỗng"
     );
 }
 
@@ -309,7 +309,7 @@ fn an_override_without_a_work_tier_is_the_whole_global_tier() {
     );
     assert!(
         !resolver.has_work_tier(),
-        "`ScopeResolver::global_only()` ⛔ không được khai một tầng Tác phẩm"
+        "`ScopeResolver::global_only()` không được khai một tầng Tác phẩm"
     );
 }
 
@@ -317,7 +317,7 @@ fn an_override_without_a_work_tier_is_the_whole_global_tier() {
 // AC3 — hợp nhất, và TẦNG LÀ KHOÁ PHỤ
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Cả hai tầng cùng áp, ⛔ **không khử trùng lặp** — AD-19 cùng triết lý: giữ nguyên bất đồng.
+/// Cả hai tầng cùng áp, **không khử trùng lặp** — AD-19 cùng triết lý: giữ nguyên bất đồng.
 #[test]
 fn a_merge_keeps_both_tiers_without_deduplicating() {
     let resolver = ScopeResolver::global_only();
@@ -345,7 +345,7 @@ fn a_merge_keeps_both_tiers_without_deduplicating() {
         cats,
         vec![Tier::Work, Tier::Global],
         "`cat` phải xuất hiện HAI lần, mỗi lần mang nhãn tầng của CHÍNH NÓ — nhãn nằm trên \
-         từng mục, ⛔ không phải cả tập mang một nhãn (Story 6.5 · UX-DR40)"
+         từng mục, không phải cả tập mang một nhãn (Story 6.5 · UX-DR40)"
     );
 }
 
@@ -426,12 +426,12 @@ fn a_merge_without_a_work_tier_is_the_whole_global_tier() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// AC1 — gọi sai ngữ nghĩa là một lỗi, ⛔ không phải một gợi ý
+// AC1 — gọi sai ngữ nghĩa là một lỗi, không phải một gợi ý
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Gọi sai hàm cho `kind` ⇒ `Err`, ⛔ **không im lặng làm theo ý người gọi**.
+/// Gọi sai hàm cho `kind` ⇒ `Err`, **không im lặng làm theo ý người gọi**.
 ///
-/// 🔴 `Err` ở **cả debug lẫn release**, ⛔ không `panic!`: `Cargo.toml` ghim
+/// 🔴 `Err` ở **cả debug lẫn release**, không `panic!`: `Cargo.toml` ghim
 /// `panic = "abort"` ở `[profile.release]`, nên một panic ở đây giết cả tiến trình và cuốn
 /// theo writer nối tiếp của AD-11/AD-12.
 #[test]
@@ -443,7 +443,7 @@ fn calling_the_wrong_resolver_for_a_kind_is_refused() {
     // `TranslationMemory` khai `Merge` — hỏi nó bằng `Override` là hỏi sai câu.
     let err = resolver
         .apply_override(ScopeKind::TranslationMemory, &empty_map, None)
-        .expect_err("`Merge` ⛔ không được phân giải như `Override`");
+        .expect_err("`Merge` không được phân giải như `Override`");
     assert_eq!(
         err,
         ScopeError::WrongSemantics {
@@ -457,7 +457,7 @@ fn calling_the_wrong_resolver_for_a_kind_is_refused() {
     // `Glossary` khai `Override` — hỏi nó bằng `Merge`.
     let err = resolver
         .apply_merge(ScopeKind::Glossary, &empty_vec, None, None)
-        .expect_err("`Override` ⛔ không được phân giải như `Merge`");
+        .expect_err("`Override` không được phân giải như `Merge`");
     assert!(matches!(
         err,
         ScopeError::WrongSemantics {
@@ -470,7 +470,7 @@ fn calling_the_wrong_resolver_for_a_kind_is_refused() {
     // `Shortcut` khai `GlobalOnly` — hỏi nó bằng `Override` mở đúng tầng mà UX đã cấm.
     let err = resolver
         .apply_override(ScopeKind::Shortcut, &empty_map, None)
-        .expect_err("`GlobalOnly` ⛔ không được phân giải như `Override`");
+        .expect_err("`GlobalOnly` không được phân giải như `Override`");
     assert!(matches!(
         err,
         ScopeError::WrongSemantics {
@@ -480,10 +480,10 @@ fn calling_the_wrong_resolver_for_a_kind_is_refused() {
         },
     ));
 
-    // Và chiều ngược lại: một loại hai tầng ⛔ không được phân giải như chỉ-Global.
+    // Và chiều ngược lại: một loại hai tầng không được phân giải như chỉ-Global.
     let err = resolver
         .resolve_global_only(ScopeKind::Glossary, &empty_map, None)
-        .expect_err("`Override` ⛔ không được phân giải như `GlobalOnly`");
+        .expect_err("`Override` không được phân giải như `GlobalOnly`");
     assert!(matches!(
         err,
         ScopeError::WrongSemantics {
@@ -496,7 +496,7 @@ fn calling_the_wrong_resolver_for_a_kind_is_refused() {
 
 /// AC5 — một loại `GlobalOnly` **từ chối** dữ liệu tầng Work.
 ///
-/// ⛔ Không bỏ qua im lặng: bỏ qua im lặng là cách một tầng bị cấm vẫn được ghi xuống đĩa
+/// Không bỏ qua im lặng: bỏ qua im lặng là cách một tầng bị cấm vẫn được ghi xuống đĩa
 /// rồi không bao giờ có tác dụng — hỏng đúng kiểu *"trông như đang chạy"*.
 #[test]
 fn a_global_only_kind_refuses_a_work_tier() {
@@ -584,7 +584,7 @@ fn a_row_written_straight_into_global_db_resolves_back_through_the_scope_path() 
     assert_eq!(
         config.mode(),
         DEFAULT_MODE,
-        "chưa ai ghi chế độ ⇒ rơi về mặc định, ⛔ không phải chuỗi rỗng"
+        "chưa ai ghi chế độ ⇒ rơi về mặc định, không phải chuỗi rỗng"
     );
     assert_eq!(
         config.shortcuts().get("mode.library").map(String::as_str),
@@ -640,7 +640,7 @@ fn the_last_mode_survives_a_write_and_a_reopen() {
          phía frontend đang ghi vào hư không"
     );
 
-    // Ghi đè lên chính khoá đó ⇒ `ON CONFLICT` cập nhật, ⛔ không dựng hàng thứ hai.
+    // Ghi đè lên chính khoá đó ⇒ `ON CONFLICT` cập nhật, không dựng hàng thứ hai.
     save_value(&store, "app_config", "mode", "workspace").expect("ghi lại chế độ");
     let rows: i64 = store
         .read(|conn| {
@@ -665,7 +665,7 @@ fn the_last_mode_survives_a_write_and_a_reopen() {
     cleanup(&dir);
 }
 
-/// Kho rỗng ⇒ mặc định đầy đủ, ⛔ không chuỗi rỗng và ⛔ không lỗi.
+/// Kho rỗng ⇒ mặc định đầy đủ, không chuỗi rỗng và không lỗi.
 ///
 /// ⚠️ Mặc định phải đến **từ Rust**: `cfg?.theme ?? 'light'` phía frontend chỉ bắt
 /// `null`/`undefined`, còn `''` là một giá trị và nó đi thẳng vào `applyTheme('')`.
@@ -674,7 +674,7 @@ fn an_empty_store_bootstraps_to_complete_defaults() {
     let dir = temp_dir("empty-bootstrap");
     let store = open_store(&dir);
 
-    let config = bootstrap_config(Some(&store)).expect("kho rỗng ⛔ không phải một lỗi");
+    let config = bootstrap_config(Some(&store)).expect("kho rỗng không phải một lỗi");
     assert_eq!(config.theme, DEFAULT_THEME);
     assert_eq!(config.mode, DEFAULT_MODE);
     assert!(
@@ -684,7 +684,7 @@ fn an_empty_store_bootstraps_to_complete_defaults() {
     );
     // Story 1.14 · AC4 — *"kho rỗng ⇒ chuỗi rỗng ⇒ preset mặc định"*.
     //
-    // ⚠️ Mệnh đề là **chuỗi RỖNG**, ⛔ không `null` và ⛔ không một chuỗi JSON dựng sẵn ở
+    // ⚠️ Mệnh đề là **chuỗi RỖNG**, không `null` và không một chuỗi JSON dựng sẵn ở
     // Rust. Dựng preset mặc định là việc của frontend (AD-1: bố cục panel là state UI của
     // frontend), và trả một JSON mặc định từ đây là dựng bản chép thứ hai của lược đồ
     // dockview trong Rust — nó sẽ trôi ở lần nâng thư viện đầu tiên.
@@ -706,12 +706,12 @@ fn an_empty_store_bootstraps_to_complete_defaults() {
 ///
 /// 🔴 Đây là **nửa Rust** của AC4. Nửa kia — *"đóng ứng dụng rồi mở lại thấy đúng bố cục"* —
 /// là hành vi webview và nó được nghiệm thu bằng lượt chạy tay có bảng (§Debug Log
-/// References). ⛔ Không đánh dấu vế đó đạt dựa trên test này.
+/// References). Không đánh dấu vế đó đạt dựa trên test này.
 #[test]
 fn the_workspace_layout_survives_a_write_and_a_reopen() {
     let dir = temp_dir("layout-roundtrip");
 
-    // Một `SerializedDockview` rút gọn. ⚠️ Tầng Rust ⛔ KHÔNG phân tích chuỗi này — nó chỉ
+    // Một `SerializedDockview` rút gọn. ⚠️ Tầng Rust KHÔNG phân tích chuỗi này — nó chỉ
     // phải đi qua NGUYÊN VẸN. Dùng một JSON có dấu nháy kép lồng nhau chính vì vậy: nếu
     // đường ghi/đọc làm hỏng escaping ở đâu đó, chuỗi trả về sẽ khác.
     let layout = r#"{"grid":{"root":{"type":"leaf","data":{"views":["panel.source"]}}},"panels":{}}"#;
@@ -739,12 +739,12 @@ fn the_workspace_layout_survives_a_write_and_a_reopen() {
          lần mở ứng dụng"
     );
 
-    // ⛔ Bố cục ⛔ KHÔNG được rò sang `layout_presets`: hai thứ đó là hai loại scope khác
+    // Bố cục KHÔNG được rò sang `layout_presets`: hai thứ đó là hai loại scope khác
     // nhau (`kinds.rs:206-213`), và trộn chúng làm Story 1.21 hiện bố cục hiện tại ra màn
     // hình như một preset người dùng tự đặt tên.
     assert!(
         config.layout_presets.is_empty(),
-        "`workspace_layout` sống ở `app_config`, ⛔ không ở `layout_preset`"
+        "`workspace_layout` sống ở `app_config`, không ở `layout_preset`"
     );
 
     drop(store);
@@ -758,11 +758,11 @@ fn the_workspace_layout_survives_a_write_and_a_reopen() {
 /// 🔴 Mọi nhánh lỗi của **hai hàm command của `commands::config`** chỉ sinh ra `IpcError`
 /// **dẫn xuất từ `StoreError`**.
 ///
-/// `ScopeError` là **lỗi lập trình**: nó ⛔ không `impl From<..> for IpcError` và ⛔ không
-/// bao giờ vượt ranh giới IPC. Story 1.7 §Completion Notes #3: *"⛔ Không khoá nào cho
-/// tính năng chưa tồn tại"* — và story này ⛔ không thêm khoá `MessageKey` nào.
+/// `ScopeError` là **lỗi lập trình**: nó không `impl From<..> for IpcError` và không
+/// bao giờ vượt ranh giới IPC. Story 1.7 §Completion Notes #3: *"Không khoá nào cho
+/// tính năng chưa tồn tại"* — và story này không thêm khoá `MessageKey` nào.
 ///
-/// ⚠️ **Story 1.15 phá mệnh đề này ở TẦNG DỰ ÁN, có ý thức — ⛔ không ở test này.** Tên
+/// ⚠️ **Story 1.15 phá mệnh đề này ở TẦNG DỰ ÁN, có ý thức — không ở test này.** Tên
 /// ca đọc như một lời hứa toàn cục *"mọi lỗi command đều là lỗi kho"*, nhưng
 /// `commands::project::create_work_from_file` giờ trả `import.unsupported_format` /
 /// `import.not_utf8` khi `.docx` hay bảng mã lạ bị từ chối — hai lỗi xảy ra **trước** khi
@@ -780,7 +780,7 @@ fn every_command_error_comes_from_the_store_vocabulary() {
     let dir = temp_dir("error-vocabulary");
     let store = open_store(&dir);
     let unknown_kind = put_config(Some(&store), "khong_ton_tai", "k", "v")
-        .expect_err("một `kind` lạ ⛔ không được ghi im lặng");
+        .expect_err("một `kind` lạ không được ghi im lặng");
     let wrong_semantics = put_config(Some(&store), "glossary", "k", "v").expect_err(
         "`config_value` phục vụ riêng ba loại `GlobalOnly` — một hàng `glossary` ở đó là \
          mầm của đúng lược đồ EAV mà §Quyết định #1 loại bỏ",
@@ -814,7 +814,7 @@ fn every_command_error_comes_from_the_store_vocabulary() {
         assert_eq!(
             err.params().get("store").map(String::as_str),
             Some("global"),
-            "{label}: `params` phải mang tên kho, và chỉ DỮ LIỆU — ⛔ không mang câu"
+            "{label}: `params` phải mang tên kho, và chỉ DỮ LIỆU — không mang câu"
         );
     }
 
@@ -824,7 +824,7 @@ fn every_command_error_comes_from_the_store_vocabulary() {
         .expect("đếm hàng");
     assert_eq!(
         rows, 0,
-        "một lượt ghi bị từ chối ⛔ không được để lại gì — `store.write_failed` nghĩa là \
+        "một lượt ghi bị từ chối không được để lại gì — `store.write_failed` nghĩa là \
          *thay đổi vừa rồi chưa được lưu*, và nó phải đúng theo nghĩa đen"
     );
 
@@ -838,9 +838,9 @@ fn every_command_error_comes_from_the_store_vocabulary() {
 
 /// `ScopeResolver::with_work` ship ở Story 1.15 với **0 test** — ca này đóng lỗ đó.
 ///
-/// ⚠️ Ca này khẳng định **đúng một** điều: resolver có mang một Tác phẩm hay không. Nó ⛔
+/// ⚠️ Ca này khẳng định **đúng một** điều: resolver có mang một Tác phẩm hay không. Nó không
 /// **không** khẳng định *"phân giải hai tầng đã chạy trên dữ liệu thật"* — điều đó vẫn
-/// chưa đúng, vì `project.db` ⛔ chưa có bảng nào ở tầng Tác phẩm để tra (Glossary là Epic
+/// chưa đúng, vì `project.db` chưa có bảng nào ở tầng Tác phẩm để tra (Glossary là Epic
 /// 3, TM là Epic 7). Xem `deferred-work.md` và doc-comment của `ScopeResolver`.
 #[test]
 fn the_second_constructor_carries_a_work_tier_and_the_first_one_does_not() {
@@ -860,7 +860,7 @@ fn the_second_constructor_carries_a_work_tier_and_the_first_one_does_not() {
         "with_work() PHAI mang tang Tac pham — day la ca duy nhat canh menh de do"
     );
 
-    // Mot ban sao mang theo dung tang do — `ScopeResolver` la mot GIA TRI (Clone), ⛔
+    // Mot ban sao mang theo dung tang do — `ScopeResolver` la mot GIA TRI (Clone), không
     // khong phai mot tay cam tai nguyen.
     let copied = with_work.clone();
     assert!(copied.has_work_tier());

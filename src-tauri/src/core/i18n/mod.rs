@@ -61,7 +61,7 @@ use serde::{Serialize, Serializer};
 /// chiếu bảng này với placeholder bóc từ `vi.json` theo **cả hai chiều**.
 macro_rules! message_keys {
     ($($(#[$meta:meta])* $variant:ident => $key:literal [$($param:literal),* $(,)?]),+ $(,)?) => {
-        /// Mọi khoá mà Rust được phép phát ra. ⛔ Không mang văn bản hiển thị.
+        /// Mọi khoá mà Rust được phép phát ra. Không mang văn bản hiển thị.
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub enum MessageKey {
             $($(#[$meta])* $variant),+
@@ -112,22 +112,22 @@ message_keys! {
     // TẦNG GHI DỮ LIỆU — Story 1.7 (AD-11 · AD-12 · AD-30)
     //
     // Năm khoá, và đúng năm: mỗi cái ứng với một cách `core::store::StoreError` hỏng
-    // thật ở story này. ⛔ Không khoá nào cho một tính năng chưa tồn tại — `project.db`
+    // thật ở story này. Không khoá nào cho một tính năng chưa tồn tại — `project.db`
     // (Story 1.15) và `library-index.db` (Epic 5) sẽ tự mang khoá của chúng, cùng lúc
     // với mã cần chúng.
     //
     // ⚠️ `params` mang DỮ LIỆU: tên kho (`global`), phiên bản lược đồ, chế độ journal
-    // đọc được về. ⛔ Không mang câu — xem doc-comment của `IpcError`.
+    // đọc được về. Không mang câu — xem doc-comment của `IpcError`.
     // ─────────────────────────────────────────────────────────────────────────
     /// Database mang phiên bản lược đồ **mới hơn** bản ứng dụng đang chạy (AD-30, AC7).
-    /// Ứng dụng từ chối mở và ⛔ không ghi vào nó một byte nào.
+    /// Ứng dụng từ chối mở và không ghi vào nó một byte nào.
     StoreSchemaTooNew => "err.store.schema_too_new" ["store", "found", "supported"],
     /// Không mở được kho — tệp hỏng, không có quyền, hoặc một bước di trú gãy.
     StoreOpenFailed => "err.store.open_failed" ["store"],
     /// `PRAGMA journal_mode = WAL` đọc lại ra chế độ khác. `mode` là chế độ ĐỌC ĐƯỢC VỀ.
     /// Không có WAL thì NFR2 và NFR18 mất bảo đảm, nên đây là lỗi chứ không phải cảnh báo.
     StoreWalUnavailable => "err.store.wal_unavailable" ["store", "mode"],
-    /// Một job ghi trượt ⇒ giao dịch đã rollback, ⛔ không có nửa ghi nào trên đĩa.
+    /// Một job ghi trượt ⇒ giao dịch đã rollback, không có nửa ghi nào trên đĩa.
     StoreWriteFailed => "err.store.write_failed" ["store"],
     /// Một job đọc trượt.
     StoreReadFailed => "err.store.read_failed" ["store"],
@@ -136,7 +136,7 @@ message_keys! {
     // TẦNG TÁC PHẨM + ĐƯỜNG NHẬP — Story 1.15 (AD-9 · AD-33 · AD-39)
     //
     // Bốn khoá, và đúng bốn: `.docx`/bảng mã lạ bị từ chối TRƯỚC khi chạm đĩa
-    // (AC8) là lỗi ĐƯỜNG NHẬP, ⛔ không phải lỗi kho — `StoreError` không có biến
+    // (AC8) là lỗi ĐƯỜNG NHẬP, không phải lỗi kho — `StoreError` không có biến
     // thể nào mô tả đúng "định dạng chưa nhận". `meta.json` mang số phiên bản
     // RIÊNG của chính nó (AC7), độc lập với `PRAGMA user_version` của `project.db`.
     // ─────────────────────────────────────────────────────────────────────────
@@ -145,22 +145,22 @@ message_keys! {
     ImportUnsupportedFormat => "err.import.unsupported_format" ["format"],
     /// Nội dung tệp không giải mã được bằng UTF-8 — Quyết định #6, cùng khuôn với `.docx`.
     ImportNotUtf8 => "err.import.not_utf8" ["path"],
-    /// Tệp đưa vào ⛔ không có phần mở rộng nào — hạng RIÊNG, ⛔ không phải
+    /// Tệp đưa vào không có phần mở rộng nào — hạng RIÊNG, không phải
     /// `ImportUnsupportedFormat` với `format` rỗng (nó cho ra một câu vỡ). Code review
     /// 2026-08-06.
     ImportMissingExtension => "err.import.missing_extension" ["path"],
     /// Tệp vượt trần kích thước nhập (100 MB — Ice chốt 2026-08-06). `size`/`limit` là
-    /// **số byte thô**: dữ liệu, ⛔ không phải câu (AD-21).
+    /// **số byte thô**: dữ liệu, không phải câu (AD-21).
     ImportTooLarge => "err.import.too_large" ["size", "limit"],
     /// Không dựng được `<Tên>.atproj/` trên đĩa (AC2, AC8).
     ProjectCreateFailed => "err.project.create_failed" [],
     /// Đường đọc Chương gọi trước khi có Tác phẩm nào mở (Story 1.16, AC8) —
-    /// `OpenWorkState` rỗng, ⛔ không phải một lỗi kho.
+    /// `OpenWorkState` rỗng, không phải một lỗi kho.
     ProjectNoWorkOpen => "err.project.no_work_open" [],
-    // ⛔ **KHÔNG có `ProjectMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
+    // **KHÔNG có `ProjectMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
     // 2026-08-06). Cơ chế từ chối một `meta.json` mới hơn vẫn còn nguyên và vẫn có test
-    // (`MetaError::SchemaTooNew` + `WorkMeta::read`), nhưng ⛔ không đường sản phẩm nào
-    // gọi `WorkMeta::read` — story này ⛔ không dựng màn hình "mở lại một `.atproj`".
+    // (`MetaError::SchemaTooNew` + `WorkMeta::read`), nhưng không đường sản phẩm nào
+    // gọi `WorkMeta::read` — story này không dựng màn hình "mở lại một `.atproj`".
     // Một khoá cho một tính năng chưa tồn tại là đúng thứ Story 1.7 §CN #3 cấm. 🔴 Story
     // nào dựng đường mở lại (ứng viên: Epic 5) thêm lại khoá này CÙNG LƯỢT với màn hình.
 }
@@ -173,7 +173,7 @@ message_keys! {
 /// `vi.json`, không thấy, và theo đúng AC4 nó **hiện khoá nguyên văn rồi ghi cảnh
 /// báo** — nghĩa là hỏng đúng kiểu *"trông như đang chạy"*.
 ///
-/// ⛔ Đừng thay bằng `#[derive(Serialize)]` + `#[serde(rename = "…")]` trên từng
+/// Đừng thay bằng `#[derive(Serialize)]` + `#[serde(rename = "…")]` trên từng
 /// biến thể: khoá khi đó có hai nguồn (`rename` và `as_str`) và chúng sẽ trôi khỏi
 /// nhau. Một nguồn duy nhất là `message_keys!`.
 impl Serialize for MessageKey {
@@ -187,7 +187,7 @@ impl Serialize for MessageKey {
 
 /// Hình dạng lỗi vượt ranh giới IPC — AD-21, **hợp đồng nguyên văn bốn trường**.
 ///
-/// ⛔⛔ **KHÔNG đặt `#[serde(rename_all = "camelCase")]` lên struct này.** Thói quen
+/// **KHÔNG đặt `#[serde(rename_all = "camelCase")]` lên struct này.** Thói quen
 /// viết Tauri là đặt nó lên mọi struct qua IPC cho hợp phong cách JS; ở đây nó biến
 /// `message_key` thành `messageKey`. Rust biên dịch sạch, không test nào đỏ trừ khi
 /// test so ĐÚNG CHÍNH TẢ KHOÁ, và mọi chỗ đọc theo AD-21 nhận `undefined` rồi hiển
@@ -202,11 +202,11 @@ impl Serialize for MessageKey {
 ///   frontend (cùng nguyên tắc với *"lưu ISO-8601 UTC, định dạng hiển thị chỉ ở
 ///   frontend"* của Consistency Conventions).
 ///
-/// ⛔ **`params` cũng không được mang văn bản hiển thị.** Một
+/// **`params` cũng không được mang văn bản hiển thị.** Một
 /// `params: {"reason": "Nhà cung cấp không phản hồi"}` là AD-21 bị thủng qua cửa sau.
 /// Tham số mang **dữ liệu** (đường dẫn, số đếm, tên nhà cung cấp), không mang **câu**.
 ///
-/// ⛔⛔ **TRƯỜNG RIÊNG TƯ, dựng CHỈ qua [`IpcError::new`].** Không phải để giấu dữ liệu —
+/// **TRƯỜNG RIÊNG TƯ, dựng CHỈ qua [`IpcError::new`].** Không phải để giấu dữ liệu —
 /// bốn trường vẫn đọc được qua bốn accessor và vẫn đi nguyên vẹn trên dây. Lý do là
 /// `new` là chỗ DUY NHẤT nối `message_key` với `params`, và một struct literal đi vòng
 /// qua nó (`IpcError { params: BTreeMap::new(), .. }`) biên dịch sạch, qua mọi phép
@@ -220,7 +220,7 @@ pub struct IpcError {
     ///
     /// ⚠️ `code` và `message_key` được phép 1:1 hôm nay (chưa nhánh nào cần rẽ), nhưng
     /// chúng là HAI trường chứ không phải một trường hai tên, và được phép rời nhau về
-    /// sau mà không phải đổi hợp đồng. ⛔ `code` không bao giờ được đưa ra màn hình.
+    /// sau mà không phải đổi hợp đồng. không `code` không bao giờ được đưa ra màn hình.
     code: String,
 
     /// Khoá tra trong `vi.json`. Kiểu là `MessageKey` chứ không phải `String`, nên một
@@ -232,7 +232,7 @@ pub struct IpcError {
 
     /// **Chỉ là quyền hiển thị một nút thử lại.**
     ///
-    /// ⛔ Không mã nào được tự thử lại khi thấy `true`: AD-22 cấm auto-retry, và với
+    /// Không mã nào được tự thử lại khi thấy `true`: AD-22 cấm auto-retry, và với
     /// BYOK (người dùng trả tiền API của chính họ) một lượt tự thử lại là tính tiền
     /// hai lần cho một thao tác họ chưa yêu cầu lần thứ hai.
     retryable: bool,
@@ -248,7 +248,7 @@ impl IpcError {
     ///
     /// - **Debug và `cargo test`** ⇒ `debug_assert!` nổ ngay, nêu đích danh khoá và tham
     ///   số thiếu. Đây là nơi lỗi phải chết: sớm, ồn, cạnh chỗ gây ra nó.
-    /// - **Release** ⇒ ⛔ KHÔNG panic. `Cargo.toml` đặt `panic = "abort"`, nên một panic
+    /// - **Release** ⇒ KHÔNG panic. `Cargo.toml` đặt `panic = "abort"`, nên một panic
     ///   trong đường **báo lỗi** giết luôn tiến trình và cuốn theo cả `core::store`
     ///   (AD-11/AD-12, xem `deferred-work.md`). Thay vào đó khoá rơi về
     ///   [`MessageKey::Unknown`] — người dùng đọc một câu hoàn chỉnh thay vì một
@@ -296,7 +296,7 @@ impl IpcError {
         }
     }
 
-    /// Định danh máy đọc để frontend rẽ nhánh. ⛔ Không bao giờ đưa ra màn hình.
+    /// Định danh máy đọc để frontend rẽ nhánh. Không bao giờ đưa ra màn hình.
     pub fn code(&self) -> &str {
         &self.code
     }
@@ -311,7 +311,7 @@ impl IpcError {
         &self.params
     }
 
-    /// Quyền hiển thị một nút thử lại. ⛔ Không phải lệnh tự thử lại (AD-22).
+    /// Quyền hiển thị một nút thử lại. Không phải lệnh tự thử lại (AD-22).
     pub fn retryable(&self) -> bool {
         self.retryable
     }

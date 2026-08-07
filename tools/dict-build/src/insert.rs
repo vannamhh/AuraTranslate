@@ -108,17 +108,17 @@ pub fn insert_entry(conn: &Connection, source_id: i64, entry: &RawEntry) -> rusq
 /// tệp bằng tay thấy được).
 ///
 /// `layer` là `"base"` hoặc mã lớp gỡ rời (vd. `"thieu-chuu"`) — Story 1.10, §Quyết định
-/// #5: một HÀNG trong bảng khoá/giá trị ĐÃ CÓ, ⛔ không phải cột mới ⇒ `sqlite_master`
+/// #5: một HÀNG trong bảng khoá/giá trị ĐÃ CÓ, không phải cột mới ⇒ `sqlite_master`
 /// không đổi ⇒ AC4 vẫn đạt. Story 1.13 đọc hàng này để biết mình vừa mở tệp nào TRƯỚC
 /// khi đọc `dict_source`.
 ///
-/// 🔴 `built_at` là THAM SỐ, ⛔ không phải `strftime('now')` (Ice chốt 2026-08-05, Review
+/// 🔴 `built_at` là THAM SỐ, không phải `strftime('now')` (Ice chốt 2026-08-05, Review
 /// Findings). Đồng hồ với độ phân giải mili-giây làm **mọi** lượt build ra một tệp khác
 /// byte, tức mọi giá trị `sha256` trong `dict-manifest.toml` chỉ đúng cho đúng một lượt
 /// chạy — một lần `cargo run` lại trước khi upload là mọi máy khách fail checksum, và
-/// ⛔ không cổng nào bắt được (cổng manifest cố ý không đọc `.db`). AD-25 đòi artifact có
+/// không cổng nào bắt được (cổng manifest cố ý không đọc `.db`). AD-25 đòi artifact có
 /// checksum; checksum chỉ có nghĩa khi build tái lập được. Giá trị do `build::built_at`
-/// dẫn xuất từ CHÍNH nguồn thô, ⛔ không từ đồng hồ.
+/// dẫn xuất từ CHÍNH nguồn thô, không từ đồng hồ.
 pub fn insert_meta(conn: &Connection, layer: &str, built_at: &str) -> rusqlite::Result<()> {
     conn.execute(
         "INSERT INTO dict_meta (key, value) VALUES ('schema_version', ?1)",

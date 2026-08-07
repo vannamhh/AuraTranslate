@@ -42,7 +42,7 @@
  * ─────────────────────────────────────────────────────────────────────────────────
  * NGUYÊN TẮC XƯƠNG SỐNG, thêm sau lượt rà soát 2026-08-03
  * ─────────────────────────────────────────────────────────────────────────────────
- * ⛔ **KHÔNG một phán quyết nào của cổng được đọc tham số từ `tokens.json`.** Sàn WCAG,
+ * **KHÔNG một phán quyết nào của cổng được đọc tham số từ `tokens.json`.** Sàn WCAG,
  * danh sách vai, danh sách cặp loại trừ, danh sách màu đã loại — tất cả đóng băng ở đây.
  * Lượt rà soát chạy thật ba đường thoát và cả ba đều cho exit 0 trong khi sản phẩm mang
  * một cặp 4,245:1: hạ `contrast.floors` từ chính tệp bị kiểm · CHUYỂN cặp trượt sang
@@ -79,12 +79,12 @@ const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
  * thật), `LookupRecord.vue`, `lookupPanelState.ts`, cộng các tệp trước đó của 1.15/1.16.
  *
  * ⚠️ Sàn đặt ở ~81% số thật — cùng tỷ lệ dư địa mà `RS_FLOOR` của `check-i18n.mjs` giữ,
- * và cùng lý lẽ: sàn tồn tại để bắt một cây bị **CẮT MẤT**, ⛔ không phải để đếm tệp mới.
+ * và cùng lý lẽ: sàn tồn tại để bắt một cây bị **CẮT MẤT**, không phải để đếm tệp mới.
  * Đặt nó bằng số thật là tự tạo một cổng đỏ ở story sau, và một cổng đỏ vì một lý do
  * không có thật là một cổng sắp bị gỡ.
  */
-const FILE_FLOOR = 32
-const COMPONENT_FILE_FLOOR = 30
+const FILE_FLOOR = 34 // số THẬT 2026-08-07 (sau Story 1.18): 42 tệp
+const COMPONENT_FILE_FLOOR = 32 // số THẬT 2026-08-07 (sau Story 1.18): 39 tệp component
 
 let failures = 0
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
@@ -105,7 +105,7 @@ function abort(what, err) {
 // ═════════════════════════════════════════════════════════════════════════════════
 // BẢNG KỲ VỌNG ĐÓNG BĂNG — bản chép ĐỘC LẬP thứ hai của DESIGN.md
 //
-// ⛔ Đây KHÔNG phải chỗ để "sửa cho khớp" khi Kiểm A đỏ. Nó tồn tại chính vì hai bản
+// Đây KHÔNG phải chỗ để "sửa cho khớp" khi Kiểm A đỏ. Nó tồn tại chính vì hai bản
 // chép độc lập bắt được lỗi mà một bản không bắt được. Nếu Kiểm A đỏ, một trong hai
 // bản sai — mở `DESIGN.md §Bảng token màu` ra mà phân xử, đừng chép bản này sang bản kia.
 // Cùng khuôn với `BANNED_CRATES` của `check-deps.mjs` và allowlist của
@@ -175,7 +175,7 @@ const EXPECTED_TYPOGRAPHY = {
    * `DESIGN.md`, và bảng dưới đây là bản chép ĐỘC LẬP của bảng đó — 14 hàng, đúng 14.
    * Chữ ký cho hàng thứ 15 sống ở `tokens.deviations`, và `compare()` cưỡng chế rằng nó
    * phải có `question` + `reason` không rỗng. Xem lý lẽ đầy đủ ở phần `extra` của
-   * `compare()`. ⛔ Đừng "sửa" bằng cách thêm một hàng vào đây.
+   * `compare()`. Đừng "sửa" bằng cách thêm một hàng vào đây.
    */
   'ui-sm': { family: 'ui', fontSize: '11.5px', lineHeight: '1.5' },
   'ui-label': {
@@ -218,11 +218,11 @@ const EXPECTED_ROUNDED = {
 }
 
 /**
- * Đếm bắt buộc — 16 / 17 / 16 / 4. ⛔ 16 màu, KHÔNG phải 17: `tm-rule` cùng giá trị hai theme.
+ * Đếm bắt buộc — 16 / 17 / 16 / 4. không 16 màu, KHÔNG phải 17: `tm-rule` cùng giá trị hai theme.
  *
  * ⚠️ `typography` là **17** kể từ Story 1.17 (`ui-md-wrap`, Quyết định #7) — trước đó đã
  * là **16** kể từ Story 1.16 (`source-latin`, Quyết định #6), và **15** kể từ Story 1.14
- * (`ui-md-strong`, AC10), ⛔ không phải 14 như §Bảng token typography của `DESIGN.md` còn
+ * (`ui-md-strong`, AC10), không phải 14 như §Bảng token typography của `DESIGN.md` còn
  * ghi. Cả ba lệch đó CÓ CHỦ Ý và có chữ ký — xem `deviations` trong `tokens.json`. Sửa
  * `DESIGN.md` cho khớp là một lượt riêng của Ice.
  */
@@ -255,7 +255,7 @@ const EXPECTED_ROLES = {
  * `surface-accent` từ `pairs` sang `excluded` với lý do ba chữ "khong dung" ⇒ exit 0, cặp
  * 4,245:1 quay lại sản phẩm. XOÁ thì đỏ, CHUYỂN thì xanh — cùng một hậu quả.
  *
- * ⛔ Thêm một hàng vào đây là một quyết định thiết kế phải qua rà soát, không phải một
+ * Thêm một hàng vào đây là một quyết định thiết kế phải qua rà soát, không phải một
  * lần sửa JSON. Mọi hàng dưới đây đều là hệ quả của cùng một mệnh đề: nền `primary` chỉ
  * mang đúng một màu chữ hợp lệ là `on-primary`, và `on-primary` chỉ đứng trên `primary`.
  */
@@ -725,9 +725,9 @@ function compare(group, expected, actual, pick = (v) => v) {
   }
   if (unsigned.length) {
     fail(`${group}: thừa ${unsigned.length} token KHÔNG có chữ ký — ${unsigned.join(', ')}`)
-    detail('⛔ Đừng thêm token để cho khớp một con số cũ. Mọi token mới phải qua Kiểm C.')
+    detail('Đừng thêm token để cho khớp một con số cũ. Mọi token mới phải qua Kiểm C.')
     detail(
-      `⛔ Và đừng thêm hàng vào bảng đóng băng ở đầu tệp này: khai một mục \`deviations\` ` +
+      `Và đừng thêm hàng vào bảng đóng băng ở đầu tệp này: khai một mục \`deviations\` ` +
         `\`{ path: "${group}.${unsigned[0]}", designValue: "${EXTRA_WANT}", value: "${EXTRA_GOT}", question, reason }\`.`,
     )
     bad += unsigned.length
@@ -803,7 +803,7 @@ for (const [path, dev] of deviations) {
 console.log('\nKiểm B — màu viết thẳng trong component bị từ chối (AC2)')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// ⛔ Chỉ quét hex là bỏ lọt bốn cú pháp: `rgb(43 39 35)` · `hsl(30 10% 15%)` ·
+// Chỉ quét hex là bỏ lọt bốn cú pháp: `rgb(43 39 35)` · `hsl(30 10% 15%)` ·
 // `color(display-p3 …)` · và TÊN MÀU CSS. Cả bốn đều là màu viết thẳng.
 
 const NAMED_COLORS = new Set(
@@ -1062,7 +1062,7 @@ let cBad = 0
       `contrast.floors trong tokens.json (${JSON.stringify(fl)}) không khớp hằng số WCAG đóng băng ` +
         `(${JSON.stringify(CONTRAST_FLOORS)})`,
     )
-    detail('⛔ Sàn AA không phải cấu hình dự án. Sửa cho khớp, hoặc gỡ khỏi tokens.json.')
+    detail('Sàn AA không phải cấu hình dự án. Sửa cho khớp, hoặc gỡ khỏi tokens.json.')
     cBad += 1
   }
   if (Number(cfg.largeTextMinPx) !== LARGE_TEXT_MIN_PX) {
@@ -1073,7 +1073,7 @@ let cBad = 0
 }
 
 // C1 — ĐẦY ĐỦ, và danh sách LOẠI TRỪ là danh sách ĐÓNG BĂNG.
-// ⛔ Đây là phép kiểm quan trọng nhất của Kiểm C: một danh sách tự rút gọn để cho xanh
+// Đây là phép kiểm quan trọng nhất của Kiểm C: một danh sách tự rút gọn để cho xanh
 // là đúng thứ AD-34 tồn tại để chặn — và "rút gọn" gồm cả việc CHUYỂN sang `excluded`.
 {
   const pairs = asArray(cfg.pairs, 'contrast.pairs')
@@ -1087,7 +1087,7 @@ let cBad = 0
     seenExcluded.add(key)
     if (!EXPECTED_EXCLUDED.has(key)) {
       fail(`cặp loại trừ \`${p.fg}\` × \`${p.bg}\` KHÔNG có trong danh sách đóng băng của script`)
-      detail('⛔ Loại một cặp là quyết định thiết kế, không phải một lần sửa JSON. Đưa qua rà soát trước.')
+      detail('Loại một cặp là quyết định thiết kế, không phải một lần sửa JSON. Đưa qua rà soát trước.')
       cBad += 1
     }
     if (!String(p.reason ?? '').trim()) {
@@ -1180,7 +1180,7 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
  * Che ĐÚNG khối `"bannedColorValues": { … }` trong văn bản `tokens.json`.
  *
  * Chính chỗ khai lệnh cấm là nơi duy nhất được phép viết ra giá trị bị cấm — nếu không
- * thì lệnh cấm tự làm mình đỏ. ⛔ Đừng nới bằng cách bỏ `tokens.json` khỏi tầm quét:
+ * thì lệnh cấm tự làm mình đỏ. Đừng nới bằng cách bỏ `tokens.json` khỏi tầm quét:
  * một màu đã loại quay lại làm GIÁ TRỊ của một token là đúng chỗ tệ nhất, và đó là chỗ
  * duy nhất lượt quét cũ không nhìn thấy. Che một khối tên rõ ràng, không che cả tệp.
  */
@@ -1401,30 +1401,30 @@ console.log('\nKiểm H — focus ring: `outline: none` CHỈ trên gốc `tabin
 // Ghi chú của chính cổng này *(và của `check-commands.mjs`)* đã nêu tên lỗ suốt bốn story:
 // *"Một `*:focus { outline: none }` phá NFR17 mà vẫn qua được cả cổng này lẫn
 // `check-commands.mjs`"* (§Trap 4 của Story 1.6). Nó là một dòng CSS, nó xoá đường đi bàn
-// phím của MỌI nút và ô nhập trong sản phẩm, và ⛔ không một phép kiểm nào nhìn thấy.
+// phím của MỌI nút và ô nhập trong sản phẩm, và không một phép kiểm nào nhìn thấy.
 //
 // ─────────────────────────────────────────────────────────────────────────────────
-// LUẬT — hẹp có chủ ý, và ⛔ không phải một danh sách cấm
+// LUẬT — hẹp có chủ ý, và không phải một danh sách cấm
 // ─────────────────────────────────────────────────────────────────────────────────
 // `outline: none` *(hoặc `outline: 0`, hoặc `outline-style: none`)* HỢP LỆ khi và chỉ khi
 // selector của nó chọn **gốc `tabindex="-1"` của một chế độ hoặc một panel** — tức những
-// phần tử ⛔ KHÔNG nằm trong thứ tự Tab của trình duyệt và chỉ nhận focus qua `el.focus()`
+// phần tử KHÔNG nằm trong thứ tự Tab của trình duyệt và chỉ nhận focus qua `el.focus()`
 // của `focus.ts`. Vẽ một vòng focus quanh cả một chế độ là nhiễu thị giác cho một lượt dời
 // focus mà chính ứng dụng vừa thực hiện.
 //
 // Mọi ca khác đi qua **miễn trừ CÓ TÊN** `/* aura-allow-outline-none: <lý do> */`, cùng
 // khuôn `aura-allow-z-index` mà Kiểm F đã dùng và đã nghiệm thu.
 //
-// ⚠️ Cổng đọc SELECTOR, ⛔ không đọc HTML — nó ⛔ không chứng minh được rằng phần tử khớp
+// ⚠️ Cổng đọc SELECTOR, không đọc HTML — nó không chứng minh được rằng phần tử khớp
 // selector đó THẬT SỰ mang `tabindex="-1"`. Nó chứng minh được điều quan trọng hơn và
-// kiểm được: selector ⛔ không quét rộng. `*:focus`, `:focus`, `button:focus`,
+// kiểm được: selector không quét rộng. `*:focus`, `:focus`, `button:focus`,
 // `.panel *:focus` đều đỏ. Giới hạn này in ra ở cuối lượt chạy.
 
-/** Lớp gốc của chế độ/panel — chúng mang `tabindex="-1"` và ⛔ không vào thứ tự Tab. */
+/** Lớp gốc của chế độ/panel — chúng mang `tabindex="-1"` và không vào thứ tự Tab. */
 const FOCUS_ROOT_CLASSES = ['.mode', '.panel', '.dock']
 const OUTLINE_OFF_RE = /^(?:none|0|0px)$/
 
-/** Selector có chọn ĐÚNG một gốc chế độ/panel, ⛔ không quét rộng hơn? */
+/** Selector có chọn ĐÚNG một gốc chế độ/panel, không quét rộng hơn? */
 function isFocusRootSelector(prelude) {
   const parts = prelude
     .split(',')
@@ -1432,7 +1432,7 @@ function isFocusRootSelector(prelude) {
     .filter((s) => s !== '')
   if (parts.length === 0) return false
   return parts.every((sel) => {
-    // ⛔ Bộ chọn hậu duệ / anh em: `.panel *:focus`, `.mode > button:focus` — chúng chạm
+    // Bộ chọn hậu duệ / anh em: `.panel *:focus`, `.mode > button:focus` — chúng chạm
     // tới phần tử CON, và con thì có nút, có ô nhập, có tab. Đó là đúng ca §Trap 4.
     if (/[\s>+~]/.test(sel)) return false
     if (!sel.endsWith(':focus') && !sel.endsWith(':focus-visible')) return false
@@ -1472,7 +1472,7 @@ for (const p of parsed) {
 if (hBad === 0) {
   pass(
     `${hOk} lượt tắt focus ring, tất cả trên gốc chế độ/panel (${hExempt} miễn trừ có tên) — ` +
-      '⛔ không `*:focus`, ⛔ không bộ chọn hậu duệ',
+      'không `*:focus`, không bộ chọn hậu duệ',
   )
 }
 
@@ -1480,7 +1480,7 @@ if (hBad === 0) {
 console.log('\nKiểm G — phân tách panel ĐẢO NGƯỢC giữa hai theme (AC6)')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// ⛔ Không thống nhất hai theme về một cách làm. `outline #3b382f` trên `surface #26241f`
+// Không thống nhất hai theme về một cách làm. `outline #3b382f` trên `surface #26241f`
 // chỉ đạt 1,32:1 — gần như vô hình. Bê cách của theme sáng sang theme tối làm bốn panel
 // chìm thành một khối nâu.
 //

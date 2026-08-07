@@ -20,7 +20,7 @@ pub struct RawEntry {
     pub headword_simp: Option<String>,
     /// Pinyin hoặc cách đọc khác, khi nguồn có.
     pub reading: Option<String>,
-    /// Âm HÁN VIỆT thật — ÂM ĐỌC, không phải NGHĨA. ⛔ Không đẩy vào `senses`; xem
+    /// Âm HÁN VIỆT thật — ÂM ĐỌC, không phải NGHĨA. Không đẩy vào `senses`; xem
     /// doc-comment `dict_entry.han_viet` ở `schema.rs`.
     ///
     /// 🔴 Story 1.10c AC2: trường này mang ĐÚNG MỘT ngữ nghĩa ở MỌI nguồn — âm Hán Việt
@@ -28,7 +28,7 @@ pub struct RawEntry {
     /// kVietnamese` KHÔNG còn đổ vào đây (xem `nom_reading`) — nó là âm NÔM, không phải
     /// âm Hán Việt (§Phát hiện của story: 92,4% trùng một âm Nôm đã gắn nhãn).
     pub han_viet: Option<String>,
-    /// Âm NÔM — ÂM ĐỌC tiếng Việt của một ký tự khi dùng làm chữ Nôm, ⛔ không phải âm
+    /// Âm NÔM — ÂM ĐỌC tiếng Việt của một ký tự khi dùng làm chữ Nôm, không phải âm
     /// Hán Việt. Story 1.10c AC1/AC4: `Unihan kVietnamese` đổ vào ĐÂY (đổi vai, không mất
     /// dữ liệu); `en-wiktionary-vi` đổ nhãn `nom-reading` vào ĐÂY.
     pub nom_reading: Option<String>,

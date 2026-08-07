@@ -8,13 +8,13 @@
  * Story 1.10c nâng N từ hai lên BA (`tran-van-chanh`).
  *
  * 🔴 Cổng này KHÔNG đọc tệp `.db` và KHÔNG tải gì từ mạng — nó phải xanh trên một
- * runner CI không có byte dữ liệu từ điển nào (AC cuối của Story 1.3: CI ⛔ không tải
+ * runner CI không có byte dữ liệu từ điển nào (AC cuối của Story 1.3: CI không tải
  * dữ liệu từ điển). Nó kiểm HÌNH DẠNG manifest, không kiểm nội dung tệp.
  *
  * Parser TOML ở đây là TẬP CON NGHIÊM NGẶT, tự viết — tiền lệ `parseCssBlocks` của
  * `check-tokens.mjs`: đủ cho ĐÚNG những gì `dict-manifest.toml` cần, và không hơn.
  * Cú pháp NGOÀI tập con (mảng, bảng inline, chuỗi nhiều dòng, số, boolean, khoá không
- * nháy) ⇒ FAIL, ⛔ không bỏ qua. NFR15 đòi rà GPLv3 + vào bảng Stack trước khi thêm một
+ * nháy) ⇒ FAIL, không bỏ qua. NFR15 đòi rà GPLv3 + vào bảng Stack trước khi thêm một
  * phụ thuộc npm; một tệp 40 dòng không đáng một lượt rà.
  *
  * Chạy:  npm run check:dict-manifest
@@ -56,7 +56,7 @@ const SUPPORTED_ESCAPES = new Set(['\\', '"', 'n'])
 function unescape(s, lineNo, rawLine) {
   return s.replace(/\\(.)/g, (whole, c) => {
     if (!SUPPORTED_ESCAPES.has(c)) {
-      // ⛔ Không đoán — trước đây `\t`/`A`/bất kỳ escape lạ nào bị nuốt âm thầm
+      // Không đoán — trước đây `\t`/`A`/bất kỳ escape lạ nào bị nuốt âm thầm
       // thành chỉ ký tự cuối (mất luôn dấu `\`), mâu thuẫn với lời hứa "ngoài tập con
       // ⇒ FAIL" ở đầu tệp (Review Findings Group C).
       throw new TomlSyntaxError(lineNo, rawLine, `escape '\\${c}' ngoài tập con hỗ trợ (chỉ \\\\ · \\" · \\n)`)
@@ -230,7 +230,7 @@ if (!baseList) {
 }
 
 // 🔴 Story 1.10c: đúng BA lớp gỡ rời trong phạm vi hôm nay (Thiều Chửu · VietPhrase ·
-// Trần Văn Chánh). ⚠️ Đòi ĐÚNG ba, ⛔ không phải "≥ 1" — khi story nối tiếp thêm lớp thứ
+// Trần Văn Chánh). ⚠️ Đòi ĐÚNG ba, không phải "≥ 1" — khi story nối tiếp thêm lớp thứ
 // tư, con số này đổi CÙNG LÚC với dữ liệu, đó là điều kiện để cổng bắt được một lớp bị
 // RƠI MẤT.
 const EXPECTED_DETACHABLE_NAMES = ['thieu-chuu', 'vietphrase', 'tran-van-chanh']
@@ -262,14 +262,14 @@ if (forms.get('detachable') === 'single') {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// 🔴 `url` phải khớp `name` của CHÍNH mục đó, và ⛔ không mục nào dùng chung `url`/
+// 🔴 `url` phải khớp `name` của CHÍNH mục đó, và không mục nào dùng chung `url`/
 // `sha256` với mục khác.
 //
 // URL_RE chỉ ghim host/org/repo/tiền-tố-tag rồi DỪNG, còn Kiểm D của check-dict-build
 // chỉ so tập `name` — nên hoán đổi `url` giữa hai mục `[[detachable]]` đi qua MỌI phép
 // kiểm hôm nay, và người dùng tải `dict-thieu-chuu.db` sẽ nhận nội dung VietPhrase.
 // Quy tắc tên tệp là hàm XÁC ĐỊNH ở phía Rust (`build::output_file_name` → `dict-<code>.db`,
-// §Quyết định #3), nên nó kiểm được từ đây mà ⛔ không cần đọc một byte `.db` nào.
+// §Quyết định #3), nên nó kiểm được từ đây mà không cần đọc một byte `.db` nào.
 // ═════════════════════════════════════════════════════════════════════════════════
 {
   const all = [

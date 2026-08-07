@@ -8,7 +8,7 @@
 #  nguyên vẹn. Nếu bạn tới đây để thêm một bước phát hành — dừng lại, đó là story khác.
 # ══════════════════════════════════════════════════════════════════════════════════
 #
-#  ⛔ MỘT PIPELINE DUY NHẤT. AC4 của Story 1.3 cấm tường minh việc dựng tệp workflow
+#  MỘT PIPELINE DUY NHẤT. AC4 của Story 1.3 cấm tường minh việc dựng tệp workflow
 #  thứ hai. Từ đây tới Epic 10 (chín epic, ~127 story), MỌI luật cưỡng chế bằng test
 #  đều gắn vào chính tệp này — xem khối "CHỖ MÓC CHO EPIC SAU" ở cuối job `check`.
 #
@@ -26,7 +26,7 @@ on:
   push:
   pull_request:
 
-# ⛔ Không `paths`/`paths-ignore`. AC1 nói "một commit BẤT KỲ". Lọc đường dẫn là đúng chỗ
+# Không `paths`/`paths-ignore`. AC1 nói "một commit BẤT KỲ". Lọc đường dẫn là đúng chỗ
 # một thay đổi thật lọt qua vì nó nằm chung commit với một tệp `.md`.
 
 concurrency:
@@ -86,7 +86,7 @@ jobs:
       # script có ngưỡng sàn (Rust ≥ 200, npm ≥ 30) nên cây rỗng không đọc thành "sạch".
       # Số thật: macOS 343 crate, Windows ~346. Chạm sàn = lỗi quét, không phải đạt.
       #
-      # ⛔ Không thêm `cargo-deny` / `cargo-audit` / `license-checker`. Chúng nằm ngoài
+      # Không thêm `cargo-deny` / `cargo-audit` / `license-checker`. Chúng nằm ngoài
       # bảng Stack, và NFR15 đòi ĐỌC TỆP GIẤY PHÉP trong nguồn đã tải — đúng thứ một bộ
       # nhận dạng tự động làm sai (`tantivy-stemmers` suýt bị chấm sai BSD-2 ở Story 1.2).
       - name: check dependency tree (NFR15, AC2/AC5 của Story 1.2)
@@ -94,7 +94,7 @@ jobs:
 
       # Hai cổng `tools/dict-build` — AC2/AC4 của Story 1.9. Đặt KỀ `check:deps` vì
       # cùng họ: cả hai đọc cây phụ thuộc/mã nguồn tĩnh, xong trong vài giây, không cần
-      # `dist/`. ⛔ Không đọc `.db`, không tải gì — AC cuối của Story 1.3 vẫn đúng
+      # `dist/`. Không đọc `.db`, không tải gì — AC cuối của Story 1.3 vẫn đúng
       # nguyên: CI không tải dữ liệu từ điển.
       - name: check tools/dict-build isolation and merge vocabulary (AC2, AC4 — Story 1.9)
         run: npm run check:dict
@@ -104,7 +104,7 @@ jobs:
 
       # Bảy phép kiểm token — AD-34 · NFR17 (Story 1.4). Đây chính là chỗ móc mang tên
       # "lint cấm màu viết thẳng (AD-34)" mà AC4 của Story 1.3 đã chừa sẵn: MỘT bước
-      # trong job `check` đã có, ⛔ KHÔNG phải một tệp workflow thứ hai.
+      # trong job `check` đã có, KHÔNG phải một tệp workflow thứ hai.
       #
       # ⚠️ ĐẶT TRƯỚC `npm run build`, có lý do đo được: bước này chạy trong vài giây và
       # không cần `dist/`, nên một token sai phải đỏ TRƯỚC khi tốn một lượt biên dịch
@@ -134,7 +134,7 @@ jobs:
       # vài giây, không cần `dist/`, không cần phiên đồ hoạ. Một `@click` tự cài đặt thao
       # tác tại chỗ phải đỏ TRƯỚC khi tốn một lượt biên dịch Rust.
       #
-      # ⛔ Đừng đẩy bước này xuống cụm cuối nơi `check:scope` / `check:scope:bundled` đứng
+      # Đừng đẩy bước này xuống cụm cuối nơi `check:scope` / `check:scope:bundled` đứng
       # — hai bước đó chờ webview, bước này thì không.
       #
       # 🔴 Kiểm D là phép kiểm DUY NHẤT trong dự án đứng giữa `⌘1` và người dùng Windows:
@@ -165,7 +165,7 @@ jobs:
       - name: npm run build (PHẢI trước cargo test)
         run: npm run build
 
-      # ⚠️ Không `--all-features`, và ⛔ không `--release`: profile release có
+      # ⚠️ Không `--all-features`, và không `--release`: profile release có
       # `lto = true` + `codegen-units = 1`, biên dịch lâu gấp nhiều lần mà không kiểm
       # thêm được gì. `--locked` là nửa Rust của NFR15.
       - name: cargo test
@@ -288,7 +288,7 @@ jobs:
 
           # Bản downloadBootstrapper — tách dòng "WebView2 Runtime nhúng" BẰNG PHÉP TRỪ
           # thay vì mượn con số ≈127 MB của tài liệu Tauri.
-          # ⛔ `tauri.conf.json` KHÔNG bị sửa: Ice chốt `offlineInstaller` ngày 2026-08-03
+          # `tauri.conf.json` KHÔNG bị sửa: Ice chốt `offlineInstaller` ngày 2026-08-03
           # sau khi cân với lời hứa "fully offline". Lớp phủ này chỉ tồn tại trong lượt đo
           # — nó cố ý KHÔNG được commit, để không ai nhặt nhầm nó thành cấu hình thật.
           $bootstrapCfg = Join-Path $env:RUNNER_TEMP 'bootstrapper.conf.json'
@@ -394,9 +394,9 @@ jobs:
             "> Story 1.9 nó còn cộng thêm ~130 MB dữ liệu từ điển. Nếu nó thành rào cản tải"
             "> xuống thì đường quay lui còn mở ở **Story 10.2** — ``downloadBootstrapper`` (mất"
             "> mệnh đề cài offline) hoặc **NSIS** thay ``.msi`` (chạm ``deferred-work.md:6``)."
-            "> ⛔ Không tự chọn ở story này."
+            "> Không tự chọn ở story này."
             ""
-            "> ⛔ **Đừng đổi ``webviewInstallMode`` để số đẹp lại.** Nhiệm vụ của story này là"
+            "> **Đừng đổi ``webviewInstallMode`` để số đẹp lại.** Nhiệm vụ của story này là"
             "> ĐO và BÁO CÁO. Ice đã chốt ``offlineInstaller`` ngày 2026-08-03 sau khi cân với"
             "> lời hứa *fully offline*."
           )
@@ -414,7 +414,7 @@ jobs:
       #  job dừng và **KHÔNG một byte `.msi` nào được đo** — vô hiệu hoá đúng AC6, cái AC
       #  mà cả story này tồn tại để đóng, và AC6 đòi ghi số ở **MỖI** lần CI chạy.
       #
-      #  ⛔ Đừng chuyển hai bước này lên trước hai bước đo. Nếu cần chúng chạy kể cả khi
+      #  Đừng chuyển hai bước này lên trước hai bước đo. Nếu cần chúng chạy kể cả khi
       #  một bước trước đỏ thì thêm `if: '!cancelled()'`, ĐỪNG đổi thứ tự.
       # ══════════════════════════════════════════════════════════════════════════════
 
@@ -429,7 +429,7 @@ jobs:
       # thật lên AC7, đặc biệt trên macOS (hệ số ×10). `rust-cache` giữ cả hai, nên giá
       # này chỉ đắt ở lượt cache lạnh. ĐO SỐ THẬT rồi hãy bàn cắt gì.
       #
-      # ⛔ Nếu webview không mở được trên runner (không phiên đồ hoạ, WebView2 vắng mặt,
+      # Nếu webview không mở được trên runner (không phiên đồ hoạ, WebView2 vắng mặt,
       # treo): script hết giờ và exit 1 kèm lý do. Theo mệnh đề cuối AC8, đó là lúc GHI
       # RÕ và trả lại cho Ice — không đánh dấu đạt, không lặng lẽ bỏ qua bước này.
       - name: check scope ngoài chế độ dev (AC8 — CSP + asset protocol)
@@ -449,12 +449,12 @@ jobs:
       # thật, nên chỉ ở đây mới phân biệt được **403 (scope chặn)** với **404 (thiếu tệp)**.
       #
       # ⚠️ Nó cần một phiên đồ hoạ (`tauri dev`) và có thể trượt trên runner. Nếu trượt:
-      # ⛔ ĐỪNG gỡ bước này. Lượt chạy đó chính là bằng chứng để ghi rõ lý do và trả lại
+      # ĐỪNG gỡ bước này. Lượt chạy đó chính là bằng chứng để ghi rõ lý do và trả lại
       # cho Ice theo mệnh đề cuối AC8 — không đánh dấu đạt, không lặng lẽ bỏ.
       - name: check scope chiều âm (chế độ dev — 403 thật)
         run: npm run check:scope
 
-      # ⛔ KHÔNG upload `.msi`/`.dmg` lên đâu cả ở story này.
+      # KHÔNG upload `.msi`/`.dmg` lên đâu cả ở story này.
       #  - Lên GitHub Release / kèm checksum ⇒ đó là FR107, Story 10.1 (AC5).
       #  - Lên `actions/upload-artifact` thì AC5 cho phép (artifact của lượt chạy, không
       #    phải bản phát hành) — nhưng repo là PRIVATE và bản `.msi` ≈ 150 MB *mỗi lần
@@ -484,7 +484,7 @@ jobs:
       # ══════════════════════════════════════════════════════════════════════════════
       #  CHỖ MÓC CHO EPIC SAU — AC4 của Story 1.3
       #
-      #  ⛔ Gắn vào ĐÂY, trong job `check` này. KHÔNG dựng workflow thứ hai.
+      #  Gắn vào ĐÂY, trong job `check` này. KHÔNG dựng workflow thứ hai.
       #
       #  Ba luật đã biết sẽ tới, cả ba cùng một hình dạng — *chạy một lệnh, mã thoát
       #  khác 0 là đỏ* — y hệt bước `check:deps` ở trên. Thêm MỘT bước, không phải sắp

@@ -1,5 +1,5 @@
 //! VietPhrase — `<đầu mục>=<nghĩa1>/<nghĩa2>/…`. Lớp GỠ RỜI, Story 1.10. Đầu mục không
-//! chỉ là từ — có cả cụm và cả câu (`去那里要干什么?`); đó là ĐÚNG dữ liệu, ⛔ không lọc
+//! chỉ là từ — có cả cụm và cả câu (`去那里要干什么?`); đó là ĐÚNG dữ liệu, không lọc
 //! theo độ dài (§Thông tin kỹ thuật, Bẫy nguồn #2).
 //!
 //! Tệp `docs/dics/VietPhrase.txt` hôm nay ĐÃ là UTF-8, không BOM (Ice chuyển 2026-08-05).
@@ -71,7 +71,7 @@ pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, Par
         }
 
         // Tách '/' ⇒ nhiều dict_sense, ord giữ THỨ TỰ ƯU TIÊN của tệp gốc (mục đầu là
-        // bản dịch được ưu tiên). ⛔ Không tách theo ',' — dòng đa đầu mục dùng ',' được
+        // bản dịch được ưu tiên). Không tách theo ',' — dòng đa đầu mục dùng ',' được
         // nạp NGUYÊN VĂN, không tự bóc (tách sai ⇒ một đầu mục ghép mang nghĩa của đầu
         // mục khác, sai nguồn ở mức nghĩa).
         let senses: Vec<RawSense> = rest
@@ -148,7 +148,7 @@ mod tests {
         assert_eq!(entries[0].senses[0].gloss, "thái nhất,chính nhất,thuần nhất");
     }
 
-    /// Đầu mục là cả câu — dữ liệu ĐÚNG, ⛔ không lọc theo độ dài.
+    /// Đầu mục là cả câu — dữ liệu ĐÚNG, không lọc theo độ dài.
     #[test]
     fn sentence_length_headword_is_a_valid_entry() {
         let text = "去那里要干什么?=đi vào đó để làm gì?\n";
@@ -169,7 +169,7 @@ mod tests {
         assert_eq!(entries[1].headword, "黄沙");
     }
 
-    /// `SOURCE_CODE` ⛔ không được trôi khỏi `sources_meta::VIETPHRASE.code`.
+    /// `SOURCE_CODE` không được trôi khỏi `sources_meta::VIETPHRASE.code`.
     #[test]
     fn source_code_matches_its_source_meta() {
         assert_eq!(SOURCE_CODE, crate::sources_meta::VIETPHRASE.code);

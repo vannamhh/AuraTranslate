@@ -1,5 +1,5 @@
 # generated: 2026-08-03T13:04:45
-# last_updated: 2026-08-04T20:00:00
+# last_updated: 2026-08-07T00:00:00
 # project: AuraTranslate
 # project_key: NOKEY
 # tracking_system: file-system
@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-07
+last_updated: 2026-08-07T14:00:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -73,11 +73,14 @@ development_status:
   1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon: done
   1-14-khung-bon-panel: done
   1-15-tac-pham-tren-dia-va-duong-vao-van-ban-toi-thieu: done
-  # ⛔ CHẶN bởi 1-10c — story file đã dựng đầy đủ, nhưng KHÔNG bắt đầu trước khi 1-10c `done`.
+  # CHẶN bởi 1-10c — story file đã dựng đầy đủ, nhưng KHÔNG bắt đầu trước khi 1-10c `done`.
   # Không có trạng thái `blocked` trong lược đồ này; mệnh đề chặn sống ở đầu story file.
   1-16-panel-source-va-tab-han-viet: done
   1-17-panel-lookup-ban-ghi-co-cau-truc: done
-  1-18-auto-lookup: backlog
+  # ⚠️ Mang món nợ `deferred-work.md:608` (bôi đen bằng BÀN PHÍM — Ice chốt ghi nợ cho story
+  # này ở lượt code review 1.16) và `:635` (hợp đồng vùng chọn thật thay dep TỐI THIỂU của
+  # 1.17). Bảy quyết định phải chốt ở Task 0; #1 chặn thật, #3 chặn phạm vi.
+  1-18-auto-lookup: done
   1-19-bat-tat-nguon-tu-dien-va-ghi-cong: backlog
   1-20-lich-su-tra-cuu-va-muc-da-ghim: backlog
   1-21-phim-tat-cau-hinh-lai-duoc: backlog

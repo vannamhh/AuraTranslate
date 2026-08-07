@@ -15,7 +15,7 @@
 //! người dùng thật gõ và thấy khựng.
 //!
 //! → Nên mọi PRAGMA ở đây đi qua [`set_and_verify`] hoặc [`verify`]: đặt, đọc lại, so.
-//!   Đọc về sai ⇒ lỗi, ⛔ không đi tiếp.
+//!   Đọc về sai ⇒ lỗi, không đi tiếp.
 //!
 //! ⚠️ **Trạng thái CỦA TỪNG KẾT NỐI** (Bẫy 3): `wal_autocheckpoint`, `busy_timeout` và
 //! `query_only` không phải thuộc tính của database. Đặt trên writer rồi tưởng cả kho đã
@@ -31,7 +31,7 @@ use super::{StoreError, StoreKind, Tuning};
 
 /// Mở một kết nối bằng **cờ tường minh**.
 ///
-/// ⚠️ ⛔ Không dùng `OpenFlags::default()`. Nó là
+/// ⚠️ Không dùng `OpenFlags::default()`. Nó là
 /// `READ_WRITE | CREATE | NO_MUTEX | URI` (`rusqlite-0.40.1/src/lib.rs:1256-1266`) — và
 /// `SQLITE_OPEN_URI` là cái bẫy: một thư mục người dùng chứa `?` trong tên
 /// (`.../Sach ? tap 2/global.db`) bị SQLite đọc thành URI kèm query string, và kho mở ra
@@ -57,19 +57,19 @@ pub(crate) fn open_connection(path: &Path, kind: StoreKind) -> Result<Connection
 /// `SQLITE_OPEN_READ_ONLY | SQLITE_OPEN_NO_MUTEX`. Ba thứ **vắng mặt** ở đây đều là
 /// quyết định, không phải sơ suất:
 ///
-/// - ⛔ **Không `SQLITE_OPEN_URI`** — cùng nguyên lý lẽ với [`open_connection`]: một thư
+/// - **Không `SQLITE_OPEN_URI`** — cùng nguyên lý lẽ với [`open_connection`]: một thư
 ///   mục người dùng chứa `?` trong tên (`.../Sach ? tap 2/dict-core.db`) bị SQLite đọc
 ///   thành URI kèm query string, và tệp mở ra ở một chỗ khác chỗ ta nghĩ. Đường dẫn ở
 ///   đây LUÔN là đường dẫn hệ tệp.
-/// - 🔴 ⛔ **Không `SQLITE_OPEN_CREATE`** — và đây là lý do MỚI, riêng của đường chỉ đọc.
+/// - 🔴 **Không `SQLITE_OPEN_CREATE`** — và đây là lý do MỚI, riêng của đường chỉ đọc.
 ///   Với `CREATE`, một đường dẫn gõ sai (hoặc một tệp `$RESOURCE` chưa được đóng gói)
 ///   không trả lỗi: SQLite **dựng một tệp rỗng mới toanh**, mọi truy vấn sau đó trả
-///   rỗng, ⛔ không lỗi nào được ném, và người dùng chỉ thấy *"tra từ không ra kết quả"*.
+///   rỗng, không lỗi nào được ném, và người dùng chỉ thấy *"tra từ không ra kết quả"*.
 ///   Không `CREATE` thì đường dẫn sai là một `Err` ngay tại chỗ mở.
-/// - ⛔ **Không `SQLITE_OPEN_READ_WRITE`** — AD-7: dữ liệu từ điển chỉ đọc, luôn luôn.
+/// - **Không `SQLITE_OPEN_READ_WRITE`** — AD-7: dữ liệu từ điển chỉ đọc, luôn luôn.
 ///
 /// `NO_MUTEX` giữ nguyên vì cùng lý do với [`open_connection`]: `Connection` là `Send`
-/// nhưng ⛔ không `Sync`, nên trình biên dịch tự canh việc một kết nối không bị dùng
+/// nhưng không `Sync`, nên trình biên dịch tự canh việc một kết nối không bị dùng
 /// đồng thời từ hai luồng.
 pub(crate) fn open_readonly_connection(
     path: &Path,
@@ -111,7 +111,7 @@ fn read_pragma(conn: &Connection, name: &str, kind: StoreKind) -> Result<String,
 ///
 /// ⚠️ Giá trị nội suy bằng `format!` chứ không bằng tham số ràng buộc, và đó là bắt buộc
 /// chứ không phải lười: SQLite **không** nhận tham số ràng buộc trong câu `PRAGMA`. Mọi
-/// giá trị đi qua đây là hằng của chính chương trình hoặc số từ [`Tuning`] — ⛔ không bao
+/// giá trị đi qua đây là hằng của chính chương trình hoặc số từ [`Tuning`] — không bao
 /// giờ là dữ liệu người dùng.
 fn set_and_verify(
     conn: &Connection,
@@ -138,7 +138,7 @@ fn set_and_verify(
 }
 
 /// `journal_mode = WAL`, đặt rồi đọc lại. Đọc về khác `"wal"` ⇒
-/// [`StoreError::WalUnavailable`], ⛔ không đi tiếp.
+/// [`StoreError::WalUnavailable`], không đi tiếp.
 ///
 /// 🔴 Biến thể lỗi RIÊNG chứ không dùng chung `OpenFailed`, vì đây là ca duy nhất trong
 /// cả module mà *"lệnh chạy thành công"* và *"kết quả đúng"* là hai chuyện khác nhau —
@@ -236,19 +236,19 @@ pub(crate) fn apply_reader_pragmas(
 /// 1. Tái dùng thẳng ⇒ [`StoreError::WalUnavailable`] `{ mode: "delete" }` ngay lượt mở
 ///    đầu tiên. Hỏng **ồn ào** — đây là đường ít tệ hơn.
 /// 2. Cám dỗ tiếp theo, *"thì đặt WAL cho nó"* ⇒ `PRAGMA journal_mode = WAL` **GHI VÀO**
-///    database. SHA-256 của tệp đổi, `dict-manifest.toml` thành sai, AD-25 vỡ, và ⛔
-///    không cổng nào bắt (`check-dict-manifest.mjs` cố ý ⛔ không đọc `.db`). Trên một
+///    database. SHA-256 của tệp đổi, `dict-manifest.toml` thành sai, AD-25 vỡ, và không
+///    không cổng nào bắt (`check-dict-manifest.mjs` cố ý không đọc `.db`). Trên một
 ///    `$RESOURCE` chỉ-đọc thật thì lệnh chỉ **trượt** — tức hành vi khác nhau giữa máy
 ///    dev và bản phát hành.
 ///
-/// → Nên đường của tệp từ điển ⛔ **không** chạm `journal_mode` theo bất kỳ chiều nào:
-///   ⛔ không đặt, ⛔ không xác nhận.
+/// → Nên đường của tệp từ điển **không** chạm `journal_mode` theo bất kỳ chiều nào:
+///   không đặt, không xác nhận.
 ///
-/// ⛔ **Không `wal_autocheckpoint`** — nó chỉ có nghĩa trên một database WAL, và ở đây
-/// ⛔ không có WAL nào. Đặt nó là khai một ý định sai cho người đọc sau.
+/// **Không `wal_autocheckpoint`** — nó chỉ có nghĩa trên một database WAL, và ở đây
+/// không có WAL nào. Đặt nó là khai một ý định sai cho người đọc sau.
 ///
 /// ⚠️ `query_only` đặt **CUỐI CÙNG**, cùng thứ tự và cùng lý do với
-/// [`apply_reader_pragmas`]. Nó chồng lên `SQLITE_OPEN_READ_ONLY` chứ ⛔ không thay thế:
+/// [`apply_reader_pragmas`]. Nó chồng lên `SQLITE_OPEN_READ_ONLY` chứ không thay thế:
 /// cờ mở là cưỡng chế của tầng tệp, `query_only` là cưỡng chế của tầng câu lệnh và nó
 /// **đọc lại xác nhận được** — mà một bất biến đọc lại được là một bất biến test được.
 pub(crate) fn apply_dict_reader_pragmas(
@@ -262,7 +262,7 @@ pub(crate) fn apply_dict_reader_pragmas(
     Ok(())
 }
 
-/// Kết nối của luồng CHECKPOINT: bộ chung, ⛔ **không** `query_only` — checkpoint ghi.
+/// Kết nối của luồng CHECKPOINT: bộ chung, **không** `query_only` — checkpoint ghi.
 pub(crate) fn apply_checkpoint_pragmas(
     conn: &Connection,
     kind: StoreKind,
@@ -301,7 +301,7 @@ pub(crate) struct CheckpointOutcome {
 ///
 /// ⚠️ Feature `hooks` của `rusqlite` đang **TẮT** (`Cargo.toml:114`, không nằm trong
 /// `default` hay `bundled`) ⇒ `Wal::checkpoint_v2` và `CheckpointMode` **không tồn tại**.
-/// Checkpoint **phải** đi qua SQL. ⛔ Bật feature đó là thêm bề mặt API mới vào một crate
+/// Checkpoint **phải** đi qua SQL. Bật feature đó là thêm bề mặt API mới vào một crate
 /// đã ghim, ngoài phạm vi story này.
 pub(crate) fn wal_checkpoint(
     conn: &Connection,

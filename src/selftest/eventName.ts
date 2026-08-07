@@ -14,7 +14,7 @@
  *
  * Module này rỗng ngoài một hằng, nên kéo nó vào bundle chính không tốn gì.
  *
- * ⛔ Ba chỗ phải khớp nhau, đổi một là đổi cả ba:
+ * Ba chỗ phải khớp nhau, đổi một là đổi cả ba:
  *   - `SCOPE_SELFTEST_EVENT` ở `src-tauri/src/lib.rs`
  *   - `SELFTEST_EVENT` ở đây
  *   - `scripts/check-scope*.mjs` đọc dòng `VERDICT:` (không phụ thuộc tên event)

@@ -3,7 +3,7 @@
  * thứ dự án cần ở v1 (§Vì sao không dùng `vue-i18n` của Story 1.5).
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * ⛔ TỆP NÀY KHÔNG ĐƯỢC `import` BẤT CỨ THỨ GÌ — và đó là một điều kiện kỹ thuật,
+ * TỆP NÀY KHÔNG ĐƯỢC `import` BẤT CỨ THỨ GÌ — và đó là một điều kiện kỹ thuật,
  * không phải một sở thích về kiến trúc.
  * ─────────────────────────────────────────────────────────────────────────────
  * AC4 là mệnh đề về HÀNH VI LÚC CHẠY (*"khoá thiếu ⇒ hiện khoá nguyên văn và ghi
@@ -17,7 +17,7 @@
  * hiểu `.vue`. Một dòng `import` ở đây là Kiểm E chết, và AC4 quay về nghiệm thu
  * bằng mắt.
  *
- * ⛔ Cùng lý do: KHÔNG `enum`, KHÔNG `namespace`, KHÔNG parameter property
+ * Cùng lý do: KHÔNG `enum`, KHÔNG `namespace`, KHÔNG parameter property
  * (`constructor(private x)`). Ba thứ đó Node từ chối bóc kiểu vì chúng SINH MÃ chứ
  * không chỉ mang chú thích. `type` / `interface` / annotation thì được.
  *
@@ -92,7 +92,7 @@ export function createResolver(catalog: MessageCatalog): Translate {
 
     return template.replace(PLACEHOLDER_RE, (placeholder: string, name: string): string => {
       const value = params === undefined ? undefined : params[name]
-      // ⛔ CÓ MẶT chưa đủ — phải LÀ CHUỖI. Một phép kiểm `hasOwnProperty` trần đúng
+      // CÓ MẶT chưa đủ — phải LÀ CHUỖI. Một phép kiểm `hasOwnProperty` trần đúng
       // cho `{path: null}` (JSON `null` là giá trị hợp lệ trên dây IPC) và cho
       // `{path: undefined}`, rồi `"Không đọc được tệp tại null."` đi thẳng ra màn hình như
       // một câu hoàn chỉnh về ngữ pháp — đúng thứ đoạn ⚠️ ở doc-comment trên cấm.
@@ -100,9 +100,9 @@ export function createResolver(catalog: MessageCatalog): Translate {
         // Khoá dedupe gộp cả `key` — cùng một tham số thiếu ở hai chuỗi khác nhau
         // là hai chỗ gọi sai khác nhau, và người sửa cần thấy cả hai.
         //
-        // ⛔ Dấu phân cách viết BẰNG ESCAPE `\u0000`, không phải một byte NUL THÔ gõ thẳng
+        // Dấu phân cách viết BẰNG ESCAPE `\u0000`, không phải một byte NUL THÔ gõ thẳng
         // vào tệp. Một byte NUL làm git phân loại tệp này là *binary*: `git diff` in
-        // "Binary files … differ", `grep`/`git grep` bỏ qua nó, và tệp mang nhiều ⛔ nhất
+        // "Binary files … differ", `grep`/`git grep` bỏ qua nó, và tệp mang nhiều không nhất
         // của Story 1.5 trở thành tệp không ai review được bằng diff. Hai dạng tương đương
         // từng byte lúc chạy; chỉ khác ở chỗ một dạng đọc được.
         warnOnce(

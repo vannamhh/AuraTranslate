@@ -31,7 +31,7 @@
  * ─────────────────────────────────────────────────────────────────────────────────
  * 1. **Comment tiếng Việt ở mọi nơi — KHÔNG phải vi phạm.** Toàn bộ dự án tự tài liệu
  *    hoá bằng tiếng Việt; đó là quy ước có chủ ý. NFR16 nói về CHUỖI HIỂN THỊ, không
- *    nói về comment. ⛔ Một cổng bắt comment sẽ đỏ vĩnh viễn ở mọi tệp và sẽ bị gỡ
+ *    nói về comment. Một cổng bắt comment sẽ đỏ vĩnh viễn ở mọi tệp và sẽ bị gỡ
  *    trong tuần — đúng cách hỏng đắt hơn hẳn việc không có cổng (`ci.yml:410-418`).
  * 2. **Thông báo `assert!` trong `src-tauri/tests/**` — miễn trừ, nhưng KHAI RA.**
  *    Xem `EXEMPT` bên dưới.
@@ -118,7 +118,7 @@ function abort(what, err) {
 // ═════════════════════════════════════════════════════════════════════════════════
 // MIỄN TRỪ — mỗi mục một câu lý do, và cổng IN RA số tệp đã miễn trừ ở mỗi lượt chạy
 //
-// ⛔ Miễn trừ KHÔNG được cài bằng cách thu hẹp glob quét. Glob quét cả cây; miễn trừ
+// Miễn trừ KHÔNG được cài bằng cách thu hẹp glob quét. Glob quét cả cây; miễn trừ
 // là một bước lọc CÓ TÊN và CÓ LÝ DO. Một danh sách kiểm tự rút gọn để cho xanh là
 // đúng thứ cổng tồn tại để chặn (cùng luật mà Story 1.4 §Kiểm C áp cho cặp màu không
 // dùng). Số tệp miễn trừ in ra để nó không lặng lẽ phình lên.
@@ -202,7 +202,7 @@ try {
   //
   // 🔴 `tools/` là NHÁNH THỨ BA (Story 1.9, Task 9) — đóng `deferred-work.md:44`.
   // Miễn trừ TRỌN ở `EXEMPT` (`tools/**`), nên thêm gốc này KHÔNG được đổi quần thể
-  // in ra sau miễn trừ; nếu số nhảy lên, miễn trừ chưa ăn — sửa miễn trừ, ⛔ đừng chỉnh
+  // in ra sau miễn trừ; nếu số nhảy lên, miễn trừ chưa ăn — sửa miễn trừ, đừng chỉnh
   // sàn cho vừa (xem doc-comment `RS_FLOOR` bên dưới).
   rsAll = [...walk(join(REPO_ROOT, 'src-tauri'), '.rs'), ...walk(join(REPO_ROOT, 'tools'), '.rs')].sort()
   vueAll = walk(join(REPO_ROOT, 'src'), '.vue').sort()
@@ -236,13 +236,13 @@ const vueFiles = keep(vueAll)
  * ⚠️ Số cập nhật ở Story 1.7 (tầng ghi dữ liệu): **23** tệp `.rs` sau miễn trừ — 27 tệp
  * đi qua `walk`, 4 tệp `tests/**` miễn trừ. Cây mọc thêm 5 tệp dưới
  * `src-tauri/src/core/store/` và 2 tệp test. Sàn giữ nguyên tỷ lệ dư địa cũ (~78% số
- * thật): nó tồn tại để bắt một cây bị CẮT MẤT, ⛔ không phải để đếm tệp mới.
+ * thật): nó tồn tại để bắt một cây bị CẮT MẤT, không phải để đếm tệp mới.
  *
  * ⚠️ Số cập nhật ở Story 1.8 (phân giải cấu hình hai tầng): **27** tệp `.rs` sau miễn trừ
  * — 33 tệp đi qua `walk`, 6 tệp `tests/**` miễn trừ. Cây mọc thêm 3 tệp dưới
  * `src-tauri/src/core/scope/`, `src-tauri/src/commands/config.rs`, và 2 tệp test.
  *
- * 🔴 Sàn đặt ở **21** (~78% của 27), ⛔ **không** đặt bằng 27. Story 1.7 §Completion Notes
+ * 🔴 Sàn đặt ở **21** (~78% của 27), **không** đặt bằng 27. Story 1.7 §Completion Notes
  * #10 ghi lại nguyên văn vì sao: *"sàn tồn tại để bắt một cây bị cắt mất, không phải để
  * đếm tệp mới"* — đặt nó bằng số thật là tự tạo một cổng đỏ ở story sau, và cổng đỏ vì
  * một lý do không có thật là cổng bị gỡ.
@@ -258,12 +258,12 @@ const vueFiles = keep(vueAll)
  * Số THẬT sau Story 1.14: **32** tệp `.rs` sau miễn trừ · **11** tệp `.vue`. Quần thể
  * `.vue` nhảy từ 5 lên 11 vì bốn panel + `PanelTab` + `WorkspaceDock` ra đời.
  *
- * `VUE_FLOOR = 1` là con số ⛔ **không còn canh được gì**: nó đúng ở ngày `PanelFrame` là
+ * `VUE_FLOOR = 1` là con số **không còn canh được gì**: nó đúng ở ngày `PanelFrame` là
  * `.vue` duy nhất, và từ đó tới nay một lượt quét khớp 2 trong 11 tệp vẫn đi qua. Nay
  * nâng lên **9** (~82% của 11), cùng tỷ lệ dư địa mà `RS_FLOOR` đang giữ.
  *
  * ⚠️ `RS_FLOOR` lên **26** (~81% của 32). Nâng vì con số thật đã đi xa khỏi 21 sau các
- * story 1.9–1.13, ⛔ không phải vì story này thêm tệp `.rs` nào — Story 1.14 thêm đúng
+ * story 1.9–1.13, không phải vì story này thêm tệp `.rs` nào — Story 1.14 thêm đúng
  * **không** tệp Rust mới, nó chỉ sửa hai tệp có sẵn.
  *
  * ⚠️ Và nhắc lại vì nó là lý do sàn này tồn tại ở dạng này: sàn ĐẾM TỆP thì một tệp RỖNG
@@ -696,7 +696,7 @@ function scanTemplate(text, from, to, hits) {
     if (state === 'text') {
       if (text.startsWith('<!--', i)) {
         const end = text.indexOf('-->', i + 4)
-        // ⛔ Chặn bởi `to`: một `-->` ngoài vùng không đóng được comment trong vùng.
+        // Chặn bởi `to`: một `-->` ngoài vùng không đóng được comment trong vùng.
         i = end === -1 || end >= to ? to : end + 3
         continue
       }
@@ -745,7 +745,7 @@ function scanTemplate(text, from, to, hits) {
  * bản chép sẽ lệch nhau ở lần sửa thứ ba, và lúc đó Kiểm A với Kiểm A2 nhìn hai template
  * khác nhau trong cùng một tệp.
  *
- * ⛔ Giá trị attribute ⛔ KHÔNG được thu: `title="Đã lưu"` đã là vi phạm của **Kiểm A**
+ * Giá trị attribute KHÔNG được thu: `title="Đã lưu"` đã là vi phạm của **Kiểm A**
  * (chuỗi có dấu ở vị trí mã). Thu nó lần nữa ở đây là báo một lỗi hai lần.
  */
 function collectTextNodes(text, from, to, out) {
@@ -890,12 +890,12 @@ console.log('\nKiểm A2 — mọi TEXT NODE của template phải đi qua `t()`
 //
 // 🔴 ĐÓNG `deferred-work.md:36` — Story 1.14 · §Quyết định #6.
 //
-// Kiểm A đo **DẤU**, ⛔ không đo **CHUỖI HIỂN THỊ**. Hệ quả đã ghi nguyên văn từ Story 1.5:
+// Kiểm A đo **DẤU**, không đo **CHUỖI HIỂN THỊ**. Hệ quả đã ghi nguyên văn từ Story 1.5:
 // `<button>Dong</button>` — một nhãn tiếng Việt viết không dấu, hiển thị ra màn hình,
-// ⛔ không đi qua `vi.json` — **đi qua Kiểm A xanh**. Cùng với nó: `<span>Save</span>`,
+// không đi qua `vi.json` — **đi qua Kiểm A xanh**. Cùng với nó: `<span>Save</span>`,
 // `<p>3 results</p>`, mọi thứ không mang dấu.
 //
-// Ice chốt 2026-08-04: *"giữ nguyên cổng, ⛔ không mở rộng phạm vi trong Story 1.5 […]
+// Ice chốt 2026-08-04: *"giữ nguyên cổng, không mở rộng phạm vi trong Story 1.5 […]
 // **Mở lại ở Story 1.14**, khi bốn panel thật có nhãn thật để định nghĩa 'đúng' nghĩa là
 // gì."* Nay chúng có nhãn thật, và "đúng" là: **mọi văn bản người dùng đọc được đến từ
 // `vi.json`** (NFR16, AD-21).
@@ -903,16 +903,16 @@ console.log('\nKiểm A2 — mọi TEXT NODE của template phải đi qua `t()`
 // ─────────────────────────────────────────────────────────────────────────────────
 // LUẬT
 // ─────────────────────────────────────────────────────────────────────────────────
-// Một text node HỢP LỆ khi, sau khi gỡ hết các khối `{{ … }}`, phần còn lại ⛔ không có
+// Một text node HỢP LỆ khi, sau khi gỡ hết các khối `{{ … }}`, phần còn lại không có
 // chữ cái hay chữ số — VÀ mọi khối `{{ … }}` đã gỡ đều mở đầu bằng `t(` hoặc `tError(`.
 //
-// ⚠️ Phần "còn lại ⛔ không có chữ cái" cho phép dấu phân cách thị giác (`·`, `|`, `—`,
-// dấu phẩy) đứng giữa hai lời gọi — chúng là **hình dạng**, ⛔ không phải văn bản dịch
+// ⚠️ Phần "còn lại không có chữ cái" cho phép dấu phân cách thị giác (`·`, `|`, `—`,
+// dấu phẩy) đứng giữa hai lời gọi — chúng là **hình dạng**, không phải văn bản dịch
 // được. Một chữ cái duy nhất lọt vào đó thì đã là một chuỗi hiển thị.
 //
 // Đường ra là **miễn trừ CÓ TÊN** `<!-- aura-allow-text: <lý do> -->` ngay trên node.
 // ⚠️ Mọi miễn trừ được IN RA ở mỗi lượt chạy — cùng kỷ luật với `EXEMPT` ở đầu tệp: một
-// miễn trừ ⛔ không được soi là một chỗ mù.
+// miễn trừ không được soi là một chỗ mù.
 
 const INTERPOLATION_RE = /\{\{([\s\S]*?)\}\}/g
 const ALLOWED_CALL_RE = /^\s*(?:t|tError)\s*\(/
@@ -948,10 +948,10 @@ for (const file of vueFiles) {
     /**
      * Miễn trừ có tên: comment HTML **đứng ngay trước** node.
      *
-     * ⚠️ *"Ngay trước"* đo bằng CẤU TRÚC, ⛔ không bằng SỐ DÒNG. Bản đầu nhìn lại hai dòng
+     * ⚠️ *"Ngay trước"* đo bằng CẤU TRÚC, không bằng SỐ DÒNG. Bản đầu nhìn lại hai dòng
      * và trượt ngay ở ca đầu tiên gặp thật (`src/App.vue`): một comment giải thích tử tế
-     * chiếm sáu dòng, và cửa sổ hai dòng ⛔ không với tới `aura-allow-text`. Một cổng có
-     * đường thoát mà đường đó ⛔ không dùng được thì đường thoát chỉ là trang trí.
+     * chiếm sáu dòng, và cửa sổ hai dòng không với tới `aura-allow-text`. Một cổng có
+     * đường thoát mà đường đó không dùng được thì đường thoát chỉ là trang trí.
      *
      * Luật: từ đầu node lùi ngược, bỏ qua khoảng trắng **và tối đa MỘT thẻ mở**; nếu chạm
      * `-->` thì lùi tới `<!--` khớp và soi TRỌN comment đó, dài bao nhiêu cũng được.
@@ -959,7 +959,7 @@ for (const file of vueFiles) {
      * ⚠️ *"tối đa một thẻ mở"* là vế thứ hai mà lượt dựng bỏ sót: comment giải thích đứng
      * trước **phần tử** (`<!-- … --> <p …>{{ x }}</p>`), còn text node thì bắt đầu sau
      * `>`. Bỏ vế này thì miễn trừ chỉ dùng được khi comment nằm BÊN TRONG thẻ — một chỗ
-     * ⛔ không ai viết comment cả.
+     * không ai viết comment cả.
      */
     let cut = node.start
     const skipSpace = () => {
@@ -989,7 +989,7 @@ for (const file of vueFiles) {
       detail('NFR16: mọi văn bản hiển thị sống ở `src/i18n/vi.json` và CHỈ ở đó.')
     }
     for (const e of badCalls) {
-      fail(`${posix(file)}:${line}:${col} — \`{{${e.trim().slice(0, 50)}}}\` ⛔ không phải \`t()\`/\`tError()\``)
+      fail(`${posix(file)}:${line}:${col} — \`{{${e.trim().slice(0, 50)}}}\` không phải \`t()\`/\`tError()\``)
       detail('Nếu biểu thức này ĐÃ mang chuỗi đã dịch: `<!-- aura-allow-text: <lý do> -->`.')
     }
     a2Bad += 1
@@ -1083,7 +1083,7 @@ for (const [key, value] of entries) {
   if (typeof value !== 'string') {
     const kind = value === null ? 'null' : Array.isArray(value) ? 'mảng' : typeof value
     fail(`\`${key}\` có giá trị kiểu ${kind} — \`vi.json\` phải PHẲNG, mọi giá trị là chuỗi`)
-    detail('⛔ `{"lookup": {"empty_result": "…"}}` là sai hình dạng. Khoá chấm, một tầng.')
+    detail('không `{"lookup": {"empty_result": "…"}}` là sai hình dạng. Khoá chấm, một tầng.')
     bBad += 1
     continue
   }
@@ -1213,7 +1213,7 @@ console.log('\nKiểm E — hành vi thật của `resolve.ts`, cả hai chiều
 // ⚠️ Đường đi này tồn tại nhờ Node ≥ 22.18 bóc kiểu TypeScript mặc định — và đó chính
 // là lý do `resolve.ts` KHÔNG được `import` gì (doc-comment ở đầu tệp đó ghi đầy đủ).
 //
-// ⛔ `import()` thất bại ⇒ `abort()` và exit 1, KHÔNG phải bỏ qua Kiểm E rồi exit 0.
+// `import()` thất bại ⇒ `abort()` và exit 1, KHÔNG phải bỏ qua Kiểm E rồi exit 0.
 // `check-deps.mjs:60-66`: *"Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một
 // kết quả không có thật."*
 
@@ -1230,8 +1230,8 @@ try {
     new Error(
       `${err?.message || err}\n\n` +
         `Node đang chạy: ${process.version}. Kiểm E cần Node ≥ 22.18 (bóc kiểu TypeScript ` +
-        'mặc định), và `resolve.ts` phải là cú pháp "erasable-only": ⛔ không `enum`, ' +
-        '⛔ không `namespace`, ⛔ không parameter property, ⛔ KHÔNG một dòng `import` nào.',
+        'mặc định), và `resolve.ts` phải là cú pháp "erasable-only": không `enum`, ' +
+        'không `namespace`, không parameter property, KHÔNG một dòng `import` nào.',
     ),
   )
 }
@@ -1324,7 +1324,7 @@ try {
     'Không đọc được tệp tại {path}.',
   )
 
-  // ⛔ Tham số CÓ MẶT nhưng không phải chuỗi (`null` qua dây JSON, `undefined` ở một chỗ
+  // Tham số CÓ MẶT nhưng không phải chuỗi (`null` qua dây JSON, `undefined` ở một chỗ
   // gọi ẩu) phải xử như tham số THIẾU. `has(params, name)` đúng nhưng giá trị vô nghĩa
   // là ca mà doc-comment `resolve.ts:61-63` cấm đích danh — `"… tại undefined."` là một
   // câu hoàn chỉnh về ngữ pháp và sẽ đi thẳng ra màn hình người dùng.
@@ -1340,7 +1340,7 @@ try {
     )
   }
 
-  // ⛔ Khoá không phải chuỗi vẫn phải TRẢ VỀ CHUỖI — `Translate` khai `=> string`, và
+  // Khoá không phải chuỗi vẫn phải TRẢ VỀ CHUỖI — `Translate` khai `=> string`, và
   // một binding Vue nhận `undefined` thì render rỗng thay vì hiện khoá như AC4 đòi.
   for (const bad of [undefined, null, 1]) {
     const got = call(`khoá kiểu ${typeof bad}`, () => t(bad)).value

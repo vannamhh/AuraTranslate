@@ -53,9 +53,9 @@ pub struct OpenWork {
 
 /// Thư mục gốc mặc định chứa mọi `.atproj` — `~/Documents/AuraTranslate/` (AD-23).
 ///
-/// ⛔ Không viết cứng `$HOME` — `app.path().document_dir()` là đường duy nhất (NFR14).
+/// Không viết cứng `$HOME` — `app.path().document_dir()` là đường duy nhất (NFR14).
 /// ⚠️ Scope động của AD-23 hôm nay được cưỡng chế bằng **kỷ luật mã Rust** (module này là
-/// nơi DUY NHẤT gọi hàm này), ⛔ không phải bởi framework — xem Completion Notes của story
+/// nơi DUY NHẤT gọi hàm này), không phải bởi framework — xem Completion Notes của story
 /// `1-15…md`.
 pub fn default_library_root(app: &tauri::AppHandle) -> Result<PathBuf, IpcError> {
     use tauri::Manager as _;
@@ -74,7 +74,7 @@ pub fn default_library_root(app: &tauri::AppHandle) -> Result<PathBuf, IpcError>
 /// Thứ tự: dựng thư mục (`core::library::atproj`) → mở `project.db`
 /// (`StoreSpec::project`) → **ghi** hàng `work` + hàng `chapter` trong MỘT giao dịch →
 /// dựng lại `meta.json` từ `project.db` vừa commit (Quyết định #3, AD-33) → ghi `meta.json`
-/// nguyên tử NGAY SAU giao dịch. Bất kỳ bước nào trượt ⇒ dọn thư mục, ⛔ không để lại
+/// nguyên tử NGAY SAU giao dịch. Bất kỳ bước nào trượt ⇒ dọn thư mục, không để lại
 /// `.atproj/` nửa vời (AC8).
 ///
 /// # Lỗi
@@ -104,7 +104,7 @@ pub fn create_work(
     let genre_owned = genre.to_owned();
     let source_text = imported.source_text;
 
-    // 🔴 Quyết định #3: job ghi CHỈ SQL — ⛔ không `fs::write` nào bên trong closure này.
+    // 🔴 Quyết định #3: job ghi CHỈ SQL — không `fs::write` nào bên trong closure này.
     let write_result = store.write(move |tx: &Transaction<'_>| {
         tx.execute(
             "INSERT INTO work (id, work_id, name, source_lang, genre, created_at, updated_at) \
@@ -128,7 +128,7 @@ pub fn create_work(
     }
 
     // Quyết định #3: `meta.json` ghi NGAY SAU KHI giao dịch commit, ở tầng THAO TÁC —
-    // dựng lại từ `project.db` vừa ghi (AD-33), ⛔ không giữ dữ liệu song song mà trôi.
+    // dựng lại từ `project.db` vừa ghi (AD-33), không giữ dữ liệu song song mà trôi.
     let meta = match WorkMeta::rebuild_from_store(&store) {
         Ok(meta) => meta,
         Err(err) => {
@@ -138,22 +138,22 @@ pub fn create_work(
         }
     };
 
-    // 🔴 Loi ghi meta.json PHAI noi ra, ⛔ KHONG duoc nuot — code review 2026-08-06.
+    // 🔴 Loi ghi meta.json PHAI noi ra, KHONG duoc nuot — code review 2026-08-06.
     //
     // Quyet dinh #3 chap nhan **cua so SAP MAY** giua commit va fs::write, va no dung:
-    // AD-33 noi meta.json dung lai duoc tu project.db. Nhung no ⛔ KHONG cho phep di tiep
+    // AD-33 noi meta.json dung lai duoc tu project.db. Nhung no KHONG cho phep di tiep
     // khi ham TRA VE Err. Hai chuyen khac han nhau:
-    //   - sap may  ⇒ ⛔ khong ai chay duoc ma dep, va lan mo sau dung lai duoc;
+    //   - sap may  ⇒ khong ai chay duoc ma dep, va lan mo sau dung lai duoc;
     //   - Err      ⇒ tien trinh van song, va di tiep nghia la tra ve Ok cho mot .atproj
     //                chi co HAI thanh phan — pha AC2, va pha AC3 (Library doc metadata
     //                ma khong mo SQLite) ngay tu luc tao.
     //
-    // Va duong dung lai KHONG TU CHAY: `rebuild_from_store` ⛔ khong co mot cho goi san
-    // pham nao (story nay ⛔ khong dung man hinh "mo lai mot .atproj"), nen mot meta.json
+    // Va duong dung lai KHONG TU CHAY: `rebuild_from_store` khong co mot cho goi san
+    // pham nao (story nay khong dung man hinh "mo lai mot .atproj"), nen mot meta.json
     // vang mat nam do cho toi Epic 5.
     //
     // ⇒ Cuon lai TRON VEN. An toan vi `create_work_folder` tao DOC QUYEN: `dir` chac chan
-    // la thu muc cua chinh luot goi nay, ⛔ khong phai du lieu co san.
+    // la thu muc cua chinh luot goi nay, khong phai du lieu co san.
     if let Err(err) = meta.write_atomic(&dir) {
         eprintln!(
             "project[{}] meta.json write failed after commit, rolling back: {err}",
@@ -206,7 +206,7 @@ pub fn create_work_from_file(
 
 /// Kiểu state Tauri quản lý — Tác phẩm đang mở, hoặc chưa mở gì (Task 7).
 ///
-/// ⚠️ `Mutex`, ⛔ không `RwLock`: đúng một Tác phẩm mở tại một thời điểm, và mọi thao tác
+/// ⚠️ `Mutex`, không `RwLock`: đúng một Tác phẩm mở tại một thời điểm, và mọi thao tác
 /// đọc/ghi field của nó (thay Tác phẩm khác, đóng lúc thoát) đều là **thao tác độc quyền**
 /// — không có nhánh "nhiều reader cùng lúc" nào ở tầng state này (khác hẳn `Store::read`
 /// bên trong, nơi pool nhiều kết nối đã lo phần đó).
@@ -217,10 +217,10 @@ pub type OpenWorkState = std::sync::Mutex<Option<OpenWork>>;
 /// ⚠️ Nếu `OpenWorkState` chưa từng được `app.manage(...)` (lỗi cấu hình `setup()`, không
 /// phải đường sản phẩm bình thường), `new_work` bị drop ngay khi hàm này return — Tác
 /// phẩm vừa tạo đóng lại tức thì. Đây là im lặng có chủ ý: cùng khuôn
-/// `close_global_store`/`try_state`, ⛔ không panic khi state vắng mặt.
+/// `close_global_store`/`try_state`, không panic khi state vắng mặt.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 AC10 (Story 1.16) — `Store` CŨ THẢ **NGOÀI** VÙNG KHOÁ, ⛔ KHÔNG bên trong
+/// 🔴 AC10 (Story 1.16) — `Store` CŨ THẢ **NGOÀI** VÙNG KHOÁ, KHÔNG bên trong
 /// ─────────────────────────────────────────────────────────────────────────────
 /// Lượt review 2026-08-06 dự báo đúng: `*guard = Some(new_work)` chạy `Drop` của giá trị
 /// CŨ (đóng `Store` — TRUNCATE có trần, `core::store::Store::close`) **trong khi `guard`
@@ -230,7 +230,7 @@ pub type OpenWorkState = std::sync::Mutex<Option<OpenWork>>;
 /// đóng một `Store` giữ khoá mutex chặn mọi lượt đọc đó trong lúc TRUNCATE chạy.
 ///
 /// Khuôn đúng: `Mutex::replace` trả **giá trị cũ**, gán trong một khối con để `guard` nhả
-/// khoá ngay khi khối đó kết thúc, RỒI mới `drop(old)` — Store cũ đóng khi ⛔ không ai còn
+/// khoá ngay khi khối đó kết thúc, RỒI mới `drop(old)` — Store cũ đóng khi không ai còn
 /// giữ khoá.
 fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
     use tauri::Manager as _;
@@ -240,12 +240,12 @@ fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
     }
 }
 
-/// Thay giá trị bên trong `mutex` bằng `new`, trả về giá trị **CŨ** — ⛔ **không** tự
+/// Thay giá trị bên trong `mutex` bằng `new`, trả về giá trị **CŨ** — **không** tự
 /// `drop` nó ở đây. Đó là toàn bộ điểm của hàm này (AC10): `guard` nhả khoá ở cuối khối
 /// `lock()`/`replace()`, và giá trị cũ chỉ bị drop **sau đó**, ở chỗ gọi
-/// ([`replace_open_work`]) — chứ ⛔ không trong khi khoá vẫn còn giữ.
+/// ([`replace_open_work`]) — chứ không trong khi khoá vẫn còn giữ.
 ///
-/// Tách thành một hàm **thuần theo kiểu** (`T` bất kỳ, ⛔ không riêng `OpenWork`) là điều
+/// Tách thành một hàm **thuần theo kiểu** (`T` bất kỳ, không riêng `OpenWork`) là điều
 /// kiện để [`tests::swap_locked_drops_the_old_value_after_the_lock_is_released`] kiểm
 /// được đúng thuộc tính đó bằng một kiểu dò tự khoá lại chính `mutex` trong `Drop` của nó
 /// — dựng một `OpenWork` thật (mở `Store`) chỉ để kiểm thứ tự khoá/drop là một chi phí
@@ -289,7 +289,7 @@ mod tests {
         // 🔴 Lay gia tri CON LAI ra roi tha NGOAI khoa — hai viec trong mot dong.
         //
         // (1) Pha chu trinh `Arc`: gia tri cuoi nam TRONG chinh mutex ma no giu mot `Arc`
-        //     toi, nen refcount ⛔ khong bao gio ve 0 ⇒ `Drop` cua no ⛔ khong bao gio chay
+        //     toi, nen refcount khong bao gio ve 0 ⇒ `Drop` cua no khong bao gio chay
         //     va bo nho ro o cuoi test. Bat o luot code review 2026-08-06.
         // (2) Cho phep chinh phep kiem chay them mot lan nua: `take()` trong mot khoi rieng
         //     nha `guard` TRUOC, roi `drop(last)` chay `try_lock()` khi mutex da ranh.
@@ -299,7 +299,7 @@ mod tests {
     }
 }
 
-/// Hai vỏ `#[tauri::command]`. ⛔ **Không một quy tắc nào sống ở đây.**
+/// Hai vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use super::{IpcError, OpenWork, default_library_root, replace_open_work};
     use crate::core::library::WorkMeta;
@@ -307,29 +307,29 @@ pub mod wire {
     /// Thứ hai lệnh trả về — [`WorkMeta`] **cộng đường dẫn thư mục trên đĩa**.
     ///
     /// ─────────────────────────────────────────────────────────────────────────────
-    /// 🔴 VÌ SAO `folder` PHẢI ĐI RA — AC6 ⛔ KHÔNG GIAO ĐƯỢC NẾU THIẾU NÓ
+    /// 🔴 VÌ SAO `folder` PHẢI ĐI RA — AC6 KHÔNG GIAO ĐƯỢC NẾU THIẾU NÓ
     /// ─────────────────────────────────────────────────────────────────────────────
     /// AC6 hứa với người dùng *"copy thư mục là đủ để sao lưu"*. Một lời hứa về **một
-    /// thư mục cụ thể** mà ⛔ không nói thư mục đó ở đâu thì ⛔ không thực hiện được.
-    /// Và tên thư mục ⛔ **không** suy ra được từ `meta.name`: `sanitize_name` thay ký tự
+    /// thư mục cụ thể** mà không nói thư mục đó ở đâu thì không thực hiện được.
+    /// Và tên thư mục **không** suy ra được từ `meta.name`: `sanitize_name` thay ký tự
     /// cấm (`Tập 1: Khởi đầu` → `Tập 1_ Khởi đầu`), và trùng tên thì thêm hậu tố
     /// ` (2)` — nên chỉ Rust mới biết tên thật. Code review 2026-08-06.
     ///
-    /// ⚠️ `#[serde(rename_all = ...)]` ⛔ KHÔNG đặt — cùng luật với mọi struct qua biên.
+    /// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên.
     #[derive(Debug, Clone, serde::Serialize)]
     pub struct CreatedWork {
         /// Metadata vừa ghi xuống `meta.json`.
         pub meta: WorkMeta,
         /// Đường dẫn **tuyệt đối** tới `<Tên>.atproj/` trên máy này.
         ///
-        /// ⚠️ Đây là một giá trị **qua IPC**, ⛔ không phải một giá trị **ghi xuống đĩa** —
-        /// AC5 cấm đường dẫn tuyệt đối bên trong `meta.json`/`project.db`, ⛔ không cấm
+        /// ⚠️ Đây là một giá trị **qua IPC**, không phải một giá trị **ghi xuống đĩa** —
+        /// AC5 cấm đường dẫn tuyệt đối bên trong `meta.json`/`project.db`, không cấm
         /// nói cho người dùng biết Tác phẩm của họ nằm ở đâu.
         pub folder: String,
     }
 
     impl CreatedWork {
-        /// Gói một [`OpenWork`] thành thứ đi qua dây được — `Store` ⛔ không `Serialize`.
+        /// Gói một [`OpenWork`] thành thứ đi qua dây được — `Store` không `Serialize`.
         fn from_open(open: &OpenWork) -> Self {
             Self {
                 meta: open.meta.clone(),

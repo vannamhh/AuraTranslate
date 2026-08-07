@@ -12,18 +12,18 @@
  *
  * Lời giải ba phần, và cả ba đều bắt buộc:
  *   1. hợp âm viết ở dạng dữ liệu trung lập — `'Mod+1'`, `'Mod+Shift+Enter'`;
- *   2. nhận biết nền tảng đi qua **một tham số tiêm được** (`{ isMac }`), ⛔ KHÔNG đọc
+ *   2. nhận biết nền tảng đi qua **một tham số tiêm được** (`{ isMac }`), KHÔNG đọc
  *      thẳng `navigator` ở tầng module — không tiêm được thì cổng không lái được hai ca;
  *   3. Kiểm D của `scripts/check-commands.mjs` lái CẢ HAI ca và khẳng định cùng một hợp
  *      âm khớp `metaKey` ở ca một và `ctrlKey` ở ca hai.
  *
- * ⛔ **KHÔNG dùng `tauri-plugin-global-shortcut`.** Ba lý do, mỗi lý do đủ để loại:
+ * **KHÔNG dùng `tauri-plugin-global-shortcut`.** Ba lý do, mỗi lý do đủ để loại:
  * (1) một phụ thuộc mới phải rà GPLv3 và vào bảng Stack TRƯỚC khi thêm (NFR15) — chưa
  * ai rà; (2) nó đăng ký phím ở tầng HỆ ĐIỀU HÀNH, tức `⌘1` bị cướp khỏi mọi ứng dụng
  * khác trong khi AuraTranslate chạy nền; (3) *"Global Hotkeys"* của FR22 nghĩa là TOÀN
  * ỨNG DỤNG, không phải toàn hệ điều hành.
  *
- * ⛔ Cùng luật "erasable-only" như `./registry.ts` — Kiểm D `import()` tệp này bằng Node
+ * Cùng luật "erasable-only" như `./registry.ts` — Kiểm D `import()` tệp này bằng Node
  * thuần. Lần `import` duy nhất ở đây là một `import type`, và nó bị xoá hoàn toàn lúc
  * bóc kiểu nên tệp này không kéo theo thứ gì lúc chạy.
  */
@@ -66,7 +66,7 @@ export type Binding = {
 }
 
 export type Keymap = {
-  /** `true` nếu một hợp âm khớp và đã `dispatch`. `false` ⇒ ⛔ KHÔNG đụng vào event. */
+  /** `true` nếu một hợp âm khớp và đã `dispatch`. `false` ⇒ KHÔNG đụng vào event. */
   handle(event: ChordEvent): boolean
   bindings(): readonly Binding[]
 }
@@ -279,7 +279,7 @@ export function createKeymap(registry: Registry, platform: Platform): Keymap {
   const handle = (event: ChordEvent): boolean => {
     // 🔴 IME ĐỨNG TRƯỚC MỌI THỨ. Một lượt commit composition của bộ gõ tiếng Việt phát
     // `keydown` mang `code` vật lý; ăn nó như một hợp âm là ăn mất chữ người dùng vừa gõ.
-    // ⛔ Không đụng vào event — đây không phải hợp âm của ứng dụng.
+    // Không đụng vào event — đây không phải hợp âm của ứng dụng.
     if (event.isComposing === true) return false
     const mods = modsOf(event)
     for (const entry of compiled) {
@@ -296,7 +296,7 @@ export function createKeymap(registry: Registry, platform: Platform): Keymap {
       registry.dispatch(entry.binding.id)
       return true
     }
-    // ⛔ Không khớp ⇒ KHÔNG `preventDefault`, không `stopPropagation`, không gì cả.
+    // Không khớp ⇒ KHÔNG `preventDefault`, không `stopPropagation`, không gì cả.
     return false
   }
 

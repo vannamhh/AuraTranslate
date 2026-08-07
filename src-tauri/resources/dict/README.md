@@ -1,6 +1,6 @@
 Dữ liệu từ điển ở dạng `dict-core.db` (lớp nền) + **mỗi lớp gỡ rời một file `.db` độc lập** (AD-10).
 
-⛔ **File `.db` KHÔNG nằm trong git.** Chúng là artifact có phiên bản và checksum, tải theo `dict-manifest.toml` ở gốc repo (AD-25). Dòng `*.db` trong `.gitignore` là cố ý — đừng gỡ.
+**File `.db` KHÔNG nằm trong git.** Chúng là artifact có phiên bản và checksum, tải theo `dict-manifest.toml` ở gốc repo (AD-25). Dòng `*.db` trong `.gitignore` là cố ý — đừng gỡ.
 
 **Tệp nào tồn tại (2026-08-05, Story 1.10b):** BA tệp, sinh bởi `tools/dict-build`:
 

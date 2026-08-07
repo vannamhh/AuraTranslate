@@ -46,7 +46,7 @@ const STORE_DIR: &str = "core/store";
 ///
 /// Số thật lúc dựng (Story 1.8): **26** tệp — 22 kế thừa + 3 tệp của `core/scope/` +
 /// `commands/config.rs`. Sàn đặt **dưới** số thật đúng khuôn `RS_FLOOR` của
-/// `store_boundary.rs`: nó bắt một cây bị cắt mất, ⛔ không bắt việc thêm tệp mới.
+/// `store_boundary.rs`: nó bắt một cây bị cắt mất, không bắt việc thêm tệp mới.
 const RS_FLOOR: usize = 20;
 
 /// 🔴 Vế test của AC1 — những chuỗi mà **chỉ** `core::scope` được mang.
@@ -70,7 +70,7 @@ const FORBIDDEN_OUTSIDE_SCOPE: [&str; 4] = [
     "ScopeKind",
 ];
 
-/// Cấm ngược chiều: `core::scope` ⛔ không được gõ tên tầng SQLite.
+/// Cấm ngược chiều: `core::scope` không được gõ tên tầng SQLite.
 ///
 /// ⚠️ `store_boundary.rs` đã bao quần thể này *(nó quét cả `src-tauri/src/**`)*, và khẳng
 /// định lại ở đây là **có chủ ý**: `core/scope/**` là quần thể **mới**, nó đọc/ghi thật
@@ -132,7 +132,7 @@ fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
 /// lời gọi vượt qua nó, và một cổng đỏ trên câu giải thích chính luật nó canh là một cổng
 /// bị gỡ trong tuần.
 ///
-/// ⛔ **Comment đuôi dòng vẫn bị bắt** — phần mã vẫn ở đầu dòng. Story 1.7 đã ghi lại
+/// **Comment đuôi dòng vẫn bị bắt** — phần mã vẫn ở đầu dòng. Story 1.7 đã ghi lại
 /// nguyên văn điều này sau khi nó cắn một lần.
 fn code_lines(file: &Path) -> Vec<(usize, String)> {
     let text =
@@ -230,7 +230,7 @@ fn core_scope_actually_owns_the_two_tier_vocabulary() {
     );
 }
 
-/// Ngược chiều — `core::scope` ⛔ không gõ tên tầng SQLite.
+/// Ngược chiều — `core::scope` không gõ tên tầng SQLite.
 ///
 /// Nó đọc và ghi thật, nhưng **qua `Store::read` / `Store::write`** và bằng các kiểu đã
 /// **tái xuất** từ `core::store` (`Transaction` · `SqlError` · `SqlResult` · `Row` ·
@@ -258,7 +258,7 @@ fn core_scope_never_names_the_sqlite_layer() {
     assert!(
         violations.is_empty(),
         "`core::scope` đã gõ tên tầng SQLite:\n{}\n\n\
-         ⛔ Kể cả trong một comment ĐUÔI DÒNG — bộ quét chỉ miễn trừ dòng bắt đầu bằng \
+         Kể cả trong một comment ĐUÔI DÒNG — bộ quét chỉ miễn trừ dòng bắt đầu bằng \
          `//`, và Story 1.7 đã ghi lại nguyên văn điều đó sau khi nó cắn một lần. \
          `core::store` đã tái xuất mọi kiểu chỗ gọi thật sự cần; `{STORE_DIR}` là thư mục \
          duy nhất được phép nhắc tên crate.",
@@ -266,7 +266,7 @@ fn core_scope_never_names_the_sqlite_layer() {
     );
 }
 
-/// `core::scope` ⛔ **không** `use tauri::…` — cùng khuôn `core_store_does_not_depend_on_tauri`.
+/// `core::scope` **không** `use tauri::…` — cùng khuôn `core_store_does_not_depend_on_tauri`.
 ///
 /// Vì sao thành một test chứ không một comment: mệnh đề này hỏng bằng **một dòng `use`**
 /// mà mọi thứ khác vẫn xanh, và cái giá chỉ hiện ra ở mọi ca test phải dựng một `AppHandle`

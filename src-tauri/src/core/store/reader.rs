@@ -1,7 +1,7 @@
 //! Pool đọc song song trên WAL, **chỉ-đọc do SQLite cưỡng chế** — AD-11, AC1, AC2.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! ⛔ KHÔNG `r2d2` / `deadpool` / `bb8` / `parking_lot`
+//! KHÔNG `r2d2` / `deadpool` / `bb8` / `parking_lot`
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Một pool gồm: một `Vec` kết nối, một `Mutex`, một `Condvar`, và một guard trả kết nối
 //! về trong `Drop`. Đó là toàn bộ tệp này. Đổi lại, mỗi phụ thuộc mới phải rà giấy phép
@@ -66,11 +66,11 @@ impl ReaderPool {
 
     /// Pool đọc trên một tệp **CHỈ ĐỌC** — đường của [`StoreKind::Dict`] (Story 1.11).
     ///
-    /// Khác [`ReaderPool::open`] **đúng hai hàm**: cờ mở (`READ_ONLY`, ⛔ không `CREATE`)
-    /// và bộ pragma (⛔ không `verify_wal`, ⛔ không `wal_autocheckpoint`). Mọi thứ còn
+    /// Khác [`ReaderPool::open`] **đúng hai hàm**: cờ mở (`READ_ONLY`, không `CREATE`)
+    /// và bộ pragma (không `verify_wal`, không `wal_autocheckpoint`). Mọi thứ còn
     /// lại — `Mutex` + `Condvar` + `Lease` + `Drop` trả kết nối về — **dùng lại nguyên**.
     ///
-    /// ⛔ Đó là lý do tệp này ⛔ không có bản sao thứ hai của thân pool: hai bản sẽ trôi
+    /// Đó là lý do tệp này không có bản sao thứ hai của thân pool: hai bản sẽ trôi
     /// khỏi nhau, và bản ít được đọc hơn sẽ là bản mang lỗi rò kết nối.
     pub(crate) fn open_readonly(
         path: &Path,

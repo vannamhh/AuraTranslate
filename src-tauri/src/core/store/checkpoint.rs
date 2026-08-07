@@ -6,7 +6,7 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Một lượt checkpoint chép frame từ WAL về database rồi **quay đầu đọc/ghi WAL về đầu
 //! tệp để dùng lại**. Tệp `.db-wal` **giữ nguyên cỡ**; nó chỉ **ngừng lớn**. Đó chính là
-//! thứ AC5 đòi — *"không phình vô hạn"*, ⛔ không phải *"co lại"*.
+//! thứ AC5 đòi — *"không phình vô hạn"*, không phải *"co lại"*.
 //!
 //! Đường hỏng cụ thể, và nó rất dễ đi vào: viết một test assert `.db-wal` nhỏ đi → đỏ →
 //! kết luận *"PASSIVE không chạy"* → đổi luồng nền sang TRUNCATE cho xanh. Lúc đó test
@@ -17,7 +17,7 @@
 //!
 //! → **PASSIVE ở đường nền; TRUNCATE chỉ ở [`Checkpointer::shutdown`] và ngay trước khi
 //!   sao lưu để di trú.** Bằng chứng của một lượt PASSIVE là `checkpointed > 0` với
-//!   `busy == 0`, ⛔ **không phải cỡ tệp**.
+//!   `busy == 0`, **không phải cỡ tệp**.
 //!
 //! ⚠️ Kéo theo: WAL chỉ được dùng lại khi một lượt checkpoint chép **hết**. Một reader
 //! giữ ảnh chụp cũ làm `log > checkpointed`, và tệp **vẫn lớn tiếp** — đó là lý do
@@ -58,7 +58,7 @@ const DIAGNOSTICS_CAP: usize = 64;
 pub struct CheckpointStats {
     /// Số lượt PASSIVE đã chạy.
     pub passive_runs: u64,
-    /// Số lượt PASSIVE trả `busy != 0` — **bị chặn**, ⛔ không phải đã xong.
+    /// Số lượt PASSIVE trả `busy != 0` — **bị chặn**, không phải đã xong.
     pub passive_busy: u64,
     /// Tổng số frame đã chép về database qua mọi lượt.
     pub frames_checkpointed: u64,
@@ -219,7 +219,7 @@ impl Checkpointer {
 
     /// Ra hiệu dừng, rồi **chờ lượt TRUNCATE cuối trong trần thời gian**.
     ///
-    /// 🔴 Hết trần ⇒ ghi chẩn đoán rồi **thoát**, ⛔ không `join`, ⛔ không treo tiến
+    /// 🔴 Hết trần ⇒ ghi chẩn đoán rồi **thoát**, không `join`, không treo tiến
     /// trình. Xem [`Tuning::close_truncate_budget`]: một `close()` chậm làm
     /// `check:scope` và `check:scope:bundled` đỏ vì tầng ghi dữ liệu, không vì phạm vi
     /// mà chúng canh.
@@ -288,7 +288,7 @@ fn run(conn: Connection, path: PathBuf, kind: StoreKind, tuning: Tuning, shared:
             Ok(len) => len > tuning.wal_threshold_bytes,
             Err(e) => {
                 // Không suy ra "quá ngưỡng" từ một lỗi đọc: nói dối theo hướng đó có thể
-                // ép TRUNCATE chạy nhầm chỗ. Ghi chẩn đoán rồi để tick sau thử lại — ⛔
+                // ép TRUNCATE chạy nhầm chỗ. Ghi chẩn đoán rồi để tick sau thử lại — không
                 // không nuốt im lặng như trước.
                 shared.note(format!(
                     "store[{}] cannot read -wal file size: {e}",
@@ -341,7 +341,7 @@ fn passive(conn: &Connection, kind: StoreKind, shared: &Shared) {
                     outcome.log,
                     outcome.checkpointed
                 ));
-                // ⛔ `dirty` KHÔNG được xoá: lượt này chưa xong, và xoá cờ ở đây là tự
+                // `dirty` KHÔNG được xoá: lượt này chưa xong, và xoá cờ ở đây là tự
                 // nói với chính mình rằng WAL đã sạch.
                 return;
             }

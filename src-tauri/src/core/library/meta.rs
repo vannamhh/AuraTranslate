@@ -3,14 +3,14 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 GHI NGUYÊN TỬ — QUYẾT ĐỊNH #3 CỦA STORY 1.15
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `write(<tmp>)` → `sync_all()` → `rename(<tmp>, meta.json)`. ⛔ **Không tài liệu nào
+//! `write(<tmp>)` → `sync_all()` → `rename(<tmp>, meta.json)`. **Không tài liệu nào
 //! trong PRD/ARCHITECTURE-SPINE yêu cầu điều này** — xem story `1-15…md` §Khoảng trống
 //! atomic write. Không có bước này, một lần sập máy giữa lúc ghi để lại `meta.json` cắt
 //! cụt, và AC3 (*"đọc được metadata mà không mở SQLite"*) trượt ngay lần đọc kế tiếp.
 //!
 //! ⚠️ Hàm ghi này **không bao giờ** được gọi bên trong closure của `Store::write` — xem
 //! Quyết định #3: `meta.json` được ghi **NGAY SAU KHI** giao dịch `project.db` đã commit,
-//! ở tầng THAO TÁC (chỗ gọi ở `commands::project`), ⛔ không ở tầng giao dịch SQL.
+//! ở tầng THAO TÁC (chỗ gọi ở `commands::project`), không ở tầng giao dịch SQL.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 "DẪN XUẤT" (AD-33) KHÔNG CÓ NGHĨA NẾU KHÔNG CÓ ĐƯỜNG DỰNG LẠI
@@ -42,7 +42,7 @@ pub enum MetaError {
         /// Lỗi thô, chỉ để chẩn đoán.
         detail: String,
     },
-    /// `meta_schema_version` đọc được **mới hơn** bản ứng dụng hiểu. ⛔ Không ghi vào.
+    /// `meta_schema_version` đọc được **mới hơn** bản ứng dụng hiểu. Không ghi vào.
     SchemaTooNew {
         /// Phiên bản đọc được.
         found: u32,
@@ -100,7 +100,7 @@ impl WorkMeta {
     /// Đọc `meta.json` — **không chạm `project.db`** (AC3).
     ///
     /// # Lỗi
-    /// [`MetaError::SchemaTooNew`] nếu `meta_schema_version` vượt bản ứng dụng hiểu — ⛔
+    /// [`MetaError::SchemaTooNew`] nếu `meta_schema_version` vượt bản ứng dụng hiểu — không
     /// **không** ghi gì, kể cả khi chỗ gọi định làm vậy sau đó.
     pub fn read(dir: &Path) -> Result<WorkMeta, MetaError> {
         let path = Self::path_in(dir);
@@ -126,7 +126,7 @@ impl WorkMeta {
 
     /// Ghi `meta.json` **nguyên tử** — `write(<tmp>)` → `sync_all()` → `rename`.
     ///
-    /// 🔴 ⛔ **Không bao giờ** gọi hàm này bên trong closure của `Store::write` — xem
+    /// 🔴 **Không bao giờ** gọi hàm này bên trong closure của `Store::write` — xem
     /// doc-comment của module.
     pub fn write_atomic(&self, dir: &Path) -> Result<(), MetaError> {
         let target = Self::path_in(dir);
@@ -164,16 +164,16 @@ impl WorkMeta {
             });
         }
 
-        // 🔴 fsync THƯ MỤC CHA — ⛔ không phải thừa, và ⛔ không phải cùng thứ với
+        // 🔴 fsync THƯ MỤC CHA — không phải thừa, và không phải cùng thứ với
         // `sync_all()` ở trên. `file.sync_all()` làm bền **nội dung** tệp tạm;
         // `rename` sửa **thư mục**, và mục thư mục đó nằm trong cache của hệ tệp cho tới
         // khi chính thư mục được fsync. Thiếu bước này, một lần mất điện ngay sau
-        // `rename` có thể để lại thư mục ⛔ không có `meta.json` nào — đúng thứ
+        // `rename` có thể để lại thư mục không có `meta.json` nào — đúng thứ
         // doc-comment ở đầu module tuyên bố là đã chặn.
         //
-        // ⚠️ Im lặng khi trượt có chủ ý: `File::open` một thư mục ⛔ không hợp lệ trên
+        // ⚠️ Im lặng khi trượt có chủ ý: `File::open` một thư mục không hợp lệ trên
         // Windows (trả `Err`), và ở đó tính bền của `rename` do hệ tệp lo. Ghi được thì
-        // ghi, ⛔ không biến một khác biệt nền tảng thành một lỗi cho người dùng.
+        // ghi, không biến một khác biệt nền tảng thành một lỗi cho người dùng.
         if let Ok(dir_handle) = std::fs::File::open(dir) {
             let _ = dir_handle.sync_all();
         }
@@ -184,7 +184,7 @@ impl WorkMeta {
     /// Dựng lại `meta.json` từ **`project.db`** — bằng chứng của mệnh đề "dẫn xuất" (AD-33).
     ///
     /// Đọc hàng `work` (đúng một, `CHECK (id = 1)`) và đếm `chapter`, qua [`Store::read`]
-    /// — ⛔ không giao dịch ghi nào chạy ở đây.
+    /// — không giao dịch ghi nào chạy ở đây.
     pub fn rebuild_from_store(store: &Store) -> Result<WorkMeta, StoreError> {
         store.read(|conn: ReadHandle<'_>| {
             let (work_id, name, source_lang, genre, created_at, updated_at): (

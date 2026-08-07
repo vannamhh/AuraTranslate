@@ -56,25 +56,25 @@ pnpm-debug.log*
 
 # Local database / temp files
 *.sqlite
-# ⛔ Dòng `*.db` là CỐ Ý và ĐÚNG: nó giữ file từ điển ra ngoài git theo AD-25.
+# Dòng `*.db` là CỐ Ý và ĐÚNG: nó giữ file từ điển ra ngoài git theo AD-25.
 # Chúng tải theo `dict-manifest.toml`. Đừng gỡ dòng này.
 *.db
 *.tmp
 
-# tools/dict-build — nguồn thô tải về + artifact trung gian (Story 1.9). ⛔ Cargo.lock
+# tools/dict-build — nguồn thô tải về + artifact trung gian (Story 1.9). Cargo.lock
 # của crate này KHÔNG bị ignore — nó là binary, phải commit.
 tools/dict-build/raw/
 tools/dict-build/out/
 tools/dict-build/work/
 # `/target/` ở trên chỉ neo vào GỐC repo (dấu `/` đầu) — không phủ workspace RIÊNG của
-# build tool (chính điều kiện AC4 đòi). Khai tường minh, ⛔ đừng gộp vào dòng `/target/`.
+# build tool (chính điều kiện AC4 đòi). Khai tường minh, đừng gộp vào dòng `/target/`.
 tools/dict-build/target/
 
 # 🔴 Kho NGUỒN THÔ cục bộ của Ice — ~344 MB nhị phân (`tudien-2.2.zip` 289 MB,
-# `VietPhrase.txt` 24 MB, `hanodict_tbl_dictionary.pbix` 31 MB). ⛔ KHÔNG vào git: một
+# `VietPhrase.txt` 24 MB, `hanodict_tbl_dictionary.pbix` 31 MB). KHÔNG vào git: một
 # `git add -A` vô ý nhét ngần ấy byte vào lịch sử VĨNH VIỄN, không gỡ ra được.
 # Cách lấy lại và SHA-256 để đối chiếu: `tools/dict-build/README.md`.
-# ⚠️ `tudien-2.2.zip` LÀ bằng chứng giấy phép CC0 của Thiều Chửu — giữ tệp ở máy, ⛔ không xoá.
+# ⚠️ `tudien-2.2.zip` LÀ bằng chứng giấy phép CC0 của Thiều Chửu — giữ tệp ở máy, không xoá.
 docs/dics/
 
 _bmad-output/*.diff

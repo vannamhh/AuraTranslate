@@ -9,7 +9,7 @@
  *     của `scripts/check-commands.mjs`.
  *   - **Vế "không rơi về `body`" là HÀNH VI DOM LÚC CHẠY**, mà dự án không có bộ chạy
  *     test frontend (và không được thêm — NFR15). Nên nó được canh bằng một CHỐT TỰ KÊU
- *     ở `enter()` cộng một lượt nghiệm thu tay có bảng. ⛔ Không đánh dấu đạt bằng suy
+ *     ở `enter()` cộng một lượt nghiệm thu tay có bảng. Không đánh dấu đạt bằng suy
  *     luận — giới hạn ghi thẳng vào `deferred-work.md`.
  *
  * ⚠️ Vì sao tệp này ở `src/commands/` chứ không phải một thư mục thứ bảy: §Câu hỏi cho
@@ -17,7 +17,7 @@
  * `src/modes/` sai vì panel cũng khai điểm vào, `src/layout/` sai vì nó thuộc `dockview`
  * của Story 1.14.
  *
- * ⛔ Cùng luật "erasable-only" như `./registry.ts` — Kiểm C và Kiểm E `import()` tệp này
+ * Cùng luật "erasable-only" như `./registry.ts` — Kiểm C và Kiểm E `import()` tệp này
  * bằng Node thuần. Không `enum`, không `namespace`, không parameter property. Lần
  * `import` giá trị DUY NHẤT được phép là `./registry.ts`, chính vì tệp đó cũng thuần.
  */
@@ -53,8 +53,8 @@ export type FocusRegistry = {
    * Xoay vòng trên một vòng ĐƯỢC TRUYỀN VÀO, theo `step` (`+1` xuôi, `-1` ngược).
    *
    * 🔴 Story 1.14 · AC9 — vòng xoay phải đi theo **thứ tự bố cục hiện tại** (trái→phải,
-   * trên→dưới của lưới đang hiện), ⛔ không theo thứ tự `declare()`. Hai thứ đó khác nhau
-   * ngay khi người dùng kéo một panel sang chỗ khác, và [`next`] ⛔ không biết gì về lưới.
+   * trên→dưới của lưới đang hiện), không theo thứ tự `declare()`. Hai thứ đó khác nhau
+   * ngay khi người dùng kéo một panel sang chỗ khác, và [`next`] không biết gì về lưới.
    * Chỗ biết là `src/layout/dockController.ts`; nó truyền vòng xuống đây.
    */
   cycle(ring: readonly FocusOwner[], step: number): boolean
@@ -115,7 +115,7 @@ export function createFocusRegistry(): FocusRegistry {
    * 🔴 CHỐT AC4 VẾ SAU — và nó để KÊU, không để VÁ.
    *
    * Kiểm ở frame kế tiếp (`requestAnimationFrame`) vì `el.focus()` chưa chắc đã kết
-   * thúc trong cùng một lượt tick khi Vue đang vá DOM. ⛔ **Đừng "sửa" bằng cách focus
+   * thúc trong cùng một lượt tick khi Vue đang vá DOM. **Đừng "sửa" bằng cách focus
    * lại vòng lặp**: một vòng focus tự phục hồi sẽ đánh nhau với người dùng đang Tab và
    * với hộp thoại của hệ điều hành — hỏng đắt hơn hẳn thứ nó định chữa.
    *
@@ -175,7 +175,7 @@ export function createFocusRegistry(): FocusRegistry {
       console.error(
         `[focus] \`${owner}\` phân giải ra một phần tử ĐÃ THÁO khỏi DOM — \`focus()\` sẽ ` +
           'không làm gì. Chế độ/panel này đang bị `<KeepAlive>` đỗ, hoặc `resolve()` giữ ' +
-          'một tham chiếu cũ. ⛔ Không báo thành công cho một lần dời focus không xảy ra.',
+          'một tham chiếu cũ. Không báo thành công cho một lần dời focus không xảy ra.',
       )
       return false
     }
@@ -188,7 +188,7 @@ export function createFocusRegistry(): FocusRegistry {
   /**
    * Handler thật của `focus.next_panel` (AC6, §Quyết định thiết kế #5).
    *
-   * ⛔ Command này CỐ Ý không gán phím — nhưng nó KHÔNG được rỗng. Vòng xoay đi theo
+   * Command này CỐ Ý không gán phím — nhưng nó KHÔNG được rỗng. Vòng xoay đi theo
    * thứ tự KHAI BÁO, tức thứ tự panel được dựng, và đó là thứ tự đọc tự nhiên hôm nay.
    * Story 1.14 dựng lưới 2×2 với `dockview` sẽ thay thứ tự này bằng thứ tự bố cục.
    */

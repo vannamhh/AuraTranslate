@@ -9,7 +9,7 @@ use rusqlite::Connection;
 /// Unihan đều có đầu mục ngoài BMP (ví dụ `𠧜` đã thấy thật trong mẫu en.wiktionary).
 ///
 /// `pub(crate)` vì `sources::thieu_chuu` cần đúng bộ dải này để nhận ra chữ Hán trong
-/// trích dẫn — MỘT nguồn sự thật, ⛔ không sao chép bảng dải sang module khác (Review
+/// trích dẫn — MỘT nguồn sự thật, không sao chép bảng dải sang module khác (Review
 /// Findings 1.10: hai bản sao cùng tên sẽ trôi khỏi nhau khi bổ sung CJK Ext H/I).
 pub(crate) fn is_han(c: char) -> bool {
     let cp = c as u32;
@@ -25,11 +25,11 @@ pub(crate) fn is_han(c: char) -> bool {
 }
 
 /// Chèn mọi cặp `(ch, entry_id)` cho MỘT đầu mục — gọi ngay sau khi `dict_entry` đã có
-/// hàng đó, trong CÙNG giao dịch với lượt chèn đầu mục (nhất quán, ⛔ không tách pha).
+/// hàng đó, trong CÙNG giao dịch với lượt chèn đầu mục (nhất quán, không tách pha).
 ///
 /// Trả về số cặp đã chèn (SAU khi loại trùng trong cùng đầu mục — `headword` và
 /// `headword_simp` trùng ký tự thì chỉ một cặp, nhờ `INSERT OR IGNORE` cộng khoá chính
-/// `(ch, entry_id)`; đây là khử trùng lặp TRONG một đầu mục, hợp lệ theo AC2, ⛔ không
+/// `(ch, entry_id)`; đây là khử trùng lặp TRONG một đầu mục, hợp lệ theo AC2, không
 /// phải hợp nhất xuyên nguồn).
 pub fn insert_for_entry(
     conn: &Connection,

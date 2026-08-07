@@ -1,13 +1,13 @@
 //! Ba nhánh SQL tiếng Trung (AD-26) và hai nhánh SQL tiếng Anh (AD-44), cộng phép
 //! **xác minh chuỗi con ở Rust** — **một** bản, dùng chung cho cả hai đường.
 //!
-//! ⛔ **Tệp này ⛔ không bao giờ gọi vị từ điều phối.** Đường đã được quyết ở tầng trên và
+//! **Tệp này không bao giờ gọi vị từ điều phối.** Đường đã được quyết ở tầng trên và
 //! đi xuống đây như một tham số (AD-44 ①, vá A1); `tests/dict_boundary.rs` cưỡng chế điều
-//! đó **bằng máy**, và cổng đó đếm **tệp** — nên tên vị từ ⛔ không được nhắc ở đây, kể cả
+//! đó **bằng máy**, và cổng đó đếm **tệp** — nên tên vị từ không được nhắc ở đây, kể cả
 //! trong một dòng chú thích. Một cổng có ngoại lệ *"trừ khi là comment"* là một cổng chờ
 //! ngoại lệ thứ hai.
 //!
-//! ⛔ **Và ⛔ không tồn tại một sổ đăng ký *"tệp `.db` nào chứa ngôn ngữ nào"*** (vá A2).
+//! **Và không tồn tại một sổ đăng ký *"tệp `.db` nào chứa ngôn ngữ nào"*** (vá A2).
 //! Một sổ như thế là **nguồn sự thật thứ hai cho một dữ kiện đã nằm trong dữ liệu** —
 //! cùng lớp lỗi AD-8 và AD-33 tồn tại để chặn — và nó sai **im lặng** vào đúng ngày một
 //! lớp gỡ rời được thêm hay gỡ đi (FR112). **Mọi** tệp đang gắn đều được tra; `lang` lọc
@@ -16,14 +16,14 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 BA LUẬT CỦA TỆP NÀY — CẢ BA ĐỀU HỎNG THÀNH MỘT LƯỢT CI XANH
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 1. **⛔ Không `LIKE`, ⛔ không `GLOB`, ⛔ không `instr(`.** Giai đoạn 0 đo `LIKE` 1 ký
+//! 1. **Không `LIKE`, không `GLOB`, không `instr(`.** Giai đoạn 0 đo `LIKE` 1 ký
 //!    tự **20,09 ms** và 2 ký tự **50,14 ms**, so với `char_idx` **0,15 / 4,49 ms** —
 //!    nhanh hơn 134× và 11×. `LIKE` nằm trong danh sách *"Không dùng, đã loại có lý do"*
 //!    của bảng Stack, và `tests/dict_boundary.rs` cưỡng chế điều đó **bằng máy**.
 //!    ⚠️ `instr(` **được phép** trong SQL nghiệm thu chạy tay ở `sqlite3` (nó là cách
-//!    tái lập con số 350 của AC4); nó ⛔ không được phép ở đây, vì cùng lý do quét bảng.
+//!    tái lập con số 350 của AC4); nó không được phép ở đây, vì cùng lý do quét bảng.
 //! 2. **Mọi nhánh lọc `lang` TƯỜNG MINH — `'zh'` ở đường zh, `'en'` ở đường en.**
-//!    Mệnh đề đảo chiều theo đường, nhưng luật thì **một**: ⛔ không nhánh nào được giả
+//!    Mệnh đề đảo chiều theo đường, nhưng luật thì **một**: không nhánh nào được giả
 //!    định *"tệp này chỉ có một ngôn ngữ"*. `dict-core.db` nay mang **119.039** hàng
 //!    `lang = 'en'` (20,1% của 592.538 đầu mục — Story 1.10b). Với truy vấn **thuần Hán**
 //!    rò rỉ đo được là 0, nhưng với một truy vấn **Latin** — người dùng bôi đen một chữ
@@ -31,12 +31,12 @@
 //!    `entry_fts MATCH '"dic"'` ⇒ **572** hàng, **100%** `lang='en'`. Không lọc thì chúng
 //!    đi lên giao diện **dán nhãn kết quả tiếng Trung**.
 //! 3. **Chuỗi con phải được XÁC MINH LẠI.** `char_idx` là bảng `(ký tự, entry_id)`; nó
-//!    trả lời *"đầu mục có chứa cả hai ký tự"*, ⛔ **không** trả lời *"có chứa hai ký tự
+//!    trả lời *"đầu mục có chứa cả hai ký tự"*, **không** trả lời *"có chứa hai ký tự
 //!    ĐÓ LIỀN NHAU"*. Đã đo: tra `中國` cho **390** ứng viên, trong đó **40** là dương
 //!    tính giả (`國中`, …). Người dùng tra *"Trung Quốc"* nhận về *"trong trường"* — kết
-//!    quả **khác rỗng**, **sai**, và ⛔ không phép kiểm nào phát biểu bằng `> 0` bắt được.
+//!    quả **khác rỗng**, **sai**, và không phép kiểm nào phát biểu bằng `> 0` bắt được.
 //!
-//! ⚠️ Mọi truy vấn dùng **tham số ràng buộc**, ⛔ không bao giờ `format!` chuỗi của người
+//! ⚠️ Mọi truy vấn dùng **tham số ràng buộc**, không bao giờ `format!` chuỗi của người
 //! dùng vào câu SQL.
 
 use crate::core::store::{ReadHandle, Row, SqlResult, ToSql};
@@ -45,7 +45,7 @@ use super::EntryHit;
 
 /// Bốn cột dựng nên một [`EntryHit`], cộng `s.code` của AC6.
 ///
-/// 🔴 `s.code` chứ ⛔ **không** `e.source_id`: mỗi tệp `.db` có bảng `dict_source` riêng,
+/// 🔴 `s.code` chứ **không** `e.source_id`: mỗi tệp `.db` có bảng `dict_source` riêng,
 /// nên `id = 1` trỏ ba nguồn khác nhau ở ba tệp. Xem [`EntryHit::source_code`].
 const COLUMNS: &str = "e.id, s.code, e.lang, e.headword, e.headword_simp";
 
@@ -64,7 +64,7 @@ fn row_to_hit(row: &Row<'_>) -> SqlResult<EntryHit> {
 
 /// Chạy một truy vấn có tham số ràng buộc và dựng danh sách [`EntryHit`].
 ///
-/// ⚠️ `prepare_cached` chứ ⛔ không `prepare`: sáu hình dạng SQL hằng (ba nhánh đường zh,
+/// ⚠️ `prepare_cached` chứ không `prepare`: sáu hình dạng SQL hằng (ba nhánh đường zh,
 /// hai nhánh đường en, cộng biến thể 1/2-ký-tự của `char_idx`), và một lượt tra cứu là
 /// đường nóng của NFR1 — biên dịch lại câu ở mỗi lượt gõ là chi phí trả đi trả lại cho
 /// cùng một thứ.
@@ -88,50 +88,90 @@ fn cap(mut hits: Vec<EntryHit>, limit: usize) -> (Vec<EntryHit>, bool) {
     (hits, truncated)
 }
 
-/// 🔴 **Sàn DƯỚI của cỡ trang — `limit == 0` ⛔ không được đọc thành "⛔ trả gì cả".**
+/// 🔴 **Sàn DƯỚI của cỡ trang — `limit == 0` không được đọc thành "không trả gì cả".**
 ///
 /// [`lookup`](super::lookup) và bạn bè là `pub`, nên `0` đi vào được. Một `LIMIT 0` cho
-/// `groups` **rỗng** kèm `truncated = true`, và panel khi đó hiện ĐỒNG THỜI *"⛔ tìm thấy"*
-/// và *"danh sách ⛔ đầy đủ"* — hai câu loại trừ nhau, ⛔ câu nào đúng. Một cỡ trang `0`
-/// ⛔ phải một yêu cầu hợp lệ mà là một lỗi chỗ gọi; hành vi ít gây hại nhất là coi nó như
+/// `groups` **rỗng** kèm `truncated = true`, và panel khi đó hiện ĐỒNG THỜI *"không tìm thấy"*
+/// và *"danh sách không đầy đủ"* — hai câu loại trừ nhau, không câu nào đúng. Một cỡ trang `0`
+/// không phải một yêu cầu hợp lệ mà là một lỗi chỗ gọi; hành vi ít gây hại nhất là coi nó như
 /// `1` và để cờ `truncated` nói phần còn lại.
 fn effective_limit(limit: usize) -> usize {
     limit.max(1)
 }
 
-/// 🔴 **Trần hàng để ĐẶT VÀO SQL — ⛔ `limit as i64`.**
+/// 🔴 **Trần hàng để ĐẶT VÀO SQL — không `limit as i64`.**
 ///
-/// `usize::MAX` là thành ngữ tự nhiên nhất cho *"⛔ giới hạn"*, và `usize::MAX as i64` là
+/// `usize::MAX` là thành ngữ tự nhiên nhất cho *"không giới hạn"*, và `usize::MAX as i64` là
 /// **-1**: `saturating_add(1)` biến nó thành `LIMIT 0` ⇒ **0 hàng, `truncated = false`** —
-/// mất sạch dữ liệu, im lặng, ở một hàm `pub`. `saturating_add` ⛔ cứu được gì vì phép tràn
+/// mất sạch dữ liệu, im lặng, ở một hàm `pub`. `saturating_add` không cứu được gì vì phép tràn
 /// đã xảy ra ở bước ép kiểu TRƯỚC nó. `try_from` + `unwrap_or(i64::MAX)` bão hoà đúng
-/// chiều: một trần lớn hơn số hàng khả dĩ đọc ra là *"lấy hết"*, ⛔ *"⛔ lấy gì"*.
+/// chiều: một trần lớn hơn số hàng khả dĩ đọc ra là *"lấy hết"*, không *"không lấy gì"*.
 ///
 /// Lấy `limit + 1` hàng để [`cap`] phân biệt được *"vừa đủ `limit`"* với *"còn nữa"*.
 fn fetch_rows(limit: usize) -> i64 {
     i64::try_from(effective_limit(limit)).unwrap_or(i64::MAX).saturating_add(1)
 }
 
+/// 🔴 **TRẦN AN TOÀN CHO TẬP ỨNG VIÊN** — Story 1.18, đóng `deferred-work.md:631`.
+///
+/// Ba nhánh cần [`verify_substring`] (`char_idx` 2 ký tự · cả hai `fts_trigram`) cố ý
+/// **không đặt `LIMIT` ở SQL**: cắt ứng viên TRƯỚC khi xác minh cho ra ít hơn `limit` mục thật
+/// và một dòng *"còn M nữa"* **nói dối** (Bẫy 11). Hệ quả là `limit` không chặn được bộ nhớ
+/// lẫn độ trễ ở ba nhánh đó, chỉ chặn băng thông IPC.
+///
+/// Cho tới Story 1.18 đó là **latent**: đường sản phẩm 1.17 là `Exact`-only nên không chạm tới
+/// ba nhánh này. Ice chốt 2026-08-07 **bật `Substring`**, nên nó thành thật — và một truy
+/// vấn một ký tự Hán phổ biến kéo **hàng chục nghìn** hàng vào RAM trước khi cắt.
+///
+/// 🔴 **Hệ số 50 là một CẬN TRÊN, không một cỡ trang.** Nó phải đủ rộng để tỷ lệ dương tính
+/// giả tệ nhất đã ĐO (`中國` ⇒ 390 ứng viên, **40** sai ≈ 10,3%) không bao giờ làm trang thiếu
+/// mục: với `limit = 20` trần là **1.000** ứng viên, tức dư hơn hai bậc so với 22 ứng viên
+/// cần thiết để lấp đủ 20 mục ở tỷ lệ đó. Nó không phải một phép tinh chỉnh — nó là cái chặn
+/// giữa *"chậm"* và *"nuốt hết RAM"*.
+fn candidate_ceiling(limit: usize) -> i64 {
+    const SAFETY_FACTOR: usize = 50;
+    // Cùng phép bão hoà `fetch_rows`: một trần lớn hơn số hàng khả dĩ đọc ra là *"lấy
+    // hết"*, không *"không lấy gì"*. không `as i64` — xem doc-comment `fetch_rows`.
+    i64::try_from(effective_limit(limit).saturating_mul(SAFETY_FACTOR)).unwrap_or(i64::MAX)
+}
+
+/// 🔴 **CẮT SAU XÁC MINH, VÀ CỜ `truncated` KHÔNG ĐƯỢC NÓI DỐI.**
+///
+/// Khi [`candidate_ceiling`] chạm, tập ứng viên đã bị cắt ở SQL ⇒ **chắc chắn** còn hàng
+/// khớp mà lượt tra này không thấy. Nhưng [`verify_substring`] có thể loại đủ nhiều dương tính
+/// giả để phần còn lại **ít hơn** `limit`, và khi đó [`cap`] một mình sẽ báo
+/// `truncated = false` — đúng câu *"danh sách này đầy đủ"*, và nó **SAI**.
+///
+/// ⇒ Cờ trần phải được **OR vào** kết quả của `cap`. Đây là điểm khác biệt duy nhất giữa
+/// ba nhánh có xác minh và ba nhánh không có.
+fn cap_verified(candidates: Vec<EntryHit>, query: &str, limit: usize) -> (Vec<EntryHit>, bool) {
+    // `>=` chứ không `>`: SQL trả về **đúng** `ceiling` hàng nghĩa là nó đã dừng ở trần, và
+    // không có cách phân biệt *"vừa đủ hết"* với *"còn nữa"* mà không tốn thêm một hàng.
+    let hit_ceiling = i64::try_from(candidates.len()).unwrap_or(i64::MAX) >= candidate_ceiling(limit);
+    let (hits, truncated) = cap(verify_substring(candidates, query), limit);
+    (hits, truncated || hit_ceiling)
+}
+
 /// 🔴 Phép **xác minh chuỗi con**, chạy ở Rust — dùng chung cho nhánh 2 và nhánh 3.
 ///
 /// Giữ một hàng khi `query` là chuỗi con của `headword` **hoặc** của `headword_simp`,
 /// so khớp **không phân biệt hoa/thường** (hạ chữ thường ở RUST, cùng lý do và cùng cách
-/// với [`exact_en`]: `str::to_lowercase()`, ⛔ không phụ thuộc locale).
+/// với [`exact_en`]: `str::to_lowercase()`, không phụ thuộc locale).
 ///
 /// 🔴 **Bắt buộc không phân biệt hoa/thường** — tokenizer `trigram` của FTS5 **không**
 /// phân biệt hoa/thường khi tìm ứng viên (đo thật: `entry_fts MATCH '"api"'` khớp hàng
 /// `headword = 'API'`). Xác minh phân biệt hoa/thường ở đây sẽ **âm thầm loại** đúng ứng
-/// viên mà FTS5 vừa tìm ra — rỗng, ⛔ không lỗi, đúng lớp lỗi AD-26 ra đời để chặn. Vô hại
-/// với đường `zh`: chữ Hán ⛔ không có khái niệm hoa/thường.
+/// viên mà FTS5 vừa tìm ra — rỗng, không lỗi, đúng lớp lỗi AD-26 ra đời để chặn. Vô hại
+/// với đường `zh`: chữ Hán không có khái niệm hoa/thường.
 ///
-/// ⚠️ Vế `headword_simp` ⛔ **không bỏ được**: bỏ nó làm `国` (giản thể) trả rỗng, đúng
+/// ⚠️ Vế `headword_simp` **không bỏ được**: bỏ nó làm `国` (giản thể) trả rỗng, đúng
 /// Bẫy 8 của Story 1.9 — `char_idx` phủ **cả** hai trường, nên một ứng viên có thể khớp
 /// **chỉ** ở `headword_simp`, và loại nó ở bước xác minh là vứt đi đúng những hàng mà
 /// bước dựng chỉ mục đã cố công giữ.
 ///
-/// ⛔ Một hàm, ⛔ không hai bản: nhánh 3 chạy **cùng** phép xác minh này. Đo được là
+/// Một hàm, không hai bản: nhánh 3 chạy **cùng** phép xác minh này. Đo được là
 /// `中國人` ⇒ 33 ứng viên → 33 sau xác minh, **0** dương tính giả — và con số 0 đó là một
-/// **phép đo**, ⛔ không phải cái cớ để bỏ bước. Bỏ nó là để một hành vi không được kiểm
+/// **phép đo**, không phải cái cớ để bỏ bước. Bỏ nó là để một hành vi không được kiểm
 /// chứng của FTS5 quyết định đúng/sai của FR39.
 fn verify_substring(hits: Vec<EntryHit>, query: &str) -> Vec<EntryHit> {
     let needle = query.to_lowercase();
@@ -153,8 +193,8 @@ fn verify_substring(hits: Vec<EntryHit>, query: &str) -> Vec<EntryHit> {
 /// văn nằm ở §Debug Log References của story — thấy `SCAN dict_entry` thì câu này phải
 /// tách thành hai truy vấn `UNION`.
 ///
-/// 🔴 **`LIMIT ?2` — Quyết định #4 (Story 1.17), tham số RÀNG BUỘC.** Nhánh này ⛔ không
-/// có bước xác minh (⛔ không [`verify_substring`]) nên `LIMIT` ở SQL an toàn — đo được
+/// 🔴 **`LIMIT ?2` — Quyết định #4 (Story 1.17), tham số RÀNG BUỘC.** Nhánh này không
+/// có bước xác minh (không [`verify_substring`]) nên `LIMIT` ở SQL an toàn — đo được
 /// kế hoạch vẫn `MULTI-INDEX OR` + `USE TEMP B-TREE FOR ORDER BY` cho ca này, nhưng nhánh
 /// 1 luôn rất nhanh (< 1 ms mọi ca đo) nên `LIMIT` ở đây chủ yếu cắt băng thông IPC.
 pub(super) fn exact(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
@@ -170,25 +210,25 @@ pub(super) fn exact(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<
 
 /// **Nhánh 2** — bảng đảo ngược `char_idx`, cho chuỗi con **1–2 ký tự**.
 ///
-/// Hai đường tách nhau theo số **ký tự**, ⛔ không theo byte:
+/// Hai đường tách nhau theo số **ký tự**, không theo byte:
 ///
-/// - **1 ký tự** ⇒ một tập `char_idx`, và ⛔ **không xác minh**: một ký tự có mặt trong
+/// - **1 ký tự** ⇒ một tập `char_idx`, và **không xác minh**: một ký tự có mặt trong
 ///   `char_idx` của một đầu mục **⇔** nó là chuỗi con của đầu mục đó. Mệnh đề này viết ra
-///   thay vì để ngầm, vì bước xác minh ở đây sẽ là một vòng lặp trên 3.177 hàng ⛔ không
+///   thay vì để ngầm, vì bước xác minh ở đây sẽ là một vòng lặp trên 3.177 hàng không
 ///   loại được hàng nào.
 /// - **2 ký tự** ⇒ 🔴 `INTERSECT` **hai** tập, rồi **xác minh**.
 ///
-/// 🔴 ⛔ **Không viết `ch IN (?1, ?2)`** — đó là phép **hợp**, ⛔ không phải phép **giao**:
+/// 🔴 **Không viết `ch IN (?1, ?2)`** — đó là phép **hợp**, không phải phép **giao**:
 /// nó trả mọi đầu mục chứa `中` *hoặc* `國` (hàng chục nghìn), và cả hai cách viết đều cho
 /// kết quả *"khác rỗng"*, nên mọi AC phát biểu bằng `> 0` đều xanh trên bản sai. Con số
 /// duy nhất bắt được sai lệch là **390** ứng viên của AC4.
 ///
-/// ⚠️ **Giới hạn đã biết, ⛔ không phải một lỗi:** một truy vấn 2 ký tự mà **một ký tự
+/// ⚠️ **Giới hạn đã biết, không phải một lỗi:** một truy vấn 2 ký tự mà **một ký tự
 /// không phải chữ Hán** (vd. `A山`) cho tập ứng viên **rỗng** — `char_idx` chỉ chứa ký tự
 /// khớp `char_idx::is_han` của `tools/dict-build`. Đó là hành vi **đúng** cho một đường
 /// tra cứu **tiếng Trung**; đường tra cứu tiếng Anh là [`exact_en`] và [`fts_trigram_en`]
-/// (Story 1.11b), ⛔ **không** một nhánh thứ tư ở đây. Story 1.11 viết dòng này khi hai
-/// hàm đó chưa tồn tại; chúng ⛔ vẫn không tồn tại **trong nhánh này**, và đó là điểm.
+/// (Story 1.11b), **không** một nhánh thứ tư ở đây. Story 1.11 viết dòng này khi hai
+/// hàm đó chưa tồn tại; chúng không vẫn không tồn tại **trong nhánh này**, và đó là điểm.
 pub(super) fn char_idx(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
     debug_assert!(
         query.chars().count() <= 2,
@@ -199,19 +239,19 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResu
 
     let mut chars = query.chars();
     let Some(first) = chars.next() else {
-        // Truy vấn rỗng: ⛔ không hàng nào, và ⛔ không một lượt chạm database nào. Một
+        // Truy vấn rỗng: không hàng nào, và không một lượt chạm database nào. Một
         // `SELECT` với tham số rỗng ở đây trả về đúng thứ này sau khi quét, chỉ chậm hơn.
         return Ok((Vec::new(), false));
     };
 
     let Some(second) = chars.next() else {
-        // 🔴 **1 ký tự — ⛔ không bước xác minh** (xem doc-comment hàm này ở trên: một ký
+        // 🔴 **1 ký tự — không bước xác minh** (xem doc-comment hàm này ở trên: một ký
         // tự có mặt trong `char_idx` ⇔ nó là chuỗi con). `LIMIT ?2` ở SQL AN TOÀN và CẮT
         // ĐƯỢC THỜI GIAN THẬT — đo (§Debug Log References của story): `char_idx` khai
         // `PRIMARY KEY (ch, entry_id) WITHOUT ROWID`, nên `EXPLAIN QUERY PLAN` cho
         // `LIST SUBQUERY` (driven bởi `SEARCH char_idx USING PRIMARY KEY`, đã sắp theo
         // `entry_id` tăng dần) rồi `SEARCH e USING INTEGER PRIMARY KEY (rowid=?)` — streaming,
-        // ⛔ không `USE TEMP B-TREE FOR ORDER BY`. Đo tay: 9–12 ms (⛔ `LIMIT`) → ~1 ms
+        // KHÔNG `USE TEMP B-TREE FOR ORDER BY`. Đo tay: 9–12 ms (KHÔNG `LIMIT`) → ~1 ms
         // (`LIMIT 20`), ~10×. Đây là nhánh ĐẮT NHẤT của cả sáu — vượt trần NFR1 (`:419`).
         let sql = format!(
             "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
@@ -225,12 +265,18 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResu
     };
 
     // 🔴 **2 ký tự — Bẫy 11.** `verify_substring` PHẢI chạy trên TOÀN BỘ ứng viên trước khi
-    // cắt: một `LIMIT` ở SQL cắt ứng viên trước khi xác minh cho ra < `limit` mục thật và
-    // một dòng "còn M nữa" NÓI DỐI (`verify_substring` loại thêm dương tính giả sau khi đã
-    // cắt). ⇒ ⛔ không `LIMIT` ở SQL cho nhánh này — cắt ở RUST, SAU verify. Đo (§Debug Log):
-    // kế hoạch của nhánh này (`INTERSECT USING TEMP B-TREE`) ⛔ không `USE TEMP B-TREE FOR
-    // ORDER BY` ở outer query nên vốn đã streaming; và nhánh 2-ký-tự vốn dưới trần NFR1
-    // (3,451 ms p95, `:419`) nên không cần SQL `LIMIT` để đạt NFR1.
+    // cắt: một `LIMIT` bằng `limit` ở SQL cắt ứng viên trước khi xác minh cho ra < `limit`
+    // mục thật và một dòng "còn M nữa" NÓI DỐI (`verify_substring` loại thêm dương tính giả
+    // sau khi đã cắt). ⇒ không `LIMIT limit` ở đây — cắt ở RUST, SAU verify. Đo (§Debug
+    // Log): kế hoạch của nhánh này (`INTERSECT USING TEMP B-TREE`) không `USE TEMP B-TREE
+    // FOR ORDER BY` ở outer query nên vốn đã streaming; và nhánh 2-ký-tự vốn dưới trần NFR1
+    // (3,451 ms p95, `:419`).
+    //
+    // 🔴 **STORY 1.18 — nhưng CÓ một trần AN TOÀN** (`deferred-work.md:631`, nay thành thật
+    // vì Ice bật `Substring`): `?3` là [`candidate_ceiling`], hai bậc độ lớn TRÊN cỡ trang,
+    // nên nó không bao giờ cắt vào phần Bẫy 11 nói tới — nó chỉ chặn ca *"một ký tự Hán phổ
+    // biến kéo hàng chục nghìn hàng vào RAM"*. [`cap_verified`] giữ cờ `truncated` khỏi
+    // nói dối khi trần chạm.
     let sql = format!(
         "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
          WHERE e.id IN ( \
@@ -239,11 +285,11 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResu
              SELECT entry_id FROM char_idx WHERE ch = ?2 \
            ) \
            AND e.lang = 'zh' \
-         ORDER BY e.id"
+         ORDER BY e.id LIMIT ?3"
     );
-    let candidates = run(db, &sql, &[&first.to_string(), &second.to_string()])?;
-    let verified = verify_substring(candidates, query);
-    Ok(cap(verified, limit))
+    let ceiling = candidate_ceiling(limit);
+    let candidates = run(db, &sql, &[&first.to_string(), &second.to_string(), &ceiling])?;
+    Ok(cap_verified(candidates, query, limit))
 }
 
 /// **Nhánh 3** — FTS5 `entry_fts` (`trigram`), cho chuỗi con **≥ 3 ký tự**.
@@ -255,69 +301,72 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResu
 /// chuỗi của người dùng đi thẳng vào **cú pháp truy vấn FTS5**, và một ký tự như `*` `-`
 /// `^` `(` `:` — hay từ `NEAR` — làm SQLite trả `SQLITE_ERROR`. Nghĩa là **tra cứu báo
 /// lỗi vì nội dung người dùng bôi đen**: tệ hơn hẳn trả rỗng, và nó chỉ lộ ra ở tay người
-/// dùng thật chứ ⛔ không ở CI, nơi fixture chỉ có chữ Hán sạch.
+/// dùng thật chứ không ở CI, nơi fixture chỉ có chữ Hán sạch.
 ///
 /// 🔴 Dấu `"` bên trong truy vấn được **nhân đôi** trước khi bọc — đó là cách thoát của
-/// FTS5. ⛔ Không bỏ qua, ⛔ không xoá ký tự: xoá là im lặng trả về kết quả của một truy
+/// FTS5. Không bỏ qua, không xoá ký tự: xoá là im lặng trả về kết quả của một truy
 /// vấn khác truy vấn người dùng gõ.
 pub(super) fn fts_trigram(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
     let phrase = format!("\"{}\"", query.replace('"', "\"\""));
 
     // 🔴 Cùng Bẫy 11 của `char_idx` 2 ký tự: `verify_substring` phải chạy trên TOÀN BỘ ứng
-    // viên trước khi cắt. ⛔ Không `LIMIT` ở SQL. Đo (`EXPLAIN QUERY PLAN`): nhánh này CÓ
-    // `USE TEMP B-TREE FOR ORDER BY` — một `LIMIT` ở SQL ⛔ sẽ không cắt được thời gian dù
-    // đặt trước hay sau verify — nhưng nhánh 3 vốn dưới trần NFR1 (0,6–2,0 ms mọi ca đo,
-    // §Debug Log), nên vô hại: `LIMIT` chỉ mua băng thông IPC ở nhánh này, cắt ở Rust đủ.
+    // viên trước khi cắt. Không `LIMIT limit` ở SQL. Đo (`EXPLAIN QUERY PLAN`): nhánh này
+    // CÓ `USE TEMP B-TREE FOR ORDER BY` — một `LIMIT` không cắt được thời gian dù đặt trước hay
+    // sau verify — nhưng nhánh 3 vốn dưới trần NFR1 (0,6–2,0 ms mọi ca đo, §Debug Log).
+    //
+    // 🔴 **STORY 1.18 — trần AN TOÀN `?2`** (`deferred-work.md:631`): nó không mua thời gian ở
+    // nhánh này (kế hoạch phải sắp xong mới cắt được), nó mua **BỘ NHỚ** — đó là đúng thứ
+    // mục `:631` mô tả. Xem [`candidate_ceiling`].
     let sql = format!(
         "SELECT {COLUMNS} FROM entry_fts f \
          JOIN dict_entry e ON e.id = f.rowid {JOIN_SOURCE} \
          WHERE entry_fts MATCH ?1 AND e.lang = 'zh' \
-         ORDER BY e.id"
+         ORDER BY e.id LIMIT ?2"
     );
-    let candidates = run(db, &sql, &[&phrase])?;
-    let verified = verify_substring(candidates, query);
-    Ok(cap(verified, limit))
+    let ceiling = candidate_ceiling(limit);
+    let candidates = run(db, &sql, &[&phrase, &ceiling])?;
+    Ok(cap_verified(candidates, query, limit))
 }
 
 /// **Nhánh tra chính xác của đường tiếng Anh** — tập khoá `{nguyên văn, hạ chữ thường}`
 /// trong **MỘT** truy vấn (AD-44 ③).
 ///
-/// 🔴 **`IN (?1, ?2)`, ⛔ không fallback dây chuyền.** Tra nguyên văn rồi *"rỗng thì tra
+/// 🔴 **`IN (?1, ?2)`, không fallback dây chuyền.** Tra nguyên văn rồi *"rỗng thì tra
 /// lại dạng hạ chữ thường"* làm mỗi lượt tra chạy **hai** truy vấn ⇒ số đo NFR1 mất
 /// nghĩa, và làm [`super::LookupResult::branch`] **nói dối** về đường đã đi. Một lượt qua
 /// B-tree, một truy vấn.
 ///
-/// ⚠️ `IN (?1, ?2)` chứ ⛔ không `?1 OR ?2`: hai cách viết ⛔ **không tương đương về kế
-/// hoạch** trên mọi phiên bản SQLite, và AD-44 ③ khai đích danh hình dạng đầu. ⛔ Cũng
+/// ⚠️ `IN (?1, ?2)` chứ không `?1 OR ?2`: hai cách viết **không tương đương về kế
+/// hoạch** trên mọi phiên bản SQLite, và AD-44 ③ khai đích danh hình dạng đầu. Cũng
 /// không `UNION ALL` — nó **sinh trùng** khi hai khoá cùng khớp một hàng, còn `IN` trả
 /// mỗi hàng đúng một lần.
 ///
 /// 🔴 **Lỗ mà cả nhánh này tồn tại để bịt:** đo thật trên `dict-core.db`,
 /// `headword = 'running'` ⇒ **1** hàng, `headword = 'Running'` ⇒ **0**. Bôi đen một từ ở
-/// **đầu câu** là thao tác thường ngày; không có khoá thứ hai, nó trả rỗng ⛔ không lỗi.
+/// **đầu câu** là thao tác thường ngày; không có khoá thứ hai, nó trả rỗng không lỗi.
 ///
-/// 🔴 **Hạ chữ thường tính ở RUST, ⛔ không bằng `lower()` của SQLite.** Hàm dựng sẵn của
-/// SQLite chỉ hạ **ASCII** — nó ⛔ không chạm `É`, `Ü`, `Ø`, và một đầu mục tiếng Anh mượn
-/// từ nước ngoài sẽ rơi **im lặng**. [`str::to_lowercase`] của Rust ⛔ cũng **không phụ
+/// 🔴 **Hạ chữ thường tính ở RUST, không bằng `lower()` của SQLite.** Hàm dựng sẵn của
+/// SQLite chỉ hạ **ASCII** — nó không chạm `É`, `Ü`, `Ø`, và một đầu mục tiếng Anh mượn
+/// từ nước ngoài sẽ rơi **im lặng**. [`str::to_lowercase`] của Rust không cũng **không phụ
 /// thuộc locale**: `"I".to_lowercase()` luôn ra `"i"`. Một phép fold theo locale làm
 /// **cùng một truy vấn cho hai kết quả trên hai máy** cài ngôn ngữ hệ điều hành khác nhau
-/// — một hồi quy ⛔ không tái lập được trên máy người sửa (vá A4 của Reviewer Gate).
+/// — một hồi quy không tái lập được trên máy người sửa (vá A4 của Reviewer Gate).
 ///
-/// ⚠️ **Bất đối xứng CÓ CHỦ Ý, ⛔ không phải một chỗ bỏ sót:** hạ chữ thường là một khoá
-/// **THÊM** phía **truy vấn**, ⛔ **không** phải một phép hạ phía **đầu mục**. `Running`
-/// ⇒ `running` (có); `api` ⇒ `API` (⛔ **không**). **1.635** đầu mục tiếng Anh mang chữ
+/// ⚠️ **Bất đối xứng CÓ CHỦ Ý, không phải một chỗ bỏ sót:** hạ chữ thường là một khoá
+/// **THÊM** phía **truy vấn**, **không** phải một phép hạ phía **đầu mục**. `Running`
+/// ⇒ `running` (có); `api` ⇒ `API` (**không**). **1.635** đầu mục tiếng Anh mang chữ
 /// hoa **có nghĩa** (`API`, `Wikipedia`, `English`), nên khoá gốc phải được giữ. Khớp hai
 /// chiều đòi một **chỉ mục hàm `lower(headword)` lúc build** ⇒ đổi `schema.rs`, dựng lại
 /// `dict-core.db`, điền lại `[base].sha256`, đo lại NFR6, và làm **184** nhóm đầu mục
 /// *(chỉ phân biệt nhau bằng chữ hoa)* sập vào nhau. Đó là **tầng PRD/kiến trúc**.
 ///
-/// ⚠️ ⛔ **Không** vế `headword_simp`: nó **luôn `NULL`** trên toàn bộ 119.039 mục tiếng
-/// Anh, nên một vế `OR e.headword_simp = ?` chỉ thêm một nhánh kế hoạch ⛔ không bao giờ
+/// ⚠️ **Không** vế `headword_simp`: nó **luôn `NULL`** trên toàn bộ 119.039 mục tiếng
+/// Anh, nên một vế `OR e.headword_simp = ?` chỉ thêm một nhánh kế hoạch không bao giờ
 /// khớp.
 pub(super) fn exact_en(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
     let lowered = query.to_lowercase();
 
-    // ⛔ Không bước xác minh (cùng lý do `exact`) ⇒ `LIMIT ?3` ở SQL an toàn.
+    // Không bước xác minh (cùng lý do `exact`) ⇒ `LIMIT ?3` ở SQL an toàn.
     let sql = format!(
         "SELECT {COLUMNS} FROM dict_entry e {JOIN_SOURCE} \
          WHERE e.headword IN (?1, ?2) AND e.lang = 'en' \
@@ -332,30 +381,35 @@ pub(super) fn exact_en(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResu
 ///
 /// Khuôn **y hệt** [`fts_trigram`], đổi đúng một thứ: bộ lọc `lang`. `entry_fts` lập chỉ
 /// mục trigram trên `headword` của **MỌI** hàng — cả `zh` lẫn `en` — nên vế `lang` là thứ
-/// tách hai đường ra, ⛔ không phải một giả định về tệp.
+/// tách hai đường ra, không phải một giả định về tệp.
 ///
 /// ⚠️ **Rủi ro cú pháp FTS5 CAO HƠN NHIỀU ở đây so với đường tiếng Trung:** một truy vấn
 /// Latin dễ chứa `'`, `-`, `*`, `:` (`don't`, `state-of-the-art`). Vì thế phép bọc cụm
-/// **dùng lại nguyên** cách của nhánh 3 — bọc ngoặc kép + nhân đôi `"` — ⛔ không có bản
-/// thứ hai và ⛔ không có một "biến thể cho tiếng Anh".
+/// **dùng lại nguyên** cách của nhánh 3 — bọc ngoặc kép + nhân đôi `"` — không có bản
+/// thứ hai và không có một "biến thể cho tiếng Anh".
 ///
 /// 🔴 **Vẫn đi qua [`verify_substring`], và vế `headword_simp` bên trong nó sẽ luôn
-/// `None` với tiếng Anh — ⛔ ĐỪNG bỏ hàm vì thế.** Nó là hàng rào chống **dương tính giả**
-/// của trigram, và hàng rào đó ⛔ không phụ thuộc ngôn ngữ: FTS5 trả lời *"chứa các
-/// trigram này"*, ⛔ không trả lời *"chứa chuỗi này"*.
+/// `None` với tiếng Anh — ĐỪNG bỏ hàm vì thế.** Nó là hàng rào chống **dương tính giả**
+/// của trigram, và hàng rào đó không phụ thuộc ngôn ngữ: FTS5 trả lời *"chứa các
+/// trigram này"*, không trả lời *"chứa chuỗi này"*.
 pub(super) fn fts_trigram_en(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
     let phrase = format!("\"{}\"", query.replace('"', "\"\""));
 
-    // Cùng lý do `fts_trigram`: ⛔ không `LIMIT` ở SQL, cắt ở Rust sau verify.
+    // Cùng lý do `fts_trigram`: không `LIMIT limit` ở SQL, cắt ở Rust sau verify — cộng trần
+    // AN TOÀN `?2` của Story 1.18 (`deferred-work.md:631`). Xem [`candidate_ceiling`].
+    //
+    // ⚠️ Nhánh này là chỗ trần đó **đáng giá nhất**: `entry_fts MATCH '"dic"'` đo được
+    // **572** hàng, và một trigram Latin ba ký tự phổ biến (`"ing"`, `"the"`) kéo về nhiều
+    // hơn hẳn — 119.039 đầu mục tiếng Anh đều nằm trong cùng chỉ mục đó.
     let sql = format!(
         "SELECT {COLUMNS} FROM entry_fts f \
          JOIN dict_entry e ON e.id = f.rowid {JOIN_SOURCE} \
          WHERE entry_fts MATCH ?1 AND e.lang = 'en' \
-         ORDER BY e.id"
+         ORDER BY e.id LIMIT ?2"
     );
-    let candidates = run(db, &sql, &[&phrase])?;
-    let verified = verify_substring(candidates, query);
-    Ok(cap(verified, limit))
+    let ceiling = candidate_ceiling(limit);
+    let candidates = run(db, &sql, &[&phrase, &ceiling])?;
+    Ok(cap_verified(candidates, query, limit))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -385,9 +439,9 @@ fn run_counts(db: ReadHandle<'_>, sql: &str, params: &[&dyn ToSql]) -> SqlResult
 
 /// 🔴 **Đếm ĐẦY ĐỦ theo nguồn — số mà thanh nhịp nói ra khi trần đã cắt** (AC12).
 ///
-/// ⚠️ **Hai hình dạng, ⛔ không một.** Ba nhánh ⛔ cần xác minh (`exact` · `exact_en` ·
-/// `char_idx` 1 ký tự) đếm bằng **SQL thuần** — rẻ, ⛔ chạm một hàng `dict_entry` nào.
-/// Ba nhánh CÓ xác minh (`char_idx` 2 ký tự · cả hai `fts_trigram`) **⛔ đếm được bằng
+/// ⚠️ **Hai hình dạng, không một.** Ba nhánh không cần xác minh (`exact` · `exact_en` ·
+/// `char_idx` 1 ký tự) đếm bằng **SQL thuần** — rẻ, không chạm một hàng `dict_entry` nào.
+/// Ba nhánh CÓ xác minh (`char_idx` 2 ký tự · cả hai `fts_trigram`) **không đếm được bằng
 /// SQL**: `COUNT(*)` ở đó đếm **ứng viên**, mà ứng viên chứa dương tính giả (đo thật:
 /// `中國` ⇒ 390 ứng viên, **40** sai). Một `COUNT` trên ứng viên là một con số **to hơn sự
 /// thật**, và thanh nhịp khi đó nói dối theo chiều ngược lại — đúng Bẫy 11, chỉ đổi dấu.
@@ -431,7 +485,7 @@ pub(super) fn count_by_source(
             };
 
             if chars.next().is_none() {
-                // 1 ký tự — ⛔ bước xác minh (xem `char_idx`) ⇒ `COUNT` ở SQL ĐÚNG.
+                // 1 ký tự — không bước xác minh (xem `char_idx`) ⇒ `COUNT` ở SQL ĐÚNG.
                 let sql = format!(
                     "SELECT s.code, COUNT(*) FROM dict_entry e {JOIN_SOURCE} \
                      WHERE e.id IN (SELECT entry_id FROM char_idx WHERE ch = ?1) \
@@ -455,7 +509,7 @@ pub(super) fn count_by_source(
             Ok(tally(&hits))
         }
 
-        // ⛔ Không câu SQL nào chạy ở nhánh này (AD-44 ④) ⇒ ⛔ có gì để đếm.
+        // Không câu SQL nào chạy ở nhánh này (AD-44 ④) ⇒ không có gì để đếm.
         QueryBranch::NoBranchQueryTooShort => Ok(Vec::new()),
     }
 }

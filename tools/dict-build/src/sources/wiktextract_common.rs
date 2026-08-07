@@ -2,7 +2,7 @@
 //! `viwiktionary_en` (Story 1.9 Task 4; tham số hoá ở Story 1.10b Task 2). Ba nguồn cùng
 //! công cụ trích xuất (tatuylonen/wiktextract, phân phối qua kaikki.org) nên cùng hình
 //! dạng JSON; khác nhau ở **ấn bản** nguồn, ở `pos_lang` gắn vào mỗi nghĩa (FR35), và ở
-//! **ngôn ngữ của chính đầu mục**. Đây là chia sẻ CODE ĐỌC JSON, ⛔ không phải hợp nhất
+//! **ngôn ngữ của chính đầu mục**. Đây là chia sẻ CODE ĐỌC JSON, không phải hợp nhất
 //! NGHĨA — mỗi caller vẫn tự gắn `source_id` của mình.
 //!
 //! # 🔴 `filter_lang_code` và `entry_lang` là HAI thứ khác nhau
@@ -13,13 +13,13 @@
 //! | `entry_lang` | *"GHI nhãn gì?"* | `RawEntry.lang` ⇒ cột `dict_entry.lang` |
 //! | `pos_lang` | *"nhãn từ loại viết bằng tiếng gì?"* | `RawSense.pos_lang` (FR35) |
 //!
-//! ⛔ **Ba thứ này KHÔNG suy ra được từ nhau.** `en_wiktionary` là bằng chứng sống:
+//! **Ba thứ này KHÔNG suy ra được từ nhau.** `en_wiktionary` là bằng chứng sống:
 //! `filter_lang_code = "zh"` *(đọc mục từ tiếng Trung)* nhưng `pos_lang = "en"` *(nhãn
 //! từ loại tiếng Anh, vì đó là ấn bản `en`)*. Và `viwiktionary_en` là bằng chứng chiều
 //! còn lại: `filter = "en"` với `pos_lang = "vi"` *(ấn bản `vi` có `pos_title` sẵn tiếng
 //! Việt)*.
 //!
-//! 🔴 `entry_lang` là tham số **BẮT BUỘC**, ⛔ **không có giá trị mặc định** — và đó là
+//! 🔴 `entry_lang` là tham số **BẮT BUỘC**, **không có giá trị mặc định** — và đó là
 //! điều có chủ ý. Trước Story 1.10b hàm này viết cứng `lang: "zh"`, nên nguồn thứ sáu
 //! *(mục từ tiếng Anh)* sẽ lặng lẽ đổ 119.039 đầu mục MANG NHÃN TIẾNG TRUNG vào
 //! `dict_entry` với build XANH và mọi test khác XANH. Một giá trị mặc định `"zh"` biến
@@ -45,7 +45,7 @@ use crate::model::{ParseIssue, RawEntry, RawExample, RawSense};
 /// `"filtered, expected — không phải lỗi đọc"` — nên vẫn rơi vào một nhóm `skip_reasons`
 /// tách biệt với lỗi đọc thật, dù cả hai đều là biến thể `Err`.
 ///
-/// `entry_lang` đi THẲNG vào `RawEntry.lang`. Tham số BẮT BUỘC, ⛔ không mặc định —
+/// `entry_lang` đi THẲNG vào `RawEntry.lang`. Tham số BẮT BUỘC, không mặc định —
 /// xem doc-comment module.
 pub fn parse_line(
     line_no: usize,
@@ -123,7 +123,7 @@ pub fn parse_line(
                 .unwrap_or_default();
             if glosses.is_empty() {
                 // Ca thật đã thấy trên dữ liệu vi-edition: `senses: [{"tags":["no-gloss"]}]`
-                // — mục từ liên kết nhưng chưa có nghĩa. Bỏ qua NGHĨA đó, ⛔ không bỏ
+                // — mục từ liên kết nhưng chưa có nghĩa. Bỏ qua NGHĨA đó, không bỏ
                 // qua cả DÒNG: các nghĩa khác của cùng từ vẫn hợp lệ.
                 continue;
             }
@@ -190,10 +190,10 @@ pub fn parse_line(
 /// (`tests/fixtures/raw/en_wiktionary/Chinese.jsonl`, trích nguyên văn từ
 /// `tools/dict-build/raw/en_wiktionary/Chinese.jsonl` thật) — hai dòng có nghĩa dùng
 /// được (`pos: "character"`) cộng một dòng thật `tags: ["no-gloss"]` (không có nghĩa,
-/// bị bỏ qua đúng như `parse_line` xử lý, ⛔ không chặn việc gộp hai dòng còn lại).
+/// bị bỏ qua đúng như `parse_line` xử lý, không chặn việc gộp hai dòng còn lại).
 ///
 /// dict-build:allow .entry( — gộp senses THEO HEADWORD, TRONG một nguồn/lượt gọi (AC2:
-/// khử trùng lặp trong MỘT `source_id` là hợp lệ); ⛔ KHÔNG xuyên nguồn (AD-19) — mỗi
+/// khử trùng lặp trong MỘT `source_id` là hợp lệ); KHÔNG xuyên nguồn (AD-19) — mỗi
 /// caller (`viwiktionary`/`en_wiktionary`) gọi hàm này RIÊNG trên tệp của chính nó,
 /// không headword nào đi qua hai lượt gọi khác nguồn.
 ///
@@ -266,9 +266,9 @@ pub fn parse<R: BufRead>(
 /// `金甌`), ngoài phạm vi "âm một ký tự" mà AC3/story đo (§Phát hiện, song song với
 /// `Unihan kVietnamese` — cũng chỉ phủ TỪNG KÝ TỰ).
 ///
-/// ⛔ **Không suy đoán nhãn.** Một `related` thiếu `tags` hoặc mang `tags` khác
-/// `han-viet-reading`/`nom-reading` bị BỎ QUA — ⛔ không được hiểu ngầm là một trong hai
-/// loại. Một MỤC không mang nhãn nào trong CẢ HAI tập bị bỏ hẳn (`Err`), ⛔ không nạp một
+/// **Không suy đoán nhãn.** Một `related` thiếu `tags` hoặc mang `tags` khác
+/// `han-viet-reading`/`nom-reading` bị BỎ QUA — không được hiểu ngầm là một trong hai
+/// loại. Một MỤC không mang nhãn nào trong CẢ HAI tập bị bỏ hẳn (`Err`), không nạp một
 /// hàng rỗng (Bẫy 3 của story).
 ///
 /// Nhiều âm cùng loại trên một mục ⇒ nối bằng `,`, GIỮ NGUYÊN chuỗi, không nhân bản entry
@@ -504,7 +504,7 @@ mod tests {
 
     /// AC1 mệnh đề 4, hình dạng thật của `馬` trong fixture en.wiktionary: hai dòng
     /// JSONL riêng, cùng headword, khác nghĩa — phải gộp thành MỘT `RawEntry` với HAI
-    /// `RawSense`, ⛔ không phải hai `RawEntry` (Review Findings Group A).
+    /// `RawSense`, không phải hai `RawEntry` (Review Findings Group A).
     #[test]
     fn same_headword_on_two_lines_becomes_one_entry_with_two_senses() {
         let text = "\
@@ -523,7 +523,7 @@ mod tests {
     /// 🔴 §Bẫy 1 của Story 1.10b. `parse_line` từng viết cứng `lang: "zh"`, nên một
     /// nguồn tiếng Anh dựng qua hàm này sẽ đổ 119.039 đầu mục MANG NHÃN TIẾNG TRUNG vào
     /// `dict_entry` mà build vẫn XANH. Test này khoá `entry_lang` đi THẲNG vào
-    /// `RawEntry.lang` — cho CẢ HAI giá trị, ⛔ không chỉ giá trị mới.
+    /// `RawEntry.lang` — cho CẢ HAI giá trị, không chỉ giá trị mới.
     #[test]
     fn entry_lang_lands_verbatim_in_raw_entry_lang_for_both_values() {
         let zh = r#"{"word":"字典","pos":"noun","lang_code":"zh","senses":[{"glosses":["từ điển"]}]}"#;
@@ -533,10 +533,10 @@ mod tests {
         assert_eq!(zh_entry.lang, "zh", "vai B phải giữ nguyên nhãn 'zh'");
 
         let en_entry = parse_line(1, en, "vi", Some("en"), "en").unwrap().unwrap();
-        assert_eq!(en_entry.lang, "en", "vai A phải mang nhãn 'en', ⛔ không phải 'zh'");
+        assert_eq!(en_entry.lang, "en", "vai A phải mang nhãn 'en', không phải 'zh'");
     }
 
-    /// `filter_lang_code` và `entry_lang` là HAI thứ khác nhau và ⛔ KHÔNG suy ra được
+    /// `filter_lang_code` và `entry_lang` là HAI thứ khác nhau và KHÔNG suy ra được
     /// từ nhau. `en_wiktionary` là bằng chứng sống của chiều ngược lại (`filter="zh"`,
     /// `pos_lang="en"`); test này khoá chiều còn lại — lọc một `lang_code` rồi dán một
     /// nhãn khác vẫn phải chạy, vì đó đúng là thứ hàm này được yêu cầu làm.
@@ -547,14 +547,14 @@ mod tests {
         assert_eq!(entry.headword, "馬");
         assert_eq!(
             entry.lang, "en",
-            "entry_lang ⛔ không được suy ra từ filter_lang_code"
+            "entry_lang không được suy ra từ filter_lang_code"
         );
     }
 
-    /// Phép gộp theo headword ⛔ không được làm rơi `entry_lang` của lượt gọi.
+    /// Phép gộp theo headword không được làm rơi `entry_lang` của lượt gọi.
     ///
-    /// ⚠️ Tên test cố ý ⛔ không chứa từ vựng hợp nhất tiếng Anh — Kiểm A của
-    /// `check-dict-build.mjs` quét token đó trên toàn cây `src/**` và ⛔ không phân biệt
+    /// ⚠️ Tên test cố ý không chứa từ vựng hợp nhất tiếng Anh — Kiểm A của
+    /// `check-dict-build.mjs` quét token đó trên toàn cây `src/**` và không phân biệt
     /// mã thật với tên test. Nới miễn trừ cho một tên test là làm hỏng chính phép kiểm.
     #[test]
     fn two_lines_of_one_headword_keep_the_entry_lang_of_the_call() {
@@ -596,7 +596,7 @@ mod tests {
         assert_eq!(entry.headword, "北");
         assert_eq!(entry.han_viet.as_deref(), Some("bắc"));
         assert_eq!(entry.nom_reading.as_deref(), Some("bậc,bấc"));
-        assert!(entry.senses.is_empty(), "Quyết định #3a: ⛔ không nạp dict_sense");
+        assert!(entry.senses.is_empty(), "Quyết định #3a: không nạp dict_sense");
     }
 
     /// AC3: nhiều âm CÙNG LOẠI trên một mục ⇒ nối bằng `,`, GIỮ NGUYÊN chuỗi, khử trùng
@@ -608,8 +608,8 @@ mod tests {
         assert_eq!(entry.han_viet.as_deref(), Some("tây,tê"), "trùng lặp 'tây' phải bị khử");
     }
 
-    /// Bẫy 3 của story: một mục KHÔNG mang tag nào trong hai tập ⇒ BỎ (`Err`), ⛔ không
-    /// suy đoán và ⛔ không nạp một hàng rỗng.
+    /// Bẫy 3 của story: một mục KHÔNG mang tag nào trong hai tập ⇒ BỎ (`Err`), không
+    /// suy đoán và không nạp một hàng rỗng.
     #[test]
     fn a_character_with_no_han_viet_or_nom_tags_is_not_ingested() {
         let json = r#"{"pos": "character", "word": "字", "lang_code": "vi", "senses": [{"related": [{"word": "chữ", "tags": ["letter"]}]}]}"#;
@@ -630,12 +630,12 @@ mod tests {
     }
 
     /// Đối chứng âm cho Bẫy 2 của story: một `related` mang nhãn KHÁC (`letter`,
-    /// `Latin`+`character`) ⛔ không được hiểu ngầm là han-viet-reading hay nom-reading.
+    /// `Latin`+`character`) không được hiểu ngầm là han-viet-reading hay nom-reading.
     #[test]
     fn unrelated_tags_are_never_misread_as_han_viet_or_nom() {
         let json = r#"{"pos": "character", "word": "A", "lang_code": "vi", "senses": [{"related": [{"word": "a", "tags": ["Latin", "character"]}]}]}"#;
         let result = parse_reading_line(1, json, Some("vi"));
-        assert!(result.is_err(), "tag lạ ⛔ không được biến thành han-viet-reading/nom-reading ngầm định");
+        assert!(result.is_err(), "tag lạ không được biến thành han-viet-reading/nom-reading ngầm định");
     }
 
     #[test]
@@ -647,7 +647,7 @@ mod tests {
     }
 
     /// `parse_readings` gộp CÙNG headword TRONG một lượt gọi (ca hiếm nhưng thật: `k`,
-    /// `𦄂`) — hợp cả hai tập, khử trùng lặp, ⛔ không nhân đôi entry.
+    /// `𦄂`) — hợp cả hai tập, khử trùng lặp, không nhân đôi entry.
     #[test]
     fn parse_readings_unions_duplicate_headword_lines() {
         let text = "\

@@ -23,7 +23,7 @@
 //!   Cưỡng chế chỉ-đọc là của SQLite, không của kỷ luật người viết (Quyết định #2).
 //! - **[`checkpoint`]** — luồng nền trên `Connection` RIÊNG. PASSIVE khi rảnh hoặc khi
 //!   `.db-wal` vượt ngưỡng; TRUNCATE chỉ ở [`Store::close`] và ngay trước khi sao lưu
-//!   để di trú. ⛔ TRUNCATE **không bao giờ** ở đường nền — nó chờ mọi reader rời đi,
+//!   để di trú. TRUNCATE **không bao giờ** ở đường nền — nó chờ mọi reader rời đi,
 //!   và đặt nó vào nhịp nền là dựng lại đúng cái gai trễ mà `wal_autocheckpoint = 0`
 //!   vừa gỡ ra (AD-12 / NFR2).
 //! - **[`schema`]** — `PRAGMA user_version`, từ chối mở lùi, di trú chỉ tiến.
@@ -50,7 +50,7 @@
 //! **0 = chưa có lược đồ**, bước di trú đầu tiên đánh số **1**.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! ⛔ MỌI CHUỖI TRONG MODULE NÀY VIẾT KHÔNG DẤU
+//! MỌI CHUỖI TRONG MODULE NÀY VIẾT KHÔNG DẤU
 //! ─────────────────────────────────────────────────────────────────────────────
 //! `scripts/check-i18n.mjs` Kiểm A quét `src-tauri/**/*.rs` tìm ký tự có dấu tiếng Việt
 //! **ở vị trí mã**. `src-tauri/tests/**` được miễn trừ có tên; `src/core/store/**` thì
@@ -65,10 +65,10 @@
 //! đo cần Editor thật: `wal_threshold_bytes` và nhịp flush của AD-35 **đánh đổi lẫn
 //! nhau** — phải đạt NFR18 *(mất ≤ 5 s)* mà không phạm NFR2 *(không frame nào vượt
 //! 50 ms)*. `ARCHITECTURE-SPINE.md#Deferred` và `epics.md:454` xếp cả cặp vào Giai đoạn 2.
-//! ⛔ Đừng đọc các số này như đã hiệu chỉnh; xem `deferred-work.md`.
+//! Đừng đọc các số này như đã hiệu chỉnh; xem `deferred-work.md`.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! ⛔ MODULE NÀY KHÔNG `use tauri::…` (Quyết định #1)
+//! MODULE NÀY KHÔNG `use tauri::…` (Quyết định #1)
 //! ─────────────────────────────────────────────────────────────────────────────
 //! [`Store::open`] nhận một [`StoreSpec`] mang `PathBuf` đã phân giải. Đường lấy
 //! `$APPDATA` sống ở `lib.rs`. Ba lý do, cả ba đo được: test dựng `Store` trên thư mục
@@ -129,8 +129,8 @@ pub type ReadHandle<'a> = &'a rusqlite::Connection;
 
 /// Năm loại kho của AD-7 mà story này chạm tới — **khai hết, dựng đúng một**.
 ///
-/// ⛔ [`StoreKind::Global`] và [`StoreKind::Project`] có mã khởi tạo hôm nay — Story 1.15
-/// dựng vế thứ hai (`project.db`, nằm trong một `.atproj` do người dùng chọn, ⛔ không phải
+/// [`StoreKind::Global`] và [`StoreKind::Project`] có mã khởi tạo hôm nay — Story 1.15
+/// dựng vế thứ hai (`project.db`, nằm trong một `.atproj` do người dùng chọn, không phải
 /// `$APPDATA`). `library-index.db` là **Epic 5**, và AD-8 còn nói nó **không di trú** — xoá
 /// rồi dựng lại — tức nó cần một nhánh khác mà story đó phải tự quyết. Viết sẵn mã cho loại
 /// kia hôm nay là mã không ai gọi, và nó sẽ sai theo đúng cách mà không test nào bắt.
@@ -140,27 +140,27 @@ pub enum StoreKind {
     Global,
     /// `<tác phẩm>.atproj/project.db` — **Story 1.15**.
     Project,
-    /// `$APPDATA/library-index.db` — chỉ mục dẫn xuất, **Epic 5**, ⛔ không di trú (AD-8).
+    /// `$APPDATA/library-index.db` — chỉ mục dẫn xuất, **Epic 5**, không di trú (AD-8).
     LibraryIndex,
 
     /// Một tệp từ điển `.db` — **CHỈ ĐỌC, LUÔN LUÔN** (AD-7). Story 1.11.
     ///
     /// 🔴 Loại này khác hẳn ba loại trên và cái khác nằm ở chỗ nó **không có** gì:
-    /// ⛔ không [`StoreSpec`], ⛔ không writer, ⛔ không luồng checkpoint, ⛔ không bộ
-    /// di trú, ⛔ không `journal_mode = WAL`. Nó đi qua [`ReadOnlyDb`], ⛔ không qua
+    /// không [`StoreSpec`], không writer, không luồng checkpoint, không bộ
+    /// di trú, không `journal_mode = WAL`. Nó đi qua [`ReadOnlyDb`], không qua
     /// [`Store`] — vì cả bốn thứ vừa kể đều **GHI VÀO** tệp, và một tệp từ điển được
     /// giao kèm checksum trong `dict-manifest.toml` (AD-25). Ghi vào nó một byte là
-    /// làm checksum thành sai, và ⛔ không cổng nào bắt được điều đó
-    /// (`check-dict-manifest.mjs` cố ý ⛔ không đọc `.db`).
+    /// làm checksum thành sai, và không cổng nào bắt được điều đó
+    /// (`check-dict-manifest.mjs` cố ý không đọc `.db`).
     ///
     /// ⚠️ Cả ba tệp từ điển ở `journal_mode = delete` — `tools/dict-build` đặt thế có
-    /// chủ ý (`finalize.rs`). Nên `apply_reader_pragmas` (nó gọi `verify_wal`) ⛔ không
+    /// chủ ý (`finalize.rs`). Nên `apply_reader_pragmas` (nó gọi `verify_wal`) không
     /// dùng được ở đây; đường của loại này là `apply_dict_reader_pragmas`.
     Dict,
 }
 
 impl StoreKind {
-    /// Định danh máy đọc. ⛔ Không phải nhãn hiển thị — nó đi vào `params` của
+    /// Định danh máy đọc. Không phải nhãn hiển thị — nó đi vào `params` của
     /// [`IpcError`], nơi AD-21 chỉ cho phép **dữ liệu**, không cho phép câu.
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -174,7 +174,7 @@ impl StoreKind {
 
 /// Sáu con số điều khiển tầng ghi. **Tất cả đều TẠM** — xem doc-comment của module.
 ///
-/// ⛔ Đừng chôn chúng thành số trần rải rác trong `writer.rs` / `checkpoint.rs`. Một
+/// Đừng chôn chúng thành số trần rải rác trong `writer.rs` / `checkpoint.rs`. Một
 /// `struct` với `Default` là điều kiện để Story 2.4 hiệu chỉnh được bằng **một** lượt
 /// sửa thay vì một lượt đi săn; và là điều kiện để test lái cơ chế bằng `Tuning` thu
 /// nhỏ *(tick và idle tính bằng chục mili-giây)* thay vì chờ 5 giây thật — nhân với hai
@@ -249,7 +249,7 @@ impl Default for Tuning {
 pub struct StoreSpec {
     /// Loại kho — đi vào `params` của lỗi, nên chẩn đoán nói được *kho nào* hỏng.
     pub kind: StoreKind,
-    /// Đường dẫn tệp `.db` **đã phân giải**. ⛔ Module này không tự phân giải `$APPDATA`.
+    /// Đường dẫn tệp `.db` **đã phân giải**. Module này không tự phân giải `$APPDATA`.
     pub path: PathBuf,
     /// Sáu con số tạm. Xem [`Tuning`].
     pub tuning: Tuning,
@@ -260,7 +260,7 @@ pub struct StoreSpec {
 impl StoreSpec {
     /// Kho `global.db` với bộ di trú và `Tuning` mặc định.
     ///
-    /// ⛔ Không có `StoreSpec::library_index` hôm nay — xem [`StoreKind`].
+    /// Không có `StoreSpec::library_index` hôm nay — xem [`StoreKind`].
     pub fn global(path: PathBuf) -> Self {
         Self {
             kind: StoreKind::Global,
@@ -301,7 +301,7 @@ pub enum StoreError {
     OpenFailed {
         /// Kho nào.
         store: StoreKind,
-        /// Lỗi thô. ⛔ Không đi lên giao diện.
+        /// Lỗi thô. Không đi lên giao diện.
         detail: String,
     },
 
@@ -320,7 +320,7 @@ pub enum StoreError {
         mode: String,
     },
 
-    /// Database mang phiên bản lược đồ **mới hơn** ứng dụng. ⛔ Không ghi một byte nào.
+    /// Database mang phiên bản lược đồ **mới hơn** ứng dụng. Không ghi một byte nào.
     SchemaTooNew {
         /// Kho nào.
         store: StoreKind,
@@ -330,11 +330,11 @@ pub enum StoreError {
         supported: u32,
     },
 
-    /// Job ghi chạy nhưng trả lỗi ⇒ giao dịch đã rollback, ⛔ không có nửa ghi nào.
+    /// Job ghi chạy nhưng trả lỗi ⇒ giao dịch đã rollback, không có nửa ghi nào.
     WriteFailed {
         /// Kho nào.
         store: StoreKind,
-        /// Lỗi thô. ⛔ Không đi lên giao diện.
+        /// Lỗi thô. Không đi lên giao diện.
         detail: String,
     },
 
@@ -353,7 +353,7 @@ pub enum StoreError {
     ReadFailed {
         /// Kho nào.
         store: StoreKind,
-        /// Lỗi thô. ⛔ Không đi lên giao diện.
+        /// Lỗi thô. Không đi lên giao diện.
         detail: String,
     },
 
@@ -393,7 +393,7 @@ impl StoreError {
         }
     }
 
-    /// `code` — định danh máy đọc để frontend rẽ nhánh. ⛔ Không bao giờ ra màn hình.
+    /// `code` — định danh máy đọc để frontend rẽ nhánh. Không bao giờ ra màn hình.
     ///
     /// ⚠️ Hẹp hơn [`StoreError::message_key`] có chủ ý: `WriterGone` và `WriteFailed`
     /// dùng **chung** một câu cho người dùng *(thay đổi vừa rồi chưa được lưu)* nhưng là
@@ -411,7 +411,7 @@ impl StoreError {
         }
     }
 
-    /// Quyền hiển thị một nút thử lại. ⛔ Không phải lệnh tự thử lại (AD-22).
+    /// Quyền hiển thị một nút thử lại. Không phải lệnh tự thử lại (AD-22).
     ///
     /// Một lượt ghi/đọc trượt vì `SQLITE_BUSY` **có thể** thành công lần sau, nên người
     /// dùng được quyền bấm lại. Lược đồ quá mới thì không — bấm bao nhiêu lần cũng vậy,
@@ -464,7 +464,7 @@ impl std::fmt::Display for StoreError {
 
 impl std::error::Error for StoreError {}
 
-/// 🔴 Đi **qua [`IpcError::new`]**, ⛔ không dựng struct literal.
+/// 🔴 Đi **qua [`IpcError::new`]**, không dựng struct literal.
 ///
 /// `IpcError::new` là chỗ DUY NHẤT `message_key` gặp `params`, và đó là chỗ duy nhất
 /// một khoá thiếu tham số bị bắt. Một struct literal đi vòng qua nó biên dịch sạch, qua
@@ -525,13 +525,13 @@ impl Store {
             migrations,
         } = spec;
 
-        // ── 0. `Dict` đi qua `ReadOnlyDb`, ⛔ không bao giờ qua đây ───────────────
+        // ── 0. `Dict` đi qua `ReadOnlyDb`, không bao giờ qua đây ───────────────
         //
         // 🔴 `StoreSpec` mọi trường đều `pub`, nên hệ kiểu không tự ngăn ai đó dựng
         // `StoreSpec { kind: StoreKind::Dict, .. }` rồi gọi `Store::open`. Nếu lọt qua,
         // bước 4 dưới đây đặt `journal_mode = WAL` — GHI VÀO tệp, làm checksum của
         // `dict-manifest.toml` (AD-25) thành sai. Chặn ở đây, sớm hơn cả bước 1, để
-        // ⛔ không byte nào của tệp từ điển bị chạm dù chỉ bằng cách mở kết nối ghi.
+        // không byte nào của tệp từ điển bị chạm dù chỉ bằng cách mở kết nối ghi.
         if kind == StoreKind::Dict {
             return Err(StoreError::OpenFailed {
                 store: kind,
@@ -608,7 +608,7 @@ impl Store {
     /// đường để một job commit nửa chừng.
     ///
     /// 🔴 Trả về trong thời gian hữu hạn kể cả khi luồng writer đã đi mất — xem
-    /// [`StoreError::WriterGone`]. ⛔ Không bao giờ treo.
+    /// [`StoreError::WriterGone`]. Không bao giờ treo.
     pub fn write<T, F>(&self, job: F) -> Result<T, StoreError>
     where
         F: FnOnce(&Transaction<'_>) -> SqlResult<T> + Send + 'static,
@@ -641,7 +641,7 @@ impl Store {
     /// Idempotent. Gọi lại là một no-op.
     ///
     /// ⚠️ Trần thời gian không phải phép lịch sự — xem [`Tuning::close_truncate_budget`].
-    /// Hết trần thì ghi chẩn đoán rồi thoát; ⛔ **không treo tiến trình**.
+    /// Hết trần thì ghi chẩn đoán rồi thoát; **không treo tiến trình**.
     pub fn close(&self) {
         // Thứ tự này là hợp đồng. ⚠️ `readers.close()` KHÔNG tự chờ một `Lease` đang mượn
         // dở — nó chỉ thả các kết nối RẢNH và đánh thức người đang chờ. Việc chờ thật sự
@@ -680,7 +680,7 @@ impl Store {
 
     /// Nhật ký chẩn đoán gần đây (vòng, có trần) — `busy != 0`, TRUNCATE hết trần, …
     ///
-    /// ⚠️ Đây là nơi *"`busy != 0` ⇒ ghi chẩn đoán, ⛔ không coi là đã xong"* của AC4
+    /// ⚠️ Đây là nơi *"`busy != 0` ⇒ ghi chẩn đoán, không coi là đã xong"* của AC4
     /// thật sự đọng lại. Không có nó thì mệnh đề đó chỉ là một comment.
     pub fn diagnostics(&self) -> Vec<String> {
         self.shared.diagnostics()
@@ -694,7 +694,7 @@ impl Drop for Store {
 }
 
 impl std::fmt::Debug for Store {
-    /// ⛔ Không in `Connection` — nó không `Debug` và cũng không có gì đọc được.
+    /// Không in `Connection` — nó không `Debug` và cũng không có gì đọc được.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Store")
             .field("kind", &self.kind.as_str())
@@ -718,7 +718,7 @@ pub(crate) fn wal_path(db: &Path) -> PathBuf {
 /// Cỡ tệp `-wal` tính bằng byte; `Ok(0)` nếu tệp chưa tồn tại.
 ///
 /// ⚠️ Chỉ `NotFound` được coi là "0 byte". Mọi lỗi I/O khác (quyền truy cập, khoá tệp
-/// tạm thời…) được trả ra cho chỗ gọi tự chẩn đoán, ⛔ không bị nuốt thành cùng một giá
+/// tạm thời…) được trả ra cho chỗ gọi tự chẩn đoán, không bị nuốt thành cùng một giá
 /// trị với "tệp chưa tồn tại" — nuốt im lặng ở đây nghĩa là ngưỡng của AC5 có thể không
 /// bao giờ kích hoạt trong đúng phiên gõ liên tục hàng giờ mà nó tồn tại để canh.
 pub(crate) fn wal_len(db: &Path) -> std::io::Result<u64> {

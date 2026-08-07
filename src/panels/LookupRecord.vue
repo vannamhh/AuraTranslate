@@ -2,15 +2,15 @@
 // Một khối NGUỒN của Panel Lookup — Story 1.17, AC1 · AC2 · AC3 · AC4 · Quyết định #5.
 //
 // 🔴 AD-19 — KHÔNG hợp nhất, KHÔNG xếp hạng, KHÔNG chọn "câu trả lời": component này
-// render ĐÚNG những gì `group`/`senses` mang tới, theo ĐÚNG thứ tự nhận được. ⛔ Không
-// `sort()`, ⛔ không `new Set()` trên `gloss` — cùng lớp lỗi mà Bẫy 2 của story cảnh báo.
+// render ĐÚNG những gì `group`/`senses` mang tới, theo ĐÚNG thứ tự nhận được. Không
+// `sort()`, không `new Set()` trên `gloss` — cùng lớp lỗi mà Bẫy 2 của story cảnh báo.
 //
-// 🔴 **Quyết định #5(a) — nhiều đầu mục CÙNG headword hiện LIỀN NHAU, ⛔ GỘP.** Bản đầu
+// 🔴 **Quyết định #5(a) — nhiều đầu mục CÙNG headword hiện LIỀN NHAU, không GỘP.** Bản đầu
 // của 1.17 lặp thẳng trên một danh sách `senses` PHẲNG, nên 18 ca trùng `headword` của
 // `dict-vietphrase.db` đọc ra thành MỘT danh sách nghĩa dài liên tục — gần với *"gộp hiển
-// thị"* (đường story ⛔ chọn) hơn là *"hiện liền nhau thành từng cụm"* (bắt ở code review
+// thị"* (đường story không chọn) hơn là *"hiện liền nhau thành từng cụm"* (bắt ở code review
 // 2026-08-07). `groupSensesByEntry` giữ ranh giới đầu mục: mỗi cụm là **một đầu mục**, và
-// đầu mục THẬT của nó (`EntryHit.headword`) được ghi ra — ⛔ đánh số, ⛔ hợp nhất.
+// đầu mục THẬT của nó (`EntryHit.headword`) được ghi ra — không đánh số, không hợp nhất.
 import { computed } from 'vue'
 import type { SenseRecord, SourceGroup } from '../config/dict'
 
@@ -28,9 +28,9 @@ type EntryCluster = {
 
 /**
  * 🔴 Gom nghĩa về **đúng đầu mục sinh ra nó**, giữ nguyên thứ tự `group.entries` (Rust đã
- * sắp theo `entry_id`) — hàm THUẦN, ⛔ sắp lại, ⛔ khử trùng, ⛔ chọn đầu mục nào "đúng".
+ * sắp theo `entry_id`) — hàm THUẦN, không sắp lại, không khử trùng, không chọn đầu mục nào "đúng".
  *
- * ⚠️ Đầu mục hiện ra là [`EntryHit.headword`] — chữ THẬT trong từ điển, ⛔ truy vấn người
+ * ⚠️ Đầu mục hiện ra là [`EntryHit.headword`] — chữ THẬT trong từ điển, không truy vấn người
  * dùng bôi đen. Hai thứ đó khác nhau ở đúng ca `headword_simp` khớp (tra `国` giản thể mà
  * đầu mục ghi `國` phồn thể), và hiện truy vấn ở đó là hiện SAI CHỮ.
  */
@@ -61,22 +61,22 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
   <section class="lookup-source">
     <div class="lookup-source-head">
       <!-- aura-allow-text: `display_name` là DỮ LIỆU đọc từ `dict_source` của chính tệp
-           .db (AC2, FR31) — ⛔ không chuỗi giao diện của vi.json. -->
+           .db (AC2, FR31) — không chuỗi giao diện của vi.json. -->
       <span class="lookup-source-name">{{ group.source.display_name }}</span>
     </div>
 
     <template v-for="cluster in clusters" :key="cluster.entryId">
-      <!-- Quyết định #5(a) — ranh giới đầu mục hiện ra, ⛔ đánh số, ⛔ gộp. -->
+      <!-- Quyết định #5(a) — ranh giới đầu mục hiện ra, không đánh số, không gộp. -->
       <!-- aura-allow-text: đầu mục THẬT trong từ điển — DỮ LIỆU (`EntryHit.headword`). -->
       <p v-if="showEntryHeadwords" class="lookup-entry-headword">{{ cluster.headword }}</p>
 
       <div v-for="sense in cluster.senses" :key="sense.sense_id" class="lookup-sense">
-        <!-- AC3 — từ loại vắng mặt (`pos = null`) ⇒ ⛔ render một hàng rỗng nào. -->
+        <!-- AC3 — từ loại vắng mặt (`pos = null`) ⇒ không render một hàng rỗng nào. -->
         <p v-if="sense.pos !== null" class="lookup-pos">
           <!-- aura-allow-text: nhãn từ loại — DỮ LIỆU từ điển. -->
           <span>{{ sense.pos }}</span>
-          <!-- 🔴 AC4/FR35 — đọc cờ `pos_is_foreign` do RUST quyết (AD-1), ⛔ tự so
-               `pos_lang !== null`: `pos_lang = "vi"` CÓ ngôn ngữ nhưng ⛔ là ngoại ngữ,
+          <!-- 🔴 AC4/FR35 — đọc cờ `pos_is_foreign` do RUST quyết (AD-1), không tự so
+               `pos_lang !== null`: `pos_lang = "vi"` CÓ ngôn ngữ nhưng không là ngoại ngữ,
                và bản đầu dán chip `VI` lên đúng những nhãn tiếng Việt. -->
           <!-- aura-allow-text: mã ngôn ngữ — DỮ LIỆU. -->
           <span v-if="sense.pos_is_foreign" class="lookup-foreign-flag">{{ sense.pos_lang }}</span>
@@ -100,7 +100,7 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
           </template>
         </p>
 
-        <!-- AC3 — trích dẫn có vạch trái `primary`, PHÂN BIỆT với ví dụ (⛔ `--line-2` của khối nguồn). -->
+        <!-- AC3 — trích dẫn có vạch trái `primary`, PHÂN BIỆT với ví dụ (không `--line-2` của khối nguồn). -->
         <p v-for="(citation, i) in sense.citations" :key="`cite-${i}`" class="lookup-citation">
           <!-- aura-allow-text: trích dẫn + xuất xứ — DỮ LIỆU từ điển (FR30: bảng RIÊNG với ví dụ). -->
           <span>{{ citation.text }}</span>
@@ -132,7 +132,7 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
   border-bottom: 1px solid var(--color-outline-faint);
 }
 
-/* AC2 — nhãn nguồn khai token `ui-label`/`primary`, ⛔ không đường nào làm nó biến mất. */
+/* AC2 — nhãn nguồn khai token `ui-label`/`primary`, không đường nào làm nó biến mất. */
 .lookup-source-name {
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
@@ -145,17 +145,17 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
 
 /*
  * 🔴 Mâu thuẫn tài liệu #4 (Task 0, chốt theo mockup) — vạch trái 2px + thụt 13px ở CẤP
- * NGHĨA, ⛔ không cấp nguồn: một nguồn 9 nghĩa cho ra CHÍN vạch, đúng thứ giúp mắt nhặt
+ * NGHĨA, không cấp nguồn: một nguồn 9 nghĩa cho ra CHÍN vạch, đúng thứ giúp mắt nhặt
  * ranh giới nghĩa trên dữ liệu mật độ thật (18–20+ nghĩa một nguồn).
  */
 /*
  * Quyết định #5(a) — nhãn đầu mục của MỘT cụm. Khai token `lookup-gloss` (họ `read` —
- * UX-DR12: đầu mục là **nội dung**, ⛔ bộ máy).
+ * UX-DR12: đầu mục là **nội dung**, không bộ máy).
  *
- * ⚠️ Ranh giới đọc ra bằng **NÉT + khoảng trắng**, ⛔ bằng trọng lượng chữ: bảng token ⛔
+ * ⚠️ Ranh giới đọc ra bằng **NÉT + khoảng trắng**, không bằng trọng lượng chữ: bảng token không
  * có biến nào cho 600 (`ui-md` khai 400, `ui-label` khai 700 — món nợ đã ghi trong sổ
  * `deviations`), và một `font-weight: 600` viết thẳng ở đây làm Kiểm B của `check-tokens`
- * ĐỎ, đúng thứ AD-34 tồn tại để chặn. `ornament` là màu của nét (UX-DR5), ⛔ của chữ.
+ * ĐỎ, đúng thứ AD-34 tồn tại để chặn. `ornament` là màu của nét (UX-DR5), không của chữ.
  */
 .lookup-entry-headword {
   margin: var(--space-panel-block) 0 4px 0;
@@ -167,7 +167,7 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
   color: var(--color-on-surface);
 }
 
-/* Cụm ĐẦU TIÊN ⛔ cần nét ngăn — nhãn nguồn ngay trên nó đã là ranh giới. */
+/* Cụm ĐẦU TIÊN không cần nét ngăn — nhãn nguồn ngay trên nó đã là ranh giới. */
 .lookup-entry-headword:first-of-type {
   margin-top: 0;
   padding-top: 0;

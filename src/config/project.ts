@@ -1,16 +1,16 @@
 /**
  * Adapter IPC phía webview cho việc tạo một Tác phẩm — Story 1.15, AC1/AC8.
  *
- * Cùng khuôn `./bootstrap.ts`: một lời gọi `invoke`, một `try/catch`, ⛔ không quy tắc
+ * Cùng khuôn `./bootstrap.ts`: một lời gọi `invoke`, một `try/catch`, không quy tắc
  * nghiệp vụ nào ở đây — quy tắc sống ở Rust (`core/segment/import.rs`,
  * `commands/project.rs`).
  *
  * ⚠️ `invoke()` mặc định gửi tham số ở dạng **camelCase** dù hàm Rust nhận `snake_case`
  * (`tauri-macros` `ArgumentCase::Camel` — mặc định, `commands/project.rs` không đổi nó).
- * ⇒ `sourceLang` ở lời gọi, ⛔ không `source_lang`.
+ * ⇒ `sourceLang` ở lời gọi, không `source_lang`.
  *
- * ⚠️ Hàm ở đây ⛔ **không bao giờ ném** — cùng lý do `loadBootstrapConfig` không ném:
- * chỗ gọi (`LibraryMode.vue`) hiển thị lỗi bằng `tError()`, ⛔ không bằng một khối
+ * ⚠️ Hàm ở đây **không bao giờ ném** — cùng lý do `loadBootstrapConfig` không ném:
+ * chỗ gọi (`LibraryMode.vue`) hiển thị lỗi bằng `tError()`, không bằng một khối
  * `try/catch` ở tầng UI.
  */
 import { invoke } from '@tauri-apps/api/core'
@@ -31,7 +31,7 @@ export type WorkMeta = {
 /**
  * Thứ hai lệnh trả về — khớp `commands::project::wire::CreatedWork` phía Rust.
  *
- * `folder` là đường dẫn tuyệt đối tới `<Tên>.atproj/`. Nó ⛔ **không** suy ra được từ
+ * `folder` là đường dẫn tuyệt đối tới `<Tên>.atproj/`. Nó **không** suy ra được từ
  * `meta.name`: Rust thay ký tự cấm và thêm hậu tố ` (2)` khi trùng tên — xem
  * `core::library::atproj::create_work_folder`. AC6 cần con số này để giao được lời hứa
  * *"copy thư mục là đủ để sao lưu"*.
@@ -66,15 +66,15 @@ const CMD_CREATE_FROM_FILE = 'create_work_from_file'
 /**
  * Có cầu IPC của Tauri trong window này không.
  *
- * 🔴 Phép phân biệt này là **bắt buộc**, ⛔ không phải một tinh chỉnh — xem
- * [`callCreateWork`]. Đọc trạng thái THẬT của môi trường, ⛔ không phải một cờ ứng dụng tự
+ * 🔴 Phép phân biệt này là **bắt buộc**, không phải một tinh chỉnh — xem
+ * [`callCreateWork`]. Đọc trạng thái THẬT của môi trường, không phải một cờ ứng dụng tự
  * giữ (bài học §Trí tuệ #4 của story).
  */
 function hasIpcBridge(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 }
 
-/** Lỗi hồi phòng khi Rust trượt bằng một thứ ⛔ không phải `IpcError`. */
+/** Lỗi hồi phòng khi Rust trượt bằng một thứ không phải `IpcError`. */
 const UNKNOWN_IPC_ERROR: IpcError = {
   code: 'ipc.unknown',
   message_key: 'err.unknown',
@@ -90,16 +90,16 @@ async function callCreateWork(cmd: string, args: Record<string, unknown>): Promi
     if (isIpcError(err)) return { created: null, error: err }
 
     // 🔴 CÓ cầu IPC mà vẫn trượt bằng một thứ không phải `IpcError` ⇒ đây là một lỗi
-    // THẬT (sai tên tham số, command chưa đăng ký, một panic phía Rust), ⛔ KHÔNG phải
+    // THẬT (sai tên tham số, command chưa đăng ký, một panic phía Rust), KHÔNG phải
     // "chạy ngoài Tauri". Nuốt nó thành `{ null, null }` cho ra đúng hạng lỗi tệ nhất:
-    // người dùng bấm "Tạo Tác phẩm", ⛔ không có gì xảy ra, ⛔ không một dòng nào hiện
+    // người dùng bấm "Tạo Tác phẩm", không có gì xảy ra, không một dòng nào hiện
     // ra — thất bại im lặng ở đúng thao tác đầu tiên. Code review 2026-08-06.
     if (hasIpcBridge()) {
       console.error(`[project] \`${cmd}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
       return { created: null, error: UNKNOWN_IPC_ERROR }
     }
 
-    // ⛔ Không có cầu IPC — `npm run dev` trong một trình duyệt thường. ⛔ Không phải một
+    // Không có cầu IPC — `npm run dev` trong một trình duyệt thường. Không phải một
     // lỗi để hiện lên (cùng nhánh với `loadBootstrapConfig`).
     console.info(`[project] không gọi được \`${cmd}\` — chạy ngoài Tauri? ${String(err)}`)
     return { created: null, error: null }

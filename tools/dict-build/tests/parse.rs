@@ -53,7 +53,7 @@ fn all_seven_sources_produce_at_least_one_entry() {
 }
 
 /// `en_wiktionary/Chinese.jsonl` fixture chứa MỘT dòng cố ý hỏng cú pháp (thiếu
-/// `word`) — `skip_reasons` phải ghi nhận đúng lý do đó, ⛔ không chỉ "entries > 0" mù
+/// `word`) — `skip_reasons` phải ghi nhận đúng lý do đó, không chỉ "entries > 0" mù
 /// mờ (Review Findings Group B — trước đây không test nào đọc `skip_reasons`/
 /// `lines_skipped`, nên dòng cố ý hỏng của fixture chưa từng thật sự được nghiệm thu
 /// qua pipeline).
@@ -156,7 +156,7 @@ fn rebuilding_over_a_stale_output_and_wal_artifacts_still_succeeds() {
 }
 
 /// Đúng lỗi "rơi về `unknown` âm thầm" mà Group A vá (`version_or_warn`) — nếu tái phát,
-/// bộ test này phải bắt được, ⛔ không chỉ dựa vào việc đọc log console bằng mắt (Review
+/// bộ test này phải bắt được, không chỉ dựa vào việc đọc log console bằng mắt (Review
 /// Findings Group B).
 #[test]
 fn all_sources_have_a_real_non_unknown_source_version() {
@@ -171,8 +171,8 @@ fn all_sources_have_a_real_non_unknown_source_version() {
         .collect::<Result<_, _>>()
         .unwrap();
     // 5 → 6 ở Story 1.10b (nguồn nền `viwiktionary-en`); 6 → 7 ở Story 1.10c (nguồn nền
-    // `en-wiktionary-vi`). Mệnh đề test KHOÁ — ⛔ không nguồn nào rơi về `unknown` âm
-    // thầm — ⛔ không đổi.
+    // `en-wiktionary-vi`). Mệnh đề test KHOÁ — không nguồn nào rơi về `unknown` âm
+    // thầm — không đổi.
     assert_eq!(rows.len(), 7);
     for (code, version) in rows {
         assert!(!version.is_empty(), "{code} has an empty source_version");
@@ -300,7 +300,7 @@ fn count_entries(conn: &Connection, source_code: &str, lang: &str) -> i64 {
 /// 🔴 **AC3 — test dễ trượt IM LẶNG nhất của story.** Trước Story 1.10b
 /// `wiktextract_common::parse_line` viết cứng `lang: "zh"`, nên nguồn này sẽ đổ toàn bộ
 /// đầu mục tiếng Anh vào `dict_entry` MANG NHÃN TIẾNG TRUNG với build XANH và mọi test
-/// khác XANH. Khẳng định dương (`… WHERE lang='en'` > 0) một mình ⛔ **không** bắt được
+/// khác XANH. Khẳng định dương (`… WHERE lang='en'` > 0) một mình **không** bắt được
 /// lỗi đó — nên đây là khẳng định dương **CỘNG** đối chứng âm.
 #[test]
 fn viwiktionary_en_entries_are_all_tagged_lang_en() {
@@ -314,11 +314,11 @@ fn viwiktionary_en_entries_are_all_tagged_lang_en() {
     let zh = count_entries(&conn, "viwiktionary-en", "zh");
     assert_eq!(
         zh, 0,
-        "🔴 §Bẫy 1: nguồn vai A ⛔ KHÔNG được sinh một hàng lang='zh' nào — \
+        "🔴 §Bẫy 1: nguồn vai A KHÔNG được sinh một hàng lang='zh' nào — \
          nếu số này > 0 thì `entry_lang` chưa đi tới `RawEntry.lang`"
     );
 
-    // Và 100% hàng của nguồn này mang `lang='en'`, ⛔ không sót một nhãn lạ nào.
+    // Và 100% hàng của nguồn này mang `lang='en'`, không sót một nhãn lạ nào.
     let total: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM dict_entry e JOIN dict_source s ON s.id = e.source_id
@@ -332,7 +332,7 @@ fn viwiktionary_en_entries_are_all_tagged_lang_en() {
 
 /// 🔴 **AC3, đối chứng âm CHIỀU NGƯỢC — chống hồi quy cho vai B.** Tham số hoá `lang`
 /// đụng vào một hàm dùng chung cho ba nguồn; nếu `viwiktionary` (vai B) vô tình nhận
-/// `entry_lang = "en"`, lớp từ loại tiếng Trung của PRD §8.3 biến mất mà ⛔ không test
+/// `entry_lang = "en"`, lớp từ loại tiếng Trung của PRD §8.3 biến mất mà không test
 /// nào khác kêu.
 #[test]
 fn viwiktionary_role_b_still_produces_zero_english_rows() {
@@ -345,7 +345,7 @@ fn viwiktionary_role_b_still_produces_zero_english_rows() {
     let en = count_entries(&conn, "viwiktionary", "en");
     assert_eq!(
         en, 0,
-        "vai B ⛔ KHÔNG được sinh một hàng lang='en' nào — hành vi của nó phải KHÔNG đổi"
+        "vai B KHÔNG được sinh một hàng lang='en' nào — hành vi của nó phải KHÔNG đổi"
     );
 
     // Cùng phép kiểm cho nguồn thứ năm, vì nó dùng chung đúng hàm đó.
@@ -354,7 +354,7 @@ fn viwiktionary_role_b_still_produces_zero_english_rows() {
 }
 
 /// **AD-19** ở tầng tích hợp: hai vai đọc **CÙNG MỘT tệp thô** nhưng phải hạ cánh xuống
-/// **hai `source_id` rời nhau**, ⛔ không hàng nào mang cả hai và ⛔ không headword nào
+/// **hai `source_id` rời nhau**, không hàng nào mang cả hai và không headword nào
 /// bị gộp xuyên nguồn. Đây là mệnh đề mà miễn trừ `dict-build:allow .entry(` tuyên bố.
 #[test]
 fn viwiktionary_and_viwiktionary_en_read_the_same_file_into_two_separate_sources() {
@@ -375,7 +375,7 @@ fn viwiktionary_and_viwiktionary_en_read_the_same_file_into_two_separate_sources
         .unwrap();
     assert_ne!(id_a, id_b, "hai vai phải là hai source_id khác nhau");
 
-    // Cùng một dump ⇒ `source_version` giống nhau. Đó là ĐÚNG, ⛔ không phải trùng lặp.
+    // Cùng một dump ⇒ `source_version` giống nhau. Đó là ĐÚNG, không phải trùng lặp.
     let (v_a, v_b): (String, String) = (
         conn.query_row(
             "SELECT source_version FROM dict_source WHERE code = 'viwiktionary-en'",
@@ -392,7 +392,7 @@ fn viwiktionary_and_viwiktionary_en_read_the_same_file_into_two_separate_sources
     );
     assert_eq!(v_a, v_b, "cùng tệp thô ⇒ cùng source_version");
 
-    // ⛔ Không headword nào thuộc cả hai nguồn — nếu có, phép gộp đã chạy xuyên nguồn.
+    // Không headword nào thuộc cả hai nguồn — nếu có, phép gộp đã chạy xuyên nguồn.
     let shared: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM dict_entry a JOIN dict_entry b ON a.headword = b.headword
@@ -403,11 +403,11 @@ fn viwiktionary_and_viwiktionary_en_read_the_same_file_into_two_separate_sources
         .unwrap();
     assert_eq!(
         shared, 0,
-        "AD-19: ⛔ không headword nào được xuất hiện dưới CẢ HAI source_id"
+        "AD-19: không headword nào được xuất hiện dưới CẢ HAI source_id"
     );
 }
 
-/// 🔴 **FR34 nghiệm thu bằng TEST THẬT, ⛔ không bằng suy luận** — tiêu chí thành công
+/// 🔴 **FR34 nghiệm thu bằng TEST THẬT, không bằng suy luận** — tiêu chí thành công
 /// #2 của sprint change proposal. *"Mục từ tiếng Anh phải có nhãn từ loại và nghĩa tiếng
 /// Việt"*: `pos` khác NULL · `pos_lang = 'vi'` · `gloss` khác rỗng.
 #[test]
@@ -433,16 +433,16 @@ fn an_english_entry_carries_pos_label_and_vietnamese_gloss() {
     assert_eq!(
         pos_lang.as_deref(),
         Some("vi"),
-        "ấn bản vi có pos_title sẵn tiếng Việt ⇒ pos_lang='vi', ⛔ không phải 'en' (FR35)"
+        "ấn bản vi có pos_title sẵn tiếng Việt ⇒ pos_lang='vi', không phải 'en' (FR35)"
     );
     assert!(!gloss.is_empty(), "FR34: phải có nghĩa tiếng Việt");
     assert!(
         gloss.contains("Từ điển"),
-        "nghĩa phải là tiếng VIỆT, ⛔ không phải định nghĩa tiếng Anh; got {gloss:?}"
+        "nghĩa phải là tiếng VIỆT, không phải định nghĩa tiếng Anh; got {gloss:?}"
     );
 
-    // §Quyết định #5: mục tiếng Anh CÓ `sounds[].ipa` nhưng ⛔ KHÔNG tag Pinyin ⇒
-    // `reading` phải là NULL. IPA ⛔ không bị bóc vào cột đó ở story này.
+    // §Quyết định #5: mục tiếng Anh CÓ `sounds[].ipa` nhưng KHÔNG tag Pinyin ⇒
+    // `reading` phải là NULL. IPA không bị bóc vào cột đó ở story này.
     let reading: Option<String> = conn
         .query_row(
             "SELECT e.reading FROM dict_entry e JOIN dict_source s ON s.id = e.source_id
@@ -451,7 +451,7 @@ fn an_english_entry_carries_pos_label_and_vietnamese_gloss() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(reading, None, "§Quyết định #5: IPA ⛔ không bóc vào `reading`");
+    assert_eq!(reading, None, "§Quyết định #5: IPA không bóc vào `reading`");
 }
 
 /// Phép gộp theo headword chạy đúng cho **cả vai A** — đúng cách `馬` chứng minh cho
@@ -508,11 +508,11 @@ fn english_headword_on_two_lines_becomes_one_entry() {
 /// Việt của một mục từ tiếng Anh (`dictionary` ⇒ `"Từ điển."`).
 ///
 /// NFR8 giữ nguyên hiệu lực khi nguồn thứ sáu vào: chỉ mục CHÍNH phân biệt dấu, chỉ mục
-/// PHỤ xoá dấu. ⛔ Không bỏ `sense_fts_nd` để tiết kiệm dung lượng — phá AC4 của Story
+/// PHỤ xoá dấu. Không bỏ `sense_fts_nd` để tiết kiệm dung lượng — phá AC4 của Story
 /// 1.10 (lược đồ đồng nhất giữa các tệp).
 ///
-/// ⚠️ **Cặp đối lập là `điển` / `đien`, ⛔ KHÔNG phải `điển` / `dien`.** `đ` (U+0111
-/// LATIN SMALL LETTER D WITH STROKE) là một **CHỮ CÁI**, ⛔ không phải một dấu phụ tổ
+/// ⚠️ **Cặp đối lập là `điển` / `đien`, KHÔNG phải `điển` / `dien`.** `đ` (U+0111
+/// LATIN SMALL LETTER D WITH STROKE) là một **CHỮ CÁI**, không phải một dấu phụ tổ
 /// hợp — `remove_diacritics=2` bóc `ể → e` nhưng để nguyên `đ`. Đã đo thật trên
 /// `dict-core.db` dựng từ fixture: `'dien'` cho **0** hit ở CẢ HAI chỉ mục, `'đien'` cho
 /// **0** ở chính và **2** ở phụ. Một lượt rà tương lai thấy `'dien'` = 0 rồi kết luận
@@ -522,7 +522,7 @@ fn primary_fts_is_diacritic_sensitive_on_an_english_entry_gloss() {
     let (_dir, out, _report) = build_fixture_db();
     let conn = Connection::open(&out).unwrap();
 
-    // Đếm hit CÓ RÀNG BUỘC NGUỒN — một hit từ nguồn tiếng Trung ⛔ không nghiệm thu
+    // Đếm hit CÓ RÀNG BUỘC NGUỒN — một hit từ nguồn tiếng Trung không nghiệm thu
     // được mệnh đề "NFR8 giữ hiệu lực trên dữ liệu TIẾNG ANH".
     let hits_from_role_a = |table: &str, needle: &str| -> i64 {
         conn.query_row(
@@ -551,15 +551,15 @@ fn primary_fts_is_diacritic_sensitive_on_an_english_entry_gloss() {
         "chỉ mục phụ phải khớp truy vấn đã bóc dấu 'đien'"
     );
 
-    // 🔴 Và chỉ mục CHÍNH ⛔ KHÔNG được khớp bản đã bóc dấu — toàn bộ ý nghĩa của AD-27,
+    // 🔴 Và chỉ mục CHÍNH KHÔNG được khớp bản đã bóc dấu — toàn bộ ý nghĩa của AD-27,
     // giữ nguyên hiệu lực trên dữ liệu tiếng Anh.
     assert_eq!(
         hits_from_role_a("sense_fts", "đien"),
         0,
-        "chỉ mục chính ⛔ KHÔNG được khớp truy vấn đã bóc dấu — remove_diacritics 0"
+        "chỉ mục chính KHÔNG được khớp truy vấn đã bóc dấu — remove_diacritics 0"
     );
 
-    // Đối chứng: chỉ mục phụ ⛔ không phải "khớp mọi thứ" — một chuỗi ⛔ không có trong
+    // Đối chứng: chỉ mục phụ không phải "khớp mọi thứ" — một chuỗi không có trong
     // nghĩa nào vẫn phải cho 0.
     assert_eq!(hits_from_role_a("sense_fts_nd", "zzzkhongcothat"), 0);
 }
@@ -717,7 +717,7 @@ fn tran_van_chanh_builds_from_fixture_with_verbatim_multi_reading_kept() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(han_viet, "đáng, đương", "Task 5: nhiều âm giữ NGUYÊN chuỗi, ⛔ không chuẩn hoá");
+    assert_eq!(han_viet, "đáng, đương", "Task 5: nhiều âm giữ NGUYÊN chuỗi, không chuẩn hoá");
 
     let tich_count: i64 = conn
         .query_row(
@@ -753,12 +753,12 @@ fn build_report_includes_a_real_sha256_and_matching_size() {
 // Review Findings (code review 2026-08-06) — bốn patch cho Story 1.10c.
 // ═══════════════════════════════════════════════════════════════════════════════════
 
-/// Review Findings — AC1 đòi "nghiệm thu bằng một con số" rằng ⛔ không hàng
+/// Review Findings — AC1 đòi "nghiệm thu bằng một con số" rằng không hàng
 /// `kVietnamese` nào bị mất khi đổi vai. Đếm số dòng `kVietnamese` trong nguồn thô
 /// (TRƯỚC) và đối chiếu CHÍNH XÁC với số hàng `dict_entry.nom_reading` khác NULL của
 /// nguồn `unihan` sau lượt dựng (SAU) — phải bằng nhau. Cộng khẳng định AC2: `han_viet`
-/// của `unihan` LUÔN rỗng, ⛔ không giá trị nào rơi trở lại vai cũ. Test hành vi qua
-/// biên (build fixture thật), ⛔ không test cài đặt nội bộ — một sửa đổi tương lai ở
+/// của `unihan` LUÔN rỗng, không giá trị nào rơi trở lại vai cũ. Test hành vi qua
+/// biên (build fixture thật), không test cài đặt nội bộ — một sửa đổi tương lai ở
 /// `unihan.rs` làm rơi hàng sẽ bị bắt ở đây.
 #[test]
 fn ac1_unihan_kvietnamese_row_count_matches_raw_source_before_and_after_role_swap() {
@@ -793,12 +793,12 @@ fn ac1_unihan_kvietnamese_row_count_matches_raw_source_before_and_after_role_swa
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(han_viet_count, 0, "AC2: unihan ⛔ không bao giờ ghi han_viet — kVietnamese ⛔ không được rơi lại vai cũ");
+    assert_eq!(han_viet_count, 0, "AC2: unihan không bao giờ ghi han_viet — kVietnamese không được rơi lại vai cũ");
 }
 
 /// Review Findings — AC4 đòi `tran-van-chanh` phủ **≥ 12.081** đầu mục MỘT KÝ TỰ có
 /// `han_viet`, và đòi "mức phủ tụt xuống ghi thành số" khi xoá tệp đó (FR36). Cả hai
-/// vế trước đây ⛔ không có cổng tự động — số trong story chỉ là một ghi chú tường
+/// vế trước đây không có cổng tự động — số trong story chỉ là một ghi chú tường
 /// thuật. Test này ĐO THẬT trên `raw/**` (không phải fixture nhỏ): hợp các headword
 /// MỘT KÝ TỰ có `han_viet` của Thiều Chửu + en-wiktionary-vi, CÓ và KHÔNG có
 /// `tran-van-chanh`, và khoá ngưỡng ≥ 12.081 cho riêng TVC.
@@ -866,15 +866,15 @@ fn ac4_fr36_coverage_drop_is_measured_on_real_data() {
 
     assert!(
         with_tvc.len() > without_tvc.len(),
-        "FR36: xoá tran-van-chanh phải làm mức phủ TỤT XUỐNG một con số đo được, ⛔ không phải 0"
+        "FR36: xoá tran-van-chanh phải làm mức phủ TỤT XUỐNG một con số đo được, không phải 0"
     );
 }
 
 /// Review Findings — `tran_van_chanh.rs::parse` KHÔNG lọc/phân biệt headword một ký tự
 /// với headword nhiều ký tự (từ) — tệp thô trộn cả hai (22.030 dòng, chỉ 12.081 là một
 /// ký tự). Đây là quyết định CÓ Ý THỨC (nhất quán với MỌI parser khác trong crate này —
-/// ⛔ không nguồn nào lọc theo độ dài headword; Story 1.16 mới là nơi tiêu thụ cột
-/// `han_viet` cho riêng ký tự đơn), ⛔ không phải một lỗ hổng bị bỏ sót — khoá lại bằng
+/// không nguồn nào lọc theo độ dài headword; Story 1.16 mới là nơi tiêu thụ cột
+/// `han_viet` cho riêng ký tự đơn), không phải một lỗ hổng bị bỏ sót — khoá lại bằng
 /// test để một sửa đổi tương lai không âm thầm đổi hành vi này mà không ai biết.
 #[test]
 fn tran_van_chanh_does_not_filter_multi_character_headwords_by_design() {

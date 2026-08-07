@@ -6,7 +6,7 @@
  * ở chỗ ai bị `scripts/check-commands.mjs` nạp bằng Node thuần: `src/commands/**` thì
  * có, tệp này thì không.
  *
- * ⛔ Không có `#[tauri::command]` nào cho việc đổi chế độ. Một vòng IPC cho một thao tác
+ * Không có `#[tauri::command]` nào cho việc đổi chế độ. Một vòng IPC cho một thao tác
  * phải mượt là quy tắc nghiệp vụ giả đặt sai chỗ — xem §Vì sao story này KHÔNG có phần
  * Rust trong story file.
  */
@@ -16,7 +16,7 @@ import type { DeepReadonly, Ref } from 'vue'
 // `tsconfig.json` đều không có `alias`/`paths`). Lượt review Story 1.5 đã bắt một README
 // viết `@/i18n` không chạy được.
 //
-// Hướng phụ thuộc là `modes/` → `commands/`, một chiều. ⛔ Đừng đảo lại: `src/commands/**`
+// Hướng phụ thuộc là `modes/` → `commands/`, một chiều. Đừng đảo lại: `src/commands/**`
 // phải nạp được bằng Node thuần, và một cạnh trỏ về đây là kéo `vue` vào cổng.
 import { enterFocus, MODE_IDS } from '../commands'
 import type { ModeId } from '../commands'

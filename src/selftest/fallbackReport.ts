@@ -8,7 +8,7 @@
  * `App.vue:38` và `:54` — chúng là **vi phạm thật** của cổng `npm run check:i18n`, và
  * là hai vi phạm duy nhất trong cây nguồn lúc Story 1.5 bắt đầu.
  *
- * ⛔ **Chúng KHÔNG đi vào `vi.json`.** Đây là chẩn đoán cho log CI, không phải chuỗi
+ * **Chúng KHÔNG đi vào `vi.json`.** Đây là chẩn đoán cho log CI, không phải chuỗi
  * giao diện; `vi.json` là tài nguyên **hiển thị** (NFR16, AD-21). Trộn hai thứ là làm
  * hỏng chính ranh giới mà Story 1.5 dựng: một tệp mà mọi khoá đều là thứ người dùng
  * đọc được, và mọi khoá đều nghiệm thu được theo năm quy tắc giọng văn UX-DR47.
@@ -26,7 +26,7 @@
  * render, người đọc chúng là người đang sửa self-check — chứ không vì đuôi tệp.
  *
  * ⚠️ Module này chỉ có hai hàm thuần chuỗi, nên `App.vue` import TĨNH được mà không
- * tốn gì — đúng khuôn `eventName.ts`. ⛔ Đừng thêm gì import từ `./scopeCheck` vào
+ * tốn gì — đúng khuôn `eventName.ts`. Đừng thêm gì import từ `./scopeCheck` vào
  * đây; làm vậy là kéo cả mã self-check vào bundle release qua cửa sau.
  *
  * ⚠️ `scripts/check-scope.mjs` và `check-scope-bundled.mjs` đọc dòng `VERDICT:` trong

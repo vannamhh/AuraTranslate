@@ -29,7 +29,7 @@ pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, Par
         };
         // Đối xứng với `vietphrase.rs`: `trim()` KHÔNG bỏ U+FEFF (ký tự `Cf`, không phải
         // whitespace), nên một lượt `iconv` để lại BOM sẽ tạo headword "\u{feff}一" —
-        // ⛔ không rỗng, ⛔ không lỗi, một đầu mục vĩnh viễn không tra ra được.
+        // không rỗng, không lỗi, một đầu mục vĩnh viễn không tra ra được.
         if first_line {
             first_line = false;
             if let Some(stripped) = raw.strip_prefix(BOM) {
@@ -41,7 +41,7 @@ pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, Par
         }
 
         // 🔴 Dòng 108 hỏng thật ('亯') chỉ có 2 cột (thẻ HTML rơi rớt '</h4>') — ParseIssue,
-        // ⛔ không panic!. Đây là ca thật trong dữ liệu, không phải giả thuyết.
+        // không panic!. Đây là ca thật trong dữ liệu, không phải giả thuyết.
         let cols: Vec<&str> = raw.split('\t').collect();
         if cols.len() != 3 {
             return Some(Err(ParseIssue {
@@ -67,7 +67,7 @@ pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, Par
             }));
         }
 
-        // Nhiều âm Hán Việt tách bằng '|' — GIỮ NGUYÊN chuỗi, ⛔ không nhân bản entry
+        // Nhiều âm Hán Việt tách bằng '|' — GIỮ NGUYÊN chuỗi, không nhân bản entry
         // (âm đọc không phải nghĩa, không phải điều kiện tách dict_entry).
         let han_viet = if han_viet_raw.is_empty() {
             None
@@ -96,22 +96,22 @@ pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, Par
 }
 
 /// Tách cột 3 thành nhiều nghĩa bằng `<br>` **VÀ** số thứ tự `1.` `2.` `3.` (Task 6) —
-/// ⛔ không nối thành một `gloss` (FR29 đòi mỗi nghĩa một hàng).
+/// không nối thành một `gloss` (FR29 đòi mỗi nghĩa một hàng).
 ///
 /// 🔴 Vì sao phải tách theo CẢ HAI: nguồn thật có dòng thiếu `<br>` giữa hai nghĩa —
 /// `丐` = `"1. Xin. … ăn xin. 2. Cho. Như thiêm cái hậu nhân …"` (một mảnh, hai nghĩa) và
-/// `下` nghĩa 3+4 dính nhau. Chỉ tách `<br>` thì hai nghĩa dồn vào một hàng, ⛔ không lỗi
+/// `下` nghĩa 3+4 dính nhau. Chỉ tách `<br>` thì hai nghĩa dồn vào một hàng, không lỗi
 /// nào được ném và mọi thống kê vẫn xanh — đúng lớp hỏng im lặng mà FR29 tồn tại để chặn.
 /// 22/22.658 nghĩa trên dữ liệu thật rơi vào ca này.
 ///
 /// 🔴 Luật cắt CHẶT: chỉ cắt ở `"N."` khi `N` đúng bằng **số thứ tự kế tiếp đang chờ**.
 /// Đây là điều kiện làm phép tách an toàn — một con số bất kỳ trong văn bản (`"1942."`,
-/// `"250 giới luật"`) ⛔ không thể trở thành ranh giới nghĩa, vì nó gần như không bao giờ
-/// đúng bằng số kế tiếp. Một mảnh ⛔ không mang số thứ tự vẫn là một nghĩa hợp lệ.
+/// `"250 giới luật"`) không thể trở thành ranh giới nghĩa, vì nó gần như không bao giờ
+/// đúng bằng số kế tiếp. Một mảnh không mang số thứ tự vẫn là một nghĩa hợp lệ.
 ///
 /// `ord` do `insert::insert_entry` gán theo VỊ TRÍ (0-based), giống cả sáu nguồn còn lại.
 /// Sau lượt tách này, vị trí bám sát số thứ tự của nguồn (`ord == N - 1`) — cùng một
-/// thứ tự, ⛔ không phải hai quy ước `ord` khác nhau trong cùng một lược đồ.
+/// thứ tự, không phải hai quy ước `ord` khác nhau trong cùng một lược đồ.
 fn split_senses(raw: &str) -> Vec<RawSense> {
     let mut pieces: Vec<String> = Vec::new();
     let mut expected: u32 = 1;
@@ -153,7 +153,7 @@ fn split_at_sequential_ordinals(fragment: &str, expected: &mut u32) -> Vec<Strin
             i += 1;
             continue;
         }
-        // Số thứ tự phải đứng đầu mảnh hoặc ngay sau khoảng trắng — ⛔ không nhận
+        // Số thứ tự phải đứng đầu mảnh hoặc ngay sau khoảng trắng — không nhận
         // chữ số nằm giữa một từ/số dài hơn.
         let at_boundary = i == 0 || bytes[i - 1].is_ascii_whitespace();
         if !at_boundary {
@@ -196,16 +196,16 @@ fn split_at_sequential_ordinals(fragment: &str, expected: &mut u32) -> Vec<Strin
 /// Tên trích dẫn — mẫu `"(Luận ngữ 論語)"` / `"(Nguyễn Du 阮攸)"`: ngoặc đơn chứa chữ
 /// Latinh viết hoa đứng đầu CỘNG ít nhất một chữ Hán.
 ///
-/// 🔴 Ghi vào cột **`work`**, ⛔ **không** `author` (Ice chốt 2026-08-05, Review Findings).
+/// 🔴 Ghi vào cột **`work`**, **không** `author` (Ice chốt 2026-08-05, Review Findings).
 /// Đo trên dữ liệu thật: 263 trích dẫn, 105 giá trị phân biệt, phổ biến nhất là
 /// `Luận ngữ` (27) · `Thi Kinh` (17) · `Thư Kinh` (10) · `Tiêu dao du` (8) — **tên sách,
 /// tên thiên, tên bài**, không phải người; chỉ ~10% là tên tác giả. Ghi tất cả vào
 /// `author` là bịa đúng thứ Task 6 cấm và là cột hiện thẳng lên UI ở 1.11/1.13.
 /// ⚠️ Đánh đổi đã biết và đã chấp nhận: một thiểu số (`Nguyễn Du`, `Mạnh Tử`) là tác giả
 /// thật, giờ nằm ở cột `work`. Sai 10% ở cột ít nguy hiểm hơn, thay vì sai 90% ở cột
-/// nguy hiểm hơn. `author` để `NULL` — ⛔ không đoán.
+/// nguy hiểm hơn. `author` để `NULL` — không đoán.
 ///
-/// `text` là NGUYÊN VĂN cả câu nghĩa (không cắt), ⛔ không tự đoán ranh giới câu trích.
+/// `text` là NGUYÊN VĂN cả câu nghĩa (không cắt), không tự đoán ranh giới câu trích.
 fn extract_citation(text: &str) -> Option<RawCitation> {
     let start = text.find('(')?;
     let rel_end = text[start..].find(')')?;
@@ -259,7 +259,7 @@ mod tests {
         assert!(results[0].is_err());
     }
 
-    /// 🔴 Tên trong ngoặc vào cột `work`, `author` để `NULL` — ⛔ không bịa tác giả.
+    /// 🔴 Tên trong ngoặc vào cột `work`, `author` để `NULL` — không bịa tác giả.
     /// Hai ca THẬT trong cùng một mục `关` của nguồn: `(Thăng Long 升龍)` là tên BÀI THƠ,
     /// còn tác giả thật (`Nguyễn Du`) nằm NGOÀI ngoặc. Ghi nó vào `author` là bịa.
     #[test]
@@ -282,10 +282,10 @@ mod tests {
             .unwrap();
         let cit = &entries[0].senses[0].citations[0];
         assert_eq!(cit.work.as_deref(), Some("Luận ngữ"));
-        assert_eq!(cit.author, None, "'Luận ngữ' là TÊN SÁCH, ⛔ không phải tác giả");
+        assert_eq!(cit.author, None, "'Luận ngữ' là TÊN SÁCH, không phải tác giả");
     }
 
-    /// 🔴 Ca THẬT `丐` (fixture dòng 11): hai nghĩa trong CÙNG một mảnh, ⛔ không có
+    /// 🔴 Ca THẬT `丐` (fixture dòng 11): hai nghĩa trong CÙNG một mảnh, không có
     /// `<br>` ngăn giữa. Chỉ tách `<br>` sẽ ra 1 hàng thay vì 2 — FR29 vỡ im lặng.
     #[test]
     fn two_senses_inside_one_br_fragment_are_split_by_ordinal_number() {
@@ -312,7 +312,7 @@ mod tests {
     }
 
     /// Luật cắt CHẶT: chỉ cắt ở số thứ tự KẾ TIẾP đang chờ. Một con số lạc trong văn bản
-    /// (năm, số lượng) ⛔ không được biến thành ranh giới nghĩa.
+    /// (năm, số lượng) không được biến thành ranh giới nghĩa.
     #[test]
     fn a_stray_number_in_the_text_is_not_a_sense_boundary() {
         let text = "丁\tđinh\t1. Ta 18 tuổi phải đóng sưu. Xuất bản 1942. Vẫn là một nghĩa.<br>\n";
@@ -323,7 +323,7 @@ mod tests {
         assert!(entries[0].senses[0].gloss.contains("1942."));
     }
 
-    /// Một mảnh ⛔ không mang số thứ tự vẫn là một nghĩa hợp lệ, ⛔ không phải lỗi.
+    /// Một mảnh không mang số thứ tự vẫn là một nghĩa hợp lệ, không phải lỗi.
     #[test]
     fn a_fragment_without_an_ordinal_is_still_one_valid_sense() {
         let text = "与\tdữ\tTục dùng như chữ 與.<br>\n";
@@ -335,7 +335,7 @@ mod tests {
     }
 
     /// Đối xứng với `vietphrase.rs`: `trim()` KHÔNG bỏ U+FEFF — BOM lọt vào sẽ thành
-    /// một đầu mục vĩnh viễn không tra ra được, ⛔ không phải một lỗi.
+    /// một đầu mục vĩnh viễn không tra ra được, không phải một lỗi.
     #[test]
     fn leading_bom_on_first_line_is_stripped() {
         let text = "\u{feff}一\tnhất\t1. Một.<br>\n丁\tđinh\t1. Can Ðinh.<br>\n";
@@ -346,7 +346,7 @@ mod tests {
         assert_eq!(entries[1].headword, "丁");
     }
 
-    /// `SOURCE_CODE` ⛔ không được trôi khỏi `sources_meta::THIEU_CHUU.code` — tên tệp
+    /// `SOURCE_CODE` không được trôi khỏi `sources_meta::THIEU_CHUU.code` — tên tệp
     /// đầu ra, `dict_source.code` và `[[detachable]].name` đều là CÙNG chuỗi đó.
     #[test]
     fn source_code_matches_its_source_meta() {

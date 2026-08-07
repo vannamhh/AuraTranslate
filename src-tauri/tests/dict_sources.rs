@@ -4,31 +4,31 @@
 //! ⚠️ VÌ SAO TỆP NÀY ĐƯỢC PHÉP `use rusqlite`
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Cùng lý do đã ghi ở `dict_lookup.rs:4-11`: `store_boundary.rs` cưỡng chế ranh giới
-//! trên `src-tauri/src/**`, `tests/**` nằm ngoài **có tên và có lý do**; và ⛔ không tệp
+//! trên `src-tauri/src/**`, `tests/**` nằm ngoài **có tên và có lý do**; và không tệp
 //! `.db` nào nằm trong git (`.gitignore: *.db` — AD-25), nên fixture phải dựng trong test.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 VÌ SAO FIXTURE Ở ĐÂY LÀ **BA TỆP**, ⛔ KHÔNG PHẢI MỘT
+//! 🔴 VÌ SAO FIXTURE Ở ĐÂY LÀ **BA TỆP**, KHÔNG PHẢI MỘT
 //! ─────────────────────────────────────────────────────────────────────────────
 //! `dict_lookup.rs` dựng **một** tệp, vì Story 1.11 chạy trên một tệp một lượt. Ba cái
-//! bẫy đắt nhất của story này ⛔ **không quan sát được** trên một tệp:
+//! bẫy đắt nhất của story này **không quan sát được** trên một tệp:
 //!
 //! 1. **`source_id` trùng giữa các tệp.** Mỗi tệp `.db` mang bảng `dict_source` RIÊNG, nên
 //!    `id = 1` tồn tại ở **cả ba** và trỏ ba nguồn khác nhau. Cả ba tệp fixture dưới đây
-//!    dùng `id = 1` **có chủ ý** — gom theo `id` dán nhãn sai nguồn, và ⛔ không một ca
+//!    dùng `id = 1` **có chủ ý** — gom theo `id` dán nhãn sai nguồn, và không một ca
 //!    một-tệp nào đỏ.
 //! 2. **Thứ tự lớp.** Tên tệp cố tình xếp `aaa` · `mmm` · `zzz` trong khi thứ tự đúng là
 //!    `base` · `hv-fixture` · `vp-fixture` — tức **ngược** thứ tự chữ cái của tên tệp. Một
 //!    cài đặt tin vào thứ tự `read_dir` sẽ đỏ ở đây thay vì đỏ trên **một** nhánh CI.
-//! 3. **FR36.** *"Gỡ một lớp = xoá một file"* ⛔ không nghiệm thu được nếu chỉ có một file.
+//! 3. **FR36.** *"Gỡ một lớp = xoá một file"* không nghiệm thu được nếu chỉ có một file.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! BỐN LUẬT — thừa kế nguyên từ `dict_lookup.rs`
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 1. **Mỗi ca một thư mục tạm riêng** (pid + bộ đếm nguyên tử). ⛔ Không `tempfile`.
+//! 1. **Mỗi ca một thư mục tạm riêng** (pid + bộ đếm nguyên tử). Không `tempfile`.
 //! 2. **Drop `ReadOnlyDb` TRƯỚC khi xoá tệp** — Windows từ chối xoá tệp đang mở (NFR14).
-//!    🔴 Ở tệp này luật đó ⛔ không còn là dọn dẹp: nó là **điều kiện để AC12 chạy được**.
-//! 3. **⛔ Không ngưỡng thời gian trong CI** — phép đo NFR1 là
+//!    🔴 Ở tệp này luật đó không còn là dọn dẹp: nó là **điều kiện để AC12 chạy được**.
+//! 3. **Không ngưỡng thời gian trong CI** — phép đo NFR1 là
 //!    [`bench_the_grouped_path_on_the_real_dictionaries`]: `#[ignore]` + biến môi trường.
 //! 4. **Đường dẫn tương đối lấy qua `env!("CARGO_MANIFEST_DIR")`.**
 
@@ -44,19 +44,19 @@ use auratranslate_lib::core::dict::{
 use auratranslate_lib::ports::DictionarySource;
 
 /// 🔴 Trần pha một (Quyết định #4, Story 1.17) — mọi fixture của tệp này có dưới hai
-/// mươi hàng một nguồn, nên một trần lớn giữ nguyên hành vi trước story cho các ca ⛔
+/// mươi hàng một nguồn, nên một trần lớn giữ nguyên hành vi trước story cho các ca không
 /// không nhắm tới `truncated`. Các ca AC12 (§Quyết định #4 hệ quả ②) dùng một trần nhỏ
-/// **tường minh**, ⛔ không hằng này.
+/// **tường minh**, không hằng này.
 const UNLIMITED: usize = 10_000;
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // DDL — CHÉP NGUYÊN VĂN từ `tools/dict-build/src/schema.rs`
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// ⛔ Đừng "dọn dẹp" khoảng trắng ở đây. Cổng parity so **chuỗi con nguyên văn**; một lượt
+// Đừng "dọn dẹp" khoảng trắng ở đây. Cổng parity so **chuỗi con nguyên văn**; một lượt
 // canh lề tử tế làm nó đỏ, và người sửa tiếp theo sẽ sửa bằng cách nới cổng.
 //
-// 🔴 `DICT_CITATION_DDL` ở tệp này ⛔ **không** còn là một khối chép cho đủ: story này là
+// 🔴 `DICT_CITATION_DDL` ở tệp này **không** còn là một khối chép cho đủ: story này là
 // story đầu tiên **đọc** bảng đó (AC8), nên fixture dưới đây nạp dữ liệu thật vào nó.
 
 const DICT_META_DDL: &str = "\
@@ -217,8 +217,8 @@ struct EntrySeed {
 }
 
 struct LayerSeed {
-    /// 🔴 Tên tệp **cố tình** ⛔ không nói gì về lớp bên trong — AD-44 ① vá A2: danh tính
-    /// lớp đọc từ `dict_meta('layer')` của chính tệp, ⛔ không từ tên tệp.
+    /// 🔴 Tên tệp **cố tình** không nói gì về lớp bên trong — AD-44 ① vá A2: danh tính
+    /// lớp đọc từ `dict_meta('layer')` của chính tệp, không từ tên tệp.
     file: &'static str,
     layer: &'static str,
     /// `(id, code, display_name)` — 🔴 **cả ba tệp dùng `id = 1`**, có chủ ý.
@@ -340,9 +340,9 @@ static BASE_ENTRIES: &[EntrySeed] = &[
         simp: None,
         senses: BASE_SENSES_DICTIONARY,
     },
-    // 🔴 Một đầu mục **⛔ không có nghĩa nào** — trạng thái **hợp lệ**, ⛔ không phải một
+    // 🔴 Một đầu mục **không có nghĩa nào** — trạng thái **hợp lệ**, không phải một
     // lỗi: `dict_entry` mang `reading` và `han_viet` (âm đọc), và một nguồn có thể ghi âm
-    // đọc mà ⛔ không ghi nghĩa. Pha hai phải trả **danh sách rỗng**, ⛔ không trả lỗi.
+    // đọc mà không ghi nghĩa. Pha hai phải trả **danh sách rỗng**, không trả lỗi.
     EntrySeed {
         id: 6,
         source_id: 2,
@@ -357,10 +357,10 @@ static BASE_ENTRIES: &[EntrySeed] = &[
 // LỚP GỠ RỜI #1 — hình dạng **HVTĐTD**: `pos_lang = 'vi'`, ví dụ **và** trích dẫn
 // tiếng Việt (AC11).
 //
-// 🔴 Đây là **FIXTURE**, ⛔ không phải dữ liệu HVTĐTD thật — `dict-hvtdtd.db` ⛔ không tồn
+// 🔴 Đây là **FIXTURE**, không phải dữ liệu HVTĐTD thật — `dict-hvtdtd.db` không tồn
 // tại vì chưa có nguồn thô (`src-tauri/resources/dict/README.md:13`, `prd.md:856` [A2]).
 // Nó nghiệm thu đúng thứ nghiệm thu được hôm nay: *đường mã có phân biệt được nhãn tiếng
-// Việt với nhãn ngoại ngữ ⛔ không*.
+// Việt với nhãn ngoại ngữ không*.
 // ─────────────────────────────────────────────────────────────────────────────────
 static HV_SENSES_SHAN: &[SenseSeed] = &[SenseSeed {
     id: 1,
@@ -486,7 +486,7 @@ const EXPECTED_LAYER_ORDER: &[&str] = &["base", "hv-fixture", "vp-fixture"];
 
 /// Dựng **một** tệp `.db` fixture theo `seed`, trả về đường dẫn.
 ///
-/// ⚠️ Fixture ⛔ **không** đặt `journal_mode`; mặc định `delete` — giống hệt ba tệp thật.
+/// ⚠️ Fixture **không** đặt `journal_mode`; mặc định `delete` — giống hệt ba tệp thật.
 fn build_layer(dir: &Path, seed: &LayerSeed, schema_version: &str, user_version: u32) -> PathBuf {
     let path = dir.join(seed.file);
     let conn = rusqlite::Connection::open(&path)
@@ -591,7 +591,7 @@ fn build_layer(dir: &Path, seed: &LayerSeed, schema_version: &str, user_version:
         }
     }
 
-    // 🔴 `entry_fts` là external-content ⇒ nó ⛔ **không** tự đầy. Thiếu dòng này, nhánh 3
+    // 🔴 `entry_fts` là external-content ⇒ nó **không** tự đầy. Thiếu dòng này, nhánh 3
     // trả rỗng **cho từng tệp** và mọi ca của nó "xanh" theo đúng cách sai nhất.
     conn.execute_batch("INSERT INTO entry_fts(entry_fts) VALUES('rebuild');")
         .unwrap_or_else(|e| panic!("rebuild entry_fts: {e}"));
@@ -648,7 +648,7 @@ fn groups_of(result: &auratranslate_lib::core::dict::GroupedLookup) -> Vec<(Stri
 // AC3 — tập lớp phát hiện bằng QUÉT THƯ MỤC, thứ tự là một GIÁ TRỊ quan sát được
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// 🔴 **AC3** — thứ tự là `base` trước rồi mã lớp tăng dần, và nó ⛔ **không** phải thứ tự
+/// 🔴 **AC3** — thứ tự là `base` trước rồi mã lớp tăng dần, và nó **không** phải thứ tự
 /// `read_dir` trả về.
 ///
 /// Ca này chỉ có nghĩa vì tên tệp xếp **ngược** thứ tự lớp: `aaa.db` mang `vp-fixture`,
@@ -665,7 +665,7 @@ fn the_layer_order_is_deterministic_and_never_the_directory_order() {
     assert_eq!(
         layer_ids(&layers),
         EXPECTED_LAYER_ORDER,
-        "thứ tự lớp phải là `base` trước rồi mã lớp TĂNG DẦN, ⛔ không phải thứ tự \
+        "thứ tự lớp phải là `base` trước rồi mã lớp TĂNG DẦN, không phải thứ tự \
          `read_dir`. Tên tệp ở fixture này xếp ngược có chủ ý (aaa=vp, mmm=hv, zzz=base)."
     );
     assert!(
@@ -678,12 +678,12 @@ fn the_layer_order_is_deterministic_and_never_the_directory_order() {
     cleanup(&dir);
 }
 
-/// 🔴 **AC3 vế cuối** — thư mục ⛔ không tồn tại, hoặc rỗng ⇒ **tập lớp RỖNG**, ⛔ không
-/// lỗi, ⛔ không panic.
+/// 🔴 **AC3 vế cuối** — thư mục không tồn tại, hoặc rỗng ⇒ **tập lớp RỖNG**, không
+/// lỗi, không panic.
 ///
-/// Đây ⛔ **không** phải một ca phòng xa: `src-tauri/resources/dict/` hôm nay **rỗng**
-/// (⛔ không tệp `.db` nào trong git — AD-25) và `bundle.resources` chưa mang thư mục đó
-/// (Story 10.1). *"⛔ Không có lớp nào"* là một trạng thái **bình thường có tên**, và nó
+/// Đây **không** phải một ca phòng xa: `src-tauri/resources/dict/` hôm nay **rỗng**
+/// (không tệp `.db` nào trong git — AD-25) và `bundle.resources` chưa mang thư mục đó
+/// (Story 10.1). *"Không có lớp nào"* là một trạng thái **bình thường có tên**, và nó
 /// là chính hình dạng FR36 đòi hỏi.
 #[test]
 fn a_missing_or_empty_directory_is_an_empty_layer_set_not_an_error() {
@@ -693,16 +693,16 @@ fn a_missing_or_empty_directory_is_an_empty_layer_set_not_an_error() {
     assert!(empty.layers().is_empty(), "thư mục rỗng ⇒ tập lớp rỗng");
     assert!(
         empty.skipped().is_empty(),
-        "thư mục rỗng ⇒ ⛔ không lớp nào bị bỏ qua"
+        "thư mục rỗng ⇒ không lớp nào bị bỏ qua"
     );
 
     let missing = DictLayers::open(&dir.join("khong-ton-tai"));
     assert!(
         missing.layers().is_empty(),
-        "thư mục ⛔ không tồn tại ⇒ tập lớp rỗng, ⛔ KHÔNG lỗi"
+        "thư mục không tồn tại ⇒ tập lớp rỗng, KHÔNG lỗi"
     );
 
-    // Và một lượt tra trên tập rỗng vẫn trả **đường đã đi**, ⛔ không panic.
+    // Và một lượt tra trên tập rỗng vẫn trả **đường đã đi**, không panic.
     let result = lookup_grouped(&empty, "山", LookupMode::Exact, UNLIMITED);
     assert_eq!(result.route, QueryRoute::Zh);
     assert_eq!(result.branch, QueryBranch::ExactBtree);
@@ -710,13 +710,13 @@ fn a_missing_or_empty_directory_is_an_empty_layer_set_not_an_error() {
     assert!(
         !result.layers_loaded,
         "🔴 AC6 ca thứ năm (Story 1.17) — 0 lớp gắn PHẢI phân biệt được với 'đã tra mà \
-         không khớp' thuần tuý qua trường layers_loaded, ⛔ không suy từ groups rỗng"
+         không khớp' thuần tuý qua trường layers_loaded, không suy từ groups rỗng"
     );
 
     cleanup(&dir);
 }
 
-/// 🔴 **AC6 ca thứ năm, nửa còn lại** — CÓ lớp gắn nhưng ⛔ khớp gì ⇒ `layers_loaded` PHẢI
+/// 🔴 **AC6 ca thứ năm, nửa còn lại** — CÓ lớp gắn nhưng không khớp gì ⇒ `layers_loaded` PHẢI
 /// `true`, phân biệt với ca thư mục rỗng ở trên (cả hai đều cho `groups` rỗng).
 #[test]
 fn layers_loaded_is_true_even_when_nothing_matches() {
@@ -728,7 +728,7 @@ fn layers_loaded_is_true_even_when_nothing_matches() {
     assert!(result.groups.is_empty());
     assert!(
         result.layers_loaded,
-        "ba lớp ĐÃ nạp và ĐÃ tra — ⛔ không khớp là một kết quả BÌNH THƯỜNG, ⛔ phải trông \
+        "ba lớp ĐÃ nạp và ĐÃ tra — không khớp là một kết quả BÌNH THƯỜNG, không phải trông \
          giống ca '0 lớp'"
     );
 
@@ -736,7 +736,7 @@ fn layers_loaded_is_true_even_when_nothing_matches() {
     cleanup(&dir);
 }
 
-/// Tệp ⛔ không phải `.db` ⇒ ⛔ **không** được thử mở, và ⛔ không vào danh sách bỏ qua.
+/// Tệp không phải `.db` ⇒ **không** được thử mở, và không vào danh sách bỏ qua.
 #[test]
 fn only_db_files_are_probed() {
     let dir = temp_dir("ext");
@@ -751,7 +751,7 @@ fn only_db_files_are_probed() {
     assert_eq!(layer_ids(&layers), EXPECTED_LAYER_ORDER);
     assert!(
         layers.skipped().is_empty(),
-        "tệp ⛔ không mang đuôi `.db` ⛔ KHÔNG phải một lớp bị bỏ qua — nó ⛔ không phải \
+        "tệp không mang đuôi `.db` KHÔNG phải một lớp bị bỏ qua — nó không phải \
          một lớp: {:?}",
         layers.skipped()
     );
@@ -765,20 +765,20 @@ fn only_db_files_are_probed() {
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// 🔴 **AC4** — bốn cách một tệp hỏng, và **cả bốn** phải thành một **GIÁ TRỊ** mang
-/// đường dẫn + lý do, ⛔ không phải một dòng `eprintln!`.
+/// đường dẫn + lý do, không phải một dòng `eprintln!`.
 #[test]
 fn a_broken_layer_is_skipped_by_name_and_the_rest_still_answer() {
     let dir = temp_dir("broken");
     build_all_layers(&dir);
 
-    // (a) ⛔ không phải một tệp SQLite.
+    // (a) không phải một tệp SQLite.
     fs::write(
         dir.join("garbage.db"),
         b"day khong phai mot database SQLite",
     )
     .unwrap_or_else(|e| panic!("ghi garbage: {e}"));
 
-    // (b) Một tệp SQLite hợp lệ nhưng ⛔ không có `dict_meta`.
+    // (b) Một tệp SQLite hợp lệ nhưng không có `dict_meta`.
     {
         let conn = rusqlite::Connection::open(dir.join("wrong-schema.db"))
             .unwrap_or_else(|e| panic!("dựng wrong-schema: {e}"));
@@ -800,7 +800,7 @@ fn a_broken_layer_is_skipped_by_name_and_the_rest_still_answer() {
         SUPPORTED_SCHEMA_VERSION + 1,
     );
 
-    // (d) Hai chỗ ghi phiên bản **NÓI KHÁC NHAU** ⇒ tệp ⛔ không do `tools/dict-build`
+    // (d) Hai chỗ ghi phiên bản **NÓI KHÁC NHAU** ⇒ tệp không do `tools/dict-build`
     //     viết ra, và tin nửa nào cũng là đoán (Story 1.9 §Quyết định #2).
     build_layer(
         &dir,
@@ -819,7 +819,7 @@ fn a_broken_layer_is_skipped_by_name_and_the_rest_still_answer() {
     assert_eq!(
         layer_ids(&layers),
         EXPECTED_LAYER_ORDER,
-        "bốn tệp hỏng ⛔ KHÔNG được kéo theo ba lớp lành"
+        "bốn tệp hỏng KHÔNG được kéo theo ba lớp lành"
     );
 
     let skipped: Vec<(String, SkipReason)> = layers
@@ -843,7 +843,7 @@ fn a_broken_layer_is_skipped_by_name_and_the_rest_still_answer() {
             .iter()
             .find(|(name, _)| name == file)
             .map(|(_, reason)| reason.clone())
-            .unwrap_or_else(|| panic!("⛔ không thấy {file} trong danh sách bỏ qua: {skipped:?}"))
+            .unwrap_or_else(|| panic!("không thấy {file} trong danh sách bỏ qua: {skipped:?}"))
     };
 
     assert!(
@@ -876,7 +876,7 @@ fn a_broken_layer_is_skipped_by_name_and_the_rest_still_answer() {
         "hai chỗ ghi phiên bản nói khác nhau phải có lý do RIÊNG"
     );
 
-    // 🔴 Vế *"các lớp còn lại vẫn tra được BÌNH THƯỜNG"* — ⛔ không chỉ *"vẫn nạp được"*.
+    // 🔴 Vế *"các lớp còn lại vẫn tra được BÌNH THƯỜNG"* — không chỉ *"vẫn nạp được"*.
     let result = lookup_grouped(&layers, "山", LookupMode::Exact, UNLIMITED);
     assert_eq!(
         groups_of(&result)
@@ -884,7 +884,7 @@ fn a_broken_layer_is_skipped_by_name_and_the_rest_still_answer() {
             .map(|(code, _)| code)
             .collect::<Vec<_>>(),
         vec!["fx-core-a", "fx-hv", "fx-vp"],
-        "bốn tệp hỏng ⛔ KHÔNG được làm hỏng lượt tra của ba lớp lành"
+        "bốn tệp hỏng KHÔNG được làm hỏng lượt tra của ba lớp lành"
     );
 
     layers.close();
@@ -896,15 +896,15 @@ fn a_broken_layer_is_skipped_by_name_and_the_rest_still_answer() {
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// 🔴 **Ca test hành vi bắt buộc của Task 1** — `SkipReason::detail` (lỗi thô SQLite)
-/// ⛔ **KHÔNG BAO GIỜ** được xuất hiện trong JSON đi qua dây, và đường dẫn tệp cũng vậy.
+/// **KHÔNG BAO GIỜ** được xuất hiện trong JSON đi qua dây, và đường dẫn tệp cũng vậy.
 /// Đây là ca làm cổng AD-21 ĐỎ nếu ai đó derive `Serialize` thẳng lên `SkipReason`/
-/// `SkippedLayer` thay vì đi qua [`SkipReason::wire_code`] — kiểu đó sẽ **⛔ không compile
+/// `SkippedLayer` thay vì đi qua [`SkipReason::wire_code`] — kiểu đó sẽ **không compile
 /// được** với `#[serde(serialize_with = "serialize_skipped_as_wire_codes")]` trên
 /// `GroupedLookup::skipped` nếu ai đó đổi kiểu trường, và nếu ai đó bỏ luôn thuộc tính đó
 /// để derive trực tiếp, assertion `!json.contains(&raw_detail)` dưới đây sẽ đỏ.
 ///
 /// 🔴 Giá trị đem serialize đến từ **đường sản phẩm thật** — `lookup_grouped` trên một tập
-/// lớp có một tệp hỏng thật (`garbage.db`, cùng khuôn ca `a_broken_layer_…` ở trên) — ⛔
+/// lớp có một tệp hỏng thật (`garbage.db`, cùng khuôn ca `a_broken_layer_…` ở trên) — không
 /// không một `GroupedLookup` dựng tay, đúng nguyên tắc `ipc_contract.rs` đã đặt ra.
 #[test]
 fn skip_reason_detail_never_reaches_the_wire() {
@@ -937,7 +937,7 @@ fn skip_reason_detail_never_reaches_the_wire() {
     );
     assert!(
         !json.contains("garbage.db"),
-        "đường dẫn TỆP ⛔ không được đi qua dây: {json}"
+        "đường dẫn TỆP không được đi qua dây: {json}"
     );
     assert!(
         json.contains("\"meta_unreadable\""),
@@ -945,7 +945,7 @@ fn skip_reason_detail_never_reaches_the_wire() {
     );
     assert!(
         json.contains("\"branch\":\"exact_btree\""),
-        "QueryBranch phải ra CHUỖI ĐỊNH DANH MÁY, ⛔ không số thứ tự biến thể: {json}"
+        "QueryBranch phải ra CHUỖI ĐỊNH DANH MÁY, không số thứ tự biến thể: {json}"
     );
     assert!(
         json.contains("\"route\":\"zh\""),
@@ -957,7 +957,7 @@ fn skip_reason_detail_never_reaches_the_wire() {
 }
 
 /// 🔴 **AC6 vế cuối** — hai lớp khai **cùng một `code`** là một **lỗi dữ liệu CÓ TÊN**,
-/// ⛔ **không** phải một lượt gộp im lặng hai tệp vào một nhóm.
+/// **không** phải một lượt gộp im lặng hai tệp vào một nhóm.
 #[test]
 fn two_layers_claiming_the_same_source_code_is_a_named_data_error() {
     let dir = temp_dir("dupcode");
@@ -1010,7 +1010,7 @@ fn two_layers_claiming_the_same_source_code_is_a_named_data_error() {
 // AC5 — `pick_route` một lần, `branch` là thuộc tính của CẢ LƯỢT TRA
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// 🔴 **AC5** — `route` và `branch` xuất hiện **một lần** trong kết quả gom, ⛔ không phải
+/// 🔴 **AC5** — `route` và `branch` xuất hiện **một lần** trong kết quả gom, không phải
 /// một lần cho mỗi tệp.
 #[test]
 fn the_route_and_the_branch_are_one_value_of_the_whole_lookup() {
@@ -1033,7 +1033,7 @@ fn the_route_and_the_branch_are_one_value_of_the_whole_lookup() {
     assert_eq!(
         three_chars.branch,
         QueryBranch::FtsTrigram,
-        "3 ký tự Hán ⇒ nhánh 3 — và fixture ⛔ không có đầu mục nào khớp, nên nhánh là \
+        "3 ký tự Hán ⇒ nhánh 3 — và fixture không có đầu mục nào khớp, nên nhánh là \
          thứ DUY NHẤT quan sát được ở đây"
     );
 
@@ -1041,7 +1041,7 @@ fn the_route_and_the_branch_are_one_value_of_the_whole_lookup() {
     assert_eq!(
         english.route,
         QueryRoute::En,
-        "⛔ không ký tự Hán ⇒ đường `En`"
+        "không ký tự Hán ⇒ đường `En`"
     );
 
     layers.close();
@@ -1050,9 +1050,9 @@ fn the_route_and_the_branch_are_one_value_of_the_whole_lookup() {
 
 /// 🔴 **AC5 mệnh đề cuối** — `NoBranchQueryTooShort` **sống sót qua tầng gom**.
 ///
-/// ⛔ **Không phải "không có kết quả":** hai câu đó dẫn người dùng đi hai đường khác nhau
+/// **Không phải "không có kết quả":** hai câu đó dẫn người dùng đi hai đường khác nhau
 /// (AD-44 ④), và **1.17 đọc đúng trường này** để nói *"truy vấn quá ngắn"*. Một tầng gom
-/// dịch nó thành `groups: []` là làm mệnh đề đó ⛔ không nghiệm thu được ở story sau.
+/// dịch nó thành `groups: []` là làm mệnh đề đó không nghiệm thu được ở story sau.
 #[test]
 fn the_query_too_short_state_survives_the_grouping_layer() {
     let dir = temp_dir("tooshort");
@@ -1069,11 +1069,11 @@ fn the_query_too_short_state_survives_the_grouping_layer() {
         );
         assert!(
             result.groups.is_empty(),
-            "truy vấn {query:?} ⇒ ⛔ không nhóm nào"
+            "truy vấn {query:?} ⇒ không nhóm nào"
         );
         assert!(
             result.skipped.is_empty(),
-            "truy vấn {query:?}: *rỗng vì quá ngắn* ⛔ KHÔNG phải *rỗng vì một lớp hỏng*"
+            "truy vấn {query:?}: *rỗng vì quá ngắn* KHÔNG phải *rỗng vì một lớp hỏng*"
         );
     }
 
@@ -1082,14 +1082,14 @@ fn the_query_too_short_state_survives_the_grouping_layer() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// AC6 — nhóm theo NGUỒN, khoá gom là `code`, và ⛔ KHÔNG hợp nhất
+// AC6 — nhóm theo NGUỒN, khoá gom là `code`, và KHÔNG hợp nhất
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// 🔴 **AC6, và đây là bẫy im lặng nhất của cả story.**
 ///
 /// Ba tệp fixture đều dùng `dict_source.id = 1`, đúng như ba tệp thật. Gom theo `id` dán
-/// nhãn *"Fixture Han Viet"* cho một đầu mục thật ra của lớp nền — **FR31 vỡ, ⛔ không
-/// lỗi, ⛔ không test hành vi nào đỏ** trừ ca này.
+/// nhãn *"Fixture Han Viet"* cho một đầu mục thật ra của lớp nền — **FR31 vỡ, không
+/// lỗi, không test hành vi nào đỏ** trừ ca này.
 #[test]
 fn groups_are_keyed_by_the_source_code_not_by_the_numeric_id() {
     let dir = temp_dir("groupkey");
@@ -1127,7 +1127,7 @@ fn groups_are_keyed_by_the_source_code_not_by_the_numeric_id() {
     cleanup(&dir);
 }
 
-/// 🔴 **AC6 / FR32** — hai nguồn **bất đồng** ⇒ **cả hai nhóm có mặt**, ⛔ không nhóm nào
+/// 🔴 **AC6 / FR32** — hai nguồn **bất đồng** ⇒ **cả hai nhóm có mặt**, không nhóm nào
 /// bị chọn làm *"câu trả lời"*.
 #[test]
 fn two_sources_that_disagree_both_survive_with_their_meanings_intact() {
@@ -1143,10 +1143,10 @@ fn two_sources_that_disagree_both_survive_with_their_meanings_intact() {
             ("fx-core-a".to_owned(), vec!["中國".to_owned()]),
             ("fx-vp".to_owned(), vec!["中國".to_owned()]),
         ],
-        "lớp nền nói `China`, VietPhrase nói `Trung Quốc` — ⛔ KHÔNG nhóm nào được biến mất"
+        "lớp nền nói `China`, VietPhrase nói `Trung Quốc` — KHÔNG nhóm nào được biến mất"
     );
 
-    // Và nghĩa **mâu thuẫn** phải đi hết đường ra tới bản ghi, ⛔ không bị chọn một cái.
+    // Và nghĩa **mâu thuẫn** phải đi hết đường ra tới bản ghi, không bị chọn một cái.
     let base = layers.layer("base").expect("lớp nền");
     let base_glosses: Vec<String> = base
         .senses(&[2])
@@ -1177,10 +1177,10 @@ fn two_sources_that_disagree_both_survive_with_their_meanings_intact() {
     cleanup(&dir);
 }
 
-/// 🔴 **AC6** — một nguồn **đã tra mà ⛔ không khớp gì** ⇒ ⛔ **không sinh nhóm rỗng**.
+/// 🔴 **AC6** — một nguồn **đã tra mà không khớp gì** ⇒ **không sinh nhóm rỗng**.
 ///
-/// Trạng thái đó phải phân biệt được với *"lớp ⛔ không nạp được"*, và chỗ phân biệt là
-/// danh sách `skipped`. Hai thứ đó ⛔ **không** được phép trông giống nhau ở 1.17.
+/// Trạng thái đó phải phân biệt được với *"lớp không nạp được"*, và chỗ phân biệt là
+/// danh sách `skipped`. Hai thứ đó **không** được phép trông giống nhau ở 1.17.
 #[test]
 fn a_source_that_matched_nothing_produces_no_empty_group() {
     let dir = temp_dir("nogroup");
@@ -1192,11 +1192,11 @@ fn a_source_that_matched_nothing_produces_no_empty_group() {
     assert_eq!(
         groups_of(&result),
         vec![("fx-core-b".to_owned(), vec!["高山".to_owned()])],
-        "ba lớp được tra, một lớp khớp ⇒ ĐÚNG MỘT nhóm, ⛔ không hai nhóm rỗng đi kèm"
+        "ba lớp được tra, một lớp khớp ⇒ ĐÚNG MỘT nhóm, không hai nhóm rỗng đi kèm"
     );
     assert!(
         result.skipped.is_empty(),
-        "⛔ không lớp nào hỏng ⇒ danh sách bỏ qua RỖNG — đó là thứ phân biệt *đã tra mà \
+        "không lớp nào hỏng ⇒ danh sách bỏ qua RỖNG — đó là thứ phân biệt *đã tra mà \
          không khớp* với *chưa bao giờ được tra*"
     );
 
@@ -1205,11 +1205,11 @@ fn a_source_that_matched_nothing_produces_no_empty_group() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// AC12 (Story 1.17) — `LIMIT` cấp-tệp ⛔ KHÔNG được xoá sạch một nguồn IM LẶNG
+// AC12 (Story 1.17) — `LIMIT` cấp-tệp KHÔNG được xoá sạch một nguồn IM LẶNG
 // ═════════════════════════════════════════════════════════════════════════════════
 //
 // 🔴 Điều kiện tiên quyết của lỗi: MỘT tệp, HAI nguồn. Fixture ba-lớp-mỗi-lớp-một-nguồn
-// ở trên (`LAYERS`) ⛔ KHÔNG dựng được nó — mỗi tệp ở đó chỉ mang một hoặc hai nguồn
+// ở trên (`LAYERS`) KHÔNG dựng được nó — mỗi tệp ở đó chỉ mang một hoặc hai nguồn
 // nhưng lớp nền (`BASE_ENTRIES`) không có đủ số hàng ≥ trần để bắt được ca cắt. Đây là
 // một tệp fixture RIÊNG.
 
@@ -1260,7 +1260,7 @@ static LIMIT_LAYER: LayerSeed = LayerSeed {
     entries: LIMIT_ENTRIES,
 };
 
-/// Dựng **một** tệp fixture — nhánh 1-nguồn ⛔ áp dụng ở đây, nên ⛔ dùng `build_all_layers`.
+/// Dựng **một** tệp fixture — nhánh 1-nguồn không áp dụng ở đây, nên không dùng `build_all_layers`.
 fn build_limit_fixture(dir: &Path) -> DictLayers {
     build_layer(
         dir,
@@ -1276,8 +1276,8 @@ fn build_limit_fixture(dir: &Path) -> DictLayers {
 /// Trần = 3 = đúng số đầu mục của `fx-limit-a` ⇒ `fx-limit-b` (id 100, lớn hơn mọi id
 /// của `fx-limit-a`) **hoàn toàn văng khỏi** `groups` nếu `LIMIT` cấp-tệp áp thẳng.
 ///
-/// ⛔ **Ca này phải ĐỎ trên một cài đặt `LIMIT` cấp-tệp NGÂY THƠ** (một cài đặt cắt bớt
-/// mà ⛔ không có trường `truncated`/`truncated_layers` nào báo lại) — nó ⛔ không compile
+/// **Ca này phải ĐỎ trên một cài đặt `LIMIT` cấp-tệp NGÂY THƠ** (một cài đặt cắt bớt
+/// mà không có trường `truncated`/`truncated_layers` nào báo lại) — nó không compile
 /// được nếu thiếu hai trường đó, và nếu ai đó âm thầm đặt `truncated_layers: vec![]` thì
 /// assertion dưới đây đỏ.
 #[test]
@@ -1298,11 +1298,11 @@ fn a_file_level_limit_flags_truncation_instead_of_silently_dropping_a_source() {
         vec!["limit-fixture".to_owned()],
         "🔴 Quyết định #4 hệ quả ② — đường (b): nguồn có thể vắng mặt, NHƯNG panel phải \
          biết để nói ra 'danh sách nguồn chưa đầy đủ'. Một `truncated_layers` rỗng ở đây \
-         là FR31 vỡ ⛔ không cổng nào đỏ — đúng lớp lỗi AC12 tồn tại để chặn."
+         là FR31 vỡ không cổng nào đỏ — đúng lớp lỗi AC12 tồn tại để chặn."
     );
 
-    // 🔴 §Hệ quả ③ đường (a) — nguồn bị cắt SẠCH phải được GỌI TÊN, ⛔ chỉ đếm.
-    // FR31: *"mọi định nghĩa hiển thị nguồn"* — một nguồn bị giấu tên là ⛔ hiển thị.
+    // 🔴 §Hệ quả ③ đường (a) — nguồn bị cắt SẠCH phải được GỌI TÊN, không chỉ đếm.
+    // FR31: *"mọi định nghĩa hiển thị nguồn"* — một nguồn bị giấu tên là không hiển thị.
     assert_eq!(
         result.hidden_sources,
         vec![("Fixture Limit B".to_owned(), 1_i64)],
@@ -1311,24 +1311,24 @@ fn a_file_level_limit_flags_truncation_instead_of_silently_dropping_a_source() {
          đây đưa ta về đúng câu chung chung mà §hệ quả ③ tồn tại để thay thế."
     );
 
-    // Nguồn CÒN mặt mà bị cắt bớt thì mang số đếm ĐẦY ĐỦ, ⛔ số của phần còn lại.
+    // Nguồn CÒN mặt mà bị cắt bớt thì mang số đếm ĐẦY ĐỦ, không số của phần còn lại.
     let kept = &result.groups[0];
     assert_eq!(
         kept.total_entries,
         Some(3),
         "`fx-limit-a` có đúng 3 đầu mục và cả 3 đều lọt trang — số đếm đầy đủ vẫn phải có \
-         mặt khi lớp bị đánh dấu `truncated`, để thanh nhịp ⛔ phải đoán."
+         mặt khi lớp bị đánh dấu `truncated`, để thanh nhịp không phải đoán."
     );
 
     layers.close();
     cleanup(&dir);
 }
 
-/// 🔴 **Trần KHÔNG chạm ⇒ ⛔ một truy vấn `COUNT` nào chạy, và `total_entries` là `None`.**
+/// 🔴 **Trần KHÔNG chạm ⇒ không một truy vấn `COUNT` nào chạy, và `total_entries` là `None`.**
 ///
 /// §Hệ quả ③ chốt đường (a) **kèm điều kiện**: `COUNT` chạy *"CHỈ KHI `truncated = true`"*
-/// — tránh trả giá cho ca thường (phần lớn lượt tra ⛔ chạm trần). Ca này ghim đúng vế
-/// điều kiện đó: `None` ⇔ *"`entries` đã là toàn bộ, ⛔ cần hỏi thêm"*.
+/// — tránh trả giá cho ca thường (phần lớn lượt tra không chạm trần). Ca này ghim đúng vế
+/// điều kiện đó: `None` ⇔ *"`entries` đã là toàn bộ, không cần hỏi thêm"*.
 #[test]
 fn an_untruncated_lookup_carries_no_source_counts_at_all() {
     let dir = temp_dir("limit-untruncated");
@@ -1336,15 +1336,15 @@ fn an_untruncated_lookup_carries_no_source_counts_at_all() {
 
     let result = lookup_grouped(&layers, "共", LookupMode::Exact, UNLIMITED);
 
-    assert!(result.truncated_layers.is_empty(), "trần lớn ⇒ ⛔ lớp nào bị cắt");
+    assert!(result.truncated_layers.is_empty(), "trần lớn ⇒ không lớp nào bị cắt");
     assert!(
         result.hidden_sources.is_empty(),
-        "⛔ cắt ⇒ ⛔ nguồn nào bị giấu"
+        "không cắt ⇒ không nguồn nào bị giấu"
     );
     for group in &result.groups {
         assert_eq!(
             group.total_entries, None,
-            "🔴 `None` ⇔ ⛔ chạy `COUNT`. Một `Some(...)` ở đây nghĩa là điều kiện \
+            "🔴 `None` ⇔ không chạy `COUNT`. Một `Some(...)` ở đây nghĩa là điều kiện \
              'CHỈ KHI truncated' đã bị bỏ, và mọi lượt tra đang trả giá một truy vấn thừa."
         );
     }
@@ -1353,7 +1353,7 @@ fn an_untruncated_lookup_carries_no_source_counts_at_all() {
     cleanup(&dir);
 }
 
-/// 🔴 **Số đếm đầy đủ đi qua `verify_substring` — ⛔ đếm ỨNG VIÊN** (Bẫy 11, đổi dấu).
+/// 🔴 **Số đếm đầy đủ đi qua `verify_substring` — không đếm ỨNG VIÊN** (Bẫy 11, đổi dấu).
 ///
 /// Nhánh 2-ký-tự trả **ứng viên** rồi mới lọc. Một `COUNT(*)` ở SQL cho nhánh này đếm cả
 /// dương tính giả ⇒ thanh nhịp nói một con số **to hơn sự thật** — cùng lớp lỗi Bẫy 11,
@@ -1389,14 +1389,14 @@ fn source_counts_are_verified_not_candidate_counts() {
     assert_eq!(
         total, verified,
         "🔴 Số đếm đầy đủ phải BẰNG số hàng đã xác minh. Lớn hơn ⇒ đang đếm ứng viên \
-         `char_idx` (gồm dương tính giả `國中`), và thanh nhịp sẽ hứa những mục ⛔ tồn tại."
+         `char_idx` (gồm dương tính giả `國中`), và thanh nhịp sẽ hứa những mục không tồn tại."
     );
 
     layers.close();
     cleanup(&dir);
 }
 
-/// 🔴 **`usize::MAX` là "⛔ giới hạn", ⛔ phải "⛔ trả gì cả".**
+/// 🔴 **`usize::MAX` là "không giới hạn", không phải "không trả gì cả".**
 ///
 /// `usize::MAX as i64` = **-1**, và `-1 + 1 = 0` ⇒ `LIMIT 0` ⇒ **0 hàng, `truncated =
 /// false`**: mất sạch dữ liệu, im lặng, ở một hàm `pub`. Bắt ở code review 2026-08-07.
@@ -1415,11 +1415,11 @@ fn an_unbounded_limit_returns_everything_not_nothing() {
         assert_eq!(
             rows, 4,
             "🔴 `usize::MAX` phải trả về CẢ BỐN đầu mục của fixture. 0 hàng ở đây là phép \
-             ép kiểu `limit as i64` tràn thành -1 ⇒ `LIMIT 0` — im lặng, ⛔ lỗi nào."
+             ép kiểu `limit as i64` tràn thành -1 ⇒ `LIMIT 0` — im lặng, không lỗi nào."
         );
         assert!(
             result.truncated_layers.is_empty(),
-            "⛔ cắt gì thì ⛔ được báo `truncated`"
+            "không cắt gì thì không được báo `truncated`"
         );
     }
 
@@ -1427,10 +1427,10 @@ fn an_unbounded_limit_returns_everything_not_nothing() {
     cleanup(&dir);
 }
 
-/// 🔴 **`limit == 0` ⛔ được cho ra hai câu loại trừ nhau cùng lúc.**
+/// 🔴 **`limit == 0` không được cho ra hai câu loại trừ nhau cùng lúc.**
 ///
-/// Một cỡ trang `0` (API `pub`, ⛔ chặn) cho `groups` rỗng **kèm** `truncated = true`, và
-/// panel khi đó hiện ĐỒNG THỜI *"⛔ tìm thấy"* và *"danh sách ⛔ đầy đủ"*. Sàn dưới
+/// Một cỡ trang `0` (API `pub`, không chặn) cho `groups` rỗng **kèm** `truncated = true`, và
+/// panel khi đó hiện ĐỒNG THỜI *"không tìm thấy"* và *"danh sách không đầy đủ"*. Sàn dưới
 /// `effective_limit` coi `0` như `1`, và cờ `truncated` nói phần còn lại.
 #[test]
 fn a_zero_page_size_still_returns_one_row_and_flags_the_rest() {
@@ -1440,7 +1440,7 @@ fn a_zero_page_size_still_returns_one_row_and_flags_the_rest() {
     let result = lookup_grouped(&layers, "共", LookupMode::Exact, 0);
     let rows: usize = result.groups.iter().map(|g| g.entries.len()).sum();
 
-    assert_eq!(rows, 1, "sàn dưới đọc `0` thành `1`, ⛔ thành 'rỗng'");
+    assert_eq!(rows, 1, "sàn dưới đọc `0` thành `1`, không thành 'rỗng'");
     assert_eq!(
         result.truncated_layers,
         vec!["limit-fixture".to_owned()],
@@ -1473,7 +1473,7 @@ fn a_file_level_limit_on_the_char_idx_branch_also_flags_truncation() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
-// Bẫy 11 — trần áp SAU `verify_substring`, ⛔ không trước
+// Bẫy 11 — trần áp SAU `verify_substring`, không trước
 // ─────────────────────────────────────────────────────────────────────────────────
 
 static TRAP11_ENTRIES: &[EntrySeed] = &[
@@ -1486,7 +1486,7 @@ static TRAP11_ENTRIES: &[EntrySeed] = &[
         simp: None,
         senses: &[],
     },
-    // DƯƠNG TÍNH GIẢ — có cả 中 và 國 (⇒ lọt INTERSECT) nhưng ⛔ không liền nhau.
+    // DƯƠNG TÍNH GIẢ — có cả 中 và 國 (⇒ lọt INTERSECT) nhưng không liền nhau.
     EntrySeed {
         id: 2,
         source_id: 1,
@@ -1538,7 +1538,7 @@ static TRAP11_LAYER: LayerSeed = LayerSeed {
 /// `limit = 2`.
 ///
 /// - **Cài đặt SAI** (cắt 2 ứng viên ĐẦU rồi mới verify): `[1, 2]` → verify loại `2` →
-///   còn **MỘT** hit (`id=1`), và `truncated` báo `false` (2 ứng viên thô ⛔ vượt trần)
+///   còn **MỘT** hit (`id=1`), và `truncated` báo `false` (2 ứng viên thô không vượt trần)
 ///   dù thật ra còn **hai** mục thật (`3`, `5`) chưa được thấy — dối cả về SỐ LƯỢNG lẫn
 ///   về CỜ `truncated`.
 /// - **Cài đặt ĐÚNG** (verify TOÀN BỘ 5 ứng viên trước, rồi cắt): verify ra `[1, 3, 5]`
@@ -1565,7 +1565,7 @@ fn the_limit_is_applied_after_verification_not_before() {
     assert_eq!(
         headwords,
         vec!["中國人".to_owned(), "中國史".to_owned()],
-        "hai mục THẬT đầu tiên theo id (1, 3) — ⛔ không phải id 1 rồi dừng vì id 2 bị \
+        "hai mục THẬT đầu tiên theo id (1, 3) — không phải id 1 rồi dừng vì id 2 bị \
          verify loại sau khi đã cắt"
     );
     assert_eq!(
@@ -1582,11 +1582,11 @@ fn the_limit_is_applied_after_verification_not_before() {
 // AC7 — một từ nhiều TỪ LOẠI ⇒ nhiều mục riêng biệt (FR29)
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// 🔴 **AC7** — mỗi hàng `dict_sense` là **một mục riêng**, ⛔ không nối `gloss` thành một
+/// 🔴 **AC7** — mỗi hàng `dict_sense` là **một mục riêng**, không nối `gloss` thành một
 /// chuỗi.
 ///
-/// Một chuỗi nối là một quyết định **trình bày** chôn vào tầng dữ liệu, và 1.17 ⛔ không gỡ
-/// ngược ra được: `"mountain; surname Shan"` ⛔ không nói được từ loại nào đi với nghĩa nào.
+/// Một chuỗi nối là một quyết định **trình bày** chôn vào tầng dữ liệu, và 1.17 không gỡ
+/// ngược ra được: `"mountain; surname Shan"` không nói được từ loại nào đi với nghĩa nào.
 #[test]
 fn a_word_with_many_parts_of_speech_becomes_many_separate_records() {
     let dir = temp_dir("manysenses");
@@ -1599,7 +1599,7 @@ fn a_word_with_many_parts_of_speech_becomes_many_separate_records() {
     assert_eq!(
         senses.len(),
         2,
-        "hai hàng `dict_sense` ⇒ HAI mục, ⛔ không một chuỗi nối"
+        "hai hàng `dict_sense` ⇒ HAI mục, không một chuỗi nối"
     );
     assert_eq!(
         senses.iter().map(|s| s.gloss.as_str()).collect::<Vec<_>>(),
@@ -1628,13 +1628,13 @@ fn a_word_with_many_parts_of_speech_becomes_many_separate_records() {
 ///
 /// `tools/dict-build/src/sources/vietphrase.rs` tách `/` **vô điều kiện** ⇒ nhiều
 /// `dict_sense` **cùng `ord`** (`deferred-work.md`, Story 1.10). Với `ORDER BY ord` trần,
-/// hai lượt chạy cho hai thứ tự — tức một ca **flaky**, và một ca flaky **bị gỡ** chứ ⛔
+/// hai lượt chạy cho hai thứ tự — tức một ca **flaky**, và một ca flaky **bị gỡ** chứ không
 /// không được sửa.
 ///
-/// ⚠️ Ca này khẳng định **kết quả**; luật *"⛔ không `ORDER BY ord` trần"* được cưỡng chế
+/// ⚠️ Ca này khẳng định **kết quả**; luật *"không `ORDER BY ord` trần"* được cưỡng chế
 /// riêng bằng máy ở `tests/dict_boundary.rs::every_ord_ordering_carries_its_tiebreaker` —
 /// hai lớp cần **cả hai**, vì trên một tập nhỏ SQLite thường trả đúng thứ tự **do may mắn**,
-/// và một ca hành vi một mình ⛔ không phân biệt được may mắn với đúng.
+/// và một ca hành vi một mình không phân biệt được may mắn với đúng.
 #[test]
 fn senses_sharing_one_ord_are_still_ordered_deterministically() {
     let dir = temp_dir("sameord");
@@ -1657,8 +1657,8 @@ fn senses_sharing_one_ord_are_still_ordered_deterministically() {
     cleanup(&dir);
 }
 
-/// Đầu mục ⛔ không có nghĩa nào ⇒ **danh sách rỗng**, ⛔ không lỗi. Và một `entry_id` ⛔
-/// không tồn tại cũng vậy — pha hai ⛔ không phải một phép kiểm tồn tại.
+/// Đầu mục không có nghĩa nào ⇒ **danh sách rỗng**, không lỗi. Và một `entry_id` không
+/// không tồn tại cũng vậy — pha hai không phải một phép kiểm tồn tại.
 #[test]
 fn an_entry_without_senses_is_an_empty_list_not_an_error() {
     let dir = temp_dir("nosense");
@@ -1668,32 +1668,32 @@ fn an_entry_without_senses_is_an_empty_list_not_an_error() {
 
     assert!(
         base.senses(&[6])
-            .expect("đầu mục ⛔ không có nghĩa")
+            .expect("đầu mục không có nghĩa")
             .is_empty(),
         "một đầu mục chỉ mang âm đọc là HỢP LỆ"
     );
     assert!(
         base.senses(&[9_999])
-            .expect("id ⛔ không tồn tại")
+            .expect("id không tồn tại")
             .is_empty(),
-        "một `entry_id` lạ ⇒ rỗng, ⛔ không lỗi"
+        "một `entry_id` lạ ⇒ rỗng, không lỗi"
     );
     assert!(
         base.senses(&[]).expect("tập rỗng").is_empty(),
-        "tập rỗng ⇒ ⛔ không một lượt chạm database nào"
+        "tập rỗng ⇒ không một lượt chạm database nào"
     );
 
     layers.close();
     cleanup(&dir);
 }
 
-/// 🔴 **AC13 vế *"⛔ không N+1"*, đo được ở tầng hành vi.**
+/// 🔴 **AC13 vế *"không N+1"*, đo được ở tầng hành vi.**
 ///
 /// Một tập id trải trên **nhiều lô** *(200 id ⇒ 4 lô ở cỡ [`SENSE_BATCH`] = 64)* phải cho
-/// **đúng cùng** kết quả với tập id thật, ⛔ không trùng một hàng nào và ⛔ không rơi hàng
+/// **đúng cùng** kết quả với tập id thật, không trùng một hàng nào và không rơi hàng
 /// nào. Đây là ca duy nhất chạm được phép **đệm lô cuối**: lô cuối lặp lại một id đã hỏi,
 /// và `IN` là phép kiểm **tập hợp** — một cài đặt đệm bằng phép **nối** sẽ nhân đôi hàng ở
-/// đây và ⛔ không ở đâu khác.
+/// đây và không ở đâu khác.
 #[test]
 fn reading_senses_across_many_batches_never_duplicates_or_drops_a_row() {
     let dir = temp_dir("batches");
@@ -1703,7 +1703,7 @@ fn reading_senses_across_many_batches_never_duplicates_or_drops_a_row() {
 
     let straight = base.senses(&[1, 2, 3]).expect("ba đầu mục");
 
-    // 200 id: ba đầu mục thật cộng một đuôi dài id ⛔ không tồn tại — bốn lô, lô cuối đệm.
+    // 200 id: ba đầu mục thật cộng một đuôi dài id không tồn tại — bốn lô, lô cuối đệm.
     let mut many: Vec<i64> = vec![1, 2, 3];
     many.extend(1_000..1_197);
     assert!(many.len() > SENSE_BATCH * 3, "phải trải qua ÍT NHẤT bốn lô");
@@ -1712,7 +1712,7 @@ fn reading_senses_across_many_batches_never_duplicates_or_drops_a_row() {
 
     assert_eq!(
         batched, straight,
-        "chia lô là chi tiết CÀI ĐẶT — nó ⛔ KHÔNG được đổi kết quả. Trùng hàng ở đây là \
+        "chia lô là chi tiết CÀI ĐẶT — nó KHÔNG được đổi kết quả. Trùng hàng ở đây là \
          một phép đệm sai; thiếu hàng là một lô bị bỏ."
     );
 
@@ -1720,7 +1720,7 @@ fn reading_senses_across_many_batches_never_duplicates_or_drops_a_row() {
     cleanup(&dir);
 }
 
-/// 🔴 Một `entry_id` **lặp lại ở HAI LÔ khác nhau** — ⛔ không phải trong cùng một lô, ca
+/// 🔴 Một `entry_id` **lặp lại ở HAI LÔ khác nhau** — không phải trong cùng một lô, ca
 /// đã canh ở test phía trên bằng phép đệm.
 ///
 /// `IN (...)` khử trùng được **trong** một lô (ngữ nghĩa tập hợp), nhưng nếu cùng một
@@ -1747,7 +1747,7 @@ fn a_duplicate_entry_id_spanning_two_batches_is_not_double_counted() {
     assert_eq!(
         with_duplicate, once,
         "một `entry_id` lặp lại ở hai lô khác nhau phải chỉ sinh ĐÚNG MỘT `SenseRecord` \
-         mang đủ ví dụ/trích dẫn — ⛔ không phải hai bản, và ⛔ không phải một bản kèm một \
+         mang đủ ví dụ/trích dẫn — không phải hai bản, và không phải một bản kèm một \
          bản rỗng"
     );
 
@@ -1759,7 +1759,7 @@ fn a_duplicate_entry_id_spanning_two_batches_is_not_double_counted() {
 // AC8 — ví dụ gắn theo TỪ LOẠI; trích dẫn là trường RIÊNG có xuất xứ (FR30)
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// 🔴 **AC8** — ví dụ treo vào **`sense_id`**, ⛔ không vào `entry_id`.
+/// 🔴 **AC8** — ví dụ treo vào **`sense_id`**, không vào `entry_id`.
 ///
 /// Lược đồ đã cưỡng chế điều này (`dict_example.sense_id REFERENCES dict_sense(id)`), và
 /// đọc bằng một `JOIN` vòng qua `entry_id` là **tự đánh mất** nó. Ca này chỉ có nghĩa vì
@@ -1779,11 +1779,11 @@ fn examples_hang_on_the_part_of_speech_not_on_the_entry() {
     assert_eq!(
         senses[1].examples.len(),
         0,
-        "nghĩa `proper noun` ⛔ KHÔNG có ví dụ — một cài đặt treo ví dụ theo `entry_id` sẽ \
+        "nghĩa `proper noun` KHÔNG có ví dụ — một cài đặt treo ví dụ theo `entry_id` sẽ \
          gắn ví dụ của nghĩa thứ nhất vào đây"
     );
 
-    // `translation_lang` ⛔ không bỏ được: nó là thứ AC10 dùng để nói *"bản dịch ví dụ này
+    // `translation_lang` không bỏ được: nó là thứ AC10 dùng để nói *"bản dịch ví dụ này
     // là tiếng Anh"*.
     assert_eq!(
         senses[0].examples[0].translation.as_deref(),
@@ -1800,7 +1800,7 @@ fn examples_hang_on_the_part_of_speech_not_on_the_entry() {
 
 /// 🔴 **AC8 vế trích dẫn** — một danh sách **RIÊNG** với ví dụ, mang `work` và `author`.
 ///
-/// ⛔ Trộn hai bảng vào một danh sách là làm mất đúng thứ FR30 phân biệt: một *ví dụ* do
+/// Trộn hai bảng vào một danh sách là làm mất đúng thứ FR30 phân biệt: một *ví dụ* do
 /// người biên soạn đặt ra, một *trích dẫn* đến từ một tác phẩm **có tên và có tác giả**.
 #[test]
 fn citations_are_a_separate_list_carrying_their_provenance() {
@@ -1815,7 +1815,7 @@ fn citations_are_a_separate_list_carrying_their_provenance() {
     assert_eq!(
         senses[0].examples.len(),
         1,
-        "ví dụ và trích dẫn ⛔ KHÔNG trộn vào nhau"
+        "ví dụ và trích dẫn KHÔNG trộn vào nhau"
     );
     assert_eq!(senses[0].examples[0].text, "山川");
 
@@ -1838,7 +1838,7 @@ fn citations_are_a_separate_list_carrying_their_provenance() {
 /// 🔴 **AC9 (FR34)** — mục từ **tiếng Anh** đi qua **CÙNG** đường gom và **CÙNG** hình dạng
 /// bản ghi với mục tiếng Trung.
 ///
-/// AD-44 ⑤: *"`lang` là một **trường**, ⛔ không phải một **kiểu** — ⛔ không tồn tại bản
+/// AD-44 ⑤: *"`lang` là một **trường**, không phải một **kiểu** — không tồn tại bản
 /// ghi kết quả thứ hai dành riêng cho tiếng Anh"*. Một `EnSourceGroup` song song sẽ buộc
 /// **mọi** chỗ gọi phân nhánh theo kiểu, và bước hợp nhất hai nhánh đó lại chính là thứ
 /// AD-19 cấm.
@@ -1874,7 +1874,7 @@ fn an_english_entry_travels_the_same_grouping_path_and_the_same_record_shape() {
     );
 
     // 🔴 *"Một hình dạng bản ghi"* là một mệnh đề của **KIỂU**, và cách nghiệm thu nó là
-    // xếp cả hai vào **cùng một** bộ sưu tập: một `EnSenseRecord` song song ⛔ **không biên
+    // xếp cả hai vào **cùng một** bộ sưu tập: một `EnSenseRecord` song song **không biên
     // dịch** ở dòng dưới đây. Đó là phép cưỡng chế mạnh nhất có thể cho AD-44 ⑤, và nó
     // mạnh hơn mọi `assert!` vì nó đỏ ở **thời điểm biên dịch**.
     let zh = base.senses(&[1]).expect("đọc nghĩa của 山");
@@ -1894,7 +1894,7 @@ fn an_english_entry_travels_the_same_grouping_path_and_the_same_record_shape() {
 
 /// 🔴 **AC10 (FR35)** — nhãn ngoại ngữ nhận ra qua **`dict_sense.pos_lang`**, một **TRƯỜNG**.
 ///
-/// ⛔ **Không** đoán từ nội dung `pos`, ⛔ không một bảng tra `"noun" ⇒ tiếng Anh` nào: một
+/// **Không** đoán từ nội dung `pos`, không một bảng tra `"noun" ⇒ tiếng Anh` nào: một
 /// bảng như thế sai **im lặng** với mọi nhãn nó chưa gặp, và nó sai ở **story sau**.
 #[test]
 fn the_foreign_pos_label_is_marked_by_a_field_not_guessed_from_its_content() {
@@ -1937,7 +1937,7 @@ fn the_foreign_pos_label_is_marked_by_a_field_not_guessed_from_its_content() {
 /// 🔴 **AC11** — lớp mang `pos_lang = 'vi'` cho từ loại · ví dụ · trích dẫn **tiếng Việt**,
 /// và nhóm của lớp nền vẫn **có mặt cạnh nó**.
 ///
-/// ⚠️ **FIXTURE, ⛔ không phải dữ liệu HVTĐTD thật** — xem doc-comment của [`HV_SENSES_SHAN`].
+/// ⚠️ **FIXTURE, không phải dữ liệu HVTĐTD thật** — xem doc-comment của [`HV_SENSES_SHAN`].
 #[test]
 fn a_han_viet_shaped_layer_stands_beside_the_base_layer_not_instead_of_it() {
     let dir = temp_dir("hvshape");
@@ -1952,7 +1952,7 @@ fn a_han_viet_shaped_layer_stands_beside_the_base_layer_not_instead_of_it() {
         .collect();
     assert!(
         codes.contains(&"fx-hv") && codes.contains(&"fx-core-a"),
-        "cả hai nhóm phải có mặt — ⛔ KHÔNG nhóm nào bị chọn làm *câu trả lời* (FR32): {codes:?}"
+        "cả hai nhóm phải có mặt — KHÔNG nhóm nào bị chọn làm *câu trả lời* (FR32): {codes:?}"
     );
 
     let hv = layers.layer("hv-fixture").expect("lớp Hán Việt");
@@ -1965,7 +1965,7 @@ fn a_han_viet_shaped_layer_stands_beside_the_base_layer_not_instead_of_it() {
     );
     assert_eq!(senses[0].citations[0].author.as_deref(), Some("Lý Phưởng"));
 
-    // Và lớp nền cạnh nó vẫn mang nhãn NGOẠI NGỮ — hai nhãn cùng tồn tại, ⛔ không nhãn nào
+    // Và lớp nền cạnh nó vẫn mang nhãn NGOẠI NGỮ — hai nhãn cùng tồn tại, không nhãn nào
     // được viết lại ở tầng này.
     let base = layers.layer("base").expect("lớp nền");
     assert_eq!(
@@ -1983,18 +1983,18 @@ fn a_han_viet_shaped_layer_stands_beside_the_base_layer_not_instead_of_it() {
 // 🔴 AC12 — FR36 HÀNH VI: xoá tệp `.db` của một lớp gỡ rời BẤT KỲ
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Bộ mệnh đề tra cứu **⛔ không phụ thuộc một lớp gỡ rời nào**.
+/// Bộ mệnh đề tra cứu **không phụ thuộc một lớp gỡ rời nào**.
 ///
-/// 🔴 Đây là hợp đồng của AC12: **cùng** hàm này chạy trước và sau khi xoá, ⛔ không một
-/// nhánh `#[cfg]` nào, ⛔ không một tham số *"lớp X có mặt ⛔ không"* nào. Nếu một mệnh đề
-/// dưới đây phải biết lớp nào đang có, nó ⛔ **không thuộc về đây**.
+/// 🔴 Đây là hợp đồng của AC12: **cùng** hàm này chạy trước và sau khi xoá, không một
+/// nhánh `#[cfg]` nào, không một tham số *"lớp X có mặt không"* nào. Nếu một mệnh đề
+/// dưới đây phải biết lớp nào đang có, nó **không thuộc về đây**.
 fn the_layer_independent_lookups_still_hold(layers: &DictLayers) {
     let shan = lookup_grouped(layers, "山", LookupMode::Exact, UNLIMITED);
     assert_eq!(shan.route, QueryRoute::Zh);
     assert_eq!(shan.branch, QueryBranch::ExactBtree);
     assert!(
         shan.skipped.is_empty(),
-        "một tệp ĐÃ XOÁ ⛔ KHÔNG phải một lớp *bị bỏ qua* — nó ⛔ không còn là một lớp: {:?}",
+        "một tệp ĐÃ XOÁ KHÔNG phải một lớp *bị bỏ qua* — nó không còn là một lớp: {:?}",
         shan.skipped
     );
     let base_group = shan
@@ -2012,7 +2012,7 @@ fn the_layer_independent_lookups_still_hold(layers: &DictLayers) {
         vec!["山"]
     );
 
-    // 🔴 *"Rơi về nhãn tiếng Anh của lớp nền, ⛔ không có đường tra cứu nào hỏng"*
+    // 🔴 *"Rơi về nhãn tiếng Anh của lớp nền, không có đường tra cứu nào hỏng"*
     // (`epics.md:1575`) — và nó phải đúng **kể cả khi lớp Hán Việt còn đó**.
     let base = layers.layer("base").expect("lớp nền luôn có mặt");
     let senses = base.senses(&[1]).expect("đọc nghĩa lớp nền");
@@ -2020,14 +2020,14 @@ fn the_layer_independent_lookups_still_hold(layers: &DictLayers) {
     assert_eq!(senses[0].pos_lang.as_deref(), Some("en"));
     assert!(!senses[0].examples.is_empty());
 
-    // Một nguồn khác của **cùng** tệp nền vẫn tra được — nhóm theo `code`, ⛔ không theo tệp.
+    // Một nguồn khác của **cùng** tệp nền vẫn tra được — nhóm theo `code`, không theo tệp.
     let gaoshan = lookup_grouped(layers, "高山", LookupMode::Exact, UNLIMITED);
     assert_eq!(
         groups_of(&gaoshan),
         vec![("fx-core-b".to_owned(), vec!["高山".to_owned()])]
     );
 
-    // Đường tiếng Anh cũng vậy — nó ⛔ không đi qua một lớp gỡ rời nào.
+    // Đường tiếng Anh cũng vậy — nó không đi qua một lớp gỡ rời nào.
     let lock = lookup_grouped(layers, "lock", LookupMode::Exact, UNLIMITED);
     assert_eq!(
         groups_of(&lock),
@@ -2044,17 +2044,17 @@ fn the_layer_independent_lookups_still_hold(layers: &DictLayers) {
 /// 🔴 **AC12 — món nợ FR36 mở từ Story 1.10, và nó ĐÓNG Ở ĐÂY.**
 ///
 /// *"Xoá file → chạy lại bộ test tra cứu → hệ thống vẫn hoạt động đầy đủ với các nguồn còn
-/// lại"* (AD-10). `deferred-work.md` chốt: *"⛔ Không đánh dấu FR36 là 'đã nghiệm thu' cho
+/// lại"* (AD-10). `deferred-work.md` chốt: *"Không đánh dấu FR36 là 'đã nghiệm thu' cho
 /// tới khi 1.13 viết phép thử này"*.
 ///
 /// ⚠️ **Ca dễ trượt nhất, và nó trượt XANH:** một bộ test dựng fixture rồi **luôn** mở đủ
-/// ba tệp sẽ *"đạt"* AC này mà ⛔ chưa bao giờ chạy đường thiếu tệp. Nên ca này **xoá tệp
+/// ba tệp sẽ *"đạt"* AC này mà chưa bao giờ chạy đường thiếu tệp. Nên ca này **xoá tệp
 /// thật** rồi **mở lại tập lớp** — và trên **Windows**, xoá một tệp còn mở là một lỗi
 /// (NFR14), nên `DictLayers` phải được **drop trước** khi xoá. Đó là luật 2 của tệp này, và
 /// đây là lý do luật đó tồn tại.
 ///
-/// 🔴 Danh sách lớp gỡ rời **dẫn xuất từ chính tập lớp**, ⛔ không viết cứng: mệnh đề của
-/// `epics.md:1572` là *"một lớp gỡ rời **BẤT KỲ**"*, và nó ⛔ không nghiệm thu được bằng một
+/// 🔴 Danh sách lớp gỡ rời **dẫn xuất từ chính tập lớp**, không viết cứng: mệnh đề của
+/// `epics.md:1572` là *"một lớp gỡ rời **BẤT KỲ**"*, và nó không nghiệm thu được bằng một
 /// lớp được chọn sẵn.
 #[test]
 fn deleting_any_detachable_layer_keeps_the_whole_lookup_suite_green() {
@@ -2075,7 +2075,7 @@ fn deleting_any_detachable_layer_keeps_the_whole_lookup_suite_green() {
 
     assert!(
         detachable.len() >= 2,
-        "fixture phải có ÍT NHẤT hai lớp gỡ rời — *một lớp bất kỳ* ⛔ không nghiệm thu được \
+        "fixture phải có ÍT NHẤT hai lớp gỡ rời — *một lớp bất kỳ* không nghiệm thu được \
          trên một lớp duy nhất. Thấy: {detachable:?}"
     );
 
@@ -2085,8 +2085,8 @@ fn deleting_any_detachable_layer_keeps_the_whole_lookup_suite_green() {
 
         // ── Đối chứng dương (Task 6.3) ───────────────────────────────────────────
         //
-        // 🔴 ⛔ Không có nó thì *"xoá xong vẫn xanh"* và *"lớp đó chưa bao giờ được nạp"*
-        // đọc **giống hệt nhau**, và ca này sẽ xanh trên một cài đặt ⛔ không bao giờ mở
+        // 🔴 Không có nó thì *"xoá xong vẫn xanh"* và *"lớp đó chưa bao giờ được nạp"*
+        // đọc **giống hệt nhau**, và ca này sẽ xanh trên một cài đặt không bao giờ mở
         // lớp gỡ rời nào.
         let layers = DictLayers::open(&dir);
         let before = lookup_grouped(&layers, "山", LookupMode::Exact, UNLIMITED);
@@ -2108,7 +2108,7 @@ fn deleting_any_detachable_layer_keeps_the_whole_lookup_suite_green() {
         drop(layers);
         fs::remove_file(&victim).unwrap_or_else(|e| panic!("xoá {}: {e}", victim.display()));
 
-        // ── Mở LẠI tập lớp: đây là thứ phép thử đo, ⛔ không phải một lượt tra lại ─────
+        // ── Mở LẠI tập lớp: đây là thứ phép thử đo, không phải một lượt tra lại ─────
         let layers = DictLayers::open(&dir);
         assert!(
             layers.layer(target).is_none(),
@@ -2117,16 +2117,16 @@ fn deleting_any_detachable_layer_keeps_the_whole_lookup_suite_green() {
         assert_eq!(
             layers.layers().len(),
             detachable.len(),
-            "xoá một lớp ⇒ đúng một lớp biến mất, ⛔ không kéo theo lớp nào khác"
+            "xoá một lớp ⇒ đúng một lớp biến mất, không kéo theo lớp nào khác"
         );
         assert!(
             layers.skipped().is_empty(),
-            "một tệp ĐÃ XOÁ ⛔ KHÔNG được xuất hiện trong danh sách bỏ qua — *gỡ một lớp* là \
-             một thao tác BÌNH THƯỜNG (FR112), ⛔ không phải một lỗi dữ liệu: {:?}",
+            "một tệp ĐÃ XOÁ KHÔNG được xuất hiện trong danh sách bỏ qua — *gỡ một lớp* là \
+             một thao tác BÌNH THƯỜNG (FR112), không phải một lỗi dữ liệu: {:?}",
             layers.skipped()
         );
 
-        // 🔴 **CÙNG** bộ mệnh đề, ⛔ không sửa một ca nào, ⛔ không một nhánh `#[cfg]` nào.
+        // 🔴 **CÙNG** bộ mệnh đề, không sửa một ca nào, không một nhánh `#[cfg]` nào.
         the_layer_independent_lookups_still_hold(&layers);
 
         layers.close();
@@ -2135,7 +2135,7 @@ fn deleting_any_detachable_layer_keeps_the_whole_lookup_suite_green() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// AC13 — NFR1 trên ĐƯỜNG GOM. ⛔ KHÔNG chạy trong CI.
+// AC13 — NFR1 trên ĐƯỜNG GOM. KHÔNG chạy trong CI.
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// 🔴 Phép đo p95 của NFR1 **trên đường gom** — `#[ignore]`, lái bằng **biến môi trường**.
@@ -2148,22 +2148,22 @@ fn deleting_any_detachable_layer_keeps_the_whole_lookup_suite_green() {
 ///
 /// 🔴 **Đường dẫn TUYỆT ĐỐI, và `--release`.** Hai vế, cả hai đều đo được:
 ///
-/// - `cargo test` chạy nhị phân với thư mục làm việc là **`src-tauri/`**, ⛔ không phải gốc
+/// - `cargo test` chạy nhị phân với thư mục làm việc là **`src-tauri/`**, không phải gốc
 ///   kho — nên `tools/dict-build/out` tương đối trỏ vào hư không, và ca này đỏ với
-///   *"⛔ không phải một thư mục"* thay vì đo.
+///   *"không phải một thư mục"* thay vì đo.
 /// - Bản **debug** chậm hơn khoảng **2×** (Story 1.11 đo 7,324 ms release so với 15,045 ms
 ///   debug trên cùng một nhánh). Số nghiệm thu là số của bản người dùng chạy.
 ///
-/// ⚠️ Biến **mới**, ⛔ không dùng lại `AURA_DICT_BENCH_DB` của `dict_lookup.rs`: đường gom
+/// ⚠️ Biến **mới**, không dùng lại `AURA_DICT_BENCH_DB` của `dict_lookup.rs`: đường gom
 /// cần một **thư mục**, còn biến kia trỏ một **tệp**. Một biến mang hai nghĩa là một biến
 /// sẽ bị truyền sai đúng một lần, và lần đó cho một tập lớp rỗng — tức mọi con số ra `0`
 /// hàng và bảng đo *"đạt"* theo đúng cách sai nhất.
 ///
-/// ⛔ **Cả hai lớp chặn đều cần thiết:** `#[ignore]` (CI ⛔ không truyền `--ignored`) **và**
-/// biến vắng mặt ⇒ bỏ qua. CI ⛔ không có tệp `.db` nào (`.gitignore: *.db` — AD-25).
+/// **Cả hai lớp chặn đều cần thiết:** `#[ignore]` (CI không truyền `--ignored`) **và**
+/// biến vắng mặt ⇒ bỏ qua. CI không có tệp `.db` nào (`.gitignore: *.db` — AD-25).
 ///
-/// 🔴 **⛔ KHÔNG có `assert!` ngưỡng thời gian ở đây, và đó là mệnh đề của AC13** — ⛔ không
-/// phải một chỗ bỏ sót. AC13 nói thẳng: *"vượt trần ⇒ **GHI SỐ VÀ BÀN GIAO**, ⛔ KHÔNG tự
+/// 🔴 **KHÔNG có `assert!` ngưỡng thời gian ở đây, và đó là mệnh đề của AC13** — không
+/// phải một chỗ bỏ sót. AC13 nói thẳng: *"vượt trần ⇒ **GHI SỐ VÀ BÀN GIAO**, KHÔNG tự
 /// thêm `LIMIT`"*, vì đường ra là một **quyết định sản phẩm** chạm hợp đồng của Panel Lookup
 /// (1.17). Một `assert!` ở đây biến một **bàn giao** thành một **cổng đỏ theo thiết kế**, và
 /// một cổng luôn đỏ bị gỡ trong tuần. Con số in ra là thứ đi vào §Completion Notes.
@@ -2178,7 +2178,7 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
     let dir = PathBuf::from(&raw);
     assert!(
         dir.is_dir(),
-        "AURA_DICT_BENCH_DIR trỏ tới {} — ⛔ không phải một thư mục",
+        "AURA_DICT_BENCH_DIR trỏ tới {} — không phải một thư mục",
         dir.display()
     );
 
@@ -2201,7 +2201,7 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
     }
     assert!(
         !layers.layers().is_empty(),
-        "⛔ không lớp nào nạp được từ {} — mọi con số dưới đây sẽ là 0 và bảng sẽ *đạt* \
+        "không lớp nào nạp được từ {} — mọi con số dưới đây sẽ là 0 và bảng sẽ *đạt* \
          theo đúng cách sai nhất",
         dir.display()
     );
@@ -2251,7 +2251,7 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
             let _ = lookup_grouped(&layers, query, *mode, UNLIMITED);
             samples.push(start.elapsed().as_secs_f64() * 1000.0);
         }
-        samples.sort_by(|a, b| a.partial_cmp(b).expect("⛔ không có NaN trong phép đo"));
+        samples.sort_by(|a, b| a.partial_cmp(b).expect("không có NaN trong phép đo"));
 
         let result = lookup_grouped(&layers, query, *mode, UNLIMITED);
         let rows: usize = result.groups.iter().map(|g| g.entries.len()).sum();
@@ -2317,7 +2317,7 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
                 let _ = layer.senses(ids).expect("đọc nghĩa");
                 samples.push(start.elapsed().as_secs_f64() * 1000.0);
             }
-            samples.sort_by(|a, b| a.partial_cmp(b).expect("⛔ không có NaN"));
+            samples.sort_by(|a, b| a.partial_cmp(b).expect("không có NaN"));
             let (p50, p95, p99) = (
                 pct(&samples, 50.0),
                 pct(&samples, 95.0),
@@ -2360,7 +2360,7 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
     let mut json_bytes_worst = 0usize;
 
     // ⚠️ `commands::dict::lookup()` cố định `LookupMode::Exact` (Quyết định #3) — nhánh
-    // `char_idx`/`fts_trigram` (Substring) ⛔ đi qua đường sản phẩm thật. Đo chúng vẫn cần
+    // `char_idx`/`fts_trigram` (Substring) không đi qua đường sản phẩm thật. Đo chúng vẫn cần
     // thiết cho hệ quả ①/Bẫy 11 (đã đo ở Task 0 qua `lookup_grouped` trực tiếp); ở ĐÂY đo
     // đúng những gì Panel Lookup THẬT SỰ gọi — chỉ nhánh `ExactBtree`.
     let after_cases: &[&str] = &["山", "中國", "打", "running", "Running"];
@@ -2376,7 +2376,7 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
             let _ = auratranslate_lib::commands::dict::lookup(Some(&layers), query);
             samples.push(start.elapsed().as_secs_f64() * 1000.0);
         }
-        samples.sort_by(|a, b| a.partial_cmp(b).expect("⛔ không có NaN trong phép đo"));
+        samples.sort_by(|a, b| a.partial_cmp(b).expect("không có NaN trong phép đo"));
 
         let response = auratranslate_lib::commands::dict::lookup(Some(&layers), query);
         let rows: usize = response.grouped.groups.iter().map(|g| g.entries.len()).sum();
@@ -2395,14 +2395,14 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
             after_worst = (p95, format!("lookup({query:?})"));
         }
 
-        // 🔴 Ước tính chi phí SERIALIZE JSON — phần duy nhất của "vòng IPC" đo được ⛔ cần
+        // 🔴 Ước tính chi phí SERIALIZE JSON — phần duy nhất của "vòng IPC" đo được không cần
         // một tiến trình Tauri thật đang chạy (xem §giới hạn phép đo dưới).
         let json = serde_json::to_string(&response).expect("serialize LookupResponse");
         json_bytes_worst = json_bytes_worst.max(json.len());
     }
 
     // char_idx 1 ký tự (Substring) — nhánh ĐẮT NHẤT theo Task 0, đo TRỰC TIẾP qua
-    // `lookup_grouped` với LIMIT vì `commands::dict::lookup()` ⛔ đi nhánh Substring
+    // `lookup_grouped` với LIMIT vì `commands::dict::lookup()` không đi nhánh Substring
     // (Quyết định #3 cố định Exact) — đây là con số "nếu Auto-Lookup 1.18 dùng Substring".
     {
         let query = "山";
@@ -2415,14 +2415,14 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
             let _ = lookup_grouped(&layers, query, LookupMode::Substring, PAGE);
             samples.push(start.elapsed().as_secs_f64() * 1000.0);
         }
-        samples.sort_by(|a, b| a.partial_cmp(b).expect("⛔ không có NaN"));
+        samples.sort_by(|a, b| a.partial_cmp(b).expect("không có NaN"));
         let (p50, p95, p99) = (
             pct(&samples, 50.0),
             pct(&samples, 95.0),
             pct(&samples, 99.0),
         );
         println!(
-            "  {:<18} {query:<10} {:>7} {:>9.3}ms {:>9.3}ms {:>9.3}ms  (LIMIT={PAGE}, chỉ pha một — Substring ⛔ qua command)",
+            "  {:<18} {query:<10} {:>7} {:>9.3}ms {:>9.3}ms {:>9.3}ms  (LIMIT={PAGE}, chỉ pha một — Substring không qua command)",
             "char_idx-1(sub)", "-", p50, p95, p99
         );
         if p95 > after_worst.0 {
@@ -2454,10 +2454,10 @@ fn fixture_ddl_is_verbatim_from_dict_build_schema() {
         let needle = ddl.replace('"', "\\\"");
         assert!(
             source.contains(&needle),
-            "khối DDL `{name}` trong `tests/dict_sources.rs` ⛔ KHÔNG còn khớp nguyên văn \
+            "khối DDL `{name}` trong `tests/dict_sources.rs` KHÔNG còn khớp nguyên văn \
              với `tools/dict-build/src/schema.rs`.\n\n\
              Lược đồ hai cây đã trôi khỏi nhau. MỌI ca trong tệp này đang kiểm một database \
-             ⛔ không tồn tại trong sản phẩm.\n\n\
+             không tồn tại trong sản phẩm.\n\n\
              Đang tìm:\n{needle}"
         );
     }
@@ -2472,11 +2472,11 @@ fn fixture_ddl_is_verbatim_from_dict_build_schema() {
 /// 🔴 [`SUPPORTED_SCHEMA_VERSION`] của `src-tauri` phải **bằng** `SCHEMA_VERSION` của
 /// `tools/dict-build`.
 ///
-/// Vì sao đây là một cổng chứ ⛔ không phải một dòng ghi chú: hai workspace tách rời **có
-/// chủ ý** (AC4 của Story 1.9) nên ⛔ không có import chéo nào giữ hai hằng dính nhau. Một
+/// Vì sao đây là một cổng chứ không phải một dòng ghi chú: hai workspace tách rời **có
+/// chủ ý** (AC4 của Story 1.9) nên không có import chéo nào giữ hai hằng dính nhau. Một
 /// lượt nâng `SCHEMA_VERSION` ở build tool mà quên bên đọc làm **mọi** tệp `.db` mới bị
-/// AC4 từ chối với lý do *"quá mới"* — tức từ điển biến mất sạch, ⛔ không lỗi nào được
-/// ném, và triệu chứng lộ ra ở tay người dùng chứ ⛔ không ở CI.
+/// AC4 từ chối với lý do *"quá mới"* — tức từ điển biến mất sạch, không lỗi nào được
+/// ném, và triệu chứng lộ ra ở tay người dùng chứ không ở CI.
 #[test]
 fn the_supported_schema_version_matches_dict_build() {
     let source = read_dict_build_schema();
@@ -2484,10 +2484,10 @@ fn the_supported_schema_version_matches_dict_build() {
 
     assert!(
         source.contains(&needle),
-        "`tools/dict-build/src/schema.rs` ⛔ KHÔNG chứa `{needle}`.\n\n\
+        "`tools/dict-build/src/schema.rs` KHÔNG chứa `{needle}`.\n\n\
          `core::dict::SUPPORTED_SCHEMA_VERSION` là {SUPPORTED_SCHEMA_VERSION}, và đường đọc \
          TỪ CHỐI mọi tệp mang `user_version` lớn hơn nó (AC4). Hai hằng lệch nhau nghĩa là \
-         mọi tệp `.db` do build tool viết ra sẽ bị từ chối — từ điển biến mất sạch mà ⛔ \
+         mọi tệp `.db` do build tool viết ra sẽ bị từ chối — từ điển biến mất sạch mà không \
          không lỗi nào được ném."
     );
 }
@@ -2502,8 +2502,8 @@ fn read_dict_build_schema() -> String {
 
     fs::read_to_string(&schema_rs).unwrap_or_else(|e| {
         panic!(
-            "đọc {}: {e}. Cổng parity ⛔ KHÔNG được nới thành `if let Ok(...)` — một tệp \
-             nguồn ⛔ không đọc được là một cổng chết, ⛔ không phải một cổng đã đạt.",
+            "đọc {}: {e}. Cổng parity KHÔNG được nới thành `if let Ok(...)` — một tệp \
+             nguồn không đọc được là một cổng chết, không phải một cổng đã đạt.",
             schema_rs.display()
         )
     })
@@ -2553,8 +2553,8 @@ fn han_viet_reads_the_raw_reading_and_its_source_code() {
             reading: "sơn".to_owned(),
             source_code: "fx-core-a".to_owned(),
         }],
-        "chỉ `山` mang han_viet; `國` chưa được ghi ⇒ ⛔ KHÔNG một hàng nào cho nó \
-         (bộ lọc `IS NOT NULL`, ⛔ không một ô trống câm)"
+        "chỉ `山` mang han_viet; `國` chưa được ghi ⇒ KHÔNG một hàng nào cho nó \
+         (bộ lọc `IS NOT NULL`, không một ô trống câm)"
     );
 
     layers.close();
@@ -2599,7 +2599,7 @@ fn han_viet_covers_both_the_traditional_and_the_simplified_headword() {
 
 /// 🔴 **Quyết định #3, tiền đề của nó** — `reading` đi ra **CHƯA TÁCH**, dù tệp dùng dấu
 /// `|` (khuôn Thiều Chửu) hay khoảng trắng (khuôn Unihan). Tách nhiều âm là việc của tầng
-/// gom (Task 3), method này ⛔ không được tự ý cắt chuỗi.
+/// gom (Task 3), method này không được tự ý cắt chuỗi.
 #[test]
 fn han_viet_leaves_multi_reading_strings_unsplit() {
     let dir = temp_dir("hanviet-multi");
@@ -2634,7 +2634,7 @@ fn han_viet_leaves_multi_reading_strings_unsplit() {
     cleanup(&dir);
 }
 
-/// Tập ký tự rỗng ⇒ danh sách rỗng, ⛔ **không** một lượt chạm database nào — cùng luật
+/// Tập ký tự rỗng ⇒ danh sách rỗng, **không** một lượt chạm database nào — cùng luật
 /// [`an_entry_without_senses_is_an_empty_list_not_an_error`].
 #[test]
 fn an_empty_char_batch_touches_no_database_row() {
@@ -2671,13 +2671,13 @@ fn han_viet_across_many_batches_never_duplicates_or_drops_a_row() {
     straight.sort_by(|a, b| (a.character.as_str(), a.source_code.as_str())
         .cmp(&(b.character.as_str(), b.source_code.as_str())));
 
-    // 200 ký tự giả (Khu vực dùng riêng, ⛔ không đầu mục nào khớp) cộng ba ký tự thật
+    // 200 ký tự giả (Khu vực dùng riêng, không đầu mục nào khớp) cộng ba ký tự thật
     // chen vào giữa — bốn lô, lô cuối đệm, và ba ký tự thật rơi vào NHIỀU lô khác nhau.
     //
     // 🔴 `国` VÀ `國` là **cùng một hàng** (`id = 6` của `zzz.db`: `headword = 國`,
     // `headword_simp = 国`) nhưng nằm ở **HAI LÔ KHÁC NHAU** — đây là điều kiện tiên quyết
-    // của lỗi trùng-hàng, và bản đầu của test này ⛔ **không** dựng nổi nó: cả `山` lẫn `國`
-    // đều chỉ khớp qua MỘT trường, nên ⛔ không hàng nào có thể trả lời ở hai lô.
+    // của lỗi trùng-hàng, và bản đầu của test này **không** dựng nổi nó: cả `山` lẫn `國`
+    // đều chỉ khớp qua MỘT trường, nên không hàng nào có thể trả lời ở hai lô.
     //
     // Với phép lọc theo **tập đầy đủ** (bản đầu của `read_han_viet`), lô chứa `国` và lô
     // chứa `國` mỗi lô đẩy **cả hai** hit ⇒ **5 hit thay vì 3**, và test này ĐỎ. Đó chính là
@@ -2701,7 +2701,7 @@ fn han_viet_across_many_batches_never_duplicates_or_drops_a_row() {
 
     assert_eq!(
         batched, straight,
-        "chia lô là chi tiết CÀI ĐẶT — nó ⛔ KHÔNG được đổi kết quả. Trùng hàng ở đây là \
+        "chia lô là chi tiết CÀI ĐẶT — nó KHÔNG được đổi kết quả. Trùng hàng ở đây là \
          một phép đệm sai; thiếu hàng là một lô bị bỏ; một hàng LẠ là ký tự giả (PUA) bị \
          khớp nhầm."
     );
@@ -2743,7 +2743,7 @@ fn detachable_layers_outrank_the_base_layer() {
 }
 
 /// 🔴 **Quyết định #1, mệnh đề 3** — mỗi ký tự mang `source_code`, và tầng gom liệt kê
-/// TOÀN BỘ nguồn đã đóng góp cho lượt hiện tại (một dòng, ⛔ không một nhãn mỗi ký tự).
+/// TOÀN BỘ nguồn đã đóng góp cho lượt hiện tại (một dòng, không một nhãn mỗi ký tự).
 #[test]
 fn each_character_carries_its_source_and_the_lookup_lists_every_source_used() {
     let dir = temp_dir("hanviet-sources");
@@ -2819,14 +2819,14 @@ fn multiple_readings_split_on_both_the_pipe_and_whitespace_conventions() {
 /// `dict-tran-van-chanh.db` **2.326** hàng *(lớp gỡ rời ưu tiên CAO NHẤT)*.
 ///
 /// Hai hình dạng ĐỀU tồn tại thật và hỏng theo hai kiểu khác nhau — test này giữ cả hai:
-/// - `"tây,tê"` *(⛔ không khoảng trắng)* → bản đầu trả **một** phần tử `"tây,tê"`.
+/// - `"tây,tê"` *(không khoảng trắng)* → bản đầu trả **một** phần tử `"tây,tê"`.
 /// - `"chiêm, thiềm"` *(phẩy + khoảng trắng)* → bản đầu trả `primary = "chiêm,"`, **dấu
 ///   phẩy đuôi lên màn hình** (`str::trim` chỉ cắt khoảng trắng).
 #[test]
 fn multiple_readings_split_on_the_comma_convention_too() {
     let dir = temp_dir("hanviet-split-comma");
     build_all_layers(&dir);
-    set_han_viet(&dir, "mmm.db", 1, "tây,tê"); // khuôn en-wiktionary-vi: ⛔ không khoảng trắng
+    set_han_viet(&dir, "mmm.db", 1, "tây,tê"); // khuôn en-wiktionary-vi: không khoảng trắng
     set_han_viet(&dir, "zzz.db", 6, "chiêm, thiềm"); // khuôn Trần Văn Chánh: phẩy + khoảng trắng
 
     let layers = DictLayers::open(&dir);
@@ -2843,7 +2843,7 @@ fn multiple_readings_split_on_the_comma_convention_too() {
     let r2 = with_space.characters[0].reading.as_ref().expect("國 phải có âm");
     assert_eq!(
         r2.primary, "chiêm",
-        "⛔ KHÔNG được mang dấu phẩy đuôi — `str::trim` chỉ cắt khoảng trắng"
+        "KHÔNG được mang dấu phẩy đuôi — `str::trim` chỉ cắt khoảng trắng"
     );
     assert_eq!(r2.all, vec!["chiêm".to_owned(), "thiềm".to_owned()]);
 
@@ -2851,8 +2851,8 @@ fn multiple_readings_split_on_the_comma_convention_too() {
     cleanup(&dir);
 }
 
-/// 🔴 **AC4 — ba trạng thái, ⛔ không một.** (1) ký tự có âm; (2) ký tự ⛔ không có âm ở
-/// bất kỳ lớp nào (nhưng CÓ lớp đang gắn); (3) ⛔ không lớp nào đang gắn.
+/// 🔴 **AC4 — ba trạng thái, không một.** (1) ký tự có âm; (2) ký tự không có âm ở
+/// bất kỳ lớp nào (nhưng CÓ lớp đang gắn); (3) không lớp nào đang gắn.
 #[test]
 fn three_distinct_states_never_collapse_into_one() {
     let dir = temp_dir("hanviet-states");
@@ -2860,7 +2860,7 @@ fn three_distinct_states_never_collapse_into_one() {
     set_han_viet(&dir, "zzz.db", 1, "sơn");
 
     // (1) và (2) cùng lúc: `山` có âm, `高` (từ `高山`, KHÔNG match vì headword 2 ký tự)
-    // ⛔ không có âm dù CÓ lớp đang gắn.
+    // không có âm dù CÓ lớp đang gắn.
     let layers = DictLayers::open(&dir);
     let result = lookup_han_viet(&layers, &["山", "高"]);
     assert!(result.layers_loaded, "ca (1)/(2): CÓ lớp đang gắn");
@@ -2878,7 +2878,7 @@ fn three_distinct_states_never_collapse_into_one() {
     assert!(!empty_result.layers_loaded, "ca (3): KHÔNG lớp nào đang gắn");
     assert!(
         empty_result.characters[0].reading.is_none(),
-        "0 lớp ⇒ ⛔ không âm nào, nhưng lý do PHẢI phân biệt được qua `layers_loaded`"
+        "0 lớp ⇒ không âm nào, nhưng lý do PHẢI phân biệt được qua `layers_loaded`"
     );
 
     cleanup(&dir);
@@ -2887,8 +2887,8 @@ fn three_distinct_states_never_collapse_into_one() {
 
 /// 🔴 **AC5 / FR36 — nghiệm thu ở mức DEGRADATION, bằng test THẬT xoá tệp.**
 ///
-/// Xoá CẢ HAI lớp gỡ rời ⇒ tab vẫn trả âm từ lớp NỀN, ⛔ không một đường nào hỏng. Phủ
-/// giảm là kết quả ĐÚNG, ⛔ không phải một lỗi cần sửa.
+/// Xoá CẢ HAI lớp gỡ rời ⇒ tab vẫn trả âm từ lớp NỀN, không một đường nào hỏng. Phủ
+/// giảm là kết quả ĐÚNG, không phải một lỗi cần sửa.
 #[test]
 fn removing_every_detachable_layer_still_serves_readings_from_the_base_layer() {
     let dir = temp_dir("hanviet-fr36");
@@ -2917,7 +2917,7 @@ fn removing_every_detachable_layer_still_serves_readings_from_the_base_layer() {
     );
 
     let after = lookup_han_viet(&layers_after, &["山"]);
-    assert!(after.layers_loaded, "lớp nền vẫn nạp được ⇒ ⛔ không một đường nào hỏng");
+    assert!(after.layers_loaded, "lớp nền vẫn nạp được ⇒ không một đường nào hỏng");
     let reading = after.characters[0]
         .reading
         .as_ref()
@@ -2958,7 +2958,7 @@ fn the_output_keeps_one_slot_per_input_character_including_repeats() {
 // Story 1.16, Task 6/7 chuẩn bị — bề mặt IPC `commands::dict::read_han_viet`
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// `layers = None` phải đối xử GIỐNG HỆT một tập lớp rỗng — ⛔ không một nhánh lỗi riêng.
+/// `layers = None` phải đối xử GIỐNG HỆT một tập lớp rỗng — không một nhánh lỗi riêng.
 #[test]
 fn read_han_viet_command_treats_a_missing_state_like_an_empty_layer_set() {
     let result = auratranslate_lib::commands::dict::read_han_viet(None, &["山".to_owned()]);
@@ -3009,7 +3009,7 @@ fn lookup_command_hydrates_senses_for_exactly_the_returned_entries() {
     let result = auratranslate_lib::commands::dict::lookup(Some(&layers), "山");
 
     // `山` khớp ở CẢ BA lớp — `base` (nguồn `fx-core-a`), `hv-fixture` (nguồn `fx-hv`),
-    // `vp-fixture` (nguồn `fx-vp`) — AD-19, cả ba nhóm cùng có mặt, ⛔ không hợp nhất.
+    // `vp-fixture` (nguồn `fx-vp`) — AD-19, cả ba nhóm cùng có mặt, không hợp nhất.
     let layers_in_groups: Vec<&str> = result
         .grouped
         .groups
@@ -3018,7 +3018,7 @@ fn lookup_command_hydrates_senses_for_exactly_the_returned_entries() {
         .collect();
     assert_eq!(layers_in_groups, vec!["base", "hv-fixture", "vp-fixture"]);
 
-    // Pha hai hydrate ĐÚNG ba lớp đó, ⛔ không hơn.
+    // Pha hai hydrate ĐÚNG ba lớp đó, không hơn.
     let hydrated_layers: Vec<&String> = result.senses_by_layer.keys().collect();
     assert_eq!(
         hydrated_layers,
@@ -3035,9 +3035,9 @@ fn lookup_command_hydrates_senses_for_exactly_the_returned_entries() {
     cleanup(&dir);
 }
 
-/// 🔴 Pha hai ⛔ **KHÔNG** hydrate cả từ điển — chỉ đúng tập `entry_id` pha một trả về.
+/// 🔴 Pha hai **KHÔNG** hydrate cả từ điển — chỉ đúng tập `entry_id` pha một trả về.
 /// Nhánh này gián tiếp chứng minh: nếu ai đó "tối ưu nhầm" bằng cách hydrate MỌI đầu mục
-/// của một lớp có nhóm (⛔ không riêng tập đã khớp), số nghĩa trả về sẽ vượt fixture.
+/// của một lớp có nhóm (không riêng tập đã khớp), số nghĩa trả về sẽ vượt fixture.
 #[test]
 fn lookup_command_does_not_hydrate_entries_the_first_phase_never_matched() {
     let dir = temp_dir("lookup-command-scope");
@@ -3050,7 +3050,7 @@ fn lookup_command_does_not_hydrate_entries_the_first_phase_never_matched() {
     assert_eq!(
         base_senses.len(),
         1,
-        "chỉ MỘT nghĩa của riêng `高山` — ⛔ không lẫn nghĩa của `山`/`中國` cùng lớp"
+        "chỉ MỘT nghĩa của riêng `高山` — không lẫn nghĩa của `山`/`中國` cùng lớp"
     );
     assert_eq!(base_senses[0].gloss, "alpine");
 
@@ -3062,7 +3062,7 @@ fn lookup_command_does_not_hydrate_entries_the_first_phase_never_matched() {
 /// `entry_id = 1` cho đầu mục `山` (fixture cố ý — xem doc-comment `LAYERS`, luật 1: "cả ba
 /// tệp dùng `id = 1` có chủ ý"), nhưng NGHĨA của chúng khác nhau hoàn toàn: lớp `base` ghi
 /// "mountain"/"surname Shan", lớp `hv-fixture` ghi "núi". Một cài đặt trộn `entry_id` xuyên
-/// lớp (đọc nhầm nghĩa của lớp KIA cho cùng số `1`) sẽ đi qua ca MỘT lớp mà ⛔ không lộ ra —
+/// lớp (đọc nhầm nghĩa của lớp KIA cho cùng số `1`) sẽ đi qua ca MỘT lớp mà không lộ ra —
 /// điều kiện tiên quyết của lỗi CHỈ dựng được với HAI lớp cùng `entry_id`.
 #[test]
 fn phase_two_never_mixes_entry_ids_across_two_layers_sharing_the_same_number() {
@@ -3094,7 +3094,7 @@ fn phase_two_never_mixes_entry_ids_across_two_layers_sharing_the_same_number() {
 }
 
 /// `senses(&[])` không chạm database — cùng luật `han_viet(&[])`. Chứng minh gián tiếp qua
-/// một truy vấn ⛔ khớp gì: `senses_by_layer` phải RỖNG, ⛔ một khoá lớp nào với danh sách
+/// một truy vấn không khớp gì: `senses_by_layer` phải RỖNG, không một khoá lớp nào với danh sách
 /// nghĩa rỗng đi kèm (điều đó sẽ là bằng chứng đã gọi `senses(&[])` một cách vô ích).
 #[test]
 fn lookup_command_calls_senses_with_an_empty_batch_for_no_layer() {
@@ -3105,7 +3105,7 @@ fn lookup_command_calls_senses_with_an_empty_batch_for_no_layer() {
     let result = auratranslate_lib::commands::dict::lookup(Some(&layers), "tu-khong-ton-tai-zzz");
     assert!(
         result.senses_by_layer.is_empty(),
-        "⛔ không nhóm nào khớp ⇒ ⛔ không lớp nào cần hydrate: {:?}",
+        "không nhóm nào khớp ⇒ không lớp nào cần hydrate: {:?}",
         result.senses_by_layer
     );
 
@@ -3114,9 +3114,9 @@ fn lookup_command_calls_senses_with_an_empty_batch_for_no_layer() {
 }
 
 /// 🔴 `deferred-work.md:363` — một truy vấn dài hơn sàn `QUERY_LENGTH_CEILING` (200 ký tự,
-/// riêng của `commands::dict`) bị CẮT trước khi vào đường tra, ⛔ không panic. Chứng minh
+/// riêng của `commands::dict`) bị CẮT trước khi vào đường tra, không panic. Chứng minh
 /// bằng hiệu ứng quan sát được: 200 ký tự Latin + MỘT ký tự Hán ở CUỐI. Nếu bị cắt trước
-/// khi qua `pick_route`, phần bị cắt KHÔNG còn ký tự Hán nào ⇒ `route = En`. Nếu ⛔ không
+/// khi qua `pick_route`, phần bị cắt KHÔNG còn ký tự Hán nào ⇒ `route = En`. Nếu không
 /// bị cắt, ký tự Hán ở cuối vẫn còn trong chuỗi ⇒ `route = Zh`.
 #[test]
 fn a_query_past_the_length_ceiling_is_truncated_before_it_reaches_the_lookup() {
@@ -3128,19 +3128,19 @@ fn a_query_past_the_length_ceiling_is_truncated_before_it_reaches_the_lookup() {
         result.grouped.route,
         auratranslate_lib::core::dict::QueryRoute::En,
         "201 ký tự bị cắt còn 200 ký tự Latin thuần TRƯỚC khi pick_route chạy — route phải \
-         là En, ⛔ không Zh (nếu Zh thì ký tự Hán ở vị trí 201 đã lọt qua sàn)"
+         là En, không Zh (nếu Zh thì ký tự Hán ở vị trí 201 đã lọt qua sàn)"
     );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// Story 1.17 — code review 2026-08-07: FR35 *"ngoại ngữ"* ⛔ ĐỒNG NGHĨA *"có ngôn ngữ"*
+// Story 1.17 — code review 2026-08-07: FR35 *"ngoại ngữ"* không ĐỒNG NGHĨA *"có ngôn ngữ"*
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// 🔴 **FR35 / AC4 — `pos_lang = "vi"` ⛔ PHẢI một nhãn ngoại ngữ.**
+/// 🔴 **FR35 / AC4 — `pos_lang = "vi"` không PHẢI một nhãn ngoại ngữ.**
 ///
 /// Bản đầu của 1.17 bật dấu hiệu ngoại ngữ ở webview theo `pos_lang !== null`, nên **mọi**
 /// nhãn có ghi ngôn ngữ đều bị dán chip — kể cả nhãn **tiếng Việt** (`"danh từ"`). Fixture
-/// mang **cả hai** ca nên ca test này ⛔ dựng thêm dữ liệu: `山` có `pos_lang = "en"` (thật
+/// mang **cả hai** ca nên ca test này không dựng thêm dữ liệu: `山` có `pos_lang = "en"` (thật
 /// sự ngoại ngữ), `lock`/`dictionary` có `pos_lang = "vi"` (bản ngữ).
 ///
 /// ⚠️ Vị từ sống ở **Rust** (AD-1) nên đây là chỗ nó được ghim — một ca test ở webview
@@ -3169,48 +3169,48 @@ fn a_native_language_pos_label_is_not_marked_as_foreign() {
 
     // Nhãn BẢN NGỮ — `pos_lang = "vi"`.
     // ⚠️ `lock` là **entry_id 4** (nghĩa của nó mang `sense_id 5`) — hai số khác nhau, và
-    // truyền nhầm số cho ra một danh sách rỗng chứ ⛔ một lỗi.
+    // truyền nhầm số cho ra một danh sách rỗng chứ không một lỗi.
     let lock = base.senses(&[4]).expect("đọc nghĩa của lock");
     let lock_sense = lock.first().expect("lock có một nghĩa");
     assert_eq!(lock_sense.pos_lang.as_deref(), Some("vi"));
     assert!(
         !lock_sense.pos_is_foreign,
-        "🔴 `pos_lang = \"vi\"` là nhãn TIẾNG VIỆT — FR35 ⛔ đòi đánh dấu nó, và một chip \
+        "🔴 `pos_lang = \"vi\"` là nhãn TIẾNG VIỆT — FR35 không đòi đánh dấu nó, và một chip \
          `VI` cạnh chữ `danh từ` là đúng thứ AC4 gọi là sai. Ca này ĐỎ trên vị từ \
          `pos_lang !== null`."
     );
     let lock_example = lock_sense.examples.first().expect("nghĩa có ví dụ");
     assert!(
         !lock_example.translation_is_foreign,
-        "bản dịch ví dụ tiếng Việt cũng ⛔ phải ngoại ngữ — cùng luật, cùng hàm"
+        "bản dịch ví dụ tiếng Việt cũng không phải ngoại ngữ — cùng luật, cùng hàm"
     );
 
     layers.close();
     cleanup(&dir);
 }
 
-/// Vị từ thuần, ghim **trực tiếp** — kể cả các ca fixture ⛔ dựng được.
+/// Vị từ thuần, ghim **trực tiếp** — kể cả các ca fixture không dựng được.
 #[test]
 fn the_foreign_language_predicate_reads_the_field_and_nothing_else() {
     use auratranslate_lib::core::dict::is_foreign_lang;
 
-    assert!(!is_foreign_lang(None), "⛔ ghi ngôn ngữ ⇒ ⛔ có gì để đánh dấu (AC4)");
+    assert!(!is_foreign_lang(None), "không ghi ngôn ngữ ⇒ không có gì để đánh dấu (AC4)");
     assert!(!is_foreign_lang(Some("vi")), "bản ngữ");
     assert!(
         !is_foreign_lang(Some("VI")),
-        "mã ngôn ngữ đến từ mười nguồn dựng khác nhau — một `VI` viết hoa ⛔ được biến một \
+        "mã ngôn ngữ đến từ mười nguồn dựng khác nhau — một `VI` viết hoa không được biến một \
          nhãn bản ngữ thành ngoại ngữ"
     );
     assert!(is_foreign_lang(Some("en")), "ngoại ngữ");
     assert!(is_foreign_lang(Some("zh")), "ngoại ngữ");
 }
 
-/// 🔴 **AC12 / Bẫy: truy vấn bị trần ĐỘ DÀI cắt ⛔ được đọc thành "⛔ tìm thấy".**
+/// 🔴 **AC12 / Bẫy: truy vấn bị trần ĐỘ DÀI cắt không được đọc thành "không tìm thấy".**
 ///
 /// Story dựng đúng cơ chế cần thiết (`truncated`/`truncated_layers`) cho trần **số hàng**
-/// mà ⛔ áp cùng nguyên tắc cho trần **độ dài** — bắt ở code review 2026-08-07. Một lượt
-/// bôi đen dài hơn trần bị cắt rồi tra `Exact` ⇒ chắc chắn 0 kết quả ⇒ panel nói *"⛔ tìm
-/// thấy trong từ điển"*, trong khi hệ thống ⛔ hề tra thứ người dùng chọn.
+/// mà không áp cùng nguyên tắc cho trần **độ dài** — bắt ở code review 2026-08-07. Một lượt
+/// bôi đen dài hơn trần bị cắt rồi tra `Exact` ⇒ chắc chắn 0 kết quả ⇒ panel nói *"không tìm
+/// thấy trong từ điển"*, trong khi hệ thống không hề tra thứ người dùng chọn.
 #[test]
 fn an_over_long_query_is_flagged_not_silently_truncated() {
     let dir = temp_dir("query-ceiling");
@@ -3220,7 +3220,7 @@ fn an_over_long_query_is_flagged_not_silently_truncated() {
     let short = auratranslate_lib::commands::dict::lookup(Some(&layers), "山");
     assert!(
         !short.query_truncated,
-        "một truy vấn bình thường ⛔ được báo là đã cắt"
+        "một truy vấn bình thường không được báo là đã cắt"
     );
 
     // 201 ký tự — vượt `QUERY_LENGTH_CEILING` đúng một ký tự.
@@ -3230,7 +3230,7 @@ fn an_over_long_query_is_flagged_not_silently_truncated() {
     assert!(
         result.query_truncated,
         "🔴 Truy vấn đã bị cắt thì phải NÓI RA. Im lặng ở đây làm panel hiện một câu SAI: \
-         *'⛔ tìm thấy trong từ điển'* cho một thứ ⛔ hề được tra."
+         *'không tìm thấy trong từ điển'* cho một thứ không hề được tra."
     );
 
     layers.close();
@@ -3241,8 +3241,8 @@ fn an_over_long_query_is_flagged_not_silently_truncated() {
 // Cỡ trang sản phẩm — fixture 25 đầu mục cùng `headword`, HƠN `LOOKUP_PAGE_LIMIT` (20)
 // ─────────────────────────────────────────────────────────────────────────────────
 //
-// 🔴 Phải > cỡ trang thật, ⛔ chỉ > 1: một fixture 2 hàng cho cùng kết quả với mọi trần
-// từ 2 trở lên, tức nó ⛔ ghim được con số nào cả — đúng lỗ mà ca này vá.
+// 🔴 Phải > cỡ trang thật, không chỉ > 1: một fixture 2 hàng cho cùng kết quả với mọi trần
+// từ 2 trở lên, tức nó không ghim được con số nào cả — đúng lỗ mà ca này vá.
 
 static PAGE_SIZE_ENTRIES: &[EntrySeed] = &[
     EntrySeed {
@@ -3455,8 +3455,8 @@ static PAGE_SIZE_LAYER: LayerSeed = LayerSeed {
 };
 
 /// 🔴 **Ghim `LOOKUP_PAGE_LIMIT` bằng HÀNH VI** — hằng mang chính sách sản phẩm của
-/// Quyết định #4 là thứ **duy nhất** của story ⛔ có lưới hồi quy (bắt ở code review
-/// 2026-08-07): hai ca AC12 truyền trần **tay** (`3`) nên ⛔ đi qua `commands::dict::lookup`,
+/// Quyết định #4 là thứ **duy nhất** của story không có lưới hồi quy (bắt ở code review
+/// 2026-08-07): hai ca AC12 truyền trần **tay** (`3`) nên không đi qua `commands::dict::lookup`,
 /// và mọi ca đi qua command dùng fixture ≤ 2 đầu mục mỗi lớp ⇒ đặt `LOOKUP_PAGE_LIMIT = 1`
 /// vẫn xanh toàn bộ.
 ///
@@ -3478,8 +3478,8 @@ fn the_product_page_size_is_pinned_by_behaviour_not_only_by_a_constant() {
     assert_eq!(
         rows, 20,
         "🔴 Cỡ trang thật của đường sản phẩm là **20** (chốt ở Task 8 theo số đo). Fixture \
-         có 25 đầu mục khớp, nên con số này ⛔ đến từ dữ liệu — nó đến từ `LOOKUP_PAGE_LIMIT`. \
-         Ca này ĐỎ ngay khi hằng đó đổi mà ⛔ ai đo lại."
+         có 25 đầu mục khớp, nên con số này không đến từ dữ liệu — nó đến từ `LOOKUP_PAGE_LIMIT`. \
+         Ca này ĐỎ ngay khi hằng đó đổi mà không ai đo lại."
     );
     assert!(
         !result.grouped.truncated_layers.is_empty(),
@@ -3488,4 +3488,245 @@ fn the_product_page_size_is_pinned_by_behaviour_not_only_by_a_constant() {
 
     layers.close();
     cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// STORY 1.18 — ĐƯỜNG LUI `Substring` QUA ĐƯỜNG SẢN PHẨM (Ice chốt 2026-08-07)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 Ba ca dưới đây đo **`commands::dict::lookup`** — đường mà webview thật đi qua — chứ
+// không `lookup_grouped`. Khác biệt là cả nội dung: `lookup_grouped` nhận `mode` làm tham số,
+// còn chính sách *"khi nào dùng `Substring`"* sống ở tầng command (AD-1: quy tắc nghiệp vụ
+// ở Rust, và không phải thứ webview tự chọn lại mỗi lượt).
+
+/// 🔴 **không HỒI QUY AC1** — một truy vấn `Exact` ĐANG trả lời được thì không đổi hành vi.
+///
+/// `山` là một đầu mục thật. Trước Story 1.18 nó trả về đúng `山`; nếu đường lui được cài
+/// thành *"ngắn thì dùng `Substring`"* (thay vì *"rỗng thì thử `Substring`"*) thì lượt tra
+/// này nay trả thêm `高山` — tức nghĩa người dùng hỏi bị đẩy xuống dưới nhiễu, và
+/// *"`Mod+Alt+L` vẫn hoạt động y hệt trước story này"* vỡ.
+#[test]
+fn an_exact_hit_never_falls_back_to_substring() {
+    let dir = temp_dir("fallback-exact-wins");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    let response = auratranslate_lib::commands::dict::lookup(Some(&layers), "山");
+    let found: BTreeSet<String> = response
+        .grouped
+        .groups
+        .iter()
+        .flat_map(|g| g.entries.iter().map(|h| h.headword.clone()))
+        .collect();
+
+    assert!(found.contains("山"), "đầu mục chính xác phải có mặt");
+    assert!(
+        !found.contains("高山"),
+        "🔴 AC1 — `Exact` đã trả lời được thì đường lui `Substring` không ĐƯỢC chạy. `高山` ở \
+         đây nghĩa là đường lui đã thay thế `Exact` thay vì đỡ cho nó."
+    );
+    assert_eq!(
+        response.grouped.branch,
+        QueryBranch::ExactBtree,
+        "nhánh đã đi phải là nhánh của `Exact` — `branch` là một GIÁ TRỊ, nó không được nói dối"
+    );
+    cleanup(&dir);
+}
+
+/// 🔴 **Đường lui chạy khi `Exact` rỗng** — và nó là thứ Ice chốt ở §Câu hỏi #1.
+///
+/// `高` không là đầu mục nào, nhưng `高山` chứa nó. Trước Story 1.18 lượt tra này trả **rỗng**
+/// và panel nói *"không tìm thấy trong từ điển"*.
+#[test]
+fn an_empty_exact_lookup_falls_back_to_substring() {
+    let dir = temp_dir("fallback-fires");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    let response = auratranslate_lib::commands::dict::lookup(Some(&layers), "高");
+    let found: BTreeSet<String> = response
+        .grouped
+        .groups
+        .iter()
+        .flat_map(|g| g.entries.iter().map(|h| h.headword.clone()))
+        .collect();
+
+    assert!(
+        found.contains("高山"),
+        "`高` không là đầu mục nào ⇒ `Exact` rỗng ⇒ đường lui `Substring` phải tìm ra `高山`"
+    );
+    assert_eq!(
+        response.grouped.branch,
+        QueryBranch::CharIdx,
+        "một ký tự Hán ở chế độ `Substring` đi nhánh `char_idx` — và `branch` phải NÓI RA \
+         nhánh thật sự đã chạy, không nhánh của lượt đầu"
+    );
+    cleanup(&dir);
+}
+
+/// 🔴 **`query_too_short` NAY THỰC THI ĐƯỢC** — đóng `deferred-work.md:615`.
+///
+/// Mục `:615` ghi rằng `QueryBranch::NoBranchQueryTooShort` *"không thể xảy ra qua đường sản
+/// phẩm thật"*: `commands::dict::lookup` cố định `Exact`, và `pick_branch` cho `Exact` luôn
+/// trả `ExactBtree` bất kể độ dài. Nhánh đó chỉ sinh ra khi `mode = Substring` **và** route
+/// `En` **và** độ dài < 3 — một tổ hợp không tồn tại trong bất kỳ lời gọi nào của 1.17.
+///
+/// Đường lui của Story 1.18 dựng đúng tổ hợp đó: `zz` là Latin (route `En`), không là đầu mục
+/// nào (nên `Exact` rỗng), và hai ký tự (nên `Substring` ⇒ `NoBranchQueryTooShort`).
+#[test]
+fn a_short_latin_selection_now_reaches_the_query_too_short_state() {
+    let dir = temp_dir("fallback-too-short");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    let response = auratranslate_lib::commands::dict::lookup(Some(&layers), "zz");
+
+    assert_eq!(
+        response.grouped.branch,
+        QueryBranch::NoBranchQueryTooShort,
+        "🔴 `deferred-work.md:615` — trạng thái này không tới được trước Story 1.18. Panel \
+         Lookup đọc ĐÚNG trường này để nói *đoạn đang chọn quá ngắn* thay vì *không tìm thấy*, \
+         và hai câu đó dẫn người dùng đi hai đường khác nhau (AD-44 ④)."
+    );
+    assert!(response.grouped.groups.is_empty());
+    cleanup(&dir);
+}
+
+/// Truy vấn DÀI mà không tìm thấy ⇒ **không lượt tra thứ hai nào** — trần đường lui là thật.
+#[test]
+fn a_long_miss_does_not_pay_for_a_second_lookup() {
+    let dir = temp_dir("fallback-ceiling");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    // Năm ký tự Hán — trên trần `SUBSTRING_FALLBACK_CEILING` (4).
+    let response = auratranslate_lib::commands::dict::lookup(Some(&layers), "山河大地人");
+    assert_eq!(
+        response.grouped.branch,
+        QueryBranch::ExactBtree,
+        "quá dài để còn đáng tra như một chuỗi con ⇒ dừng ở nhánh `Exact`"
+    );
+    assert!(response.grouped.groups.is_empty());
+    cleanup(&dir);
+}
+
+/// 🔴 **STORY 1.18 · AC4 — ĐO NFR1 TRÊN ĐƯỜNG SẢN PHẨM THẬT, ≥ 100 TRUY VẤN KHÁC NHAU.**
+///
+/// ```sh
+/// AURA_DICT_BENCH_DIR=/duong/dan/tuyet/doi/src-tauri/resources/dict \
+///   cargo test --release --manifest-path src-tauri/Cargo.toml --test dict_sources \
+///   -- --ignored --nocapture bench_the_auto_lookup_path
+/// ```
+///
+/// ⚠️ Khác `bench_the_grouped_path_on_the_real_dictionaries` ở **ba** điểm, và cả ba đều là
+/// mệnh đề của AC4:
+///
+/// ① Nó đo **`commands::dict::lookup`** — đường mà webview thật gọi — chứ không `lookup_grouped`.
+///    Chỉ đường này mang trần độ dài, đường lui `Substring` của Story 1.18, **và** pha hai
+///    (hydrate nghĩa). Đo `lookup_grouped` rồi báo cáo như đã đo đường sản phẩm là bỏ mất
+///    đúng phần đắt nhất.
+/// ② **100+ truy vấn KHÁC NHAU**, không 100 lượt cùng một chữ: Quyết định #5 bật **dedupe**, nên
+///    một trăm lượt cùng một chữ sẽ đo đúng đường dedupe, không đường tra.
+/// ③ **HAI lượt đo độc lập** — Bẫy 8. Story 1.17 đo `p99 70,742 ms` ở lượt đầu và không tái lập
+///    được; ba lượt sau cho 0,566 / 1,136 / 1,793 ms. Nguyên nhân: **nhiễu page-cache**. ⇒ không
+///    kết luận trên một lượt đo, và kết luận đứng trên **p99**, không chỉ p95.
+///
+/// 🔴 **GIỚI HẠN, KHAI TRƯỚC KHI ĐO — không SAU:** con số ở đây là **đường Rust**, nó không bao gồm
+/// vòng IPC Tauri thật lẫn lượt vẽ của webview. Đó là món nợ Story 1.17 để lại và story này
+/// **không đóng nó**. Xem §Completion Notes.
+#[test]
+#[ignore = "can thu muc chua tep .db that; chay tay qua AURA_DICT_BENCH_DIR"]
+fn bench_the_auto_lookup_path_on_distinct_queries() {
+    let Ok(raw) = std::env::var("AURA_DICT_BENCH_DIR") else {
+        println!("AURA_DICT_BENCH_DIR vắng mặt — bỏ qua phép đo.");
+        return;
+    };
+    let dir = PathBuf::from(&raw);
+    assert!(dir.is_dir(), "AURA_DICT_BENCH_DIR trỏ tới {} — không một thư mục", dir.display());
+
+    let layers = DictLayers::open(&dir);
+    assert!(
+        !layers.layers().is_empty(),
+        "không lớp nào nạp được từ {} — mọi con số dưới đây sẽ là 0 và bảng *đạt* theo cách sai nhất",
+        dir.display()
+    );
+    println!("\n═══ {} lớp từ {} ═══", layers.layers().len(), dir.display());
+
+    // ── Bộ truy vấn: cửa sổ trượt trên văn xuôi THẬT, đúng hình dạng một lượt bôi đen ──
+    const PROSE: &str = "他打開了那扇門走進了黑暗之中山河大地日月星辰春夏秋冬東南西北\
+                         天地玄黃宇宙洪荒風雨雷電花草樹木江湖海洋金木水火土";
+    let chars: Vec<char> = PROSE.chars().collect();
+    let mut queries: Vec<String> = Vec::new();
+    for width in 1..=3 {
+        for start in (0..chars.len().saturating_sub(width)).step_by(1) {
+            queries.push(chars[start..start + width].iter().collect());
+        }
+    }
+    // Đường tiếng Anh — AD-44 ⑥: *"NFR1 đo TRÊN đường tiếng Anh, không suy ra từ số đo tiếng
+    // Trung"*. Ice chốt bật `Substring`, nên nhánh `fts_trigram_en` nay CÓ trên đường sản
+    // phẩm và phải được đo riêng.
+    for w in ["running", "dictionary", "lock", "api", "dic", "ing", "the", "zzq", "ab", "xy"] {
+        queries.push(w.to_owned());
+    }
+    queries.sort();
+    queries.dedup();
+    assert!(
+        queries.len() >= 100,
+        "AC4 đòi ≥ 100 lượt tra liên tiếp bằng truy vấn KHÁC NHAU — mới có {}",
+        queries.len()
+    );
+
+    let pct = |s: &[f64], p: f64| -> f64 {
+        let idx = ((p / 100.0) * s.len() as f64).ceil() as usize;
+        s[idx.saturating_sub(1).min(s.len() - 1)]
+    };
+
+    let mut passes: Vec<Vec<f64>> = Vec::new();
+    for pass_no in 1..=2 {
+        let mut samples: Vec<f64> = Vec::with_capacity(queries.len());
+        let mut fallback_hits = 0usize;
+        let mut too_short = 0usize;
+        for q in &queries {
+            let start = std::time::Instant::now();
+            let response = auratranslate_lib::commands::dict::lookup(Some(&layers), q);
+            samples.push(start.elapsed().as_secs_f64() * 1000.0);
+            if response.grouped.branch != QueryBranch::ExactBtree {
+                fallback_hits += 1;
+            }
+            if response.grouped.branch == QueryBranch::NoBranchQueryTooShort {
+                too_short += 1;
+            }
+        }
+        samples.sort_by(|a, b| a.partial_cmp(b).expect("không NaN trong phép đo"));
+        println!(
+            "\n── LƯỢT {pass_no} — n={} truy vấn KHÁC NHAU · {} lượt đi đường lui `Substring` \
+             · {} lượt `query_too_short` ──",
+            samples.len(),
+            fallback_hits,
+            too_short
+        );
+        println!(
+            "  p50 {:>8.3} ms · p95 {:>8.3} ms · p99 {:>8.3} ms · max {:>8.3} ms",
+            pct(&samples, 50.0),
+            pct(&samples, 95.0),
+            pct(&samples, 99.0),
+            samples[samples.len() - 1]
+        );
+        passes.push(samples);
+    }
+
+    println!("\n── ĐỐI CHIẾU HAI LƯỢT (Bẫy 8 — nhiễu page-cache của lượt đầu) ──");
+    for (i, s) in passes.iter().enumerate() {
+        println!(
+            "  lượt {}  p95 {:>8.3}  p99 {:>8.3}  max {:>8.3}",
+            i + 1,
+            pct(s, 95.0),
+            pct(s, 99.0),
+            s[s.len() - 1]
+        );
+    }
+    println!(
+        "\n🔴 GIỚI HẠN: con số trên là ĐƯỜNG RUST. Nó không gồm vòng IPC Tauri lẫn lượt vẽ của\n\
+         webview — món nợ `deferred-work.md` của Story 1.17, và story này không ĐÓNG nó."
+    );
 }

@@ -2,7 +2,7 @@
 // Story 1.2 dựng một cửa sổ trống có chủ ý. Bốn panel và dockview thuộc Story 1.14;
 // token màu/chữ thuộc Story 1.4; chuỗi giao diện thuộc Story 1.5.
 //
-// ⛔ Không chuỗi tiếng Việt nào trong `.vue` (NFR16, AD-21) — áp từ dòng code đầu tiên.
+// Không chuỗi tiếng Việt nào trong `.vue` (NFR16, AD-21) — áp từ dòng code đầu tiên.
 // Mọi văn bản hiển thị sống ở `src/i18n/vi.json`.
 //
 // Self-check phạm vi asset protocol (Kiểm 3 của Task 8) chạy khi bật cờ
@@ -17,7 +17,7 @@ import { SELFTEST_EVENT } from './selftest/eventName'
 // Cùng khuôn, cùng lý do an toàn bundle — nhưng vì AC2 của Story 1.5: hai chuỗi chẩn
 // đoán dưới đây từng nằm nguyên văn trong template literal ở tệp này, và một chuỗi
 // tiếng Việt trong `.vue` là vi phạm NFR16 mà `npm run check:i18n` bắt được.
-// ⛔ Chúng KHÔNG thuộc `vi.json` — đọc doc-comment của `fallbackReport.ts`.
+// Chúng KHÔNG thuộc `vi.json` — đọc doc-comment của `fallbackReport.ts`.
 import { emitFailureLine, fallbackReportText } from './selftest/fallbackReport'
 // ── Story 1.6 — vỏ một cửa sổ, ba chế độ ngang hàng (AD-24, AC3) ────────────────────
 //
@@ -111,8 +111,8 @@ onMounted(async () => {
       Một modal ở đây biến một lỗi *"lựa chọn của bạn sẽ không được nhớ"* thành một bức
       tường — và AD-22 cùng tinh thần: hỏng thì hiện ra, đừng sập.
 
-      ⛔ Nội dung đi qua `tError(err)`, ⛔ không phải một chuỗi viết thẳng: NFR16 nói mọi
-      văn bản hiển thị sống ở `vi.json` và chỉ ở đó. ⛔ `err.code` không bao giờ ra màn
+      Nội dung đi qua `tError(err)`, không phải một chuỗi viết thẳng: NFR16 nói mọi
+      văn bản hiển thị sống ở `vi.json` và chỉ ở đó. không `err.code` không bao giờ ra màn
       hình (AD-21) — nó chỉ để rẽ nhánh.
 
       ⚠️ `role="status"` chứ không `role="alert"`: `alert` cắt ngang trình đọc màn hình
@@ -187,7 +187,7 @@ onMounted(async () => {
 
     <!--
       aura-allow-text: báo cáo self-check phạm vi asset protocol — CHẨN ĐOÁN cho log CI,
-      chỉ dựng khi `VITE_SCOPE_SELFTEST=1` và ⛔ không vào bản phát hành. `vi.json` là tài
+      chỉ dựng khi `VITE_SCOPE_SELFTEST=1` và không vào bản phát hành. `vi.json` là tài
       nguyên HIỂN THỊ; trộn chẩn đoán vào đó là hỏng chính ranh giới Story 1.5 dựng — cùng
       lý do mà `src/selftest/**` được miễn trừ TRỌN ở `EXEMPT` của cổng này.
     -->
@@ -208,13 +208,13 @@ onMounted(async () => {
 /*
  * `.sr-announcer` — vùng công bố cho trình đọc màn hình (lượt review 2026-08-04).
  *
- * ⚠️ "Visually hidden" bằng `clip`/`position: absolute`, ⛔ KHÔNG `display: none`: một
+ * ⚠️ "Visually hidden" bằng `clip`/`position: absolute`, KHÔNG `display: none`: một
  * phần tử `display: none` bị loại khỏi accessibility tree, tức trình đọc màn hình coi nó
  * chưa từng tồn tại — và một `role="status"` "chưa từng tồn tại" thì lượt điền nội dung
  * sau đó lại đúng vấn đề ban đầu (node với nội dung mới CÙNG lúc mới xuất hiện). Node
  * này phải LUÔN hiện diện trong accessibility tree, chỉ ẩn về mặt THỊ GIÁC.
  *
- * Các giá trị `1px`/`-1px` ở đây là kích thước hình học của kỹ thuật ẩn, ⛔ không phải
+ * Các giá trị `1px`/`-1px` ở đây là kích thước hình học của kỹ thuật ẩn, không phải
  * màu hay cỡ chữ — `check:tokens` Kiểm B/D chỉ cưỡng chế hai loại đó.
  */
 .sr-announcer {
@@ -270,7 +270,7 @@ onMounted(async () => {
  * NFR17 nói *"mọi thao tác gọi được bằng bàn phím"*, và một `<span @click>` không gọi
  * được bằng bàn phím ở bất kỳ trình duyệt nào.
  *
- * ⛔ KHÔNG `outline: none` ở đây. `outline: none` chỉ áp cho gốc `tabindex="-1"` của
+ * KHÔNG `outline: none` ở đây. `outline: none` chỉ áp cho gốc `tabindex="-1"` của
  * chế độ và panel (§Trap 4); nút bấm giữ nguyên focus ring của trình duyệt, vì đó chính
  * là nửa còn lại của NFR17.
  */
