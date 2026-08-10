@@ -38,7 +38,10 @@ use std::path::{Path, PathBuf};
 use crate::core::store::{ReadHandle, ReadOnlyDb, SqlError, SqlResult, StoreError, StoreKind};
 use crate::ports::DictionarySource;
 
-use super::{HanVietHit, LookupResult, QueryBranch, QueryRoute, SenseRecord, SourceInfo, han_viet, senses};
+use super::{
+    HanVietHit, LookupResult, QueryBranch, QueryRoute, SenseRecord, SourceAttribution, SourceInfo,
+    han_viet, senses,
+};
 
 /// Phiên bản lược đồ tệp `.db` mà đường đọc này hiểu.
 ///
@@ -48,9 +51,18 @@ use super::{HanVietHit, LookupResult, QueryBranch, QueryRoute, SenseRecord, Sour
 /// kia **dưới dạng văn bản** và canh đúng mệnh đề đó.
 ///
 /// 🔴 1 → 2 ở Story 1.10c, CÙNG LƯỢT với `tools/dict-build`: cột `dict_entry.nom_reading`
-/// mới (AC6). Một tệp `.db` **v2** phải mở được; một tệp `.db` **v3** giả lập vẫn bị từ
-/// chối bằng `SkipReason::SchemaTooNew` (AD-30 — mở tiến, không mở lùi).
-pub const SUPPORTED_SCHEMA_VERSION: u32 = 2;
+/// mới (AC6).
+///
+/// 🔴 2 → 3 ở Story 1.19 *(code review 2026-08-10)*, CÙNG LƯỢT với `tools/dict-build`: cột
+/// `dict_source.lang` mới, mà [`DictLayer::attributions`] **đọc đích danh**. Một tệp `.db`
+/// **v3** phải mở được; một tệp **v4** giả lập vẫn bị từ chối bằng
+/// [`SkipReason::SchemaTooNew`] (AD-30 — mở tiến, không mở lùi).
+///
+/// ⚠️ **Một tệp v2 nay KHÔNG còn mở được, và đó là chủ ý.** AD-30 mở tiến chứ không mở lùi:
+/// bờ đọc này gõ `lang` trong câu `SELECT`, nên một tệp v2 sẽ gãy bằng `no such column` ở
+/// giữa đường ghi công thay vì bị từ chối tử tế ở cửa. Bốn tệp phát hành đều dựng lại cùng
+/// lượt, nên ca này chỉ chạm một bản cài trộn tệp cũ với mã mới.
+pub const SUPPORTED_SCHEMA_VERSION: u32 = 3;
 
 /// Danh tính của lớp **nền**. Mọi giá trị khác là một lớp **gỡ rời**.
 ///
@@ -338,6 +350,60 @@ impl DictLayer {
     /// Nguồn mang `code`, nếu tệp này có nó.
     pub(super) fn source(&self, code: &str) -> Option<&SourceInfo> {
         self.sources.iter().find(|source| source.code == code)
+    }
+
+    /// **Ghi công đầy đủ của mọi nguồn trong tệp này** — Story 1.19, AC7. Một truy vấn.
+    ///
+    /// 🔴 **Đọc LÚC GỌI, không giữ thường trực trong RAM** (§Quyết định #5a). [`Self::open`]
+    /// cố ý vẫn chỉ `SELECT code, display_name`: giữ `license_text` của bảy nguồn (~215 KB
+    /// đo được trên `dict-core.db` thật) sống suốt đời tiến trình để phục vụ một màn hình
+    /// **hiếm khi mở** là một cái giá không ai xin. Ở đây ta còn không đọc nội dung — chỉ
+    /// `length()` (xem [`SourceAttribution::license_text_len`]).
+    ///
+    /// ⚠️ `ORDER BY code` — cùng lý do và cùng câu với [`Self::open`]: hai hàng trùng nằm
+    /// kề nhau, nên phép kiểm [`SkipReason::DuplicateSourceCodeInFile`] đứng lên được. Ở đây
+    /// nó còn cho thứ tự **tất định** mà AC7 đòi.
+    ///
+    /// 🔴 Trả lỗi thay vì nuốt: một tệp mà `dict_source` đọc được lúc mở mà **không** đọc
+    /// được lúc này là một dữ kiện thật *(tệp bị thay dưới chân tiến trình)*, và chỗ gọi
+    /// ([`super::list_source_attributions`]) quyết định làm gì với nó — bỏ một lớp khỏi bảng
+    /// ghi công là một quyết định của tầng gom, không của adapter.
+    pub(super) fn attributions(&self) -> Result<Vec<SourceAttribution>, StoreError> {
+        let layer = self.layer.clone();
+        let is_base = self.layer == BASE_LAYER;
+        self.db.read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT code, display_name, license_kind, license_id, length(license_text), \
+                 attribution, source_version, source_url, lang \
+                 FROM dict_source ORDER BY code",
+            )?;
+            let rows = stmt.query_map([], |row| {
+                Ok(SourceAttribution {
+                    code: row.get(0)?,
+                    display_name: row.get(1)?,
+                    license_kind: row.get(2)?,
+                    license_id: row.get(3)?,
+                    // `length()` của SQLite trả `NULL` chỉ khi đối số `NULL`, mà cột này là
+                    // `NOT NULL` — đọc vào `Option` rồi rơi về 0 chứ không `unwrap`: một tệp
+                    // sửa tay không được quyền giết cả bảng ghi công.
+                    license_text_len: row.get::<_, Option<i64>>(4)?.unwrap_or(0),
+                    attribution: row.get(5)?,
+                    source_version: row.get(6)?,
+                    source_url: row.get(7)?,
+                    layer: layer.clone(),
+                    is_base,
+                    // ⚠️ `Option` rồi rơi về rỗng, cùng luật `license_text_len`: cột là
+                    // `NOT NULL DEFAULT ''` trong lược đồ hôm nay, nhưng một tệp `.db` dựng
+                    // bằng bản `dict-build` **cũ hơn** Story 1.19 sẽ không có cột này chút
+                    // nào. Ca đó đã đỏ ở `SELECT` phía trên rồi (`no such column`), và bảng
+                    // ghi công của lớp ấy bị bỏ kèm một dòng chẩn đoán — đúng luật
+                    // `list_source_attributions`. Đây là vế phòng thủ cho một tệp có cột
+                    // nhưng mang `NULL` vì đã bị sửa tay.
+                    lang: row.get::<_, Option<String>>(8)?.unwrap_or_default(),
+                })
+            })?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })
     }
 
     /// Đóng pool kết nối của lớp. Idempotent.

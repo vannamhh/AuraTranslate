@@ -84,6 +84,7 @@ pub fn run() {
             crate::commands::chapter::wire::read_open_chapter,
             crate::commands::dict::wire::read_han_viet,
             crate::commands::dict::wire::lookup_dictionary,
+            crate::commands::dict::wire::list_dict_sources,
         ])
         .setup(move |app| {
             #[cfg(debug_assertions)]

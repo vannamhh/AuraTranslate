@@ -371,11 +371,25 @@ fn exactly_one_definition_of_is_han_exists_under_src_tauri() {
 /// gốc quét gõ sai làm `walk` khớp 0 tệp và **cả bốn** cổng xanh mà không kiểm gì cả.
 const SRC_ONLY_RS_FLOOR: usize = 20;
 
-/// Chín mã nguồn đang tồn tại hoặc đã được đặt tên trong quy hoạch.
+/// **Mười `code` THẬT**, đo trên bốn tệp `.db` ở `tools/dict-build/out/` ngày 2026-08-08.
 ///
-/// 🔴 **Không một chuỗi nào trong đây được xuất hiện ở VỊ TRÍ MÃ dưới `src-tauri/src/**`.**
-/// AD-10 nói *"Runtime **không có mã riêng cho từng nguồn**"* và `epics.md:1543` lặp lại —
-/// cả hai là **văn xuôi**. Đây là chỗ mệnh đề đó thành máy.
+/// 🔴 **Không một chuỗi nào trong đây được xuất hiện ở VỊ TRÍ MÃ dưới `src-tauri/src/**`
+/// hay `src/**`.** AD-10 nói *"Runtime **không có mã riêng cho từng nguồn**"* và
+/// `epics.md:1543` lặp lại — cả hai là **văn xuôi**. Đây là chỗ mệnh đề đó thành máy.
+///
+/// 🔴 **MỘT danh sách cho CẢ BA cổng, và đó là một sửa lỗi có bằng chứng.** Tới lượt code
+/// review 2026-08-10 đây là **hai** danh sách: một `SOURCE_CODES` chín phần tử phục vụ cổng
+/// Story 1.13 *(quét toàn `src-tauri/src/**`)*, và một `REAL_SOURCE_CODES` mười phần tử phục
+/// vụ hai cổng Story 1.19 *(quét `core/dict/**` và `src/**`)*. Danh sách chín **thiếu**
+/// `en-wiktionary-vi` và `tran-van-chanh`, lại **thừa** `hvtdtd` — một mã chưa từng tồn tại
+/// trong dữ liệu thật *(Ice chốt 2026-08-08: không tìm được nguồn)*. Hệ quả **đo được**: cấy
+/// `pub const PROBE_CODE: &str = "tran-van-chanh";` vào `src-tauri/src/lib.rs` rồi chạy
+/// `cargo test --test dict_boundary` cho **14/14 xanh**, cổng không bắt. Hai danh sách cho
+/// cùng một phép cấm là một nguồn sự thật thứ hai, và nó đã sai đúng như AD-44 ① tiên liệu.
+///
+/// 🔴 Danh sách này **không** phải một sổ đăng ký *"tệp nào chứa gì"* (thứ AD-44 ① vá A2
+/// cấm): nó là **quần thể của một phép cấm**, sống trong `tests/` và không một dòng mã sản
+/// phẩm nào đọc nó. Đường sản phẩm luôn dẫn xuất danh sách nguồn từ `DictLayers` đang gắn.
 ///
 /// ⚠️ Hình dạng vi phạm **rẻ nhất** là một `if code == "vietphrase"` để *"sửa cho gọn"*
 /// đúng 18 đầu mục trùng của §Quyết định #2 — và nó sẽ được viết bởi một người thật lòng
@@ -385,16 +399,21 @@ const SRC_ONLY_RS_FLOOR: usize = 20;
 /// ⚠️ Comment **được phép** nhắc tên nguồn, và đó không phải một ngoại lệ mà là chính
 /// điểm: doc-comment của `query.rs` **giải thích** phân bố dữ liệu bằng số đo có tên nguồn,
 /// và một cổng đỏ trên câu giải thích chính luật nó canh là một cổng **bị gỡ trong tuần**.
-const SOURCE_CODES: [&str; 9] = [
-    "cvdict",
+///
+/// ⚠️ **Một nguồn mới được dựng ⇒ thêm `code` của nó vào đây.** Đó là một việc phải làm tay,
+/// và nó phải ở lại như vậy: đọc danh sách từ chính bốn tệp `.db` là để cổng **im lặng tự
+/// tắt** trên một máy chưa dựng dữ liệu — đúng thứ `SRC_ONLY_RS_FLOOR` tồn tại để chặn.
+const REAL_SOURCE_CODES: [&str; 10] = [
     "cc-cedict",
-    "unihan",
-    "viwiktionary-en",
-    "viwiktionary",
+    "cvdict",
     "en-wiktionary",
+    "en-wiktionary-vi",
+    "unihan",
+    "viwiktionary",
+    "viwiktionary-en",
     "thieu-chuu",
+    "tran-van-chanh",
     "vietphrase",
-    "hvtdtd",
 ];
 
 /// Mọi tệp `.rs` dưới `src-tauri/src/**`, kèm đường dẫn tương đối POSIX.
@@ -451,7 +470,7 @@ fn the_runtime_never_names_a_single_dictionary_source() {
     // 🔴 **Đối chứng dương thường trực** — không phải một lượt đột biến chạy tay rồi
     // quên. Phép so khớp phải chứng minh nó **bắt được** hình dạng vi phạm, ngay ở đây,
     // mỗi lượt CI. Không có nó, cổng dưới đây xanh y hệt trên một bộ so khớp hỏng.
-    for code in SOURCE_CODES {
+    for code in REAL_SOURCE_CODES {
         let planted = format!("    let _ = \"{code}\";");
         assert!(
             contains_forbidden_token(&planted, code),
@@ -469,7 +488,7 @@ fn the_runtime_never_names_a_single_dictionary_source() {
             if code.starts_with("//") {
                 continue;
             }
-            for needle in SOURCE_CODES {
+            for needle in REAL_SOURCE_CODES {
                 if contains_forbidden_token(code, needle) {
                     violations.push(format!("{rel}:{}  {needle}  |  {code}", index + 1));
                 }
@@ -809,4 +828,258 @@ fn ordering_lacks_a_tiebreaker(code: &str) -> bool {
         return false;
     };
     contains_forbidden_token(clause, "ord") && !contains_forbidden_token(clause, "id")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// STORY 1.19 — AC1 · AC4 · AC9: KHÔNG MỘT DANH TÍNH NGUỒN NÀO VIẾT CỨNG
+// ═════════════════════════════════════════════════════════════════════════════════
+
+// Quần thể của cả ba cổng dưới đây là [`REAL_SOURCE_CODES`], khai một lần duy nhất ở §Story
+// 1.13. Tới lượt code review 2026-08-10 chỗ này còn giữ một **bản sao** mười phần tử đứng
+// cạnh một bản chín phần tử ở §1.13, và bản chín ấy chính là chỗ cổng `src-tauri/src/**`
+// thủng — xem doc-comment của hằng đó để biết phép cấy lỗi đã đo ra điều gì.
+
+/// 🔴 **AC4** — `core/dict/**` **không gõ tên một `code` nguồn cụ thể nào**.
+///
+/// Bộ lọc nguồn là một **THAM SỐ từ chỗ gọi** (§Quyết định #2a), cùng doctrine
+/// `route`/`branch`/`limit`. Một tên nguồn viết cứng ở tầng gom là một quy tắc nghiệp vụ
+/// chôn vào tầng dữ liệu: nó sai **im lặng** vào đúng ngày một lớp được thêm hay gỡ đi.
+#[test]
+fn the_grouping_layer_never_names_a_single_source_code() {
+    let files = dict_sources();
+
+    let mut violations: Vec<String> = Vec::new();
+    for (rel, text) in &files {
+        for (index, line) in text.lines().enumerate() {
+            let code = line.trim_start();
+            if code.starts_with("//") {
+                continue;
+            }
+            for needle in REAL_SOURCE_CODES {
+                if code.contains(needle) {
+                    violations.push(format!("{rel}:{}  {needle}  |  {code}", index + 1));
+                }
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} chỗ dưới `core/dict/**` gõ tên một nguồn cụ thể:\n{}\n\n\
+         Tầng gom biết `code` là một CHUỖI KHOÁ, không biết chuỗi nào có nghĩa gì. Tập bị \
+         tắt đi vào bằng THAM SỐ (`lookup_grouped`/`lookup_han_viet`), và nó đọc từ `Store` \
+         ở tầng `commands/` — AC4 của Story 1.19.",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+/// 🔴 **AC4, vế thứ hai** — `core/dict/**` **không đọc `Store`** một lời nào.
+///
+/// Đối xứng với `store_boundary.rs::core_store_does_not_depend_on_tauri`: một lượt đọc cấu
+/// hình bên trong tầng gom là một đường thứ hai mà chỗ gọi không kiểm soát được, và nó làm
+/// hai lượt tra cùng tham số cho hai kết quả khác nhau.
+#[test]
+fn the_grouping_layer_never_reads_the_config_store() {
+    let files = dict_sources();
+
+    let mut violations: Vec<String> = Vec::new();
+    for (rel, text) in &files {
+        for (index, line) in text.lines().enumerate() {
+            let code = line.trim_start();
+            if code.starts_with("//") {
+                continue;
+            }
+            for needle in ["core::scope", "load_global_config", "GlobalConfig"] {
+                if code.contains(needle) {
+                    violations.push(format!("{rel}:{}  {needle}  |  {code}", index + 1));
+                }
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} chỗ dưới `core/dict/**` đọc tầng cấu hình:\n{}\n\n\
+         `disabled` là một GIÁ TRỊ đi xuống từ `commands/dict.rs`, không một thứ tầng gom \
+         tự đi lấy (AC4, §Quyết định #2a).",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+/// 🔴 **AC1 · AC9** — cây webview và catalog chuỗi **không** viết cứng một danh tính nguồn nào.
+///
+/// Hai vế, và vế thứ hai là điều kiện để chỗ giữ `author-grant` dùng lại được:
+/// - **AC1** — dải chip và bảng Attribution dẫn xuất từ `list_dict_sources`, nên **0** `code`
+///   thật được phép xuất hiện ở vị trí mã hay trong `vi.json`;
+/// - **AC9** — **danh tính TÁC GIẢ** đọc từ `dict_source.attribution` của **chính tệp**. Một
+///   cái tên viết vào `vi.json` khoá chỗ giữ đó vào **một** nguồn, và nguồn ấy (HVTĐTD) sẽ
+///   không tới — Ice chốt 2026-08-08.
+///
+/// ⚠️ Quét cả `src/**` (không chỉ `.vue`) và `src/i18n/vi.json`. Sàn quần thể đi kèm: một
+/// đường dẫn gõ sai làm cổng xanh mà không đọc gì cả.
+#[test]
+fn the_webview_and_the_string_catalog_hardcode_no_source_identity() {
+    let webview = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("src");
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    walk_any(&webview, &mut files);
+    files.sort();
+
+    assert!(
+        files.len() >= 30,
+        "chỉ tìm thấy {} tệp dưới `src/**` — quần thể quá nhỏ để là thật, và một danh sách \
+         rỗng làm phép cấm dưới đây xanh mà không kiểm gì cả",
+        files.len()
+    );
+
+    // 🔴 Tên tác giả gắn với chỗ giữ `author-grant` trong mockup và trong AC gốc của epic.
+    // Nó **không** được xuất hiện ở đâu trong cây webview: `attribution` của chính tệp `.db`
+    // là nguồn sự thật duy nhất cho danh tính tác giả.
+    const FORBIDDEN_AUTHOR: &str = "Đặng Thế Kiệt";
+
+    let mut violations: Vec<String> = Vec::new();
+    for file in &files {
+        let rel = rel_posix(&webview, file);
+        let text = fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {rel}: {e}"));
+        // 🔴 **Che chú thích TRƯỚC khi quét, không lọc theo dòng đầu.** Một khối `<!-- … -->`
+        // nhiều dòng có dòng thứ hai **không** bắt đầu bằng `<!--`, nên phép lọc theo dòng
+        // để lọt đúng thứ nó định bỏ qua — và cổng đỏ trên chính câu GIẢI THÍCH luật nó
+        // canh. Cổng `LIKE` ở trên đã ghi bằng chữ vì sao đó là đường ngắn nhất tới việc
+        // cổng bị gỡ.
+        let text = mask_comments(&text);
+        for (index, line) in text.lines().enumerate() {
+            let code = line.trim_start();
+            for needle in REAL_SOURCE_CODES {
+                if code.contains(needle) {
+                    violations.push(format!("{rel}:{}  {needle}  |  {code}", index + 1));
+                }
+            }
+            if code.contains(FORBIDDEN_AUTHOR) {
+                violations.push(format!("{rel}:{}  <ten tac gia>  |  {code}", index + 1));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} chỗ trong cây webview viết cứng một danh tính nguồn:\n{}\n\n\
+         Dải chip và bảng Attribution DẪN XUẤT từ `list_dict_sources` — thêm một tệp `.db` \
+         phải làm chúng hiện ra mà KHÔNG sửa một dòng mã (AC1). Và danh tính tác giả đọc từ \
+         `dict_source.attribution` của chính tệp, không từ `vi.json` (AC9).",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+/// Mọi tệp thường dưới `dir`, bỏ symlink — cùng luật [`walk`], khác ở chỗ không lọc đuôi.
+fn walk_any(dir: &Path, out: &mut Vec<PathBuf>) {
+    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("đọc {}: {e}", dir.display()));
+    for entry in entries {
+        let entry = entry.unwrap_or_else(|e| panic!("duyệt {}: {e}", dir.display()));
+        let path = entry.path();
+        let meta =
+            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
+        if meta.file_type().is_symlink() {
+            continue;
+        }
+        if meta.is_dir() {
+            walk_any(&path, out);
+        } else {
+            out.push(path);
+        }
+    }
+}
+
+/// Thay mọi ký tự **trong chú thích** bằng khoảng trắng, **giữ nguyên số dòng**.
+///
+/// Ba dạng: `<!-- … -->` (`.vue` template) · `/* … */` · `// …` tới hết dòng.
+///
+/// 🔴 Giữ nguyên xuống dòng là bắt buộc: số dòng trong thông báo vi phạm phải trỏ đúng chỗ,
+/// và một bản cắt bỏ hẳn chú thích sẽ trỏ lệch đúng bằng số dòng đã cắt.
+///
+/// ⚠️ **Giới hạn đã biết, ghi ra chứ không giấu:** máy trạng thái này **không** theo dõi
+/// chuỗi ký tự, nên một `//` bên trong một chuỗi (`'https://…'`) che nốt phần còn lại của
+/// dòng đó. Hướng lệch là **âm tính giả** — cổng bỏ sót, không đỏ oan — và với một phép
+/// **cấm** thì đó là hướng phải cân nhắc. Chấp nhận ở đây vì mười `code` thật đều là danh
+/// định kebab-case, không cái nào sống được trong một URL của cây nguồn này.
+fn mask_comments(text: &str) -> String {
+    #[derive(Clone, Copy, PartialEq)]
+    enum State {
+        Code,
+        Html,
+        Block,
+        Line,
+    }
+
+    let bytes: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut state = State::Code;
+    let mut i = 0usize;
+
+    let starts = |b: &[char], at: usize, needle: &str| -> bool {
+        let n: Vec<char> = needle.chars().collect();
+        at + n.len() <= b.len() && b[at..at + n.len()] == n[..]
+    };
+
+    while i < bytes.len() {
+        let c = bytes[i];
+        match state {
+            State::Code => {
+                if starts(&bytes, i, "<!--") {
+                    state = State::Html;
+                    out.push_str("    ");
+                    i += 4;
+                    continue;
+                }
+                if starts(&bytes, i, "/*") {
+                    state = State::Block;
+                    out.push_str("  ");
+                    i += 2;
+                    continue;
+                }
+                if starts(&bytes, i, "//") {
+                    state = State::Line;
+                    out.push_str("  ");
+                    i += 2;
+                    continue;
+                }
+                out.push(c);
+                i += 1;
+            }
+            State::Html => {
+                if starts(&bytes, i, "-->") {
+                    state = State::Code;
+                    out.push_str("   ");
+                    i += 3;
+                    continue;
+                }
+                out.push(if c == '\n' { '\n' } else { ' ' });
+                i += 1;
+            }
+            State::Block => {
+                if starts(&bytes, i, "*/") {
+                    state = State::Code;
+                    out.push_str("  ");
+                    i += 2;
+                    continue;
+                }
+                out.push(if c == '\n' { '\n' } else { ' ' });
+                i += 1;
+            }
+            State::Line => {
+                if c == '\n' {
+                    state = State::Code;
+                    out.push('\n');
+                } else {
+                    out.push(' ');
+                }
+                i += 1;
+            }
+        }
+    }
+    out
 }

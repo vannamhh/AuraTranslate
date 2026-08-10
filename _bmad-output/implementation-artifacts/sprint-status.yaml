@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-08T12:00:00
+last_updated: 2026-08-10T12:00:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -100,7 +100,7 @@ development_status:
   # giả) mất điều kiện kích hoạt — chủ vẫn là 10.4.
   # ⚠️ Mockup `sources-attribution.html` LỆCH dữ liệu thật ở ba chỗ (thừa HVTĐTD + Cổ hán văn,
   # thiếu Trần Văn Chánh) — màn hình phải dẫn xuất từ tệp có mặt, không chép bảng của mockup.
-  1-19-bat-tat-nguon-tu-dien-va-ghi-cong: ready-for-dev
+  1-19-bat-tat-nguon-tu-dien-va-ghi-cong: done
   1-20-lich-su-tra-cuu-va-muc-da-ghim: backlog
   1-21-phim-tat-cau-hinh-lai-duoc: backlog
   epic-1-retrospective: optional

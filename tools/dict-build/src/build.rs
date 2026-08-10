@@ -349,6 +349,10 @@ pub fn run_base(raw_dir: &Path, out_path: &Path) -> Result<BuildReport, Box<dyn 
         tx.commit()?;
     }
 
+    // Story 1.19 — đo `dict_source.lang` từ chính đầu mục vừa chèn. Phải đứng SAU
+    // `tx.commit()` và TRƯỚC `finalize::finish`; xem doc-comment của hàm.
+    insert::backfill_source_langs(&conn)?;
+
     let char_idx_pairs: i64 = conn.query_row("SELECT COUNT(*) FROM char_idx", [], |r| r.get(0))?;
     // dict-core.db đã tự chứa hàng `en-wiktionary-vi` (nguồn nền thứ bảy, khối ngay
     // trên) — không cần nạp nhãn Nôm từ bên ngoài, xem doc-comment
@@ -452,6 +456,10 @@ where
 
         tx.commit()?;
     }
+
+    // Story 1.19 — đo `dict_source.lang` từ chính đầu mục vừa chèn. Phải đứng SAU
+    // `tx.commit()` và TRƯỚC `finalize::finish`; xem doc-comment của hàm.
+    insert::backfill_source_langs(&conn)?;
 
     let char_idx_pairs: i64 = conn.query_row("SELECT COUNT(*) FROM char_idx", [], |r| r.get(0))?;
     let external_labeled_nom = load_en_wiktionary_vi_labeled_nom(raw_dir);

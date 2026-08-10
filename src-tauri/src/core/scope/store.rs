@@ -23,7 +23,7 @@
 //!
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — xem doc-comment của [`super::kinds`].
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::core::store::{ReadHandle, Store, StoreError, Transaction};
 
@@ -69,6 +69,43 @@ const KEY_MODE: &str = "mode";
 /// chống JSON hỏng nằm ở `WorkspaceDock.vue::restore` — `try` → rơi về preset mặc định.
 const KEY_LAYOUT: &str = "workspace_layout";
 
+/// Khoá của [`ScopeKind::AppConfig`] mang **các nguồn từ điển đang BỊ TẮT** — Story 1.19,
+/// AC5 · §Quyết định #1a.
+///
+/// ⚠️ Ở [`ScopeKind::AppConfig`], **tầng Global**, chứ không một [`ScopeKind`] thứ mười và
+/// không một tầng Tác phẩm. FR103 liệt kê tầng Tác phẩm gồm *"Glossary riêng, prompt riêng,
+/// TM riêng, ngôn ngữ nguồn"* — **không** có nguồn từ điển; và `mockups/settings.html:246`
+/// đã phân xử đúng lớp câu hỏi này cho phím tắt: *"một thao tác không nên đổi phím theo từng
+/// Tác phẩm"*. Một người dịch không tin VietPhrase thì không tin nó ở **mọi** Tác phẩm.
+/// Khoá thứ tư của cùng một cửa mà `theme`/`mode`/`workspace_layout` đã đi qua.
+///
+/// 🔴 **GIÁ TRỊ LÀ TẬP `code` BỊ TẮT, KHÔNG PHẢI TẬP ĐƯỢC BẬT** — và đó là một bất biến, không
+/// một quy ước mã hoá. Mặc định là **mọi nguồn đều bật**, nên một nguồn **mới** *(một tệp
+/// `.db` thêm ở bản sau)* phải tự động bật. Lưu tập **được bật** làm nguồn mới im lặng **tắt**
+/// ngay khi nó xuất hiện: một lớp dữ liệu có mặt trong bản cài mà không ai thấy, đúng lớp lỗi
+/// *"rỗng im lặng"* mà AD-44 ④ cấm.
+const KEY_DICT_DISABLED: &str = "dict_sources_disabled";
+
+/// Tách chuỗi trên đĩa thành tập `code` bị tắt — **hàm thuần, đây là thứ test gọi**.
+///
+/// Mã hoá: các `code` ngăn nhau bằng `,`, khoảng trắng thừa bị cắt, phần rỗng bị bỏ — cùng
+/// quy ước mà `src/main.ts::toBindings` dùng cho hợp âm phím tắt, nên không có quy ước thứ
+/// hai để nhớ.
+///
+/// 🔴 **Một `code` đã lưu mà tệp của nó KHÔNG CÒN đi qua đây nguyên vẹn**, và đó là hành vi
+/// đúng: hàm này không biết gì về tập lớp đang gắn, và nó **không được** biết (AD-44 ① vá A2
+/// cấm một sổ *"tệp nào chứa gì"*). Phép lọc theo `code` ở [`crate::core::dict::lookup_grouped`]
+/// đơn giản không khớp gì cả ⇒ nguồn không còn tồn tại bị **bỏ qua im lặng**, không lỗi và
+/// không một chip mồ côi trên màn hình (AC5). Giữ nó trong tập cũng là giữ lời hứa ngược lại:
+/// cắm lại tệp đó ⇒ nó vẫn ở trạng thái tắt mà người dùng đã chọn.
+pub fn parse_disabled_sources(raw: &str) -> BTreeSet<String> {
+    raw.split(',')
+        .map(str::trim)
+        .filter(|code| !code.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
 /// Ba loại `GlobalOnly` đã phân giải, sẵn sàng cho tầng adapter.
 ///
 /// ⚠️ Giữ nguyên [`Resolved`] thay vì làm phẳng ngay, vì đó là **bằng chứng** rằng đường
@@ -113,6 +150,22 @@ impl GlobalConfig {
     /// Tầng này không kiểm chuỗi có phải JSON hợp lệ không. Xem [`KEY_LAYOUT`].
     pub fn workspace_layout(&self) -> &str {
         self.app.get(KEY_LAYOUT).map_or("", |r| r.value().as_str())
+    }
+
+    /// Các nguồn từ điển **đang bị TẮT**, ở dạng chuỗi trên đĩa — Story 1.19, AC5.
+    ///
+    /// ⚠️ **Chuỗi rỗng** khi chưa ai tắt gì, không `Option` — cùng luật
+    /// [`Self::workspace_layout`]: nó đi qua IPC tới một TypeScript `string`, và ở đó `''`
+    /// với `undefined` phải dẫn về **cùng một** nhánh *"mọi nguồn đều bật"*.
+    pub fn dict_sources_disabled(&self) -> &str {
+        self.app
+            .get(KEY_DICT_DISABLED)
+            .map_or("", |r| r.value().as_str())
+    }
+
+    /// Cùng giá trị, đã tách thành tập — thứ mà đường tra cứu nhận (§Quyết định #2a).
+    pub fn disabled_source_codes(&self) -> BTreeSet<String> {
+        parse_disabled_sources(self.dict_sources_disabled())
     }
 
     /// Hợp âm phím tắt theo id thao tác. Rỗng nghĩa là *"dùng hợp âm mặc định"*.

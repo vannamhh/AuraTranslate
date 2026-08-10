@@ -62,6 +62,7 @@ import {
   sourceHanVietPending,
   sourcesUsed,
 } from './sourcePanelState'
+import { everySourceOffForRoute } from './dictSourcesState'
 import { WORD_JOINER, wordStartOffsets } from './wordBoundary'
 
 const props = defineProps<{
@@ -299,6 +300,16 @@ const surfaceNoticeKey = computed<string | null>(() => {
   if (sourceHanVietPending.value) return 'panel.source.han_viet_pending'
   if (!hanVietResolved.value) return 'panel.source.han_viet_failed'
   if (!layersLoaded.value) return 'panel.source.han_viet_unavailable'
+  // 🔴 **"MỌI NGUỒN ĐỀU TẮT" LÀ MỘT TRẠNG THÁI CÓ TÊN Ở ĐÂY NỮA** — Ice chốt ở code review
+  // 2026-08-10. §Quyết định #3a áp bộ lọc nguồn cho **cả** đường âm Hán Việt, nên tắt hết
+  // nguồn tiếng Trung làm **mọi** ký tự rơi về `READING_PLACEHOLDER` — không phân biệt được
+  // với ca *"ký tự này thật sự không có âm ghi nhận"* *(một nguồn còn bật nhưng thiếu dữ
+  // liệu cho ký tự đó)*. Panel Lookup đã có nhánh riêng cho đúng ca này từ đầu; sự bất đối
+  // xứng giữa hai bề mặt cho cùng một nguyên nhân là chỗ người dùng đọc sai.
+  //
+  // ⚠️ Đường cố định `'zh'`, và đó là một dữ kiện chứ không một giả định: tab Hán Việt chỉ
+  // tồn tại cho Chương `source_lang === 'zh'` (AC3, `selectSourceTab` chặn ca còn lại).
+  if (everySourceOffForRoute('zh')) return 'panel.source.han_viet_all_sources_off'
   return null
 })
 

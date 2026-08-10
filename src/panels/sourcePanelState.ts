@@ -62,6 +62,23 @@ let chapterRequested = false
 const hanViet = shallowRef<HanVietLookup | null>(null)
 const hanVietError = shallowRef<IpcError | null>(null)
 let hanVietRequested = false
+
+/**
+ * 🔴 **Số thứ tự lượt tra âm Hán Việt** — không một lượt CŨ nào được ghi đè lượt MỚI.
+ *
+ * Cùng cơ chế và cùng lý do với `sequence` của `lookupPanelState.ts` *(bắt ở code review
+ * 2026-08-07)*, và nó phải có mặt ở đây kể từ Story 1.19 vì story đó mở ra chỗ gọi thứ hai:
+ * [`refreshHanViet`] nhả `hanVietRequested` rồi gọi lại [`ensureHanVietLoaded`] **không**
+ * chờ lượt đang bay kết thúc. Tắt nguồn A rồi tắt B ngay sau ⇒ **hai** lượt `read_han_viet`
+ * cùng bay; nếu lượt mang tập `{A}` về **sau** lượt mang `{A,B}` thì tab Hán Việt hiện âm
+ * của một cấu hình nguồn **không còn tồn tại**, và không một dấu hiệu nào báo sai vì
+ * `hanVietPending` đã bị lượt về trước tắt đi.
+ *
+ * ⚠️ Cờ `hanVietRequested` **không** thay được vai trò này: nó trả lời *"đã phát lượt nào
+ * chưa"* (chống gọi trùng lúc mount lại), còn số thứ tự trả lời *"lượt trả lời này còn là
+ * lượt mới nhất không"*. Hai câu hỏi khác nhau, và Story 1.19 làm cả hai cùng cần thiết.
+ */
+let hanVietSequence = 0
 /**
  * 🔴 `true` từ lúc lượt tra Hán Việt được phát đi tới lúc nó trả lời — trạng thái **THỨ
  * TƯ**, không nằm trong ba trạng thái của AC4.
@@ -216,6 +233,9 @@ async function ensureHanVietLoaded(sourceText: string): Promise<void> {
   if (hanVietRequested) return
   hanVietRequested = true
 
+  // Đặt TRƯỚC `await` — xem [`hanVietSequence`].
+  const mine = ++hanVietSequence
+
   const chars = Array.from(new Set(Array.from(sourceText).filter(isHanChar)))
   if (chars.length === 0) {
     // Không lượt IPC nào cho một Chương không một ký tự Hán nào — cùng luật
@@ -226,6 +246,16 @@ async function ensureHanVietLoaded(sourceText: string): Promise<void> {
 
   hanVietPending.value = true
   const { lookup, error } = await readHanViet(chars)
+
+  // 🔴 Lượt này đã bị một lượt mới hơn vượt mặt — hoặc bởi [`resetSourcePanel`]. Thoát
+  // **trước** mọi lượt gán, kể cả `hanVietPending`: lượt mới vẫn đang bay, và tắt cờ chờ hộ
+  // nó là dựng lại đúng lỗ "màn hình khẳng định dứt khoát trong khi IPC còn chưa về" mà
+  // [`hanVietPending`] tồn tại để bịt.
+  //
+  // ⚠️ Cũng **không** nhả `hanVietRequested` ở đây: lượt mới đang giữ cờ đó một cách hợp lệ,
+  // và nhả hộ là mở cửa cho một lượt thứ ba chen vào.
+  if (mine !== hanVietSequence) return
+
   hanVietPending.value = false
   hanViet.value = lookup
   hanVietError.value = error
@@ -252,6 +282,29 @@ export async function ensureChapterLoaded(): Promise<void> {
   if (loaded !== null && loaded.source_lang === 'zh') {
     void ensureHanVietLoaded(loaded.source_text)
   }
+}
+
+/**
+ * 🔴 **STORY 1.19 · §Quyết định #3a, hệ quả thứ hai** — tra LẠI âm Hán Việt khi bộ lọc nguồn
+ * đổi.
+ *
+ * Bộ lọc áp cho **cả** đường âm Hán Việt (`lookup_han_viet` nhận cùng tham số), nên giữ âm cũ
+ * trên màn hình là để một nguồn *"đã tắt"* vẫn viết chữ lên tab Hán Việt — một câu tự mâu
+ * thuẫn ngay trên màn hình. Và `priority_order` làm bộ lọc **ĐỔI ÂM**, không chỉ giấu bớt:
+ * một ký tự rơi từ âm của lớp gỡ rời về âm của lớp nền.
+ *
+ * ⚠️ Nhả `hanVietRequested` rồi đi qua **đúng** [`ensureHanVietLoaded`] — không một đường
+ * nạp thứ hai. Cờ đó là một cache **không có khoá vô hiệu hoá** (xem [`resetSourcePanel`]);
+ * đây là lượt vô hiệu hoá thứ hai của nó, và nó phải đi cùng cửa với lượt đầu.
+ *
+ * Chương chưa nạp, hay nguồn không phải tiếng Trung ⇒ **không có gì để tra lại**, và đó không
+ * phải một lỗi (cùng luật `selectSourceTab` khi tab không áp dụng).
+ */
+export async function refreshHanViet(): Promise<void> {
+  const loaded = chapter.value
+  if (loaded === null || loaded.source_lang !== 'zh') return
+  hanVietRequested = false
+  await ensureHanVietLoaded(loaded.source_text)
 }
 
 /** Handler thật của `source.select_tab_original`/`source.select_tab_han_viet` (AC6). */
@@ -301,6 +354,12 @@ export function toggleHanVietView(): void {
  * **cả hai** nhánh nhập *(dán văn bản và tệp)* đều đi qua. Đừng rải lời gọi này ra.
  */
 export function resetSourcePanel(): void {
+  // 🔴 Vô hiệu hoá mọi lượt tra âm Hán Việt ĐANG BAY — cùng dòng và cùng lý do với
+  // `resetLookupPanel()`: một promise về **sau** lượt reset sẽ làm âm của Tác phẩm A sống
+  // lại dưới Tác phẩm B, đúng thứ hàm này tồn tại để ngăn. Nhả `hanVietRequested` một mình
+  // là chưa đủ, vì nó không nói được lượt trả lời nào đã lỗi thời.
+  hanVietSequence += 1
+
   chapter.value = null
   chapterError.value = null
   chapterRequested = false

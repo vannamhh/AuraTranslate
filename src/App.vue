@@ -34,6 +34,12 @@ import { t, tError } from './i18n'
 // mọc một dải *"Không mở được kho dữ liệu"*, tức dạy đúng người đọc bỏ qua đúng dải này.
 // Xem `src/config/bootstrap.ts` §BootstrapResult.
 import { configError } from './config/bootstrap'
+// ── Story 1.19 — bề mặt Attribution (§Quyết định #4a, Ice chốt 2026-08-08) ──────────
+//
+// 🔴 Một **LỚP PHỦ dựng ở đây**, không một chế độ thứ tư: AD-24 khai đúng ba chế độ ngang
+// hàng và `MODE_IDS` là một hằng ba phần tử; `Mod+4` thuộc Story 8.11. Nó nói về **cả ứng
+// dụng** chứ không về một panel, nên nó sống cùng tầng với dải báo lỗi cấu hình.
+import AttributionOverlay from './AttributionOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -192,6 +198,9 @@ onMounted(async () => {
       lý do mà `src/selftest/**` được miễn trừ TRỌN ở `EXEMPT` của cổng này.
     -->
     <pre v-if="report" class="selftest" :data-verdict="report.verdict">{{ report.text }}</pre>
+
+    <!-- Story 1.19 · AC7–AC11 — lớp phủ tự quản `v-if` của nó qua `attributionIsOpen`. -->
+    <AttributionOverlay />
   </main>
 </template>
 

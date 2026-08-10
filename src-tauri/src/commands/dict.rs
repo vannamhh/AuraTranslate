@@ -18,10 +18,37 @@
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — `scripts/check-i18n.mjs` Kiểm A quét
 //! `src-tauri/**/*.rs`.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use crate::core::dict::{DictLayers, GroupedLookup, HanVietLookup, LookupMode, SenseRecord, lookup_grouped, lookup_han_viet};
+use crate::core::dict::{
+    DictLayers, GroupedLookup, HanVietLookup, LookupMode, SenseRecord, SourceAttribution,
+    list_source_attributions, lookup_grouped, lookup_han_viet,
+};
+use crate::core::store::Store;
 use crate::ports::DictionarySource;
+
+/// Tập `dict_source.code` người dùng đã TẮT, đọc từ tầng Global — **Story 1.19, AC4**.
+///
+/// 🔴 **Đọc `Store` ở TẦNG COMMAND, đúng một chỗ**, rồi truyền giá trị xuống. `core/dict/**`
+/// không đọc `Store` một lời nào (`tests/dict_boundary.rs` canh bằng máy) — cùng doctrine mà
+/// `route`/`branch`/`limit` đã đi qua: chính sách quyết ở đây, tầng gom chỉ nhận giá trị.
+///
+/// ⚠️ **Kho vắng mặt hay đường đọc trượt ⇒ tập RỖNG, không một lỗi.** Một `global.db` không
+/// mở được đã có bề mặt báo lỗi riêng (`bootstrap_config`, Story 1.8); biến nó thành *"không
+/// tra cứu được"* là dựng một chế độ hỏng thứ hai cho cùng một nguyên nhân. Tập rỗng = **mọi
+/// nguồn đều bật**, tức đúng hành vi mặc định của một bản cài mới.
+fn disabled_sources(store: Option<&Store>) -> BTreeSet<String> {
+    let Some(store) = store else {
+        return BTreeSet::new();
+    };
+    match crate::core::scope::load_global_config(store) {
+        Ok(config) => config.disabled_source_codes(),
+        Err(err) => {
+            eprintln!("dict[commands] cannot read the disabled source list: {err}");
+            BTreeSet::new()
+        }
+    }
+}
 
 /// Đọc âm Hán Việt cho `chars` — **hàm thuần, đây là thứ test gọi**.
 ///
@@ -32,10 +59,30 @@ use crate::ports::DictionarySource;
 ///
 /// **Không có nhánh lỗi**: một lớp hỏng lúc tra được [`lookup_han_viet`] xử lý bằng cách
 /// coi lớp đó không đóng góp gì (cùng luật `lookup_grouped`), không làm hỏng cả lượt.
-pub fn read_han_viet(layers: Option<&DictLayers>, chars: &[String]) -> HanVietLookup {
+///
+/// 🔴 `disabled` **nhận từ chỗ gọi** — Story 1.19, §Quyết định #3a: tab Hán Việt theo cùng
+/// một bộ lọc với Panel Lookup, nếu không một nguồn *"đã tắt"* vẫn viết tên mình lên màn hình.
+pub fn read_han_viet(
+    layers: Option<&DictLayers>,
+    chars: &[String],
+    disabled: &BTreeSet<String>,
+) -> HanVietLookup {
     let refs: Vec<&str> = chars.iter().map(String::as_str).collect();
     let empty = DictLayers::empty();
-    lookup_han_viet(layers.unwrap_or(&empty), &refs)
+    lookup_han_viet(layers.unwrap_or(&empty), &refs, disabled)
+}
+
+/// **Ghi công của mọi nguồn trong mọi tệp đang gắn** — Story 1.19, AC1 · AC7 · AC10.
+///
+/// Hàm **thuần**, khuôn [`read_han_viet`]: `layers = None` ⇒ danh sách rỗng, cùng luật AD-25.
+///
+/// 🔴 **KHÔNG nhận `disabled`**, và đó là AC10 viết thành chữ ký: *"tắt"* chỉ giấu một nguồn
+/// khỏi **kết quả tra cứu** — nó vẫn phải có mặt **đầy đủ** trong bảng ghi công. *"Gỡ"* là xoá
+/// tệp dữ liệu, việc của người đóng gói (FR112), và đó là đường **duy nhất** làm một hàng ở
+/// đây biến mất.
+pub fn list_sources(layers: Option<&DictLayers>) -> Vec<SourceAttribution> {
+    let empty = DictLayers::empty();
+    list_source_attributions(layers.unwrap_or(&empty))
 }
 
 /// 🔴 **Quyết định #4 (Story 1.17)** — cỡ trang pha một, **quyết ở ĐÂY** (Panel Lookup),
@@ -134,7 +181,15 @@ pub struct LookupResponse {
 /// lớp đọc nhầm nghĩa mà không lỗi nào được ném). Một lượt gọi `senses()` cho **mỗi lớp có
 /// nhóm**, không một lượt cho mỗi nhóm — một lớp mang nhiều nhóm (nhiều nguồn) dùng
 /// chung đúng một lượt gọi.
-pub fn lookup(layers: Option<&DictLayers>, query: &str) -> LookupResponse {
+///
+/// 🔴 `disabled` **nhận từ chỗ gọi** (Story 1.19, §Quyết định #2a) và đi xuống **CẢ HAI**
+/// lượt tra — bỏ nó ở lượt `Substring` nghĩa là đường lui của Story 1.18 lôi ngược một nguồn
+/// đã tắt lên màn hình ở đúng ca *"lượt đầu không tìm thấy gì"*.
+pub fn lookup(
+    layers: Option<&DictLayers>,
+    query: &str,
+    disabled: &BTreeSet<String>,
+) -> LookupResponse {
     let empty = DictLayers::empty();
     let layers = layers.unwrap_or(&empty);
 
@@ -145,7 +200,13 @@ pub fn lookup(layers: Option<&DictLayers>, query: &str) -> LookupResponse {
 
     // 🔴 **HAI LƯỢT, VÀ LƯỢT THỨ HAI CHỈ CHẠY KHI LƯỢT ĐẦU KHÔNG TÌM THẤY GÌ** — Story 1.18,
     // Ice chốt 2026-08-07. Xem [`SUBSTRING_FALLBACK_CEILING`] cho lý lẽ đầy đủ.
-    let exact = lookup_grouped(layers, &truncated_query, LookupMode::Exact, LOOKUP_PAGE_LIMIT);
+    let exact = lookup_grouped(
+        layers,
+        &truncated_query,
+        LookupMode::Exact,
+        LOOKUP_PAGE_LIMIT,
+        disabled,
+    );
 
     // ⚠️ `layers_loaded` phải được hỏi: với **0 lớp gắn** (trạng thái của mọi bản dựng
     // trong git — `.gitignore: *.db`, AD-25) `groups` luôn rỗng, và một lượt tra thứ hai ở
@@ -155,7 +216,13 @@ pub fn lookup(layers: Option<&DictLayers>, query: &str) -> LookupResponse {
         && exact.groups.is_empty()
         && should_try_substring(&truncated_query)
     {
-        lookup_grouped(layers, &truncated_query, LookupMode::Substring, LOOKUP_PAGE_LIMIT)
+        lookup_grouped(
+            layers,
+            &truncated_query,
+            LookupMode::Substring,
+            LOOKUP_PAGE_LIMIT,
+            disabled,
+        )
     } else {
         exact
     };
@@ -187,15 +254,20 @@ pub fn lookup(layers: Option<&DictLayers>, query: &str) -> LookupResponse {
 
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
-    use super::{DictLayers, HanVietLookup, LookupResponse};
+    use super::{DictLayers, HanVietLookup, LookupResponse, SourceAttribution, Store};
 
     /// Vỏ IPC của [`super::read_han_viet`].
+    ///
+    /// 🔴 **HAI state, và cả hai qua `try_state`** — Story 1.19: tập nguồn bị tắt sống trong
+    /// `global.db`, nên đường này phải hỏi `Store` **ở đây**, không trong `core/dict/**` (AC4).
     #[tauri::command]
     pub fn read_han_viet(app: tauri::AppHandle, chars: Vec<String>) -> HanVietLookup {
         use tauri::Manager as _;
 
         let managed = app.try_state::<DictLayers>();
-        super::read_han_viet(managed.as_deref(), &chars)
+        let store = app.try_state::<Store>();
+        let disabled = super::disabled_sources(store.as_deref());
+        super::read_han_viet(managed.as_deref(), &chars, &disabled)
     }
 
     /// Vỏ IPC của [`super::lookup`].
@@ -208,6 +280,20 @@ pub mod wire {
         use tauri::Manager as _;
 
         let managed = app.try_state::<DictLayers>();
-        super::lookup(managed.as_deref(), &query)
+        let store = app.try_state::<Store>();
+        let disabled = super::disabled_sources(store.as_deref());
+        super::lookup(managed.as_deref(), &query, &disabled)
+    }
+
+    /// Vỏ IPC của [`super::list_sources`] — Story 1.19, AC1 · AC7.
+    ///
+    /// ⚠️ **Không** hỏi `Store`: bảng ghi công liệt kê **mọi** nguồn có mặt, kể cả nguồn đang
+    /// tắt (AC10). Chỉ `DictLayers` mới trả lời được câu *"những tệp nào đang gắn"*.
+    #[tauri::command]
+    pub fn list_dict_sources(app: tauri::AppHandle) -> Vec<SourceAttribution> {
+        use tauri::Manager as _;
+
+        let managed = app.try_state::<DictLayers>();
+        super::list_sources(managed.as_deref())
     }
 }

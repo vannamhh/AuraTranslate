@@ -40,6 +40,33 @@ pub fn insert_source(
     Ok(conn.last_insert_rowid())
 }
 
+/// 🔴 **ĐO `dict_source.lang` từ chính `dict_entry` đã chèn** — Story 1.19, Ice chốt ở code
+/// review 2026-08-10. Gọi **SAU** khi mọi đầu mục của tệp đã vào, **TRƯỚC** `finalize::finish`.
+///
+/// Vì sao một lượt đo chứ không một trường khai tay ở [`SourceMeta`]: `lang` là một dữ kiện
+/// **của dữ liệu**, và một hằng viết tay cạnh `license_kind` là một nguồn sự thật thứ hai sẽ
+/// lệch vào đúng ngày một parser đổi nhãn mà không ai nhớ sửa hằng kia (AD-44 ① vá A2). Đo
+/// thì không lệch được: nếu 0 hàng nào mang `lang = 'en'` thì nguồn đó **không** phục vụ
+/// đường tiếng Anh, chấm hết.
+///
+/// Giá trị là một **TẬP** mã hoá *"cắt theo `,`, trim, bỏ rỗng"* — cùng quy ước
+/// `core::scope::parse_disabled_sources`. `GROUP_CONCAT` đi kèm `ORDER BY lang` trong một
+/// truy vấn con: build phải **TÁI LẬP ĐƯỢC** *(§Build tái lập được, `sha256` trong manifest
+/// chỉ có nghĩa khi byte ra giống nhau)*, và `GROUP_CONCAT` trần **không** đảm bảo thứ tự.
+///
+/// ⚠️ Một nguồn 0 đầu mục ra chuỗi **rỗng**, không `NULL`: cột là `NOT NULL`, và một tập
+/// rỗng đọc đúng nghĩa *"không phục vụ đường nào"*. `require_nonempty` đã chặn ca đó ở
+/// đường sản phẩm, nên đây là vế phòng thủ cho fixture.
+pub fn backfill_source_langs(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(
+        "UPDATE dict_source SET lang = IFNULL(
+           (SELECT GROUP_CONCAT(lang, ',') FROM
+              (SELECT DISTINCT lang FROM dict_entry
+                WHERE source_id = dict_source.id ORDER BY lang)),
+           '');",
+    )
+}
+
 /// Chèn MỘT `RawEntry` — `dict_entry` + mọi `dict_sense`/`dict_example`/`dict_citation`
 /// của nó + cặp `char_idx` phủ cả `headword` lẫn `headword_simp` (Task 5), tất cả gắn
 /// `source_id` đã biết. 🔴 AC2: `source_id` là `NOT NULL` ở cả `dict_entry` lẫn

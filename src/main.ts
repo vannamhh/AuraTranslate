@@ -57,6 +57,17 @@ import {
   selectionCommands,
 } from './panels/selectionContract'
 import { installTimingProbe, markDispatch } from './panels/lookupTiming'
+// ── Story 1.19 — bật/tắt nguồn từ điển và bề mặt ghi công ────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `lookupPanelState.ts`: `dictSourcesState.ts` dùng `ref` của
+// Vue và gọi `@tauri-apps/api` xuyên qua `config/dict.ts`.
+import {
+  attributionIsOpen,
+  closeAttribution,
+  loadDictSources,
+  openAttribution,
+  toggleFocusedDictSource,
+} from './panels/dictSourcesState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -204,11 +215,25 @@ async function boot(): Promise<void> {
       extendSelectionRight: selectionCommands.extendRight,
       extendSelectionWordLeft: selectionCommands.extendWordLeft,
       extendSelectionWordRight: selectionCommands.extendWordRight,
+      // Story 1.19 · AC2 · AC7 · AC11 — ba handler tĩnh, không một command cho mỗi nguồn.
+      toggleDictSource: toggleFocusedDictSource,
+      openAttribution,
+      closeAttribution,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
     // sổ này sống đúng bằng vòng đời tiến trình nên không có chỗ nào để gọi hàm gỡ cả.
-    void attachKeyboard(window)
+    //
+    // 🔴 **Cửa nuốt hợp âm — Story 1.19, Ice chốt ở code review 2026-08-10.** Lớp phủ
+    // Attribution khai `aria-modal="true"`, và cho tới lượt này nó **không** hành xử như
+    // vậy: `attachKeyboard` gắn ở `window` không hỏi ai cả, nên một hợp âm đổi preset bố cục
+    // vẫn chạy được phía sau lớp phủ, gọi `api.clear()` và **dựng lại** cả bốn panel bên
+    // dưới. Hệ quả kéo theo là `returnFocusTo` của lớp phủ ôm một node đã rời DOM, nên lượt
+    // trả tiêu điểm lúc đóng thành một lời gọi không tác dụng (UX-DR17 vỡ im lặng).
+    //
+    // ⚠️ Vị từ đi bằng **tiêm**, cùng cửa `toggleDictSource`/`runLookup` — xem [`KeymapGate`]
+    // để biết vì sao `keys.ts` không được phép tự `import` state này.
+    void attachKeyboard(window, { isBlocked: () => attributionIsOpen.value })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng
     // dụng đều đáng ngờ — kể cả catalog chuỗi. Một câu tiếng Việt viết thẳng ở đây là đúng
@@ -248,6 +273,26 @@ async function boot(): Promise<void> {
     // `as ModeId` an toàn vì `setMode` tự kiểm lúc chạy — xem `modes/modeState.ts:39`.
     setMode(wanted as ModeId)
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔴 STORY 1.19 — DANH SÁCH NGUỒN VÀ TẬP BỊ TẮT, NẠP **TRƯỚC** `mount()`
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //
+  // ⚠️ **Không `await`**, và đó là chủ ý: `list_dict_sources` mở lại `dict_source` của mọi
+  // tệp `.db`, và chờ nó xong mới dựng cửa sổ là tự tay thêm một khoảng trắng vào lúc khởi
+  // động — cùng lý lẽ `loadFonts()` ở đầu `boot()`. Dải chip dựng khi danh sách về
+  // (`v-if="dictSources.length > 0"`), và trong khoảng đó Panel Lookup vẫn dùng được.
+  //
+  // 🔴 Tập bị tắt thì đi **ĐỒNG BỘ** từ `config` đã `await` ở trên — nó là tham số của lượt
+  // tra ĐẦU TIÊN, và một lượt Auto-Lookup chạy trước khi nó về sẽ trả kết quả của một bộ
+  // lọc rỗng. Rust đọc `global.db` của chính nó ở mỗi lượt tra (`commands::dict`), nên đường
+  // sản phẩm vẫn ĐÚNG; giá trị ở đây chỉ để dải chip vẽ đúng chip nào mờ.
+  //
+  // ⚠️ `?? ''` là canh gác LÚC CHẠY: giá trị vừa vượt ranh giới IPC, và một bản Rust cũ hơn
+  // (trước story này) không có trường đó. Chuỗi rỗng ⇒ **mọi nguồn đều bật**.
+  void loadDictSources(
+    typeof config?.dict_sources_disabled === 'string' ? config.dict_sources_disabled : '',
+  )
 
   createApp(App).mount('#app')
 

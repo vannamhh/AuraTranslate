@@ -312,6 +312,28 @@ export function createKeymap(registry: Registry, platform: Platform): Keymap {
 }
 
 /**
+ * Điều kiện **NUỐT** một hợp âm trước khi nó tới được `Keymap.handle`.
+ *
+ * 🔴 Vì sao nó là một hàm **TIÊM VÀO** chứ không một lượt `import` ở đây (Story 1.19, bắt ở
+ * code review 2026-08-10): tệp này được `scripts/check-commands.mjs` nạp bằng **Node thuần**
+ * ở Kiểm C/D/E, nên một `import` tới `panels/dictSourcesState.ts` *(dùng `ref` của Vue và
+ * `@tauri-apps/api`)* làm cổng gãy ngay. Cùng cửa mà `currentSelection`/`runLookup` đã đi
+ * qua: chính sách quyết ở `main.ts`, tầng này chỉ nhận một vị từ.
+ */
+export type KeymapGate = {
+  /**
+   * Trả `true` ⇒ hợp âm bị **nuốt trọn**, không một command nào chạy.
+   *
+   * ⚠️ Nuốt bằng cách **thoát sớm**, KHÔNG `preventDefault()`: `Escape` của lớp phủ
+   * Attribution là một `@keydown.esc` **DOM thường** trên `.attr-scrim`, không một command
+   * (§AC11 — `Escape` là một lượt huỷ **trong ngữ cảnh**). Listener này chạy ở pha
+   * `capture` trên `window`, tức **trước** nó; chặn dòng sự kiện ở đây là để lớp phủ không
+   * đóng được bằng phím, tức nhốt người dùng bàn phím vào trong đúng thứ nó vừa mở.
+   */
+  isBlocked?: () => boolean
+}
+
+/**
  * Gắn keymap vào một `EventTarget` và trả về hàm gỡ.
  *
  * `{ capture: true }` để hợp âm của ứng dụng đứng TRƯỚC handler của component — không
@@ -321,7 +343,7 @@ export function createKeymap(registry: Registry, platform: Platform): Keymap {
  */
 const attached = new WeakSet<EventTarget>()
 
-export function attachKeymap(keymap: Keymap, target: EventTarget): () => void {
+export function attachKeymap(keymap: Keymap, target: EventTarget, gate?: KeymapGate): () => void {
   /**
    * ⚠️ CANH GÁC GỌI LẠI. `installCommands()` ném ở lần gọi thứ hai, nhưng hàm này thì
    * không — nên hai lời gọi cài hai listener capture trên cùng một target và **mọi hợp âm
@@ -336,6 +358,9 @@ export function attachKeymap(keymap: Keymap, target: EventTarget): () => void {
   }
   attached.add(target)
   const listener = (event: Event): void => {
+    // Xem [`KeymapGate`]: thoát sớm, không `preventDefault()` — sự kiện phải đi tiếp tới
+    // handler DOM của lớp phủ đang mở.
+    if (gate?.isBlocked?.() === true) return
     keymap.handle(event as unknown as ChordEvent)
   }
   target.addEventListener('keydown', listener, { capture: true })

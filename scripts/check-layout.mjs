@@ -92,7 +92,7 @@ function walk(dir, out = [], seen = new Set()) {
  * dưới số thật một khoảng nhỏ để một lượt xoá tệp có chủ ý không làm cổng `abort()`,
  * nhưng một lượt quét hỏng thì có.
  */
-const FILE_FLOOR = 32 // số THẬT 2026-08-07 (sau Story 1.18): 39 tệp `src/**`
+const FILE_FLOOR = 35 // số THẬT 2026-08-10 (sau Story 1.19): 42 tệp `src/**`
 
 let files = []
 try {
@@ -415,6 +415,12 @@ const ALLOWED_GLOBAL_MEMBERS = new Set([
   'document.createElement',
   'document.addEventListener',
   'document.removeEventListener',
+  // Story 1.19, AC11 · UX-DR17 (thêm ở code review 2026-08-10) — `AttributionOverlay.vue`
+  // tìm lại nút ĐÃ MỞ lớp phủ (`[data-attribution-open]`) để trả tiêu điểm về khi node giữ
+  // tiêu điểm lúc mở đã rời DOM. Một `ref` không dùng được: nút sống trong `LookupPanel.vue`,
+  // một component KHÁC, và một lượt đổi preset bố cục dựng lại cả bốn panel. API DOM chuẩn,
+  // không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
+  'document.querySelector',
 ])
 
 const GLOBAL_MEMBER_RE = /\b(window|document|globalThis|self|top|parent)\s*\.\s*([A-Za-z_$][A-Za-z0-9_$]*)/g

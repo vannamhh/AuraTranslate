@@ -83,8 +83,8 @@ const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
  * Đặt nó bằng số thật là tự tạo một cổng đỏ ở story sau, và một cổng đỏ vì một lý do
  * không có thật là một cổng sắp bị gỡ.
  */
-const FILE_FLOOR = 34 // số THẬT 2026-08-07 (sau Story 1.18): 42 tệp
-const COMPONENT_FILE_FLOOR = 32 // số THẬT 2026-08-07 (sau Story 1.18): 39 tệp component
+const FILE_FLOOR = 37 // số THẬT 2026-08-10 (sau Story 1.19): 45 tệp
+const COMPONENT_FILE_FLOOR = 35 // số THẬT 2026-08-10 (sau Story 1.19): 42 tệp component
 
 let failures = 0
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)

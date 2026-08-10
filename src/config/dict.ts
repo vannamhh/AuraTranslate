@@ -271,3 +271,101 @@ export async function lookupDictionary(query: string): Promise<LookupDictionaryR
     return { response: null, error: null }
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────────────
+// Story 1.19 — GHI CÔNG (`commands::dict::wire::list_dict_sources`)
+// ─────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Hình dạng `SourceAttribution` phía Rust — `snake_case`, đúng như trên dây.
+ *
+ * 🔴 **Một kiểu RIÊNG với `SourceInfo`, và một lượt IPC RIÊNG** (§Quyết định #5a). `SourceInfo`
+ * đi kèm **mọi** lượt tra; kiểu này chỉ đi khi màn hình Attribution mở — **một lần**. Đo trên
+ * bốn tệp `.db` thật 2026-08-08: `license_text` một mình là 43.304 ký tự, bảy nguồn của
+ * `dict-core.db` cộng lại ~215 KB. Gộp hai kiểu là đổ ngần đó qua IPC mỗi lần bôi đen.
+ */
+export type SourceAttribution = {
+  code: string
+  display_name: string
+  /**
+   * 🔴 **Chuỗi MỞ, KHÔNG một enum** (AD-10). Bốn giá trị đo được trên dữ liệu thật:
+   * `open` · `public-domain` · `copyrighted` · `unknown`. Bảng ánh xạ ở `vi.json` **phải có
+   * nhánh mặc định** — một giá trị chưa gặp bao giờ ra một câu CÓ NGHĨA, không một ô trống
+   * và không chuỗi máy thô (AC9).
+   */
+  license_kind: string
+  /**
+   * `null` là hình dạng THẬT, không một ca biên: `tran-van-chanh` và `vietphrase` đều mang
+   * `NULL`. Màn hình đọc câu của `license_kind` khi nó `null` — KHÔNG một ô trống, và
+   * KHÔNG suy ngược từ `license_kind` (AC9).
+   */
+  license_id: string | null
+  /**
+   * ĐỘ DÀI của văn bản giấy phép, không phải nội dung. Đường *"Mở văn bản giấy phép"* thuộc
+   * **Story 10.4** theo bảng chia đôi Ice đã chốt 2026-08-08.
+   */
+  license_text_len: number
+  /**
+   * 🔴 Ghi công **NGUYÊN VĂN, ĐẦY ĐỦ, không `ellipsis`** (AC7): `tran-van-chanh` mang một
+   * **cảnh báo pháp lý** trong trường này, không một lời cảm ơn.
+   *
+   * 🔴 Và đây là chỗ **DANH TÍNH TÁC GIẢ** sống. Không một cái tên nào được viết cứng trong
+   * `src/**` hay `vi.json` — `tests/dict_boundary.rs` canh mệnh đề đó bằng máy (AC9).
+   */
+  attribution: string
+  source_version: string
+  source_url: string
+  /**
+   * 🔴 **Tập đường ngôn ngữ nguồn này phục vụ** — `dict_source.lang`, AC6.
+   *
+   * Mã hoá *"cắt theo `,`, trim, bỏ rỗng"* — **cùng** quy ước `decodeDisabled`, không một
+   * quy ước thứ hai. Hôm nay mọi nguồn thật cho đúng một giá trị (`'zh'` hoặc `'en'`), nhưng
+   * đây là một **TẬP**: bất biến đó là một số đo, không một mệnh đề.
+   *
+   * ⚠️ Giá trị được **ĐO lúc dựng** từ `dict_entry` của chính tệp, không khai tay — nên nó
+   * không phải một sổ đăng ký `code → lang` (AD-44 ① vá A2). Dùng qua `sourceServesRoute`,
+   * đừng so sánh chuỗi trực tiếp.
+   */
+  lang: string
+  /** `dict_meta('layer')` của tệp chứa nguồn này. */
+  layer: string
+  /** Lớp NỀN hay lớp GỠ RỜI — đọc từ `dict_meta`, không từ tên tệp (AD-44 ① vá A2). */
+  is_base: boolean
+}
+
+/** Tên command trên dây. Khớp `src-tauri/src/commands/dict.rs` (module `wire`). */
+const CMD_LIST_DICT_SOURCES = 'list_dict_sources'
+
+/** Kết quả một lượt đọc danh sách nguồn. Cùng khuôn `ReadHanVietResult`. */
+export type ListDictSourcesResult = {
+  sources: SourceAttribution[] | null
+  error: IpcError | null
+}
+
+/**
+ * Liệt kê **mọi** nguồn của **mọi** tệp `.db` đang gắn. Không ném.
+ *
+ * 🔴 **Kể cả nguồn đang TẮT** (AC10) — command này không nhận tập bị tắt, và đó là một mệnh
+ * đề chứ không một thiếu sót: *"tắt"* chỉ giấu một nguồn khỏi **kết quả tra cứu**; *"gỡ"* là
+ * xoá tệp dữ liệu và là việc của người đóng gói (FR112).
+ */
+export async function listDictSources(): Promise<ListDictSourcesResult> {
+  try {
+    const sources = await invoke<SourceAttribution[]>(CMD_LIST_DICT_SOURCES)
+    return { sources, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { sources: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[dict] \`${CMD_LIST_DICT_SOURCES}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { sources: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[dict] không gọi được \`${CMD_LIST_DICT_SOURCES}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { sources: null, error: null }
+  }
+}

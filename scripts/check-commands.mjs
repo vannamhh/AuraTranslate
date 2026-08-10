@@ -209,14 +209,14 @@ const tsFiles = keep(tsAll)
 // thật — một con số bịa trong đúng tệp mà cả kiến trúc dựa vào để tin các con số là chính
 // thứ rot mà AC13 tồn tại để chặn.
 const VUE_FLOOR = 11 // số THẬT 2026-08-06 (sau Story 1.17): 13 tệp `.vue`
-const TS_FLOOR = 21 // số THẬT 2026-08-07 (sau Story 1.18): 26 tệp `.ts`
+const TS_FLOOR = 23 // số THẬT 2026-08-10 (sau Story 1.19): 28 tệp `.ts`
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
  * hai `layout.preset_*` · bốn `layout.toggle_*` · hai `library.import_*` · ba
  * `source.select_tab_*`/`toggle_han_viet_view` · `lookup.lookup_selection` (Story 1.17).
  * Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà không kiểm gì.
  */
-const COMMAND_FLOOR = 18 // số THẬT 2026-08-07 (sau Story 1.18): 22 command
+const COMMAND_FLOOR = 21 // số THẬT 2026-08-10 (sau Story 1.19): 25 command
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
@@ -234,8 +234,8 @@ const COMMAND_FLOOR = 18 // số THẬT 2026-08-07 (sau Story 1.18): 22 command
 // **6** vs 8"*) và đòi *"**mọi** hằng `*_FLOOR` bị vượt được nâng theo số thật"*. Bản đầu
 // đánh dấu nó *"không đổi ở Story 1.17"* thay vì nâng — 6/8 = 75%, dưới hẳn doctrine
 // ~81-85% mà **mọi** sàn khác trong cùng lượt tuân theo. Đúng cách 1.16 để lọt và bị bắt.
-const CLICK_FLOOR = 7 // số THẬT 2026-08-07: 8 thuộc tính `@click`
-const DISPATCH_FLOOR = 11 // số THẬT 2026-08-07 (sau Story 1.18): 13 lời gọi `dispatch()`
+const CLICK_FLOOR = 9 // số THẬT 2026-08-10 (sau Story 1.19): 11 thuộc tính `@click`
+const DISPATCH_FLOOR = 13 // số THẬT 2026-08-10 (sau Story 1.19): 16 lời gọi `dispatch()`
 
 if (vueFiles.length < VUE_FLOOR || tsFiles.length < TS_FLOOR) {
   abort(
@@ -1638,8 +1638,14 @@ const SELECTION_PANEL_FILES = [
  * không được kiểm ① canh riêng. Với sàn cũ, xoá đúng lời gọi đó vẫn để lại 4 lời gọi —
  * ĐÚNG sàn, cổng xanh, và mất lưới cho toàn bộ đường bàn phím Hán Việt mà AC11/AC12 vừa
  * đóng. Sàn = SỐ THẬT hôm nay (AC13); Story 1.20/3.4 sẽ THÊM bề mặt, không bớt.
+ *
+ * 🔴 **NÂNG 6 — Story 1.19, và lời hứa ngay trên vừa được thu.** Bề mặt thứ sáu là bảng
+ * Attribution (`src/AttributionOverlay.vue`): nó chứa **chữ thật** (ghi công, tên giấy
+ * phép), nên nó rơi vào đúng lớp câu hỏi mà hợp đồng vùng chọn tồn tại để trả lời — một bề
+ * mặt văn bản im lặng đứng ngoài sổ là đúng thứ AC2 của Story 1.18 dựng ra để chặn.
+ * Vai `'display'`, KHÔNG `'source'`, cùng lý do Bẫy 1 đã bắt ở Panel Lookup.
  */
-const SELECTION_SURFACE_FLOOR = 5
+const SELECTION_SURFACE_FLOOR = 6
 
 const SURFACE_CALL_RE = /useSelectionSurface\s*\(\s*[^,)]+,\s*'(source|display)'/g
 

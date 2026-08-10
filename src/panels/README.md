@@ -16,6 +16,7 @@ Component đặt tên `PascalCase.vue` (Consistency Conventions). Panel Lookup �
 | Panel Editor | **Epic 2** | ⬜ |
 | Hợp đồng vùng chọn dùng chung + Auto-Lookup (bốn panel + `SourceHanViet`) | **1.18** | ✅ đã dựng |
 | Tách từ tiếng Trung cho tab Hán Việt — double-click chọn cả CỤM TỪ | **1.18b** | ✅ đã dựng |
+| Bật/tắt nguồn từ điển *(dải chip)* + bề mặt ghi công *(lớp phủ Attribution)* | **1.19** | ✅ đã dựng |
 
 **Story sở hữu nội dung: 1.14.** `PanelFrame.vue` hôm nay là **vỏ**, không phải panel: thanh tiêu đề, tiêu đề `ui-md`, và thân **để trống**. `WorkspaceMode.vue` dựng **hai** `PanelFrame` — `panel.source` và `panel.editor`, đúng cặp *Nguyên văn | Bản dịch* mà UX-DR15 nói *"không bao giờ nhường"*. Hai chứ không bốn: một cái không đủ để nhìn thấy tương phản có/không tiêu điểm, bốn cái là dựng trước Story 1.14. **Story 1.14 thay chỗ hai cái này bằng bốn panel trong `dockview`.**
 
@@ -127,3 +128,59 @@ trúc**, không nhờ trùng hợp *(đo: bảng đối chiếu 26 vị trí, 26
 
 ⚠️ **Engine thiếu `Intl.Segmenter`** ⇒ rơi về **một ký tự một từ** *(hành vi trước 1.18b)* kèm
 `console.error` nêu đích danh. Không im lặng, không ném.
+
+---
+
+## Bật/tắt nguồn từ điển (Story 1.19) — bộ lọc ở **Rust**, chip ở webview
+
+`src/panels/dictSourcesState.ts` giữ **danh sách nguồn** và **tập bị tắt**; `LookupPanel.vue`
+vẽ dải chip; `src/AttributionOverlay.vue` vẽ bảng ghi công.
+
+**Bốn mệnh đề, và cả bốn đều dễ cài ngược:**
+
+| mệnh đề | vì sao |
+|---|---|
+| **Danh sách nguồn dẫn xuất từ `list_dict_sources`, KHÔNG từ `groups`** | một nguồn **đang tắt** không sinh nhóm nào ⇒ một dải chip dẫn xuất từ `groups` **không có chip để bật nó lại**, người dùng tự khoá mình ra ngoài |
+| **Bộ lọc áp ở RUST, tầng gom, là THAM SỐ từ chỗ gọi** | trần `LIMIT = 20` chạy **trước**, nên lọc ở webview để một nguồn **đang bật** biến mất chỉ vì một nguồn **đã tắt** có `entry_id` nhỏ hơn — và `count_by_source` sẽ đếm cả nguồn đã tắt *(§Quyết định #2a)* |
+| **Giá trị lưu là tập BỊ TẮT, không phải tập được bật** | mặc định là *mọi nguồn đều bật*, nên một nguồn **mới** ở bản sau phải tự động bật. Lưu tập được-bật làm nó im lặng **tắt** — đúng lớp lỗi *"rỗng im lặng"* mà AD-44 ④ cấm |
+| **Bộ lọc áp cho **cả** tab Hán Việt** | âm Hán Việt mang `source_code` và `sources_used` **hiện tên nguồn lên màn hình**; để nó ngoài bộ lọc là để một nguồn *"đã tắt"* vẫn viết chữ lên tab *(§Quyết định #3a)* |
+
+🔴 **Hệ quả đo được của mệnh đề thứ tư:** `priority_order()` đẩy lớp **nền** xuống cuối, nên
+tắt một lớp gỡ rời **ĐỔI ÂM hiển thị** chứ không chỉ giấu bớt — ký tự rơi về âm của lớp nền.
+Hành vi **đúng** *(cùng cơ chế FR36 dựa vào khi một lớp bị gỡ)*, và
+`dict_sources.rs::disabling_a_detachable_source_changes_the_reading_it_does_not_erase_it`
+khẳng định **âm cụ thể**, không chỉ khẳng định `sources_used` sạch.
+
+### TẮT ≠ GỠ
+
+**Tắt** chỉ giấu một nguồn khỏi **kết quả tra cứu** — dữ liệu vẫn nằm trong bản cài, và nguồn
+**vẫn được ghi công đầy đủ** trong bảng Attribution *(AC10 — nghĩa vụ CC-BY-SA gắn với việc
+**phân phối** dữ liệu, không với việc hiển thị nó)*. **Gỡ** là xoá tệp `.db` khỏi bản phát
+hành, việc của **người đóng gói** *(FR112)*. Không nút xoá tệp, không đường ghi vào
+`resources/dict/`, không cơ chế tải thêm *(NFR6)*.
+
+### Dải chip **không** nằm trong vùng đầu mục
+
+`.lookup-head` khoá `height: 76px; overflow: hidden`, và Story 1.17/1.18 đã vỡ đúng chỗ này
+**hai lần**. Đo trên bố cục hiện tại: đầu mục 24px/1.3 ≈ 31px + `margin-top` 7px + thanh nhịp
+≈ 15px + `padding-bottom` ⇒ vùng 76px **đã đầy**. ⇒ dải chip là một hàng **RIÊNG**,
+`flex: none`, đứng **trên** vùng đầu mục — đúng thứ tự `mockups/sources-attribution.html`
+vẽ. `--lookup-head-height` giữ **nguyên** giá trị và **nguyên** vai trò.
+
+### Trạng thái tắt phân biệt bằng **màu + gạch ngang**, không bằng `opacity`
+
+UX-DR6 cấm làm mờ **chữ** ở trạng thái **nghỉ**, và một chip tắt là một trạng thái nghỉ. Hai
+tín hiệu chứ không một: màu một mình không đọc được với người mù màu.
+
+### Ba command tĩnh, **không** một command cho mỗi nguồn
+
+`lookup.toggle_source` *(bật/tắt nguồn đang được nhắm)* · `attribution.open` ·
+`attribution.close`. Mockup vẽ `⌥1…6` cho từng nguồn — **bác**: danh sách nguồn **dẫn xuất
+lúc chạy** (0 tới 10 nguồn), còn `CommandRegistry` là một danh sách **tĩnh** mà
+`check-commands.mjs` đếm bằng máy; `Mod+Alt+1`/`2` đã thuộc preset bố cục; và FR22/Story 1.21
+đòi mọi command **gán lại được**, mà một id không tồn tại lúc dựng màn hình phím thì không.
+
+⚠️ Mục tiêu của `lookup.toggle_source` đi bằng `@mousedown` **uỷ quyền ở vùng chứa** cộng
+`document.activeElement` — **không** một tham số trên command. WKWebView **không đặt tiêu
+điểm cho `<button>` khi bấm chuột**, nên đọc mỗi `activeElement` là để cả đường chuột chết
+trên macOS trong khi xanh trên Windows *(NFR14)*.

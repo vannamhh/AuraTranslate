@@ -40,10 +40,25 @@
 #     mới có mtime mới nhất; `built_at` của thieu-chuu/vietphrase GIỮ NGUYÊN
 #     (`2026-08-04T23:53:16Z` — nguồn thô của chúng không đổi, chỉ lược đồ đổi).
 #     `builder_version` 0.3.0 → 0.4.0.
+#
+# 🔴 SHA-256 CẬP NHẬT LẦN BỐN ở **code review Story 1.19** (2026-08-10) — LƯỢC ĐỒ LÊN v3.
+# `SCHEMA_VERSION` 2→3: cột `dict_source.lang` mới, **ĐO** từ `dict_entry` của chính tệp
+# (`insert.rs::backfill_source_langs`) chứ không khai tay. Buộc dựng lại **cả bốn** tệp,
+# cùng lý do lượt 1.10c: lược đồ đổi ⇒ nhị phân đổi. Cột này tồn tại để AC6 hỏi được
+# *"mọi nguồn CỦA ĐƯỜNG ĐANG TRA đều tắt chưa"* thay vì hỏi toàn tập — xem
+# `core/dict/mod.rs::SourceAttribution::lang`.
+#   • Đo được: 10/10 nguồn cho đúng MỘT `lang` (`viwiktionary-en` là `en`, chín nguồn còn
+#     lại là `zh`), khớp chính xác lượt đo tay 2026-08-10 trước khi dựng.
+#   • Giá đọc: **~480 ms → ~16 ms** mỗi lượt khởi động. Dẫn xuất lúc đọc bằng
+#     `SELECT DISTINCT` tốn 374 ms trên `dict-core.db` (594.770 hàng) + 97 ms trên
+#     `dict-vietphrase.db` (679.302 hàng) vì `dict_entry` không có index trên `source_id`.
+#   • Kích thước **KHÔNG đổi** ở cả bốn tệp — cột TEXT ngắn trên đúng 10 hàng nằm lọt
+#     trong trang đã cấp phát.
+#
 # ✅ Xác nhận TÁI LẬP ĐƯỢC: hai lượt `--layer all` độc lập vào hai thư mục đích khác
 # nhau cho ra ĐÚNG bốn SHA-256 dưới đây, cả bốn tệp.
 url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-core.db"
-sha256         = "3bcfa98bf428aec30cf61ee8242b55168e399df4778c7ed8e95170e906a183e9"
+sha256         = "95c9f5b118d05058621e03e2467aff6d1fb25a9b061a7e4a1d113201d68bf981"
 source_version = "cvdict@c379d909e3 (2026-08-04) · cc-cedict@2026-08-04 · unihan@17.0.0 · viwiktionary@2026-08-04 · en-wiktionary@2026-08-04 · viwiktionary-en@2026-08-04 · en-wiktionary-vi@2026-08-06"
 
 # Ba lớp gỡ rời trong phạm vi Story 1.10c (Ice chốt 2026-08-06: + Trần Văn Chánh, cạnh
@@ -52,13 +67,13 @@ source_version = "cvdict@c379d909e3 (2026-08-04) · cc-cedict@2026-08-04 · unih
 [[detachable]]
 name           = "thieu-chuu"
 url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-thieu-chuu.db"
-sha256         = "bd60ded6597cd36494b3596166f2e55c371d72360f58bcff936d8578feb35dbb"
+sha256         = "e391a4b242818627209fe1d8e9446cc7c60854110912add6a4de2069aac66054"
 source_version = "catusf/tudien@2.2 (2022-10-10)"
 
 [[detachable]]
 name           = "vietphrase"
 url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-vietphrase.db"
-sha256         = "0add27583f0e3f262c04f9fbfae382f4fdff05313bf70554b00fc3891535f375"
+sha256         = "9e472aeb9185d5a77b583b191a3ca39c66718de1764ecda541ebd0d9de480bb5"
 source_version = "truyencuatui/VietPhrase@master (tải 2026-08-05, chuyển UTF-8)"
 
 # 🔴 Lớp gỡ rời THỨ BA — Story 1.10c. Rủi ro pháp lý CHƯA đóng (Trần Văn Chánh, 1999,
@@ -69,5 +84,5 @@ source_version = "truyencuatui/VietPhrase@master (tải 2026-08-05, chuyển UTF
 [[detachable]]
 name           = "tran-van-chanh"
 url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v1/dict-tran-van-chanh.db"
-sha256         = "8a437f506ec5f551d7ada94075d7748a1fbfd8e0ca682f59c219adea8983018f"
+sha256         = "3eb98410478d0fab052bbcdb4fd14b88eb74043406f9c13ecd14c8d49398229f"
 source_version = "catusf/tudien@a7dd918ecc67de8c2d15034f885d919b9295eba4 (2025-12-19)"

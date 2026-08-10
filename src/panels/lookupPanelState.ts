@@ -18,7 +18,7 @@
 import { computed, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { lookupDictionary } from '../config/dict'
-import type { LookupResponse, SenseRecord, SourceGroup } from '../config/dict'
+import type { LookupResponse, QueryRoute, SenseRecord, SourceGroup } from '../config/dict'
 import type { IpcError } from '../i18n'
 
 /**
@@ -201,6 +201,20 @@ export const queryTooShort = computed(
  * của `sourcePanelState.ts`: chỉ có nghĩa SAU khi [`lookupResolved`] đã `true`.
  */
 export const layersLoaded = computed(() => response.value?.grouped.layers_loaded ?? true)
+
+/**
+ * 🔴 **Đường ngôn ngữ của lượt tra gần nhất** — Story 1.19 AC6, thêm ở code review
+ * 2026-08-10.
+ *
+ * `pick_route` chạy **đúng một lần** phía Rust và giá trị đi về trong `grouped.route`, nên
+ * webview **đọc** nó chứ không tính lại — cùng mệnh đề AD-44 ① vá A1 mà `core/dict/mod.rs`
+ * đã ghi: *"một adapter không tự phân xử"*. Một bản sao của `pick_route` ở đây sẽ trả lời
+ * khác đường thật vào đúng ngày luật phân đường đổi.
+ *
+ * ⚠️ `null` khi chưa tra lượt nào — chỗ tiêu thụ phải xử ca đó, vì *"mọi nguồn của đường
+ * đang tra đều tắt"* không có nghĩa khi chưa có đường nào.
+ */
+export const lookupRoute = computed<QueryRoute | null>(() => response.value?.grouped.route ?? null)
 
 /**
  * Trạng thái 5 — một phần từ điển không trả lời (`skipped` khác rỗng). ⚠️ **không

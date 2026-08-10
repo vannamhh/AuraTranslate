@@ -21,7 +21,7 @@ import { createFocusRegistry } from './focus.ts'
 import { attachKeymap, createKeymap } from './keys.ts'
 import type { CommandId, Registry } from './registry.ts'
 import type { FocusEntry, FocusOwner, FocusRegistry } from './focus.ts'
-import type { Keymap } from './keys.ts'
+import type { Keymap, KeymapGate } from './keys.ts'
 
 export type { CommandId, CommandSpec, Registry } from './registry.ts'
 export type { FocusEntry, FocusOwner, FocusRegistry } from './focus.ts'
@@ -227,6 +227,28 @@ export type CommandDeps = {
   extendSelectionWordLeft?: () => void
   /** Mở rộng vùng chọn một TỪ sang phải. Handler của `selection.extend_word_right`. */
   extendSelectionWordRight?: () => void
+
+  // ── Story 1.19 — bật/tắt nguồn từ điển và bề mặt ghi công ──────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `runLookup`: `panels/dictSourcesState.ts` dùng
+  // `ref`/`computed` của Vue **và** gọi `@tauri-apps/api` xuyên qua `config/dict.ts` —
+  // import thẳng nó ở đây giết Kiểm C/D/E cùng lúc.
+
+  /**
+   * Bật/tắt nguồn từ điển **đang được nhắm**. Handler của `lookup.toggle_source` (AC2).
+   *
+   * 🔴 **Không** một tham số `code`, và đó là §KHÔNG-LÀM ⑤ viết thành chữ ký: danh sách
+   * nguồn **dẫn xuất lúc chạy** (0 tới 10 nguồn tuỳ tệp `.db` có mặt), còn `CommandRegistry`
+   * là một danh sách TĨNH mà `check-commands.mjs` đếm bằng máy (`COMMAND_FLOOR`). Một
+   * command cho mỗi nguồn phá chính cơ chế cưỡng chế của AD-34, và một id không tồn tại lúc
+   * dựng màn hình phím thì Story 1.21 không gán lại được. ⇒ handler đọc mục tiêu từ trạng
+   * thái quanh nó, đúng khuôn `deps.currentSelection` của `lookup.lookup_selection`.
+   */
+  toggleDictSource?: () => void
+  /** Mở bề mặt ghi công. Handler của `attribution.open` (AC7, AC11). */
+  openAttribution?: () => void
+  /** Đóng bề mặt ghi công. Handler của `attribution.close` (AC11). */
+  closeAttribution?: () => void
 
   /**
    * Các panel đang HIỆN, theo **thứ tự bố cục** (AC9).
@@ -549,6 +571,59 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
     },
   })
 
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 1.19 — BA COMMAND TĨNH CHO BẬT/TẮT NGUỒN VÀ GHI CÔNG (AC11)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🔴 VÌ SAO **KHÔNG** MỘT COMMAND CHO MỖI NGUỒN (§KHÔNG-LÀM ⑤)
+   * ─────────────────────────────────────────────────────────────────────────────
+   * `mockups/sources-attribution.html:140` vẽ `⌥1…6` cạnh dải chip. **Bác**, ba lý do đo
+   * được:
+   * ① danh sách nguồn **dẫn xuất lúc chạy** — 0 tới 10 nguồn tuỳ tệp `.db` có mặt — còn
+   *    registry này là một danh sách **TĨNH** mà `check-commands.mjs` đếm bằng máy
+   *    (`COMMAND_FLOOR`). Một command sinh động phá chính cơ chế cưỡng chế của AD-34;
+   * ② `Mod+Alt+1`/`Mod+Alt+2` **đã thuộc** preset bố cục (Story 1.14, §QĐ #1);
+   * ③ FR22/Story 1.21 đòi **mọi** command gán lại được, mà một id không tồn tại lúc dựng
+   *    màn hình phím thì không gán được.
+   * Ghi lệch so với mockup vào §Change Log của story, kèm ba lý do trên.
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * ⚠️ **BA, KHÔNG PHẢI HAI** — và lệch với §KHÔNG-LÀM ⑤ đúng một command
+   * ─────────────────────────────────────────────────────────────────────────────
+   * Story kê *"đúng hai command tĩnh"*. `attribution.close` là command thứ ba, và lý do là
+   * một **ràng buộc của cổng**, không một tính năng thêm: Kiểm A của `check:commands` đòi
+   * **mọi** `@click` là đúng một `dispatch('<id>')`, nên một nút đóng — thứ AC11 cần cho
+   * người dùng chuột — **không tồn tại được** nếu không có command của nó. Ba lý do mà
+   * §KHÔNG-LÀM ⑤ đưa ra vẫn đứng nguyên: id **tĩnh**, đếm được, gán lại được ở 1.21.
+   * (`Escape` thì KHÔNG đi qua registry — nó là một lượt huỷ **trong ngữ cảnh**, và chiếm
+   * `Escape` cho cả ứng dụng là một quyết định khác hẳn.)
+   *
+   * 🔴 **Cố ý KHÔNG gán phím mặc định cho cả ba**, cùng lý lẽ `layout.toggle_*` (§QĐ #3 của
+   * Story 1.6): họ `Mod+Alt+…` đã kín chỗ có nghĩa (`1` `2` `O` `J` `V` `L` `S` `←` `→`), và
+   * ba thao tác này đều tới được bằng bàn phím qua Tab + Enter/Space — chuẩn HTML gốc. Đây
+   * là một **lỗ NFR17 có tên và có chủ**: màn hình gán phím là Story 1.21, và
+   * `chordsFor(id, bindings, undefined)` nghĩa là một hợp âm người dùng tự đặt trong
+   * `global.db` **ĐƯỢC** dùng ngay hôm nay.
+   */
+  for (const [id, port] of [
+    ['lookup.toggle_source', 'toggleDictSource'],
+    ['attribution.open', 'openAttribution'],
+    ['attribution.close', 'closeAttribution'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: chordsFor(id, bindings, undefined),
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
+
   for (const [id, port, chord] of [
     ['selection.extend_left', 'extendSelectionLeft', 'Shift+ArrowLeft'],
     ['selection.extend_right', 'extendSelectionRight', 'Shift+ArrowRight'],
@@ -632,11 +707,14 @@ export function installCommands(deps: CommandDeps): Keymap {
 /**
  * Gắn keymap vào cửa sổ. Trả về hàm gỡ.
  *
+ * `gate` là cửa **nuốt hợp âm** — xem [`KeymapGate`]. Story 1.19 dùng nó để một lớp phủ khai
+ * `aria-modal` hành xử **đúng như** nó khai: không một command toàn cục nào chạy phía sau nó.
+ *
  * ⚠️ `noUnusedLocals` đang bật — dùng hàm gỡ hoặc `void` nó tường minh ở chỗ gọi.
  */
-export function attachKeyboard(target: EventTarget): () => void {
+export function attachKeyboard(target: EventTarget, gate?: KeymapGate): () => void {
   if (keymap === null) {
     throw new Error('[commands] attachKeyboard() gọi trước installCommands() — không có keymap nào để gắn.')
   }
-  return attachKeymap(keymap, target)
+  return attachKeymap(keymap, target, gate)
 }

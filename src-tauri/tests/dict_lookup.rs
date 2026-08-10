@@ -70,7 +70,8 @@ CREATE TABLE dict_source (
   license_text   TEXT NOT NULL,
   attribution    TEXT NOT NULL,
   source_version TEXT NOT NULL,
-  source_url     TEXT NOT NULL
+  source_url     TEXT NOT NULL,
+  lang           TEXT NOT NULL DEFAULT ''
 );";
 
 const DICT_ENTRY_DDL: &str = "\

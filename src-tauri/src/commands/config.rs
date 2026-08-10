@@ -74,6 +74,22 @@ pub struct BootstrapConfig {
     /// Vẫn KHÔNG `#[serde(rename_all = "camelCase")]` — nó biến `workspace_layout`
     /// thành `workspaceLayout` và `src/config/bootstrap.ts` nhận `undefined`.
     pub workspace_layout: String,
+    /// Các nguồn từ điển **đang bị TẮT**, ngăn nhau bằng `,` — Story 1.19, AC5.
+    ///
+    /// ⚠️ Trường thứ **SÁU** trên dây. `tests/ipc_contract.rs` đóng băng danh sách tên
+    /// trường và nó phải được sửa **cùng lượt** — đó là hành vi ĐÚNG, và chính là thứ phép
+    /// kiểm đó tồn tại để chặn.
+    ///
+    /// 🔴 Vẫn KHÔNG `#[serde(rename_all = "camelCase")]`. Với nó, tên trên dây thành
+    /// `dictSourcesDisabled` và `src/config/bootstrap.ts` nhận `undefined` — **không lỗi nào
+    /// được ném**, dải chip chỉ lặng lẽ dựng với 0 nguồn tắt và lựa chọn của người dùng biến
+    /// mất sau mỗi lần khởi động lại (Bẫy 1 của story).
+    ///
+    /// 🔴 **Chuỗi thô, không một mảng đã tách**: đây là **đúng giá trị nằm trên đĩa**, và
+    /// đường ghi (`put_config`) cũng nhận một chuỗi. Hai hình dạng cho một giá trị là hai
+    /// bộ mã hoá phải nhớ giữ đồng bộ; phép tách sống ở [`crate::core::scope::parse_disabled_sources`],
+    /// **một** bản, ở Rust (AD-1).
+    pub dict_sources_disabled: String,
 }
 
 /// Kho vắng mặt ⇒ lỗi *mở kho*, và đó là câu đúng theo nghĩa đen.
@@ -115,6 +131,7 @@ pub fn bootstrap_config(store: Option<&Store>) -> Result<BootstrapConfig, IpcErr
         shortcuts: config.shortcuts(),
         layout_presets: config.layout_presets(),
         workspace_layout: config.workspace_layout().to_owned(),
+        dict_sources_disabled: config.dict_sources_disabled().to_owned(),
     })
 }
 

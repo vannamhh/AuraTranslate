@@ -64,6 +64,18 @@ export type BootstrapConfig = {
    * và `mode`. `kinds.rs:206-213` phân xử ranh giới đó.
    */
   workspace_layout: string
+  /**
+   * Các nguồn từ điển **đang bị TẮT**, ngăn nhau bằng `,` — Story 1.19 · AC5 · §Quyết định #1a.
+   *
+   * 🔴 **Giá trị là tập BỊ TẮT, không phải tập được bật.** Mặc định là *mọi nguồn đều bật*,
+   * nên một nguồn **mới** (một tệp `.db` thêm ở bản sau) phải tự động bật. Lưu tập được-bật
+   * làm nguồn mới im lặng **tắt** ngay khi nó xuất hiện — một lớp dữ liệu có mặt trong bản
+   * cài mà không ai thấy, đúng lớp lỗi *"rỗng im lặng"* mà AD-44 ④ cấm.
+   *
+   * ⚠️ Chuỗi RỖNG = chưa ai tắt gì. Cùng luật `workspace_layout`: `''` và `undefined` phải
+   * dẫn về **cùng một** nhánh, và `??` chỉ bắt `null`/`undefined`.
+   */
+  dict_sources_disabled: string
 }
 
 /**
@@ -117,6 +129,14 @@ const CMD_PUT = 'put_config'
  */
 export const SCOPE_APP_CONFIG = 'app_config'
 export const KEY_LAYOUT = 'workspace_layout'
+/**
+ * Khoá thứ tư của cùng cửa `app_config` — Story 1.19 · AC5.
+ *
+ * ⚠️ Cùng lý do hai hằng ở trên tồn tại: `put_config` nhận `kind`/`key` là **chuỗi trên
+ * dây**, nên một lỗi gõ ở đây không có kiểu nào bắt được — lượt lưu chỉ im lặng biến mất.
+ * Khớp `KEY_DICT_DISABLED` ở `src-tauri/src/core/scope/store.rs`.
+ */
+export const KEY_DICT_DISABLED = 'dict_sources_disabled'
 
 const lastError = ref<IpcError | null>(null)
 const layout = ref('')

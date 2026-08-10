@@ -832,3 +832,125 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   lớn sẽ không còn đường xem nào)*, không dựng `.hv-syl` theo yêu cầu *(một cơ chế mới, đắt hơn
   khoản nó vá)*. Số đã ghi cả vào `sourcePanelState.ts` để lượt sau không đo lại từ đầu.
   **Chủ: chưa gán — mở lại khi có một Chương thật vượt 50.000 và người dùng báo giật.**
+
+## Deferred from: 1-19-bat-tat-nguon-tu-dien-va-ghi-cong (2026-08-10)
+
+- 🔴 **Vế DOM của Story 1.19 chưa có bộ chạy test — nghiệm thu bằng BÀN ĐO CHẠY TAY.** Không
+  bộ chạy test frontend (NFR15, Ice chốt ở 1.5, giữ qua mười story), nên bốn mệnh đề dưới đây
+  **chưa có lưới tự động**: ① dải chip vẽ lại tức thì khi tắt/bật *(AC2)*; ② chip tắt phân biệt
+  được bằng mắt mà **không** dùng `opacity` *(UX-DR6 — cài bằng màu + `line-through`, cổng
+  `check:tokens` Kiểm D chỉ canh `opacity`, không canh việc nó **có** phân biệt được)*;
+  ③ `Escape` đóng lớp phủ và **trả tiêu điểm về chỗ cũ** *(UX-DR17)*; ④ dải chip + bảng
+  Attribution duyệt hết được bằng `Tab`. Vế KHAI BÁO thì có cổng: `check:commands` Kiểm A
+  *(mọi `@click` là một `dispatch`)* và `SELECTION_SURFACE_FLOOR = 6`.
+  **Chủ: chưa gán — nợ chung với món "không bộ chạy test frontend" của 1.16/1.17/1.18/1.18b.**
+
+- 🔴 **`AttributionOverlay.vue` chưa đo trên WKWebView.** Lớp phủ dùng `position: fixed` +
+  `inset` + một `z-index` có miễn trừ có tên, và nó nằm **trên** lưới `dockview` — mà dockview
+  tự dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel. Đo mới chạy trên Chromium.
+  **Chủ: chưa gán — nợ chung với món "hai nền tảng" (NFR14) của 1.6/1.14/1.16/1.17/1.18/1.18b.**
+
+- ✅ **ĐÃ ĐÓNG 2026-08-10 ở lượt code review Story 1.19 — Ice chốt vá thật thay vì để nợ.**
+  ~~`viwiktionary-en` là nguồn DUY NHẤT của đường tiếng Anh — vị từ "mọi nguồn đều tắt"
+  KHÔNG hỏi theo đường đang tra.~~ Đo trên bốn tệp `.db` thật 2026-08-08: đúng **một** nguồn
+  mang `lang = 'en'`. Tắt riêng nó ⇒ **mọi** truy vấn tiếng Anh trả rỗng trong khi bảy nguồn
+  tiếng Trung vẫn bật, và `everySourceIsOff` *(hỏi trên **toàn tập**)* trả `false` ⇒ panel nói
+  *"không tìm thấy trong từ điển"* — một câu **SAI**, hệ thống không hề tra.
+  🔴 **Lý lẽ "chưa sửa được" đã SAI ở một vế, và đó là chỗ đáng ghi lại.** Bản đầu lập luận:
+  *"webview không biết nguồn nào phục vụ đường nào, và dựng bảng tra `code → lang` ở webview
+  là dựng đúng sổ đăng ký AD-44 ① vá A2 cấm"*. Vế sau đúng; vế trước sai. Câu trả lời không
+  phải một bảng tra ở webview, cũng không phải một vị từ Rust nhét vào `GroupedLookup` — mà
+  là **để dữ liệu tự khai**: `dict_source.lang` nay **ĐO lúc dựng** từ `dict_entry` của chính
+  tệp *(`insert.rs::backfill_source_langs`)*, đúng cùng đường mà `is_base` đọc `dict_meta`.
+  Webview chỉ **đọc một trường**, không suy luận gì cả, và AD-44 không bị chạm tới.
+  **Cách cài:** `SCHEMA_VERSION` 2→3 · cột `dict_source.lang` *(tập, quy ước
+  `parse_disabled_sources`)* · `SourceAttribution.lang` · `everySourceOffForRoute(route)` với
+  `route` đọc từ `grouped.route` Rust đã trả về. **Đo được:** 10/10 nguồn cho đúng một `lang`;
+  giá đọc **~480 ms → ~16 ms** mỗi lượt khởi động *(dẫn xuất lúc đọc bằng `SELECT DISTINCT`
+  tốn 374 ms + 97 ms vì `dict_entry` không có index trên `source_id`)*; bốn tệp `.db` dựng
+  lại, **ba lượt dựng độc lập cho cùng bốn `sha256`**.
+
+- ⚠️ **§Quyết định #2b *(lọc thẳng trong câu SQL)* nay là một MÓN NỢ CÓ SỐ.** Đo 2026-08-10,
+  `--release`, bốn tệp `.db` thật, 130 truy vấn khác nhau, hai lượt mỗi cấu hình — **tỉ lệ lượt
+  tra chạm trần `LIMIT`**: **1,8 %** *(0 nguồn tắt)* · **1,8 %** *(1 nguồn tắt)* · **4,8 %**
+  *(9/10 nguồn tắt)*.
+  🔴 **Nguyên nhân KHÔNG phải bộ lọc**, và đọc nhầm chỗ này là đi sửa nhầm chỗ: con số **không
+  đổi** khi tắt một nguồn — đúng như §Quyết định #2a tiên liệu *(trần chạy TRƯỚC phép lọc, nên
+  các nguồn còn lại giữ nguyên tập đầu mục)*. Nó tăng ở cấu hình 9/10 vì lượt `Exact` rỗng
+  nhiều hơn ⇒ **đường lui `Substring` của Story 1.18** chạy nhiều hơn, và chính nó mới là thứ
+  chạm trần. ⇒ lọc trong SQL sẽ làm **trang đầy hơn** ở cấu hình nhiều nguồn tắt, nhưng nó đụng
+  **sáu** bề mặt *(`exact` · `exact_en` · `char_idx` · `fts_trigram` · `fts_trigram_en` ·
+  `count_by_source`)*, mỗi câu một `IN` sinh động.
+  **Chủ: chưa gán — mở lại nếu người dùng thật báo trang vơi khi tắt nhiều nguồn.**
+
+- ⚠️ **`max` một lượt đo vượt trần 100 ms — ghi ra chứ không làm tròn xuống.** Cùng bàn đo:
+  cấu hình *9/10 nguồn tắt*, **lượt 1**, `max` **150,628 ms** *(lượt 2: 48,856 ms)*. NFR1 phát
+  biểu trên **p95**, và p95 của chính cấu hình đó là **3,891 / 2,369 ms** — dưới trần 26–42 lần.
+  Đây là nhiễu page-cache của lượt đầu, đúng **Bẫy 8** mà Story 1.18 đã ghi *(1.17 đo p99
+  70,742 ms ở lượt đầu và không tái lập được)*. Không kết luận trên một lượt đo.
+  **Chủ: chưa gán — theo dõi cùng món "đo NFR1 đầu-cuối gồm vòng IPC" của 1.17.**
+
+- ⚠️ **Số đo NFR1 vẫn là ĐƯỜNG RUST, không đầu-cuối.** Bàn đo mới
+  *(`bench_the_source_filter_on_the_real_dictionaries`)* thừa hưởng nguyên giới hạn của 1.17/1.18:
+  nó không gồm vòng IPC Tauri lẫn lượt vẽ của webview, **và** không gồm lượt đọc `global.db` mà
+  `commands::dict::wire` chạy ở **mỗi** lượt tra để lấy tập bị tắt.
+  🔴 Lượt đọc đó là **mới của story này**, nên nó là phần chưa ai đo bao giờ: một `load_global_config`
+  cho **mỗi** lượt Auto-Lookup. Nó rẻ *(một `SELECT` trên `config_value` của `global.db`, ba
+  loại `GlobalOnly`)*, nhưng *"rẻ"* ở đây là một suy luận, không một số đo.
+  **Chủ: chưa gán — đóng cùng món "đo đầu-cuối" của Story 1.17.**
+
+- ⚠️ **`prd.md §8.2` và `docs/dics/README.md` vẫn xếp Trần Văn Chánh vào nhóm *"đã loại"*.**
+  Đo trên tệp thật: `dict-tran-van-chanh.db` **đã dựng**, `license_kind = "copyrighted"`, và
+  `attribution` của nó mang một **cảnh báo pháp lý** *(nay hiện nguyên văn trên màn hình
+  Attribution)*. `deferred-work.md:581` đã treo việc đồng bộ đó cho *"lượt quy hoạch kế tiếp
+  hoặc Story 10.4"*; story này **không sửa file quy hoạch** *(tiền lệ 1.10c)*.
+  **Chủ: Story 10.4, hoặc một lượt quy hoạch của Ice.**
+
+- ⚠️ **Chỗ giữ `author-grant` chưa từng chạy trên dữ liệu thật, và sẽ không.** Ice chốt
+  2026-08-08: **HVTĐTD không tìm được nguồn dữ liệu**. AC9 đã được neo lại vào **cơ chế** và
+  nghiệm thu bằng **fixture** *(`the_author_grant_placeholder_lands_and_leaves_with_its_file`)*.
+  **0** nguồn thật nào mang `license_kind = "author-grant"` hôm nay. Ba chỗ xuôi dòng vẫn mang
+  mệnh đề cũ: `epics.md:1839-1841` *(AC cuối của chính story 1.19)* · `epics.md:6202-6204`
+  *(Story 10.4, **nguyên văn giống hệt** ⇒ cùng số phận)* · `mockups/sources-attribution.html`
+  *(vẽ HVTĐTD như một hàng có thật)*.
+  🔴 Và `deferred-work.md:292` *(nghĩa vụ thông báo tác giả HVTĐTD)* **mất điều kiện kích
+  hoạt** — không đóng gói dữ liệu ⇒ không có phép sử dụng nào để thực hiện. Đóng hay giữ là
+  quyết định của **Story 10.4**, không của story này.
+  **Chủ: Story 10.4.**
+
+## Deferred from: code review of 1-19-bat-tat-nguon-tu-dien-va-ghi-cong (2026-08-10)
+
+- ⚠️ **Dải chip có thể cắt hàng thứ ba khi đủ 10 nguồn thật.** `.lookup-sources`
+  (`src/panels/LookupPanel.vue:414`) đặt `max-height: 52px; overflow: hidden`, và chú thích
+  CSS ngay trên đó nói rõ đây là quyết định **CÓ CHỦ Ý**: cắt ở hai hàng, hàng thứ ba *(nếu
+  có)* vẫn tới được bằng bàn phím vì chip còn trong thứ tự Tab. Nhưng "tới được bằng Tab mà
+  không thấy focus ring" là đúng thứ NFR17 hay vấp. Chưa đo được: cần render app thật với bốn
+  tệp `.db` thật (10 chip, tên dài như *"Trần Văn Chánh — Từ điển Hán Việt"*, font `ui-label`
+  10px + `letter-spacing: 0.1em`) trong một Panel Lookup hẹp, rồi đếm hàng. Thuộc cùng lỗ hổng
+  với món nợ **"vế DOM của Story 1.19 chưa có bộ chạy test"** ở §1-19.
+
+- ⚠️ **`list_source_attributions` không loại trùng `code` giữa các lớp.**
+  `src-tauri/src/core/dict/mod.rs:940-952` nối `rows` từ mọi lớp, không dedupe. Bất biến
+  *"`code` duy nhất trong toàn tập lớp"* chỉ được ghi bằng **doc-comment**, không cổng nào ép.
+  Nếu bất biến đó vỡ (hai tệp `.db` cùng mang một `dict_source.code`), hai hàng trùng
+  `:key="src.code"` (`AttributionOverlay.vue:119`, `LookupPanel.vue:263`) phá giả định duy nhất
+  của Vue, và bật/tắt một chip sẽ bật/tắt **CẢ HAI** nguồn vì chúng chia một mục trong tập
+  `disabled`. Không với tới được bằng dữ liệu hiện có — phía dựng (`tools/dict-build`) giữ bất
+  biến này — nên là **độ bền**, không một lỗi đang chạy. Chỗ vá rẻ nhất: một `assert` ở đường
+  đọc, hoặc một test canh `code` duy nhất trên bốn tệp thật.
+
+- 🔴 **Vế DOM của chính lượt code review 2026-08-10 chưa chạy trên app thật.** Lượt vá thêm
+  **mã DOM mới** mà không một phép thử tự động nào chạm tới, nên nó **mở rộng** đúng lỗ hổng
+  mà món nợ *"vế DOM của Story 1.19 chưa có bộ chạy test"* ở §1-19 đã khai, chứ không nằm
+  trong phạm vi cũ. Ba thứ cần rà tay trên **cả hai** nền *(và WKWebView là nền đáng ngờ
+  nhất, đúng như món nợ `AttributionOverlay.vue` đã ghi)*:
+  ① **Bẫy tiêu điểm** (`AttributionOverlay.vue::trapTab`) — Tab và Shift+Tab vòng đúng bên
+     trong hộp thoại, không thoát ra nền; `Escape` vẫn đóng được ở **mọi** vị trí tiêu điểm.
+  ② **Cửa nuốt hợp âm** (`main.ts` → `KeymapGate`) — mọi hợp âm toàn cục **im** khi lớp phủ
+     mở, và `Escape` **vẫn** đi lọt *(nó thoát sớm chứ không `preventDefault`, nhưng điều đó
+     mới chỉ đúng trên giấy)*.
+  ③ **Đường lui `[data-attribution-open]`** — chưa từng chạy: nó chỉ kích hoạt khi node giữ
+     tiêu điểm lúc mở đã rời DOM, mà D4 vừa bịt gần hết nguyên nhân gây ra ca đó.
+  ⚠️ Và hai câu `vi.json` mới (`attribution.load_failed` · `panel.source.han_viet_all_sources_off`)
+  chưa ai nhìn thấy hiện ra: câu đầu cần ép `list_dict_sources` trượt, câu sau cần tắt hết
+  nguồn `zh` rồi mở tab Hán Việt.

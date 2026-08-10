@@ -14,6 +14,13 @@ import PanelFrame from './PanelFrame.vue'
 import LookupRecord from './LookupRecord.vue'
 import type { DockviewPanelProps } from '../layout/panelProps'
 import { t } from '../i18n'
+import { dispatch } from '../commands'
+import {
+  aimDictSourceFrom,
+  dictSources,
+  everySourceOffForRoute,
+  sourceIsDisabled,
+} from './dictSourcesState'
 import { useSelectionSurface } from './selectionContract'
 import { markPainted } from './lookupTiming'
 import {
@@ -24,6 +31,7 @@ import {
   lookupError,
   lookupPending,
   lookupResolved,
+  lookupRoute,
   neverLookedUp,
   notFound,
   queryTooShort,
@@ -228,6 +236,60 @@ onBeforeUnmount(() => {
   <PanelFrame owner="panel.lookup" status-key="panel.lookup.status" :show-status="showFrameStatus">
     <div ref="body" class="lookup-body">
       <!--
+        🔴 STORY 1.19 · AC1 · AC2 · AC11 — DẢI CHIP NGUỒN.
+
+        ⚠️ **NGOÀI `.lookup-head`, không TRONG nó** — và đó là một phép đo, không một sở
+        thích. `.lookup-head` khoá `height: 76px; overflow: hidden`, và Story 1.17/1.18 đã
+        vỡ đúng chỗ này **hai lần** (một lần với thanh nhịp, một lần với vạch tiến trình).
+        Đo trên bố cục hiện tại: đầu mục 24px/1.3 ≈ 31px + `margin-top` 7px + thanh nhịp
+        ≈ 15px + `padding-bottom` ⇒ vùng 76px **đã đầy**. Nhồi một hàng chip thứ ba vào đó
+        là nới hằng trong im lặng, đúng thứ Bẫy 4 cấm.
+        ⇒ dải chip là một hàng RIÊNG, `flex: none`, **trên** vùng đầu mục — đúng thứ tự mà
+        `mockups/sources-attribution.html:132-141` vẽ (`.chips` đứng trước `.hw`).
+        `--lookup-head-height` giữ NGUYÊN giá trị và NGUYÊN vai trò.
+
+        🔴 AC11 — `@click` của mỗi chip là **đúng một** `dispatch('<id>')` (Kiểm A của
+        `check:commands`). Mục tiêu đi bằng `@mousedown` uỷ quyền ở vùng chứa, cùng khuôn
+        `deps.currentSelection` của `lookup.lookup_selection`: command đọc trạng thái quanh
+        nó tại thời điểm chạy. Xem `dictSourcesState.ts` về vì sao WKWebView bắt buộc phải
+        có `@mousedown` chứ không chỉ `document.activeElement`.
+      -->
+      <div
+        v-if="dictSources.length > 0"
+        class="lookup-sources"
+        @mousedown="aimDictSourceFrom($event)"
+      >
+        <span class="lookup-sources-label">{{ t('panel.lookup.sources_label') }}</span>
+        <button
+          v-for="src in dictSources"
+          :key="src.code"
+          type="button"
+          class="source-chip"
+          :class="{ off: sourceIsDisabled(src.code) }"
+          :data-source-code="src.code"
+          :title="t('panel.lookup.source_toggle_hint')"
+          @click="dispatch('lookup.toggle_source')"
+        >
+          <!-- aura-allow-text: tên nguồn — DỮ LIỆU (`display_name` của chính tệp, FR31/AC1). -->
+          {{ src.display_name }}
+        </button>
+        <!--
+          ⚠️ `data-attribution-open` là một **mối nối**, không một móc kiểu dáng:
+          `AttributionOverlay.vue` tìm lại nút này để trả tiêu điểm về khi node giữ tiêu điểm
+          lúc mở đã rời DOM (UX-DR17). Đi bằng thuộc tính `data-` chứ không tên lớp CSS, vì
+          tên lớp là chuyện trình bày và phải đổi được tự do.
+        -->
+        <button
+          type="button"
+          class="lookup-sources-attr"
+          data-attribution-open
+          @click="dispatch('attribution.open')"
+        >
+          {{ t('command.attribution.open') }}
+        </button>
+      </div>
+
+      <!--
         🔴 AC7 — vùng đầu mục CHIỀU CAO CỐ ĐỊNH, không đổi một pixel **kể cả giữa bốn trạng
         thái của AC6**. Vì thế nó render ở MỌI trạng thái, kể cả "chưa tra gì": bản đầu bọc
         cả khối trong `v-if="!neverLookedUp"` nên chiều cao đi 0 → 76px đúng lúc chuyển
@@ -318,6 +380,24 @@ onBeforeUnmount(() => {
           <p v-else-if="lookupResolved && queryTooShort" class="lookup-empty">
             {{ t('panel.lookup.query_too_short') }}
           </p>
+          <!--
+            🔴 STORY 1.19 · AC6 — "MỌI NGUỒN ĐỀU TẮT" LÀ MỘT TRẠNG THÁI CÓ TÊN.
+
+            Nó đứng **TRƯỚC** `not_found`, và thứ tự đó là cả nội dung của AC6: với mọi nguồn
+            tắt, `groups` rỗng · `branch = exact_btree` · `layers_loaded = true` ⇒ `notFound`
+            là `true`, và panel sẽ nói *"không tìm thấy trong từ điển"* — một câu **SAI**, hệ
+            thống không hề tra. Chuỗi riêng này chỉ đường về dải chip, không nói *không tìm thấy*.
+
+            🔴 **Hỏi theo ĐƯỜNG ĐANG TRA, không theo toàn tập** (Acceptance Auditor bắt ở code
+            review 2026-08-10, Ice chốt vá thật). Vị từ cũ hỏi toàn tập, nên tắt riêng
+            `viwiktionary-en` — nguồn **DUY NHẤT** của đường tiếng Anh — vẫn cho `false` vì bảy
+            nguồn tiếng Trung còn bật, và mọi truy vấn tiếng Anh rơi xuống đúng câu `not_found`
+            SAI mà nhánh này tồn tại để chặn. `lookupRoute` đọc `grouped.route` do Rust trả về,
+            không tính lại phía webview.
+          -->
+          <p v-else-if="lookupResolved && lookupRoute !== null && everySourceOffForRoute(lookupRoute)" class="lookup-empty">
+            {{ t('panel.lookup.all_sources_off') }}
+          </p>
           <p v-else-if="lookupResolved && notFound" class="lookup-empty">{{ t('panel.lookup.not_found') }}</p>
           <template v-else-if="lookupDisplayable">
             <!-- AC5 — dòng dẫn bất đồng ĐỨNG TRƯỚC khi liệt kê các khối nguồn. -->
@@ -336,6 +416,87 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/*
+ * 🔴 STORY 1.19 — DẢI CHIP NGUỒN: một hàng RIÊNG, `flex: none`, KHÔNG một pixel nào vào
+ * `--lookup-head-height`. Xem lý lẽ đo được ở chú thích `<template>` (Bẫy 4).
+ *
+ * `flex-wrap` + `overflow: hidden` giữ cho mười nguồn không đẩy vùng cuộn xuống vô hạn:
+ * `max-height` cắt ở hai hàng chip, và hàng thứ ba (nếu có) tới được bằng bàn phím vì các
+ * chip vẫn nằm trong thứ tự Tab — cùng cân nhắc mà `.lookup-head` đã làm với thanh nhịp.
+ */
+.lookup-sources {
+  display: flex;
+  align-items: center;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 52px;
+  overflow: hidden;
+  padding-bottom: var(--space-panel-block);
+  margin-bottom: var(--space-panel-block);
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.lookup-sources-label {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/*
+ * 🔴 CHIP NGUỒN — `primary` là màu của **nhãn nguồn từ điển**, một trong đúng ba việc mà
+ * `DESIGN.md` §Do's dành cho nó (cùng vai với `.lookup-spine-chip`).
+ *
+ * ⚠️ `<button>` chứ không `<span @click>`: NFR17 đòi mọi thao tác gọi được bằng bàn phím,
+ * và một `<span>` không vào được thứ tự Tab ở bất kỳ trình duyệt nào. Mỗi chip là **một
+ * điểm dừng Tab** — số điểm dừng mới khai ra thành số ở §Completion Notes (AC11).
+ *
+ * KHÔNG `outline: none` — focus ring của trình duyệt là nửa còn lại của NFR17 (§Trap 4 của
+ * Story 1.6 giới hạn `outline: none` cho gốc `tabindex="-1"` của chế độ và panel).
+ */
+.source-chip {
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  font-weight: var(--weight-ui-label);
+  line-height: var(--leading-ui-label);
+  letter-spacing: var(--tracking-ui-label);
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+/*
+ * 🔴 UX-DR6 — TRẠNG THÁI TẮT PHÂN BIỆT BẰNG **MÀU + GẠCH NGANG**, KHÔNG BẰNG `opacity`.
+ *
+ * `DESIGN.md:216-219` cấm làm mờ **chữ** ở trạng thái **NGHỈ**, và một chip tắt là một
+ * trạng thái nghỉ — nó đứng đó cho tới khi người dùng bấm lại. Hai tín hiệu chứ không một:
+ * màu một mình không đọc được với người mù màu, và `text-decoration` một mình mờ nhạt ở cỡ
+ * chữ `ui-label`. Cả hai đều là thuộc tính của **NÉT VÀ MÀU CHỮ**, không phải độ đục.
+ */
+.source-chip.off {
+  color: var(--color-on-surface-variant);
+  text-decoration: line-through;
+}
+
+/* Đường vào màn hình ghi công — một thao tác phụ, nên nó mang màu chữ phụ chứ không `primary`. */
+.lookup-sources-attr {
+  padding: 0;
+  margin-left: auto;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
 /*
  * 🔴 STORY 1.18 · AC7 — `.lookup-body` **thôi cuộn**; vùng cuộn là `.lookup-scroll`.
  *

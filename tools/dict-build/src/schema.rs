@@ -14,7 +14,14 @@
 /// trú (xem doc-comment module) — bờ đọc (`src-tauri/src/core/dict/layer.rs::
 /// SUPPORTED_SCHEMA_VERSION`) phải nâng CÙNG LƯỢT, nếu không mọi tệp `.db` mới bị từ chối
 /// bằng `SchemaTooNew` (§Bẫy 1 của story).
-pub const SCHEMA_VERSION: u32 = 2;
+///
+/// 🔴 2 → 3 ở Story 1.19 *(Ice chốt ở code review 2026-08-10)*: thêm cột `dict_source.lang`
+/// — xem [`DICT_SOURCE_DDL`]. Nâng số ở đây là **bắt buộc**, không một thủ tục cho đủ: bờ
+/// đọc `SELECT … lang FROM dict_source`, nên một tệp v2 *(không có cột đó)* làm câu lệnh
+/// gãy bằng `no such column`, và `list_source_attributions` sẽ **bỏ im lặng cả lớp** khỏi
+/// bảng ghi công kèm một dòng `stderr` mà không ai đọc. Với số này, cùng tệp đó bị từ chối
+/// bằng `SkipReason::SchemaTooNew` — một câu **có tên**, hiện ra được trên màn hình.
+pub const SCHEMA_VERSION: u32 = 3;
 
 /// Siêu dữ liệu của chính tệp — khoá/giá trị, đọc được bằng mắt qua `sqlite3` CLI.
 pub const DICT_META_DDL: &str = "\
@@ -29,6 +36,25 @@ CREATE TABLE dict_meta (
 /// rời riêng, không dựng bảng khác. `license_kind` là chuỗi mở, KHÔNG phải enum các
 /// giấy phép mở (AD-10): mô hình hoá thành enum sẽ khiến một giấy phép mới (như
 /// `author-grant` của HVTĐTD, Story 1.10) bị gán nhãn sai ngay trên màn hình Attribution.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `lang` — TẬP ĐƯỜNG NGÔN NGỮ NGUỒN NÀY PHỤC VỤ (Ice chốt ở code review 2026-08-10)
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Chuỗi *"cắt theo `,`, trim, bỏ rỗng"* — **cùng quy ước** với `core::scope::
+/// parse_disabled_sources` và `decodeDisabled` phía webview, để không sinh ra một quy ước
+/// mã hoá thứ hai. Trên dữ liệu thật hôm nay mọi nguồn cho đúng **một** giá trị (`"zh"`
+/// hoặc `"en"`), nhưng cột giữ một **TẬP** vì bất biến *"một nguồn đúng một `lang`"* là một
+/// **số đo**, không một mệnh đề: một nguồn bắc qua hai đường sẽ không làm gãy gì cả.
+///
+/// 🔴 **ĐO từ `dict_entry` đã chèn, KHÔNG khai tay trong `SourceMeta`** — xem
+/// [`crate::insert::backfill_source_langs`]. `lang` là một dữ kiện **của dữ liệu**, nên một
+/// hằng viết tay cạnh `license_kind` là một nguồn sự thật thứ hai, và nó sẽ lệch vào đúng
+/// ngày một parser đổi nhãn `lang` mà không ai nhớ sửa hằng kia (AD-44 ① vá A2).
+///
+/// ⚠️ Vì sao cột này tồn tại thay vì để runtime tự `SELECT DISTINCT`: đo 2026-08-10 trên
+/// bốn tệp thật, dẫn xuất lúc đọc tốn **~480 ms** mỗi lượt khởi động *(`dict-core.db` 374 ms
+/// cho 594.770 hàng, `dict-vietphrase.db` 97 ms cho 679.302 hàng)* vì `dict_entry` không có
+/// index trên `source_id`. Trả giá đó một lần lúc dựng là **0 ms** lúc đọc.
 pub const DICT_SOURCE_DDL: &str = "\
 CREATE TABLE dict_source (
   id             INTEGER PRIMARY KEY,
@@ -39,7 +65,8 @@ CREATE TABLE dict_source (
   license_text   TEXT NOT NULL,
   attribution    TEXT NOT NULL,
   source_version TEXT NOT NULL,
-  source_url     TEXT NOT NULL
+  source_url     TEXT NOT NULL,
+  lang           TEXT NOT NULL DEFAULT ''
 );";
 
 /// Một đầu mục. `headword_simp` NULL khi nguồn không phân biệt phồn/giản.

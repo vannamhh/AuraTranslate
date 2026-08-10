@@ -89,6 +89,8 @@ mod layer;
 mod query;
 mod senses;
 
+use std::collections::BTreeSet;
+
 use crate::core::store::{ReadHandle, SqlResult};
 use crate::ports::DictionarySource;
 
@@ -418,9 +420,17 @@ pub(crate) fn lookup_with_branch(
 /// CVDICT — **FR31 vỡ, không lỗi, không test hành vi nào đỏ** trừ khi ca test dùng
 /// **ít nhất hai tệp**.
 ///
-/// ⚠️ Bốn trường giấy phép của `dict_source` (`license_kind` · `license_id` ·
-/// `attribution` · `source_url`) **không** đọc ở đây — chúng thuộc Story 1.19 *(bật/tắt
-/// nguồn và ghi công)* và 10.4 *(màn hình Attribution)*.
+/// 🔴 **SÁU trường giấy phép của `dict_source` KHÔNG đọc ở đây** — `license_kind` ·
+/// `license_id` · `license_text` · `attribution` · `source_version` · `source_url`.
+/// *(Bản trước ghi "bốn"; `license_text` và `source_version` bị đếm sót. Số thật là **sáu**,
+/// đo trên lược đồ `tools/dict-build/src/schema.rs`.)*
+///
+/// 🔴 **Story 1.19 §Quyết định #5a — chúng đi bằng một kiểu RIÊNG ([`SourceAttribution`]),
+/// không nới kiểu này.** Lý do là một số đo, không một sở thích: `SourceInfo` nằm trong
+/// **mọi** [`SourceGroup`] của **mọi** lượt tra — tức trên đúng đường nóng NFR1 mà
+/// Auto-Lookup (Story 1.18) chạm hàng trăm lần mỗi Chương. Đo trên bốn tệp `.db` thật
+/// 2026-08-08: `license_text` một mình là **43.304 ký tự**, và bảy nguồn của `dict-core.db`
+/// cộng lại **~215 KB**. Nhồi ngần đó vào đây là đổ 215 KB qua IPC mỗi lần bôi đen.
 /// ⚠️ **`Serialize`** (Story 1.17, Quyết định #2a).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct SourceInfo {
@@ -428,6 +438,85 @@ pub struct SourceInfo {
     pub code: String,
     /// `dict_source.display_name` — tên hiển thị **của chính tệp chứa nó**.
     pub display_name: String,
+}
+
+/// **Ghi công đầy đủ của một nguồn** — Story 1.19, AC7/AC9. Đọc từ **chính tệp** mang nó.
+///
+/// 🔴 **Một kiểu RIÊNG với [`SourceInfo`], và một đường đọc RIÊNG** (§Quyết định #5a): kiểu
+/// này chỉ đi qua dây khi màn hình Attribution mở — **một lần**, không mỗi lượt tra. Xem
+/// doc-comment của [`SourceInfo`] cho số đo đứng sau quyết định đó.
+///
+/// 🔴 [`Self::license_kind`] là một **chuỗi mở, KHÔNG một enum** (AD-10, và
+/// `tools/dict-build/src/schema.rs:26-31` viết sẵn lý do bằng chữ). Đo trên dữ liệu thật
+/// 2026-08-08: **bốn** giá trị khác nhau đang tồn tại — `open` · `public-domain` ·
+/// `copyrighted` · `unknown` — và **hai** trong bốn không có `license_id`. Tầng hiển thị
+/// ánh xạ chuỗi này ra một câu ở `vi.json` và **phải có nhánh mặc định**: một giá trị chưa
+/// gặp bao giờ *(một nguồn thêm ở bản sau)* phải ra một câu **có nghĩa**, không một ô trống
+/// và không một chuỗi máy thô.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct SourceAttribution {
+    /// `dict_source.code` — cùng khoá chuỗi với [`SourceInfo::code`] (Bẫy 3: `id` trùng
+    /// giữa các tệp, `code` thì duy nhất trong **toàn tập lớp**).
+    pub code: String,
+    /// `dict_source.display_name`.
+    pub display_name: String,
+    /// `dict_source.license_kind` — `NOT NULL` trong lược đồ. Chuỗi mở; xem doc-comment kiểu.
+    pub license_kind: String,
+    /// `dict_source.license_id` — **cột NULL được duy nhất** trong sáu trường giấy phép.
+    ///
+    /// ⚠️ `None` là hình dạng THẬT, không một ca biên: `tran-van-chanh` và `vietphrase`
+    /// đều mang `NULL` hôm nay. Màn hình **không** được suy nó từ [`Self::license_kind`],
+    /// và **không** được hiện một ô trống — nó đọc câu của `license_kind` (AC9).
+    pub license_id: Option<String>,
+    /// **ĐỘ DÀI** của `dict_source.license_text`, không phải nội dung — §Quyết định #5a.
+    ///
+    /// 🔴 Văn bản giấy phép đầy đủ **không đi trên dây ở story này**: nó tới 43.304 ký tự
+    /// cho một nguồn, và đường *"Mở văn bản giấy phép"* thuộc **Story 10.4** theo bảng chia
+    /// đôi đã chốt. Con số này tồn tại để 10.4 biết nó phải mở cái gì, và để một tệp có
+    /// `license_text` rỗng phân biệt được với một tệp có.
+    pub license_text_len: i64,
+    /// `dict_source.attribution` — `NOT NULL`.
+    ///
+    /// 🔴 **Hiện NGUYÊN VĂN, ĐẦY ĐỦ, không `text-overflow: ellipsis`** (AC7). Trường này
+    /// không phải lúc nào cũng là một lời cảm ơn: `tran-van-chanh` mang một **cảnh báo pháp
+    /// lý** trong đó *("CÒN TRONG BẢN QUYỀN, tác giả còn sống…")*, và cắt nó là cắt đúng
+    /// nửa sau của một câu pháp lý.
+    ///
+    /// 🔴 Đây cũng là chỗ **DANH TÍNH TÁC GIẢ** sống — AC9: không một tên tác giả nào được
+    /// viết cứng trong `src/**` hay `vi.json`. Đó là điều kiện để chỗ giữ `author-grant`
+    /// dùng lại được cho một nguồn **khác** với một tác giả **khác**.
+    pub attribution: String,
+    /// `dict_source.source_version` — `NOT NULL`. Một trong hai trường mà lượt đếm "bốn
+    /// trường giấy phép" của các story trước bỏ quên.
+    pub source_version: String,
+    /// `dict_source.source_url` — `NOT NULL`.
+    pub source_url: String,
+    /// `dict_meta('layer')` của **tệp chứa nguồn này** — `"base"` hoặc mã lớp gỡ rời.
+    pub layer: String,
+    /// Nguồn này thuộc lớp **NỀN** hay một lớp **GỠ RỜI** (AC7, cột *"Lớp"*).
+    ///
+    /// 🔴 Đọc từ `dict_meta('layer') == "base"` của chính tệp, **không** từ tên tệp và
+    /// **không** từ một sổ đăng ký *(AD-44 ① vá A2)*. Xem [`BASE_LAYER_NAME`].
+    pub is_base: bool,
+    /// 🔴 **Tập ĐƯỜNG NGÔN NGỮ nguồn này phục vụ** — `dict_source.lang`, Story 1.19 AC6, Ice
+    /// chốt ở code review 2026-08-10.
+    ///
+    /// Mã hoá *"cắt theo `,`, trim, bỏ rỗng"* — **cùng** quy ước [`crate::core::scope::
+    /// parse_disabled_sources`], để webview không phải học một quy ước thứ hai. Hôm nay mọi
+    /// nguồn thật cho đúng một giá trị (`"zh"` hoặc `"en"`), nhưng đây là một **TẬP** vì bất
+    /// biến đó là một số đo chứ không một mệnh đề.
+    ///
+    /// 🔴 **Vì sao trường này phải tồn tại:** AC6 đòi trạng thái *"mọi nguồn đều tắt"* hỏi
+    /// theo **đường đang tra**, không theo toàn tập. Đúng **MỘT** nguồn thật phục vụ đường
+    /// tiếng Anh (`viwiktionary-en`); tắt riêng nó ⇒ mọi truy vấn tiếng Anh trả rỗng trong
+    /// khi bảy nguồn tiếng Trung vẫn bật, và một vị từ hỏi *"toàn tập còn nguồn nào không"*
+    /// trả `false`, nên panel nói *"không tìm thấy trong từ điển"* — một câu **SAI**, hệ
+    /// thống không hề tra. Không có trường này thì webview không cách nào hỏi đúng câu.
+    ///
+    /// ⚠️ Đây **không** phải một sổ đăng ký `code → lang` (thứ AD-44 ① vá A2 cấm): giá trị
+    /// được **ĐO từ `dict_entry` của chính tệp** lúc dựng *(`dict-build/src/insert.rs::
+    /// backfill_source_langs`)*, đúng như `is_base` đọc từ `dict_meta` của chính tệp.
+    pub lang: String,
 }
 
 /// Một **mục nghĩa** = một hàng `dict_sense`.
@@ -693,7 +782,31 @@ where
 /// 🔴 `limit` **nhận từ chỗ gọi** (cùng doctrine `route`/`branch`): Panel Lookup
 /// (`commands/dict.rs`) là nơi quyết chính sách trang, không phải tầng gom — cùng lý do
 /// [`pick_route`] không tự chạy trong adapter.
-pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode, limit: usize) -> GroupedLookup {
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 STORY 1.19 · §QUYẾT ĐỊNH #2a — `disabled` LÀ THAM SỐ, CÙNG DOCTRINE `route`/`limit`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Tập `dict_source.code` người dùng đã **TẮT**. Nó **nhận từ chỗ gọi** và **cùng một giá
+/// trị** đi xuống **mọi** tệp — hàm này **không** đọc `Store`, và `core/dict/**` không gõ
+/// tên một `code` nguồn cụ thể nào (AC4, canh bằng máy ở `tests/dict_boundary.rs`).
+///
+/// 🔴 **Lọc theo `code`, không theo tệp**, và **SAU** [`DictLayer::source`]: một tệp mang
+/// nhiều nguồn *(`dict-core.db` mang bảy)*, nên *"tắt một nguồn"* không bao giờ đồng nghĩa
+/// *"bỏ một lớp"*. Lớp vẫn được tra, vẫn báo `truncated`, vẫn góp `skipped` — chỉ những hàng
+/// thuộc nguồn đã tắt bị bỏ.
+///
+/// ⚠️ **Trần `limit` chạy TRƯỚC phép lọc này** *(nó nằm trong câu SQL của từng tệp)*. Hệ quả
+/// đo được: tắt một nguồn **không làm trang đầy hơn** — các nguồn còn lại giữ **đúng** tập
+/// đầu mục cũ, không nhiều hơn và **không bao giờ ít hơn** (AC3). Đường lọc thẳng trong SQL
+/// *(§Quyết định #2b)* sẽ cho trang đầy hơn, và nó là một **món nợ có số** chứ không một
+/// khuyết tật — xem §Debug Log References của story cho tỉ lệ chạm trần đo được.
+pub fn lookup_grouped(
+    layers: &DictLayers,
+    query: &str,
+    mode: LookupMode,
+    limit: usize,
+    disabled: &BTreeSet<String>,
+) -> GroupedLookup {
     let route = pick_route(query);
     let branch = pick_branch(query, mode, route);
 
@@ -728,6 +841,13 @@ pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode, limit:
         // (thứ tự lớp, mã nguồn) — tất định, không phụ thuộc thứ tự hàng SQLite trả về.
         let mut in_layer: Vec<SourceGroup> = Vec::new();
         for hit in result.hits {
+            // 🔴 Story 1.19 · AC3 — nguồn đã TẮT không sinh nhóm và không góp một đầu mục
+            // nào. Lọc ở ĐÂY (sau `layer.lookup`, trước khi dựng nhóm) chứ không ở webview:
+            // `hidden_sources` và `count_by_source` bên dưới đọc **cùng** tập này, nên thanh
+            // nhịp không bao giờ đếm một nguồn mà màn hình không hiện (§Quyết định #2a lý do 2).
+            if disabled.contains(&hit.source_code) {
+                continue;
+            }
             if let Some(group) = in_layer
                 .iter_mut()
                 .find(|group| group.source.code == hit.source_code)
@@ -777,6 +897,14 @@ pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode, limit:
         if result.truncated {
             if let Ok(counts) = layer.count_by_source(query, route, branch) {
                 for (code, total) in &counts {
+                    // 🔴 Story 1.19 · Bẫy 2 — `count_by_source` là đường THỨ HAI, và nó chỉ
+                    // chạy khi trần đã cắt, tức **phần lớn lượt tra không đi qua đây**. Một
+                    // bản quên lọc ở chỗ này chạy đúng trong mọi test nhỏ và sai đúng trên
+                    // truy vấn đông kết quả: thanh nhịp đọc *"7 nguồn"* trong khi màn hình
+                    // hiện 4. AC12 của Story 1.17 cấm đích danh con số đó.
+                    if disabled.contains(code) {
+                        continue;
+                    }
                     if let Some(group) = in_layer.iter_mut().find(|g| g.source.code == *code) {
                         group.total_entries = Some(*total);
                         continue;
@@ -803,6 +931,43 @@ pub fn lookup_grouped(layers: &DictLayers, query: &str, mode: LookupMode, limit:
         hidden_sources,
         layers_loaded: !layers.layers().is_empty(),
     }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 1.19 — GHI CÔNG: dựng từ TỆP CÓ MẶT, không từ một danh sách viết cứng
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// **Ghi công của mọi nguồn trong mọi tệp đang gắn** — Story 1.19, AC1 · AC7 · AC8.
+///
+/// 🔴 **Dẫn xuất từ [`DictLayers`], KHÔNG từ một hằng trong mã và KHÔNG từ một bảng trong
+/// `global.db`** (AD-44 ① vá A2). Hệ quả trực tiếp, và cả hai đều nghiệm thu được bằng phép
+/// thử của AD-10 *(thả một tệp vào thư mục / xoá một tệp đi)*:
+/// - thêm một tệp `.db` ⇒ ghi công của nó xuất hiện, **không sửa một dòng mã**;
+/// - xoá một tệp `.db` ⇒ ghi công của **mọi** nguồn trong tệp đó biến mất, **0** mục mồ côi.
+///
+/// 🔴 **Nguồn bị TẮT vẫn có mặt đầy đủ ở đây** (AC10) — hàm này **không** nhận tập bị tắt,
+/// và đó là một mệnh đề chứ không một thiếu sót: *"tắt"* chỉ giấu một nguồn khỏi **kết quả
+/// tra cứu**; *"gỡ"* là xoá tệp dữ liệu và là việc của **người đóng gói** (FR112). Một bảng
+/// ghi công rụng mất một hàng vì người dùng tắt một chip là bảng ghi công **sai** — nghĩa vụ
+/// CC-BY-SA gắn với việc **phân phối** dữ liệu, không với việc hiển thị nó.
+///
+/// ⚠️ Một lớp mà `dict_source` **không đọc được lúc này** bị bỏ khỏi bảng, kèm một dòng
+/// chẩn đoán ra `stderr`: nửa bảng còn hơn không bảng nào, và cùng luật rỗng-có-lý-do mà
+/// [`lookup_grouped`] áp cho một lớp hỏng lúc tra.
+///
+/// Thứ tự tất định: thứ tự lớp của [`DictLayers::layers`], rồi `ORDER BY code` trong tệp.
+pub fn list_source_attributions(layers: &DictLayers) -> Vec<SourceAttribution> {
+    let mut out: Vec<SourceAttribution> = Vec::new();
+    for layer in layers.layers() {
+        match layer.attributions() {
+            Ok(mut rows) => out.append(&mut rows),
+            Err(err) => eprintln!(
+                "dict[layers] cannot read dict_source for attribution from {}: {err}",
+                layer.path().display()
+            ),
+        }
+    }
+    out
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -935,7 +1100,30 @@ fn priority_order(layers: &DictLayers) -> Vec<&DictLayer> {
 /// cho mỗi ký tự) — dedupe `chars` **trước khi tra**, cùng lý do `senses.rs`/`han_viet.rs`.
 /// Đầu ra giữ nguyên vị trí VÀ số lượng của `chars` (kể cả ký tự lặp) — chỗ gọi (Panel
 /// Source) zip trực tiếp với văn bản gốc, không tự tra lại theo tập duy nhất.
-pub fn lookup_han_viet(layers: &DictLayers, chars: &[&str]) -> HanVietLookup {
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 STORY 1.19 · §QUYẾT ĐỊNH #3a — BỘ LỌC NGUỒN **CÓ** ÁP CHO ĐƯỜNG NÀY
+/// ─────────────────────────────────────────────────────────────────────────────
+/// FR37 nói *"kết quả từ nguồn đó **không xuất hiện**"*. Âm Hán Việt **là** một kết quả tra
+/// cứu mang `source_code` (FR31), và [`HanVietLookup::sources_used`] **viết tên nguồn lên
+/// màn hình**. Để đường này ngoài bộ lọc là để một nguồn *"đã tắt"* vẫn viết chữ lên tab
+/// Hán Việt — một câu tự mâu thuẫn ngay trên màn hình.
+///
+/// ⚠️ **HỆ QUẢ BẮT BUỘC, và nó không hiển nhiên:** [`priority_order`] đẩy lớp NỀN xuống
+/// cuối, nên tắt một lớp gỡ rời **ĐỔI ÂM hiển thị** chứ không chỉ giấu bớt — một ký tự có
+/// thể đi từ âm của lớp gỡ rời về âm của lớp nền. Đó là hành vi **ĐÚNG** *(cùng cơ chế mà
+/// FR36 dựa vào khi một lớp bị gỡ khỏi bản cài)*, nhưng nó phải **đo và ghi ra**, không để
+/// người đọc phát hiện sau — xem `tests/dict_sources.rs` §Bẫy 6, ca khẳng định **âm cụ thể**
+/// chứ không chỉ khẳng định `sources_used` sạch.
+///
+/// 🔴 Lọc **TRƯỚC** khi chọn ưu tiên, không sau: lọc sau nghĩa là một ký tự mà lớp thắng đã
+/// bị tắt sẽ trả `None` thay vì rơi về lớp kế tiếp — tức *"tắt một nguồn"* biến thành *"xoá
+/// âm của ký tự đó"*, đúng thứ FR36 tồn tại để không xảy ra.
+pub fn lookup_han_viet(
+    layers: &DictLayers,
+    chars: &[&str],
+    disabled: &BTreeSet<String>,
+) -> HanVietLookup {
     use std::collections::HashMap;
 
     let order = priority_order(layers);
@@ -969,6 +1157,12 @@ pub fn lookup_han_viet(layers: &DictLayers, chars: &[&str]) -> HanVietLookup {
         // trí ký tự trong Chương. Đừng nới phép lọc đó ra mà không đọc lại dòng này.
         let mut per_char: HashMap<&str, &HanVietHit> = HashMap::new();
         for hit in hits {
+            // Story 1.19 · §Quyết định #3a — hàng của một nguồn đã TẮT không được vào cuộc
+            // đua ưu tiên. Bỏ ở đây (không ở vòng chọn dưới) để một ký tự vẫn rơi về lớp kế
+            // tiếp thay vì mất âm.
+            if disabled.contains(&hit.source_code) {
+                continue;
+            }
             per_char.entry(hit.character.as_str()).or_insert(hit);
         }
         by_layer.push((layer.layer(), per_char));

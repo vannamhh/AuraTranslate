@@ -38,10 +38,52 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::core::dict::{
-    DictLayers, HAN_VIET_BATCH, HanVietHit, LookupMode, QueryBranch, QueryRoute, SENSE_BATCH,
-    SUPPORTED_SCHEMA_VERSION, SenseRecord, SkipReason, is_han, lookup_grouped, lookup_han_viet,
+    DictLayers, GroupedLookup, HAN_VIET_BATCH, HanVietHit, HanVietLookup, LookupMode, QueryBranch,
+    QueryRoute, SENSE_BATCH, SUPPORTED_SCHEMA_VERSION, SenseRecord, SkipReason, is_han,
 };
 use auratranslate_lib::ports::DictionarySource;
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 1.19 — HAI VỎ *"KHÔNG TẮT NGUỒN NÀO"*, CỐ Ý MANG ĐÚNG TÊN HÀM THẬT
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// `lookup_grouped`/`lookup_han_viet` nay nhận thêm tập `code` **BỊ TẮT** (§Quyết định #2a
+// và #3a). Bốn mươi ca đã có của tệp này hỏi những câu **không liên quan** tới bộ lọc, và
+// rải `&BTreeSet::new()` vào cuối từng lời gọi chỉ làm chúng khó đọc hơn mà không canh
+// thêm gì.
+//
+// ⚠️ Hai vỏ này **che** tên đã import, có chủ ý và đúng một hướng: một ca **về** bộ lọc gọi
+// thẳng `auratranslate_lib::core::dict::lookup_grouped` với tập thật, và sự khác biệt đó
+// đọc được ngay tại chỗ gọi. Đừng thêm tham số vào hai vỏ này — chúng tồn tại để nói
+// *"ca này không tắt nguồn nào"*, không phải để làm một API thứ hai.
+
+/// Tra cứu **không tắt nguồn nào** — hình dạng của mọi ca có trước Story 1.19.
+fn lookup_grouped(
+    layers: &DictLayers,
+    query: &str,
+    mode: LookupMode,
+    limit: usize,
+) -> GroupedLookup {
+    auratranslate_lib::core::dict::lookup_grouped(layers, query, mode, limit, &BTreeSet::new())
+}
+
+/// Gom âm Hán Việt **không tắt nguồn nào**.
+fn lookup_han_viet(layers: &DictLayers, chars: &[&str]) -> HanVietLookup {
+    auratranslate_lib::core::dict::lookup_han_viet(layers, chars, &BTreeSet::new())
+}
+
+/// Đường sản phẩm Panel Lookup (`commands::dict::lookup`), **không tắt nguồn nào**.
+fn command_lookup(
+    layers: Option<&DictLayers>,
+    query: &str,
+) -> auratranslate_lib::commands::dict::LookupResponse {
+    auratranslate_lib::commands::dict::lookup(layers, query, &BTreeSet::new())
+}
+
+/// Đường sản phẩm tab Hán Việt (`commands::dict::read_han_viet`), **không tắt nguồn nào**.
+fn command_read_han_viet(layers: Option<&DictLayers>, chars: &[String]) -> HanVietLookup {
+    auratranslate_lib::commands::dict::read_han_viet(layers, chars, &BTreeSet::new())
+}
 
 /// 🔴 Trần pha một (Quyết định #4, Story 1.17) — mọi fixture của tệp này có dưới hai
 /// mươi hàng một nguồn, nên một trần lớn giữ nguyên hành vi trước story cho các ca không
@@ -75,7 +117,8 @@ CREATE TABLE dict_source (
   license_text   TEXT NOT NULL,
   attribution    TEXT NOT NULL,
   source_version TEXT NOT NULL,
-  source_url     TEXT NOT NULL
+  source_url     TEXT NOT NULL,
+  lang           TEXT NOT NULL DEFAULT ''
 );";
 
 const DICT_ENTRY_DDL: &str = "\
@@ -595,6 +638,22 @@ fn build_layer(dir: &Path, seed: &LayerSeed, schema_version: &str, user_version:
     // trả rỗng **cho từng tệp** và mọi ca của nó "xanh" theo đúng cách sai nhất.
     conn.execute_batch("INSERT INTO entry_fts(entry_fts) VALUES('rebuild');")
         .unwrap_or_else(|e| panic!("rebuild entry_fts: {e}"));
+
+    // 🔴 **Story 1.19 — `dict_source.lang` ĐO từ `dict_entry`, y hệt đường sản phẩm.**
+    //
+    // Câu lệnh này là bản sao **nguyên văn** của `tools/dict-build/src/insert.rs::
+    // backfill_source_langs`, và bản sao đó có chủ ý: hai workspace tách rời (AC4 của Story
+    // 1.9) nên không có import chéo nào. Điều fixture phải giữ là *"lang đến từ dữ liệu"* —
+    // gán tay một chuỗi ở `LayerSeed` sẽ để lọt đúng lỗi mà cột này sinh ra để chặn (một
+    // nguồn khai `en` mà 0 đầu mục nào `en`).
+    conn.execute_batch(
+        "UPDATE dict_source SET lang = IFNULL(
+           (SELECT GROUP_CONCAT(lang, ',') FROM
+              (SELECT DISTINCT lang FROM dict_entry
+                WHERE source_id = dict_source.id ORDER BY lang)),
+           '');",
+    )
+    .unwrap_or_else(|e| panic!("đo dict_source.lang: {e}"));
 
     conn.execute_batch(&format!("PRAGMA user_version = {user_version};"))
         .unwrap_or_else(|e| panic!("đặt user_version: {e}"));
@@ -2367,18 +2426,18 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
 
     for query in after_cases {
         for _ in 0..WARMUP {
-            let _ = auratranslate_lib::commands::dict::lookup(Some(&layers), query);
+            let _ = command_lookup(Some(&layers), query);
         }
 
         let mut samples = Vec::with_capacity(RUNS);
         for _ in 0..RUNS {
             let start = std::time::Instant::now();
-            let _ = auratranslate_lib::commands::dict::lookup(Some(&layers), query);
+            let _ = command_lookup(Some(&layers), query);
             samples.push(start.elapsed().as_secs_f64() * 1000.0);
         }
         samples.sort_by(|a, b| a.partial_cmp(b).expect("không có NaN trong phép đo"));
 
-        let response = auratranslate_lib::commands::dict::lookup(Some(&layers), query);
+        let response = command_lookup(Some(&layers), query);
         let rows: usize = response.grouped.groups.iter().map(|g| g.entries.len()).sum();
         let (p50, p95, p99) = (
             pct(&samples, 50.0),
@@ -2961,7 +3020,7 @@ fn the_output_keeps_one_slot_per_input_character_including_repeats() {
 /// `layers = None` phải đối xử GIỐNG HỆT một tập lớp rỗng — không một nhánh lỗi riêng.
 #[test]
 fn read_han_viet_command_treats_a_missing_state_like_an_empty_layer_set() {
-    let result = auratranslate_lib::commands::dict::read_han_viet(None, &["山".to_owned()]);
+    let result = command_read_han_viet(None, &["山".to_owned()]);
     assert!(!result.layers_loaded);
     assert_eq!(result.characters.len(), 1);
     assert!(result.characters[0].reading.is_none());
@@ -2977,7 +3036,7 @@ fn read_han_viet_command_matches_the_grouping_layer_directly() {
 
     let layers = DictLayers::open(&dir);
     let via_command =
-        auratranslate_lib::commands::dict::read_han_viet(Some(&layers), &["山".to_owned(), "高".to_owned()]);
+        command_read_han_viet(Some(&layers), &["山".to_owned(), "高".to_owned()]);
     let direct = lookup_han_viet(&layers, &["山", "高"]);
 
     assert_eq!(via_command, direct);
@@ -2993,7 +3052,7 @@ fn read_han_viet_command_matches_the_grouping_layer_directly() {
 /// `layers = None` phải đối xử GIỐNG HỆT một tập lớp rỗng — cùng luật `read_han_viet`.
 #[test]
 fn lookup_command_treats_a_missing_state_like_an_empty_layer_set() {
-    let result = auratranslate_lib::commands::dict::lookup(None, "山");
+    let result = command_lookup(None, "山");
     assert!(result.grouped.groups.is_empty());
     assert!(result.grouped.skipped.is_empty());
     assert!(result.senses_by_layer.is_empty());
@@ -3006,7 +3065,7 @@ fn lookup_command_hydrates_senses_for_exactly_the_returned_entries() {
     build_all_layers(&dir);
     let layers = DictLayers::open(&dir);
 
-    let result = auratranslate_lib::commands::dict::lookup(Some(&layers), "山");
+    let result = command_lookup(Some(&layers), "山");
 
     // `山` khớp ở CẢ BA lớp — `base` (nguồn `fx-core-a`), `hv-fixture` (nguồn `fx-hv`),
     // `vp-fixture` (nguồn `fx-vp`) — AD-19, cả ba nhóm cùng có mặt, không hợp nhất.
@@ -3045,7 +3104,7 @@ fn lookup_command_does_not_hydrate_entries_the_first_phase_never_matched() {
     let layers = DictLayers::open(&dir);
 
     // `高山` chỉ khớp MỘT đầu mục (source_id 2, lớp base) — `BASE_SENSES_GAOSHAN`, MỘT nghĩa.
-    let result = auratranslate_lib::commands::dict::lookup(Some(&layers), "高山");
+    let result = command_lookup(Some(&layers), "高山");
     let base_senses = &result.senses_by_layer["base"];
     assert_eq!(
         base_senses.len(),
@@ -3070,7 +3129,7 @@ fn phase_two_never_mixes_entry_ids_across_two_layers_sharing_the_same_number() {
     build_all_layers(&dir);
     let layers = DictLayers::open(&dir);
 
-    let result = auratranslate_lib::commands::dict::lookup(Some(&layers), "山");
+    let result = command_lookup(Some(&layers), "山");
 
     let base_glosses: Vec<&str> = result.senses_by_layer["base"]
         .iter()
@@ -3102,7 +3161,7 @@ fn lookup_command_calls_senses_with_an_empty_batch_for_no_layer() {
     build_all_layers(&dir);
     let layers = DictLayers::open(&dir);
 
-    let result = auratranslate_lib::commands::dict::lookup(Some(&layers), "tu-khong-ton-tai-zzz");
+    let result = command_lookup(Some(&layers), "tu-khong-ton-tai-zzz");
     assert!(
         result.senses_by_layer.is_empty(),
         "không nhóm nào khớp ⇒ không lớp nào cần hydrate: {:?}",
@@ -3123,7 +3182,7 @@ fn a_query_past_the_length_ceiling_is_truncated_before_it_reaches_the_lookup() {
     let long_query: String = "x".repeat(200) + "山";
     assert_eq!(long_query.chars().count(), 201);
 
-    let result = auratranslate_lib::commands::dict::lookup(None, &long_query);
+    let result = command_lookup(None, &long_query);
     assert_eq!(
         result.grouped.route,
         auratranslate_lib::core::dict::QueryRoute::En,
@@ -3217,7 +3276,7 @@ fn an_over_long_query_is_flagged_not_silently_truncated() {
     build_all_layers(&dir);
     let layers = DictLayers::open(&dir);
 
-    let short = auratranslate_lib::commands::dict::lookup(Some(&layers), "山");
+    let short = command_lookup(Some(&layers), "山");
     assert!(
         !short.query_truncated,
         "một truy vấn bình thường không được báo là đã cắt"
@@ -3225,7 +3284,7 @@ fn an_over_long_query_is_flagged_not_silently_truncated() {
 
     // 201 ký tự — vượt `QUERY_LENGTH_CEILING` đúng một ký tự.
     let long: String = std::iter::repeat_n('山', 201).collect();
-    let result = auratranslate_lib::commands::dict::lookup(Some(&layers), &long);
+    let result = command_lookup(Some(&layers), &long);
 
     assert!(
         result.query_truncated,
@@ -3472,7 +3531,7 @@ fn the_product_page_size_is_pinned_by_behaviour_not_only_by_a_constant() {
     );
     let layers = DictLayers::open(&dir);
 
-    let result = auratranslate_lib::commands::dict::lookup(Some(&layers), "頁");
+    let result = command_lookup(Some(&layers), "頁");
     let rows: usize = result.grouped.groups.iter().map(|g| g.entries.len()).sum();
 
     assert_eq!(
@@ -3511,7 +3570,7 @@ fn an_exact_hit_never_falls_back_to_substring() {
     build_all_layers(&dir);
     let layers = DictLayers::open(&dir);
 
-    let response = auratranslate_lib::commands::dict::lookup(Some(&layers), "山");
+    let response = command_lookup(Some(&layers), "山");
     let found: BTreeSet<String> = response
         .grouped
         .groups
@@ -3543,7 +3602,7 @@ fn an_empty_exact_lookup_falls_back_to_substring() {
     build_all_layers(&dir);
     let layers = DictLayers::open(&dir);
 
-    let response = auratranslate_lib::commands::dict::lookup(Some(&layers), "高");
+    let response = command_lookup(Some(&layers), "高");
     let found: BTreeSet<String> = response
         .grouped
         .groups
@@ -3579,7 +3638,7 @@ fn a_short_latin_selection_now_reaches_the_query_too_short_state() {
     build_all_layers(&dir);
     let layers = DictLayers::open(&dir);
 
-    let response = auratranslate_lib::commands::dict::lookup(Some(&layers), "zz");
+    let response = command_lookup(Some(&layers), "zz");
 
     assert_eq!(
         response.grouped.branch,
@@ -3600,7 +3659,7 @@ fn a_long_miss_does_not_pay_for_a_second_lookup() {
     let layers = DictLayers::open(&dir);
 
     // Năm ký tự Hán — trên trần `SUBSTRING_FALLBACK_CEILING` (4).
-    let response = auratranslate_lib::commands::dict::lookup(Some(&layers), "山河大地人");
+    let response = command_lookup(Some(&layers), "山河大地人");
     assert_eq!(
         response.grouped.branch,
         QueryBranch::ExactBtree,
@@ -3688,7 +3747,7 @@ fn bench_the_auto_lookup_path_on_distinct_queries() {
         let mut too_short = 0usize;
         for q in &queries {
             let start = std::time::Instant::now();
-            let response = auratranslate_lib::commands::dict::lookup(Some(&layers), q);
+            let response = command_lookup(Some(&layers), q);
             samples.push(start.elapsed().as_secs_f64() * 1000.0);
             if response.grouped.branch != QueryBranch::ExactBtree {
                 fallback_hits += 1;
@@ -3728,5 +3787,929 @@ fn bench_the_auto_lookup_path_on_distinct_queries() {
     println!(
         "\n🔴 GIỚI HẠN: con số trên là ĐƯỜNG RUST. Nó không gồm vòng IPC Tauri lẫn lượt vẽ của\n\
          webview — món nợ `deferred-work.md` của Story 1.17, và story này không ĐÓNG nó."
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// STORY 1.19 — BẬT/TẮT NGUỒN (AC2–AC6) VÀ GHI CÔNG (AC7–AC10)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 Bốn luật của tệp này áp nguyên cho mọi ca dưới đây: thư mục tạm RIÊNG cho mỗi ca ·
+// `close()` trước khi xoá · không một ngưỡng thời gian nào chạy trong CI · đường dẫn đi
+// qua `CARGO_MANIFEST_DIR`.
+
+use auratranslate_lib::core::dict::{SourceAttribution, list_source_attributions};
+use auratranslate_lib::core::scope::parse_disabled_sources;
+
+/// Tập `code` bị tắt, viết gọn ngay tại chỗ gọi.
+fn off(codes: &[&str]) -> BTreeSet<String> {
+    codes.iter().map(|c| (*c).to_owned()).collect()
+}
+
+/// Ghi đè **sáu trường giấy phép** của một nguồn trong một tệp fixture.
+///
+/// ⚠️ `UPDATE` sau `build_layer` chứ không một cột mới trong `LayerSeed` — cùng khuôn
+/// [`set_han_viet`], và nó giữ được mệnh đề *"DDL chép nguyên văn"* mà cổng parity đứng lên.
+#[allow(clippy::too_many_arguments)]
+fn set_license(
+    dir: &Path,
+    file: &str,
+    code: &str,
+    license_kind: &str,
+    license_id: Option<&str>,
+    license_text: &str,
+    attribution: &str,
+    source_version: &str,
+    source_url: &str,
+) {
+    let conn = rusqlite::Connection::open(dir.join(file))
+        .unwrap_or_else(|e| panic!("mở {file} để ghi giấy phép: {e}"));
+    let changed = conn
+        .execute(
+            "UPDATE dict_source SET license_kind = ?1, license_id = ?2, license_text = ?3, \
+             attribution = ?4, source_version = ?5, source_url = ?6 WHERE code = ?7",
+            rusqlite::params![
+                license_kind,
+                license_id,
+                license_text,
+                attribution,
+                source_version,
+                source_url,
+                code
+            ],
+        )
+        .unwrap_or_else(|e| panic!("cập nhật giấy phép cho {code} trong {file}: {e}"));
+    assert_eq!(changed, 1, "{code} phải tồn tại trong {file}");
+    conn.close()
+        .unwrap_or_else(|(_, e)| panic!("đóng {file}: {e}"));
+}
+
+/// Ghi công của một `code`, hoặc `None` nếu bảng không có nó.
+fn attribution_of<'a>(rows: &'a [SourceAttribution], code: &str) -> Option<&'a SourceAttribution> {
+    rows.iter().find(|row| row.code == code)
+}
+
+/// Mã nguồn của từng nhóm, theo đúng thứ tự kết quả.
+fn group_codes(result: &GroupedLookup) -> Vec<String> {
+    result
+        .groups
+        .iter()
+        .map(|group| group.source.code.clone())
+        .collect()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// AC7 · AC8 — BẢNG GHI CÔNG DẪN XUẤT TỪ TỆP CÓ MẶT
+// ─────────────────────────────────────────────────────────────────────────────────
+
+/// 🔴 **AC7** — mọi nguồn của mọi tệp đang gắn, kèm sáu trường giấy phép của **chính tệp**.
+///
+/// Fixture ba lớp mang **bốn** nguồn trên **ba** tệp — cùng hình dạng "một tệp nhiều nguồn"
+/// mà `dict-core.db` thật có (bảy nguồn trong một tệp).
+#[test]
+fn the_attribution_table_lists_every_source_of_every_present_file() {
+    let dir = temp_dir("attr-all");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    let rows = list_source_attributions(&layers);
+
+    assert_eq!(
+        rows.iter().map(|r| r.code.as_str()).collect::<Vec<_>>(),
+        vec!["fx-core-a", "fx-core-b", "fx-hv", "fx-vp"],
+        "thứ tự phải TẤT ĐỊNH: thứ tự lớp, rồi `ORDER BY code` trong tệp"
+    );
+
+    let core_a = attribution_of(&rows, "fx-core-a").expect("fx-core-a phải có mặt");
+    assert_eq!(core_a.display_name, "Fixture Core A");
+    assert_eq!(core_a.layer, "base");
+    assert!(
+        core_a.is_base,
+        "`is_base` đọc từ `dict_meta('layer')` của CHÍNH tệp, không từ tên tệp \
+         (`zzz.db` cố ý không nói gì về lớp bên trong) — AD-44 ① vá A2"
+    );
+
+    let hv = attribution_of(&rows, "fx-hv").expect("fx-hv phải có mặt");
+    assert_eq!(hv.layer, "hv-fixture");
+    assert!(!hv.is_base, "một lớp gỡ rời không bao giờ là lớp nền");
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC6 — `dict_source.lang` ĐO ĐƯỢC, và nó là thứ cho webview hỏi đúng câu.**
+///
+/// Ice chốt ở code review 2026-08-10. Trước lượt này, vị từ *"mọi nguồn đều tắt"* hỏi
+/// **toàn tập**, nên tắt riêng nguồn **DUY NHẤT** của đường tiếng Anh vẫn cho `false` và
+/// panel nói *"không tìm thấy trong từ điển"* — một câu SAI, hệ thống không hề tra. Trường
+/// này là dữ kiện tối thiểu để hỏi *"mọi nguồn CỦA ĐƯỜNG NÀY đều tắt chưa"*.
+///
+/// 🔴 Phép kiểm neo vào **hai** mệnh đề, không một:
+/// ① giá trị là một **TẬP** *(`fx-core-a` có cả hàng `zh` lẫn hàng `en` ⇒ `"en,zh"`)* — bất
+///    biến *"một nguồn đúng một `lang`"* trên dữ liệu thật hôm nay là một **số đo**, không
+///    một mệnh đề, và cột này không được phép gãy vào ngày nó hết đúng;
+/// ② thứ tự trong tập là **tất định** (`ORDER BY lang`) — build phải tái lập được, và một
+///    `GROUP_CONCAT` không sắp xếp cho ra `sha256` khác nhau giữa hai lượt dựng cùng dữ liệu.
+#[test]
+fn every_attribution_carries_the_language_routes_measured_from_its_own_entries() {
+    let dir = temp_dir("attr-lang");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    let rows = list_source_attributions(&layers);
+
+    let core_a = attribution_of(&rows, "fx-core-a").expect("fx-core-a phải có mặt");
+    assert_eq!(
+        core_a.lang, "en,zh",
+        "`fx-core-a` mang đầu mục CẢ HAI đường trong fixture, nên `lang` phải là một TẬP \
+         hai phần tử — và sắp xếp tăng dần để hai lượt dựng cho cùng một byte"
+    );
+
+    let hv = attribution_of(&rows, "fx-hv").expect("fx-hv phải có mặt");
+    assert_eq!(
+        hv.lang, "zh",
+        "`fx-hv` chỉ có đầu mục `zh` ⇒ tập một phần tử, không một chuỗi rỗng và không `NULL`"
+    );
+
+    // 🔴 Đối chứng NGƯỢC: giá trị **đo từ dữ liệu**, không chép từ một chỗ khai. Không một
+    // hàng nào được mang một đường mà chính nó 0 đầu mục — đó là đúng hình dạng lỗi mà một
+    // trường khai tay ở `SourceMeta` sẽ tạo ra, và là lý do phép đo tồn tại.
+    for row in &rows {
+        assert!(
+            !row.lang.is_empty(),
+            "`{}` mang `lang` rỗng — mọi nguồn trong fixture đều có đầu mục, nên chuỗi rỗng \
+             ở đây nghĩa là lượt đo không chạy",
+            row.code
+        );
+        for route in row.lang.split(',') {
+            assert!(
+                matches!(route, "zh" | "en"),
+                "`{}` khai đường `{route}` mà fixture không hề gieo đầu mục nào như vậy",
+                row.code
+            );
+        }
+    }
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC8 / FR36** — xoá một tệp ⇒ ghi công của **mọi** nguồn trong tệp đó biến mất,
+/// **0** mục mồ côi, và đường tra cứu vẫn chạy đầy đủ trên các lớp còn lại.
+///
+/// ⚠️ **Đối chứng dương bắt buộc**: khẳng định nguồn đó CÓ MẶT trước khi xoá. Thiếu nó, ca
+/// này xanh trên một cài đặt không bao giờ đọc `dict_source` của lớp gỡ rời nào.
+#[test]
+fn deleting_a_file_removes_its_whole_attribution_block_and_leaves_no_orphan() {
+    let dir = temp_dir("attr-delete");
+    build_all_layers(&dir);
+
+    let layers = DictLayers::open(&dir);
+    let before = list_source_attributions(&layers);
+    assert!(
+        attribution_of(&before, "fx-hv").is_some(),
+        "đối chứng dương — fx-hv phải có mặt TRƯỚC khi xoá tệp của nó"
+    );
+    let victim = layers
+        .layer("hv-fixture")
+        .expect("lớp gỡ rời vừa xác nhận có mặt")
+        .path()
+        .to_path_buf();
+    layers.close();
+    fs::remove_file(&victim).unwrap_or_else(|e| panic!("xoá {}: {e}", victim.display()));
+
+    let layers = DictLayers::open(&dir);
+    let after = list_source_attributions(&layers);
+
+    assert!(
+        attribution_of(&after, "fx-hv").is_none(),
+        "ghi công của một tệp đã xoá không được ở lại: {:?}",
+        after.iter().map(|r| &r.code).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        after.iter().map(|r| r.code.as_str()).collect::<Vec<_>>(),
+        vec!["fx-core-a", "fx-core-b", "fx-vp"],
+        "và KHÔNG mục mồ côi nào ở lại"
+    );
+
+    // FR36 — đường tra cứu vẫn trả lời đầy đủ trên các lớp còn lại (phép thử của AD-10).
+    the_layer_independent_lookups_still_hold(&layers);
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC10 — TẮT ≠ GỠ.** Một nguồn đang tắt **vẫn** có mặt đầy đủ trong bảng ghi công.
+///
+/// Đây là mệnh đề dễ cài sai nhất của story: nghĩa vụ CC-BY-SA gắn với việc **phân phối**
+/// dữ liệu, không với việc hiển thị nó — một bảng ghi công rụng mất một hàng vì người dùng
+/// tắt một chip là một bảng ghi công **sai**.
+#[test]
+fn a_disabled_source_still_appears_in_full_in_the_attribution_table() {
+    let dir = temp_dir("attr-disabled");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    // Đối chứng: nó THẬT SỰ biến mất khỏi kết quả tra cứu…
+    let hidden = auratranslate_lib::core::dict::lookup_grouped(
+        &layers,
+        "山",
+        LookupMode::Exact,
+        UNLIMITED,
+        &off(&["fx-hv"]),
+    );
+    assert!(
+        !group_codes(&hidden).contains(&"fx-hv".to_owned()),
+        "fx-hv đã tắt ⇒ không nhóm nào của nó trong kết quả"
+    );
+
+    // …mà vẫn có mặt ĐẦY ĐỦ trong bảng ghi công.
+    let rows = list_source_attributions(&layers);
+    let hv = attribution_of(&rows, "fx-hv").expect("fx-hv vẫn phải được ghi công khi đang TẮT");
+    assert_eq!(hv.display_name, "Fixture Han Viet");
+    assert!(!hv.attribution.is_empty(), "ghi công không được rỗng");
+
+    layers.close();
+    cleanup(&dir);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// AC9 — `license_kind` KHÔNG BỊ ÉP VÀO ENUM, VÀ CHỖ GIỮ CHO GIẤY PHÉP RIÊNG
+// ─────────────────────────────────────────────────────────────────────────────────
+
+/// 🔴 **AC9** — hai nguồn thật mang `license_id = NULL` (`tran-van-chanh` · `vietphrase`).
+/// `None` phải đi qua nguyên vẹn, **không** biến thành chuỗi rỗng: hai thứ đó dẫn màn hình
+/// đi hai đường khác nhau (một ô trống, hay câu của `license_kind`).
+#[test]
+fn a_null_license_id_stays_none_and_never_becomes_an_empty_string() {
+    let dir = temp_dir("attr-null-id");
+    build_all_layers(&dir);
+    set_license(
+        &dir,
+        "aaa.db",
+        "fx-vp",
+        "unknown",
+        None,
+        "",
+        "khong xac dinh duoc tac gia",
+        "2026-01",
+        "https://example.invalid/vp",
+    );
+    let layers = DictLayers::open(&dir);
+
+    let rows = list_source_attributions(&layers);
+    let vp = attribution_of(&rows, "fx-vp").expect("fx-vp phải có mặt");
+
+    assert_eq!(vp.license_kind, "unknown");
+    assert_eq!(
+        vp.license_id, None,
+        "`NULL` phải tới webview là `null`, KHÔNG chuỗi rỗng"
+    );
+    assert_eq!(
+        vp.license_text_len, 0,
+        "một `license_text` rỗng phân biệt được với một `license_text` có nội dung"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC9, đối chứng âm BẮT BUỘC** — một `license_kind` **bịa ra, chưa gặp bao giờ**.
+///
+/// AD-10 nói bằng chữ: *"mô hình hoá trường này thành enum các giấy phép mở sẽ khiến nó bị
+/// gán nhãn sai ngay trên màn hình Attribution"*. Ca này là bằng chứng chạy được: giá trị đi
+/// qua **nguyên văn**, không panic, không rơi về một biến thể *"khác"* đã mất thông tin —
+/// nhánh mặc định của bảng ánh xạ ở `vi.json` mới là chỗ nó thành một câu tiếng Việt.
+#[test]
+fn a_license_kind_never_seen_before_travels_verbatim_and_never_panics() {
+    let dir = temp_dir("attr-unknown-kind");
+    build_all_layers(&dir);
+    set_license(
+        &dir,
+        "aaa.db",
+        "fx-vp",
+        "some-licence-nobody-has-modelled-yet",
+        Some("XYZZY-9.9"),
+        "van ban giay phep gia lap",
+        "ghi cong cua nguon nay",
+        "0",
+        "https://example.invalid/xyzzy",
+    );
+    let layers = DictLayers::open(&dir);
+
+    let rows = list_source_attributions(&layers);
+    let vp = attribution_of(&rows, "fx-vp").expect("fx-vp phải có mặt");
+
+    assert_eq!(
+        vp.license_kind, "some-licence-nobody-has-modelled-yet",
+        "chuỗi MỞ — một enum ở tầng Rust sẽ nuốt giá trị này thành một biến thể sai"
+    );
+    assert_eq!(vp.license_id.as_deref(), Some("XYZZY-9.9"));
+    assert_eq!(vp.license_text_len, "van ban giay phep gia lap".len() as i64);
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC9 — CHỖ GIỮ `author-grant`, nghiệm thu bằng FIXTURE.**
+///
+/// ⚠️ **GIỚI HẠN, ghi thẳng ra:** **0** nguồn THẬT nào mang `license_kind = "author-grant"`
+/// hôm nay, và HVTĐTD — nguồn mà AC gốc của epic neo vào — **sẽ không tới** (Ice chốt
+/// 2026-08-08: không tìm được nguồn dữ liệu). Ca này nghiệm thu **CƠ CHẾ**, không một tính
+/// năng đã chạy trên dữ liệu thật.
+///
+/// Mệnh đề: thả một tệp mang một `license_kind` như thế vào thư mục ⇒ nó hiện đủ tên · giấy
+/// phép · lớp · ghi công **mà không sửa một dòng mã nào**; xoá đi ⇒ biến mất, không mồ côi.
+/// Và **danh tính tác giả đọc từ `dict_source.attribution` của chính tệp** — đó là điều kiện
+/// để chỗ giữ này dùng lại được cho một nguồn KHÁC với một tác giả KHÁC.
+#[test]
+fn the_author_grant_placeholder_lands_and_leaves_with_its_file() {
+    let dir = temp_dir("attr-author-grant");
+    build_all_layers(&dir);
+
+    // Một tệp thứ tư, dựng bằng đúng khuôn ba tệp kia — **không** một nhánh mã riêng.
+    let seed = LayerSeed {
+        file: "grant.db",
+        layer: "grant-fixture",
+        sources: &[(1, "fx-grant", "Fixture Author Grant")],
+        entries: HV_ENTRIES,
+    };
+    let dropped = build_layer(
+        &dir,
+        &seed,
+        &SUPPORTED_SCHEMA_VERSION.to_string(),
+        SUPPORTED_SCHEMA_VERSION,
+    );
+    set_license(
+        &dir,
+        "grant.db",
+        "fx-grant",
+        "author-grant",
+        None,
+        "toan van phep rieng",
+        "(c) Mot Tac Gia Nao Do -- tac gia cho phep bang van ban",
+        "2026-08",
+        "https://example.invalid/grant",
+    );
+
+    let layers = DictLayers::open(&dir);
+    let rows = list_source_attributions(&layers);
+    let grant = attribution_of(&rows, "fx-grant").expect("thả tệp vào ⇒ nguồn phải hiện");
+
+    assert_eq!(grant.license_kind, "author-grant");
+    assert_eq!(grant.display_name, "Fixture Author Grant");
+    assert_eq!(grant.layer, "grant-fixture");
+    assert!(!grant.is_base, "lớp gỡ rời");
+    assert!(
+        grant.attribution.contains("Mot Tac Gia Nao Do"),
+        "DANH TÍNH TÁC GIẢ đọc từ `attribution` của CHÍNH tệp — không một cái tên nào \
+         viết cứng trong mã hay trong `vi.json` (canh bằng máy ở `tests/dict_boundary.rs`)"
+    );
+    assert_eq!(
+        grant.license_id, None,
+        "một phép riêng tác giả cấp không có mã SPDX nào để mang"
+    );
+    layers.close();
+
+    fs::remove_file(&dropped).unwrap_or_else(|e| panic!("xoá {}: {e}", dropped.display()));
+    let layers = DictLayers::open(&dir);
+    let after = list_source_attributions(&layers);
+    assert!(
+        attribution_of(&after, "fx-grant").is_none(),
+        "xoá tệp ⇒ ghi công biến mất, không mồ côi: {:?}",
+        after.iter().map(|r| &r.code).collect::<Vec<_>>()
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// AC3 · AC4 — NGUỒN BỊ TẮT BIẾN MẤT, CÁC NGUỒN CÒN LẠI KHÔNG ĐỔI
+// ─────────────────────────────────────────────────────────────────────────────────
+
+/// 🔴 **AC3** — tắt một nguồn ⇒ còn `k−1` nhóm, và **từng nhóm còn lại giống hệt** bản
+/// trước: cùng đầu mục, cùng nghĩa, cùng thứ tự.
+///
+/// So sánh **cả cấu trúc**, không chỉ đếm: một bộ lọc cài sai thứ tự nhóm vẫn cho đúng số
+/// lượng, và số lượng là thứ duy nhất một phép đếm nhìn thấy.
+#[test]
+fn disabling_one_source_leaves_every_other_group_untouched() {
+    let dir = temp_dir("filter-others-intact");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    let before = lookup_grouped(&layers, "山", LookupMode::Exact, UNLIMITED);
+    let k = before.groups.len();
+    assert!(
+        k >= 3,
+        "ca này chỉ có nghĩa với ít nhất ba nhóm — thấy {k}: {:?}",
+        group_codes(&before)
+    );
+
+    let after = auratranslate_lib::core::dict::lookup_grouped(
+        &layers,
+        "山",
+        LookupMode::Exact,
+        UNLIMITED,
+        &off(&["fx-hv"]),
+    );
+
+    assert_eq!(after.groups.len(), k - 1, "đúng MỘT nhóm biến mất");
+    assert!(!group_codes(&after).contains(&"fx-hv".to_owned()));
+
+    let survivors_before: Vec<_> = before
+        .groups
+        .iter()
+        .filter(|g| g.source.code != "fx-hv")
+        .collect();
+    let survivors_after: Vec<_> = after.groups.iter().collect();
+    assert_eq!(
+        survivors_before, survivors_after,
+        "từng nhóm còn lại phải GIỐNG HỆT bản trước — cùng nguồn, cùng đầu mục, cùng thứ tự"
+    );
+
+    // Đối chứng âm bắt buộc (AC2): bật lại ⇒ kết quả giống hệt trước khi tắt.
+    let restored = lookup_grouped(&layers, "山", LookupMode::Exact, UNLIMITED);
+    assert_eq!(
+        restored, before,
+        "bật lại một nguồn phải trả về ĐÚNG kết quả trước khi tắt — không một dấu vết nào ở lại"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC3, ca ĐẶC BIỆT — MỘT TỆP, HAI NGUỒN, TRẦN `LIMIT` ĐANG CHẠM.**
+///
+/// Đây là ca mà một bộ lọc ở **webview** vỡ (§Quyết định #2a lý do 1) và là ca đắt nhất của
+/// story. Hai mệnh đề, và mệnh đề thứ hai là thứ mà Bẫy 2 nói tới:
+///
+/// ① các nguồn còn lại **nhiều kết quả hơn hoặc bằng**, **không bao giờ ít hơn**;
+/// ② `hidden_sources` / `count_by_source` **không đếm** nguồn đã tắt — nếu quên, thanh nhịp
+///    gọi tên một nguồn mà người dùng vừa tự tay tắt đi.
+#[test]
+fn the_filter_holds_at_the_limit_ceiling_and_never_shrinks_the_survivors() {
+    let dir = temp_dir("filter-limit");
+    let layers = build_limit_fixture(&dir);
+
+    // Trần 3 = đúng số đầu mục của `fx-limit-a` ⇒ `fx-limit-b` bị cắt SẠCH khỏi trang.
+    let before = lookup_grouped(&layers, "共", LookupMode::Exact, 3);
+    assert!(
+        before.truncated_layers.contains(&"limit-fixture".to_owned()),
+        "đối chứng dương — ca này chỉ có nghĩa khi trần ĐANG chạm"
+    );
+    assert_eq!(
+        before.hidden_sources,
+        vec![("Fixture Limit B".to_owned(), 1)],
+        "trước khi tắt gì cả, fx-limit-b bị trần cắt sạch nên nó được GỌI TÊN"
+    );
+
+    // ── ① tắt `fx-limit-b` ⇒ `fx-limit-a` KHÔNG được ít kết quả hơn ────────────────
+    let without_b = auratranslate_lib::core::dict::lookup_grouped(
+        &layers,
+        "共",
+        LookupMode::Exact,
+        3,
+        &off(&["fx-limit-b"]),
+    );
+    let a_before = before.groups[0].entries.len();
+    let a_after = without_b.groups[0].entries.len();
+    assert!(
+        a_after >= a_before,
+        "tắt một nguồn KHÔNG BAO GIỜ được làm nguồn còn lại ít kết quả đi ({a_before} → {a_after})"
+    );
+
+    // ── ② Bẫy 2 — nguồn đã tắt không được đếm ở `count_by_source` ─────────────────
+    assert!(
+        without_b.hidden_sources.is_empty(),
+        "fx-limit-b đã TẮT ⇒ thanh nhịp không được gọi tên nó nữa: {:?}",
+        without_b.hidden_sources
+    );
+
+    // ── ③ tắt nguồn ĐANG chiếm hết trang ⇒ nguồn kia vẫn được gọi tên đúng số ─────
+    let without_a = auratranslate_lib::core::dict::lookup_grouped(
+        &layers,
+        "共",
+        LookupMode::Exact,
+        3,
+        &off(&["fx-limit-a"]),
+    );
+    assert!(
+        group_codes(&without_a).is_empty(),
+        "trần cấp-tệp chạy TRƯỚC bộ lọc, nên trang này rỗng — hành vi ĐÚNG của \
+         §Quyết định #2a, và chính là món nợ mà #2b (lọc trong SQL) sẽ trả"
+    );
+    assert_eq!(
+        without_a.hidden_sources,
+        vec![("Fixture Limit B".to_owned(), 1)],
+        "nguồn ĐANG BẬT mà trần cắt sạch vẫn phải được GỌI TÊN (FR31)"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC3** — hai nguồn trong **CÙNG một tệp**, tắt một. Đây là hình dạng THẬT
+/// (`dict-core.db` mang bảy nguồn), và nó là thứ phân biệt *"tắt một nguồn"* với *"bỏ một
+/// lớp"*: lớp vẫn được tra, vẫn nạp được, chỉ những hàng của nguồn đó bị bỏ.
+#[test]
+fn two_sources_in_one_file_and_only_the_disabled_one_goes() {
+    let dir = temp_dir("filter-same-file");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    let before = lookup_grouped(&layers, "山", LookupMode::Exact, UNLIMITED);
+    assert!(
+        group_codes(&before).contains(&"fx-core-a".to_owned()),
+        "đối chứng dương — fx-core-a phải có nhóm trước khi tắt"
+    );
+
+    let after = auratranslate_lib::core::dict::lookup_grouped(
+        &layers,
+        "山",
+        LookupMode::Exact,
+        UNLIMITED,
+        &off(&["fx-core-a"]),
+    );
+
+    assert!(!group_codes(&after).contains(&"fx-core-a".to_owned()));
+    assert!(
+        after.layers_loaded,
+        "lớp NỀN vẫn nạp bình thường — tắt một nguồn KHÔNG phải bỏ một lớp"
+    );
+    assert!(
+        after.skipped.is_empty(),
+        "và nó cũng không phải một lớp HỎNG: {:?}",
+        after.skipped
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC6** — tắt **mọi** nguồn là một trạng thái có tên, **không** phải *"chưa gắn lớp
+/// nào"*. `layers_loaded` phải ở lại `true`; nếu không, panel nói *"chưa gắn lớp từ điển
+/// nào"* trong khi bốn tệp đang nằm ngay đó — một câu SAI, và AD-44 ④ cấm đích danh.
+#[test]
+fn turning_every_source_off_is_not_the_same_state_as_having_no_layers() {
+    let dir = temp_dir("filter-all-off");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    let all_off = auratranslate_lib::core::dict::lookup_grouped(
+        &layers,
+        "山",
+        LookupMode::Exact,
+        UNLIMITED,
+        &off(&["fx-core-a", "fx-core-b", "fx-hv", "fx-vp"]),
+    );
+
+    assert!(all_off.groups.is_empty(), "không nguồn nào còn bật");
+    assert!(
+        all_off.layers_loaded,
+        "🔴 `layers_loaded` phải ở lại TRUE — *mọi nguồn đều tắt* và *chưa gắn lớp nào* là \
+         hai trạng thái khác nhau, và panel nói hai câu khác nhau (AC6)"
+    );
+    assert_eq!(
+        all_off.branch,
+        QueryBranch::ExactBtree,
+        "lượt tra ĐÃ CHẠY — nó chỉ không còn gì để trả về"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC5** — một `code` đã lưu mà tệp của nó **không còn** ⇒ bỏ qua **im lặng**: không
+/// lỗi, không panic, và không một chip mồ côi.
+#[test]
+fn a_disabled_code_with_no_file_behind_it_is_ignored_in_silence() {
+    let dir = temp_dir("filter-ghost-code");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    let baseline = lookup_grouped(&layers, "山", LookupMode::Exact, UNLIMITED);
+    let with_ghost = auratranslate_lib::core::dict::lookup_grouped(
+        &layers,
+        "山",
+        LookupMode::Exact,
+        UNLIMITED,
+        &off(&["fx-mot-nguon-khong-ton-tai", "fx-mot-nguon-khac-nua"]),
+    );
+
+    assert_eq!(
+        baseline, with_ghost,
+        "một `code` không khớp tệp nào chỉ đơn giản không lọc được gì — nó KHÔNG được \
+         là một lỗi, và cũng không được làm biến mất thứ khác"
+    );
+    assert!(
+        list_source_attributions(&layers)
+            .iter()
+            .all(|row| row.code != "fx-mot-nguon-khong-ton-tai"),
+        "và nó không dựng ra một hàng ghi công mồ côi"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC5 · §Quyết định #1a** — mã hoá trên đĩa là tập **BỊ TẮT**, và phép tách chịu được
+/// khoảng trắng thừa, phần rỗng, chuỗi rỗng.
+///
+/// ⚠️ Mệnh đề *"nguồn MỚI mặc định BẬT"* nằm ngay trong hình dạng này: một `code` chưa từng
+/// được lưu **không** có trong tập ⇒ nó bật. Lưu tập được-bật sẽ làm điều ngược lại.
+#[test]
+fn the_stored_shape_is_the_disabled_set_so_a_brand_new_source_defaults_to_on() {
+    assert_eq!(parse_disabled_sources(""), BTreeSet::new());
+    assert_eq!(parse_disabled_sources("   "), BTreeSet::new());
+    assert_eq!(parse_disabled_sources(",,,"), BTreeSet::new());
+    assert_eq!(parse_disabled_sources("a"), off(&["a"]));
+    assert_eq!(parse_disabled_sources(" a , b ,, c "), off(&["a", "b", "c"]));
+
+    // 🔴 Mệnh đề trung tâm: một nguồn xuất hiện ở bản sau (`d`) KHÔNG có trong tập đã lưu,
+    // nên nó **bật**. Đây là đối chứng âm của lỗi *"rỗng im lặng"* mà AD-44 ④ cấm.
+    let stored = parse_disabled_sources("a,b");
+    assert!(!stored.contains("d"), "nguồn mới phải mặc định BẬT");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// §QUYẾT ĐỊNH #3a · BẪY 6 — BỘ LỌC ĐỔI ÂM HÁN VIỆT, KHÔNG CHỈ GIẤU BỚT
+// ─────────────────────────────────────────────────────────────────────────────────
+
+/// 🔴 **Bẫy 6, và ca này phải khẳng định ÂM CỤ THỂ.**
+///
+/// Một ca chỉ khẳng định *"`sources_used` không chứa nguồn đã tắt"* sẽ **XANH** trong khi âm
+/// hiển thị đã đổi mà không ai đo. `priority_order` đẩy lớp NỀN xuống cuối, nên tắt một lớp
+/// gỡ rời làm ký tự **rơi về âm của lớp nền** — hành vi ĐÚNG (cùng cơ chế FR36 dựa vào khi
+/// một lớp bị gỡ khỏi bản cài), nhưng nó phải ĐO được, không để người đọc phát hiện sau.
+#[test]
+fn disabling_a_detachable_source_changes_the_reading_it_does_not_erase_it() {
+    let dir = temp_dir("hanviet-filter");
+    build_all_layers(&dir);
+    set_han_viet(&dir, "zzz.db", 1, "am-cua-lop-nen");
+    set_han_viet(&dir, "mmm.db", 1, "am-cua-lop-go-roi");
+
+    let layers = DictLayers::open(&dir);
+
+    let before = lookup_han_viet(&layers, &["山"]);
+    let reading = before.characters[0]
+        .reading
+        .as_ref()
+        .expect("đối chứng dương — 山 phải có âm khi chưa tắt gì");
+    assert_eq!(reading.primary, "am-cua-lop-go-roi");
+    assert_eq!(reading.source_code, "fx-hv");
+
+    let after =
+        auratranslate_lib::core::dict::lookup_han_viet(&layers, &["山"], &off(&["fx-hv"]));
+    let reading = after.characters[0]
+        .reading
+        .as_ref()
+        .expect("🔴 tắt lớp gỡ rời KHÔNG được xoá âm — ký tự phải rơi về lớp kế tiếp");
+    assert_eq!(
+        reading.primary, "am-cua-lop-nen",
+        "🔴 ÂM ĐỔI, không chỉ ẩn đi — đây là con số mà Bẫy 6 đòi ghi ra"
+    );
+    assert_eq!(reading.source_code, "fx-core-a");
+    assert!(
+        !after.sources_used.contains(&"fx-hv".to_owned()),
+        "và nguồn đã tắt không được viết tên mình lên tab Hán Việt (FR37)"
+    );
+    assert!(
+        after.layers_loaded,
+        "tắt một nguồn không phải *chưa gắn lớp nào*"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **§Quyết định #3a** — tắt **mọi** nguồn mang âm ⇒ ký tự về `None`, nhưng
+/// `layers_loaded` vẫn `true`. Ba trạng thái của Story 1.16 không được gộp lại thành hai.
+#[test]
+fn turning_off_every_reading_source_leaves_the_layers_loaded_flag_alone() {
+    let dir = temp_dir("hanviet-all-off");
+    build_all_layers(&dir);
+    set_han_viet(&dir, "zzz.db", 1, "am-cua-lop-nen");
+    set_han_viet(&dir, "mmm.db", 1, "am-cua-lop-go-roi");
+
+    let layers = DictLayers::open(&dir);
+    let result = auratranslate_lib::core::dict::lookup_han_viet(
+        &layers,
+        &["山"],
+        &off(&["fx-core-a", "fx-core-b", "fx-hv", "fx-vp"]),
+    );
+
+    assert!(result.characters[0].reading.is_none());
+    assert!(result.sources_used.is_empty());
+    assert!(
+        result.layers_loaded,
+        "*mọi nguồn đều tắt* ≠ *chưa gắn lớp nào* — AD-25 và AC6"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **AC4** — đường sản phẩm (`commands::dict::lookup`) truyền tập bị tắt xuống **CẢ
+/// HAI** lượt tra, kể cả đường lui `Substring` của Story 1.18.
+///
+/// Bỏ nó ở lượt thứ hai là lôi ngược một nguồn đã tắt lên màn hình ở đúng ca *"lượt đầu
+/// không tìm thấy gì"* — và ca đó là ca mà người dùng nhìn thấy nhiều nhất.
+#[test]
+fn the_substring_fallback_honours_the_filter_too() {
+    let dir = temp_dir("filter-fallback");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    // `國` không khớp `Exact` ở đâu cả nhưng khớp `Substring` (`中國`) — đúng ca đường lui.
+    let before = auratranslate_lib::commands::dict::lookup(Some(&layers), "國", &BTreeSet::new());
+    let codes_before = group_codes(&before.grouped);
+    assert!(
+        !codes_before.is_empty(),
+        "đối chứng dương — đường lui `Substring` phải THẬT SỰ trả về gì đó: {codes_before:?}"
+    );
+
+    let target = codes_before[0].clone();
+    let after = auratranslate_lib::commands::dict::lookup(Some(&layers), "國", &off(&[&target]));
+    assert!(
+        !group_codes(&after.grouped).contains(&target),
+        "nguồn đã tắt không được sống lại ở lượt tra thứ hai"
+    );
+
+    layers.close();
+    cleanup(&dir);
+}
+
+/// 🔴 **STORY 1.19 · AC12 — ĐO LẠI NFR1 VỚI BỘ LỌC, KHÔNG SUY TỪ SỐ CŨ.**
+///
+/// ```sh
+/// AURA_DICT_BENCH_DIR=/duong/dan/tuyet/doi/tools/dict-build/out \
+///   cargo test --release --manifest-path src-tauri/Cargo.toml --test dict_sources \
+///   -- --ignored --nocapture bench_the_source_filter
+/// ```
+///
+/// Ba cấu hình mà AC12 gọi đích danh — **0 nguồn tắt** · **1 nguồn tắt** · **9/10 nguồn tắt**
+/// — trên cùng một bộ truy vấn, cùng đường sản phẩm (`commands::dict::lookup`), hai lượt đo
+/// độc lập cho mỗi cấu hình (Bẫy 8 của Story 1.18: nhiễu page-cache của lượt đầu).
+///
+/// 🔴 Nó cũng đếm **tỉ lệ lượt tra chạm trần `LIMIT`** trước và sau. Nếu tỉ lệ đó **tăng
+/// đáng kể**, §Quyết định #2b *(lọc thẳng trong SQL)* thành một **món nợ có số** — không một
+/// linh cảm — và nó đi vào `deferred-work.md` kèm con số đo được.
+///
+/// 🔴 **GIỚI HẠN, khai TRƯỚC khi đo:** con số ở đây là **đường Rust**. Nó không gồm vòng IPC
+/// Tauri lẫn lượt vẽ của webview — món nợ Story 1.17 để lại, và story này **không đóng nó**.
+/// Và nó **không** gồm lượt đọc `global.db` để lấy tập bị tắt: đường sản phẩm đọc nó một lần
+/// mỗi lượt tra ở `commands::dict::wire`, còn phép đo này truyền thẳng tập vào hàm thuần.
+#[test]
+#[ignore = "can thu muc chua tep .db that; chay tay qua AURA_DICT_BENCH_DIR"]
+fn bench_the_source_filter_on_the_real_dictionaries() {
+    let Ok(raw) = std::env::var("AURA_DICT_BENCH_DIR") else {
+        println!("AURA_DICT_BENCH_DIR vắng mặt — bỏ qua phép đo.");
+        return;
+    };
+    let dir = PathBuf::from(&raw);
+    assert!(
+        dir.is_dir(),
+        "AURA_DICT_BENCH_DIR trỏ tới {} — không một thư mục",
+        dir.display()
+    );
+
+    let layers = DictLayers::open(&dir);
+    assert!(
+        !layers.layers().is_empty(),
+        "không lớp nào nạp được từ {} — mọi con số dưới đây sẽ là 0 và bảng *đạt* theo cách sai nhất",
+        dir.display()
+    );
+
+    // 🔴 Danh sách nguồn DẪN XUẤT từ tệp có mặt (AC1) — không một `code` viết cứng trong
+    // chính phép đo. Đây cũng là đối chứng dương của `list_source_attributions`.
+    let all = list_source_attributions(&layers);
+    println!(
+        "\n═══ {} lớp · {} nguồn từ {} ═══",
+        layers.layers().len(),
+        all.len(),
+        dir.display()
+    );
+    for row in &all {
+        println!(
+            "  {:<20} {:<8} {:<14} license_id={:<14} len(license_text)={:>6}  {}",
+            row.code,
+            if row.is_base { "nen" } else { "go-roi" },
+            row.license_kind,
+            row.license_id.as_deref().unwrap_or("NULL"),
+            row.license_text_len,
+            row.display_name
+        );
+    }
+    assert!(
+        all.len() >= 2,
+        "AC12 đòi ba cấu hình bộ lọc — cần ít nhất hai nguồn để có cái mà tắt"
+    );
+
+    const PROSE: &str = "他打開了那扇門走進了黑暗之中山河大地日月星辰春夏秋冬東南西北\
+                         天地玄黃宇宙洪荒風雨雷電花草樹木江湖海洋金木水火土";
+    let chars: Vec<char> = PROSE.chars().collect();
+    let mut queries: Vec<String> = Vec::new();
+    for width in 1..=3 {
+        for start in 0..chars.len().saturating_sub(width) {
+            queries.push(chars[start..start + width].iter().collect());
+        }
+    }
+    for w in ["running", "dictionary", "lock", "api", "dic", "ing", "the", "zzq", "ab", "xy"] {
+        queries.push(w.to_owned());
+    }
+    queries.sort();
+    queries.dedup();
+    assert!(
+        queries.len() >= 100,
+        "AC12 đòi ≥ 100 lượt liên tiếp bằng truy vấn KHÁC NHAU — mới có {}",
+        queries.len()
+    );
+
+    let pct = |s: &[f64], p: f64| -> f64 {
+        let idx = ((p / 100.0) * s.len() as f64).ceil() as usize;
+        s[idx.saturating_sub(1).min(s.len() - 1)]
+    };
+
+    // 🔴 Ba cấu hình của AC12. Nguồn bị tắt lấy theo **thứ tự tất định** của bảng ghi công,
+    // không một `code` viết cứng.
+    let one_off: BTreeSet<String> = all.iter().take(1).map(|r| r.code.clone()).collect();
+    let most_off: BTreeSet<String> = all
+        .iter()
+        .take(all.len().saturating_sub(1))
+        .map(|r| r.code.clone())
+        .collect();
+    let configs: [(&str, &BTreeSet<String>); 3] = [
+        ("0 nguon tat", &BTreeSet::new()),
+        ("1 nguon tat", &one_off),
+        ("9/10 nguon tat", &most_off),
+    ];
+
+    println!(
+        "\n┌─────────────────┬──────┬──────────┬──────────┬──────────┬──────────┬───────────┬──────────┐"
+    );
+    println!(
+        "│ cau hinh        │ luot │  p50 ms  │  p95 ms  │  p99 ms  │  max ms  │ cham tran │  nhom TB │"
+    );
+    println!(
+        "├─────────────────┼──────┼──────────┼──────────┼──────────┼──────────┼───────────┼──────────┤"
+    );
+
+    for (label, disabled) in configs {
+        for pass_no in 1..=2 {
+            let mut samples: Vec<f64> = Vec::with_capacity(queries.len());
+            let mut truncated = 0usize;
+            let mut groups_total = 0usize;
+            for q in &queries {
+                let start = std::time::Instant::now();
+                let response = auratranslate_lib::commands::dict::lookup(Some(&layers), q, disabled);
+                samples.push(start.elapsed().as_secs_f64() * 1000.0);
+                if !response.grouped.truncated_layers.is_empty() {
+                    truncated += 1;
+                }
+                groups_total += response.grouped.groups.len();
+            }
+            samples.sort_by(|a, b| a.partial_cmp(b).expect("không NaN trong phép đo"));
+            let n = samples.len();
+            println!(
+                "│ {label:<15} │  {pass_no}   │ {:>8.3} │ {:>8.3} │ {:>8.3} │ {:>8.3} │ {:>6.1} %  │ {:>8.2} │",
+                pct(&samples, 50.0),
+                pct(&samples, 95.0),
+                pct(&samples, 99.0),
+                samples[n - 1],
+                100.0 * truncated as f64 / n as f64,
+                groups_total as f64 / n as f64,
+            );
+        }
+    }
+    println!(
+        "└─────────────────┴──────┴──────────┴──────────┴──────────┴──────────┴───────────┴──────────┘"
+    );
+
+    // ── Ca xấu nhất mà Story 1.17 tìm được (`"山"`, p95 6,535 ms) — MỐC SO SÁNH ──────────
+    println!("\n── CA XAU NHAT (moc so sanh 1.17: p95 6,535 ms cho \"山\") ──");
+    for (label, disabled) in configs {
+        const RUNS: usize = 120;
+        let mut samples: Vec<f64> = Vec::with_capacity(RUNS);
+        for _ in 0..RUNS {
+            let start = std::time::Instant::now();
+            let _ = auratranslate_lib::commands::dict::lookup(Some(&layers), "山", disabled);
+            samples.push(start.elapsed().as_secs_f64() * 1000.0);
+        }
+        samples.sort_by(|a, b| a.partial_cmp(b).expect("không NaN"));
+        println!(
+            "  {label:<15}  p50 {:>8.3}  p95 {:>8.3}  p99 {:>8.3}  max {:>8.3}",
+            pct(&samples, 50.0),
+            pct(&samples, 95.0),
+            pct(&samples, 99.0),
+            samples[samples.len() - 1]
+        );
+    }
+
+    println!(
+        "\n🔴 GIOI HAN: con so tren la DUONG RUST — khong gom vong IPC Tauri lan luot ve cua\n\
+         webview (mon no cua Story 1.17, story nay KHONG dong no), va khong gom luot doc\n\
+         `global.db` de lay tap bi tat."
     );
 }

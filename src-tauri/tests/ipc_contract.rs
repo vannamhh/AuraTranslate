@@ -166,6 +166,12 @@ fn ipc_error_wire_shape() {
         // dừng lại. Đừng "sửa" bằng `..Default::default()` — nó sẽ nuốt luôn trường thứ
         // sáu, thứ bảy, và danh sách khoá đóng băng dưới đây mất hết giá trị.
         workspace_layout: String::new(),
+        // ⚠️ Story 1.19 — trường thứ **sáu**, và nó đúng là lượt dừng lại mà chú thích ngay
+        // trên vừa hứa. Tên trên dây phải ở lại `snake_case`: một
+        // `#[serde(rename_all = "camelCase")]` biến nó thành `dictSourcesDisabled`,
+        // `src/config/bootstrap.ts` nhận `undefined`, **không lỗi nào được ném**, và lựa
+        // chọn tắt nguồn của người dùng biến mất sau mỗi lần khởi động lại (Bẫy 1).
+        dict_sources_disabled: String::new(),
     })
     .expect("BootstrapConfig phải serialize được");
     // ⚠️ Sắp xếp trước khi so: `serde_json::Map` là `BTreeMap` hay `IndexMap` tuỳ feature
@@ -181,7 +187,14 @@ fn ipc_error_wire_shape() {
     ok_keys.sort_unstable();
     assert_eq!(
         ok_keys,
-        vec!["layout_presets", "mode", "shortcuts", "theme", "workspace_layout"],
+        vec![
+            "dict_sources_disabled",
+            "layout_presets",
+            "mode",
+            "shortcuts",
+            "theme",
+            "workspace_layout",
+        ],
         "khoá trên dây là `snake_case`. Nhận được: {ok_keys:?}. Nghi phạm số một: \
          `#[serde(rename_all = \"camelCase\")]` trên `BootstrapConfig` — nó biến \
          `layout_presets` thành `layoutPresets` và chỗ đọc nhận `undefined`."
