@@ -97,7 +97,7 @@
   "attribution.state_off": "đang tắt",
   "attribution.off_is_not_removed": "Tắt chỉ giấu nguồn khỏi kết quả tra cứu — dữ liệu vẫn nằm trong bản cài, và nguồn vẫn được ghi công đầy đủ ở bảng này. Gỡ là xoá tệp dữ liệu khỏi bản phát hành, việc của người đóng gói chứ không phải của người dùng.",
   "attribution.empty": "Chưa gắn lớp từ điển nào — không có nguồn nào để ghi công.",
-  "attribution.load_failed": "Không đọc được danh sách nguồn, nên bảng ghi công đang trống vì một lỗi chứ không vì bản cài thiếu từ điển. Dải chip bật/tắt nguồn cũng sẽ không hiện. Khởi động lại ứng dụng; nếu vẫn vậy, bản cài có thể đã hỏng tệp dữ liệu.",
+  "attribution.load_failed": "Không gọi được danh sách nguồn, nên bảng này trống vì một lỗi nội bộ chứ không vì bản cài thiếu từ điển. Dải chip bật tắt nguồn cũng sẽ không hiện. Khởi động lại ứng dụng; nếu vẫn vậy thì đây là một lỗi của ứng dụng, không phải của dữ liệu.",
   "attribution.license_open": "Giấy phép mở",
   "attribution.license_public_domain": "Phạm vi công cộng",
   "attribution.license_copyrighted": "Còn trong bản quyền — đọc kỹ phần ghi công bên cạnh",

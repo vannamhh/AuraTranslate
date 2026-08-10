@@ -58,11 +58,37 @@ use super::{
 /// **v3** phải mở được; một tệp **v4** giả lập vẫn bị từ chối bằng
 /// [`SkipReason::SchemaTooNew`] (AD-30 — mở tiến, không mở lùi).
 ///
-/// ⚠️ **Một tệp v2 nay KHÔNG còn mở được, và đó là chủ ý.** AD-30 mở tiến chứ không mở lùi:
-/// bờ đọc này gõ `lang` trong câu `SELECT`, nên một tệp v2 sẽ gãy bằng `no such column` ở
-/// giữa đường ghi công thay vì bị từ chối tử tế ở cửa. Bốn tệp phát hành đều dựng lại cùng
-/// lượt, nên ca này chỉ chạm một bản cài trộn tệp cũ với mã mới.
+/// 🔴 **CẢNH BÁO — phép kiểm dưới đây KHÔNG chặn tệp CŨ, chỉ chặn tệp MỚI.** Điều kiện là
+/// `file_version > SUPPORTED_SCHEMA_VERSION`, nên một tệp **v2** vẫn được **NHẬN** *(2 > 3
+/// là sai)*, rồi mới gãy ở [`DictLayer::attributions`] bằng `no such column: lang`. Hậu quả
+/// **không** phải một câu từ chối có tên: [`super::list_source_attributions`] bỏ **im lặng
+/// cả lớp** kèm một dòng `stderr`, nên bảng ghi công rỗng và dải chip biến mất, trong khi
+/// **tra cứu vẫn chạy bình thường** *(đường tra không đọc cột `lang`)* — hỏng nửa vời.
+///
+/// ⚠️ Ca này chạm một bản cài **trộn tệp cũ với mã mới**, ví dụ một máy dev chưa chép lại
+/// bốn tệp `.db` sau lượt dựng. Bản phát hành không chạm: cả bốn tệp đi cùng một release và
+/// `sha256` trong `dict-manifest.toml` ràng chúng lại. Đường bịt thật là một **sàn phiên
+/// bản** ở đây *(từ chối `file_version < MINIMUM_SCHEMA_VERSION`)* — chưa cài, ghi ở
+/// `deferred-work.md` §code review 1-19.
 pub const SUPPORTED_SCHEMA_VERSION: u32 = 3;
+
+/// Phiên bản lược đồ **CŨ NHẤT** đường đọc này còn đọc nổi — Ice chốt ở code review
+/// 2026-08-10.
+///
+/// 🔴 **Đây là vế còn thiếu của [`SUPPORTED_SCHEMA_VERSION`], không một hằng cho đối xứng.**
+/// Phép kiểm phiên bản trước lượt này chỉ hỏi *"quá mới?"*, nên nó bảo vệ đúng **một** chiều.
+/// Chiều kia hở ra ngay lượt đầu tiên có ai đó nâng lược đồ: bờ đọc gõ `dict_source.lang`,
+/// còn một tệp v2 thì không có cột đó — và nó **lọt cửa** rồi gãy ở giữa đường.
+///
+/// ⚠️ **Giá trị bằng `SUPPORTED_SCHEMA_VERSION` là ĐÚNG cho hôm nay, không phải một chỗ tạm.**
+/// Lược đồ này **không di trú** (§Quyết định #7 của Story 1.9: tệp chỉ đọc trọn đời, thay
+/// nguyên tệp qua release mới), và bốn tệp đi cùng **một** release dưới `sha256` của
+/// `dict-manifest.toml`. Nới nó xuống chỉ có nghĩa vào ngày đường đọc **thật sự** đọc được
+/// một tệp cũ hơn — tức ngày ai đó viết một câu `SELECT` biết cách sống thiếu cột mới.
+///
+/// 🔴 **Nâng `SCHEMA_VERSION` ⇒ nâng CẢ HAI hằng ở đây**, trừ khi có một lý do đo được để
+/// giữ chiều lùi. Nâng mỗi `SUPPORTED` là dựng lại đúng cái bẫy vừa gỡ.
+pub const MINIMUM_SCHEMA_VERSION: u32 = 3;
 
 /// Danh tính của lớp **nền**. Mọi giá trị khác là một lớp **gỡ rời**.
 ///
@@ -105,6 +131,26 @@ pub enum SkipReason {
         file_version: u32,
         /// [`SUPPORTED_SCHEMA_VERSION`].
         supported: u32,
+    },
+
+    /// 🔴 Tệp **CŨ hơn** thứ đường đọc này còn đọc nổi — Ice chốt ở code review 2026-08-10.
+    ///
+    /// Vì sao nó phải tồn tại, bằng một ca THẬT: lượt nâng `SCHEMA_VERSION` 2→3 thêm cột
+    /// `dict_source.lang`, mà [`DictLayer::attributions`] gõ đích danh cột đó. Trước hằng
+    /// [`MINIMUM_SCHEMA_VERSION`], một tệp **v2** vẫn lọt qua cửa *(phép kiểm cũ chỉ hỏi
+    /// `file_version > SUPPORTED`)* rồi gãy ở giữa đường bằng `no such column: lang` — và
+    /// [`super::list_source_attributions`] **nuốt** lỗi đó, bỏ im lặng cả lớp. Kết quả trên
+    /// màn hình: dải chip **biến mất không dấu vết** và bảng ghi công nói *"chưa gắn lớp từ
+    /// điển nào"*, trong khi **tra cứu vẫn chạy** *(đường tra không đọc `lang`)*.
+    ///
+    /// 🔴 **Ca đó không phải giả định — Ice gặp nó ở lần chạy thử đầu tiên**, trên một máy
+    /// dev còn giữ bốn tệp `.db` dựng ngày 2026-08-07. Hỏng **nửa vời và không ai biết** là
+    /// đúng thứ enum này tồn tại để biến thành một câu đọc được.
+    SchemaTooOld {
+        /// `PRAGMA user_version` đọc được từ tệp.
+        file_version: u32,
+        /// [`MINIMUM_SCHEMA_VERSION`].
+        minimum: u32,
     },
 
     /// 🔴 **Hai chỗ ghi phiên bản NÓI KHÁC NHAU.**
@@ -184,6 +230,21 @@ impl fmt::Display for SkipReason {
                 f,
                 "schema version {file_version} is newer than the supported {supported}"
             ),
+            SkipReason::SchemaTooOld {
+                file_version,
+                minimum,
+            } => write!(
+                f,
+                // ⚠️ Câu này đi qua **hai** ranh giới của `core/dict/**`, và cả hai đã bắt
+                // được nó ở đúng lượt cài hằng này — chép lại để lượt sửa sau không đạp lại:
+                //   ① đuôi tệp từ điển bị cấm (`the_layer_set_never_hardcodes_a_db_filename`)
+                //      — một tên tệp viết cứng ở tầng này là một sổ đăng ký, AD-44 ① vá A2;
+                //   ② token `matching` bị cấm (`the_dictionary_lookup_path_never_calls_the_matcher`)
+                //      — AD-17 thân Rule: đường tra cứu từ điển KHÔNG gọi Matcher.
+                // Cả hai cổng đọc **tĩnh**, nên chúng đỏ trên một câu văn xuôi y như trên mã.
+                "schema version {file_version} is older than the minimum {minimum} this build \
+                 can read; regenerate the dictionary files with the current tools/dict-build"
+            ),
             SkipReason::SchemaVersionDisagrees {
                 user_version,
                 meta_version,
@@ -224,6 +285,7 @@ impl SkipReason {
             SkipReason::MetaUnreadable { .. } => "meta_unreadable",
             SkipReason::MetaRowMissing { .. } => "meta_row_missing",
             SkipReason::SchemaTooNew { .. } => "schema_too_new",
+            SkipReason::SchemaTooOld { .. } => "schema_too_old",
             SkipReason::SchemaVersionDisagrees { .. } => "schema_version_disagrees",
             SkipReason::SourcesUnreadable { .. } => "sources_unreadable",
             SkipReason::DuplicateLayer { .. } => "duplicate_layer",
@@ -293,6 +355,16 @@ impl DictLayer {
             return Err(SkipReason::SchemaTooNew {
                 file_version,
                 supported: SUPPORTED_SCHEMA_VERSION,
+            });
+        }
+
+        // 🔴 Vế CÒN LẠI, và nó phải đứng ngay đây chứ không ở chỗ đọc `dict_source`: mục
+        // đích là từ chối **ở cửa**, trước khi bất kỳ câu `SELECT` nào gõ tên một cột mà tệp
+        // cũ không có. Xem [`MINIMUM_SCHEMA_VERSION`] cho ca thật đã gặp.
+        if file_version < MINIMUM_SCHEMA_VERSION {
+            return Err(SkipReason::SchemaTooOld {
+                file_version,
+                minimum: MINIMUM_SCHEMA_VERSION,
             });
         }
 

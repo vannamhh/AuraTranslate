@@ -965,5 +965,5 @@ một danh sách **chín** mã lỗi thời **thiếu đúng `tran-van-chanh` v�
 - [x] [Review][Patch] Hai lượt `put_config` liên tiếp không đảm bảo thứ tự ghi — đĩa có thể giữ ảnh chụp CŨ [src/panels/dictSourcesState.ts:150]
 - [x] [Review][Patch] Change Log khai "**7** món nợ mở", `deferred-work.md` §1-19 thực tế có **8** mục [_bmad-output/implementation-artifacts/1-19-bat-tat-nguon-tu-dien-va-ghi-cong.md:40]
 
-- [x] [Review][Defer] Dải chip `max-height: 52px; overflow: hidden` có thể cắt hàng thứ ba khi đủ 10 nguồn thật [src/panels/LookupPanel.vue:414] — deferred, quyết định CÓ CHỦ Ý và đã ghi trong chú thích CSS; cần đo pixel thật, thuộc món nợ "vế DOM chưa có bộ chạy test"
+- [x] [Review][Patch] ~~Defer~~ **NÂNG LÊN `patch` VÀ ĐÃ VÁ 2026-08-10** — dải chip `overflow: hidden` cắt mất nút *"Nguồn dữ liệu"* *(đường chuột DUY NHẤT vào AC11)* cùng hai chip cuối, trong đó có **Trần Văn Chánh** (`copyrighted`). Lượt triage xếp `low`/`defer` vì tin chú thích CSS; Ice chạy app thật và ảnh chụp bác lại. Vùng chip nay cuộn riêng, nhãn và nút `flex: none` không bao giờ bị cắt [src/panels/LookupPanel.vue]
 - [x] [Review][Defer] `list_source_attributions` không loại trùng `code` giữa các lớp, trong khi UI dùng `code` làm `:key` duy nhất [src-tauri/src/core/dict/mod.rs:940] — deferred, pre-existing; bất biến do phía dựng `.db` giữ, không với tới được bằng dữ liệu hiện có

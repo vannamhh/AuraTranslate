@@ -16,11 +16,21 @@
 /// bằng `SchemaTooNew` (§Bẫy 1 của story).
 ///
 /// 🔴 2 → 3 ở Story 1.19 *(Ice chốt ở code review 2026-08-10)*: thêm cột `dict_source.lang`
-/// — xem [`DICT_SOURCE_DDL`]. Nâng số ở đây là **bắt buộc**, không một thủ tục cho đủ: bờ
-/// đọc `SELECT … lang FROM dict_source`, nên một tệp v2 *(không có cột đó)* làm câu lệnh
-/// gãy bằng `no such column`, và `list_source_attributions` sẽ **bỏ im lặng cả lớp** khỏi
-/// bảng ghi công kèm một dòng `stderr` mà không ai đọc. Với số này, cùng tệp đó bị từ chối
-/// bằng `SkipReason::SchemaTooNew` — một câu **có tên**, hiện ra được trên màn hình.
+/// — xem [`DICT_SOURCE_DDL`]. Nâng số ở đây là **bắt buộc**: bờ đọc gõ `SELECT … lang FROM
+/// dict_source`, nên số này là thứ phân biệt một tệp đọc được với một tệp không.
+///
+/// 🔴 **CẢNH BÁO — số này KHÔNG bảo vệ được chiều LÙI, và đừng tưởng nó có.** Bờ đọc chỉ
+/// chặn *"quá mới"* (`layer.rs:292`: `if file_version > SUPPORTED_SCHEMA_VERSION`), nên một
+/// tệp **v2** vẫn được **NHẬN** *(2 > 3 là sai)*, rồi mới gãy ở `SELECT … lang` bằng
+/// `no such column`. Hậu quả **không** phải một câu từ chối có tên: `list_source_attributions`
+/// bỏ **im lặng cả lớp** khỏi bảng ghi công kèm một dòng `stderr`, nên màn hình nói *"chưa
+/// gắn lớp từ điển nào"* trong khi bốn tệp vẫn nằm đó và **tra cứu vẫn chạy bình thường**
+/// *(đường tra không đọc cột `lang`)*. Đó là đúng hình dạng *"hỏng nửa vời, không ai biết"*.
+///
+/// ⚠️ Ca này chạm **một bản cài trộn tệp cũ với mã mới** — ví dụ một máy dev chưa chép lại
+/// bốn tệp sau lượt dựng. Bản phát hành không chạm, vì cả bốn tệp đi cùng một release và
+/// `sha256` trong `dict-manifest.toml` ràng chúng lại. **Đường bịt thật là một sàn phiên bản
+/// ở bờ đọc** *(từ chối `file_version < MINIMUM`)*, chưa cài — xem `deferred-work.md`.
 pub const SCHEMA_VERSION: u32 = 3;
 
 /// Siêu dữ liệu của chính tệp — khoá/giá trị, đọc được bằng mắt qua `sqlite3` CLI.

@@ -95,7 +95,10 @@ use crate::core::store::{ReadHandle, SqlResult};
 use crate::ports::DictionarySource;
 
 pub use han_viet::HAN_VIET_BATCH;
-pub use layer::{DictLayer, DictLayers, SUPPORTED_SCHEMA_VERSION, SkipReason, SkippedLayer};
+pub use layer::{
+    DictLayer, DictLayers, MINIMUM_SCHEMA_VERSION, SUPPORTED_SCHEMA_VERSION, SkipReason,
+    SkippedLayer,
+};
 pub use senses::SENSE_BATCH;
 
 /// Đường tra cứu — **đã quyết ở tầng trên**, adapter không tự quyết lại (AD-44 ①).

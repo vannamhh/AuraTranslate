@@ -260,19 +260,39 @@ onBeforeUnmount(() => {
         @mousedown="aimDictSourceFrom($event)"
       >
         <span class="lookup-sources-label">{{ t('panel.lookup.sources_label') }}</span>
-        <button
-          v-for="src in dictSources"
-          :key="src.code"
-          type="button"
-          class="source-chip"
-          :class="{ off: sourceIsDisabled(src.code) }"
-          :data-source-code="src.code"
-          :title="t('panel.lookup.source_toggle_hint')"
-          @click="dispatch('lookup.toggle_source')"
-        >
-          <!-- aura-allow-text: tên nguồn — DỮ LIỆU (`display_name` của chính tệp, FR31/AC1). -->
-          {{ src.display_name }}
-        </button>
+        <!--
+          🔴 **VÙNG CUỘN RIÊNG CHO CHIP — Ice chốt 2026-08-10 sau khi CHẠY THẬT.**
+
+          Bản đầu để mọi thứ trong **một** hộp `flex-wrap` có `max-height: 52px; overflow:
+          hidden`, với lý lẽ *"hàng thứ ba tới được bằng bàn phím"*. Ảnh chụp app thật với
+          **mười** nguồn cho thấy lý lẽ đó bỏ sót hai thứ, và cả hai đều nặng:
+          ① thứ bị cắt đầu tiên là **nút "Nguồn dữ liệu"** — nó là con CUỐI trong dải, tức
+             **đường chuột DUY NHẤT** vào màn hình Attribution (AC11) biến mất;
+          ② chip thứ 9 là **Trần Văn Chánh** (`license_kind = "copyrighted"`, mang cảnh báo
+             pháp lý) và thứ 10 là VietPhrase — hai nguồn **không tắt được bằng chuột**, trong
+             khi FR112 dựng cả cơ chế lớp gỡ rời chính vì rủi ro của nguồn thứ nhất.
+          ⇒ nút tách **ra ngoài** vùng wrap (`flex: none`, không bao giờ bị cắt), và phần chip
+          **cuộn** thay vì biến mất không dấu vết.
+
+          ⚠️ Đây là một lượt **cầm máu**, không phải thiết kế cuối. Ice đã nêu hướng khác
+          *(đưa bật tắt sang trang Settings, thu gọn dòng nhịp)* — nó đảo AC1/AC2/AC11 của
+          Story 1.19 và cần một bề mặt Settings chưa tồn tại, nên đi qua `correct-course`.
+        -->
+        <div class="lookup-sources-chips">
+          <button
+            v-for="src in dictSources"
+            :key="src.code"
+            type="button"
+            class="source-chip"
+            :class="{ off: sourceIsDisabled(src.code) }"
+            :data-source-code="src.code"
+            :title="t('panel.lookup.source_toggle_hint')"
+            @click="dispatch('lookup.toggle_source')"
+          >
+            <!-- aura-allow-text: tên nguồn — DỮ LIỆU (`display_name` của chính tệp, FR31/AC1). -->
+            {{ src.display_name }}
+          </button>
+        </div>
         <!--
           ⚠️ `data-attribution-open` là một **mối nối**, không một móc kiểu dáng:
           `AttributionOverlay.vue` tìm lại nút này để trả tiêu điểm về khi node giữ tiêu điểm
@@ -420,21 +440,45 @@ onBeforeUnmount(() => {
  * 🔴 STORY 1.19 — DẢI CHIP NGUỒN: một hàng RIÊNG, `flex: none`, KHÔNG một pixel nào vào
  * `--lookup-head-height`. Xem lý lẽ đo được ở chú thích `<template>` (Bẫy 4).
  *
- * `flex-wrap` + `overflow: hidden` giữ cho mười nguồn không đẩy vùng cuộn xuống vô hạn:
- * `max-height` cắt ở hai hàng chip, và hàng thứ ba (nếu có) tới được bằng bàn phím vì các
- * chip vẫn nằm trong thứ tự Tab — cùng cân nhắc mà `.lookup-head` đã làm với thanh nhịp.
+ * 🔴 **BA VÙNG, KHÔNG MỘT — Ice chốt 2026-08-10 sau khi chạy thật.** Hộp ngoài **không** cắt
+ * gì cả; chỉ vùng chip ở giữa mới có trần và mới cuộn. Nhãn và nút *"Nguồn dữ liệu"* đều
+ * `flex: none`, nên chúng **không bao giờ** bị đẩy ra khỏi tầm nhìn.
+ *
+ * Bản đầu gộp cả ba vào một hộp `flex-wrap` có `overflow: hidden`, và chú thích cũ biện hộ
+ * *"hàng thứ ba tới được bằng bàn phím"*. Ảnh chụp app thật với mười nguồn bác nó bằng số:
+ * thứ bị cắt là **nút mở Attribution** *(con cuối trong dải ⇒ đường chuột duy nhất vào AC11)*
+ * cộng hai chip cuối, mà chip thứ 9 là **Trần Văn Chánh** — nguồn `copyrighted` có cảnh báo
+ * pháp lý, tức đúng nguồn người dùng cần tắt được nhất. *"Tới được bằng Tab"* không cứu được
+ * một nút mà người dùng chuột không nhìn thấy.
  */
 .lookup-sources {
   display: flex;
   align-items: center;
   flex: none;
-  flex-wrap: wrap;
   gap: 6px;
-  max-height: 52px;
-  overflow: hidden;
   padding-bottom: var(--space-panel-block);
   margin-bottom: var(--space-panel-block);
   border-bottom: 1px solid var(--color-outline);
+}
+
+/*
+ * Vùng chip: nơi DUY NHẤT được phép tràn, và nó **cuộn** chứ không nuốt.
+ *
+ * ⚠️ `overflow-y: auto`, không `hidden`: một chip bị cắt khỏi tầm nhìn mà không để lại dấu
+ * vết nào là đúng thứ vừa giấu mất hai nguồn thật. Thanh cuộn là dấu vết đó.
+ * ⚠️ `min-width: 0` bắt buộc trên một con flex có nội dung tràn — thiếu nó, hộp con lấy
+ * `min-content` làm chiều rộng tối thiểu và đẩy nút *"Nguồn dữ liệu"* ra ngoài mép, tức
+ * dựng lại đúng lỗi vừa vá bằng một cơ chế khác.
+ */
+.lookup-sources-chips {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 52px;
+  overflow-y: auto;
 }
 
 .lookup-sources-label {
@@ -484,9 +528,19 @@ onBeforeUnmount(() => {
 }
 
 /* Đường vào màn hình ghi công — một thao tác phụ, nên nó mang màu chữ phụ chứ không `primary`. */
+/*
+ * 🔴 `flex: none` + `white-space: nowrap` — nút này **không bao giờ** được co lại hay bị đẩy
+ * đi: nó là đường chuột DUY NHẤT vào màn hình Attribution (AC11), và một lượt chạy thật ngày
+ * 2026-08-10 đã cho thấy nó là thứ đầu tiên biến mất khi dải chip tràn.
+ *
+ * ⚠️ `margin-left: auto` gỡ đi: nó có nghĩa khi nút là con của một hộp `flex-wrap` chung với
+ * chip. Nay vùng chip đã là một con `flex: 1 1 auto` riêng và tự đẩy nút sang phải, nên
+ * `auto` ở đây chỉ thừa.
+ */
 .lookup-sources-attr {
   padding: 0;
-  margin-left: auto;
+  flex: none;
+  white-space: nowrap;
   background: none;
   border: none;
   border-bottom: 1px solid var(--color-outline);

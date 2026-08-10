@@ -39,7 +39,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::core::dict::{
     DictLayers, GroupedLookup, HAN_VIET_BATCH, HanVietHit, HanVietLookup, LookupMode, QueryBranch,
-    QueryRoute, SENSE_BATCH, SUPPORTED_SCHEMA_VERSION, SenseRecord, SkipReason, is_han,
+    MINIMUM_SCHEMA_VERSION, QueryRoute, SENSE_BATCH, SUPPORTED_SCHEMA_VERSION, SenseRecord,
+    SkipReason, is_han,
 };
 use auratranslate_lib::ports::DictionarySource;
 
@@ -859,6 +860,23 @@ fn a_broken_layer_is_skipped_by_name_and_the_rest_still_answer() {
         SUPPORTED_SCHEMA_VERSION + 1,
     );
 
+    // (d2) 🔴 Tệp **CŨ HƠN** thứ đường đọc còn đọc nổi — Ice chốt ở code review 2026-08-10.
+    //      Ca THẬT, không giả định: bờ đọc gõ `dict_source.lang` *(cột của lược đồ v3)*, nên
+    //      một tệp v2 lọt cửa sẽ gãy bằng `no such column` ở GIỮA đường và bị
+    //      `list_source_attributions` **nuốt** — dải chip biến mất không dấu vết trong khi
+    //      tra cứu vẫn chạy. Ice gặp đúng ca này ở lần chạy thử đầu tiên.
+    build_layer(
+        &dir,
+        &LayerSeed {
+            file: "too-old.db",
+            layer: "too-old-fixture",
+            sources: &[(1, "fx-too-old", "Fixture Too Old")],
+            entries: HV_ENTRIES,
+        },
+        &(MINIMUM_SCHEMA_VERSION - 1).to_string(),
+        MINIMUM_SCHEMA_VERSION - 1,
+    );
+
     // (d) Hai chỗ ghi phiên bản **NÓI KHÁC NHAU** ⇒ tệp không do `tools/dict-build`
     //     viết ra, và tin nửa nào cũng là đoán (Story 1.9 §Quyết định #2).
     build_layer(
@@ -895,7 +913,7 @@ fn a_broken_layer_is_skipped_by_name_and_the_rest_still_answer() {
         })
         .collect();
 
-    assert_eq!(skipped.len(), 4, "chờ đúng bốn lớp bị bỏ qua: {skipped:?}");
+    assert_eq!(skipped.len(), 5, "chờ đúng năm lớp bị bỏ qua: {skipped:?}");
 
     let reason_of = |file: &str| -> SkipReason {
         skipped
@@ -925,6 +943,15 @@ fn a_broken_layer_is_skipped_by_name_and_the_rest_still_answer() {
             supported: SUPPORTED_SCHEMA_VERSION,
         },
         "một tệp MỚI HƠN ứng dụng phải bị từ chối với lý do RIÊNG"
+    );
+    assert_eq!(
+        reason_of("too-old.db"),
+        SkipReason::SchemaTooOld {
+            file_version: MINIMUM_SCHEMA_VERSION - 1,
+            minimum: MINIMUM_SCHEMA_VERSION,
+        },
+        "một tệp CŨ HƠN thứ đọc nổi phải bị từ chối Ở CỬA với lý do RIÊNG — không lọt vào \
+         rồi gãy im lặng ở câu `SELECT` đầu tiên gõ tên một cột nó không có"
     );
     assert_eq!(
         reason_of("disagreeing.db"),

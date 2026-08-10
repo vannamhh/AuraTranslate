@@ -920,14 +920,27 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 ## Deferred from: code review of 1-19-bat-tat-nguon-tu-dien-va-ghi-cong (2026-08-10)
 
-- ⚠️ **Dải chip có thể cắt hàng thứ ba khi đủ 10 nguồn thật.** `.lookup-sources`
-  (`src/panels/LookupPanel.vue:414`) đặt `max-height: 52px; overflow: hidden`, và chú thích
-  CSS ngay trên đó nói rõ đây là quyết định **CÓ CHỦ Ý**: cắt ở hai hàng, hàng thứ ba *(nếu
-  có)* vẫn tới được bằng bàn phím vì chip còn trong thứ tự Tab. Nhưng "tới được bằng Tab mà
-  không thấy focus ring" là đúng thứ NFR17 hay vấp. Chưa đo được: cần render app thật với bốn
-  tệp `.db` thật (10 chip, tên dài như *"Trần Văn Chánh — Từ điển Hán Việt"*, font `ui-label`
-  10px + `letter-spacing: 0.1em`) trong một Panel Lookup hẹp, rồi đếm hàng. Thuộc cùng lỗ hổng
-  với món nợ **"vế DOM của Story 1.19 chưa có bộ chạy test"** ở §1-19.
+- ✅ **ĐÃ ĐÓNG 2026-08-10 — và nó KHÔNG phải một lo ngại lý thuyết như lượt triage đã xếp.**
+  ~~Dải chip có thể cắt hàng thứ ba khi đủ 10 nguồn thật.~~ Lượt triage xếp mức **low** và
+  `defer` với lý do *"quyết định CÓ CHỦ Ý, đã ghi trong chú thích CSS, cần đo pixel thật"*.
+  **Ice chạy app thật và ảnh chụp bác lại ngay**: với mười nguồn, `max-height: 52px;
+  overflow: hidden` cắt mất **ba** thứ, và chú thích CSS biện hộ *"hàng thứ ba tới được bằng
+  bàn phím"* đã bỏ sót cả ba:
+  ① **nút "Nguồn dữ liệu"** — con CUỐI trong dải, tức **đường chuột DUY NHẤT** vào màn hình
+     Attribution (AC11) biến mất. Hai phép thử bẫy tiêu điểm và cửa nuốt hợp âm **không bắt
+     đầu được bằng chuột**, đúng như Ice gặp;
+  ② chip **Trần Văn Chánh** *(`license_kind = "copyrighted"`, cảnh báo pháp lý trong
+     `attribution`)* — **không tắt được bằng chuột**, trong khi FR112 dựng cả cơ chế lớp gỡ
+     rời chính vì rủi ro của nguồn này;
+  ③ chip **VietPhrase**.
+  **Cách vá (cầm máu, không phải thiết kế cuối):** tách vùng chip thành một con flex riêng
+  `.lookup-sources-chips` *(`flex: 1 1 auto; min-width: 0; overflow-y: auto`)*, còn nhãn và
+  nút *"Nguồn dữ liệu"* để `flex: none` ở hộp ngoài — hộp ngoài **không cắt gì cả**. Chip
+  tràn thì **cuộn**, không biến mất không dấu vết.
+  🔴 **Bài học cho lượt triage sau:** mức `low` ở đây đến từ việc đọc chú thích CSS và tin lý
+  lẽ của nó. Lý lẽ ấy đúng về cơ chế *(chip vẫn trong thứ tự Tab)* và sai về hậu quả *(thứ bị
+  cắt không phải một chip bất kỳ)*. **Một câu văn xuôi giải thích một quyết định không thay
+  được một lượt render.**
 
 - ⚠️ **`list_source_attributions` không loại trùng `code` giữa các lớp.**
   `src-tauri/src/core/dict/mod.rs:940-952` nối `rows` từ mọi lớp, không dedupe. Bất biến
@@ -954,3 +967,37 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   ⚠️ Và hai câu `vi.json` mới (`attribution.load_failed` · `panel.source.han_viet_all_sources_off`)
   chưa ai nhìn thấy hiện ra: câu đầu cần ép `list_dict_sources` trượt, câu sau cần tắt hết
   nguồn `zh` rồi mở tab Hán Việt.
+
+- 🔴 **Bờ đọc từ điển KHÔNG có sàn phiên bản — một tệp `.db` QUÁ CŨ hỏng NỬA VỜI thay vì bị
+  từ chối có tên.** Phát hiện khi soạn bàn đo chạy tay ngay sau lượt vá, 2026-08-10.
+  `layer.rs:292` chỉ hỏi `if file_version > SUPPORTED_SCHEMA_VERSION`, tức chỉ chặn tệp
+  **MỚI hơn**. Sau lượt nâng `SCHEMA_VERSION` 2→3, một tệp **v2** vẫn được **NHẬN** *(2 > 3
+  là sai)*, rồi mới gãy ở `DictLayer::attributions` bằng `no such column: lang`.
+  ⇒ `list_source_attributions` bỏ **im lặng cả lớp** kèm một dòng `stderr`, nên **bảng ghi
+  công rỗng và dải chip biến mất**, trong khi **tra cứu vẫn chạy bình thường** *(đường tra
+  không đọc cột `lang`)*. Người dùng thấy một ứng dụng tra được từ nhưng khai *"chưa gắn lớp
+  từ điển nào"* — đúng hình dạng *"hỏng nửa vời, không ai biết"* mà `SkipReason` sinh ra để
+  chống.
+  **Đường bịt:** một hằng `MINIMUM_SCHEMA_VERSION` cạnh `SUPPORTED_SCHEMA_VERSION`, cộng một
+  nhánh `SkipReason::SchemaTooOld { file_version, minimum }`. Rẻ, và nó biến một lượt hỏng im
+  lặng thành một câu đọc được trên màn hình.
+  ⚠️ **Phạm vi chạm:** bản phát hành **không** chạm — bốn tệp đi cùng một release và `sha256`
+  trong `dict-manifest.toml` ràng chúng lại. Ca thật là một **máy dev** chưa chép lại bốn tệp
+  sau lượt dựng, và nó xảy ra **ngay lập tức** với bất kỳ ai đang giữ bản `.db` ngày 2026-08-07
+  ở `src-tauri/resources/dict/`.
+  **Chủ: chưa gán.**
+
+- ⚠️ **D3 mới bịt được NỬA lỗ: một tệp `.db` đọc KHÔNG được vẫn nói *"chưa gắn lớp nào"*.**
+  Phát hiện khi soạn bàn đo chạy tay, 2026-08-10. `attribution.load_failed` chỉ hiện khi
+  `dictSourcesError !== null`, mà `list_dict_sources` phía Rust trả `Vec<SourceAttribution>`
+  **không** `Result` — nó không có đường sinh lỗi. Nhánh đó vì thế chỉ với tới được bằng một
+  lỗi **tầng invoke** *(command chưa đăng ký, lỗi tuần tự hoá, hỏng đường IPC)* ⇒
+  `UNKNOWN_IPC_ERROR`. Không phải mã chết, nhưng hẹp.
+  🔴 **Ca thật vẫn hở:** một lớp mà `dict_source` đọc không được *(tệp hỏng, quyền sai, tệp bị
+  thay dưới chân tiến trình)* bị `list_source_attributions` **nuốt** kèm một dòng `stderr`, và
+  hàm trả về một `Vec` **rỗng hoặc thiếu hàng** — tức `error` vẫn `null`, và màn hình vẫn nói
+  `attribution.empty` *"Chưa gắn lớp từ điển nào"*, đúng câu SAI mà D3 dựng ra để chặn. Cùng
+  hình dạng với ca sàn phiên bản ở mục trên, và hai mục nên vá **cùng một lượt**.
+  **Đường bịt:** cho `list_dict_sources` trả về cả **danh sách lớp bị bỏ** *(`skipped`, kiểu
+  đã có sẵn — `lookup_grouped` đang dùng)*, rồi bảng phân biệt ba trạng thái thay vì hai:
+  *0 tệp* · *có tệp nhưng k lớp bị bỏ* · *gọi trượt*. **Chủ: chưa gán.**
