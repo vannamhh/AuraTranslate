@@ -1,5 +1,5 @@
 # generated: 2026-08-03T13:04:45
-# last_updated: 2026-08-07T12:00:00
+# last_updated: 2026-08-08T12:00:00
 # project: AuraTranslate
 # project_key: NOKEY
 # tracking_system: file-system
@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-07T14:00:00
+last_updated: 2026-08-08T12:00:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -89,8 +89,18 @@ development_status:
   # (`Intl.Segmenter`), nên 0 phụ thuộc mới và 0 dòng Rust.
   # 🔴 CHẠY TRƯỚC Story 3.4 (Glossary highlight — cùng bề mặt, cũng cần ranh giới TỪ).
   # ⚠️ Phá cấu trúc mà AC6/1.16 và AC11+AC12/1.18 đứng lên ⇒ cả ba phải ĐO LẠI, không suy số cũ.
-  1-18b-tach-tu-tieng-trung-tab-han-viet: ready-for-dev
-  1-19-bat-tat-nguon-tu-dien-va-ghi-cong: backlog
+  1-18b-tach-tu-tieng-trung-tab-han-viet: done
+  # ⚠️ Ba trong sáu AC nói về màn hình Attribution, mà FR109/Story 10.4 đặc tả CÙNG màn hình
+  # đó bằng bảy AC — `epics.md` không phân ranh. Ice chốt 2026-08-08 (Quyết định #4a): 1.19
+  # giao đường dữ liệu + bề mặt tối thiểu; 10.4 giao phần hướng-bản-phát-hành. Bảng chia đôi
+  # trong story file là hợp đồng ràng buộc CẢ HAI story — 10.4 đọc nó trước khi dựng lại.
+  # 🔴 Ice chốt cùng ngày: HVTĐTD KHÔNG TÌM ĐƯỢC NGUỒN. AC cuối của story này (và AC tương
+  # ứng ở `epics.md:6202-6204` của Story 10.4) neo vào một nguồn sẽ không tới ⇒ AC9 viết lại,
+  # neo vào CƠ CHẾ và nghiệm thu bằng fixture. `deferred-work.md:292` (nghĩa vụ thông báo tác
+  # giả) mất điều kiện kích hoạt — chủ vẫn là 10.4.
+  # ⚠️ Mockup `sources-attribution.html` LỆCH dữ liệu thật ở ba chỗ (thừa HVTĐTD + Cổ hán văn,
+  # thiếu Trần Văn Chánh) — màn hình phải dẫn xuất từ tệp có mặt, không chép bảng của mockup.
+  1-19-bat-tat-nguon-tu-dien-va-ghi-cong: ready-for-dev
   1-20-lich-su-tra-cuu-va-muc-da-ghim: backlog
   1-21-phim-tat-cau-hinh-lai-duoc: backlog
   epic-1-retrospective: optional

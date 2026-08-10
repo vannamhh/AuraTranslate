@@ -1,27 +1,48 @@
 <script setup lang="ts">
 // Bề mặt Hán Việt của Panel Source — Story 1.16, AC4 · AC6 · AC7 · Quyết định #1/#3/#4(a).
+// Story 1.18b viết lại đơn vị của bề mặt này: **TỪ**, không còn **KÝ TỰ**.
 //
 // ─────────────────────────────────────────────────────────────────────────────────
-// 🔴 CHẾ ĐỘ SONG SONG: MỘT NODE CHO MỖI KÝ TỰ — VÀ VÙNG CHỌN LÀ ĐIỀU KIỆN TIÊN QUYẾT
-// CỦA STORY 1.18/3.4
+// 🔴 ĐƠN VỊ CỦA CẢ BỀ MẶT LÀ **MỘT TỪ** — VÀ ĐÓ LÀ MỘT LƯỢT PHÁ CÓ CHỦ ĐÍCH (Story 1.18b)
 // ─────────────────────────────────────────────────────────────────────────────────
-// Quyết định #4(a): mỗi ký tự Hán là một khối dọc `chữ trên / âm dưới`. Từ 2026-08-07
-// khối đó là một `<ruby>` THẬT (`<rt>` mang âm, `ruby-position: under`) — không còn một
-// `.hv-reading` `position: absolute` tự dựng; xem khối lý do trong `<style>`.
+// 🔴 **Banner cũ tuyên bố "MỘT NODE CHO MỖI KÝ TỰ" là điều kiện tiên quyết của 1.18/3.4.
+// Tuyên bố đó KHÔNG CÒN ĐÚNG.** Story 1.18b thay nó bằng: **một node cho mỗi TỪ**, ranh
+// giới từ do [`wordStartOffsets`] quyết (`Intl.Segmenter`, ICU — cùng bộ tách từ mà trình
+// duyệt dùng cho double-click trên tab nguyên văn).
 //
+// Vì sao phá: ở tab nguyên văn, double-click chọn **cả cụm** (`台湾`); ở tab Hán Việt nó chỉ
+// chọn được **một ký tự**, và ở kiểu song song thì trả về `""` — hỏng hoàn toàn (Ice bắt
+// bằng mắt 2026-08-07). Nguyên nhân là cấu trúc: mỗi ký tự một `.hv-unit` `inline-block`
+// nên ICU **không bao giờ** với qua được biên node.
+//
+//   kiểu SONG SONG   → một `<ruby>` mỗi **TỪ**, base mang trọn cụm ký tự Hán
+//   kiểu CHUYỂN ĐỔI  → một `.hv-word` mỗi **TỪ**, mỗi âm một `.hv-syl` nối bằng
+//                      `WORD_JOINER` (`U+2060`, rộng 0) — khe hở nhìn thấy do **CSS** vẽ
+//
+// ⚠️ **Hệ quả bắt buộc, chỗ dễ vỡ nhất:** một segment `han` nay mang NHIỀU ký tự nguồn, nên
+// *"bôi đen nửa từ"* từ **bất khả** trở thành **khả thi**. Cả `resolveParallel` lẫn
+// `resolveSwitch` vì vậy phải **CẮT theo range**, không lấy trọn node — xem [`overlapsRange`]
+// và [`sliceTextNode`]. Lượt review 1.18 đã bắt đúng lớp lỗi này **hai lần** ở nhánh `text`.
+//
+// ─────────────────────────────────────────────────────────────────────────────────
+// 🔴 VÙNG CHỌN — BA ĐIỀU KIỆN GIỮ AC6 CỦA STORY 1.16, ĐO LẠI TRÊN CẤU TRÚC MỚI
+// ─────────────────────────────────────────────────────────────────────────────────
 // AC6 cưỡng chế bằng một phép kiểm thật: `window.getSelection().toString()` trên một đoạn
 // bôi đen phải bằng ĐÚNG chuỗi ký tự nguồn — không lẫn âm Hán Việt, không lẫn khoảng
-// trắng chèn thêm. Ba điều kiện giữ mệnh đề đó:
+// trắng chèn thêm, và (mới từ 1.18b) **không lẫn `U+2060`**:
 //   1. `<rt>` mang `user-select: none` — nằm trong luồng chọn của trình duyệt nhưng KHÔNG
 //      BAO GIỜ được thêm vào chuỗi đã chọn. Đo 2026-08-07: thiếu nó ⇒ `"台đài北"`, có ⇒
-//      `"台北"`. Đây là hàng rào cho lượt COPY/PASTE của người dùng.
-//   2. `resolveParallel()` đọc node văn bản TRỰC TIẾP của `<ruby>`, không `textContent`
-//      (nó gộp cả `<rt>`). Đây là hàng rào cho TRUY VẤN TRA CỨU — đường riêng, vì
-//      `user-select` không ràng buộc `Selection.modify()` trên WebKit (AC11/AC12).
-//   3. Template KHÔNG được để lọt một khoảng trắng/newline THẬT giữa hai phần tử
+//      `"台北"`. Đây là hàng rào cho lượt COPY/PASTE của người dùng ở kiểu song song.
+//   2. `resolveParallel()`/`resolveSwitch()` đọc node DOM TRỰC TIẾP, không `toString()`.
+//      Đây là hàng rào cho TRUY VẤN TRA CỨU — đường riêng, vì `user-select` không ràng
+//      buộc `Selection.modify()` trên WebKit (AC11/AC12 của 1.18).
+//   3. 🔴 [`onCopy`] đổi `U+2060` về một dấu cách trước khi nó ra clipboard — **hàng rào
+//      MỚI**, cho một ký tự mà chưa cơ chế nào trước 1.18b biết tới.
+//   4. Template KHÔNG được để lọt một khoảng trắng/newline THẬT giữa hai phần tử
 //      `<span>` liền nhau trong `v-for` — một khoảng trắng như vậy là một ký tự CHÈN
 //      THÊM vào vùng chọn mà văn bản nguồn không có. Xem cách viết dính liền `><` dưới
-//      template.
+//      template; dấu cách phân tách hai TỪ là thứ DUY NHẤT được chèn, và nó đi qua
+//      [`WORD_SEPARATOR`] một cách tường minh.
 //
 // ─────────────────────────────────────────────────────────────────────────────────
 // 🔴 AC7 — `font-synthesis` PHẢI ĐƯỢC TIÊU THỤ, ĐỪNG BỎ SÓT DÒNG NÀY
@@ -41,6 +62,7 @@ import {
   sourceHanVietPending,
   sourcesUsed,
 } from './sourcePanelState'
+import { WORD_JOINER, wordStartOffsets } from './wordBoundary'
 
 const props = defineProps<{
   sourceText: string
@@ -57,12 +79,22 @@ const props = defineProps<{
  */
 const effectiveViewMode = computed(() => (props.viewMode === 'parallel' && canUseParallelView.value ? 'parallel' : 'switch'))
 
-/** Một mẩu đã phân loại của văn bản nguồn — KHÔNG tách câu/đoạn (AD-4), chỉ phân loại
- * Hán/không-Hán/ngắt dòng để dựng bề mặt Hán Việt. */
+/**
+ * Một mẩu đã phân loại của văn bản nguồn — KHÔNG tách câu/đoạn (AD-4), chỉ phân loại
+ * Hán/không-Hán/ngắt dòng để dựng bề mặt Hán Việt.
+ *
+ * 🔴 **Story 1.18b — nhánh `han` mang MỘT TỪ, không một ký tự** (Quyết định #2a).
+ * `chars.length === readings.length` là bất biến của kiểu này: âm đọc vẫn tra theo **TỪNG
+ * KÝ TỰ** qua `hanVietByChar` (bảng khoá theo ký tự, `sourcePanelState.ts:166` — story 1.18b
+ * **không** chạm nó), chỉ việc **gom** là mới.
+ *
+ * ⚠️ AD-4 khoá ranh giới **SEGMENT (câu)**, tính một lần lúc nhập và mang `id`. Đây là ranh
+ * giới **TỪ**, thuần trình bày, không lưu xuống đĩa, không `id` — khác đơn vị, khác vòng đời.
+ */
 type Segment =
   | { kind: 'break' }
   | { kind: 'text'; text: string }
-  | { kind: 'han'; char: string; reading: string | null }
+  | { kind: 'han'; chars: string[]; readings: (string | null)[] }
 
 /**
  * ⚠️ Ngắt dòng được CHUẨN HOÁ ở đây — Bẫy `deferred-work.md:527`: văn bản nhập từ tệp
@@ -74,33 +106,69 @@ type Segment =
  * **đơn** làm ký tự kết dòng (khuôn Mac cổ điển) bị nối hết thành **một dòng duy nhất** —
  * và `core/segment/import.rs` không chuẩn hoá xuống dòng, nên không ai chặn phía
  * trước. Bắt ở lượt code review 2026-08-06.
+ *
+ * 🔴 **Và nó phải chạy TRƯỚC lượt tách từ** (Story 1.18b): `wordStartOffsets` trả chỉ số
+ * theo đơn vị mã của chuỗi nó nhận, nên đưa chuỗi chưa chuẩn hoá vào là lệch đúng số ký tự
+ * `\r` đã bỏ. `SourcePanel.vue:47` chuẩn hoá **cùng một biểu thức** cho tab nguyên văn ⇒
+ * hai tab tách từ trên **cùng một chuỗi** — điều kiện cấu trúc của AC2.
  */
 const NEWLINES = /\r\n?/g
 
 function buildSegments(text: string): Segment[] {
+  const normalized = text.replace(NEWLINES, '\n')
+  const wordStarts = wordStartOffsets(normalized)
+
   const out: Segment[] = []
   let buffer = ''
-  const flush = (): void => {
+  let word: { chars: string[]; readings: (string | null)[] } | null = null
+
+  const flushText = (): void => {
     if (buffer !== '') {
       out.push({ kind: 'text', text: buffer })
       buffer = ''
     }
   }
-  for (const ch of Array.from(text.replace(NEWLINES, '\n'))) {
+  const flushWord = (): void => {
+    if (word !== null) {
+      out.push({ kind: 'han', chars: word.chars, readings: word.readings })
+      word = null
+    }
+  }
+
+  // ⚠️ Duyệt theo **điểm mã** (`for…of` trên chuỗi) nhưng đếm vị trí theo **đơn vị mã**
+  // (`ch.length`) — `wordStartOffsets` trả chỉ số theo đơn vị mã, cùng đơn vị mà
+  // `Range.startOffset` đếm. Hai trong bảy dải của `isHanChar` nằm ngoài BMP.
+  let at = 0
+  for (const ch of normalized) {
+    const index = at
+    at += ch.length
+
     if (ch === '\n') {
-      flush()
+      flushText()
+      flushWord()
       out.push({ kind: 'break' })
       continue
     }
     if (isHanChar(ch)) {
-      flush()
-      const hit = hanVietByChar.value.get(ch)
-      out.push({ kind: 'han', char: ch, reading: hit?.reading?.primary ?? null })
+      flushText()
+      // Ranh giới TỪ do ICU quyết. Ký tự Hán đầu tiên của một cụm luôn mở một từ mới; các
+      // ký tự sau chỉ mở từ mới khi ICU nói đây là một điểm bắt đầu.
+      if (word !== null && wordStarts.has(index)) flushWord()
+      if (word === null) word = { chars: [], readings: [] }
+      word.chars.push(ch)
+      // 🔴 Âm vẫn tra theo TỪNG KÝ TỰ — `hanVietByChar` khoá theo ký tự và story này không
+      // sửa nó. Ký tự thiếu âm để `null` ở ĐÚNG âm tiết của nó (Quyết định #4a): `台湾` với
+      // `湾` thiếu âm cho ra `thai⁠·`, không phải `·` cho cả cụm — giấu âm đã có là làm
+      // người đọc tưởng cả cụm không tra được.
+      word.readings.push(hanVietByChar.value.get(ch)?.reading?.primary ?? null)
       continue
     }
+    // Mẩu KHÔNG-Hán (dấu câu, số, chữ Latin) vẫn là một segment `text` như trước.
+    flushWord()
     buffer += ch
   }
-  flush()
+  flushText()
+  flushWord()
   return out
 }
 
@@ -121,43 +189,15 @@ const segments = computed(() => buildSegments(props.sourceText))
 const READING_PLACEHOLDER = '·'
 
 /**
- * Kiểu **chuyển đổi** — một khối văn bản THUẦN, `white-space: pre-wrap`, không sinh node cho
- * mỗi ký tự (Quyết định #7: rẻ hơn nhiều bậc độ lớn so với kiểu song song).
+ * 🔴 **DẤU CÁCH THẬT — và nó chỉ đứng giữa hai TỪ** (Story 1.18b, AC8).
  *
- * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 CÁC ÂM PHẢI CÁCH NHAU BẰNG MỘT KHOẢNG TRẮNG — ĐỪNG `.join('')`
- * ─────────────────────────────────────────────────────────────────────────────
- * Văn xuôi tiếng Trung **không có** khoảng trắng giữa các ký tự, nên mọi cụm Hán liền
- * nhau đi vào đây với mẩu `text` **rỗng** ở giữa. Bản đầu nối bằng chuỗi rỗng và cho ra
- * `北涼 → "bắclương"` — trong khi `EXPERIENCE.md:410`, ví dụ **trụ cột** của FR113 mà chính
- * story trích, viết `北涼 → **Bắc Lương**`; mockup `key-screen-workspace.html:99` cũng ghi
- * `tha đả khai liễu na phiến môn, …` có dấu cách. Một âm tiết tiếng Việt phân tách bằng
- * khoảng trắng **là** điều kiện để nó đọc được. Bắt ở lượt code review 2026-08-06.
- *
- * ⚠️ Khoảng trắng chỉ chèn giữa **hai âm liền nhau**, không sau một mẩu `text` (dấu câu,
- * chữ Latin) vốn đã tự mang khoảng cách của nó — nếu không, `，` sẽ bị đẩy ra khỏi chữ.
+ * Đây là thứ DUY NHẤT làm ICU coi hai cụm âm Hán Việt là **hai từ**. Trong **cùng** một từ,
+ * chỗ của nó là [`WORD_JOINER`] (rộng 0) + một khe do CSS vẽ. Hai vai, hai ký tự, một lý do:
+ * đo 2026-08-07 cho thấy mọi khoảng trắng THẬT (`U+0020`, `U+00A0`, `U+2009`) đều **cắt** từ
+ * với ICU, nên không ký tự nào vừa giữ được từ liền vừa vẽ được khe.
  */
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 STORY 1.18 — BẢNG ÁNH XẠ NGƯỢC **THEO VỊ TRÍ**, KHÔNG THEO ÂM
- * ─────────────────────────────────────────────────────────────────────────────
- * Ice chốt 2026-08-07: bôi đen ở kiểu **chuyển đổi** phải tra **ký tự Hán nguồn**, không tra
- * chuỗi âm Latin đang hiện trên màn hình (chuỗi đó đi đường tiếng Anh của AD-44 và chắc
- * chắn *"không tìm thấy"*).
- *
- * 🔴 **VÀ NÓ không PHẢI MỘT BẢNG TRA ÂM → CHỮ.** Một bảng như vậy là **đa trị** và không giải
- * được: `"lương"` ứng với 良 · 涼 · 糧 · 量 · 粱… — chọn một trong số đó cần ngữ cảnh, tức
- * một **quy tắc nghiệp vụ mới đặt ở webview**, đúng thứ AD-1 cấm, và đúng phần việc của
- * **FR113 / Story 3.7**.
- *
- * ⇒ Đường đi ở đây là **vị trí**: `switchText` được dựng **xác định** từ `segments`, nên
- * dựng kèm một bảng `vị trí trong chuỗi ra → chỉ số segment` cùng lượt `computed` đã có là
- * **O(n)**, không node mới, không bảng tra, không quy tắc nghiệp vụ. Ký tự nguồn đọc thẳng từ
- * `segments[i].char` — chính dữ liệu đã dựng ra âm đó.
- *
- * ⚠️ Bảng đếm theo **đơn vị mã UTF-16**, không theo ký tự Unicode: `Range.startOffset` của DOM
- * đếm bằng đơn vị mã, và một âm Hán Việt là chữ Latin có dấu (có thể nhiều đơn vị mã).
- */
+const WORD_SEPARATOR = ' '
+
 /**
  * Ký tự này có TỰ MANG khoảng cách hai bên không — tức đặt một âm đọc sát nó vẫn đọc được?
  *
@@ -178,62 +218,76 @@ const selfSpacing = (ch: string | undefined): boolean =>
   ch === undefined || FULLWIDTH_OR_SPACE.test(ch)
 
 /**
- * ⚠️ `starts[i]` — vị trí trong `text` nơi PHẦN CỦA CHÍNH segment `i` bắt đầu *(không tính
- * khoảng trắng phân tách attribute ngược cho segment `i - 1` ở dưới)*. Lượt review 2026-08-07
- * thêm bảng này: `resolveSelection` cần nó để CẮT `seg.text` đúng biên khi vùng chọn dừng
- * giữa một đoạn `text` nhiều ký tự, thay vì lấy trọn cả đoạn (AC12).
+ * 🔴 **KIỂU CHUYỂN ĐỔI — `true` ⇔ segment `i` cần một [`WORD_SEPARATOR`] đứng trước.**
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * VÌ SAO KHÔNG CÒN BẢNG `text`/`map`/`starts` PHẲNG (Story 1.18b, Quyết định #3a)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Trước 1.18b, `.hv-switch` là **một text node thuần** và ánh xạ ngược đi qua ba bảng phẳng
+ * phải giữ đồng bộ tay. Cấu trúc `.hv-word`/`.hv-syl` mới **phá** bất biến "một text node"
+ * ⇒ giữ ba bảng đó nghĩa là phải dịch giữa *"offset trong chuỗi phẳng"* và *"offset trong
+ * node cụ thể"* ở **mọi** biên — đúng lớp lỗi off-by-one mà lượt review 1.18 đã bắt, nhân
+ * lên vì nay có thêm `U+2060` **vô hình** nằm trong chuỗi.
+ *
+ * ⇒ Ánh xạ ngược nay **đọc thẳng DOM** ([`resolveSwitch`]), cùng khuôn với
+ * [`resolveParallel`] — một lỗi sửa một lần ăn cả hai kiểu xem. Thứ duy nhất còn phải tính
+ * trước là *"chỗ nào cần một dấu cách thật"*, và đó là bảng này.
+ *
+ * ⚠️ Luật giữ **nguyên văn** logic [`selfSpacing`] của 1.16/1.18, chỉ đổi **đơn vị áp**:
+ * *giữa hai âm* → *giữa hai TỪ*.
  */
-const switchView = computed<{ text: string; map: number[]; starts: number[] }>(() => {
-  let out = ''
-  const map: number[] = []
-  const starts: number[] = []
-  let prevWasReading = false
+const switchLeads = computed<boolean[]>(() => {
+  const leads: boolean[] = []
+  let prevWasWord = false
   /** Ký tự CUỐI của mẩu `text` vừa đi qua — `null` nếu segment trước không phải `text`. */
   let pendingTextTail: string | undefined | null = null
 
-  const push = (piece: string, segIndex: number): void => {
-    out += piece
-    for (let i = 0; i < piece.length; i += 1) map.push(segIndex)
-  }
-
   segments.value.forEach((seg, index) => {
     if (seg.kind === 'break') {
-      starts[index] = out.length
-      push('\n', index)
-      prevWasReading = false
+      leads[index] = false
+      prevWasWord = false
+      pendingTextTail = null
       return
     }
     if (seg.kind === 'text') {
-      // 🔴 SỬA 2026-08-07 (Ice báo: `"hội8nguyệt5nhật"`). Bản trước KHÔNG chèn khoảng trắng
-      // ở ranh giới âm↔mẩu-text, với lý do *"dấu câu vốn đã tự mang khoảng cách của nó"*.
-      // Lý do đó CHỈ đúng cho dấu câu TOÀN RỘNG (`，` `。` `《` — chúng chiếm trọn một ô em
-      // nên nhìn như đã có khoảng trắng hai bên). Nó SAI cho chữ số và chữ Latin nửa rộng:
-      // `8` `5` không có phần đệm nào, nên `会8月5日` cho ra `"hội8nguyệt5nhật"` — dính liền,
-      // không đọc được. ⇒ chèn khoảng trắng khi ký tự CHẠM VÀO ranh giới không tự mang
-      // khoảng cách. Xem [`selfSpacing`].
-      if (prevWasReading && !selfSpacing(seg.text[0])) push(' ', index - 1)
-      starts[index] = out.length
-      push(seg.text, index)
-      prevWasReading = false
+      // 🔴 Vế thứ nhất của lượt sửa 2026-08-07 (Ice báo: `"hội8nguyệt5nhật"`). Dấu cách chỉ
+      // chèn khi ký tự CHẠM VÀO ranh giới không tự mang khoảng cách — `，` `。` thì không,
+      // `8` `5` `A` thì có. Xem [`selfSpacing`].
+      leads[index] = prevWasWord && !selfSpacing(seg.text[0])
+      prevWasWord = false
       pendingTextTail = seg.text[seg.text.length - 1]
       return
     }
-    // Khoảng trắng phân tách hai âm liền nhau thuộc về segment ĐỨNG TRƯỚC: bôi đen trúng
-    // nó thì ký tự nguồn gần nhất vẫn đúng, không rơi ra ngoài bảng.
-    if (prevWasReading) push(' ', index - 1)
-    // Vế đối xứng của khối trên: mẩu `text` vừa đi qua kết thúc bằng một ký tự không tự
-    // mang khoảng cách (`8`) và ngay sau là một âm (`nguyệt`) ⇒ cũng phải tách.
-    else if (pendingTextTail !== null && !selfSpacing(pendingTextTail)) push(' ', index - 1)
-    starts[index] = out.length
-    push(seg.reading ?? READING_PLACEHOLDER, index)
-    prevWasReading = true
+    // Hai TỪ liền nhau luôn tách (không có mẩu `text` nào ở giữa vì văn xuôi tiếng Trung
+    // không có khoảng trắng) — cộng vế đối xứng: mẩu `text` vừa đi qua kết thúc bằng một ký
+    // tự không tự mang khoảng cách (`8`) và ngay sau là một từ (`nguyệt`) ⇒ cũng phải tách.
+    leads[index] = prevWasWord || (pendingTextTail !== null && !selfSpacing(pendingTextTail))
+    prevWasWord = true
     pendingTextTail = null
   })
 
-  return { text: out, map, starts }
+  return leads
 })
 
-const switchText = computed(() => switchView.value.text)
+/**
+ * Các âm của một TỪ, hiện dưới `<ruby>` ở kiểu **song song**.
+ *
+ * 🔴 **Dấu cách THẬT ở đây, KHÔNG `WORD_JOINER`** — và đây là một lệch có chủ ý so với chữ
+ * của Task 3 (*"`<rt>` mang các âm nối `U+2060`"*), giữ nguyên **ý** của nó:
+ *   ① `U+2060` tồn tại để một cụm âm **là một từ với ICU**, tức để **double-click trúng nó**.
+ *      Ở kiểu song song, thứ người dùng double-click là **chữ Hán** (base của `<ruby>`),
+ *      không phải `<rt>` — `<rt>` mang `user-select: none` và không phải mục tiêu chọn.
+ *      Không vai nào ở đây cần ký tự nối.
+ *   ② `<rt>` là **một** text node, nên CSS **không** vẽ được khe giữa hai âm trong nó ⇒ nối
+ *      bằng `U+2060` cho ra `thailoan` dính liền — đúng thứ Ice bác nguyên văn ở 1.16
+ *      (`phảnđốitrungcộngkhoác…`).
+ *   ③ `user-select: none` **không** ràng buộc `Selection.modify()` trên WebKit (số đo AC12
+ *      của 1.18) ⇒ `<rt>` **rò được** vào `toString()` trên engine đó. Rò một dấu cách còn
+ *      lần ra được; rò một ký tự **vô hình** thì không (AC5).
+ */
+function readingLine(readings: (string | null)[]): string {
+  return readings.map((r) => r ?? READING_PLACEHOLDER).join(WORD_SEPARATOR)
+}
 
 /**
  * 🔴 Trạng thái của **cả bề mặt**, hiện ra bằng MỘT dòng — không nhân theo số ký tự.
@@ -275,16 +329,99 @@ const surface = computed<HTMLElement | null>(() =>
 )
 
 /**
+ * 🔴 **PHÉP THỬ PHỦ NHAU CHẶT — `intersectsNode` MỘT MÌNH LÀ THỪA MỘT KÝ TỰ** (1.18b · AC6).
+ *
+ * `Range.intersectsNode()` trả `true` cả khi vùng chọn chỉ **CHẠM** vào biên node: một cú kéo
+ * dừng đúng ở đầu ô kế tiếp vẫn "giao" với ô đó. Khi một ô = một **ký tự** (trước 1.18b),
+ * thứ đó chưa bao giờ lộ ra vì mọi vùng chọn đều dừng ở biên ô. Khi một ô = một **TỪ**, và
+ * mỗi âm là một `.hv-syl` riêng, nó lộ ra ngay: chọn `thai` rồi thả đúng ở đầu `loan` cho
+ * ra `台湾` thay vì `台` — **thừa một ký tự**, vỡ AC6.
+ *
+ * ⇒ Phủ nhau **CHẶT** (`>`/`<`, không `>=`/`<=`): `range.end` phải đứng **sau** đầu node
+ * **và** `range.start` phải đứng **trước** cuối node. Chạm biên không tính.
+ *
+ * 🔴 **RANH GIỚI PHẢI ĐO Ở MỨC TEXT NODE, KHÔNG Ở MỨC PHẦN TỬ** — và đây là một số đo, không
+ * một lo xa. Bản đầu dùng `selectNode()` cho mọi node, và lượt đo 2026-08-07 bắt ngay:
+ *
+ * | vùng chọn | mong đợi | `selectNode()` | ở mức text node |
+ * |---|---|---|---|
+ * | `đài` → dừng ở **đầu** `loan` | `台` | ❌ `台湾` | ✅ `台` |
+ *
+ * Lý do: `selectNode(el)` đặt ranh giới **NGOÀI** phần tử (toạ độ của cha), nên một điểm cuối
+ * nằm **TRONG** phần tử ở offset 0 vẫn đứng *sau* ranh giới đó — dù nó phủ **không một ký
+ * tự nào**. Đo ở mức text node thì hai điểm **bằng nhau**, và phép so chặt loại đúng.
+ * `selectNodeContents()` **không** sửa được: `(span, 0)` vẫn đứng trước `(textNode, 0)`.
+ *
+ * ⚠️ Node **không** có đúng một text node con (`<br>`, `.hv-word` bọc các `.hv-syl`,
+ * `.hv-unit` bọc `<ruby>`) rơi về `selectNode()`. Với `.hv-word`/`.hv-unit` điều đó **an
+ * toàn** — chúng chỉ là **cổng vào**, độ chính xác thật nằm ở lớp trong (`.hv-syl` đo ở mức
+ * text node · `<ruby>` cắt bằng `sliceTextNode`, vốn tự cho ra chuỗi rỗng khi range dừng ở
+ * offset 0).
+ *
+ * 🔴 **`<br>` thì KHÔNG an toàn theo nghĩa đó, và bản đầu của chú thích này nói sai.** Nó
+ * viết *"`<br>` không có nội dung để chạm hụt"*; lượt đo 2026-08-08 (code review) bác:
+ *
+ * | vùng chọn | `overlapsRange(range, br)` |
+ * |---|---|
+ * | **cuối** dòng trên → **đầu** dòng dưới | ❌ `true` — dù phủ **không một ký tự nào** |
+ *
+ * `<br>` có **0** `childNodes` nên rơi thẳng vào `selectNode()`, đúng nhánh gây ra lỗi thừa
+ * ký tự ở trên, và không có "lớp trong" nào đỡ nó.
+ *
+ * ⇒ **Vì sao vẫn để nguyên:** chuỗi thừa duy nhất nó sinh ra là `'\n'`, và
+ * `lookupPanelState.ts::runLookup` mở đầu bằng `if (trimmed === '') return` ⇒ một vùng chọn
+ * chỉ chạm `<br>` **không phát lượt tra nào**; một `'\n'` nằm **giữa** vùng chọn thì đúng
+ * bằng thứ người dùng đã kéo qua. Mã **trước** Story 1.18b cũng làm y hệt
+ * (`range.intersectsNode(child)` trần, không tinh chỉnh biên) ⇒ **không** một hồi quy.
+ * Sửa nó đòi một nhánh riêng cho node rỗng, đổi lấy **không** một thay đổi hành vi nào.
+ *
+ * ⚠️ `intersectsNode` vẫn chạy TRƯỚC như một bộ lọc rẻ: hàm này dựng một `Range` mỗi lần
+ * gọi, và vòng lặp đi qua **mọi** con của bề mặt (tới 50.000 ở trần render). Lọc trước giữ
+ * chi phí ở đúng số node mà vùng chọn thật sự đi qua — NFR1.
+ */
+function overlapsRange(range: Range, node: Node): boolean {
+  if (!range.intersectsNode(node)) return false
+
+  const nodeRange = document.createRange()
+  const only = node.childNodes.length === 1 ? node.firstChild : null
+  if (only !== null && only.nodeType === Node.TEXT_NODE) {
+    nodeRange.setStart(only, 0)
+    nodeRange.setEnd(only, only.textContent?.length ?? 0)
+  } else {
+    nodeRange.selectNode(node)
+  }
+
+  return (
+    range.compareBoundaryPoints(Range.START_TO_END, nodeRange) > 0 &&
+    range.compareBoundaryPoints(Range.END_TO_START, nodeRange) < 0
+  )
+}
+
+/**
+ * Phần văn bản của một phần tử **một-text-node** mà `range` thật sự phủ.
+ *
+ * 🔴 Lượt review 1.18 bắt được **hai lần** rằng lấy trọn `textContent` khi vùng chọn chỉ
+ * chạm **một phần** là rò thêm ký tự người dùng không chọn (vỡ AC12). Dùng chung cho mẩu
+ * `text` của **cả hai** kiểu xem và cho base của `<ruby>` — cùng một khuôn, một chỗ sửa.
+ */
+function sliceTextNode(range: Range, textNode: Node): string {
+  const full = textNode.textContent ?? ''
+  const from = textNode === range.startContainer ? range.startOffset : 0
+  const to = textNode === range.endContainer ? range.endOffset : full.length
+  return full.slice(from, to)
+}
+
+/**
  * 🔴 **KIỂU SONG SONG — ĐỌC NODE VĂN BẢN CỦA `<ruby>`, không TIN `Selection.toString()`.**
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * VÌ SAO ĐỔI, VÀ ĐÂY LÀ MỘT SỐ ĐO, KHÔNG PHẢI MỘT SỞ THÍCH (Story 1.18 · AC12)
+ * VÌ SAO ĐỌC NODE, VÀ ĐÂY LÀ MỘT SỐ ĐO, KHÔNG PHẢI MỘT SỞ THÍCH (Story 1.18 · AC12)
  * ─────────────────────────────────────────────────────────────────────────────
  * AC6 của Story 1.16 đo bằng một cú **kéo chuột thật** (Playwright) và kết luận đúng:
  * âm đọc mang `user-select: none` nên `toString()` trả về đúng chuỗi ký tự nguồn.
  *
- * AC12 đòi chạy **LẠI** phép kiểm đó trong story này, không tin số đo cũ — và lượt chạy lại
- * (2026-08-07, hai engine) lật một nửa kết luận:
+ * AC12 đòi chạy **LẠI** phép kiểm đó, không tin số đo cũ — và lượt chạy lại (2026-08-07,
+ * hai engine) lật một nửa kết luận:
  *
  * | vùng chọn cả đoạn | Chromium | WKWebView (macOS) |
  * |---|---|---|
@@ -293,11 +430,16 @@ const surface = computed<HTMLElement | null>(() =>
  *
  * `user-select: none` chi phối vùng chọn do **NGƯỜI DÙNG KÉO** tạo ra. Nó **không ràng buộc**
  * `Selection.modify()` trên WebKit — và `Selection.modify()` chính là đường mà **AC11 của
- * story này** vừa dựng để bôi đen bằng bàn phím. Tức: số đo của 1.16 vẫn đúng cho chuột,
- * và story này tự tạo ra một đường thứ hai mà nó không đúng.
+ * 1.18** dựng để bôi đen bằng bàn phím. Tức: số đo của 1.16 vẫn đúng cho chuột, và 1.18 tự
+ * tạo ra một đường thứ hai mà nó không đúng.
  *
  * ⇒ Đọc thẳng ký tự NGUỒN từ những `.hv-unit` mà vùng chọn chạm tới. Một nguồn sự thật,
  * đúng trên cả hai engine, và không phụ thuộc việc engine nào tôn trọng `user-select` ở đâu.
+ *
+ * 🔴 **STORY 1.18b — base của `<ruby>` nay là CẢ TỪ, nên nó CẮT ĐƯỢC.** Trước 1.18b hàm này
+ * lấy **trọn** node văn bản của `<ruby>`, và điều đó hợp lệ vì một `<ruby>` = một ký tự nên
+ * *"chọn nửa"* là bất khả. Một `<ruby>` = một **TỪ** làm nó khả thi **ngay lập tức** ⇒ phải
+ * cắt theo range, y hệt nhánh `text`. Không cắt ⇒ bôi đen `台` trả về `台湾` ⇒ vỡ AC12.
  *
  * ⚠️ `user-select: none` ở `<rt>` **không được gỡ** — nó vẫn là thứ giữ cho vùng chọn
  * do chuột kéo *trông đúng* trên màn hình. Hàm này là hàng rào thứ hai, không phải bản thay.
@@ -313,13 +455,13 @@ function resolveParallel(selection: Selection): string | null {
 
   let out = ''
   for (const child of Array.from(host.children)) {
-    if (!range.intersectsNode(child)) continue
+    if (!overlapsRange(range, child)) continue
     if (child.tagName === 'BR') {
       out += '\n'
       continue
     }
-    // `.hv-unit` mang một `<ruby>`: node văn bản đầu là KÝ TỰ NGUỒN (một ký tự — không cắt
-    // được nửa), theo sau là `<rt>` mang âm Hán Việt.
+    // `.hv-unit` mang một `<ruby>`: node văn bản đầu là chuỗi KÝ TỰ NGUỒN của cả từ, theo
+    // sau là `<rt>` mang các âm Hán Việt.
     //
     // 🔴 `ruby.textContent` GỘP CẢ `<rt>` — đo được 2026-08-07 trên Chromium:
     // `Selection.toString()` của một vùng chọn hai ký tự trả `"台đài北"`, không `"台北"`.
@@ -330,7 +472,7 @@ function resolveParallel(selection: Selection): string | null {
     const rubyEl = child.querySelector('ruby')
     if (rubyEl !== null) {
       const baseNode = Array.from(rubyEl.childNodes).find((n) => n.nodeType === Node.TEXT_NODE)
-      out += baseNode?.textContent ?? ''
+      if (baseNode !== undefined) out += sliceTextNode(range, baseNode)
       continue
     }
     // 🔴 Một `<span>` trơn là mẩu KHÔNG-Hán *(dấu câu, chữ Latin — có thể NHIỀU ký tự)*. Lượt
@@ -343,66 +485,142 @@ function resolveParallel(selection: Selection): string | null {
       out += child.textContent ?? ''
       continue
     }
-    const len = textNode.textContent?.length ?? 0
-    const from = textNode === range.startContainer ? range.startOffset : 0
-    const to = textNode === range.endContainer ? range.endOffset : len
-    out += (textNode.textContent ?? '').slice(from, to)
+    out += sliceTextNode(range, textNode)
   }
   return out === '' ? null : out
 }
 
 /**
- * Lấy truy vấn từ một vùng chọn trên bề mặt này — **hai kiểu xem, hai đường**.
+ * 🔴 **KIỂU CHUYỂN ĐỔI — VIẾT LẠI HOÀN TOÀN Ở 1.18b, ĐỌC DOM CÙNG KHUÔN `resolveParallel`.**
  *
- * 🔴 Kiểu SONG SONG: [`resolveParallel`] — đọc node, không `toString()`.
- * 🔴 Kiểu CHUYỂN ĐỔI: ánh xạ ngược theo VỊ TRÍ — xem [`switchView`].
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 KHÔNG SỬA HÀM NÀY = AUTO-LOOKUP **CHẾT HẲN** Ở KIỂU CHUYỂN ĐỔI
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Bản trước đòi `.hv-switch` chứa **đúng một** text node (`range.startContainer !== node ⇒
+ * null`). Cấu trúc `.hv-word`/`.hv-syl` của 1.18b **phá thẳng** bất biến đó, nên bản cũ sẽ
+ * trả `null` cho **mọi** vùng chọn — không lỗi, không cổng nào đỏ, chỉ là tra cứu **im lặng
+ * thôi chạy**. Đây là hồi quy nặng nhất story 1.18b có thể gây ra.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ÁNH XẠ NGƯỢC ĐI BẰNG **VỊ TRÍ**, KHÔNG BẰNG ÂM — mệnh đề này KHÔNG đổi từ 1.18
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Bôi đen ở kiểu chuyển đổi phải tra **ký tự Hán nguồn**, không tra chuỗi âm Latin đang hiện
+ * (chuỗi đó đi đường tiếng Anh của AD-44 và chắc chắn *"không tìm thấy"*). Và nó **không**
+ * là một bảng tra âm→chữ: ánh xạ đó **đa trị** (`"lương"` → 良 · 涼 · 糧 · 量 · 粱…), giải nó
+ * cần ngữ cảnh, tức một **quy tắc nghiệp vụ mới ở webview** — đúng thứ AD-1 cấm, và đúng
+ * phần việc của **FR113 / Story 3.7**.
+ *
+ * ⇒ Đường đi là **vị trí trong DOM**: `host.children[i]` ứng **một-một** với
+ * `segments.value[i]` (mỗi segment sinh **đúng một** phần tử — `<br>`, `.hv-text`, hoặc
+ * `.hv-word`; dấu cách phân tách là **text node**, không phải phần tử, nên nó không lệch
+ * bảng). Bên trong một `.hv-word`, `.hv-syl` thứ `j` ứng với `seg.chars[j]` — chính dữ liệu
+ * đã dựng ra âm đó.
+ *
+ * 🔴 **Và đó là thứ làm "bôi đen NỬA TỪ" trả về đúng nửa** (AC6): mỗi âm là một phần tử
+ * riêng, nên phép thử [`overlapsRange`] chạy ở mức **âm tiết**, không ở mức từ.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 CHỐT *"VÙNG CHỌN PHẢI NẰM TRỌN TRONG BỀ MẶT"* ĐÃ BỎ — CÓ CHỦ ĐÍCH (Ice chốt 2026-08-08)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Bản trước 1.18b có một chốt tường minh: `range.startContainer !== node ⇒ null`, kèm lý do
+ * *"kéo qua dòng trạng thái, qua dòng nguồn thì không ánh xạ được, và `null` nghĩa là **không
+ * phát lượt tra**, không phải **tra chuỗi âm**"*. Chốt đó **không còn**, và đây là lý do —
+ * ghi ra vì lượt code review 2026-08-08 hỏi đúng câu này:
+ *
+ * ① Thứ chốt cũ sinh ra để chặn — *tra nhầm chuỗi âm Latin* — nay **bất khả về cấu trúc**:
+ *    hàm này không đọc `toString()` một lần nào, nó đọc `seg.chars[j]`, tức **ký tự nguồn**.
+ *    Kéo ra ngoài bề mặt cũng không moi được một chữ Latin nào vào truy vấn.
+ * ② [`resolveParallel`] **chưa bao giờ** có chốt này (từ 1.18). Giữ nó ở riêng kiểu chuyển
+ *    đổi là hai kiểu xem hành xử khác nhau ở cùng một thao tác — đúng thứ Quyết định #3a
+ *    của 1.18b đặt ra để xoá.
+ * ③ Hành vi mới là *"tra đúng phần ký tự Hán mà người dùng đã kéo qua"*, thay cho *"im lặng
+ *    không tra gì"*. `surfaceFor()` vẫn chặn ở lớp trên: vùng chọn **bắt đầu** ngoài bề mặt
+ *    thì không tới được đây.
  */
-function resolveSelection(selection: Selection): string | null {
-  if (effectiveViewMode.value === 'parallel') return resolveParallel(selection)
-
+function resolveSwitch(selection: Selection): string | null {
   const host = switchEl.value
   if (host === null || selection.rangeCount === 0) return null
 
-  // `.hv-switch` chứa đúng MỘT node văn bản (một lượt interpolation). Vùng chọn phải nằm
-  // trọn trong nó — nếu không (kéo qua dòng trạng thái, qua dòng nguồn) thì không ánh xạ được, và
-  // `null` nghĩa là *"không phát lượt tra"*, không phải *"tra chuỗi âm"*.
-  const node = host.firstChild
   const range = selection.getRangeAt(0)
-  if (node === null || range.startContainer !== node || range.endContainer !== node) return null
+  if (range.collapsed) return null
 
-  const { text, map, starts } = switchView.value
-  const start = Math.max(0, Math.min(range.startOffset, text.length))
-  const end = Math.max(start, Math.min(range.endOffset, text.length))
-  if (end <= start) return null
-
-  const firstSeg = map[start]
-  const lastSeg = map[end - 1]
-  if (firstSeg === undefined || lastSeg === undefined) return null
-
+  const children = host.children
   let out = ''
-  for (let i = firstSeg; i <= lastSeg; i += 1) {
+  for (let i = 0; i < children.length; i += 1) {
+    const child = children[i]
     const seg = segments.value[i]
-    if (seg === undefined) continue
-    if (seg.kind === 'han') out += seg.char
-    else if (seg.kind === 'text') {
-      // 🔴 Vùng chọn có thể dừng GIỮA một đoạn `text` nhiều ký tự (dấu câu, chữ Latin) — lượt
-      // review 2026-08-07 bắt được rằng lấy trọn `seg.text` ở đây rò thêm ký tự không được
-      // chọn, vỡ AC12. Cắt về đúng phần [start, end) phủ lên segment này, quy về toạ độ cục
-      // bộ qua `starts[i]`.
-      const segStart = starts[i] ?? 0
-      const from = i === firstSeg ? Math.max(0, start - segStart) : 0
-      const to = i === lastSeg ? Math.min(seg.text.length, end - segStart) : seg.text.length
-      out += seg.text.slice(from, to)
-    } else out += '\n'
+    if (child === undefined || seg === undefined) continue
+    if (!overlapsRange(range, child)) continue
+
+    if (seg.kind === 'break') {
+      out += '\n'
+      continue
+    }
+    if (seg.kind === 'text') {
+      const textNode = child.firstChild
+      out +=
+        textNode !== null && textNode.nodeType === Node.TEXT_NODE
+          ? sliceTextNode(range, textNode)
+          : (child.textContent ?? '')
+      continue
+    }
+    const syllables = child.children
+    for (let j = 0; j < syllables.length; j += 1) {
+      const syllable = syllables[j]
+      const char = seg.chars[j]
+      if (syllable === undefined || char === undefined) continue
+      if (!overlapsRange(range, syllable)) continue
+      // 🔴 Một âm tiết là ATOM với ký tự nguồn của nó: chọn `th` của `thai` vẫn tra `台`.
+      // Chia nhỏ hơn nữa là vô nghĩa — không có "nửa ký tự Hán".
+      out += char
+    }
   }
   return out === '' ? null : out
+}
+
+/**
+ * Lấy truy vấn từ một vùng chọn trên bề mặt này — **hai kiểu xem, hai đường, một khuôn**.
+ *
+ * 🔴 Cả hai đều **đọc DOM**, không `toString()` — xem doc-comment của [`resolveParallel`].
+ */
+function resolveSelection(selection: Selection): string | null {
+  return effectiveViewMode.value === 'parallel' ? resolveParallel(selection) : resolveSwitch(selection)
+}
+
+/**
+ * 🔴 **`U+2060` KHÔNG ĐƯỢC RA CLIPBOARD** — Story 1.18b, AC5. Hàng rào **MỚI**: trước story
+ * này không cơ chế nào trong dự án biết tới ký tự đó.
+ *
+ * Người dùng bôi đen ở kiểu **chuyển đổi** rồi `⌘C`. `Selection.toString()` mang trọn
+ * `WORD_JOINER` — một ký tự **rộng bằng 0, không nhìn thấy được** — và nó dán ra Word,
+ * ra ô tìm kiếm, ra một tin nhắn. Không ai lần ra được vì sao chuỗi *"trông đúng"* lại không
+ * khớp với chính nó.
+ *
+ * 🔴 **Đổi về một dấu cách, KHÔNG xoá trắng.** Xoá trắng cho ra `thailoan` dính liền — đúng
+ * thứ mà `WORD_JOINER` sinh ra để tránh trên màn hình, chỉ dời sang clipboard.
+ *
+ * ⚠️ Đặt trên `.hv-surface` (bọc ngoài), không trên từng đoạn: sự kiện `copy` nổi bọt, và
+ * một handler phủ được **cả hai** kiểu xem. Kiểu song song không sinh `WORD_JOINER` nào, nên
+ * ở đó nhánh `includes` thoát sớm và lượt copy đi đường mặc định của trình duyệt.
+ */
+function onCopy(event: ClipboardEvent): void {
+  const selection = window.getSelection()
+  if (selection === null) return
+
+  const text = selection.toString()
+  if (!text.includes(WORD_JOINER)) return
+
+  const clipboard = event.clipboardData
+  if (clipboard === null) return
+  clipboard.setData('text/plain', text.replaceAll(WORD_JOINER, WORD_SEPARATOR))
+  event.preventDefault()
 }
 
 useSelectionSurface(surface, 'source', resolveSelection)
 </script>
 
 <template>
-  <div class="hv-surface">
+  <div class="hv-surface" @copy="onCopy">
     <!-- 🔴 MỘT dòng cho trạng thái của CẢ bề mặt (đang tra / lượt tra trượt / chưa lớp
          nào gắn) — không nhân câu đó ra theo số ký tự. Xem `surfaceNoticeKey`. -->
     <p v-if="surfaceNoticeKey !== null" class="hv-notice">{{ t(surfaceNoticeKey) }}</p>
@@ -411,14 +629,46 @@ useSelectionSurface(surface, 'source', resolveSelection)
     <p v-if="sourcesLine !== ''" class="hv-sources">
       {{ t('panel.source.han_viet_sources_prefix') }} {{ sourcesLine }}
     </p>
-    <!-- aura-allow-text: kết quả GOM âm Hán Việt của Chương (`lookup_han_viet`) — DỮ LIỆU
-         từ điển, không chuỗi giao diện. Ký tự không có âm hiện bằng `READING_PLACEHOLDER`
-         (một ký tự `·`, không phải một câu — xem doc-comment của hằng đó).
-
-         🔴 STORY 1.18 · AC11 — `tabindex="0"` ĐÚNG TRÊN ĐOẠN VĂN BẢN, không trên `.hv-surface`
+    <!-- 🔴 STORY 1.18 · AC11 — `tabindex="0"` ĐÚNG TRÊN ĐOẠN VĂN BẢN, không trên `.hv-surface`
          bọc ngoài (lượt review 2026-08-07 — xem doc-comment của `surface` ở script). Cùng lý
-         do và cùng giá với `.original` ở `SourcePanel.vue`. -->
-    <p v-if="effectiveViewMode === 'switch'" ref="switchEl" class="hv-switch" tabindex="0">{{ switchText }}</p>
+         do và cùng giá với `.original` ở `SourcePanel.vue`.
+
+         🔴 STORY 1.18b — `.hv-switch` KHÔNG còn là một text node thuần. Mỗi segment sinh
+         ĐÚNG MỘT phần tử (`<br>` · `.hv-text` · `.hv-word`), theo đúng thứ tự của
+         `segments`, vì `resolveSwitch()` ánh xạ ngược bằng CHỈ SỐ `host.children[i]`.
+         Dấu cách phân tách là một **text node**, không phải phần tử ⇒ nó không lệch bảng.
+         Thêm/bớt/đổi thứ tự một phần tử ở đây là làm truy vấn tra cứu sai im lặng.
+
+         🔴 KHÔNG được để lọt một khoảng trắng THẬT nào giữa hai thẻ liền nhau — xem cách
+         viết dính liền `><`. Dấu cách DUY NHẤT được phép là `WORD_SEPARATOR`, và nó đi qua
+         một interpolation tường minh. -->
+    <p
+      v-if="effectiveViewMode === 'switch'"
+      ref="switchEl"
+      class="hv-switch"
+      tabindex="0"
+    ><template
+        v-for="(seg, i) in segments"
+        :key="i"
+      ><!-- aura-allow-text: `WORD_SEPARATOR` là một dấu cách — ký tự PHÂN TÁCH hai TỪ cho
+        ICU, tức HÌNH DẠNG của bề mặt, không một chuỗi giao diện dịch được. --><template
+          v-if="switchLeads[i]"
+        >{{ WORD_SEPARATOR }}</template><br v-if="seg.kind === 'break'" /><!-- aura-allow-text:
+        mẩu KHÔNG-Hán của nguyên văn (khoảng trắng, dấu câu, chữ Latin xen giữa) — DỮ LIỆU
+        của Tác phẩm. --><span
+          v-else-if="seg.kind === 'text'"
+          class="hv-text"
+        >{{ seg.text }}</span><span
+          v-else
+          class="hv-word"
+        ><!-- aura-allow-text: âm Hán Việt đã gom (DỮ LIỆU từ điển) hoặc ký tự giữ chỗ
+        `READING_PLACEHOLDER`, kèm `WORD_JOINER` giữ cụm âm liền nhau với ICU. --><span
+            v-for="(reading, j) in seg.readings"
+            :key="j"
+            class="hv-syl"
+          >{{ (j === 0 ? '' : WORD_JOINER) + (reading ?? READING_PLACEHOLDER) }}</span
+        ></span></template
+    ></p>
     <p v-else ref="parallelEl" class="hv-parallel" tabindex="0"
       ><template
         v-for="(seg, i) in segments"
@@ -430,10 +680,10 @@ useSelectionSurface(surface, 'source', resolveSelection)
       }}</span><span
         v-else
         class="hv-unit"
-      ><!-- aura-allow-text: một ký tự Hán của nguyên
-        văn — DỮ LIỆU. --><ruby>{{ seg.char
-      }}<!-- aura-allow-text: âm Hán Việt đã gom (DỮ LIỆU từ điển) hoặc ký tự giữ chỗ
-        `READING_PLACEHOLDER`. --><rt>{{ seg.reading ?? READING_PLACEHOLDER }}</rt></ruby></span></template
+      ><!-- aura-allow-text: chuỗi ký tự Hán của MỘT TỪ trong nguyên
+        văn — DỮ LIỆU. --><ruby>{{ seg.chars.join('')
+      }}<!-- aura-allow-text: các âm Hán Việt đã gom của từ đó (DỮ LIỆU từ điển), ký tự
+        thiếu âm hiện bằng `READING_PLACEHOLDER`. --><rt>{{ readingLine(seg.readings) }}</rt></ruby></span></template
     ></p>
   </div>
 </template>
@@ -480,7 +730,7 @@ useSelectionSurface(surface, 'source', resolveSelection)
   text-transform: uppercase;
 }
 
-/* Chuyển đổi — khối văn bản thuần khai token source-hanviet của CHÍNH NÓ (AC1/AC7). */
+/* Chuyển đổi — khối văn bản khai token source-hanviet của CHÍNH NÓ (AC1/AC7). */
 .hv-switch {
   margin: 0;
   white-space: pre-wrap;
@@ -493,7 +743,36 @@ useSelectionSurface(surface, 'source', resolveSelection)
 }
 
 /*
- * Song song — đoạn dài, mỗi ký tự một khối dọc (Quyết định #4a).
+ * 🔴 KHE HỞ TRONG TỪ vs KHE HỞ GIỮA HAI TỪ — AC8 của Story 1.18b.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * VÌ SAO KHE TRONG TỪ PHẢI DO CSS VẼ, KHÔNG DO MỘT KÝ TỰ
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Mọi khoảng trắng THẬT đều **cắt từ** với ICU — đo 2026-08-07: `U+0020`, `U+00A0` và
+ * `U+2009` đều cho ra `"thai"` (một âm) khi double-click. Chỉ `U+2060` (rộng 0) giữ được
+ * cụm liền, và vì nó rộng 0 nên nó cho ra `"thailoan"` dính liền nếu không có gì khác.
+ * ⇒ hai vai tách ra: **ký tự** giữ tính liền từ, **CSS** vẽ khoảng cách.
+ *
+ * 🔴 Và hai khe phải PHÂN BIỆT ĐƯỢC bằng mắt, nếu không thì ranh giới từ vô hình:
+ *   trong từ   = `--space-unit`                        (4px)
+ *   giữa hai từ = một dấu cách THẬT + `--space-unit`   (≈3,6px + 4px ở cỡ 14,5px)
+ * ⇒ khe giữa hai từ rộng gần **gấp đôi** khe trong từ. `--space-unit` là đơn vị nền của bộ
+ * token; không khai một token mới cho một thứ token sẵn có phục vụ đúng (AC8, Kiểm B2).
+ *
+ * ⚠️ `+` bỏ qua text node, nên `.hv-word + .hv-word` vẫn khớp dù có một dấu cách ở giữa.
+ * Và nó KHÔNG khớp qua một mẩu `.hv-text` (dấu câu) — đúng ý: `，` không được bị đẩy ra xa
+ * chữ, đó là cả lý do `selfSpacing()` tồn tại.
+ */
+.hv-syl + .hv-syl {
+  margin-inline-start: var(--space-unit);
+}
+
+.hv-word + .hv-word {
+  margin-inline-start: var(--space-unit);
+}
+
+/*
+ * Song song — đoạn dài, mỗi TỪ một khối dọc (Quyết định #4a của 1.16, đơn vị đổi ở 1.18b).
  *
  * ⚠️ `line-height` DÙNG CHUNG token `source-cjk` với tab "Nguyên văn" thuần — và điều đó
  * chỉ đúng được kể từ khi âm đọc chuyển sang `<ruby>` (xem khối dưới): `<rt>` chiếm chỗ
@@ -517,9 +796,35 @@ useSelectionSurface(surface, 'source', resolveSelection)
 }
 
 /*
- * Vỏ của một ký tự Hán + âm đọc. GIỮ NGUYÊN dù `<ruby>` bên trong đã tự lo bố cục —
+ * Vỏ của MỘT TỪ + các âm của nó. GIỮ NGUYÊN dù `<ruby>` bên trong đã tự lo bố cục —
  * `resolveParallel()` duyệt `host.children` và phân biệt "ô Hán" với "mẩu không-Hán" bằng
  * chính lớp này, nên nó là một mốc CẤU TRÚC, không một mốc trang trí.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 `display: inline`, KHÔNG `inline-block` — VÀ ĐÂY LÀ MỘT SỐ ĐO (1.18b · AC7)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `inline-block` dựng một **hộp dòng riêng** cho mỗi ô, và ICU không với qua biên hộp đó.
+ * Trước 1.18b (một ô = một **ký tự**) chính tính chất ấy làm double-click trả về `""` —
+ * đúng lỗi story này sinh ra để sửa. Gom thành một ô = một **TỪ** thì double-click chạy
+ * lại được, nên `inline-block` **trông như** vô hại. Nó không vô hại. Đo 2026-08-07,
+ * `Selection.modify('extend','right', …)` từ đầu đoạn, số ký tự nguồn thu được:
+ *
+ * | số lần bấm | 1 | 2 | 3 | 4 | 6 | 8 | 10 | 12 |
+ * |---|---|---|---|---|---|---|---|---|
+ * | `word` · cấu trúc CŨ (ô = ký tự) | 台 | 台 | 台湾 | 台湾 | 台湾地 | 台湾地方 | …议 | …议会 |
+ * | `word` · `inline-block` (ô = từ) | 台湾 | 台湾 | 台湾 | 台湾 | 台湾 | 台湾 | 台湾 | 台湾 |
+ * | `word` · **`inline`** (ô = từ) | 台湾 | 台湾 | 台湾地方 | 台湾地方 | 台湾地方议会 | …接连 | | |
+ *
+ * ⇒ `inline-block` làm **mở rộng vùng chọn theo TỪ bằng bàn phím KẸT HẲN** ở ô đầu tiên —
+ * một hồi quy thẳng của AC11/1.18, và AC7 của 1.18b cấm đúng điều đó. `inline` gỡ được nó,
+ * và còn **nhanh hơn cấu trúc cũ** (một lần bấm = một TỪ, không một ký tự).
+ *
+ * ⚠️ Và nó **không** đánh đổi gì: với `inline`, ICU đọc chuỗi ký tự nguồn **liền mạch** qua
+ * các ô, nên double-click vẫn phủ đúng trọn từ (bảng đối chiếu 26 vị trí ở §Debug Log
+ * References) — ranh giới từ là do **ICU**, không do biên node. Và `Selection.toString()`
+ * của **cả đoạn** trả về đúng chuỗi nguồn: **0** ký tự `\n` chèn thêm, **0** ký tự Latin rò
+ * từ `<rt>` (đo 2026-08-07). Bài học `inline-flex` của 1.16 là về thứ tạo **hộp dòng mới**;
+ * `inline` không tạo hộp nào.
  *
  * 🔴 KHÔNG khai `min-width` ở đây nữa. Bản trước giãn ô theo độ dài âm
  * (`--hv-reading-len × 0.56em`) vì `.hv-reading` `position: absolute` không góp bề rộng —
@@ -528,8 +833,7 @@ useSelectionSurface(surface, 'source', resolveSelection)
  * `padding-inline` của `<rt>` quyết — một chỗ, không hai.
  */
 .hv-unit {
-  display: inline-block;
-  vertical-align: bottom;
+  display: inline;
 }
 
 /*
@@ -569,7 +873,8 @@ useSelectionSurface(surface, 'source', resolveSelection)
  * ⚠️ `padding-inline` trên `<rt>` là thứ giữ cho âm đọc TÁCH BẠCH (Ice: *"âm hán việt
  * không được đè lên nhau, phải có khoảng cách để đọc"*). Nó nới bề rộng ô ruby ⇒ chữ Hán
  * giãn ra theo — Ice chốt chấp nhận (*"chữ hán xa nhau cũng được"*). Không có nó, âm đọc
- * dính thành một chuỗi liền: `phảnđốitrungcộngkhoác…` (đo thật).
+ * dính thành một chuỗi liền: `phảnđốitrungcộngkhoác…` (đo thật). Từ 1.18b nó tách hai
+ * **TỪ**, còn các âm TRONG một từ tách nhau bằng `WORD_SEPARATOR` — xem [`readingLine`].
  */
 ruby {
   /* ⚠️ Tiền tố `-webkit-` đứng TRƯỚC bản chuẩn, có chủ ý: WKWebView (macOS — một trong hai
@@ -584,7 +889,7 @@ ruby {
 rt {
   /* 🔴 AC6 — loại khỏi vùng chọn, KHÔNG bao giờ đi vào `window.getSelection()`. */
   user-select: none;
-  /* 🔴 Khoảng cách giữa hai âm đọc liền nhau — xem khối trên. `--space-unit` (4px) là
+  /* 🔴 Khoảng cách giữa hai ô ruby liền nhau — xem khối trên. `--space-unit` (4px) là
      đơn vị nền của bộ token và đúng bằng con số đã đo, nên KHÔNG khai một token mới:
      `EXPECTED_SPACING` là bảng ĐÓNG BĂNG, thêm hàng vào đó cần một mục `deviations`
      cho một thứ mà token sẵn có đã phục vụ đúng. Khe thị giác = 2× giá trị này. */

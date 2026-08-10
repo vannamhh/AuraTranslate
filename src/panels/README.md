@@ -15,6 +15,7 @@ Component đặt tên `PascalCase.vue` (Consistency Conventions). Panel Lookup �
 | Panel AiTranslation | **Epic 4** | ⬜ |
 | Panel Editor | **Epic 2** | ⬜ |
 | Hợp đồng vùng chọn dùng chung + Auto-Lookup (bốn panel + `SourceHanViet`) | **1.18** | ✅ đã dựng |
+| Tách từ tiếng Trung cho tab Hán Việt — double-click chọn cả CỤM TỪ | **1.18b** | ✅ đã dựng |
 
 **Story sở hữu nội dung: 1.14.** `PanelFrame.vue` hôm nay là **vỏ**, không phải panel: thanh tiêu đề, tiêu đề `ui-md`, và thân **để trống**. `WorkspaceMode.vue` dựng **hai** `PanelFrame` — `panel.source` và `panel.editor`, đúng cặp *Nguyên văn | Bản dịch* mà UX-DR15 nói *"không bao giờ nhường"*. Hai chứ không bốn: một cái không đủ để nhìn thấy tương phản có/không tiêu điểm, bốn cái là dựng trước Story 1.14. **Story 1.14 thay chỗ hai cái này bằng bốn panel trong `dockview`.**
 
@@ -89,8 +90,40 @@ panel rồi thả chuột **ngoài** panel là thao tác thường ngày. Vị t
 bao giờ nằm TRONG một ô nhập *(nó là phần tử CHA)* · `document.activeElement` cho **âm tính
 giả**. ⇒ tín hiệu đúng là **`anchorNode.nodeType === TEXT_NODE`**. Xem doc-comment tại chỗ.
 
-⚠️ **Bề mặt cần một cách lấy truy vấn RIÊNG thì truyền `resolve`.** Hôm nay có hai:
-tab Hán Việt kiểu **chuyển đổi** *(màn hình chỉ có âm Latin ⇒ ánh xạ ngược theo **VỊ TRÍ**
-về ký tự Hán nguồn — không một bảng tra âm→chữ, thứ đó đa trị và thuộc FR113/Story 3.7)* và kiểu
-**song song** *(đọc node `.hv-char`, không tin `Selection.toString()` — WKWebView rò âm Hán Việt
-qua `Selection.modify()`; xem `deferred-work.md` §1.18)*.
+⚠️ **Bề mặt cần một cách lấy truy vấn RIÊNG thì truyền `resolve`.** Hôm nay có hai, và **cả
+hai đọc DOM trực tiếp** *(một khuôn, một chỗ sửa — Story 1.18b)*: tab Hán Việt kiểu **chuyển
+đổi** *(màn hình chỉ có âm Latin ⇒ ánh xạ ngược theo **VỊ TRÍ** về ký tự Hán nguồn — không một
+bảng tra âm→chữ, thứ đó đa trị và thuộc FR113/Story 3.7)* và kiểu **song song** *(đọc node văn
+bản của `<ruby>`, không tin `Selection.toString()` — WKWebView rò âm Hán Việt qua
+`Selection.modify()`; xem `deferred-work.md` §1.18)*.
+
+🔴 **Chú thích cũ ở đây nói *"đọc node `.hv-char`"* — SAI, và đã sai từ trước Story 1.18b.**
+Lớp `.hv-char` bị gỡ ở lượt vá `<ruby>` 2026-08-07 *(âm đọc thôi `position: absolute`)*; thứ
+`resolveParallel()` đọc là **node văn bản trực tiếp của `<ruby>`**, và mốc cấu trúc nó duyệt
+là `.hv-unit`.
+
+## Tách từ tiếng Trung (Story 1.18b) — `Intl.Segmenter`, và **chỉ** cho vùng chọn
+
+`src/panels/wordBoundary.ts` trả **ranh giới TỪ** trong văn bản nguồn, bằng
+`Intl.Segmenter('zh', { granularity: 'word' })` — **0** phụ thuộc npm mới, **0** dòng Rust,
+**0** điểm ra mạng. Đây là **cùng bộ tách từ ICU** mà trình duyệt dùng cho double-click trên
+một khối văn bản thuần, tức trên **tab nguyên văn** — nên hai tab chọn cùng một cụm **theo cấu
+trúc**, không nhờ trùng hợp *(đo: bảng đối chiếu 26 vị trí, 26/26 khớp)*.
+
+🔴 **Đây là *"chọn gì để tra"*, KHÔNG phải *"tra thế nào"*.** Ranh giới đã phân xử sẵn ở
+`reviews/review-ad-44-2026-08-05.md:50`. Khớp ngôn ngữ vẫn là độc quyền của **AD-17**
+*(`jieba-rs`, Rust, Story 1.12)*; story 1.18b **không chạm một dòng** của `core/matching/**`.
+`AD-1` cho phép vì `ARCHITECTURE-SPINE.md:75-79` liệt kê **"vùng chọn"** là thứ frontend giữ.
+
+Đơn vị của cả bề mặt vì vậy là **một TỪ**, không còn một ký tự:
+
+| kiểu xem | cấu trúc | ai chặn/không chặn ICU |
+|---|---|---|
+| **song song** | một `<ruby>` mỗi TỪ, base mang trọn cụm ký tự | `.hv-unit` là `display: **inline**` — `inline-block` làm `Selection.modify('word')` **kẹt hẳn** ở ô đầu (đo 2026-08-07, hồi quy AC11/1.18) |
+| **chuyển đổi** | một `.hv-word` mỗi TỪ, mỗi âm một `.hv-syl` | các âm nối bằng `WORD_JOINER` (`U+2060`, rộng 0); khe hở **do CSS vẽ**, vì mọi khoảng trắng THẬT đều cắt từ với ICU |
+
+⚠️ **`U+2060` không được ra clipboard** *(`SourceHanViet.vue::onCopy` đổi nó về một dấu cách)*
+— một ký tự vô hình dán ra ngoài là thứ không ai lần ra được.
+
+⚠️ **Engine thiếu `Intl.Segmenter`** ⇒ rơi về **một ký tự một từ** *(hành vi trước 1.18b)* kèm
+`console.error` nêu đích danh. Không im lặng, không ném.

@@ -727,3 +727,108 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
   **Chủ: một story riêng — Ice chốt 2026-08-07** *(*"đồng ý làm thành một lượt riêng có đo
   lại AC6/AC12 đàng hoàng"*)*.
+
+  ✅ **ĐÓNG 2026-08-07 bởi Story 1.18b** (`1-18b-tach-tu-tieng-trung-tab-han-viet`).
+  `src/panels/wordBoundary.ts` mới · `buildSegments`/`resolveParallel`/`resolveSelection` viết
+  lại · **0** phụ thuộc mới, **0** dòng Rust. Nghiệm thu: bảng đối chiếu **26 vị trí** tab
+  Trung ↔ tab Hán Việt bằng **double-click THẬT**, **26/26 khớp** ở *cả hai* kiểu xem.
+  Ba mệnh đề sống đã đo LẠI trên cấu trúc mới (AC6/1.16 · AC11+AC12/1.18) — xem §Debug Log
+  References của story.
+
+---
+
+## Deferred from: 1-18b-tach-tu-tieng-trung-tab-han-viet (2026-08-07)
+
+- 🔴 **`Intl.Segmenter` trên WKWebView vẫn CHƯA đo** — cùng món nợ hai nền tảng mà
+  1.6/1.14/1.16/1.17/1.18 để lại, nay thêm một mặt hàng. Story 1.18b đo trọn trên **Chromium**
+  và **không** dựng được bản Tauri thật. Ba thứ phải đo lại khi có máy macOS dựng được:
+  ① `Intl.Segmenter` có mặt và cắt **cùng ranh giới** với Chromium *(nếu lệch, hai nền tảng
+  chọn hai cụm khác nhau cho cùng một cú double-click — không cổng nào bắt)*;
+  ② `U+2060` có giữ được tính liền từ với ICU của WebKit không;
+  ③ `Selection.modify('extend','right','word')` trên cấu trúc `.hv-unit` `display: inline`
+  *(số đo Chromium: một lần bấm = một TỪ; `inline-block` thì **kẹt hẳn** — xem doc-comment
+  `.hv-unit` trong `SourceHanViet.vue`)*.
+  **Chủ: món nợ hai nền tảng chung, đóng khi CI macOS dựng được bản thật.**
+
+- ⚠️ **ICU cắt SAI ở một tỉ lệ có thật trên văn xuôi TIỂU THUYẾT — danh sách ca sai đã đo,
+  không phải một lo xa.** Story 1.18b chạy `Intl.Segmenter('zh')` trên bốn đoạn mở đầu của
+  bốn bộ tiểu thuyết cổ điển *(công hữu)* và ghi lại các lượt cắt sai **có thật**:
+
+  | Nguồn | ICU cho ra | Đúng phải là | Loại lỗi |
+  |---|---|---|---|
+  | 三國演義 | `周末` | `周` + `末` *(cuối đời Chu)* | từ hiện đại đè nghĩa cổ |
+  | 三國演義 | `分` + `爭` | `分爭` | cắt vụn một từ |
+  | 西遊記 | `有一` + `國土` | `有` + `一` + `國土` | ghép sai qua ranh giới |
+  | 西遊記 | `海` + `中有` + `一座` | `海中` + `有` + `一座` | ghép sai qua ranh giới |
+  | 西遊記 | `傲` + `來` + `國` | `傲來國` *(tên nước)* | tên riêng bị xé |
+  | 西遊記 | `正當` + `頂上` | `正` + `當頂上` | từ hiện đại đè nghĩa cổ |
+  | 紅樓夢 | `姑` + `蘇` · `閶` + `門` | `姑蘇` · `閶門` *(địa danh)* | tên riêng bị xé |
+  | 紅樓夢 | `一` + `二等` | `一二等` | ghép sai qua ranh giới |
+  | 水滸傳 | `大` + `宋` | `大宋` *(quốc hiệu)* | tên riêng bị xé |
+  | 水滸傳 | `在` + `位` | `在位` | cắt vụn một từ |
+
+  ⚠️ **Đây KHÔNG phải một lỗi phải sửa ở 1.18b**, và lý do đã ghi thành chữ trong
+  `wordBoundary.ts`: một lượt cắt sai ở đây chỉ khiến người dùng **kéo chọn lại**, không làm
+  lệch một điểm khớp nào *(so với `mockups/tm-fuzzy-match.html:267-269`, nơi cùng tỉ lệ sai đó
+  bị từ chối vì nó làm **điểm khớp** lệch không giải thích được)*. Nó đáng ghi vì **Story 3.4**
+  *(đánh dấu thuật ngữ Glossary trong Panel Source)* và **Story 3.7/FR113** sẽ gặp lại đúng
+  các ca này, và vì chúng cho thấy **tên riêng** là lớp sai lớn nhất — đúng thứ Glossary tồn
+  tại để giải.
+  **Chủ: dữ kiện cho Story 3.4 · 3.7. Không hành động ở Epic 1.**
+
+- ⚠️ **Story 3.4 KHÔNG bị chặn, nhưng nó phải TỰ CẮT `.hv-unit`.** Rà 2026-08-07: 3.4 đánh
+  dấu thuật ngữ Glossary trong Panel Source bằng ranh giới do **`Matcher` (Rust)** trả về, và
+  ranh giới đó **không nhất thiết trùng** ranh giới TỪ của ICU — một thuật ngữ có thể phủ *một
+  phần* một `.hv-unit`, hoặc *bắc cầu* hai `.hv-unit`. Trước 1.18b *(một ký tự một node)* việc
+  đánh dấu chỉ là gắn class cho các node trong khoảng; nay 3.4 phải **tách `.hv-unit` tại biên
+  thuật ngữ**. ⇒ mệnh đề cho 3.4: **ranh giới của `Matcher` thắng ranh giới của ICU**; ICU chỉ
+  quyết *"double-click phủ tới đâu"*.
+  ⚠️ Và khi 3.4 tách node, nó phải giữ đúng bất biến mà `resolveSwitch()` đứng lên:
+  `host.children[i]` ứng **một-một** với `segments.value[i]`.
+  **Chủ: Story 3.4.**
+
+- ⚠️ **Bàn đo vùng chọn là một tệp DÙNG MỘT LẦN, không phải một lưới tự động.** Toàn bộ vế DOM
+  của 1.18b *(double-click, vùng chọn, clipboard, bàn phím)* nghiệm thu bằng một trang HTML
+  chạy tay trong trình duyệt — nó **chép** DOM/CSS của `SourceHanViet.vue` chứ **không mount**
+  component thật *(component cần cầu IPC Tauri cho `hanVietByChar`)*. Nghĩa là: một lượt sửa
+  template sau này có thể làm bàn đo và sản phẩm **lệch nhau mà không cổng nào đỏ**. Dự án cố
+  ý **không có bộ chạy test frontend** *(NFR15, Ice chốt ở 1.5, giữ qua tám story)*, nên đây là
+  một giới hạn **đã biết và đã chọn**, không một thiếu sót.
+  **Chủ: treo cho tới khi có quyết định về một bộ chạy test frontend.**
+
+---
+
+## Deferred from: code review of 1-18b-tach-tu-tieng-trung-tab-han-viet (2026-08-08)
+
+- ⚠️ **`onCopy` không chặn rò âm Hán Việt qua `Selection.modify()` trên WKWebView, kiểu SONG
+  SONG.** `SourceHanViet.vue:571-582` chỉ vào cuộc khi chuỗi chứa `WORD_JOINER`; kiểu song song
+  không sinh ký tự đó nên hàm thoát sớm và lượt copy đi đường mặc định của trình duyệt. Nhưng
+  doc-comment `:409-412` **đã đo** rằng trên WKWebView đường bàn phím cho ra `他tha打đả開khai…`
+  — tức bôi đen bằng phím rồi `⌘C` ở kiểu song song dán ra chuỗi **lẫn âm**. AC5 của 1.18b chỉ
+  đòi **`U+2060`**, và lớp lỗi này có **trước** 1.18b *(`<rt>` đã tồn tại từ lượt vá `51132cb`)*
+  ⇒ ngoài phạm vi story. Sửa được bằng cách cho `onCopy` dựng lại chuỗi copy từ chính đường đọc
+  DOM *(`resolveParallel`)* thay vì tin `Selection.toString()`.
+  **Chủ: chưa gán — nợ chung với món "hai nền tảng" của 1.6/1.14/1.16/1.17/1.18/1.18b.**
+
+- 🔴 **Kiểu CHUYỂN ĐỔI mất tính "rẻ" — và nó là đường lui KHÔNG có trần.** Trước 1.18b
+  `.hv-switch` là `<p>{{ switchText }}</p>`, **đúng MỘT** text node; đó chính là lý do bảng đo
+  của `PARALLEL_VIEW_RENDER_CEILING` ghi **222,4 ms ở 500.000 ký tự** và gọi nó là van an toàn.
+  1.18b thay bằng một `.hv-word` mỗi TỪ + một `.hv-syl` mỗi KÝ TỰ. Đo lại 2026-08-08 *(bàn đo
+  tái lập được số cũ: 23,6 ms vs 24,2 ms ở 50.000 ⇒ so sánh được)*:
+
+  | ký tự Hán | trước 1.18b | sau 1.18b |
+  |---|---|---|
+  | 5.000   | 3,1 ms · **1** node  | 41,5 ms · 13.728 node |
+  | 50.000  | 23,6 ms · **1** node | **532,9 ms** · 136.864 node *(gấp 23)* |
+  | 100.000 | 62,1 ms · **1** node | 1.038,5 ms · 273.728 node ⇒ ngoại suy **~5 s** ở 500.000 |
+
+  ⚠️ `canUseParallelView` chỉ khoá **kiểu song song** ⇒ trên 50.000, người dùng bị ép vào đúng
+  bề mặt vừa nặng lên, **không trần nào che**. Bảng AC9 của story chỉ đo song song-mới vs
+  song song-cũ; nhánh chuyển đổi chưa đo lần nào.
+  ⚠️ Và cột "node" của bảng AC9 đếm **con trực tiếp** của host, không phải node DOM — đo cùng
+  bàn: song song mới ở 50.000 là **142.128** node DOM, không phải 34.714. Hai cột đó **không
+  so được với nhau**; đừng trộn.
+  🔴 **Ice chốt 2026-08-08: CHẤP NHẬN có ý thức.** Không đặt trần cho kiểu chuyển đổi *(Chương
+  lớn sẽ không còn đường xem nào)*, không dựng `.hv-syl` theo yêu cầu *(một cơ chế mới, đắt hơn
+  khoản nó vá)*. Số đã ghi cả vào `sourcePanelState.ts` để lượt sau không đo lại từ đầu.
+  **Chủ: chưa gán — mở lại khi có một Chương thật vượt 50.000 và người dùng báo giật.**

@@ -81,8 +81,9 @@ const viewModeState = ref<HanVietViewMode>('switch')
 /**
  * 🔴 TRẦN RENDER của kiểu xem **song song** — Quyết định #7, Task 8.
  *
- * Đo THẬT (Playwright, headless Chromium, DOM y hệt `SourceHanViet.vue`'s `.hv-unit` —
- * xem Completion Notes của story để có bảng số đầy đủ ở cả ba mức):
+ * Đo THẬT (Playwright, headless Chromium, DOM `.hv-unit` của `SourceHanViet.vue` **ở thời
+ * điểm Story 1.16** — tức MỘT `.hv-unit` cho MỖI KÝ TỰ; xem Completion Notes của story để có
+ * bảng số đầy đủ ở cả ba mức):
  *
  * | Số ký tự Hán | Kiểu song song — tới frame đầu | Kiểu chuyển đổi — tới frame đầu |
  * |---|---|---|
@@ -99,8 +100,47 @@ const viewModeState = ref<HanVietViewMode>('switch')
  * không khả dụng** — người dùng vẫn đọc được bằng kiểu chuyển đổi (rẻ, tuyến tính).
  *
  * ⚠️ **Đếm THEO SỐ LẦN XUẤT HIỆN của ký tự Hán trong văn bản, không theo số ký tự Hán
- * DUY NHẤT** — mỗi lần xuất hiện sinh một `.hv-unit` riêng trong kiểu song song, nên đó
- * mới là biến số quyết định chi phí render, không phải kích cỡ tập ký tự tra cứu.
+ * DUY NHẤT** — chi phí render tỉ lệ với **độ dài văn bản**, không với kích cỡ tập ký tự
+ * tra cứu.
+ *
+ * 🔴 **STORY 1.18b — VÌ SAO PHÉP ĐẾM GIỮ NGUYÊN DÙ MỆNH ĐỀ ĐỠ NÓ ĐÃ ĐỔI.** Bản trước nói
+ * *"mỗi lần xuất hiện sinh một `.hv-unit` riêng"*. Câu đó **không còn đúng**: 1.18b gom ký
+ * tự Hán thành **TỪ**, và một `.hv-unit` nay mang **cả từ**. [`hanCharOccurrenceCount`] vì
+ * vậy **đếm nhiều hơn** số `.hv-unit` thật — đo 2026-08-07 trên văn bản tin tức tiếng Trung:
+ * **0,642** node trên mỗi lần xuất hiện *(3.502 node / 5.000 ký tự · 34.714 / 50.000 —
+ * cùng tỉ lệ ở cả hai mức)*, và chi phí dựng DOM giảm **~31 %** so với cấu trúc một-ký-tự.
+ *
+ * ⇒ Nó vẫn là một **proxy hợp lý và AN TOÀN**: nó *quá ước lượng* chi phí, không *dưới*
+ * ước lượng, nên trần vẫn giữ đúng vai chặn. Đổi nó thành phép đếm TỪ sẽ bắt phải chạy
+ * `Intl.Segmenter` trên **toàn Chương** chỉ để quyết định có cho phép kiểu song song hay
+ * không — một lượt tách từ thừa trên đường nạp Chương *(và nó THẬT SỰ thừa: `buildSegments`
+ * chỉ chạy khi tab Hán Việt được mở, còn phép đếm này chạy ở **mọi** lượt nạp Chương)*,
+ * đổi lấy một con số chính xác hơn mà không quyết định nào cần tới.
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * 🔴 TRẦN NÀY CHỈ KHOÁ KIỂU SONG SONG — VÀ ĐƯỜNG LUI NAY KHÔNG CÒN RẺ NHƯ BẢNG TRÊN NÓI
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * Bảng đo ở đầu doc-comment này đo kiểu **chuyển đổi** ở thời điểm Story 1.16, khi
+ * `.hv-switch` là `<p>{{ switchText }}</p>` — **đúng MỘT text node**. Story 1.18b thay nó
+ * bằng một `.hv-word` mỗi **TỪ** và một `.hv-syl` mỗi **KÝ TỰ**. Đo lại 2026-08-08 (lượt code
+ * review; cùng bàn đo tái lập được số cũ — **23,6 ms** ở 50.000 so với **24,2 ms** của bảng
+ * gốc, nên hai bên so được):
+ *
+ * | ký tự Hán | chuyển đổi **trước 1.18b** | chuyển đổi **sau 1.18b** |
+ * |---|---|---|
+ * | 5.000   | 3,1 ms · **1** node  | 41,5 ms · 13.728 node |
+ * | 50.000  | 23,6 ms · **1** node | **532,9 ms** · 136.864 node *(gấp 23)* |
+ * | 100.000 | 62,1 ms · **1** node | 1.038,5 ms · 273.728 node ⇒ ngoại suy **~5 s** ở 500.000 |
+ *
+ * ⚠️ Hệ quả phải nhìn thẳng: [`canUseParallelView`] khoá kiểu song song trên trần này, tức
+ * Chương lớn bị **ép vào đúng bề mặt vừa nặng lên**. Câu *"người dùng vẫn đọc được bằng kiểu
+ * chuyển đổi (rẻ, tuyến tính)"* ở trên vẫn đúng vế **tuyến tính**, và **không còn đúng** vế
+ * *rẻ*.
+ *
+ * 🔴 **Ice chốt 2026-08-08: CHẤP NHẬN, ghi số, không đặt trần thứ hai** — một trần cho kiểu
+ * chuyển đổi sẽ để Chương lớn **không còn đường xem nào**, và dựng `.hv-syl` theo yêu cầu là
+ * một cơ chế mới đắt hơn khoản nó vá. Món nợ nằm ở `deferred-work.md` §code review 1-18b,
+ * **kèm bảng số trên** để lượt sau không phải đo lại từ đầu.
  */
 export const PARALLEL_VIEW_RENDER_CEILING = 50_000
 
