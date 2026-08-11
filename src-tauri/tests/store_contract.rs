@@ -655,11 +655,62 @@ fn the_wal_stops_growing_once_it_crosses_the_threshold() {
     // ── Mệnh đề 2: CÓ TRẦN ──────────────────────────────────────────────────────
     // Mệnh đề mạnh hơn và ít phụ thuộc nhịp hơn: tổng đã ghi là hai đợt, mà WAL phải giữ
     // ở gần ngưỡng. Không có cơ chế của AC5 thì WAL ≈ toàn bộ lượng đã ghi.
+    //
+    // ═════════════════════════════════════════════════════════════════════════════
+    // 🔴 TRẦN NỚI THEO NỀN TẢNG — Ice chốt 2026-08-11
+    // ═════════════════════════════════════════════════════════════════════════════
+    // Ca này đỏ trên `windows-2025` ngay lượt CI đầu tiên chạy được tới nó
+    // (`31469843146`, sau bản vá `STATUS_ENTRYPOINT_NOT_FOUND` — trước đó nhị phân test
+    // tích hợp chết ở khâu NẠP nên ca này chưa từng chạy trên Windows).
+    //
+    // Số đo, và đọc nó cho đúng vì hai mệnh đề của ca này KHÔNG cùng phán quyết:
+    //   `.db-wal` = 889.952 B · tổng đã ghi = 1.310.720 B · trần cũ = 327.680 B
+    //   CheckpointStats { threshold_triggered: 51, frames_checkpointed: 6392,
+    //                     passive_busy: 0, idle_triggered: 0, errors: 0 }
+    // - Mệnh đề 1 (*"chững lại"*) **ĐẠT**. Cơ chế AC5 CÓ chạy: 51 lượt theo ngưỡng,
+    //   6.392 frame đã chép, 0 lượt bị chặn, 0 lỗi, và `idle_triggered = 0` chứng minh
+    //   vế (a) không hề kích hoạt.
+    // - Chỉ mệnh đề 2 trượt: WAL đứng ở 67,9% lượng đã ghi thay vì dưới 25%.
+    //
+    // Nguyên nhân là `walRestartLog` của SQLite — nó chỉ quay WAL về đầu tệp khi một
+    // giao dịch ghi bắt đầu đúng lúc `nBackfill == mxFrame`. Trên Windows nhịp đó không
+    // rơi vào nhau; frame vẫn được chép, tệp không bao giờ quay đầu.
+    //
+    // ⚠️ Trần nới THEO NỀN TẢNG, KHÔNG nới toàn cục. Hạ trần chung xuống 3/4 sẽ vứt luôn
+    // bảo đảm chặt của macOS — nền tảng Ice phát triển hằng ngày — cho một khác biệt chỉ
+    // tồn tại ở nền tảng kia. Hằng dưới đây nói ra sự khác biệt đó thay vì giấu nó.
+    //
+    // ⚠️ **Trần Windows hiệu chuẩn trên ĐÚNG MỘT phép đo (n = 1).** 3/4 nằm giữa số đo
+    // (67,9%) và ngưỡng của *"cơ chế vắng mặt"* (≈100%), gần số đo hơn để nó còn bắt được
+    // hồi quy. Nếu một lượt CI sau vượt 75%, ĐỪNG nới tiếp theo phản xạ: hai số in ở dưới
+    // có mặt để lượt đó có dữ liệu thật mà cãi. Đường đóng thật sự là đo trên một máy
+    // Windows — món nợ A5 của retrospective Epic 1.
+    const WAL_CEILING_NUM: u64 = if cfg!(windows) { 3 } else { 1 };
+    const WAL_CEILING_DEN: u64 = 4;
+
     let written = (2 * ROUNDS * BLOB) as u64;
+    let ceiling = written * WAL_CEILING_NUM / WAL_CEILING_DEN;
+
+    // ⚠️ `cargo test` NUỐT stdout của ca xanh, nên dòng dưới chỉ hiện khi ca này đỏ hoặc
+    // khi chạy `cargo test --test store_contract -- --nocapture`. Đó là cách lấy điểm đo
+    // thứ hai cho trần Windows mà KHÔNG phải chờ một lượt đỏ — ghi ở đây thay vì để người
+    // sau tự tìm ra.
+    println!(
+        "\n  WAL: {after_first} B sau đợt một -> {after_second} B sau đợt hai · tổng đã \
+         ghi {written} B · trần {ceiling} B ({WAL_CEILING_NUM}/{WAL_CEILING_DEN}) · \
+         {:.1}% lượng ghi",
+        (after_second as f64 / written as f64) * 100.0
+    );
+
     assert!(
-        after_second < written / 4,
-        "`.db-wal` đang giữ {after_second} B trong khi tổng đã ghi là {written} B — \
-         tức nó lớn theo lượng ghi chứ không theo ngưỡng. Stats: {stats:?}"
+        after_second < ceiling,
+        "`.db-wal` đang giữ {after_second} B (đợt một: {after_first} B) trong khi tổng đã \
+         ghi là {written} B, trần {ceiling} B = {WAL_CEILING_NUM}/{WAL_CEILING_DEN} — tức \
+         nó lớn theo lượng ghi chứ không theo ngưỡng.\n\n\
+         ĐỪNG nới trần theo phản xạ: mệnh đề 1 (*chững lại*) ở ngay trên đã xanh hay chưa, \
+         và `threshold_triggered`/`frames_checkpointed` dưới đây nói cơ chế có chạy hay \
+         không. Hai câu đó phân biệt *một hồi quy của tầng Store* với *một trần hiệu chuẩn \
+         sai*. Stats: {stats:?}"
     );
 
     drop(store);

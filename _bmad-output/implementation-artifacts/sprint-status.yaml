@@ -297,13 +297,13 @@ development_status:
 # ══════════════════════════════════════════════════════════════════════════════════
 action_items:
   - epic: 1
-    action: "QUYET MOT CAU: AC5 cua Story 1.7 noi chung lai hay noi co tran tuyet doi? `store_contract::the_wal_stops_growing_once_it_crosses_the_threshold` do tren Windows — WAL 889.952 B tren tran assert 327.680 B, trong khi co che checkpoint CO chay (51 luot, 6.392 frame). Xem §3c cua bao cao retro"
+    action: "AC5 cua Story 1.7 noi CHUNG LAI, khong noi co tran tuyet doi — Ice chot 2026-08-11, chap nhan noi tran. Tran nay tach theo nen tang (Windows 3/4, macOS giu 1/4) va hieu chuan tren n=1; diem do thu hai lay bang `cargo test --test store_contract -- --nocapture`"
     owner: "Ice"
-    status: open
+    status: done
   - epic: 1
     action: "Merge nhanh `fix/ci-windows-cargo-test` vao `master` — nhanh dua Windows tu 0 ca chay duoc len 263/264 xanh"
     owner: "Ice"
-    status: open
+    status: done
   - epic: 1
     action: "Doc `GITHUB_STEP_SUMMARY` cua luot Windows xanh dau tien, dien AC6 + AC7 cua Story 1.3; chay Task 11 hang 4 roi hoan nguyen"
     owner: "Dev"

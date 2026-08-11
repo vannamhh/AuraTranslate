@@ -1388,3 +1388,19 @@ một khẳng định nào của story file làm đúng sẵn. Báo cáo đầy 
   được hiệu chuẩn trên một nền tảng**. Tới lúc đó để nó **ĐỎ** — một pipeline đỏ vì một câu
   hỏi thật tốt hơn một pipeline xanh vì một câu hỏi bị nới. **Chủ: Ice** · liên đới
   **Story 1.7**.
+
+- ✅ **ĐÓNG bằng một QUYẾT ĐỊNH của Ice, 2026-08-11: AC5 nói *"CHỮNG LẠI"*, không nói *"có
+  trần tuyệt đối"* — chấp nhận nới trần.** Trần của mệnh đề 2 nới **theo nền tảng**, KHÔNG
+  nới toàn cục: Windows `3/4`, macOS giữ nguyên `1/4`. Lý do không nới chung: hạ trần chung
+  vứt luôn bảo đảm chặt của nền tảng Ice phát triển hằng ngày cho một khác biệt chỉ tồn tại
+  ở nền tảng kia.
+  **Hai điểm đo đứng sau con số:** macOS **94.792 B = 7,2%** lượng đã ghi, và **bằng nhau ở
+  cả hai đợt** *(WAL quay đầu mỗi lượt)*; Windows **889.952 B = 67,9%**. Chênh **9,4 lần**.
+  Trần 3/4 nằm giữa số đo Windows (67,9%) và ngưỡng của *"cơ chế vắng mặt"* (≈100%), đặt
+  gần số đo hơn để còn bắt được hồi quy; trần 1/4 của macOS có dư địa 3,5 lần.
+  ⚠️ **Trần Windows hiệu chuẩn trên ĐÚNG MỘT phép đo (n = 1).** Điểm đo thứ hai lấy được
+  mà không cần một lượt đỏ: `cargo test --test store_contract -- --nocapture` in cả hai số
+  cộng tỷ lệ phần trăm. Thông điệp của assert nay mang **cả** `after_first` lẫn một câu
+  nhắc phân biệt *một hồi quy tầng Store* với *một trần hiệu chuẩn sai* — mệnh đề 1 và
+  `threshold_triggered`/`frames_checkpointed` là hai câu trả lời đó. Đường đóng thật sự vẫn
+  là đo trên một máy Windows — **món nợ A5**.
