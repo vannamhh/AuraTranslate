@@ -19,6 +19,7 @@
     "check:scope:bundled": "node scripts/check-scope-bundled.mjs",
     "check:dict": "node scripts/check-dict-build.mjs",
     "check:dict-manifest": "node scripts/check-dict-manifest.mjs",
+    "check:gates": "node scripts/check-gates.mjs",
     "check:lint": "eslint src"
   },
   "dependencies": {

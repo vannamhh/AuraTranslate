@@ -173,6 +173,16 @@ jobs:
       - name: check lint có kiểu (cổng thứ mười — lượt review Story 1.21)
         run: npm run check:lint
 
+      # Cổng thứ MƯỜI MỘT — hai danh sách cổng phải khai cùng một bộ. Nó tồn tại vì cổng
+      # thứ mười ở ngay trên đã sống ba mươi tiếng trong `package.json` mà `ci.yml` không
+      # gọi, và không phép kiểm nào biết. Kho có HAI danh sách cổng; đây là thứ buộc chúng
+      # khớp.
+      #
+      # ⚠️ Nó đọc chính tệp này. Thêm một `check:*` vào `package.json` mà quên thêm một
+      # bước ở đây ⇒ bước này ĐỎ, ở cổng chứ không ở một lượt rà soát epic sáu ngày sau.
+      - name: check hai danh sách cổng khớp nhau (cổng thứ mười một)
+        run: npm run check:gates
+
       # ⚠️⚠️ THỨ TỰ BẮT BUỘC — bước này PHẢI đứng TRƯỚC `cargo test`.
       # `tauri::generate_context!` nhúng `frontendDist: "../dist"` LÚC BIÊN DỊCH. `dist/`
       # chưa tồn tại thì `cargo test` gãy ở khâu biên dịch, không ở một assert. Trên máy
