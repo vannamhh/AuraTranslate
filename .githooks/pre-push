@@ -1,0 +1,83 @@
+#!/bin/sh
+# ══════════════════════════════════════════════════════════════════════════════════
+#  Cổng chặn lúc PUSH — thay chỗ mà GitHub Actions bỏ trống (Ice chốt 2026-08-11).
+# ══════════════════════════════════════════════════════════════════════════════════
+#
+# 🔴 VÌ SAO CHẶN CHỨ KHÔNG BÁO CÁO
+#
+# Phát hiện nặng nhất của retrospective Epic 1: CI đã chạy 12 lượt và ĐỎ cả 12, suốt
+# sáu ngày, mà không một story nào biết — vì nó chỉ **báo cáo** lên một tab không ai mở.
+# Một cổng chặn không có lối hỏng đó: nó đứng chắn đường push, nên nó được đọc hay
+# không cũng không quan trọng.
+#
+# Cùng lý do, cổng này KHÔNG viết log rồi tiếp tục. Đỏ là dừng.
+#
+# ── Phạm vi: cái gì Ở TRONG và vì sao ────────────────────────────────────────────
+#
+# TRONG (50 giây ấm, đo 2026-08-11: cổng 11s · build 5s · cargo test 34s):
+#   chín cổng đọc-tệp · `npm run build` · `cargo test --locked`
+#
+# NGOÀI, có chủ ý:
+#   - `check:scope` và `check:scope:bundled` — hai cổng này dựng một cửa sổ Tauri thật
+#     và cần cổng 1420 trống. Chúng trượt nếu Ice đang mở `npm run tauri dev`, tức một
+#     cổng chặn sẽ chặn nhầm vào đúng lúc đang làm việc. Chạy tay:
+#         npm run check:scope && npm run check:scope:bundled
+#   - Bộ e2e — mỗi spec mở một cửa sổ thật, tốn ~1,5 phút, VÀ nó sửa `global.db` thật
+#     của người chạy (xem §Giới hạn ở `e2e/wdio.conf.mjs`). Không có việc gì trong một
+#     cổng chạy mỗi lượt push. Chạy tay:  npm run test:e2e
+#
+# ⚠️ GIỚI HẠN THẬT, ghi ra thay vì để người sau tưởng nhầm: cổng này chạy trên **macOS
+# của Ice**, nên nó KHÔNG nói được gì về nửa Windows. Sau khi bỏ GitHub Actions, nửa đó
+# không còn đường nghiệm thu nào — 263 ca xanh đo ở run `31469843146` là một ảnh chụp,
+# không phải một trạng thái được canh. Xem action item A5 của retrospective.
+#
+# Bỏ qua một lượt:  git push --no-verify
+# Gỡ hẳn:           git config --unset core.hooksPath
+
+set -e
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+red()   { printf '\033[31m%s\033[0m\n' "$1"; }
+green() { printf '\033[32m%s\033[0m\n' "$1"; }
+
+fail() {
+  echo ''
+  red "PUSH BỊ CHẶN — $1 ĐỎ."
+  echo ''
+  echo "Chạy lại một mình để đọc chi tiết:  $2"
+  echo ''
+  echo 'Nếu thật sự cần đẩy đi kèm một cổng đỏ, viết lý do vào commit message rồi:'
+  echo '  git push --no-verify'
+  exit 1
+}
+
+START=$(date +%s)
+echo ''
+echo 'pre-push — chín cổng, build, cargo test.'
+
+for gate in deps tokens i18n commands layout dict dict-manifest lint gates; do
+  printf '  %-14s' "$gate"
+  if npm run --silent "check:$gate" >/dev/null 2>&1; then
+    green 'OK'
+  else
+    echo ''
+    fail "check:$gate" "npm run check:$gate"
+  fi
+done
+
+printf '  %-14s' 'build'
+if npm run build >/dev/null 2>&1; then green 'OK'; else echo ''; fail 'npm run build' 'npm run build'; fi
+
+printf '  %-14s' 'cargo test'
+if (cd src-tauri && cargo test --locked >/dev/null 2>&1); then
+  green 'OK'
+else
+  echo ''
+  fail 'cargo test' 'cd src-tauri && cargo test --locked'
+fi
+
+echo ''
+green "Tất cả xanh trong $(( $(date +%s) - START ))s. Đẩy đi."
+echo ''
