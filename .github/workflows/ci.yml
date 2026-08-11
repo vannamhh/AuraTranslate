@@ -157,6 +157,22 @@ jobs:
       - name: check workspace layout (AC1, AC4, AC7, AC12 — Story 1.14)
         run: npm run check:layout
 
+      # Cổng thứ MƯỜI — lint có kiểu (`01be1c2`, lượt code review Story 1.21). Nó đóng
+      # đúng lớp lỗi mà chín cổng kia không canh được: `if (someRef)` trên một `Ref` của
+      # Vue là TypeScript hợp lệ, `vue-tsc` im, và nhánh bên trong thành mã chết. Hai
+      # trong bốn phát hiện hạng cao của lượt review đó là đúng hình dạng này.
+      #
+      # 🔴 Bước này THIẾU khỏi pipeline từ lúc cổng ra đời (2026-08-11) tới lượt rà soát
+      # toàn Epic 1 cùng ngày: cổng sống trong `package.json` nhưng CI không gọi, nên nó
+      # canh máy dev và KHÔNG canh nhánh. Đó là đúng lớp hỏng-im-lặng mà AC3 của story
+      # này tồn tại để chặn.
+      #
+      # ⚠️ `eslint` chạy có kiểu (`projectService`), nên nó cần `node_modules` — đã có từ
+      # `npm ci` — nhưng KHÔNG cần `dist/`. Giữ nó ở cụm đọc-tệp này, đừng đẩy xuống sau
+      # `npm run build`.
+      - name: check lint có kiểu (cổng thứ mười — lượt review Story 1.21)
+        run: npm run check:lint
+
       # ⚠️⚠️ THỨ TỰ BẮT BUỘC — bước này PHẢI đứng TRƯỚC `cargo test`.
       # `tauri::generate_context!` nhúng `frontendDist: "../dist"` LÚC BIÊN DỊCH. `dist/`
       # chưa tồn tại thì `cargo test` gãy ở khâu biên dịch, không ở một assert. Trên máy
