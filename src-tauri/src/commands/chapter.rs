@@ -40,6 +40,11 @@ pub struct OpenChapter {
 ///
 /// Đi qua `IpcError::new` với `MessageKey::ProjectNoWorkOpen` — không phải một lỗi kho
 /// (`StoreError`), nên nó không thuộc từ vựng `store.*` (§Quyết định của Story 1.16).
+///
+/// ⚠️ Riêng tư trở lại từ 2026-08-11: Story 1.20 từng nâng nó lên `pub(crate)` để
+/// `commands::pinned` tái dùng, nhưng lượt Ice ký lại chuyển mục ghim sang `global.db` —
+/// nơi *"chưa mở Tác phẩm nào"* **không phải** một câu có nghĩa. Đọc Chương lại là chỗ duy
+/// nhất nói câu đó, nên nó về đúng phạm vi cũ.
 fn no_work_open() -> IpcError {
     IpcError::new(
         "project.no_work_open",

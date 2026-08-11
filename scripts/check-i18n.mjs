@@ -273,8 +273,12 @@ const vueFiles = keep(vueAll)
 // 🔴 NÂNG 2026-08-07 (code review) — cùng lý do `CLICK_FLOOR` của `check-commands.mjs`:
 // AC13 gọi đích danh sàn này (*"`RS_FLOOR` **32** vs 39"*) và bản đầu đánh dấu nó *"không
 // đổi"* thay vì nâng. 32/40 = 80%, sát mép dưới; 34/40 = 85%, khớp doctrine.
-const RS_FLOOR = 34 // số THẬT 2026-08-07: 40 tệp `.rs`
-const VUE_FLOOR = 12 // số THẬT 2026-08-10 (sau Story 1.19): 14 tệp `.vue`
+const RS_FLOOR = 35 // số THẬT 2026-08-10 (sau Story 1.20): 41 tệp `.rs`
+// ⚠️ **KHÔNG nâng ở Story 1.20** — số thật vẫn là 14 (`commands/pinned.rs` là `.rs`, và
+// story này không thêm một component `.vue` nào; dải tab và tab Lịch sử sống trong
+// `LookupPanel.vue` đã có). Một sàn nâng mà số thật không đổi là một sàn nâng theo cảm
+// giác, đúng thứ AC13 đòi *"số THẬT, không ước"*.
+const VUE_FLOOR = 12 // số THẬT 2026-08-10 (sau Story 1.20): 14 tệp `.vue`
 if (rsFiles.length < RS_FLOOR || vueFiles.length < VUE_FLOOR) {
   abort(
     `quần thể quét — ${rsFiles.length} tệp \`.rs\` (sàn ${RS_FLOOR}) · ` +

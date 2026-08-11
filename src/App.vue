@@ -315,6 +315,45 @@ onMounted(async () => {
 .modeport {
   flex: 1;
   min-height: 0;
+  /*
+   * ═════════════════════════════════════════════════════════════════════════════════
+   * 🔴 NGỮ CẢNH XẾP LỚP CHO CẢ CÂY DOCKVIEW — Ice bắt bằng mắt 2026-08-10
+   * ═════════════════════════════════════════════════════════════════════════════════
+   *
+   * Triệu chứng: mở màn hình *Nguồn dữ liệu*, **thanh kéo (sash) chia bốn panel vẽ ĐÈ lên
+   * lớp phủ** — hai vệt màu nền cắt ngang bảng ghi công.
+   *
+   * Ba phép đo, không một suy đoán:
+   *   `dockview.css:2940-2942`  → `.dv-sash { position: absolute; z-index: 99 }`
+   *   `AttributionOverlay.vue`  → `.attr-scrim { position: fixed; z-index: 10 }`
+   *   khối này TRƯỚC lượt vá    → `flex: 1; min-height: 0`, tức **không** thuộc tính nào
+   *                               tạo ngữ cảnh xếp lớp
+   * ⇒ `99` và `10` tranh nhau trong **cùng một** ngữ cảnh gốc, và sash thắng. Thanh sash
+   * mang `--dv-sash-color: var(--color-background)` (`dockview-theme.css:62`), nên nó vẽ
+   * ra đúng hai vệt màu nền mà ảnh chụp cho thấy.
+   *
+   * 🔴 **VÌ SAO KHÔNG NÂNG `z-index` CỦA LỚP PHỦ.** Đó là cách vá hiển nhiên và là cách
+   * sai: dockview đang dùng `99` (sash), `999` (drop target), `1000`, và `9999`
+   * (`.dv-drop-target-container`). Chọn một số lớn hơn là bước vào một cuộc đua với một
+   * thư viện ghim theo phiên bản — ta thắng hôm nay và thua im lặng ở lần nâng
+   * `dockview-vue` kế tiếp, với triệu chứng y hệt và không cổng nào đỏ.
+   *
+   * `isolation: isolate` nói đúng mệnh đề cần nói: *"mọi `z-index` bên trong cây dockview
+   * là chuyện NỘI BỘ của nó"*. Cả `99`, `999` lẫn `9999` thành cục bộ, thứ tự giữa chúng
+   * **không đổi một chút nào** (drop target vẫn trên panel), còn `.attr-scrim` — nằm
+   * NGOÀI khối này, anh em với nó trong `.shell` — chỉ cần đứng trên `.modeport` như một
+   * khối duy nhất. `z-index: 10` của nó ở lại nguyên giá trị và nguyên lý do.
+   *
+   * ⚠️ `isolation` KHÔNG phải `z-index`, nên nó không cần `aura-allow-z-index` của Kiểm F
+   * (`check-tokens.mjs:1370`) — và nó cũng không đụng bố cục: không `position`, không
+   * `transform`, không `opacity`.
+   *
+   * ⚠️ Giới hạn đã biết: nếu dockview gắn một lớp phủ vào thẳng `document.body` (ngoài
+   * khối này) thì `9999` của nó lại vượt lên. Đường duy nhất làm việc đó là
+   * `addPopoutGroup`, và `scripts/check-layout.mjs` **cấm** nó (Story 1.14 · AC1) — nên
+   * hôm nay không có đường nào, và ngày có thì cổng đó đỏ trước.
+   */
+  isolation: isolate;
 }
 
 .selftest {

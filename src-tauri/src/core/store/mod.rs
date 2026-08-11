@@ -94,8 +94,8 @@ pub(crate) mod writer;
 pub use checkpoint::CheckpointStats;
 pub use readonly::ReadOnlyDb;
 pub use schema::{
-    CHAPTER_DDL, CONFIG_VALUE_DDL, GLOBAL_MIGRATIONS, Migration, PROJECT_MIGRATIONS,
-    SCHEMA_MIGRATION_LOG_DDL, WORK_DDL,
+    CHAPTER_DDL, CONFIG_VALUE_DDL, GLOBAL_MIGRATIONS, Migration, PINNED_ENTRY_DDL,
+    PROJECT_MIGRATIONS, SCHEMA_MIGRATION_LOG_DDL, WORK_DDL,
 };
 
 /// Kiểu giao dịch mà một job ghi nhận được. Tái xuất để chỗ gọi **không phải gõ

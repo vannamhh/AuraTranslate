@@ -40,4 +40,5 @@
 pub mod chapter;
 pub mod config;
 pub mod dict;
+pub mod pinned;
 pub mod project;

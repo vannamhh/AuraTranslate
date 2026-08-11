@@ -104,7 +104,69 @@ CREATE TABLE config_value (
   PRIMARY KEY (kind, key)
 );";
 
-/// Bộ di trú của `global.db`. Hôm nay **hai** bước.
+/// Lược đồ bảng `pinned_entry` — **bước 3 của `global.db`**, Story 1.20, AC2 · AC3.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 PHẠM VI **TOÀN ỨNG DỤNG**, KHÔNG THEO TÁC PHẨM — Ice ký lại 2026-08-11
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Ngày 2026-08-10 Quyết định #1 chốt `project.db` (phạm vi Tác phẩm), dựa trên hai câu
+/// trong mockup và một lý lẽ ngữ nghĩa. Một phép đo ngày hôm sau lật nó, và phép đo đó là
+/// thứ bảng so sánh của story **không có hàng nào cho**:
+///
+/// **Hôm nay không tồn tại đường mở lại một `.atproj` từ đĩa.** `OpenWorkState` khởi động
+/// với `None` và **chỉ** `create_work_*` đặt được giá trị vào đó — 11 command IPC, không
+/// cái nào đọc một Tác phẩm có sẵn (`commands/chapter.rs` ghi mệnh đề này bằng chữ).
+/// ⇒ Với ghim ở `project.db`, đóng app rồi mở lại là **không Tác phẩm nào đang mở**, nên
+/// bộ ghim không có đường nào để đọc tới. **AC3** — *"đóng rồi mở lại ứng dụng, mục ghim
+/// vẫn còn"* — đúng trên đĩa mà **không bao giờ đúng trên màn hình**, cho tới Epic 5.
+///
+/// `global.db` mở **một lần** ở `setup()` và sống suốt vòng đời tiến trình, nên nó là chỗ
+/// duy nhất AC3 có nghĩa được hôm nay.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỘT BẢNG RIÊNG, KHÔNG MỘT KHOÁ `config_value` — Quyết định #2, VẪN ĐỨNG
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Lượt đổi phạm vi ở trên **không** kéo theo lượt đổi hình dạng, và lý do vẫn nguyên vẹn:
+///
+/// - `KEY_DICT_DISABLED` chở **một tập mã ngắn** (`"cvdict,thieuchuu"`) — một chuỗi phẳng.
+/// - Một mục ghim chở **nhiều trường có cấu trúc**: nguồn, `entry_id`, đầu mục, nghĩa rút
+///   gọn để hiện lại mà không phải tra lại, thời điểm ghim.
+/// - [`CONFIG_VALUE_DDL`] là `(kind, key) → TEXT`. Nhồi một danh sách bản ghi vào đó là
+///   dựng lại đúng lược đồ EAV mà doc-comment của nó cấm bằng chữ — và nay `config_value`
+///   **có mặt** trong cùng kho, nên cám dỗ đó là thật chứ không còn lý thuyết.
+/// - Bảng này **không** phục vụ một `ScopeKind` nào: `CONFIG_VALUE_DDL` dành riêng cho ba
+///   loại `Semantics::GlobalOnly`, còn mục ghim là dữ liệu miền. **0** `ScopeKind` mới.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `UNIQUE (source_code, entry_id)` LÀ HỢP ĐỒNG Ở TẦNG LƯỢC ĐỒ
+/// ─────────────────────────────────────────────────────────────────────────────
+/// *"Ghim hai lần cùng một mục không sinh hai hàng"* được **SQLite** cưỡng chế, không một
+/// lượt `SELECT` trước `INSERT` ở tầng ứng dụng mà hai luồng có thể chen vào giữa — cùng
+/// doctrine `CHECK (id = 1)` của [`WORK_DDL`].
+///
+/// `AUTOINCREMENT` cùng lý do [`CHAPTER_DDL`]: AD-3 nói id đã về hưu không bao giờ được
+/// phát lại, và `INTEGER PRIMARY KEY` trần tái dùng rowid lớn nhất vừa xoá.
+///
+/// `gloss` để `NULL` được: một mục ghim từ một lượt tra không có nghĩa nào lấy về vẫn ghim
+/// được. `headword` và `gloss` là **ảnh chụp** để hiện lại hàng mà không phải tra lại —
+/// chấp nhận rằng chúng cũ đi nếu tệp `.db` nguồn được thay ở một bản phát hành sau.
+///
+/// **Không** cột `lookup_count`. Một số đếm bền vững cần một lượt ghi đĩa **mỗi lượt tra**,
+/// tức đưa một `Store::write` vào đường nóng của Auto-Lookup và cho nó cạnh tranh hàng đợi
+/// ghi nối tiếp với auto-save Editor (NFR2, AD-11/AD-12). Không AC nào đòi số đếm sống qua
+/// phiên — AC3 chỉ đòi **mục ghim** còn.
+pub const PINNED_ENTRY_DDL: &str = "\
+CREATE TABLE pinned_entry (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_code TEXT NOT NULL,
+  entry_id    INTEGER NOT NULL,
+  headword    TEXT NOT NULL,
+  gloss       TEXT,
+  pinned_at   TEXT NOT NULL,
+  UNIQUE (source_code, entry_id)
+);";
+
+/// Bộ di trú của `global.db`. Hôm nay **ba** bước — Story 1.7 · 1.8 · 1.20.
 ///
 /// Không thêm bước cho một lược đồ chưa tồn tại. Mỗi story sở hữu bước di trú của
 /// chính nó, cùng lúc với bảng mà nó cần.
@@ -122,6 +184,10 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 2,
         sql: CONFIG_VALUE_DDL,
+    },
+    Migration {
+        to_version: 3,
+        sql: PINNED_ENTRY_DDL,
     },
 ];
 
@@ -189,6 +255,11 @@ CREATE TABLE chapter (
 
 /// Bộ di trú của `project.db`. Hôm nay **ba** bước — Story 1.15.
 ///
+/// ⚠️ Con số này đọc **ba**, không bốn: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
+/// gỡ ở lượt Ice ký lại 2026-08-11 *(vết sẹo ghi đầy đủ ở cuối doc-comment này)*. Một
+/// dòng tiêu đề nói một số mà bảng hằng ngay dưới nói một số khác là đúng thứ rot mà cả
+/// kiến trúc này dựa vào doc-comment để tránh — bắt ở code review 2026-08-11.
+///
 /// ⚠️ **Ba bước, không phải một** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
 /// hai chuỗi ở **compile time** mà không thêm phụ thuộc) chỉ nhận **literal**, không
@@ -204,6 +275,25 @@ CREATE TABLE chapter (
 /// Không thêm bước cho một lược đồ chưa tồn tại — cùng luật với [`GLOBAL_MIGRATIONS`].
 /// **Không** bảng `segment`/Glossary/TM/prompt/asset ở đây; mỗi epic mang bảng riêng của
 /// nó cùng lúc với bước di trú cần nó.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// ⚠️ MỘT VẾT SẸO CÓ THẬT: `user_version = 4` ĐÃ TỒN TẠI TRÊN MÁY — Story 1.20
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Bản đầu của Story 1.20 (2026-08-10) thêm **bước 4** đặt [`PINNED_ENTRY_DDL`] vào bộ
+/// này, theo Quyết định #1 chốt ghim ở phạm vi Tác phẩm. Ngày 2026-08-11 Ice ký lại: ghim
+/// chuyển sang `global.db` *(lý do đo được ghi ở doc-comment của chính DDL đó)*, và bước 4
+/// **bị gỡ** — bộ này về đúng ba bước như trước story.
+///
+/// 🔴 Hệ quả **không** giấu: một `project.db` tạo ra trong khoảng giữa hai lượt ký mang
+/// `user_version = 4`, tức **cao hơn target**. [`super::Store::open`] sẽ **từ chối mở** nó
+/// bằng `store.schema_too_new` (AC7 của Story 1.7) — không hỏng im lặng, nhưng cũng không
+/// mở được. Đo 2026-08-11: **6** thư mục `.atproj` ở trạng thái đó, tất cả là tạo tác thử
+/// nghiệm của lượt nghiệm thu, và Ice chốt xoá chúng.
+///
+/// ⚠️ Số **4** vì thế là một số **đã cháy**: bước di trú kế tiếp của `project.db` phải
+/// đánh số **5**, không được tái dùng 4. Doc-comment đầu module nói bằng chữ vì sao —
+/// *"một bước như vậy là hai đường lược đồ khác nhau cho cùng một số, và chúng sẽ rẽ nhau
+/// ở máy người dùng chứ không ở đây"*. Đây là chỗ mệnh đề đó thành một ràng buộc thật.
 pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 1,

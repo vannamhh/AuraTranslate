@@ -19,6 +19,9 @@ import { computed, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { lookupDictionary } from '../config/dict'
 import type { LookupResponse, QueryRoute, SenseRecord, SourceGroup } from '../config/dict'
+// 🔴 STORY 1.20 — điểm ghi lịch sử. Chiều phụ thuộc đi MỘT hướng: tệp này biết
+// `lookupHistoryState`, tệp kia KHÔNG biết tệp này. Đảo lại là một vòng import.
+import { recordLookup, resetLookupHistory } from './lookupHistoryState'
 import type { IpcError } from '../i18n'
 
 /**
@@ -289,6 +292,19 @@ export async function runLookup(rawQuery: string): Promise<void> {
   resolvedQuery.value = err === null ? trimmed : null
   response.value = result
   error.value = err
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // 🔴 STORY 1.20 · AC11 — LỊCH SỬ TRA CỨU GHI Ở **ĐÚNG MỘT** CHỖ, VÀ ĐÂY LÀ CHỖ ĐÓ
+  // ═════════════════════════════════════════════════════════════════════════════
+  //
+  // ⚠️ **SAU guard `mine !== sequence` ở trên, không trước.** Ghi trước guard làm một lượt
+  // tra đã bị vượt mặt — hoặc đã bị `resetLookupPanel()` huỷ — vẫn để lại một dòng lịch sử,
+  // tức lịch sử của Tác phẩm A rò sang Tác phẩm B: đúng thứ `sequence` tồn tại để chặn.
+  //
+  // 🔴 Chỉ khi `err === null`, **kể cả** khi `groups` rỗng: *"đã tra mà không thấy"* là một
+  // sự kiện thật đáng nhớ, còn *"không tra được"* là một câu khác hẳn — trộn hai thứ là
+  // đúng bẫy `??` mà Story 1.17 đã bắt.
+  if (err === null && result !== null) recordLookup(trimmed, result)
 }
 
 /**
@@ -310,4 +326,13 @@ export function resetLookupPanel(): void {
   response.value = null
   error.value = null
   pending.value = false
+
+  // 🔴 STORY 1.20 · AC12 — lịch sử của Tác phẩm A không được sống sót sang Tác phẩm B.
+  // Cùng lượt, cùng điểm nghẽn — không một lời gọi thứ hai rải ra ở `libraryImport.ts`.
+  //
+  // ⚠️ **Bộ ghim thì KHÔNG nạp lại**, và đó là hệ quả của lượt Ice ký lại 2026-08-11: mục
+  // ghim sống ở `global.db`, tức nó không thuộc Tác phẩm nào. Vế *"nạp lại theo Tác phẩm
+  // mới"* của AC12 tự rụng cùng phạm vi cũ — đọc doc-comment của `resetLookupHistory()`
+  // để thấy hàm đó vứt đúng cái gì và cố ý giữ lại cái gì.
+  resetLookupHistory()
 }

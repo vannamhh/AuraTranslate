@@ -250,6 +250,27 @@ export type CommandDeps = {
   /** Đóng bề mặt ghi công. Handler của `attribution.close` (AC11). */
   closeAttribution?: () => void
 
+  // ── Story 1.20 — lịch sử tra cứu và mục đã ghim ────────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `toggleDictSource`: `panels/lookupHistoryState.ts`
+  // dùng `ref`/`computed` của Vue **và** gọi `@tauri-apps/api` xuyên qua `config/pinned.ts`
+  // — import thẳng nó ở đây giết Kiểm C/D/E cùng lúc.
+
+  /** Chọn tab của Panel Lookup. Handler của `lookup.select_tab_*` (AC5, AC6). */
+  selectLookupTab?: (tab: 'record' | 'history') => void
+  /**
+   * Ghim hoặc bỏ ghim mục từ **đang xem**. Handler của `lookup.toggle_pin` (AC2).
+   *
+   * 🔴 **Không** một tham số `entry_id`, và đó là §KHÔNG-LÀM ⑤ viết thành chữ ký — cùng
+   * lý lẽ đã ghi cho `toggleDictSource` ngay trên: một command cho mỗi mục ghim phá chính
+   * cơ chế đếm tĩnh mà `check-commands.mjs` dùng (`COMMAND_FLOOR`), và một id không tồn
+   * tại lúc dựng màn hình phím thì Story 1.21 không gán lại được. ⇒ handler đọc mục tiêu
+   * từ trạng thái quanh nó.
+   */
+  toggleLookupPin?: () => void
+  /** Xoá lịch sử tra cứu của phiên. Handler của `lookup.clear_history` (AC6). */
+  clearLookupHistory?: () => void
+
   /**
    * Các panel đang HIỆN, theo **thứ tự bố cục** (AC9).
    *
@@ -623,6 +644,87 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
       },
     })
   }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 1.20 — BỐN COMMAND CHO LỊCH SỬ TRA CỨU VÀ MỤC ĐÃ GHIM (AC6)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🔴 ID ĐẶT THEO MÃ THẬT, KHÔNG THEO `settings.html` — Quyết định #7
+   * ─────────────────────────────────────────────────────────────────────────────
+   * `mockups/settings.html:282` ghi mã lệnh `lookup.entry.pin`. Cùng bảng đó ghi
+   * `lookup.query.selection` cho Auto-Lookup — mã thật là **`lookup.lookup_selection`** —
+   * và ghi `editor.segment.nextUntranslated`, thứ **vi phạm văn phạm id** của chính
+   * registry: `COMMAND_ID_RE` (`./registry.ts`) không cho chữ hoa, nên `register()` sẽ
+   * **ném**. ⇒ cả bảng đó là phác thảo trước khi văn phạm được chốt ở Story 1.6. Id ở đây
+   * theo khuôn hai đoạn của `source.select_tab_original`/`lookup.toggle_source`.
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🔴 `Mod+D` — ĐÚNG MỘT NGOẠI LỆ SO VỚI TIỀN LỆ "0 PHÍM MẶC ĐỊNH" CỦA STORY 1.19
+   * ─────────────────────────────────────────────────────────────────────────────
+   * Ice ký 2026-08-10, và ba phép đo đứng sau nó:
+   * ① **trống hoàn toàn** — `grep -rn "Mod+D\|KeyD" src/ scripts/` trả **0** lần (đo lại
+   *    2026-08-10 trước khi gõ dòng này); hợp âm đang chiếm là `Mod+1/2/3` · `Mod+Alt+1/2`
+   *    · `Mod+Alt+O/J/V/L/S` · `Mod+Alt+←/→` · `Shift+Arrow…` · `Alt+Shift+Arrow…`. Không
+   *    menu Tauri nào tranh (`tauri.conf.json` không khai menu);
+   * ② **luật vùng gõ không chặn nó** — `./keys.ts` áp luật vùng gõ **chỉ khi**
+   *    `lacksPrimaryMod`, và `Mod+D` mang phím bổ trợ chính ⇒ ghim được kể cả khi caret
+   *    đang trong một ô nhập, đúng lời hứa NFR17;
+   * ③ `createKeymap` không ném — không command nào đang giành hợp âm này.
+   *
+   * 🔴 **`⌘⌫` của mockup bị BÁC** cho `lookup.clear_history`, và bằng chính phép đo ②:
+   * một hợp âm mang `Mod` **không** bị luật vùng gõ chặn, nên `Mod+Backspace` sẽ cướp
+   * *"xoá tới đầu dòng"* của macOS ngay giữa lúc người dùng đang gõ — để chạy một thao tác
+   * **phá hoại**. Xoá lịch sử tới được bằng Tab + Enter, và gán lại được ở Story 1.21.
+   *
+   * ⚠️ **Rủi ro đã biết, hôm nay bằng 0:** một `global.db` đã gán `Mod+D` cho command khác
+   * làm `createKeymap` ném, và `installCommands()` chạy trước `mount()` (§Bẫy 5). Hôm nay
+   * chưa có đường nào để người dùng gán phím — màn hình gán phím là Story 1.21, và chính
+   * nó phải xử xung đột chứ không im lặng ghi đè.
+   *
+   * ⚠️ Viết **`Mod`**, không `Cmd`/`Ctrl`: `./keys.ts` là tầng trung lập nền tảng, và một
+   * hợp âm viết cứng theo một hệ điều hành là đúng thứ Kiểm D (NFR14) tồn tại để chặn.
+   *
+   * ⚠️ HAI command CHỌN tab (không MỘT command toggle) — cùng khuôn `source.select_tab_*`:
+   * bấm đúng tab đang chọn là một thao tác VÔ HẠI, không lật sang tab kia.
+   */
+  for (const [id, tab] of [
+    ['lookup.select_tab_record', 'record'],
+    ['lookup.select_tab_history', 'history'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: chordsFor(id, bindings, undefined),
+      run: () => {
+        if (deps.selectLookupTab === undefined) return portMissing(id, 'selectLookupTab')
+        deps.selectLookupTab(tab)
+      },
+    })
+  }
+
+  target.register({
+    id: 'lookup.toggle_pin',
+    labelKey: 'command.lookup.toggle_pin',
+    keys: chordsFor('lookup.toggle_pin', bindings, ['Mod+D']),
+    run: () => {
+      if (deps.toggleLookupPin === undefined) return portMissing('lookup.toggle_pin', 'toggleLookupPin')
+      deps.toggleLookupPin()
+    },
+  })
+
+  target.register({
+    id: 'lookup.clear_history',
+    labelKey: 'command.lookup.clear_history',
+    keys: chordsFor('lookup.clear_history', bindings, undefined),
+    run: () => {
+      if (deps.clearLookupHistory === undefined) {
+        return portMissing('lookup.clear_history', 'clearLookupHistory')
+      }
+      deps.clearLookupHistory()
+    },
+  })
 
   for (const [id, port, chord] of [
     ['selection.extend_left', 'extendSelectionLeft', 'Shift+ArrowLeft'],

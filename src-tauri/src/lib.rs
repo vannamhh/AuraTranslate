@@ -85,6 +85,12 @@ pub fn run() {
             crate::commands::dict::wire::read_han_viet,
             crate::commands::dict::wire::lookup_dictionary,
             crate::commands::dict::wire::list_dict_sources,
+            // Story 1.20 — muc da ghim, pham vi TOAN UNG DUNG (`global.db`, Ice ky lai
+            // 2026-08-11): khong ton tai duong mo lai mot `.atproj`, nen mot bo ghim o
+            // `project.db` khong co duong nao de doc toi sau khi dong app.
+            crate::commands::pinned::wire::list_pinned_entries,
+            crate::commands::pinned::wire::pin_entry,
+            crate::commands::pinned::wire::unpin_entry,
         ])
         .setup(move |app| {
             #[cfg(debug_assertions)]

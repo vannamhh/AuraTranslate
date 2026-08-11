@@ -1,5 +1,5 @@
 # generated: 2026-08-03T13:04:45
-# last_updated: 2026-08-08T12:00:00
+# last_updated: 2026-08-11T00:00:00
 # project: AuraTranslate
 # project_key: NOKEY
 # tracking_system: file-system
@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-10T12:00:00
+last_updated: 2026-08-11T00:00:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -101,8 +101,40 @@ development_status:
   # ⚠️ Mockup `sources-attribution.html` LỆCH dữ liệu thật ở ba chỗ (thừa HVTĐTD + Cổ hán văn,
   # thiếu Trần Văn Chánh) — màn hình phải dẫn xuất từ tệp có mặt, không chép bảng của mockup.
   1-19-bat-tat-nguon-tu-dien-va-ghi-cong: done
-  1-20-lich-su-tra-cuu-va-muc-da-ghim: backlog
-  1-21-phim-tat-cau-hinh-lai-duoc: backlog
+  # Mockup `lookup-history-pins.html` LỆCH mã thật ở BA chỗ, story file ghi cả ba: ① vẽ ba
+  # tab gồm `Concordance` (FR64/Story 7.7, đo được 0 lần trong `src/`) ⇒ dựng HAI tab;
+  # ② thanh lọc "Cả Tác phẩm" mâu thuẫn AC4 (lịch sử TRONG PHIÊN) ⇒ loại; ③ bảng mã lệnh
+  # của `settings.html` dùng văn phạm chưa tồn tại — `editor.segment.nextUntranslated` vi
+  # phạm `COMMAND_ID_RE` và làm `register()` ném.
+  # 🔴 Regression tìm được lúc dựng story, thành AC14: `PanelFrame` render câu trạng thái
+  # TRÊN `<slot />` và `showFrameStatus = neverLookedUp`, nên tab Lịch sử ở app vừa mở bị
+  # đè câu "Chọn một từ trong Nguyên văn để tra cứu" — đúng ca nghiệm thu AC3.
+  # ✅ Ice ký hai quyết định 2026-08-10, KHÔNG mở lại: ghim ở `project.db` (phạm vi Tác phẩm,
+  # bước di trú mới vào `PROJECT_MIGRATIONS` `to_version: 4`); `lookup.toggle_pin` mang
+  # `Mod+D` — phá tiền lệ "0 phím mặc định" của 1.19 CÓ CHỦ Ý, ba command còn lại giữ
+  # `undefined`. `⌘⌫` của mockup bị bác: `keys.ts:227,287` cho thấy hợp âm mang `Mod` không
+  # bị luật vùng gõ chặn, nên nó sẽ cướp "xoá tới đầu dòng" giữa lúc đang gõ.
+  # ⚠️ Năm quyết định còn lại (#2 #3 #4 #5 #7) chốt ở Task 0 trước dòng mã đầu tiên.
+  1-20-lich-su-tra-cuu-va-muc-da-ghim: in-progress
+  # 🔴 CHẶN bởi 1-20: cây làm việc lúc dựng story (2026-08-11) mang 23 dòng `git status`
+  # chưa commit của 1.20, và SÁU tệp trong đó là đúng tệp 1.21 phải sửa (`commands/index.ts`,
+  # `main.ts`, `App.vue`, `vi.json`, `check-commands.mjs`, `check-i18n.mjs`). Không bắt đầu
+  # Task 1 trước khi 1.20 commit và `git status --porcelain` trả 0 dòng — mệnh đề chặn đầy đủ
+  # ở §Điều kiện khởi hành của story file. Không có trạng thái `blocked` trong lược đồ này.
+  # ✅ Đo được, và nó đổi hình dạng story: đường lưu phím tắt ĐÃ CÓ SẴN từ Story 1.8 và chưa
+  # ai đi — `ScopeKind::Shortcut` (`kinds.rs:204`, GlobalOnly), `bootstrap_config.shortcuts`,
+  # `save_value`, `putConfig`, và cả một test vòng ghi–đọc (`scope_contract.rs:567`).
+  # ⇒ 0 bước di trú, 0 `MessageKey` mới; Rust chỉ chạm nếu Quyết định ⑦(a) (`delete_config`).
+  # ⚠️ Ba bẫy đã có TÊN trong chính mã nguồn, không phải suy đoán: ① `kinds.rs:36` cấm đích
+  # danh việc story này dựng thanh chuyển phạm vi Toàn cục/Tác phẩm mà `settings.html:243-248`
+  # vẽ; ② `check-commands.mjs:1398-1404` ĐỎ nếu `unbound()` rỗng, nên story KHÔNG được gán
+  # hợp âm mặc định cho các command đang trống; ③ `spec.keys`/`unbound()` bị `Object.freeze`
+  # lúc đăng ký, nên sau lượt gán đầu tiên chúng là câu trả lời CŨ — màn hình phải đọc
+  # `keymap.bindings()`.
+  # ⚠️ Bảy quyết định chốt ở Task 0. Quyết định #7 xin trả lại BA món nợ đang mang tên story
+  # này (`deferred-work.md:656` cờ `repeatable` · `:491` preset đặt tên · `:1135` token thứ tự)
+  # — cả ba có 0 AC ở `epics.md`. Đây là đổi quyền sở hữu, cần Ice ký.
+  1-21-phim-tat-cau-hinh-lai-duoc: ready-for-dev
   epic-1-retrospective: optional
 
   # Epic 2: Biên tập theo segment — một vòng dịch tay hoàn chỉnh

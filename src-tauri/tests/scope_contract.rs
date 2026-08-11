@@ -549,10 +549,15 @@ fn a_row_written_straight_into_global_db_resolves_back_through_the_scope_path() 
     let dir = temp_dir("e2e-read");
     let store = open_store(&dir);
 
-    assert_eq!(
-        store.schema_version(),
-        2,
-        "bước di trú 2 phải đã chạy — không có `config_value` thì AC5 không có gì để đọc"
+    // ⚠️ Ca này quan tâm *"bước 2 đã chạy chưa"*, không quan tâm target là bao nhiêu — nên
+    // nó hỏi `>= 2`, không `== 2`. Bản cũ viết `== 2` và vì thế đỏ ở Story 1.20 khi
+    // `GLOBAL_MIGRATIONS` lên ba bước: một ca về `config_value` **không** có việc gì phải
+    // đổi mỗi lần một story khác thêm một bảng khác vào cùng kho.
+    assert!(
+        store.schema_version() >= 2,
+        "bước di trú 2 phải đã chạy — không có `config_value` thì AC5 không có gì để đọc \
+         (phiên bản đọc được: {})",
+        store.schema_version()
     );
 
     store

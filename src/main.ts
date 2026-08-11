@@ -68,6 +68,16 @@ import {
   openAttribution,
   toggleFocusedDictSource,
 } from './panels/dictSourcesState'
+// ── Story 1.20 — lịch sử tra cứu và mục đã ghim ──────────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `dictSourcesState.ts`: `lookupHistoryState.ts` dùng `ref`
+// của Vue và gọi `@tauri-apps/api` xuyên qua `config/pinned.ts`.
+import {
+  clearLookupHistory,
+  loadPinnedEntries,
+  selectLookupTab,
+  toggleLookupPin,
+} from './panels/lookupHistoryState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -219,6 +229,10 @@ async function boot(): Promise<void> {
       toggleDictSource: toggleFocusedDictSource,
       openAttribution,
       closeAttribution,
+      // Story 1.20 · AC5 · AC6 — bốn command tĩnh cho dải tab, ghim và xoá lịch sử.
+      selectLookupTab,
+      toggleLookupPin,
+      clearLookupHistory,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
@@ -293,6 +307,22 @@ async function boot(): Promise<void> {
   void loadDictSources(
     typeof config?.dict_sources_disabled === 'string' ? config.dict_sources_disabled : '',
   )
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔴 STORY 1.20 — BỘ GHIM, NẠP **TRƯỚC** `mount()` VÀ KHÔNG `await`
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //
+  // ⚠️ Cùng lý lẽ `loadDictSources` ngay trên: chờ một vòng IPC mới dựng cửa sổ là tự tay
+  // thêm một khoảng trắng vào lúc khởi động. Tab Lịch sử đọc bốn vị từ của
+  // `lookupHistoryState.ts`, và cả bốn đều `false` trong khoảng chờ ⇒ tab nói ĐÚNG một
+  // thứ: không gì cả. Đó là hàng 3 của Bẫy 4 — *"đang nạp"* KHÔNG được nháy sang *"chưa
+  // ghim mục nào"*.
+  //
+  // 🔴 **Đây là lượt nạp DUY NHẤT**, và đó là hệ quả của phạm vi: từ 2026-08-11 mục ghim
+  // sống ở `global.db` (Ice ký lại), tức nó không thuộc về Tác phẩm nào và **không** phải
+  // nạp lại khi Tác phẩm đổi. Bản đầu gọi thêm một lượt trong `resetLookupHistory()`; lượt
+  // đó nay là một vòng IPC thừa cho cùng một sự thật.
+  void loadPinnedEntries()
 
   createApp(App).mount('#app')
 

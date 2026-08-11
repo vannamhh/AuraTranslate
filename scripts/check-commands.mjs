@@ -208,15 +208,15 @@ const tsFiles = keep(tsAll)
 // SAI. Sàn 10 vẫn đúng theo số thật 12 nên không hạ lại; chỉ **lý do** được sửa cho khớp sự
 // thật — một con số bịa trong đúng tệp mà cả kiến trúc dựa vào để tin các con số là chính
 // thứ rot mà AC13 tồn tại để chặn.
-const VUE_FLOOR = 11 // số THẬT 2026-08-06 (sau Story 1.17): 13 tệp `.vue`
-const TS_FLOOR = 23 // số THẬT 2026-08-10 (sau Story 1.19): 28 tệp `.ts`
+const VUE_FLOOR = 12 // số THẬT 2026-08-10 (sau Story 1.20): 14 tệp `.vue`
+const TS_FLOOR = 24 // số THẬT 2026-08-10 (sau Story 1.20): 30 tệp `.ts`
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
  * hai `layout.preset_*` · bốn `layout.toggle_*` · hai `library.import_*` · ba
  * `source.select_tab_*`/`toggle_han_viet_view` · `lookup.lookup_selection` (Story 1.17).
  * Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà không kiểm gì.
  */
-const COMMAND_FLOOR = 21 // số THẬT 2026-08-10 (sau Story 1.19): 25 command
+const COMMAND_FLOOR = 24 // số THẬT 2026-08-10 (sau Story 1.20): 29 command
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
@@ -234,8 +234,8 @@ const COMMAND_FLOOR = 21 // số THẬT 2026-08-10 (sau Story 1.19): 25 command
 // **6** vs 8"*) và đòi *"**mọi** hằng `*_FLOOR` bị vượt được nâng theo số thật"*. Bản đầu
 // đánh dấu nó *"không đổi ở Story 1.17"* thay vì nâng — 6/8 = 75%, dưới hẳn doctrine
 // ~81-85% mà **mọi** sàn khác trong cùng lượt tuân theo. Đúng cách 1.16 để lọt và bị bắt.
-const CLICK_FLOOR = 9 // số THẬT 2026-08-10 (sau Story 1.19): 11 thuộc tính `@click`
-const DISPATCH_FLOOR = 13 // số THẬT 2026-08-10 (sau Story 1.19): 16 lời gọi `dispatch()`
+const CLICK_FLOOR = 13 // số THẬT 2026-08-10 (sau Story 1.20): 16 thuộc tính `@click`
+const DISPATCH_FLOOR = 20 // số THẬT 2026-08-10 (sau Story 1.20): 25 lời gọi `dispatch()`
 
 if (vueFiles.length < VUE_FLOOR || tsFiles.length < TS_FLOOR) {
   abort(

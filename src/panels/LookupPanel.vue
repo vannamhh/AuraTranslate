@@ -41,6 +41,27 @@ import {
   someLayerTruncated,
 } from './lookupPanelState'
 import { computeSpine, sourcesDisagree } from './lookupPanelState'
+// ── Story 1.20 — dải tab, lịch sử trong phiên, bộ ghim ──────────────────────────────
+//
+// 🔴 State sống ở `lookupHistoryState.ts`, KHÔNG trong một `ref` cục bộ ở đây (AC5): đổi
+// preset bố cục gọi `api.clear()` rồi dựng lại cả bốn panel, và chỉ state module-level
+// sống sót qua lượt tháo/dựng đó — một `ref` cục bộ làm tab tự nhảy về mặc định.
+import {
+  aimLookupEntryFrom,
+  entryKey,
+  historyIsEmpty,
+  lookupHistory,
+  lookupTab,
+  pinNoticeKey,
+  pinWriteError,
+  pinnedEntries,
+  pinnedIsEmpty,
+  pinnedLoadFailed,
+  relativeTimeKey,
+  relativeTimeParams,
+  sessionLookupCount,
+} from './lookupHistoryState'
+import { tError } from '../i18n'
 import type { SenseRecord, SourceGroup } from '../config/dict'
 
 defineProps<DockviewPanelProps>()
@@ -55,8 +76,62 @@ defineProps<DockviewPanelProps>()
  *
  * ⚠️ Vùng đầu mục vẫn được RENDER ở trạng thái này (chiều cao bất biến, AC7) — chỉ chữ
  * bên trong nó rỗng. Xem chú thích `.lookup-head`.
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * 🔴 STORY 1.20 · AC14 — VÀ TAB ĐANG CHỌN PHẢI LÀ `record`
+ * ═════════════════════════════════════════════════════════════════════════════════
+ *
+ * `PanelFrame.vue` render câu trạng thái **phía trên `<slot />`**, tức phía trên toàn bộ
+ * thân panel. Mở app sạch rồi chuyển thẳng sang tab Lịch sử — **đúng ca nghiệm thu AC3**
+ * (*"đóng rồi mở lại, mục ghim vẫn còn"*) — cho `neverLookedUp === true`, nên panel sẽ
+ * hiện *"Chọn một từ trong Nguyên văn để tra cứu."* **đè trên danh sách ghim**. Câu đó sai
+ * ngữ cảnh: người dùng đang xem mục đã ghim, không đang chờ tra cứu.
+ *
+ * ⚠️ Một dòng, nhưng **không** tìm ra được nếu chỉ đọc tệp này: nguyên nhân nằm ở
+ * `PanelFrame.vue`, một tệp story này không sửa. Bắt lúc dựng story, thành AC14.
  */
-const showFrameStatus = computed(() => neverLookedUp.value)
+const showFrameStatus = computed(() => neverLookedUp.value && lookupTab.value === 'record')
+
+/** `id` của tab đang chọn — `aria-labelledby` của vùng nội dung trỏ về đúng nút đó. */
+const tabpanelLabelledBy = computed(() =>
+  lookupTab.value === 'record' ? 'lookup-tab-record' : 'lookup-tab-history',
+)
+
+/**
+ * Đổi tab bằng MŨI TÊN — dispatch **và** dời tiêu điểm DOM sang nút vừa được chọn.
+ *
+ * 🔴 **Vì sao lời gọi `focus()` là bắt buộc, không trang trí** (bắt ở code review
+ * 2026-08-11): `tabindex` roving giữ đúng MỘT nút trong vòng `Tab`, nên sau một lượt đổi
+ * tab, nút cũ nhận `tabindex="-1"`. Nếu tiêu điểm ở lại đó thì lượt bấm mũi tên **thứ
+ * hai** vẫn phát từ nút cũ và dispatch đúng cái id vừa chạy — một no-op. Với **hai** tab,
+ * hệ quả đo được là người dùng bàn phím đi được một chiều rồi **kẹt**: không mũi tên nào
+ * đưa họ về tab đầu. Đó đúng là *"hợp đồng `tablist` khai một nửa"* mà `SourcePanel.vue`
+ * cảnh báo bằng chữ, và là hàng **9** của bàn đo (*"mọi thao tác tới được, không chạm
+ * chuột"*).
+ *
+ * ⚠️ Focus TRƯỚC lượt render kế tiếp là hợp lệ và cố ý: `focus()` chạy được trên một phần
+ * tử đang mang `tabindex="-1"`, nên không cần `nextTick`. Đợi Vue vẽ xong chỉ thêm một
+ * khung hình mà tiêu điểm nằm sai chỗ.
+ *
+ * ⚠️ Kiểm A của `check:commands` **không** áp cho `@keydown` (`check-commands.mjs:33`),
+ * nên hàm này hợp lệ; luật *"đúng một `dispatch()`"* vẫn giữ nguyên cho mọi `@click`.
+ */
+function moveTabFocus(commandId: string, targetTabId: string): void {
+  dispatch(commandId)
+  document.getElementById(targetTabId)?.focus()
+}
+
+/**
+ * Tên hiển thị của một nguồn, dẫn xuất từ **danh sách nguồn thật** — không một bảng viết
+ * cứng trong `src/**`.
+ *
+ * ⚠️ Rơi về chính `code` khi chưa nạp được danh sách (hoặc khi nguồn đã bị gỡ khỏi bản
+ * cài sau khi một mục của nó được ghim): một ô TRỐNG ở cột nguồn là FR31 vỡ — *"mọi định
+ * nghĩa hiển thị nguồn"* — trong khi mã máy vẫn nói được nguồn nào.
+ */
+function sourceLabel(code: string): string {
+  return dictSources.value.find((s) => s.code === code)?.display_name ?? code
+}
 
 const groups = computed<readonly SourceGroup[]>(() => groupedLookup.value?.groups ?? [])
 const hiddenSources = computed(() => groupedLookup.value?.hidden_sources ?? [])
@@ -310,6 +385,56 @@ onBeforeUnmount(() => {
       </div>
 
       <!--
+        🔴 STORY 1.20 · AC5 · AC10 — DẢI TAB, MỘT HÀNG **RIÊNG**.
+
+        ⚠️ **NGOÀI `.lookup-head`, không TRONG nó** — cùng phép đo mà dải chip nguồn đã đi
+        qua ở Story 1.19, và dải tab là thứ **thứ tư** muốn chỗ trong 76px đó: Story 1.17
+        vỡ ở đây với thanh nhịp, 1.18 vỡ lần hai với vạch tiến trình, 1.19 phải tách dải
+        chip ra ngoài. `--lookup-head-height` giữ NGUYÊN giá trị **và** NGUYÊN vai trò.
+
+        🔴 **HAI tab, không ba** — Quyết định #4. `lookup-history-pins.html:103` vẽ ba tab
+        gồm `Concordance`, nhưng đo trên mã thật 2026-08-10: `grep -rn "Concordance" src/`
+        trả **0** lần, và hai doc-comment duy nhất ở `commands/dict.rs` đều nói Concordance
+        là **FR64, Story 7.7** — một năng lực khác chưa dựng. Chữ *"tab thứ ba"* trong AC5
+        là ngôn ngữ của mockup; mệnh đề thật của AC5 là *"trong Panel Lookup, không phải
+        một cửa sổ riêng"*, và điều đó được thoả. Mockup **không** sửa (Quyết định #3 của
+        Story 1.3); lệch ghi vào §Change Log.
+
+        🔴 Năm thuộc tính là bắt buộc, không trang trí: `role="tab"` · `aria-selected` ·
+        `aria-controls` · `tabindex` roving (đúng MỘT tab trong vòng Tab) · mũi tên
+        trái/phải đổi tab. `SourcePanel.vue` ghi lý do bằng chữ: *"hợp đồng `tablist` khai
+        một nửa còn tệ hơn không khai, vì nó hứa một mô hình tương tác không tồn tại"*.
+      -->
+      <div class="lookup-tabs" role="tablist">
+        <button
+          id="lookup-tab-record"
+          type="button"
+          class="lookup-tab"
+          role="tab"
+          aria-controls="lookup-tabpanel"
+          :aria-selected="lookupTab === 'record'"
+          :tabindex="lookupTab === 'record' ? 0 : -1"
+          :class="{ active: lookupTab === 'record' }"
+          @click="dispatch('lookup.select_tab_record')"
+          @keydown.right.prevent="moveTabFocus('lookup.select_tab_history', 'lookup-tab-history')"
+          @keydown.left.prevent="moveTabFocus('lookup.select_tab_history', 'lookup-tab-history')"
+        >{{ t('panel.lookup.tab_record') }}</button>
+        <button
+          id="lookup-tab-history"
+          type="button"
+          class="lookup-tab"
+          role="tab"
+          aria-controls="lookup-tabpanel"
+          :aria-selected="lookupTab === 'history'"
+          :tabindex="lookupTab === 'history' ? 0 : -1"
+          :class="{ active: lookupTab === 'history' }"
+          @click="dispatch('lookup.select_tab_history')"
+          @keydown.right.prevent="moveTabFocus('lookup.select_tab_record', 'lookup-tab-record')"
+          @keydown.left.prevent="moveTabFocus('lookup.select_tab_record', 'lookup-tab-record')"
+        >{{ t('panel.lookup.tab_history') }}</button>
+      </div>
+
+      <!--
         🔴 AC7 — vùng đầu mục CHIỀU CAO CỐ ĐỊNH, không đổi một pixel **kể cả giữa bốn trạng
         thái của AC6**. Vì thế nó render ở MỌI trạng thái, kể cả "chưa tra gì": bản đầu bọc
         cả khối trong `v-if="!neverLookedUp"` nên chiều cao đi 0 → 76px đúng lúc chuyển
@@ -381,7 +506,28 @@ onBeforeUnmount(() => {
         về CƠ HỌC trong khi ý định thì rõ. ⇒ tách vùng cuộn ra một lớp riêng; `.lookup-body`
         thôi cuộn, `.lookup-scroll` nhận `overflow: auto`.
       -->
-      <div ref="scroller" class="lookup-scroll" :class="{ 'lookup-fade': fading }">
+      <div
+        id="lookup-tabpanel"
+        ref="scroller"
+        role="tabpanel"
+        :aria-labelledby="tabpanelLabelledBy"
+        class="lookup-scroll"
+        :class="{ 'lookup-fade': fading }"
+        @mousedown="aimLookupEntryFrom($event)"
+      >
+        <!--
+          🔴 STORY 1.20 · §Dev Notes ⑧ ca 3 — **KHÔNG im lặng không hiệu lực.** Một phím
+          ghim bấm khi chưa nhắm được mục nào phải nói ra bằng một câu CÓ LÝ DO (UX-DR27,
+          AD-44 ④). Và một lượt GHI trượt là một câu KHÁC hẳn — nó không làm danh sách đang
+          hiện sai, nên nó không được đọc thành *"không đọc được danh sách đã ghim"*.
+
+          ⚠️ Cả hai đứng **ngoài** nhánh tab, có chủ ý: `Mod+D` bấm được ở cả hai tab, nên
+          câu trả lời của nó cũng phải thấy được ở cả hai.
+        -->
+        <p v-if="pinNoticeKey !== null" class="lookup-banner">{{ t(pinNoticeKey) }}</p>
+        <p v-if="pinWriteError !== null" class="lookup-banner">{{ tError(pinWriteError) }}</p>
+
+        <template v-if="lookupTab === 'record'">
         <!-- 🔴 AC6 — một lượt tra TRƯỢT phải nói ra, không để lại một vùng trắng câm. -->
         <p v-if="showLookupError" class="lookup-empty">{{ t('panel.lookup.lookup_failed') }}</p>
 
@@ -429,6 +575,118 @@ onBeforeUnmount(() => {
               :senses="sensesFor(group)"
             />
           </template>
+        </template>
+        </template>
+
+        <!--
+          ═══════════════════════════════════════════════════════════════════════════
+          🔴 STORY 1.20 — TAB LỊCH SỬ: hai mục, hai trạng thái rỗng KHÁC NHAU (AC8)
+          ═══════════════════════════════════════════════════════════════════════════
+
+          AD-44 ④ (`ARCHITECTURE-SPINE.md:622`): *"rỗng im lặng bị cấm; rỗng có lý do thì
+          không."* Lịch sử rỗng và danh sách ghim rỗng là **hai câu riêng**, không một khung
+          trắng chung — và bộ ghim còn có thêm hai ca mà mockup không vẽ (chưa mở Tác phẩm ·
+          nạp trượt), mỗi ca một vị từ riêng ở `lookupHistoryState.ts` (Bẫy 4).
+        -->
+        <template v-else>
+          <div class="lookup-section">
+            <span class="lookup-section-label">{{ t('panel.lookup.section_pinned') }}</span>
+            <!-- aura-allow-text: số mục đã ghim — DỮ LIỆU dẫn xuất, không chuỗi giao diện. -->
+            <span class="lookup-section-count">{{ pinnedEntries.length }}</span>
+          </div>
+
+          <!--
+            🔴 BA vị từ, KHÔNG một chuỗi `??`. Thứ tự là nội dung: *nạp trượt* đứng trước
+            *chưa ghim gì*; và khi cả hai `false` mà danh sách rỗng thì đó là **đang nạp** —
+            panel nói ĐÚNG một thứ: không gì cả.
+
+            ⚠️ Bản đầu có **bốn** nhánh; trạng thái *"chưa mở Tác phẩm nào"* biến mất cùng
+            phạm vi Tác phẩm ở lượt Ice ký lại 2026-08-11 (ghim nay ở `global.db`). Câu đó
+            **sai** ở đây, nên nó bị gỡ khỏi cả `vi.json` chứ không để lại làm khoá chết.
+          -->
+          <p v-if="pinnedLoadFailed" class="lookup-empty">
+            {{ t('panel.lookup.pinned_load_failed') }}
+          </p>
+          <template v-else-if="pinnedIsEmpty">
+            <p class="lookup-empty-title">{{ t('panel.lookup.pinned_empty_title') }}</p>
+            <p class="lookup-empty">{{ t('panel.lookup.pinned_empty_body') }}</p>
+            <p class="lookup-empty-note">{{ t('panel.lookup.pinned_empty_note') }}</p>
+          </template>
+
+          <div
+            v-for="entry in pinnedEntries"
+            :key="entry.id"
+            class="lookup-row is-pin"
+            :data-entry-key="entryKey(entry.source_code, entry.entry_id)"
+          >
+            <!-- aura-allow-text: đầu mục đã ghim — DỮ LIỆU (`EntryHit.headword` lúc ghim). -->
+            <span class="lookup-row-word">{{ entry.headword }}</span>
+            <!-- aura-allow-text: nghĩa rút gọn — DỮ LIỆU từ điển (ảnh chụp lúc ghim). -->
+            <span v-if="entry.gloss !== null" class="lookup-row-gloss">{{ entry.gloss }}</span>
+            <span v-else class="lookup-row-gloss">{{ t('panel.lookup.history_no_gloss') }}</span>
+            <!-- aura-allow-text: tên nguồn — DỮ LIỆU (`display_name`, FR31). -->
+            <span class="lookup-row-source">{{ sourceLabel(entry.source_code) }}</span>
+            <!-- aura-allow-text: số lần tra CỦA PHIÊN NÀY — DỮ LIỆU dẫn xuất (§⑨). -->
+            <span class="lookup-row-count">{{ sessionLookupCount(entry.source_code, entry.entry_id) }}</span>
+            <button
+              type="button"
+              class="lookup-pin"
+              @click="dispatch('lookup.toggle_pin')"
+            >{{ t('panel.lookup.unpin') }}</button>
+          </div>
+
+          <div class="lookup-section">
+            <span class="lookup-section-label">{{ t('panel.lookup.section_recent') }}</span>
+            <!--
+              🔴 Quyết định #5 — thanh bộ lọc ba chip của mockup (`:106-111`) bị LOẠI: hai
+              chip *"Chương 47"* và *"Cả Tác phẩm"* mâu thuẫn trực tiếp với AC4 (*"lịch sử
+              của phiên kết thúc"*), và một bộ lọc phạm vi trên một tập dữ liệu chỉ có đúng
+              một phạm vi là một hứa hẹn rỗng. Nút xoá thì có nghĩa thật, nên nó ở lại.
+            -->
+            <button
+              type="button"
+              class="lookup-clear"
+              @click="dispatch('lookup.clear_history')"
+            >{{ t('panel.lookup.clear_history') }}</button>
+          </div>
+
+          <template v-if="historyIsEmpty">
+            <p class="lookup-empty-title">{{ t('panel.lookup.history_empty_title') }}</p>
+            <p class="lookup-empty">{{ t('panel.lookup.history_empty_body') }}</p>
+            <p class="lookup-empty-note">{{ t('panel.lookup.history_empty_note') }}</p>
+          </template>
+
+          <!--
+            🔴 AC1 — `lookupHistory` đã ở thứ tự **gần nhất trước**; không `sort()` ở đây.
+            AC7 — khoá `:key` là `query`, và đó là chính khoá dedupe: một truy vấn có đúng
+            MỘT hàng, và tra lại nó đẩy hàng đó lên đầu thay vì thêm hàng thứ hai.
+          -->
+          <div
+            v-for="row in lookupHistory"
+            :key="row.query"
+            class="lookup-row"
+            :class="{ 'is-current': row.query === currentQuery }"
+          >
+            <!-- aura-allow-text: truy vấn đã tra — DỮ LIỆU người dùng chọn. -->
+            <span class="lookup-row-word">{{ row.query }}</span>
+            <!-- aura-allow-text: nghĩa rút gọn — DỮ LIỆU từ điển. -->
+            <span v-if="row.gloss !== null" class="lookup-row-gloss">{{ row.gloss }}</span>
+            <span v-else class="lookup-row-gloss">{{ t('panel.lookup.history_no_gloss') }}</span>
+            <!--
+              ⚠️ Thời gian tương đối dựng từ một **khoá + tham số** của `vi.json`, không từ
+              `Intl.RelativeTimeFormat`: NFR16 nói mọi văn bản giao diện sống ở `vi.json` và
+              CHỈ ở đó. Nhãn tính lại mỗi lượt render — nó KHÔNG có đồng hồ riêng, nên
+              *"vừa xong"* chỉ thành *"1 ph"* ở lượt tra kế tiếp. Ghi vào `deferred-work.md`.
+            -->
+            <span class="lookup-row-when">{{ t(relativeTimeKey(row.at), relativeTimeParams(row.at)) }}</span>
+          </div>
+
+          <!--
+            Dòng gợi ý cuối tab — nguyên văn `lookup-history-pins.html:157-158`. Nó là một
+            **quy tắc hành vi viết thành chữ cho người dùng**, không trang trí: nó nói ra
+            chính khác biệt AC3/AC4 mà cả story đứng lên.
+          -->
+          <p class="lookup-hint">{{ t('panel.lookup.history_hint') }}</p>
         </template>
       </div>
     </div>
@@ -774,5 +1032,210 @@ onBeforeUnmount(() => {
   padding-left: 11px;
   border-left: 2px solid var(--color-tm-rule);
   color: var(--color-tm-text);
+}
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * 🔴 STORY 1.20 — DẢI TAB, HAI MỤC CỦA TAB LỊCH SỬ, VÀ HÌNH DẠNG MỘT HÀNG
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ *
+ * 🔴 **AC10 — dải tab là một hàng RIÊNG, `flex: none`, KHÔNG một pixel nào vào
+ * `--lookup-head-height`.** Đó là hằng đã vỡ HAI lần (1.17 với thanh nhịp, 1.18 với vạch
+ * tiến trình) và đã phải nhường một lần nữa ở 1.19 (dải chip). Đo lại thay vì nới nó.
+ */
+.lookup-tabs {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: var(--space-panel-inline);
+  margin-bottom: var(--space-panel-block);
+}
+
+/* Cùng khai token với `.tab` của `SourcePanel.vue` — một dải tab, một hình dạng. */
+.lookup-tab {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--face-ui-md-strong);
+  font-size: var(--font-ui-md-strong);
+  font-weight: var(--weight-ui-md-strong);
+  line-height: var(--leading-ui-md-strong);
+  color: var(--color-on-surface-variant);
+}
+
+/* `primary` cho tab đang chọn — **tiêu điểm bàn phím** là một trong đúng ba việc mà
+ * `DESIGN.md` §Do's dành cho màu này, và một tab đang chọn là chỗ tiêu điểm đang ở. */
+.lookup-tab.active {
+  color: var(--color-primary);
+}
+
+/* Đầu mục *Đã ghim* / *Tra gần đây* — một hàng nhãn cộng một thao tác bên phải. */
+.lookup-section {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-panel-inline);
+  margin: var(--space-panel-block) 0 var(--space-panel-block) 0;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--color-outline-faint);
+}
+
+.lookup-section-label {
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  font-weight: var(--weight-ui-label);
+  line-height: var(--leading-ui-label);
+  letter-spacing: var(--tracking-ui-label);
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
+}
+
+.lookup-section-count,
+.lookup-clear {
+  margin-left: auto;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.lookup-clear {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+}
+
+/*
+ * 🔴 HÌNH DẠNG CHỦ ĐẠO LÀ **VẠCH DỌC**, không hộp bo tròn (`DESIGN.md:354`).
+ *
+ * Hàng ghim mang vạch `tm`; hàng lịch sử ĐANG XEM mang vạch `primary` — và hai màu khác
+ * nhau là **ngữ nghĩa**, không thẩm mỹ: `DESIGN.md` §Do's dành `primary` cho đúng ba việc
+ * (thuật ngữ Glossary, nhãn nguồn từ điển, tiêu điểm bàn phím), nên vạch của một mục ghim
+ * — thứ không thuộc ba việc đó — dùng `tm`.
+ *
+ * Giãn dòng 1.66 là sàn của chữ họ `read` (`DESIGN.md:297`) và `ui-md-wrap` đã khai đúng số
+ * đó — dùng lại token, không một con số rải trong CSS.
+ */
+.lookup-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-panel-inline);
+  padding: 2px 0 2px 11px;
+  border-left: 2px solid transparent;
+}
+
+.lookup-row.is-pin {
+  border-left-color: var(--color-tm-rule);
+}
+
+/* Hàng của truy vấn ĐANG HIỆN ở tab Từ điển — nền nhấn cộng vạch `primary`. */
+.lookup-row.is-current {
+  border-left-color: var(--color-primary);
+  background-color: var(--color-surface-accent);
+}
+
+/* Đầu mục — họ `read`, và nó KHÔNG co lại khi nghĩa dài. */
+.lookup-row-word {
+  flex: none;
+  min-width: 74px;
+  font-family: var(--face-lookup-gloss);
+  font-size: var(--font-lookup-gloss);
+  line-height: var(--leading-lookup-gloss);
+  color: var(--color-on-surface);
+}
+
+/*
+ * 🔴 Nghĩa rút gọn: **một dòng, cắt bằng ellipsis**. Một danh sách mà mỗi hàng cao một
+ * kiểu thì mắt không quét dọc được, và đó là cả công dụng của tab này.
+ *
+ * ⚠️ `min-width: 0` bắt buộc trên một con flex có nội dung tràn — thiếu nó, hộp con lấy
+ * `min-content` làm chiều rộng tối thiểu và đẩy cột nguồn ra ngoài mép (đúng lỗi mà dải
+ * chip nguồn đã vá ở Story 1.19).
+ */
+.lookup-row-gloss {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-on-surface-variant);
+}
+
+/* Nhãn nguồn — một trong đúng ba việc mà `DESIGN.md` §Do's dành cho `primary`. */
+.lookup-row-source {
+  flex: none;
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  font-weight: var(--weight-ui-label);
+  line-height: var(--leading-ui-label);
+  letter-spacing: var(--tracking-ui-label);
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.lookup-row-count,
+.lookup-row-when {
+  flex: none;
+  text-align: right;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.lookup-row-count {
+  min-width: 34px;
+}
+
+.lookup-row-when {
+  min-width: 56px;
+}
+
+/* Nút bỏ ghim trên một hàng ghim — cùng hình dạng nút ghim của `LookupRecord.vue`. */
+.lookup-pin {
+  flex: none;
+  padding: 0;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/* Tiêu đề của một trạng thái rỗng — khai token `ui-md-strong`, cùng cấp với nhãn tab. */
+.lookup-empty-title {
+  margin: var(--space-panel-block) 0 4px 0;
+  font-family: var(--face-ui-md-strong);
+  font-size: var(--font-ui-md-strong);
+  font-weight: var(--weight-ui-md-strong);
+  line-height: var(--leading-ui-md-strong);
+  color: var(--color-on-surface);
+}
+
+.lookup-empty-note,
+.lookup-hint {
+  margin: 0 0 var(--space-panel-block) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/* Dòng gợi ý cuối tab — một quy tắc hành vi, nên nó có nét ngăn của riêng nó. */
+.lookup-hint {
+  margin-top: var(--space-panel-block);
+  padding-top: var(--space-panel-block);
+  border-top: 1px solid var(--color-outline-faint);
 }
 </style>

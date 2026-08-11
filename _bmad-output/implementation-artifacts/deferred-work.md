@@ -1001,3 +1001,191 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   **Đường bịt:** cho `list_dict_sources` trả về cả **danh sách lớp bị bỏ** *(`skipped`, kiểu
   đã có sẵn — `lookup_grouped` đang dùng)*, rồi bảng phân biệt ba trạng thái thay vì hai:
   *0 tệp* · *có tệp nhưng k lớp bị bỏ* · *gọi trượt*. **Chủ: chưa gán.**
+
+---
+
+## Story 1.20 — lịch sử tra cứu và mục đã ghim (2026-08-10)
+
+- 🔴 **Cạnh phụ thuộc MỚI chưa có trong Capability Map: Panel Lookup (C3) → `core/store/`.**
+  `ARCHITECTURE-SPINE.md:823` liệt kê C3 là `core/dict/`, `ports/DictionarySource`,
+  `resources/dict/` — **không** có `core/store/`. Mục ghim sống ở `global.db` (Ice ký lại
+  2026-08-11 — bản đầu chốt `project.db`), nên `commands/pinned.rs` là một cạnh C3 → tầng
+  ghi dữ liệu mà bản đồ chưa mang. Lượt đổi phạm vi **không** làm cạnh này biến mất, chỉ đổi
+  kho ở đầu kia. Cùng loại với cách AD-36 phải thêm cạnh `glossary/ → dict/` (`:435`).
+  **Chủ: lượt cập nhật kiến trúc kế tiếp.**
+
+- ⚠️ **`headword`/`gloss` của một mục ghim là ẢNH CHỤP, và ảnh chụp thì cũ đi.**
+  `pinned_entry` lưu chữ, không một khoá ngoại vào từ điển — có chủ ý: một hàng ghim phải
+  hiện ra được **không cần một lượt tra thứ hai**, và `entry_id` chỉ duy nhất TRONG một tệp
+  `.db`. Giá phải trả: thay tệp `.db` nguồn ở một bản phát hành sau có thể làm
+  `(source_code, entry_id)` trỏ vào một đầu mục **khác**, trong khi hàng vẫn hiện chữ cũ.
+  Hôm nay vô hại (chưa bản phát hành nào), nhưng nó thành thật ngay lượt thay dữ liệu đầu
+  tiên. **Đường bịt:** một cột `source_version` trên `pinned_entry` cộng một câu *"mục này
+  ghim từ một bản dữ liệu cũ hơn"*. **Chủ: chưa gán.**
+
+- ⚠️ **Số lần tra trên hàng ghim thuộc PHIÊN, không bền vững** (§Dev Notes ⑨ của story).
+  Một cột `lookup_count` bền vững đòi một lượt `Store::write` **mỗi lượt tra** — tức mỗi lần
+  bôi đen chữ — đưa ghi đĩa vào đúng đường nóng của Auto-Lookup và cho nó cạnh tranh hàng đợi
+  ghi nối tiếp với auto-save Editor (NFR2, AD-11/AD-12). Không AC nào đòi nó sống qua phiên.
+  Nếu về sau muốn thật: **đo chi phí ghi TRƯỚC**, đừng thêm cột rồi mới đo. **Chủ: chưa gán.**
+
+- ⚠️ **Nhãn thời gian tương đối KHÔNG có đồng hồ riêng.** `relativeTimeKey`/`relativeTimeParams`
+  tính lại ở mỗi lượt render, nên *"vừa xong"* chỉ thành *"1 ph"* ở **lượt tra kế tiếp** (hoặc
+  một lượt render khác), không tự trôi theo thời gian. Một `setInterval` cho việc này là một
+  hẹn giờ chạy suốt phiên chỉ để sửa một nhãn phụ; chưa đáng. **Chủ: chưa gán.**
+
+- ⚠️ **Trần lịch sử 200 hàng là một con số CHƯA ĐO** (`lookupHistoryState.ts::HISTORY_CEILING`).
+  AC7 (dedupe) chặn *"hàng trăm dòng giống nhau"*, nó **không** chặn hàng trăm dòng KHÁC nhau
+  — một Chương dài có thừa từ khác nhau để tra. 200 là một phỏng đoán có tên, cắt ở ĐUÔI (cũ
+  nhất). Nếu người dùng thật chạm trần, con số phải đến từ một lượt đo. **Chủ: chưa gán.**
+
+- ⚠️ **Hàng lịch sử KHÔNG bấm để tra lại được.** Mockup không hứa điều đó, và Kiểm A của
+  `check:commands` đòi mọi `@click` là đúng một `dispatch('<id>')` — nên một hàng bấm được
+  cần một command thứ năm mang **mục tiêu**, thứ §KHÔNG-LÀM ⑤ và Quyết định #7 đều không cấp.
+  Nếu về sau muốn: một `lookup.lookup_history_row` đọc mục tiêu từ `@mousedown` uỷ quyền, đúng
+  khuôn `lookup.toggle_pin` — và nó **phải** đi qua `runLookup` chứ không một đường gọi song
+  song (Bẫy 3: một đường thứ hai bỏ qua `sequence` là dựng lại đúng lỗi đã vá). **Chủ: chưa gán.**
+
+- ⚠️ **Ba lệch mockup của story này, ghi lại thay vì sửa tài liệu quy hoạch** (Quyết định #3
+  của Story 1.3): ① `Concordance` bị loại khỏi dải tab (FR64/Story 7.7, đo được **0** lần
+  trong `src/`); ② thanh lọc ba chip bị loại (*"Cả Tác phẩm"* mâu thuẫn AC4); ③ `⌘⌫` bị bác
+  cho `lookup.clear_history`. Thêm hai lệch nhỏ phát hiện lúc cài đặt: ④ **cột âm đọc** của
+  hàng ghim/lịch sử **không có** — âm Hán Việt là một lượt tra RIÊNG (`read_han_viet`) và
+  `pinned_entry` không lưu nó; dựng nó ở đây là một vòng IPC thứ hai cho mỗi hàng;
+  ⑤ `pinned_empty_note` viết lại thành một câu đủ (mockup ghi `⌘D khi đang xem một mục từ`,
+  mà một hợp âm viết cứng theo nền tảng là đúng thứ Kiểm D/NFR14 tồn tại để chặn).
+
+- 🔴 **Bàn đo chạy tay của Story 1.20 CHƯA CHẠY** — 18 hàng ở §Testing của story, gồm mọi đối
+  chứng âm cho AC3/AC4/AC7/AC9/AC12 và hai hàng NFR14 (`Mod+D` trên cả macOS lẫn Windows).
+  Vế DOM không có bộ chạy test frontend (§KHÔNG-LÀM ⑥, nợ `:836-846` nối dài). **Chủ: Ice**,
+  và story không được đánh dấu `done` trước lượt đó.
+
+- ⚠️ **Không cổng nào canh được thứ tự XẾP LỚP giữa lớp phủ và cây dockview.** Lỗi *"sash vẽ
+  đè lớp phủ Attribution"* (Ice bắt bằng mắt 2026-08-10, vá bằng `isolation: isolate` trên
+  `.modeport`) đi qua **cả chín cổng XANH** ở cả hai lượt — trước lẫn sau lượt vá. Kiểm F của
+  `check-tokens.mjs` đọc `z-index` như một **chuỗi ký tự cần miễn trừ**, nó không so hai giá
+  trị với nhau và hoàn toàn không biết `node_modules/dockview-vue/dist/styles/dockview.css`
+  tồn tại. ⇒ mọi mệnh đề *"cái này nằm trên cái kia"* trong dự án hôm nay chỉ được canh bằng
+  **mắt người**, và cùng lớp lỗi sẽ tái phát ở mỗi lượt nâng `dockview-vue`.
+  **Đường bịt rẻ nhất:** một ca trong `check-layout.mjs` đọc `z-index` cao nhất mà
+  `dockview.css` khai *(hôm nay 9999)* rồi đòi mọi lớp phủ của `src/**` hoặc đứng trên số đó,
+  hoặc nằm ngoài một khối mang `isolation`/`contain` — tức cưỡng chế chính **cơ chế** vừa
+  chọn thay vì một con số. **Chủ: chưa gán.**
+
+- 🔴 **`.lookup-head` CẮT NỘI DUNG khi thanh nhịp xuống dòng thứ hai — đo được, không suy
+  đoán.** Ice nghi ngờ từ ảnh chụp 2026-08-10; đo bằng CDP trên app thật xác nhận.
+
+  Số đo (`.lookup-head`, 6 nguồn, thanh nhịp 2 dòng):
+  ```
+  offsetHeight  76   (border-box — đúng --lookup-head-height, KHÔNG vỡ)
+  clientHeight  75   (content 63 + padding-bottom 12)
+  scrollHeight  89   ⇒ nội dung vượt hộp NỘI DUNG 14px
+  ```
+  Phân rã: đầu mục `24px × 1.3` = **31,19** + `.lookup-spine` `margin-top` **7** +
+  thanh nhịp **39,25** *(dòng 1 mang `.lookup-spine-count` `ui-sm` 11,5×1,5 = 17,25 · khe
+  `gap` 8 · dòng 2 chỉ có chip `ui-label` 10×1,4 = 14)* = **77,44px** nội dung, trong khi
+  `overflow: hidden` cắt ở **mép padding = 75px**.
+  ⇒ **~2,4px cuối của dòng nhịp thứ hai bị cắt, và toàn bộ 12px khoảng thở trước nét ngăn
+  bị nuốt** — dòng nhịp thứ hai dính sát viền dưới. Ở 3 dòng nhịp thì mất hẳn một dòng.
+
+  ⚠️ **KHÔNG phải do Story 1.20.** Dải tab của story này là một hàng RIÊNG, `flex: none`,
+  **ngoài** `.lookup-head` (AC10 đo được: `offsetHeight` = 76 ở **cả hai** tab). Thủ phạm là
+  chính thanh nhịp — Story 1.17 dựng nó, Story 1.19 làm nó dài ra bằng cách thêm nguồn.
+  Ngưỡng vỡ là **số dòng nhịp ≥ 2**, tức phụ thuộc số nguồn đang bật **và** bề rộng panel.
+  Với 4 tệp `.db` thật hôm nay và panel ~593px, Ice đang ở đúng ngưỡng đó.
+
+  🔴 **Cố ý KHÔNG vá ở story này.** `--lookup-head-height: 76px` là hằng mà bốn story đã
+  phải tránh (1.17 thanh nhịp · 1.18 vạch tiến trình · 1.19 dải chip · 1.20 dải tab), và
+  AC10 nói thẳng *"nếu không vừa bố cục thì **nói ra và đo** — đừng nới hằng trong im
+  lặng"*. Nới nó ở cuối một story không sở hữu nó là đúng cách một bất biến chết.
+  **Ba đường vá, đo trước khi chọn:** ① cho `.lookup-spine` `flex-wrap: nowrap` +
+  `overflow-x: auto` *(một dòng, cuộn ngang — cùng thuốc mà dải chip nguồn đã dùng ở 1.19)*;
+  ② nâng `--lookup-head-height` theo một phép đo ở số nguồn **tối đa**, không ở số nguồn
+  hôm nay; ③ chuyển thanh nhịp ra một hàng riêng như dải chip. **Chủ: chưa gán.**
+
+- 🔴 **`user_version = 4` của `project.db` là một số ĐÃ CHÁY.** Story 1.20 bản đầu
+  (2026-08-10) thêm bước di trú 4 đặt `pinned_entry` vào `PROJECT_MIGRATIONS`; lượt Ice ký
+  lại (2026-08-11) chuyển bảng sang `global.db` và **gỡ** bước đó. `PROJECT_MIGRATIONS` về
+  đúng ba bước, nhưng con số 4 đã từng tồn tại trên đĩa thật.
+  ⇒ **Bước di trú kế tiếp của `project.db` phải đánh số 5**, không được tái dùng 4 — doc-comment
+  đầu `schema.rs` nói vì sao bằng chữ: *"một bước như vậy là hai đường lược đồ khác nhau cho
+  cùng một số, và chúng sẽ rẽ nhau ở máy người dùng chứ không ở đây"*. Ràng buộc này ghi
+  trong doc-comment của `PROJECT_MIGRATIONS`; **không** có cổng nào canh nó.
+  ⚠️ Sáu `.atproj` ở `user_version = 4` đã được xoá sau khi Ice ký (2026-08-11, đo lại từng
+  tệp trước khi xoá; còn 21 tệp, tất cả ở v3). Nhưng nếu một bản sao nào còn ở máy khác thì
+  nó sẽ bị `store.schema_too_new` từ chối mở vào ngày Epic 5 dựng đường mở lại `.atproj` —
+  một câu có tên, không hỏng im lặng. **Chủ: chưa gán.**
+
+- 🔴 **KHÔNG cổng nào bắt được một chuỗi `vi.json` NÓI DỐI về hành vi.** Lượt đổi phạm vi
+  ghim (2026-08-11) làm hai chuỗi sai nghĩa — `pinned_empty_body` hứa *"các Chương của **Tác
+  phẩm này**"* và `history_hint` hứa *"Mục ghim sống qua các phiên và **theo Tác phẩm**"* —
+  trong khi ghim đã chuyển sang phạm vi toàn ứng dụng. **Cả chín cổng vẫn XANH** với hai câu
+  đó: `check-i18n.mjs` kiểm khoá có tồn tại, placeholder có khớp, giọng văn có vô nhân xưng
+  — nó **không** đọc nghĩa, và không có gì để đối chiếu nghĩa với. Bắt được bằng một lượt rà
+  tay `grep "Tác phẩm này"` sau khi đổi phạm vi.
+  ⚠️ Đây là một lỗ **cấu trúc**, không một lượt sơ ý: mọi story đổi hành vi mà quên sửa chuỗi
+  mô tả hành vi đó đều rơi vào nó, và triệu chứng là ứng dụng **nói một đằng làm một nẻo** —
+  đúng loại lỗi mà UX-DR27/AD-44 ④ tồn tại để chặn ở phía ngược lại. **Đường bịt khả dĩ:**
+  một danh sách *"chuỗi mô tả hành vi"* trong chính `vi.json` (một tiền tố, hoặc một tệp
+  cạnh) mà mỗi story đổi hành vi phải đọc lại — rẻ, nhưng nó là kỷ luật chứ không phải cơ
+  chế. **Chủ: chưa gán.**
+
+## Deferred from: code review of 1-20-lich-su-tra-cuu-va-muc-da-ghim (2026-08-11)
+
+- **Không token thứ tự giữa lượt NẠP và lượt GHI bộ ghim.** `loadPinnedEntries()`
+  (`lookupHistoryState.ts:365`) canh mình bằng `loadSequence`, và `pinWriteQueue`
+  (`:439`) canh mình bằng một chuỗi promise nối tiếp — nhưng **không** cơ chế nào canh
+  giữa **hai** đường đó. Nếu một phản hồi nạp về **sau** một phản hồi ghi, nó đè
+  `pinnedRaw` về bản cũ hơn và mục vừa ghim biến khỏi màn hình dù đĩa đã giữ.
+  ⚠️ **Hôm nay không đường nào tới được**, và đó là lý do nó nằm ở đây chứ không ở bảng
+  vá: `loadPinnedEntries()` có **đúng một** chỗ gọi (`main.ts:325`, lúc khởi động), còn
+  một lượt ghi chỉ enqueue được **sau** khi một lượt tra đã xong — tức sau một cử chỉ
+  bôi đen của người dùng, chậm hơn một vòng IPC nhiều bậc. Lỗ mở ra ngay khi có đường
+  nạp lại thứ hai. **Chủ: Story 1.21** (màn hình gán phím) hoặc story đầu tiên thêm một
+  lượt `loadPinnedEntries()` thứ hai — bất kỳ cái nào tới trước.
+- **`sessionLookupCount` nói dối theo hướng THẤP khi lịch sử chạm trần.**
+  `HISTORY_CEILING = 200` (`lookupHistoryState.ts:105`) cắt đuôi lịch sử, và
+  `sessionLookupCount` (`:227`) cộng dồn từ **chính** danh sách đó. Ghim một mục rồi tra
+  200+ truy vấn **khác** trong cùng phiên ⇒ hàng chở số đếm của mục đó bị đẩy ra, và số
+  trên hàng ghim về **0** dù nó thật sự đã được tra N lần. Không AC nào đòi số đếm chính
+  xác (§Dev Notes ⑨ chốt nó thuộc phiên và cosmetic), nên đây là một sai lệch **có
+  hướng** đã biết, không một khuyết tật. Nếu về sau số đếm thành một thứ người dùng tin,
+  nó cần một sổ đếm tách khỏi danh sách lịch sử. **Chủ: chưa gán.**
+- ***"Số 4 đã cháy"* của `PROJECT_MIGRATIONS` chỉ sống bằng văn xuôi.** Doc-comment
+  `schema.rs:277-289` ghi rõ số **4** không được tái dùng (bản đầu của Story 1.20 đã đốt
+  nó, rồi bước đó bị gỡ ở lượt Ice ký lại). Nhưng `validate_strictly_increasing`
+  (`:321`) chỉ kiểm **tăng dần nghiêm ngặt** — `3 → 4` vẫn hợp lệ, nên một story sau
+  thêm `Migration { to_version: 4, … }` sẽ **không** làm cổng nào đỏ, và hai lược đồ
+  khác nhau mang cùng một số sẽ rẽ nhau ở máy người dùng.
+  ✅ **Hành vi hôm nay AN TOÀN, không giấu:** một `.atproj` còn ở `user_version = 4` bị
+  `Store::open` **từ chối** bằng `store.schema_too_new` (AC7 của Story 1.7) — hỏng ồn
+  ào, không hỏng im lặng. **Đường bịt rẻ:** một ca ở `pinned_contract.rs` khẳng định
+  `PROJECT_MIGRATIONS` không chứa `to_version == 4`. Ba dòng, và nó biến một kỷ luật
+  thành một cơ chế — đúng thứ dự án này vẫn đòi ở mọi chỗ khác. **Chủ: story đầu tiên
+  thêm bước di trú cho `project.db`** (dự kiến Epic 5).
+- **`SourcePanel.vue` mang cùng khuyết tật tiêu điểm dải tab.** `@keydown.right/left`
+  (`SourcePanel.vue:113-114,126-127`) đổi tab nhưng không gọi `.focus()` trên tab mới,
+  nên tiêu điểm DOM ở lại nút vừa nhận `tabindex="-1"`. Với **hai** tab, hệ quả là người
+  dùng bàn phím đi được một chiều rồi kẹt: lượt bấm mũi tên thứ hai vẫn phát từ nút cũ
+  và dispatch đúng cái id vừa chạy, tức một no-op. Ra được bằng `Shift+Tab` rồi `Tab`
+  lại, nên nó **khó chịu chứ không chặn đường**.
+  ⚠️ **Có từ Story 1.18**, không phải Story 1.20 — 1.20 chỉ chép lại đúng khuôn đó cho
+  `LookupPanel.vue` (chỗ đó được vá trong lượt review này). Hai panel phải vá **cùng một
+  cách**, nếu không dự án có hai hợp đồng `tablist` khác nhau cho cùng một cử chỉ.
+  **Chủ: chưa gán.**
+
+## Ràng buộc để lại cho Story 7.7 (Concordance) — từ Story 1.20
+
+- 🔴 **Concordance phải chèn vào GIỮA dải tab của Panel Lookup, không nối vào đuôi.**
+  `epics.md:1871-1873` (AC5 của Story 1.20) đòi lịch sử và mục ghim là **tab thứ ba** của
+  Panel Lookup. Story 1.20 dựng **hai** tab — `Từ điển` · `Lịch sử` — vì Concordance là
+  **FR64, Story 7.7**, một năng lực chưa tồn tại (đo 2026-08-10: `grep -rn "Concordance"
+  src/` trả **0** lần trong `src/`, đúng hai doc-comment ở `commands/dict.rs:119,173`).
+  ⚠️ **Đây KHÔNG phải một lệch tài liệu** — Ice chốt 2026-08-11 khi một lượt code review
+  định mở `correct-course` cho nó. AC5 mô tả **trạng thái cuối** và nó đúng: tab Lịch sử
+  hôm nay tạm đứng thứ hai, và nó **thành** thứ ba đúng lúc Concordance vào giữa.
+  🔴 **Chèn sai chỗ là một lỗi IM LẶNG tuyệt đối:** nối Concordance vào đuôi cho ra thứ tự
+  `Từ điển · Lịch sử · Concordance`, tức AC5 của Story 1.20 **vĩnh viễn không thoả** trong
+  khi cả chín cổng vẫn xanh — không cổng nào đọc thứ tự tab. Thứ tự đúng:
+  **`Từ điển` · `Concordance` · `Lịch sử`**, khớp `lookup-history-pins.html:103`.
+  **Chủ: Story 7.7.**

@@ -767,6 +767,12 @@ fn spec_with_migrations(dir: &Path, migrations: &'static [Migration]) -> StoreSp
 /// ký**, chứ không phải một hiệu ứng phụ của một lượt sửa lược đồ.
 ///
 /// ⚠️ Cập nhật Story 1.8: bước 2 thêm bảng `config_value` ⇒ target là **2**.
+///
+/// 🔴 **Cập nhật Story 1.20 (2026-08-11): bước 3 thêm bảng `pinned_entry` ⇒ target là 3.**
+/// Và lượt đỏ này là bằng chứng chạy được cho chính doc-comment ở trên: bản đầu của story
+/// đặt bảng ghim vào `PROJECT_MIGRATIONS`, nên ca này **KHÔNG** đỏ — story đã ghi tiền đề
+/// *"ca này sẽ đỏ"* mà không kiểm, và phép đo bắt được. Lượt Ice ký lại chuyển bảng sang
+/// `global.db`, và nay nó đỏ **đúng như** cơ chế được thiết kế để đỏ.
 #[test]
 fn a_fresh_database_migrates_up_to_target_and_logs_it() {
     let dir = temp_dir("fresh-migrate");
@@ -774,9 +780,9 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
 
     assert_eq!(
         store.schema_version(),
-        2,
-        "`GLOBAL_MIGRATIONS` có hai bước (Story 1.7 sổ di trú · Story 1.8 `config_value`), \
-         nên một database mới phải kết thúc ở phiên bản 2"
+        3,
+        "`GLOBAL_MIGRATIONS` có ba bước (Story 1.7 sổ di trú · Story 1.8 `config_value` · \
+         Story 1.20 `pinned_entry`), nên một database mới phải kết thúc ở phiên bản 3"
     );
 
     let (rows, versions, app_version, applied_at) = store
@@ -797,11 +803,11 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
         })
         .expect("đọc sổ di trú");
 
-    assert_eq!(rows, 2, "sổ di trú phải có đúng một bản ghi cho MỖI bước");
+    assert_eq!(rows, 3, "sổ di trú phải có đúng một bản ghi cho MỖI bước");
     assert_eq!(
         versions,
-        vec![1, 2],
-        "cả hai bước phải có mặt trong sổ — một bước chạy mà không ghi sổ là đúng ca \
+        vec![1, 2, 3],
+        "cả ba bước phải có mặt trong sổ — một bước chạy mà không ghi sổ là đúng ca \
          *sổ nói chưa chạy mà lược đồ thì đã*"
     );
     assert_eq!(app_version, env!("CARGO_PKG_VERSION"));
@@ -826,11 +832,27 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
          một lược đồ nói dối"
     );
 
+    // Bước 3 (Story 1.20) — cùng luật, cùng lý do.
+    let pinned_table: i64 = store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'pinned_entry'",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .expect("đọc sqlite_master");
+    assert_eq!(
+        pinned_table, 1,
+        "bước 3 phải dựng bảng `pinned_entry` — một `user_version = 3` mà không có bảng là \
+         một lược đồ nói dối"
+    );
+
     // `PRAGMA user_version` thật sự đã đổi, không chỉ trường trong bộ nhớ.
     let on_disk: i64 = store
         .read(|conn| conn.query_row("PRAGMA user_version", [], |r| r.get(0)))
         .expect("đọc user_version");
-    assert_eq!(on_disk, 2);
+    assert_eq!(on_disk, 3);
 
     drop(store);
     cleanup(&dir);
