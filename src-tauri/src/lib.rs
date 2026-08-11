@@ -71,7 +71,31 @@ const GLOBAL_DB_FILE: &str = "global.db";
 #[cfg(all(debug_assertions, feature = "wdio"))]
 pub const E2E_DATA_DIR_ENV: &str = "AURATRANSLATE_E2E_DATA_DIR";
 
-/// Chính sách của [`E2E_DATA_DIR_ENV`], tách khỏi phép **đọc** biến môi trường.
+/// Tên biến môi trường chỉ **thư mục gốc Library** sang một thư mục khác — **chỉ e2e**.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO CẦN BIẾN THỨ HAI — `$APPDATA` KHÔNG phải bề mặt dữ liệu thật duy nhất
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Phát hiện 2026-08-11 (Story 1.22, C2): [`E2E_DATA_DIR_ENV`] đóng đúng **một** đường ghi.
+/// Thư mục gốc Library đi một đường **hoàn toàn khác** — `app.path().document_dir()` ⇒
+/// `~/Documents/AuraTranslate/`, phân giải ở `commands::project::default_library_root`
+/// (AD-23, scope động). Nên một bàn đo tạo Tác phẩm sẽ ghi vào thư mục **Documents THẬT**
+/// của người chạy, tức tái lập nguyên vẹn lớp lỗi mà [`E2E_DATA_DIR_ENV`] vừa đóng, chỉ ở
+/// một thư mục khác.
+///
+/// ⚠️ Đây là lý do biến này ra đời **TRƯỚC** fixture đầu tiên tạo Tác phẩm, không sau: bề
+/// mặt thứ hai tìm ra bằng cách đọc mã, không bằng cách mất dữ liệu một lần nữa.
+///
+/// Hai biến chứ không một, vì hai kho là **hai vai khác nhau** trong AD-7 — `global.db` là
+/// nguồn sự thật của tầng Global, `.atproj/` là nguồn sự thật của một Tác phẩm — và ranh
+/// giới sở hữu ở đó là **cứng**. Gộp chúng vào một biến là dạy người đọc rằng chúng cùng
+/// một chỗ.
+///
+/// Chặn bằng ĐÚNG HAI LỚP của AD-45, giống hệt [`E2E_DATA_DIR_ENV`].
+#[cfg(all(debug_assertions, feature = "wdio"))]
+pub const E2E_LIBRARY_ROOT_ENV: &str = "AURATRANSLATE_E2E_LIBRARY_ROOT";
+
+/// Chính sách CHUNG của hai móc e2e, tách khỏi phép **đọc** biến môi trường.
 ///
 /// Tách ra vì hai lý do đo được, không phải vì gu kiến trúc:
 /// 1. `std::env::set_var` là `unsafe` từ edition 2024, và một ca test đặt biến môi trường
@@ -86,7 +110,7 @@ pub const E2E_DATA_DIR_ENV: &str = "AURATRANSLATE_E2E_DATA_DIR";
 /// viết ca test nghĩ — nên nó sẽ đẻ một `global.db` ở một chỗ bất kỳ trong kho mà không
 /// ai báo. Rỗng cũng bị từ chối: một biến đặt thành chuỗi rỗng là một lượt đặt hỏng, và
 /// coi nó như *"không đặt"* là im lặng nuốt một lỗi cấu hình.
-pub fn data_dir_override_from_raw(raw: Option<&std::ffi::OsStr>) -> Option<std::path::PathBuf> {
+pub fn absolute_dir_override_from_raw(raw: Option<&std::ffi::OsStr>) -> Option<std::path::PathBuf> {
     let raw = raw?;
     if raw.is_empty() {
         return None;
@@ -95,17 +119,33 @@ pub fn data_dir_override_from_raw(raw: Option<&std::ffi::OsStr>) -> Option<std::
     if path.is_absolute() { Some(path) } else { None }
 }
 
-/// Đọc [`E2E_DATA_DIR_ENV`] rồi áp [`data_dir_override_from_raw`].
+/// Đọc [`E2E_DATA_DIR_ENV`] rồi áp [`absolute_dir_override_from_raw`].
 ///
 /// Nhánh `not(...)` trả `None` **theo kiểu**, nên bản phát hành không có đường mã nào
 /// chạm biến môi trường đó.
 #[cfg(all(debug_assertions, feature = "wdio"))]
 fn data_dir_override() -> Option<std::path::PathBuf> {
-    data_dir_override_from_raw(std::env::var_os(E2E_DATA_DIR_ENV).as_deref())
+    absolute_dir_override_from_raw(std::env::var_os(E2E_DATA_DIR_ENV).as_deref())
 }
 
 #[cfg(not(all(debug_assertions, feature = "wdio")))]
 fn data_dir_override() -> Option<std::path::PathBuf> {
+    None
+}
+
+/// Đọc [`E2E_LIBRARY_ROOT_ENV`] rồi áp [`absolute_dir_override_from_raw`].
+///
+/// `pub(crate)` vì chỗ dùng là `commands::project::default_library_root` — mọi phép **đọc**
+/// biến môi trường của bộ e2e cố ý sống chung ở tệp này, sau cùng một cặp `cfg`. Rải chúng
+/// ra từng module là làm bất biến *"chỉ tồn tại sau hai lớp gác"* thành một thứ phải kiểm
+/// ở N chỗ.
+#[cfg(all(debug_assertions, feature = "wdio"))]
+pub(crate) fn library_root_override() -> Option<std::path::PathBuf> {
+    absolute_dir_override_from_raw(std::env::var_os(E2E_LIBRARY_ROOT_ENV).as_deref())
+}
+
+#[cfg(not(all(debug_assertions, feature = "wdio")))]
+pub(crate) fn library_root_override() -> Option<std::path::PathBuf> {
     None
 }
 

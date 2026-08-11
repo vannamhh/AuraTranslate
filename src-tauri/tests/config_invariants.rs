@@ -531,13 +531,15 @@ fn nofonts_overlay_drops_resources_with_an_explicit_null() {
 //  Móc chuyển hướng `$APPDATA` của bộ e2e — AD-45, Story 1.22 AC2
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Chính sách của `data_dir_override_from_raw`, kiểm ở **mọi** bộ feature.
+/// Chính sách CHUNG của hai móc e2e, kiểm ở **mọi** bộ feature.
 ///
 /// Hàm đó cố ý KHÔNG bị `cfg` gác, đúng để ca này chạy cả trong `cargo test` mặc định mà
 /// hook `pre-push` gọi. Thứ bị gác là phép **đọc** biến môi trường, không phải luật.
+/// Một chính sách dùng chung cho cả `$APPDATA` lẫn thư mục gốc Library, vì hai móc khác
+/// nhau ở **cái gì bị chuyển hướng**, không ở **giá trị nào hợp lệ**.
 #[test]
-fn the_data_dir_override_rejects_everything_that_is_not_an_absolute_path() {
-    use auratranslate_lib::data_dir_override_from_raw as parse;
+fn the_dir_override_rejects_everything_that_is_not_an_absolute_path() {
+    use auratranslate_lib::absolute_dir_override_from_raw as parse;
     use std::ffi::OsStr;
 
     assert_eq!(parse(None), None, "không đặt biến ⇒ không chuyển hướng");
@@ -580,18 +582,31 @@ fn the_data_dir_override_rejects_everything_that_is_not_an_absolute_path() {
 #[test]
 fn the_env_read_lives_only_behind_debug_assertions_and_the_wdio_feature() {
     const GUARD: &str = r#"#[cfg(all(debug_assertions, feature = "wdio"))]"#;
-    const ENV_NAME: &str = "AURATRANSLATE_E2E_DATA_DIR";
+
+    // 🔴 Danh sách này phải mọc theo MỌI móc e2e mới. Một móc thứ ba không có tên ở đây là
+    // một đường ghi vào dữ liệu thật của người chạy mà không bất biến nào canh — đúng cách
+    // bề mặt THỨ HAI (thư mục gốc Library) đã lọt qua AC2 và chỉ lộ ra ở lượt đọc mã của C2.
+    const ENV_NAMES: [&str; 2] = [
+        "AURATRANSLATE_E2E_DATA_DIR",
+        "AURATRANSLATE_E2E_LIBRARY_ROOT",
+    ];
 
     let path = manifest_dir().join("src/lib.rs");
     let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
-    // Tên biến xuất hiện ĐÚNG MỘT LẦN trong toàn bộ mã sản phẩm. Hai chỗ khai cùng một
-    // tên là hai chỗ có thể trôi khỏi nhau, và chỗ trôi sẽ ghi vào `$APPDATA` thật.
-    let occurrences = src.matches(ENV_NAME).count();
-    assert_eq!(
-        occurrences, 1,
-        "`{ENV_NAME}` phải xuất hiện đúng MỘT lần trong `src/lib.rs`, thấy {occurrences}."
-    );
+    for name in ENV_NAMES {
+        // Tên biến xuất hiện ĐÚNG MỘT LẦN trong toàn bộ mã sản phẩm. Hai chỗ khai cùng một
+        // tên là hai chỗ có thể trôi khỏi nhau, và chỗ trôi sẽ ghi vào dữ liệu thật.
+        //
+        // ⚠️ `_DATA_DIR` là tiền tố của chính nó chứ không của tên kia, và hai tên không
+        // chứa nhau, nên phép đếm chuỗi con ở đây không chồng lấn. Thêm một móc tên
+        // `AURATRANSLATE_E2E_DATA_DIR_2` sẽ làm phép đếm này sai — đừng đặt tên như vậy.
+        let occurrences = src.matches(name).count();
+        assert_eq!(
+            occurrences, 1,
+            "`{name}` phải xuất hiện đúng MỘT lần trong `src/lib.rs`, thấy {occurrences}."
+        );
+    }
 
     // Mỗi lần **dùng** hằng đó trong MÃ phải đứng sau một dòng gác
     // `all(debug_assertions, wdio)`.
@@ -603,7 +618,7 @@ fn the_env_read_lives_only_behind_debug_assertions_and_the_wdio_feature() {
     // sau `/* … */` trên cùng dòng, và đó là một hình dạng mã không tồn tại trong tệp này.
     let lines: Vec<&str> = src.lines().collect();
     for (i, line) in lines.iter().enumerate() {
-        if !line.contains("E2E_DATA_DIR_ENV") {
+        if !line.contains("E2E_DATA_DIR_ENV") && !line.contains("E2E_LIBRARY_ROOT_ENV") {
             continue;
         }
         let trimmed = line.trim_start();
@@ -616,7 +631,7 @@ fn the_env_read_lives_only_behind_debug_assertions_and_the_wdio_feature() {
             .any(|earlier| earlier.trim() == GUARD);
         assert!(
             guarded,
-            "dòng {} nhắc `E2E_DATA_DIR_ENV` mà không có `{GUARD}` ở trên trong 40 dòng \
+            "dòng {} nhắc một hằng móc e2e mà không có `{GUARD}` ở trên trong 40 dòng \
              gần nhất:\n  {}\n\n\
              AD-45 đòi HAI lớp gác và cần cả hai. Bỏ `feature = \"wdio\"` để lại một \
              biến môi trường đọc được trong MỌI bản debug — tức mọi lượt `tauri dev` của \
@@ -636,8 +651,11 @@ fn the_env_read_lives_only_behind_debug_assertions_and_the_wdio_feature() {
 /// một kho thật cũng là một kho mở được. Không có ca này thì lượt hồi quy đó không có
 /// một cổng nào chặn.
 #[test]
-fn the_e2e_runner_and_the_rust_side_name_the_same_variable() {
-    const ENV_NAME: &str = "AURATRANSLATE_E2E_DATA_DIR";
+fn the_e2e_runner_and_the_rust_side_name_the_same_variables() {
+    const ENV_NAMES: [&str; 2] = [
+        "AURATRANSLATE_E2E_DATA_DIR",
+        "AURATRANSLATE_E2E_LIBRARY_ROOT",
+    ];
 
     let path = manifest_dir()
         .join("..")
@@ -645,10 +663,13 @@ fn the_e2e_runner_and_the_rust_side_name_the_same_variable() {
         .join("wdio.conf.mjs");
     let conf = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
-    assert!(
-        conf.contains(ENV_NAME),
-        "`e2e/wdio.conf.mjs` không nhắc `{ENV_NAME}`.\n\n\
-         Nếu vừa đổi tên biến ở `src/lib.rs`, đổi luôn ở đó. Bỏ qua ca này nghĩa là bộ \
-         e2e ghi vào `global.db` THẬT của người chạy trong khi mọi ca vẫn xanh."
-    );
+    for name in ENV_NAMES {
+        assert!(
+            conf.contains(name),
+            "`e2e/wdio.conf.mjs` không nhắc `{name}`.\n\n\
+             Nếu vừa đổi tên biến ở `src/lib.rs`, đổi luôn ở đó. Bỏ qua ca này nghĩa là bộ \
+             e2e ghi vào dữ liệu THẬT của người chạy trong khi mọi ca vẫn xanh — `global.db` \
+             với biến thứ nhất, `~/Documents/AuraTranslate/` với biến thứ hai."
+        );
+    }
 }

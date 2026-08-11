@@ -1646,3 +1646,62 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   tạo Tác phẩm hôm nay sẽ ghi vào thư mục **Documents THẬT** của người chạy, tức tái lập đúng
   lớp lỗi mà C1 vừa đóng, chỉ ở một thư mục khác. **Chuyển hướng Library root phải làm TRƯỚC
   fixture**, không sau. **Chủ: Story 1.22.**
+
+## Deferred from: Story 1.22 — bề mặt dữ liệu thật THỨ HAI (2026-08-11)
+
+- ✅ **ĐÓNG — thư mục gốc Library đi vào thư mục tạm, không vào `~/Documents` thật.**
+
+  **Bề mặt này tìm ra bằng cách ĐỌC MÃ, không bằng cách mất dữ liệu thêm một lần.** AC2 đóng
+  `$APPDATA`; lượt chuẩn bị fixture cho spec Attribution mới lộ ra rằng thư mục gốc Library
+  đi một đường **hoàn toàn khác** — `app.path().document_dir()` ⇒ `~/Documents/AuraTranslate/`,
+  phân giải ở `commands::project::default_library_root` (AD-23, scope động). Một bàn đo tạo
+  Tác phẩm sẽ ghi vào Documents THẬT của người chạy, tức tái lập nguyên vẹn lớp lỗi mà AC2
+  vừa đóng, chỉ ở một thư mục khác.
+
+  **Bản vá:** `AURATRANSLATE_E2E_LIBRARY_ROOT`, cùng hai lớp gác AD-45 và **cùng một chính
+  sách** với móc thứ nhất — hàm thuần đổi tên `data_dir_override_from_raw` →
+  `absolute_dir_override_from_raw`, vì hai móc khác nhau ở **cái gì bị chuyển hướng**, không
+  ở **giá trị nào hợp lệ**. Hai biến chứ không một: `global.db` và `.atproj/` là **hai vai
+  khác nhau** trong AD-7 với ranh giới sở hữu **cứng**; gộp chúng vào một biến là dạy người
+  đọc rằng chúng cùng một chỗ.
+
+  **Ba bất biến mở rộng để canh CẢ HAI tên** *(danh sách `ENV_NAMES`, phải mọc theo mọi móc
+  mới — một móc thứ ba không có tên ở đó là một đường ghi không ai canh, đúng cách bề mặt thứ
+  hai đã lọt qua AC2)*.
+
+  🔴 **Hai hàng rào, hai chiều, và lý do cần cả hai:** móc `$APPDATA` có một phép tự kiểm
+  **dương tính** *(`global.db` phải nằm trong thư mục tạm)*. Móc Library thoạt nhìn không có
+  đối ứng — chưa bàn đo nào tạo Tác phẩm, nên thư mục tạm rỗng dù móc chạy đúng hay sai, và
+  một phép kiểm dương tính bịa ra sẽ **luôn xanh mà không canh gì**. Đóng bằng hai thứ:
+  ① `onComplete` đi chiều **ÂM** — thư mục Documents thật phải y nguyên; đúng một cách tầm
+  thường hôm nay, và **tự có răng** vào ngày fixture đầu tiên xuất hiện, kể cả khi người viết
+  fixture quên đọc `wdio.conf.mjs`;
+  ② `e2e/specs/library-root-redirect.e2e.mjs` đi chiều **DƯƠNG** — nó **thật sự tạo một Tác
+  phẩm** bằng cách gọi thẳng `create_work_from_text` qua IPC, rồi đọc đĩa bằng `node:fs`.
+  Gọi IPC chứ không đi giao diện có lý do: câu hỏi là *"`.atproj` rơi vào thư mục nào"*, và
+  một đường đi qua form sẽ đo **giao diện nhập** thay vì đo **đường ghi**.
+
+  **Nghiệm thu — đỏ-rồi-xanh chạy thật:**
+
+  | Phép đo | Kết quả |
+  |---|---|
+  | Spec chiều dương | **XANH** — `.atproj` nằm trong thư mục tạm, vắng mặt ở Documents thật |
+  | Ca ĐỎ — biến đặt sai *(đường tương đối, thứ chính sách từ chối)* | **cả hai** hàng rào nổ: khẳng định của spec, và hàng rào âm *(Documents thật 21 → 22 mục)* |
+  | Dọn Tác phẩm lạc rồi đối chiếu | Documents thật **khớp ảnh chụp ban đầu, 21 mục** |
+  | Chín cổng · `npm run build` · `cargo test --locked` | 9/9 xanh · xanh · xanh |
+
+  ⚠️ **Ca đỏ đầu tiên SAI hình dạng, ghi lại vì bài học dùng được:** lượt đầu mô phỏng bằng
+  cách đổi **tên hằng** trong `wdio.conf.mjs`. Nhưng tên đó là thứ **chính spec** đọc để biết
+  thư mục tạm, nên spec trượt **trước khi** tạo Tác phẩm và hàng rào âm không hề bị chạm — một
+  ca đỏ **không chứng minh gì**. Ca đúng là mô phỏng một biến **đặt sai giá trị**, vì đó mới
+  là hình dạng hỏng thật.
+
+  ⚠️ **Giới hạn của hàng rào âm, ghi thẳng:** `mtimeMs` của thư mục chỉ đổi khi có mục được
+  **thêm hay xoá**, nên một lượt ghi **đè** lên `.atproj` sẵn có sẽ lọt. Đóng nốt vế đó cần
+  quét đệ quy cả cây — đắt, và chưa cần vì hôm nay không đường mã nào của bộ e2e mở được một
+  Tác phẩm có sẵn. Mở lại khi có fixture mở Tác phẩm.
+
+- 📝 **Fixture cho spec Attribution nay KHÔNG còn bị chặn bởi dữ liệu thật.** Hai bề mặt đã
+  đóng, và `library-root-redirect.e2e.mjs` vừa chứng minh một Tác phẩm tạo được từ trong bàn
+  đo. Việc còn lại là thuần giao diện: từ chế độ `library` sang `workspace` với Tác phẩm vừa
+  tạo, để `[data-attribution-open]` tồn tại. **Chủ: Story 1.22.**

@@ -60,6 +60,17 @@ pub struct OpenWork {
 pub fn default_library_root(app: &tauri::AppHandle) -> Result<PathBuf, IpcError> {
     use tauri::Manager as _;
 
+    // Móc e2e đứng TRƯỚC `document_dir()` và chỉ tồn tại trong bản debug + feature `wdio`
+    // (AD-45). Bản phát hành đi thẳng xuống nhánh dưới.
+    //
+    // 🔴 Vì sao móc này có mặt TRƯỚC khi tồn tại một bàn đo nào tạo Tác phẩm: bộ e2e dựng
+    // một cửa sổ THẬT, nên mọi đường ghi của sản phẩm là một đường ghi vào dữ liệu thật của
+    // người chạy. `$APPDATA` đã đóng ở AC2; đây là bề mặt THỨ HAI, tìm ra bằng cách đọc mã
+    // chứ không bằng cách mất dữ liệu thêm một lần. Xem `crate::E2E_LIBRARY_ROOT_ENV`.
+    if let Some(root) = crate::library_root_override() {
+        return Ok(root);
+    }
+
     let documents = app.path().document_dir().map_err(|e| {
         crate::core::library::ProjectError::CreateFailed {
             detail: format!("resolve document_dir: {e}"),

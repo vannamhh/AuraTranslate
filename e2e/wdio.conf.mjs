@@ -34,6 +34,16 @@
  *    định"* chỉ vá TRIỆU CHỨNG.
  *    Nay `onPrepare` dựng một thư mục tạm và truyền qua `AURATRANSLATE_E2E_DATA_DIR`;
  *    `onComplete` TỰ KIỂM rằng `global.db` nằm trong đó rồi mới xoá.
+ *
+ *    🔴 **Và `$APPDATA` KHÔNG phải bề mặt duy nhất — bề mặt thứ hai đóng cùng ngày.** Thư
+ *    mục gốc Library đi một đường hoàn toàn khác (`document_dir()` ⇒
+ *    `~/Documents/AuraTranslate/`, phân giải ở `commands::project::default_library_root`),
+ *    nên một bàn đo tạo Tác phẩm sẽ ghi vào Documents THẬT. Đóng bằng
+ *    `AURATRANSLATE_E2E_LIBRARY_ROOT`, cộng **hai** hàng rào: `library-root-redirect.e2e.mjs`
+ *    đi chiều dương *(`.atproj` phải nằm trong thư mục tạm)*, và `onComplete` đi chiều âm
+ *    *(thư mục thật phải y nguyên)*. Bề mặt này tìm ra bằng cách **đọc mã** lúc chuẩn bị
+ *    fixture, không bằng cách mất dữ liệu thêm một lần — nên đừng chờ một bề mặt thứ ba tự
+ *    lộ ra: mỗi đường ghi mới của sản phẩm là một câu hỏi *"nó rơi vào đâu khi e2e chạy"*.
  *    🔴 Vì sao một biến môi trường đọc trong Rust chứ không phải chỉ đổi `HOME`: đo trên
  *    `dirs-6.0.0`/`dirs-sys-0.5.0` đang ghim — macOS phân giải qua `$HOME`, **Windows đi
  *    Known Folder API và bỏ qua `%APPDATA%`**. Đổi `HOME` là một bản vá chạy trên macOS
@@ -57,8 +67,8 @@
  */
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 import { spawn } from 'node:child_process'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -74,11 +84,60 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
  */
 const DATA_DIR_ENV = 'AURATRANSLATE_E2E_DATA_DIR'
 
+/**
+ * Tên biến chỉ **thư mục gốc Library** sang thư mục tạm.
+ *
+ * 🔴 Bề mặt dữ liệu thật THỨ HAI, và nó đi một đường hoàn toàn khác `$APPDATA`:
+ * `document_dir()` ⇒ `~/Documents/AuraTranslate/`, phân giải ở
+ * `commands::project::default_library_root`. Đóng nó **trước** khi tồn tại một bàn đo nào
+ * tạo Tác phẩm — bề mặt này tìm ra bằng cách đọc mã, không bằng cách mất dữ liệu thêm một
+ * lần nữa.
+ */
+const LIBRARY_ROOT_ENV = 'AURATRANSLATE_E2E_LIBRARY_ROOT'
+
 /** Tên tệp kho toàn cục — khớp `GLOBAL_DB_FILE` ở `src-tauri/src/lib.rs`. */
 const GLOBAL_DB_FILE = 'global.db'
 
+/** Thư mục con dưới `~/Documents/` — khớp `DOCUMENTS_SUBFOLDER` ở `commands/project.rs`. */
+const DOCUMENTS_SUBFOLDER = 'AuraTranslate'
+
 /** Thư mục tạm của lượt chạy này. `null` cho tới `onPrepare`. */
 let dataDir = null
+
+/** Thư mục gốc Library tạm của lượt chạy này. `null` cho tới `onPrepare`. */
+let libraryDir = null
+
+/** Dấu vân của thư mục Library THẬT, chụp lúc `onPrepare`. Xem `realLibrarySignature`. */
+let realLibraryBefore = null
+
+/** Đường dẫn thư mục Library THẬT của người chạy — thứ lượt e2e KHÔNG được chạm. */
+function realLibraryPath() {
+  return join(homedir(), 'Documents', DOCUMENTS_SUBFOLDER)
+}
+
+/**
+ * Dấu vân đủ để phát hiện *"lượt e2e vừa ghi vào thư mục Library thật"*.
+ *
+ * 🔴 Vì sao cần hàng rào NÀY chứ không chỉ tin biến môi trường: móc `$APPDATA` có một
+ * phép tự kiểm dương tính — `global.db` phải NẰM trong thư mục tạm. Móc Library **không
+ * có** đối ứng như vậy hôm nay, vì chưa bàn đo nào tạo Tác phẩm, nên thư mục tạm rỗng dù
+ * móc chạy đúng hay sai. Một phép kiểm dương tính bịa ra ở đây sẽ luôn xanh và không canh
+ * gì.
+ *
+ * Nên hàng rào đi chiều ÂM: thư mục thật phải **y nguyên**. Nó đúng một cách tầm thường
+ * hôm nay, và nó **tự có răng** vào đúng ngày fixture đầu tiên xuất hiện — kể cả khi
+ * người viết fixture quên đọc tệp này.
+ *
+ * ⚠️ Giới hạn: `mtimeMs` của thư mục chỉ đổi khi có mục được thêm hay xoá, nên một lượt
+ * ghi ĐÈ lên một `.atproj` sẵn có sẽ lọt. Đóng nốt vế đó cần quét đệ quy cả cây — đắt và
+ * chưa cần, vì hôm nay không đường mã nào của bộ e2e mở được một Tác phẩm có sẵn.
+ */
+function realLibrarySignature() {
+  const path = realLibraryPath()
+  if (!existsSync(path)) return 'absent'
+  const st = statSync(path)
+  return `${st.mtimeMs}|${readdirSync(path).length}`
+}
 
 /**
  * Cổng của Vite. `tauri.conf.json::build.devUrl` trỏ vào đây và `vite.config.ts` khai
@@ -152,6 +211,12 @@ export const config = {
     process.env[DATA_DIR_ENV] = dataDir
     console.log(`[e2e] $APPDATA của app con → ${dataDir}`)
 
+    // Bề mặt dữ liệu thật THỨ HAI — xem `LIBRARY_ROOT_ENV`.
+    libraryDir = mkdtempSync(join(tmpdir(), 'auratranslate-e2e-library-'))
+    process.env[LIBRARY_ROOT_ENV] = libraryDir
+    realLibraryBefore = realLibrarySignature()
+    console.log(`[e2e] thư mục gốc Library → ${libraryDir}`)
+
     if (await devServerIsUp()) {
       console.log(`[e2e] ${DEV_URL} đã có người phục vụ — dùng lại, KHÔNG dựng thêm.`)
       return
@@ -192,6 +257,30 @@ export const config = {
     if (viteProcess !== null) {
       viteProcess.kill('SIGTERM')
       viteProcess = null
+    }
+
+    // ── Hàng rào chiều ÂM: thư mục Library THẬT phải y nguyên ──────────────────────
+    if (realLibraryBefore !== null) {
+      const after = realLibrarySignature()
+      const before = realLibraryBefore
+      realLibraryBefore = null
+      if (libraryDir !== null) {
+        rmSync(libraryDir, { recursive: true, force: true })
+        libraryDir = null
+      }
+      if (after !== before) {
+        throw new Error(
+          `Thư mục Library THẬT của bạn đã ĐỔI trong lượt e2e này:\n  ${realLibraryPath()}\n` +
+            `  trước: ${before}\n  sau:   ${after}\n\n` +
+            'Bộ e2e không được chạm vào đó. Nguyên nhân hay gặp:\n' +
+            `  1. nhị phân dựng thiếu \`--features wdio\` ⇒ \`${LIBRARY_ROOT_ENV}\` không được đọc;\n` +
+            '  2. tên biến ở `src-tauri/src/lib.rs` đã đổi mà tệp này chưa đổi theo;\n' +
+            '  3. một đường ghi mới không đi qua `default_library_root()` — đó là một bề\n' +
+            '     mặt THỨ BA, và nó cần một móc riêng chứ không một ngoại lệ ở đây.\n\n' +
+            'Nếu bạn vừa mở ứng dụng thật song song với lượt chạy này thì đây là báo động\n' +
+            'giả — chạy lại khi app đã đóng, đừng gỡ phép kiểm.',
+        )
+      }
     }
 
     if (dataDir === null) return

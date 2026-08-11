@@ -75,9 +75,12 @@ development_status:
   1-19-bat-tat-nguon-tu-dien-va-ghi-cong: done
   1-20-lich-su-tra-cuu-va-muc-da-ghim: in-progress
   1-21-phim-tat-cau-hinh-lai-duoc: in-progress
-  # Dung sau khi ma da viet (correct-course 2026-08-11). Buoc 0-2 xong; ba gioi han
-  # con mo ($APPDATA dung chung · thu tu su kien cua element.click() · cong 4445 co
-  # dinh). Buoc 3 cho GitHub Actions quay lai.
+  # Dung sau khi ma da viet (correct-course 2026-08-11). Buoc 0-2 xong.
+  # C1 XONG: $APPDATA sang thu muc tam. C2 XONG: chuot that + cong cam `.click()`,
+  # va no lo ra mot khuyet tat SAN PHAM (UX-DR17 hong tren WKWebView) — da va goc.
+  # Be mat du lieu that THU HAI (thu muc goc Library) cung da dong.
+  # CON MO: C3 (cong 4445 co dinh) · fixture giao dien cho spec Attribution.
+  # Buoc 3 cho GitHub Actions quay lai.
   1-22-bo-chay-e2e-trong-webview-that: in-progress
   epic-1-retrospective: done
 
@@ -281,9 +284,9 @@ action_items:
     owner: "Dev"
     status: open
   - epic: 1
-    action: "🔴 `$APPDATA` KHONG phai be mat du lieu that duy nhat ma bo e2e cham toi. Thu muc goc Library di duong khac — `document_dir()` ⇒ `~/Documents/AuraTranslate/` (`commands/project.rs:60`). Mot fixture tao Tac pham hom nay se ghi vao Documents THAT cua nguoi chay. CHUYEN HUONG LIBRARY ROOT PHAI LAM TRUOC fixture, khong sau"
+    action: "✅ XONG 2026-08-11 — be mat du lieu that THU HAI da dong: `AURATRANSLATE_E2E_LIBRARY_ROOT`, cung hai lop gac AD-45 va cung chinh sach voi moc thu nhat. HAI hang rao: spec `library-root-redirect` di chieu DUONG (tao Tac pham that qua IPC, `.atproj` phai nam trong thu muc tam), `onComplete` di chieu AM (Documents that phai y nguyen). Ca DO chay that: ca hai hang rao no; don xong doi chieu khop 21 muc. Be mat nay tim ra bang cach DOC MA luc chuan bi fixture, khong bang cach mat du lieu them mot lan"
     owner: "Dev"
-    status: open
+    status: done
 
   # ── correct-course 2026-08-11: ra soat tai lieu vs ma nguon ───────────────────────
   - epic: 1
