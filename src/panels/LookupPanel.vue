@@ -305,6 +305,27 @@ onBeforeUnmount(() => {
   cancelProgressTimer()
   stopFade()
 })
+
+/**
+ * Ép tiêu điểm lên chính nút vừa bị bấm — điều kiện để AC11 của Story 1.19 đúng trên
+ * WKWebView. Khuôn và lý lẽ giống hệt `App.vue::focusOnPointerDown`; đọc lý do đầy đủ ở đó.
+ *
+ * 🔴 Tóm tắt: WKWebView không đặt tiêu điểm cho `<button>` khi bấm, nên đường lui của
+ * `AttributionOverlay.vue:57-70` — vốn lưu `document.activeElement` **lúc mở** — trả tiêu
+ * điểm về một node không phải nút mở, và nhánh dự phòng `[data-attribution-open]` không
+ * bao giờ chạy tới vì node đã lưu vẫn còn trong DOM.
+ *
+ * ⚠️ Khác `App.vue` ở một chỗ, và nó phải nói ra: mệnh đề tương ứng của
+ * `ShortcutsOverlay` đã được ĐO trên webview thật (đỏ-rồi-xanh). Mệnh đề ở đây **chưa
+ * đo được** — nút này sống trong panel Lookup, tức chỉ tồn tại ở chế độ `workspace`, mà
+ * bộ e2e chưa có fixture mở một Tác phẩm. Xem `e2e/specs/attribution-focus.e2e.mjs` và
+ * mục nợ tương ứng ở `deferred-work.md`. Vá theo **cùng nguyên nhân đã đo**, không theo
+ * một phép đo của chính nó.
+ */
+function focusOnPointerDown(event: MouseEvent) {
+  const target = event.currentTarget
+  if (target instanceof HTMLElement) target.focus()
+}
 </script>
 
 <template>
@@ -378,6 +399,7 @@ onBeforeUnmount(() => {
           type="button"
           class="lookup-sources-attr"
           data-attribution-open
+          @mousedown="focusOnPointerDown($event)"
           @click="dispatch('attribution.open')"
         >
           {{ t('command.attribution.open') }}

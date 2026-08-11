@@ -1589,3 +1589,60 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   là đổi hành vi của hai ca đang xanh trong cùng một lượt vá hạ tầng, và nó vẫn giữ một
   nghĩa thật — cô lập **giữa các ca trong cùng một spec**, thứ thư mục tạm theo **lượt chạy**
   không cho. Mở lại khi có ca thứ ba trong một spec. **Chủ: Story 1.22.**
+
+## Deferred from: Story 1.22 — C2, chuột thật thay `element.click()` (2026-08-11)
+
+- ✅ **ĐÓNG — luật *"thứ tự sự kiện đi Actions API"* nay là một CỔNG, không một quy ước.**
+  `realClick()` tách thành `e2e/support/pointer.mjs` *(một cài đặt dùng chung)*;
+  `eslint.config.js` cấm mọi lời gọi `.click()` trong `e2e/**` bằng `no-restricted-syntax`;
+  `check:lint` chạy `eslint src e2e` từ hôm nay — trước đó **`e2e/` không được cổng nào canh**.
+  Lệnh cấm **toàn phần**, rộng hơn phát biểu AC3 *(chỉ đòi ở nơi thứ tự có nghĩa)*, có chủ ý:
+  câu hỏi *"hàng này có phụ thuộc thứ tự không"* đã bị trả lời sai một lần rồi — xem mục kế
+  tiếp. Ngoại lệ thật đi qua `eslint-disable-next-line` kèm lý do, và
+  `reportUnusedDisableDirectives: 'error'` sẵn có bắt được ngoại lệ hết cần.
+  **Nghiệm thu đỏ-rồi-xanh:** cấy lại `.click()` ⇒ ĐỎ kèm câu chỉ thẳng sang `realClick()`;
+  cấy một `eslint-disable` **hết cần** ⇒ cũng ĐỎ; gỡ ⇒ XANH.
+
+- 🔴 **KHUYẾT TẬT SẢN PHẨM lộ ra ngay khi bàn đo đi chuột thật — UX-DR17 hỏng trên WKWebView.**
+  Đây là phát hiện đắt nhất của lượt này, và nó là **lý do cả phương án e2e tồn tại**.
+
+  Đổi `shortcuts-focus` sang `realClick()` ⇒ ca ĐỎ ngay lượt đầu:
+  `Expected substring: "data-shortcuts-open"` · `Received string: "section|mode"`.
+
+  **Cơ chế, đọc từ `ShortcutsOverlay.vue:58-80`:** đường lui lưu `document.activeElement`
+  **lúc mở** rồi trả về đúng node đó. Trên WKWebView, nút `<button>` **không nhận tiêu điểm
+  khi bấm**, nên node đã lưu là điểm vào focus của chế độ (`section.mode`), không phải nút mở.
+  ⚠️ **Nhánh dự phòng `querySelector('[data-…-open]')` KHÔNG cứu được ca này** — nó chỉ chạy
+  khi node đã lưu **rời DOM**, mà `section.mode` thì vẫn ở nguyên đó. Một đường lui không bao
+  giờ chạy tới không phải một đường lui.
+
+  🔴 **Vì sao nó sống sót suốt Epic 1:** bàn đo cũ bấm bằng `element.click()`, và lệnh đó
+  **có** đặt tiêu điểm — tức bàn đo XANH nhờ một hành vi mà chuột thật không có. Đúng hình
+  dạng *"xanh trên một sản phẩm đang hỏng"* mà lệnh cấm ở trên vừa dựng để chặn, và nó đã xảy
+  ra thật trước khi ai kịp lo xa về nó.
+
+  **Ice chốt 2026-08-11: vá GỐC, không vá ở lớp phủ.** `@mousedown="focusOnPointerDown($event)"`
+  trên nút mở, cùng khuôn `@mousedown` mà `config/shortcutsState.ts` đã dùng cho đúng khuyết
+  tật engine này. Vá gốc làm `activeElement` lúc mở thành đúng nút, nên đường lui **sẵn có**
+  tự đúng — thay vì thêm một nhánh thứ hai chỉ chữa cho một lớp phủ.
+  **Nghiệm thu:** trước vá ĐỎ với `section|mode` → sau vá **XANH**; `shortcuts-capture-mouse`
+  vẫn xanh (không hồi quy); chín cổng · `npm run build` · `cargo test --locked` đều xanh.
+
+- ⚠️ **`AttributionOverlay.vue` (Story 1.19, đang `done`) đã VÁ THEO CÙNG NGUYÊN NHÂN, nhưng
+  mệnh đề của nó CHƯA ĐO ĐƯỢC.** Tệp đó mang khuôn giống hệt (`:57-70`) — chính doc-comment
+  của `ShortcutsOverlay` ghi *"khuôn và lý lẽ chép từ `AttributionOverlay.vue`, cả hai vế"* —
+  nên nút mở của nó nhận cùng bản vá.
+  🔴 Ghi ra thay vì để nó trông như đã nghiệm thu: đây là một bản vá **theo nguyên nhân đã đo
+  ở chỗ khác**, không theo một phép đo của chính nó. Spec đã dựng
+  (`e2e/specs/attribution-focus.e2e.mjs`) nhưng **`skip` có lý do in ra màn hình**.
+  **Chủ: Story 1.22.**
+
+- 🔴 **Hai món chặn đã đo được, và món thứ hai LỚN HƠN nó trông.**
+  ① Nút `[data-attribution-open]` sống trong panel Lookup ⇒ chỉ tồn tại ở chế độ `workspace`,
+  mà app khởi động ở `library` (`modes/modeState.ts:33`). Cần một **fixture mở Tác phẩm**.
+  ② 🔴 **`$APPDATA` không phải bề mặt dữ liệu thật duy nhất mà bộ e2e chạm tới.** AC2 của
+  Story 1.22 chuyển hướng `$APPDATA`; thư mục gốc Library đi đường **khác hẳn** —
+  `document_dir()` ⇒ `~/Documents/AuraTranslate/` (`commands/project.rs:60`). Nên một fixture
+  tạo Tác phẩm hôm nay sẽ ghi vào thư mục **Documents THẬT** của người chạy, tức tái lập đúng
+  lớp lỗi mà C1 vừa đóng, chỉ ở một thư mục khác. **Chuyển hướng Library root phải làm TRƯỚC
+  fixture**, không sau. **Chủ: Story 1.22.**

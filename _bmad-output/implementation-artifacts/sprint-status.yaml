@@ -268,6 +268,23 @@ action_items:
     owner: "Dev"
     status: done
 
+  - epic: 1
+    action: "✅ XONG 2026-08-11 — AC3 Story 1.22: `realClick()` tach thanh `e2e/support/pointer.mjs`, va luat thanh CONG (`no-restricted-syntax` cam `.click()` trong `e2e/**`; `check:lint` nay chay `eslint src e2e` — truoc do `e2e/` khong cong nao canh). Do-roi-xanh hai chieu"
+    owner: "Dev"
+    status: done
+  - epic: 1
+    action: "✅ XONG 2026-08-11 — KHUYET TAT SAN PHAM lo ra ngay khi ban do di chuot that: UX-DR17 hong tren WKWebView. Duong lui luu `activeElement` LUC MO, ma WKWebView khong dat tieu diem cho `<button>` ⇒ no luu `section.mode`; nhanh du phong `[data-...-open]` khong bao gio chay toi vi node da luu VAN o trong DOM. Ban do cu XANH nho `element.click()` — mot hanh vi chuot that khong co. Ice chot va GOC: `@mousedown` ep tieu diem tren nut mo. Truoc va DO (`section|mode`) → sau va XANH"
+    owner: "Dev"
+    status: done
+  - epic: 1
+    action: "⚠️ `AttributionOverlay.vue` (Story 1.19, dang done) da va theo CUNG NGUYEN NHAN nhung menh de cua no CHUA DO DUOC — spec da dung, dang `skip` co ly do. Chan boi: nut mo song trong panel Lookup ⇒ chi co o che do `workspace`, can mot fixture mo Tac pham"
+    owner: "Dev"
+    status: open
+  - epic: 1
+    action: "🔴 `$APPDATA` KHONG phai be mat du lieu that duy nhat ma bo e2e cham toi. Thu muc goc Library di duong khac — `document_dir()` ⇒ `~/Documents/AuraTranslate/` (`commands/project.rs:60`). Mot fixture tao Tac pham hom nay se ghi vao Documents THAT cua nguoi chay. CHUYEN HUONG LIBRARY ROOT PHAI LAM TRUOC fixture, khong sau"
+    owner: "Dev"
+    status: open
+
   # ── correct-course 2026-08-11: ra soat tai lieu vs ma nguon ───────────────────────
   - epic: 1
     action: "Cong `check:gates` canh HAI trong BA danh sach cong — `.githooks/pre-push` la danh sach thu ba, khong ai canh. Da va: Kiem D + Kiem E + PREPUSH_EXEMPT co ly do. Bon ca do-roi-xanh chay that; chin cong van 9/9 xanh"

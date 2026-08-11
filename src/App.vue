@@ -104,6 +104,36 @@ onMounted(async () => {
     }
   }
 })
+
+/**
+ * Ép tiêu điểm lên chính nút vừa bị bấm — điều kiện để UX-DR17 đúng trên WKWebView.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 MỘT PHÉP ĐO, KHÔNG MỘT LƯỢT PHÒNG XA — bắt được 2026-08-11, Story 1.22 C2
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WKWebView **không** đặt tiêu điểm cho `<button>` khi bấm chuột. Đường lui của UX-DR17
+ * ở `ShortcutsOverlay.vue` lưu `document.activeElement` **lúc mở** rồi trả về đúng node
+ * đó; không có dòng này, node ấy là thứ đang giữ tiêu điểm từ trước — điểm vào focus của
+ * chế độ — chứ không phải nút mở. Đo được trên webview thật: sau `Escape`, tiêu điểm rơi
+ * vào `section.mode`, không về nút.
+ *
+ * ⚠️ Nhánh dự phòng `querySelector('[data-shortcuts-open]')` của lớp phủ **không cứu
+ * được** ca này, và đó là chỗ dễ đọc sai nhất: nó chỉ chạy khi node đã lưu **rời DOM**,
+ * mà `section.mode` thì vẫn ở nguyên đó. Một đường lui không bao giờ chạy tới không phải
+ * một đường lui.
+ *
+ * ⚠️ Vì sao bàn đo cũ vẫn XANH suốt thời gian đó: nó bấm bằng `element.click()` của
+ * driver, và lệnh ấy **có** đặt tiêu điểm — tức nó xanh vì một hành vi mà chuột thật
+ * không có. Story 1.22 AC3 đổi sang Actions API và ca đỏ ngay lượt đầu.
+ *
+ * `@mousedown` chứ không `@focus`: mousedown chạy **trước** `@click` phát command, nên
+ * lúc lớp phủ mở ra thì `activeElement` đã đúng. Cùng khuôn `@mousedown` mà
+ * `config/shortcutsState.ts` đã dùng cho đúng khuyết tật engine này.
+ */
+function focusOnPointerDown(event: MouseEvent) {
+  const target = event.currentTarget
+  if (target instanceof HTMLElement) target.focus()
+}
 </script>
 
 <template>
@@ -185,6 +215,7 @@ onMounted(async () => {
         type="button"
         class="titlebar-act"
         data-shortcuts-open
+        @mousedown="focusOnPointerDown($event)"
         @click="dispatch('shortcuts.open')"
       >
         {{ t('command.shortcuts.open') }}
