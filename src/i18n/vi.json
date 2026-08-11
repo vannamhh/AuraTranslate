@@ -140,7 +140,7 @@
   "shortcuts.col_command": "Thao tác",
   "shortcuts.col_id": "Mã lệnh",
   "shortcuts.col_key": "Phím",
-  "shortcuts.col_note": "Ghi chú",
+  "shortcuts.col_actions": "Bỏ gán / mặc định",
   "shortcuts.unassigned": "chưa gán",
   "shortcuts.state_aimed": "đang nhắm",
   "shortcuts.act_unassign": "Bỏ gán",

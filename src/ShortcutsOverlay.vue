@@ -118,12 +118,31 @@ function trapTab(event: KeyboardEvent): void {
  * trạng thái đang bắt, nên tới được đây nghĩa là **không** đang bắt — nhưng phép kiểm vẫn ở
  * lại, vì `Escape` cũng tới đây từ mọi điểm dừng Tab khác trong lớp phủ.
  */
+// ⚠️ `captureIsArmed.value`, **không** `captureIsArmed`. Nó là một `Ref`, và Vue chỉ tự bóc
+// `Ref` trong `template` — trong khối `script` này thì không. `if (captureIsArmed)` là một
+// phép thử trên chính **đối tượng** `Ref`, tức luôn luôn đúng, và nó là TypeScript hợp lệ nên
+// `vue-tsc --noEmit` xanh, cả chín cổng xanh, và `Escape` không bao giờ đóng được lớp phủ.
+// Kho không có ESLint nên không phép kiểm nào canh chỗ này (bắt ở code review 2026-08-11).
 function onEscape(): void {
-  if (captureIsArmed) {
+  if (captureIsArmed.value) {
     cancelCapture()
     return
   }
   dispatch('shortcuts.close')
+}
+
+/**
+ * 🔴 Tiêu điểm rời ô phím trong lúc **đang bắt** ⇒ huỷ lượt bắt.
+ *
+ * Không có vế này thì `capturing` treo `true` sau một cú bấm trượt hàng *(một `<th>`, một
+ * khoảng trắng ngoài bảng)* hay một lượt Tab đi: câu *"đang chờ một tổ hợp phím"* vẫn hiện,
+ * `@keydown` của ô phím không còn nhận gì, và cửa `isBlocked` của `main.ts` vẫn nuốt mọi
+ * command toàn cục. Bản bất biến giữ ở đây: **đang bắt ⇔ ô phím đang giữ tiêu điểm** — tức
+ * đúng khi và chỉ khi handler tới được. Vế còn lại của nó là cú ép tiêu điểm lúc arming ở
+ * `config/shortcutsState.ts::captureShortcut`; một vế không có vế kia thì vô nghĩa.
+ */
+function onKeyCellFocusOut(): void {
+  if (captureIsArmed.value) cancelCapture()
 }
 
 /**
@@ -136,7 +155,9 @@ function onEscape(): void {
  * vi ngay giữa lúc ta đang cố bắt một phím trần (Bẫy 6).
  */
 function onKeyCellKeydown(event: KeyboardEvent): void {
-  if (captureIsArmed) {
+  // ⚠️ `.value` — xem chú thích ở `onEscape`. Thiếu nó, nhánh này nhận **mọi** sự kiện và
+  // `return` ở cuối, nên nhánh `⌫` bỏ gán bên dưới là mã CHẾT ở mọi trạng thái.
+  if (captureIsArmed.value) {
     if (event.code === 'Escape') {
       // Dừng ở đây: `@keydown.esc` của lớp phủ KHÔNG được nhận sự kiện này (Bẫy 4).
       event.preventDefault()
@@ -154,7 +175,12 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
   // 🔴 BẪY 5 — `⌫` bỏ gán **chỉ ở trạng thái nghỉ**. `Backspace` có trong `NAMED_CODES`, tức
   // `Backspace` trần và `Mod+Backspace` đều là hợp âm hợp lệ gán được; đọc nó thành "bỏ gán"
   // trong lúc đang bắt là khoá vĩnh viễn một phím khỏi bảng, không dấu hiệu nào.
-  if (event.code === 'Backspace') {
+  //
+  // ⚠️ `!event.repeat` là vế thứ hai của cùng cái bẫy, và nó chỉ tới được sau khi lỗi `.value`
+  // ở trên được vá. Gán `⌫` rồi **giữ phím thêm một nhịp**: keydown đầu tiêu thụ ở nhánh đang
+  // bắt và tắt `capturing`, rồi nhịp auto-repeat của **cùng một cú bấm** rơi xuống đây và bỏ
+  // gán đúng cái phím vừa gán. `preventDefault()` không chặn auto-repeat.
+  if (event.code === 'Backspace' && !event.repeat) {
     event.preventDefault()
     dispatch('shortcuts.unassign')
   }
@@ -210,14 +236,26 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
         hàng là 30+ chỗ để sai, và `@click` của mỗi nút phải ở lại đúng một `dispatch`.
         Vì sao cần nó cùng với `document.activeElement`: WKWebView **không** đặt tiêu điểm
         cho `<button>` khi bấm chuột — xem `config/shortcutsState.ts`.
+
+        🔴 `@focusin` CÙNG với `@mousedown`, và cả hai đều cần (bắt ở code review 2026-08-11).
+        `mousedown` một mình để `aimedRow` sống dai hơn ý định: `targetRow()` cho nó thắng tiêu
+        điểm DOM, và nó chỉ bị xoá lúc đóng lớp phủ — nên sau lượt gán đầu tiên, một người
+        dùng THUẦN BÀN PHÍM Tab sang hàng khác rồi bấm "Bỏ gán" sẽ xoá phím của hàng CŨ.
+        `focusin` giữ `aimedRow` đi theo tiêu điểm, mà không lật thứ tự chuột-trước: khi
+        WKWebView không đặt tiêu điểm cho `<button>` thì `focusin` không nổ, và giá trị của
+        `mousedown` ở lại đúng như §Dev Notes ⑨ đòi.
       -->
-      <table class="sc-table" @mousedown="aimRowFrom($event)">
+      <table class="sc-table" @mousedown="aimRowFrom($event)" @focusin="aimRowFrom($event)">
         <thead>
           <tr>
             <th>{{ t('shortcuts.col_command') }}</th>
             <th>{{ t('shortcuts.col_id') }}</th>
             <th>{{ t('shortcuts.col_key') }}</th>
-            <th>{{ t('shortcuts.col_note') }}</th>
+            <!--
+              Cột này chứa HAI NÚT cộng hợp âm mặc định, không một lời ghi chú. Nhãn cũ
+              (`col_note` = "Ghi chú") nói sai nội dung cột — bắt ở code review 2026-08-11.
+            -->
+            <th>{{ t('shortcuts.col_actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -255,12 +293,19 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
                 Ô phím là một `<button>` (Bẫy 6). `@click` đi qua command, nên Enter/Space
                 của chuẩn HTML gốc cũng vào được trạng thái bắt — đó là vế bàn phím của AC6.
               -->
+              <!--
+                `data-key-cell` là cách `captureShortcut` tìm ra ô phím để ÉP tiêu điểm vào
+                nó lúc arming — một thuộc tính `data-`, không lớp CSS, vì `sc-key` thuộc khối
+                `style` scoped tức một chi tiết trình bày. Cùng khuôn `data-shortcuts-open`.
+              -->
               <button
                 type="button"
                 class="sc-key"
+                data-key-cell
                 :class="{ 'sc-key-armed': captureIsArmed && aimedShortcutRow === row.id }"
                 @click="dispatch('shortcuts.capture')"
                 @keydown="onKeyCellKeydown($event)"
+                @focusout="onKeyCellFocusOut()"
               >
                 <!--
                   aura-allow-text: hợp âm đã định dạng (`⌘D`, `Ctrl+Alt+→`) — DỮ LIỆU dẫn xuất

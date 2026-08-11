@@ -213,7 +213,41 @@ export function aimRowFrom(event: Event): void {
   aimedRow.value = id
   // Nhắm sang hàng khác giữa chừng ⇒ lượt bắt đang chờ hết đối tượng. Bỏ nó, đừng để nó
   // âm thầm gán vào hàng mới.
-  if (capturing.value) capturing.value = false
+  //
+  // ⚠️ Đi qua `cancelCapture()` chứ không gán thẳng `capturing.value = false`: một lượt huỷ
+  // gồm HAI vế, và bỏ vế thứ hai để câu *"Đang chờ một tổ hợp phím — Escape để huỷ"* treo
+  // lại trên màn hình sau khi đã không còn chờ gì nữa (bắt ở code review 2026-08-11).
+  if (capturing.value) cancelCapture()
+}
+
+/**
+ * Ô phím của một hàng — để **ÉP** tiêu điểm vào nó lúc arming.
+ *
+ * 🔴 Vì sao phải ép *(bắt ở code review 2026-08-11)*: WKWebView **không đặt tiêu điểm cho
+ * `<button>` khi bấm chuột** — `panels/dictSourcesState.ts:289-292` ghi bằng chữ và đã trả
+ * giá cho bài này ở code review 2026-08-10. `@keydown` bắt hợp âm sống trên ô phím, nên
+ * không ép thì đường **chuột** của AC2 chết trên macOS: `capturing` bật, câu *"đang chờ một
+ * tổ hợp phím"* hiện ra, `@keydown` không bao giờ nổ, và cửa `isBlocked` của `main.ts` nuốt
+ * sạch hợp âm người dùng gõ. *"Bấm mà không có gì xảy ra"* — đúng lớp lỗi AD-44 ④ cấm.
+ *
+ * ⚠️ Tra bằng `data-key-cell`, **không** bằng lớp CSS: `.sc-key` thuộc khối `style` scoped
+ * của `ShortcutsOverlay.vue`, tức một chi tiết trình bày đổi được lúc nào cũng được. Cùng
+ * khuôn `[data-shortcuts-open]` mà đường trả tiêu điểm của chính lớp phủ đó đang đi.
+ *
+ * ⚠️ `document.querySelector` (SỐ ÍT) có chủ đích: `querySelectorAll` **không** nằm trong
+ * `ALLOWED_GLOBAL_MEMBERS` của `check-layout.mjs:394-424`, và cổng đó đúng — nới danh sách
+ * cho một nhu cầu mà API đã cho phép làm được là nới vô cớ. Bản số ít đã được thêm vào danh
+ * sách ở code review 2026-08-10 cho **đúng** nhu cầu này: tìm lại một node theo thuộc tính
+ * `data-` để trao tiêu điểm, khi một `ref` không dùng được.
+ *
+ * ⚠️ Nội suy `id` vào selector không cần escape, và đó là một phép đo chứ không một lời hứa:
+ * cả **34** command id đọc từ `commandRegistry.list()` đều khớp `[a-z0-9]+(\.[a-z0-9_]+)+`.
+ * Chúng là chuỗi hằng trong `src/commands/index.ts` — không đường nào cho dữ liệu người dùng
+ * vào một command id.
+ */
+function keyCellOf(id: CommandId): HTMLElement | null {
+  if (typeof document === 'undefined') return null
+  return document.querySelector<HTMLElement>(`[data-command-id="${id}"] [data-key-cell]`)
 }
 
 /** Id của hàng đang có tiêu điểm DOM, hoặc `null`. */
@@ -266,6 +300,14 @@ export function captureShortcut(): void {
   const id = requireRow()
   if (id === null) return
   aimedRow.value = id
+  // 🔴 ÉP tiêu điểm lên ô phím — xem [`keyCellOf`] về vì sao đường chuột của AC2 chết trên
+  // macOS mà không có dòng này.
+  //
+  // ⚠️ Và ép **TRƯỚC** khi bật `capturing`, không sau. `focus()` phát `focusin`, `focusin`
+  // gọi `aimRowFrom`, và `aimRowFrom` có một nhánh **huỷ lượt bắt**. Đặt `capturing = true`
+  // trước rồi mới `focus()` là tự bắn vào chân mình: lượt bắt vừa bật bị chính cú ép tiêu
+  // điểm tắt đi, và triệu chứng y hệt lỗi mà dòng này tồn tại để sửa.
+  keyCellOf(id)?.focus()
   capturing.value = true
   notice.value = { key: 'shortcuts.capturing' }
 }
@@ -282,6 +324,10 @@ export function unassignShortcut(): void {
   if (id === null) return
   const next: Record<CommandId, readonly string[]> = { ...currentOverrides(), [id]: [] }
   if (!commitBindings(next)) return
+  // Lượt này đã thành công ⇒ câu cũ hết đúng. Cùng vế mà `handleCaptureKey` đã có; thiếu nó
+  // ở đây để một câu xung đột treo lại sau khi người dùng đã sửa xong bằng chính nút này
+  // (bắt ở code review 2026-08-11).
+  notice.value = null
   void persist(id, () => putConfig(SCOPE_SHORTCUT, id, ''))
 }
 
@@ -293,6 +339,8 @@ export function resetShortcut(): void {
   // Xoá khỏi lớp override ⇒ `createKeymap` rơi về `spec.keys`, tức mặc định sản phẩm.
   delete next[id]
   if (!commitBindings(next)) return
+  // Xem [`unassignShortcut`] — cùng lý do, cùng lượt vá.
+  notice.value = null
   void persist(id, () => deleteConfig(SCOPE_SHORTCUT, id))
 }
 

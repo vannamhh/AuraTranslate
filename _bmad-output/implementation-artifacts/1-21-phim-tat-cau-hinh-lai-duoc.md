@@ -4,7 +4,7 @@ baseline_commit: fe952de6ce4ac87b91ab1adef0b431b9f4920536
 
 # Story 1.21: Phím tắt cấu hình lại được
 
-Status: review
+Status: in-progress
 
 **Covers:** FR22 (`prd.md:419`) · NFR17 (`prd.md:887`) · AD-34 (`ARCHITECTURE-SPINE.md:406-417`)
 **Epic:** 1 — Nền móng ứng dụng & Tra cứu ngoại tuyến tức thì · **story CUỐI của epic**
@@ -251,6 +251,25 @@ Kiểm A (`check-commands.mjs:649`) đòi **mọi** `@click` là **đúng một*
   - [ ] **12 hàng CÒN LẠI cần app Tauri thật** — không đo bằng máy được, và ghi rõ vì sao: hàng **1**/**19** (thị giác) · **6** (đóng rồi mở lại **tiến trình**) · **9**/**18** (cửa nuốt hợp âm — đòi một listener `window` sống) · **10** (AC11) · **11** (Bẫy 4) · **12** (Bẫy 5) · **14** (AC13, sửa tay `global.db`) · **15**/**16** (AC6 trên **cả** macOS lẫn Windows, NFR14) · **17** (UX-DR17). Cộng **ảnh chụp màn hình thật** cho mỗi AC thị giác
   - [x] Ghi mọi lệch mockup và mọi món nợ mới vào `deferred-work.md` — **6 mục mới** + **6 mục cũ** cập nhật *(3 đóng · 1 đóng một nửa · 2 đổi chủ)*
 
+### Review Findings
+
+Lượt code review 2026-08-11 trên diff `fe952de..9940ee5` (16 tệp mã, +2.088/−111). Ba lớp đối kháng chạy mù nhau, cộng một finding thứ mười phát sinh lúc triage khi đo lại tiền lệ WKWebView. **10 finding: 2 decision-needed đã được Ice giải · 10 patch · 0 defer · 0 loại làm nhiễu.**
+
+🔴 **Nguyên nhân hệ thống, ghi trước mọi mục:** kho **không có ESLint**. `if (someRef)` là TS hợp lệ, nên `vue-tsc --noEmit` và cả chín cổng đều xanh trên hai lỗi Ref bên dưới. Chín cổng của dự án canh chuỗi, token, command và `dispatch` — **không** cái nào canh một Ref dùng thiếu `.value` trong khối `<script>`. Đây là đúng lớp lỗi mà 12 hàng bàn đo chạy tay còn treo của Task 7 tồn tại để bắt.
+
+- [x] [Review][Patch] 🔴 **Trên macOS, đường CHUỘT của AC2 không chạy một lần nào** — `dictSourcesState.ts:289-292` ghi bằng chữ *(đã trả giá ở code review 2026-08-10)*: WKWebView **không đặt tiêu điểm cho `<button>` khi bấm chuột**. `@keydown` bắt hợp âm sống trên `button.sc-key` (`ShortcutsOverlay.vue:263`) ⇒ bấm ô phím bằng chuột thì `capturing=true` và câu "Đang chờ một tổ hợp phím" hiện ra, nhưng `@keydown` **không bao giờ nổ**, `handleCaptureKey` không được gọi một lần nào, và `main.ts:283` `isBlocked` nuốt hợp âm. Người dùng gõ `Mod+K` và **không có gì xảy ra** — đúng lớp lỗi AD-44 ④ cấm, trên đúng câu mà `shortcuts.gesture` mở đầu *("Bấm vào ô phím rồi gõ tổ hợp mới")*. Bàn đo bằng máy không chạm DOM nên hàng 4 không thể bắt được nó; 8/20 hàng đã chạy đều xanh thật thà. **Ice chốt (B), 2026-08-11:** `captureShortcut` **ép tiêu điểm** lên ô phím của hàng đang nhắm ngay sau khi arming ⇒ bản bất biến *"đang bắt ⇒ ô phím giữ tiêu điểm ⇒ handler tới được"* thành đúng **do cấu trúc**, trên cả hai nền tảng. *(Đã bác (A) "chuyển listener lên `.sc-panel`": bền hơn nhưng bỏ bản bất biến và tách `onKeyCellKeydown` làm hai.)* Đóng luôn mục vùng chết bên dưới. [src/config/shortcutsState.ts:265-271, src/ShortcutsOverlay.vue:258-264]
+- [x] [Review][Patch] **`targetRow()` cho `aimedRow` cũ thắng tiêu điểm DOM ⇒ thao tác bàn phím áp vào SAI hàng** — `shortcutsState.ts:230-231` tính `aimedRow.value ?? focusedRowId()`, và `aimedRow` chỉ bị xoá ở `closeShortcuts` (`:260`). `captureShortcut` tự đặt `aimedRow.value = id` (`:268`) và không ai tiêu thụ nó. ⇒ đường **thuần bàn phím** vỡ sau lượt gán ĐẦU TIÊN: Tab tới hàng A, Enter, gõ hợp âm *(aimedRow='A')* → Tab tới hàng B, Enter trên "Bỏ gán" → `requireRow()` trả `'A'` và **xoá phím của hàng A** trong khi người dùng đang nhìn hàng B. Chạm AC2 và AC6 *(vòng thao tác trọn bằng bàn phím)*. Ba lời giải loại trừ nhau, và cả ba lật một quyết định đã chốt bằng chữ: **(a)** đảo thứ tự `focusedRowId() ?? aimedRow.value` — lật §Dev Notes ⑨, làm chết lại ca WKWebView đã trả giá ở Story 1.19; **(b)** thêm `@focusin="aimRowFrom($event)"` trên `<table>` — giữ cả hai vế, chuột vẫn thắng khi WKWebView không đặt tiêu điểm, Tab tự cập nhật hàng nhắm; **(c)** tiêu thụ `aimedRow` sau mỗi thao tác như `aimedCode` của `dictSourcesState.ts` — lật thẳng lời khai *"không tiêu thụ một lần"* ở `:202-205`. **Ice chốt (b), 2026-08-11:** thêm `@focusin="aimRowFrom($event)"` trên `<table>` — lời giải duy nhất không lật một lý lẽ đã đo. Chuột vẫn thắng khi WKWebView không đặt tiêu điểm, Tab tự cập nhật hàng nhắm, `aimRowFrom` không đổi một dòng. Giữ nguyên §Dev Notes ⑨ và giữ nguyên lời khai *"không tiêu thụ một lần"* ở `:202-205`. [src/ShortcutsOverlay.vue:214]
+- [x] [Review][Patch] **Tiêu điểm rời ô phím trong lúc đang bắt ⇒ vùng chết: cửa vẫn nuốt mọi command, gõ không gì xảy ra** — `shortcutsState.ts:212` `return` TRƯỚC nhánh huỷ ở `:216`, nên mousedown trên `<th>` để `capturing` treo `true`; ca bấm ngoài `<table>` và ca Tab đi cũng vậy. *(Sửa lại một mệnh đề của lớp review: `Escape` VẪN cứu được, nó lên tới `@keydown.esc` của `.sc-scrim`; nên đây là vùng chết tạm, không phải khoá cứng.)* **Ice chốt (b) ⇒ cài đặt theo (B) của mục trên:** `@focusout` trên `.sc-key` huỷ lượt bắt. Vế `focusout` chỉ có nghĩa **sau khi** tiêu điểm được ép lên ô phím lúc arming — một mình nó đóng đúng 0 ca trên macOS, và đó là phép đo lật cách cài đặt. [src/ShortcutsOverlay.vue:258-264]
+- [x] [Review][Patch] `captureIsArmed` dùng thiếu `.value` ở HAI chỗ trong `<script>` ⇒ `Escape` không bao giờ đóng lớp phủ, và `⌫` bỏ gán là mã chết [src/ShortcutsOverlay.vue:122, :139]
+- [x] [Review][Patch] `⌫` giữ lâu: keydown auto-repeat xoá đúng phím vừa gán — chỉ tới được SAU khi vá mục trên, nên phải vá cùng lượt [src/ShortcutsOverlay.vue:157]
+- [x] [Review][Patch] `unassignShortcut`/`resetShortcut` thành công mà không xoá `notice` cũ ⇒ câu xung đột còn treo sau khi đã sửa xong [src/config/shortcutsState.ts:280-297]
+- [x] [Review][Patch] `aimRowFrom` huỷ lượt bắt bằng `capturing.value = false` thay vì `cancelCapture()` ⇒ câu "Đang chờ một tổ hợp phím" còn treo sau khi đã huỷ [src/config/shortcutsState.ts:216]
+- [x] [Review][Patch] `shortcuts.col_note` = "Ghi chú" đứng đầu cột chứa hai NÚT thao tác — nhãn cột không khớp nội dung cột [src/ShortcutsOverlay.vue:220]
+- [x] [Review][Patch] §Completion Notes và §File List khai "**22** khoá mới *(5 nhãn command + 17 chuỗi màn hình)*"; số thật đo được là **25** *(5 + 20)* — `vi.json` đi từ 129 lên 154 khoá [_bmad-output/implementation-artifacts/1-21-phim-tat-cau-hinh-lai-duoc.md:736]
+- [x] [Review][Patch] §KHÔNG-LÀM ⑬.5 vẫn viết "**Không** cờ `repeatable`" trong khi Quyết định #7 đã lật và mã đã có `CommandSpec.repeatable` [_bmad-output/implementation-artifacts/1-21-phim-tat-cau-hinh-lai-duoc.md:456]
+
+**Đã kiểm và ĐẠT, ghi ra để lượt review sau không đo lại:** cả sáu sàn `*_FLOOR` của `check-commands.mjs` và hai sàn của `check-i18n.mjs` khớp số thật đo lại *(15 `.vue` · 31 `.ts` · 34 command · 21 `@click` · 28 `dispatch()` · 7 bề mặt · 41 `.rs` không đổi)* — AC14 đứng. Chín cổng xanh · `build` xanh · `cargo test` 264/0/5, khớp §Completion Notes. Danh sách 16 phần tử của `unbound()` khớp nguyên văn — AC7 đứng. Đường Rust `delete_value` có cả ba nhánh *(khoá vắng · loại sai · xoá thật)* và cả ba có test. `applyBindings` dựng vào biến tạm rồi mới thay — Bẫy 9 đứng. Proxy ổn định ở `attachKeyboard` vá đúng lỗ closure đã đo ở Quyết định #1. `overrides` giữ đủ ba trạng thái bằng `hasOwnProperty` — AC8 đứng ở tầng cơ chế.
+
 ---
 
 ## Dev Notes
@@ -455,7 +474,7 @@ Rust edition 2024 · `tauri` 2.11.5 · `@tauri-apps/api` 2.11.1 · `@tauri-apps/
 2. **Không** thanh chuyển phạm vi Toàn cục/Tác phẩm. Xem Bẫy 1 — `kinds.rs:36` gọi đích danh story này trong lời cấm.
 3. **Không** Xuất/Nhập bộ phím tắt (`settings.html:291-292`). 0 AC, và một định dạng trao đổi là một hợp đồng phải bảo trì.
 4. **Không** ô tìm kiếm / tra ngược hợp âm (`settings.html:269`). 0 AC.
-5. **Không** cờ `repeatable`, **không** màn preset bố cục — Quyết định #7.
+5. ~~**Không** cờ `repeatable`~~ — 🔴 **Quyết định #7 đã LẬT vế này, Ice ký 2026-08-11:** cờ `repeatable` **được NHẬN** vào story *(đóng `deferred-work.md:656`)*, và mã đã có `CommandSpec.repeatable` kèm lưới hai nhánh ở Kiểm D. Vế **"không màn preset bố cục" GIỮ NGUYÊN**. Xem §Debug Log References về cái giá đã nói trước; ghi ra đây để bullet này không đọc thành phạm vi trôi *(sửa ở code review 2026-08-11 — bullet cũ mâu thuẫn với chính §Debug Log của nó)*.
 6. **Không** gán hợp âm mặc định cho các command đang chưa gán. AC7 nói vì sao, và cổng sẽ đỏ.
 7. **Không** đụng `core/store/{writer,reader,checkpoint,pragmas}.rs` và **không** thêm bước di trú. Nếu Quyết định ⑦(a) được chọn thì chỉ thêm một câu `DELETE` trong `core/scope/store.rs`.
 8. **Không** thêm `vitest`/Playwright — quyết định giữ nguyên từ Story 1.5 qua mười một story; nghiệm thu DOM bằng bàn đo chạy tay.
@@ -608,6 +627,22 @@ Quy ước: integration test ở `src-tauri/tests/`, hai họ `*_contract.rs` / 
 | 19 | Bẫy 1 | Nhìn kỹ đầu màn hình | **Không** thanh chuyển phạm vi; đúng một câu `shortcuts.scope_note` |
 | 20 | Bẫy 9 | Gây một xung đột rồi thử mọi phím tắt cũ | Mọi phím cũ **vẫn chạy** — lượt dựng lại trượt không được để lại keymap hỏng |
 
+#### Bảy hàng THÊM ở code review 2026-08-11 — mười bản vá, và không một cái nào đo được bằng máy
+
+⚠️ **Vì sao không đo được bằng máy, ghi ra thay vì để người sau thử rồi thất bại:** cả mười bản vá sống ở tầng DOM *(tiêu điểm · `focusin`/`focusout` · `event.repeat` · hai nghĩa của `Escape`)*, và `src/config/shortcutsState.ts` `import` từ `'../commands'` — một **thư mục**, thứ Vite phân giải được còn Node thuần thì không. Nên tệp đó nằm **ngoài** bộ bốn tệp nạp được bằng Node ở §Dev Notes ①, và bộ đo 24 phép của story không với tới. Cổng vẫn là cổng: chín trên chín xanh · `build` xanh · `cargo test` **264/0/5** *(không đổi — 0 dòng Rust bị chạm)*.
+
+| # | Neo | Thao tác | Kết quả phải thấy |
+|---|---|---|---|
+| 21 | Bẫy 4 · lỗi `.value` | Mở màn hình, **không** bắt hợp âm, gõ `Escape` | Lớp phủ đóng ở lần gõ **đầu tiên**. *(Trước vá: không bao giờ đóng — `Escape` chỉ gọi `cancelCapture()` trên một lượt bắt không tồn tại)* |
+| 22 | Bẫy 5 · lỗi `.value` | Trạng thái **nghỉ**: Tab tới ô phím của một hàng đang có phím, gõ `⌫` | Hàng đó thành *"chưa gán"*. *(Trước vá: nhánh này là mã CHẾT ở mọi trạng thái)* |
+| 23 | Bẫy 5, vế hai | Đang bắt: gán `⌫` rồi **GIỮ phím** qua ngưỡng auto-repeat của hệ điều hành | Hợp âm `Backspace` **được giữ**. Đối chứng âm cho `!event.repeat`: không có guard thì nhịp repeat của **cùng một cú bấm** bỏ gán đúng phím vừa gán |
+| 24 | AC2 · NFR14 | Trên **macOS**, dùng **CHUỘT** bấm ô phím rồi gõ `Mod+K` | Ô nhận `Mod+K`. *(Trước vá: đường chuột của AC2 **chết hoàn toàn** trên macOS — WKWebView không đặt tiêu điểm cho `<button>`, nên `@keydown` không bao giờ nổ và cửa `isBlocked` nuốt hợp âm)* |
+| 25 | AC2 · AC6 | Bấm **chuột** hàng A, rồi **Tab** sang hàng B, Enter trên *"Bỏ gán"* | Hàng **B** bị bỏ gán, và nhãn *"đang nhắm"* đã chuyển sang B. *(Trước vá: hàng A bị bỏ gán — `aimedRow` cũ thắng tiêu điểm DOM)* |
+| 26 | vùng chết tiêu điểm | Bấm bắt hợp âm, rồi bấm chuột vào một **tiêu đề cột** `<th>`; sau đó gõ `Mod+Alt+←` | Lượt bắt **bị huỷ**, câu *"đang chờ"* biến mất, và vòng xoay panel chạy lại. *(Trước vá: `capturing` treo `true` và cửa nuốt mọi command toàn cục)* |
+| 27 | câu treo | Gây một xung đột *(hàng 7)*, rồi bấm *"Bỏ gán"* trên cùng hàng đó | Câu xung đột **biến mất ngay** sau lượt bỏ gán thành công. Cùng phép thử cho *"Về mặc định"*, và cho lượt huỷ bắt bằng cách bấm sang hàng khác |
+
+🔴 **Năm hàng cũ thành hàng canh HỒI QUY**, vì mười bản vá đi qua đúng đường của chúng: **9** · **11** · **12** · **17** · **18**. Hàng **17** (UX-DR17) đáng chú ý nhất: cú ép tiêu điểm mới lên ô phím đổi *"node nào đang giữ tiêu điểm lúc đóng"*, tức đổi đúng đầu vào của đường trả tiêu điểm.
+
 ---
 
 ## Dev Agent Record
@@ -733,7 +768,7 @@ Nạp chính `src/commands/index.ts` của sản phẩm bằng **Node thuần** 
 - `src/config/bootstrap.ts` — `deleteConfig` · `SCOPE_SHORTCUT` · `CMD_DELETE`
 - `src/main.ts` — nối năm handler · cửa nuốt hợp âm **hai vị từ**
 - `src/App.vue` — nút `data-shortcuts-open` ở `titlebar` · dựng `ShortcutsOverlay`
-- `src/i18n/vi.json` — **22** khoá mới *(5 nhãn command + 17 chuỗi màn hình)*
+- `src/i18n/vi.json` — **25** khoá mới *(5 nhãn command + 20 chuỗi màn hình)*; `vi.json` đi từ **129** lên **154** khoá. ⚠️ Bản đầu khai **22** *(5 + 17)* — sai, sửa ở code review 2026-08-11 bằng phép đếm trên hai phiên bản tệp
 - `src-tauri/src/commands/config.rs` — `delete_config` + vỏ `wire::delete_config`
 - `src-tauri/src/core/scope/store.rs` — `delete_value`
 - `src-tauri/src/core/scope/mod.rs` — tái xuất `delete_value`
@@ -754,3 +789,5 @@ Nạp chính `src/commands/index.ts` của sản phẩm bằng **Node thuần** 
 | 2026-08-11 | **Task 1–6 giao trọn.** 14 AC ở tầng cơ chế; chín trên chín cổng XANH · `build` XANH · `cargo test` 264/0/5 · bộ đo bằng máy 24/24 |
 | 2026-08-11 | 🔴 **LỆCH MOCKUP, bốn chỗ — ghi ra, KHÔNG dựng theo và KHÔNG sửa mockup** *(Quyết định #3 của Story 1.3)*: ① thanh chuyển phạm vi `Toàn cục`/`Tác phẩm` (`settings.html:243-248`) — `kinds.rs:29-37` cấm bằng chữ và gọi đích danh story này; ② khung điều hướng chín mục Cài đặt (`:251-262`) — thuộc Epic 4/5/6/10; ③ Xuất/Nhập bộ phím tắt (`:291-292`) — 0 AC; ④ ô tìm kiếm / tra ngược hợp âm (`:269`) — 0 AC |
 | 2026-08-11 | ⚠️ **Task 7 CÒN TREO — story ở `review`, KHÔNG `done`.** 8/20 hàng bàn đo đã chạy **bằng máy**; **12** hàng còn lại cần một cửa sổ Tauri thật, và hàng 16 cần một máy Windows. Danh sách đầy đủ kèm lý do ở `deferred-work.md` |
+| 2026-08-11 | 🔴 **CODE REVIEW — 10 finding, 10 bản vá đã áp.** Bốn ở hạng cao: hai lỗi `Ref` thiếu `.value` *(`Escape` không bao giờ đóng lớp phủ; nhánh `⌫` bỏ gán là mã chết)* · `aimedRow` cũ thắng tiêu điểm DOM ⇒ đường thuần bàn phím áp vào **sai hàng** · **đường CHUỘT của AC2 chết hoàn toàn trên macOS** *(WKWebView không đặt tiêu điểm cho `<button>`, nên `@keydown` bắt hợp âm không bao giờ nổ)*. Ice ký ba quyết định: `@focusin` cùng `@mousedown` · ép tiêu điểm lúc arming · `@focusout` huỷ lượt bắt. Chín cổng xanh · `build` xanh · `cargo test` 264/0/5 không đổi. **Nguyên nhân hệ thống: kho không có ESLint** — `if (someRef)` là TS hợp lệ nên không cổng nào canh được nó. Chi tiết ở §Review Findings; bảy hàng bàn đo mới ở §Testing |
+| 2026-08-11 | ⚠️ **`review` → `in-progress`.** Mười bản vá đều ở tầng DOM và **không** đo được bằng máy *(`shortcutsState.ts` `import` từ một thư mục nên nằm ngoài bộ bốn tệp nạp bằng Node)*. Bàn đo chạy tay đi từ 12 lên **19** hàng còn treo, cộng năm hàng cũ thành hàng canh hồi quy. Không có đường nào gọi story này `done` bằng bằng chứng tĩnh |
