@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Bản sao BIT-ĐỐI-BIT khối `<dependency>` của `tauri-build-2.6.3/src/windows-app-manifest.xml`.
+
+  Vì sao phải có bản sao trong kho thay vì trỏ vào crate: `build.rs` không đọc được tệp nằm
+  trong thư mục registry của Cargo bằng một đường dẫn ổn định (hash của registry đổi theo
+  máy, và `~/.cargo` không có mặt trên runner theo cùng một đường). `build.rs` chỉ cần một
+  tệp cạnh nó.
+
+  Nội dung PHẢI khớp bản của `tauri-build`. Lệch một chữ nghĩa là nhị phân test chạy dưới
+  một side-by-side assembly KHÁC với nhị phân sản phẩm, tức lưới test canh một thứ không
+  phải thứ sẽ phát hành.
+-->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity
+        type="win32"
+        name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0"
+        processorArchitecture="*"
+        publicKeyToken="6595b64144ccf1df"
+        language="*"
+      />
+    </dependentAssembly>
+  </dependency>
+</assembly>
