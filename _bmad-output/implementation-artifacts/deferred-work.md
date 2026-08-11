@@ -1269,3 +1269,72 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   cử chỉ này có **hai** trạng thái và ký hiệu trần không nói được trạng thái nào — đúng cái
   bẫy mà Bẫy 5 của story mô tả. Không một AC nào đòi ký hiệu; ghi ra để lượt review không đọc
   nó thành một lượt bỏ sót.
+
+## Deferred from: rà soát toàn Epic 1 — retrospective (2026-08-11)
+
+*Lượt rà soát tự động toàn epic. Mọi số đo chạy lại trên cây làm việc hôm nay, không lấy
+một khẳng định nào của story file làm đúng sẵn. Báo cáo đầy đủ: `epic-1-retro-2026-08-11.md`.*
+
+- ✅ **ĐÓNG — CI Windows đỏ 12 trên 12 lượt, và không story nào biết.** Repo đã đẩy lên
+  remote từ 2026-08-05 *(trái với dòng "chưa đẩy lên remote" của Story 1.3, 2026-08-03)*
+  và CI đã chạy **12** lần: `macos-26` **XANH** ở mọi lượt hoàn tất, `windows-2025` **ĐỎ**
+  ở mọi lượt, luôn ở bước `cargo test`, luôn với `0xc0000139`
+  `STATUS_ENTRYPOINT_NOT_FOUND`.
+  **Nguyên nhân đo được:** `tauri-build` nhét app manifest qua `tauri-winres` ->
+  `embed_resource::compile()`, và hàm đó phát `cargo:rustc-link-arg-BINS`
+  (`embed-resource-3.0.11/src/lib.rs:443`) — nhị phân **sản phẩm** có manifest, nhị phân
+  **test** thì không. Thiếu manifest, trình nạp gắn `comctl32.dll` **v5** và entry point
+  mà tầng Win32 của `tauri` nhập không tồn tại ở phiên bản đó.
+  Nhị phân unittest của `src/lib.rs` sống vì nó không chạm `run()` nên cây `tauri` bị loại;
+  `tests/config_invariants.rs:105` lấy **địa chỉ hàm** `auratranslate_lib::run` nên ép trình
+  liên kết giữ trọn cây đó. Nó là nhị phân đầu tiên đủ nặng để lộ ra, không phải nhị phân
+  có lỗi.
+  🔴 **Hệ quả lớn hơn một job đỏ:** `cargo test` dừng ở nhị phân tích hợp ĐẦU TIÊN theo thứ
+  tự chữ cái ⇒ **12 tệp `tests/**` còn lại chưa từng chạy một lần nào trên Windows** suốt
+  Epic 1. Nửa Windows của NFR14 chưa từng có bằng chứng, trong khi cả epic tin rằng nó có.
+  **Vá:** `src-tauri/build.rs` phát `/MANIFEST:EMBED` + `/MANIFESTINPUT` qua
+  `cargo:rustc-link-arg-`**`tests`** + `src-tauri/windows-app-manifest.xml`. Hẹp hơn bản
+  thượng nguồn (`rustc-link-arg` trần) có chủ ý — bản trần nhét manifest hai lần vào nhị
+  phân phát hành. Lý do từng lựa chọn ở doc-comment của `build.rs`.
+
+- ✅ **ĐÓNG — cổng thứ mười canh máy dev, KHÔNG canh nhánh.** `check:lint` ra đời ở
+  `01be1c2` (2026-08-11) nhưng `ci.yml` không gọi nó. Đã thêm. **Nguyên nhân không phải
+  một lượt quên:** kho có HAI danh sách cổng (`package.json` và `ci.yml`) và trước hôm nay
+  không phép kiểm nào buộc chúng khớp ⇒ dựng **cổng thứ mười một** `check:gates`
+  (`scripts/check-gates.mjs`), ba phép kiểm, có tự kiểm. Nó bắt chính mình ở lượt chạy đầu
+  tiên — `check:gates` có trong `package.json` mà chưa có trong `ci.yml` ⇒ ĐỎ đúng chiều.
+
+- ⚠️ **[D2] của lượt review Story 1.3 — chiều ÂM của AC8 nay CÓ lưới tự động.** Điều kiện
+  mà [D2] đặt ra (*"nếu `npm run check:scope` chạy được trên runner thì chiều âm có lưới tự
+  động và AC8 đóng trọn"*) đã thoả: run `31467748678` và `31468807121`, job `macos-26`,
+  bước *"check scope chiều âm (chế độ dev — 403 thật)"* **XANH**. 🔴 **Chưa đóng trọn:**
+  cùng bước đó trên `windows-2025` chưa từng chạy tới (job chết ở `cargo test` trước đó).
+  Đóng khi có một lượt Windows xanh. **Chủ: Story 1.3.**
+
+- 🔴 **Bốn phép nghiệm thu runner của Story 1.3 vẫn CHƯA ĐỌC, và nay chúng đã hết lý do.**
+  AC6 (ba số `.msi` + hai dòng NFR6) · AC7 (thời gian tường + phút tính phí, cache lạnh và
+  nóng) · Task 11 hàng 4 (`#[cfg(windows)] compile_error!` làm CHỈ job Windows đỏ) ·
+  AC3/Task 4 (rào biên dịch C và WiX v3 trên `windows-2025` — hai nguồn tài liệu nói khác
+  nhau). Cả bốn nằm sau đúng một lượt Windows xanh. **Chủ: Story 1.3.**
+
+- ⚠️ **Nợ nghiệm thu thị giác của Epic 1 có HỆ SỐ NHÂN, không phải hằng số.** Mọi bản vá
+  tầng DOM đều không đo được bằng bộ cổng hiện có (cổng nạp mã bằng Node thuần — không
+  `window`, không DOM), nên mỗi lượt code review chạm DOM lại **sinh thêm** hàng bàn đo:
+  Story 1.21 đi từ 12 hàng treo lên **19** SAU khi vá mười phát hiện. Tổng hôm nay:
+  **9** hàng của 1.20 + **19** hàng của 1.21, cộng vế thị giác *"kế thừa không đóng"* của
+  1.6 · 1.14 · 1.15 · 1.16 · 1.17 · 1.18 · 1.19.
+  🔴 **Một dữ kiện phải cân trước khi ai đó đề xuất một bộ chạy test trong trình duyệt:**
+  khuyết tật hạng cao nhất của lượt review 1.21 là *"đường chuột của AC2 chết hoàn toàn
+  trên macOS vì WKWebView không đặt tiêu điểm cho `<button>`"* — một khác biệt **engine**.
+  Một bộ nghiệm thu chạy trong Chrome đóng được lớp DOM trung tính và **KHÔNG** đóng được
+  đúng lớp lỗi đắt nhất. Đừng mua sự yên tâm sai ở đây. **Chủ: Ice** *(quyết định về bộ
+  chạy test frontend — món nợ này đang treo chờ đúng quyết định đó)*.
+
+- 📝 **Bao phủ FR của Epic 1 ĐỦ.** Đối chiếu bản đồ FR ↔ `**Covers:**` của 25 story:
+  **27/27** FR mà bản đồ gán cho Epic 1 đều có story nhận. Khoảng trống của epic là **bằng
+  chứng**, không phải **phạm vi**.
+
+- 📝 **Số đo của story file khớp thực tế.** Lượt rà soát chạy lại tám cổng, `npm run build`,
+  và `cargo test --locked` (**264 xanh · 0 đỏ · 5 ignored** — khớp đúng số Story 1.21 khai).
+  Không tìm được một khai sai nào trong các bảng số. Cùng lượt, `tauri build` dựng `.dmg`
+  và cả hai cổng `check:scope*` XANH trên runner macOS.

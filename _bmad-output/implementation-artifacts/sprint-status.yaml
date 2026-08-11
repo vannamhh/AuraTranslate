@@ -1,5 +1,5 @@
 # generated: 2026-08-03T13:04:45
-# last_updated: 2026-08-11T18:45:00
+# last_updated: 2026-08-11T23:59:00
 # project: AuraTranslate
 # project_key: NOKEY
 # tracking_system: file-system
@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-11T18:45:00
+last_updated: 2026-08-11T23:59:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -139,7 +139,12 @@ development_status:
   # của AC2 chết hoàn toàn trên macOS). Mọi bản vá ở tầng DOM ⇒ KHÔNG đo được bằng máy.
   # Bàn đo chạy tay: 12 → 19 hàng treo, cộng 5 hàng cũ thành hàng canh hồi quy. Chi tiết ở
   # §Review Findings của story file.
-  epic-1-retrospective: optional
+  # Retrospective 2026-08-11 — rà soát tự động toàn epic. Báo cáo:
+  # `epic-1-retro-2026-08-11.md`. Phát hiện nặng nhất KHÔNG nằm trong story nào: CI đỏ
+  # 12 trên 12 lượt kể từ 2026-08-05, luôn ở `cargo test` của job `windows-2025`, luôn với
+  # `0xc0000139` — nên 12 trên 13 tệp `tests/**` chưa từng chạy một lần nào trên Windows.
+  # Vá ở nhánh `fix/ci-windows-cargo-test`. Bảy action item ở cuối tệp này.
+  epic-1-retrospective: done
 
   # Epic 2: Biên tập theo segment — một vòng dịch tay hoàn chỉnh
   epic-2: backlog
@@ -285,3 +290,37 @@ development_status:
   10-8-chinh-sach-go-bo-du-lieu: backlog
   10-9-nghiem-thu-cuoi-cac-nguong-phi-chuc-nang: backlog
   epic-10-retrospective: optional
+
+# ══════════════════════════════════════════════════════════════════════════════════
+# Action item — mỗi mục sinh ra từ một retrospective, và mỗi mục có một chủ.
+# Trạng thái: open · in-progress · done.
+# ══════════════════════════════════════════════════════════════════════════════════
+action_items:
+  - epic: 1
+    action: "Merge nhanh `fix/ci-windows-cargo-test` vao `master` sau khi CI cua nhanh xanh ca hai nen tang"
+    owner: "Ice"
+    status: open
+  - epic: 1
+    action: "Doc `GITHUB_STEP_SUMMARY` cua luot Windows xanh dau tien, dien AC6 + AC7 cua Story 1.3; chay Task 11 hang 4 roi hoan nguyen"
+    owner: "Dev"
+    status: open
+  - epic: 1
+    action: "Cong `check:gates` buoc `package.json` va `ci.yml` khai cung mot bo cong"
+    owner: "Dev"
+    status: done
+  - epic: 1
+    action: "Mot luot nghiem thu tay co chu cho 28 hang treo cua Story 1.20 + 1.21 tren macOS, kem anh chup man hinh moi hang"
+    owner: "Ice"
+    status: open
+  - epic: 1
+    action: "Gom moi mon no can mot may Windows thanh MOT bang nghiem thu duy nhat va gan mot chu"
+    owner: "Ice"
+    status: open
+  - epic: 1
+    action: "Ghi vet seo `PROJECT_MIGRATIONS` so 4 da chay vao dieu kien khoi hanh cua Story 2.1 — buoc di tru ke tiep phai danh so 5"
+    owner: "Dev"
+    status: open
+  - epic: 1
+    action: "Quyet dinh ve bo chay test frontend — Chrome dong duoc lop DOM trung tinh, KHONG dong duoc lop khac biet engine (WKWebView)"
+    owner: "Ice"
+    status: open
