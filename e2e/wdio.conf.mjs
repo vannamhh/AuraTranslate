@@ -23,7 +23,31 @@
  * `deferred-work.md` đã ghi tên cho `scripts/*.mjs`. Thà cùng hình dạng với `scripts/`
  * còn hơn mọc thêm một bề mặt không ai canh.
  *
- * Chạy:  npm run test:e2e
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * §Giới hạn — ba thứ ĐO ĐƯỢC ở lượt dựng, ghi thẳng thay vì để người sau vấp
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * 1. 🔴 **Bộ e2e dùng chung `$APPDATA` với ứng dụng THẬT của người chạy.** Story 1.21
+ *    ghi phím tắt xuống `global.db` (`ScopeKind::Shortcut`), nên một ca gán phím SỬA
+ *    cấu hình thật của Ice. Đo được: một lượt chẩn đoán để lại `⌥⌘K` trên
+ *    `layout.toggle_source`, và lượt sau đọc nó thành trạng thái đầu rồi ĐỎ với một câu
+ *    đổ lỗi cho sản phẩm. Hôm nay mỗi ca tự dọn bằng nút *"Về mặc định"* — đó là bản vá
+ *    TRIỆU CHỨNG. Đường đóng thật: chỉ `$APPDATA` của app con sang một thư mục tạm mỗi
+ *    lượt chạy. **Chưa làm, và nó là việc đầu tiên trước khi dựng thêm hàng nào.**
+ *
+ * 2. 🔴 **`element.click()` của driver KHÔNG trung thực về thứ tự sự kiện** — nó bắn
+ *    `click` TRƯỚC `focusin`, ngược chuột thật (`mousedown -> focusin -> mouseup ->
+ *    click`). Hệ quả đo được: `shortcuts.capture` chạy lúc `aimedRow` còn rỗng và màn
+ *    hình trả về *"Chưa nhắm được thao tác nào"*, tức một lượt ĐỎ nói SAI nguyên nhân.
+ *    ⇒ Mọi tương tác mà thứ tự sự kiện có nghĩa phải đi qua Actions API
+ *    (`browser.action('pointer')…`), xem `realClick()` trong spec.
+ *
+ * 3. ⚠️ **Một spec = một phiên app, và máy chủ nhúng bám cổng cố định 4445.** Chạy hai
+ *    tệp spec trong cùng một lượt làm phiên thứ hai trượt, trong khi mỗi tệp chạy riêng
+ *    đều xanh. Chưa đóng; đường ra là cổng theo worker (`TAURI_WEBDRIVER_PORT`) hoặc gộp
+ *    các hàng vào ít tệp spec hơn. Tới lúc đó: chạy từng tệp bằng `--spec`.
+ *
+ * Chạy:  npm run test:e2e            (tất cả spec — xem giới hạn 3)
+ *        npx wdio run e2e/wdio.conf.mjs --spec e2e/specs/<tên>.e2e.mjs
  */
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
