@@ -1,7 +1,9 @@
 # Đề xuất — tự động đọc và lái CỬA SỔ TAURI THẬT
 
 **Ngày:** 2026-08-11 · **Cho:** Ice · **Sinh ra từ:** retrospective Epic 1, action item **A4/A5/A7**
-**Trạng thái:** đề xuất, chưa cài một dòng nào. Cần Ice ký trước Bước 1.
+**Trạng thái:** ✅ **Ice chốt 2026-08-11 — đã triển khai tới hết Bước 2.** Bước 0 ĐẠT ·
+Bước 1 XANH có vế đỏ · **Bước 2 TRẢ LỜI CÓ** (xem §8). Bước 3 chặn bởi hạn mức GitHub
+Actions. Ba giả định của chính đề xuất này bị phép đo lật — ghi ở §8, không sửa lén.
 
 ---
 
@@ -195,3 +197,69 @@ nó chỉ chạy khi có người nhớ ra.
    `capabilities-dev/` + một bất biến mới, hay giữ luật *"0 plugin"* tuyệt đối?
 3. **Dừng ở Bước 2 nếu WKWebView không tái lập được khuyết tật đã biết** — tôi đề xuất
    *có*, và ghi ra ở đây để lượt sau không lặng lẽ đi tiếp.
+
+
+---
+
+## 8. Kết quả thật sau khi Ice ký — và ba giả định của đề xuất bị lật
+
+### Bước 0 — ĐẠT
+
+| Phép đo | Kết quả |
+|---|---|
+| `PATTERN` analytics/telemetry của `check-deps.mjs` trên **tên gói** toàn cây | **RỖNG** |
+| `AUTH_PATTERN` (NFR13) | **RỖNG** |
+| Cây npm | **194 → 530** gói |
+| Giấy phép | toàn bộ dễ dãi. Hai mục đáng nêu, **cả hai chỉ devDependency, không đi vào sản phẩm**: `@promptbook/utils` **CC-BY-4.0** (đòi ghi công) và `css-value@0.0.1` **không khai giấy phép** |
+| `node_modules` | +122 MB, dev-only |
+
+### Bước 1 — XANH, có vế đỏ
+
+Hàng **17** (UX-DR17) chạy trên `webkit 605.1.15 macos` — **WKWebView thật**. Hoàn nguyên
+đường trả tiêu điểm của `ShortcutsOverlay.vue` ⇒ ca ĐỎ với `Received string: "body"`, đúng
+thứ UX-DR17 cấm. Khôi phục ⇒ XANH.
+
+### Bước 2 — **CÓ. Bộ chạy tái lập được lớp lỗi đặc thù engine.**
+
+Hoàn nguyên `keyCellOf(id)?.focus()` trong `config/shortcutsState.ts::captureShortcut` —
+**đúng** bản vá WKWebView của lượt code review Story 1.21 — ca ĐỎ với triệu chứng *"ô phím
+không đổi"*, tức đường chuột của AC2 chết. Khôi phục ⇒ XANH.
+
+⇒ Điều kiện dừng ở §7 mục 3 **không kích hoạt**. Phương án đi tiếp.
+
+### Ba giả định của đề xuất bị phép đo lật
+
+1. **§3① sai.** Đề xuất dựng cả một đường `Manager::add_capability` + `capabilities-dev/`
+   để lách hai bất biến `config_invariants`. Đo trên `permissions/default.toml` của chính
+   crate `1.3.0`: plugin khai `permissions = []` và phơi **0** invoke command ⇒ nó **không
+   cần** một mục `capabilities/` nào. **0 dòng** thuộc đường đó được viết; hai bất biến
+   giữ nguyên nghĩa gốc.
+2. **§3③ đúng nhưng chưa đủ.** `#[cfg(debug_assertions)]` chỉ loại **mã**, không loại
+   **phụ thuộc** — plugin kéo `axum` + `tokio`, và chúng sẽ nằm trong nhị phân phát hành.
+   Phải thêm một lớp thứ hai: `optional = true` + feature **không** trong `default`.
+   `check-deps.mjs` Kiểm 1b canh vế đó, có nghiệm thu đỏ-rồi-xanh. Số đo: cây mặc định
+   **831** dòng *(không `axum`, không plugin)* · `--features wdio` **948**.
+   ⚠️ Và danh sách canh **không** gồm `tokio`: đo được nó đã ở trong cây mặc định qua
+   `tauri`. Canh nó là dựng một cổng đỏ oan.
+3. **§4 thiếu một bước.** Nhị phân **debug** nạp `devUrl`, không `frontendDist`. Thiếu Vite
+   thì webview hiện `about:blank` và **mọi** ca đợi phần tử trượt bằng timeout — một lỗi hạ
+   tầng đội lốt hồi quy giao diện. `wdio.conf.mjs` nay tự dựng và tự tắt Vite.
+
+### Ba giới hạn mới, chưa đóng
+
+1. 🔴 **Bộ e2e dùng chung `$APPDATA` với ứng dụng THẬT của người chạy.** Ca gán phím **sửa
+   cấu hình thật của Ice**. Hôm nay mỗi ca tự dọn bằng nút *"Về mặc định"* — vá triệu
+   chứng. **Việc đầu tiên trước khi dựng thêm hàng nào:** chỉ `$APPDATA` của app con sang
+   một thư mục tạm mỗi lượt chạy.
+2. 🔴 **`element.click()` của driver không trung thực về thứ tự sự kiện** — bắn `click`
+   trước `focusin`. Mọi tương tác có thứ tự phải đi Actions API.
+3. ⚠️ **Một spec = một phiên app**, máy chủ nhúng bám cổng cố định **4445**, nên hai tệp
+   spec cùng lượt làm phiên thứ hai trượt. Chạy từng tệp bằng `--spec` tới khi có cổng
+   theo worker.
+
+### Bước 3 — CHẶN, và không phải vì mã
+
+GitHub Actions dừng vì **hạn mức chi tiêu** *(`The job was not started because recent
+account payments have failed or your spending limit needs to be increased`)*. Đây cũng là
+thứ chặn nghiệm thu bản vá WAL trên Windows. Cho tới khi Ice nâng hạn mức, món nợ *"cần
+một máy Windows"* của chín story vẫn treo — dù đường đóng nó nay đã có.

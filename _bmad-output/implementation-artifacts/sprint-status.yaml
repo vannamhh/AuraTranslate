@@ -325,8 +325,12 @@ action_items:
     owner: "Dev"
     status: open
   - epic: 1
-    action: "Quyet dinh ve bo chay test frontend. De xuat da viet: `proposal-tauri-window-automation-2026-08-11.md` — `tauri-plugin-wdio-webdriver` chay TRONG WKWebView/WebView2 that, nen tai lap duoc lop loi engine ma Chrome khong tai lap duoc. Ice can ky ba cau o §7"
+    action: "Bo chay e2e — Ice chot 2026-08-11, da trien khai toi het Buoc 2. Buoc 2 TRA LOI CO: hoan nguyen ban va WKWebView cua Story 1.21 lam ca DO dung trieu chung. Xem §8 cua `proposal-tauri-window-automation-2026-08-11.md`"
     owner: "Ice"
+    status: done
+  - epic: 1
+    action: "🔴 TRUOC KHI DUNG THEM HANG NAO: chi `$APPDATA` cua app con sang thu muc tam moi luot e2e. Hom nay bo e2e SUA cau hinh that cua nguoi chay (`global.db`), va moi ca chi tu don bang nut Ve mac dinh — vet trieu chung"
+    owner: "Dev"
     status: open
   - epic: 1
     action: "🔴 CHAN: GitHub Actions dung vi han muc chi tieu — job khong khoi dong duoc, 0 buoc chay. Billing & plans -> tang spending limit. Moi nghiem thu CI con lai deu cho cai nay"
