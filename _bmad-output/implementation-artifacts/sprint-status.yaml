@@ -75,6 +75,10 @@ development_status:
   1-19-bat-tat-nguon-tu-dien-va-ghi-cong: done
   1-20-lich-su-tra-cuu-va-muc-da-ghim: in-progress
   1-21-phim-tat-cau-hinh-lai-duoc: in-progress
+  # Dung sau khi ma da viet (correct-course 2026-08-11). Buoc 0-2 xong; ba gioi han
+  # con mo ($APPDATA dung chung · thu tu su kien cua element.click() · cong 4445 co
+  # dinh). Buoc 3 cho GitHub Actions quay lai.
+  1-22-bo-chay-e2e-trong-webview-that: in-progress
   epic-1-retrospective: done
 
   # Epic 2: Biên tập theo segment — một vòng dịch tay hoàn chỉnh
@@ -236,7 +240,7 @@ action_items:
     owner: "Ice"
     status: done
   - epic: 1
-    action: "AC6 + AC7 cua Story 1.3 va Task 11 hang 4 TREO — chung chi do duoc tren runner, va Ice chot bo qua GitHub Actions 2026-08-11. Story 1.3 giu `in-progress`; dong lai khi co mot duong do khac (may Windows that, hoac mot runner tu quan)"
+    action: "AC6 + AC7 cua Story 1.3 va Task 11 hang 4 TREO — chung chi do duoc tren runner. Ice chot 2026-08-11: TAM DUNG GitHub Actions, khong bo. Ly do: khong co may Windows de doi chieu ket qua runner. Story 1.3 giu `in-progress`; mo lai khi Ice co duong doi chieu Windows"
     owner: "Ice"
     status: open
   - epic: 1
@@ -260,6 +264,28 @@ action_items:
     owner: "Ice"
     status: done
   - epic: 1
-    action: "🔴 TRUOC KHI DUNG THEM HANG NAO: chi `$APPDATA` cua app con sang thu muc tam moi luot e2e. Hom nay bo e2e SUA cau hinh that cua nguoi chay (`global.db`), va moi ca chi tu don bang nut Ve mac dinh — vet trieu chung"
+    action: "🔴 TRUOC KHI DUNG THEM HANG NAO: chi `$APPDATA` cua app con sang thu muc tam moi luot e2e. Hom nay bo e2e SUA cau hinh that cua nguoi chay (`global.db`), va moi ca chi tu don bang nut Ve mac dinh — vet trieu chung. Nay co chu: AC 2 cua Story 1.22"
     owner: "Dev"
+    status: open
+
+  # ── correct-course 2026-08-11: ra soat tai lieu vs ma nguon ───────────────────────
+  - epic: 1
+    action: "Cong `check:gates` canh HAI trong BA danh sach cong — `.githooks/pre-push` la danh sach thu ba, khong ai canh. Da va: Kiem D + Kiem E + PREPUSH_EXEMPT co ly do. Bon ca do-roi-xanh chay that; chin cong van 9/9 xanh"
+    owner: "Dev"
+    status: done
+  - epic: 1
+    action: "`ARCHITECTURE-SPINE.md` loi thoi so voi ma — 8 cho. Da dong bo: bang Stack +10 phu thuoc (ra NFR15 luot ba, 10/10 doc than tep LICENSE), AD-45 moi (bo cong LANG NGHE), muc `0 plugin Tauri`, ten tep check-deps, cay nguon +5 nhanh, hang Consistency Conventions, `updated`, doan ra NFR15. lint_spine.py 0 findings"
+    owner: "Dev"
+    status: done
+  - epic: 1
+    action: "Bon nang luc dung ma khong tao tac quy hoach nao nhan (cong 10, cong 11, bo e2e, hook pre-push). Da xu: Story 1.3 nhan hai AC moi (ba danh sach cong · duong cuong che luc CI vang mat); bo e2e thanh Story 1.22 mang ba gioi han chua dong"
+    owner: "Dev"
+    status: done
+  - epic: 10
+    action: "FR107 dung tren GitHub Actions, ma GitHub Actions da co mot luot TAM DUNG. Ice chot 2026-08-11: ghi no, hoan toi Epic 10, KHONG sua PRD hom nay. Dieu kien khoi hanh da ghi vao Story 10.1 voi hai cau hoi phai tra loi truoc khi dung"
+    owner: "Ice"
+    status: open
+  - epic: 1
+    action: "Ba mon no tai lieu cu VAN MO, xac nhan lai 2026-08-11: AD-23 con liet ke `$RESOURCE/dict/**` (chu: Ice) · so do AD-13 con canh `dict --> matching` (chu: Winston) · bang phong doan Porter o AD-44 ③ chua thay bang so do that cua Story 1.12 (chu: Winston)"
+    owner: "Ice"
     status: open

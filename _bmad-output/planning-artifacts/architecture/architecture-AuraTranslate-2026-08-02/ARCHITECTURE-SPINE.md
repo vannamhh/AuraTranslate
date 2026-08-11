@@ -7,7 +7,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-08-05'
+updated: '2026-08-11'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md'
@@ -632,6 +632,23 @@ graph TD
 
   **⑥ NFR1 đo TRÊN đường tiếng Anh, không suy ra từ số đo tiếng Trung.** Hai đường đi qua chỉ mục khác nhau trên phân bố dữ liệu khác nhau; một con số mượn là một con số không ai đo.
 
+### AD-45 — Bản phát hành không mở một cổng LẮNG NGHE nào
+
+- **Binds:** tất cả
+- **Prevents:** AD-15 đếm **điểm RA** mạng và không nói một chữ nào về chiều ngược lại. Nên một máy chủ nghe trên `localhost` đi thẳng vào bản người dùng cài mà **không phạm AD-15** — một bề mặt mới không có luật, đúng lớp lỗi kho này tồn tại để săn. Bộ lái e2e (Ice chốt 2026-08-11) là ca đầu tiên: `tauri-plugin-wdio-webdriver` kéo `axum` + `tokio` và mở cổng **4445**.
+
+  Cái bẫy cụ thể, vì nó phản trực giác: một `#[cfg(debug_assertions)]` đơn độc **không đủ**. Nó loại **mã**, không loại **phụ thuộc** — crate vẫn nằm trong cây Cargo và trong nhị phân phát hành. Ai đọc lướt sẽ tưởng một `cfg` là đủ, và không cổng nào hôm nay sẽ cãi lại nếu AD này vắng mặt.
+- **Rule:** bản phát hành mở **0** cổng lắng nghe. Một công cụ cần máy chủ phải đi qua **hai** lớp chặn cùng lúc, vì mỗi lớp một mình đều thủng:
+
+  1. `optional = true` cộng một feature Cargo **không** nằm trong `default` — giữ phụ thuộc khỏi cây, tức khỏi cả `cargo tree` lẫn `tauri build`;
+  2. `#[cfg(debug_assertions)]` ở chỗ nối — giữ nó khỏi bản `release` kể cả khi ai đó bật feature.
+
+  **Cưỡng chế bằng lệnh, không bằng kỷ luật:** `scripts/check-deps.mjs` **Kiểm 1b** khẳng định `tauri-plugin-wdio-webdriver` và `axum` **vắng mặt** khỏi `cargo tree` của bộ feature mặc định. Số đo 2026-08-11: cây mặc định **831** dòng · `--features wdio` **948**.
+
+  ⚠️ Danh sách canh **không** gồm `tokio` — đo được nó đã nằm trong cây mặc định từ trước qua `tauri` (`tokio 1.53.1`). Canh nó là dựng một cổng đỏ oan ngay ở lượt chạy đầu.
+
+  Thêm một cổng lắng nghe thứ hai là một **quyết định kiến trúc**, phải ghi thành `AD` mới — cùng thủ tục mà AD-2 áp cho cổng thứ tư.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -644,6 +661,7 @@ graph TD
 | **Segment của ảnh** | Alt-text và caption đều là `Segment` bình thường mang trường **vai**, không phải danh sách rời và không phải cột trên `ASSET` (AD-42). `alt` mang `ord` **đúng vị trí ảnh**; `caption` mang `ord` **ngay sau ảnh** (FR42–FR44, FR129) |
 | **Đường nhập** | Mọi nguồn đi qua **cùng một pipeline, cùng thứ tự** (AD-39). Xem trước luôn hiện kết quả **sau toàn bộ chuỗi** |
 | **Ra mạng** | Đúng ba điểm, cả ba theo thao tác người dùng (AD-15). Điểm nhập từ URL đi qua `Fetcher` và chỉ `Fetcher` (AD-40), canh bởi allowlist một-lần-nhập (AD-41) |
+| **Cổng lắng nghe** | Bản phát hành mở **0** cổng nghe. Công cụ cần máy chủ đi qua hai lớp chặn của AD-45 — `optional` + feature ngoài `default`, **và** `debug_assertions`; `check-deps.mjs` Kiểm 1b canh vế đó |
 | **Ngày giờ** | Lưu ISO-8601 UTC trong database; định dạng hiển thị chỉ ở frontend |
 | **Thao tác giao diện** | Luôn đăng ký trong `CommandRegistry` rồi mới bind vào chuột/phím (AD-34). Không thao tác nào chỉ tồn tại trong một handler chuột |
 | **Màu** | Chỉ từ token đã kiểm tương phản WCAG AA ở cả hai theme; không giá trị màu trong component (AD-34) |
@@ -684,6 +702,13 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `keyring` | 4.1.6 | MIT OR Apache-2.0 ✓ |
 | `reqwest` | **0.13.4** | MIT OR Apache-2.0 ✓ |
 | `similar` **hoặc** `dissimilar` | 3.1.1 / mới nhất | Apache-2.0 / Apache-2.0 OR MIT |
+| `uuid` *(feature `v4`)* | 1.24.0 | MIT OR Apache-2.0 ✓ |
+| `tauri-plugin-wdio-webdriver` *(`optional`, feature `wdio`, chỉ debug — AD-45)* | 1.3.0 | MIT ✓ |
+| `eslint` | 10.8.1 | MIT ✓ |
+| `eslint-plugin-vue` | 10.10.0 | MIT ✓ |
+| `typescript-eslint` | 8.67.0 | MIT ✓ |
+| `@wdio/cli` · `@wdio/local-runner` · `@wdio/mocha-framework` · `@wdio/spec-reporter` | 9.30.1 | MIT ✓ |
+| `@wdio/tauri-service` | 1.3.0 | MIT ✓ |
 | `Noto Serif CJK TC` *(chỉ Regular; = Source Han Serif 2.003R đổi nhãn)* | 2.003 | SIL OFL 1.1 |
 | `Source Serif 4` *(kênh Google, font biến thiên)* | 4.004 | SIL OFL 1.1 |
 | `Source Sans 3` *(kênh Google, font biến thiên)* | 3.052 | SIL OFL 1.1 |
@@ -705,11 +730,17 @@ Ba hàng **⚠️** và một hàng suýt bị chấm sai, đọc thẳng từ t
 
 > `LICENSE.md` của Vite gộp giấy phép của các gói nó vendor vào (MIT + BSD-2-Clause + ISC) — đó là hình dạng bình thường của một bundler, bản thân Vite là MIT.
 
+**Rà NFR15 lượt ba — 2026-08-11, lượt correct-course**, cùng phương pháp hai lượt trước: **mở tệp `LICENSE` trong nguồn ĐÃ TẢI mà đọc**, không tin nhãn của registry. Mười hàng mới ở trên đều mang **✓**: cả mười tệp có mặt và thân tệp mang đúng mệnh đề *"Permission is hereby granted, free of charge"* của MIT. Bảy hàng trong số đó **sinh ra rồi mới được ghi vào bảng** — `uuid` từ Story 1.15, ba hàng ESLint từ cổng thứ mười, năm gói WebdriverIO cùng plugin từ bộ lái e2e — nên lượt này là một lượt **đuổi theo**, không phải một lượt rà trước khi thêm. Đó chính là quy ước ở hàng *Giấy phép* của bảng Consistency Conventions, và nó đã bị bỏ lỡ ba lần liên tiếp.
+
+⚠️ **Hai chỗ phải nói thẳng, cả hai nằm ở phần BẮC CẦU chứ không phải hàng Stack.** Cây npm đi từ **194** lên **530** gói khi bộ lái e2e vào. Quét toàn cây: `@promptbook/utils` mang **CC-BY-4.0** *(đòi ghi công)* và `css-value@0.0.1` **không khai giấy phép**. Cả hai chỉ là devDependency và **không đi vào sản phẩm** — nhưng chúng là hai mục duy nhất trong 530 gói không thuộc nhóm dễ dãi, nên ghi ra thay vì để một lượt rà sau tự phát hiện. `check-deps.mjs` Kiểm 2 quét `PATTERN` analytics/telemetry và `AUTH_PATTERN` trên **toàn** cây đó: cả hai **rỗng**.
+
 SQLite đến từ `libsqlite3-sys` feature `bundled` — phiên bản do crate ghim, không phải SQLite của hệ điều hành. Sàn tối thiểu mà kiến trúc cần: FTS5 `trigram` (≥ 3.34) và `remove_diacritics 0` (≥ 3.27); mọi bản `bundled` hiện hành đều vượt xa.
 
 **Không dùng, đã loại có lý do:** `tauri-plugin-stronghold` (đã khai tử) · `tauri-plugin-keyring` (AD-29) · `tauri-wire` (payload 679 byte) · **`tauri-plugin-fs`** (AD-1 + AD-29 — plugin tồn tại để phơi API ra JavaScript, mà frontend chỉ render và giữ state UI; cài rồi thu hẹp scope là tự tạo bề mặt tấn công rồi rào lại. Ice chốt 2026-08-03) · **`tauri-plugin-sql`** (AD-11 — `rusqlite` trực tiếp, writer nối tiếp trong Rust) · **`tauri-plugin-dialog`** (cùng lý do `fs`) · WAL2 (không phải tính năng đã phát hành) · `LIKE` trên đường nóng tra cứu (AD-26).
 
-Sáu tên trên **được cưỡng chế bằng lệnh**, không bằng kỷ luật: `scripts/check-deps.sh` (Story 1.2) chạy `cargo tree -i` cho từng tên và trả mã thoát khác 0 nếu bất kỳ tên nào xuất hiện. Story 1.3 gắn script này vào CI.
+Sáu tên trên **được cưỡng chế bằng lệnh**, không bằng kỷ luật: `scripts/check-deps.mjs` (Story 1.2) chạy `cargo tree -i` cho từng tên và trả mã thoát khác 0 nếu bất kỳ tên nào xuất hiện. Story 1.3 gắn script này vào CI.
+
+⚠️ **Mệnh đề *"kho có 0 plugin Tauri"* hết đúng từ 2026-08-11 — sửa ở đây thay vì để nó lặng lẽ sai.** Bốn `tauri-plugin-*` liệt kê ở trên vẫn **cấm nguyên vẹn**, lý do AD-1 + AD-29 không đổi một chữ. `tauri-plugin-wdio-webdriver` là **ngoại lệ đầu tiên và duy nhất**, và nó khác cả bốn ở đúng chỗ quyết định: bốn cái kia tồn tại để **phơi API ra JavaScript trong bản người dùng cài**, còn cái này là một **công cụ đo** mà AD-45 giữ hoàn toàn ngoài bản phát hành bằng hai lớp chặn có cổng canh. Ngoại lệ này **không** nới luật cũ; nó đi qua một luật mới, và luật mới đó đắt hơn chứ không rẻ hơn.
 
 ## Structural Seed
 
@@ -801,18 +832,26 @@ AuraTranslate/
         scope/         # ScopeResolver (AD-18)
         store/         # Writer nối tiếp + Reader pool + checkpoint (AD-11, AD-12)
       ports/           # DictionarySource · TranslationProvider · ProjectStore (AD-2)
-    capabilities/      # scope tĩnh (AD-23)
+    capabilities/      # scope tĩnh (AD-23) — ĐÚNG một tệp main.json, có cổng canh
     resources/dict/    # dict-core.db + mỗi lớp gỡ rời một .db (AD-10)
+    tests/             # test tích hợp — hợp đồng, ranh giới, bất biến cấu hình
   src/                 # Vue 3 — chỉ render + state UI (AD-1)
     modes/             # Library · Workspace · ReadingMode · ReviewMode (AD-24)
     panels/            # Source · Lookup · AiTranslation · Editor
     layout/            # dockview: dock/undock/tab/preset (FR17, FR18)
     commands/          # CommandRegistry — MỌI thao tác đăng ký ở đây (AD-34, FR22)
+    config/            # adapter IPC phía webview — KHÔNG một khái niệm miền nào
+    selftest/          # mũi thăm dò chạy trong webview (scope, sự kiện, fallback font)
     tokens/            # token màu đã kiểm tương phản WCAG AA cả hai theme (AD-34)
     i18n/vi.json       # toàn bộ chuỗi giao diện (NFR16, AD-21)
+  scripts/             # TẦNG CƯỠNG CHẾ — 11 cổng `check:*`, mã thoát là phán quyết
+  e2e/                 # bộ lái WebDriver trong webview THẬT (AD-45) — chạy tay
+  .githooks/pre-push   # cổng chặn lúc push; danh sách cổng thứ ba, canh bởi check:gates
   tools/dict-build/    # parser sống ở đây, không vào bản phát hành (AD-25)
   dict-manifest.toml   # URL + SHA-256 + phiên bản nguồn thô (AD-25)
 ```
+
+> **Ba nhánh `scripts/` · `e2e/` · `.githooks/` là *tầng cưỡng chế*, không phải mã sản phẩm** — chúng không mang một quy tắc nghiệp vụ nào và không đi vào bản phát hành. Ghi vào cây nguồn vì một lượt rà soát đọc cây này trước khi đọc bất cứ thứ gì khác, và ba nhánh vô hình là ba nhánh không ai bảo trì. `src/config/` và `src/selftest/` cũng vắng mặt tới lượt này: cả hai sinh ra ở Story 1.5/1.8 kèm lý do ghi ở `deferred-work.md`, nhưng lý do nằm trong sổ nợ thì không thay được một dòng trong cây nguồn.
 
 ## Capability → Architecture Map
 

@@ -1129,6 +1129,20 @@ So that một khác biệt nền tảng lọt vào ở Epic 2 không nằm im t�
 **Then** **không tải dữ liệu từ điển** — job chỉ biên dịch và chạy các test không phụ thuộc dữ liệu
 **And** thời gian chạy đủ ngắn để không ai muốn tắt nó đi
 
+> **Bổ sung 2026-08-11 — lượt correct-course.** Hai AC dưới đây **chép lại thứ đã chạy thật**, không đặt việc mới: cổng thứ mười (`check:lint`) và thứ mười một (`check:gates`) sinh ra ngày 2026-08-11 mà không tạo tác quy hoạch nào nhận chúng, và cùng ngày hook `pre-push` ra đời làm **danh sách cổng thứ ba**. AC4 ở trên đã phủ sẵn hai cổng đó — chúng là hai thể hiện của chính luật *"gắn vào pipeline này"*. Thứ AC4 **chưa** phủ là **số lượng danh sách**, và đó là nội dung hai AC mới.
+
+**Given** kho có **BA** danh sách cổng — `package.json`, `ci.yml`, `.githooks/pre-push`
+**When** một cổng `check:*` ra đời, đổi tên, hoặc biến mất
+**Then** cả ba danh sách phải khai **cùng một bộ**, cưỡng chế bằng `npm run check:gates`
+**And** mỗi mục vắng mặt ở một danh sách phải kèm **một lý do đọc được tại chỗ** — một khoảng lặng là một cổng dựa vào trí nhớ, đúng thứ AC3 cấm
+**And** bộ đọc nào không phân giải nổi một danh sách thì **dừng bằng lỗi hạ tầng**, KHÔNG báo đạt — một cổng xanh vì nó không đọc được gì là tệ hơn một cổng đỏ
+
+**Given** GitHub Actions đang **TẠM DỪNG** *(Ice chốt 2026-08-11 — không có máy Windows để đối chiếu kết quả runner)*
+**When** một commit được đẩy đi
+**Then** đường cưỡng chế mỗi lượt là `.githooks/pre-push`, và nó **CHẶN** chứ không báo cáo
+**And** lý do chặn-thay-vì-báo-cáo là một phép đo, không một sở thích: 12 lượt CI đỏ trôi qua 6 ngày vì kết quả chỉ nằm trên một tab không ai mở
+**And** ⚠️ hook chạy trên **macOS của Ice**, nên nó KHÔNG nói gì về nửa Windows — đây là một khoảng mù **có điều kiện mở lại**, xem action item A2 và A5 của retrospective Epic 1
+
 ---
 
 ### Story 1.4: Bộ token màu và chữ hai theme, có kiểm tương phản tự động
@@ -1912,6 +1926,51 @@ So that công cụ chạy theo tay tôi chứ không ngược lại.
 **Given** một vòng thao tác trong phạm vi epic này — mở Tác phẩm, chuyển panel, bôi đen tra cứu, bật tắt nguồn, ghim một mục, chuyển chế độ
 **When** thực hiện
 **Then** làm được **hoàn toàn bằng bàn phím, không chạm chuột một lần nào**
+
+---
+
+### Story 1.22: Bộ chạy e2e trong webview thật
+
+**Covers:** đường đóng cho **nợ nghiệm thu thị giác** của Epic 1 *(không FR mới)* · **AD-45** · liên đới action item **A4** và **A5**
+
+> ⚠️ **Story này dựng SAU khi mã đã viết — ghi thẳng thay vì để nó trông bình thường.** Bộ chạy ra đời ngày 2026-08-11 từ một đề xuất được Ice ký, và Bước 0 tới Bước 2 đã chạy xong. Lý do vẫn dựng story: bộ chạy đang mang **ba khuyết tật có tên** mà không tạo tác nào ở tầng quy hoạch chịu trách nhiệm cho chúng. Không có story thì ba mục đó sống trong một tệp đề xuất, và Epic 2 sẽ dựng Panel Editor — bề mặt thị giác lớn nhất dự án — lên trên một nền như vậy. Kết quả đo và ba giả định bị lật: `implementation-artifacts/proposal-tauri-window-automation-2026-08-11.md` §8.
+
+As a chủ dự án,
+I want một bộ chạy lái được cửa sổ Tauri thật,
+So that món nợ nghiệm thu thị giác — món **duy nhất có hệ số nhân** — có một đường đóng bằng máy thay vì chỉ bằng mắt.
+
+**Acceptance Criteria:**
+
+**Given** một hàng bàn đo thị giác viết thành kịch bản
+**When** nó chạy
+**Then** nó chạy trong **webview THẬT của sản phẩm** — WKWebView trên macOS, WebView2 trên Windows — không trong Chrome
+**And** mệnh đề này **đã đo, không suy đoán**: hoàn nguyên `keyCellOf(id)?.focus()` trong `config/shortcutsState.ts` — đúng bản vá WKWebView của lượt code review Story 1.21 — làm ca **ĐỎ** đúng triệu chứng *"ô phím không đổi"*; khôi phục ⇒ **XANH**
+**And** một bộ chạy trong Chrome đóng được lớp DOM trung tính và **KHÔNG** đóng được lớp lỗi đặc thù engine — đừng mua sự yên tâm sai ở đây
+
+**Given** bộ chạy dựng một cửa sổ thật trên máy người chạy
+**When** một ca sửa cấu hình
+**Then** 🔴 nó ghi vào một `$APPDATA` **TẠM của riêng lượt chạy**
+**And** nó **KHÔNG** đụng `global.db` thật của Ice — hôm nay mỗi ca tự dọn bằng nút *"Về mặc định"*, đó là **vá triệu chứng**
+**And** đây là việc phải đóng **TRƯỚC** khi dựng thêm bất kỳ hàng bàn đo nào
+
+**Given** `element.click()` của driver bắn `click` **trước** `focusin`
+**When** một ca phụ thuộc thứ tự sự kiện
+**Then** ca đó đi qua **Actions API**, không qua `element.click()`
+**And** lý do ghi ra tại chỗ, vì một ca xanh nhờ thứ tự sai là một ca nói dối
+
+**Given** máy chủ nhúng bám cổng cố định **4445**
+**When** chạy nhiều tệp spec trong cùng một lượt
+**Then** hoặc cổng cấp **theo worker**, hoặc chạy từng tệp bằng `--spec` và giới hạn đó ghi ở chỗ người chạy đọc được trước khi mất một giờ
+
+**Given** bản phát hành
+**When** kiểm
+**Then** `tauri-plugin-wdio-webdriver` và `axum` **VẮNG MẶT** khỏi cây phụ thuộc mặc định — **AD-45**, canh bởi `check-deps.mjs` **Kiểm 1b**
+**And** hai lớp chặn *(feature ngoài `default` **và** `debug_assertions`)* đều phải còn nguyên; gỡ một lớp là mở lại đúng cái cửa AD-45 vừa đóng
+
+**Given** phạm vi story này
+**When** so với **28** hàng bàn đo treo của Story 1.20 + 1.21
+**Then** story này dựng **ĐƯỜNG**, không viết trọn 28 hàng
+**And** 28 hàng thuộc action item **A4**, và vế **thẩm mỹ** của chúng vẫn cần mắt Ice — WebDriver chụp được ảnh, nó không **phán xét** ảnh
 
 ---
 
@@ -6071,6 +6130,10 @@ Một người dịch phổ thông tải bản cài từ GitHub Releases, đối
 ### Story 10.1: Build công khai qua GitHub Actions
 
 **Covers:** FR107
+
+> 🔴 **Điều kiện khởi hành — thêm 2026-08-11 (correct-course).** Story này dựng trên tiền đề *"GitHub Actions"*, và tiền đề đó **đã có một lượt tạm dừng** trong lịch sử dự án: ngày 2026-08-11 Ice tạm dừng GitHub Actions vì không có máy Windows để đối chiếu kết quả runner, và đường cưỡng chế mỗi lượt chuyển sang `.githooks/pre-push` trên macOS. **Kiểm lại trước khi dựng story này**, đúng hai câu hỏi: (1) GitHub Actions đã quay lại chưa, và nếu chưa thì FR107 — *"bất kỳ ai cũng kiểm chứng được binary khớp mã nguồn"* — còn đường nào khác không; (2) nợ **A5** *(một máy Windows, hoặc một runner tự quản)* đã có chủ chưa, vì FR105/FR106 hứa cả `.dmg` lẫn `.msi`.
+>
+> ⚠️ Ghi ra ở đây **thay vì sửa FR107** là một lựa chọn có chủ, Ice chốt 2026-08-11: tạm dừng không phải bỏ, và Epic 10 còn cách chín epic — sửa một FR hôm nay dựa trên một ràng buộc có thể đã biến mất là đổi tài liệu bằng phỏng đoán. Món nợ và lý do đầy đủ: `implementation-artifacts/deferred-work.md`, mục *correct-course 2026-08-11*.
 
 As a người dùng cẩn thận,
 I want kiểm chứng được binary khớp với mã nguồn,

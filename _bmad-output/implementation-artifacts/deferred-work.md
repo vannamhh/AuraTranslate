@@ -1404,3 +1404,126 @@ một khẳng định nào của story file làm đúng sẵn. Báo cáo đầy 
   nhắc phân biệt *một hồi quy tầng Store* với *một trần hiệu chuẩn sai* — mệnh đề 1 và
   `threshold_triggered`/`frames_checkpointed` là hai câu trả lời đó. Đường đóng thật sự vẫn
   là đo trên một máy Windows — **món nợ A5**.
+
+## Deferred from: correct-course — rà soát tài liệu vs mã nguồn (2026-08-11)
+
+*Ice yêu cầu một lượt đối chiếu tài liệu với mã đã triển khai, không nêu trước chỗ nghi ngờ.
+Lượt này ĐO trước rồi mới đề xuất: đọc trọn `ARCHITECTURE-SPINE.md` (857 dòng, 44 AD lúc bắt
+đầu), quét `epics.md`, chạy lại chín cổng, đối chiếu `package.json` · `Cargo.toml` ·
+`capabilities/` · `tauri.conf.json` · `ci.yml` · `.githooks/pre-push` với thứ tài liệu khai.*
+
+**Nền đo được, ghi trước vì nó là thứ giữ lượt rà soát này trung thực:** chín cổng **9/9
+XANH**, cây git **sạch**, `capabilities/` đúng **một** tệp `main.json` với **0** permission
+plugin, `Cargo.toml` **không** có `default = [...]`, và trạng thái ba story `in-progress`
+**khớp** `sprint-status.yaml`. Không tìm được một khai sai nào trong các bảng số của story
+file — cùng kết quả với lượt retrospective sáu ngày trước.
+
+### ĐÃ ĐÓNG trong chính lượt này
+
+- ✅ **Hồ sơ chép sai quyết định của Ice về GitHub Actions — bốn chỗ.** Bốn tạo tác ghi
+  *"Ice chốt BỎ QUA GitHub Actions"*, đọc như một quyết định kiến trúc vĩnh viễn. Ice đính
+  chính 2026-08-11: đó là **TẠM DỪNG**, và lý do là **không có máy Windows để đối chiếu kết
+  quả runner**. Khác biệt không phải chữ nghĩa — §10 của retrospective đang giao cho Epic 2
+  một điều kiện khởi hành mang chữ *"nay KHÔNG có đường nghiệm thu nào"* như một trạng thái
+  đã chốt, trong khi đúng ra nó là một khoảng mù **có điều kiện mở lại**, và điều kiện đó
+  chính là món nợ **A5**. Đã sửa: `sprint-status.yaml` (A2) · `epic-1-retro-2026-08-11.md`
+  (§9 hàng A2, §10 mục 2) · `.githooks/pre-push` (§Giới hạn).
+
+- ✅ **Cổng thứ mười một canh HAI trong BA danh sách cổng.** `check:gates` ra đời ngày
+  2026-08-11 để đóng lỗ *"hai danh sách không ai buộc khớp"*, và **cùng ngày** hook
+  `pre-push` sinh ra một danh sách **thứ ba** mà không phép kiểm nào canh. Đo: `package.json`
+  khai **11** script `check:*`, hook chạy **9**, chênh 2 (`check:scope`,
+  `check:scope:bundled`) có lý do thật nhưng lý do đó chỉ nằm trong một khối chú thích.
+  Ngày mai thêm cổng thứ mười hai mà quên hook là **lặp lại nguyên vẹn** sự cố `check:lint`,
+  chỉ đổi tệp bị quên.
+  **Vá:** `scripts/check-gates.mjs` thêm **Kiểm D** *(cổng thiếu trong hook)* và **Kiểm E**
+  *(hook gọi cổng không tồn tại)*, đối xứng đúng cặp A/B sẵn có, cộng `PREPUSH_EXEMPT` — mỗi
+  miễn trừ kèm lý do, chép từ chính §Phạm vi của hook.
+  🔴 **Chi tiết đắt nhất của bản vá:** bộ đọc trả `null` khi không phân giải nổi vòng lặp
+  `for gate in … ;`, **không** trả tập rỗng. Một bộ đọc trả rỗng làm Kiểm D xanh trong khi
+  nó chẳng kiểm gì — đúng lớp lỗi *"rỗng im lặng"* mà AD-26 và AD-44 ④ tồn tại để cấm.
+  `null` buộc `abort`, tức một lỗi hạ tầng tường minh.
+  **Nghiệm thu đỏ-rồi-xanh, bốn ca chạy thật trên bản sao ngoài kho:** ① thêm một cổng thứ
+  mười hai vào `package.json` + `ci.yml` mà quên hook ⇒ **A và B XANH, D ĐỎ** *(đúng hình
+  dạng sự cố đã xảy ra)* · ② đổi `for gate in` thành `for g in` ⇒ **abort, exit 1**, không
+  xanh oan · ③ hook gọi `check:da-bi-xoa` ⇒ **E ĐỎ** · ④ khôi phục ⇒ **exit 0**. Sau bản vá:
+  chín cổng vẫn **9/9 XANH**.
+  ⚠️ **Chỗ căng đã ghi vào chính tệp thay vì giấu:** dòng kết của `check-gates.mjs` in ra
+  *"AC4 của Story 1.3 — MỘT pipeline duy nhất"*, và hook `pre-push` **LÀ** một đường cưỡng
+  chế thứ hai. AC4 cấm bằng chữ một **tệp workflow** thứ hai nên hook không phạm chữ; nhưng
+  tinh thần AC4 *(một danh sách, không dựa trí nhớ)* chỉ còn đúng **KHI có Kiểm D**. Bản vá
+  này không xin ngoại lệ khỏi AC4 — nó là điều kiện để AC4 tiếp tục đúng dưới ba danh sách.
+
+- ✅ **`ARCHITECTURE-SPINE.md` lỗi thời so với mã — tám chỗ, đã đồng bộ.**
+  ① **Bảng Stack thiếu 10 phụ thuộc** trong khi chính spine đặt luật *"mỗi phụ thuộc mới
+  phải rà GPLv3 và **ghi vào bảng Stack**"* (§Consistency Conventions, hàng *Giấy phép*).
+  Bảy trong mười sinh ra rồi mới được ghi — `uuid` từ Story 1.15, ba hàng ESLint từ cổng thứ
+  mười, năm gói WebdriverIO cùng plugin từ bộ lái e2e. Quy ước đó bị bỏ lỡ **ba lần liên
+  tiếp**. Rà lượt ba theo đúng phương pháp hai lượt trước — **mở tệp `LICENSE` trong nguồn
+  đã tải mà đọc**, không tin nhãn registry: **10/10 mang ✓**, thân tệp đều có mệnh đề
+  *"Permission is hereby granted, free of charge"*; `uuid` là MIT OR Apache-2.0.
+  ② **AD-45 mới — bản phát hành không mở một cổng LẮNG NGHE nào.** AD-15 đếm điểm **RA** và
+  không nói gì về chiều ngược lại, nên một máy chủ nghe trên `localhost` đi vào bản người
+  dùng cài mà **không phạm một chữ nào** của AD-15. Cơ chế **đã có thật trong mã** (hai lớp
+  chặn) và **đã có cổng canh** (`check-deps.mjs` Kiểm 1b) — AD-45 chỉ đặt tên cho một luật
+  đang chạy, không đặt việc mới.
+  ③ §*"Không dùng, đã loại có lý do"* còn khai kho có **0** plugin Tauri. ④ tên tệp cưỡng
+  chế ghi `check-deps.sh`, tệp thật là `.mjs`. ⑤ **cây nguồn thiếu 5 nhánh thật** —
+  `src/config/` · `src/selftest/` · `scripts/` · `e2e/` · `.githooks/`; hai cái đầu có lý do
+  ghi ở sổ nợ này, nhưng một lý do nằm trong sổ nợ **không thay được một dòng trong cây
+  nguồn**. ⑥ hàng mới *Cổng lắng nghe* trong bảng Consistency Conventions. ⑦ `updated` sang
+  `2026-08-11`. ⑧ đoạn *Rà NFR15 lượt ba*.
+  **Nghiệm thu:** `lint_spine.py` → **0 findings**, 45 AD, bảng Stack 31 hàng.
+  ⚠️ **Hai mục giấy phép phải nói thẳng, cả hai ở phần BẮC CẦU chứ không phải hàng Stack:**
+  cây npm đi **194 → 530** gói; `@promptbook/utils` mang **CC-BY-4.0** *(đòi ghi công)* và
+  `css-value@0.0.1` **không khai giấy phép**. Cả hai chỉ devDependency, không vào sản phẩm —
+  nhưng chúng là hai mục duy nhất trong 530 gói không thuộc nhóm dễ dãi.
+
+- ✅ **Bốn năng lực đã dựng mà KHÔNG tạo tác quy hoạch nào nhận.**
+  `grep -ni "e2e|webdriver|eslint|wdio" epics.md` cho **0 kết quả**, trong khi bốn thứ sau
+  sống trong mã: cổng thứ mười `check:lint` (`01be1c2`) · cổng thứ mười một `check:gates`
+  (`b53002f`) · bộ lái e2e (`3a54628`, `7127f5f`) · hook `pre-push` (`8a9992b`).
+  **Cách xử, và lý do không dựng bốn story:** ba trong bốn nằm gọn trong hiến chương sẵn có
+  của Story 1.3 — AC4 của nó viết bằng chữ *"các luật cưỡng chế bằng test sinh ra ở epic
+  sau… gắn vào **chính pipeline này**"*. Hai cổng mới chỉ là hai **thể hiện** của luật đó.
+  Thứ AC4 chưa phủ là **số lượng danh sách cổng** và **đường cưỡng chế lúc CI vắng mặt**, nên
+  Story 1.3 nhận **hai AC mới** đúng hai điểm ấy — cả hai chép lại thứ đã chạy thật, không
+  đặt việc mới. Bộ e2e thì khác bản chất *(một năng lực nghiệm thu, phục vụ món nợ xuyên
+  chín story, và **chưa xong**)* ⇒ **Story 1.22** mới.
+
+### CÒN MỞ
+
+- 🔴 **FR107 dựng trên GitHub Actions — Ice chốt 2026-08-11: ghi nợ, hoãn tới Epic 10.**
+  FR107 hứa *"build công khai qua GitHub Actions, để bất kỳ ai cũng kiểm chứng được binary
+  khớp với mã nguồn"*, và Story 10.1 nhận nguyên phạm vi đó. Lượt tạm dừng hôm nay chưa chạm
+  Epic 10 vì Epic 10 còn cách **chín epic**.
+  **Vì sao KHÔNG sửa PRD hôm nay, và đây là một lựa chọn chứ không một lượt bỏ qua:** tạm
+  dừng không phải bỏ, và sửa một FR dựa trên một ràng buộc có thể đã biến mất trước lúc
+  Epic 10 tới là đổi tài liệu bằng **phỏng đoán** — đúng thứ doctrine *"đo trước khi tin"*
+  cấm. Thay vào đó, một **điều kiện khởi hành** đã ghi thẳng vào Story 10.1 với hai câu hỏi
+  phải trả lời trước khi dựng: (1) GitHub Actions quay lại chưa, nếu chưa thì FR107 còn
+  đường nào khác; (2) nợ **A5** có chủ chưa, vì FR105/FR106 hứa cả `.dmg` lẫn `.msi`.
+  **Chủ: Ice** · mở lại ở **Story 10.1**.
+
+- 🔴 **Ba khuyết tật của bộ e2e, nay có chủ là Story 1.22** *(trước lượt này chúng chỉ sống
+  trong `proposal-tauri-window-automation-2026-08-11.md` §8, không tạo tác nào chịu trách
+  nhiệm)*: ① bộ e2e dùng chung `$APPDATA` với ứng dụng **thật** của người chạy — ca gán phím
+  **sửa cấu hình thật của Ice**, và cách dọn hôm nay là bấm nút *"Về mặc định"*, tức vá triệu
+  chứng; ② `element.click()` bắn `click` **trước** `focusin` nên mọi tương tác có thứ tự phải
+  đi Actions API; ③ máy chủ nhúng bám cổng cố định **4445** nên hai tệp spec cùng lượt làm
+  phiên thứ hai trượt. Mục ① phải đóng **trước** khi dựng thêm bất kỳ hàng bàn đo nào.
+
+- ⚠️ **Ba món nợ tài liệu cũ, xác nhận VẪN MỞ trong lượt này** *(không phải phát hiện mới —
+  ghi lại để chúng không trôi thêm một epic)*: AD-23 còn liệt kê `$RESOURCE/dict/**` trong
+  khi `tauri.conf.json` chỉ khai `$RESOURCE/fonts/**` *(chủ: **Ice**)* · sơ đồ mermaid của
+  AD-13 còn cạnh `dict --> matching`, lệch khỏi thân Rule của AD-17 *(chủ: **Winston**)* ·
+  bảng phỏng đoán Porter ở AD-44 ③ nay đã có số đo thật từ Story 1.12 mà chưa thay vào
+  *(chủ: **Winston**)*.
+
+### Ngoài phạm vi lượt này, ghi thẳng
+
+Lượt rà soát này đối chiếu **tài liệu quy hoạch với hình dạng mã** — bảng Stack, bất biến
+kiến trúc, cây nguồn, danh sách cổng, bao phủ story. Nó **KHÔNG** đối chiếu từng AC của 25
+story với hành vi thật của mã; phép đó cần chạy lại 28 hàng bàn đo thị giác và một máy
+Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không lượt đọc tài liệu nào thay
+được hai món đó, và lượt này không giả vờ thay.
