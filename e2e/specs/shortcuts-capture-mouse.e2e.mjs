@@ -23,6 +23,8 @@
  * đó đã ghi ở §7 đề xuất trước khi chạy dòng đầu tiên.
  */
 
+import { realClick } from '../support/pointer.mjs'
+
 const OPENER = '[data-shortcuts-open]'
 const PANEL = '.sc-panel'
 
@@ -30,16 +32,6 @@ const PANEL = '.sc-panel'
 const TARGET_COMMAND = 'layout.toggle_source'
 const ROW = `[data-command-id="${TARGET_COMMAND}"]`
 const KEY_CELL = `${ROW} [data-key-cell]`
-
-/**
- * Bấm một nút bằng chuỗi sự kiện THẬT.
- *
- * 🔴 Không dùng `element.click()` của driver ở bất cứ chỗ nào thứ tự sự kiện có nghĩa —
- * xem khối chú thích trong ca test.
- */
-async function realClick(element) {
-  await browser.action('pointer').move({ origin: element }).down().pause(30).up().pause(100).perform()
-}
 
 /** Đưa hàng đích về hợp âm mặc định của sản phẩm qua nút *"Về mặc định"* (AC8). */
 async function resetRowToDefault() {
@@ -54,7 +46,7 @@ describe('Story 1.21 · AC2 đường CHUỘT — vòng gán phím trên WKWebVi
   it('bấm chuột vào ô phím rồi gõ hợp âm thì hàng đó nhận phím mới', async () => {
     const opener = await $(OPENER)
     await opener.waitForExist({ timeout: 30_000 })
-    await opener.click()
+    await realClick(opener)
     await $(PANEL).waitForDisplayed({ timeout: 10_000 })
 
     const cell = await $(KEY_CELL)

@@ -106,4 +106,53 @@ export default tseslint.config(
       'vue/no-ref-as-operand': 'error',
     },
   },
+
+  {
+    /**
+     * 🔴 Bàn đo e2e: cấm `element.click()` của driver — Story 1.22, AC3.
+     *
+     * ─────────────────────────────────────────────────────────────────────────
+     * MỘT PHÉP ĐO, VÀ MỘT MÂU THUẪN ĐÃ XẢY RA THẬT
+     * ─────────────────────────────────────────────────────────────────────────
+     * Đo 2026-08-11: lệnh `click` của driver bắn `click` **TRƯỚC** `focusin`, ngược
+     * chuột thật (`mousedown -> focusin -> mouseup -> click`). Hệ quả đo được ở
+     * `shortcuts-capture-mouse`: `shortcuts.capture` chạy lúc `aimedRow` còn rỗng ⇒ một
+     * lượt ĐỎ **đổ lỗi cho sản phẩm** trong khi lỗi ở bộ lái.
+     *
+     * Chiều ngược lại im lặng hơn và đắt hơn: ở một hàng mà thứ tự quyết định kết quả,
+     * `.click()` cho một lượt **XANH trên sản phẩm đang hỏng**.
+     *
+     * ⚠️ Và nó đã xảy ra: `shortcuts-focus.e2e.mjs` khai bằng chữ rằng nó *"cố ý đi
+     * đường chuột"* để bắt khuyết tật WKWebView, rồi gọi `opener.click()`. Chú thích nói
+     * một đằng, mã đi một nẻo. Đó là lý do luật này là một CỔNG chứ không một quy ước —
+     * câu hỏi *"hàng này có phụ thuộc thứ tự không"* đã được trả lời sai một lần rồi.
+     *
+     * Lệnh cấm TOÀN PHẦN, rộng hơn phát biểu của AC3 *(chỉ đòi ở nơi thứ tự có nghĩa)*,
+     * có chủ ý: giá của việc luôn đi `realClick()` là vài chục mili-giây, còn giá của
+     * một lần phân xử sai là một bàn đo mất đúng lớp lỗi nó được dựng ra để bắt.
+     *
+     * Ngoại lệ thật thì viết `eslint-disable-next-line no-restricted-syntax` kèm lý do
+     * ngay tại chỗ; `reportUnusedDisableDirectives: 'error'` ở đầu tệp bắt được ngoại lệ
+     * hết cần.
+     *
+     * ⚠️ Giới hạn ghi thẳng: selector bắt theo **tên thuộc tính**, nên
+     * `el['cli' + 'ck']()` lọt. Đó là một hình dạng mã không tồn tại trong `e2e/` và
+     * viết nó ra là cố tình lách một cổng — thứ không cổng nào chặn được.
+     */
+    files: ['e2e/**/*.mjs'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.type='MemberExpression'][callee.property.name='click']",
+          message:
+            'Không dùng `.click()` của driver trong bàn đo e2e — nó bắn `click` TRƯỚC ' +
+            '`focusin`, nên nó vừa cho ĐỎ sai nguyên nhân, vừa cho XANH trên một sản ' +
+            'phẩm đang hỏng. Dùng `realClick()` ở `e2e/support/pointer.mjs` (Actions API, ' +
+            'dựng đúng chuỗi `mousedown -> focusin -> mouseup -> click`). Lý do đầy đủ và ' +
+            'số đo ở doc-comment của tệp đó.',
+        },
+      ],
+    },
+  },
 )

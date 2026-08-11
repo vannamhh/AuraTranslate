@@ -16,6 +16,8 @@
  * đó không tái lập được, dừng ở Bước 2 — Ice đã đọc mệnh đề này ở §7 của đề xuất.
  */
 
+import { realClick } from '../support/pointer.mjs'
+
 /** Selector là các mối nối `data-`, không tên lớp CSS — xem chú thích ở `App.vue`. */
 const OPENER = '[data-shortcuts-open]'
 const PANEL = '.sc-panel'
@@ -44,7 +46,14 @@ describe('Story 1.21 · hàng 17 — UX-DR17: tiêu điểm quay về nút đã 
     // 🔴 Cố ý đi đường chuột: đây là đúng đường mà lượt code review phát hiện chết hoàn
     // toàn trên macOS (WKWebView không đặt tiêu điểm cho `<button>` khi bấm). Một ca mở
     // bằng bàn phím sẽ XANH kể cả khi bản vá `@focusin` bị hoàn nguyên.
-    await opener.click()
+    //
+    // ⚠️ Sửa 2026-08-11 (Story 1.22, AC3), và ghi ra vì nó là một mâu thuẫn THẬT chứ
+    // không một lượt dọn hình thức: dòng dưới đây trước là `opener.click()`. Tức ca này
+    // khai bằng chữ rằng nó *"cố ý đi đường chuột"* trong khi gọi đúng lệnh mà spec bên
+    // cạnh vừa đo được là KHÔNG trung thực về thứ tự sự kiện (`click` trước `focusin`).
+    // Chú thích nói một đằng, mã đi một nẻo — và một bàn đo như vậy tự làm hỏng lý do
+    // nó tồn tại. Nay đi qua `realClick()`; lý do đầy đủ ở `e2e/support/pointer.mjs`.
+    await realClick(opener)
 
     const panel = await $(PANEL)
     await panel.waitForDisplayed({ timeout: 10_000 })
