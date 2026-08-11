@@ -297,7 +297,11 @@ development_status:
 # ══════════════════════════════════════════════════════════════════════════════════
 action_items:
   - epic: 1
-    action: "Merge nhanh `fix/ci-windows-cargo-test` vao `master` sau khi CI cua nhanh xanh ca hai nen tang"
+    action: "QUYET MOT CAU: AC5 cua Story 1.7 noi chung lai hay noi co tran tuyet doi? `store_contract::the_wal_stops_growing_once_it_crosses_the_threshold` do tren Windows — WAL 889.952 B tren tran assert 327.680 B, trong khi co che checkpoint CO chay (51 luot, 6.392 frame). Xem §3c cua bao cao retro"
+    owner: "Ice"
+    status: open
+  - epic: 1
+    action: "Merge nhanh `fix/ci-windows-cargo-test` vao `master` — nhanh dua Windows tu 0 ca chay duoc len 263/264 xanh"
     owner: "Ice"
     status: open
   - epic: 1

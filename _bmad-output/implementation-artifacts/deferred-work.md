@@ -1338,3 +1338,53 @@ một khẳng định nào của story file làm đúng sẵn. Báo cáo đầy 
   và `cargo test --locked` (**264 xanh · 0 đỏ · 5 ignored** — khớp đúng số Story 1.21 khai).
   Không tìm được một khai sai nào trong các bảng số. Cùng lượt, `tauri build` dựng `.dmg`
   và cả hai cổng `check:scope*` XANH trên runner macOS.
+
+- ✅ **ĐÓNG — khuyết tật thứ HAI, lộ ra ngay khi `cargo test` trên Windows chạy được.**
+  Bản vá manifest cho `cargo test` chạy tới `tests/dict_lookup.rs` lần đầu tiên trong đời
+  dự án, và cổng parity lược đồ ở đó **ĐỎ**: `fixture_ddl_is_verbatim_from_dict_build_schema`
+  so một hằng chuỗi Rust (LF) bằng `contains` với `tools/dict-build/src/schema.rs` đọc từ
+  đĩa, mà ảnh `windows-2025` đặt `core.autocrlf=true` nên tệp đó tới nơi mang **CRLF**.
+  Cổng đỏ với đúng câu *"lược đồ hai cây đã trôi khỏi nhau"* trong khi hai cây giống hệt
+  nhau — thứ trôi là ký tự xuống dòng. Đo ở run `31468807121`.
+  **Vá:** `.gitattributes` với `* -text` — cây làm việc bằng đúng byte trong index ở mọi
+  nền tảng. 🔴 **KHÔNG dùng `text=auto eol=lf`**: kho có fixture mang CRLF **có chủ ý**
+  (`tools/dict-build/tests/fixtures/raw/cc_cedict/cedict.txt`), và `project_contract.rs:490`
+  khẳng định bằng chữ *"CRLF phải được GIỮ NGUYÊN"* — một lượt chuẩn hoá lúc commit sẽ đổi
+  dữ liệu dưới chân hai phép kiểm cùng lúc. Cộng một dòng chuẩn hoá trong chính hai cổng
+  parity (`dict_lookup.rs` · `dict_sources.rs`, cái sau mang **cùng** lỗ ở
+  `read_dict_build_schema()`) để chúng nói đúng thứ chúng định nói dưới mọi cấu hình
+  checkout. Cổng KHÔNG bị nới.
+  ⚠️ **Bài học chung, và nó lớn hơn hai tệp này:** mọi cổng so văn bản nguồn TỪNG BYTE đều
+  mang lỗ này, và không lỗ nào trong số đó lộ ra được chừng nào nửa Windows còn chết. Mười
+  tệp `tests/**` vẫn chưa từng chạy trên Windows tính tới lượt vá này; mỗi lượt CI xanh
+  thêm một bậc sẽ lộ ra lớp tiếp theo. **Chủ: Story 1.3**, cho tới khi có một lượt Windows
+  xanh trọn vẹn.
+
+- 🔴 **CÒN MỞ — khuyết tật thứ BA, và nó chạm một bất biến SẢN PHẨM chứ không một tạo tác
+  test.** Sau hai bản vá ở trên, **15 trên 15** nhị phân test chạy được trên Windows và
+  **263 trên 264** ca XANH *(run `31469843146`)*. Ca duy nhất còn đỏ:
+  `store_contract::the_wal_stops_growing_once_it_crosses_the_threshold` — **AC5 của
+  Story 1.7**.
+  **Số thật** *(`THRESHOLD` 65.536 B · `ROUNDS` 20 · `BLOB` 32 KiB)*: `.db-wal` =
+  **889.952 B**, tổng đã ghi = 1.310.720 B, trần của assert = 327.680 B. Stats:
+  `threshold_triggered: 51 · frames_checkpointed: 6392 · passive_busy: 0 ·
+  idle_triggered: 0 · errors: 0`.
+  **Hai mệnh đề của ca này nói hai chuyện khác nhau, và chúng KHÔNG cùng phán quyết:**
+  mệnh đề 1 *("chững lại", `after_second <= after_first * 2`)* **ĐẠT** — cơ chế AC5 có
+  chạy, 51 lượt theo ngưỡng, 0 lượt bị chặn, 0 lỗi, `idle_triggered = 0` chứng minh vế (a)
+  không hề kích hoạt; mệnh đề 2 *("có trần", `< written / 4`)* **TRƯỢT** — WAL đứng ở
+  **13,6 lần** ngưỡng. Doc-comment của chính ca đó viết *"Kỳ vọng là **chững lại**, không
+  phải co lại"*. Khác biệt nằm ở `walRestartLog` của SQLite: nó chỉ quay WAL về đầu tệp khi
+  một giao dịch ghi bắt đầu đúng lúc `nBackfill == mxFrame`, và trên Windows nhịp đó không
+  rơi vào nhau — frame vẫn được chép, tệp không bao giờ quay đầu.
+  🔴 **KHÔNG vá ở lượt rà soát này, có lý do:** ba đường đi được và cả ba đều cần một thứ
+  không có trong tay. ① Nới mệnh đề 2 hoặc gắn `#[cfg(windows)]` cho nó là một **miễn trừ**
+  — Ice đã bác thẳng lối này ở lượt review 1.21. ② Sửa tầng `Store` cho WAL quay đầu được
+  trên Windows là chạm bất biến AD-11 dựa trên **một** con số từ một runner, không có máy
+  Windows để đo lại — đó là đoán. ③ Đo thật trên một máy Windows rồi mới chốt là đường
+  đúng, và nó chính là món nợ *"cần một máy Windows"* đang chờ chủ.
+  **Câu hỏi cho Ice, đúng một câu:** AC5 nói *"chững lại"* hay nói *"có trần tuyệt đối"*?
+  Câu trả lời quyết định đây là **một khuyết tật sản phẩm trên Windows** hay **một assert
+  được hiệu chuẩn trên một nền tảng**. Tới lúc đó để nó **ĐỎ** — một pipeline đỏ vì một câu
+  hỏi thật tốt hơn một pipeline xanh vì một câu hỏi bị nới. **Chủ: Ice** · liên đới
+  **Story 1.7**.
