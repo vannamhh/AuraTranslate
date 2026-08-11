@@ -65,7 +65,36 @@ pub fn run() {
     #[cfg(debug_assertions)]
     let selftest = std::env::var(SCOPE_SELFTEST_ENV).as_deref() == Ok("1");
 
-    let builder = tauri::Builder::default()
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Bộ lái cửa sổ THẬT — Ice chốt 2026-08-11
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Máy chủ W3C WebDriver nhúng, chạy TRONG webview của sản phẩm. Nó tồn tại để bàn
+    // đo chạy tay của Epic 1 có một đường nghiệm thu bằng máy — và quan trọng hơn, để
+    // lớp lỗi ĐẶC THÙ ENGINE nghiệm thu được: khuyết tật hạng cao nhất của lượt code
+    // review Story 1.21 là *"WKWebView không đặt tiêu điểm cho `<button>`"*, và không bộ
+    // chạy nào trong Chrome tái lập nổi nó.
+    //
+    // 🔴 HAI lớp gác, và cần cả hai — chúng gác hai thứ khác nhau:
+    //   1. `feature = "wdio"` (KHÔNG trong `default`) giữ `axum`/`tokio` khỏi **cây phụ
+    //      thuộc**, tức khỏi nhị phân phát hành. `check-deps.mjs` Kiểm 1b canh vế này.
+    //   2. `debug_assertions` giữ nó khỏi **bản release** kể cả khi ai đó bật feature.
+    // Bỏ lớp 1 mà giữ lớp 2 vẫn nhét một máy chủ HTTP vào cây của bản phát hành; bỏ lớp
+    // 2 mà giữ lớp 1 thì một lượt `cargo build --release --features wdio` mở cổng 4445
+    // trên máy người dùng. Cùng khuôn đối xứng mà `SCOPE_SELFTEST_ENV` đã dựng ở Story
+    // 1.2 — hai đầu phải khớp.
+    //
+    // ⚠️ Plugin khai `permissions = []` và phơi **0** invoke command (đo trên
+    // `permissions/default.toml` của chính crate 1.3.0), nên nó KHÔNG cần một mục nào
+    // trong `capabilities/`. Hai bất biến của `tests/config_invariants.rs` —
+    // `capabilities_directory_holds_exactly_the_one_reviewed_file` và
+    // `main_capability_grants_the_minimum_and_no_plugin_permission` — giữ nguyên nghĩa
+    // gốc, không bị nới một chữ nào.
+    #[cfg(all(debug_assertions, feature = "wdio"))]
+    let builder = tauri::Builder::default().plugin(tauri_plugin_wdio_webdriver::init());
+    #[cfg(not(all(debug_assertions, feature = "wdio")))]
+    let builder = tauri::Builder::default();
+
+    let builder = builder
         // ─────────────────────────────────────────────────────────────────────────
         // 🔴 BỀ MẶT IPC ĐẦU TIÊN CỦA DỰ ÁN — Story 1.8
         // ─────────────────────────────────────────────────────────────────────────

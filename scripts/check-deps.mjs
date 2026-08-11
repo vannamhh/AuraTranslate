@@ -148,6 +148,42 @@ for (const [crate, why] of BANNED_CRATES) {
   else pass(`crate \`${crate}\` vắng mặt`)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────────
+// Kiểm 1b — bộ lái WebDriver phải vắng mặt khỏi bộ feature MẶC ĐỊNH (Ice chốt 2026-08-11)
+//
+// 🔴 Vì sao đây là một cổng chứ không một dòng chú thích trong `Cargo.toml`:
+// `tauri-plugin-wdio-webdriver` kéo `axum` + `tokio`, tức một **máy chủ HTTP lắng nghe**
+// trên `localhost:4445`. AD-15 đếm đúng BA điểm RA mạng và không khai điểm nào LẮNG
+// NGHE — nên một listener trong bản người dùng cài là một bề mặt không có luật nào cho nó.
+//
+// `#[cfg(debug_assertions)]` KHÔNG đủ: nó loại **mã**, không loại **phụ thuộc**. Thứ duy
+// nhất giữ `axum` khỏi nhị phân phát hành là `optional = true` cộng một feature không
+// nằm trong `default`. Một lượt sửa `Cargo.toml` thêm `default = ["wdio"]` đi qua trọn
+// `cargo test`, trọn `npm run build`, và trọn mười cổng còn lại mà không gì đỏ.
+//
+// ⚠️ Danh sách KHÔNG gồm `tokio`: đo được nó đã nằm trong cây mặc định từ trước qua
+// `tauri` (`tokio v1.53.1`). Canh nó là một cổng đỏ oan ngay lượt chạy đầu.
+//
+// ⚠️ Phép kiểm này đọc `cargo tree` của bộ feature **mặc định** — cùng lượt gọi mà
+// `rustNames` ở trên đã dùng. Chạy `cargo tree --features wdio` thì cả hai tên CÓ mặt,
+// và đó là hành vi đúng, không phải một vi phạm.
+// ─────────────────────────────────────────────────────────────────────────────────
+const DEV_ONLY_CRATES = [
+  ['tauri-plugin-wdio-webdriver', 'bộ lái e2e — chỉ sau `--features wdio`'],
+  ['axum', 'máy chủ HTTP mà bộ lái e2e kéo theo — AD-15 không khai điểm LẮNG NGHE nào'],
+]
+
+for (const [crate, why] of DEV_ONLY_CRATES) {
+  if (rustNames.has(crate)) {
+    fail(`crate \`${crate}\` có mặt trong cây feature MẶC ĐỊNH (${why})`)
+    console.log('       Nhiều khả năng `Cargo.toml` vừa mọc `default = ["wdio"]`, hoặc một')
+    console.log('       phụ thuộc khác vừa kéo nó vào. Bộ feature mặc định phải RỖNG — xem')
+    console.log('       khối chú thích ở `[dependencies]` của `tauri-plugin-wdio-webdriver`.')
+  } else {
+    pass(`crate \`${crate}\` vắng mặt khỏi bộ feature mặc định`)
+  }
+}
+
 // Quét trên TÊN GÓI của cả cây, không chỉ `node_modules` tầng đỉnh: một gói bị cài
 // lồng do xung đột phiên bản vẫn phải bắt được.
 const BANNED_NPM = [

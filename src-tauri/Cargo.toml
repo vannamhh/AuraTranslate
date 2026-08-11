@@ -57,10 +57,45 @@ reqwest = "=0.13.4"
 # tải) ghi ở story `1-15…md` §Debug Log References.
 uuid = { version = "=1.24.0", features = ["v4"] }
 
+# ── Bộ lái cửa sổ Tauri THẬT — Ice chốt 2026-08-11 ──────────────────────────────────
+#
+# Máy chủ W3C WebDriver nhúng, chạy TRONG webview thật của sản phẩm: WKWebView trên
+# macOS, WebView2 trên Windows. Đây là điều kiện để nghiệm thu được lớp lỗi mà một bộ
+# chạy trong Chrome KHÔNG chạm tới — khuyết tật hạng cao nhất của lượt code review Story
+# 1.21 là *"WKWebView không đặt tiêu điểm cho `<button>`"*, và Chrome không tái lập nó.
+#
+# 🔴 `optional = true` + feature KHÔNG bật mặc định, và đó KHÔNG phải một sở thích.
+# `#[cfg(debug_assertions)]` chỉ loại **mã**; một phụ thuộc Cargo vẫn nằm trong cây và
+# trong nhị phân phát hành. Đo trước khi chốt hình dạng này: plugin kéo `axum` + `tokio`
+# — tức một máy chủ HTTP — cộng `objc2-web-kit` (macOS) và `webview2-com` (Windows).
+# Một máy chủ HTTP trong bản người dùng cài là đúng thứ AD-15 tồn tại để đếm, và AD-15
+# chỉ khai BA điểm RA mạng, không khai điểm nào LẮNG NGHE.
+#
+# ⇒ Cưỡng chế bằng feature, và `check-deps.mjs` khẳng định `axum` và chính plugin
+# **VẮNG MẶT** khỏi `cargo tree` mặc định. Không có phép kiểm đó thì mệnh đề "không lọt
+# vào bản phát hành" chỉ là một lời hứa trong chú thích.
+#
+# ⚠️ Danh sách canh KHÔNG gồm `tokio`: đo được nó đã nằm trong cây mặc định từ trước qua
+# `tauri` (`tokio v1.53.1`). Canh nó là dựng một cổng đỏ oan ngay ở lượt chạy đầu.
+# Số đo hai bộ feature, `cargo tree --locked -e normal`: mặc định **831** dòng, không
+# `axum`, không plugin · `--features wdio` **948** dòng, có cả hai.
+#
+# Chạy e2e:  npm run test:e2e   (nó tự truyền `--features wdio`)
+tauri-plugin-wdio-webdriver = { version = "=1.3.0", optional = true }
+
 # `similar` vs `dissimilar`: hàng Deferred của ARCHITECTURE-SPINE, chốt ở Giai đoạn 5
 # (Story 8.1) sau khi thử cả hai trên bản review thật. Cài một trong hai hôm nay là
 # âm thầm đóng một quyết định kiến trúc đang mở. Số đã kiểm 2026-08-03 nếu 8.1 cần:
 # `similar` 3.1.1 · `dissimilar` 1.0.11.
+
+# ── Feature ─────────────────────────────────────────────────────────────────────────
+#
+# 🔴 KHÔNG có `default = [...]`, và đừng thêm. Bộ feature mặc định rỗng là thứ giữ cho
+# `cargo tree` — tức cả `check-deps.mjs` lẫn mọi lượt `tauri build` — không bao giờ thấy
+# `axum`/`tokio`. Thêm `wdio` vào `default` là mở lại đúng cái cửa mà khối chú thích ở
+# `[dependencies]` vừa đóng, và không cổng nào ngoài `check-deps` sẽ đỏ.
+[features]
+wdio = ["dep:tauri-plugin-wdio-webdriver"]
 
 # Giữ nguyên profile mà Story 1.1 đã đo dung lượng `.dmg` trên đó — đổi ở đây là làm
 # số đo NFR6 của Story 1.1 hết so sánh được.
