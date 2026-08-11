@@ -118,6 +118,9 @@ export function enterFocus(owner: FocusOwner): boolean {
 export function detectIsMac(): boolean {
   if (typeof navigator === 'undefined') return false
   const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
+  // ⚠️ Đây là DÒ NĂNG LỰC. `navigator.platform` khai `string` trong lib DOM nhưng nó đã bị khai tử, và
+  //    một WebView không có nó là ca mà cả hàm này tồn tại để chịu.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
   const platform = nav.userAgentData?.platform ?? nav.platform ?? ''
   return /mac/i.test(platform)
 }

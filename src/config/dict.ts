@@ -42,6 +42,10 @@ function isIpcError(value: unknown): value is IpcError {
     typeof v.message_key === 'string' &&
     typeof v.retryable === 'boolean' &&
     typeof v.params === 'object' &&
+    // ⚠️ Hình dạng `IpcError` là một LỜI KHAI về dữ liệu đã qua dây IPC, không một bảo đảm của trình
+    //    biên dịch. Rust có thể trả `null` cho `params` sau một lượt đổi lược đồ, và guard này là chỗ
+    //    duy nhất biết điều đó.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
     v.params !== null
   )
 }

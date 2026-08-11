@@ -302,7 +302,11 @@ function siblingInTree(api: DockviewApi, id: PanelId): string | null {
   // thiết vì một nhánh có thể chỉ có đúng một con sau vài lượt kéo–thả.
   for (let i = path.length - 1; i >= 0; i -= 1) {
     const step = path[i] as { branch: GridNode; index: number }
-    const kids = step.branch.data as GridNode[]
+    // ⚠️ `(GridNode | undefined)[]` chứ không `GridNode[]`: hai chỉ số đọc ngay dưới là
+    // `index - 1` và `index + 1`, tức ở hai đầu danh sách **luôn** có một cái ngoài biên.
+    // Đó chính là việc mà `.filter()` bên dưới làm. Khai không có `undefined` là nói dối
+    // đúng chỗ mà phép lọc tồn tại để xử lý.
+    const kids = step.branch.data as readonly (GridNode | undefined)[]
     const neighbours = [kids[step.index - 1], kids[step.index + 1]].filter(
       (n): n is GridNode => n !== undefined,
     )
@@ -454,7 +458,12 @@ function togglePanel(panelId: string): boolean {
    * Ẩn ⇒ ưu tiên panel đầu tiên trong thứ tự bố cục còn lại — không đoán một panel
    * "gần" cái vừa mất, vì "gần" sau một lượt tái cấu trúc lưới không còn nghĩa gì.
    */
-  const fallback = visiblePanelsInLayoutOrder()[0]
+  // ⚠️ `.at(0)`, KHÔNG `[0]`: danh sách này RỖNG được (`dock.value === null`, hoặc mọi panel
+  // đang ẩn), nên `?? panelId` ngay dưới là nhánh thật. Và một chú thích `: string | undefined`
+  // trên `[0]` KHÔNG đủ — TypeScript thu hẹp một `const` theo kiểu của giá trị gán, nên chú
+  // thích bị bỏ qua và phép kiểm lại thành "mã dư". `.at()` trả `T | undefined` từ chính chữ
+  // ký của nó, nên kiểu nói thật ở nguồn thay vì ở một lời khai cạnh nó.
+  const fallback = visiblePanelsInLayoutOrder().at(0)
   restoreFocusIfLost(showing ? panelId : ((fallback ?? panelId) as PanelId))
   return true
 }

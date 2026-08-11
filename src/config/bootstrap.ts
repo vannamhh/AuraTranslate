@@ -111,6 +111,10 @@ function isIpcError(value: unknown): value is IpcError {
     typeof v.message_key === 'string' &&
     typeof v.retryable === 'boolean' &&
     typeof v.params === 'object' &&
+    // ⚠️ Hình dạng `IpcError` là một LỜI KHAI về dữ liệu đã qua dây IPC, không một bảo đảm của trình
+    //    biên dịch. Rust có thể trả `null` cho `params` sau một lượt đổi lược đồ, và guard này là chỗ
+    //    duy nhất biết điều đó.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
     v.params !== null
   )
 }
@@ -185,6 +189,9 @@ export async function loadBootstrapConfig(): Promise<BootstrapResult> {
     // ranh giới IPC nên kiểu TypeScript không nói được gì về nó, và một bản Rust cũ hơn
     // (trước Story 1.14) không có trường này. Chuỗi rỗng ⇒ preset mặc định — cùng nhánh
     // với "kho rỗng", không phải một nhánh lỗi.
+    // ⚠️ `config` tới từ IPC nên kiểu của nó là một lời khai; và doc-comment ngay trên đã ghi rằng một
+    //    bản Rust trước Story 1.14 KHÔNG có trường này.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
     layout.value = typeof config?.workspace_layout === 'string' ? config.workspace_layout : ''
     return { config, error: null }
   } catch (err) {

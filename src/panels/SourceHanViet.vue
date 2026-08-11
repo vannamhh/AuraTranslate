@@ -493,6 +493,9 @@ function resolveParallel(selection: Selection): string | null {
     // (một `<span>` chỉ có đúng một text node con — xem template).
     const textNode = child.firstChild
     if (textNode === null || textNode.nodeType !== Node.TEXT_NODE) {
+      // ⚠️ `Node.textContent` là `string | null` theo đúng chuẩn DOM. Lib DOM của TypeScript hẹp nó lại
+      //    trên `Element`, nhưng nhánh này chạy trên một node lấy từ DOM thật.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
       out += child.textContent ?? ''
       continue
     }
@@ -558,9 +561,19 @@ function resolveSwitch(selection: Selection): string | null {
   const children = host.children
   let out = ''
   for (let i = 0; i < children.length; i += 1) {
-    const child = children[i]
-    const seg = segments.value[i]
-    if (child === undefined || seg === undefined) continue
+    // ⚠️ `.item(i)` và `.at(i)`, KHÔNG `[i]`. Vòng lặp chạy theo `children.length` của DOM
+    // trong khi `segments.value` là state của Vue: hai độ dài lệch nhau được đúng trong một
+    // nhịp render, và đó là ca mà `continue` dưới đây tồn tại để bắt.
+    //
+    // Vì sao không chỉ chú thích `| undefined`: `HTMLCollection` khai chỉ số trả `Element`
+    // *(không `| undefined`)* và mảng cũng vậy, nên TypeScript thu hẹp `const` theo giá trị
+    // gán và bỏ qua chú thích — phép kiểm lại bị đọc thành mã dư. `.item()` trả
+    // `Element | null` và `.at()` trả `T | undefined` từ chính chữ ký, nên kiểu nói thật ở
+    // nguồn. `.item()` là API DOM có từ đời đầu; `.at()` nằm trong `lib: ES2022` mà
+    // `tsconfig.json` đã khai.
+    const child = children.item(i)
+    const seg = segments.value.at(i)
+    if (child === null || seg === undefined) continue
     if (!overlapsRange(range, child)) continue
 
     if (seg.kind === 'break') {
@@ -572,14 +585,18 @@ function resolveSwitch(selection: Selection): string | null {
       out +=
         textNode !== null && textNode.nodeType === Node.TEXT_NODE
           ? sliceTextNode(range, textNode)
+          // ⚠️ Cùng lý do lượt đọc `textContent` phía trên.
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
           : (child.textContent ?? '')
       continue
     }
     const syllables = child.children
     for (let j = 0; j < syllables.length; j += 1) {
-      const syllable = syllables[j]
-      const char = seg.chars[j]
-      if (syllable === undefined || char === undefined) continue
+      // ⚠️ Cùng lý do và cùng cách khối trên: `syllables` là `HTMLCollection` của DOM,
+      // `seg.chars` là dữ liệu đã tách âm; hai độ dài lệch nhau được, và `continue` chịu ca đó.
+      const syllable = syllables.item(j)
+      const char = seg.chars.at(j)
+      if (syllable === null || char === undefined) continue
       if (!overlapsRange(range, syllable)) continue
       // 🔴 Một âm tiết là ATOM với ký tự nguồn của nó: chọn `th` của `thai` vẫn tra `台`.
       // Chia nhỏ hơn nữa là vô nghĩa — không có "nửa ký tự Hán".

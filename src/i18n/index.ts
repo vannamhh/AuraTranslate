@@ -70,8 +70,13 @@ const warnedErrors = new Set<string>()
  * hàm công khai, nó không mở thêm quyền gì. Ghi ra đây thay vì để nó lặng lẽ.
  */
 export function tError(err: IpcError, params?: MessageParams): string {
+  // ⚠️ `tError` là API công khai nhận một `IpcError` tới từ dây — doc-comment ngay trên đã khai chính
+  //    điều này bằng chữ.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
   const key = typeof err?.message_key === 'string' ? err.message_key.trim() : ''
   if (key === '') {
+    // ⚠️ Cùng lý do dòng trên: `err` là dữ liệu IPC, không một giá trị do trình biên dịch bảo đảm.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
     const id = typeof err?.code === 'string' ? err.code : '(không có code)'
     if (!warnedErrors.has(id)) {
       warnedErrors.add(id)

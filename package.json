@@ -18,7 +18,8 @@
     "check:scope": "node scripts/check-scope.mjs",
     "check:scope:bundled": "node scripts/check-scope-bundled.mjs",
     "check:dict": "node scripts/check-dict-build.mjs",
-    "check:dict-manifest": "node scripts/check-dict-manifest.mjs"
+    "check:dict-manifest": "node scripts/check-dict-manifest.mjs",
+    "check:lint": "eslint src"
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",
@@ -28,7 +29,10 @@
   "devDependencies": {
     "@tauri-apps/cli": "2.11.4",
     "@vitejs/plugin-vue": "6.0.8",
+    "eslint": "10.8.1",
+    "eslint-plugin-vue": "10.10.0",
     "typescript": "5.9.3",
+    "typescript-eslint": "8.67.0",
     "vite": "8.2.0",
     "vue-tsc": "3.3.9"
   }

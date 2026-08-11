@@ -209,6 +209,9 @@ export const sourcesUsed = computed<readonly string[]>(() => hanViet.value?.sour
  */
 const hanCharOccurrenceCount = computed(() => {
   const text = chapter.value?.source_text
+  // ⚠️ `chapter.value` tới từ IPC; `source_text` là `null` được trên dây khi một Chương chưa có nguyên
+  //    văn, và kiểu không nói ra điều đó.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
   if (text === undefined || text === null) return 0
   let count = 0
   for (const ch of text) {

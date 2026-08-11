@@ -142,6 +142,9 @@ export function createRegistry(): Registry {
   const register = (spec: CommandSpec): void => {
     // ⚠️ Kiểm hình dạng TRƯỚC kiểm trùng: một `spec` là `undefined` phải nói ra điều
     // đó, không phải ném `TypeError` ở dòng đọc `.id`.
+    // ⚠️ `register()` là API CÔNG KHAI. Kiểu chỉ ràng buộc được chỗ gọi đã qua biên dịch; một chỗ gọi
+    //    từ JS thuần, hay một mảng có lỗ, vẫn đưa `undefined` vào đây.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
     if (spec === null || typeof spec !== 'object') {
       throw new TypeError(`[commands] register() nhận ${String(spec)}, phải là một CommandSpec.`)
     }

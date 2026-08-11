@@ -278,7 +278,11 @@ export function chordFromEvent(event: ChordEvent, platform: Platform): string | 
  * mặt ở đây hiện nguyên văn, và đó là hành vi đúng: `Home`, `PageUp` đọc rõ hơn mọi ký
  * hiệu người ta có thể nghĩ ra cho chúng.
  */
-const KEY_GLYPHS: Readonly<Record<string, string>> = {
+// ⚠️ `| undefined` trong giá trị là CÓ CHỦ, không một sự cẩu thả: đây là một bảng TRA, và
+// một khoá vắng mặt là ca bình thường — `formatChord` rơi về bảng kia rồi về chính tên phím.
+// Khai `Record<string, string>` là nói dối: nó bảo mọi khoá đều có, nên `?? ` ở chỗ tra trở
+// thành "mã dư" dưới mắt trình kiểm mà thật ra nó là nhánh chạy thường xuyên nhất.
+const KEY_GLYPHS: Readonly<Record<string, string | undefined>> = {
   ArrowLeft: '←',
   ArrowRight: '→',
   ArrowUp: '↑',
@@ -297,7 +301,7 @@ const KEY_GLYPHS: Readonly<Record<string, string>> = {
 }
 
 /** Ký hiệu chỉ đúng trên macOS — ở nơi khác `⌫` và `⇥` không phải quy ước của ai cả. */
-const MAC_KEY_GLYPHS: Readonly<Record<string, string>> = {
+const MAC_KEY_GLYPHS: Readonly<Record<string, string | undefined>> = {
   Enter: '↩',
   Escape: '⎋',
   Tab: '⇥',
