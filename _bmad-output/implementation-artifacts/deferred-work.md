@@ -1527,3 +1527,65 @@ kiến trúc, cây nguồn, danh sách cổng, bao phủ story. Nó **KHÔNG** �
 story với hành vi thật của mã; phép đó cần chạy lại 28 hàng bàn đo thị giác và một máy
 Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không lượt đọc tài liệu nào thay
 được hai món đó, và lượt này không giả vờ thay.
+
+## Deferred from: Story 1.22 — C1, chuyển hướng `$APPDATA` của bộ e2e (2026-08-11)
+
+- ✅ **ĐÓNG — bộ e2e thôi dùng chung `$APPDATA` với ứng dụng thật của người chạy.** Đây là
+  AC2 của Story 1.22 và là món chặn mọi hàng bàn đo còn lại.
+
+  **🔴 Phép đo quyết định hình dạng bản vá — và nó lật phương án rẻ.** Cách rẻ là đổi `HOME`
+  của tiến trình con. Đo trên chính cây đang ghim (`dirs-6.0.0` · `dirs-sys-0.5.0`):
+
+  | Nền tảng | `dirs::data_dir()` đi qua | Đổi được bằng biến môi trường? |
+  |---|---|---|
+  | macOS | `home_dir()/Library/Application Support`, `home_dir()` đọc `$HOME` trước | **CÓ** |
+  | Windows | `known_folder(FOLDERID_RoamingAppData)` — Known Folder API | **KHÔNG** |
+
+  `dirs-sys` gọi thẳng Shell API trên Windows và **bỏ qua** `%APPDATA%`. Nên phương án
+  `HOME` là một bản vá **chạy trên macOS và hỏng im lặng trên Windows** — đúng lớp lệch nền
+  tảng NFR14 tồn tại để chặn, và hôm nay nửa Windows **không có đường nghiệm thu nào** để
+  phát hiện ra. Đó là hai khuyết tật chồng lên nhau, nên phương án rẻ bị loại.
+
+  **Bản vá:** `AURATRANSLATE_E2E_DATA_DIR` đọc trong Rust, chặn bằng **đúng hai lớp của
+  AD-45** — `debug_assertions` **và** `feature = "wdio"`, cùng khuôn với chính plugin
+  WebDriver. Bản phát hành không có một dòng mã nào đọc biến đó: nhánh
+  `not(all(debug_assertions, feature = "wdio"))` của `data_dir_override()` trả `None` **theo
+  kiểu**. Phân giải giống hệt nhau trên hai nền tảng.
+
+  **Chính sách tách khỏi phép đọc** (`data_dir_override_from_raw`, **không** bị `cfg` gác):
+  `std::env::set_var` là `unsafe` từ edition 2024 và một ca đặt biến môi trường còn đua với
+  các ca chạy song song; hàm thuần thì test được mà không chạm tiến trình, và luật được kiểm
+  ở **mọi** bộ feature — kể cả bộ mặc định mà hook `pre-push` chạy. Đường dẫn **tương đối bị
+  TỪ CHỐI**, không được phân giải: nó phân giải theo thư mục làm việc của tiến trình con và
+  sẽ đẻ một `global.db` ở một chỗ bất kỳ trong kho mà không ai báo.
+
+  **Ba bất biến mới** ở `tests/config_invariants.rs`: chính sách từ chối rỗng/tương đối ·
+  phép đọc chỉ sống sau hai lớp gác *(ca đọc mã nguồn, vì hai lớp gác là tính chất **lúc
+  biên dịch** và một nhị phân test chỉ quan sát được đúng một bộ feature mỗi lượt)* · **tên
+  biến ở Rust và ở `wdio.conf.mjs` phải khớp từng ký tự**.
+
+  **Cộng một phép TỰ KIỂM lúc chạy** ở `onComplete`: `global.db` phải nằm trong thư mục tạm,
+  nếu không thì lượt chạy ĐỎ. 🔴 Vì sao cần cả hai lớp canh: hình dạng hỏng ở đây **không có
+  triệu chứng** — app lặng lẽ quay về `$APPDATA` thật và **mọi ca vẫn xanh**, vì một kho thật
+  cũng là một kho mở được.
+
+  **Nghiệm thu — bốn phép đo chạy thật, không suy đoán:**
+
+  | Phép đo | Kết quả |
+  |---|---|
+  | Hai spec, mỗi cái một lượt riêng | **xanh** *(`webkit 605.1.15 macos`)* |
+  | Băm SHA-256 của `global.db` thật, trước và sau hai lượt | **không một byte nào đổi** |
+  | Ca ĐỎ — mô phỏng trôi tên biến ở phía JS | spec **xanh** mà tự kiểm **chặn**; kho thật **bị động** đúng như dự đoán, rồi khôi phục từ sao lưu **khớp từng byte** |
+  | Chín cổng · `npm run build` · `cargo test --locked` | 9/9 xanh · xanh · **267 xanh · 0 đỏ · 5 ignored** *(264 → 267, cộng đúng ba ca mới)* |
+
+  ⚠️ **Bản vá tự bắt được lỗi của chính nó, ghi lại vì nó là bằng chứng phép tự kiểm có
+  răng:** bản đầu của `onComplete` tìm kho ở `<tạm>/com.auratranslate.desktop/global.db`.
+  Sai — `app_data_dir()` của Tauri là `data_dir()/<định danh>`, còn biến môi trường **thay
+  thế trọn** kết quả đó, nên kho nằm thẳng trong thư mục tạm. Lượt chạy thật đầu tiên ĐỎ
+  đúng vào chỗ ấy, dù móc chuyển hướng hoạt động đúng. Cả hai chỗ nay ghi mệnh đề đó ra chữ.
+
+- 📝 **Nút *"Về mặc định"* trong hai spec nay là dư, KHÔNG gỡ ở lượt này.** Nó ra đời để dọn
+  `global.db` thật giữa các ca; sau bản vá mỗi lượt đã có kho riêng. Giữ lại có chủ ý: gỡ nó
+  là đổi hành vi của hai ca đang xanh trong cùng một lượt vá hạ tầng, và nó vẫn giữ một
+  nghĩa thật — cô lập **giữa các ca trong cùng một spec**, thứ thư mục tạm theo **lượt chạy**
+  không cho. Mở lại khi có ca thứ ba trong một spec. **Chủ: Story 1.22.**

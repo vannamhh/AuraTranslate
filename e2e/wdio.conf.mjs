@@ -26,13 +26,19 @@
  * ═════════════════════════════════════════════════════════════════════════════════
  * §Giới hạn — ba thứ ĐO ĐƯỢC ở lượt dựng, ghi thẳng thay vì để người sau vấp
  * ═════════════════════════════════════════════════════════════════════════════════
- * 1. 🔴 **Bộ e2e dùng chung `$APPDATA` với ứng dụng THẬT của người chạy.** Story 1.21
- *    ghi phím tắt xuống `global.db` (`ScopeKind::Shortcut`), nên một ca gán phím SỬA
- *    cấu hình thật của Ice. Đo được: một lượt chẩn đoán để lại `⌥⌘K` trên
- *    `layout.toggle_source`, và lượt sau đọc nó thành trạng thái đầu rồi ĐỎ với một câu
- *    đổ lỗi cho sản phẩm. Hôm nay mỗi ca tự dọn bằng nút *"Về mặc định"* — đó là bản vá
- *    TRIỆU CHỨNG. Đường đóng thật: chỉ `$APPDATA` của app con sang một thư mục tạm mỗi
- *    lượt chạy. **Chưa làm, và nó là việc đầu tiên trước khi dựng thêm hàng nào.**
+ * 1. ✅ **ĐÃ ĐÓNG 2026-08-11 — `$APPDATA` của app con trỏ sang một thư mục tạm mỗi lượt.**
+ *    Trước bản vá: Story 1.21 ghi phím tắt xuống `global.db` (`ScopeKind::Shortcut`), nên
+ *    một ca gán phím SỬA cấu hình thật của Ice. Đo được: một lượt chẩn đoán để lại `⌥⌘K`
+ *    trên `layout.toggle_source`, và lượt sau đọc nó thành trạng thái đầu rồi ĐỎ với một
+ *    câu đổ lỗi cho sản phẩm — một bộ đo tự làm hỏng phép đo của chính nó. Nút *"Về mặc
+ *    định"* chỉ vá TRIỆU CHỨNG.
+ *    Nay `onPrepare` dựng một thư mục tạm và truyền qua `AURATRANSLATE_E2E_DATA_DIR`;
+ *    `onComplete` TỰ KIỂM rằng `global.db` nằm trong đó rồi mới xoá.
+ *    🔴 Vì sao một biến môi trường đọc trong Rust chứ không phải chỉ đổi `HOME`: đo trên
+ *    `dirs-6.0.0`/`dirs-sys-0.5.0` đang ghim — macOS phân giải qua `$HOME`, **Windows đi
+ *    Known Folder API và bỏ qua `%APPDATA%`**. Đổi `HOME` là một bản vá chạy trên macOS
+ *    và hỏng IM LẶNG trên Windows. Lý do đầy đủ ở doc-comment `E2E_DATA_DIR_ENV` trong
+ *    `src-tauri/src/lib.rs`.
  *
  * 2. 🔴 **`element.click()` của driver KHÔNG trung thực về thứ tự sự kiện** — nó bắn
  *    `click` TRƯỚC `focusin`, ngược chuột thật (`mousedown -> focusin -> mouseup ->
@@ -51,10 +57,28 @@
  */
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { spawn } from 'node:child_process'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+
+/**
+ * Tên biến chỉ `$APPDATA` của app con sang thư mục tạm.
+ *
+ * 🔴 Phải khớp TỪNG KÝ TỰ với `E2E_DATA_DIR_ENV` ở `src-tauri/src/lib.rs`, và
+ * `config_invariants::the_e2e_runner_and_the_rust_side_name_the_same_variable` canh vế
+ * đó. Không có cổng ấy thì một lượt đổi tên bên Rust làm móc ngừng có tác dụng, bộ e2e
+ * quay lại ghi vào `global.db` THẬT của người chạy, và **mọi ca vẫn xanh** — vì một kho
+ * thật cũng là một kho mở được. Đó là hình dạng hỏng tệ nhất có thể ở chỗ này.
+ */
+const DATA_DIR_ENV = 'AURATRANSLATE_E2E_DATA_DIR'
+
+/** Tên tệp kho toàn cục — khớp `GLOBAL_DB_FILE` ở `src-tauri/src/lib.rs`. */
+const GLOBAL_DB_FILE = 'global.db'
+
+/** Thư mục tạm của lượt chạy này. `null` cho tới `onPrepare`. */
+let dataDir = null
 
 /**
  * Cổng của Vite. `tauri.conf.json::build.devUrl` trỏ vào đây và `vite.config.ts` khai
@@ -119,6 +143,15 @@ export const config = {
    * — cướp cổng của phiên đó rồi tắt nó ở `onComplete` là làm hỏng việc người khác.
    */
   onPrepare: async () => {
+    // ── Thư mục dữ liệu riêng của lượt chạy này ────────────────────────────────────
+    //
+    // Đặt vào `process.env` là đủ: bộ lái dựng env của app con bằng
+    // `{ ...process.env, ...options.env, … }` (`@wdio/tauri-service`,
+    // `startEmbeddedDriver`), nên biến này đi thẳng xuống tiến trình con.
+    dataDir = mkdtempSync(join(tmpdir(), 'auratranslate-e2e-'))
+    process.env[DATA_DIR_ENV] = dataDir
+    console.log(`[e2e] $APPDATA của app con → ${dataDir}`)
+
     if (await devServerIsUp()) {
       console.log(`[e2e] ${DEV_URL} đã có người phục vụ — dùng lại, KHÔNG dựng thêm.`)
       return
@@ -142,10 +175,51 @@ export const config = {
     )
   },
 
-  onComplete: () => {
+  /**
+   * Tắt Vite, TỰ KIỂM thư mục dữ liệu, rồi mới xoá nó.
+   *
+   * 🔴 Vì sao phải tự kiểm chứ không chỉ xoá: nếu móc chuyển hướng ngừng có tác dụng —
+   * đổi tên biến, quên `--features wdio`, hay một bản `Cargo.toml` bỏ feature — thì app
+   * lặng lẽ quay về `$APPDATA` THẬT và **mọi ca vẫn xanh**, vì một kho thật cũng là một
+   * kho mở được. Hình dạng hỏng đó không có triệu chứng nào ngoài một thư mục tạm rỗng.
+   * Nên thư mục rỗng là một lượt ĐỎ, không phải một chi tiết bỏ qua được.
+   *
+   * ⚠️ Chỉ khẳng định khi lượt chạy đã xanh (`exitCode === 0`). Một spec đỏ sớm có thể
+   * dừng trước khi app kịp tạo kho, và ném thêm một lỗi thứ hai ở đây chỉ che mất lỗi
+   * thật đầu tiên.
+   */
+  onComplete: (exitCode) => {
     if (viteProcess !== null) {
       viteProcess.kill('SIGTERM')
       viteProcess = null
+    }
+
+    if (dataDir === null) return
+
+    // ⚠️ KHÔNG nối định danh bundle vào đây. `app_data_dir()` của Tauri là
+    // `data_dir()/<identifier>`, nhưng biến môi trường THAY THẾ TRỌN kết quả đó — nên kho
+    // nằm thẳng trong `dataDir`. Bản đầu của phép kiểm này nối `com.auratranslate.desktop`
+    // vào và ĐỎ ở lượt chạy thật đầu tiên, dù móc chuyển hướng hoạt động đúng: băm của
+    // `global.db` thật giống hệt nhau trước và sau lượt chạy.
+    const storePath = join(dataDir, GLOBAL_DB_FILE)
+    const redirected = existsSync(storePath)
+    rmSync(dataDir, { recursive: true, force: true })
+    const usedDir = dataDir
+    dataDir = null
+
+    if (exitCode === 0 && !redirected) {
+      throw new Error(
+        `Bộ e2e chạy xanh nhưng KHÔNG thấy ${GLOBAL_DB_FILE} trong ${usedDir}.\n\n` +
+          'Nghĩa là app con đã ghi vào `$APPDATA` THẬT của bạn, không vào thư mục tạm —\n' +
+          'và một lượt xanh ở đây là một lượt xanh giả. Ba nguyên nhân, theo thứ tự\n' +
+          'hay gặp:\n' +
+          `  1. nhị phân dựng THIẾU \`--features wdio\` ⇒ \`${DATA_DIR_ENV}\` không được đọc\n` +
+          '     (`npm run test:e2e` truyền sẵn; một lượt `cargo build` tay thì không);\n' +
+          '  2. tên biến ở `src-tauri/src/lib.rs` đã đổi mà tệp này chưa đổi theo;\n' +
+          '  3. `open_global_store` thôi không đi qua `data_dir_override()` nữa.\n\n' +
+          'Đừng bỏ phép kiểm này để cho xanh — nó là thứ duy nhất đứng giữa bộ đo và\n' +
+          'cấu hình thật của bạn.',
+      )
     }
   },
 

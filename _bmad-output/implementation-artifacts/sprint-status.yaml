@@ -264,9 +264,9 @@ action_items:
     owner: "Ice"
     status: done
   - epic: 1
-    action: "🔴 TRUOC KHI DUNG THEM HANG NAO: chi `$APPDATA` cua app con sang thu muc tam moi luot e2e. Hom nay bo e2e SUA cau hinh that cua nguoi chay (`global.db`), va moi ca chi tu don bang nut Ve mac dinh — vet trieu chung. Nay co chu: AC 2 cua Story 1.22"
+    action: "✅ XONG 2026-08-11 — `AURATRANSLATE_E2E_DATA_DIR` doc trong Rust, chan bang DUNG HAI LOP cua AD-45 (`debug_assertions` + `feature = wdio`). Phuong an re (doi `HOME`) BI LOAI bang phep do: macOS phan giai qua `$HOME` nhung Windows di Known Folder API va bo qua `%APPDATA%` ⇒ mot ban va chi chay tren macOS. Ba bat bien moi + mot phep tu kiem luc chay. Bam `global.db` that KHONG doi mot byte sau hai luot spec; ca DO da chay that roi khoi phuc khop tung byte. AC2 cua Story 1.22"
     owner: "Dev"
-    status: open
+    status: done
 
   # ── correct-course 2026-08-11: ra soat tai lieu vs ma nguon ───────────────────────
   - epic: 1

@@ -29,6 +29,86 @@ pub const SCOPE_SELFTEST_EVENT: &str = "selftest:scope-check";
 /// Tên tệp kho toàn cục dưới `$APPDATA`. Xem [`open_global_store`].
 const GLOBAL_DB_FILE: &str = "global.db";
 
+/// Tên biến môi trường chỉ `$APPDATA` của tiến trình này sang một thư mục khác — **chỉ e2e**.
+///
+/// 🔴 Giá trị là **chính thư mục dữ liệu**, không phải thư mục cha của nó:
+/// `app_data_dir()` của Tauri là `data_dir()/<định danh bundle>`, còn biến này **thay thế
+/// trọn** kết quả đó. Nên `global.db` nằm thẳng trong giá trị được đặt. Bản đầu của phép
+/// tự kiểm ở `e2e/wdio.conf.mjs` nối thêm định danh vào và ĐỎ ngay lượt chạy thật đầu
+/// tiên, dù móc hoạt động đúng — ghi ra đây để lượt sau không mất một vòng vì cùng lý do.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// VÌ SAO MÓC NÀY TỒN TẠI
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Bộ lái e2e dựng một cửa sổ **thật**, nên nó đọc và ghi đúng `$APPDATA` mà ứng dụng
+/// thật của người chạy dùng. Story 1.21 ghi phím tắt xuống `global.db`
+/// (`ScopeKind::Shortcut`), nên một ca gán phím **sửa cấu hình thật của người chạy**. Đo
+/// được ở lượt dựng: một lượt chẩn đoán để lại `⌥⌘K` trên `layout.toggle_source`, và
+/// lượt sau đọc nó thành trạng thái đầu rồi ĐỎ với một câu đổ lỗi cho sản phẩm — tức một
+/// bộ đo tự làm hỏng phép đo của chính nó.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO MỘT BIẾN MÔI TRƯỜNG ĐỌC TRONG RUST, CHỨ KHÔNG PHẢI CHỈ `HOME`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Cách rẻ hơn là đổi `HOME` của tiến trình con. Đo trên chính cây phụ thuộc đang ghim
+/// *(2026-08-11)*, và nó **chỉ đúng một nửa**:
+///
+/// | Nền tảng | `dirs::data_dir()` đi qua | Đổi được bằng biến môi trường? |
+/// |---|---|---|
+/// | macOS   | `home_dir()/Library/Application Support`, `home_dir()` đọc `$HOME` trước | **CÓ** |
+/// | Windows | `known_folder(FOLDERID_RoamingAppData)` — Known Folder API | **KHÔNG** |
+///
+/// `dirs-sys-0.5.0` gọi thẳng Shell API trên Windows và **bỏ qua** `%APPDATA%`. Nên một
+/// bản vá chỉ đổi `HOME` là một bản vá **chạy trên macOS và hỏng im lặng trên Windows** —
+/// đúng lớp lệch nền tảng NFR14 tồn tại để chặn, và hôm nay nửa Windows không có đường
+/// nghiệm thu nào để phát hiện ra. Móc này phân giải **giống hệt nhau** trên hai nền tảng.
+///
+/// ⚠️ Chặn bằng ĐÚNG HAI LỚP của AD-45, cùng khuôn với chính plugin WebDriver:
+/// `debug_assertions` **và** `feature = "wdio"`. Bản phát hành không có một dòng mã nào
+/// đọc biến này — [`data_dir_override`] ở nhánh `not(...)` trả thẳng `None`. Một móc chỉ
+/// hiển thị trong bản debug **và** chỉ khi bật feature là một móc không phải là bề mặt
+/// tấn công; một móc chỉ có `debug_assertions` thì có.
+#[cfg(all(debug_assertions, feature = "wdio"))]
+pub const E2E_DATA_DIR_ENV: &str = "AURATRANSLATE_E2E_DATA_DIR";
+
+/// Chính sách của [`E2E_DATA_DIR_ENV`], tách khỏi phép **đọc** biến môi trường.
+///
+/// Tách ra vì hai lý do đo được, không phải vì gu kiến trúc:
+/// 1. `std::env::set_var` là `unsafe` từ edition 2024, và một ca test đặt biến môi trường
+///    còn đua với mọi ca chạy song song trong cùng nhị phân. Hàm thuần thì test được mà
+///    không chạm tiến trình.
+/// 2. Nó **không** bị `cfg` gác, nên chính sách được kiểm ở **mọi** bộ feature — kể cả bộ
+///    mặc định mà `cargo test` của hook pre-push chạy. Thứ bị gác là phép đọc, không phải
+///    luật.
+///
+/// 🔴 **Đường dẫn tương đối bị TỪ CHỐI, không phải được phân giải.** Một đường tương đối
+/// phân giải theo thư mục làm việc của tiến trình con — thứ bộ lái đặt, không thứ người
+/// viết ca test nghĩ — nên nó sẽ đẻ một `global.db` ở một chỗ bất kỳ trong kho mà không
+/// ai báo. Rỗng cũng bị từ chối: một biến đặt thành chuỗi rỗng là một lượt đặt hỏng, và
+/// coi nó như *"không đặt"* là im lặng nuốt một lỗi cấu hình.
+pub fn data_dir_override_from_raw(raw: Option<&std::ffi::OsStr>) -> Option<std::path::PathBuf> {
+    let raw = raw?;
+    if raw.is_empty() {
+        return None;
+    }
+    let path = std::path::PathBuf::from(raw);
+    if path.is_absolute() { Some(path) } else { None }
+}
+
+/// Đọc [`E2E_DATA_DIR_ENV`] rồi áp [`data_dir_override_from_raw`].
+///
+/// Nhánh `not(...)` trả `None` **theo kiểu**, nên bản phát hành không có đường mã nào
+/// chạm biến môi trường đó.
+#[cfg(all(debug_assertions, feature = "wdio"))]
+fn data_dir_override() -> Option<std::path::PathBuf> {
+    data_dir_override_from_raw(std::env::var_os(E2E_DATA_DIR_ENV).as_deref())
+}
+
+#[cfg(not(all(debug_assertions, feature = "wdio")))]
+fn data_dir_override() -> Option<std::path::PathBuf> {
+    None
+}
+
 /// Nhãn cửa sổ duy nhất — khớp `tauri.conf.json::windows[0].label`.
 const MAIN_WINDOW_LABEL: &str = "main";
 
@@ -181,12 +261,25 @@ fn open_global_store(app: &tauri::App) {
 
     // Không viết cứng `$APPDATA` — `app.path()` là đường duy nhất, và đây là chỗ NFR14
     // (hành vi tương đương hai nền tảng) hỏng đầu tiên nếu ai đó ghép chuỗi bằng tay.
-    let dir = match app.path().app_data_dir() {
-        Ok(dir) => dir,
-        Err(err) => {
-            eprintln!("store[global] cannot resolve the app data directory: {err}");
-            return;
+    //
+    // Móc e2e đứng TRƯỚC lời gọi đó và chỉ tồn tại trong bản debug + feature `wdio`
+    // (AD-45). Bản phát hành đi thẳng xuống nhánh dưới. Xem `E2E_DATA_DIR_ENV`.
+    let dir = match data_dir_override() {
+        Some(dir) => {
+            // In ra vì một lượt chuyển hướng IM LẶNG là thứ tệ nhất ở đây: nếu biến bị
+            // đặt nhầm trong một phiên tay, người chạy phải thấy ngay rằng app đang đọc
+            // một kho khác, thay vì tưởng cấu hình của mình vừa bốc hơi.
+            // Chuoi khong dau: `check-i18n.mjs` Kiem A quet `lib.rs`.
+            println!("store[global] data dir override: {}", dir.display());
+            dir
         }
+        None => match app.path().app_data_dir() {
+            Ok(dir) => dir,
+            Err(err) => {
+                eprintln!("store[global] cannot resolve the app data directory: {err}");
+                return;
+            }
+        },
     };
 
     if let Err(err) = std::fs::create_dir_all(&dir) {

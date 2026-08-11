@@ -526,3 +526,129 @@ fn nofonts_overlay_drops_resources_with_an_explicit_null() {
          Đọc doc-comment của test này trước khi sửa."
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+//  Móc chuyển hướng `$APPDATA` của bộ e2e — AD-45, Story 1.22 AC2
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Chính sách của `data_dir_override_from_raw`, kiểm ở **mọi** bộ feature.
+///
+/// Hàm đó cố ý KHÔNG bị `cfg` gác, đúng để ca này chạy cả trong `cargo test` mặc định mà
+/// hook `pre-push` gọi. Thứ bị gác là phép **đọc** biến môi trường, không phải luật.
+#[test]
+fn the_data_dir_override_rejects_everything_that_is_not_an_absolute_path() {
+    use auratranslate_lib::data_dir_override_from_raw as parse;
+    use std::ffi::OsStr;
+
+    assert_eq!(parse(None), None, "không đặt biến ⇒ không chuyển hướng");
+
+    assert_eq!(
+        parse(Some(OsStr::new(""))),
+        None,
+        "chuỗi RỖNG là một lượt đặt hỏng. Nó phải trả None chứ không được coi là một \
+         đường dẫn — nhưng cũng đừng đọc kết quả này thành 'rỗng thì an toàn': ở chỗ gọi \
+         nó rơi về `$APPDATA` thật, và đó chính là lý do bộ lái phải TỰ KIỂM rằng kho \
+         nằm trong thư mục tạm sau mỗi lượt chạy."
+    );
+
+    assert_eq!(
+        parse(Some(OsStr::new("e2e-data"))),
+        None,
+        "đường dẫn TƯƠNG ĐỐI bị từ chối, không được phân giải. Nó phân giải theo thư mục \
+         làm việc của tiến trình con — thứ bộ lái đặt, không thứ người viết ca test nghĩ \
+         — nên nó đẻ một `global.db` ở một chỗ bất kỳ trong kho mà không ai báo."
+    );
+
+    let abs = if cfg!(windows) {
+        r"C:\Temp\aura-e2e"
+    } else {
+        "/tmp/aura-e2e"
+    };
+    assert_eq!(
+        parse(Some(OsStr::new(abs))),
+        Some(std::path::PathBuf::from(abs)),
+        "đường dẫn tuyệt đối là ca DUY NHẤT được nhận"
+    );
+}
+
+/// Phép **đọc** biến môi trường chỉ tồn tại sau `all(debug_assertions, feature = "wdio")`.
+///
+/// 🔴 Vì sao một ca đọc MÃ NGUỒN chứ không phải một ca hành vi: hai lớp gác của AD-45 là
+/// một tính chất **lúc biên dịch**, và một nhị phân test chỉ chạy được đúng một bộ feature
+/// mỗi lượt — nó không tự quan sát được bộ feature kia. Đọc nguồn là cách duy nhất khẳng
+/// định cả hai nhánh cùng lúc, và nó chạy ở **mọi** bộ feature.
+#[test]
+fn the_env_read_lives_only_behind_debug_assertions_and_the_wdio_feature() {
+    const GUARD: &str = r#"#[cfg(all(debug_assertions, feature = "wdio"))]"#;
+    const ENV_NAME: &str = "AURATRANSLATE_E2E_DATA_DIR";
+
+    let path = manifest_dir().join("src/lib.rs");
+    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+
+    // Tên biến xuất hiện ĐÚNG MỘT LẦN trong toàn bộ mã sản phẩm. Hai chỗ khai cùng một
+    // tên là hai chỗ có thể trôi khỏi nhau, và chỗ trôi sẽ ghi vào `$APPDATA` thật.
+    let occurrences = src.matches(ENV_NAME).count();
+    assert_eq!(
+        occurrences, 1,
+        "`{ENV_NAME}` phải xuất hiện đúng MỘT lần trong `src/lib.rs`, thấy {occurrences}."
+    );
+
+    // Mỗi lần **dùng** hằng đó trong MÃ phải đứng sau một dòng gác
+    // `all(debug_assertions, wdio)`.
+    //
+    // ⚠️ Giới hạn ghi thẳng: dòng chú thích bị bỏ qua. Doc-comment của `AD-45` và của
+    // `data_dir_override` nhắc tên hằng bằng văn xuôi, và một ca bắt cả văn xuôi sẽ đỏ vì
+    // một câu giải thích — tức nó dạy người đọc rằng cách cho xanh là **xoá lời giải
+    // thích**. Bộ lọc dưới đây thô (`//` ở đầu dòng đã trim); nó bỏ sót một lời gọi nhét
+    // sau `/* … */` trên cùng dòng, và đó là một hình dạng mã không tồn tại trong tệp này.
+    let lines: Vec<&str> = src.lines().collect();
+    for (i, line) in lines.iter().enumerate() {
+        if !line.contains("E2E_DATA_DIR_ENV") {
+            continue;
+        }
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("//") || trimmed.starts_with('*') {
+            continue;
+        }
+        let window_start = i.saturating_sub(40);
+        let guarded = lines[window_start..i]
+            .iter()
+            .any(|earlier| earlier.trim() == GUARD);
+        assert!(
+            guarded,
+            "dòng {} nhắc `E2E_DATA_DIR_ENV` mà không có `{GUARD}` ở trên trong 40 dòng \
+             gần nhất:\n  {}\n\n\
+             AD-45 đòi HAI lớp gác và cần cả hai. Bỏ `feature = \"wdio\"` để lại một \
+             biến môi trường đọc được trong MỌI bản debug — tức mọi lượt `tauri dev` của \
+             người khác — và một biến như vậy chuyển hướng kho dữ liệu mà không ai bấm \
+             gì. Nếu bạn tới đây để nới nó: đừng, hãy hỏi trước.",
+            i + 1,
+            line.trim()
+        );
+    }
+}
+
+/// Bộ lái e2e và mã Rust phải khai **cùng một** tên biến.
+///
+/// 🔴 Đây là ca đắt nhất của nhóm này, vì chỗ trôi hỏng **IM LẶNG và theo hướng tệ nhất**:
+/// đổi tên ở Rust mà quên `wdio.conf.mjs` thì móc chuyển hướng ngừng có tác dụng, bộ e2e
+/// quay lại ghi thẳng vào `global.db` THẬT của người chạy, và **mọi ca vẫn xanh** — vì
+/// một kho thật cũng là một kho mở được. Không có ca này thì lượt hồi quy đó không có
+/// một cổng nào chặn.
+#[test]
+fn the_e2e_runner_and_the_rust_side_name_the_same_variable() {
+    const ENV_NAME: &str = "AURATRANSLATE_E2E_DATA_DIR";
+
+    let path = manifest_dir()
+        .join("..")
+        .join("e2e")
+        .join("wdio.conf.mjs");
+    let conf = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+
+    assert!(
+        conf.contains(ENV_NAME),
+        "`e2e/wdio.conf.mjs` không nhắc `{ENV_NAME}`.\n\n\
+         Nếu vừa đổi tên biến ở `src/lib.rs`, đổi luôn ở đó. Bỏ qua ca này nghĩa là bộ \
+         e2e ghi vào `global.db` THẬT của người chạy trong khi mọi ca vẫn xanh."
+    );
+}
