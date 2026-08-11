@@ -2586,13 +2586,19 @@ fn read_dict_build_schema() -> String {
         .join("src")
         .join("schema.rs");
 
-    fs::read_to_string(&schema_rs).unwrap_or_else(|e| {
+    let source = fs::read_to_string(&schema_rs).unwrap_or_else(|e| {
         panic!(
             "đọc {}: {e}. Cổng parity KHÔNG được nới thành `if let Ok(...)` — một tệp \
              nguồn không đọc được là một cổng chết, không phải một cổng đã đạt.",
             schema_rs.display()
         )
-    })
+    });
+
+    // ⚠️ Cùng lý do và cùng bản vá với `dict_lookup.rs` — xem chú thích ở cổng parity của
+    // tệp đó. Ký tự xuống dòng của cây làm việc là tính chất của lượt checkout, không của
+    // lược đồ; `.gitattributes` (`* -text`) đóng nguyên nhân, dòng này giữ cho cổng nói
+    // đúng thứ nó định nói dưới mọi cấu hình checkout. Cổng KHÔNG bị nới.
+    source.replace("\r\n", "\n")
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
