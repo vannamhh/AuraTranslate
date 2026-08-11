@@ -1,0 +1,21 @@
+# Cây làm việc phải GIỐNG NHAU TỪNG BYTE trên mọi nền tảng.
+#
+# 🔴 Vì sao tệp này tồn tại — một phép đo, không một lo xa (2026-08-11)
+#
+# Ảnh runner `windows-2025` đặt `core.autocrlf=true` trong gitconfig hệ thống, nên
+# `actions/checkout` bung mọi tệp văn bản ra thành CRLF. Kho này có nhiều cổng so văn
+# bản nguồn TỪNG BYTE — cổng parity lược đồ ở `src-tauri/tests/dict_lookup.rs` so một
+# hằng chuỗi Rust (LF) với chính `tools/dict-build/src/schema.rs` đọc từ đĩa. Trên
+# Windows phép so đó đỏ với câu *"lược đồ hai cây đã trôi khỏi nhau"* trong khi hai cây
+# giống hệt nhau: thứ trôi là ký tự xuống dòng.
+#
+# Khuyết tật đó ẩn suốt Epic 1 vì `cargo test` trên Windows chết ở nhị phân test ĐẦU
+# TIÊN (`STATUS_ENTRYPOINT_NOT_FOUND`) nên chưa lần nào chạy tới `dict_lookup`.
+#
+# ⚠️ `-text` chứ KHÔNG phải `text=auto eol=lf`. Hai mệnh đề khác nhau ở chiều GHI:
+# `text=auto` chuẩn hoá tệp lúc commit, và kho này có fixture mang CRLF **có chủ ý** —
+# `tools/dict-build/tests/fixtures/raw/cc_cedict/cedict.txt` là bản chép của một nguồn
+# thật, và bộ phân tích của nó có ca kiểm đúng chiều đó. Chuẩn hoá chúng là đổi dữ liệu
+# dưới chân một phép kiểm. `-text` tắt chuyển đổi ở CẢ HAI chiều: cây làm việc bằng
+# đúng byte trong index, ở mọi nền tảng, và không tệp nào bị viết lại.
+* -text

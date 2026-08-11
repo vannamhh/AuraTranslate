@@ -1530,6 +1530,20 @@ fn fixture_ddl_is_verbatim_from_dict_build_schema() {
         )
     });
 
+    // ⚠️ Chuẩn hoá CRLF trước khi so, và đây KHÔNG phải một lượt nới cổng.
+    //
+    // Cổng này hỏi *"khối DDL còn nguyên văn không"*; ký tự xuống dòng của cây làm việc
+    // là một tính chất của lượt checkout, không của lược đồ. Ảnh runner `windows-2025`
+    // đặt `core.autocrlf=true` nên `schema.rs` tới đây mang CRLF, trong khi `needle` là
+    // một hằng chuỗi Rust và luôn mang LF ⇒ phép so đỏ với câu *"hai cây đã trôi khỏi
+    // nhau"* trong khi chúng giống hệt nhau. Đo được ở CI run `31468807121`, và nó chỉ
+    // lộ ra sau khi bản vá manifest cho `cargo test` trên Windows chạy được.
+    //
+    // `.gitattributes` (`* -text`) đã đóng nguyên nhân ở tầng kho. Dòng dưới đây giữ cho
+    // cổng nói đúng thứ nó định nói kể cả khi ai đó checkout bằng một cấu hình khác —
+    // nó bỏ đúng một ký tự, và một khác biệt DDL thật vẫn đỏ y như trước.
+    let source = source.replace("\r\n", "\n");
+
     for (name, ddl) in COPIED_DDL {
         let needle = ddl.replace('"', "\\\"");
         assert!(
