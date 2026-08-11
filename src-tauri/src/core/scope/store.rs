@@ -324,3 +324,60 @@ pub fn save_value(store: &Store, kind: &str, key: &str, value: &str) -> Result<(
 
     Ok(())
 }
+
+/// Xoa **mot** hang cau hinh o tang Global. Story 1.21 · AC8.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VI SAO XOA LA MOT THAO TAC RIENG, KHONG PHAI MOT LUOT GHI CHUOI RONG
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Duong doc phan biet ba trang thai bang **su co mat cua khoa**, khong bang gia tri cua
+/// no: khoa vang mat nghia la *"chua ai dat gi"* ⇒ dung mac dinh cua san pham; khoa co mat
+/// voi gia tri rong nghia la *"thao tac nay co y khong co phim"*. Hai cau tra loi khac
+/// nhau, va man hinh phim tat phai toi duoc ca hai.
+///
+/// ⚠️ Ghi chinh hop am mac dinh xuong dia **khong** thay duoc ham nay: hang do thanh mot
+/// gia tri dong bang, nen mot story sau doi hop am mac dinh thi nguoi da bam *"tra ve mac
+/// dinh"* mot lan mac ket o gia tri cu mai mai, khong dau hieu nao. Ice chot 2026-08-11.
+///
+/// Cung luat voi [`save_value`], va do khong phai mot su trung lap: mot `kind` la ⇒
+/// [`StoreError::WriteFailed`]; mot loai khong phai [`Semantics::GlobalOnly`] cung vay.
+/// Bang `config_value` phuc vu rieng ba loai do, va mot lenh `DELETE` khong kiem loai la
+/// mot cua sau vao chinh cai lenh `INSERT` da khoa.
+///
+/// ⚠️ Xoa mot khoa **khong ton tai** la **thanh cong**, khong mot loi. Nut *"tra ve mac
+/// dinh"* bam duoc o moi hang, ke ca hang chua ai dong toi, va bat nguoi goi phai biet
+/// truoc hang do co ton tai khong la dung thu doi hoi mot vong doc thua truoc moi luot ghi.
+pub fn delete_value(store: &Store, kind: &str, key: &str) -> Result<(), StoreError> {
+    let Some(parsed) = ScopeKind::from_wire(kind) else {
+        return Err(StoreError::WriteFailed {
+            store: store.kind(),
+            detail: format!("unknown scope kind {kind:?}; nothing was deleted"),
+        });
+    };
+
+    if !matches!(parsed.semantics(), Semantics::GlobalOnly) {
+        return Err(StoreError::WriteFailed {
+            store: store.kind(),
+            detail: format!(
+                "scope kind {:?} is {:?}, and config_value serves GlobalOnly kinds only; \
+                 nothing was deleted",
+                parsed.as_str(),
+                parsed.semantics()
+            ),
+        });
+    }
+
+    // So huu tuong minh: job ghi chay tren luong writer nen no phai `Send + 'static`.
+    let kind = parsed.as_str().to_owned();
+    let key = key.to_owned();
+
+    store.write(move |tx: &Transaction<'_>| {
+        tx.execute(
+            "DELETE FROM config_value WHERE kind = ?1 AND key = ?2",
+            (&kind, &key),
+        )?;
+        Ok(())
+    })?;
+
+    Ok(())
+}

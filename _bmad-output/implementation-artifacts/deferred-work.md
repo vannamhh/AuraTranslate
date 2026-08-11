@@ -239,8 +239,13 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   → ⚠️ **Vẫn còn hở, ghi ra thay vì đóng trọn:** chưa có method phân giải nào (`apply_override`/`apply_merge`/`resolve_global_only`) thật sự được GỌI với dữ liệu tầng Work — Story 1.15 không có bảng nào ở tầng Work để tra (Glossary/TM/Prompt là các epic sau). Resolver tồn tại và phản ánh đúng trạng thái *"đang mở"*, nhưng "phân giải hai tầng trên dữ liệu Work thật" vẫn chờ **Epic 3+**.
 
 - ⚠️ **Mã hoá hợp âm trên đĩa là TẠM.** `config_value` lưu hợp âm dưới dạng **một chuỗi**, và `src/main.ts::toBindings` tách bằng dấu phẩy. Nó đủ cho AC5 *(đọc lại được đúng hàng đã ghi)* và nó phân biệt được *"cố ý không có phím"* `""` với *"chưa ai đặt gì"* (khoá vắng mặt), nhưng nó **không** phải một mô hình: không escape, nên một hợp âm chứa dấu phẩy là không biểu diễn được. **Chủ sở hữu: Story 1.21** *(màn hình gán phím)* — story đó có mô hình thật thì thêm bước di trú của **chính nó**.
+  → ✅ **ĐÃ ĐÓNG 2026-08-11 (Story 1.21) — bằng một PHÉP ĐO rồi một CƠ CHẾ, không bằng một mô hình mới và không một bước di trú nào.** Nỗi lo ở đây là *"một hợp âm chứa dấu phẩy là không biểu diễn được"*. Đo trên `src/commands/keys.ts`: phím dấu phẩy viết là **`Comma`** — một tên chữ cái — nên hợp âm của nó là `'Mod+Comma'`, **không** `'Mod+,'`; và `keyToCode` chỉ nhận `[0-9]`, `[A-Za-z]` và các khoá của `NAMED_CODES`, không khoá nào chứa `,`. ⇒ **không hợp âm hợp lệ nào chứa dấu phẩy**, và mã hoá hiện tại an toàn **theo cấu trúc**, không do tình cờ.
+  🔴 Và phép đo đó đã thành **cơ chế**, vì *"đúng do tình cờ"* và *"đúng có lưới"* là hai thứ khác nhau: Kiểm D của `scripts/check-commands.mjs` nay đọc bảng `NAMED_CODES` **từ chính mã nguồn** *(không một bản chép trong script — một bản chép sẽ trôi khỏi sự thật trong hai story)*, lái cả **61** phím mà `keyToCode` có thể sinh ra, và khẳng định không hợp âm nào chứa `,`. Một hàng mới thêm vào bảng ngày mai **tự động** bị kiểm.
 
 - ⚠️ **Xung đột hợp âm từ đĩa chỉ được *sống sót*, chưa được *giải quyết*.** `installCommands` thử dựng keymap trên một registry **nháp** trước; xung đột ⇒ ghi chẩn đoán rồi **rơi về hợp âm mặc định**, nên một `global.db` sửa tay không cho ra cửa sổ trắng (§Bẫy 5). Nhưng người dùng chỉ biết nếu họ mở console, và lựa chọn của họ im lặng không được áp. **Màn giải quyết xung đột là Story 1.21**; đừng đọc chốt hiện tại rộng hơn thứ nó làm.
+  → ✅ **ĐÃ ĐÓNG 2026-08-11 (Story 1.21, AC13).** Chẩn đoán không còn dừng ở `console.error`: `installCommands` ghi lý do trượt vào một biến module đọc được qua `shortcutsDiskRejection()`, và `ShortcutsOverlay.vue` hiện câu `shortcuts.disk_rejected` — *"Bộ phím tắt đã lưu có hai thao tác giành cùng một phím nên chưa được áp — ứng dụng đang chạy bằng phím mặc định. Lựa chọn cũ chưa bị xoá."* Người dùng biết mà không phải mở console, và họ có một màn hình để sửa.
+  ⚠️ **Registry nháp đã BIẾN MẤT cùng lượt này, và đó là một sự đơn giản hoá chứ không một sự đánh đổi:** lớp hợp âm của đĩa nay là tham số `overrides` của `createKeymap`, mà `createKeymap` **chỉ đọc** registry — nên lượt thử chạy thẳng trên registry thật. Một biến thể ít hơn để hai đường trôi khỏi nhau.
+  🔴 **Vế NGHIỆM THU vẫn mở:** hàng 14 của bàn đo *(sửa tay `global.db` cho hai command cùng một hợp âm → mở app → câu đó phải hiện)* **chưa chạy** — nó cần một tiến trình Tauri thật. Xem mục Story 1.21 ở cuối tệp.
 
 - ⚠️ **`src/config/` là một thư mục frontend NGOÀI cây nguồn đã khai.** `ARCHITECTURE-SPINE.md#Structural Seed` chỉ liệt kê `modes/ panels/ layout/ commands/ tokens/ i18n/`. Lý do chấp nhận, ghi ra để lượt review phân xử chứ không tự coi là đã duyệt: nó **không phải một khái niệm miền mới** mà là **adapter IPC phía webview** *(một `invoke`, một `try/catch`, không quy tắc nào)*; đặt nó vào `src/commands/` sẽ kéo `@tauri-apps/api` vào một thư mục mà ba phép kiểm hành vi nạp bằng **Node thuần** (§Bẫy 6), đặt vào `src/modes/` thì sai khái niệm. *(Mặc định của story, Ice ký 2026-08-04.)*
 
@@ -483,12 +488,18 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   ⚠️ **Sự thật đã có mà 4.12 sẽ đụng:** `tauri.conf.json:19-20` khai `minWidth: 960` · `minHeight: 600`, nên ngưỡng *"< 860 rộng ⇒ báo không hỗ trợ"* của UX-DR15 **không đến được bằng cách kéo cửa sổ** trên cấu hình hôm nay. Story này không sửa `tauri.conf.json` *(`deferred-work.md` [D4], Ice chốt lần thứ tư)* — ghi ra để 4.12 quyết **một lần**.
 
 - ⚠️ **LỖ NFR17 MỞ RA CÓ Ý THỨC: bốn `layout.toggle_*` không có phím.** Ẩn/hiện panel hôm nay **chỉ tới được bằng chuột** *(qua menu ngữ cảnh của dockview)*. Đổi lại: `unbound()` giữ được **bốn** phần tử thật, nên **AC6 của Story 1.6** *(*"liệt kê được thao tác chưa gán phím"*)* không mất bằng chứng — gán phím cho cả bốn sẽ làm `unbound()` trả mảng rỗng và **không cổng nào đỏ** *(§Bẫy 5 của story)*. Một lỗ **có tên và có chủ** tốt hơn một bằng chứng bị xoá. Chủ: **Story 1.21** *(màn hình gán phím)*. ⚠️ Handler thì **chạy thật** — `registry.ts` ném với một `run` thiếu, nên không có command rỗng nào ở đây.
+  → ⚠️ **ĐÓNG MỘT NỬA 2026-08-11 (Story 1.21), và nửa còn lại KHÔNG được đóng — mệnh đề ghi ra bằng chữ thay vì gạch mục.**
+  **Đã đóng, theo nghĩa của FR22:** từ hôm nay người dùng **gán được** phím cho cả bốn `layout.toggle_*` ở màn hình phím tắt, và lựa chọn đó sống qua các phiên. Ẩn/hiện panel không còn *"chỉ tới được bằng chuột"* đối với người dùng chịu gán một phím.
+  **KHÔNG đóng, và không được đóng:** *"bộ MẶC ĐỊNH của sản phẩm có phím cho bốn thao tác này"*. Gán hợp âm mặc định cho chúng làm `unbound()` trả mảng rỗng và `check-commands.mjs` **đỏ** — AC7 của Story 1.21 nói đích danh điều đó. Số thật sau story: `unbound()` giữ **16** phần tử *(bốn `layout.toggle_*` · hai `library.import_*` · ba của 1.19 · ba của 1.20 · bốn của 1.21)*. Một lỗ có tên vẫn tốt hơn một bằng chứng bị xoá — nay nó còn có một **đường ra** cho người dùng. **Chủ của nửa còn lại: chưa gán**, và nó chỉ mở lại nếu một story sau tìm được một hợp âm mặc định có nghĩa mà không giết bằng chứng của AC6/1.6.
 
 - 🔴 **Vế THỊ GIÁC của story CHƯA đo trên WKWebView, và ca Windows chưa đo.** Bảng 35 ca của §Debug Log References chạy trên **Blink/Chromium (Playwright headless), macOS 24.6 arm64**. Lượt `npm run tauri dev` **có chạy** và nghiệm thu **AC4** *(vòng lưu → đóng → mở lại → khôi phục, trong WKWebView thật với IPC thật)* — nhưng nó **không** nghiệm thu bố cục, khe 2px, kéo–thả hay vòng xoay focus, vì không có đường lái cửa sổ native. **Đừng viết "tương đương" bằng suy luận.** Bàn giao **Story 1.3 / 10.9**, nơi đã có lượt runner hai nền tảng để bấu vào. *(Tiến bộ so với Story 1.6: cổng 1420 lần này **rảnh**, nên `tauri dev` chạy được — giới hạn còn lại là lái GUI, không phải hạ tầng.)*
 
 - ⚠️ **Preset `Review Mode` chưa dựng — Story 8.11.** `LAYOUT_PRESETS` hôm nay có **hai**: `layout.preset_grid` *(2×2, mặc định)* và `layout.preset_columns` *(bốn cột)*. Hợp âm `Mod+Alt+3` **để trống có chủ ý** cho preset thứ ba *(`Bản dịch của tôi` cạnh `Bản Reviewer đã sửa`)*, đúng thứ tự mockup.
 
 - ⚠️ **Preset do NGƯỜI DÙNG đặt tên chưa có đường vào — Story 1.21.** `ScopeKind::LayoutPreset` *(`GlobalOnly`)* và `BootstrapConfig.layout_presets` đã có từ Story 1.8 và story này **không** ghi vào chúng: hai preset trên là hằng số ở frontend. 🔴 Và **KHÔNG dựng thanh chuyển phạm vi Toàn cục/Tác phẩm cho preset** — `kinds.rs:36` gọi tên đích danh cái bẫy đó.
+  → 🔴 **ĐỔI CHỦ 2026-08-11 — Story 1.21 TRẢ LẠI món nợ này, và Ice ký.** Lý do đo được: `epics.md:1579-1581` giao FR17/FR18 cho **Story 1.14**, còn `epics.md:1883` giao Story 1.21 **đúng FR22**; một màn quản lý preset đặt tên có **0 AC** ở cả hai chỗ. Dựng một bề mặt cho `ScopeKind::LayoutPreset` trong story phím tắt là thêm một năng lực không AC nào yêu cầu — đúng thứ §KHÔNG-LÀM của mọi story lớn trong dự án này từ chối.
+  ✅ Vế *"không dựng thanh chuyển phạm vi"* thì Story 1.21 **có** tuân, và tuân cho chính bề mặt của nó: mockup `settings.html:243-248` vẽ hai nút `Toàn cục`/`Tác phẩm` cho **phím tắt**, và story thay chúng bằng đúng một câu (`shortcuts.scope_note`, nguyên văn `settings.html:246`). Tiền lệ đã có; story sau của preset chép nó.
+  **Chủ mới: chưa gán — nêu ở retrospective Epic 1.**
 
 - ⚠️ **Kiểm B của `check-layout.mjs` đo NHỊP GHI, không đo rằng `WorkspaceDock.vue` thật sự dùng lịch đó.** Nó `import()` `src/layout/writeSchedule.ts` và đẩy 1.251 sự kiện qua `simulateWrites()` — kéo sash 3 s ⇒ **1** lượt ghi; kéo liên tục 20 s ⇒ **4** lượt ghi với không thay đổi nào chờ quá **5.000 ms**. Nhưng một lượt sửa `WorkspaceDock.vue` gọi `emit('persist')` thẳng ở mỗi `onDidLayoutChange` sẽ **đi qua cổng** — cổng không thấy chỗ nối. Lưới còn lại là một lượt đếm tay trong DevTools. Cùng hạng với *"cổng không được type-check"*.
 
@@ -654,6 +665,9 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - 🔴 **`Selection.modify()` đi XUYÊN QUA `user-select: none` trên WKWebView — và story này đã vá chỗ dùng, không vá được nguyên nhân.** Đo 2026-08-07, vùng chọn cả đoạn ở kiểu song song: `Selection.toString()` cho `他打開了那扇門，走進了黑暗之中。` trên Chromium *(đúng)* nhưng `他tha打đả開khai了liễu…` trên WKWebView — tức **rò âm Hán Việt vào truy vấn**. `user-select: none` chi phối vùng chọn do **chuột kéo** (số đo Playwright của Story 1.16 vẫn đúng); nó **không ràng buộc** `Selection.modify()`, mà `modify()` chính là đường bàn phím AC11 vừa dựng. ⇒ `SourceHanViet.vue::resolveParallel` nay đọc thẳng node `.hv-char` thay vì tin `toString()` — đúng trên cả hai engine. ⚠️ **Cái không đóng:** mọi bề mặt TƯƠNG LAI dùng `user-select: none` để loại chữ khỏi vùng chọn *(Story 3.4 — đánh dấu thuật ngữ Glossary; Epic 2 — Editor)* thừa hưởng nguyên cái bẫy này, và không cổng nào canh. Cân nhắc một vị từ dùng chung ở `selectionContract.ts` khi bề mặt thứ hai xuất hiện.
 
 - ⚠️ **Giữ phím không mở rộng vùng chọn liên tục — phải bấm lặp** (`src/commands/keys.ts:295`). `handle()` trả sớm khi `event.repeat === true`, một luật đúng cho 17 command cũ (*lặp lại "đổi chế độ" là vô nghĩa*) và sai cho đúng **bốn** command `selection.extend_*` của story này. Nới nó cần một cờ `repeatable` trên `CommandSpec`, chạm `registry.ts` + `keys.ts` + **mọi** command đang có ⇒ không thuộc phạm vi 1.18. Hai command **theo TỪ** (`Alt+Shift+←/→`) bù phần lớn chi phí thao tác. **Chủ: Story 1.21** (màn hình gán phím — nó vốn phải mổ tầng này).
+  → ✅ **ĐÃ ĐÓNG 2026-08-11 (Story 1.21).** Cờ `repeatable?: boolean` trên `CommandSpec`, mặc định **không**; `frozen()` chuẩn hoá nó về `boolean` ở cửa vào; `keys.ts::handle` đọc `event.repeat === true && !entry.repeatable`. **Bốn** chỗ khai `true` — đúng bốn `selection.extend_*` — và không chỗ nào khác.
+  🔴 **Ice ký NHẬN món nợ này 2026-08-11, và việc đó là một quyết định có chủ, không một sự trôi phạm vi.** Story 1.21 đề xuất **trả lại** cả ba món nợ mang tên nó vì cả ba có **0 AC** ở `epics.md`; Ice lật một phần, nhận đúng cái này. Cái giá đã nói trước và Ice ký nhận: nó chạm `registry.ts` + `keys.ts` + mọi command đang có, cho một thay đổi không AC nào yêu cầu.
+  ⚠️ Lưới: Kiểm D của `check-commands.mjs` có **hai** khẳng định — nhánh dương *(`repeatable: true` ⇒ keydown lặp VẪN dispatch)* và **đối chứng âm** trên **cùng một keymap** *(command không khai cờ ⇒ keydown lặp vẫn bị chặn)*. Không có vế thứ hai thì một bản cài đặt bỏ quên cờ hoàn toàn vẫn xanh.
 
 - 🔴 **NFR1 đo được ĐẦU-CUỐI ở tầng Rust, không qua vòng IPC Tauri thật lẫn lượt VẼ của webview** — món nợ Story 1.17 để lại, story này **KẾ THỪA, không ĐÓNG**. Số đã đo (4 lượt độc lập, `--release`, 4 lớp `.db` thật, 166 truy vấn KHÁC NHAU, đường sản phẩm `commands::dict::lookup` gồm cả đường lui `Substring`): trạng thái ổn định **p50 ~1,0 ms · p95 1,8–2,4 ms · p99 5,5–9,8 ms · max 20–25 ms**. Cơ chế đo đầu-cuối THẬT đã cài và bật được tay (`src/panels/lookupTiming.ts`, cờ mặc định TẮT, `__auraLookupTiming.enable()`), mốc cuối sau `requestAnimationFrame` — nhưng nó **chưa được chạy trong một bản Tauri đóng gói**, nên vế *"từ lúc thả chuột tới lúc hiển thị"* vẫn là **ước lượng**, không một phép đo. Đánh dấu AC4 đạt trọn.
 
@@ -1143,6 +1157,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   bôi đen của người dùng, chậm hơn một vòng IPC nhiều bậc. Lỗ mở ra ngay khi có đường
   nạp lại thứ hai. **Chủ: Story 1.21** (màn hình gán phím) hoặc story đầu tiên thêm một
   lượt `loadPinnedEntries()` thứ hai — bất kỳ cái nào tới trước.
+  → ⚠️ **KHÔNG ĐÓNG, và điều kiện kích hoạt giữ nguyên — Story 1.21 trả lại, Ice ký 2026-08-11.** Điều kiện là *"story đầu tiên thêm một lượt `loadPinnedEntries()` thứ hai"*, và Story 1.21 **không thêm lượt nào**: nó đọc `config.shortcuts` từ chính lượt `await loadBootstrapConfig()` đã có ở `main.ts`, không mở một vòng IPC thứ hai nào. Một story có tên trong mục nợ mà không thoả điều kiện của chính mục đó thì không phải chủ của nó. **Chủ: story đầu tiên thêm một lượt `loadPinnedEntries()` thứ hai — vẫn treo.**
 - **`sessionLookupCount` nói dối theo hướng THẤP khi lịch sử chạm trần.**
   `HISTORY_CEILING = 200` (`lookupHistoryState.ts:105`) cắt đuôi lịch sử, và
   `sessionLookupCount` (`:227`) cộng dồn từ **chính** danh sách đó. Ghim một mục rồi tra
@@ -1189,3 +1204,68 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   khi cả chín cổng vẫn xanh — không cổng nào đọc thứ tự tab. Thứ tự đúng:
   **`Từ điển` · `Concordance` · `Lịch sử`**, khớp `lookup-history-pins.html:103`.
   **Chủ: Story 7.7.**
+
+## Deferred from: 1-21-phim-tat-cau-hinh-lai-duoc (2026-08-11)
+
+- 🔴 **MƯỜI HAI trên hai mươi hàng bàn đo CHƯA CHẠY — vế DOM và vế hai nền tảng của story
+  chưa có một bằng chứng runtime nào.** Tám hàng đã đo **bằng máy** trên đường sản phẩm thật
+  *(một bộ đo nạp chính `src/commands/index.ts` bằng Node thuần, 24 phép đo, tất cả đạt)*:
+  hàng **2** (AC1) · **3** (AC5) · **4**/**5** (AC2 + AC12, có đối chứng `registry.unbound()`
+  vẫn nói cũ) · **7** (AC3) · **8** (AC9, có đối chứng âm) · **13** (AC8, hai chiều) ·
+  **20** (Bẫy 9). Mười hai hàng còn lại **cần một cửa sổ Tauri thật**, và ghi rõ vì sao:
+  **1**/**19** (thị giác — bảng đầy đủ, không thanh phạm vi) · **6** (đóng rồi mở lại
+  **tiến trình**) · **9**/**18** (cửa nuốt hợp âm — đòi một listener `window` sống) ·
+  **10** (AC11 — câu `shortcuts.key_unknown` hiện ra) · **11** (Bẫy 4 — `Escape` hai nghĩa) ·
+  **12** (Bẫy 5 — `⌫` gán được) · **14** (AC13 — sửa tay `global.db` rồi mở app) ·
+  **15**/**16** (AC6 — vòng đầy đủ không chạm chuột, trên **cả** macOS lẫn Windows, NFR14) ·
+  **17** (UX-DR17 — tiêu điểm quay đúng về nút đã mở). Cộng **ảnh chụp màn hình thật** cho
+  mỗi AC thị giác. **Chủ: Ice** *(hàng 16 đòi một máy Windows — cùng hạng món nợ mà
+  1.6/1.14/1.16/1.17/1.18/1.19/1.20 để lại và chưa story nào đóng được)*.
+
+- ⚠️ **`spec.keys` và `registry.unbound()` nay ĐÚNG TRONG MỘT NGHĨA HẸP, và cả hai chỉ được
+  giữ đúng bằng doc-comment.** Kể từ story này, một lượt gán phím **không** đi qua
+  `register()` — nó dựng một `Keymap` mới với một lớp `overrides` — nên hai bề mặt đó trả
+  lời **thời điểm cài đặt**, mãi mãi. Chúng vẫn đúng cho mục đích của chúng
+  (`check-commands.mjs:1399` đọc `unbound()` để chứng minh AC6 của Story 1.6 trên **bộ mặc
+  định của sản phẩm**, và bộ đó không đổi lúc chạy), nhưng một bề mặt đọc chúng để hiển thị
+  sẽ **sai im lặng sau lượt gán đầu tiên**.
+  🔴 **Cưỡng chế hôm nay là VĂN XUÔI**, không một cơ chế: hai doc-comment ở
+  `src/commands/registry.ts` cộng một khối ở `src/commands/index.ts` nói *"màn hình đọc
+  `effectiveBindings()`/`effectiveUnbound()`"*. Không cổng nào chặn một `.vue` tương lai
+  `import { commandRegistry }` rồi đọc `.unbound()`. **Đường bịt rẻ:** một phép kiểm ở
+  `check-commands.mjs` cấm `unbound()` xuất hiện trong `src/**/*.vue`. **Chủ: chưa gán** —
+  nhặt lại khi bề mặt thứ hai đọc bảng phím xuất hiện (ứng viên: Story 10.4).
+
+- ⚠️ **`bindingsEpoch` là một chốt phản ứng THỦ CÔNG, và nó đúng chỉ nhờ kỷ luật.**
+  `keymap` là một biến module **thường** ở `src/commands/index.ts` và phải như vậy — tệp đó
+  nạp bằng Node thuần ở ba phép kiểm của cổng, nên một `import { ref } from 'vue'` ở đó giết
+  cả ba cùng lúc. Vue không có cách nào biết nó vừa đổi, nên `src/config/shortcutsState.ts`
+  tăng một bộ đếm ở **mọi** đường ghi và mọi `computed` chạm vào bộ đếm đó. Quên một đường
+  ghi ⇒ bảng hiện số cũ, và **không cổng nào đỏ**. Hôm nay có đúng **một** đường ghi
+  (`commitBindings`), nên bề mặt sai là nhỏ nhất có thể; nó lớn lên ngay khi có đường thứ hai.
+  **Chủ: story đầu tiên thêm một đường ghi keymap thứ hai.**
+
+- ⚠️ **`Escape` KHÔNG gán được làm phím tắt, và đó là một đánh đổi có chủ, không một thiếu
+  sót.** Ở trạng thái *đang bắt*, `Escape` là **huỷ lượt bắt** (Bẫy 4 của story) — nên không
+  đường nào gán `Escape` hay `Mod+Escape` cho một thao tác. `Escape` có trong `NAMED_CODES`,
+  tức tầng dưới **biểu diễn được** nó; chỉ màn hình là không cho. Đánh đổi ngược lại — `⌫` —
+  đã được xử đúng chiều kia *(nó bỏ gán ở trạng thái **nghỉ**, và là một hợp âm thường lúc
+  đang bắt)*, nên sự bất đối xứng là có thật. Lý do chấp nhận: `Escape` là lối thoát cuối
+  cùng của một hộp thoại modal, và mất nó là nhốt người dùng bàn phím trong đúng thứ vừa mở.
+  **Đường ra nếu ai đó cần `Escape`:** một cử chỉ thứ hai để chốt lượt bắt *(ví dụ `Enter`
+  xác nhận)*, lúc đó `Escape` mới có chỗ. **Chủ: chưa gán.**
+
+- 📝 **LỆCH MOCKUP — bốn chỗ, ghi ra thay vì dựng theo.** `mockups/settings.html`:
+  ① `:243-248` vẽ thanh chuyển phạm vi `Toàn cục`/`Tác phẩm` ⇒ **KHÔNG dựng**, thay bằng một
+  câu (`shortcuts.scope_note`); `kinds.rs:29-37` cấm bằng chữ và gọi đích danh story này.
+  ② `:251-262` vẽ khung điều hướng chín mục Cài đặt ⇒ **KHÔNG dựng**, chín mục đó thuộc Epic
+  4/5/6/10 và trỏ tới năng lực chưa tồn tại. ③ `:291-292` Xuất/Nhập bộ phím tắt ⇒ **KHÔNG
+  dựng**, 0 AC và một định dạng trao đổi là một hợp đồng phải bảo trì. ④ `:269` ô tìm kiếm /
+  tra ngược hợp âm ⇒ **KHÔNG dựng**, 0 AC. Cả bốn giữ nguyên trong mockup — Quyết định #3 của
+  Story 1.3: lệch thì **ghi ra**, không sửa mockup.
+
+- 📝 **Câu `shortcuts.gesture` diễn giải `⌫` bằng CHỮ (*"phím xoá lùi"*), không bằng ký hiệu
+  như mockup.** `settings.html:294` viết *"`⌫` để bỏ gán"*. Màn hình thật viết cả câu ra vì
+  cử chỉ này có **hai** trạng thái và ký hiệu trần không nói được trạng thái nào — đúng cái
+  bẫy mà Bẫy 5 của story mô tả. Không một AC nào đòi ký hiệu; ghi ra để lượt review không đọc
+  nó thành một lượt bỏ sót.

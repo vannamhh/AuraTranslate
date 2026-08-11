@@ -79,6 +79,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             crate::commands::config::wire::bootstrap_config,
             crate::commands::config::wire::put_config,
+            crate::commands::config::wire::delete_config,
             crate::commands::project::wire::create_work_from_text,
             crate::commands::project::wire::create_work_from_file,
             crate::commands::chapter::wire::read_open_chapter,

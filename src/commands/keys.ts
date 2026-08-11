@@ -122,6 +122,24 @@ const NAMED_CODES: Readonly<Record<string, string>> = {
   BracketRight: 'BracketRight',
 }
 
+/**
+ * Bốn phím bổ trợ phát `keydown` của CHÍNH CHÚNG — và đó không phải một hợp âm.
+ *
+ * Nhấn `⌘` phát một `keydown` mang `code === 'MetaLeft'` **trước** khi người dùng kịp gõ
+ * phím thứ hai. [`chordFromEvent`] phải trả `null` ở đó và **tiếp tục chờ**; chốt sớm là
+ * gán cho người dùng một hợp âm họ chưa gõ xong.
+ */
+const MODIFIER_CODES: Readonly<Record<string, true>> = {
+  MetaLeft: true,
+  MetaRight: true,
+  ControlLeft: true,
+  ControlRight: true,
+  ShiftLeft: true,
+  ShiftRight: true,
+  AltLeft: true,
+  AltRight: true,
+}
+
 function keyToCode(name: string): string {
   if (/^[0-9]$/.test(name)) return `Digit${name}`
   if (/^[A-Za-z]$/.test(name)) return `Key${name.toUpperCase()}`
@@ -191,6 +209,172 @@ function parseChord(chord: string, platform: Platform): { mods: Mods; code: stri
   return { mods, code: keyToCode(parts[parts.length - 1] as string) }
 }
 
+/**
+ * Nghịch đảo của [`keyToCode`]: `'KeyD'` ⇒ `'D'`, `'Digit7'` ⇒ `'7'`, `'Comma'` ⇒ `'Comma'`.
+ *
+ * ⚠️ Trả `null` — **không ném** — cho một `code` ngoài bảng. Khác biệt với `keyToCode` là
+ * khác biệt về **nguồn dữ liệu**, không phải một chỗ thiếu nhất quán: `keyToCode` đọc một
+ * hợp âm ĐÃ LƯU *(hằng số trong mã, hoặc một hàng `global.db`)*, nên một tên phím lạ ở đó
+ * là lỗi lập trình và phải ném. Hàm này đọc một **cử chỉ người dùng** — ai cũng bấm được
+ * `F1` — và ném ở đó là biến một lượt bấm phím thành một sự cố.
+ */
+function codeToKey(code: string): string | null {
+  const digit = /^Digit([0-9])$/.exec(code)
+  if (digit !== null) return digit[1] as string
+  const letter = /^Key([A-Z])$/.exec(code)
+  if (letter !== null) return letter[1] as string
+  // Bảng khai `tên ⇒ code` và cả 25 hàng đều là ánh xạ đồng nhất, nhưng phép tra ngược
+  // viết theo GIÁ TRỊ chứ không giả định điều đó: một hàng tương lai kiểu
+  // `Plus: 'NumpadAdd'` sẽ vẫn tra ngược đúng thay vì lặng lẽ rơi.
+  for (const name of Object.keys(NAMED_CODES)) {
+    if (NAMED_CODES[name] === code) return name
+  }
+  return null
+}
+
+/**
+ * Một sự kiện bàn phím ⇒ hợp âm TRUNG LẬP nền tảng, hoặc `null`. Story 1.21 · AC2 · AC11.
+ *
+ * Nghịch đảo của [`parseChord`], và vòng khứ hồi `parseChord(chordFromEvent(e, p), p)` được
+ * Kiểm D của `scripts/check-commands.mjs` khẳng định trên **cả hai** nền tảng (NFR14).
+ *
+ * 🔴 **Thứ tự phần tử là CỐ ĐỊNH: `Mod` → `Meta` → `Ctrl` → `Alt` → `Shift` → phím.**
+ * `parseChord` chấp nhận mọi thứ tự, nhưng chuỗi này đi xuống `global.db` và lên màn hình,
+ * và mọi phép so xung đột trên hợp âm là một phép so CHUỖI. Hai lượt gán cùng một phím cho
+ * ra hai chuỗi khác nhau là hai hàng `config_value` cho một sự thật.
+ *
+ * ⚠️ `Mod` **nuốt** phím bổ trợ chính của nền tảng đang chạy: `⌘` trên macOS, `Ctrl` ở nơi
+ * khác. Phím bổ trợ CÒN LẠI thì viết tường minh (`Ctrl` trên macOS, `Meta` ở nơi khác) —
+ * cả hai đều biểu diễn được (`parseChord`), và cả hai đều có nghĩa thật.
+ *
+ * Trả `null` ở ba ca, và **không ném** ở ca nào:
+ *  1. lượt commit của bộ gõ (`isComposing`) — đây là ứng dụng dịch tiếng Việt;
+ *  2. keydown của chính một phím bổ trợ ([`MODIFIER_CODES`]);
+ *  3. một `code` không biểu diễn được (`F1`, `NumpadEnter`, `IntlBackslash`, `CapsLock`…).
+ */
+export function chordFromEvent(event: ChordEvent, platform: Platform): string | null {
+  if (event.isComposing === true) return null
+  if (Object.prototype.hasOwnProperty.call(MODIFIER_CODES, event.code)) return null
+  const key = codeToKey(event.code)
+  if (key === null) return null
+
+  const mods = modsOf(event)
+  const parts: string[] = []
+  if (platform.isMac ? mods.meta : mods.ctrl) parts.push('Mod')
+  // Trên mỗi nền tảng đúng MỘT trong hai nhánh này sống được — nhánh kia đã bị `Mod`
+  // nuốt ở dòng trên — nên thứ tự `Meta` trước `Ctrl` của chuẩn không bao giờ bị thử.
+  if (!platform.isMac && mods.meta) parts.push('Meta')
+  if (platform.isMac && mods.ctrl) parts.push('Ctrl')
+  if (mods.alt) parts.push('Alt')
+  if (mods.shift) parts.push('Shift')
+  parts.push(key)
+  return parts.join('+')
+}
+
+/**
+ * Tên phím ⇒ ký hiệu HIỂN THỊ. Chỉ những phím mà một ký hiệu đọc nhanh hơn một chữ.
+ *
+ * ⚠️ Bảng này KHÔNG dùng để phân giải gì cả — nó chỉ chở chữ ra màn hình. Một tên vắng
+ * mặt ở đây hiện nguyên văn, và đó là hành vi đúng: `Home`, `PageUp` đọc rõ hơn mọi ký
+ * hiệu người ta có thể nghĩ ra cho chúng.
+ */
+const KEY_GLYPHS: Readonly<Record<string, string>> = {
+  ArrowLeft: '←',
+  ArrowRight: '→',
+  ArrowUp: '↑',
+  ArrowDown: '↓',
+  Comma: ',',
+  Period: '.',
+  Slash: '/',
+  Backslash: '\\',
+  Minus: '-',
+  Equal: '=',
+  Semicolon: ';',
+  Quote: "'",
+  Backquote: '`',
+  BracketLeft: '[',
+  BracketRight: ']',
+}
+
+/** Ký hiệu chỉ đúng trên macOS — ở nơi khác `⌫` và `⇥` không phải quy ước của ai cả. */
+const MAC_KEY_GLYPHS: Readonly<Record<string, string>> = {
+  Enter: '↩',
+  Escape: '⎋',
+  Tab: '⇥',
+  Backspace: '⌫',
+  Delete: '⌦',
+}
+
+/**
+ * Hợp âm ⇒ chuỗi cho người ĐỌC: `'Mod+Alt+ArrowRight'` ⇒ `'⌥⌘→'` hoặc `'Ctrl+Alt+→'`.
+ *
+ * 🔴 Hàm này ở `keys.ts` chứ không ở lớp giao diện, và lý do là một ràng buộc chứ không
+ * một sở thích: nó cần [`NAMED_CODES`] và [`KEY_GLYPHS`], mà export chúng ra là mở một
+ * cửa thứ hai vào bảng phím — đúng thứ `parseChord` tồn tại để làm cửa duy nhất.
+ *
+ * ⚠️ Thứ tự ký hiệu trên macOS là `⌃⌥⇧⌘` — quy ước của chính Apple, và nó **khác** thứ tự
+ * chuẩn của chuỗi hợp âm ([`chordFromEvent`]). Hai thứ tự cho hai mục đích: một để so
+ * bằng máy, một để mắt người đọc quen. Đừng gộp chúng.
+ *
+ * Không ném: một hợp âm sai hình dạng hiện **nguyên văn**. Hàm này chạy ở đường vẽ, và
+ * một màn hình chết vì một hàng dữ liệu xấu là tệ hơn một hàng hiện xấu.
+ */
+export function formatChord(chord: string, platform: Platform): string {
+  const parts = chord.split('+').map((p) => p.trim())
+  if (parts.length === 0 || parts.some((p) => p === '')) return chord
+  const key = parts[parts.length - 1] as string
+  const mods = new Set(parts.slice(0, -1))
+
+  const glyph =
+    (platform.isMac ? MAC_KEY_GLYPHS[key] : undefined) ??
+    KEY_GLYPHS[key] ??
+    (key === 'Space' ? 'Space' : key)
+
+  if (platform.isMac) {
+    const prefix =
+      (mods.has('Ctrl') ? '⌃' : '') +
+      (mods.has('Alt') ? '⌥' : '') +
+      (mods.has('Shift') ? '⇧' : '') +
+      (mods.has('Mod') || mods.has('Meta') ? '⌘' : '')
+    return prefix + glyph
+  }
+  const prefix = [
+    mods.has('Meta') ? 'Meta' : null,
+    mods.has('Mod') || mods.has('Ctrl') ? 'Ctrl' : null,
+    mods.has('Alt') ? 'Alt' : null,
+    mods.has('Shift') ? 'Shift' : null,
+  ].filter((p): p is string => p !== null)
+  return [...prefix, glyph].join('+')
+}
+
+/**
+ * Hợp âm ⇒ **chuỗi đã phân giải** cho nền tảng đang chạy: `'Mod+D'` ⇒ `'Meta+KeyD'`.
+ *
+ * 🔴 Đây là khoá của mọi phép so *"hai thao tác có giành cùng một phím không"* — và nó
+ * phải là **CHÍNH** chuỗi mà `createKeymap` dựng, không một bản chép. Story 1.21 · AC9:
+ * trên macOS `'Mod+D'` và `'Meta+D'` là **hai chuỗi hợp âm khác nhau** nhưng **một phím**,
+ * và một màn hình xung đột so trên chuỗi hợp âm sẽ nói *"không xung đột"* cho đúng ca đó.
+ * Ngoài macOS chúng thật sự khác nhau. Cùng một hàm, hai câu trả lời đúng.
+ *
+ * ⚠️ **NÉM** với hợp âm sai hình dạng, cùng `parseChord` — chỗ gọi phải tự quyết định làm
+ * gì với một chuỗi không phân giải được, và nuốt nó ở đây là dựng một xung đột-ma.
+ */
+export function resolveChord(chord: string, platform: Platform): string {
+  const { mods, code } = parseChord(chord, platform)
+  return resolvedOf(mods, code)
+}
+
+/**
+ * Khoá phân giải từ `{ mods, code }`. **Một** công thức, hai chỗ đọc — xem [`resolveChord`].
+ */
+function resolvedOf(mods: Mods, code: string): string {
+  return (
+    [mods.meta && 'Meta', mods.ctrl && 'Ctrl', mods.alt && 'Alt', mods.shift && 'Shift']
+      .filter((p): p is string => typeof p === 'string')
+      .join('+') + (hasNoMods(mods) ? code : `+${code}`)
+  )
+}
+
 const modsOf = (event: ChordEvent): Mods => ({
   meta: event.metaKey === true,
   ctrl: event.ctrlKey === true,
@@ -250,18 +434,46 @@ function isTypingZone(target: unknown): boolean {
   return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'
 }
 
-export function createKeymap(registry: Registry, platform: Platform): Keymap {
-  const compiled: { mods: Mods; code: string; binding: Binding }[] = []
+/**
+ * Lớp hợp âm ĐÈ LÊN `CommandSpec.keys`, khoá theo id thao tác. Story 1.21.
+ *
+ * 🔴 Phép phân biệt sống ở **sự có mặt của khoá**, không ở giá trị:
+ *
+ * | Khoá | Nghĩa |
+ * |---|---|
+ * | vắng mặt | *"không ai đè lên"* ⇒ dùng `spec.keys` |
+ * | có mặt, mảng rỗng | *"thao tác này CỐ Ý không có phím"* ⇒ không hợp âm nào |
+ * | có mặt, có phần tử | hợp âm của người dùng |
+ *
+ * ⚠️ Nên phép tra phải là `hasOwnProperty`, **không** `overrides[id] ?? spec.keys`: một
+ * mảng rỗng là falsy-ish theo nghĩa nào đó với mọi bản đọc lướt, và `??` thì đúng ở đây
+ * nhưng chỉ đúng do `[]` không phải `undefined` — một sự thật quá mỏng để chống đỡ ba
+ * trạng thái. Cùng lý lẽ đã ghi cho `chordsFor` ở `./index.ts`.
+ */
+export type ChordOverrides = Readonly<Record<CommandId, readonly string[]>>
+
+export function createKeymap(
+  registry: Registry,
+  platform: Platform,
+  /**
+   * ⚠️ **Tuỳ chọn, và vắng mặt phải giữ nguyên hành vi cũ từng dòng một.** Bảy lời gọi
+   * trong `scripts/check-commands.mjs` đều hai tham số, và Kiểm D là lưới hai nền tảng
+   * duy nhất của tầng này — một thay đổi ngữ nghĩa lúc vắng mặt sẽ vượt qua nó im lặng.
+   */
+  overrides?: ChordOverrides,
+): Keymap {
+  const compiled: { mods: Mods; code: string; repeatable: boolean; binding: Binding }[] = []
   /** Hợp âm ⇒ id, để bắt hai command cùng giành một phím. */
   const claimed = new Map<string, CommandId>()
 
   for (const spec of registry.list()) {
-    for (const chord of spec.keys ?? []) {
+    const chords =
+      overrides !== undefined && Object.prototype.hasOwnProperty.call(overrides, spec.id)
+        ? overrides[spec.id]
+        : spec.keys
+    for (const chord of chords ?? []) {
       const { mods, code } = parseChord(chord, platform)
-      const resolved =
-        [mods.meta && 'Meta', mods.ctrl && 'Ctrl', mods.alt && 'Alt', mods.shift && 'Shift']
-          .filter((p): p is string => typeof p === 'string')
-          .join('+') + (hasNoMods(mods) ? code : `+${code}`)
+      const resolved = resolvedOf(mods, code)
       // Cùng lý lẽ với id trùng ở `register()`: hai chỗ giành một phím thì cái sau lặng
       // lẽ không bao giờ chạy, và biểu hiện là "phím tắt X không làm gì".
       const owner = claimed.get(resolved)
@@ -272,7 +484,14 @@ export function createKeymap(registry: Registry, platform: Platform): Keymap {
         )
       }
       claimed.set(resolved, spec.id)
-      compiled.push({ mods, code, binding: { chord, resolved, id: spec.id } })
+      compiled.push({
+        mods,
+        code,
+        // Đọc MỘT LẦN lúc biên dịch, không mỗi keydown: `registry.list()` dựng một mảng
+        // mới ở mỗi lời gọi, và đường lặp phím chạy ~30 lần/giây khi người ta giữ `Shift+→`.
+        repeatable: spec.repeatable === true,
+        binding: { chord, resolved, id: spec.id },
+      })
     }
   }
 
@@ -292,7 +511,11 @@ export function createKeymap(registry: Registry, platform: Platform): Keymap {
       // xuống webview, nên phép kiểm này đứng SAU `preventDefault()`. Bản đầu đặt nó ở
       // đầu hàm, và hệ quả là từ keydown thứ hai trở đi một hợp âm giữ phím lại đi tiếp
       // xuống tầng dưới với hành vi mặc định nguyên vẹn.
-      if (event.repeat === true) return true
+      //
+      // 🔴 Story 1.21 · `deferred-work.md:656` — **trừ khi spec khai `repeatable`.** Bốn
+      // command `selection.extend_*` PHẢI lặp: giữ `Shift+→` là cách người ta bôi đen một
+      // cụm từ. Xem doc-comment của [`CommandSpec.repeatable`] về vì sao mặc định là KHÔNG.
+      if (event.repeat === true && !entry.repeatable) return true
       registry.dispatch(entry.binding.id)
       return true
     }

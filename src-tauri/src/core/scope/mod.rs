@@ -67,8 +67,8 @@ pub mod store;
 pub use kinds::{ScopeKind, Semantics};
 pub use resolve::{Resolved, Tiered};
 pub use store::{
-    DEFAULT_MODE, DEFAULT_THEME, GlobalConfig, load_global_config, parse_disabled_sources,
-    save_value,
+    DEFAULT_MODE, DEFAULT_THEME, GlobalConfig, delete_value, load_global_config,
+    parse_disabled_sources, save_value,
 };
 
 /// Hai tầng của AD-18. **`Work`, không phải `Project`.**

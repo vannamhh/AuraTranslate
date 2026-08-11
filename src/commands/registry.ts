@@ -35,8 +35,43 @@ export type CommandSpec = {
   labelKey: string
   /** Thao tác thật. Không đăng ký một command rỗng cho đủ số. */
   run: () => void
-  /** Hợp âm TRUNG LẬP nền tảng: `'Mod+1'`. Vắng hoặc rỗng ⇒ lọt vào `unbound()`. */
+  /**
+   * Hợp âm TRUNG LẬP nền tảng: `'Mod+1'`. Vắng hoặc rỗng ⇒ lọt vào `unbound()`.
+   *
+   * 🔴 **KỂ TỪ STORY 1.21, TRƯỜNG NÀY TRẢ LỜI *THỜI ĐIỂM CÀI ĐẶT*, KHÔNG PHẢI LÚC CHẠY.**
+   *
+   * Người dùng nay gán lại được phím ở màn hình phím tắt, và một lượt gán **không** đi
+   * qua `register()` — nó dựng một `Keymap` mới trên cùng registry này với một lớp
+   * `overrides` (xem `createKeymap` ở `./keys.ts`). Spec thì bị `frozen()` đóng băng từ
+   * lúc đăng ký, nên giá trị ở đây đứng yên mãi mãi ở lượt cài đặt.
+   *
+   * ⇒ **Màn hình phím tắt KHÔNG được đọc trường này.** Nguồn hợp âm đang có hiệu lực là
+   * `keymap.bindings()`; `commands/index.ts` bọc nó lại thành `effectiveBindings()`.
+   *
+   * Trường vẫn ĐÚNG cho mục đích của nó: `scripts/check-commands.mjs` nạp module này bằng
+   * Node thuần, tức không có đĩa và không có lượt gán nào, nên nó đọc đúng **bộ mặc định
+   * của sản phẩm** — thứ mà Kiểm E và `COMMAND_FLOOR` cần.
+   */
   keys?: readonly string[]
+  /**
+   * Giữ phím có LẶP LẠI thao tác không? Mặc định **không**.
+   *
+   * 🔴 Story 1.21 · đóng `deferred-work.md:656` *(Ice ký nhận 2026-08-11 — món nợ này
+   * không có AC nào ở `epics.md`, và việc nhận nó là một quyết định có chủ)*.
+   *
+   * `keys.ts::handle` chặn `event.repeat` cho **mọi** command, và cho tới story này đó là
+   * hành vi đúng duy nhất có thể: `mode.library` lặp 30 lần/giây khi giữ `⌘1` là vô nghĩa,
+   * và tệ hơn, `layout.apply_preset_*` lặp sẽ gọi `api.clear()` liên tục.
+   *
+   * Nhưng bốn command `selection.extend_*` (Story 1.18) thì **phải** lặp: giữ `Shift+→`
+   * là cách người ta bôi đen một cụm từ, và một lượt mở rộng đúng một ký tự rồi đứng im
+   * là *"bấm mà không có gì xảy ra"* — đúng lớp lỗi AD-44 ④ cấm.
+   *
+   * ⚠️ Chỉ khai `true` khi thao tác **luỹ tiến và rẻ**. Một thao tác có hậu quả (ghi đĩa,
+   * dựng lại bố cục, một vòng IPC) khai `true` là một cái giữ phím vô ý thành hàng chục
+   * lượt ghi.
+   */
+  repeatable?: boolean
 }
 
 export type Registry = {
@@ -47,7 +82,21 @@ export type Registry = {
   dispatch(id: CommandId): void
   /** Thứ tự ĐĂNG KÝ, ổn định. Story 1.21 hiển thị đúng danh sách này. */
   list(): readonly CommandSpec[]
-  /** AC6 — các thao tác chưa gán phím nào. */
+  /**
+   * AC6 — các thao tác chưa gán phím nào.
+   *
+   * 🔴 **KỂ TỪ STORY 1.21, HÀM NÀY TRẢ LỜI *THỜI ĐIỂM CÀI ĐẶT*.** Nó lọc trên
+   * [`CommandSpec.keys`], và trường đó đứng yên sau lượt `register()` — xem doc-comment
+   * ở đó. Một lượt gán phím lúc chạy **không** làm hàm này đổi câu trả lời.
+   *
+   * ⇒ **Màn hình phím tắt KHÔNG được đọc hàm này** để dựng nhóm *"chưa gán phím"*; nó
+   * đọc `effectiveUnbound()` của `commands/index.ts` — `list()` trừ đi các id có mặt
+   * trong `keymap.bindings()`.
+   *
+   * Hàm vẫn ĐÚNG cho mục đích của nó, và đó là một mục đích khác: `check-commands.mjs`
+   * (`:1398`) đọc nó để chứng minh AC6 của Story 1.6 trên **bộ mặc định của sản phẩm**,
+   * và bộ đó không đổi lúc chạy.
+   */
   unbound(): readonly CommandSpec[]
 }
 
@@ -75,6 +124,10 @@ const frozen = (spec: CommandSpec): CommandSpec =>
     labelKey: spec.labelKey,
     run: spec.run,
     keys: Object.freeze([...(spec.keys ?? [])]),
+    // ⚠️ Chuẩn hoá về `boolean` ở cửa vào, không chở `undefined` vào kho: `keys.ts::handle`
+    // đọc trường này ở mỗi keydown lặp, và một phép so ba trạng thái ở đường nóng là chỗ
+    // một bản sau sẽ viết `!spec.repeatable` rồi tự hỏi `undefined` nghĩa là gì.
+    repeatable: spec.repeatable === true,
   })
 
 export function createRegistry(): Registry {

@@ -78,6 +78,18 @@ import {
   selectLookupTab,
   toggleLookupPin,
 } from './panels/lookupHistoryState'
+// ── Story 1.21 — màn hình phím tắt ───────────────────────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `lookupHistoryState.ts`: `config/shortcutsState.ts` dùng
+// `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/bootstrap.ts`.
+import {
+  captureIsArmed,
+  captureShortcut,
+  closeShortcuts,
+  openShortcuts,
+  resetShortcut,
+  unassignShortcut,
+} from './config/shortcutsState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -233,6 +245,12 @@ async function boot(): Promise<void> {
       selectLookupTab,
       toggleLookupPin,
       clearLookupHistory,
+      // Story 1.21 · AC1 · AC2 · AC8 — năm handler tĩnh; hàng đang nhắm đọc lúc chạy.
+      openShortcuts,
+      closeShortcuts,
+      captureShortcut,
+      unassignShortcut,
+      resetShortcut,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
@@ -247,7 +265,23 @@ async function boot(): Promise<void> {
     //
     // ⚠️ Vị từ đi bằng **tiêm**, cùng cửa `toggleDictSource`/`runLookup` — xem [`KeymapGate`]
     // để biết vì sao `keys.ts` không được phép tự `import` state này.
-    void attachKeyboard(window, { isBlocked: () => attributionIsOpen.value })
+    //
+    // 🔴 **STORY 1.21 — VỊ TỪ THỨ HAI, VÀ NÓ HỎI MỘT CÂU KHÁC HẲN CÂU THỨ NHẤT.**
+    //
+    // `attributionIsOpen` nuốt **suốt thời gian lớp phủ mở**: Attribution khai `aria-modal`
+    // và một lượt đổi preset bố cục phía sau nó gọi `api.clear()` — có hậu quả thật.
+    //
+    // `captureIsArmed` nuốt **chỉ khi đang chờ một hợp âm**, không suốt thời gian màn phím
+    // tắt mở. Người dùng ở đó đang **đọc bảng phím** và có mọi lý do để thử `Mod+Alt+←` —
+    // nó không phá gì cả (hàng 18 của bàn đo canh đúng ca này). Chỉ trạng thái chờ-một-hợp-âm
+    // mới cần độc quyền bàn phím, và nó cần thật: không có cửa thì gõ `Mod+1` để **gán** phím
+    // sẽ **đổi chế độ** giữa lúc gán (Bẫy 3).
+    //
+    // ⚠️ Lớp phủ phím tắt vẫn khai `aria-modal="true"` và vẫn `trapTab` — hai thứ đó nói về
+    // **tiêu điểm**, không về hợp âm. Đừng gộp.
+    void attachKeyboard(window, {
+      isBlocked: () => attributionIsOpen.value || captureIsArmed.value,
+    })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng
     // dụng đều đáng ngờ — kể cả catalog chuỗi. Một câu tiếng Việt viết thẳng ở đây là đúng

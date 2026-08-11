@@ -118,6 +118,7 @@ function isIpcError(value: unknown): value is IpcError {
 /** Tên command trên dây. Khớp `src-tauri/src/commands/config.rs` (module `wire`). */
 const CMD_BOOTSTRAP = 'bootstrap_config'
 const CMD_PUT = 'put_config'
+const CMD_DELETE = 'delete_config'
 
 /**
  * Loại scope và khoá của bố cục đang hiển thị — Story 1.14 · AC4.
@@ -137,6 +138,15 @@ export const KEY_LAYOUT = 'workspace_layout'
  * Khớp `KEY_DICT_DISABLED` ở `src-tauri/src/core/scope/store.rs`.
  */
 export const KEY_DICT_DISABLED = 'dict_sources_disabled'
+/**
+ * Loại thứ hai đi qua cửa này — Story 1.21 · AC2 · AC4.
+ *
+ * ⚠️ **Không** `app_config`: hợp âm phím tắt là một loại riêng ở `ScopeKind::Shortcut`
+ * (`kinds.rs`), với **khoá là chính id thao tác** *(`mode.library`, `lookup.toggle_pin`)*
+ * chứ không một danh sách khoá cố định. Nó `GlobalOnly` — `mockups/settings.html:246`:
+ * *"một thao tác không nên đổi phím theo từng Tác phẩm"*.
+ */
+export const SCOPE_SHORTCUT = 'shortcut'
 
 const lastError = ref<IpcError | null>(null)
 const layout = ref('')
@@ -212,6 +222,33 @@ export async function putConfig(
     if (isIpcError(err)) return err
     console.info(
       `[config] không gọi được \`${CMD_PUT}\` — chạy ngoài Tauri? ` +
+        `Lựa chọn này sẽ không được nhớ. ${String(err)}`,
+    )
+    return null
+  }
+}
+
+/**
+ * Xoá một khoá cấu hình ở tầng Global. Không ném. Story 1.21 · AC8.
+ *
+ * 🔴 **Không phải [`putConfig`] với chuỗi rỗng.** Đường đọc phân biệt ba trạng thái bằng
+ * **sự có mặt của khoá**: vắng mặt ⇒ *"dùng mặc định của sản phẩm"*; có mặt với giá trị
+ * rỗng ⇒ *"thao tác này cố ý không có phím"*. Màn hình phím tắt phải tới được cả hai, và
+ * một màn hình chỉ có "bỏ gán" là một cửa **một chiều**.
+ *
+ * ⚠️ Xoá một khoá **không tồn tại** là thành công — xem `core/scope/store.rs::delete_value`.
+ *
+ * Trả `IpcError | null` cùng khuôn [`putConfig`]: một lượt xoá trượt là thứ người dùng có
+ * quyền biết (AD-21).
+ */
+export async function deleteConfig(kind: string, key: string): Promise<IpcError | null> {
+  try {
+    await invoke(CMD_DELETE, { kind, key })
+    return null
+  } catch (err) {
+    if (isIpcError(err)) return err
+    console.info(
+      `[config] không gọi được \`${CMD_DELETE}\` — chạy ngoài Tauri? ` +
         `Lựa chọn này sẽ không được nhớ. ${String(err)}`,
     )
     return null

@@ -208,15 +208,15 @@ const tsFiles = keep(tsAll)
 // SAI. Sàn 10 vẫn đúng theo số thật 12 nên không hạ lại; chỉ **lý do** được sửa cho khớp sự
 // thật — một con số bịa trong đúng tệp mà cả kiến trúc dựa vào để tin các con số là chính
 // thứ rot mà AC13 tồn tại để chặn.
-const VUE_FLOOR = 12 // số THẬT 2026-08-10 (sau Story 1.20): 14 tệp `.vue`
-const TS_FLOOR = 24 // số THẬT 2026-08-10 (sau Story 1.20): 30 tệp `.ts`
+const VUE_FLOOR = 13 // số THẬT 2026-08-11 (sau Story 1.21): 15 tệp `.vue` — 13/15 = 86,7%
+const TS_FLOOR = 26 // số THẬT 2026-08-11 (sau Story 1.21): 31 tệp `.ts` — 26/31 = 83,9%
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
  * hai `layout.preset_*` · bốn `layout.toggle_*` · hai `library.import_*` · ba
  * `source.select_tab_*`/`toggle_han_viet_view` · `lookup.lookup_selection` (Story 1.17).
  * Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà không kiểm gì.
  */
-const COMMAND_FLOOR = 24 // số THẬT 2026-08-10 (sau Story 1.20): 29 command
+const COMMAND_FLOOR = 29 // số THẬT 2026-08-11 (sau Story 1.21): 34 command — 29/34 = 85,3%
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
@@ -234,8 +234,8 @@ const COMMAND_FLOOR = 24 // số THẬT 2026-08-10 (sau Story 1.20): 29 command
 // **6** vs 8"*) và đòi *"**mọi** hằng `*_FLOOR` bị vượt được nâng theo số thật"*. Bản đầu
 // đánh dấu nó *"không đổi ở Story 1.17"* thay vì nâng — 6/8 = 75%, dưới hẳn doctrine
 // ~81-85% mà **mọi** sàn khác trong cùng lượt tuân theo. Đúng cách 1.16 để lọt và bị bắt.
-const CLICK_FLOOR = 13 // số THẬT 2026-08-10 (sau Story 1.20): 16 thuộc tính `@click`
-const DISPATCH_FLOOR = 20 // số THẬT 2026-08-10 (sau Story 1.20): 25 lời gọi `dispatch()`
+const CLICK_FLOOR = 17 // số THẬT 2026-08-11 (sau Story 1.21): 21 thuộc tính `@click` — 17/21 = 81,0%
+const DISPATCH_FLOOR = 23 // số THẬT 2026-08-11 (sau Story 1.21): 28 lời gọi `dispatch()` — 23/28 = 82,1%
 
 if (vueFiles.length < VUE_FLOOR || tsFiles.length < TS_FLOOR) {
   abort(
@@ -1240,6 +1240,189 @@ let dBad = 0
     unknown = true
   }
   check('tên phím không phân giải được ⇒ ném', unknown, true)
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔴 STORY 1.21 — CỜ `repeatable` (`deferred-work.md:656`, Ice ký nhận 2026-08-11)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //
+  // Ba ca ngay trên khẳng định `repeat: true` **không** lặp thao tác — đúng, và đó là mặc
+  // định. Nhánh còn lại phải có lưới riêng, nếu không một bản cài đặt bỏ quên `repeatable`
+  // hoàn toàn vẫn xanh: giữ `Shift+→` sẽ mở rộng vùng chọn đúng một ký tự rồi đứng im, và
+  // không cổng nào đỏ.
+  {
+    const fired = []
+    const map = keysMod.createKeymap(
+      {
+        ...fakeRegistry,
+        list: () => [
+          { id: 'a.once', labelKey: 'command.a.once', run: () => {}, keys: ['Mod+1'] },
+          {
+            id: 'a.again',
+            labelKey: 'command.a.again',
+            run: () => {},
+            keys: ['Shift+ArrowRight'],
+            repeatable: true,
+          },
+        ],
+        dispatch: (id) => fired.push(id),
+      },
+      { isMac: true },
+    )
+    map.handle({ code: 'ArrowRight', shiftKey: true, repeat: true, preventDefault: () => {} })
+    check('`repeatable: true` ⇒ keydown lặp VẪN dispatch (giữ `Shift+→` bôi đen được)', fired.join(''), 'a.again')
+
+    fired.length = 0
+    map.handle({ code: 'Digit1', metaKey: true, repeat: true, preventDefault: () => {} })
+    check('cùng keymap, command KHÔNG khai cờ ⇒ keydown lặp vẫn bị chặn', fired.length, 0)
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔴 STORY 1.21 — `overrides`, VÀ BA TRẠNG THÁI MÀ AC8 ĐỨNG LÊN
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //
+  // Phép phân biệt sống ở **sự có mặt của khoá**, không ở giá trị. Không có lưới ở đây thì
+  // một bản cài đặt viết `overrides[id] ?? spec.keys` vẫn xanh trên hai trạng thái đầu và
+  // sai im lặng ở trạng thái thứ ba — nút *"bỏ gán"* sẽ lặng lẽ dựng lại hợp âm mặc định.
+  {
+    const base = {
+      ...fakeRegistry,
+      list: () => [{ id: 'a.b', labelKey: 'command.a.b', run: () => {}, keys: ['Mod+1'] }],
+    }
+    const chordsOf = (overrides) =>
+      keysMod
+        .createKeymap(base, { isMac: true }, overrides)
+        .bindings()
+        .map((b) => b.chord)
+        .join(' · ')
+
+    check('`overrides` VẮNG MẶT ⇒ hành vi cũ từng dòng một (tương thích ngược)', chordsOf(undefined), 'Mod+1')
+    check('khoá vắng mặt trong `overrides` ⇒ rơi về `spec.keys` (= "trả về mặc định")', chordsOf({}), 'Mod+1')
+    check('khoá có, MẢNG RỖNG ⇒ KHÔNG hợp âm nào (= "cố ý không có phím")', chordsOf({ 'a.b': [] }), '')
+    check('khoá có, có phần tử ⇒ hợp âm của người dùng thắng', chordsOf({ 'a.b': ['Mod+K'] }), 'Mod+K')
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔴 STORY 1.21 — `chordFromEvent` / `formatChord`, VÀ ĐÂY LÀ LƯỚI NFR14 DUY NHẤT
+  //    CỦA CHÚNG
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //
+  // Story 1.21 thêm hai hàm **phụ thuộc nền tảng** vào tầng này. Cùng lý lẽ mở đầu Kiểm D:
+  // không test nào khác trong dự án chạm tầng bàn phím, và CI hai nền tảng của Story 1.3
+  // chỉ `cargo test` + build. Một `chordFromEvent` đọc `metaKey` thẳng tay đi qua **cả
+  // hai** nhánh CI rồi hỏng ở tay người dùng Windows.
+
+  if (typeof keysMod.chordFromEvent !== 'function' || typeof keysMod.formatChord !== 'function') {
+    abort(
+      `\`${posix(KEYS_TS)}\``,
+      new Error('không export `chordFromEvent`/`formatChord` — vế Story 1.21 của Kiểm D KHÔNG chạy được.'),
+    )
+  }
+
+  // ① VÒNG KHỨ HỒI, trên CẢ HAI nền tảng. `parseChord` không export được (nó là chi tiết
+  //    của `createKeymap`), nên vòng khứ hồi đo qua chính `createKeymap`: dựng một keymap
+  //    từ hợp âm mà `chordFromEvent` vừa sinh ra, rồi bắn lại đúng sự kiện gốc vào nó.
+  //    Khớp ⇒ hai hàm là nghịch đảo của nhau **cho nền tảng đó**.
+  const roundTripEvents = [
+    { code: 'KeyD', metaKey: true },
+    { code: 'Digit1', ctrlKey: true, altKey: true },
+    { code: 'Comma', metaKey: true },
+    { code: 'ArrowLeft', shiftKey: true, altKey: true },
+    { code: 'Enter', metaKey: true, shiftKey: true },
+  ]
+  for (const isMac of [true, false]) {
+    for (const event of roundTripEvents) {
+      const chord = keysMod.chordFromEvent(event, { isMac })
+      if (typeof chord !== 'string') {
+        check(`vòng khứ hồi (isMac=${isMac}) — \`${event.code}\` phải cho ra một hợp âm`, typeof chord, 'string')
+        continue
+      }
+      const seen = []
+      const map = keysMod.createKeymap(
+        {
+          ...fakeRegistry,
+          list: () => [{ id: 'x.y', labelKey: 'command.x.y', run: () => {}, keys: [chord] }],
+          dispatch: (id) => seen.push(id),
+        },
+        { isMac },
+      )
+      check(
+        `vòng khứ hồi (isMac=${isMac}): \`${event.code}\` ⇒ \`${chord}\` ⇒ khớp lại chính sự kiện đó`,
+        map.handle({ ...event, preventDefault: () => {} }) && seen.length === 1,
+        true,
+      )
+    }
+  }
+
+  // ⚠️ Và cùng một sự kiện phải cho HAI hợp âm khác nhau giữa hai nền tảng — nếu không thì
+  //    vòng khứ hồi ở trên vẫn xanh với một bản cài đặt bỏ qua `isMac` hoàn toàn.
+  check(
+    '`Mod` phụ thuộc nền tảng — `⌘D` là `Mod+D` trên macOS, `Meta+D` ở nơi khác',
+    `${keysMod.chordFromEvent({ code: 'KeyD', metaKey: true }, { isMac: true })} / ` +
+      `${keysMod.chordFromEvent({ code: 'KeyD', metaKey: true }, { isMac: false })}`,
+    'Mod+D / Meta+D',
+  )
+
+  // ② PHÍM NGOÀI BẢNG ⇒ `null`, KHÔNG ném (AC11). Chỗ gọi là một cử chỉ người dùng, không
+  //    một lỗi lập trình — ném ở đó biến một lượt bấm phím thành một sự cố.
+  check('`F1` ⇒ `null` (phím ngoài bảng, không ném)', keysMod.chordFromEvent({ code: 'F1' }, { isMac: true }), null)
+  check(
+    'keydown CHỈ CÓ phím bổ trợ ⇒ `null` (chưa gõ xong, đừng chốt)',
+    keysMod.chordFromEvent({ code: 'MetaLeft', metaKey: true }, { isMac: true }),
+    null,
+  )
+  check(
+    'lượt commit của bộ gõ ⇒ `null` (đây là ứng dụng dịch tiếng Việt)',
+    keysMod.chordFromEvent({ code: 'KeyD', metaKey: true, isComposing: true }, { isMac: true }),
+    null,
+  )
+
+  // ③ `formatChord` — chuỗi ĐỌC, và nó cũng phải đổi theo nền tảng.
+  check('`formatChord` trên macOS', keysMod.formatChord('Mod+Alt+ArrowRight', { isMac: true }), '⌥⌘→')
+  check('`formatChord` ngoài macOS', keysMod.formatChord('Mod+Alt+ArrowRight', { isMac: false }), 'Ctrl+Alt+→')
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔴 STORY 1.21 · Quyết định #3 — MÃ HOÁ TRÊN ĐĨA AN TOÀN THEO CẤU TRÚC
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //
+  // `src/main.ts::toBindings` tách hợp âm bằng **dấu phẩy, không escape**, và
+  // `deferred-work.md:241` ghi mã hoá đó là TẠM vì một hợp âm chứa dấu phẩy sẽ vỡ nó.
+  // Phép đo đóng mục nợ đó: phím dấu phẩy viết là `Comma` — một **tên chữ cái** — nên
+  // không hợp âm hợp lệ nào chứa `,`. Ba dòng dưới đây biến phép đo thành **cơ chế**; nếu
+  // không, mệnh đề *"an toàn theo cấu trúc"* chỉ đúng cho tới ngày ai đó thêm một tên phím
+  // chứa dấu phẩy vào `NAMED_CODES` và không cổng nào đỏ.
+  //
+  // ⚠️ Bảng `NAMED_CODES` **không** export và không nên export — nó là cửa duy nhất vào
+  // tầng phím. Nên phép kiểm đọc nó **từ chính mã nguồn** rồi lái từng `code` qua
+  // `chordFromEvent`, và khẳng định trên KẾT QUẢ. Đọc từ nguồn thay vì chép một danh sách
+  // vào script là cả điểm: một hàng mới thêm vào bảng ngày mai **tự động** bị kiểm, còn
+  // một bản chép sẽ trôi khỏi sự thật trong đúng hai story.
+  {
+    const src = readFileSync(KEYS_TS, 'utf8')
+    const table = /const NAMED_CODES\s*:[^=]*=\s*\{([\s\S]*?)\n\}/.exec(src)
+    if (table === null) {
+      abort(`\`${posix(KEYS_TS)}\``, new Error('không đọc được `NAMED_CODES` từ mã nguồn — phép kiểm dấu phẩy KHÔNG chạy được.'))
+    }
+    const codes = [...table[1].matchAll(/^\s*([A-Za-z][A-Za-z0-9]*)\s*:/gm)].map((m) => m[1])
+    check('đọc được bảng `NAMED_CODES` từ mã nguồn (≥ 20 hàng)', codes.length >= 20, true)
+
+    const commaCarrying = []
+    // Cộng cả hai nhánh sinh mã của `keyToCode` — chữ và số — vì một dấu phẩy lọt vào qua
+    // đó cũng phá cùng một mã hoá.
+    const probe = [
+      ...codes,
+      ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((c) => `Key${c}`),
+      ...'0123456789'.split('').map((d) => `Digit${d}`),
+    ]
+    for (const code of probe) {
+      const chord = keysMod.chordFromEvent({ code }, { isMac: true })
+      if (typeof chord === 'string' && chord.includes(',')) commaCarrying.push(code)
+    }
+    check(
+      `không tên phím nào trong ${probe.length} phím chứa \`,\` — mã hoá "ngăn nhau bằng dấu phẩy" an toàn THEO CẤU TRÚC`,
+      commaCarrying.join(' · '),
+      '',
+    )
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1645,7 +1828,7 @@ const SELECTION_PANEL_FILES = [
  * mặt văn bản im lặng đứng ngoài sổ là đúng thứ AC2 của Story 1.18 dựng ra để chặn.
  * Vai `'display'`, KHÔNG `'source'`, cùng lý do Bẫy 1 đã bắt ở Panel Lookup.
  */
-const SELECTION_SURFACE_FLOOR = 6
+const SELECTION_SURFACE_FLOOR = 7
 
 const SURFACE_CALL_RE = /useSelectionSurface\s*\(\s*[^,)]+,\s*'(source|display)'/g
 

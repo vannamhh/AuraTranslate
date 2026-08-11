@@ -273,12 +273,17 @@ const vueFiles = keep(vueAll)
 // 🔴 NÂNG 2026-08-07 (code review) — cùng lý do `CLICK_FLOOR` của `check-commands.mjs`:
 // AC13 gọi đích danh sàn này (*"`RS_FLOOR` **32** vs 39"*) và bản đầu đánh dấu nó *"không
 // đổi"* thay vì nâng. 32/40 = 80%, sát mép dưới; 34/40 = 85%, khớp doctrine.
-const RS_FLOOR = 35 // số THẬT 2026-08-10 (sau Story 1.20): 41 tệp `.rs`
+const RS_FLOOR = 35 // số THẬT 2026-08-11 (sau Story 1.21): 41 tệp `.rs` — KHÔNG đổi, xem chú thích
 // ⚠️ **KHÔNG nâng ở Story 1.20** — số thật vẫn là 14 (`commands/pinned.rs` là `.rs`, và
 // story này không thêm một component `.vue` nào; dải tab và tab Lịch sử sống trong
 // `LookupPanel.vue` đã có). Một sàn nâng mà số thật không đổi là một sàn nâng theo cảm
 // giác, đúng thứ AC13 đòi *"số THẬT, không ước"*.
-const VUE_FLOOR = 12 // số THẬT 2026-08-10 (sau Story 1.20): 14 tệp `.vue`
+//
+// ⚠️ **`RS_FLOOR` KHÔNG nâng ở Story 1.21, và đó là cùng luật đọc ngược lại.** Story đó có
+// chạm Rust (`delete_config` · `delete_value`), nhưng nó **sửa hai tệp đã có** và không tạo
+// tệp `.rs` nào — số thật đứng nguyên ở 41. `VUE_FLOOR` thì nâng, vì `ShortcutsOverlay.vue`
+// là một tệp mới (14 → 15).
+const VUE_FLOOR = 13 // số THẬT 2026-08-11 (sau Story 1.21): 15 tệp `.vue` — 13/15 = 86,7%
 if (rsFiles.length < RS_FLOOR || vueFiles.length < VUE_FLOOR) {
   abort(
     `quần thể quét — ${rsFiles.length} tệp \`.rs\` (sàn ${RS_FLOOR}) · ` +

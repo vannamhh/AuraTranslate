@@ -30,11 +30,12 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use std::time::Duration;
 
-use auratranslate_lib::commands::config::{bootstrap_config, put_config};
+use auratranslate_lib::commands::config::{bootstrap_config, delete_config, put_config};
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::scope::kinds::{ScopeKind, Semantics};
 use auratranslate_lib::core::scope::{
-    DEFAULT_MODE, DEFAULT_THEME, ScopeError, ScopeResolver, Tier, load_global_config, save_value,
+    DEFAULT_MODE, DEFAULT_THEME, ScopeError, ScopeResolver, Tier, delete_value,
+    load_global_config, save_value,
 };
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction, Tuning};
 
@@ -664,6 +665,134 @@ fn the_last_mode_survives_a_write_and_a_reopen() {
     assert_eq!(
         bootstrap_config(Some(&store)).expect("bootstrap").mode,
         "workspace"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// **Xoá một khoá `shortcut` ⇒ khoá VẮNG MẶT, không một hàng giá trị rỗng.** Story 1.21 · AC8.
+///
+/// 🔴 Đây là ca mang **đối chứng âm** của story: nó chạy cả hai thao tác cạnh nhau — ghi
+/// chuỗi rỗng *(bỏ gán)* và xoá khoá *(trả về mặc định)* — rồi khẳng định chúng cho ra hai
+/// trạng thái **phân biệt được** trên dây. Nếu chỉ kiểm một mình lượt xoá thì một bản cài
+/// đặt sai kiểu *"xoá = ghi chuỗi rỗng"* vẫn xanh, và AC8 mất đúng thứ nó nói.
+#[test]
+fn deleting_a_shortcut_key_leaves_no_row_while_writing_an_empty_value_leaves_one() {
+    let dir = temp_dir("shortcut-delete");
+    let store = open_store(&dir);
+
+    put_config(Some(&store), "shortcut", "mode.library", "Mod+9").expect("gán một hợp âm");
+    assert_eq!(
+        bootstrap_config(Some(&store))
+            .expect("bootstrap")
+            .shortcuts
+            .get("mode.library")
+            .map(String::as_str),
+        Some("Mod+9"),
+        "hợp âm vừa ghi phải đọc lại được — nếu không thì phần còn lại của ca này vô nghĩa"
+    );
+
+    // ① BỎ GÁN — khoá CÓ MẶT, giá trị rỗng. Đường đọc hiểu là *"cố ý không có phím"*.
+    put_config(Some(&store), "shortcut", "mode.library", "").expect("bỏ gán");
+    let unassigned = bootstrap_config(Some(&store)).expect("bootstrap").shortcuts;
+    assert_eq!(
+        unassigned.get("mode.library").map(String::as_str),
+        Some(""),
+        "bỏ gán phải để lại một hàng mang chuỗi rỗng — đó là phát biểu \"thao tác này cố ý \
+         không có phím\", và nó phải sống qua một lượt đọc"
+    );
+
+    // ② TRẢ VỀ MẶC ĐỊNH — khoá VẮNG MẶT. Đường đọc rơi về hợp âm mặc định của sản phẩm.
+    delete_config(Some(&store), "shortcut", "mode.library").expect("trả về mặc định");
+    let reset = bootstrap_config(Some(&store)).expect("bootstrap sau khi xoá").shortcuts;
+    assert!(
+        !reset.contains_key("mode.library"),
+        "sau lượt xoá, khoá phải VẮNG MẶT chứ không mang chuỗi rỗng — hai trạng thái đó là \
+         hai câu trả lời khác nhau, và `src/commands/index.ts` phân biệt chúng bằng đúng \
+         phép kiểm này (`hasOwnProperty`, không `?? fallback`)"
+    );
+
+    // Và không hàng nào khác bị đụng.
+    let rows: i64 = store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM config_value WHERE kind = 'shortcut'",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .expect("đếm hàng `shortcut`");
+    assert_eq!(rows, 0, "một lượt xoá đúng MỘT khoá không được dọn cả bảng");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// **Xoá một khoá KHÔNG TỒN TẠI ⇒ không lỗi, và không hàng nào bị đụng.** Story 1.21 · AC8.
+///
+/// ⚠️ Nút *"trả về mặc định"* bấm được ở **mọi** hàng của màn hình phím tắt, kể cả hàng
+/// chưa ai đụng tới. Bắt nó phải biết trước hàng đó có tồn tại trên đĩa không là đòi một
+/// vòng đọc thừa trước mỗi lượt ghi — và một lỗi ở đây sẽ hiện lên mặt người dùng như một
+/// sự cố cho một thao tác đã đúng.
+#[test]
+fn deleting_a_key_that_was_never_written_succeeds_and_touches_nothing() {
+    let dir = temp_dir("shortcut-delete-absent");
+    let store = open_store(&dir);
+
+    put_config(Some(&store), "shortcut", "mode.reading", "Mod+3").expect("gán một hợp âm khác");
+
+    delete_config(Some(&store), "shortcut", "mode.library")
+        .expect("xoá một khoá chưa từng được ghi phải THÀNH CÔNG, không phải một lỗi");
+
+    let shortcuts = bootstrap_config(Some(&store)).expect("bootstrap").shortcuts;
+    assert_eq!(
+        shortcuts.get("mode.reading").map(String::as_str),
+        Some("Mod+3"),
+        "lượt xoá một khoá vắng mặt không được chạm hàng của khoá khác"
+    );
+    assert_eq!(shortcuts.len(), 1);
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// **Xoá một `kind` không phải `GlobalOnly` ⇒ `store.write_failed`.** Story 1.21 · AC8.
+///
+/// Cùng luật với [`save_value`], và đó không phải một sự trùng lặp: bảng `config_value`
+/// phục vụ riêng ba loại `GlobalOnly`, nên một lệnh `DELETE` không kiểm loại là một cửa sau
+/// vào chính cái lệnh `INSERT` đã khoá. Ca này canh cả hai chiều — loại lạ, và loại có thật
+/// nhưng sai ngữ nghĩa.
+#[test]
+fn deleting_a_non_global_only_kind_is_refused_the_same_way_writing_one_is() {
+    let dir = temp_dir("shortcut-delete-kind");
+    let store = open_store(&dir);
+
+    // `glossary` là một loại CÓ THẬT nhưng mang ngữ nghĩa `Merge` — đúng ca mà một phép
+    // kiểm chỉ hỏi *"tên này có trong bảng không"* sẽ để lọt.
+    assert_ne!(
+        ScopeKind::from_wire("glossary").map(|k| k.semantics()),
+        Some(Semantics::GlobalOnly),
+        "ca này chỉ có nghĩa nếu `glossary` thật sự KHÔNG phải `GlobalOnly`"
+    );
+    // Đi qua **đường sản phẩm** (`delete_config`), không qua `delete_value` trần: bề mặt mà
+    // người dùng chạm tới là cái đầu, và một phép kiểm trên cái sau bỏ lọt mọi thứ mà lớp
+    // adapter có thể làm sai.
+    for kind in ["glossary", "khong-co-loai-nay"] {
+        let err = delete_config(Some(&store), kind, "bat-ky")
+            .expect_err("một loại không phải `GlobalOnly` phải bị TỪ CHỐI");
+        assert_eq!(
+            err.message_key(),
+            MessageKey::StoreWriteFailed,
+            "`{kind}` phải bị từ chối bằng `store.write_failed` — cùng khoá mà `save_value` \
+             dùng, vì câu thật với người dùng là *thay đổi vừa rồi chưa được lưu*"
+        );
+    }
+
+    // Và `delete_value` trần từ chối y hệt — hai lớp, một luật.
+    assert!(
+        delete_value(&store, "glossary", "bat-ky").is_err(),
+        "lớp `core` phải tự từ chối, không dựa vào adapter kiểm hộ"
     );
 
     drop(store);

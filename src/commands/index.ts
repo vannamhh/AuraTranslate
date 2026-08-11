@@ -18,14 +18,15 @@
  */
 import { createRegistry } from './registry.ts'
 import { createFocusRegistry } from './focus.ts'
-import { attachKeymap, createKeymap } from './keys.ts'
-import type { CommandId, Registry } from './registry.ts'
+import { attachKeymap, createKeymap, resolveChord } from './keys.ts'
+import type { CommandId, CommandSpec, Registry } from './registry.ts'
 import type { FocusEntry, FocusOwner, FocusRegistry } from './focus.ts'
-import type { Keymap, KeymapGate } from './keys.ts'
+import type { Binding, ChordOverrides, Keymap, KeymapGate } from './keys.ts'
 
 export type { CommandId, CommandSpec, Registry } from './registry.ts'
 export type { FocusEntry, FocusOwner, FocusRegistry } from './focus.ts'
-export type { Binding, ChordEvent, Keymap } from './keys.ts'
+export type { Binding, ChordEvent, ChordOverrides, Keymap } from './keys.ts'
+export { chordFromEvent, formatChord } from './keys.ts'
 
 /** Ba chế độ NGANG HÀNG trong MỘT cửa sổ hệ điều hành (AD-24, AC3). */
 export type ModeId = 'library' | 'workspace' | 'reading'
@@ -121,7 +122,38 @@ export function detectIsMac(): boolean {
   return /mac/i.test(platform)
 }
 
+/**
+ * Keymap ĐANG SỐNG. Story 1.21 thay biến này ở mỗi lượt gán phím thành công.
+ *
+ * ⚠️ Listener trên `window` **không** đọc biến này trực tiếp — nó đọc một proxy ổn định
+ * dựng trong [`attachKeyboard`]. Xem lý do ở đó; nó là một cái bẫy đã đo được.
+ */
 let keymap: Keymap | null = null
+
+/**
+ * Nền tảng đã dùng lúc cài đặt, giữ lại cho mọi lượt dựng lại. Story 1.21.
+ *
+ * ⚠️ Không gọi lại `detectIsMac()` ở lượt dựng lại: Kiểm D tiêm `isMac` để lái hai ca, và
+ * một lượt đọc `navigator` giữa chừng làm keymap sau lượt gán phím khác keymap lúc khởi
+ * động trên chính máy đó.
+ */
+let installedIsMac = false
+
+/**
+ * Lớp hợp âm của NGƯỜI DÙNG đang có hiệu lực — đĩa, cộng mọi lượt gán trong phiên này.
+ *
+ * `{}` nghĩa là *"không ai đè lên gì"*, tức đang chạy nguyên bộ mặc định của sản phẩm.
+ */
+let liveOverrides: ChordOverrides = {}
+
+/**
+ * Vì sao hợp âm đọc từ đĩa **không được áp**, hoặc `null` nếu chúng đã được áp.
+ *
+ * 🔴 Story 1.21 · AC13 · đóng `deferred-work.md:243`. Cho tới story này chẩn đoán đó chỉ đi
+ * ra `console.error` — im lặng theo nghĩa thực dụng, vì người dùng chỉ biết nếu họ mở
+ * console. Nay màn hình phím tắt đọc được nó và nói ra một câu.
+ */
+let diskRejection: string | null = null
 
 export type CommandDeps = {
   /** Đổi chế độ đang hiện. `App.vue` nối vào `src/modes/modeState.ts`. */
@@ -271,6 +303,42 @@ export type CommandDeps = {
   /** Xoá lịch sử tra cứu của phiên. Handler của `lookup.clear_history` (AC6). */
   clearLookupHistory?: () => void
 
+  // ── Story 1.21 — màn hình phím tắt ─────────────────────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `toggleLookupPin`: `config/shortcutsState.ts`
+  // dùng `ref`/`computed` của Vue **và** gọi `@tauri-apps/api` xuyên qua `config/bootstrap.ts`
+  // — import thẳng nó ở đây giết Kiểm C/D/E cùng lúc.
+
+  /** Mở lớp phủ phím tắt. Handler của `shortcuts.open` (AC1). */
+  openShortcuts?: () => void
+  /** Đóng lớp phủ phím tắt. Handler của `shortcuts.close` (AC1). */
+  closeShortcuts?: () => void
+  /**
+   * Vào trạng thái **chờ một hợp âm** cho thao tác đang nhắm. Handler của
+   * `shortcuts.capture` (AC2, AC10).
+   *
+   * 🔴 **Không** một tham số `command_id` — cùng lý lẽ đã ghi cho `toggleDictSource` và
+   * `toggleLookupPin` ngay trên. Bảng có một hàng cho mỗi command đang đăng ký, và Kiểm A
+   * đòi mỗi `@click` là **đúng một** `dispatch('<id>')` với id **literal** ⇒ hàng đang
+   * nhắm đi bằng `@mousedown`, không bằng tham số.
+   */
+  captureShortcut?: () => void
+  /**
+   * Bỏ gán phím của thao tác đang nhắm — ghi một chuỗi **rỗng** xuống đĩa (AC8).
+   *
+   * ⚠️ **Khác** `resetShortcut`: rỗng nghĩa là *"thao tác này cố ý không có phím"*, một
+   * phát biểu lưu được. Xem `ChordOverrides` ở `./keys.ts` về ba trạng thái.
+   */
+  unassignShortcut?: () => void
+  /**
+   * Trả phím của thao tác đang nhắm về mặc định của sản phẩm — **xoá khoá** khỏi đĩa (AC8).
+   *
+   * ⚠️ Xoá chứ không ghi đè bằng chính hợp âm mặc định: ghi đè biến hàng đó thành một giá
+   * trị ĐÓNG BĂNG, nên một story sau đổi hợp âm mặc định thì người đã bấm nút này một lần
+   * mắc kẹt ở giá trị cũ mãi mãi, không dấu hiệu nào. Ice chốt 2026-08-11.
+   */
+  resetShortcut?: () => void
+
   /**
    * Các panel đang HIỆN, theo **thứ tự bố cục** (AC9).
    *
@@ -300,25 +368,26 @@ function portMissing(commandId: string, port: string): void {
 }
 
 /**
- * Hợp âm cho một thao tác: đĩa thắng, không nhưng chỉ khi đĩa **có nói gì**.
+ * Đăng ký **BỘ MẶC ĐỊNH CỦA SẢN PHẨM** vào một registry.
  *
- * ⚠️ `?? fallback` chứ không `|| fallback`: một mảng rỗng trên đĩa là một phát biểu hợp lệ
- * — *"thao tác này cố ý không có phím"* — và `||` sẽ lặng lẽ dựng lại hợp âm mặc định cho
- * nó. Story 1.21 (màn gán phím) dựa vào việc gỡ hết phím là một trạng thái lưu được.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 STORY 1.21 ĐỔI Ý NGHĨA CỦA HÀM NÀY, VÀ ĐÓ LÀ THAY ĐỔI KIẾN TRÚC LỚN NHẤT CỦA NÓ
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Cho tới Story 1.20, hàm này nhận một tham số `bindings` *(hợp âm đọc từ `global.db`)* và
+ * **nướng** nó vào `spec.keys` ngay lúc đăng ký. Nay nó không nhận nữa: hợp âm ở đây là
+ * mặc định của sản phẩm, **luôn luôn**, và lớp của người dùng sống ở một tầng riêng
+ * (`ChordOverrides` của `./keys.ts`).
+ *
+ * Vì sao phải đổi — một phép đo, không một sở thích: AC8 đòi *"trả về mặc định"* phân biệt
+ * được với *"bỏ gán"*. Với mô hình cũ, `spec.keys` là *"đĩa-hoặc-mặc-định lúc khởi động"*,
+ * nên **không có chỗ nào trong tiến trình còn giữ mặc định thật** để mà trả về. Một người
+ * dùng đã gán `Mod+9` cho `mode.library` từ phiên trước sẽ bấm "trả về mặc định" và nhận
+ * lại `Mod+9`. Sai, và sai mà 0 cổng đỏ.
+ *
+ * ⇒ Sau story này `spec.keys` có đúng **một** nghĩa ở mọi chỗ đọc nó — kể cả trong
+ * `check-commands.mjs`, nơi nó vốn đã chỉ có nghĩa đó vì Node thuần không có đĩa.
  */
-function chordsFor(
-  id: CommandId,
-  bindings: CommandDeps['bindings'],
-  fallback: readonly string[] | undefined,
-): readonly string[] | undefined {
-  return bindings?.[id] ?? fallback
-}
-
-/**
- * Đăng ký bộ command khởi động vào **một** registry. Tách ra để dùng được hai lần: một lần
- * trên registry thật, một lần trên một registry nháp — xem [`bindingsAreUsable`].
- */
-function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps['bindings']): void {
+function registerAll(target: Registry, deps: CommandDeps): void {
   const setMode = deps.setMode
   for (const mode of MODE_IDS) {
     target.register({
@@ -329,7 +398,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
       // trong `vi.json` liệt kê đúng bộ nhãn thao tác.
       labelKey: `command.mode.${mode}`,
       // `Mod` — KHÔNG phải `Meta`. Xem §Trap 1 ở đầu `./keys.ts`.
-      keys: chordsFor(`mode.${mode}`, bindings, [`Mod+${MODE_IDS.indexOf(mode) + 1}`]),
+      keys: [`Mod+${MODE_IDS.indexOf(mode) + 1}`],
       run: () => {
         setMode(mode)
         // KHÔNG gọi `enterFocus` ở đây. Phần tử của chế độ vừa chọn chưa có trong
@@ -367,7 +436,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
     target.register({
       id,
       labelKey: `command.${id}`,
-      keys: chordsFor(id, bindings, [`Mod+Alt+${preset === 'grid' ? 1 : 2}`]),
+      keys: [`Mod+Alt+${preset === 'grid' ? 1 : 2}`],
       run: () => {
         if (deps.applyPreset === undefined) return portMissing(id, 'applyPreset')
         deps.applyPreset(id)
@@ -393,17 +462,17 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
    * Và handler thì CHẠY THẬT. Một command rỗng đăng ký cho đủ số là đúng thứ
    * `CommandRegistry` tồn tại để chặn (`registry.ts` ném khi thiếu `run`).
    *
-   * ⚠️ `keys: chordsFor(id, bindings, undefined)` — mặc định không phím, NHƯNG nếu
-   * `global.db` có một hợp âm cho id này thì nó ĐƯỢC dùng: gán phím là quyền của người
-   * dùng, và Story 1.21 là màn hình để làm việc đó, không phải một cái khoá lên chính
-   * dữ liệu đó.
+   * ⚠️ `keys: undefined` là **mặc định của sản phẩm**, không một cái khoá: nếu `global.db`
+   * có một hợp âm cho id này thì nó ĐƯỢC dùng, qua lớp `overrides` mà Story 1.21 dựng
+   * (xem [`applyBindings`]). Gán phím là quyền của người dùng, và màn hình phím tắt là chỗ
+   * để làm việc đó.
    */
   for (const suffix of PANEL_SUFFIXES) {
     const id = `layout.toggle_${suffix}`
     target.register({
       id,
       labelKey: `command.${id}`,
-      keys: chordsFor(id, bindings, undefined),
+      keys: undefined,
       run: () => {
         if (deps.togglePanel === undefined) return portMissing(id, 'togglePanel')
         deps.togglePanel(`panel.${suffix}`)
@@ -434,7 +503,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
     target.register({
       id,
       labelKey: `command.${id}`,
-      keys: chordsFor(id, bindings, [`Mod+Alt+Arrow${step > 0 ? 'Right' : 'Left'}`]),
+      keys: [`Mod+Alt+Arrow${step > 0 ? 'Right' : 'Left'}`],
       run: () => {
         if (deps.panelRing === undefined) {
           // ⚠️ Đường lui là thứ tự KHAI BÁO — đúng hành vi của Story 1.6, và đúng thứ
@@ -486,7 +555,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
   target.register({
     id: 'source.select_tab_original',
     labelKey: 'command.source.select_tab_original',
-    keys: chordsFor('source.select_tab_original', bindings, ['Mod+Alt+O']),
+    keys: ['Mod+Alt+O'],
     run: () => {
       if (deps.selectSourceTab === undefined) {
         return portMissing('source.select_tab_original', 'selectSourceTab')
@@ -501,7 +570,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
     // hành nuốt nó trước khi webview thấy. `check:commands` chỉ kiểm trùng **nội bộ** bộ
     // command — nó không biết gì về phím của OS, nên lưới ở đây là con người. Ice chốt ở
     // lượt code review 2026-08-06. (`Mod+Alt+O`/`Mod+Alt+V` không mang nghĩa hệ thống.)
-    keys: chordsFor('source.select_tab_han_viet', bindings, ['Mod+Alt+J']),
+    keys: ['Mod+Alt+J'],
     run: () => {
       if (deps.selectSourceTab === undefined) {
         return portMissing('source.select_tab_han_viet', 'selectSourceTab')
@@ -512,7 +581,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
   target.register({
     id: 'source.toggle_han_viet_view',
     labelKey: 'command.source.toggle_han_viet_view',
-    keys: chordsFor('source.toggle_han_viet_view', bindings, ['Mod+Alt+V']),
+    keys: ['Mod+Alt+V'],
     run: () => {
       if (deps.toggleHanVietView === undefined) {
         return portMissing('source.toggle_han_viet_view', 'toggleHanVietView')
@@ -532,7 +601,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
   target.register({
     id: 'lookup.lookup_selection',
     labelKey: 'command.lookup.lookup_selection',
-    keys: chordsFor('lookup.lookup_selection', bindings, ['Mod+Alt+L']),
+    keys: ['Mod+Alt+L'],
     run: () => {
       if (deps.runLookup === undefined) return portMissing('lookup.lookup_selection', 'runLookup')
       if (deps.currentSelection === undefined) {
@@ -583,7 +652,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
     labelKey: 'command.selection.focus_source',
     // `Mod+Alt+S` — họ phím `Mod+Alt+…` của Story 1.14. `S` còn trống (`O`/`J`/`V`/`L`
     // đã dùng), và `⌘⌥S` không mang nghĩa hệ điều hành trên cả hai nền tảng.
-    keys: chordsFor('selection.focus_source', bindings, ['Mod+Alt+S']),
+    keys: ['Mod+Alt+S'],
     run: () => {
       if (deps.focusSelectionSource === undefined) {
         return portMissing('selection.focus_source', 'focusSelectionSource')
@@ -624,9 +693,9 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
    * 🔴 **Cố ý KHÔNG gán phím mặc định cho cả ba**, cùng lý lẽ `layout.toggle_*` (§QĐ #3 của
    * Story 1.6): họ `Mod+Alt+…` đã kín chỗ có nghĩa (`1` `2` `O` `J` `V` `L` `S` `←` `→`), và
    * ba thao tác này đều tới được bằng bàn phím qua Tab + Enter/Space — chuẩn HTML gốc. Đây
-   * là một **lỗ NFR17 có tên và có chủ**: màn hình gán phím là Story 1.21, và
-   * `chordsFor(id, bindings, undefined)` nghĩa là một hợp âm người dùng tự đặt trong
-   * `global.db` **ĐƯỢC** dùng ngay hôm nay.
+   * là một **lỗ NFR17 có tên và có chủ**: màn hình gán phím là Story 1.21, và kể từ story
+   * đó một hợp âm người dùng tự đặt trong `global.db` **ĐƯỢC** dùng — qua lớp `overrides`,
+   * không qua `spec.keys`.
    */
   for (const [id, port] of [
     ['lookup.toggle_source', 'toggleDictSource'],
@@ -636,7 +705,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
     target.register({
       id,
       labelKey: `command.${id}`,
-      keys: chordsFor(id, bindings, undefined),
+      keys: undefined,
       run: () => {
         const handler = deps[port]
         if (handler === undefined) return portMissing(id, port)
@@ -696,7 +765,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
     target.register({
       id,
       labelKey: `command.${id}`,
-      keys: chordsFor(id, bindings, undefined),
+      keys: undefined,
       run: () => {
         if (deps.selectLookupTab === undefined) return portMissing(id, 'selectLookupTab')
         deps.selectLookupTab(tab)
@@ -707,7 +776,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
   target.register({
     id: 'lookup.toggle_pin',
     labelKey: 'command.lookup.toggle_pin',
-    keys: chordsFor('lookup.toggle_pin', bindings, ['Mod+D']),
+    keys: ['Mod+D'],
     run: () => {
       if (deps.toggleLookupPin === undefined) return portMissing('lookup.toggle_pin', 'toggleLookupPin')
       deps.toggleLookupPin()
@@ -717,7 +786,7 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
   target.register({
     id: 'lookup.clear_history',
     labelKey: 'command.lookup.clear_history',
-    keys: chordsFor('lookup.clear_history', bindings, undefined),
+    keys: undefined,
     run: () => {
       if (deps.clearLookupHistory === undefined) {
         return portMissing('lookup.clear_history', 'clearLookupHistory')
@@ -735,7 +804,48 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
     target.register({
       id,
       labelKey: `command.${id}`,
-      keys: chordsFor(id, bindings, [chord]),
+      keys: [chord],
+      // 🔴 BỐN CHỖ DUY NHẤT khai `repeatable` — Story 1.21, đóng `deferred-work.md:656`.
+      //
+      // Giữ `Shift+→` là cách người ta bôi đen một cụm từ; mở rộng đúng một ký tự rồi
+      // đứng im là *"bấm mà không có gì xảy ra"* (AD-44 ④). Bốn thao tác này luỹ tiến và
+      // rẻ — chúng chạm `Selection` của DOM và không ghi đĩa, không dựng lại bố cục,
+      // không một vòng IPC. Xem doc-comment của `CommandSpec.repeatable` về vì sao mọi
+      // command khác giữ mặc định KHÔNG.
+      repeatable: true,
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
+
+  // ── Story 1.21 — màn hình phím tắt ────────────────────────────────────────────
+  //
+  // 🔴 NĂM ID TĨNH, và đó là §KHÔNG-LÀM ⑤ viết thành chữ ký — cùng khuôn `toggleDictSource`
+  // và `toggleLookupPin`. Bảng phím tắt có một hàng cho MỖI command đang đăng ký (29+ hàng,
+  // và con số đó lớn lên mỗi story), nên "một command cho mỗi hàng" phá chính cơ chế đếm
+  // tĩnh mà `check-commands.mjs` dùng (`COMMAND_FLOOR`) — và một id không tồn tại lúc dựng
+  // màn hình thì chính màn hình này không gán lại được cho nó.
+  // ⇒ handler đọc **hàng đang nhắm** từ trạng thái quanh nó, tại thời điểm chạy.
+  //
+  // ⚠️ Bốn command dưới `shortcuts.open` giữ **0 hợp âm mặc định**, và đó là chủ ý kép:
+  // họ `Mod+Alt+…` đã kín chỗ có nghĩa, cả bốn tới được bằng Tab + Enter/Space bên trong
+  // lớp phủ, VÀ chúng là nhiên liệu cho `unbound()` — xem `check-commands.mjs:1398`.
+  for (const [id, port, chord] of [
+    // `Mod+Comma` — `⌘,` là quy ước Preferences của macOS, `Comma` có sẵn trong
+    // `NAMED_CODES` (`keys.ts:112`), và hợp âm đó chưa ai chiếm.
+    ['shortcuts.open', 'openShortcuts', 'Mod+Comma'],
+    ['shortcuts.close', 'closeShortcuts', undefined],
+    ['shortcuts.capture', 'captureShortcut', undefined],
+    ['shortcuts.unassign', 'unassignShortcut', undefined],
+    ['shortcuts.reset', 'resetShortcut', undefined],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: chord === undefined ? undefined : [chord],
       run: () => {
         const handler = deps[port]
         if (handler === undefined) return portMissing(id, port)
@@ -746,64 +856,194 @@ function registerAll(target: Registry, deps: CommandDeps, bindings: CommandDeps[
 }
 
 /**
- * 🔴 §Bẫy 5 — **hợp âm đọc từ đĩa gây xung đột ⇒ ứng dụng không mở được**.
- *
- * `keys.ts:270` phát hiện hai command trùng hợp âm và `createKeymap` **ném**;
- * `installCommands` chạy **trước `mount()`**. Một `global.db` sửa tay *(hoặc một lượt nhập
- * cấu hình từ máy khác)* là đủ để một cú ném ở đó cho ra **cửa sổ trắng** — và người dùng
- * mất luôn đường vào để sửa chính cái làm hỏng.
- *
- * Chốt: thử dựng keymap trên một registry **nháp** trước. Xung đột ⇒ ghi chẩn đoán rõ rồi
- * **rơi về hợp âm mặc định**, và ứng dụng lên bình thường.
- *
- * ⚠️ Registry nháp chứ không thử trên registry thật rồi dọn: `register()` ném với id
- * trùng (AC2 của Story 1.6, và đó là hành vi đúng), nên không có lượt đăng ký thứ hai nào
- * để dọn về. Nháp là đường duy nhất không phải nới một phép cưỡng chế đang đúng.
- *
- * Đây **không** phải màn giải quyết xung đột — đó là **Story 1.21**. Ở đây chỉ có
- * *"đừng chết"*.
- */
-function bindingsAreUsable(
-  bindings: NonNullable<CommandDeps['bindings']>,
-  isMac: boolean,
-): boolean {
-  try {
-    const scratch = createRegistry()
-    // Deps rỗng: registry nháp không bao giờ được `dispatch`, nó chỉ tồn tại để
-    // `createKeymap` có cái để phân giải hợp âm trên.
-    registerAll(scratch, { setMode: () => {} }, bindings)
-    createKeymap(scratch, { isMac })
-    return true
-  } catch (err) {
-    console.error(
-      '[commands] hợp âm đọc từ `global.db` không dựng được keymap — rơi về hợp âm mặc ' +
-        'định. Lựa chọn phím tắt của bạn KHÔNG bị xoá, chỉ tạm không áp; màn hình gán ' +
-        `phím (Story 1.21) là chỗ sửa. Nguyên nhân: ${String(err)}`,
-    )
-    return false
-  }
-}
-
-/**
  * Đăng ký bộ command khởi động và dựng keymap. Gọi **một lần**, từ `src/main.ts`.
  *
  * ⚠️ Gọi lần thứ hai ⇒ `register()` ném vì id trùng. Đó là hành vi ĐÚNG (AC2) chứ không
  * phải một chỗ cần nới: hai lượt cài đặt trong một tiến trình nghĩa là hai keymap cùng
  * nghe một cửa sổ, và cái sau sẽ dispatch mọi hợp âm hai lần.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 §Bẫy 5 — **hợp âm đọc từ đĩa gây xung đột ⇒ ứng dụng không mở được**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `createKeymap` **ném** khi hai command trùng hợp âm, và hàm này chạy **trước `mount()`**.
+ * Một `global.db` sửa tay *(hoặc một lượt nhập cấu hình từ máy khác)* là đủ để một cú ném ở
+ * đó cho ra **cửa sổ trắng** — và người dùng mất luôn đường vào để sửa chính cái làm hỏng.
+ *
+ * Chốt: dựng thử **trước**, rơi về bộ mặc định nếu trượt, và ứng dụng lên bình thường.
+ *
+ * ⚠️ Story 1.20 làm việc đó bằng một registry **nháp**, vì lớp hợp âm của đĩa khi ấy nằm
+ * trong chính `spec.keys` nên thử nó đòi một lượt `register()` thứ hai. Story 1.21 gỡ nhu
+ * cầu đó: lớp của đĩa nay là tham số `overrides` của `createKeymap`, và `createKeymap`
+ * **chỉ đọc** registry. ⇒ thử ngay trên registry thật, 0 registry nháp, và một biến thể
+ * ít hơn để hai đường trôi khỏi nhau.
+ *
+ * 🔴 Và chẩn đoán không dừng ở `console.error` nữa — nó vào [`shortcutsDiskRejection`] để
+ * màn hình phím tắt nói ra một câu (AC13, đóng `deferred-work.md:243`).
  */
 export function installCommands(deps: CommandDeps): Keymap {
   const isMac = deps.isMac ?? detectIsMac()
+  installedIsMac = isMac
 
-  // Hợp âm từ đĩa chỉ được dùng khi chúng dựng được một keymap — xem `bindingsAreUsable`.
-  const bindings =
-    deps.bindings !== undefined && bindingsAreUsable(deps.bindings, isMac)
-      ? deps.bindings
-      : undefined
+  // Bộ MẶC ĐỊNH của sản phẩm, luôn luôn — xem doc-comment của `registerAll`. Sau dòng này
+  // `spec.keys` là câu trả lời cho *"mặc định của thao tác này là gì"*, và AC8 đứng lên nó.
+  registerAll(registry, deps)
 
-  registerAll(registry, deps, bindings)
+  const fromDisk = deps.bindings
+  if (fromDisk !== undefined) {
+    try {
+      keymap = createKeymap(registry, { isMac }, fromDisk)
+      liveOverrides = fromDisk
+      diskRejection = null
+      return keymap
+    } catch (err) {
+      diskRejection = String(err)
+      console.error(
+        '[commands] hợp âm đọc từ `global.db` không dựng được keymap — rơi về hợp âm mặc ' +
+          'định. Lựa chọn phím tắt KHÔNG bị xoá, chỉ tạm không áp; màn hình phím tắt là ' +
+          `chỗ sửa. Nguyên nhân: ${diskRejection}`,
+      )
+    }
+  }
 
+  // Đường mặc định. ⚠️ Một lần ném Ở ĐÂY là lỗi lập trình *(hai hằng số hợp âm trong chính
+  // tệp này giành nhau)*, không phải lỗi dữ liệu của người dùng — nên nó ĐƯỢC ném lên, và
+  // `src/main.ts` vẽ nó ra thay vì để lại một cửa sổ trắng.
   keymap = createKeymap(registry, { isMac })
+  liveOverrides = {}
   return keymap
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 🔴 STORY 1.21 — BỀ MẶT LÚC CHẠY CỦA MÀN HÌNH PHÍM TẮT
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * Sáu hàm dưới đây là **cửa duy nhất** mà `src/config/shortcutsState.ts` và
+ * `src/ShortcutsOverlay.vue` được đi qua. Vì sao chúng ở đây chứ không ở lớp giao diện:
+ * `registry` và `keymap` là biến module của tệp này, và một bản sao của chúng ở tầng trên
+ * là đúng thứ §Dev Notes ⑤ cảnh báo — hai nguồn cho một sự thật.
+ *
+ * ⚠️ **KHÔNG** đọc `commandRegistry.unbound()` hay `spec.keys` từ màn hình. Cả hai trả lời
+ * *thời điểm cài đặt* kể từ story này; doc-comment ở `./registry.ts` ghi mệnh đề đầy đủ.
+ */
+
+/** Mọi hợp âm ĐANG CÓ HIỆU LỰC, kèm chuỗi đã phân giải. Nguồn lúc chạy của AC12. */
+export function effectiveBindings(): readonly Binding[] {
+  return keymap === null ? [] : keymap.bindings()
+}
+
+/**
+ * Các thao tác **chưa gán phím nào** lúc chạy — `list()` trừ đi các id có trong
+ * [`effectiveBindings`]. AC5 · AC12.
+ *
+ * ⚠️ Khác `commandRegistry.unbound()`, và khác biệt đó là cả nội dung của AC12: một lượt
+ * gán phím **không** đi qua `register()`, nên `unbound()` không bao giờ biết nó đã xảy ra.
+ */
+export function effectiveUnbound(): readonly CommandSpec[] {
+  const bound = new Set(effectiveBindings().map((b) => b.id))
+  return registry.list().filter((spec) => !bound.has(spec.id))
+}
+
+/**
+ * Hợp âm **mặc định của sản phẩm** cho một thao tác — thứ mà nút *"trả về mặc định"* khôi
+ * phục. AC8.
+ *
+ * Đọc thẳng `spec.keys`, và điều đó chỉ đúng vì `registerAll` không còn nướng đĩa vào đó
+ * (xem doc-comment của nó). Mảng rỗng ⇒ sản phẩm cố ý không gán phím cho thao tác này.
+ */
+export function defaultChordsFor(id: CommandId): readonly string[] {
+  return registry.list().find((spec) => spec.id === id)?.keys ?? []
+}
+
+/**
+ * Lớp của NGƯỜI DÙNG cho một thao tác, hoặc `null` nếu họ chưa đè lên gì.
+ *
+ * ⚠️ `null` *(chưa ai đè)* và `[]` *(cố ý không có phím)* là **hai** câu trả lời khác nhau
+ * — đó là cả AC8. Xem `ChordOverrides` ở `./keys.ts` về ba trạng thái.
+ */
+export function overrideFor(id: CommandId): readonly string[] | null {
+  return Object.prototype.hasOwnProperty.call(liveOverrides, id) ? liveOverrides[id] : null
+}
+
+/** Toàn bộ lớp người dùng đang có hiệu lực. Màn hình dựng lượt gán tiếp theo từ đây. */
+export function currentOverrides(): ChordOverrides {
+  return liveOverrides
+}
+
+/** Xem [`diskRejection`]. `null` ⇒ hợp âm trên đĩa đã được áp bình thường. AC13. */
+export function shortcutsDiskRejection(): string | null {
+  return diskRejection
+}
+
+/** Một thao tác khác đang giữ đúng phím này. Xem [`conflictFor`]. */
+export type ChordConflict = {
+  /** Hợp âm nguyên văn của **đối thủ**, để hiện lên màn hình. */
+  chord: string
+  /** Khoá phân giải chung của cả hai. */
+  resolved: string
+  heldBy: CommandId
+}
+
+/**
+ * Hợp âm này có đụng một thao tác KHÁC không? AC3 · AC9.
+ *
+ * 🔴 So trên **`resolved`**, không trên chuỗi hợp âm. Trên macOS `Mod+D` và `Meta+D` là hai
+ * chuỗi khác nhau nhưng cùng phân giải thành `Meta+KeyD` — một phép so chuỗi để lọt đúng ca
+ * đó và cho ra hai command giành một phím mà màn hình nói *"không xung đột"*.
+ *
+ * `null` cũng là câu trả lời cho một hợp âm **không phân giải được**: chỗ gọi đã tự bắt ca
+ * đó bằng `chordFromEvent` trả `null` (AC11), và dựng một xung đột-ma ở đây thì tệ hơn.
+ */
+export function conflictFor(chord: string, id: CommandId): ChordConflict | null {
+  let resolved: string
+  try {
+    resolved = resolveChord(chord, { isMac: installedIsMac })
+  } catch {
+    return null
+  }
+  for (const binding of effectiveBindings()) {
+    if (binding.resolved === resolved && binding.id !== id) {
+      return { chord: binding.chord, resolved, heldBy: binding.id }
+    }
+  }
+  return null
+}
+
+/** Kết quả một lượt dựng lại keymap. `detail` chỉ để chẩn đoán — nó không đi lên giao diện. */
+export type ApplyOutcome = { ok: true } | { ok: false; detail: string }
+
+/**
+ * Áp một lớp hợp âm mới **NGAY**, không khởi động lại. AC2 · AC12.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 §Bẫy 9 — DỰNG XONG MỚI THAY, và thứ tự đó là cả tính an toàn của hàm
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `createKeymap` ném khi lớp mới gây xung đột. Thay biến `keymap` **trước** khi biết lượt
+ * dựng có thành công không — hoặc bắt lỗi rồi để `keymap` thành `null` — là **toàn bộ bàn
+ * phím ứng dụng chết** sau một lượt gán sai, và người dùng mất luôn đường bàn phím để sửa
+ * nó. Dựng vào một biến tạm, gán khi và chỉ khi thành công.
+ *
+ * Không ném: một lượt gán trượt là một câu trả lời cho màn hình, không một sự cố.
+ *
+ * ⚠️ Hàm này **không** ghi đĩa. Ghi là việc của `src/config/shortcutsState.ts`, và tách
+ * đôi có chủ: một lượt áp trong phiên phải chạy được kể cả khi lượt ghi trượt (AD-21).
+ */
+export function applyBindings(next: ChordOverrides): ApplyOutcome {
+  if (keymap === null) {
+    return { ok: false, detail: 'applyBindings() gọi trước installCommands()' }
+  }
+  let rebuilt: Keymap
+  try {
+    rebuilt = createKeymap(registry, { isMac: installedIsMac }, next)
+  } catch (err) {
+    return { ok: false, detail: String(err) }
+  }
+  keymap = rebuilt
+  liveOverrides = next
+  // Lượt gán vừa rồi ĐÃ áp được, nên câu *"bộ phím trên đĩa chưa được áp"* hết đúng — để
+  // nó ở lại là một câu báo lỗi sống lâu hơn cái lỗi nó mô tả.
+  diskRejection = null
+  return { ok: true }
 }
 
 /**
@@ -818,5 +1058,23 @@ export function attachKeyboard(target: EventTarget, gate?: KeymapGate): () => vo
   if (keymap === null) {
     throw new Error('[commands] attachKeyboard() gọi trước installCommands() — không có keymap nào để gắn.')
   }
-  return attachKeymap(keymap, target, gate)
+  /**
+   * 🔴 STORY 1.21 — PROXY ỔN ĐỊNH, và nó vá một cái bẫy đo được.
+   *
+   * `attachKeymap(keymap, …)` đóng gói **đối tượng** được truyền vào: listener ở
+   * `keys.ts` gọi `keymap.handle(event)` trên đúng tham số đó, không trên biến module của
+   * tệp này. ⇒ [`applyBindings`] gán một keymap mới vào biến module và listener **không
+   * bao giờ nhìn thấy nó** — triệu chứng là *"gán phím xong, phím mới không chạy, phím cũ
+   * vẫn chạy"*, và không lỗi nào ném.
+   *
+   * ⚠️ Không gỡ-rồi-gắn-lại thay cho proxy: `attachKeymap` ném ở lần gắn thứ hai vào cùng
+   * target (`keys.ts`), nên đường đó đòi giữ đúng thứ tự `dispose()` → `attach()` ở mỗi
+   * lượt gán, và một lượt ném giữa chừng để cửa sổ **không còn listener nào**. Một lớp uỷ
+   * quyền hai dòng thì không có trạng thái nào để làm hỏng.
+   */
+  const proxy: Keymap = {
+    handle: (event) => (keymap === null ? false : keymap.handle(event)),
+    bindings: () => (keymap === null ? [] : keymap.bindings()),
+  }
+  return attachKeymap(proxy, target, gate)
 }

@@ -153,6 +153,25 @@ pub fn put_config(
     Ok(())
 }
 
+/// Xoa **mot** khoa cau hinh o tang Global. Story 1.21 · AC8.
+///
+/// 🔴 **Khong phai mot ban sao cua [`put_config`] voi gia tri rong.** Duong doc phan biet
+/// *"chua ai dat gi"* voi *"co y khong co phim"* bang **su co mat cua khoa**, nen hai thao
+/// tac nay tra ve hai trang thai khac nhau tren dia. Ly le day du o [`scope::delete_value`].
+///
+/// `kind` den tu ben kia ranh gioi nen no la du lieu **khong tin duoc**; phep phan giai va
+/// phep tu choi nam o [`scope::delete_value`], khong o day. Adapter khong phan xet.
+///
+/// ⚠️ Xoa mot khoa khong ton tai la **thanh cong**. Xem ly le o ham duoi.
+///
+/// # Loi
+/// kho vang mat ⇒ `store.open_failed`; `kind` la hoac duong ghi truot ⇒ `store.write_failed`.
+pub fn delete_config(store: Option<&Store>, kind: &str, key: &str) -> Result<(), IpcError> {
+    let store = store.ok_or_else(store_is_missing)?;
+    scope::delete_value(store, kind, key)?;
+    Ok(())
+}
+
 /// Hai vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 ///
 /// ⚠️ Module lồng chứ không phải hai hàm cạnh nhau, và đó là một ràng buộc chứ không phải
@@ -188,5 +207,14 @@ pub mod wire {
 
         let managed = app.try_state::<Store>();
         super::put_config(managed.as_deref(), &kind, &key, &value)
+    }
+
+    /// Vỏ IPC của [`super::delete_config`]. Story 1.21 · AC8.
+    #[tauri::command]
+    pub fn delete_config(app: tauri::AppHandle, kind: String, key: String) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let managed = app.try_state::<Store>();
+        super::delete_config(managed.as_deref(), &kind, &key)
     }
 }

@@ -40,6 +40,7 @@ import { configError } from './config/bootstrap'
 // hàng và `MODE_IDS` là một hằng ba phần tử; `Mod+4` thuộc Story 8.11. Nó nói về **cả ứng
 // dụng** chứ không về một panel, nên nó sống cùng tầng với dải báo lỗi cấu hình.
 import AttributionOverlay from './AttributionOverlay.vue'
+import ShortcutsOverlay from './ShortcutsOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -170,6 +171,24 @@ onMounted(async () => {
           {{ t('command.mode.reading') }}
         </button>
       </nav>
+
+      <!--
+        🔴 Story 1.21 — ĐƯỜNG VÀO màn hình phím tắt, đặt ở `titlebar` vì đó là chỗ **duy
+        nhất luôn hiện ở cả ba chế độ**.
+
+        `data-shortcuts-open` là **đường lui của tiêu điểm** khi lớp phủ đóng (UX-DR17) —
+        một hợp đồng đi bằng thuộc tính `data-`, không một tên lớp CSS: tên lớp là chuyện
+        trình bày và đổi được tự do, còn đây là một mối nối. Cùng khuôn
+        `data-attribution-open` của Story 1.19.
+      -->
+      <button
+        type="button"
+        class="titlebar-act"
+        data-shortcuts-open
+        @click="dispatch('shortcuts.open')"
+      >
+        {{ t('command.shortcuts.open') }}
+      </button>
     </header>
 
     <!--
@@ -201,6 +220,9 @@ onMounted(async () => {
 
     <!-- Story 1.19 · AC7–AC11 — lớp phủ tự quản `v-if` của nó qua `attributionIsOpen`. -->
     <AttributionOverlay />
+
+    <!-- Story 1.21 · AC1–AC13 — cùng khuôn: lớp phủ tự quản `v-if` qua `shortcutsOverlayIsOpen`. -->
+    <ShortcutsOverlay />
   </main>
 </template>
 
@@ -271,6 +293,20 @@ onMounted(async () => {
 .modes {
   display: flex;
   gap: calc(var(--space-unit) * 4);
+}
+
+/* Story 1.21 — đường vào màn hình phím tắt, đẩy về mép phải của thanh tiêu đề. */
+.titlebar-act {
+  margin-left: auto;
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface-variant);
 }
 
 /*
