@@ -325,6 +325,10 @@ action_items:
     owner: "Dev"
     status: open
   - epic: 1
-    action: "Quyet dinh ve bo chay test frontend — Chrome dong duoc lop DOM trung tinh, KHONG dong duoc lop khac biet engine (WKWebView)"
+    action: "Quyet dinh ve bo chay test frontend. De xuat da viet: `proposal-tauri-window-automation-2026-08-11.md` — `tauri-plugin-wdio-webdriver` chay TRONG WKWebView/WebView2 that, nen tai lap duoc lop loi engine ma Chrome khong tai lap duoc. Ice can ky ba cau o §7"
+    owner: "Ice"
+    status: open
+  - epic: 1
+    action: "🔴 CHAN: GitHub Actions dung vi han muc chi tieu — job khong khoi dong duoc, 0 buoc chay. Billing & plans -> tang spending limit. Moi nghiem thu CI con lai deu cho cai nay"
     owner: "Ice"
     status: open
