@@ -1,5 +1,5 @@
 # generated: 2026-08-03T13:04:45
-# last_updated: 2026-08-11T23:59:00
+# last_updated: 2026-08-12T00:30:00
 # project: AuraTranslate
 # project_key: NOKEY
 # tracking_system: file-system
@@ -41,7 +41,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-11T23:59:00
+last_updated: 2026-08-12T00:30:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -61,11 +61,6 @@ development_status:
   1-9-dung-du-lieu-tu-dien-lop-nen: done
   1-10-dong-goi-bon-lop-go-roi-thanh-file-doc-lap: done
   1-10b-dung-du-lieu-tu-dien-tieng-anh: done
-  # 🔴 Chèn 2026-08-06, CHẠY NGAY SAU 1-15 (không theo thứ tự số — nó thuộc HỌ tầng dữ liệu
-  # 1-9/1-10/1-10b nên mang số đó, nhưng phát hiện ra ở Task 0 của Story 1.16).
-  # Lý do tồn tại: dict_entry.han_viet của LỚP NỀN mang âm NÔM (Unihan kVietnamese), không
-  # phải âm Hán Việt — đo được 92,4% trùng một âm nom-reading đã gắn nhãn của en.wiktionary.
-  # 🔴 CHẶN 1-16 (tab Hán Việt) và 3-7 (FR113). Ice chốt: tầng dữ liệu trước, giao diện sau.
   1-10c-am-han-viet-dung-nguon-va-dung-nhan: done
   1-11-ba-nhanh-truy-van-tieng-trung: done
   1-11b-duong-tra-cuu-tieng-anh: done
@@ -73,77 +68,13 @@ development_status:
   1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon: done
   1-14-khung-bon-panel: done
   1-15-tac-pham-tren-dia-va-duong-vao-van-ban-toi-thieu: done
-  # CHẶN bởi 1-10c — story file đã dựng đầy đủ, nhưng KHÔNG bắt đầu trước khi 1-10c `done`.
-  # Không có trạng thái `blocked` trong lược đồ này; mệnh đề chặn sống ở đầu story file.
   1-16-panel-source-va-tab-han-viet: done
   1-17-panel-lookup-ban-ghi-co-cau-truc: done
-  # ⚠️ Mang món nợ `deferred-work.md:608` (bôi đen bằng BÀN PHÍM — Ice chốt ghi nợ cho story
-  # này ở lượt code review 1.16) và `:635` (hợp đồng vùng chọn thật thay dep TỐI THIỂU của
-  # 1.17). Bảy quyết định phải chốt ở Task 0; #1 chặn thật, #3 chặn phạm vi.
   1-18-auto-lookup: done
-  # 🔴 Chèn 2026-08-07 từ một lượt NGHIỆM THU TAY của Ice, không từ `epics.md` — không FR nào
-  # đặc tả nó. Mang số `18b` theo tiền lệ `1-10b`/`1-10c`: thuộc HỌ bề mặt Hán Việt (1.16 dựng,
-  # 1.18 chạm), không phải một năng lực mới của epic.
-  # Lý do tồn tại: double-click ở tab Hán Việt chỉ chọn được MỘT ký tự, trong khi tab nguyên văn
-  # tiếng Trung chọn đúng cả CỤM TỪ — Ice bắt bằng mắt. Bộ tách từ đã có sẵn trong engine
-  # (`Intl.Segmenter`), nên 0 phụ thuộc mới và 0 dòng Rust.
-  # 🔴 CHẠY TRƯỚC Story 3.4 (Glossary highlight — cùng bề mặt, cũng cần ranh giới TỪ).
-  # ⚠️ Phá cấu trúc mà AC6/1.16 và AC11+AC12/1.18 đứng lên ⇒ cả ba phải ĐO LẠI, không suy số cũ.
   1-18b-tach-tu-tieng-trung-tab-han-viet: done
-  # ⚠️ Ba trong sáu AC nói về màn hình Attribution, mà FR109/Story 10.4 đặc tả CÙNG màn hình
-  # đó bằng bảy AC — `epics.md` không phân ranh. Ice chốt 2026-08-08 (Quyết định #4a): 1.19
-  # giao đường dữ liệu + bề mặt tối thiểu; 10.4 giao phần hướng-bản-phát-hành. Bảng chia đôi
-  # trong story file là hợp đồng ràng buộc CẢ HAI story — 10.4 đọc nó trước khi dựng lại.
-  # 🔴 Ice chốt cùng ngày: HVTĐTD KHÔNG TÌM ĐƯỢC NGUỒN. AC cuối của story này (và AC tương
-  # ứng ở `epics.md:6202-6204` của Story 10.4) neo vào một nguồn sẽ không tới ⇒ AC9 viết lại,
-  # neo vào CƠ CHẾ và nghiệm thu bằng fixture. `deferred-work.md:292` (nghĩa vụ thông báo tác
-  # giả) mất điều kiện kích hoạt — chủ vẫn là 10.4.
-  # ⚠️ Mockup `sources-attribution.html` LỆCH dữ liệu thật ở ba chỗ (thừa HVTĐTD + Cổ hán văn,
-  # thiếu Trần Văn Chánh) — màn hình phải dẫn xuất từ tệp có mặt, không chép bảng của mockup.
   1-19-bat-tat-nguon-tu-dien-va-ghi-cong: done
-  # Mockup `lookup-history-pins.html` LỆCH mã thật ở BA chỗ, story file ghi cả ba: ① vẽ ba
-  # tab gồm `Concordance` (FR64/Story 7.7, đo được 0 lần trong `src/`) ⇒ dựng HAI tab;
-  # ② thanh lọc "Cả Tác phẩm" mâu thuẫn AC4 (lịch sử TRONG PHIÊN) ⇒ loại; ③ bảng mã lệnh
-  # của `settings.html` dùng văn phạm chưa tồn tại — `editor.segment.nextUntranslated` vi
-  # phạm `COMMAND_ID_RE` và làm `register()` ném.
-  # 🔴 Regression tìm được lúc dựng story, thành AC14: `PanelFrame` render câu trạng thái
-  # TRÊN `<slot />` và `showFrameStatus = neverLookedUp`, nên tab Lịch sử ở app vừa mở bị
-  # đè câu "Chọn một từ trong Nguyên văn để tra cứu" — đúng ca nghiệm thu AC3.
-  # ✅ Ice ký hai quyết định 2026-08-10, KHÔNG mở lại: ghim ở `project.db` (phạm vi Tác phẩm,
-  # bước di trú mới vào `PROJECT_MIGRATIONS` `to_version: 4`); `lookup.toggle_pin` mang
-  # `Mod+D` — phá tiền lệ "0 phím mặc định" của 1.19 CÓ CHỦ Ý, ba command còn lại giữ
-  # `undefined`. `⌘⌫` của mockup bị bác: `keys.ts:227,287` cho thấy hợp âm mang `Mod` không
-  # bị luật vùng gõ chặn, nên nó sẽ cướp "xoá tới đầu dòng" giữa lúc đang gõ.
-  # ⚠️ Năm quyết định còn lại (#2 #3 #4 #5 #7) chốt ở Task 0 trước dòng mã đầu tiên.
   1-20-lich-su-tra-cuu-va-muc-da-ghim: in-progress
-  # 🔴 CHẶN bởi 1-20: cây làm việc lúc dựng story (2026-08-11) mang 23 dòng `git status`
-  # chưa commit của 1.20, và SÁU tệp trong đó là đúng tệp 1.21 phải sửa (`commands/index.ts`,
-  # `main.ts`, `App.vue`, `vi.json`, `check-commands.mjs`, `check-i18n.mjs`). Không bắt đầu
-  # Task 1 trước khi 1.20 commit và `git status --porcelain` trả 0 dòng — mệnh đề chặn đầy đủ
-  # ở §Điều kiện khởi hành của story file. Không có trạng thái `blocked` trong lược đồ này.
-  # ✅ Đo được, và nó đổi hình dạng story: đường lưu phím tắt ĐÃ CÓ SẴN từ Story 1.8 và chưa
-  # ai đi — `ScopeKind::Shortcut` (`kinds.rs:204`, GlobalOnly), `bootstrap_config.shortcuts`,
-  # `save_value`, `putConfig`, và cả một test vòng ghi–đọc (`scope_contract.rs:567`).
-  # ⇒ 0 bước di trú, 0 `MessageKey` mới; Rust chỉ chạm nếu Quyết định ⑦(a) (`delete_config`).
-  # ⚠️ Ba bẫy đã có TÊN trong chính mã nguồn, không phải suy đoán: ① `kinds.rs:36` cấm đích
-  # danh việc story này dựng thanh chuyển phạm vi Toàn cục/Tác phẩm mà `settings.html:243-248`
-  # vẽ; ② `check-commands.mjs:1398-1404` ĐỎ nếu `unbound()` rỗng, nên story KHÔNG được gán
-  # hợp âm mặc định cho các command đang trống; ③ `spec.keys`/`unbound()` bị `Object.freeze`
-  # lúc đăng ký, nên sau lượt gán đầu tiên chúng là câu trả lời CŨ — màn hình phải đọc
-  # `keymap.bindings()`.
-  # ⚠️ Bảy quyết định chốt ở Task 0. Quyết định #7 xin trả lại BA món nợ đang mang tên story
-  # này (`deferred-work.md:656` cờ `repeatable` · `:491` preset đặt tên · `:1135` token thứ tự)
-  # — cả ba có 0 AC ở `epics.md`. Đây là đổi quyền sở hữu, cần Ice ký.
   1-21-phim-tat-cau-hinh-lai-duoc: in-progress
-  # 🔴 code review 2026-08-11: 10 finding, 10 bản vá đã áp (bốn hạng cao, gồm đường CHUỘT
-  # của AC2 chết hoàn toàn trên macOS). Mọi bản vá ở tầng DOM ⇒ KHÔNG đo được bằng máy.
-  # Bàn đo chạy tay: 12 → 19 hàng treo, cộng 5 hàng cũ thành hàng canh hồi quy. Chi tiết ở
-  # §Review Findings của story file.
-  # Retrospective 2026-08-11 — rà soát tự động toàn epic. Báo cáo:
-  # `epic-1-retro-2026-08-11.md`. Phát hiện nặng nhất KHÔNG nằm trong story nào: CI đỏ
-  # 12 trên 12 lượt kể từ 2026-08-05, luôn ở `cargo test` của job `windows-2025`, luôn với
-  # `0xc0000139` — nên 12 trên 13 tệp `tests/**` chưa từng chạy một lần nào trên Windows.
-  # Vá ở nhánh `fix/ci-windows-cargo-test`. Bảy action item ở cuối tệp này.
   epic-1-retrospective: done
 
   # Epic 2: Biên tập theo segment — một vòng dịch tay hoàn chỉnh
@@ -301,12 +232,12 @@ action_items:
     owner: "Ice"
     status: done
   - epic: 1
-    action: "Merge nhanh `fix/ci-windows-cargo-test` vao `master` — nhanh dua Windows tu 0 ca chay duoc len 263/264 xanh"
+    action: "Merge nhanh `fix/ci-windows-cargo-test` vao `master` — da merge. Bang chung Windows gan nhat: run 31469843146, 263/264 ca xanh; ban va WAL sau do CHUA duoc nghiem thu tren Windows"
     owner: "Ice"
     status: done
   - epic: 1
-    action: "Doc `GITHUB_STEP_SUMMARY` cua luot Windows xanh dau tien, dien AC6 + AC7 cua Story 1.3; chay Task 11 hang 4 roi hoan nguyen"
-    owner: "Dev"
+    action: "AC6 + AC7 cua Story 1.3 va Task 11 hang 4 TREO — chung chi do duoc tren runner, va Ice chot bo qua GitHub Actions 2026-08-11. Story 1.3 giu `in-progress`; dong lai khi co mot duong do khac (may Windows that, hoac mot runner tu quan)"
+    owner: "Ice"
     status: open
   - epic: 1
     action: "Cong `check:gates` buoc `package.json` va `ci.yml` khai cung mot bo cong"
@@ -331,8 +262,4 @@ action_items:
   - epic: 1
     action: "🔴 TRUOC KHI DUNG THEM HANG NAO: chi `$APPDATA` cua app con sang thu muc tam moi luot e2e. Hom nay bo e2e SUA cau hinh that cua nguoi chay (`global.db`), va moi ca chi tu don bang nut Ve mac dinh — vet trieu chung"
     owner: "Dev"
-    status: open
-  - epic: 1
-    action: "🔴 CHAN: GitHub Actions dung vi han muc chi tieu — job khong khoi dong duoc, 0 buoc chay. Billing & plans -> tang spending limit. Moi nghiem thu CI con lai deu cho cai nay"
-    owner: "Ice"
     status: open
