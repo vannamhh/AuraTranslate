@@ -27,8 +27,8 @@
 #     cổng chạy mỗi lượt push. Chạy tay:  npm run test:e2e
 #
 # ⚠️ GIỚI HẠN THẬT, ghi ra thay vì để người sau tưởng nhầm: cổng này chạy trên **macOS
-# của Ice**, nên nó KHÔNG nói được gì về nửa Windows. Sau khi bỏ GitHub Actions, nửa đó
-# không còn đường nghiệm thu nào — 263 ca xanh đo ở run `31469843146` là một ảnh chụp,
+# của Ice**, nên nó KHÔNG nói được gì về nửa Windows. Trong lúc GitHub Actions tạm dừng,
+# nửa đó không có đường nghiệm thu nào — 263 ca xanh đo ở run `31469843146` là một ảnh chụp,
 # không phải một trạng thái được canh. Xem action item A5 của retrospective.
 #
 # Bỏ qua một lượt:  git push --no-verify
