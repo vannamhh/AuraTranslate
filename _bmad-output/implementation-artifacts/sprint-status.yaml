@@ -1,5 +1,6 @@
 # generated: 2026-08-03T13:04:45
 # last_updated: 2026-08-12T00:30:00
+# 2026-08-12: Epic 2 mo — story 2.1 chuyen sang ready-for-dev (create-story).
 # project: AuraTranslate
 # project_key: NOKEY
 # tracking_system: file-system
@@ -41,7 +42,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-12T00:30:00
+last_updated: 2026-08-12T12:00:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -87,8 +88,10 @@ development_status:
   epic-1-retrospective: done
 
   # Epic 2: Biên tập theo segment — một vòng dịch tay hoàn chỉnh
-  epic-2: backlog
-  2-1-tach-segment-cap-cau-va-co-ket-doan: backlog
+  epic-2: in-progress
+  # 2.1 dong action item A6 cua Epic 1: buoc di tru ke tiep cua `project.db` phai
+  # danh so 5 — so 4 la mot so DA CHAY (`schema.rs:280-296`).
+  2-1-tach-segment-cap-cau-va-co-ket-doan: ready-for-dev
   2-2-panel-editor-lien-mach: backlog
   2-3-hop-dong-flush-va-trang-thai-da-luu: backlog
   2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi: backlog
@@ -261,9 +264,9 @@ action_items:
     owner: "Ice"
     status: open
   - epic: 1
-    action: "Ghi vet seo `PROJECT_MIGRATIONS` so 4 da chay vao dieu kien khoi hanh cua Story 2.1 — buoc di tru ke tiep phai danh so 5"
+    action: "✅ XONG 2026-08-12 — vet seo `PROJECT_MIGRATIONS` so 4 da vao §Dieu kien khoi hanh muc 2 cua Story 2.1, kem AC10 va Task 3.4. Dieu kien dong (`story 2.1 dung ra da mang menh de do`) da dat. Task 3.4 di xa hon mot buoc: dung cong con thieu ghi o `deferred-work.md:1169-1180` — mot test cam `to_version == 4` quay lai, vi `validate_strictly_increasing` KHONG bat duoc ca nay"
     owner: "Dev"
-    status: open
+    status: done
   - epic: 1
     action: "Bo chay e2e — Ice chot 2026-08-11, da trien khai toi het Buoc 2. Buoc 2 TRA LOI CO: hoan nguyen ban va WKWebView cua Story 1.21 lam ca DO dung trieu chung. Xem §8 cua `proposal-tauri-window-automation-2026-08-11.md`"
     owner: "Ice"
