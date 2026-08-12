@@ -83,9 +83,9 @@ _bmad-output/append.py
 _bmad-output/adversarial_findings.md
 
 # Các công cụ AI/editor cục bộ: giữ ở local, không push lên GitHub
-/_bmad/
-/.agent/
-/.agents/
-/.claude/
-/.kiro/
-/.zencoder/
+_bmad/
+.agent/
+.agents/
+.claude/
+.kiro/
+.zencoder/
