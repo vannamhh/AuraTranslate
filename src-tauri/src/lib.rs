@@ -245,6 +245,9 @@ pub fn run() {
             // (`segment_count = 0` cua moi Chuong Epic 1). Chuong MOI nhap duoc tach tu
             // dong trong `create_work`, cung giao dich; lenh nay chi phuc vu duong cu.
             crate::commands::segment::wire::split_chapter_into_segments,
+            // Story 2.2 — nap segment cua Chuong dang mo len Panel Editor. Doc theo
+            // `(chapter_id, ord)`, tuc dung index `idx_segment_chapter_ord` cua buoc 5.
+            crate::commands::segment::wire::read_open_chapter_segments,
         ])
         .setup(move |app| {
             #[cfg(debug_assertions)]

@@ -16,7 +16,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::project::create_work_from_text;
-use auratranslate_lib::commands::segment::{split_chapter_into_segments, SplitOutcome};
+use auratranslate_lib::commands::segment::{
+    read_open_chapter_segments, split_chapter_into_segments, SplitOutcome,
+};
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::segment::split::{
     split_source_text, EN_ABBREVIATIONS, LANG_CHINESE, SplitSegment,
@@ -482,13 +484,13 @@ fn the_project_migration_set_never_reuses_the_burned_number_four() {
 }
 
 #[test]
-fn the_project_migration_set_reaches_five_through_four_steps() {
+fn the_project_migration_set_reaches_six_through_five_steps() {
     let versions: Vec<u32> = PROJECT_MIGRATIONS.iter().map(|m| m.to_version).collect();
 
     assert_eq!(
         versions,
-        vec![1, 2, 3, 5],
-        "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 (4 la so da chay)"
+        vec![1, 2, 3, 5, 6],
+        "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 (4 la so da chay)"
     );
 }
 
@@ -506,7 +508,7 @@ fn the_project_migration_set_reaches_five_through_four_steps() {
 /// cùng luật với `pinned_contract.rs::an_older_global_database_migrates_up_and_keeps_its_rows`:
 /// một fixture chép tay sẽ trôi khỏi sự thật đúng vào ngày một bước cũ được sửa.
 #[test]
-fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_to_five() {
+fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_past_it() {
     static OLD_STEPS: [Migration; 4] = [
         PROJECT_MIGRATIONS[0],
         PROJECT_MIGRATIONS[1],
@@ -540,8 +542,8 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_to_
     );
     assert_eq!(
         migrated.schema_version(),
-        5,
-        "buoc 5 phai da chay tren mot tep dung o phien ban 4"
+        6,
+        "buoc 5 VA buoc 6 phai da chay tren mot tep dung o phien ban 4"
     );
 
     let has_segment: i64 = migrated
@@ -568,6 +570,149 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_to_
     assert_eq!(
         orphan, 1,
         "`pinned_entry` mo coi phai O LAI -- di tru khong duoc tu y xoa bang cua nguoi dung"
+    );
+
+    drop(migrated);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Story 2.2 · AC13 · Task 1 — cột `target_text` và bước di trú 6
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Một `project.db` **mới** dừng ở phiên bản **6**, và bảng `segment` mang `target_text`.
+///
+/// ⚠️ Hai mệnh đề, không một: số phiên bản là PROXY, còn mệnh đề thật là phép đọc
+/// `PRAGMA table_info` ngay dưới. Một bước di trú khai đúng số mà chạy sai DDL đi lọt phép
+/// kiểm thứ nhất.
+#[test]
+fn a_fresh_project_database_lands_at_version_six_with_a_target_text_column() {
+    let root = temp_dir("fresh-at-six");
+    let opened = create_work_from_text(&root, "Sau", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    assert_eq!(
+        opened.store.schema_version(),
+        6,
+        "mot `project.db` moi phai dung o phien ban 6 (Story 2.2 them buoc `target_text`)"
+    );
+
+    let (notnull, default_value): (i64, String) = opened
+        .store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT \"notnull\", COALESCE(dflt_value, '<NULL>') FROM pragma_table_info('segment') \
+                 WHERE name = 'target_text'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+        })
+        .expect("cot `target_text` phai co mat trong `segment`");
+
+    assert_eq!(
+        notnull, 1,
+        "`target_text` phai `NOT NULL` -- \"chua dich\" la CHUOI RONG, khong phai mot gia \
+         tri vang mat (Story 2.2, Task 1.4)"
+    );
+    assert_eq!(
+        default_value, "''",
+        "`target_text` phai mac dinh chuoi rong -- mot `DEFAULT NULL` lam `ADD COLUMN NOT \
+         NULL` khong chay duoc tren bang da co du lieu"
+    );
+
+    let blanks: i64 = opened
+        .store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM segment WHERE target_text = ''",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .expect("dem segment chua dich");
+    assert_eq!(
+        blanks, 2,
+        "moi segment vua nhap phai o trang thai \"chua dich\" -- chuoi rong, khong du lieu moi"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// 🔴 **Một `project.db` ĐANG ở phiên bản 5 di trú lên 6 mà KHÔNG mất một hàng `segment` nào.**
+///
+/// Đây là ca duy nhất chạm đúng đường mà dữ liệu thật của Ice sẽ đi: 21 `project.db` đã ở
+/// phiên bản 5 kể từ Story 2.1, mang **10.477** hàng `segment`. Hai ca ở trên chỉ dựng tệp
+/// mới; một bước 6 viết bằng `DROP TABLE` + `CREATE TABLE` sẽ đi lọt cả hai.
+///
+/// Fixture dựng từ **bốn bước THẬT** của [`PROJECT_MIGRATIONS`], không chép tay DDL — cùng
+/// luật với ca `stranded_at_the_burned_version_four` ngay trên.
+#[test]
+fn a_project_database_at_version_five_migrates_to_six_and_keeps_every_segment_row() {
+    static STEPS_TO_FIVE: [Migration; 4] = [
+        PROJECT_MIGRATIONS[0],
+        PROJECT_MIGRATIONS[1],
+        PROJECT_MIGRATIONS[2],
+        PROJECT_MIGRATIONS[3],
+    ];
+
+    let dir = temp_dir("five-to-six");
+    let db = dir.join("project.db");
+
+    let old = Store::open(StoreSpec {
+        migrations: &STEPS_TO_FIVE,
+        ..StoreSpec::project(db.clone())
+    })
+    .expect("dung fixture o phien ban 5");
+    assert_eq!(
+        old.schema_version(),
+        5,
+        "fixture phai dung o dung phien ban 5 -- neu khong ca nay khong kiem gi ca"
+    );
+
+    // ⚠️ KHONG chen hang `chapter` nao: `SEGMENT_DDL` co y KHONG khai `FOREIGN KEY` (xem
+    // doc-comment cua no), nen ca nay chi can dung ba hang `segment` de do buoc 6.
+    old.write(|tx: &Transaction<'_>| {
+        for ord in 1..=3i64 {
+            tx.execute(
+                "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, created_at, updated_at) \
+                 VALUES (1, ?1, ?2, 0, '2026-08-12T00:00:00.000Z', '2026-08-12T00:00:00.000Z')",
+                (ord, format!("cau {ord}")),
+            )?;
+        }
+        Ok(())
+    })
+    .expect("bom ba hang segment vao fixture");
+    drop(old);
+
+    let migrated = Store::open(StoreSpec::project(db))
+        .expect("mot `project.db` o phien ban 5 phai mo duoc va di tru len 6");
+    assert_eq!(
+        migrated.schema_version(),
+        6,
+        "buoc 6 phai chay tren mot tep dung o phien ban 5"
+    );
+
+    let rows: Vec<(i64, String, String)> = migrated
+        .read(|conn| {
+            let mut stmt =
+                conn.prepare("SELECT ord, source_text, target_text FROM segment ORDER BY ord")?;
+            let mapped = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+            mapped.collect::<Result<Vec<_>, _>>()
+        })
+        .expect("doc lai ba hang segment sau di tru");
+
+    assert_eq!(
+        rows,
+        vec![
+            (1, "cau 1".to_owned(), String::new()),
+            (2, "cau 2".to_owned(), String::new()),
+            (3, "cau 3".to_owned(), String::new()),
+        ],
+        "buoc 6 phai la mot `ALTER TABLE` -- moi hang `segment` cu phai o lai nguyen ven, \
+         va `target_text` cua chung la CHUOI RONG"
     );
 
     drop(migrated);
@@ -860,6 +1005,199 @@ fn an_explicit_split_lays_down_segments_for_an_old_chapter() {
         })
         .expect("doc id that bai");
     assert_eq!(ids, vec![4, 5, 6], "id da ve huu (1..3) khong duoc phat lai");
+
+    drop(opened);
+    cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Story 2.2 · AC13 — lệnh nạp segment của Chương đang mở
+// ═════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn loading_segments_without_an_open_work_is_refused() {
+    let err = read_open_chapter_segments(None).expect_err("phai tu choi khi chua mo Tac pham");
+    assert_eq!(err.code(), "project.no_work_open");
+    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+}
+
+/// Lượt nạp trả **đúng** các hàng đã ghi, **theo `ord`**, kèm cờ kết đoạn đã lưu.
+///
+/// 🔴 Ca này canh AD-37 ở đúng chỗ nó dễ trôi nhất: `is_paragraph_end` đi qua dây **từ dữ
+/// liệu đã lưu**, không phải một phép suy lúc render. Đổi lệnh thành tự đoán đoạn từ nội
+/// dung sẽ làm hàng thứ hai *(cau ket doan giua Chuong)* sai ngay.
+#[test]
+fn the_open_chapter_hands_back_every_segment_in_reading_order() {
+    let root = temp_dir("load-in-order");
+
+    // Ba cau, dau xuong dong sau cau thu hai ⇒ co ket doan bat o dung hang do.
+    let opened = create_work_from_text(&root, "Nap Segment", "zh", "", "一。二。\n三。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
+
+    assert_eq!(
+        loaded.segments.iter().map(|s| s.ord).collect::<Vec<_>>(),
+        vec![1, 2, 3],
+        "`ORDER BY ord` -- thu tu doc la hop dong, khong phai thu tu SQLite tra ve tinh co"
+    );
+    assert_eq!(
+        loaded
+            .segments
+            .iter()
+            .map(|s| s.source_text.as_str())
+            .collect::<Vec<_>>(),
+        vec!["一。", "二。", "三。"]
+    );
+    assert_eq!(
+        loaded
+            .segments
+            .iter()
+            .map(|s| s.is_paragraph_end)
+            .collect::<Vec<_>>(),
+        vec![false, true, false],
+        "co ket doan phai la thu DA LUU (AD-37), khong phai mot phep suy luc nap"
+    );
+    assert!(
+        loaded.segments.iter().all(|s| s.target_text.is_empty()),
+        "moi segment vua nhap phai o trang thai \"chua dich\" -- CHUOI RONG"
+    );
+    assert!(
+        loaded.segments.iter().all(|s| s.retired_at.is_none()),
+        "hom nay chua duong nao cho segment ve huu -- do la Story 2.8"
+    );
+
+    let chapter_id: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT id FROM chapter ORDER BY ord LIMIT 1", [], |r| r.get(0)))
+        .expect("doc chapter_id that bai");
+    assert_eq!(
+        loaded.chapter_id, chapter_id,
+        "`chapter_id` phai di kem -- webview khong duoc doan no, va mot luot hoi lai keo \
+         theo nguyen khoi `source_text`"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// 🔴 **Chương KHÔNG có segment nào cho một danh sách RỖNG, không một lỗi.**
+///
+/// Đây là trạng thái thật của **25 Chương Epic 1** (`deferred-work.md:542`) cho tới khi ai
+/// đó bấm lệnh tách tường minh. Trả lỗi ở đây sẽ làm Panel Editor hiện một câu lỗi cho một
+/// Tác phẩm hoàn toàn lành lặn; câu đúng là một trạng thái rỗng CÓ GIẢI THÍCH, và nó thuộc
+/// tầng giao diện (UX-DR27), không thuộc tầng lỗi IPC (AD-21).
+#[test]
+fn a_chapter_with_no_segments_loads_as_an_empty_list_not_an_error() {
+    let root = temp_dir("load-empty");
+
+    // Mot Chuong chi co khoang trang cho 0 segment -- ca bien ① cua bo tach.
+    let opened = create_work_from_text(&root, "Rong", "zh", "", "   \n  ".to_owned())
+        .expect("tao tac pham that bai");
+
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
+    assert!(
+        loaded.segments.is_empty(),
+        "khong segment nao ⇒ danh sach rong, khong mot loi"
+    );
+    assert!(
+        loaded.chapter_id > 0,
+        "`chapter_id` van phai co that -- Chuong ton tai, chi la chua tach"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// 🔴 **FIXTURE CỦA TASK 7 — `target_text` THẬT, bơm bằng SQL, đọc lại qua ĐÚNG lệnh IPC.**
+///
+/// Ice chốt Quyết định #1 đường (b) ngày 2026-08-12, kèm **một điều kiện**: vì bề mặt
+/// chỉ-đọc làm mọi `target_text` rỗng, AC2/AC4/AC5 không nghiệm thu được trên dữ liệu thật,
+/// nên story phải dựng **một fixture có bản dịch thật** và nghiệm thu trên đó. Ca này là nửa
+/// **dữ liệu** của điều kiện đó; nửa **thị giác** ở
+/// `_bmad-output/implementation-artifacts/2-2-ban-do-editor.html`, và hai bên dùng **cùng
+/// năm câu**.
+///
+/// ⚠️ Bơm bằng `UPDATE` trên một `project.db` **TẠM** dựng trong thư mục tạm của ca này —
+/// **không** mở một `.atproj` nào của người dùng bằng app. Cùng kỷ luật Task 8 của Story 2.1
+/// đã giữ, và nay nó còn chặt hơn: lược đồ đã lên target **6**, nên một lượt mở là một lượt
+/// **di trú thật trên dữ liệu thật**.
+///
+/// 🔴 Mệnh đề của ca này **không** phải "SQL chạy được" — nó là: bản dịch đi qua **trọn**
+/// đường của sản phẩm *(cột → truy vấn → struct → dây)* mà không rơi mất ở khúc nào. Bốn giá
+/// trị vạch chỉ có nghĩa nếu `target_text` tới được webview.
+#[test]
+fn a_chapter_with_real_translations_round_trips_through_the_load_command() {
+    let root = temp_dir("fixture-translations");
+
+    // Nam cau nguon — dung nam cau ma ban do thi giac dung.
+    let opened = create_work_from_text(
+        &root,
+        "Fixture 2.2",
+        "zh",
+        "",
+        "一。二。\n三。四。五。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
+
+    let translations = [
+        (1i64, "Hắn đẩy cánh cửa ấy ra, bước vào giữa bóng tối dày đặc của gian phòng đã bỏ hoang từ lâu lắm rồi."),
+        (2, "Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ gì đó ẩm ướt hơn thế."),
+        (3, "Thiếu niên không quay đầu lại."),
+        // ord 4 CO Y de rong -- no la nhanh *khong vach* (chua dich) cua AC3.
+        (5, "Câu này đã về hưu sau một lượt gộp — lịch sử của nó vẫn tra lại được."),
+    ];
+
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            for (ord, text) in translations {
+                tx.execute(
+                    "UPDATE segment SET target_text = ?1 WHERE ord = ?2",
+                    (text, ord),
+                )?;
+            }
+            // Cau 5 ve huu -- nguon du lieu DUY NHAT cua gia tri vach `ornament`, va hom nay
+            // khong duong SAN PHAM nao dat duoc no (Story 2.8). Bom bang SQL la cach duy nhat
+            // nhin thay nhanh do chay.
+            tx.execute(
+                "UPDATE segment SET retired_at = '2026-08-12T00:00:00.000Z' WHERE ord = 5",
+                [],
+            )?;
+            Ok(())
+        })
+        .expect("bom ban dich bang SQL that bai");
+
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
+    assert_eq!(loaded.segments.len(), 5, "fixture phai co dung nam cau");
+
+    let got: Vec<(&str, bool)> = loaded
+        .segments
+        .iter()
+        .map(|s| (s.target_text.as_str(), s.retired_at.is_some()))
+        .collect();
+    assert_eq!(
+        got,
+        vec![
+            (translations[0].1, false),
+            (translations[1].1, false),
+            (translations[2].1, false),
+            ("", false),
+            (translations[3].1, true),
+        ],
+        "ban dich phai di qua TRON duong cua san pham -- ke ca cau RONG (nhanh *khong vach*) \
+         va cau da ve huu (nhanh `ornament`)"
+    );
+
+    // Co ket doan van la thu DA LUU, khong bi luot `UPDATE` dung toi.
+    assert_eq!(
+        loaded
+            .segments
+            .iter()
+            .map(|s| s.is_paragraph_end)
+            .collect::<Vec<_>>(),
+        vec![false, true, false, false, false],
+    );
 
     drop(opened);
     cleanup(&root);

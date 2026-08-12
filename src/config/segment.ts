@@ -1,5 +1,6 @@
 /**
- * Adapter IPC phía webview cho lệnh **tách segment tường minh** — Story 2.1, AC8 · AC14.
+ * Adapter IPC phía webview của tầng segment — lệnh **tách tường minh** (Story 2.1, AC8 · AC14)
+ * và lệnh **nạp segment của Chương đang mở** (Story 2.2, AC13).
  *
  * Cùng khuôn `./chapter.ts`: một lời gọi `invoke`, một `try/catch`, không quy tắc nghiệp vụ
  * nào ở đây — quy tắc sống ở Rust (`commands/segment.rs`).
@@ -55,8 +56,41 @@ function isIpcError(value: unknown): value is IpcError {
   )
 }
 
+/**
+ * Một hàng `segment` như nó đi trên dây — **`snake_case`**, đúng `commands::segment::ChapterSegment`.
+ *
+ * ⚠️ `target_text` **chuỗi rỗng** nghĩa là *"chưa dịch"*, không phải một giá trị vắng mặt.
+ * Kiểu ở đây là `string`, không `string | null`, và đó là mệnh đề của bước di trú 6
+ * (`schema.rs::SEGMENT_TARGET_TEXT_DDL`) chứ không phải một lượt thu hẹp kiểu cho tiện.
+ */
+export type ChapterSegment = {
+  id: number
+  ord: number
+  source_text: string
+  /** Bản dịch. **Chuỗi rỗng = chưa dịch** ⇒ nhánh *không vạch* của năm giá trị vạch lề. */
+  target_text: string
+  /** Cờ kết đoạn, **đã lưu** lúc nhập. AD-37 cấm suy ra lúc render. */
+  is_paragraph_end: boolean
+  /** `null` cho mọi segment hôm nay — chưa đường nào cho segment về hưu (Story 2.8). */
+  retired_at: string | null
+}
+
+/** Trọn bộ segment của Chương đang mở, kèm `chapter_id` của chính nó. */
+export type ChapterSegments = {
+  chapter_id: number
+  segments: ChapterSegment[]
+}
+
+/** Ba trạng thái, cùng khuôn `SplitChapterResult`. */
+export type ReadChapterSegmentsResult = {
+  loaded: ChapterSegments | null
+  error: IpcError | null
+}
+
 /** Tên command trên dây. Khớp `src-tauri/src/commands/segment.rs` (module `wire`). */
 const CMD_SPLIT_CHAPTER = 'split_chapter_into_segments'
+/** Tên command trên dây — **không tham số nào**, xem doc-comment của hàm thuần phía Rust. */
+const CMD_READ_SEGMENTS = 'read_open_chapter_segments'
 
 /** Có cầu IPC của Tauri trong window này không — cùng khuôn `./chapter.ts::hasIpcBridge`. */
 function hasIpcBridge(): boolean {
@@ -101,5 +135,39 @@ export async function splitChapterIntoSegments(chapterId: number): Promise<Split
     // để hiện lên.
     console.info(`[segment] không gọi được \`${CMD_SPLIT_CHAPTER}\` — chạy ngoài Tauri? ${String(err)}`)
     return { outcome: null, error: null }
+  }
+}
+
+/**
+ * Nạp trọn bộ segment của Chương **đang mở** — Story 2.2, AC13.
+ *
+ * Không ném, cùng lý do `splitChapterIntoSegments` không ném.
+ *
+ * ⚠️ **Không tham số nào đi trên dây.** Lệnh tự phân giải Chương đang mở phía Rust; một
+ * `chapter_id` ở đây sẽ bắt webview gọi `read_open_chapter` trước chỉ để lấy một số nguyên,
+ * và lượt gọi đó kéo theo **nguyên khối** `source_text` của cả Chương. Biến thể nhận
+ * `chapter_id` thuộc **Story 2.11** (chuyển Chương trong Workspace).
+ *
+ * ⚠️ Danh sách **rỗng** là một kết quả HỢP LỆ, không phải một lỗi: 25 Chương của Epic 1 chưa
+ * ai bấm lệnh tách. Chỗ gọi phân biệt *"rỗng"* với *"lỗi"* bằng hai trường của kết quả này,
+ * không bằng độ dài mảng.
+ */
+export async function readOpenChapterSegments(): Promise<ReadChapterSegmentsResult> {
+  try {
+    const loaded = await invoke<ChapterSegments>(CMD_READ_SEGMENTS)
+    return { loaded, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { loaded: null, error: err }
+
+    // 🔴 Cùng ba nhánh và cùng lý do với `splitChapterIntoSegments` — xem chú thích ở đó.
+    if (hasIpcBridge()) {
+      console.error(
+        `[segment] \`${CMD_READ_SEGMENTS}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { loaded: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[segment] không gọi được \`${CMD_READ_SEGMENTS}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { loaded: null, error: null }
   }
 }

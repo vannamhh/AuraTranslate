@@ -213,7 +213,10 @@ const VUE_FLOOR = 13 // số THẬT 2026-08-11 (sau Story 1.21): 15 tệp `.vue`
 // của lệnh tách tường minh. Sàn 26 trên 32 là 81,3%; lên **27** để giữ dải ~84% của lượt
 // trước. `VUE_FLOOR`/`COMMAND_FLOOR`/`CLICK_FLOOR`/`DISPATCH_FLOOR` KHÔNG đổi — story này
 // thêm 0 tệp `.vue`, 0 command của `CommandRegistry`, 0 `@click`, 0 lời gọi `dispatch()`.
-const TS_FLOOR = 27 // số THẬT 2026-08-12 (sau Story 2.1): 32 tệp `.ts` — 27/32 = 84,4%
+// 🔴 NÂNG 2026-08-12 (Story 2.2 · AC16) — số thật lên **35** (thêm `editorSegments.ts`,
+// `editorGutter.ts`, `editorPanelState.ts`), nên sàn 27 tụt xuống 77,1%, dưới dải ~81–85%
+// mà chính doc-comment ở trên đặt ra. Đo chứ không ước.
+const TS_FLOOR = 28 // số THẬT 2026-08-12 (sau Story 2.2): 35 tệp `.ts` — 28/35 = 80,0%
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
  * hai `layout.preset_*` · bốn `layout.toggle_*` · hai `library.import_*` · ba
@@ -1908,6 +1911,224 @@ if (fBad === 0) {
       `(sàn ${SELECTION_SURFACE_FLOOR}) — ` +
       `${surfaceCalls.filter((c) => c.role === 'source').length} nguồn · ` +
       `${surfaceCalls.filter((c) => c.role === 'display').length} hiển thị`,
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm I — vạch lề segment: ĐÚNG NĂM giá trị, không một giá trị thứ sáu (Story 2.2, AC12)')
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// AC2 của Story 2.2 nói vạch lề là **cách DUY NHẤT** trạng thái segment được hiển thị;
+// `DESIGN.md:380` lặp lại; và `EXPERIENCE.md:99` giải thích cái giá đã trả cho mệnh đề đó:
+// *"vạch lề **đã dùng hết năm giá trị**"* — chính vì thế UX-DR22 buộc phát hiện Proofreader
+// phải đi đường **gạch chân lượn sóng** thay vì xin một màu vạch nữa.
+//
+// ⇒ Con số **năm** là một tài nguyên đã tiêu hết, không một chi tiết cài đặt. Một giá trị
+// thứ sáu thêm vào *"tạm để phân biệt"* sẽ không làm gì đỏ ở bất kỳ cổng nào khác, và nó
+// tiêu mất chỗ mà một epic sau đang trông vào. Cổng này là chỗ duy nhất nói không.
+//
+// Ba mệnh đề, và mệnh đề ③ là lý do cổng này không chỉ là một phép đếm:
+//   ① `SEGMENT_RULE_VALUES` có ĐÚNG năm phần tử, và đúng năm cái tên đó;
+//   ② phép phân giải THẬT trả đúng giá trị cho từng ca — cổng `import()` và **chạy** nó;
+//   ③ đối chiếu HAI CHIỀU với CSS của `EditorPanel.vue`: mỗi giá trị (trừ *không vạch*) có
+//      đúng một khối `.rule-<giá trị>` khai `background-color: var(--color-<giá trị>)`, và
+//      không khối `.rule-*` nào tồn tại ngoài danh sách. Không có chiều thứ hai thì một
+//      giá trị đổi tên trong TS mà quên CSS cho ra một vạch **vô hình** — trạng thái mất
+//      im lặng, đúng lớp lỗi tệ nhất trên một panel mà trạng thái là toàn bộ nội dung.
+
+const EDITOR_SEGMENTS_TS = join(SRC_ROOT, 'panels', 'editorSegments.ts')
+const EDITOR_PANEL_VUE = join(SRC_ROOT, 'panels', 'EditorPanel.vue')
+
+/** ⚠️ Bản chép ĐỘC LẬP của `DESIGN.md:380` — không `import` từ tệp đang bị kiểm. */
+const EXPECTED_RULE_VALUES = ['confirmed', 'primary', 'tm-rule', 'none', 'ornament']
+
+if (!existsSync(EDITOR_SEGMENTS_TS)) {
+  abort(`\`${posix(EDITOR_SEGMENTS_TS)}\``, new Error('Tệp không tồn tại — Kiểm I KHÔNG chạy được.'))
+}
+const segmentsMod = await loadTs(EDITOR_SEGMENTS_TS, 'Kiểm I')
+
+let iBad = 0
+const ruleValues = segmentsMod.SEGMENT_RULE_VALUES
+if (!Array.isArray(ruleValues)) {
+  abort(
+    `\`${posix(EDITOR_SEGMENTS_TS)}\``,
+    new Error('không export mảng `SEGMENT_RULE_VALUES` — Kiểm I KHÔNG chạy được.'),
+  )
+}
+
+// ① Đếm và đối chiếu tên.
+if ([...ruleValues].sort().join('|') !== [...EXPECTED_RULE_VALUES].sort().join('|')) {
+  fail(`bộ giá trị vạch lề lệch bản đặc tả — mã khai [${ruleValues.join(' · ')}]`)
+  detail(`DESIGN.md:380 · EXPERIENCE.md:105-113 khai [${EXPECTED_RULE_VALUES.join(' · ')}]`)
+  detail('Năm giá trị là tài nguyên ĐÃ TIÊU HẾT. Kênh thị giác kế tiếp là gạch chân lượn sóng')
+  detail('(UX-DR22), không phải một màu vạch nữa. Sửa `DESIGN.md` là một lượt riêng của Ice.')
+  iBad += 1
+}
+
+// ② Hành vi THẬT của phép phân giải — năm ca, mỗi ca một giá trị.
+if (typeof segmentsMod.resolveSegmentRule !== 'function') {
+  fail(`\`${posix(EDITOR_SEGMENTS_TS)}\` không export \`resolveSegmentRule\``)
+  iBad += 1
+} else {
+  const base = {
+    retiredAt: null,
+    hasCaret: false,
+    isConfirmed: false,
+    isTmFilled: false,
+    targetText: '',
+  }
+  const cases = [
+    ['ornament', { ...base, retiredAt: '2026-08-12T00:00:00.000Z', hasCaret: true, isConfirmed: true }],
+    ['primary', { ...base, hasCaret: true, isConfirmed: true, isTmFilled: true }],
+    ['confirmed', { ...base, isConfirmed: true, isTmFilled: true }],
+    ['tm-rule', { ...base, isTmFilled: true, targetText: 'ban dich' }],
+    ['none', { ...base }],
+  ]
+  for (const [want, input] of cases) {
+    const got = segmentsMod.resolveSegmentRule(input)
+    if (got !== want) {
+      fail(`\`resolveSegmentRule\` trả \`${got}\`, phải là \`${want}\` — thứ tự ưu tiên năm nhánh đã đổi`)
+      detail('Thứ tự là một quyết định, không phải thứ tự gõ ra — xem doc-comment của hàm đó.')
+      iBad += 1
+    }
+  }
+}
+
+// ③ Đối chiếu HAI CHIỀU với CSS của `EditorPanel.vue`.
+const editorVue = parsed.find((p) => p.file === EDITOR_PANEL_VUE)
+if (editorVue === undefined) {
+  fail(`\`${posix(EDITOR_PANEL_VUE)}\` không nằm trong quần thể quét — Kiểm I mất chiều thứ hai`)
+  iBad += 1
+} else {
+  /**
+   * 🔴 Đọc bản **ĐÃ CHE**, không nguyên văn — cùng lý do Kiểm J ngay dưới, và lý do đó là một
+   * phép đo chứ không một phòng hờ: bản đầu của Kiểm J quét `p.text` và **đỏ ngay trên chính
+   * tệp nó canh**, vì doc-comment gọi tên đủ thứ bị cấm để giải thích vì sao chúng bị cấm.
+   *
+   * Kiểm I ăn đúng rủi ro đó ở **chiều ngược**: một chú thích sau này viết ví dụ
+   * `.rule-<gì đó> { … }` sẽ nhập vào `declaredClasses` và làm cổng đỏ oan *(bắt ở code review
+   * 2026-08-12; hôm nay chưa chú thích nào chứa chuỗi đó nên cổng còn xanh)*.
+   *
+   * ⚠️ `maskStyle` chỉ xoá `/* *​/`, nên **mọi khai báo CSS sống nguyên** — bốn khối
+   * `.rule-*` và `background-color: var(--color-*)` vẫn đọc được từng chữ.
+   */
+  const editorCss = editorVue.masked
+  const declaredClasses = new Set()
+  const classRe = /\.rule-([a-z0-9-]+)\b/g
+  let m
+  while ((m = classRe.exec(editorCss))) declaredClasses.add(m[1])
+
+  for (const value of ruleValues) {
+    if (value === 'none') {
+      // *Không vạch* CỐ Ý không có khối CSS — nó không vẽ gì. Một `.rule-none` tồn tại
+      // nghĩa là ai đó đã vẽ một vạch cho trạng thái "chưa dịch".
+      if (declaredClasses.has('none')) {
+        fail(`\`${posix(EDITOR_PANEL_VUE)}\` khai \`.rule-none\` — *không vạch* phải KHÔNG vẽ gì`)
+        iBad += 1
+      }
+      continue
+    }
+    if (!declaredClasses.has(value)) {
+      fail(`\`${posix(EDITOR_PANEL_VUE)}\` thiếu khối \`.rule-${value}\` — vạch \`${value}\` sẽ VÔ HÌNH`)
+      iBad += 1
+      continue
+    }
+    // ⚠️ Khuôn thoát chép từ `globToRe` (`:101`) — bản trước ở đây HỎNG và phép thoát là một
+    //    lượt no-op: lớp ký tự `[.*+?^${}()|[\\]` **đóng sớm** ở `]` sau `\\`, nên regex thật
+    //    đòi thêm hai dấu `\` và một `]` ở sau; đo được, `'a.b*c'` đi qua nguyên vẹn. Chuỗi
+    //    thay thế cũng chèn HAI dấu `\` chứ không một. Vô hại hôm nay *(năm giá trị vạch không
+    //    chứa ký tự đặc biệt nào, và AC12 khoá con số năm lại)*, nhưng một hàm thoát không thoát
+    //    gì là thứ story sau tin nhầm. Bắt ở code review 2026-08-12.
+    const escaped = value.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    const wantDecl = new RegExp(
+      `\\.rule-${escaped}\\s*\\{[^}]*background-color:\\s*var\\(\\s*--color-${escaped}\\s*\\)`,
+    )
+    if (!wantDecl.test(editorCss)) {
+      fail(`\`.rule-${value}\` không khai \`background-color: var(--color-${value})\``)
+      detail('Màu vạch phải đến từ token và phải nằm trong CSS — `check-tokens.mjs` không đọc TypeScript.')
+      iBad += 1
+    }
+  }
+  for (const cls of declaredClasses) {
+    if (!ruleValues.includes(cls)) {
+      fail(`\`${posix(EDITOR_PANEL_VUE)}\` khai \`.rule-${cls}\` — không phải một trong năm giá trị`)
+      iBad += 1
+    }
+  }
+}
+
+if (iBad === 0) {
+  pass(
+    `vạch lề segment khai ĐÚNG ${ruleValues.length} giá trị [${ruleValues.join(' · ')}] — ` +
+      'phép phân giải chạy đúng cả năm ca, CSS khớp hai chiều',
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm J — bề mặt Editor CHƯA GÕ ĐƯỢC ở lượt này (Story 2.2, AC18)')
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 Đây là một mệnh đề nghiệm thu, không một lời khuyên về phạm vi. Ice chốt Quyết định #1
+// của Story 2.2 ngày 2026-08-12, đường **(b)**: `target_text` + bước di trú 6, bề mặt
+// **chỉ-đọc**; gõ hạ cánh ở **Story 2.3**, cùng lượt với hợp đồng flush của AD-35.
+//
+// Lý do cưỡng chế bằng máy chứ không bằng trí nhớ: một bề mặt gõ được mà chưa có đường lưu
+// tạo ra một cửa sổ mà người dùng gõ rồi **mất trắng khi đóng app**, không một dấu hiệu nào
+// — đúng lớp khuyết tật mà cả Epic 2 tồn tại để chống (NFR18). Và một `contenteditable`
+// thêm vào "cho tiện thử" không làm cổng nào khác đỏ.
+//
+// ⚠️ Cổng này **hết hạn ở Story 2.3**, và đó không phải một lời nhắc mềm: story đó phải gỡ
+// nó **cùng lượt** với hợp đồng flush, không sớm hơn.
+
+/**
+ * 🔴 Đọc bản **ĐÃ CHE** (`masked`), không nguyên văn — chú thích và chuỗi bị xoá trắng.
+ *
+ * Đo lúc dựng cổng 2026-08-12: bản đầu quét `p.text` và **đỏ ngay** trên chính tệp nó canh,
+ * vì doc-comment của `EditorPanel.vue` gọi tên đủ bốn thứ bị cấm để giải thích vì sao chúng
+ * bị cấm. Một cổng buộc người ta không được **viết ra** lệnh cấm là một cổng sắp bị gỡ.
+ *
+ * ⚠️ Cái giá, ghi ra: một `contenteditable` nằm trong một **chuỗi** JavaScript
+ * (`el.setAttribute('contenteditable', 'true')`) đi lọt. Ca đó cần một lượt phân tích cú
+ * pháp thật, và nó nằm ngoài thứ cổng này đang canh — thứ nó canh là một thuộc tính hay một
+ * thẻ được thêm vào template, tức đường mà một lượt "thử cho tiện" thật sự đi qua.
+ */
+const editorSource = editorVue?.masked ?? ''
+let jBad = 0
+
+/** Mỗi mục: [regex, tên thứ bị cấm]. */
+const TYPING_BANS = [
+  [/\bcontenteditable\b/i, '`contenteditable`'],
+  [/<\s*textarea\b/i, '`<textarea>`'],
+  [/<\s*input\b/i, '`<input>`'],
+  [/\bv-model\b/, '`v-model`'],
+  [/@(?:input|beforeinput|paste|cut)\b/, 'handler sửa văn bản (`@input`/`@beforeinput`/`@paste`/`@cut`)'],
+]
+
+if (editorVue === undefined) {
+  fail(`\`${posix(EDITOR_PANEL_VUE)}\` không đọc được — Kiểm J KHÔNG chạy được`)
+  jBad += 1
+} else {
+  for (const [re, what] of TYPING_BANS) {
+    if (re.test(editorSource)) {
+      fail(`\`${posix(EDITOR_PANEL_VUE)}\` mang ${what} — bề mặt Editor CHƯA được phép gõ (AC18)`)
+      detail('Ice chốt Quyết định #1 đường (b) ngày 2026-08-12: gõ là Story 2.3, cùng lượt với AD-35.')
+      detail('Một bề mặt gõ được mà chưa có đường lưu là một cửa sổ MẤT DỮ LIỆU IM LẶNG (NFR18).')
+      jBad += 1
+    }
+  }
+
+  // 🔴 SÀN NỘI DUNG — cùng lý lẽ `CLICK_FLOOR`: năm phép cấm trên một tệp rỗng (hoặc một
+  //    tệp đã bị đổi tên) đều xanh, và cổng thành một lượt xanh vô nghĩa.
+  if (!editorSource.includes('data-segment-id')) {
+    fail(`\`${posix(EDITOR_PANEL_VUE)}\` không còn dựng câu nào (\`data-segment-id\`) — Kiểm J xanh RỖNG`)
+    jBad += 1
+  }
+}
+
+if (jBad === 0) {
+  pass(
+    'bề mặt Editor không `contenteditable` · không `<textarea>`/`<input>` · không `v-model` · ' +
+      'không handler sửa văn bản (AC18)',
   )
 }
 

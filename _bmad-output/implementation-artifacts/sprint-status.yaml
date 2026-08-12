@@ -1,6 +1,7 @@
 # generated: 2026-08-03T13:04:45
 # last_updated: 2026-08-12T00:30:00
 # 2026-08-12: Epic 2 mo — story 2.1 chuyen sang ready-for-dev (create-story).
+# 2026-08-12: story 2.2 chuyen sang ready-for-dev (create-story).
 # project: AuraTranslate
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +43,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-12T18:30:00
+last_updated: 2026-08-13T00:00:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -95,7 +96,11 @@ development_status:
   # cong cam so 4 quay lai da chay do-roi-xanh. HAI mon con cho Ice: bam lenh tach tren 21
   # Chuong that (mot luot GHI vao du lieu that), va commit/push + workflow_dispatch.
   2-1-tach-segment-cap-cau-va-co-ket-doan: done
-  2-2-panel-editor-lien-mach: backlog
+  # 2.2 XONG 2026-08-12 (code review: 1 decision Ice ky, 7 patch da va, 1 defer, 1 bac bo bang
+  # phep do). Nghiem thu sau khi va: 9 cong xanh · build xanh · cargo test 310/0/5 · ba ca
+  # do-roi-xanh cua Kiem I/J tai lap. Ice KY `tabindex="0"` cho panel THU HAI.
+  # Mon con treo, da co chu: chup lai 3 anh ban do sau khi fixture them cau thu sau (Story 2.4).
+  2-2-panel-editor-lien-mach: done
   2-3-hop-dong-flush-va-trang-thai-da-luu: backlog
   2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi: backlog
   2-5-xac-nhan-segment-va-may-trang-thai: backlog

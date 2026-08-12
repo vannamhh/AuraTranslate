@@ -148,23 +148,24 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     let opened = create_work_from_text(&root, "Pham Vi", "zh", "tieu thuyet", "noi dung".to_owned())
         .expect("tao tac pham");
 
-    // ⚠️ Cap nhat Story 2.1: `PROJECT_MIGRATIONS` nhan buoc `SEGMENT_DDL`, danh so **5**
-    // (so 4 la mot so DA CHAY — vet seo cua chinh lượt doi pham vi nay). Bon buoc, dich la
-    // phien ban 5. Hai con so duoi day la PROXY; menh de that cua ca nay la phep dem
-    // `sqlite_master` ngay ben duoi — bang `pinned_entry` KHONG duoc co mat o `project.db`.
+    // ⚠️ Cap nhat Story 2.2: `PROJECT_MIGRATIONS` nhan them buoc `SEGMENT_TARGET_TEXT_DDL`,
+    // danh so **6** (so 4 la mot so DA CHAY — vet seo cua chinh lượt doi pham vi nay). Nam
+    // buoc, dich la phien ban 6. Hai con so duoi day la PROXY; menh de that cua ca nay la
+    // phep dem `sqlite_master` ngay ben duoi — bang `pinned_entry` KHONG duoc co mat o
+    // `project.db`.
     assert!(
         PROJECT_MIGRATIONS.iter().all(|m| m.sql != PINNED_ENTRY_DDL),
         "`PINNED_ENTRY_DDL` quay lai `PROJECT_MIGRATIONS` — Ice ky 2026-08-11 chuyen no sang `global.db`"
     );
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        4,
-        "`PROJECT_MIGRATIONS` phai co bon buoc — 1/2/3 cua Story 1.15 va 5 cua Story 2.1"
+        5,
+        "`PROJECT_MIGRATIONS` phai co nam buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, 6 cua Story 2.2"
     );
     assert_eq!(
         opened.store.schema_version(),
-        5,
-        "mot `project.db` moi phai dung o phien ban 5 (so 4 da chay)"
+        6,
+        "mot `project.db` moi phai dung o phien ban 6 (so 4 da chay)"
     );
 
     let has_table: i64 = opened

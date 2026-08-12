@@ -83,8 +83,13 @@ const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
  * Đặt nó bằng số thật là tự tạo một cổng đỏ ở story sau, và một cổng đỏ vì một lý do
  * không có thật là một cổng sắp bị gỡ.
  */
-const FILE_FLOOR = 37 // số THẬT 2026-08-10 (sau Story 1.19): 45 tệp
-const COMPONENT_FILE_FLOOR = 35 // số THẬT 2026-08-10 (sau Story 1.19): 42 tệp component
+// 🔴 NÂNG LẠI 2026-08-12 — Story 2.2 · AC16, và lượt này là một lượt **bắt kịp**, không chỉ
+// một lượt cộng thêm. Đo ngày 2026-08-12: **53** tệp trong tầm quét, **50** là component.
+// Sàn cũ (37/35, đặt theo số của Story 1.19) đã tụt xuống **69,8% / 70,0%** — dưới hẳn dải
+// ~81% mà doc-comment ngay trên đặt ra, tức đúng trạng thái *"canh không được gì"* mà chính
+// nó cảnh báo. Ba story (1.20 · 1.21 · 2.1) thêm tệp mà không ai nâng sàn.
+const FILE_FLOOR = 43 // số THẬT 2026-08-12 (sau Story 2.2): 53 tệp — 43/53 = 81,1%
+const COMPONENT_FILE_FLOOR = 40 // số THẬT 2026-08-12: 50 tệp component — 40/50 = 80,0%
 
 let failures = 0
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
@@ -1240,20 +1245,71 @@ for (const value of EXPECTED_BANNED_VALUES) {
 
 // C4 — `ornament` và `tm-rule` không bao giờ là màu chữ.
 const TEXT_COLOR_PROPS = new Set(['color', '-webkit-text-fill-color'])
+
+/**
+ * Miễn trừ CÓ TÊN **kèm tham số là tên token** — Story 2.2 · Quyết định #5 · AC10.
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * VÌ SAO THAM SỐ, TRONG KHI `aura-allow-opacity`/`aura-allow-z-index` KHÔNG CÓ
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * Hai miễn trừ kia canh **một** thuộc tính, nên khai báo mà chúng che là đúng khai báo mà
+ * người viết đang nhìn. Miễn trừ này canh **một tập token dùng chung**
+ * (`EXPECTED_NEVER_TEXT` = `ornament` · `tm-rule`), và một dấu miễn trừ không tham số sẽ
+ * cấp cho **cả hai** cùng lúc. `tokens.json:99` đặc tả ngoại lệ cho **đúng một** ký tự —
+ * ranh giới câu `⏐` màu `ornament` — và `:100` nói thẳng rằng `tm-rule` **không** có vai
+ * chữ ở bất kỳ theme nào. Một miễn trừ cấp nhầm là hai mệnh đề tương phản mất cùng lúc, im
+ * lặng.
+ *
+ * ⚠️ Hai đường tắt bị CẤM đích danh, và cả hai đều "làm cổng xanh":
+ *   ① gỡ `ornament` khỏi `EXPECTED_NEVER_TEXT` ⇒ mất luôn vế `tm-rule` dùng chung tập đó;
+ *   ② khai một biến CSS cục bộ chép giá trị hex ⇒ đúng thứ AD-34 tồn tại để chặn.
+ *
+ * Khuôn: `/* aura-allow-never-text: <tên token> — <lý do> *​/` **ngay trên** khai báo (cùng
+ * luật khoảng cách một dòng của [`exemptAt`], nên một dấu đặt ở một `color:` KHÁC không cấp
+ * cho khai báo này).
+ */
+const neverTextExemptAt = (p, index, token) => {
+  const line = lineOf(p.text, index)
+  // `\\b` sau tên token: một miễn trừ cho `tm-rule` KHÔNG được khớp khi token là `tm`.
+  // `\\S` cuối: tên token một mình chưa đủ — phải có LÝ DO viết ra sau nó.
+  const re = new RegExp(`aura-allow-never-text\\s*:\\s*${escapeRe(token)}\\b\\s*\\S`)
+  return p.comments.some((c) => re.test(c.text) && Math.abs(lineOf(p.text, c.index) - line) <= 1)
+}
+
 for (const token of EXPECTED_NEVER_TEXT) {
+  // ⚠️ Đếm theo TỪNG token, không một biến chung: một bộ đếm dùng chung sẽ báo số miễn trừ
+  // của `ornament` trong dòng kết luận của `tm-rule` — một con số đúng ở chỗ sai.
+  let cExempt = 0
   const why = String(cfg.neverTextTokens?.[token] ?? '').trim()
   if (!why) {
     fail(`token \`${token}\` không có lý do trong \`contrast.neverTextTokens\``)
     cBad += 1
   }
-  const hits = allDecls.filter(
+  const candidates = allDecls.filter(
     (d) => TEXT_COLOR_PROPS.has(d.prop) && new RegExp(`--color-${escapeRe(token)}\\b`).test(d.value),
   )
+  const hits = []
+  for (const d of candidates) {
+    const p = parsed.find((x) => x.file === d.file)
+    if (p && neverTextExemptAt(p, d.index, token)) {
+      pass(`${where(d)} — \`${token}\` làm màu chữ, có miễn trừ có tên cho ĐÚNG token này`)
+      cExempt += 1
+      continue
+    }
+    hits.push(d)
+  }
   if (hits.length) {
     hits.forEach((d) => fail(`${where(d)} — \`${token}\` dùng làm màu chữ: \`${d.prop}: ${d.value}\``))
     if (why) detail(why)
+    detail(
+      `Nếu đây là ngoại lệ ĐÃ ĐẶC TẢ: thêm \`/* aura-allow-never-text: ${token} — <lý do> */\` ngay trên khai báo.`,
+    )
     cBad += hits.length
-  } else pass(`\`${token}\` không xuất hiện sau \`color:\` ở bất kỳ đâu`)
+  } else if (cExempt) {
+    pass(`\`${token}\` sau \`color:\` chỉ ở ${cExempt} chỗ, và mỗi chỗ có miễn trừ có tên`)
+  } else {
+    pass(`\`${token}\` không xuất hiện sau \`color:\` ở bất kỳ đâu`)
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

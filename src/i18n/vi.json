@@ -89,6 +89,8 @@
   "panel.lookup.sources_disagree": "Có nhiều hơn một nguồn cho mục này — đối chiếu từng khối để tự chọn.",
   "panel.ai_translation.status": "Chưa có nhà cung cấp AI nào được cấu hình. Thêm một khoá trong Cài đặt để bật đề xuất tự động.",
   "panel.editor.status": "Chưa có Chương nào để dịch.",
+  "panel.editor.no_segments": "Chương này chưa được tách thành câu — chưa có gì để dịch theo câu.",
+  "panel.editor.nothing_translated": "Chương này đã tách thành câu, chưa câu nào có bản dịch.",
   "panel.lookup.lookup_failed": "Không tra cứu được — thử lại, hoặc kiểm tra lại các lớp từ điển đang gắn.",
   "panel.lookup.query_truncated": "Vùng chọn quá dài — chỉ phần đầu được đem đi tra.",
   "panel.lookup.unit_sources": "nguồn",

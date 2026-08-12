@@ -22,6 +22,7 @@ import type { UnlistenFn } from '@tauri-apps/api/event'
 import { createWorkFromFile, createWorkFromText } from '../config/project'
 import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
 import { resetLookupPanel } from '../panels/lookupPanelState'
+import { ensureSegmentsLoaded, resetEditorPanel } from '../panels/editorPanelState'
 import type { CreatedWork } from '../config/project'
 import type { IpcError } from '../i18n'
 
@@ -110,6 +111,10 @@ function finishSubmit(created: CreatedWork | null, error: IpcError | null): void
   if (created !== null) {
     resetSourcePanel()
     resetLookupPanel()
+    // 🔴 Story 2.2 — Panel Editor mang **cùng** lớp cache module-level, nên nó phải đi cùng
+    // lượt vứt này. Bỏ nó ra là để Editor hiện segment của Tác phẩm A dưới nhãn Tác phẩm B,
+    // đúng đường hỏng mà `resetSourcePanel` đã ghi lại từ code review 2026-08-06.
+    resetEditorPanel()
 
     // 🔴 **VỨT state cũ là CHƯA ĐỦ — phải NẠP LẠI ngay tại đây.**
     //
@@ -132,6 +137,10 @@ function finishSubmit(created: CreatedWork | null, error: IpcError | null): void
     // đi qua, và *"Tác phẩm đang mở vừa đổi"* là một dữ kiện mà chính chỗ này biết CHẮC.
     // Cùng lý do reset đứng ở đây thay vì rải ra từng panel.
     void ensureChapterLoaded()
+    // Cùng nguyên văn lập luận trên, áp cho Panel Editor (Story 2.2): `EditorPanel.vue`
+    // cũng chỉ gọi `ensureSegmentsLoaded()` ở `onMounted`, và `<KeepAlive>` làm lượt hiện
+    // thứ hai trở đi không có `mounted`.
+    void ensureSegmentsLoaded()
   }
 }
 

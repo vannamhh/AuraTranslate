@@ -92,7 +92,9 @@ function walk(dir, out = [], seen = new Set()) {
  * dưới số thật một khoảng nhỏ để một lượt xoá tệp có chủ ý không làm cổng `abort()`,
  * nhưng một lượt quét hỏng thì có.
  */
-const FILE_FLOOR = 35 // số THẬT 2026-08-10 (sau Story 1.19): 42 tệp `src/**`
+// 🔴 NÂNG 2026-08-12 — Story 2.2 · AC16. Số thật là **50** tệp `src/**`, nên sàn 35 đã tụt
+// xuống **70,0%**; ba story (1.20 · 1.21 · 2.1) thêm tệp mà không ai nâng sàn. Đo chứ không ước.
+const FILE_FLOOR = 40 // số THẬT 2026-08-12 (sau Story 2.2): 50 tệp `src/**` — 40/50 = 80,0%
 
 let files = []
 try {

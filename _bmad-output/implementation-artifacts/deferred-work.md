@@ -131,6 +131,7 @@
   → 🟡 **SOÁT MỘT PHẦN 2026-08-06 (Story 1.14, AC11 ⚠️(c)).** Ba bề mặt chữ mới của story **đều tự khai token**, không cái nào kế thừa `ui-md` của `body`: `PanelTab.vue .tab` khai `--face/--font/--leading/--weight-ui-md` *(và `ui-md-strong` khi có tiêu điểm)*; `PanelFrame.vue .status` khai `--face/--font/--leading-ui-md`. Cả ba là nhãn giao diện, nên `ui-md` đúng vai.
   ⚠️ **Vế đầy đủ VẪN MỞ:** bề mặt ĐỌC *(nguyên văn tiếng Trung, âm Hán Việt, bản ghi từ điển, Editor)* chưa tồn tại — thân panel còn trống. Chúng phải khai `read-*` / `source-*` / `lookup-*` của chính chúng: **Story 1.16 / 1.17 / Epic 2**. Doc-comment đầu `PanelFrame.vue` ghi đúng cảnh báo đó tại chỗ.
   → ✅ **ĐÓNG NỬA LOOKUP 2026-08-06 (Story 1.17, AC9).** Bản ghi từ điển (`LookupPanel.vue`/`LookupRecord.vue`) tự khai `lookup-headword`/`lookup-gloss`/`lookup-example`/`ui-label` — đối chiếu từng bề mặt chữ với token nó khai, không một class nào kế thừa `ui-md` của `body`. Nửa **Editor** (Epic 2) vẫn mở.
+  → ✅ **ĐÓNG NỬA EDITOR 2026-08-12 (Story 2.2 · AC6 · Task 3.2).** Bề mặt đọc của Panel Editor (`.doc.tok-editor` trong `EditorPanel.vue`) tự khai token `editor` của chính nó — `var(--face-editor)` · `var(--font-editor)` · `var(--leading-editor)` · `var(--color-on-surface)` — họ `read`, 15px, giãn dòng **1.95**, tức trên hẳn sàn cứng 1.66 mà mặc định `ui-md` của `body` (1.5) vi phạm. Ba bề mặt chữ khác của story cũng tự khai: `.load-error` và `.untranslated-note` đều dùng `ui-md-wrap` (1.66), cùng token và cùng lý do với `SourcePanel.vue::.load-error`. ⚠️ Mục gốc ở trên vẫn đúng ở vế **cơ chế**: Kiểm E vẫn chỉ đọc `tokens.json` và vẫn mù với việc component nào kế thừa gì — lưới duy nhất vẫn là một lượt rà soát khi một bề mặt chữ mới ra đời. Bề mặt đọc còn lại chưa dựng: **Panel AI Translation (Epic 4)**.
 
 - **`--synthesis-*` và `--tracking-*` chưa có người tiêu thụ** — `applyTheme` phát đủ bảy biến cho cả 14 token, nhưng hôm nay chỉ `App.vue` dùng ba biến của `ui-mono`. Lời giải chữ Hán nghiêng giả (`fontSynthesis: 'none'` ở `source-hanviet` và `lookup-example`) đã được **dựng thật và chụp lại** trên trang thăm dò, nhưng nó chỉ có hiệu lực trong sản phẩm khi Story 1.16/1.17 áp `font-synthesis: var(--synthesis-<token>)` ở chính chỗ dựng hai token đó. **Bỏ sót dòng đó là cách lời giải này chết im lặng.**
   → ✅ **ĐÓNG 2026-08-06 (Story 1.17, AC9).** `lookup-example` (Panel Lookup: từ loại, ví dụ, trích dẫn, ghi chú) là **người tiêu thụ thứ hai** của `font-synthesis`, sau `source-hanviet` (Story 1.16). `LookupRecord.vue` khai `font-synthesis: var(--synthesis-lookup-example)` ở mọi lớp dùng token đó.
@@ -178,6 +179,7 @@
 Ba mục dưới đây là phát hiện **có thật** của lượt review ba lớp, được xếp hoãn vì đường dẫn tới chúng chưa tồn tại trong sản phẩm hôm nay. Không mục nào đã đóng.
 
 - ⚠️ **`isTypingZone` mù với shadow DOM, và chặn nhầm input phi văn bản** — `src/commands/keys.ts:207-212`. Hai chiều hỏng ngược nhau: (1) `event.target` trên một listener gắn ở `window` bị **retarget về shadow host**, nên một custom element bọc `<input>` đọc ra `tagName: 'MY-EDITOR'` và `isContentEditable: false` ⇒ hàm trả `false` ⇒ hợp âm trần dispatch **trong khi người dùng đang gõ**; `composedPath()[0]` không bao giờ được hỏi. (2) `type="checkbox"` · `radio` · `button` · `range` và input `disabled`/`readonly` đều báo `tagName === 'INPUT'` ⇒ focus vào một checkbox làm **mọi hợp âm trần chết im lặng**, `handle()` trả `false` không một dòng chẩn đoán. Hoãn vì hôm nay sản phẩm chưa có shadow DOM lẫn input phi văn bản nào. **Nhặt lại ở Epic 2** *(Editor là vùng gõ tự do đầu tiên)* hoặc bất kỳ story nào dựng điều khiển form thật.
+  → 🔁 **CHUYỂN CHỦ 2026-08-12 (Story 2.2 · Task 10.1) — từ *"Epic 2"* sang **Story 2.3** đích danh.** Món này **đi qua** Story 2.2 mà **KHÔNG đóng**, và nay lý do là dứt khoát chứ không phải một lượt hoãn nữa: Ice chốt Quyết định #1 đường (b) ngày 2026-08-12, nên bề mặt Editor của 2.2 là **chỉ-đọc** — không `contenteditable`, không `<textarea>`/`<input>`, và một cổng tĩnh (`check-commands.mjs` Kiểm J) cưỡng chế điều đó. Vùng gõ tự do đầu tiên của dự án vì thế sinh ra ở **Story 2.3**, cùng lượt với hợp đồng flush AD-35 — đó mới là lượt đầu tiên `isTypingZone` có một vùng gõ thật để trả lời đúng hay sai về nó. **Chủ: Story 2.3.**
 
 - ⚠️ **Chốt chống rơi `body` bắn-và-quên: `rAF` không chạy khi cửa sổ ẩn, và blur cho cáo buộc sai** — `src/commands/focus.ts:103-113`. Đây là **chuông báo tự động duy nhất** cho AC4, và nó có hai lỗ không canh gác: (1) `requestAnimationFrame` không chạy khi cửa sổ bị ẩn/thu nhỏ, nên chốt bị **bỏ qua đúng trên đường khởi động nền** — chỗ nó cần kêu nhất; (2) nếu người dùng bấm ra ngoài hoặc cửa sổ mất focus trong khoảng giữa `enter()` và callback, `document.activeElement` đọc ra `body` và chốt in một **cáo buộc sai** nêu đích danh một owner đã focus hoàn toàn đúng. Không có đường huỷ. Hoãn vì đây là chuông báo chứ không phải cơ chế — cả hai lỗ làm chuông kém tin, không làm focus hỏng. **Nhặt lại cùng lượt** dựng nghiệm thu DOM tự động *(cùng mục với "Nghiệm thu DOM chạy trên Blink" ở trên)*.
 
@@ -2022,3 +2024,138 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   nhất có thật, rồi mới quyết vá hay đóng.
   **Chủ: Story 2.2** *(story đầu tiên tải segment lên giao diện, tức chỗ đầu tiên chi phí này
   chạm một thao tác người dùng nhìn thấy)*.
+  → ✅ **ĐÓNG 2026-08-12 (Story 2.2 · AC17 · Task 8).** Đã đo, rồi mới vá. `cargo test --release`
+  trên macOS, **9.850 hàng** — quy mô thật của Chương lớn nhất, ba lượt: `tx.execute` literal mỗi
+  hàng cho **105,51 / 106,90 / 112,47 ms**; `prepare_cached` một lần cho **44,76 / 49,75 / 48,28 ms**.
+  Chênh **57–64 ms** (53,5–57,6 %). Vá vì con số chứ không vì linh cảm: khoản tiết kiệm nằm **trên**
+  trần một frame của NFR2 (50 ms) chỉ bằng một mình nó, và nó nằm trong closure của `Store::write`,
+  tức trên writer duy nhất nối tiếp của AD-11. Dùng `prepare_cached` (không `prepare`) để Chương
+  **thứ hai** trở đi không phải parse lại lần nào — bộ nhớ đệm sống trên kết nối ghi dài hạn.
+  Bảng số đầy đủ ở doc-comment của `insert_segments`.
+
+## Deferred from: 2-2-panel-editor-lien-mach (2026-08-12)
+
+- 🔴 **Ba trong năm giá trị vạch lề KHÔNG có nguồn dữ liệu, và mỗi giá trị có chủ riêng.**
+  `src/panels/editorSegments.ts::resolveSegmentRule` cài **cả năm** nhánh ở một hàm duy nhất
+  (Quyết định #4(b) — bảng ánh xạ *trạng thái → vạch* là một **hợp đồng**, và một hợp đồng cài
+  nửa vời là chỗ để story sau chép sai). Ba nhánh đọc từ hai trường mà hôm nay **không đường nào
+  bật lên được**: `isConfirmed` ← cột `segment.status` chưa tồn tại (**Chủ: Story 2.5**);
+  `isTmFilled` ← chưa tầng TM nào, FR58 (**Chủ: Epic 7**); `retiredAt` ← cột **đã có** từ Story
+  2.1 nhưng chưa đường nào cho segment về hưu (**Chủ: Story 2.8**). Mỗi story chủ chỉ phải nối
+  nguồn — **không** phải sửa tầng hiển thị. Ba nhánh nghiệm thu được ở bàn đo
+  (`2-2-ban-do-editor.html`) và ở `segment_contract.rs::a_chapter_with_real_translations_round_trips_through_the_load_command`.
+
+- 🔴 **HAI CÂU CÙNG MỘT DÒNG CHO HAI VẠCH LỀ CHỒNG LÊN NHAU — phát hiện của bàn đo, chưa vá.**
+  Vạch được đặt `position: absolute; left: 8px` trong máng, chiều cao đo từ `getClientRects()`
+  của chính câu. Văn bản chảy **inline** (AC1 cấm chia khối), nên hai câu ngắn nằm cùng một dòng
+  cho hai vạch **cùng `top`, cùng `left`** — vạch vẽ sau che vạch vẽ trước. Đo được ở bàn đo,
+  cả Blink lẫn WebKit: fixture 5 câu vẽ **4** vạch nhưng chỉ nhìn thấy **2** vị trí (câu 1
+  `confirmed` bị câu 2 `primary` che; câu 3 `tm-rule` bị câu 5 `ornament` che).
+  ⚠️ **Hôm nay KHÔNG chạm tới được trong sản phẩm**: chỉ `primary` có nguồn dữ liệu, và caret chỉ
+  có **một**, nên nhiều nhất một vạch tồn tại cùng lúc. Nó thành thật ngay lượt Story 2.5 nối
+  `segment.status`. `DESIGN.md:380` và `EXPERIENCE.md:105-113` **không** phân xử ca này — máng
+  rộng 22px, vạch thụt 8px, còn 12px trống, nên xếp cạnh nhau là **khả thi** nhưng là một quyết
+  định thiết kế, không phải một bản vá kỹ thuật.
+  **Chủ: Story 2.5** *(story đầu tiên làm hai vạch cùng tồn tại)* — **và một lượt ký của Ice** cho
+  hình dạng lời giải.
+
+- ⚠️ **Bảng năm giá trị vạch có một HÀNG CÒN THIẾU: "đã dịch bằng tay, chưa xác nhận, con trỏ ở
+  chỗ khác".** `confirmed` sai *(chưa ai ký)*, `tm-rule` sai *(không phải máy điền)*, *không vạch*
+  sai *(nó đã có bản dịch)*. `EXPERIENCE.md:105-113` đơn giản không có hàng đó. Hôm nay khe hở
+  **không chạm tới được** — `target_text` chỉ nhận giá trị qua đường gõ, mà đường gõ là Story 2.3.
+  Nhánh hiện rơi về *không vạch* và ghi lại điều đó tại chỗ (doc-comment `resolveSegmentRule`).
+  **Chủ: Story 2.5** *(nó mang `segment.status`, tức chỗ duy nhất phân xử được)* — và một lượt ký
+  của Ice nếu lời giải là sửa `EXPERIENCE.md`.
+
+- 🔴 **NFR2: dựng 9.850 `<span>` câu vượt trần 50 ms/frame — 6× trên Blink, 26× trên WebKit.**
+  Đo ở bàn đo, 2026-08-12, Chương lớn nhất có thật (9.850 câu):
+
+  | | dựng DOM + bố cục | đo + vẽ **1** vạch (ca THẬT hôm nay) | đo + vẽ **9.850** vạch (ca trần) |
+  |---|---|---|---|
+  | Blink (HeadlessChrome 151) | **300,1 ms** | 8,5 ms | 63,1 ms |
+  | WebKit (605.1.15 / Safari 26) | **1.308,0 ms** | 5,0 ms | 64,0 ms |
+
+  ⇒ **Cơ chế đo của Quyết định #2 KHÔNG phải chỗ đắt** — nó tốn 5–9 ms ở ca thật và 63–64 ms ở ca
+  trần. Chỗ đắt là **dựng 9.850 phần tử DOM**, tức đúng hàng Deferred *"ảo hoá danh sách dài"*
+  (`ARCHITECTURE-SPINE.md:888`, Giai đoạn 3). AC14 nói thẳng: *"Nếu vượt, đó là số của Story 2.4,
+  ghi lại và báo, đừng tối ưu mù"* — nên story này **không** dựng ảo hoá.
+  ⚠️ Lượt dựng là **một lần mỗi Chương**, không phải đường nóng NFR1 — cùng hạng với trần render
+  của kiểu song song ở Story 1.16, nơi Ice đã chốt 1,4 s là *"còn chấp nhận được"* cho một thao
+  tác chạy một lần. 1,3 s ở đây nằm ngay dưới mốc đó, nhưng nó là số của **hôm nay**, khi mọi
+  `target_text` còn RỖNG; chữ thật sẽ làm nó tăng.
+  **Chủ: Story 2.4** *(story mang AC ghi lại lựa chọn thư viện editor — `epics.md:2142-2145`)*.
+
+- ⚠️ **Bàn đo của story này là một tệp DÙNG MỘT LẦN, và nó CHÉP chứ không mount.**
+  `_bmad-output/implementation-artifacts/2-2-ban-do-editor.html` chép CSS và cấu trúc DOM của
+  `src/panels/EditorPanel.vue` cộng bản chép JS của `editorSegments.ts`/`editorGutter.ts` —
+  component thật cần cầu IPC của Tauri. ⇒ một lượt sửa template/CSS sau này có thể làm bàn đo và
+  sản phẩm **lệch nhau mà không cổng nào đỏ**. Cộng hai giới hạn nữa: **ba font nhúng của UX-DR4
+  vắng mặt** *(bàn đo rơi về `serif` hệ thống, nên số chiều cao vạch là số của **cơ chế**, không
+  phải của **sản phẩm**)*, và **`⏐` là pseudo-element nên nó không hiện trong một bàn đo chép DOM**.
+  Cùng lớp nợ `deferred-work.md:826`. **Chủ: treo cho tới khi có quyết định về một bộ chạy test
+  frontend (NFR15).**
+
+- 🔴 **WKWebView THẬT (trong cửa sổ Tauri) vẫn CHƯA ĐO — bàn đo chạy WebKit của Playwright.**
+  Đây là lượt đầu tiên của dự án có bằng chứng **WebKit** cho một bề mặt DOM *(mọi story trước đo
+  trên Blink — `deferred-work.md:145`)*, và nó trả lời được câu hỏi nóng nhất: hình học
+  `getClientRects()` với chữ dày dấu tiếng Việt **khớp giữa hai engine** *(46,25 px Blink vs
+  46,00 px WebKit; 64,50 vs 64,00 — lệch dưới một pixel)*, và `innerText` **không** rò ký tự `⏐`
+  trên **cả hai** *(tức Quyết định #3 — pseudo-element thay vì `<span>` thật — đã đóng vết sẹo
+  `WORD_JOINER` của Story 1.18b trên đúng engine đã sinh ra nó)*.
+  ⚠️ Nhưng WebKit-của-Playwright **không phải** WKWebView-của-Tauri: khác phiên bản, khác lượt
+  nhúng font, khác tầng phân phối sự kiện của OS. Đừng viết *"tương đương"*.
+  **Nhặt lại:** một lượt `npm run tauri dev`, hoặc một spec e2e WebdriverIO khi bộ đó hết chập chờn.
+  **Chủ: nợ chung "hai nền tảng" của 1.6/1.14/1.16/1.17/1.18/1.18b — nay thêm 2.2.**
+
+- ⚠️ **`data-caret` đọc từ NEO VÙNG CHỌN DOM, không từ một caret thật — một luật ngoài bảy AC.**
+  AC5 đòi *"tiêu điểm bàn phím chạm tới một câu"*, nhưng một bề mặt không `contenteditable`
+  **không có caret** (AC18 cấm gõ ở lượt này). Lời giải: `Selection.anchorNode`, cộng
+  `tabindex="0"` trên `.doc` — **đúng cơ chế** mà Story 1.18 đã dựng cho Panel Source để đóng
+  `deferred-work.md:608`, và một cú bấm chuột cũng đặt một vùng chọn thu gọn.
+  🔴 Cái giá phải nói ra: `tabindex="0"` **bên trong** một `PanelFrame` mang `tabindex="-1"` làm
+  phím `Tab` nay dừng ở thân Panel Editor — đúng hệ quả mà Story 1.18 đã ghi và Ice đã ký cho
+  Panel Source ngày 2026-08-07. Story này áp cùng đánh đổi cho panel thứ hai **mà chưa có một
+  lượt ký riêng**.
+  → ✅ **ICE ĐÃ KÝ 2026-08-12** *(lượt code review của Story 2.2)*. Tiền lệ Panel Source mở rộng
+  sang panel **thứ hai**: `tabindex="0"` trên `.doc` giữ nguyên, và cái giá — `Tab` dừng ở thân
+  Panel Editor — được chấp nhận có chủ ý. Lý lẽ đã cân trước khi ký: gỡ nó thì vế **bàn phím** của
+  AC5 mất nguồn dữ liệu *(`Shift+Mũi tên` không tới, `data-caret` không bao giờ bật)* và hợp đồng
+  vùng chọn đăng ký từ Story 1.18 nằm chết trên bề mặt này — tức AC5 sẽ **không giao đủ**.
+  ⚠️ Chữ ký này phủ **cơ chế hôm nay**, không phủ Story 2.3: khi caret thật xuất hiện cùng
+  `contenteditable`, **Story 2.3** vẫn phải xét lại toàn bộ đường `Selection.anchorNode` này.
+
+- ⚠️ **Một luật hiển thị ngoài bảy AC: dòng *"Chương này đã tách thành câu, chưa câu nào có bản
+  dịch"*.** Bảy AC không nói gì về ca *"đã tách, chưa câu nào có bản dịch"* — trước Quyết định #1
+  nó không tồn tại; sau phán quyết đường (b) nó là trạng thái **thường trực** của mọi Tác phẩm cho
+  tới Story 2.3. UX-DR27 nói cái giá của việc im: *"một khung trống câm là thứ người dùng đọc thành
+  hỏng"*, và `SourcePanel.vue::panel.source.empty_chapter` đã đặt tiền lệ đúng ca này. Dòng hiện
+  **phía trên** trang văn, không thay nó. **Chủ: Ice** — chỗ lật là một `v-if` trong
+  `EditorPanel.vue`, và khoá `panel.editor.nothing_translated` trong `vi.json`.
+
+- ⚠️ **Cổng Kiểm J của `check-commands.mjs` HẾT HẠN ở Story 2.3, và nó phải được gỡ ĐÚNG LÚC.**
+  Cổng khẳng định `EditorPanel.vue` không mang `contenteditable`/`<textarea>`/`<input>`/`v-model`/
+  handler sửa văn bản (AC18 — hệ quả phán quyết Quyết định #1). Story 2.3 dựng vùng gõ, nên nó
+  phải gỡ cổng **cùng lượt** với hợp đồng flush AD-35 — **không sớm hơn**. Gỡ sớm là mở lại đúng
+  cửa sổ mất dữ liệu im lặng mà cổng tồn tại để đóng. **Chủ: Story 2.3.**
+  ⚠️ Giới hạn đã ghi tại chỗ: cổng đọc bản **đã che** (bỏ chú thích và chuỗi), nên một
+  `el.setAttribute('contenteditable', 'true')` trong một chuỗi JavaScript đi lọt.
+
+- ⚠️ **Nhãn `Covers:` của Story 2.2 trong `epics.md:2036` TRỎ SAI NGUỒN.** Nó ghi
+  `**Covers:** UX-DR13 · AD-1`, nhưng UX-DR13 (`epics.md:523`) là *"Workspace là lưới 2×2 mặc
+  định"* — một quyết định **bố cục lưới** mà Story 1.14 đã dựng xong, và không một chữ nào của nó
+  nói về nội thất Panel Editor. Đặc tả thật của bảy AC là **UX-DR19** (AC1·AC2·AC3) · **UX-DR20**
+  (AC4·AC5) · **UX-DR2 + UX-DR12** (AC6) · **UX-DR7 + AD-34 §2** (AC7). Dev **không** sửa
+  `epics.md` — tiền lệ quyết định #3 của Ice ở Story 1.3, giữ qua toàn Epic 1. **Chủ: Ice.**
+
+## Deferred from: code review of 2-2-panel-editor-lien-mach (2026-08-12)
+
+- ⚠️ **`:data-caret` buộc Vue dựng lại TOÀN BỘ trang văn mỗi lượt `selectionchange`**
+  (`src/panels/EditorPanel.vue:286`). `editorCaretSegmentId` là một ref phản ứng được đọc trong
+  hàm render, nên mỗi lượt đổi caret — và `selectionchange` bắn **liên tục** trong lúc kéo chọn —
+  chạy lại `v-for` trên tới **9.850** `<span>`. ⚠️ Đổi sang tra `Map` như `ruleClassById`
+  **KHÔNG** vá được: chi phí nằm ở lượt duyệt danh sách của Vue, không ở phép so sánh. Lời giải
+  thật là **ảo hoá danh sách dài** — hàng Deferred Giai đoạn 3 (`ARCHITECTURE-SPINE.md:888`).
+  Story 2.2 **đã đo và đã báo** đúng trần này (dựng DOM + bố cục: **300,1 ms** Blink ·
+  **1.308,0 ms** WebKit cho 9.850 câu, so với trần 50 ms/frame của NFR2) và giao số cho
+  **Story 2.4**. Ghi ở đây để lượt tối ưu của 2.4 biết rằng caret là **nguồn kích hoạt thứ hai**
+  của cùng chi phí đó, không chỉ lượt dựng đầu tiên. **Chủ: Story 2.4.**

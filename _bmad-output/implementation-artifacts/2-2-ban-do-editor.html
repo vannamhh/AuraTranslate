@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Bàn đo — Panel Editor liền mạch (Story 2.2)</title>
+<!--
+  ═════════════════════════════════════════════════════════════════════════════════
+  BÀN ĐO CHẠY TAY — Story 2.2, Task 7. MỘT TỆP DÙNG MỘT LẦN, KHÔNG MỘT LƯỚI TỰ ĐỘNG.
+  ═════════════════════════════════════════════════════════════════════════════════
+
+  Dự án CỐ Ý không có bộ chạy test frontend (NFR15 — Ice chốt ở Story 1.5, giữ qua mười
+  hai story), nên vế DOM/thị giác của story này nghiệm thu ở đây.
+
+  🔴 GIỚI HẠN ĐÃ BIẾT VÀ ĐÃ CHỌN, ghi thẳng thay vì để người sau tự phát hiện — cùng lớp
+     nợ `deferred-work.md:826`:
+
+  ① Tệp này **CHÉP** CSS và cấu trúc DOM của `src/panels/EditorPanel.vue`, nó **KHÔNG
+     mount** component thật (component cần cầu IPC của Tauri cho `readOpenChapterSegments`).
+     ⇒ Một lượt sửa template/CSS sau này có thể làm bàn đo và sản phẩm **lệch nhau mà không
+     cổng nào đỏ**.
+  ② Ba font nhúng của UX-DR4 **không** có ở đây (chúng được `src/tokens/fonts.ts` nạp từ
+     bundle). Chuỗi dự phòng `serif` cho hình học **gần đúng**, không **đúng bằng**. Con số
+     chiều cao vạch vì thế là con số của *cơ chế*, không phải của *sản phẩm*.
+  ③ Engine: xem dòng "Engine" trong bảng kết quả. Nghiệm thu trên Blink rồi viết
+     *"tương đương"* là đúng lỗi mà `deferred-work.md:145` đã ghi tên — WKWebView của macOS
+     có lịch sử lệch ở `getClientRects()` với chữ có dấu tiếng Việt.
+  ④ Fixture dưới đây có `target_text` **thật** cho cả năm giá trị vạch. Trên dữ liệu thật
+     của Ice hôm nay, **mọi** `target_text` là chuỗi rỗng (chưa đường nào điền chúng —
+     Quyết định #1 đường (b)), nên bốn màu vạch **không** nhìn thấy được trong app. Đây là
+     chỗ duy nhất nhìn thấy chúng.
+     ⚠️ Vế "bơm bằng SQL, không mở `.atproj` của Ice bằng app" của Task 7.1 được giao ở
+     `src-tauri/tests/segment_contract.rs::a_chapter_with_real_translations_round_trips_through_the_load_command`
+     — nó UPDATE `target_text` bằng SQL trên một `project.db` **tạm** rồi đọc lại qua đúng
+     lệnh IPC của sản phẩm. Tệp này chỉ lo vế **thị giác**.
+-->
+<style>
+/* ── Token: chép từ `src/tokens/tokens.json`, chỉ những token bàn đo cần ─────────── */
+:root[data-theme='light'] {
+  --color-background: #f4f1ea;
+  --color-surface: #fbfaf6;
+  --color-on-surface: #2b2723;
+  --color-on-surface-variant: #6b6459;
+  --color-confirmed: #5a6b3f;
+  --color-primary: #2f5d63;
+  --color-tm-rule: #b99a5e;
+  --color-ornament: #a9a196;
+}
+:root[data-theme='dark'] {
+  --color-background: #201e1b;
+  --color-surface: #26241f;
+  --color-on-surface: #e8e3d8;
+  --color-on-surface-variant: #a29a8c;
+  --color-confirmed: #9cb37a;
+  --color-primary: #7fb3ba;
+  --color-tm-rule: #b99a5e; /* CÙNG một giá trị ở cả hai theme — DESIGN.md:184 */
+  --color-ornament: #6a6459;
+}
+:root {
+  --space-gutter-width: 22px;
+  --radius-sm: 2px;
+  --face-editor: 'Source Serif 4', 'Noto Serif CJK TC', serif;
+  --font-editor: 15px;
+  --leading-editor: 1.95;
+  --face-ui-md-wrap: 'Source Sans 3', ui-sans-serif, -apple-system, system-ui, sans-serif;
+  --font-ui-md-wrap: 14px;
+  --leading-ui-md-wrap: 1.66;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+}
+.bench { padding: 16px; }
+.panel {
+  background: var(--color-surface);
+  padding: 12px 16px;
+  height: 320px;
+  box-sizing: border-box;
+  resize: both;           /* để kéo tay, nghiệm thu ResizeObserver */
+  overflow: hidden;
+  max-width: 900px;
+}
+h2 { font-size: 15px; margin: 20px 0 8px; }
+#report { white-space: pre; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+button { font: inherit; margin-right: 8px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════
+   ⬇⬇ TỪ ĐÂY LÀ BẢN CHÉP CỦA `<style scoped>` TRONG `src/panels/EditorPanel.vue` ⬇⬇
+   Giữ khớp từng dòng khi sửa một trong hai bên — xem giới hạn ① ở đầu tệp.
+   ══════════════════════════════════════════════════════════════════════════════════ */
+.editor-surface { height: 100%; min-height: 0; }
+.untranslated-note {
+  margin: 0 0 12px 0;
+  flex: none;
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-on-surface-variant);
+}
+.edwrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.edbody { display: flex; flex: 1; min-height: 0; overflow: auto; }
+.gutter { position: relative; flex: none; width: var(--space-gutter-width); padding-top: 4px; }
+.gmark { position: absolute; left: 8px; width: 2px; border-radius: var(--radius-sm); }
+.gmark.rule-confirmed { background-color: var(--color-confirmed); }
+.gmark.rule-primary   { background-color: var(--color-primary); }
+.gmark.rule-tm-rule   { background-color: var(--color-tm-rule); }
+.gmark.rule-ornament  { background-color: var(--color-ornament); }
+.doc { flex: 1; min-width: 0; padding-left: 8px; }
+.tok-editor {
+  font-family: var(--face-editor);
+  font-size: var(--font-editor);
+  line-height: var(--leading-editor);
+  color: var(--color-on-surface);
+}
+.sent { position: relative; }
+.sent::after {
+  content: '⏐';
+  color: var(--color-ornament);
+  opacity: 0;
+}
+.sent:hover::after,
+.sent[data-caret]::after { opacity: 0.55; }
+/* ⬆⬆ HẾT BẢN CHÉP ⬆⬆ */
+</style>
+</head>
+<body>
+<div class="bench">
+  <h2>Bàn đo — Panel Editor liền mạch (Story 2.2)</h2>
+  <p>
+    <button id="theme">Đổi theme</button>
+    <button id="nfr2">Đo NFR2 trên 9.850 câu</button>
+    <span id="which"></span>
+  </p>
+
+  <h2>① Fixture năm giá trị vạch — nghiệm thu thị giác (AC2 · AC3 · AC4 · AC5)</h2>
+  <div class="panel">
+    <div class="editor-surface">
+      <div class="edwrap">
+        <div class="edbody">
+          <div class="gutter" id="g1" aria-hidden="true"></div>
+          <div class="doc tok-editor" id="d1" tabindex="0"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>② Trạng thái THẬT hôm nay — mọi `target_text` rỗng (hệ quả Quyết định #1 đường b)</h2>
+  <div class="panel">
+    <div class="editor-surface">
+      <div class="edwrap">
+        <p class="untranslated-note">Chương này đã tách thành câu, chưa câu nào có bản dịch.</p>
+        <div class="edbody">
+          <div class="gutter" id="g2" aria-hidden="true"></div>
+          <div class="doc tok-editor" id="d2" tabindex="0"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Kết quả đo</h2>
+  <div id="report">…</div>
+</div>
+
+<script type="module">
+// ══════════════════════════════════════════════════════════════════════════════════
+// BẢN CHÉP của `src/panels/editorSegments.ts` + `src/panels/editorGutter.ts`.
+// Giữ khớp khi sửa — xem giới hạn ① ở đầu tệp.
+// ══════════════════════════════════════════════════════════════════════════════════
+const SEGMENT_ID_ATTR = 'data-segment-id'
+const SEGMENT_RULE_VALUES = ['confirmed', 'primary', 'tm-rule', 'none', 'ornament']
+
+function resolveSegmentRule(i) {
+  if (i.retiredAt !== null) return 'ornament'
+  if (i.hasCaret) return 'primary'
+  if (i.isConfirmed) return 'confirmed'
+  if (i.isTmFilled) return 'tm-rule'
+  return 'none'
+}
+const ruleClassOf = (r) => (r === 'none' ? null : `rule-${r}`)
+
+function measureGutterRules(gutter, doc, wanted) {
+  const origin = gutter.getBoundingClientRect().top
+  const out = []
+  for (const el of doc.querySelectorAll(`[${SEGMENT_ID_ATTR}]`)) {
+    const id = Number(el.getAttribute(SEGMENT_ID_ATTR))
+    if (!Number.isFinite(id) || !wanted.has(id)) continue
+    const rects = el.getClientRects()
+    if (rects.length === 0) continue
+    let top = Infinity
+    let bottom = -Infinity
+    for (const r of rects) {
+      if (r.height <= 0) continue
+      if (r.top < top) top = r.top
+      if (r.bottom > bottom) bottom = r.bottom
+    }
+    if (!Number.isFinite(top) || !Number.isFinite(bottom)) continue
+    out.push({ id, top: top - origin, height: bottom - top })
+  }
+  return out
+}
+
+// ── Fixture: một Chương ngắn, `target_text` THẬT, cả năm giá trị vạch ───────────────
+// ⚠️ Cùng năm câu với ca `a_chapter_with_real_translations_round_trips_through_the_load_command`
+//    ở `src-tauri/tests/segment_contract.rs` — hai bàn đo, một fixture.
+const FIXTURE = [
+  { id: 1, target_text: 'Hắn đẩy cánh cửa ấy ra, bước vào giữa bóng tối dày đặc của gian phòng đã bỏ hoang từ lâu lắm rồi.', is_paragraph_end: false, retired_at: null, isConfirmed: true,  isTmFilled: false },
+  { id: 2, target_text: 'Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ gì đó ẩm ướt hơn thế.', is_paragraph_end: true,  retired_at: null, isConfirmed: false, isTmFilled: false },
+  { id: 3, target_text: 'Thiếu niên không quay đầu lại.', is_paragraph_end: false, retired_at: null, isConfirmed: false, isTmFilled: true  },
+  { id: 4, target_text: '', is_paragraph_end: false, retired_at: null, isConfirmed: false, isTmFilled: false },
+  { id: 5, target_text: 'Câu này đã về hưu sau một lượt gộp — lịch sử của nó vẫn tra lại được.', is_paragraph_end: false, retired_at: '2026-08-12T00:00:00.000Z', isConfirmed: false, isTmFilled: false },
+  // 🔴 CÂU 6 — THÊM Ở CODE REVIEW 2026-08-12, và nó tồn tại để PHƠI một khe hở, không để
+  // nghiệm thu một giá trị. Ca: *đã dịch bằng tay, chưa xác nhận, con trỏ ở chỗ khác*. Nó
+  // không ứng với giá trị nào trong năm, nên `resolveSegmentRule` cho `'none'` ⇒ câu này có
+  // bản dịch mà **nhìn y hệt câu 4 chưa dịch**. Khe hở đã ghi ở `editorSegments.ts:95-106` và
+  // §Quyết định #4, chủ là Story 2.5.
+  // ⚠️ Vì sao KHÔNG dời `CARET_ID` sang câu 4 thay vì thêm câu này: câu 4 rỗng, và một `<span>`
+  // rỗng không có hình chữ nhật nào — vạch `primary` sẽ mất chỗ đo. Thêm ở CUỐI cũng giữ
+  // nguyên hình học của năm câu trên, nên mọi số đã ghi ở §Debug Log vẫn đọc được.
+  { id: 6, target_text: 'Câu này đã có bản dịch nhưng chưa ai xác nhận — và nó KHÔNG có vạch.', is_paragraph_end: false, retired_at: null, isConfirmed: false, isTmFilled: false },
+]
+// Câu 4 CỐ Ý rỗng: nó là nhánh *không vạch* (chưa dịch) — nghiệm thu rằng nó KHÔNG có vạch.
+// `primary` đến từ caret, nên nó được đặt vào câu 2 bằng `data-caret` ngay dưới.
+const CARET_ID = 2
+
+function render(doc, rows) {
+  doc.textContent = ''
+  for (const s of rows) {
+    const span = document.createElement('span')
+    span.className = 'sent'
+    span.setAttribute(SEGMENT_ID_ATTR, String(s.id))
+    if (s.id === CARET_ID) span.setAttribute('data-caret', '')
+    span.textContent = s.target_text
+    doc.append(span)
+    if (s.is_paragraph_end) doc.append(document.createElement('br'))
+  }
+}
+
+function paint(gutter, doc, rows, caretId) {
+  const classes = new Map()
+  for (const s of rows) {
+    const cls = ruleClassOf(
+      resolveSegmentRule({
+        retiredAt: s.retired_at,
+        hasCaret: s.id === caretId,
+        isConfirmed: s.isConfirmed,
+        isTmFilled: s.isTmFilled,
+        targetText: s.target_text,
+      }),
+    )
+    if (cls !== null) classes.set(s.id, cls)
+  }
+  const rules = measureGutterRules(gutter, doc, new Set(classes.keys()))
+  gutter.textContent = ''
+  for (const r of rules) {
+    const el = document.createElement('div')
+    el.className = `gmark ${classes.get(r.id)}`
+    el.style.top = `${r.top}px`
+    el.style.height = `${r.height}px`
+    gutter.append(el)
+  }
+  return rules
+}
+
+const g1 = document.getElementById('g1')
+const d1 = document.getElementById('d1')
+const g2 = document.getElementById('g2')
+const d2 = document.getElementById('d2')
+const report = document.getElementById('report')
+
+// Bảng ② — trạng thái THẬT hôm nay: cùng năm câu, `target_text` rỗng hết.
+const BLANK = FIXTURE.map((s) => ({ ...s, target_text: '', retired_at: null, isConfirmed: false, isTmFilled: false }))
+
+render(d1, FIXTURE)
+render(d2, BLANK)
+
+const lines = []
+function redraw() {
+  const r1 = paint(g1, d1, FIXTURE, CARET_ID)
+  const r2 = paint(g2, d2, BLANK, null)
+  lines.length = 0
+  lines.push(`Engine  : ${navigator.userAgent}`)
+  lines.push(`Theme   : ${document.documentElement.dataset.theme}`)
+  lines.push('')
+  lines.push('① Fixture năm giá trị — vạch ĐO ĐƯỢC (px, trong hệ toạ độ máng):')
+  for (const r of r1) {
+    const el = d1.querySelector(`[${SEGMENT_ID_ATTR}="${r.id}"]`)
+    lines.push(
+      `   segment ${r.id}: top=${r.top.toFixed(2)} height=${r.height.toFixed(2)} ` +
+        `(${el.getClientRects().length} hình chữ nhật) → ${g1.querySelector(`.gmark:nth-child(${r1.indexOf(r) + 1})`).className}`,
+    )
+  }
+  lines.push(
+    `   số vạch vẽ ra: ${r1.length} / ${FIXTURE.length} câu  ← câu 4 (chưa dịch) phải KHÔNG có vạch,` +
+      ` và câu 6 (ĐÃ dịch, chưa xác nhận) cũng KHÔNG — đó là KHE HỞ, chủ Story 2.5`,
+  )
+  lines.push('')
+  lines.push(`② Trạng thái thật hôm nay: ${r2.length} vạch trên ${BLANK.length} câu ← phải là 0`)
+  report.textContent = lines.join('\n')
+}
+
+// Ba nguồn kích hoạt — cùng cơ chế `EditorPanel.vue`.
+let handle = null
+const schedule = () => {
+  if (handle !== null) return
+  handle = requestAnimationFrame(() => {
+    handle = null
+    redraw()
+  })
+}
+new ResizeObserver(schedule).observe(d1)
+new ResizeObserver(schedule).observe(d2)
+void document.fonts.ready.then(schedule)
+schedule()
+
+document.getElementById('theme').addEventListener('click', () => {
+  const root = document.documentElement
+  root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark'
+  schedule()
+})
+
+// ── NFR2 (AC14): dựng + đo trên quy mô Chương LỚN NHẤT CÓ THẬT ────────────────────
+document.getElementById('nfr2').addEventListener('click', () => {
+  const N = 9850
+  const host = document.createElement('div')
+  host.className = 'doc tok-editor'
+  host.style.width = '600px'
+  const gut = document.createElement('div')
+  gut.className = 'gutter'
+  const box = document.createElement('div')
+  box.className = 'edbody'
+  box.style.height = '400px'
+  box.style.width = '640px'
+  box.append(gut, host)
+  document.body.append(box)
+
+  const rows = []
+  for (let i = 1; i <= N; i += 1) {
+    rows.push({
+      id: i,
+      target_text: `Câu số ${i} — một câu tiếng Việt dày dấu, đủ dài để chạy qua ít nhất một lần xuống dòng ở bề rộng này.`,
+      is_paragraph_end: i % 9 === 0,
+      retired_at: null,
+      isConfirmed: false,
+      isTmFilled: false,
+    })
+  }
+
+  const t0 = performance.now()
+  render(host, rows)
+  void host.offsetHeight // ép layout đồng bộ — không đo một lượt dựng chưa bố cục
+  const tRender = performance.now() - t0
+
+  // Ca THẬT hôm nay: đúng MỘT câu có vạch (caret).
+  const t1 = performance.now()
+  paint(gut, host, rows, 1)
+  const tOne = performance.now() - t1
+
+  // Ca TRẦN: cả 9.850 câu đều có vạch — chưa story nào tới được, nhưng nó là số phải biết.
+  const all = rows.map((s) => ({ ...s, isConfirmed: true }))
+  const t2 = performance.now()
+  paint(gut, host, all, null)
+  const tAll = performance.now() - t2
+
+  box.remove()
+  report.textContent = [
+    ...lines,
+    '',
+    `③ NFR2 trên ${N} câu (trần 50 ms / frame):`,
+    `   dựng DOM + bố cục          : ${tRender.toFixed(1)} ms`,
+    `   đo + vẽ 1 vạch (ca THẬT)   : ${tOne.toFixed(1)} ms`,
+    `   đo + vẽ ${N} vạch (ca TRẦN): ${tAll.toFixed(1)} ms`,
+  ].join('\n')
+  console.log(`[bàn đo 2.2] render=${tRender.toFixed(1)}ms one=${tOne.toFixed(1)}ms all=${tAll.toFixed(1)}ms`)
+})
+
+document.getElementById('which').textContent = `${SEGMENT_RULE_VALUES.length} giá trị vạch đã khai`
+</script>
+</body>
+</html>

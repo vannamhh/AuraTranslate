@@ -294,6 +294,13 @@ CREATE TABLE chapter (
 /// đi kèm bước di trú 6 — thêm hôm nay là đoán trước hợp đồng flush của AD-35 mà 2.3 chưa
 /// chốt. `status` (máy trạng thái AD-31) → Story 2.5. `role` (`alt` | `caption`, AD-42) →
 /// Story 6.13.
+///
+/// 🔴 **CẬP NHẬT 2026-08-12 (Story 2.2, Quyết định #1 do Ice chốt):** `target_text` **đã có**
+/// — nó tới bằng bước di trú **6** ([`SEGMENT_TARGET_TEXT_DDL`]), **không** bằng một lượt
+/// sửa hằng này. Hằng này là DDL của một bảng **tạo mới**, và một `project.db` đã ở phiên
+/// bản 5 không bao giờ chạy lại nó; sửa nó tại chỗ cho ra hai lược đồ khác nhau cho cùng
+/// một số phiên bản — đúng lớp lỗi mà vết sẹo số 4 ở [`PROJECT_MIGRATIONS`] ghi lại.
+/// Hai cột còn vắng vẫn giữ nguyên chủ: `status` → Story 2.5, `role` → Story 6.13.
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔴 INDEX ĐẦU TIÊN CỦA TOÀN KHO — Ice ký 2026-08-12, code review
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -332,14 +339,43 @@ CREATE TABLE segment (
 );
 CREATE INDEX idx_segment_chapter_ord ON segment (chapter_id, ord);";
 
-/// Bộ di trú của `project.db`. Hôm nay **bốn** bước — Story 1.15 · Story 2.1.
+/// Cột `segment.target_text` — **bước 6 của `project.db`**, Story 2.2, AC13 · Task 1.
 ///
-/// 🔴 **Bốn bước, nhưng đích là phiên bản 5.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO SỐ **6**, VÀ VÌ SAO MỘT `ALTER TABLE` CHỨ KHÔNG SỬA [`SEGMENT_DDL`]
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Bước 5 đã chạy trên `project.db` thật kể từ Story 2.1. Sửa [`SEGMENT_DDL`] tại chỗ chỉ
+/// đổi lược đồ của các tệp **tạo mới**; tệp đã ở phiên bản 5 không chạy lại bước đó, nên
+/// hai tệp cùng mang `user_version = 5` sẽ có hai lược đồ khác nhau — đúng thứ vết sẹo số
+/// 4 ở [`PROJECT_MIGRATIONS`] ghi lại bằng chữ. Một bước mới là đường duy nhất.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `NOT NULL DEFAULT ''` — CHUỖI RỖNG, KHÔNG `NULL`. Story 2.2 · Task 1.4
+/// ─────────────────────────────────────────────────────────────────────────────
+/// *"Chưa dịch"* là một chuỗi **rỗng**, không phải một giá trị **vắng mặt**. Đó không phải
+/// khẩu vị: nó quyết nhánh *"không vạch"* của AC3, và một `Option<String>` ở đó cho hai
+/// cách nói cùng một điều — `None` và `Some("")` — mà tầng hiển thị phải gộp lại bằng kỷ
+/// luật ở **mọi** chỗ đọc. Cột `NOT NULL` đẩy phép gộp đó xuống SQLite, nơi nó không quên
+/// được.
+///
+/// ⚠️ `DEFAULT ''` cũng là thứ làm bước này chạy được trên bảng **đã có dữ liệu**: SQLite
+/// đòi một `DEFAULT` không phải `NULL` cho mọi `ADD COLUMN … NOT NULL`. Mọi hàng `segment`
+/// có sẵn (đo 2026-08-12: **10.477** hàng trên dữ liệu thật của Epic 1) nhận chuỗi rỗng,
+/// tức trạng thái *"chưa dịch"* — đúng sự thật, không phải một giá trị mồi.
+///
+/// ⚠️ **KHÔNG** `CREATE INDEX` nào cho cột này. Không đường đọc nào lọc theo `target_text`;
+/// index của lượt nạp là `idx_segment_chapter_ord` đã dựng ở bước 5.
+pub const SEGMENT_TARGET_TEXT_DDL: &str =
+    "ALTER TABLE segment ADD COLUMN target_text TEXT NOT NULL DEFAULT '';";
+
+/// Bộ di trú của `project.db`. Hôm nay **năm** bước — Story 1.15 · Story 2.1 · Story 2.2.
+///
+/// 🔴 **Năm bước, và đích là phiên bản 6.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên
+/// (`[1, 2, 3, 5, 6]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên
 /// một lỗ hổng không làm bước nào bị bỏ qua.
 ///
-/// ⚠️ Con số này đọc **bốn**, không ba: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
+/// ⚠️ Con số này đọc **năm**, không bốn: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
 /// gỡ ở lượt Ice ký lại 2026-08-11 *(vết sẹo ghi đầy đủ ở cuối doc-comment này)*. Một
 /// dòng tiêu đề nói một số mà bảng hằng ngay dưới nói một số khác là đúng thứ rot mà cả
 /// kiến trúc này dựa vào doc-comment để tránh — bắt ở code review 2026-08-11.
@@ -409,6 +445,12 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 5,
         sql: SEGMENT_DDL,
+    },
+    // Story 2.2 — cột bản dịch. `ALTER TABLE`, không sửa `SEGMENT_DDL`; lý do đầy đủ ở
+    // doc-comment của [`SEGMENT_TARGET_TEXT_DDL`].
+    Migration {
+        to_version: 6,
+        sql: SEGMENT_TARGET_TEXT_DDL,
     },
 ];
 

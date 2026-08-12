@@ -66,27 +66,97 @@ pub struct SplitOutcome {
 ///
 /// ⚠️ `is_paragraph_end` đi xuống dạng `INTEGER` 0/1: SQLite không có kiểu boolean, và tầng
 /// Rust là chỗ cưỡng chế giá trị hợp lệ (cùng khuôn `chapter.status`).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `prepare_cached` MỘT LẦN, KHÔNG `tx.execute` MỖI HÀNG — Story 2.2 · AC17 · Task 8
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Bản trước gọi `tx.execute` với SQL **literal bên trong vòng lặp**, nên `rusqlite` parse
+/// lại câu lệnh **mỗi hàng**. `deferred-work.md:2012-2024` ghi món này với chủ là Story 2.2
+/// và ghi thẳng lý do hoãn: *"hoãn vì **chưa ai đo**, không phải vì nó nhỏ"*.
+///
+/// **Đã đo, 2026-08-12, `cargo test --release` trên macOS, 9.850 hàng — quy mô THẬT của
+/// Chương lớn nhất có thật, ba lượt:**
+///
+/// | lượt | `tx.execute` literal mỗi hàng | `prepare_cached` một lần | chênh |
+/// |---|---|---|---|
+/// | 1 | 105,51 ms | 44,76 ms | **60,75 ms** (57,6 %) |
+/// | 2 | 106,90 ms | 49,75 ms | **57,15 ms** (53,5 %) |
+/// | 3 | 112,47 ms | 48,28 ms | **64,19 ms** (57,1 %) |
+///
+/// ⇒ Vá, và lý do là con số chứ không phải linh cảm: **~60 ms tiết kiệm được** nằm **trên**
+/// trần một frame của NFR2 (50 ms) chỉ bằng một mình nó, và nó nằm trong closure của
+/// `Store::write` — tức trên writer **duy nhất, nối tiếp** của AD-11, nơi nó chặn **mọi**
+/// lượt ghi khác của tiến trình. Cùng điểm nghẽn mà `commands/project.rs:120-127` đã kéo
+/// `split_source_text` ra ngoài để né.
+///
+/// ⚠️ `prepare_cached` (không phải `prepare`): bộ nhớ đệm sống trên **kết nối**, mà kết nối
+/// ghi là một kết nối dài hạn của pool — nên Chương **thứ hai** trở đi không phải parse lại
+/// một lần nào nữa. Với `prepare`, mỗi lượt gọi hàm này vẫn mất đúng một lượt parse.
 pub(crate) fn insert_segments(
     tx: &Transaction<'_>,
     chapter_id: i64,
     segments: &[SplitSegment],
 ) -> SqlResult<()> {
+    let mut stmt = tx.prepare_cached(
+        "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
+         created_at, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+         strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+    )?;
     for (index, segment) in segments.iter().enumerate() {
         let ord = i64::try_from(index).unwrap_or(i64::MAX).saturating_add(1);
-        tx.execute(
-            "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
-             created_at, updated_at) \
-             VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
-             strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
-            (
-                chapter_id,
-                ord,
-                &segment.text,
-                i64::from(segment.is_paragraph_end),
-            ),
-        )?;
+        stmt.execute((
+            chapter_id,
+            ord,
+            &segment.text,
+            i64::from(segment.is_paragraph_end),
+        ))?;
     }
     Ok(())
+}
+
+/// Một hàng `segment` đi ra qua dây — Story 2.2, AC13.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// TỪNG TRƯỜNG, VÀ AI ĐỌC NÓ Ở PHÍA WEBVIEW
+/// ─────────────────────────────────────────────────────────────────────────────
+/// - `id` — khoá của mọi thứ Epic 2 gắn vào một câu (`SegmentVersion` của 2.6 theo AD-5).
+///   Cũng là khoá `v-for` của trang liền mạch; `ord` KHÔNG dùng được cho vai đó vì Story
+///   2.8 sắp lại `ord` mà giữ nguyên `id` (AD-3).
+/// - `ord` — thứ tự đọc, đánh số **từ 1**, liên tục.
+/// - `source_text` — nguyên văn của câu. Editor của Story 2.2 **không** hiển thị nó *(panel
+///   là "Bản dịch")*; nó đi cùng vì Story 2.3 so `target_text` với nguồn, và vì bàn đo cần
+///   một chỗ đọc ra được câu nào ứng với vạch nào.
+/// - `target_text` — bản dịch. **Chuỗi rỗng nghĩa là "chưa dịch"**, không phải một giá trị
+///   vắng mặt (xem `SEGMENT_TARGET_TEXT_DDL`). Đây là nguồn của nhánh *"không vạch"* trong
+///   năm giá trị vạch lề (AC3).
+/// - `is_paragraph_end` — cờ kết đoạn, **đã lưu** lúc nhập. AD-37 cấm suy ra lúc render, nên
+///   nó đi qua dây chứ không tính lại ở TypeScript.
+/// - `retired_at` — `None` cho mọi segment hôm nay: **chưa đường nào cho segment về hưu**
+///   (Story 2.8 mang nó). Trường có mặt vì nó là nguồn dữ liệu của giá trị vạch `ornament`,
+///   và bảng ánh xạ *trạng thái → vạch* của Story 2.2 cài **cả năm** nhánh (Quyết định #4).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ChapterSegment {
+    pub id: i64,
+    pub ord: i64,
+    pub source_text: String,
+    pub target_text: String,
+    pub is_paragraph_end: bool,
+    pub retired_at: Option<String>,
+}
+
+/// Trọn bộ segment của Chương **đang mở** — thứ đi ra qua dây.
+///
+/// ⚠️ `chapter_id` đi kèm chứ không để chỗ gọi tự đoán: webview cần nó để gắn mọi lượt ghi
+/// của Story 2.3 vào đúng Chương, và một lượt hỏi lại qua `read_open_chapter` sẽ kéo theo
+/// **nguyên khối** `source_text` của cả Chương *(đo được: Chương lớn nhất có thật là 48.640
+/// ký tự)* chỉ để lấy một số nguyên.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ChapterSegments {
+    pub chapter_id: i64,
+    pub segments: Vec<ChapterSegment>,
 }
 
 /// Chương không có trong `project.db` của Tác phẩm đang mở.
@@ -188,9 +258,76 @@ pub fn split_chapter_into_segments(
     })
 }
 
+/// Nạp trọn bộ segment của Chương **đang mở** — **hàm thuần, đây là thứ test gọi**.
+/// Story 2.2, AC13.
+///
+/// # Lỗi
+/// - chưa Tác phẩm nào mở ⇒ `project.no_work_open`;
+/// - Tác phẩm đang mở không có hàng `chapter` nào ⇒ `store.read_failed` (qua
+///   `From<StoreError>`) — cùng đường và cùng lý do với
+///   [`crate::commands::chapter::read_open_chapter`].
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO LỆNH NÀY KHÔNG NHẬN `chapter_id`, TRONG KHI LỆNH TÁCH THÌ CÓ
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Epic 1 tạo **đúng một** Chương cho mỗi Tác phẩm (`commands::project::create_work`), và
+/// chọn Chương / chuyển Chương là **Story 2.11**. Một tham số `chapter_id` hôm nay chỉ có
+/// **một** giá trị hợp lệ, và cách duy nhất webview biết giá trị đó là gọi
+/// [`crate::commands::chapter::read_open_chapter`] trước — tức một lượt IPC thứ hai kéo
+/// theo nguyên khối `source_text` của cả Chương chỉ để lấy một số nguyên.
+///
+/// Lệnh **tách** thì khác và tham số của nó có thật: nó chạy trên một Chương **cũ** mà
+/// người dùng chỉ đích danh trong Thư viện, và `deferred-work.md:542` đếm 25 Chương như
+/// vậy.
+///
+/// ⚠️ Story 2.11 sở hữu biến thể nhận `chapter_id`. **Đừng** thêm sẵn một tham số
+/// `Option<i64>` hôm nay: một nhánh không chỗ gọi nào đi qua là một nhánh không ai nghiệm
+/// thu được — cùng luật đã ghi cho danh mục `MessageKey` (`core::i18n`).
+///
+/// ⚠️ `ORDER BY ord` là **có chủ đích**, không phải trang trí: `idx_segment_chapter_ord`
+/// (`chapter_id, ord`) thành covering cho đúng lượt đọc này, nên SQLite khỏi một lượt sắp
+/// tạm trên **9.850** hàng của Chương lớn nhất có thật.
+pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegments, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+
+    let loaded = open.store.read(|conn| {
+        // Cung quy tac chon Chuong voi `read_open_chapter`: mot Tac pham mot Chuong o Epic 1.
+        let chapter_id: i64 =
+            conn.query_row("SELECT id FROM chapter ORDER BY ord LIMIT 1", [], |row| {
+                row.get(0)
+            })?;
+
+        let mut stmt = conn.prepare(
+            "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at \
+             FROM segment WHERE chapter_id = ?1 ORDER BY ord",
+        )?;
+        let rows = stmt.query_map([chapter_id], |row| {
+            // ⚠️ `is_paragraph_end` la INTEGER 0/1 duoi SQLite (khong co kieu boolean); phep
+            // doi sang `bool` la viec cua tang nay, dung khuon `chapter.status`.
+            let flag: i64 = row.get(4)?;
+            Ok(ChapterSegment {
+                id: row.get(0)?,
+                ord: row.get(1)?,
+                source_text: row.get(2)?,
+                target_text: row.get(3)?,
+                is_paragraph_end: flag != 0,
+                retired_at: row.get(5)?,
+            })
+        })?;
+        let segments = rows.collect::<SqlResult<Vec<ChapterSegment>>>()?;
+
+        Ok(ChapterSegments {
+            chapter_id,
+            segments,
+        })
+    })?;
+
+    Ok(loaded)
+}
+
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
-    use super::{IpcError, SplitOutcome};
+    use super::{ChapterSegments, IpcError, SplitOutcome};
     use crate::commands::project::OpenWorkState;
 
     /// Vỏ IPC của [`super::split_chapter_into_segments`].
@@ -215,5 +352,22 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::split_chapter_into_segments(guard.as_ref(), chapter_id)
+    }
+
+    /// Vỏ IPC của [`super::read_open_chapter_segments`].
+    ///
+    /// ⚠️ **Không tham số nào đi trên dây** — xem doc-comment của hàm thuần. `invoke()` phía
+    /// webview gọi nó với một payload rỗng.
+    #[tauri::command]
+    pub fn read_open_chapter_segments(app: tauri::AppHandle) -> Result<ChapterSegments, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::read_open_chapter_segments(None);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::read_open_chapter_segments(guard.as_ref())
     }
 }
