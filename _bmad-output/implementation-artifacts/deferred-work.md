@@ -1857,3 +1857,61 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   ⚠️ **Hai lượt xanh sau bản vá KHÔNG chứng minh bộ đã hết chập chờn** — đó đúng là cỡ mẫu đã
   lừa một lần. Luật cho lượt sau, đã ghi vào `wdio.conf.mjs`: gặp một lượt đỏ không tái lập
   được thì **bắt nguyên văn TRƯỚC**, đừng chạy lại cho tới khi xanh rồi đi tiếp. **Chủ: Dev.**
+
+## Deferred from: hai quyết định của Ice về CI và Windows (2026-08-12)
+
+- ✅ **ĐÓNG — CI thôi tự chạy lúc push. Ice chốt: hạn mức tài khoản miễn phí để dành cho một
+  dự án khác.**
+
+  🔴 **Và lượt này lộ ra một khoảng cách giữa hồ sơ và thực tế.** Ice chốt *"tạm dừng GitHub
+  Actions"* ngày **2026-08-11**, bốn tạo tác đã ghi lại quyết định đó, và lượt correct-course
+  còn đính chính từ *"BỎ QUA"* thành *"TẠM DỪNG"* cho đúng ý. **Nhưng khối `on:` của
+  `ci.yml` vẫn khai `push:` + `pull_request:`** — nên mọi lượt push từ đó tới nay **vẫn khởi
+  động cả hai job và vẫn tiêu phút**. Một quyết định không được cài vào tệp thì không phải
+  một quyết định; nó là một ghi chú. Cùng lớp lỗi với *"cổng thứ mười canh máy dev, không
+  canh nhánh"* — khoảng cách giữa thứ ta tin và thứ máy làm.
+
+  **Vá:** `on: workflow_dispatch:` — pipeline còn **sống** và tiêu **0 phút** cho tới khi có
+  người bấm *"Run workflow"*.
+
+  🔴 **Vì sao KHÔNG xoá tệp, ba lý do và cả ba đều cứng:**
+  ① AC4 của Story 1.3 cấm dựng một tệp workflow **thứ hai**; xoá rồi dựng lại sau là đúng
+  thứ AC4 chặn. ② Cổng thứ mười một `check:gates` **đọc chính tệp này** (Kiểm A/B) — xoá nó
+  làm cổng `abort`, và ta mất phép kiểm buộc **ba** danh sách cổng khai cùng một bộ.
+  ③ Bốn phép nghiệm thu runner còn nợ của Story 1.3 (AC6 · AC7 · Task 11 hàng 4 · AC3/Task 4)
+  **chỉ đo được ở đây** — chúng chờ, không mất.
+
+  **Nghiệm thu:** `check:gates` vẫn XANH sau lượt đổi ⇒ ba danh sách cổng vẫn khớp, tức
+  pipeline vẫn là một tạo tác sống chứ không một tệp chết.
+
+- 📌 **Phương án khôi phục CI miễn phí, để Ice cân khi tới lúc — KHÔNG quyết trong lượt này.**
+
+  | Đường | Cái giá | Ghi chú |
+  |---|---|---|
+  | **Bấm tay khi cần** *(đang dùng)* | 0 phút cho tới lượt bấm | Đủ cho bốn phép nghiệm thu runner của Story 1.3 — chúng chỉ cần **một** lượt xanh, không cần chạy mỗi push |
+  | **Repo công khai** | 0đ, Actions **không giới hạn** cho repo public | 🔴 Đáng cân nhất, vì nó **phục vụ luôn FR107** — *"build công khai để bất kỳ ai kiểm chứng được binary khớp mã nguồn"*, tức đúng thứ Story 10.1 phải làm. Dự án đã là **GPL-3.0-or-later**, nên mã sẽ công khai ở một thời điểm nào đó. Đây là một quyết định của Ice về **thời điểm**, không về nguyên tắc |
+  | **Runner tự quản trên máy Ice** | 0 phút hạn mức | Chỉ cho macOS — mà `pre-push` đã canh macOS mỗi lượt rồi ⇒ **giá trị thêm gần bằng 0**. Với Windows thì nó cần đúng cái máy Windows đang chờ |
+  | Chạy Actions cục bộ (`act`) | 0đ | Cần Docker, và **không** dựng được job macOS hay Windows ⇒ không trả lời được câu hỏi duy nhất mà CI còn nợ |
+
+  ⇒ Nếu mục tiêu là **nghiệm thu bốn món của Story 1.3**, đường rẻ nhất là **bấm tay đúng
+  một lượt** khi Ice sẵn sàng. Nếu mục tiêu là **CI thường trực**, đường duy nhất miễn phí là
+  **repo công khai**, và nó trùng với FR107. **Chủ: Ice.**
+
+- 📌 **Trọn phần Windows dời về CUỐI dự án — Ice chốt 2026-08-12, và Ice sẽ tự dựng máy để chạy.**
+
+  Món nợ **A5** vì thế đổi hình dạng: từ *"chờ một điều kiện chưa biết"* thành **một món có
+  lịch và có chủ**. Những gì sẽ chờ tới lượt đó, gom lại một chỗ để lượt sau không phải đi
+  tìm:
+  - **Story 1.3** — AC6 (ba số `.msi` + hai dòng NFR6) · AC7 (thời gian tường, phút tính phí,
+    cache lạnh/nóng) · Task 11 hàng 4 (`#[cfg(windows)] compile_error!` làm **chỉ** job Windows
+    đỏ) · AC3/Task 4 (rào biên dịch C và WiX v3) · chiều âm của AC8 trên `windows-2025`;
+  - **Story 1.7 AC5** — trần WAL nới theo nền tảng, hiệu chuẩn trên **n = 1** điểm đo Windows;
+  - **AD-45 và hai móc chuyển hướng** (`$APPDATA`, thư mục gốc Library) — cả ba là mệnh đề
+    **hai nền tảng** mới đo được một nửa; đường Windows đi Known Folder API, khác hẳn macOS;
+  - **Bốn spec e2e** — chưa từng chạy trên WebView2 một lần nào;
+  - **Nợ Windows-only** của 1.6 · 1.14 · 1.15 · 1.16 · 1.17 · 1.18 · 1.19 · 1.20 · 1.21.
+
+  ⚠️ **Hệ quả phải nói thẳng:** mọi thứ Epic 2 → Epic 9 thêm vào sẽ chạy **chỉ trên macOS**
+  cho tới lượt đó. Khoảng mù không đứng yên — nó **dày lên theo từng epic**, và lượt Windows
+  cuối cùng sẽ phải trả một lần cho tất cả. Đó là cái giá của lựa chọn này, và Ice chọn nó
+  với thông tin đó trước mắt. **Chủ: Ice** · mở ở **cuối dự án**.

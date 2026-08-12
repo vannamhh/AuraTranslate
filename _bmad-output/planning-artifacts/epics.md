@@ -1137,7 +1137,8 @@ So that một khác biệt nền tảng lọt vào ở Epic 2 không nằm im t�
 **And** mỗi mục vắng mặt ở một danh sách phải kèm **một lý do đọc được tại chỗ** — một khoảng lặng là một cổng dựa vào trí nhớ, đúng thứ AC3 cấm
 **And** bộ đọc nào không phân giải nổi một danh sách thì **dừng bằng lỗi hạ tầng**, KHÔNG báo đạt — một cổng xanh vì nó không đọc được gì là tệ hơn một cổng đỏ
 
-**Given** GitHub Actions đang **TẠM DỪNG** *(Ice chốt 2026-08-11 — không có máy Windows để đối chiếu kết quả runner)*
+**Given** GitHub Actions đang **TẠM DỪNG** — hai lý do, Ice chốt: *(1) 2026-08-11 — không có máy Windows để đối chiếu kết quả runner; (2) 2026-08-12 — hạn mức tài khoản miễn phí để dành cho một dự án khác*
+**And** ⚠️ tạm dừng nay **cài vào tệp**, không chỉ ghi trong văn bản: `ci.yml` khai `workflow_dispatch:` thay cho `push:`/`pull_request:` — trước 2026-08-12 quyết định tạm dừng chỉ sống trong bốn tạo tác văn bản trong khi mọi lượt push vẫn tiêu phút
 **When** một commit được đẩy đi
 **Then** đường cưỡng chế mỗi lượt là `.githooks/pre-push`, và nó **CHẶN** chứ không báo cáo
 **And** lý do chặn-thay-vì-báo-cáo là một phép đo, không một sở thích: 12 lượt CI đỏ trôi qua 6 ngày vì kết quả chỉ nằm trên một tab không ai mở

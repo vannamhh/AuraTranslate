@@ -245,7 +245,7 @@ action_items:
     owner: "Ice"
     status: done
   - epic: 1
-    action: "AC6 + AC7 cua Story 1.3 va Task 11 hang 4 TREO — chung chi do duoc tren runner. Ice chot 2026-08-11: TAM DUNG GitHub Actions, khong bo. Ly do: khong co may Windows de doi chieu ket qua runner. Story 1.3 giu `in-progress`; mo lai khi Ice co duong doi chieu Windows"
+    action: "AC6 + AC7 cua Story 1.3 va Task 11 hang 4 TREO — chung chi do duoc tren runner. TAM DUNG GitHub Actions, hai ly do: (1) 2026-08-11 khong co may Windows de doi chieu; (2) 2026-08-12 han muc mien phi de danh cho du an khac. Tu 2026-08-12 `ci.yml` khai `workflow_dispatch` — TRUOC do quyet dinh tam dung CHI SONG TRONG VAN BAN va moi luot push van tieu phut. Story 1.3 giu `in-progress`; dong bang MOT luot bam tay khi Ice san sang"
     owner: "Ice"
     status: open
   - epic: 1
@@ -257,7 +257,7 @@ action_items:
     owner: "Ice"
     status: open
   - epic: 1
-    action: "Gom moi mon no can mot may Windows thanh MOT bang nghiem thu duy nhat va gan mot chu"
+    action: "Gom moi mon no can mot may Windows thanh MOT bang nghiem thu duy nhat va gan mot chu. ✅ CO LICH 2026-08-12: Ice chot doi tron phan Windows ve CUOI du an va se tu dung may. Danh sach cho luot do gom o `deferred-work.md` muc 'hai quyet dinh cua Ice'. ⚠️ Khoang mu day len theo tung epic — Epic 2..9 se chi chay tren macOS toi luot do"
     owner: "Ice"
     status: open
   - epic: 1
