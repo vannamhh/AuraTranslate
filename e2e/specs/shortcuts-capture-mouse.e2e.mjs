@@ -49,8 +49,7 @@ describe('Story 1.21 · AC2 đường CHUỘT — vòng gán phím trên WKWebVi
     await realClick(opener)
     await $(PANEL).waitForDisplayed({ timeout: 10_000 })
 
-    const cell = await $(KEY_CELL)
-    await cell.waitForDisplayed({ timeout: 10_000 })
+    await $(KEY_CELL).waitForDisplayed({ timeout: 10_000 })
 
     // ── Đưa hàng về MẶC ĐỊNH trước khi đo ────────────────────────────────────────
     // 🔴 Ca này KHÔNG được giả định trạng thái đầu. Story 1.21 ghi phím tắt **xuống đĩa**
@@ -59,9 +58,20 @@ describe('Story 1.21 · AC2 đường CHUỘT — vòng gán phím trên WKWebVi
     // với một câu đổ lỗi cho sản phẩm. Đo được ở lượt dựng ca này: ô phím vào ca với
     // `⌥⌘K` còn sót từ một lượt chẩn đoán.
     //
-    // ⚠️ Đây mới là bản vá TRIỆU CHỨNG. Nguyên nhân — bộ e2e dùng chung `$APPDATA` với
-    // ứng dụng THẬT của người chạy — còn mở; xem §Giới hạn ở `wdio.conf.mjs`.
+    // ⚠️ Vế *"dùng chung `$APPDATA`"* của chú thích này ĐÃ ĐÓNG 2026-08-11 (Story 1.22 AC2):
+    // mỗi lượt chạy nay có kho riêng. Giữ lượt reset vì nó vẫn cô lập giữa các ca TRONG
+    // cùng một spec, thứ thư mục tạm theo lượt chạy không cho.
     await resetRowToDefault()
+
+    // 🔴 LẤY LẠI handle SAU lượt reset, không dùng lại handle lấy trước đó.
+    //
+    // Đo được 2026-08-12: lượt reset dựng lại hàng, nên một handle giữ từ trước thành
+    // **tham chiếu chết** và ca đỏ bằng `"element wasn't found"` — một lỗi HẠ TẦNG của bàn
+    // đo đội lốt một hồi quy sản phẩm. Nó **chập chờn** vì nó phụ thuộc Vue có thật sự tái
+    // tạo node ở lượt đó hay không: bốn lượt chạy cả bộ đầu tiên đi qua sạch, lượt thứ năm
+    // mới lộ ra. Đúng lớp lỗi mà một bàn đo chạy hiếm sẽ giấu được rất lâu.
+    const cell = await $(KEY_CELL)
+    await cell.waitForDisplayed({ timeout: 10_000 })
     const before = (await cell.getText()).trim()
 
     // ── Đường CHUỘT, và chỉ chuột ────────────────────────────────────────────────
@@ -107,7 +117,7 @@ describe('Story 1.21 · AC2 đường CHUỘT — vòng gán phím trên WKWebVi
     expect(after).not.toBe(before)
     expect(after.toLowerCase()).toContain('k')
 
-    // Trả hàng về mặc định — ca này ghi xuống `global.db` THẬT, nên nó phải tự dọn.
+    // Trả hàng về mặc định — cô lập giữa các ca trong cùng spec (kho nay là kho TẠM).
     await resetRowToDefault()
   })
 })

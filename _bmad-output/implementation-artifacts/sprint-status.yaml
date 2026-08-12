@@ -289,6 +289,14 @@ action_items:
     action: "✅ XONG 2026-08-12 — C3 dong bang PHEP DO, khong bang mot ban va. Gioi han 'mot spec = mot phien, cong 4445 co dinh' KHONG con tai lap duoc: ca bo 4 spec chay MOT luot, 4/4 xanh, hai luot lien tiep (3m07 · 3m04). 'Cong theo worker' la cong viec cho mot van de da bien mat. Nguyen nhan luot truot cu KHONG duoc chan doan va khong ban va nao duoc nhan cong. Chay TUAN TU (`maxInstances: 1`) la mot quyet dinh: onPrepare cap MOT thu muc tam cho ca luot, nen chay song song se de hai app dung chung — dung trang thai AC2 vua dong"
     owner: "Dev"
     status: done
+  - epic: 1
+    action: "✅ XONG 2026-08-12 — A4 phan CO CHU: tang vo giao dien nang mot bac len moc macOS 13px (ui-md 12→13 · ui-sm 11,5→12 · ui-label 10→11 · ui-mono 10,5→11,5), ba thanh nang theo (34/38/32 → 36/40/34). Sua ca BA noi khai so: tokens.json · bang dong bang trong check-tokens.mjs · DESIGN.md. Nghiem thu do tren app that: titlebar 40px, thanh tab 36px, khong tran; dai chip van hien 2,64 hang"
+    owner: "Dev"
+    status: done
+  - epic: 1
+    action: "🔴 BO E2E CHAP CHON — dinh chinh ban ghi C3 hom qua (noi 'on dinh' tren n=2). Tam luot: 6 xanh 2 do. Lan do ① `shortcuts-capture-mouse` da chan doan va va (tham chieu chet sau luot reset). Lan do ② `attribution-focus` CHUA chan doan — nguyen van loi khong kip bat. Luat: gap mot luot do khong tai lap duoc thi BAT NGUYEN VAN TRUOC"
+    owner: "Dev"
+    status: open
   - epic: 10
     action: "📌 De ngo cho Story 10.4: doi nut mo Attribution ra titlebar canh nut phim tat? Cho do do duoc la tieu diem dinh, nen no dong luon menh de chat cua AC11. Cham UX va `mockups/`"
     owner: "Ice"

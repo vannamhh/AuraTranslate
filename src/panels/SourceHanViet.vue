@@ -737,7 +737,7 @@ useSelectionSurface(surface, 'source', resolveSelection)
  * Một dòng trạng thái cho CẢ bề mặt — không nhân theo số ký tự.
  *
  * 🔴 Story 1.17 · Quyết định #7 (Ice chốt 2026-08-06) — token thứ 17 `ui-md-wrap`
- * (12px/1.66/`wraps: true`) thay `ui-md` (12px/1.5, dưới sàn), đóng `deferred-work.md:115`.
+ * (giãn dòng 1.66, `wraps: true`) thay `ui-md` (1.5, dưới sàn), đóng `deferred-work.md:115`.
  */
 .hv-notice {
   margin: 0 0 var(--space-panel-block) 0;

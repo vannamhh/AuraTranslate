@@ -225,8 +225,8 @@ useSelectionSurface(original, 'source')
  * Lỗi đọc Chương, và ca Chương rỗng — hai thứ TRƯỚC ĐÂY im lặng.
  *
  * 🔴 Story 1.17 · Quyết định #7 (Ice chốt 2026-08-06) ĐÓNG lỗ hổng bảng token
- * `deferred-work.md:115`: token thứ 17 `ui-md-wrap` (12px/1.66/`wraps: true`) thay `ui-md`
- * (12px/1.5, dưới sàn 1.66) — không chỉ token mới cho chuỗi mới của 1.17 mà để câu này ở lại
+ * `deferred-work.md:115`: token thứ 17 `ui-md-wrap` (giãn dòng 1.66, `wraps: true`) thay `ui-md`
+ * (1.5, dưới sàn 1.66) — không chỉ token mới cho chuỗi mới của 1.17 mà để câu này ở lại
  * `ui-md` là món nợ `:115` vẫn KHÔNG đóng.
  */
 .load-error {
@@ -240,8 +240,8 @@ useSelectionSurface(original, 'source')
 /*
  * Quyết định #7/Task 8 — Chương vượt trần render của kiểu song song.
  *
- * 🔴 Story 1.17 · Quyết định #7 — đổi từ `ui-sm` (11,5px/1.5) sang token thứ 17
- * `ui-md-wrap` (12px/1.66). ⚠️ Hệ quả NHÌN THẤY ĐƯỢC: cỡ chữ đổi 11,5px → 12px — Ice chốt
+ * 🔴 Story 1.17 · Quyết định #7 — đổi từ `ui-sm` (1.5) sang token thứ 17
+ * `ui-md-wrap` (1.66). ⚠️ Hệ quả NHÌN THẤY ĐƯỢC: cỡ chữ nhích lên một bậc — Ice chốt
  * dùng CHUNG một token cho cả ba chỗ (không thêm `ui-sm-wrap` riêng), xem `tokens.json`
  * `deviations.typography.ui-md-wrap`.
  */

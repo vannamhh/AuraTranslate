@@ -65,6 +65,18 @@
  *    qua, và tôi không gán công cho một bản vá nào mà không có phép đo nói thế. Ghi ra để
  *    ai gặp lại triệu chứng đó biết nó **từng** có thật.
  *
+ * 🔴 **ĐÍNH CHÍNH 2026-08-12 — bộ này CHẬP CHỜN, và bản ghi trước đó nói "ổn định" trên
+ *    một cỡ mẫu quá nhỏ.** Lượt chốt C3 chạy **hai** lượt xanh rồi kết luận ổn định. Tám
+ *    lượt tính tới hôm nay: **6 xanh · 2 đỏ**.
+ *      - Lần đỏ ①: `shortcuts-capture-mouse` — **đã chẩn đoán và vá**. `cell` lấy TRƯỚC
+ *        `resetRowToDefault()`, mà lượt reset dựng lại hàng ⇒ tham chiếu chết ⇒
+ *        `"element wasn't found"`. Một lỗi hạ tầng của bàn đo đội lốt hồi quy sản phẩm.
+ *      - Lần đỏ ②: `attribution-focus` — **CHƯA chẩn đoán**, nguyên văn lỗi không kịp bắt.
+ *        Nó xanh khi chạy một mình và xanh ở mọi lượt cả-bộ khác.
+ *    ⚠️ Hai lượt xanh sau bản vá **không** chứng minh bộ đã hết chập chờn — đó đúng là cỡ
+ *    mẫu đã lừa một lần. Ai gặp một lượt đỏ không tái lập được: **bắt nguyên văn trước**,
+ *    đừng chạy lại cho tới khi xanh rồi đi tiếp.
+ *
  * 🔴 **KHÔNG chạy song song (`maxInstances: 1`), và đó là một quyết định, không một chỗ
  *    chưa làm tới.** Hai lý do, lý do đầu là một hồi quy **đúng theo cấu tạo** chứ không
  *    một rủi ro cần đo:

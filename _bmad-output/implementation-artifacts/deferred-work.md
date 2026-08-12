@@ -1795,3 +1795,65 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
 - 📝 **Tài liệu đã dọn ở ba chỗ**, vì lời khuyên cũ nay **tốn tiền của người đọc**: nó bảo
   chạy từng tệp bằng `--spec`, tức bốn lượt khởi động app thay vì một. `e2e/wdio.conf.mjs`
   §Giới hạn 3 + khối `Chạy:` · AC tương ứng của Story 1.22 ở `epics.md`.
+
+## Deferred from: A4 — cỡ chữ vỏ giao diện, và một đính chính về độ ổn định của bộ e2e (2026-08-12)
+
+- ✅ **ĐÓNG — tầng vỏ giao diện nâng một bậc lên mốc macOS 13px. Ice chốt sau nghiệm thu A4.**
+  Ice xem bằng mắt và chốt: *"phần thẩm mỹ tốt rồi, nhưng 11,5px là quá nhỏ để đọc"*.
+
+  **Mốc đối chiếu, không phải khẩu vị:** giao diện hệ thống macOS chạy ở **13px**; tầng vỏ cũ
+  ở **10–12px**, tức **dưới mặc định của hệ điều hành** trên chính nền tảng Ice dùng hằng ngày.
+
+  | Token | Cũ | Mới | Số chỗ dùng |
+  |---|---|---|---|
+  | `ui-md` · `ui-md-strong` · `ui-md-wrap` | 12px | **13px** | 29 · 3 · 11 |
+  | `ui-sm` | 11,5px | **12px** | 16 |
+  | `ui-label` | 10px | **11px** | 11 |
+  | `ui-mono` | 10,5px | **11,5px** | 4 |
+  | `head-height` · `titlebar-height` · `status-height` | 34 · 38 · 32px | **36 · 40 · 34px** | — |
+
+  Tầng **nội dung** (14,5–24px) **không đụng tới**. Ba thanh nâng theo để giữ tỉ lệ khoảng
+  thở — Ice chốt phương án đó thay vì ép chữ to vào chiều cao cũ.
+
+  🔴 **Vì sao không nâng riêng `ui-sm` như câu hỏi của Ice:** lên 12px thì nó **bằng** `ui-md`
+  ⇒ thừa một token; lên 12,5px thì **nhãn phụ to hơn tiêu đề panel** ⇒ đảo trật tự phân cấp.
+  Câu trả lời phải áp cho cả tầng.
+
+  **Ba nơi khai cùng một con số, sửa cả ba** *(thiếu một là cổng đỏ — đó là thiết kế đúng, nó
+  buộc lượt đổi phải có chữ ký)*: `src/tokens/tokens.json` · **bảng đóng băng viết cứng trong
+  chính cổng** `scripts/check-tokens.mjs` · `DESIGN.md` §Bảng token typography + §Spacing.
+
+  ⚠️ **Lật một quyết định có lý do, ghi ra chứ không lặng lẽ đè.** `DESIGN.md` bảo vệ tầng vỏ
+  nhỏ bằng chữ: *"ghìm chặt … giữ được mật độ của một nhạc cụ nghề nghiệp"*. Câu đó **vẫn
+  đứng** và nay mang một khối ghi rõ nó **đã được cân một lần và thua**: mật độ là một giá trị
+  thật, nhưng nó không thắng được việc chữ khó đọc với chính người dùng duy nhất.
+
+  **Nghiệm thu bằng phép đo trên app thật, không bằng suy luận:** titlebar render **40px**,
+  thanh tab panel **36px** — khớp đúng token mới, **không tràn**. Dải chip nguồn báo "tràn"
+  nhưng đó là **dương tính giả theo cấu tạo**: `.lookup-sources-chips` khai
+  `max-height: 52px; overflow-y: auto` và chú thích tại chỗ nói *"nơi DUY NHẤT được phép
+  tràn, và nó cuộn chứ không nuốt"*. Đo lại số hàng chip hiện được: **2,64 hàng** ở cỡ mới so
+  với ~2,76 ở cỡ cũ ⇒ vẫn giữ *"hai hàng trọn + một vệt hàng thứ ba"* làm dấu hiệu còn cuộn
+  được. **Không phải chỉnh `max-height`.**
+
+  📌 **Câu hỏi để ngỏ:** một **hệ số scale giao diện** do người dùng chỉnh là câu trả lời đúng
+  bản chất hơn — *"nhỏ quá"* là thuộc tính của từng người, không của một con số. Token đang là
+  `px` cứng nên nó cần một lượt chuyển sang đơn vị tương đối trước ⇒ **một story riêng**, đã
+  ghi vào `DESIGN.md`. **Chủ: Ice.**
+
+- 🔴 **ĐÍNH CHÍNH — bộ e2e CHẬP CHỜN, và bản ghi C3 hôm qua nói "ổn định" trên cỡ mẫu quá nhỏ.**
+  Lượt chốt C3 chạy **hai** lượt xanh rồi kết luận ổn định. **Tám** lượt tính tới hôm nay:
+  **6 xanh · 2 đỏ**.
+
+  - **Lần đỏ ① — `shortcuts-capture-mouse`: đã chẩn đoán và VÁ.** `cell` lấy **trước**
+    `resetRowToDefault()`, mà lượt reset dựng lại hàng ⇒ **tham chiếu chết** ⇒ ca đỏ bằng
+    `"element wasn't found"`. Một lỗi **hạ tầng của bàn đo đội lốt hồi quy sản phẩm** — đúng
+    lớp lỗi đắt nhất ở một bàn đo. Vá: lấy lại handle **sau** lượt reset.
+    ⚠️ Nó chập chờn vì phụ thuộc Vue có thật sự tái tạo node ở lượt đó hay không, nên **bốn
+    lượt đầu đi qua sạch**.
+  - **Lần đỏ ② — `attribution-focus`: CHƯA chẩn đoán.** Nguyên văn lỗi không kịp bắt *(lượt
+    chạy lại đã xanh)*. Nó xanh khi chạy một mình và xanh ở mọi lượt cả-bộ khác. **Còn mở.**
+
+  ⚠️ **Hai lượt xanh sau bản vá KHÔNG chứng minh bộ đã hết chập chờn** — đó đúng là cỡ mẫu đã
+  lừa một lần. Luật cho lượt sau, đã ghi vào `wdio.conf.mjs`: gặp một lượt đỏ không tái lập
+  được thì **bắt nguyên văn TRƯỚC**, đừng chạy lại cho tới khi xanh rồi đi tiếp. **Chủ: Dev.**

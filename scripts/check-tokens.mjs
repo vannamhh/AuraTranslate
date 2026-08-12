@@ -167,7 +167,7 @@ const EXPECTED_TYPOGRAPHY = {
   'lookup-headword': { family: 'read', fontSize: '24px', lineHeight: '1.3' },
   'lookup-gloss': { family: 'read', fontSize: '14.5px', lineHeight: '1.6' },
   'lookup-example': { family: 'read', fontSize: '12.5px', lineHeight: '1.6', fontStyle: 'italic' },
-  'ui-md': { family: 'ui', fontSize: '12px', lineHeight: '1.5' },
+  'ui-md': { family: 'ui', fontSize: '13px', lineHeight: '1.5' },
   /*
    * ⚠️ `ui-md-strong` (Story 1.14 · AC10) CỐ Ý VẮNG MẶT ở đây.
    *
@@ -177,15 +177,15 @@ const EXPECTED_TYPOGRAPHY = {
    * phải có `question` + `reason` không rỗng. Xem lý lẽ đầy đủ ở phần `extra` của
    * `compare()`. Đừng "sửa" bằng cách thêm một hàng vào đây.
    */
-  'ui-sm': { family: 'ui', fontSize: '11.5px', lineHeight: '1.5' },
+  'ui-sm': { family: 'ui', fontSize: '12px', lineHeight: '1.5' },
   'ui-label': {
     family: 'ui',
-    fontSize: '10px',
+    fontSize: '11px',
     lineHeight: '1.4',
     fontWeight: '700',
     letterSpacing: '0.1em',
   },
-  'ui-mono': { family: 'mono', fontSize: '10.5px', lineHeight: '1.4' },
+  'ui-mono': { family: 'mono', fontSize: '11.5px', lineHeight: '1.4' },
 }
 
 const EXPECTED_FAMILIES = {
@@ -199,9 +199,9 @@ const EXPECTED_SPACING = {
   unit: '4px',
   'panel-inline': '16px',
   'panel-block': '12px',
-  'head-height': '34px',
-  'titlebar-height': '38px',
-  'status-height': '32px',
+  'head-height': '36px',
+  'titlebar-height': '40px',
+  'status-height': '34px',
   'gutter-width': '22px',
   'read-measure-lg': '62ch',
   'read-measure-md': '68ch',

@@ -92,7 +92,7 @@ typography:
     lineHeight: '1.5'
   ui-sm:
     fontFamily: ui
-    fontSize: 11.5px
+    fontSize: 12px
     lineHeight: '1.5'
   ui-label:
     fontFamily: ui
@@ -269,10 +269,10 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 | 8 | `lookup-headword` | 24px / 1.3 | `read` | Đầu mục Panel Lookup |
 | 9 | `lookup-gloss` | 14.5px / 1.6 | `read` | Nghĩa |
 | 10 | `lookup-example` | 12.5px / italic / 1.6 | `read` | Ví dụ và trích dẫn |
-| 11 | `ui-md` | 12px / 1.5 | `ui` | Tiêu đề panel |
-| 12 | `ui-sm` | 11.5px / 1.5 | `ui` | Nhãn phụ |
-| 13 | `ui-label` | 10px / 700 / 1.4 / `0.1em` | `ui` | Nhãn nguồn từ điển |
-| 14 | `ui-mono` | 10.5px / 1.4 | `mono` | Phím tắt, số liệu |
+| 11 | `ui-md` | 13px / 1.5 | `ui` | Tiêu đề panel |
+| 12 | `ui-sm` | 12px / 1.5 | `ui` | Nhãn phụ |
+| 13 | `ui-label` | 11px / 700 / 1.4 / `0.1em` | `ui` | Nhãn nguồn từ điển |
+| 14 | `ui-mono` | 11.5px / 1.4 | `mono` | Phím tắt, số liệu |
 
 ### Bảng token khoảng cách và hình dạng
 
@@ -280,9 +280,27 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 
 | Nhóm | Token |
 |---|---|
-| **Spacing** | `panel-inline 16px` · `panel-block 12px` · `head-height 34px` · `titlebar-height 38px` · `status-height 32px` · `gutter-width 22px` |
+| **Spacing** | `panel-inline 16px` · `panel-block 12px` · `head-height 36px` · `titlebar-height 40px` · `status-height 34px` · `gutter-width 22px` |
 | **Thước đọc** | `read-measure-lg 62ch` · `read-measure-md 68ch` · `read-measure-sm 76ch` |
 | **Bo góc** | `none 0` · `sm 2px` · **mặc định `3px`** · `md 4px` · `window 9px` · `full 9999px` |
+
+> 🔴 **TẦNG VỎ GIAO DIỆN NÂNG MỘT BẬC — Ice chốt 2026-08-12, và nó LẬT một quyết định của chính tài liệu này.**
+>
+> Bảng trên đọc **13 / 12 / 11 / 11,5px**; trước 2026-08-12 nó là **12 / 11,5 / 10 / 10,5px**. Ba
+> thanh nâng theo để giữ tỉ lệ khoảng thở: `head` 34→**36**, `titlebar` 38→**40**, `status` 32→**34**.
+>
+> **Lý do, và nó là một phép đối chiếu chứ không một khẩu vị:** giao diện hệ thống macOS chạy ở
+> **13px**. Tầng vỏ cũ ở 10–12px, tức **dưới mặc định của hệ điều hành** trên chính nền tảng Ice
+> dùng hằng ngày. Ice đọc bằng mắt sau một lượt nghiệm thu A4 và chốt *"11,5px là quá nhỏ để đọc"*.
+>
+> ⚠️ **Câu ngay dưới đây — *"ghìm chặt … mật độ của một nhạc cụ nghề nghiệp"* — vẫn đứng, nhưng nó
+> đã bị cân lại một lần và thua.** Mật độ là một giá trị thật của sản phẩm này; nó không thắng được
+> việc chữ khó đọc với chính người dùng duy nhất. Ghi ra để lượt sau biết mệnh đề đó **đã được xét**,
+> thay vì đọc bảng mới rồi tưởng ai đó quên mất lý lẽ cũ.
+>
+> 📌 Câu hỏi để ngỏ: một **hệ số scale giao diện** do người dùng chỉnh là câu trả lời đúng bản chất
+> hơn — *"nhỏ quá"* là thuộc tính của từng người, không của một con số. Nó cần token chuyển từ `px`
+> cứng sang đơn vị tương đối trước, nên nó là một story riêng, không một lượt sửa bảng.
 
 ### Giãn dòng 1.66 là sàn cứng — của chữ nội dung
 
@@ -295,7 +313,7 @@ Không token họ `read` nào được xuống dưới **1.66**. Đây là ràng
 | Loại chuỗi | Sàn | Vì sao |
 |---|---|---|
 | Chữ nội dung — họ `read` | **1.66** | Chạy thành đoạn dài, xuống dòng liên tục. Đây là chỗ dấu chồng dấu gây mỏi tích luỹ |
-| Nhãn giao diện một dòng — `ui-md` `ui-sm` `ui-label` `ui-mono` | **1.4** | Không xuống dòng thì không có dòng dưới để chạm. Ghìm chặt giúp thanh panel 34px và thanh trạng thái 32px giữ được mật độ của một nhạc cụ nghề nghiệp |
+| Nhãn giao diện một dòng — `ui-md` `ui-sm` `ui-label` `ui-mono` | **1.4** | Không xuống dòng thì không có dòng dưới để chạm. Ghìm chặt giúp thanh panel 36px và thanh trạng thái 34px giữ được mật độ của một nhạc cụ nghề nghiệp |
 | Nhãn giao diện **có khả năng xuống dòng** — mô tả dưới ô thiết lập, câu trạng thái, hộp giải thích | **1.66** | Đã xuống dòng thì áp đúng ràng buộc của chữ nội dung, bất kể dùng họ `ui` |
 
 **Phép thử khi không chắc:** chuỗi này có bao giờ dài quá một dòng không? Có thì 1.66. Không thì được ghìm xuống 1.4.
