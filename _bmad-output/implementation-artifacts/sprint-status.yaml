@@ -79,7 +79,9 @@ development_status:
   # C1 XONG: $APPDATA sang thu muc tam. C2 XONG: chuot that + cong cam `.click()`,
   # va no lo ra mot khuyet tat SAN PHAM (UX-DR17 hong tren WKWebView) — da va goc.
   # Be mat du lieu that THU HAI (thu muc goc Library) cung da dong.
-  # CON MO: C3 (cong 4445 co dinh) · fixture giao dien cho spec Attribution.
+  # Fixture workspace XONG; spec Attribution XANH (AC11 duoc lam ro co chu ky).
+  # C3 DONG BANG PHEP DO: gioi han "cong 4445 co dinh" khong con tai lap duoc —
+  # ca bo 4/4 xanh trong MOT luot (3m07 va 3m04). Chay tuan tu la QUYET DINH.
   # Buoc 3 cho GitHub Actions quay lai.
   1-22-bo-chay-e2e-trong-webview-that: in-progress
   epic-1-retrospective: done
@@ -281,6 +283,10 @@ action_items:
     status: done
   - epic: 1
     action: "✅ XONG 2026-08-12 — fixture `workspace` chay duoc (`e2e/support/workspace.mjs`), va spec Attribution nay XANH. Phep do lat khuyen nghi truoc do: ban va `@mousedown` KHONG chuyen duoc sang nut trong panel (da go khoi LookupPanel, giu o titlebar). Bon gia thuyet ve nguyen nhan bi BAC BANG DO; nguyen nhan KHONG duoc dat ten. AC11 cua Story 1.19 duoc LAM RO co chu ky: dich la nut mo HOAC mot to tien cua no — pham vi hep, UX-DR17 cua 1.21 giu nguyen menh de chat"
+    owner: "Dev"
+    status: done
+  - epic: 1
+    action: "✅ XONG 2026-08-12 — C3 dong bang PHEP DO, khong bang mot ban va. Gioi han 'mot spec = mot phien, cong 4445 co dinh' KHONG con tai lap duoc: ca bo 4 spec chay MOT luot, 4/4 xanh, hai luot lien tiep (3m07 · 3m04). 'Cong theo worker' la cong viec cho mot van de da bien mat. Nguyen nhan luot truot cu KHONG duoc chan doan va khong ban va nao duoc nhan cong. Chay TUAN TU (`maxInstances: 1`) la mot quyet dinh: onPrepare cap MOT thu muc tam cho ca luot, nen chay song song se de hai app dung chung — dung trang thai AC2 vua dong"
     owner: "Dev"
     status: done
   - epic: 10

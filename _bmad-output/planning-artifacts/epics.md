@@ -1958,9 +1958,13 @@ So that món nợ nghiệm thu thị giác — món **duy nhất có hệ số n
 **Then** ca đó đi qua **Actions API**, không qua `element.click()`
 **And** lý do ghi ra tại chỗ, vì một ca xanh nhờ thứ tự sai là một ca nói dối
 
-**Given** máy chủ nhúng bám cổng cố định **4445**
-**When** chạy nhiều tệp spec trong cùng một lượt
-**Then** hoặc cổng cấp **theo worker**, hoặc chạy từng tệp bằng `--spec` và giới hạn đó ghi ở chỗ người chạy đọc được trước khi mất một giờ
+**Given** nhiều tệp spec trong cùng một lượt chạy
+**When** chạy `npm run test:e2e` không kèm `--spec`
+**Then** cả bộ chạy hết trong **một** lượt, tuần tự
+**And** ⚠️ **AC này đã đổi 2026-08-12 sau một phép đo.** Bản gốc giả định máy chủ nhúng bám cổng cố định **4445** làm phiên thứ hai trượt, và đòi *"cổng cấp theo worker, hoặc chạy từng tệp bằng `--spec`"*. Đo lại khi bộ có **bốn** spec: **4/4 xanh**, hai lượt liên tiếp, **3m07** và **3m04** — triệu chứng **không còn tái lập được**, nên phần "cổng theo worker" là công việc cho một vấn đề đã biến mất
+**And** 🔴 nguyên nhân lượt trượt cũ **không được chẩn đoán**, và không bản vá nào được nhận công mà không có phép đo nói thế
+**And** bộ chạy **tuần tự** (`maxInstances: 1`) là một **quyết định**, không một chỗ chưa làm tới: `onPrepare` cấp **một** `$APPDATA` tạm và **một** thư mục Library tạm cho cả lượt, nên chạy song song sẽ để hai app dùng chung chúng — đúng trạng thái AC2 vừa đóng, chỉ đổi từ *"e2e đụng dữ liệu người dùng"* thành *"hai ca e2e đụng nhau"*
+**And** điều kiện mở lại nếu có ngày cần song song: cấp thư mục tạm **theo worker** trước, rồi đổi phép tự kiểm ở `onComplete` theo
 
 **Given** bản phát hành
 **When** kiểm

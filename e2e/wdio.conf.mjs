@@ -57,13 +57,30 @@
  *    ⇒ Mọi tương tác mà thứ tự sự kiện có nghĩa phải đi qua Actions API
  *    (`browser.action('pointer')…`), xem `realClick()` trong spec.
  *
- * 3. ⚠️ **Một spec = một phiên app, và máy chủ nhúng bám cổng cố định 4445.** Chạy hai
- *    tệp spec trong cùng một lượt làm phiên thứ hai trượt, trong khi mỗi tệp chạy riêng
- *    đều xanh. Chưa đóng; đường ra là cổng theo worker (`TAURI_WEBDRIVER_PORT`) hoặc gộp
- *    các hàng vào ít tệp spec hơn. Tới lúc đó: chạy từng tệp bằng `--spec`.
+ * 3. ✅ **HẾT HIỆU LỰC 2026-08-12 — chạy cả bộ trong MỘT lượt được.** Bản ghi cũ nói
+ *    *"một spec = một phiên app, máy chủ nhúng bám cổng cố định 4445, chạy hai tệp trong
+ *    cùng một lượt làm phiên thứ hai trượt"* và khuyên chạy từng tệp bằng `--spec`. Đo lại
+ *    khi bộ có **bốn** spec: **4/4 xanh**, hai lượt liên tiếp, **3m07** và **3m04**.
+ *    ⚠️ Nguyên nhân lượt trượt cũ **không được chẩn đoán** — nó biến mất trong lúc C1/C2 đi
+ *    qua, và tôi không gán công cho một bản vá nào mà không có phép đo nói thế. Ghi ra để
+ *    ai gặp lại triệu chứng đó biết nó **từng** có thật.
  *
- * Chạy:  npm run test:e2e            (tất cả spec — xem giới hạn 3)
- *        npx wdio run e2e/wdio.conf.mjs --spec e2e/specs/<tên>.e2e.mjs
+ * 🔴 **KHÔNG chạy song song (`maxInstances: 1`), và đó là một quyết định, không một chỗ
+ *    chưa làm tới.** Hai lý do, lý do đầu là một hồi quy **đúng theo cấu tạo** chứ không
+ *    một rủi ro cần đo:
+ *      ① `onPrepare` cấp **một** `$APPDATA` tạm và **một** thư mục Library tạm cho cả lượt.
+ *         Hai app chạy song song sẽ dùng chung chúng — đúng trạng thái mà AC2 vừa đóng, chỉ
+ *         đổi từ *"e2e đụng dữ liệu người dùng"* thành *"hai ca e2e đụng nhau"*. Muốn song
+ *         song thì phải cấp thư mục **theo worker** trước, và phép tự kiểm ở `onComplete`
+ *         phải đổi theo.
+ *      ② **Mọi** spec trong bộ này khẳng định trên `document.activeElement`. Hai cửa sổ
+ *         thật trên cùng một desktop macOS tranh tiêu điểm ở tầng hệ điều hành — một ca có
+ *         thể đỏ vì cửa sổ kia vừa được kích hoạt. Đây là rủi ro **chưa đo**, ghi đúng mức
+ *         độ chắc chắn của nó; ① một mình đã đủ để không đi đường này hôm nay.
+ *    Đổi lại: 3 phút cho cả bộ, tuần tự, và không một lớp đỏ giả nào.
+ *
+ * Chạy:  npm run test:e2e                                          (cả bộ, ~3 phút)
+ *        npm run test:e2e -- --spec e2e/specs/<tên>.e2e.mjs        (một tệp, khi đang vá)
  */
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'

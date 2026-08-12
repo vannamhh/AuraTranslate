@@ -1756,3 +1756,42 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
 - 📌 **Câu hỏi để ngỏ cho Story 10.4** *(sở hữu nửa còn lại của màn Attribution)*: dời nút mở
   ra **titlebar**, cạnh nút phím tắt? Chỗ đó đo được là tiêu điểm dính, nên nó đóng luôn mệnh
   đề chặt. Chạm UX và `mockups/`, nên không quyết trong lượt này. **Chủ: Ice.**
+
+## Deferred from: Story 1.22 — C3, và một giới hạn hoá ra đã tự hết hiệu lực (2026-08-12)
+
+- ✅ **ĐÓNG bằng một PHÉP ĐO, không bằng một bản vá.** C3 sinh ra để sửa giới hạn số 3 của bộ
+  e2e: *"một spec = một phiên app, máy chủ nhúng bám cổng cố định 4445, chạy hai tệp trong
+  cùng một lượt làm phiên thứ hai trượt"*, với đường ra đề xuất là **cổng cấp theo worker**.
+
+  **Việc đầu tiên là chạy thử, không phải viết mã.** Bộ nay có **bốn** spec:
+  `npm run test:e2e` không kèm `--spec` ⇒ **4/4 XANH**, hai lượt liên tiếp, **3m07** và
+  **3m04**. Triệu chứng **không còn tái lập được**.
+
+  ⇒ *"Cổng theo worker"* là công việc cho một vấn đề **đã biến mất**. Nếu viết nó ra hôm nay,
+  ta có thêm một cơ chế không ai kiểm chứng được là cần thiết, cộng một lượt tự khen đã sửa
+  một thứ chưa chắc từng hỏng vì lý do ta nghĩ.
+
+  🔴 **Nguyên nhân lượt trượt cũ KHÔNG được chẩn đoán.** Nó biến mất đâu đó trong lúc C1 và
+  C2 đi qua, và tôi **không gán công** cho một bản vá nào mà không có phép đo nói thế. Ghi ra
+  để ai gặp lại triệu chứng biết nó **từng** có thật và biết nó đã tự hết ở đâu.
+
+- 🔴 **QUYẾT ĐỊNH: bộ e2e chạy TUẦN TỰ (`maxInstances: 1`), không song song.** Đây là một
+  lựa chọn có lý do, không một chỗ chưa làm tới — và lý do đầu **không phải một rủi ro cần
+  đo** mà là một hồi quy **đúng theo cấu tạo**:
+
+  ① `onPrepare` cấp **một** `$APPDATA` tạm và **một** thư mục Library tạm cho **cả lượt**.
+  Hai app chạy song song dùng chung chúng ⇒ đúng trạng thái mà AC2 vừa đóng, chỉ đổi từ
+  *"e2e đụng dữ liệu người dùng"* thành *"hai ca e2e đụng nhau"*. Và phép tự kiểm ở
+  `onComplete` *(`global.db` phải nằm trong thư mục tạm)* trở thành **mơ hồ**: nó không phân
+  biệt được app nào đã ghi.
+
+  ② Mọi spec trong bộ khẳng định trên `document.activeElement`. Hai cửa sổ **thật** trên cùng
+  một desktop macOS tranh tiêu điểm ở tầng hệ điều hành. ⚠️ Đây là rủi ro **CHƯA ĐO** — ghi
+  đúng mức độ chắc chắn của nó, không dựng nó thành một dữ kiện. Lý do ① một mình đã đủ.
+
+  **Cái giá đã biết:** 3 phút cho cả bộ. **Điều kiện mở lại:** cấp thư mục tạm **theo
+  worker** trước, rồi đổi phép tự kiểm ở `onComplete` theo — đúng thứ tự đó, không ngược lại.
+
+- 📝 **Tài liệu đã dọn ở ba chỗ**, vì lời khuyên cũ nay **tốn tiền của người đọc**: nó bảo
+  chạy từng tệp bằng `--spec`, tức bốn lượt khởi động app thay vì một. `e2e/wdio.conf.mjs`
+  §Giới hạn 3 + khối `Chạy:` · AC tương ứng của Story 1.22 ở `epics.md`.
