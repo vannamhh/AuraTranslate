@@ -12,6 +12,8 @@
   "err.import.too_large": "Tệp nặng {size} byte, vượt trần {limit} byte của phiên bản này — tệp chưa được nhập.",
   "err.project.create_failed": "Không tạo được Tác phẩm trên đĩa — chưa có gì được ghi lại.",
   "err.project.no_work_open": "Chưa có Tác phẩm nào đang mở — không đọc được nội dung Chương.",
+  "err.segment.chapter_not_found": "Không tìm thấy Chương số {chapter_id} trong Tác phẩm đang mở — chưa tách được câu nào.",
+  "err.segment.already_split": "Chương số {chapter_id} đã có {count} câu được tách — ranh giới cũ giữ nguyên, không có gì bị ghi đè.",
   "command.mode.library": "Library",
   "command.mode.workspace": "Workspace",
   "command.mode.reading": "Chế độ đọc",

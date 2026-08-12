@@ -305,7 +305,15 @@ fn the_routing_predicate_lives_in_exactly_one_file_and_the_adapter_never_calls_i
 ///
 /// Số thật lúc dựng (Story 1.11b): **36**. Sàn **20**, cùng khuôn `RS_FLOOR` của
 /// `store_boundary.rs`: nó bắt một cây **bị cắt**, không bắt việc thêm tệp.
-const SRC_TAURI_RS_FLOOR: usize = 20;
+///
+/// ⚠️ Story 2.1 (2026-08-12): số thật là **57** — 42 tệp dưới `src/**` cộng 15 dưới
+/// `tests/**` (story này thêm `segment_contract.rs` và `segment_boundary.rs`). Sàn lên
+/// **46** (80,7%).
+///
+/// 🔴 **Quần thể này KHÁC bốn sàn `src/**` khác của kho** — nó gồm cả `tests/**`, vì bản sao
+/// `is_han` đã bị xoá sống ở `tests/**`. Chép số 34 của `store_boundary.rs` sang đây là đặt
+/// một cái sàn cho một cây khác.
+const SRC_TAURI_RS_FLOOR: usize = 46; // số THẬT 2026-08-12: 57 tệp `.rs` (src + tests) — 46/57 = 80,7%
 
 /// 🔴 **AC2 vế cuối** — trong toàn bộ `src-tauri/**` chỉ còn **MỘT** định nghĩa `is_han`.
 ///
@@ -369,7 +377,11 @@ fn exactly_one_definition_of_is_han_exists_under_src_tauri() {
 /// Số thật lúc dựng (Story 1.13): **31**. Sàn **20**, cùng khuôn mọi sàn khác của dự án:
 /// nó bắt một cây **bị cắt**, không bắt việc thêm tệp. *"Cây rỗng đọc thành sạch"* — một
 /// gốc quét gõ sai làm `walk` khớp 0 tệp và **cả bốn** cổng xanh mà không kiểm gì cả.
-const SRC_ONLY_RS_FLOOR: usize = 20;
+///
+/// ⚠️ Story 2.1 (2026-08-12): số thật là **42**; sàn lên **34** (81,0%), nâng cùng lượt với
+/// `store_boundary.rs`/`scope_boundary.rs`/`matching_boundary.rs`. Quần thể ở đây là
+/// `src-tauri/src/**` — **không** gồm `tests/**`, khác [`SRC_TAURI_RS_FLOOR`] ngay trên.
+const SRC_ONLY_RS_FLOOR: usize = 34; // số THẬT 2026-08-12 (sau Story 2.1): 42 tệp `.rs` — 34/42 = 81,0%
 
 /// **Mười `code` THẬT**, đo trên bốn tệp `.db` ở `tools/dict-build/out/` ngày 2026-08-08.
 ///

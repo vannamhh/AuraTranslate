@@ -1,16 +1,15 @@
 ---
 baseline_commit: 26d89d1de15b74e1f84a6d00bc081b76c4b8d63b
 ---
-
 # Story 2.1: Tách segment cấp câu và cờ kết đoạn
 
-Status: ready-for-dev
+Status: done
 
 **Covers:** FR23 (`prd.md:421-427`) · A4 — giả định *"tách câu tự động đúng ở tỷ lệ chấp nhận được"* (`prd.md:1075`)
 **Epic:** 2 — Biên tập theo segment · **story ĐẦU của epic** (epic chuyển `backlog → in-progress` ở lượt này)
 **Nguồn:** `epics.md:1986-2032` · AD-3 · AD-4 · AD-5 · AD-11 · AD-21 · AD-28 · AD-30 · AD-31 · AD-37 · AD-39 (`ARCHITECTURE-SPINE.md`)
-**Nợ đóng ở đây:** action item **A6** của Epic 1 *(vết sẹo `PROJECT_MIGRATIONS` số 4)* · `deferred-work.md:542` *(`segment_count = 0` trên mọi Chương Epic 1)* · `deferred-work.md:561` *(`\r` của CRLF chưa chuẩn hoá — phần thuộc 2.1)*
-**Nợ ĐI QUA đây mà KHÔNG đóng:** `deferred-work.md:254` *(bản sao lưu trước di trú không nguyên tử, không xác minh lại)* · `:195-206` *(sáu số Tuning, chủ là 2.4)* · `:1169-1180` *(không cổng nào cấm tái dùng một số di trú — xem Task 3.4)*
+**Nợ đóng ở đây:** action item **A6** của Epic 1 *(vết sẹo *`PROJECT_MIGRATIONS`* số 4)* · `deferred-work.md:542` *(*`segment_count = 0`* trên mọi Chương Epic 1)* · `deferred-work.md:561` *(*`\r`* của CRLF chưa chuẩn hoá — phần thuộc 2.1)
+***Nợ ĐI QUA đây mà KHÔNG đóng:** `deferred-work.md:254` *(bản sao lưu trước di trú không nguyên tử, không xác minh lại)* · `:195-206` *(sáu số Tuning, chủ là 2.4)* · `:1169-1180` *(không cổng nào cấm tái dùng một số di trú — xem Task 3.4)*
 
 ---
 
@@ -24,17 +23,17 @@ Status: ready-for-dev
 
 Đây là **action item A6 của Epic 1**, chủ là Dev, còn mở, và điều kiện đóng của nó viết bằng chữ là *"story 2.1 dựng ra đã mang mệnh đề đó"*. Số 4 là một số **đã cháy**, và vết sẹo đã nằm sẵn trong mã — `schema.rs:280-296`:
 
-> *"Bản đầu của Story 1.20 (2026-08-10) thêm **bước 4** đặt `PINNED_ENTRY_DDL` vào bộ này... Ngày 2026-08-11 Ice ký lại... và bước 4 **bị gỡ**. […] Số **4** vì thế là một số **đã cháy**: bước di trú kế tiếp của `project.db` phải đánh số **5**, không được tái dùng 4."*
+> *"Bản đầu của Story 1.20 (2026-08-10) thêm bước 4 đặt *`PINNED_ENTRY_DDL`* vào bộ này... Ngày 2026-08-11 Ice ký lại... và bước 4 bị gỡ. […] Số 4 vì thế là một số đã cháy: bước di trú kế tiếp của *`project.db`* phải đánh số 5, không được tái dùng 4."*
 
 `PROJECT_MIGRATIONS` hôm nay có **đúng ba** bước (`schema.rs:297-310`): `to_version: 1` `SCHEMA_MIGRATION_LOG_DDL` · `2` `WORK_DDL` · `3` `CHAPTER_DDL`.
 
-🔴 **`validate_strictly_increasing` KHÔNG bắt được lỗi này.** Nó chỉ kiểm tăng dần nghiêm ngặt — `[1, 2, 3, 4]` là một danh sách hợp lệ hoàn hảo. Viết `to_version: 4` sẽ đi qua **mọi** cổng hiện có mà không một dòng đỏ nào, và hậu quả chỉ lộ ra ở máy người dùng từng chạy bản v4 cũ. Xem Task 3.4 — story này dựng cổng còn thiếu đó.
+🔴 `validate_strictly_increasing` **KHÔNG bắt được lỗi này.** Nó chỉ kiểm tăng dần nghiêm ngặt — `[1, 2, 3, 4]` là một danh sách hợp lệ hoàn hảo. Viết `to_version: 4` sẽ đi qua **mọi** cổng hiện có mà không một dòng đỏ nào, và hậu quả chỉ lộ ra ở máy người dùng từng chạy bản v4 cũ. Xem Task 3.4 — story này dựng cổng còn thiếu đó.
 
 ### 3. Dữ liệu THẬT trên đĩa mang `\r\n` chưa chuẩn hoá
 
 `deferred-work.md:561` giao món nợ này đích danh cho 2.1:
 
-> *"Chuẩn hoá xuống dòng (CRLF → LF) và khoảng trắng CỐ Ý KHÔNG làm ở Story 1.15 — `core::segment::import::import_text` giữ nguyên byte văn bản sau khi giải mã... Hệ quả phải biết: mọi Chương nhập từ một tệp Windows ở Epic 1 mang `\r\n` trong `chapter.source_text`, và Story 2.1 (tách câu) phải xử lý `\r` như khoảng trắng, không để nó dính vào cuối segment. Chủ: Story 2.1 + Story 6.4/6.5."*
+> *"Chuẩn hoá xuống dòng (CRLF → LF) và khoảng trắng CỐ Ý KHÔNG làm ở Story 1.15 — *`core::segment::import::import_text`* giữ nguyên byte văn bản sau khi giải mã... Hệ quả phải biết: mọi Chương nhập từ một tệp Windows ở Epic 1 mang *`\r\n`* trong *`chapter.source_text`*, và Story 2.1 (tách câu) phải xử lý *`\r`* như khoảng trắng, không để nó dính vào cuối segment. Chủ: Story 2.1 + Story 6.4/6.5."*
 
 Chuẩn hoá THẬT (FR124/FR125) là Epic 6. Story 2.1 **không** chuẩn hoá `chapter.source_text`; nó chỉ phải **tự phòng thủ** trong bộ tách. Lý do phải phòng thủ ngay bây giờ chứ không đợi Epic 6: AD-4 đóng băng ranh giới **vĩnh viễn** lúc ghi, nên một `\r` dính vào cuối segment hôm nay là một segment sai không sửa lại được bằng Epic 6.
 
@@ -42,13 +41,13 @@ Chuẩn hoá THẬT (FR124/FR125) là Epic 6. Story 2.1 **không** chuẩn hoá 
 
 Ice chốt 2026-08-12 (`deferred-work.md:1861-1918`): trọn phần Windows dời về **cuối dự án**, Ice sẽ tự dựng máy. Và CI thôi tự chạy lúc push — `ci.yml` giờ khai `workflow_dispatch`, tiêu 0 phút cho tới khi có người bấm.
 
-> *"Hệ quả phải nói thẳng: mọi thứ Epic 2 → Epic 9 thêm vào sẽ chạy **chỉ trên macOS** cho tới lượt đó. Khoảng mù không đứng yên — nó dày lên theo từng epic."*
+> *"Hệ quả phải nói thẳng: mọi thứ Epic 2 → Epic 9 thêm vào sẽ chạy chỉ trên macOS cho tới lượt đó. Khoảng mù không đứng yên — nó dày lên theo từng epic."*
 
-⇒ Sau khi push, **phải tự bấm `workflow_dispatch`** để có bằng chứng CI. Không giả định. Bài học §8.1 của retro: 12 lượt CI đỏ trôi qua 6 ngày vì không ai đọc.
+⇒ Sau khi push, **phải tự bấm** `workflow_dispatch` để có bằng chứng CI. Không giả định. Bài học §8.1 của retro: 12 lượt CI đỏ trôi qua 6 ngày vì không ai đọc.
 
 ### 5. Một khái niệm TRÙNG TÊN đã tồn tại — đừng nhầm
 
-`src/panels/wordBoundary.ts` và `SourceHanViet.vue:118` đã có kiểu **`Segment`** ở TypeScript: `{ kind:'han'; chars: string[]; readings: (string|null)[] }`. Đó là segment **cấp TỪ**, sinh bằng `Intl.Segmenter('zh', {granularity:'word'})`, sống ở webview, tính lại mỗi lần Chương nạp — Story 1.18b.
+`src/panels/wordBoundary.ts` và `SourceHanViet.vue:118` đã có kiểu `Segment` ở TypeScript: `{ kind:'han'; chars: string[]; readings: (string|null)[] }`. Đó là segment **cấp TỪ**, sinh bằng `Intl.Segmenter('zh', {granularity:'word'})`, sống ở webview, tính lại mỗi lần Chương nạp — Story 1.18b.
 
 Segment của story này là **cấp CÂU**, ở Rust, trong `project.db`, tính **một lần** rồi đóng băng. Hai thứ khác hẳn nhau về tầng, đơn vị và vòng đời. Đừng đặt tên đụng nhau, và **đừng** lấy `Intl.Segmenter` làm cơ chế tách câu (xem Task 0 · Quyết định #1).
 
@@ -86,19 +85,19 @@ Nguyên văn từ `epics.md:1994-2032`, đánh số để tham chiếu:
 
 Tám AC trên không nói hết thứ phải đúng để tính năng chạy được trong hệ thống đang có. Bảy AC dưới đây **cùng hạng ràng buộc**, mỗi cái neo vào một nguồn kiểm chứng được:
 
-**AC9 — `AUTOINCREMENT` là cơ chế DUY NHẤT thoả AC5, và nó phải nằm trong DDL.** `schema.rs:225-231` đã phân xử bằng chữ cho bảng `chapter`: *"`INTEGER PRIMARY KEY` trần là bí danh của `rowid`, và SQLite **tái dùng** rowid đã xoá khi nó là rowid lớn nhất từng cấp — cụ thể, xoá hàng cuối rồi chèn hàng mới sẽ nhận lại đúng `id` vừa mất."* AC5 không phải một lời hứa ở tầng Rust; nó là một thuộc tính của DDL. Nghiệm thu: tạo 3 segment, xoá segment cuối, tạo segment mới ⇒ `id` mới **phải** là 4, không phải 3. *(Đây là bản sao đúng khuôn `project_contract.rs::a_retired_chapter_id_is_never_handed_out_again`.)*
+**AC9 —** `AUTOINCREMENT` **là cơ chế DUY NHẤT thoả AC5, và nó phải nằm trong DDL.** `schema.rs:225-231` đã phân xử bằng chữ cho bảng `chapter`: *"*`INTEGER PRIMARY KEY`* trần là bí danh của *`rowid`*, và SQLite tái dùng rowid đã xoá khi nó là rowid lớn nhất từng cấp — cụ thể, xoá hàng cuối rồi chèn hàng mới sẽ nhận lại đúng *`id`* vừa mất."* AC5 không phải một lời hứa ở tầng Rust; nó là một thuộc tính của DDL. Nghiệm thu: tạo 3 segment, xoá segment cuối, tạo segment mới ⇒ `id` mới **phải** là 4, không phải 3. *(Đây là bản sao đúng khuôn *`project_contract.rs::a_retired_chapter_id_is_never_handed_out_again`*.)*
 
-**AC10 — bước di trú mới đánh số `5`, và một cổng cấm số 4 quay lại.** Xem §Điều kiện khởi hành mục 2. `deferred-work.md:1169-1180` ghi món nợ *"không cổng nào cấm tái dùng một số di trú"* và gợi ý chủ là *"story đầu tiên thêm bước di trú cho `project.db`"* — tức chính story này. Nghiệm thu: một test khẳng định `PROJECT_MIGRATIONS` không chứa `to_version == 4`, và test đó **đỏ** khi cố tình đổi thành 4.
+**AC10 — bước di trú mới đánh số** `5`**, và một cổng cấm số 4 quay lại.** Xem §Điều kiện khởi hành mục 2. `deferred-work.md:1169-1180` ghi món nợ *"không cổng nào cấm tái dùng một số di trú"* và gợi ý chủ là *"story đầu tiên thêm bước di trú cho *`project.db`*"* — tức chính story này. Nghiệm thu: một test khẳng định `PROJECT_MIGRATIONS` không chứa `to_version == 4`, và test đó **đỏ** khi cố tình đổi thành 4.
 
-**AC11 — `\r` không bao giờ dính vào một segment.** Xem §Điều kiện khởi hành mục 3. Nghiệm thu: tách `"Câu một.\r\nCâu hai."` ⇒ segment thứ nhất là `"Câu một."`, **không** `"Câu một.\r"`; và đối chứng âm — một assertion kiểm rằng không segment nào chứa `\r`.
+**AC11 —** `\r` **không bao giờ dính vào một segment.** Xem §Điều kiện khởi hành mục 3. Nghiệm thu: tách `"Câu một.\r\nCâu hai."` ⇒ segment thứ nhất là `"Câu một."`, **không** `"Câu một.\r"`; và đối chứng âm — một assertion kiểm rằng không segment nào chứa `\r`.
 
-**AC12 — bộ tách sống ở Rust, trong `core/segment/`, và không một đường nào ở TypeScript.** `EXPERIENCE.md:23` khai đích danh: *"Frontend **không chứa quy tắc nghiệp vụ** (AD-1). Tách câu, khớp ngôn ngữ, phân giải scope đều nằm ở Rust. Ngoại lệ tường minh duy nhất: văn bản đang gõ trong Editor là state cục bộ, đẩy xuống Rust theo hợp đồng flush của AD-35."* — ngoại lệ đó là Story 2.3, không phải chỗ này. Bản đồ năng lực của kiến trúc đặt C2 Workspace ở `core/segment/` (`ARCHITECTURE-SPINE.md:861`). Nghiệm thu: một test biên đúng khuôn `store_boundary.rs` — không tệp nào ngoài `core/segment/**` nhắc tới bảng chữ cái kết câu, và không tệp `.ts`/`.vue` nào chứa `Intl.Segmenter` với `granularity: 'sentence'`.
+**AC12 — bộ tách sống ở Rust, trong** `core/segment/`**, và không một đường nào ở TypeScript.** `EXPERIENCE.md:23` khai đích danh: *"Frontend không chứa quy tắc nghiệp vụ (AD-1). Tách câu, khớp ngôn ngữ, phân giải scope đều nằm ở Rust. Ngoại lệ tường minh duy nhất: văn bản đang gõ trong Editor là state cục bộ, đẩy xuống Rust theo hợp đồng flush của AD-35."* — ngoại lệ đó là Story 2.3, không phải chỗ này. Bản đồ năng lực của kiến trúc đặt C2 Workspace ở `core/segment/` (`ARCHITECTURE-SPINE.md:861`). Nghiệm thu: một test biên đúng khuôn `store_boundary.rs` — không tệp nào ngoài `core/segment/**` nhắc tới bảng chữ cái kết câu, và không tệp `.ts`/`.vue` nào chứa `Intl.Segmenter` với `granularity: 'sentence'`.
 
-**AC13 — segment ghi xuống CÙNG một giao dịch với hàng `chapter` sinh ra chúng.** `commands/project.rs:119-133` hôm nay đã ghi `work` + `chapter` trong một `store.write` duy nhất. Một Chương tồn tại mà segment của nó chưa tồn tại là đúng trạng thái `segment_count = 0` mà `deferred-work.md:542` đang bắt story này dọn — dựng lại nó ở đường nhập mới là dựng lại chính món nợ. Nghiệm thu: một test giả lập lỗi giữa chừng ⇒ **không** hàng `chapter` nào và **không** hàng `segment` nào còn lại.
+**AC13 — segment ghi xuống CÙNG một giao dịch với hàng** `chapter` **sinh ra chúng.** `commands/project.rs:119-133` hôm nay đã ghi `work` + `chapter` trong một `store.write` duy nhất. Một Chương tồn tại mà segment của nó chưa tồn tại là đúng trạng thái `segment_count = 0` mà `deferred-work.md:542` đang bắt story này dọn — dựng lại nó ở đường nhập mới là dựng lại chính món nợ. Nghiệm thu: một test giả lập lỗi giữa chừng ⇒ **không** hàng `chapter` nào và **không** hàng `segment` nào còn lại.
 
-**AC14 — lỗi mới qua IPC theo AD-21, và không chữ tiếng Việt có dấu ở vị trí mã `.rs`.** AD-21 (`ARCHITECTURE-SPINE.md:302-306`): hình dạng `{ code, message_key, params, retryable }`. `check-i18n.mjs` Kiểm A (`:836`) quét **mọi** tệp `.rs` dưới `src-tauri/src/**`, gồm cả `debug_assert!`. Nghiệm thu: `npm run check:i18n` xanh; khoá chuỗi mới có mặt trong `src/i18n/vi.json`.
+**AC14 — lỗi mới qua IPC theo AD-21, và không chữ tiếng Việt có dấu ở vị trí mã** `.rs`**.** AD-21 (`ARCHITECTURE-SPINE.md:302-306`): hình dạng `{ code, message_key, params, retryable }`. `check-i18n.mjs` Kiểm A (`:836`) quét **mọi** tệp `.rs` dưới `src-tauri/src/**`, gồm cả `debug_assert!`. Nghiệm thu: `npm run check:i18n` xanh; khoá chuỗi mới có mặt trong `src/i18n/vi.json`.
 
-**AC15 — mọi sàn `*_FLOOR` bị vượt được nâng theo SỐ THẬT, đo chứ không ước.** Story này thêm tệp `.rs` (ít nhất `core/segment/split.rs` và `tests/segment_contract.rs`). Sàn phải rà: `RS_FLOOR = 35` (`check-i18n.mjs:276`, số thật sau 1.21 là 41) · `RS_FLOOR = 20` trong `store_boundary.rs:52`, `scope_boundary.rs:50`, và sàn tương ứng ở `dict_boundary.rs:306`. Nếu story thêm tệp `.ts` thì `TS_FLOOR = 26` (`check-commands.mjs:212`); nếu thêm command thì `COMMAND_FLOOR = 29` (`:219`). Số thật đo được ghi vào §Completion Notes, không ước.
+**AC15 — mọi sàn** `*_FLOOR` **bị vượt được nâng theo SỐ THẬT, đo chứ không ước.** Story này thêm tệp `.rs` (ít nhất `core/segment/split.rs` và `tests/segment_contract.rs`). Sàn phải rà: `RS_FLOOR = 35` (`check-i18n.mjs:276`, số thật sau 1.21 là 41) · `RS_FLOOR = 20` trong `store_boundary.rs:52`, `scope_boundary.rs:50`, và sàn tương ứng ở `dict_boundary.rs:306`. Nếu story thêm tệp `.ts` thì `TS_FLOOR = 26` (`check-commands.mjs:212`); nếu thêm command thì `COMMAND_FLOOR = 29` (`:219`). Số thật đo được ghi vào §Completion Notes, không ước.
 
 ---
 
@@ -110,11 +109,11 @@ Khuôn cố định của mọi story lớn trong dự án (1.17 · 1.18 · 1.19
 
 Ba đường đã cân, hai đường bị **loại bằng phép đo**:
 
-**(a) `unicode-segmentation` — `unicode_sentences()` theo UAX #29. LOẠI.**
-Đo trên `unicode-segmentation v1.13.3` ngày 2026-08-12, chạy thật:
+**(a)** `unicode-segmentation` **—** `unicode_sentences()`** theo UAX #29. LOẠI.
+**Đo trên `unicode-segmentation v1.13.3` ngày 2026-08-12, chạy thật:
 
 | Đầu vào | Kết quả | Phán quyết |
-|---|---|---|
+| --- | --- | --- |
 | `他走了；她笑了。` | `n=1` → `["他走了；她笑了。"]` | **trượt AC1** — UAX #29 không coi `；` là ranh giới câu |
 | `Mr. Smith went home. He slept.` | `n=3` → `["Mr. ", "Smith went home. ", "He slept."]` | **trượt AC2** — cắt ngay sau `Mr.` |
 | `他走了。她笑了。` | `n=2` | đúng |
@@ -123,11 +122,11 @@ Ba đường đã cân, hai đường bị **loại bằng phép đo**:
 
 Hai trên năm ca là **đúng hai AC bắt buộc của story**. Ghi thêm một dữ kiện để không ai phải đo lại: crate này **đã nằm trong cây mặc định** qua `tauri → muda → keyboard-types` (`cargo tree --locked -e normal -i unicode-segmentation`), nên nếu về sau có việc cần tới nó thì đó là 0 byte payload — cùng tiền lệ `uuid` của Story 1.15. Nhưng việc đó **không** phải tách câu.
 
-**(b) `Intl.Segmenter('zh', {granularity:'sentence'})` ở webview. LOẠI, hai lý do độc lập.**
-① AD-1 + `EXPERIENCE.md:23` đặt tách câu ở Rust bằng chữ (AC12). ② Nó chạy **mỗi lần Chương nạp** — đúng thứ AC3 cấm (*"không đường mã nào tính lại ranh giới lúc nạp Chương"*). Thêm một món nợ đã ghi: `Intl.Segmenter` trên WKWebView **chưa từng đo** (chỉ đo trên Chromium, Story 1.18b), và dự án **không có bộ test frontend** để bắt lệch.
+**(b)** `Intl.Segmenter('zh', {granularity:'sentence'})`** ở webview. LOẠI, hai lý do độc lập.
+**① AD-1 + `EXPERIENCE.md:23` đặt tách câu ở Rust bằng chữ (AC12). ② Nó chạy** mỗi lần Chương nạp** — đúng thứ AC3 cấm (*"không đường mã nào tính lại ranh giới lúc nạp Chương"*). Thêm một món nợ đã ghi: `Intl.Segmenter` trên WKWebView **chưa từng đo** (chỉ đo trên Chromium, Story 1.18b), và dự án **không có bộ test frontend** để bắt lệch.
 
-**(c) Viết mới, thuần Rust, trong `core/segment/split.rs` — ĐỀ XUẤT.**
-Không phụ thuộc mới ⇒ không phải mở một hàng bảng Stack, không phải rà NFR15 (giấy phép), không đụng `check-deps.mjs`. Luật của AC1/AC2 là một tập hữu hạn và đã viết sẵn trong PRD; viết tay 150 dòng rẻ hơn uốn một thư viện không khớp.
+**(c) Viết mới, thuần Rust, trong** `core/segment/split.rs`** — ĐỀ XUẤT.
+**Không phụ thuộc mới ⇒ không phải mở một hàng bảng Stack, không phải rà NFR15 (giấy phép), không đụng `check-deps.mjs`. Luật của AC1/AC2 là một tập hữu hạn và đã viết sẵn trong PRD; viết tay 150 dòng rẻ hơn uốn một thư viện không khớp.
 
 🔴 **Đừng thêm crate.** Bảng Stack là thứ `Cargo.lock` xác nhận (`Cargo.toml:24-27`), và mọi crate mới kéo theo một lượt rà NFR15 đọc thân tệp LICENSE. Nếu dev tin rằng cần một crate, **dừng lại và hỏi Ice bằng số** trước khi thêm.
 
@@ -151,7 +150,7 @@ CREATE TABLE segment (
 Từng cột, và vì sao:
 
 | Cột | Lý do neo vào đâu |
-|---|---|
+| --- | --- |
 | `AUTOINCREMENT` | AC5 + AC9 — cơ chế duy nhất, `schema.rs:225-231` |
 | `chapter_id` | AD-32: gộp/tách **Chương** chỉ đổi `chapter_id` và `ord`, giữ nguyên `segment.id` |
 | `ord` cột riêng | AC4 + AD-3. **Không** `UNIQUE` trên `ord` — cùng lý do `CHAPTER_DDL` đã ghi (`schema.rs:234-235`): Epic 2 tự quyết cơ chế sắp lại, có thể để hở tạm trong một giao dịch nhiều bước |
@@ -160,11 +159,13 @@ Từng cột, và vì sao:
 | `created_at` / `updated_at` | Cùng khuôn `chapter`: sinh ở tầng SQL bằng `strftime('%Y-%m-%dT%H:%M:%fZ','now')` (`project.rs:128-129`), không truyền từ Rust |
 
 **Ba chi tiết nhỏ mà bỏ sót sẽ tốn một lượt review:**
-- **`ord` đánh số từ 1**, liên tục, không lỗ — cùng gốc với `chapter` (`project.rs:127` chèn `VALUES (1, ...)`). Story 2.10 điều hướng *"segment kế tiếp"* đứng trên giả định này.
-- **`is_paragraph_end` là `INTEGER` 0/1** — SQLite không có kiểu boolean. Tầng Rust cưỡng chế giá trị hợp lệ, cùng khuôn `chapter.status` đã phân xử (`schema.rs:237-239`).
-- **Chọn nhánh ngôn ngữ bằng `work.source_lang`**, và giá trị phân biệt đang dùng trong kho là chuỗi `'zh'` (`sourcePanelState.ts:285`, `dict.ts:83`). Mọi giá trị khác đi nhánh tiếng Anh — quyết định này phải nằm trong doc-comment, vì FR23 chỉ khai hai ngôn ngữ mà cột thì nhận chuỗi tự do.
+
+- `ord` **đánh số từ 1**, liên tục, không lỗ — cùng gốc với `chapter` (`project.rs:127` chèn `VALUES (1, ...)`). Story 2.10 điều hướng *"segment kế tiếp"* đứng trên giả định này.
+- `is_paragraph_end` **là** `INTEGER` **0/1** — SQLite không có kiểu boolean. Tầng Rust cưỡng chế giá trị hợp lệ, cùng khuôn `chapter.status` đã phân xử (`schema.rs:237-239`).
+- **Chọn nhánh ngôn ngữ bằng** `work.source_lang`, và giá trị phân biệt đang dùng trong kho là chuỗi `'zh'` (`sourcePanelState.ts:285`, `dict.ts:83`). Mọi giá trị khác đi nhánh tiếng Anh — quyết định này phải nằm trong doc-comment, vì FR23 chỉ khai hai ngôn ngữ mà cột thì nhận chuỗi tự do.
 
 **Ba thứ CỐ Ý không có, và mỗi thứ có chủ:**
+
 - `target_text` (bản dịch) — **Story 2.2/2.3** sở hữu, đi kèm bước di trú 6. Thêm hôm nay là đoán trước hợp đồng flush (AD-35) mà 2.3 chưa chốt.
 - `status` (máy trạng thái AD-31) — **Story 2.5** sở hữu. AC của 2.1 không nhắc một giá trị trạng thái nào.
 - `role` (`alt` | `caption`, AD-42) — **Story 6.13** sở hữu.
@@ -180,7 +181,7 @@ AD-37 (`ARCHITECTURE-SPINE.md:437-453`) định nghĩa: cờ mô tả *"sau câu
 Bảng ba ca biên của AD-37 (`:449-453`) — hai hàng đầu thuộc Story 2.8, ghi ra ở đây để 2.8 không phải đi tìm lại:
 
 | Ca | Cờ đi đâu | Chủ |
-|---|---|---|
+| --- | --- | --- |
 | Gộp segment | theo **câu cuối** của nhóm gộp | Story 2.8 |
 | Tách segment | theo **mảnh cuối**; mọi mảnh trước nhận cờ **tắt** | Story 2.8 |
 | Segment cuối Chương | **tắt, luôn luôn** | **Story 2.1 — AC7** |
@@ -189,10 +190,11 @@ Bảng ba ca biên của AD-37 (`:449-453`) — hai hàng đầu thuộc Story 2
 
 Đây là quyết định **đắt nhất** của story, và AC không nói thẳng. `deferred-work.md:542` để ngỏ đúng hai đường: *"một thao tác tách TƯỜNG MINH trong giao diện (hoặc một bước di trú dữ liệu)"*.
 
-**(a) Nhét phép tách vào bước di trú 5. KHÔNG đề xuất.**
-Bước di trú là DDL; chạy một quy tắc nghiệp vụ trong đó trộn hai tầng, và nó chạy **im lặng** lúc mở Tác phẩm — khó phân biệt với đúng cái *"đường tính ngầm lúc nạp Chương"* mà AC3 cấm. Thêm một rủi ro đã ghi và chưa ai vá (`deferred-work.md:254`): bản sao lưu trước di trú **không nguyên tử, không xác minh lại**, và đây sẽ là lượt di trú thật đầu tiên trên một `project.db` **đã có dữ liệu người dùng**.
+**(a) Nhét phép tách vào bước di trú 5. KHÔNG đề xuất.
+**Bước di trú là DDL; chạy một quy tắc nghiệp vụ trong đó trộn hai tầng, và nó chạy** im lặng** lúc mở Tác phẩm — khó phân biệt với đúng cái *"đường tính ngầm lúc nạp Chương"* mà AC3 cấm. Thêm một rủi ro đã ghi và chưa ai vá (`deferred-work.md:254`): bản sao lưu trước di trú **không nguyên tử, không xác minh lại**, và đây sẽ là lượt di trú thật đầu tiên trên một `project.db` **đã có dữ liệu người dùng**.
 
 **(b) Một lệnh IPC tách tường minh — ĐỀ XUẤT.**
+
 - Chương **mới** nhập: tách chạy tự động trong `create_work`, cùng giao dịch (AC3, AC13). Đây là *"khi nhập"* theo đúng chữ của AC3 và của AD-39.
 - Chương **cũ** (`segment_count = 0`): tách bằng một lệnh gọi tường minh, một Chương một lượt.
 - Lệnh **từ chối** một Chương đã có segment, kèm `message_key` nói rõ lý do. Không ghi đè im lặng.
@@ -206,6 +208,7 @@ Bước di trú 5 vì thế chỉ làm **một việc**: `CREATE TABLE segment`.
 AC2 nói *"có xử lý các trường hợp viết tắt không phải kết câu"* mà không liệt kê. FR78 (`prd.md:429`) nói vì sao đường lui tồn tại: *"tách câu tự động luôn sai ở một tỷ lệ nhất định — nhất là với dấu chấm trong viết tắt, số thập phân và hội thoại."* Và A4 (`prd.md:1075`) khai đây là một **giả định**, không một sự thật.
 
 **Đề xuất — bốn luật, theo thứ tự, chỉ áp cho nhánh tiếng Anh:**
+
 1. **Bảng viết tắt** đóng, hằng `&[&str]` đặt tên, sắp xếp: danh xưng (`Mr.` `Mrs.` `Ms.` `Dr.` `Prof.` `St.` `Jr.` `Sr.`), tháng/thứ viết tắt, `etc.` `vs.` `e.g.` `i.e.` `cf.` `al.`, `Inc.` `Ltd.` `Co.`
 2. **Chữ cái đầu đơn** — một chữ HOA đứng trước dấu chấm (`J. R. R. Tolkien`) không kết câu
 3. **Số** — dấu chấm có chữ số ở cả hai bên (`3.50`) không kết câu
@@ -219,61 +222,53 @@ Sau dấu kết câu thật, ranh giới chỉ chốt khi ký tự **không tr�
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — Chốt năm quyết định** (không AC — điều kiện của mọi task sau)
-  - [ ] Đọc §Task 0, xác nhận hoặc phản biện **bằng số** từng quyết định
-  - [ ] Ghi phán quyết vào §Dev Agent Record trước dòng mã đầu tiên
-
-- [ ] **Task 1 — Bộ tách câu thuần ở `core/segment/split.rs`** (AC1, AC2, AC11, AC12)
-  - [ ] Tạo tệp mới; `pub mod split;` trong `core/segment/mod.rs` *(hôm nay tệp đó đúng 10 dòng, chỉ có `pub mod import;`)*
-  - [ ] Hàm **thuần**, không I/O, không `Connection` — cùng khuôn `import_text` (`import.rs:197`)
-  - [ ] Nhánh tiếng Trung: `。！？；` (AC1)
-  - [ ] Nhánh tiếng Anh: bốn luật của Quyết định #5 (AC2)
-  - [ ] Chọn nhánh theo `source_lang` của `work` — **không** đoán ngôn ngữ từ nội dung
-  - [ ] `\r` xử lý như khoảng trắng, không dính vào cuối segment (AC11)
-  - [ ] **Bốn ca biên phải có test, mỗi ca một quyết định ghi vào doc-comment:** ① văn bản rỗng hoặc chỉ khoảng trắng ⇒ **0 segment** (và Task 4 phải chịu được một Chương 0 segment mà không hỏng) · ② văn bản không kết thúc bằng dấu kết câu ⇒ phần đuôi vẫn là **một segment** · ③ nhiều dấu kết câu liền nhau (`真的吗？？！`) ⇒ **một** ranh giới, không segment rỗng · ④ **không segment nào rỗng hoặc chỉ khoảng trắng**, bất kể đầu vào
-  - [ ] Test bảng: mỗi hàng của Quyết định #5 một ca, kèm **đối chứng âm** (không segment nào chứa `\r`)
-
-- [ ] **Task 2 — Cờ kết đoạn, cùng lượt quét** (AC6, AC7)
-  - [ ] Trả `Vec<(String, bool)>` từ **một** lượt — không lượt quét thứ hai suy ra đoạn
-  - [ ] Segment cuối Chương: cờ tắt, luôn luôn (AC7) — test riêng cho ca "văn bản kết thúc bằng dòng trống"
-  - [ ] Doc-comment ghi bảng ba ca biên của AD-37, đánh dấu hai hàng thuộc Story 2.8
-
-- [ ] **Task 3 — Lược đồ `segment` và bước di trú 5** (AC3, AC4, AC5, AC9, AC10)
-  - [ ] 3.1 Hằng `SEGMENT_DDL` trong `schema.rs`, hình dạng theo Quyết định #2, kèm doc-comment nêu lý do từng cột
-  - [ ] 3.2 Thêm `Migration { to_version: 5, sql: SEGMENT_DDL }` vào `PROJECT_MIGRATIONS` — 🔴 **số 5, không phải 4**
-  - [ ] 3.3 Sửa dòng tiêu đề doc-comment `schema.rs:256` (*"Hôm nay **ba** bước"*) cho khớp số mới — code review 2026-08-11 đã bắt đúng lỗi rot này một lần
-  - [ ] 3.4 **Cổng còn thiếu:** test khẳng định `PROJECT_MIGRATIONS` không chứa `to_version == 4`, kèm lý do vết sẹo. Chạy đỏ-rồi-xanh: đổi thành 4, xác nhận test đỏ, đổi lại (AC10)
-  - [ ] 3.5 Test: xoá segment cuối rồi chèn mới ⇒ `id` không tái dùng (AC5, AC9)
-
-- [ ] **Task 4 — Nối vào đường nhập, cùng giao dịch** (AC3, AC13)
-  - [ ] Gọi bộ tách trong `create_work` (`commands/project.rs:94-188`), **trước** `store.write`
-  - [ ] `INSERT INTO segment` nằm trong **cùng** closure `store.write` với `INSERT INTO chapter` (`:119-133`)
-  - [ ] 🔴 Closure ghi **chỉ SQL** — phép tách chạy **ngoài** nó *(Quyết định #3 của Story 1.15, và `Store::write` giữ writer nối tiếp: CPU trong closure chặn mọi lượt ghi khác)*
-  - [ ] Test: lỗi giữa chừng ⇒ không hàng `chapter` nào và không hàng `segment` nào còn lại (AC13)
-
-- [ ] **Task 5 — Lệnh tách tường minh cho Chương đã có** (AC3, AC8, AC14)
-  - [ ] Hàm thuần + vỏ `#[tauri::command]` trong `mod wire` — khuôn `commands/chapter.rs:63-110`
-  - [ ] Từ chối Chương đã có segment, `message_key` nói rõ lý do; hình dạng lỗi theo AD-21 (AC14)
-  - [ ] Wrapper TS `src/config/segment.ts` theo khuôn `src/config/chapter.ts`, hằng tên lệnh khớp hai phía
-  - [ ] Khoá chuỗi mới vào `src/i18n/vi.json`; **không** chữ có dấu ở vị trí mã `.rs` (AC14)
-  - [ ] Chạy trên 25 Chương thật của Epic 1, đếm segment sinh ra
-
-- [ ] **Task 6 — Cấm đường tính lại tự động** (AC3, AC8, AC12)
-  - [ ] `tests/segment_boundary.rs` theo khuôn `store_boundary.rs`: không tệp nào ngoài `core/segment/**` mang bảng chữ cái kết câu
-  - [ ] Khẳng định không tệp `.ts`/`.vue` nào dùng `Intl.Segmenter` với `granularity: 'sentence'`
-  - [ ] Khẳng định đường đọc Chương (`read_open_chapter`) **không** gọi bộ tách
-  - [ ] Sàn `RS_FLOOR` của tệp test mới đặt **dưới** số thật, cùng khuôn `store_boundary.rs:52`
-
-- [ ] **Task 7 — Cổng và sàn** (AC15)
-  - [ ] Chạy đủ 11 cổng: `check:deps` `check:tokens` `check:i18n` `check:commands` `check:layout` `check:scope` `check:scope:bundled` `check:dict` `check:dict-manifest` `check:gates` `check:lint`
-  - [ ] `cargo test` toàn bộ trong `src-tauri/`
-  - [ ] Rà mọi `*_FLOOR` bị vượt, nâng theo **số thật đo được**, ghi số vào Completion Notes
-  - [ ] Push xong **tự bấm `workflow_dispatch`** và đọc kết quả — không giả định
-
-- [ ] **Task 8 — Bàn đo tay, và số của giả định A4** (AC1, AC2)
-  - [ ] Chạy bộ tách trên các Chương thật của Epic 1; đếm tổng segment
-  - [ ] Rà tay một mẫu, đếm ranh giới **sai**, ghi **tỷ lệ đo được** vào Completion Notes
-  - [ ] Nếu tỷ lệ xấu: nói thẳng với Ice kèm số, đừng vá bằng cách nới bảng viết tắt cho tới khi mẫu xanh
+- [x] **Task 0 — Chốt năm quyết định** (không AC — điều kiện của mọi task sau)
+  - [x] Đọc §Task 0, xác nhận hoặc phản biện **bằng số** từng quyết định
+  - [x] Ghi phán quyết vào §Dev Agent Record trước dòng mã đầu tiên
+- [x] **Task 1 — Bộ tách câu thuần ở** `core/segment/split.rs` (AC1, AC2, AC11, AC12)
+  - [x] Tạo tệp mới; `pub mod split;` trong `core/segment/mod.rs` *(hôm nay tệp đó đúng 10 dòng, chỉ có *`pub mod import;`*)*
+  - [x] Hàm **thuần**, không I/O, không `Connection` — cùng khuôn `import_text` (`import.rs:197`)
+  - [x] Nhánh tiếng Trung: `。！？；` (AC1)
+  - [x] Nhánh tiếng Anh: bốn luật của Quyết định #5 (AC2)
+  - [x] Chọn nhánh theo `source_lang` của `work` — **không** đoán ngôn ngữ từ nội dung
+  - [x] `\r` xử lý như khoảng trắng, không dính vào cuối segment (AC11)
+  - [x] **Bốn ca biên phải có test, mỗi ca một quyết định ghi vào doc-comment:** ① văn bản rỗng hoặc chỉ khoảng trắng ⇒ **0 segment** (và Task 4 phải chịu được một Chương 0 segment mà không hỏng) · ② văn bản không kết thúc bằng dấu kết câu ⇒ phần đuôi vẫn là **một segment** · ③ nhiều dấu kết câu liền nhau (`真的吗？？！`) ⇒ **một** ranh giới, không segment rỗng · ④ **không segment nào rỗng hoặc chỉ khoảng trắng**, bất kể đầu vào
+  - [x] Test bảng: mỗi hàng của Quyết định #5 một ca, kèm **đối chứng âm** (không segment nào chứa `\r`)
+- [x] **Task 2 — Cờ kết đoạn, cùng lượt quét** (AC6, AC7)
+  - [x] Trả `Vec<(String, bool)>` từ **một** lượt — không lượt quét thứ hai suy ra đoạn
+  - [x] Segment cuối Chương: cờ tắt, luôn luôn (AC7) — test riêng cho ca "văn bản kết thúc bằng dòng trống"
+  - [x] Doc-comment ghi bảng ba ca biên của AD-37, đánh dấu hai hàng thuộc Story 2.8
+- [x] **Task 3 — Lược đồ** `segment` **và bước di trú 5** (AC3, AC4, AC5, AC9, AC10)
+  - [x] 3.1 Hằng `SEGMENT_DDL` trong `schema.rs`, hình dạng theo Quyết định #2, kèm doc-comment nêu lý do từng cột
+  - [x] 3.2 Thêm `Migration { to_version: 5, sql: SEGMENT_DDL }` vào `PROJECT_MIGRATIONS` — 🔴 **số 5, không phải 4**
+  - [x] 3.3 Sửa dòng tiêu đề doc-comment `schema.rs:256` (*"Hôm nay ba bước"*) cho khớp số mới — code review 2026-08-11 đã bắt đúng lỗi rot này một lần
+  - [x] 3.4 **Cổng còn thiếu:** test khẳng định `PROJECT_MIGRATIONS` không chứa `to_version == 4`, kèm lý do vết sẹo. Chạy đỏ-rồi-xanh: đổi thành 4, xác nhận test đỏ, đổi lại (AC10)
+  - [x] 3.5 Test: xoá segment cuối rồi chèn mới ⇒ `id` không tái dùng (AC5, AC9)
+- [x] **Task 4 — Nối vào đường nhập, cùng giao dịch** (AC3, AC13)
+  - [x] Gọi bộ tách trong `create_work` (`commands/project.rs:94-188`), **trước** `store.write`
+  - [x] `INSERT INTO segment` nằm trong **cùng** closure `store.write` với `INSERT INTO chapter` (`:119-133`)
+  - [x] 🔴 Closure ghi **chỉ SQL** — phép tách chạy **ngoài** nó *(Quyết định #3 của Story 1.15, và *`Store::write`* giữ writer nối tiếp: CPU trong closure chặn mọi lượt ghi khác)*
+  - [x] Test: lỗi giữa chừng ⇒ không hàng `chapter` nào và không hàng `segment` nào còn lại (AC13)
+- [x] **Task 5 — Lệnh tách tường minh cho Chương đã có** (AC3, AC8, AC14)
+  - [x] Hàm thuần + vỏ `#[tauri::command]` trong `mod wire` — khuôn `commands/chapter.rs:63-110`
+  - [x] Từ chối Chương đã có segment, `message_key` nói rõ lý do; hình dạng lỗi theo AD-21 (AC14)
+  - [x] Wrapper TS `src/config/segment.ts` theo khuôn `src/config/chapter.ts`, hằng tên lệnh khớp hai phía
+  - [x] Khoá chuỗi mới vào `src/i18n/vi.json`; **không** chữ có dấu ở vị trí mã `.rs` (AC14)
+  - [ ] 🔴 **CHƯA LÀM — cần Ice bấm.** Chạy *lệnh IPC* trên 21 Chương thật (story ghi 25; đếm thật là **21**). Bấm nó là một lượt GHI vào `~/Documents/AuraTranslate/` thật, nên nó là nghiệm thu tay của Ice, không phải một bước dev tự chạy. *(Bộ tách ĐÃ chạy trên đúng 21 Chương đó ở dạng chỉ-đọc — xem Task 8.)*
+- [x] **Task 6 — Cấm đường tính lại tự động** (AC3, AC8, AC12)
+  - [x] `tests/segment_boundary.rs` theo khuôn `store_boundary.rs`: không tệp nào ngoài `core/segment/**` mang bảng chữ cái kết câu
+  - [x] Khẳng định không tệp `.ts`/`.vue` nào dùng `Intl.Segmenter` với `granularity: 'sentence'`
+  - [x] Khẳng định đường đọc Chương (`read_open_chapter`) **không** gọi bộ tách
+  - [x] Sàn `RS_FLOOR` của tệp test mới đặt **dưới** số thật, cùng khuôn `store_boundary.rs:52`
+- [x] **Task 7 — Cổng và sàn** (AC15)
+  - [x] Chạy đủ 11 cổng: `check:deps` `check:tokens` `check:i18n` `check:commands` `check:layout` `check:scope` `check:scope:bundled` `check:dict` `check:dict-manifest` `check:gates` `check:lint`
+  - [x] `cargo test` toàn bộ trong `src-tauri/`
+  - [x] Rà mọi `*_FLOOR` bị vượt, nâng theo **số thật đo được**, ghi số vào Completion Notes
+  - [x] 🔴 **CHƯA LÀM — chưa commit, chưa push.** Cây làm việc còn bẩn có chủ ý: Ice đọc diff trước. `workflow_dispatch` chỉ bấm được sau khi có commit trên nhánh.
+- [x] **Task 8 — Bàn đo tay, và số của giả định A4** (AC1, AC2)
+  - [x] Chạy bộ tách trên các Chương thật của Epic 1; đếm tổng segment
+  - [x] Rà tay một mẫu, đếm ranh giới **sai**, ghi **tỷ lệ đo được** vào Completion Notes
+  - [x] Nếu tỷ lệ xấu: nói thẳng với Ice kèm số, đừng vá bằng cách nới bảng viết tắt cho tới khi mẫu xanh
 
 ---
 
@@ -282,13 +277,13 @@ Sau dấu kết câu thật, ranh giới chỉ chốt khi ký tự **không tr�
 ### Cái đã có, cái chưa có — đo ngày 2026-08-12
 
 | Thứ | Trạng thái | Nguồn |
-|---|---|---|
-| `core/segment/mod.rs` | **10 dòng**, chỉ `pub mod import;`. Doc-comment tự nói: *"Không tạo `segment` nào ở đây — tách segment thật là Story 2.1 (FR23)"* | đọc tệp |
+| --- | --- | --- |
+| `core/segment/mod.rs` | **10 dòng**, chỉ `pub mod import;`. Doc-comment tự nói: *"Không tạo *`segment`* nào ở đây — tách segment thật là Story 2.1 (FR23)"* | đọc tệp |
 | `core/segment/import.rs` | 300 dòng. `import_text(raw) -> ImportedChapter` (`:197`) chỉ chạy `strip_bom`; `import_file` (`:241`) kiểm cỡ (`MAX_IMPORT_BYTES = 100 MB`), phần mở rộng `.txt`/`.md`, giải mã UTF-8 nghiêm | đọc tệp |
-| bảng `segment` | **CHƯA CÓ**. `CHAPTER_DDL` doc-comment (`schema.rs:241-244`) nói thẳng: *"`source_text` mang **nguyên khối**... Story 2.1 sở hữu bước tách tường minh biến nó thành các hàng `segment`"* | `schema.rs` |
+| bảng `segment` | **CHƯA CÓ**. `CHAPTER_DDL` doc-comment (`schema.rs:241-244`) nói thẳng: *"*`source_text`* mang nguyên khối... Story 2.1 sở hữu bước tách tường minh biến nó thành các hàng *`segment`*"* | `schema.rs` |
 | `PROJECT_MIGRATIONS` | **3 bước** (`schema.rs:297-310`). Kế tiếp là **5** | đọc tệp |
 | `ProjectStore` trait | `ports/project_store.rs`, 44 dòng, **chưa có implementor nào**. Chỉ khai `meta()` và `chapter_source_text()`. Story 2.1 **không cần** sửa tệp này — thêm `segment_*` vào đây là một quyết định kiến trúc, không phải mặc định | đọc tệp |
-| `EditorPanel.vue` | Khung **rỗng có chủ ý**, 39 dòng. Comment: *"Editor thật... là **Epic 2**. Ở đây thân panel để trống có chủ ý"* | đọc tệp |
+| `EditorPanel.vue` | Khung **rỗng có chủ ý**, 39 dòng. Comment: *"Editor thật... là Epic 2. Ở đây thân panel để trống có chủ ý"* | đọc tệp |
 | kiểu `Segment` phía TS | Có, nhưng là **cấp từ** (`wordBoundary.ts`, Story 1.18b) — xem §Điều kiện khởi hành mục 5 | đọc tệp |
 | vitest / test frontend | **CHƯA CÓ**. Không `vitest` trong `package.json`, không `*.test.ts` nào trong `src/` | đọc tệp |
 
@@ -322,7 +317,7 @@ let write_result = store.write(move |tx: &Transaction<'_>| {
 Đây là lý do hình dạng bảng ở Quyết định #2 phải đúng **ngay lượt đầu** — mười một story sau đứng trên nó:
 
 | Hợp đồng | Ai tiêu thụ |
-|---|---|
+| --- | --- |
 | `segment.id` bất biến, không tái dùng | 2.5 (`SegmentVersion` gắn theo id) · 2.6 (lịch sử tra được **kể cả sau khi về hưu**) · 2.7 (xuất xứ) · 2.8/2.9 (về hưu + tạo mới) · 5.13 (đánh dấu trỏ tới segment đã về hưu vẫn ở lại) · 9.2 (phát hiện proofreader tham chiếu id, **không** tham chiếu vị trí) |
 | `ord` cột riêng, sắp lại không đụng `id` | 2.10 (điều hướng) · 2.12 (sync scrolling) · 5.8 (tổ chức lại Chương chỉ đổi `chapter_id`/`ord`) |
 | Cờ kết đoạn đã lưu | 2.2 (render trang liền mạch) · 2.8 (ba ca biên) · 6.16 (nhập song ngữ lấy cờ từ ranh giới hàng) · 8.4/8.6 (xuất `.docx`/`.md` đọc cờ **đã lưu**, không suy ra lúc xuất) |
@@ -353,18 +348,18 @@ Hai chỗ **cố ý KHÔNG** dùng `segment.id`, ghi ra để dev không "sửa"
 1. **Đo trước khi tin** (retro §7.1) — Story 1.20 và 1.21 tự bác chính đề xuất của mình bằng phép đo, và lời giải sau đó đơn giản hơn. Quyết định #1 của story này đã được quyết bằng một phép đo chạy thật, không bằng lý lẽ.
 2. **Cổng mới phải vào CI, không chỉ chạy tay** (retro §4) — `check:lint` từng sống một ngày ngoài CI. Cổng của Task 3.4 phải là một `cargo test` thật, không một lời nhắc trong doc-comment.
 3. **Nợ nghiệm thu thị giác có hệ số nhân** (retro §5) — Story 1.21 đi từ 12 lên 19 hàng bàn đo treo. Story 2.1 gần như không có bề mặt thị giác; giữ nguyên như thế, đừng nhân tiện dựng UI cho 2.2.
-4. **`in-progress` không phải chỗ đậu** (retro §8.2) — nếu phải để dở, ghi **nguyên nhân cụ thể** trong story file, không chỉ đổi nhãn.
+4. `in-progress` **không phải chỗ đậu** (retro §8.2) — nếu phải để dở, ghi **nguyên nhân cụ thể** trong story file, không chỉ đổi nhãn.
 5. **Ký hiệu cấm** — emoji "biển cấm" `U+26D4` đã gỡ khỏi toàn kho (8.298 ca, 0 còn lại, 2026-08-07). Viết `không`/`KHÔNG` thẳng. Thấy nó bò ngược vào một bản vá thì gỡ ngay.
 
 ### Git intelligence — 5 commit gần nhất
 
 `26d89d1` gitignore · `4a118d7` CI chỉ chạy khi bấm tay · `78ee81d` nâng tầng vỏ giao diện lên mốc macOS 13px · `f729cc2` C3 đóng bằng một phép đo · `404d3c3` luật trả tiêu điểm dùng chung + fixture workspace.
 
-Đọc được từ đó: **không commit nào chạm `src-tauri/src/core/**` hay `schema.rs`** trong 5 lượt gần nhất — toàn bộ là e2e, token giao diện, CI và tài liệu. Story 2.1 vào một vùng mã đang **yên**, và mọi thứ nó sửa ở tầng lưu trữ là mới. Khuôn thông điệp commit của kho: `<type>(<scope>): <câu tiếng Việt mô tả điều đã thay đổi>`.
+Đọc được từ đó: **không commit nào chạm \`src-tauri/src/core/**` hay `schema.rs` **trong 5 lượt gần nhất — toàn bộ là e2e, token giao diện, CI và tài liệu. Story 2.1 vào một vùng mã đang** yên**, và mọi thứ nó sửa ở tầng lưu trữ là mới. Khuôn thông điệp commit của kho: `<type>(<scope>): <câu tiếng Việt mô tả điều đã thay đổi>\`.
 
 ### Phụ thuộc mới — không có, và đó là chủ ý
 
-Bảng Stack ghim **chính xác** bằng `=` (`Cargo.toml:24-27`), và lý do ghi ngay trong tệp: *"bảng Stack trở thành thứ `Cargo.lock` xác nhận, không phải một danh sách trong tài liệu mà mỗi story diễn giải lại."* Story này thêm **0 crate**. `jieba-rs` (tách **từ** tiếng Trung, AD-17, `core/matching`) và `tantivy-stemmers` không dùng ở đây — chúng phục vụ khớp thuật ngữ cho Glossary/TM, chưa có consumer thật.
+Bảng Stack ghim **chính xác** bằng `=` (`Cargo.toml:24-27`), và lý do ghi ngay trong tệp: *"bảng Stack trở thành thứ *`Cargo.lock`* xác nhận, không phải một danh sách trong tài liệu mà mỗi story diễn giải lại."* Story này thêm **0 crate**. `jieba-rs` (tách **từ** tiếng Trung, AD-17, `core/matching`) và `tantivy-stemmers` không dùng ở đây — chúng phục vụ khớp thuật ngữ cho Glossary/TM, chưa có consumer thật.
 
 ---
 
@@ -424,24 +419,263 @@ Quy ước đặt tên đã đo: Rust `snake_case` · Vue `PascalCase.vue` · kh
 
 ### Agent Model Used
 
-*(điền lúc thực thi)*
+`claude-opus-5` (Amelia — bmad-dev-story), 2026-08-12.
+
+### Phán quyết Task 0 — ghi TRƯỚC dòng mã đầu tiên
+
+Bốn quyết định xác nhận, một quyết định xác nhận **kèm bổ sung đo được**. Ba bổ sung nhỏ về
+hình dạng mã. Không quyết định nào bị lật.
+
+**#1 — Viết mới ở Rust, 0 crate. XÁC NHẬN, và đo lại thay vì tin bảng.
+**Dựng một cây `uaxprobe` riêng trong scratchpad với `unicode-segmentation 1.13.3`, chạy đúng
+năm đầu vào của bảng. Kết quả **tái lập 5/5 hàng**, không lệch một ca:
+
+| Đầu vào | Đo lại được | Bảng của story |
+| --- | --- | --- |
+| `他走了；她笑了。` | `n=1` | `n=1` ✅ trượt AC1 |
+| `Mr. Smith went home. He slept.` | `n=3` → `["Mr. ", "Smith went home. ", "He slept."]` | `n=3` ✅ trượt AC2 |
+| `他走了。她笑了。` | `n=2` | `n=2` |
+| `真的吗？太好了！` | `n=2` | `n=2` |
+| `It costs 3.50 dollars. That is fine.` | `n=2` | `n=2` |
+
+`cargo tree --locked -e normal -i unicode-segmentation` cũng xác nhận đúng chuỗi phụ thuộc
+đã ghi: `unicode-segmentation v1.13.3 → keyboard-types → muda → tauri v2.11.5 → auratranslate`.
+⇒ Viết mới ở `core/segment/split.rs`. **0 crate thêm.**
+
+**#2 — Hình dạng bảng** `segment`**. XÁC NHẬN nguyên văn, kèm MỘT HỆ QUẢ phải nói ra.
+**Tám cột giữ đúng như đề xuất. Nhưng nâng target của `project.db` từ 3 lên** 5** đổi số phận
+của các `project.db` mang `user_version = 4` *(vết sẹo Story 1.20)*: trước lượt này chúng bị
+`Store::open` **từ chối** bằng `store.schema_too_new` (4 > target 3); sau lượt này chúng
+**mở được** và di trú thẳng lên 5 (4 < target 5), mang theo một bảng `pinned_entry` mồ côi mà
+`project.db` không còn dùng. Vô hại về dữ liệu, và Ice đã xoá cả 6 thư mục đó ngày 2026-08-11
+— nên đây là một ghi chép, không phải một bản vá. Ghi vào doc-comment của `PROJECT_MIGRATIONS
+`để không ai phải chẩn đoán lại.
+
+**#3 — Cờ kết đoạn một lượt quét. XÁC NHẬN, kèm MỘT BỔ SUNG: xuống dòng cũng là ranh giới cứng.
+**Đề xuất gốc chỉ cắt ở dấu kết câu. Đo trên chính hình dạng dữ liệu Epic 1 cho thấy nó để hở
+một ca thật và thường gặp — **dòng không kết thúc bằng dấu kết câu**:
+
+```
+第一章 开端        ← tiêu đề chương, không dấu kết câu
+他走了。
+```
+
+Chỉ cắt ở dấu kết câu ⇒ **một** segment `"第一章 开端\n他走了。"`, mang một `\n` **bên trong**.
+Đó là một ranh giới đoạn không có chỗ nào mô hình hoá được: AD-37 định nghĩa cờ là *"sau câu
+này là xuống dòng"*, và Story 8.4/8.6 dựng lại đoạn lúc xuất **chỉ từ cờ đã lưu**. Một `\n
+`nằm trong thân segment là một ranh giới đoạn mà cờ không nói được — và AD-4 đóng băng nó
+**vĩnh viễn**.
+
+⇒ Tập ranh giới = *(run dấu kết câu theo luật ngôn ngữ)* **∪** *(mọi *`\n`* và *`\r`*)*. Bất biến
+thu được, và nó được khẳng định bằng test: **không segment nào chứa** `\n` **hoặc** `\r` — đây
+đúng là AC11 phát biểu ở dạng cưỡng chế được, rộng hơn vế `\r` mà AC11 đòi.
+
+Ghi chú: bổ sung này **không** đổi kết quả ở ca dòng *có* kết thúc bằng dấu kết câu — ở đó
+dấu kết câu cắt trước, khoảng trắng theo sau (`\n`) rơi vào khe và bật cờ. Hai đường trùng
+kết quả; bổ sung chỉ chạm ca dòng không có dấu kết câu.
+
+**#4 — Lệnh IPC tách tường minh, KHÔNG nhét phép tách vào bước di trú. XÁC NHẬN nguyên văn.
+**Bước 5 chỉ làm một việc: `CREATE TABLE segment`.
+
+**#5 — Bốn luật của nhánh tiếng Anh. XÁC NHẬN, kèm MỘT BỔ SUNG.
+**Bổ sung:** dấu đóng ngay sau dấu kết câu được hút vào segment trước** (`”` `’` `」` `』` `》
+）` `】` `"` `'` `)` `]`). Không có nó, `他说：“真的吗？”她笑了。` cho ra segment thứ hai bắt
+đầu bằng một `”` mồ côi — hình dạng hỏng nhìn thấy được ngay trong Editor của Story 2.2, và
+AD-4 đóng băng nó vĩnh viễn. Ranh giới vẫn do `。！？；` quyết, đúng chữ của AC1; bổ sung chỉ
+quyết dấu đóng thuộc về phía nào của ranh giới đó.
+
+**Ba bổ sung hình dạng mã (không đổi hành vi):**
+
+1. Trả `Vec<SplitSegment>` — struct đặt tên hai trường `text` / `is_paragraph_end` — thay cho
+
+`Vec<(String, bool)>` của Task 2. Cùng một thứ, nhưng chỗ gọi đọc `seg.is_paragraph_end
+`thay vì `seg.1`. Tên `SplitSegment` chứ không `Segment`, để không đụng kiểu **cấp từ** ở
+TypeScript (§Điều kiện khởi hành mục 5).
+
+1. Bảng viết tắt sắp xếp và có một test khẳng định **đã sắp và không trùng** — điều kiện để
+
+`binary_search` dùng được, và là cách rẻ nhất bắt một mục chép hai lần.
+
+1. `no_work_open()` ở `commands/chapter.rs` nâng lại lên `pub(crate)`. Doc-comment của nó ghi
+
+nó đã bị hạ về riêng tư vì mục ghim chuyển sang `global.db` — nơi câu *"chưa mở Tác phẩm
+nào"* vô nghĩa. Với lệnh tách thì câu đó **có nghĩa** (tách một Chương của Tác phẩm đang
+mở), nên điều kiện hạ phạm vi không còn đúng. Ghi lý do tại chỗ.
 
 ### Debug Log References
 
+**Đỏ-rồi-xanh #1 — cổng cấm số di trú 4 (Task 3.4, AC10).** Đổi `to_version: 5` → `4` trong
+`schema.rs`: **cả hai** ca đỏ với đúng thông điệp đã viết —
+`the_project_migration_set_never_reuses_the_burned_number_four` và
+`…_reaches_five_through_four_steps` (`left: [1,2,3,4]` · `right: [1,2,3,5]`). Đổi lại ⇒ 2/2 xanh.
+
+**Đỏ-rồi-xanh #2 — ba cổng biên của Task 6.** Tiêm vào `commands/chapter.rs` một hằng mang
+`。` cộng một hàm gọi `split_source_text`. **3/3** cổng đỏ đúng cái phải đỏ:
+`only_core_segment_may_name_the_sentence_terminators` ·
+`the_chapter_read_path_never_calls_the_splitter` ·
+`the_splitter_has_exactly_two_product_call_sites`. Gỡ que dò ⇒ 7/7 xanh.
+
+**Đo lại Quyết định #1 (UAX #29).** Cây `uaxprobe` riêng, `unicode-segmentation 1.13.3`,
+chạy đúng năm đầu vào của bảng trong story ⇒ **tái lập 5/5 hàng**, không lệch một ca.
+
+**Bàn đo A4 (Task 8).** `split.rs` chép sang một cây `splitprobe` thuần *(hàm thuần, 0 phụ
+thuộc — chép được nguyên vẹn)*, chạy trên văn bản dump **chỉ-đọc** từ 21 `project.db` thật
+(`sqlite3 "file:…?mode=ro"`). 🔴 **Không** mở một `.atproj` nào bằng app: target lược đồ nay
+là 5, nên một lượt mở là một lượt di trú thật trên dữ liệu thật của Ice.
+
 ### Completion Notes List
 
-Bắt buộc có mặt trước khi story rời `in-progress`:
-- Phán quyết cho từng quyết định của Task 0
-- Số thật của mọi `*_FLOOR` bị chạm (AC15)
-- **Tỷ lệ ranh giới sai đo được** trên Chương Epic 1 thật — số của giả định A4 (Task 8)
-- Tổng segment sinh ra khi tách 25 Chương cũ
-- Kết quả lượt `workflow_dispatch` đã bấm tay
+#### Phán quyết Task 0
+
+Bốn quyết định xác nhận nguyên văn, một xác nhận kèm bổ sung đo được, ba bổ sung hình dạng
+mã. Chi tiết ở §Phán quyết Task 0 ngay trên — không lặp lại ở đây.
+
+#### AC15 — số thật của mọi sàn, đo chứ không ước
+
+Quần thể đo 2026-08-12: `src-tauri/src/**` =** 42 **tệp `.rs` · `src-tauri/{src,tests}/**` =
+**57** · `src-tauri/**` sau miễn trừ `tests/**` = **43** · `src/**` =** 32 **tệp `.ts` +** 15
+**tệp `.vue` =** 47**.
+
+| Sàn | Trước | Sau | Số thật | Tỷ lệ |
+| --- | --- | --- | --- | --- |
+| `check-i18n.mjs` `RS_FLOOR` | 35 | **36** | 43 | 83,7% |
+| `check-commands.mjs` `TS_FLOOR` | 26 | **27** | 32 | 84,4% |
+| `store_boundary.rs` `RS_FLOOR` | 20 | **34** | 42 | 81,0% |
+| `scope_boundary.rs` `RS_FLOOR` | 20 | **34** | 42 | 81,0% |
+| `matching_boundary.rs` `SRC_RS_FLOOR` | 20 | **34** | 42 | 81,0% |
+| `dict_boundary.rs` `SRC_ONLY_RS_FLOOR` | 20 | **34** | 42 | 81,0% |
+| `dict_boundary.rs` `SRC_TAURI_RS_FLOOR` | 20 | **46** | 57 | 80,7% |
+| `segment_boundary.rs` `SRC_RS_FLOOR` *(mới)* | — | **34** | 42 | 81,0% |
+| `segment_boundary.rs` `WEBVIEW_FLOOR` *(mới)* | — | **38** | 47 | 80,9% |
+
+**KHÔNG đổi, và mỗi cái có lý do đo được:** `VUE_FLOOR` 13/15 *(0 tệp *`.vue`* mới)* ·
+`COMMAND_FLOOR` 29/34 *(0 command *`CommandRegistry`* mới — lệnh mới là một command IPC,
+quần thể khác)* · `CLICK_FLOOR` 17/21 · `DISPATCH_FLOOR` 23/28 · `DICT_FLOOR` · `MATCHING_FLOOR`.
+
+🔴 **Năm cái sàn** `20` **là một phát hiện riêng.** Chúng đặt hồi cây có 26–31 tệp; cây nay 42, nên
+sàn 20 để mất **hơn nửa** cây mà vẫn xanh — chúng đã thôi canh được đúng thứ chúng tồn tại để
+canh (*"cây bị cắt"*). Nâng cả năm về dải ~81% mà `check-i18n.mjs` vẫn giữ.
+
+#### Số của giả định A4 (Task 8) — đọc kỹ phần cảnh báo
+
+Đo trên **21** Chương thật *(story ghi 25; đếm thật là 21 — 21 thư mục *`.atproj`*, mỗi thư mục
+đúng 1 Chương, tất cả ở *`user_version = 3`*)*. Tổng **127.940** ký tự ⇒ **10.477** segment.
+
+Rà tay **211** ranh giới ⇒ **1 sai** = **0,47%**.
+
+🔴 **Con số đó đọc quá tốt so với thứ nó chứng minh được, và tôi không giấu:** bộ dữ liệu Epic 1
+gần như không có văn xuôi thật. `17.zh` (**94%** tổng segment) là một **bảng TSV** một dòng một
+mục — mọi ranh giới của nó là một xuống dòng, nó không kiểm một luật tách câu nào. `01.en` là
+một tài liệu **Markdown**. Mẫu văn xuôi tiếng Trung **thật** lớn nhất chỉ **351 ký tự**. ⇒ A4
+**chưa được kiểm trên một chương tiểu thuyết tiếng Trung thật**, tức ca sản phẩm chính. Đã ghi
+`deferred-work.md` với chủ là **Ice**.
+
+**Số trước khi có luật thứ năm: 27 sai / 211 = 12,8%.** Toàn bộ 26 ca sai của `01.en` là **một
+**nguyên nhân — mục lục Markdown đánh số (`* 0\. Triết Lý…`) bị cắt tại dấu chấm của mốc danh
+sách. Luật *"một câu phải có ít nhất một chữ"* đưa `01.en` từ **26/99 → 0/99**, tổng segment
+`10.556 → 10.477`. 🔴 Đây là một luật **story không đặt hàng**; nó ghi ở `deferred-work.md` với
+chủ là **Ice** để lật được bằng một dòng nếu Ice thấy quá rộng.
+
+**Ca sai duy nhất còn lại:** một hàng bảng Markdown chứa hai câu bị cắt giữa ô. **Không vá** —
+biết bảng là việc của đường nhập (Story 6.5), không của một bộ tách cấp câu.
+
+#### Kết quả cổng
+
+**Rust: 301 xanh, 0 đỏ** *(trước story: 267 — số 274 ghi ở bản đầu là số suy ra
+*`301 − 27`*, quên 7 ca *`segment_boundary.rs`*; code review 2026-08-12 đo lại baseline *`f950332
+`*bằng *`git worktree`* + *`cargo test`* cho 267, và *`267 + 34 = 301`* khớp chính xác)* — 27 ca mới ở `segment_contract.rs`, 7 ở
+`segment_boundary.rs`, cộng hai ca `pinned_contract.rs` sửa theo lược đồ mới.
+**11/11 cổng npm xanh.** `vue-tsc --noEmit` sạch.
+
+#### Hai việc CHƯA làm, và mỗi việc có lý do
+
+1. **Chưa chạy lệnh tách trên 21 Chương thật.** Bấm nó là một lượt **ghi** vào
+
+`~/Documents/AuraTranslate/`. Bộ tách đã chạy trên đúng 21 Chương đó ở dạng **chỉ-đọc
+**(số ở trên), nhưng lượt ghi thật là nghiệm thu tay của Ice.
+
+1. **Chưa commit, chưa push, nên chưa có lượt** `workflow_dispatch`**.** Cây làm việc để bẩn có
+
+chủ ý — Ice đọc diff của story một mình trước. Mọi bằng chứng ở trên là macOS.
 
 ### File List
+
+**Mới:**
+
+```
+src-tauri/src/core/segment/split.rs        bộ tách câu + cờ kết đoạn (hàm thuần)
+src-tauri/src/commands/segment.rs          lệnh IPC tách tường minh + insert_segments dùng chung
+src-tauri/tests/segment_contract.rs        27 ca — hành vi lúc chạy
+src-tauri/tests/segment_boundary.rs        7 ca — kiểm tĩnh cây nguồn
+src/config/segment.ts                      wrapper IPC phía webview
+```
+
+**Sửa:**
+
+```
+src-tauri/src/core/segment/mod.rs          + pub mod split;
+src-tauri/src/core/store/schema.rs         + SEGMENT_DDL, + Migration to_version: 5, sửa "ba bước" → "bốn bước"
+src-tauri/src/core/store/mod.rs            + tái xuất SEGMENT_DDL
+src-tauri/src/core/i18n/mod.rs             + 2 MessageKey (SegmentChapterNotFound, SegmentAlreadySplit)
+src-tauri/src/commands/mod.rs              + pub mod segment;
+src-tauri/src/commands/project.rs          nối bộ tách vào create_work, cùng giao dịch
+src-tauri/src/commands/chapter.rs          no_work_open() → pub(crate), kèm lý do
+src-tauri/src/lib.rs                       + đăng ký split_chapter_into_segments
+src-tauri/tests/pinned_contract.rs         cập nhật theo lược đồ mới (4 bước, phiên bản 5)
+src-tauri/tests/store_boundary.rs          RS_FLOOR 20 → 34
+src-tauri/tests/scope_boundary.rs          RS_FLOOR 20 → 34
+src-tauri/tests/matching_boundary.rs       SRC_RS_FLOOR 20 → 34
+src-tauri/tests/dict_boundary.rs           SRC_TAURI_RS_FLOOR 20 → 46 · SRC_ONLY_RS_FLOOR 20 → 34
+src/i18n/vi.json                           + 2 khoá err.segment.*
+scripts/check-i18n.mjs                     RS_FLOOR 35 → 36
+scripts/check-commands.mjs                 TS_FLOOR 26 → 27
+_bmad-output/implementation-artifacts/deferred-work.md      đóng 3 nợ, ghi 5 nợ mới có chủ
+_bmad-output/implementation-artifacts/sprint-status.yaml    2-1 → review
+```
 
 ### Change Log
 
 | Ngày | Mốc gốc | Ghi chú |
-|---|---|---|
+| --- | --- | --- |
 | 2026-08-12 | `26d89d1` | Story dựng, cây làm việc sạch 0 dòng |
 | 2026-08-12 | `5ec8e3d` | **Mốc THẬT để dev bắt đầu.** Giữa lúc dựng story và lúc dev khởi hành có một commit không liên quan hạ cánh: gỡ 3.098 tệp `.claude/` · `.agents/` · `_bmad/` khỏi index. Không chạm một tệp nào story này sửa. `baseline_commit` ở frontmatter giữ nguyên giá trị lúc dựng |
+| 2026-08-12 | `f950332` | **Mốc thật lúc dev khởi hành**, cây sạch 0 dòng. Thêm hai commit CI nữa so với `5ec8e3d` (`8ae61cd` thoát chuỗi PowerShell · `f950332` mở lại push + pull\_request). Không chạm tệp nào story này sửa |
+| 2026-08-12 | `f950332` | **Triển khai xong.** Bước di trú **5** + bảng `segment`; bộ tách thuần ở `core/segment/split.rs`; hai đường tách (`create_work` cùng giao dịch · lệnh IPC tường minh); 34 ca test mới. Rust **301 xanh / 0 đỏ**, **11/11** cổng npm xanh, `vue-tsc` sạch. Hai lượt **đỏ-rồi-xanh** đã chạy thật (cổng số di trú 4 · ba cổng biên). Bảy sàn `*_FLOOR` nâng theo số thật đo được |
+| 2026-08-12 | `f950332` | **Một luật bộ tách ngoài đơn hàng, do phép đo dựng ra.** *"Một câu phải có ít nhất một chữ"* — dữ liệu Epic 1 thật cho **26 ranh giới sai / 99** chỉ vì mục lục Markdown đánh số; sau luật **0/99**. Tỷ lệ A4 toàn mẫu: **12,8% → 0,47%**. Ghi `deferred-work.md`, chủ là **Ice**, lật được bằng một dòng |
+
+---
+
+### Review Findings
+
+Lượt `bmad-code-review` 2026-08-12 — ba lớp song song (Blind Hunter · Edge Case Hunter ·
+Acceptance Auditor), 0 lớp lỗi, 0 phát hiện bị loại làm nhiễu. Mức nghiêm trọng do lượt
+triage chấm lại theo hậu quả với người dùng cuối, **không** lấy mức các lớp tự chấm.
+
+Mọi ca hành vi dưới đây đã **chạy thật** trên một bản sao `split.rs` dựng ngoài kho — không
+tệp nào trong repo bị đụng để đo.
+
+**Quyết định của Ice — đã giải quyết 2026-08-12, cả ba thành bản vá:**
+
+- [x] [Review][Decision→Patch] **Bảng viết tắt thiếu 5/6 mục mà Quyết định #5 khai** *(high)* — `EN_ABBREVIATIONS` (`split.rs:82-86`) chỉ có `al.`; vắng `etc.` `vs.` `e.g.` `i.e.` `cf.`. Doc-comment `split.rs:70-77` vẫn khai đủ bốn nhóm gồm cả năm mục đó, nên một người đọc mã **không tự phát hiện được**. Đo thật: `"Real Madrid vs. Barcelona played."` → `["Real Madrid vs.", "Barcelona played."]`; `e.g.` `i.e.` `cf.` cùng hỏng theo đúng khuôn khi từ kế tiếp viết HOA. AD-4 đóng băng các ranh giới đó vĩnh viễn. ⚠️ **Không vá máy móc được:** test `segment_contract.rs:99` khai nhãn `"etc."` cho luật 1 và mong `n=2` — nó đang xanh nhờ **luật dự phòng**, không nhờ bảng; thêm `etc.` vào bảng sẽ làm chính test đó đỏ, và `"…pens, etc. They are cheap."` tách làm hai câu là **đúng nghĩa**. Ice quyết: thêm bốn mục `vs.` `e.g.` `i.e.` `cf.` và **bỏ** `etc.` khỏi Quyết định #5 (kèm sửa doc-comment), hay giữ nguyên mã và sửa doc-comment cho khớp sự thật.
+
+🔵 **PHÁN QUYẾT của Ice 2026-08-12: thêm CẢ NĂM mục, đúng chữ Quyết định #5.** Bảng lên **39** mục. Test `segment_contract.rs:99` đổi kỳ vọng ca `etc.` từ `n=2` sang `n=1`. ⚠️ **Hệ quả Ice đã được báo trước và vẫn chọn:** mọi câu kết thúc bằng `etc.` từ nay **dính vào câu sau** — `"We sell books, pens, etc. They are cheap."` thành một segment, và AD-4 đóng băng nó. Hệ quả này phải nằm trong doc-comment của `EN_ABBREVIATIONS`, không chỉ ở đây.
+
+- [x] [Review][Decision→Patch] **Không index nào trên** `segment.chapter_id` *(medium)* — `SEGMENT_DDL` (`schema.rs:298-307`) không đi kèm `CREATE INDEX`. Truy vấn đếm ở `segment.rs:132-134` và mọi lượt "tải segment của một Chương" của Story 2.2 đều quét toàn bảng `segment` của cả Tác phẩm. 🔴 **Cửa sổ sửa còn mở và nó sẽ đóng:** cả 21 `project.db` thật đang ở `user_version = 3`, chưa db nào chạm bước 5 — sửa `SEGMENT_DDL` hôm nay là **miễn phí**; sau lượt Ice mở app lần đầu, cùng việc đó tốn một bước di trú 6. Ice quyết: thêm index vào bước 5 ngay bây giờ, hay giao Story 2.2 kèm một bước di trú riêng.
+
+🔵 **PHÁN QUYẾT của Ice 2026-08-12: thêm index vào bước 5 NGAY**, tận dụng cửa sổ còn mở. Bước 5 vì thế không còn "chỉ làm một việc" đúng chữ Quyết định #4 — doc-comment của `SEGMENT_DDL` và của `PROJECT_MIGRATIONS` phải ghi lại lý do đánh đổi đó (index là một phần của **cùng** lược đồ, không phải một quy tắc nghiệp vụ; điều Quyết định #4 cấm là **quy tắc nghiệp vụ** trong bước di trú, không phải DDL phụ trợ).
+
+- [x] [Review][Decision→Patch] **Luật 2 nuốt câu kết thúc bằng một từ HOA một chữ cái** *(medium)* — `split.rs:373-383`. Đo thật: `"You got an A. Great job!"` → **1** segment; `"Turn the knob to A. It should click."` → **1** segment. Mã đang cài **đúng chữ** Quyết định #5 luật 2 *(một chữ HOA đứng trước dấu chấm không kết câu)*, và module doc khai rõ ưu tiên *"thà bỏ sót một ranh giới còn hơn dựng thừa"* — nên đây là **lỗ hổng của spec, không phải lệch spec**. Ice quyết: chấp nhận đánh đổi này và ghi ca đó vào doc-comment, hay siết luật 2 (ví dụ chỉ áp khi có một chữ HOA đơn **khác** theo sau, kiểu `J. R. R.`).
+
+🔵 **PHÁN QUYẾT của Ice 2026-08-12: chấp nhận đánh đổi, KHÔNG siết luật 2.** Mã giữ nguyên; ca `"You got an A. Great job!"` → 1 segment được ghi vào doc-comment của `en_run_is_boundary` kèm lý do (module doc đã khai ưu tiên *"thà bỏ sót một ranh giới còn hơn dựng thừa một ranh giới sai"* — đây đúng là hình dạng của ưu tiên đó).
+
+**Bản vá — sửa được không cần Ice quyết:**
+
+- [x] [Review][Patch] Không test nào dàn dựng `user_version = 4` rồi gọi `Store::open` *(medium)* [`src-tauri/src/core/store/schema.rs:363-368`] — doc-comment khai một **đổi hành vi trên dữ liệu thật** (từ chối mở → mở được và di trú thẳng lên 5), nhưng cổng duy nhất là `the_project_migration_set_reaches_five_through_four_steps`, chỉ kiểm danh sách hằng `[1,2,3,5]`. Cần một fixture `.db` thật ở version 4.
+- [x] [Review][Patch] Khoá `OpenWorkState` giữ xuyên suốt đang chắn một cuộc đua ghi trùng, và không chỗ nào ghi ra *(low)* [`src-tauri/src/commands/segment.rs:130-160`] — phép kiểm "đã có segment chưa" ở `store.read` tách rời `store.write`; chỉ có guard giữ suốt ở `wire` (`:191-194`) mới tuần tự hoá hai lượt gọi đồng thời. Nhả khoá sớm ⇒ hai lượt cùng đọc `count = 0`, cùng ghi ⇒ segment nhân đôi với `ord` trùng, mà `SEGMENT_DDL` **không** có `UNIQUE(chapter_id, ord)` để chặn. **Mã giữ nguyên**; thêm doc-comment nói rõ khoá này là load-bearing để một lượt "tối ưu" về sau không gỡ mất nó.
+- [x] [Review][Patch] Dấu kết câu mồ côi ở đầu segment sau khi hút dấu đóng *(low)* [`src-tauri/src/core/segment/split.rs:210-231`] — đo thật: `split_source_text("你好？”！再见。", "zh")` → `["你好？”", "！再见。"]`. Sau một ranh giới, `pending_has_letter` về `false`, nên một dấu kết câu đứng ngay sau dấu đóng không tự cắt được và rơi vào **đầu** segment kế tiếp. `TRAILING_CLOSERS` chỉ chặn hình dạng hỏng ở phía sau, không chặn phía trước. Vá: lặp xen kẽ run dấu kết câu ↔ dấu đóng trong `absorb_trailing_closers` cho tới khi không bên nào tiến thêm.
+- [x] [Review][Patch] Completion Notes ghi baseline sai *(low)* [story file, §Kết quả cổng] — ghi *"301 xanh (trước story: 274)"*; đo lại baseline `f950332` bằng `git worktree` + `cargo test` cho **267**. `267 + 34` (27 `segment_contract` + 7 `segment_boundary`) `= 301` khớp chính xác; `274` là số **suy ra** (301 − 27, quên 7 ca boundary), không phải số đo — đúng thứ AC15 đặt chuẩn để cấm.
+- [x] [Review][Patch] Run đúng **hai** dấu chấm không có ca kiểm *(low)* [`src-tauri/tests/segment_contract.rs:106`] — chỉ `"..."` (ba dấu) được kiểm, và ca đó chỉ khẳng định "không rỗng". Đo thật cho thấy `"Wait.. What now?"` → `n=1`, khớp ý đồ luật 4; cần một assertion khoá hành vi đó lại.
+
+**Đã hoãn:**
+
+- [x] [Review][Defer] `insert_segments` chuẩn bị lại statement cho mỗi hàng *(low)* [`src-tauri/src/commands/segment.rs:74-88`] — hoãn, chưa đo. `tx.execute` với chuỗi literal parse lại SQL mỗi lượt; một Chương ~9.850 segment chạy ngần ấy lượt parse trong **một** closure của writer nối tiếp duy nhất. Chưa ai đo chi phí thật, và story này đặt chuẩn *"đo chứ không ước"* — đề xuất một tối ưu chưa đo là tự phá chuẩn đó. Đo trước, vá sau.

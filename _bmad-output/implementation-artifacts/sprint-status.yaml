@@ -42,7 +42,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-12T12:00:00
+last_updated: 2026-08-12T18:30:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -91,7 +91,10 @@ development_status:
   epic-2: in-progress
   # 2.1 dong action item A6 cua Epic 1: buoc di tru ke tiep cua `project.db` phai
   # danh so 5 — so 4 la mot so DA CHAY (`schema.rs:280-296`).
-  2-1-tach-segment-cap-cau-va-co-ket-doan: ready-for-dev
+  # 2.1 XONG 2026-08-12 (Rust 301 xanh/0 do · 11/11 cong npm). Buoc di tru danh so 5 —
+  # cong cam so 4 quay lai da chay do-roi-xanh. HAI mon con cho Ice: bam lenh tach tren 21
+  # Chuong that (mot luot GHI vao du lieu that), va commit/push + workflow_dispatch.
+  2-1-tach-segment-cap-cau-va-co-ket-doan: done
   2-2-panel-editor-lien-mach: backlog
   2-3-hop-dong-flush-va-trang-thai-da-luu: backlog
   2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi: backlog

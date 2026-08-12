@@ -49,8 +49,12 @@ const MATCHING_FLOOR: usize = 1;
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép đếm toàn cây là thật.
 ///
 /// Số thật lúc dựng (Story 1.12): **28**. Sàn **20**, cùng khuôn `SRC_TAURI_RS_FLOOR`
-/// của `dict_boundary.rs:308`.
-const SRC_RS_FLOOR: usize = 20;
+/// của `dict_boundary.rs`.
+///
+/// ⚠️ Story 2.1 (2026-08-12): số thật là **42**; sàn lên **34** (81,0%), nâng cùng lượt với
+/// `store_boundary.rs`/`scope_boundary.rs` — một sàn 20 trên 42 tệp để mất hơn nửa cây mà
+/// vẫn xanh, tức nó thôi canh được đúng thứ nó tồn tại để canh.
+const SRC_RS_FLOOR: usize = 34; // số THẬT 2026-08-12 (sau Story 2.1): 42 tệp `.rs` — 34/42 = 81,0%
 
 /// Hai crate mà **chỉ** `core/matching/**` được gõ ở vị trí mã (AD-17).
 const MATCHING_ONLY_CRATES: [&str; 2] = ["jieba_rs", "tantivy_stemmers"];

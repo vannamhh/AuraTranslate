@@ -27,7 +27,7 @@ use auratranslate_lib::commands::pinned::{PinnedEntry, list_pinned_entries, pin_
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::store::{
-    GLOBAL_MIGRATIONS, PROJECT_MIGRATIONS, Store, StoreSpec, Transaction,
+    GLOBAL_MIGRATIONS, PINNED_ENTRY_DDL, PROJECT_MIGRATIONS, Store, StoreSpec, Transaction,
 };
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
@@ -148,15 +148,23 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     let opened = create_work_from_text(&root, "Pham Vi", "zh", "tieu thuyet", "noi dung".to_owned())
         .expect("tao tac pham");
 
+    // ⚠️ Cap nhat Story 2.1: `PROJECT_MIGRATIONS` nhan buoc `SEGMENT_DDL`, danh so **5**
+    // (so 4 la mot so DA CHAY — vet seo cua chinh lượt doi pham vi nay). Bon buoc, dich la
+    // phien ban 5. Hai con so duoi day la PROXY; menh de that cua ca nay la phep dem
+    // `sqlite_master` ngay ben duoi — bang `pinned_entry` KHONG duoc co mat o `project.db`.
+    assert!(
+        PROJECT_MIGRATIONS.iter().all(|m| m.sql != PINNED_ENTRY_DDL),
+        "`PINNED_ENTRY_DDL` quay lai `PROJECT_MIGRATIONS` — Ice ky 2026-08-11 chuyen no sang `global.db`"
+    );
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        3,
-        "`PROJECT_MIGRATIONS` phai ve dung ba buoc — buoc 4 cua ban dau da bi go"
+        4,
+        "`PROJECT_MIGRATIONS` phai co bon buoc — 1/2/3 cua Story 1.15 va 5 cua Story 2.1"
     );
     assert_eq!(
         opened.store.schema_version(),
-        3,
-        "mot `project.db` moi phai dung o phien ban 3"
+        5,
+        "mot `project.db` moi phai dung o phien ban 5 (so 4 da chay)"
     );
 
     let has_table: i64 = opened

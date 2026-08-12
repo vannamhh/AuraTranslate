@@ -209,7 +209,11 @@ const tsFiles = keep(tsAll)
 // thật — một con số bịa trong đúng tệp mà cả kiến trúc dựa vào để tin các con số là chính
 // thứ rot mà AC13 tồn tại để chặn.
 const VUE_FLOOR = 13 // số THẬT 2026-08-11 (sau Story 1.21): 15 tệp `.vue` — 13/15 = 86,7%
-const TS_FLOOR = 26 // số THẬT 2026-08-11 (sau Story 1.21): 31 tệp `.ts` — 26/31 = 83,9%
+// 🔴 NÂNG 2026-08-12 (Story 2.1) — số thật lên **32**: `src/config/segment.ts`, wrapper IPC
+// của lệnh tách tường minh. Sàn 26 trên 32 là 81,3%; lên **27** để giữ dải ~84% của lượt
+// trước. `VUE_FLOOR`/`COMMAND_FLOOR`/`CLICK_FLOOR`/`DISPATCH_FLOOR` KHÔNG đổi — story này
+// thêm 0 tệp `.vue`, 0 command của `CommandRegistry`, 0 `@click`, 0 lời gọi `dispatch()`.
+const TS_FLOOR = 27 // số THẬT 2026-08-12 (sau Story 2.1): 32 tệp `.ts` — 27/32 = 84,4%
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
  * hai `layout.preset_*` · bốn `layout.toggle_*` · hai `library.import_*` · ba

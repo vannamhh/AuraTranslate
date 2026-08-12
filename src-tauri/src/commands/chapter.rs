@@ -45,7 +45,13 @@ pub struct OpenChapter {
 /// `commands::pinned` tái dùng, nhưng lượt Ice ký lại chuyển mục ghim sang `global.db` —
 /// nơi *"chưa mở Tác phẩm nào"* **không phải** một câu có nghĩa. Đọc Chương lại là chỗ duy
 /// nhất nói câu đó, nên nó về đúng phạm vi cũ.
-fn no_work_open() -> IpcError {
+///
+/// ⚠️ `pub(crate)` **trở lại** từ 2026-08-11 (Story 2.1), và điều kiện hạ phạm vi ở trên
+/// không còn đúng: `commands::segment` tách một Chương **của Tác phẩm đang mở**, nên với nó
+/// câu *"chưa mở Tác phẩm nào"* là câu đúng theo nghĩa đen — khác hẳn ca mục ghim. Hai chỗ
+/// gọi, **một** khoá; một khoá thứ hai cho cùng câu là hai chuỗi phải giữ khớp nhau bằng
+/// kỷ luật.
+pub(crate) fn no_work_open() -> IpcError {
     IpcError::new(
         "project.no_work_open",
         MessageKey::ProjectNoWorkOpen,

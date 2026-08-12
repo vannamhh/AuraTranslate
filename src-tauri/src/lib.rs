@@ -241,6 +241,10 @@ pub fn run() {
             crate::commands::pinned::wire::list_pinned_entries,
             crate::commands::pinned::wire::pin_entry,
             crate::commands::pinned::wire::unpin_entry,
+            // Story 2.1 — tach segment TUONG MINH cho Chuong da co tren dia
+            // (`segment_count = 0` cua moi Chuong Epic 1). Chuong MOI nhap duoc tach tu
+            // dong trong `create_work`, cung giao dich; lenh nay chi phuc vu duong cu.
+            crate::commands::segment::wire::split_chapter_into_segments,
         ])
         .setup(move |app| {
             #[cfg(debug_assertions)]

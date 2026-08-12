@@ -238,10 +238,11 @@ CREATE TABLE work (
 /// SQL, cưỡng chế giá trị hợp lệ là việc của tầng Rust gọi nó (cùng khuôn với
 /// `config_value.kind` ở `CONFIG_VALUE_DDL`, xem doc-comment ở trên).
 ///
-/// **Không** bảng `segment` — Quyết định #4 của story: AD-4 đóng băng ranh giới segment
-/// tính một lần lúc nhập; một bộ tách "tạm" ở đây là đóng băng vĩnh viễn ranh giới sai.
-/// `source_text` mang **nguyên khối** văn bản nguồn của Chương; Story 2.1 sở hữu bước tách
-/// tường minh biến nó thành các hàng `segment`.
+/// `source_text` mang **nguyên khối** văn bản nguồn của Chương, và nó **ở lại nguyên khối**
+/// sau Story 2.1: [`SEGMENT_DDL`] (bước 5) dựng các hàng `segment` **cạnh** nó chứ không
+/// thay nó. Story 1.15 cố ý không dựng bảng `segment` — Quyết định #4 của story đó: AD-4
+/// đóng băng ranh giới segment tính một lần lúc nhập, nên một bộ tách "tạm" ở đó là đóng
+/// băng vĩnh viễn những ranh giới sai.
 pub const CHAPTER_DDL: &str = "\
 CREATE TABLE chapter (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -253,28 +254,112 @@ CREATE TABLE chapter (
   updated_at  TEXT NOT NULL
 );";
 
-/// Bộ di trú của `project.db`. Hôm nay **ba** bước — Story 1.15.
+/// Lược đồ bảng `segment` — **bước 5 của `project.db`**, Story 2.1, AC3 · AC4 · AC5 · AC9.
 ///
-/// ⚠️ Con số này đọc **ba**, không bốn: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `AUTOINCREMENT` LÀ CƠ CHẾ **DUY NHẤT** THOẢ AC5, VÀ NÓ PHẢI Ở TRONG DDL
+/// ─────────────────────────────────────────────────────────────────────────────
+/// AC5 nói *"một `segment.id` đã về hưu không bao giờ được tái dùng"*. Đó **không** phải một
+/// lời hứa ở tầng Rust — nó là một thuộc tính của DDL. [`CHAPTER_DDL`] đã phân xử nguyên
+/// văn cùng mệnh đề này: `INTEGER PRIMARY KEY` trần là bí danh của `rowid`, và SQLite **tái
+/// dùng** rowid đã xoá khi nó là rowid lớn nhất từng cấp — xoá hàng cuối rồi chèn hàng mới
+/// nhận lại **đúng** `id` vừa mất.
+///
+/// Cái giá của việc mất mệnh đề này lớn hơn hẳn ở `segment` so với ở `chapter`: `SegmentVersion`
+/// của Story 2.6 gắn lịch sử **theo `segment.id`**, và AD-5 nói lịch sử phải tra được **kể cả
+/// sau khi segment về hưu**. Một id phát lại là lịch sử của hai câu khác nhau chồng lên nhau.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// TỪNG CỘT, VÀ NÓ NEO VÀO ĐÂU
+/// ─────────────────────────────────────────────────────────────────────────────
+/// - `chapter_id` — AD-32: gộp/tách **Chương** chỉ đổi `chapter_id` và `ord`, giữ nguyên
+///   `segment.id`. **Không** `FOREIGN KEY`: cùng khuôn với phần còn lại của lược đồ này,
+///   nơi chưa bảng nào khai ràng buộc ngoài, và `PRAGMA foreign_keys` mặc định TẮT trong
+///   SQLite — một khoá ngoại khai ra mà không bật pragma là một lời hứa không ai giữ.
+/// - `ord` **cột riêng** — AC4 + AD-3, sắp lại được mà không đụng `id`. **Không** `UNIQUE`
+///   trên `ord`, cùng lý do [`CHAPTER_DDL`] đã ghi: Epic 2 tự quyết cơ chế sắp lại, và nó có
+///   thể để hở tạm thời trong một giao dịch nhiều bước. Đánh số **từ 1**, liên tục, không
+///   lỗ — Story 2.10 (*"segment kế tiếp"*) đứng trên giả định đó.
+/// - `is_paragraph_end` — AC6 + AD-37. **Một** cột, dùng chung cho nguyên văn và bản dịch;
+///   **không** `source_paragraph_end`/`target_paragraph_end`. `INTEGER` 0/1 vì SQLite không
+///   có kiểu boolean; cưỡng chế giá trị hợp lệ là việc của tầng Rust, cùng khuôn
+///   `chapter.status` và `config_value.kind`.
+/// - `retired_at` — AD-5 *"về hưu = tombstone"*. Story 2.1 **không** cho segment nào về hưu;
+///   cột có mặt để Story 2.8 không phải mở một bước di trú thứ hai chỉ để thêm một cột, và
+///   để `ornament` (giá trị vạch lề thứ 5) có chỗ đọc.
+/// - `created_at`/`updated_at` — cùng khuôn `chapter`: sinh ở tầng SQL bằng
+///   `strftime('%Y-%m-%dT%H:%M:%fZ','now')`, không truyền từ Rust.
+///
+/// **Ba cột CỐ Ý không có, và mỗi cột có chủ:** `target_text` (bản dịch) → Story 2.2/2.3,
+/// đi kèm bước di trú 6 — thêm hôm nay là đoán trước hợp đồng flush của AD-35 mà 2.3 chưa
+/// chốt. `status` (máy trạng thái AD-31) → Story 2.5. `role` (`alt` | `caption`, AD-42) →
+/// Story 6.13.
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 INDEX ĐẦU TIÊN CỦA TOÀN KHO — Ice ký 2026-08-12, code review
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Trước lượt này lược đồ **không có `CREATE INDEX` nào**, ở cả `global.db` lẫn `project.db`.
+/// `segment` là bảng đầu tiên xứng đáng một cái, vì nó là bảng đầu tiên **phình theo nội
+/// dung** chứ không theo số Tác phẩm: đo thật 2026-08-12 cho **10.477** hàng từ chỉ 21
+/// Chương. Không index, phép đếm ở `commands::segment` và mọi lượt *"tải segment của một
+/// Chương"* của Story 2.2 đều quét **toàn bảng** của cả Tác phẩm.
+///
+/// ⚠️ **Quy ước đặt tên do chỗ này dựng ra** (không có tiền lệ để chép): `idx_<bảng>_<cột
+/// theo thứ tự trong index>`.
+///
+/// ⚠️ **Vì sao `(chapter_id, ord)` chứ không chỉ `chapter_id`:** mọi chỗ đọc segment của một
+/// Chương đều cần chúng **theo `ord`** (Story 2.2 render, Story 2.10 điều hướng *"segment kế
+/// tiếp"*). Cột thứ hai biến index thành covering cho phép sắp, nên SQLite khỏi một lượt sắp
+/// tạm. **Không** `UNIQUE` — cùng lý do đã ghi cho `ord` ở trên: Epic 2 được phép để hở tạm
+/// trong một giao dịch nhiều bước.
+///
+/// ⚠️ **Bước 5 vì thế không còn "chỉ làm một việc" đúng chữ Quyết định #4 của Story 2.1 —
+/// và đó vẫn đúng tinh thần.** Thứ Quyết định #4 cấm nhét vào một bước di trú là một **quy
+/// tắc nghiệp vụ** (chạy phép tách câu), vì nó trộn tầng và chạy im lặng lúc mở Tác phẩm.
+/// Một `CREATE INDEX` là **DDL** — cùng tầng, cùng giao dịch, không quy tắc nào. Lý do sửa
+/// ngay bây giờ thay vì mở bước 6: lúc review, cả **21** `project.db` thật còn ở
+/// `user_version = 3`, chưa db nào chạm bước 5 — cửa sổ sửa miễn phí, và nó đóng lại ngay
+/// lượt mở app đầu tiên.
+pub const SEGMENT_DDL: &str = "\
+CREATE TABLE segment (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  chapter_id       INTEGER NOT NULL,
+  ord              INTEGER NOT NULL,
+  source_text      TEXT    NOT NULL,
+  is_paragraph_end INTEGER NOT NULL,
+  retired_at       TEXT,
+  created_at       TEXT    NOT NULL,
+  updated_at       TEXT    NOT NULL
+);
+CREATE INDEX idx_segment_chapter_ord ON segment (chapter_id, ord);";
+
+/// Bộ di trú của `project.db`. Hôm nay **bốn** bước — Story 1.15 · Story 2.1.
+///
+/// 🔴 **Bốn bước, nhưng đích là phiên bản 5.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
+/// (`[1, 2, 3, 5]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên
+/// một lỗ hổng không làm bước nào bị bỏ qua.
+///
+/// ⚠️ Con số này đọc **bốn**, không ba: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
 /// gỡ ở lượt Ice ký lại 2026-08-11 *(vết sẹo ghi đầy đủ ở cuối doc-comment này)*. Một
 /// dòng tiêu đề nói một số mà bảng hằng ngay dưới nói một số khác là đúng thứ rot mà cả
 /// kiến trúc này dựa vào doc-comment để tránh — bắt ở code review 2026-08-11.
 ///
-/// ⚠️ **Ba bước, không phải một** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
+/// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
 /// hai chuỗi ở **compile time** mà không thêm phụ thuộc) chỉ nhận **literal**, không
 /// nhận một `const` đặt tên. Nối [`SCHEMA_MIGRATION_LOG_DDL`] (hằng **tái dùng** từ
 /// `global.db`) với [`WORK_DDL`]/[`CHAPTER_DDL`] thành một chuỗi duy nhất buộc phải chép
-/// lại nguyên văn của hằng kia — đúng thứ *"tái dùng, đừng viết lại"* cấm. Ba bước tách
+/// lại nguyên văn của hằng kia — đúng thứ *"tái dùng, đừng viết lại"* cấm. Các bước tách
 /// rời, mỗi bước một hằng, giữ **mỗi** DDL có **đúng một** nguồn sự thật, cùng khuôn
 /// [`GLOBAL_MIGRATIONS`] đã tách `SCHEMA_MIGRATION_LOG_DDL` (bước 1) khỏi
 /// `CONFIG_VALUE_DDL` (bước 2). "Mỗi bước một giao dịch" là bất biến sẵn có của
-/// [`migrate`] — không AC nào của story này đòi `work`/`chapter` phải cùng một giao dịch
+/// [`migrate`] — không AC nào đòi `work`/`chapter`/`segment` phải cùng một giao dịch
 /// SQL với nhật ký di trú.
 ///
 /// Không thêm bước cho một lược đồ chưa tồn tại — cùng luật với [`GLOBAL_MIGRATIONS`].
-/// **Không** bảng `segment`/Glossary/TM/prompt/asset ở đây; mỗi epic mang bảng riêng của
-/// nó cùng lúc với bước di trú cần nó.
+/// **Không** bảng Glossary/TM/prompt/asset ở đây; mỗi epic mang bảng riêng của nó cùng lúc
+/// với bước di trú cần nó. [`SEGMENT_DDL`] có mặt vì Story 2.1 dựng chính bảng đó, không
+/// vì Epic 2 sẽ cần nó.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
 /// ⚠️ MỘT VẾT SẸO CÓ THẬT: `user_version = 4` ĐÃ TỒN TẠI TRÊN MÁY — Story 1.20
@@ -294,6 +379,19 @@ CREATE TABLE chapter (
 /// đánh số **5**, không được tái dùng 4. Doc-comment đầu module nói bằng chữ vì sao —
 /// *"một bước như vậy là hai đường lược đồ khác nhau cho cùng một số, và chúng sẽ rẽ nhau
 /// ở máy người dùng chứ không ở đây"*. Đây là chỗ mệnh đề đó thành một ràng buộc thật.
+///
+/// 🔴 [`validate_strictly_increasing`] **KHÔNG** bắt được lỗi tái dùng số 4 — `[1, 2, 3, 4]`
+/// là một danh sách tăng dần nghiêm ngặt hoàn hảo, và nó sẽ đi qua **mọi** cổng hiện có mà
+/// không một dòng đỏ nào. Cổng thật là
+/// `tests/segment_contract.rs::the_project_migration_set_never_reuses_the_burned_number_four`,
+/// dựng ở Story 2.1 để đóng món nợ `deferred-work.md:1169-1180`.
+///
+/// ⚠️ **HỆ QUẢ của việc nâng target lên 5, ghi ra vì nó đổi hành vi trên dữ liệu có thật:**
+/// một `project.db` mang `user_version = 4` trước lượt này bị [`super::Store::open`] **từ
+/// chối** (4 > target 3); sau lượt này nó **mở được** và di trú thẳng lên 5 (4 < target 5),
+/// mang theo một bảng `pinned_entry` mồ côi mà `project.db` không còn dùng tới. Vô hại về
+/// dữ liệu, và cả **6** thư mục ở trạng thái đó đã bị Ice xoá ngày 2026-08-11 — nên đây là
+/// một ghi chép để không ai phải chẩn đoán lại, không phải một bản vá phải viết.
 pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 1,
@@ -306,6 +404,11 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 3,
         sql: CHAPTER_DDL,
+    },
+    // 🔴 **5, KHÔNG phải 4** — số 4 đã cháy. Xem vết sẹo ở doc-comment ngay trên.
+    Migration {
+        to_version: 5,
+        sql: SEGMENT_DDL,
     },
 ];
 

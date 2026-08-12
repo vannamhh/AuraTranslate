@@ -24,6 +24,7 @@ use uuid::Uuid;
 use crate::core::i18n::IpcError;
 use crate::core::library::{WorkMeta, create_work_folder, remove_folder};
 use crate::core::segment::import::{ImportedChapter, import_file, import_text};
+use crate::core::segment::split::split_source_text;
 use crate::core::store::{Store, StoreSpec, Transaction};
 
 /// Trạng thái vòng đời ban đầu của mọi Chương mới (FR5) — **tạm**, chờ Story 2.5 dựng
@@ -115,6 +116,16 @@ pub fn create_work(
     let genre_owned = genre.to_owned();
     let source_text = imported.source_text;
 
+    // 🔴 Story 2.1, AC3 + AD-39: ranh giới segment tính **ở đây, một lần, lúc nhập** — và
+    // không đường mã nào tính lại lúc nạp Chương.
+    //
+    // 🔴 Và nó chạy **NGOÀI** closure ghi, có chủ ý. AD-11 giữ **một** writer duy nhất nối
+    // tiếp (một `Connection` `move` vào một thread, job đi qua `mpsc::channel`), nên thời
+    // gian CPU bên trong closure **chặn mọi lượt ghi khác của tiến trình**. Một Chương dài
+    // đi qua bộ tách trong closure là một lượt khoá hàng đợi ghi mà auto-save của Editor
+    // (NFR2) phải xếp sau — cùng Quyết định #3 của Story 1.15 đã cấm `fs::write` ở đó.
+    let segments = split_source_text(&source_text, source_lang);
+
     // 🔴 Quyết định #3: job ghi CHỈ SQL — không `fs::write` nào bên trong closure này.
     let write_result = store.write(move |tx: &Transaction<'_>| {
         tx.execute(
@@ -129,6 +140,17 @@ pub fn create_work(
              strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
             (&source_text, CHAPTER_STATUS_NOT_STARTED),
         )?;
+
+        // 🔴 AC13 — segment ghi xuống **CÙNG** giao dịch với hàng `chapter` sinh ra chúng.
+        // Một Chương tồn tại mà segment của nó chưa tồn tại là **đúng** trạng thái
+        // `segment_count = 0` mà `deferred-work.md:542` bắt story này dọn; dựng lại nó ở
+        // đường nhập mới là dựng lại chính món nợ.
+        //
+        // `last_insert_rowid()` đọc **trong** giao dịch, ngay sau lượt chèn của chính nó —
+        // `Store::write` giữ một writer duy nhất nối tiếp, nên không lượt chèn nào khác
+        // chen được vào giữa hai dòng này.
+        let chapter_id = tx.last_insert_rowid();
+        crate::commands::segment::insert_segments(tx, chapter_id, &segments)?;
         Ok(())
     });
 

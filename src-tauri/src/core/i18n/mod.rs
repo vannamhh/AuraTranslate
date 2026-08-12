@@ -157,6 +157,26 @@ message_keys! {
     /// Đường đọc Chương gọi trước khi có Tác phẩm nào mở (Story 1.16, AC8) —
     /// `OpenWorkState` rỗng, không phải một lỗi kho.
     ProjectNoWorkOpen => "err.project.no_work_open" [],
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TẦNG SEGMENT — Story 2.1 (AD-3 · AD-4 · AD-5 · AD-21 · AD-37)
+    //
+    // Hai khoá, và đúng hai: lệnh tách tường minh có đúng hai cách từ chối RIÊNG của
+    // nó. *"Chưa mở Tác phẩm nào"* tái dùng `ProjectNoWorkOpen` — cùng câu, cùng
+    // nghĩa, và một khoá thứ hai cho nó là hai chuỗi phải giữ khớp nhau bằng kỷ luật.
+    //
+    // **KHÔNG** khoá nào cho "tái tách một Chương đã có segment": thao tác đó là
+    // Story 2.8 (nó cần ngữ nghĩa VỀ HƯU của AD-5, mà hôm nay chưa có `SegmentVersion`
+    // để giữ lại). Một khoá cho một tính năng chưa tồn tại là đúng thứ Story 1.7
+    // §Completion Notes #3 cấm.
+    // ─────────────────────────────────────────────────────────────────────────
+    /// `chapter_id` đưa vào không có trong `project.db` của Tác phẩm đang mở.
+    SegmentChapterNotFound => "err.segment.chapter_not_found" ["chapter_id"],
+    /// Chương đã có segment ⇒ lệnh tách **từ chối**, không ghi đè. AD-4 đóng băng ranh
+    /// giới vĩnh viễn; một lượt ghi đè im lặng là một lượt cho về hưu im lặng.
+    /// `count` là số segment hiện có — dữ liệu, không phải câu.
+    SegmentAlreadySplit => "err.segment.already_split" ["chapter_id", "count"],
+
     // **KHÔNG có `ProjectMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
     // 2026-08-06). Cơ chế từ chối một `meta.json` mới hơn vẫn còn nguyên và vẫn có test
     // (`MetaError::SchemaTooNew` + `WorkMeta::read`), nhưng không đường sản phẩm nào

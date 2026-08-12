@@ -540,6 +540,21 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 ## Deferred from: 1-15-tac-pham-tren-dia-va-duong-vao-van-ban-toi-thieu (2026-08-06)
 
 - 🔴 **Mọi Chương nhập ở Epic 1 có `segment_count = 0`, và Story 2.1 phải xử lý bằng một thao tác tách TƯỜNG MINH.** Quyết định #4 của story: AD-4 đóng băng ranh giới segment tính một lần lúc nhập; cài một bộ tách "tạm" ở Story 1.15 là đóng băng vĩnh viễn những ranh giới sai (id đã "về hưu" không bao giờ được tái dùng — AD-3). `chapter.source_text` mang **nguyên khối** văn bản; **không** bảng `segment`, **không** dòng `segment` nào tồn tại. **Story 2.1** sở hữu bước di trú thêm bảng `segment` VÀ một thao tác "tách lần đầu" tường minh trong giao diện (hoặc một bước di trú dữ liệu), **không** một đường tính ngầm lúc nạp Chương — đường đó là vi phạm AD-4 trực tiếp.
+  → ✅ **ĐÓNG 2026-08-12 — Story 2.1.** Bước di trú **5** (`SEGMENT_DDL`; số 4 đã cháy) cộng
+  **hai** đường tách, và không đường nào tính ngầm: Chương **mới** tách trong `create_work`,
+  cùng giao dịch với hàng `chapter` (AC13); Chương **cũ** đi qua lệnh IPC tường minh
+  `split_chapter_into_segments`, một Chương một lượt, **từ chối** một Chương đã có segment
+  thay vì ghi đè. Bước di trú cố ý chỉ làm một việc — `CREATE TABLE segment` — vì nhét phép
+  tách vào đó trộn DDL với nghiệp vụ và chạy im lặng lúc mở Tác phẩm, đúng thứ AC3 cấm; và
+  vì bản sao lưu trước di trú vẫn *"không nguyên tử, không xác minh lại"* (mục nợ ở trên,
+  chưa ai vá) và đây sẽ là lượt di trú thật đầu tiên trên một `project.db` có dữ liệu người
+  dùng. `segment_boundary.rs::the_splitter_has_exactly_two_product_call_sites` khoá con số
+  hai đó lại.
+  ⚠️ **21 Chương, không phải 25** — đo 2026-08-12 trên `~/Documents/AuraTranslate/`: 21 thư
+  mục `.atproj`, mỗi thư mục đúng 1 Chương, tất cả ở `user_version = 3`. Con số 25 trong
+  story là một ước, không một phép đếm.
+  🔴 **Chúng CHƯA được tách** — story này dựng *đường*, và bấm nó trên 21 Chương thật là một
+  thao tác ghi vào dữ liệu thật của Ice, cần Ice bấm. **Chủ: Ice**, một lượt nghiệm thu tay.
 
 - ⚠️ **Đường kéo-thả tệp thật (Quyết định #1(b)) chỉ được verify bằng ĐỌC MÃ NGUỒN `tauri-runtime`/`tauri` đã ghim, chưa bằng một lượt kéo tay thật trên máy có GUI.** Task 0 của story kết luận `WindowEvent::DragDrop` nhận qua `on_window_event` cần **0 permission** (không đi qua ACL/capabilities) và `drag_drop_enabled` mặc định `true` — kết luận mạnh và có cơ sở (đọc trực tiếp `tauri-runtime-2.11.3`/`tauri-2.11.5`), nhưng môi trường triển khai (agent CLI) không có công cụ điều khiển GUI desktop để thật sự thả một tệp bằng chuột. Rủi ro thấp — cơ chế là API ổn định, dùng rộng rãi trong hệ sinh thái Tauri — nhưng câu này chưa có bằng chứng thực nghiệm. ~~**Nghiệm thu tay trước khi phát hành**, hoặc story kế tiếp có công cụ GUI automation.~~
   → ✅ **ĐÓNG 2026-08-06** — Ice kéo-thả một tệp thật bằng chuột trên macOS/WKWebView: viền vùng kéo-thả đổi màu lúc đang kéo, thả ⇒ đường dẫn điền vào ô, chưa ghi gì xuống đĩa cho tới khi bấm nút. Xem §Nghiệm thu tay của story `1-15…md` (bảng 3). ⚠️ **Chỉ macOS** — đường Windows đi qua WebView2/Win32, một cài đặt runtime khác hẳn, và ba event `Enter`/`Leave`/`Drop` là mã mới của lượt code review. Xem mục "nghiệm thu Windows" bên dưới.
@@ -559,6 +574,13 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - ⚠️ **`replace_open_work` thả `Store` cũ TRONG vùng khoá mutex** (`src-tauri/src/commands/project.rs:204-211`). `*guard = Some(new_work)` chạy `Drop` của `OpenWork` cũ ngay tại chỗ, mà `Drop` đó gọi `Store::close()` — join luồng writer + một lượt checkpoint TRUNCATE có trần — **trong khi vẫn giữ `OpenWorkState`**. Hôm nay chưa phải lỗi đang sống: chỉ có hai chỗ chạm khoá này (`replace_open_work` và `close_open_work`), và chỗ thứ hai chỉ chạy lúc `RunEvent::Exit`, nên không có tranh chấp thật. Nó trở thành rủi ro thật khi một story sau thêm **bất kỳ command nào đọc `OpenWorkState`** (Epic 2 Editor, Epic 3 Glossary là ứng viên gần nhất) — khi đó một lượt "mở Tác phẩm khác" sẽ chặn mọi lượt đọc state trong suốt thời gian đóng kho cũ. Khuôn sửa rẻ và đã biết: `let old = { let mut g = state.lock()…; g.replace(new_work) }; drop(old);` — thả kho cũ **ngoài** vùng khoá. Cùng họ với mục sáu số `Tuning` chưa đo ở trên.
 
 - ⚠️ **Chuẩn hoá xuống dòng (CRLF → LF) và khoảng trắng CỐ Ý KHÔNG làm ở Story 1.15** — `core::segment::import::import_text` giữ nguyên byte văn bản sau khi giải mã, và bước *"chuẩn hoá tối thiểu"* của chuỗi AD-39 vẫn **rỗng có chủ ý**. Ranh giới Ice chốt ở lượt code review 2026-08-06: **BOM là tạo tác của bước GIẢI MÃ** *(cắt ngay ở story này — `EF BB BF` là UTF-8 hợp lệ nên nó đi lọt `String::from_utf8`, và AD-4 đóng băng ranh giới segment lúc nhập ⇒ Epic 6 không sửa lại được)*; **CRLF là bước CHUẨN HOÁ** *(FR124/125 — Epic 6)*, nó đổi chỗ ngắt đoạn, tức đụng thẳng vào thứ Story 2.1 và Epic 6 sở hữu, nên sửa nó ở Story 1.15 là đúng cái bẫy *"bộ tách tạm"* mà story tự cấm. ⚠️ **Hệ quả phải biết:** mọi Chương nhập từ một tệp Windows ở Epic 1 mang `\r\n` trong `chapter.source_text`, và **Story 2.1** *(tách câu)* phải xử lý `\r` như khoảng trắng, không để nó dính vào cuối segment. **Chủ: Story 2.1 + Story 6.4/6.5.**
+  → ✅ **PHẦN CỦA STORY 2.1 ĐÓNG 2026-08-12.** Bộ tách coi `\r` là khoảng trắng **và** là
+  ranh giới cứng, nên bất biến thu được mạnh hơn vế mà mục nợ này đòi: **không segment nào
+  chứa `\r` hay `\n`**, bất kể đầu vào và bất kể nhánh ngôn ngữ
+  (`segment_contract.rs::no_segment_ever_carries_a_line_break`, chạy trên 5 đầu vào × 2 nhánh).
+  ⚠️ **Vế Epic 6 VẪN MỞ:** `chapter.source_text` trên đĩa **không** được chuẩn hoá — story
+  này cố ý không chạm nó (chuẩn hoá thật là FR124/FR125). Bộ tách chỉ **tự phòng thủ**.
+  **Chủ phần còn lại: Story 6.4/6.5.**
 
 - ⚠️ **Trần nhập 100 MB là một con số TẠM, chưa ai đo** — `core::segment::import::MAX_IMPORT_BYTES`, Ice chốt 2026-08-06 ở lượt code review. Nó tồn tại để một tệp bệnh hoạn không giết tiến trình (`fs::read` trọn tệp + `String` + bind SQLite ≈ 3 bản trong bộ nhớ, trên **luồng invoke đồng bộ**, và `panic = "abort"` biến cạn bộ nhớ thành giết cả tiến trình). **Chưa ai đo đỉnh RSS thật** cho một tệp 100 MB đi hết chuỗi, và nó **không** phải một phép đo về *"bao nhiêu thì Editor còn dùng được"*. Còn hai lỗ nữa ghi ra thay vì giấu: ① một **cửa sổ đua** giữa `metadata()` và `read()` *(tệp phình ra ở giữa)* — đóng nó đòi đọc theo khối có trần, mà nhập theo khối là Epic 6; ② lượt nhập vẫn **chặn luồng invoke**, không có tiến độ nào ngoài cờ `busy`. **Chủ: Story 2.4** *(đo `Tuning`)* cho con số, **Epic 6** cho đường đọc theo khối.
 
@@ -1178,6 +1200,18 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   `PROJECT_MIGRATIONS` không chứa `to_version == 4`. Ba dòng, và nó biến một kỷ luật
   thành một cơ chế — đúng thứ dự án này vẫn đòi ở mọi chỗ khác. **Chủ: story đầu tiên
   thêm bước di trú cho `project.db`** (dự kiến Epic 5).
+  → ✅ **ĐÓNG 2026-08-12 — Story 2.1**, và chủ hoá ra tới sớm hơn dự kiến (Epic 2, không
+  Epic 5). Cổng là `segment_contract.rs::the_project_migration_set_never_reuses_the_burned_number_four`
+  *(đặt ở tệp của story sở hữu bước di trú, không ở `pinned_contract.rs` như đường bịt gợi ý
+  — `pinned_contract.rs` nói về **phạm vi bảng ghim**, và một mệnh đề về đánh số di trú nằm
+  ở đó là một tệp mang hai mối quan tâm)*. Kèm một ca thứ hai khẳng định bộ di trú đọc đúng
+  `[1, 2, 3, 5]`. **Đỏ-rồi-xanh đã chạy thật:** đổi `to_version` thành `4` ⇒ **cả hai** ca đỏ
+  với đúng thông điệp; đổi lại ⇒ xanh.
+  ⚠️ **Một hệ quả mới, ghi ra vì nó đổi hành vi trên dữ liệu có thật:** nâng target lên 5 làm
+  một `project.db` mang `user_version = 4` chuyển từ *"bị từ chối mở"* sang *"mở được và di
+  trú lên 5"*, mang theo một bảng `pinned_entry` mồ côi. Vô hại về dữ liệu, và cả 6 thư mục ở
+  trạng thái đó đã bị Ice xoá 2026-08-11 — nên đây là ghi chép, không phải nợ. Đã vào
+  doc-comment của `PROJECT_MIGRATIONS`.
 - **`SourcePanel.vue` mang cùng khuyết tật tiêu điểm dải tab.** `@keydown.right/left`
   (`SourcePanel.vue:113-114,126-127`) đổi tab nhưng không gọi `.focus()` trên tab mới,
   nên tiêu điểm DOM ở lại nút vừa nhận `tabindex="-1"`. Với **hai** tab, hệ quả là người
@@ -1915,3 +1949,76 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   cho tới lượt đó. Khoảng mù không đứng yên — nó **dày lên theo từng epic**, và lượt Windows
   cuối cùng sẽ phải trả một lần cho tất cả. Đó là cái giá của lựa chọn này, và Ice chọn nó
   với thông tin đó trước mắt. **Chủ: Ice** · mở ở **cuối dự án**.
+
+## Deferred from: 2-1-tach-segment-cap-cau-va-co-ket-doan (2026-08-12)
+
+- 🔴 **AC8 vế MỘT chưa dựng, và đó không phải lệch spec.** AC8 đòi *"tái tách chủ động kèm
+  cảnh báo về dữ liệu sẽ về hưu"*. Story 2.1 giao **nửa cưỡng chế được ngay** — đường tự động
+  tách lại **không tồn tại**, và `segment_boundary.rs::the_splitter_has_exactly_two_product_call_sites`
+  khẳng định điều đó bằng một phép đếm chỗ gọi *(hai, cả hai đều có tên)*. Nửa còn lại — nút
+  tái tách kèm cảnh báo — cần ngữ nghĩa **về hưu** của AD-5 *(segment cũ thành tombstone,
+  lịch sử vẫn tra được, segment mới bắt đầu với lịch sử rỗng)*, mà hôm nay **chưa có
+  `SegmentVersion`** để mà giữ lại. Cột `retired_at` đã có sẵn trong `SEGMENT_DDL` để 2.8
+  không phải mở một bước di trú thứ hai chỉ để thêm một cột. **Chủ: Story 2.8.**
+
+- ⚠️ **Tỷ lệ ranh giới sai của giả định A4 đo được `0,47%` — nhưng trên một mẫu văn xuôi
+  MỎNG.** Đo 2026-08-12 trên 21 Chương thật của Epic 1 (`127.940` ký tự ⇒ `10.477` segment),
+  rà tay **211** ranh giới: **1 sai**. Con số đẹp, và nó **đọc quá tốt so với thứ nó chứng
+  minh được** — vì bộ dữ liệu Epic 1 gần như không có văn xuôi thật:
+  - `17.zh` (72.862 ký tự, **94%** tổng số segment) là một **bảng dữ liệu TSV** Hán Việt, một
+    dòng một mục. Mọi ranh giới của nó là một xuống dòng — nó không kiểm một luật tách câu nào.
+  - `01.en` (48.640 ký tự) là một tài liệu **Markdown** tiếng Việt khai `source_lang = "en"`.
+  - Mẫu văn xuôi tiếng Trung **thật** lớn nhất là `12.zh`: **351 ký tự**, 7 segment.
+  ⇒ A4 (*"tách câu tự động đúng ở tỷ lệ chấp nhận được"*) **chưa được kiểm trên một chương
+  tiểu thuyết tiếng Trung thật**, và đó chính là ca sản phẩm chính. **Chủ: Ice** — một lượt
+  nhập một chương truyện thật rồi rà tay, trước khi Epic 2 đi xa hơn. AD-4 đóng băng ranh
+  giới **vĩnh viễn**, nên phép đo này rẻ nhất khi làm sớm.
+
+- ⚠️ **Ca sai duy nhất còn lại: một hàng bảng Markdown bị cắt giữa ô.** Một ô chứa hai câu
+  (`| 2\. CHIẾN LƯỢC … phục vụ ai. Chiến lược là sự tập trung… |`) bị cắt tại dấu chấm giữa
+  ô, cho hai segment mà segment sau mang một `|` mồ côi ở cuối. Đây là cấu trúc **bảng**, và
+  bộ tách cấp câu không biết bảng — biết bảng là việc của đường nhập (FR124/FR125, luật làm
+  sạch của Story 6.5). **Không vá ở đây**, và cố ý không: một luật *"đừng cắt trong một hàng
+  bảng"* nhét vào `core/segment/split.rs` là đưa kiến thức Markdown xuống một tầng không biết
+  định dạng nào. **Chủ: Story 6.5** (luật làm sạch) hoặc **6.12** (đọc `.docx` có bảng).
+
+- 🔴 **Luật thứ NĂM của bộ tách do một phép đo dựng ra, ngoài bốn luật của Quyết định #5 —
+  Ice có thể lật.** *"Một câu phải có ít nhất một chữ"*: một dấu kết câu không chốt ranh giới
+  nếu phần văn bản trước nó không chứa ký tự `char::is_alphabetic` nào. Số dẫn tới nó: mục lục
+  đánh số của `01.en` (`* 0\. Triết Lý Nền Tảng…` trên **một** dòng) bị cắt ngay tại dấu chấm
+  của mốc danh sách — **26 ranh giới sai trên 99** trong 100 segment đầu, **tất cả cùng một
+  nguyên nhân**. Sau luật: **0/99**; tổng segment toàn bộ 21 Chương `10.556 → 10.477`.
+  Luật áp cho ranh giới **dấu kết câu**, KHÔNG cho ranh giới **xuống dòng** *(một dòng không
+  có chữ — `---` của Markdown, một hàng số — vẫn là một segment riêng)*. Nó **không** phải một
+  luật Markdown và cố ý không phải: mệnh đề thuần về kiểu chữ, không biết định dạng nào.
+  ⚠️ Ghi ra ở đây vì nó là một luật **story không đặt hàng**, và tỷ lệ 12,8% → 0,47% là toàn bộ
+  lý lẽ của nó. Nếu Ice thấy nó quá rộng, chỗ lật là một dòng ở `split_source_text`. **Chủ: Ice.**
+
+- ⚠️ **`work.source_lang` trong dữ liệu thật đang SAI ở ít nhất 3/21 Chương, và nó đổi kết quả
+  tách.** Đo 2026-08-12: `Truyện Kiều.atproj` và `Thieu Chuu 3.atproj` khai `zh` nhưng chứa
+  **tiếng Việt**; `Russia is considering using.atproj` khai `zh` nhưng chứa **tiếng Anh** *(cùng
+  nội dung với `Russia is considering.atproj` khai `en` — chúng cho **3** và **4** segment)*.
+  Bộ tách chọn nhánh theo `source_lang` chứ **không** đoán từ nội dung, đúng AD-18 và đúng
+  `segment_contract.rs::the_language_branch_comes_from_source_lang_not_from_the_content` — nên
+  hệ quả là một Chương khai sai ngôn ngữ được tách theo luật của ngôn ngữ **khác**, và với văn
+  bản tiếng Việt khai `zh` thì **cả Chương thành một segment duy nhất**. AD-18 nói `source_lang`
+  là trường **bất biến**, nên đây không sửa được bằng một lượt sửa nhãn. Đây là dữ liệu thử
+  nghiệm của Epic 1 nên rủi ro thấp — nhưng nó là bằng chứng rằng **màn hình tạo Tác phẩm để
+  người dùng chọn sai ngôn ngữ quá dễ**. **Chủ: Ice** — quyết định xem một lượt xác nhận ngôn
+  ngữ lúc nhập (đối chiếu nội dung với nhãn, cảnh báo chứ không tự đổi) có đáng một story không.
+
+## Deferred from: code review of 2-1-tach-segment-cap-cau-va-co-ket-doan (2026-08-12)
+
+- ⚠️ **`insert_segments` chuẩn bị lại statement SQL cho mỗi hàng segment.**
+  `src-tauri/src/commands/segment.rs:74-88` gọi `tx.execute` với một chuỗi SQL literal bên
+  trong vòng lặp, nên `rusqlite` parse lại câu lệnh **mỗi hàng** thay vì chuẩn bị một lần rồi
+  tái dùng (`prepare`/`prepare_cached`). Toàn bộ N lượt đó chạy trong **một** closure của
+  `Store::write`, tức trên writer **duy nhất, nối tiếp** của AD-11 — cùng điểm nghẽn mà
+  `commands/project.rs:120-127` đã kéo `split_source_text` ra ngoài để né. Quy mô thật đo được
+  ở Task 8: một Chương chiếm 94% của 10.477 segment ⇒ ~9.850 lượt parse trong một giao dịch.
+  🔴 **Hoãn vì chưa ai đo, không phải vì nó nhỏ.** Story 2.1 đặt chuẩn *"đo chứ không ước"*
+  (AC15), và đề xuất một tối ưu chưa có số là tự phá chuẩn đó — SQLite parse rất nhanh và chi
+  phí thật có thể nằm dưới ngưỡng đáng sửa. Việc cần làm là **một phép đo** trên Chương lớn
+  nhất có thật, rồi mới quyết vá hay đóng.
+  **Chủ: Story 2.2** *(story đầu tiên tải segment lên giao diện, tức chỗ đầu tiên chi phí này
+  chạm một thao tác người dùng nhìn thấy)*.

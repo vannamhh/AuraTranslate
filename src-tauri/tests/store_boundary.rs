@@ -45,11 +45,16 @@ const STORE_DIR: &str = "core/store";
 /// ⚠️ Story 1.8: số thật là **26** — thêm 3 tệp `core/scope/` và `commands/config.rs`. Sàn
 /// lên **20** (~77%).
 ///
+/// ⚠️ Story 2.1 (2026-08-12): số thật là **42** — cây đã đi xa khỏi 26, và một sàn 20 trên
+/// 42 tệp (47,6%) không còn canh được *"cây bị cắt"* nữa: mất hơn nửa cây vẫn xanh. Sàn lên
+/// **34** (81,0%), cùng tỷ lệ dư địa mà `RS_FLOOR` của `check-i18n.mjs` đang giữ. Hai tệp
+/// mới của story này là `core/segment/split.rs` và `commands/segment.rs`.
+///
 /// 🔴 **Quần thể này KHÁC quần thể của `check-i18n.mjs`** — ở đây là `src-tauri/src/**`
 /// (26 tệp), ở đó là `src-tauri/**` sau miễn trừ `tests/**` (27 tệp, gồm `build.rs`). Hai
 /// con số gần nhau và chúng **không** thay thế nhau được; chép số của tệp kia sang đây là
 /// đặt một cái sàn cho một cây khác.
-const RS_FLOOR: usize = 20;
+const RS_FLOOR: usize = 34; // số THẬT 2026-08-12 (sau Story 2.1): 42 tệp `.rs` — 34/42 = 81,0%
 
 /// Những chuỗi mà **chỉ** `core::store` được mang.
 ///

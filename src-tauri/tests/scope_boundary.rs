@@ -47,7 +47,10 @@ const STORE_DIR: &str = "core/store";
 /// Số thật lúc dựng (Story 1.8): **26** tệp — 22 kế thừa + 3 tệp của `core/scope/` +
 /// `commands/config.rs`. Sàn đặt **dưới** số thật đúng khuôn `RS_FLOOR` của
 /// `store_boundary.rs`: nó bắt một cây bị cắt mất, không bắt việc thêm tệp mới.
-const RS_FLOOR: usize = 20;
+///
+/// ⚠️ Story 2.1 (2026-08-12): số thật là **42**; sàn 20 trên 42 tệp không còn canh được gì
+/// (mất hơn nửa cây vẫn xanh). Sàn lên **34** (81,0%), nâng cùng lượt với `store_boundary.rs`.
+const RS_FLOOR: usize = 34; // số THẬT 2026-08-12 (sau Story 2.1): 42 tệp `.rs` — 34/42 = 81,0%
 
 /// 🔴 Vế test của AC1 — những chuỗi mà **chỉ** `core::scope` được mang.
 ///
