@@ -248,9 +248,17 @@ action_items:
     owner: "Ice"
     status: done
   - epic: 1
-    action: "AC6 + AC7 cua Story 1.3 va Task 11 hang 4 TREO — chung chi do duoc tren runner. TAM DUNG GitHub Actions, hai ly do: (1) 2026-08-11 khong co may Windows de doi chieu; (2) 2026-08-12 han muc mien phi de danh cho du an khac. Tu 2026-08-12 `ci.yml` khai `workflow_dispatch` — TRUOC do quyet dinh tam dung CHI SONG TRONG VAN BAN va moi luot push van tieu phut. Story 1.3 giu `in-progress`; dong bang MOT luot bam tay khi Ice san sang"
+    action: "✅ XONG 2026-08-12 — CI chay lai moi luot push. Ice chot repo CONG KHAI, va standard runner mien phi cho repo cong khai ⇒ ly do tam dung (han muc) het hieu luc. Day dung la phuong an dang can nhat trong bang bon duong khoi phuc CI ghi cung ngay. LUOT XANH DAU TIEN cua ca kho: run 31568723620 tren `8ae61cd`, 2 job 25/25 step, macOS 6m09s · Windows 29m31s, billable 0/0. Truoc do 29 luot 0 xanh"
+    owner: "Ice"
+    status: done
+  - epic: 1
+    action: "🔴 CHAN DOAN SAI da duoc sua: AC6 + AC7 cua Story 1.3 KHONG treo vi `chi do duoc tren runner`. Runner luon chay duoc; thu chan la mot loi THOAT CHUOI PowerShell — `\\\"` trong step `do .msi` (ci.yml:433) lam ParserError, nen step do CHUA TUNG chay toi mot phep do nao, o MOI luot truoc do. Va bang `8ae61cd` (dau huyen nguoc thay `\\`), va them mot ca cung goc o dong 436 (`\\$fontBytes` van noi suy). Windows xanh 25/25. So do NFR6 nam trong GITHUB_STEP_SUMMARY cua run 31568723620 — REST API khong phoi bay job summary, phai mo trang Actions de doc. Story 1.3 giu `in-progress` cho toi khi Ice doc bon so do va ky"
     owner: "Ice"
     status: open
+  - epic: 1
+    action: "⚠️ Tam luot do cuoi ngay 2026-08-11 (0 step, khong log) KHONG phai loi ma — annotation GitHub: `The job was not started because recent account payments have failed or your spending limit needs to be increased`. Ghi lai de khong ai di chan doan lai chung nhu mot loi test. Chung bien mat cung luc repo thanh cong khai"
+    owner: "Dev"
+    status: done
   - epic: 1
     action: "Cong `check:gates` buoc `package.json` va `ci.yml` khai cung mot bo cong"
     owner: "Dev"

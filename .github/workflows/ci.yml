@@ -22,32 +22,34 @@ name: CI
 
 on:
   # ══════════════════════════════════════════════════════════════════════════════════
-  #  🔴 CHỈ CHẠY KHI BẤM TAY — Ice chốt 2026-08-12. Hạn mức tài khoản miễn phí để dành
-  #     cho một dự án khác.
+  #  CHẠY LẠI MỖI LƯỢT PUSH — Ice chốt 2026-08-12, sau khi repo thành CÔNG KHAI.
   # ══════════════════════════════════════════════════════════════════════════════════
   #
-  # ⚠️ TRƯỚC HÔM NAY, "tạm dừng GitHub Actions" CHỈ SỐNG TRONG VĂN BẢN. Ice chốt tạm dừng
-  # ngày 2026-08-11 và bốn tạo tác đã ghi lại quyết định đó, nhưng khối `on:` ở đây vẫn
-  # khai `push:` + `pull_request:` — nên MỌI lượt push từ đó tới nay vẫn khởi động cả hai
-  # job và vẫn tiêu phút. Một quyết định không được cài vào tệp thì không phải một quyết
-  # định; nó là một ghi chú. Bắt được ở lượt rà soát 2026-08-12.
+  # Lượt tạm dừng (`workflow_dispatch` một mình) sống đúng một ngày. Lý do của nó — hạn
+  # mức tài khoản miễn phí — đã hết hiệu lực bằng một quyết định khác của Ice: repo công
+  # khai, và standard runner miễn phí cho repo công khai. Đây chính là phương án ĐÁNG CÂN
+  # NHẤT trong bảng bốn đường khôi phục CI mà lượt 2026-08-12 ghi lại, và nó phục vụ luôn
+  # FR107 (*"build công khai để bất kỳ ai kiểm chứng được binary khớp mã nguồn"*, Story 10.1).
   #
-  # `workflow_dispatch` giữ pipeline SỐNG mà tiêu 0 phút: nó chỉ chạy khi có người bấm
-  # "Run workflow" trên tab Actions. Đó là lý do KHÔNG xoá tệp này:
-  #   - AC4 của Story 1.3 cấm dựng một tệp workflow thứ hai; xoá rồi dựng lại sau là đúng
-  #     thứ AC4 chặn.
-  #   - Cổng thứ mười một `check:gates` ĐỌC chính tệp này (Kiểm A/B). Xoá nó làm cổng
-  #     `abort` — và ta mất phép kiểm buộc ba danh sách cổng khai cùng một bộ.
-  #   - Bốn phép nghiệm thu runner còn nợ của Story 1.3 (AC6 · AC7 · Task 11 hàng 4 ·
-  #     AC3/Task 4) chỉ đo được ở đây. Chúng chờ, không mất.
+  # 🔴 ĐỪNG đọc lượt tạm dừng đó là một quyết định hỏng. Nó ĐÚNG lúc nó được ký: annotation
+  # của GitHub trên tám lượt cuối ngày 2026-08-11 ghi nguyên văn *"The job was not started
+  # because recent account payments have failed or your spending limit needs to be
+  # increased"* — tài khoản chạm trần thật, và tám lượt đỏ đó KHÔNG phải lỗi mã. Thứ đổi là
+  # điều kiện, không phải phán quyết.
   #
-  # Đường cưỡng chế MỖI LƯỢT nay là `.githooks/pre-push` — nó chặn thật, trên macOS.
-  # ⚠️ Nửa Windows không có đường nghiệm thu nào: Ice chốt 2026-08-12 dời trọn phần
-  # Windows về CUỐI dự án và sẽ tự dựng máy để chạy.
+  # ⚠️ Con số để đối chiếu về sau, đo trên lượt xanh đầu tiên (run 31568723620, `8ae61cd`):
+  # macOS 6m09s · Windows 29m31s (job Windows dựng BA biến thể `.msi`, mỗi biến thể một
+  # lượt biên dịch release riêng). `billable` cả hai nền tảng: 0.
+  #
+  # ⚠️ MỌI nhánh. Nhánh mặc định của repo này là `master`, KHÔNG phải `main` — viết cứng
+  # `branches: [main]` thì CI không bao giờ chạy và KHÔNG lỗi nào được ném.
+  push:
+  pull_request:
+  # Giữ lại đường bấm tay: nó là cách đo một lượt runner mà không cần sinh một commit.
   workflow_dispatch:
 
-# Không `paths`/`paths-ignore`. AC1 nói "một commit BẤT KỲ" — mệnh đề đó vẫn đúng cho lượt
-# bấm tay: khi CI chạy, nó chạy trên trọn cây, không lọc đường dẫn.
+# Không `paths`/`paths-ignore`. AC1 nói "một commit BẤT KỲ". Lọc đường dẫn là đúng chỗ
+# một thay đổi thật lọt qua vì nó nằm chung commit với một tệp `.md`.
 
 concurrency:
   # Đòn bẩy rẻ nhất cho AC7 và cho §Ngân sách CI: push liên tiếp thì huỷ lượt cũ.
