@@ -1705,3 +1705,54 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   đóng, và `library-root-redirect.e2e.mjs` vừa chứng minh một Tác phẩm tạo được từ trong bàn
   đo. Việc còn lại là thuần giao diện: từ chế độ `library` sang `workspace` với Tác phẩm vừa
   tạo, để `[data-attribution-open]` tồn tại. **Chủ: Story 1.22.**
+
+## Deferred from: Story 1.22 — fixture workspace, và một AC được làm rõ (2026-08-12)
+
+- ✅ **ĐÓNG — fixture `workspace` chạy được.** `e2e/support/workspace.mjs`: tạo Tác phẩm qua
+  IPC rồi `Mod+2` vào chế độ `workspace`, đợi tới khi `[data-attribution-open]` có mặt THẬT
+  *(dải chip nguồn chỉ render khi `dictSources.length > 0`)*. Hai lựa chọn có chủ ý:
+  **không** đi qua form Library *(nó không có một mối nối `data-` nào — `v-model` trên
+  `<input>` trần — nên một fixture bám cấu trúc DOM sẽ vỡ ở lượt đổi bố cục đầu tiên, và
+  làm MỌI hàng dùng nó đỏ vì lý do không liên quan)*; **không** thêm `data-` vào ba tab chế
+  độ chỉ để bàn đo chọn được *(`data-shortcuts-open` và `data-attribution-open` tồn tại vì
+  **sản phẩm** cần chúng, không vì bàn đo — bàn phím tránh hẳn câu hỏi tiền lệ đó)*.
+
+- 🔴 **PHÁT HIỆN — bản vá `@mousedown` KHÔNG chuyển được sang nút trong panel, và tôi đã
+  khuyến nghị sai.** Lượt trước tôi đề xuất Ice vá gốc bằng `@mousedown` cho **cả hai** nút
+  mở. Nó **có tác dụng thật** ở nút titlebar *(`shortcuts-focus` xanh)* và **bị vô hiệu** ở
+  nút Attribution — tức với `AttributionOverlay` đó là một bản vá **không chạy**. Đã gỡ khỏi
+  `LookupPanel.vue`; giữ ở `App.vue` vì chỗ đó đo được là có tác dụng.
+
+  **Triệu chứng đo được:** trên WKWebView, nút mở nằm trong `section.panel[tabindex="-1"]`
+  **không giữ nổi tiêu điểm** — đặt lên nút thì nó rơi lên khung panel **đồng bộ, ngay trong
+  lời gọi `focus()`**: `focusout ← button` rồi `focusin → section.panel`.
+
+  🔴 **Bốn giả thuyết bị BÁC BẰNG ĐO, không bằng lập luận:** ① hành vi mặc định của
+  `mousedown` — `preventDefault()` không đổi gì; ② dockview cướp tiêu điểm — `dockview-core`
+  chỉ dùng `focusin` ở `popupService`; ③ mã ứng dụng — liệt kê trọn `.focus()` trong `src/`,
+  không chỗ nào chạy trên đường này; ④ nút không phải tab stop — `tabindex="0"` không đổi gì.
+  ⚠️ **Nguyên nhân KHÔNG được đặt tên.** Còn lại là engine, và tôi dừng ở đó thay vì đoán
+  tiếp — khác biệt duy nhất giữa hai nút là tổ tiên `tabindex="-1"`. Đường đào tiếp, nếu có
+  ngày cần: dựng một trang tối giản NGOÀI kho để cô lập hành vi WKWebView.
+
+- ✅ **ĐÓNG — `focusReturnTargetOnOpen` ở `src/commands/focus.ts`, luật CHUNG cho hai lớp phủ.**
+  UX-DR17 hứa tiêu điểm về **nút đã mở**; lưu `document.activeElement` lúc mở chỉ là một phép
+  **xấp xỉ** của lời hứa đó, đúng khi engine chịu focus nút và sai khi không.
+  🔴 Luật **hẹp hơn** *"luôn ưu tiên nút mở"*: chỉ ưu tiên khi tiêu điểm đang ở chính nút hoặc
+  ở một **tổ tiên** của nó — tức đúng hình dạng *"cú bấm đã rơi vào nút, engine đỗ tiêu điểm ở
+  khung ngoài"*. Ưu tiên vô điều kiện sẽ hỏng đường **bàn phím**: cả hai lớp phủ là command
+  gán phím được (Story 1.21), và khi người dùng mở bằng phím lúc đang gõ ở panel khác thì
+  *"nút đã mở"* không tồn tại — trả tiêu điểm về nút khi đó là ném họ ra khỏi chỗ đang làm.
+  Nhà của nó là module tự khai *"nửa thứ hai của AD-34"*, không một tệp tiện ích mới.
+
+- ⚠️ **AC11 của Story 1.19 được LÀM RÕ — Ice chốt 2026-08-12.** Đích là **nút mở HOẶC một tổ
+  tiên của nó**. Đây là một lần **nới có chữ ký**, phạm vi hẹp: UX-DR17 của Story 1.21 giữ
+  nguyên mệnh đề chặt vì nút của nó ở titlebar. Toàn văn cùng lý do và số đo: §AC11 của
+  `1-19-bat-tat-nguon-tu-dien-va-ghi-cong.md`.
+  **Khẳng định thay thế vẫn có răng, nghiệm thu đỏ-rồi-xanh:** cắt đường trả tiêu điểm ⇒ ĐỎ
+  với `body`; khôi phục ⇒ XANH. Nó cũng đỏ khi tiêu điểm về một panel **khác** — hình dạng
+  `div.original tok-source-cjk` đã quan sát được thật trong lúc dựng ca.
+
+- 📌 **Câu hỏi để ngỏ cho Story 10.4** *(sở hữu nửa còn lại của màn Attribution)*: dời nút mở
+  ra **titlebar**, cạnh nút phím tắt? Chỗ đó đo được là tiêu điểm dính, nên nó đóng luôn mệnh
+  đề chặt. Chạm UX và `mockups/`, nên không quyết trong lượt này. **Chủ: Ice.**

@@ -18,6 +18,7 @@
 import { nextTick, useTemplateRef, watch } from 'vue'
 import { t } from './i18n'
 import { dispatch } from './commands'
+import { focusReturnTargetOnOpen } from './commands/focus'
 import {
   attributionIsOpen,
   closeAttribution,
@@ -58,8 +59,12 @@ let returnFocusTo: HTMLElement | null = null
 
 watch(attributionIsOpen, (open) => {
   if (open) {
-    const active = document.activeElement
-    returnFocusTo = active instanceof HTMLElement ? active : null
+    // 🔴 KHÔNG lưu `document.activeElement` trần — xem `focusReturnTargetOnOpen`. Nút này
+    // nằm TRONG một panel dockview, và trên WKWebView tiêu điểm không giữ được trên nó:
+    // nó rơi lên `section.panel[tabindex="-1"]` ngay trong cùng một tick. Lưu node đó là
+    // trả tiêu điểm về THÂN PANEL thay vì về nút, tức UX-DR17 hỏng ở đúng chỗ không cổng
+    // nào nhìn thấy. Đo được ở bàn đo `attribution-focus` (2026-08-12).
+    returnFocusTo = focusReturnTargetOnOpen('[data-attribution-open]')
     // Sau `nextTick`: `v-if` mới dựng node ở lượt render này, nên gọi `focus()` ngay bây giờ
     // là gọi lên một phần tử chưa có trong DOM.
     void nextTick(() => panel.value?.focus())

@@ -280,8 +280,12 @@ action_items:
     owner: "Dev"
     status: done
   - epic: 1
-    action: "⚠️ `AttributionOverlay.vue` (Story 1.19, dang done) da va theo CUNG NGUYEN NHAN nhung menh de cua no CHUA DO DUOC — spec da dung, dang `skip` co ly do. Chan boi: nut mo song trong panel Lookup ⇒ chi co o che do `workspace`, can mot fixture mo Tac pham"
+    action: "✅ XONG 2026-08-12 — fixture `workspace` chay duoc (`e2e/support/workspace.mjs`), va spec Attribution nay XANH. Phep do lat khuyen nghi truoc do: ban va `@mousedown` KHONG chuyen duoc sang nut trong panel (da go khoi LookupPanel, giu o titlebar). Bon gia thuyet ve nguyen nhan bi BAC BANG DO; nguyen nhan KHONG duoc dat ten. AC11 cua Story 1.19 duoc LAM RO co chu ky: dich la nut mo HOAC mot to tien cua no — pham vi hep, UX-DR17 cua 1.21 giu nguyen menh de chat"
     owner: "Dev"
+    status: done
+  - epic: 10
+    action: "📌 De ngo cho Story 10.4: doi nut mo Attribution ra titlebar canh nut phim tat? Cho do do duoc la tieu diem dinh, nen no dong luon menh de chat cua AC11. Cham UX va `mockups/`"
+    owner: "Ice"
     status: open
   - epic: 1
     action: "✅ XONG 2026-08-11 — be mat du lieu that THU HAI da dong: `AURATRANSLATE_E2E_LIBRARY_ROOT`, cung hai lop gac AD-45 va cung chinh sach voi moc thu nhat. HAI hang rao: spec `library-root-redirect` di chieu DUONG (tao Tac pham that qua IPC, `.atproj` phai nam trong thu muc tam), `onComplete` di chieu AM (Documents that phai y nguyen). Ca DO chay that: ca hai hang rao no; don xong doi chieu khop 21 muc. Be mat nay tim ra bang cach DOC MA luc chuan bi fixture, khong bang cach mat du lieu them mot lan"

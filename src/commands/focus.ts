@@ -274,3 +274,57 @@ export function createFocusRegistry(): FocusRegistry {
 
   return { declare, release, has, owners, enter, current, next, cycle }
 }
+
+/**
+ * Chọn node để **trả tiêu điểm về** khi một lớp phủ mở ra — UX-DR17, dùng chung cho
+ * `ShortcutsOverlay` và `AttributionOverlay`.
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * 🔴 VÌ SAO KHÔNG CHỈ LƯU `document.activeElement` — một phép đo, không một lo xa
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * UX-DR17 hứa tiêu điểm quay về **NÚT ĐÃ MỞ**. Lưu `activeElement` lúc mở là một phép
+ * **xấp xỉ** của lời hứa đó: nó đúng khi engine chịu đặt tiêu điểm lên `<button>` lúc bấm,
+ * và sai khi engine không chịu.
+ *
+ * Đo trên WKWebView thật (2026-08-12, bàn đo `attribution-focus`): với nút mở nằm **trong
+ * một panel dockview**, tiêu điểm **không giữ được trên nút**. Chuỗi `focusin`/`focusout`
+ * ghi lại được, và nó xảy ra **đồng bộ ngay trong lời gọi `focus()`**:
+ *
+ *     focusout ← button[data-attribution-open]
+ *     focusin  → section.panel        (tổ tiên mang `tabindex="-1"`)
+ *
+ * Nên `activeElement` lúc mở là `section.panel`, và lớp phủ trả tiêu điểm về **thân panel**
+ * thay vì về nút. Nhánh dự phòng `querySelector('[data-…-open]')` sẵn có **không cứu được**:
+ * nó chỉ chạy khi node đã lưu **rời DOM**, mà `section.panel` thì vẫn ở nguyên đó.
+ *
+ * ⚠️ Bản vá trước đó — `@mousedown` ép tiêu điểm lên nút — **có tác dụng thật** ở nút
+ * titlebar (không tổ tiên nào focusable) và **bị vô hiệu** ở nút trong panel. Ghi ra để
+ * lượt sau không dựng lại nó lần nữa ở chỗ nó không chạy.
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * LUẬT, VÀ VÌ SAO NÓ HẸP HƠN *"LUÔN ƯU TIÊN NÚT MỞ"*
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * Ưu tiên nút mở **chỉ khi** tiêu điểm đang ở chính nó hoặc ở một **tổ tiên** của nó — tức
+ * đúng hình dạng *"cú bấm đã rơi vào nút, nhưng engine đỗ tiêu điểm ở khung ngoài"*.
+ *
+ * 🔴 Không ưu tiên vô điều kiện, vì hai lớp phủ này mở được **bằng phím** (cả hai là command
+ * đã đăng ký, và Story 1.21 cho gán phím cho bất kỳ command nào). Khi người dùng đang gõ
+ * trong một panel khác rồi bấm phím mở lớp phủ, *"nút đã mở"* **không tồn tại** — trả tiêu
+ * điểm về nút khi đó là ném họ ra khỏi chỗ họ đang làm việc. Một luật vô điều kiện sẽ đổi
+ * đúng lời hứa của UX-DR17 thành một lời hứa khác.
+ *
+ * @param openerSelector mối nối `data-` của nút mở, ví dụ `'[data-shortcuts-open]'`
+ * @returns node để `focus()` lúc đóng, hoặc `null` khi không có ứng viên nào
+ */
+export function focusReturnTargetOnOpen(openerSelector: string): HTMLElement | null {
+  if (typeof document === 'undefined') return null
+
+  const active = document.activeElement
+  const activeEl = active instanceof HTMLElement ? active : null
+  const opener = document.querySelector<HTMLElement>(openerSelector)
+
+  if (opener !== null && activeEl !== null && (activeEl === opener || activeEl.contains(opener))) {
+    return opener
+  }
+  return activeEl
+}

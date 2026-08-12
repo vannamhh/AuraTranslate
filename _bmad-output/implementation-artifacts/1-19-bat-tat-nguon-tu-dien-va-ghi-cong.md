@@ -467,6 +467,36 @@ người đóng gói *(FR112 — mockup `:180-181`)*
 **trả tiêu điểm về chỗ cũ**
 **And** số điểm dừng `Tab` mới **khai ra thành số**, không phát sinh ngoài khai báo
 
+> 🔴 **LÀM RÕ *"trả tiêu điểm về chỗ cũ"* — Ice chốt 2026-08-12, sau khi đo trên WKWebView thật.**
+>
+> Mệnh đề gốc để ngỏ *"chỗ cũ"* là **cái gì**, và bàn đo e2e đầu tiên
+> (`e2e/specs/attribution-focus.e2e.mjs`) đọc nó thành *"đúng nút đã mở"* rồi **ĐỎ**.
+>
+> **Đích của AC này là: nút mở HOẶC một tổ tiên của nó** — không phải riêng nút.
+>
+> **Lý do, đo được chứ không suy:** nút mở Attribution nằm trong panel Lookup, tức trong một
+> `section.panel[tabindex="-1"]`, và trên WKWebView tiêu điểm **không giữ được trên nút đó**
+> — đặt lên nút thì nó rơi lên khung panel ngay trong cùng một tick (`focusout ← button` rồi
+> `focusin → section.panel`). **Bốn giả thuyết đã bị bác BẰNG PHÉP ĐO**, không bằng lập luận:
+> hành vi mặc định của `mousedown` *(`preventDefault()` không đổi gì)* · dockview
+> *(`dockview-core` chỉ dùng `focusin` ở `popupService`)* · mã ứng dụng *(liệt kê trọn
+> `.focus()` trong `src/`)* · nút không phải tab stop *(`tabindex="0"` không đổi gì)*.
+>
+> ⚠️ **Đây là một lần NỚI có chữ ký, và phạm vi của nó hẹp.** Nút mở của `ShortcutsOverlay`
+> nằm ở **titlebar**, không tổ tiên nào focusable, và ở đó tiêu điểm dính đúng vào nút —
+> UX-DR17 của Story 1.21 **giữ nguyên** mệnh đề chặt, `shortcuts-focus.e2e.mjs` vẫn đòi đúng
+> nút. Hai lớp phủ khai hai mệnh đề khác nhau vì chúng **ngồi ở hai chỗ khác nhau**, không vì
+> một cái được châm chước.
+>
+> **Khẳng định thay thế vẫn có răng:** nó đỏ khi tiêu điểm về `<body>`, và đỏ khi về một
+> panel **khác** — cả hai hình dạng đều đã quan sát được trong lúc dựng ca *(`div.original
+> tok-source-cjk` của Panel Source là một)*. Nghiệm thu đỏ-rồi-xanh: cắt đường trả tiêu điểm
+> ⇒ ĐỎ với `body`; khôi phục ⇒ XANH.
+>
+> 📌 **Câu hỏi để ngỏ cho Story 10.4** *(sở hữu nửa còn lại của màn Attribution)*: có nên dời
+> nút mở ra **titlebar**, cạnh nút phím tắt? Chỗ đó đo được là tiêu điểm dính. Nó chạm UX và
+> `mockups/`, nên không quyết trong lượt này.
+
 ### AC12 — NFR1 KHÔNG hồi quy — ĐO LẠI, không suy từ số cũ
 
 **Given** đường `commands::dict::lookup` trên **bốn tệp `.db` thật**, bản `--release`

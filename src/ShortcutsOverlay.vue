@@ -26,6 +26,7 @@
 import { nextTick, useTemplateRef, watch } from 'vue'
 import { t } from './i18n'
 import { dispatch } from './commands'
+import { focusReturnTargetOnOpen } from './commands/focus'
 import {
   aimRowFrom,
   aimedShortcutRow,
@@ -57,8 +58,13 @@ let returnFocusTo: HTMLElement | null = null
 
 watch(shortcutsOverlayIsOpen, (open) => {
   if (open) {
-    const active = document.activeElement
-    returnFocusTo = active instanceof HTMLElement ? active : null
+    // 🔴 KHÔNG lưu `document.activeElement` trần — xem `focusReturnTargetOnOpen`.
+    //
+    // ⚠️ Nút mở của lớp phủ NÀY nằm ở titlebar, không tổ tiên nào focusable, nên ở đây
+    // `activeElement` **đang** là nút và luật mới trả về đúng cùng một node. Vẫn đi qua
+    // hàm chung, vì hai lớp phủ chép khuôn của nhau và một luật chỉ đúng ở MỘT trong hai
+    // là đúng cách chúng trôi khỏi nhau lần trước.
+    returnFocusTo = focusReturnTargetOnOpen('[data-shortcuts-open]')
     void nextTick(() => panel.value?.focus())
     return
   }
