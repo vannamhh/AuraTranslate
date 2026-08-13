@@ -3,6 +3,13 @@
 # 2026-08-12: Epic 2 mo — story 2.1 chuyen sang ready-for-dev (create-story).
 # 2026-08-12: story 2.2 chuyen sang ready-for-dev (create-story).
 # 2026-08-12: story 2.3 chuyen sang ready-for-dev (create-story).
+# 2026-08-13: story 2.4 chuyen sang in-progress (create-story) — mui tham do, co dieu kien chan.
+# 2026-08-13: 2.4 DA CHAY VA DANG TREO. Khong phai "cho khoi hanh" — chinh BO DO chua dung noi:
+#   bon luot build hong, bon gia thuyet bi bac, chua tiem duoc `bench.js` vao webview ban release.
+#   Chi tiet o §Dev Agent Record cua story (chan o muc "Vi sao KHONG duoc di tiep khi chua go").
+# 2026-08-13: code review ba tang tren 2.4 — 6 decision (Ice da ky het) + 17 patch, tat ca DA VA.
+#   Sau lan chot cua Ice noi rong ngan sach do: luoi 6 diem x >=20 mau hop le, cong do tranh chap
+#   CPU/I-O hai che do. Xem §Review Findings trong story.
 # project: AuraTranslate
 # project_key: NOKEY
 # tracking_system: file-system
@@ -44,7 +51,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-13T00:30:00
+last_updated: 2026-08-13T16:30:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -131,7 +138,24 @@ development_status:
   # cargo test 319/0/5 (+9 ca) · e2e 1/2. Bon luot do-roi-xanh da tai lap.
   # AC3 va AC17 mang no co chu (2.5 · `panic = "abort"`); Kiem J DA GO dung luc.
   2-3-hop-dong-flush-va-trang-thai-da-luu: in-progress
-  2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi: backlog
+  # 🔴 2.4 la MOT MUI THAM DO: san pham giao ra la SO DO + mot bao cao, khong mot be mat moi.
+  # No dong 10 mon no co chu dich danh (sau so `Tuning` · nguong WAL that · hai kho chay chong ·
+  # tran 9.850 span · ba duong nong cua 2.3 · RSS nhap 100 MB · hai mon no tai lieu), va no dong
+  # HAI hang Deferred cua SPINE (`:894` nguong WAL+nhip flush · `:897` thu vien editor).
+  # ⚠️ DIEU KIEN KHOI HANH: story 2.3 con `in-progress` va 2.4 do tren dung be mat cua no.
+  # Task 1.0 la mot luot kiem bang TAY — go vao mot cau CHUA DICH. Khong go duoc thi DUNG, bao Ice,
+  # va 2.4 quay ve `backlog`. Do hieu nang cua mot be mat chua go duoc la san xuat mot bang so vo nghia.
+  #
+  # 🔴 TRANG THAI THAT (2026-08-13, sau code review): 2.4 KHONG dung o "cho khoi hanh".
+  # No DA CHAY va DANG TREO o mot cho khac han: chua tiem duoc `bench.js` vao webview ban release
+  # (bon luot build hong, bon gia thuyet bi bac). Tuc BO DO chua dung noi — moi so cua AC1/AC2/
+  # AC12/AC13 deu doc ra tu cai bo do do. Dung doc dong "dieu kien chan" o tren nhu la can tro
+  # duy nhat. Task 0 nay da co LUAT DUNG rieng cho lop loi nay: 3 vong chan doan bi bac ⇒ DUNG.
+  #
+  # 🔴 TIEN DE CUA AC1 KHONG TON TAI: thu vien that cua Ice khong co Chuong co thuong nhat
+  # (khoang 669 → 48.639 ky tu rong hoan toan). Ice chot 2026-08-13: dung THANG NHAN TAO, va bao
+  # cao CAM viet "da do tren mot Chuong that".
+  2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi: in-progress
   2-5-xac-nhan-segment-va-may-trang-thai: backlog
   2-6-lich-su-phien-ban-segment-va-khoi-phuc: backlog
   2-7-xuat-xu-ban-dich-cap-segment: backlog
