@@ -51,7 +51,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-13T16:30:00
+last_updated: 2026-08-13T18:00:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -137,6 +137,14 @@ development_status:
   # Moi phan con lai XONG va XANH: 9/9 cong npm · build · npm test 32/32 ·
   # cargo test 319/0/5 (+9 ca) · e2e 1/2. Bon luot do-roi-xanh da tai lap.
   # AC3 va AC17 mang no co chu (2.5 · `panic = "abort"`); Kiem J DA GO dung luc.
+  #
+  # 🔵 2026-08-13 — SPRINT CHANGE PROPOSAL (Ice duyet): AC23 DOI NGHIA. No hoi "Auto-Lookup con
+  # chay tren be mat Editor khong?" va do ra CON CHAY, dong dung nhanh hop le. No KHONG BAO GIO
+  # hoi "co NEN chay khong?" — Ice tra loi ngay 2026-08-13: KHONG. AC23 nay doc: "Editor KHONG
+  # phat luot tra tu dien". `EditorPanel.vue` + `AiTranslationPanel.vue` doi vai 'source' →
+  # 'display'; `editorAutoLookup.test.ts` dao menh de + THEM mot ca doi chung duong; Kiem F
+  # nhan menh de ③ ghim hai panel. Chi tiet: `planning-artifacts/sprint-change-proposal-2026-08-13.md`.
+  # ⚠️ Cung luot do sua mot menh de NGUYEN TAC o `EXPERIENCE.md:131` — xem §4.8 cua proposal.
   2-3-hop-dong-flush-va-trang-thai-da-luu: in-progress
   # 🔴 2.4 la MOT MUI THAM DO: san pham giao ra la SO DO + mot bao cao, khong mot be mat moi.
   # No dong 10 mon no co chu dich danh (sau so `Tuning` · nguong WAL that · hai kho chay chong ·
