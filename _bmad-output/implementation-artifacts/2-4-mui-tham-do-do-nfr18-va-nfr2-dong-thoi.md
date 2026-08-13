@@ -1577,6 +1577,70 @@ chuỗi dò rồi mới đo. Nhịp nghiệm thu phải **≥ 4,5 s** *(2 s `EDI
 **không có đường bàn phím nào thay thế**. Người dùng thật gặp đúng cái đó. **Chủ: Ice** — nó lớn hơn
 phạm vi story này.
 
+#### 📊 SỐ ĐẦU TIÊN CỦA STORY — NFR18 tại `wal_threshold_bytes = 4 MiB` (mặc định)
+
+**Bàn đo:** bản release nguyên vẹn · `$HOME` nháp · thang `ladder-m.txt` (20.633 B, 122 segment) ·
+macOS · 2026-08-13. **20 lượt bắn, 20 mẫu hợp lệ, 0 lượt trượt.**
+
+| Thống kê | Giá trị |
+| --- | --- |
+| min | 1,169 s |
+| **trung vị** | **3,484 s** |
+| **max** | **6,538 s** |
+| vượt 5 s | **4/20** |
+
+Phân bố đầy đủ *(ghi ra thay vì chỉ ghi max — AC2 cấm gộp mẫu)*:
+`1,17 · 1,28 · 1,56 · 1,65 · 1,65 · 2,75 · 2,83 · 2,87 · 3,14 · 3,39 · 3,58 · 3,65 · 4,05 · 4,07 ·
+4,22 · 4,70 · 5,01 · 5,16 · 5,23 · 6,54`
+
+🔴 **DUNG SAI AC2: `max − trung vị = 3,054 s > 2 s` ⇒ phép đo BẤT ỔN.** Theo đúng luật đã vá vào
+AC2, **cấm** khai *"nhất quán"* cho lượt đo này, kể cả nếu mọi mẫu đều dưới ngưỡng.
+
+**🔵 HIỆU CHỈNH BẮT BUỘC TRƯỚC KHI ĐỌC — con số trên là CẬN TRÊN, không phải giá trị thật.**
+`type-driver.sh` ghi mốc bơm **trước** lượt `osascript`, nên cửa sổ đo được cộng luôn thời gian gõ
+ra chính câu đó. Đo phần thổi phồng, không đoán: khoảng giữa hai lượt bơm có trung vị **1,301 s**
+*(n = 593)*, trong đó nhịp người là 0,6–1,4 s ⇒ phần **gõ** chiếm ≈ **0,3 s**.
+
+| Mẫu vượt ngưỡng | Đo được | Sau hiệu chỉnh −0,3 s |
+| --- | --- | --- |
+| 1 | 5,009 s | 4,71 s — **dưới** ngưỡng |
+| 2 | 5,160 s | 4,86 s — **dưới** ngưỡng |
+| 3 | 5,230 s | 4,93 s — **dưới** ngưỡng |
+| 4 | **6,538 s** | **6,24 s — VẪN VƯỢT 25%** |
+
+⇒ **Phán quyết NFR18 tại 4 MiB: 🔴 KHÔNG ĐẠT — nhưng vì cái ĐUÔI, không vì thân phân bố.**
+Ba trong bốn mẫu "vượt" thực ra nằm sát dưới ngưỡng sau hiệu chỉnh; **một** mẫu vượt thật và vượt
+xa. NFR18 là mệnh đề về **max** *("mất **tối đa** 5 giây")*, nên **một** mẫu 6,24 s đủ làm nó trượt —
+và đó đúng là lý do AC2 cấm gộp mẫu.
+
+⚠️ **n = 20 tại MỘT điểm lưới. Chưa đủ để nói bất cứ điều gì về nguyên nhân.** Bảng lưới 6 điểm của
+Task 5 chưa chạy, nên **chưa biết** cái đuôi này có phải do `wal_threshold_bytes` hay không — đó
+đúng là câu hỏi AC8 tồn tại để trả lời.
+
+#### 🔴 AC10 CHƯA ĐÓNG — và lượt này cho thấy vì sao
+
+| Vế | Trạng thái |
+| --- | --- |
+| ① `.db-wal` **cả hai kho** theo thời gian | 🟢 **có** — 598 mẫu; đỉnh `project` **354.352 B**, đỉnh `global` **61.832 B** |
+| ② tranh chấp CPU/I-O, hai chế độ | 🔴 **KHÔNG đo được** |
+| ③ ép hai luồng trùng pha | 🔴 **chưa dựng** |
+
+Vế ② hỏng vì **hai** lý do, cả hai phải nói ra:
+
+1. **Lỗi của bàn đo:** `grep -c` in ra `0` **và** thoát mã 1, nên `|| echo 0` thêm một dòng nữa ⇒
+   biến đếm thành chuỗi **hai dòng** ⇒ `printf` đẻ ra 120 hàng rác trong TSV. Phép đếm `busy` vì
+   thế **vô giá trị**, không phải bằng 0.
+2. **Dữ kiện về sản phẩm:** nhật ký app có **0 dòng `store[...]`** trong cả 20 lượt. Đọc lại
+   `checkpoint.rs`: `note()` **chỉ** được gọi ở đường ngoại lệ *(checkpoint bị `busy`, lỗi đọc cỡ
+   WAL, vượt trần TRUNCATE)*. Lượt chạy bình thường **không ghi gì**.
+
+⇒ Điều nói được: **không lượt checkpoint nào bị chặn trong 20 lượt.** Điều **không** nói được:
+*"đã đo tranh chấp CPU/I-O"*. Hai câu đó khác nhau, và `deferred-work.md:234` hỏi câu thứ hai.
+**`:234` và `:570` vẫn MỞ.**
+
+⚠️ `ps -M` cũng lấy nhầm cột — bản ghi trả `47T`, `37T` thay vì thời gian CPU. 631 bản ghi, **không
+dùng được**.
+
 #### Mốc gốc AC15 — đo TRƯỚC khi đổi một hằng nào
 
 `npm run test` ⇒ **40/40 ca xanh / 6 tệp** *(vitest 4.1.10, 1,70 s)*.
