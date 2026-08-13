@@ -865,7 +865,7 @@ và **cái gì sẽ vỡ** nếu một story sau thay nó bằng một thư vi�
   - [ ] 🔴 **LUẬT DỪNG cho lớp lỗi "bàn đo dựng không nổi"** — song song với luật dừng của Task 1.0, và nó thiếu ở bản cũ. Đếm **vòng chẩn đoán**: một vòng = một giả thuyết + một lượt build/chạy để nghiệm nó. **Ba** vòng bị bác liên tiếp mà chưa dựng được bàn đo ⇒ **DỪNG**, ghi cả ba giả thuyết và cách chúng bị bác vào §Dev Agent Record, báo Ice. **Không** đoán tiếp. Bằng chứng vì sao luật này cần: §Dev Agent Record của chính story đã chạy **bốn** vòng *(`strings` · CSP · cache `build.rs` · `document.title`)* và quyết định *"không đoán tiếp"* là suy luận tại chỗ, **không** phải luật viết sẵn — lượt thi hành sau sẽ không dừng đúng lúc
 
 - [ ] **Task 1 — Điều kiện khởi hành và hàng rào dữ liệu thật** (AC: 1, 2)
-  - [ ] **1.0 — kiểm đầu vào bằng TAY**: mở app, bấm vào một câu **chưa dịch**, gõ một chữ. Ghi kết quả. 🔴 Không gõ được ⇒ **DỪNG**, báo Ice, story về `backlog` (§Điều kiện khởi hành mục 2)
+  - [x] **1.0 — kiểm đầu vào bằng TAY**: mở app, bấm vào một câu **chưa dịch**, gõ một chữ. Ghi kết quả. 🔴 Không gõ được ⇒ **DỪNG**, báo Ice, story về `backlog` (§Điều kiện khởi hành mục 2) — 🟢 **CỬA MỞ 2026-08-13**, Ice xác nhận lại lần hai
   - [ ] Dựng bàn đo theo phán quyết Quyết định #1 · #2 · #3 · #4
   - [ ] 🔴 **Hàng rào chiều âm chạy TRƯỚC lượt kill đầu tiên**: chụp trạng thái `~/Documents/AuraTranslate/` và `$APPDATA` thật *(danh sách tệp + kích thước + mtime)*; đối chiếu lại sau cả bộ đo
   - [ ] **Hàng rào chiều dương**: mọi `.atproj`/`global.db` sinh ra phải nằm trong vùng nháp — kiểm bằng máy, không bằng mắt
@@ -1212,7 +1212,8 @@ tiền tố `test_`.
 
 ### Agent Model Used
 
-*(điền lúc thi hành)*
+`claude-opus-5` — lượt code review ba tầng 2026-08-13 *(commit `18829a2`)* và lượt thi hành tiếp
+sau đó. Lượt thi hành trước *(Task 0 → 2, bốn vòng chẩn đoán bàn đo)* ghi ở §Debug Log References.
 
 ### Phán quyết Task 0 — ghi TRƯỚC phép đo đầu tiên
 
@@ -1385,6 +1386,196 @@ một mệnh đề kiểm được, không phải một lượt nhìn ảnh.
 cho thấy app khai *"Library chưa có Tác phẩm nào"* trong khi thư viện thật của Ice có **30**
 `.atproj`. ⇒ `document_dir()` **đã** bị `$HOME` nháp chuyển hướng, đo trên **bản release**, không
 suy từ `dirs-6.0.0/src/mac.rs`.
+
+#### Bàn đo v2 sau lượt code review (2026-08-13) — bộ phân loại AC9 đã tự kiểm đỏ-rồi-xanh
+
+Ice chọn đường **NFR18 trước**: Task 4 + Task 5 không cần bàn đo tiêm, nên chỗ chặn NFR2 không
+chặn chúng. `kill-campaign-v2.sh` nâng cấp bốn chỗ, mỗi chỗ một AC vừa vá:
+
+| # | AC | v1 làm gì | v2 làm gì |
+| --- | --- | --- | --- |
+| ① | AC9 | hai nhánh: `wal>0` hợp lệ, `wal=0` **trượt** | **ba** nhánh — `wal=0` **và** kho nuốt trọn dòng gõ ⇒ `VALID_IDLE`, mất **0 s**, **GIỮ** trong mẫu |
+| ② | AC2 | bắn đúng N lượt | chạy tới khi đủ **N mẫu HỢP LỆ**, ghi cả hai số, có trần lượt bắn |
+| ③ | AC10 vế ② | chỉ cỡ `.db-wal` | đếm `busy=` **tách theo kho** từ stderr + CPU **từng luồng** qua `ps -M` |
+| ④ | AC21 | không có | lấy mẫu tiến trình frontmost; mất tiêu điểm > **5 %** ⇒ **bỏ lượt** |
+
+🔵 **Vế ③ là một phát hiện, và nó rẻ hơn mình tưởng:** `checkpoint.rs::note()` *(`:150`)* in thẳng
+**stderr**, mỗi dòng mang tiền tố `store[global]` / `store[project]`, và dòng
+`wal_checkpoint(PASSIVE) blocked: busy=N log=N checkpointed=N` *(`:337`)* là bằng chứng tranh chấp
+**trực tiếp**, tách sẵn theo kho. ⇒ AC10 vế ② đo được với **0 dòng mã sản phẩm**, không cần dựng
+lệnh IPC chẩn đoán nào.
+
+⚠️ **Nhưng `busy=N` là SỐ ĐẾM, không phải thời lượng — và patch AC8/AC10 đòi thời lượng.** Thời
+gian CPU **từng luồng** lấy được từ ngoài (`ps -M`). **Độ trễ I-O thật thì KHÔNG** — nó cần đo
+trong tiến trình, tức mã sản phẩm, tức ngoài rào phạm vi của story. ⇒ Ghi là *"chưa đo được"* kèm
+chủ ở báo cáo; **cấm** để ai đọc `busy=N` thành độ trễ I-O.
+
+**Tự kiểm bộ phân loại — `classify-selftest.sh`, chạy TRƯỚC lượt kill thật: 7/7 xanh.** Ba ca trong
+bảy *(`VALID_IDLE` · `MISS` · `BLUR_FAIL`)* **bắt buộc** phải đỏ ở một bộ phân loại hỏng, và **v1
+trượt đúng ca `VALID_IDLE`**. Đó là bằng chứng cho lý lẽ của patch AC9: v1 vứt đúng nhóm kết quả
+tốt nhất *(kill trúng lúc app rảnh = mất 0 giây)* ra khỏi mẫu, đẩy phân bố lệch về phía xấu hơn
+thực tế.
+
+⚠️ **Điểm lưới 4 MiB có sẵn, khỏi dựng:** `mod.rs` chưa bị sửa dòng nào ⇒ nhị phân release hiện có
+*(4.912.272 B, 13:39)* mang đúng `wal_threshold_bytes = 4 MiB` mặc định.
+
+#### 🔴 SỰ CỐ 2026-08-13 15:35 — phím của bàn đo đi vào TRÌNH DUYỆT, không vào app
+
+Ghi ra thay vì gạt đi, vì đây là lớp sự cố mà một mũi thăm dò lái GUI **sẽ** gặp lại.
+
+**Chuyện gì xảy ra.** Lượt bắn đầu tiên của `kill-campaign-v2.sh` ra `RIG_FAIL` *(không dựng được
+Tác phẩm)*. Bốn lượt hiệu chuẩn tiếp theo cũng đỏ. Một ảnh chụp cho thấy nguyên nhân: cửa sổ ở
+trước **không phải AuraTranslate** mà là **Brave**. Mọi phím `osascript` đã đi vào trình duyệt.
+
+**Ba nguyên nhân xếp chồng, và chỉ nguyên nhân thứ ba là nguyên nhân thật:**
+
+| # | Phát hiện | Có phải nguyên nhân không |
+| --- | --- | --- |
+| ① | `kill-campaign.sh` v1 dựng Tác phẩm bằng `key 18` = `Ctrl+Alt+Shift+1`, **do `bench.js:242-245` đăng ký**, không phải phím của sản phẩm | **Có** — bộ kill phụ thuộc thẳng vào bàn đo tiêm, đúng cái đang bị chặn. v1 chưa từng chạy nên chưa ai thấy |
+| ② | `AppleKeyboardUIMode = 0` ⇒ macOS mặc định cho Tab **bỏ qua nút bấm** trong nội dung web | Tiền đề **đúng**, nhưng **KHÔNG** phải nguyên nhân — app chưa từng nhận được phím nào |
+| ③ | **Không script nào gọi `activate`/`open -a`.** Chạy nhị phân thẳng từ shell trên macOS **không** đưa cửa sổ lên trước | **Có, và đây là gốc** |
+
+🔵 **Bài học phương pháp, đắt hơn cả ba phát hiện trên:** ② là một tiền đề đúng dẫn tới một kết
+luận sai. Nếu dừng ở *"đo được `AppleKeyboardUIMode = 0`, vậy là xong"* thì bản vá sẽ nhắm vào
+thiết lập hệ thống của Ice và **không** chạm nguyên nhân. Trúng tiền đề **chưa** phải trúng cơ chế
+— và cái tách hai thứ đó ra là một **ảnh chụp**, không phải một lượt suy luận thêm.
+
+**Thiệt hại — đo được, không suy:** `type-driver.sh` *(các câu tiếng Việt dài)* **chưa từng chạy**
+— nó chỉ chạy sau khi dựng được Tác phẩm. Cái đã gửi nhầm là các chuỗi ngắn *(`calib1`…`calib4`,
+một đường dẫn tệp)* cộng `Tab`/`Space`, **không** có `Enter` nào. Hàng rào chiều âm sạch: thư viện
+thật của Ice **không** có `calib*`/`bench*` nào.
+
+**Chỗ bàn đo hổng:** v2 **có** kiểm tiêu điểm — nhưng chỉ **trong lúc gõ**. Bước dựng Tác phẩm chạy
+**trước** đó ⇒ lọt qua đúng khe. 🔴 *Một hàng rào đặt sau chỗ cần chặn là một hàng rào không chặn gì.*
+
+**Đã vá — `front.sh`, nguồn dùng chung, cổng CỨNG:** `require_front` đưa đúng PID lên trước rồi
+**đọc lại** *(đặt-rồi-đọc-lại, luật của kho)*; không lên trước được thì **không gửi một phím nào**,
+thoát mã 1. Nghiệm thu: đo được `frontmost` đổi từ `Brave Browser` → `auratranslate`.
+Cộng chuẩn hoá hình học cửa sổ `{0, 25, 1200, 900}`, cũng đặt-rồi-đọc-lại, để toạ độ lặp lại được
+thay vì phụ thuộc chỗ cửa sổ rơi.
+
+#### 🔴 CHẶN THẬT SỰ — máy này có HAI tác nhân tranh cùng một bàn phím
+
+Cổng tiêu điểm xanh, rồi **một giây sau** Brave bị kéo lên trước. Không phải Ice gõ. Đo được:
+
+| Bằng chứng | Nghĩa |
+| --- | --- |
+| một phiên Claude Code khác *(pid 6723/6725)* chạy với `--allowedTools mcp__computer-use, mcp__claude-in-chrome__*` | phiên đó **được phép lái chuột/phím và trình duyệt** |
+| Brave chạy với `remote-debugging-port` *(3 tiến trình)* | trình duyệt đang mở cửa cho tự động hoá |
+| `node` nghe `localhost:3000` | bề mặt phiên kia đang thao tác |
+
+⇒ **Điều kiện tiên quyết mới của mọi phép đo lái GUI ở story này, ngang hàng với hàng rào dữ liệu
+thật:** phiên đo phải **độc chiếm** phiên đăng nhập GUI. Không có nó thì ① số đo hỏng vì phím rơi
+sai cửa sổ, và ② phím của bàn đo đi vào ứng dụng thật của Ice. Cái thứ hai nghiêm trọng hơn cái
+thứ nhất, và nó **đã** xảy ra một lần.
+
+⚠️ **Không** vá bằng cách giành tiêu điểm gắt hơn: hai tác nhân đánh nhau trên một màn hình thì cả
+hai đều hỏng việc. Đây là một điều kiện môi trường, phải được **mở bằng tay** trước lượt đo.
+
+#### 🟢 ĐƯỜNG GIAO DIỆN THẬT ĐÃ THÔNG — dựng được Tác phẩm, 0 dòng bench tiêm
+
+Đây là chỗ gỡ thật của lượt này, và nó xoá bỏ phụ thuộc `bench.js` ở **bước dựng Tác phẩm**.
+
+**Công thức, và nó TRỘN hai cơ chế vì mỗi cơ chế chỉ chạy được một nửa:**
+
+| Bước | Cơ chế | Bằng chứng |
+| --- | --- | --- |
+| Vào ô "Hoặc nhập đường dẫn tệp" | **Tab × 5** | `p3.png` — vòng tiêu điểm xanh + chữ hạ cánh |
+| Gõ đường dẫn | `keystroke` | như trên |
+| Bấm "Tạo Tác phẩm từ tệp" | **`click at`** | Tác phẩm sinh ra: **122 segment**, cả 122 `target_text` rỗng |
+| Mở Workspace | `click at` tab | `ws.png` — bốn panel dựng đủ |
+
+🔴 **Vì sao phải trộn — đo được, không suy.** Máy đo có `AppleKeyboardUIMode = 0` *(mặc định
+macOS)*. Trong chế độ đó:
+
+- **Tab** đi qua **ô văn bản** nhưng **bỏ qua nút bấm** ⇒ nút phải dùng click
+- **`click at`** mở được `<select>` *(`probe.png`)* nhưng **KHÔNG đặt được tiêu điểm vào
+  `<input>`** *(`p2.png` — ô vẫn rỗng sau một cú bấm đúng toạ độ)* ⇒ ô phải dùng Tab
+
+⚠️ **Phát hiện cho NFR17, đáng vào báo cáo:** `commands/index.ts:526-530` khai hai nút import
+*"vẫn tới được bằng bàn phím qua Tab + Enter/Space, chuẩn HTML gốc"*. Đúng theo chuẩn HTML —
+nhưng trên một macOS cấu hình **mặc định**, một người dùng **chỉ dùng bàn phím KHÔNG Tab tới được
+hai nút đó**. Lời khai của doc-comment đứng về chuẩn, không đứng về nền tảng. **Chủ: Ice quyết** —
+sửa lời khai, hay đổi cấu trúc.
+
+#### 🔴 CHẶN CÒN LẠI — không có cách phát MOUSEDOWN THẬT vào vùng gõ
+
+Chuỗi trên dừng ở chặng cuối. Đo được, ba vòng, rồi dừng theo đúng luật dừng của Task 0:
+
+| Vòng | Giả thuyết | Phán quyết |
+| --- | --- | --- |
+| ① | toạ độ click sai | **bác** — kiểm ngược từ ảnh: ô ở `y≈654..684` điểm, click rơi `669` |
+| ② | `click at` không tới được nội dung web | **bác** — nó mở được `<select>`, và bấm được nút submit |
+| ③ | Tab vào được vùng gõ | **bác** — `.doc` có `tabindex="0"` nhưng `EditorPanel.vue:858` nói thẳng *"Nó KHÔNG làm bề mặt gõ được"*; bề mặt gõ được đặt bằng **`mousedown`** (Story 2.3, Quyết định #1) |
+
+**Nghiệm thu cuối cùng, bằng KHO chứ không bằng ảnh:** bấm vùng gõ → `keystroke "TEST123"` → chờ
+4 s cho nhịp flush 2 s của AD-35 → `sqlite3 -readonly` đếm `target_text <> ''` ⇒ **0**.
+
+⇒ `System Events … click at` **không** phát ra một `mousedown` mà WKWebView nhận là cú bấm thật
+vào `contenteditable`. Và máy **không có** công cụ phát sự kiện chuột ở tầng CoreGraphics:
+`Quartz` *(PyObjC)* **không** có ở cả ba `python3`; `cliclick` **không** cài.
+
+⚠️ **Cái này KHÔNG chặn `bench.js`** — nó là một chặn thứ hai, độc lập, nằm ở đường lái GUI.
+Gỡ được `bench.js` thì gỡ luôn cả hai *(bench đăng ký cả phím dựng Tác phẩm lẫn đường bơm)*.
+
+#### 🔴 CẦN ICE QUYẾT — `osascript keystroke` CHỈ GÕ ĐƯỢC ASCII, và điều đó cắt đôi Quyết định #2
+
+Phép đo, nguyên văn. Gõ vào bằng đúng đường của Quyết định #2(c):
+
+```
+⟦42⟧ Trời hôm nay trong xanh lạ thường.
+```
+
+Kho nhận *(`sqlite3 -readonly`)*:
+
+```
+a42a Trai ham nay trong xanh la thaang.
+```
+
+⇒ `osascript ... keystroke` đi qua **bố cục bàn phím hiện hành** nên mọi ký tự ngoài ASCII bị bẻ:
+`⟦`→`a` · `ờ`→`a` · `ô`→`a` · `ượ`→`aa`. **Hỏng hai thứ cùng lúc:**
+
+1. **Chỉ số `⟦n⟧` của Quyết định #4** thành `a42a` ⇒ truy vấn `LIKE '%⟦%⟧%'` trả rỗng ⇒ không truy
+   ngược được thời điểm bơm ⇒ **không đo được cửa sổ mất dữ liệu**. Đây là nguyên nhân mọi lượt của
+   lượt chạy 4 MiB ra `AMBIG` với `max_n=0` trong khi `last_n=37`.
+2. **Chính nội dung tiếng Việt.** `type-driver.sh` cố ý đòi *"KHÔNG phải 'aaaa': tiếng Việt có
+   dấu, độ dài câu thay đổi, VÀ có lượt xoá"* — vì ca *"xoá lùi qua đầu câu"* là ca thủng cao nhất
+   theo `deferred-work.md`. Gõ được ASCII nghĩa là bàn đo **không chạm** đường IME và **không
+   chạm** ca đó.
+
+**Xung khắc thật giữa hai đòi hỏi của chính story — không đường nào cho cả hai:**
+
+| Đường vào | Được | Mất |
+| --- | --- | --- |
+| `osascript keystroke` *(Quyết định #2c như đã ký)* | sự kiện phím **THẬT**, trọn `keydown → beforeinput → input` — đúng thứ NFR2 đo | **chỉ ASCII**; không tiếng Việt, không IME, không ca xoá lùi |
+| `pbcopy` + `⌘V` | giữ nguyên Unicode, nội dung **thật** | một sự kiện **`paste`**, không có chuỗi phím per-ký-tự; NFR2 đo một đường khác đường người dùng đi |
+| Bộ gõ tiếng Việt ở tầng OS *(VietTelex…)* | phím thật **và** dấu thật | thêm một biến chưa đo vào chính phép đo; và nó là phần mềm bên thứ ba trên máy đo |
+
+🔴 **Đây là hàng của §Cần Ice quyết (AC6 mục ⑦), không phải chỗ dev tự chọn** — vì mỗi đường đổi
+**nghĩa** của con số NFR2 giao ra, chứ không chỉ đổi cách lấy nó.
+
+⚠️ Việc đổi `⟦n⟧` sang một chỉ số ASCII *(ví dụ `[42]`)* gỡ được vấn đề ① và **chỉ** vấn đề ①.
+Nó **không** gỡ vấn đề ②, và gỡ ① rồi tuyên bố "đã đo NFR2" là đúng lớp lỗi mà AC21 cấm.
+
+#### Bàn đo: con trỏ vào câu phải TỰ NGHIỆM THU, không tin một toạ độ
+
+Lượt quét lưới tìm được `(840,190)` ăn. Lượt sau, **cùng toạ độ, cùng hình học cửa sổ, cùng tệp
+nguồn** ⇒ **không** ăn; lượt sau nữa `(860,190)` ăn còn `(840,190)` trượt. Vùng trúng nhỏ và không
+ổn định giữa các lượt.
+
+🔵 **Ice mô tả đúng hiện tượng này khi gõ tay, trước khi bàn đo gặp nó:** *"click vào gần đầu dòng
+thì mới có chỗ nhập, thao tác rất khó, click không chính xác thì không hiển thị input và không gõ
+được"*. Lời mô tả đó là thứ gỡ được chặn — lượt quét mù bốn điểm của bàn đo không ra, lưới 20 điểm
+dựng theo mô tả của Ice thì ra ngay.
+
+⇒ `focus-segment.sh`: bấm → gõ một chuỗi dò → **HỎI KHO** → trượt thì thử điểm kế; trúng thì xoá
+chuỗi dò rồi mới đo. Nhịp nghiệm thu phải **≥ 4,5 s** *(2 s `EDITOR_IDLE_MS` + đường ghi + biên)*;
+2,4 s cho **âm tính giả** ở cả 16 ứng viên.
+
+⚠️ **Và đây là một phát hiện UX đáng có chủ, không chỉ một khó khăn của bàn đo:** đường duy nhất đặt
+được con trỏ vào một câu là một cú bấm **chính xác từng pixel** vào một vùng hẹp, không ổn định, và
+**không có đường bàn phím nào thay thế**. Người dùng thật gặp đúng cái đó. **Chủ: Ice** — nó lớn hơn
+phạm vi story này.
 
 #### Mốc gốc AC15 — đo TRƯỚC khi đổi một hằng nào
 

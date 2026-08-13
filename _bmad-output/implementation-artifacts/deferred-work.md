@@ -2533,3 +2533,34 @@ nằm vĩnh viễn trong kho.
    ra với tay người thì nó là khuyết tật sản phẩm thật, và nó **không** phải ca `<span>` rỗng.
 
 **Chủ: Story 2.3 (tiếp) — chờ lượt gõ tay của Ice.**
+
+---
+
+## Bàn đo Story 2.4 chỉ gõ được ASCII — NFR2/NFR18 chưa chạm tiếng Việt có dấu và chưa chạm IME
+
+**Đo được 2026-08-13**, không suy: gõ `⟦42⟧ Trời hôm nay trong xanh lạ thường.` bằng đường của
+Quyết định #2(c) *(`osascript ... keystroke`, sự kiện phím ở tầng hệ điều hành)*, kho nhận
+`a42a Trai ham nay trong xanh la thaang.` — `osascript` đi qua **bố cục bàn phím hiện hành** nên mọi
+ký tự ngoài ASCII bị bẻ.
+
+**Ice chốt 2026-08-13:** giữ **phím thật** *(để `keydown → beforeinput → input` chạy trọn — đó là
+thứ NFR2 đo)*, đổi chỉ số truy vết sang ASCII `[n]`, và **ghi nợ phần tiếng Việt** thay vì đổi sang
+clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím người dùng đi qua)*.
+
+**Cái CHƯA đo, và không được đọc bảng NFR2/NFR18 của story 2.4 rộng hơn chỗ này:**
+
+- Văn bản có **dấu tiếng Việt** trên đường gõ — mọi số của 2.4 đọc ra từ văn bản **ASCII**.
+- Đường **IME**, và cùng với nó là ca *"xoá lùi qua đầu câu"* — ca mà chính tệp này xếp là **ca
+  thủng cao nhất theo dự đoán**, và là lý do `type-driver.sh` cố ý đòi tiếng Việt có dấu ngay từ đầu.
+
+**Ba đường mở lại, mỗi đường một cái giá đã cân:**
+
+| Đường | Được | Mất |
+| --- | --- | --- |
+| Bộ gõ tiếng Việt tầng OS *(VietTelex…)* | phím thật **và** dấu thật | thêm một phần mềm bên thứ ba vào chính máy đo — một biến chưa đo |
+| `pbcopy` + `⌘V` | nội dung thật | đo `paste`, không đo gõ ⇒ đổi **nghĩa** con số NFR2 |
+| Bộ bơm phím phát Unicode ở tầng CoreGraphics *(`CGEventKeyboardSetUnicodeString`)* | phím thật **và** Unicode thật | phải viết, và phải tự nghiệm thu là nó thật sự đi qua `beforeinput` |
+
+🔵 Đường thứ ba là đường sạch nhất về mặt phương pháp và **chưa ai thử**.
+
+**Chủ: Ice** · mở khi cần một bảng NFR2 nói được về tiếng Việt.
