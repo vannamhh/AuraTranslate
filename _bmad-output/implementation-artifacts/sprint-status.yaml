@@ -10,6 +10,16 @@
 # 2026-08-13: code review ba tang tren 2.4 — 6 decision (Ice da ky het) + 17 patch, tat ca DA VA.
 #   Sau lan chot cua Ice noi rong ngan sach do: luoi 6 diem x >=20 mau hop le, cong do tranh chap
 #   CPU/I-O hai che do. Xem §Review Findings trong story.
+# 2026-08-13: THU TU THUC THI DOI — Epic 4 (AI) lui xuong sau Epic 6. Ice duyet tron goi.
+#   Thu tu moi: 1 -> 2 -> 3 -> 5 -> 6 -> 4 -> 7 -> 8 -> 9 -> 10
+#   SO EPIC LA TEN, KHONG PHAI THU TU — khong doi so hieu epic, khong doi id story.
+#   NGOAI LE: story 4-1 (module ai/ co lap + test cuong che AD-13) chay NGAY SAU epic-3,
+#   khong cho phan con lai cua epic-4.
+#   ⚠️ GIOI HAN THAT: thu tu DOC cua tep nay KHONG phan anh thu tu THUC THI. Khoi epic-4 van
+#   nam giua epic-3 va epic-5 vi id la danh tinh, va vi chua do hai skill create-story /
+#   sprint-status xu ly thu tu khoi the nao. Nguon su that cho trinh tu la cot "Thu tu" trong
+#   build-sequence.md va epics.md §Epic List.
+#   Chi tiet: planning-artifacts/sprint-change-proposal-2026-08-13b-thu-tu-epic.md
 # project: AuraTranslate
 # project_key: NOKEY
 # tracking_system: file-system
@@ -189,7 +199,9 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: AI mở & Smart RAG Injector
+  # THU TU THUC THI: sau epic-6 (tru story 4-1 ngay duoi day)
   epic-4: backlog
+  # 4-1 CHAY NGAY SAU EPIC-3, khong cho epic-4 — xem khoi comment dau tep
   4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi: backlog
   4-2-cau-hinh-nha-cung-cap-ai: backlog
   4-3-api-key-trong-keychain: backlog

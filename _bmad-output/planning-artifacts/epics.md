@@ -783,18 +783,24 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 
 **Mười epic**, bám `build-sequence.md` (bản chốt, quyền hơn PRD §10). Hai giai đoạn bị tách vì có ranh giới rủi ro thật; các giai đoạn còn lại giữ nguyên làm một epic.
 
-| Epic | Giai đoạn | FR | Vì sao đứng riêng |
-|---|---|---|---|
-| 1 | 1 | 27 | Mốc giá trị sớm nhất — bằng QuickTranslator, trên macOS |
-| 2 | 2a | 9 | Editor là chỗ AD-31/AD-35/AD-12 hội tụ; có mũi thăm dò riêng |
-| 3 | 2b | 11 | Miền Glossary, cưỡng chế bởi AD-20/AD-36 |
-| 4 | 2c | 14 | `ai/` phải cô lập được **bằng test** (AD-13 → FR77) |
-| 5 | 3a | 17 | Library + tầng dữ liệu dẫn xuất |
-| 6 | 3b | 16 | **Ranh giới rủi ro:** hai giả định chưa đo (A12, A13), hai lớp lỗi im lặng |
-| 7 | 4 | 10 | Translation Memory |
-| 8 | 5 | 13 | Cầu nối Reviewer |
-| 9 | 6 | 7 | Ứng viên cắt số 1 nếu R1 nổ — phải tách được sạch |
-| 10 | 7 | 8 | Phát hành |
+> 🔵 **Cập nhật 2026-08-13 — số Epic là TÊN, cột *Thứ tự* là trình tự.** Epic 4 (AI) lùi xuống
+> sau Epic 6 theo quyết định của chủ dự án: *xây môi trường trước, cắm AI vào sau*
+> (`build-sequence.md` §Vì sao thứ tự này). Không FR nào bị cắt, không AC nào đổi nội dung,
+> không epic nào bị bỏ. Kiểm phụ thuộc chéo và cái giá phải trả:
+> `sprint-change-proposal-2026-08-13b-thu-tu-epic.md`.
+
+| Epic | Giai đoạn | Thứ tự | FR | Vì sao đứng riêng |
+|---|---|---|---|---|
+| 1 | 1 | **1** | 27 | Mốc giá trị sớm nhất — bằng QuickTranslator, trên macOS |
+| 2 | 2a | **2** | 9 | Editor là chỗ AD-31/AD-35/AD-12 hội tụ; có mũi thăm dò riêng |
+| 3 | 2b | **3** | 11 | Miền Glossary, cưỡng chế bởi AD-20/AD-36 |
+| 4 | 2c | **6** ← dời | 14 | `ai/` phải cô lập được **bằng test** (AD-13 → FR77). ⚠️ **Story 4.1 tách ra chạy ở thứ tự 3½**, ngay sau Epic 3 — xem AC cuối của Story 4.1 |
+| 5 | 3a | **4** | 17 | Library + tầng dữ liệu dẫn xuất |
+| 6 | 3b | **5** | 16 | **Ranh giới rủi ro:** hai giả định chưa đo (A12, A13), hai lớp lỗi im lặng |
+| 7 | 4 | **7** | 10 | Translation Memory |
+| 8 | 5 | **8** | 13 | Cầu nối Reviewer |
+| 9 | 6 | **9** | 7 | Ứng viên cắt số 1 nếu R1 nổ — phải tách được sạch |
+| 10 | 7 | **10** | 8 | Phát hành |
 
 ---
 
@@ -889,8 +895,8 @@ Mở ứng dụng là vào Library, không phải vào màn hình dịch. Ngư�
 - **AD-33:** `meta.json` là cache dẫn xuất, ghi bởi **chính `store::Writer` của Tác phẩm đó**, trong cùng thao tác logic. Không hai chủ sở hữu cho tiến độ.
 - **AD-32 khác AD-5 một cách cố ý:** gộp/tách **Chương** chỉ đổi `chapter_id` và `ord`; `segment.id`, lịch sử phiên bản và trạng thái xác nhận **giữ nguyên**. Cài FR15 như "tạo lại segment" sẽ phá sạch những Chương đã dịch xong.
 - **AD-5:** chỗ đánh dấu FR119 trỏ tới segment đã về hưu **ở lại, không bị xoá im lặng** — hiện kèm ghi chú *câu này đã đổi*.
-- ⚠️ **Rủi ro lịch trình đã biết, chưa xử lý — Q4 không đóng được ở đây.** Điều kiện đóng `[A6] [A7] [A8]` là *"đo trên thư viện thật **5.000 Chương**"*. Nhưng **không có đường nào tạo ra 5.000 Chương trước Epic 6** — đường nhập tối thiểu của Epic 1 chỉ dán tay từng Chương. Sinh dữ liệu giả đo được **tốc độ** nhưng không đo được thứ NFR8 tồn tại để bảo vệ: phân bố dấu tiếng Việt thật (`má / ma / mà / mả / mã / mạ`). Cùng lớp vấn đề áp cho **bảng chờ Glossary của Epic 3** — màn hình thiết kế cho hàng trăm dòng chỉ hỏng ở quy mô thật.
-  **Ba đường xử lý, chưa chọn:** *(a)* đảo Epic 5 ↔ Epic 6 · *(b)* giữ thứ tự nhưng **dời việc đo NFR3/4/5 xuống sau Epic 6** · *(c)* tách Epic 5 làm đôi — FR1–FR7 lên trước đường nhập, FR8/FR9 + FR11/FR119/FR120 xuống sau. Cho tới khi chọn, **Epic 5 đóng lại với ba ngưỡng vẫn treo**.
+- ⚠️ **Q4 không đóng được ở epic này — và đó là thiết kế, không phải chỗ hở.** Điều kiện đóng `[A6] [A7] [A8]` là *"đo trên thư viện thật **5.000 Chương**"*. Nhưng **không có đường nào tạo ra 5.000 Chương trước Epic 6** — đường nhập tối thiểu của Epic 1 chỉ dán tay từng Chương. Sinh dữ liệu giả đo được **tốc độ** nhưng không đo được thứ NFR8 tồn tại để bảo vệ: phân bố dấu tiếng Việt thật (`má / ma / mà / mả / mã / mạ`). Cùng lớp vấn đề áp cho **bảng chờ Glossary của Epic 3** — màn hình thiết kế cho hàng trăm dòng chỉ hỏng ở quy mô thật.
+  🔵 **Sửa 2026-08-13 — mệnh đề *"ba đường xử lý, chưa chọn"* ở đây đã hết đúng.** Đường *(b)* (*dời việc đo NFR3/4/5 xuống sau Epic 6*) đã được chọn và **đã viết ra**: **Story 6.18** — *"Đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương thật"* — mang AC ghi thẳng *"đây là điều kiện Story 5.14 không có được: ở Epic 5 chưa có đường nào tạo ra ngần ấy Chương"*. Thân tài liệu đã đi trước dòng tóm tắt này từ lúc Epic 6 được viết; dòng cũ đang mời người đọc tưởng một rủi ro còn treo trong khi nó đã có chủ. ⇒ **Story 5.14 ghi số sơ bộ trên thư viện nhỏ; Story 6.18 đóng Q4.** Ở thứ tự thực thi chốt 2026-08-13 (`5 → 6`), hai story này nằm **liền kề nhau** — gần hơn thứ tự cũ, không xa hơn.
 - FR11 giao thoa với đặc tả typography của `EXPERIENCE.md` (ba mức Thoáng/Cân/Đặc, sàn giãn dòng 1.66) — PRD bàn giao mục này có chủ ý.
 
 ---
@@ -2932,9 +2938,18 @@ So that công cụ này là của tôi chứ không phải một vỏ bọc quan
 **Then** **mời cấu hình** và nói rõ mọi thứ khác vẫn chạy đầy đủ
 **And** đây **không phải trạng thái lỗi**
 
-**Given** bộ test của Epic 1, 2 và 3
+**Given** bộ test của **mọi epic đã hoàn tất tại thời điểm chạy story này** — hôm nay là Epic 1, 2 và 3
 **When** chạy trong một môi trường **không có cấu hình AI**
 **Then** toàn bộ vẫn xanh
+
+> 🔵 **2026-08-13 — Story 4.1 tách khỏi Epic 4 và chạy ngay sau Epic 3** (thứ tự 3½); phần còn
+> lại của Epic 4 chạy sau Epic 6. Lý do tách: ranh giới AD-13 rẻ nếu dựng từ dòng code đầu tiên
+> và rất đắt nếu vá sau — để nó lùi cùng Epic 4 nghĩa là 32 story được viết trước khi ranh giới
+> `ai/` có người canh.
+> ⇒ **Khi Story 4.2–4.12 tới lượt, AC này phải được chạy LẠI** trên bộ test của Epic 5 và
+> Epic 6 nữa. Đây là **mở rộng**, không phải thu hẹp: để nguyên văn *"Epic 1, 2 và 3"* thì sau
+> khi Epic 5/6 xong, AC đọc như thể ranh giới `ai/` chỉ cần canh ba epic đầu — một AC xanh mà
+> không canh đủ.
 
 ---
 
