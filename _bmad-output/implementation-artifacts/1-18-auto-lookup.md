@@ -989,6 +989,13 @@ bảng Stack **trước**, và `check-deps.mjs` có danh sách cấm cùng ngư�
 - `EXPERIENCE.md:131` *(FR21 — *"tương tác lặp nhiều nhất trong sản phẩm … **không được thiết kế
   lại cho khác đi**"*)* · `:272` *(cảnh dùng thật)* · `:322` *(bảng mockup → `motion-auto-lookup`)*
   · `:389` §Trạng thái rỗng
+  🔵 **2026-08-13 — con trỏ này nay trỏ vào một văn bản KHÁC.** Mệnh đề *"không được thiết kế
+  lại cho khác đi"* đã được **sửa**, không phải bị vượt: nó chặt hơn nguồn của chính nó
+  *(`prd.md:56` chỉ nói "lệch **quá xa** sẽ bị từ chối")* và mâu thuẫn với lượt Ice **loại
+  hướng C "Kế thừa QuickTranslator"** ngày 2026-08-02. Bản mới: *QuickTranslator là mốc tham
+  khảo để vượt qua* — bất biến là **thao tác**, **cài đặt** thì mở. Cùng lượt đó FR21 thu hẹp
+  còn **Panel Source**. ⇒ Câu trích ở trên là **ảnh chụp 2026-08-07**, đừng trích lại nó như
+  một mệnh đề đang hiệu lực. Xem `planning-artifacts/sprint-change-proposal-2026-08-13.md`.
 - `mockups/motion-auto-lookup.html:185-205` — **bảng đặc tả chuyển động** · `:187`
   *(*"Tra nhanh liên tiếp thì thành không có hiệu ứng"*)* · `:200` *(*"không tra khi con trỏ còn
   đang kéo"*)*

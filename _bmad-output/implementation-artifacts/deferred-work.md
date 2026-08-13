@@ -2608,11 +2608,17 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   nhập vào lượt rà hai nền tảng cuối dự án *(Ice chốt 2026-08-12: trọn phần Windows dời về
   cuối)*, **không mở một món nợ mới**.
 
-- ⚠️ **BA trích dẫn trong story file còn chép nguyên văn mệnh đề đã sửa — CHỦ: Ice, quyết định
-  còn MỞ.** `grep` nghiệm thu của proposal tìm ra ba chỗ mà §4.10 **không liệt kê**:
-  `1-18-auto-lookup.md:37` *(hàng Change Log, có ngày 2026-08-07)* · `1-18-auto-lookup.md:989`
-  và `1-18b-tach-tu-tieng-trung-tab-han-viet.md:622` *(**hai danh sách `[Source: …]`**, trỏ
-  đích danh `EXPERIENCE.md:131`)*. Cả ba chép *"không được thiết kế lại cho khác đi"*.
+- ⚠️ **BỐN trích dẫn trong story file còn chép nguyên văn mệnh đề đã sửa — CHỦ: Ice, quyết
+  định còn MỞ.** `grep` nghiệm thu của proposal tìm ra bốn chỗ mà §4.10 **không liệt kê**:
+  `1-18-auto-lookup.md:37` và `1-18b-tach-tu-tieng-trung-tab-han-viet.md:40` *(**hai hàng
+  Change Log**, cùng ngày 2026-08-07)* · `1-18-auto-lookup.md:989` và `1-18b-…md:622`
+  *(**hai danh sách `[Source: …]`**, trỏ đích danh `EXPERIENCE.md:131`)*. Cả bốn chép
+  *"không được thiết kế lại cho khác đi"*.
+  🔵 **Đính chính lúc đóng:** bản đầu của mục này viết **BA** và bỏ sót `1-18b:40`. Lỗi đếm
+  đến từ việc `grep` cụm đầy đủ **không khớp** `1-18:989` *(cụm bị ngắt dòng ở đó)*, nên hai
+  lượt quét khác nhau cho hai danh sách khác nhau và mình cộng nhầm. Phân loại **không đổi**
+  — vẫn 2 ảnh chụp + 2 con trỏ — nên phán quyết của Ice áp y nguyên. Ghi ra vì một con số sai
+  trong sổ làm hỏng lòng tin vào cả sổ.
 
   🔴 **Hai loại khác nhau, và chỉ một loại đáng lo.** Hàng Change Log là một **ảnh chụp có
   ngày** — nó ghi đúng thứ dev đọc hôm 2026-08-07, sửa nó là viết lại lịch sử. Nhưng hai dòng
@@ -2628,3 +2634,11 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   và đọc được vì sao nó đổi.
 
   ⚠️ Chưa làm gì cả — mục này ghi để nó không mồ côi. Không chặn lượt vá 2026-08-13.
+  → ✅ **ĐÃ ĐÓNG 2026-08-13 — Ice chốt phương án (a).** Nối một khối 🔵 vào **hai** dòng
+  `[Source: …]` *(`1-18-auto-lookup.md:989` · `1-18b-…md:622`)*: nói rõ con trỏ nay trỏ vào một
+  văn bản khác, mệnh đề cũ đã được **sửa chứ không bị vượt**, và câu trích tại chỗ là **ảnh
+  chụp 2026-08-07** — đừng trích lại như một mệnh đề đang hiệu lực. **HAI hàng Change Log
+  (`1-18:37` · `1-18b:40`) để NGUYÊN**, đúng lý do phân loại ở trên: chúng là ảnh chụp có
+  ngày, không phải con trỏ. 🔴 Vì sao không xoá câu trích cũ ở cả hai chỗ: một con trỏ mất câu
+  trích thì người sau không đối chiếu được **cái gì đã đổi**, và lịch sử của một mệnh đề là
+  bằng chứng cho mệnh đề kế tiếp.

@@ -620,6 +620,12 @@ chúng nằm ở **đúng tệp** story này sẽ mổ.
 - [Source: `epics.md:1497-1526`] — Story 1.12, Matcher dùng chung
 - [Source: `epics.md:503-505`] — UX-DR5 · UX-DR6
 - [Source: `EXPERIENCE.md:131`] — FR21 Auto-Lookup *"không được thiết kế lại cho khác đi"*
+  🔵 **2026-08-13 — con trỏ này nay trỏ vào một văn bản KHÁC.** Mệnh đề trên đã được **sửa**,
+  không phải bị vượt: nó chặt hơn nguồn của chính nó *(`prd.md:56`)* và mâu thuẫn với lượt Ice
+  loại hướng C *"Kế thừa QuickTranslator"* ngày 2026-08-02. Bản mới: *QuickTranslator là mốc
+  tham khảo để vượt qua* — bất biến là **thao tác**, **cài đặt** thì mở. Cùng lượt đó FR21 thu
+  hẹp còn **Panel Source**. ⇒ Câu trích trên là **ảnh chụp 2026-08-07**. Xem
+  `planning-artifacts/sprint-change-proposal-2026-08-13.md`.
 - [Source: `EXPERIENCE.md:23`] — ba thứ ở Rust: tách **câu**, khớp ngôn ngữ, phân giải scope
 - [Source: `DESIGN.md:287-291`] — sàn giãn dòng 1.66 cho họ `read`
 - [Source: `prd.md:814,866,875,876,877,887`] — NFR1 · NFR13 · NFR14 · NFR15 · NFR16 · NFR17
