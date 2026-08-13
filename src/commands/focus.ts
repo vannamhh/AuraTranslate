@@ -7,10 +7,22 @@
  *
  *   - **Vế "khai báo" là DỮ LIỆU** — máy kiểm được. `owners()` là đầu vào cho Kiểm E
  *     của `scripts/check-commands.mjs`.
- *   - **Vế "không rơi về `body`" là HÀNH VI DOM LÚC CHẠY**, mà dự án không có bộ chạy
- *     test frontend (và không được thêm — NFR15). Nên nó được canh bằng một CHỐT TỰ KÊU
- *     ở `enter()` cộng một lượt nghiệm thu tay có bảng. Không đánh dấu đạt bằng suy
- *     luận — giới hạn ghi thẳng vào `deferred-work.md`.
+ *   - **Vế "không rơi về `body`" là HÀNH VI DOM LÚC CHẠY**, nên nó được canh bằng một
+ *     CHỐT TỰ KÊU ở `enter()` cộng một lượt nghiệm thu tay có bảng. Không đánh dấu đạt
+ *     bằng suy luận — giới hạn ghi thẳng vào `deferred-work.md`.
+ *
+ *     🔵 **CẬP NHẬT 2026-08-13 — lý do cũ của dòng trên đã hết đúng, thay bằng lý do thật.**
+ *     Bản trước viết *"dự án không có bộ chạy test frontend (và không được thêm — NFR15)"*.
+ *     Kho **nay CÓ** (`vitest` + `@vue/test-utils` + `happy-dom`, cây test ở
+ *     `tests/frontend/**`, Story 2.3 — Ice lật vế đó ngày 2026-08-12; cửa rà giấy phép của
+ *     NFR15 thì vẫn đứng cho gói tiếp theo). Nhưng **kết luận không đổi, chỉ đổi lý do**:
+ *     `happy-dom` là một bản mô phỏng DOM trong Node, **không phải WebKit**, và mệnh đề
+ *     *"tiêu điểm không rơi về `body`"* là mệnh đề về **webview thật** ⇒ nó thuộc đường
+ *     **e2e**, không thuộc vitest (luật một-mệnh-đề-một-đường, AC25 của Story 2.3).
+ *     ⇒ Vế này nay **đã có răng ở hai ca**: `e2e/specs/shortcuts-focus.e2e.mjs` và
+ *     `attribution-focus.e2e.mjs` khẳng định `document.activeElement` **không** là `<body>`
+ *     sau khi đóng lớp phủ bằng `Escape`, chạy trong WKWebView thật. Phần còn lại của sổ
+ *     điểm vào vẫn do chốt tự kêu cộng nghiệm thu tay giữ.
  *
  * ⚠️ Vì sao tệp này ở `src/commands/` chứ không phải một thư mục thứ bảy: §Câu hỏi cho
  * Ice #1 của story. AD-34 §1 (thao tác) và §2 (focus) là hai mệnh đề của CÙNG một AD;

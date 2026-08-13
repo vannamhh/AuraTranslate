@@ -22,9 +22,18 @@
  * ⚠️ TỆP NÀY LÀ **MODULE THUẦN** — KHÔNG `import` GIÁ TRỊ NÀO, KHÔNG VUE, KHÔNG DOM
  * ─────────────────────────────────────────────────────────────────────────────
  * Đó là điều kiện để `scripts/check-commands.mjs` `import()` **thẳng hàm thật** ở đây và
- * chạy nó — đường thay cho một bộ chạy test frontend mà dự án cố ý không có (NFR15). Một
- * `import` giá trị *(kể cả `../config/segment`, vốn kéo `@tauri-apps/api`)* giết phép kiểm
- * đó ngay. State của panel sống ở `./editorPanelState.ts`; hình học sống ở `./editorGutter.ts`.
+ * chạy nó bằng **Node thuần**. Một `import` giá trị *(kể cả `../config/segment`, vốn kéo
+ * `@tauri-apps/api`)* giết phép kiểm đó ngay. State của panel sống ở
+ * `./editorPanelState.ts`; hình học sống ở `./editorGutter.ts`.
+ *
+ * 🔵 **CẬP NHẬT 2026-08-13 — sửa một mệnh đề đã hết đúng.** Bản trước gọi phép kiểm trên là
+ * *"đường thay cho một bộ chạy test frontend mà dự án cố ý không có (NFR15)"*. Kho **nay CÓ**
+ * bộ chạy đó (`vitest` + `@vue/test-utils` + `happy-dom`, cây test ở `tests/frontend/**`,
+ * Story 2.3 — 2026-08-12). ⇒ Cổng ở đây **không còn là đường thay thế**: nó canh vế **khai
+ * báo trên toàn cây** *(đếm `SEGMENT_RULE_VALUES`, đỏ ở giá trị thứ sáu)*, một hạng kiểm
+ * **khác** với một test khẳng định hàm trả đúng giá trị — và hai đường đó không được chồng
+ * nhau (AC25). **Luật "không `import` giá trị" thì KHÔNG đổi một chữ**: nó là điều kiện để
+ * cổng chạy được bằng Node thuần, và điều kiện đó độc lập với việc có vitest hay không.
  */
 import type { ChapterSegment } from '../config/segment'
 
