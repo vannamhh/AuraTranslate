@@ -205,6 +205,25 @@ jobs:
       - name: check hai danh sách cổng khớp nhau (cổng thứ mười một)
         run: npm run check:gates
 
+      # ═══════════════════════════════════════════════════════════════════════════════
+      #  BỘ CHẠY TEST FRONTEND — Story 2.3, Task 0b. Ice LẬT vế *"không bộ chạy test
+      #  frontend"* của NFR15 ngày 2026-08-12.
+      # ═══════════════════════════════════════════════════════════════════════════════
+      #
+      # 🔴 VỊ TRÍ TRONG CHUỖI LÀ MỘT QUYẾT ĐỊNH, không một chỗ trống tiện tay:
+      #   - **SAU** 11 cổng `check:*` — chúng chỉ đọc tệp và xong trong vài giây, nên một
+      #     token sai hay một chuỗi tiếng Việt lọt vào `.vue` phải đỏ trước;
+      #   - **TRƯỚC** `npm run build` — test frontend KHÔNG cần `dist/`;
+      #   - và **trước** `cargo test` là điểm chính: đặt nó sau đó là bắt người ta chờ vài
+      #     phút biên dịch Rust để biết một mệnh đề **mili-giây** đã đỏ.
+      #
+      # ⚠️ Bài học §4 của retro Epic 1 nguyên văn: *"cổng mới phải vào CI, không chỉ chạy
+      # tay"* — `check:lint` từng sống MỘT NGÀY ngoài CI. Và correct-course 2026-08-11 tìm ra
+      # danh sách **thứ ba** không ai canh: `.githooks/pre-push`. Cả ba danh sách mang bước
+      # này, và `check:gates` Kiểm F cưỡng chế điều đó bằng máy.
+      - name: npm test — bộ chạy test frontend (Story 2.3, NFR15 đã rà giấy phép)
+        run: npm run test
+
       # ⚠️⚠️ THỨ TỰ BẮT BUỘC — bước này PHẢI đứng TRƯỚC `cargo test`.
       # `tauri::generate_context!` nhúng `frontendDist: "../dist"` LÚC BIÊN DỊCH. `dist/`
       # chưa tồn tại thì `cargo test` gãy ở khâu biên dịch, không ở một assert. Trên máy

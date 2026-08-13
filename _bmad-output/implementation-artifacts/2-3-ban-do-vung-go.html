@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Bàn đo — vùng gõ MỘT câu tại một thời điểm (Story 2.3)</title>
+<!--
+  ═════════════════════════════════════════════════════════════════════════════════
+  BÀN ĐO — Story 2.3, Task 0.1 (mũi thăm dò Quyết định #1) + Task 7.1.
+  ═════════════════════════════════════════════════════════════════════════════════
+
+  Ice chốt Quyết định #1 ngày 2026-08-12, đường **(c)**: `.doc` giữ chỉ-đọc, và
+  `contenteditable` sống trên ĐÚNG MỘT `<span class="sent">` — chính câu mà caret đang
+  chạm. Phán quyết chọn đường; nó KHÔNG miễn phép đo. Tệp này là phép đo.
+
+  🔴 BA MỆNH ĐỀ PHẢI TRẢ LỜI, và mỗi mệnh đề trả lời bằng SỐ trên CẢ HAI engine:
+    ① Sổ sách `data-segment-id` sống sót qua năm thao tác gõ phá hoại nhất không?
+       (đếm số phần tử `[data-segment-id]` trước và sau mỗi thao tác)
+    ② Chi phí mỗi lượt gõ + chi phí LẮP/THÁO `contenteditable` khi caret qua ranh giới —
+       có frame nào vượt trần 50 ms của NFR2 không?
+    ③ Ký tự ranh giới `⏐` có rò ra lúc copy trên một bề mặt GÕ ĐƯỢC không? (2.2 chỉ đo
+       trên bề mặt chỉ-đọc) — và chiều DÁN VÀO.
+
+  🔴 GIỚI HẠN ĐÃ BIẾT VÀ ĐÃ CHỌN — ba món KẾ THỪA nguyên văn từ bàn đo của Story 2.2
+     (`2-2-ban-do-editor.html`, `deferred-work.md:2113-2119`), ghi lại thay vì trỏ:
+
+  ① Tệp này **CHÉP** CSS và cấu trúc DOM của `src/panels/EditorPanel.vue`; nó **KHÔNG
+     mount** component thật (component cần cầu IPC của Tauri). ⇒ một lượt sửa
+     template/CSS sau này có thể làm bàn đo và sản phẩm **lệch nhau mà không cổng nào đỏ**.
+  ② Ba font nhúng của UX-DR4 **vắng mặt** (chúng do `src/tokens/fonts.ts` nạp từ bundle),
+     nên hình học rơi về `serif` hệ thống. Số ở đây là số của **cơ chế**, không của **sản phẩm**.
+  ③ `⏐` là một **pseudo-element** (`.sent::after`), nên nó không hiện trong một bàn đo chép
+     DOM. Nó CÓ mặt ở đây vì tệp này chép cả CSS — và mệnh đề ③ đo được chính vì thế.
+
+  🔴 GIỚI HẠN THỨ TƯ, RIÊNG CỦA TỆP NÀY: engine ở đây là **WebKit của Playwright**, không
+     phải **WKWebView của Tauri**. Hai thứ khác phiên bản và khác lớp nhúng. Mọi kết luận
+     về hành vi gõ vẫn phải đi qua một lượt trong `npm run tauri dev` (Task 7.2) — đúng
+     món nợ mà `deferred-work.md:2127-2134` đã ghi cho Story 2.2 và story này kế thừa.
+
+  Chạy: mở tệp này trong trình duyệt để xem bằng MẮT; mũi thăm dò tự động lái nó bằng
+  Playwright và đọc `window.__benchReport()`.
+-->
+<style>
+/* ── Token: chép từ `src/tokens/tokens.json`, chỉ những token bàn đo cần ─────────── */
+:root[data-theme='light'] {
+  --color-background: #f4f1ea;
+  --color-surface: #fbfaf6;
+  --color-on-surface: #2b2723;
+  --color-on-surface-variant: #6b6459;
+  --color-confirmed: #5a6b3f;
+  --color-primary: #2f5d63;
+  --color-tm-rule: #b99a5e;
+  --color-ornament: #a9a196;
+}
+:root[data-theme='dark'] {
+  --color-background: #201e1b;
+  --color-surface: #26241f;
+  --color-on-surface: #e8e3d8;
+  --color-on-surface-variant: #a29a8c;
+  --color-confirmed: #9cb37a;
+  --color-primary: #7fb3ba;
+  --color-tm-rule: #b99a5e;
+  --color-ornament: #6a6459;
+}
+:root {
+  --space-gutter-width: 22px;
+  --radius-sm: 2px;
+  --face-editor: 'Source Serif 4', 'Noto Serif CJK TC', serif;
+  --font-editor: 15px;
+  --leading-editor: 1.95;
+  --face-ui-md-wrap: 'Source Sans 3', ui-sans-serif, -apple-system, system-ui, sans-serif;
+  --font-ui-md-wrap: 14px;
+  --leading-ui-md-wrap: 1.66;
+  --face-ui-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-ui-mono: 11.5px;
+  --leading-ui-mono: 1.66;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+}
+.bench { padding: 16px; }
+.panel {
+  background: var(--color-surface);
+  padding: 12px 16px;
+  margin: 0 0 20px 0;
+  height: 260px;
+  box-sizing: border-box;
+}
+h2 {
+  font-size: 14px;
+  margin: 0 0 8px 0;
+  color: var(--color-on-surface-variant);
+}
+#report {
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  line-height: var(--leading-ui-mono);
+  white-space: pre-wrap;
+  background: var(--color-surface);
+  padding: 12px 16px;
+}
+
+/* ── Chép từ `EditorPanel.vue` <style scoped> — giữ khớp khi sửa (giới hạn ①) ────── */
+.editor-surface { height: 100%; min-height: 0; }
+.edwrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.edbody { display: flex; flex: 1; min-height: 0; overflow: auto; }
+.gutter { position: relative; flex: none; width: var(--space-gutter-width); padding-top: 4px; }
+.gmark { position: absolute; left: 8px; width: 2px; border-radius: var(--radius-sm); }
+.gmark.rule-confirmed { background-color: var(--color-confirmed); }
+.gmark.rule-primary { background-color: var(--color-primary); }
+.gmark.rule-tm-rule { background-color: var(--color-tm-rule); }
+.gmark.rule-ornament { background-color: var(--color-ornament); }
+.doc { flex: 1; min-width: 0; padding-left: 8px; }
+.tok-editor {
+  font-family: var(--face-editor);
+  font-size: var(--font-editor);
+  line-height: var(--leading-editor);
+  color: var(--color-on-surface);
+}
+.sent { position: relative; }
+.sent::after { content: '⏐'; color: var(--color-ornament); opacity: 0; }
+.sent:hover::after, .sent[data-caret]::after { opacity: 0.55; }
+/* Ice ký 2026-08-13 — thu hẹp UX-DR20: câu CHƯA DỊCH không vẽ ranh giới. Xem hàng ③ của bảng đo. */
+.sent:empty::after { content: none; }
+
+/*
+ * 🔴 KHỐI DUY NHẤT KHÔNG CHÉP TỪ SẢN PHẨM — nó là thứ story này đang THĂM DÒ.
+ *
+ * Đường (c): `contenteditable` trên đúng một câu. `outline: none` vì vạch lề (UX-DR19) là
+ * chỉ báo *"câu nào đang sửa"*, không phải focus ring của trình duyệt; vế focus ring của
+ * NFR17 do `.panel.focused::before` gánh ở tầng panel.
+ */
+.sent[contenteditable='true'] { outline: none; }
+</style>
+</head>
+<body>
+<div class="bench">
+  <h1 style="font-size:16px">Bàn đo — vùng gõ MỘT câu tại một thời điểm (Story 2.3 · Quyết định #1 đường c)</h1>
+
+  <h2>① Vùng gõ: `.doc` chỉ-đọc, `contenteditable` sống trên đúng MỘT `&lt;span class="sent"&gt;`</h2>
+  <div class="panel">
+    <div class="editor-surface">
+      <div class="edwrap">
+        <div class="edbody">
+          <div class="gutter" id="g1" aria-hidden="true"></div>
+          <div class="doc tok-editor" id="d1" tabindex="0"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Kết quả đo</h2>
+  <div id="report">Chạy mũi thăm dò để điền bảng này.</div>
+</div>
+
+<script type="module">
+// ══════════════════════════════════════════════════════════════════════════════════
+// BẢN CHÉP của `src/panels/editorGutter.ts` + `editorSegments.ts` — giữ khớp khi sửa.
+// ══════════════════════════════════════════════════════════════════════════════════
+const SEGMENT_ID_ATTR = 'data-segment-id'
+
+function measureGutterRules(gutter, doc, wanted) {
+  const origin = gutter.getBoundingClientRect().top
+  const out = []
+  for (const el of doc.querySelectorAll(`[${SEGMENT_ID_ATTR}]`)) {
+    const id = Number(el.getAttribute(SEGMENT_ID_ATTR))
+    if (!Number.isFinite(id) || !wanted.has(id)) continue
+    const rects = el.getClientRects()
+    if (rects.length === 0) continue
+    let top = Infinity
+    let bottom = -Infinity
+    for (const r of rects) {
+      if (r.height <= 0) continue
+      if (r.top < top) top = r.top
+      if (r.bottom > bottom) bottom = r.bottom
+    }
+    if (!Number.isFinite(top) || !Number.isFinite(bottom)) continue
+    out.push({ id, top: top - origin, height: bottom - top })
+  }
+  return out
+}
+
+// ── Fixture: cùng sáu câu với `2-2-ban-do-editor.html` — hai bàn đo, MỘT fixture ────
+const FIXTURE = [
+  { id: 1, target_text: 'Hắn đẩy cánh cửa ấy ra, bước vào giữa bóng tối dày đặc của gian phòng đã bỏ hoang từ lâu lắm rồi.', is_paragraph_end: false },
+  { id: 2, target_text: 'Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ gì đó ẩm ướt hơn thế.', is_paragraph_end: true },
+  { id: 3, target_text: 'Thiếu niên không quay đầu lại.', is_paragraph_end: false },
+  { id: 4, target_text: '', is_paragraph_end: false },
+  { id: 5, target_text: 'Câu này đã về hưu sau một lượt gộp — lịch sử của nó vẫn tra lại được.', is_paragraph_end: false },
+  { id: 6, target_text: 'Câu này đã có bản dịch nhưng chưa ai xác nhận — và nó KHÔNG có vạch.', is_paragraph_end: false },
+]
+
+const doc = document.getElementById('d1')
+const gutter = document.getElementById('g1')
+const report = document.getElementById('report')
+
+function render(rows) {
+  doc.textContent = ''
+  for (const s of rows) {
+    const span = document.createElement('span')
+    span.className = 'sent'
+    span.setAttribute(SEGMENT_ID_ATTR, String(s.id))
+    span.textContent = s.target_text
+    doc.append(span)
+    if (s.is_paragraph_end) doc.append(document.createElement('br'))
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// CƠ CHẾ ĐANG THĂM DÒ — đường (c). Đây là thứ Task 3 sẽ cài vào sản phẩm nếu số đo cho.
+// ══════════════════════════════════════════════════════════════════════════════════
+/** Số lượt lắp và tháo — để mũi thăm dò khẳng định đối xứng. */
+const counters = { mounted: 0, unmounted: 0, enterBlocked: 0 }
+let editableId = null
+
+function spanOf(id) {
+  return doc.querySelector(`[${SEGMENT_ID_ATTR}="${id}"]`)
+}
+
+/** Tháo `contenteditable` khỏi câu đang mang nó. Đối xứng với [`mountEditable`]. */
+function unmountEditable() {
+  if (editableId === null) return
+  const el = spanOf(editableId)
+  if (el !== null) {
+    el.removeAttribute('contenteditable')
+    el.removeAttribute('data-caret')
+  }
+  editableId = null
+  counters.unmounted += 1
+}
+
+/**
+ * Lắp `contenteditable` lên đúng câu `id`, GIỮ vị trí caret hiện có.
+ *
+ * 🔴 Vế "caret không nhảy" là mệnh đề đắt nhất của đường (c): đọc `Range` TRƯỚC lượt đổi
+ * thuộc tính, rồi đặt lại SAU — vì một lượt đổi `contenteditable` có thể làm engine dựng
+ * lại editing host và thả vùng chọn.
+ */
+function mountEditable(id) {
+  if (editableId === id) return
+  const sel = window.getSelection()
+  let saved = null
+  if (sel !== null && sel.rangeCount > 0) {
+    const r = sel.getRangeAt(0)
+    saved = { node: r.startContainer, offset: r.startOffset, collapsed: r.collapsed }
+  }
+
+  unmountEditable()
+
+  const el = spanOf(id)
+  if (el === null) return
+  el.setAttribute('contenteditable', 'true')
+  el.setAttribute('data-caret', '')
+  editableId = id
+  counters.mounted += 1
+
+  el.focus()
+  // Trả caret về đúng chỗ nó vừa ở, nếu node đó còn trong cây.
+  if (saved !== null && el.contains(saved.node)) {
+    const r = document.createRange()
+    const max = saved.node.nodeType === Node.TEXT_NODE ? saved.node.data.length : saved.node.childNodes.length
+    r.setStart(saved.node, Math.min(saved.offset, max))
+    r.collapse(true)
+    sel.removeAllRanges()
+    sel.addRange(r)
+  }
+}
+
+/** Câu mà neo vùng chọn đang chạm — cùng đường `Selection.anchorNode` của Story 2.2. */
+function caretSegmentId() {
+  const anchor = window.getSelection()?.anchorNode ?? null
+  if (anchor === null || !doc.contains(anchor)) return null
+  const from = anchor instanceof Element ? anchor : anchor.parentElement
+  const sent = from?.closest(`[${SEGMENT_ID_ATTR}]`) ?? null
+  const raw = sent?.getAttribute(SEGMENT_ID_ATTR) ?? null
+  const id = raw === null ? Number.NaN : Number(raw)
+  return Number.isFinite(id) ? id : null
+}
+
+document.addEventListener('selectionchange', () => {
+  const id = caretSegmentId()
+  if (id === null) return
+  // ⚠️ KHÔNG tháo khi caret về `null`: một lượt `selectionchange` trung gian trong lúc
+  // engine dựng lại editing host cho ra `null`, và tháo ở đó là tự cắt vùng gõ của mình.
+  mountEditable(id)
+})
+
+doc.addEventListener('pointerdown', (event) => {
+  const from = event.target instanceof Element ? event.target : null
+  const sent = from?.closest(`[${SEGMENT_ID_ATTR}]`) ?? null
+  const raw = sent?.getAttribute(SEGMENT_ID_ATTR) ?? null
+  if (raw !== null) mountEditable(Number(raw))
+})
+
+/**
+ * 🔴 `Enter` bị CHẶN trong vùng gõ — hệ quả 3 của Quyết định #1.
+ *
+ * Xuống dòng là **cấu trúc đoạn**, và AD-37 nói cấu trúc đoạn là dữ liệu ĐÃ LƯU
+ * (`segment.is_paragraph_end`), không phải thứ gõ ra. Không chặn thì `Enter` giữa một câu
+ * làm engine **tách chính `<span>` đó** — đường (c) đóng ca *gộp qua ranh giới*, nó không
+ * tự đóng ca *tách trong lòng một câu*.
+ */
+doc.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    counters.enterBlocked += 1
+  }
+})
+
+render(FIXTURE)
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// BỀ MẶT ĐO — mũi thăm dò gọi qua `page.evaluate`.
+// ══════════════════════════════════════════════════════════════════════════════════
+/** Số phần tử `[data-segment-id]` trên CẢ trang — sổ sách của toàn bộ Story 2.2. */
+window.__idCount = () => doc.querySelectorAll(`[${SEGMENT_ID_ATTR}]`).length
+/** Tập id còn lại, sắp xếp — để phân biệt "mất một câu" với "nhân đôi một câu". */
+window.__ids = () =>
+  [...doc.querySelectorAll(`[${SEGMENT_ID_ATTR}]`)].map((el) => Number(el.getAttribute(SEGMENT_ID_ATTR)))
+/** Văn bản đọc lại bằng cách duyệt các `<span>` — đúng đường Task 2 sẽ dùng để flush. */
+window.__texts = () =>
+  Object.fromEntries(
+    [...doc.querySelectorAll(`[${SEGMENT_ID_ATTR}]`)].map((el) => [
+      el.getAttribute(SEGMENT_ID_ATTR),
+      el.textContent,
+    ]),
+  )
+window.__counters = () => ({ ...counters, editableId })
+window.__editableCount = () => doc.querySelectorAll('[contenteditable="true"]').length
+window.__reset = () => {
+  unmountEditable()
+  counters.mounted = 0
+  counters.unmounted = 0
+  counters.enterBlocked = 0
+  render(FIXTURE)
+}
+/** Vị trí caret ở dạng đọc được — để khẳng định "caret KHÔNG nhảy". */
+window.__caret = () => {
+  const sel = window.getSelection()
+  if (sel === null || sel.rangeCount === 0) return null
+  const r = sel.getRangeAt(0)
+  const host = (r.startContainer instanceof Element ? r.startContainer : r.startContainer.parentElement)
+    ?.closest(`[${SEGMENT_ID_ATTR}]`)
+  return {
+    segmentId: host === null || host === undefined ? null : Number(host.getAttribute(SEGMENT_ID_ATTR)),
+    offset: r.startOffset,
+    collapsed: r.collapsed,
+  }
+}
+/** Chuỗi mà một lượt `⌘C` sẽ serialize — đây là chỗ `⏐` sẽ rò ra nếu nó rò. */
+window.__selectionText = () => window.getSelection()?.toString() ?? ''
+window.__innerText = () => doc.innerText
+/** Đo hình học một câu — dùng cho vế "vạch lề vẫn đo được sau khi lắp `contenteditable`". */
+window.__rules = () => measureGutterRules(gutter, doc, new Set(FIXTURE.map((s) => s.id)))
+
+/**
+ * ③ Câu CHƯA DỊCH có đẩy chữ phía sau sang phải không — Ice bắt bằng mắt 2026-08-13.
+ *
+ * `opacity: 0` **không gỡ chỗ**, nên `⏐` của mỗi câu rỗng vẫn chiếm bề rộng. Đo trước bản vá:
+ * **9,05 px mỗi câu**, tức **433,9 px** cho 40 câu chưa dịch liên tiếp — hơn nửa bề rộng panel,
+ * và nó **co lại dần** khi người dùng dịch xong từng câu, tức bố cục nhảy trong lúc làm việc.
+ *
+ * Hàm này dựng hai dòng văn tạm ngoài màn hình rồi so mép trái của câu cuối. Sau bản vá
+ * `.sent:empty::after { content: none }` nó phải trả **0,00**.
+ */
+window.__emptyDrift = () => {
+  const make = (blanks) => {
+    const d = document.createElement('div')
+    d.className = 'doc tok-editor'
+    d.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px'
+    d.innerHTML =
+      '<span class="sent">Câu một.</span>' +
+      '<span class="sent"></span>'.repeat(blanks) +
+      '<span class="sent">Câu hai.</span>'
+    document.body.append(d)
+    const spans = d.querySelectorAll('.sent')
+    const left = spans[spans.length - 1].getBoundingClientRect().left
+    d.remove()
+    return left
+  }
+  const a = make(0)
+  const b = make(4)
+  return { khong: a, bon: b, dayMoiCau: (b - a) / 4 }
+}
+
+window.__benchReport = () => {
+  const drift = window.__emptyDrift()
+  const lines = []
+  lines.push(`Engine : ${navigator.userAgent}`)
+  lines.push(`Theme  : ${document.documentElement.dataset.theme}`)
+  lines.push(`Số câu : ${window.__idCount()} — id [${window.__ids().join(' ')}]`)
+  lines.push(`Lắp/tháo: ${counters.mounted}/${counters.unmounted} · Enter chặn: ${counters.enterBlocked}`)
+  // ⚠️ In HIỆU, không in hai toạ độ tuyệt đối: khung đo nằm ở `left: -9999px` nên hai số đó là
+  // số âm bốn chữ số — đúng, nhưng một người đọc bảng sẽ ngờ chính phép đo. Thứ có nghĩa là hiệu.
+  lines.push(
+    `Câu chưa dịch đẩy chữ: ${drift.dayMoiCau.toFixed(2)} px/câu ` +
+      `(hiệu trên 4 câu rỗng: ${(drift.bon - drift.khong).toFixed(1)}px) — phải là 0,00`,
+  )
+  return lines.join('\n')
+}
+report.textContent = window.__benchReport()
+</script>
+</body>
+</html>

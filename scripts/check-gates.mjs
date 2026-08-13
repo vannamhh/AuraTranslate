@@ -1,13 +1,16 @@
 /**
  * Cổng thứ MƯỜI MỘT — BA danh sách cổng phải khai cùng một bộ.
  *
- * Năm phép kiểm:
+ * Sáu phép kiểm:
  *
  *   A  mọi script `check:*` trong `package.json` được `ci.yml` GỌI.
  *   B  mọi `npm run <x>` trong `ci.yml` tồn tại trong `package.json`.
- *   C  TỰ KIỂM — chứng minh A, B và bộ đọc pre-push đỏ được, và không đỏ oan.
+ *   C  TỰ KIỂM — chứng minh A, B, F và bộ đọc pre-push đỏ được, và không đỏ oan.
  *   D  mọi script `check:*` trong `package.json` được `.githooks/pre-push` CHẠY.
  *   E  mọi cổng `.githooks/pre-push` chạy tồn tại trong `package.json`.
+ *   F  cổng KHÔNG mang tiền tố `check:` (hôm nay: `test`) có mặt ở **cả ba** danh sách.
+ *      Thêm 2026-08-12, Story 2.3 — xem [`REQUIRED_SCRIPTS`]: A và D chỉ duyệt `check:*`,
+ *      nên một cổng đặt tên khác đi là một cổng **vô hình** với cả năm phép kiểm kia.
  *
  * ═════════════════════════════════════════════════════════════════════════════════
  * VÌ SAO CỔNG NÀY TỒN TẠI — một phép đo, không một lo xa
@@ -99,6 +102,33 @@ const PREPUSH_EXEMPT = new Map(
   ]),
 )
 
+/**
+ * 🔴 Cổng KHÔNG mang tiền tố `check:` mà **vẫn phải có ở cả ba danh sách** — Kiểm F.
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * VÌ SAO KIỂM F TỒN TẠI — một lỗ hổng ĐO ĐƯỢC của bốn phép kiểm trên
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * Kiểm A và Kiểm D duyệt `checkScripts`, tức **chỉ** những script tên `check:*`. Story 2.3
+ * thêm `npm run test` (`vitest run`) — một cổng cưỡng chế thật, chạy ở cả ba danh sách — và
+ * **không một phép kiểm nào trong tệp này biết về nó**: nó có thể bị xoá khỏi `ci.yml` mà cả
+ * năm phép kiểm vẫn xanh.
+ *
+ * Đó **đúng** lớp hỏng-im-lặng mà cả tệp này ra đời để chặn: `check:lint` đã sống ba mươi
+ * tiếng trong `package.json` mà `ci.yml` không gọi. Đặt tên một cổng khác đi không được phép
+ * làm nó vô hình.
+ *
+ * ⚠️ Mỗi mục PHẢI kèm một lý do đọc được tại chỗ, cùng khuôn hai bảng miễn trừ ở trên.
+ */
+const REQUIRED_SCRIPTS = new Map(
+  /** @type {[string, string][]} */ ([
+    [
+      'test',
+      'bộ chạy test frontend (`vitest`) — Story 2.3, sau lượt lật NFR15 do Ice ký 2026-08-12. ' +
+        'Bốn tệp test là đường nghiệm thu DUY NHẤT của AC11/AC18/AC7 (AC25: một mệnh đề, một đường)',
+    ],
+  ]),
+)
+
 // ═════════════════════════════════════════════════════════════════════════════════
 let pkg
 try {
@@ -136,6 +166,28 @@ const npmRunNames = (text) => {
   for (const m of text.matchAll(/npm run ([A-Za-z0-9:._-]+)/g)) found.add(m[1])
   return found
 }
+
+/**
+ * Một tệp shell có chạy `npm run <name>` không — bộ so DUY NHẤT của Kiểm F.
+ *
+ * 🔴 `(?!:)` là vế bắt được bằng chính ca tự kiểm của Kiểm C, không phải một lượt phòng xa:
+ * `\b` sau `test` là một ranh giới từ **kể cả khi ký tự kế tiếp là `:`**, nên một biểu thức
+ * trần `npm run test\b` **khớp** `npm run test:e2e`. Kho có đúng một cặp như vậy (`test` và
+ * `test:e2e`), và nếu bộ so nhận nhầm thì một `pre-push` chỉ chạy bộ e2e sẽ được đọc thành
+ * *"đã chạy test frontend"* — một cổng xanh cho một thứ chưa hề chạy.
+ *
+ * 🔴 **Vì sao `(?![\w:-])` chứ không `\b(?!:)`** — code review 2026-08-13. Bản cũ chỉ loại được
+ * hậu tố `:`, nên `npm run test-something` **vẫn khớp**: `\b` đứng được giữa `t` và `-`, và ký
+ * tự sau không phải `:` nên phủ định nhìn thấy một dấu gạch ngang rồi cho qua. Dấu gạch ngang
+ * là ký tự **hợp lệ** trong tên npm script, nên đó là một cửa đọc nhầm còn mở trong đúng cái
+ * cổng tự nhận là *"không đỏ oan"*. Lớp ký tự chặn cả ba đường một lượt: chữ, `:`, và `-`.
+ *
+ * ⚠️ Dạng viết tắt `npm test` **KHÔNG** được tính, có chủ ý: một bộ đọc nhận cả hai dạng phải
+ * chép lại bảng ánh xạ đặc biệt của npm (`npm test` → script `test`, `npm start` → `start`), và
+ * đó là một nguồn sự thật thứ hai cho một thứ npm sở hữu. Ba danh sách viết `npm run test`.
+ */
+const runsScript = (text, name) =>
+  new RegExp(String.raw`npm run (?:--silent )?${name}(?![\w:-])`).test(text)
 
 const called = npmRunNames(ciText)
 
@@ -222,6 +274,40 @@ console.log('')
   }
 }
 
+// ── Kiểm F — cổng KHÔNG mang tiền tố `check:` cũng phải ở cả ba danh sách ─────────
+{
+  let fBad = 0
+  for (const [name, why] of REQUIRED_SCRIPTS) {
+    if (!(name in scripts)) {
+      fail(`Kiểm F — \`${name}\` KHÔNG có trong package.json`)
+      detail(why)
+      fBad += 1
+      // Không có script thì hai phép kiểm dưới vô nghĩa — đừng in ba dòng cho một nguyên nhân.
+      continue
+    }
+    // ⚠️ Đối chiếu qua `npmRunNames`, tức chỉ nhận dạng `npm run <tên>`. Dạng viết tắt
+    // `npm test` KHÔNG được tính, và đó là có chủ ý: một bộ đọc nhận cả hai dạng phải hiểu
+    // rằng `npm test` chạy script `test` còn `npm start` chạy `start` — một bảng ánh xạ đặc
+    // biệt của npm mà cổng này không có việc gì phải chép lại. Ba danh sách viết `npm run test`.
+    if (!called.has(name)) {
+      fail(`Kiểm F — \`npm run ${name}\` sống trong package.json mà ci.yml KHÔNG gọi`)
+      detail(why)
+      detail('Một cổng chỉ chạy trên máy dev là một cổng dựa vào trí nhớ (AC3, Story 1.3).')
+      fBad += 1
+    }
+    if (!runsScript(prepushText, name)) {
+      fail(`Kiểm F — \`npm run ${name}\` KHÔNG được \`.githooks/pre-push\` chạy`)
+      detail(why)
+      detail('Danh sách thứ BA — correct-course 2026-08-11 tìm ra rằng không ai canh nó.')
+      fBad += 1
+    }
+  }
+  if (fBad === 0) {
+    pass(`Kiểm F — ${REQUIRED_SCRIPTS.size} cổng ngoài họ \`check:*\` có mặt ở cả ba danh sách`)
+    for (const [name, why] of REQUIRED_SCRIPTS) detail(`${name} — ${why}`)
+  }
+}
+
 // ── Kiểm C — TỰ KIỂM ─────────────────────────────────────────────────────────────
 {
   const CASES = [
@@ -269,7 +355,50 @@ console.log('')
     },
   ]
 
+  /**
+   * Ca cho **Kiểm F** — chứng minh nó đỏ được ở cả hai chiều, và không đỏ oan.
+   *
+   * ⚠️ Ca thứ ba là ca đắt nhất: nó khoá mệnh đề *"dạng viết tắt `npm test` KHÔNG được tính"*.
+   * Nếu bộ đọc nhận nó, một `ci.yml` viết `npm test` sẽ đi qua Kiểm B *(không có script tên
+   * `test` được gọi qua `npm run`)* nhưng vẫn xanh ở Kiểm F — tức hai phép kiểm nói hai điều
+   * khác nhau về cùng một dòng.
+   */
+  const REQUIRED_CASES = [
+    { why: 'pre-push chạy `npm run --silent test` ⇒ nhận', hook: 'npm run --silent test', expect: true },
+    { why: 'pre-push chạy `npm run test` ⇒ nhận', hook: 'npm run test', expect: true },
+    { why: 'pre-push chỉ có `npm test` (viết tắt) ⇒ KHÔNG nhận', hook: 'npm test', expect: false },
+    { why: 'pre-push không có gì ⇒ KHÔNG nhận', hook: 'echo hi', expect: false },
+    {
+      why: '`test:e2e` KHÔNG được đọc thành `test` (ranh giới `\\b`)',
+      hook: 'npm run test:e2e',
+      expect: false,
+    },
+    {
+      // 🔴 Ca của code review 2026-08-13. `\b(?!:)` cũ CHO QUA ca này — dấu gạch ngang là
+      // ký tự hợp lệ trong tên npm script, nên đây không phải một ca giả tưởng.
+      why: 'hậu tố GẠCH NGANG cũng không được đọc thành `test`',
+      hook: 'npm run test-frontend',
+      expect: false,
+    },
+    {
+      why: 'tiền tố dài hơn không được đọc thành `test` (`pretest`)',
+      hook: 'npm run pretest',
+      expect: false,
+    },
+  ]
+
   let wrong = 0
+  for (const c of REQUIRED_CASES) {
+    // ⚠️ Gọi CHÍNH bộ so mà Kiểm F dùng — không một bản chép. Hai biểu thức cho cùng một
+    // mệnh đề sẽ rẽ nhau ở lượt sửa thứ hai, và lúc đó ca tự kiểm này xanh cho một bộ so
+    // khác với bộ so đang chạy thật.
+    const got = runsScript(c.hook, 'test')
+    if (got !== c.expect) {
+      wrong += 1
+      fail(`Kiểm C — ca "${c.why}" cho ${got}, mong đợi ${c.expect}`)
+    }
+  }
+
   for (const c of CASES) {
     const seen = npmRunNames(c.ci)
     const aRed = c.names.some((n) => !seen.has(n))
@@ -289,7 +418,9 @@ console.log('')
     }
   }
   if (wrong === 0) {
-    pass(`Kiểm C — ${CASES.length + HOOK_CASES.length} ca tự kiểm đúng chiều`)
+    pass(
+      `Kiểm C — ${CASES.length + HOOK_CASES.length + REQUIRED_CASES.length} ca tự kiểm đúng chiều`,
+    )
   }
 }
 

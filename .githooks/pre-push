@@ -14,8 +14,8 @@
 #
 # ── Phạm vi: cái gì Ở TRONG và vì sao ────────────────────────────────────────────
 #
-# TRONG (50 giây ấm, đo 2026-08-11: cổng 11s · build 5s · cargo test 34s):
-#   chín cổng đọc-tệp · `npm run build` · `cargo test --locked`
+# TRONG (đo 2026-08-11: cổng 11s · build 5s · cargo test 34s; + test frontend ~2s từ 2026-08-12):
+#   chín cổng đọc-tệp · `npm run test` (vitest) · `npm run build` · `cargo test --locked`
 #
 # NGOÀI, có chủ ý:
 #   - `check:scope` và `check:scope:bundled` — hai cổng này dựng một cửa sổ Tauri thật
@@ -57,7 +57,7 @@ fail() {
 
 START=$(date +%s)
 echo ''
-echo 'pre-push — chín cổng, build, cargo test.'
+echo 'pre-push — chín cổng, test frontend, build, cargo test.'
 
 for gate in deps tokens i18n commands layout dict dict-manifest lint gates; do
   printf '  %-14s' "$gate"
@@ -68,6 +68,12 @@ for gate in deps tokens i18n commands layout dict dict-manifest lint gates; do
     fail "check:$gate" "npm run check:$gate"
   fi
 done
+
+# Bộ chạy test frontend — Story 2.3. Ngay sau chín cổng, TRƯỚC build: nó không cần `dist/`,
+# và một mệnh đề mili-giây phải đỏ trước một lượt biên dịch. `check:gates` Kiểm F canh việc
+# dòng này có mặt ở cả ba danh sách.
+printf '  %-14s' 'test'
+if npm run --silent test >/dev/null 2>&1; then green 'OK'; else echo ''; fail 'npm run test' 'npm run test'; fi
 
 printf '  %-14s' 'build'
 if npm run build >/dev/null 2>&1; then green 'OK'; else echo ''; fail 'npm run build' 'npm run build'; fi

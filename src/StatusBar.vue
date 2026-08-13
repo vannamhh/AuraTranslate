@@ -1,0 +1,139 @@
+<script setup lang="ts">
+// Thanh trạng thái — Story 2.3 · AC7 · AC9 · AC10 · UX-DR30 · `EXPERIENCE.md:127`.
+//
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 ĐÂY LÀ LƯỢT ĐẦU TIÊN THANH TRẠNG THÁI TỒN TẠI TRONG ỨNG DỤNG
+// ═════════════════════════════════════════════════════════════════════════════════
+// Đo 2026-08-12 lúc dựng story: `App.vue` có `header.titlebar` · `div.modeport` ·
+// `pre.selftest` · dải báo lỗi cấu hình, và **không một phần tử nào** là thanh trạng thái.
+// Token thì đã có từ Story 1.4 (`spacing.status-height`), phần tử thì chưa.
+//
+// **Chỗ ở — `App.vue::main.shell`, dưới `.modeport`** (Quyết định #5, đường (a)). Nó là **vỏ
+// ứng dụng**, không nội thất một chế độ: `EXPERIENCE.md:417` đã dùng nó để tính chiều cao
+// vùng làm việc cho **cả ba** chế độ, và UX-DR15 hứa Panel Lookup *"rút về thanh trạng thái"*
+// ở màn hình hẹp (Story 4.12) — một thanh chỉ sống trong `WorkspaceMode.vue` sẽ phải chuyển
+// chỗ lần nữa ở đó.
+//
+// ⚠️ Story này dựng **cái vỏ + ĐÚNG MỘT thông điệp**. **Không** dựng khung mở rộng cho các
+// thông điệp tương lai — chưa story nào đặt hàng chúng, và một khung cho nhu cầu chưa tồn tại
+// là một khung sẽ sai.
+//
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 UX-DR30 — CẤM DẤU CHẤM *"CHƯA LƯU"*, CẤM HỘP THOẠI, VÀ CẤM CẢ BIẾN THỂ ĐỘI LỐT
+// ═════════════════════════════════════════════════════════════════════════════════
+// AC7 nguyên văn: *"thanh trạng thái ghi «Đã lưu N giây trước» · và không có hộp thoại và
+// không có dấu chấm «chưa lưu»"*. `EXPERIENCE.md:127` nói cùng một điều.
+//
+// ⚠️ Và một câu *"đang lưu…"* nhấp nháy mỗi 2 giây là **cùng một tiếng ồn dưới một cái tên
+// khác** — nên tệp này không có nó. Trạng thái *"đang bay"* của một lô flush **không** hiện ra:
+// hợp đồng với người dùng là *"bạn không phải bận tâm về việc lưu"*, và một chỉ báo nhấp nháy
+// là đúng thứ bắt họ bận tâm.
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { t } from './i18n'
+import { editorLastSavedAt } from './panels/editorPanelState'
+
+/**
+ * Đồng hồ của thanh này — **một `setInterval` 1 giây DUY NHẤT**, và nó chỉ chạy khi có gì để đếm.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Vì sao một bộ đếm chứ không *"chỉ cập nhật khi có flush"* — Quyết định #5
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Cập nhật-khi-có-flush làm câu đứng yên ở *"Đã lưu 0 giây trước"* trong suốt 5 giây giữa hai
+ * lượt flush — tức nó **nói dối theo hướng an tâm**, đúng thứ UX-DR30 tồn tại để tránh.
+ *
+ * Cái giá đã cân bằng số: một lượt gán `ref` mỗi giây chạm **một** text node — khác hẳn hạng
+ * với lượt `v-for` trên 9.850 `<span>` mà `deferred-work.md:2143-2152` đã ghi cho Panel Editor.
+ */
+const now = ref(Date.now())
+let ticker: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  ticker = setInterval(() => {
+    // ⚠️ Chỉ đánh nhịp khi ĐÃ có một lượt flush. Trước đó thanh không hiển thị gì, nên một
+    // lượt gán mỗi giây là một lượt render không ai đọc.
+    if (editorLastSavedAt.value !== null) now.value = Date.now()
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  // 🔴 Phải nhả. Một `setInterval` sống sót lượt tháo là một lượt gán `ref` mỗi giây vào một
+  // component không ai còn render — cùng luật `EditorPanel.vue::onBeforeUnmount` đã giữ cho
+  // `ResizeObserver` và bộ hẹn đo vạch.
+  if (ticker !== null) clearInterval(ticker)
+  ticker = null
+})
+
+/**
+ * *"N giây trước"* — **tính và định dạng ở frontend**, Rust không trả về một chữ nào (AC10).
+ *
+ * AD-21 (`ARCHITECTURE-SPINE.md:302-306`): Rust không bao giờ trả văn bản hiển thị.
+ * §Consistency Conventions: **định dạng số và ngày giờ chỉ ở frontend**, và `params` của
+ * `IpcError` là `chuỗi → chuỗi`. ⇒ mốc flush cuối là một `number` trong state TS
+ * (`editorLastSavedAt`), `N` là một phép trừ ở đây, và câu là một khoá `vi.json` có placeholder.
+ * 🔴 **Cấm** một command IPC trả `"Đã lưu 3 giây trước"`.
+ *
+ * ⚠️ `Math.max(0, …)`: `Date.now()` **không đơn điệu tăng** — một lượt đồng bộ NTP hay người
+ * dùng đổi giờ hệ thống lùi lại cho ra một hiệu **âm**, và *"Đã lưu −4 giây trước"* là một câu
+ * không ai đọc được. Kẹp ở 0 nói đúng thứ duy nhất còn đúng: *vừa mới xong*.
+ */
+const secondsSinceSave = computed<number | null>(() => {
+  const at = editorLastSavedAt.value
+  if (at === null) return null
+  return Math.max(0, Math.floor((now.value - at) / 1000))
+})
+</script>
+
+<template>
+  <!--
+    `role="status"` chứ không `role="alert"`: `alert` cắt ngang trình đọc màn hình giữa câu, và
+    đây là một thông báo về **trạng thái** — cùng phân xử mà dải báo lỗi cấu hình của Story 1.8
+    đã ghi ở `App.vue`.
+
+    ⚠️ `aria-live` để mặc định của `role="status"` (`polite`). Một mốc *"Đã lưu N giây trước"*
+    đổi **mỗi giây**, nên `assertive` sẽ là một trình đọc màn hình nói liên tục không dứt.
+  -->
+  <footer class="status" role="status">
+    <!--
+      aura-allow-text: KẾT QUẢ của `t()` — chuỗi đã đi qua `vi.json`. `v-if` chứ không một chuỗi
+      rỗng: trước lượt flush ĐẦU TIÊN thanh này **không khẳng định gì**, vì *"Đã lưu 0 giây
+      trước"* lúc chưa lưu gì là câu nói dối tệ nhất mà UX-DR30 tồn tại để chặn.
+    -->
+    <span v-if="secondsSinceSave !== null" class="saved">{{
+      t('status.saved_seconds_ago', { seconds: String(secondsSinceSave) })
+    }}</span>
+  </footer>
+</template>
+
+<style scoped>
+/*
+ * AC9 — ba luật đã có, cả ba tuân qua token:
+ *   (a) chiều cao đọc `var(--space-status-height)` — **34px**, KHÔNG `32px` của mockup
+ *       (`key-screen-workspace.html:73`) và không `32px` của `DESIGN.md:132`. 34px là số trong
+ *       bảng token và trong `tokens.json:480`, và `EXPERIENCE.md:312` phân xử rằng tài liệu
+ *       thắng bản dựng. Lệch giữa hai chỗ ghi trong `DESIGN.md` đã ghi vào `deferred-work.md`
+ *       với **chủ là Ice** — Dev KHÔNG sửa `DESIGN.md`.
+ *   (b) typography `ui-sm` — vai *"Nhãn phụ — một dòng"* của `tokens.json:442`, đúng vai một
+ *       thanh trạng thái. Qua token, không một con số viết thẳng ⇒ Kiểm B/B2 của `check-tokens`.
+ *   (c) mọi text node đi qua `t()` ⇒ Kiểm A2 của `check-i18n`.
+ *
+ * ⚠️ `flex: none` là bắt buộc, không làm đẹp: `.shell` là một flex container dọc cao đúng
+ * `100vh` và `.modeport` là `flex: 1`. Không có nó, thanh này chạy ở `flex: 0 1 auto` và bị co
+ * lại khi vùng làm việc đòi chỗ — cùng bài học mà `.config-error` và `.selftest` đã ghi.
+ */
+.status {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: var(--space-status-height);
+  padding: 0 var(--space-panel-inline);
+  border-top: 1px solid var(--color-outline);
+  background: var(--color-surface);
+}
+
+.saved {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+</style>

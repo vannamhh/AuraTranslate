@@ -216,7 +216,7 @@ const VUE_FLOOR = 13 // số THẬT 2026-08-11 (sau Story 1.21): 15 tệp `.vue`
 // 🔴 NÂNG 2026-08-12 (Story 2.2 · AC16) — số thật lên **35** (thêm `editorSegments.ts`,
 // `editorGutter.ts`, `editorPanelState.ts`), nên sàn 27 tụt xuống 77,1%, dưới dải ~81–85%
 // mà chính doc-comment ở trên đặt ra. Đo chứ không ước.
-const TS_FLOOR = 28 // số THẬT 2026-08-12 (sau Story 2.2): 35 tệp `.ts` — 28/35 = 80,0%
+const TS_FLOOR = 30 // số THẬT 2026-08-12 (sau Story 2.3): 36 tệp `.ts` — 30/36 = 83,3%
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
  * hai `layout.preset_*` · bốn `layout.toggle_*` · hai `library.import_*` · ba
@@ -1139,6 +1139,76 @@ let dBad = 0
     mac.handle(ev({ metaKey: true, target: typing }).event),
     true,
   )
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔴 STORY 2.3 · AC21 — NHÁNH `isContentEditable` CHƯA TỪNG ĐƯỢC LÁI TỚI TRƯỚC ĐÂY
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //
+  // Ba ca trên lái vùng gõ bằng `{ tagName: 'TEXTAREA' }`, tức **nhánh thứ hai** của
+  // `isTypingZone`. Nhánh **thứ nhất** — `el.isContentEditable === true` — có mặt trong mã từ
+  // Story 1.6 mà **không một phép kiểm nào đi qua**, vì tới hết Story 2.2 kho không có một
+  // `contenteditable` nào: Kiểm J cấm nó bằng máy, và không `<div contenteditable>` nào tồn tại
+  // ở đâu khác.
+  //
+  // Story 2.3 làm nó thành thật: vùng gõ Editor là một `<span class="sent" contenteditable="true">`
+  // — **một `<span>`**, nên nhánh `tagName` KHÔNG cứu được nó. Nếu nhánh thứ nhất hỏng, gõ chữ
+  // `b` trong một bản dịch sẽ **bật chế độ song ngữ** (UX-DR46), và gõ `1` sẽ đổi chế độ.
+  //
+  // ⚠️ Hình dạng dưới đây là hình dạng THẬT, không một object tiện tay: `tagName: 'SPAN'` cộng
+  // `isContentEditable: true` là đúng thứ `event.target` mang khi caret ở trong vùng gõ.
+  //
+  // 🔴 Và đây là chỗ luật *"đọc HÌNH DẠNG, không `instanceof HTMLElement`"* của `keys.ts` trả
+  // công: nhánh này lái được bằng một object giả, nên nó có **lưới** thay vì chỉ có lời hứa.
+  const editorZone = { tagName: 'SPAN', isContentEditable: true }
+  check(
+    'hợp âm TRẦN (`B`) KHÔNG khớp trong vùng gõ `contenteditable` của Editor (AC21)',
+    mac.handle(ev({ code: 'KeyB', target: editorZone }).event),
+    false,
+  )
+  check(
+    'hợp âm CÓ bổ trợ (`Mod+1`) VẪN khớp trong vùng gõ `contenteditable` — NFR17',
+    mac.handle(ev({ metaKey: true, target: editorZone }).event),
+    true,
+  )
+  // Đối chứng ÂM: một `<span>` KHÔNG gõ được thì hợp âm trần phải khớp bình thường. Không có ca
+  // này, một `isTypingZone` luôn trả `true` vẫn đi qua hai ca trên.
+  check(
+    'hợp âm TRẦN (`B`) VẪN khớp trên một `<span>` KHÔNG gõ được',
+    mac.handle(ev({ code: 'KeyB', target: { tagName: 'SPAN', isContentEditable: false } }).event),
+    true,
+  )
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔴 STORY 2.3 · AC23 — LUẬT VÙNG GÕ NHƯỜNG ĐƯỜNG, NÓ KHÔNG *CHẶN* ĐƯỜNG
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //
+  // Đây là mệnh đề mà **cả AC23 đứng trên**, và nó là một hệ quả của **thứ tự hai dòng** trong
+  // `keys.ts::handle`: phép kiểm vùng gõ `return false` **TRƯỚC** `event.preventDefault()`.
+  //
+  // Vì sao nó quyết định AC23: bốn command `selection.extend_*` dùng `Shift+Mũi tên`, và `Shift`
+  // **không** phải phím bổ trợ chính ⇒ chúng thôi dispatch trong vùng gõ Editor. Nếu luật vùng
+  // gõ cũng `preventDefault()`, hành vi **native** của `contenteditable` *(mở rộng vùng chọn)*
+  // sẽ bị ăn theo — và lúc đó bôi đen bằng bàn phím trong Editor **chết hoàn toàn**: không
+  // command, cũng không native. Vì nó KHÔNG `preventDefault`, engine tự mở rộng vùng chọn, rồi
+  // lượt `keyup` của `Shift` mà `selectionContract.ts::attachSelectionWatcher` đang nghe vẫn
+  // phát `lookup.lookup_selection` như thường.
+  //
+  // ⇒ Auto-Lookup **CÒN CHẠY** trên bề mặt Editor sau khi nó thành vùng gõ. Vế DOM của mệnh đề
+  // đó đo ở `tests/frontend/editorAutoLookup.test.ts`; vế **này** — *"không nuốt sự kiện"* — là
+  // một mệnh đề về `keys.ts`, nên nó ở đây, cùng chỗ với luật nó nói về (AC25).
+  {
+    const probe = ev({ code: 'KeyB', target: editorZone })
+    check('hợp âm TRẦN trong vùng gõ: KHÔNG khớp', mac.handle(probe.event), false)
+    check(
+      'hợp âm TRẦN trong vùng gõ: KHÔNG `preventDefault` — native `contenteditable` phải chạy tiếp',
+      probe.prevented(),
+      0,
+    )
+    // Đối chứng: khi hợp âm THẬT SỰ khớp thì nó PHẢI nuốt sự kiện.
+    const swallowed = ev({ metaKey: true })
+    check('hợp âm khớp: VẪN `preventDefault` đúng một lần', mac.handle(swallowed.event), true)
+    check('hợp âm khớp: đếm `preventDefault` = 1', swallowed.prevented(), 1)
+  }
 
   // 🔴 GIỮ PHÍM — và phép kiểm này đo THAO TÁC, không đo giá trị trả về.
   //
@@ -2065,72 +2135,32 @@ if (iBad === 0) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-console.log('\nKiểm J — bề mặt Editor CHƯA GÕ ĐƯỢC ở lượt này (Story 2.2, AC18)')
+// 🔴 KIỂM J ĐÃ ĐƯỢC GỠ — Story 2.3, và nó được gỡ ĐÚNG LÚC, không sớm hơn.
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// 🔴 Đây là một mệnh đề nghiệm thu, không một lời khuyên về phạm vi. Ice chốt Quyết định #1
-// của Story 2.2 ngày 2026-08-12, đường **(b)**: `target_text` + bước di trú 6, bề mặt
-// **chỉ-đọc**; gõ hạ cánh ở **Story 2.3**, cùng lượt với hợp đồng flush của AD-35.
+// Kiểm J tồn tại từ Story 2.2 tới Story 2.3 và nó khẳng định `EditorPanel.vue` KHÔNG mang
+// năm thứ: `contenteditable` · `<textarea>` · `<input>` · `v-model` ·
+// `@input`/`@beforeinput`/`@paste`/`@cut`. Lý do nó tồn tại: Ice chốt Quyết định #1 của
+// Story 2.2 đường **(b)** — bề mặt CHỈ-ĐỌC — và một bề mặt gõ được mà **chưa có đường lưu**
+// là một cửa sổ người dùng gõ rồi mất trắng khi đóng app, không một dấu hiệu nào (NFR18).
 //
-// Lý do cưỡng chế bằng máy chứ không bằng trí nhớ: một bề mặt gõ được mà chưa có đường lưu
-// tạo ra một cửa sổ mà người dùng gõ rồi **mất trắng khi đóng app**, không một dấu hiệu nào
-// — đúng lớp khuyết tật mà cả Epic 2 tồn tại để chống (NFR18). Và một `contenteditable`
-// thêm vào "cho tiện thử" không làm cổng nào khác đỏ.
+// `deferred-work.md` ghi hạn của nó bằng chữ: *"cổng này hết hạn ở Story 2.3, và nó phải
+// được gỡ ĐÚNG LÚC — không sớm hơn. Gỡ sớm là mở lại đúng cửa sổ mất dữ liệu im lặng mà cổng
+// tồn tại để đóng."*
 //
-// ⚠️ Cổng này **hết hạn ở Story 2.3**, và đó không phải một lời nhắc mềm: story đó phải gỡ
-// nó **cùng lượt** với hợp đồng flush, không sớm hơn.
-
-/**
- * 🔴 Đọc bản **ĐÃ CHE** (`masked`), không nguyên văn — chú thích và chuỗi bị xoá trắng.
- *
- * Đo lúc dựng cổng 2026-08-12: bản đầu quét `p.text` và **đỏ ngay** trên chính tệp nó canh,
- * vì doc-comment của `EditorPanel.vue` gọi tên đủ bốn thứ bị cấm để giải thích vì sao chúng
- * bị cấm. Một cổng buộc người ta không được **viết ra** lệnh cấm là một cổng sắp bị gỡ.
- *
- * ⚠️ Cái giá, ghi ra: một `contenteditable` nằm trong một **chuỗi** JavaScript
- * (`el.setAttribute('contenteditable', 'true')`) đi lọt. Ca đó cần một lượt phân tích cú
- * pháp thật, và nó nằm ngoài thứ cổng này đang canh — thứ nó canh là một thuộc tính hay một
- * thẻ được thêm vào template, tức đường mà một lượt "thử cho tiện" thật sự đi qua.
- */
-const editorSource = editorVue?.masked ?? ''
-let jBad = 0
-
-/** Mỗi mục: [regex, tên thứ bị cấm]. */
-const TYPING_BANS = [
-  [/\bcontenteditable\b/i, '`contenteditable`'],
-  [/<\s*textarea\b/i, '`<textarea>`'],
-  [/<\s*input\b/i, '`<input>`'],
-  [/\bv-model\b/, '`v-model`'],
-  [/@(?:input|beforeinput|paste|cut)\b/, 'handler sửa văn bản (`@input`/`@beforeinput`/`@paste`/`@cut`)'],
-]
-
-if (editorVue === undefined) {
-  fail(`\`${posix(EDITOR_PANEL_VUE)}\` không đọc được — Kiểm J KHÔNG chạy được`)
-  jBad += 1
-} else {
-  for (const [re, what] of TYPING_BANS) {
-    if (re.test(editorSource)) {
-      fail(`\`${posix(EDITOR_PANEL_VUE)}\` mang ${what} — bề mặt Editor CHƯA được phép gõ (AC18)`)
-      detail('Ice chốt Quyết định #1 đường (b) ngày 2026-08-12: gõ là Story 2.3, cùng lượt với AD-35.')
-      detail('Một bề mặt gõ được mà chưa có đường lưu là một cửa sổ MẤT DỮ LIỆU IM LẶNG (NFR18).')
-      jBad += 1
-    }
-  }
-
-  // 🔴 SÀN NỘI DUNG — cùng lý lẽ `CLICK_FLOOR`: năm phép cấm trên một tệp rỗng (hoặc một
-  //    tệp đã bị đổi tên) đều xanh, và cổng thành một lượt xanh vô nghĩa.
-  if (!editorSource.includes('data-segment-id')) {
-    fail(`\`${posix(EDITOR_PANEL_VUE)}\` không còn dựng câu nào (\`data-segment-id\`) — Kiểm J xanh RỖNG`)
-    jBad += 1
-  }
-}
-
-if (jBad === 0) {
-  pass(
-    'bề mặt Editor không `contenteditable` · không `<textarea>`/`<input>` · không `v-model` · ' +
-      'không handler sửa văn bản (AC18)',
-  )
-}
+// ⚠️ **Thứ tự làm việc đã giữ, và đây là bằng chứng chứ không một lời khai:** đường flush của
+// AD-35 nghiệm thu XANH ở `src-tauri/tests/segment_contract.rs` — TÁM ca mới, gồm lượt
+// round-trip *gõ → flush → nạp lại* và ca *lô mang một id lạ bị từ chối TRỌN* — **trước** khi
+// dòng `contenteditable` đầu tiên chạm `EditorPanel.vue`.
+//
+// 🔴 Gỡ **CẢ KHỐI**: bảng `TYPING_BANS`, sàn nội dung `data-segment-id`, và tiêu đề in ra. Một
+// cổng xanh RỖNG — năm phép cấm không còn gì để cấm — là một dòng OK dạy người đọc rằng có
+// một lưới ở đây, trong khi không còn lưới nào. Sàn nội dung `data-segment-id` KHÔNG mồ côi:
+// Kiểm I ngay trên vẫn đọc `editorVue.masked` và vẫn đối chiếu năm giá trị vạch hai chiều, nên
+// một `EditorPanel.vue` bị đổi tên hay bị làm rỗng vẫn làm cổng này đỏ.
+//
+// ⚠️ `@keydown` **chưa từng** nằm trong danh sách cấm (làm rõ ở code review 2026-08-12), nên
+// story 2.3 không phải "mở khoá" nó.
 
 // ═════════════════════════════════════════════════════════════════════════════════
 console.log('')

@@ -87,10 +87,35 @@ export type ReadChapterSegmentsResult = {
   error: IpcError | null
 }
 
+/** Một mục của lô ghi bản dịch — **`snake_case`**, đúng `commands::segment::SegmentTargetEdit`. */
+export type SegmentTargetEdit = {
+  /**
+   * 🔴 Khoá theo `segment.id`, **KHÔNG** theo `ord`. Story 2.8 sắp lại `ord` mà giữ nguyên
+   * `id` (AD-3), nên một lô khoá theo `ord` sẽ ghi bản dịch vào câu khác sau lượt sắp lại.
+   */
+  id: number
+  target_text: string
+}
+
+/** Kết quả một lượt flush — **`snake_case`**, đúng `commands::segment::SaveOutcome`. */
+export type SaveOutcome = {
+  chapter_id: number
+  /** Số hàng thật sự được `UPDATE`. **0 là hợp lệ** — một lô rỗng. */
+  saved: number
+}
+
+/** Ba trạng thái, cùng khuôn `SplitChapterResult`. */
+export type SaveSegmentTargetsResult = {
+  outcome: SaveOutcome | null
+  error: IpcError | null
+}
+
 /** Tên command trên dây. Khớp `src-tauri/src/commands/segment.rs` (module `wire`). */
 const CMD_SPLIT_CHAPTER = 'split_chapter_into_segments'
 /** Tên command trên dây — **không tham số nào**, xem doc-comment của hàm thuần phía Rust. */
 const CMD_READ_SEGMENTS = 'read_open_chapter_segments'
+/** Tên command trên dây — đường **flush** của AD-35, Story 2.3. */
+const CMD_SAVE_TARGETS = 'save_segment_targets'
 
 /** Có cầu IPC của Tauri trong window này không — cùng khuôn `./chapter.ts::hasIpcBridge`. */
 function hasIpcBridge(): boolean {
@@ -169,5 +194,50 @@ export async function readOpenChapterSegments(): Promise<ReadChapterSegmentsResu
 
     console.info(`[segment] không gọi được \`${CMD_READ_SEGMENTS}\` — chạy ngoài Tauri? ${String(err)}`)
     return { loaded: null, error: null }
+  }
+}
+
+/**
+ * Ghi bản dịch cho **một LÔ** segment của một Chương — đường **flush** của AD-35, Story 2.3.
+ *
+ * Không ném, cùng lý do `readOpenChapterSegments` không ném: chỗ gọi hiển thị lỗi bằng
+ * `tError()`, không bằng `try/catch` ở tầng UI.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 MỘT LƯỢT GỌI CHO CẢ LÔ — KHÔNG một lượt `invoke` mỗi câu (AC13)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Một nhịp flush 2 giây có thể mang **nhiều** segment đã đổi *(gõ xuyên qua ba câu trong 5
+ * giây là chuyện thường)*. N lượt `invoke` cho N **giao dịch** trên writer **duy nhất, nối
+ * tiếp** của AD-11, và `Store::write` phía Rust **chặn** — tức N lượt xếp hàng. Story 2.2 đo
+ * trên đúng đường đó: riêng chi phí **parse** đáng 57–64 ms cho 9.850 hàng.
+ *
+ * ⚠️ Rust **từ chối TRỌN lô** nếu một `id` nào không thuộc `chapterId`
+ * (`segment.unknown_ids`) — không ghi một phần. Chỗ gọi vì thế được phép coi kết quả là
+ * *"tất cả hoặc không gì cả"*, và `editorFlush.onFlushed()` chỉ được gọi khi `outcome`
+ * khác `null`.
+ *
+ * ⚠️ `invoke()` gửi tham số ở dạng **camelCase**: `chapter_id` phía Rust đi trên dây dưới tên
+ * `chapterId`. Đây là chỗ duy nhất trong kho gõ cái tên đó cho lệnh này.
+ */
+export async function saveSegmentTargets(
+  chapterId: number,
+  edits: readonly SegmentTargetEdit[],
+): Promise<SaveSegmentTargetsResult> {
+  try {
+    const outcome = await invoke<SaveOutcome>(CMD_SAVE_TARGETS, { chapterId, edits })
+    return { outcome, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: null, error: err }
+
+    // 🔴 Cùng ba nhánh và cùng lý do với `splitChapterIntoSegments` — xem chú thích ở đó.
+    if (hasIpcBridge()) {
+      console.error(
+        `[segment] \`${CMD_SAVE_TARGETS}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[segment] không gọi được \`${CMD_SAVE_TARGETS}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { outcome: null, error: null }
   }
 }

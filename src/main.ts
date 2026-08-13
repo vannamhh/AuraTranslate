@@ -24,6 +24,8 @@ import { attachKeyboard, dispatch, installCommands } from './commands'
 import type { ModeId } from './commands'
 import { currentMode, setMode } from './modes/modeState'
 import { loadBootstrapConfig, putConfig } from './config/bootstrap'
+// Story 2.3 — AD-35 vế (e): flush bản dịch chưa lưu TRƯỚC khi cửa sổ đóng.
+import { wireExitFlush } from './panels/editorPanelState'
 // ── Story 1.14 — ba cổng của tầng bố cục ────────────────────────────────────────────
 //
 // ⚠️ Import ở ĐÂY, không ở `src/commands/index.ts`: tệp đó phải nạp được bằng Node thuần
@@ -357,6 +359,21 @@ async function boot(): Promise<void> {
   // nạp lại khi Tác phẩm đổi. Bản đầu gọi thêm một lượt trong `resetLookupHistory()`; lượt
   // đó nay là một vòng IPC thừa cho cùng một sự thật.
   void loadPinnedEntries()
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔴 STORY 2.3 — AD-35 vế (e): NỐI ĐƯỜNG FLUSH LÚC THOÁT, **TRƯỚC** `mount()`
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //
+  // Trước `mount()` vì lượt nối này là một `listen()` trên một event của Rust, không một
+  // lượt đọc DOM — nó không cần cây nào tồn tại. Và đặt sau `mount()` mở một khoảng, dù
+  // ngắn, mà `WindowEvent::CloseRequested` chặn lượt đóng rồi **không ai trả lời**: người
+  // dùng bấm tắt ngay khi cửa sổ vừa hiện sẽ phải chờ hết trần 1 200 ms không lý do.
+  //
+  // ⚠️ `void` chứ không `await`: `wireExitFlush()` không bao giờ ném (nó tự nuốt ca *"chạy
+  // ngoài Tauri"*), và chờ nó là chèn một vòng IPC vào giữa đường tới lượt vẽ đầu tiên.
+  // Hàm tháo listener bị bỏ có chủ ý — nó sống trọn tuổi tiến trình, cùng khuôn
+  // `attachKeyboard(window, …)` ngay dưới.
+  void wireExitFlush()
 
   createApp(App).mount('#app')
 

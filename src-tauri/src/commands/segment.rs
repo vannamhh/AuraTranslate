@@ -35,6 +35,7 @@
 //! `src-tauri/**/*.rs`.
 
 use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 
 use crate::commands::project::OpenWork;
 use crate::core::i18n::{IpcError, MessageKey};
@@ -325,9 +326,206 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
     Ok(loaded)
 }
 
+/// Một mục của lô ghi bản dịch — Story 2.3, AC13.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
+/// Trường đi trên dây đúng tên này: `id` · `target_text`.
+///
+/// 🔴 Khoá theo **`segment.id`**, KHÔNG theo `ord`. Story 2.8 sắp lại `ord` mà giữ nguyên
+/// `id` (AD-3), nên một lô khoá theo `ord` sẽ ghi bản dịch vào câu khác sau lượt sắp lại —
+/// im lặng. Cùng luật `commands/segment.rs` đã ghi cho khoá `v-for` ở [`ChapterSegment`].
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct SegmentTargetEdit {
+    pub id: i64,
+    pub target_text: String,
+}
+
+/// Kết quả một lượt flush — thứ đi ra qua dây. Story 2.3, AC13.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SaveOutcome {
+    /// Chương vừa nhận lô.
+    pub chapter_id: i64,
+    /// Số hàng `segment` thật sự được `UPDATE`. **0 là hợp lệ** — một lô rỗng.
+    pub saved: usize,
+}
+
+/// Một `segment.id` trong lô không thuộc Chương được chỉ ⇒ **từ chối trọn lô**.
+fn unknown_segment_ids(chapter_id: i64, count: usize) -> IpcError {
+    IpcError::new(
+        "segment.unknown_ids",
+        MessageKey::SegmentUnknownIds,
+        BTreeMap::from([
+            ("chapter_id".to_owned(), chapter_id.to_string()),
+            ("count".to_owned(), count.to_string()),
+        ]),
+        false,
+    )
+}
+
+/// Ghi bản dịch cho **một LÔ** segment của một Chương — **hàm thuần, đây là thứ test gọi**.
+/// Story 2.3 · FR100 · AD-35 · AC4 · AC12 · AC13 · AC14 · AC16.
+///
+/// # Lỗi
+/// - chưa Tác phẩm nào mở ⇒ `project.no_work_open`;
+/// - `chapter_id` không có trong Tác phẩm đang mở ⇒ `segment.chapter_not_found`;
+/// - một `id` nào trong lô không thuộc Chương đó ⇒ `segment.unknown_ids` (**từ chối trọn lô**);
+/// - đường đọc/ghi trượt ⇒ lỗi kho (`store.*`), qua `From<StoreError>`.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 AD-31 HÀNG 1 — AUTO-SAVE **KHÔNG** ĐỔI TRẠNG THÁI VÀ **KHÔNG** TẠO `SegmentVersion`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `ARCHITECTURE-SPINE.md:376` nói bằng một hàng bảng: *"Auto-save (FR100) | trạng thái
+/// **không đổi** | **không** tạo `SegmentVersion`"*. Hàm này giao mệnh đề đó bằng cách câu
+/// `UPDATE` dưới đây chạm **đúng hai cột** — và mệnh đề đó có lưới ở
+/// `tests/segment_contract.rs` *(bảy cột kia y nguyên từng byte)*.
+///
+/// ⚠️ **Một test *"không có `SegmentVersion` nào"* hôm nay là một test XANH RỖNG**, vì cả hai
+/// thứ đó chưa tồn tại: cột `segment.status` thuộc **Story 2.5**, bảng `segment_version` thuộc
+/// **Story 2.6**. Nên mệnh đề được giao ở đây bằng **doc-comment tại chỗ gọi tên hai story
+/// chủ** — cùng khuôn `editorSegments.ts:132-135` đã đặt cho ba nhánh vạch chưa có nguồn.
+/// 🔴 Story nào thêm `status` phải đọc lại hàm này: nếu nó thêm `status` vào câu `UPDATE`,
+/// nó phá AD-31 hàng 1, và cổng duy nhất đứng đó là ca *"bảy cột kia y nguyên"*.
+///
+/// ⚠️ Hàm này cũng **không được huỷ** bản gốc-lúc-nạp của segment: FR117 (xuất xứ, Story 2.7)
+/// so *"văn bản đích **hiện tại** với bản **lúc nạp segment**"*, **không** dùng cờ dirty.
+/// `editorSegments`/`editorPanelState` phía webview giữ vai đó và phải giữ tiếp.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỘT LÔ, MỘT GIAO DỊCH, `prepare_cached` MỘT LẦN — và đó là một con số, không một gu
+/// ─────────────────────────────────────────────────────────────────────────────
+/// AD-35 nói flush chạy **mỗi 2 giây**, và một nhịp flush có thể mang **nhiều** segment đã
+/// đổi *(gõ xuyên qua ba câu trong 5 giây là chuyện thường)*. Một lệnh **mỗi câu** cho N
+/// giao dịch trên writer **duy nhất, nối tiếp** của AD-11, và `Store::write` **chặn** — tức
+/// N lượt xếp hàng. Story 2.2 vừa đo trên đúng đường đó: riêng chi phí **parse** đáng
+/// **57,15 – 64,19 ms** cho 9.850 hàng (xem [`insert_segments`]).
+///
+/// Và **không** gửi cả Chương: Chương lớn nhất có thật là **9.850** câu / **48.640** ký tự,
+/// nên gửi lại nguyên khối mỗi 2 giây là ghi lại phần lớn là những câu không đổi.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `updated_at` SINH Ở TẦNG SQL, KHÔNG TRUYỀN TỪ RUST — AC14
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `strftime('%Y-%m-%dT%H:%M:%fZ','now')` ngay trong câu lệnh, cùng khuôn
+/// [`insert_segments`]. Truyền từ Rust là mở hai nguồn thời gian cho cùng một bảng, và
+/// Story 2.6 (*lịch sử phiên bản*) sẽ so hai mốc sinh ra từ hai đồng hồ.
+///
+/// ⚠️ Phép kiểm *"mọi id thuộc Chương này"* nằm **TRONG** giao dịch ghi, không ở một lượt
+/// `Store::read` tách rời — khác [`split_chapter_into_segments`], và khác có chủ ý. Lý do
+/// chính là đường hỏng mà doc-comment của hàm đó ghi: giữa một lượt `read` và một lượt
+/// `write` tầng kho **không giữ gì cả**. `split` phải dựa vào `MutexGuard` của `wire` vì nó
+/// cần chạy một phép tách CPU ở giữa; hàm này không cần, nên nó đi đường chặt hơn — đúng
+/// thứ `split_chapter_into_segments` đã ghi là *"đường đúng nếu về sau cần"*.
+pub fn save_segment_targets(
+    open: Option<&OpenWork>,
+    chapter_id: i64,
+    edits: &[SegmentTargetEdit],
+) -> Result<SaveOutcome, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+
+    // Lo RONG khong phai mot loi: nhip flush co the bat gap mot luot khong con gi de ghi.
+    // Tra ve som de KHONG mo mot giao dich rong tren writer noi tiep cua AD-11.
+    if edits.is_empty() {
+        return Ok(SaveOutcome {
+            chapter_id,
+            saved: 0,
+        });
+    }
+
+    // Chi mang du lieu di vao closure ghi — `edits` la `&[..]`, khong `move` duoc.
+    let payload: Vec<(i64, String)> = edits
+        .iter()
+        .map(|e| (e.id, e.target_text.clone()))
+        .collect();
+    let expected = payload.len();
+
+    // 🔴 O bao ly do TU CHOI ra khoi closure, va no ton tai vi mot ly do dinh luong.
+    //
+    // `Store::write` doi `SqlResult<T>`: `Ok` ⇒ commit, `Err` ⇒ rollback. Mot phep tu choi
+    // nghiep vu PHAI la `Err` — neu khong, lo ghi mot phan duoc commit. Nhung `Err` di ra
+    // duoi dang `StoreError::WriteFailed { detail: String }`, va `WriteFailed` cung phu
+    // MOI loi SQL that (dia day, kho hong). Doan lai ly do tu `detail` bang chuoi la mot
+    // chan doan SAI cho hai ca khac han nhau.
+    //
+    // ⇒ ly do di ra bang mot o CO KIEU. `Arc<Mutex<..>>` vi closure phai `Send + 'static`.
+    let reject: Arc<Mutex<Option<BatchReject>>> = Arc::new(Mutex::new(None));
+    let reject_in = Arc::clone(&reject);
+
+    let outcome = open.store.write(move |tx: &Transaction<'_>| {
+        let set_reject = |r: BatchReject| {
+            *reject_in
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(r);
+        };
+
+        // ① Chuong co thuoc `project.db` cua Tac pham dang mo khong — TRONG cung giao dich
+        //    voi luot ghi, nen khong co khe ho nao giua phep kiem va phep ghi.
+        let chapter_rows: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM chapter WHERE id = ?1",
+            [chapter_id],
+            |row| row.get(0),
+        )?;
+        if chapter_rows == 0 {
+            set_reject(BatchReject::ChapterNotFound);
+            return Err(SqlError::QueryReturnedNoRows);
+        }
+
+        // ② `prepare_cached` MOT LAN cho ca lo — xem khoi doc-comment o tren.
+        //    Cau `UPDATE` cham DUNG HAI COT: `target_text` va `updated_at`.
+        let mut stmt = tx.prepare_cached(
+            "UPDATE segment \
+             SET target_text = ?1, \
+                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') \
+             WHERE id = ?2 AND chapter_id = ?3",
+        )?;
+        let mut touched = 0usize;
+        for (id, text) in &payload {
+            // `AND chapter_id = ?3` la nua thu hai cua phep kiem id: mot id thuoc Chuong
+            // KHAC cho `changes = 0` thay vi ghi vao Chuong do.
+            touched += stmt.execute((text, id, chapter_id))?;
+        }
+
+        // ③ Lo phai ghi DU. Thieu mot hang ⇒ co id khong thuoc Chuong nay ⇒ TU CHOI TRON,
+        //    va `Err` o day lam ca giao dich ROLLBACK. Khong co lo nao ghi mot phan.
+        if touched != expected {
+            set_reject(BatchReject::UnknownIds(expected - touched));
+            return Err(SqlError::QueryReturnedNoRows);
+        }
+
+        Ok(touched)
+    });
+
+    match outcome {
+        Ok(saved) => Ok(SaveOutcome { chapter_id, saved }),
+        Err(err) => {
+            let taken = reject
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .take();
+            match taken {
+                Some(BatchReject::ChapterNotFound) => Err(chapter_not_found(chapter_id)),
+                Some(BatchReject::UnknownIds(missing)) => {
+                    Err(unknown_segment_ids(chapter_id, missing))
+                }
+                // O rong ⇒ day la mot loi KHO that, khong mot phep tu choi nghiep vu.
+                None => Err(err.into()),
+            }
+        }
+    }
+}
+
+/// Lý do một lô ghi bị **từ chối trọn**, mang ra khỏi closure ghi. Xem [`save_segment_targets`].
+enum BatchReject {
+    /// `chapter_id` không có trong `project.db` của Tác phẩm đang mở.
+    ChapterNotFound,
+    /// Số `segment.id` trong lô không thuộc Chương đó.
+    UnknownIds(usize),
+}
+
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
-    use super::{ChapterSegments, IpcError, SplitOutcome};
+    use super::{ChapterSegments, IpcError, SaveOutcome, SegmentTargetEdit, SplitOutcome};
     use crate::commands::project::OpenWorkState;
 
     /// Vỏ IPC của [`super::split_chapter_into_segments`].
@@ -369,5 +567,33 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::read_open_chapter_segments(guard.as_ref())
+    }
+
+    /// Vỏ IPC của [`super::save_segment_targets`] — đường flush của AD-35. Story 2.3.
+    ///
+    /// ⚠️ `chapter_id` đi trên dây dưới tên **`chapterId`**, và `edits` dưới tên **`edits`** —
+    /// `invoke()` gửi tham số ở dạng camelCase. `src/config/segment.ts` là chỗ duy nhất gõ
+    /// hai cái tên đó.
+    ///
+    /// 🔴 `MutexGuard` giữ **XUYÊN SUỐT** lời gọi, cùng lý do và cùng đường hỏng mà
+    /// [`super::split_chapter_into_segments`] đã ghi ở doc-comment của nó. Nhả sớm để "tối ưu"
+    /// là mở lại một cuộc đua ghi: `replace_open_work` có thể trỏ `OpenWorkState` sang một Tác
+    /// phẩm **khác** giữa lúc lô này đang bay, và lúc đó lô ghi vào `project.db` của Tác phẩm
+    /// vừa bị thay.
+    #[tauri::command]
+    pub fn save_segment_targets(
+        app: tauri::AppHandle,
+        chapter_id: i64,
+        edits: Vec<SegmentTargetEdit>,
+    ) -> Result<SaveOutcome, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::save_segment_targets(None, chapter_id, &edits);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::save_segment_targets(guard.as_ref(), chapter_id, &edits)
     }
 }

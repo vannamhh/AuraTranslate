@@ -18,5 +18,15 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "env.d.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "env.d.ts",
+    // Story 2.3, Task 0b.8 — cây test frontend PHẢI được kiểm kiểu. Một cây test không được
+    // kiểm kiểu là một cây test sẽ mục: nó vẫn chạy xanh trong khi kiểu của thứ nó kiểm đã
+    // đổi dưới chân. `vitest.config.ts` giữ nó NGOÀI `src/**` vì bốn cổng đếm quần thể ở đó
+    // (Quyết định #6) — `include` ở đây là chỗ duy nhất hai mệnh đề đó gặp nhau.
+    "tests/frontend/**/*.ts",
+    "vitest.config.ts"
+  ]
 }

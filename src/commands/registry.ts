@@ -7,9 +7,23 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * AC1, AC2 và AC6 là mệnh đề về HÀNH VI LÚC CHẠY (*"id trùng bị phát hiện lúc
  * đăng ký"*, *"liệt kê được thao tác chưa gán phím"*). Nghiệm thu chúng phải GỌI
- * HÀM THẬT. Dự án không có bộ chạy test frontend, và thêm một (`vitest`) là thêm
- * một phụ thuộc phải rà GPLv3 và vào bảng Stack trước (NFR15) — quyết định của
- * Ice, không phải hệ quả phụ của story này.
+ * HÀM THẬT.
+ *
+ * 🔵 **CẬP NHẬT 2026-08-12 (Story 2.3): dự án NAY CÓ bộ chạy test frontend** —
+ * `vitest` 4.1.10 + `@vue/test-utils` 2.4.11 + `happy-dom` 20.11.2, cây test ở
+ * `tests/frontend/**`, và `npm run test` là một cổng ở cả ba danh sách. Ice lật
+ * vế *"không bộ chạy test frontend"* của NFR15 hôm đó.
+ *
+ * 🔴 **Cửa rà giấy phép của NFR15 thì VẪN ĐỨNG, và luật của tệp này KHÔNG đổi.**
+ * Hai lý do độc lập:
+ *   1. Luật cũ chưa bao giờ chặn một **năng lực**; nó bắt đi qua một **quy trình**
+ *      (*"mở tệp giấy phép trong nguồn đã tải, rồi vào bảng Stack, TRƯỚC khi
+ *      thêm"*). Ba gói trên đã đi qua đúng cửa đó. Gói **thứ tư** vẫn phải đi qua.
+ *   2. Kiểm C/D/E của `scripts/check-commands.mjs` `import()` tệp này bằng **Node
+ *      thuần** và sẽ tiếp tục làm vậy — chúng là cổng **tĩnh trên toàn cây**, một
+ *      vai mà vitest KHÔNG thay (AC25 của Story 2.3: một mệnh đề, một đường
+ *      nghiệm thu). Nên ràng buộc *"tệp này không `import` gì"* ở dưới vẫn là một
+ *      điều kiện kỹ thuật đang sống, không một di tích.
  *
  * Đường không tốn gì, và nó ĐÃ CHẠY THẬT trong CI từ Story 1.5 với `resolve.ts`:
  * Node ≥ 22.18 bóc kiểu TypeScript mặc định, nên `scripts/check-commands.mjs`

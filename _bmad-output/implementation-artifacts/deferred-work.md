@@ -180,6 +180,10 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - ⚠️ **`isTypingZone` mù với shadow DOM, và chặn nhầm input phi văn bản** — `src/commands/keys.ts:207-212`. Hai chiều hỏng ngược nhau: (1) `event.target` trên một listener gắn ở `window` bị **retarget về shadow host**, nên một custom element bọc `<input>` đọc ra `tagName: 'MY-EDITOR'` và `isContentEditable: false` ⇒ hàm trả `false` ⇒ hợp âm trần dispatch **trong khi người dùng đang gõ**; `composedPath()[0]` không bao giờ được hỏi. (2) `type="checkbox"` · `radio` · `button` · `range` và input `disabled`/`readonly` đều báo `tagName === 'INPUT'` ⇒ focus vào một checkbox làm **mọi hợp âm trần chết im lặng**, `handle()` trả `false` không một dòng chẩn đoán. Hoãn vì hôm nay sản phẩm chưa có shadow DOM lẫn input phi văn bản nào. **Nhặt lại ở Epic 2** *(Editor là vùng gõ tự do đầu tiên)* hoặc bất kỳ story nào dựng điều khiển form thật.
   → 🔁 **CHUYỂN CHỦ 2026-08-12 (Story 2.2 · Task 10.1) — từ *"Epic 2"* sang **Story 2.3** đích danh.** Món này **đi qua** Story 2.2 mà **KHÔNG đóng**, và nay lý do là dứt khoát chứ không phải một lượt hoãn nữa: Ice chốt Quyết định #1 đường (b) ngày 2026-08-12, nên bề mặt Editor của 2.2 là **chỉ-đọc** — không `contenteditable`, không `<textarea>`/`<input>`, và một cổng tĩnh (`check-commands.mjs` Kiểm J) cưỡng chế điều đó. Vùng gõ tự do đầu tiên của dự án vì thế sinh ra ở **Story 2.3**, cùng lượt với hợp đồng flush AD-35 — đó mới là lượt đầu tiên `isTypingZone` có một vùng gõ thật để trả lời đúng hay sai về nó. **Chủ: Story 2.3.**
+  → ✅ **ĐÓNG MỘT NỬA 2026-08-12 (Story 2.3)** — chiều *thật sự chạm tới* đã đóng và **có lưới**
+  (Kiểm D lái nhánh `isContentEditable === true`, nghiệm thu đỏ-rồi-xanh). Hai chiều **shadow DOM**
+  và **input phi văn bản** vẫn hở, và vẫn **không chỗ gọi nào đi qua** — chủ chuyển sang story nào
+  dựng điều khiển form thật hoặc một custom element. Số đo ở §Deferred from: 2-3-hop-dong-flush.
 
 - ⚠️ **Chốt chống rơi `body` bắn-và-quên: `rAF` không chạy khi cửa sổ ẩn, và blur cho cáo buộc sai** — `src/commands/focus.ts:103-113`. Đây là **chuông báo tự động duy nhất** cho AC4, và nó có hai lỗ không canh gác: (1) `requestAnimationFrame` không chạy khi cửa sổ bị ẩn/thu nhỏ, nên chốt bị **bỏ qua đúng trên đường khởi động nền** — chỗ nó cần kêu nhất; (2) nếu người dùng bấm ra ngoài hoặc cửa sổ mất focus trong khoảng giữa `enter()` và callback, `document.activeElement` đọc ra `body` và chốt in một **cáo buộc sai** nêu đích danh một owner đã focus hoàn toàn đúng. Không có đường huỷ. Hoãn vì đây là chuông báo chứ không phải cơ chế — cả hai lỗ làm chuông kém tin, không làm focus hỏng. **Nhặt lại cùng lượt** dựng nghiệm thu DOM tự động *(cùng mục với "Nghiệm thu DOM chạy trên Blink" ở trên)*.
 
@@ -2137,6 +2141,9 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   handler sửa văn bản (AC18 — hệ quả phán quyết Quyết định #1). Story 2.3 dựng vùng gõ, nên nó
   phải gỡ cổng **cùng lượt** với hợp đồng flush AD-35 — **không sớm hơn**. Gỡ sớm là mở lại đúng
   cửa sổ mất dữ liệu im lặng mà cổng tồn tại để đóng. **Chủ: Story 2.3.**
+  → ✅ **ĐÓNG 2026-08-12 (Story 2.3).** Gỡ **cả khối** — `TYPING_BANS`, sàn nội dung, tiêu đề in
+  ra. Vế *"đúng lúc, không sớm hơn"* có bằng chứng: 8 ca mới ở `segment_contract.rs` xanh **trước**
+  khi `contenteditable` chạm `EditorPanel.vue`. Chi tiết ở §Deferred from: 2-3-hop-dong-flush.
   ⚠️ Giới hạn đã ghi tại chỗ: cổng đọc bản **đã che** (bỏ chú thích và chuỗi), nên một
   `el.setAttribute('contenteditable', 'true')` trong một chuỗi JavaScript đi lọt.
 
@@ -2159,3 +2166,370 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   **1.308,0 ms** WebKit cho 9.850 câu, so với trần 50 ms/frame của NFR2) và giao số cho
   **Story 2.4**. Ghi ở đây để lượt tối ưu của 2.4 biết rằng caret là **nguồn kích hoạt thứ hai**
   của cùng chi phí đó, không chỉ lượt dựng đầu tiên. **Chủ: Story 2.4.**
+
+## Deferred from: 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-12)
+
+### 🔴 ĐÃ ĐÓNG ở story này — hai món có chủ đích danh
+
+- ✅ **ĐÓNG — cổng Kiểm J của `check-commands.mjs`** *(mục `:2135-2139` ở trên)*. Gỡ **cả khối**:
+  bảng `TYPING_BANS`, sàn nội dung `data-segment-id`, và tiêu đề in ra — không để lại một cổng
+  xanh rỗng. **Bằng chứng thứ tự làm việc** *(vế "đúng lúc, không sớm hơn" của món nợ)*: đường
+  flush của AD-35 nghiệm thu xanh ở `src-tauri/tests/segment_contract.rs` — 8 ca mới, gồm lượt
+  round-trip *gõ → flush → nạp lại* và ca *lô mang một id lạ bị từ chối TRỌN* — **trước** khi dòng
+  `contenteditable` đầu tiên chạm `EditorPanel.vue`. Sàn nội dung không mồ côi: Kiểm I vẫn đọc
+  `editorVue.masked` và vẫn đối chiếu năm giá trị vạch hai chiều.
+
+- ✅ **ĐÓNG MỘT NỬA — `isTypingZone`, chiều thật sự chạm tới** *(mục `:180-182` ở trên)*. Vùng gõ
+  Editor được nhận **đúng**, và nó có lưới: Kiểm D của `check-commands.mjs` nay lái nhánh
+  `isContentEditable === true` bằng `{ tagName: 'SPAN', isContentEditable: true }` — nhánh đó có
+  trong mã từ Story 1.6 mà **chưa phép kiểm nào đi qua**, vì tới hết 2.2 kho không có một
+  `contenteditable` nào. Nghiệm thu **đỏ-rồi-xanh**: gỡ nhánh `isContentEditable` ⇒ ca đỏ với
+  *"nhận `true`, phải là `false`"*; trả lại ⇒ xanh. Cộng một đối chứng âm *(một `<span>` KHÔNG gõ
+  được thì hợp âm trần VẪN khớp)*, không có nó thì một `isTypingZone` luôn trả `true` vẫn đi qua.
+  🔵 **Và một lo ngại đã bị LOẠI bằng phép đo, không bằng một bản vá:** `isContentEditable` đọc ra
+  `true` cho **cả** `"true"` lẫn `"plaintext-only"` trên **cả hai** engine ⇒ `isTypingZone` không
+  cần sửa một dòng. Một lượt đo trung gian từng đọc ra `false` trên WebKit và đó là số của một
+  **cây DOM đã tháo** *(`page.setContent` không thực thi lại `<script>` nội tuyến)* — nếu tin nó,
+  story đã đi vá một khuyết tật không tồn tại.
+
+- ⚠️ **CHIỀU CÒN LẠI của `isTypingZone` KHÔNG đóng, và lý do là một phép đo chứ không một lượt
+  hoãn.** Hai chiều còn hở — **mù shadow DOM** *(`composedPath()[0]` không bao giờ được hỏi)* và
+  **chặn nhầm input phi văn bản** *(`checkbox`/`radio`/`button`/`range`, input `disabled`/`readonly`)*
+  — vẫn **không có chỗ gọi nào đi qua**: kho hôm nay có **0** shadow DOM và **0** input phi văn
+  bản *(ô phím của `ShortcutsOverlay.vue:159` là một `<button>` có chủ ý)*. Viết mã cho một nhánh
+  không chỗ gọi nào đi qua là đúng thứ danh mục `MessageKey` của `core::i18n` đã cấm bằng chữ, và
+  đúng thứ Story 1.7 §Completion Notes #3 từ chối. **Chủ: story nào dựng điều khiển form thật
+  HOẶC một custom element** — ứng viên gần nhất là Epic 3 *(bảng glossary)* và Story 4.2 *(cấu
+  hình nhà cung cấp AI, có ô nhập thật)*.
+
+### 🔴 MÓN MỚI — và món thứ nhất là một KHUYẾT TẬT SẢN PHẨM đã đo, chưa vá
+
+### 🔵 ĐÍNH CHÍNH 2026-08-13 — CHẨN ĐOÁN "AD-34 GIÀNH TIÊU ĐIỂM" LÀ **SAI**
+
+Ice ký đường ① *(cho `section.mode`/`section.panel` thôi giành tiêu điểm)* ngày 2026-08-13. **Bản vá đó KHÔNG được thi hành, vì phép đo tiếp theo cho thấy nó chữa một nguyên nhân không tồn tại** — và ghi lại ở đây thay vì im lặng bỏ qua một lượt ký.
+
+**Không ai giành tiêu điểm cả.** Đo thẳng vào từng ứng viên:
+
+- `focus.ts::enter()` chỉ chạy lúc **đổi chế độ** *(`WorkspaceMode.vue::onMounted`, `modeState.ts`)*, không chạy ở một cú bấm;
+- chốt chống-rơi-về-`body` của nó **chỉ `console.error`**, doc-comment của chính nó ghi *"để KÊU, không để VÁ"*;
+- `PanelFrame.vue` chỉ **nghe** `focusin`/`focusout`, không gọi `focus()` một lần nào.
+
+Thứ đặt tiêu điểm lên `section.panel` là **hành vi mặc định của trình duyệt**: khi chỗ bấm không soạn thảo được, engine đi ngược cây tìm tổ tiên **focus được gần nhất** — đúng gốc `tabindex="-1"` mà `PanelFrame` dựng cho AD-34 §2. Nó chọn như vậy chỉ vì **`<span>` chưa `contenteditable` tại thời điểm engine ra quyết định**: `onDocMouseDown` chỉ gọi `setEditorCaret()`, và Vue vá DOM ở một **microtask sau**.
+
+⇒ **Nguyên nhân thật: một lượt đặt thuộc tính BẤT ĐỒNG BỘ.** Bản vá: `sent.setAttribute('contenteditable', 'true')` **đồng bộ ngay trong `mousedown`**, trước khi handler trả về. Vue render cùng giá trị ngay sau ⇒ hai đường hội tụ, không tranh nhau.
+
+**Đo lại sau bản vá, WKWebView thật, chuột thật, trên một câu ĐÃ CÓ CHỮ:**
+
+| | Trước | Sau |
+|---|---|---|
+| `contenteditable` lúc engine xử lý cú bấm | **vắng** | **`"true"`** |
+| `caretRangeFromPoint` | phân giải **ngoài** câu | **`#text@18`**, `pointInsideSent: true` |
+| `getSelection().type` | `"None"` | **`"Caret"`** |
+| `document.activeElement` | `SECTION.panel` / `SECTION.mode` | **`SPAN.sent`** |
+
+🔴 **AD-34 KHÔNG cần đổi một dòng, và `focus.ts` không bị chạm.** Đây là một ca mẫu của bài học *"kiểm điều kiện đo trước khi lật một quyết định"*: một số đọc đúng (`activeElement = SECTION.panel`) dẫn tới một chẩn đoán sai, và chẩn đoán đó suýt lật một hợp đồng đang hoàn toàn đúng.
+
+### 🔴 CÒN LẠI SAU ĐÍNH CHÍNH — Ice gõ tay 2026-08-13, ba triệu chứng, ba nguyên nhân khác nhau
+
+Ảnh chụp của Ice cũng cho một **bằng chứng dương** quan trọng: thanh trạng thái ghi *"Đã lưu 4 giây trước"* và chữ đã vào `project.db` ⇒ **đường flush AD-35 chạy thật với người dùng thật**.
+
+**① ĐÃ VÁ — gõ ngược từ phải sang trái.** Nguyên nhân là mã của tôi, và nó lật một câu tôi từng
+viết trong chính `EditorPanel.vue`: mỗi phím gõ đổi `editedText` ⇒ Vue render lại; bản trước lý
+luận *"giá trị render bằng đúng thứ đang có trong DOM nên Vue không ghi"* — **sai**, Vue so
+**vnode cũ với vnode mới**, không so với DOM. Vnode cũ mang chuỗi **trước** lượt gõ ⇒ Vue ghi
+`textContent`, **dựng lại text node**, caret rơi về **offset 0**, ký tự sau chèn vào đầu.
+⇒ Vá bằng `frozenText`: trong lúc một câu đang gõ, **DOM sở hữu văn bản của nó**, giá trị render
+bị đóng băng nên Vue không chạm text node đó nữa. Đặt trong `watch(flush:'post')` chứ không ở
+`mousedown` — chính lượt watch sau đó sẽ xoá mất giá trị vừa đặt.
+
+**② ĐÃ VÁ — khung viền quanh câu đang sửa, và chữ trông lệch so với bản gốc.** Đó là focus ring
+mặc định của trình duyệt trên `contenteditable`; nó chiếm chỗ và đẩy dòng văn vào trong. Sản phẩm
+**đã có** chỉ báo *"câu nào đang sửa"* khác hẳn: vạch lề `primary` (UX-DR19) + `⏐` sáng ở
+`[data-caret]`. Một vòng focus nữa là cùng một thông tin nói hai lần. Tắt kèm **miễn trừ có tên**
+của Kiểm H *(và miễn trừ phải nằm ngay trên dòng khai báo — `exemptAt` đòi khoảng cách ≤ 1 dòng)*.
+
+**④ ĐÃ VÁ — CHỮ ĐÃ DỊCH BIẾN MẤT KHỎI MÀN HÌNH khi bấm xuống dưới** *(Ice, ảnh chụp 2026-08-13)*.
+Đây là khuyết tật **nặng nhất** trong ba cái, và nó **do chính bản vá cho ① đẻ ra**: bản vá đó
+đóng băng chuỗi hiển thị trong **một biến dùng chung cho mọi câu** (`frozenText`), nên chuỗi của
+câu này bị áp lên câu khác. Người dùng thấy bản dịch của mình **bốc hơi** *(dù trên đĩa vẫn còn)*.
+
+🔴 **Bài học, và nó đắt:** ① và ④ có **cùng một nguyên nhân gốc** — **hai chủ sở hữu cho một text
+node**. Bản vá cho ① chữa **triệu chứng** *(giữ chuỗi đứng yên)* mà không chữa **nguyên nhân**
+*(Vue vẫn điều khiển text node đang được gõ)*, và một bản vá như vậy không trung tính: nó đẻ ra
+một khuyết tật nặng hơn thứ nó chữa.
+
+⇒ Lời giải cuối là một **doctrine**, không một bản vá: **DOM sở hữu văn bản bản dịch, Vue không.**
+Template render `s.target_text` — **bản LÚC NẠP**, một giá trị chỉ đổi ở lượt nạp lại — nên vnode
+của câu **không bao giờ đổi** trong một phiên gõ và Vue **không bao giờ** chạm text node đó. Vế
+*"văn bản sống sót một lượt tháo panel"* đổi đường: `restoreEditedText()` chép `editedText` ngược
+vào DOM **một lần** sau mỗi lượt dựng lại, bỏ qua câu đang **giữ tiêu điểm thật**
+*(`document.activeElement`, **không** phải thuộc tính `contenteditable` — sau một lượt mount lại
+thuộc tính còn mà tiêu điểm thì không, và đó đúng là lượt cần khôi phục nhất)*.
+
+**Hai ca hồi quy khoá cả hai khuyết tật** (`tests/frontend/editorTypingZone.test.ts`):
+- *gõ nhiều ký tự KHÔNG dựng lại text node* — khẳng định **danh tính** của text node, không phải
+  chuỗi cuối. Một phép kiểm `textContent === 'abc'` vẫn **xanh dưới bản hỏng**, vì mã test tự gán
+  chuỗi đúng; thứ người dùng mất là **caret**, và dấu vết đo được của nó là node bị thay.
+  ⚠️ Ca này phải mô phỏng bằng `Text.appendData()`, **không** `textContent = …`: gán `textContent`
+  tự nó huỷ node con rồi dựng node mới, nên một ca viết vậy đo chính mã test. Nghiệm thu
+  **đỏ-rồi-xanh**: trả template về binding phản ứng ⇒ ca đỏ.
+- *gõ vào MỘT câu không bao giờ đổi văn bản của câu KHÁC*.
+
+**③ VÁ MỘT PHẦN — *"rất khó click để focus"*.** Ba lượt vá, mỗi lượt đóng một nguyên nhân **thật
+và khác nhau**, cả ba cần thiết:
+  1. `setAttribute('contenteditable','true')` **đồng bộ** trong `mousedown` — trước đó engine
+     quyết định lúc `<span>` chưa soạn thảo được *(xem §ĐÍNH CHÍNH)*;
+  2. `nearestSentenceTo()` — bấm vào **khoảng trống** của `.doc` *(dưới câu cuối, cuối dòng, và
+     chính chỗ của mọi câu chưa dịch — `<span>` rỗng rộng 0 px)* nay chọn câu gần nhất. Đây là
+     thứ Ice yêu cầu đích danh: *"click vào vùng dịch là nó focus để nhập được ngay"*;
+  3. `Selection.setPosition()` thay `removeAllRanges()`+`addRange()` — đo được: trên một phần tử
+     soạn thảo được **rỗng**, WebKit **bỏ qua** `addRange` *(`type` ở lại `"None"`,
+     `execCommand` trả `false`)* nhưng **nhận** `setPosition` *(`type` thành `"Caret"`,
+     `execCommand` trả `true`, chữ hạ cánh)*.
+
+🔴 **Chưa đóng:** trong bộ e2e, ca *gõ vào một câu **chưa dịch*** vẫn đỏ — `execCommand` trả
+`false` sau một cú bấm do WebDriver lái, dù đúng chuỗi thao tác ấy chạy được khi gọi từ một lượt
+`browser.execute` **riêng**. ⚠️ Và bộ đo **đã tự chứng minh nó bóp méo vế này**: một lượt đo đọc
+`document.hasFocus() === false` — cửa sổ không được hệ điều hành focus, trạng thái mà một người
+dùng thật không bao giờ ở trong. Nên câu hỏi *"còn hỏng với tay người hay không"* **chưa trả lời
+được bằng bộ e2e**, và lượt nghiệm thu tiếp theo phải là **Ice gõ tay**.
+⚠️ `ensureCaretNextFrame()` giữ lại theo **lý lẽ, chưa theo số đo** *(nó có guard, chỉ chạy khi
+tới frame sau vẫn chưa có caret nào)* — đánh dấu như vậy để không ai đọc nó thành đã nghiệm thu.
+**Chủ: Story 2.3 (tiếp) — chờ lượt gõ tay của Ice.**
+
+- 🔴 **BẤM CHUỘT VÀO MỘT CÂU KHÔNG ĐẶT ĐƯỢC CARET TRONG WKWebView — vùng gõ lên đúng chỗ, nhưng
+  chữ không hạ cánh được.** Đây là phát hiện nặng nhất của Story 2.3, và nó chỉ lộ ra vì story
+  dựng một spec e2e chạy trong **cửa sổ Tauri thật**. Chuỗi phép đo *(2026-08-12, WebKit
+  605.1.15, chuột thật qua `realClick()`, `document.hasFocus() === true`)*:
+
+  | # | Đo được | Hệ quả |
+  |---|---|---|
+  | ① | `mousedown`/`mouseup`/`click` tới đúng `<span>`; `pointerdown` **không** tới | bản vá `@mousedown` dời vùng gõ **đúng** — e2e xanh cho vế này |
+  | ② | bấm vào văn bản chỉ-đọc ⇒ `getSelection().type === "None"`, `rangeCount = 0`, `activeElement = SECTION.mode` *(không phải `.doc`, dù nó có `tabindex="0"`)* | đường `Selection.anchorNode` của Story 2.2 **không bao giờ chạy tới** trên engine sản phẩm |
+  | ③ | `el.focus()` trên `<span contenteditable>` ⇒ `activeElement` vẫn `SECTION.panel` | `focus()` **không** dùng được; chỉ `selection.addRange(...)` đặt được tiêu điểm |
+  | ④ | đặt caret trong `nextTick` sau `mousedown` ⇒ engine **thu vùng chọn về không** *(microtask chạy trước `mouseup`)* | lượt đặt caret phải sau `mouseup` |
+  | ⑤ | đặt ở `mouseup` ⇒ caret **có thật** nhưng neo **ngoài** câu | một câu **chưa dịch** là `<span>` rỗng, rộng **0 px** ⇒ hit-test theo toạ độ rơi sang phần tử liền kề |
+  | ⑥ | siết *"neo phải NẰM TRONG câu"* ⇒ nhánh dự phòng chạy, và caret nó đặt **cũng bị xoá**: `rangeCount = 0`, `activeElement = SECTION.mode` | **còn một lượt dời tiêu điểm nữa** đang xoá vùng chọn |
+
+  ⇒ Thứ xoá vùng chọn là một lượt **dời tiêu điểm về điểm vào của chế độ**, tức hợp đồng focus
+  **AD-34 §2** (`src/commands/focus.ts`, Story 1.6). Nó gặp đúng bức tường mà
+  `attribution-focus.e2e.mjs` đã đo và đã ghi: *"trong một `section.panel[tabindex="-1"]`, tiêu
+  điểm KHÔNG giữ được trên phần tử con dù đặt bằng cách nào"*.
+
+  ⚠️ **Vế *"gõ được"* của engine KHÔNG hỏng** — đo riêng: `document.execCommand('insertText', …)`
+  cho `beforeinput` → `input` → chữ hạ cánh. Và `browser.keys()` của bộ e2e **không** gõ được chữ
+  *(chỉ `keydown`, không `beforeinput`)* — một **giới hạn của bộ đo**, không một khuyết tật sản
+  phẩm; ghi ra để không ai chẩn đoán lại.
+
+  🔴 **Vì sao Story 2.3 KHÔNG tự vá:** lời giải chạm hợp đồng **AD-34** — hoặc `section.mode`/
+  `section.panel` thôi giành tiêu điểm khi tiêu điểm đang ở trong một vùng gõ, hoặc vùng gõ khai
+  một điểm vào focus riêng ở `FOCUS_OWNERS`. Cả hai là quyết định về một AD mà **Story 1.6 sở
+  hữu**, và AC19 của story này nói thẳng: gặp một quyết định story khác sở hữu thì **dừng và báo**.
+  **Chủ: Ice** *(phán quyết về AD-34), rồi story thi hành.*
+  ⚠️ **Trạng thái hôm nay, nói thẳng:** bề mặt Editor **gõ được trên Blink** *(bàn đo + vitest +
+  e2e vế vùng gõ đều xanh)* nhưng **chưa gõ được bằng chuột trên macOS/WKWebView** — tức trên đúng
+  nền tảng duy nhất dự án đang chạy. **AC8 không được đánh dấu đạt trọn vẹn.**
+
+- 🔴 **KÝ TỰ RANH GIỚI `⏐` CHIẾM CHỖ Ở MỌI CÂU CHƯA DỊCH, và nó đẩy chữ lệch dần** — Ice bắt
+  bằng mắt 2026-08-13 *(hai lần: *"chữ hiển thị lệch so với bản gốc"*, rồi *"chữ 'a' thụt vào"*)*.
+
+  **Đo được, 2026-08-13:** `.sent::after { content: '⏐'; opacity: 0 }` của UX-DR20 vẫn **chiếm
+  bề rộng** — `opacity` không gỡ chỗ, khác `display: none`. Mỗi câu **chưa dịch** *(một `<span>`
+  rỗng, nhưng `::after` của nó thì không rỗng)* đẩy văn bản phía sau sang phải **9,05 px**:
+
+  | | mép trái câu cuối |
+  |---|---|
+  | không câu rỗng xen giữa | **72,0 px** |
+  | **bốn** câu rỗng xen giữa | **108,2 px** |
+
+  ⇒ Một Chương **mới** có hàng chục câu chưa dịch liên tiếp, nên khoảng thụt cộng dồn tới hàng
+  trăm pixel — và nó **co lại dần** khi người dùng dịch xong từng câu, tức bố cục nhảy trong lúc
+  làm việc. Đây là lớp khuyết tật chỉ lộ ra ở Story 2.3, vì tới hết 2.2 **mọi** câu đều rỗng nên
+  không có gì để so lệch với.
+
+  ⚠️ **Chẩn đoán trước của Dev chỉ đúng MỘT NỬA** — lượt đầu đổ trọn cho focus ring của
+  `contenteditable`. Focus ring có thật và đã tắt, nhưng nó chỉ giải thích khung viền; **vệt
+  thụt** thì tới từ đây.
+
+  **Bản vá, MỘT dòng:** `.sent:empty::after { content: none }` — một câu rỗng không có chữ nào để
+  mà đánh dấu ranh giới. Nó giữ nguyên UX-DR20 cho mọi câu **có chữ**.
+  🔴 Nó **thu hẹp một quyết định UX (UX-DR20)** chứ không sửa một lỗi cài đặt — UX-DR20 nói `⏐`
+  đánh dấu **ranh giới câu**, và ranh giới giữa hai câu rỗng vẫn là một ranh giới — nên nó cần
+  một chữ ký.
+
+  → ✅ **ICE KÝ 2026-08-13, ĐÃ ÁP, ĐÃ ĐO trên cả hai engine:**
+
+  | | 0 câu rỗng | 4 câu rỗng | 40 câu rỗng | đẩy/câu |
+  |---|---|---|---|---|
+  | **trước** | 72,0 px | 108,2 px | **433,9 px** | **9,05 px** |
+  | **sau** | 72,0 px | 72,0 px | **72,0 px** | **0,00 px** |
+
+  *(Blink 151 và WebKit 26.5 cho **cùng** con số tới từng chữ số.)* Và `⏐` của câu **có chữ** đọc
+  lại vẫn là `"⏐"` — mệnh đề *"chỉ thu hẹp cho câu rỗng"* được kiểm ở chính lượt đo đó.
+  ⚠️ Con số 433,9 px cho 40 câu **lớn hơn nửa bề rộng panel** — nặng hơn hẳn ước lượng ban đầu.
+
+  **Phép đo này nay SỐNG:** `2-3-ban-do-vung-go.html` tự dựng hai dòng văn tạm rồi in
+  `Câu chưa dịch đẩy chữ: … px/câu — phải là 0,00` ở mỗi lượt chạy bàn đo. `happy-dom` **không**
+  giữ được mệnh đề này *(nó không có bố cục)*, nên đây là đường nghiệm thu đúng của nó (AC25).
+
+- ⚠️ **Vế *"đóng app → mở lại → chữ còn đó"* của Task 7.2 KHÔNG chạm tới được, và không vì bộ đo
+  thiếu sức: KHÔNG tồn tại đường mở lại một `.atproj`.** `OpenWorkState` khởi tạo `None` mỗi lượt
+  chạy, và cách duy nhất một Tác phẩm được mở là **tạo mới** nó. Màn hình mở lại thuộc **Epic 5**.
+  Vế *"chữ còn đó sau khi nạp lại"* nghiệm thu ở
+  `segment_contract.rs::typed_text_round_trips_through_the_flush_and_the_load_command` — ghi rồi
+  đọc lại qua đúng hai lệnh IPC của sản phẩm. **Chủ: Epic 5** *(nhặt lại cùng lượt dựng đường mở
+  lại một Tác phẩm)*.
+
+- ⚠️ **`panic = "abort"` khiến một lần thoát CỨNG không đi qua đường flush lúc thoát** — món nợ
+  **kế thừa** từ `close_global_store`/`close_open_work`, story này **không** đóng nó.
+  `wire_exit_flush` phủ lượt đóng **bình thường** *(`WindowEvent::CloseRequested`)*, và đó là thao
+  tác người dùng chắc chắn nhất trong danh sách của AC3. **Chủ: cùng chủ với món gốc.**
+
+- ⚠️ **Vế *"xác nhận segment"* của AC3 chưa có đường nào chạm tới** — nó cần cột `segment.status`
+  và một máy trạng thái, cả hai thuộc **Story 2.5**. AC3 vì thế **không** được đánh dấu đạt trọn
+  vẹn ở story này. Ba đường còn lại *(nhịp 2 s · rời segment · đóng Tác phẩm)* và vế thoát ứng
+  dụng thì có. **Chủ: Story 2.5.**
+
+- ⚠️ **Lệch `32px` / `34px` của chiều cao thanh trạng thái.** `tokens.json:480` và
+  `DESIGN.md:283`/`:316` ghi **34px**; `DESIGN.md:132` còn một khối bảng cũ ghi `32px`, và mockup
+  `key-screen-workspace.html:73` dựng `.status{height:32px}`. `StatusBar.vue` đọc
+  `var(--space-status-height)` = **34px** — số trong bảng token, và `EXPERIENCE.md:312` phân xử
+  rằng tài liệu thắng bản dựng. Dev **không** sửa `DESIGN.md` *(tiền lệ quyết định #3 của Ice ở
+  Story 1.3)*. **Chủ: Ice.**
+
+- ⚠️ **PHỦ TEST HỒI TỐ cho mã Story 1.x / 2.1 / 2.2 — cố ý KHÔNG làm ở đây.** Bộ chạy test
+  frontend ra đời ở story này *(Quyết định #6)*, và một bộ chạy mới luôn mời gọi phủ ngược. Trộn
+  nó vào đây làm diff của 2.3 không đọc được một mình *(tiền lệ Ice: cây bẩn trước story đi commit
+  riêng)*. **Chủ: chưa gán — cần một story riêng.**
+  🔴 **Và lý do của mọi hàng nợ cũ mang câu *"dự án không có bộ chạy test frontend"* nay ĐÃ SAI**
+  *(`:141` · `:833-835` · `:877-884` · `:1098`)*. Bản thân các **mệnh đề** ở đó vẫn chưa được phủ,
+  nhưng lý do nay là *"chưa ai viết"*, **không** phải *"không chạy được"*. Đừng đọc chúng thành
+  điều thứ hai nữa.
+
+- ⚠️ **KHÔNG di chuyển các phép kiểm HÀNH VI từ cổng tĩnh sang vitest** — `check-layout.mjs`
+  Kiểm B *(chạy `simulateWrites`)* và `check-commands.mjs` Kiểm C/D/E *(`import()` thẳng
+  `src/commands/*.ts`)* **ở nguyên chỗ**. Đó là một lượt tái cấu trúc có rủi ro riêng: bốn phép
+  kiểm đó là lưới **hai nền tảng** duy nhất của tầng bàn phím, và một lượt chuyển làm chúng phụ
+  thuộc vào một bộ chạy mới thay vì Node thuần. **Chủ: chưa gán — cần một story riêng.**
+
+- ⚠️ **Bàn đo `2-2-ban-do-editor.html:11` còn khai *"Dự án CỐ Ý không có bộ chạy test frontend"*.**
+  Lời khai đó **hết đúng** từ 2026-08-12. Ba chỗ mà Task 0b.7 nêu đích danh
+  *(`src/commands/registry.ts` · `src/commands/README.md` · `src/i18n/README.md`)* đã được sửa;
+  bàn đo của story trước **không** nằm trong danh sách đó nên nó giữ nguyên, và đây là hàng ghi
+  lại điều đó. **Chủ: Story 2.4** *(story đó đã nhận món "chụp lại ba ảnh bàn đo 2.2")*.
+
+- ⚠️ **`happy-dom` thiếu ba thứ so với một DOM thật, và danh sách đó là một món nợ ĐO ĐƯỢC.**
+  `tests/frontend/support/setup.ts` vá `document.fonts` *(không cài FontFaceSet)* và
+  `ResizeObserver` *(có mặt nhưng không bao giờ bắn — không có bố cục thật)*. Hệ quả: mọi mệnh đề
+  về **hình học** vạch lề **không** nghiệm thu được ở cây test đó; chúng thuộc bàn đo. Danh sách
+  càng dài thì khoảng cách giữa bản mô phỏng và WKWebView càng lớn — đọc nó như một chỉ số, không
+  như một danh sách tiện tay. **Chủ: Dev** *(giữ danh sách ngắn, mỗi mục một dòng lý do)*.
+
+---
+
+## Deferred from: code review of 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-13)
+
+Lượt review ba tầng song song trên `git diff HEAD` + tệp mới, mốc gốc `6a9777b`. 18 phát hiện sau
+gộp trùng; 3 đưa lên Ice, 8 vá được, và **năm** món dưới đây hoãn — mỗi món kèm chủ và kèm lý do
+hoãn, không gom thành một câu *(retro §5)*.
+
+- **`restoreEditedText()` quét toàn bộ `.doc` thay vì duyệt theo tập đã sửa.**
+  `src/panels/EditorPanel.vue:294` gọi `querySelectorAll('[data-segment-id]')` trên **cả Chương**
+  mỗi lượt dựng lại trang, trong khi `editedText` thường chỉ mang vài mục. O(cả Chương) thay cho
+  O(số câu đang gõ dở). ⚠️ Trần đã đo của Story 2.2 là **9 850** câu, nên đây cùng một hàng nợ với
+  *"ảo hoá danh sách dài"* (`ARCHITECTURE-SPINE.md:888`) và phải được hiệu chỉnh **cùng lượt** với
+  nó — vá lẻ ở đây là tối ưu một hằng số trước khi biết bậc độ lớn có đổi không. **Chủ: Story 2.4.**
+
+- **`nearestSentenceTo()` ép bố cục lại trên mỗi cú bấm hụt.**
+  `src/panels/EditorPanel.vue:565`, gọi từ `onDocMouseDown`/`onDocMouseUp`. Mỗi cú bấm rơi vào
+  khoảng trống của `.doc` duyệt **từng** câu và gọi `getClientRects()`/`getBoundingClientRect()`.
+  🔴 Điểm đáng ghi không phải chi phí — nó là chỗ **duy nhất** của lượt này không kèm số đo, giữa
+  một story mà mọi quyết định khác đều có bảng đo chống lưng. Hàm này ra đời ở lượt vá 2026-08-13
+  *(một trong ba nguyên nhân thật của "khó click để focus")*, tức nó **chưa từng đi qua** bàn đo
+  hai engine của Task 0.1. **Chủ: Story 2.4** *(đo cùng lượt với trần NFR2)*.
+
+- **Cửa rà giấy phép NFR15 không có một cổng máy nào.**
+  `src/commands/registry.ts` · `src/commands/README.md` · `src/i18n/README.md` · `vitest.config.ts`
+  cùng khai *"ba gói đã đi qua đúng cửa rà giấy phép"*, nhưng không `check-*.mjs` nào xác minh lượt
+  rà đã xảy ra — `check-deps.mjs` canh thư viện thu thập dữ liệu, không canh tương thích GPLv3.
+  ⚠️ Món này **có sẵn từ trước lượt này**: NFR15 xưa nay là một quy trình người, và Task 0b đã đi
+  qua nó đúng cách *(ba tệp giấy phép thật đã mở, 811 dòng của `vitest` đọc ra 27 gói vendor)*.
+  Ghi ra vì gói **thứ tư** sẽ gặp lại đúng cửa này, và lúc đó trí nhớ người là thứ duy nhất canh.
+  **Chủ: Ice** *(quyết định có biến cửa này thành cổng máy hay không)*.
+
+- **Tiêu điểm/caret không khôi phục sau một lượt dựng lại component.**
+  Người dùng đang gõ dở một câu, một lượt đổi preset bố cục tháo và dựng lại `EditorPanel.vue`:
+  `restoreEditedText()` chép đúng chữ trở lại, nhưng watcher khôi phục caret
+  (`src/panels/EditorPanel.vue:363`) **không chạy** — nó nghe **giá trị** `editorCaretSegmentId`,
+  mà giá trị đó không đổi qua một lượt remount; và `savedCaret` là biến của component nên đã về
+  `null`. Câu hiện đúng chữ nhưng mất tiêu điểm bàn phím; phím kế tiếp rơi vào chỗ trình duyệt tự
+  chọn. 🔴 **Vì sao hoãn chứ không vá:** lời giải là **giành** tiêu điểm lúc mount, và đó đúng là
+  thứ `PanelFrame.vue::focused` cùng chốt chống-rơi-`body` của `focus.ts` tồn tại để **không** làm
+  — cùng doctrine mà §ĐÍNH CHÍNH 2026-08-13 vừa xác lập lại bằng phép đo. **Chủ: Ice.**
+
+- **Chưa đo caret có NHÌN THẤY trên một câu rỗng sau khi bỏ `min-width`.**
+  Khối CSS *"KHÔNG ép câu rỗng chiếm chỗ"* cộng `.sent[contenteditable='true']{outline:none}` để
+  lại một `<span>` rộng **0 px** không viền. e2e và bàn đo đều chỉ khẳng định chữ **hạ cánh được**
+  (`execCommand('insertText')` trả `true`), không khẳng định caret **hiện ra** trước khi gõ. ⚠️ Đây
+  là cùng vùng với ca đỏ đã công bố *(lượt gõ ĐẦU TIÊN vào một câu chưa dịch)*, và nó là ca
+  **thường nhất** của tính năng — mọi Chương mới mở ra đều toàn câu rỗng. Đo nó cùng lượt với ca
+  đỏ đó, đừng đo riêng. **Chủ: cùng chủ với ca đỏ** *(chờ phán quyết Ice)*.
+
+---
+
+## Đo thêm về ca đỏ `<span>` rỗng — code review 2026-08-13, **KHÔNG kết luận được**
+
+🔴 **Đọc mục này trước khi ai đó lại đi chẩn đoán ca đỏ ấy.** Lượt đo dưới đây tốn tám lượt chạy
+e2e và nó **không** đóng được câu hỏi — nhưng nó thu hẹp được, và nó để lại một cái bẫy đã sập
+một lần.
+
+### Cái ĐO ĐƯỢC và tái lập được
+
+**Chuỗi hành động `pointer` của WebDriver để cửa sổ mất tiêu điểm TẦNG HỆ ĐIỀU HÀNH.** Đo ngay
+trước lượt gõ, nhiều lượt, nhất quán:
+
+```
+hasFocus: false · selType: "None" · rangeCount: 0 · activeElement: SECTION.mode · zoneWidth: 0
+```
+
+`document.hasFocus() === false` là một trạng thái **người dùng thật không bao giờ ở trong**, và
+WebKit **không giữ vùng chọn** trong một cửa sổ như vậy. ⇒ ca đỏ hiện nay **không phân biệt được**
+*"sản phẩm hỏng"* với *"bộ đo hỏng"*. Đây là vế mà `deferred-work.md` đã ngờ từ 2026-08-12; nay nó
+có số.
+
+Ép cửa sổ lên trước bằng `osascript` *(System Events, `set frontmost of process "AuraTranslate"`)*
+**đưa `hasFocus` về `true`** — tái lập được. Đặt lời gọi ở cuối `realClick` thì `hasFocus` giữ
+`true` suốt, nhưng tiêu điểm **DOM** vẫn trôi khỏi `SPAN.sent` sang `SECTION` trước lượt gõ
+*(`selType` về `"None"`)*. Nên hai thứ bị mất là **hai thứ khác nhau**, và mới đóng được một.
+
+### 🔴 Cái KHÔNG kết luận được, và vì sao phải nói ra
+
+**Đúng MỘT lượt chạy** cho kết quả xanh trọn vẹn: với `osascript` gọi ngay trước lượt gõ,
+`activeElement` = `SPAN.sent`, `selType` = `"Caret"`, `rangeCount` = 1, `execCommand` trả `true`,
+chữ hạ cánh và đi vào `project.db` — **2/2 xanh**, trên đúng một `<span>` rỗng rộng 0 px.
+
+⚠️ **Lượt đó KHÔNG tái lập được.** Bảy lượt còn lại đỏ, kể cả các lượt có `osascript` đặt đúng
+chỗ, chạy một spec, và nhịp chờ dài hơn. Tổng: **1 xanh / 7 đỏ**.
+
+⇒ Câu *"sản phẩm không hỏng, ca đỏ chỉ là dấu vết bộ đo"* **đã được viết ra trong lượt review này
+rồi RÚT LẠI**: nó rút từ **một** quan sát, trên đúng bộ đo mà `sprint-status.yaml` đã ghi là chập
+chờn *(8 lượt gần nhất 6 xanh / 2 đỏ)*. Một mẫu bằng 1 trên một bộ đo nhiễu không phải một phép đo
+— đó là lớp lỗi mà luật *"đo trước khi tin"* của kho tồn tại để chặn, và lượt này đã mắc nó.
+Mã dựng trên kết luận đó *(một helper `restoreOsFocus` trong `e2e/support/pointer.mjs`)* **đã được
+gỡ**, vì một doc-comment khai *"sản phẩm không hỏng"* dựa trên một lượt chạy là một lời khai sai
+nằm vĩnh viễn trong kho.
+
+### Ba việc kế tiếp, theo thứ tự giá trị
+
+1. **Ice gõ tay** — vẫn là lượt nghiệm thu rẻ nhất và dứt khoát nhất, đúng như bản ghi 2026-08-12
+   đã kết luận. Một câu **chưa dịch**, bấm rồi gõ. Kết quả trả lời trọn câu hỏi mà tám lượt e2e
+   không trả lời được.
+2. **Chạy ca đỏ ~10 lượt liên tiếp và đếm** — với `osascript` đặt ngay trước lượt gõ. Nếu tỷ lệ
+   xanh ≫ 1/8 thì bộ đo là nguyên nhân chính; nếu nó ở lại quanh 1/8 thì lượt xanh kia là nhiễu và
+   sản phẩm **thật sự** có một khuyết tật. **Đừng kết luận trước khi có phân phối**, không phải
+   trước khi có một lượt.
+3. **Đo vì sao tiêu điểm DOM trôi `SPAN.sent` → `SECTION`** giữa cú bấm và lượt gõ. Câu hỏi này
+   **chưa ai đặt** trước lượt review, và nó độc lập với vế `hasFocus`. Nếu lượt trôi ấy cũng xảy
+   ra với tay người thì nó là khuyết tật sản phẩm thật, và nó **không** phải ca `<span>` rỗng.
+
+**Chủ: Story 2.3 (tiếp) — chờ lượt gõ tay của Ice.**

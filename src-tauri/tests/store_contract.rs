@@ -1207,3 +1207,67 @@ fn store_kind_names_are_stable_machine_identifiers() {
     assert_eq!(StoreKind::LibraryIndex.as_str(), "library-index");
     assert_eq!(StoreKind::Dict.as_str(), "dict");
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 2.3 · AC5 · Task 4.4 — VẾ "CHỈ XONG SAU KHI ĐÃ GHI VÀO WAL" CỦA AD-35
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// AD-35 nói flush *"chỉ được coi là xong **sau khi đã ghi vào WAL** — nếu chỉ vào hàng đợi
+/// trong bộ nhớ thì ngưỡng 5 giây của NFR18 không bảo đảm gì"*.
+///
+/// `Store::write` **chặn** tới khi job chạy xong và mỗi job là một giao dịch, nên nửa
+/// *"không phải khi mới vào hàng đợi trong bộ nhớ"* đã đứng từ Story 1.7. Nửa còn lại —
+/// *"đã ghi vào WAL"* — phụ thuộc **`PRAGMA synchronous`**:
+///
+/// | `synchronous` | commit trên WAL |
+/// |---|---|
+/// | `2` FULL | `fsync` WAL ở **mỗi** commit ⇒ `Ok` **là** bằng chứng đã ghi |
+/// | `1` NORMAL | **không** `fsync`; WAL có thể mất khi mất điện ⇒ AC5 **chưa thoả** |
+///
+/// 🔴 Ca này tồn tại vì *"mặc định biên dịch của SQLite là FULL"* là một mệnh đề về **giá
+/// trị mặc định của một thư viện C được ghim**, không phải một lời khai trong mã của dự án
+/// này. Cùng luật *"đặt rồi ĐỌC LẠI"* mà [`StoreError::WalUnavailable`] tồn tại để dạy: một
+/// lượt nâng `libsqlite3-sys`, hay một cờ biên dịch đổi, hạ nó xuống NORMAL **im lặng** và
+/// NFR18 mất bảo đảm mà không cổng nào đỏ.
+///
+/// 🔵 **ĐÍNH CHÍNH 2026-08-13 (code review) — nay `pragmas.rs` ĐẶT nó, và ca này vẫn ĐỌC LẠI.**
+///
+/// Bản đầu của ca này ghi *"đọc, không đặt"* và giao lượt đặt cho **Story 2.4**, với lý lẽ
+/// rằng con số đánh đổi với NFR2. Lý lẽ đó đúng cho việc **đổi** giá trị, nhưng nó không phủ
+/// việc **ghim** giá trị đang chạy: phép đo cho ra `2 (FULL)`, nên `apply_writer_pragmas` đặt
+/// đúng `FULL` ⇒ hành vi đổi **0**, hiệu năng đổi **0**, và Story 2.4 vẫn tự do hiệu chỉnh.
+/// Cái đổi là AD-35 thôi đứng trên một **mặc định biên dịch của một thư viện C được ghim** và
+/// bắt đầu đứng trên một lời khai của chương trình này — nửa còn thiếu của chính luật *"đặt
+/// rồi ĐỌC LẠI"*.
+///
+/// ⚠️ Ca này vì thế **không** trở nên thừa: nó là vế **đọc lại**. Một lượt nâng
+/// `libsqlite3-sys` làm `FULL` không đặt được nữa sẽ đỏ **ở đây**, không im lặng.
+#[test]
+fn the_write_connection_fsyncs_the_wal_on_every_commit() {
+    let dir = temp_dir("synchronous");
+    let store = Store::open(spec_with(&dir, quiet_tuning())).expect("mở kho");
+
+    let (sync_writer, mode) = store
+        .write(|tx| {
+            let sync: i64 = tx.query_row("PRAGMA synchronous", [], |r| r.get(0))?;
+            let mode: String = tx.query_row("PRAGMA journal_mode", [], |r| r.get(0))?;
+            Ok((sync, mode))
+        })
+        .expect("đọc PRAGMA synchronous trên kết nối ghi");
+
+    assert_eq!(
+        mode.to_lowercase(),
+        "wal",
+        "ca này chỉ có nghĩa trên WAL — `synchronous` mang ngữ nghĩa khác ở journal khác"
+    );
+    assert_eq!(
+        sync_writer, 2,
+        "PRAGMA synchronous = {sync_writer} (2 = FULL, 1 = NORMAL). Ở NORMAL, một commit \
+         trên WAL KHÔNG fsync, nên `Store::write` trả Ok TRƯỚC khi dữ liệu chạm đĩa — và \
+         AC5 của Story 2.3 (AD-35) CHƯA THOẢ. Đây là một phát hiện phải BÁO, không phải \
+         một chỗ để chèn một PRAGMA: con số này đánh đổi với NFR2 và chủ là Story 2.4."
+    );
+
+    drop(store);
+    cleanup(&dir);
+}

@@ -382,3 +382,56 @@ fn the_splitter_stays_pure() {
         offenders.join("\n")
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 2.3 · AC12 — LỆNH GHI MỚI ĐI QUA ĐÚNG `store::Writer`, KHÔNG MỞ ĐƯỜNG THỨ HAI
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// AC12 của Story 2.3 đòi bằng chữ *"một ca ở `store_boundary.rs` **hoặc**
+/// `segment_boundary.rs` khẳng định lệnh ghi mới không mở kết nối nào và không nhận `&Store`
+/// ở tầng dưới"*. Code review 2026-08-13 tìm ra rằng mệnh đề đó chỉ được phủ **gián tiếp** —
+/// bởi `store_boundary.rs::only_core_store_may_name_rusqlite`, một cổng quét cả cây và vì thế
+/// phủ `commands/segment.rs` mà không ai phải viết gì.
+///
+/// 🔴 Gián tiếp là **chưa đủ**, và lý do không phải hình thức: cổng kia canh *"ai được nhắc
+/// tên `rusqlite`"*. Nó **không** canh vế thứ hai của AC12 — *"không nhận `&Store` ở tầng
+/// dưới"* — vì `&Store` là một kiểu **được phép** ở `commands/**`. Một lượt refactor đổi
+/// `fn write_targets(tx: &Transaction)` thành `fn write_targets(store: &Store)` biên dịch
+/// sạch, không nhắc `rusqlite` một chữ, đi qua trọn cổng kia — và mở một giao dịch **thứ hai**
+/// trên writer nối tiếp của AD-11, đúng đường hỏng mà doc-comment của `insert_segments`
+/// (`commands/segment.rs:60-62`) đã ghi tên từ Story 2.1.
+///
+/// ⚠️ Ca này đọc **bản đã che** *(bỏ dòng chú thích)*, cùng khuôn mọi phép kiểm tĩnh khác ở
+/// tệp này: doc-comment của chính hàm ghi có chuỗi `&Store` trong câu giải thích *vì sao*
+/// nó không nhận `&Store`, và một bộ đọc thô sẽ đỏ vì đúng đoạn văn dạy nó điều phải kiểm.
+#[test]
+fn the_target_write_path_never_takes_a_store_below_the_command_shell() {
+    let text = read(&src_root().join("commands/segment.rs"));
+
+    // Thân closure trao cho `Store::write` nhận `&Transaction` — đó là hình dạng ĐÚNG, và nó
+    // phải còn đó. Mất nó nghĩa là đường ghi đã đổi hình dạng dưới chân AC12.
+    assert!(
+        text.contains("write(move |tx: &Transaction<'_>|"),
+        "không còn một closure `Store::write(move |tx: &Transaction<'_>| …)` nào trong \
+         `commands/segment.rs`. AC12 của Story 2.3 đứng trên hình dạng đó: một lô, một giao \
+         dịch, và tầng dưới nhận `&Transaction` chứ không `&Store`."
+    );
+
+    // Không hàm nào Ở TẦNG DƯỚI được nhận `&Store`. Vỏ lệnh nhận `Option<&OpenWork>` và đọc
+    // `open.store` — đó là tầng TRÊN, và nó được phép.
+    let offenders: Vec<String> = text
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| !is_comment(line))
+        .filter(|(_, line)| line.contains("&Store") || line.contains("Connection::open"))
+        .map(|(index, line)| format!("segment.rs:{}  {}", index + 1, line.trim()))
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "đường ghi bản dịch đã nhận `&Store` ở tầng dưới, hoặc đã mở một kết nối riêng:\n{}\n\n\
+         AD-11 có MỘT writer nối tiếp. Một hàm dưới vỏ lệnh cầm `&Store` sẽ mở một giao dịch \
+         thứ hai — cùng đường hỏng mà `insert_segments` đã ghi từ Story 2.1.",
+        offenders.join("\n")
+    );
+}

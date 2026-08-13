@@ -709,6 +709,9 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `typescript-eslint` | 8.67.0 | MIT ✓ |
 | `@wdio/cli` · `@wdio/local-runner` · `@wdio/mocha-framework` · `@wdio/spec-reporter` | 9.30.1 | MIT ✓ |
 | `@wdio/tauri-service` | 1.3.0 | MIT ✓ |
+| `vitest` *(bộ chạy test frontend — Story 2.3)* | 4.1.10 | MIT ✓ |
+| `@vue/test-utils` | 2.4.11 | MIT ✓ |
+| `happy-dom` | 20.11.2 | MIT ✓ |
 | `Noto Serif CJK TC` *(chỉ Regular; = Source Han Serif 2.003R đổi nhãn)* | 2.003 | SIL OFL 1.1 |
 | `Source Serif 4` *(kênh Google, font biến thiên)* | 4.004 | SIL OFL 1.1 |
 | `Source Sans 3` *(kênh Google, font biến thiên)* | 3.052 | SIL OFL 1.1 |
@@ -733,6 +736,14 @@ Ba hàng **⚠️** và một hàng suýt bị chấm sai, đọc thẳng từ t
 **Rà NFR15 lượt ba — 2026-08-11, lượt correct-course**, cùng phương pháp hai lượt trước: **mở tệp `LICENSE` trong nguồn ĐÃ TẢI mà đọc**, không tin nhãn của registry. Mười hàng mới ở trên đều mang **✓**: cả mười tệp có mặt và thân tệp mang đúng mệnh đề *"Permission is hereby granted, free of charge"* của MIT. Bảy hàng trong số đó **sinh ra rồi mới được ghi vào bảng** — `uuid` từ Story 1.15, ba hàng ESLint từ cổng thứ mười, năm gói WebdriverIO cùng plugin từ bộ lái e2e — nên lượt này là một lượt **đuổi theo**, không phải một lượt rà trước khi thêm. Đó chính là quy ước ở hàng *Giấy phép* của bảng Consistency Conventions, và nó đã bị bỏ lỡ ba lần liên tiếp.
 
 ⚠️ **Hai chỗ phải nói thẳng, cả hai nằm ở phần BẮC CẦU chứ không phải hàng Stack.** Cây npm đi từ **194** lên **530** gói khi bộ lái e2e vào. Quét toàn cây: `@promptbook/utils` mang **CC-BY-4.0** *(đòi ghi công)* và `css-value@0.0.1` **không khai giấy phép**. Cả hai chỉ là devDependency và **không đi vào sản phẩm** — nhưng chúng là hai mục duy nhất trong 530 gói không thuộc nhóm dễ dãi, nên ghi ra thay vì để một lượt rà sau tự phát hiện. `check-deps.mjs` Kiểm 2 quét `PATTERN` analytics/telemetry và `AUTH_PATTERN` trên **toàn** cây đó: cả hai **rỗng**.
+
+**Rà NFR15 lượt bốn — 2026-08-12, Story 2.3.** Ba hàng `vitest` · `@vue/test-utils` · `happy-dom` ở trên là hệ quả của một lượt Ice **lật** vế *"dự án không có bộ chạy test frontend"* của NFR15. 🔴 **Lượt lật đó KHÔNG bác bỏ luật cũ — nó đi qua đúng cái cửa mà luật cũ dựng.** Luật cũ chưa bao giờ nói *"không chạy được test"*; nó nói *"mở tệp giấy phép trong nguồn đã tải, rồi vào bảng Stack, **trước khi** thêm"*. Cửa đó **vẫn đứng** cho gói thứ tư.
+
+Khác ba lượt trước ở đúng một chỗ, và đó là chỗ đáng ghi: đây là lượt rà **TRƯỚC khi thêm**, không phải một lượt đuổi theo. Cả ba tệp giấy phép được mở trong `node_modules/` **sau lượt `npm install` và trước dòng mã test đầu tiên**; đường dẫn và dòng đầu ghi ở §Completion Notes của story `2-3-hop-dong-flush-va-trang-thai-da-luu.md`.
+
+⚠️ **`vitest` mang một bảng giấy phép GỘP, và đó là lý do đọc tệp thật hơn đọc trường `license`.** `node_modules/vitest/LICENSE.md` dài **811** dòng: phần đầu là MIT của chính Vitest, phần sau khai giấy phép của **27** gói nó vendor — **24 MIT · 2 BSD-3-Clause · 1 ISC**. Trường `license` trong `package.json` của gói chỉ nói `"MIT"` và không nói một chữ nào về 27 gói kia. Cả ba nhóm đều thuộc nhóm dễ dãi và tương thích GPL v3 theo chiều đi vào.
+
+⚠️ **Cây npm đi từ 530 lên 656 gói** (số `npm ls --all` đếm được, gồm cả node trùng tên ở nhiều độ sâu; số **gói đã cài** mà `check-deps.mjs` đếm là **522**). Lượt cài này làm lộ ra một **khuyết tật của chính cổng phụ thuộc**, đã vá cùng lượt: `vitest` khai `@opentelemetry/api` làm **peer tuỳ chọn chưa cài**, và `npm ls --all --json` xếp một node **rỗng** cho nó vào `dependencies` — bản trước của `check-deps.mjs` đếm node đó là thành viên cây rồi báo *"cây npm có thư viện thu thập dữ liệu"*, trong khi **không một byte** của gói đó có trên đĩa. Nay cổng chỉ đếm node **có `version`**, và in ra số node chỉ-lời-khai đã bỏ (**82**). Xem `scripts/check-deps.mjs` §④.
 
 SQLite đến từ `libsqlite3-sys` feature `bundled` — phiên bản do crate ghim, không phải SQLite của hệ điều hành. Sàn tối thiểu mà kiến trúc cần: FTS5 `trigram` (≥ 3.34) và `remove_diacritics 0` (≥ 3.27); mọi bản `bundled` hiện hành đều vượt xa.
 

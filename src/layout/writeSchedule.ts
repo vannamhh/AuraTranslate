@@ -1,5 +1,5 @@
 /**
- * Nhịp ghi bố cục xuống đĩa — **tầng THUẦN**. Story 1.14 · AC4 · §Quyết định #5 · AD-11.
+ * Nhịp ghi *idle + trần cứng* — **tầng THUẦN**. Story 1.14 · AC4 · AD-11 · **AD-35 từ Story 2.3**.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔴 VÌ SAO TỆP NÀY TỒN TẠI RIÊNG — §BẪY 3 CỦA STORY, VÀ NÓ KHÔNG LÀM CỔNG NÀO ĐỎ
@@ -20,17 +20,39 @@
  * chờn thay vì một phép kiểm tức thời và tất định.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * ⚠️ ĐÂY LÀ *MƯỢN HÌNH DẠNG* CỦA AD-35, KHÔNG PHẢI "ÁP AD-35 CHO BỐ CỤC"
+ * 🔴 MỘT HÀM, **HAI CHỖ DÙNG**, HAI CẶP HẰNG — và chỉ MỘT chỗ mang bảo đảm của AD-35
  * ─────────────────────────────────────────────────────────────────────────────
- * AD-35 là hợp đồng ghi của **Editor**. Bố cục không có `SegmentVersion`, không có
- * lịch sử, và mất một lượt kéo sash **không phải mất công việc** — nó là mất 40 pixel
- * chiều rộng mà người dùng kéo lại trong một giây. Cái được mượn là **hình dạng** *(idle
- * cộng một trần cứng)*, không phải các bảo đảm.
+ * ⚠️ **Khối này được viết lại ở Story 2.3 · Task 1.5.** Tới hết Story 2.2 nó nói *"đây là
+ * MƯỢN hình dạng của AD-35, KHÔNG phải áp AD-35 cho bố cục"* — đúng vào ngày Editor chưa có
+ * đường ghi nào. Ice chốt Quyết định #2 đường **(a)** ngày 2026-08-12, nên từ story đó tệp
+ * này **là** đường AD-35 thật, và một comment nói ngược sẽ đánh lừa đúng người đọc kỹ nhất.
+ *
+ * | Chỗ dùng | Hằng | Mang bảo đảm của AD-35? |
+ * |---|---|---|
+ * | `WorkspaceDock.vue` — nhịp ghi **bố cục** (Story 1.14) | [`IDLE_MS`] `500` / [`HARD_CAP_MS`] `5000` | **KHÔNG** |
+ * | `panels/editorFlush.ts` — nhịp flush **Editor** (Story 2.3) | `EDITOR_IDLE_MS` `2000` / `EDITOR_HARD_CAP_MS` `5000` | **CÓ** |
+ *
+ * Cái dùng chung là **hình dạng** *(idle cộng một trần cứng không reset)*. Các **bảo đảm** —
+ * *"đi qua đúng `store::Writer` nối tiếp"*, *"chỉ xong sau khi đã ghi vào WAL"*, NFR18
+ * *"mất tối đa 5 giây công việc"* — thuộc **chỗ dùng của Editor**, không thuộc tệp này. Bố cục
+ * không có `SegmentVersion`, không có lịch sử, và mất một lượt kéo sash **không phải mất công
+ * việc** — nó là mất 40 pixel chiều rộng mà người dùng kéo lại trong một giây.
+ *
+ * 🔴 **KHÔNG sửa hành vi của [`createWriteSchedule`] để "hợp Editor hơn".** Hai chỗ đứng trên
+ * nó, và mỗi chỗ có lưới riêng: `scripts/check-layout.mjs` Kiểm B (`:288`, chạy
+ * [`simulateWrites`]) cho bố cục, và `tests/frontend/editorFlush.test.ts` cho Editor. Một lượt
+ * sửa hoặc làm đỏ một cổng của story khác, hoặc — tệ hơn — **không** làm đỏ và lặng lẽ đổi
+ * nhịp ghi bố cục. Cần một hành vi khác ⇒ một **tham số mới** có giá trị mặc định giữ nguyên
+ * hành vi cũ, cộng một test cho **cả hai** giá trị.
  */
 
 /**
- * Yên bao lâu thì ghi. Đủ dài để nuốt trọn một cú kéo sash, đủ ngắn để một lượt đóng cửa
- * sổ ngay sau đó gần như luôn có bản mới nhất trên đĩa.
+ * Yên bao lâu thì ghi — **cặp hằng của BỐ CỤC**. Đủ dài để nuốt trọn một cú kéo sash, đủ ngắn
+ * để một lượt đóng cửa sổ ngay sau đó gần như luôn có bản mới nhất trên đĩa.
+ *
+ * ⚠️ Editor mang cặp riêng (`EDITOR_IDLE_MS` = 2000) khai ở `panels/editorFlush.ts`. **Đừng**
+ * đổi con số dưới đây "cho khớp Editor" — nó thuộc Story 1.14, và một lượt đổi ở đây không
+ * làm cổng nào đỏ.
  */
 export const IDLE_MS = 500
 

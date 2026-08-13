@@ -18,6 +18,18 @@
  *   3. Mẫu quét chạy trên **đường dẫn tuyệt đối** của `npm ls --parseable`, nên một
  *      repo nằm trong `~/work/analytics/` hay `~/Dropbox/` là FAIL vĩnh viễn. Nay:
  *      chỉ so trên TÊN GÓI, không bao giờ so trên đường dẫn.
+ *   4. **Một LỜI KHAI đọc thành một THÀNH VIÊN CÂY** — bắt 2026-08-12, Story 2.3 · Task 0b.
+ *      `npm ls --all --json` xếp cả **peer dependency tuỳ chọn CHƯA CÀI** vào `dependencies`,
+ *      dưới dạng một node **rỗng** `{}` không có `version`. Bản trước đếm chúng, nên nó báo
+ *      *"cây npm có thư viện thu thập dữ liệu: @opentelemetry/api"* sau lượt cài `vitest`
+ *      — trong khi `npm ls @opentelemetry/api` trả **rỗng** và không một byte nào của gói
+ *      đó có trên đĩa (`vitest/package.json` khai nó ở `peerDependenciesMeta` là
+ *      `optional: true`). Đo lúc sửa: **1.199** node đã cài lẫn với **85** node chỉ-lời-khai.
+ *      Nay: chỉ đếm node **có `version`**, và in ra số lời khai đã bỏ để con số không biến
+ *      mất trong im lặng.
+ *      ⚠️ Chiều rủi ro đã cân: một gói bị cấm mà chỉ tồn tại dưới dạng lời khai thì **không
+ *      có mã nào chạy** — nên bỏ nó khỏi phép đếm là nói thật, không phải nới cổng. Và nó
+ *      làm `NPM_TREE_FLOOR` mạnh hơn: sàn nay đếm số gói THẬT trên đĩa.
  *
  * Vì sao là Node chứ không phải bash (Ice chốt 2026-08-03): AC6 đòi hành vi tương
  * đương hai nền tảng, mà `npm run` trên Windows chạy qua `cmd.exe` — không có bash.
@@ -93,6 +105,8 @@ const rustNames = new Set(rustCrates.map((l) => l.replace(/^[├└─│\s]+/, 
 
 // ── Đọc cây npm MỘT LẦN, lấy TÊN GÓI (không lấy đường dẫn) ───────────────────────
 let npmNames = new Set()
+/** Tên các node CHỈ-LỜI-KHAI đã bỏ — in ra để con số không biến mất im lặng (xem ④). */
+const npmDeclaredOnly = new Set()
 try {
   // `npm ls` trả exit != 0 khi cây có vấn đề nhưng vẫn in JSON — bắt cả hai đường.
   let raw
@@ -108,9 +122,17 @@ try {
     raw = err.stdout
     if (!raw) throw err
   }
+  /**
+   * 🔴 `child.version` là điều kiện để một node được ĐẾM — xem ④ ở đầu tệp.
+   *
+   * Một gói đã cài thật luôn mang `version` trong `npm ls --all --json`. Một peer tuỳ chọn
+   * chưa cài, và một phụ thuộc `missing`, đi vào cùng chỗ đó dưới dạng node **rỗng** — tức
+   * một LỜI KHAI về thứ lẽ ra có, không phải một thứ trên đĩa.
+   */
   const walk = (node) => {
     for (const [name, child] of Object.entries(node?.dependencies ?? {})) {
-      npmNames.add(name)
+      if (typeof child?.version === 'string') npmNames.add(name)
+      else npmDeclaredOnly.add(name)
       walk(child)
     }
   }
@@ -222,7 +244,22 @@ if (npmHits.length) {
   fail('cây npm có thư viện thu thập dữ liệu:')
   npmHits.forEach((h) => console.log(`       ${h}`))
 } else {
-  pass(`cây npm sạch (${npmNames.size} gói đã quét)`)
+  pass(`cây npm sạch (${npmNames.size} gói ĐÃ CÀI đã quét)`)
+}
+
+// 🔴 Không im lặng về số đã bỏ — xem ④. Một lời khai khớp mẫu quét KHÔNG làm cổng đỏ (không
+// có mã nào trên đĩa), nhưng nó phải ĐỌC ĐƯỢC: ngày nào ai đó cài gói tuỳ chọn đó thật, nó
+// thành một node có `version` và Kiểm 2 đỏ ngay — và người đọc log cần biết trước rằng tên
+// đó đã từng đi qua đây.
+{
+  const declaredHits = [...npmDeclaredOnly].filter((n) => PATTERN.test(n) || BANNED_NPM.includes(n))
+  console.log(
+    `       (bỏ ${npmDeclaredOnly.size} node CHỈ-LỜI-KHAI — peer tuỳ chọn/`
+      + `phụ thuộc thiếu, không có gói trên đĩa)`,
+  )
+  for (const n of declaredHits) {
+    console.log(`       ⚠️ \`${n}\` được KHAI làm peer tuỳ chọn mà chưa cài — cài nó là làm Kiểm 2 đỏ`)
+  }
 }
 
 // NFR13 — không tài khoản, không đăng nhập, không đồng bộ đám mây. Cùng cách nghiệm

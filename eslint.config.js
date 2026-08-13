@@ -71,7 +71,7 @@ export default tseslint.config(
   ...pluginVue.configs['flat/base'],
 
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.ts', 'tests/frontend/**/*.ts'],
     languageOptions: { parserOptions: TYPED },
   },
 
@@ -87,7 +87,7 @@ export default tseslint.config(
   },
 
   {
-    files: ['src/**/*.ts', 'src/**/*.vue'],
+    files: ['src/**/*.ts', 'src/**/*.vue', 'tests/frontend/**/*.ts'],
     rules: {
       /**
        * 🔴 ĐÂY là luật bắt được lỗi đã lọt, và nó là lý do cả tệp này tồn tại.

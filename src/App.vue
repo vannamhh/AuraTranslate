@@ -40,6 +40,8 @@ import { configError } from './config/bootstrap'
 // hàng và `MODE_IDS` là một hằng ba phần tử; `Mod+4` thuộc Story 8.11. Nó nói về **cả ứng
 // dụng** chứ không về một panel, nên nó sống cùng tầng với dải báo lỗi cấu hình.
 import AttributionOverlay from './AttributionOverlay.vue'
+// Story 2.3 — thanh trạng thái, vỏ ứng dụng (Quyết định #5).
+import StatusBar from './StatusBar.vue'
 import ShortcutsOverlay from './ShortcutsOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
@@ -240,6 +242,21 @@ function focusOnPointerDown(event: MouseEvent) {
         <ReadingMode v-else />
       </KeepAlive>
     </div>
+
+    <!--
+      🔴 STORY 2.3 · AC7 · AC9 — THANH TRẠNG THÁI, lượt đầu tiên nó tồn tại.
+
+      Đặt ở **vỏ ứng dụng** dưới `.modeport`, không trong `WorkspaceMode.vue` (Quyết định #5,
+      đường (a)): `EXPERIENCE.md:417` đã dùng nó để tính chiều cao vùng làm việc cho **cả ba**
+      chế độ, và UX-DR15 hứa Panel Lookup *"rút về thanh trạng thái"* ở màn hình hẹp (Story
+      4.12) — một thanh chỉ sống trong Workspace sẽ phải chuyển chỗ lần nữa ở đó.
+
+      ⚠️ Đặt TRƯỚC `pre.selftest`: dải chẩn đoán đó chỉ tồn tại khi `VITE_SCOPE_SELFTEST=1`, và
+      nó là thứ cuối cùng của vỏ trong bản debug. Thanh trạng thái là một phần **thường trực**
+      của bố cục mà `EXPERIENCE.md:417` tính vào chiều cao — nó không được nằm dưới một khối
+      chỉ có mặt trong một chế độ chạy.
+    -->
+    <StatusBar />
 
     <!--
       aura-allow-text: báo cáo self-check phạm vi asset protocol — CHẨN ĐOÁN cho log CI,

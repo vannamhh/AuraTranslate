@@ -94,7 +94,7 @@ function walk(dir, out = [], seen = new Set()) {
  */
 // 🔴 NÂNG 2026-08-12 — Story 2.2 · AC16. Số thật là **50** tệp `src/**`, nên sàn 35 đã tụt
 // xuống **70,0%**; ba story (1.20 · 1.21 · 2.1) thêm tệp mà không ai nâng sàn. Đo chứ không ước.
-const FILE_FLOOR = 40 // số THẬT 2026-08-12 (sau Story 2.2): 50 tệp `src/**` — 40/50 = 80,0%
+const FILE_FLOOR = 43 // số THẬT 2026-08-12 (sau Story 2.3): 52 tệp `src/**` — 43/52 = 82,7%
 
 let files = []
 try {
@@ -423,6 +423,24 @@ const ALLOWED_GLOBAL_MEMBERS = new Set([
   // một component KHÁC, và một lượt đổi preset bố cục dựng lại cả bốn panel. API DOM chuẩn,
   // không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
   'document.querySelector',
+  // Story 2.3, AC8 — `EditorPanel.vue::onBeforeInput` chèn văn bản THUẦN đã làm phẳng sau khi
+  // `preventDefault()` một lượt dán/kéo-thả. Đó là đường DUY NHẤT giữ được mệnh đề của AD-37
+  // (*cấu trúc đoạn là dữ liệu ĐÃ LƯU*), và nó là một PHÉP ĐO chứ không một lượt phòng xa: mũi
+  // thăm dò Task 0.1 đo được rằng không có nhánh này thì **cả hai** engine tiêm markup vào
+  // trong một câu — `<pre>`, `<span style>`, và trên WebKit cả `<div>` khối — cộng một `\n`
+  // thật vào `target_text` của MỘT câu. `contenteditable="plaintext-only"` KHÔNG thay được:
+  // Blink vẫn giữ `\n`, WebKit tự tạo `<div>`.
+  // API DOM chuẩn, không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
+  'document.createTextNode',
+  // Story 2.3, AC22 — `EditorPanel.vue::placeCaretAtPoint`. ĐÂY LÀ MỘT PHÉP ĐO, không một lượt
+  // phòng xa: đo trong cửa sổ Tauri thật (WKWebView 605.1.15, chuột THẬT) rằng một cú bấm vào
+  // văn bản chỉ-đọc cho `getSelection().type === 'None'`, `rangeCount = 0`, và `.doc` KHÔNG nhận
+  // tiêu điểm dù có `tabindex="0"`. Đường `Selection.anchorNode` của Story 2.2 vì thế không bao
+  // giờ chạy tới trên engine mà sản phẩm thật sự chạy, và người dùng bấm vào một câu thì KHÔNG
+  // GÌ xảy ra. Hai API này là đường duy nhất phân giải điểm bấm thành một vị trí caret.
+  // API DOM chuẩn, không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
+  'document.caretPositionFromPoint',
+  'document.caretRangeFromPoint',
 ])
 
 const GLOBAL_MEMBER_RE = /\b(window|document|globalThis|self|top|parent)\s*\.\s*([A-Za-z_$][A-Za-z0-9_$]*)/g

@@ -22,7 +22,7 @@ import type { UnlistenFn } from '@tauri-apps/api/event'
 import { createWorkFromFile, createWorkFromText } from '../config/project'
 import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
 import { resetLookupPanel } from '../panels/lookupPanelState'
-import { ensureSegmentsLoaded, resetEditorPanel } from '../panels/editorPanelState'
+import { ensureSegmentsLoaded, flushEditorNow, resetEditorPanel } from '../panels/editorPanelState'
 import type { CreatedWork } from '../config/project'
 import type { IpcError } from '../i18n'
 
@@ -88,13 +88,67 @@ export const createdWork = ref<CreatedWork | null>(null)
  */
 export const noticeKey = ref<string | null>(null)
 
-function beginSubmit(): void {
+/**
+ * Lượt flush bản dịch cũ trượt ⇒ **dừng** lượt tạo Tác phẩm. Story 2.3 · code review 2026-08-13.
+ *
+ * ⚠️ Dựng ở frontend, cùng khuôn `UNKNOWN_IPC_ERROR` của `config/segment.ts`: đây là một phán
+ * quyết của **tầng giao diện** *(“đừng thay Tác phẩm khi chữ cũ chưa an toàn”)*, không phải một
+ * lỗi Rust trả về ⇒ nó **không** có `MessageKey` phía Rust, và không được có. AD-21 vẫn đứng:
+ * chỗ này mang một **khoá**, không mang một câu.
+ */
+const FLUSH_FAILED_ERROR: IpcError = {
+  code: 'editor.flush_failed',
+  message_key: 'err.editor.flush_failed',
+  params: {},
+  retryable: true,
+}
+
+/** @returns `false` ⇒ lượt nộp bị DỪNG, chỗ gọi không được đi tiếp. */
+async function beginSubmit(): Promise<boolean> {
   busy.value = true
   lastError.value = null
   noticeKey.value = null
   // Một lượt nộp mới xoá xác nhận cũ — không để dòng "Đã tạo…" của lần trước đứng cạnh
   // kết quả của lần này và nói dối về cái vừa xảy ra.
   createdWork.value = null
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔴 FLUSH BẢN DỊCH CHƯA LƯU — Story 2.3 · AC3 vế *"đóng Tác phẩm"* · AD-35
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //
+  // Hôm nay **không tồn tại** một lệnh đóng `.atproj`, nên chỗ duy nhất mà vế *"đóng Tác
+  // phẩm"* của AC3 chạm tới được là đường này: một Tác phẩm mới **thay** Tác phẩm đang mở.
+  //
+  // 🔴 **VÌ SAO Ở ĐÂY VÀ KHÔNG Ở `finishSubmit`.** Story ghi *"flush TRƯỚC
+  // `resetEditorPanel()`"*, và `resetEditorPanel()` sống trong `finishSubmit`. Nhưng đo lại
+  // đường thật thì flush ở đó **SAI**, và sai theo hướng tệ nhất: lúc `finishSubmit` chạy,
+  // `create_work_from_*` đã trả về, tức `replace_open_work` phía Rust **đã** trỏ
+  // `OpenWorkState` sang Tác phẩm MỚI. Một lô flush ở đó mang `chapter_id` của Tác phẩm **cũ**
+  // đi vào `project.db` của Tác phẩm **mới** ⇒ Rust từ chối trọn lô bằng
+  // `segment.unknown_ids` *(id không thuộc Chương nào ở đó)*, và bản dịch cũ mất **im lặng**.
+  //
+  // ⇒ Điều kiện thật của mệnh đề không phải *"trước `resetEditorPanel()`"* mà là **trước lượt
+  // `replace_open_work`**. `beginSubmit` là điểm nghẽn duy nhất mà **cả hai** nhánh nhập đi
+  // qua trước lời gọi đó — cùng vai mà `finishSubmit` giữ cho nửa sau.
+  //
+  // ⚠️ `await`, không `void`: lượt tạo Tác phẩm phải chờ bản dịch cũ chạm WAL trước khi
+  // `OpenWorkState` đổi chỗ. Bỏ `await` là dựng lại đúng cuộc đua vừa mô tả.
+  //
+  // 🔴 **Và kết quả PHẢI được đọc** — code review 2026-08-13, Ice ký. Bản cũ gọi `await` rồi
+  // bỏ giá trị trả về, nên một lượt flush **trượt** vẫn cho lượt tạo Tác phẩm đi tiếp; và khi
+  // nó thành công thì `finishSubmit` gọi `resetEditorPanel()` → `flush.reset()`, hàm **vứt vô
+  // điều kiện** mọi mục còn trong tập chờ. ⇒ bản dịch chưa ghi của Tác phẩm cũ mất **im lặng**,
+  // đúng cửa sổ mà lượt dời lời gọi lên `beginSubmit` vừa đóng ở nửa kia.
+  //
+  // Phán quyết: **chặn**. Người dùng bị cản một lượt và thấy lý do; họ thử lại, hoặc họ chép
+  // bản dịch ra ngoài. Cả hai đường đều tốt hơn một lượt mất chữ không ai biết.
+  const flushed = await flushEditorNow()
+  if (flushed === 'failed') {
+    lastError.value = FLUSH_FAILED_ERROR
+    busy.value = false
+    return false
+  }
+  return true
 }
 
 function finishSubmit(created: CreatedWork | null, error: IpcError | null): void {
@@ -151,7 +205,8 @@ export async function submitPastedText(): Promise<void> {
   // là một command đã đăng ký, và một lối vào tương lai (palette, phím tắt) sẽ đi thẳng
   // qua đây mà không đi qua thuộc tính DOM nào.
   if (pastedText.value.trim() === '') return
-  beginSubmit()
+  // ⚠️ `beginSubmit` trả `false` khi bản dịch cũ chưa chạm WAL — đi tiếp là mất nó im lặng.
+  if (!(await beginSubmit())) return
   const result = await createWorkFromText(name.value, sourceLang.value, genre.value, pastedText.value)
   finishSubmit(result.created, result.error)
   if (result.created) {
@@ -164,7 +219,8 @@ export async function submitFilePath(): Promise<void> {
   if (busy.value) return
   const path = filePath.value.trim()
   if (path === '') return
-  beginSubmit()
+  // ⚠️ Cùng lý do và cùng chốt với `submitPastedText`.
+  if (!(await beginSubmit())) return
   const result = await createWorkFromFile(name.value, sourceLang.value, genre.value, path)
   finishSubmit(result.created, result.error)
   if (result.created) {

@@ -177,6 +177,25 @@ message_keys! {
     /// `count` là số segment hiện có — dữ liệu, không phải câu.
     SegmentAlreadySplit => "err.segment.already_split" ["chapter_id", "count"],
 
+    // ── Story 2.3 (AD-35 · AD-31 · FR100) — MỘT khoá, và đúng một ────────────────
+    //
+    // Lệnh ghi bản dịch tái dùng `SegmentChapterNotFound` cho ca *"Chương không thuộc
+    // Tác phẩm đang mở"* và `ProjectNoWorkOpen` cho ca *"chưa mở Tác phẩm nào"* — cùng
+    // câu, cùng nghĩa, và một khoá thứ hai cho chúng là hai chuỗi phải giữ khớp bằng
+    // kỷ luật. Chỉ ca dưới đây là RIÊNG của nó.
+    //
+    // **KHÔNG** khoá nào cho *"segment đã về hưu, không ghi được"*: `retired_at` chưa có
+    // đường nào đặt (Story 2.8). Một khoá cho một nhánh không chỗ gọi nào đi qua là
+    // đúng thứ Story 1.7 §Completion Notes #3 cấm.
+    /// Một `segment.id` trong lô ghi không thuộc Chương được chỉ — lô bị **từ chối trọn**,
+    /// không ghi một phần. `count` là số id lạ; `chapter_id` là Chương đã chỉ.
+    ///
+    /// 🔴 Vì sao từ chối trọn lô chứ không bỏ qua id lạ: một lô ghi **một phần** để lại
+    /// đúng trạng thái mà không ai quan sát được — người dùng thấy chữ trên màn hình,
+    /// đĩa giữ một phần, và không dấu hiệu nào báo. AD-35 nói flush *"chỉ được coi là
+    /// xong sau khi đã ghi vào WAL"*; một lô nửa vời không thoả mệnh đề đó cho nửa còn lại.
+    SegmentUnknownIds => "err.segment.unknown_ids" ["chapter_id", "count"],
+
     // **KHÔNG có `ProjectMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
     // 2026-08-06). Cơ chế từ chối một `meta.json` mới hơn vẫn còn nguyên và vẫn có test
     // (`MetaError::SchemaTooNew` + `WorkMeta::read`), nhưng không đường sản phẩm nào

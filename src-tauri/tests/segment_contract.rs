@@ -17,7 +17,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::commands::segment::{
-    read_open_chapter_segments, split_chapter_into_segments, SplitOutcome,
+    read_open_chapter_segments, save_segment_targets, split_chapter_into_segments, SegmentTargetEdit,
+    SplitOutcome,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::segment::split::{
@@ -1201,4 +1202,363 @@ fn a_chapter_with_real_translations_round_trips_through_the_load_command() {
 
     drop(opened);
     cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Story 2.3 — ĐƯỜNG FLUSH của AD-35: AC4 · AC12 · AC13 · AC14 · AC15 · AC16
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ Mọi ca dưới đây gọi HÀM THUẦN `save_segment_targets`, không vỏ `wire` — cùng khuôn
+// mọi ca của Story 2.1/2.2. Đó là thứ nghiệm thu được **mà không cần webview**.
+
+/// Chín cột thật của `segment` hôm nay, đọc lại bằng SQL để khẳng định AC14.
+///
+/// ⚠️ Đọc bằng SQL **thô** chứ không qua `read_open_chapter_segments`, và đó là điều kiện
+/// để phép kiểm có nghĩa: lệnh đọc của sản phẩm chỉ trả **sáu** trường, nên nó **không thấy**
+/// `created_at`/`updated_at`/`chapter_id` — đúng ba cột mà AC14 nói phải y nguyên hoặc phải
+/// đổi. Một phép kiểm đi qua lệnh đọc là một phép kiểm mù với ba cột nó phải canh.
+type SegmentRow = (i64, i64, i64, String, i64, Option<String>, String, String, String);
+
+fn read_all_segment_rows(open: &auratranslate_lib::commands::project::OpenWork) -> Vec<SegmentRow> {
+    open.store
+        .read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id, chapter_id, ord, source_text, is_paragraph_end, retired_at, \
+                 created_at, updated_at, target_text \
+                 FROM segment ORDER BY ord",
+            )?;
+            let rows = stmt.query_map([], |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get(4)?,
+                    r.get(5)?,
+                    r.get(6)?,
+                    r.get(7)?,
+                    r.get(8)?,
+                ))
+            })?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })
+        .expect("doc lai chin cot that bai")
+}
+
+fn edit(id: i64, text: &str) -> SegmentTargetEdit {
+    SegmentTargetEdit {
+        id,
+        target_text: text.to_owned(),
+    }
+}
+
+// ── AC13 — MỘT lô, nhiều segment, MỘT lượt gọi ──────────────────────────────────
+
+#[test]
+fn one_flush_writes_every_changed_segment_in_a_single_call() {
+    let root = temp_dir("flush-batch");
+    let opened = create_work_from_text(&root, "Lo ghi", "zh", "", "一。二。三。四。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let before = read_all_segment_rows(&opened);
+    assert_eq!(before.len(), 4, "fixture phai co bon cau");
+    let ids: Vec<i64> = before.iter().map(|r| r.0).collect();
+
+    // Nguoi dung go xuyen qua BA cau trong mot nhip flush — ca that nhat cua AD-35.
+    let outcome = save_segment_targets(
+        Some(&opened),
+        before[0].1,
+        &[
+            edit(ids[0], "Cau mot da dich."),
+            edit(ids[1], "Cau hai da dich."),
+            edit(ids[3], "Cau bon da dich."),
+        ],
+    )
+    .expect("lo ghi that bai");
+
+    assert_eq!(outcome.saved, 3, "ca ba hang phai duoc UPDATE trong MOT luot");
+    assert_eq!(outcome.chapter_id, before[0].1);
+
+    let after = read_all_segment_rows(&opened);
+    assert_eq!(
+        after.iter().map(|r| r.8.as_str()).collect::<Vec<_>>(),
+        vec!["Cau mot da dich.", "Cau hai da dich.", "", "Cau bon da dich."],
+        "cau THU BA khong nam trong lo, nen ban dich cua no phai con RONG"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn an_empty_batch_is_a_valid_no_op_and_opens_no_transaction() {
+    // Nhip flush co the bat gap mot luot khong con gi de ghi — do khong phai mot loi, va no
+    // KHONG duoc mo mot giao dich rong tren writer noi tiep cua AD-11.
+    let root = temp_dir("flush-empty");
+    let opened = create_work_from_text(&root, "Lo rong", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+    let before = read_all_segment_rows(&opened);
+
+    let outcome = save_segment_targets(Some(&opened), before[0].1, &[]).expect("lo rong bi tu choi");
+
+    assert_eq!(outcome.saved, 0);
+    assert_eq!(
+        read_all_segment_rows(&opened),
+        before,
+        "mot lo rong khong duoc dung toi mot byte nao"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+// ── AC14 — câu `UPDATE` chạm ĐÚNG hai cột ───────────────────────────────────────
+
+#[test]
+fn a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else() {
+    let root = temp_dir("flush-two-columns");
+    let opened = create_work_from_text(&root, "Hai cot", "zh", "", "一。二。\n三。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let before = read_all_segment_rows(&opened);
+    assert_eq!(before.len(), 3);
+    let chapter_id = before[0].1;
+
+    // `created_at` va `updated_at` sinh cung mot luot `strftime` luc INSERT, nen chung bang
+    // nhau truoc luot flush. Do la dieu kien de phep kiem duoi day phan biet duoc hai cot.
+    assert_eq!(
+        before[0].6, before[0].7,
+        "truoc luot flush, `created_at` va `updated_at` phai bang nhau"
+    );
+
+    save_segment_targets(Some(&opened), chapter_id, &[edit(before[0].0, "Ban dich moi.")])
+        .expect("lo ghi that bai");
+
+    let after = read_all_segment_rows(&opened);
+    let (b, a) = (&before[0], &after[0]);
+
+    // Hai cot ĐƯỢC phep doi.
+    assert_eq!(a.8, "Ban dich moi.", "`target_text` phai doi");
+    assert_ne!(
+        a.7, b.7,
+        "`updated_at` phai doi — va no sinh o tang SQL (`strftime`), khong truyen tu Rust"
+    );
+
+    // BAY cot con lai phai y nguyen TUNG BYTE — day la thu cuong che AD-31 hang 1 that su.
+    assert_eq!(a.0, b.0, "`id` doi");
+    assert_eq!(a.1, b.1, "`chapter_id` doi");
+    assert_eq!(a.2, b.2, "`ord` doi");
+    assert_eq!(a.3, b.3, "`source_text` doi — AD-4 dong bang ranh gioi");
+    assert_eq!(a.4, b.4, "`is_paragraph_end` doi — AD-37 noi do la du lieu DA LUU");
+    assert_eq!(a.5, b.5, "`retired_at` doi");
+    assert_eq!(a.6, b.6, "`created_at` doi — no la moc TAO, khong phai moc sua");
+
+    // Hai cau KHONG nam trong lo phai y nguyen tron ven, ke ca `updated_at`.
+    assert_eq!(&after[1..], &before[1..], "cau ngoai lo bi dung toi");
+
+    drop(opened);
+    cleanup(&root);
+}
+
+// ── AC16 — round-trip: gõ → flush → nạp lại, và ranh giới KHÔNG đổi ─────────────
+
+#[test]
+fn typed_text_round_trips_through_the_flush_and_the_load_command() {
+    let root = temp_dir("flush-round-trip");
+    let opened = create_work_from_text(
+        &root,
+        "Round trip",
+        "zh",
+        "",
+        "一。二。\n三。四。五。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
+
+    let before = read_all_segment_rows(&opened);
+    assert_eq!(before.len(), 5);
+    let chapter_id = before[0].1;
+    let ids: Vec<i64> = before.iter().map(|r| r.0).collect();
+    let ords: Vec<i64> = before.iter().map(|r| r.2).collect();
+    let flags_before: Vec<i64> = before.iter().map(|r| r.4).collect();
+
+    // Chuoi co dau tieng Viet, mot em-dash, va mot chuoi RONG (nguoi dung xoa sach mot cau).
+    let typed = [
+        (ids[0], "Hắn đẩy cánh cửa ấy ra — bóng tối dày đặc."),
+        (ids[1], "Gió thổi tới từ cuối hành lang."),
+        (ids[2], ""),
+        (ids[4], "Câu cuối cùng, có dấu đầy đủ: ăn, ắt, ệ, ỡ, ự."),
+    ];
+    let edits: Vec<SegmentTargetEdit> = typed.iter().map(|(id, t)| edit(*id, t)).collect();
+
+    save_segment_targets(Some(&opened), chapter_id, &edits).expect("lo ghi that bai");
+
+    // Nap lai qua DUNG lenh cua san pham.
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
+
+    assert_eq!(loaded.segments.len(), 5, "so hang KHONG duoc doi — go khong phai mot luot tach");
+    assert_eq!(
+        loaded.segments.iter().map(|s| s.id).collect::<Vec<_>>(),
+        ids,
+        "`id` phai y nguyen — AD-3 cam tai dung id da ve huu"
+    );
+    assert_eq!(
+        loaded.segments.iter().map(|s| s.ord).collect::<Vec<_>>(),
+        ords,
+        "`ord` phai y nguyen"
+    );
+    assert_eq!(
+        loaded
+            .segments
+            .iter()
+            .map(|s| i64::from(s.is_paragraph_end))
+            .collect::<Vec<_>>(),
+        flags_before,
+        "co ket doan phai y nguyen — AD-37"
+    );
+    assert_eq!(
+        loaded
+            .segments
+            .iter()
+            .map(|s| s.target_text.as_str())
+            .collect::<Vec<_>>(),
+        vec![typed[0].1, typed[1].1, "", "", typed[3].1],
+        "ban dich phai khop TUNG CHUOI, ke ca chuoi rong"
+    );
+    // Ranh gioi cau (`source_text`) khong doi mot byte.
+    assert_eq!(
+        loaded
+            .segments
+            .iter()
+            .map(|s| s.source_text.clone())
+            .collect::<Vec<_>>(),
+        before.iter().map(|r| r.3.clone()).collect::<Vec<_>>(),
+        "`source_text` doi — AD-4 dong bang ranh gioi vinh vien"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+// ── AC13 vế "từ chối TRỌN lô" + ba ca biên (Task 2.9) ──────────────────────────
+
+#[test]
+fn saving_without_an_open_work_is_refused() {
+    let err = save_segment_targets(None, 1, &[edit(1, "gi cung duoc")])
+        .expect_err("ghi ma chua mo Tac pham phai bi tu choi");
+    assert_eq!(err.code(), "project.no_work_open");
+    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+}
+
+#[test]
+fn saving_into_an_unknown_chapter_is_refused() {
+    let root = temp_dir("flush-bad-chapter");
+    let opened = create_work_from_text(&root, "Chuong la", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+    let before = read_all_segment_rows(&opened);
+
+    let err = save_segment_targets(Some(&opened), 9_999, &[edit(before[0].0, "x")])
+        .expect_err("chuong khong ton tai phai bi tu choi");
+
+    assert_eq!(err.code(), "segment.chapter_not_found");
+    assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
+    assert_eq!(
+        read_all_segment_rows(&opened),
+        before,
+        "mot lo bi tu choi khong duoc de lai mot byte nao"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn a_batch_with_one_unknown_segment_id_is_refused_whole_and_writes_nothing() {
+    // 🔴 Ca DAT NHAT cua lenh nay: mot lo ghi MOT PHAN de lai dung trang thai ma khong ai
+    //    quan sat duoc — nguoi dung thay chu tren man hinh, dia giu mot nua, khong dau hieu
+    //    nao bao. `Store::write` tra `Err` ⇒ ROLLBACK, va day la phep kiem cua menh de do.
+    let root = temp_dir("flush-unknown-id");
+    let opened = create_work_from_text(&root, "Id la", "zh", "", "一。二。三。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let before = read_all_segment_rows(&opened);
+    let chapter_id = before[0].1;
+
+    let err = save_segment_targets(
+        Some(&opened),
+        chapter_id,
+        &[
+            edit(before[0].0, "Cau nay HOP LE."),
+            edit(before[1].0, "Cau nay cung hop le."),
+            edit(9_999_999, "Cau nay khong thuoc Chuong nao."),
+        ],
+    )
+    .expect_err("lo mang mot id la phai bi tu choi TRON");
+
+    assert_eq!(err.code(), "segment.unknown_ids");
+    assert_eq!(err.message_key(), MessageKey::SegmentUnknownIds);
+    assert_eq!(err.params().get("count").map(String::as_str), Some("1"));
+    assert_eq!(err.retryable(), false, "mot id la khong sua duoc bang cach thu lai");
+
+    assert_eq!(
+        read_all_segment_rows(&opened),
+        before,
+        "HAI cau hop le trong lo cung KHONG duoc ghi — tu choi TRON, khong ghi mot phan"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn a_segment_id_from_another_chapter_is_refused_and_never_crosses_over() {
+    // `WHERE id = ?2 AND chapter_id = ?3` la nua thu hai cua phep kiem id. Khong co ve
+    // `AND chapter_id`, mot id thuoc Chuong KHAC se duoc ghi vao — im lang, va lo tinh la
+    // day nen khong phep kiem nao do.
+    let root_a = temp_dir("flush-cross-a");
+    let opened_a = create_work_from_text(&root_a, "Tac pham A", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham A that bai");
+    let rows_a = read_all_segment_rows(&opened_a);
+    let chapter_a = rows_a[0].1;
+
+    // MOT Chuong thu hai trong CUNG `project.db`, bom bang SQL: Epic 1 tao dung mot Chuong
+    // moi Tac pham, nen day la cach duy nhat dung duoc ca nay hom nay (Story 2.11 mang duong
+    // san pham cho nhieu Chuong).
+    opened_a
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 SELECT 2, 'Chuong hai', 'Ba。Bon。', status, created_at, updated_at \
+                 FROM chapter WHERE id = ?1",
+                [chapter_a],
+            )?;
+            let other: i64 = tx.query_row("SELECT id FROM chapter WHERE ord = 2", [], |r| r.get(0))?;
+            tx.execute(
+                "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, created_at, updated_at) \
+                 VALUES (?1, 1, 'Ba。', 0, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [other],
+            )?;
+            Ok(())
+        })
+        .expect("bom Chuong thu hai that bai");
+
+    let all_before = read_all_segment_rows(&opened_a);
+    let foreign = all_before
+        .iter()
+        .find(|r| r.1 != chapter_a)
+        .expect("phai co mot segment thuoc Chuong khac");
+
+    let err = save_segment_targets(Some(&opened_a), chapter_a, &[edit(foreign.0, "Ghi lan Chuong.")])
+        .expect_err("mot id thuoc Chuong khac phai bi tu choi");
+
+    assert_eq!(err.code(), "segment.unknown_ids");
+    assert_eq!(
+        read_all_segment_rows(&opened_a),
+        all_before,
+        "khong hang nao duoc doi — ke ca hang cua Chuong kia"
+    );
+
+    drop(opened_a);
+    cleanup(&root_a);
 }

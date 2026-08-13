@@ -190,14 +190,35 @@ fn apply_connection_pragmas(
     Ok(())
 }
 
-/// Kết nối GHI: `journal_mode = WAL` + `wal_autocheckpoint = 0` + `busy_timeout`.
-/// Cả ba đặt rồi đọc lại — đây là AC3 nguyên văn.
+/// Kết nối GHI: `journal_mode = WAL` + `synchronous = FULL` + `wal_autocheckpoint = 0`
+/// + `busy_timeout`. Cả bốn đặt rồi đọc lại — AC3 nguyên văn, cộng AC5 của Story 2.3.
+///
+/// 🔴 **`synchronous` được ĐẶT từ code review 2026-08-13, không chỉ được đọc.**
+///
+/// Story 2.3 đo lại và thấy `PRAGMA synchronous` trả **2 (FULL)**, rồi kết luận AC5 *(“một
+/// flush chỉ xong sau khi **đã ghi vào WAL**”)* thoả mà không cần thêm dòng nào. Phép đo đúng,
+/// kết luận **nửa vời**: số đó là **mặc định biên dịch** của thư viện SQLite mà `libsqlite3-sys`
+/// mang theo, không phải một lời khai của chương trình này. Toàn bộ bảo đảm bền vững của AD-35
+/// vì thế treo vào một giá trị mà **không ai ở đây chọn** — một lượt nâng phụ thuộc hạ nó
+/// xuống `NORMAL (1)` là mỗi commit thôi `fsync` WAL, và lời hứa NFR18 *"mất tối đa 5 giây"*
+/// im lặng thành *"mất tối đa 5 giây, trừ khi hệ điều hành chưa kịp xả bộ đệm"*.
+///
+/// ⇒ Đặt tường minh là nửa còn thiếu của chính luật mà tệp này tồn tại để dạy: **đặt rồi ĐỌC
+/// LẠI**. Trước lượt này ở đây chỉ có vế đọc. Hành vi **không đổi một chút nào** trên mọi bản
+/// SQLite có mặc định `FULL`; cái đổi là nó thôi phụ thuộc vào may mắn.
+///
+/// ⚠️ **Chỉ kết nối GHI.** Pool đọc và luồng checkpoint không commit gì nên `synchronous`
+/// không nói gì về chúng; thêm vào đó là thêm một PRAGMA không có hệ quả, đúng thứ
+/// [`apply_dict_reader_pragmas`] đã từ chối làm cho `wal_autocheckpoint`.
 pub(crate) fn apply_writer_pragmas(
     conn: &Connection,
     kind: StoreKind,
     tuning: &Tuning,
 ) -> Result<(), StoreError> {
     set_and_verify_wal(conn, kind)?;
+    // `PRAGMA synchronous` nhận tên khi ĐẶT nhưng trả **số** khi đọc — nên `expected` là `"2"`,
+    // không `"FULL"`. Cùng bẫy mà `read_pragma` đọc mọi thứ thành `String` để tránh.
+    set_and_verify(conn, "synchronous", "FULL", "2", kind)?;
     apply_connection_pragmas(conn, kind, tuning)
 }
 

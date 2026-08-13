@@ -98,7 +98,9 @@ Serde mặc định serialize unit variant thành **tên biến thể**: `Messag
 
 ### 3. `resolve.ts` `import` một thứ gì đó — Kiểm E chết, AC4 quay về nghiệm thu bằng mắt
 
-Dự án **không có bộ chạy test frontend** (thêm `vitest` là thêm một phụ thuộc phải rà GPLv3 và vào bảng Stack trước — NFR15, quyết định của Ice). Đường thay thế: **Node ≥ 22.18 bóc kiểu TypeScript mặc định**, nên cổng `import()` thẳng được `resolve.ts`. Điều kiện:
+🔵 **Cập nhật 2026-08-12 (Story 2.3):** dự án **nay CÓ** bộ chạy test frontend (`vitest` + `@vue/test-utils` + `happy-dom`, cây test ở `tests/frontend/**`), và cửa rà giấy phép của NFR15 **vẫn đứng** cho gói tiếp theo — luật cũ bắt đi qua một **quy trình**, không chặn một **năng lực**.
+
+🔴 **Điều đó KHÔNG gỡ ràng buộc dưới đây.** Kiểm E là một cổng **tĩnh trên toàn cây** và vitest không thay vai đó (AC25 của Story 2.3). Đường nó đi vẫn là **Node ≥ 22.18 bóc kiểu TypeScript mặc định**, nên cổng `import()` thẳng được `resolve.ts`. Điều kiện:
 
 - Không một dòng `import` nào — Node không phân giải `./vi.json` theo luật bundler của Vite và không hiểu `.vue`.
 - Cú pháp phải **"erasable-only"**: không `enum`, không `namespace`, không parameter property. `type` / `interface` / annotation thì được.

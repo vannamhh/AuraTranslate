@@ -156,6 +156,80 @@ const MAIN_WINDOW_LABEL: &str = "main";
 /// định #1(b). Khớp `src/modes/libraryImport.ts::DRAG_DROP_EVENT`.
 pub const DRAG_DROP_EVENT: &str = "aura://file-dropped";
 
+/// Tên event yêu cầu webview flush bản dịch chưa lưu **trước khi cửa sổ đóng** — Story 2.3,
+/// AD-35 vế (e). Khớp `src/panels/editorPanelState.ts::EXIT_FLUSH_EVENT`.
+pub const EXIT_FLUSH_EVENT: &str = "aura://flush-before-exit";
+
+/// Trần thời gian chờ webview flush xong lúc thoát. Story 2.3, Quyết định #4.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 CON SỐ NÀY CHỌN BẰNG MỘT PHÉP TRỪ, KHÔNG BẰNG CẢM GIÁC
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Sau lượt chờ này, đường thoát **vẫn còn phải trả tiếp** [`Tuning::close_truncate_budget`]
+/// (**2 000 ms**) cho lượt TRUNCATE ở `Store::close`. Doc-comment của con số đó ghi thẳng vì
+/// sao nó có trần: `scripts/check-scope.mjs` và `check-scope-bundled.mjs` chạy nhị phân **với
+/// timeout cứng** rồi đọc dòng `VERDICT:`, nên một đường đóng chậm làm **hai cổng của Story
+/// 1.2/1.3 đỏ vì tầng ghi dữ liệu** — không vì phạm vi mà chúng canh.
+///
+/// ⇒ tổng xấu nhất = **1 200 + 2 000 = 3 200 ms**, dưới mọi timeout của hai cổng đó. Nới con số
+/// này là ăn vào ngân sách của chúng, nên đọc `Tuning::close_truncate_budget` trước khi đổi.
+///
+/// ⚠️ Hết trần ⇒ **ghi chẩn đoán rồi đóng**, không treo. Một webview treo không được quyền làm
+/// ứng dụng không đóng được — cùng luật mà [`Store::close`] đã giữ ở tầng dưới.
+const EXIT_FLUSH_BUDGET: std::time::Duration = std::time::Duration::from_millis(1_200);
+
+/// Chốt bắt tay giữa `WindowEvent::CloseRequested` và webview — Story 2.3, AD-35 vế (e).
+///
+/// `Condvar` chứ không một vòng quay có `sleep`: lượt chờ phải **thức ngay** khi webview trả
+/// lời, vì con số dưới trần là thời gian người dùng nhìn một cửa sổ chưa đóng.
+#[derive(Default)]
+pub struct ExitFlush {
+    /// `true` ⇒ webview đã báo flush xong, **hoặc** trần đã hết và ta quyết định đóng.
+    ready: std::sync::Mutex<bool>,
+    signal: std::sync::Condvar,
+    /// 🔴 Cái bắt tay ĐÃ được mở — code review 2026-08-13.
+    ///
+    /// Chốt [`ExitFlush::ready`] một mình **không đủ**: nó chỉ bật *sau* khi webview trả lời
+    /// hoặc trần hết, nên một lệnh đóng thứ hai tới **trước** mốc đó vẫn thấy `false` và đi
+    /// trọn nhánh mở bắt tay lần nữa — `emit` lần hai *(webview chạy listener hai lượt)* và
+    /// một **luồng chờ thứ hai**. Lượt thứ hai của webview về đích trước ⇒ `release()` đánh
+    /// thức **cả hai** luồng ⇒ `destroy()` trong khi lô ghi gốc có thể chưa chạm WAL.
+    ///
+    /// Cờ này giành quyền **mở** bắt tay đúng một lần. Nó là `AtomicBool` chứ không một
+    /// `Mutex` nữa vì `swap` cho ta *"kiểm và giành"* trong một phép — hai lệnh đóng tới cùng
+    /// lúc trên hai luồng vẫn chỉ một lượt thắng.
+    armed: std::sync::atomic::AtomicBool,
+}
+
+impl ExitFlush {
+    /// Webview đã flush xong — đánh thức lượt chờ.
+    pub fn release(&self) {
+        let mut ready = self
+            .ready
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *ready = true;
+        self.signal.notify_all();
+    }
+
+    /// Chờ tối đa `budget`. Trả `true` nếu webview đã trả lời, `false` nếu hết trần.
+    fn wait(&self, budget: std::time::Duration) -> bool {
+        let ready = self
+            .ready
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let (ready, timeout) = self
+            .signal
+            .wait_timeout_while(ready, budget, |done| !*done)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // ⚠️ `drop` tường minh, KHÔNG `let _ =`: `let _ =` trên một guard khoá nhả nó **ngay
+        // tại đó**, và `#[deny(let_underscore_lock)]` của rustc chặn đúng nhầm lẫn ấy. Ở đây
+        // nhả ngay là ĐÚNG — ta chỉ cần cờ, và giữ khoá thêm là chặn `release()` kế tiếp.
+        drop(ready);
+        !timeout.timed_out()
+    }
+}
+
 /// Một thao tác kéo vừa **vào** cửa sổ. Khớp `src/modes/libraryImport.ts`.
 ///
 /// 🔴 Vì sao cần một event RIÊNG cho việc này, thay vì để webview tự bắt `dragenter` của
@@ -248,6 +322,13 @@ pub fn run() {
             // Story 2.2 — nap segment cua Chuong dang mo len Panel Editor. Doc theo
             // `(chapter_id, ord)`, tuc dung index `idx_segment_chapter_ord` cua buoc 5.
             crate::commands::segment::wire::read_open_chapter_segments,
+            // Story 2.3 — duong FLUSH cua AD-35. MOT lo, MOT giao dich, `prepare_cached`
+            // mot lan; cham dung hai cot (`target_text` + `updated_at`). Auto-save KHONG
+            // doi trang thai va KHONG tao `SegmentVersion` (AD-31 hang 1).
+            crate::commands::segment::wire::save_segment_targets,
+            // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
+            // dong di". Xem `wire_exit_flush`.
+            confirm_exit_flush,
         ])
         .setup(move |app| {
             #[cfg(debug_assertions)]
@@ -259,6 +340,14 @@ pub fn run() {
             open_dict_layers(app);
             open_work_slot(app);
             wire_drag_drop(app);
+            // Story 2.3 — AD-35 vế (e). `manage` PHẢI chạy trước `wire_exit_flush`: hook đó
+            // đọc state ra bằng `try_state`, và một state chưa quản lý làm nó bỏ qua lượt
+            // chặn (có chẩn đoán) thay vì chặn một cửa sổ không ai mở lại được.
+            {
+                use tauri::Manager as _;
+                app.manage(ExitFlush::default());
+            }
+            wire_exit_flush(app);
             Ok(())
         });
 
@@ -542,6 +631,118 @@ fn wire_drag_drop(app: &tauri::App) {
     });
 }
 
+/// Nối `WindowEvent::CloseRequested` tới một lượt flush ở webview — Story 2.3, **AD-35 vế (e)**.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 LỖ ĐÃ ĐO: TRƯỚC STORY NÀY, KHÔNG HOOK NÀO Ở WEBVIEW CHẠY TRƯỚC `RunEvent::Exit`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Đường thoát cũ: `app.run(|_, RunEvent::Exit| { close_global_store · close_dict_layers ·
+/// close_open_work })`, và [`close_open_work`] `take()` `OpenWork` rồi `store.close()`. Một
+/// `beforeunload` ở webview **không được nối**, và `WindowEvent::CloseRequested` **không được
+/// nghe** *(chỉ `DragDrop`)*. ⇒ vế (e) của AD-35 là một **lỗ thật**, không một dòng chữ.
+///
+/// **Vì sao đường này chứ không một `beforeunload` gọi `invoke`** (Quyết định #4, Ice ký):
+/// `invoke()` là **bất đồng bộ** và `RunEvent::Exit` **không chờ** ai. Một lượt flush phát ở
+/// `beforeunload` có thể vẫn đang bay khi `store.close()` chạy — tức đúng lớp *"trông như đã
+/// lưu"*. Đường dưới đây **chặn lượt đóng**, rồi mới cho nó đi tiếp.
+///
+/// ⚠️ Hạ tầng đã có nguyên vẹn và nó cần **ĐÚNG 0** permission ACL mới:
+/// `WebviewWindow::on_window_event` đăng ký callback **thẳng** trên dispatcher runtime, hoàn
+/// toàn không đi qua hệ thống invoke/ACL/capabilities. [`wire_drag_drop`] là tiền lệ, và
+/// `tests/config_invariants.rs:333` khoá `capabilities/main.json` ở đúng ba quyền — **đừng nới**.
+/// `app.emit(...)` thì **có** đi qua hệ thống event, và đó là chỗ `core:event:default` (cấp từ
+/// Story 1.2) đã đủ.
+///
+/// ⚠️ **`destroy()` chứ không `close()`.** `close()` phát lại `CloseRequested`, tức lượt chặn
+/// dưới đây tự bắt chính nó và ứng dụng không bao giờ đóng. `destroy()` đi thẳng.
+///
+/// 🔴 **MÓN NỢ KẾ THỪA, không đóng ở story này:** `panic = "abort"` nghĩa là một lần thoát
+/// **cứng** không đi qua đây — cùng món nợ đã ghi cho [`close_global_store`] và
+/// [`close_open_work`]. Đường này phủ lượt đóng **bình thường**, và đó là thao tác người dùng
+/// chắc chắn nhất trong danh sách của AC3.
+fn wire_exit_flush(app: &tauri::App) {
+    use tauri::Emitter as _;
+    use tauri::Manager as _;
+
+    let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        eprintln!("exit-flush: main window not found, flush-on-exit disabled");
+        return;
+    };
+
+    let handle = app.handle().clone();
+    let flush_window = window.clone();
+    window.on_window_event(move |event| {
+        let tauri::WindowEvent::CloseRequested { api, .. } = event else {
+            return;
+        };
+
+        let Some(state) = handle.try_state::<ExitFlush>() else {
+            // Khong quan ly duoc trang thai ⇒ KHONG chan luot dong. Mot loi cau hinh
+            // `setup()` khong duoc bien thanh mot cua so khong dong duoc.
+            eprintln!("exit-flush: ExitFlush state missing, closing without a flush");
+            return;
+        };
+
+        // 🔴 Da xong bat tay (webview tra loi, hoac tran het) ⇒ di tiep. `destroy()` khong
+        // phat lai `CloseRequested`, nhung mot lenh dong thu hai tu he dieu hanh (bam nut hai
+        // lan) thi co — va chan no lan nua la bat dau mot vong cho thu hai.
+        if *state
+            .ready
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        {
+            return;
+        }
+
+        // 🔴 Bat tay DANG chay ⇒ van CHAN, nhung khong mo mot cai thu hai. Code review
+        // 2026-08-13.
+        //
+        // ⚠️ `return` o day KHONG duoc bo `prevent_close()` di. Luot dong thu hai ma di thang
+        // la cua so bien mat NGAY, trong khi lo ghi cua luot thu nhat con dang bay — dung
+        // dieu ma ca duong nay ton tai de chan. Luong cho cua luot dau van la cho DUY NHAT
+        // quyet dinh thoi diem dong, va no se `destroy()` khi webview tra loi hoac het tran.
+        if state
+            .armed
+            .swap(true, std::sync::atomic::Ordering::SeqCst)
+        {
+            api.prevent_close();
+            return;
+        }
+
+        api.prevent_close();
+
+        if let Err(err) = handle.emit(EXIT_FLUSH_EVENT, ()) {
+            // Khong phat duoc event ⇒ webview khong bao gio tra loi ⇒ dung cho, dong ngay.
+            // Cho het tran o day la bat nguoi dung nhin mot cua so treo khong ly do.
+            eprintln!("exit-flush: emit failed ({err}) — closing without a flush");
+            state.release();
+            let _ = flush_window.destroy();
+            return;
+        }
+
+        // Cho o mot LUONG RIENG: callback nay chay tren luong su kien cua cua so, va chan no
+        // la chan chinh cai duong ma `release()` phai di qua de danh thuc ta.
+        let waiter = handle.clone();
+        let closing = flush_window.clone();
+        std::thread::spawn(move || {
+            let Some(state) = waiter.try_state::<ExitFlush>() else {
+                let _ = closing.destroy();
+                return;
+            };
+            if !state.wait(EXIT_FLUSH_BUDGET) {
+                eprintln!(
+                    "exit-flush: webview did not confirm within {} ms — closing anyway",
+                    EXIT_FLUSH_BUDGET.as_millis()
+                );
+                // Dat co TRUOC khi `destroy()`: mot lenh dong thu hai phai di tiep, khong
+                // mo mot vong cho thu hai.
+                state.release();
+            }
+            let _ = closing.destroy();
+        });
+    });
+}
+
 /// Nghe kết quả Kiểm 3 từ webview, in ra stdout, rồi thoát với mã tương ứng.
 ///
 /// Chỉ nối khi `AURA_SCOPE_SELFTEST=1`, và chỉ tồn tại trong bản debug.
@@ -578,4 +779,161 @@ fn wire_scope_selftest(handle: &tauri::AppHandle) {
         }
         app.exit(code);
     });
+}
+
+/// Webview đã flush xong bản dịch chưa lưu ⇒ cho cửa sổ đóng. Story 2.3, **AD-35 vế (e)**.
+///
+/// Nửa thứ hai của cái bắt tay mà [`wire_exit_flush`] mở. Nó **không** tự đóng cửa sổ: lượt
+/// `destroy()` sống ở luồng chờ, để đúng một chỗ quyết định thời điểm đóng dù đường nào tới
+/// trước — webview trả lời, hay trần [`EXIT_FLUSH_BUDGET`] hết.
+///
+/// ⚠️ **Không** thêm mục ACL vào `capabilities/main.json`. Trong Tauri v2, command do **chính
+/// ứng dụng** khai không cần quyền — ACL canh command của **plugin**. `tests/config_invariants.rs`
+/// khoá tệp đó ở đúng ba quyền.
+///
+/// ⚠️ `try_state`, không `state()` — cùng lý do mọi vỏ `wire` khác: state có thể chưa từng được
+/// `app.manage` (lỗi cấu hình `setup()`), và `panic = "abort"` giết cả tiến trình nếu ta thẳng
+/// tay `.unwrap()`. Một lượt gọi vào chỗ trống là một no-op, không một lần sập.
+#[tauri::command]
+fn confirm_exit_flush(app: tauri::AppHandle) {
+    use tauri::Manager as _;
+
+    if let Some(state) = app.try_state::<ExitFlush>() {
+        state.release();
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 LƯỚI CHO CÁI BẮT TAY LÚC THOÁT — Story 2.3 · AC17 · code review 2026-08-13
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Vì sao `#[cfg(test)]` trong nguồn chứ không một tệp ở `tests/`: `ExitFlush::wait` và trường
+// `armed` đều **riêng tư**, và mở chúng ra `pub` chỉ để một test integration với tới được là
+// nới bề mặt công khai vì một lý do không phải sản phẩm. Tiền lệ đã có: `core/dict/mod.rs` và
+// `commands/project.rs`.
+//
+// 🔴 Vì sao lưới này tồn tại: trước lượt review, cơ chế đồng thời **mới và phức tạp nhất** của
+// story — một `Condvar` bắt tay qua biên IPC — được nghiệm thu bằng **doc-comment**. Cả hai
+// khuyết tật mà review tìm ra *(lượt `CloseRequested` thứ hai đẻ luồng chờ thứ hai; `release()`
+// sớm đánh thức nhầm)* đều là thứ một lưới máy bắt được, và không lưới nào có mặt.
+#[cfg(test)]
+mod exit_flush_tests {
+    use super::ExitFlush;
+    use std::sync::atomic::Ordering;
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    /// Webview trả lời **trước** khi ai kịp chờ ⇒ lượt chờ không được ngủ một mili-giây nào.
+    ///
+    /// Đây là ca thường nhất của đường thoát: tập chờ rỗng, `flushEditorNow()` trả `clean`
+    /// ngay, và `confirm_exit_flush` chạy trước khi luồng chờ kịp vào `wait`.
+    #[test]
+    fn a_release_that_lands_first_is_not_lost() {
+        let flush = ExitFlush::default();
+        flush.release();
+
+        let began = Instant::now();
+        assert!(
+            flush.wait(Duration::from_secs(5)),
+            "`wait` bao het tran trong khi `release()` da chay TRUOC no ⇒ co `ready` dang bi \
+             bo qua, va moi luot dong cua so se ngoi het 1 200 ms khong ly do"
+        );
+        assert!(
+            began.elapsed() < Duration::from_secs(1),
+            "`wait` ngu {:?} du co da bat san ⇒ no dang cho mot luot `notify` se khong bao \
+             gio toi, tuc mot cuoc dua thuc-mat (lost wakeup)",
+            began.elapsed()
+        );
+    }
+
+    /// Không ai trả lời ⇒ hết trần, và hàm trả `false` để chỗ gọi biết mà **ghi chẩn đoán**.
+    ///
+    /// ⚠️ Trần thật là 1 200 ms; ca này lái bằng một số nhỏ — cùng luật *"tham số hoá, đừng
+    /// `sleep`"* mà `Tuning` thu nhỏ đã đặt cho tầng kho.
+    #[test]
+    fn a_silent_webview_hits_the_budget_instead_of_hanging() {
+        let flush = ExitFlush::default();
+
+        let began = Instant::now();
+        let confirmed = flush.wait(Duration::from_millis(60));
+
+        assert!(
+            !confirmed,
+            "`wait` bao DA DUOC XAC NHAN trong khi khong ai goi `release()`. Mot webview treo \
+             se duoc doc thanh 'da flush xong', va cua so dong khi chu chua cham WAL"
+        );
+        assert!(
+            began.elapsed() >= Duration::from_millis(60),
+            "`wait` ve sau {:?}, ngan hon tran da cho ⇒ tran khong duoc ton trong, tuc luot \
+             flush luc thoat bi cat ngan",
+            began.elapsed()
+        );
+    }
+
+    /// Lượt trả lời tới từ **một luồng khác** — đúng hình dạng thật: `confirm_exit_flush` chạy
+    /// trên luồng lệnh của Tauri, còn `wait` sống trên luồng mà `wire_exit_flush` đẻ ra.
+    #[test]
+    fn a_release_from_another_thread_wakes_the_waiter_early() {
+        let flush = Arc::new(ExitFlush::default());
+        let confirmer = Arc::clone(&flush);
+
+        let handle = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(40));
+            confirmer.release();
+        });
+
+        let began = Instant::now();
+        let confirmed = flush.wait(Duration::from_secs(5));
+        let waited = began.elapsed();
+        handle.join().expect("luong xac nhan panic");
+
+        assert!(confirmed, "`wait` khong thay luot `release()` tu luong khac");
+        assert!(
+            waited < Duration::from_secs(1),
+            "`wait` ngoi het {:?} du da duoc danh thuc sau ~40 ms ⇒ `Condvar` khong danh thuc \
+             duoc, va nguoi dung nhin mot cua so chua dong suot tran 1 200 ms",
+            waited
+        );
+    }
+
+    /// 🔴 Ca của code review 2026-08-13 — **cái bắt tay chỉ được mở ĐÚNG MỘT LẦN**.
+    ///
+    /// Đường hỏng mà nó đóng: `ready` chỉ bật *sau* khi webview trả lời, nên một lệnh đóng thứ
+    /// hai tới trước mốc đó thấy `ready == false` và đi trọn nhánh mở bắt tay lần nữa —
+    /// `emit` lần hai *(webview chạy listener hai lượt)* cộng một **luồng chờ thứ hai**. Lượt
+    /// thứ hai của webview về đích trước ⇒ `release()` đánh thức **cả hai** ⇒ `destroy()` khi
+    /// lô ghi gốc còn đang bay.
+    ///
+    /// ⚠️ Ca này khẳng định **giao thức**, không khẳng định `AtomicBool::swap` chạy đúng: thứ
+    /// đáng khoá là *"lượt đầu tiên giành được quyền, mọi lượt sau thì không"*, vì đó là mệnh
+    /// đề mà `wire_exit_flush` đứng lên.
+    #[test]
+    fn only_the_first_close_request_arms_the_handshake() {
+        let flush = ExitFlush::default();
+
+        assert!(
+            !flush.armed.swap(true, Ordering::SeqCst),
+            "luot dong DAU TIEN khong gianh duoc quyen mo bat tay ⇒ khong luot flush nao se chay"
+        );
+        assert!(
+            flush.armed.swap(true, Ordering::SeqCst),
+            "luot dong THU HAI cung gianh duoc quyen ⇒ `emit` lan hai va mot luong cho thu hai. \
+             Day la dung khuyet tat ma code review 2026-08-13 tim ra"
+        );
+        assert!(
+            flush.armed.swap(true, Ordering::SeqCst),
+            "luot dong thu BA phai cho ra cung phan quyet voi luot thu hai"
+        );
+
+        // Và cờ `armed` KHÔNG được kéo theo `ready`: chúng trả lời hai câu hỏi khác nhau —
+        // *"đã mở bắt tay chưa"* và *"đã xong bắt tay chưa"*. Trộn hai cái là dựng lại đúng
+        // lỗ vừa vá.
+        assert!(
+            !*flush
+                .ready
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+            "`armed` bat da keo `ready` bat theo ⇒ luot dong ke tiep se di thang qua ca hai chot"
+        );
+    }
 }
