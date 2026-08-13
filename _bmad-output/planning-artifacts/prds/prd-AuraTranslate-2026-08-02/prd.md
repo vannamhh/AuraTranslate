@@ -54,6 +54,10 @@ Toàn bộ nhóm cạnh tranh 2026 đi ngược nhận định đó: họ đặt
 Lợi thế thật nằm ở chỗ khác: **sản phẩm được xây bởi một người dịch thật, cho công việc thật của chính mình, trong một ngách mà các sản phẩm quốc tế không nhìn tới** — cặp Anh/Trung → Việt, với Hán Việt là thành phần bắt buộc chứ không phải tuỳ chọn.
 
 > **Ràng buộc thiết kế kèm theo:** cộng đồng đã quen với mô hình tra cứu của QuickTranslator. Đây **vừa là lợi thế** (không phải dạy lại) **vừa là ràng buộc** — lệch quá xa khỏi mô hình đó sẽ bị từ chối. Ràng buộc này áp lên C2 (Workspace) và C3 (Lookup) mạnh hơn mọi nhóm năng lực khác.
+>
+> 🔵 **Bổ sung 2026-08-13 (Ice) — vế thứ hai, thứ đoạn trên chưa bao giờ nói.** Ràng buộc này là một **ranh giới**, không một lệnh sao chép. QuickTranslator là mốc **tham khảo để vượt qua**: bất biến là **thao tác** người dùng đã quen tay *(bôi đen là ra kết quả, tức thì, không copy/paste)*; **cài đặt** thì mở, và ở đâu làm tốt hơn được thì **phải làm tốt hơn**. Giữ một khuyết điểm của QuickTranslator chỉ vì *"cộng đồng đã quen"* là chép cả cái dở — một mệnh đề *"QT làm thế"* là **dữ kiện, không phải lý lẽ**, và không bao giờ đủ để đóng một lựa chọn thiết kế.
+>
+> Vì sao bổ sung: đoạn trên chỉ phát biểu chiều **rủi ro**, và khoảng trống đó là chỗ `EXPERIENCE.md` §Interaction Primitives trôi thành *"không được thiết kế lại cho khác đi"* — một mệnh đề chặt hơn nguồn, mâu thuẫn với chính lượt Ice **loại hướng C "Kế thừa QuickTranslator"** ngày 2026-08-02. Chi tiết: `sprint-change-proposal-2026-08-13.md` §2.5.
 
 ### 1.5 Tầm nhìn dài hạn
 
@@ -414,7 +418,9 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 
 **FR20.** **Sync Scrolling** đồng bộ vị trí cuộn giữa Source, AI Translation và Editor. Có công tắc bật/tắt rõ ràng.
 
-**FR21.** **Auto-Lookup:** bôi đen một cụm từ ở Source, AI Translation hoặc Editor → kết quả tra cứu hiện **ngay** ở panel Lookup. Không copy, không paste, không chuyển cửa sổ.
+**FR21.** **Auto-Lookup:** bôi đen một cụm từ ở **Panel Source** — nguyên văn hoặc tab Hán Việt — → kết quả tra cứu hiện **ngay** ở panel Lookup. Không copy, không paste, không chuyển cửa sổ.
+
+> 🔵 **Thu hẹp 2026-08-13 (Sprint Change Proposal), Ice ký.** Mệnh đề cũ liệt kê ba bề mặt: *"Source, AI Translation hoặc Editor"*. **Panel AI Translation và Panel Editor KHÔNG phải nguồn tra cứu** — chúng chứa **tiếng Việt đã dịch**, và từ điển nhúng là zh→vi / en→vi. Một lượt tra ở đó trả **0 hàng, 0 lỗi, 0 ms** rồi **thay mất** kết quả người dùng đang đọc ở Panel Lookup — đúng vòng tự thay thế mà `selectionContract.ts:11-17` đã bác cho Panel Lookup, chỉ tệ hơn một bậc vì thứ thay vào là **rỗng**. Hai panel đó **vẫn là bề mặt vùng chọn đã đăng ký** *(vai `display`)*: FR48 và FR60 đọc vùng chọn ở đó qua lệnh của riêng chúng. Đây là **ca áp dụng đầu tiên** của nguyên tắc ở §1.4 — giữ **thao tác**, sửa **cài đặt**.
 
 **FR22.** **Global Hotkeys** cho các thao tác lặp lại: dịch segment hiện tại, chuyển focus giữa các panel, xác nhận segment, tra cứu cụm đang chọn, bật/tắt sync scroll. **Toàn bộ phím tắt cấu hình lại được.**
 

@@ -1960,7 +1960,40 @@ if (lookupCall !== undefined && lookupCall.role !== 'display') {
   fBad += 1
 }
 
-// ③ Sàn NỘI DUNG — cùng lý lẽ `CLICK_FLOOR`: `fBad === 0` trên một danh sách rỗng là một
+// ③ Panel AI Translation và Panel Editor phải mang vai `display`, KHÔNG `source`.
+//    🔴 Sprint Change Proposal 2026-08-13 (Ice ký) — FR21 thu hẹp. Hai panel này chứa TIẾNG
+//    VIỆT ĐÃ DỊCH, còn từ điển nhúng là zh→vi / en→vi ⇒ một lượt tra ở đó trả 0 hàng, 0 lỗi,
+//    0 ms rồi THAY MẤT kết quả đang hiện ở Panel Lookup. Cùng Bẫy 1 mà ② canh cho Panel
+//    Lookup, chỉ tệ hơn một bậc vì thứ thay vào là RỖNG.
+//
+//    ⚠️ VÌ SAO MỆNH ĐỀ NÀY CẦN MỘT CỔNG: lật ngược về `'source'` là ĐÚNG MỘT TỪ, và nó đi qua
+//    sạch mười một cổng — đo được lúc dựng lượt sửa này: đổi vai xong, `check:commands` XANH
+//    ngay khi chỉ có ① và ②. Cộng thêm việc Panel AI Translation hôm nay KHÔNG CÓ CHỮ, nên
+//    triệu chứng chỉ lộ ở Epic 4 — hai epic sau, lúc không ai còn nhớ proposal này. Đúng tiêu
+//    chí §Critical Don't-Miss của `project-context.md`: "vi phạm được mà không cổng nào đỏ".
+//
+//    ⚠️ GIỚI HẠN THẬT: cổng này canh vai KHAI BÁO trong `.vue`, không canh hành vi lúc chạy.
+//    Vế hành vi sống ở `tests/frontend/editorAutoLookup.test.ts` (đường vitest). Một mệnh đề,
+//    một đường — AC25. Đừng nhân đôi.
+const DISPLAY_ONLY_FILES = [
+  'src/panels/AiTranslationPanel.vue',
+  'src/panels/EditorPanel.vue',
+]
+
+for (const want of DISPLAY_ONLY_FILES) {
+  const call = surfaceCalls.find((c) => c.file.endsWith(want))
+  if (call !== undefined && call.role !== 'display') {
+    fail(`${want} — đăng ký vai \`${call.role}\`, phải là \`display\` (FR21, 2026-08-13)`)
+    detail('🔴 Panel này chứa TIẾNG VIỆT ĐÃ DỊCH. Từ điển nhúng là zh→vi / en→vi, nên một lượt')
+    detail('tra ở đây trả 0 hàng — 0 lỗi, 0 ms — rồi THAY MẤT kết quả người dùng vừa tra từ')
+    detail('Panel Source. Rỗng im lặng, đúng lớp lỗi trung tâm của dự án.')
+    detail('⚠️ Sửa bằng cách đổi vai, KHÔNG bằng cách gỡ lời gọi: FR48 (Story 3.3) và FR60')
+    detail('(Story 7.7) đọc vùng chọn ở đây bằng đường của riêng chúng.')
+    fBad += 1
+  }
+}
+
+// ④ Sàn NỘI DUNG — cùng lý lẽ `CLICK_FLOOR`: `fBad === 0` trên một danh sách rỗng là một
 //    lượt xanh vô nghĩa (một lượt đổi tên hàm làm regex không khớp gì nữa).
 if (surfaceCalls.length < SELECTION_SURFACE_FLOOR) {
   fail(`lời gọi đăng ký vùng chọn quét được — ${surfaceCalls.length} (sàn ${SELECTION_SURFACE_FLOOR})`)

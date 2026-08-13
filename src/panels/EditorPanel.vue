@@ -78,7 +78,21 @@ import {
 defineProps<DockviewPanelProps>()
 
 const surface = useTemplateRef<HTMLElement>('surface')
-useSelectionSurface(surface, 'source')
+// 🔵 2026-08-13 (Sprint Change Proposal, Ice ký) — vai đổi `'source'` → `'display'`, và đây
+// là lượt ĐẢO CHIỀU một kết quả đã đo: AC23 của story này hỏi *"Auto-Lookup còn chạy trên bề
+// mặt Editor không?"*, đo ra CÒN CHẠY, và đóng theo nhánh hợp lệ. Nó **không bao giờ hỏi "có
+// NÊN chạy không?"** — Ice trả lời ngày 2026-08-13: không.
+//
+// Bề mặt này chứa **tiếng Việt đã dịch**; từ điển nhúng là zh→vi / en→vi. Một lượt tra ở đây
+// trả **0 hàng, 0 lỗi, 0 ms** rồi THAY MẤT kết quả người dùng vừa tra từ Panel Source — đúng
+// vòng tự thay thế mà `selectionContract.ts:11-17` đã bác cho Panel Lookup, chỉ tệ hơn một
+// bậc vì thứ thay vào là **rỗng**, tức lớp "rỗng im lặng" mà cả dự án đặt ở trung tâm.
+//
+// 🔴 ĐỪNG gỡ lời gọi này. FR48 (Story 3.3) và FR60 (Story 7.7) đọc vùng chọn ở đây bằng lệnh
+// của RIÊNG chúng; `'display'` tắt đúng MỘT đường — `currentSelectionText()`, tức đường tra
+// TỪ ĐIỂN — chứ không tắt việc bề mặt được đăng ký.
+// Ghim bằng máy: `check-commands.mjs` Kiểm F ③.
+useSelectionSurface(surface, 'display')
 
 const gutter = useTemplateRef<HTMLElement>('gutter')
 const doc = useTemplateRef<HTMLElement>('doc')

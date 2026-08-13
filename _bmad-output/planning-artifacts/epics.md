@@ -103,7 +103,7 @@ FR19: Panel Source hiển thị văn bản gốc (Anh hoặc Trung) kèm **tab H
 
 FR20: **Sync Scrolling** đồng bộ vị trí cuộn giữa Source, AI Translation và Editor, có công tắc bật/tắt rõ ràng.
 
-FR21: **Auto-Lookup:** bôi đen một cụm từ ở Source, AI Translation hoặc Editor → kết quả tra cứu hiện **ngay** ở Panel Lookup. Không copy, không paste, không chuyển cửa sổ.
+FR21: **Auto-Lookup:** bôi đen một cụm từ ở **Panel Source** — nguyên văn hoặc tab Hán Việt — → kết quả tra cứu hiện **ngay** ở Panel Lookup. Không copy, không paste, không chuyển cửa sổ. 🔵 **Thu hẹp 2026-08-13** *(Sprint Change Proposal, Ice ký)*: Panel AI Translation và Panel Editor **không** phải nguồn tra cứu — tiếng Việt đã dịch tra vào từ điển zh/en cho **0 hàng, 0 lỗi, 0 ms** và **thay mất** kết quả đang hiện. Chúng giữ vai `display` trong hợp đồng vùng chọn, nên FR48/FR60 không bị chạm.
 
 FR22: **Global Hotkeys** cho các thao tác lặp lại (dịch segment hiện tại, chuyển focus giữa panel, xác nhận segment, tra cứu cụm đang chọn, bật/tắt sync scroll). **Toàn bộ phím tắt cấu hình lại được.**
 
@@ -1781,7 +1781,18 @@ So that tôi không phải copy, paste hay chuyển cửa sổ hàng trăm lần
 **Given** cơ chế Auto-Lookup
 **When** đăng ký
 **Then** nó gắn vào một **hợp đồng vùng chọn dùng chung cho mọi panel văn bản**
-**And** Panel AI Translation và Editor nhận được cùng hành vi khi chúng có nội dung ở các epic sau, không cần cài lại
+**And** **mọi** panel văn bản khai **vai** của mình trong hợp đồng — `source` hoặc `display` — nên không bề mặt chữ nào đứng ngoài sổ, và một bề mặt mới thêm ở story sau phải khai vai chứ không được im lặng
+
+> 🔵 **Sửa 2026-08-13 (Sprint Change Proposal, Ice ký).** Mệnh đề cũ đọc: *"Panel AI Translation và Editor nhận được cùng hành vi khi chúng có nội dung ở các epic sau, không cần cài lại."* Nó **hết đúng**: hai panel đó nay mang vai `display` *(FR21 thu hẹp)*. Thứ AC này thật sự mua thì **vẫn đúng và mạnh hơn** — **hợp đồng không phải sửa một dòng nào** khi nội dung đổ vào; chỉ **vai khai lúc đăng ký** quyết định hành vi. Chính vì hợp đồng đã chừa sẵn hai vai, lượt thu hẹp FR21 tốn **đúng hai từ** trong mã sản phẩm.
+
+**Given** người dùng bôi đen một cụm từ ở **Panel AI Translation** hoặc **Panel Editor**
+**When** thả chuột, kết thúc vùng chọn bằng bàn phím, **hoặc** bấm phím tra thủ công
+**Then** **không lượt tra từ điển nào được phát**
+**And** nội dung đang hiện ở Panel Lookup **giữ nguyên** — không bị thay bằng trạng thái rỗng
+
+**Given** chính hai panel đó
+**When** một story sau cần vùng chọn ở đó *(FR48 · FR60)*
+**Then** vùng chọn **vẫn đọc được** — vai `display` tắt đường tra **từ điển**, không tắt việc bề mặt được đăng ký
 
 **Given** vùng chọn đang được kéo
 **When** chưa dừng

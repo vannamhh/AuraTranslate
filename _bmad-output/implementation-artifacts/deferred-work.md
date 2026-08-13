@@ -2564,3 +2564,67 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
 🔵 Đường thứ ba là đường sạch nhất về mặt phương pháp và **chưa ai thử**.
 
 **Chủ: Ice** · mở khi cần một bảng NFR2 nói được về tiếng Việt.
+
+---
+
+## Deferred from: Sprint Change Proposal 2026-08-13 (FR21 thu hẹp)
+
+- 🔵 **AC23 của Story 2.3 ĐỔI TỪ MỘT PHÉP ĐO THÀNH MỘT MỆNH ĐỀ.** AC23 hỏi *"Auto-Lookup còn
+  chạy trên bề mặt Editor không?"* và đo ra **còn chạy**, đóng theo nhánh hợp lệ. Nó **không
+  bao giờ hỏi "có NÊN chạy không?"** — Ice đặt câu hỏi đó ngày 2026-08-13 và trả lời:
+  **không**, vì bề mặt Editor chứa tiếng Việt đã dịch còn từ điển nhúng là zh→vi / en→vi, nên
+  một lượt tra ở đó trả **0 hàng, 0 lỗi, 0 ms** rồi **thay mất** kết quả vừa tra từ Panel
+  Source. Phép đo cũ **không sai**; nó không phủ câu hỏi này.
+  ⇒ AC23 nay đọc: *"Editor KHÔNG phát lượt tra từ điển"*. Nghiệm thu: `EditorPanel.vue` +
+  `AiTranslationPanel.vue` mang vai `'display'` · `tests/frontend/editorAutoLookup.test.ts`
+  (đã đảo, **kèm một ca đối chứng dương**) · `check-commands.mjs` Kiểm F ③.
+  **Không món nợ nào mở ra từ mục này** — ghi để retro Epic 2 thấy được vì sao một AC đã đóng
+  lại đổi nghĩa. Chi tiết: `planning-artifacts/sprint-change-proposal-2026-08-13.md`.
+
+- ⚠️ **CHỦ: Story 3.3 (FR48) và Story 7.7 (FR60) — điều kiện khởi hành.** Vai `'display'` của
+  `AiTranslationPanel.vue` / `EditorPanel.vue` tắt **đúng một** đường: `currentSelectionText()`,
+  tức tra từ điển. Nó **KHÔNG** tắt việc bề mặt được đăng ký. Hai story trên đọc vùng chọn ở
+  hai panel đó bằng đường của **riêng chúng** *(cả hai là lệnh người dùng gọi —
+  `epics.md:2554` "gọi lệnh thêm thuật ngữ" · `epics.md:5034` "người dùng gọi lệnh
+  Concordance")*, **không** qua `currentSelectionText()`.
+  🔴 Đọc nhầm `'display'` thành *"không lấy được chữ"* sẽ dẫn tới một lượt "sửa" gỡ đăng ký
+  hoặc lật vai — và `epics.md:2553` đã liệt kê **Panel Lookup** (vai `display` từ 1.18) trong
+  chính danh sách FR48, nên tiền lệ đã có sẵn. Gỡ đăng ký ⇒ `SELECTION_SURFACE_FLOOR = 7` đỏ;
+  lật vai ⇒ Kiểm F ③ đỏ. Cả hai đường đều có lưới, nhưng lưới không giải thích được **vì sao**
+  — mục này làm việc đó.
+
+- 📝 **Vế bằng MẮT của lượt sửa này chưa chạy — CHỦ: Ice.** Ba mệnh đề phải xác nhận trên
+  `tauri dev` THẬT *(mọi bằng chứng ở trên là vitest trên happy-dom + cổng tĩnh, không phải
+  WKWebView)*: ① bôi đen tiếng Việt trong Editor ⇒ Panel Lookup **giữ nguyên** nội dung;
+  ② `Mod+Alt+L` trong Editor ⇒ **không** lượt tra nào *(Ice chốt 2026-08-13 bỏ luôn cả đường
+  thủ công)*; ③ bôi đen ở Panel Source ⇒ tra bình thường, **không hồi quy**.
+  ⚠️ Cùng món nợ hai nền tảng mà 1.6/1.14/1.16/1.17/1.18/2.2/2.3 đã để lại — chưa đo trên
+  Windows.
+  → 🟡 **ĐÓNG MỘT NỬA 2026-08-13.** Ice chạy tay và báo **pass** cả ba mệnh đề ① ② ③ trên
+  `tauri dev` thật. **Nửa còn HỞ: Windows/WebView2 — chưa chạy một lần nào.** Không làm tròn
+  lên ✅: `EXPERIENCE.md`/`deferred-work.md:145` đã ghi tên đúng lỗi *"nghiệm thu trên một
+  engine rồi viết «tương đương»"*, và lượt sửa này chạm **vùng chọn trong `contenteditable`**
+  — đúng một trong hai chỗ có tiền sử lệch engine mà Story 2.3 §9 gọi đích danh. Nửa Windows
+  nhập vào lượt rà hai nền tảng cuối dự án *(Ice chốt 2026-08-12: trọn phần Windows dời về
+  cuối)*, **không mở một món nợ mới**.
+
+- ⚠️ **BA trích dẫn trong story file còn chép nguyên văn mệnh đề đã sửa — CHỦ: Ice, quyết định
+  còn MỞ.** `grep` nghiệm thu của proposal tìm ra ba chỗ mà §4.10 **không liệt kê**:
+  `1-18-auto-lookup.md:37` *(hàng Change Log, có ngày 2026-08-07)* · `1-18-auto-lookup.md:989`
+  và `1-18b-tach-tu-tieng-trung-tab-han-viet.md:622` *(**hai danh sách `[Source: …]`**, trỏ
+  đích danh `EXPERIENCE.md:131`)*. Cả ba chép *"không được thiết kế lại cho khác đi"*.
+
+  🔴 **Hai loại khác nhau, và chỉ một loại đáng lo.** Hàng Change Log là một **ảnh chụp có
+  ngày** — nó ghi đúng thứ dev đọc hôm 2026-08-07, sửa nó là viết lại lịch sử. Nhưng hai dòng
+  `[Source: …]` là **con trỏ tới một tài liệu SỐNG**: ai theo con trỏ đó ở Epic 3/4 sẽ thấy
+  một văn bản khác hẳn, và rủi ro thật là họ trích **bản trong story** như thể nó còn hiệu lực
+  — đúng lớp "chú thích cũ hơn mã" mà `project-context.md` §Bẫy tài liệu vừa đặt tên.
+
+  Hai phương án, **cả hai đều hợp lệ**, Amelia không tự chọn:
+  **(a)** nối một dòng 🔵 vào hai dòng `[Source: …]` *(«mệnh đề này đã sửa 2026-08-13 — xem
+  sprint-change-proposal»)*, để nguyên hàng Change Log. Rẻ, chặn đúng chỗ rủi ro.
+  **(b)** để nguyên cả ba, coi story file là ảnh chụp tuyệt đối; dựa vào việc `EXPERIENCE.md`
+  **giữ nguyên bản cũ trong câu giải thích 🔵** nên người theo con trỏ vẫn tìm thấy mệnh đề cũ
+  và đọc được vì sao nó đổi.
+
+  ⚠️ Chưa làm gì cả — mục này ghi để nó không mồ côi. Không chặn lượt vá 2026-08-13.

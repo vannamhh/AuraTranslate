@@ -128,7 +128,26 @@ Hệ thống **không bao giờ tự coi một câu là xong**. Khớp TM 100% v
 
 ## Interaction Primitives
 
-**Auto-Lookup** — bôi đen ở bất kỳ panel nào (Nguyên văn, Đề xuất AI, hoặc Bản dịch) thì kết quả hiện ngay ở Panel Lookup. Không copy, không paste, không hộp thoại. Đây là tương tác lặp nhiều nhất trong sản phẩm và là thứ cộng đồng đã quen ở QuickTranslator — **không được thiết kế lại cho khác đi**.
+**Auto-Lookup** — bôi đen ở **Nguyên văn** (kể cả tab Hán Việt) thì kết quả hiện ngay ở Panel Lookup. Không copy, không paste, không hộp thoại. Đây là tương tác lặp nhiều nhất trong sản phẩm, và là **thao tác** cộng đồng đã quen tay ở QuickTranslator — **thao tác đó không được bắt học lại**.
+
+> 🔵 **Sửa 2026-08-13 — Ice. Đây là một lượt SỬA NGUYÊN TẮC, không một lượt ngoại lệ.**
+>
+> Bản cũ đọc: *"bôi đen ở bất kỳ panel nào (Nguyên văn, Đề xuất AI, hoặc Bản dịch)… là thứ cộng đồng đã quen ở QuickTranslator — **không được thiết kế lại cho khác đi**."* Mệnh đề đóng đó **chặt hơn nguồn của chính nó** và **mâu thuẫn với một quyết định Ice đã ký**:
+>
+> - `prd.md:56` — chỗ ràng buộc này thật sự sống — chỉ nói *"**lệch quá xa** khỏi mô hình đó sẽ bị từ chối"*. Đó là một **ranh giới**, không một lệnh sao chép.
+> - `.memlog.md:11` của chính tài liệu này chép đúng bản mềm: *"KHÔNG được lệch xa"*.
+> - 🔴 Ngày **2026-08-02**, ba hướng thị giác được dựng và hướng **C — *"Kế thừa QuickTranslator"*** *(khung viền rõ, tương phản cao, "không cố tỏ ra hiện đại — cố tỏ ra quen tay")* **bị Ice LOẠI**; Ice chọn hướng B — Bàn viết *(`.memlog.md:15-16`)*. `DESIGN.md:149` ghi lại nguyên văn lập trường đó.
+>
+> ⇒ **Lập trường đúng, và nó áp cho toàn sản phẩm: QuickTranslator là mốc tham khảo để VƯỢT QUA, không phải bản mẫu để bê nguyên si.** Hai vế, và ranh giới giữa chúng phải đọc được:
+>
+> | | |
+> |---|---|
+> | **BẤT BIẾN — *thao tác*** | Bôi đen là ra kết quả, **tức thì**, không copy/paste, không hộp thoại. Đây là thứ cộng đồng đã quen tay và **không được bắt học lại** — đúng cái `prd.md:56` gọi là *"không phải dạy lại"* |
+> | **MỞ — *cài đặt*** | Bề mặt nào là nguồn · kết quả trình bày ra sao · nguồn nào hiện · ngôn ngữ thị giác · bố cục. Ở đâu AuraTranslate làm **tốt hơn** được thì **phải làm tốt hơn** |
+>
+> 🔴 **Và vế thứ hai có chiều bắt buộc, không chỉ chiều cho phép:** giữ một khuyết điểm của QuickTranslator chỉ vì *"cộng đồng đã quen"* là **chép cả cái dở**. Một mệnh đề *"QT làm thế"* **không bao giờ đủ** để đóng một lựa chọn thiết kế — nó là dữ kiện, không phải lý lẽ.
+>
+> **Ca áp dụng đầu tiên, chính là lượt sửa này:** bản cũ liệt kê ba bề mặt. Hai bề mặt sau — Đề xuất AI và Bản dịch — chứa **tiếng Việt đã dịch**; tra chúng trong một từ điển zh→vi / en→vi cho **0 hàng, 0 lỗi, 0 ms** rồi **thay mất** thứ người dùng đang đọc ở Panel Lookup *(FR21 · `sprint-change-proposal-2026-08-13.md`)*. **Thao tác** giữ nguyên; **cài đặt** sửa ở đúng chỗ nó tệ hơn.
 
 **Gộp và tách câu** — `⌘M` gộp, `⌘/` tách. Cả hai là command đăng ký, không phải hệ quả phụ của việc gõ.
 

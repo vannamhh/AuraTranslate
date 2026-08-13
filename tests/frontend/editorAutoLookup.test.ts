@@ -1,23 +1,38 @@
 /**
- * **AC23 — PHÉP ĐO:** Auto-Lookup còn chạy trên bề mặt Editor sau khi nó thành vùng gõ không?
- * Story 2.3 · Task 6.2.
+ * **AC23 — MỆNH ĐỀ:** bề mặt Editor **KHÔNG** phát lượt tra từ điển.
+ * Story 2.3 · Task 6.2 · Sprint Change Proposal 2026-08-13.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * VÌ SAO CÂU HỎI NÀY CÓ THẬT, VÀ NÓ KHÔNG ĐƯỢC TRẢ LỜI BẰNG LÝ LẼ
+ * 🔵 2026-08-13 — TỆP NÀY ĐỔI TỪ MỘT PHÉP ĐO THÀNH MỘT MỆNH ĐỀ
  * ─────────────────────────────────────────────────────────────────────────────
- * `keys.ts:510` — `if (lacksPrimaryMod(entry.mods) && isTypingZone(event.target)) return false` —
- * làm bốn command `selection.extend_*` của Story 1.18 *(`Shift+Mũi tên`)* **thôi dispatch** trên
- * bề mặt Editor, vì `Shift` không phải phím bổ trợ chính. Trong khi `epics.md:1762` hứa Editor
- * *"nhận được cùng hành vi khi chúng có nội dung ở các epic sau, **không cần cài lại**"*, và
- * `useSelectionSurface(surface, 'source')` vẫn đang cắm ở `EditorPanel.vue:67`.
+ * Bản trước hỏi *"Auto-Lookup còn chạy trên bề mặt Editor sau khi nó thành vùng gõ không?"* và
+ * ghi rằng **hai kết quả đều hợp lệ**. Nó đo ra **còn chạy**, và đóng theo đúng nhánh đó.
  *
- * AC23 nói **hai kết quả đều hợp lệ**, nên đây là một phép **đo**, không một lượt xác nhận một
- * giả định. Kết quả ghi ở §Debug Log References của story.
+ * Câu hỏi ấy **không bao giờ hỏi "có NÊN chạy không?"** — Ice trả lời ngày 2026-08-13: **không**.
+ * Bề mặt Editor chứa **tiếng Việt đã dịch**, còn từ điển nhúng là zh→vi / en→vi ⇒ một lượt tra
+ * ở đó trả **0 hàng, 0 lỗi, 0 ms** rồi **thay mất** kết quả người dùng vừa tra từ Panel Source.
+ * Đúng vòng tự thay thế mà `selectionContract.ts:11-17` đã bác cho Panel Lookup, chỉ tệ hơn
+ * một bậc vì thứ thay vào là **rỗng**. ⇒ `EditorPanel.vue` nay đăng ký vai **`'display'`**.
+ *
+ * Phép đo cũ **không sai** — nó chỉ không phủ câu hỏi này. Xem
+ * `planning-artifacts/sprint-change-proposal-2026-08-13.md` §1.2.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 VÌ SAO TỆP NÀY BẮT BUỘC MANG MỘT ĐỐI CHỨNG DƯƠNG
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Sau lượt đảo, **năm** ca dưới đây đều khẳng định *"không có gì xảy ra"*. Một tệp toàn mệnh
+ * đề âm tính là một tệp **xanh kể cả khi `attachSelectionWatcher` chết hoàn toàn** — và lúc
+ * đó nó không còn nói gì về **vai**, nó chỉ nói rằng một cơ chế đã hỏng vẫn im lặng.
+ * `project-context.md` §Luật của một CỔNG cấm đúng hình dạng đó: *"Một cổng chưa bao giờ đỏ
+ * là một cổng chưa ai biết nó có chạy không."*
+ * ⇒ Ca cuối cùng đăng ký một bề mặt vai `'source'` và đòi lượt tra **PHẢI** phát.
  *
  * ⚠️ Đường **phím** của mệnh đề — *"luật vùng gõ không `preventDefault`, nên native
  * `contenteditable` vẫn mở rộng vùng chọn"* — là một mệnh đề về `keys.ts`, và nó đo ở
- * **Kiểm D** của `scripts/check-commands.mjs`. Tệp này đo vế **DOM**: một vùng chọn thật trong
- * Editor có phát `lookup.lookup_selection` hay không. Một mệnh đề, một đường (AC25).
+ * **Kiểm D** của `scripts/check-commands.mjs`. Tệp này đo vế **DOM**. Một mệnh đề, một đường
+ * (AC25). Vế **khai báo** — `EditorPanel.vue`/`AiTranslationPanel.vue` mang đúng vai
+ * `'display'` trong mã sản phẩm — sống ở **Kiểm F ③**, không ở đây: tệp này dựng bề mặt giả
+ * nên nó **không đọc được** vai thật trong `.vue`.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -47,8 +62,8 @@ function mountEditorSurface(): { doc: HTMLElement; sentence: HTMLElement; releas
   doc.append(sentence)
   document.body.append(doc)
 
-  // Cùng vai và cùng tham số với `EditorPanel.vue:67`.
-  const release = registerSelectionSurface(doc, 'source')
+  // 🔵 Cùng vai và cùng tham số với `EditorPanel.vue` — `'display'` từ 2026-08-13.
+  const release = registerSelectionSurface(doc, 'display')
   return { doc, sentence, release }
 }
 
@@ -64,20 +79,21 @@ function selectInside(sentence: HTMLElement, start: number, end: number): void {
   selection?.addRange(range)
 }
 
-describe('AC23 — Auto-Lookup trên bề mặt Editor GÕ ĐƯỢC', () => {
-  it('vùng chọn trong một câu đang `contenteditable` VẪN đọc ra được (hợp đồng vùng chọn)', () => {
+describe('AC23 — bề mặt Editor KHÔNG phát lượt tra từ điển', () => {
+  it('vùng chọn trong một câu đang `contenteditable` đọc ra RỖNG — vai `display`', () => {
     const { sentence, release } = mountEditorSurface()
 
     selectInside(sentence, 4, 10)
-    // 🔴 Vị từ của `surfaceFor` là `anchorNode.nodeType === TEXT_NODE`. Một `contenteditable`
-    // KHÔNG đổi điều đó — khác `<input>`/`<textarea>`, nơi vùng chọn neo vào phần tử CHA và bị
-    // loại trừ cơ học (§②/③ của `selectionContract.ts`).
-    expect(currentSelectionText()).toBe('thổi t')
+    // 🔴 Vùng chọn vẫn được hợp đồng NHẬN (bề mặt có đăng ký, `anchorNode` là text node) —
+    // thứ đổi là `currentSelectionText()` trả `''` cho mọi vai khác `'source'`
+    // (`selectionContract.ts:203`). Đây chính là chỗ FR48/FR60 sẽ KHÔNG đi qua: chúng đọc
+    // `Selection` bằng đường của riêng chúng, không qua hàm này.
+    expect(currentSelectionText()).toBe('')
 
     release()
   })
 
-  it('`mouseup` sau một lượt bôi đen bằng CHUỘT vẫn phát lượt tra — đường chuột CÒN CHẠY', () => {
+  it('`mouseup` sau một lượt bôi đen bằng CHUỘT không phát gì — đường chuột đã TẮT', () => {
     const { sentence, release } = mountEditorSurface()
     const dispatched = vi.fn()
     const detach = attachSelectionWatcher(document, dispatched)
@@ -85,17 +101,17 @@ describe('AC23 — Auto-Lookup trên bề mặt Editor GÕ ĐƯỢC', () => {
     selectInside(sentence, 0, 3)
     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
 
-    expect(dispatched).toHaveBeenCalledTimes(1)
+    expect(dispatched).not.toHaveBeenCalled()
 
     detach()
     release()
   })
 
-  it('`keyup` của `Shift` vẫn phát lượt tra — đường BÀN PHÍM còn chạy qua hành vi native', () => {
-    // 🔴 Đây là nửa thứ hai của phép đo AC23, và nó là nửa quan trọng: bốn command
-    // `selection.extend_*` **thôi dispatch** trong vùng gõ. Nhưng luật vùng gõ của `keys.ts`
-    // `return false` **TRƯỚC** `preventDefault()` (đo ở Kiểm D), nên engine tự mở rộng vùng
-    // chọn — và lượt `keyup` của `Shift` mà bộ theo dõi này nghe vẫn phát lượt tra như thường.
+  it('`keyup` của `Shift` không phát gì — đường BÀN PHÍM cũng đã TẮT', () => {
+    // 🔴 Nửa thứ hai của mệnh đề. Luật vùng gõ của `keys.ts` `return false` TRƯỚC
+    // `preventDefault()` (đo ở Kiểm D), nên engine vẫn tự mở rộng vùng chọn và lượt `keyup`
+    // của `Shift` vẫn tới bộ theo dõi này. Thứ chặn lượt tra là **vai**, không phải sự vắng
+    // mặt của sự kiện — và đó là lý do ca này tồn tại riêng khỏi ca `mouseup`.
     const { sentence, release } = mountEditorSurface()
     const dispatched = vi.fn()
     const detach = attachSelectionWatcher(document, dispatched)
@@ -103,7 +119,7 @@ describe('AC23 — Auto-Lookup trên bề mặt Editor GÕ ĐƯỢC', () => {
     selectInside(sentence, 4, 11)
     document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Shift', bubbles: true }))
 
-    expect(dispatched).toHaveBeenCalledTimes(1)
+    expect(dispatched).not.toHaveBeenCalled()
 
     detach()
     release()
@@ -124,9 +140,9 @@ describe('AC23 — Auto-Lookup trên bề mặt Editor GÕ ĐƯỢC', () => {
   })
 
   it('một caret THU GỌN (bấm để gõ, không bôi đen) KHÔNG phát lượt tra nào', () => {
-    // Đây là ca thường xuyên nhất của story này: người dùng bấm vào một câu để **gõ**. Một lượt
-    // tra ở đó là một lượt IPC cộng một lượt đổi nội dung Panel Lookup ở mỗi cú bấm — đúng Bẫy 5
-    // mà `selectionContract.ts:249-253` đã ghi, nay chạy trên một bề mặt được bấm liên tục.
+    // Ca thường xuyên nhất của story này: người dùng bấm vào một câu để **gõ**. Bẫy 5 của
+    // `selectionContract.ts:249-253` chặn nó ở tầng "vùng chọn rỗng", tức **độc lập** với vai
+    // — nên ca này vẫn có nghĩa sau lượt đảo: nó canh một hàng rào KHÁC.
     const { sentence, release } = mountEditorSurface()
     const dispatched = vi.fn()
     const detach = attachSelectionWatcher(document, dispatched)
@@ -135,6 +151,32 @@ describe('AC23 — Auto-Lookup trên bề mặt Editor GÕ ĐƯỢC', () => {
     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
 
     expect(dispatched).not.toHaveBeenCalled()
+
+    detach()
+    release()
+  })
+
+  it('🔴 ĐỐI CHỨNG DƯƠNG — cùng bộ theo dõi VẪN phát trên một bề mặt vai `source`', () => {
+    // 🔴 Không có ca này, năm ca trên là năm mệnh đề "không có gì xảy ra" và tệp xanh kể cả
+    // khi `attachSelectionWatcher` chết hoàn toàn. Ca này chứng minh **cơ chế còn sống**, nên
+    // năm ca âm tính ở trên nói về **VAI**, không về một bộ theo dõi hỏng.
+    //
+    // Hình dạng mô phỏng `SourcePanel.vue`: một bề mặt nguyên văn, vai `'source'`.
+    const original = document.createElement('div')
+    original.className = 'original'
+    const line = document.createElement('p')
+    line.textContent = '他打開了那扇門，走進了黑暗之中。'
+    original.append(line)
+    document.body.append(original)
+    const release = registerSelectionSurface(original, 'source')
+
+    const dispatched = vi.fn()
+    const detach = attachSelectionWatcher(document, dispatched)
+
+    selectInside(line, 5, 7)
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+
+    expect(dispatched).toHaveBeenCalledTimes(1)
 
     detach()
     release()

@@ -130,7 +130,8 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
 ### Thao tác xuyên panel
 
 - **FR20.** **Sync Scrolling** đồng bộ vị trí cuộn giữa Source, AI Translation và Editor. Có công tắc bật/tắt rõ ràng.
-- **FR21.** **Auto-Lookup:** bôi đen một cụm từ ở Source, AI Translation hoặc Editor → kết quả tra cứu hiện **ngay** ở panel Lookup. Không copy, không paste, không chuyển cửa sổ.
+- **FR21.** **Auto-Lookup:** bôi đen một cụm từ ở **Panel Source** — nguyên văn hoặc tab Hán Việt — → kết quả tra cứu hiện **ngay** ở panel Lookup. Không copy, không paste, không chuyển cửa sổ.
+  🔵 **Thu hẹp 2026-08-13 (Sprint Change Proposal, Ice ký).** Mệnh đề cũ liệt kê ba bề mặt: *"Source, AI Translation hoặc Editor"*. **Panel AI Translation và Panel Editor KHÔNG phải nguồn tra cứu** — chúng chứa **tiếng Việt đã dịch**, và từ điển nhúng là zh→vi / en→vi. Một lượt tra ở đó trả **0 hàng, 0 lỗi, 0 ms** rồi **thay mất** kết quả người dùng đang đọc ở Panel Lookup. Hai panel đó **vẫn là bề mặt vùng chọn đã đăng ký** *(vai `display`)*: FR48 và FR60 đọc vùng chọn ở đó qua lệnh của riêng chúng.
 - **FR22.** **Global Hotkeys** cho thao tác lặp lại: dịch segment hiện tại, chuyển focus giữa panel, xác nhận segment, tra cứu cụm đang chọn, bật/tắt sync scroll. **Toàn bộ phím tắt cấu hình lại được.**
 
 ### Biên tập theo segment
