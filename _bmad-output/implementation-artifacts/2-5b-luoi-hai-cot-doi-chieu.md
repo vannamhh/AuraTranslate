@@ -180,6 +180,13 @@ lần: *"trúng tiền đề chưa phải trúng cơ chế"*.
 
 ## Task 0 — CHÍN quyết định phải chốt TRƯỚC dòng mã đầu tiên
 
+> ✅ **ĐÃ KÝ TRỌN GÓI 2026-08-14 — Ice: *"duyệt 9 quyết định theo đề xuất"*.** Cả chín chốt ở
+> đường ⭐. Bảng chữ ký và **ba chỗ chữ ký chưa phủ hết** ở §Dev Agent Record.
+>
+> 🔴 **Chín mục dưới đây Ở LẠI NGUYÊN VĂN, kể cả các đường bị loại.** Chúng là **bằng chứng**
+> — *phương án bị loại đã bị loại bằng gì* — và một story sau đọc lại sẽ cần chúng. Đừng rút
+> gọn còn mỗi kết luận.
+
 🔴 **Ice là người chốt.** Mỗi quyết định nêu **cả hai (hoặc ba) đường kèm cái giá**, có một đường
 ⭐ đề xuất mặc định. Đừng tự chọn rồi đi tiếp, và cũng đừng loại một đường chỉ vì nó đắt.
 
@@ -217,7 +224,9 @@ hợp đồng vùng chọn và không phá cổng đếm.
 id. Chốt luôn cùng quyết định này: ô nào mang `data-segment-id` và ô nào mang một thuộc tính
 thứ hai phân biệt vai *(ví dụ `data-col="src" | "tgt"`)*, và **hai spec e2e sửa cùng lượt**.
 
-**Cần Ice chốt:** đường (a)/(b)/(c)/(d), và hình dạng neo `data-segment-id`.
+✅ **ĐÃ KÝ 2026-08-14 — đường (b).** ⚠️ Vế **neo `data-segment-id`** ký theo gợi ý
+`data-col="src" | "tgt"` và đó là phần **ít bằng chứng nhất** của lượt ký — xác nhận lại sau
+Task 1.
 
 ---
 
@@ -240,8 +249,10 @@ còn cần một miễn trừ **có tên** ở Kiểm D của `check-tokens`.
 **Đề xuất mặc định: (a).** Lý do: nó là đường duy nhất không nới một cổng và không phá AC4.
 ⚠️ Vai phải là **`stroke`**, không `text` — cùng luật đã đóng cho `ornament`/`tm-rule`.
 
-**Cần Ice chốt:** đường, và nếu (a) thì **giá trị màu** cho hai theme *(phải qua `check:tokens`
-Kiểm C — mọi cặp mới phải khai vào `contrast.pairs` hoặc `contrast.excluded`)*.
+✅ **ĐÃ KÝ 2026-08-14 — đường (a).** 🔴 **Giá trị màu hai theme CHƯA ký** — Ice ký *đường*, chưa
+ký *số*. Đề xuất khởi điểm và lý do ở §Dev Agent Record ⟶ *"Ba chỗ chữ ký chưa phủ hết"* mục ①;
+hỏi Ice **trước Task 4.4**. Mọi cặp mới phải khai vào `contrast.pairs` hoặc `contrast.excluded`
+*(`check:tokens` Kiểm C)*.
 
 ---
 
@@ -265,7 +276,10 @@ của editing host duy nhất **không có chỗ nào để xoá lui vào**
 được đi qua bằng im lặng. Tiền đề của quyết định cũ *(«một dòng văn liên tục»)* không còn tồn
 tại.
 
-**Cần Ice chốt:** đường, **và** chữ ký lật Quyết định #1 của Story 2.3.
+✅ **ĐÃ KÝ 2026-08-14 — đường (b), và chữ ký đó LẬT Quyết định #1 của Story 2.3.** Mệnh đề
+*"vùng gõ là MỘT câu tại một thời điểm"* hết hiệu lực từ đây; lý do là **tiền đề của nó không
+còn tồn tại**, không phải vì nó sai lúc được ký. Ghi cả hai và ghi **thứ tự** ở
+`editorSegments.ts` / `EditorPanel.vue` khi chạm tới *(Task 4.3)*.
 
 ---
 
@@ -284,7 +298,9 @@ mất **theo cấu trúc**. Nhưng `assignGutterLanes` mang một **phép đo th
 | **(b)** | Giữ tệp, đánh dấu `@deprecated` | 🔴 Mã chết trong sản phẩm để phục vụ một bằng chứng. Bằng chứng thuộc về **sổ**, không thuộc về cây nguồn — đúng luật `deferred-work.md`. |
 | **(c)** | Giữ `measureGutterRules`, gỡ riêng phần làn | Cần đo trước: với (b) của Quyết định #1, hàng có **hình học biết trước** ⇒ vạch lấy chiều cao từ chính track hàng, không cần `getClientRects()`. Chỉ chọn (c) nếu phép đo bác được mệnh đề đó. |
 
-**Đề xuất mặc định: (a).** **Cần Ice chốt.**
+✅ **ĐÃ KÝ 2026-08-14 — đường (a).** ⚠️ Quyết định #1 đã chốt (b) ⇒ hàng có **hình học biết
+trước**, nên mệnh đề *"vạch lấy chiều cao từ track hàng, không cần `getClientRects()`"* nay là
+tiền đề của (a). Nếu Task 1.2 **bác** mệnh đề đó thì (c) sống lại — báo Ice, đừng tự chuyển.
 
 ---
 
@@ -314,7 +330,10 @@ cấu hình.
 *(`commands/index.ts:64-72`)* · `PANEL_SUFFIXES` *(`:375`, dùng cho bốn `layout.toggle_*` ⇒ nay
 **ba**)* · ba chuỗi id **cứng** trong `check-layout.mjs:255-272`.
 
-**Cần Ice chốt.**
+✅ **ĐÃ KÝ 2026-08-14 — đường (a).** 🔴 Hệ quả bắt buộc: `layout.preset_grid` **là Ⓑ-2** và
+`layout.preset_columns` **là Ⓑ-1**. Hai cái tên nay là **lịch sử**, không phải mô tả — mỗi chỗ
+khai phải mang một dòng 🔵 nói đúng câu đó, nếu không story sau sẽ đọc `preset_columns` thành
+*"bốn cột"* và dựng lại một bố cục đã rút.
 
 ---
 
@@ -331,7 +350,12 @@ viết thẳng: *"Kết luận cũ của Story 2.4 KHÔNG được mặc nhiên 
 | **(b)** | Nhận một thư viện editor | 🔴 Đi trọn cửa NFR15: **mở tệp giấy phép trong nguồn đã tải mà đọc**, ghi vào bảng Stack **TRƯỚC** khi `npm i`, chỉ giấy phép tương thích GPLv3 chiều đi vào. Cộng AD-31: hợp đồng trạng thái không được lan ra ngoài module. |
 
 **Đề xuất mặc định: (a)** — **nhưng chỉ sau Task 1**. Ký trước khi đo là đúng thứ dự án cấm.
-**Cần Ice chốt** *(sau khi đọc kết quả Task 1)*.
+
+✅ **ĐÃ KÝ 2026-08-14 — đường (a).** 🔴 **Ice ký TRƯỚC khi có số**, ngược với đề nghị ngay trên.
+Ghi ra thay vì để nó trôi, và ghi luôn hệ quả: chữ ký này **đóng hàng Deferred
+`ARCHITECTURE-SPINE.md:920` theo hướng "không thư viện"**, nhưng nó **không miễn cho Task 1**.
+Nếu ba phép đo của Task 1.2 trượt thì **LUẬT DỪNG của §Điều kiện khởi hành thắng chữ ký này** —
+dừng và báo Ice, **đừng** tự đi tìm một thư viện để cứu lượt dựng.
 
 ---
 
@@ -349,7 +373,9 @@ cần `:data-caret` trên mọi câu)*.
 | **(a)** ⭐ | **Không ảo hoá ở story này.** Dựng đủ hàng, **đo** trên cả hai engine, giao số cho Story 2.4, ghi nợ có chủ nếu vượt | Story giữ đúng phạm vi. ⚠️ Nếu số vượt trần thì **báo, đừng tối ưu mù** — đúng khuôn AC14 của Story 2.2 đã đặt. |
 | **(b)** | Ảo hoá ngay trong 2.5b | 🔴 Ảo hoá + `contenteditable` + `subgrid` cùng lúc là ba biến chưa đo trong một lượt. Và nó lấn phạm vi của một quyết định spine đang để ở Giai đoạn 3. |
 
-**Đề xuất mặc định: (a).** **Cần Ice chốt.**
+✅ **ĐÃ KÝ 2026-08-14 — đường (a).** ⇒ Nếu số của Task 8 vượt trần 50 ms thì đó là **một kết quả
+được báo cáo**, không phải một lượt story trượt: ghi vào `deferred-work.md` với chủ **Story 2.4**
+và **đừng tối ưu mù** — đúng khuôn AC14 của Story 2.2 đã đặt.
 
 ---
 
@@ -369,8 +395,10 @@ cần `:data-caret` trên mọi câu)*.
 | **(b)** | Chỉ thanh trạng thái | Rẻ hơn, nhưng thanh trạng thái ở xa chỗ bấm; với một lưới dài, người dùng không nhìn xuống đó. |
 | **(c)** | Hoãn AC14 sang một story sau | 🔴 Sai AC14 nguyên văn, và đó là mục ③ trong **ba** quyết định chồng nhau đã sinh ra lượt lật này. Hoãn nó là để nguyên một trong ba nguyên nhân gốc. |
 
-**Đề xuất mặc định: (a).** **Cần Ice chốt** — đây đồng thời là chữ ký cho hợp đồng UX-DR30 ở
-phạm vi tối thiểu.
+✅ **ĐÃ KÝ 2026-08-14 — đường (a), và chữ ký này LÀ hợp đồng UX-DR30 ở phạm vi tối thiểu.**
+⇒ `deferred-work.md:2801-2816` mất điều kiện chặn *("chốt UX-DR30 trước khi story nào cài")*:
+điều kiện đó **đã đạt**, và 2.5b là story cài. 🔴 Phạm vi là **tối thiểu** — cột nhãn trạng thái
+cộng một dòng ở thanh trạng thái. Đừng nhân lượt ký này thành một hệ thống thông báo.
 
 ---
 
@@ -392,19 +420,22 @@ phạm vi tối thiểu.
 | **(a)** ⭐ | Dùng **`on-surface-variant`** cho cả hai cột; sửa `DESIGN.md` frontmatter tại chỗ kèm 🔵 và ngày; **gỡ** miễn trừ `⏐` đã chết | Qua `check:tokens` không cần miễn trừ nào. Số câu và nhãn trạng thái **đọc được** — chúng là chữ thật, không phải nét. Đóng thêm một món nợ tài liệu. |
 | **(b)** | Giữ `ornament`, xin **hai miễn trừ có tên** | 🔴 Hai nhãn chữ trượt AA trên một bề mặt người dùng nhìn hàng giờ. `project-context.md` §Miễn trừ: *"Sửa KIỂU cho nó nói thật; đừng nhét một miễn trừ để cổng hết đỏ."* |
 
-**Đề xuất mặc định: (a).**
+✅ **ĐÃ KÝ 2026-08-14 — đường (a).** ⇒ Bản dựng `.working/…:161-205` dùng `ornament` cho hai cột
+đó; **không chép**. Và **gỡ** miễn trừ `ornament` cho ký tự `⏐` — UX-DR20 đã rút nên nó là một
+miễn trừ chết, đúng lớp nợ mà `reportUnusedDisableDirectives: 'error'` tồn tại để chống.
 ⚠️ Ghi kèm: `td.state.is-confirmed/is-primary/is-tm` của bản dựng dùng `confirmed`/`primary`/
 `tm-text` làm màu chữ — cả ba **đã có vai `text`** trong `tokens.json:56-63`, nên ba cặp đó chỉ
-cần khai vào `contrast.pairs` nếu nền mới. **Cần Ice chốt.**
+cần khai vào `contrast.pairs` nếu nền mới.
 
 ---
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — CHÍN quyết định (AC toàn story)**
-  - [ ] 0.1 Trình bày chín quyết định trên cho Ice, **kèm số đo**, chờ chữ ký.
-  - [ ] 0.2 🔴 Ghi lại chữ ký vào §Dev Agent Record **nguyên văn**. Nếu Ice ký một đường mà phép đo đã bác, ghi rõ *"Ice ký SAU KHI đọc số bác nó"* — đó là quyết định của Ice, không phải một lượt bỏ sót.
-  - [ ] 0.3 Không viết một dòng mã sản phẩm nào trước khi 0.2 xong.
+- [x] **Task 0 — CHÍN quyết định (AC toàn story)** ✅ **XONG 2026-08-14**
+  - [x] 0.1 Trình bày chín quyết định trên cho Ice, **kèm số đo**, chờ chữ ký.
+  - [x] 0.2 🔴 Ghi lại chữ ký vào §Dev Agent Record **nguyên văn**. → Bảng chín chữ ký đã điền; Quyết định #6 ghi rõ *"Ice ký TRƯỚC khi có số của Task 1"*.
+  - [x] 0.3 Không viết một dòng mã sản phẩm nào trước khi 0.2 xong.
+  - [ ] 0.4 🔴 **Ba chỗ chữ ký chưa phủ hết** *(§Dev Agent Record)* — quay lại hỏi Ice **đúng lúc**, đừng tự lấp: ① giá trị màu token `draft` *(trước Task 4.4)*; ② hình dạng neo `data-segment-id` *(xác nhận lại sau Task 1)*; ③ nếu Task 1.2 trượt thì **LUẬT DỪNG thắng chữ ký #6**.
 
 - [ ] **Task 1 — 🔴 CỬA CHẶN: dựng một mũi thăm dò lưới và GÕ TAY vào nó (AC3, Quyết định #1/#3/#6)**
   - [ ] 1.1 Dựng một bàn đo HTML độc lập *(khuôn `2-5-ban-do-hai-vach.html`)*: lưới `subgrid` năm cột, ô bản dịch `contenteditable`, một hàng **chưa dịch** với ô rỗng `min-height: 1.95em` + `border-bottom: 1px dashed`.
@@ -428,7 +459,7 @@ cần khai vào `contrast.pairs` nếu nền mới. **Cần Ice chốt.**
 
 - [ ] **Task 3 — Component lưới (AC2, AC3, AC5, Quyết định #1)**
   - [ ] 3.1 Tệp mới `src/panels/GridPanel.vue`, `<PanelFrame owner="panel.grid" status-key="panel.grid.status">` — `owner` viết **LITERAL** (B5).
-  - [ ] 3.2 Dựng năm cột theo Quyết định #1: vạch trạng thái · số câu · nguyên văn · bản dịch · nhãn trạng thái (AC2).
+  - [ ] 3.2 Dựng năm cột *(Quyết định #1 (b) — CSS Grid **chủ-cột với `subgrid`**)*: vạch trạng thái · số câu · nguyên văn · bản dịch · nhãn trạng thái (AC2). Grid cha khai `grid-template-rows: repeat(N, auto)`; **năm** con là **năm cột**, mỗi cột `display: grid; grid-template-rows: subgrid; grid-row: 1 / -1`. 🔴 Hàng **không** là một hộp ⇒ nền hàng đang sửa *(`surface-accent`)*, nền hàng TM *(`surface-tm`)* và đường kẻ dưới hàng phải tô **trên từng ô** của hàng đó.
   - [ ] 3.3 Ô bản dịch rỗng: `min-height` bằng một dòng của token `editor` *(1.95)* + `border-bottom: 1px dashed var(--color-outline)` (AC3). 🔴 Vùng bấm là **cả ô**, không một `<span>` rỗng.
   - [ ] 3.4 `is_paragraph_end` ⇒ **khoảng thở** giữa nhóm hàng, **không** một hàng rỗng (AC5). Chỉ **đọc** cờ (B3). ⚠️ Với Quyết định #1 (b), khoảng thở phải nhân ra năm ô của hàng cuối đoạn.
   - [ ] 3.5 Nguồn dữ liệu một hàng = **một** `ChapterSegment` *(`source_text` + `target_text` cùng hàng)*. 🔴 Không join theo vị trí, chỉ theo `segment.id` (AD-3).
@@ -441,7 +472,7 @@ cần khai vào `contrast.pairs` nếu nền mới. **Cần Ice chốt.**
   - [ ] 4.2 `resolveSegmentRule`: thêm nhánh `draft` **đúng chỗ trong thứ tự ưu tiên**. Thứ tự đề nghị: `ornament` › `primary` › `confirmed` › `tm-rule` › **`draft`** › `none`. 🔴 `draft` ⇔ `targetText !== ''` *(và không thuộc bốn nhánh trên)*; `targetText === ''` ⇒ `none`.
   - [ ] 4.3 🔴 **SỬA TẠI CHỖ ba khối doc-comment đã hết đúng** trong `editorSegments.ts`, kèm 🔵 và ngày: `:2-37` *("VÌ SAO CẢ NĂM NHÁNH…")* · `:41-49` *("ĐÚNG NĂM GIÁ TRỊ…")* · `:107-139` *("KHE HỞ… Ice ký Quyết định #3 đường (a): không vạch")*.
         ⚠️ Khối `:107-139` chở một mệnh đề **Ice đã ký ngày 2026-08-14** *(«đã dịch, chưa xác nhận ⇒ không vạch»)* và UX-DR19 bản viết lại **cùng ngày** lật nó. Ghi cả hai và ghi **thứ tự** — đừng xoá dấu vết quyết định cũ.
-  - [ ] 4.4 Khối CSS `.rule-draft` theo Quyết định #2.
+  - [ ] 4.4 Token màu **`draft`** *(thứ 17, vai `stroke`)* + khối CSS `.rule-draft { background-color: var(--color-draft) }`. Sửa **ba** chỗ khai số: `tokens.json:16` *("16 token mỗi theme")* · bảng đóng băng trong `check-tokens.mjs` · `DESIGN.md:189-196` *(kèm 🔵 nói vì sao con số 16 hết đúng)*. 🔴 **HỎI ICE giá trị màu trước khi ghi** — Ice mới ký *đường*, chưa ký *số* (Task 0.4 ①).
   - [ ] 4.5 `check-commands.mjs` Kiểm I: `EXPECTED_RULE_VALUES` thành sáu; sửa tiêu đề *"ĐÚNG NĂM giá trị"*; sửa `EDITOR_PANEL_VUE` → đường dẫn `GridPanel.vue`; thêm ca thứ sáu cho mệnh đề ②.
   - [ ] 4.6 `tests/frontend/editorSegmentRule.test.ts`: đảo mệnh đề *"đã dịch chưa ký ⇒ none"* thành *"⇒ draft"*, **thêm** ca `target_text` rỗng ⇒ `none`, và ca *"hai chỗ đọc trạng thái phải đồng ý"* giữ nguyên.
   - [ ] 4.7 Cột **nhãn trạng thái** hiện sáu nhãn — sáu khoá `vi.json` mới, khoá phẳng (B12).
@@ -479,7 +510,7 @@ cần khai vào `contrast.pairs` nếu nền mới. **Cần Ice chốt.**
   - [ ] 9.4 Nối `deferred-work.md:2801-2816`: ✅ hoặc 🟡 kèm phần còn hở. **Không xoá mục.**
 
 - [ ] **Task 10 — Gỡ `editorGutter.ts` và giữ bằng chứng (Quyết định #4)**
-  - [ ] 10.1 Gỡ theo đường Ice ký; **chép nguyên phép đo** *(482,4/254,5/261,6 ms → 8,3/5,2/4,3 ms, 2026-08-14, Node 22.22.2, macOS 15.6)* và lý do gỡ vào `deferred-work.md`, nối tiếp mục `:2875-2885`.
+  - [ ] 10.1 Gỡ *(đường (a), Ice ký 2026-08-14)*; **chép nguyên phép đo** *(482,4/254,5/261,6 ms → 8,3/5,2/4,3 ms, 2026-08-14, Node 22.22.2, macOS 15.6)* và lý do gỡ vào `deferred-work.md`, nối tiếp mục `:2875-2885`.
   - [ ] 10.2 Món nợ *"từ 8 làn trở lên máng 22px hết chỗ"* *(`:2718-2719`, Chủ: Ice)* — nếu khái niệm làn biến mất thì nối **✅ đóng theo cấu trúc**, nói rõ *"biến mất, không phải được vá"*.
   - [ ] 10.3 Đếm lại `FILE_FLOOR` *(`check-layout.mjs:97`)*, `TS_FLOOR`/`VUE_FLOOR`/`COMPONENT_FILE_FLOOR` *(`check-commands.mjs`)* sau khi bớt/thêm tệp. ⚠️ Sàn là **cận dưới**: bớt tệp không làm cổng đỏ, nó chỉ làm sàn vô nghĩa.
 
@@ -689,17 +720,26 @@ nghiệm thu chính của Task 1, 3, 7.
 
 ### Chín chữ ký của Ice
 
+**Lượt ký: 2026-08-14. Nguyên văn của Ice: *"duyệt 9 quyết định theo đề xuất"*.**
+⇒ Cả chín đều chốt ở **đường ⭐ đề xuất mặc định**.
+
 | # | Quyết định | Đường Ice chốt | Ghi chú |
 |---|---|---|---|
-| 1 | Hình dạng DOM của lưới + neo `data-segment-id` | | |
-| 2 | Màu của `.rule-draft` | | |
-| 3 | `contenteditable` đặt ở đâu *(kèm chữ ký lật Quyết định #1 của Story 2.3)* | | |
-| 4 | Số phận `editorGutter.ts` | | |
-| 5 | Đổi tên `PanelId` / `PresetId` | | |
-| 6 | Thư viện editor *(ký SAU Task 1)* | | |
-| 7 | Ảo hoá hàng | | |
-| 8 | Bề mặt báo lỗi `err.segment.*` *(= chữ ký UX-DR30 tối thiểu)* | | |
-| 9 | Màu chữ cột số câu và cột nhãn trạng thái | | |
+| 1 | Hình dạng DOM của lưới + neo `data-segment-id` | **(b)** CSS Grid **chủ-cột với `subgrid`**; cột là tổ tiên DOM thật | ⚠️ Kiểu dáng **cấp hàng** phải nhân ra **năm ô** — bản dựng viết chúng trên `<tr>`, không chép thẳng. 🔴 `subgrid` phải **đo trên cả hai engine** *(Task 1.2/1.3)*. ⚠️ **Vế neo còn mỏng** — xem "Ba chỗ chữ ký chưa phủ hết" |
+| 2 | Màu của `.rule-draft` | **(a)** thêm token **`draft`** *(thứ 17)*, vai **`stroke`** | ⚠️ **Giá trị màu hai theme CHƯA có** — xem "Ba chỗ chữ ký chưa phủ hết" |
+| 3 | `contenteditable` đặt ở đâu | **(b)** **mọi ô cột bản dịch** là một editing host riêng | 🔴 **Kèm chữ ký LẬT Quyết định #1 của Story 2.3** *(«vùng gõ là một câu tại một thời điểm», Ice ký 2026-08-12)*. Tiền đề cũ — một dòng văn liên tục — **không còn tồn tại**. Ghi cả hai và ghi thứ tự, đừng xoá dấu vết |
+| 4 | Số phận `editorGutter.ts` | **(a)** **gỡ** mã, **giữ phép đo trong sổ** | Nối tiếp `deferred-work.md:2875-2885`, không xoá mục |
+| 5 | Đổi tên `PanelId` / `PresetId` | **(a)** panel id **đổi**; preset id **giữ tên, đổi nghĩa** | `layout.preset_grid` = **Ⓑ-2** *(mặc định)* · `layout.preset_columns` = **Ⓑ-1**. Phím tắt đã gán và preset đã lưu sống nguyên. ⚠️ Bắt buộc một chú thích 🔵 tại chỗ: *"tên là lịch sử, nghĩa ở bảng ngay dưới"* |
+| 6 | Thư viện editor | **(a)** **không thư viện** — `contenteditable` trần, `beforeinput` là cửa duy nhất | 🔴 **Ice ký TRƯỚC khi có số của Task 1** — story đề nghị ký *sau*. Chữ ký này **đóng hàng Deferred `ARCHITECTURE-SPINE.md:920` theo hướng "không thư viện"**, nhưng nó **không** miễn cho Task 1: nếu ba phép đo của 1.2 trượt thì đây là chỗ **mở lại**, không phải chỗ đã khoá |
+| 7 | Ảo hoá hàng | **(a)** **không ảo hoá** ở story này; đo và **giao số** cho Story 2.4 | Giữ *"Chiến lược ảo hoá danh sách dài"* ở Giai đoạn 3 *(spine `:922`)*. Số vượt trần thì **báo, đừng tối ưu mù** |
+| 8 | Bề mặt báo lỗi `err.segment.*` | **(a)** **cột nhãn trạng thái của chính hàng** + một dòng ở thanh trạng thái | 🔴 Đây đồng thời là **chữ ký hợp đồng UX-DR30 ở phạm vi tối thiểu**. Đóng cả `'still-dirty'` cùng lượt. Không hộp thoại, không lớp nổi (UX-DR16) |
+| 9 | Màu chữ cột số câu và cột nhãn trạng thái | **(a)** **`on-surface-variant`**; sửa `DESIGN.md` frontmatter tại chỗ; **gỡ** miễn trừ `⏐` đã chết | Qua `check:tokens` không cần một miễn trừ nào |
+
+#### ⚠️ Ba chỗ chữ ký chưa phủ hết — dev phải quay lại hỏi, đừng tự lấp
+
+1. **Giá trị màu của token `draft` (Quyết định #2).** Ice ký *đường*, chưa ký *số*. Token phải qua `check:tokens` Kiểm C *(mọi cặp mới khai vào `contrast.pairs` hoặc `contrast.excluded`)*. **Đề xuất khởi điểm để Ice bác hoặc gật**, không phải một giá trị đã chốt: lấy chính `ornament` của mỗi theme *(`#a9a196` sáng / `#6a6459` tối)* làm giá trị của `draft` — cùng sắc, khác **tên**, nên vạch `draft` đọc yếu hơn `confirmed` đúng như bản dựng muốn, mà **không** cần `opacity` và **không** cần một miễn trừ nào. ⇒ Token thứ 17 lúc đó là một **cái tên mới cho một màu đã kiểm**, không phải một màu mới chưa ai đo. 🔴 Vẫn phải xác nhận với Ice trước khi ghi vào `tokens.json`.
+2. **Hình dạng neo `data-segment-id` (Quyết định #1, vế hai).** Story mới **gợi ý** `data-col="src" | "tgt"`; Ice duyệt cả gói nên nó coi như đã ký, nhưng nó là phần **ít bằng chứng nhất** của lượt này. Nếu Task 1 lộ ra một hình dạng tốt hơn thì đổi và ghi lý do — hai spec e2e sửa cùng lượt (B11).
+3. **Quyết định #6 ký trước phép đo.** Ghi lại thẳng ở đây thay vì để nó trôi: nếu Task 1.2 cho thấy `contenteditable` trần **không** đặt được caret trong ô rỗng trên WKWebView, thì **LUẬT DỪNG của §Điều kiện khởi hành thắng chữ ký này** — dừng, báo Ice, đừng tự đi tìm một thư viện.
 
 🔴 Nếu Ice ký một đường mà phép đo đã bác, ghi rõ *"Ice ký SAU KHI đọc số bác nó"* và ghi luôn
 đường dev chọn để **ít nói dối nhất** — khuôn Quyết định #2 của Story 2.5.
@@ -715,5 +755,6 @@ nghiệm thu chính của Task 1, 3, 7.
 | Ngày | Nội dung |
 |---|---|
 | 2026-08-14 | Tạo story bằng `create-story`. Baseline `f990dd5`, cây sạch. |
+| 2026-08-14 | Ice ký **trọn gói chín quyết định theo đề xuất**. Bảng chữ ký điền đủ; chín mục Task 0 mang một dòng ✅ **ĐÃ KÝ** và **giữ nguyên các đường bị loại** làm bằng chứng. Ba chỗ chữ ký **chưa phủ hết** ghi riêng thành Task 0.4 — giá trị màu token `draft`, hình dạng neo `data-segment-id`, và việc #6 được ký **trước** phép đo của Task 1. |
 
 ### Review Findings

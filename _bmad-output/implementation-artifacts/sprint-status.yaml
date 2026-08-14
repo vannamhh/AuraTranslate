@@ -215,7 +215,23 @@ development_status:
   # 2.5b gop panel Source + Editor thanh MOT (panel.grid) ⇒ con BA panel. No mang theo
   # AC superseded cua Story 2.2 (4/8) va Story 1.14 (AC 'bon slot panel').
   # 🔵 2026-08-14 — 2.5b chuyen sang ready-for-dev (create-story).
-  # 🔴 CHIN QUYET DINH CHO ICE KY o Task 0 truoc khi viet dong ma dau tien. Bon cai nang nhat:
+  # ✅ 2026-08-14 — ICE KY TRON GOI CHIN QUYET DINH cua Task 0, tat ca theo duong de xuat:
+  #   #1 (b) CSS Grid chu-cot voi `subgrid` · #2 (a) token `draft` thu 17, vai `stroke` ·
+  #   #3 (b) moi o cot ban dich la mot editing host rieng — VA DO LA MOT LUOT LAT Quyet dinh
+  #      #1 cua Story 2.3 ("vung go la MOT cau tai mot thoi diem") ·
+  #   #4 (a) go `editorGutter.ts`, giu phep do trong so · #5 (a) panel id doi, preset id GIU TEN
+  #      doi NGHIA (preset_grid = Ⓑ-2 mac dinh, preset_columns = Ⓑ-1) ·
+  #   #6 (a) khong thu vien editor — ⚠️ Ice ky TRUOC khi co so cua Task 1; chu ky nay KHONG mien
+  #      cho Task 1, va LUAT DUNG thang chu ky neu phep do truot ·
+  #   #7 (a) khong ao hoa, giao so cho Story 2.4 · #8 (a) cot nhan trang thai + thanh trang thai,
+  #      VA DAY LA CHU KY HOP DONG UX-DR30 O PHAM VI TOI THIEU ·
+  #   #9 (a) `on-surface-variant` cho cot so cau va cot nhan trang thai, go mien tru `⏐` da chet.
+  # 🔴 BA CHO CHU KY CHUA PHU HET (Task 0.4) — dev phai quay lai hoi, dung tu lap:
+  #   ① gia tri mau hai theme cua token `draft` (Ice ky DUONG, chua ky SO) — hoi truoc Task 4.4;
+  #   ② hinh dang neo `data-segment-id` (`data-col="src"|"tgt"`) — xac nhan lai sau Task 1;
+  #   ③ Quyet dinh #6 ky truoc phep do — neu Task 1.2 truot thi DUNG, dung di tim thu vien.
+  # ── Boi canh chin quyet dinh (giu lai de story sau doc duoc ly do) ──────────────────
+  # Bon cai nang nhat:
   #   #1 AC2 doi HANG, AC7 doi COT la MOT be mat dang ky — hai doi hoi nay XUNG KHAC trong DOM
   #      thuong: trong <table> mot cot KHONG co phan tu to tien, ma selectionContract duyet bang
   #      `el.contains(anchor)`. Duong de xuat: CSS Grid chu-cot voi `subgrid` (Safari 16+ /
