@@ -208,13 +208,34 @@ development_status:
   #   74/74 vitest van xanh (fixture chep tay co cap `status`). Da va + dung luoi.
   #   🔴 CON MOT MON CHO ICE: Task 1.1 — go tay vao mot cau CHUA DICH tren app that.
   2-5-xac-nhan-segment-va-may-trang-thai: done
+  # 🔵 CORRECT COURSE 2026-08-14 (Ice duyet tron goi) — be mat nhap lat sang LUOI HAI COT
+  # doi chieu. Nguon: planning-artifacts/sprint-change-proposal-2026-08-14.md
+  # Ba story CHEN vao day (khuon 1.10b/1.11b/1.18b) vi 2.9 va 2.10 dua vao hinh dang —
+  # luoi phai dung TRUOC chung. Danh so chen de KHONG story done nao doi dinh danh.
+  # 2.5b gop panel Source + Editor thanh MOT (panel.grid) ⇒ con BA panel. No mang theo
+  # AC superseded cua Story 2.2 (4/8) va Story 1.14 (AC 'bon slot panel').
+  2-5b-luoi-hai-cot-doi-chieu: backlog
+  # 2.5c dung buoc di tru 8; 2.5d dung buoc 9. Doc PROJECT_MIGRATIONS (schema.rs), dung
+  # doc mot ghi chep o noi khac — ke ca dong nay.
+  2-5c-cat-bo-cau-khoi-ban-dich: backlog
+  # 2.5d di qua AD-46 MOI (AD-37 giu nguyen van). No go hai lop chan Enter CHI o o ban dich.
+  2-5d-ngat-doan-ban-dich: backlog
   2-6-lich-su-phien-ban-segment-va-khoi-phuc: backlog
   2-7-xuat-xu-ban-dich-cap-segment: backlog
   2-8-gop-va-tach-segment-tuong-minh: backlog
-  2-9-gop-ngam-khi-go-de-len-ranh-gioi: backlog
+  # 2.9 DOI TEN 2026-08-14. Ten cu: 2-9-gop-ngam-khi-go-de-len-ranh-gioi. Tien de cu ("con
+  # tro o dung vi tri ranh gioi giua hai segment") KHONG con ton tai trong luoi — ranh gioi
+  # nay la ranh gioi HANG. Nam AC giu nguyen NGU NGHIA, chi doi cu chi kich hoat. Covers
+  # FR78 khong doi. UX-DR32 cung da sua theo.
+  2-9-gop-bang-backspace-dau-o: backlog
+  # 2.10 them HAI AC: bo qua cau da cat bo (FR133), va dinh nghia "chua dich" nay la
+  # status='draft' VA target_text rong — vi 'draft' da tach khoi 'chua dich'.
   2-10-dieu-huong-segment: backlog
   2-11-chuyen-chuong-trong-workspace: backlog
-  2-12-sync-scrolling: backlog
+  # 2-12-sync-scrolling: XOA 2026-08-14 — FR20 da RUT (Ice ky). Luoi nuot 2/3 cap panel cua
+  # FR20; cap con lai (luoi <-> AI Translation) van con THAT nhung Ice chot khong giu.
+  # ⚠️ Neu Epic 4 dung che do dich THEO LO thi nhu cau quay lai va luc do KHONG FR nao
+  # chua no — mon no co chu la Epic 4, ghi day du o deferred-work.md.
   epic-2-retrospective: optional
 
   # Epic 3: Glossary — chốt thuật ngữ một lần, dùng mãi

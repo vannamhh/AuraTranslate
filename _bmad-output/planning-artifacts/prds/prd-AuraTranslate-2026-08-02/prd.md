@@ -182,7 +182,7 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 | # | Nhóm năng lực | Vai trò | Dải FR |
 |---|---|---|---|
 | **C1** | Library — kho tài liệu & trải nghiệm đọc | Điểm vào ứng dụng | FR1–FR15, FR43, FR45, FR115, FR116, FR119, FR120, FR122–FR128, FR132 |
-| **C2** | Workspace — môi trường dịch bốn panel | Trung tâm thao tác | FR16–FR26, FR42, FR44, FR78, FR117, FR129 |
+| **C2** | Workspace — môi trường dịch **ba panel** *(🔵 2026-08-14: bốn → ba, lưới gộp Source + Editor)* | Trung tâm thao tác | FR16–FR26, FR42, FR44, FR78, FR117, FR129, **FR133, FR134** |
 | **C3** | Embedded Dictionary & Lookup | Điều kiện tồn tại | FR27–FR41 |
 | **C4** | Glossary & thuật ngữ | Nơi quyết định biên tập được ghi lại | FR46–FR55, FR79, FR113, FR114 |
 | **C5** | Translation Memory & tái sử dụng | Không tra lại thứ đã tra | FR56–FR64, FR118 |
@@ -204,7 +204,7 @@ Mọi tài liệu downstream (`bmad-ux`, `bmad-architecture`, `bmad-create-epics
 | **Chương** | Đơn vị dịch bên trong một Tác phẩm, có văn bản nguồn và văn bản đích riêng | ~~document~~, ~~file~~ |
 | **Segment** | Đơn vị dịch nhỏ nhất — **một câu**. Đơn vị của Translation Memory và của luồng xác nhận | ~~đoạn~~, ~~câu~~ *(khi nói về cấu trúc dữ liệu)* |
 | **Library** | Khung/chế độ thứ nhất: kho Tác phẩm, điểm vào ứng dụng | ~~Thư viện~~ *(dùng "Library" nhất quán)* |
-| **Workspace** | Khung/chế độ thứ hai: môi trường dịch bốn panel | ~~màn hình dịch~~ |
+| **Workspace** | Khung/chế độ thứ hai: môi trường dịch **ba panel** *(🔵 2026-08-14)* | ~~màn hình dịch~~ |
 | **Chế độ đọc** *(Reading Mode)* | Chế độ đọc lại bản dịch đã hoàn thành, không có công cụ biên tập | — |
 | **Review Mode** | Bố cục hai cửa sổ side-by-side để đối chiếu bản dịch của mình với bản Reviewer đã sửa | ~~Diff Mode~~ |
 | **Panel Lookup** | Panel số 2 của Workspace — nơi kết quả tra cứu từ điển và concordance hiện ra | ~~panel tra cứu~~ *(khi cần chính xác)* |
@@ -392,7 +392,7 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 
 #### Bố cục
 
-**FR16.** **Bốn panel trong một cửa sổ ứng dụng duy nhất:** *Source*, *Lookup*, *AI Translation*, *Editor*. Đây là câu trả lời trực tiếp cho nỗi đau "bốn đến năm cửa sổ mở cùng lúc".
+**FR16.** **Ba panel trong một cửa sổ ứng dụng duy nhất:** *Lưới đối chiếu*, *Lookup*, *AI Translation*. Đây là câu trả lời trực tiếp cho nỗi đau "bốn đến năm cửa sổ mở cùng lúc". 🔵 *(Sửa 2026-08-14: bản cũ khai **bốn**, tách *Source* và *Editor*. Lưới gộp hai cái đó làm một — mỗi câu một hàng, nguyên văn và bản dịch **cùng hàng**.)*
 
 **FR17.** Panel hỗ trợ kéo thả để dock/undock, gộp thành tab, và thay đổi kích thước. Mỗi panel **ẩn được hoàn toàn** — người dịch không dùng AI phải giấu được panel AI Translation.
 
@@ -400,7 +400,7 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 
 #### Panel Source
 
-**FR19.** Panel Source hiển thị văn bản gốc (Anh hoặc Trung) kèm **tab Hán Việt** cho tài liệu tiếng Trung — xem ở chế độ chuyển đổi hoặc song song.
+**FR19.** **Cột nguyên văn của lưới** hiển thị văn bản gốc (Anh hoặc Trung) kèm **Hán Việt** cho tài liệu tiếng Trung — xem ở chế độ chuyển đổi hoặc song song, **người dùng tự bật tắt**. 🔵 *(Sửa 2026-08-14: chữ "tab" rút — Hán Việt sống **bên trong ô nguyên văn**. Hai chế độ không đổi một chữ; Ice ký kèm lời từ chối mọi mặc định "thông minh".)*
 
 **FR42.** Panel Source hiển thị hình ảnh nhúng **đúng vị trí** của chúng trong văn bản gốc.
 
@@ -416,9 +416,11 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 
 #### Thao tác xuyên panel
 
-**FR20.** **Sync Scrolling** đồng bộ vị trí cuộn giữa Source, AI Translation và Editor. Có công tắc bật/tắt rõ ràng.
+~~**FR20.** **Sync Scrolling** đồng bộ vị trí cuộn giữa Source, AI Translation và Editor. Có công tắc bật/tắt rõ ràng.~~
 
-**FR21.** **Auto-Lookup:** bôi đen một cụm từ ở **Panel Source** — nguyên văn hoặc tab Hán Việt — → kết quả tra cứu hiện **ngay** ở panel Lookup. Không copy, không paste, không chuyển cửa sổ.
+> 🔵 **FR20 RÚT 2026-08-14 (Sprint Change Proposal), Ice ký.** FR20 đồng bộ **ba** panel; lưới đối chiếu nuốt **hai** trong ba — `Source` và `Editor` nay là **cùng một hàng**, không còn gì để đồng bộ giữa chúng. Cặp còn lại là `lưới ↔ AI Translation`, và Ice chốt **không giữ**. ⚠️ **Cái mất, ghi ra:** nếu Epic 4 dựng chế độ dịch **theo lô**, nhu cầu cuộn cùng nhau **quay lại** và lúc đó không FR nào chứa nó — nợ có chủ **Epic 4**. ⇒ Nhu cầu FR20 thật sự phục vụ *(mắt không phải tìm lại chỗ)* nay được **hình dạng** trả lời: cùng một hàng là cùng một câu.
+
+**FR21.** **Auto-Lookup:** bôi đen một cụm từ ở **cột nguyên văn của lưới** — chữ gốc hoặc âm Hán Việt — → kết quả tra cứu hiện **ngay** ở panel Lookup. Không copy, không paste, không chuyển cửa sổ. 🔵 *(Sửa 2026-08-14: "Panel Source" → "cột nguyên văn của lưới". `selectionContract.ts` **không phải sửa một dòng** — nó đăng ký theo phần tử DOM với một vai, không theo panel.)*
 
 > 🔵 **Thu hẹp 2026-08-13 (Sprint Change Proposal), Ice ký.** Mệnh đề cũ liệt kê ba bề mặt: *"Source, AI Translation hoặc Editor"*. **Panel AI Translation và Panel Editor KHÔNG phải nguồn tra cứu** — chúng chứa **tiếng Việt đã dịch**, và từ điển nhúng là zh→vi / en→vi. Một lượt tra ở đó trả **0 hàng, 0 lỗi, 0 ms** rồi **thay mất** kết quả người dùng đang đọc ở Panel Lookup — đúng vòng tự thay thế mà `selectionContract.ts:11-17` đã bác cho Panel Lookup, chỉ tệ hơn một bậc vì thứ thay vào là **rỗng**. Hai panel đó **vẫn là bề mặt vùng chọn đã đăng ký** *(vai `display`)*: FR48 và FR60 đọc vùng chọn ở đó qua lệnh của riêng chúng. Đây là **ca áp dụng đầu tiên** của nguyên tắc ở §1.4 — giữ **thao tác**, sửa **cài đặt**.
 
@@ -452,6 +454,14 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 **FR25.** Điều hướng nhanh giữa các segment: kế tiếp, trước đó, và **segment chưa dịch kế tiếp**.
 
 **FR26.** Chuyển Chương ngay trong Workspace (Chương trước / Chương sau) mà không phải quay về Library.
+
+**FR133.** **Cắt bỏ một câu hoặc một dải câu khỏi bản dịch.** Cờ đặt trên **câu nguồn** — đây là quyết định *"đoạn này không thuộc bản dịch"*, không phải một mức độ hoàn thành, nên nó là một **trục độc lập** với trạng thái segment *(khuôn `translate="no"` của XLIFF 2.0)*. Hàng **vẫn nằm trong lưới**, gạch ngang và mờ đi — người dịch phải thấy thứ mình đã bỏ. **Đảo ngược được bất cứ lúc nào.** **Chế độ đọc và mọi bản xuất ẩn hoàn toàn.**
+
+> **Vì sao là một FR riêng chứ không một giá trị trong bảng trạng thái:** *"cố ý bỏ trống"* và *"chưa dịch"* hôm nay **đều là `target_text` rỗng** — không phân biệt được. Hệ quả cụ thể: lệnh *"câu chưa dịch kế tiếp"* (FR25) sẽ **liên tục nhảy vào đúng những câu người dùng cố ý bỏ**, tức một tính năng điều hướng tự phá chính nó. Và vì cắt bỏ là quyết định về **thuộc hay không thuộc bản dịch**, nó **vuông góc** với mức độ hoàn thành: một câu bị cắt vẫn có trạng thái riêng của nó.
+
+**FR134.** **Bản dịch ngắt đoạn khác bản gốc.** Một đoạn nguồn dài tách được thành hai đoạn trong bản dịch. Cấu trúc đoạn của bản dịch là **dữ liệu riêng** *(AD-46)*, mặc định soi gương bản gốc cho tới khi người dùng đổi. Trong lưới, `Enter` trong ô bản dịch là **xuống dòng**, và đó là chỗ chứa quyền này.
+
+> **Ràng buộc kiến trúc kèm theo:** AD-37 khai *"một cờ duy nhất dùng chung cho cả nguyên văn và bản dịch"*, và mệnh đề đó là tiền đề của FR121. FR134 **không nới AD-37** — nó đi qua một **AD-46 mới** sở hữu cấu trúc đoạn của bản dịch. FR121 vì thế đổi lời hứa *("mỗi cột giữ cấu trúc đoạn của chính nó")* nhưng **không đổi nghiệm thu**, vì nghiệm thu của FR121 chỉ đọc **cột phải**.
 
 ---
 
@@ -1130,7 +1140,7 @@ Hai yêu cầu dưới đây không thuộc riêng giai đoạn nào và chung m
 | ~~Q6~~ | ~~Khả năng tiếp cận có nằm trong v1 không?~~ | — | ✅ **Đóng 2026-08-02** — thành **NFR17**. Sàn bàn phím + tương phản WCAG AA; trình đọc màn hình ngoài phạm vi v1 (§3.2) |
 | ~~Q7~~ | ~~Mất tối đa bao nhiêu công việc khi app sập là chấp nhận được?~~ | — | ✅ **Đóng 2026-08-02** — thành **NFR18**, ngưỡng ≤ 5 giây |
 | ~~Q8~~ | ~~Phép dùng HVTĐTD có bao gồm phân phối lại không?~~ | — | ✅ **Đóng 2026-08-02** — chủ dự án chọn **mặc định cho phép** đóng gói vào bản phát hành, **gỡ khi tác giả yêu cầu**. Không hỏi lại trước khi đóng gói. Xem §8.3, §8.6 và R12 |
-| **Q9** | **Hiệu chỉnh ngưỡng bố cục màn hình hẹp (A11)** — bốn mốc do thiết kế đặt: **≥ 1100×820** giữ 2×2 · **< 820 cao** gộp hàng dưới thành một panel có tab · **< 1100 rộng hoặc < 700 cao** chỉ còn Nguyên văn \| Bản dịch, Tra cứu rút về ngăn kéo · **< 860 rộng** báo không hỗ trợ | Chủ dự án | **Đo trên máy thật khi có bản chạy được** (Giai đoạn 2 trở đi, ngay khi Workspace bốn panel dựng xong). **Không chặn tiến độ** — cùng lý do A6/A7/A8: một ngưỡng tạm vẫn nghiệm thu được và vẫn buộc người dựng phải đo, một tính từ thì không. Chỉ số được hiệu chỉnh; **thứ tự hy sinh panel là quyết định, không hiệu chỉnh**. Ngưỡng gốc ở `bmad-ux` EXPERIENCE.md và `mockups/narrow-layout.html` |
+| **Q9** | **Hiệu chỉnh ngưỡng bố cục màn hình hẹp (A11)** — bốn mốc do thiết kế đặt: **≥ 1100×820** giữ bố cục đã chọn đủ ba panel · **< 820 cao** gộp Tra cứu và Đề xuất AI thành một panel có tab · **< 1100 rộng hoặc < 700 cao** chỉ còn **lưới**, Tra cứu rút về ngăn kéo · **< 860 rộng** báo không hỗ trợ *(🔵 2026-08-14: diễn đạt theo panel thay vì vị trí; **bốn con số không đổi**. Phạm vi rộng ra — nay phải hiệu chỉnh cho **hai** bố cục Ⓑ-1 và Ⓑ-2)* | Chủ dự án | **Đo trên máy thật khi có bản chạy được** (Giai đoạn 2 trở đi, ngay khi Workspace dựng xong). **Không chặn tiến độ** — cùng lý do A6/A7/A8: một ngưỡng tạm vẫn nghiệm thu được và vẫn buộc người dựng phải đo, một tính từ thì không. Chỉ số được hiệu chỉnh; **thứ tự hy sinh panel là quyết định, không hiệu chỉnh**. Ngưỡng gốc ở `bmad-ux` EXPERIENCE.md và `mockups/narrow-layout.html` |
 
 ### Ghi chú bàn giao
 

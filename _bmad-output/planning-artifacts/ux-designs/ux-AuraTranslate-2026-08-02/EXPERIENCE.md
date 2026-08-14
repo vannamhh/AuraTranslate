@@ -227,7 +227,8 @@ Cộng lại: người dịch **không thấy** câu chưa dịch, **không bấ
 **Mỗi câu là một HÀNG.** Trên hàng đó, từ trái sang: **vạch trạng thái** · **số câu** · **nguyên văn** · **bản dịch** · **nhãn trạng thái**.
 
 - **Cùng một hàng là cùng một câu.** Đối chiếu trở thành **cấu trúc**, không còn là một tính năng phải dựng.
-  ⇒ **FR20 (Sync Scrolling) thành thừa** — không còn hai thứ để đồng bộ.
+  ⇒ **FR20 (Sync Scrolling) mất hai phần ba lý do tồn tại** — `Source ↔ Editor` nay là cùng một hàng.
+  🔵 **Sửa 2026-08-14 sau lượt rà correct-course.** Bản đầu của mục này viết *"FR20 thành thừa — không còn hai thứ để đồng bộ"*, và câu đó **không đúng**: FR20 khai **ba** panel, và nó **bỏ quên panel Đề xuất AI** — thứ vẫn là một cột riêng ở cả Ⓑ-1 lẫn Ⓑ-2, với nội dung cả Chương nếu Epic 4 dựng chế độ dịch **theo lô**. **Kết luận không đổi** *(Ice chốt rút hẳn FR20 ngày 2026-08-14)*, nhưng lý do phải nói đúng: cặp thứ ba bị **bỏ**, không phải **không tồn tại**. Món nợ có chủ **Epic 4**.
   ⇒ Nhu cầu *"bấm câu gốc thì câu dịch sáng lên"* **biến mất** thay vì phải cài. *(Nhu cầu đó có thật — Ice hỏi 2026-08-14 — và `epics.md` **không có FR nào** cho nó.)*
 - **Ô trống có chiều cao thật.** Câu chưa dịch không thể tàng hình: hàng có chiều cao riêng, độc lập với việc nó có chữ hay không. Đây là điều kiện mà hình dạng cũ **không thể** thoả.
 - **Một câu, một vạch.** Máng lề trở lại đúng nghĩa gốc của UX-DR19.

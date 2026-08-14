@@ -649,6 +649,29 @@ graph TD
 
   Thêm một cổng lắng nghe thứ hai là một **quyết định kiến trúc**, phải ghi thành `AD` mới — cùng thủ tục mà AD-2 áp cho cổng thứ tư.
 
+### AD-46 — Cấu trúc đoạn của bản dịch là dữ liệu riêng của bản dịch
+
+- **Binds:** C2, C8, C9
+- **Prevents:** AD-37 khai *"một cờ duy nhất dùng chung cho cả nguyên văn và bản dịch"*, và mệnh đề đó **cấm** một đoạn Trung dài tách thành hai đoạn Việt — một quyền người dịch có thật và dùng thường xuyên. Mở quyền đó bằng cách **nới AD-37** thì FR121 mất tiền đề ở Epic 8, cách đây sáu epic, và mất **im lặng**: bản `.docx` một khối vẫn xuất ra, vẫn là bảng hai cột hợp lệ, chỉ hai ô thôi không còn đối xứng — và **không đường nghiệm thu nào của Epic 2 nhìn thấy điều đó**.
+
+  ⚠️ Ghi ra vì nó đã suýt xảy ra: bản ghi phiên thiết kế 2026-08-14 kết luận *"không phá AD-37, AD-37 nói về cấu trúc đoạn của NGUYÊN VĂN"*. Cây nguồn nói ngược — `AD-37 §Rule` khai bằng chữ *"dùng chung cho cả nguyên văn và bản dịch"*, và `epics.md` chép lại y hệt vào bảng bất biến. Lượt rà correct-course bắt được chỗ này; nếu không, một `ALTER TABLE` sẽ đi qua **mọi cổng** rồi làm FR121 hỏng ở Epic 8.
+- **Rule:** `SEGMENT` mang **cờ kết đoạn thứ hai**, thuộc bản dịch. AD-37 **không sửa một chữ** và tiếp tục sở hữu cờ của nguyên văn.
+
+  **Cấu trúc đoạn của bản dịch được chở bởi HAI thứ**, và cả hai đều là dữ liệu được lưu:
+
+  | Ranh giới nằm | Chở bằng |
+  |---|---|
+  | **Giữa** hai segment *(một đoạn nguồn nhiều câu → hai đoạn dịch)* | **Cờ đích** |
+  | **Trong** một segment *(một câu nguồn → hai đoạn dịch)* | **Ký tự xuống dòng trong `target_text`** |
+
+  Đường xuất đọc **cả hai**. Không đường mã nào suy cấu trúc đoạn của bản dịch từ nội dung nguồn — cùng luật AD-37, cùng lý do.
+
+  Cờ đích **mặc định bằng cờ nguồn** lúc nhập: bản dịch soi gương bản gốc cho tới khi người dùng tự đổi. Ba ca biên của AD-37 *(gộp → theo câu cuối · tách → theo mảnh cuối, các mảnh trước tắt · segment cuối Chương → tắt, luôn luôn)* áp **y nguyên** cho cờ thứ hai.
+
+  **FR121 đổi lời hứa, không đổi nghiệm thu.** Vế *"hai ô giữ đúng số lần xuống đoạn như nhau"* thay bằng *"mỗi cột giữ cấu trúc đoạn của chính nó"*. Nghiệm thu thật của FR121 — bôi đen **cột phải** rồi dán sang trình soạn thảo website ra văn bản liền mạch — **chỉ đọc cột phải**, nên nó không bị chạm một chữ nào.
+
+  ⚠️ **Cái mất, ghi ra thay vì để người sau tự phát hiện:** đối xứng thị giác của bản `.docx` một khối. Hai cột lệch số đoạn thì càng xuống dưới càng lệch xa nhau, và **không có gì sai** — đó là bản dịch đúng ý người dịch. Ai mở file đó ra để **đối chiếu bằng mắt** sẽ thấy nó khó đọc hơn bản cũ. Đường đối chiếu thật là **lưới hai cột của Workspace** (UX-DR13), không phải file xuất.
+
 ## Consistency Conventions
 
 | Concern | Convention |

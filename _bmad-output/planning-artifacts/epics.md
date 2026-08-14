@@ -91,19 +91,21 @@ FR128: **Xuất xứ tài liệu nguồn, ghi ở tầng Chương** — bốn tr
 
 FR132: **Bộ lọc "cần xem" trên màn hình xem trước nhập** — đầu màn luôn hiện **hai con số** (*N Chương cần xem* · *M Chương sạch*) kèm **một thao tác lọc** về nhóm đầu. Áp cho **mọi đường nhập** đi qua màn xem trước. Một Chương vào nhóm *cần xem* khi có dấu hiệu cần mắt người: bảng mã đoán độ tin cậy thấp (FR126), ranh giới bóc bất thường (FR123), luật làm sạch khớp chỗ nghi ngờ (FR124), hoặc số Chương tách ra không khớp số đơn vị đầu vào (FR14). Bộ lọc **không bỏ qua** Chương nào — nó đổi thứ tự chú ý, không đổi phạm vi nhập.
 
-#### C2 — Workspace (FR16–FR26, FR42, FR44, FR78, FR117, FR129)
+#### C2 — Workspace (FR16–FR26, FR42, FR44, FR78, FR117, FR129, FR133, FR134)
 
-FR16: **Bốn panel trong một cửa sổ ứng dụng duy nhất:** *Source*, *Lookup*, *AI Translation*, *Editor*.
+FR16: **Ba panel trong một cửa sổ ứng dụng duy nhất:** *Lưới đối chiếu*, *Lookup*, *AI Translation*. 🔵 **Sửa 2026-08-14** *(Sprint Change Proposal, Ice ký)*: bản cũ khai **bốn**, tách *Source* và *Editor* thành hai panel. **Lưới đối chiếu gộp hai cái đó làm một** — mỗi câu một hàng, nguyên văn và bản dịch nằm **cùng hàng**. Đây là thứ làm đối chiếu thành **cấu trúc** thay vì một tính năng phải dựng; xem UX-DR13.
 
 FR17: Panel kéo thả để dock/undock, gộp thành tab, và thay đổi kích thước. Mỗi panel **ẩn được hoàn toàn**.
 
 FR18: Bố cục workspace lưu và khôi phục giữa các phiên. Hỗ trợ nhiều **preset bố cục** và chuyển nhanh giữa chúng.
 
-FR19: Panel Source hiển thị văn bản gốc (Anh hoặc Trung) kèm **tab Hán Việt** cho tài liệu tiếng Trung — xem ở chế độ chuyển đổi hoặc song song.
+FR19: **Cột nguyên văn của lưới** hiển thị văn bản gốc (Anh hoặc Trung) kèm **Hán Việt** cho tài liệu tiếng Trung — xem ở chế độ **chuyển đổi** hoặc **song song**, **người dùng tự bật tắt**. 🔵 **Sửa 2026-08-14** *(Sprint Change Proposal, Ice ký)*: chữ *"tab"* rút — trong lưới, Hán Việt sống **bên trong ô nguyên văn**, không phải một tab riêng. **Hai chế độ không đổi một chữ.** Ice ký kèm một lời từ chối tường minh: **không** buộc chế độ đi theo bố cục, **không** tự mở riêng cho hàng đang sửa. Hai phương án "thông minh" đó đã được nêu và **bị bác**.
 
-FR20: **Sync Scrolling** đồng bộ vị trí cuộn giữa Source, AI Translation và Editor, có công tắc bật/tắt rõ ràng.
+~~FR20: **Sync Scrolling** đồng bộ vị trí cuộn giữa Source, AI Translation và Editor, có công tắc bật/tắt rõ ràng.~~
 
-FR21: **Auto-Lookup:** bôi đen một cụm từ ở **Panel Source** — nguyên văn hoặc tab Hán Việt — → kết quả tra cứu hiện **ngay** ở Panel Lookup. Không copy, không paste, không chuyển cửa sổ. 🔵 **Thu hẹp 2026-08-13** *(Sprint Change Proposal, Ice ký)*: Panel AI Translation và Panel Editor **không** phải nguồn tra cứu — tiếng Việt đã dịch tra vào từ điển zh/en cho **0 hàng, 0 lỗi, 0 ms** và **thay mất** kết quả đang hiện. Chúng giữ vai `display` trong hợp đồng vùng chọn, nên FR48/FR60 không bị chạm.
+🔵 **FR20 RÚT 2026-08-14** *(Sprint Change Proposal, Ice ký)*. FR20 đồng bộ **ba** panel; lưới nuốt **hai** trong ba — `Source` và `Editor` nay là **cùng một hàng**, không còn gì để đồng bộ giữa chúng. Cặp còn lại là `lưới ↔ AI Translation`, và Ice chốt **không giữ**: panel Đề xuất AI cuộn độc lập. ⚠️ **Cái mất, ghi ra:** nếu Epic 4 dựng chế độ dịch **theo lô** thì panel đó mang nội dung cả Chương và nhu cầu cuộn cùng nhau **quay lại** — lúc đó **không FR nào chứa nó**. Món nợ có chủ là **Epic 4**, ghi ở `deferred-work.md`.
+
+FR21: **Auto-Lookup:** bôi đen một cụm từ ở **cột nguyên văn của lưới** — chữ gốc hoặc âm Hán Việt — → kết quả tra cứu hiện **ngay** ở Panel Lookup. Không copy, không paste, không chuyển cửa sổ. 🔵 **Thu hẹp 2026-08-13** *(Sprint Change Proposal, Ice ký)*: Panel AI Translation và **cột bản dịch** **không** phải nguồn tra cứu — tiếng Việt đã dịch tra vào từ điển zh/en cho **0 hàng, 0 lỗi, 0 ms** và **thay mất** kết quả đang hiện. Chúng giữ vai `display` trong hợp đồng vùng chọn, nên FR48/FR60 không bị chạm. 🔵 *(Sửa 2026-08-14: "Panel Editor" → "cột bản dịch" theo lượt lật sang lưới. **Lý do của lượt thu hẹp không đổi một chữ**, và `selectionContract.ts` **không phải sửa một dòng** — nó đăng ký theo phần tử DOM với một vai, không theo panel. Lưới đăng ký theo **CỘT**, không theo từng ô.)*
 
 FR22: **Global Hotkeys** cho các thao tác lặp lại (dịch segment hiện tại, chuyển focus giữa panel, xác nhận segment, tra cứu cụm đang chọn, bật/tắt sync scroll). **Toàn bộ phím tắt cấu hình lại được.**
 
@@ -124,6 +126,10 @@ FR78: Người dùng **gộp hai segment liền nhau** hoặc **tách một segm
 FR117: **Xuất xứ bản dịch ở cấp segment**, ba giá trị: *tôi dịch* · *người khác dịch* · *nhập từ tài liệu song ngữ*. **Suy ra tự động từ hành vi**, không hỏi người dùng.
 
 FR129: **Chú thích ảnh (caption) là một segment dịch được, tách bạch với alt-text.** Tham gia TM, Glossary và luồng xác nhận; xuất ra ở mọi định dạng có ảnh.
+
+FR133: **Cắt bỏ một câu hoặc một dải câu khỏi bản dịch.** Cờ đặt trên **câu nguồn** — đây là quyết định *"đoạn này không thuộc bản dịch"*, không phải một mức độ hoàn thành, nên nó là một **trục độc lập** với trạng thái segment *(đúng khuôn `translate="no"` của XLIFF 2.0)*. Hàng **vẫn nằm trong lưới**, **gạch ngang và mờ đi** — người dịch phải thấy thứ mình đã bỏ, nếu không nó thành một lỗ hổng im lặng. **Đảo ngược được bất cứ lúc nào**: bỏ cờ thì câu quay về **đúng trạng thái cũ với nội dung cũ**. **Chế độ đọc và mọi bản xuất ẩn hoàn toàn** — không dấu vết, không `[…]`, không chỗ trống. Phạm vi do người dùng chọn **từng lần**, không định trước. *(Mới 2026-08-14 — Sprint Change Proposal, Ice ký.)*
+
+FR134: **Bản dịch ngắt đoạn khác bản gốc.** Một đoạn nguồn dài tách được thành hai đoạn trong bản dịch. Cấu trúc đoạn của bản dịch là **dữ liệu riêng** *(AD-46)*, chở bởi **hai** thứ — cờ đích cho ranh giới **giữa** segment, và ký tự xuống dòng trong `target_text` cho ranh giới **trong** một segment — và **mặc định soi gương bản gốc** cho tới khi người dùng đổi. Trong lưới, `Enter` trong ô bản dịch là **xuống dòng**, và đó là chỗ chứa quyền này. *(Mới 2026-08-14 — Sprint Change Proposal, Ice ký.)*
 
 #### C3 — Embedded Dictionary & Lookup (FR27–FR41)
 
@@ -271,7 +277,7 @@ FR94: Từ Review Mode, **chấp nhận từng thay đổi** vào bản dịch c
 
 FR95: Việc nhập bản review **kích hoạt cơ chế thu hoạch thuật ngữ (FR54) một cách độc lập** — kể cả khi người dùng **không bao giờ mở Review Mode**.
 
-FR121: Xuất **`.docx` một khối, đối xứng theo đoạn** — dành cho việc đăng bài. Bảng hai cột, **một hàng duy nhất cho cả Chương**, **không đường kẻ ngang**; hai ô giữ **đúng số lần xuống đoạn như nhau**. Nghiệm thu: bôi đen cột phải rồi dán sang trình soạn thảo website ra **văn bản liền mạch**, không mảnh vụn bảng biểu. **Không nhập lại được** — màn hình xuất phải nói rõ **ngay lúc chọn định dạng**. **Câu chưa xác nhận không được đánh dấu trong file xuất**; thay vào đó **cảnh báo trước lúc xuất**.
+FR121: Xuất **`.docx` một khối, đối xứng theo đoạn** — dành cho việc đăng bài. Bảng hai cột, **một hàng duy nhất cho cả Chương**, **không đường kẻ ngang**; **mỗi cột giữ cấu trúc đoạn của chính nó** *(AD-46)*. 🔵 **Sửa 2026-08-14** *(Sprint Change Proposal, Ice ký)*: vế cũ đọc *"hai ô giữ **đúng số lần xuống đoạn như nhau**"* và nó **hết đúng** từ khi FR134 cho bản dịch ngắt đoạn khác bản gốc. **Nghiệm thu không đổi một chữ** — nó chỉ đọc **cột phải**. Cái mất là **đối xứng thị giác** của file xuất, ghi đầy đủ ở AD-46. Nghiệm thu: bôi đen cột phải rồi dán sang trình soạn thảo website ra **văn bản liền mạch**, không mảnh vụn bảng biểu. **Không nhập lại được** — màn hình xuất phải nói rõ **ngay lúc chọn định dạng**. **Câu chưa xác nhận không được đánh dấu trong file xuất**; thay vào đó **cảnh báo trước lúc xuất**.
 
 FR130: **Chọn cách xuất hình ảnh: theo link gốc, hoặc theo file ảnh**, chọn cho từng lần xuất. Chỉ chọn được *theo link gốc* khi ảnh **có URL gốc lưu kèm**; khi phạm vi xuất chứa ảnh không có URL, **màn hình xuất phải liệt kê rõ ảnh nào sẽ không có link**, không được im lặng bỏ qua.
 
@@ -398,6 +404,7 @@ Trích từ `ARCHITECTURE-SPINE.md` (43 bất biến AD-1…AD-43), `build-seque
 - **Máy trạng thái segment tường minh** *(AD-31)*: auto-save → không đổi trạng thái, **không** tạo `SegmentVersion`; xác nhận → đã xác nhận, **tạo một** version; sửa segment đã xác nhận → **về chưa xác nhận**, không tạo version; điền sẵn TM 100% → chưa xác nhận + nhãn *gợi ý*; chấp nhận thay đổi Review Mode → chưa xác nhận; về hưu do gộp/tách → về hưu. **Cặp TM ghi đúng tại chuyển tiếp sang đã xác nhận, không ở chỗ nào khác.**
 - **Xuất xứ FR117 suy ra bằng cách so văn bản đích hiện tại với bản lúc nạp segment, KHÔNG dùng cờ dirty.** *(AD-31 — hợp đồng phụ bắt buộc)*
 - **`SEGMENT` mang cờ kết đoạn**, tính lúc nhập cùng lượt với ranh giới câu và lưu xuống. **Một cờ duy nhất dùng chung cho cả nguyên văn và bản dịch.** Ba ca biên phải cài đúng: gộp → theo câu cuối · tách → theo mảnh cuối, các mảnh trước cờ tắt · **segment cuối Chương → cờ tắt, luôn luôn**. *(AD-37 → FR121)*
+- **Cấu trúc đoạn của BẢN DỊCH là dữ liệu riêng**, chở bởi **hai** thứ: **cờ đích** cho ranh giới giữa hai segment, và **ký tự xuống dòng trong `target_text`** cho ranh giới trong một segment. Mặc định bằng cờ nguồn lúc nhập; ba ca biên của AD-37 áp y nguyên. **AD-37 không sửa một chữ** — nó tiếp tục sở hữu cờ của nguyên văn. *(AD-46 → FR134, FR121)*
 - **Alt-text và caption là `Segment` mang trường vai (`alt` | `caption`)**, không phải cột trên `ASSET`. `ASSET` mang **neo vị trí riêng** trong Chương, độc lập với việc có hay không có segment đi kèm. Ảnh không có caption **không sinh segment rỗng**. *(AD-42 → FR44, FR129)*
 - **Bốn trường xuất xứ FR128 là dữ liệu trên `CHAPTER`**; khối ghi nguồn FR131 **dựng lúc xuất**, không lưu chuỗi đã định dạng ở bất kỳ đâu. *(AD-43)*
 - **Vòng đời mục Glossary ba trạng thái một chiều:** ứng viên (bảng chờ riêng) → chờ chốt bản dịch → đã chốt. Trường bản dịch **nullable** cho tới khi chốt. `glossary/` phơi ra **đúng một** truy vấn trả về mục **đủ điều kiện chèn**; `ai/` không có đường nào khác. Âm Hán Việt cho FR113 đọc **qua cổng `DictionarySource`**, không cài lại. *(AD-20, AD-36)*
@@ -520,11 +527,22 @@ UX-DR12: **Phân vai hai họ chữ tuyệt đối, không nhoè:** `read` (có 
 
 #### Bố cục
 
-UX-DR13: **Workspace là lưới 2×2 mặc định** — hàng trên `Nguyên văn | Bản dịch`, hàng dưới `Tra cứu | Đề xuất AI`. Nguyên văn và Bản dịch **cạnh nhau theo chiều ngang** vì đối chiếu ngang là thao tác lặp hàng trăm lần mỗi Chương. Preset thay thế: **4 cột** (`Nguyên văn | Tra cứu | Đề xuất AI | Bản dịch`) và **Review Mode** (`Bản dịch của tôi | Bản Reviewer đã sửa`).
+UX-DR13: **Workspace là lưới đối chiếu cộng hai panel.** Lưới chở **mỗi câu một hàng**; trên hàng, từ trái sang: **vạch trạng thái · số câu · nguyên văn · bản dịch · nhãn trạng thái**. **Cùng một hàng là cùng một câu** ⇒ đối chiếu trở thành **cấu trúc**, không còn là một tính năng phải dựng. **Ô trống có chiều cao thật** — câu chưa dịch **không thể tàng hình**, và đây là điều kiện mà hình dạng cũ *không thể* thoả. **Ngắt đoạn** đọc từ `is_paragraph_end` đã lưu, dựng thành **khoảng thở** giữa các nhóm hàng — **không** phải một hàng rỗng.
+
+Hai bố cục, **cả hai đều dựng**, người dùng chọn — *"không cứng ngắc"* (Ice, 2026-08-14):
+
+| | Hình dạng | Ghi chú |
+|---|---|---|
+| **Ⓑ-2** *(mặc định)* | Lưới chiếm **trái, toàn chiều cao**; Tra cứu và Đề xuất AI xếp dọc bên phải | Nhiều câu trong tầm mắt nhất |
+| **Ⓑ-1** | Lưới chiếm **cả bề ngang ở trên**; Tra cứu và Đề xuất AI hàng dưới | Cột nguyên văn rộng gấp đôi — dễ thở cho Hán Việt |
+
+🔵 **Viết lại 2026-08-14** *(Sprint Change Proposal, Ice ký)*. Bản cũ khai *"lưới 2×2 mặc định — hàng trên `Nguyên văn | Bản dịch`"*, với lý do *"đối chiếu ngang là thao tác lặp hàng trăm lần mỗi Chương"*. **Lý do ấy vẫn đúng** — nhưng lưới hai cột phục vụ nó **tốt hơn**, và nó **gộp hai panel đó làm một**. Preset **4 cột** rút theo *(nó tách `Nguyên văn` khỏi `Bản dịch`, thứ không còn tồn tại)*. **Review Mode (FR92) không bị chạm** — nó vẫn là một bố cục dockview riêng, không phải cửa sổ thứ hai (AD-24).
 
 UX-DR14: **Phân tách panel đảo ngược giữa hai theme — đừng thống nhất về một cách làm.** Sáng: đường kẻ 1px `outline`. Tối: **khe 2px để `background` lộ ra**, panel bo `3px` — vì `outline #3b382f` trên `surface #26241f` chỉ đạt **1,39:1**, gần như vô hình. Nguyên tắc: *mặt sáng phân tách bằng nét, mặt tối phân tách bằng khe*.
 
-UX-DR15: **Bốn ngưỡng bố cục màn hình hẹp, đo theo vùng làm việc** (chiều cao cửa sổ trừ titlebar 38px và status 32px), **không theo kích thước màn hình**: **≥ 1100×820** giữ 2×2 · **< 820 cao** gộp hàng dưới thành một panel có tab · **< 1100 rộng hoặc < 700 cao** chỉ còn `Nguyên văn | Bản dịch`, Tra cứu rút về ngăn kéo · **< 860 rộng** báo không hỗ trợ. **Thứ tự hy sinh là quyết định, không hiệu chỉnh:** Đề xuất AI nhường trước · Tra cứu nhường sau nhưng **rút về thanh trạng thái, không bao giờ mất hẳn** · cặp `Nguyên văn | Bản dịch` **không bao giờ nhường**. **[A11] · Q9**
+UX-DR15: **Bốn ngưỡng bố cục màn hình hẹp, đo theo vùng làm việc** (chiều cao cửa sổ trừ titlebar 38px và status 32px), **không theo kích thước màn hình**: **≥ 1100×820** giữ **bố cục đã chọn (Ⓑ-1 hoặc Ⓑ-2) đủ ba panel** · **< 820 cao** gộp **Tra cứu và Đề xuất AI** thành một panel có tab · **< 1100 rộng hoặc < 700 cao** chỉ còn **lưới**, Tra cứu rút về ngăn kéo · **< 860 rộng** báo không hỗ trợ. **Thứ tự hy sinh là quyết định, không hiệu chỉnh:** Đề xuất AI nhường trước · Tra cứu nhường sau nhưng **rút về thanh trạng thái, không bao giờ mất hẳn** · **lưới không bao giờ nhường**. **[A11] · Q9**
+
+🔵 **Viết lại cách diễn đạt 2026-08-14, KHÔNG đổi số và KHÔNG đổi thứ tự.** Bốn ngưỡng là **số** và chủ của chúng vẫn là **Story 4.12**; thứ tự hy sinh là **quyết định** và `workspaceLayout.ts:152` chép nguyên văn nó. Cái đổi là chỗ diễn đạt theo **vị trí** *(«hàng dưới»)* nay diễn đạt theo **panel** — Ⓑ-2 không có "hàng dưới". Và *«cặp `Nguyên văn | Bản dịch`»* nay là **một** panel. ⚠️ Kéo theo trong mã *(chủ: Story 2.5b)*: `NEVER_SACRIFICED` từ hai phần tử còn **một**, và mệnh đề *"hai tập hợp lại đúng **bốn** panel"* ở `workspaceLayout.ts:153` đổi thành **ba**. ⚠️ Kéo theo cho **Story 4.12**: nay phải hiệu chỉnh cho **hai** bố cục, không phải một.
 
 UX-DR16: **Không có elevation** — không bóng đổ, không lớp nổi, không z-index trang trí. Chiều sâu duy nhất là **sắc độ** (`surface-sunken` cho vùng lùi). Ngoại lệ duy nhất: bóng của cửa sổ ứng dụng do OS vẽ.
 
@@ -534,13 +552,21 @@ UX-DR17: **Panel** — thanh tiêu đề 34px, tiêu đề `ui-md` màu `on-surf
 
 UX-DR18: **Bản ghi từ điển** — vạch trái 2px, thụt 13px. Nhãn nguồn `ui-label` màu `primary`; từ loại `read` in nghiêng `on-surface-variant`; nghĩa `lookup-gloss`; ví dụ in nghiêng; **trích dẫn có vạch trái `primary` để phân biệt với ví dụ**. **Nhiều nguồn xếp chồng dọc, mỗi nguồn một khối — không bao giờ gộp.** Khi hai nguồn ghi khác nhau, **một dòng dẫn nói rõ điều đó trước khi liệt kê**.
 
-UX-DR19: **Vạch lề segment** — vạch dọc 2px trong máng rộng 22px bên trái Editor, cao đúng bằng câu tương ứng. **Đây là cách duy nhất trạng thái segment được hiển thị**; văn bản không bị chia khối, **không ô, không bảng**. Năm giá trị: `confirmed` đã xác nhận · `primary` đang sửa · `tm-rule` điền sẵn từ TM khớp 100% chưa xác nhận · **không vạch** chưa dịch · `ornament` mờ đã về hưu.
+UX-DR19: **Trạng thái segment đọc ở cột trạng thái của lưới**, cộng một vạch 2px đầu hàng. **Sáu** giá trị: `confirmed` đã xác nhận · `primary` đang sửa, con trỏ ở đây · **`draft` đã dịch tay, chưa xác nhận** · `tm-rule` điền sẵn từ TM khớp 100% chưa xác nhận · **trống** chưa dịch · `ornament` mờ đã về hưu. **Một câu, một vạch.**
 
-UX-DR20: **Ranh giới câu** — ký tự `⏐` màu `ornament`, `opacity: 0` mặc định, hiện ở `0.55` khi rê chuột hoặc con trỏ chạm.
+🔵 **Viết lại 2026-08-14** *(Sprint Change Proposal, Ice ký)*, **và bảng cũ THIẾU MỘT HÀNG.** Bản năm giá trị gom *"đã dịch tay, chưa xác nhận"* chung ô **không vạch** với *"chưa dịch"* — hai hoàn cảnh khác hẳn nhau **trông y hệt**, nên người dịch nhìn một Chương dở **không phân biệt được câu mình đã làm với câu chưa động tới**. Chỗ thiếu này đã đi vào bản dựng: `resolveSegmentRule` cho cả hai ra `'none'`, và một test khoá nó lại. **Chuẩn ngành xác nhận chỗ thiếu:** XLIFF 2.0 tách đúng ba mốc `initial · translated · final`; hàng `draft` mới chính là `translated`.
+
+Hai vế của bản cũ **rút**: ① *"văn bản không bị chia khối, **không ô, không bảng**"* — đó là hình dạng để **ĐỌC** một bản dịch đã xong, không phải để làm; ② ngôn ngữ thị giác *"hai vạch, bốn vạch"* — ở hình dạng cũ nhiều câu chung một dòng nên các vạch phải xếp thành **làn ngang**, và *"bốn vạch"* chỉ có nghĩa **"dòng này có bốn câu"**, không phải một mức trạng thái. Một ngôn ngữ **trông như có nghĩa mà không có nghĩa** tệ hơn không nói gì.
+
+✅ **Hàng `draft` KHÔNG cần di trú lược đồ** — `schema.rs:398` đã mang `status TEXT NOT NULL DEFAULT 'draft'` với hai giá trị hợp lệ `'draft' | 'confirmed'` từ Story 2.5. Cần **một nhánh** trong `resolveSegmentRule` + một khối CSS `.rule-draft` *(cổng `check:commands` Kiểm I đối chiếu hai chiều)*.
+
+~~UX-DR20: **Ranh giới câu** — ký tự `⏐` màu `ornament`, `opacity: 0` mặc định, hiện ở `0.55` khi rê chuột hoặc con trỏ chạm.~~
+
+🔵 **UX-DR20 RÚT 2026-08-14** *(Sprint Change Proposal, Ice ký)*. Ký tự `⏐` tồn tại vì nhiều câu chung một dòng thị giác nên ranh giới phải được **vẽ ra**. Trong lưới, **hàng LÀ ranh giới** — vẽ thêm một ký tự là nói cùng một điều hai lần. ⚠️ Lượt thu hẹp UX-DR20 ngày 2026-08-13 **không mất giá trị**: phép đo của nó *(mỗi câu rỗng đẩy chữ **9,05 px**, một Chương mới thụt hàng trăm px và bố cục **nhảy trong lúc làm việc**)* là một trong ba quyết định chồng nhau dẫn tới lượt lật này, và nó vẫn là **bằng chứng** vì sao hình dạng cũ *không thể* vừa hiện câu rỗng vừa không nhảy bố cục.
 
 UX-DR21: **Dải mọc dưới câu đang sửa — mẫu chung thay cho hộp thoại**, dùng cho ba thứ: chốt bản dịch Glossary lần đầu gặp (FR114), phát hiện Proofreader (FR83), gợi ý TM khớp mờ (FR59). Dải **đẩy văn bản xuống chứ không phủ lên**, thu lại ngay khi xong. **Chỉ một dải mọc tại một thời điểm**, thứ tự ưu tiên: (1) **Chốt Glossary** — chặn thật, hỏi một lần trong cả Tác phẩm; (2) **Proofreader** — chờ quyết định về chính câu này, bỏ qua thì tích lại; (3) **Gợi ý TM** — nhường cả hai. Xử lý xong dải trên thì dải dưới **mọc ngay tại chỗ vừa thu**, vị trí không nhảy vì cả ba cùng chiều cao đầu mục.
 
-UX-DR22: **Phát hiện Proofreader hiển thị bằng gạch chân lượn sóng dưới đúng cụm chữ**, ở `text-underline-offset: 4px` để không chạm dấu nằm dưới của `ạ ộ ợ` — **không dùng vạch lề** (vạch lề đã dùng hết năm giá trị cho trạng thái segment). Hai màu, không thêm màu mới: **`error`** cho chính tả/ngữ pháp (FR80, có đáp án đúng), **`tm-rule`** cho nghi về nghĩa (FR81, là phán đoán).
+UX-DR22: **Phát hiện Proofreader hiển thị bằng gạch chân lượn sóng dưới đúng cụm chữ**, ở `text-underline-offset: 4px` để không chạm dấu nằm dưới của `ạ ộ ợ` — **không dùng vạch lề** (vạch lề đã dùng hết **sáu** giá trị cho trạng thái segment 🔵 *sửa 2026-08-14: năm → sáu, thêm `draft`; **lý do không đổi** — vạch lề vẫn là tài nguyên đã tiêu hết*). Hai màu, không thêm màu mới: **`error`** cho chính tả/ngữ pháp (FR80, có đáp án đúng), **`tm-rule`** cho nghi về nghĩa (FR81, là phán đoán).
 
 UX-DR23: **Bảng chờ Glossary** — danh sách ứng viên xếp theo tần suất, mỗi dòng có số lần xuất hiện và một ví dụ ngữ cảnh, hiện **bản dịch đề xuất** khi có (FR113). Duyệt và bỏ bằng **một phím, không gõ**. Không mục nào rời bảng chờ sang Glossary mà không qua thao tác người dùng.
 
@@ -566,7 +592,9 @@ UX-DR31: **Bốn trạng thái rỗng có nội dung riêng biệt**: Lookup **k
 
 #### Tương tác
 
-UX-DR32: **Gộp ngầm — gõ đè lên đúng vị trí ranh giới *là* ra lệnh gộp.** Thực hiện đúng ngữ nghĩa AD-5, một dòng báo ở lề, hoàn tác bằng `⌘Z`. **Không chặn, không hỏi lại.** Phím tường minh: `⌘M` gộp, `⌘/` tách — cả hai là command đăng ký, không phải hệ quả phụ của việc gõ.
+UX-DR32: **Gộp bằng cử chỉ — `Backspace` ở đầu ô bản dịch *là* ra lệnh gộp với câu trên.** Thực hiện đúng ngữ nghĩa AD-5, một dòng báo ở lề, hoàn tác bằng `⌘Z`. **Không chặn, không hỏi lại.** Phím tường minh: `⌘M` gộp, `⌘/` tách — cả hai là command đăng ký, không phải hệ quả phụ của việc gõ.
+
+🔵 **Sửa 2026-08-14** *(Sprint Change Proposal, Ice ký)*. Bản cũ khai cử chỉ là *"gõ đè lên đúng vị trí ranh giới"*. Tiền đề đó **không còn tồn tại** trong lưới: ranh giới nay là ranh giới **hàng**, không phải một điểm giữa dòng văn liên tục. **Ngữ nghĩa không đổi một chữ** — cùng AD-5, cùng dòng báo, cùng `⌘Z`, cùng *"không chặn không hỏi lại"*; chỉ **cử chỉ** đổi. 🔴 **TÁCH thì ngược lại và vẫn bắt buộc làm ở cột NGUYÊN VĂN** *(`⌘T`)*: tách một segment là tách **cả hai vế**, mà một vị trí con trỏ bên bản dịch **không suy ra được** chỗ cắt bên nguyên văn — không có phép chiếu nào từ ký tự tiếng Việt sang ký tự tiếng Trung. Cùng lý do Trados và memoQ đều bắt tách ở cột nguồn.
 
 UX-DR33: **Sửa ranh giới bóc trong màn xem trước — bàn phím là đường chính, chuột là đường thứ hai.** Mô hình thao tác **đi theo khối, không theo con trỏ ký tự**: `J`/`K` hoặc `↑`/`↓` đi giữa các khối · `Space` bật/tắt giữ khối · `[`/`]` đặt đầu và cuối vùng giữ · `E` mở bộ chọn bảng mã · `R` bật/tắt luật làm sạch khớp khối này · `⌥←`/`⌥→` Chương trước/sau · `⌥W` chỉ xem các Chương **cần xem** · `⌘↵` xác nhận nhập.
 
@@ -633,11 +661,13 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | FR13 ⇄ | Epic 1 ⇄ Epic 6 | Đường vào văn bản tối thiểu (dán tay + `.txt`/`.md`); **nhánh `.docx` đóng ở Epic 6** |
 | FR14 | Epic 6 | Nhập hàng loạt + mẫu phân tách + xem trước |
 | FR15 | Epic 5 | Đổi tên, sắp xếp, gộp/tách Chương (AD-32) |
-| FR16 | Epic 1 | Khung bốn panel một cửa sổ |
+| FR16 | Epic 1 *(khung)* → **Epic 2 nghiệm thu lại** | Khung panel một cửa sổ. 🔵 2026-08-14: **bốn → ba** panel; hai AC của Story 1.14 superseded bởi Story 2.5b |
 | FR17 | Epic 1 | Dock/undock/tab/ẩn hoàn toàn |
 | FR18 | Epic 1 | Lưu và khôi phục preset bố cục |
 | FR19 | Epic 1 | Panel Source + tab Hán Việt |
-| FR20 | Epic 2 | Sync Scrolling — cần đủ ba panel có nội dung |
+| ~~FR20~~ | — | **RÚT 2026-08-14** — lưới nuốt 2/3 cặp panel; cặp còn lại Ice chốt không giữ. Nợ có chủ: Epic 4 |
+| FR133 | Epic 2 | Cắt bỏ câu khỏi bản dịch — Story 2.5c |
+| FR134 | Epic 2 | Bản dịch ngắt đoạn khác bản gốc (AD-46) — Story 2.5d |
 | FR21 | Epic 1 | Auto-Lookup |
 | FR22 | Epic 1 | Global Hotkeys + `CommandRegistry` (AD-34) |
 | FR23 | Epic 2 | Tách segment cấp câu |
@@ -738,7 +768,7 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | FR118 | Epic 7 | TM không trộn phong cách |
 | FR119 | Epic 5 | Đánh dấu chỗ cần sửa khi đang đọc |
 | FR120 | Epic 5 | Chỉ đọc phần đã xong, dừng ở biên |
-| FR121 | Epic 8 | `.docx` một khối theo đoạn (AD-37, AD-38) |
+| FR121 | Epic 8 | `.docx` một khối theo đoạn (AD-37, **AD-46**, AD-38) |
 | FR122 | Epic 6 | Nhập từ URL bằng danh sách link |
 | FR123 | Epic 6 | Bóc nội dung + xem trước + sửa tay |
 | FR124 | Epic 6 | Luật làm sạch lộ ra, duyệt trước khi xoá |
@@ -831,7 +861,8 @@ Epic này cũng đặt xuống các bất biến mà chín epic sau đều dựa
 
 Người dịch dịch trọn một Chương **bằng tay, không cần AI và không cần Glossary**: văn bản tách thành segment cấp câu, gộp hoặc tách khi máy tách sai, xác nhận từng câu với vạch lề đổi màu, điều hướng tới segment chưa dịch kế tiếp, chuyển Chương ngay trong Workspace. Sập ứng dụng giữa phiên gõ **mất tối đa 5 giây công việc**, và không frame nào vượt 50 ms trong lúc auto-save chạy. Mọi phiên bản cũ của một segment xem lại và khôi phục được.
 
-**FRs covered:** FR20, FR23, FR24, FR25, FR26, FR78, FR100, FR101, FR117
+**FRs covered:** FR16, FR19, FR21, FR23, FR24, FR25, FR26, FR78, FR100, FR101, FR117, FR133, FR134
+🔵 *(Sửa 2026-08-14: **FR20 rút**. FR16/FR19/FR21 vào danh sách vì lượt lật sang lưới đổi lời văn của cả ba — chúng được **nghiệm thu lại** ở Story 2.5b. FR133/FR134 mới.)*
 
 **NFRs:** NFR2, NFR18
 
@@ -952,7 +983,7 @@ Với vai **Người dịch bài đăng**: chọn xuất ảnh theo link gốc h
 
 **Ghi chú cài đặt:**
 - **AD-38 là cổng vào bắt buộc, chạy ở Rust TRƯỚC alignment và trước mọi lệnh ghi.** Bản `.docx` một khối (FR121) và bản theo segment (FR87) **cùng phần mở rộng, cùng là bảng hai cột**. Không có cổng này, kéo lại bản đăng bài vài tháng sau sẽ **ghi đè cả Chương đã xác nhận bằng một khối văn bản duy nhất, không báo lỗi**. Nhận dạng bằng **hình dạng**, không bằng metadata hay tên file.
-- **AD-37 đã lo phần khó của FR121** ở Epic 2: cờ kết đoạn là **dữ liệu được lưu**, một cờ duy nhất dùng chung cho cả hai cột — nên lời hứa *"đúng số lần xuống đoạn như nhau"* đúng **theo định nghĩa**, không nhờ hai đường mã tình cờ đồng ý.
+- **AD-37 và AD-46 cùng lo phần khó của FR121** ở Epic 2: cấu trúc đoạn là **dữ liệu được lưu** ở cả hai phía, nên đường xuất **không phải đoán gì cả**. 🔵 **Sửa 2026-08-14:** bản cũ viết *"một cờ duy nhất dùng chung cho cả hai cột — nên lời hứa **đúng số lần xuống đoạn như nhau** đúng theo định nghĩa"*. Mệnh đề đó **hết đúng** từ khi FR134 cho bản dịch ngắt đoạn khác bản gốc. **AD-37 không đổi một chữ**; AD-46 thêm cờ đích cộng ký tự xuống dòng trong `target_text`, và FR121 nay hứa *"mỗi cột giữ cấu trúc đoạn của chính nó"*. **Đường xuất phải đọc CẢ HAI nguồn** — đọc sót một là mất một chỗ xuống dòng người dịch đã đặt tay.
 - **AD-43:** khối ghi nguồn **dựng lúc xuất** từ bốn trường trên `CHAPTER` cộng tên người dịch; **không lưu chuỗi đã định dạng ở bất kỳ đâu**. Đường xuất phải **quét phạm vi trước và liệt kê ảnh không có `source_url`**, không được im lặng bỏ qua.
 - **FR95 là FR quan trọng nhất của epic này** và nó tồn tại vì Q1 chưa có lời giải. Thu hoạch thuật ngữ (FR54) phải chạy **độc lập** với FR92–FR94 — nếu cắt Diff Viewer thì FR95 **không được cắt theo**.
 - **Mũi thăm dò trước epic này:** đọc thử `.docx` bảng hai cột thật bằng `docx-rs` 0.4.22, lấy được số hàng và số đoạn trong từng ô. Không đạt thì rà `docx-reader` hoặc `rdocx` — **cả hai chưa xác nhận giấy phép**, phải rà GPLv3 trước.
@@ -972,7 +1003,7 @@ Người dịch chạy proofreader **theo yêu cầu** trên một segment, mộ
 **Ghi chú cài đặt:**
 - **Nghiệm thu FR81 không theo lối thông thường** — không có đáp án đúng để đối chiếu. Thứ đo được là **tỷ lệ báo động giả**: số phát hiện bị đánh dấu *"không phải lỗi"* trên tổng số. Ngưỡng là *đủ thấp để người dùng không tắt hẳn tính năng*. Chỉ số này neo trực tiếp vào FR84.
 - **Ghi nhớ proofreader khoá theo `(work, chữ ký phát hiện)`, KHÔNG theo `segment.id`** — FR84 nói phạm vi là *"trong cùng Tác phẩm"*, và nhờ vậy ghi nhớ sống sót qua gộp/tách segment.
-- Vạch lề đã dùng hết năm giá trị cho trạng thái segment, nên phát hiện dùng **gạch chân** ở `text-underline-offset: 4px` để không chạm dấu nằm dưới của `ạ ộ ợ`. Hai màu, không thêm màu mới: `error` cho chính tả/ngữ pháp, `tm-rule` cho nghi về nghĩa.
+- Vạch lề đã dùng hết **sáu** giá trị cho trạng thái segment *(🔵 2026-08-14: năm → sáu, thêm `draft`)*, nên phát hiện dùng **gạch chân** ở `text-underline-offset: 4px` để không chạm dấu nằm dưới của `ạ ộ ợ`. Hai màu, không thêm màu mới: `error` cho chính tả/ngữ pháp, `tm-rule` cho nghi về nghĩa.
 - Epic này là **ứng viên cắt số 1** nếu R1 nổ. AD-13 khiến nó tách được sạch — đó là lý do nó đứng riêng.
 
 ---
@@ -1599,6 +1630,8 @@ So that tôi tự phán xét thay vì tin một câu trả lời đã bị gộp
 
 ### Story 1.14: Khung bốn panel
 
+> 🔵 **HAI AC SUPERSEDED 2026-08-14** *(Sprint Change Proposal, Ice ký)* — AC *"bốn slot panel"* và AC *"preset mặc định là lưới 2×2"*, cả hai thay bởi **Story 2.5b**. Tên story giữ nguyên vì nó là **lịch sử**: khung đã được dựng với bốn panel, và điều đó đúng vào lúc nghiệm thu. **Story không mở lại.**
+
 **Covers:** FR16, FR17, FR18
 
 As a người dịch,
@@ -1610,6 +1643,10 @@ So that tôi không phải mở bốn năm cửa sổ rời như trước.
 **Given** Workspace
 **When** mở
 **Then** bốn slot panel *Source*, *Lookup*, *AI Translation*, *Editor* tồn tại trong **một** cửa sổ hệ điều hành duy nhất
+
+> 🔵 **AC NÀY SUPERSEDED 2026-08-14** *(Sprint Change Proposal, Ice ký)* — thay bởi **Story 2.5b**, nơi khai **ba** slot: `panel.grid` · `panel.lookup` · `panel.ai_translation`. Lưới đối chiếu **gộp `Source` và `Editor` làm một** vì cùng một hàng là cùng một câu.
+>
+> **AC này đúng khi nghiệm thu và Story 1.14 KHÔNG mở lại.** Việc đổi `PanelId` thuộc 2.5b — đó là chỗ có bối cảnh để làm đúng. Vế *"trong **một** cửa sổ hệ điều hành duy nhất"* **không đổi một chữ**: AD-24 còn nguyên.
 
 **Given** một panel
 **When** kéo thả
@@ -1631,6 +1668,8 @@ So that tôi không phải mở bốn năm cửa sổ rời như trước.
 **Given** preset mặc định
 **When** mở lần đầu
 **Then** là lưới 2×2 — `Nguyên văn | Bản dịch` ở hàng trên, `Tra cứu | Đề xuất AI` ở hàng dưới
+
+> 🔵 **AC NÀY SUPERSEDED 2026-08-14** — thay bởi **Story 2.5b**: preset mặc định nay là **Ⓑ-2** *(lưới đối chiếu chiếm trái toàn chiều cao; Tra cứu và Đề xuất AI xếp dọc bên phải)*, với **Ⓑ-1** là tuỳ chọn. Preset **4 cột** rút theo — nó tách `Nguyên văn` khỏi `Bản dịch`, thứ không còn tồn tại. **Story 1.14 không mở lại.**
 
 **Given** UX-DR15 khai **thứ tự hy sinh panel** là quyết định, không phải số hiệu chỉnh được
 **When** dựng cơ chế ẩn/hiện panel
@@ -2050,6 +2089,12 @@ So that lịch sử và trạng thái công việc của tôi không bao giờ t
 
 ### Story 2.2: Panel Editor liền mạch
 
+> 🔵 **BỐN TRONG TÁM AC SUPERSEDED 2026-08-14** *(Sprint Change Proposal, Ice ký)* — thay bởi **Story 2.5b**. Bốn AC bị lật: *"không ô, không bảng, không khối"* · *"vạch lề là **cách duy nhất** trạng thái được hiển thị"* · *"**năm** giá trị"* · hai AC về ranh giới câu `⏐`. **Bốn AC còn lại sống nguyên**: token `editor` họ `read` giãn dòng 1.95, và dời focus DOM tường minh.
+>
+> **Vì sao lật — ba quyết định đúng chồng lên nhau thành một bề mặt sai.** Không có lỗi cài đặt nào ở gốc: ① bảng trạng thái thiếu hàng `draft` ⇒ *đã dịch* và *chưa dịch* trông y hệt; ② lượt thu hẹp UX-DR20 *(đo thật: mỗi câu rỗng đẩy chữ 9,05 px, bố cục nhảy trong lúc làm việc)* làm câu chưa dịch rộng **0 px**, vô hình và không bấm trúng được; ③ ba khoá lỗi `err.segment.*` không có đường ra màn hình ⇒ thao tác bị từ chối **trong im lặng**. Ba lần im lặng liên tiếp.
+>
+> 🔴 **Nguyên nhân gốc nằm ở HÌNH DẠNG, không ở ba mục trên.** Một dòng văn liên tục là hình dạng để **ĐỌC** một bản dịch đã xong; suốt thời gian dịch nó **gần như rỗng**, và nó không có cách nào diễn đạt *"ở đây sẽ có một câu, nhưng chưa"* mà không hoặc **chiếm chỗ** *(bố cục nhảy)* hoặc **tàng hình** *(không bấm được)*. Hai vế đó đã được đo và chúng **xung khắc** — nên vá lần lượt ba mục trên không giải được. ⇒ Văn xuôi chảy liên tục **không mất**, nó **về Chế độ đọc**, đúng chỗ của nó.
+
 **Covers:** UX-DR13 · AD-1
 
 As a người dịch,
@@ -2204,6 +2249,167 @@ So that tôi biết mình đang ở đâu trong một Chương dài.
 
 ---
 
+### Story 2.5b: Lưới hai cột đối chiếu
+
+**Covers:** UX-DR13 · UX-DR15 · UX-DR19 · FR16 · FR19 · FR21 · AD-1 · AD-34
+**Supersedes:** 4/8 AC của Story 2.2 · AC *"bốn slot panel"* của Story 1.14
+
+As a người dịch,
+I want thấy nguyên văn và bản dịch của cùng một câu trên cùng một hàng,
+So that đối chiếu không còn là việc mắt tôi phải tự làm.
+
+**Acceptance Criteria:**
+
+**Given** Workspace
+**When** mở
+**Then** **ba** slot panel `panel.grid`, `panel.lookup`, `panel.ai_translation` tồn tại trong **một** cửa sổ hệ điều hành duy nhất
+
+**Given** lưới
+**When** hiển thị
+**Then** mỗi câu là **một hàng**; trên hàng, từ trái sang: **vạch trạng thái · số câu · nguyên văn · bản dịch · nhãn trạng thái**
+
+**Given** một câu **chưa dịch**
+**When** hiển thị
+**Then** ô bản dịch có **chiều cao thật** và đường **đứt nét**
+**And** bấm chuột vào nó **đặt được con trỏ**
+
+**Given** sáu giá trị trạng thái
+**When** hiển thị
+**Then** `confirmed` · `primary` · `draft` · `tm-rule` · **trống** · `ornament`
+**And** mỗi giá trị khác *trống* có **đúng một** khối `.rule-<giá trị>` trong `<style scoped>` — cổng `check:commands` Kiểm I đối chiếu **hai chiều**
+
+**Given** cờ `is_paragraph_end` đã lưu
+**When** render
+**Then** dựng thành **khoảng thở** giữa các nhóm hàng, **không** phải một hàng rỗng
+
+**Given** hai bố cục **Ⓑ-1** và **Ⓑ-2**
+**When** người dùng chọn
+**Then** **cả hai dựng được**, Ⓑ-2 là mặc định
+**And** lựa chọn giữ nguyên qua các phiên
+
+**Given** hợp đồng vùng chọn
+**When** lưới đăng ký
+**Then** đăng ký theo **CỘT** — cột nguyên văn vai `'source'`, cột bản dịch vai `'display'`
+**And** `selectionContract.ts` **không sửa một dòng**
+🔴 Đăng ký theo **cột**, KHÔNG theo từng ô: `selectionContract.ts:112` có một cổng đếm đọc **tĩnh**, và N bề mặt thay vì 1 làm nó đỏ.
+
+**Given** Hán Việt
+**When** người dùng bật
+**Then** hai chế độ FR19 *(chuyển đổi / song song)* đều chạy, **người dùng tự bật tắt**
+**And** **không mặc định thông minh nào** — không buộc chế độ đi theo bố cục, không tự mở riêng cho hàng đang sửa
+
+**Given** `NEVER_SACRIFICED`
+**When** đọc
+**Then** **đúng một** phần tử `panel.grid`
+**And** hai tập rời nhau hợp lại đúng **ba** panel *(mệnh đề "bốn panel" ở `workspaceLayout.ts:153` sửa cùng lượt)*
+
+**Given** người dùng bấm `⌘Enter`
+**When** xảy ra
+**Then** **xác nhận câu hiện tại và sang câu kế**
+
+**Given** người dùng bấm `Enter` **trơn**
+**When** xảy ra
+**Then** **không bao giờ** xác nhận
+🔴 **Đây là một quyết định có bằng chứng, không một sở thích.** OmegaT dùng `Enter` để sang câu **nhưng** kèm tuỳ chọn *"Use TAB to Advance"* đặt ra **chính vì** `Enter` va chạm với bộ gõ IME. Người dùng của sản phẩm này gõ **tiếng Việt bằng bộ gõ**, nơi `Enter` là phím chốt dấu — giao `Enter` cho việc ký nghĩa là một lượt chốt Telex có thể **xác nhận nhầm một câu rồi nhảy đi**. ⚠️ Lớp lỗi này **không đường nghiệm thu nào của dự án bắt được** *(không bộ chạy test nào mô phỏng được một bộ gõ tiếng Việt thật)*; nó chỉ lộ ra ở tay người dùng. Kho đã biết điều đó: `EditorPanel.vue:841` có `if (event.isComposing) return` kèm chú thích *"một lượt commit composition của bộ gõ tiếng Việt phát keydown mang code vật lý; ăn nó là ăn mất chữ"*.
+
+**Given** người dùng bấm `⌥↓`
+**When** xảy ra
+**Then** nhảy tới **câu chưa dịch kế tiếp**
+**And** *"chưa dịch"* định nghĩa là `status = 'draft'` **và** `target_text` rỗng — `draft` nay đã tách khỏi *chưa dịch*
+
+**Given** ba lệnh trên
+**When** gọi
+**Then** đều là **command đăng ký**, gán phím được — không gọi thẳng hàm *(một lời gọi thẳng dựng một đường thứ hai mà `check:commands` Kiểm A không nhìn thấy)*
+
+**Given** ba khoá lỗi `err.segment.*`
+**When** một thao tác bị từ chối
+**Then** có **đường ra màn hình** — không bị vứt ở tầng gọi
+⚠️ Đây là mục ③ của ba quyết định chồng nhau: hôm nay `editorConfirmError` **không component nào đọc** và `main.ts` vứt `ConfirmResult`, nên một lượt từ chối **không đổi một pixel nào**.
+
+⚠️ **Nợ ghi kèm story, không tự chấm đạt:** chiều cao hàng khi bật Hán Việt **song song** ở cột hẹp của Ⓑ-2 *(ước ~330 px ⇒ một hàng có thể cao **6–7 dòng**, ăn mất chính thứ Ⓑ-2 được chọn để có)* là **ước lượng hình học, CHƯA ĐO trên bản dựng thật**. Ai dựng thì **đo lại và ghi số**.
+
+---
+
+### Story 2.5c: Cắt bỏ câu khỏi bản dịch
+
+**Covers:** FR133 · bước di trú **8**
+
+As a người dịch,
+I want bỏ hẳn một câu hoặc một dải câu khỏi bản dịch mà vẫn thấy mình đã bỏ gì,
+So that quyết định "đoạn này không thuộc bản dịch" không biến thành một lỗ hổng im lặng.
+
+**Acceptance Criteria:**
+
+**Given** một câu hoặc **một dải câu** đang chọn
+**When** gọi thao tác cắt bỏ
+**Then** cờ đặt trên **câu nguồn**
+**And** phạm vi do người dùng chọn **từng lần**, không định trước
+
+**Given** cờ cắt bỏ
+**When** đọc
+**Then** nó là một **trục độc lập** — câu **vẫn giữ** trạng thái riêng của nó trong bảng sáu giá trị
+🔴 Đây **không** phải giá trị thứ bảy của bảng trạng thái. *"Cắt bỏ"* là quyết định về **thuộc hay không thuộc bản dịch**, không phải một mức độ hoàn thành — đúng khuôn `translate="no"` của XLIFF.
+
+**Given** một câu đã cắt bỏ
+**When** hiển thị trong lưới
+**Then** hàng **vẫn nằm trong lưới**, **gạch ngang và mờ đi**
+
+**Given** một câu đã cắt bỏ
+**When** người dùng bỏ cờ
+**Then** câu quay về **đúng trạng thái cũ với nội dung cũ**
+
+**Given** Chế độ đọc và **mọi** bản xuất
+**When** render một câu đã cắt bỏ
+**Then** **ẩn hoàn toàn** — không dấu vết, không `[…]`, không chỗ trống
+
+**Given** lệnh *"câu chưa dịch kế tiếp"*
+**When** gặp một câu đã cắt bỏ
+**Then** **bỏ qua** nó
+
+**Given** lược đồ `project.db`
+**When** thêm cột
+**Then** một `ALTER TABLE` đánh số **8**, **không** sửa `SEGMENT_DDL` tại chỗ
+🔴 Sửa `SEGMENT_DDL` cho ra **hai lược đồ khác nhau cho cùng một số phiên bản** — đúng vết sẹo số 4. Nguồn sự thật là `PROJECT_MIGRATIONS`, không phải một ghi chép ở nơi khác.
+
+---
+
+### Story 2.5d: Ngắt đoạn của bản dịch
+
+**Covers:** FR134 · AD-46 · bước di trú **9**
+
+As a người dịch,
+I want tách một đoạn nguồn dài thành hai đoạn trong bản dịch,
+So that bản dịch có nhịp của tiếng Việt chứ không phải nhịp của bản gốc.
+
+**Acceptance Criteria:**
+
+**Given** con trỏ trong ô bản dịch
+**When** người dùng bấm `Enter`
+**Then** **xuống dòng trong ô**, ký tự lưu vào `target_text`
+
+**Given** cờ kết đoạn của bản dịch
+**When** một Chương được nhập
+**Then** **mặc định bằng cờ nguồn** — bản dịch soi gương bản gốc cho tới khi người dùng đổi
+
+**Given** ba ca biên của AD-37 *(gộp → theo câu cuối · tách → theo mảnh cuối, các mảnh trước tắt · segment cuối Chương → tắt, luôn luôn)*
+**When** áp cho cờ đích
+**Then** **y nguyên**, không một ca nào xử lý khác
+
+**Given** bất kỳ đường mã nào
+**When** cần cấu trúc đoạn của bản dịch
+**Then** đọc **dữ liệu đã lưu**, **không** suy ra từ nội dung nguồn
+
+**Given** lược đồ `project.db`
+**When** thêm cột cờ đích
+**Then** một `ALTER TABLE` đánh số **9**
+
+**Given** hai lớp chặn `Enter` hiện có — `EditorPanel.vue:769` *(tầng `beforeinput`, `inputType === 'insertParagraph'`)* và `:842` *(tầng phím)*
+**When** story này chạy
+**Then** gỡ **ở ô bản dịch**, giữ nguyên ở mọi nơi khác
+⚠️ Hai lớp đó được đặt ra **vì AD-37** — chúng đúng ở thời điểm viết. AD-46 là thứ mở khoá chúng, và **chỉ ở đúng một chỗ**.
+
+---
+
 ### Story 2.6: Lịch sử phiên bản segment và khôi phục
 
 **Covers:** FR101
@@ -2322,33 +2528,42 @@ So that một dấu chấm trong chữ viết tắt không phá cấu trúc cả
 
 ---
 
-### Story 2.9: Gộp ngầm khi gõ đè lên ranh giới
+### Story 2.9: Gộp bằng `Backspace` ở đầu ô
 
 **Covers:** FR78
 
+> 🔵 **ĐỔI TÊN VÀ ĐỔI TIỀN ĐỀ 2026-08-14** *(Sprint Change Proposal, Ice ký)*. Tên cũ: *"Gộp ngầm khi gõ đè lên ranh giới"*. Tiền đề cũ — *"con trỏ ở đúng vị trí ranh giới giữa hai segment"* — **không còn tồn tại** trong lưới: ranh giới nay là ranh giới **hàng**, không phải một điểm giữa dòng văn. **Năm AC giữ nguyên ngữ nghĩa**, chỉ đổi **cử chỉ kích hoạt**; Covers FR78 không đổi.
+>
+> ⚠️ **Khuyết tật *"sập hố"* Ice báo 2026-08-14 là tiền đề của story này, và nó thuộc hình dạng cũ:** xoá lui tới khi câu rỗng thì con trỏ **thấp xuống** và `Backspace` **chết**. Hai nguyên nhân chồng nhau — span rỗng 0 px co lại nên caret lấy chiều cao từ một hộp rỗng, và `contenteditable` chỉ đặt trên **đúng một** span nên `Backspace` ở offset 0 không có chỗ nào để xoá lui vào. **Lưới (2.5b) sửa nguyên nhân; story này dựng hành vi.**
+
 As a người dịch,
-I want viết lại hai câu Trung thành một câu Việt bằng cách gõ tự do,
+I want nối câu này với câu trên bằng chính phím xoá lui,
 So that tôi không phải dừng lại ra lệnh cho công cụ giữa dòng suy nghĩ.
 
 **Acceptance Criteria:**
 
-**Given** con trỏ ở đúng vị trí ranh giới giữa hai segment
-**When** người dùng gõ đè lên ranh giới đó
-**Then** hệ thống thực hiện gộp
+**Given** con trỏ ở **đầu ô bản dịch** của một câu
+**When** người dùng bấm `Backspace`
+**Then** hệ thống **gộp câu đó với câu trên**
 
-**Given** gộp ngầm xảy ra
+**Given** thao tác gộp
+**When** chạy
+**Then** kết quả xác định ở **cả hai vế** — nối `source_text` của hai câu, nối `target_text` của hai câu
+🔴 Vì thế **gộp chạy được từ cả hai phía**, khác với **tách** *(Story 2.8)* vốn bắt buộc làm ở **cột nguyên văn**: không có phép chiếu nào từ vị trí con trỏ bên tiếng Việt sang chỗ cắt bên tiếng Trung. Cùng lý do Trados và memoQ đều bắt tách ở cột nguồn.
+
+**Given** gộp xảy ra
 **When** thực hiện
 **Then** đúng ngữ nghĩa của gộp tường minh — hai câu cũ về hưu và vẫn tra lại được lịch sử, câu mới chưa xác nhận với lịch sử rỗng
 
-**Given** gộp ngầm xảy ra
+**Given** gộp xảy ra
 **When** thực hiện
 **Then** một dòng báo hiện ở lề nêu **hệ quả**, ví dụ *"Đã gộp hai câu. Câu mới chưa xác nhận — lịch sử của hai câu cũ vẫn tra lại được."*
 
-**Given** gộp ngầm vừa xảy ra
+**Given** gộp vừa xảy ra
 **When** người dùng bấm `⌘Z`
 **Then** hoàn tác được
 
-**Given** người dùng gõ đè lên ranh giới
+**Given** người dùng bấm `Backspace` ở đầu ô
 **When** xảy ra
 **Then** hệ thống **không chặn và không hỏi lại**
 
@@ -2375,6 +2590,16 @@ So that tôi không phải cuộn tìm bằng mắt trong một Chương dài.
 **Given** một Chương có segment đã dịch xen kẽ segment chưa dịch
 **When** gọi lệnh **segment chưa dịch kế tiếp**
 **Then** focus nhảy tới segment chưa dịch gần nhất phía sau, bỏ qua các segment đã dịch
+
+**Given** định nghĩa *"chưa dịch"*
+**When** lệnh này duyệt
+**Then** *"chưa dịch"* là `status = 'draft'` **và** `target_text` **rỗng**
+🔵 **Thêm 2026-08-14** *(Sprint Change Proposal, Ice ký)*: `draft` nay là một giá trị **tách khỏi** *chưa dịch* trong bảng sáu giá trị của UX-DR19. Không khai vế `target_text` rỗng thì lệnh này nhảy vào **mọi** câu chưa xác nhận, kể cả câu đã dịch xong đang chờ ký — tức nó thành vô dụng đúng lúc Chương gần hoàn thành.
+
+**Given** một câu đã **cắt bỏ** (FR133)
+**When** gọi lệnh **segment chưa dịch kế tiếp**
+**Then** **bỏ qua** nó
+🔵 **Thêm 2026-08-14:** không có vế này thì lệnh liên tục nhảy vào đúng những câu người dùng **cố ý bỏ** — chính lớp lỗi mà FR133 sinh ra để chặn.
 
 **Given** không còn segment chưa dịch nào phía sau
 **When** gọi lệnh segment chưa dịch kế tiếp
@@ -2431,44 +2656,15 @@ So that mạch làm việc của tôi không bị cắt.
 
 ---
 
-### Story 2.12: Sync Scrolling
+### ~~Story 2.12: Sync Scrolling~~ — XOÁ
 
-**Covers:** FR20
-
-As a người dịch,
-I want nguyên văn và bản dịch cuộn cùng nhau,
-So that mắt tôi không phải tự tìm lại chỗ mỗi lần nhìn sang panel bên.
-
-**Acceptance Criteria:**
-
-**Given** Sync Scrolling đang bật
-**When** người dùng cuộn Panel Source
-**Then** Panel Editor và Panel AI Translation cuộn theo tới vị trí tương ứng
-
-**Given** Sync Scrolling đang bật
-**When** người dùng cuộn Panel Editor
-**Then** hai panel còn lại cuộn theo
-
-**Given** Sync Scrolling
-**When** hiển thị
-**Then** có **công tắc bật/tắt rõ ràng**, không phải một tuỳ chọn ẩn trong Cài đặt
-
-**Given** Sync Scrolling đang tắt
-**When** cuộn một panel
-**Then** các panel khác không đổi vị trí
-
-**Given** trạng thái công tắc
-**When** đóng và mở lại ứng dụng
-**Then** giữ nguyên
-
-**Given** Panel AI Translation chưa có nội dung ở epic này
-**When** Sync Scrolling chạy
-**Then** không sập
-**And** panel đó tham gia đồng bộ ngay khi có nội dung ở Epic 4, không cần sửa lại cơ chế
-
-**Given** công tắc
-**When** gọi
-**Then** là command đăng ký, gán phím được
+> 🔵 **XOÁ KHỎI EPIC 2 NGÀY 2026-08-14** *(Sprint Change Proposal, Ice ký)*. Story này phục vụ **FR20**, và FR20 đã **rút**.
+>
+> **Vì sao:** FR20 đồng bộ **ba** panel — `Source`, `AI Translation`, `Editor`. Lưới đối chiếu nuốt **hai** trong ba: `Source` và `Editor` nay là **cùng một hàng**, nên không còn gì để đồng bộ giữa chúng. Cặp thứ ba, `lưới ↔ AI Translation`, **vẫn còn thật** — panel Đề xuất AI là một cột riêng ở cả Ⓑ-1 lẫn Ⓑ-2. Ice chốt **không giữ** nó.
+>
+> ⚠️ **Rủi ro đã nêu trước khi chốt, ghi lại thay vì để trôi:** nếu Epic 4 dựng chế độ dịch **theo lô** *(`epics.md` §Epic 4 cho gọi AI "từng segment hoặc theo lô")* thì panel Đề xuất AI mang nội dung cả Chương, và nhu cầu cuộn cùng nhau **quay lại** — lúc đó **không FR nào chứa nó**. Món nợ **có chủ là Epic 4**, ghi ở `deferred-work.md`.
+>
+> ⇒ **Nhu cầu mà FR20 thật sự phục vụ không mất, nó được HÌNH DẠNG trả lời:** *"bấm câu gốc thì câu dịch sáng lên"* và *"mắt không phải tìm lại chỗ"* biến mất **thay vì phải cài** — cùng một hàng là cùng một câu. *(Nhu cầu liên kết bấm-để-đối-chiếu có thật — Ice hỏi 2026-08-14 — và `epics.md` **chưa từng có FR nào** cho nó.)*
 
 ---
 
@@ -3371,11 +3567,13 @@ So that cửa sổ hẹp làm tôi khó chịu chứ không làm tôi không d�
 
 **Given** vùng làm việc **≥ 1100×820**
 **When** hiển thị
-**Then** giữ lưới 2×2
+**Then** giữ **bố cục đã chọn (Ⓑ-1 hoặc Ⓑ-2) đủ ba panel**
 
 **Given** vùng làm việc **cao < 820**
 **When** hiển thị
-**Then** gộp hàng dưới thành một panel có tab
+**Then** gộp **Tra cứu và Đề xuất AI** thành một panel có tab
+
+> 🔵 **Sửa 2026-08-14** — diễn đạt theo **panel**, không theo **vị trí**: Ⓑ-2 không có "hàng dưới". **Bốn con số và thứ tự hy sinh không đổi một chữ.** ⚠️ **Phạm vi story này rộng ra:** nay phải hiệu chỉnh cho **HAI** bố cục — Ⓑ-1 và Ⓑ-2 co giãn khác nhau, nên một bộ số đúng cho bố cục này **không suy ra được** cho bố cục kia.
 
 **Given** vùng làm việc **rộng < 1100 hoặc cao < 700**
 **When** hiển thị
@@ -3403,7 +3601,7 @@ So that cửa sổ hẹp làm tôi khó chịu chứ không làm tôi không d�
 **Then** **chỉ các con số** được đổi
 **And** **thứ tự hy sinh panel là quyết định, không hiệu chỉnh theo**
 
-**Given** phép đo trên máy thật với đủ bốn panel có nội dung
+**Given** phép đo trên máy thật với đủ **ba** panel có nội dung
 **When** hoàn tất
 **Then** giá trị hiệu chỉnh ghi vào `[A11]` của `SPEC.md`
 **And** **Q9 đóng**
@@ -6028,7 +6226,7 @@ So that tôi không phải tự đối chiếu vị trí từ một danh sách r
 
 **Given** phát hiện
 **When** hiển thị
-**Then** **không dùng vạch lề** — vạch lề đã dùng hết năm giá trị cho trạng thái segment
+**Then** **không dùng vạch lề** — vạch lề đã dùng hết **sáu** giá trị cho trạng thái segment *(🔵 2026-08-14: năm → sáu)*
 
 **Given** hai lớp thông tin
 **When** người dùng đọc

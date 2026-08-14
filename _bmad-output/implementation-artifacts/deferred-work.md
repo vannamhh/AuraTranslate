@@ -2837,3 +2837,72 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   **cách chạy nào** thì không tệp nào ghi lại. Đừng đối chiếu chúng với nhau cho tới khi món này đóng.
 
   **Chủ: Story 2.4** *(nó sở hữu hạ tầng đo và bàn đo; đừng dựng đường chẩn đoán thứ hai)*.
+
+---
+
+## Lượt Correct Course 2026-08-14 — bề mặt nhập lật sang lưới hai cột
+
+*(Nguồn: `_bmad-output/planning-artifacts/sprint-change-proposal-2026-08-14.md`, Ice duyệt trọn gói.)*
+
+- ⚠️ **FR20 (Sync Scrolling) đã RÚT, và cặp panel thứ ba là thứ bị BỎ chứ không phải không tồn tại.**
+
+  FR20 đồng bộ **ba** panel: `Source`, `AI Translation`, `Editor`. Lưới đối chiếu nuốt **hai**
+  trong ba — `Source` và `Editor` nay là **cùng một hàng**. Cặp còn lại, `lưới ↔ AI Translation`,
+  **vẫn còn thật**: panel Đề xuất AI là một cột riêng ở **cả** Ⓑ-1 lẫn Ⓑ-2.
+
+  🔴 **Rủi ro cụ thể, nêu trước khi Ice chốt và Ice vẫn chốt rút:** Epic 4 cho gọi AI *"từng
+  segment **hoặc theo lô**"*. Ở chế độ **theo lô**, panel Đề xuất AI mang nội dung **cả Chương**
+  và nhu cầu cuộn cùng lưới **quay lại** — lúc đó **không FR nào chứa nó**, vì FR20 đã rút và
+  Story 2.12 đã xoá.
+
+  ⇒ Epic 4 phải **quyết lại có cần hay không**, và nếu cần thì nó là một FR mới, không phải
+  một lượt "khôi phục FR20".
+
+  **Chủ: Epic 4.**
+
+- ⚠️ **Chiều cao hàng khi bật Hán Việt *song song* ở cột hẹp của Ⓑ-2 — CHƯA ĐO.**
+
+  Âm Hán Việt là chữ Latin, nên một câu Hán ~30 ký tự nở ra ~150 ký tự — dài gấp 4–5 lần dòng
+  gốc. Ở cột nguyên văn của Ⓑ-2 *(ước ~330 px)*, một hàng bật *song song* có thể cao **6–7 dòng**,
+  **ăn mất chính thứ Ⓑ-2 được chọn để có** *(nhiều câu trong tầm mắt nhất)*.
+
+  🔴 **Con số này là ƯỚC LƯỢNG HÌNH HỌC, không phải một phép đo.** Nó là một **cận để cảnh báo**.
+  Ai dựng thì **đo trên bản dựng thật và ghi số kèm ngày** — *"số đo không truy nguyên được thì
+  không phải số đo"*.
+
+  **Chủ: Story 2.5b.**
+
+- ⚠️ **`editorGutter.ts` (273 dòng, 31 chỗ nhắc "làn") và `tests/frontend/editorGutterLanes.test.ts`
+  (140 dòng) mất lý do tồn tại — KHÔNG xoá im lặng.**
+
+  Làn ngang tồn tại **chỉ vì** nhiều câu chung một dòng thị giác nên các vạch phải xếp thành làn.
+  Trong lưới, **một câu một vạch** ⇒ bài toán xếp làn biến mất.
+
+  ⚠️ Nhưng `assignGutterLanes` mang một **phép đo thật** *(bản đầu O(n²) = 254–482 ms trên 9.850
+  vạch ⇒ quét đường 4–8 ms)*. Gỡ nó là gỡ luôn bằng chứng đó. ⇒ Story 2.5b phải **nói rõ nó gỡ
+  cái gì và vì sao**, và giữ lại phép đo trong sổ nếu còn có ai cần so sánh.
+
+  **Chủ: Story 2.5b.**
+
+- ⚠️ **Ngưỡng bố cục màn hình hẹp nay phải hiệu chỉnh cho HAI bố cục, không phải một.**
+
+  UX-DR15 giữ **nguyên bốn con số** và **nguyên thứ tự hy sinh** — cả hai không đổi một chữ.
+  Cái đổi là **số biến thể phải đo**: Ⓑ-1 *(lưới trên, hai panel dưới)* và Ⓑ-2 *(lưới trái toàn
+  chiều cao)* co giãn khác nhau, nên một bộ số đúng cho một bố cục **không suy ra được** cho
+  bố cục kia.
+
+  **Chủ: Story 4.12** *(chủ cũ, chỉ mở rộng phạm vi)*.
+
+- 🔵 **CHUYỂN CHỦ 2026-08-14 — hàng *"thư viện editor"* từ Story 2.4 sang Story 2.5b.**
+
+  Lưới **đổi bài toán**: `contenteditable` trên **một ô mỗi hàng** khác hẳn `contenteditable`
+  trên **một dòng văn liên tục**. Khuyết tật *"sập hố"* Ice báo 2026-08-14 *(xoá lui tới khi
+  câu rỗng thì con trỏ thấp xuống và `Backspace` chết)* đến thẳng từ hình dạng cũ — nguyên nhân
+  là span rỗng 0 px cộng `contenteditable` đặt trên **đúng một** span, nên `Backspace` ở offset 0
+  không có chỗ nào để xoá lui vào.
+
+  ⇒ **Kết luận cũ của Story 2.4 về thư viện editor KHÔNG được mặc nhiên giữ** — nó được đưa ra
+  cho một hình dạng không còn tồn tại. 2.5b **đọc lại** món này cùng lượt dựng lưới, vì chính
+  nó quyết định `contenteditable` đặt ở đâu.
+
+  **Chủ: Story 2.5b** *(chuyển từ Story 2.4, Ice ký 2026-08-14)*.
