@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Bàn đo — hai vạch lề cùng tồn tại trên một dòng (Story 2.5)</title>
+<!--
+  ═════════════════════════════════════════════════════════════════════════════════
+  BÀN ĐO — Story 2.5, Task 0.3 (Quyết định #2).
+  ═════════════════════════════════════════════════════════════════════════════════
+
+  🔴 VÌ SAO TỆP NÀY TỒN TẠI TRƯỚC KHI HỎI ICE
+  Story 2.5 ghi vào Task 0.3 bằng chữ: *"dựng fixture bàn đo TRƯỚC khi hỏi — Ice cần
+  nhìn ảnh, không phải nghe mô tả"*, và §Quyết định #2 ghi *"KHÔNG chốt bằng suy luận"*.
+  Món nợ gốc là `deferred-work.md:2052-2064`, chủ: Story 2.5.
+
+  🔴 MỆNH ĐỀ PHẢI TRẢ LỜI BẰNG MẮT VÀ BẰNG SỐ, trên CẢ HAI engine × CẢ HAI theme:
+    ① Hiện trạng có thật sự **che mất** một vạch không, và che bao nhiêu vạch?
+    ② Đường (a) — hai làn trong máng 22px — có đọc được không, và làn ngoài có tràn
+       khỏi máng hay đè lên chữ không?
+    ③ Đường (c) — chia đôi theo chiều dọc — ở giãn dòng 1.95 với vạch 2px thì mỗi nửa
+       còn bao nhiêu pixel, và mắt có phân biệt được hai nửa khác màu không?
+    (Đường (b) — một dòng một vạch — có mặt để nhìn thấy nó **nói dối** cái gì: một dòng
+     chứa một câu đã xác nhận và một câu chưa dịch hiện ra là "đã xác nhận".)
+
+  ─────────────────────────────────────────────────────────────────────────────────
+  🔴 GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện — KẾ THỪA từ 2-2/2-3
+  ─────────────────────────────────────────────────────────────────────────────────
+  ① Tệp này **CHÉP** CSS và cấu trúc DOM của `src/panels/EditorPanel.vue` và thuật toán
+     của `src/panels/editorGutter.ts::measureGutterRules`; nó **KHÔNG mount** component
+     thật (component cần cầu IPC của Tauri). ⇒ một lượt sửa template/CSS sau này có thể
+     làm bàn đo và sản phẩm **lệch nhau mà không cổng nào đỏ**.
+  ② Ba font nhúng của UX-DR4 **vắng mặt** (chúng do `src/tokens/fonts.ts` nạp từ bundle),
+     nên hình học rơi về `serif` hệ thống. ⇒ Số ở đây là số của **cơ chế**, không của
+     **sản phẩm**. Cụ thể: chỗ một dòng ngắt là hàm của bề rộng chữ, nên "hai câu nào
+     nằm cùng một dòng" trên sản phẩm có thể khác — nhưng **sự kiện** hai vạch trùng
+     `top` thì không phụ thuộc font.
+  ③ Engine ở đây là **WebKit của Playwright**, không phải **WKWebView của Tauri**. Hai
+     thứ khác phiên bản và khác lớp nhúng — cùng món nợ `deferred-work.md:2127-2134`.
+  ④ 🔴 GIỚI HẠN RIÊNG CỦA TỆP NÀY: fixture ép hai câu ngắn nằm cùng dòng bằng cách cho
+     chúng **ngắn thật**. Nó KHÔNG chứng minh ca đó thường gặp; nó chứng minh ca đó
+     **dựng lại được** và ba đường xử lý trông ra sao. Tần suất là một phép đo khác,
+     trên dữ liệu thật, và **không** story này.
+
+  Chạy: mở tệp này trong trình duyệt để xem bằng MẮT; driver Playwright lái nó và đọc
+  `window.__benchReport()` — xem `2-5-ban-do/README.md`.
+-->
+<style>
+/* ── Token: chép từ `src/tokens/tokens.json`, chỉ những token bàn đo cần ─────────── */
+:root[data-theme='light'] {
+  --color-background: #f4f1ea;
+  --color-surface: #fbfaf6;
+  --color-on-surface: #2b2723;
+  --color-on-surface-variant: #6b6459;
+  --color-outline: #e2dccf;
+  --color-ornament: #a9a196;
+  --color-primary: #2f5d63;
+  --color-confirmed: #5a6b3f;
+  --color-tm-rule: #b99a5e;
+}
+:root[data-theme='dark'] {
+  --color-background: #201e1b;
+  --color-surface: #26241f;
+  --color-on-surface: #e8e3d8;
+  --color-on-surface-variant: #a29a8c;
+  --color-outline: #3b382f;
+  --color-ornament: #6a6459;
+  --color-primary: #7fb3ba;
+  --color-confirmed: #9cb37a;
+  --color-tm-rule: #b99a5e;
+}
+:root {
+  --space-gutter-width: 22px;
+  --radius-sm: 2px;
+  --face-editor: Georgia, 'Times New Roman', serif;
+  --font-editor: 15px;
+  --leading-editor: 1.95;
+  --font-ui-sm: 12px;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: system-ui, sans-serif;
+  font-size: var(--font-ui-sm);
+}
+
+.page {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.variant {
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline);
+  border-radius: 4px;
+  padding: 8px;
+  min-width: 0;
+}
+
+.variant > h2 {
+  margin: 0 0 2px;
+  font-size: 13px;
+}
+
+.variant > p.note {
+  margin: 0 0 8px;
+  color: var(--color-on-surface-variant);
+  line-height: 1.5;
+}
+
+/* ══ CHÉP NGUYÊN VĂN từ `EditorPanel.vue` — máng, vạch, trang văn, câu ═══════════ */
+.edbody {
+  display: flex;
+  overflow: auto;
+}
+
+.gutter {
+  position: relative;
+  flex: none;
+  width: var(--space-gutter-width);
+  padding-top: 4px;
+}
+
+.gmark {
+  position: absolute;
+  left: 8px;
+  width: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.gmark.rule-confirmed {
+  background-color: var(--color-confirmed);
+}
+.gmark.rule-primary {
+  background-color: var(--color-primary);
+}
+.gmark.rule-tm-rule {
+  background-color: var(--color-tm-rule);
+}
+.gmark.rule-ornament {
+  background-color: var(--color-ornament);
+}
+
+.doc {
+  flex: 1;
+  min-width: 0;
+  padding-left: 8px;
+}
+
+.tok-editor {
+  font-family: var(--face-editor);
+  font-size: var(--font-editor);
+  line-height: var(--leading-editor);
+  color: var(--color-on-surface);
+}
+
+.sent {
+  position: relative;
+}
+
+.sent::after {
+  content: '⏐';
+  color: var(--color-ornament);
+  opacity: 0;
+}
+
+.sent:empty::after {
+  content: none;
+}
+
+.sent:hover::after,
+.sent[data-caret]::after {
+  opacity: 0.55;
+}
+
+/* ══ RIÊNG BÀN ĐO — ba biến thể chỉ đổi TOẠ ĐỘ của `.gmark`, không đổi màu ══════ */
+
+/*
+ * (a) NHIỀU làn. Làn 0 giữ nguyên `left: 8px` của sản phẩm; mỗi làn kế tiếp dịch thêm
+ * 5px = 2 (bề rộng vạch) + 3 (khe).
+ *
+ * 🔴 MÁNG 22px CHỨA ĐƯỢC ĐÚNG **BA** LÀN: làn 2 có mép phải ở 18 + 2 = 20px, còn 2px
+ * tới mép máng. Làn 3 sẽ ở 23..25px — **tràn khỏi máng**, và chữ bắt đầu ở 22 + 8 =
+ * 30px nên nó rơi vào khoảng trống giữa máng và chữ. Làn 4 trở đi đè lên chữ.
+ * ⇒ Số làn mà fixture ĐÒI là con số phân xử đường (a), và nó ở bảng số đo bên dưới.
+ */
+.lane-1 {
+  left: 13px;
+}
+.lane-2 {
+  left: 18px;
+}
+/* ⚠️ Làn 3+ TRÀN khỏi máng — có mặt ở đây để bàn đo VẼ RA chỗ tràn, không để dùng. */
+.lane-3 {
+  left: 23px;
+}
+.lane-4 {
+  left: 28px;
+}
+
+/* Nhãn số đo, chỉ có trong bàn đo. */
+.report {
+  margin: 10px 12px 16px;
+  padding: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline);
+  border-radius: 4px;
+  white-space: pre;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--color-on-surface);
+  /* Báo cáo đầy đủ sống ở `2-5-ban-do/bao-cao.json`; ở đây nó chỉ là bản đối chiếu
+     nhanh, và một khối JSON dài 200 dòng sẽ nuốt phần THỊ GIÁC của chính tấm ảnh. */
+  max-height: 260px;
+  overflow: auto;
+}
+</style>
+</head>
+<body>
+
+<div class="page" id="page"></div>
+<div class="report" id="report">(đang đo…)</div>
+
+<script>
+/*
+ * ─────────────────────────────────────────────────────────────────────────────────
+ * FIXTURE — Task 0.3 và Task 8.1 đòi bốn thứ cùng có mặt trong MỘT trang văn
+ * ─────────────────────────────────────────────────────────────────────────────────
+ *   · ≥1 câu `confirmed` KHÔNG caret
+ *   · ≥1 câu `primary` (có caret)
+ *   · ≥2 câu NGẮN cùng một dòng, mang HAI trạng thái khác nhau  ← ca cần đo
+ *   · ≥1 câu đã dịch, chưa xác nhận (khe hở của Quyết định #3 ⇒ *không vạch*)
+ *
+ * ⚠️ 8.3 — fixture KHÔNG được tự che ca cần đo. Tiền lệ: fixture của 2.2 đặt caret
+ *    đúng vào câu duy nhất và che mất khe hở, review mới bắt được. Ở đây caret đặt vào
+ *    câu #1 (một câu DÀI, một mình một chỗ), nên nó KHÔNG rơi vào cặp câu ngắn đang đo.
+ */
+const FIXTURES = [
+  {
+    key: 'tron',
+    title: 'Fixture ① — văn xuôi trộn: câu dài xen câu ngắn',
+    segments: [
+      { id: 1, text: 'Trời đã ngả về chiều khi đoàn người cuối cùng rời khỏi bến, để lại mặt sông một khoảng lặng dài.', state: 'caret' },
+      { id: 2, text: 'Hắn gật đầu.', state: 'confirmed' },
+      { id: 3, text: 'Không ai đáp.', state: 'untranslated' },
+      { id: 4, text: 'Con thuyền trôi thêm một quãng nữa rồi dừng lại bên một gốc gạo già, nơi nước xoáy thành vòng.', state: 'translated_unconfirmed' },
+      { id: 5, text: 'Y quay lại.', state: 'confirmed' },
+      { id: 6, text: 'Trời sắp mưa.', state: 'tm' },
+      { id: 7, text: 'Người lái đò buộc dây vào cọc, ngẩng lên nhìn bầu trời đã sẫm màu, rồi lặng lẽ ngồi xuống mạn thuyền.', state: 'confirmed' },
+      { id: 8, text: 'Đã muộn rồi.', state: 'retired' },
+      { id: 9, text: 'Về thôi.', state: 'confirmed' },
+    ],
+  },
+  {
+    /*
+     * 🔴 CA ÉP, và nó KHÔNG phải một ca biên bịa ra: đối thoại là hình dạng văn bản
+     * **thường nhật** của thể loại mà AuraTranslate nhắm tới. Fixture ① cho 3 làn; câu
+     * hỏi thật là *3 có phải một cận trên không*, và một fixture toàn câu ngắn là phép
+     * đo duy nhất trả lời được. Nếu số làn ở đây vượt 3 thì đường (a) **không** đóng
+     * kín — nó chỉ đẩy chỗ hở ra xa hơn, và điều đó phải nằm trong chữ ký của Ice.
+     */
+    key: 'doi-thoai',
+    title: 'Fixture ② — đoạn ĐỐI THOẠI: toàn câu ngắn, ca ép của đường (a)',
+    segments: [
+      { id: 11, text: 'Ai đó?', state: 'confirmed' },
+      { id: 12, text: 'Là ta.', state: 'tm' },
+      { id: 13, text: 'Vào đi.', state: 'confirmed' },
+      { id: 14, text: 'Hắn bước vào, khép cửa lại sau lưng, rồi đứng im một lúc lâu giữa gian phòng tối om không đèn.', state: 'caret' },
+      { id: 15, text: 'Ngồi.', state: 'confirmed' },
+      { id: 16, text: 'Không.', state: 'retired' },
+      { id: 17, text: 'Tuỳ ngươi.', state: 'confirmed' },
+      { id: 18, text: 'Ta hỏi một câu.', state: 'tm' },
+      { id: 19, text: 'Hỏi.', state: 'confirmed' },
+      { id: 20, text: 'Y ở đâu?', state: 'confirmed' },
+      { id: 21, text: 'Chết rồi.', state: 'untranslated' },
+      { id: 22, text: 'Bao giờ?', state: 'confirmed' },
+    ],
+  },
+];
+
+/*
+ * CHÉP từ `src/panels/editorSegments.ts::resolveSegmentRule` — thứ tự năm nhánh là một
+ * quyết định, không phải thứ tự gõ ra. `ornament` > `primary` > `confirmed` > `tm-rule`
+ * > `none`.
+ *
+ * ⚠️ Bàn đo chép chứ không import: `editorSegments.ts` là module TS và tệp này chạy
+ *    bằng `file://`. Lệch nhau được mà không cổng nào đỏ — xem GIỚI HẠN ① ở đầu tệp.
+ */
+function resolveSegmentRule(input) {
+  if (input.retiredAt !== null) return 'ornament'
+  if (input.hasCaret) return 'primary'
+  if (input.isConfirmed) return 'confirmed'
+  if (input.isTmFilled) return 'tm-rule'
+  return 'none'
+}
+
+function ruleInputOf(seg) {
+  return {
+    retiredAt: seg.state === 'retired' ? '2026-08-14T00:00:00Z' : null,
+    hasCaret: seg.state === 'caret',
+    isConfirmed: seg.state === 'confirmed',
+    isTmFilled: seg.state === 'tm',
+    targetText: seg.state === 'untranslated' ? '' : seg.text,
+  }
+}
+
+/* CHÉP từ `src/panels/editorGutter.ts::measureGutterRules`. */
+function measureGutterRules(gutter, doc, wanted) {
+  const origin = gutter.getBoundingClientRect().top
+  const out = []
+  for (const el of doc.querySelectorAll('[data-segment-id]')) {
+    const id = Number(el.getAttribute('data-segment-id'))
+    if (!Number.isFinite(id)) continue
+    if (!wanted.has(id)) continue
+    const rects = el.getClientRects()
+    if (rects.length === 0) continue
+    let top = Number.POSITIVE_INFINITY
+    let bottom = Number.NEGATIVE_INFINITY
+    for (const r of rects) {
+      if (r.height <= 0) continue
+      if (r.top < top) top = r.top
+      if (r.bottom > bottom) bottom = r.bottom
+    }
+    if (!Number.isFinite(top) || !Number.isFinite(bottom)) continue
+    out.push({ id, top: top - origin, height: bottom - top })
+  }
+  return out
+}
+
+/*
+ * Hai vạch có CHỒNG NHAU theo chiều dọc không.
+ *
+ * ⚠️ Điều kiện chồng là **giao khoảng dọc khác rỗng**, KHÔNG phải `top` bằng nhau đúng
+ *    từng pixel: hai câu cùng một dòng cho cùng `top` trên lý thuyết, nhưng
+ *    `getClientRects()` trả số thực và hai engine làm tròn khác nhau. So bằng `===` là
+ *    một phép kiểm sẽ xanh ở engine này và đỏ ở engine kia mà không ai hiểu vì sao.
+ */
+function overlaps(a, b) {
+  return a.top < b.top + b.height - 0.5 && b.top < a.top + a.height - 0.5
+}
+
+/*
+ * 🔴 PHÉP GÁN LÀN LÀ MỘT PHÉP **TÔ MÀU ĐỒ THỊ KHOẢNG**, KHÔNG PHẢI "GOM THÀNH CẶP".
+ *
+ * ⚠️ Bản đầu của bàn đo này gom bắc cầu *(A chồng B, B chồng C ⇒ một nhóm)* rồi phát
+ * làn theo thứ tự trong nhóm. **Phép đo bác nó ngay lượt chạy đầu**: fixture cho một
+ * nhóm **năm** phần tử, và mọi phần tử từ thứ hai trở đi dồn hết vào làn 1 ⇒ vẫn còn
+ * một vạch bị che. Ghi lại thay vì sửa im lặng — đây là lý do Task 0.3 đòi dựng bàn đo
+ * TRƯỚC khi hỏi.
+ *
+ * Phép đúng: duyệt theo `top` tăng dần, mỗi vạch nhận **làn nhỏ nhất chưa bị một vạch
+ * chồng nào chiếm**. Số làn cần dùng = số vạch chồng nhau **đồng thời** nhiều nhất, và
+ * đó chính là con số quyết định (a) có sống nổi trong máng 22px hay không.
+ */
+function assignLanes(rules) {
+  const sorted = [...rules].sort((a, b) => a.top - b.top || a.id - b.id)
+  const placed = []
+  for (const r of sorted) {
+    const taken = new Set(placed.filter((p) => overlaps(p, r)).map((p) => p.lane))
+    let lane = 0
+    while (taken.has(lane)) lane += 1
+    placed.push({ ...r, lane })
+  }
+  return placed
+}
+
+/* Thứ tự ưu tiên của năm giá trị — dùng cho đường (b). */
+const RULE_RANK = { ornament: 0, primary: 1, confirmed: 2, 'tm-rule': 3, none: 4 }
+
+/*
+ * 🔴 BƯỚC LÀN CO CHO VỪA MÁNG — hệ quả của chữ ký Ice cho Quyết định #2, 2026-08-14.
+ *
+ * Máng `gutter-width` = 22px, vạch đầu ở `left: 8px`, vạch rộng 2px ⇒ còn **14px** cho
+ * mọi làn. Bước **cố định 5px** *(bản đầu của bàn đo)* chỉ chứa nổi 3 làn, và fixture
+ * đối thoại đo được **5** ⇒ tràn ra 30px, đúng chỗ chữ bắt đầu.
+ *
+ * Bước co: làn ngoài cùng ở `8 + (N-1)·buoc`, mép phải của nó là `+2`, và nó phải ≤ 22.
+ * ⇒ `buoc ≤ (22 - 8 - 2) / (N - 1)` = `12 / (N-1)`.
+ *
+ * ⚠️ **GIỚI HẠN THẬT:** `buoc` không xuống dưới 2 *(bằng bề rộng vạch — hai vạch chạm
+ * nhau)*, nên **8 làn trở lên** không có lời giải trong máng 22px và luật lúc đó là dồn
+ * về làn cuối, tức chấp nhận che. Món này có chủ trong `deferred-work.md`. Nó đòi 8 câu
+ * cùng một dòng; fixture đối thoại dày nhất mới cho 5.
+ */
+const LANE_ORIGIN = 8
+const LANE_PITCH_MAX = 5
+const LANE_PITCH_MIN = 2
+const GUTTER_WIDTH = 22
+const RULE_WIDTH = 2
+
+function lanePitch(soLan) {
+  if (soLan <= 1) return LANE_PITCH_MAX
+  const vua = (GUTTER_WIDTH - LANE_ORIGIN - RULE_WIDTH) / (soLan - 1)
+  return Math.max(LANE_PITCH_MIN, Math.min(LANE_PITCH_MAX, Math.floor(vua)))
+}
+
+/*
+ * 🔴 ĐO THEO **DÒNG THỊ GIÁC**, không theo khoảng dọc của cả câu — đây là phép đo trả
+ * lời đúng câu hỏi của Quyết định #2 (*"hai câu ngắn NẰM CÙNG MỘT DÒNG"*).
+ *
+ * ⚠️ Khác `measureGutterRules` một cách có chủ ý, và khác biệt đó là cả vấn đề: sản
+ * phẩm gộp mọi hình chữ nhật của một câu thành **một** vạch cao từ mép trên rect đầu
+ * tới mép dưới rect cuối. Nên một câu dài trải ba dòng chồng dọc với **mọi** câu ngắn
+ * trên ba dòng đó, dù chúng không hề dùng chung một dòng nào với nhau.
+ *
+ * Đường (b) và (c) nói về **dòng**, nên chúng phải đo bằng hàm này. Đường hiện trạng và
+ * (a) nói về **vạch của một câu**, nên chúng đo bằng hàm chép từ sản phẩm.
+ */
+function measureLineFragments(gutter, doc, wanted) {
+  const origin = gutter.getBoundingClientRect().top
+  const out = []
+  for (const el of doc.querySelectorAll('[data-segment-id]')) {
+    const id = Number(el.getAttribute('data-segment-id'))
+    if (!Number.isFinite(id) || !wanted.has(id)) continue
+    for (const r of el.getClientRects()) {
+      if (r.height <= 0) continue
+      out.push({ id, top: r.top - origin, height: r.height, left: r.left })
+    }
+  }
+  // Gom theo DÒNG: cùng `top` trong sai số nửa pixel. Sắp theo `left` để "câu bắt đầu
+  // sớm hơn" là phần tử đầu — trên bề mặt này thứ tự đọc trùng thứ tự trái→phải.
+  const lines = []
+  for (const f of out.sort((a, b) => a.top - b.top || a.left - b.left)) {
+    const last = lines[lines.length - 1]
+    if (last && Math.abs(last.top - f.top) < 0.5) last.items.push(f)
+    else lines.push({ top: f.top, height: f.height, items: [f] })
+  }
+  return lines
+}
+
+const VARIANTS = [
+  {
+    key: 'hien-trang',
+    title: 'Hiện trạng — một làn, vạch vẽ sau CHE vạch vẽ trước',
+    note: 'Mọi vạch cùng left: 8px. Hai câu cùng dòng ⇒ cùng top VÀ cùng left. Đây là món nợ deferred-work.md:2052-2064.',
+    place({ spans, ruleOf }) {
+      return spans.map((r) => ({ ...r, cls: 'rule-' + ruleOf.get(r.id), lane: 0 }))
+    },
+  },
+  {
+    key: 'a-nhieu-lan',
+    title: '(a) ⭐ ICE KÝ — chia làn, BƯỚC LÀN CO CHO VỪA MÁNG',
+    note: 'Vạch nhận làn nhỏ nhất chưa bị một vạch chồng nào chiếm; bước làn co để làn ngoài cùng không vượt mép máng. Giữ đúng "vạch cao đúng bằng câu tương ứng" (epics.md:2067).',
+    place({ spans, ruleOf }) {
+      const laned = assignLanes(spans)
+      const soLan = Math.max(1, ...laned.map((r) => r.lane + 1))
+      const buoc = lanePitch(soLan)
+      return laned.map((r) => ({
+        ...r,
+        cls: 'rule-' + ruleOf.get(r.id),
+        left: LANE_ORIGIN + r.lane * buoc,
+      }))
+    },
+  },
+  {
+    key: 'b-mot-vach',
+    title: '(b) Một DÒNG ⇒ MỘT vạch, lấy trạng thái ưu tiên cao nhất trên dòng đó',
+    note: 'Rẻ nhất, và nó NÓI DỐI: một dòng chứa một câu đã xác nhận và một câu chưa dịch hiện ra là "đã xác nhận" (prd.md:291).',
+    place({ lines, ruleOf }) {
+      return lines.map((ln) => {
+        const best = [...ln.items].sort(
+          (a, b) => RULE_RANK[ruleOf.get(a.id)] - RULE_RANK[ruleOf.get(b.id)],
+        )[0]
+        return {
+          id: best.id,
+          cls: 'rule-' + ruleOf.get(best.id),
+          lane: 0,
+          top: ln.top,
+          height: ln.height,
+          // Số câu mà vạch này ĐANG NÓI THAY — 1 nghĩa là nó không nói dối gì.
+          noiThayChoBaoNhieuCau: ln.items.length,
+        }
+      })
+    },
+  },
+  {
+    key: 'c-chia-doc',
+    title: '(c) Vạch CHIA theo chiều dọc của dòng — mỗi câu trên dòng một khúc',
+    note: 'Đúng thông tin. Ở giãn dòng 1.95 với vạch 2px thì mỗi khúc còn bao nhiêu px — số ở bảng dưới.',
+    place({ lines, ruleOf }) {
+      const out = []
+      for (const ln of lines) {
+        const n = ln.items.length
+        ln.items.forEach((f, i) => {
+          const share = ln.height / n
+          out.push({
+            id: f.id,
+            cls: 'rule-' + ruleOf.get(f.id),
+            lane: 0,
+            top: ln.top + i * share,
+            height: share,
+          })
+        })
+      }
+      return out
+    },
+  },
+]
+
+function buildVariant(v, segments) {
+  const box = document.createElement('section')
+  box.className = 'variant'
+  box.dataset.variant = v.key
+
+  const h = document.createElement('h2')
+  h.textContent = v.title
+  const p = document.createElement('p')
+  p.className = 'note'
+  p.textContent = v.note
+
+  const body = document.createElement('div')
+  body.className = 'edbody'
+  const gutter = document.createElement('div')
+  gutter.className = 'gutter'
+  gutter.setAttribute('aria-hidden', 'true')
+  const doc = document.createElement('div')
+  doc.className = 'doc tok-editor'
+
+  for (const seg of segments) {
+    const span = document.createElement('span')
+    span.className = 'sent'
+    span.setAttribute('data-segment-id', String(seg.id))
+    if (seg.state === 'caret') span.setAttribute('data-caret', '')
+    // Câu CHƯA DỊCH là một `<span>` RỖNG — đúng sản phẩm, không một chuỗi mồi.
+    span.textContent = seg.state === 'untranslated' ? '' : seg.text
+    doc.append(span)
+    doc.append(document.createTextNode(' '))
+  }
+
+  body.append(gutter, doc)
+  box.append(h, p, body)
+  return { box, gutter, doc }
+}
+
+function runFixture(page, fixture) {
+  const head = document.createElement('h1')
+  head.textContent = fixture.title
+  head.style.cssText = 'grid-column:1/-1;margin:6px 0 0;font-size:14px'
+  page.append(head)
+
+  const ruleOf = new Map()
+  for (const seg of fixture.segments) ruleOf.set(seg.id, resolveSegmentRule(ruleInputOf(seg)))
+  const wanted = new Set([...ruleOf.entries()].filter(([, r]) => r !== 'none').map(([id]) => id))
+
+  const report = { rules: {}, variants: {} }
+  for (const [id, r] of ruleOf) report.rules[id] = r
+
+  for (const v of VARIANTS) {
+    const { box, gutter, doc } = buildVariant(v, fixture.segments)
+    page.append(box)
+
+    const spans = measureGutterRules(gutter, doc, wanted)
+    const lines = measureLineFragments(gutter, doc, wanted)
+    const placed = v.place({ spans, lines, ruleOf })
+    for (const m of placed) {
+      const el = document.createElement('div')
+      el.className = 'gmark ' + m.cls
+      el.style.top = m.top + 'px'
+      el.style.height = m.height + 'px'
+      // ⚠️ `left` đi qua `:style` cùng đường với `top`/`height` — HÌNH HỌC bind bằng
+      //    style, MÀU bind bằng lớp. Đó là ranh giới cổng `check-tokens` Kiểm B đọc được.
+      if (m.left !== undefined) el.style.left = m.left + 'px'
+      el.dataset.forSegment = String(m.id)
+      gutter.append(el)
+    }
+
+    // ── Số đo: bao nhiêu vạch VẼ RA, bao nhiêu vạch NHÌN THẤY ĐƯỢC ───────────────
+    // "Nhìn thấy được" = không một vạch nào khác phủ kín cùng (left, top, height).
+    const seen = new Set()
+    let hidden = 0
+    for (const el of gutter.querySelectorAll('.gmark')) {
+      const key = [
+        Math.round(parseFloat(getComputedStyle(el).left) * 10),
+        Math.round(parseFloat(el.style.top) * 10),
+        Math.round(parseFloat(el.style.height) * 10),
+      ].join('/')
+      if (seen.has(key)) hidden += 1
+      seen.add(key)
+    }
+
+    const lanMax = Math.max(0, ...placed.map((m) => m.lane ?? 0))
+    const mepPhai = Math.max(
+      ...placed.map((m) => (m.left ?? LANE_ORIGIN) + RULE_WIDTH),
+      LANE_ORIGIN + RULE_WIDTH,
+    )
+    report.variants[v.key] = {
+      ve_ra: placed.length,
+      vi_tri_phan_biet: seen.size,
+      bi_che: hidden,
+      lan_cao_nhat: lanMax,
+      so_lan_can: lanMax + 1,
+      buoc_lan_px: v.key === 'a-nhieu-lan' ? lanePitch(lanMax + 1) : null,
+      mep_phai_lan_ngoai_px: mepPhai,
+      tran_khoi_mang: mepPhai > parseFloat(getComputedStyle(gutter).width),
+      chieu_cao_nho_nhat_px: placed.length
+        ? Math.round(Math.min(...placed.map((m) => m.height)) * 100) / 100
+        : null,
+      // Chỉ đường (b) có trường này: vạch nào đang NÓI THAY cho nhiều hơn một câu.
+      dong_bi_noi_doi: placed.filter((m) => (m.noiThayChoBaoNhieuCau ?? 1) > 1).length,
+    }
+  }
+
+  // ── Số đo CHUNG của fixture, không thuộc biến thể nào ───────────────────────────
+  {
+    const probe = buildVariant(VARIANTS[0], fixture.segments)
+    page.append(probe.box)
+    const lines = measureLineFragments(probe.gutter, probe.doc, wanted)
+    probe.box.remove()
+    report.dong = {
+      tong_so_dong_co_vach: lines.length,
+      so_dong_mang_TU_HAI_CAU_TRO_LEN: lines.filter((l) => l.items.length > 1).length,
+      nhieu_cau_nhat_tren_mot_dong: Math.max(...lines.map((l) => l.items.length)),
+      chi_tiet: lines.map((l) => l.items.map((f) => f.id + ':' + ruleOf.get(f.id))),
+      cao_mot_dong_px: Math.round(lines[0].height * 100) / 100,
+    }
+  }
+
+  return report
+}
+
+function run() {
+  const page = document.getElementById('page')
+  page.textContent = ''
+
+  const report = {
+    engine: navigator.userAgent,
+    theme: document.documentElement.dataset.theme,
+    fixtures: {},
+  }
+  for (const f of FIXTURES) report.fixtures[f.key] = runFixture(page, f)
+
+  document.getElementById('report').textContent = JSON.stringify(report, null, 1)
+  window.__benchReport = () => report
+}
+
+// Chờ font ổn định trước khi đo — chỗ một dòng ngắt là hàm của bề rộng chữ.
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(run)
+} else {
+  run()
+}
+window.__benchRun = run
+</script>
+</body>
+</html>

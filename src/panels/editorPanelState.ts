@@ -19,7 +19,7 @@
  */
 import { readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { readOpenChapterSegments, saveSegmentTargets } from '../config/segment'
+import { confirmSegment, readOpenChapterSegments, saveSegmentTargets } from '../config/segment'
 import type { ChapterSegment, SegmentTargetEdit } from '../config/segment'
 import type { IpcError } from '../i18n'
 import { createEditorFlush, EDITOR_RETRY_FLOOR_MS } from './editorFlush'
@@ -422,4 +422,232 @@ export async function wireExitFlush(): Promise<() => void> {
     console.info(`[editor] không nối được đường flush lúc thoát — chạy ngoài Tauri? ${String(err)}`)
     return () => {}
   }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 2.5 — XÁC NHẬN SEGMENT (FR24 · AD-31 · AD-35 vế (c))
+//
+// 🔴 KHÔNG một quy tắc nào của bảng AD-31 sống ở đây (AC12). Máy trạng thái ở Rust
+// (`commands/segment.rs`); chỗ này chỉ **xếp thứ tự ba lượt gọi** và cập nhật ảnh chụp
+// hiển thị. Xếp thứ tự là việc của tầng giao diện, phân xử trạng thái thì không.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Kết quả một lượt xác nhận **nhìn từ giao diện**. Năm giá trị, và cả năm **phân biệt được**
+ * — *"rỗng IM LẶNG bị cấm; rỗng CÓ LÝ DO thì không"*.
+ *
+ * ⚠️ `'refused'` mang lỗi ra bằng [`editorConfirmError`], **không** bằng chuỗi ở đây, và
+ * **không đoán lại lý do từ chuỗi lỗi** (AC14).
+ *
+ * 🔵 **Code review 2026-08-14 — mệnh đề cũ ở đây đã hết đúng và được sửa tại chỗ.** Bản trước
+ * viết *"chỗ gọi hiển thị bằng `tError()`"*. **Chỗ gọi đó chưa tồn tại:** `main.ts` gọi
+ * `void confirmCurrentSegment()` và **vứt** giá trị trả về, còn [`editorConfirmError`] được
+ * export mà **không component nào đọc**. ⇒ Hôm nay cả ba khoá `err.segment.*` vừa dựng đều
+ * dừng ở biên giới TypeScript, không tới màn hình. AC14 **vẫn đạt** — nó nói về hợp đồng IPC,
+ * và Rust trả đúng `IpcError` phân biệt được — nhưng vế **hiển thị** là một món nợ có chủ,
+ * ghi ở `deferred-work.md` §*"Deferred from: code review of story 2-5"*. Đừng đọc dòng này
+ * thành *"đã có đường ra màn hình"*.
+ */
+export type ConfirmResult =
+  | 'confirmed'
+  | 'no-caret'
+  | 'flush-failed'
+  | 'refused'
+  /**
+   * 🔵 Quyết định #8, Ice ký 2026-08-14 — tập chờ **vẫn còn dơ** sau **hai** lượt flush ⇒
+   * KHÔNG ký. Thà một phím tắt không làm gì còn hơn ký một văn bản người dùng chưa từng thấy.
+   */
+  | 'still-dirty'
+
+const confirmError = shallowRef<IpcError | null>(null)
+/** Lỗi gần nhất Rust trả lời cho một lượt xác nhận. `null` ⇒ chưa lượt nào bị từ chối. */
+export const editorConfirmError: DeepReadonly<Ref<IpcError | null>> = readonly(confirmError)
+
+/**
+ * `segment.id` mà giao diện được yêu cầu **đặt con trỏ DOM vào đầu câu đó**.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 VÌ SAO MỘT TÍN HIỆU RIÊNG, KHÔNG TÁI DÙNG WATCHER SẴN CÓ CỦA `editorCaretSegmentId`
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Watcher trong `EditorPanel.vue` **khôi phục** caret về đúng chỗ nó vừa ở (`savedCaret`),
+ * và nó cố ý **không làm gì** khi vị trí đã lưu không nằm trong câu mới. Nới nhánh đó thành
+ * *"không nằm trong thì đặt vào đầu câu"* sẽ chạy cả trên **đường chuột** — và ở đó nó kéo
+ * caret về đầu câu sau một cú bấm vào giữa câu.
+ *
+ * ⇒ Một tín hiệu **tường minh** nói đúng một điều: *"lượt dời này là do CHƯƠNG TRÌNH, hãy đặt
+ * caret vào đầu câu."* Đường chuột không đụng tới nó.
+ *
+ * ⚠️ Đường bấm chuột của Story 2.3 mất **ba lượt chẩn đoán** mới đúng *(hai lượt đầu bị bác
+ * bằng phép đo)*. Không nới nó cho một tính năng khác.
+ */
+const caretPlacement = shallowRef<number | null>(null)
+/** Xem [`caretPlacement`]. `EditorPanel.vue` đọc, đặt caret, rồi gọi [`clearEditorCaretPlacement`]. */
+export const editorCaretPlacement: DeepReadonly<Ref<number | null>> = readonly(caretPlacement)
+
+/** Giao diện đã đặt xong caret ⇒ dọn tín hiệu, để lượt sau còn phân biệt được. */
+export function clearEditorCaretPlacement(): void {
+  caretPlacement.value = null
+}
+
+/**
+ * **Xác nhận câu đang có con trỏ** — FR24, và đây là chỗ giao ba mệnh đề cùng lúc.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ① AD-35 vế (c) — FLUSH TRƯỚC, VÀ FLUSH PHẢI **XONG** (đã vào WAL)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `confirm_segment` phía Rust chỉ đọc thứ **đã ở trên đĩa**. Gọi nó trước khi lượt flush
+ * chạm WAL sẽ ký một văn bản **cũ hơn** thứ người dùng đang nhìn, và `SegmentVersion` sinh ra
+ * mang đúng văn bản cũ đó ⇒ FR101 khôi phục về một thứ chưa bao giờ ở trên màn hình.
+ *
+ * 🔴 `'failed'` ⇒ **DỪNG, không xác nhận**. Ký một câu mà lượt lưu vừa trượt là ghi một chữ ký
+ * cho một văn bản không tồn tại trên đĩa.
+ *
+ * ⚠️ **GIỚI HẠN THẬT:** mệnh đề *"flush trước"* **không** cưỡng chế được ở tầng Rust — lệnh
+ * IPC không biết gì về văn bản đang gõ. Lưới duy nhất là hàm này cộng
+ * `tests/frontend/editorConfirmSegment.test.ts`. Một chỗ gọi tương lai `invoke` thẳng
+ * `confirm_segment` sẽ đi vòng qua nó mà **không cổng nào đỏ**.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ② Quyết định #1 (Ice ký 2026-08-14, đường (a)) — DỜI CON TRỎ SANG CÂU KẾ TIẾP
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `resolveSegmentRule` cho `primary` **thắng** `confirmed` *(một mệnh đề về **hiện tại** thắng
+ * một mệnh đề về **quá khứ**, `editorSegments.ts:95-97`)*. Người dùng bấm xác nhận trên chính
+ * câu con trỏ đang đứng ⇒ nếu con trỏ ở lại, vạch **vẫn** `primary` và AC1 mô tả một đổi màu
+ * không xảy ra. Dời con trỏ đi làm câu vừa ký hiện `confirmed` **ngay**, và
+ * `resolveSegmentRule` đổi **0 dòng**.
+ *
+ * ⚠️ Đây là **một** đường dời tối thiểu. **Story 2.10** (*điều hướng segment*) **dùng lại** nó,
+ * không dựng đường thứ hai.
+ * ⚠️ Câu cuối Chương không có câu kế ⇒ con trỏ **ở lại**, và vạch ở lại `primary` cho tới khi
+ * người dùng đi chỗ khác. Ca này có thật và không có lời giải nào tốt hơn trong phạm vi story.
+ * 🔵 **Code review 2026-08-14:** ca đó là một vế **AC1 không đạt** *(vạch không chuyển
+ * `confirmed`)*, xảy ra **đúng một lần mỗi Chương**. Nó nay có chủ — `deferred-work.md`
+ * §*"Deferred from: code review of 2-5…"*, **chủ: Story 2.10**. Ghi ra ở đây là chưa đủ: một
+ * mệnh đề chỉ sống trong chú thích là một mệnh đề không ai theo dõi.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ③ ẢNH CHỤP HIỂN THỊ — và vì sao nó KHÔNG huỷ mốc so sánh của FR117
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Vạch lề đọc `segment.status` từ [`segments`], nên trạng thái mới phải vào ảnh chụp đó, nếu
+ * không màn hình nói dối cho tới lượt nạp lại. Lượt cập nhật dưới đây thay **đúng một** trường
+ * `status` và dựng một mảng mới *(`shallowRef` không theo dõi sửa tại chỗ)*.
+ *
+ * 🔴 `target_text` **KHÔNG bị đụng**, và đó là điều kiện của AC11(a): [`segments`] giữ bản
+ * **lúc nạp**, tức mốc mà FR117 (Story 2.7) so *"văn bản đích hiện tại với bản lúc nạp"* —
+ * **không dùng cờ dirty** (hợp đồng phụ AD-31).
+ */
+export async function confirmCurrentSegment(): Promise<ConfirmResult> {
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 🔴 KHOÁ CHỐNG-GỌI-LẠI — code review 2026-08-14
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Cùng khuôn và cùng lý do với [`inFlight`] của `flushEditorNow`, nhưng đường hỏng khác
+  // hẳn nên nó cần một khoá **riêng**: `inFlight` chỉ bọc lượt FLUSH bên trong, không bọc
+  // cả lượt xác nhận.
+  //
+  // Đường hỏng đo được: bấm `Mod+Enter` hai lần liên tiếp nhanh *(thói quen "bấm lại cho
+  // chắc" — không có chỉ báo đang xử lý)*. Cả hai lượt đọc `caretSegmentId` **trước** khi
+  // lượt đầu xong nên cùng thấy id `X`. AC13 lo phần Rust *(lượt hai không tạo
+  // `SegmentVersion`)*, nhưng phần GIAO DIỆN thì không: cả hai lượt đều chạy tới nhánh dời
+  // con trỏ và cùng gán `caretPlacement.value = Y`.
+  //
+  // 🔴 Và lượt gán thứ hai **có** bắn watcher, dù giá trị y hệt: watcher ở
+  // `EditorPanel.vue` gọi `clearEditorCaretPlacement()` ngay dòng đầu — nó là watcher **một
+  // phát**, đưa ref về `null` sau khi dùng. Nên `null → Y` là một lượt đổi thật, và
+  // `setCaret(first ?? target, 0)` chạy lần hai, **kéo caret về offset 0** của câu kế tiếp —
+  // kể cả khi người dùng đã kịp gõ vài ký tự vào đó. Đúng lớp khuyết tật *"caret rơi về
+  // offset 0, ký tự kế tiếp chèn vào đầu"* mà `EditorPanel.vue` ghi là nặng nhất từng bắt
+  // được ở story trước.
+  //
+  // ⇒ Lượt thứ hai **nhập vào** lượt đang bay và trả cùng một kết quả: một thao tác người
+  //   dùng, một lượt dời con trỏ.
+  const running = confirmInFlight
+  if (running !== null) return running
+
+  const run = confirmCurrentSegmentUnguarded()
+  confirmInFlight = run
+  try {
+    return await run
+  } finally {
+    confirmInFlight = null
+  }
+}
+
+/** Lượt xác nhận đang bay, hoặc `null`. Xem khối lý do trong [`confirmCurrentSegment`]. */
+let confirmInFlight: Promise<ConfirmResult> | null = null
+
+async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
+  const id = caretSegmentId.value
+  if (id === null) return 'no-caret'
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 🔴 ① AD-35 vế (c) — MÃ KẾT QUẢ CỦA FLUSH KHÔNG ĐỒNG NGHĨA VỚI "TẬP CHỜ SẠCH"
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 🔵 Quyết định #8, Ice ký 2026-08-14, sau một khe hở mà code review bắt được.
+  //
+  // Bản trước chỉ viết `if ((await flushEditorNow()) === 'failed') return 'flush-failed'`.
+  // Hai thứ đó **không** đồng nghĩa, và chỗ lệch nằm ở nhánh *originator* của
+  // `flushEditorNow`: nó chụp `snapshot` **trước** lượt IPC, và khi lô về thì chỉ
+  // `armFlushTimer(0)` rồi trả `'saved'` — nó **không** đệ quy như nhánh *joiner* ở trên.
+  // Đó là hành vi ĐÚNG cho auto-save *(đệ quy ở đó là quay vòng trong lúc người dùng gõ
+  // liên tục, đúng thứ trần cứng AD-35 tồn tại để tránh)* — nhưng nó sai cho lượt ký.
+  //
+  // Đường hỏng đo được: người dùng gõ nốt một ký tự **sau** khi bấm `Mod+Enter`, trong lúc
+  // lô đang bay. `Store::write` là hàng đợi **nối tiếp** nên cửa sổ đó rộng ra theo số job
+  // đang xếp hàng, không phải một hằng số nhỏ. Ký tự mới nằm ngoài `snapshot`, vẫn
+  // `isDirty()`, nhưng flush trả `'saved'` ⇒ lượt ký đi tiếp và Rust ký **văn bản trên
+  // đĩa**, tức bản thiếu ký tự cuối. Hậu quả kép, và cả hai đều im lặng:
+  //   (1) một `SegmentVersion` mang văn bản **chưa bao giờ ở trên màn hình** đi **vĩnh
+  //       viễn** vào lịch sử FR101;
+  //   (2) timer vừa lên dây flush nốt ký tự sót qua `flush_segment_targets` — mà hàm đó
+  //       **hạ trạng thái trước** ⇒ câu vừa ký **tự trở về `draft`** vài mili-giây sau.
+  //
+  // ⇒ Thử lại **đúng một** lượt, còn dơ nữa thì **từ chối**. Một lượt đóng ca thường (một
+  //   ký tự lẻ) mà không phải đặt một trần lặp mới; đường từ chối giữ cho ca bệnh lý.
+  if ((await flushEditorNow()) === 'failed') return 'flush-failed'
+  if (flush.isDirty()) {
+    if ((await flushEditorNow()) === 'failed') return 'flush-failed'
+    if (flush.isDirty()) {
+      // 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."* Chẩn đoán nêu
+      // đích danh, cùng khuôn hai dòng `console.error` của `flushEditorNow`.
+      console.error(
+        `[editor] KHÔNG ký segment ${id}: tập chờ vẫn dơ sau hai lượt flush — ` +
+          `từ chối thay vì ký một văn bản cũ hơn thứ đang trên màn hình (Quyết định #8).`,
+      )
+      return 'still-dirty'
+    }
+  }
+
+  const { outcome, error } = await confirmSegment(id)
+  if (outcome === null) {
+    // ⚠️ `error === null` cũng vào đây: đó là ca *"không có cầu IPC"* (`npm run dev` trong một
+    //    trình duyệt thường). Không ca nào được coi là đã xác nhận.
+    confirmError.value = error
+    return 'refused'
+  }
+  confirmError.value = null
+
+  // ③ Ảnh chụp hiển thị.
+  const index = segments.value.findIndex((s) => s.id === id)
+  if (index >= 0) {
+    const next = [...segments.value]
+    next[index] = { ...next[index], status: outcome.status }
+    segments.value = next
+
+    // ② Quyết định #1(a) — dời con trỏ sang câu kế tiếp, nếu có.
+    //
+    // 🔴 `.at()` chứ **không** `next[index + 1]`, và đó là một lượt **sửa kiểu cho nó nói
+    // thật** chứ không một lượt né cổng. `noUncheckedIndexedAccess` đang TẮT, nên chỉ mục
+    // mảng khai kiểu `ChapterSegment` — không `| undefined` — dù lúc chạy nó **là**
+    // `undefined` ở câu cuối Chương. Với kiểu đó, `if (following !== undefined)` là một
+    // nhánh mà `@typescript-eslint/no-unnecessary-condition` **đỏ** *(cổng thứ mười, đo
+    // 2026-08-14)*, và đường sai rẻ là nhét một `eslint-disable`. `.at()` khai đúng
+    // `ChapterSegment | undefined`, nên cả kiểu lẫn phép kiểm cùng nói một sự thật.
+    const following = next.at(index + 1)
+    if (following !== undefined) {
+      setEditorCaret(following.id)
+      caretPlacement.value = following.id
+    }
+  }
+
+  return 'confirmed'
 }

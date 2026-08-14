@@ -35,6 +35,10 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     target_text: 'Hắn đẩy cánh cửa ấy ra.',
     is_paragraph_end: false,
     retired_at: null,
+    // 🔵 2026-08-14 (Story 2.5) — cột `status` ra đời cùng bước di trú 7. Câu này ĐÃ KÝ:
+    // fixture phải chở được cả hai giá trị, nếu không nhánh `confirmed` của vạch lề không
+    // có ca nào đi qua.
+    status: 'confirmed',
   },
   {
     id: 12,
@@ -43,6 +47,8 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     target_text: 'Gió thổi tới từ cuối hành lang.',
     is_paragraph_end: true,
     retired_at: null,
+    // Đã dịch, CHƯA ký — hàng mà Quyết định #3 phân xử: *không vạch*.
+    status: 'draft',
   },
   {
     id: 13,
@@ -51,6 +57,8 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     target_text: '',
     is_paragraph_end: false,
     retired_at: null,
+    // Chưa dịch ⇒ *không vạch*, và Quyết định #7 cấm xác nhận nó.
+    status: 'draft',
   },
 ]
 

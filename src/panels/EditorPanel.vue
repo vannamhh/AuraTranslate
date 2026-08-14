@@ -63,6 +63,8 @@ import {
 } from './editorGutter'
 import { resolveSegmentRule, ruleClassOf, segmentRuleInputOf } from './editorSegments'
 import {
+  clearEditorCaretPlacement,
+  editorCaretPlacement,
   editorCaretSegmentId,
   editorChapterId,
   editorEditedText,
@@ -393,6 +395,44 @@ watch(
         ? (saved.node as Text).data.length
         : saved.node.childNodes.length
     setCaret(saved.node, Math.min(saved.offset, max))
+  },
+  { flush: 'post' },
+)
+
+/**
+ * Đặt caret vào **đầu** một câu, theo một yêu cầu **của chương trình** — Story 2.5,
+ * Quyết định #1(a).
+ *
+ * 🔴 Đây là watcher **thứ hai** trên cùng một địa hạt, và nó tách rời có lý do đo được.
+ * Watcher ngay trên **khôi phục** caret về `savedCaret` và cố ý **không làm gì** khi vị trí
+ * đã lưu không nằm trong câu mới. Nới nhánh đó thành *"không nằm trong thì đặt vào đầu"* sẽ
+ * chạy cả trên **đường chuột**, nơi nó kéo caret về đầu câu sau một cú bấm vào giữa câu —
+ * một khuyết tật thị giác mà đường bấm của Story 2.3 đã tốn ba lượt chẩn đoán để làm đúng.
+ *
+ * ⇒ Chỉ chạy khi `editorCaretPlacement` được đặt, tức chỉ trên đường lệnh xác nhận.
+ *
+ * `flush: 'post'` là bắt buộc, cùng lý do watcher trên: trước lượt patch của Vue thì
+ * `<span>` mới còn chưa mang `contenteditable`, nên `focus()` ở đó không đặt được caret.
+ *
+ * ⚠️ **Câu CHƯA DỊCH là một `<span>` RỖNG** — không text node nào để neo caret. `setCaret`
+ * vào chính phần tử ở offset 0 là hình dạng duy nhất chạy được ở đó; đó cũng là lý do lượt
+ * gọi này **không** khẳng định kết quả thành một điều kiện chặn. Ca gõ đầu tiên vào một câu
+ * rỗng là một món treo **có chủ của Story 2.3**, và story này không nhận nó.
+ */
+watch(
+  editorCaretPlacement,
+  (id) => {
+    if (id === null) return
+    clearEditorCaretPlacement()
+
+    const host = doc.value
+    if (host === null) return
+    const target = host.querySelector<HTMLElement>(`[${SEGMENT_ID_ATTR}="${id}"]`)
+    if (target === null) return
+
+    target.focus()
+    const first = target.firstChild
+    setCaret(first ?? target, 0)
   },
   { flush: 'post' },
 )
@@ -855,7 +895,7 @@ const chapterId = computed(() => editorChapterId.value)
               :key="r.id"
               class="gmark"
               :class="ruleClassById.get(r.id)"
-              :style="{ top: `${r.top}px`, height: `${r.height}px` }"
+              :style="{ top: `${r.top}px`, height: `${r.height}px`, left: `${r.left}px` }"
             ></div>
           </div>
 
@@ -988,9 +1028,20 @@ const chapterId = computed(() => editorChapterId.value)
  * không phải bóng đổ, nhưng cổng đọc **thuộc tính** chứ không đọc ý định, và sự bất đối xứng
  * đó là có chủ ý (`check-tokens.mjs:1364-1368`).
  */
+/*
+ * 🔵 CẬP NHẬT 2026-08-14 (Story 2.5, Quyết định #2(a) do Ice ký): `left` **rời khỏi đây**.
+ *
+ * Tới hết Story 2.3 chỉ **một** giá trị vạch có nguồn dữ liệu (`primary`, và caret chỉ có
+ * một), nên một `left` cố định trong CSS là đủ. Story 2.5 cho `confirmed` một nguồn ⇒ hai
+ * vạch **cùng tồn tại**, và hai câu cùng một dòng cho hai vạch cùng `top` VÀ cùng `left` ⇒
+ * cái sau **che** cái trước. Đo 2026-08-14 trên fixture đối thoại: **6/11 vạch bị che**.
+ *
+ * ⇒ `left` nay do `editorGutter.ts::assignGutterLanes` tính và đi qua `:style`, cùng đường
+ * với `top`/`height`. **Hình học** bind bằng style, **màu** bind bằng lớp — ranh giới đó là
+ * điều kiện để Kiểm B của `check-tokens.mjs` còn đọc được bốn màu vạch từ CSS.
+ */
 .gmark {
   position: absolute;
-  left: 8px;
   width: 2px;
   border-radius: var(--radius-sm);
 }

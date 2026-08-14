@@ -252,6 +252,25 @@ export type CommandDeps = {
   // gán lại phím được, không liệt kê được ở màn hình gán phím của **Story 1.21**, và không đi qua
   // ba phép cưỡng chế của `register()`.
 
+  // ── Story 2.5 — xác nhận segment (FR24 · AD-31) ─────────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `runLookup`: cài đặt sống ở
+  // `src/panels/editorPanelState.ts`, dùng `ref`/`shallowRef` của Vue **và** `invoke` của
+  // `@tauri-apps/api` — import thẳng nó ở đây giết Kiểm C/D/E cùng một lượt.
+
+  /**
+   * Xác nhận câu đang có con trỏ trong Panel Editor. Handler của `editor.confirm_segment`.
+   *
+   * ⚠️ Cài đặt thật là `async`; kiểu `() => void` ở đây khớp cùng khuôn `runLookup` —
+   * promise trả về bị bỏ qua có chủ ý, trạng thái đi ra qua `ref` ở tầng module.
+   *
+   * 🔴 Cổng này **phải** là đường đã flush xong rồi mới `invoke` (AD-35 vế (c)). Một chỗ nối
+   * tương lai cắm thẳng `confirmSegment` của `config/segment.ts` vào đây sẽ ký một văn bản
+   * cũ hơn thứ người dùng đang nhìn, và **không cổng nào bắt được** — xem doc-comment của
+   * `editorPanelState.ts::confirmCurrentSegment`.
+   */
+  confirmSegment?: () => void
+
   /** Đặt caret vào bề mặt chữ đầu tiên đã đăng ký. Handler của `selection.focus_source`. */
   focusSelectionSource?: () => boolean
   /** Mở rộng vùng chọn một KÝ TỰ sang trái. Handler của `selection.extend_left`. */
@@ -824,6 +843,53 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     })
   }
 
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 2.5 — `editor.confirm_segment` (FR24 · AD-31 · AC5)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * **Command ĐẦU TIÊN mang tiền tố miền `editor.`**, và việc chốt tiền tố đó là một quyết
+   * định có tuổi thọ dài hơn story này: Story 2.8/2.9/2.10 sẽ dùng tiếp
+   * (`editor.merge_segments`, `editor.split_segment`, `editor.next_segment`…). Ice ký
+   * 2026-08-14, Quyết định #4.
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🔴 CHỌN HỢP ÂM `Mod+Enter` — và một xung đột ĐÃ BIẾT, ghi ra thay vì để người sau gặp
+   * ─────────────────────────────────────────────────────────────────────────────
+   * `EXPERIENCE.md:169` đã dùng `⌘↵` cho *"xác nhận nhập"* ở màn xem trước — **cùng ngữ
+   * nghĩa "ký duyệt"**, khác bề mặt. Hôm nay `⌘↵` chưa ai đăng ký, nên nó rảnh.
+   *
+   * ⚠️ **GIỚI HẠN THẬT:** `check:commands` kiểm trùng hợp âm **trên toàn bộ registry**,
+   * không theo chế độ. Ngày Epic 6 đăng ký lệnh *"xác nhận nhập"* cũng bằng `⌘↵`, cổng sẽ
+   * **đỏ** và một trong hai phải nhường. Món này ghi trong `deferred-work.md` với chủ là
+   * **Story 6.2** — nó không được lộ ra dưới dạng một cổng đỏ không ai hiểu.
+   *
+   * ⚠️ Cổng chỉ kiểm trùng **nội bộ** bộ command; nó **không biết gì** về phím của hệ điều
+   * hành. Lưới ở đây là con người — tiền lệ `⌘⌥H` bị macOS nuốt (Ice chốt đổi 2026-08-06).
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🔴 VÌ SAO MỘT COMMAND, KHÔNG MỘT `@keydown` TRÊN BỀ MẶT GÕ
+   * ─────────────────────────────────────────────────────────────────────────────
+   * AD-34 §1 — sàn khả năng tiếp cận là **cấu trúc**, không kỷ luật. Và có một cái bẫy cụ
+   * thể ở đây: **Kiểm A của `check:commands` chỉ canh `@click`** (`deferred-work.md:166`).
+   * Một `@keydown` gọi thẳng hàm dựng một đường thứ hai mà **không cổng nào nhìn thấy** —
+   * nên mọi bề mặt phải phát **cùng một** `dispatch('editor.confirm_segment')`.
+   *
+   * ⚠️ `Mod+Enter` **mang `Meta`/`Ctrl`**, nên nó đi qua được luật vùng gõ của `keys.ts:287`
+   * (`lacksPrimaryMod && isTypingZone`) — tức nó vẫn bắn khi con trỏ đang ở trong câu đang
+   * gõ, đúng chỗ duy nhất mà thao tác này có nghĩa.
+   */
+  target.register({
+    id: 'editor.confirm_segment',
+    labelKey: 'command.editor.confirm_segment',
+    keys: ['Mod+Enter'],
+    run: () => {
+      if (deps.confirmSegment === undefined) {
+        return portMissing('editor.confirm_segment', 'confirmSegment')
+      }
+      deps.confirmSegment()
+    },
+  })
   // ── Story 1.21 — màn hình phím tắt ────────────────────────────────────────────
   //
   // 🔴 NĂM ID TĨNH, và đó là §KHÔNG-LÀM ⑤ viết thành chữ ký — cùng khuôn `toggleDictSource`

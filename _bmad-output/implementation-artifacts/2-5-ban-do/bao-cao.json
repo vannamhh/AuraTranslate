@@ -1,0 +1,762 @@
+{
+ "blink-light": {
+  "engine": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "theme": "light",
+  "fixtures": {
+   "tron": {
+    "rules": {
+     "1": "primary",
+     "2": "confirmed",
+     "3": "none",
+     "4": "none",
+     "5": "confirmed",
+     "6": "tm-rule",
+     "7": "confirmed",
+     "8": "ornament",
+     "9": "confirmed"
+    },
+    "variants": {
+     "hien-trang": {
+      "ve_ra": 7,
+      "vi_tri_phan_biet": 6,
+      "bi_che": 1,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 0
+     },
+     "a-nhieu-lan": {
+      "ve_ra": 7,
+      "vi_tri_phan_biet": 7,
+      "bi_che": 0,
+      "lan_cao_nhat": 2,
+      "so_lan_can": 3,
+      "buoc_lan_px": 5,
+      "mep_phai_lan_ngoai_px": 20,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 0
+     },
+     "b-mot-vach": {
+      "ve_ra": 5,
+      "vi_tri_phan_biet": 5,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 4
+     },
+     "c-chia-doc": {
+      "ve_ra": 10,
+      "vi_tri_phan_biet": 10,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 5.67,
+      "dong_bi_noi_doi": 0
+     }
+    },
+    "dong": {
+     "tong_so_dong_co_vach": 5,
+     "so_dong_mang_TU_HAI_CAU_TRO_LEN": 4,
+     "nhieu_cau_nhat_tren_mot_dong": 3,
+     "chi_tiet": [
+      [
+       "1:primary"
+      ],
+      [
+       "1:primary",
+       "2:confirmed"
+      ],
+      [
+       "5:confirmed",
+       "6:tm-rule"
+      ],
+      [
+       "6:tm-rule",
+       "7:confirmed"
+      ],
+      [
+       "7:confirmed",
+       "8:ornament",
+       "9:confirmed"
+      ]
+     ],
+     "cao_mot_dong_px": 17
+    }
+   },
+   "doi-thoai": {
+    "rules": {
+     "11": "confirmed",
+     "12": "tm-rule",
+     "13": "confirmed",
+     "14": "primary",
+     "15": "confirmed",
+     "16": "ornament",
+     "17": "confirmed",
+     "18": "tm-rule",
+     "19": "confirmed",
+     "20": "confirmed",
+     "21": "none",
+     "22": "confirmed"
+    },
+    "variants": {
+     "hien-trang": {
+      "ve_ra": 11,
+      "vi_tri_phan_biet": 5,
+      "bi_che": 6,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 0
+     },
+     "a-nhieu-lan": {
+      "ve_ra": 11,
+      "vi_tri_phan_biet": 11,
+      "bi_che": 0,
+      "lan_cao_nhat": 4,
+      "so_lan_can": 5,
+      "buoc_lan_px": 3,
+      "mep_phai_lan_ngoai_px": 22,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 0
+     },
+     "b-mot-vach": {
+      "ve_ra": 3,
+      "vi_tri_phan_biet": 3,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 3
+     },
+     "c-chia-doc": {
+      "ve_ra": 13,
+      "vi_tri_phan_biet": 13,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 3.4,
+      "dong_bi_noi_doi": 0
+     }
+    },
+    "dong": {
+     "tong_so_dong_co_vach": 3,
+     "so_dong_mang_TU_HAI_CAU_TRO_LEN": 3,
+     "nhieu_cau_nhat_tren_mot_dong": 5,
+     "chi_tiet": [
+      [
+       "11:confirmed",
+       "12:tm-rule",
+       "13:confirmed",
+       "14:primary"
+      ],
+      [
+       "14:primary",
+       "15:confirmed",
+       "16:ornament",
+       "17:confirmed",
+       "18:tm-rule"
+      ],
+      [
+       "18:tm-rule",
+       "19:confirmed",
+       "20:confirmed",
+       "22:confirmed"
+      ]
+     ],
+     "cao_mot_dong_px": 17
+    }
+   }
+  }
+ },
+ "blink-dark": {
+  "engine": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "theme": "dark",
+  "fixtures": {
+   "tron": {
+    "rules": {
+     "1": "primary",
+     "2": "confirmed",
+     "3": "none",
+     "4": "none",
+     "5": "confirmed",
+     "6": "tm-rule",
+     "7": "confirmed",
+     "8": "ornament",
+     "9": "confirmed"
+    },
+    "variants": {
+     "hien-trang": {
+      "ve_ra": 7,
+      "vi_tri_phan_biet": 6,
+      "bi_che": 1,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 0
+     },
+     "a-nhieu-lan": {
+      "ve_ra": 7,
+      "vi_tri_phan_biet": 7,
+      "bi_che": 0,
+      "lan_cao_nhat": 2,
+      "so_lan_can": 3,
+      "buoc_lan_px": 5,
+      "mep_phai_lan_ngoai_px": 20,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 0
+     },
+     "b-mot-vach": {
+      "ve_ra": 5,
+      "vi_tri_phan_biet": 5,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 4
+     },
+     "c-chia-doc": {
+      "ve_ra": 10,
+      "vi_tri_phan_biet": 10,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 5.67,
+      "dong_bi_noi_doi": 0
+     }
+    },
+    "dong": {
+     "tong_so_dong_co_vach": 5,
+     "so_dong_mang_TU_HAI_CAU_TRO_LEN": 4,
+     "nhieu_cau_nhat_tren_mot_dong": 3,
+     "chi_tiet": [
+      [
+       "1:primary"
+      ],
+      [
+       "1:primary",
+       "2:confirmed"
+      ],
+      [
+       "5:confirmed",
+       "6:tm-rule"
+      ],
+      [
+       "6:tm-rule",
+       "7:confirmed"
+      ],
+      [
+       "7:confirmed",
+       "8:ornament",
+       "9:confirmed"
+      ]
+     ],
+     "cao_mot_dong_px": 17
+    }
+   },
+   "doi-thoai": {
+    "rules": {
+     "11": "confirmed",
+     "12": "tm-rule",
+     "13": "confirmed",
+     "14": "primary",
+     "15": "confirmed",
+     "16": "ornament",
+     "17": "confirmed",
+     "18": "tm-rule",
+     "19": "confirmed",
+     "20": "confirmed",
+     "21": "none",
+     "22": "confirmed"
+    },
+    "variants": {
+     "hien-trang": {
+      "ve_ra": 11,
+      "vi_tri_phan_biet": 5,
+      "bi_che": 6,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 0
+     },
+     "a-nhieu-lan": {
+      "ve_ra": 11,
+      "vi_tri_phan_biet": 11,
+      "bi_che": 0,
+      "lan_cao_nhat": 4,
+      "so_lan_can": 5,
+      "buoc_lan_px": 3,
+      "mep_phai_lan_ngoai_px": 22,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 0
+     },
+     "b-mot-vach": {
+      "ve_ra": 3,
+      "vi_tri_phan_biet": 3,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17,
+      "dong_bi_noi_doi": 3
+     },
+     "c-chia-doc": {
+      "ve_ra": 13,
+      "vi_tri_phan_biet": 13,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 3.4,
+      "dong_bi_noi_doi": 0
+     }
+    },
+    "dong": {
+     "tong_so_dong_co_vach": 3,
+     "so_dong_mang_TU_HAI_CAU_TRO_LEN": 3,
+     "nhieu_cau_nhat_tren_mot_dong": 5,
+     "chi_tiet": [
+      [
+       "11:confirmed",
+       "12:tm-rule",
+       "13:confirmed",
+       "14:primary"
+      ],
+      [
+       "14:primary",
+       "15:confirmed",
+       "16:ornament",
+       "17:confirmed",
+       "18:tm-rule"
+      ],
+      [
+       "18:tm-rule",
+       "19:confirmed",
+       "20:confirmed",
+       "22:confirmed"
+      ]
+     ],
+     "cao_mot_dong_px": 17
+    }
+   }
+  }
+ },
+ "webkit-light": {
+  "engine": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15",
+  "theme": "light",
+  "fixtures": {
+   "tron": {
+    "rules": {
+     "1": "primary",
+     "2": "confirmed",
+     "3": "none",
+     "4": "none",
+     "5": "confirmed",
+     "6": "tm-rule",
+     "7": "confirmed",
+     "8": "ornament",
+     "9": "confirmed"
+    },
+    "variants": {
+     "hien-trang": {
+      "ve_ra": 7,
+      "vi_tri_phan_biet": 6,
+      "bi_che": 1,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 0
+     },
+     "a-nhieu-lan": {
+      "ve_ra": 7,
+      "vi_tri_phan_biet": 7,
+      "bi_che": 0,
+      "lan_cao_nhat": 2,
+      "so_lan_can": 3,
+      "buoc_lan_px": 5,
+      "mep_phai_lan_ngoai_px": 20,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 0
+     },
+     "b-mot-vach": {
+      "ve_ra": 5,
+      "vi_tri_phan_biet": 5,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 4
+     },
+     "c-chia-doc": {
+      "ve_ra": 10,
+      "vi_tri_phan_biet": 10,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 5.68,
+      "dong_bi_noi_doi": 0
+     }
+    },
+    "dong": {
+     "tong_so_dong_co_vach": 5,
+     "so_dong_mang_TU_HAI_CAU_TRO_LEN": 4,
+     "nhieu_cau_nhat_tren_mot_dong": 3,
+     "chi_tiet": [
+      [
+       "1:primary"
+      ],
+      [
+       "1:primary",
+       "2:confirmed"
+      ],
+      [
+       "5:confirmed",
+       "6:tm-rule"
+      ],
+      [
+       "6:tm-rule",
+       "7:confirmed"
+      ],
+      [
+       "7:confirmed",
+       "8:ornament",
+       "9:confirmed"
+      ]
+     ],
+     "cao_mot_dong_px": 17.04
+    }
+   },
+   "doi-thoai": {
+    "rules": {
+     "11": "confirmed",
+     "12": "tm-rule",
+     "13": "confirmed",
+     "14": "primary",
+     "15": "confirmed",
+     "16": "ornament",
+     "17": "confirmed",
+     "18": "tm-rule",
+     "19": "confirmed",
+     "20": "confirmed",
+     "21": "none",
+     "22": "confirmed"
+    },
+    "variants": {
+     "hien-trang": {
+      "ve_ra": 11,
+      "vi_tri_phan_biet": 5,
+      "bi_che": 6,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 0
+     },
+     "a-nhieu-lan": {
+      "ve_ra": 11,
+      "vi_tri_phan_biet": 11,
+      "bi_che": 0,
+      "lan_cao_nhat": 4,
+      "so_lan_can": 5,
+      "buoc_lan_px": 3,
+      "mep_phai_lan_ngoai_px": 22,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 0
+     },
+     "b-mot-vach": {
+      "ve_ra": 3,
+      "vi_tri_phan_biet": 3,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 3
+     },
+     "c-chia-doc": {
+      "ve_ra": 13,
+      "vi_tri_phan_biet": 13,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 3.41,
+      "dong_bi_noi_doi": 0
+     }
+    },
+    "dong": {
+     "tong_so_dong_co_vach": 3,
+     "so_dong_mang_TU_HAI_CAU_TRO_LEN": 3,
+     "nhieu_cau_nhat_tren_mot_dong": 5,
+     "chi_tiet": [
+      [
+       "11:confirmed",
+       "12:tm-rule",
+       "13:confirmed",
+       "14:primary"
+      ],
+      [
+       "14:primary",
+       "15:confirmed",
+       "16:ornament",
+       "17:confirmed",
+       "18:tm-rule"
+      ],
+      [
+       "18:tm-rule",
+       "19:confirmed",
+       "20:confirmed",
+       "22:confirmed"
+      ]
+     ],
+     "cao_mot_dong_px": 17.04
+    }
+   }
+  }
+ },
+ "webkit-dark": {
+  "engine": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15",
+  "theme": "dark",
+  "fixtures": {
+   "tron": {
+    "rules": {
+     "1": "primary",
+     "2": "confirmed",
+     "3": "none",
+     "4": "none",
+     "5": "confirmed",
+     "6": "tm-rule",
+     "7": "confirmed",
+     "8": "ornament",
+     "9": "confirmed"
+    },
+    "variants": {
+     "hien-trang": {
+      "ve_ra": 7,
+      "vi_tri_phan_biet": 6,
+      "bi_che": 1,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 0
+     },
+     "a-nhieu-lan": {
+      "ve_ra": 7,
+      "vi_tri_phan_biet": 7,
+      "bi_che": 0,
+      "lan_cao_nhat": 2,
+      "so_lan_can": 3,
+      "buoc_lan_px": 5,
+      "mep_phai_lan_ngoai_px": 20,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 0
+     },
+     "b-mot-vach": {
+      "ve_ra": 5,
+      "vi_tri_phan_biet": 5,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 4
+     },
+     "c-chia-doc": {
+      "ve_ra": 10,
+      "vi_tri_phan_biet": 10,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 5.68,
+      "dong_bi_noi_doi": 0
+     }
+    },
+    "dong": {
+     "tong_so_dong_co_vach": 5,
+     "so_dong_mang_TU_HAI_CAU_TRO_LEN": 4,
+     "nhieu_cau_nhat_tren_mot_dong": 3,
+     "chi_tiet": [
+      [
+       "1:primary"
+      ],
+      [
+       "1:primary",
+       "2:confirmed"
+      ],
+      [
+       "5:confirmed",
+       "6:tm-rule"
+      ],
+      [
+       "6:tm-rule",
+       "7:confirmed"
+      ],
+      [
+       "7:confirmed",
+       "8:ornament",
+       "9:confirmed"
+      ]
+     ],
+     "cao_mot_dong_px": 17.04
+    }
+   },
+   "doi-thoai": {
+    "rules": {
+     "11": "confirmed",
+     "12": "tm-rule",
+     "13": "confirmed",
+     "14": "primary",
+     "15": "confirmed",
+     "16": "ornament",
+     "17": "confirmed",
+     "18": "tm-rule",
+     "19": "confirmed",
+     "20": "confirmed",
+     "21": "none",
+     "22": "confirmed"
+    },
+    "variants": {
+     "hien-trang": {
+      "ve_ra": 11,
+      "vi_tri_phan_biet": 5,
+      "bi_che": 6,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 0
+     },
+     "a-nhieu-lan": {
+      "ve_ra": 11,
+      "vi_tri_phan_biet": 11,
+      "bi_che": 0,
+      "lan_cao_nhat": 4,
+      "so_lan_can": 5,
+      "buoc_lan_px": 3,
+      "mep_phai_lan_ngoai_px": 22,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 0
+     },
+     "b-mot-vach": {
+      "ve_ra": 3,
+      "vi_tri_phan_biet": 3,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 17.04,
+      "dong_bi_noi_doi": 3
+     },
+     "c-chia-doc": {
+      "ve_ra": 13,
+      "vi_tri_phan_biet": 13,
+      "bi_che": 0,
+      "lan_cao_nhat": 0,
+      "so_lan_can": 1,
+      "buoc_lan_px": null,
+      "mep_phai_lan_ngoai_px": 10,
+      "tran_khoi_mang": false,
+      "chieu_cao_nho_nhat_px": 3.41,
+      "dong_bi_noi_doi": 0
+     }
+    },
+    "dong": {
+     "tong_so_dong_co_vach": 3,
+     "so_dong_mang_TU_HAI_CAU_TRO_LEN": 3,
+     "nhieu_cau_nhat_tren_mot_dong": 5,
+     "chi_tiet": [
+      [
+       "11:confirmed",
+       "12:tm-rule",
+       "13:confirmed",
+       "14:primary"
+      ],
+      [
+       "14:primary",
+       "15:confirmed",
+       "16:ornament",
+       "17:confirmed",
+       "18:tm-rule"
+      ],
+      [
+       "18:tm-rule",
+       "19:confirmed",
+       "20:confirmed",
+       "22:confirmed"
+      ]
+     ],
+     "cao_mot_dong_px": 17.04
+    }
+   }
+  }
+ }
+}

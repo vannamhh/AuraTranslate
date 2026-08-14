@@ -17,8 +17,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::commands::segment::{
-    read_open_chapter_segments, save_segment_targets, split_chapter_into_segments, SegmentTargetEdit,
-    SplitOutcome,
+    confirm_segment, flush_segment_targets, read_open_chapter_segments, save_segment_targets,
+    split_chapter_into_segments, unconfirm_edited_segments, SegmentTargetEdit, SplitOutcome,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::segment::split::{
@@ -484,14 +484,18 @@ fn the_project_migration_set_never_reuses_the_burned_number_four() {
     );
 }
 
+/// 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5).** Ca này trước đây tên
+/// `..._reaches_six_through_five_steps` và khẳng định `[1, 2, 3, 5, 6]`. Bước **7** ra đời
+/// cùng máy trạng thái AD-31, nên phép kiểm được **nâng cho nó nói thật về lược đồ mới** —
+/// không phải nới cho hết đỏ: nó vẫn khẳng định danh sách **nguyên văn**, kể cả lỗ hổng ở 4.
 #[test]
-fn the_project_migration_set_reaches_six_through_five_steps() {
+fn the_project_migration_set_reaches_seven_through_six_steps() {
     let versions: Vec<u32> = PROJECT_MIGRATIONS.iter().map(|m| m.to_version).collect();
 
     assert_eq!(
         versions,
-        vec![1, 2, 3, 5, 6],
-        "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 (4 la so da chay)"
+        vec![1, 2, 3, 5, 6, 7],
+        "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 (4 la so da chay)"
     );
 }
 
@@ -541,10 +545,13 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
         "mot `project.db` o `user_version = 4` phai MO DUOC sau khi target len 5 -- \
          truoc Story 2.1 no bi tu choi bang `store.schema_too_new`",
     );
+    // 🔵 CAP NHAT 2026-08-14 (Story 2.5): dich chuyen tu 6 len 7 — buoc 7 ra doi. Menh de
+    // cua ca nay KHONG doi mot chu: mot tep mac ket o so DA CHAY phai di qua duoc **moi**
+    // buoc con lai, khong dung o buoc dau tien sau no.
     assert_eq!(
         migrated.schema_version(),
-        6,
-        "buoc 5 VA buoc 6 phai da chay tren mot tep dung o phien ban 4"
+        7,
+        "buoc 5, 6 VA 7 phai da chay tren mot tep dung o phien ban 4"
     );
 
     let has_segment: i64 = migrated
@@ -586,17 +593,19 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
 /// ⚠️ Hai mệnh đề, không một: số phiên bản là PROXY, còn mệnh đề thật là phép đọc
 /// `PRAGMA table_info` ngay dưới. Một bước di trú khai đúng số mà chạy sai DDL đi lọt phép
 /// kiểm thứ nhất.
+/// 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5).** Ca này trước tên
+/// `..._lands_at_version_six_with_a_target_text_column` và mở đầu bằng một khẳng định
+/// *"phiên bản mới phải là 6"*. Khẳng định đó **đã hết đúng** (đích nay là 7), và nó cũng
+/// **không phải chủ đề** của ca này — chủ đề là **hình dạng cột `target_text`**. Mệnh đề
+/// *"một `project.db` mới dừng ở đâu"* nay có đúng một chủ:
+/// `a_fresh_project_database_lands_at_version_seven_with_a_status_column_and_a_version_table`.
+/// ⇒ Gỡ khẳng định trùng thay vì sửa số ở hai chỗ — hai chỗ khai cùng một mệnh đề là hai
+/// chỗ sẽ lệch nhau.
 #[test]
-fn a_fresh_project_database_lands_at_version_six_with_a_target_text_column() {
-    let root = temp_dir("fresh-at-six");
+fn a_fresh_project_database_carries_a_non_null_target_text_column_defaulting_to_empty() {
+    let root = temp_dir("fresh-target-text");
     let opened = create_work_from_text(&root, "Sau", "zh", "", "一。二。".to_owned())
         .expect("tao tac pham that bai");
-
-    assert_eq!(
-        opened.store.schema_version(),
-        6,
-        "mot `project.db` moi phai dung o phien ban 6 (Story 2.2 them buoc `target_text`)"
-    );
 
     let (notnull, default_value): (i64, String) = opened
         .store
@@ -689,11 +698,14 @@ fn a_project_database_at_version_five_migrates_to_six_and_keeps_every_segment_ro
     drop(old);
 
     let migrated = Store::open(StoreSpec::project(db))
-        .expect("mot `project.db` o phien ban 5 phai mo duoc va di tru len 6");
+        .expect("mot `project.db` o phien ban 5 phai mo duoc va di tru len dich");
+    // 🔵 CAP NHAT 2026-08-14 (Story 2.5): dich 6 → 7. Chu de cua ca nay khong doi — no do
+    // menh de "buoc 6 la mot `ALTER TABLE`, khong mot `DROP` + `CREATE`" bang cach dem lai
+    // ba hang cu; nay no do menh de do cho **ca hai** buoc 6 va 7 cung mot luot.
     assert_eq!(
         migrated.schema_version(),
-        6,
-        "buoc 6 phai chay tren mot tep dung o phien ban 5"
+        7,
+        "buoc 6 VA buoc 7 phai chay tren mot tep dung o phien ban 5"
     );
 
     let rows: Vec<(i64, String, String)> = migrated
@@ -717,6 +729,231 @@ fn a_project_database_at_version_five_migrates_to_six_and_keeps_every_segment_ro
     );
 
     drop(migrated);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Story 2.5 · AC9 — bước di trú 7: cột `segment.status` + bảng `segment_version`
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Một `project.db` **mới** dừng ở phiên bản **7**, mang cột `status` và bảng
+/// `segment_version`.
+///
+/// ⚠️ Ba mệnh đề, không một: số phiên bản là PROXY; mệnh đề thật là hai phép đọc
+/// `pragma_table_info` ngay dưới. Một bước di trú khai đúng số mà chạy sai DDL đi lọt
+/// phép kiểm thứ nhất — cùng luật ca `..._lands_at_version_six_...` đã đặt.
+#[test]
+fn a_fresh_project_database_lands_at_version_seven_with_a_status_column_and_a_version_table() {
+    let root = temp_dir("fresh-at-seven");
+    let opened = create_work_from_text(&root, "Bay", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    assert_eq!(
+        opened.store.schema_version(),
+        7,
+        "mot `project.db` moi phai dung o phien ban 7 (Story 2.5 them may trang thai AD-31)"
+    );
+
+    let (notnull, default_value): (i64, String) = opened
+        .store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT \"notnull\", COALESCE(dflt_value, '<NULL>') FROM pragma_table_info('segment') \
+                 WHERE name = 'status'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+        })
+        .expect("cot `status` phai co mat trong `segment`");
+
+    assert_eq!(
+        notnull, 1,
+        "`status` phai `NOT NULL` -- mot segment KHONG co trang thai la mot trang thai thu \
+         ba khong ai khai, va no se duoc doc thanh \"chua xac nhan\" o cho nay va \"loi\" o cho khac"
+    );
+    assert_eq!(
+        default_value, "'draft'",
+        "`status` phai mac dinh `'draft'` -- SQLite doi mot DEFAULT khac NULL cho moi \
+         `ADD COLUMN NOT NULL` tren bang da co du lieu (10.477 hang tren du lieu that)"
+    );
+
+    // Bang `segment_version` co that, va DUNG bon cot -- Quyet dinh #6 (Ice ky 2026-08-14).
+    let cols: Vec<String> = opened
+        .store
+        .read(|conn| {
+            let mut stmt =
+                conn.prepare("SELECT name FROM pragma_table_info('segment_version') ORDER BY cid")?;
+            let mapped = stmt.query_map([], |r| r.get(0))?;
+            mapped.collect::<Result<Vec<_>, _>>()
+        })
+        .expect("bang `segment_version` phai co mat");
+
+    assert_eq!(
+        cols,
+        vec!["id", "segment_id", "target_text", "created_at"],
+        "`segment_version` phai TOI GIAN dung bon cot -- Story 2.6 doc chung, khong them cot moi"
+    );
+
+    // Moi segment vua nhap phai o `'draft'` -- khong mot gia tri moi nao.
+    let drafts: i64 = opened
+        .store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM segment WHERE status = 'draft'",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .expect("dem segment o trang thai draft");
+    assert_eq!(drafts, 2, "moi segment vua nhap phai o `'draft'`");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// 🔴 **Một `project.db` ĐANG ở phiên bản 6 di trú lên 7 mà KHÔNG mất một hàng nào, và
+/// mọi hàng cũ nhận đúng `'draft'`.**
+///
+/// Đây là ca chạm đúng đường mà dữ liệu thật của Ice sẽ đi: 21 `project.db` đã ở phiên bản
+/// 6 kể từ Story 2.2. Ca `..._lands_at_version_seven_...` ở trên chỉ dựng tệp **mới**; một
+/// bước 7 viết bằng `DROP TABLE` + `CREATE TABLE` sẽ đi lọt nó.
+///
+/// Fixture dựng từ **năm bước THẬT** của [`PROJECT_MIGRATIONS`], không chép tay DDL.
+#[test]
+fn a_project_database_at_version_six_migrates_to_seven_and_every_old_row_becomes_draft() {
+    static STEPS_TO_SIX: [Migration; 5] = [
+        PROJECT_MIGRATIONS[0],
+        PROJECT_MIGRATIONS[1],
+        PROJECT_MIGRATIONS[2],
+        PROJECT_MIGRATIONS[3],
+        PROJECT_MIGRATIONS[4],
+    ];
+
+    let dir = temp_dir("six-to-seven");
+    let db = dir.join("project.db");
+
+    let old = Store::open(StoreSpec {
+        migrations: &STEPS_TO_SIX,
+        ..StoreSpec::project(db.clone())
+    })
+    .expect("dung fixture o phien ban 6");
+    assert_eq!(
+        old.schema_version(),
+        6,
+        "fixture phai dung o dung phien ban 6 -- neu khong ca nay khong kiem gi ca"
+    );
+
+    old.write(|tx: &Transaction<'_>| {
+        for ord in 1..=3i64 {
+            tx.execute(
+                "INSERT INTO segment (chapter_id, ord, source_text, target_text, is_paragraph_end, \
+                 created_at, updated_at) \
+                 VALUES (1, ?1, ?2, ?3, 0, '2026-08-13T00:00:00.000Z', '2026-08-13T00:00:00.000Z')",
+                (ord, format!("cau {ord}"), format!("ban dich {ord}")),
+            )?;
+        }
+        Ok(())
+    })
+    .expect("bom ba hang segment vao fixture");
+    drop(old);
+
+    let migrated = Store::open(StoreSpec::project(db))
+        .expect("mot `project.db` o phien ban 6 phai mo duoc va di tru len 7");
+    assert_eq!(
+        migrated.schema_version(),
+        7,
+        "buoc 7 phai chay tren mot tep dung o phien ban 6"
+    );
+
+    let rows: Vec<(i64, String, String, String)> = migrated
+        .read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT ord, source_text, target_text, status FROM segment ORDER BY ord",
+            )?;
+            let mapped = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?;
+            mapped.collect::<Result<Vec<_>, _>>()
+        })
+        .expect("doc lai ba hang segment sau di tru");
+
+    assert_eq!(
+        rows,
+        vec![
+            (1, "cau 1".to_owned(), "ban dich 1".to_owned(), "draft".to_owned()),
+            (2, "cau 2".to_owned(), "ban dich 2".to_owned(), "draft".to_owned()),
+            (3, "cau 3".to_owned(), "ban dich 3".to_owned(), "draft".to_owned()),
+        ],
+        "buoc 7 phai la mot `ALTER TABLE` -- moi hang cu o lai nguyen ven, VA `status` cua \
+         chung la `'draft'`. 🔴 Mot ban dich CU khong duoc tu dong thanh \"da xac nhan\": \
+         khong ai ky no, va mot lan ky gia se ghi mot cap TM chua ai duyet o Epic 7"
+    );
+
+    // Bang lich su phai RONG sau di tru -- khong mot phien ban mo nao duoc sinh ra.
+    let versions: i64 = migrated
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment_version", [], |r| r.get(0)))
+        .expect("dem hang segment_version");
+    assert_eq!(
+        versions, 0,
+        "buoc di tru KHONG duoc sinh mot `SegmentVersion` nao -- no la DDL, khong phai mot \
+         quy tac nghiep vu (Quyet dinh #4 cua Story 2.1)"
+    );
+
+    drop(migrated);
+    cleanup(&dir);
+}
+
+/// 🔴 **AD-30 — một `project.db` MỚI HƠN ứng dụng bị TỪ CHỐI MỞ, không bao giờ ghi vào.**
+///
+/// Ca này canh đúng nửa mà bước 7 làm dịch chuyển: trước lượt này target là 6, nên một tệp
+/// ở 7 bị từ chối; sau lượt này một tệp ở **8** phải bị từ chối đúng như vậy. Không có ca
+/// này thì việc nâng target là một lượt đổi hành vi **không ai đo**.
+#[test]
+fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
+    static STEP_EIGHT: [Migration; 7] = [
+        PROJECT_MIGRATIONS[0],
+        PROJECT_MIGRATIONS[1],
+        PROJECT_MIGRATIONS[2],
+        PROJECT_MIGRATIONS[3],
+        PROJECT_MIGRATIONS[4],
+        PROJECT_MIGRATIONS[5],
+        // Mot buoc 8 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
+        Migration {
+            to_version: 8,
+            sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
+        },
+    ];
+
+    let dir = temp_dir("newer-refused");
+    let db = dir.join("project.db");
+
+    let future = Store::open(StoreSpec {
+        migrations: &STEP_EIGHT,
+        ..StoreSpec::project(db.clone())
+    })
+    .expect("dung fixture o phien ban 8");
+    assert_eq!(future.schema_version(), 8);
+    drop(future);
+
+    let before = fs::metadata(&db).expect("doc metadata truoc").len();
+
+    let refused = Store::open(StoreSpec::project(db.clone()));
+    let err = refused.err().expect(
+        "mot `project.db` o phien ban 8 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
+    );
+    let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
+    assert_eq!(
+        ipc.message_key(),
+        MessageKey::StoreSchemaTooNew,
+        "phep tu choi phai phan biet duoc, khong phai mot loi mo kho chung chung"
+    );
+
+    assert_eq!(
+        fs::metadata(&db).expect("doc metadata sau").len(),
+        before,
+        "mot lan tu choi mo KHONG duoc dung toi mot byte nao cua tep"
+    );
+
     cleanup(&dir);
 }
 
@@ -1211,20 +1448,38 @@ fn a_chapter_with_real_translations_round_trips_through_the_load_command() {
 // ⚠️ Mọi ca dưới đây gọi HÀM THUẦN `save_segment_targets`, không vỏ `wire` — cùng khuôn
 // mọi ca của Story 2.1/2.2. Đó là thứ nghiệm thu được **mà không cần webview**.
 
-/// Chín cột thật của `segment` hôm nay, đọc lại bằng SQL để khẳng định AC14.
+/// **Mười** cột thật của `segment` hôm nay, đọc lại bằng SQL để khẳng định AC14.
 ///
 /// ⚠️ Đọc bằng SQL **thô** chứ không qua `read_open_chapter_segments`, và đó là điều kiện
 /// để phép kiểm có nghĩa: lệnh đọc của sản phẩm chỉ trả **sáu** trường, nên nó **không thấy**
 /// `created_at`/`updated_at`/`chapter_id` — đúng ba cột mà AC14 nói phải y nguyên hoặc phải
 /// đổi. Một phép kiểm đi qua lệnh đọc là một phép kiểm mù với ba cột nó phải canh.
-type SegmentRow = (i64, i64, i64, String, i64, Option<String>, String, String, String);
+///
+/// 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5, AC8 · Task 4.1): chín cột → MƯỜI.** Bước di trú 7
+/// thêm `status`, và một phép kiểm *"tám cột kia y nguyên"* đọc chín cột sẽ **bỏ sót đúng
+/// cột mới** — tức nó vẫn xanh trong khi `save_segment_targets` bơm `status` vào câu `UPDATE`
+/// của nó và phá AD-31 hàng 1.
+/// 🔴 Đây là **nâng phép kiểm cho nó nói thật về lược đồ mới**, không phải nới nó cho hết đỏ:
+/// mỗi cột thêm vào đây là một cột nữa mà cổng AC8 canh, không phải một cột nữa nó bỏ qua.
+type SegmentRow = (
+    i64,
+    i64,
+    i64,
+    String,
+    i64,
+    Option<String>,
+    String,
+    String,
+    String,
+    String,
+);
 
 fn read_all_segment_rows(open: &auratranslate_lib::commands::project::OpenWork) -> Vec<SegmentRow> {
     open.store
         .read(|conn| {
             let mut stmt = conn.prepare(
                 "SELECT id, chapter_id, ord, source_text, is_paragraph_end, retired_at, \
-                 created_at, updated_at, target_text \
+                 created_at, updated_at, target_text, status \
                  FROM segment ORDER BY ord",
             )?;
             let rows = stmt.query_map([], |r| {
@@ -1238,11 +1493,47 @@ fn read_all_segment_rows(open: &auratranslate_lib::commands::project::OpenWork) 
                     r.get(6)?,
                     r.get(7)?,
                     r.get(8)?,
+                    r.get(9)?,
                 ))
             })?;
             rows.collect::<Result<Vec<_>, _>>()
         })
-        .expect("doc lai chin cot that bai")
+        .expect("doc lai muoi cot that bai")
+}
+
+/// 🔴 **Cổng tự kiểm: số cột mà [`read_all_segment_rows`] đọc phải bằng số cột THẬT của
+/// bảng `segment`.**
+///
+/// Không có ca này, một bước di trú tương lai thêm cột thứ mười một sẽ để
+/// `a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else` **mù với đúng cột
+/// mới** — nó vẫn xanh, và mệnh đề *"auto-save chạm đúng hai cột"* âm thầm hết được canh.
+/// Đây là lớp lỗi mà chính Story 2.5 vừa suýt tạo ra, ghi thành một lưới thay vì một lời dặn.
+#[test]
+fn the_raw_column_reader_sees_every_column_the_segment_table_actually_has() {
+    let root = temp_dir("column-count");
+    let opened = create_work_from_text(&root, "Dem cot", "zh", "", "一。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let real: i64 = opened
+        .store
+        .read(|conn| {
+            conn.query_row("SELECT COUNT(*) FROM pragma_table_info('segment')", [], |r| {
+                r.get(0)
+            })
+        })
+        .expect("dem cot that bai");
+
+    assert_eq!(
+        real, 10,
+        "bang `segment` co {real} cot, ma `read_all_segment_rows` doc 10. Mot cot moi PHAI \
+         duoc them vao `SegmentRow` CUNG LUOT voi buoc di tru sinh ra no -- neu khong, cong \
+         AC8 (`a_flush_touches_exactly_...`) mu voi dung cot do va van xanh"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
 }
 
 fn edit(id: i64, text: &str) -> SegmentTargetEdit {
@@ -1344,7 +1635,8 @@ fn a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else() {
         "`updated_at` phai doi — va no sinh o tang SQL (`strftime`), khong truyen tu Rust"
     );
 
-    // BAY cot con lai phai y nguyen TUNG BYTE — day la thu cuong che AD-31 hang 1 that su.
+    // TAM cot con lai phai y nguyen TUNG BYTE — day la thu cuong che AD-31 hang 1 that su.
+    // 🔵 CAP NHAT 2026-08-14 (Story 2.5): BAY → TAM, cot thu tam la `status`.
     assert_eq!(a.0, b.0, "`id` doi");
     assert_eq!(a.1, b.1, "`chapter_id` doi");
     assert_eq!(a.2, b.2, "`ord` doi");
@@ -1352,12 +1644,407 @@ fn a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else() {
     assert_eq!(a.4, b.4, "`is_paragraph_end` doi — AD-37 noi do la du lieu DA LUU");
     assert_eq!(a.5, b.5, "`retired_at` doi");
     assert_eq!(a.6, b.6, "`created_at` doi — no la moc TAO, khong phai moc sua");
+    assert_eq!(
+        a.9, b.9,
+        "🔴 `status` doi — AD-31 HANG 1 noi auto-save de trang thai NGUYEN. Nhet `status` vao \
+         cau `UPDATE` cua `save_segment_targets` la pha dung hang do; phep ha ve `'draft'` cua \
+         AD-31 hang 3 song o `unconfirm_edited_segments`, mot ham RIENG"
+    );
 
     // Hai cau KHONG nam trong lo phai y nguyen tron ven, ke ca `updated_at`.
     assert_eq!(&after[1..], &before[1..], "cau ngoai lo bi dung toi");
 
     drop(opened);
     cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Story 2.5 — MÁY TRẠNG THÁI AD-31: xác nhận segment
+//
+// 🔴 Sáu ca dưới đây phủ **từng hàng** của bảng AD-31 mà story này chạm tới, cộng ba
+//    lối từ chối của AC14/Quyết định #7. Bất biến #1 của story (*"bảng AD-31 đúng từng
+//    hàng"*) là bất biến **vi phạm được mà không cổng nào đỏ** — đây là lý do chúng tồn tại.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Đọc `(status, số hàng segment_version)` của một segment — thứ mọi ca dưới đây so.
+fn read_state(open: &auratranslate_lib::commands::project::OpenWork, id: i64) -> (String, i64) {
+    open.store
+        .read(move |conn| {
+            let status: String =
+                conn.query_row("SELECT status FROM segment WHERE id = ?1", [id], |r| r.get(0))?;
+            let versions: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM segment_version WHERE segment_id = ?1",
+                [id],
+                |r| r.get(0),
+            )?;
+            Ok((status, versions))
+        })
+        .expect("doc trang thai segment that bai")
+}
+
+/// AD-31 hàng 2 — **xác nhận ⇒ `'confirmed'` VÀ đúng MỘT `SegmentVersion`.** (AC1, AC2)
+#[test]
+fn confirming_a_segment_sets_it_confirmed_and_writes_exactly_one_version() {
+    let root = temp_dir("confirm-one");
+    let opened = create_work_from_text(&root, "Xac nhan", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban dich cua toi.")])
+        .expect("lo ghi that bai");
+
+    assert_eq!(read_state(&opened, id), ("draft".to_owned(), 0));
+
+    let outcome = confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+
+    assert_eq!(outcome.segment_id, id);
+    assert_eq!(outcome.status, "confirmed");
+    assert!(outcome.version_created, "luot nay PHAI sinh mot phien ban");
+    assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
+
+    // Phien ban giu **van ban luc ky**, khong mot con tro toi hang segment.
+    let saved: String = opened
+        .store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT target_text FROM segment_version WHERE segment_id = ?1",
+                [id],
+                |r| r.get(0),
+            )
+        })
+        .expect("doc phien ban that bai");
+    assert_eq!(
+        saved, "Ban dich cua toi.",
+        "`SegmentVersion` phai chep van ban TAI THOI DIEM KY -- FR101 khoi phuc ve chinh no"
+    );
+
+    // Cau thu hai KHONG bi cham -- mot luot xac nhan cham DUNG mot segment.
+    let other = rows[1].0;
+    assert_eq!(read_state(&opened, other), ("draft".to_owned(), 0));
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// AD-31 hàng 1 — **auto-save sau khi xác nhận KHÔNG đổi trạng thái và KHÔNG tạo phiên
+/// bản.** (AC4)
+///
+/// ⚠️ Trước Story 2.5, mệnh đề này chỉ nghiệm thu được bằng một doc-comment: cột `status`
+/// và bảng `segment_version` chưa tồn tại, nên một test *"không có `SegmentVersion` nào"*
+/// là một test **XANH RỖNG** (`commands/segment.rs`, doc-comment của `save_segment_targets`).
+/// Nay hai thứ đó có thật, và ca này là lưới thật.
+#[test]
+fn an_auto_save_that_changes_nothing_leaves_the_state_machine_untouched() {
+    let root = temp_dir("confirm-autosave");
+    let opened = create_work_from_text(&root, "Auto save", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Cau da dich.")])
+        .expect("lo ghi that bai");
+    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+    assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
+
+    // Mot nhip flush mang DUNG van ban da co -- ca thuong nhat cua AD-35 (tran cung 5 giay
+    // ban ra khi nguoi dung khong sua gi them).
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Cau da dich.")])
+        .expect("lo ghi that bai");
+
+    assert_eq!(
+        read_state(&opened, id),
+        ("confirmed".to_owned(), 1),
+        "auto-save KHONG duoc doi trang thai va KHONG duoc tao phien ban thu hai (AD-31 hang 1)"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// AD-31 hàng 3 — **sửa văn bản của segment đã xác nhận ⇒ về `'draft'`, KHÔNG tạo phiên
+/// bản.** (AC3)
+///
+/// 🔴 Đây là hố (2) của AD-31 §Prevents: nếu sửa xong mà nó **vẫn** ở *đã xác nhận* thì
+/// không lần xác nhận nào nữa xảy ra, và **cặp TM mới không bao giờ được ghi** (Epic 7).
+#[test]
+fn editing_a_confirmed_segment_returns_it_to_draft_without_writing_a_version() {
+    let root = temp_dir("confirm-edit-back");
+    let opened = create_work_from_text(&root, "Sua lai", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban dau.")]).expect("lo ghi");
+    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+    assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
+
+    // Nguoi dung go tiep vao cau da ky -- di qua DUNG duong flush cua san pham.
+    flush_segment_targets(Some(&opened), chapter_id, &[edit(id, "Sua lai roi.")])
+        .expect("duong flush that bai");
+
+    assert_eq!(
+        read_state(&opened, id),
+        ("draft".to_owned(), 1),
+        "sua van ban cua mot cau da ky PHAI ha no ve `'draft'`, va KHONG tao phien ban thu hai"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// 🔴 **THỨ TỰ của đường flush là một mệnh đề nghiệm thu, không một chi tiết cài đặt.**
+///
+/// `unconfirm_edited_segments` so văn bản **đang có trên đĩa** với văn bản trong lô. Chạy nó
+/// **sau** lượt ghi thì hai vế đã bằng nhau ⇒ phép so không phát hiện được gì, và một câu đã
+/// ký ở lại `'confirmed'` mang một văn bản khác. Đó là hố (2) của AD-31 §Prevents: không lần
+/// xác nhận nào nữa xảy ra ⇒ **cặp TM mới không bao giờ được ghi** (Epic 7), im lặng vĩnh viễn.
+///
+/// ⚠️ **Ca này ra đời từ một phép đo, không từ một lo lắng.** Bản đầu đặt thứ tự trong vỏ
+/// `wire::save_segment_targets`; đảo hai dòng ở đó cho **54/54 xanh**, vì `tests/**` gọi một
+/// vỏ cần `AppHandle` không được. Chạy đỏ-rồi-xanh: đảo hai dòng trong
+/// `flush_segment_targets`, ca này phải ĐỎ.
+#[test]
+fn the_flush_path_lowers_the_state_before_it_writes_the_new_text() {
+    let root = temp_dir("flush-order");
+    let opened = create_work_from_text(&root, "Thu tu", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Van ban cu.")]).expect("lo ghi");
+    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+
+    let (lowered, saved) =
+        flush_segment_targets(Some(&opened), chapter_id, &[edit(id, "Van ban moi.")])
+            .expect("duong flush that bai");
+
+    assert_eq!(
+        lowered, 1,
+        "duong flush PHAI ha dung mot hang -- neu no chay SAU luot ghi, phep so van ban khong \
+         con gi de so va con so nay la 0"
+    );
+    assert_eq!(saved.saved, 1);
+    assert_eq!(read_state(&opened, id), ("draft".to_owned(), 1));
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// 🔴 **Hợp đồng phụ của AD-31: so bằng VĂN BẢN, cấm cờ *dirty*.** (AC3, AC11)
+///
+/// Người dùng gõ rồi **hoàn tác về nguyên trạng**. Cờ dirty nói *đã sửa*; so sánh văn bản
+/// nói *không đổi*, và so sánh văn bản mới đúng ý nghĩa *"câu này là chữ của ai"*.
+/// ⇒ Một lô flush mang **đúng** văn bản đang có KHÔNG được hạ trạng thái.
+#[test]
+fn a_flush_carrying_identical_text_never_unconfirms_because_the_contract_compares_text() {
+    let root = temp_dir("confirm-undo");
+    let opened = create_work_from_text(&root, "Hoan tac", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Y nguyen.")]).expect("lo ghi");
+    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+
+    let touched = unconfirm_edited_segments(Some(&opened), chapter_id, &[edit(id, "Y nguyen.")])
+        .expect("ha trang thai that bai");
+
+    assert_eq!(
+        touched, 0,
+        "van ban KHONG doi thi KHONG mot hang nao duoc ha trang thai -- day la hop dong phu \
+         cua AD-31, va mot co `dirty` se cho ket qua nguoc lai o dung ca nay"
+    );
+    assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// AC13 — **xác nhận lại một câu đã xác nhận, văn bản không đổi, là VÔ HẠI.**
+///
+/// 🔴 Không có mệnh đề này, giữ phím xác nhận sẽ bơm lịch sử đầy bản sao y hệt và FR101
+/// thành vô dụng — đúng hố (1) mà AD-31 §Prevents nêu tên.
+#[test]
+fn confirming_an_already_confirmed_segment_writes_no_second_version_and_no_new_timestamp() {
+    let root = temp_dir("confirm-again");
+    let opened = create_work_from_text(&root, "Ky lai", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Mot lan thoi.")]).expect("lo ghi");
+    confirm_segment(Some(&opened), id).expect("xac nhan lan dau that bai");
+
+    let before = read_all_segment_rows(&opened);
+
+    // Giu phim: nam luot xac nhan lien tiep tren cung mot cau.
+    for _ in 0..5 {
+        let again = confirm_segment(Some(&opened), id).expect("xac nhan lai PHAI vo hai");
+        assert_eq!(again.status, "confirmed");
+        assert!(
+            !again.version_created,
+            "mot segment DA o dich thi khong chuyen tiep -- khong phien ban nao duoc sinh"
+        );
+    }
+
+    assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
+    assert_eq!(
+        read_all_segment_rows(&opened),
+        before,
+        "xac nhan lai KHONG duoc dung toi mot byte nao cua hang `segment`, ke ca `updated_at`"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// AC14 + Quyết định #7 — **ba lối từ chối, và cả ba PHÂN BIỆT ĐƯỢC.**
+///
+/// *"Rỗng IM LẶNG bị cấm; rỗng CÓ LÝ DO thì không"* — không lối nào trả *"đã xong"* cho
+/// một lượt không ghi gì.
+#[test]
+fn every_refusal_of_confirm_carries_its_own_message_key_and_writes_nothing() {
+    let root = temp_dir("confirm-refusals");
+    let opened = create_work_from_text(&root, "Tu choi", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+    let retired_id = rows[1].0;
+
+    // ① Chua Tac pham nao mo.
+    assert_eq!(
+        confirm_segment(None, id).expect_err("phai tu choi").message_key(),
+        MessageKey::ProjectNoWorkOpen
+    );
+
+    // ② `segment.id` khong ton tai.
+    assert_eq!(
+        confirm_segment(Some(&opened), 9_999_999)
+            .expect_err("phai tu choi")
+            .message_key(),
+        MessageKey::SegmentNotFound
+    );
+
+    // ③ Cau CHUA DICH (`target_text` rong) -- Quyet dinh #7, Ice ky 2026-08-14.
+    assert_eq!(
+        confirm_segment(Some(&opened), id)
+            .expect_err("mot cau chua dich PHAI bi tu choi")
+            .message_key(),
+        MessageKey::SegmentNothingToConfirm,
+        "cho phep se ghi mot cap TM co ve dich RONG o Epic 7, roi FR58 dien san bao rong do"
+    );
+
+    // ④ Segment DA VE HUU. ⚠️ Chua duong san pham nao cho segment ve huu (chu: Story 2.8),
+    //    nen trang thai nay dung bang SQL TRUC TIEP -- day la mot HANG RAO VIET TRUOC.
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = 'Da dich roi.', \
+                 retired_at = '2026-08-14T00:00:00.000Z' WHERE id = ?1",
+                [retired_id],
+            )?;
+            Ok(())
+        })
+        .expect("dung trang thai ve huu that bai");
+
+    assert_eq!(
+        confirm_segment(Some(&opened), retired_id)
+            .expect_err("mot segment da ve huu PHAI bi tu choi")
+            .message_key(),
+        MessageKey::SegmentRetired
+    );
+
+    // Khong lot tu choi nao duoc ghi mot phien ban.
+    let total: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment_version", [], |r| r.get(0)))
+        .expect("dem phien ban");
+    assert_eq!(total, 0, "bon luot tu choi KHONG duoc sinh mot phien ban nao");
+    assert_eq!(read_state(&opened, id), ("draft".to_owned(), 0));
+
+    // Va khong lot nao dung toi Chuong -- `chapter_id` chi de doc cho ro fixture.
+    let _ = chapter_id;
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// 🔴 **LỆNH ĐỌC CỦA SẢN PHẨM PHẢI CHỞ `status` QUA DÂY — và ca này ra đời từ một lỗi THẬT.**
+///
+/// Bắt được bằng `e2e/specs/editor-confirm-segment.e2e.mjs` ngày 2026-08-14, **sau khi** cả bốn
+/// đường nghiệm thu đã xanh: bản đầu của Story 2.5 thêm `status` vào kiểu TypeScript và cho
+/// `segmentRuleInputOf` đọc nó, nhưng **quên** thêm vào `ChapterSegment` phía Rust và vào câu
+/// `SELECT`. Rust không gửi trường đó ⇒ `segment.status` là `undefined` trong webview ⇒
+/// `isConfirmed` **luôn `false`** ⇒ vạch `confirmed` không bao giờ hiện **trên sản phẩm thật**.
+///
+/// ⚠️ Nó đi lọt **74/74** test frontend, vì fixture vitest dựng `ChapterSegment` **bằng tay** và
+/// có cấp `status`. Một fixture chép tay trôi được khỏi sự thật của dây; ca này đi qua **chính
+/// lệnh đọc của sản phẩm**, nên nó không trôi được.
+///
+/// 🔴 Ca này canh **cả hai vế**, và vế thứ hai mới là vế đắt: trường phải **có mặt**, và giá trị
+/// của nó phải **đi theo dữ liệu thật** — một hằng `"draft"` viết cứng ở tầng dựng struct sẽ đi
+/// lọt một phép kiểm chỉ hỏi *"trường có tồn tại không"*.
+#[test]
+fn the_load_command_carries_the_status_column_over_the_wire() {
+    let root = temp_dir("wire-status");
+    let opened = create_work_from_text(&root, "Day", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (first, second) = (rows[0].0, rows[1].0);
+    let chapter_id = rows[0].1;
+
+    // Moi segment moi nhap phai di ra ngoai day o `'draft'`.
+    let fresh = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
+    assert!(
+        fresh.segments.iter().all(|s| s.status == "draft"),
+        "moi segment vua nhap phai di ra day o `'draft'` -- mot ban dich cu KHONG duoc tu ky"
+    );
+
+    // Xac nhan DUNG MOT cau, roi doc lai qua chinh lenh cua san pham.
+    save_segment_targets(Some(&opened), chapter_id, &[edit(first, "Da dich.")])
+        .expect("lo ghi that bai");
+    confirm_segment(Some(&opened), first).expect("xac nhan that bai");
+
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap lai segment that bai");
+    let a = loaded
+        .segments
+        .iter()
+        .find(|s| s.id == first)
+        .expect("khong thay segment vua xac nhan");
+    let b = loaded
+        .segments
+        .iter()
+        .find(|s| s.id == second)
+        .expect("khong thay segment thu hai");
+
+    assert_eq!(
+        a.status, "confirmed",
+        "cau vua xac nhan phai di ra day o `'confirmed'` -- neu no van la `'draft'`, tang \
+         hien thi khong bao gio ve duoc vach `confirmed` va KHONG mot test frontend nao bat duoc"
+    );
+    assert_eq!(
+        b.status, "draft",
+        "cau KHONG duoc xac nhan phai o `'draft'` -- neu hai cau cho cung mot gia tri thi \
+         truong nay dang la mot hang viet cung, khong phai du lieu that"
+    );
 }
 
 // ── AC16 — round-trip: gõ → flush → nạp lại, và ranh giới KHÔNG đổi ─────────────
@@ -1561,4 +2248,118 @@ fn a_segment_id_from_another_chapter_is_refused_and_never_crosses_over() {
 
     drop(opened_a);
     cleanup(&root_a);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Code review 2026-08-14 — HAI LƯỚI CHO HAI KHE HỞ KHÔNG CỔNG NÀO BẮT ĐƯỢC
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 **Một lô hỏng phải chết ở giao dịch MỘT, khi chưa một chữ ký nào bị hạ.**
+///
+/// `flush_segment_targets` chạy hai giao dịch nối tiếp: `unconfirm_edited_segments` commit
+/// **trước**, `save_segment_targets` chạy **sau**. Trước lượt rà, phép kiểm *"lô phải ghi
+/// đủ"* chỉ có ở giao dịch **thứ hai** — nên một lô mang một id lạ vẫn kịp hạ những câu hợp
+/// lệ về `'draft'` rồi mới bị từ chối, và người dùng nhận một lỗi *"lô bị từ chối"* trong khi
+/// một chữ ký thật đã âm thầm biến mất.
+///
+/// ⚠️ Ca này **không** trùng `a_batch_with_one_unknown_segment_id_is_refused_whole_and_writes_nothing`:
+/// ca kia gọi thẳng `save_segment_targets` *(một giao dịch)* và so `target_text`; ca này đi
+/// đường `flush_segment_targets` *(hai giao dịch)* và so `status`. Đúng chỗ lệch giữa hai hàm
+/// là chỗ khuyết tật sống, nên nó cần một ca riêng.
+#[test]
+fn the_flush_path_refuses_an_unknown_id_before_it_lowers_a_single_signature() {
+    let root = temp_dir("flush-unknown-id-no-lower");
+    let opened = create_work_from_text(&root, "Ha truoc khi tu choi", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let chapter_id = rows[0].1;
+    let signed = rows[0].0;
+
+    // Dung mot chu ky THAT, khong mot co gia: ghi van ban roi xac nhan.
+    save_segment_targets(Some(&opened), chapter_id, &[edit(signed, "Ban dich da ky.")])
+        .expect("ghi van ban that bai");
+    confirm_segment(Some(&opened), signed).expect("xac nhan that bai");
+
+    let before = read_all_segment_rows(&opened);
+    assert_eq!(
+        read_state(&opened, signed),
+        ("confirmed".to_owned(), 1),
+        "tien de cua ca nay: segment PHAI dang o 'confirmed' voi dung mot version"
+    );
+
+    // Lo tron: mot id hop le DA KY mang van ban MOI (du ca ba dieu kien de bi ha), cong mot
+    // id la. Truoc ban va, dong dau tien cua `flush_segment_targets` ha `signed` ve 'draft'
+    // va COMMIT, roi giao dich hai moi tu choi.
+    let err = flush_segment_targets(
+        Some(&opened),
+        chapter_id,
+        &[
+            edit(signed, "Ban dich vua sua, khac han ban da ky."),
+            edit(9_999_999, "Cau nay khong thuoc Chuong nao."),
+        ],
+    )
+    .expect_err("lo mang mot id la phai bi tu choi TRON");
+
+    assert_eq!(err.code(), "segment.unknown_ids");
+    assert_eq!(err.message_key(), MessageKey::SegmentUnknownIds);
+    assert_eq!(err.retryable(), false, "mot id la khong sua duoc bang cach thu lai");
+
+    assert_eq!(
+        read_state(&opened, signed),
+        ("confirmed".to_owned(), 1),
+        "🔴 CHU KY PHAI CON NGUYEN — mot lo bi tu choi khong duoc de lai mot byte nao, ke ca \
+         mot lan ha trang thai o giao dich dau"
+    );
+    assert_eq!(
+        read_all_segment_rows(&opened),
+        before,
+        "va khong mot cot nao khac bi cham"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// 🔴 **Quyết định #7 phải bắt cả câu chỉ có khoảng trắng, không riêng chuỗi rỗng.**
+///
+/// `str::is_empty()` một mình cho `"   "` đi lọt: nó **không** rỗng. Hậu quả đúng bằng hậu quả
+/// của ca rỗng thật mà doc-comment của `SegmentNothingToConfirm` mô tả — một `SegmentVersion`
+/// gần như trống vào lịch sử FR101, rồi một cặp TM có vế đích là khoảng trắng ở Epic 7, rồi
+/// FR58 điền sẵn đúng khoảng trắng đó ở một Chương sau. Hỏng **vĩnh viễn**.
+#[test]
+fn a_target_of_only_whitespace_is_refused_exactly_like_an_empty_one() {
+    let root = temp_dir("confirm-whitespace-only");
+    let opened = create_work_from_text(&root, "Toan khoang trang", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let chapter_id = rows[0].1;
+    let target = rows[0].0;
+
+    // Ba hinh dang khoang trang, ca ba deu KHONG rong theo `str::is_empty()`.
+    // `U+00A0` la ca that: contenteditable de lai no sau mot lan go phim cach o cuoi dong.
+    for blank in ["   ", "\t\n ", "\u{00a0}\u{00a0}"] {
+        save_segment_targets(Some(&opened), chapter_id, &[edit(target, blank)])
+            .expect("ghi van ban that bai");
+
+        let err = confirm_segment(Some(&opened), target)
+            .expect_err("mot cau chi co khoang trang phai bi tu choi");
+
+        assert_eq!(err.code(), "segment.nothing_to_confirm", "voi {blank:?}");
+        assert_eq!(err.message_key(), MessageKey::SegmentNothingToConfirm);
+        assert_eq!(
+            err.params().get("segment_id").map(String::as_str),
+            Some(target.to_string().as_str())
+        );
+
+        assert_eq!(
+            read_state(&opened, target),
+            ("draft".to_owned(), 0),
+            "🔴 KHONG mot SegmentVersion nao duoc sinh cho {blank:?}, va trang thai o nguyen"
+        );
+    }
+
+    drop(opened);
+    cleanup(&root);
 }

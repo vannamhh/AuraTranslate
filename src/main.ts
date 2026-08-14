@@ -25,7 +25,7 @@ import type { ModeId } from './commands'
 import { currentMode, setMode } from './modes/modeState'
 import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 // Story 2.3 — AD-35 vế (e): flush bản dịch chưa lưu TRƯỚC khi cửa sổ đóng.
-import { wireExitFlush } from './panels/editorPanelState'
+import { confirmCurrentSegment, wireExitFlush } from './panels/editorPanelState'
 // ── Story 1.14 — ba cổng của tầng bố cục ────────────────────────────────────────────
 //
 // ⚠️ Import ở ĐÂY, không ở `src/commands/index.ts`: tệp đó phải nạp được bằng Node thuần
@@ -222,6 +222,11 @@ async function boot(): Promise<void> {
       selectSourceTab,
       toggleHanVietView,
       runLookup,
+      // Story 2.5 — xác nhận segment (FR24 · AD-31). ⚠️ Cổng này đi qua
+      // `confirmCurrentSegment`, KHÔNG thẳng `confirmSegment` của `config/segment.ts`:
+      // vế (c) của AD-35 (*flush xong rồi mới ghi trạng thái*) sống trong hàm đó, và một
+      // lượt nối tắt ở đây sẽ ký một văn bản cũ hơn thứ người dùng đang nhìn.
+      confirmSegment: () => void confirmCurrentSegment(),
       // 🔴 STORY 1.18 — LƯỢT GỠ DEP TỐI THIỂU MÀ STORY 1.17 ĐÃ HẸN.
       //
       // Bản 1.17 là `() => window.getSelection()?.toString() ?? ''` — một dep TỐI THIỂU cố

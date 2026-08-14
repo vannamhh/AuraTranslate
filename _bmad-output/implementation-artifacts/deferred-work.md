@@ -2048,6 +2048,14 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   2.1 nhưng chưa đường nào cho segment về hưu (**Chủ: Story 2.8**). Mỗi story chủ chỉ phải nối
   nguồn — **không** phải sửa tầng hiển thị. Ba nhánh nghiệm thu được ở bàn đo
   (`2-2-ban-do-editor.html`) và ở `segment_contract.rs::a_chapter_with_real_translations_round_trips_through_the_load_command`.
+  → 🟡 **ĐÓNG MỘT PHẦN 2026-08-14 (Story 2.5).** Nhánh `isConfirmed` **đã có nguồn thật**: cột
+  `segment.status` tới bằng bước di trú **7**, và `segmentRuleInputOf` đọc nó thay cho hằng
+  `false` — đúng **một** trong hai dòng mà doc-comment tại chỗ đã hẹn. Lưới:
+  `tests/frontend/editorSegmentRule.test.ts`.
+  **PHẦN CÒN HỞ, và mỗi phần giữ nguyên chủ cũ:** `isTmFilled` ← FR58, **Chủ: Epic 7** *(hằng
+  `false` ở `editorSegments.ts` **ở lại**)*; `retiredAt` ← chưa đường sản phẩm nào cho segment về
+  hưu, **Chủ: Story 2.8** *(Story 2.5 chỉ dựng một **hàng rào từ chối** —
+  `MessageKey::SegmentRetired` — và test của nó dựng trạng thái về hưu bằng SQL trực tiếp)*.
 
 - 🔴 **HAI CÂU CÙNG MỘT DÒNG CHO HAI VẠCH LỀ CHỒNG LÊN NHAU — phát hiện của bàn đo, chưa vá.**
   Vạch được đặt `position: absolute; left: 8px` trong máng, chiều cao đo từ `getClientRects()`
@@ -2062,6 +2070,25 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   định thiết kế, không phải một bản vá kỹ thuật.
   **Chủ: Story 2.5** *(story đầu tiên làm hai vạch cùng tồn tại)* — **và một lượt ký của Ice** cho
   hình dạng lời giải.
+  → ✅ **ĐÃ ĐÓNG 2026-08-14 (Story 2.5, Quyết định #2 đường (a) — Ice ký).** Cách đóng: `left` rời
+  khỏi CSS và nay do `editorGutter.ts::assignGutterLanes` tính, đi qua `:style` cùng đường với
+  `top`/`height` *(hình học bind bằng style, màu bind bằng lớp — điều kiện để Kiểm B của
+  `check-tokens.mjs` còn đọc được bốn màu vạch từ CSS)*.
+  **Phép phát làn là TÔ MÀU ĐỒ THỊ KHOẢNG**, không gom bắc cầu: mỗi vạch nhận làn nhỏ nhất chưa bị
+  một vạch chồng nào chiếm. **Bước làn CO cho vừa máng** — `bước = clamp(2, 5, ⌊12/(N-1)⌋)`.
+  ⚠️ **Bản đầu bị PHÉP ĐO bác, ghi lại thay vì sửa im lặng:** bước cố định 5px *(đúng hình dạng
+  §Quyết định #2 của story mô tả — "làn trong 8px, làn ngoài 13px")* chỉ chứa nổi **3** làn, và
+  fixture **đối thoại** của bàn đo đòi **5** ⇒ làn ngoài ở `left: 28px`, mép phải **30px**, tràn
+  khỏi máng 22px đúng chỗ chữ bắt đầu. Với bước co thì 5 làn nằm gọn ở mép phải **22px**, **0 vạch
+  bị che**. Số đo hai engine × hai theme: `2-5-ban-do/README.md`; ảnh: `2-5-ban-do/*.png`.
+  Lưới: `tests/frontend/editorGutterLanes.test.ts` *(hai đường sai — bước cố định, gom bắc cầu —
+  đều đã chạy đỏ-rồi-xanh 2026-08-14)*.
+
+- ⚠️ **GIỚI HẠN CÒN LẠI của lời giải vừa ký: từ 8 LÀN trở lên máng 22px hết chỗ.** Bước tối thiểu
+  là 2px *(bằng bề rộng vạch)*, nên máng chứa nhiều nhất **7** làn; từ làn thứ tám luật là **dồn
+  về làn cuối**, tức chấp nhận che — có chủ ý, thay vì tràn ra đè lên chữ. Nó đòi **8 câu cùng một
+  dòng**; fixture đối thoại dày nhất của bàn đo mới cho **5**. Lời giải nếu ngày đó tới: nới token
+  `gutter-width` *(một lượt sửa `DESIGN.md`, tầng token)*. **Chủ: Ice.**
 
 - ⚠️ **Bảng năm giá trị vạch có một HÀNG CÒN THIẾU: "đã dịch bằng tay, chưa xác nhận, con trỏ ở
   chỗ khác".** `confirmed` sai *(chưa ai ký)*, `tm-rule` sai *(không phải máy điền)*, *không vạch*
@@ -2070,6 +2097,18 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   Nhánh hiện rơi về *không vạch* và ghi lại điều đó tại chỗ (doc-comment `resolveSegmentRule`).
   **Chủ: Story 2.5** *(nó mang `segment.status`, tức chỗ duy nhất phân xử được)* — và một lượt ký
   của Ice nếu lời giải là sửa `EXPERIENCE.md`.
+  → ✅ **ĐÃ ĐÓNG 2026-08-14 (Story 2.5, Quyết định #3 đường (a) — Ice ký).** Cách đóng: giữ *không
+  vạch*, và **viết mệnh đề đó ra** thay vì để nhánh rơi vào đó không lời giải thích — *"vạch chỉ
+  nói **ai đã ký**, không nói **có chữ hay chưa**"*, khớp `DESIGN.md:380` nơi vạch lề được định
+  nghĩa là chỗ đọc **trạng thái xác nhận**. Cái mất *(không phân biệt được **chưa dịch** với **đã
+  dịch chưa ký** bằng vạch)* chấp nhận được vì đã có kênh khác chở: **văn bản có chữ**, nằm ngay
+  cạnh. Hai đường kia bị loại — mượn `tm-rule` phá nghĩa cố định của nó *(và làm hỏng cả FR81 lẫn
+  ranh giới bóc)*; một giá trị **thứ sáu** phá `EXPERIENCE.md:99` và làm Kiểm I đỏ.
+  Doc-comment `editorSegments.ts::resolveSegmentRule` mang mệnh đề đã ký; lưới:
+  `tests/frontend/editorSegmentRule.test.ts`.
+  ⚠️ **Món con còn hở, có chủ:** `EXPERIENCE.md:105-113` **chưa** được sửa cho có hàng đó — sửa một
+  tài liệu tầng nguyên tắc là **một lượt riêng của Ice**, dev không sửa tài liệu quy hoạch.
+  **Chủ: Ice.**
 
 - 🔴 **NFR2: dựng 9.850 `<span>` câu vượt trần 50 ms/frame — 6× trên Blink, 26× trên WebKit.**
   Đo ở bàn đo, 2026-08-12, Chương lớn nhất có thật (9.850 câu):
@@ -2389,6 +2428,15 @@ tới frame sau vẫn chưa có caret nào)* — đánh dấu như vậy để k
   và một máy trạng thái, cả hai thuộc **Story 2.5**. AC3 vì thế **không** được đánh dấu đạt trọn
   vẹn ở story này. Ba đường còn lại *(nhịp 2 s · rời segment · đóng Tác phẩm)* và vế thoát ứng
   dụng thì có. **Chủ: Story 2.5.**
+  → ✅ **ĐÃ ĐÓNG 2026-08-14 (Story 2.5).** Cách đóng: `editorPanelState.ts::confirmCurrentSegment`
+  **`await flushEditorNow()` TRƯỚC** rồi mới `invoke('confirm_segment')`, và một lượt flush trượt
+  ⇒ **DỪNG**, không xác nhận *(ký một câu mà lượt lưu vừa trượt là ghi chữ ký cho một văn bản không
+  tồn tại trên đĩa)*. Lưới: `tests/frontend/editorConfirmSegment.test.ts` §① — đảo hai dòng đó làm
+  hai ca ĐỎ *(đã chạy 2026-08-14)*.
+  ⚠️ **GIỚI HẠN THẬT:** mệnh đề này **không** cưỡng chế được ở tầng Rust — `confirm_segment` chỉ
+  đọc thứ đã ở trên đĩa và không biết gì về văn bản đang gõ. Một bề mặt tương lai `invoke` thẳng
+  lệnh đó sẽ đi vòng qua cả hàm lẫn ca test mà **không cổng nào đỏ**. Ghi ở doc-comment của
+  `wire::confirm_segment` và của `config/segment.ts::confirmSegment`.
 
 - ⚠️ **Lệch `32px` / `34px` của chiều cao thanh trạng thái.** `tokens.json:480` và
   `DESIGN.md:283`/`:316` ghi **34px**; `DESIGN.md:132` còn một khối bảng cũ ghi `32px`, và mockup
@@ -2642,3 +2690,150 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   ngày, không phải con trỏ. 🔴 Vì sao không xoá câu trích cũ ở cả hai chỗ: một con trỏ mất câu
   trích thì người sau không đối chiếu được **cái gì đã đổi**, và lịch sử của một mệnh đề là
   bằng chứng cho mệnh đề kế tiếp.
+
+---
+
+## Deferred from: 2-5-xac-nhan-segment-va-may-trang-thai (2026-08-14)
+
+- 🔴 **Hợp âm `⌘↵` (`Mod+Enter`) SẼ xung đột với lệnh *"xác nhận nhập"* của Epic 6.**
+  Story 2.5 đăng ký `editor.confirm_segment` với `Mod+Enter` — hôm nay hợp âm đó **chưa ai
+  chiếm**, và `EXPERIENCE.md:169` đã hẹn đúng `⌘↵` cho *"xác nhận nhập"* ở màn xem trước của
+  đường nhập. Hai thao tác **cùng ngữ nghĩa "ký duyệt"**, khác bề mặt.
+  ⚠️ `check:commands` kiểm trùng hợp âm **trên TOÀN BỘ registry, không theo chế độ**. Ngày Epic 6
+  đăng ký lệnh kia cũng bằng `⌘↵`, cổng sẽ **ĐỎ** và một trong hai phải nhường. Ghi ở đây để nó
+  **không lộ ra dưới dạng một cổng đỏ không ai hiểu**. Ba đường sẽ có lúc đó: đổi hợp âm của lệnh
+  nhập · đổi hợp âm của lệnh xác nhận · hoặc dựng khái niệm *"hợp âm theo chế độ"* trong registry
+  *(lượt đắt nhất, và nó chạm AD-34)*. **Chủ: Story 6.2.**
+
+- ⚠️ **AD-35 vế (c) — *"xác nhận ⇒ flush trước"* — KHÔNG cưỡng chế được ở tầng Rust.**
+  `commands::segment::wire::confirm_segment` chỉ đọc thứ **đã ở trên đĩa**; nó không biết gì về
+  văn bản đang gõ trong webview. Thứ tự *flush → confirm* vì thế sống ở
+  `editorPanelState.ts::confirmCurrentSegment`, và lưới duy nhất là
+  `tests/frontend/editorConfirmSegment.test.ts` §①. Nó canh **chỗ gọi đó**, không canh mọi chỗ gọi
+  tương lai: một bề mặt mới `invoke('confirm_segment')` thẳng sẽ ký một văn bản **cũ hơn** thứ
+  người dùng đang nhìn, và **không cổng nào đỏ**. Lời giải nếu ngày đó tới: một cổng tĩnh cấm
+  `invoke('confirm_segment')` ngoài `src/config/segment.ts` — cùng khuôn `no-restricted-syntax` đã
+  dùng cho `.click()` trong `e2e/**`. **Chủ: story nào dựng bề mặt xác nhận thứ hai.**
+
+- ⚠️ **Từ 8 LÀN trở lên, máng vạch lề 22px hết chỗ** — xem mục đầy đủ ở §Deferred from 2-2, ngay
+  dưới hàng *"hai câu cùng một dòng"* vừa đóng. **Chủ: Ice.**
+
+- 🔴 **`browser.keys()` ĐÁNH RƠI `Meta` đúng ở phím `Enter`, và CHỈ ở đó — giới hạn của BỘ ĐO.**
+  Đo 2026-08-14 trong chính cửa sổ e2e, listener `keydown` pha capture trên `window`, một lượt chạy:
+
+  | Lượt gọi | `code` nhận được | `event.metaKey` |
+  |---|---|---|
+  | `browser.keys(['Meta', '1'])` | `Digit1` | **`true`** |
+  | `browser.keys(['Meta', '2'])` | `Digit2` | **`true`** |
+  | `browser.keys(['Meta', 'Enter'])` | `Enter` | 🔴 **`false`** |
+
+  ⇒ Hợp âm `Mod+Enter` **không bao giờ khớp** qua `browser.keys`: `sameMods` thấy một `Enter` trần.
+  Hai hợp âm đối chứng đi qua **cùng đường mã, cùng cửa sổ, cùng lượt chạy** và mang đủ phím bổ
+  trợ, nên đây là **bộ đo**, không phải sản phẩm — mệnh đề đó được phân xử bằng đối chứng, không
+  bằng suy luận.
+  ⚠️ Hệ quả: `e2e/specs/editor-confirm-segment.e2e.mjs` phát một `KeyboardEvent` **tổng hợp**. Nó
+  đo trọn chuỗi *keymap → registry → command → IPC → `project.db`* trong WKWebView thật, nhưng
+  **không** đo được rằng một phím **vật lý** `⌘↵` sinh ra đúng sự kiện đó — cùng hạng với vế *"một
+  phím vật lý sinh ra `beforeinput`"* mà spec của Story 2.3 đã ghi.
+  **Chủ: Story 1.22** *(nó sở hữu bộ chạy e2e và ba giới hạn chưa đóng của nó)*.
+
+- ⚠️ **Một `[Vue warn] Unhandled error during execution of native event handler` ở `EditorPanel`,
+  BẮT NGUYÊN VĂN, CHƯA CHẨN ĐOÁN.** Xuất hiện trong mọi lượt chạy e2e của Story 2.5 *(kể cả lượt
+  chẩn đoán không chạm gì tới đường xác nhận)*, ngay sau một lượt `realClick` vào một câu. Cây
+  component: `PanelFrame(panel.editor) → EditorPanel → DockviewPortals → …`.
+  🔴 **Chưa đặt tên nguyên nhân, và cố ý không đoán** — nó **không** làm ca nào đỏ, và ba ứng viên
+  hiển nhiên *(`onDocMouseDown`, `onEditKeydown`, `onEditInput` — cả ba là native handler trên
+  đường chuột của Story 2.3)* chưa cái nào được đo. Ghi ở đây theo đúng luật *"gặp một lượt lạ thì
+  BẮT NGUYÊN VĂN TRƯỚC, đừng chẩn đoán từ trí nhớ"*.
+  ⚠️ **Chưa xác định nó có TRƯỚC Story 2.5 hay không** — lượt đo đầu tiên nhìn thấy nó là lượt của
+  story này. **Chủ: Story 2.3** *(chủ của đường chuột và của ba handler đó)*.
+
+- ⚠️ **`EXPERIENCE.md:105-113` chưa có hàng *"đã dịch, chưa xác nhận"*.** Quyết định #3 đã được Ice
+  ký và mệnh đề đã viết vào doc-comment của `resolveSegmentRule` cùng một ca vitest, nhưng **tài
+  liệu quy hoạch chưa được sửa** — sửa một tài liệu tầng nguyên tắc là một lượt riêng của Ice, dev
+  không sửa `EXPERIENCE.md`/`epics.md`. **Chủ: Ice.**
+
+- ⚠️ **Bảng `segment_version` KHÔNG có index, và đó là một quyết định chứ không một lượt quên.**
+  Story 2.5 **chỉ ghi**, không đọc — không đường sản phẩm nào truy vấn bảng đó ở story này, nên
+  một index ở đây là tối ưu cho một đường đọc **chưa ai đo**. Cùng luật mà `SEGMENT_TARGET_TEXT_DDL`
+  đã ghi cho `target_text`. Story 2.6 mang đường đọc *(lịch sử theo `segment_id`, sắp theo thời
+  điểm)*, nên nó mang index **cùng lượt** — đúng cách bước 5 mang `idx_segment_chapter_ord` cùng
+  lúc với đường đọc cần nó. **Chủ: Story 2.6.**
+
+- ⚠️ **`updated_at` của `segment` KHÔNG đổi ở lượt xác nhận.** Cột đó mang nghĩa *"mốc sửa **văn
+  bản**"* — nó do `save_segment_targets` sinh, và `SEGMENT_DDL` phân biệt nó với `created_at`
+  (*"mốc TẠO, không phải mốc sửa"*). Một lượt ký không sửa một ký tự nào, và thời điểm ký có chỗ
+  ghi riêng chính xác hơn: `segment_version.created_at`. ⚠️ Ghi ra vì **Story 2.6 sẽ đọc cả hai
+  mốc** và phải biết chúng nói hai chuyện khác nhau. **Chủ: Story 2.6** *(xác nhận lại mệnh đề này
+  khi dựng màn hình lịch sử)*.
+
+- 🔴 **Story 2.5 phá một giả định hiệu năng của cả Epic 2 — đã ĐO và đã VÁ trong story, ghi lại
+  vì nó đổi cách đọc mọi số cũ.** Tới hết Story 2.3, `wanted` của `measureGutterRules` có **nhiều
+  nhất MỘT** phần tử *(chỉ `primary` có nguồn dữ liệu, và caret chỉ có một)*, nên mọi số đo vạch
+  lề của bàn đo 2.2 đọc ở cột *"1 vạch"* **5,0–8,5 ms**. Story 2.5 cho `confirmed` một nguồn ⇒
+  `wanted` nay chứa **mọi câu đã xác nhận**, tức lớn theo tiến độ dịch của chính người dùng.
+  ⚠️ **Đo 2026-08-14** (Node 22.22.2, 9.850 vạch — Chương lớn nhất có thật, ~3 câu mỗi dòng, ba
+  lượt): bản đầu của `assignGutterLanes` là `O(n²)` và tốn **482,4 / 254,5 / 261,6 ms**, tức vượt
+  trần một frame của NFR2 *(50 ms)* **5–10 lần**, chỉ riêng CPU. Đã vá bằng **quét đường**:
+  **8,3 / 5,2 / 4,3 ms**, kết quả **giống hệt** trên cùng bộ dữ liệu.
+  🔴 **PHẦN CÒN HỞ:** số trên đo bằng **Node**, không phải WKWebView, và nó **không** gồm lượt
+  `getClientRects()` lẫn lượt bố cục đi kèm. Vế *"một frame thật có vượt 50 ms không, trên một
+  Chương đã dịch xong"* **chưa ai đo**, và Story 2.5 **không tự chấm NFR2 đạt**.
+  **Chủ: Story 2.4** *(nó sở hữu bộ đo NFR2/NFR18 — đừng dựng bộ đo thứ hai)*.
+
+## Deferred from: code review of 2-5-xac-nhan-segment-va-may-trang-thai (2026-08-14)
+
+_Lượt rà ba lớp song song trên `git diff HEAD` (baseline `8245a17`). Bảy phát hiện, năm đã vá
+trong chính lượt rà; hai món dưới đây **không** nghiệm thu được ở Story 2.5 nên đi vào đây kèm chủ._
+
+- ⚠️ **AC1 KHÔNG đạt ở câu cuối mỗi Chương — và nó không có lời giải trong phạm vi 2.5.** AC1 đòi
+  *"trạng thái chuyển sang đã xác nhận **và vạch lề chuyển `confirmed`**"*. Lời giải đã ký (Quyết
+  định #1, đường (a)) là **dời con trỏ sang câu kế tiếp**, vì `resolveSegmentRule` cho `primary`
+  thắng `confirmed` và thứ tự đó là một quyết định 🔴 không được đảo. Ở **câu cuối Chương không có
+  câu kế** ⇒ `confirmCurrentSegment` không dời được ⇒ vạch **ở lại `primary`** cho tới khi người
+  dùng tự đi chỗ khác. `segment.status` trong CSDL thì **đúng**; chỉ vế thị giác của AC1 hụt.
+  ⚠️ Không phải ca hiếm: nó xảy ra **đúng một lần mỗi Chương**, ở đúng câu cuối.
+  ⚠️ Khuyết tật đã được ghi bằng chữ tại `src/panels/editorPanelState.ts:503-504` từ lượt dựng,
+  nhưng **chưa vào sổ này** — tức nó là một mệnh đề không có chủ, đúng thứ sổ này tồn tại để chặn.
+  **Chủ: Story 2.10** *(điều hướng segment — nó **dùng lại** đường dời con trỏ tối thiểu của 2.5
+  chứ không dựng đường thứ hai, nên nó là chỗ duy nhất trả lời được câu "đi đâu khi hết Chương")*.
+
+- 🔴 **Ba khoá lỗi `err.segment.*` vừa dựng KHÔNG có đường ra màn hình.** `confirm_segment` phía
+  Rust trả đúng ba `IpcError` phân biệt được (`not_found` · `retired` · `nothing_to_confirm`), và
+  `vi.json` có đủ ba câu tiếng Việt. Nhưng ở tầng giao diện: `editorConfirmError` được **export mà
+  không component nào đọc**, và `ConfirmResult` bị **vứt** ở chỗ gọi duy nhất (`src/main.ts:229` —
+  `void confirmCurrentSegment()`). ⇒ Hôm nay bấm `Mod+Enter` trên một câu **chưa dịch** thì **không
+  gì xảy ra trên màn hình**: người dùng không biết mình vừa bị từ chối hay vừa ký thành công.
+  ⚠️ **AC14 vẫn ĐẠT và món này KHÔNG phải lệch spec** — AC14 nói về **hợp đồng IPC** (*"trả một
+  `IpcError` có `message_key` riêng"*), và Rust làm đúng. Đây là *"năng lực chưa dựng"*, đúng
+  hạng mục mà luật **"năng lực chưa dựng ≠ lệch spec"** mô tả — nên nó ghi nợ, không sửa `epics.md`.
+  ⚠️ Sau lượt rà này danh sách còn dài thêm một: `'still-dirty'` (Quyết định #8) cũng chỉ để lại
+  một dòng `console.error`, cùng cảnh ngộ.
+  ⚠️ Cùng đường hỏng và cùng chủ với vế *"báo lỗi ghi ra màn hình"* của lượt flush, đã ghi tại
+  `src/panels/editorPanelState.ts:269-271`: cả hai là một lượt **thu hẹp UX-DR30** (*"không hộp
+  thoại, không dấu chấm chưa lưu"*), và hợp đồng đó **có chủ là Ice**.
+  **Chủ: Ice** *(hợp đồng UX-DR30 — cần chốt bề mặt báo lỗi của Editor **trước** khi story nào
+  cài nó; hai món này phải đóng **cùng một** bề mặt, không hai bề mặt rời)*.
+
+- 🔴 **Bộ e2e ĐỎ OAN khi chạy cả bộ — hai tệp xanh khi chạy riêng, đỏ khi chạy nối tiếp.**
+  **Đo 2026-08-14** (macOS 15.6, sau lượt code review Story 2.5):
+
+  | Cách chạy | `attribution-focus` | `editor-confirm-segment` | `editor-typing-flush` |
+  |---|---|---|---|
+  | `npm run test:e2e` (cả bộ, 6 tệp) | **ĐỎ** | **ĐỎ** | ĐỎ (2 ca) |
+  | từng tệp một | XANH | XANH 2/2 | 1 xanh / 1 đỏ *(ca có chủ)* |
+
+  ⚠️ **Không phải chạy song song.** `wdio.conf.mjs:221` khai `maxInstances: 1` và log lượt chạy
+  cho thấy các spec đi nối tiếp. ⇒ Nguyên nhân là **rò trạng thái giữa các spec**: `attribution-focus`
+  chết ngay ở `openWorkspaceWithWork` (`e2e/support/workspace.mjs:76`), tức fixture không mở nổi
+  workspace vì thứ spec trước để lại — Tác phẩm còn mở, hoặc thư mục gốc Library tạm còn dữ liệu.
+
+  🔴 **Vì sao đây là khuyết tật của CỔNG, không phải một phiền toái:** luật của kho ghi *"mỗi cổng
+  phải có phép TỰ KIỂM chứng minh nó ĐỎ ĐƯỢC — **và không đỏ oan**"*. Một bộ đỏ oan dạy người chạy
+  bỏ qua nó, và ngày nó đỏ thật thì không ai tin. Nó cũng làm mọi con số *"e2e N/N"* trong sổ story
+  **không so sánh được**, vì kết quả phụ thuộc cách gọi.
+
+  ⚠️ **Hệ quả ngay:** con số e2e ghi trong Dev Agent Record của các story trước đó được đo bằng
+  **cách chạy nào** thì không tệp nào ghi lại. Đừng đối chiếu chúng với nhau cho tới khi món này đóng.
+
+  **Chủ: Story 2.4** *(nó sở hữu hạ tầng đo và bàn đo; đừng dựng đường chẩn đoán thứ hai)*.

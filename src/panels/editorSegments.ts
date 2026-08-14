@@ -73,8 +73,12 @@ export type SegmentRuleInput = {
   /**
    * Người dùng đã xác nhận câu này (FR24).
    *
-   * 🔴 Hôm nay **luôn `false`**: cột `segment.status` chưa tồn tại và không enum trạng thái
-   * nào tồn tại ở Rust lẫn TS (`schema.rs:295`). **Chủ: Story 2.5** *(máy trạng thái AD-31)*.
+   * 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5) — mệnh đề cũ đã hết đúng.** Bản trước viết *"hôm
+   * nay luôn `false`: cột `segment.status` chưa tồn tại"*. Cột **đã có** (bước di trú 7), và
+   * trường này nay đọc dữ liệu **thật** qua `isSegmentConfirmed` — xem [`segmentRuleInputOf`].
+   *
+   * ⚠️ Máy trạng thái sinh ra giá trị này sống **ở Rust** (`commands/segment.rs`), AD-1. Chỗ
+   * này chỉ **đọc** nó.
    */
   isConfirmed: boolean
   /**
@@ -108,11 +112,31 @@ export type SegmentRuleInput = {
  * *không vạch* sai *(nó đã có bản dịch)*. Bảng của `EXPERIENCE.md:105-113` đơn giản không
  * có hàng đó.
  *
- * Hôm nay khe hở này **không chạm tới được**: `target_text` chỉ nhận giá trị qua đường gõ,
- * mà đường gõ là **Story 2.3** (Quyết định #1 do Ice chốt). Nhánh dưới đây vì thế rơi về
- * *không vạch* và **ghi lại điều đó**, thay vì cài một giá trị thứ sáu.
- * **Chủ: Story 2.5** *(nó mang `segment.status`, tức chỗ duy nhất phân xử được hàng còn
- * thiếu)* — và một lượt ký của Ice nếu lời giải là sửa `EXPERIENCE.md`.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ✅ **ĐÃ PHÂN XỬ 2026-08-14 — Ice ký Quyết định #3 của Story 2.5, đường (a).**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Khe hở **không còn** là một món nợ: hàng đó nay có một câu trả lời viết ra, và câu trả lời
+ * là *"không vạch"* — **có chủ ý**, không phải một nhánh quên viết.
+ *
+ * **Mệnh đề đã ký:** *"đã dịch, chưa xác nhận ⇒ không vạch — vạch chỉ nói **ai đã ký**,
+ * không nói **có chữ hay chưa**."* Nó khớp `DESIGN.md:380`, nơi vạch lề được định nghĩa là
+ * chỗ đọc **trạng thái xác nhận**.
+ *
+ * **Cái mất, ghi ra thay vì giấu:** người dùng **không** phân biệt được *chưa dịch* với *đã
+ * dịch chưa ký* bằng vạch lề. Nó chấp nhận được vì cái mất đó đã có một kênh khác chở —
+ * **văn bản có chữ** là chỉ báo *"đã dịch"* rõ hơn bất kỳ vạch nào, và nó nằm ngay cạnh.
+ *
+ * ⚠️ Hai đường kia bị **loại**, và mỗi đường bị loại bởi một mệnh đề khác nhau: mượn
+ * `tm-rule` phá nghĩa cố định *"máy đề xuất, chưa ai xác nhận"* (`EXPERIENCE.md:97,101`) và
+ * làm hỏng cả Proofreader (FR81) lẫn ranh giới bóc; một giá trị **thứ sáu** phá mệnh đề
+ * *"năm giá trị là tài nguyên hữu hạn đã tiêu hết"* (`EXPERIENCE.md:99`) và làm Kiểm I đỏ.
+ *
+ * 🔴 Từ story này khe hở **chạm tới được**: gõ xong một câu rồi bấm sang câu khác mà chưa
+ * xác nhận là ca **thường nhật nhất** của tính năng. Nhánh cuối của hàm dưới đây là chỗ nó
+ * rơi về, và `tests/frontend/editorSegmentRule.test.ts` khoá mệnh đề đó lại.
+ * 🔵 *(Code review 2026-08-14: đường dẫn cũ `tests/frontend/panels/editorSegments.test.ts`
+ * KHÔNG tồn tại — nó còn bịa ra một thư mục con `panels/` mà cây test cố ý không dùng;
+ * `tests/frontend/**` phẳng. Mệnh đề thì có bị khoá thật, chỉ là ở tệp khác tên.)*
  */
 export function resolveSegmentRule(input: SegmentRuleInput): SegmentRuleValue {
   if (input.retiredAt !== null) return 'ornament'
@@ -127,9 +151,10 @@ export function resolveSegmentRule(input: SegmentRuleInput): SegmentRuleValue {
 /**
  * Dựng dữ kiện cho [`resolveSegmentRule`] từ một hàng đã nạp.
  *
- * 🔴 Đây là chỗ **duy nhất** trong sản phẩm nói *"hai nguồn dữ liệu kia chưa tồn tại"*, và
- * nó nói bằng hai hằng `false` có chú thích chứ không bằng sự vắng mặt. Story 2.5 và Epic 7
- * sửa **đúng hai dòng** ở đây.
+ * 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5).** Bản trước gọi đây là *"chỗ duy nhất trong sản phẩm
+ * nói hai nguồn dữ liệu kia chưa tồn tại"*, bằng **hai** hằng `false`. Story 2.5 đã sửa
+ * **đúng một** trong hai dòng đó: `isConfirmed` nay đọc `segment.status` **thật**. Hằng còn
+ * lại là `isTmFilled` — **chủ: Epic 7** (FR58), và nó **ở lại**.
  */
 export function segmentRuleInputOf(
   segment: ChapterSegment,
@@ -138,9 +163,21 @@ export function segmentRuleInputOf(
   return {
     retiredAt: segment.retired_at,
     hasCaret: caretSegmentId === segment.id,
-    // 🔴 Story 2.5 — cột `segment.status` chưa tồn tại.
-    isConfirmed: false,
-    // 🔴 Epic 7 — chưa tầng TM nào (FR58).
+    // 🔴 CHUỖI `'confirmed'` VIẾT THẲNG Ở ĐÂY, KHÔNG `import` TỪ `../config/segment` — và đó
+    // là một **điều kiện kỹ thuật**, không một lượt lười.
+    //
+    // `scripts/check-commands.mjs` Kiểm I `import()` **thẳng tệp này** bằng Node trần để chạy
+    // phép kiểm trên chính mã sản phẩm; `../config/segment` kéo theo `@tauri-apps/api`, nên
+    // **một** dòng `import` giá trị ở đây giết phép kiểm đó — xem doc-comment đầu tệp.
+    //
+    // ⚠️ Cái giá, ghi ra: chuỗi này tồn tại ở **hai** chỗ *(chỗ kia là
+    // `config/segment.ts::isSegmentConfirmed`, thứ các chỗ gọi KHÔNG bị ràng buộc "module
+    // thuần" dùng)*. Lưới cho chỗ hở đó **không** phải kỷ luật: nó là
+    // `tests/frontend/editorSegmentRule.test.ts`, ca *"hai chỗ đọc trạng thái phải đồng ý
+    // với nhau"* — sai chính tả ở một trong hai chỗ làm ca đó ĐỎ.
+    // 🔵 *(Code review 2026-08-14: sửa đường dẫn — bản cũ trỏ vào một tệp không tồn tại.)*
+    isConfirmed: segment.status === 'confirmed',
+    // 🔴 Epic 7 — chưa tầng TM nào (FR58). Hằng này **ở lại**.
     isTmFilled: false,
     targetText: segment.target_text,
   }

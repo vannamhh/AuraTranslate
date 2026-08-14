@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-13T18:00:00
+last_updated: 2026-08-14T02:15:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -110,6 +110,13 @@ development_status:
   epic-2: in-progress
   # 2.1 dong action item A6 cua Epic 1: buoc di tru ke tiep cua `project.db` phai
   # danh so 5 — so 4 la mot so DA CHAY (`schema.rs:280-296`).
+  # 🔵 2026-08-14 — cau tren dung o thoi diem Story 2.1 va NAY DA HET DUNG voi vai tro
+  # "buoc ke tiep": 5 da tieu (SEGMENT_DDL, 2.1) va 6 da tieu (SEGMENT_TARGET_TEXT_DDL,
+  # 2.2). Buoc ke tiep hom nay la **7** (Story 2.5). Ve "so 4 CHAY, khong tai dung" thi
+  # van dung mai mai — cong canh no: segment_contract.rs:472.
+  # 🔵 CAP NHAT CUOI 2026-08-14: **7 DA TIEU** (Story 2.5 — cot `segment.status` + bang
+  #   `segment_version`). So ke tiep la **8**. Nguon su that la `PROJECT_MIGRATIONS`
+  #   (schema.rs), khong phai dong nay — doc ma, dung doc mot ghi chep o noi khac.
   # 2.1 XONG 2026-08-12 (Rust 301 xanh/0 do · 11/11 cong npm). Buoc di tru danh so 5 —
   # cong cam so 4 quay lai da chay do-roi-xanh. HAI mon con cho Ice: bam lenh tach tren 21
   # Chuong that (mot luot GHI vao du lieu that), va commit/push + workflow_dispatch.
@@ -174,7 +181,33 @@ development_status:
   # (khoang 669 → 48.639 ky tu rong hoan toan). Ice chot 2026-08-13: dung THANG NHAN TAO, va bao
   # cao CAM viet "da do tren mot Chuong that".
   2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi: in-progress
-  2-5-xac-nhan-segment-va-may-trang-thai: backlog
+  # 🔵 2026-08-14 — 2.5 chuyen sang ready-for-dev (create-story). Ice ky: cu dung 2.5, ghi
+  # dieu kien khoi hanh, KHONG tu cham dat cho mon nao cua 2.3/2.4.
+  # 🔴 SO DI TRU KE TIEP LA **7**, khong phai 5 — dong `:112-113` cua tep nay da HET DUNG.
+  #   Do lai tu nguon 2026-08-14: `PROJECT_MIGRATIONS` (schema.rs:431-455) dich o 6 —
+  #   1·2·3·**5**·6, so 4 van chay. 5 = SEGMENT_DDL (2.1), 6 = SEGMENT_TARGET_TEXT_DDL (2.2).
+  # 🔴 BAY QUYET DINH CHO ICE KY o Task 0 truoc khi viet dong ma dau tien. Hai cai da co
+  #   chu ky ghi san trong so no tu Story 2.2:
+  #   #1 vach `primary` NUOT `confirmed` — AC1 va KF-2 (EXPERIENCE.md:290) mo ta mot doi mau
+  #      KHONG xay ra khi con tro dung tren chinh cau vua xac nhan (editorSegments.ts:117-125).
+  #   #2 hai vach CHONG NHAU khi hai cau ngan cung mot dong (deferred-work.md:2052-2064) —
+  #      2.5 la story dau tien lam hai vach cung ton tai.
+  #   #3 bang nam gia tri THIEU MOT HANG: "da dich tay, chua xac nhan, con tro cho khac".
+  #   #7 xac nhan mot cau CHUA DICH: cho hay tu choi — cho thi Epic 7 ghi mot cap TM co ve
+  #      dich RONG, roi FR58 dien san bao rong do o mot Chuong sau. Hong VINH VIEN.
+  # 2.5 dong 4 mon co chu dich danh: deferred-work.md :2046 · :2052-2064 · :2066-2072 ·
+  #   :2388-2391 (ve "xac nhan segment" cua AC3 Story 2.3, cho dung 2.5).
+  # ✅ 2026-08-14 — 2.5 XONG, chuyen sang `review`. Bay quyet dinh Ice ky het.
+  #   Nghiem thu: 11 cong npm · build · vitest 74/74 · cargo test 336/0/5 · e2e 2/2.
+  #   Tam cong moi da chay do-roi-xanh. Ba thu PHEP DO bac va da sua trong story:
+  #   (1) buoc lan co dinh 5px TRAN mang o ca doi thoai ⇒ buoc CO;
+  #   (2) thu tu ha-truoc-ghi-sau nam o vo `wire` ⇒ khong cong nao do ⇒ keo xuong ham thuan;
+  #   (3) `assignGutterLanes` ban dau O(n^2) = 254-482 ms tren 9.850 vach ⇒ quet duong 4-8 ms.
+  #   🔴 E2E BAT MOT KHUYET TAT ma ca bon duong kia bo lot: `read_open_chapter_segments`
+  #   khong gui `status` qua day ⇒ `isConfirmed` LUON false trong app that, trong khi
+  #   74/74 vitest van xanh (fixture chep tay co cap `status`). Da va + dung luoi.
+  #   🔴 CON MOT MON CHO ICE: Task 1.1 — go tay vao mot cau CHUA DICH tren app that.
+  2-5-xac-nhan-segment-va-may-trang-thai: done
   2-6-lich-su-phien-ban-segment-va-khoi-phuc: backlog
   2-7-xuat-xu-ban-dich-cap-segment: backlog
   2-8-gop-va-tach-segment-tuong-minh: backlog

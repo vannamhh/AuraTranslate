@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bề mặt nhập — lưới hai cột (phương án B)</title>
+<style>
+  :root {
+    --background: #f4f1ea;
+    --surface: #fbfaf6;
+    --surface-sunken: #f0ece1;
+    --surface-accent: #e6eeee;
+    --surface-tm: #faf6ee;
+    --on-surface: #2b2723;
+    --on-surface-variant: #6b6459;
+    --outline: #e2dccf;
+    --outline-faint: #efeade;
+    --ornament: #a9a196;
+    --primary: #2f5d63;
+    --on-primary: #fbfaf6;
+    --confirmed: #5a6b3f;
+    --tm-rule: #b99a5e;
+    --tm-text: #7a5d25;
+    --error: #8f2f22;
+
+    --face-read: "Source Serif 4", "Noto Serif CJK TC", Georgia, serif;
+    --face-ui: "Source Sans 3", ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+    --face-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+
+    --radius-sm: 2px;
+    --radius: 3px;
+    --radius-md: 4px;
+    --gutter-width: 22px;
+    --panel-inline: 16px;
+    --panel-block: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --background: #201e1b;
+      --surface: #26241f;
+      --surface-sunken: #1b1a17;
+      --surface-accent: #2c3a3b;
+      --surface-tm: #302b21;
+      --on-surface: #e8e3d8;
+      --on-surface-variant: #a29a8c;
+      --outline: #3b382f;
+      --outline-faint: #302d26;
+      --ornament: #6a6459;
+      --primary: #7fb3ba;
+      --on-primary: #1b1a17;
+      --confirmed: #9cb37a;
+      --tm-rule: #b99a5e;
+      --tm-text: #d3b276;
+      --error: #e5867a;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 40px 24px 80px;
+    background: var(--background);
+    color: var(--on-surface);
+    font-family: var(--face-ui);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  h1 {
+    font-size: 21px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: var(--on-surface-variant);
+    margin: 0 0 4px;
+    max-width: 70ch;
+  }
+  .meta {
+    font-family: var(--face-mono);
+    font-size: 10.5px;
+    color: var(--ornament);
+    margin: 0 0 34px;
+  }
+
+  h2 {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+    margin: 40px 0 12px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid var(--outline);
+  }
+  h2:first-of-type { margin-top: 28px; }
+
+  .note {
+    color: var(--on-surface-variant);
+    max-width: 76ch;
+    margin: 0 0 16px;
+  }
+  .note b { color: var(--on-surface); font-weight: 600; }
+
+  /* ── khung panel ─────────────────────────────────────────── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--outline);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .panel-head {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--panel-inline);
+    border-bottom: 1px solid var(--outline-faint);
+    color: var(--on-surface-variant);
+  }
+  .panel-head .right { font-family: var(--face-mono); font-size: 10.5px; color: var(--ornament); }
+
+  /* ── lưới hai cột ────────────────────────────────────────── */
+  .grid { width: 100%; border-collapse: collapse; }
+
+  .grid tr { border-bottom: 1px solid var(--outline-faint); }
+  .grid tr:last-child { border-bottom: none; }
+
+  /* hàng cuối của một đoạn: vạch đậm hơn + khoảng thở */
+  .grid tr.para-end { border-bottom: 1px solid var(--outline); }
+  .grid tr.para-end td { padding-bottom: 16px; }
+  .grid tr.para-start td { padding-top: 16px; }
+
+  .grid td { vertical-align: top; padding: 7px 0; }
+
+  /* cột 1 — máng trạng thái */
+  td.mark {
+    width: var(--gutter-width);
+    padding-left: 8px;
+    padding-right: 0;
+  }
+  .rule {
+    width: 2px;
+    height: 100%;
+    min-height: 1.95em;
+    border-radius: var(--radius-sm);
+    background: transparent;
+  }
+  .rule.confirmed { background: var(--confirmed); }
+  .rule.primary   { background: var(--primary); }
+  .rule.tm        { background: var(--tm-rule); }
+  .rule.draft     { background: var(--ornament); opacity: 0.45; }
+  .rule.omitted   { background: var(--ornament); }
+
+  /* cột 2 — số câu */
+  td.num {
+    width: 34px;
+    font-family: var(--face-mono);
+    font-size: 10.5px;
+    color: var(--ornament);
+    text-align: right;
+    padding-right: 12px;
+    padding-top: 10px;
+    user-select: none;
+  }
+
+  /* cột 3 — nguyên văn */
+  td.src {
+    width: 44%;
+    font-family: var(--face-read);
+    font-size: 16.5px;
+    line-height: 2.05;
+    padding-right: 18px;
+    color: var(--on-surface);
+  }
+
+  /* cột 4 — bản dịch */
+  td.tgt {
+    font-family: var(--face-read);
+    font-size: 15px;
+    line-height: 1.95;
+    padding-right: 14px;
+    color: var(--on-surface);
+  }
+
+  /* cột 5 — trạng thái chữ */
+  td.state {
+    width: 108px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ornament);
+    padding-top: 11px;
+    padding-right: var(--panel-inline);
+    white-space: nowrap;
+  }
+  td.state.is-confirmed { color: var(--confirmed); }
+  td.state.is-primary   { color: var(--primary); }
+  td.state.is-tm        { color: var(--tm-text); }
+
+  /* hàng đang sửa */
+  tr.row-primary { background: var(--surface-accent); }
+  tr.row-tm .tgt { background: var(--surface-tm); }
+
+  /* ô trống — điểm mấu chốt: nó CÓ CHỖ, nhìn thấy, bấm trúng */
+  .empty-cell {
+    display: block;
+    min-height: 1.95em;
+    border-bottom: 1px dashed var(--outline);
+    opacity: 0.85;
+  }
+
+  /* hàng cắt bỏ */
+  tr.row-omitted td.src,
+  tr.row-omitted td.tgt {
+    color: var(--ornament);
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+  }
+  tr.row-omitted { background: repeating-linear-gradient(
+      135deg, transparent, transparent 6px,
+      color-mix(in srgb, var(--ornament) 8%, transparent) 6px,
+      color-mix(in srgb, var(--ornament) 8%, transparent) 12px); }
+
+  .caret {
+    display: inline-block;
+    width: 1px;
+    height: 1.05em;
+    background: var(--primary);
+    vertical-align: -0.18em;
+    margin-left: 1px;
+    animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── bảng phím ───────────────────────────────────────────── */
+  table.keys { border-collapse: collapse; width: 100%; max-width: 720px; }
+  table.keys td { padding: 7px 12px 7px 0; border-bottom: 1px solid var(--outline-faint); vertical-align: top; }
+  table.keys tr:last-child td { border-bottom: none; }
+  kbd {
+    font-family: var(--face-mono);
+    font-size: 10.5px;
+    background: var(--surface-sunken);
+    border: 1px solid var(--outline);
+    border-radius: var(--radius-sm);
+    padding: 2px 6px;
+    white-space: nowrap;
+    color: var(--on-surface);
+  }
+  td.k { width: 150px; }
+  td.why { color: var(--on-surface-variant); }
+
+  /* ── bố cục workspace ────────────────────────────────────── */
+  .layouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 18px; }
+  .lay {
+    border: 1px solid var(--outline);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    padding: 14px;
+  }
+  .lay h3 { margin: 0 0 3px; font-size: 13px; font-weight: 600; }
+  .lay p { margin: 0 0 12px; color: var(--on-surface-variant); font-size: 12px; }
+  .boxes { display: grid; gap: 5px; height: 168px; }
+  .bx {
+    border: 1px solid var(--outline);
+    border-radius: var(--radius);
+    background: var(--surface-sunken);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+    text-align: center;
+    padding: 4px;
+  }
+  .bx.hero { background: var(--surface-accent); color: var(--primary); border-color: color-mix(in srgb, var(--primary) 35%, transparent); }
+
+  .l1 { grid-template-columns: 1fr 1fr; grid-template-rows: 1.35fr 1fr; }
+  .l1 .hero { grid-column: 1 / -1; }
+  .l2 { grid-template-columns: 1.6fr 1fr; grid-template-rows: 1fr 1fr; }
+  .l2 .hero { grid-row: 1 / -1; }
+
+  .warn {
+    border-left: 2px solid var(--error);
+    padding: 2px 0 2px 14px;
+    margin: 16px 0 0;
+    color: var(--on-surface-variant);
+    max-width: 76ch;
+  }
+  .warn b { color: var(--on-surface); font-weight: 600; }
+
+  .scroller { overflow-x: auto; }
+
+  /* ── Hán Việt ────────────────────────────────────────────── */
+  .hv {
+    font-family: var(--face-read);
+    font-size: 12.5px;
+    font-style: italic;
+    line-height: 1.95;
+    color: var(--on-surface-variant);
+    margin-top: 2px;
+  }
+  .hv.solo { color: var(--on-surface); }
+  .hv-demo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 18px;
+  }
+  .hv-demo .grid td.src { width: 52%; }
+  .hv-demo .grid td.state { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Bề mặt nhập — lưới hai cột đối chiếu</h1>
+  <p class="sub">Phương án <b>B</b>, Ice chốt 2026-08-14. Mỗi câu là một <b>hàng</b>; nguyên văn và bản dịch nằm cạnh nhau trên cùng hàng đó. Bản nhìn này dùng token thật của <code>DESIGN.md</code>, không màu viết thẳng.</p>
+  <p class="meta">.working/editor-grid-two-column.html · phiên UX 2026-08-14 · chưa vào spine</p>
+
+  <h2>Sáu trạng thái, và một trục thứ hai</h2>
+  <p class="note">Bảng hôm nay của <b>UX-DR19</b> có năm giá trị và <b>thiếu một hàng</b>: <i>đã dịch tay, chưa xác nhận</i>. Nó bị gom chung ô với <i>chưa dịch</i>, nên hai thứ khác hẳn nhau trông y hệt. XLIFF 2.0 tách chúng thành <code>initial</code> và <code>translated</code>. Dưới đây tách rồi.</p>
+  <p class="note"><b>Cắt bỏ</b> không phải hàng thứ bảy — nó là một <b>cờ riêng</b> trên câu nguồn, đúng khuôn <code>translate="no"</code>. Một câu bị cắt bỏ vẫn có trạng thái của nó; nó chỉ không đi ra bản xuất.</p>
+
+  <div class="panel scroller">
+    <div class="panel-head">
+      <span>Nguyên văn ⟷ Bản dịch</span>
+      <span class="right">Chương 1 · 8 câu · đã lưu 3 giây trước</span>
+    </div>
+    <table class="grid">
+      <tr class="para-start">
+        <td class="mark"><div class="rule confirmed"></div></td>
+        <td class="num">1</td>
+        <td class="src">【大纪元2026年08月12日讯】（大纪元记者夏雨报导）周二（8月11日），美国总统川普（特朗普）谈到美伊局势时表示，美国对霍尔木兹海峡拥有“完全控制权”。</td>
+        <td class="tgt">【Đại Kỷ Nguyên đưa tin ngày 12/08/2026】(Ký giả Hạ Vũ của Đại Kỷ Nguyên tường thuật) Hôm thứ Ba (11/8), Tổng thống Mỹ Trump khi nói về tình hình Mỹ–Iran đã tuyên bố rằng Mỹ nắm “quyền kiểm soát hoàn toàn” eo biển Hormuz.</td>
+        <td class="state is-confirmed">Đã xác nhận</td>
+      </tr>
+      <tr class="para-end">
+        <td class="mark"><div class="rule draft"></div></td>
+        <td class="num">2</td>
+        <td class="src">他还表示伊朗已无法再在中东称霸。</td>
+        <td class="tgt">Ông còn nói Iran đã không còn khả năng xưng bá ở Trung Đông nữa.</td>
+        <td class="state">Đã dịch · chưa ký</td>
+      </tr>
+
+      <tr class="para-start row-primary">
+        <td class="mark"><div class="rule primary"></div></td>
+        <td class="num">3</td>
+        <td class="src">周二，川普前往俄亥俄州日内瓦参加“自由250爱国者运动会”（Freedom 250 Patriot Games），在返程时，他对记者表示，“伊朗的情况还好。</td>
+        <td class="tgt">Hôm thứ Ba, Trump tới Geneva bang Ohio dự “Đại hội Thể thao Ái quốc Tự do 250”<span class="caret"></span></td>
+        <td class="state is-primary">Đang sửa</td>
+      </tr>
+      <tr>
+        <td class="mark"><div class="rule"></div></td>
+        <td class="num">4</td>
+        <td class="src">一切都好得很。</td>
+        <td class="tgt"><span class="empty-cell"></span></td>
+        <td class="state">Chưa dịch</td>
+      </tr>
+      <tr class="row-tm">
+        <td class="mark"><div class="rule tm"></div></td>
+        <td class="num">5</td>
+        <td class="src">我们完全控制着霍尔木兹海峡。</td>
+        <td class="tgt">Chúng tôi kiểm soát hoàn toàn eo biển Hormuz.</td>
+        <td class="state is-tm">TM khớp 100%</td>
+      </tr>
+      <tr class="row-omitted">
+        <td class="mark"><div class="rule omitted"></div></td>
+        <td class="num">6</td>
+        <td class="src">我们掌控着它。</td>
+        <td class="tgt">—</td>
+        <td class="state">Cắt bỏ</td>
+      </tr>
+      <tr class="para-end">
+        <td class="mark"><div class="rule"></div></td>
+        <td class="num">7</td>
+        <td class="src">没有别人，只有我们。”</td>
+        <td class="tgt"><span class="empty-cell"></span></td>
+        <td class="state">Chưa dịch</td>
+      </tr>
+
+      <tr class="para-start">
+        <td class="mark"><div class="rule"></div></td>
+        <td class="num">8</td>
+        <td class="src">“我们的海军棒极了，国家的发展形势也非常好。”他说。</td>
+        <td class="tgt"><span class="empty-cell"></span></td>
+        <td class="state">Chưa dịch</td>
+      </tr>
+    </table>
+  </div>
+
+  <p class="note" style="margin-top:16px">Bốn thứ đổi so với hôm nay, và cả bốn là hệ quả của <b>hình dạng</b> chứ không phải của một bản vá:</p>
+  <table class="keys" style="margin-bottom:8px">
+    <tr><td class="k"><b>Câu chưa dịch thấy được</b></td><td class="why">Ô trống có chiều cao thật và một đường đứt nét. Không thể rộng 0&nbsp;px như hôm nay — hàng có chiều cao riêng.</td></tr>
+    <tr><td class="k"><b>Bấm đâu cũng trúng</b></td><td class="why">Vùng bấm là cả ô, không phải một <code>&lt;span&gt;</code> rỗng nằm trong dòng chữ.</td></tr>
+    <tr><td class="k"><b>Máng lề hết chen chúc</b></td><td class="why">Một câu một hàng ⇒ một vạch. Không còn “hai vạch, bốn vạch” — thứ hôm nay chỉ có nghĩa <i>“dòng này có bốn câu”</i>, không phải một mức trạng thái.</td></tr>
+    <tr><td class="k"><b>Đối chiếu là cấu trúc</b></td><td class="why">Cùng một hàng là cùng một câu. Không cần tính năng bấm-để-đối-chiếu; <b>FR20 Sync&nbsp;Scrolling thành thừa.</b></td></tr>
+  </table>
+
+  <h2>Phím — và vì sao <kbd>Enter</kbd> trơn là lựa chọn rủi ro nhất</h2>
+  <table class="keys">
+    <tr><td class="k"><kbd>⌘ Enter</kbd></td><td class="why"><b>Xác nhận và sang câu kế.</b> Chuẩn memoQ + Trados. <b>Đã có sẵn trong app.</b></td></tr>
+    <tr><td class="k"><kbd>Enter</kbd></td><td class="why"><b>Xuống dòng trong ô.</b> Đây là chỗ chứa nhu cầu <i>“đoạn Trung dài quá, tách làm hai đoạn Việt”</i> — cấu trúc đoạn của bản dịch nằm trong chính bản dịch.</td></tr>
+    <tr><td class="k"><kbd>Backspace</kbd> đầu ô</td><td class="why"><b>Gộp với câu trên.</b> Cử chỉ của mọi trình soạn thảo. Chính là Story 2.9 — và chính là chỗ hôm nay Ice “sập hố”.</td></tr>
+    <tr><td class="k"><kbd>⌘ T</kbd></td><td class="why"><b>Tách câu</b> — thực hiện ở <b>cột nguyên văn</b>, vì chỉ nguyên văn mới có chỗ cắt xác định được.</td></tr>
+    <tr><td class="k"><kbd>⌥ ↓</kbd></td><td class="why"><b>Câu chưa dịch kế tiếp.</b> Có sẵn trong mockup gốc <code>settings.html:275</code>, rơi mất vì tên vi phạm văn phạm id.</td></tr>
+  </table>
+
+  <p class="warn"><b>Vì sao không giao <kbd>Enter</kbd> trơn cho việc xác nhận:</b> OmegaT có dùng <kbd>Enter</kbd> để sang câu, nhưng kèm tuỳ chọn <i>“Use TAB to Advance”</i> đặt ra <b>chính vì <kbd>Enter</kbd> va chạm với bộ gõ IME</b>. Ice gõ tiếng Việt bằng bộ gõ, và kho <b>đã bị cắn một lần</b> — <code>EditorPanel.vue:841</code> mang dòng <code>if (event.isComposing) return</code> kèm ghi chú <i>“ăn nó là ăn mất chữ”</i>. Giao <kbd>Enter</kbd> cho việc ký nghĩa là một lượt chốt dấu Telex có thể xác nhận nhầm câu và nhảy đi. <b>Không đường nghiệm thu nào của dự án bắt được lỗi đó</b> — nó chỉ lộ ra ở tay Ice.</p>
+
+  <h2>Hán Việt — giữ được, và nó có một cái giá đo được</h2>
+  <p class="note"><b>FR19</b> đã khai sẵn <b>hai chế độ</b>: <i>“xem ở chế độ <b>chuyển đổi</b> hoặc <b>song song</b>”</i>. <b>FR33</b> đòi âm Hán Việt <b>cho từng ký tự</b>. Và <b>FR21</b> — thao tác lặp nhiều nhất của sản phẩm — cho phép bôi đen <b>ngay trên tab Hán Việt</b> để tra cứu; <code>EXPERIENCE.md:131</code> gọi đó là <i>“thao tác cộng đồng đã quen tay ở QuickTranslator — không được bắt học lại”</i>.</p>
+  <p class="note">Trong lưới, Hán Việt <b>nằm trong chính ô nguyên văn</b>. Cả hai chế độ của FR19 vẫn còn, và Auto-Lookup không mất gì: vùng chọn vẫn nằm trong ô, ô vẫn mang <code>data-segment-id</code>.</p>
+
+  <div class="hv-demo">
+    <div class="panel">
+      <div class="panel-head"><span>Chế độ SONG SONG</span><span class="right">hàng cao ~2,4×</span></div>
+      <table class="grid">
+        <tr>
+          <td class="mark"><div class="rule confirmed"></div></td>
+          <td class="num">2</td>
+          <td class="src">他还表示伊朗已无法再在中东称霸。
+            <div class="hv">Tha hoàn biểu thị Y Lãng dĩ vô pháp tái tại Trung Đông xưng bá.</div>
+          </td>
+          <td class="tgt">Ông còn nói Iran đã không còn khả năng xưng bá ở Trung Đông nữa.</td>
+        </tr>
+        <tr>
+          <td class="mark"><div class="rule tm"></div></td>
+          <td class="num">5</td>
+          <td class="src">我们完全控制着霍尔木兹海峡。
+            <div class="hv">Ngã môn hoàn toàn khống chế trước Hoắc Nhĩ Mộc Tư hải hiệp.</div>
+          </td>
+          <td class="tgt">Chúng tôi kiểm soát hoàn toàn eo biển Hormuz.</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span>Chế độ CHUYỂN ĐỔI</span><span class="right">hàng cao 1×</span></div>
+      <table class="grid">
+        <tr>
+          <td class="mark"><div class="rule confirmed"></div></td>
+          <td class="num">2</td>
+          <td class="src"><div class="hv solo">Tha hoàn biểu thị Y Lãng dĩ vô pháp tái tại Trung Đông xưng bá.</div></td>
+          <td class="tgt">Ông còn nói Iran đã không còn khả năng xưng bá ở Trung Đông nữa.</td>
+        </tr>
+        <tr>
+          <td class="mark"><div class="rule tm"></div></td>
+          <td class="num">5</td>
+          <td class="src"><div class="hv solo">Ngã môn hoàn toàn khống chế trước Hoắc Nhĩ Mộc Tư hải hiệp.</div></td>
+          <td class="tgt">Chúng tôi kiểm soát hoàn toàn eo biển Hormuz.</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <p class="warn"><b>Cái giá, và nó đánh thẳng vào Ⓑ-2:</b> âm Hán Việt là chữ Latin, nên <b>một câu Hán 30 ký tự nở ra ~150 ký tự</b> — dài gấp 4–5 lần dòng gốc. Trong <b>Ⓑ-1</b> (lưới chiếm cả bề ngang, cột nguyên văn ≈ 560&nbsp;px) nó xuống 2–3 dòng: chịu được. Trong <b>Ⓑ-2</b> (lưới chiếm trái, cột nguyên văn chỉ ≈ 330&nbsp;px) cùng câu đó xuống <b>4–5 dòng</b>, cộng 2 dòng chữ Hán ⇒ một hàng cao <b>6–7 dòng</b>, và số câu trong tầm mắt tụt mạnh — đúng thứ Ⓑ-2 được chọn để có nhiều hơn.
+  <br><br>⚠️ Con số trên là <b>ước lượng hình học, chưa đo trên bản dựng thật</b>. Nó là một cận, không phải một phép đo — muốn chắc thì phải dựng và đếm.</p>
+
+  <p class="note"><b>Ba đường thoát, không loại trừ nhau:</b> ① <i>song song</i> mặc định ở Ⓑ-1, <i>chuyển đổi</i> mặc định ở Ⓑ-2 — chế độ đi theo bố cục; ② Hán Việt là <b>một dải mở ra cho riêng hàng đang sửa</b>, các hàng khác giữ một dòng; ③ giữ nguyên FR19 — người dùng tự bật tắt, không có mặc định thông minh nào cả.</p>
+
+  <h2>Chỗ còn phải chốt — UX-DR13 hết đúng</h2>
+  <p class="note"><b>UX-DR13</b> khai <i>“Workspace là lưới 2×2 — hàng trên <code>Nguyên văn | Bản dịch</code>, hàng dưới <code>Tra cứu | Đề xuất AI</code>”</i>, với lý do <i>“Nguyên văn và Bản dịch cạnh nhau theo chiều ngang vì đối chiếu ngang là thao tác lặp hàng trăm lần mỗi Chương”</i>. Phương án B <b>gộp hai panel đó thành một</b> — nên ô trên của lưới 2×2 nay là một panel duy nhất, và UX-DR13 phải viết lại. Hai hình dạng để Ice chọn:</p>
+
+  <div class="layouts">
+    <div class="lay">
+      <h3>Ⓑ-1 · Lưới trên, hai panel dưới</h3>
+      <p>Gần UX-DR13 nhất — chỉ hợp nhất ô trên.</p>
+      <div class="boxes l1">
+        <div class="bx hero">Lưới đối chiếu</div>
+        <div class="bx">Tra cứu</div>
+        <div class="bx">Đề xuất AI</div>
+      </div>
+    </div>
+    <div class="lay">
+      <h3>Ⓑ-2 · Lưới trái toàn chiều cao</h3>
+      <p>Lưới được cả chiều dọc — nhiều câu trong tầm mắt hơn.</p>
+      <div class="boxes l2">
+        <div class="bx hero">Lưới đối chiếu</div>
+        <div class="bx">Tra cứu</div>
+        <div class="bx">Đề xuất AI</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Cái giữ lại, cái mất đi</h2>
+  <table class="keys">
+    <tr><td class="k" style="color:var(--confirmed)"><b>Giữ nguyên</b></td><td class="why">Toàn bộ tầng Rust — máy trạng thái AD-31, hợp đồng flush AD-35, xác nhận, lịch sử phiên bản, di trú lược đồ. Lưới là chuyện của tầng vẽ.</td></tr>
+    <tr><td class="k" style="color:var(--confirmed)"><b>Giữ nguyên</b></td><td class="why">Văn xuôi chảy liên tục — nó <b>về Chế độ đọc</b>, đúng khuôn memoQ (lưới để làm việc, View pane để đọc).</td></tr>
+    <tr><td class="k" style="color:var(--error)"><b>Mất</b></td><td class="why">Phần lớn Story 2.2 — bề mặt văn xuôi liên tục trong Editor. <b>AC1 bị lật ⇒ cần một AD mới.</b></td></tr>
+    <tr><td class="k" style="color:var(--error)"><b>Mất</b></td><td class="why"><code>measureGutterRules</code> + <code>assignGutterLanes</code> — kể cả lượt tối ưu 254&nbsp;ms → 4&nbsp;ms đo hôm 14/8. Hàng có hình học biết trước, không phải đo.</td></tr>
+    <tr><td class="k" style="color:var(--error)"><b>Mất</b></td><td class="why"><b>FR20 Sync Scrolling</b> — không còn hai thứ để đồng bộ.</td></tr>
+  </table>
+
+</div>
+</body>
+</html>

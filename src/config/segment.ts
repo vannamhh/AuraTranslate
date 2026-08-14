@@ -73,6 +73,36 @@ export type ChapterSegment = {
   is_paragraph_end: boolean
   /** `null` cho mọi segment hôm nay — chưa đường nào cho segment về hưu (Story 2.8). */
   retired_at: string | null
+  /**
+   * Máy trạng thái AD-31 — **`'draft'` | `'confirmed'`**, và đúng hai (Story 2.5).
+   *
+   * ⚠️ Kiểu ở đây là `string` **rộng hơn** hai giá trị đó, và đó là có chủ ý: dữ liệu này
+   * đi **qua dây**, nên nó là một **lời khai** về thứ Rust vừa gửi, không phải một bảo đảm
+   * của trình biên dịch. Một union hai nhánh ở đây sẽ nói dối vào đúng ngày lược đồ mọc
+   * thêm một giá trị thứ ba mà webview chưa được dựng lại. Phép thu hẹp làm ở
+   * [`isSegmentConfirmed`], nơi nó chạy **lúc chạy**.
+   *
+   * 🔴 Cưỡng chế giá trị hợp lệ là việc của **tầng Rust** (`commands/segment.rs`), không
+   * của chỗ này — AD-1.
+   */
+  status: string
+}
+
+/**
+ * Segment này đã được người dùng xác nhận chưa — phép thu hẹp **lúc chạy** cho một trường
+ * đi qua dây. Story 2.5, AC10 · AC12.
+ *
+ * 🔴 Vì sao một hàm chứ không một phép so viết thẳng ở chỗ đọc: `status` là `string`, nên
+ * `segment.status === 'confirmed'` rải ra nhiều chỗ là nhiều chỗ phải gõ đúng một chuỗi. Một
+ * chỗ sai chính tả cho `false` **im lặng** — vạch không đổi màu, không lỗi nào được ném, và
+ * triệu chứng là *"xác nhận không ăn"* mà không ai lần được về dòng nào.
+ *
+ * ⚠️ Đây **không** phải một quy tắc nghiệp vụ (AD-1 cấm chúng ở TypeScript): nó không quyết
+ * định trạng thái nào hợp lệ hay chuyển tiếp nào được phép — nó **đọc** một giá trị Rust đã
+ * quyết, đúng vai *"Vue chỉ render vạch"*.
+ */
+export function isSegmentConfirmed(segment: ChapterSegment): boolean {
+  return segment.status === 'confirmed'
 }
 
 /** Trọn bộ segment của Chương đang mở, kèm `chapter_id` của chính nó. */
@@ -110,12 +140,38 @@ export type SaveSegmentTargetsResult = {
   error: IpcError | null
 }
 
+/**
+ * Kết quả một lượt xác nhận — **`snake_case`**, đúng `commands::segment::ConfirmOutcome`.
+ * Story 2.5.
+ */
+export type ConfirmOutcome = {
+  segment_id: number
+  /** Trạng thái **sau** lượt gọi. Luôn `'confirmed'` khi không có lỗi. */
+  status: string
+  /**
+   * Lượt gọi này có **chuyển tiếp** hay không. `false` ⇒ segment đã ở đích từ trước (AC13),
+   * và **không** `SegmentVersion` nào được sinh.
+   *
+   * ⚠️ Không suy ra được từ `status` — hai lượt cùng cho `'confirmed'` khác nhau ở đúng
+   * trường này, và Story 2.7 (xuất xứ) cùng Epic 7 (cặp TM) móc vào **chuyển tiếp**.
+   */
+  version_created: boolean
+}
+
+/** Ba trạng thái, cùng khuôn `SplitChapterResult`. */
+export type ConfirmSegmentResult = {
+  outcome: ConfirmOutcome | null
+  error: IpcError | null
+}
+
 /** Tên command trên dây. Khớp `src-tauri/src/commands/segment.rs` (module `wire`). */
 const CMD_SPLIT_CHAPTER = 'split_chapter_into_segments'
 /** Tên command trên dây — **không tham số nào**, xem doc-comment của hàm thuần phía Rust. */
 const CMD_READ_SEGMENTS = 'read_open_chapter_segments'
 /** Tên command trên dây — đường **flush** của AD-35, Story 2.3. */
 const CMD_SAVE_TARGETS = 'save_segment_targets'
+/** Tên command trên dây — máy trạng thái AD-31, Story 2.5. */
+const CMD_CONFIRM_SEGMENT = 'confirm_segment'
 
 /** Có cầu IPC của Tauri trong window này không — cùng khuôn `./chapter.ts::hasIpcBridge`. */
 function hasIpcBridge(): boolean {
@@ -238,6 +294,57 @@ export async function saveSegmentTargets(
     }
 
     console.info(`[segment] không gọi được \`${CMD_SAVE_TARGETS}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { outcome: null, error: null }
+  }
+}
+
+/**
+ * **Xác nhận một segment** — máy trạng thái AD-31, Story 2.5 · FR24.
+ *
+ * Không ném, cùng lý do `saveSegmentTargets` không ném: chỗ gọi hiển thị lỗi bằng
+ * `tError()`, không bằng `try/catch` ở tầng UI.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 CHỖ GỌI PHẢI FLUSH **XONG** TRƯỚC KHI GỌI HÀM NÀY — AD-35 vế (c)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Lệnh này chỉ đọc thứ **đã ở trên đĩa**; nó không biết gì về văn bản đang gõ trong webview.
+ * Gọi nó trước khi lượt flush xong sẽ ký một văn bản **cũ hơn** thứ người dùng đang nhìn —
+ * và `SegmentVersion` sinh ra mang đúng văn bản cũ đó, tức FR101 khôi phục về một thứ chưa
+ * bao giờ tồn tại trên màn hình.
+ *
+ * ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện:** mệnh đề trên **không**
+ * cưỡng chế được ở tầng Rust — xem doc-comment của `wire::confirm_segment`. Lưới duy nhất là
+ * `tests/frontend/editorConfirmSegment.test.ts`, và nó canh **chỗ gọi trong
+ * `src/commands/index.ts`**, không canh mọi chỗ gọi tương lai.
+ * 🔵 *(Code review 2026-08-14: sửa đường dẫn — bản cũ trỏ vào
+ * `tests/frontend/commands/confirmSegment.test.ts`, một tệp KHÔNG tồn tại, và nó bịa ra thư
+ * mục con `commands/` mà cây test cố ý không dùng.)*
+ *
+ * ⚠️ `invoke()` gửi tham số ở dạng **camelCase**: `segment_id` phía Rust đi trên dây dưới tên
+ * `segmentId`. Đây là chỗ duy nhất trong kho gõ cái tên đó.
+ *
+ * ⚠️ Bốn lối từ chối đều **phân biệt được** bằng `message_key` (AC14) — `err.segment.*`:
+ * `not_found` · `retired` · `nothing_to_confirm`, cộng `err.project.no_work_open`. Chỗ gọi
+ * **không** được đoán lại lý do từ chuỗi.
+ */
+export async function confirmSegment(segmentId: number): Promise<ConfirmSegmentResult> {
+  try {
+    const outcome = await invoke<ConfirmOutcome>(CMD_CONFIRM_SEGMENT, { segmentId })
+    return { outcome, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: null, error: err }
+
+    // 🔴 Cùng ba nhánh và cùng lý do với `splitChapterIntoSegments` — xem chú thích ở đó.
+    if (hasIpcBridge()) {
+      console.error(
+        `[segment] \`${CMD_CONFIRM_SEGMENT}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[segment] không gọi được \`${CMD_CONFIRM_SEGMENT}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
     return { outcome: null, error: null }
   }
 }

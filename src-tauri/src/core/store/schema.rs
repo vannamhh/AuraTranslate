@@ -301,6 +301,12 @@ CREATE TABLE chapter (
 /// bản 5 không bao giờ chạy lại nó; sửa nó tại chỗ cho ra hai lược đồ khác nhau cho cùng
 /// một số phiên bản — đúng lớp lỗi mà vết sẹo số 4 ở [`PROJECT_MIGRATIONS`] ghi lại.
 /// Hai cột còn vắng vẫn giữ nguyên chủ: `status` → Story 2.5, `role` → Story 6.13.
+///
+/// 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5, Quyết định #5 và #6 do Ice chốt):** `status` **đã
+/// có** — nó tới bằng bước di trú **7** ([`SEGMENT_STATUS_AND_VERSION_DDL`]), cùng lượt với
+/// bảng `segment_version`, và **không** bằng một lượt sửa hằng này *(cùng lý do bước 6 đã
+/// ghi ngay trên)*. ⇒ Danh sách *"ba cột cố ý không có"* nay đọc là **một**: `role`
+/// (`alt` | `caption`, AD-42) → **Story 6.13**.
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔴 INDEX ĐẦU TIÊN CỦA TOÀN KHO — Ice ký 2026-08-12, code review
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -368,17 +374,104 @@ CREATE INDEX idx_segment_chapter_ord ON segment (chapter_id, ord);";
 pub const SEGMENT_TARGET_TEXT_DDL: &str =
     "ALTER TABLE segment ADD COLUMN target_text TEXT NOT NULL DEFAULT '';";
 
-/// Bộ di trú của `project.db`. Hôm nay **năm** bước — Story 1.15 · Story 2.1 · Story 2.2.
+/// Máy trạng thái segment (AD-31) — **bước 7 của `project.db`**, Story 2.5, AC9 · Quyết
+/// định #5 và #6 (Ice ký 2026-08-14).
 ///
-/// 🔴 **Năm bước, và đích là phiên bản 6.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO SỐ **7**, VÀ VÌ SAO KHÔNG PHẢI 5
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `sprint-status.yaml` mang từ Story 2.1 một dòng nói *"bước di trú kế tiếp phải đánh số
+/// 5"*. Mệnh đề đó đúng ở thời điểm nó được viết và **đã hết đúng**: 5 đã tiêu
+/// ([`SEGMENT_DDL`], Story 2.1) và 6 đã tiêu ([`SEGMENT_TARGET_TEXT_DDL`], Story 2.2).
+/// ⇒ Đọc [`PROJECT_MIGRATIONS`] ngay dưới chứ đừng đọc một ghi chép ở nơi khác; số kế tiếp
+/// là **7**. *(Vế **vĩnh viễn** đúng của dòng đó là "số 4 đã cháy, không tái dùng" — cổng
+/// `segment_contract.rs::the_project_migration_set_never_reuses_the_burned_number_four`.)*
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO MỘT `ALTER TABLE` CHỨ KHÔNG SỬA [`SEGMENT_DDL`] — cùng lý do bước 6
+/// ─────────────────────────────────────────────────────────────────────────────
+/// [`SEGMENT_DDL`] là DDL của một bảng **tạo mới**; một `project.db` đã ở phiên bản 5 không
+/// bao giờ chạy lại nó. Sửa nó tại chỗ cho ra **hai lược đồ khác nhau cho cùng một số phiên
+/// bản** — đúng vết sẹo số 4. Đo 2026-08-14: **21** `project.db` thật đang ở phiên bản 6.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `status TEXT NOT NULL DEFAULT 'draft'` — Quyết định #5, đường (a)
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Hai giá trị hợp lệ: `'draft'` | `'confirmed'`. **Cưỡng chế ở tầng Rust**, đúng khuôn
+/// `chapter.status` và `config_value.kind` — và **không** `CHECK`. Thêm một `CHECK` ở một
+/// bảng mà hai bảng anh em không có là dựng hai quy ước cho cùng một việc.
+///
+/// `TEXT` chứ không `INTEGER` 0/1: một cột boolean đóng cứng máy trạng thái ở hai giá trị,
+/// và AD-31 đã có sẵn hai ứng viên cho giá trị thứ ba *(về hưu do AD-5; nhập từ tài liệu
+/// song ngữ)*. Cái giá của `TEXT` là vài byte mỗi hàng; cái giá của `INTEGER` là **một bước
+/// di trú nữa** vào ngày một giá trị thứ ba xuất hiện.
+///
+/// ⚠️ `DEFAULT 'draft'` là thứ làm bước này chạy được trên bảng **đã có dữ liệu**: SQLite
+/// đòi một `DEFAULT` không phải `NULL` cho mọi `ADD COLUMN … NOT NULL`.
+/// 🔴 Và giá trị mặc định đó là một **quyết định nghiệp vụ**, không một chi tiết kỹ thuật:
+/// mọi bản dịch có sẵn trên đĩa nhận `'draft'`, tức *"chưa ai ký"*. Cho chúng `'confirmed'`
+/// là ký thay người dùng hàng nghìn lần, và ở Epic 7 mỗi chữ ký giả đó thành **một cặp TM
+/// chưa ai duyệt** trong một kho dùng chung.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỘT BƯỚC CHỨ KHÔNG HAI — và đó không mâu thuẫn Quyết định #4 của Story 2.1
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Cột `status` và bảng `segment_version` là **DDL của cùng một khái niệm** *(máy trạng
+/// thái AD-31: trạng thái đi đâu, và phiên bản sinh ra ở đâu)*, cùng tầng, cùng giao dịch.
+/// Thứ Quyết định #4 của Story 2.1 cấm nhét vào một bước là một **quy tắc nghiệp vụ** —
+/// một câu DDL thứ hai thì không, và bước 5 đã có tiền lệ (`CREATE TABLE` + `CREATE INDEX`).
+/// Tách thành 7 và 8 là dựng một `user_version` trung gian mà **không `project.db` nào từng
+/// dừng ở đó**.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// TỪNG CỘT CỦA `segment_version`, VÀ AI ĐỌC NÓ
+/// ─────────────────────────────────────────────────────────────────────────────
+/// - `id` — `AUTOINCREMENT`, cùng lý do [`SEGMENT_DDL`]: một `INTEGER PRIMARY KEY` trần
+///   **tái dùng** rowid lớn nhất vừa xoá, và Story 2.6 trỏ vào phiên bản theo `id`.
+/// - `segment_id` — khoá về câu. **Không** `FOREIGN KEY`: cùng khuôn cả lược đồ này, và
+///   `PRAGMA foreign_keys` mặc định TẮT trong SQLite ⇒ một khoá ngoại khai ra mà không bật
+///   pragma là một lời hứa không ai giữ. ⚠️ Cũng **không** `ON DELETE CASCADE` — AD-5 nói
+///   segment **về hưu** chứ không bị xoá, và AC của Story 2.6 đòi *"lịch sử của segment đã
+///   về hưu vẫn tra được"*.
+/// - `target_text` — bản dịch **tại thời điểm ký**. Đây là thứ FR101 khôi phục về.
+/// - `created_at` — ISO-8601 UTC, sinh ở tầng SQL bằng `strftime`, **không** truyền từ
+///   Rust. Story 2.6 đòi *thời điểm*, và nó phải sinh từ **một** đồng hồ.
+///
+/// ⚠️ **ĐÚNG BỐN CỘT, và con số bốn là một mệnh đề nghiệm thu.** Xuất xứ (FR117, Story 2.7)
+/// và cặp TM (FR56, Epic 7) ghi tại **cùng một chuyển tiếp**, nhưng cột của chúng thuộc
+/// story chủ của chúng — thêm sẵn hôm nay là đoán trước một hợp đồng chưa ai chốt, đúng thứ
+/// doc-comment của [`SEGMENT_DDL`] đã cấm bằng chữ cho `target_text`.
+///
+/// ⚠️ **KHÔNG** `CREATE INDEX` nào cho bảng này, và đó là một quyết định chứ không một lượt
+/// quên. Story 2.5 **chỉ ghi**, không đọc — không đường sản phẩm nào truy vấn
+/// `segment_version` ở story này, nên một index ở đây là một phép tối ưu cho một đường đọc
+/// **chưa ai đo**. Cùng luật mà [`SEGMENT_TARGET_TEXT_DDL`] đã ghi cho `target_text`.
+/// **Chủ: Story 2.6** — nó mang đường đọc, nên nó mang index cùng lượt, đúng cách bước 5
+/// mang `idx_segment_chapter_ord` cùng lúc với đường đọc cần nó.
+pub const SEGMENT_STATUS_AND_VERSION_DDL: &str = "\
+ALTER TABLE segment ADD COLUMN status TEXT NOT NULL DEFAULT 'draft';
+CREATE TABLE segment_version (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  segment_id  INTEGER NOT NULL,
+  target_text TEXT    NOT NULL,
+  created_at  TEXT    NOT NULL
+);";
+
+/// Bộ di trú của `project.db`. Hôm nay **sáu** bước — Story 1.15 · 2.1 · 2.2 · 2.5.
+///
+/// 🔴 **Sáu bước, và đích là phiên bản 7.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên
-/// một lỗ hổng không làm bước nào bị bỏ qua.
+/// (`[1, 2, 3, 5, 6, 7]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from`
+/// nên một lỗ hổng không làm bước nào bị bỏ qua.
 ///
-/// ⚠️ Con số này đọc **năm**, không bốn: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
+/// ⚠️ Con số này đọc **sáu**, không năm: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
 /// gỡ ở lượt Ice ký lại 2026-08-11 *(vết sẹo ghi đầy đủ ở cuối doc-comment này)*. Một
 /// dòng tiêu đề nói một số mà bảng hằng ngay dưới nói một số khác là đúng thứ rot mà cả
 /// kiến trúc này dựa vào doc-comment để tránh — bắt ở code review 2026-08-11.
+///
+/// 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5):** đích chuyển từ **6** lên **7** — bước
+/// [`SEGMENT_STATUS_AND_VERSION_DDL`]. Câu *"năm bước, đích là 6"* đã hết đúng, sửa tại chỗ
+/// thay vì để nó lặng lẽ sai.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -451,6 +544,13 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 6,
         sql: SEGMENT_TARGET_TEXT_DDL,
+    },
+    // Story 2.5 — máy trạng thái AD-31: cột `segment.status` + bảng `segment_version`.
+    // 🔴 **7, không phải 5** — 5 và 6 đã tiêu. Lý do đầy đủ ở doc-comment của
+    // [`SEGMENT_STATUS_AND_VERSION_DDL`].
+    Migration {
+        to_version: 7,
+        sql: SEGMENT_STATUS_AND_VERSION_DDL,
     },
 ];
 

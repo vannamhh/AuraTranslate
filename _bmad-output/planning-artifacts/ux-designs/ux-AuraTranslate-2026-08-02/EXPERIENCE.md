@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-08-03
+updated: 2026-08-14
 design: DESIGN.md
 sources:
   - _bmad-output/specs/spec-AuraTranslate/SPEC.md
@@ -102,17 +102,34 @@ Hai màu, không thêm màu mới nào vào bảng: **`error`** cho chính tả 
 
 ## State Patterns
 
-**Trạng thái segment** — đọc ở vạch lề, năm giá trị:
+**Trạng thái segment** — **sáu** giá trị, đọc ở cột trạng thái của lưới:
 
-| Vạch | Nghĩa | Sinh ra từ |
+| Giá trị | Nghĩa | Sinh ra từ |
 |---|---|---|
 | `confirmed` | đã xác nhận | người dùng xác nhận (FR24) |
 | `primary` | đang sửa, con trỏ ở đây | tiêu điểm |
+| `draft` | **đã dịch tay, chưa xác nhận** | người dùng gõ chữ vào |
 | `tm-rule` | điền sẵn từ TM khớp 100%, **chưa** xác nhận | FR58 |
-| không vạch | chưa dịch | mặc định khi nhập |
+| trống | chưa dịch | mặc định khi nhập |
 | `ornament` mờ | đã về hưu do gộp/tách | AD-5 |
 
+> 🔵 **Sửa 2026-08-14 — Ice. Bảng cũ THIẾU MỘT HÀNG, và chỗ thiếu đó là một lỗi dùng được.**
+>
+> Bản cũ có năm giá trị và gom *"đã dịch tay, chưa xác nhận"* chung ô **không vạch** với *"chưa dịch"*. Hai hoàn cảnh khác hẳn nhau **trông y hệt**: người dịch nhìn một Chương dở và **không phân biệt được câu mình đã làm với câu chưa động tới**.
+>
+> Chỗ thiếu này đã đi vào bản dựng: `resolveSegmentRule` cho cả hai ra `'none'`, và một test khoá nó lại bằng câu *"chưa dịch cũng ⇒ KHÔNG vạch — hai hoàn cảnh, một giá trị, và đó là chủ ý"*. Chủ ý ấy đến từ bảng này, không từ lượt cài đặt.
+>
+> **Chuẩn ngành xác nhận chỗ thiếu:** XLIFF 2.0 tách đúng ba mốc `initial` · `translated` · `final`. Hàng `draft` mới thêm chính là `translated` — trạng thái nằm giữa *chưa làm* và *đã ký*.
+
 Hệ thống **không bao giờ tự coi một câu là xong**. Khớp TM 100% vẫn phải người xác nhận.
+
+**Cắt bỏ là một TRỤC RIÊNG, không phải giá trị thứ bảy** *(2026-08-14, Ice)*. Một câu nguồn có thể bị **cắt bỏ** — không dịch, không đưa vào bản ra. Nó **vẫn giữ trạng thái của riêng nó** ở bảng trên, nên nó là một **cờ độc lập**, đúng khuôn `translate="no"` của XLIFF.
+
+- Cờ đặt trên **câu nguồn**, không phải trên bản dịch — đây là quyết định *"đoạn này không thuộc bản dịch"*, không phải một mức độ hoàn thành.
+- Hàng **vẫn nằm trong lưới**, gạch ngang và mờ đi: người dịch phải thấy thứ mình đã bỏ, nếu không nó thành một lỗ hổng im lặng.
+- **Đảo ngược được bất cứ lúc nào** — bỏ cờ thì câu quay về đúng trạng thái cũ với nội dung cũ.
+- **Chế độ đọc và bản xuất không vẽ nó.** Không dấu vết, không `[…]`, không chỗ trống — ẩn hoàn toàn.
+- Áp cho **một câu hoặc một dải câu**; phạm vi do người dùng chọn từng lần, không định trước.
 
 **Trạng thái tra cứu** — có kết quả · không có kết quả · nhiều nguồn bất đồng. Không có trạng thái "đang tải": tra cứu chạy dưới 100ms đầu-cuối (NFR1), spinner ở đây là tiếng ồn.
 
@@ -184,6 +201,77 @@ Kéo chuột vẫn dùng được, nhưng nó là **đường thứ hai**. Mọi
 **Tiêu chí nghiệm thu (NFR17):** dịch trọn một Chương từ đầu tới cuối — mở từ Library, tra cứu, gọi AI, đưa sang, sửa, gộp một câu, xác nhận, sang Chương kế — **không chạm chuột một lần nào**.
 
 **Ngoài phạm vi v1:** hỗ trợ trình đọc màn hình (ARIA đầy đủ, VoiceOver/NVDA). Ranh giới có chủ ý, ghi ở PRD §3.2 — không phải thiếu sót cần vá lén.
+
+## Bề mặt nhập — lưới hai cột đối chiếu
+
+> 🔵 **Mục MỚI, 2026-08-14 — Ice ký sau một phiên bàn tròn có bản dựng thật trước mắt.**
+>
+> Mục này **lật** hình dạng cũ của Editor (*một dòng văn liên tục, không ô, không bảng*) và **viết lại UX-DR13**. Nó ra đời vì một câu của Ice: *"nhập biên dịch vô cùng tệ hại… nếu không app gần như vứt bỏ, vô dụng."*
+
+### Vì sao đổi — ba quyết định đúng chồng lên nhau thành một bề mặt sai
+
+Không có lỗi cài đặt nào ở đây. Có **ba quyết định, mỗi cái hợp lý một mình**:
+
+1. Bảng trạng thái thiếu hàng `draft` ⇒ *đã dịch* và *chưa dịch* trông y hệt.
+2. Lượt thu hẹp UX-DR20 *(Ice ký 2026-08-13, đo thật: mỗi câu rỗng đẩy chữ **9,05 px**, một Chương mới thụt hàng trăm px và bố cục **nhảy trong lúc làm việc**)* gỡ nét ranh giới của câu rỗng ⇒ câu chưa dịch rộng **0 px**, vô hình, **không bấm trúng được bằng chuột**.
+3. Ba khoá lỗi từ chối không có đường ra màn hình ⇒ bấm xác nhận trên một câu chưa dịch thì **không một pixel nào đổi**.
+
+Cộng lại: người dịch **không thấy** câu chưa dịch, **không bấm được** vào nó, và khi thao tác bị từ chối thì **không được báo**. Ba lần im lặng liên tiếp.
+
+**Nguyên nhân gốc nằm ở hình dạng, không ở ba mục trên.** Một dòng văn liên tục là hình dạng để **ĐỌC** một bản dịch đã xong. Suốt thời gian dịch, bề mặt ấy **gần như rỗng** — và một dòng văn liên tục không có cách nào diễn đạt *"ở đây sẽ có một câu, nhưng chưa"* mà không hoặc **chiếm chỗ** (bố cục nhảy) hoặc **tàng hình** (không bấm được). Hai vế đó đã được đo và chúng **xung khắc**.
+
+⇒ Văn xuôi chảy liên tục **không mất** — nó **về Chế độ đọc**, đúng chỗ của nó. Đây là khuôn memoQ: **lưới để làm việc, bản xem trước để đọc**.
+
+### Hình dạng
+
+**Mỗi câu là một HÀNG.** Trên hàng đó, từ trái sang: **vạch trạng thái** · **số câu** · **nguyên văn** · **bản dịch** · **nhãn trạng thái**.
+
+- **Cùng một hàng là cùng một câu.** Đối chiếu trở thành **cấu trúc**, không còn là một tính năng phải dựng.
+  ⇒ **FR20 (Sync Scrolling) thành thừa** — không còn hai thứ để đồng bộ.
+  ⇒ Nhu cầu *"bấm câu gốc thì câu dịch sáng lên"* **biến mất** thay vì phải cài. *(Nhu cầu đó có thật — Ice hỏi 2026-08-14 — và `epics.md` **không có FR nào** cho nó.)*
+- **Ô trống có chiều cao thật.** Câu chưa dịch không thể tàng hình: hàng có chiều cao riêng, độc lập với việc nó có chữ hay không. Đây là điều kiện mà hình dạng cũ **không thể** thoả.
+- **Một câu, một vạch.** Máng lề trở lại đúng nghĩa gốc của UX-DR19.
+  Ở hình dạng cũ, nhiều câu chung một dòng thị giác nên các vạch phải xếp thành làn ngang — và *"hai vạch, bốn vạch"* chỉ có nghĩa **"dòng này có bốn câu"**, không phải một mức trạng thái. Một ngôn ngữ thị giác **trông như có nghĩa mà không có nghĩa**; nó tệ hơn không nói gì.
+- **Ngắt đoạn** đọc từ `is_paragraph_end` đã lưu, dựng thành khoảng thở giữa các nhóm hàng — **không** phải một hàng rỗng.
+
+### Bố cục — UX-DR13 viết lại
+
+UX-DR13 cũ khai *"lưới 2×2, hàng trên `Nguyên văn | Bản dịch`"*, với lý do *"đối chiếu ngang là thao tác lặp hàng trăm lần mỗi Chương"*. Lý do ấy **vẫn đúng** — nhưng lưới hai cột phục vụ nó **tốt hơn**, và nó **gộp** hai panel đó làm một.
+
+Hai hình dạng, **cả hai đều dựng**, người dùng chọn — *"không cứng ngắc"* (Ice, 2026-08-14):
+
+| | Hình dạng | Ghi chú |
+|---|---|---|
+| **Ⓑ-2** *(mặc định)* | Lưới chiếm **trái, toàn chiều cao**; Tra cứu và Đề xuất AI xếp dọc bên phải | Nhiều câu trong tầm mắt nhất |
+| **Ⓑ-1** | Lưới chiếm **cả bề ngang ở trên**; Tra cứu và Đề xuất AI hàng dưới | Cột nguyên văn rộng gấp đôi — dễ thở cho Hán Việt |
+
+### Hán Việt — giữ nguyên FR19, không mặc định thông minh nào
+
+Hán Việt sống **bên trong ô nguyên văn**. Cả hai chế độ FR19 còn nguyên: **chuyển đổi** (thay chỗ chữ Hán) hoặc **song song** (xếp dưới, token `source-hanviet`).
+
+**Người dùng tự bật tắt.** Ice ký 2026-08-14, và ký kèm một lời từ chối: **không** buộc chế độ đi theo bố cục, **không** tự mở riêng cho hàng đang sửa. Hai phương án "thông minh" đó đã được nêu và **bị bác**.
+
+**Auto-Lookup (FR21) không mất gì** — vùng chọn vẫn nằm trong ô, ô vẫn mang neo `segment.id`. Thao tác quen tay từ QuickTranslator giữ nguyên từng nhịp.
+
+⚠️ **Cái giá, ghi ra thay vì để người sau tự phát hiện:** âm Hán Việt là chữ Latin, nên một câu Hán ~30 ký tự nở ra ~150 ký tự — dài gấp 4–5 lần dòng gốc. Ở cột hẹp của Ⓑ-2 *(ước ~330 px)*, một hàng bật *song song* có thể cao **6–7 dòng**, ăn mất chính thứ Ⓑ-2 được chọn để có. **Đây là ước lượng hình học, CHƯA ĐO trên bản dựng thật** — nó là một cận để cảnh báo, không phải một phép đo. Ai dựng thì đo lại và ghi số.
+
+### Phím
+
+| Phím | Việc |
+|---|---|
+| `⌘Enter` | **Xác nhận và sang câu kế.** Chuẩn memoQ + Trados; đã có sẵn trong bản dựng |
+| `Enter` | **Xuống dòng trong ô** — và đây là chỗ chứa quyền *"bản dịch ngắt đoạn khác bản gốc"* |
+| `Shift+Enter` | dự phòng cho xuống dòng, nếu bản dựng cần hai đường |
+| `Backspace` đầu ô | **Gộp với câu trên** — cử chỉ của mọi trình soạn thảo |
+| `⌘T` | **Tách câu, thực hiện ở CỘT NGUYÊN VĂN** |
+| `⌥↓` | **Câu chưa dịch kế tiếp** |
+
+🔴 **`Enter` trơn KHÔNG được giao việc xác nhận, và đây là một quyết định có bằng chứng.** OmegaT có dùng `Enter` để sang câu, nhưng kèm tuỳ chọn *"Use TAB to Advance"* đặt ra **chính vì `Enter` va chạm với bộ gõ IME**. Người dùng của sản phẩm này gõ **tiếng Việt bằng bộ gõ**, nơi `Enter` là phím chốt dấu. Giao `Enter` cho việc ký nghĩa là một lượt chốt Telex có thể **xác nhận nhầm một câu rồi nhảy đi**.
+Lớp lỗi này **không đường nghiệm thu nào của dự án bắt được** — không bộ chạy test nào mô phỏng được một bộ gõ tiếng Việt thật. Nó chỉ lộ ra ở tay người dùng.
+
+🔴 **TÁCH làm ở cột nguyên văn, GỘP làm được từ cả hai phía.** Tách một segment là tách **cả hai vế**; một vị trí con trỏ bên bản dịch **không suy ra được chỗ cắt bên nguyên văn** — không có phép chiếu nào từ ký tự tiếng Việt sang ký tự tiếng Trung. Cùng lý do Trados và memoQ đều bắt tách ở cột nguồn. Gộp thì ngược lại: kết quả xác định ở cả hai vế *(nối `source_text` của hai câu, nối `target_text` của hai câu)*, nên nó chạy được từ một phím `Backspace`.
+
+**Hệ quả cho ý "gõ dấu chấm để tách câu"** *(Ice nêu 2026-08-14)*: nửa **gộp** của ý đó dựng được và tự nhiên; nửa **tách** thì vướng đúng bức tường trên. Và nó **không cần thiết**: một segment giữ `target_text` là **một chuỗi bất kỳ** — viết hai câu Việt cho một câu Trung **không đòi tách gì cả**.
 
 ## Đường nhập — màn xem trước hợp nhất
 

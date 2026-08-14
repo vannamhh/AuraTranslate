@@ -196,6 +196,38 @@ message_keys! {
     /// xong sau khi đã ghi vào WAL"*; một lô nửa vời không thoả mệnh đề đó cho nửa còn lại.
     SegmentUnknownIds => "err.segment.unknown_ids" ["chapter_id", "count"],
 
+    // ── Story 2.5 (AD-31 · AD-5 · FR24 · FR56 · FR101) — BA khoá, và đúng ba ────────
+    //
+    // Lệnh xác nhận tái dùng `ProjectNoWorkOpen` cho ca *"chưa mở Tác phẩm nào"*. Ba ca
+    // dưới đây là RIÊNG của nó, và AC14 đòi cả ba **phân biệt được**: *"không trả 'đã
+    // xong' cho một lượt không ghi gì"*.
+    //
+    // ⚠️ `SegmentNotFound` KHÔNG gộp được vào `SegmentUnknownIds`: cái kia nói về một **lô**
+    // và mang `chapter_id` + số id lạ; cái này nói về **một** segment được chỉ đích danh.
+    // Mượn chung sẽ cho ra một câu nói về một lô mà người dùng vừa bấm một phím.
+    /// `segment_id` không có trong `project.db` của Tác phẩm đang mở.
+    SegmentNotFound => "err.segment.not_found" ["segment_id"],
+    /// Segment đã **về hưu** (AD-5) ⇒ không xác nhận được. Một câu đã về hưu không còn là
+    /// câu người dùng đang làm việc trên đó.
+    ///
+    /// 🔴 **HÀNG RÀO VIẾT TRƯỚC, và đó là một ngoại lệ CÓ CHỮ KÝ.** Luật của kho là *"không
+    /// khoá nào cho một nhánh không chỗ gọi nào đi qua"* (Story 1.7 §CN #3), và hôm nay
+    /// **chưa đường sản phẩm nào cho segment về hưu** — `retired_at` chỉ đặt được bằng SQL
+    /// trực tiếp, chủ là **Story 2.8**. Ngoại lệ này do AC14 của Story 2.5 đòi bằng chữ, và
+    /// nó có lưới thật: `segment_contract.rs::every_refusal_of_confirm_carries_its_own_...`
+    /// dựng trạng thái về hưu bằng SQL trong fixture, nên nhánh **được chạy**, không chỉ
+    /// được biên dịch.
+    SegmentRetired => "err.segment.retired" ["segment_id"],
+    /// Xác nhận một câu **chưa dịch** (`target_text` rỗng) ⇒ từ chối — Quyết định #7,
+    /// Ice ký 2026-08-14.
+    ///
+    /// 🔴 Vì sao từ chối chứ không cho qua: một `SegmentVersion` mang chuỗi rỗng đi vào
+    /// lịch sử FR101 *(người dùng khôi phục về "không có gì")*, và ở Epic 7 FR56 ghi **một
+    /// cặp TM có vế đích rỗng**. Cặp đó sẽ khớp 100% ở một Chương sau rồi **điền sẵn một
+    /// bản dịch rỗng** (FR58). Dữ liệu hỏng **vĩnh viễn** trong một kho dùng chung, sinh ra
+    /// bởi một thao tác trông vô hại.
+    SegmentNothingToConfirm => "err.segment.nothing_to_confirm" ["segment_id"],
+
     // **KHÔNG có `ProjectMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
     // 2026-08-06). Cơ chế từ chối một `meta.json` mới hơn vẫn còn nguyên và vẫn có test
     // (`MetaError::SchemaTooNew` + `WorkMeta::read`), nhưng không đường sản phẩm nào

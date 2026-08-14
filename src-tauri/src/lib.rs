@@ -326,6 +326,10 @@ pub fn run() {
             // mot lan; cham dung hai cot (`target_text` + `updated_at`). Auto-save KHONG
             // doi trang thai va KHONG tao `SegmentVersion` (AD-31 hang 1).
             crate::commands::segment::wire::save_segment_targets,
+            // Story 2.5 — may trang thai AD-31. Mot lenh RIENG: `save_segment_targets`
+            // khong doi mot dong, va cau `UPDATE` cua no van cham dung hai cot (AC8).
+            // Thao tac ROI RAC ghi NGAY (AD-35), khong di qua bo dem go 2s/5s.
+            crate::commands::segment::wire::confirm_segment,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

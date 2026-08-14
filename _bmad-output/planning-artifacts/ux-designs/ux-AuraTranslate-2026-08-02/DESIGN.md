@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-08-03
+updated: 2026-08-14
 sources:
   - _bmad-output/specs/spec-AuraTranslate/SPEC.md
   - _bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md
@@ -140,6 +140,12 @@ components:
   segment-gutter-rule: { width: 2px, radius: sm, inset-left: 8px }
   source-chip: { typography: ui-label, color: primary }
   record-rule: { width: 2px, color: outline-faint, padding-left: 13px }
+  grid-row-divider: { height: 1px, color: outline-faint }
+  grid-para-divider: { height: 1px, color: outline, space-block: 16px }
+  grid-num-col: { width: 34px, typography: ui-mono, color: ornament, align: right }
+  grid-state-col: { width: 108px, typography: ui-label, color: ornament }
+  grid-empty-cell: { min-height: 1.95em, border-bottom: 1px dashed outline }
+  grid-row-omitted: { color: ornament, decoration: line-through }
 ---
 
 ## Brand & Style
