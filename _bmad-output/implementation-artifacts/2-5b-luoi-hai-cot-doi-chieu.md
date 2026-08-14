@@ -1,0 +1,719 @@
+---
+baseline_commit: f990dd5
+created: 2026-08-14
+---
+
+# Story 2.5b: Lưới hai cột đối chiếu
+
+Status: ready-for-dev
+
+**Covers:** UX-DR13 · UX-DR15 · UX-DR19 · FR16 · FR19 · FR21 · AD-1 · AD-34
+**Supersedes:** 4/8 AC của Story 2.2 · hai AC của Story 1.14 *(«bốn slot panel» · «preset mặc định là lưới 2×2»)*
+**Đóng nợ có chủ đích danh:** `deferred-work.md` :2863-2873 · :2875-2885 · :2896-2908
+**Đọc lại, không được mặc nhiên giữ kết luận cũ:** `deferred-work.md` :2317-2371 · :2528-2584 · :2801-2816
+
+> 🔴 **Story này là một lượt LẬT HÌNH DẠNG, không một lượt thêm tính năng.** Tầng Rust
+> **không sửa một dòng**: `commands/segment.rs` + `config/segment.ts` + `editorPanelState.ts`
+> *(2.103 dòng)* không biết gì về hình dạng và ở lại nguyên vẹn. Không bước di trú nào —
+> `schema.rs:398` đã mang `status TEXT NOT NULL DEFAULT 'draft'` từ Story 2.5, và
+> `is_paragraph_end` đã đi trên dây từ Story 2.1. Số di trú kế tiếp vẫn là **8**, và nó
+> thuộc **Story 2.5c**.
+>
+> ⇒ Toàn bộ story sống ở **tầng vẽ**. Đó vừa là chỗ dễ, vừa là chỗ nguy: tầng vẽ là tầng
+> **ít cổng canh nhất** trong kho này *(xem §Cổng nào sẽ nhìn story này — không một test
+> mount component nào tồn tại)*.
+
+---
+
+## Story
+
+As a người dịch,
+I want thấy nguyên văn và bản dịch của cùng một câu trên cùng một hàng,
+so that đối chiếu không còn là việc mắt tôi phải tự làm.
+
+---
+
+## Điều kiện khởi hành
+
+🔴 **Ba story trước còn dang dở, và story này KHÔNG được tự chấm đạt hộ story nào.**
+
+| Món treo | Có chặn 2.5b không? | Vì sao |
+|---|---|---|
+| **Story 2.3 `in-progress`** — lượt gõ ĐẦU TIÊN vào một câu chưa dịch: `<span>` rỗng rộng 0 px, không text node để neo caret ⇒ `execCommand('insertText')` trả `false` *(`deferred-work.md:2317-2371, 2528-2584`)* | **KHÔNG chặn — nó là TIỀN ĐỀ của story này** | Nguyên nhân gốc là *hình dạng*: một `<span>` rỗng trong dòng văn liên tục. Lưới thay chính hình dạng đó bằng **một ô có chiều cao thật** (AC3). ⚠️ Nhưng *"lưới sửa nguyên nhân"* là một **giả thuyết chưa đo** cho tới khi Task 1 chạy. Task 1 là chỗ nó được nghiệm hoặc bị bác. |
+| **Story 2.3** — khuyết tật *"sập hố"* Ice báo 2026-08-14: xoá lui tới khi câu rỗng thì con trỏ thấp xuống và `Backspace` chết | **KHÔNG chặn — 2.5b PHẢI đóng nó** | Hai nguyên nhân chồng nhau, cả hai thuộc hình dạng cũ: span rỗng 0 px co lại nên caret lấy chiều cao từ một hộp rỗng; `contenteditable` đặt trên **đúng một** span nên `Backspace` ở offset 0 không có chỗ nào xoá lui vào. Quyết định #3 của Task 0 là chỗ phân xử. |
+| **Story 2.4 `in-progress`** — bộ đo NFR2/NFR18 chưa tiêm được `bench.js` vào webview bản release | **KHÔNG chặn, nhưng nó GIỚI HẠN thứ 2.5b được phép khẳng định** | 2.5b **không** tự chấm NFR2 đạt. Nó **giao số** cho 2.4 *(§Task 8)*. ⚠️ Mọi số hiệu năng cũ của Epic 2 đo trên mô hình *"N `<span>` trong một dòng văn liên tục"* — chúng **mất hiệu lực theo cấu trúc**, không phải bị đóng. |
+| **Story 2.5 `done`, còn Task 1.1 chưa chạy** — Ice gõ tay vào một câu chưa dịch trên app thật | **KHÔNG chặn** | Lượt đó đo hình dạng **cũ**. Sau 2.5b hình dạng đó không còn tồn tại ⇒ lượt kiểm tay phải chạy lại trên **lưới**, và đó chính là Task 1 dưới đây. Ghi rõ để không ai đánh dấu Task 1.1 của 2.5 là đạt bằng lượt của 2.5b — hai lượt đo hai bề mặt khác nhau. |
+
+🔴 **LUẬT DỪNG của story này** *(chép khuôn Task 1.0 của Story 2.4)*: nếu sau Task 1, một câu
+**chưa dịch** trong lưới **vẫn** không đặt được con trỏ bằng chuột trên WKWebView thật, thì
+**DỪNG**, báo Ice, và 2.5b quay về `backlog`. Dựng nốt mười ba AC còn lại trên một bề mặt
+chưa gõ được là sản xuất một sản phẩm trông xong mà không dùng được — đúng lớp lỗi mà lượt
+correct-course 2026-08-14 vừa lật cả hình dạng để thoát ra.
+
+⚠️ **Ba vòng chẩn đoán bị bác ⇒ DỪNG và báo Ice.** Bài học Story 2.3 → 2.4 → 2.5, đã lặp ba
+lần: *"trúng tiền đề chưa phải trúng cơ chế"*.
+
+---
+
+## Acceptance Criteria
+
+### Nhóm A — nguyên văn từ `epics.md:2261-2329`
+
+**AC1 — ba slot panel**
+**Given** Workspace **When** mở
+**Then** **ba** slot panel `panel.grid`, `panel.lookup`, `panel.ai_translation` tồn tại trong **một** cửa sổ hệ điều hành duy nhất
+
+**AC2 — hàng và năm cột**
+**Given** lưới **When** hiển thị
+**Then** mỗi câu là **một hàng**; trên hàng, từ trái sang: **vạch trạng thái · số câu · nguyên văn · bản dịch · nhãn trạng thái**
+
+**AC3 — ô trống có chiều cao thật**
+**Given** một câu **chưa dịch** **When** hiển thị
+**Then** ô bản dịch có **chiều cao thật** và đường **đứt nét**
+**And** bấm chuột vào nó **đặt được con trỏ**
+
+**AC4 — sáu giá trị trạng thái**
+**Given** sáu giá trị trạng thái **When** hiển thị
+**Then** `confirmed` · `primary` · `draft` · `tm-rule` · **trống** · `ornament`
+**And** mỗi giá trị khác *trống* có **đúng một** khối `.rule-<giá trị>` trong `<style scoped>` — cổng `check:commands` Kiểm I đối chiếu **hai chiều**
+
+**AC5 — khoảng thở đoạn**
+**Given** cờ `is_paragraph_end` đã lưu **When** render
+**Then** dựng thành **khoảng thở** giữa các nhóm hàng, **không** phải một hàng rỗng
+
+**AC6 — hai bố cục**
+**Given** hai bố cục **Ⓑ-1** và **Ⓑ-2** **When** người dùng chọn
+**Then** **cả hai dựng được**, Ⓑ-2 là mặc định
+**And** lựa chọn giữ nguyên qua các phiên
+
+**AC7 — hợp đồng vùng chọn theo CỘT**
+**Given** hợp đồng vùng chọn **When** lưới đăng ký
+**Then** đăng ký theo **CỘT** — cột nguyên văn vai `'source'`, cột bản dịch vai `'display'`
+**And** `selectionContract.ts` **không sửa một dòng**
+🔴 Đăng ký theo **cột**, KHÔNG theo từng ô: `selectionContract.ts:112` có một cổng đếm đọc **tĩnh**, và N bề mặt thay vì 1 làm nó đỏ.
+
+**AC8 — Hán Việt**
+**Given** Hán Việt **When** người dùng bật
+**Then** hai chế độ FR19 *(chuyển đổi / song song)* đều chạy, **người dùng tự bật tắt**
+**And** **không mặc định thông minh nào** — không buộc chế độ đi theo bố cục, không tự mở riêng cho hàng đang sửa
+
+**AC9 — `NEVER_SACRIFICED`**
+**Given** `NEVER_SACRIFICED` **When** đọc
+**Then** **đúng một** phần tử `panel.grid`
+**And** hai tập rời nhau hợp lại đúng **ba** panel *(mệnh đề "bốn panel" ở `workspaceLayout.ts:153` sửa cùng lượt)*
+
+**AC10 — `⌘Enter`**
+**Given** người dùng bấm `⌘Enter` **When** xảy ra
+**Then** **xác nhận câu hiện tại và sang câu kế**
+
+**AC11 — `Enter` trơn**
+**Given** người dùng bấm `Enter` **trơn** **When** xảy ra
+**Then** **không bao giờ** xác nhận
+🔴 **Đây là một quyết định có bằng chứng, không một sở thích.** OmegaT dùng `Enter` để sang câu **nhưng** kèm tuỳ chọn *"Use TAB to Advance"* đặt ra **chính vì** `Enter` va chạm với bộ gõ IME. Người dùng của sản phẩm này gõ **tiếng Việt bằng bộ gõ**, nơi `Enter` là phím chốt dấu — giao `Enter` cho việc ký nghĩa là một lượt chốt Telex có thể **xác nhận nhầm một câu rồi nhảy đi**. ⚠️ Lớp lỗi này **không đường nghiệm thu nào của dự án bắt được** *(không bộ chạy test nào mô phỏng được một bộ gõ tiếng Việt thật)*; nó chỉ lộ ra ở tay người dùng. Kho đã biết điều đó: `EditorPanel.vue:841` có `if (event.isComposing) return` kèm chú thích *"một lượt commit composition của bộ gõ tiếng Việt phát keydown mang code vật lý; ăn nó là ăn mất chữ"*.
+
+**AC12 — `⌥↓`**
+**Given** người dùng bấm `⌥↓` **When** xảy ra
+**Then** nhảy tới **câu chưa dịch kế tiếp**
+**And** *"chưa dịch"* định nghĩa là `status = 'draft'` **và** `target_text` rỗng — `draft` nay đã tách khỏi *chưa dịch*
+
+**AC13 — ba lệnh là command đăng ký**
+**Given** ba lệnh trên **When** gọi
+**Then** đều là **command đăng ký**, gán phím được — không gọi thẳng hàm *(một lời gọi thẳng dựng một đường thứ hai mà `check:commands` Kiểm A không nhìn thấy)*
+
+**AC14 — ba khoá lỗi có đường ra màn hình**
+**Given** ba khoá lỗi `err.segment.*` **When** một thao tác bị từ chối
+**Then** có **đường ra màn hình** — không bị vứt ở tầng gọi
+⚠️ Đây là mục ③ của ba quyết định chồng nhau: hôm nay `editorConfirmError` **không component nào đọc** và `main.ts` vứt `ConfirmResult`, nên một lượt từ chối **không đổi một pixel nào**.
+
+> ⚠️ **Nợ ghi kèm story, không tự chấm đạt** *(nguyên văn `epics.md:2329`)*: chiều cao hàng khi
+> bật Hán Việt **song song** ở cột hẹp của Ⓑ-2 *(ước ~330 px ⇒ một hàng có thể cao **6–7
+> dòng**, ăn mất chính thứ Ⓑ-2 được chọn để có)* là **ước lượng hình học, CHƯA ĐO trên bản
+> dựng thật**. Ai dựng thì **đo lại và ghi số**. → Task 7.
+
+### Nhóm B — suy ra từ bất biến kiến trúc, mỗi mục trỏ nguồn
+
+**B1 — Hai vai vùng chọn KHÔNG được đảo.** Cột nguyên văn `'source'`, cột bản dịch `'display'`.
+> Nguồn: `sprint-change-proposal-2026-08-13.md` (Ice ký) · `check-commands.mjs` Kiểm F ③ · `EditorPanel.vue:83-96`.
+> 🔴 Editor chứa **tiếng Việt đã dịch**. Tra ở đó cho 0 kết quả **rồi xoá mất** kết quả người dùng vừa tra từ cột nguyên văn. Đây là lỗi đã đi qua sạch 11 cổng một lần rồi *(commit `1c7658d`)* — đảo lại là mở lại đúng cửa vừa đóng.
+
+**B2 — Hợp đồng flush AD-35 không đổi một mệnh đề.** idle **2 s** · trần cứng **5 s không reset bởi phím gõ** · xác nhận · rời segment · đóng Tác phẩm/thoát app. Đi qua đúng `store::Writer` nối tiếp (AD-11). Flush xong **chỉ sau khi đã ghi vào WAL**.
+> Nguồn: `ARCHITECTURE-SPINE.md` AD-35 (:419-425) · `src/panels/editorFlush.ts:30`.
+> ⚠️ *"Rời segment"* nay nghĩa là **rời hàng**. Nếu Quyết định #3 mở nhiều ô gõ được cùng lúc, hợp đồng này phải đúng cho **từng segment**, không phải một đồng hồ toàn cục cho cả lưới.
+
+**B3 — `is_paragraph_end` chỉ được ĐỌC.** AD-37 cấm suy ra cấu trúc đoạn từ nội dung lúc render.
+> Nguồn: AD-37 (:437-453) · `commands/segment.rs:136` · `config/segment.ts:73`.
+> 🔴 Cờ đoạn **của bản dịch** là AD-46 và nó thuộc **Story 2.5d** (bước di trú 9). 2.5b **không** dựng nó, **không** đoán nó, **không** thêm cột nào.
+
+**B4 — Không một quy tắc nghiệp vụ nào sang TypeScript (AD-1).** Trạng thái sinh ở Rust; lưới chỉ **đọc**.
+> Nguồn: AD-1 (:75-79) · `editorSegments.ts:80-82`.
+> ⇒ Cụ thể: đừng cài lại phép *"đã dịch hay chưa"* bằng cách so chuỗi ở nhiều chỗ. Một hàm thuần, một chỗ.
+
+**B5 — `panel.grid` khai đúng một điểm vào focus, và `FOCUS_OWNERS` đối chiếu hai chiều.**
+> Nguồn: AD-34 §2 (:406-417) · `PanelFrame.vue:126-133` · `commands/index.ts:64-72` · `check-commands.mjs` Kiểm E.
+> ⚠️ `owner` phải viết **LITERAL** trong `.vue` — cổng đọc tĩnh.
+
+**B6 — Màu chỉ từ token đã kiểm tương phản; `ornament` và `tm-rule` KHÔNG BAO GIỜ là màu chữ.**
+> Nguồn: AD-34 §3 · `tokens.json:98-101` (`neverTextTokens`, cưỡng chế bằng `check:tokens`) · `DESIGN.md:208`.
+> 🔴 Chỗ này va thẳng vào DESIGN.md frontmatter — xem **Quyết định #9**.
+
+**B7 — `workspaceLayout.ts` giữ luật "erasable-only".** Không `import` giá trị, không `enum`/`namespace`/parameter property.
+> Nguồn: `workspaceLayout.ts:1-29` · `check-layout.mjs` Kiểm A `import()` thẳng tệp này bằng Node trần.
+
+**B8 — Mọi thao tác qua `CommandRegistry`; mỗi `@click` là ĐÚNG MỘT `dispatch('<id>')`.**
+> Nguồn: AD-34 §1 · `check-commands.mjs` Kiểm A.
+> ⚠️ Bấm chuột vào một hàng để đặt con trỏ là **thao tác con trỏ**, không phải một command — nó đi qua `mousedown`, không qua `@click`. Đừng nhét nó vào registry cho "đúng luật"; luật nói về **thao tác**, không về mọi sự kiện chuột.
+
+**B9 — 2.5b KHÔNG tự chấm NFR2 đạt.** Đo số dựng-DOM trên hình dạng mới và **giao số** cho Story 2.4.
+> Nguồn: `deferred-work.md:2113-2129, 2198-2207, 2484-2489, 2770-2782` · luật đo ở `project-context.md`.
+
+**B10 — Không thêm một phụ thuộc npm nào mà chưa đi qua cửa NFR15.** Mở tệp giấy phép trong nguồn **đã tải** mà đọc; ghi vào bảng Stack của spine **TRƯỚC** khi thêm.
+> Nguồn: `project-context.md` §NFR15 · `ARCHITECTURE-SPINE.md:763`. Ba lượt rà đầu của dự án đều là lượt *"đuổi theo"*.
+
+**B11 — `data-segment-id` nay xuất hiện HAI lần cho một câu** *(ô nguyên văn + ô bản dịch)*. Hợp đồng neo phải được khai lại tường minh, và **bộ e2e phụ thuộc vào nó**.
+> Nguồn: `e2e/specs/editor-typing-flush.e2e.mjs:87,107,112,151,200` · `editor-confirm-segment.e2e.mjs:121,128,158,171` · `editorGutter.ts:188`.
+> 🔴 `document.querySelectorAll('[data-segment-id]')` hôm nay đếm **số câu**. Trong lưới nó đếm **2 × số câu**, và `$('[data-segment-id="X"]')` không còn duy nhất. Hai spec e2e sẽ **xanh giả hoặc đỏ oan** nếu không sửa cùng lượt — xem Quyết định #1 mệnh đề (d).
+
+**B12 — Mọi chuỗi hiển thị mới vào `vi.json`, khoá phẳng có tiền tố miền, placeholder `{ten_tham_so}`.**
+> Nguồn: NFR16 · AD-21 · `project-context.md` §Chuỗi và token.
+
+---
+
+## Task 0 — CHÍN quyết định phải chốt TRƯỚC dòng mã đầu tiên
+
+🔴 **Ice là người chốt.** Mỗi quyết định nêu **cả hai (hoặc ba) đường kèm cái giá**, có một đường
+⭐ đề xuất mặc định. Đừng tự chọn rồi đi tiếp, và cũng đừng loại một đường chỉ vì nó đắt.
+
+---
+
+### Quyết định #1 — Hình dạng DOM của lưới, và nó quyết luôn hợp đồng vùng chọn
+
+**Sự kiện đo được.** AC2 đòi **hàng** *(mỗi câu một hàng, năm cột)*. AC7 đòi **cột** là **một
+bề mặt đăng ký duy nhất** — nguyên văn: *"đăng ký theo CỘT, KHÔNG theo từng ô"*. Nhưng
+`selectionContract.ts:168-190` duyệt bằng `el.contains(anchor)` ⇒ **một bề mặt phải là TỔ TIÊN
+DOM của chữ trong nó**.
+
+🔴 **Hai đòi hỏi đó xung khắc trong DOM thường:** trong `<table>` *(cũng là hình dạng của bản
+dựng `.working/editor-grid-two-column.html`)*, một **cột không có phần tử tổ tiên nào**.
+`<col>`/`<colgroup>` **không chứa** các `<td>` — chúng chỉ mang kiểu dáng. Cùng lý do, một
+lưới CSS Grid với hàng là hộp thật *(`tr.row-primary { background }`)* cũng không có tổ tiên
+cột. ⚠️ Đây **không** phải một chi tiết cài đặt: nó quyết định AC7 dựng được hay không.
+
+| Đường | Nội dung | Cái giá |
+|---|---|---|
+| **(a)** | `<table>` như bản dựng; đăng ký **cả bảng** làm MỘT bề mặt vai `'source'` | 🔴 **Sai AC7 và sai B1**: cột bản dịch (tiếng Việt) trở thành nguồn tra ⇒ mở lại đúng lỗi commit `1c7658d` vừa đóng. **LOẠI**, ghi ra để không ai đi lại. |
+| **(b)** ⭐ | **CSS Grid chủ-cột với `subgrid`**: một grid cha khai `grid-template-rows: repeat(N, auto)`; **năm** phần tử con là **năm cột**, mỗi cột `display: grid; grid-template-rows: subgrid; grid-row: 1 / -1`. Ô là con của cột. Hàng thẳng nhau vì cùng chia **một** tập track hàng của cha | Cột **là tổ tiên DOM thật** ⇒ AC7 dựng được nguyên văn, `selectionContract.ts` không sửa một dòng. ⚠️ **Hàng không còn là một hộp** ⇒ nền hàng đang sửa / hàng cắt bỏ phải tô **trên từng ô** của hàng đó, không trên một `<tr>`. ⚠️ `subgrid`: Safari 16+ *(macOS 12.4+)* · Chrome/Edge 117+ — **đủ** cho sàn của dự án, nhưng ba engine **bất đồng ở gap và auto-sizing** ⇒ 🔴 phải **đo trên CẢ HAI engine**, không đọc bảng tương thích *(cùng luật `selectionContract.ts:141`)*. |
+| **(c)** | `<table>` giữ nguyên; đăng ký **từng ô** làm một bề mặt | 🔴 Đúng thứ AC7 cấm bằng chữ. `SELECTION_SURFACE_FLOOR = 7` là một **cổng đếm tĩnh**; N ô cho ra hàng nghìn bề mặt ⇒ cổng vô nghĩa, và mảng `surfaces` tuyến tính ở `selectionContract.ts:75` thành O(N) mỗi lượt chọn. **LOẠI.** |
+| **(d)** | `<table>` + **sửa hợp đồng** cho nhận một `resolveRole(el)` | 🔴 Phá AC7 vế *"không sửa một dòng"*, và đặt một nhánh mới vào cửa mà **bảy** bề mặt khác đang đi qua. **LOẠI** trừ khi (b) bị đo bác. |
+
+**Đề xuất mặc định: (b).** Lý do: nó là đường **duy nhất** thoả cả AC2 lẫn AC7 mà không sửa
+hợp đồng vùng chọn và không phá cổng đếm.
+⚠️ **Cái giá phải nói trước, không phát hiện sau:** mọi kiểu dáng **cấp hàng** *(nền
+`surface-accent` cho hàng đang sửa · nền `surface-tm` cho hàng TM · gạch ngang hàng cắt bỏ ·
+đường kẻ dưới hàng · khoảng thở đoạn AC5)* phải nhân ra **năm ô**, không một chỗ. Bản dựng
+`.working/editor-grid-two-column.html:208-229` viết chúng trên `<tr>` — **không chép thẳng
+được**.
+
+**Kèm theo, mệnh đề (d) của B11 — neo `data-segment-id`:** với (b), một câu có **hai** ô mang
+id. Chốt luôn cùng quyết định này: ô nào mang `data-segment-id` và ô nào mang một thuộc tính
+thứ hai phân biệt vai *(ví dụ `data-col="src" | "tgt"`)*, và **hai spec e2e sửa cùng lượt**.
+
+**Cần Ice chốt:** đường (a)/(b)/(c)/(d), và hình dạng neo `data-segment-id`.
+
+---
+
+### Quyết định #2 — `.rule-draft` lấy màu từ đâu
+
+**Sự kiện đo được.** `check-commands.mjs:2140-2152` (Kiểm I ③) đòi mỗi giá trị vạch có một
+khối khai **đúng** `background-color: var(--color-<giá trị>)`. Thêm `'draft'` vào
+`SEGMENT_RULE_VALUES` ⇒ cổng đòi `var(--color-draft)`. Nhưng bảng token có **16 token mỗi
+theme** và `DESIGN.md:196` viết thẳng: *"Đừng thêm một token thứ 17 để cho khớp một con số
+cũ"*. Bản dựng thăm dò dùng `background: var(--ornament); opacity: 0.45`
+*(`.working/editor-grid-two-column.html:157`)* — thứ Kiểm I sẽ **đỏ**, và `opacity` trung gian
+còn cần một miễn trừ **có tên** ở Kiểm D của `check-tokens`.
+
+| Đường | Nội dung | Cái giá |
+|---|---|---|
+| **(a)** ⭐ | Thêm token màu **`draft`** *(token thứ 17)*, khai vai **`stroke`**, đi qua vòng kiểm tương phản | Sửa **ba** chỗ khai số: `tokens.json` · bảng đóng băng trong `check-tokens.mjs` · `DESIGN.md`. Cộng một dòng 🔵 ở `DESIGN.md:196` nói vì sao con số 16 hết đúng. **Được phép** — `DESIGN.md:196` cấm thêm token *"cho khớp một con số cũ"*, không cấm thêm token có lý do. |
+| **(b)** | Giữ 16 token; `.rule-draft` dùng `var(--color-ornament)` + `opacity` | 🔴 Kiểm I **đỏ** *(nó đòi `--color-draft`)* ⇒ phải **nới cổng** bằng một bảng alias. Nới một cổng để mã đi lọt là đúng thứ `project-context.md` §Miễn trừ cấm bằng chữ. Cộng một miễn trừ `opacity` có tên. |
+| **(c)** | `draft` **không có vạch**, chỉ đọc ở **cột nhãn trạng thái** | 🔴 Sai AC4 nguyên văn *(«mỗi giá trị khác trống có đúng một khối `.rule-<giá trị>`»)* và sai UX-DR19 *(«cộng một vạch 2px đầu hàng»)*. |
+
+**Đề xuất mặc định: (a).** Lý do: nó là đường duy nhất không nới một cổng và không phá AC4.
+⚠️ Vai phải là **`stroke`**, không `text` — cùng luật đã đóng cho `ornament`/`tm-rule`.
+
+**Cần Ice chốt:** đường, và nếu (a) thì **giá trị màu** cho hai theme *(phải qua `check:tokens`
+Kiểm C — mọi cặp mới phải khai vào `contrast.pairs` hoặc `contrast.excluded`)*.
+
+---
+
+### Quyết định #3 — `contenteditable` đặt ở đâu trong lưới
+
+**Sự kiện đo được.** Quyết định #1 đường (c) của Story 2.3 *(Ice ký)*: vùng gõ là **MỘT câu tại
+một thời điểm**, cài bằng `contenteditable` trên **đúng một** `<span>`
+*(`EditorPanel.vue:930-947`)*. Khuyết tật *"sập hố"* đến **thẳng** từ đó: `Backspace` ở offset 0
+của editing host duy nhất **không có chỗ nào để xoá lui vào**
+*(`deferred-work.md:2896-2908`)*.
+
+| Đường | Nội dung | Cái giá |
+|---|---|---|
+| **(a)** | Giữ nguyên: `contenteditable` trên **đúng một ô** *(ô bản dịch của hàng có con trỏ)* | 🔴 *"Sập hố"* **không được sửa** — nó chỉ đổi chỗ từ span sang ô. Và Story 2.9 *(`Backspace` đầu ô = gộp với câu trên, UX-DR32)* mất tiền đề: nếu ô là editing host duy nhất thì `Backspace` ở offset 0 không sinh sự kiện nào để bắt. |
+| **(b)** ⭐ | **Mọi ô cột bản dịch** mang `contenteditable="true"`; mỗi ô là một editing host **riêng** | *"Sập hố"* biến mất theo cấu trúc: một ô rỗng vẫn có `min-height: 1.95em` *(AC3)* nên caret có hộp để lấy chiều cao. `Backspace` ở offset 0 sinh một `beforeinput` `deleteContentBackward` **bắt được** ⇒ Story 2.9 có tiền đề. ⚠️ N editing host ⇒ hợp đồng flush B2 phải đúng **theo từng segment**; `isTypingZone` *(`keys.ts`)* phải đọc đúng ô đang gõ. ⚠️ Chi phí dựng DOM tăng — giao số cho Task 8. |
+| **(c)** | Một `contenteditable` bọc **cả cột bản dịch** | 🔴 Một editing host chứa N ô ⇒ `Enter` và `Backspace` xoá **ranh giới ô**, tức phá cấu trúc dữ liệu bằng bàn phím. **LOẠI.** |
+
+**Đề xuất mặc định: (b).** Lý do: nó là đường duy nhất **đóng** món nợ mà story này được giao
+*(`deferred-work.md:2896-2908`)*, thay vì dời nó sang một hình dạng mới.
+🔴 **Đây là một lượt LẬT Quyết định #1 của Story 2.3, và phải được ký lại tường minh** — không
+được đi qua bằng im lặng. Tiền đề của quyết định cũ *(«một dòng văn liên tục»)* không còn tồn
+tại.
+
+**Cần Ice chốt:** đường, **và** chữ ký lật Quyết định #1 của Story 2.3.
+
+---
+
+### Quyết định #4 — số phận `editorGutter.ts` và `editorGutterLanes.test.ts`
+
+**Sự kiện đo được.** `editorGutter.ts` *(273 dòng, 31 chỗ nhắc "làn")* giải bài toán **nhiều
+câu trên cùng một dòng ⇒ vạch chồng nhau**. Trong lưới, **một câu một hàng** ⇒ bài toán biến
+mất **theo cấu trúc**. Nhưng `assignGutterLanes` mang một **phép đo thật**: O(n²) =
+**482,4 / 254,5 / 261,6 ms** trên 9.850 vạch ⇒ quét đường *(tô màu đồ thị khoảng)* =
+**8,3 / 5,2 / 4,3 ms** *(2026-08-14, Node 22.22.2, macOS 15.6)*. Gỡ mã là gỡ luôn bằng chứng.
+`deferred-work.md:2875-2885` giao đích danh: **KHÔNG xoá im lặng**.
+
+| Đường | Nội dung | Cái giá |
+|---|---|---|
+| **(a)** ⭐ | **Gỡ** `assignGutterLanes` + `measureGutterRules` + `editorGutterLanes.test.ts`; **chép nguyên phép đo và lý do gỡ** vào `deferred-work.md` *(nối tiếp mục :2875-2885, không xoá mục)* và vào §Completion Notes | Mất ~273 + 140 dòng. ⚠️ Phải kiểm lại `FILE_FLOOR`/`TS_FLOOR` của hai cổng sau khi bớt tệp — **sàn là cận dưới**, bớt tệp có thể làm nó vô nghĩa chứ không làm nó đỏ. |
+| **(b)** | Giữ tệp, đánh dấu `@deprecated` | 🔴 Mã chết trong sản phẩm để phục vụ một bằng chứng. Bằng chứng thuộc về **sổ**, không thuộc về cây nguồn — đúng luật `deferred-work.md`. |
+| **(c)** | Giữ `measureGutterRules`, gỡ riêng phần làn | Cần đo trước: với (b) của Quyết định #1, hàng có **hình học biết trước** ⇒ vạch lấy chiều cao từ chính track hàng, không cần `getClientRects()`. Chỉ chọn (c) nếu phép đo bác được mệnh đề đó. |
+
+**Đề xuất mặc định: (a).** **Cần Ice chốt.**
+
+---
+
+### Quyết định #5 — đổi tên `PanelId` và `PresetId`: dữ liệu đã lưu của người dùng đi đâu
+
+**Sự kiện đo được — đây là chỗ mất dữ liệu im lặng, và không cổng nào canh nó.**
+
+1. **`PresetId` được LƯU XUỐNG ĐĨA.** `ScopeKind::LayoutPreset` *(`kinds.rs:213`, `GlobalOnly`)*
+   và bố cục đang hiển thị nằm trong `ScopeKind::AppConfig` *(`WorkspaceMode.vue:56-73`)*.
+   `presetById(id)` *(`workspaceLayout.ts:132`)* trả `undefined` cho một id lạ.
+2. **Command id được LƯU XUỐNG ĐĨA** — Story 1.21 cho gán lại phím, và bảng `keybinding` khoá
+   theo **command id**. Đổi `layout.preset_grid` → một tên mới làm **mồ côi** phím tắt người
+   dùng đã gán, **im lặng**.
+3. `check-commands.mjs:222` mang một phép đếm tĩnh: *"hai `layout.preset_*`"*.
+4. `commands/index.ts:457` dựng id bằng nội suy: `` const id = `layout.preset_${preset}` ``.
+
+| Đường | Nội dung | Cái giá |
+|---|---|---|
+| **(a)** ⭐ | **Panel id đổi** *(`panel.source` + `panel.editor` → `panel.grid`)* — chúng **không** nằm trên đĩa. **Preset id GIỮ NGUYÊN hai cái tên cũ**, đổi **nghĩa**: `layout.preset_grid` = **Ⓑ-2** *(mặc định)*, `layout.preset_columns` = **Ⓑ-1**. Đổi `labelKey` và chuỗi `vi.json` cho đúng nghĩa mới | Phím tắt đã gán và preset đã lưu **sống nguyên**. Phép đếm *"hai preset"* không đổi. ⚠️ **Cái giá, ghi ra:** id `preset_columns` không còn tả đúng hình dạng nó dựng — phải có một chú thích 🔵 tại chỗ nói *"tên là lịch sử, nghĩa ở bảng ngay dưới"*. |
+| **(b)** | Đổi cả preset id sang `layout.preset_b1`/`layout.preset_b2` | 🔴 Phím tắt người dùng mồ côi + `workspace_layout` đã lưu trỏ vào một preset không tồn tại ⇒ `presetById` trả `undefined`. **Phải** kèm một đường di trú đọc id cũ. Đắt hơn (a) và không mua thêm gì ngoài một cái tên đẹp. |
+| **(c)** | Giữ nguyên cả tên lẫn nghĩa, thêm preset thứ ba | 🔴 Preset 4 cột **đã rút** *(`epics.md:539` — nó tách `Nguyên văn` khỏi `Bản dịch`, thứ không còn tồn tại)*. Giữ nó là giữ một bố cục dựng không được. |
+
+**Đề xuất mặc định: (a).** Lý do: nó là đường duy nhất **không** làm mất một thứ người dùng đã
+cấu hình.
+⚠️ Kèm theo, sửa cùng lượt: `PANEL_IDS` · `PANEL_TITLE_KEYS` · `PANEL_COMPONENTS` ·
+`SACRIFICE_ORDER` *(không đổi nội dung)* · `NEVER_SACRIFICED` *(AC9)* · `FOCUS_OWNERS`
+*(`commands/index.ts:64-72`)* · `PANEL_SUFFIXES` *(`:375`, dùng cho bốn `layout.toggle_*` ⇒ nay
+**ba**)* · ba chuỗi id **cứng** trong `check-layout.mjs:255-272`.
+
+**Cần Ice chốt.**
+
+---
+
+### Quyết định #6 — thư viện editor *(nợ chuyển chủ từ Story 2.4, Ice ký 2026-08-14)*
+
+**Sự kiện đo được.** Hàng Deferred *"thư viện editor cho panel Editor"*
+*(`ARCHITECTURE-SPINE.md:920`)* đổi chủ sang story này **vì bài toán đã đổi**: `contenteditable`
+trên **một ô mỗi hàng** khác hẳn trên **một dòng văn liên tục**. `deferred-work.md:2896-2908`
+viết thẳng: *"Kết luận cũ của Story 2.4 KHÔNG được mặc nhiên giữ"*.
+
+| Đường | Nội dung | Cái giá |
+|---|---|---|
+| **(a)** ⭐ | **Không thư viện.** `contenteditable` trần trên từng ô, `beforeinput` là cửa duy nhất *(khuôn `EditorPanel.vue:764-828` đã chạy)*. Đóng hàng Deferred kèm **lý do đo được** | Giữ 0 phụ thuộc mới ⇒ không phải mở cửa NFR15. ⚠️ Phải **đo** rồi mới ký: ô rỗng đặt được caret, `Backspace` đầu ô sinh `beforeinput`, IME không mất chữ. Ba phép đo đó là điều kiện của chữ ký. |
+| **(b)** | Nhận một thư viện editor | 🔴 Đi trọn cửa NFR15: **mở tệp giấy phép trong nguồn đã tải mà đọc**, ghi vào bảng Stack **TRƯỚC** khi `npm i`, chỉ giấy phép tương thích GPLv3 chiều đi vào. Cộng AD-31: hợp đồng trạng thái không được lan ra ngoài module. |
+
+**Đề xuất mặc định: (a)** — **nhưng chỉ sau Task 1**. Ký trước khi đo là đúng thứ dự án cấm.
+**Cần Ice chốt** *(sau khi đọc kết quả Task 1)*.
+
+---
+
+### Quyết định #7 — ảo hoá hàng: dựng ngay, hay đo rồi ghi nợ
+
+**Sự kiện đo được.** `ARCHITECTURE-SPINE.md:922` để *"Chiến lược ảo hoá danh sách dài"* ở
+**Giai đoạn 3**. Số đã đo trên hình dạng **cũ**: dựng 9.850 `<span>` vượt trần 50 ms/frame —
+**6× trên Blink (300,1 ms)**, **26× trên WebKit (1.308,0 ms)** *(`deferred-work.md:2113-2129`)*.
+Lưới **tăng** số node mỗi câu *(1 `<span>` → 5 ô)*, nhưng **bỏ** lượt dựng lại toàn danh sách
+mỗi `selectionchange` *(`:2198-2207`)* nếu Quyết định #3 chọn (b) *(mỗi ô là host riêng, không
+cần `:data-caret` trên mọi câu)*.
+
+| Đường | Nội dung | Cái giá |
+|---|---|---|
+| **(a)** ⭐ | **Không ảo hoá ở story này.** Dựng đủ hàng, **đo** trên cả hai engine, giao số cho Story 2.4, ghi nợ có chủ nếu vượt | Story giữ đúng phạm vi. ⚠️ Nếu số vượt trần thì **báo, đừng tối ưu mù** — đúng khuôn AC14 của Story 2.2 đã đặt. |
+| **(b)** | Ảo hoá ngay trong 2.5b | 🔴 Ảo hoá + `contenteditable` + `subgrid` cùng lúc là ba biến chưa đo trong một lượt. Và nó lấn phạm vi của một quyết định spine đang để ở Giai đoạn 3. |
+
+**Đề xuất mặc định: (a).** **Cần Ice chốt.**
+
+---
+
+### Quyết định #8 — bề mặt báo lỗi cho `err.segment.*` (AC14)
+
+**Sự kiện đo được — hai nguồn nói ngược nhau, phải phân xử.**
+- **AC14 của story này** đòi ba khoá lỗi *"có đường ra màn hình"*.
+- **`deferred-work.md:2801-2816`** ghi món này với **Chủ: Ice**, và điều kiện là *"chốt hợp đồng
+  UX-DR30 — bề mặt báo lỗi của Editor — TRƯỚC khi story nào cài nó"*. Cùng cảnh ngộ:
+  `'still-dirty'` *(Quyết định #8 của Story 2.5)* cũng chỉ `console.error`.
+- Hôm nay: `editorConfirmError` export mà **không component nào đọc**; `main.ts:229` viết
+  `void confirmCurrentSegment()` — `ConfirmResult` **bị vứt**.
+
+| Đường | Nội dung | Cái giá |
+|---|---|---|
+| **(a)** ⭐ | Bề mặt là **cột nhãn trạng thái của chính hàng** *(cột 5)* + một dòng ở thanh trạng thái. Đóng **cả hai** món cùng lượt *(ba khoá `err.segment.*` và `'still-dirty'`)* | Lỗi hiện **đúng chỗ người dùng vừa bấm**, không một hộp thoại nào *(UX-DR16: không lớp nổi)*. ⚠️ Cần **hai khoá `vi.json` mới** cho nhãn *"từ chối"* và cần Ice ký hợp đồng UX-DR30 **ở mức tối thiểu này**, không mở rộng. |
+| **(b)** | Chỉ thanh trạng thái | Rẻ hơn, nhưng thanh trạng thái ở xa chỗ bấm; với một lưới dài, người dùng không nhìn xuống đó. |
+| **(c)** | Hoãn AC14 sang một story sau | 🔴 Sai AC14 nguyên văn, và đó là mục ③ trong **ba** quyết định chồng nhau đã sinh ra lượt lật này. Hoãn nó là để nguyên một trong ba nguyên nhân gốc. |
+
+**Đề xuất mặc định: (a).** **Cần Ice chốt** — đây đồng thời là chữ ký cho hợp đồng UX-DR30 ở
+phạm vi tối thiểu.
+
+---
+
+### Quyết định #9 — màu chữ của cột số câu và cột nhãn trạng thái
+
+**Sự kiện đo được — `DESIGN.md` tự mâu thuẫn, và một cổng đứng về một phía.**
+- `DESIGN.md` frontmatter `:137-148` khai: `grid-num-col: { color: ornament }` ·
+  `grid-state-col: { color: ornament }`.
+- `DESIGN.md:208` khai ngược: *"`ornament` và `tm-rule` là **màu của nét**, không bao giờ là màu
+  của chữ. Mọi chữ, kể cả nhãn 10px, tối thiểu phải là `on-surface-variant`."*
+- `tokens.json:98-101` `neverTextTokens` **cưỡng chế bằng `check:tokens`**: `ornament` = 2,44
+  (sáng) / 2,64 (tối) trên `surface` — **trượt AA**.
+- ⚠️ Miễn trừ duy nhất đang khai cho `ornament` là *"ký tự ranh giới câu `⏐`"* — thuộc
+  **UX-DR20**, thứ đã **RÚT** 2026-08-14. ⇒ Miễn trừ đó nay là một **miễn trừ chết**, và
+  `eslint.config.js` đặt `reportUnusedDisableDirectives: 'error'` đúng vì lớp nợ này.
+
+| Đường | Nội dung | Cái giá |
+|---|---|---|
+| **(a)** ⭐ | Dùng **`on-surface-variant`** cho cả hai cột; sửa `DESIGN.md` frontmatter tại chỗ kèm 🔵 và ngày; **gỡ** miễn trừ `⏐` đã chết | Qua `check:tokens` không cần miễn trừ nào. Số câu và nhãn trạng thái **đọc được** — chúng là chữ thật, không phải nét. Đóng thêm một món nợ tài liệu. |
+| **(b)** | Giữ `ornament`, xin **hai miễn trừ có tên** | 🔴 Hai nhãn chữ trượt AA trên một bề mặt người dùng nhìn hàng giờ. `project-context.md` §Miễn trừ: *"Sửa KIỂU cho nó nói thật; đừng nhét một miễn trừ để cổng hết đỏ."* |
+
+**Đề xuất mặc định: (a).**
+⚠️ Ghi kèm: `td.state.is-confirmed/is-primary/is-tm` của bản dựng dùng `confirmed`/`primary`/
+`tm-text` làm màu chữ — cả ba **đã có vai `text`** trong `tokens.json:56-63`, nên ba cặp đó chỉ
+cần khai vào `contrast.pairs` nếu nền mới. **Cần Ice chốt.**
+
+---
+
+## Tasks / Subtasks
+
+- [ ] **Task 0 — CHÍN quyết định (AC toàn story)**
+  - [ ] 0.1 Trình bày chín quyết định trên cho Ice, **kèm số đo**, chờ chữ ký.
+  - [ ] 0.2 🔴 Ghi lại chữ ký vào §Dev Agent Record **nguyên văn**. Nếu Ice ký một đường mà phép đo đã bác, ghi rõ *"Ice ký SAU KHI đọc số bác nó"* — đó là quyết định của Ice, không phải một lượt bỏ sót.
+  - [ ] 0.3 Không viết một dòng mã sản phẩm nào trước khi 0.2 xong.
+
+- [ ] **Task 1 — 🔴 CỬA CHẶN: dựng một mũi thăm dò lưới và GÕ TAY vào nó (AC3, Quyết định #1/#3/#6)**
+  - [ ] 1.1 Dựng một bàn đo HTML độc lập *(khuôn `2-5-ban-do-hai-vach.html`)*: lưới `subgrid` năm cột, ô bản dịch `contenteditable`, một hàng **chưa dịch** với ô rỗng `min-height: 1.95em` + `border-bottom: 1px dashed`.
+  - [ ] 1.2 Đo trên **WKWebView thật** *(không happy-dom, không Blink một mình)*: ① bấm chuột vào ô rỗng — caret có xuất hiện không; ② gõ một ký tự — `execCommand`/`beforeinput` có ăn không; ③ `Backspace` ở offset 0 — có sinh `beforeinput` `deleteContentBackward` không; ④ chiều cao caret trong ô rỗng có bằng dòng không *("sập hố")*; ⑤ `subgrid` có giữ hàng thẳng khi hai ô lệch chiều cao không.
+  - [ ] 1.3 Đo cùng năm mệnh đề trên **Chromium** *(engine của WebView2)*. 🔴 Không suy từ bảng tương thích — cùng luật `selectionContract.ts:141`.
+  - [ ] 1.4 🔴 **CHỦ: ICE** — mở app/bàn đo trên máy thật, gõ tiếng Việt **bằng bộ gõ**, xác nhận chữ hạ cánh và dấu không rơi.
+  - [ ] 1.5 🔴 **Nếu ① hoặc ② trượt: DỪNG, báo Ice, 2.5b về `backlog`.** Ba vòng chẩn đoán bị bác cũng ⇒ DỪNG.
+  - [ ] 1.6 Ghi kết quả + ngày + phiên bản engine vào §Debug Log References. Số này là căn cứ ký Quyết định #6.
+
+- [ ] **Task 2 — Tầng bố cục: bốn panel → ba (AC1, AC9, Quyết định #5)**
+  - [ ] 2.1 `workspaceLayout.ts`: `PanelId` còn ba giá trị; `PANEL_IDS`/`PANEL_TITLE_KEYS`/`PANEL_COMPONENTS` theo.
+  - [ ] 2.2 Hai preset mới thay `GRID_2X2`/`FOUR_COLUMNS`: **Ⓑ-2** *(lưới trái toàn chiều cao; Tra cứu trên, Đề xuất AI dưới, bên phải)* và **Ⓑ-1** *(lưới cả bề ngang ở trên; Tra cứu và Đề xuất AI hàng dưới)*. `DEFAULT_PRESET_ID` = preset của **Ⓑ-2** (AC6).
+  - [ ] 2.3 `NEVER_SACRIFICED = ['panel.grid']`; sửa chú thích `:154` *"đúng bốn panel"* → **ba** (AC9). `SACRIFICE_ORDER` **không đổi nội dung**.
+  - [ ] 2.4 🔴 Giữ luật erasable-only (B7) — không thêm một dòng `import` nào vào tệp này.
+  - [ ] 2.5 `check-layout.mjs:255-272`: sửa ba chuỗi id **cứng** của Kiểm A mệnh đề 3. ⚠️ Mệnh đề 2 duyệt `1 << PANEL_IDS.length` nên tự co từ 16 xuống 8 tập con — **không** sửa.
+  - [ ] 2.6 `commands/index.ts`: `FOCUS_OWNERS` *(:64-72)* còn sáu mục *(ba chế độ + ba panel)*, sửa chú thích *"BẢY mục… bốn panel"*; `PANEL_SUFFIXES` *(:375)* còn ba ⇒ **ba** `layout.toggle_*`, không bốn. ⚠️ `check-commands.mjs:222` mang một phép **đếm tĩnh** chép tay *("hai `layout.preset_*` · **bốn** `layout.toggle_*` · …")* — sửa cùng lượt, nếu không cổng đỏ ở một chỗ không ai ngờ.
+  - [ ] 2.9 🔴 **Đừng dựng lại đường lưu bố cục.** AC6 vế *"giữ nguyên qua các phiên"* **đã có sẵn**: `WorkspaceMode.vue::onPersist` ghi bố cục đang hiển thị qua `putConfig(SCOPE_APP_CONFIG, KEY_LAYOUT, json)`, và `bootstrap.ts::workspace_layout` đọc lại lúc khởi động. Với Quyết định #5 (a), **không một dòng nào của đường này phải sửa**. Chỉ kiểm bằng một lượt chạy tay: đổi sang Ⓑ-1, đóng app, mở lại.
+        ⚠️ **Không** nhét preset đang chọn vào `layout_presets` dưới một khoá `__current` — `WorkspaceMode.vue:66-68` và `kinds.rs:206-213` đã cấm bằng chữ *(màn hình Story 1.21 sẽ hiện `__current` ra như một preset người dùng tự tạo)*.
+  - [ ] 2.7 `vi.json`: khoá `panel.grid.title` + `panel.grid.status`; **giữ** `panel.source.*` cho các chuỗi Hán Việt còn dùng, **gỡ** khoá nào không còn chỗ đọc. ⚠️ `check:i18n` canh cả hai chiều.
+  - [ ] 2.8 `WorkspaceDock.vue`: bảng `components` đăng ký component nội dung mới.
+
+- [ ] **Task 3 — Component lưới (AC2, AC3, AC5, Quyết định #1)**
+  - [ ] 3.1 Tệp mới `src/panels/GridPanel.vue`, `<PanelFrame owner="panel.grid" status-key="panel.grid.status">` — `owner` viết **LITERAL** (B5).
+  - [ ] 3.2 Dựng năm cột theo Quyết định #1: vạch trạng thái · số câu · nguyên văn · bản dịch · nhãn trạng thái (AC2).
+  - [ ] 3.3 Ô bản dịch rỗng: `min-height` bằng một dòng của token `editor` *(1.95)* + `border-bottom: 1px dashed var(--color-outline)` (AC3). 🔴 Vùng bấm là **cả ô**, không một `<span>` rỗng.
+  - [ ] 3.4 `is_paragraph_end` ⇒ **khoảng thở** giữa nhóm hàng, **không** một hàng rỗng (AC5). Chỉ **đọc** cờ (B3). ⚠️ Với Quyết định #1 (b), khoảng thở phải nhân ra năm ô của hàng cuối đoạn.
+  - [ ] 3.5 Nguồn dữ liệu một hàng = **một** `ChapterSegment` *(`source_text` + `target_text` cùng hàng)*. 🔴 Không join theo vị trí, chỉ theo `segment.id` (AD-3).
+  - [ ] 3.6 Neo `data-segment-id` theo hình dạng đã chốt ở Quyết định #1 (B11).
+  - [ ] 3.7 Kiểu chữ: cột nguyên văn `source-cjk` *(16,5px/2.05)* hoặc `source-latin` theo `source_lang`; cột bản dịch token `editor` *(15px/1.95)* — bốn AC của Story 2.2 còn sống nguyên gồm mệnh đề này.
+  - [ ] 3.8 🔴 **Xoá bề mặt cũ:** `EditorPanel.vue` và `SourcePanel.vue` không còn là panel của Workspace. Chuyển phần còn dùng được sang `GridPanel.vue`, đừng chép hai bản.
+
+- [ ] **Task 4 — Trạng thái: năm giá trị → sáu (AC4, Quyết định #2)**
+  - [ ] 4.1 `editorSegments.ts`: `SEGMENT_RULE_VALUES` thêm `'draft'` ⇒ **sáu**.
+  - [ ] 4.2 `resolveSegmentRule`: thêm nhánh `draft` **đúng chỗ trong thứ tự ưu tiên**. Thứ tự đề nghị: `ornament` › `primary` › `confirmed` › `tm-rule` › **`draft`** › `none`. 🔴 `draft` ⇔ `targetText !== ''` *(và không thuộc bốn nhánh trên)*; `targetText === ''` ⇒ `none`.
+  - [ ] 4.3 🔴 **SỬA TẠI CHỖ ba khối doc-comment đã hết đúng** trong `editorSegments.ts`, kèm 🔵 và ngày: `:2-37` *("VÌ SAO CẢ NĂM NHÁNH…")* · `:41-49` *("ĐÚNG NĂM GIÁ TRỊ…")* · `:107-139` *("KHE HỞ… Ice ký Quyết định #3 đường (a): không vạch")*.
+        ⚠️ Khối `:107-139` chở một mệnh đề **Ice đã ký ngày 2026-08-14** *(«đã dịch, chưa xác nhận ⇒ không vạch»)* và UX-DR19 bản viết lại **cùng ngày** lật nó. Ghi cả hai và ghi **thứ tự** — đừng xoá dấu vết quyết định cũ.
+  - [ ] 4.4 Khối CSS `.rule-draft` theo Quyết định #2.
+  - [ ] 4.5 `check-commands.mjs` Kiểm I: `EXPECTED_RULE_VALUES` thành sáu; sửa tiêu đề *"ĐÚNG NĂM giá trị"*; sửa `EDITOR_PANEL_VUE` → đường dẫn `GridPanel.vue`; thêm ca thứ sáu cho mệnh đề ②.
+  - [ ] 4.6 `tests/frontend/editorSegmentRule.test.ts`: đảo mệnh đề *"đã dịch chưa ký ⇒ none"* thành *"⇒ draft"*, **thêm** ca `target_text` rỗng ⇒ `none`, và ca *"hai chỗ đọc trạng thái phải đồng ý"* giữ nguyên.
+  - [ ] 4.7 Cột **nhãn trạng thái** hiện sáu nhãn — sáu khoá `vi.json` mới, khoá phẳng (B12).
+  - [ ] 4.8 🔴 Sửa tại chỗ *(🔵 + ngày)* hai mệnh đề tài liệu đã hết đúng: `EXPERIENCE.md:99` *("vạch lề đã dùng hết **năm** giá trị")* → sáu, **lý do không đổi**; `DESIGN.md:386` *("đây là **cách duy nhất** trạng thái segment được hiển thị; văn bản không bị chia khối")* → lưới có thêm **cột nhãn trạng thái**, và văn bản **có** chia ô.
+
+- [ ] **Task 5 — Hợp đồng vùng chọn theo cột (AC7, B1)**
+  - [ ] 5.1 Cột nguyên văn: **một** `useSelectionSurface(colSrc, 'source', resolveHanViet)`; cột bản dịch: **một** `useSelectionSurface(colTgt, 'display')`. Vai viết **LITERAL**.
+  - [ ] 5.2 🔴 `selectionContract.ts` **không sửa một dòng** (AC7).
+  - [ ] 5.3 Hán Việt: gộp `SourceHanViet.vue` vào cột nguyên văn sao cho **vẫn chỉ một** lời gọi đăng ký cho cả cột — resolver duyệt âm tiết trong toàn cột, không đăng ký theo ô. Giữ nguyên: `WORD_JOINER` không ra clipboard *(Story 1.18b AC5)* và luật *"một âm tiết là ATOM với ký tự nguồn của nó"*.
+  - [ ] 5.4 `check-commands.mjs` Kiểm F: `SELECTION_PANEL_FILES` thay hai tệp cũ bằng `GridPanel.vue`; 🔴 mệnh đề ① *("mỗi panel ĐÚNG MỘT lời gọi")* phải nới thành **một số mong đợi theo tệp** *(GridPanel = 2)*, kèm chú thích nói vì sao — nới **có chủ**, không bỏ. `SELECTION_SURFACE_FLOOR = 7` **không đổi** *(hai lời gọi thay hai lời gọi)* — đếm lại để chắc.
+  - [ ] 5.5 `tests/frontend/editorAutoLookup.test.ts`: cập nhật theo hai cột, giữ nguyên mệnh đề *"cột bản dịch KHÔNG phát lượt tra"*.
+
+- [ ] **Task 6 — Ba lệnh bàn phím (AC10, AC11, AC12, AC13)**
+  - [ ] 6.1 `⌘Enter` → `editor.confirm_segment` **đã tồn tại** *(Story 2.5, `commands/index.ts:883`)*. 🔴 **Tái dùng, đừng đăng ký lần hai.** Vế *"sang câu kế"* cũng đã có *(Quyết định #1 của Story 2.5)*.
+  - [ ] 6.2 `⌥↓` → command **mới**, id theo văn phạm khoá chấm *(gợi ý `editor.next_untranslated`)*, `labelKey` trong `vi.json`. 🔴 *"Chưa dịch"* = `status === 'draft'` **và** `target_text === ''` (AC12).
+  - [ ] 6.3 🔴 `Enter` **trơn không bao giờ xác nhận** (AC11). Giữ nguyên `if (event.isComposing) return` **trước** mọi nhánh khác *(`EditorPanel.vue:841`)*. ⚠️ `Enter` trong ô bản dịch **vẫn bị chặn** ở story này — quyền xuống dòng là **FR134/AD-46, Story 2.5d**. Đừng mở sớm.
+  - [ ] 6.4 Cả ba đi qua `dispatch()`; phím tắt và chuột phát **cùng một** `dispatch` (AC13, B8).
+  - [ ] 6.5 Sàn `COMMAND_FLOOR`/`DISPATCH_FLOOR` của `check-commands.mjs`: đếm lại sau khi thêm một command và bớt một `layout.toggle_*`.
+
+- [ ] **Task 7 — Hán Việt trong ô nguyên văn và PHÉP ĐO chiều cao hàng (AC8, nợ `:2863-2873`)**
+  - [ ] 7.1 Hai chế độ FR19 *(chuyển đổi / song song)* chạy **bên trong ô nguyên văn**.
+  - [ ] 7.2 🔴 **Không mặc định thông minh nào** (AC8): không buộc chế độ đi theo bố cục, không tự mở riêng cho hàng đang sửa. Hai phương án đó **đã được nêu và bị bác** *(`EXPERIENCE.md:249-257`, Ice ký)*.
+  - [ ] 7.3 🔴 **ĐO, không ước:** dựng thật, bật *song song* ở **Ⓑ-2**, đếm số dòng của một hàng và đo px trên **cả hai engine**. Ghi số + ngày + phiên bản. Đối chiếu với ước lượng *"6–7 dòng, cột ~330 px"*.
+  - [ ] 7.4 Nối kết quả vào `deferred-work.md:2863-2873` — ✅ nếu đo xong và chấp nhận được; 🟡 kèm phần còn hở nếu số xấu. **Không xoá mục.**
+
+- [ ] **Task 8 — Đo hiệu năng và bàn giao số cho Story 2.4 (B9, Quyết định #7)**
+  - [ ] 8.1 Đo lượt dựng lưới trên một Chương thật *(và trên fixture 9.850 câu để so với mốc cũ)*: thời gian dựng, số node DOM, thời gian một lượt `selectionchange`.
+  - [ ] 8.2 So với mốc cũ **và nói rõ mốc nào mất hiệu lực theo cấu trúc**: `deferred-work.md:2113-2129` *(9.850 `<span>`)* · `:2198-2207` *(`:data-caret` dựng lại toàn danh sách)* · `:2484-2489` *(`restoreEditedText` quét cả `.doc`)* · `:2770-2782` *(`assignGutterLanes`)*.
+  - [ ] 8.3 🔴 **Không tự chấm NFR2 đạt.** Ghi số vào `deferred-work.md` với chủ **Story 2.4**.
+
+- [ ] **Task 9 — Đường ra màn hình cho lỗi (AC14, Quyết định #8)**
+  - [ ] 9.1 `main.ts:229` **đọc** `ConfirmResult` thay vì `void`.
+  - [ ] 9.2 `GridPanel.vue` đọc `editorConfirmError` và hiện ở cột nhãn trạng thái của hàng liên quan.
+  - [ ] 9.3 `'still-dirty'` *(Quyết định #8 của Story 2.5)* đi cùng đường, không chỉ `console.error`.
+  - [ ] 9.4 Nối `deferred-work.md:2801-2816`: ✅ hoặc 🟡 kèm phần còn hở. **Không xoá mục.**
+
+- [ ] **Task 10 — Gỡ `editorGutter.ts` và giữ bằng chứng (Quyết định #4)**
+  - [ ] 10.1 Gỡ theo đường Ice ký; **chép nguyên phép đo** *(482,4/254,5/261,6 ms → 8,3/5,2/4,3 ms, 2026-08-14, Node 22.22.2, macOS 15.6)* và lý do gỡ vào `deferred-work.md`, nối tiếp mục `:2875-2885`.
+  - [ ] 10.2 Món nợ *"từ 8 làn trở lên máng 22px hết chỗ"* *(`:2718-2719`, Chủ: Ice)* — nếu khái niệm làn biến mất thì nối **✅ đóng theo cấu trúc**, nói rõ *"biến mất, không phải được vá"*.
+  - [ ] 10.3 Đếm lại `FILE_FLOOR` *(`check-layout.mjs:97`)*, `TS_FLOOR`/`VUE_FLOOR`/`COMPONENT_FILE_FLOOR` *(`check-commands.mjs`)* sau khi bớt/thêm tệp. ⚠️ Sàn là **cận dưới**: bớt tệp không làm cổng đỏ, nó chỉ làm sàn vô nghĩa.
+
+- [ ] **Task 11 — Test frontend (vitest)**
+  - [ ] 11.1 `editorSegmentRule.test.ts` — sáu giá trị, thứ tự ưu tiên, hai ca `draft` vs `none`.
+  - [ ] 11.2 Test mới cho phép chọn *"câu chưa dịch kế tiếp"* — hàm **thuần**, nhận danh sách segment, trả `id`. 🔴 Đặt ở một module thuần để `check:commands` gọi được bằng Node trần nếu cần.
+  - [ ] 11.3 🔴 **Đừng thêm `?.` vào mã sản phẩm cho hết đỏ.** Khoảng thiếu của `happy-dom` vá ở `tests/frontend/support/setup.ts`, mỗi mục kèm một dòng nói nó thiếu gì và ai đọc.
+  - [ ] 11.4 ⚠️ `happy-dom` **không phải WebKit**: mọi mệnh đề về **hình học** *(chiều cao ô rỗng, `subgrid` giữ hàng thẳng, caret)* thuộc **bàn đo/e2e**, không thuộc vitest (AC25).
+  - [ ] 11.5 `tsconfig.json` phải `include` cây test; `import { describe, it, expect } from 'vitest'` tường minh.
+
+- [ ] **Task 12 — e2e (B11)**
+  - [ ] 12.1 Sửa `editor-typing-flush.e2e.mjs` và `editor-confirm-segment.e2e.mjs` theo neo mới. 🔴 `[data-segment-id]` không còn duy nhất — mọi phép đếm và mọi `$()` phải nói rõ **cột nào**.
+  - [ ] 12.2 Spec mới: bấm vào một ô **chưa dịch** đặt được con trỏ, gõ được một ký tự (AC3). Đây là ca đã đỏ suốt Story 2.3.
+  - [ ] 12.3 🔴 Cấm `.click()` của driver — dùng `realClick()` *(`e2e/support/pointer.mjs`)*.
+  - [ ] 12.4 ⚠️ Ghi **cách chạy** *(riêng từng tệp hay cả bộ)* cạnh mọi con số — bộ e2e đỏ oan khi chạy cả bộ *(`deferred-work.md`, Chủ: Story 2.4)*, nên một số không kèm cách chạy là một số không so sánh được.
+  - [ ] 12.5 ⚠️ `browser.keys()` đánh rơi `Meta` đúng ở phím `Enter` — giới hạn bộ đo, **không** phải sản phẩm *(Chủ: Story 1.22)*. Đừng chẩn đoán lại.
+
+- [ ] **Task 13 — Tài liệu và sổ nợ**
+  - [ ] 13.1 `src/panels/README.md` — bảng *"Ranh giới sở hữu"* đang **trễ tiến độ**; cập nhật cho `GridPanel.vue` và gỡ hai panel cũ.
+  - [ ] 13.2 `src/layout/README.md`, `src/commands/README.md` — mọi chỗ nói *"bốn panel"*.
+  - [ ] 13.3 🔴 `grep` toàn cây cụm *"bốn panel"* / *"panel.source"* / *"panel.editor"* — **80 chỗ trong 14 tệp** đo 2026-08-14. Mỗi chỗ hoặc sửa, hoặc mang một dòng 🔵 nói vì sao nó là **lịch sử**.
+  - [ ] 13.4 `deferred-work.md`: đóng/nối mọi mục ở §Nợ mà story này nhận; **mở** mục mới có chủ cho mọi thứ không nghiệm thu được.
+  - [ ] 13.5 `sprint-status.yaml`: `2-5b-...` → trạng thái tiếp theo, comment **không dấu**.
+
+- [ ] **Task 14 — Nghiệm thu**
+  - [ ] 14.1 11 cổng npm xanh *(gồm `check:scope` + `check:scope:bundled` chạy tay, cần cổng 1420 trống)*.
+  - [ ] 14.2 `npm run build` · `npm run test` · `cargo test --locked` *(mốc trước story: **338/0/5**)*.
+  - [ ] 14.3 🔴 Mỗi cổng/test mới phải chạy **đỏ-rồi-xanh** ít nhất một lượt và ghi lại. Một cổng chưa bao giờ đỏ là một cổng chưa ai biết nó có chạy không.
+  - [ ] 14.4 Ghi bảng nghiệm thu số **thật** trước/sau vào §Completion Notes.
+
+---
+
+## Dev Notes
+
+### Bản đồ tệp sẽ SỬA
+
+| Tệp | Hôm nay làm gì | 2.5b chạm chỗ nào | Phải giữ nguyên |
+|---|---|---|---|
+| `src/layout/workspaceLayout.ts` *(189 dòng)* | Bốn panel, hai preset, thứ tự hy sinh | `PanelId` · `PANEL_IDS` · `PANEL_TITLE_KEYS` · `PANEL_COMPONENTS` · hai preset · `NEVER_SACRIFICED` *(:155)* · chú thích *"bốn panel"* *(:154)* | Luật **erasable-only**; `nextToSacrifice`/`nextToRestore` là **hàm thuần**, không đọc `window`; `SACRIFICE_ORDER` không đổi nội dung; ngưỡng màn hình hẹp vẫn là **Story 4.12** |
+| `src/panels/GridPanel.vue` *(mới)* | — | Toàn bộ lưới | — |
+| `src/panels/EditorPanel.vue` *(1.233 dòng)* | Panel Bản dịch, trang liền mạch | Gỡ khỏi bộ panel; **chuyển** phần còn dùng sang `GridPanel.vue` | 🔴 `if (event.isComposing) return` *(:841)* · `onBeforeInput` là **cửa duy nhất** cho mọi sửa văn bản, chặn theo `inputType` **không theo phím** *(:764-828)* · thứ tự `mousedown` → `mouseup` → `placeCaretAtPoint` *(đo thật trên WKWebView 2026-08-12/13)* · `setAttribute` **đồng bộ** trong `mousedown` *(chẩn đoán đúng của Story 2.3)* |
+| `src/panels/SourcePanel.vue` *(291 dòng)* | Panel Nguyên văn, tab Hán Việt | Gỡ khỏi bộ panel; cột nguyên văn kế thừa | `sourcePanelState.ts` sống **module-level** để sống sót qua đổi preset (AC9 Story 1.16) |
+| `src/panels/SourceHanViet.vue` *(933 dòng)* | Bề mặt Hán Việt, hai chế độ, resolver | Vào **trong ô nguyên văn**; **một** lần đăng ký cho cả cột | `resolveSelection` hai đường *(`parallel`/`switch`)* đọc **DOM**, không `toString()`; `WORD_JOINER` không ra clipboard; *"một âm tiết là ATOM với ký tự nguồn"* |
+| `src/panels/editorSegments.ts` *(204 dòng)* | Bảng ánh xạ trạng thái → vạch, **năm** giá trị | Thành **sáu**; nhánh `draft`; ba khối doc-comment hết đúng | 🔴 **MODULE THUẦN — không `import` giá trị nào.** Một dòng `import` giết Kiểm I |
+| `src/panels/editorGutter.ts` *(273 dòng)* + `tests/frontend/editorGutterLanes.test.ts` | Hình học vạch + chia làn | Gỡ theo Quyết định #4 | Phép đo phải sống tiếp trong `deferred-work.md` |
+| `src/panels/selectionContract.ts` *(383 dòng)* | Hợp đồng vùng chọn | 🔴 **KHÔNG SỬA MỘT DÒNG** (AC7) | Tất cả |
+| `src/commands/index.ts` *(1.149 dòng)* | Đăng ký command, `FOCUS_OWNERS` | `FOCUS_OWNERS` *(:64-72)* · `PANEL_SUFFIXES` *(:375)* · một command `⌥↓` mới | `editor.confirm_segment` *(:883)* **tái dùng**, không đăng ký lại; luật erasable-only |
+| `src/main.ts` *(438 dòng)* | Thứ tự khởi động, tiêm cổng | `:229` đọc `ConfirmResult` (AC14) | 🔴 Thứ tự ba mệnh đề khởi động: `applyTheme()` trước `mount()`; `installCommands()` trước `mount()`; `loadFonts()` **trước** `await loadBootstrapConfig()`. Đăng ký command ở `main.ts`, **không** `App.vue` |
+| `src/i18n/vi.json` | Chuỗi giao diện | Khoá `panel.grid.*`, sáu nhãn trạng thái, nhãn lệnh mới, khoá lỗi hiển thị | Phẳng, khoá chấm, placeholder `{ten_tham_so}`, **không** giá trị rỗng |
+| `src/tokens/tokens.json` + `DESIGN.md` | 16 token | Token `draft` *(Quyết định #2)*; `contrast.pairs` cho cặp mới; gỡ miễn trừ `⏐` đã chết *(Quyết định #9)* | Vai không đổi theo theme; `ornament`/`tm-rule` không bao giờ làm màu chữ |
+| `scripts/check-commands.mjs` *(2.229 dòng)* | 9 Kiểm | Kiểm F *(`SELECTION_PANEL_FILES`, số lời gọi mong đợi)* · Kiểm I *(`EXPECTED_RULE_VALUES` sáu, `EDITOR_PANEL_VUE` → `GridPanel.vue`, ca thứ sáu)* · các sàn | 🔴 Luật của một cổng: mã thoát là phán quyết; lỗi hạ tầng ⇒ `abort()`; **không** đọc tham số từ chính thứ nó kiểm |
+| `scripts/check-layout.mjs` *(610 dòng)* | 4 Kiểm | Ba chuỗi id **cứng** ở Kiểm A mệnh đề 3 *(:255-272)* · `FILE_FLOOR` | Kiểm C là **danh sách CHO PHÉP** cho `window`/`document` — thêm một cái tên là một quyết định phải viết ra |
+| `e2e/specs/editor-*.e2e.mjs` | Hai spec | Neo `data-segment-id`, `.doc` | `realClick()`, không `.click()` |
+
+**Rust: KHÔNG chạm.** `commands/segment.rs` · `core/store/schema.rs` · `core/i18n/mod.rs` ·
+`lib.rs` — không một dòng. Nếu thấy mình đang mở một tệp `.rs`, dừng lại và hỏi vì sao.
+
+### 🔴 Đừng dựng lại — tám thứ ĐÃ CÓ và phải tái dùng
+
+Lớp lỗi tốn kém nhất của một story tầng vẽ là **dựng lại một đường đã chạy**, vì bản thứ hai
+đi qua mọi cổng *(nó là mã hợp lệ)* rồi lệch dần với bản thứ nhất.
+
+| Đã có | Ở đâu | 2.5b dùng thế nào |
+|---|---|---|
+| Command **xác nhận** + vế *"sang câu kế"* | `commands/index.ts:883` *(`editor.confirm_segment`)* · Quyết định #1 của Story 2.5 | AC10 **chỉ gán phím**, không đăng ký command thứ hai |
+| Đường **lưu bố cục qua phiên** | `WorkspaceMode.vue::onPersist` + `bootstrap.ts::workspace_layout` | AC6 vế "qua các phiên" — **0 dòng mới** |
+| Nhịp **flush Editor** | `panels/editorFlush.ts` *(`EDITOR_IDLE_MS 2000` / `EDITOR_HARD_CAP_MS 5000`)*, dựng bằng `createWriteSchedule` — Quyết định #2 của Story 2.3, đường (a) | Tái dùng. 🔴 **Đừng dựng lịch thứ hai**, và **đừng sửa `createWriteSchedule` "cho hợp lưới hơn"** — `check-layout.mjs` Kiểm B đứng trên chính hàm đó. ⚠️ Hai cặp hằng dùng chung *hình dạng*, không dùng chung *bảo đảm* AD-35 — đừng gộp |
+| Khung panel: tiêu đề, vạch tiêu điểm, khai điểm vào focus, dòng trạng thái | `panels/PanelFrame.vue` | `GridPanel.vue` bọc trong `<PanelFrame>`, không tự vẽ thanh tiêu đề |
+| Vị từ **"đang ở vùng gõ"** | `commands/keys.ts:434` — `isTypingZone`, **không export**, dùng ở `:510` để một hợp âm **không có phím bổ trợ chính** không cướp phím lúc đang gõ | Định tuyến bàn phím ở lại `keys.ts`. Đừng viết một phép kiểm `contenteditable` thứ hai trong `GridPanel.vue`; nếu cần dùng ngoài, **nâng nó lên** một chỗ và ghi lý do — đừng chép |
+| **Hợp đồng vùng chọn** và phép loại trừ ô nhập | `panels/selectionContract.ts` *(tín hiệu là `nodeType`, không `activeElement`, không `toString()` — đo trên cả hai engine 2026-08-07)* | Chỉ **đăng ký**; AC7 cấm sửa |
+| Bảng **trạng thái → vạch** | `panels/editorSegments.ts::resolveSegmentRule` | Thêm **một** nhánh. Đừng phân giải trạng thái ở `GridPanel.vue` |
+| Đường đọc dữ liệu | `config/segment.ts::readOpenChapterSegments` — đã mang đủ `source_text` · `target_text` · `is_paragraph_end` · `retired_at` · `status` | **Không** lệnh IPC mới, **không** cột mới, **không** bước di trú |
+
+### Bất biến không được phá
+
+| Bất biến | Nguồn | Vi phạm được mà không cổng nào đỏ? |
+|---|---|---|
+| Vai `'source'`/`'display'` đúng cột | Sprint Change 2026-08-13 · Kiểm F ③ | ⚠️ **Nửa** — Kiểm F ③ canh **tệp**, và tệp nay là một. Đổi vai giữa hai cột **trong cùng tệp** có thể đi lọt ⇒ Task 5.4 phải canh **cả hai** vai, không chỉ sự tồn tại |
+| `selectionContract.ts` không sửa | AC7 | Không — `git diff` thấy ngay |
+| Hợp đồng flush AD-35 | AD-35 · `editorFlush.ts` | 🔴 **CÓ.** Vế (c) *"xác nhận"* chỉ cưỡng chế ở **một** chỗ gọi. Một bề mặt xác nhận thứ hai đi vòng qua nó **không cổng nào đỏ** *(nợ có chủ, `deferred-work.md`)* |
+| `is_paragraph_end` chỉ đọc | AD-37 | 🔴 **CÓ.** Một dòng `text.split('\n')` lúc render đi qua mọi cổng và làm hỏng FR121 ở Epic 8 |
+| Không quy tắc nghiệp vụ ở TS | AD-1 | 🔴 **CÓ.** Không cổng nào đọc được ý định |
+| `ornament` không làm màu chữ | `tokens.json` `neverTextTokens` | Không — `check:tokens` bắt |
+| Erasable-only ở `workspaceLayout.ts` | `check-layout.mjs` Kiểm A | Không — cổng nạp tệp bằng Node trần và chết ngay |
+| `Enter` trơn không xác nhận | AC11 | 🔴 **CÓ, và tệ nhất.** Không đường nghiệm thu nào của dự án mô phỏng được một bộ gõ tiếng Việt thật. Chỉ tay Ice bắt được |
+| Không thêm dep npm ngoài cửa NFR15 | NFR15 | ⚠️ Nửa — `check:deps` canh **sáu tên bị cấm**, không canh một gói mới hợp lệ nhưng chưa rà giấy phép |
+
+### Bài học từ story trước — đọc trước khi chẩn đoán
+
+- 🔴 **"Trúng tiền đề chưa phải trúng cơ chế."** Story 2.3 chẩn đoán *"AD-34 giành tiêu điểm"* và **sai**: không ai giành cả; nguyên nhân thật là một lượt đặt thuộc tính **bất đồng bộ** *(Vue và DOM ở một microtask sau)*, vá bằng `setAttribute` **đồng bộ** trong `mousedown`. Story 2.4 lặp lại lớp lỗi đó với `AppleKeyboardUIMode`.
+- 🔴 **Ba vòng chẩn đoán bị bác ⇒ DỪNG và báo Ice.** Story 2.4 treo vì bốn lượt build hỏng và bốn giả thuyết bị bác.
+- ⚠️ **Đừng kết luận từ n=1 trên một bộ đo đã ghi là chập chờn.** Kết luận *"sản phẩm không hỏng"* của Story 2.3 đã bị **RÚT LẠI** vì dựa trên một mẫu n=1 *(`deferred-work.md:2528-2584`)*.
+- ⚠️ **Baseline lấy bằng ĐO, không bằng phép trừ.** Story 2.1 ghi 274 khi số thật là 267; Story 2.5 ghi 40 khi số thật là 41. Chạy `cargo test --locked` và `npm run test` **trước** khi sửa dòng đầu tiên.
+- 🔴 **Bàn đo cũng sai được.** Bản đầu của bàn đo Story 2.5 gom vạch chồng nhau **bắc cầu** và lượt chạy đầu bác ngay; phép đúng là **tô màu đồ thị khoảng**. Một bàn đo là mã, và mã thì sai được.
+- 🔴 **e2e bắt được thứ bốn đường kia bỏ lọt.** Story 2.5: `read_open_chapter_segments` không gửi `status` qua dây ⇒ `isConfirmed` **luôn `false`** trong app thật, trong khi **74/74** vitest vẫn xanh — vì fixture chép tay tự cấp `status`. ⇒ Với một story tầng vẽ, **fixture chép tay là chỗ dối trá rẻ nhất**.
+
+### Số đo đã có — dùng để SO, đừng đo lại
+
+| Số | Ngày · môi trường | Ý nghĩa cho 2.5b |
+|---|---|---|
+| Dựng 9.850 `<span>`: **300,1 ms** (Blink) · **1.308,0 ms** (WebKit) — vượt trần 50 ms/frame 6× và 26× | `deferred-work.md:2113-2129` | Mốc để so. Lưới **tăng** node mỗi câu ⇒ nhiều khả năng xấu hơn nếu không đổi gì khác |
+| `assignGutterLanes` O(n²) **482,4 / 254,5 / 261,6 ms** → quét đường **8,3 / 5,2 / 4,3 ms** | 2026-08-14 · Node 22.22.2 · macOS 15.6 · 9.850 vạch | Bằng chứng phải sống tiếp trong sổ dù mã bị gỡ |
+| Mỗi câu rỗng đẩy chữ **9,05 px** ⇒ bố cục nhảy | 2026-08-13 | Lý do vế ② của lượt lật. Trong lưới nó **hết đúng** — hàng có chiều cao riêng |
+| `prepare_cached`: 105–112 ms → 44–50 ms trên 9.850 hàng | 2026-08-12 | Đường đọc Rust **không** phải nút thắt |
+| Cây phụ thuộc mặc định **831** dòng · `--features wdio` **948** | 2026-08-11 | Mốc AD-45 — thêm một dep sẽ dời số này |
+| `pre-push`: cổng 11 s · build 5 s · `cargo test` 34 s | 2026-08-11 | Ngân sách một lượt đẩy |
+| Baseline story: `cargo test` **338/0/5** · vitest **78/78** · 11 cổng xanh | sau code review Story 2.5 | ⚠️ **Đo lại trước khi sửa** — con số này có thể đã trôi |
+
+### Thư viện và phiên bản
+
+Đọc số trần từ `package.json` · `src-tauri/Cargo.toml`, **đừng chép sang đây**. Điều đáng nhớ:
+
+- `dockview-vue` **7.0.4** — bảng Stack ghi giấy phép MIT với một dấu ⚠️ *(bằng chứng giấy phép yếu hơn)*. Không nâng phiên bản trong story này.
+- `vitest` **4.1.10** · `@vue/test-utils` **2.4.11** · `happy-dom` **20.11.2** — ba gói Ice ký 2026-08-12 khi **lật NFR15**. ⚠️ Cửa rà giấy phép của NFR15 **vẫn đứng** cho gói tiếp theo.
+- **Không thư viện lưới/bảng/ảo hoá nào đã được duyệt** trong bảng Stack. *"Chiến lược ảo hoá danh sách dài"* còn ở **Giai đoạn 3** *(`ARCHITECTURE-SPINE.md:922`)*.
+- `subgrid` *(nếu Quyết định #1 chọn (b))* là **CSS**, không một phụ thuộc — không đi qua NFR15. Sàn: Safari 16+ *(macOS 12.4+)* · Chrome/Edge 117+. 🔴 Ba engine **bất đồng ở gap và auto-sizing** ⇒ **đo**, đừng đọc bảng.
+- `verbatimModuleSyntax` bật ⇒ `import type` tường minh. Không `globals: true` ở vitest.
+
+### Cổng nào sẽ nhìn story này
+
+| Cổng | Nhìn gì | Sẽ đỏ ở đâu nếu làm ẩu |
+|---|---|---|
+| `check:commands` Kiểm A/B | `@click` là đúng một `dispatch`; id có trong bộ đăng ký | Nhét logic vào `@click` của hàng |
+| `check:commands` Kiểm E | `FOCUS_OWNERS` **hai chiều** với `owner=` trong `.vue` | Quên gỡ `panel.source`/`panel.editor` |
+| `check:commands` Kiểm F | Đăng ký hợp đồng vùng chọn, vai, sàn 7 | Hai lời gọi trong một tệp *(phải nới có chủ, Task 5.4)* |
+| `check:commands` Kiểm I | Sáu giá trị vạch, phân giải thật, CSS `.rule-*` **hai chiều** | Thêm `draft` mà quên CSS, hoặc quên đổi `EDITOR_PANEL_VUE` |
+| `check:layout` Kiểm A | Thứ tự hy sinh, hai tập rời nhau hợp lại đúng `PANEL_IDS` | `NEVER_SACRIFICED` còn hai phần tử khi `PANEL_IDS` còn ba |
+| `check:layout` Kiểm C | Danh sách **CHO PHÉP** mọi thành viên `window`/`document` | `ResizeObserver`, `IntersectionObserver`, `document.getSelection` — mỗi cái là một quyết định phải viết ra |
+| `check:tokens` Kiểm B/B2/C/D/F | Màu và cỡ chữ chỉ từ token; cặp mới phải khai; `opacity` trung gian cần miễn trừ **có tên**; không bóng/gradient/lớp nổi | `opacity: 0.45` cho `.rule-draft`; màu viết thẳng cho nền hàng |
+| `check:i18n` Kiểm A/E | Không chữ tiếng Việt có dấu ở **vị trí mã**; `resolve.ts` nạp được bằng Node trần | Một chuỗi nhãn viết thẳng trong `.vue` |
+| `check:gates` | Ba danh sách cổng khớp nhau | Thêm một cổng mà quên `.githooks/pre-push` |
+| `check:lint` | `@typescript-eslint/no-unnecessary-condition` **có kiểu** | 🔴 `Ref` **không tự bóc** trong `<script>` — `if (someRef)` chạy trên **đối tượng** và **luôn đúng**. Lỗi này đã lọt qua **chín trên chín** cổng một lần |
+| vitest | Hành vi module thuần | — |
+| e2e | Hành vi trong **WKWebView thật** | Neo `data-segment-id` không còn duy nhất |
+
+🔴 **Chỗ hở lớn nhất của story này:** **không một test mount component nào tồn tại** trong
+`tests/frontend/**`. Toàn bộ tái cấu trúc DOM **không có lưới tự động nào** ngoài Kiểm F,
+Kiểm I và Kiểm A của `check:layout`. ⇒ Bàn đo và e2e **không phải phần thêm**, chúng là đường
+nghiệm thu chính của Task 1, 3, 7.
+
+### Project Structure Notes
+
+- Component mới: `src/panels/GridPanel.vue` — `PascalCase.vue`, đúng khuôn `src/panels/`.
+- Module thuần đi kèm *(nếu có)*: `src/panels/*.ts`, **không** `import` giá trị nếu một cổng cần nạp nó bằng Node trần.
+- Test: `tests/frontend/**` **phẳng**, **không** đồng vị trí trong `src/**` — bốn cổng đếm quần thể `src/**`, và một tệp test đổ vào đó thổi phồng mẫu số *(cộng hai va chạm: Kiểm A của `check-i18n` đỏ với chữ tiếng Việt; Kiểm B của `check-tokens` đỏ với màu viết thẳng)*.
+- Bàn đo: `_bmad-output/implementation-artifacts/2-5b-ban-do*` — **ngoài** cây nguồn, khuôn `2-5-ban-do-hai-vach.html` + `2-5-ban-do/`.
+- Thư mục mang một khái niệm thì có `README.md` — `src/panels/`, `src/layout/`, `src/commands/` đều có và **cả ba phải cập nhật**.
+
+### Văn hoá viết mã của kho này
+
+- **Chú thích tiếng Việt, dày, chở LÝ DO** — không kể mã làm gì, mà trả lời *vì sao hình dạng này chứ không phải hình dạng kia*, và **phương án bị loại đã bị loại bằng gì**.
+- 🔴 **Một quyết định không hiển nhiên phải kèm một PHÉP ĐO, không một sở thích** — con số, ngày đo, `tệp:dòng`. Khuôn: *"⚠️ Đo 2026-08-14: … Hệ quả đo được: …"*.
+- **Ghi thẳng chỗ YẾU thay vì giấu.** Mỗi module chở một mục *"GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện"*.
+- **Khi một mệnh đề hết đúng, SỬA TẠI CHỖ** kèm 🔵 và ngày — story này có **ít nhất sáu** chỗ như vậy *(Task 4.3, 4.8, 2.3, 2.6, 13.1-13.3)*.
+- Ký hiệu: 🔴 luật không được phá · ⚠️ bẫy hoặc chỗ dễ đọc nhầm · ✅ đã đóng · 🟡 đóng một nửa · 🔵 mệnh đề cũ đã hết đúng · ⇒ kết luận. 🔴 **Emoji biển cấm `U+26D4` bị CẤM trong toàn kho** — viết `không`/`KHÔNG` thành chữ.
+- 🔴 **Đừng bắt chước một ký hiệu chưa hiểu** — `grep` đếm số lần **và tìm định nghĩa** trước khi dùng lại.
+
+### Git — bối cảnh gần nhất
+
+- Nhánh mặc định là **`master`**, không `main`. Cây **sạch** ở `f990dd5`.
+- Commit message: `type(scope): câu tiếng Việt`; `scope` = `story-2.5b`. Câu sau dấu hai chấm **nói ĐIỀU ĐÃ TÌM RA**, không chỉ điều đã sửa.
+- ⚠️ Commit `74f8825` gom **hai lớp làm một** *(Story 2.5 + bốn tệp spine UX)* nên diff của 2.5 không đọc được một mình — đã ở trên remote, ghi lại thay vì rewrite. **Từ đây trở đi mỗi lớp một commit sạch.**
+- `pre-push` chạy: chín cổng đọc-tệp → `npm run test` → `npm run build` → `cargo test --locked`. Đỏ là **dừng**. Bỏ qua bằng `--no-verify` thì **phải viết lý do vào commit message**.
+- ⚠️ Nửa Windows **không có đường nghiệm thu tại chỗ** — `pre-push` chạy trên macOS. Khoảng mù dày lên theo từng epic.
+
+### Điều story này CỐ Ý không làm
+
+| Không làm | Vì sao · chủ |
+|---|---|
+| Cờ **cắt bỏ** câu, hàng gạch ngang mờ | **FR133 · Story 2.5c**, bước di trú **8**. Bản dựng có `tr.row-omitted` — đó là **xem trước**, không phải phạm vi |
+| `Enter` xuống dòng trong ô bản dịch, cờ đoạn của bản dịch | **FR134 · AD-46 · Story 2.5d**, bước di trú **9**. 2.5b **giữ** hai lớp chặn `Enter` |
+| `Backspace` đầu ô = gộp với câu trên | **UX-DR32 · Story 2.9**. 2.5b chỉ dựng **tiền đề** *(ô là editing host riêng)*, không cài ngữ nghĩa gộp |
+| `⌘T` tách câu ở cột nguyên văn | **Story 2.8** |
+| Bốn **ngưỡng** màn hình hẹp, ngăn kéo, *"rút Tra cứu về thanh trạng thái"* | **Story 4.12** — `epics.md` cấm tường minh việc đóng chúng ở tầng bố cục. 2.5b giao đúng **cơ chế**; ⚠️ 4.12 nay phải hiệu chỉnh cho **hai** bố cục |
+| Ảo hoá danh sách dài | **Giai đoạn 3** *(spine)* · Quyết định #7 |
+| Nguồn `tm-rule` thật | **Epic 7** — `isTmFilled` vẫn là hằng `false` |
+| Nguồn `ornament` thật *(segment về hưu)* | **Story 2.8** |
+| Đánh dấu **NFR2 đạt** | **Story 2.4** sở hữu bộ đo. 2.5b **giao số** |
+| Sửa `EXPERIENCE.md:105-113` cho có hàng của Quyết định #3 Story 2.5 | ✅ **Đã xong** trong lượt correct-course — bảng nay có sáu hàng. Món nợ *(Chủ: Ice)* đóng được, kiểm rồi nối vào sổ |
+| Sync Scrolling | **FR20 đã RÚT** *(Ice ký)*. ⚠️ Nếu Epic 4 dựng dịch **theo lô** thì nhu cầu quay lại và không FR nào chứa nó — nợ có chủ **Epic 4** |
+
+---
+
+## References
+
+- [Source: `_bmad-output/planning-artifacts/epics.md#Story 2.5b`] — dòng **2252-2329**, mười bốn AC nguyên văn và món nợ Hán Việt.
+- [Source: `epics.md#UX Design Requirements`] — **:530** UX-DR13 *(lưới, năm cột, ô trống có chiều cao thật, khoảng thở)* · **:532-539** bảng Ⓑ-1/Ⓑ-2 · **:543-545** UX-DR15 *(bốn ngưỡng, thứ tự hy sinh, kéo theo `NEVER_SACRIFICED`)* · **:551** UX-DR17 · **:555-561** UX-DR19 *(sáu giá trị, `draft` không cần di trú)* · **:563-565** UX-DR20 **RÚT** · **:569** UX-DR22 *(năm → sáu, lý do không đổi)* · **:595-597** UX-DR32 *(cử chỉ gộp đổi, ngữ nghĩa không đổi)*.
+- [Source: `epics.md`] — **:1633, :1647-1649, :1672** hai AC của Story 1.14 superseded · **:2092-2096** bốn AC của Story 2.2 superseded và **ba quyết định đúng chồng thành một bề mặt sai** · **:664** FR16 · **:864-874** ghi chú cài đặt Epic 2.
+- [Source: `_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md`] — **:395** FR16 *(ba panel)* · **:403** FR19 *(cột nguyên văn, bỏ chữ "tab")* · **:419-421** FR20 **rút** kèm bia mộ · **:423** FR21 *(`selectionContract.ts` không phải sửa một dòng)* · **:458** FR133 · **:462-464** FR134.
+- [Source: `.../architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md`] — AD-1 **:75-79** · AD-11 **:153-157** · AD-24 **:322-326** · AD-31 **:368-392** *(máy trạng thái, sáu sự kiện)* · AD-34 **:406-417** · AD-35 **:419-425** · AD-37 **:437-453** · AD-46 **:652-673** *(cấu trúc đoạn của bản dịch; câu cuối: **"đường đối chiếu thật là lưới hai cột của Workspace"**)* · Deferred **:917** *(WAL + nhịp flush)* · **:920** *(thư viện editor)* · **:922** *(ảo hoá danh sách dài, Giai đoạn 3)*.
+- [Source: `.../ux-designs/ux-AuraTranslate-2026-08-02/EXPERIENCE.md`] — **:105-119** bảng **sáu** giá trị trạng thái + ghi chú lật · **:148-167** Auto-Lookup, *"QuickTranslator là mốc để VƯỢT QUA"*, **bố cục là vế MỞ** · **:192-204** Accessibility Floor + tiêu chí NFR17 *(dịch trọn một Chương không chạm chuột)* · **:205-276** mục lưới hai cột · **:238-247** Ⓑ-1/Ⓑ-2 · **:249-257** Hán Việt + cái giá chiều cao hàng · **:259-275** bảng phím · **:374-386** KF-2.
+- [Source: `.../ux-designs/.../DESIGN.md`] — frontmatter **:137-148** *(`grid-row-divider` · `grid-para-divider` · `grid-num-col` · `grid-state-col` · `grid-empty-cell` · `grid-row-omitted`)* · **:175-196** bảng 16 token và *"vì sao 16 chứ không 17"* · **:198-225** sàn tương phản, ba màu đã bị loại · **:266-281** typography · **:386** mệnh đề *"cách duy nhất… văn bản không bị chia khối"* — **đã hết đúng**.
+- [Source: `.../ux-designs/.../.working/editor-grid-two-column.html`] — **501 dòng**, bản dựng thật của lưới *(2026-08-14 14:48)*: năm cột, `.empty-cell`, `.rule.*`, `tr.row-primary`/`row-tm`/`row-omitted`, hai preview Ⓑ-1/Ⓑ-2, bảng phím, đoạn *"cái giá của Hán Việt"*. ⚠️ **Minh hoạ, không phải nguồn sự thật** — khi mâu thuẫn thì `DESIGN.md`/`EXPERIENCE.md` thắng. Và **kiểu dáng cấp hàng của nó viết trên `<tr>`**, không chép thẳng được nếu Quyết định #1 chọn (b).
+- [Source: `_bmad-output/planning-artifacts/sprint-change-proposal-2026-08-14.md`] — gói Ice duyệt: ba panel · AC của 1.14 superseded · nợ *"thư viện editor"* chuyển chủ sang 2.5b. Bảng tác động 26 mục; §5.2 bước 6-8 *(viết mã)* là phạm vi của 2.5b/2.5c/2.5d.
+- [Source: `_bmad-output/implementation-artifacts/deferred-work.md`] — **:2863-2873** *(chiều cao hàng Hán Việt, **CHƯA ĐO**, chủ 2.5b)* · **:2875-2885** *(`editorGutter.ts` mất lý do tồn tại, không xoá im lặng, chủ 2.5b)* · **:2896-2908** *(thư viện editor + "sập hố", chủ 2.5b)* · **:2801-2816** *(ba khoá `err.segment.*` không có đường ra màn hình)* · **:2317-2371, :2528-2584** *(gõ vào câu chưa dịch, `<span>` rỗng 0 px, kết luận n=1 đã bị RÚT)* · **:2113-2129, :2198-2207, :2484-2489, :2770-2782** *(hiệu năng, chủ Story 2.4)* · **:2718-2719** *(8 làn, chủ Ice)* · **:2469-2474** *(happy-dom thiếu ba thứ)* · **:2508-2517** *(tiêu điểm sau remount)*.
+- [Source: `_bmad-output/implementation-artifacts/2-5-xac-nhan-segment-va-may-trang-thai.md`] — bảy chữ ký của Ice; ba thứ **phép đo bác** và cách sửa; khuyết tật e2e `read_open_chapter_segments` thiếu `status`; khuôn story file.
+- [Source: mã sản phẩm] — `src/layout/workspaceLayout.ts:32,41,54,62,103,117,124,130,152,155` · `src/panels/editorSegments.ts:51,141,159,202` · `src/panels/EditorPanel.vue:97,764-828,841,872-956,1043-1084` · `src/panels/SourcePanel.vue:91` · `src/panels/SourceHanViet.vue:600-647` · `src/panels/selectionContract.ts:52,84-87,107-118,168-190` · `src/commands/index.ts:64-72,375,457,883` · `src/config/segment.ts:59-80` · `src/modes/WorkspaceMode.vue:56-78` · `src-tauri/src/core/store/schema.rs:398-458` · `src-tauri/src/commands/segment.rs:136,160,305,316` · `scripts/check-commands.mjs:222,1887-1892,1908,2021-2160` · `scripts/check-layout.mjs:97,219-233,242,255-272` · `src/tokens/tokens.json:16,53-79,98-101` · `src/i18n/vi.json:16-21,28-29,73-100`.
+- [Source: web, 2026-08-14] — `subgrid`: Safari **16+** *(macOS 12.4+)*, Chrome/Edge **117+**; ba engine bất đồng ở **gap** và **auto-sizing** ⇒ đo, đừng đọc bảng. IME: `beforeinput` có thể mang `inputType` khác `input` trong lúc composition; **bộ gõ Telex xử lý `Backspace` ngay sau một từ kể cả khi không có marked text** — cộng thêm một lý do cho AC11 và cho việc `Backspace` đầu ô *(Story 2.9)* phải đi qua `beforeinput`, không qua `keydown`.
+
+---
+
+## Dev Agent Record
+
+### Agent Model Used
+
+*(điền khi dev-story chạy)*
+
+### Chín chữ ký của Ice
+
+| # | Quyết định | Đường Ice chốt | Ghi chú |
+|---|---|---|---|
+| 1 | Hình dạng DOM của lưới + neo `data-segment-id` | | |
+| 2 | Màu của `.rule-draft` | | |
+| 3 | `contenteditable` đặt ở đâu *(kèm chữ ký lật Quyết định #1 của Story 2.3)* | | |
+| 4 | Số phận `editorGutter.ts` | | |
+| 5 | Đổi tên `PanelId` / `PresetId` | | |
+| 6 | Thư viện editor *(ký SAU Task 1)* | | |
+| 7 | Ảo hoá hàng | | |
+| 8 | Bề mặt báo lỗi `err.segment.*` *(= chữ ký UX-DR30 tối thiểu)* | | |
+| 9 | Màu chữ cột số câu và cột nhãn trạng thái | | |
+
+🔴 Nếu Ice ký một đường mà phép đo đã bác, ghi rõ *"Ice ký SAU KHI đọc số bác nó"* và ghi luôn
+đường dev chọn để **ít nói dối nhất** — khuôn Quyết định #2 của Story 2.5.
+
+### Debug Log References
+
+### Completion Notes List
+
+### File List
+
+### Change Log
+
+| Ngày | Nội dung |
+|---|---|
+| 2026-08-14 | Tạo story bằng `create-story`. Baseline `f990dd5`, cây sạch. |
+
+### Review Findings

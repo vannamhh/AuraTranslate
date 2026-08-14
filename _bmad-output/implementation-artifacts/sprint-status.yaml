@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-14T02:15:00
+last_updated: 2026-08-14T18:05:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -214,7 +214,30 @@ development_status:
   # luoi phai dung TRUOC chung. Danh so chen de KHONG story done nao doi dinh danh.
   # 2.5b gop panel Source + Editor thanh MOT (panel.grid) ⇒ con BA panel. No mang theo
   # AC superseded cua Story 2.2 (4/8) va Story 1.14 (AC 'bon slot panel').
-  2-5b-luoi-hai-cot-doi-chieu: backlog
+  # 🔵 2026-08-14 — 2.5b chuyen sang ready-for-dev (create-story).
+  # 🔴 CHIN QUYET DINH CHO ICE KY o Task 0 truoc khi viet dong ma dau tien. Bon cai nang nhat:
+  #   #1 AC2 doi HANG, AC7 doi COT la MOT be mat dang ky — hai doi hoi nay XUNG KHAC trong DOM
+  #      thuong: trong <table> mot cot KHONG co phan tu to tien, ma selectionContract duyet bang
+  #      `el.contains(anchor)`. Duong de xuat: CSS Grid chu-cot voi `subgrid` (Safari 16+ /
+  #      Chrome 117+), va PHAI DO tren ca hai engine — ba engine bat dong o gap va auto-sizing.
+  #   #2 them 'draft' vao SEGMENT_RULE_VALUES ⇒ Kiem I doi `var(--color-draft)` ⇒ hoac mot token
+  #      thu 17 (DESIGN.md:196 canh bao) hoac noi cong. Ban dung dung ornament+opacity: Kiem I DO.
+  #   #3 `contenteditable` dat o dau. Day la mot luot LAT Quyet dinh #1 cua Story 2.3 (Ice da ky
+  #      "mot cau tai mot thoi diem") — tien de cu khong con ton tai, phai ky lai tuong minh.
+  #   #5 PresetId nam TREN DIA (ScopeKind::LayoutPreset) va command id nam trong bang keybinding
+  #      (Story 1.21) ⇒ doi ten la mo coi phim tat nguoi dung da gan, IM LANG. De xuat: giu ten,
+  #      doi nghia.
+  # 🔴 CUA CHAN — Task 1: dung mui tham do va GO TAY vao mot cau CHUA DICH tren WKWebView that.
+  #   Khong go duoc thi DUNG, bao Ice, 2.5b quay ve `backlog`. Day la mon cua Story 2.3 con treo,
+  #   va gia thuyet "luoi sua nguyen nhan goc" CHUA duoc do.
+  # 2.5b dong 3 mon co chu dich danh: deferred-work.md :2863-2873 (chieu cao hang Han Viet, CHUA
+  #   DO) · :2875-2885 (so phan editorGutter.ts, khong xoa im lang) · :2896-2908 (thu vien editor
+  #   + khuyet tat "sap ho"). Va no doc lai :2317-2371 · :2528-2584 · :2801-2816.
+  # ⚠️ 2.5b KHONG tu cham NFR2 dat — no GIAO SO cho Story 2.4. Moi so hieu nang cu cua Epic 2 do
+  #   tren mo hinh "N <span> trong mot dong van lien tuc": chung MAT HIEU LUC THEO CAU TRUC,
+  #   khong phai bi dong.
+  # ⚠️ Tang Rust KHONG sua mot dong; KHONG buoc di tru nao. So ke tiep van la 8 (Story 2.5c).
+  2-5b-luoi-hai-cot-doi-chieu: ready-for-dev
   # 2.5c dung buoc di tru 8; 2.5d dung buoc 9. Doc PROJECT_MIGRATIONS (schema.rs), dung
   # doc mot ghi chep o noi khac — ke ca dong nay.
   2-5c-cat-bo-cau-khoi-ban-dich: backlog
