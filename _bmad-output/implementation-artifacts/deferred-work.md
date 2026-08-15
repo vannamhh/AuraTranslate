@@ -2184,6 +2184,19 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   hỏng"*, và `SourcePanel.vue::panel.source.empty_chapter` đã đặt tiền lệ đúng ca này. Dòng hiện
   **phía trên** trang văn, không thay nó. **Chủ: Ice** — chỗ lật là một `v-if` trong
   `EditorPanel.vue`, và khoá `panel.editor.nothing_translated` trong `vi.json`.
+  → ✅ **ĐÃ ĐÓNG 2026-08-15 (Story 2.5b, chốt ở lượt code review).** Đóng **theo cấu trúc**, không
+  bằng một câu: lưới hai cột cho **mỗi hàng chưa dịch** một nhãn `panel.grid.state_untranslated`
+  *("chưa dịch")* ở cột ⑤, nên ca *"đã tách, chưa câu nào có bản dịch"* hiện ra thành **N dòng nói
+  rõ**, không một khung trống. Cái mà UX-DR27 cấm — *"một khung trống câm"* — **thôi dựng được**
+  trong hình dạng lưới, chứ không phải bị một câu che đi.
+  ⚠️ **Hai con trỏ trong mục này đã chết từ 2026-08-15 và cố ý GIỮ NGUYÊN làm lịch sử:**
+  ~~`EditorPanel.vue`~~ *(xoá trọn ở Story 2.5b)* và ~~`panel.editor.nothing_translated`~~ *(gỡ
+  khỏi `vi.json` cùng lượt)*. Lượt rà bắt được mục này đang trỏ vào cả hai — một món nợ trỏ vào
+  hư không thì không ai lần lại được, và đó là lý do dòng đóng này phải nói ra chỗ nó đã trỏ.
+  ⚠️ **Vế còn hở, ghi ra thay vì làm tròn lên:** ca *"đã tách, chưa câu nào có bản dịch"* nay đọc
+  được **theo từng hàng**, chưa có một câu tổng ở tầng panel. Nếu một Chương 9.850 câu làm người
+  dùng phải cuộn mới thấy tình trạng chung thì đó là một mệnh đề MỚI, cần một phép đo, và nó
+  **không** thuộc món nợ này — mở một mục mới, đừng mở lại mục đã đóng.
 
 - ⚠️ **Cổng Kiểm J của `check-commands.mjs` HẾT HẠN ở Story 2.3, và nó phải được gỡ ĐÚNG LÚC.**
   Cổng khẳng định `EditorPanel.vue` không mang `contenteditable`/`<textarea>`/`<input>`/`v-model`/
@@ -3204,3 +3217,147 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   bản ghi cũ nói là còn thiếu.
 
   **Chủ: Story 1.22.**
+
+---
+
+## Deferred from: code review of 2-5b-luoi-hai-cot-doi-chieu (2026-08-15)
+
+> Lượt rà ba tầng trên `f990dd5..HEAD -- src/ scripts/`. **13 phát hiện, 13 bản vá, 0 hoãn.**
+> Mục dưới đây **không** phải một phát hiện bị hoãn — nó là khoảng **CHƯA NGHIỆM THU ĐƯỢC** của
+> hai bản vá **đã va**, ghi ra vì luật đo của kho cấm đánh dấu đạt bằng suy luận.
+
+- 🟡 **HAI bản vá của lượt rà 2026-08-15 đi qua sạch mười một cổng mà KHÔNG cổng nào thật sự
+  nhìn thấy chúng.** Cả hai sống ở **tầng vẽ** — tầng mà chính Story 2.5b tự khai là *"ít cổng
+  canh nhất trong kho, không một test mount component nào tồn tại"*.
+
+  **① Guard `caretTarget` trong `GridPanel.vue::ensureCaretNextFrame`.** Nó chặn lượt vá của một
+  ô cũ kéo tiêu điểm về sau khi người dùng đã bấm sang ô khác. Mệnh đề *"lượt vá vẫn đặt được
+  caret ở ô rỗng"* thuộc **e2e trong WKWebView thật** (`e2e/specs/grid-empty-cell.e2e.mjs`) —
+  đúng bộ mà `§Debug Log` ghi là đã dùng để **bác** một giả thuyết *"mã chết"* bằng hai lượt
+  chạy liên tiếp. Cổng tĩnh và vitest **không** thay được nó: `happy-dom` không phải WebKit, và
+  mệnh đề ở đây là về **thời điểm** giữa `requestAnimationFrame` và `setTimeout(0)`.
+  ⚠️ Rủi ro hồi quy có thật, không lý thuyết: điều kiện thoát nay hỏi **ba** vế thay vì hai. Một
+  vế thừa ở đó làm lượt vá im **đúng ca nó tồn tại để chữa**, và biểu hiện là *"bấm vào ô rỗng
+  không có caret"* — đúng triệu chứng mà LUẬT DỪNG của Task 12.2 đã kích hoạt một lần.
+
+  **② Đường ra thanh trạng thái cho ba `ConfirmResult`** (`StatusBar.vue` · `editorConfirmNotice`
+  · ba khoá `panel.grid.confirm_*`). `check:i18n` xác nhận **khoá tồn tại và đúng hình dạng**;
+  `check:tokens` xác nhận **màu và cỡ chữ đến từ token**. Không cổng nào trả lời được câu hỏi
+  thật: *"bấm `⌘Enter` khi chưa đặt con trỏ thì câu ĐÓ có hiện lên không, và nó có tắt khi gõ
+  tiếp không"*. Ba đường vào (`'no-caret'` · `'flush-failed'` · `'still-dirty'`) và hai đường dọn
+  (`noteEditorEdit` · `resetEditorPanel`) hôm nay **chưa có một phép kiểm nào**.
+
+  🔴 **Đây là chỗ rẻ nhất để đóng nợ này, ghi ra để lần sau không phải tìm lại:** vế ② nghiệm thu
+  được bằng **vitest** *(bộ chạy frontend đã có từ 2026-08-12)* — `editorConfirmNotice` là state
+  module-level thuần, và cả năm đường vào/ra đều gọi được **không cần webview**. Chỉ vế ① mới
+  buộc phải đi qua e2e.
+
+  → 🟡 **ĐÓNG MỘT NỬA 2026-08-15 (cùng lượt code review, Ice chốt đường 1).**
+
+  **Vế ② ĐÃ ĐÓNG ✅** — `tests/frontend/statusBar.test.ts` §nhóm ⑤, **sáu** ca mới: ba ca cho ba
+  giá trị *(`'no-caret'` · `'flush-failed'` · `'still-dirty'`)*, một ca cho luật *"câu báo THAY
+  mốc «Đã lưu», hai câu không bao giờ cùng lúc"*, một ca cho *"gõ tiếp ⇒ tắt"* **dọn bằng sự
+  kiện, không bằng hẹn giờ**, và một ca cho *"lượt thành công không để lại câu nào"*. Bộ vitest
+  **83 → 89**.
+  🔴 **Phép TỰ KIỂM đã chạy, không phải một lời hứa:** đặt `confirmNotice.value = null` vô điều
+  kiện ⇒ **5/6 ca ĐỎ**; ca thứ sáu ở lại xanh vì nó khẳng định đúng `null` — tức bộ này **đỏ
+  được** và **không đỏ oan**, cả hai vế của luật *"một cổng chưa bao giờ đỏ là một cổng chưa ai
+  biết nó có chạy không"*.
+  🔵 Nhân đây, một mệnh đề của story hết đúng: `§Cổng nào sẽ nhìn story này` viết *"không một
+  test mount component nào tồn tại"*. Sai từ Story 2.3 — `statusBar.test.ts` đã `mount(StatusBar)`
+  bằng `@vue/test-utils` từ 2026-08-12. Vế ② đóng được rẻ **chính vì** nhà đã dựng sẵn.
+
+  **Vế ① CÒN HỞ** — guard `caretTarget` vẫn chỉ nghiệm thu được bằng `npm run test:e2e` chạy tay
+  *(`e2e/specs/grid-empty-cell.e2e.mjs`)*. Không hạ mức mục này xuống ✅ khi mới đóng một nửa.
+  **Chủ: Ice.**
+
+  🔴 **ĐÃ THỬ CHẠY 2026-08-15, 07:17Z — và bộ e2e KHÔNG CHẠY ĐƯỢC. Đây là lỗi HẠ TẦNG, không một
+  ca đỏ.** Ghi ra vì một lượt thử thất bại là dữ kiện, và vì thông báo lỗi to nhất ở đó **dẫn sai
+  đường**.
+
+  **Triệu chứng:** cả **7/7** spec đỏ tại cùng một điểm — `openWorkspaceWithWork` không dựng được
+  fixture. Chính bàn đo in ra câu phân biệt của nó: *"Fixture không tạo được Tác phẩm …: không có
+  cầu IPC. Đây là lỗi HẠ TẦNG của bàn đo, không một hồi quy giao diện."* Không một assertion nào
+  của `grid-empty-cell.e2e.mjs` được chạy tới.
+
+  ⚠️ **BẪY, và nó tốn thời gian nếu không ghi ra:** service in đậm và lặp bảy lần
+  `❌ Tauri Driver: tauri-driver not found. Install it with: cargo install tauri-driver`.
+  **Đừng cài.** `wdio.conf.mjs:351-355` khai chính xác lý do: `tauri-driver` chính thức vẫn chỉ
+  Windows + Linux *(`tauri-apps/tauri#7068`, mở từ 2023)*, nên trên macOS
+  `driverProvider: 'embedded'` là đường **DUY NHẤT** chạy được. Dòng đó là chẩn đoán chung của
+  service, sai nền tảng, và nó **át** dòng thật.
+
+  **Dòng thật:** `WARN tauri-service:launcher: Embedded WebDriver on port 4445 (instance: 0) is
+  unreachable — restarting...` — lặp sau mỗi worker.
+
+  **Đã loại trừ:** `~/.cargo/bin` không có `tauri-driver` *(đúng như thiết kế — chỉ có
+  `cargo-tauri`)*; nhị phân `src-tauri/target/debug/auratranslate` **có** và vừa dựng lại cùng
+  lượt (`--features wdio`, 49,6 MB, 14:16 giờ máy); sau lượt chạy **không** tiến trình app/driver
+  nào còn sót; cổng 1420 và 4445 đều **trống**.
+
+  **Manh mối chưa lần hết:** đầu lượt chạy có dòng
+  `http://localhost:1420 đã có người phục vụ — dùng lại, KHÔNG dựng thêm` — tức conf **tái dùng**
+  một máy chủ 1420 có sẵn thay vì tự dựng, và cổng đó nay trống. Một máy chủ 1420 đã chết giữa
+  chừng giải thích được cả chuỗi *(webview nạp hụt ⇒ embedded WebDriver không bao giờ lên ⇒ không
+  cầu IPC)*, nhưng **chưa đo**, nên nó là một giả thuyết, không một kết luận.
+
+  🔴 **MÂU THUẪN PHẢI GIẢI, không được để trôi:** `§Change Log` của story ghi **cùng ngày**
+  *"e2e 3/4 lượt cả bộ 7/7"*. Hai mệnh đề đó không thể cùng đúng trừ khi môi trường đổi trong
+  vài giờ. ⇒ Hoặc bộ e2e phụ thuộc một điều kiện môi trường **chưa được khai ở đâu cả**
+  *(không có `e2e/README.md`; `grep` toàn kho chỉ thấy `tauri-driver` ở đúng một dòng chú thích)*,
+  hoặc con số 7/7 cần xem lại. Đây là đường nghiệm thu mà story dựa vào **nặng nhất** cho các
+  mệnh đề khó nhất của nó — một đường nghiệm thu không dựng lại được là một đường nghiệm thu chưa
+  ai kiểm chứng.
+
+  **Chủ: Ice** — và món này nay **to hơn** vế ①: nó chặn mọi story sau có động tới WKWebView.
+
+  → ✅ **NGUYÊN NHÂN TÌM RA VÀ ĐO ĐƯỢC 2026-08-15. Giả thuyết cổng 1420 ĐÚNG.**
+
+  Chạy lại **một** spec với cổng 1420 **trống**: conf tự dựng Vite, app lên, phiên WebKit
+  **605.1.15** thiết lập được *(`Session ID` có thật)*, embedded WebDriver trên 4445 chạy. ⇒ Cả
+  7/7 spec đỏ lúc 07:17Z là do nhánh *"đã có người phục vụ — dùng lại"* ở `onPrepare` tin một
+  máy chủ 1420 **hấp hối**.
+
+  🔴 **Khuyết tật thật nằm ở `devServerIsUp()`, và nó đã được TIÊN ĐOÁN ngay trong tệp:**
+  doc-comment ở `wdio.conf.mjs:186` viết *"không có vế tắt thì mỗi lượt e2e để lại một tiến
+  trình giữ cổng 1420, và lượt sau thấy cổng bận rồi tin rằng có người phục vụ"*. Vị từ đó hỏi
+  **một** câu — `fetch(DEV_URL)` có `res.ok` không — rồi `return` mà không dựng gì. Một Vite
+  đang chết vẫn trả `200` cho `/` trong khi module graph của nó đã hỏng ⇒ webview nạp một trang
+  không chạy ⇒ không cầu IPC ⇒ **mọi** spec đỏ với một lý do không liên quan.
+  ⚠️ **Chủ:** một story hạ tầng e2e. Vá hướng nào cũng được, nhưng phải **đo** chứ đừng đoán:
+  ứng viên là hỏi một tài nguyên **thật** của app *(không phải `/`)*, hoặc bỏ hẳn nhánh tái dùng
+  và đòi cổng trống — nhánh đó tồn tại cho ca *"Ice đang mở sẵn `npm run tauri dev`"*, nên bỏ nó
+  là một đánh đổi có người trả giá.
+
+  ⚠️ **BẪY THỨ HAI, và nó cũng dẫn sai đường:** khi fixture trượt, spec khuyên *"kiểm
+  `src-tauri/target/debug/dict/*.db` có mặt chưa"*. Đã kiểm: **cả bốn tệp có đủ**
+  *(`dict-core` 195 MB · `vietphrase` 160 MB · `tran-van-chanh` 10,8 MB · `thieu-chuu` 5,8 MB)*.
+  Gợi ý đó đúng cho một ca khác và sai cho ca này. ⇒ Trong một ngày, **hai** thông báo lỗi to và
+  tự tin đã trỏ nhầm chỗ *(`cargo install tauri-driver`, và `dict/*.db`)*. Bài học rẻ: ở bộ e2e
+  này, **đo trước khi tin thông báo lỗi** — kể cả thông báo do chính kho viết ra.
+
+  → ✅ **VẾ ① ĐÓNG 2026-08-15 — rủi ro hồi quy của guard `caretTarget` đã đo, không suy luận.**
+
+  `e2e/specs/grid-empty-cell.e2e.mjs` trên cây **đã vá**, WKWebView **605.1.15**, tám lượt:
+  **5 ĐẠT / 3 đỏ**. 🔴 **Không một lượt đỏ nào rơi vào phép khẳng định caret.** Hai lượt đỏ có
+  chi tiết đều chặn ở **đường khởi động/fixture** — một ở `[data-attribution-open]` sau 30 s,
+  một ở `Error: Timeout` của mocha sau `core.invoke not available` — tức **trước** khi lưới được
+  dựng, và guard chỉ chạy trong `onCellMouseUp` trên một ô của lưới.
+  ⚠️ **Ghi đúng mức, đừng đọc quá:** năm lượt đạt chứng minh guard **không phá** ca nó bảo vệ.
+  Chúng **không** chứng minh guard *chữa* được cuộc đua — cuộc đua cần **hai cú bấm nhanh vào
+  hai ô khác nhau trong một khung hình**, và không spec nào làm thế. Vế đó vẫn **không có phép
+  kiểm**, và nó ở mức **thấp** *(biểu hiện là một nháy tiêu điểm ~1 frame, tự chữa ở frame sau)*.
+  ⚠️ Baseline chỉ chạy **1** lượt *(đạt)*, nên bộ số này **không** đủ để nói lượt vá có làm tăng
+  hay giảm độ chập chờn. Mệnh đề đo được chỉ là *"đường caret không đỏ lần nào"*.
+
+  ⚠️ **Độ chập chờn ~3/8 là CÓ THẬT và nó đã có tiền lệ**: `§Change Log` của story ghi *"e2e 3/4
+  lượt cả bộ 7/7"*, và `wdio.conf.mjs` mang một ghi chú về lượt đỏ chập chờn `attribution-focus`
+  chưa chẩn đoán từ 2026-08-12. ⇒ Mâu thuẫn nêu ở trên **đã giải**: con số 7/7 không sai, nó chỉ
+  là một lượt may trong một bộ chập chờn cộng một cổng 1420 sạch. **Cả hai mệnh đề cùng đúng.**
+
+  ⚠️ Đừng đọc mục này thành *"hai bản vá đáng ngờ"*. `vue-tsc` · `eslint` · 11 cổng · build ·
+  vitest 83/83 · cargo 338/0/5 đều xanh sau lượt vá. Thứ còn thiếu là một phép kiểm **của riêng
+  hai mệnh đề trên**, không phải một nghi ngờ về mã.
+
+  **Chủ: Ice** — chọn giữa (a) chạy tay `npm run test:e2e` một lượt rồi ghi số vào §Debug Log của
+  story, hay (b) giao vế ② cho một lượt vitest và vế ① cho story kế tiếp có động tới lưới.

@@ -5,7 +5,7 @@ created: 2026-08-14
 
 # Story 2.5b: Lưới hai cột đối chiếu
 
-Status: review
+Status: done
 
 **Covers:** UX-DR13 · UX-DR15 · UX-DR19 · FR16 · FR19 · FR21 · AD-1 · AD-34
 **Supersedes:** 4/8 AC của Story 2.2 · hai AC của Story 1.14 *(«bốn slot panel» · «preset mặc định là lưới 2×2»)*
@@ -649,10 +649,24 @@ Lớp lỗi tốn kém nhất của một story tầng vẽ là **dựng lại m
 | vitest | Hành vi module thuần | — |
 | e2e | Hành vi trong **WKWebView thật** | Neo `data-segment-id` không còn duy nhất |
 
-🔴 **Chỗ hở lớn nhất của story này:** **không một test mount component nào tồn tại** trong
-`tests/frontend/**`. Toàn bộ tái cấu trúc DOM **không có lưới tự động nào** ngoài Kiểm F,
+🔴 **Chỗ hở lớn nhất của story này:** ~~**không một test mount component nào tồn tại** trong
+`tests/frontend/**`~~. Toàn bộ tái cấu trúc DOM **không có lưới tự động nào** ngoài Kiểm F,
 Kiểm I và Kiểm A của `check:layout`. ⇒ Bàn đo và e2e **không phải phần thêm**, chúng là đường
 nghiệm thu chính của Task 1, 3, 7.
+
+🔵 **Mệnh đề gạch ngang ở trên HẾT ĐÚNG, sửa tại chỗ 2026-08-15 (lượt code review).**
+`tests/frontend/statusBar.test.ts` `mount(StatusBar)` bằng `@vue/test-utils` **từ Story 2.3
+(2026-08-12)** — tức nó đã sai **lúc story này được viết**, không phải hết đúng về sau. Hệ quả
+đo được: vế *"đường ra thanh trạng thái"* của Quyết định #8 đóng được bằng **sáu ca vitest**
+*(bộ 83 → 89)*, rẻ hơn hẳn một lượt e2e chạy tay — và nó suýt bị giao cho e2e chỉ vì một câu
+trong tài liệu.
+
+⚠️ **Kết luận đúng thì KHÔNG đổi, và đó mới là chỗ đáng nhớ:** mệnh đề *"tầng vẽ ít cổng canh
+nhất"* vẫn **đứng nguyên**. `mount()` chạy trên `happy-dom`, thứ **không phải WebKit** — nên nó
+trả lời được *"câu này có hiện lên không"* và **không** trả lời được *"caret có xuất hiện trong
+ô rỗng không"*. Một tiền đề sai đã dẫn tới một kết luận đúng; sửa tiền đề, giữ kết luận.
+⇒ Guard `caretTarget` của `ensureCaretNextFrame` **vẫn** thuộc e2e, và nó là vế còn hở duy nhất
+của lượt rà *(`deferred-work.md` §code review of 2-5b, mục 🟡)*.
 
 ### Project Structure Notes
 
@@ -1028,7 +1042,7 @@ buộc trên máy này** — cổng mặc định 4445 đang bị một tiến t
 `src/layout/dockController.ts` · `src/commands/index.ts` · `src/commands/focus.ts` ·
 `src/main.ts` · `src/modes/WorkspaceMode.vue` · `src/panels/PanelFrame.vue` ·
 `src/panels/SourceHanViet.vue` · `src/panels/editorSegments.ts` ·
-`src/panels/editorPanelState.ts` · `src/panels/editorFlush.ts` · `src/i18n/vi.json` · `e2e/specs/shortcuts-capture-mouse.e2e.mjs` · `e2e/wdio.conf.mjs` ·
+`src/panels/editorPanelState.ts` · `src/i18n/vi.json` · `e2e/specs/shortcuts-capture-mouse.e2e.mjs` · `e2e/wdio.conf.mjs` ·
 `src/tokens/tokens.json` · `scripts/check-commands.mjs` · `scripts/check-layout.mjs` ·
 `scripts/check-tokens.mjs` · `tests/frontend/editorSegmentRule.test.ts` ·
 `tests/frontend/editorTypingZone.test.ts` · `tests/frontend/editorAutoLookup.test.ts` ·
@@ -1036,10 +1050,26 @@ buộc trên máy này** — cổng mặc định 4445 đang bị một tiến t
 `e2e/specs/editor-confirm-segment.e2e.mjs` ·
 `_bmad-output/implementation-artifacts/{deferred-work.md,sprint-status.yaml}`
 
+🔵 **`src/panels/editorFlush.ts` GỠ khỏi danh sách này 2026-08-15 (code review).** Nó được kê
+vào mục *"Sửa"* nhưng `git diff f990dd5..HEAD -- src/panels/editorFlush.ts` **trống** — tệp không
+đổi một dòng. Việc **không** sửa nó mới là đúng *(§Đừng dựng lại: "Tái dùng. Đừng dựng lịch thứ
+hai… đừng sửa `createWriteSchedule`")*; chỉ có bảng kê khai là sai. ⚠️ Một `File List` kê thừa
+không vô hại: nó là thứ lượt rà sau dùng để chọn phạm vi đọc, nên một tên thừa mua thời gian đọc
+một tệp không đổi, và — tệ hơn — nó làm người đọc tin rằng hợp đồng flush đã được xem lại ở story
+này.
+
+**Bổ sung vào mục *"Sửa"* ở lượt code review 2026-08-15** *(mười ba bản vá — xem §Review
+Findings)*: `src/StatusBar.vue` · `src/panels/GridPanel.vue` · `src/panels/README.md` ·
+`src/panels/selectionContract.ts` *(hoàn nguyên về **0 dòng sửa**, AC7)* ·
+`tests/frontend/statusBar.test.ts` *(sáu ca mới, nhóm ⑤ — vitest 83 → **89**)*.
+
 ### Change Log
 
 | Ngày | Nội dung |
 |---|---|
+| 2026-08-15 | **Rà mã ba tầng ⇒ Status `done`.** 13 phát hiện · 13 bản vá · 0 hoãn · 0 loại làm nhiễu. Ice ký **5 quyết định**. 🔴 Khuôn lặp lại **ba lần** và là phát hiện thật của lượt rà: chữ ký #5(a) · #8 · #9(a) đều được thi hành **đúng một nửa** — nửa khó, có chú thích 🔵 đẹp thì làm; nửa là **một dòng chuỗi hoặc một câu phải xoá** thì rơi, và **không cổng nào canh nửa đó**. Nghiệm thu: 11 cổng · `vue-tsc` · `eslint` · build · vitest **83 → 89** · cargo 338/0/5. AC7 nay **xanh thật** (`git diff f990dd5 -- selectionContract.ts` = **0 dòng**; trước lượt vá là 2). |
+| 2026-08-15 | **Hai vế không nghiệm thu được bằng cổng, và cả hai đã đóng bằng ĐO.** ② Đường ra thanh trạng thái: **6 ca vitest**, tự kiểm đỏ **5/6** *(ca thứ sáu ở lại xanh vì nó khẳng định đúng `null` — đỏ được VÀ không đỏ oan)*. ① Guard `caretTarget`: `grid-empty-cell.e2e.mjs` trên WKWebView **605.1.15**, **8 lượt — 5 đạt/3 đỏ**, và 🔴 **không lượt đỏ nào rơi vào phép khẳng định caret** *(cả hai lượt có chi tiết đều chặn ở đường khởi động/fixture)*. ⚠️ Đo được *"guard không phá"*, **không** đo được *"guard chữa được cuộc đua"* — cuộc đua cần hai cú bấm trong một khung hình, không spec nào làm thế; nợ mức thấp, đã ghi. |
+| 2026-08-15 | 🔴 **Bộ e2e từng KHÔNG chạy được, và nguyên nhân là một khuyết tật của bàn đo — đã đo, không đoán.** Lượt cả bộ đầu tiên: **7/7 đỏ**, mọi spec chặn tại `openWorkspaceWithWork` vì *"không có cầu IPC"*. Nguyên nhân: `wdio.conf.mjs::devServerIsUp()` hỏi **một** câu (`fetch('/')` có `res.ok` không) rồi tin rằng có người phục vụ — một Vite **hấp hối** vẫn trả `200`. Chạy lại với cổng 1420 **trống** ⇒ app lên, phiên WebKit thiết lập được. ⚠️ Chính `wdio.conf.mjs:186` đã **tiên đoán** hình dạng này bằng chữ. ⚠️ **Hai thông báo lỗi to và tự tin trỏ nhầm chỗ trong cùng một ngày** — `cargo install tauri-driver` *(sai nền tảng: `driverProvider: 'embedded'` là đường duy nhất trên macOS, `wdio.conf.mjs:351-355`)* và *"kiểm `dict/*.db`"* *(cả bốn tệp có đủ)*. Nợ có chủ trong `deferred-work.md`. |
 | 2026-08-14 | Tạo story bằng `create-story`. Baseline `f990dd5`, cây sạch. |
 | 2026-08-15 | ✅ **Ice xác nhận Task 1.4 ĐẠT** — gõ tiếng Việt bằng bộ gõ trên máy thật, chữ hạ cánh, dấu không rơi. Cửa chặn của story đóng trọn; **mọi task đã tick**. |
 | 2026-08-15 | **Task 10.2 · 13 · 14 xong ⇒ Status `review`.** Nợ *"8 làn"* đóng **theo cấu trúc** *(khái niệm "làn" thôi tồn tại — không ai nới `gutter-width`)*. Quét tài liệu: **79** chỗ, sửa **51**, giữ **28** là lịch sử. `DESIGN.md` 16 → **17** token và hai mệnh đề *"cách duy nhất"* / *"không chia khối"* sửa tại chỗ; `EXPERIENCE.md` năm → sáu. Nợ `err.segment.*` đóng **🟡 một nửa**, phần còn hở ghi đủ. Nghiệm thu: **11/11** cổng · build · vitest 83/83 · cargo 338/0/5 · e2e **3/4 lượt cả bộ 7/7**. 🔵 Bắt được **nguyên văn** lượt đỏ chập chờn `attribution-focus` mà `wdio.conf.mjs` ghi là chưa chẩn đoán từ 2026-08-12. |
@@ -1050,3 +1080,54 @@ buộc trên máy này** — cổng mặc định 4445 đang bị một tiến t
 | 2026-08-14 | Ice ký **trọn gói chín quyết định theo đề xuất**. Bảng chữ ký điền đủ; chín mục Task 0 mang một dòng ✅ **ĐÃ KÝ** và **giữ nguyên các đường bị loại** làm bằng chứng. Ba chỗ chữ ký **chưa phủ hết** ghi riêng thành Task 0.4 — giá trị màu token `draft`, hình dạng neo `data-segment-id`, và việc #6 được ký **trước** phép đo của Task 1. |
 
 ### Review Findings
+
+> **Lượt rà ba tầng, 2026-08-15.** Diff `f990dd5..HEAD -- src/ scripts/` *(36 tệp, +2.068/−2.036)*.
+> Ba tầng chạy song song, ngữ cảnh sạch, không tầng nào thấy kết quả tầng kia: **Blind Hunter**
+> *(đối kháng chung — tầng này CHẠY THẬT 11 cổng + vue-tsc + eslint + vitest)* · **Edge Case
+> Hunter** *(đi hết nhánh/biên)* · **Acceptance Auditor** *(đối chiếu 9 quyết định + 14 AC + 12 B)*.
+> Không tầng nào trượt. **13 phát hiện, 0 bị loại làm nhiễu.**
+>
+> 🔴 Mức nghiêm trọng do ba tầng gán **đã bị bỏ hết** và chấm lại tại đây sau khi mở mã tại từng
+> vị trí — ba tầng cố ý bị bịt mắt một phần nên chúng không đủ ngữ cảnh để chấm mức.
+>
+> ⚠️ **Phạm vi rà, ghi ra thay vì để tưởng đã phủ:** lượt này KHÔNG rà `tests/` + `e2e/`
+> *(1.242 dòng)* và KHÔNG rà `_bmad-output/` + `design-artifacts/` *(3.752 dòng)*. Hai nhóm đó
+> chưa có ai nhìn.
+>
+> 🔵 **Một chỗ tầng rà nói sai, sửa tại chỗ:** Blind Hunter mô tả `settled()` trong
+> `GridPanel.vue::ensureCaretNextFrame` là *"chỉ kiểm `document.activeElement === cell`"*. Sai —
+> nó kiểm **cả hai** vế (`activeElement` **và** `getSelection()?.type === 'Caret'`), đúng như
+> doc-comment ngay trên khai. Phát hiện của tầng đó vẫn đứng, nhưng lập luận đã được dựng lại.
+
+**Quyết định cần Ice chốt — 5** · ✅ **ĐÃ KÝ TRỌN GÓI 2026-08-15**, cả năm ở đường ⭐. Chữ ký ghi
+ngay dưới mỗi mục; cả năm chuyển thành bản vá ⇒ tổng **13** bản vá.
+
+- [x] [Review][Decision] **Quyết định #5(a) mới làm một nửa: nhãn bố cục đang nói dối người dùng** — Chữ ký 2026-08-14 viết nguyên văn *"Đổi `labelKey` **và chuỗi `vi.json`** cho đúng nghĩa mới"*. Nửa đầu làm rồi và làm tốt *(chú thích 🔵 ở `workspaceLayout.ts:133-156` nói đúng câu "tên là lịch sử, nghĩa ở bảng ngay dưới")*. Nửa sau **rơi**: `src/i18n/vi.json:28-29` vẫn là `"Bố cục lưới 2×2"` và `"Bố cục bốn cột"` — trong diff chúng là dòng ngữ cảnh, không phải dòng sửa; `labelKey` ở `workspaceLayout.ts:159-160` cũng không đổi. `ShortcutsOverlay.vue:282` render `{{ t(row.labelKey) }}` ⇒ **đây là chữ trên màn hình thật**. Hệ quả: người dùng bấm *"Bố cục bốn cột"* — đúng cái tên mà `workspaceLayout.ts:154` cảnh báo *"đã RÚT, đừng dựng lại nó khi đọc thấy chữ `columns`"* — và nhận Ⓑ-1. Chỗ cần Ice: **chữ hiển thị mới**. `Ⓑ-1`/`Ⓑ-2` là ký hiệu nội bộ, không đưa ra màn hình được. Đề xuất: `preset_grid` → *"Lưới bên trái"*, `preset_columns` → *"Lưới trên đỉnh"*.
+      → ✅ **ĐÃ KÝ 2026-08-15 — đường (a).** `preset_grid` = **"Lưới bên trái"**, `preset_columns` = **"Lưới trên đỉnh"**. Tả **vị trí lưới**, không tả số ô — nên hai cái tên mới không thể già đi theo số cột như hai cái tên cũ đã già.
+- [x] [Review][Decision] **`SELECTION_SURFACE_FLOOR` hạ xuống 6 dựa trên một phép đếm sai — quần thể tĩnh thật là 7** — `scripts/check-commands.mjs:1937-1955`. Doc-comment lý luận *"lưới thay BA lời gọi (`SourcePanel` + `SourceHanViet` + `EditorPanel`) bằng HAI ⇒ 6"*. Vế `SourceHanViet` **sai**: lời gọi của nó không biến mất khỏi mặt chữ — nó nằm trong nhánh `if (props.surfaceRole === 'own')` ở `SourceHanViet.vue:682`, và `SURFACE_CALL_RE` là **regex quét tĩnh**, không phân tích `if`. Đo được: `node scripts/check-commands.mjs` tự in **`7 bề mặt đăng ký`** *(2 nguồn · 5 hiển thị)* trong khi sàn là 6. Cổng này tự khai quy ước riêng — *"Sàn = SỐ THẬT hôm nay (AC13)"*, không phải 80–85 % — nên 6 mâu thuẫn với chính nó và để lại **đúng một đơn vị dư**: bớt một bề mặt thật về sau ⇒ cổng vẫn XANH. Đúng lớp lỗ mà doc-comment của chính cổng này dẫn chứng đã xảy ra một lần với sàn 4. **Hai đường đều hợp lệ, Ice chốt:** (a) nâng sàn về **7** và sửa lại phép đếm trong doc-comment; (b) **gỡ nhánh `'own'` chết** ở `SourceHanViet.vue:681-683` — đo được: tệp này chỉ được mount từ `GridPanel.vue:848` và **luôn** với `surface-role="cell"`, nên nhánh `'own'` chưa từng chạy dù prop mặc định là `'own'` — rồi sàn 6 mới thành đúng.
+      → ✅ **ĐÃ KÝ 2026-08-15 — đường (b): gỡ nhánh chết, giữ sàn 6.** 🔴 **Hệ quả bắt buộc, ghi ra vì nó là chỗ lượt vá này có thể tự tạo ra một lỗ mới:** prop `surfaceRole` khai mặc định `'own'` (`SourceHanViet.vue:88-90`). Gỡ nhánh `'own'` mà **giữ** giá trị mặc định ⇒ một chỗ mount tương lai quên khai `surface-role` sẽ **không đăng ký bề mặt nào, im lặng**, và sàn 6 vẫn xanh vì phép đếm là **tĩnh**. ⇒ Bỏ luôn giá trị mặc định, để prop **bắt buộc** — chỗ quên thành một lỗi kiểu mà `vue-tsc` bắt, không thành một bề mặt mất tích.
+- [x] [Review][Decision] **Quyết định #8 mới làm một nửa: 3/5 `ConfirmResult` không có đường ra màn hình nào** — Chữ ký khai hợp đồng UX-DR30 tối thiểu là *"cột nhãn trạng thái của **chính hàng** CỘNG **một dòng ở thanh trạng thái**"*. Vế đầu dựng rồi *(`GridPanel.vue:717-735` đọc `editorConfirmError` cho `'refused'`)*. Vế sau **không tồn tại**: `src/StatusBar.vue:31-33` chỉ `import { editorLastSavedAt }`, không biết gì về xác nhận. Hệ quả ở `src/main.ts:246-252`: `'no-caret'` · `'flush-failed'` · `'still-dirty'` chỉ đi vào một `console.warn` ⇒ người dùng bấm `⌘Enter` mà **không một pixel nào đổi**. Đây là hình dạng *"rỗng im lặng"* ở §Critical Don't-Miss Rules, áp lên một thao tác người dùng chủ động. Chỗ cần Ice: **ba chuỗi `vi.json` mới** và phán quyết kết quả nào đáng lên thanh trạng thái — story tự cảnh báo *"đừng nhân lượt ký này thành một hệ thống thông báo"*, nên phạm vi phải do Ice vạch.
+      → ✅ **ĐÃ KÝ 2026-08-15 — đường (a): dựng vế thanh trạng thái cho CẢ BA.** Ba khoá `vi.json` mới, hiện ở `StatusBar.vue`. 🔴 Phạm vi đóng băng tại đây: **một dòng ở thanh trạng thái**, không hộp thoại, không lớp nổi (UX-DR16), không hàng đợi thông báo. Vế *"cột nhãn trạng thái của chính hàng"* đã dựng rồi và **không đụng vào**.
+- [x] [Review][Decision] **AC7 vế *"`selectionContract.ts` không sửa một dòng"* đang ĐỎ theo mặt chữ** — `src/panels/selectionContract.ts:81,116` đổi thật, hai dòng, `"bốn panel"` → `"ba panel"`. Nội dung sửa **đúng sự thật mới** và hoàn toàn vô hại *(chỉ doc-comment, không một dòng logic)*. Nhưng AC7:92 diễn đạt bằng số không, và bảng Bất biến `:595` tự đặt phép nghiệm thu là *"`git diff` thấy ngay"* — phép ấy đang đỏ. Task 5.2 và Change Log 2026-08-15 đều tick *"`selectionContract.ts` **0 dòng sửa**"*, tức **sổ sách đang lệch cây nguồn**. **Hai đường, Ice chốt:** (a) hoàn nguyên hai dòng, chuyển câu đính chính sang `panels/README.md`, giữ AC7 đúng nguyên văn; (b) sửa AC7 tại chỗ kèm 🔵 + ngày thành *"không sửa một dòng **logic/hợp đồng**"* và ghi rõ hai dòng chú thích là ngoại lệ có tên.
+      → ✅ **ĐÃ KÝ 2026-08-15 — đường (a): hoàn nguyên hai dòng.** Câu đính chính *"bốn panel → ba panel"* chuyển sang `panels/README.md`. 🔴 Lý do chọn (a) chứ không (b): AC7 là một bất biến mà phép nghiệm thu của nó — *"`git diff` thấy ngay"* — **rẻ và tuyệt đối**. Nới nó thành *"không sửa logic"* là đổi một phép kiểm máy chạy được lấy một phép kiểm người phải đọc hiểu.
+- [x] [Review][Decision] **Món nợ `panel.editor.nothing_translated` (UX-DR27) mồ côi — trỏ vào một tệp và một khoá đã không còn tồn tại** — `deferred-work.md:2179-2186` còn mở, **Chủ: Ice**, và ghi chỗ lật là *"một `v-if` trong `EditorPanel.vue`, và khoá `panel.editor.nothing_translated` trong `vi.json`"*. Diff xoá **cả hai**: `EditorPanel.vue` biến mất trọn, khoá bị gỡ khỏi `vi.json`. Luật kho cấm xoá một mục nợ và bắt đóng bằng cách nối tiếp `→ ✅ ĐÃ ĐÓNG <ngày>` — ở đây mục **không được đóng, cũng không được chuyển chủ**. Chỗ cần Ice: lưới có nhãn `panel.grid.state_untranslated` trên **từng hàng**, nên ca *"đã tách, chưa câu nào có bản dịch"* có thể đã được phủ theo cấu trúc ⇒ đóng ✅; hoặc UX-DR27 vẫn đòi một câu **ở tầng panel** ⇒ đóng 🟡 và ghi phần còn hở.
+      → ✅ **ĐÃ KÝ 2026-08-15 — đóng ✅, lưới đã phủ theo CẤU TRÚC.** Mỗi hàng chưa dịch mang nhãn `panel.grid.state_untranslated` ⇒ *"khung trống câm"* mà UX-DR27 cấm **thôi tồn tại được** trong hình dạng lưới, không phải bị che bởi một câu. Đóng bằng cách **nối tiếp** `→ ✅ ĐÃ ĐÓNG` vào mục cũ, **không xoá** — cùng luật đã áp cho mọi món nợ khác.
+
+**Bản vá — 13** *(8 từ lượt rà + 5 sinh ra từ chữ ký ở trên)*
+
+- [x] [Review][Patch] **D1** — hai chuỗi nhãn preset về đúng nghĩa: *"Lưới bên trái"* · *"Lưới trên đỉnh"* [src/i18n/vi.json:28-29]
+- [x] [Review][Patch] **D2** — gỡ nhánh `'own'` chết **và** bỏ giá trị mặc định của prop `surfaceRole` [src/panels/SourceHanViet.vue:88-90,681-683]
+- [x] [Review][Patch] **D3** — ba khoá `vi.json` mới + đường ra thanh trạng thái cho `'no-caret'` · `'flush-failed'` · `'still-dirty'` [src/StatusBar.vue] [src/main.ts:246-252]
+- [x] [Review][Patch] **D4** — hoàn nguyên hai dòng chú thích, chuyển câu đính chính sang README [src/panels/selectionContract.ts:81,116] [src/panels/README.md]
+- [x] [Review][Patch] **D5** — nối `→ ✅ ĐÃ ĐÓNG 2026-08-15` vào món nợ UX-DR27, không xoá mục [_bmad-output/implementation-artifacts/deferred-work.md:2179-2186]
+
+- [x] [Review][Patch] 🔴 `sourceChapterError` không có một người đọc nào — lỗi nạp Chương rơi thẳng vào rỗng im lặng [src/panels/GridPanel.vue:80-118]
+- [x] [Review][Patch] `resetEditorPanel()` bỏ sót `confirmError` + `caretPlacement` — nhãn *"chưa ký được"* rò sang Tác phẩm khác trùng `segment.id` [src/panels/editorPanelState.ts:347-368]
+- [x] [Review][Patch] Chương 0 byte nay báo **sai lý do** — `isEmptyChapter` bị xoá cùng `SourcePanel.vue`, không ai tái lập [src/panels/GridPanel.vue:118-124]
+- [x] [Review][Patch] Quyết định #9(a) mới làm một nửa: miễn trừ `⏐` đã chết vẫn được tả như đang hiệu lực [src/tokens/tokens.json:102] [scripts/check-tokens.mjs:1279]
+- [x] [Review][Patch] Cổng tự in `undefined` vào chính dòng bằng chứng của nó — `SELECTION_PANEL_FILES.length` trên một object [scripts/check-commands.mjs:2083]
+- [x] [Review][Patch] `ensureCaretNextFrame` có thể kéo tiêu điểm về ô cũ trong một khung hình — closure giữ `cell` cũ, không đối chiếu ô đang được nhắm [src/panels/GridPanel.vue:444-476]
+- [x] [Review][Patch] `README.md` dạy sai một `owner` đã bị gỡ — ví dụ *"hôm nay"* dùng `panel.source` [src/panels/README.md:56]
+- [x] [Review][Patch] `File List` kê `editorFlush.ts` vào mục *"Sửa"* nhưng `git diff` trên tệp đó **trống** [_bmad-output/implementation-artifacts/2-5b-luoi-hai-cot-doi-chieu.md:1017]
+
+**Hoãn — 0.** Không phát hiện nào thuộc lớp *"đã có từ trước, không do lượt này gây ra"*.

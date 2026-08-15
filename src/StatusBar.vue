@@ -30,7 +30,7 @@
 // là đúng thứ bắt họ bận tâm.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { t } from './i18n'
-import { editorLastSavedAt } from './panels/editorPanelState'
+import { editorConfirmNotice, editorLastSavedAt } from './panels/editorPanelState'
 
 /**
  * Đồng hồ của thanh này — **một `setInterval` 1 giây DUY NHẤT**, và nó chỉ chạy khi có gì để đếm.
@@ -81,6 +81,35 @@ const secondsSinceSave = computed<number | null>(() => {
   if (at === null) return null
   return Math.max(0, Math.floor((now.value - at) / 1000))
 })
+
+/**
+ * 🔵 **2026-08-15 (code review) — vế còn thiếu của Quyết định #8.**
+ *
+ * Chữ ký của Ice 2026-08-14 khai hợp đồng UX-DR30 tối thiểu là *"cột nhãn trạng thái của chính
+ * hàng CỘNG **một dòng ở thanh trạng thái**"*. Vế sau chưa từng được dựng: ba kết quả
+ * `'no-caret'` · `'flush-failed'` · `'still-dirty'` chỉ rơi vào một `console.warn`, nên một cú
+ * `⌘Enter` không đổi **một pixel nào**. Đây là người đọc đầu tiên của [`editorConfirmNotice`].
+ *
+ * 🔴 **Bảng tra ĐÓNG, không một nhánh mặc định.** Ba giá trị là một danh mục đóng ở
+ * `ConfirmResult`; một `?? 'khoá nào đó'` ở đây sẽ nuốt im lặng một giá trị thứ tư được thêm
+ * sau này — đúng lớp lỗi mà cả tệp này tồn tại để chống. Thêm một kết quả vào `ConfirmResult`
+ * mà quên bảng này ⇒ `vue-tsc` đỏ, vì `Record` đòi đủ khoá.
+ *
+ * ⚠️ **Câu này KHÔNG đi cùng mốc *"Đã lưu"*, nó THAY chỗ đó** — xem `v-if`/`v-else` ở template.
+ * Hai câu cùng lúc trên một thanh 34px là hai mệnh đề tranh nhau một chỗ, và mệnh đề *"chưa lưu
+ * được"* thì khẩn hơn *"đã lưu 12 giây trước"*.
+ */
+const CONFIRM_NOTICE_KEYS: Record<NonNullable<typeof editorConfirmNotice.value>, string> = {
+  'no-caret': 'panel.grid.confirm_no_caret',
+  'flush-failed': 'panel.grid.confirm_flush_failed',
+  'still-dirty': 'panel.grid.confirm_still_dirty',
+}
+
+const confirmNoticeKey = computed<string | null>(() => {
+  const notice = editorConfirmNotice.value
+  if (notice === null) return null
+  return CONFIRM_NOTICE_KEYS[notice]
+})
 </script>
 
 <template>
@@ -98,7 +127,15 @@ const secondsSinceSave = computed<number | null>(() => {
       rỗng: trước lượt flush ĐẦU TIÊN thanh này **không khẳng định gì**, vì *"Đã lưu 0 giây
       trước"* lúc chưa lưu gì là câu nói dối tệ nhất mà UX-DR30 tồn tại để chặn.
     -->
-    <span v-if="secondsSinceSave !== null" class="saved">{{
+    <!--
+      aura-allow-text: KẾT QUẢ của `t()`. 🔵 2026-08-15 — câu báo của lượt xác nhận đứng **TRƯỚC**
+      mốc *"Đã lưu"* và **thay** chỗ nó (`v-if`/`v-else-if`, không hai `v-if` rời). Lý do ở
+      [`CONFIRM_NOTICE_KEYS`]: thanh cao 34px chỉ đủ một mệnh đề, và *"chưa lưu được bản dịch"*
+      khẩn hơn *"đã lưu 12 giây trước"*. Câu này tự tắt khi người dùng gõ tiếp — dọn bằng SỰ KIỆN
+      ở `noteEditorEdit`, không bằng một hẹn giờ.
+    -->
+    <span v-if="confirmNoticeKey !== null" class="notice">{{ t(confirmNoticeKey) }}</span>
+    <span v-else-if="secondsSinceSave !== null" class="saved">{{
       t('status.saved_seconds_ago', { seconds: String(secondsSinceSave) })
     }}</span>
   </footer>
@@ -131,6 +168,22 @@ const secondsSinceSave = computed<number | null>(() => {
 }
 
 .saved {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/*
+ * 🔵 2026-08-15 — câu báo của lượt xác nhận. **Cùng vai chữ với `.saved`**, không một vai cảnh
+ * báo riêng.
+ *
+ * 🔴 Vì sao KHÔNG tô màu lỗi: `check-tokens` Kiểm F cấm bóng đổ / gradient / lớp nổi, và
+ * UX-DR16 cấm hộp thoại — nhưng vế quyết định là ở chỗ khác. Ba câu đi qua đây nói *"thao tác
+ * chưa xong"*, không *"dữ liệu hỏng"*; nhuộm đỏ chúng là dạy người dùng rằng thanh trạng thái
+ * có một mức khẩn cấp, và mức đó sẽ phải lạm phát ở story sau. Chữ nói đủ.
+ */
+.notice {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

@@ -53,7 +53,9 @@ Bốn biến do `applyTheme()` ghi (`--panel-border-width` · `--panel-border-co
 
 ## Điểm vào focus
 
-`PanelFrame` nhận `owner` qua **prop** (`owner="panel.source"`) rồi tự `declareFocus(props.owner, …)`. Owner phải có mặt trong `FOCUS_OWNERS` ở `src/commands/index.ts`; cổng đối chiếu hai chiều. Xem `src/commands/README.md`.
+`PanelFrame` nhận `owner` qua **prop** (`owner="panel.grid"`) rồi tự `declareFocus(props.owner, …)`. Owner phải có mặt trong `FOCUS_OWNERS` ở `src/commands/index.ts`; cổng đối chiếu hai chiều. Xem `src/commands/README.md`.
+
+🔵 **Ví dụ trên sửa 2026-08-15 (code review).** Nó viết `owner="panel.source"` — một owner **đã bị gỡ** ở Story 2.5b *(`FOCUS_OWNERS` hôm nay: `mode.library` · `mode.workspace` · `mode.reading` · `panel.grid` · `panel.lookup` · `panel.ai_translation`)*. Ba chỗ dùng thật là `GridPanel.vue:741` · `LookupPanel.vue:313` · `AiTranslationPanel.vue:49`. ⚠️ Câu này được viết như một ví dụ **hiện tại**, không mang dấu lịch sử — nên nó dạy sai chứ không chỉ cũ.
 
 ## Hợp đồng vùng chọn (Story 1.18) — một module, ba panel, không một listener toàn cục
 
@@ -79,16 +81,40 @@ nới cổng.** Lưới thay **BA** lời gọi *(`SourcePanel` + `SourceHanViet
 cột là **một** bề mặt, nên bề mặt Hán Việt **nhượng** lượt đăng ký cho cột và chỉ ghi tên vào
 `hanVietSurfaces.ts` — nó **không biến mất**, nó đổi cửa.
 
+🔵 **Bổ sung cùng ngày (code review): con số 6 đúng, nhưng phép đếm dẫn tới nó thì SAI, và
+cổng đã xanh với một đơn vị dư trong lúc chờ.** `SourceHanViet.vue` vẫn giữ lời gọi
+`useSelectionSurface` **ở mặt chữ** — nó nằm trong nhánh `if (props.surfaceRole === 'own')`, và
+Kiểm F là **regex quét tĩnh**, không phân tích `if`. Cổng tự in `7 bề mặt` trong khi sàn là 6.
+Đóng bằng cách **gỡ nhánh `'own'` chết** *(chỗ mount duy nhất là `GridPanel.vue:848`, luôn khai
+`surface-role="cell"` ⇒ nhánh ấy chưa từng chạy)*, **không** bằng cách nâng sàn lên 7; và prop
+`surfaceRole` bỏ luôn giá trị mặc định, để một chỗ mount quên khai nó thành lỗi kiểu thay vì một
+bề mặt mất tích.
+
+🔴 **Bài học, ghi ra vì nó rẻ hơn lần sau tự tìm lại:** một con số sàn phải đến từ một lượt
+**CHẠY CỔNG**, không từ một phép trừ trên giấy. Phép trừ *"ba thay bằng hai"* đọc rất thuyết
+phục — và nó lệch đúng một.
+
+⚠️ **`selectionContract.ts` mang một mệnh đề CỐ Ý không được sửa.** Hai doc-comment trong tệp
+đó nói *"một lượt đổi preset dựng lại cả **bốn** panel"*. Từ Story 2.5b con số thật là **ba**.
+Câu đính chính sống **ở đây**, không ở tệp kia: AC7 của Story 2.5b đòi `selectionContract.ts`
+**không sửa một dòng**, và phép nghiệm thu của nó — *"`git diff` thấy ngay"* — chỉ còn giá trị
+chừng nào không ai chạm vào tệp, kể cả để sửa một chú thích đúng. ⇒ Mệnh đề *"bốn panel"* trong
+tệp đó đọc là **lịch sử**; số hiện hành ở đây.
+
 🔴 Sàn từng là 4 và đó là một lỗ: `SourceHanViet` không nằm trong các panel Workspace nên phép
 kiểm riêng của mỗi panel không canh nó, và bớt đúng lời gọi đó vẫn còn 4 — ĐÚNG sàn cũ, cổng
 xanh, mất lưới cho toàn bộ đường bàn phím Hán Việt (lượt review 2026-08-07). Cổng đó tồn tại vì AI Translation và Editor
 hôm nay **không có chữ**: một lượt đăng ký thiếu ở đó không để lại triệu chứng nào cho tới
 **Epic 2 / Epic 4**.
 
-| Vai | Nghĩa | Ai mang |
+| Vai | Nghĩa | Ai mang *(🔵 đếm lại 2026-08-15)* |
 |---|---|---|
-| `'source'` | Bôi đen ở đây **PHÁT** một lượt tra | Panel Source *(`.original`)* · `SourceHanViet` *(`.hv-surface`)* · AI Translation · Editor |
-| `'display'` | Bề mặt chữ **CỐ Ý không được** là nguồn | Panel Lookup |
+| `'source'` | Bôi đen ở đây **PHÁT** một lượt tra | **cột nguyên văn của `GridPanel.vue`** *(`colSrc`)* — đúng **một** |
+| `'display'` | Bề mặt chữ **CỐ Ý không được** là nguồn | cột bản dịch *(`colTgt`)* · Panel Lookup · AI Translation · `ShortcutsOverlay` · `AttributionOverlay` — **năm** |
+
+🔵 **Bảng trên sửa 2026-08-15 (code review) — nó đang liệt kê BA cái tên đã chết.** Bản cũ ghi vai `'source'` cho *"Panel Source (`.original`) · `SourceHanViet` (`.hv-surface`) · AI Translation · Editor"*: `SourcePanel.vue` và `EditorPanel.vue` **đã bị xoá** ở Story 2.5b; `SourceHanViet` **nhượng** lượt đăng ký cho cột nên nó thôi mang vai nào; và AI Translation mang `'display'`, **không** `'source'` — bôi đen trong một bản dịch máy mà phát lượt tra là đúng Bẫy 1 mà Panel Lookup đã bắt. Số thật đọc thẳng từ cổng: `npm run check:commands` Kiểm F in **`6 bề mặt … — 1 nguồn · 5 hiển thị`**.
+
+⚠️ **Một bề mặt `'source'` DUY NHẤT là hình dạng của hôm nay, không phải một bất biến.** Story 1.20/3.4 sẽ thêm bề mặt. Đừng viết một phép kiểm nào dựa vào con số 1.
 
 🔴 **Vì sao OPT-IN, không một danh sách loại trừ:** Panel Lookup tự nó chứa chữ, nên một
 listener `document` không lọc nguồn dựng một **vòng tự thay thế** — bôi đen một nghĩa để đọc kỹ

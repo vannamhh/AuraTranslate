@@ -82,6 +82,7 @@ import {
   canUseParallelView,
   ensureChapterLoaded,
   sourceChapter,
+  sourceChapterError,
   viewMode,
 } from './sourcePanelState'
 import {
@@ -113,13 +114,63 @@ onMounted(() => {
 })
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// Trạng thái màn hình — bốn ca, và một danh sách rỗng KHÔNG được nói thay cho ba ca kia
+// Trạng thái màn hình — NĂM ca, và một danh sách rỗng KHÔNG được nói thay cho bốn ca kia
 // ═════════════════════════════════════════════════════════════════════════════════
-const loadErrorKey = computed(() => editorLoadError.value?.message_key ?? null)
+/**
+ * 🔴 **HAI nguồn lỗi, không một** — và vế thứ hai là một lỗ *"rỗng im lặng"* bắt ở code review
+ * 2026-08-15.
+ *
+ * `onMounted` phát **hai** lượt nạp độc lập qua **hai lệnh IPC khác nhau**:
+ * `ensureSegmentsLoaded()` *(`readOpenChapterSegments` — dựng hàng)* và `ensureChapterLoaded()`
+ * *(`readOpenChapter` — cấp `source_lang` và bảng âm Hán Việt)*. Bản đầu của tệp này chỉ đọc
+ * lỗi của lượt thứ nhất.
+ *
+ * ⇒ Đường hỏng: lượt ① thành công, lượt ② trượt. `sourceChapter` ở lại `null`, `isChinese` và
+ * `showHanViet` lặng lẽ thành `false`, **dải tab Hán Việt biến mất**, và không một dòng nào
+ * trên màn hình nói có lỗi — trong khi `sourceChapterError` đang cầm một `IpcError` thật.
+ * `sourcePanelState.ts` export sẵn biến đó và **không ai đọc**: đúng con bug mà
+ * `SourcePanel.vue` *(tệp đã xoá)* từng vá ở lượt review 2026-08-06, dựng lại từ đầu vì người
+ * kế thừa chép hình dạng mà không chép danh sách người đọc.
+ *
+ * ⚠️ Thứ tự ưu tiên: lỗi của lượt ① đứng trước — nó chặn **toàn bộ** nội dung, còn lượt ② chỉ
+ * cắt Hán Việt. Khi cả hai cùng có, chúng gần như luôn chung một nguyên nhân *(kho chưa mở,
+ * Tác phẩm chưa chọn)*, nên hiện một là đủ. Điều KHÔNG được phép là hiện **không cái nào**.
+ */
+const loadErrorKey = computed(
+  () => editorLoadError.value?.message_key ?? sourceChapterError.value?.message_key ?? null,
+)
 const hasSegments = computed(() => editorSegments.value.length > 0)
-/** Đã nạp xong, Chương có thật, nhưng **chưa ai bấm lệnh tách** — 25 Chương của Epic 1. */
+/**
+ * Chương đã nạp nhưng **nguyên văn rỗng** — 0 byte từ `create_work_from_file`.
+ *
+ * 🔵 **Tái lập 2026-08-15 (code review).** `SourcePanel.vue::isEmptyChapter` bắt riêng ca này
+ * từ lượt review 2026-08-06 và bị xoá cùng tệp đó, **không ai dựng lại**. Hệ quả đo được: một
+ * Chương 0 byte cũng có 0 câu, nên nó rơi vào nhánh `no_segments` và màn hình nói *"chưa được
+ * tách thành câu"* — một thông điệp **sai lý do**, ngụ ý người dùng còn một lệnh phải bấm,
+ * trong khi thật ra **không có gì để tách**.
+ *
+ * ⚠️ `sourceChapter.value === null` KHÔNG phải rỗng — đó là *"chưa nạp / chưa có Chương nào"*,
+ * một ca khác, đã có chủ ở [`showFrameStatus`].
+ */
+const isEmptyChapter = computed(() => {
+  const chapter = sourceChapter.value
+  if (chapter === null) return false
+  // ⚠️ `source_text` khai kiểu `string` nhưng đi qua dây nó là `null` được khi một Chương chưa
+  //    có nguyên văn — kiểu không nói ra điều đó. Cùng khuôn và cùng lý do với
+  //    `sourcePanelState.ts::hanCharOccurrenceCount`.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
+  return (chapter.source_text ?? '').trim() === ''
+})
+const showEmptyChapter = computed(
+  () => loadErrorKey.value === null && !hasSegments.value && isEmptyChapter.value,
+)
+/** Đã nạp xong, Chương có thật **và có chữ**, nhưng **chưa ai bấm lệnh tách** — 25 Chương của Epic 1. */
 const showNoSegments = computed(
-  () => loadErrorKey.value === null && editorHasLoaded() && !hasSegments.value,
+  () =>
+    loadErrorKey.value === null &&
+    editorHasLoaded() &&
+    !hasSegments.value &&
+    !isEmptyChapter.value,
 )
 /**
  * Câu trạng thái mặc định của `PanelFrame` chỉ đúng khi **không** có gì để nói — và *"đang
@@ -132,7 +183,11 @@ const showFrameStatus = computed(
     loadErrorKey.value === null &&
     !editorPending.value &&
     !hasSegments.value &&
-    !showNoSegments.value,
+    !showNoSegments.value &&
+    // 🔵 Vế thứ năm, 2026-08-15: thiếu nó, một Chương 0 byte hiện ĐỒNG THỜI hai câu — câu
+    //    riêng của nó và câu mặc định *"Chưa có Chương nào để dịch"* — tức hai mệnh đề mâu
+    //    thuẫn trên cùng một màn hình.
+    !showEmptyChapter.value,
 )
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -440,12 +495,39 @@ function onCellMouseUp(event: MouseEvent): void {
  * trong khi tiêu điểm vẫn ở gốc panel — engine thu vùng chọn về không ngay sau đó. Một guard
  * chỉ đọc `type` vì thế thoát sớm ở **đúng ca nó tồn tại để vá**.
  */
+/**
+ * Ô mà lượt vá đang **được phép** kéo tiêu điểm về — luôn là ô của cú bấm **gần nhất**.
+ *
+ * 🔵 **Thêm 2026-08-15 (code review).** Không có nó, `reassert` đóng ô cũ vào closure và
+ * `settled()` không phân biệt được hai chuyện khác hẳn nhau:
+ *   ① *"tiêu điểm chưa kịp ổn định"* — ca mà lượt vá tồn tại để chữa;
+ *   ② *"người dùng vừa bấm sang một ô KHÁC"* — ca mà lượt vá phải im.
+ * Cả hai đều cho `document.activeElement !== cell`, nên lượt vá của ô cũ gọi `focus()` và kéo
+ * tiêu điểm **ngược lại** ô người dùng vừa rời.
+ *
+ * ⚠️ **Hậu quả thật NHỎ HƠN vẻ ngoài, ghi đúng mức thay vì thổi lên:** hai lượt vá xếp theo thứ
+ * tự đăng ký, nên khi hai cú bấm rơi cùng một frame thì lượt của ô mới luôn chạy **sau** và
+ * giành lại. Cửa sổ hỏng thật là hẹp — một cú bấm rơi vào giữa `requestAnimationFrame` và
+ * `setTimeout(0)` của cú bấm trước — và biểu hiện là một **nháy tiêu điểm ~1 frame**, không một
+ * cú bấm bị nuốt. Vá vì nó rẻ và vì `setCaret` trong lúc nháy có thể để vùng chọn ở một ô còn
+ * tiêu điểm ở ô khác; **không** vá vì nó là một lỗi nặng.
+ *
+ * 🔴 **Đây là một GUARD, không phải lượt thử thứ BA.** `focus.ts:114-118` cấm *"focus lại vòng
+ * lặp"* và story chốt **hai lượt, trần cứng**. Biến này không thêm lượt nào — nó chỉ làm hai
+ * lượt đã có thôi bắn vào một mục tiêu đã cũ.
+ */
+let caretTarget: HTMLElement | null = null
+
 function ensureCaretNextFrame(cell: HTMLElement): void {
+  caretTarget = cell
+
   const settled = (): boolean =>
     document.activeElement === cell && window.getSelection()?.type === 'Caret'
 
   const reassert = (): void => {
     if (!cell.isConnected) return
+    // 🔵 Người dùng đã nhắm sang ô khác ⇒ lượt vá này nói về một thời điểm đã trôi qua. Im.
+    if (caretTarget !== cell) return
     if (settled()) return
     cell.focus()
     setCaret(cell, cell.childNodes.length)
@@ -741,6 +823,7 @@ const chapterId = computed(() => editorChapterId.value)
   <PanelFrame owner="panel.grid" status-key="panel.grid.status" :show-status="showFrameStatus">
     <!-- Lỗi nạp nói ra bằng chuỗi CỦA NÓ, không im — cùng khuôn `SourcePanel.vue`. -->
     <p v-if="loadErrorKey !== null" class="load-error">{{ t(loadErrorKey) }}</p>
+    <p v-else-if="showEmptyChapter" class="load-error">{{ t('panel.grid.empty_chapter') }}</p>
     <p v-else-if="showNoSegments" class="load-error">{{ t('panel.grid.no_segments') }}</p>
 
     <!--

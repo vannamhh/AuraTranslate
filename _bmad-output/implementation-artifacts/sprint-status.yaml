@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-15T03:10:00
+last_updated: 2026-08-15T07:40:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -300,7 +300,21 @@ development_status:
   #   - Doi con tro tren 9.850 cau: 706-770 ms => VUOT TRAN NFR2 ~15 lan. Chu: Story 2.4.
   #     Moc cu :2113-2129 MAT HIEU LUC THEO CAU TRUC; :2198-2207 CON hieu luc ve co che.
   # 🔵 Nam mon no moi/da dong vao deferred-work.md — xem §Dev Agent Record cua story.
-  2-5b-luoi-hai-cot-doi-chieu: review
+  # ✅ 2026-08-15 — RA MA BA TANG XONG => `done`. 13 phat hien · 13 ban va · 0 hoan · 0 loai.
+  #   Ice ky 5 quyet dinh. Nghiem thu: 11 cong · vue-tsc · eslint · build · vitest 83 -> 89 ·
+  #   cargo 338/0/5. AC7 nay XANH THAT (`git diff f990dd5 -- selectionContract.ts` = 0 dong).
+  # 🔴 KHUON LAP LAI BA LAN — phat hien that cua luot ra: chu ky #5(a) · #8 · #9(a) deu duoc
+  #   thi hanh DUNG MOT NUA. Nua kho, co chu thich 🔵 dep thi lam; nua la MOT DONG CHUOI hoac
+  #   MOT CAU PHAI XOA thi roi. Khong cong nao canh nua do.
+  #   Hau qua nang nhat da va: nhan bo cuc noi doi — nguoi dung bam "Bo cuc bon cot" (mot bo cuc
+  #   DA RUT) de nhan B-1. Nay la "Luoi ben trai" / "Luoi tren dinh".
+  # 🔵 Hai ve khong cong nao canh, ca hai dong bang DO: (2) thanh trang thai — 6 ca vitest, tu
+  #   kiem do 5/6; (1) guard `caretTarget` — e2e 8 luot, 5 dat/3 do, KHONG luot do nao roi vao
+  #   phep khang dinh caret. Do duoc "guard khong pha", KHONG do duoc "guard chua duoc cuoc dua".
+  # 🔴 MON MOI, TO HON STORY NAY: bo e2e tung 7/7 DO vi mot khuyet tat cua BAN DO —
+  #   `wdio.conf.mjs::devServerIsUp()` tin mot Vite hap hoi vi no van tra 200 cho `/`.
+  #   Chan moi story sau co dong toi WKWebView. Chu: mot story ha tang e2e. deferred-work.md.
+  2-5b-luoi-hai-cot-doi-chieu: done
   # 2.5c dung buoc di tru 8; 2.5d dung buoc 9. Doc PROJECT_MIGRATIONS (schema.rs), dung
   # doc mot ghi chep o noi khac — ke ca dong nay.
   2-5c-cat-bo-cau-khoi-ban-dich: backlog

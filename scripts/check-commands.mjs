@@ -1949,6 +1949,25 @@ const SELECTION_PANEL_FILES = {
  * bề mặt, nên bề mặt Hán Việt **nhượng** lượt đăng ký của nó cho cột và chỉ ghi tên vào
  * `panels/hanVietSurfaces.ts`. Nó **không biến mất** — nó đổi cửa. Xem doc-comment tệp đó.
  *
+ * 🔵 **2026-08-15 (code review) — con số 6 ĐÚNG, nhưng nó chỉ vừa mới đúng.**
+ *
+ * Lượt rà đo được: cho tới 2026-08-15, phép đếm trên **sai một đơn vị**. `SourceHanViet.vue`
+ * vẫn mang lời gọi `useSelectionSurface` của nó ở mặt chữ — nó nằm trong nhánh
+ * `if (props.surfaceRole === 'own')`, và `SURFACE_CALL_RE` là **regex quét tĩnh**, không phân
+ * tích `if`. Bằng chứng là chính cổng này: nó in ra `7 bề mặt đăng ký` trong khi sàn là 6.
+ *
+ * ⇒ Cổng mang đúng **một đơn vị dư**: bớt một bề mặt THẬT vẫn còn 6, **đúng sàn, vẫn xanh** —
+ * tái diễn nguyên hình dạng cái lỗ mà đoạn ngay trên kể lại từ thời sàn = 4.
+ *
+ * Đóng bằng cách **gỡ nhánh `'own'`** *(mã chết: chỗ mount duy nhất là `GridPanel.vue:848` và
+ * nó luôn khai `surface-role="cell"`)*, **không** bằng cách nâng sàn lên 7. Kèm theo, prop
+ * `surfaceRole` bỏ giá trị mặc định — nếu không, một chỗ mount quên khai nó sẽ rơi vào một vai
+ * không làm gì cả, im lặng, và phép đếm tĩnh **vẫn** cho 6. Lý do đầy đủ ở
+ * `src/panels/SourceHanViet.vue` §prop `surfaceRole`.
+ *
+ * 🔴 **Bài học cho người sửa sàn sau:** con số ở đây phải đến từ một lượt **CHẠY CỔNG**, không
+ * từ một phép trừ trên giấy. Phép trừ *"ba thay bằng hai"* đọc rất thuyết phục và nó sai.
+ *
  * ⚠️ Sàn là **cận dưới**: nó canh chính CỔNG *(regex thôi khớp ⇒ mọi phép kiểm trên xanh
  * rỗng)*, không canh số bề mặt đúng. Story 1.20/3.4 sẽ THÊM bề mặt, không bớt.
  */
@@ -2080,7 +2099,13 @@ if (nonLiteralSurfaceCalls > 0) {
 
 if (fBad === 0) {
   pass(
-    `${surfaceCalls.length} bề mặt đăng ký hợp đồng vùng chọn trên ${SELECTION_PANEL_FILES.length} panel ` +
+    // 🔵 `Object.keys(...).length`, KHÔNG `.length` — 2026-08-15 (code review). `SELECTION_PANEL_FILES`
+    // đổi từ MẢNG sang OBJECT ở Story 2.5b để chở số lời gọi mong đợi theo từng tệp; vòng lặp phán
+    // quyết được sửa theo (`Object.entries`) nhưng dòng bằng chứng này thì không, nên cổng in ra
+    // nguyên văn `trên undefined panel` ở mọi lượt xanh. Phán quyết không sai — nhưng
+    // `project-context.md` §Luật đo: *"số đo không truy nguyên được thì không phải số đo"*, và một
+    // cổng tự in `undefined` vào chính dòng bằng chứng của nó là một cổng thôi tự mô tả đúng.
+    `${surfaceCalls.length} bề mặt đăng ký hợp đồng vùng chọn trên ${Object.keys(SELECTION_PANEL_FILES).length} panel ` +
       `(sàn ${SELECTION_SURFACE_FLOOR}) — ` +
       `${surfaceCalls.filter((c) => c.role === 'source').length} nguồn · ` +
       `${surfaceCalls.filter((c) => c.role === 'display').length} hiển thị`,

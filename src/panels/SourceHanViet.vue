@@ -52,7 +52,8 @@
 // trong `<style>` dưới đây, cả năm biến `--*-source-hanviet`, không chỉ `font-synthesis`.
 import { computed, onBeforeUnmount, useTemplateRef, watch } from 'vue'
 import { t } from '../i18n'
-import { useSelectionSurface } from './selectionContract'
+// 🔵 `useSelectionSurface` GỠ khỏi tệp này 2026-08-15 (code review) cùng nhánh `'own'` chết —
+// bề mặt Hán Việt nhượng lượt đăng ký cho CỘT và chỉ ghi tên vào sổ uỷ quyền. Xem cuối tệp.
 import { registerHanVietSurface } from './hanVietSurfaces'
 import {
   canUseParallelView,
@@ -66,29 +67,40 @@ import {
 import { everySourceOffForRoute } from './dictSourcesState'
 import { WORD_JOINER, wordStartOffsets } from './wordBoundary'
 
-const props = withDefaults(
-  defineProps<{
-    sourceText: string
-    viewMode: 'switch' | 'parallel'
-    /**
-     * 🔴 **Vai của bề mặt này trong hợp đồng vùng chọn** — Story 2.5b, AC7.
-     *
-     * `'own'` *(mặc định, khuôn Story 1.16)*: component **tự đăng ký** một bề mặt vai
-     * `'source'`. Đây là hình dạng của Panel Nguyên văn — một Chương, một bề mặt.
-     *
-     * `'cell'`: component **KHÔNG** đăng ký bề mặt nào; nó ghi tên vào sổ
-     * `hanVietSurfaces.ts` để **cột** *(chủ sở hữu duy nhất của lượt đăng ký)* uỷ quyền
-     * xuống. Đây là hình dạng của lưới, nơi có **N** ô nguyên văn nhưng AC7 đòi **một** bề
-     * mặt — xem khối lý do ở đầu `hanVietSurfaces.ts`.
-     *
-     * ⚠️ Không đặt mặc định là `'cell'`: một component tự nhiên **phải** khai mình vào sổ
-     * vùng chọn (AC2 của Story 1.18), và vai `'cell'` là lượt **nhượng** quyền đó cho một
-     * chủ khác. Nhượng thì phải viết ra ở chỗ gọi, không rơi vào theo mặc định.
-     */
-    surfaceRole?: 'own' | 'cell'
-  }>(),
-  { surfaceRole: 'own' },
-)
+const props = defineProps<{
+  sourceText: string
+  viewMode: 'switch' | 'parallel'
+  /**
+   * 🔴 **Vai của bề mặt này trong hợp đồng vùng chọn** — Story 2.5b, AC7.
+   *
+   * `'cell'`: component **KHÔNG** đăng ký bề mặt nào; nó ghi tên vào sổ
+   * `hanVietSurfaces.ts` để **cột** *(chủ sở hữu duy nhất của lượt đăng ký)* uỷ quyền
+   * xuống. Đây là hình dạng của lưới, nơi có **N** ô nguyên văn nhưng AC7 đòi **một** bề
+   * mặt — xem khối lý do ở đầu `hanVietSurfaces.ts`.
+   *
+   * 🔵 **`'own'` GỠ 2026-08-15 (code review), và prop nay KHÔNG có giá trị mặc định.**
+   *
+   * Nhánh `'own'` *(component tự gọi `useSelectionSurface`, khuôn Story 1.16)* là **mã chết
+   * từ lúc nó ra đời**: đo được — chỗ mount DUY NHẤT của tệp này là `GridPanel.vue:848`, và
+   * nó **luôn** khai `surface-role="cell"`. Nhánh ấy chưa từng chạy một lần nào.
+   *
+   * 🔴 **Vì sao gỡ nhánh chết lại BẮT BUỘC kéo theo việc bỏ giá trị mặc định** — hai vế này
+   * không tách rời được, và đây là chỗ một lượt dọn dẹp có thể tự tạo ra một lỗ mới:
+   * `check-commands.mjs` Kiểm F đếm lời gọi `useSelectionSurface` bằng **regex quét tĩnh**,
+   * không phân tích `if`. Nên chừng nào dòng gọi còn nằm trong nhánh `'own'`, nó vẫn được
+   * đếm ⇒ quần thể tĩnh **7** trong khi sàn là **6**, tức cổng mang đúng **một đơn vị dư**:
+   * bớt một bề mặt THẬT về sau vẫn xanh. Gỡ nhánh làm quần thể về đúng 6 — nhưng nếu giữ
+   * `{ surfaceRole: 'own' }` làm mặc định thì một chỗ mount tương lai **quên** khai
+   * `surface-role` sẽ rơi vào một vai KHÔNG CÒN LÀM GÌ: không đăng ký, không ghi sổ uỷ
+   * quyền, **im lặng**, và phép đếm tĩnh vẫn 6 nên cổng vẫn xanh. ⇒ Prop **bắt buộc**, để
+   * chỗ quên thành một lỗi `vue-tsc` bắt được thay vì một bề mặt mất tích.
+   *
+   * ⚠️ Kiểu vẫn để dạng union một nhánh (`'cell'`) chứ không xoá hẳn prop: Story 1.20/3.4 sẽ
+   * THÊM bề mặt, và một chỗ dùng độc lập *(một Chương, một bề mặt)* là hình dạng hợp lệ sẽ
+   * quay lại. Lúc đó thêm lại `'own'` **kèm** phép đo chứng minh nó có chỗ mount thật.
+   */
+  surfaceRole: 'cell'
+}>()
 
 /**
  * 🔴 Chốt CHẶN THỨ HAI (Task 8) — dải tab *(nay ở `GridPanel.vue`)* đã khoá nút đổi kiểu xem khi vượt
@@ -667,35 +679,31 @@ function onCopy(event: ClipboardEvent): void {
 
 /*
  * ═══════════════════════════════════════════════════════════════════════════════
- * HAI VAI, HAI ĐƯỜNG — và **đúng một** trong hai chạy cho mỗi instance
+ * MỘT VAI, MỘT ĐƯỜNG — bề mặt này NHƯỢNG lượt đăng ký cho cột
  * ═══════════════════════════════════════════════════════════════════════════════
- * 🔴 `role` viết **LITERAL** ở lời gọi dưới, không qua biến `props.surfaceRole`: cổng đếm
- * của AC2 (`check-commands.mjs` Kiểm F) đọc **tĩnh**, và một biểu thức ở đó bị đếm rồi **bỏ
- * qua** — tức mất lưới. Nhánh nào chạy thì quyết bằng `v-if` của chính lời gọi, không bằng
- * một tham số.
+ * 🔵 **Nhánh `'own'` GỠ 2026-08-15 (code review).** Nó gọi `useSelectionSurface(surface,
+ * 'source', …)` và chưa từng chạy: chỗ mount duy nhất *(`GridPanel.vue:848`)* luôn khai
+ * `surface-role="cell"`. Nhưng cổng Kiểm F đếm **tĩnh** bằng regex, nên dòng chết đó vẫn
+ * được đếm và làm sàn hụt đúng một đơn vị. Lý do đầy đủ ở doc-comment của prop `surfaceRole`.
  *
- * ⚠️ `useSelectionSurface`/`registerHanVietSurface` đều theo **`watch` trên ref**, nên gọi cả
- * hai vô điều kiện rồi để một cái nhận `null` là **sai**: `surface` là cùng một phần tử cho
- * cả hai đường, nên cả hai sẽ cùng ghi tên. Chốt phải ở **giá trị đưa vào**.
+ * ⚠️ Mệnh đề cũ *"`role` phải viết LITERAL, không qua biến"* **vẫn đứng nguyên** và nay còn
+ * dễ giữ hơn: chỉ còn một lời gọi, và nó không nằm sau một `if` nào. Nếu một ngày vai thứ hai
+ * quay lại thì đọc lại mệnh đề đó TRƯỚC — cổng vẫn đọc tĩnh.
+ *
+ * ⚠️ `registerHanVietSurface` theo **`watch` trên ref** *(cùng khuôn `useSelectionSurface`)*,
+ * và cùng một lý do: `dockview` có thể `mount` bản mới **TRƯỚC** khi `unmount` bản cũ.
  */
-if (props.surfaceRole === 'own') {
-  useSelectionSurface(surface, 'source', resolveSelection)
-} else {
-  // Vai `'cell'` — nhượng lượt đăng ký cho CỘT, chỉ ghi tên vào sổ uỷ quyền. Cùng hình dạng
-  // vòng đời (`watch` + `onBeforeUnmount`) với `useSelectionSurface`, và cùng lý do:
-  // `dockview` có thể mount bản mới TRƯỚC khi unmount bản cũ.
-  let release: (() => void) | null = null
-  const sync = (el: HTMLElement | null): void => {
-    release?.()
-    release = null
-    if (el !== null) release = registerHanVietSurface(el, resolveSelection)
-  }
-  watch(surface, sync, { immediate: true, flush: 'sync' })
-  onBeforeUnmount(() => {
-    release?.()
-    release = null
-  })
+let release: (() => void) | null = null
+const syncHanVietSurface = (el: HTMLElement | null): void => {
+  release?.()
+  release = null
+  if (el !== null) release = registerHanVietSurface(el, resolveSelection)
 }
+watch(surface, syncHanVietSurface, { immediate: true, flush: 'sync' })
+onBeforeUnmount(() => {
+  release?.()
+  release = null
+})
 </script>
 
 <template>

@@ -1275,10 +1275,19 @@ const TEXT_COLOR_PROPS = new Set(['color', '-webkit-text-fill-color'])
  * Hai miễn trừ kia canh **một** thuộc tính, nên khai báo mà chúng che là đúng khai báo mà
  * người viết đang nhìn. Miễn trừ này canh **một tập token dùng chung**
  * (`EXPECTED_NEVER_TEXT` = `ornament` · `tm-rule`), và một dấu miễn trừ không tham số sẽ
- * cấp cho **cả hai** cùng lúc. `tokens.json:99` đặc tả ngoại lệ cho **đúng một** ký tự —
- * ranh giới câu `⏐` màu `ornament` — và `:100` nói thẳng rằng `tm-rule` **không** có vai
- * chữ ở bất kỳ theme nào. Một miễn trừ cấp nhầm là hai mệnh đề tương phản mất cùng lúc, im
- * lặng.
+ * cấp cho **cả hai** cùng lúc. Một miễn trừ cấp nhầm là hai mệnh đề tương phản mất cùng lúc,
+ * im lặng.
+ *
+ * 🔵 **2026-08-15 (Quyết định #9(a), thi hành ở lượt code review).** Đoạn trên trước đây viết:
+ * *"`tokens.json:99` đặc tả ngoại lệ cho **đúng một** ký tự — ranh giới câu `⏐` màu
+ * `ornament`"*. Mệnh đề đó **hết đúng**: ngoại lệ ấy thuộc UX-DR20, thứ đã RÚT 2026-08-14, nên
+ * nó là một miễn trừ **chết** và đã được gỡ khỏi `tokens.json`. Hôm nay `neverTextTokens`
+ * **không cấp ngoại lệ nào** — cả ba token *(`ornament` · `tm-rule` · `draft`)* không bao giờ
+ * là màu chữ, không kèm điều kiện.
+ *
+ * ⚠️ Lý do miễn trừ này vẫn **hẹp** thì không đổi, và nó là vế phải giữ: nó che một **tập**
+ * token dùng chung, nên nó vẫn phải mang tham số. Việc bảng ngoại lệ nay rỗng KHÔNG phải lý do
+ * để nới nó thành một dấu miễn trừ trần.
  *
  * ⚠️ Hai đường tắt bị CẤM đích danh, và cả hai đều "làm cổng xanh":
  *   ① gỡ `ornament` khỏi `EXPECTED_NEVER_TEXT` ⇒ mất luôn vế `tm-rule` dùng chung tập đó;

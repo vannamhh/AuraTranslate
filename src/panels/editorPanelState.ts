@@ -250,6 +250,15 @@ export function noteEditorEdit(segmentId: number, targetText: string): void {
 
   flush.markChanged(segmentId, targetText, Date.now())
   armFlushTimer()
+
+  // 🔵 2026-08-15 — dọn câu báo của lượt xác nhận gần nhất. Người dùng gõ tiếp **là** câu trả
+  // lời cho nó: cả ba giá trị đi vào ô nhớ đó (*chưa chọn câu nào* · *chưa lưu được* · *vừa
+  // đổi trong lúc lưu*) đều mô tả một thời điểm đã trôi qua, và giữ chúng trên thanh trạng
+  // thái trong lúc người dùng đang gõ là để một câu ĐÚNG-LÚC-ĐÓ nói dối ở hiện tại.
+  //
+  // ⚠️ Dọn ở ĐÂY, không bằng một `setTimeout`: một câu tự biến mất sau N giây là một hẹn giờ
+  // phải chọn N, phải test, và nó vẫn sai với người đọc chậm. Sự kiện thì không phải chọn gì.
+  confirmNotice.value = null
 }
 
 /**
@@ -365,6 +374,34 @@ export function resetEditorPanel(): void {
   flush.reset()
   editedText.value = new Map()
   lastSavedAt.value = null
+
+  // 🔴 HAI Ô NHỚ NỮA, và bỏ sót chúng là một LỜI NÓI DỐI TRỰC QUAN, không một lượt rò state.
+  //
+  // 🔵 Thêm 2026-08-15 (code review). Đo được: `segment.id` là `INTEGER PRIMARY KEY
+  // AUTOINCREMENT` trong `project.db` của TỪNG Tác phẩm (`schema.rs:337`), nên mỗi Tác phẩm
+  // đếm lại từ 1 — đụng id giữa hai Tác phẩm là chuyện gần như CHẮC CHẮN cho các câu đầu
+  // Chương, không phải một trùng hợp hiếm.
+  //
+  // Đường hỏng, từng bước:
+  //   ① Ở Tác phẩm A, `⌘Enter` bị Rust từ chối ⇒ `confirmError` mang một `IpcError` có
+  //      `params.segment_id = 2`.
+  //   ② Người dùng tạo/mở Tác phẩm B ⇒ `finishSubmit` gọi hàm này rồi nạp lại.
+  //   ③ `GridPanel.vue::errorSegmentId` đọc `params.segment_id` ⇒ vẫn là 2, và câu số 2 của
+  //      Tác phẩm B khớp ngay khi lưới vừa nạp xong.
+  //   ⇒ Một hàng của Tác phẩm B hiện `panel.grid.state_refused` — *"chưa ký được"* — TRƯỚC khi
+  //      người dùng kịp bấm bất cứ thứ gì ở Tác phẩm đó.
+  //
+  // ⚠️ `caretPlacement` cùng một lớp: nó chở một `segment.id` để lưới đặt con trỏ vào. Sống
+  // sót qua lượt thay Tác phẩm, nó dời con trỏ tới một câu người dùng chưa từng chọn.
+  //
+  // 🔴 Luật rút ra, áp cho mọi ô nhớ THÊM VÀO TỆP NÀY sau này: hỏi *"ô này thuộc Tác phẩm hay
+  // thuộc ứng dụng?"*. Thuộc Tác phẩm thì phải có mặt ở đây. Không cổng nào canh câu hỏi đó —
+  // `confirmError` và `caretPlacement` đều được thêm ở Story 2.5 và 2.5b, cả hai đi qua sạch
+  // mười một cổng, và cả hai bị bỏ quên ở đây.
+  confirmError.value = null
+  caretPlacement.value = null
+  // Cùng lý do: một câu *"chưa lưu được bản dịch"* thuộc Tác phẩm vừa bị thay.
+  confirmNotice.value = null
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -463,6 +500,34 @@ export type ConfirmResult =
 const confirmError = shallowRef<IpcError | null>(null)
 /** Lỗi gần nhất Rust trả lời cho một lượt xác nhận. `null` ⇒ chưa lượt nào bị từ chối. */
 export const editorConfirmError: DeepReadonly<Ref<IpcError | null>> = readonly(confirmError)
+
+/**
+ * 🔴 **BA kết quả xác nhận KHÔNG đi qua Rust — và trước 2026-08-15 chúng không đi tới đâu cả.**
+ *
+ * 🔵 Thêm ở lượt code review 2026-08-15, thi hành nốt vế còn thiếu của **Quyết định #8** *(Ice
+ * ký 2026-08-14)*. Chữ ký khai hợp đồng UX-DR30 tối thiểu là *"cột nhãn trạng thái của **chính
+ * hàng** CỘNG **một dòng ở thanh trạng thái**"*. Vế đầu đã dựng *(`GridPanel.vue` đọc
+ * [`editorConfirmError`] cho `'refused'`)*; vế sau **chưa từng tồn tại**.
+ *
+ * ⇒ Đo được trước lượt vá: `'no-caret'` · `'flush-failed'` · `'still-dirty'` chỉ rơi vào một
+ * `console.warn` trong `main.ts`. Người dùng bấm `⌘Enter` và **không một pixel nào đổi** — đúng
+ * hình dạng *"rỗng im lặng"* ở §Critical Don't-Miss Rules, lần này áp lên một thao tác người
+ * dùng **chủ động**, tức ca tệ nhất của lớp lỗi đó.
+ *
+ * 🔴 **`'refused'` CỐ Ý không vào đây.** Nó đã có đường ra riêng và **giàu hơn**: một `IpcError`
+ * mang `params.segment_id`, nên lỗi dán được lên **đúng hàng**. Đẩy nó vào đây nữa là dựng
+ * nguồn sự thật thứ hai cho cùng một sự kiện.
+ *
+ * ⚠️ **Phạm vi ĐÓNG BĂNG ở một dòng chữ.** Story tự cảnh báo *"đừng nhân lượt ký này thành một
+ * hệ thống thông báo"* — không hàng đợi, không mức độ, không tự tắt theo giờ, không lớp nổi
+ * (UX-DR16). Ô nhớ giữ **một** giá trị gần nhất và bị dọn bởi ba sự kiện có tên ở dưới.
+ */
+const confirmNotice = shallowRef<Exclude<ConfirmResult, 'confirmed' | 'refused'> | null>(null)
+/** Xem [`confirmNotice`]. `StatusBar.vue` đọc. `null` ⇒ không có gì để nói. */
+export const editorConfirmNotice: DeepReadonly<Ref<Exclude<
+  ConfirmResult,
+  'confirmed' | 'refused'
+> | null>> = readonly(confirmNotice)
 
 /**
  * `segment.id` mà giao diện được yêu cầu **đặt con trỏ DOM vào đầu câu đó**.
@@ -567,7 +632,16 @@ export async function confirmCurrentSegment(): Promise<ConfirmResult> {
   const run = confirmCurrentSegmentUnguarded()
   confirmInFlight = run
   try {
-    return await run
+    const result = await run
+    // 🔵 2026-08-15 — vế "một dòng ở thanh trạng thái" của Quyết định #8. Ghi ở **cửa có khoá**
+    // này chứ không rải vào `confirmCurrentSegmentUnguarded`: hàm kia có năm đường trả về, và
+    // một đường thêm sau này sẽ quên cập nhật ô nhớ. Ở đây thì không quên được — mọi kết quả
+    // đều đi qua đúng dòng này.
+    //
+    // ⚠️ Nhánh *joiner* ở trên (`return running`) CỐ Ý không ghi: lượt gốc sẽ ghi khi nó xong,
+    // và hai lượt cùng ghi một giá trị chỉ là một lần thừa, không một mâu thuẫn.
+    confirmNotice.value = result === 'confirmed' || result === 'refused' ? null : result
+    return result
   } finally {
     confirmInFlight = null
   }

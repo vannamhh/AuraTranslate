@@ -248,6 +248,15 @@ async function boot(): Promise<void> {
         void confirmCurrentSegment().then((result) => {
           if (result === 'confirmed' || result === 'refused') return
           // `'refused'` KHÔNG vào đây: nó đã có đường ra màn hình qua `editorConfirmError`.
+          //
+          // 🔵 2026-08-15 (code review): dòng `console.warn` này TỪNG là đường ra DUY NHẤT cho
+          // ba kết quả còn lại, tức một thao tác người dùng chủ động không đổi một pixel nào —
+          // vế *"một dòng ở thanh trạng thái"* của Quyết định #8 chưa từng được dựng. Nay
+          // `confirmCurrentSegment` ghi vào `editorConfirmNotice` và `StatusBar.vue` đọc.
+          //
+          // ⚠️ `console.warn` Ở LẠI, và nó không thừa: nó là đường **chẩn đoán** *(viết KHÔNG
+          // DẤU — Kiểm A của `check:i18n`)*, còn thanh trạng thái là đường **cho người dùng**.
+          // Hai người đọc khác nhau, hai mức chi tiết khác nhau.
           console.warn(`[grid] khong ky duoc segment: ${result}`)
         })
       },
