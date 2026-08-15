@@ -1,5 +1,5 @@
 # generated: 2026-08-03T13:04:45
-# last_updated: 2026-08-15T00:00:00
+# last_updated: 2026-08-15T18:40:00
 # 2026-08-12: Epic 2 mo — story 2.1 chuyen sang ready-for-dev (create-story).
 # 2026-08-12: story 2.2 chuyen sang ready-for-dev (create-story).
 # 2026-08-12: story 2.3 chuyen sang ready-for-dev (create-story).
@@ -360,9 +360,48 @@ development_status:
   # 🔴 AC6 TRUNG CHU VOI STORY 2.10 (epics.md:2599-2602, nguyen van cung menh de):
   #   2.5c DA DUNG no. 2.10 chi NGHIEM THU LAI — dung dung duong thu hai.
   # 🔵 Sau mon no moi/da dong vao deferred-work.md — ba mon ghi LUC KY Task 0, ba mon luc nghiem thu.
-  2-5c-cat-bo-cau-khoi-ban-dich: review
+  2-5c-cat-bo-cau-khoi-ban-dich: done
   # 2.5d di qua AD-46 MOI (AD-37 giu nguyen van). No go hai lop chan Enter CHI o o ban dich.
-  2-5d-ngat-doan-ban-dich: backlog
+  # 🔵 2026-08-15 — create-story: chuyen sang ready-for-dev. So di tru ke tiep DO LAI tu nguon
+  #   (`PROJECT_MIGRATIONS`, schema.rs:580-618): bay buoc 1·2·3·5·6·7·8, dich 8 ⇒ ke tiep la **9**.
+  #   Story mang SAU quyet dinh mo phai co chu ky cua Ice TRUOC dong ma dau tien (Task 0 chan
+  #   moi task khac), va Task 1 (ban do WKWebView) chan Task 3:
+  #   #1 `Enter` chen CAI GI vao DOM. De engine tu lam thi no tiem markup (`<div>`/`<br>`) —
+  #      dung duong ma nhanh ② cua `onBeforeInput` ton tai de chan — va `textContent` cua
+  #      `<div>a</div><div>b</div>` la "ab", KHONG mot ky tu xuong dong nao. Tuc AC1 hong o ve
+  #      "ky tu luu vao target_text" ma KHONG cong nao do.
+  #   #2 `white-space` cho `.cell-tgt`. Grep toan `src/`: GridPanel.vue co 0 khai `white-space`
+  #      ⇒ mac dinh `normal` ⇒ `\n` bi gop thanh mot khoang trang. Day la diem chan THAT MA
+  #      KHONG AC NAO NEU: dia dung, man hinh khong doi mot pixel.
+  #   #3 co che nguoi dung DOI co dich. FR134 hua "cho toi khi nguoi dung doi" nhung khong AC
+  #      nao cua story mo ta thao tac, va bang phim EXPERIENCE.md:262-268 khong co hang nao.
+  #   #4 hien thi co dich. `subgrid` lam "khoang tho" thanh thuoc tinh cua HANG — mot
+  #      `padding-bottom` chi o o ban dich van keo ca track cao len. Hai cau truc doan khac
+  #      nhau khong bieu dien duoc bang hai khoang tho. (Suy luan tu ma, CHUA do — Task 1.2⑤.)
+  #   #5 ten/kieu cot + cach backfill. `DEFAULT` cua SQLite PHAI la hang, ma AC2 doi backfill
+  #      "bang co nguon" — mot gia tri theo HANG. Duong thoat: `execute_batch` chay nhieu cau
+  #      trong MOT giao dich (schema.rs:739), buoc 7 da co tien le — nhung tien le do la
+  #      DDL+DDL, con day la DDL+DML. Chua buoc nao cua kho lam vay.
+  #   #6 AC3 "ba ca bien AD-37 ap y nguyen": HAI trong ba ca CHUA CO MA. Story 2.8 (gop/tach)
+  #      la `backlog`; grep `merge_segment` tren src-tauri/src = 0 ket qua.
+  # 🔴 BA MOC DONG CUA AC6 TRO VAO MOT TEP DA BI XOA. AC6 viet `EditorPanel.vue:769` va `:842`;
+  #   tep do bi xoa o Story 2.5b (commit ca33072). Hai lop chan hom nay o `GridPanel.vue`:
+  #   nhanh ① cua `onBeforeInput` (:699-703) va `onEditKeydown` (:764-767). Ve "giu nguyen o
+  #   moi noi khac" DA DUNG theo cau truc — `targetCellOf` chi khop `[data-col="tgt"]`.
+  # ⚠️ Bay da ghi trong story: (a) fixture `STEP_NINE` (segment_contract.rs:1128) dang dung so 9
+  #   lam so "tuong lai" — sau story nay phai nang len 10, neu khong cong AD-30 xanh ma vo nghia
+  #   (dung khuon 2.5c vua di qua voi so 8); (b) ten test
+  #   `the_project_migration_set_reaches_eight_through_seven_steps` MANG SO HIEU nen sai lai o
+  #   MOI story them mot buoc — 2.5c da go so khoi bon ten khac nhung sot ten nay;
+  #   (c) hai doc-comment TRONG MA noi nguoc AD-46 (schema.rs:283-286 va split.rs:118-119, ca hai
+  #   viet "khong source_paragraph_end/target_paragraph_end") — phai sua; con AD-37 o spine thi
+  #   KHONG, vi AD-46 khai bang chu "AD-37 khong sua mot chu".
+  # ⚠️ WebKit im lang o bien: `Backspace` offset 0 phat 0 `beforeinput` tren WKWebView, Blink thi
+  #   co (deferred-work.md:3012-3037). Dung suy hanh vi `insertParagraph` cua WebKit tu Blink.
+  # ⚠️ `subgrid` da do ep o ban dich cao 388 px theo cot nguyen van (deferred-work.md:3131-3162).
+  #   Story nay them ap luc NGUOC CHIEU — o ban dich nhieu dong day track cao len — mot chieu do
+  #   ma phep do cu chua tinh.
+  2-5d-ngat-doan-ban-dich: ready-for-dev
   2-6-lich-su-phien-ban-segment-va-khoi-phuc: backlog
   2-7-xuat-xu-ban-dich-cap-segment: backlog
   2-8-gop-va-tach-segment-tuong-minh: backlog
