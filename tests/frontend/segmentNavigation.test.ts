@@ -15,7 +15,7 @@ import type { NavigationSegment } from '../../src/panels/segmentNavigation'
 import type { ChapterSegment } from '../../src/config/segment'
 
 function seg(over: Partial<NavigationSegment> = {}): NavigationSegment {
-  return { id: 1, status: 'draft', targetText: '', retiredAt: null, ...over }
+  return { id: 1, status: 'draft', targetText: '', retiredAt: null, isOmitted: false, ...over }
 }
 
 describe('isUntranslated — HAI vế, không một', () => {
@@ -92,6 +92,39 @@ describe('nextUntranslatedId', () => {
   })
 
   /**
+   * 🔴 **AC6 của Story 2.5c (FR133) — câu đã CẮT BỎ không bao giờ là đích.**
+   *
+   * Cùng khuôn và cùng vai với ca *"đã về hưu"* ngay trên: bỏ qua ở **cả hai** vai — không
+   * phải đích, và không chặn đường. Một câu người dùng đã quyết định **không thuộc bản dịch**
+   * mà `⌥↓` vẫn dừng lại ở đó là phím này dẫn họ tới đúng chỗ họ vừa bảo là bỏ đi.
+   *
+   * ⚠️ Ca này dùng một câu **rỗng** *(tức "chưa dịch" theo cả hai vế)* chứ không một câu đã
+   * có chữ — nếu không nó xanh vì `isUntranslated` chứ không vì cờ cắt bỏ, và phép kiểm sẽ
+   * không đo gì cả.
+   */
+  it('câu đã CẮT BỎ không bao giờ là đích, kể cả khi rỗng', () => {
+    const withOmitted = [
+      seg({ id: 1, targetText: 'A' }),
+      seg({ id: 2, targetText: '', isOmitted: true }),
+      seg({ id: 3, targetText: '' }),
+    ]
+    expect(nextUntranslatedId(withOmitted, 1)).toBe(3)
+  })
+
+  /**
+   * 🔴 **AC2 nói bằng ngôn ngữ của điều hướng:** cắt bỏ là một **trục độc lập**, nên nó
+   * KHÔNG được đổi nghĩa của `isUntranslated`. Một câu đã cắt bỏ mà chưa dịch **vẫn là**
+   * *"chưa dịch"* — nó chỉ không phải **đích của phím này**.
+   *
+   * Đây là tiền lệ đã chốt cho "về hưu", nhắc lại nguyên văn cho cờ mới: hai mệnh đề khác
+   * nhau, hai chỗ lọc khác nhau. Nhét cờ vào `isUntranslated` là gộp chúng, và lúc đó mọi
+   * chỗ đọc *"chưa dịch"* trong tương lai *(thanh tiến độ, Story 5.5)* sẽ đếm sai.
+   */
+  it('cắt bỏ KHÔNG đổi nghĩa `isUntranslated`', () => {
+    expect(isUntranslated(seg({ status: 'draft', targetText: '', isOmitted: true }))).toBe(true)
+  })
+
+  /**
    * ⚠️ `fromId` trỏ vào một câu **không còn trong danh sách** *(vừa bị gộp mất — Story 2.8)*
    * đọc thành *"bắt đầu từ đầu"*. Gộp hai ca có chủ ý: một hành vi có nghĩa vẫn tốt hơn không
    * hành vi nào.
@@ -115,6 +148,7 @@ describe('navigationSegmentOf — văn bản ĐANG GÕ thắng bản lúc nạp'
       is_paragraph_end: false,
       retired_at: null,
       status: 'draft',
+      is_omitted: false,
       ...over,
     }
   }
@@ -142,6 +176,17 @@ describe('navigationSegmentOf — văn bản ĐANG GÕ thắng bản lúc nạp'
   it('xoá trắng trong phiên ⇒ trở lại "chưa dịch"', () => {
     const edited = new Map([[1, '']])
     expect(isUntranslated(navigationSegmentOf(row({ target_text: 'Có chữ trên đĩa.' }), edited))).toBe(true)
+  })
+
+  /**
+   * 🔴 Cờ cắt bỏ phải **đi qua** phép ánh xạ. Quên nó ở đây là một khuyết tật im lặng đúng
+   * hạng: `nextUntranslatedId` lọc trên `isOmitted`, nên một `undefined` rơi vào đó làm phép
+   * lọc **không bao giờ bắt** — và AC6 hỏng trong khi mọi ca gọi thẳng `seg()` vẫn xanh.
+   */
+  it('`is_omitted` đi qua phép ánh xạ, không rơi mất', () => {
+    const edited = new Map<number, string>()
+    expect(navigationSegmentOf(row({ is_omitted: true }), edited).isOmitted).toBe(true)
+    expect(navigationSegmentOf(row({ is_omitted: false }), edited).isOmitted).toBe(false)
   })
 })
 

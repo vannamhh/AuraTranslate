@@ -86,6 +86,19 @@ export type ChapterSegment = {
    * của chỗ này — AD-1.
    */
   status: string
+  /**
+   * Câu này đã bị **cắt bỏ khỏi bản dịch** chưa (FR133, Story 2.5c) — bước di trú 8.
+   *
+   * 🔴 Một **trục độc lập** với [`status`], không phải một giá trị thứ ba của nó (AC2):
+   * *"cắt bỏ"* trả lời **thuộc hay không thuộc bản dịch**, `status` trả lời **mức độ hoàn
+   * thành**. Một câu đã cắt bỏ **giữ nguyên** cả `status` lẫn `target_text` của nó — nên
+   * bỏ cờ là một lượt đổi **một** trường, không một lượt khôi phục.
+   *
+   * ⚠️ `boolean` chứ không `string`, khác hẳn `status` ngay trên: ở đây danh mục giá trị
+   * **đóng ở mức hai** theo đúng kiểu của cột (`INTEGER NOT NULL DEFAULT 0`), và Rust đã
+   * làm phép đổi `0/1 → bool` trước khi gửi. Không có giá trị thứ ba để một union nói dối.
+   */
+  is_omitted: boolean
 }
 
 /**
@@ -164,6 +177,26 @@ export type ConfirmSegmentResult = {
   error: IpcError | null
 }
 
+/**
+ * Kết quả một lượt **cắt bỏ / bỏ cờ** — **`snake_case`**, đúng `commands::segment::OmitOutcome`.
+ * Story 2.5c · FR133.
+ *
+ * ⚠️ Không có trường kiểu `version_created` ở đây, và đó là một mệnh đề chứ không một lượt bỏ
+ * sót: cắt bỏ **không phải** một chuyển tiếp AD-31, nên không có sự kiện nào để phân biệt
+ * *"vừa cắt"* với *"đã cắt từ trước"*. Trạng thái mới nói đủ.
+ */
+export type OmitOutcome = {
+  segment_id: number
+  /** Trạng thái **sau** lượt gọi — không phải trạng thái trước. */
+  is_omitted: boolean
+}
+
+/** Ba trạng thái, cùng khuôn `ConfirmSegmentResult`. */
+export type SetSegmentOmittedResult = {
+  outcome: OmitOutcome | null
+  error: IpcError | null
+}
+
 /** Tên command trên dây. Khớp `src-tauri/src/commands/segment.rs` (module `wire`). */
 const CMD_SPLIT_CHAPTER = 'split_chapter_into_segments'
 /** Tên command trên dây — **không tham số nào**, xem doc-comment của hàm thuần phía Rust. */
@@ -172,6 +205,14 @@ const CMD_READ_SEGMENTS = 'read_open_chapter_segments'
 const CMD_SAVE_TARGETS = 'save_segment_targets'
 /** Tên command trên dây — máy trạng thái AD-31, Story 2.5. */
 const CMD_CONFIRM_SEGMENT = 'confirm_segment'
+/**
+ * Tên command trên dây — cờ **cắt bỏ** của FR133, Story 2.5c.
+ *
+ * ⚠️ **MỘT** tên trên dây cho **HAI** lệnh của `CommandRegistry` (`editor.omit_segment` ·
+ * `editor.restore_segment`) — chúng khác nhau ở đúng tham số `omitted`. Lý do đầy đủ ở
+ * doc-comment của `wire::set_segment_omitted` phía Rust.
+ */
+const CMD_SET_SEGMENT_OMITTED = 'set_segment_omitted'
 
 /** Có cầu IPC của Tauri trong window này không — cùng khuôn `./chapter.ts::hasIpcBridge`. */
 function hasIpcBridge(): boolean {
@@ -344,6 +385,53 @@ export async function confirmSegment(segmentId: number): Promise<ConfirmSegmentR
 
     console.info(
       `[segment] không gọi được \`${CMD_CONFIRM_SEGMENT}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { outcome: null, error: null }
+  }
+}
+
+/**
+ * **Cắt bỏ một câu khỏi bản dịch, hoặc bỏ cờ đó** — FR133, Story 2.5c · AC1 · AC4.
+ *
+ * Không ném, cùng lý do `confirmSegment` không ném: chỗ gọi hiển thị lỗi bằng `tError()`,
+ * không bằng `try/catch` ở tầng UI.
+ *
+ * ⚠️ `invoke()` gửi tham số ở dạng **camelCase**: `segment_id` phía Rust đi trên dây dưới tên
+ * `segmentId`. `omitted` là một từ đơn nên hai dạng trùng nhau — đừng đọc sự trùng đó thành
+ * *"dây không đổi hoa thường"*.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 KHÔNG PHẢI FLUSH TRƯỚC, khác hẳn `confirmSegment` ngay trên
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `confirmSegment` **ký** văn bản đang có trên đĩa, nên gọi nó trước lúc flush xong sẽ ký
+ * một bản cũ. Lệnh này không đọc `target_text` một chữ nào — nó đổi **đúng một cột boolean**
+ * và **không chạm** `target_text` lẫn `updated_at`. ⇒ Một lượt gõ đang chờ flush vẫn bay
+ * bình thường sau đó và ghi đè đúng chỗ của nó.
+ *
+ * ⚠️ Ba lối từ chối đều **phân biệt được** bằng `message_key`: `err.segment.not_found` ·
+ * `err.segment.retired` · `err.project.no_work_open`. Chỗ gọi **không** được đoán lại lý do
+ * từ chuỗi.
+ */
+export async function setSegmentOmitted(
+  segmentId: number,
+  omitted: boolean,
+): Promise<SetSegmentOmittedResult> {
+  try {
+    const outcome = await invoke<OmitOutcome>(CMD_SET_SEGMENT_OMITTED, { segmentId, omitted })
+    return { outcome, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: null, error: err }
+
+    // 🔴 Cùng ba nhánh và cùng lý do với `splitChapterIntoSegments` — xem chú thích ở đó.
+    if (hasIpcBridge()) {
+      console.error(
+        `[segment] \`${CMD_SET_SEGMENT_OMITTED}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[segment] không gọi được \`${CMD_SET_SEGMENT_OMITTED}\` — chạy ngoài Tauri? ${String(err)}`,
     )
     return { outcome: null, error: null }
   }

@@ -26,7 +26,19 @@
  */
 import type { ChapterSegment } from '../../../src/config/segment'
 
-/** Cùng bộ câu với bàn đo `2-3-ban-do-vung-go.html` — một fixture, hai chỗ dùng. */
+/**
+ * Cùng bộ câu với bàn đo `2-3-ban-do-vung-go.html` — một fixture, hai chỗ dùng.
+ *
+ * 🔴 **Cả ba câu ở `is_omitted: false`, và đó là một quyết định chứ không một lượt điền cho
+ * đủ kiểu** (Story 2.5c, 2026-08-15). Fixture này là **nền chung** của mọi tệp test frontend;
+ * một câu đã cắt bỏ nằm sẵn ở đây sẽ lặng lẽ đổi tiền đề của mọi ca không nói gì về cắt bỏ.
+ * Ca nào cần một câu đã cắt bỏ thì **tự dựng lấy** bằng `{ ...FIXTURE_SEGMENTS[i], is_omitted:
+ * true }`, đúng chỗ nó khẳng định mệnh đề đó.
+ *
+ * ⚠️ Và nhớ giới hạn thật của chính tệp này: nó **chép tay** hình dạng của dây. Đó là thứ đã
+ * cho 74/74 xanh trên một sản phẩm đang hỏng ở Story 2.5 — cột `status` thiếu ở Rust mà fixture
+ * vẫn có. Lưới cho vế đó nằm ở `segment_contract.rs`, KHÔNG ở đây.
+ */
 export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
   {
     id: 11,
@@ -39,6 +51,7 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     // fixture phải chở được cả hai giá trị, nếu không nhánh `confirmed` của vạch lề không
     // có ca nào đi qua.
     status: 'confirmed',
+    is_omitted: false,
   },
   {
     id: 12,
@@ -49,6 +62,7 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     retired_at: null,
     // Đã dịch, CHƯA ký — hàng mà Quyết định #3 phân xử: *không vạch*.
     status: 'draft',
+    is_omitted: false,
   },
   {
     id: 13,
@@ -59,6 +73,7 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     retired_at: null,
     // Chưa dịch ⇒ *không vạch*, và Quyết định #7 cấm xác nhận nó.
     status: 'draft',
+    is_omitted: false,
   },
 ]
 

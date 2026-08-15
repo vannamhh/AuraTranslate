@@ -29,6 +29,7 @@ function segment(over: Partial<ChapterSegment> = {}): ChapterSegment {
     is_paragraph_end: false,
     retired_at: null,
     status: 'draft',
+    is_omitted: false,
     ...over,
   }
 }

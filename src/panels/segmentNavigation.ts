@@ -31,6 +31,13 @@ export type NavigationSegment = {
   readonly targetText: string
   /** `segment.retired_at`. `null` cho mọi segment cho tới Story 2.8. */
   readonly retiredAt: string | null
+  /**
+   * `segment.is_omitted` — câu đã bị **cắt bỏ khỏi bản dịch** (FR133, Story 2.5c).
+   *
+   * 🔴 Một **trục độc lập** với [`isUntranslated`], không một vế của nó. Xem khối lý do ở
+   * [`nextUntranslatedId`].
+   */
+  readonly isOmitted: boolean
 }
 
 /**
@@ -71,6 +78,15 @@ export function isUntranslated(segment: NavigationSegment): boolean {
  *
  * ⚠️ Segment **đã về hưu** bị bỏ qua ở cả hai vai *(không phải đích, và không chặn đường)*:
  * một câu đã về hưu sau lượt gộp/tách không còn là câu người dùng làm việc trên đó (Story 2.8).
+ *
+ * ⚠️ Segment **đã cắt bỏ** cũng vậy — AC6 của Story 2.5c (FR133). Người dùng vừa quyết định
+ * câu đó **không thuộc bản dịch**; dừng con trỏ ở đó là dẫn họ tới đúng chỗ họ vừa bảo bỏ đi.
+ *
+ * 🔴 **VÌ SAO LỌC Ở ĐÂY CHỨ KHÔNG NHÉT VÀO [`isUntranslated`]** — tiền lệ đã chốt cho "về
+ * hưu", và cờ cắt bỏ đi đúng đường đó. *"Đã cắt bỏ"* và *"chưa dịch"* là **hai mệnh đề khác
+ * nhau**: một câu đã cắt bỏ mà chưa dịch **vẫn là** chưa dịch — nó chỉ không phải **đích của
+ * phím này**. Gộp chúng lại làm mọi chỗ đọc *"chưa dịch"* trong tương lai đếm sai, và chỗ
+ * đầu tiên trả giá là thanh tiến độ Tác phẩm (FR, Story 5.5).
  */
 export function nextUntranslatedId(
   segments: readonly NavigationSegment[],
@@ -83,6 +99,7 @@ export function nextUntranslatedId(
   for (let i = from + 1; i < segments.length; i += 1) {
     const s = segments[i]
     if (s.retiredAt !== null) continue
+    if (s.isOmitted) continue
     if (isUntranslated(s)) return s.id
   }
   return null
@@ -104,5 +121,6 @@ export function navigationSegmentOf(
     status: segment.status,
     targetText: editedText.get(segment.id) ?? segment.target_text,
     retiredAt: segment.retired_at,
+    isOmitted: segment.is_omitted,
   }
 }
