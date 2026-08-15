@@ -1,0 +1,666 @@
+{
+ "blink-light": {
+  "subgrid_khai_bao_duoc": true,
+  "engine": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "hang": [
+   {
+    "hang": 1,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 2,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 50.81
+   },
+   {
+    "hang": 3,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 4,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 106.44
+   },
+   {
+    "hang": 5,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 6,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   }
+  ],
+  "lech_top_lon_nhat_px": 0,
+  "lech_bottom_lon_nhat_px": 0,
+  "o_rong": {
+   "cao_o_px": 38.81,
+   "cao_mot_dong_o_co_chu_px": 38.81,
+   "so_node_con": 0
+  },
+  "caret_dat_duoc_bang_chuong_trinh": true,
+  "caret_trong_o_rong": {
+   "top": 0,
+   "height": 0
+  },
+  "o_rong_cao_bang_mot_dong": true,
+  "go_mot_ky_tu": {
+   "exec_tra_ve": true,
+   "beforeinput": null,
+   "van_ban_sau_khi_go": "A",
+   "chu_ha_canh": true
+  },
+  "backspace_dau_o": {
+   "luot_1_xoa_ky_tu": {
+    "exec_tra_ve": true,
+    "beforeinput": null
+   },
+   "luot_2_o_offset_0": {
+    "exec_tra_ve": true,
+    "beforeinput": null
+   },
+   "van_ban_con_lai": ""
+  },
+  "mouse": {
+   "active_la_o_rong": true,
+   "active_tag": "DIV.cell.empty",
+   "selection_type": "Caret",
+   "range_count": 1,
+   "caret": {
+    "top": 0,
+    "height": 0
+   },
+   "neo_trong_o": true
+  },
+  "mouse_go": {
+   "exec_tra_ve": true,
+   "beforeinput": null,
+   "van_ban": "B",
+   "chu_ha_canh": true
+  },
+  "ban_phim_that": {
+   "su_kien": [
+    {
+     "loai": "beforeinput",
+     "inputType": "insertText",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "insertText",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "insertText",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "insertText",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "deleteContentBackward",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "deleteContentBackward",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    }
+   ],
+   "van_ban": "",
+   "cao_o_px": 38.81,
+   "selection_type": "Caret",
+   "neo_trong_o": true
+  },
+  "backspace_dau_o_co_chu": {
+   "su_kien": [
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    }
+   ],
+   "van_ban": "Xin",
+   "cao_o_px": 38.81,
+   "selection_type": "Caret",
+   "neo_trong_o": true
+  }
+ },
+ "blink-dark": {
+  "subgrid_khai_bao_duoc": true,
+  "engine": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "hang": [
+   {
+    "hang": 1,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 2,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 50.81
+   },
+   {
+    "hang": 3,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 4,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 106.44
+   },
+   {
+    "hang": 5,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 6,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   }
+  ],
+  "lech_top_lon_nhat_px": 0,
+  "lech_bottom_lon_nhat_px": 0,
+  "o_rong": {
+   "cao_o_px": 38.81,
+   "cao_mot_dong_o_co_chu_px": 38.81,
+   "so_node_con": 0
+  },
+  "caret_dat_duoc_bang_chuong_trinh": true,
+  "caret_trong_o_rong": {
+   "top": 0,
+   "height": 0
+  },
+  "o_rong_cao_bang_mot_dong": true,
+  "go_mot_ky_tu": {
+   "exec_tra_ve": true,
+   "beforeinput": null,
+   "van_ban_sau_khi_go": "A",
+   "chu_ha_canh": true
+  },
+  "backspace_dau_o": {
+   "luot_1_xoa_ky_tu": {
+    "exec_tra_ve": true,
+    "beforeinput": null
+   },
+   "luot_2_o_offset_0": {
+    "exec_tra_ve": true,
+    "beforeinput": null
+   },
+   "van_ban_con_lai": ""
+  },
+  "mouse": {
+   "active_la_o_rong": true,
+   "active_tag": "DIV.cell.empty",
+   "selection_type": "Caret",
+   "range_count": 1,
+   "caret": {
+    "top": 0,
+    "height": 0
+   },
+   "neo_trong_o": true
+  },
+  "mouse_go": {
+   "exec_tra_ve": true,
+   "beforeinput": null,
+   "van_ban": "B",
+   "chu_ha_canh": true
+  },
+  "ban_phim_that": {
+   "su_kien": [
+    {
+     "loai": "beforeinput",
+     "inputType": "insertText",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "insertText",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "insertText",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "insertText",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "deleteContentBackward",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "deleteContentBackward",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    }
+   ],
+   "van_ban": "",
+   "cao_o_px": 38.81,
+   "selection_type": "Caret",
+   "neo_trong_o": true
+  },
+  "backspace_dau_o_co_chu": {
+   "su_kien": [
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    }
+   ],
+   "van_ban": "Xin",
+   "cao_o_px": 38.81,
+   "selection_type": "Caret",
+   "neo_trong_o": true
+  }
+ },
+ "webkit-light": {
+  "subgrid_khai_bao_duoc": true,
+  "engine": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15",
+  "hang": [
+   {
+    "hang": 1,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 2,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 50.81
+   },
+   {
+    "hang": 3,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 4,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 106.44
+   },
+   {
+    "hang": 5,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 6,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   }
+  ],
+  "lech_top_lon_nhat_px": 0,
+  "lech_bottom_lon_nhat_px": 0,
+  "o_rong": {
+   "cao_o_px": 38.81,
+   "cao_mot_dong_o_co_chu_px": 38.81,
+   "so_node_con": 0
+  },
+  "caret_dat_duoc_bang_chuong_trinh": true,
+  "caret_trong_o_rong": {
+   "top": 0,
+   "height": 0
+  },
+  "o_rong_cao_bang_mot_dong": true,
+  "go_mot_ky_tu": {
+   "exec_tra_ve": true,
+   "beforeinput": {
+    "loai": "beforeinput",
+    "inputType": "insertText",
+    "cancelable": true,
+    "tren_o_rong": true
+   },
+   "van_ban_sau_khi_go": "A",
+   "chu_ha_canh": true
+  },
+  "backspace_dau_o": {
+   "luot_1_xoa_ky_tu": {
+    "exec_tra_ve": true,
+    "beforeinput": {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    }
+   },
+   "luot_2_o_offset_0": {
+    "exec_tra_ve": true,
+    "beforeinput": null
+   },
+   "van_ban_con_lai": ""
+  },
+  "mouse": {
+   "active_la_o_rong": true,
+   "active_tag": "DIV.cell.empty",
+   "selection_type": "Caret",
+   "range_count": 1,
+   "caret": {
+    "top": 0,
+    "height": 0
+   },
+   "neo_trong_o": true
+  },
+  "mouse_go": {
+   "exec_tra_ve": true,
+   "beforeinput": {
+    "loai": "beforeinput",
+    "inputType": "insertText",
+    "cancelable": true,
+    "tren_o_rong": true
+   },
+   "van_ban": "B",
+   "chu_ha_canh": true
+  },
+  "ban_phim_that": {
+   "su_kien": [
+    {
+     "loai": "beforeinput",
+     "inputType": "insertText",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "insertText",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "insertText",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "insertText",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "deleteContentBackward",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "deleteContentBackward",
+     "cancelable": false,
+     "tren_o_rong": true
+    }
+   ],
+   "van_ban": "",
+   "cao_o_px": 38.81,
+   "selection_type": "Caret",
+   "neo_trong_o": true
+  },
+  "backspace_dau_o_co_chu": {
+   "su_kien": [],
+   "van_ban": "Xin",
+   "cao_o_px": 38.81,
+   "selection_type": "Caret",
+   "neo_trong_o": true
+  }
+ },
+ "webkit-dark": {
+  "subgrid_khai_bao_duoc": true,
+  "engine": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15",
+  "hang": [
+   {
+    "hang": 1,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 2,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 50.81
+   },
+   {
+    "hang": 3,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 4,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 106.44
+   },
+   {
+    "hang": 5,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   },
+   {
+    "hang": 6,
+    "lech_top_px": 0,
+    "lech_bottom_px": 0,
+    "cao_px": 38.81
+   }
+  ],
+  "lech_top_lon_nhat_px": 0,
+  "lech_bottom_lon_nhat_px": 0,
+  "o_rong": {
+   "cao_o_px": 38.81,
+   "cao_mot_dong_o_co_chu_px": 38.81,
+   "so_node_con": 0
+  },
+  "caret_dat_duoc_bang_chuong_trinh": true,
+  "caret_trong_o_rong": {
+   "top": 0,
+   "height": 0
+  },
+  "o_rong_cao_bang_mot_dong": true,
+  "go_mot_ky_tu": {
+   "exec_tra_ve": true,
+   "beforeinput": {
+    "loai": "beforeinput",
+    "inputType": "insertText",
+    "cancelable": true,
+    "tren_o_rong": true
+   },
+   "van_ban_sau_khi_go": "A",
+   "chu_ha_canh": true
+  },
+  "backspace_dau_o": {
+   "luot_1_xoa_ky_tu": {
+    "exec_tra_ve": true,
+    "beforeinput": {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    }
+   },
+   "luot_2_o_offset_0": {
+    "exec_tra_ve": true,
+    "beforeinput": null
+   },
+   "van_ban_con_lai": ""
+  },
+  "mouse": {
+   "active_la_o_rong": true,
+   "active_tag": "DIV.cell.empty",
+   "selection_type": "Caret",
+   "range_count": 1,
+   "caret": {
+    "top": 0,
+    "height": 0
+   },
+   "neo_trong_o": true
+  },
+  "mouse_go": {
+   "exec_tra_ve": true,
+   "beforeinput": {
+    "loai": "beforeinput",
+    "inputType": "insertText",
+    "cancelable": true,
+    "tren_o_rong": true
+   },
+   "van_ban": "B",
+   "chu_ha_canh": true
+  },
+  "ban_phim_that": {
+   "su_kien": [
+    {
+     "loai": "beforeinput",
+     "inputType": "insertText",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "insertText",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "insertText",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "insertText",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "deleteContentBackward",
+     "cancelable": false,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "beforeinput",
+     "inputType": "deleteContentBackward",
+     "cancelable": true,
+     "tren_o_rong": true
+    },
+    {
+     "loai": "input",
+     "inputType": "deleteContentBackward",
+     "cancelable": false,
+     "tren_o_rong": true
+    }
+   ],
+   "van_ban": "",
+   "cao_o_px": 38.81,
+   "selection_type": "Caret",
+   "neo_trong_o": true
+  },
+  "backspace_dau_o_co_chu": {
+   "su_kien": [],
+   "van_ban": "Xin",
+   "cao_o_px": 38.81,
+   "selection_type": "Caret",
+   "neo_trong_o": true
+  }
+ }
+}

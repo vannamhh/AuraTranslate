@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>Bàn đo — lưới hai cột đối chiếu, `subgrid` + ô gõ được (Story 2.5b)</title>
+<!--
+  ═════════════════════════════════════════════════════════════════════════════════
+  BÀN ĐO — Story 2.5b, Task 1 (CỬA CHẶN).
+  ═════════════════════════════════════════════════════════════════════════════════
+
+  🔴 VÌ SAO TỆP NÀY TỒN TẠI TRƯỚC DÒNG MÃ SẢN PHẨM ĐẦU TIÊN
+  §Điều kiện khởi hành của story mang một **LUẬT DỪNG**: nếu sau Task 1 một câu **chưa
+  dịch** trong lưới vẫn không đặt được con trỏ, thì 2.5b quay về `backlog`. Dựng nốt mười
+  ba AC trên một bề mặt chưa gõ được là sản xuất một sản phẩm trông xong mà không dùng
+  được — đúng lớp lỗi mà lượt correct-course 2026-08-14 vừa lật cả hình dạng để thoát ra.
+
+  Và Quyết định #6 (*"không thư viện editor"*) được Ice ký **TRƯỚC** khi có số của tệp
+  này. Chữ ký đó **không miễn** cho Task 1: nếu ba phép đo ①②③ trượt thì LUẬT DỪNG thắng
+  chữ ký.
+
+  🔴 NĂM MỆNH ĐỀ PHẢI TRẢ LỜI BẰNG SỐ, TRÊN CẢ HAI ENGINE (Task 1.2 · 1.3):
+    ① bấm chuột vào một ô **rỗng** — caret có xuất hiện không?
+    ② gõ một ký tự vào ô rỗng — chữ có hạ cánh không?
+    ③ `Backspace` ở offset 0 — có sinh `beforeinput` `deleteContentBackward` **huỷ được**
+       không? *(tiền đề của Story 2.9 — UX-DR32)*
+    ④ chiều cao caret trong ô rỗng có bằng một dòng không? *(khuyết tật "sập hố")*
+    ⑤ `subgrid` có giữ hàng thẳng khi hai ô cùng hàng lệch chiều cao không?
+
+  ─────────────────────────────────────────────────────────────────────────────────
+  🔴 GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện — KẾ THỪA từ 2-2/2-3/2-5
+  ─────────────────────────────────────────────────────────────────────────────────
+  ① Tệp này **CHÉP** hình dạng DOM/CSS mà `GridPanel.vue` sẽ mang; nó **KHÔNG mount**
+     component thật (component cần cầu IPC của Tauri). ⇒ một lượt sửa template sau này có
+     thể làm bàn đo và sản phẩm **lệch nhau mà không cổng nào đỏ**.
+  ② Ba font nhúng của UX-DR4 **vắng mặt** ⇒ hình học rơi về `serif` hệ thống. Số ở đây là
+     số của **cơ chế**, không của **sản phẩm**. Thứ KHÔNG phụ thuộc font: `subgrid` có
+     chia chung tập track hàng hay không, và caret có hộp hay không.
+  ③ 🔴 Engine của driver Playwright là **WebKit của Playwright**, KHÔNG phải **WKWebView
+     của Tauri** — món nợ `deferred-work.md:2127-2134`, và Story 2.3 đã trả giá đúng chỗ
+     này *(Playwright-WebKit **có** tạo vùng chọn ở lượt bấm, WKWebView **không**)*.
+     ⇒ Nhánh WKWebView THẬT đi đường khác: `e2e/specs/grid-empty-cell-typing.e2e.mjs`
+     tiêm chính hình dạng này vào webview của sản phẩm. **Số của Task 1.2 lấy ở đó**;
+     số ở đây là Task 1.3 (Chromium ≈ engine WebView2) cộng một lượt đối chứng.
+  ④ Mệnh đề ③ đo bằng `execCommand('delete')`, **không** bằng một phím `Backspace` thật:
+     `browser.keys()` của bộ e2e chỉ bắn `keydown`/`keyup` và **không** đi vào đường nhập
+     văn bản gốc (`EditorPanel.vue:492-493`, đo 2026-08-12). Cả hai đường đi qua **cùng**
+     đường soạn thảo của engine và cùng phát `beforeinput`; thứ bàn đo này **không** trả
+     lời là *"phím vật lý có sinh đúng `inputType` đó không"* — vế đó thuộc tay Ice
+     (Task 1.4).
+  ⑤ Bàn đo **không** đo tương phản, không đo hiệu năng trên 9.850 hàng (Task 8), và
+     không trả lời *"ca này thường gặp tới đâu trên dữ liệu thật"*.
+
+  Chạy: mở tệp này trong trình duyệt để xem bằng MẮT; driver Playwright lái nó và đọc
+  `window.__benchReport()` — xem `2-5b-ban-do/README.md`.
+-->
+<style>
+/* ── Token: chép từ `src/tokens/tokens.json`, chỉ những token bàn đo cần ─────────── */
+:root[data-theme='light'] {
+  --color-background: #f4f1ea;
+  --color-surface: #fbfaf6;
+  --color-surface-accent: #efe9dc;
+  --color-on-surface: #2b2723;
+  --color-on-surface-variant: #6b6459;
+  --color-outline: #e2dccf;
+  --color-ornament: #a9a196;
+  --color-primary: #2f5d63;
+  --color-confirmed: #5a6b3f;
+  --color-tm-rule: #b99a5e;
+  /* Đề xuất khởi điểm cho token thứ 17 — Ice CHƯA ký SỐ (Task 0.4 ①). */
+  --color-draft: #a9a196;
+}
+:root[data-theme='dark'] {
+  --color-background: #201e1b;
+  --color-surface: #26241f;
+  --color-surface-accent: #322f28;
+  --color-on-surface: #e8e3d8;
+  --color-on-surface-variant: #a29a8c;
+  --color-outline: #3b382f;
+  --color-ornament: #6a6459;
+  --color-primary: #7fb3ba;
+  --color-confirmed: #9cb37a;
+  --color-tm-rule: #b99a5e;
+  --color-draft: #6a6459;
+}
+:root {
+  --radius-sm: 2px;
+  --face-editor: Georgia, 'Times New Roman', serif;
+  --font-editor: 15px;
+  --leading-editor: 1.95;
+  --face-source: 'Songti SC', Georgia, serif;
+  --font-source-cjk: 16.5px;
+  --leading-source-cjk: 2.05;
+  --font-ui-sm: 12px;
+  --font-ui-label: 11px;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: system-ui, sans-serif;
+  font-size: var(--font-ui-sm);
+}
+
+h1 {
+  font-size: 15px;
+  margin: 12px 16px 4px;
+}
+
+p.note {
+  margin: 0 16px 12px;
+  color: var(--color-on-surface-variant);
+  max-width: 92ch;
+  line-height: 1.66;
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline);
+  margin: 0 16px 16px;
+  padding: 8px 0;
+}
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 🔴 LƯỚI CHỦ-CỘT VỚI `subgrid` — Quyết định #1 đường (b), Ice ký 2026-08-14
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * Cha khai **tập track hàng**; **năm** con là **năm CỘT**, mỗi cột `grid-row: 1 / -1` và
+ * `grid-template-rows: subgrid` ⇒ ô của mọi cột chia CHUNG một tập track ⇒ hàng thẳng.
+ *
+ * 🔴 Vì sao chủ-cột chứ không chủ-hàng: `selectionContract.ts:168-190` duyệt bằng
+ * `el.contains(anchor)`, nên một bề mặt đăng ký **phải là tổ tiên DOM** của chữ trong nó.
+ * Trong `<table>` — và trong một lưới chủ-hàng — một **cột không có phần tử tổ tiên nào**
+ * (`<col>` chỉ mang kiểu dáng, nó KHÔNG chứa `<td>`). ⇒ AC7 (*"đăng ký theo CỘT"*) chỉ
+ * dựng được ở hình dạng này.
+ *
+ * ⚠️ CÁI GIÁ, nói trước chứ không phát hiện sau: **hàng không còn là một hộp**. Mọi kiểu
+ * dáng cấp hàng (nền hàng đang sửa, nền hàng TM, khoảng thở đoạn) phải nhân ra **năm ô**.
+ */
+.grid {
+  display: grid;
+  grid-template-columns: 3px 30px minmax(0, 1fr) minmax(0, 1fr) 96px;
+  align-items: stretch;
+}
+
+.col {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: 1 / -1;
+}
+
+.cell {
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--color-outline);
+}
+
+/* Cột ① — vạch trạng thái. `background`, KHÔNG `color`: `ornament`/`tm-rule` là màu NÉT. */
+.col-rule .cell {
+  padding: 2px 0;
+  border-bottom: none;
+}
+.rule {
+  height: 100%;
+  border-radius: var(--radius-sm);
+}
+.rule-confirmed { background-color: var(--color-confirmed); }
+.rule-primary { background-color: var(--color-primary); }
+.rule-tm-rule { background-color: var(--color-tm-rule); }
+.rule-ornament { background-color: var(--color-ornament); }
+.rule-draft { background-color: var(--color-draft); }
+
+/* Cột ② — số câu. `on-surface-variant`, KHÔNG `ornament` (Quyết định #9(a)). */
+.col-num .cell {
+  text-align: right;
+  font-size: var(--font-ui-label);
+  color: var(--color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cột ③ — nguyên văn. */
+.col-src .cell {
+  font-family: var(--face-source);
+  font-size: var(--font-source-cjk);
+  line-height: var(--leading-source-cjk);
+  color: var(--color-on-surface);
+}
+
+/* Cột ④ — bản dịch. MỌI ô là một editing host riêng (Quyết định #3 đường (b)). */
+.col-tgt .cell {
+  font-family: var(--face-editor);
+  font-size: var(--font-editor);
+  line-height: var(--leading-editor);
+  color: var(--color-on-surface);
+}
+
+/*
+ * 🔴 AC3 — ô trống có CHIỀU CAO THẬT và đường ĐỨT NÉT.
+ *
+ * `min-height: 1.95em` là chỗ khuyết tật *"sập hố"* chết theo cấu trúc: một `<span>` rỗng
+ * cao 0 px không cho caret hộp nào để lấy chiều cao, còn một ô có `min-height` thì có.
+ * ⚠️ `em` ở đây nhân với `font-size` của **chính ô** (15px) ⇒ 29,25px — đúng một dòng của
+ * token `editor`. Đừng đổi sang `rem`: gốc tài liệu là `ui`, không phải `editor`.
+ */
+.col-tgt .cell.empty {
+  min-height: 1.95em;
+  border-bottom: 1px dashed var(--color-outline);
+}
+
+.col-tgt .cell:focus {
+  /* aura-allow-outline-none — bàn đo: caret nhấp nháy là chỉ báo tiêu điểm, cùng luật `EditorPanel.vue:1132`. */
+  outline: none;
+  background: var(--color-surface-accent);
+}
+
+/* Cột ⑤ — nhãn trạng thái. `on-surface-variant` (Quyết định #9(a)). */
+.col-state .cell {
+  font-size: var(--font-ui-label);
+  color: var(--color-on-surface-variant);
+}
+
+/*
+ * AC5 — KHOẢNG THỞ đoạn, **không** một hàng rỗng, và nó nhân ra NĂM ô của hàng cuối đoạn.
+ * ⚠️ Chỉ ĐỌC cờ `is_paragraph_end` (AD-37) — không dòng nào suy ra nó từ nội dung.
+ */
+.cell.para-end {
+  padding-bottom: 14px;
+}
+
+#report {
+  margin: 0 16px 24px;
+  white-space: pre-wrap;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--color-on-surface-variant);
+  line-height: 1.6;
+}
+</style>
+</head>
+<body>
+
+<h1>Bàn đo Story 2.5b — lưới `subgrid` năm cột, ô bản dịch gõ được</h1>
+<p class="note">
+  Hàng 3 là ca <strong>CHƯA DỊCH</strong>: ô bản dịch rỗng, `min-height` một dòng, đường
+  đứt nét. Hàng 4 có nguyên văn dài để ép hai ô cùng hàng <strong>lệch chiều cao</strong> —
+  đó là ca đo mệnh đề ⑤. Hàng 2 kết đoạn (`is_paragraph_end`) nên mang khoảng thở.
+</p>
+
+<div class="panel">
+  <div class="grid" id="grid"></div>
+</div>
+
+<pre id="report">chưa chạy — gọi window.__benchRun()</pre>
+
+<script>
+/*
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * FIXTURE — sáu hàng, mỗi hàng phục vụ một mệnh đề đo được
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * ⚠️ Đây là dữ liệu **của bàn đo**, không phải dữ liệu giả trong sản phẩm: ba giá trị
+ * vạch hôm nay chưa nguồn nào bật lên được (`tm-rule` → Epic 7, `ornament` → Story 2.8).
+ */
+const ROWS = [
+  { n: 1, src: '第一句话，用来占位。', tgt: 'Câu thứ nhất, dùng để chiếm chỗ.', rule: 'confirmed', state: 'đã xác nhận', para: false },
+  { n: 2, src: '第二句稍微长一点，让这一行有内容。', tgt: 'Câu thứ hai dài hơn một chút.', rule: 'draft', state: 'bản nháp', para: true },
+  // 🔴 HÀNG CỦA CỬA CHẶN — ô bản dịch RỖNG. Mọi mệnh đề ①②③④ đo trên chính hàng này.
+  { n: 3, src: '第三句还没有翻译。', tgt: '', rule: 'none', state: 'chưa dịch', para: false },
+  // Hàng ép LỆCH CHIỀU CAO — nguyên văn ba dòng, bản dịch một dòng ⇒ mệnh đề ⑤.
+  { n: 4, src: '第四句非常长，长到必须折行好几次，这样才能把两个单元格的高度差别做出来，用来检验 subgrid 是否真的让整行对齐，而不是各列各自为政。', tgt: 'Ngắn.', rule: 'primary', state: 'đang sửa', para: false },
+  { n: 5, src: '第五句。', tgt: 'Câu thứ năm.', rule: 'tm-rule', state: 'TM điền sẵn', para: false },
+  { n: 6, src: '第六句已经退休。', tgt: 'Câu thứ sáu.', rule: 'ornament', state: 'đã về hưu', para: false },
+]
+
+/** Dựng lưới chủ-cột: cha khai track hàng, năm con là năm cột. */
+function build() {
+  const grid = document.getElementById('grid')
+  grid.innerHTML = ''
+  grid.style.gridTemplateRows = `repeat(${ROWS.length}, auto)`
+
+  const cols = [
+    ['col-rule', (r) => (r.rule === 'none' ? '' : `<div class="rule rule-${r.rule}"></div>`), false],
+    ['col-num', (r) => String(r.n), false],
+    ['col-src', (r) => r.src, false],
+    ['col-tgt', (r) => r.tgt, true],
+    ['col-state', (r) => r.state, false],
+  ]
+
+  for (const [cls, render, editable] of cols) {
+    const col = document.createElement('div')
+    col.className = `col ${cls}`
+    for (const r of ROWS) {
+      const cell = document.createElement('div')
+      cell.className = 'cell'
+      if (r.para) cell.classList.add('para-end')
+      cell.dataset.segmentId = String(r.n)
+      // 🔴 Neo phân biệt vai — Quyết định #1 vế hai. `data-segment-id` nay xuất hiện HAI
+      // lần cho một câu, nên mọi phép đếm và mọi truy vấn phải nói rõ CỘT nào (B11).
+      cell.dataset.col = cls === 'col-src' ? 'src' : cls === 'col-tgt' ? 'tgt' : 'meta'
+      if (editable) {
+        cell.setAttribute('contenteditable', 'true')
+        if (r.tgt === '') cell.classList.add('empty')
+        cell.textContent = r.tgt
+      } else {
+        cell.innerHTML = render(r)
+      }
+      col.appendChild(cell)
+    }
+    grid.appendChild(col)
+  }
+}
+
+/** Ô bản dịch RỖNG — hàng 3. Chủ thể của mệnh đề ①②③④. */
+function emptyCell() {
+  return document.querySelector('[data-col="tgt"][data-segment-id="3"]')
+}
+
+/**
+ * Đặt caret bằng `setPosition`, KHÔNG `removeAllRanges()` + `addRange()`.
+ *
+ * 🔴 Đây là một phép đo đã có, không một sở thích: Story 2.3 đo trên WKWebView thật rằng
+ * với một phần tử soạn thảo được **rỗng**, `addRange` cho `type === "None"` và
+ * `execCommand` trả `false`, còn `setPosition` cho `"Caret"` và `true`
+ * (`EditorPanel.vue:539-556`). Bàn đo này dùng đúng đường đã thắng.
+ */
+function setCaret(node, offset) {
+  const sel = window.getSelection()
+  if (sel === null) return false
+  sel.setPosition(node, offset)
+  return sel.type === 'Caret'
+}
+
+/** Hình chữ nhật của caret hiện tại — `null` khi không có vùng chọn nào đọc được. */
+function caretRect() {
+  const sel = window.getSelection()
+  if (sel === null || sel.rangeCount === 0) return null
+  const r = sel.getRangeAt(0).getBoundingClientRect()
+  // ⚠️ Một `Range` thu gọn trong phần tử RỖNG cho hộp 0×0 trên vài engine — đó chính là
+  // triệu chứng "sập hố", nên trả về nguyên số thay vì lọc nó đi.
+  return { top: +r.top.toFixed(2), height: +r.height.toFixed(2) }
+}
+
+/**
+ * Sổ ghi mọi `beforeinput`/`input` — cắm ở `document`, **pha bắt (capture)**.
+ *
+ * 🔵 **SỬA MỘT KHUYẾT TẬT CỦA CHÍNH BÀN ĐO, 2026-08-14.** Bản đầu cắm listener trên
+ * **ô** và chỉ bao quanh một lời gọi `execCommand`. Lượt chạy đầu cho `beforeinput: null`
+ * trên Blink **kể cả khi chữ đã hạ cánh** (`exec=true`, `textContent==='A'`) — tức phép
+ * đo nói *"engine không phát sự kiện"* trong khi engine **có** sửa văn bản. Một số như
+ * vậy không phải một kết quả; nó là một bàn đo hỏng, và nó sẽ bác oan Quyết định #3.
+ * ⇒ Ghi ở `document` + capture, và **để driver bắn bàn phím THẬT** thay vì `execCommand`.
+ * Đúng lớp lỗi *"bàn đo cũng sai được"* mà bàn đo Story 2.5 đã ghi tên.
+ */
+let LOG = []
+function onEditEvent(e) {
+  const el = e.target
+  LOG.push({
+    loai: e.type,
+    inputType: e.inputType ?? null,
+    cancelable: e.cancelable,
+    tren_o_rong: el instanceof Element && el.dataset && el.dataset.col === 'tgt' && el.dataset.segmentId === '3',
+  })
+}
+document.addEventListener('beforeinput', onEditEvent, true)
+document.addEventListener('input', onEditEvent, true)
+
+/** Bắt sự kiện quanh một lời gọi chương trình. Dùng cho nhánh đối chứng `execCommand`. */
+function captureBeforeInput(el, act) {
+  const from = LOG.length
+  const returned = act()
+  const seen = LOG.slice(from).find((r) => r.loai === 'beforeinput') ?? null
+  return { seen, returned }
+}
+
+let REPORT = null
+
+/**
+ * Chạy trọn năm mệnh đề. Trả về báo cáo; driver đọc bằng `__benchReport()`.
+ *
+ * 🔴 Mỗi mệnh đề trả **số hoặc `false`**, không một chuỗi "ok". Một bàn đo báo "đạt" mà
+ * không kèm số là một bàn đo không so sánh được ở lượt sau.
+ */
+function run() {
+  build()
+
+  const doc = {
+    subgrid_khai_bao_duoc: CSS.supports('grid-template-rows', 'subgrid'),
+    engine: navigator.userAgent,
+  }
+
+  // ── ⑤ subgrid giữ hàng thẳng khi hai ô lệch chiều cao ─────────────────────────
+  //
+  // Phép kiểm: với MỖI hàng, năm ô của năm cột phải cùng `top` và cùng `bottom`. Nếu
+  // `subgrid` không có tác dụng, mỗi cột tự chia track của nó ⇒ lệch tích luỹ theo hàng.
+  const hang = []
+  for (let i = 0; i < ROWS.length; i += 1) {
+    const cells = [...document.querySelectorAll('.col')].map((c) => c.children[i].getBoundingClientRect())
+    const tops = cells.map((r) => r.top)
+    const bottoms = cells.map((r) => r.bottom)
+    hang.push({
+      hang: i + 1,
+      lech_top_px: +(Math.max(...tops) - Math.min(...tops)).toFixed(2),
+      lech_bottom_px: +(Math.max(...bottoms) - Math.min(...bottoms)).toFixed(2),
+      cao_px: +(Math.max(...bottoms) - Math.min(...tops)).toFixed(2),
+    })
+  }
+  doc.hang = hang
+  doc.lech_top_lon_nhat_px = +Math.max(...hang.map((h) => h.lech_top_px)).toFixed(2)
+  doc.lech_bottom_lon_nhat_px = +Math.max(...hang.map((h) => h.lech_bottom_px)).toFixed(2)
+
+  // ── ④ ô rỗng có CHIỀU CAO THẬT, và caret có hộp bằng một dòng ────────────────
+  const cell = emptyCell()
+  const cellRect = cell.getBoundingClientRect()
+  // Một ô CÓ CHỮ trong cùng cột — mốc để so "một dòng" là bao nhiêu.
+  const filled = document.querySelector('[data-col="tgt"][data-segment-id="1"]')
+  const filledLine = filled.getClientRects()[0]
+
+  doc.o_rong = {
+    cao_o_px: +cellRect.height.toFixed(2),
+    cao_mot_dong_o_co_chu_px: filledLine ? +filledLine.height.toFixed(2) : null,
+    so_node_con: cell.childNodes.length,
+  }
+
+  // ── ① caret đặt được vào ô RỖNG ──────────────────────────────────────────────
+  //
+  // ⚠️ Đây là đường **chương trình**. Đường CHUỘT THẬT do driver lái (Playwright
+  // `mouse.click`, e2e `realClick`) và ghi vào `__benchMouse` — xem `noteMouse()`.
+  cell.focus()
+  const dat_duoc = setCaret(cell, 0)
+  doc.caret_dat_duoc_bang_chuong_trinh = dat_duoc
+  doc.caret_trong_o_rong = caretRect()
+  /*
+   * ⚠️ **GIỚI HẠN CỦA PHÉP ĐO, không một kết quả:** một `Range` **thu gọn** nằm trong một
+   * editing host **rỗng** cho `getBoundingClientRect()` = **0×0** trên CẢ HAI engine — đó
+   * là hành vi của API, không phải chiều cao caret người dùng nhìn thấy. ⇒ Đừng đọc số 0
+   * ở trên thành *"caret sập hố"*.
+   *
+   * 🔴 Mệnh đề ④ vì thế đo bằng thứ **đo được**: ô rỗng có chiếm đúng một dòng không.
+   * Đó cũng chính là mệnh đề chữa khuyết tật — *"sập hố"* của Story 2.3 tới từ một
+   * `<span>` rỗng **cao 0 px**, và một ô `min-height: 1.95em` làm câu hỏi đó biến mất
+   * theo cấu trúc.
+   */
+  doc.o_rong_cao_bang_mot_dong =
+    doc.o_rong.cao_mot_dong_o_co_chu_px !== null &&
+    doc.o_rong.cao_o_px >= doc.o_rong.cao_mot_dong_o_co_chu_px - 0.5
+
+  // ── ② gõ một ký tự vào ô rỗng ────────────────────────────────────────────────
+  const go = captureBeforeInput(cell, () => document.execCommand('insertText', false, 'A'))
+  doc.go_mot_ky_tu = {
+    exec_tra_ve: go.returned,
+    beforeinput: go.seen,
+    van_ban_sau_khi_go: cell.textContent,
+    chu_ha_canh: cell.textContent === 'A',
+  }
+
+  // ── ③ `Backspace` ở offset 0 — tiền đề của Story 2.9 ─────────────────────────
+  //
+  // Ô nay có đúng một ký tự. Xoá nó ⇒ ô rỗng trở lại; rồi xoá LẦN NỮA ở offset 0 — lượt
+  // thứ hai là lượt Story 2.9 cần bắt (*"không còn gì để xoá trong ô này"*).
+  setCaret(cell.firstChild ?? cell, cell.firstChild ? 1 : 0)
+  const xoa1 = captureBeforeInput(cell, () => document.execCommand('delete'))
+  setCaret(cell, 0)
+  const xoa2 = captureBeforeInput(cell, () => document.execCommand('delete'))
+  doc.backspace_dau_o = {
+    luot_1_xoa_ky_tu: { exec_tra_ve: xoa1.returned, beforeinput: xoa1.seen },
+    // 🔴 Đây là số quyết định: ở offset 0 của một ô RỖNG, engine có còn phát một
+    // `beforeinput` **huỷ được** không? Có ⇒ Story 2.9 có chỗ để cắm ngữ nghĩa gộp.
+    luot_2_o_offset_0: { exec_tra_ve: xoa2.returned, beforeinput: xoa2.seen },
+    van_ban_con_lai: cell.textContent,
+  }
+
+  // Trả ô về trạng thái rỗng cho lượt đo bằng chuột của driver.
+  cell.textContent = ''
+  cell.classList.add('empty')
+
+  doc.mouse = MOUSE
+  REPORT = doc
+  document.getElementById('report').textContent = JSON.stringify(doc, null, 1)
+  return doc
+}
+
+/**
+ * Kết quả của một cú bấm CHUỘT THẬT do driver bắn — mệnh đề ① ở dạng trung thực nhất.
+ *
+ * 🔴 Vì sao tách khỏi `run()`: một `element.focus()` trong mã **không** là một cú bấm.
+ * Story 2.3 đo được trên WKWebView rằng `focus()` trên `<span contenteditable>` để
+ * `activeElement` ở nguyên `SECTION.panel` — tức đường chương trình XANH trên một sản
+ * phẩm mà chuột thật không dùng được (`EditorPanel.vue:481-488`).
+ */
+let MOUSE = null
+function noteMouse() {
+  const cell = emptyCell()
+  const sel = window.getSelection()
+  MOUSE = {
+    active_la_o_rong: document.activeElement === cell,
+    active_tag: document.activeElement ? document.activeElement.tagName + (document.activeElement.className ? '.' + String(document.activeElement.className).split(' ').join('.') : '') : null,
+    selection_type: sel ? sel.type : null,
+    range_count: sel ? sel.rangeCount : null,
+    caret: caretRect(),
+    neo_trong_o: sel && sel.anchorNode ? cell.contains(sel.anchorNode) : false,
+  }
+  if (REPORT !== null) {
+    REPORT.mouse = MOUSE
+    document.getElementById('report').textContent = JSON.stringify(REPORT, null, 1)
+  }
+  return MOUSE
+}
+
+/** Gõ một ký tự **sau** một cú bấm chuột thật — vế ② của đường chuột. */
+function typeAfterMouse() {
+  const cell = emptyCell()
+  const r = captureBeforeInput(cell, () => document.execCommand('insertText', false, 'B'))
+  const out = {
+    exec_tra_ve: r.returned,
+    beforeinput: r.seen,
+    van_ban: cell.textContent,
+    chu_ha_canh: cell.textContent === 'B',
+  }
+  if (REPORT !== null) {
+    REPORT.mouse_go = out
+    document.getElementById('report').textContent = JSON.stringify(REPORT, null, 1)
+  }
+  return out
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * ĐƯỜNG BÀN PHÍM THẬT — nhánh trung thực nhất của ②③, và nó KHÔNG đi qua `execCommand`
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * `execCommand` và một phím vật lý đi **cùng** đường soạn thảo của engine, nhưng chỉ
+ * đường thứ hai trả lời được *"phím `Backspace` ở offset 0 có sinh `deleteContentBackward`
+ * huỷ được không"* — tiền đề Story 2.9 cần. Driver Playwright bắn phím thật; driver e2e
+ * **không** *(`browser.keys()` chỉ bắn `keydown`/`keyup` — `EditorPanel.vue:492-493`)*,
+ * nên nhánh WKWebView rơi về `execCommand` và **ghi rõ** là nó rơi về.
+ */
+function armKeyboard() {
+  const cell = emptyCell()
+  cell.textContent = ''
+  cell.classList.add('empty')
+  LOG = []
+  return { san_sang: true, van_ban: cell.textContent }
+}
+
+/**
+ * Dựng ca THẬT của Story 2.9: ô **CÓ CHỮ**, caret ở **offset 0**, rồi driver bấm
+ * `Backspace`.
+ *
+ * 🔴 Đây là ca khác hẳn ca *"ô đã rỗng"*: cử chỉ gộp của UX-DR32 là *"xoá lui ở ĐẦU một ô
+ * còn nội dung"*, không phải *"xoá lui trong một ô đã trống"*. Lượt đo đầu chỉ chạy ca thứ
+ * hai và vì thế **chưa trả lời** được câu hỏi 2.9 thật sự hỏi — ghi ra thay vì để một
+ * story sau đọc số này thành một chữ ký nó không có.
+ */
+function armAtStartOfFilledCell() {
+  const cell = emptyCell()
+  cell.textContent = 'Xin'
+  cell.classList.remove('empty')
+  cell.focus()
+  setCaret(cell.firstChild, 0)
+  LOG = []
+  return { van_ban: cell.textContent, type: (window.getSelection() || {}).type ?? null }
+}
+
+function drainKeyboard() {
+  const cell = emptyCell()
+  const sel = window.getSelection()
+  const out = {
+    su_kien: LOG.slice(),
+    van_ban: cell.textContent,
+    // ⚠️ `getClientRects()` của ô: sau khi gõ rồi xoá, ô phải TRỞ LẠI một dòng — nếu nó
+    // sập về 0 thì "sập hố" quay lại ở hình dạng mới, và đó là ca phải bắt.
+    cao_o_px: +cell.getBoundingClientRect().height.toFixed(2),
+    selection_type: sel ? sel.type : null,
+    neo_trong_o: sel && sel.anchorNode ? cell.contains(sel.anchorNode) : false,
+  }
+  if (REPORT !== null) {
+    REPORT.ban_phim_that = out
+    document.getElementById('report').textContent = JSON.stringify(REPORT, null, 1)
+  }
+  return out
+}
+
+window.__benchRun = run
+window.__benchReport = () => REPORT
+window.__benchNoteMouse = noteMouse
+window.__benchTypeAfterMouse = typeAfterMouse
+window.__benchArm = armKeyboard
+window.__benchArmFilled = armAtStartOfFilledCell
+window.__benchDrain = drainKeyboard
+window.__benchEmptyCellRect = () => {
+  const r = emptyCell().getBoundingClientRect()
+  return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height }
+}
+
+build()
+</script>
+</body>
+</html>
