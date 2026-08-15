@@ -3361,3 +3361,147 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
 
   **Chủ: Ice** — chọn giữa (a) chạy tay `npm run test:e2e` một lượt rồi ghi số vào §Debug Log của
   story, hay (b) giao vế ② cho một lượt vitest và vế ① cho story kế tiếp có động tới lưới.
+
+---
+
+## Deferred from: 2-5c-cat-bo-cau-khoi-ban-dich (2026-08-15) — ghi LÚC KÝ, không lúc nghiệm thu
+
+🔵 Mục này viết **ngay khi Ice ký năm quyết định mở của Task 0**, trước dòng mã đầu tiên — đúng
+Task 0.3 của story. Ghi lúc ký chứ không lúc nghiệm thu là có chủ ý: một phần phạm vi bị thu hẹp
+**bởi một chữ ký** là thứ dễ trôi nhất, vì lúc nghiệm thu nó không biểu hiện thành một ca đỏ nào.
+
+### 🟡 AC1 vế "một dải câu" — Quyết định #1, Ice ký đường (b) ngày 2026-08-15
+
+**Đặc tả đòi:** *"Given một câu hoặc **một dải câu** đang chọn / When gọi thao tác cắt bỏ / Then cờ
+đặt trên câu nguồn / And phạm vi do người dùng chọn **từng lần**, không định trước"*
+(`epics.md:2341-2348` · FR133 · `EXPERIENCE.md:132`).
+
+**Story 2.5c dựng:** vế **một câu** — câu đang có caret. Vế **dải câu** KHÔNG dựng.
+
+**Vì sao, kèm số đo (2026-08-15):**
+- `editorPanelState.ts:51` khai `const caretSegmentId = ref<number | null>(null)` — **một số duy
+  nhất**, không mảng, không `Set`. `setEditorCaret(id: number | null)` nhận đúng một `id`. Không
+  `selectedIds` / `Set<number>` / `{from,to}` ở bất kỳ đâu trong `GridPanel.vue` ·
+  `editorPanelState.ts` · `segmentNavigation.ts` · `selectionContract.ts`.
+- **Và đặc tả không mô tả CƠ CHẾ.** `prd.md:458` · `epics.md:130,2343` · `EXPERIENCE.md:132` đều
+  chỉ mô tả **kết quả** *("phạm vi do người dùng chọn từng lần")*. Không tài liệu nào của dự án
+  nói Shift+click, kéo chọn, hay Shift+mũi tên. ⇒ Dựng nó trong story này là **tự thiết kế một
+  tương tác chưa ai đặc tả**, không phải thi hành một đặc tả đã có.
+
+⚠️ **Bẫy đọc, ghi ra vì hai khái niệm trùng tên:** `selectionContract.ts` phục vụ **chọn văn bản
+trong một cột** cho Auto-Lookup. Nó **không phải** cơ chế chọn nhiều **hàng**. Ai đóng món này
+đừng cắm vào đó — ngoài chuyện sai khái niệm, `check-commands.mjs:1876-2113` Kiểm F đếm **tĩnh**
+số lời gọi `useSelectionSurface(...)` literal *(sàn 6, bảng theo tệp `GridPanel.vue: 2`)*, nên một
+lượt cắm nhầm vừa sai ngữ nghĩa vừa làm cổng đỏ.
+
+**Chủ: một story sau của Epic 2 có động tới lưới** — ứng viên tự nhiên là **2.8** *(gộp và tách
+segment tường minh)*, vì nó là story đầu tiên trong epic **buộc** phải có một khái niệm "nhiều
+segment cùng lúc" ở tầng UI. 🔴 Ai nhận: **đừng** sửa `epics.md` cho khớp mã đã viết
+(`project-context.md:456-458`) — AC1 vẫn đúng, chỉ là đường đi chưa tới.
+
+### 🟡 AC5 vế "ẩn hoàn toàn ở đầu ra" — hai bề mặt tiêu thụ CHƯA TỒN TẠI
+
+**Số đo 2026-08-15 (mở tệp ra đọc, không suy từ tên):**
+- `src-tauri/src/core/export/mod.rs` — **6 dòng, toàn bộ là doc-comment, không một dòng mã**.
+  `docx-rs` khai ở `Cargo.toml` nhưng `grep docx_rs` trong `src-tauri/src/**/*.rs` chỉ trúng chính
+  dòng comment đó. *(Story ghi "7 dòng"; số thật là 6 — đính chính tại chỗ, không đổi kết luận.)*
+- `src/modes/ReadingMode.vue` — template chỉ có một `<p>` chở `t('mode.reading.status')`.
+  Doc-comment tự ghi *"KHUNG RỖNG có chủ ý… toàn bộ thuộc Epic 5"*; `modeState.ts:30` xác nhận
+  *"cả ba chế độ đều rỗng"*.
+
+**Ice ký Quyết định #2 đường (b):** story này dựng **hàm thuần lọc ở Rust** + test hợp đồng khẳng
+định câu đã cắt bỏ không xuất hiện. Đó là **cái chốt**, không phải bề mặt.
+
+⇒ Vế còn hở là **hai lượt CẮM VÀO chốt đó**:
+- Chế độ đọc → **Epic 5** *(Story 5.11 · 5.12 · 5.13)*
+- Bản xuất → **Epic 8** *(Story 8.3 · 8.4 · 8.6)*
+
+### 🔴 CÒN HỞ, và đây là món lớn hơn cả hai mục trên: nghĩa vụ FR133 chỉ phát biểu MỘT CHIỀU
+
+**Phát hiện, đã grep để chắc (2026-08-15):** nghĩa vụ *"ẩn hoàn toàn câu đã cắt bỏ"* chỉ được phát
+biểu **từ FR133 áp xuống**. Các FR xuất bản *(FR87 · FR88 · FR89 · FR121 · FR130 · FR131)* và các
+Story của Epic 5 / Epic 8 **không AC nào tham chiếu ngược lại FR133**.
+
+🔴 **Vì sao đây là một lớp lỗi chứ không một chỗ thiếu chữ:** một nghĩa vụ chỉ có chiều đi xuống
+thì **không có ai canh ở phía tiêu thụ**. Người viết Story 8.3 đọc AC của chính nó, thấy đủ, và
+xuất ra một tệp `.docx` có nguyên câu người dùng đã quyết định bỏ. Không cổng nào đỏ, không test
+nào đỏ — đúng tiêu chí của §Critical Don't-Miss Rules: *"vi phạm được mà không cổng nào đỏ"*.
+
+⚠️ Và loại suy trong chính đặc tả **dẫn sai đường ở đúng vế này**: `epics.md` và
+`EXPERIENCE.md:126` viết *"đúng khuôn `translate="no"` của XLIFF"*. Trong XLIFF 2.0,
+`translate="no"` **khoá** một unit và **GIỮ NGUYÊN nội dung trong bản xuất** — nó là *"đừng dịch
+cái này"*, không phải *"bỏ cái này đi"*. Loại suy đúng ở vế *"trục độc lập"*, **sai** ở vế hành vi
+đầu ra. Người đọc `EXPERIENCE.md:126` rồi đi viết phần xuất bản sẽ làm **ngược** AC5.
+
+**Chủ: Ice** — quyết định: có thêm một AC tham chiếu FR133 vào Story 5.11–5.13 và 8.3 · 8.4 · 8.6
+không. Đây là một quyết định về **quy hoạch**, không phải một dòng mã, nên nó không tự đóng được ở
+tầng dev.
+
+### 🔴 MÓN MỚI — `ornament` làm màu chữ: đặc tả nói một đằng, cổng cưỡng chế một nẻo
+
+**Phát hiện giữa Task 4 của Story 2.5c, và nó không phải chỗ dev đọc sót.** `DESIGN.md:148`
+khai `grid-row-omitted: { color: **ornament**, decoration: line-through }`. Vế **màu** của
+dòng đó **không thi hành được**: `tokens.json` `contrast.neverTextTokens` ghi cho `ornament`
+câu *"KHÔNG một ngoại lệ nào — token này không bao giờ là màu chữ"*, và
+`check-tokens.mjs:1300-1334` cưỡng chế nó với một bảng miễn trừ **cố ý rỗng** *(chính Ice dọn
+nó rỗng ở lượt ra mã 2.5b, gỡ một miễn trừ chết cho ký tự `⏐`)*.
+
+**Đo 2026-08-15 trên nền `surface`, sàn AA = 4,5:**
+
+| Token | Sáng | Tối | |
+|---|---|---|---|
+| `ornament` | **2,44** | **2,64** | trượt |
+| `on-surface-variant` | **5,60** | **5,56** | đạt |
+
+🔴 **Phép tự kiểm đã CHẠY, không phải một lời khẳng định:** đặt
+`.cell.omitted { color: var(--color-ornament) }` ⇒ `check:tokens` **ĐỎ** với
+`FAIL src/panels/GridPanel.vue:1321 — `ornament` dùng làm màu chữ`. Trả lại ⇒ **XANH**. Cổng
+này bít thật, không chỉ khai trên giấy.
+
+⇒ **Quyết định #6, Ice ký 2026-08-15: đường (a)** — `on-surface-variant` + `line-through`.
+`DESIGN.md:148` đã **sửa tại chỗ** cho khớp.
+
+**⚠️ Và lượt này lộ ra một món CŨ, cùng lớp, chưa ai đóng:** `DESIGN.md:145` và `:146` vẫn
+khai `color: ornament` cho `grid-num-col` và `grid-state-col`, trong khi
+① mã đã dùng `on-surface-variant` cho cả hai từ Story 2.5b *(`GridPanel.vue`, Quyết định
+#9(a) — cùng lý do nguyên văn: **"đây là chữ thật, không phải nét"**)*, và
+② **chính `DESIGN.md:213` tự mâu thuẫn với chúng**: *"`ornament` và `tm-rule` là màu của nét,
+không bao giờ là màu của chữ. Mọi chữ, kể cả nhãn 10px, tối thiểu phải là
+`on-surface-variant`"*.
+⇒ Hai dòng đó **đã sửa cùng lượt** — chúng là đúng cái *"nửa là MỘT DÒNG CHUỖI thì rơi"* mà
+lượt ra mã 2.5b đã gọi tên thành một **khuôn lặp lại ba lần**. 🔴 Đây là lần **thứ tư**.
+
+**Chủ: Ice** — món còn lại **không** phải một dòng chữ nữa mà là một câu hỏi về quy trình:
+`DESIGN.md` §components hôm nay **không có cổng nào canh**, nên nó trôi khỏi mã mỗi story và
+mỗi lần đều được phát hiện bằng mắt của một lượt sau. Ba ứng viên, chưa đường nào được đo:
+một cổng đối chiếu §components với CSS · gộp §components vào `tokens.json` để cổng sẵn có
+nhìn thấy · hoặc chấp nhận nó là tài liệu-người-đọc và **gỡ** các giá trị màu khỏi đó.
+
+### 🟡 Task 7.4 — độ trễ dời con trỏ: KHÔNG đo lại ở story này, và lý do là một phép đo
+
+Story 2.5c thêm **một `:class` boolean** (`omitted: s.is_omitted`) vào **bốn** trong năm
+`v-for` của lưới. Nó **không** đổi cấu trúc DOM: không node mới, không phần tử bọc, số node
+mỗi hàng vẫn là **5**.
+
+⚠️ Nhưng nó **không phải zero**: mỗi lượt Vue vá lớp nay tính thêm bốn biểu thức boolean trên
+mỗi hàng. Ở 9.850 câu đó là 39.400 phép đọc thuộc tính mỗi lượt dời con trỏ — trên một đường
+2.5b đã đo **706–770 ms**, tức **vượt trần 50 ms/frame của NFR2 khoảng 15 lần** *(mốc
+`:3164-3194`)*.
+
+🔴 **Không tự chấm "không ảnh hưởng đáng kể"** — đó là một suy luận, và luật đo của dự án cấm
+đánh dấu đạt bằng suy luận. Số này **giao lại**, không tự đóng.
+**Chủ: Story 2.4** *(sở hữu bộ đo NFR2/NFR18)* — khi bộ đo chạy lại, chạy trên cây **sau**
+2.5c và so với 706–770 ms, chứ đừng so với một mốc trước lưới.
+
+### 🟡 AC3 — vế "hàng vẫn thẳng hàng trong subgrid" chưa có phép đo của riêng nó
+
+Task 4.5 đòi kiểm bằng mắt rằng hàng đã cắt bỏ vẫn **thẳng hàng** với các hàng khác và khoảng
+thở `is_paragraph_end` không vỡ. Lượt cài đặt **không** đụng chiều cao: nó thêm `color` +
+`text-decoration`, hai thuộc tính không tham gia bố cục.
+
+⚠️ Vẫn ghi ra vì `happy-dom` **không phải WebKit** — mọi mệnh đề hình học thuộc bàn đo hoặc
+e2e, và **không đường nghiệm thu nào của story này khẳng định nó**. Một `line-through` trên
+một ô có `SourceHanViet` bên trong *(cột nguyên văn, chế độ song song)* là chỗ chưa ai nhìn:
+gạch ngang **kế thừa** xuống mọi con, nên phần Hán Việt cũng bị gạch — đúng hay không thì
+chưa có ai phán.
+**Chủ: Ice** *(một lượt nhìn bằng mắt)* — hoặc một story sau có động tới cột Hán Việt.
