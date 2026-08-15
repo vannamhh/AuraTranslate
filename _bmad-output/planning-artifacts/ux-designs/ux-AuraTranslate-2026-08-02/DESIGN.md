@@ -142,10 +142,10 @@ components:
   record-rule: { width: 2px, color: outline-faint, padding-left: 13px }
   grid-row-divider: { height: 1px, color: outline-faint }
   grid-para-divider: { height: 1px, color: outline, space-block: 16px }
-  grid-num-col: { width: 34px, typography: ui-mono, color: ornament, align: right }
-  grid-state-col: { width: 108px, typography: ui-label, color: ornament }
+  grid-num-col: { width: 34px, typography: ui-mono, color: on-surface-variant, align: right }
+  grid-state-col: { width: 108px, typography: ui-label, color: on-surface-variant }
   grid-empty-cell: { min-height: 1.95em, border-bottom: 1px dashed outline }
-  grid-row-omitted: { color: ornament, decoration: line-through }
+  grid-row-omitted: { color: on-surface-variant, decoration: line-through }
 ---
 
 ## Brand & Style

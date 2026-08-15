@@ -910,7 +910,7 @@ const chapterId = computed(() => editorChapterId.value)
             v-for="(s, i) in editorSegments"
             :key="s.id"
             class="cell cell-num"
-            :class="{ 'para-end': s.is_paragraph_end }"
+            :class="{ 'para-end': s.is_paragraph_end, omitted: s.is_omitted }"
           ><!-- aura-allow-text: số thứ tự hàng — một con số dựng tại chỗ hiển thị, đúng luật "định dạng số và ngày giờ CHỈ ở frontend" (§Consistency Conventions), không một chuỗi giao diện dịch được. -->{{ i + 1 }}</div>
         </div>
 
@@ -920,7 +920,7 @@ const chapterId = computed(() => editorChapterId.value)
             v-for="s in editorSegments"
             :key="s.id"
             class="cell cell-src"
-            :class="{ 'para-end': s.is_paragraph_end }"
+            :class="{ 'para-end': s.is_paragraph_end, omitted: s.is_omitted }"
             :data-segment-id="s.id"
             data-col="src"
           >
@@ -975,6 +975,7 @@ const chapterId = computed(() => editorChapterId.value)
               'para-end': s.is_paragraph_end,
               empty: (editorEditedText.get(s.id) ?? s.target_text) === '',
               editing: editorCaretSegmentId === s.id,
+              omitted: s.is_omitted,
             }"
             :data-segment-id="s.id"
             data-col="tgt"
@@ -988,7 +989,11 @@ const chapterId = computed(() => editorChapterId.value)
             v-for="s in editorSegments"
             :key="s.id"
             class="cell cell-state"
-            :class="{ 'para-end': s.is_paragraph_end, refused: errorSegmentId === s.id }"
+            :class="{
+              'para-end': s.is_paragraph_end,
+              refused: errorSegmentId === s.id,
+              omitted: s.is_omitted,
+            }"
           >
             <template v-if="errorSegmentId === s.id && confirmErrorKey !== null">{{
               t('panel.grid.state_refused')
@@ -1262,6 +1267,59 @@ const chapterId = computed(() => editorChapterId.value)
  */
 .cell-tgt.editing {
   background-color: var(--color-surface-accent);
+}
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 🔴 HÀNG ĐÃ CẮT BỎ KHỎI BẢN DỊCH — AC3 của Story 2.5c (FR133)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * *"Hàng **vẫn nằm trong lưới**, gạch ngang và mờ đi"* — người dùng phải **thấy mình đã bỏ
+ * gì**. Một hàng biến mất khỏi lưới là đúng thứ AC3 cấm: quyết định *"đoạn này không thuộc
+ * bản dịch"* biến thành một lỗ hổng im lặng.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 `on-surface-variant`, KHÔNG `ornament` — Quyết định #6, Ice ký 2026-08-15
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `DESIGN.md:148` khai `grid-row-omitted: { color: ornament, decoration: line-through }`, và
+ * vế **màu** của dòng đó **không thi hành được**: `ornament` nằm trong
+ * `contrast.neverTextTokens` của `tokens.json` với câu *"KHÔNG một ngoại lệ nào — token này
+ * không bao giờ là màu chữ"*, và `check-tokens.mjs:1300-1334` cưỡng chế nó.
+ *
+ * **Đo 2026-08-15 trên nền `surface`** *(sàn AA = 4,5)*:
+ *   `ornament` **2,44** (sáng) / **2,64** (tối) — trượt · `on-surface-variant` **5,60** /
+ *   **5,56** — đạt.
+ *
+ * ⚠️ Và đây **không** phải một chỗ đặc tả bị bỏ qua: Quyết định #9(a) của Story 2.5b đã giải
+ * **đúng bài toán này** một lần — cột số câu và cột nhãn trạng thái cũng được `DESIGN.md`
+ * khai `ornament`, và Ice đổi cả hai sang `on-surface-variant` vì *"đây là **chữ thật**,
+ * không phải nét"*. Ô đã cắt bỏ cũng là chữ thật, nên nó đi cùng đường.
+ *
+ * 🔴 Hai đường tắt đã bị từ chối, ghi ra để không ai thử lại: **①** thêm
+ * `aura-allow-never-text: ornament` — tái mở đúng bảng miễn trừ mà lượt ra mã 2.5b vừa dọn
+ * rỗng, và đặt chữ 2,44:1 lên màn hình (NFR17); **②** `opacity` trung gian — `DESIGN.md:230`
+ * cấm *(`opacity` ở trạng thái nghỉ chỉ áp cho nét và nền, không áp cho chữ)* và Kiểm D của
+ * `check-tokens` đỏ với mọi giá trị khác `0`/`1`.
+ *
+ * ⚠️ `text-decoration: line-through` đi qua Kiểm B tự do: `text-decoration` nằm trong
+ * `COMPOSITE_COLOR_PROPS` nên cổng chỉ soi **phần màu** của giá trị ghép, và `line-through`
+ * không mang màu nào.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ⚠️ BỐN CỘT, KHÔNG NĂM — và cột bị bỏ ra là một quyết định
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Không có phần tử nào là "một hàng" (xem khối đầu tệp), nên kiểu dáng cấp hàng phải nhân ra
+ * **từng ô** — đúng khuôn `.para-end` đang lặp ở cả năm `v-for`. Ở đây chỉ **bốn** cột chữ
+ * nhận `omitted`; **cột ① (vạch trạng thái) KHÔNG**.
+ *
+ * 🔴 Lý do là AC2: vạch chở `status`, và *"câu **vẫn giữ** trạng thái riêng của nó"*. Tô vạch
+ * thành `on-surface-variant` là xoá đúng thông tin mà AC2 đòi giữ — người dùng sẽ không còn
+ * đọc được câu mình vừa cắt bỏ đã ký hay chưa, tức không biết mình đang bỏ đi cái gì. Và một
+ * vạch 2px thì `line-through` không nói gì cả.
+ */
+.cell.omitted {
+  color: var(--color-on-surface-variant);
+  text-decoration: line-through;
 }
 
 /* Cột ⑤ — nhãn trạng thái. `on-surface-variant` (Quyết định #9(a)), cùng lý do cột số câu. */
