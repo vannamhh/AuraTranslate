@@ -28,8 +28,21 @@ import { realClick } from '../support/pointer.mjs'
 const OPENER = '[data-shortcuts-open]'
 const PANEL = '.sc-panel'
 
-/** Thao tác chưa gán phím mặc định — AC7 liệt kê nó trong nhóm `unbound()`. */
-const TARGET_COMMAND = 'layout.toggle_source'
+/**
+ * Thao tác chưa gán phím mặc định — AC7 liệt kê nó trong nhóm `unbound()`.
+ *
+ * 🔵 **2026-08-14 (Story 2.5b): `layout.toggle_source` → `layout.toggle_grid`.** Hai panel
+ * `Nguyên văn` + `Bản dịch` gộp thành `panel.grid`, nên `PANEL_SUFFIXES` còn ba và command
+ * `layout.toggle_source` **thôi tồn tại**.
+ *
+ * 🔴 **Chỗ này là một khoảng mù ĐO ĐƯỢC, ghi ra thay vì vá im lặng:** command id nằm **cứng**
+ * trong một spec e2e, và **không cổng nào canh mối nối đó** — `check:commands` đọc `src/**`,
+ * không đọc `e2e/**`. Lượt đổi tên đi qua sạch **chín cổng, build, và cả vitest**; nó chỉ lộ
+ * ra ở lượt chạy e2e **bằng tay**, dưới dạng một timeout 10 giây nói *"phần tử không hiện"* —
+ * một câu đúng về triệu chứng và **câm về nguyên nhân**. Bản đồ tệp của Story 2.5b liệt kê
+ * `e2e/specs/editor-*.e2e.mjs` mà **bỏ sót** tệp này.
+ */
+const TARGET_COMMAND = 'layout.toggle_grid'
 const ROW = `[data-command-id="${TARGET_COMMAND}"]`
 const KEY_CELL = `${ROW} [data-key-cell]`
 

@@ -46,10 +46,9 @@ import { onActivated, onBeforeUnmount, onDeactivated, onMounted, shallowRef } fr
 import { DockviewVue } from 'dockview-vue'
 import type { DockviewApi, DockviewReadyEvent, IDockviewPanel, VueComponent } from 'dockview-vue'
 import { enterFocus } from '../commands'
-import SourcePanel from '../panels/SourcePanel.vue'
+import GridPanel from '../panels/GridPanel.vue'
 import LookupPanel from '../panels/LookupPanel.vue'
 import AiTranslationPanel from '../panels/AiTranslationPanel.vue'
-import EditorPanel from '../panels/EditorPanel.vue'
 import PanelTab from '../panels/PanelTab.vue'
 import { setDockController } from './dockController'
 import { createWriteSchedule } from './writeSchedule'
@@ -77,7 +76,9 @@ const emit = defineEmits<{
 }>()
 
 /**
- * Bốn component nội dung, tra theo tên đã đăng ký.
+ * **Ba** component nội dung, tra theo tên đã đăng ký.
+ *
+ * 🔵 2026-08-14 (Story 2.5b): bốn → ba. `SourcePanel` + `EditorPanel` gộp thành `GridPanel`.
  *
  * ⚠️ `PANEL_COMPONENTS` (ở tầng thuần) và map này phải khớp nhau, và không cổng nào canh
  * điều đó — một tên lệch cho ra một panel trắng với `console.error` của chính dockview.
@@ -90,7 +91,7 @@ const emit = defineEmits<{
  * của nó đòi `DefineComponent<any>`. Prop của một component là vị trí **nghịch biến**, nên
  * `DefineComponent<DockviewPanelProps>` **không** gán được cho `DefineComponent<any>`:
  * TypeScript đúng khi từ chối — một `Record<string, DefineComponent<any>>` cho phép mount
- * bất cứ prop nào, còn bốn component này đòi `params`.
+ * bất cứ prop nào, còn ba component này đòi `params`.
  *
  * Đường thay thế duy nhất là khai `params?:` (tuỳ chọn) ở CẢ NĂM component. Nó qua được
  * kiểu, và nó nói dối: dockview LUÔN truyền `params`, còn `PanelTab.vue` thì không chạy
@@ -98,13 +99,12 @@ const emit = defineEmits<{
  * Ép kiểu một lần **ở đúng ranh giới thư viện** rẻ hơn bốn lời nói dối rải trong mã.
  */
 const components = {
-  source: SourcePanel,
+  grid: GridPanel,
   lookup: LookupPanel,
   aiTranslation: AiTranslationPanel,
-  editor: EditorPanel,
 } as unknown as Record<string, VueComponent>
 
-/** ⚠️ MỘT tab component cho cả bốn panel — §Quyết định #4A. */
+/** ⚠️ MỘT tab component cho cả ba panel — §Quyết định #4A. */
 const tabComponents = { aura: PanelTab } as unknown as Record<string, VueComponent>
 const TAB_COMPONENT = 'aura'
 
@@ -581,7 +581,7 @@ function onReady(event: DockviewReadyEvent): void {
    * thân panel. Hệ quả: `focus.next_panel` bấm ngay sau đó tính vòng từ một chỗ khác với
    * chỗ người dùng nghĩ mình đang đứng, và vạch tiêu điểm 2px không sáng ở đâu cả.
    *
-   * ⚠️ MỘT chỗ nghe cho cả bốn panel, không phải một handler trên mỗi tab. `PanelTab.vue`
+   * ⚠️ MỘT chỗ nghe cho cả ba panel, không phải một handler trên mỗi tab. `PanelTab.vue`
    * vì vậy không có `@click` nào — xem doc-comment ở đó.
    *
    * ⚠️ `enterFocus` tự KÊU khi trượt (`focus.ts`) và không bao giờ ném, nên không cần
@@ -643,7 +643,7 @@ onMounted(() => {
  * `setDockController` chỉ bị gỡ ở `onBeforeUnmount`, mà `<KeepAlive>` không gọi hook đó khi
  * đổi chế độ. Hệ quả: bấm `Mod+Alt+1`/`Mod+Alt+2` lúc đang ở Library/Reading vẫn chạy
  * `applyPreset()`/`togglePanel()` thật lên cái dock đã `<KeepAlive>` đỗ — `api.clear()` +
- * dựng lại bốn panel, rồi TỰ GHI xuống đĩa qua `onDidLayoutChange` → `flush()` — đè mất bố
+ * dựng lại ba panel, rồi TỰ GHI xuống đĩa qua `onDidLayoutChange` → `flush()` — đè mất bố
  * cục người dùng vừa sắp mà không có dấu hiệu gì trên màn hình, vì Workspace không hiện.
  *
  * ⇒ Gỡ con trỏ ở đây, y hệt `onBeforeUnmount`. `onActivated` bên dưới đăng ký lại lúc quay
@@ -714,7 +714,7 @@ onBeforeUnmount(() => {
  * `class="dock dockview-theme-aura"` nhưng **KHÔNG nhận thuộc tính scope `data-v-*`**
  * của tệp này. `<style scoped>` biên dịch `.dock` thành `.dock[data-v-xxx]`, nên luật
  * `height: 100%` **không bao giờ khớp**: dock cao **0px**, dockview đo container rỗng
- * rồi tự chọn 100px, và bốn panel hiện ra cao 100px trong một cửa sổ 900px.
+ * rồi tự chọn 100px, và ba panel hiện ra cao 100px trong một cửa sổ 900px.
  *
  * ⚠️ Và không cổng nào bắt được: `check:tokens` đọc khai báo CSS chứ không đọc chiều
  * cao đã tính; mọi cổng đều xanh với một Workspace cao 100px.

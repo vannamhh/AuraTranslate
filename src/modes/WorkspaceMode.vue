@@ -41,7 +41,7 @@ onBeforeUnmount(() => {
  * ⚠️ Chế độ này vào focus ở GỐC chế độ, không nhảy thẳng vào một panel.
  *
  * 🔴 Story 1.14 giữ nguyên quyết định đó, và nay nó có một lý do THỨ HAI: nhảy thẳng vào
- * `panel.source` mỗi lần quay lại Workspace là ghi đè chỗ người dùng đang đứng. `dockview`
+ * `panel.grid` mỗi lần quay lại Workspace là ghi đè chỗ người dùng đang đứng. `dockview`
  * đã tự khôi phục `activePanel`, và `onDidActivePanelChange` ở `WorkspaceDock` dời focus
  * DOM theo nó khi có lượt đổi thật. Điều AC4 của Story 1.6 đòi là focus **không rơi về
  * `body`** — gốc chế độ mang `tabindex="-1"` nên nó nhận được focus thật.

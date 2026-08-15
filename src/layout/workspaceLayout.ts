@@ -14,7 +14,8 @@
  *
  * ⚠️ Kiểu vị trí ở đây được KHAI LẠI thay vì `import type` từ `dockview`: `Direction` của
  * dockview có năm giá trị (`left` · `right` · `above` · `below` · `within`) và story này
- * chỉ dùng bốn trong đó ở hai preset. Khai lại giữ tệp này **không có một dòng import
+ * chỉ dùng hai trong đó ở hai preset *(🔵 2026-08-14: bốn → hai, sau khi bốn panel thành
+ * ba — `left`/`above` không còn chỗ dùng)*. Khai lại giữ tệp này **không có một dòng import
  * nào** — tức không có gì để hỏng khi Node bóc kiểu, và không có gì để một lượt nâng phiên
  * bản dockview làm trôi. Chỗ nối kiểu thật là `WorkspaceDock.vue`, nơi `vue-tsc` kiểm.
  *
@@ -28,8 +29,20 @@
  * kiện để 4.12 **chỉ phải nối ngưỡng vào**, không phải mổ lại bố cục.
  */
 
-/** Bốn panel của Workspace. ⚠️ CŨNG là bốn điểm vào focus (`FOCUS_OWNERS`). */
-export type PanelId = 'panel.source' | 'panel.lookup' | 'panel.ai_translation' | 'panel.editor'
+/**
+ * **BA** panel của Workspace. ⚠️ CŨNG là ba điểm vào focus (`FOCUS_OWNERS`).
+ *
+ * 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5b) — mệnh đề "bốn panel" đã HẾT ĐÚNG.**
+ * `panel.source` + `panel.editor` gộp thành **một** bề mặt `panel.grid` *(lưới hai cột đối
+ * chiếu)*. Lý do không phải gọn gàng: UX-DR13 đòi **nguyên văn và bản dịch của cùng một câu
+ * trên cùng một HÀNG**, và hai panel rời nhau không diễn đạt được mệnh đề đó — mắt người
+ * dùng phải tự làm việc ghép hàng.
+ *
+ * 🔴 **Panel id KHÔNG nằm trên đĩa** *(Quyết định #5(a), Ice ký 2026-08-14)* — nên đổi tên ở
+ * đây **không** làm mồ côi thứ gì. Thứ **có** nằm trên đĩa là **`PresetId`** và **command
+ * id**; xem [`LAYOUT_PRESETS`].
+ */
+export type PanelId = 'panel.grid' | 'panel.lookup' | 'panel.ai_translation'
 
 /**
  * Thứ tự KHAI BÁO, không phải thứ tự hiển thị.
@@ -38,12 +51,7 @@ export type PanelId = 'panel.source' | 'panel.lookup' | 'panel.ai_translation' |
  * lưới đang hiện), không theo mảng này — xem `layoutOrder()` ở `WorkspaceDock.vue`.
  * Mảng này chỉ để đếm và để đối chiếu tính đầy đủ.
  */
-export const PANEL_IDS: readonly PanelId[] = [
-  'panel.source',
-  'panel.lookup',
-  'panel.ai_translation',
-  'panel.editor',
-]
+export const PANEL_IDS: readonly PanelId[] = ['panel.grid', 'panel.lookup', 'panel.ai_translation']
 
 /**
  * Khoá `vi.json` của tiêu đề từng panel.
@@ -52,18 +60,16 @@ export const PANEL_IDS: readonly PanelId[] = [
  * `PanelTab.vue` và `PanelFrame.vue` là chỗ `t()` chạy.
  */
 export const PANEL_TITLE_KEYS: Readonly<Record<PanelId, string>> = {
-  'panel.source': 'panel.source.title',
+  'panel.grid': 'panel.grid.title',
   'panel.lookup': 'panel.lookup.title',
   'panel.ai_translation': 'panel.ai_translation.title',
-  'panel.editor': 'panel.editor.title',
 }
 
 /** Tên component nội dung đã đăng ký với dockview, theo panel. */
 export const PANEL_COMPONENTS: Readonly<Record<PanelId, string>> = {
-  'panel.source': 'source',
+  'panel.grid': 'grid',
   'panel.lookup': 'lookup',
   'panel.ai_translation': 'aiTranslation',
-  'panel.editor': 'editor',
 }
 
 /** Hướng đặt một panel so với panel tham chiếu. Tập con của `Direction` bên dockview. */
@@ -88,45 +94,78 @@ export type LayoutPreset = {
 }
 
 /**
- * 🔴 PRESET MẶC ĐỊNH — lưới 2×2 (AC6, UX-DR13).
+ * 🔴 PRESET MẶC ĐỊNH — **bố cục Ⓑ-2**: lưới bên trái, chiếm TOÀN chiều cao (AC6, UX-DR13).
  *
  *   ┌───────────────┬───────────────┐
- *   │  Nguyên văn   │   Bản dịch    │   ← hàng trên
- *   ├───────────────┼───────────────┤
- *   │   Tra cứu     │  Đề xuất AI   │   ← hàng dưới
+ *   │               │   Tra cứu     │
+ *   │     Lưới      ├───────────────┤
+ *   │               │  Đề xuất AI   │
  *   └───────────────┴───────────────┘
  *
- * ⚠️ `Nguyên văn` và `Bản dịch` CẠNH NHAU THEO CHIỀU NGANG, và đó không phải khẩu vị.
- * UX-DR13 nêu lý do: *"đối chiếu ngang là thao tác lặp hàng trăm lần mỗi Chương"* — cũng
- * chính là lý do Sync Scrolling (FR20) tồn tại. Đừng xếp dọc "cho cân".
+ * ⚠️ Đối chiếu ngang **đã đi vào trong lưới** — nó là hai cột của cùng một hàng, không còn
+ * là hai panel cạnh nhau. Đó là toàn bộ lý do lượt correct-course 2026-08-14 lật hình dạng:
+ * *"đối chiếu ngang là thao tác lặp hàng trăm lần mỗi Chương"* (UX-DR13), và hai panel rời
+ * nhau bắt mắt người dùng tự ghép hàng.
+ *
+ * ⚠️ Lưới **toàn chiều cao** là điều kiện để một hàng dài không bị cắt — cái giá là cột hẹp
+ * hơn, và cái giá đó có một phép đo chưa chạy *(chiều cao hàng khi bật Hán Việt song song —
+ * Task 7 của Story 2.5b)*.
  */
-const GRID_2X2: readonly PanelPlacement[] = [
-  { id: 'panel.source', reference: null, direction: null },
-  { id: 'panel.editor', reference: 'panel.source', direction: 'right' },
-  { id: 'panel.lookup', reference: 'panel.source', direction: 'below' },
-  { id: 'panel.ai_translation', reference: 'panel.editor', direction: 'below' },
+const B2_GRID_LEFT: readonly PanelPlacement[] = [
+  { id: 'panel.grid', reference: null, direction: null },
+  { id: 'panel.lookup', reference: 'panel.grid', direction: 'right' },
+  { id: 'panel.ai_translation', reference: 'panel.lookup', direction: 'below' },
 ]
 
 /**
- * Preset thứ hai — bốn cột `Nguyên văn | Tra cứu | Đề xuất AI | Bản dịch` (AC5, UX-DR13).
+ * Preset thứ hai — **bố cục Ⓑ-1**: lưới chiếm cả bề ngang ở trên, hai panel tra cứu ở dưới.
  *
- * ⚠️ Ở đây `Nguyên văn` và `Bản dịch` **ở hai đầu**, và đó là chủ ý của UX-DR13: bốn cột
- * là bố cục cho lượt *tra cứu dày*, không phải cho lượt *đối chiếu*. Ai cần đối chiếu
- * thì bấm về 2×2 — đó là điều hai preset tồn tại để làm.
+ * ⚠️ Ⓑ-1 là bố cục cho lượt **đọc hàng dài** *(cột rộng gấp đôi Ⓑ-2)*; Ⓑ-2 là bố cục cho
+ * lượt **tra cứu dày**. Đó là điều hai preset tồn tại để làm.
  */
-const FOUR_COLUMNS: readonly PanelPlacement[] = [
-  { id: 'panel.source', reference: null, direction: null },
-  { id: 'panel.lookup', reference: 'panel.source', direction: 'right' },
+const B1_GRID_TOP: readonly PanelPlacement[] = [
+  { id: 'panel.grid', reference: null, direction: null },
+  { id: 'panel.lookup', reference: 'panel.grid', direction: 'below' },
   { id: 'panel.ai_translation', reference: 'panel.lookup', direction: 'right' },
-  { id: 'panel.editor', reference: 'panel.ai_translation', direction: 'right' },
 ]
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 🔴 HAI CÁI TÊN DƯỚI ĐÂY LÀ **LỊCH SỬ**, KHÔNG PHẢI MÔ TẢ — NGHĨA Ở BẢNG NGAY DƯỚI
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5b, Quyết định #5(a) do Ice ký).**
+ *
+ * | `PresetId` | Nghĩa TRƯỚC 2.5b | Nghĩa TỪ 2.5b |
+ * |---|---|---|
+ * | `layout.preset_grid` | lưới 2×2 bốn panel | **Ⓑ-2** — lưới trái toàn chiều cao *(mặc định)* |
+ * | `layout.preset_columns` | bốn cột | **Ⓑ-1** — lưới cả bề ngang ở trên |
+ *
+ * 🔴 **Vì sao KHÔNG đổi tên id, dù `preset_columns` không còn tả đúng thứ nó dựng:**
+ *   1. `PresetId` **nằm trên đĩa** — `ScopeKind::LayoutPreset` (`kinds.rs:213`) và bố cục
+ *      đang hiển thị trong `ScopeKind::AppConfig` (`WorkspaceMode.vue:56-73`).
+ *      `presetById()` trả `undefined` cho một id lạ.
+ *   2. **Command id cũng nằm trên đĩa** — Story 1.21 cho gán lại phím, và bảng `keybinding`
+ *      khoá theo **command id**. Đổi `layout.preset_grid` thành một tên mới làm **mồ côi**
+ *      phím tắt người dùng đã gán, **im lặng**. Không cổng nào đỏ.
+ *
+ * ⇒ Cái giá đã chọn là **một cái tên không tả đúng**; cái giá bị loại là **dữ liệu người
+ * dùng mất im lặng**. Đường (b) *(đổi id + một bước di trú)* đắt hơn và không mua thêm gì
+ * ngoài một cái tên đẹp.
+ *
+ * ⚠️ Preset **bốn cột** đã RÚT (`epics.md:539`) — nó tách `Nguyên văn` khỏi `Bản dịch`, thứ
+ * không còn tồn tại. Đừng dựng lại nó khi đọc thấy chữ `columns`.
+ */
 export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
-  { id: 'layout.preset_grid', labelKey: 'command.layout.preset_grid', placements: GRID_2X2 },
-  { id: 'layout.preset_columns', labelKey: 'command.layout.preset_columns', placements: FOUR_COLUMNS },
+  { id: 'layout.preset_grid', labelKey: 'command.layout.preset_grid', placements: B2_GRID_LEFT },
+  { id: 'layout.preset_columns', labelKey: 'command.layout.preset_columns', placements: B1_GRID_TOP },
 ]
 
-/** Preset áp cho một kho rỗng — cùng luật với `DEFAULT_THEME` / `DEFAULT_MODE`. */
+/**
+ * Preset áp cho một kho rỗng — cùng luật với `DEFAULT_THEME` / `DEFAULT_MODE`.
+ *
+ * ⚠️ Giá trị **không đổi** qua lượt lật của 2.5b, nhưng **nghĩa thì đổi**: nó nay trỏ vào
+ * **Ⓑ-2**, không phải lưới 2×2. AC6 đòi Ⓑ-2 là mặc định — xem bảng ở [`LAYOUT_PRESETS`].
+ */
 export const DEFAULT_PRESET_ID: PresetId = 'layout.preset_grid'
 
 export function presetById(id: string): LayoutPreset | undefined {
@@ -151,8 +190,14 @@ export function presetById(id: string): LayoutPreset | undefined {
  */
 export const SACRIFICE_ORDER: readonly PanelId[] = ['panel.ai_translation', 'panel.lookup']
 
-/** Cặp KHÔNG BAO GIỜ nhường. Hai tập này rời nhau và hợp lại đúng bốn panel (AC7). */
-export const NEVER_SACRIFICED: readonly PanelId[] = ['panel.source', 'panel.editor']
+/**
+ * Panel KHÔNG BAO GIỜ nhường. Hai tập này rời nhau và hợp lại đúng **ba** panel (AC7).
+ *
+ * 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5b) — một phần tử, không hai.** Mệnh đề của UX-DR15
+ * *(«cặp `Nguyên văn | Bản dịch` không bao giờ nhường»)* **không đổi một chữ**; cái đổi là
+ * cặp đó nay **là một panel**. Đây là lượt thu gọn theo cấu trúc, không một lượt nới luật.
+ */
+export const NEVER_SACRIFICED: readonly PanelId[] = ['panel.grid']
 
 /**
  * Panel kế tiếp phải nhường chỗ, cho một tập panel đang hiện.
@@ -163,7 +208,7 @@ export const NEVER_SACRIFICED: readonly PanelId[] = ['panel.source', 'panel.edit
  * đòi bằng chữ.
  *
  * @returns panel kế tiếp trong thứ tự hy sinh mà **đang hiện**, hoặc `null` khi không
- *   còn gì được phép nhường. `null` **không** phải "hy sinh `panel.source`" — nó là
+ *   còn gì được phép nhường. `null` **không** phải "hy sinh `panel.grid`" — nó là
  *   *"đã hết chỗ để nhường, phải giải bằng cách khác"*.
  */
 export function nextToSacrifice(visible: readonly string[]): PanelId | null {

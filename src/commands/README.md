@@ -39,7 +39,8 @@ Thư mục này chứa **cả hai nửa của AD-34**: §1 thao tác (`registry.
 
 Khoá chấm có tiền tố miền: `mode.library` · `focus.next_panel` · `lookup.search_selection`. **Chép đúng** biểu thức mà `scripts/check-i18n.mjs` Kiểm B đang cưỡng chế cho khoá `vi.json` — AD-34 nói command id *"cùng hình dạng khoá `vi.json`"*, và "cùng hình dạng" nghĩa là cùng một biểu thức, không phải "trông na ná".
 
-**Owner của điểm vào focus dùng chung văn phạm đó**: `mode.workspace` · `panel.source`.
+**Owner của điểm vào focus dùng chung văn phạm đó**: `mode.workspace` · `panel.grid`.
+🔵 *(2026-08-15 — `panel.source`/`panel.editor` gộp thành `panel.grid` ở Story 2.5b; `FOCUS_OWNERS` còn **sáu** mục: ba chế độ + ba panel.)*
 
 ⚠️ `labelKey` là **`'command.' + id`**, không dùng thẳng id làm khoá chuỗi. Hai không gian tên khác nhau: một cái định danh thao tác, một cái định danh chuỗi. Tiền tố chừa chỗ cho `command.<id>.hint` — mô tả dài ở màn hình gán phím của Story 1.21 — mà không phá quy ước, và một lượt grep `"command."` trong `vi.json` liệt kê đúng bộ nhãn thao tác.
 

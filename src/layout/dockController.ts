@@ -88,7 +88,7 @@ export function togglePanel(panelId: string): boolean {
  * Vòng xoay của `focus.next_panel` / `focus.prev_panel` (AC9).
  *
  * ⚠️ Trả mảng RỖNG khi chưa có dock — không trả `PANEL_IDS` làm đường lui. Một vòng
- * đoán mò sẽ gọi `enterFocus('panel.source')` cho một panel chưa dựng, và `focus.ts` ghi
+ * đoán mò sẽ gọi `enterFocus('panel.grid')` cho một panel chưa dựng, và `focus.ts` ghi
  * đúng một dòng chẩn đoán *"khai điểm vào nhưng phần tử chưa có trong DOM"* — một câu
  * đúng về triệu chứng và sai về nguyên nhân.
  */

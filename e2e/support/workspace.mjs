@@ -5,7 +5,7 @@
  * VÌ SAO CẦN FIXTURE NÀY
  * ═════════════════════════════════════════════════════════════════════════════════
  * App khởi động ở chế độ `library` (`modes/modeState.ts`), và **phần lớn bề mặt của Epic
- * 1 sống trong `workspace`**: bốn panel, Panel Source, Panel Lookup, và nút mở màn hình
+ * 1 sống trong `workspace`**: ba panel *(🔵 bốn → ba ở Story 2.5b)*, lưới đối chiếu, Panel Lookup, và nút mở màn hình
  * Attribution. Mọi hàng bàn đo chạm tới chúng đều bắt đầu bằng đúng hai bước dưới đây.
  *
  * 🔴 Fixture này chỉ dựng được SAU khi hai bề mặt dữ liệu thật đã bị chuyển hướng —

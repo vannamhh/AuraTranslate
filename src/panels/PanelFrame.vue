@@ -32,7 +32,7 @@ import { t } from '../i18n'
 
 const props = withDefaults(
   defineProps<{
-    /** Điểm vào focus: `panel.source`. Phải có mặt trong `FOCUS_OWNERS` (Kiểm E của cổng). */
+    /** Điểm vào focus: `panel.grid`. Phải có mặt trong `FOCUS_OWNERS` (Kiểm E của cổng). */
     owner: string
     /**
      * Khoá `vi.json` của câu trạng thái. Không nhận chuỗi đã dịch — NFR16.

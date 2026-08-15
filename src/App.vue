@@ -404,7 +404,7 @@ function focusOnPointerDown(event: MouseEvent) {
    * 🔴 NGỮ CẢNH XẾP LỚP CHO CẢ CÂY DOCKVIEW — Ice bắt bằng mắt 2026-08-10
    * ═════════════════════════════════════════════════════════════════════════════════
    *
-   * Triệu chứng: mở màn hình *Nguồn dữ liệu*, **thanh kéo (sash) chia bốn panel vẽ ĐÈ lên
+   * Triệu chứng: mở màn hình *Nguồn dữ liệu*, **thanh kéo (sash) chia ba panel vẽ ĐÈ lên
    * lớp phủ** — hai vệt màu nền cắt ngang bảng ghi công.
    *
    * Ba phép đo, không một suy đoán:

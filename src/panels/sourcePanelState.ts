@@ -3,10 +3,11 @@
  * Story 1.16, AC9 · Quyết định #5.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 VÌ SAO STATE SỐNG Ở ĐÂY, KHÔNG TRONG `SourcePanel.vue`
+ * 🔴 VÌ SAO STATE SỐNG Ở ĐÂY, KHÔNG TRONG COMPONENT
  * ─────────────────────────────────────────────────────────────────────────────
  * AC9: đổi preset bố cục chạy `WorkspaceDock.vue::applyPreset()` → `api.clear()` rồi dựng
- * lại **cả bốn** panel — tức tháo và mount lại instance `SourcePanel.vue`. Một `ref` khai
+ * lại **cả ba** panel — tức tháo và mount lại instance `GridPanel.vue` *(🔵 2026-08-15: bề mặt
+ * nguyên văn nay là một CỘT của lưới; `SourcePanel.vue` đã gỡ)*. Một `ref` khai
  * trong `<script setup>` của nó chết cùng lượt tháo đó. State ở đây là **module-level**
  * (singleton của cả tiến trình, cùng khuôn `src/config/bootstrap.ts::layout` và
  * `src/layout/dockController.ts`), nên nó SỐNG SÓT qua một lượt tháo/dựng lại — panel mới
@@ -271,7 +272,7 @@ async function ensureHanVietLoaded(sourceText: string): Promise<void> {
 }
 
 /**
- * Nạp Chương đang mở — **idempotent**: gọi nhiều lần (mỗi lượt `SourcePanel.vue` mount lại
+ * Nạp Chương đang mở — **idempotent**: gọi nhiều lần (mỗi lượt `GridPanel.vue` mount lại
  * sau một lượt đổi preset, AC9) chỉ chạy IPC ở lượt ĐẦU TIÊN.
  */
 export async function ensureChapterLoaded(): Promise<void> {

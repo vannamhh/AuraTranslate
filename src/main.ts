@@ -25,7 +25,7 @@ import type { ModeId } from './commands'
 import { currentMode, setMode } from './modes/modeState'
 import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 // Story 2.3 — AD-35 vế (e): flush bản dịch chưa lưu TRƯỚC khi cửa sổ đóng.
-import { confirmCurrentSegment, wireExitFlush } from './panels/editorPanelState'
+import { confirmCurrentSegment, goToNextUntranslated, wireExitFlush } from './panels/editorPanelState'
 // ── Story 1.14 — ba cổng của tầng bố cục ────────────────────────────────────────────
 //
 // ⚠️ Import ở ĐÂY, không ở `src/commands/index.ts`: tệp đó phải nạp được bằng Node thuần
@@ -226,7 +226,31 @@ async function boot(): Promise<void> {
       // `confirmCurrentSegment`, KHÔNG thẳng `confirmSegment` của `config/segment.ts`:
       // vế (c) của AD-35 (*flush xong rồi mới ghi trạng thái*) sống trong hàm đó, và một
       // lượt nối tắt ở đây sẽ ký một văn bản cũ hơn thứ người dùng đang nhìn.
-      confirmSegment: () => void confirmCurrentSegment(),
+      // 🔵 **2026-08-14 (Story 2.5b · AC14 · Quyết định #8) — KẾT QUẢ KHÔNG CÒN BỊ VỨT.**
+      //
+      // Bản trước viết `() => void confirmCurrentSegment()`, và `ConfirmResult` **năm giá trị
+      // phân biệt được** rơi thẳng xuống đất. Cộng với việc `editorConfirmError` được export
+      // mà **không component nào đọc**, hệ quả đo được là: một lượt xác nhận **bị từ chối
+      // không đổi một pixel nào trên màn hình**. Người dùng bấm `⌘Enter` và không gì xảy ra —
+      // đúng lớp *"rỗng im lặng"* mà cả dự án đặt ở trung tâm.
+      //
+      // Nay `GridPanel.vue` đọc `editorConfirmError` và hiện nhãn ở **cột trạng thái của
+      // chính hàng** *(bề mặt UX-DR30 ở phạm vi tối thiểu, Ice ký)*. Bốn giá trị **không** đi
+      // qua `IpcError` thì không có bề mặt nào khác để nói, nên chúng nói ở đây — **kêu, không
+      // ném**: một hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném.
+      //
+      // ⚠️ Chẩn đoán viết KHÔNG DẤU — Kiểm A của `check:i18n` cấm chữ tiếng Việt ở vị trí mã.
+      // Story 2.5b · AC12 — `⌥↓`. Cùng cửa và cùng lý do với `confirmSegment`: phép chọn
+      // sống ở `panels/segmentNavigation.ts` (module thuần), state ở `editorPanelState.ts`,
+      // và `commands/index.ts` không được `import` cả hai (luật erasable-only).
+      goToNextUntranslated,
+      confirmSegment: () => {
+        void confirmCurrentSegment().then((result) => {
+          if (result === 'confirmed' || result === 'refused') return
+          // `'refused'` KHÔNG vào đây: nó đã có đường ra màn hình qua `editorConfirmError`.
+          console.warn(`[grid] khong ky duoc segment: ${result}`)
+        })
+      },
       // 🔴 STORY 1.18 — LƯỢT GỠ DEP TỐI THIỂU MÀ STORY 1.17 ĐÃ HẸN.
       //
       // Bản 1.17 là `() => window.getSelection()?.toString() ?? ''` — một dep TỐI THIỂU cố
@@ -266,7 +290,7 @@ async function boot(): Promise<void> {
     // 🔴 **Cửa nuốt hợp âm — Story 1.19, Ice chốt ở code review 2026-08-10.** Lớp phủ
     // Attribution khai `aria-modal="true"`, và cho tới lượt này nó **không** hành xử như
     // vậy: `attachKeyboard` gắn ở `window` không hỏi ai cả, nên một hợp âm đổi preset bố cục
-    // vẫn chạy được phía sau lớp phủ, gọi `api.clear()` và **dựng lại** cả bốn panel bên
+    // vẫn chạy được phía sau lớp phủ, gọi `api.clear()` và **dựng lại** cả ba panel bên
     // dưới. Hệ quả kéo theo là `returnFocusTo` của lớp phủ ôm một node đã rời DOM, nên lượt
     // trả tiêu điểm lúc đóng thành một lời gọi không tác dụng (UX-DR17 vỡ im lặng).
     //

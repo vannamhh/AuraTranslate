@@ -173,7 +173,7 @@ function finishSubmit(created: CreatedWork | null, error: IpcError | null): void
     // 🔴 **VỨT state cũ là CHƯA ĐỦ — phải NẠP LẠI ngay tại đây.**
     //
     // `resetSourcePanel()` gỡ cờ `chapterRequested`, nhưng không ai gọi lại hàm nạp. Chỗ
-    // DUY NHẤT gọi `ensureChapterLoaded()` là `SourcePanel.vue::onMounted`, mà ba chế độ
+    // DUY NHẤT gọi `ensureChapterLoaded()` là `GridPanel.vue::onMounted`, mà ba chế độ
     // sống trong `<KeepAlive>` (`App.vue`, §Quyết định thiết kế #6) — `src/modes/README.md`
     // viết thẳng: *"lần hiện thứ hai trở đi không có `mounted`"*. Nên với thứ tự thao tác
     // THƯỜNG GẶP NHẤT:
@@ -185,13 +185,13 @@ function finishSubmit(created: CreatedWork | null, error: IpcError | null): void
     // …Panel Source ở lại *"Chưa có Chương nào được mở"* **vĩnh viễn** dù Tác phẩm đã mở
     // thật — người dùng phải khởi động lại app. Bắt bằng test tay 2026-08-07.
     //
-    // ⚠️ Vá ở ĐÂY chứ không đổi `onMounted` → `onActivated` ở `SourcePanel.vue`: panel sống
+    // ⚠️ Vá ở ĐÂY chứ không đổi `onMounted` → `onActivated` ở `GridPanel.vue`: panel sống
     // trong cây của dockview, nên nó có nhận được `activated` hay không là một câu hỏi về nội
     // tình thư viện thứ ba — còn `finishSubmit` là điểm nghẽn mà **cả hai** nhánh nhập đã
     // đi qua, và *"Tác phẩm đang mở vừa đổi"* là một dữ kiện mà chính chỗ này biết CHẮC.
     // Cùng lý do reset đứng ở đây thay vì rải ra từng panel.
     void ensureChapterLoaded()
-    // Cùng nguyên văn lập luận trên, áp cho Panel Editor (Story 2.2): `EditorPanel.vue`
+    // Cùng nguyên văn lập luận trên, áp cho cột bản dịch (Story 2.2): `GridPanel.vue`
     // cũng chỉ gọi `ensureSegmentsLoaded()` ở `onMounted`, và `<KeepAlive>` làm lượt hiện
     // thứ hai trở đi không có `mounted`.
     void ensureSegmentsLoaded()

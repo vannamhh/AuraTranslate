@@ -2,7 +2,7 @@
  * Bảng ánh xạ *trạng thái segment → giá trị vạch lề* — Story 2.5, AC10 · Quyết định #1 và #3.
  *
  * ⚠️ **Vai của tệp này, và nó KHÔNG chồng lên cổng tĩnh.** Kiểm I của `check-commands.mjs`
- * canh một mệnh đề **khai báo trên toàn cây** — *"`SEGMENT_RULE_VALUES` có ĐÚNG năm giá trị,
+ * canh một mệnh đề **khai báo trên toàn cây** — *"`SEGMENT_RULE_VALUES` có ĐÚNG sáu giá trị,
  * và mỗi giá trị có đúng một khối `.gmark.rule-*`"*. Tệp này canh một hạng **khác**: hàm phân
  * giải **trả về đúng giá trị nào** cho từng tổ hợp dữ kiện. Hai đường, hai mệnh đề (AC25).
  *
@@ -64,22 +64,54 @@ describe('resolveSegmentRule — nhánh `confirmed` nay có nguồn dữ liệu 
   })
 })
 
-describe('Quyết định #3 — hàng còn thiếu của bảng năm giá trị', () => {
+describe('hàng còn thiếu của bảng năm giá trị — nay ĐÃ CÓ giá trị riêng', () => {
   /**
-   * ✅ Ice ký 2026-08-14, đường (a): *"đã dịch, chưa xác nhận ⇒ **không vạch** — vạch chỉ nói
-   * ai đã ký, không nói có chữ hay chưa."*
+   * 🔵 **ĐẢO MỆNH ĐỀ 2026-08-14 (Story 2.5b · AC4), và ghi cả HAI lượt ký theo THỨ TỰ.**
    *
-   * 🔴 Đây là ca **thường nhật nhất** của tính năng *(gõ xong một câu rồi bấm sang câu khác
-   * mà chưa xác nhận)*, không một ca biên. Trước Story 2.5 nó **không chạm tới được**.
+   * | Lượt | Mệnh đề | Trạng thái |
+   * |---|---|---|
+   * | ① Quyết định #3 của Story 2.5 *(Ice ký 2026-08-14)* | *"đã dịch, chưa xác nhận ⇒ **không vạch**"* | **HẾT HIỆU LỰC** |
+   * | ② UX-DR19 viết lại + Quyết định #2 của Story 2.5b *(cùng ngày, **sau** ①)* | *"⇒ vạch **`draft`**"* | **ĐANG HIỆU LỰC** |
+   *
+   * 🔴 ① **không sai lúc được ký** — tiền đề của nó *(«văn bản có chữ nằm NGAY CẠNH vạch, nên
+   * mắt đọc được 'đã dịch' mà không cần một màu riêng»)* đúng cho **trang văn liền mạch** của
+   * Story 2.2/2.3. Lưới đặt cột vạch ở **mép trái**, cách chỗ chữ cả một cột nguyên văn ⇒
+   * *"nằm ngay cạnh"* hết đúng theo **hình học**, không theo lập luận.
+   *
+   * ⇒ Ca dưới đây là ca **thường nhật nhất** của tính năng *(gõ xong một câu rồi bấm sang câu
+   * khác mà chưa xác nhận)*, không một ca biên.
    */
-  it('đã dịch bằng tay · chưa xác nhận · con trỏ chỗ khác ⇒ KHÔNG vạch', () => {
+  it('đã dịch bằng tay · chưa xác nhận · con trỏ chỗ khác ⇒ vạch `draft`', () => {
     const s = segment({ id: 3, status: 'draft', target_text: 'Có chữ hẳn hoi.' })
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 999))).toBe('draft')
+  })
+
+  /**
+   * 🔴 **VẾ THỨ HAI CỦA CÙNG MỘT MỆNH ĐỀ, và nó là chỗ dễ cài sai nhất.**
+   *
+   * `status = 'draft'` **một mình KHÔNG đủ** để ra `draft`: từ story này, `'draft'` đã **tách
+   * khỏi** *"chưa dịch"*. Một cài đặt chỉ đọc `status` sẽ vẽ vạch `draft` cho **mọi** câu của
+   * một Chương mới — tức cả Chương hiện ra như đã dịch xong, và không cổng nào đỏ vì chuyện đó.
+   */
+  it('chưa dịch *(`draft` VÀ `target_text` rỗng)* ⇒ KHÔNG vạch', () => {
+    const s = segment({ id: 3, status: 'draft', target_text: '' })
     expect(resolveSegmentRule(segmentRuleInputOf(s, 999))).toBe('none')
   })
 
-  it('chưa dịch cũng ⇒ KHÔNG vạch — hai hoàn cảnh, một giá trị, và đó là chủ ý', () => {
-    const s = segment({ id: 3, status: 'draft', target_text: '' })
-    expect(resolveSegmentRule(segmentRuleInputOf(s, 999))).toBe('none')
+  /**
+   * ⚠️ Thứ tự nhánh: `draft` đứng **sau** `tm-rule`. Cả hai nói *"có chữ, chưa ai ký"*, nhưng
+   * `tm-rule` nói thêm **ai viết chữ đó** — và đó là thứ FR58 cần đọc được.
+   */
+  it('câu TM điền sẵn có chữ ⇒ `tm-rule`, KHÔNG `draft`', () => {
+    const s = segment({ id: 4, status: 'draft', target_text: 'Máy điền.' })
+    const input = { ...segmentRuleInputOf(s, 999), isTmFilled: true }
+    expect(resolveSegmentRule(input)).toBe('tm-rule')
+  })
+
+  /** ⚠️ `primary` là mệnh đề về **hiện tại**, nó thắng `draft` như đã thắng `confirmed`. */
+  it('con trỏ đang ở chính câu đó ⇒ `primary`, KHÔNG `draft`', () => {
+    const s = segment({ id: 5, status: 'draft', target_text: 'Có chữ.' })
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 5))).toBe('primary')
   })
 })
 
@@ -104,9 +136,9 @@ describe('hai chỗ đọc trạng thái phải ĐỒNG Ý với nhau', () => {
   )
 })
 
-describe('bảng giá trị vạch KHÔNG mọc thêm ở story này', () => {
+describe('bảng giá trị vạch KHÔNG mọc thêm ngoài lượt ký của Story 2.5b', () => {
   /**
-   * ⚠️ Mệnh đề *"đúng năm giá trị"* có chủ ở Kiểm I (cổng tĩnh). Ca này canh vế **khác**: mọi
+   * ⚠️ Mệnh đề *"đúng sáu giá trị"* có chủ ở Kiểm I (cổng tĩnh). Ca này canh vế **khác**: mọi
    * giá trị mà hàm phân giải **thật sự trả về** đều nằm trong bảng đó — một nhánh trả về một
    * chuỗi ngoài bảng sẽ đi lọt Kiểm I, vì Kiểm I đếm **mảng khai báo**, không chạy hàm.
    */
@@ -134,6 +166,14 @@ describe('bảng giá trị vạch KHÔNG mọc thêm ở story này', () => {
   it('một `status` lạ đọc thành CHƯA xác nhận, không ném và không sinh giá trị mới', () => {
     const s = segment({ id: 9, status: 'mot-gia-tri-tu-tuong-lai' })
     expect(segmentRuleInputOf(s, null).isConfirmed).toBe(false)
-    expect(resolveSegmentRule(segmentRuleInputOf(s, null))).toBe('none')
+    // 🔵 **ĐẢO 2026-08-14 (Story 2.5b).** Mệnh đề cũ đòi `'none'`; nó đúng khi *"chưa xác
+    // nhận"* và *"chưa dịch"* còn chung một giá trị. Nay chúng tách: fixture mặc định **CÓ**
+    // chữ (`target_text: 'Đã dịch rồi.'`), nên một `status` lạ rơi về **`draft`** — vẫn là
+    // *"chưa ai ký"*, và vẫn **không** sinh một giá trị thứ bảy. Đó là điều ca này canh.
+    expect(resolveSegmentRule(segmentRuleInputOf(s, null))).toBe('draft')
+    // Vế thứ hai: cùng một `status` lạ mà **rỗng** thì rơi về `none`. Hai vế cùng nhau nói
+    // rằng nhánh cuối phân xử bằng `target_text`, **không** bằng `status`.
+    const empty = segment({ id: 9, status: 'mot-gia-tri-tu-tuong-lai', target_text: '' })
+    expect(resolveSegmentRule(segmentRuleInputOf(empty, null))).toBe('none')
   })
 })

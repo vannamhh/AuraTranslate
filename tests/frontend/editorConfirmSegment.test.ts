@@ -194,7 +194,7 @@ describe('①-ter khoá chống-gọi-lại — hai lượt bấm, một thao t�
    * 🔴 Bấm `Mod+Enter` hai lần liên tiếp nhanh. Cả hai lượt đọc `caretSegmentId` **trước** khi
    * lượt đầu xong nên cùng thấy id `11`. AC13 lo phần Rust *(lượt hai không tạo
    * `SegmentVersion`)*, nhưng phần giao diện thì không: không có khoá, cả hai lượt chạy tới
-   * nhánh dời con trỏ và cùng gán `caretPlacement`. Watcher bên `EditorPanel.vue` gọi
+   * nhánh dời con trỏ và cùng gán `caretPlacement`. Watcher bên `GridPanel.vue` gọi
    * `clearEditorCaretPlacement()` ngay dòng đầu — nó là watcher **một phát** — nên lượt gán
    * thứ hai **vẫn** bắn và kéo caret về **offset 0** của câu kế tiếp, kể cả khi người dùng đã
    * kịp gõ vào đó.

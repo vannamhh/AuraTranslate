@@ -1,4 +1,9 @@
-Bốn panel: `Source` · `Lookup` · `AiTranslation` · `Editor`.
+**Ba** panel: `Grid` · `Lookup` · `AiTranslation`.
+
+> 🔵 **2026-08-15 (Story 2.5b) — BỐN → BA.** `SourcePanel.vue` + `EditorPanel.vue` gộp thành
+> **`GridPanel.vue`**, một **lưới hai cột đối chiếu**: nguyên văn và bản dịch của cùng một câu
+> nằm trên **cùng một HÀNG** (UX-DR13). Hai tệp cũ đã **gỡ khỏi cây nguồn**; mọi mệnh đề dưới
+> đây nhắc tên chúng là **lịch sử**, không phải mô tả.
 
 Component đặt tên `PascalCase.vue` (Consistency Conventions). Panel Lookup → `LookupPanel`.
 
@@ -9,16 +14,17 @@ Component đặt tên `PascalCase.vue` (Consistency Conventions). Panel Lookup �
 | | Story | Trạng thái |
 |---|---|---|
 | `PanelFrame.vue` — vỏ panel + **hợp đồng thị giác tiêu điểm** (AC5, UX-DR8, UX-DR17) | **1.6** | ✅ đã dựng |
-| Bốn panel thật trong `dockview`, lưới 2×2, preset bố cục, ngưỡng màn hình hẹp | **1.14** | ⬜ |
+| Panel thật trong `dockview`, preset bố cục, ngưỡng màn hình hẹp | **1.14** *(lưới 2×2 · bốn panel — **superseded** bởi 2.5b)* | ✅ đã dựng |
 | Nội dung panel Source + tab Hán Việt | **1.16** | ✅ đã dựng |
 | Nội dung panel Lookup — bản ghi từ điển có cấu trúc | **1.17** | ✅ đã dựng |
 | Panel AiTranslation | **Epic 4** | ⬜ |
-| Panel Editor | **Epic 2** | ⬜ |
-| Hợp đồng vùng chọn dùng chung + Auto-Lookup (bốn panel + `SourceHanViet`) | **1.18** | ✅ đã dựng |
+| Panel Editor *(trang liền mạch)* | **2.2 · 2.3** — **superseded** bởi 2.5b | 🔵 đã gỡ |
+| **`GridPanel.vue`** — lưới hai cột `subgrid`, năm cột, ô bản dịch là editing host riêng | **2.5b** | ✅ đã dựng |
+| Hợp đồng vùng chọn dùng chung + Auto-Lookup | **1.18** *(2.5b: đăng ký theo **CỘT**, `SourceHanViet` nhượng lượt đăng ký — xem `hanVietSurfaces.ts`)* | ✅ đã dựng |
 | Tách từ tiếng Trung cho tab Hán Việt — double-click chọn cả CỤM TỪ | **1.18b** | ✅ đã dựng |
 | Bật/tắt nguồn từ điển *(dải chip)* + bề mặt ghi công *(lớp phủ Attribution)* | **1.19** | ✅ đã dựng |
 
-**Story sở hữu nội dung: 1.14.** `PanelFrame.vue` hôm nay là **vỏ**, không phải panel: thanh tiêu đề, tiêu đề `ui-md`, và thân **để trống**. `WorkspaceMode.vue` dựng **hai** `PanelFrame` — `panel.source` và `panel.editor`, đúng cặp *Nguyên văn | Bản dịch* mà UX-DR15 nói *"không bao giờ nhường"*. Hai chứ không bốn: một cái không đủ để nhìn thấy tương phản có/không tiêu điểm, bốn cái là dựng trước Story 1.14. **Story 1.14 thay chỗ hai cái này bằng bốn panel trong `dockview`.**
+**Story sở hữu nội dung: 1.14 → 2.5b.** `PanelFrame.vue` hôm nay là **vỏ**, không phải panel: thanh tiêu đề, tiêu đề `ui-md`, và thân **để trống**. `WorkspaceMode.vue` dựng **hai** `PanelFrame` — `panel.source` và `panel.editor`, đúng cặp *Nguyên văn | Bản dịch* mà UX-DR15 nói *"không bao giờ nhường"*. Hai chứ không bốn: một cái không đủ để nhìn thấy tương phản có/không tiêu điểm, bốn cái là dựng trước Story 1.14. **Story 1.14 thay chỗ hai cái này bằng bốn panel trong `dockview`** — và 🔵 **Story 2.5b thu bốn xuống BA**, gộp `panel.source` + `panel.editor` thành `panel.grid`.
 
 ---
 
@@ -39,17 +45,17 @@ Bốn biến do `applyTheme()` ghi (`--panel-border-width` · `--panel-border-co
 
 ## Chữ trong thân panel
 
-⚠️ Hai panel còn lại (AiTranslation, Editor) hôm nay **để trống**. Ngày chúng đổ chữ vào, bề mặt đó **phải khai token `read-*` / `source-*` / `lookup-*` của chính nó**. Mặc định kế thừa từ `body` là `ui-md` ở giãn dòng **1.5** — dưới sàn 1.66 của AC5 Story 1.4 — và Kiểm E của `check-tokens.mjs` chỉ đọc `tokens.json` nên hoàn toàn mù với việc component nào đang kế thừa gì. Xem mục tương ứng ở `deferred-work.md`.
+⚠️ 🔵 *(2026-08-15: mệnh đề này thu lại còn **một** panel — `AiTranslation`. Cột bản dịch nay khai token `editor` trong `GridPanel.vue`.)* Panel `AiTranslation` hôm nay **để trống**. Ngày chúng đổ chữ vào, bề mặt đó **phải khai token `read-*` / `source-*` / `lookup-*` của chính nó**. Mặc định kế thừa từ `body` là `ui-md` ở giãn dòng **1.5** — dưới sàn 1.66 của AC5 Story 1.4 — và Kiểm E của `check-tokens.mjs` chỉ đọc `tokens.json` nên hoàn toàn mù với việc component nào đang kế thừa gì. Xem mục tương ứng ở `deferred-work.md`.
 
-**Panel Source (Story 1.16) đã đóng nửa của nó**: nguyên văn khai `source-cjk` (tiếng Trung) hoặc `source-latin` (tiếng Anh — token thứ 16, Quyết định #6) tuỳ `work.source_lang`; tab Hán Việt khai `source-hanviet`. State (Chương đã nạp, tab/kiểu xem đang chọn, âm Hán Việt đã tra) sống ở `src/panels/sourcePanelState.ts` — module-level, sống sót qua một lượt đổi preset (AC9). Xem doc-comment đầu `SourcePanel.vue`/`SourceHanViet.vue`.
+**Panel Source (Story 1.16) đã đóng nửa của nó**: nguyên văn khai `source-cjk` (tiếng Trung) hoặc `source-latin` (tiếng Anh — token thứ 16, Quyết định #6) tuỳ `work.source_lang`; tab Hán Việt khai `source-hanviet`. State (Chương đã nạp, tab/kiểu xem đang chọn, âm Hán Việt đã tra) sống ở `src/panels/sourcePanelState.ts` — module-level, sống sót qua một lượt đổi preset (AC9). Xem doc-comment đầu `GridPanel.vue`/`SourceHanViet.vue`.
 
-**Panel Lookup (Story 1.17) đã dựng xong bản ghi có cấu trúc**: đầu mục khai `lookup-headword`, nghĩa khai `lookup-gloss`, ví dụ/trích dẫn/ghi chú/từ loại khai `lookup-example`, nhãn nguồn + nhãn ngoại ngữ khai `ui-label`. Khối một nguồn sống ở `src/panels/LookupRecord.vue` (nhận `group`/`senses` đã lọc sẵn); vùng đầu mục cố định + thanh nhịp + bốn trạng thái rỗng + hai banner sống ở `LookupPanel.vue`. State (truy vấn, kết quả pha một+hai, năm vị từ trạng thái) sống ở `src/panels/lookupPanelState.ts` — module-level, sống sót qua đổi preset, reset khi đổi Tác phẩm (AC10). Đường kích hoạt là phím `Mod+Alt+L` (`lookup.lookup_selection`), lấy vùng chọn qua `window.getSelection()` — dep TỐI THIỂU, Story 1.18 sẽ thay bằng hợp đồng vùng chọn dùng chung cho bốn panel. ⚠️ **Món nợ chưa đóng**: hình dạng hiển thị cho mục từ TIẾNG ANH (`deferred-work.md:317`) dùng tạm cấu trúc khối giống tiếng Trung — chủ sở hữu vẫn là Sally (UX), chưa phải chữ ký chính thức.
+**Panel Lookup (Story 1.17) đã dựng xong bản ghi có cấu trúc**: đầu mục khai `lookup-headword`, nghĩa khai `lookup-gloss`, ví dụ/trích dẫn/ghi chú/từ loại khai `lookup-example`, nhãn nguồn + nhãn ngoại ngữ khai `ui-label`. Khối một nguồn sống ở `src/panels/LookupRecord.vue` (nhận `group`/`senses` đã lọc sẵn); vùng đầu mục cố định + thanh nhịp + bốn trạng thái rỗng + hai banner sống ở `LookupPanel.vue`. State (truy vấn, kết quả pha một+hai, năm vị từ trạng thái) sống ở `src/panels/lookupPanelState.ts` — module-level, sống sót qua đổi preset, reset khi đổi Tác phẩm (AC10). Đường kích hoạt là phím `Mod+Alt+L` (`lookup.lookup_selection`), lấy vùng chọn qua `window.getSelection()` — dep TỐI THIỂU, Story 1.18 đã thay bằng hợp đồng vùng chọn dùng chung. ⚠️ **Món nợ chưa đóng**: hình dạng hiển thị cho mục từ TIẾNG ANH (`deferred-work.md:317`) dùng tạm cấu trúc khối giống tiếng Trung — chủ sở hữu vẫn là Sally (UX), chưa phải chữ ký chính thức.
 
 ## Điểm vào focus
 
 `PanelFrame` nhận `owner` qua **prop** (`owner="panel.source"`) rồi tự `declareFocus(props.owner, …)`. Owner phải có mặt trong `FOCUS_OWNERS` ở `src/commands/index.ts`; cổng đối chiếu hai chiều. Xem `src/commands/README.md`.
 
-## Hợp đồng vùng chọn (Story 1.18) — một module, bốn panel, không một listener toàn cục
+## Hợp đồng vùng chọn (Story 1.18) — một module, ba panel, không một listener toàn cục
 
 `src/panels/selectionContract.ts` là bề mặt mà **mọi** panel văn bản đi qua để Auto-Lookup
 hoạt động. `epics.md:1762` đòi nó bằng chữ: một hợp đồng dùng chung, và AI Translation +
@@ -64,11 +70,18 @@ useSelectionSurface(surface, 'source')     // hoặc 'display'
 ```
 
 ⚠️ Vai viết **LITERAL**, không qua biến — **Kiểm F** của `npm run check:commands` đọc TĨNH và
-cưỡng chế bằng máy rằng cả **năm** bề mặt đăng ký (sàn 5 — bốn panel Workspace **cộng**
-`SourceHanViet`, xem bảng dưới) và Panel Lookup mang vai `display`. 🔴 Sàn từng là 4 và đó là
-một lỗ: `SourceHanViet` không nằm trong bốn panel Workspace nên phép kiểm riêng của mỗi panel
-không canh nó, và bớt đúng lời gọi đó vẫn còn 4 — ĐÚNG sàn cũ, cổng xanh, mất lưới cho toàn bộ
-đường bàn phím Hán Việt (lượt review 2026-08-07). Cổng đó tồn tại vì AI Translation và Editor
+cưỡng chế bằng máy **số lời gọi mong đợi của TỪNG tệp** *(`GridPanel.vue` = **2**, các panel
+khác = 1)* và Panel Lookup mang vai `display`.
+
+🔵 **2026-08-15 (Story 2.5b) — sàn 7 → 6, và đó là một lượt ĐẾM LẠI quần thể, không một lượt
+nới cổng.** Lưới thay **BA** lời gọi *(`SourcePanel` + `SourceHanViet` + `EditorPanel`)* bằng
+**HAI** *(hai cột của `GridPanel.vue`)*. Vế `SourceHanViet` là chỗ dễ đếm sót nhất: AC7 đòi
+cột là **một** bề mặt, nên bề mặt Hán Việt **nhượng** lượt đăng ký cho cột và chỉ ghi tên vào
+`hanVietSurfaces.ts` — nó **không biến mất**, nó đổi cửa.
+
+🔴 Sàn từng là 4 và đó là một lỗ: `SourceHanViet` không nằm trong các panel Workspace nên phép
+kiểm riêng của mỗi panel không canh nó, và bớt đúng lời gọi đó vẫn còn 4 — ĐÚNG sàn cũ, cổng
+xanh, mất lưới cho toàn bộ đường bàn phím Hán Việt (lượt review 2026-08-07). Cổng đó tồn tại vì AI Translation và Editor
 hôm nay **không có chữ**: một lượt đăng ký thiếu ở đó không để lại triệu chứng nào cho tới
 **Epic 2 / Epic 4**.
 

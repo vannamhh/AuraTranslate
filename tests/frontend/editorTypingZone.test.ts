@@ -1,16 +1,31 @@
 /**
- * Vùng gõ **MỘT câu tại một thời điểm** — **nhóm ②** của Quyết định #6.
- * Story 2.3 · AC8 · Task 3.2 · hệ quả 1 và 2 của Quyết định #1 *(đường (c), Ice ký 2026-08-12)*.
+ * Vùng gõ của lưới — **MỖI Ô LÀ MỘT EDITING HOST RIÊNG**. Story 2.5b · AC3 · Quyết định #3(b).
  *
- * Đây là ca test **đắt nhất của story**, và story ghi nó đích danh: *"Lắp và tháo là hai thao
- * tác đối xứng, và caret KHÔNG được nhảy… một lượt nhảy về đầu câu ở đây là thứ người dùng đọc
- * thành «ứng dụng ăn mất chỗ tôi đang gõ»"*.
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * 🔵 **TỆP NÀY ĐỔI TIỀN ĐỀ 2026-08-14, và ba mệnh đề của nó đã BỊ LẬT — ghi ra, không xoá**
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * Bản trước canh Quyết định #1 của Story 2.3 *(đường (c), Ice ký 2026-08-12)*: *"vùng gõ là
+ * **MỘT câu tại một thời điểm**"*, cài bằng `contenteditable` trên **đúng một** `<span>`.
+ * Story 2.5b lật mệnh đề đó bằng một chữ ký tường minh, và **lý do là tiền đề cũ không còn
+ * tồn tại**, không phải nó sai lúc được ký: tiền đề là *"một dòng văn liên tục"*, và lưới
+ * không còn dòng văn liên tục nào.
+ *
+ * | Mệnh đề cũ | Nay |
+ * |---|---|
+ * | `.doc` không mang `contenteditable`, **0** phần tử gõ được trước lượt bấm | **mọi ô** cột bản dịch gõ được từ đầu |
+ * | `contenteditable` sống trên **đúng một** câu và **theo caret** | thuộc tính **không đổi** theo caret; caret chỉ đổi `data`-state |
+ * | *"caret không nhảy khi vùng gõ được **lắp**"* — ca đắt nhất của 2.3 | **không còn lượt lắp nào** ⇒ mệnh đề mất đối tượng |
+ *
+ * 🔴 Cái mà cả ba mệnh đề cũ **mua** thì KHÔNG mất, nó đổi cơ chế: *"trình duyệt không bao giờ
+ * được sửa cây `data-segment-id`"*. Trước: chỉ một span gõ được nên không có ranh giới nào để
+ * gộp qua. Nay: mỗi ô là một editing host **riêng**, nên một `Range` soạn thảo **không bắc cầu
+ * hai ô được** — cùng bảo đảm, tới từ cấu trúc thay vì từ một thuộc tính động.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * ⚠️ `happy-dom` KHÔNG PHẢI WebKit — vai của tệp này dừng ở đâu
  * ─────────────────────────────────────────────────────────────────────────────
- * Nó kiểm **hợp đồng của mã dự án**: `contenteditable` sống trên đúng một câu, nó theo caret,
- * `Enter` bị chặn, một lượt dán không tiêm cấu trúc, và văn bản đi vào tập chờ. Nó **không** —
+ * Nó kiểm **hợp đồng của mã dự án**: mỗi ô là một editing host riêng, `Enter` bị chặn, một
+ * lượt dán không tiêm cấu trúc, và văn bản đi vào tập chờ. Nó **không** —
  * và không được đọc thành — kiểm *hành vi chuẩn hoá DOM của một engine thật*: `happy-dom` là
  * một bản mô phỏng DOM trong Node. Vế đó thuộc **bàn đo** (`2-3-ban-do-vung-go.html`, mũi thăm
  * dò Task 0.1, hai engine thật) và **e2e trong WKWebView**. Bốn đường, bốn vai — AC25.
@@ -30,9 +45,9 @@ const STUBS = { PanelFrame: { template: '<div class="panel-frame"><slot /></div>
 async function mountEditor() {
   vi.resetModules()
   const state = await import('../../src/panels/editorPanelState')
-  const EditorPanel = (await import('../../src/panels/EditorPanel.vue')).default
+  const GridPanel = (await import('../../src/panels/GridPanel.vue')).default
 
-  const wrapper = mount(EditorPanel, {
+  const wrapper = mount(GridPanel, {
     props: { params: {} } as never,
     global: { stubs: STUBS },
     attachTo: document.body,
@@ -42,10 +57,17 @@ async function mountEditor() {
   return { state, wrapper }
 }
 
-/** `<span>` của một câu, đọc từ DOM thật đã mount. */
+/**
+ * **Ô BẢN DỊCH** của một câu, đọc từ DOM thật đã mount.
+ *
+ * 🔴 `[data-col="tgt"]` là **bắt buộc**, không một lượt viết cho rõ: từ Story 2.5b một câu có
+ * **HAI** phần tử mang `data-segment-id` *(ô nguyên văn và ô bản dịch)*, nên một selector chỉ
+ * theo id trả về **ô nguyên văn** — phần tử đầu tiên theo thứ tự tài liệu. Mọi phép kiểm dưới
+ * đây sẽ đo nhầm cột, và phần lớn vẫn **xanh**.
+ */
 function sentence(id: number): HTMLElement {
-  const el = document.querySelector<HTMLElement>(`[data-segment-id="${id}"]`)
-  if (el === null) throw new Error(`câu ${id} không có trong DOM`)
+  const el = document.querySelector<HTMLElement>(`[data-col="tgt"][data-segment-id="${id}"]`)
+  if (el === null) throw new Error(`ô bản dịch của câu ${id} không có trong DOM`)
   return el
 }
 
@@ -83,45 +105,47 @@ beforeEach(() => {
   document.body.innerHTML = ''
 })
 
-describe('vùng gõ — MỘT câu tại một thời điểm (Quyết định #1, đường c)', () => {
-  it('`.doc` KHÔNG mang `contenteditable`, và trước lượt bấm nào thì KHÔNG câu nào gõ được', async () => {
+describe('vùng gõ — MỖI Ô MỘT EDITING HOST RIÊNG (Quyết định #3, đường b)', () => {
+  it('MỌI ô bản dịch gõ được từ đầu, và mỗi câu có ĐÚNG HAI neo `data-segment-id`', async () => {
     const { wrapper } = await mountEditor()
 
-    const doc = wrapper.find('.doc')
-    expect(doc.exists()).toBe(true)
-    // 🔴 Mệnh đề trung tâm của đường (c): sổ sách `data-segment-id` không bao giờ nằm trong
-    // tầm sửa của trình duyệt, vì trang không phải một editing host.
-    expect(doc.attributes('contenteditable')).toBeUndefined()
-    expect(document.querySelectorAll('[contenteditable]').length).toBe(0)
+    // 🔵 ĐẢO mệnh đề của Story 2.3 (*"0 phần tử gõ được trước lượt bấm"*). Đây chính là thứ
+    // đóng khuyết tật *"sập hố"* theo cấu trúc — không còn một lượt lắp thuộc tính nào để
+    // engine thả vùng chọn, và không còn một `<span>` rỗng cao 0 px nào.
+    const editable = document.querySelectorAll('[contenteditable="true"]')
+    expect(editable.length).toBe(FIXTURE_SEGMENTS.length)
+    for (const el of editable) expect(el.getAttribute('data-col')).toBe('tgt')
 
-    // Và cả ba câu của fixture đều có mặt — một cây rỗng làm mọi phép kiểm dưới đây xanh rỗng.
-    expect(document.querySelectorAll('[data-segment-id]').length).toBe(FIXTURE_SEGMENTS.length)
+    // 🔴 B11 — `[data-segment-id]` nay đếm **2 × số câu**. Ca này khoá mệnh đề đó lại: hai
+    // spec e2e và mọi phép đếm khác đều phải nói rõ CỘT nào.
+    expect(document.querySelectorAll('[data-segment-id]').length).toBe(FIXTURE_SEGMENTS.length * 2)
+    expect(document.querySelectorAll('[data-col="src"]').length).toBe(FIXTURE_SEGMENTS.length)
+    expect(document.querySelectorAll('[data-col="tgt"]').length).toBe(FIXTURE_SEGMENTS.length)
 
     wrapper.unmount()
   })
 
-  it('`contenteditable` sống trên ĐÚNG MỘT câu, và nó theo caret khi caret dời', async () => {
+  it('thuộc tính `contenteditable` KHÔNG đổi khi caret dời — nó không còn theo caret', async () => {
     const { wrapper } = await mountEditor()
 
     putCaretIn(12, 3)
     await wrapper.vm.$nextTick()
+    expect(document.querySelectorAll('[contenteditable="true"]').length).toBe(FIXTURE_SEGMENTS.length)
 
-    expect(document.querySelectorAll('[contenteditable="true"]').length).toBe(1)
-    expect(sentence(12).getAttribute('contenteditable')).toBe('true')
-    expect(sentence(11).hasAttribute('contenteditable')).toBe(false)
-
-    // Dời sang câu khác ⇒ lắp và tháo là hai thao tác ĐỐI XỨNG: vẫn đúng một vùng gõ.
     putCaretIn(11, 2)
     await wrapper.vm.$nextTick()
-
-    expect(document.querySelectorAll('[contenteditable="true"]').length).toBe(1)
+    // 🔵 Bản cũ đòi *"đúng MỘT"* và đòi thuộc tính **dời** theo caret. Nay lượt dời caret
+    // không chạm một thuộc tính DOM nào — đó là toàn bộ điểm của Quyết định #3(b), và cũng là
+    // lý do ca *"caret không nhảy khi vùng gõ được lắp"* của Story 2.3 **mất đối tượng**:
+    // không còn lượt lắp nào để caret nhảy vì nó.
+    expect(document.querySelectorAll('[contenteditable="true"]').length).toBe(FIXTURE_SEGMENTS.length)
     expect(sentence(11).getAttribute('contenteditable')).toBe('true')
-    expect(sentence(12).hasAttribute('contenteditable')).toBe(false)
+    expect(sentence(12).getAttribute('contenteditable')).toBe('true')
 
     wrapper.unmount()
   })
 
-  it('caret KHÔNG nhảy khi vùng gõ được lắp — ca test đắt nhất của story', async () => {
+  it('caret giữ nguyên vị trí qua một lượt dời — không lượt lắp nào đá nó', async () => {
     const { wrapper } = await mountEditor()
 
     // Người dùng bấm vào giữa câu 12, ở ký tự thứ 9.
@@ -132,8 +156,8 @@ describe('vùng gõ — MỘT câu tại một thời điểm (Quyết định #
     expect(selection).not.toBeNull()
     const range = selection!.getRangeAt(0)
 
-    // 🔴 Không phải *"caret còn tồn tại"* mà là **caret còn ở ĐÚNG ký tự thứ 9 của ĐÚNG câu 12**.
-    // Một lượt nhảy về đầu câu cho `startOffset === 0` và vẫn qua được một phép kiểm lỏng hơn.
+    // 🔴 Không phải *"caret còn tồn tại"* mà là **caret còn ở ĐÚNG ký tự thứ 9 của ĐÚNG câu
+    // 12**. Một lượt nhảy về đầu ô cho `startOffset === 0` và vẫn qua được một phép kiểm lỏng.
     expect(range.startOffset).toBe(9)
     expect(sentence(12).contains(range.startContainer)).toBe(true)
     expect(range.collapsed).toBe(true)
@@ -204,7 +228,10 @@ describe('vùng gõ — MỘT câu tại một thời điểm (Quyết định #
     expect(/[\r\n]/.test(text)).toBe(false)
     // 🔴 KHÔNG phần tử nào bên trong câu — `<pre>`, `<span style>`, `<div>` đều là cấu trúc.
     expect(sentence(13).querySelectorAll('*').length).toBe(0)
-    expect(document.querySelectorAll('[data-segment-id]').length).toBe(FIXTURE_SEGMENTS.length)
+    // 🔵 B11 (2026-08-14): `2 ×` số câu — một câu nay có **hai** neo *(ô nguyên văn + ô bản
+    // dịch)*. Mệnh đề thật của ca này **không đổi**: một lượt dán **không được tách hay nhân
+    // một `data-segment-id` nào**. Chỉ con số đổi.
+    expect(document.querySelectorAll('[data-segment-id]').length).toBe(FIXTURE_SEGMENTS.length * 2)
 
     wrapper.unmount()
   })
@@ -254,9 +281,15 @@ describe('vùng gõ — MỘT câu tại một thời điểm (Quyết định #
     await wrapper.vm.$nextTick()
 
     expect(state.editorEditedText.value.get(13)).toBe('tiếng Việt có dấu')
-    // ③ vùng gõ vẫn ở nguyên câu đó, và vẫn là vùng gõ DUY NHẤT.
+    // ③ ô vẫn gõ được, và lượt commit IME KHÔNG làm mọc thêm hay mất đi một editing host nào.
+    //
+    // 🔵 Bản cũ đòi **đúng MỘT** vùng gõ; con số đó thuộc Quyết định #1 của Story 2.3 và đã
+    // hết đúng. Mệnh đề thật ở đây là *"một lượt commit IME không đụng cấu trúc"* — nên nó
+    // được viết lại thành một hằng đọc từ fixture, không một con số chép tay.
     expect(sent.getAttribute('contenteditable')).toBe('true')
-    expect(document.querySelectorAll('[contenteditable="true"]').length).toBe(1)
+    expect(document.querySelectorAll('[contenteditable="true"]').length).toBe(
+      FIXTURE_SEGMENTS.length,
+    )
 
     // ⚠️ `Enter` KHÔNG compose thì vẫn bị chặn — nếu không, ca trên chứng minh sai điều.
     const plainEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
@@ -334,7 +367,7 @@ describe('vùng gõ — MỘT câu tại một thời điểm (Quyết định #
 
   it('văn bản đang gõ SỐNG SÓT một lượt tháo/mount lại panel (đổi preset bố cục)', async () => {
     // 🔴 Đây là lý do `editorEditedText` tồn tại ở tầng state chứ không trong `<script setup>`:
-    // `WorkspaceDock.vue::applyPreset()` gọi `api.clear()` rồi dựng lại cả bốn panel. Không có
+    // `WorkspaceDock.vue::applyPreset()` gọi `api.clear()` rồi dựng lại cả ba panel. Không có
     // nó, lượt mount lại vẽ chữ **lúc nạp** đè lên chữ người dùng vừa gõ.
     const { state, wrapper } = await mountEditor()
     putCaretIn(13, 0)
@@ -343,8 +376,8 @@ describe('vùng gõ — MỘT câu tại một thời điểm (Quyết định #
     sentence(13).dispatchEvent(new Event('input', { bubbles: true }))
     wrapper.unmount()
 
-    const EditorPanel = (await import('../../src/panels/EditorPanel.vue')).default
-    const again = mount(EditorPanel, {
+    const GridPanel = (await import('../../src/panels/GridPanel.vue')).default
+    const again = mount(GridPanel, {
       props: { params: {} } as never,
       global: { stubs: STUBS },
       attachTo: document.body,

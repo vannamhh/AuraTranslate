@@ -12,7 +12,9 @@
  * Bề mặt Editor chứa **tiếng Việt đã dịch**, còn từ điển nhúng là zh→vi / en→vi ⇒ một lượt tra
  * ở đó trả **0 hàng, 0 lỗi, 0 ms** rồi **thay mất** kết quả người dùng vừa tra từ Panel Source.
  * Đúng vòng tự thay thế mà `selectionContract.ts:11-17` đã bác cho Panel Lookup, chỉ tệ hơn
- * một bậc vì thứ thay vào là **rỗng**. ⇒ `EditorPanel.vue` nay đăng ký vai **`'display'`**.
+ * một bậc vì thứ thay vào là **rỗng**. ⇒ cột bản dịch nay đăng ký vai **`'display'`**.
+ * 🔵 *(2026-08-14 — Story 2.5b: `EditorPanel.vue` gộp vào `GridPanel.vue`; mệnh đề về VAI
+ * không đổi một chữ, chỉ đổi tệp mang nó.)*
  *
  * Phép đo cũ **không sai** — nó chỉ không phủ câu hỏi này. Xem
  * `planning-artifacts/sprint-change-proposal-2026-08-13.md` §1.2.
@@ -30,7 +32,7 @@
  * ⚠️ Đường **phím** của mệnh đề — *"luật vùng gõ không `preventDefault`, nên native
  * `contenteditable` vẫn mở rộng vùng chọn"* — là một mệnh đề về `keys.ts`, và nó đo ở
  * **Kiểm D** của `scripts/check-commands.mjs`. Tệp này đo vế **DOM**. Một mệnh đề, một đường
- * (AC25). Vế **khai báo** — `EditorPanel.vue`/`AiTranslationPanel.vue` mang đúng vai
+ * (AC25). Vế **khai báo** — `GridPanel.vue`/`AiTranslationPanel.vue` mang đúng vai
  * `'display'` trong mã sản phẩm — sống ở **Kiểm F ③**, không ở đây: tệp này dựng bề mặt giả
  * nên nó **không đọc được** vai thật trong `.vue`.
  */
@@ -47,7 +49,7 @@ beforeEach(() => {
 })
 
 /**
- * Dựng đúng hình dạng DOM mà `EditorPanel.vue` dựng: một `.doc` chứa các `<span>` mang
+ * Dựng một hình dạng DOM **tương đương** cột bản dịch: một hộp chứa các phần tử mang
  * `data-segment-id`, và **một** trong số đó đang `contenteditable="true"`.
  */
 function mountEditorSurface(): { doc: HTMLElement; sentence: HTMLElement; release: () => void } {
@@ -62,7 +64,8 @@ function mountEditorSurface(): { doc: HTMLElement; sentence: HTMLElement; releas
   doc.append(sentence)
   document.body.append(doc)
 
-  // 🔵 Cùng vai và cùng tham số với `EditorPanel.vue` — `'display'` từ 2026-08-13.
+  // 🔵 Cùng vai và cùng tham số với cột bản dịch của `GridPanel.vue` — `'display'` từ
+  // 2026-08-13, và Story 2.5b giữ nguyên vai đó khi gộp hai panel.
   const release = registerSelectionSurface(doc, 'display')
   return { doc, sentence, release }
 }
@@ -161,7 +164,7 @@ describe('AC23 — bề mặt Editor KHÔNG phát lượt tra từ điển', () 
     // khi `attachSelectionWatcher` chết hoàn toàn. Ca này chứng minh **cơ chế còn sống**, nên
     // năm ca âm tính ở trên nói về **VAI**, không về một bộ theo dõi hỏng.
     //
-    // Hình dạng mô phỏng `SourcePanel.vue`: một bề mặt nguyên văn, vai `'source'`.
+    // Hình dạng mô phỏng cột nguyên văn của `GridPanel.vue`: một bề mặt nguồn, vai `'source'`.
     const original = document.createElement('div')
     original.className = 'original'
     const line = document.createElement('p')

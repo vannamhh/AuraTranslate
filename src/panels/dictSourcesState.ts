@@ -6,7 +6,7 @@
  * 🔴 VÌ SAO STATE SỐNG Ở ĐÂY, KHÔNG TRONG `LookupPanel.vue`
  * ─────────────────────────────────────────────────────────────────────────────
  * Cùng lý do `lookupPanelState.ts`/`sourcePanelState.ts`: một lượt đổi preset bố cục gọi
- * `api.clear()` rồi dựng lại cả bốn panel. State module-level là singleton của cả tiến
+ * `api.clear()` rồi dựng lại cả ba panel. State module-level là singleton của cả tiến
  * trình, nên lựa chọn tắt/bật sống sót qua lượt tháo/dựng lại đó — và nó phải sống sót,
  * vì nó là một lựa chọn của người dùng chứ không một trạng thái hiển thị.
  *

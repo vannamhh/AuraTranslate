@@ -78,7 +78,7 @@ const surfaces: Surface[] = []
  * Đăng ký một bề mặt chữ. Trả về hàm **nhả** — gọi lúc `unmount`.
  *
  * ⚠️ **Idempotent qua mount/unmount**: đăng ký lại cùng một phần tử ⇒ mục cũ bị thay, không
- * nhân đôi. Một lượt đổi preset dựng lại cả bốn panel, và `dockview` có thể `mount` bản
+ * nhân đôi. Một lượt đổi preset dựng lại cả ba panel, và `dockview` có thể `mount` bản
  * mới **trước** khi `unmount` bản cũ.
  *
  * ⚠️ `role` phải viết **LITERAL** ở chỗ gọi, không qua biến — cùng luật `owner`/`status-key`
@@ -113,7 +113,7 @@ export function registerSelectionSurface(
  * [`registerSelectionSurface`]).
  *
  * 🔴 **Vì sao không `onUnmounted` mà là `onBeforeUnmount` + `watch`:** một lượt đổi preset gọi
- * `api.clear()` rồi dựng lại cả bốn panel, và `dockview` có thể mount bản mới **trước**
+ * `api.clear()` rồi dựng lại cả ba panel, và `dockview` có thể mount bản mới **trước**
  * khi unmount bản cũ. `watch` với `flush: 'sync'` nhả đúng phần tử cũ ngay khi `ref` đổi,
  * không để một phần tử đã tháo ở lại trong sổ (rò như 1.16 đã bắt với `declareFocus`).
  */

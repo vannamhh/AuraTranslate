@@ -50,9 +50,10 @@
 // `deferred-work.md:133` ghi nguyên văn: "Bỏ sót dòng đó là cách lời giải này chết im
 // lặng." Đây là NGƯỜI TIÊU THỤ ĐẦU TIÊN của token `source-hanviet` — xem `rt`
 // trong `<style>` dưới đây, cả năm biến `--*-source-hanviet`, không chỉ `font-synthesis`.
-import { computed, useTemplateRef } from 'vue'
+import { computed, onBeforeUnmount, useTemplateRef, watch } from 'vue'
 import { t } from '../i18n'
 import { useSelectionSurface } from './selectionContract'
+import { registerHanVietSurface } from './hanVietSurfaces'
 import {
   canUseParallelView,
   hanVietByChar,
@@ -65,13 +66,32 @@ import {
 import { everySourceOffForRoute } from './dictSourcesState'
 import { WORD_JOINER, wordStartOffsets } from './wordBoundary'
 
-const props = defineProps<{
-  sourceText: string
-  viewMode: 'switch' | 'parallel'
-}>()
+const props = withDefaults(
+  defineProps<{
+    sourceText: string
+    viewMode: 'switch' | 'parallel'
+    /**
+     * 🔴 **Vai của bề mặt này trong hợp đồng vùng chọn** — Story 2.5b, AC7.
+     *
+     * `'own'` *(mặc định, khuôn Story 1.16)*: component **tự đăng ký** một bề mặt vai
+     * `'source'`. Đây là hình dạng của Panel Nguyên văn — một Chương, một bề mặt.
+     *
+     * `'cell'`: component **KHÔNG** đăng ký bề mặt nào; nó ghi tên vào sổ
+     * `hanVietSurfaces.ts` để **cột** *(chủ sở hữu duy nhất của lượt đăng ký)* uỷ quyền
+     * xuống. Đây là hình dạng của lưới, nơi có **N** ô nguyên văn nhưng AC7 đòi **một** bề
+     * mặt — xem khối lý do ở đầu `hanVietSurfaces.ts`.
+     *
+     * ⚠️ Không đặt mặc định là `'cell'`: một component tự nhiên **phải** khai mình vào sổ
+     * vùng chọn (AC2 của Story 1.18), và vai `'cell'` là lượt **nhượng** quyền đó cho một
+     * chủ khác. Nhượng thì phải viết ra ở chỗ gọi, không rơi vào theo mặc định.
+     */
+    surfaceRole?: 'own' | 'cell'
+  }>(),
+  { surfaceRole: 'own' },
+)
 
 /**
- * 🔴 Chốt CHẶN THỨ HAI (Task 8) — `SourcePanel.vue` đã khoá nút đổi kiểu xem khi vượt
+ * 🔴 Chốt CHẶN THỨ HAI (Task 8) — dải tab *(nay ở `GridPanel.vue`)* đã khoá nút đổi kiểu xem khi vượt
  * [`PARALLEL_VIEW_RENDER_CEILING`], nhưng bề mặt render **không tin** riêng chốt đó: nếu
  * `viewMode` prop vẫn là `'parallel'` cho một Chương đã vượt trần (ca lý thuyết — ví dụ
  * `viewMode` module-level giữ nguyên từ MỘT Chương nhỏ trước đó rồi Story sau cho phép
@@ -110,7 +130,7 @@ type Segment =
  *
  * 🔴 **Và nó phải chạy TRƯỚC lượt tách từ** (Story 1.18b): `wordStartOffsets` trả chỉ số
  * theo đơn vị mã của chuỗi nó nhận, nên đưa chuỗi chưa chuẩn hoá vào là lệch đúng số ký tự
- * `\r` đã bỏ. `SourcePanel.vue:47` chuẩn hoá **cùng một biểu thức** cho tab nguyên văn ⇒
+ * `\r` đã bỏ. Ô nguyên văn của `GridPanel.vue` render thẳng `segment.source_text` ⇒
  * hai tab tách từ trên **cùng một chuỗi** — điều kiện cấu trúc của AC2.
  */
 const NEWLINES = /\r\n?/g
@@ -333,7 +353,8 @@ const parallelEl = useTemplateRef<HTMLElement>('parallelEl')
  * mở rộng từ đó đi qua đúng thứ không phải nội dung tra cứu trước.
  *
  * ⇒ Đăng ký đúng đoạn `<p>` đang hiện (`.hv-switch` hoặc `.hv-parallel`), cùng mẫu với
- * `.original` của `SourcePanel.vue`.
+ * `.original` của `SourcePanel.vue` *(🔵 tệp đó gỡ ở Story 2.5b; vai của nó nay là ô nguyên
+ * văn trong `GridPanel.vue`, và lượt đăng ký bề mặt nhượng cho CỘT — xem `hanVietSurfaces.ts`)*.
  */
 const surface = computed<HTMLElement | null>(() =>
   effectiveViewMode.value === 'switch' ? switchEl.value : parallelEl.value,
@@ -644,7 +665,37 @@ function onCopy(event: ClipboardEvent): void {
   event.preventDefault()
 }
 
-useSelectionSurface(surface, 'source', resolveSelection)
+/*
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * HAI VAI, HAI ĐƯỜNG — và **đúng một** trong hai chạy cho mỗi instance
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 🔴 `role` viết **LITERAL** ở lời gọi dưới, không qua biến `props.surfaceRole`: cổng đếm
+ * của AC2 (`check-commands.mjs` Kiểm F) đọc **tĩnh**, và một biểu thức ở đó bị đếm rồi **bỏ
+ * qua** — tức mất lưới. Nhánh nào chạy thì quyết bằng `v-if` của chính lời gọi, không bằng
+ * một tham số.
+ *
+ * ⚠️ `useSelectionSurface`/`registerHanVietSurface` đều theo **`watch` trên ref**, nên gọi cả
+ * hai vô điều kiện rồi để một cái nhận `null` là **sai**: `surface` là cùng một phần tử cho
+ * cả hai đường, nên cả hai sẽ cùng ghi tên. Chốt phải ở **giá trị đưa vào**.
+ */
+if (props.surfaceRole === 'own') {
+  useSelectionSurface(surface, 'source', resolveSelection)
+} else {
+  // Vai `'cell'` — nhượng lượt đăng ký cho CỘT, chỉ ghi tên vào sổ uỷ quyền. Cùng hình dạng
+  // vòng đời (`watch` + `onBeforeUnmount`) với `useSelectionSurface`, và cùng lý do:
+  // `dockview` có thể mount bản mới TRƯỚC khi unmount bản cũ.
+  let release: (() => void) | null = null
+  const sync = (el: HTMLElement | null): void => {
+    release?.()
+    release = null
+    if (el !== null) release = registerHanVietSurface(el, resolveSelection)
+  }
+  watch(surface, sync, { immediate: true, flush: 'sync' })
+  onBeforeUnmount(() => {
+    release?.()
+    release = null
+  })
+}
 </script>
 
 <template>
@@ -659,7 +710,7 @@ useSelectionSurface(surface, 'source', resolveSelection)
     </p>
     <!-- 🔴 STORY 1.18 · AC11 — `tabindex="0"` ĐÚNG TRÊN ĐOẠN VĂN BẢN, không trên `.hv-surface`
          bọc ngoài (lượt review 2026-08-07 — xem doc-comment của `surface` ở script). Cùng lý
-         do và cùng giá với `.original` ở `SourcePanel.vue`.
+         do và cùng giá với ô nguyên văn của `GridPanel.vue` *(🔵 `SourcePanel.vue` đã gỡ)*.
 
          🔴 STORY 1.18b — `.hv-switch` KHÔNG còn là một text node thuần. Mỗi segment sinh
          ĐÚNG MỘT phần tử (`<br>` · `.hv-text` · `.hv-word`), theo đúng thứ tự của
@@ -721,7 +772,9 @@ useSelectionSurface(surface, 'source', resolveSelection)
  * 🔴 VÙNG CUỘN — ĐỪNG BỎ `flex: 1` HAY `overflow: auto`.
  *
  * `.panel` của `PanelFrame.vue` mang `overflow: hidden`, và `.panel-body` không khai
- * `overflow` nào. Nhánh nguyên văn có vùng cuộn riêng (`.original` ở `SourcePanel.vue`);
+ * `overflow` nào. 🔵 **2026-08-15 — mệnh đề này ĐỔI cùng lượt lật hình dạng:** không còn
+ * `.original` nào, và **không nhánh nào có vùng cuộn riêng**. Hộp cuộn duy nhất là
+ * `.grid-scroll` của `GridPanel.vue`, và năm cột `subgrid` phải cuộn CÙNG nhau;
  * bản đầu của bề mặt này thì không, nên **mọi thứ vượt chiều cao panel bị cắt và không
  * không với tới được bằng bất kỳ thao tác nào** — với trần 50.000 ký tự mà Quyết định #7
  * vừa chốt, đó là ≥99 % nội dung. Chính AC9 mở đầu bằng *"đã cuộn xuống"*, tức trạng thái

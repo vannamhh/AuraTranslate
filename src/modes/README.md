@@ -6,12 +6,12 @@ Ba chế độ đầu là **ngang hàng**, không phân cấp, và chuyển bằ
 
 ## Ranh giới sở hữu — đọc trước khi thêm bất cứ thứ gì vào đây
 
-**Story sở hữu nội dung: 1.14** (khung bốn panel). Chế độ đọc thuộc Epic 5, Review Mode thuộc Epic 8. Story 1.6 chỉ dựng **vỏ chuyển chế độ** và ba khung rỗng — bảng dưới vạch rõ chỗ nào đã có chủ.
+**Story sở hữu nội dung: 1.14** (khung bốn panel — 🔵 **thu xuống BA ở Story 2.5b**). Chế độ đọc thuộc Epic 5, Review Mode thuộc Epic 8. Story 1.6 chỉ dựng **vỏ chuyển chế độ** và ba khung rỗng — bảng dưới vạch rõ chỗ nào đã có chủ.
 
 | | Story | Trạng thái |
 |---|---|---|
 | Vỏ chuyển chế độ, `modeState.ts`, ba khung rỗng có một câu trạng thái | **1.6** | ✅ đã dựng |
-| `dockview`, lưới 2×2, dock/undock/tab, preset bố cục, khung bốn panel | **1.14** | ⬜ |
+| `dockview`, dock/undock/tab, preset bố cục, khung panel | **1.14** *(lưới 2×2 + bốn panel — **superseded** bởi **2.5b**: hai preset Ⓑ-1/Ⓑ-2, **ba** panel)* | ✅ đã dựng |
 | Bốn trạng thái rỗng của UX-DR31 *(cần nội dung thật mới viết đúng)* | **1.14 / 1.15 / 5.x** | ⬜ |
 | Nội dung Library: lưới Tác phẩm, bộ lọc, sắp xếp, vòng đời | **Epic 5** | ⬜ |
 | Nội dung Chế độ đọc: typography đọc dài, song ngữ, ba mức chữ | **Epic 5** | ⬜ |

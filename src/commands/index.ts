@@ -55,8 +55,10 @@ const PANEL_PREFIX = 'panel.'
  * nói *"focus không bao giờ rơi về `body`"* và cũng đúng ca mà không con mắt nào bắt
  * được sau khi có mười panel.
  *
- * ⚠️ **BẢY** mục kể từ Story 1.14: ba chế độ + **bốn** panel. Trước đó là năm — hai panel
- * của `WorkspaceMode` được dựng thẳng bằng `PanelFrame`. Nay cả bốn sống trong dockview.
+ * 🔵 **SÁU** mục kể từ Story 2.5b (2026-08-14): ba chế độ + **ba** panel.
+ * ⚠️ Mệnh đề cũ — *"BẢY mục kể từ Story 1.14: ba chế độ + bốn panel"* — đã hết đúng:
+ * `panel.source` + `panel.editor` gộp thành `panel.grid` *(lưới hai cột đối chiếu)*. Trước
+ * Story 1.14 là năm — hai panel của `WorkspaceMode` được dựng thẳng bằng `PanelFrame`.
  *
  * 🔴 Thứ tự ở đây là thứ tự KHAI BÁO, **không** phải thứ tự vòng xoay focus. Vòng xoay
  * đi theo lưới đang hiện (AC9) — xem `deps.panelRing`.
@@ -65,10 +67,9 @@ export const FOCUS_OWNERS: readonly FocusOwner[] = [
   'mode.library',
   'mode.workspace',
   'mode.reading',
-  'panel.source',
+  'panel.grid',
   'panel.lookup',
   'panel.ai_translation',
-  'panel.editor',
 ]
 
 const registry: Registry = createRegistry()
@@ -235,7 +236,7 @@ export type CommandDeps = {
   runLookup?: (query: string) => void
   /**
    * 🔴 Chỗ lấy vùng chọn — **Quyết định #1a, ranh giới với Story 1.18**. Đây **không**
-   * phải hợp đồng vùng chọn dùng chung cho bốn panel (đó là Story 1.18); nó là một dep
+   * phải hợp đồng vùng chọn dùng chung cho ba panel (đó là Story 1.18); nó là một dep
    * TỐI THIỂU chỉ để story này nghiệm thu được mà không lấn phạm vi. Story 1.18 thay ĐÚNG dep
    * này bằng hợp đồng thật, không phải chạm `runLookup`/component nào khác.
    */
@@ -270,6 +271,17 @@ export type CommandDeps = {
    * `editorPanelState.ts::confirmCurrentSegment`.
    */
   confirmSegment?: () => void
+
+  /**
+   * Nhảy tới **câu chưa dịch kế tiếp**. Handler của `editor.next_untranslated` (Story 2.5b,
+   * AC12).
+   *
+   * ⚠️ Trả `boolean`, **không** `void`, và đó là một mệnh đề: `false` nghĩa *"không còn câu
+   * nào chưa dịch ở phía dưới"* — một câu trả lời **hợp lệ**, không một lỗi. Chỗ gọi **kêu**
+   * bằng một dòng chẩn đoán và để con trỏ ở nguyên; nó KHÔNG ném và KHÔNG tự quay vòng về
+   * đầu Chương *(một lượt quay vòng im lặng đọc ra thành "phím này nhảy lung tung")*.
+   */
+  goToNextUntranslated?: () => boolean
 
   /** Đặt caret vào bề mặt chữ đầu tiên đã đăng ký. Handler của `selection.focus_source`. */
   focusSelectionSource?: () => boolean
@@ -371,8 +383,14 @@ export type CommandDeps = {
   panelRing?: () => readonly string[]
 }
 
-/** Bốn panel của Workspace, theo thứ tự khai báo. ⚠️ Chép từ `src/layout/workspaceLayout.ts`. */
-const PANEL_SUFFIXES: readonly string[] = ['source', 'lookup', 'ai_translation', 'editor']
+/**
+ * **Ba** panel của Workspace, theo thứ tự khai báo. ⚠️ Chép từ `src/layout/workspaceLayout.ts`.
+ *
+ * 🔵 2026-08-14 (Story 2.5b): bốn → **ba** ⇒ **ba** command `layout.toggle_*`, không bốn.
+ * Đây là chỗ duy nhất con số đó sống trong `src/commands/`; sàn `COMMAND_FLOOR` của
+ * `check-commands.mjs` phải được đếm lại cùng lượt.
+ */
+const PANEL_SUFFIXES: readonly string[] = ['grid', 'lookup', 'ai_translation']
 
 /**
  * Cổng vắng mặt ⇒ **kêu**, không ném và không im.
@@ -515,7 +533,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * Panel đã ẩn (AC3) không có trong vòng — vì `visiblePanelsInLayoutOrder()` chỉ đọc
    * những panel THẬT SỰ đang trong dockview.
    *
-   * ⚠️ Có `prev` chứ không chỉ `next`: một vòng bốn panel đi được một chiều thì lùi một
+   * ⚠️ Có `prev` chứ không chỉ `next`: một vòng ba panel đi được một chiều thì lùi một
    * bước tốn ba lần bấm.
    */
   for (const [id, step] of [
@@ -888,6 +906,48 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('editor.confirm_segment', 'confirmSegment')
       }
       deps.confirmSegment()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 2.5b — `editor.next_untranslated` (AC12 · AC13)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * **Command thứ hai mang tiền tố miền `editor.`** — cùng văn phạm khoá chấm với khoá i18n,
+   * đúng thứ Quyết định #4 của Story 2.5 đã chốt cho cả 2.8/2.9/2.10.
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🔴 VÌ SAO `Alt+ArrowDown` CHỨ KHÔNG MỘT PHÍM MŨI TÊN TRẦN
+   * ─────────────────────────────────────────────────────────────────────────────
+   * ⚠️ `Alt` **không** phải phím bổ trợ chính (`lacksPrimaryMod` ở `keys.ts:287`), nên hợp âm
+   * này **bị nuốt khi con trỏ đang ở trong vùng gõ** — và đó là **đúng thứ ta cần**: một
+   * `⌥↓` trong ô bản dịch trên macOS là *"xuống cuối đoạn"* của hệ điều hành, và cướp nó là
+   * lấy mất một phím người dùng đã có phản xạ.
+   *
+   * 🔵 **Hệ quả phải ghi ra, không để người sau tự phát hiện:** phím này vì thế chạy khi con
+   * trỏ **KHÔNG** ở trong một ô đang gõ — tức sau một lượt bấm ra ngoài, hoặc từ bàn phím
+   * thuần. Đó là một **giới hạn thật** của lượt cài hôm nay, không một mệnh đề của AC12.
+   * AC12 chỉ đòi *"nhảy tới câu chưa dịch kế tiếp"*; nó không nói phím phải chạy **trong**
+   * vùng gõ. Món này có chủ: **Story 2.10** *(điều hướng segment)* sẽ phải phân xử cả bảng
+   * phím điều hướng cùng một lượt, và lúc đó nó có đủ ngữ cảnh mà hôm nay chưa có.
+   *
+   * ⚠️ Khớp bằng `event.code` (`ArrowDown`) nên việc `⌥↓` sinh một ký tự lạ trên macOS không
+   * thành vấn đề — xem `keys.ts` §"KHỚP BẰNG `event.code`".
+   */
+  target.register({
+    id: 'editor.next_untranslated',
+    labelKey: 'command.editor.next_untranslated',
+    keys: ['Alt+ArrowDown'],
+    run: () => {
+      if (deps.goToNextUntranslated === undefined) {
+        return portMissing('editor.next_untranslated', 'goToNextUntranslated')
+      }
+      // ⚠️ Chẩn đoán viết KHÔNG DẤU — Kiểm A của `check:i18n`. Và nó là `info`, không `warn`:
+      // hết câu chưa dịch là một trạng thái BÌNH THƯỜNG của một Chương đã dịch xong.
+      if (!deps.goToNextUntranslated()) {
+        console.info('[grid] khong con cau chua dich nao o phia duoi — con tro giu nguyen.')
+      }
     },
   })
   // ── Story 1.21 — màn hình phím tắt ────────────────────────────────────────────

@@ -67,7 +67,10 @@ import { openWorkspaceWithWork } from '../support/workspace.mjs'
  */
 async function pressChordOnFocusedElement(code) {
   return browser.execute((c) => {
-    const target = document.querySelector('[contenteditable="true"]') ?? document.body
+    // 🔵 B11 (2026-08-14): phần tử đang có TIÊU ĐIỂM, không một selector tĩnh — từ Quyết
+    // định #3(b) mọi ô bản dịch đều `contenteditable`, nên selector cũ bắn hợp âm vào **ô đầu
+    // tiên của Chương** thay vì ô người dùng đang gõ.
+    const target = document.activeElement ?? document.body
     target.dispatchEvent(
       new KeyboardEvent('keydown', { code: c, key: 'Enter', metaKey: true, bubbles: true }),
     )
@@ -118,14 +121,15 @@ describe('Story 2.5 — xác nhận segment bằng hợp âm phím, trong WKWebV
     await expect(seeded.segments.find((s) => s.id === targetId).status).toBe('draft')
 
     // ── ③ Đặt con trỏ vào câu đó bằng CHUỘT THẬT ────────────────────────────────────
-    await realClick(await $(`[data-segment-id="${targetId}"]`))
+    await realClick(await $(`[data-col="tgt"][data-segment-id="${targetId}"]`))
     await browser.pause(300)
 
+    // 🔵 B11 (Story 2.5b): đọc `document.activeElement`, **KHÔNG**
+    // `querySelector('[contenteditable="true"]')`. Từ Quyết định #3(b) **mọi** ô bản dịch gõ
+    // được, nên selector cũ trả về **ô đầu tiên** của Chương ở mọi lượt — một phép kiểm vẫn
+    // XANH khi con trỏ đang ở đúng chỗ, và **xanh giả** ở mọi lượt khác.
     const caretOn = await browser.execute(
-      () =>
-        document
-          .querySelector('[contenteditable="true"]')
-          ?.getAttribute('data-segment-id') ?? null,
+      () => document.activeElement?.getAttribute?.('data-segment-id') ?? null,
     )
     await expect(String(caretOn)).toBe(String(targetId))
 
@@ -151,11 +155,9 @@ describe('Story 2.5 — xác nhận segment bằng hợp âm phím, trong WKWebV
     // ── ⑤ Quyết định #1(a) — con trỏ dời sang câu kế tiếp, nếu Chương còn câu ────────
     if (after.segments.length > 1) {
       const nextId = after.segments[1].id
+      // 🔵 Cùng lý do ③ — `activeElement`, không selector tĩnh.
       const caretAfter = await browser.execute(
-        () =>
-          document
-            .querySelector('[contenteditable="true"]')
-            ?.getAttribute('data-segment-id') ?? null,
+        () => document.activeElement?.getAttribute?.('data-segment-id') ?? null,
       )
       await expect(String(caretAfter)).toBe(String(nextId))
     }
@@ -168,14 +170,14 @@ describe('Story 2.5 — xác nhận segment bằng hợp âm phím, trong WKWebV
     const targetId = before.segments[0].id
     await seedTranslation(before.chapter_id, targetId, 'Một lần ký là đủ.')
 
-    await realClick(await $(`[data-segment-id="${targetId}"]`))
+    await realClick(await $(`[data-col="tgt"][data-segment-id="${targetId}"]`))
     await browser.pause(300)
     await pressChordOnFocusedElement('Enter')
     await browser.pause(800)
 
     // Con trỏ đã dời đi (Quyết định #1a) ⇒ bấm lại vào chính câu vừa ký rồi ký thêm bốn lần.
     for (let i = 0; i < 4; i += 1) {
-      await realClick(await $(`[data-segment-id="${targetId}"]`))
+      await realClick(await $(`[data-col="tgt"][data-segment-id="${targetId}"]`))
       await browser.pause(200)
       await pressChordOnFocusedElement('Enter')
       await browser.pause(400)

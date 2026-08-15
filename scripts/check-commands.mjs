@@ -216,14 +216,23 @@ const VUE_FLOOR = 13 // số THẬT 2026-08-11 (sau Story 1.21): 15 tệp `.vue`
 // 🔴 NÂNG 2026-08-12 (Story 2.2 · AC16) — số thật lên **35** (thêm `editorSegments.ts`,
 // `editorGutter.ts`, `editorPanelState.ts`), nên sàn 27 tụt xuống 77,1%, dưới dải ~81–85%
 // mà chính doc-comment ở trên đặt ra. Đo chứ không ước.
-const TS_FLOOR = 30 // số THẬT 2026-08-12 (sau Story 2.3): 36 tệp `.ts` — 30/36 = 83,3%
+// 🔵 ĐẾM LẠI 2026-08-14 (Story 2.5b) — **KHÔNG đổi số, và đó là một kết quả chứ không một
+// lượt bỏ qua.** Story gỡ `editorGutter.ts` và thêm `hanVietSurfaces.ts` + `segmentNavigation.ts`
+// ⇒ 36 → **37**. Sàn 30 nay là 81,1%, vẫn trong dải ~81–85% mà doc-comment trên đặt ra.
+// ⚠️ Sàn là **cận dưới**: bớt tệp không làm cổng đỏ, nó chỉ làm sàn vô nghĩa — nên lượt đếm
+// lại này là bắt buộc kể cả khi kết luận là "giữ nguyên".
+const TS_FLOOR = 30 // số THẬT 2026-08-14 (sau Story 2.5b): 37 tệp `.ts` — 30/37 = 81,1%
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
- * hai `layout.preset_*` · bốn `layout.toggle_*` · hai `library.import_*` · ba
- * `source.select_tab_*`/`toggle_han_viet_view` · `lookup.lookup_selection` (Story 1.17).
+ * hai `layout.preset_*` · **ba** `layout.toggle_*` *(🔵 bốn → ba, Story 2.5b)* · hai
+ * `library.import_*` · ba
+ * `source.select_tab_*`/`toggle_han_viet_view` · `lookup.lookup_selection` (Story 1.17) ·
+ * `editor.confirm_segment` (2.5) · `editor.next_untranslated` (2.5b).
  * Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà không kiểm gì.
  */
-const COMMAND_FLOOR = 29 // số THẬT 2026-08-11 (sau Story 1.21): 34 command — 29/34 = 85,3%
+// 🔵 ĐẾM LẠI 2026-08-14 (Story 2.5b): **+1** (`editor.next_untranslated`) và **−1**
+// (`layout.toggle_*` từ bốn xuống ba, theo `PANEL_SUFFIXES`) ⇒ 34 → **35**. Giữ sàn 29.
+const COMMAND_FLOOR = 29 // số THẬT 2026-08-14 (sau Story 2.5b): 35 command — 29/35 = 82,9%
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
@@ -1864,7 +1873,7 @@ if (bBad === 0) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-console.log('\nKiểm F — BỐN panel đăng ký hợp đồng vùng chọn (Story 1.18, AC2)')
+console.log('\nKiểm F — BA panel đăng ký hợp đồng vùng chọn (Story 1.18, AC2)')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
 // 🔴 VÌ SAO AC2 ĐÒI MỘT CỔNG, KHÔNG CHỈ ĐÒI MÃ
@@ -1883,18 +1892,38 @@ console.log('\nKiểm F — BỐN panel đăng ký hợp đồng vùng chọn (S
 // nên một `useSelectionSurface(el, role)` với `role` là biến bị đếm rồi **bỏ qua**, tức
 // mất lưới. Vai phải là một chuỗi viết thẳng.
 
-/** Bốn panel của Workspace — ⚠️ chép từ `src/layout/workspaceLayout.ts`, cùng khuôn `PANEL_SUFFIXES`. */
-const SELECTION_PANEL_FILES = [
-  'src/panels/SourcePanel.vue',
-  'src/panels/LookupPanel.vue',
-  'src/panels/AiTranslationPanel.vue',
-  'src/panels/EditorPanel.vue',
-]
+/**
+ * **Ba** panel của Workspace, và **SỐ LỜI GỌI MONG ĐỢI CỦA TỪNG TỆP**.
+ * ⚠️ Chép từ `src/layout/workspaceLayout.ts`, cùng khuôn `PANEL_SUFFIXES`.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 🔵 2026-08-14 (Story 2.5b) — MỘT LƯỢT NỚI **CÓ CHỦ**, VÀ LÝ DO PHẢI ĐỌC ĐƯỢC
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * Bản trước là một mảng tên tệp, và mệnh đề ① đọc *"mỗi panel **ĐÚNG MỘT** lời gọi"*. Mệnh
+ * đề đó **hết đúng** ở `GridPanel.vue`: AC7 của Story 2.5b đòi **hai** bề mặt trong **một**
+ * tệp — cột nguyên văn vai `'source'`, cột bản dịch vai `'display'` — vì lưới gộp hai panel
+ * cũ thành một.
+ *
+ * 🔴 **Nới một con số KHÔNG được phép là nới một mệnh đề.** Nếu chỉ đổi ① thành *"ít nhất
+ * một"* thì cổng mất luôn khả năng bắt một lời gọi **thừa** *(một bề mặt thứ ba lọt vào lưới)*
+ * — và đó là đúng thứ AC7 cấm bằng chữ. ⇒ Số mong đợi ghi **theo từng tệp**, và mệnh đề ⑤
+ * mới ở dưới canh **cả hai vai** bên trong `GridPanel.vue`.
+ *
+ * ⚠️ Vì sao ⑤ phải tồn tại: mệnh đề ③ đối chiếu theo **TỆP**, mà hai vai nay sống trong
+ * **cùng một** tệp. Đảo vai giữa hai cột trong `GridPanel.vue` vì thế **đi lọt** ③ — cổng
+ * canh yếu hẳn đi so với lúc hai panel còn rời nhau, và khoảng hở đó phải được bịt chứ không
+ * được ghi rồi bỏ đấy.
+ */
+const SELECTION_PANEL_FILES = {
+  'src/panels/GridPanel.vue': 2,
+  'src/panels/LookupPanel.vue': 1,
+  'src/panels/AiTranslationPanel.vue': 1,
+}
 
 /**
  * Sàn = 5, không 4 — lượt review 2026-08-07 bắt được rằng sàn cũ (4, đúng số panel trong
  * `SELECTION_PANEL_FILES`) không canh được gì cho bề mặt THỨ NĂM: `SourceHanViet.vue` cũng
- * gọi `useSelectionSurface` (AC11/AC12), nhưng nó KHÔNG nằm trong bốn panel Workspace nên
+ * gọi `useSelectionSurface` (AC11/AC12), nhưng nó KHÔNG nằm trong các panel Workspace nên
  * không được kiểm ① canh riêng. Với sàn cũ, xoá đúng lời gọi đó vẫn để lại 4 lời gọi —
  * ĐÚNG sàn, cổng xanh, và mất lưới cho toàn bộ đường bàn phím Hán Việt mà AC11/AC12 vừa
  * đóng. Sàn = SỐ THẬT hôm nay (AC13); Story 1.20/3.4 sẽ THÊM bề mặt, không bớt.
@@ -1905,7 +1934,25 @@ const SELECTION_PANEL_FILES = [
  * mặt văn bản im lặng đứng ngoài sổ là đúng thứ AC2 của Story 1.18 dựng ra để chặn.
  * Vai `'display'`, KHÔNG `'source'`, cùng lý do Bẫy 1 đã bắt ở Panel Lookup.
  */
-const SELECTION_SURFACE_FLOOR = 7
+/*
+ * 🔵 **HẠ 7 → 6, 2026-08-14 (Story 2.5b) — và đây là một lượt ĐẾM LẠI QUẦN THỂ, không một
+ * lượt nới cổng cho mã đi lọt.**
+ *
+ * Story viết sẵn *"sàn KHÔNG đổi (hai lời gọi thay hai lời gọi)"*. **Phép đếm bác câu đó.**
+ * Đếm thật trước lượt lật — **bảy** lời gọi:
+ *   `AttributionOverlay` · `ShortcutsOverlay` · `SourcePanel` · **`SourceHanViet`** ·
+ *   `AiTranslationPanel` · `EditorPanel` · `LookupPanel`
+ * Lưới thay **BA** trong số đó *(`SourcePanel` + `SourceHanViet` + `EditorPanel`)* bằng
+ * **HAI** *(hai cột của `GridPanel.vue`)* ⇒ **6**.
+ *
+ * 🔴 Vế `SourceHanViet` là chỗ dễ đếm sót nhất, và nó có lý do cấu trúc: AC7 đòi cột là **một**
+ * bề mặt, nên bề mặt Hán Việt **nhượng** lượt đăng ký của nó cho cột và chỉ ghi tên vào
+ * `panels/hanVietSurfaces.ts`. Nó **không biến mất** — nó đổi cửa. Xem doc-comment tệp đó.
+ *
+ * ⚠️ Sàn là **cận dưới**: nó canh chính CỔNG *(regex thôi khớp ⇒ mọi phép kiểm trên xanh
+ * rỗng)*, không canh số bề mặt đúng. Story 1.20/3.4 sẽ THÊM bề mặt, không bớt.
+ */
+const SELECTION_SURFACE_FLOOR = 6
 
 const SURFACE_CALL_RE = /useSelectionSurface\s*\(\s*[^,)]+,\s*'(source|display)'/g
 
@@ -1935,8 +1982,8 @@ for (const p of parsed) {
 }
 const nonLiteralSurfaceCalls = anySurfaceCalls - surfaceCalls.length
 
-// ① Mỗi panel trong sổ phải có ĐÚNG một lời gọi — chiều thứ nhất.
-for (const want of SELECTION_PANEL_FILES) {
+// ① Mỗi panel trong sổ phải có ĐÚNG số lời gọi đã khai — chiều thứ nhất.
+for (const [want, expected] of Object.entries(SELECTION_PANEL_FILES)) {
   const hits = surfaceCalls.filter((c) => c.file.endsWith(want))
   if (hits.length === 0) {
     fail(`${want} — không đăng ký hợp đồng vùng chọn (AC2)`)
@@ -1944,8 +1991,10 @@ for (const want of SELECTION_PANEL_FILES) {
     detail('không được là nguồn (Panel Lookup, Bẫy 1). Một panel văn bản đứng ngoài sổ mà không ai')
     detail('giải thích là đúng thứ AC2 tồn tại để chặn.')
     fBad += 1
-  } else if (hits.length > 1) {
-    fail(`${want} — ${hits.length} lời gọi đăng ký, phải đúng MỘT`)
+  } else if (hits.length !== expected) {
+    fail(`${want} — ${hits.length} lời gọi đăng ký, phải đúng ${expected}`)
+    detail('Số mong đợi khai theo TỪNG TỆP ở `SELECTION_PANEL_FILES`. Một lời gọi thừa là một')
+    detail('bề mặt không ai xét vai; một lời gọi thiếu là một bề mặt chữ đứng ngoài sổ (AC2).')
     fBad += 1
   }
 }
@@ -1975,10 +2024,7 @@ if (lookupCall !== undefined && lookupCall.role !== 'display') {
 //    ⚠️ GIỚI HẠN THẬT: cổng này canh vai KHAI BÁO trong `.vue`, không canh hành vi lúc chạy.
 //    Vế hành vi sống ở `tests/frontend/editorAutoLookup.test.ts` (đường vitest). Một mệnh đề,
 //    một đường — AC25. Đừng nhân đôi.
-const DISPLAY_ONLY_FILES = [
-  'src/panels/AiTranslationPanel.vue',
-  'src/panels/EditorPanel.vue',
-]
+const DISPLAY_ONLY_FILES = ['src/panels/AiTranslationPanel.vue']
 
 for (const want of DISPLAY_ONLY_FILES) {
   const call = surfaceCalls.find((c) => c.file.endsWith(want))
@@ -1999,6 +2045,30 @@ if (surfaceCalls.length < SELECTION_SURFACE_FLOOR) {
   fail(`lời gọi đăng ký vùng chọn quét được — ${surfaceCalls.length} (sàn ${SELECTION_SURFACE_FLOOR})`)
   detail('Sàn này canh chính CỔNG: nếu regex thôi khớp thì mọi phép kiểm trên đều xanh rỗng.')
   fBad += 1
+}
+
+// ⑤ 🔴 `GridPanel.vue` phải có ĐÚNG MỘT `'source'` VÀ ĐÚNG MỘT `'display'` — Story 2.5b.
+//
+//    Đây là chỗ bịt khoảng hở mà lượt gộp panel vừa mở ra: ③ canh theo **tệp**, và hai vai
+//    nay ở **cùng một** tệp nên ③ không nói được gì về việc vai nào thuộc cột nào.
+//
+//    ⚠️ Cổng vẫn **không** đọc được *"cột nào là cột nào"* — nó chỉ đọc được rằng có đúng một
+//    lời gọi mỗi vai. Một lượt đảo `colSrc`/`colTgt` trong template đi qua được. Vế đó thuộc
+//    đường **e2e** (bấm vào cột bản dịch không được phát lượt tra) và
+//    `tests/frontend/editorAutoLookup.test.ts`. Ghi ra thay vì để người sau tưởng cổng phủ hết.
+const GRID_VUE = 'src/panels/GridPanel.vue'
+const gridCalls = surfaceCalls.filter((c) => c.file.endsWith(GRID_VUE))
+if (gridCalls.length > 0) {
+  for (const role of ['source', 'display']) {
+    const n = gridCalls.filter((c) => c.role === role).length
+    if (n !== 1) {
+      fail(`${GRID_VUE} — ${n} lời gọi vai \`${role}\`, phải đúng MỘT (AC7 của Story 2.5b)`)
+      detail('🔴 Cột nguyên văn là `source`, cột bản dịch là `display`. Đảo hai vai mở lại đúng')
+      detail('lỗi commit `1c7658d`: tra trong bản dịch tiếng Việt cho 0 hàng rồi THAY MẤT kết')
+      detail('quả người dùng vừa tra từ cột nguyên văn — rỗng im lặng.')
+      fBad += 1
+    }
+  }
 }
 
 if (nonLiteralSurfaceCalls > 0) {
@@ -2033,17 +2103,23 @@ console.log('\nKiểm I — vạch lề segment: ĐÚNG NĂM giá trị, không 
 // Ba mệnh đề, và mệnh đề ③ là lý do cổng này không chỉ là một phép đếm:
 //   ① `SEGMENT_RULE_VALUES` có ĐÚNG năm phần tử, và đúng năm cái tên đó;
 //   ② phép phân giải THẬT trả đúng giá trị cho từng ca — cổng `import()` và **chạy** nó;
-//   ③ đối chiếu HAI CHIỀU với CSS của `EditorPanel.vue`: mỗi giá trị (trừ *không vạch*) có
+//   ③ đối chiếu HAI CHIỀU với CSS của `GridPanel.vue`: mỗi giá trị (trừ *không vạch*) có
 //      đúng một khối `.rule-<giá trị>` khai `background-color: var(--color-<giá trị>)`, và
 //      không khối `.rule-*` nào tồn tại ngoài danh sách. Không có chiều thứ hai thì một
 //      giá trị đổi tên trong TS mà quên CSS cho ra một vạch **vô hình** — trạng thái mất
 //      im lặng, đúng lớp lỗi tệ nhất trên một panel mà trạng thái là toàn bộ nội dung.
 
 const EDITOR_SEGMENTS_TS = join(SRC_ROOT, 'panels', 'editorSegments.ts')
-const EDITOR_PANEL_VUE = join(SRC_ROOT, 'panels', 'EditorPanel.vue')
+// 🔵 2026-08-14 (Story 2.5b): `EditorPanel.vue` → `GridPanel.vue`. Bốn màu vạch chuyển sang
+// `<style scoped>` của lưới cùng lượt gộp hai panel; tên hằng giữ nguyên để diff đọc được.
+const EDITOR_PANEL_VUE = join(SRC_ROOT, 'panels', 'GridPanel.vue')
 
 /** ⚠️ Bản chép ĐỘC LẬP của `DESIGN.md:380` — không `import` từ tệp đang bị kiểm. */
-const EXPECTED_RULE_VALUES = ['confirmed', 'primary', 'tm-rule', 'none', 'ornament']
+// 🔵 2026-08-14 (Story 2.5b) — NĂM → SÁU. `draft` lấp một hàng vốn đã THIẾU trong bảng
+// (*"đã dịch tay, chưa xác nhận, con trỏ ở chỗ khác"*), không xin một kênh thị giác cho một
+// trạng thái mới ⇒ UX-DR22 không bị đụng. Lý lẽ đầy đủ + hai lượt ký theo thứ tự ở
+// doc-comment của `src/panels/editorSegments.ts::resolveSegmentRule`.
+const EXPECTED_RULE_VALUES = ['confirmed', 'primary', 'tm-rule', 'draft', 'none', 'ornament']
 
 if (!existsSync(EDITOR_SEGMENTS_TS)) {
   abort(`\`${posix(EDITOR_SEGMENTS_TS)}\``, new Error('Tệp không tồn tại — Kiểm I KHÔNG chạy được.'))
@@ -2097,7 +2173,7 @@ if (typeof segmentsMod.resolveSegmentRule !== 'function') {
   }
 }
 
-// ③ Đối chiếu HAI CHIỀU với CSS của `EditorPanel.vue`.
+// ③ Đối chiếu HAI CHIỀU với CSS của `GridPanel.vue`.
 const editorVue = parsed.find((p) => p.file === EDITOR_PANEL_VUE)
 if (editorVue === undefined) {
   fail(`\`${posix(EDITOR_PANEL_VUE)}\` không nằm trong quần thể quét — Kiểm I mất chiều thứ hai`)
@@ -2154,7 +2230,7 @@ if (editorVue === undefined) {
   }
   for (const cls of declaredClasses) {
     if (!ruleValues.includes(cls)) {
-      fail(`\`${posix(EDITOR_PANEL_VUE)}\` khai \`.rule-${cls}\` — không phải một trong năm giá trị`)
+      fail(`\`${posix(EDITOR_PANEL_VUE)}\` khai \`.rule-${cls}\` — không phải một trong sáu giá trị`)
       iBad += 1
     }
   }
@@ -2171,7 +2247,8 @@ if (iBad === 0) {
 // 🔴 KIỂM J ĐÃ ĐƯỢC GỠ — Story 2.3, và nó được gỡ ĐÚNG LÚC, không sớm hơn.
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// Kiểm J tồn tại từ Story 2.2 tới Story 2.3 và nó khẳng định `EditorPanel.vue` KHÔNG mang
+// Kiểm J tồn tại từ Story 2.2 tới Story 2.3 và nó khẳng định `EditorPanel.vue` *(tệp đó gỡ
+// ở Story 2.5b)* KHÔNG mang
 // năm thứ: `contenteditable` · `<textarea>` · `<input>` · `v-model` ·
 // `@input`/`@beforeinput`/`@paste`/`@cut`. Lý do nó tồn tại: Ice chốt Quyết định #1 của
 // Story 2.2 đường **(b)** — bề mặt CHỈ-ĐỌC — và một bề mặt gõ được mà **chưa có đường lưu**

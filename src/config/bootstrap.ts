@@ -60,7 +60,7 @@ export type BootstrapConfig = {
    *
    * 🔴 Đừng đọc trường này thành *"preset bố cục"*. `layout_presets` ở trên là **preset
    * đã ĐẶT TÊN** (`ScopeKind::LayoutPreset`, `GlobalOnly`); trường này là *"lần cuối người
-   * dùng để bốn panel ở đâu"* và nó sống trong `ScopeKind::AppConfig` cùng cửa với `theme`
+   * dùng để ba panel ở đâu"* và nó sống trong `ScopeKind::AppConfig` cùng cửa với `theme`
    * và `mode`. `kinds.rs:206-213` phân xử ranh giới đó.
    */
   workspace_layout: string

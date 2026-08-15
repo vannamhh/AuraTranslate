@@ -128,6 +128,18 @@ const EXPECTED_COLORS_LIGHT = {
   outline: '#e2dccf',
   'outline-faint': '#efeade',
   ornament: '#a9a196',
+  // 🔵 2026-08-14 (Story 2.5b) — TOKEN THỨ 17, và nó MƯỢN ĐÚNG GIÁ TRỊ của `ornament`.
+  //
+  // 🔴 Vì sao một cái tên thứ hai cho một màu đã có: `check-commands.mjs` Kiểm I đối chiếu
+  // HAI CHIỀU giữa `SEGMENT_RULE_VALUES` và các khối `.rule-<giá trị>` trong CSS, và nó đòi
+  // đúng `background-color: var(--color-<giá trị>)`. Giá trị vạch thứ sáu (`draft`, UX-DR19)
+  // vì thế **phải** có một token mang đúng tên đó — một `var(--color-ornament)` ở khối
+  // `.rule-draft` làm cổng ĐỎ, và một bảng alias để cho lọt là đúng thứ §Miễn trừ cấm.
+  //
+  // ⚠️ Trùng giá trị KHÔNG phải trùng nghĩa: `ornament` = *đã về hưu* (Story 2.8),
+  // `draft` = *đã dịch tay, chưa ai ký*. Hai vạch không bao giờ cùng xuất hiện trên một câu.
+  // ⇒ Vì trùng giá trị, nó **không** mang một cặp tương phản mới nào vào bảng.
+  draft: '#a9a196',
   primary: '#2f5d63',
   'on-primary': '#fbfaf6',
   confirmed: '#5a6b3f',
@@ -147,6 +159,8 @@ const EXPECTED_COLORS_DARK = {
   outline: '#3b382f',
   'outline-faint': '#302d26',
   ornament: '#6a6459',
+  // 🔵 Story 2.5b — xem khối lý do ở `EXPECTED_COLORS_LIGHT`.
+  draft: '#6a6459',
   primary: '#7fb3ba',
   'on-primary': '#1b1a17',
   confirmed: '#9cb37a',
@@ -223,7 +237,13 @@ const EXPECTED_ROUNDED = {
 }
 
 /**
- * Đếm bắt buộc — 16 / 17 / 16 / 4. không 16 màu, KHÔNG phải 17: `tm-rule` cùng giá trị hai theme.
+ * Đếm bắt buộc — **17** / 17 / 16 / 4.
+ *
+ * 🔵 2026-08-14 (Story 2.5b): số màu mỗi theme **16 → 17**. Mệnh đề cũ — *"KHÔNG phải 17:
+ * `tm-rule` cùng giá trị hai theme"* — nói về một cách đếm SAI (đếm `tm-rule` thành hai vì nó
+ * trùng giá trị), và nó vẫn đúng phần của nó. Cái đổi là một token **thật** được thêm:
+ * `draft`, giá trị vạch thứ sáu của UX-DR19. `DESIGN.md:196` cấm thêm token *"cho khớp một
+ * con số cũ"* — đây là chiều ngược lại: con số đổi vì có một lý do đo được.
  *
  * ⚠️ `typography` là **17** kể từ Story 1.17 (`ui-md-wrap`, Quyết định #7) — trước đó đã
  * là **16** kể từ Story 1.16 (`source-latin`, Quyết định #6), và **15** kể từ Story 1.14
@@ -236,7 +256,7 @@ const EXPECTED_ROUNDED = {
  * `<ruby>` thay `position: absolute` làm cơ chế âm đọc — ruby chiếm chỗ thật nên không
  * cần một giãn dòng riêng. Ghi lại để lần sau không ai dựng lại token đó.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 16, typography: 17, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 17, typography: 17, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -253,7 +273,7 @@ const LARGE_TEXT_MIN_PX = 24
 const EXPECTED_ROLES = {
   text: ['on-surface', 'on-surface-variant', 'primary', 'on-primary', 'confirmed', 'tm-text', 'error'],
   surface: ['background', 'surface', 'surface-sunken', 'surface-accent', 'surface-tm', 'primary'],
-  stroke: ['outline', 'outline-faint', 'ornament', 'tm-rule'],
+  stroke: ['outline', 'outline-faint', 'ornament', 'draft', 'tm-rule'],
 }
 
 /**
@@ -1542,7 +1562,7 @@ console.log('\nKiểm G — phân tách panel ĐẢO NGƯỢC giữa hai theme (
 // ═════════════════════════════════════════════════════════════════════════════════
 //
 // Không thống nhất hai theme về một cách làm. `outline #3b382f` trên `surface #26241f`
-// chỉ đạt 1,32:1 — gần như vô hình. Bê cách của theme sáng sang theme tối làm bốn panel
+// chỉ đạt 1,32:1 — gần như vô hình. Bê cách của theme sáng sang theme tối làm ba panel
 // chìm thành một khối nâu.
 //
 // ⚠️ Giới hạn của phép kiểm này, ghi thẳng: nó nghiệm thu Ở TẦNG TOKEN. Không panel nào

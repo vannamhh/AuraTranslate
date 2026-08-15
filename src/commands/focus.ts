@@ -36,7 +36,7 @@
 import { COMMAND_ID_RE } from './registry.ts'
 
 /**
- * Id của một chế độ hoặc một panel: `mode.library`, `panel.source`.
+ * Id của một chế độ hoặc một panel: `mode.library`, `panel.grid`.
  *
  * ⚠️ Dùng CHUNG văn phạm với command id — cùng một biểu thức, không chép lại một biến
  * thể. Owner và command id sống trong hai không gian tên khác nhau nhưng cùng một hình
@@ -173,7 +173,7 @@ export function createFocusRegistry(): FocusRegistry {
      * 🔴 PHẦN TỬ ĐÃ THÁO KHỎI DOM — và `<KeepAlive>` làm ca này thành thường trực.
      *
      * §Quyết định thiết kế #6 bắt buộc `<KeepAlive>`, nên rời Workspace KHÔNG tháo
-     * `PanelFrame`: Vue đỗ subtree ở một container **tách rời**. `panel.source` vẫn khai,
+     * `PanelFrame`: Vue đỗ subtree ở một container **tách rời**. `panel.grid` vẫn khai,
      * `resolve()` vẫn trả một `HTMLElement` thật, `typeof el.focus === 'function'` vẫn
      * đúng — nhưng `el.focus()` trên một node đã tách là **no-op**. Không có phép kiểm
      * này thì hàm trả `true`, `last` bị ghi, và `armBodyGuard` im lặng vì `activeElement`
@@ -191,6 +191,69 @@ export function createFocusRegistry(): FocusRegistry {
       )
       return false
     }
+    /**
+     * ═══════════════════════════════════════════════════════════════════════════════
+     * 🔴 TIÊU ĐIỂM ĐÃ Ở TRONG `el` ⇒ **KHÔNG CÓ LƯỢT CHUYỂN NÀO** — Story 2.5b, Ice ký
+     *    2026-08-15, đường (A)
+     * ═══════════════════════════════════════════════════════════════════════════════
+     * AD-34 §2 nói *"**CHUYỂN** panel phải dời focus DOM tường minh"*. Mệnh đề đó **không đổi
+     * một chữ**; điều kiện dưới đây chỉ đọc nó cho đúng: khi tiêu điểm **đã** nằm trong cây
+     * con của owner này thì **không có lượt chuyển nào để mà dời**, và một `el.focus()` ở đó
+     * không phải "dời focus tường minh" — nó là **kéo focus khỏi chỗ người dùng đang đứng
+     * BÊN TRONG chính panel đó**.
+     *
+     * ─────────────────────────────────────────────────────────────────────────────
+     * ĐƯỜNG HỎNG ĐÃ ĐO ĐƯỢC, không một khả năng lý thuyết
+     * ─────────────────────────────────────────────────────────────────────────────
+     * `WorkspaceDock.vue::onDidActivePanelChange` gọi `enterFocus(id)` cho mọi lượt kích hoạt
+     * panel `origin === 'user'` — tức **cú bấm chuột đầu tiên vào một panel**. Với lưới hai
+     * cột của Story 2.5b, cú bấm đó vừa đặt caret vào một ô `contenteditable`; lượt `focus()`
+     * ngay sau **giết caret vừa đặt**.
+     *
+     * **Đo 2026-08-15, cửa sổ Tauri thật (WKWebView 605.1.15), chuột thật, cùng một ô:**
+     *
+     * | | `document.activeElement` | `getSelection().type` |
+     * |---|---|---|
+     * | cú bấm **thứ nhất** | `SECTION.panel.focused` | **`"None"`**, `rangeCount 0` |
+     * | cú bấm **thứ hai** *(panel đã kích hoạt ⇒ sự kiện không bắn nữa)* | `DIV` *(chính ô)* | **`"Caret"`** |
+     *
+     * ⇒ Người dùng đọc nó thành *"phải bấm hai lần mới gõ được"*. **Bốn** lượt vá ở tầng panel
+     * đã bị bác bằng phép đo *(`contenteditable` trần → `focus()` trong `mouseup` →
+     * `requestAnimationFrame` → thêm một `setTimeout(0)`)*: cả bốn chạy **trước** lượt
+     * `enterFocus` này, nên không lượt nào sống sót được nó.
+     *
+     * 🔵 **Và đây là chỗ một chẩn đoán SAI của Story 2.3 được đính chính bằng số.** 2.3 đọc
+     * `activeElement = SECTION.panel` thành *"AD-34 giành tiêu điểm"* và **sai** — lúc đó
+     * **không ai giành cả**, nguyên nhân là một lượt đặt thuộc tính bất đồng bộ. Ở lưới thì
+     * **CÓ**, và nó đích danh dòng `el.focus()` ngay dưới. Hai kết luận không mâu thuẫn:
+     * chúng nói về hai đường khác nhau, và mỗi cái đúng cho đường của nó.
+     *
+     * ⚠️ **Trả `true`, và đó là câu trả lời TRUNG THỰC** — hợp đồng của `enter()` là *"sau lượt
+     * này, tiêu điểm nằm trong owner"*, và nó **đang** nằm ở đó. Trả `false` sẽ làm
+     * `next()`/`cycle()` đọc thành *"panel này không nhận được focus"* rồi nhảy sang panel kế —
+     * tức một khuyết tật điều hướng mới, đổi lấy đúng con số không.
+     *
+     * ⚠️ **KHÔNG gọi `armBodyGuard`**: chốt đó canh ca *"focus rơi về `body`"*, và ở đây tiêu
+     * điểm đang ở trong `el`. Gọi nó là hẹn một lượt kiểm cho một ca đã biết là không xảy ra.
+     *
+     * ⚠️ `typeof document === 'undefined'` — cùng chốt và cùng lý do `armBodyGuard` đã dùng:
+     * Kiểm C/E của `check-commands.mjs` `import()` tệp này bằng **Node thuần**. Một `document`
+     * trần ở đây giết ba phép kiểm chạy trên chính mã sản phẩm. `contains` cũng được dò sự tồn
+     * tại vì cổng dựng phần tử **giả**, không phải `HTMLElement` thật.
+     *
+     * ⚠️ `el.contains(el)` là `true` theo chuẩn DOM, nên ca *"tiêu điểm ĐÚNG ở gốc panel"* đi
+     * chung nhánh này — và đó là điều đúng: cũng không có gì để dời.
+     */
+    if (
+      typeof document !== 'undefined' &&
+      document.activeElement !== null &&
+      typeof el.contains === 'function' &&
+      el.contains(document.activeElement)
+    ) {
+      last = owner
+      return true
+    }
+
     el.focus()
     last = owner
     armBodyGuard(owner)
@@ -209,8 +272,8 @@ export function createFocusRegistry(): FocusRegistry {
    *
    * `last` chỉ được ghi bởi một `enter()` thành công — chuột và `Tab` KHÔNG bao giờ cập
    * nhật nó. Bản đầu xoay vòng từ `last`, và hệ quả quan sát được: sau `enter('mode.
-   * workspace')` rồi người dùng **bấm chuột** vào `panel.editor`, `focus.next_panel` nhảy
-   * tới `panel.source` — panel **trước** chỗ người dùng đang đứng.
+   * workspace')` rồi người dùng **bấm chuột** vào `panel.ai_translation`, `focus.next_panel`
+   * nhảy tới `panel.grid` — panel **trước** chỗ người dùng đang đứng.
    *
    * ⚠️ `PanelFrame.vue:26-31` bác thẳng đúng khuôn mẫu này cho cờ tiêu điểm: *"Một cờ do
    * ứng dụng tự giữ sẽ vẫn sáng đúng một panel trong khi focus thật đã rơi ra ngoài."*

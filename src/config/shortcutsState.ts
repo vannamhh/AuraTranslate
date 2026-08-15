@@ -5,7 +5,7 @@
  * 🔴 VÌ SAO STATE SỐNG Ở ĐÂY, KHÔNG TRONG `ShortcutsOverlay.vue`
  * ─────────────────────────────────────────────────────────────────────────────
  * Cùng lý do `dictSourcesState.ts`: một lượt đổi preset bố cục gọi `api.clear()` rồi dựng
- * lại cả bốn panel. State module-level là singleton của cả tiến trình, nên lựa chọn phím
+ * lại cả ba panel. State module-level là singleton của cả tiến trình, nên lựa chọn phím
  * của người dùng sống sót qua lượt tháo/dựng lại đó.
  *
  * ⚠️ **Ở `src/config/`, KHÔNG ở `src/panels/`.** Đây là cấu hình ứng dụng và nó gọi thẳng

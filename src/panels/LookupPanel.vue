@@ -44,7 +44,7 @@ import { computeSpine, sourcesDisagree } from './lookupPanelState'
 // ── Story 1.20 — dải tab, lịch sử trong phiên, bộ ghim ──────────────────────────────
 //
 // 🔴 State sống ở `lookupHistoryState.ts`, KHÔNG trong một `ref` cục bộ ở đây (AC5): đổi
-// preset bố cục gọi `api.clear()` rồi dựng lại cả bốn panel, và chỉ state module-level
+// preset bố cục gọi `api.clear()` rồi dựng lại cả ba panel, và chỉ state module-level
 // sống sót qua lượt tháo/dựng đó — một `ref` cục bộ làm tab tự nhảy về mặc định.
 import {
   aimLookupEntryFrom,
@@ -105,7 +105,7 @@ const tabpanelLabelledBy = computed(() =>
  * tab, nút cũ nhận `tabindex="-1"`. Nếu tiêu điểm ở lại đó thì lượt bấm mũi tên **thứ
  * hai** vẫn phát từ nút cũ và dispatch đúng cái id vừa chạy — một no-op. Với **hai** tab,
  * hệ quả đo được là người dùng bàn phím đi được một chiều rồi **kẹt**: không mũi tên nào
- * đưa họ về tab đầu. Đó đúng là *"hợp đồng `tablist` khai một nửa"* mà `SourcePanel.vue`
+ * đưa họ về tab đầu. Đó đúng là *"hợp đồng `tablist` khai một nửa"* mà dải tab Hán Việt
  * cảnh báo bằng chữ, và là hàng **9** của bàn đo (*"mọi thao tác tới được, không chạm
  * chuột"*).
  *
@@ -142,7 +142,8 @@ const disagree = computed(() => sourcesDisagree(groups.value))
  * 🔴 AC6 — **một lượt tra TRƯỢT phải nói ra**. `lookupError` từng là một export không ai tiêu
  * thụ, nên một lỗi IPC cho ra thân panel TRẮNG CÂM: `neverLookedUp` đã `false` (tắt câu
  * mặc định của `PanelFrame`) còn `lookupResolved` `false` (tắt cả kết quả lẫn bốn chuỗi
- * rỗng). Đúng khuyết tật code review 1.16 đã bắt ở `SourcePanel.vue` — tái phát nguyên
+ * rỗng). Đúng khuyết tật code review 1.16 đã bắt ở Panel Nguyên văn *(tệp đó gỡ ở Story
+ * 2.5b — bề mặt nay là cột nguyên văn của `GridPanel.vue`)* — tái phát nguyên
  * văn ở 1.17, bắt lại 2026-08-07.
  */
 const showLookupError = computed(() => lookupError.value !== null)
@@ -403,7 +404,7 @@ onBeforeUnmount(() => {
 
         🔴 Năm thuộc tính là bắt buộc, không trang trí: `role="tab"` · `aria-selected` ·
         `aria-controls` · `tabindex` roving (đúng MỘT tab trong vòng Tab) · mũi tên
-        trái/phải đổi tab. `SourcePanel.vue` ghi lý do bằng chữ: *"hợp đồng `tablist` khai
+        trái/phải đổi tab. Dải tab Hán Việt ghi lý do bằng chữ: *"hợp đồng `tablist` khai
         một nửa còn tệ hơn không khai, vì nó hứa một mô hình tương tác không tồn tại"*.
       -->
       <div class="lookup-tabs" role="tablist">
@@ -1052,7 +1053,7 @@ onBeforeUnmount(() => {
   margin-bottom: var(--space-panel-block);
 }
 
-/* Cùng khai token với `.tab` của `SourcePanel.vue` — một dải tab, một hình dạng. */
+/* Cùng khai token với `.tab` của `GridPanel.vue` — một dải tab, một hình dạng. */
 .lookup-tab {
   appearance: none;
   border: none;

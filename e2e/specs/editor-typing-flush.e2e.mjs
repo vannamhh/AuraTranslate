@@ -84,51 +84,71 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
     // bộ tách của Story 2.1 cho hai hàng `segment`.
     await openWorkspaceWithWork('Story 2.3 — vùng gõ')
 
-    const sentences = await $$('[data-segment-id]')
+    // 🔵 B11 (Story 2.5b): `[data-segment-id]` **KHÔNG còn duy nhất** — một câu có hai neo
+    // *(ô nguyên văn + ô bản dịch)*. Mọi phép đếm và mọi `$()` phải nói rõ **CỘT nào**, nếu
+    // không phép đếm đọc ra `2 ×` số câu và `$()` trả về **ô nguyên văn**.
+    const sentences = await $$('[data-col="tgt"]')
     await expect(sentences.length).toBeGreaterThan(0)
     const before = await readSegmentsFromDisk()
     const targetId = before.segments[0].id
 
-    // ── ① `.doc` KHÔNG gõ được, và trước lượt bấm nào thì không câu nào gõ được ──────
-    const docEditable = await browser.execute(
-      () => document.querySelector('.doc')?.getAttribute('contenteditable') ?? 'absent',
-    )
-    await expect(docEditable).toBe('absent')
-    // ⚠️ **Không** khẳng định *"0 câu gõ được trước lượt bấm"*. Đo được 2026-08-13: một lượt
-    // `selectionchange` lúc vào Workspace có thể đã đặt caret vào một câu, và khi đó vùng gõ lên
-    // trước cú bấm — **đúng hành vi**, không một khuyết tật. Mệnh đề thật của bước này là
-    // *"`.doc` không bao giờ là editing host"*, và nó ở dòng trên.
-    const editableBefore = await browser.execute(
-      () => document.querySelectorAll('[contenteditable="true"]').length,
-    )
-    await expect(editableBefore).toBeLessThanOrEqual(1)
+    // ── ① 🔵 MỆNH ĐỀ ĐỔI (Story 2.5b · Quyết định #3b): MỌI ô bản dịch gõ được ─────────
+    //
+    // Bản trước khẳng định *"`.doc` không bao giờ là editing host"* và *"nhiều nhất một câu
+    // gõ được"*. Cả hai thuộc đường (c) của Story 2.3, và **tiền đề của chúng không còn tồn
+    // tại**: không còn `.doc`, và mỗi ô nay là một editing host **riêng**.
+    //
+    // 🔴 Cái mà mệnh đề cũ **mua** thì không mất, nó đổi cơ chế: trình duyệt không được sửa
+    // cây `data-segment-id`. Trước: chỉ một span gõ được. Nay: một `Range` soạn thảo **không
+    // bắc cầu hai editing host được**. Ca ⑤ ở dưới vẫn khoá đúng mệnh đề đó bằng một phép đếm.
+    const editableBefore = await browser.execute(() => {
+      const all = [...document.querySelectorAll('[contenteditable="true"]')]
+      return {
+        count: all.length,
+        moiCotDich: all.every((el) => el.getAttribute('data-col') === 'tgt'),
+        khongCoDoc: document.querySelector('.doc') === null,
+      }
+    })
+    await expect(editableBefore.count).toBe(sentences.length)
+    await expect(editableBefore.moiCotDich).toBe(true)
+    await expect(editableBefore.khongCoDoc).toBe(true)
 
     // ── ② Bấm CHUỘT THẬT vào câu đầu ⇒ đúng MỘT vùng gõ, và nó là câu đó ─────────────
-    const first = await $(`[data-segment-id="${targetId}"]`)
+    const first = await $(`[data-col="tgt"][data-segment-id="${targetId}"]`)
     await realClick(first)
     await browser.pause(200)
 
+    // 🔵 Mệnh đề đổi từ *"đúng MỘT vùng gõ, và nó là câu đó"* sang *"TIÊU ĐIỂM lên đúng ô đó,
+    // và có caret trong nó"* — thứ thật sự quyết việc người dùng gõ được hay không.
+    //
+    // 🔴 Đây là chỗ bàn đo Task 1.2 đo được một khuyết tật thật: `contenteditable` **trần**
+    // trong WKWebView **không nhận tiêu điểm** khi bấm chuột (`activeElement = SECTION.mode`,
+    // `selection = None`). Đường chuột của `GridPanel.vue` là thứ đóng nó — nên ca này canh
+    // đúng đường đó, không canh một thuộc tính tĩnh.
     const zone = await browser.execute(() => {
-      const editable = [...document.querySelectorAll('[contenteditable="true"]')]
+      const active = document.activeElement
+      const sel = window.getSelection()
       return {
-        count: editable.length,
-        id: editable[0]?.getAttribute('data-segment-id') ?? null,
-        tag: editable[0]?.tagName ?? null,
-        // 🔴 Vế quyết định AC21: `isTypingZone` của `keys.ts` đọc CHÍNH thuộc tính này, và một
-        // `<span>` KHÔNG được nhánh `tagName` của nó cứu.
-        isContentEditable: editable[0]?.isContentEditable ?? null,
+        id: active?.getAttribute?.('data-segment-id') ?? null,
+        col: active?.getAttribute?.('data-col') ?? null,
+        // 🔴 Vế quyết định AC21: `isTypingZone` của `keys.ts` đọc CHÍNH thuộc tính này.
+        isContentEditable: active?.isContentEditable ?? null,
+        selectionType: sel ? sel.type : null,
+        neoTrongO: !!(sel && sel.anchorNode && active && active.contains(sel.anchorNode)),
       }
     })
-    await expect(zone.count).toBe(1)
     await expect(String(zone.id)).toBe(String(targetId))
-    await expect(zone.tag).toBe('SPAN')
+    await expect(zone.col).toBe('tgt')
     await expect(zone.isContentEditable).toBe(true)
+    await expect(zone.selectionType).toBe('Caret')
+    await expect(zone.neoTrongO).toBe(true)
 
     // ── ③ Gõ, qua ĐÚNG `beforeinput` mà một phím vật lý sinh ra ──────────────────────
     const typed = 'Bản dịch gõ trong WKWebView thật.'
     const inserted = await browser.execute((text) => {
       const ok = document.execCommand('insertText', false, text)
-      return { ok, text: document.querySelector('[contenteditable="true"]')?.textContent ?? null }
+      // 🔵 B11 — đọc ô đang có TIÊU ĐIỂM, không ô đầu tiên khớp selector.
+      return { ok, text: document.activeElement?.textContent ?? null }
     }, typed)
     // 🔴 **CA NÀY ĐANG ĐỎ, CÓ CHỦ — đừng "sửa" nó bằng cách nới mệnh đề.**
     //
@@ -148,7 +168,8 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
 
     // Số câu KHÔNG đổi — gõ không phải một lượt tách (AD-4).
     const ids = await browser.execute(() =>
-      [...document.querySelectorAll('[data-segment-id]')].map((el) =>
+      // 🔵 B11 — đếm theo CỘT, không theo id trần: `[data-segment-id]` nay khớp `2 ×` số câu.
+      [...document.querySelectorAll('[data-col="tgt"]')].map((el) =>
         Number(el.getAttribute('data-segment-id')),
       ),
     )
@@ -183,7 +204,7 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
 
     const before = await readSegmentsFromDisk()
     const targetId = before.segments[0].id
-    await realClick(await $(`[data-segment-id="${targetId}"]`))
+    await realClick(await $(`[data-col="tgt"][data-segment-id="${targetId}"]`))
     await browser.pause(200)
 
     // Vế PHÍM: `browser.keys` bắn `keydown` thật, và đó đúng là thứ `onEditKeydown` canh.
@@ -197,7 +218,8 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
     await browser.pause(300)
 
     const ids = await browser.execute(() =>
-      [...document.querySelectorAll('[data-segment-id]')].map((el) =>
+      // 🔵 B11 — đếm theo CỘT, không theo id trần: `[data-segment-id]` nay khớp `2 ×` số câu.
+      [...document.querySelectorAll('[data-col="tgt"]')].map((el) =>
         Number(el.getAttribute('data-segment-id')),
       ),
     )
@@ -209,7 +231,7 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
     // assert. Ở đây mệnh đề là *"không có `<br>` nào"*, và một vùng gõ vắng mặt cũng thoả nó —
     // đọc `-1` thành một ca đỏ là trộn hai mệnh đề vào một phép kiểm.
     const brInside = await browser.execute(
-      () => document.querySelector('[contenteditable="true"]')?.querySelectorAll('br').length ?? 0,
+      () => document.activeElement?.querySelectorAll?.('br').length ?? 0,
     )
     await expect(brInside).toBe(0)
   })

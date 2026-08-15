@@ -94,7 +94,11 @@ function walk(dir, out = [], seen = new Set()) {
  */
 // 🔴 NÂNG 2026-08-12 — Story 2.2 · AC16. Số thật là **50** tệp `src/**`, nên sàn 35 đã tụt
 // xuống **70,0%**; ba story (1.20 · 1.21 · 2.1) thêm tệp mà không ai nâng sàn. Đo chứ không ước.
-const FILE_FLOOR = 43 // số THẬT 2026-08-12 (sau Story 2.3): 52 tệp `src/**` — 43/52 = 82,7%
+// 🔵 ĐẾM LẠI 2026-08-14 (Story 2.5b) — quần thể **không đổi**: gỡ ba tệp
+// (`SourcePanel.vue` · `EditorPanel.vue` · `editorGutter.ts`), thêm ba
+// (`GridPanel.vue` · `hanVietSurfaces.ts` · `segmentNavigation.ts`). Một lượt lật hình dạng
+// **cân bằng theo số tệp** là chuyện tình cờ, không một mệnh đề — nên nó được đếm, không suy.
+const FILE_FLOOR = 43 // số THẬT 2026-08-14 (sau Story 2.5b): 52 tệp `src/**` — 43/52 = 82,7%
 
 let files = []
 try {
@@ -216,7 +220,11 @@ for (const name of ['PANEL_IDS', 'SACRIFICE_ORDER', 'NEVER_SACRIFICED', 'nextToS
 
 const { PANEL_IDS, SACRIFICE_ORDER, NEVER_SACRIFICED, nextToSacrifice, nextToRestore } = layoutMod
 
-// Mệnh đề 1 — hai tập RỜI NHAU và hợp lại đúng bốn panel.
+// Mệnh đề 1 — hai tập RỜI NHAU và hợp lại đúng `PANEL_IDS`.
+//
+// 🔵 2026-08-14 (Story 2.5b): tiêu đề cũ viết "đúng BỐN panel" — con số đó đã hết đúng
+// (bốn → ba). Phép kiểm thì **không đổi một dòng**: nó luôn so với `PANEL_IDS` thật, nên
+// nó là một trong số ít chỗ của lượt lật này KHÔNG phải sửa logic.
 {
   const overlap = SACRIFICE_ORDER.filter((id) => NEVER_SACRIFICED.includes(id))
   const union = [...new Set([...SACRIFICE_ORDER, ...NEVER_SACRIFICED])].sort()
@@ -232,9 +240,9 @@ const { PANEL_IDS, SACRIFICE_ORDER, NEVER_SACRIFICED, nextToSacrifice, nextToRes
   }
 }
 
-// Mệnh đề 2 — `panel.source` / `panel.editor` KHÔNG BAO GIỜ là đầu ra.
+// Mệnh đề 2 — mọi phần tử của `NEVER_SACRIFICED` KHÔNG BAO GIỜ là đầu ra.
 //
-// ⚠️ Duyệt TOÀN BỘ 16 tập con của bốn panel, không chỉ vài ca lấy mẫu: mệnh đề là
+// ⚠️ Duyệt TOÀN BỘ `2^n` tập con, không chỉ vài ca lấy mẫu: mệnh đề là
 // *"không bao giờ"*, và một phép kiểm lấy mẫu chứng minh được ít hơn hẳn thứ nó tuyên bố.
 {
   const bad = []
@@ -261,21 +269,21 @@ const { PANEL_IDS, SACRIFICE_ORDER, NEVER_SACRIFICED, nextToSacrifice, nextToRes
   } else if (ai >= lookup) {
     fail('`panel.ai_translation` phải nhường TRƯỚC `panel.lookup` (epics.md:1616)')
   } else if (nextToSacrifice([...PANEL_IDS]) !== 'panel.ai_translation') {
-    fail(`đủ bốn panel ⇒ cái nhường đầu tiên phải là \`panel.ai_translation\``)
-  } else if (nextToSacrifice(['panel.source', 'panel.lookup', 'panel.editor']) !== 'panel.lookup') {
+    fail(`đủ ba panel ⇒ cái nhường đầu tiên phải là \`panel.ai_translation\``)
+  } else if (nextToSacrifice(['panel.grid', 'panel.lookup']) !== 'panel.lookup') {
     fail('sau khi `panel.ai_translation` đã nhường, cái kế tiếp phải là `panel.lookup`')
-  } else if (nextToSacrifice(['panel.source', 'panel.editor']) !== null) {
-    fail('chỉ còn cặp không nhường ⇒ phải trả `null`, không phải hy sinh một trong hai')
+  } else if (nextToSacrifice(['panel.grid']) !== null) {
+    fail('chỉ còn `panel.grid` ⇒ phải trả `null`, không phải hy sinh nó')
   } else {
-    pass('`panel.ai_translation` nhường trước · `panel.lookup` nhường sau · cặp còn lại ⇒ `null`')
+    pass('`panel.ai_translation` nhường trước · `panel.lookup` nhường sau · `panel.grid` ⇒ `null`')
   }
 }
 
 // Nghịch đảo: trả panel về theo thứ tự NGƯỢC. Không có nó thì một lượt nới cửa sổ trả
 // `panel.ai_translation` về trước `panel.lookup`, tức đảo đúng ưu tiên vừa phát biểu.
 if (typeof nextToRestore === 'function') {
-  const a = nextToRestore(['panel.source', 'panel.editor'])
-  const b = nextToRestore(['panel.source', 'panel.editor', 'panel.lookup'])
+  const a = nextToRestore(['panel.grid'])
+  const b = nextToRestore(['panel.grid', 'panel.lookup'])
   if (a !== 'panel.lookup' || b !== 'panel.ai_translation') {
     fail(`\`nextToRestore\` sai thứ tự — nhận được \`${a}\` rồi \`${b}\``)
     detail('Cái nhường SAU CÙNG phải được lấy lại TRƯỚC.')
@@ -420,10 +428,10 @@ const ALLOWED_GLOBAL_MEMBERS = new Set([
   // Story 1.19, AC11 · UX-DR17 (thêm ở code review 2026-08-10) — `AttributionOverlay.vue`
   // tìm lại nút ĐÃ MỞ lớp phủ (`[data-attribution-open]`) để trả tiêu điểm về khi node giữ
   // tiêu điểm lúc mở đã rời DOM. Một `ref` không dùng được: nút sống trong `LookupPanel.vue`,
-  // một component KHÁC, và một lượt đổi preset bố cục dựng lại cả bốn panel. API DOM chuẩn,
+  // một component KHÁC, và một lượt đổi preset bố cục dựng lại cả ba panel. API DOM chuẩn,
   // không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
   'document.querySelector',
-  // Story 2.3, AC8 — `EditorPanel.vue::onBeforeInput` chèn văn bản THUẦN đã làm phẳng sau khi
+  // Story 2.3, AC8 — `GridPanel.vue::onBeforeInput` chèn văn bản THUẦN đã làm phẳng sau khi
   // `preventDefault()` một lượt dán/kéo-thả. Đó là đường DUY NHẤT giữ được mệnh đề của AD-37
   // (*cấu trúc đoạn là dữ liệu ĐÃ LƯU*), và nó là một PHÉP ĐO chứ không một lượt phòng xa: mũi
   // thăm dò Task 0.1 đo được rằng không có nhánh này thì **cả hai** engine tiêm markup vào
@@ -432,7 +440,7 @@ const ALLOWED_GLOBAL_MEMBERS = new Set([
   // Blink vẫn giữ `\n`, WebKit tự tạo `<div>`.
   // API DOM chuẩn, không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
   'document.createTextNode',
-  // Story 2.3, AC22 — `EditorPanel.vue::placeCaretAtPoint`. ĐÂY LÀ MỘT PHÉP ĐO, không một lượt
+  // Story 2.3, AC22 — `GridPanel.vue::placeCaretAtPoint`. ĐÂY LÀ MỘT PHÉP ĐO, không một lượt
   // phòng xa: đo trong cửa sổ Tauri thật (WKWebView 605.1.15, chuột THẬT) rằng một cú bấm vào
   // văn bản chỉ-đọc cho `getSelection().type === 'None'`, `rangeCount = 0`, và `.doc` KHÔNG nhận
   // tiêu điểm dù có `tabindex="0"`. Đường `Selection.anchorNode` của Story 2.2 vì thế không bao

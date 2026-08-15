@@ -23,7 +23,7 @@ import {
 /**
  * Chạy một dòng sự kiện gõ qua nhịp flush và trả về **thời điểm của từng lượt flush**.
  *
- * ⚠️ Đây là bản mô phỏng vòng lặp mà `EditorPanel.vue` chạy (`setTimeout` tới `deadline()`,
+ * ⚠️ Đây là bản mô phỏng vòng lặp mà `GridPanel.vue` chạy (`setTimeout` tới `deadline()`,
  * gửi lô, `onFlushed`), viết ở dạng **không đồng hồ và không timer** — cùng khuôn
  * `simulateWrites` của `writeSchedule.ts`. Nó sống trong tệp test chứ không trong sản phẩm
  * vì sản phẩm không có chỗ gọi nào cho nó.

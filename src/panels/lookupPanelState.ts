@@ -6,7 +6,7 @@
  * 🔴 VÌ SAO STATE SỐNG Ở ĐÂY, KHÔNG TRONG `LookupPanel.vue`
  * ─────────────────────────────────────────────────────────────────────────────
  * Cùng lý do `sourcePanelState.ts`: AC10 đòi kết quả tra cứu SỐNG SÓT qua một lượt đổi
- * preset bố cục (`applyPreset()` → `api.clear()` → dựng lại cả bốn panel). State
+ * preset bố cục (`applyPreset()` → `api.clear()` → dựng lại cả ba panel). State
  * module-level là singleton của cả tiến trình, nên nó sống sót qua lượt tháo/dựng lại đó.
  *
  * ⚠️ Cùng lý do, tệp này KHÔNG được `import` vào `src/commands/index.ts` trực tiếp — nó

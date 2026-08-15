@@ -114,7 +114,7 @@ export function applyTheme(theme: Theme, root: HTMLElement = document.documentEl
   //
   // ⚠️ Hai theme khai HAI cơ chế khác nhau, và đó là điều kiện nghiệm thu chứ không
   // phải một chi tiết cài đặt: mặt sáng phân tách bằng NÉT, mặt tối bằng KHE. Bê cách
-  // của theme sáng sang theme tối làm bốn panel chìm thành một khối nâu — `outline`
+  // của theme sáng sang theme tối làm ba panel chìm thành một khối nâu — `outline`
   // trên `surface` ở theme tối chỉ đạt 1,32:1.
   //
   // Story này KHÔNG dựng panel (Story 1.14). Nó chỉ khai cơ chế; `check-tokens.mjs`

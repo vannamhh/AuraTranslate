@@ -57,7 +57,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   // 🔴 Phải nhả. Một `setInterval` sống sót lượt tháo là một lượt gán `ref` mỗi giây vào một
-  // component không ai còn render — cùng luật `EditorPanel.vue::onBeforeUnmount` đã giữ cho
+  // component không ai còn render — cùng luật `GridPanel.vue::onBeforeUnmount` đã giữ cho
   // `ResizeObserver` và bộ hẹn đo vạch.
   if (ticker !== null) clearInterval(ticker)
   ticker = null

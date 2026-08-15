@@ -2,11 +2,11 @@
  * State của Panel Editor — segment đã nạp, câu đang có tiêu điểm. Story 2.2, AC3 · AC5 · AC13.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 VÌ SAO STATE SỐNG Ở ĐÂY, KHÔNG TRONG `EditorPanel.vue`
+ * 🔴 VÌ SAO STATE SỐNG Ở ĐÂY, KHÔNG TRONG `GridPanel.vue`
  * ─────────────────────────────────────────────────────────────────────────────
  * Cùng lý do và cùng khuôn `sourcePanelState.ts` (Story 1.16 · AC9): một lượt đổi preset bố
  * cục chạy `WorkspaceDock.vue::applyPreset()` → `api.clear()` rồi dựng lại **cả bốn** panel,
- * tức tháo và mount lại instance `EditorPanel.vue`. Một `ref` khai trong `<script setup>`
+ * tức tháo và mount lại instance `GridPanel.vue`. Một `ref` khai trong `<script setup>`
  * của nó chết cùng lượt tháo đó, và người dùng trả giá bằng một lượt IPC nạp lại toàn bộ
  * segment của Chương *(đo được: **9.850** hàng cho Chương lớn nhất có thật)*.
  *
@@ -23,6 +23,7 @@ import { confirmSegment, readOpenChapterSegments, saveSegmentTargets } from '../
 import type { ChapterSegment, SegmentTargetEdit } from '../config/segment'
 import type { IpcError } from '../i18n'
 import { createEditorFlush, EDITOR_RETRY_FLOOR_MS } from './editorFlush'
+import { navigationSegmentOf, nextUntranslatedId } from './segmentNavigation'
 
 const segments = shallowRef<readonly ChapterSegment[]>([])
 const chapterId = shallowRef<number | null>(null)
@@ -141,12 +142,12 @@ export function setEditorCaret(id: number | null): void {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// 🔴 NHỊP FLUSH — AD-35, Story 2.3. VÌ SAO NÓ SỐNG Ở ĐÂY VÀ KHÔNG TRONG `EditorPanel.vue`
+// 🔴 NHỊP FLUSH — AD-35, Story 2.3. VÌ SAO NÓ SỐNG Ở ĐÂY VÀ KHÔNG TRONG `GridPanel.vue`
 // ═════════════════════════════════════════════════════════════════════════════════
 //
 // Cùng lý do và cùng phép đo mà doc-comment đầu tệp đã ghi cho `segments`, nhưng ở đây cái
 // giá cao hơn hẳn một bậc: một lượt đổi preset bố cục chạy `api.clear()` rồi dựng lại cả bốn
-// panel, tức **tháo** instance `EditorPanel.vue`. Một `setTimeout` và một tập chờ khai trong
+// panel, tức **tháo** instance `GridPanel.vue`. Một `setTimeout` và một tập chờ khai trong
 // `<script setup>` của nó chết cùng lượt tháo đó — và thứ chết theo là **văn bản người dùng
 // vừa gõ mà chưa flush**. Đó đúng là cửa sổ mất dữ liệu im lặng mà cả Epic 2 tồn tại để đóng
 // (NFR18), chỉ là mở ra bởi một lượt đổi bố cục thay vì một lần sập máy.
@@ -236,7 +237,7 @@ function armFlushTimer(floorMs = 0): void {
 }
 
 /**
- * Người dùng vừa sửa một câu — **chỗ gọi duy nhất là đường gõ của `EditorPanel.vue`**.
+ * Người dùng vừa sửa một câu — **chỗ gọi duy nhất là đường gõ của `GridPanel.vue`**.
  *
  * ⚠️ `Date.now()` đọc **ở đây**, không trong `editorFlush.ts`: module đó là tầng thuần và luật
  * *"mọi thời điểm đi vào qua tham số"* của nó là điều kiện để ba mệnh đề định lượng của AC11
@@ -469,7 +470,7 @@ export const editorConfirmError: DeepReadonly<Ref<IpcError | null>> = readonly(c
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔴 VÌ SAO MỘT TÍN HIỆU RIÊNG, KHÔNG TÁI DÙNG WATCHER SẴN CÓ CỦA `editorCaretSegmentId`
  * ─────────────────────────────────────────────────────────────────────────────
- * Watcher trong `EditorPanel.vue` **khôi phục** caret về đúng chỗ nó vừa ở (`savedCaret`),
+ * Watcher trong `GridPanel.vue` **khôi phục** caret về đúng chỗ nó vừa ở,
  * và nó cố ý **không làm gì** khi vị trí đã lưu không nằm trong câu mới. Nới nhánh đó thành
  * *"không nằm trong thì đặt vào đầu câu"* sẽ chạy cả trên **đường chuột** — và ở đó nó kéo
  * caret về đầu câu sau một cú bấm vào giữa câu.
@@ -481,7 +482,7 @@ export const editorConfirmError: DeepReadonly<Ref<IpcError | null>> = readonly(c
  * bằng phép đo)*. Không nới nó cho một tính năng khác.
  */
 const caretPlacement = shallowRef<number | null>(null)
-/** Xem [`caretPlacement`]. `EditorPanel.vue` đọc, đặt caret, rồi gọi [`clearEditorCaretPlacement`]. */
+/** Xem [`caretPlacement`]. `GridPanel.vue` đọc, đặt caret, rồi gọi [`clearEditorCaretPlacement`]. */
 export const editorCaretPlacement: DeepReadonly<Ref<number | null>> = readonly(caretPlacement)
 
 /** Giao diện đã đặt xong caret ⇒ dọn tín hiệu, để lượt sau còn phân biệt được. */
@@ -551,11 +552,11 @@ export async function confirmCurrentSegment(): Promise<ConfirmResult> {
   // con trỏ và cùng gán `caretPlacement.value = Y`.
   //
   // 🔴 Và lượt gán thứ hai **có** bắn watcher, dù giá trị y hệt: watcher ở
-  // `EditorPanel.vue` gọi `clearEditorCaretPlacement()` ngay dòng đầu — nó là watcher **một
+  // `GridPanel.vue` gọi `clearEditorCaretPlacement()` ngay dòng đầu — nó là watcher **một
   // phát**, đưa ref về `null` sau khi dùng. Nên `null → Y` là một lượt đổi thật, và
   // `setCaret(first ?? target, 0)` chạy lần hai, **kéo caret về offset 0** của câu kế tiếp —
   // kể cả khi người dùng đã kịp gõ vài ký tự vào đó. Đúng lớp khuyết tật *"caret rơi về
-  // offset 0, ký tự kế tiếp chèn vào đầu"* mà `EditorPanel.vue` ghi là nặng nhất từng bắt
+  // offset 0, ký tự kế tiếp chèn vào đầu"* mà `GridPanel.vue` ghi là nặng nhất từng bắt
   // được ở story trước.
   //
   // ⇒ Lượt thứ hai **nhập vào** lượt đang bay và trả cùng một kết quả: một thao tác người
@@ -650,4 +651,29 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
   }
 
   return 'confirmed'
+}
+
+/**
+ * **Nhảy tới câu chưa dịch kế tiếp** — Story 2.5b, AC12 · `⌥↓`.
+ *
+ * ⇒ Trả `true` khi con trỏ **đã dời**, `false` khi không còn câu nào.
+ *
+ * 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."* Hết Chương là một câu
+ * trả lời **hợp lệ**, không một lỗi: nó nghĩa là **không còn câu nào chưa dịch ở phía dưới**.
+ * Con trỏ **ở nguyên**, và chỗ gọi ghi một dòng chẩn đoán.
+ *
+ * ⚠️ Dùng lại **đúng** đường dời con trỏ mà Quyết định #1 của Story 2.5 đã dựng
+ * (`setEditorCaret` + [`caretPlacement`]), không một đường thứ hai. Đó cũng là lý do một lượt
+ * nhảy **flush câu vừa rời**: `setEditorCaret` mang vế *"rời segment"* của AD-35 vế (c).
+ *
+ * 🔴 Phép chọn sống ở `./segmentNavigation.ts` — một **module thuần** kiểm được bằng Node
+ * trần. Chỗ này chỉ **xếp thứ tự** hai lượt gọi.
+ */
+export function goToNextUntranslated(): boolean {
+  const list = segments.value.map((s) => navigationSegmentOf(s, editedText.value))
+  const next = nextUntranslatedId(list, caretSegmentId.value)
+  if (next === null) return false
+  setEditorCaret(next)
+  caretPlacement.value = next
+  return true
 }

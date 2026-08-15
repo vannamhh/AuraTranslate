@@ -29,7 +29,9 @@
  * 1. ✅ **ĐÃ ĐÓNG 2026-08-11 — `$APPDATA` của app con trỏ sang một thư mục tạm mỗi lượt.**
  *    Trước bản vá: Story 1.21 ghi phím tắt xuống `global.db` (`ScopeKind::Shortcut`), nên
  *    một ca gán phím SỬA cấu hình thật của Ice. Đo được: một lượt chẩn đoán để lại `⌥⌘K`
- *    trên `layout.toggle_source`, và lượt sau đọc nó thành trạng thái đầu rồi ĐỎ với một
+ *    trên `layout.toggle_source` *(🔵 command đó đổi tên thành `layout.toggle_grid` ở Story
+ *    2.5b; bản ghi lịch sử này giữ nguyên tên cũ vì nó kể một lượt chạy đã xảy ra)*, và lượt
+ *    sau đọc nó thành trạng thái đầu rồi ĐỎ với một
  *    câu đổ lỗi cho sản phẩm — một bộ đo tự làm hỏng phép đo của chính nó. Nút *"Về mặc
  *    định"* chỉ vá TRIỆU CHỨNG.
  *    Nay `onPrepare` dựng một thư mục tạm và truyền qua `AURATRANSLATE_E2E_DATA_DIR`;
