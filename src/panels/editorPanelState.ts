@@ -19,7 +19,12 @@
  */
 import { readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { confirmSegment, readOpenChapterSegments, saveSegmentTargets } from '../config/segment'
+import {
+  confirmSegment,
+  readOpenChapterSegments,
+  saveSegmentTargets,
+  setSegmentOmitted,
+} from '../config/segment'
 import type { ChapterSegment, SegmentTargetEdit } from '../config/segment'
 import type { IpcError } from '../i18n'
 import { createEditorFlush, EDITOR_RETRY_FLOOR_MS } from './editorFlush'
@@ -725,6 +730,84 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
   }
 
   return 'confirmed'
+}
+
+const omitError = shallowRef<IpcError | null>(null)
+/**
+ * Lỗi gần nhất Rust trả lời cho một lượt cắt bỏ / bỏ cờ. `null` ⇒ chưa lượt nào bị từ chối.
+ *
+ * ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện** — cùng hình dạng và cùng
+ * món nợ với [`editorConfirmError`]: giá trị này được export mà **chưa component nào đọc**,
+ * nên hai khoá `err.segment.*` mà đường cắt bỏ dùng lại đều dừng ở biên giới TypeScript,
+ * không tới màn hình. Đừng đọc dòng này thành *"đã có đường ra màn hình"*.
+ */
+export const editorOmitError: DeepReadonly<Ref<IpcError | null>> = readonly(omitError)
+
+/**
+ * Kết quả một lượt cắt bỏ / bỏ cờ.
+ *
+ * ⚠️ Hai giá trị **thành công** chứ không một, và đó là chủ ý: chỗ gọi ghi chẩn đoán nêu
+ * đích danh việc vừa xảy ra, và hai lệnh của `CommandRegistry` phân biệt được nhau ở đây
+ * mà không phải đọc lại tham số của chính mình.
+ */
+export type OmitResult = 'omitted' | 'restored' | 'no-caret' | 'refused'
+
+/**
+ * **Cắt bỏ câu đang có con trỏ khỏi bản dịch, hoặc bỏ cờ đó** — Story 2.5c · FR133 · AC1 ·
+ * AC2 · AC4.
+ *
+ * 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."* Không câu nào đang chạm
+ * là một câu trả lời **hợp lệ** (`'no-caret'`), không một lỗi.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 KHÔNG FLUSH TRƯỚC — và đó là một khác biệt CÓ LÝ DO với [`confirmCurrentSegment`]
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `confirmCurrentSegment` **phải** flush trước vì nó ký **văn bản trên đĩa** (AD-35 vế (c)):
+ * ký sớm là ghi một `SegmentVersion` mang văn bản chưa bao giờ ở trên màn hình. Lệnh này
+ * không đọc `target_text` một chữ nào và câu `UPDATE` của nó chạm **đúng một cột**
+ * (`commands/segment.rs::set_segment_omitted`), nên tập chờ có dơ hay không **không đổi kết
+ * quả**. Ép một lượt flush ở đây là bắt người dùng chờ một lượt IPC cho một thứ không ai
+ * đọc.
+ * ⚠️ Mệnh đề đó **được đo**, không được giả định: `tests/frontend/editorOmitSegment.test.ts`
+ * §④ khẳng định không lượt `saveSegmentTargets` nào được phát.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 ẢNH CHỤP DỰNG BẰNG **MẢNG MỚI**, và phần tử dựng bằng **trải phần tử cũ**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Hai vế, hai đường hỏng khác nhau:
+ * - **Mảng mới** vì [`segments`] là `shallowRef` — sửa tại chỗ không bắn watcher nào, nên
+ *   hàng đã cắt bỏ sẽ không bao giờ gạch ngang trong khi đĩa đã đổi. Cùng khuôn và cùng lý
+ *   do đã ghi ở [`confirmCurrentSegment`].
+ * - **Trải phần tử cũ** (`{ ...next[index], is_omitted }`) chứ không dựng lại từ `outcome`:
+ *   `OmitOutcome` chỉ chở hai trường, nên một phần tử dựng từ nó sẽ **mất** `status`,
+ *   `target_text` và `source_text`. Đó là AC2 nói bằng ngôn ngữ của ảnh chụp — cắt bỏ đổi
+ *   **một** trường, không dựng lại một hàng.
+ *
+ * ⚠️ **Không** dời con trỏ, khác [`confirmCurrentSegment`]. Quyết định #1(a) của Story 2.5
+ * dời con trỏ vì lượt ký **kết thúc** việc với một câu; cắt bỏ thì không — người dùng có thể
+ * muốn bỏ cờ ngay nếu vừa bấm nhầm, và AC4 nói thao tác này **đảo ngược được**.
+ */
+export async function setCurrentSegmentOmitted(omitted: boolean): Promise<OmitResult> {
+  const id = caretSegmentId.value
+  if (id === null) return 'no-caret'
+
+  const { outcome, error } = await setSegmentOmitted(id, omitted)
+  if (outcome === null) {
+    // ⚠️ `error === null` cũng vào đây: đó là ca *"không có cầu IPC"* (`npm run dev` trong một
+    //    trình duyệt thường). Không ca nào được coi là đã đặt cờ.
+    omitError.value = error
+    return 'refused'
+  }
+  omitError.value = null
+
+  const index = segments.value.findIndex((s) => s.id === id)
+  if (index >= 0) {
+    const next = [...segments.value]
+    next[index] = { ...next[index], is_omitted: outcome.is_omitted }
+    segments.value = next
+  }
+
+  return outcome.is_omitted ? 'omitted' : 'restored'
 }
 
 /**
