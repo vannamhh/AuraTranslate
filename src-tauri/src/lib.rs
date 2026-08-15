@@ -330,6 +330,11 @@ pub fn run() {
             // khong doi mot dong, va cau `UPDATE` cua no van cham dung hai cot (AC8).
             // Thao tac ROI RAC ghi NGAY (AD-35), khong di qua bo dem go 2s/5s.
             crate::commands::segment::wire::confirm_segment,
+            // Story 2.5c — co CAT BO cau khoi ban dich (FR133), buoc di tru 8. MOT vo cho
+            // HAI lenh cua `CommandRegistry` (`editor.omit_segment` · `editor.restore_segment`):
+            // chung khac nhau o dung mot boolean, xem doc-comment cua vo. Cung hang voi
+            // `confirm_segment`: thao tac ROI RAC ghi NGAY, khong qua bo dem go 2s/5s.
+            crate::commands::segment::wire::set_segment_omitted,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

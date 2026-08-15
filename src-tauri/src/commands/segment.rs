@@ -151,6 +151,16 @@ pub(crate) fn insert_segments(
 /// ⚠️ Và nó đi lọt **74/74 test frontend**, vì fixture vitest tự dựng `ChapterSegment` bằng tay
 /// và **có** cấp `status`. Một fixture chép tay là một fixture trôi được khỏi sự thật của dây.
 /// ⇒ Lưới nay là `segment_contract.rs::the_load_command_carries_the_status_column_over_the_wire`.
+///
+/// - `is_omitted` — cờ **cắt bỏ câu khỏi bản dịch** (FR133), Story 2.5c. Bước di trú 8.
+///   🔴 Một **TRỤC ĐỘC LẬP**, không phải giá trị thứ ba của `status` (AC2): *"cắt bỏ"* nói
+///   câu **thuộc hay không thuộc bản dịch**, `status` nói **mức độ hoàn thành**. Một câu đã
+///   cắt bỏ giữ nguyên cả `status` lẫn `target_text` — và đó là thứ làm AC4 (*"bỏ cờ ⇒ câu
+///   quay về đúng trạng thái cũ với nội dung cũ"*) đúng **mà không một dòng mã khôi phục
+///   nào**: không gì bị mất thì không gì phải khôi phục.
+///   ⚠️ Cột này đi vào đây **cùng lượt** với bước di trú sinh ra nó, đúng vì vụ `status` ở
+///   trên — lưới riêng của nó là
+///   `segment_contract.rs::the_load_command_carries_the_is_omitted_column_over_the_wire`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ChapterSegment {
     pub id: i64,
@@ -160,6 +170,7 @@ pub struct ChapterSegment {
     pub is_paragraph_end: bool,
     pub retired_at: Option<String>,
     pub status: String,
+    pub is_omitted: bool,
 }
 
 /// Trọn bộ segment của Chương **đang mở** — thứ đi ra qua dây.
@@ -313,13 +324,16 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
             })?;
 
         let mut stmt = conn.prepare(
-            "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status \
+            "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
+             is_omitted \
              FROM segment WHERE chapter_id = ?1 ORDER BY ord",
         )?;
         let rows = stmt.query_map([chapter_id], |row| {
             // ⚠️ `is_paragraph_end` la INTEGER 0/1 duoi SQLite (khong co kieu boolean); phep
             // doi sang `bool` la viec cua tang nay, dung khuon `chapter.status`.
             let flag: i64 = row.get(4)?;
+            // ⚠️ `is_omitted` cung la INTEGER 0/1 -- cung phep doi, cung ly do (Story 2.5c).
+            let omitted: i64 = row.get(7)?;
             Ok(ChapterSegment {
                 id: row.get(0)?,
                 ord: row.get(1)?,
@@ -328,6 +342,7 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
                 is_paragraph_end: flag != 0,
                 retired_at: row.get(5)?,
                 status: row.get(6)?,
+                is_omitted: omitted != 0,
             })
         })?;
         let segments = rows.collect::<SqlResult<Vec<ChapterSegment>>>()?;
@@ -778,6 +793,155 @@ pub fn confirm_segment(
     }
 }
 
+/// Kết quả một lượt cắt bỏ / bỏ cờ — thứ đi ra qua dây. Story 2.5c, AC1 · AC4.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
+///
+/// ⚠️ Khác [`ConfirmOutcome`], ở đây **không** có trường kiểu `version_created`, và đó là
+/// một mệnh đề chứ không một lượt bỏ sót: cắt bỏ **không phải** một chuyển tiếp AD-31, nên
+/// không có sự kiện nào để webview phân biệt *"vừa cắt"* với *"đã cắt từ trước"*. Trạng thái
+/// mới nói đủ.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct OmitOutcome {
+    /// Segment vừa được đặt cờ.
+    pub segment_id: i64,
+    /// Trạng thái **sau** lượt gọi — không phải trạng thái trước.
+    pub is_omitted: bool,
+}
+
+/// Lý do một lượt cắt bỏ / bỏ cờ bị **từ chối**, mang ra khỏi closure ghi.
+///
+/// ⚠️ Cùng khuôn và cùng lý do định lượng với [`ConfirmReject`]: `Store::write` gói mọi
+/// `Err` thành `StoreError::WriteFailed { detail: String }`, nên đoán lại lý do từ chuỗi
+/// `detail` là một chẩn đoán SAI. Ô lỗi **có kiểu**, không đoán lại từ chuỗi.
+enum OmitReject {
+    /// Không có hàng `segment` nào mang `segment_id` đó.
+    NotFound,
+    /// `retired_at` khác `NULL` (AD-5).
+    Retired,
+}
+
+/// **Cắt bỏ một câu khỏi bản dịch, hoặc bỏ cờ đó** — hàm thuần, đây là thứ test gọi.
+/// Story 2.5c · FR133 · AC1 · AC2 · AC4.
+///
+/// `omitted = true` là *"câu này không thuộc bản dịch"*; `false` là bỏ cờ.
+///
+/// # Lỗi
+/// - chưa Tác phẩm nào mở ⇒ `project.no_work_open`;
+/// - `segment_id` không có trong Tác phẩm đang mở ⇒ `segment.not_found`;
+/// - segment đã về hưu ⇒ `segment.retired` (AD-5, hàng rào viết trước — chủ Story 2.8);
+/// - đường đọc/ghi trượt ⇒ lỗi kho (`store.*`), qua `From<StoreError>`.
+///
+/// ⚠️ **Không khoá `err.segment.*` mới nào** ra đời cùng hàm này. Ba nhánh trên đã có khoá
+/// riêng từ Story 2.5, và không nhánh nào của cắt bỏ là một **lý do từ chối mới** — một
+/// khoá thứ tư nói cùng một điều là một danh mục đóng bị nới không lý do.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỘT THAO TÁC RỜI RẠC ⇒ GHI **NGAY**, KHÔNG QUA BỘ ĐỆM GÕ
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Một `open.store.write`, một giao dịch — khuôn là [`confirm_segment`], **không** phải
+/// [`save_segment_targets`]. Định tuyến lượt này qua bộ đệm gõ của AD-35 khiến một thao tác
+/// người dùng **thấy đã xong** nằm chờ tới **5 giây** rồi biến mất nếu app sập
+/// (`project-context.md` §Dữ liệu người dùng, cùng hạng với FR94 và FR58).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 CÂU `UPDATE` CHẠM **ĐÚNG MỘT** CỘT — kể cả `updated_at` cũng không
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Đây là AC2 (*"trục độc lập"*) viết bằng SQL. `updated_at` mang nghĩa **"mốc sửa văn
+/// bản"** — nó do [`save_segment_targets`] sinh, và một lượt cắt bỏ không sửa một ký tự
+/// nào. Bơm nó ở đây là cho một cột hai nghĩa, đúng lý do [`confirm_segment`] đã từ chối
+/// làm việc đó.
+///
+/// 🔴 Và hệ quả lớn hơn: **AC4 đúng mà không một dòng mã khôi phục nào.** Lượt cắt bỏ không
+/// xoá `status` lẫn `target_text`, nên lượt bỏ cờ không phải dựng lại gì — *"quay về đúng
+/// trạng thái cũ với nội dung cũ"* là **hệ quả của việc không đụng vào**, không phải kết
+/// quả của một đường lưu-rồi-phục-hồi. Một cài đặt hạ `status` về `'draft'` lúc cắt bỏ sẽ
+/// **không bao giờ** đoán lại được `'confirmed'` lúc bỏ cờ.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// ⚠️ ĐỌC VÀ GHI TRONG **CÙNG MỘT** `Store::write`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Cùng lý do [`confirm_segment`] đã ghi: giữa một lượt `read` và một lượt `write` sau đó,
+/// tầng kho **không giữ gì cả**. Cái giá ở đây thấp hơn *(không `segment_version` để nhân
+/// bản)*, nhưng phép phân xử *"về hưu chưa"* vẫn phải đọc **trong** giao dịch ghi, nếu
+/// không nó phân xử trên một trạng thái có thể đã cũ.
+pub fn set_segment_omitted(
+    open: Option<&OpenWork>,
+    segment_id: i64,
+    omitted: bool,
+) -> Result<OmitOutcome, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+
+    let reject: Arc<Mutex<Option<OmitReject>>> = Arc::new(Mutex::new(None));
+    let reject_in = Arc::clone(&reject);
+
+    let outcome = open.store.write(move |tx: &Transaction<'_>| {
+        let set_reject = |r: OmitReject| {
+            *reject_in
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(r);
+        };
+
+        // ① Doc trang thai hien tai — TRONG cung giao dich voi luot ghi.
+        let found = tx.query_row(
+            "SELECT is_omitted, retired_at FROM segment WHERE id = ?1",
+            [segment_id],
+            |row| {
+                let is_omitted: i64 = row.get(0)?;
+                let retired_at: Option<String> = row.get(1)?;
+                Ok((is_omitted != 0, retired_at))
+            },
+        );
+
+        let (current, retired_at) = match found {
+            Ok(value) => value,
+            Err(SqlError::QueryReturnedNoRows) => {
+                set_reject(OmitReject::NotFound);
+                return Err(SqlError::QueryReturnedNoRows);
+            }
+            Err(err) => return Err(err),
+        };
+
+        if retired_at.is_some() {
+            set_reject(OmitReject::Retired);
+            return Err(SqlError::QueryReturnedNoRows);
+        }
+
+        // ② DA o dung gia tri ⇒ khong ghi mot byte nao. Cung luat AC13 cua `confirm_segment`:
+        //    giu phim khong duoc sinh ra mot luot ghi thu hai.
+        if current == omitted {
+            return Ok(());
+        }
+
+        // ③ DUNG MOT cot. Khong `updated_at` — xem doc-comment o tren.
+        tx.execute(
+            "UPDATE segment SET is_omitted = ?1 WHERE id = ?2",
+            (i64::from(omitted), segment_id),
+        )?;
+
+        Ok(())
+    });
+
+    match outcome {
+        Ok(()) => Ok(OmitOutcome {
+            segment_id,
+            is_omitted: omitted,
+        }),
+        Err(err) => {
+            let taken = reject
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .take();
+            match taken {
+                Some(OmitReject::NotFound) => Err(segment_not_found(segment_id)),
+                Some(OmitReject::Retired) => Err(segment_retired(segment_id)),
+                // O rong ⇒ day la mot loi KHO that, khong mot phep tu choi nghiep vu.
+                None => Err(err.into()),
+            }
+        }
+    }
+}
+
 /// **Đường flush đầy đủ của AD-35** — hàm thuần, đây là thứ vỏ `wire` gọi và thứ test gọi.
 /// Story 2.5, AC3 · AC8.
 ///
@@ -982,7 +1146,8 @@ pub fn unconfirm_edited_segments(
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use super::{
-        ChapterSegments, ConfirmOutcome, IpcError, SaveOutcome, SegmentTargetEdit, SplitOutcome,
+        ChapterSegments, ConfirmOutcome, IpcError, OmitOutcome, SaveOutcome, SegmentTargetEdit,
+        SplitOutcome,
     };
     use crate::commands::project::OpenWorkState;
 
@@ -1096,5 +1261,43 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::confirm_segment(guard.as_ref(), segment_id)
+    }
+
+    /// Vỏ IPC của [`super::set_segment_omitted`] — Story 2.5c, FR133.
+    ///
+    /// ⚠️ `try_state`, không `state()` — cùng lý do mọi vỏ khác trong module này.
+    ///
+    /// ⚠️ Hai tham số đi trên dây dưới tên **`segmentId`** và **`omitted`** — `invoke()` gửi
+    /// tham số ở dạng camelCase dù hàm Rust nhận `snake_case`. `src/config/segment.ts` là
+    /// chỗ duy nhất gõ hai cái tên đó.
+    ///
+    /// ─────────────────────────────────────────────────────────────────────────────
+    /// 🔴 **MỘT** VỎ CHO **HAI** LỆNH, VÀ ĐÓ KHÔNG MÂU THUẪN QUYẾT ĐỊNH #3
+    /// ─────────────────────────────────────────────────────────────────────────────
+    /// Ice ký đường (b) ngày 2026-08-15: *"hai lệnh `editor.omit_segment` +
+    /// `editor.restore_segment` — hai phím, hai nhãn, trạng thái đọc được từ tên lệnh"*.
+    /// Quyết định đó nói về tầng **`CommandRegistry`**, tức bề mặt người dùng chạm vào — và
+    /// hai lệnh đó **có thật**, đăng ký riêng, nhãn riêng, hợp âm riêng
+    /// (`src/commands/index.ts`).
+    ///
+    /// Tầng dây thì khác: hai lệnh ấy khác nhau ở **đúng một giá trị boolean**, và một vỏ
+    /// thứ hai ở đây sẽ là một bề mặt IPC nữa phải cấp quyền, phải canh, phải giữ đồng bộ —
+    /// để nói cùng một điều. *"Thêm một quyền là một quyết định kiến trúc, không phải một
+    /// dòng cấu hình"* (`project-context.md` §Tauri). ⇒ Một vỏ, một tham số `omitted`.
+    #[tauri::command]
+    pub fn set_segment_omitted(
+        app: tauri::AppHandle,
+        segment_id: i64,
+        omitted: bool,
+    ) -> Result<OmitOutcome, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::set_segment_omitted(None, segment_id, omitted);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::set_segment_omitted(guard.as_ref(), segment_id, omitted)
     }
 }

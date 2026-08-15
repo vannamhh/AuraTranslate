@@ -457,14 +457,67 @@ CREATE TABLE segment_version (
   created_at  TEXT    NOT NULL
 );";
 
-/// Bộ di trú của `project.db`. Hôm nay **sáu** bước — Story 1.15 · 2.1 · 2.2 · 2.5.
+/// Cờ **cắt bỏ câu khỏi bản dịch** (FR133) — **bước 8 của `project.db`**, Story 2.5c, AC7 ·
+/// Quyết định #5 đường (a) (Ice ký 2026-08-15).
 ///
-/// 🔴 **Sáu bước, và đích là phiên bản 7.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO SỐ **8**
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 5 đã tiêu ([`SEGMENT_DDL`], Story 2.1), 6 đã tiêu ([`SEGMENT_TARGET_TEXT_DDL`], Story
+/// 2.2), 7 đã tiêu ([`SEGMENT_STATUS_AND_VERSION_DDL`], Story 2.5). ⇒ Đọc
+/// [`PROJECT_MIGRATIONS`] ngay dưới chứ đừng đọc một ghi chép ở nơi khác — `sprint-status.yaml`
+/// còn mang một dòng từ Story 2.1 nói *"bước kế tiếp là 5"*, và dòng đó đã hết đúng **ba
+/// lần** kể từ khi được viết. *(Vế **vĩnh viễn** đúng của nó là "số 4 đã cháy, không tái
+/// dùng" — cổng `segment_contract.rs::the_project_migration_set_never_reuses_the_burned_number_four`.)*
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO MỘT `ALTER TABLE` CHỨ KHÔNG SỬA [`SEGMENT_DDL`] — cùng lý do bước 6 và 7
+/// ─────────────────────────────────────────────────────────────────────────────
+/// [`SEGMENT_DDL`] là DDL của một bảng **tạo mới**; một `project.db` đã ở phiên bản 5 không
+/// bao giờ chạy lại nó. Sửa nó tại chỗ cho ra **hai lược đồ khác nhau cho cùng một số phiên
+/// bản** — đúng vết sẹo số 4 ghi ở [`PROJECT_MIGRATIONS`].
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `is_omitted INTEGER NOT NULL DEFAULT 0` — Quyết định #5, đường (a)
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Tiền lệ ở **chính bảng này**: `is_paragraph_end INTEGER NOT NULL` (bước 5). Phương án
+/// còn lại — `omitted_at TEXT` theo khuôn `retired_at` — cũng hợp lệ và **không** sai; nó
+/// chở thêm *khi nào*. Ice ký đường (a) 2026-08-15: cột này chỉ cần trả lời **thuộc hay
+/// không thuộc bản dịch**, và *khi nào* là dữ liệu chưa AC nào đòi.
+///
+/// 🔴 **Đây là một TRỤC ĐỘC LẬP, không phải giá trị thứ ba của `status`** (AC2). *"Cắt bỏ"*
+/// là quyết định về **thuộc hay không thuộc bản dịch**; `status` là **mức độ hoàn thành**.
+/// Một câu đã cắt bỏ **vẫn giữ nguyên** `status` và `target_text` của nó — đó là thứ làm
+/// AC4 (*"bỏ cờ ⇒ câu quay về đúng trạng thái cũ với nội dung cũ"*) đúng **mà không cần một
+/// dòng mã khôi phục nào**: không gì bị mất thì không gì phải khôi phục.
+///
+/// ⚠️ **KHÔNG** `CHECK` — cùng khuôn `status` và `chapter.status`. Thêm một `CHECK` ở một
+/// bảng mà hai bảng anh em không có là dựng hai quy ước cho cùng một việc. Giá trị hợp lệ
+/// cưỡng chế ở tầng Rust.
+///
+/// ⚠️ `DEFAULT 0` là thứ làm bước này chạy được trên bảng **đã có dữ liệu**: SQLite đòi một
+/// `DEFAULT` không phải `NULL` cho mọi `ADD COLUMN … NOT NULL`, và **không** nhận biểu thức
+/// ở vị trí đó.
+/// 🔴 Và số `0` là một **quyết định nghiệp vụ**: mọi hàng có sẵn *(đo 2026-08-12: **10.477**
+/// hàng `segment` từ 21 Chương dữ liệu thật)* nhận *"chưa ai bấm cắt bỏ câu này"* — đúng sự
+/// thật. Backfill `1` là một lớp lỗi **tệ hơn hẳn** một giá trị mồi thông thường: AC5 đòi
+/// câu đã cắt bỏ **ẩn hoàn toàn, không dấu vết**, nên một cờ đặt nhầm ở đây không biểu hiện
+/// thành một lỗi nào — nó biểu hiện thành **bản dịch biến mất khỏi mọi đầu ra**.
+///
+/// ⚠️ **KHÔNG** `CREATE INDEX`. Không đường đọc nào lọc theo `is_omitted`: lượt nạp lấy cả
+/// Chương rồi lọc trong bộ nhớ, và index của nó là `idx_segment_chapter_ord` dựng ở bước 5.
+/// Cùng luật mà [`SEGMENT_TARGET_TEXT_DDL`] và [`SEGMENT_STATUS_AND_VERSION_DDL`] đã ghi.
+pub const SEGMENT_OMITTED_DDL: &str =
+    "ALTER TABLE segment ADD COLUMN is_omitted INTEGER NOT NULL DEFAULT 0;";
+
+/// Bộ di trú của `project.db`. Hôm nay **bảy** bước — Story 1.15 · 2.1 · 2.2 · 2.5 · 2.5c.
+///
+/// 🔴 **Bảy bước, và đích là phiên bản 8.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from`
+/// (`[1, 2, 3, 5, 6, 7, 8]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from`
 /// nên một lỗ hổng không làm bước nào bị bỏ qua.
 ///
-/// ⚠️ Con số này đọc **sáu**, không năm: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
+/// ⚠️ Con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
 /// gỡ ở lượt Ice ký lại 2026-08-11 *(vết sẹo ghi đầy đủ ở cuối doc-comment này)*. Một
 /// dòng tiêu đề nói một số mà bảng hằng ngay dưới nói một số khác là đúng thứ rot mà cả
 /// kiến trúc này dựa vào doc-comment để tránh — bắt ở code review 2026-08-11.
@@ -472,6 +525,9 @@ CREATE TABLE segment_version (
 /// 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5):** đích chuyển từ **6** lên **7** — bước
 /// [`SEGMENT_STATUS_AND_VERSION_DDL`]. Câu *"năm bước, đích là 6"* đã hết đúng, sửa tại chỗ
 /// thay vì để nó lặng lẽ sai.
+///
+/// 🔵 **CẬP NHẬT 2026-08-15 (Story 2.5c):** đích chuyển từ **7** lên **8** — bước
+/// [`SEGMENT_OMITTED_DDL`] (FR133). Câu *"sáu bước, đích là 7"* đã hết đúng, sửa tại chỗ.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -551,6 +607,13 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 7,
         sql: SEGMENT_STATUS_AND_VERSION_DDL,
+    },
+    // Story 2.5c — co cat bo cau khoi ban dich (FR133): cot `segment.is_omitted`.
+    // 🔴 **8, khong phai 5** — 5, 6 va 7 da tieu. Ly do day du o doc-comment cua
+    // [`SEGMENT_OMITTED_DDL`].
+    Migration {
+        to_version: 8,
+        sql: SEGMENT_OMITTED_DDL,
     },
 ];
 

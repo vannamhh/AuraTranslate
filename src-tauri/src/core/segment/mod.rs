@@ -12,5 +12,11 @@
 //! lúc nạp Chương (AC3). Đây là chỗ DUY NHẤT trong kho biết bảng chữ cái kết câu —
 //! `tests/segment_boundary.rs` cưỡng chế mệnh đề đó trên cả cây nguồn.
 
+//! [`omit`] — chốt LỌC cho mọi đầu ra (Story 2.5c, FR133, AC5). Một câu người dùng đã cắt
+//! bỏ phải biến mất khỏi Chế độ đọc và mọi bản xuất; cả hai bề mặt đó chưa tồn tại, nên
+//! module này dựng sẵn cái chốt thay vì giao nghĩa vụ cho trí nhớ. Xem doc-comment của nó —
+//! nghĩa vụ FR133 hôm nay chỉ phát biểu MỘT CHIỀU và không AC nào ở phía tiêu thụ canh nó.
+
 pub mod import;
+pub mod omit;
 pub mod split;
