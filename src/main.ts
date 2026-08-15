@@ -25,7 +25,12 @@ import type { ModeId } from './commands'
 import { currentMode, setMode } from './modes/modeState'
 import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 // Story 2.3 — AD-35 vế (e): flush bản dịch chưa lưu TRƯỚC khi cửa sổ đóng.
-import { confirmCurrentSegment, goToNextUntranslated, wireExitFlush } from './panels/editorPanelState'
+import {
+  confirmCurrentSegment,
+  goToNextUntranslated,
+  setCurrentSegmentOmitted,
+  wireExitFlush,
+} from './panels/editorPanelState'
 // ── Story 1.14 — ba cổng của tầng bố cục ────────────────────────────────────────────
 //
 // ⚠️ Import ở ĐÂY, không ở `src/commands/index.ts`: tệp đó phải nạp được bằng Node thuần
@@ -258,6 +263,21 @@ async function boot(): Promise<void> {
           // DẤU — Kiểm A của `check:i18n`)*, còn thanh trạng thái là đường **cho người dùng**.
           // Hai người đọc khác nhau, hai mức chi tiết khác nhau.
           console.warn(`[grid] khong ky duoc segment: ${result}`)
+        })
+      },
+      // Story 2.5c · FR133 — cắt bỏ / bỏ cờ. Cùng cửa và cùng lý do với `confirmSegment`:
+      // đi qua `setCurrentSegmentOmitted` của `editorPanelState.ts`, KHÔNG thẳng
+      // `setSegmentOmitted` của `config/segment.ts` — ảnh chụp hiển thị (`editorSegments`)
+      // sống trong hàm đó, và một lượt nối tắt đổi đĩa mà không đổi lưới.
+      setSegmentOmitted: (omitted: boolean) => {
+        void setCurrentSegmentOmitted(omitted).then((result) => {
+          if (result === 'omitted' || result === 'restored' || result === 'refused') return
+          // `'refused'` KHÔNG vào đây: nó có đường ra qua `editorOmitError` — ⚠️ và đường
+          // đó **chưa có component nào đọc**, đúng món nợ mà `editorPanelState.ts` ghi tại
+          // chỗ khai nó. Đừng đọc dòng này thành "đã có đường ra màn hình".
+          //
+          // ⚠️ Chẩn đoán viết KHÔNG DẤU — Kiểm A của `check:i18n`.
+          console.warn(`[grid] khong dat duoc co cat bo: ${result}`)
         })
       },
       // 🔴 STORY 1.18 — LƯỢT GỠ DEP TỐI THIỂU MÀ STORY 1.17 ĐÃ HẸN.

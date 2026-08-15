@@ -283,6 +283,22 @@ export type CommandDeps = {
    */
   goToNextUntranslated?: () => boolean
 
+  /**
+   * **Cắt bỏ / bỏ cờ** câu đang có con trỏ. Handler chung của `editor.omit_segment` và
+   * `editor.restore_segment` (Story 2.5c, FR133 · AC1 · AC4).
+   *
+   * ⚠️ **MỘT** cổng cho **HAI** command, và đó không mâu thuẫn Quyết định #3 (Ice ký đường
+   * (b) ngày 2026-08-15). Quyết định đó đòi *"hai lệnh, hai nhãn, trạng thái đọc được từ tên
+   * lệnh"* — tức hai **id đăng ký**, và chúng có thật ngay dưới. Hai id ấy khác nhau ở đúng
+   * một boolean; một cổng thứ hai ở đây chỉ nhân đôi một đường dây để nói cùng một điều.
+   *
+   * 🔴 Cắm `setSegmentOmitted` của `config/segment.ts` thẳng vào đây là **sai đường**: ảnh
+   * chụp hiển thị của `editorSegments` sống ở `editorPanelState.ts::setCurrentSegmentOmitted`,
+   * và một lượt nối tắt sẽ đổi đĩa mà **không** đổi lưới. Cùng cái bẫy `confirmSegment` ghi
+   * ở trên.
+   */
+  setSegmentOmitted?: (omitted: boolean) => void
+
   /** Đặt caret vào bề mặt chữ đầu tiên đã đăng ký. Handler của `selection.focus_source`. */
   focusSelectionSource?: () => boolean
   /** Mở rộng vùng chọn một KÝ TỰ sang trái. Handler của `selection.extend_left`. */
@@ -950,6 +966,55 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       }
     },
   })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 2.5c — `editor.omit_segment` · `editor.restore_segment` (FR133, AC1 · AC4)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * **HAI** command, không một command bập bênh — Quyết định #3 đường (b), Ice ký 2026-08-15.
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🔴 VÌ SAO HAI CHỨ KHÔNG MỘT, và vì sao tiền lệ trong kho KHÔNG quyết hộ
+   * ─────────────────────────────────────────────────────────────────────────────
+   * `editor.confirm_segment` là một chiều — bỏ xác nhận xảy ra **ngầm** khi người dùng sửa
+   * văn bản (`unconfirm_edited_segments`), nên nó không cần một lệnh nghịch và không phải
+   * khuôn cho một cờ **đảo ngược tường minh** như AC4 đòi.
+   *
+   * Cái giá của một lệnh bập bênh nằm ở **bảng phím tắt** (Story 1.21): mỗi hàng hiện một
+   * nhãn, và một nhãn *"Cắt bỏ / bỏ cắt bỏ"* không nói được phím sắp làm gì — nó phụ thuộc
+   * một trạng thái mà bảng phím tắt không nhìn thấy. Hai lệnh cho hai nhãn đọc thẳng ra
+   * hành động, và người dùng gán lại được **riêng từng cái**.
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * ⚠️ VÌ SAO `Mod+Alt+…` CHỨ KHÔNG MỘT HỢP ÂM KHÔNG CÓ `Mod`
+   * ─────────────────────────────────────────────────────────────────────────────
+   * Thao tác này có nghĩa **ở đúng chỗ người dùng đang gõ** — con trỏ nằm trong ô bản dịch.
+   * Một hợp âm thiếu phím bổ trợ chính bị nuốt trong vùng gõ (`keys.ts:287`
+   * `lacksPrimaryMod && isTypingZone`), tức phím sẽ **không bao giờ bắn** ở đúng chỗ nó cần
+   * bắn — cùng giới hạn mà `editor.next_untranslated` đã phải ghi ra ở trên. `Mod+Alt+X` và
+   * `Mod+Alt+R` mang `Mod`, nên chúng đi qua.
+   *
+   * ⚠️ Hai hợp âm này **chưa ai chiếm**: `Mod+Alt` hôm nay dùng `1` `2` `←` `→` `O` `J` `V`
+   * `L` `S`. Phép kiểm trùng hợp âm (`conflictFor`) chạy trên **toàn registry**, không theo
+   * chế độ, nên một lượt trùng sẽ lộ ra ngay ở `register()`.
+   */
+  for (const [id, omitted, chord] of [
+    ['editor.omit_segment', true, 'Mod+Alt+X'],
+    ['editor.restore_segment', false, 'Mod+Alt+R'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: [chord],
+      run: () => {
+        if (deps.setSegmentOmitted === undefined) {
+          return portMissing(id, 'setSegmentOmitted')
+        }
+        deps.setSegmentOmitted(omitted)
+      },
+    })
+  }
   // ── Story 1.21 — màn hình phím tắt ────────────────────────────────────────────
   //
   // 🔴 NĂM ID TĨNH, và đó là §KHÔNG-LÀM ⑤ viết thành chữ ký — cùng khuôn `toggleDictSource`

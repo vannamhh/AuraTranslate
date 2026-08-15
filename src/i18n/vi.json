@@ -38,6 +38,8 @@
   "command.lookup.lookup_selection": "Tra cứu đoạn đang chọn",
   "command.editor.confirm_segment": "Xác nhận câu đang sửa",
   "command.editor.next_untranslated": "Câu chưa dịch kế tiếp",
+  "command.editor.omit_segment": "Cắt bỏ câu khỏi bản dịch",
+  "command.editor.restore_segment": "Đưa câu trở lại bản dịch",
   "command.selection.focus_source": "Đặt con trỏ vào văn bản",
   "command.selection.extend_left": "Mở rộng vùng chọn sang trái một ký tự",
   "command.selection.extend_right": "Mở rộng vùng chọn sang phải một ký tự",
