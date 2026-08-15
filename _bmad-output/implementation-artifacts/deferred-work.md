@@ -2090,6 +2090,16 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   dòng**; fixture đối thoại dày nhất của bàn đo mới cho **5**. Lời giải nếu ngày đó tới: nới token
   `gutter-width` *(một lượt sửa `DESIGN.md`, tầng token)*. **Chủ: Ice.**
 
+  → ✅ **ĐÃ ĐÓNG 2026-08-15 (Story 2.5b) — BIẾN MẤT THEO CẤU TRÚC, KHÔNG ĐƯỢC VÁ.** Ghi rõ cách
+  đóng vì hai cách đó **không** đổi cho nhau được: không ai nới `gutter-width`, không ai sửa
+  thuật toán chia làn. **Khái niệm "làn" thôi tồn tại**: lưới cho **một câu một HÀNG**, nên hai
+  vạch không bao giờ còn trùng `top`, nên không còn gì để xếp làn. Vạch nay lấy chiều cao từ
+  **track hàng** của `subgrid` *(`GridPanel.vue::.rule { height: 100% }`)*, và cột vạch rộng
+  **3 px** — token `gutter-width` **không còn người đọc** ở bề mặt này.
+  ⚠️ Điều kiện để mục này ở lại đóng: **một câu vẫn là một hàng**. Ngày nào một story cho hai
+  câu chung một hàng *(gộp hiển thị, xuống dòng mềm…)*, bài toán quay lại **nguyên vẹn** — và
+  phép đo của `assignGutterLanes` vẫn nằm trong sổ, ngay dưới đây.
+
 - ⚠️ **Bảng năm giá trị vạch có một HÀNG CÒN THIẾU: "đã dịch bằng tay, chưa xác nhận, con trỏ ở
   chỗ khác".** `confirmed` sai *(chưa ai ký)*, `tm-rule` sai *(không phải máy điền)*, *không vạch*
   sai *(nó đã có bản dịch)*. `EXPERIENCE.md:105-113` đơn giản không có hàng đó. Hôm nay khe hở
@@ -2717,6 +2727,7 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
 
 - ⚠️ **Từ 8 LÀN trở lên, máng vạch lề 22px hết chỗ** — xem mục đầy đủ ở §Deferred from 2-2, ngay
   dưới hàng *"hai câu cùng một dòng"* vừa đóng. **Chủ: Ice.**
+  → ✅ **ĐÃ ĐÓNG 2026-08-15 (Story 2.5b) — biến mất theo cấu trúc.** Lý do đầy đủ ở mục gốc.
 
 - 🔴 **`browser.keys()` ĐÁNH RƠI `Meta` đúng ở phím `Enter`, và CHỈ ở đó — giới hạn của BỘ ĐO.**
   Đo 2026-08-14 trong chính cửa sổ e2e, listener `keydown` pha capture trên `window`, một lượt chạy:
@@ -2815,6 +2826,34 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   **Chủ: Ice** *(hợp đồng UX-DR30 — cần chốt bề mặt báo lỗi của Editor **trước** khi story nào
   cài nó; hai món này phải đóng **cùng một** bề mặt, không hai bề mặt rời)*.
 
+  → 🟡 **ĐÓNG MỘT NỬA 2026-08-15 (Story 2.5b, AC14 · Quyết định #8 đường (a), Ice ký).** Điều
+  kiện chặn của mục này — *"chốt hợp đồng UX-DR30 TRƯỚC khi story nào cài"* — **đã đạt**: chữ ký
+  của Ice cho Quyết định #8 **LÀ** hợp đồng đó, ở **phạm vi tối thiểu**.
+
+  **Đã đóng:**
+  - `src/main.ts` **đọc** `ConfirmResult` thay vì `void` — bốn giá trị không đi qua `IpcError`
+    nay để lại một dòng chẩn đoán nêu đích danh *(**kêu**, không ném — hàm chạy từ một hợp âm
+    bàn phím không bao giờ ném)*.
+  - `GridPanel.vue` **đọc** `editorConfirmError` và hiện nhãn ở **cột nhãn trạng thái của chính
+    hàng bị từ chối**, màu `error`. Không hộp thoại, không lớp nổi (UX-DR16).
+  - 🔴 Hàng nào mang lỗi đọc `segment_id` từ **`params` của chính lỗi**, **không** từ *"câu đang
+    có con trỏ"*: lượt xác nhận **dời con trỏ sang câu kế** khi nó thành công, nên gắn lỗi vào
+    con trỏ sẽ dán nó lên **hàng sai** ngay ở ca thường nhất.
+  - `'still-dirty'` đi **cùng đường**, không một bề mặt thứ hai — đúng điều kiện *"hai món này
+    phải đóng cùng một bề mặt"* mà mục này viết ra.
+
+  **CÒN HỞ, và ghi ra thay vì làm tròn lên:**
+  - ⚠️ Vế *"báo lỗi ghi ra màn hình"* của lượt **flush** *(`editorPanelState.ts`)* **chưa** nối
+    vào bề mặt này. Một lượt ghi trượt vẫn chỉ để lại `console.error` cộng một con số ngừng tăng
+    ở `StatusBar`. Cùng hợp đồng, khác đường gọi.
+  - ⚠️ Nhãn là **một chuỗi cố định** (`panel.grid.state_refused`), **không** phải câu tiếng Việt
+    của chính `message_key`. Ba câu trong `vi.json` vẫn chưa tới màn hình — chỉ *sự kiện bị từ
+    chối* tới. Thu hẹp có chủ ý: cột nhãn rộng 96px, và `tError()` ở đó sẽ vỡ bố cục.
+  - ⚠️ **Không đường nghiệm thu tự động nào** canh vế hiển thị này. Không cổng nào đọc được
+    *"một lượt từ chối có đổi pixel nào không"*, và ca e2e cho nó chưa dựng.
+
+  **Chủ phần còn hở: Ice** *(mở rộng UX-DR30 quá phạm vi tối thiểu — hai gạch đầu dòng trên)*.
+
 - 🔴 **Bộ e2e ĐỎ OAN khi chạy cả bộ — hai tệp xanh khi chạy riêng, đỏ khi chạy nối tiếp.**
   **Đo 2026-08-14** (macOS 15.6, sau lượt code review Story 2.5):
 
@@ -2884,6 +2923,27 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
 
   **Chủ: Story 2.5b.**
 
+  → ✅ **ĐÃ GỠ 2026-08-15, và BẰNG CHỨNG Ở LẠI ĐÂY** *(Quyết định #4 đường (a), Ice ký)*.
+  Gỡ `src/panels/editorGutter.ts` *(273 dòng)* và `tests/frontend/editorGutterLanes.test.ts`.
+
+  **Phép đo được chép nguyên vào sổ trước khi mã rời cây nguồn** — đây là toàn bộ lý do đường
+  (a) được chọn thay vì `@deprecated`:
+
+  | `assignGutterLanes`, 9.850 vạch | Ba lượt |
+  |---|---|
+  | bản đầu, **O(n²)** | **482,4 / 254,5 / 261,6 ms** |
+  | quét đường *(tô màu đồ thị khoảng)* | **8,3 / 5,2 / 4,3 ms** |
+
+  *(2026-08-14, Node 22.22.2, macOS 15.6.)*
+
+  🔴 **Lý do gỡ, viết ra:** bài toán *"nhiều câu trên cùng một dòng ⇒ vạch chồng nhau"* **biến
+  mất theo cấu trúc** khi một câu là một hàng. Mã giải một bài toán không còn tồn tại là mã sẽ
+  bị story sau đọc nhầm thành *"chỗ này có một vấn đề chưa xong"*.
+  ⚠️ Bằng chứng thuộc về **sổ**, không thuộc cây nguồn — nên nó ở đây, đầy đủ, thay vì trong một
+  tệp `@deprecated` không ai chạy.
+  ⚠️ `FILE_FLOOR`/`TS_FLOOR` đã **đếm lại** cùng lượt: quần thể `src/**` **không đổi** *(gỡ ba
+  tệp, thêm ba)*, `.ts` đi từ 36 lên **37**. Sàn giữ nguyên và vẫn trong dải ~81–85 %.
+
 - ⚠️ **Ngưỡng bố cục màn hình hẹp nay phải hiệu chỉnh cho HAI bố cục, không phải một.**
 
   UX-DR15 giữ **nguyên bốn con số** và **nguyên thứ tự hy sinh** — cả hai không đổi một chữ.
@@ -2906,3 +2966,241 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   nó quyết định `contenteditable` đặt ở đâu.
 
   **Chủ: Story 2.5b** *(chuyển từ Story 2.4, Ice ký 2026-08-14)*.
+
+- 🔴 **BỘ E2E KHÔNG TỰ KIỂM DANH TÍNH PHIÊN — một lượt chạy có thể đo NHẦM ỨNG DỤNG.**
+  *(Tìm ra 2026-08-14, Story 2.5b Task 1.2, vòng chẩn đoán 3.)*
+
+  Máy chủ WebDriver nhúng **bám cổng cố định 4445** (`e2e/wdio.conf.mjs`). Trên máy Ice cổng
+  đó đang bị một tiến trình khác giữ — `gdrive-su`, PID 19811, đo bằng
+  `lsof -nP -iTCP:4445 -sTCP:LISTEN`. ⇒ Phiên nối vào **webview của ứng dụng đó**, và **mọi
+  phép đo vẫn chạy, vẫn trả về số**.
+
+  Đo được: lượt chạy đầu của bàn đo 2.5b tiêm DOM thành công, đọc hình học thành công, rồi trả
+  `document.activeElement = BUTTON.sidebar-folder-tree__chevron` — một lớp CSS mà `grep` toàn
+  kho cho **0 kết quả**. Nếu bàn đo không tình cờ in `activeElement` ra thì lượt đó đã đẻ ra một
+  bảng số trông hoàn toàn hợp lệ **về một ứng dụng khác**.
+
+  ⚠️ Đây đúng hạng với hình dạng hỏng mà `onComplete` của `wdio.conf.mjs` đã dựng hàng rào
+  (*"mọi ca vẫn xanh, vì một kho thật cũng là một kho mở được"*) — chỉ khác chỗ hỏng.
+
+  **Đường ra đã đo:** cả hai phía đọc `TAURI_WEBDRIVER_PORT` — `getEmbeddedPort` của
+  `@wdio/tauri-service` và crate `tauri-plugin-wdio-webdriver-1.3.0/src/lib.rs:24`. Chạy với
+  `TAURI_WEBDRIVER_PORT=4467` cho phiên đúng (`location.href = http://localhost:1420/`,
+  `#app` có mặt). ⇒ **Không** cần giết tiến trình của người dùng.
+
+  **Còn hở:** bộ e2e thường trực vẫn **không** có phép kiểm nào. Bản vá đúng hình dạng là một
+  `before` hook khẳng định `location.href` + sự có mặt của `#app` **trước** ca đầu tiên, cộng
+  một lượt chọn cổng trống thay vì hằng số. 2.5b **không** nhận việc này: nó nằm ngoài phạm vi
+  story và chạm vào hạ tầng của cả bộ.
+
+  **Chủ: Story 1.22** *(bộ chạy e2e trong webview thật — cùng chủ với ba giới hạn đã ghi ở
+  `wdio.conf.mjs`)*.
+
+- 🔴 **`Backspace` ở offset 0 KHÔNG phát `beforeinput` trên WebKit — tiền đề của Story 2.9 đã
+  LẬT.** *(Đo 2026-08-14, Story 2.5b Task 1.2/1.3.)*
+
+  Quyết định #3 của Story 2.5b viết ra bằng chữ: *"`Backspace` ở offset 0 sinh một `beforeinput`
+  `deleteContentBackward` **bắt được** ⇒ Story 2.9 có tiền đề"*. Phép đo bác vế đó trên WebKit.
+
+  | Engine | đầu một ô **CÓ CHỮ** | một ô **đã rỗng** |
+  |---|---|---|
+  | WKWebView 605.1.15 *(`execCommand('delete')`)* | **0** `beforeinput` | **0** `beforeinput` |
+  | Playwright-WebKit *(phím **vật lý**)* | **0** `beforeinput` | **0** `beforeinput` |
+  | Blink *(phím **vật lý**)* | `deleteContentBackward`, **huỷ được** | `deleteContentBackward`, **huỷ được** |
+
+  Caret đã xác nhận đúng chỗ ở cả ba (`type = "Caret"`, neo nằm trong ô), nên đây **không** phải
+  một lượt đo hỏng: WebKit đơn giản **không phát sự kiện cho một lượt xoá không có gì để xoá**.
+
+  ⇒ Story 2.9 *(`Backspace` đầu ô = gộp với câu trên, UX-DR32)* **không** cài được ở
+  `beforeinput` trên macOS. Đường còn lại là `keydown`, và nó **bắt buộc** mang chốt
+  `event.isComposing` **trước mọi nhánh khác** — cùng dòng và cùng lý do `EditorPanel.vue:841`
+  (*"một lượt commit composition của bộ gõ tiếng Việt phát `keydown` mang code vật lý; ăn nó là
+  ăn mất chữ"*).
+
+  ⚠️ 2.5b **không** bị chặn bởi món này — nó chỉ được giao dựng **tiền đề cấu trúc** *(mỗi ô là
+  một editing host riêng)*, và tiền đề đó đứng. Cái lật là **đường bắt sự kiện**, không phải
+  hình dạng DOM.
+
+  **Chủ: Story 2.9.**
+
+- 🔴 **CÚ BẤM ĐẦU TIÊN VÀO MỘT PANEL GIẾT CARET VỪA ĐẶT — hợp đồng tiêu điểm AD-34 va vào
+  hợp đồng vùng gõ.** *(Đo 2026-08-15, Story 2.5b Task 12.2, trong WKWebView 605.1.15 thật.)*
+
+  `WorkspaceDock.vue:591-611` nghe `onDidActivePanelChange` và, với `origin === 'user'`, gọi
+  `enterFocus(id)`. `focus.ts::enter()` chạy `el.focus()` **vô điều kiện** trên gốc panel —
+  **kể cả khi tiêu điểm ĐÃ nằm trong panel đó**. Cú bấm **đầu tiên** vào lưới kích hoạt panel,
+  nên lượt dời ấy chạy **sau** handler `mouseup` và **sau** cả hai lượt vá của
+  `ensureCaretNextFrame`.
+
+  | Cùng một ô, chuột thật | `document.activeElement` | `getSelection().type` |
+  |---|---|---|
+  | cú bấm **thứ nhất** | `SECTION.panel.focused` | **`"None"`**, `rangeCount 0` |
+  | cú bấm **thứ hai** | `DIV` *(chính ô)* | **`"Caret"`** |
+
+  ⇒ Khuyết tật gói gọn ở **cú bấm đầu tiên vào panel**; mọi cú bấm sau đều ăn. Người dùng đọc
+  nó thành *"phải bấm hai lần mới gõ được"*.
+
+  🔴 **Bốn lượt vá đã thử và bị bác BẰNG PHÉP ĐO**, ghi ra để không ai đi lại: ①
+  `contenteditable` trần *(engine không focus)* → ② `cell.focus()` trong `mouseup` *(gốc panel
+  vẫn giành)* → ③ `requestAnimationFrame` → ④ một lượt `setTimeout(0)` nữa. Cả bốn đều chạy
+  **trước** lượt `enterFocus`.
+
+  **Đường sửa là MỘT ĐIỀU KIỆN, và có hai chỗ đặt được nó — Ice chốt:**
+  - **(A)** `focus.ts::enter()` bỏ qua khi `el.contains(document.activeElement)`. Nguyên tắc:
+    AD-34 §2 nói *"CHUYỂN panel phải dời focus DOM tường minh"*, và khi tiêu điểm đã ở trong
+    panel thì **không có lượt chuyển nào**. Sửa một chỗ, phủ **cả sáu** điểm vào focus.
+  - **(B)** Chỗ gọi ở `WorkspaceDock` tự kiểm cùng điều kiện trước khi gọi `enterFocus`. Bán
+    kính hẹp hơn, nhưng cùng một phép kiểm viết ở một tầng trên — và nó **không** đóng ca
+    tương tự cho panel khác.
+
+  ⚠️ Cả hai chạm hợp đồng tiêu điểm, nên **không** được vá bằng một lượt thứ năm chồng lên
+  trong `GridPanel.vue`. Story 2.3 đã trả giá một lần cho đúng lớp lỗi này *(chẩn đoán "AD-34
+  giành tiêu điểm" khi **không ai giành cả**)*; lần này phép đo nói **có**, và nó nói đích
+  danh dòng nào.
+
+  ⚠️ Ca nghiệm thu **đang ĐỎ có chủ**: `e2e/specs/grid-empty-cell.e2e.mjs`. Đừng nới mệnh đề
+  của nó cho xanh — nó đang nói đúng sự thật.
+
+  ✅ **ĐÃ ĐÓNG 2026-08-15 — Ice ký đường (A).** `focus.ts::enter()` nay bỏ qua lượt `focus()`
+  khi `el.contains(document.activeElement)`, tức khi tiêu điểm **đã** ở trong owner đó. AD-34 §2
+  **không sửa một chữ**: mệnh đề của nó nói về một lượt **CHUYỂN**, và khi tiêu điểm đã ở trong
+  panel thì không có lượt chuyển nào.
+
+  Nghiệm thu: `e2e/specs/grid-empty-cell.e2e.mjs` **XANH** trên WKWebView thật, và **cả bộ e2e
+  7/7 xanh** — tức lượt sửa một hợp đồng dùng chung không làm đỏ một điểm vào focus nào khác.
+
+  ⚠️ **Một hệ quả ĐO ĐƯỢC, ghi ra vì nó lật một giả thuyết hợp lý:** lượt vá thứ hai của
+  `GridPanel.vue::ensureCaretNextFrame` *(`setTimeout(…, 0)`)* **KHÔNG** trở thành mã chết sau
+  bản vá này. Gỡ nó ⇒ ca e2e **đỏ trở lại**; trả lại ⇒ **xanh**. ⇒ Còn **một** nguồn thu vùng
+  chọn nữa ngoài `enterFocus`, chạy ngoài vòng `requestAnimationFrame`, và nó **chưa được đặt
+  tên**. Ứng viên chưa loại trừ: lượt xử lý cú bấm của chính WKWebView.
+
+  **Chủ: Ice** *(quyết định đã ký)* → **đóng**.
+
+- ⚠️ **FIXTURE `workspace.mjs` KHÔNG reset state của panel — spec sau đọc Tác phẩm của spec
+  trước.** *(Đo 2026-08-15, Story 2.5b Task 12.2.)*
+
+  `e2e/specs/grid-empty-cell.e2e.mjs` XANH khi chạy một mình *(ba lượt)* và ĐỎ khi chạy cả bộ
+  *(hai lượt liên tiếp)*: lưới hiện một Chương **đã có bản dịch** thay vì Tác phẩm fixture vừa
+  tạo — `soCauDich = 1`, `soORong = 0`.
+
+  Cơ chế: mọi spec dùng chung **một** `$APPDATA` tạm cho cả lượt chạy (`onPrepare`), nên
+  `app_config` — gồm **chế độ đang mở** — sống sót qua từng phiên app. App khởi động **thẳng
+  vào `workspace`** với Tác phẩm spec trước để lại; lưới mount và nạp segment của Tác phẩm đó.
+  Rồi `create_work_from_text` của fixture đi **đường IPC**, đường **không** gọi
+  `resetEditorPanel()` — chỗ gọi duy nhất là `libraryImport.ts::finishSubmit`, tức đường **giao
+  diện**, thứ fixture cố ý không đi (`workspace.mjs` §Lựa chọn ①).
+
+  ⇒ Vá tạm **trong spec đó**: nạp lại webview sau lượt tạo Tác phẩm. Vá đúng chỗ là ở
+  `workspace.mjs`, nhưng đổi một fixture **dùng chung** để chữa một ca là cách rẻ nhất làm đỏ
+  sáu ca đang xanh — nên nó không được làm trong story này.
+
+  ⚠️ Đây là một khuyết tật của **bàn đo**, không của sản phẩm: trên đường người dùng thật,
+  `finishSubmit` đã reset. Nhưng nó là một **cửa xanh giả**: một spec đọc nhầm Tác phẩm vẫn
+  chạy trọn và vẫn khẳng định được nhiều mệnh đề.
+
+  **Chủ: Story 1.22** *(bộ chạy e2e — cùng chủ với ba giới hạn đã ghi ở `wdio.conf.mjs`)*.
+
+- ⚠️ **Command id nằm CỨNG trong spec e2e, và không cổng nào canh mối nối đó.**
+  *(Tìm ra 2026-08-15, Story 2.5b.)*
+
+  `shortcuts-capture-mouse.e2e.mjs` ghi `TARGET_COMMAND = 'layout.toggle_source'`. Story 2.5b
+  đổi `PANEL_SUFFIXES` *(bốn → ba)* nên command đó **thôi tồn tại**, và lượt đổi tên đi qua
+  sạch **chín cổng, `npm run build`, và cả vitest** — `check:commands` đọc `src/**`, không đọc
+  `e2e/**`. Nó chỉ lộ ra ở lượt chạy e2e **bằng tay**, dưới dạng một timeout 10 giây nói *"phần
+  tử không hiện"*: một câu đúng về triệu chứng và **câm về nguyên nhân**.
+
+  ⇒ Đã sửa tại chỗ. Còn hở: **cơ chế**. Một cổng đối chiếu id trong `e2e/**` với bộ đăng ký
+  thật sẽ đóng nó, và nó rẻ — `check:commands` đã nạp bộ đăng ký sẵn.
+
+  **Chủ: Story 1.22.**
+
+- 🟡 **TASK 7.3 ĐÃ ĐO — chiều cao hàng khi bật Hán Việt SONG SONG ở Ⓑ-2. Số XẤU HƠN ước
+  lượng, và mối lo của `epics.md:2329` được XÁC NHẬN.** *(2026-08-15, WKWebView 605.1.15,
+  macOS 15.6, bản dựng thật, `2-5b-ban-do/do-hang-va-hieu-nang.e2e.mjs`.)*
+
+  Nợ gốc `:2863-2873` ước *"cột ~330 px ⇒ một hàng có thể cao **6–7 dòng**"*. Đo trên một câu
+  tiếng Trung dài ở bố cục **Ⓑ-2**, giãn dòng `source-cjk` **33,83 px**:
+
+  | Kiểu xem | Chiều cao hàng | Số dòng | Cột nguyên văn |
+  |---|---|---|---|
+  | Nguyên văn | **137 px** | **4,05** | 238,5 px |
+  | Hán Việt — *chuyển đổi* | **228 px** | **6,74** | 238,5 px |
+  | Hán Việt — **song song** | **388 px** | **11,47** | 238,5 px |
+
+  ⇒ **Cả hai vế của ước lượng đều thấp hơn thực tế:** 388 px *(không ~330)* và **11,5 dòng**
+  *(không 6–7)*. Lý do đọc được từ chính bảng: cột thật của Ⓑ-2 chỉ **238,5 px**, hẹp hơn con
+  số ước ~330 px, nên chữ xuống dòng nhiều hơn — và `<ruby>` nhân đôi chiều cao mỗi dòng.
+  *(28 `<ruby>` cho một câu, tức một `<ruby>` mỗi TỪ, đúng Quyết định #2a của Story 1.18b.)*
+
+  🔴 **Và một cái giá thứ hai mà nợ gốc KHÔNG nêu:** `subgrid` giữ hàng thẳng, nên **ô bản
+  dịch cũng cao 388 px** — đo được `cao_o_dich_px = 388`. Một câu **chưa dịch** vì thế hiện ra
+  thành một ô rỗng cao gần **12 dòng**. Đây là hệ quả trực tiếp của Quyết định #1(b) và nó
+  **không** sửa được bằng CSS của riêng cột: hàng thẳng là thứ AC2 đòi.
+
+  ⚠️ **Vế Blink CHƯA ĐO** — Task 7.3 đòi *"cả hai engine"*, nhưng Blink chỉ tới được qua
+  **WebView2 trên Windows**, và `project-context.md` ghi *"nửa Windows hôm nay KHÔNG có đường
+  nghiệm thu tại chỗ"*. Khoảng mù **có tên**, không một mục đã đóng.
+
+  ⚠️ Story 2.5b **không** tự chấm mục này đạt: nó đo xong và **giao lại**. Ai quyết cái giá
+  này là một quyết định UX *(giữ nguyên · giới hạn số dòng của `<rt>` · chỉ mở song song ở
+  Ⓑ-1)* — cả ba đều chưa được nêu ra bao giờ.
+
+  **Chủ: Ice** *(quyết định UX)*, kèm **Story 4.12** cho vế ngưỡng bố cục.
+
+- 🔴 **TASK 8 ĐÃ ĐO — SỐ GIAO CHO STORY 2.4. MỘT ĐƯỜNG VƯỢT TRẦN NFR2 15 LẦN.**
+  *(2026-08-15, WKWebView 605.1.15, macOS 15.6, bản dựng thật.)*
+
+  | Phép đo | 2.000 câu | **9.850 câu** *(mốc cũ)* |
+  |---|---|---|
+  | node DOM trong lưới | 10.005 | **49.256** *(5 node/câu — đúng năm cột)* |
+  | một lượt `selectionchange` + 2 frame | 12 / 34 / 34 ms | **24 / 33 / 33 ms** |
+  | một lượt **DỜI CON TRỎ** | 226 / 173 / 195 / 189 / 161 ms | 🔴 **770 / 706 / 767 ms** |
+
+  ⇒ **Đường dời con trỏ vượt trần 50 ms/frame của NFR2 khoảng 15 lần** ở 9.850 câu, và ~4 lần
+  ở 2.000 câu. Đây là đường **thường nhất** của tính năng: mỗi lần người dùng bấm sang câu khác.
+
+  ⚠️ **Mốc cũ mất hiệu lực THEO CẤU TRÚC, không bị đóng** — `:2113-2129` đo *"dựng 9.850
+  `<span>`"* (300,1 ms Blink · 1.308,0 ms WebKit). Lưới không dựng `<span>` nào; nó dựng
+  **49.256 node** trong năm cột `subgrid`. Hai con số **không so được với nhau**, và ghi chúng
+  cạnh nhau như một lượt "cải thiện" là nói dối.
+
+  ⚠️ `:2198-2207` *(`:data-caret` dựng lại **toàn** danh sách mỗi `selectionchange`)* thì
+  **vẫn còn hiệu lực về cơ chế**: lưới vẫn tính lại `ruleById` trên **toàn** danh sách mỗi lượt
+  dời con trỏ, cộng một lượt Vue vá lớp trên `N × 2` ô. Hình dạng đổi, điểm nghẽn thì không.
+
+  🔴 **KHÔNG tối ưu mù** *(Quyết định #7, Ice ký)*: số này được **báo**, không được vá vội. Ba
+  đường đã thấy — ảo hoá hàng *(spine Giai đoạn 3)* · tính `rule` tại chỗ thay vì một `Map`
+  toàn danh sách · tách lớp `editing` khỏi lượt tính lại — chưa đường nào được **đo**.
+
+  ⚠️ Một khuyết tật của **bàn đo** đã bắt và ghi ra: lượt đo đầu ở 9.850 hàng cho **26.927 ms**
+  cho một lượt `selectionchange`, rồi 33 ms ở hai lượt kế. Con số đó **không** phải chi phí
+  thao tác — nó là **lượt bố cục lần đầu** của 49.256 node còn đang chạy, vì `waitForExist` trả
+  về ngay khi ô ĐẦU TIÊN có mặt. Bản sửa chờ nhịp frame rẻ trước khi bấm đồng hồ.
+
+  **Chủ: Story 2.4** *(sở hữu bộ đo NFR2/NFR18 — 2.5b **giao số**, không tự chấm, B9)*.
+
+- 🔵 **NGUYÊN VĂN của lượt đỏ chập chờn `attribution-focus` — ĐÃ BẮT ĐƯỢC 2026-08-15.**
+
+  `wdio.conf.mjs:68-78` ghi món này từ 2026-08-12 và nói thẳng nó còn hở: *"Lần đỏ ②:
+  `attribution-focus` — **CHƯA chẩn đoán**, nguyên văn lỗi không kịp bắt."* Lượt nghiệm thu
+  cuối của Story 2.5b bắt được nó:
+
+  > Vào `workspace` rồi mà không thấy `[data-attribution-open]` sau 30 giây.
+
+  ⇒ Lượt đỏ nằm ở **fixture**, không ở một khẳng định nào về sản phẩm: `openWorkspaceWithWork`
+  hết giờ chờ dải chip nguồn của Panel Lookup render. Nó **không** phải một hồi quy tiêu điểm,
+  và **không** phải ca `Escape` mà spec được dựng để canh.
+
+  **Cỡ mẫu của ngày 2026-08-15** *(Story 2.5b, cùng máy, cùng nhị phân)*: **bốn** lượt chạy cả
+  bộ — spec này **3 xanh · 1 đỏ**; chạy một mình ngay sau lượt đỏ: **xanh**.
+
+  ⚠️ **Vẫn CHƯA có nguyên nhân**, chỉ có triệu chứng. Ứng viên chưa loại trừ: dải chip chỉ
+  render khi `dictSources.length > 0`, tức sau **một lượt IPC nữa** sau khi đổi chế độ — một
+  máy đang bận *(lượt chạy cả bộ vừa dựng xong một Chương 9.850 câu ở spec trước)* có thể vượt
+  trần 30 giây. Đó là một giả thuyết **có thể đo**: nới trần rồi đếm lại.
+
+  ⚠️ Đừng đọc mục này thành *"đã đóng"*. Thứ đóng được hôm nay là **vế nguyên văn**, đúng thứ
+  bản ghi cũ nói là còn thiếu.
+
+  **Chủ: Story 1.22.**

@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-14T18:05:00
+last_updated: 2026-08-15T03:10:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -253,7 +253,54 @@ development_status:
   #   tren mo hinh "N <span> trong mot dong van lien tuc": chung MAT HIEU LUC THEO CAU TRUC,
   #   khong phai bi dong.
   # ⚠️ Tang Rust KHONG sua mot dong; KHONG buoc di tru nao. So ke tiep van la 8 (Story 2.5c).
-  2-5b-luoi-hai-cot-doi-chieu: ready-for-dev
+  # 🔵 2026-08-14 — 2.5b chuyen sang in-progress (dev-story). Baseline do lai truoc khi sua
+  #   dong dau tien: cargo test 338/0/5 · vitest 78/78 — KHOP voi so ghi trong story.
+  # ✅ TASK 1 (CUA CHAN) DA MO. Ban do hai nhanh, nam menh de, hai engine:
+  #   (1) caret trong o rong — `contenteditable` TRAN: KHONG (activeElement=SECTION.mode);
+  #       CO duong chuot san pham (setPosition o mouseup): DAT. => GridPanel PHAI mang duong chuot.
+  #   (2) go mot ky tu: DAT · (4) "sap ho": DAT (o rong 38px = o co chu 38px) ·
+  #   (5) subgrid giu hang thang: DAT, lech 0px ca hai engine.
+  #   (3) Backspace offset 0: KHONG phat `beforeinput` tren WebKit (Blink CO) — bat dong engine.
+  # 🔴 CON MOT MON CHO ICE: Task 1.4 — go tieng Viet BANG BO GO vao o rong tren may that.
+  # 🔴 HAI MON NO MOI co chu vao deferred-work.md:
+  #   - bo e2e khong tu kiem danh tinh phien (cong 4445 bi chiem => do NHAM ung dung). Chu: 1.22
+  #   - Backspace offset 0 khong phat beforeinput tren WebKit => tien de cua 2.9 da LAT. Chu: 2.9
+  # ⚠️ Task 2 (bon panel -> ba) DA VIET ROI HOAN NGUYEN — Ice chot. Ly do: build XANH nhung app
+  #   hong luc chay (PANEL_COMPONENTS tro 'grid' ma WorkspaceDock chua co GridPanel.vue), va
+  #   KHONG cong nao canh moi noi do. Chi tiet o §Dev Agent Record Ⓓ. Cay nguon = baseline.
+  # ✅ 2026-08-15 — TASK 2-6 · 9 · 10.1 · 11 · 12 XONG. Luoi `subgrid` nam cot dung duoc;
+  #   vach nam->sau (token `draft` thu 17, muon dung so cua `ornament` => 0 cap tuong phan moi);
+  #   hop dong vung chon theo COT voi `selectionContract.ts` KHONG sua mot dong; lenh `⌥↓` moi.
+  #   Nghiem thu: 9 cong npm · build · vitest 83/83 · cargo 338/0/5 (Rust khong cham mot dong).
+  # 🔴 LUAT DUNG KICH HOAT LAN THU HAI o Task 12.2 — AC3 CHAN:
+  #   cu bam DAU TIEN vao luoi mat caret. Nguyen nhan DA CHAN DOAN XONG:
+  #   `WorkspaceDock.vue:591-611` -> `enterFocus(id)` -> `focus.ts::enter()` chay `el.focus()`
+  #   VO DIEU KIEN tren goc panel, ke ca khi tieu diem DA nam trong panel do. Cu bam thu HAI an.
+  #   Bon luot va bi BAC bang phep do. Hai duong sua deu cham hop dong tieu diem AD-34:
+  #     (A) `focus.ts::enter()` bo qua khi `el.contains(document.activeElement)` — mot cho sua,
+  #         phu ca sau diem vao focus;
+  #     (B) cho goi o `WorkspaceDock` tu kiem — ban kinh hep hon, khong dong ca cho panel khac.
+  #   => ICE CHOT. Dung va bang mot luot thu nam trong `GridPanel.vue`.
+  #   Ca nghiem thu DANG DO CO CHU: `e2e/specs/grid-empty-cell.e2e.mjs`.
+  # ⬜ Chua lam: Task 7 (do chieu cao hang Han Viet) · Task 8 (do hieu nang, giao so cho 2.4) ·
+  #   Task 10.2 · Task 13 (tai lieu — con 37 cho nhac EditorPanel/SourcePanel/"bon panel") ·
+  #   Task 14 (nghiem thu cuoi).
+  # 🔴 CON MOT MON CHO ICE: Task 1.4 — go tieng Viet BANG BO GO tren may that.
+  # ✅ 2026-08-15 — 2.5b XONG, chuyen sang `review`. Moi task tick tru DUNG MOT MON CUA ICE.
+  #   Nghiem thu: 11/11 cong npm (gom check:scope + check:scope:bundled chay tay) · build ·
+  #   vitest 83/83 · cargo test 338/0/5 (Rust KHONG cham mot dong) · e2e 3/4 luot ca bo 7/7.
+  #   Ice ky duong (A) cho `focus.ts::enter()`: bo qua `focus()` khi tieu diem DA o trong owner.
+  #   AD-34 §2 khong sua mot chu — no noi ve mot luot CHUYEN, va khong co luot chuyen nao.
+  # ✅ 2026-08-15 — ICE XAC NHAN TASK 1.4 DAT: go tieng Viet BANG BO GO tren may that, chu ha
+  #   canh, dau khong roi. Day la bat bien ma khong duong nghiem thu nao cua du an mo phong
+  #   duoc, nen chu ky cua Ice LA duong nghiem thu duy nhat. MOI TASK DA TICK.
+  # 🔴 HAI PHEP DO CHO SO XAU, ca hai DA GIAO LAI, khong tu cham dat:
+  #   - Han Viet SONG SONG: hang cao 388px = 11,47 dong (uoc luong noi ~330px / 6-7 dong).
+  #     Cot that cua B-2 chi 238,5px. `subgrid` keo theo O BAN DICH cung cao 388px. Chu: Ice.
+  #   - Doi con tro tren 9.850 cau: 706-770 ms => VUOT TRAN NFR2 ~15 lan. Chu: Story 2.4.
+  #     Moc cu :2113-2129 MAT HIEU LUC THEO CAU TRUC; :2198-2207 CON hieu luc ve co che.
+  # 🔵 Nam mon no moi/da dong vao deferred-work.md — xem §Dev Agent Record cua story.
+  2-5b-luoi-hai-cot-doi-chieu: review
   # 2.5c dung buoc di tru 8; 2.5d dung buoc 9. Doc PROJECT_MIGRATIONS (schema.rs), dung
   # doc mot ghi chep o noi khac — ke ca dong nay.
   2-5c-cat-bo-cau-khoi-ban-dich: backlog

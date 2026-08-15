@@ -96,7 +96,7 @@ Xử lý xong dải trên thì dải dưới mọc ngay tại chỗ vừa thu �
 
 **Ranh giới do máy đoán dùng `tm-rule`, và đó không phải màu mới.** Trong toàn ứng dụng `tm-rule` đã luôn nghĩa là *máy đề xuất, chưa ai xác nhận* — đúng y nghĩa của một ranh giới thuật toán vừa đặt. Người dùng chạm vào thì nó thành `confirmed`, cùng ngữ pháp với trạng thái segment.
 
-**Phát hiện Proofreader — gạch chân, không phải vạch lề** *(quyết định 2026-08-03)*. `FR86` bắt đánh dấu tại chỗ trên Editor, nhưng vạch lề đã dùng hết năm giá trị cho trạng thái segment và Editor cố tình không có ô. Lời giải: phát hiện là **gạch chân lượn sóng dưới đúng cụm chữ có vấn đề**, ở `text-underline-offset: 4px` để không chạm dấu nằm dưới của `ạ` `ộ` `ợ`. Hai lớp thông tin, hai chỗ đọc — vạch lề nói *trạng thái câu*, gạch chân nói *chỗ nghi ngờ*.
+**Phát hiện Proofreader — gạch chân, không phải vạch lề** *(quyết định 2026-08-03)*. `FR86` bắt đánh dấu tại chỗ trên Editor, nhưng vạch lề đã dùng hết **sáu** giá trị cho trạng thái segment *(🔵 2026-08-15, Story 2.5b: năm → sáu — `draft` lấp một **hàng vốn đã thiếu** trong bảng, không xin một kênh thị giác cho một trạng thái mới; **lý do của mệnh đề này KHÔNG đổi một chữ**, chỉ con số đổi)* và cột bản dịch cố tình không chia khối trong một ô. Lời giải: phát hiện là **gạch chân lượn sóng dưới đúng cụm chữ có vấn đề**, ở `text-underline-offset: 4px` để không chạm dấu nằm dưới của `ạ` `ộ` `ợ`. Hai lớp thông tin, hai chỗ đọc — vạch lề nói *trạng thái câu*, gạch chân nói *chỗ nghi ngờ*.
 
 Hai màu, không thêm màu mới nào vào bảng: **`error`** cho chính tả và ngữ pháp (`FR80` — có đáp án đúng), **`tm-rule`** cho nghi về nghĩa (`FR81` — là phán đoán, và màu này trong toàn ứng dụng đã luôn nghĩa là *máy đề xuất, chưa ai xác nhận*).
 

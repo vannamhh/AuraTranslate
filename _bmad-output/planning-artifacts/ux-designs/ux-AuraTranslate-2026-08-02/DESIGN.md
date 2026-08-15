@@ -168,7 +168,7 @@ Bảng màu lấy từ giấy và mực, không lấy từ màn hình.
 
 **Nền tối không phải là đảo ngược.** Nền `#26241f` là nâu rất tối, chữ `#e8e3d8` là ngà — không phải đen tuyền và trắng tinh. Tương phản tuyệt đối gây loá sau vài chương, và Chế độ đọc tồn tại chính vì những phiên dài đó.
 
-### Bảng token màu — **16 token mỗi theme**
+### Bảng token màu — **17 token mỗi theme** *(🔵 16 → 17, Story 2.5b · 2026-08-15)*
 
 > **Đây là nguồn sự thật của bộ token màu.** *(Bổ sung 2026-08-03: bảng này vốn được nhiều chỗ tham chiếu — kể cả mục "Giãn dòng" ngay dưới và acceptance criteria của story dựng token — nhưng chưa bao giờ được viết ra. Giá trị lấy từ bản dựng đã kiểm tương phản.)*
 
@@ -190,10 +190,15 @@ Bảng màu lấy từ giấy và mực, không lấy từ màn hình.
 | 14 | `tm-rule` | `#b99a5e` | `#b99a5e` | Vạch gợi ý TM — **là vạch, không phải chữ** |
 | 15 | `tm-text` | `#7a5d25` | `#d3b276` | Chữ trong khối gợi ý TM |
 | 16 | `error` | `#8f2f22` | `#e5867a` | Lỗi |
+| 17 | `draft` | `#a9a196` | `#6a6459` | Vạch *đã dịch tay, chưa ai ký* — **là vạch, không phải chữ**. 🔵 Story 2.5b |
 
 Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component** (AD-34) — thứ cần kiểm tra tập trung thì không được rải rác.
 
-> **Vì sao 16 chứ không phải 17.** Một số bản nháp ghi *"17 token"*. Con số đúng là **16** — đếm trên chính bảng này. `tm-rule` giữ **cùng một giá trị ở cả hai theme** (nó là vạch, không chịu ràng buộc tương phản chữ), nên nó dễ bị đếm thành hai. Đừng thêm một token thứ 17 để cho khớp một con số cũ: mọi token mới đều phải qua vòng kiểm tương phản ở mục dưới.
+> **Vì sao từng là 16, và vì sao nay là 17.** Một số bản nháp ghi *"17 token"* **vì một lý do sai** — `tm-rule` giữ **cùng một giá trị ở cả hai theme** (nó là vạch, không chịu ràng buộc tương phản chữ) nên nó dễ bị đếm thành hai. Cách đếm đó vẫn sai, và mệnh đề *"đừng thêm một token thứ 17 **để cho khớp một con số cũ**"* vẫn đúng từng chữ.
+>
+> 🔵 **2026-08-15 (Story 2.5b) — con số đổi vì một lý do ĐO ĐƯỢC, không vì một con số cũ.** UX-DR19 viết lại cùng lượt correct-course cấp cho *"đã dịch tay, chưa ai ký"* một giá trị vạch riêng, và `check-commands.mjs` Kiểm I đối chiếu **hai chiều** giữa `SEGMENT_RULE_VALUES` và các khối `.rule-<giá trị>` trong CSS — nó đòi đúng `var(--color-draft)`. Một `var(--color-ornament)` ở khối đó làm cổng **ĐỎ**, và một bảng alias để cho lọt là đúng thứ §Miễn trừ cấm bằng chữ.
+>
+> ⚠️ **`draft` MƯỢN ĐÚNG GIÁ TRỊ của `ornament` ở cả hai theme** *(Ice ký 2026-08-15)*, nên nó là **một cái tên mới cho một màu ĐÃ kiểm**, không một màu mới chưa ai đo — **0 cặp mới** cho `contrast.pairs`, và bảng cặp giữ nguyên **31** cặp mỗi theme. 🔴 Trùng giá trị **không** phải trùng nghĩa: `ornament` nói *đã về hưu*, `draft` nói *đã dịch tay, chưa ký*; hai vạch không bao giờ cùng xuất hiện trên một câu.
 
 ### Sàn tương phản — đã kiểm, đừng hạ
 
@@ -383,7 +388,12 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 
 **Bản ghi từ điển** — vạch trái 2px, thụt 13px. Nhãn nguồn `ui-label` màu `primary`. Từ loại `read` in nghiêng màu `on-surface-variant`. Nghĩa `lookup-gloss`. Ví dụ in nghiêng; trích dẫn có vạch trái `primary` để phân biệt với ví dụ. **Nhiều nguồn xếp chồng dọc, mỗi nguồn một khối — không bao giờ gộp.**
 
-**Vạch lề segment** — vạch dọc 2px trong máng rộng 22px bên trái Editor, cao đúng bằng câu tương ứng. `confirmed` đã xác nhận · `primary` đang sửa · `tm-rule` gợi ý TM chờ xác nhận. Đây là **cách duy nhất** trạng thái segment được hiển thị; văn bản không bị chia khối.
+**Vạch lề segment** — vạch dọc trong cột vạch bên trái lưới, cao đúng bằng **hàng** tương ứng. `confirmed` đã xác nhận · `primary` đang sửa · `draft` đã dịch tay chưa ký · `tm-rule` gợi ý TM chờ xác nhận · `ornament` đã về hưu.
+
+> 🔵 **CẬP NHẬT 2026-08-15 (Story 2.5b) — HAI mệnh đề của đoạn này đã hết đúng, sửa tại chỗ:**
+> ① *"Đây là **cách duy nhất** trạng thái segment được hiển thị"* — **hết đúng**: lưới có thêm một **cột nhãn trạng thái** đọc được bằng chữ. Đó không phải một lượt nói hai lần: vạch là kênh **thị giác**, và một người đi bàn phím hoặc dùng trình đọc màn hình không có nó — cột nhãn là lý do vạch được phép `aria-hidden`.
+> ② *"văn bản không bị chia khối"* — **hết đúng**: văn bản **có** chia ô, mỗi câu một hàng, mỗi hàng hai ô chữ. Tiền đề cũ *(trang văn liền mạch)* không còn tồn tại sau lượt correct-course 2026-08-14.
+> ⚠️ Máng **22px** cũng hết đúng — cột vạch nay rộng **3px** và vạch lấy chiều cao từ **track hàng** của `subgrid`, không từ một phép đo `getClientRects()`.
 
 **Ranh giới câu** — ký tự `⏐` màu `ornament`, `opacity: 0` mặc định, hiện ở `0.55` khi rê chuột hoặc khi con trỏ chạm.
 
