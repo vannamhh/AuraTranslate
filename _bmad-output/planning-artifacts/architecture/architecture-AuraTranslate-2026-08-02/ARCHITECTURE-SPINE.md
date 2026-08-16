@@ -7,7 +7,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-08-11'
+updated: '2026-08-16'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/planning-artifacts/prds/prd-AuraTranslate-2026-08-02/prd.md'
@@ -672,6 +672,77 @@ graph TD
 
   ⚠️ **Cái mất, ghi ra thay vì để người sau tự phát hiện:** đối xứng thị giác của bản `.docx` một khối. Hai cột lệch số đoạn thì càng xuống dưới càng lệch xa nhau, và **không có gì sai** — đó là bản dịch đúng ý người dịch. Ai mở file đó ra để **đối chiếu bằng mắt** sẽ thấy nó khó đọc hơn bản cũ. Đường đối chiếu thật là **lưới hai cột của Workspace** (UX-DR13), không phải file xuất.
 
+### AD-47 — Mốc so xuất xứ là lượt ghi KHÔNG-PHẢI-NGƯỜI-DÙNG gần nhất, không phải lượt nạp
+
+- **Binds:** C2, C5, C7, C8, C9
+- **Prevents:** AD-31 phân xử xuất xứ bằng cách so văn bản đích hiện tại với **bản lúc nạp segment**. Mốc đó là một **thế thân** cho câu hỏi thật — *"người dùng có gõ chữ này không"* (`prd.md:452`) — và nó chỉ đúng chừng nào **lượt nạp là cơ chế duy nhất** đặt văn bản vào một segment. Ba cơ chế đã có đặc tả phá thế thân đó, mỗi cái ghi `target_text` mà người dùng **không gõ một ký tự nào**:
+
+  | Cơ chế | Đọc AD-31 theo đúng chữ hôm nay |
+  |---|---|
+  | Chấp nhận thay đổi từ Review Mode (FR94, Epic 8) | khác bản lúc nạp ⇒ **tôi dịch** cho chữ của reviewer |
+  | Điền sẵn từ TM khớp 100% (FR58, Epic 7) | khác bản lúc nạp ⇒ **tôi dịch** cho chữ lấy từ kho |
+  | Đưa đề xuất AI sang Editor (Epic 4) | khác bản lúc nạp ⇒ **tôi dịch** cho chữ của máy |
+
+  Cả ba cho **đúng lớp hỏng mà FR117 sinh ra để chống**: cặp TM ghi ở lượt xác nhận mang nhãn *của tôi*, `RagInjector` ưu tiên nó theo AD-18, và AI học một văn phong không phải của người dùng. Hỏng **im lặng tuyệt đối** — không cổng nào đỏ, không lỗi nào ném, và biểu hiện lộ ra sau hàng trăm câu dưới dạng *"AI dịch không còn giống giọng tôi"*, không lần ngược được về một dòng nào.
+
+  🔴 **Và nó không sửa được bằng ba lượt vá ở ba Epic cách nhau nhiều tháng.** Ba chỗ vá riêng là ba cách hiểu riêng về cùng một câu hỏi, trên dữ liệu nằm **trên đĩa người dùng**.
+
+  Im lặng thứ hai, cùng hạng: **AD-5** định nghĩa segment sinh ra từ gộp/tách là *"chưa xác nhận, lịch sử rỗng"* và **không một chữ** về xuất xứ ⇒ Story 2.8 sẽ tự chọn, im lặng, cũng trên đĩa người dùng.
+
+- **Rule:**
+
+  **① Định nghĩa mốc.** Một **lượt ghi không-phải-người-dùng** là lượt ghi `target_text` mà văn bản **không đến từ bộ đệm gõ của Editor**. Flush theo AD-35 **không** thuộc loại này — nó chở đúng bộ đệm gõ, và một mốc chạy theo từng lượt flush phá đúng ca *gõ rồi hoàn tác* (đo ở Quyết định #2 của Story 2.7: `commands/segment.rs:1737-1741` so với **đĩa tại lượt flush**, nên `AB` → `A` bật cờ dù văn bản cuối y nguyên).
+
+  Mỗi lượt ghi không-phải-người-dùng làm **hai** việc trong **cùng một thao tác logic**:
+
+  - **(a)** đặt lại **mốc so sánh** của segment đó về đúng văn bản vừa ghi;
+  - **(b)** ghi **cột xuất xứ trên `SEGMENT`** bằng xuất xứ của **nguồn** lượt ghi đó (bảng ③).
+
+  **② Phép phân xử lúc xác nhận KHÔNG đổi — vẫn là phép so văn bản, vẫn hai kết quả.** Bảng xuất xứ của AD-31 đọc y nguyên, với *"bản lúc nạp segment"* hiểu theo ①. Hôm nay lượt nạp là lượt ghi không-phải-người-dùng duy nhất đã cài, nên hai cách đọc **cho cùng một kết quả trên toàn bộ mã đang chạy**.
+
+  **③ Mỗi cơ chế khai xuất xứ nó mang. Danh mục ĐÓNG — thêm một cơ chế là sửa bảng này.**
+
+  | Lượt ghi không-phải-người-dùng | Xuất xứ nó đặt | Chủ |
+  |---|---|---|
+  | Nạp Chương từ đĩa | giá trị đang có, **không ghi lại** | Story 2.7 |
+  | Nhập song ngữ (FR115) | **nhập từ tài liệu song ngữ** | Epic 6 |
+  | Chấp nhận thay đổi từ Review Mode (FR94) | **người khác dịch** | Epic 8 |
+  | Điền sẵn từ TM khớp 100% (FR58) | xuất xứ của **cặp TM nguồn** | Story 7.4 |
+  | Đưa đề xuất AI sang Editor | **người khác dịch** | Epic 4 |
+  | Gộp/tách segment (AD-5) | xem ④ | Story 2.8 |
+  | Khôi phục phiên bản (FR101) | 🔴 **KHÔNG đặt** — ngoại lệ có tên, xem ⑤ | Story 2.6 |
+
+  **④ Gộp/tách segment.** Mọi mảnh mang **cùng một** giá trị ⇒ segment mới giữ giá trị đó. **Bất kỳ bất đồng nào** ⇒ **người khác dịch**. Tách là ca tầm thường của luật này (một nguồn ⇒ mọi mảnh cùng giá trị).
+
+  Luật chọn chiều nói dối, không chọn chiều đúng — vì ở ca bất đồng **không có** giá trị đúng. Hai chiều không cân giá: khai *tôi dịch* cho chữ pha của người khác **đầu độc kho TM vĩnh viễn** (đúng thứ FR117 tồn tại để chống); khai *người khác dịch* cho chữ pha của chính mình chỉ làm **một** cặp TM bị `RagInjector` xếp sau. ⇒ chọn chiều rẻ. ⚠️ **Cái mất, ghi ra:** gộp một câu `''` *(chưa dịch)* với một câu *tôi dịch* cũng rơi vào nhánh bất đồng. Segment mới là **chưa xác nhận** (AD-5) nên nhãn sai chỉ sống sót nếu người dùng xác nhận nó mà **không sửa một ký tự** — chạm vào một chữ là ② ghi đè thành *tôi dịch*.
+
+  **⑤ Khôi phục (FR101) làm (a) mà KHÔNG làm (b).** Đây là **hệ quả bắt buộc** của chữ ký #1(a) ngày 2026-08-16: `segment_version` không mang xuất xứ, nên **không có gì để trả về**. `replaceEditorSegment` vốn đã định nghĩa lại mốc giữa phiên — ⑤ chỉ khai điều đó bằng chữ.
+
+  ⚠️ **Chỗ yếu, ghi ra thay vì để người sau tự phát hiện:** khôi phục văn bản của một phiên bản cũ rồi xác nhận mà không sửa ⇒ giữ nguyên xuất xứ **hiện tại**, thứ có thể thuộc về một phiên bản khác. Món nợ này **cùng gốc** với món nợ bốn nhãn của Story 2.6 (`deferred-work.md:3685-3697`) và đóng cùng lúc với nó — chủ: story nào cho `segment_version` một cột xuất xứ. Nó **không** được tự chấm đạt ở Story 2.7.
+
+  **⑥ Tập giá trị FR117 giữ ĐÚNG BA, cộng `''`. `AD` này KHÔNG nới nó.** Lý do đo được: tập giá trị nằm **trên đĩa người dùng**, nên mỗi lượt nới là **một bước di trú nữa** cho mọi `.atproj` đã tồn tại. Thứ giữ cho tập ba giá trị đủ dùng là **phép chiếu xuống trục nhị phân của FR118** — trục duy nhất mà hành vi thật đọc tới:
+
+  | Giá trị FR117 | Chiếu xuống FR118 | Nơi trục nhị phân được đọc |
+  |---|---|---|
+  | *tôi dịch* | **của tôi** | AD-18 khoá chính · FR62 bộ lọc · AD-14 `RagInjector` |
+  | *người khác dịch* | của người khác | nt |
+  | *nhập từ tài liệu song ngữ* | của người khác | nt |
+  | `''` *(chưa có bản dịch)* | không cặp TM nào được ghi | — |
+
+  🔴 **Mọi giá trị thêm vào sau này phải khai nó rơi về vế nào của trục nhị phân, trong cùng lượt.** Một giá trị không khai vế là một giá trị mà AD-18 sắp xếp theo thứ tự không xác định.
+
+  ⚠️ **Cái mất của quyết định giữ ba giá trị, ghi ra:** FR62 lọc TM **không phân biệt được** *từ AI* với *từ reviewer* với *từ người dịch trước* — cả ba là *người khác dịch*. FR62 khai mục đích của bộ lọc là *"rà lại hoặc dọn sạch phần không phải văn phong của mình"* (`epics.md:5355`), tức đúng trục nhị phân, nên nó **không hụt gì**. Ai muốn phân biệt ba nguồn đó phải mở một `AD` mới **và** một bước di trú.
+
+  **⑦ AD-31 và AD-5 đổi cái gì / không đổi cái gì** *(khuôn AD-46)*:
+
+  - **AD-31 §bảng máy trạng thái** (sáu hàng) — **không sửa một chữ**. Story 2.5 đã cài đúng nó, 372 ca Rust canh.
+  - **AD-31 §bảng xuất xứ** (hai hàng) — **không sửa một chữ**. `AD` này chỉ định nghĩa chính xác *"bản lúc nạp segment"* nghĩa là gì khi có nhiều hơn một cơ chế đặt văn bản vào segment.
+  - **AD-31 §Hợp đồng phụ** — **nới, không thay**. *"So văn bản đích hiện tại với mốc, không dùng cờ dirty"* giữ nguyên hiệu lực, và ca **gõ rồi hoàn tác về nguyên trạng vẫn cho *không sửa*** — vì hoàn tác đưa văn bản về đúng mốc, bất kể mốc do lượt ghi nào đặt. Phép so văn bản vẫn là **trọng tài duy nhất**; thứ đổi là **nó so với cái gì**.
+  - **AD-5** — ba đoạn hiện có **không sửa một chữ**. `AD` này viết vào chỗ AD-5 **im lặng**: một câu về xuất xứ của segment mới (④).
+  - **AD-18, AD-14, AD-6** — không sửa. ⑥ chỉ khai bằng chữ phép chiếu mà AD-18 §thứ tự hai khoá **đã giả định** từ 2026-08-02.
+
+  **⑧ Story 7.4 hết là một giả định.** AC *"xác nhận một segment điền sẵn từ TM mà không sửa ⇒ giữ nguyên xuất xứ của cặp TM nguồn"* (`epics.md:5169-5170`) thêm ở Epic 7 **trước khi** có `AD` nào chốt hình dạng. Nó nay là **hệ quả** của ③ cộng ②, không phải một luật rời.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -681,6 +752,8 @@ graph TD
 | **File & thư mục** | Rust `snake_case`; Vue component `PascalCase.vue`; tài nguyên chuỗi `vi.json` phẳng theo khoá chấm (`lookup.empty_result`) |
 | **Định danh** | `Work` = UUID v4 · `Chapter`, `Segment`, mục Glossary, mục TM = số nguyên cục bộ trong database chứa nó. Id đã về hưu không bao giờ tái dùng |
 | **Ghi nhớ proofreader** | Khoá theo `(work, chữ ký phát hiện)`, **không** theo `segment.id` — FR84 nói phạm vi là *"trong cùng Tác phẩm"*, và nhờ vậy ghi nhớ sống sót qua gộp/tách segment |
+| **Xuất xứ bản dịch** | Ghi **chỉ** ở hai chỗ: lượt ghi không-phải-người-dùng đặt mốc (AD-47 ③④), và chuyển tiếp sang **đã xác nhận** (AD-31). Không đường mã nào khác chạm cột đó. Ba giá trị FR117 cộng `''`; mọi giá trị mới phải khai vế của nó trên trục nhị phân FR118 |
+| **Chữ "xuất xứ" chỉ BỐN thực thể rời nhau** | Bản dịch (FR117, AD-47) · mục Glossary (FR47, AD-36) · tài liệu nguồn (FR128/FR131, AD-43) · trích dẫn từ điển (FR30). Định danh trong mã phải **tự phân biệt được**; `origin` trần thì không — chữ đó đã đông nghĩa ở frontend (`WorkspaceDock.vue:416` dùng `origin === 'user'` cho lượt kích hoạt panel) |
 | **Segment của ảnh** | Alt-text và caption đều là `Segment` bình thường mang trường **vai**, không phải danh sách rời và không phải cột trên `ASSET` (AD-42). `alt` mang `ord` **đúng vị trí ảnh**; `caption` mang `ord` **ngay sau ảnh** (FR42–FR44, FR129) |
 | **Đường nhập** | Mọi nguồn đi qua **cùng một pipeline, cùng thứ tự** (AD-39). Xem trước luôn hiện kết quả **sau toàn bộ chuỗi** |
 | **Ra mạng** | Đúng ba điểm, cả ba theo thao tác người dùng (AD-15). Điểm nhập từ URL đi qua `Fetcher` và chỉ `Fetcher` (AD-40), canh bởi allowlist một-lần-nhập (AD-41) |

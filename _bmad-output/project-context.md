@@ -502,6 +502,14 @@ lỗi nào** và biểu hiện thành *"tra từ không ra kết quả"* — kh�
   rỗng). **Gộp/tách CHƯƠNG thì KHÔNG** — chỉ đổi `chapter_id` và `ord`, giữ nguyên
   `segment.id` và mọi dữ liệu gắn theo nó. Nhầm hai cái này phá sạch lịch sử của những
   Chương đã dịch xong.
+- 🔴 **Mọi lượt ghi `target_text` mà văn bản KHÔNG đến từ bộ đệm gõ phải đặt CẢ HAI thứ trong cùng
+  thao tác: mốc so sánh VÀ cột xuất xứ** (AD-47). Danh mục đóng: nhập song ngữ · chấp nhận thay đổi
+  FR94 · điền sẵn từ TM FR58 · đề xuất AI · gộp/tách. **Ngoại lệ có tên duy nhất:** khôi phục FR101
+  đặt mốc mà **không** đặt xuất xứ *(`segment_version` không mang xuất xứ — chữ ký #1(a))*.
+  Quên vế xuất xứ ⇒ lượt xác nhận kế tiếp ghi **tôi dịch** cho chữ người dùng chưa gõ, cặp TM mang
+  nhãn sai, `RagInjector` ưu tiên nó, và **không cổng nào đỏ**. Biểu hiện lộ ra sau hàng trăm câu
+  dưới dạng *"AI dịch không còn giống giọng tôi"* — không lần ngược được. Flush AD-35 **không**
+  thuộc danh mục này: nó chở đúng bộ đệm gõ.
 - **`segment.id` không bao giờ tái dùng.** Mọi dữ liệu gắn theo segment tham chiếu `id`,
   **không bao giờ tham chiếu vị trí**.
 - **Lược đồ có phiên bản, di trú CHỈ TIẾN.** Gặp phiên bản **mới hơn** ứng dụng ⇒ **từ
@@ -587,7 +595,7 @@ không xoá nó.)*
 - Đọc tệp này **trước** khi viết dòng mã đầu tiên.
 - Theo **đúng** luật đã ghi. Nghi ngờ thì chọn phương án **chặt hơn**.
 - Tệp này **không thay** nguồn sự thật, nó trỏ về chúng:
-  `ARCHITECTURE-SPINE.md` (45 `AD` + bảng Stack + Consistency Conventions) ·
+  `ARCHITECTURE-SPINE.md` (47 `AD` + bảng Stack + Consistency Conventions) ·
   `deferred-work.md` (sổ nợ) · doc-comment của chính tệp đang sửa.
 - Trước khi dựng một phép kiểm mới: hỏi **mệnh đề này đã có chủ ở đường nào chưa** (bốn
   đường ở §Testing Rules). Hai đường cùng canh một mệnh đề là hai nguồn sự thật.
@@ -602,4 +610,4 @@ không xoá nó.)*
   mới · một mệnh đề ở đây hết đúng.
 - Luật đã trở nên hiển nhiên thì **gỡ** — độ dài của tệp này là chi phí thật ở mỗi lượt gọi.
 
-Last Updated: 2026-08-13
+Last Updated: 2026-08-16
