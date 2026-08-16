@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-16T13:05:00
+last_updated: 2026-08-16T19:30:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -584,7 +584,189 @@ development_status:
   #   ⚠️ CON HO, chu Ice: chua co ca nao canh chinh ban va — ba menh de moi chua tung DO. Ca ④
   #   hien co van xanh neu ai do go luot flush thu hai.
   2-6-lich-su-phien-ban-segment-va-khoi-phuc: done
-  2-7-xuat-xu-ban-dich-cap-segment: backlog
+  # 🔵 2026-08-16 — create-story: chuyen sang ready-for-dev. So di tru ke tiep DO LAI tu nguon
+  #   (`PROJECT_MIGRATIONS`, schema.rs): chin buoc [1,2,3,5,6,7,8,9,10], dich 10 => ke tiep la
+  #   **11**. Story mang TAM quyet dinh mo phai co chu ky cua Ice TRUOC dong ma dau tien
+  #   (Task 0 chan moi task khac), va Task 0.4 la mot CUA CHAN: chu ky nao doi sua AD-31/AD-5
+  #   thi do la mot AD MOI, dung story lai.
+  #   🔴 #1 COT XUAT XU NAM O BANG NAO — hai tai lieu chi vao HAI bang khac nhau: AD-31
+  #      (SPINE:368-392) + ERD (:818-844) noi ghi vao **segment**; schema.rs:449-452 dat no o
+  #      **segment_version**. Phep do bac duong "chi segment_version": AC3 doi mot gia tri doc
+  #      duoc LUC NAP, ma segment chua tung xac nhan co 0 hang segment_version (duong INSERT duy
+  #      nhat: commands/segment.rs:1367-1371).
+  #   🔴 #2 AI GIU MOC "ban luc nap" VA AI CHAY PHEP SO. Do: moc KHONG ton tai tren dia —
+  #      unconfirm_edited_segments so voi dia TAI LUOT FLUSH (segment.rs:1737-1741), va dia bi
+  #      ghi de dan ⇒ danh dau theo tung luot flush PHA AC5 (go roi hoan tac). Do: moc CO song o
+  #      webview va song sot qua go+flush — ensureSegmentsLoaded khoa bang co `requested`
+  #      (editorPanelState.ts:93) nen nap dung MOT lan; editorPanelState.ts:194-207 da khai bang
+  #      chu, tu truoc story nay, rang `segments` giu ban luc nap DANH CHO FR117.
+  #      Ba duong: (a) webview gui bool — va AD-1 (quy tac nghiep vu o TS); (b) webview gui VAN
+  #      BAN luc nap, Rust so; (c) Rust tu giu ban do moc trong OpenWork.
+  #   #3 tap gia tri + kieu + TEN cot. `origin` DA DONG NGHIA trong kho (dockview panel origin ·
+  #      nhanh `originator` cua flush · `author` cua dict_citation), va PRD dung chu "xuat xu"
+  #      cho BON thuc the roi nhau (FR117 · FR47 · FR128/131 · FR30).
+  #   #4 story nay co BE MAT NHIN THAY khong. Khong AC nao doi hien thi; khong gian thi giac da
+  #      can (vach le dung 5 gia tri, Kiem I doi chieu hai chieu SEGMENT_RULE_VALUES <-> CSS).
+  #   #5 khoi phuc (2.6) co tra xuat xu ve khong — replaceEditorSegment va `target_text` vao anh
+  #      chup ⇒ no DINH NGHIA LAI moc "luc nap" giua phien. Khong AC nao noi.
+  #   #6 backfill cho hang da nam tren dia (khuon DDL+DML cua buoc 9).
+  #   #7 adapter moi kiem payload luc chay hay tin payload — mon no chu Ice dang mo
+  #      (deferred-work.md:3770-3781).
+  #   🔴 #8 PHAM VI: AD-31 liet ke "chap nhan thay doi tu Review Mode (FR94)" la mot su kien cua
+  #      may trang thai, ma bang xuat xu ngay duoi chi co HAI hang dua tren phep so van ban.
+  #      Di theo dung chu: nguoi dung chap nhan NGUYEN VAN de xuat cua reviewer (khong go mot ky
+  #      tu) ⇒ van ban khac ban luc nap ⇒ ghi "toi dich". Nguoc dung cau bien minh cua FR117
+  #      (prd.md:452) va thung dung loi hua R13. Im lang thu hai cung hang: xuat xu cua segment
+  #      sinh ra tu gop/tach (AD-5 + Story 2.8 khong noi gi).
+  # 🔵 MOT MAU THUAN TUONG CO MA KHONG CO — ghi de dev dung "sua" epics.md: bang tho FR117
+  #   (prd.md:443) viet "duyet nguyen van ⇒ nguoi khac dich", AC3 viet "giu nguyen xuat xu luc
+  #   nap". AD-31 HOA GIAI SAN bang mot bang rieng: "nguoi khac dich HOAC nhap tu tai lieu song
+  #   ngu, giu nguyen xuat xu nap vao". AC3 la ban CHINH XAC HON, bang PRD la ban tho.
+  # 🔴 MOT TIEN DE CUA MON NO 2.6 KHONG DUNG DUOC khi doc lai, va story ghi ra thay vi thi hanh:
+  #   deferred-work.md:3794-3796 viet "cot xuat xu lam cau hoi 'hang nao dang dung' tra loi duoc
+  #   theo id". Sai — hai phien ban cung mang "toi dich" thi nhan lai khop NHIEU hang, dung lop
+  #   loi mon no do ton tai de chong. Thu tra loi duoc la mot CON TRO (vd segment.current_version_id),
+  #   khong phai mot cot xuat xu. => Neu Ice muon dong nhan "dang dung" o day thi do la mot cot
+  #   THU BA, khong phai he qua mien phi cua #1(b).
+  # ⚠️ Bay da ghi trong story: (a) ba neo so hoc KHONG cong nao canh, da sai 3 lan lien tiep —
+  #   `vec![1,2,3,5,6,7,8,9,10]` (segment_contract.rs:506-515) · fixture "tuong lai" STEP_ELEVEN
+  #   (:1552-1602, neo LUC BIEN DICH E0080, doi ten + mang +1 + so gia +1) · pinned_contract.rs:171-182
+  #   (len 9->10, schema_version 10->11); (b) `insert_segments` (segment.rs:96-127) phai set cot moi
+  #   TUONG MINH — backfill khong voi toi Chuong nhap SAU luot di tru (bai hoc 2.5d); (c) khuon
+  #   "cot moi phai di qua day" da lap BA lan (status · is_omitted · is_target_paragraph_end) va
+  #   vitest KHONG bat duoc lop loi do — fixture chep tay luon co san truong.
+  # ⚠️ AC3 hom nay KHONG co duong san pham nao doi chung duoc: khong nguon nao sinh xuat xu khac
+  #   mac dinh (FR115 = Epic 6, FR58 = Epic 7, AI = Epic 4). Dung khuon chu ky #8(a) cua 2.6 cho
+  #   `retired_at`: test hop dong dung bang SQL truc tiep, va ghi no co chu.
+  # 🔵 2026-08-16 — 2.7 chuyen sang in-progress (dev-story). Task 0 CHAN moi task khac: tam
+  #   quyet dinh mo cho Ice ky, va Task 0.4 la mot CUA CHAN (chu ky nao doi sua AD-31/AD-5 thi
+  #   do la mot AD MOI, dung story lai).
+  #   Baseline do TRUOC khi cham dong dau tien, tren HEAD 440c6d5: cargo test --locked 372/0/5 ·
+  #   vitest 130/130 · COMMAND_FLOOR san 37 / cong in 44 — KHOP moi so ghi trong story.
+  #   Buoc di tru ke tiep do lai tu NGUON (PROJECT_MIGRATIONS dich o to_version 10,
+  #   schema.rs:799) => **11**. Khop.
+  #   Cay lam viec khong sach, nhung thu ban CHINH LA tao tac cua story nay (tep story +
+  #   entry sprint-status do create-story sinh) ⇒ khong commit va rieng.
+  # 🔵 MUOI MOT TIEN DE cua tam quyet dinh do lai tu nguon: chin DUNG NGUYEN, hai bi THU HEP:
+  #   (1) story viet "tang Rust: nam dong khop `origin`" — do that: **0** dinh danh
+  #       origin/provenance trong Rust; khai niem xuat xu o do mang ten `work`/`author`
+  #       (dict/senses.rs:91). Tuc va ten `origin` chi o TANG FRONTEND + o muc khai niem.
+  #   (2) story viet "sau adapter tin payload" trong Quyet dinh #7 — do that: **bay**
+  #       (config/segment.ts co 8 adapter, chi readSegmentHistory kiem luc chay).
+  #   Ca hai deu KHONG lat mot duong nao cua tam quyet dinh.
+  # ✅ 2026-08-16 — Ice ky TAM quyet dinh: #1(a) chi cot tren `segment` · #2(b) webview gui VAN
+  #   BAN luc nap, Rust so · #3(b') `TEXT NOT NULL DEFAULT ''` · #4(a) khong be mat · #5(b) khoi
+  #   phuc chi dung van ban · #6(a) backfill theo hang · #7 tin payload · #8(b) 2.7 tu chot ngu
+  #   nghia cho ca FR94 lan gop/tach.
+  #   🔵 #3(b') KHONG CO TRONG STORY — dev de xuat, Ice ky. Ly do no thang ca (a) lan (b):
+  #   duong (b) NULL-able MAU THUAN mot quyet dinh DA KY cua chinh bang nay (schema.rs:368-374
+  #   cam bang chu hinh dang Option<String> cho `target_text`: "None va Some(\"\") la hai cach
+  #   noi cung mot dieu"). (b') lay ve dung cua (b) ma khong pha tien le.
+  #   ⚠️ HAI DUONG CHET THEO CHU KY #1(a), khong phai bi loai: #4(b) va #5(a) deu ve/tra xuat xu
+  #   theo MOT HANG PHIEN BAN, ma `segment_version` nay khong mang xuat xu.
+  # 🔴 CUA CHAN TASK 0.4 DA KICH HOAT — STORY DUNG LAI, 0 dong ma san pham bi cham.
+  #   Chu ky #8(b) doi THEM LUAT vao HAI bat bien dang dung:
+  #     - AD-31 (SPINE:383-390): bang xuat xu co DUNG HAI HANG, ca hai dua tren phep so van ban.
+  #       Ca "chap nhan thay doi tu Review Mode (FR94)" CO trong bang may trang thai (:380) nhung
+  #       KHONG co trong bang xuat xu. Doc dung chu hom nay: van ban khac ban luc nap => "toi
+  #       dich", cho mot cau nguoi dung KHONG go mot ky tu — nguoc dung cau bien minh cua FR117
+  #       (prd.md:452).
+  #     - AD-5 (:103-111), doc lai toan van: "segment moi bat dau o trang thai chua xac nhan voi
+  #       lich su rong", va KHONG MOT CHU ve xuat xu.
+  #   => project-context.md:461-463 + Task 0.4: mot AD MOI phai duoc viet TRUOC dong ma dau tien.
+  #   Cay nguon con nguyen baseline 440c6d5 (git diff --stat tren src/ src-tauri/ scripts/ tests/
+  #   e2e/ = RONG).
+  # ✅ 2026-08-16 — ICE CHOT: AD moi GIAO CHO WINSTON (architect), khong dev tu soan. Ho so ban
+  #   giao: planning-artifacts/ad-brief-2026-08-16-xuat-xu-ban-dich.md — cho bay chu ky da co VA
+  #   rang buoc chung dat len AD · hai cau hoi phai tra loi kem so do va duong ung vien · thu AD
+  #   KHONG duoc dung · nam dieu kien nghiem thu · toan bo so baseline.
+  # 🔴 MOT SO DO CHI LO RA SAU LUC ICE KY #8(b): mockup data-integrity.html ve BON nhan xuat xu
+  #   (`tu ban review` :195 · `tu AI` :203 · `tu TM` :207 · `toi dich` :221) trong khi FR117 khai
+  #   BA. => Neu AD chon mot gia tri rieng cho ca FR94 thi no NOI TAP GIA TRI cua FR117, va luot
+  #   noi do cham Epic 4 va Epic 7 chu khong chi Epic 8. Neu ra de Ice can lai pham vi, khong tu
+  #   quyet. Story 7.4 (epics.md:5168-5170) da GIA DINH san mot hinh dang chua AD nao chot.
+  # ⚠️ HAI MUC METADATA CUA SPINE DA LECH, chu Winston, ghi trong ho so: frontmatter
+  #   `updated: '2026-08-11'` trong khi AD-46 dan phien 2026-08-14; va project-context.md:590 viet
+  #   "45 AD" trong khi dem that `grep -c "^### AD-"` = 46.
+  # 🔵 DIEU KIEN MO LAI 2.7: AD moi co mat trong ARCHITECTURE-SPINE.md, tra loi CA HAI cau hoi
+  #   (FR94 · gop/tach), va lint_spine.py chay sach. Luc do Task 0.4 mo, va BAY chu ky kia CON
+  #   NGUYEN HIEU LUC — khong phai ky lai.
+  # ✅ 2026-08-16 — CUA CHAN TASK 0.4 DA MO. Winston giao `AD-47` (SPINE:675). Nam dieu kien
+  #   nghiem thu do lai TU NGUON, khong doc ghi chep: khuon Binds/Prevents/Rule ✅ · tra loi ca
+  #   FR94 (bang ③) lan gop/tach (④) ✅ · muc ⑦ noi AD-31/AD-5 doi gi ✅ · KHONG noi tap gia tri
+  #   (dieu kien 4 roi) ✅ · lint_spine.py 0 finding ✅. `grep -c "^### AD-"` = 47.
+  # 🔵 AD-47 lam story RE HON chu khong dat hon — no DOI MOC thay vi them gia tri. Hom nay luot
+  #   nap la luot ghi khong-phai-nguoi-dung DUY NHAT da cai, nen hai cach doc cho CUNG ket qua
+  #   tren toan bo ma dang chay ⇒ 0 gia tri moi, 0 buoc di tru them, bay AC du. Bay chu ky cu
+  #   con nguyen hieu luc, khong phai ky lai.
+  # 🔵 Tao tac cua Winston (spine + project-context + ho so ban giao) COMMIT RIENG truoc dong ma
+  #   dau tien — Ice chot. Commit `5a7e007`. Diff cua story doc duoc mot minh.
+  # ✅ 2026-08-16 — 2.7 XONG, chuyen sang `review`. Task 5 KHONG CHAY (chu ky #4(a), story thuan
+  #   du lieu) va cac o cua no de `[⊘]` chu khong tick — mot dau [x] o do la mot loi khai sai.
+  #   Buoc di tru 11 DA TIEU (`segment.translation_origin`, DDL+DML). So ke tiep la **12**.
+  #   Nguon su that van la `PROJECT_MIGRATIONS` (schema.rs), khong phai dong nay.
+  #   Nghiem thu: 11 cong npm (9 doc-tep + check:scope + check:scope:bundled chay tay) · build ·
+  #   vue-tsc · vitest 133/133 · cargo test --locked 382/0/5. Baseline 130 + 372 ⇒ +3 vitest,
+  #   +10 Rust. `COMMAND_FLOOR` KHONG doi (san 37, cong in 44) — AC7 la menh de phu dinh.
+  # 🔴 E2E: BA luot tron bo, ghi ca ba. Luot ① 7/8 — `segment-history-restore` DO THAT: spec goi
+  #   `invoke('confirm_segment')` THANG, di vong qua adapter, nen luot doi hinh dang day lam no
+  #   do voi nguyen van "invalid args `textAtLoad` … missing required key". 382 ca Rust + 133 ca
+  #   vitest DEU XANH luc do ⇒ e2e lai la luoi DUY NHAT cho hinh dang day, dung khuon vu cot
+  #   `status` cua 2.5. Da va; chay rieng spec do 2/2.
+  #   🔵 Va mot menh de dang giu: Tauri tu choi mot tham so THIEU mot cach ON AO. Neu no im lang
+  #   cap `""` thi luot nay da XANH trong khi moi cau duyet-nguyen-van bi gan nhan "toi dich".
+  # 🔵 DA CHAN DOAN — va phep do LAT chan doan tam cua chinh toi. Nam luot tron bo:
+  #   ① ② ③ tren cay Story 2.7, may BAN (`cargo test` chay song song de giet thoi gian cho):
+  #     7/8 ca ba luot. ② va ③ do o `editor-typing-flush`, HAI phep khang dinh khac nhau.
+  #   ④ tren BASELINE `5a7e007`, may RANH: **8/8** (10m30) — Ice cap quyen `git stash` cho
+  #     luot do; truoc do toi khai la "bi chan quyen" va nghieng ve "chap chon moi truong".
+  #   ⑤ tren cay Story 2.7, may RANH: **8/8** (9m28).
+  #   ⇒ BIEN LA TAI MAY, khong phai cay nguon. `FLUSH_WAIT_MS = 3.500 ms` ma idle cua AD-35 la
+  #   2.000 ms ⇒ bien chi 1.500 ms, va trong bien do phai lot: timer idle · mot luot invoke ·
+  #   `Store::write` NOI TIEP cua AD-11 · mot luot fsync WAL. Mot may dang bien dich Rust an het
+  #   bien do. Hai luot do khac phep khang dinh nhung CUNG MOT trieu chung: "chu chua toi dia".
+  #   ⇒ Story 2.7 KHONG gay ra chung, va cau nay dua tren MOT PHEP DO (⑤), khong mot lap luan.
+  # 🔴 PHAT HIEN CHO KHO, to hon story nay: hai mon no "bo e2e chap chon" (:3345-3354 va
+  #   :3117-3139) nay co mot NGUYEN NHAN DO DUOC cho it nhat mot phan — va no giai thich luon
+  #   vi sao nhung luot do cu "khong tai lap duoc": nguoi chan doan chay lai tren may DA RANH.
+  #   ⚠️ Ban va KHONG phai noi hang so (noi mot nguong cho het do la dung thu project-context
+  #   cam, va no chi doi diem gay). Duong dung: CHO MOT SU KIEN thay vi cho mot khoang thoi
+  #   gian. Ghi no co chu: mot story ha tang e2e. Khong tu sua trong story nay.
+  # ⚠️ BAI HOC PHUONG PHAP, ghi vi dev vua mac: dung chay viec nang SONG SONG voi mot bo do
+  #   thoi gian thuc tren engine that — no khong phan biet duoc "san pham hong" voi "may ban".
+  # ⚠️ COT AC8 (`a_flush_touches_exactly_...`) nay co them mot phep so TRON HANG khong muc lai
+  #   duoc: dung hang ky vong bang chinh hang truoc, thay dung HAI truong AC8 cho phep doi, roi
+  #   so ca hang. Mot cot thu 14 mai sau di vao ca do MIEN PHI.
+  # 🔴 HAI PHAT HIEN KHONG NAM TRONG BAY AC, ca hai bat duoc luc DOC MA chu khong luc chay:
+  #   ① Cong AC8 (`a_flush_touches_exactly_...`) MU voi BA cot — `.10` (is_omitted, 2.5c) ·
+  #     `.11` (is_target_paragraph_end, 2.5d) · `.12` (story nay). Doc-comment cua `SegmentRow`
+  #     khai bo doc duoc nang "CUNG LUOT voi buoc di tru" DE cong nay khong mu; ve do lam dung
+  #     hai lan, ve con lai (mot dong `assert_eq!`) ROI ca hai lan. Dung khuon "chu ky thi hanh
+  #     dung MOT NUA" da lap bon lan — lan nay lap tren chinh cai luoi dung de chong lop loi do.
+  #     Da va bang mot phep so TRON HANG khong muc lai duoc; tu kiem do-roi-xanh da chay.
+  #   ② Mot ca THUONG NHAT khong AC nao neu: go -> flush -> dong Tac pham chua xac nhan -> mo
+  #     lai -> xac nhan khong sua. Moc luc nap BANG van ban tren dia va xuat xu van `''` (buoc 11
+  #     chi backfill hang confirmed; flush khong dung cot nay). Khong nhanh vá thi ket qua la mot
+  #     hang TU MAU THUAN tren dia nguoi dung: confirmed + co chu + "chua co ban dich".
+  # 🔴 MOT TRAN CUA NGON NGU: `SegmentRow` cham 12. std chi impl PartialEq/Debug cho tuple toi
+  #   12 phan tu ⇒ cot thu 13 lam bo test KHONG BIEN DICH DUOC (E0369+E0277 hang loat, khong mot
+  #   ca do). Duong sai re la gop hai cot vao mot tuple long cho du 12 — no bien dich, VA no lam
+  #   cong dem cot dem SAI. Da doi sang tuple struct: `.0`..`.12` giu nguyen, 0 cho dung phai sua.
+  # ⚠️ TEN COT `translation_origin` do DEV chon, KHONG nam trong chu ky #3(b') — (b') khai KIEU
+  #   va gia tri mac dinh, khong khai cai TEN. Ly do: §Consistency Conventions doi dinh danh tu
+  #   phan biet duoc giua BON nghia cua chu "xuat xu", va `origin` tran da dong nghia o frontend.
+  #   Ung vien con lai `translated_by` bi loai (doc nhu mot ten nguoi; `''` khong phai cau tra
+  #   loi cho "ai dich").
+  # ✅ 2026-08-16 — ICE DUYET ten cot `translation_origin`. Day la CHU KY THU CHIN, ngoai tam
+  #   quyet dinh cua Task 0: chu ky #3(b') khai KIEU va gia tri mac dinh, khong khai cai TEN.
+  #   Ghi rieng vi no dong mot cot NAM TREN DIA nguoi dung, va cua so doi re dong lai ngay luot
+  #   mo app dau tien sau ban nay.
+  # 🟡 KHONG ve nao tu cham dat. Bay mon vao deferred-work.md, moi mon mot chu. Trong do mon
+  #   "phien ban nao dang duoc dung" cua 2.6 duoc DINH CHINH chu khong dong: tien de cua no
+  #   ("cot xuat xu tra loi duoc theo id") KHONG dung — hai phien ban cung mang `self` thi nhan
+  #   lai khop NHIEU hang, dung lop loi mon no do ton tai de chong. Thu tra loi duoc la mot CON
+  #   TRO. Va chu ky #1(a) day no xa them mot bac: `segment_version` khong mang xuat xu.
+  2-7-xuat-xu-ban-dich-cap-segment: review
   2-8-gop-va-tach-segment-tuong-minh: backlog
   # 2.9 DOI TEN 2026-08-14. Ten cu: 2-9-gop-ngam-khi-go-de-len-ranh-gioi. Tien de cu ("con
   # tro o dung vi tri ranh gioi giua hai segment") KHONG con ton tai trong luoi — ranh gioi

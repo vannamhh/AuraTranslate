@@ -775,7 +775,45 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
     return 'still-dirty'
   }
 
-  const { outcome, error } = await confirmSegment(id)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 🔴 ② MỐC SO CỦA FR117 — đọc TỪ [`segments`], và đọc TRƯỚC bước ③
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 🔵 Story 2.7, Quyết định #2 đường (b) (Ice ký 2026-08-16). [`segments`] giữ bản **lúc
+  // nạp**; doc-comment của [`editedText`] khai mệnh đề đó bằng chữ **từ Story 2.3**, tức
+  // trước story này — đây là lượt đầu tiên có ai đọc nó.
+  //
+  // 🔴 **`segments`, KHÔNG `editedText`.** `editedText` là văn bản **đang gõ**: lấy nó làm mốc
+  // thì mốc luôn bằng văn bản Rust vừa đọc trên đĩa ⇒ *"y hệt"* ở **mọi** lượt ⇒ mọi câu người
+  // dùng gõ mang nhãn *của người khác*, và kho TM của Epic 7 bị trộn phong cách đúng theo cách
+  // mà chính story này tồn tại để chống. Không cổng nào bắt được lượt nhầm đó — nó là hai cái
+  // tên cách nhau một chữ, cùng kiểu, cùng khoá.
+  //
+  // ⚠️ Đọc **trước** bước ③: bước ③ vá `status` vào ảnh chụp và **cố ý không đụng**
+  // `target_text` *(khối ③ ở doc-comment của `confirmCurrentSegment` ghi lý do)*. Thứ tự này
+  // vì thế không phải một điều kiện đúng **hôm nay**; nó là thứ giữ cho một lượt sửa tương lai
+  // ở bước ③ không lặng lẽ đổi nghĩa của mốc.
+  const loaded = segments.value.find((s) => s.id === id)
+  if (loaded === undefined) {
+    // 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."*
+    //
+    // ⚠️ **Vì sao KHÔNG có nhánh dự phòng gửi `''`, ghi ra vì đó là đường sai rẻ ở đây:** một
+    // mốc rỗng đọc là *"câu này lúc nạp chưa có bản dịch"*, nên nó cho ra **`self` bất kể sự
+    // thật** — tức một lời khai về chữ của ai, dựng từ một chỗ mã đã biết là mình không biết.
+    // Từ chối thì người dùng bấm lại; đoán thì nhãn sai đi vĩnh viễn vào kho TM.
+    //
+    // ⚠️ Trạng thái này **không tới được** hôm nay *(`caretSegmentId` sinh từ `data-segment-id`
+    // mà lưới render ra từ chính `segments`)*, và nó vẫn có mặt vì cái giá hai bên lệch nhau
+    // rất xa. Dùng lại `'no-caret'` chứ không dựng một mã thứ sáu: câu nói với người dùng y hệt
+    // — *"chưa xác định được câu nào để ký"* — và một mã mới đòi một khoá `vi.json` cho một
+    // nhánh chưa ai đi qua, đúng thứ luật danh mục đóng của `MessageKey` cấm.
+    console.error(
+      `[editor] KHÔNG ký segment ${id}: không tìm thấy nó trong ảnh chụp lúc nạp, nên ` +
+        `KHÔNG có mốc so cho FR117 — từ chối thay vì đoán một xuất xứ (Story 2.7).`,
+    )
+    return 'no-caret'
+  }
+
+  const { outcome, error } = await confirmSegment(id, loaded.target_text)
   if (outcome === null) {
     // ⚠️ `error === null` cũng vào đây: đó là ca *"không có cầu IPC"* (`npm run dev` trong một
     //    trình duyệt thường). Không ca nào được coi là đã xác nhận.

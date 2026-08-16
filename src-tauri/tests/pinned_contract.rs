@@ -168,17 +168,20 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     //    them mot cot nao — no dung mot cau truc dan xuat. Hai con so duoi day van chi la
     //    NEO: menh de cua ca nay khong doi mot chu, no canh viec `pinned_entry` khong nam
     //    trong `project.db`.
+    // 🔵 CAP NHAT 2026-08-16 (Story 2.7): chin buoc → MUOI, dich 10 → 11 (cot
+    //    `translation_origin`, FR117/AD-47). Hai con so duoi day van chi la NEO — menh de
+    //    cua ca nay khong doi mot chu.
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        9,
-        "`PROJECT_MIGRATIONS` phai co chin buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
+        10,
+        "`PROJECT_MIGRATIONS` phai co muoi buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
          6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
-         10 cua Story 2.6"
+         10 cua Story 2.6, 11 cua Story 2.7"
     );
     assert_eq!(
         opened.store.schema_version(),
-        10,
-        "mot `project.db` moi phai dung o phien ban 10 (so 4 da chay)"
+        11,
+        "mot `project.db` moi phai dung o phien ban 11 (so 4 da chay)"
     );
 
     let has_table: i64 = opened

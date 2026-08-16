@@ -112,16 +112,37 @@ pub(crate) fn insert_segments(
     // ⚠️ Và **một giá trị, hai cột** ở đây là đúng AD-46 chứ không phải một bản sao thừa: cờ
     // đích *bắt đầu* bằng cờ nguồn rồi sống độc lập. Bộ tách vẫn chỉ sinh **một** cờ
     // (`SplitSegment`), nên không có nguồn sự thật thứ hai nào được dựng ở đây.
+    // 🔴 `translation_origin` SET TƯỜNG MINH, không để `DEFAULT ''` cấp — Story 2.7, AC1.
+    //
+    // ⚠️ **Cùng bài học, cột thứ hai liên tiếp** — xem khối ngay trên. Bước di trú 11 backfill
+    // các hàng **đã có trên đĩa**; một Chương nhập **sau** lượt di trú đi qua đúng câu `INSERT`
+    // này. Ở đây giá trị đúng **trùng** với `DEFAULT ''`, nên bỏ `?6` đi thì hôm nay **không ca
+    // nào đỏ** — và đó chính là lý do phải viết nó ra: ngày Epic 6 dựng đường nhập song ngữ
+    // (FR115), giá trị đúng lúc `INSERT` **thôi là mặc định**, và một cột im lặng lấy giá trị
+    // sai sẽ không có gì báo. Một câu `INSERT` khai đủ mọi cột nó sở hữu là thứ làm lượt sửa đó
+    // thành một dòng, không một cuộc chẩn đoán.
+    //
+    // 🔴 Và giá trị `''` ở đây là một **mệnh đề**, không một chỗ trống: một segment vừa tách ra
+    // từ văn bản nguồn **chưa có bản dịch**, nên nó chưa có xuất xứ nào để khai. Cho nó
+    // `TRANSLATION_ORIGIN_SELF` là ký thay người dùng đúng lớp lỗi mà `DEFAULT 'draft'` của
+    // bước 7 đã ghi bằng chữ.
     let mut stmt = tx.prepare_cached(
         "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
-         is_target_paragraph_end, created_at, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+         is_target_paragraph_end, translation_origin, created_at, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
          strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
     )?;
     for (index, segment) in segments.iter().enumerate() {
         let ord = i64::try_from(index).unwrap_or(i64::MAX).saturating_add(1);
         let paragraph_end = i64::from(segment.is_paragraph_end);
-        stmt.execute((chapter_id, ord, &segment.text, paragraph_end, paragraph_end))?;
+        stmt.execute((
+            chapter_id,
+            ord,
+            &segment.text,
+            paragraph_end,
+            paragraph_end,
+            TRANSLATION_ORIGIN_NONE,
+        ))?;
     }
     Ok(())
 }
@@ -385,7 +406,12 @@ pub struct SegmentVersionRow {
 /// nghĩa *"mốc sửa **văn bản**"*; `segment_version.created_at` là **mốc ký**, sinh trong SQL bằng
 /// `strftime('%Y-%m-%dT%H:%M:%fZ','now')` ngay trong [`confirm_segment`]. Một lượt ký **không**
 /// sửa một ký tự nào nên nó **không** đụng `updated_at` — đã xác nhận lại 2026-08-16: câu
-/// `UPDATE segment SET status = ?1 WHERE id = ?2` của `confirm_segment` không có `updated_at`.
+/// `UPDATE` của `confirm_segment` không có `updated_at`.
+/// 🔵 **Sửa tại chỗ 2026-08-16 (Story 2.7):** dòng trên trước đó **trích nguyên văn** câu SQL
+/// (`SET status = ?1 WHERE id = ?2`), và câu đó nay là `SET status = ?1, translation_origin =
+/// ?2 WHERE id = ?3`. Mệnh đề *"không có `updated_at`"* **vẫn đúng**; thứ hết đúng là bản
+/// trích. ⇒ Bỏ bản trích chứ không sửa nó: một doc-comment chép một câu SQL của **hàm khác**
+/// là một bản sao sẽ mục lại ở mỗi story chạm hàm đó, và không cổng nào canh.
 /// ⇒ Màn hình lịch sử đọc `created_at`. Dùng `updated_at` sẽ cho một danh sách mà **mọi hàng
 /// mang cùng một mốc**, và mốc đó là lần gõ cuối chứ không phải lần ký.
 pub fn read_segment_history(
@@ -1158,6 +1184,47 @@ pub const SEGMENT_STATUS_DRAFT: &str = "draft";
 /// Xem [`SEGMENT_STATUS_DRAFT`].
 pub const SEGMENT_STATUS_CONFIRMED: &str = "confirmed";
 
+/// Xuất xứ *"chưa có bản dịch"* — Quyết định #3 đường (b′) (Ice ký 2026-08-16).
+///
+/// 🔴 **Không** phải một giá trị thứ tư của FR117; nó là **sự vắng mặt** của một câu trả lời,
+/// và nó ánh xạ sang *"không cặp TM nào được ghi"* trên trục nhị phân FR118 (AD-47 ⑥). Cùng
+/// hình dạng và cùng lý do với `target_text = ""` — *"chưa dịch"* là một chuỗi **rỗng**, không
+/// một giá trị **vắng mặt** *(doc-comment của `SEGMENT_TARGET_TEXT_DDL`)*.
+pub const TRANSLATION_ORIGIN_NONE: &str = "";
+/// FR117 *"tôi dịch"*. Trục nhị phân FR118: **của tôi**.
+pub const TRANSLATION_ORIGIN_SELF: &str = "self";
+/// FR117 *"người khác dịch"*. Trục nhị phân FR118: **của người khác**.
+///
+/// ⚠️ Đây cũng là giá trị mà AD-47 ③ giao cho ca **chấp nhận thay đổi từ Review Mode** (FR94,
+/// Epic 8) và cho ca **bất đồng khi gộp/tách** (AD-47 ④, Story 2.8). Story 2.7 **không** cài
+/// hai đường đó — nó chỉ khai giá trị chúng sẽ dùng, để hai Epic sau không tự đặt tên riêng.
+pub const TRANSLATION_ORIGIN_OTHER: &str = "other";
+/// FR117 *"nhập từ tài liệu song ngữ"* (FR115, Epic 6). Trục nhị phân FR118: **của người khác**.
+///
+/// ⚠️ Chưa đường mã nào **ghi** giá trị này hôm nay, và nó vẫn ở đây có chủ ý: [`is_translation_origin`]
+/// phải nhận nó, nếu không một `.atproj` do một bản tương lai ghi sẽ bị chính bản này gọi là
+/// hỏng. Đây **không** phải một nhánh chết kiểu *"giữ phòng khi đổi ý"* — nó là vế **đọc** của
+/// một danh mục mà AD-47 ⑥ khai là ĐÓNG.
+pub const TRANSLATION_ORIGIN_BILINGUAL_IMPORT: &str = "bilingual_import";
+
+/// Danh mục **ĐÓNG** của `segment.translation_origin` — AD-47 ⑥.
+///
+/// 🔴 Thêm một giá trị vào đây là một lượt **nới FR117**, và AD-47 ⑥ đặt hai điều kiện cho nó:
+/// giá trị mới phải khai nó rơi về vế nào của **trục nhị phân FR118** *(của tôi / của người
+/// khác)*, và vì tập giá trị nằm trên **đĩa người dùng** nên lượt nới là **một bước di trú
+/// nữa**. Không lượt nào trong hai lượt đó là một dòng mã.
+/// ⚠️ **Ai đọc mảng này, ghi ra vì "một hằng chỉ test đọc" là một hằng đáng ngờ:** nó là
+/// **cổng** — `segment_contract.rs::the_translation_origin_catalogue_matches_ad_47_row_by_row`
+/// khẳng định **đúng bốn** phần tử và **đúng bốn** cái tên đó. Một giá trị thứ năm lặng lẽ
+/// thêm vào làm ca đó **đỏ**, và đó là đường duy nhất của kho bắt được một lượt nới danh mục
+/// mà không ai viết `AD`. Cùng khuôn và cùng vai với `SEGMENT_RULE_VALUES` ↔ Kiểm I.
+pub const TRANSLATION_ORIGINS: [&str; 4] = [
+    TRANSLATION_ORIGIN_NONE,
+    TRANSLATION_ORIGIN_SELF,
+    TRANSLATION_ORIGIN_OTHER,
+    TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+];
+
 /// Kết quả một lượt xác nhận — thứ đi ra qua dây. Story 2.5, AC2 · AC13.
 ///
 /// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
@@ -1285,26 +1352,72 @@ enum ConfirmReject {
 /// nghĩa, rồi Story 2.6 sẽ so hai mốc sinh ra từ hai sự kiện khác nhau.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 MỐI NỐI ĐỂ MỞ, KHÔNG BỊ CHÔN — AC11
+/// 🔵 MỐI NỐI ĐỂ MỞ — VẾ XUẤT XỨ **ĐÃ ĐÓNG** 2026-08-16 (Story 2.7), VẾ CẶP TM Ở LẠI
 /// ─────────────────────────────────────────────────────────────────────────────
 /// Nhánh `Ok(true)` ngay dưới **là** chuyển tiếp *"sang đã xác nhận"* của AD-31, và đó là
-/// **chỗ duy nhất** hai thứ sau sẽ được ghi:
-/// - **xuất xứ (FR117)** — chủ: **Story 2.7**. Nó so *văn bản đích hiện tại* với *bản lúc
-///   nạp segment*, **không dùng cờ dirty** (hợp đồng phụ AD-31). Mốc so sánh sống ở webview
-///   (`editorPanelState.ts`, `segments` giữ bản lúc nạp) và **phải giữ tách rời** `editedText`.
-/// - **cặp TM (FR56)** — chủ: **Epic 7**. `EXPERIENCE.md:294`: *"Cặp TM mới được ghi ngay tại
-///   chuyển tiếp đó (AD-31)"*.
+/// **chỗ duy nhất** hai thứ sau được ghi:
+/// - **xuất xứ (FR117)** — ✅ **đã cài ở chính story này**, xem khối phân xử ngay dưới. Câu
+///   *"chủ: Story 2.7"* của bản trước đã hết đúng; sửa tại chỗ thay vì để nó lặng lẽ sai.
+/// - **cặp TM (FR56)** — chủ: **Epic 7**, vẫn để ngỏ. `EXPERIENCE.md:294`: *"Cặp TM mới được
+///   ghi ngay tại chuyển tiếp đó (AD-31)"*. 🔴 Và AD-47 ⑥ đã khai sẵn phép chiếu mà nó phải
+///   đọc: xuất xứ ba giá trị → **trục nhị phân FR118** *(của tôi / của người khác)*.
 ///
-/// ⚠️ Story 2.5 **không cài** hai thứ đó. Nó để lại mối nối ở một chỗ **gọi tên được** —
-/// chính nhánh này — thay vì rải chúng ra sau.
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 PHÉP PHÂN XỬ XUẤT XỨ — `text_at_load` LÀ MỐC, VÀ NÓ ĐẾN TỪ WEBVIEW
+/// ─────────────────────────────────────────────────────────────────────────────
+/// AC4 + hợp đồng phụ AD-31: so **văn bản đích hiện tại với mốc**, *không dùng cờ dirty*.
+/// AD-47 ① định nghĩa mốc là *"bản do lượt ghi **không-phải-người-dùng** gần nhất đặt"* — hôm
+/// nay lượt nạp Chương là lượt ghi loại đó **duy nhất đã cài**, nên mốc là bản lúc nạp.
+///
+/// 🔴 **Vì sao tham số này đến từ webview chứ không đọc ở đây** — Quyết định #2 đường (b),
+/// Ice ký 2026-08-16. Mốc **không tồn tại trên đĩa**: đĩa bị ghi đè dần theo từng lượt flush
+/// AD-35, nên một phép so với đĩa **phá AC5** *(gõ `AB` rồi hoàn tác về `A`: mỗi lượt flush
+/// thấy "khác", mà văn bản cuối y hệt bản lúc nạp)*. Mốc **có** sống ở webview và **sống sót**
+/// qua gõ + flush: `editorPanelState.ts::segments` giữ bản lúc nạp và `editedText` tách rời nó
+/// — một mệnh đề khai bằng chữ ở đó **từ trước story này**.
+/// ⇒ TypeScript **chở dữ liệu nó sở hữu hợp pháp**; phép phân xử ở lại Rust (AD-1). Đường (a)
+/// *(webview tự tính `edited: bool`)* bị loại vì nó đặt một **quy tắc nghiệp vụ** vào TS, và
+/// ngoại lệ tường minh duy nhất của AD-1 là *"văn bản đang gõ"*, không phải *"phép phân xử"*.
+///
+/// ⚠️ **Cái giá, ghi ra thay vì giấu:** Rust **tin** một giá trị do webview khai. Một chỗ gọi
+/// tương lai gửi sai mốc sẽ ghi sai xuất xứ, và **không cổng nào ở tầng Rust bắt được** — cùng
+/// hình dạng với giới hạn *"flush trước, xác nhận sau"* mà vỏ [`wire::confirm_segment`] đã ghi.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 NHÁNH THỨ HAI CỦA PHÉP PHÂN XỬ: `''` TRÊN MỘT CÂU **CÓ** BẢN DỊCH LÀ MỘT TRẠNG THÁI
+///    TỰ MÂU THUẪN, VÀ NÓ CÓ THẬT — không một AC nào của story nêu nó
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Đường hỏng đo được, và nó là ca **thường nhật** chứ không một ca biên: người dùng gõ bản
+/// dịch, flush ghi xuống đĩa, **đóng Tác phẩm mà chưa xác nhận**. Mở lại: mốc lúc nạp nay
+/// **bằng** văn bản trên đĩa, và `translation_origin` vẫn `''` *(bước 11 chỉ backfill các hàng
+/// `confirmed`; flush **không** đụng cột này — nó chở đúng bộ đệm gõ, AD-47 ① nói flush không
+/// phải một lượt ghi không-phải-người-dùng)*. Xác nhận mà không sửa ⇒ *"y hệt mốc"* ⇒ **giữ
+/// nguyên** ⇒ một câu **đã ký** mang nhãn *"chưa có bản dịch"*.
+///
+/// ⇒ Nhánh `translation_origin.is_empty()` **sửa một sentinel, không thêm một đầu vào thứ hai
+/// cho phép phân xử.** Lập luận đứng được vì nó đọc từ chính AD-47 ①(b): mỗi lượt ghi
+/// không-phải-người-dùng đặt mốc **và** đặt xuất xứ trong cùng thao tác. ⇒ *"có văn bản mà
+/// xuất xứ rỗng"* nói **không lượt ghi loại đó nào** đã đặt văn bản này ⇒ nó đến từ bộ đệm gõ
+/// ⇒ *tôi dịch*. Nhánh ② đã loại mọi câu rỗng *(phép `trim().is_empty()`)* trước khi tới đây,
+/// nên *"có văn bản"* là **bất biến** ở điểm này, không một giả định.
+///
+/// ⚠️ Và nó **không** phá AC3: một câu *"sẵn có"* theo nghĩa AC3 là câu do một cơ chế khác đặt
+/// vào, mà mọi cơ chế như thế đều đặt xuất xứ cùng lượt (AD-47 ③) ⇒ xuất xứ của nó **không**
+/// rỗng ⇒ nó đi nhánh *giữ nguyên*. Hai nhánh không giao nhau.
 pub fn confirm_segment(
     open: Option<&OpenWork>,
     segment_id: i64,
+    text_at_load: &str,
 ) -> Result<ConfirmOutcome, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
 
     let reject: Arc<Mutex<Option<ConfirmReject>>> = Arc::new(Mutex::new(None));
     let reject_in = Arc::clone(&reject);
+
+    // ⚠️ Mot ban SO HUU cua moc, khong mot muon: closure cua `Store::write` la `'static` (no
+    // di sang luong writer cua AD-11), nen mot `&str` muon tu chi goi KHONG song qua duoc bien
+    // do. Day la mot phep chep DUY NHAT mot lan cho ca luot goi, khong mot phep chep moi hang.
+    let text_at_load = text_at_load.to_owned();
 
     let outcome = open.store.write(move |tx: &Transaction<'_>| {
         let set_reject = |r: ConfirmReject| {
@@ -1314,18 +1427,24 @@ pub fn confirm_segment(
         };
 
         // ① Doc trang thai hien tai — TRONG cung giao dich voi luot ghi.
+        //
+        // ⚠️ `translation_origin` doc o DAY chu khong o mot luot `Store::read` rieng, cung ly
+        // do va cung phep do voi ba cot kia: giua hai luot, tang kho KHONG giu gi ca, va o
+        // nhanh ④ mot xuat xu doc tu mot anh chup cu la mot xuat xu ghi de len mot luot ghi
+        // khac vua chay xong.
         let found = tx.query_row(
-            "SELECT target_text, status, retired_at FROM segment WHERE id = ?1",
+            "SELECT target_text, status, retired_at, translation_origin FROM segment WHERE id = ?1",
             [segment_id],
             |row| {
                 let target_text: String = row.get(0)?;
                 let status: String = row.get(1)?;
                 let retired_at: Option<String> = row.get(2)?;
-                Ok((target_text, status, retired_at))
+                let translation_origin: String = row.get(3)?;
+                Ok((target_text, status, retired_at, translation_origin))
             },
         );
 
-        let (target_text, status, retired_at) = match found {
+        let (target_text, status, retired_at, translation_origin) = match found {
             Ok(value) => value,
             Err(SqlError::QueryReturnedNoRows) => {
                 set_reject(ConfirmReject::NotFound);
@@ -1359,10 +1478,26 @@ pub fn confirm_segment(
             return Ok(false);
         }
 
-        // ④ CHUYEN TIEP. Day la cho Story 2.7 (xuat xu) va Epic 7 (cap TM) moc vao.
+        // ④ CHUYEN TIEP. Day la cho Story 2.7 (xuat xu) DA moc vao, va Epic 7 (cap TM) se.
+        //
+        // 🔴 Phep phan xu FR117 — hai nhanh, ly do day du o doc-comment cua ham. Doc goi:
+        //    - van ban KHAC moc  ⇒ chu cua nguoi dung          ⇒ `self`
+        //    - xuat xu dang rong ⇒ khong luot ghi khong-phai-nguoi-dung nao dat van ban nay,
+        //      ma nhanh ② da bao dam co van ban                ⇒ `self`
+        //    - con lai            ⇒ duyet NGUYEN VAN mot cau san co ⇒ GIU NGUYEN (AC3)
+        //
+        // ⚠️ Ghi ca hai cot trong MOT cau `UPDATE`, khong hai cau: AD-47 ①(b) doi moc va xuat
+        // xu di cung mot thao tac logic, va o day chuyen tiep trang thai la thao tac do. Hai
+        // cau la hai cho de mot luot sua sau nay chi cham mot nua — dung khuon "chu ky thi
+        // hanh dung MOT NUA" da lap bon lan o 2.5b va 2.6.
+        let origin = if target_text != text_at_load || translation_origin.is_empty() {
+            TRANSLATION_ORIGIN_SELF
+        } else {
+            translation_origin.as_str()
+        };
         tx.execute(
-            "UPDATE segment SET status = ?1 WHERE id = ?2",
-            (SEGMENT_STATUS_CONFIRMED, segment_id),
+            "UPDATE segment SET status = ?1, translation_origin = ?2 WHERE id = ?3",
+            (SEGMENT_STATUS_CONFIRMED, origin, segment_id),
         )?;
         tx.execute(
             "INSERT INTO segment_version (segment_id, target_text, created_at) \
@@ -1874,20 +2009,29 @@ pub mod wire {
     /// chỗ gọi tương lai quên `await` sẽ ký một văn bản **cũ hơn** thứ người dùng đang nhìn,
     /// và **không cổng nào ở tầng Rust bắt được**. Lưới ở đây là một test frontend, không một
     /// hợp đồng Rust.
+    /// 🔵 **Story 2.7 — tham số thứ hai `text_at_load`, trên dây là `textAtLoad`.** Nó là
+    /// **mốc so** của FR117: bản dịch **lúc nạp segment**, thứ chỉ webview giữ được *(đĩa bị
+    /// ghi đè dần theo từng lượt flush AD-35)*. Lý do đầy đủ ở doc-comment của
+    /// [`super::confirm_segment`]; Quyết định #2 đường (b), Ice ký 2026-08-16.
+    ///
+    /// 🔴 Vỏ này **không** phân xử một chữ nào — nó chuyển nguyên văn tham số xuống hàm thuần.
+    /// Cùng luật đã ghi cho `flush_segment_targets`: đo 2026-08-14 cho thấy một quyết định đặt
+    /// ở vỏ đi qua **54/54 xanh** vì `tests/**` gọi vỏ không được *(nó cần `AppHandle`)*.
     #[tauri::command]
     pub fn confirm_segment(
         app: tauri::AppHandle,
         segment_id: i64,
+        text_at_load: String,
     ) -> Result<ConfirmOutcome, IpcError> {
         use tauri::Manager as _;
 
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::confirm_segment(None, segment_id);
+            return super::confirm_segment(None, segment_id, &text_at_load);
         };
         let guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::confirm_segment(guard.as_ref(), segment_id)
+        super::confirm_segment(guard.as_ref(), segment_id, &text_at_load)
     }
 
     /// Vỏ IPC của [`super::set_segment_omitted`] — Story 2.5c, FR133.

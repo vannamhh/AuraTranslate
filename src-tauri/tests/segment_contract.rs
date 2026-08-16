@@ -508,8 +508,8 @@ fn the_project_migration_set_matches_the_declared_ladder_step_for_step() {
 
     assert_eq!(
         versions,
-        vec![1, 2, 3, 5, 6, 7, 8, 9, 10],
-        "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 \
+        vec![1, 2, 3, 5, 6, 7, 8, 9, 10, 11],
+        "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 \
          (4 la so da chay)"
     );
 }
@@ -568,8 +568,8 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
     // 🔵 CAP NHAT 2026-08-16 (Story 2.6): dich 9 → 10 — buoc 10 ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        10,
-        "buoc 5, 6, 7, 8, 9 VA 10 phai da chay tren mot tep dung o phien ban 4"
+        11,
+        "buoc 5, 6, 7, 8, 9, 10 VA 11 phai da chay tren mot tep dung o phien ban 4"
     );
 
     let has_segment: i64 = migrated
@@ -724,8 +724,8 @@ fn a_project_database_at_version_five_migrates_up_and_keeps_every_segment_row() 
     // 🔵 CAP NHAT 2026-08-16 (Story 2.6): dich 9 → 10, nay la NAM buoc mot luot.
     assert_eq!(
         migrated.schema_version(),
-        10,
-        "buoc 6, 7, 8, 9 VA 10 phai chay tren mot tep dung o phien ban 5"
+        11,
+        "buoc 6, 7, 8, 9, 10 VA 11 phai chay tren mot tep dung o phien ban 5"
     );
 
     let rows: Vec<(i64, String, String)> = migrated
@@ -778,9 +778,9 @@ fn a_fresh_project_database_lands_at_the_target_with_a_status_column_and_a_versi
     // `segment_version`). Menh de cua ca nay KHONG doi mot chu.
     assert_eq!(
         opened.store.schema_version(),
-        10,
-        "mot `project.db` moi phai dung o phien ban 10 (Story 2.5d them cot \
-         `is_target_paragraph_end`)"
+        11,
+        "mot `project.db` moi phai dung o phien ban 11 (Story 2.7 them cot \
+         `translation_origin`)"
     );
 
     let (notnull, default_value): (i64, String) = opened
@@ -895,8 +895,8 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
     // 🔵 CAP NHAT 2026-08-16 (Story 2.6): dich 9 → 10, va buoc 10 cung khong dung toi `status`.
     assert_eq!(
         migrated.schema_version(),
-        10,
-        "buoc 7, 8, 9 VA 10 phai chay tren mot tep dung o phien ban 6"
+        11,
+        "buoc 7, 8, 9, 10 VA 11 phai chay tren mot tep dung o phien ban 6"
     );
 
     let rows: Vec<(i64, String, String, String)> = migrated
@@ -1187,8 +1187,8 @@ fn a_project_database_at_version_nine_gains_the_index_and_no_version_row_is_touc
         Store::open(StoreSpec::project(db)).expect("mot `project.db` o phien ban 9 phai mo duoc");
     assert_eq!(
         migrated.schema_version(),
-        10,
-        "buoc 10 phai chay tren mot tep dung o phien ban 9"
+        11,
+        "buoc 10 VA 11 phai chay tren mot tep dung o phien ban 9"
     );
 
     // Index co mat SAU luot di tru -- day la nua "buoc 10 that su da chay".
@@ -1291,8 +1291,8 @@ fn a_project_database_at_version_seven_migrates_up_and_no_old_row_is_omitted() {
     // 🔵 CAP NHAT 2026-08-16 (Story 2.6): dich 9 → 10 — buoc 10 ra doi.
     assert_eq!(
         migrated.schema_version(),
-        10,
-        "buoc 8, 9 VA 10 phai chay tren mot tep dung o phien ban 7"
+        11,
+        "buoc 8, 9, 10 VA 11 phai chay tren mot tep dung o phien ban 7"
     );
 
     let rows: Vec<(i64, String, String, String, i64)> = migrated
@@ -1492,8 +1492,8 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
     // luot va no KHONG dung toi mot hang nao (no chi dung mot index).
     assert_eq!(
         migrated.schema_version(),
-        10,
-        "buoc 9 VA 10 phai chay tren mot tep dung o phien ban 8"
+        11,
+        "buoc 9, 10 VA 11 phai chay tren mot tep dung o phien ban 8"
     );
 
     let rows: Vec<(i64, i64, i64)> = migrated
@@ -1549,9 +1549,17 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
 /// KHÔNG cổng nào canh**, và cả hai sai lại ở *mỗi* story thêm một bước. Sửa được vì có
 /// người đọc doc-comment này, không vì có gì đỏ. ⇒ Nếu một story sau thêm bước 11 thật, đây
 /// là chỗ phải sửa **trước** khi tin ca này còn nói gì.
+///
+/// 🔵 **CẬP NHẬT 2026-08-16 (Story 2.7) — fixture nâng từ 11 lên 12**, và đây là **lượt lặp
+/// lại thứ TƯ**. Đúng như dòng ngay trên đã dặn: bước 11
+/// (`SEGMENT_TRANSLATION_ORIGIN_DDL`, FR117/AD-47) nay là một bước **thật**, nên một fixture
+/// dừng ở 11 mô phỏng đúng bản hôm nay ⇒ ca này **xanh mà không bao giờ chạm nhánh AD-30**.
+/// ⚠️ Ba thứ phải đổi **cùng lượt** và không cái nào có cổng canh: **tên hằng** · kích thước
+/// mảng `[Migration; N]` · số giả trong `Migration`. Kích thước mảng là thứ duy nhất trong ba
+/// cái báo được — bằng một **lỗi biên dịch `E0080`**, không một ca đỏ.
 #[test]
 fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
-    static STEP_ELEVEN: [Migration; 10] = [
+    static STEP_TWELVE: [Migration; 11] = [
         PROJECT_MIGRATIONS[0],
         PROJECT_MIGRATIONS[1],
         PROJECT_MIGRATIONS[2],
@@ -1561,9 +1569,10 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         PROJECT_MIGRATIONS[6],
         PROJECT_MIGRATIONS[7],
         PROJECT_MIGRATIONS[8],
-        // Mot buoc 11 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
+        PROJECT_MIGRATIONS[9],
+        // Mot buoc 12 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
         Migration {
-            to_version: 11,
+            to_version: 12,
             sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
         },
     ];
@@ -1572,18 +1581,18 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
     let db = dir.join("project.db");
 
     let future = Store::open(StoreSpec {
-        migrations: &STEP_ELEVEN,
+        migrations: &STEP_TWELVE,
         ..StoreSpec::project(db.clone())
     })
-    .expect("dung fixture o phien ban 11");
-    assert_eq!(future.schema_version(), 11);
+    .expect("dung fixture o phien ban 12");
+    assert_eq!(future.schema_version(), 12);
     drop(future);
 
     let before = fs::metadata(&db).expect("doc metadata truoc").len();
 
     let refused = Store::open(StoreSpec::project(db.clone()));
     let err = refused.err().expect(
-        "mot `project.db` o phien ban 11 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
+        "mot `project.db` o phien ban 12 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
     );
     let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
     assert_eq!(
@@ -2118,7 +2127,30 @@ fn a_chapter_with_real_translations_round_trips_through_the_load_command() {
 /// chạy mỗi lượt flush, còn cờ đích chỉ đổi bằng một thao tác **rời rạc** của người dùng.
 /// Một câu `UPDATE` của flush lỡ chạm vào nó sẽ **hoàn tác quyết định ngắt đoạn** của người
 /// dùng mỗi hai giây, và không một lỗi nào được ném.
-type SegmentRow = (
+///
+/// 🔵 **CẬP NHẬT 2026-08-16 (Story 2.7, AC6): mười hai cột → MƯỜI BA** — bước di trú 11 thêm
+/// `translation_origin`. Lưới lại làm đúng việc của nó, **lượt thứ ba liên tiếp**.
+/// ⚠️ Và ở đây nó canh một mệnh đề **mới**, không chỉ lặp lại mệnh đề cũ: AC6 nói xuất xứ ghi
+/// *"cùng lúc với chuyển tiếp sang đã xác nhận, **không ở chỗ nào khác**"*. Một câu `UPDATE`
+/// của `save_segment_targets` lỡ chạm vào cột này sẽ khai *tôi dịch* cho một câu người dùng
+/// chưa ký — và hậu quả **không** dừng ở màn hình: Epic 7 ghi cặp TM theo nhãn đó, `RagInjector`
+/// xếp nó lên đầu, và không lần ngược được. Đây đúng nghĩa vế phủ định của AC6, và cổng AC8
+/// (`a_flush_touches_exactly_...`) là chỗ nó được canh.
+/// 🔴 **MỘT TUPLE STRUCT, KHÔNG một tuple trần — và đó là một trần THẬT của ngôn ngữ, không
+/// một lượt đổi cho đẹp.** Story 2.7, 2026-08-16.
+///
+/// Cột thứ **mười ba** làm bản cũ *(một `type` alias cho tuple trần)* **không biên dịch được
+/// nữa**: `std` chỉ `impl` `PartialEq`/`Debug` cho tuple **tới 12 phần tử**, nên mọi
+/// `assert_eq!` trên `Vec<SegmentRow>` chết cùng lúc với `E0369` + `E0277`. Đây là một **trần
+/// cứng**, không một lượt thiếu `derive` — không cách nào nới nó từ phía kho.
+///
+/// ⚠️ **Đường sai rẻ ở đây là gộp hai cột vào một tuple lồng cho đủ 12** — nó biên dịch, và
+/// nó làm chính cổng `the_raw_column_reader_sees_every_column_...` ngay dưới **đếm sai số
+/// cột**. Tức lượt né trần sẽ tắt đúng cái lưới tồn tại để bắt cột mới. Một tuple **struct**
+/// giữ nguyên `.0` … `.12` ở mọi chỗ gọi *(không một chỗ dùng nào phải sửa)*, nhận `derive`
+/// ở **mọi** arity, và giữ phép đếm cột trung thực.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SegmentRow(
     i64,
     i64,
     i64,
@@ -2131,6 +2163,7 @@ type SegmentRow = (
     String,
     i64,
     i64,
+    String,
 );
 
 fn read_all_segment_rows(open: &auratranslate_lib::commands::project::OpenWork) -> Vec<SegmentRow> {
@@ -2139,11 +2172,11 @@ fn read_all_segment_rows(open: &auratranslate_lib::commands::project::OpenWork) 
             let mut stmt = conn.prepare(
                 "SELECT id, chapter_id, ord, source_text, is_paragraph_end, retired_at, \
                  created_at, updated_at, target_text, status, is_omitted, \
-                 is_target_paragraph_end \
+                 is_target_paragraph_end, translation_origin \
                  FROM segment ORDER BY ord",
             )?;
             let rows = stmt.query_map([], |r| {
-                Ok((
+                Ok(SegmentRow(
                     r.get(0)?,
                     r.get(1)?,
                     r.get(2)?,
@@ -2156,11 +2189,12 @@ fn read_all_segment_rows(open: &auratranslate_lib::commands::project::OpenWork) 
                     r.get(9)?,
                     r.get(10)?,
                     r.get(11)?,
+                    r.get(12)?,
                 ))
             })?;
             rows.collect::<Result<Vec<_>, _>>()
         })
-        .expect("doc lai muoi hai cot that bai")
+        .expect("doc lai muoi ba cot that bai")
 }
 
 /// 🔴 **Cổng tự kiểm: số cột mà [`read_all_segment_rows`] đọc phải bằng số cột THẬT của
@@ -2186,8 +2220,8 @@ fn the_raw_column_reader_sees_every_column_the_segment_table_actually_has() {
         .expect("dem cot that bai");
 
     assert_eq!(
-        real, 12,
-        "bang `segment` co {real} cot, ma `read_all_segment_rows` doc 12. Mot cot moi PHAI \
+        real, 13,
+        "bang `segment` co {real} cot, ma `read_all_segment_rows` doc 13. Mot cot moi PHAI \
          duoc them vao `SegmentRow` CUNG LUOT voi buoc di tru sinh ra no -- neu khong, cong \
          AC8 (`a_flush_touches_exactly_...`) mu voi dung cot do va van xanh"
     );
@@ -2313,6 +2347,44 @@ fn a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else() {
          AD-31 hang 3 song o `unconfirm_edited_segments`, mot ham RIENG"
     );
 
+    // 🔴 LUOI TRON HANG — Story 2.7, 2026-08-16. Va no vao mot khuyet tat CO SAN.
+    //
+    // ⚠️ Danh sach `assert_eq!` tung cot o tren mu voi BA cot luc phep do nay chay: `.10`
+    // (`is_omitted`, buoc 8) · `.11` (`is_target_paragraph_end`, buoc 9) · `.12`
+    // (`translation_origin`, buoc 11). Doc-comment cua `SegmentRow` khai rang bo doc duoc nang
+    // "CUNG LUOT voi buoc di tru sinh ra no" de cong nay khong mu -- ve do da lam dung; ve
+    // con lai, THEM MOT DONG `assert_eq!` vao day, roi ca hai lan. Dung khuon "chu ky thi hanh
+    // dung MOT NUA" da lap bon lan o 2.5b va 2.6: nua kho thi lam, nua la mot dong thi rot.
+    //
+    // ⇒ Phep khang dinh nay khong the muc lai: no dung hang KY VONG bang chinh hang truoc do,
+    // thay dung HAI truong ma AC8 cho phep doi, roi so TRON HANG. Mot cot thu muoi bon them
+    // vao mai sau di vao ca nay **mien phi** -- khong ai phai nho gi ca.
+    //
+    // ⚠️ Cac `assert_eq!` tung cot o tren KHONG bi thay the: chung o lai vi CAU THONG BAO cua
+    // chung: mot lot do o `.9` phai noi "AD-31 hang 1", khong noi "mot hang khac nhau o dau do".
+    let expected = SegmentRow(
+        b.0,
+        b.1,
+        b.2,
+        b.3.clone(),
+        b.4,
+        b.5.clone(),
+        b.6.clone(),
+        a.7.clone(),
+        a.8.clone(),
+        b.9.clone(),
+        b.10,
+        b.11,
+        b.12.clone(),
+    );
+    assert_eq!(
+        a, &expected,
+        "AC8: mot luot flush duoc phep cham DUNG `target_text` va `updated_at`. Moi cot khac \
+         phai y nguyen TUNG BYTE -- ke ca `translation_origin`, thu ma Epic 7 doc de gan nhan \
+         mot cap TM: mot cau `UPDATE` cua flush lo cham vao no se khai `toi dich` cho mot cau \
+         nguoi dung CHUA ky, va khong mot loi nao duoc nem"
+    );
+
     // Hai cau KHONG nam trong lo phai y nguyen tron ven, ke ca `updated_at`.
     assert_eq!(&after[1..], &before[1..], "cau ngoai lo bi dung toi");
 
@@ -2434,7 +2506,7 @@ fn a_cell_holding_only_newlines_is_still_refused_by_confirm() {
         save_segment_targets(Some(&opened), chapter_id, &[edit(id, only_whitespace)])
             .expect("lo ghi that bai");
 
-        let err = confirm_segment(Some(&opened), id)
+        let err = confirm_segment(Some(&opened), id, "")
             .err()
             .unwrap_or_else(|| panic!("mot o chi co {only_whitespace:?} PHAI bi tu choi ky"));
         assert_eq!(
@@ -2453,7 +2525,7 @@ fn a_cell_holding_only_newlines_is_still_refused_by_confirm() {
     // khac (vi du `confirm_segment` hong han).
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Dong mot.\nDong hai.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), id).expect("mot o CO chu va co `\\n` phai ky duoc");
+    confirm_segment(Some(&opened), id, "").expect("mot o CO chu va co `\\n` phai ky duoc");
     assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
 
     let dir = opened.dir.clone();
@@ -2476,7 +2548,7 @@ fn confirming_a_segment_sets_it_confirmed_and_writes_exactly_one_version() {
 
     assert_eq!(read_state(&opened, id), ("draft".to_owned(), 0));
 
-    let outcome = confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+    let outcome = confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
 
     assert_eq!(outcome.segment_id, id);
     assert_eq!(outcome.status, "confirmed");
@@ -2526,7 +2598,7 @@ fn an_auto_save_that_changes_nothing_leaves_the_state_machine_untouched() {
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Cau da dich.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
     assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
 
     // Mot nhip flush mang DUNG van ban da co -- ca thuong nhat cua AD-35 (tran cung 5 giay
@@ -2560,7 +2632,7 @@ fn editing_a_confirmed_segment_returns_it_to_draft_without_writing_a_version() {
     let rows = read_all_segment_rows(&opened);
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban dau.")]).expect("lo ghi");
-    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
     assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
 
     // Nguoi dung go tiep vao cau da ky -- di qua DUNG duong flush cua san pham.
@@ -2599,7 +2671,7 @@ fn the_flush_path_lowers_the_state_before_it_writes_the_new_text() {
     let rows = read_all_segment_rows(&opened);
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Van ban cu.")]).expect("lo ghi");
-    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
 
     let (lowered, saved) =
         flush_segment_targets(Some(&opened), chapter_id, &[edit(id, "Van ban moi.")])
@@ -2633,7 +2705,7 @@ fn a_flush_carrying_identical_text_never_unconfirms_because_the_contract_compare
     let rows = read_all_segment_rows(&opened);
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Y nguyen.")]).expect("lo ghi");
-    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
 
     let touched = unconfirm_edited_segments(Some(&opened), chapter_id, &[edit(id, "Y nguyen.")])
         .expect("ha trang thai that bai");
@@ -2664,13 +2736,13 @@ fn confirming_an_already_confirmed_segment_writes_no_second_version_and_no_new_t
     let rows = read_all_segment_rows(&opened);
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Mot lan thoi.")]).expect("lo ghi");
-    confirm_segment(Some(&opened), id).expect("xac nhan lan dau that bai");
+    confirm_segment(Some(&opened), id, "").expect("xac nhan lan dau that bai");
 
     let before = read_all_segment_rows(&opened);
 
     // Giu phim: nam luot xac nhan lien tiep tren cung mot cau.
     for _ in 0..5 {
-        let again = confirm_segment(Some(&opened), id).expect("xac nhan lai PHAI vo hai");
+        let again = confirm_segment(Some(&opened), id, "").expect("xac nhan lai PHAI vo hai");
         assert_eq!(again.status, "confirmed");
         assert!(
             !again.version_created,
@@ -2707,13 +2779,13 @@ fn every_refusal_of_confirm_carries_its_own_message_key_and_writes_nothing() {
 
     // ① Chua Tac pham nao mo.
     assert_eq!(
-        confirm_segment(None, id).expect_err("phai tu choi").message_key(),
+        confirm_segment(None, id, "").expect_err("phai tu choi").message_key(),
         MessageKey::ProjectNoWorkOpen
     );
 
     // ② `segment.id` khong ton tai.
     assert_eq!(
-        confirm_segment(Some(&opened), 9_999_999)
+        confirm_segment(Some(&opened), 9_999_999, "")
             .expect_err("phai tu choi")
             .message_key(),
         MessageKey::SegmentNotFound
@@ -2721,7 +2793,7 @@ fn every_refusal_of_confirm_carries_its_own_message_key_and_writes_nothing() {
 
     // ③ Cau CHUA DICH (`target_text` rong) -- Quyet dinh #7, Ice ky 2026-08-14.
     assert_eq!(
-        confirm_segment(Some(&opened), id)
+        confirm_segment(Some(&opened), id, "")
             .expect_err("mot cau chua dich PHAI bi tu choi")
             .message_key(),
         MessageKey::SegmentNothingToConfirm,
@@ -2743,7 +2815,7 @@ fn every_refusal_of_confirm_carries_its_own_message_key_and_writes_nothing() {
         .expect("dung trang thai ve huu that bai");
 
     assert_eq!(
-        confirm_segment(Some(&opened), retired_id)
+        confirm_segment(Some(&opened), retired_id, "")
             .expect_err("mot segment da ve huu PHAI bi tu choi")
             .message_key(),
         MessageKey::SegmentRetired
@@ -2801,7 +2873,7 @@ fn the_load_command_carries_the_status_column_over_the_wire() {
     // Xac nhan DUNG MOT cau, roi doc lai qua chinh lenh cua san pham.
     save_segment_targets(Some(&opened), chapter_id, &[edit(first, "Da dich.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), first).expect("xac nhan that bai");
+    confirm_segment(Some(&opened), first, "").expect("xac nhan that bai");
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap lai segment that bai");
     let a = loaded
@@ -3075,7 +3147,7 @@ fn omitting_a_segment_touches_the_flag_and_nothing_else() {
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Da dich va da ky.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
 
     let before = read_all_segment_rows(&opened);
 
@@ -3144,7 +3216,7 @@ fn restoring_a_segment_brings_back_the_exact_old_state_and_the_old_text() {
     let (id, chapter_id) = (rows[0].0, rows[0].1);
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Cau nay da duoc ky.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
 
     let before = read_all_segment_rows(&opened);
 
@@ -3352,7 +3424,7 @@ fn the_output_filter_looks_at_exactly_one_axis() {
     // Cau 1: da dich VA da ky. Cau 2 va 3: CHUA DICH (`target_text` rong, `status` 'draft').
     save_segment_targets(Some(&opened), chapter_id, &[edit(first, "Da dich va da ky.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), first).expect("xac nhan that bai");
+    confirm_segment(Some(&opened), first, "").expect("xac nhan that bai");
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
     assert_eq!(
@@ -3913,7 +3985,7 @@ fn the_flush_path_refuses_an_unknown_id_before_it_lowers_a_single_signature() {
     // Dung mot chu ky THAT, khong mot co gia: ghi van ban roi xac nhan.
     save_segment_targets(Some(&opened), chapter_id, &[edit(signed, "Ban dich da ky.")])
         .expect("ghi van ban that bai");
-    confirm_segment(Some(&opened), signed).expect("xac nhan that bai");
+    confirm_segment(Some(&opened), signed, "").expect("xac nhan that bai");
 
     let before = read_all_segment_rows(&opened);
     assert_eq!(
@@ -3977,7 +4049,7 @@ fn a_target_of_only_whitespace_is_refused_exactly_like_an_empty_one() {
         save_segment_targets(Some(&opened), chapter_id, &[edit(target, blank)])
             .expect("ghi van ban that bai");
 
-        let err = confirm_segment(Some(&opened), target)
+        let err = confirm_segment(Some(&opened), target, "")
             .expect_err("mot cau chi co khoang trang phai bi tu choi");
 
         assert_eq!(err.code(), "segment.nothing_to_confirm", "voi {blank:?}");
@@ -4038,7 +4110,7 @@ fn the_history_command_returns_every_version_newest_first_with_the_real_text() {
             .expect("ha trang thai that bai");
         save_segment_targets(Some(&opened), chapter_id, &[edit(first, text)])
             .expect("lo ghi that bai");
-        confirm_segment(Some(&opened), first).expect("xac nhan that bai");
+        confirm_segment(Some(&opened), first, "").expect("xac nhan that bai");
     }
 
     let history = read_segment_history(Some(&opened), first).expect("doc lich su that bai");
@@ -4163,7 +4235,7 @@ fn a_retired_segment_still_hands_back_its_full_history_because_reading_is_not_wr
             .expect("ha trang thai that bai");
         save_segment_targets(Some(&opened), chapter_id, &[edit(first, text)])
             .expect("lo ghi that bai");
-        confirm_segment(Some(&opened), first).expect("xac nhan that bai");
+        confirm_segment(Some(&opened), first, "").expect("xac nhan that bai");
     }
 
     // Cho ve huu bang SQL truc tiep -- duong DUY NHAT hom nay.
@@ -4179,7 +4251,7 @@ fn a_retired_segment_still_hands_back_its_full_history_because_reading_is_not_wr
         .expect("cho segment ve huu that bai");
 
     // Duong GHI tu choi -- day la doi chung, khong phai muc tieu cua ca nay.
-    let write_refused = confirm_segment(Some(&opened), first);
+    let write_refused = confirm_segment(Some(&opened), first, "");
     assert_eq!(
         write_refused
             .err()
@@ -4233,11 +4305,11 @@ fn the_history_of_one_segment_never_carries_a_row_belonging_to_another() {
             .expect("ha trang thai that bai");
         save_segment_targets(Some(&opened), chapter_id, &[edit(first, text)])
             .expect("lo ghi that bai");
-        confirm_segment(Some(&opened), first).expect("xac nhan that bai");
+        confirm_segment(Some(&opened), first, "").expect("xac nhan that bai");
     }
     save_segment_targets(Some(&opened), chapter_id, &[edit(second, "B mot.")])
         .expect("lo ghi that bai");
-    confirm_segment(Some(&opened), second).expect("xac nhan that bai");
+    confirm_segment(Some(&opened), second, "").expect("xac nhan that bai");
 
     let a = read_segment_history(Some(&opened), first).expect("doc lich su cau mot that bai");
     let b = read_segment_history(Some(&opened), second).expect("doc lich su cau hai that bai");
@@ -4337,7 +4409,7 @@ fn sign_repeatedly(
         unconfirm_edited_segments(Some(opened), chapter_id, &[edit(id, text)])
             .expect("ha trang thai that bai");
         save_segment_targets(Some(opened), chapter_id, &[edit(id, text)]).expect("lo ghi that bai");
-        confirm_segment(Some(opened), id).expect("xac nhan that bai");
+        confirm_segment(Some(opened), id, "").expect("xac nhan that bai");
     }
     (id, chapter_id)
 }
@@ -4414,7 +4486,7 @@ fn restoring_rewrites_the_target_and_drops_the_status_without_growing_the_histor
     );
 
     // Va no dai them o LUOT XAC NHAN KE TIEP, dung nhu loi hua cua mockup -- chi muon mot nhip.
-    confirm_segment(Some(&opened), id).expect("xac nhan lai that bai");
+    confirm_segment(Some(&opened), id, "").expect("xac nhan lai that bai");
     let grown = read_segment_history(Some(&opened), id).expect("doc lai lich su that bai");
     assert_eq!(
         grown.len(),
@@ -4628,7 +4700,7 @@ fn a_version_belonging_to_another_segment_is_refused_and_never_crosses_over() {
             .expect("ha trang thai that bai");
         save_segment_targets(Some(&opened), chapter_id, &[edit(id, text)])
             .expect("lo ghi that bai");
-        confirm_segment(Some(&opened), id).expect("xac nhan that bai");
+        confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
     }
 
     // Phien ban cua cau HAI, dem ap len cau MOT.
@@ -4720,4 +4792,491 @@ fn restoring_onto_a_retired_segment_is_refused_because_writing_is_not_reading() 
     drop(opened);
     cleanup(&dir);
     cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Story 2.7 — XUẤT XỨ BẢN DỊCH CẤP SEGMENT (FR117 · AD-31 · AD-47)
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ **Vì sao mọi ca dưới đây sống ở đường Rust, không ở vitest** — bảng §Testing của story:
+// phép phân xử xuất xứ là một **quy tắc nghiệp vụ** (AD-1) và nó chạy trong một **giao dịch**.
+// `happy-dom` không có giao dịch nào để quan sát, và một fixture chép tay ở vitest luôn có sẵn
+// mọi trường — đúng lớp lỗi đã cho 74/74 xanh trên một sản phẩm hỏng ở Story 2.5.
+//
+// 🔴 **Tham số thứ ba của `confirm_segment` là MỐC, và ở mọi ca cũ nó là `""`** — đó là sự
+// thật của các fixture đó chứ không một giá trị mồi: `create_work_from_text` tách segment từ
+// văn bản **nguồn**, nên bản dịch lúc nạp là chuỗi rỗng.
+
+/// Xuất xứ đang nằm trên đĩa của một segment.
+fn read_origin(open: &auratranslate_lib::commands::project::OpenWork, id: i64) -> String {
+    open.store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT translation_origin FROM segment WHERE id = ?1",
+                [id],
+                |r| r.get(0),
+            )
+        })
+        .expect("doc xuat xu that bai")
+}
+
+/// 🔴 **Danh mục xuất xứ là ĐÓNG — AD-47 ⑥.**
+///
+/// Đây là **cổng** của một lượt nới đặc tả, không một phép kiểm hình thức. AD-47 ⑥ đặt hai
+/// điều kiện cho mọi giá trị thêm vào: nó phải khai nó rơi về vế nào của **trục nhị phân
+/// FR118**, và vì tập giá trị nằm trên **đĩa người dùng** nên lượt nới là **một bước di trú
+/// nữa**. Cả hai điều kiện đó là công việc của một `AD`, không của một dòng mã — nên một giá
+/// trị thứ năm lặng lẽ thêm vào phải làm một thứ gì đó **đỏ**, và đây là thứ đó.
+///
+/// Chạy đỏ-rồi-xanh: thêm một phần tử vào `TRANSLATION_ORIGINS`, ca này phải ĐỎ.
+#[test]
+fn the_translation_origin_catalogue_matches_ad_47_row_by_row() {
+    use auratranslate_lib::commands::segment::TRANSLATION_ORIGINS;
+
+    assert_eq!(
+        TRANSLATION_ORIGINS.len(),
+        4,
+        "danh muc xuat xu phai co DUNG BON phan tu -- ba gia tri cua FR117 cong `''` \
+         (chua co ban dich). Mot gia tri thu nam la mot luot NOI FR117: no doi mot `AD` moi \
+         VA mot buoc di tru (AD-47 ⑥), khong mot dong ma"
+    );
+    assert_eq!(
+        TRANSLATION_ORIGINS,
+        ["", "self", "other", "bilingual_import"],
+        "bon gia tri tren DIA, nguyen van. Doi mot cai ten o day la doi du lieu cua moi \
+         `.atproj` da ton tai -- tuc mot buoc di tru, khong mot luot doi ten"
+    );
+}
+
+/// 🔴 **Câu `UPDATE` backfill của bước 11 chép nguyên văn một hằng — và bản sao đó có lưới.**
+///
+/// `Migration::sql` là `&'static str` và `concat!` chỉ nhận **literal**, nên `'self'` trong
+/// [`SEGMENT_TRANSLATION_ORIGIN_DDL`] **không** trỏ về được `TRANSLATION_ORIGIN_SELF`. Bản sao
+/// là bắt buộc; thứ **không** bắt buộc là để nó trôi. Đổi hằng mà quên câu SQL cho ra một cột
+/// mang hai từ vựng cho cùng một khái niệm, và mọi hàng backfill sẽ rơi ra ngoài danh mục đóng
+/// **mà không ca nào khác đỏ** — `is_omitted`/`status` không có lớp lỗi này vì DDL của chúng
+/// không nhắc tới giá trị nào ngoài `DEFAULT`.
+///
+/// Chạy đỏ-rồi-xanh: đổi `TRANSLATION_ORIGIN_SELF` thành `"mine"`, ca này phải ĐỎ.
+#[test]
+fn the_backfill_literal_matches_the_origin_constant_it_copies() {
+    use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_SELF;
+    use auratranslate_lib::core::store::SEGMENT_TRANSLATION_ORIGIN_DDL;
+
+    let expected = format!("translation_origin = '{TRANSLATION_ORIGIN_SELF}'");
+    assert!(
+        SEGMENT_TRANSLATION_ORIGIN_DDL.contains(&expected),
+        "cau backfill cua buoc 11 phai chep DUNG `TRANSLATION_ORIGIN_SELF`. Doc duoc: {SEGMENT_TRANSLATION_ORIGIN_DDL}"
+    );
+}
+
+/// **AC1 — gõ bản dịch rồi xác nhận ⇒ *tôi dịch*.**
+#[test]
+fn confirming_text_the_user_typed_records_it_as_their_own() {
+    use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_SELF;
+
+    let root = temp_dir("origin-typed");
+    let opened = create_work_from_text(&root, "Go moi", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+
+    // Truoc luot go: chua co ban dich ⇒ chua co xuat xu nao.
+    assert_eq!(
+        read_origin(&opened, id),
+        "",
+        "mot segment vua tach ra tu van ban NGUON chua co ban dich, nen no chua co xuat xu"
+    );
+
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Chu cua toi.")])
+        .expect("lo ghi that bai");
+    // Moc luc nap la chuoi rong -- day la mot Chuong vua nhap.
+    confirm_segment(Some(&opened), id, "").expect("xac nhan that bai");
+
+    assert_eq!(
+        read_origin(&opened, id),
+        TRANSLATION_ORIGIN_SELF,
+        "van ban KHAC moc luc nap ⇒ chu cua nguoi dung ⇒ `self` (FR117 hang 1)"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// **AC2 — sửa một câu đến từ nơi khác rồi xác nhận ⇒ *tôi dịch*.**
+///
+/// ⚠️ Fixture dựng bằng **SQL trực tiếp**, và đó là một quyết định có tiền lệ *(chữ ký #8(a)
+/// của Story 2.6 cho `retired_at`)*: hôm nay **không đường sản phẩm nào** sinh ra một xuất xứ
+/// khác mặc định — FR115 là Epic 6, FR58 là Epic 7, AI là Epic 4, FR94 là Epic 8. Một ca đợi
+/// đường sản phẩm là một ca không chạy được cho tới Epic 6.
+#[test]
+fn confirming_an_edit_of_a_sentence_that_came_from_elsewhere_claims_it_as_their_own() {
+    use auratranslate_lib::commands::segment::{TRANSLATION_ORIGIN_OTHER, TRANSLATION_ORIGIN_SELF};
+
+    let root = temp_dir("origin-edited");
+    let opened = create_work_from_text(&root, "Sua lai", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+
+    // Mot cau "san co": van ban VA xuat xu do mot co che khac dat vao (AD-47 ①(a)+(b)).
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = ?1, translation_origin = ?2 WHERE id = ?3",
+                ("Nguoi khac dich.", TRANSLATION_ORIGIN_OTHER, id),
+            )?;
+            Ok(())
+        })
+        .expect("dung fixture that bai");
+
+    // Nguoi dung SUA no roi xac nhan. Moc la van ban luc nap.
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Toi sua lai roi.")])
+        .expect("lo ghi that bai");
+    confirm_segment(Some(&opened), id, "Nguoi khac dich.").expect("xac nhan that bai");
+
+    assert_eq!(
+        read_origin(&opened, id),
+        TRANSLATION_ORIGIN_SELF,
+        "cau SAU KHI SUA la chu cua nguoi dung -- FR117 hang 2, nguyen van"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// **AC3 — duyệt NGUYÊN VĂN một câu sẵn có ⇒ giữ nguyên xuất xứ lúc nạp.**
+///
+/// 🔴 Đây là ca mà **hình dạng lược đồ** được nghiệm thu, không chỉ phép phân xử: nó đọc một
+/// xuất xứ **lúc nạp**, tức trước bất kỳ lượt xác nhận nào — và đó chính là phép đo đã bác
+/// đường (c) của Quyết định #1 *(một segment chưa từng ký có **0** hàng `segment_version`, nên
+/// một cột chỉ ở bảng đó không biểu diễn được AC này)*.
+#[test]
+fn reviewing_a_sentence_word_for_word_keeps_the_origin_it_was_loaded_with() {
+    use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_BILINGUAL_IMPORT;
+
+    let root = temp_dir("origin-kept");
+    let opened = create_work_from_text(&root, "Duyet nguyen van", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let id = read_all_segment_rows(&opened)[0].0;
+
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = ?1, translation_origin = ?2 WHERE id = ?3",
+                (
+                    "Nhap tu tai lieu song ngu.",
+                    TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+                    id,
+                ),
+            )?;
+            Ok(())
+        })
+        .expect("dung fixture that bai");
+
+    // Khong mot lan `save_segment_targets` nao: nguoi dung KHONG go mot ky tu.
+    confirm_segment(Some(&opened), id, "Nhap tu tai lieu song ngu.").expect("xac nhan that bai");
+
+    assert_eq!(
+        read_origin(&opened, id),
+        TRANSLATION_ORIGIN_BILINGUAL_IMPORT,
+        "y het moc ⇒ GIU NGUYEN xuat xu nap vao (AD-31 bang xuat xu, hang 2). Ghi `self` o \
+         day la khai chu cua nguoi dung cho mot cau ho khong go -- dung lop hong ma FR117 \
+         ton tai de chong"
+    );
+    assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// **AC5 — gõ rồi HOÀN TÁC về đúng nguyên trạng ⇒ coi như không sửa.**
+///
+/// 🔴 Đây là ca phân biệt **phép so văn bản** với một **cờ dirty**, tức chính hợp đồng phụ của
+/// AD-31. Và nó là ca mà Quyết định #2 đường *"Rust tự so với đĩa"* **bị bác**: đĩa bị ghi đè
+/// dần theo từng lượt flush, nên hai lượt `save_segment_targets` dưới đây đều thấy *"khác"* ở
+/// thời điểm chúng chạy — chỉ mốc **lúc nạp** mới trả lời đúng.
+#[test]
+fn typing_and_undoing_back_to_the_mark_counts_as_untouched() {
+    use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_OTHER;
+
+    let root = temp_dir("origin-undo");
+    let opened = create_work_from_text(&root, "Hoan tac", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = ?1, translation_origin = ?2 WHERE id = ?3",
+                ("Ban goc.", TRANSLATION_ORIGIN_OTHER, id),
+            )?;
+            Ok(())
+        })
+        .expect("dung fixture that bai");
+
+    // Go them, roi hoan tac ve dung nguyen trang. Ca hai luot deu di qua dia.
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban goc. Them chu.")])
+        .expect("luot flush thu nhat that bai");
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban goc.")])
+        .expect("luot flush thu hai that bai");
+
+    confirm_segment(Some(&opened), id, "Ban goc.").expect("xac nhan that bai");
+
+    assert_eq!(
+        read_origin(&opened, id),
+        TRANSLATION_ORIGIN_OTHER,
+        "go roi hoan tac ve nguyen trang ⇒ van ban Y HET moc ⇒ KHONG sua. Mot co dirty se noi \
+         `da sua` o day, va no sai -- AD-31 §Hop dong phu goi ten dung ca nay"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// **AC6 — xác nhận lại một câu ĐÃ ký không ghi một byte nào, kể cả xuất xứ.**
+///
+/// Nhánh ③ của `confirm_segment` (AC13 của Story 2.5) trả về **trước** nhánh chuyển tiếp, nên
+/// mệnh đề *"ghi cùng lúc với chuyển tiếp, không ở chỗ nào khác"* phải đúng cả khi chỗ gọi
+/// truyền một mốc **sai**.
+#[test]
+fn re_confirming_an_already_signed_segment_leaves_the_origin_alone() {
+    use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_OTHER;
+
+    let root = temp_dir("origin-noop");
+    let opened = create_work_from_text(&root, "Ky lai", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let id = read_all_segment_rows(&opened)[0].0;
+
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = ?1, translation_origin = ?2 WHERE id = ?3",
+                ("Cua nguoi khac.", TRANSLATION_ORIGIN_OTHER, id),
+            )?;
+            Ok(())
+        })
+        .expect("dung fixture that bai");
+
+    confirm_segment(Some(&opened), id, "Cua nguoi khac.").expect("luot ky dau that bai");
+    assert_eq!(read_origin(&opened, id), TRANSLATION_ORIGIN_OTHER);
+
+    // Luot thu hai, VA voi mot moc sai han. Nhanh ③ phai chan no truoc khi toi phep phan xu.
+    let again = confirm_segment(Some(&opened), id, "mot moc hoan toan khac")
+        .expect("xac nhan lai PHAI vo hai");
+    assert!(
+        !again.version_created,
+        "luot thu hai KHONG duoc la mot chuyen tiep"
+    );
+    assert_eq!(
+        read_origin(&opened, id),
+        TRANSLATION_ORIGIN_OTHER,
+        "AC6: xuat xu ghi DUNG tai chuyen tiep. Khong co chuyen tiep ⇒ khong mot byte nao doi, \
+         KE CA khi cho goi truyen mot moc sai"
+    );
+    assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// 🔴 **MỘT CÂU ĐÃ KÝ KHÔNG BAO GIỜ ĐƯỢC MANG NHÃN *"chưa có bản dịch"*.**
+///
+/// ⚠️ **Không AC nào của story nêu ca này, và nó là ca THƯỜNG NHẬT** — tìm ra lúc đọc lại
+/// đường ghi, không lúc thi hành đặc tả. Kịch bản, từng bước, mọi bước đều có thật hôm nay:
+/// người dùng gõ bản dịch → flush ghi xuống đĩa → **đóng Tác phẩm mà chưa xác nhận** → mở lại.
+/// Lúc này mốc lúc nạp **bằng** văn bản trên đĩa *(cả hai là thứ vừa flush)*, còn
+/// `translation_origin` vẫn `''`: bước di trú 11 chỉ backfill các hàng `confirmed`, và flush
+/// **không** đụng cột này *(AD-47 ① nói rõ flush không phải một lượt ghi không-phải-người-dùng
+/// — nó chở đúng bộ đệm gõ)*. ⇒ Xác nhận mà không sửa đi vào nhánh *"y hệt mốc"*.
+///
+/// Không có nhánh sửa sentinel, kết quả là một hàng **tự mâu thuẫn**: `status = 'confirmed'`
+/// với `target_text` có chữ, mà xuất xứ nói *"chưa có bản dịch"*. Và nó hỏng **im lặng** —
+/// không cổng nào đỏ, cho tới khi Epic 7 đọc cột đó để gắn nhãn một cặp TM.
+///
+/// Chạy đỏ-rồi-xanh: gỡ `|| translation_origin.is_empty()` khỏi `confirm_segment`, ca này ĐỎ.
+#[test]
+fn a_signed_sentence_can_never_be_left_claiming_it_has_no_translation() {
+    use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_SELF;
+
+    let root = temp_dir("origin-sentinel");
+    let opened = create_work_from_text(&root, "Ban nhap chua ky", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+
+    // Phien MOT: go, flush, dong Tac pham ma KHONG xac nhan.
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban nhap cua toi.")])
+        .expect("lo ghi that bai");
+    assert_eq!(
+        read_origin(&opened, id),
+        "",
+        "flush KHONG dat xuat xu -- no cho bo dem go, khong phai mot luot ghi \
+         khong-phai-nguoi-dung (AD-47 ①)"
+    );
+
+    // Phien HAI: moc luc nap nay BANG van ban tren dia. Xac nhan ma khong sua mot ky tu.
+    confirm_segment(Some(&opened), id, "Ban nhap cua toi.").expect("xac nhan that bai");
+
+    assert_eq!(
+        read_origin(&opened, id),
+        TRANSLATION_ORIGIN_SELF,
+        "mot cau CO ban dich ma xuat xu rong nghia la KHONG luot ghi khong-phai-nguoi-dung \
+         nao dat van ban do (AD-47 ①(b) doi hai thu di cung mot thao tac) ⇒ no den tu bo dem \
+         go ⇒ `self`. Giu `''` o day la de lai mot hang tu mau thuan tren dia nguoi dung"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// 🔴 **`insert_segments` set cột mới TƯỜNG MINH — bài học 2.5d, cột thứ hai liên tiếp.**
+///
+/// ⚠️ Ca này **xanh cả khi bỏ `?6`** khỏi câu `INSERT` hôm nay, vì giá trị đúng trùng với
+/// `DEFAULT ''`. Nó vẫn đáng tồn tại, và lý do phải nói ra chứ không giả vờ: nó khoá **mệnh
+/// đề** *"một Chương vừa nhập chưa có xuất xứ"*, thứ mà Epic 6 (FR115) sắp phá — lúc đường
+/// nhập song ngữ ra đời, `DEFAULT` thôi là giá trị đúng, và ca này là chỗ lượt đổi đó phải đi
+/// qua thay vì trôi.
+#[test]
+fn a_freshly_imported_chapter_starts_with_no_translation_origin() {
+    let root = temp_dir("origin-import");
+    let opened = create_work_from_text(&root, "Nhap moi", "zh", "", "一。二。三。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let origins: Vec<String> = read_all_segment_rows(&opened)
+        .iter()
+        .map(|r| r.12.clone())
+        .collect();
+
+    assert_eq!(
+        origins,
+        vec!["".to_owned(), "".to_owned(), "".to_owned()],
+        "mot Chuong vua nhap chua co ban dich nao, nen chua cau nao co xuat xu"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+/// 🔴 **Bước 11 backfill theo HÀNG — `confirmed` ⇒ *tôi dịch*, phần còn lại giữ `''`.**
+///
+/// Khuôn `a_project_database_at_version_eight_backfills_the_target_flag_...` (bước 9), và
+/// mệnh đề cùng hạng: một bước DDL+DML phải nghiệm thu được **cả hai vế**, không chỉ vế cột
+/// đã có mặt.
+///
+/// ⚠️ Fixture dựng bằng các bước **THẬT** của `PROJECT_MIGRATIONS`, không chép tay DDL — một
+/// fixture chép tay trôi khỏi hằng thật ở đúng story mà hằng thật đổi.
+#[test]
+fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows() {
+    use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_SELF;
+
+    let dir = temp_dir("v10-backfills-origin");
+    let db = dir.join("project.db");
+
+    // Fixture o phien ban 10: muoi buoc THAT tru buoc cuoi.
+    static THROUGH_TEN: [Migration; 9] = [
+        PROJECT_MIGRATIONS[0],
+        PROJECT_MIGRATIONS[1],
+        PROJECT_MIGRATIONS[2],
+        PROJECT_MIGRATIONS[3],
+        PROJECT_MIGRATIONS[4],
+        PROJECT_MIGRATIONS[5],
+        PROJECT_MIGRATIONS[6],
+        PROJECT_MIGRATIONS[7],
+        PROJECT_MIGRATIONS[8],
+    ];
+
+    let old = Store::open(StoreSpec {
+        migrations: &THROUGH_TEN,
+        ..StoreSpec::project(db.clone())
+    })
+    .expect("dung fixture o phien ban 10");
+    assert_eq!(
+        old.schema_version(),
+        10,
+        "fixture phai dung o 10 -- neu no da la 11 thi ca nay khong do gi ca"
+    );
+
+    // Bon hang THAT, phu ca bon to hop cua (status, target_text).
+    old.write(|tx: &Transaction<'_>| {
+        for (id, ord, target, status) in [
+            (1_i64, 1_i64, "Da ky, co chu.", "confirmed"),
+            (2, 2, "Ban nhap, chua ky.", "draft"),
+            (3, 3, "", "draft"),
+            (4, 4, "Da ky, cau thu hai.", "confirmed"),
+        ] {
+            tx.execute(
+                "INSERT INTO segment (id, chapter_id, ord, source_text, is_paragraph_end, \
+                 target_text, status, created_at, updated_at) \
+                 VALUES (?1, 1, ?2, 'nguon', 0, ?3, ?4, 'x', 'x')",
+                (id, ord, target, status),
+            )?;
+        }
+        Ok(())
+    })
+    .expect("bom bon hang segment vao fixture");
+    drop(old);
+
+    // Di tru len dich.
+    let migrated = Store::open(StoreSpec::project(db))
+        .expect("mot `project.db` o phien ban 10 phai mo duoc");
+    assert_eq!(
+        migrated.schema_version(),
+        11,
+        "buoc 11 phai chay tren mot tep dung o phien ban 10"
+    );
+
+    let after: Vec<(i64, String, String)> = migrated
+        .read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id, status, translation_origin FROM segment ORDER BY ord",
+            )?;
+            let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })
+        .expect("doc bon hang sau luot di tru");
+
+    assert_eq!(
+        after,
+        vec![
+            (1, "confirmed".to_owned(), TRANSLATION_ORIGIN_SELF.to_owned()),
+            (2, "draft".to_owned(), String::new()),
+            (3, "draft".to_owned(), String::new()),
+            (4, "confirmed".to_owned(), TRANSLATION_ORIGIN_SELF.to_owned()),
+        ],
+        "Quyet dinh #6(a): chi hang DA KY nhan `self`. Mot cau CHUA ky chua duoc ai duyet, \
+         nen khai bat cu xuat xu nao cho no la mot loi khai ve mot thu chua xay ra. \
+         ⚠️ Menh de bien minh cho `confirmed ⇒ self` la MOT PHEP DO ve hom nay -- khong co \
+         che nao ngoai nguoi dung dat duoc van ban vao mot segment (FR115 Epic 6, FR58 Epic 7, \
+         AI Epic 4, FR94 Epic 8 deu chua ton tai). No se het dung, va no khong het dung LUI \
+         VE QUA KHU"
+    );
+
+    drop(migrated);
+    cleanup(&dir);
 }

@@ -48,20 +48,38 @@ async function readSegmentsFromDisk() {
  * ⚠️ Thứ tự hạ-trước-ghi-sau là một quyết định về **mất mát dữ liệu**, không một chi tiết:
  * ghi-rồi-hạ mà sập ở giữa để lại văn bản đã đổi trên một segment vẫn `'confirmed'` ⇒ không
  * lần xác nhận nào nữa xảy ra ⇒ cặp TM mới không bao giờ được ghi, im lặng vĩnh viễn.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 STORY 2.7 — THAM SỐ `textAtLoad`, VÀ MỘT MỆNH ĐỀ ĐÁNG GIỮ MÀ LƯỢT ĐỎ NÀY ĐÃ CHỨNG MINH
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Mốc so của FR117 — bản dịch **lúc nạp segment**. Mặc định `''` vì mọi ca trong tệp này tạo
+ * Chương **trong chính ca đó**, nên bản dịch lúc nạp là chuỗi rỗng; ba lượt `signWith` liên
+ * tiếp ở ca ① vẫn mang cùng một mốc, đúng nghĩa *"lúc nạp"* chứ không *"lúc flush gần nhất"*.
+ *
+ * 🔴 **Lượt đỏ 2026-08-16 đáng ghi lại, vì nó là bằng chứng chứ không một phiền toái.** Helper
+ * này gọi `invoke('confirm_segment')` **thẳng**, đi vòng qua adapter `src/config/segment.ts` —
+ * đúng hình dạng *"một bề mặt thứ hai gọi lệnh thẳng"* mà `deferred-work.md` ghi là một lỗ có
+ * chủ. Khi dây đổi hình dạng, **382 ca Rust và 133 ca vitest đều xanh**; thứ duy nhất đỏ là ca
+ * này, với nguyên văn *"invalid args `textAtLoad` … missing required key"*.
+ * ⇒ Hai điều đọc ra được, và cả hai đáng giữ: (1) đường e2e là lưới **duy nhất** cho hình dạng
+ * dây, đúng như vụ cột `status` của Story 2.5; (2) Tauri từ chối một tham số thiếu **rõ ràng và
+ * ồn ào**, không âm thầm cấp một giá trị mặc định — nếu nó im lặng cấp `""` thì lượt này đã
+ * XANH trong khi mọi câu duyệt-nguyên-văn bị gắn nhãn *tôi dịch*, và không ai biết.
  */
-async function signWith(chapterId, id, text) {
+async function signWith(chapterId, id, text, textAtLoad = '') {
   return browser.execute(
-    async (c, i, t) => {
+    async (c, i, t, m) => {
       const internals = window.__TAURI_INTERNALS__
       await internals.invoke('save_segment_targets', {
         chapterId: c,
         edits: [{ id: i, target_text: t }],
       })
-      return internals.invoke('confirm_segment', { segmentId: i })
+      return internals.invoke('confirm_segment', { segmentId: i, textAtLoad: m })
     },
     chapterId,
     id,
     text,
+    textAtLoad,
   )
 }
 
@@ -152,7 +170,9 @@ describe('Story 2.6 — lịch sử phiên bản và khôi phục, trong WKWebVi
     //     Lời hứa "lịch sử chỉ dài thêm, không bao giờ ngắn đi" được giữ — chỉ muộn một nhịp.
     await browser.execute(async (i) => {
       const internals = window.__TAURI_INTERNALS__
-      return internals.invoke('confirm_segment', { segmentId: i })
+      // 🔵 Story 2.7 — mốc so của FR117. `''` là bản LÚC NẠP: Chương này vừa được tạo trong
+      // chính ca test, nên bản dịch lúc nạp là chuỗi rỗng. Xem khối lý do ở `signWith`.
+      return internals.invoke('confirm_segment', { segmentId: i, textAtLoad: '' })
     }, targetId)
 
     const grown = await readHistory(targetId)

@@ -659,12 +659,103 @@ pub const SEGMENT_TARGET_PARAGRAPH_END_DDL: &str = concat!(
 pub const SEGMENT_VERSION_INDEX_DDL: &str =
     "CREATE INDEX idx_segment_version_segment_created ON segment_version (segment_id, created_at DESC);";
 
-/// Bộ di trú của `project.db`. Hôm nay **chín** bước — Story 1.15 · 2.1 · 2.2 · 2.5 · 2.5c ·
-/// 2.5d · 2.6.
+/// Xuất xứ bản dịch ở cấp segment (FR117/AD-47) — **bước 11 của `project.db`**, Story 2.7,
+/// AC1 · AC3 · AC6 · Quyết định #3 đường (b′) và #6 đường (a) (Ice ký 2026-08-16).
 ///
-/// 🔴 **Chín bước, và đích là phiên bản 10.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO SỐ **11**
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 5 · 6 · 7 · 8 · 9 · 10 đã tiêu ([`SEGMENT_DDL`] 2.1, [`SEGMENT_TARGET_TEXT_DDL`] 2.2,
+/// [`SEGMENT_STATUS_AND_VERSION_DDL`] 2.5, [`SEGMENT_OMITTED_DDL`] 2.5c,
+/// [`SEGMENT_TARGET_PARAGRAPH_END_DDL`] 2.5d, [`SEGMENT_VERSION_INDEX_DDL`] 2.6).
+/// ⇒ Đọc [`PROJECT_MIGRATIONS`] ngay dưới chứ đừng đọc một ghi chép ở nơi khác —
+/// `sprint-status.yaml` còn mang một dòng từ Story 2.1 nói *"bước kế tiếp là 5"*, và dòng đó
+/// đã hết đúng **sáu** lần kể từ khi được viết.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 CỘT NẰM TRÊN `segment`, KHÔNG TRÊN `segment_version` — Quyết định #1 đường (a)
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Hai tài liệu chỉ vào hai bảng khác nhau: AD-31 + ERD nói *"ghi vào segment"*, còn
+/// doc-comment của [`SEGMENT_STATUS_AND_VERSION_DDL`] để ngỏ một cột trên `segment_version`.
+/// **Phép đo phân xử**, không phải một lượt chọn theo khẩu vị: AC3 đòi một giá trị đọc được
+/// **lúc nạp**, tức trước bất kỳ lượt xác nhận nào — và một segment chưa từng xác nhận có
+/// **0 hàng** `segment_version` *(đường `INSERT` duy nhất nằm trong nhánh chuyển tiếp của
+/// `commands::segment::confirm_segment`)*. ⇒ Một cột chỉ ở `segment_version` **không biểu
+/// diễn được AC3**.
+///
+/// ⚠️ **Hệ quả có tên, không phải một lượt bỏ sót:** `segment_version` **không** mang xuất xứ,
+/// nên khôi phục (FR101, Story 2.6) trả **văn bản** về mà không trả xuất xứ về — AD-47 ⑤ khai
+/// điều đó bằng chữ và đặt chủ cho món nợ. Đừng "sửa" bằng cách thêm một cột ở đây.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 TÊN CỘT `translation_origin` — và vì sao **không** phải `origin` trần
+/// ─────────────────────────────────────────────────────────────────────────────
+/// §Consistency Conventions của spine ghi bằng chữ: chữ *"xuất xứ"* trong PRD chỉ **bốn** thực
+/// thể rời nhau — bản dịch (FR117) · mục Glossary (FR47) · tài liệu nguồn (FR128/FR131) ·
+/// trích dẫn từ điển (FR30) — nên định danh phải **tự phân biệt được**. Và `origin` trần đã
+/// đông nghĩa, đo được: `WorkspaceDock.vue` dùng `origin === 'user'` cho lượt kích hoạt panel
+/// dockview, `editorPanelState.ts` gọi nhánh gốc của flush là *originator*. Tiền tố
+/// `translation_` là thứ làm cái tên trả lời được câu *"xuất xứ của cái gì"* ngay tại chỗ đọc.
+/// ⚠️ Ứng viên còn lại là `translated_by`; nó bị loại vì nó đọc như một **tên người**, mà cột
+/// này chở một **hạng mục** — và vì `''` *(chưa có bản dịch)* không phải một câu trả lời cho
+/// *"ai dịch"*.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `TEXT NOT NULL DEFAULT ''` — Quyết định #3, đường (b′)
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Bốn giá trị trên đĩa: `''` *(chưa có bản dịch)* cộng đúng ba giá trị của FR117. Danh mục
+/// và ánh xạ xuống trục nhị phân FR118 nằm ở AD-47 ⑥; các hằng là
+/// `commands::segment::TRANSLATION_ORIGIN_*`.
+///
+/// Hai đường bị loại, nói ra thay vì giả vờ đã cân nhắc:
+/// - **(a)** `DEFAULT '<tôi dịch>'` ⇒ mọi câu **chưa ai viết** mang sẵn nhãn *tôi dịch*, và
+///   nhãn đó đi thẳng vào kho TM ở Epic 7. Một lời khai sai về một câu chưa tồn tại.
+/// - **(b)** `NULL`-able cho *"chưa có bản dịch"* ⇒ **mâu thuẫn một quyết định đã ký của chính
+///   bảng này**: doc-comment của [`SEGMENT_TARGET_TEXT_DDL`] cấm bằng chữ hình dạng
+///   `Option<String>` cho `target_text` *("`None` và `Some(\"\")` là hai cách nói cùng một
+///   điều")*. (b′) lấy đúng vế đúng của (b) mà không phá tiền lệ.
+///
+/// ⚠️ `DEFAULT ''` cũng là thứ làm bước này chạy được trên bảng **đã có dữ liệu**: SQLite đòi
+/// một `DEFAULT` không phải `NULL` cho mọi `ADD COLUMN … NOT NULL`.
+/// ⚠️ **KHÔNG** `CHECK` — cùng khuôn `status`, `is_omitted`, `is_target_paragraph_end` và
+/// `chapter.status`: giá trị hợp lệ cưỡng chế ở tầng Rust.
+/// ⚠️ **KHÔNG** `CREATE INDEX`: không đường đọc nào lọc theo cột này. Bộ lọc theo xuất xứ mà
+/// FR62 hứa sống trên **kho TM** (Epic 7), không trên bảng này.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 BACKFILL THEO **HÀNG** — Quyết định #6 đường (a), và vì sao nó đúng sự thật
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `status = 'confirmed'` ⇒ *tôi dịch*. Đo được, không suy: hôm nay **không cơ chế nào khác**
+/// đặt văn bản vào một segment — FR115 (nhập song ngữ) là Epic 6, FR58 (điền sẵn từ TM) là
+/// Epic 7, đề xuất AI là Epic 4, chấp nhận thay đổi FR94 là Epic 8. Mọi câu **đã ký** trên đĩa
+/// hôm nay **chắc chắn** do người dùng gõ. ⇒ Câu `UPDATE` này **chép một sự thật đã có sang một
+/// cột mới đúng một lần**, nó không phát biểu một quy tắc đang chạy — cùng lập luận mà bước 9
+/// đã ghi cho lằn ranh của Quyết định #4 (Story 2.1).
+///
+/// Đường **(b)** *(backfill đồng loạt)* bị loại vì nó khai *tôi dịch* cho cả những câu **chưa
+/// ai viết**; đường **(c)** *(không backfill)* với `DEFAULT ''` để lại mọi câu đã ký mang
+/// *"chưa có bản dịch"* — một lời khai tự mâu thuẫn ngay trên cùng một hàng.
+///
+/// ⚠️ **DDL + DML trong một hằng** — tiền lệ là bước 9, và [`migrate`] chạy `execute_batch`
+/// trong **một** giao dịch nên hai câu này cùng sống hoặc cùng chết.
+/// 🔴 **`'self'` viết thẳng ở đây là một bản sao của [`crate::commands::segment::
+/// TRANSLATION_ORIGIN_SELF`], và bản sao đó KHÔNG tránh được:** `Migration::sql` là
+/// `&'static str` và `concat!` chỉ nhận **literal**, không nhận một `const` đặt tên *(cùng ràng
+/// buộc mà doc-comment của [`PROJECT_MIGRATIONS`] đã ghi cho luật "mỗi bước một hằng")*. Lưới
+/// cho bản sao đó là một test hợp đồng —
+/// `segment_contract.rs::the_backfill_literal_matches_the_origin_constant_it_copies` — chứ
+/// không phải kỷ luật của người sửa.
+pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
+    "ALTER TABLE segment ADD COLUMN translation_origin TEXT NOT NULL DEFAULT '';",
+    "UPDATE segment SET translation_origin = 'self' WHERE status = 'confirmed';"
+);
+
+/// Bộ di trú của `project.db`. Hôm nay **mười** bước — Story 1.15 · 2.1 · 2.2 · 2.5 · 2.5c ·
+/// 2.5d · 2.6 · 2.7.
+///
+/// 🔴 **Mười bước, và đích là phiên bản 11.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
 /// `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
 ///
 /// ⚠️ Con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
@@ -696,6 +787,16 @@ pub const SEGMENT_VERSION_INDEX_DDL: &str =
 /// liệu**, và bước này cố ý **không** đụng một hàng nào. Nó tồn tại vì hằng của bước 7
 /// **không được phép sửa tại chỗ** *(một `project.db` đã ở v7 không bao giờ chạy lại nó)* —
 /// lý do đầy đủ ở doc-comment của chính hằng bước 10.
+///
+/// 🔵 **CẬP NHẬT 2026-08-16 (Story 2.7):** đích chuyển từ **10** lên **11** — bước
+/// [`SEGMENT_TRANSLATION_ORIGIN_DDL`] (FR117/AD-47). Câu *"chín bước, đích là 10"* đã hết
+/// đúng, sửa tại chỗ.
+/// 🔴 Bước 11 là bước **thứ hai** mang DDL + DML *(bước 9 là bước đầu)*, và nó khác bước 9 ở
+/// một điểm đáng nhớ: bước 9 backfill từ một cột **cùng hàng** (`is_paragraph_end`), còn bước
+/// này backfill từ một **mệnh đề về thế giới** — *"hôm nay không cơ chế nào ngoài người dùng
+/// đặt được văn bản vào một segment"*. Mệnh đề đó **đúng lúc này và sẽ hết đúng** ở Epic 4 · 6
+/// · 7 · 8; nó không hết đúng **lùi về quá khứ**, nên câu `UPDATE` chạy một lần này vẫn trung
+/// thực mãi. Lý do đầy đủ ở doc-comment của chính hằng bước 11.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -798,6 +899,14 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 10,
         sql: SEGMENT_VERSION_INDEX_DDL,
+    },
+    // Story 2.7 — xuat xu ban dich cap segment (FR117/AD-47): cot
+    // `segment.translation_origin`, cong mot cau `UPDATE` backfill cho cac hang DA KY.
+    // 🔴 **11, khong phai 5** — 5, 6, 7, 8, 9 va 10 da tieu. Ly do day du o doc-comment cua
+    // [`SEGMENT_TRANSLATION_ORIGIN_DDL`].
+    Migration {
+        to_version: 11,
+        sql: SEGMENT_TRANSLATION_ORIGIN_DDL,
     },
 ];
 

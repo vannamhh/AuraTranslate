@@ -515,10 +515,32 @@ export async function saveSegmentTargets(
  * ⚠️ Bốn lối từ chối đều **phân biệt được** bằng `message_key` (AC14) — `err.segment.*`:
  * `not_found` · `retired` · `nothing_to_confirm`, cộng `err.project.no_work_open`. Chỗ gọi
  * **không** được đoán lại lý do từ chuỗi.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 STORY 2.7 — THAM SỐ THỨ HAI `textAtLoad` LÀ **MỐC SO** CỦA FR117
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Bản dịch **lúc nạp segment**, thứ Rust dùng để trả lời *"người dùng có gõ câu này không"*
+ * (AC4 + hợp đồng phụ AD-31: so văn bản, **không** cờ dirty). Quyết định #2 đường (b), Ice ký
+ * 2026-08-16.
+ *
+ * 🔴 **Đây KHÔNG phải một quy tắc nghiệp vụ đi vào TypeScript, và lằn ranh đó đáng gõ ra:**
+ * hàm này chở một **giá trị** mà webview sở hữu hợp pháp *(`segments` giữ bản lúc nạp — một
+ * ngoại lệ đã có tên của AD-1)*; **phép so** chạy ở Rust. Đường bị loại là *"webview tự tính
+ * `edited: bool`"* — nó đặt phép phân xử vào TS và va thẳng AD-1.
+ *
+ * 🔴 **Mốc phải lấy từ `segments`, KHÔNG từ `editedText`.** `editedText` là văn bản **đang
+ * gõ**; truyền nó vào đây làm mốc luôn bằng văn bản hiện tại ⇒ *"chưa bao giờ sửa"* ⇒ mọi câu
+ * người dùng gõ sẽ mang xuất xứ của người khác. Không cổng nào bắt được lượt nhầm đó.
+ *
+ * ⚠️ `invoke()` gửi tham số ở dạng **camelCase**: `text_at_load` phía Rust đi trên dây dưới
+ * tên `textAtLoad`. Đây là chỗ duy nhất trong kho gõ cái tên đó.
  */
-export async function confirmSegment(segmentId: number): Promise<ConfirmSegmentResult> {
+export async function confirmSegment(
+  segmentId: number,
+  textAtLoad: string,
+): Promise<ConfirmSegmentResult> {
   try {
-    const outcome = await invoke<ConfirmOutcome>(CMD_CONFIRM_SEGMENT, { segmentId })
+    const outcome = await invoke<ConfirmOutcome>(CMD_CONFIRM_SEGMENT, { segmentId, textAtLoad })
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }

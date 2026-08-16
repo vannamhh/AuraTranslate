@@ -3804,3 +3804,107 @@ mục nào mồ côi.
   đúng vào ngày **"rỗng" mang một nghĩa RIÊNG** khác *"chưa dịch"* — ví dụ một lượt xoá sạch có
   chủ ý ở Review Mode, hay một segment về hưu do gộp/tách. **Chủ: Story 2.8** *(gộp/tách segment
   — chỗ gần nhất mà "rỗng" có thể tách nghĩa)*.
+
+## Deferred from: 2-7-xuat-xu-ban-dich-cap-segment (2026-08-16)
+
+- 🔴 **ĐÍNH CHÍNH món nợ ngay trên (*"phiên bản nào đang được dùng"*) — tiền đề của nó KHÔNG
+  ĐỨNG ĐƯỢC, đo lại 2026-08-16 lúc dựng Story 2.7.** Món đó viết *"cột xuất xứ (FR117) làm câu
+  hỏi 'hàng nào đang dùng' trả lời được theo `id` chứ không theo nội dung"*. Sai, và sai đúng
+  cái lớp mà chính nó tồn tại để chống: một cột **xuất xứ** không nói hàng nào đang dùng — hai
+  phiên bản cùng mang *tôi dịch* thì nhãn lại khớp **nhiều hàng**, y hệt phép so nội dung mà
+  Quyết định #5 của 2.6 gọi là *"KHÔNG AN TOÀN"*. Thứ trả lời được câu đó là một **con trỏ**
+  *(ví dụ `segment.current_version_id`)*, không một cột xuất xứ.
+  🔴 Và chữ ký **#1(a)** *(Ice ký 2026-08-16: cột xuất xứ **chỉ** trên `segment`)* làm nó xa
+  thêm một bậc: `segment_version` nay **không mang xuất xứ**, nên không có gì ở cấp phiên bản
+  để đọc cả. ⇒ Món nợ **KHÔNG đóng ở Story 2.7**; nó **đổi chủ và đổi lý do**, không đổi trạng
+  thái. Đóng nó là một **cột thứ ba** *(con trỏ)*, tức một quyết định lược đồ mới.
+  **Chủ: Ice** *(cùng chủ với bốn nhãn kia)*.
+
+- 🟡 **AC3 chỉ đối chứng được bằng fixture SQL — không đường sản phẩm nào sinh ra một xuất xứ
+  khác mặc định hôm nay.** Ba ca `reviewing_a_sentence_word_for_word_...`,
+  `typing_and_undoing_back_to_the_mark_...` và `..._claims_it_as_their_own` dựng câu *"sẵn có"*
+  bằng một `UPDATE` trực tiếp, đúng tiền lệ chữ ký #8(a) của Story 2.6 cho `retired_at`.
+  ⚠️ **Cái mất, ghi ra thay vì giấu:** phép phân xử được nghiệm thu, còn **đường sinh ra dữ liệu
+  vào** thì chưa — một cơ chế tương lai quên vế (b) của AD-47 ① *(đặt xuất xứ cùng lúc với mốc)*
+  sẽ không làm ca nào ở đây đỏ. **Chủ: Epic 6 (FR115) · Epic 7 (FR58)** — hai cơ chế đầu tiên
+  thật sự ghi một xuất xứ khác `self`.
+
+- 🔴 **Ba hàng còn lại của bảng AD-47 ③ chưa có mã, mỗi hàng một chủ.** Story 2.7 khai **giá
+  trị** chúng sẽ dùng (`TRANSLATION_ORIGIN_*`) để bốn Epic sau không tự đặt tên riêng, nhưng nó
+  **không cài** một đường ghi nào trong số đó:
+  | Cơ chế | Xuất xứ AD-47 ③ giao | Chủ |
+  |---|---|---|
+  | Nhập song ngữ (FR115) | *nhập từ tài liệu song ngữ* | Epic 6 |
+  | Chấp nhận thay đổi Review Mode (FR94) | *người khác dịch* | Epic 8 |
+  | Điền sẵn từ TM khớp 100% (FR58) | xuất xứ của cặp TM nguồn | Story 7.4 |
+  | Đưa đề xuất AI sang Editor | *người khác dịch* | Epic 4 |
+  | Gộp/tách segment (AD-47 ④) | đồng ý ⇒ giữ · bất đồng ⇒ *người khác dịch* | Story 2.8 |
+  🔴 Mỗi chủ phải làm **cả hai** vế của AD-47 ①: đặt **mốc** *và* đặt **xuất xứ**, trong cùng
+  một thao tác. Quên vế xuất xứ ⇒ lượt xác nhận kế tiếp ghi *tôi dịch* cho chữ người dùng chưa
+  gõ, và **không cổng nào đỏ**.
+
+- 🟡 **Khôi phục (FR101) trả văn bản về mà KHÔNG trả xuất xứ về — AD-47 ⑤, ngoại lệ CÓ TÊN.**
+  Hệ quả bắt buộc của chữ ký #1(a): `segment_version` không mang xuất xứ nên **không có gì để
+  trả về**. ⇒ Khôi phục văn bản của một phiên bản cũ rồi xác nhận **không sửa** ⇒ giữ nguyên
+  xuất xứ **hiện tại**, thứ có thể thuộc về một phiên bản khác.
+  ⚠️ **Cùng gốc** với món nợ bốn nhãn của Story 2.6 và đóng **cùng lúc** với nó. **Chủ: story
+  nào cho `segment_version` một cột xuất xứ.** 🔴 Story 2.7 **không** được chấm đạt vế này —
+  AD-47 ⑤ nói bằng chữ.
+
+- ⚠️ **Rust TIN mốc do webview khai, và không cổng nào ở tầng Rust bắt được một mốc sai.** Đây
+  là cái giá tường minh của chữ ký #2(b), và nó là **cùng một lỗ** với món nợ đã ghi ở
+  *"story nào dựng bề mặt xác nhận thứ hai"* — nhưng **nặng thêm một bậc**: bản trước, một bề
+  mặt tương lai gọi `invoke('confirm_segment')` thẳng chỉ ký một **văn bản cũ**; nay nó ký thêm
+  một **xuất xứ sai**, và xuất xứ sai đi vĩnh viễn vào kho TM của Epic 7 chứ không sửa được ở
+  lượt gõ kế tiếp. Lưới duy nhất là ba ca ④ của `tests/frontend/editorConfirmSegment.test.ts`,
+  và chúng canh **một chỗ gọi**, không canh mọi chỗ gọi tương lai.
+  **Chủ: story nào dựng bề mặt xác nhận thứ hai** *(nối tiếp món nợ cũ, không mở món mới)*.
+  🔵 **ĐO ĐƯỢC 2026-08-16, và phép đo THU HẸP món nợ này thay vì nới nó.** Bề mặt thứ hai đó
+  **đã tồn tại**: `e2e/specs/segment-history-restore.e2e.mjs` gọi `invoke('confirm_segment')`
+  thẳng. Lượt đổi hình dạng dây của story này làm nó **ĐỎ** — nguyên văn *"invalid args
+  `textAtLoad` for command `confirm_segment`: … missing required key textAtLoad"* — trong khi
+  **382 ca Rust và 133 ca vitest đều xanh**. ⇒ Hai mệnh đề đọc ra được: (1) đường e2e là lưới
+  **duy nhất** cho hình dạng dây, đúng khuôn vụ cột `status` của Story 2.5; (2) Tauri từ chối
+  một tham số **thiếu** một cách ồn ào chứ **không** âm thầm cấp giá trị mặc định — nếu nó im
+  lặng cấp `""` thì lượt này đã **XANH** trong khi mọi câu duyệt-nguyên-văn bị gắn nhãn *tôi
+  dịch*. ⚠️ Vế **vẫn hở** là một chỗ gọi truyền một mốc **SAI KIỂU ĐÚNG** *(một chuỗi hợp lệ
+  nhưng không phải bản lúc nạp)* — Tauri không có gì để nói ở đó, và không cổng nào bắt được.
+
+- ⚠️ **AC7 là một mệnh đề PHỦ ĐỊNH và nó được giữ bằng KỶ LUẬT, không bằng một cổng.** *"Không
+  thao tác nào thêm — hệ thống không hỏi"*: Story 2.7 không thêm command, không khoá `vi.json`,
+  không hàng nào vào bảng phím `EXPERIENCE.md`, và `COMMAND_FLOOR` **không đổi** *(sàn 37, cổng
+  in 44 — y baseline)*. Nhưng không cổng nào phát biểu *"xuất xứ không được có bề mặt"*: một
+  story sau thêm một hộp thoại hỏi xuất xứ sẽ đi qua cả mười một cổng.
+  ⚠️ Ghi ra thay vì dựng một cổng cho nó: một cổng canh *"không có X"* trên một khái niệm chưa
+  có tên trong mã là một cổng không đỏ được, và luật của kho là **mỗi cổng phải đỏ được**.
+  **Chủ: Ice** *(một câu hỏi quy ước, cùng hạng với món adapter ở trên)*.
+
+- 🔵 **ĐÃ CHẨN ĐOÁN 2026-08-16 (Story 2.7) — và phép đo ĐẶT TÊN cho một phần của hai món nợ
+  *"bộ e2e chập chờn"* ở trên.** Năm lượt trọn bộ, ghi cả năm:
+
+  | # | Cây nguồn | Máy | Kết quả |
+  |---|---|---|---|
+  | ① | Story 2.7 | **bận** *(`cargo test` song song)* | 7/8 — `segment-history-restore`, **đỏ THẬT**, đã vá |
+  | ② ③ | Story 2.7 | **bận** | 7/8 — `editor-typing-flush` `:184` rồi `:293` |
+  | ④ | baseline `5a7e007` | **rảnh** | **8/8** (10m30) |
+  | ⑤ | Story 2.7 | **rảnh** | **8/8** (9m28) |
+
+  ⇒ **Biến là TẢI MÁY, không phải cây nguồn.** `FLUSH_WAIT_MS = 3.500 ms` trong khi idle của
+  AD-35 là **2.000 ms** — biên chỉ **1.500 ms**, và trong biên đó phải lọt: timer idle · một
+  lượt `invoke` · `Store::write` **nối tiếp** của AD-11 · một lượt fsync WAL. Một máy đang biên
+  dịch Rust ăn hết biên đó. Hai lượt đỏ rơi vào hai phép khẳng định khác nhau nhưng **cùng một
+  triệu chứng**: *"chữ chưa tới đĩa sau `browser.pause`"*.
+
+  🔴 **Đây cũng là lý do những lượt đỏ cũ *"không tái lập được"*:** người chẩn đoán chạy lại
+  trên một máy đã rảnh. Món nợ `:3345-3354` và `:3117-3139` vì thế **không sai**, nhưng chúng
+  thiếu đúng biến này.
+
+  ⚠️ **Bản vá KHÔNG phải nới hằng số** — nới một ngưỡng cho hết đỏ là đúng thứ
+  `project-context.md` §*Miễn trừ và cảnh báo* cấm, và nó chỉ dời điểm gãy. Đường đúng: **chờ
+  một SỰ KIỆN** *(mốc `editorLastFlushAt` đổi, hoặc một `waitUntil` trên chính đĩa)* thay vì chờ
+  một khoảng thời gian — cùng luật *"hàm nhịp ghi không tự đọc `Date.now()`"* mà `writeSchedule`
+  đã đi qua một lần. **Chủ: một story hạ tầng e2e** *(nối tiếp hai món cũ, không mở món thứ ba)*.
+
+  ⚠️ **Bài học phương pháp, ghi vì dev vừa mắc:** đừng chạy việc nặng song song với một bộ đo
+  **thời gian thực trên engine thật**. Bộ đo đó không phân biệt được *"sản phẩm hỏng"* với *"máy
+  bận"*, nên mọi lượt đỏ nó cho đều dẫn tới một cuộc chẩn đoán vô ích.

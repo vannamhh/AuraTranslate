@@ -27,12 +27,21 @@ import {
 const callOrder: string[] = []
 /** Đối số của mỗi lượt `confirmSegment`. */
 const confirmCalls: number[] = []
+/**
+ * **Mốc so** đi kèm mỗi lượt `confirmSegment` — Story 2.7, FR117.
+ *
+ * 🔴 Một mảng RIÊNG chứ không gộp vào [`confirmCalls`]: hai mệnh đề khác nhau *(ký ĐÚNG câu
+ * nào · ký với mốc nào)* trượt vì hai lý do khác nhau, và một `toEqual` trên tuple gộp sẽ cho
+ * cùng một câu thông báo cho cả hai.
+ */
+const confirmMarks: string[] = []
 /** Bật để lượt `confirmSegment` kế tiếp trả về một lỗi từ chối. */
 const failNextConfirm = { value: false }
 
-async function recordConfirm(segmentId: number) {
+async function recordConfirm(segmentId: number, textAtLoad: string) {
   callOrder.push('confirm')
   confirmCalls.push(segmentId)
+  confirmMarks.push(textAtLoad)
   if (failNextConfirm.value) {
     failNextConfirm.value = false
     return {
@@ -95,6 +104,7 @@ beforeEach(() => {
   resetRecorder()
   callOrder.length = 0
   confirmCalls.length = 0
+  confirmMarks.length = 0
   failNextConfirm.value = false
   midFlightHooks.length = 0
   saveIndex = 0
@@ -334,5 +344,87 @@ describe('④ AC14 — mọi lối từ chối phân biệt được, không r�
     await state.confirmCurrentSegment()
 
     expect(state.editorConfirmError.value).toBeNull()
+  })
+})
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ④ MỐC SO CỦA FR117 — Story 2.7, AC4 · AC5 · Quyết định #2 đường (b)
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * 🔴 **Vì sao vế này ở vitest chứ không ở Rust, và vì sao Rust KHÔNG canh thay được:** phép
+ * **phân xử** sống ở Rust và có mười ca hợp đồng canh nó (`segment_contract.rs`). Thứ Rust
+ * không nhìn thấy là **mốc nó nhận có đúng không** — nó tin giá trị webview khai. Mệnh đề
+ * *"mốc là bản lúc nạp, và nó sống sót qua gõ + flush"* là một mệnh đề về **module thuần
+ * frontend**, nên nó thuộc đúng đường này (bảng §Testing của story).
+ *
+ * ⚠️ Nhắc lại giới hạn thật ở đầu tệp, vì nó áp nguyên vào đây: ba ca dưới canh **chỗ gọi
+ * trong `editorPanelState.ts`**, không canh mọi chỗ gọi tương lai.
+ */
+describe('④ FR117 — mốc so là bản LÚC NẠP, không phải văn bản đang gõ', () => {
+  /**
+   * 🔴 Ca trung tâm. Người dùng gõ đè lên một câu sẵn có rồi ký.
+   *
+   * Mốc phải là **`'Gió thổi tới từ cuối hành lang.'`** *(bản lúc nạp trong fixture)*, chứ
+   * **không** phải chữ vừa gõ. Gửi nhầm `editedText` cho ra một mốc **bằng** văn bản Rust đọc
+   * trên đĩa ⇒ Rust kết luận *"y hệt ⇒ không sửa"* ⇒ câu người dùng vừa gõ mang nhãn **của
+   * người khác**, và Epic 7 ghi cặp TM theo nhãn đó.
+   *
+   * Chạy đỏ-rồi-xanh: đổi `loaded.target_text` thành `editedText.value.get(id) ?? ''` trong
+   * `confirmCurrentSegmentUnguarded`, ca này phải ĐỎ.
+   */
+  it('gõ đè lên một câu sẵn có ⇒ mốc vẫn là bản lúc nạp', async () => {
+    const state = await freshState()
+    state.setEditorCaret(12)
+    state.noteEditorEdit(12, 'Tôi viết lại câu này theo ý mình.')
+
+    expect(await state.confirmCurrentSegment()).toBe('confirmed')
+
+    expect(confirmCalls).toEqual([12])
+    expect(confirmMarks).toEqual(['Gió thổi tới từ cuối hành lang.'])
+  })
+
+  /**
+   * 🔴 **AC5 — gõ rồi HOÀN TÁC về đúng nguyên trạng.** Mốc phải **sống sót** qua cả hai lượt
+   * gõ và cả lượt flush ở giữa; nó không được chạy theo lượt flush gần nhất.
+   *
+   * ⚠️ Đây là ca phân biệt *"mốc ở webview"* với *"Rust so với đĩa"*. Đường thứ hai **bị bác
+   * bằng phép đo** ở Quyết định #2: đĩa bị ghi đè dần, nên nó thấy *"khác"* ở lượt flush thứ
+   * nhất và lại *"khác"* ở lượt thứ hai, trong khi văn bản cuối y hệt bản lúc nạp.
+   */
+  it('gõ rồi hoàn tác ⇒ mốc không đổi, và nó bằng đúng văn bản cuối', async () => {
+    const state = await freshState()
+    state.setEditorCaret(12)
+
+    state.noteEditorEdit(12, 'Gió thổi tới từ cuối hành lang. Thêm một câu.')
+    await state.flushEditorNow()
+    state.noteEditorEdit(12, 'Gió thổi tới từ cuối hành lang.')
+
+    expect(await state.confirmCurrentSegment()).toBe('confirmed')
+
+    expect(confirmMarks).toEqual(['Gió thổi tới từ cuối hành lang.'])
+    expect(confirmMarks.at(0)).toBe(
+      saveCalls.at(-1)?.edits.at(0)?.target_text,
+      // ⚠️ Hai vế bằng nhau ở ĐÂY là toàn bộ nội dung của AC5: Rust so hai chuỗi này và
+      // kết luận *"không sửa"*. Một cờ dirty ở cùng chỗ sẽ nói *"đã sửa"*, và AD-31
+      // §Hợp đồng phụ gọi tên đúng ca này.
+    )
+  })
+
+  /**
+   * Một câu **chưa dịch** vẫn phải mang mốc `''` — chứ không phải bỏ trắng tham số.
+   *
+   * ⚠️ Lượt ký này bị Rust **từ chối** (Quyết định #7 của Story 2.5: câu rỗng không ký được),
+   * nên ca đo đúng thứ nó đo được ở đường này: **cái gì đã lên dây**, không kết quả cuối.
+   */
+  it('câu chưa dịch vẫn gửi một mốc, và mốc đó là chuỗi rỗng', async () => {
+    const state = await freshState()
+    state.setEditorCaret(13)
+    state.noteEditorEdit(13, 'Bản dịch đầu tiên của câu này.')
+
+    await state.confirmCurrentSegment()
+
+    expect(confirmCalls).toEqual([13])
+    expect(confirmMarks).toEqual([''])
   })
 })
