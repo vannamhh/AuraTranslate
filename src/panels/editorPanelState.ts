@@ -147,6 +147,35 @@ export function setEditorCaret(id: number | null): void {
   if (left !== null && id !== null && left !== id) void flushEditorNow()
 }
 
+/**
+ * Thay **một vài trường** của một segment trong ảnh chụp hiển thị — Story 2.6.
+ *
+ * 🔴 **Dựng một MẢNG MỚI**, không sửa tại chỗ: [`segments`] là một `shallowRef`, nó **không**
+ * theo dõi một lượt sửa vào bên trong phần tử ⇒ đĩa đổi mà lưới thì không. Story 2.5c mất một
+ * vòng chẩn đoán ở đúng chỗ này (commit `4ce5bb4`).
+ * ⚠️ Đo lại 2026-08-16 chứ không tin: gỡ luật này *(`Object.assign` tại chỗ)* làm ca
+ * `tests/frontend/segmentHistory.test.ts::khôi phục ⇒ editorSegments thay bằng mảng mới` **đỏ**.
+ *
+ * ⚠️ **Vì sao một hàm chứ không để chỗ gọi tự trải mảng:** lượt khôi phục của Story 2.6 sống ở
+ * `segmentHistoryState.ts`, tức **ngoài** tệp này, và `segments` là `readonly` với thế giới
+ * bên ngoài *(đúng vậy — nó là nguồn sự thật của lưới)*. Một cửa hẹp mang theo luật *"mảng
+ * mới"* tốt hơn một lượt nới `segments` thành ghi được, thứ mở đường cho mọi component tự sửa
+ * ảnh chụp theo cách riêng.
+ *
+ * ⚠️ Segment không có trong ảnh chụp ⇒ **không làm gì**, không ném. Ca đó xảy ra thật khi
+ * người dùng đổi Chương trong lúc một lượt ghi đang bay.
+ */
+export function replaceEditorSegment(
+  id: number,
+  patch: Partial<Pick<ChapterSegment, 'target_text' | 'status'>>,
+): void {
+  const index = segments.value.findIndex((s) => s.id === id)
+  if (index < 0) return
+  const next = [...segments.value]
+  next[index] = { ...next[index], ...patch }
+  segments.value = next
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔴 NHỊP FLUSH — AD-35, Story 2.3. VÌ SAO NÓ SỐNG Ở ĐÂY VÀ KHÔNG TRONG `GridPanel.vue`
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -347,6 +376,52 @@ export async function flushEditorNow(): Promise<FlushResult> {
   // thêm một **sàn** để nó không quay vòng ở `setTimeout(…, 0)`.
   armFlushTimer(result === 'failed' ? EDITOR_RETRY_FLOOR_MS : 0)
   return result
+}
+
+/**
+ * Kết quả của [`flushEditorBeforeDiscreteWrite`]. Ba giá trị, ba việc khác nhau cho nơi gọi.
+ *
+ * `'clean'` ⇒ tập chờ **thật sự** rỗng, đi tiếp được. `'failed'` ⇒ một lượt ghi trượt.
+ * `'still-dirty'` ⇒ ghi được nhưng tập chờ **vẫn** không vơi ⇒ **từ chối**, đừng ghi đè.
+ */
+export type PreWriteFlushResult = 'clean' | 'failed' | 'still-dirty'
+
+/**
+ * 🔴 **Đưa tập chờ xuống đĩa TRƯỚC một lượt ghi RỜI RẠC** — cửa dùng chung của mọi lệnh ghi
+ * không đi qua bộ đệm gõ.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 2026-08-16 (code review Story 2.6) — RÚT RA THÀNH MỘT HÀM, VÀ LƯỢT CHÉP LÀ THỦ PHẠM
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Khuôn này ra đời ở Quyết định #8 của Story 2.5b *(Ice ký 2026-08-14)* và sống **trong thân**
+ * `confirmCurrentSegmentUnguarded`. Story 2.6 dựng đường khôi phục, chép **doc-comment** của
+ * khuôn sang `segmentHistoryState.ts` — *"áp nguyên ở đây"* — nhưng chép thiếu **mã**: chỉ một
+ * lượt flush, không `isDirty()`, không đường từ chối. Cổng không đỏ, và bảo đảm mà chữ ký
+ * #2(a) mua được mất trong im lặng.
+ * ⇒ Một khuôn được chép là một khuôn sẽ chép thiếu. Nay nó là **một hàm**, và nơi gọi thứ ba
+ * không còn cách nào thi hành nó đúng một nửa.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 VÌ SAO PHẢI HAI LƯỢT — MÃ KẾT QUẢ CỦA FLUSH KHÔNG ĐỒNG NGHĨA VỚI "TẬP CHỜ SẠCH"
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Nhánh *originator* của [`flushEditorNow`] chụp `snapshot` **trước** lượt IPC và khi lô về thì
+ * chỉ `armFlushTimer(0)` rồi trả `'saved'` — nó **không** đệ quy như nhánh *joiner*. Đó là hành
+ * vi ĐÚNG cho auto-save *(đệ quy ở đó là quay vòng trong lúc người dùng gõ liên tục, đúng thứ
+ * trần cứng AD-35 tồn tại để tránh)* — nhưng nó sai cho một lượt ghi rời rạc: một ký tự gõ
+ * trong lúc lô đang bay nằm **ngoài** ảnh chụp, vẫn `isDirty()`, mà flush đã trả `'saved'`.
+ *
+ * ⇒ Thử lại **đúng một** lượt *(đóng ca thường: một ký tự lẻ, không phải đặt một trần lặp mới)*;
+ * còn dơ nữa thì trả `'still-dirty'` để nơi gọi **từ chối**, chứ không ghi đè lên một bản chưa
+ * kịp xuống đĩa.
+ *
+ * ⚠️ **Không** ném, và **không** tự ghi chẩn đoán: hai nơi gọi hỏng theo hai cách khác nhau và
+ * nói hai câu khác nhau. Chẩn đoán thuộc về nơi gọi.
+ */
+export async function flushEditorBeforeDiscreteWrite(): Promise<PreWriteFlushResult> {
+  if ((await flushEditorNow()) === 'failed') return 'failed'
+  if (!flush.isDirty()) return 'clean'
+  if ((await flushEditorNow()) === 'failed') return 'failed'
+  return flush.isDirty() ? 'still-dirty' : 'clean'
 }
 
 /**
@@ -684,18 +759,20 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
   //
   // ⇒ Thử lại **đúng một** lượt, còn dơ nữa thì **từ chối**. Một lượt đóng ca thường (một
   //   ký tự lẻ) mà không phải đặt một trần lặp mới; đường từ chối giữ cho ca bệnh lý.
-  if ((await flushEditorNow()) === 'failed') return 'flush-failed'
-  if (flush.isDirty()) {
-    if ((await flushEditorNow()) === 'failed') return 'flush-failed'
-    if (flush.isDirty()) {
-      // 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."* Chẩn đoán nêu
-      // đích danh, cùng khuôn hai dòng `console.error` của `flushEditorNow`.
-      console.error(
-        `[editor] KHÔNG ký segment ${id}: tập chờ vẫn dơ sau hai lượt flush — ` +
-          `từ chối thay vì ký một văn bản cũ hơn thứ đang trên màn hình (Quyết định #8).`,
-      )
-      return 'still-dirty'
-    }
+  // 🔵 2026-08-16 (code review Story 2.6): ba nhịp trên đi vào
+  // [`flushEditorBeforeDiscreteWrite`]. Hành vi **không đổi một bước nào** — lượt rút ra là để
+  // đường khôi phục của Story 2.6 không thể chép thiếu nó lần nữa. Lý do đầy đủ ở doc-comment
+  // của hàm đó.
+  const flushed = await flushEditorBeforeDiscreteWrite()
+  if (flushed === 'failed') return 'flush-failed'
+  if (flushed === 'still-dirty') {
+    // 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."* Chẩn đoán nêu
+    // đích danh, cùng khuôn hai dòng `console.error` của `flushEditorNow`.
+    console.error(
+      `[editor] KHÔNG ký segment ${id}: tập chờ vẫn dơ sau hai lượt flush — ` +
+        `từ chối thay vì ký một văn bản cũ hơn thứ đang trên màn hình (Quyết định #8).`,
+    )
+    return 'still-dirty'
   }
 
   const { outcome, error } = await confirmSegment(id)

@@ -372,6 +372,38 @@ export type CommandDeps = {
   // dùng `ref`/`computed` của Vue **và** gọi `@tauri-apps/api` xuyên qua `config/bootstrap.ts`
   // — import thẳng nó ở đây giết Kiểm C/D/E cùng lúc.
 
+  // ── Story 2.6 — lịch sử phiên bản segment ──────────────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `openShortcuts`: bề mặt lịch sử dùng `ref` của Vue
+  // **và** gọi `@tauri-apps/api` xuyên qua `config/segment.ts` — import thẳng nó ở đây giết
+  // Kiểm C/D/E cùng lúc, và Kiểm I thì `abort()` chứ không FAIL, tức nó **dừng hẳn** CI.
+
+  /**
+   * Mở lịch sử phiên bản của **câu đang nhắm**. Handler của `history.open` (AC1).
+   *
+   * 🔴 **Không** một tham số `segment_id`, và đó là cùng lý lẽ đã ghi cho `toggleDictSource`,
+   * `toggleLookupPin` và `shortcuts.capture` ngay trên: một command cho mỗi segment phá chính
+   * cơ chế đếm tĩnh mà `check-commands.mjs` dùng (`COMMAND_FLOOR`), và một id không tồn tại
+   * lúc dựng màn hình phím thì Story 1.21 không gán lại được. ⇒ handler đọc **câu đang nhắm**
+   * từ trạng thái quanh nó, tại thời điểm chạy.
+   */
+  openSegmentHistory?: () => void
+  /** Đóng lịch sử phiên bản. Handler của `history.close` (AC1). */
+  closeSegmentHistory?: () => void
+  /**
+   * Khôi phục **phiên bản đang nhắm**. Handler của `history.restore` (AC2).
+   *
+   * 🔴 **Không** một tham số `version_id` — cùng lý lẽ đã ghi cho `toggleDictSource`,
+   * `toggleLookupPin` và `shortcuts.capture`. Hàng đang nhắm đọc từ trạng thái quanh nó, và
+   * nó được nhắm bằng `@mousedown`/`@focusin` chứ không bằng `@click` *(Kiểm A của
+   * `check:commands` nói nguyên văn "chỉ `@click`")* — đúng khuôn bảng phím của Story 1.21.
+   */
+  restoreAimedVersion?: () => void
+  /** Đồng ý ghi đè một bản nháp chưa ký. Handler của `history.confirm_restore` (AC2). */
+  confirmPendingRestore?: () => void
+  /** Giữ bản đang soạn, bỏ câu hỏi. Handler của `history.cancel_restore` (AC2). */
+  cancelPendingRestore?: () => void
+
   /** Mở lớp phủ phím tắt. Handler của `shortcuts.open` (AC1). */
   openShortcuts?: () => void
   /** Đóng lớp phủ phím tắt. Handler của `shortcuts.close` (AC1). */
@@ -766,6 +798,53 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * đó một hợp âm người dùng tự đặt trong `global.db` **ĐƯỢC** dùng — qua lớp `overrides`,
    * không qua `spec.keys`.
    */
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 2.6 — HAI COMMAND CHO LỊCH SỬ PHIÊN BẢN (FR101, AC1)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * 🔴 **HAI lệnh, KHÔNG một lệnh bập bênh** — Quyết định #3 của Story 2.5c đã bác hình dạng
+   * bập bênh bằng chữ: *"nhãn của một phím bập bênh không nói được nó sắp làm gì"*. Bảng phím
+   * tắt của Story 1.21 hiện **đúng một nhãn cho mỗi hàng**, nên một lệnh `history.toggle` sẽ
+   * hiện một nhãn nói dối ở một nửa số lần người dùng nhìn nó. Khuôn đã chạy hai lượt:
+   * `attribution.open`/`close` và `shortcuts.open`/`close`.
+   *
+   * 🔴 **Hợp âm PHẢI mang `Mod`.** `keys.ts` nuốt một hợp âm thiếu phím bổ trợ chính khi tiêu
+   * điểm đang ở trong vùng gõ (`lacksPrimaryMod && isTypingZone`), và con trỏ người dùng
+   * **đang nằm trong ô bản dịch** đúng lúc họ muốn mở lịch sử. `editor.next_untranslated` và
+   * bốn lệnh của 2.5c/2.5d đều đã phải ghi ra giới hạn này.
+   *
+   * **`Mod+H`, đo lại 2026-08-16 chứ không chép:** `grep KeyH src/commands/index.ts` cho **0**
+   * kết quả ⇒ trống. Mockup vẽ `⌘H`, và `conflictFor` chạy trên **toàn registry** *(không
+   * theo chế độ)* nên một lượt trùng sẽ lộ ra ngay ở `register()` chứ không âm thầm.
+   *
+   * ⚠️ `history.close` giữ **0 hợp âm mặc định** — cùng chủ ý với `shortcuts.close` và
+   * `attribution.close`: `Esc` đóng lớp phủ bằng một handler **cục bộ**, cố ý **không** đăng
+   * ký. Đăng ký `Escape` toàn cục biến nó thành một phím **gán lại được trên toàn ứng dụng**,
+   * và một người dùng gán nó đi chỗ khác sẽ không đóng được lớp phủ nào nữa.
+   */
+  for (const [id, port, chord] of [
+    ['history.open', 'openSegmentHistory', 'Mod+H'],
+    ['history.close', 'closeSegmentHistory', undefined],
+    // ⚠️ Ba command dưới giữ **0 hợp âm mặc định**, cùng chủ ý với bốn command dưới
+    // `shortcuts.open`: họ `Mod+Alt+…` đã kín chỗ có nghĩa, cả ba tới được bằng Tab +
+    // Enter/Space bên trong lớp phủ, VÀ chúng là nhiên liệu cho `unbound()`.
+    ['history.restore', 'restoreAimedVersion', undefined],
+    ['history.confirm_restore', 'confirmPendingRestore', undefined],
+    ['history.cancel_restore', 'cancelPendingRestore', undefined],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: chord === undefined ? undefined : [chord],
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
+
   for (const [id, port] of [
     ['lookup.toggle_source', 'toggleDictSource'],
     ['attribution.open', 'openAttribution'],

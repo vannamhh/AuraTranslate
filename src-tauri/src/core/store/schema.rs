@@ -457,6 +457,14 @@ pub const SEGMENT_TARGET_TEXT_DDL: &str =
 /// **chưa ai đo**. Cùng luật mà [`SEGMENT_TARGET_TEXT_DDL`] đã ghi cho `target_text`.
 /// **Chủ: Story 2.6** — nó mang đường đọc, nên nó mang index cùng lượt, đúng cách bước 5
 /// mang `idx_segment_chapter_ord` cùng lúc với đường đọc cần nó.
+///
+/// 🔵 **CẬP NHẬT 2026-08-16 (Story 2.6): món nợ trên ĐÃ ĐÓNG, và câu *"không `CREATE INDEX`
+/// nào cho bảng này"* nay chỉ còn đúng về **hằng này**, không về **lược đồ**.**
+/// `segment_version` hôm nay **có** một index — `idx_segment_version_segment_created`
+/// `(segment_id, created_at DESC)` — nhưng nó đến từ [`SEGMENT_VERSION_INDEX_DDL`] ở **bước
+/// 10**, không từ đây. 🔴 Và nó **phải** ở đó chứ không ở đây: một `project.db` đã ở phiên
+/// bản 7 không bao giờ chạy lại hằng này, nên thêm một dòng vào đây cho ra hai lược đồ khác
+/// nhau mang cùng số **7**. Sửa tại chỗ thay vì để mệnh đề lặng lẽ sai.
 pub const SEGMENT_STATUS_AND_VERSION_DDL: &str = "\
 ALTER TABLE segment ADD COLUMN status TEXT NOT NULL DEFAULT 'draft';
 CREATE TABLE segment_version (
@@ -585,12 +593,78 @@ pub const SEGMENT_TARGET_PARAGRAPH_END_DDL: &str = concat!(
     "UPDATE segment SET is_target_paragraph_end = is_paragraph_end;"
 );
 
-/// Bộ di trú của `project.db`. Hôm nay **tám** bước — Story 1.15 · 2.1 · 2.2 · 2.5 · 2.5c ·
-/// 2.5d.
+/// Index cho **đường đọc lịch sử phiên bản** (FR101) — **bước 10 của `project.db`**,
+/// Story 2.6, AC1 · AC5 · Quyết định #7 đường (a) (Ice ký 2026-08-16).
 ///
-/// 🔴 **Tám bước, và đích là phiên bản 9.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO SỐ **10**
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 5 · 6 · 7 · 8 · 9 đã tiêu ([`SEGMENT_DDL`] 2.1, [`SEGMENT_TARGET_TEXT_DDL`] 2.2,
+/// [`SEGMENT_STATUS_AND_VERSION_DDL`] 2.5, [`SEGMENT_OMITTED_DDL`] 2.5c,
+/// [`SEGMENT_TARGET_PARAGRAPH_END_DDL`] 2.5d). ⇒ Đọc [`PROJECT_MIGRATIONS`] ngay dưới chứ
+/// đừng đọc một ghi chép ở nơi khác — `sprint-status.yaml` còn mang một dòng từ Story 2.1
+/// nói *"bước kế tiếp là 5"*, và dòng đó đã hết đúng **năm** lần kể từ khi được viết.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO INDEX ĐẾN **BÂY GIỜ** MỚI CÓ — một món nợ có chủ, không một lượt quên
+/// ─────────────────────────────────────────────────────────────────────────────
+/// [`SEGMENT_STATUS_AND_VERSION_DDL`] dựng bảng `segment_version` ở bước 7 và cố ý **không**
+/// kèm index. Doc-comment của chính hằng đó ghi lý do bằng chữ: Story 2.5 **chỉ ghi, không
+/// đọc**, nên một index ở đó là một phép tối ưu cho một đường đọc **chưa ai đo** — và nó đặt
+/// tên chủ luôn: *"Chủ: Story 2.6 — nó mang đường đọc, nên nó mang index cùng lượt"*.
+///
+/// ⇒ Đây là lượt đóng món nợ đó. Story 2.6 là story **đầu tiên** đọc `segment_version`
+/// (`SELECT … WHERE segment_id = ?1 ORDER BY created_at DESC`), nên index tới cùng lượt với
+/// thứ biện minh cho nó — đúng cách bước 5 mang `idx_segment_chapter_ord` cùng lúc với
+/// đường đọc cần nó, và đúng luật *"không tối ưu cho một đường đọc chưa tồn tại"*.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO MỘT `CREATE INDEX` CHỨ KHÔNG SỬA [`SEGMENT_STATUS_AND_VERSION_DDL`] TẠI CHỖ
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Cám dỗ ở đây mạnh hơn ở bước 6/8/9, vì thêm một dòng `CREATE INDEX` vào cuối hằng của
+/// bước 7 **trông** sạch hơn hẳn một bước di trú mới. Nó sai đúng một lớp:
+///
+/// Một `project.db` đã ở phiên bản 7 **không bao giờ chạy lại** hằng của bước 7 — [`migrate`]
+/// lọc `m.to_version > from`. ⇒ Sửa hằng đó tại chỗ cho ra **hai lược đồ khác nhau mang cùng
+/// một số phiên bản**: db mới tạo có index, db cũ thì không, và `PRAGMA user_version` nói
+/// **7** ở cả hai. Không cổng nào phân biệt được chúng, và chúng rẽ nhau ở máy người dùng
+/// chứ không ở đây. Đó chính là vết sẹo số 4 ghi ở [`PROJECT_MIGRATIONS`], ở một hình dạng
+/// êm hơn — vết sẹo số 4 ít nhất còn làm `Store::open` từ chối; lượt này thì **im lặng**.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 HÌNH DẠNG INDEX — Quyết định #7, đường (a)
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `(segment_id, created_at DESC)` khớp **đúng** hình dạng truy vấn của AC1: lọc theo
+/// `segment_id`, sắp theo thời điểm giảm dần. Tên theo khuôn `idx_segment_chapter_ord`
+/// (bảng, rồi các cột).
+///
+/// Hai đường còn lại và vì sao chúng bị loại — nói ra thay vì giả vờ đã cân nhắc:
+/// - **(b)** chỉ `(segment_id)`, để SQLite tự sắp. ⚠️ Với một segment có **ít** phiên bản
+///   thì (a) và (b) **không phân biệt được bằng phép đo** — ghi ra thay vì bịa một con số.
+///   (a) được ký vì nó khớp truy vấn, không vì có một phép đo bác (b).
+/// - **(c)** sắp theo `id DESC` và **không** index nào: `id` là `AUTOINCREMENT` nên đơn
+///   điệu, tức thứ tự `id` **là** thứ tự thời gian. Nó đúng, và nó bị loại vì nó khoá thứ
+///   tự hiển thị vào một **chi tiết cài đặt của SQLite** thay vì vào cột mà AC5 nói tới —
+///   và vì nó bỏ luôn món nợ có chủ ở trên.
+///
+/// ⚠️ **KHÔNG** `CHECK` — giá trị hợp lệ cưỡng chế ở tầng Rust, cùng khuôn `status`,
+/// `is_omitted` và `chapter.status`.
+/// ⚠️ **KHÔNG** `FOREIGN KEY` mới trên `segment_version`. Bảng cố ý không có khoá ngoại và
+/// không `ON DELETE CASCADE` — AD-5 *"về hưu = tombstone"*, không phải một lượt xoá — và đó
+/// là thứ làm **AC4 đúng theo cấu trúc**: lịch sử của một segment đã về hưu không đi đâu cả.
+/// Một `CREATE INDEX` không đụng tới mệnh đề đó, và đừng nhân lúc này mà thêm.
+/// ⚠️ **Thuần DDL, một câu.** Khác bước 9, ở đây **không** có vế backfill: index là một cấu
+/// trúc dẫn xuất, SQLite dựng nó từ dữ liệu đã có ngay trong câu `CREATE`. Không hàng
+/// `segment_version` nào đổi một byte.
+pub const SEGMENT_VERSION_INDEX_DDL: &str =
+    "CREATE INDEX idx_segment_version_segment_created ON segment_version (segment_id, created_at DESC);";
+
+/// Bộ di trú của `project.db`. Hôm nay **chín** bước — Story 1.15 · 2.1 · 2.2 · 2.5 · 2.5c ·
+/// 2.5d · 2.6.
+///
+/// 🔴 **Chín bước, và đích là phiên bản 10.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
 /// `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
 ///
 /// ⚠️ Con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
@@ -613,6 +687,15 @@ pub const SEGMENT_TARGET_PARAGRAPH_END_DDL: &str = concat!(
 /// ngay dưới nói về **số hằng**, không về **số câu SQL** — [`migrate`] đã chạy
 /// `execute_batch` từ đầu, nên nhiều câu trong một bước là hình dạng **sẵn có**, không một
 /// lượt nới.
+///
+/// 🔵 **CẬP NHẬT 2026-08-16 (Story 2.6):** đích chuyển từ **9** lên **10** — bước
+/// [`SEGMENT_VERSION_INDEX_DDL`] (FR101). Câu *"tám bước, đích là 9"* đã hết đúng, sửa tại
+/// chỗ.
+/// 🔴 Bước 10 là bước **đầu tiên** của kho **không thêm một cột nào** — nó chỉ dựng một cấu
+/// trúc dẫn xuất. Điều đáng nhớ ở đây: một bước di trú không nhất thiết đổi **hình dạng dữ
+/// liệu**, và bước này cố ý **không** đụng một hàng nào. Nó tồn tại vì hằng của bước 7
+/// **không được phép sửa tại chỗ** *(một `project.db` đã ở v7 không bao giờ chạy lại nó)* —
+/// lý do đầy đủ ở doc-comment của chính hằng bước 10.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -707,6 +790,14 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 9,
         sql: SEGMENT_TARGET_PARAGRAPH_END_DDL,
+    },
+    // Story 2.6 — duong DOC lich su phien ban (FR101): index tren `segment_version`.
+    // 🔴 **10, khong phai 5** — 5, 6, 7, 8 va 9 da tieu. Buoc DAU TIEN cua kho khong them
+    // mot cot nao: no dong mot mon no CO CHU ma buoc 7 ghi bang chu luc dung bang
+    // `segment_version`. Ly do day du o doc-comment cua [`SEGMENT_VERSION_INDEX_DDL`].
+    Migration {
+        to_version: 10,
+        sql: SEGMENT_VERSION_INDEX_DDL,
     },
 ];
 

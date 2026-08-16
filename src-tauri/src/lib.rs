@@ -336,6 +336,18 @@ pub fn run() {
             // `confirm_segment`: thao tac ROI RAC ghi NGAY, khong qua bo dem go 2s/5s.
             crate::commands::segment::wire::set_segment_omitted,
             crate::commands::segment::wire::set_segment_paragraph_end,
+            // Story 2.6 — duong DOC lich su phien ban (FR101), buoc di tru 10. Doc theo
+            // `(segment_id, created_at DESC)`, tuc dung index `idx_segment_version_segment_created`
+            // ma chinh buoc 10 dung -- index toi CUNG LUOT voi duong doc bien minh cho no.
+            // 🔴 Lenh nay KHONG tu choi mot segment da ve huu: no DOC, va AC4 doi lich su cua
+            // mot segment ve huu van tra lai duoc. Ba lenh GHI o tren thi nguoc lai.
+            crate::commands::segment::wire::read_segment_history,
+            // Story 2.6 — duong KHOI PHUC (AC2). Thao tac ROI RAC ghi NGAY, khong qua bo dem
+            // go 2s/5s. 🔴 KHONG `INSERT` mot hang `segment_version` nao (chu ky #1(a)):
+            // AD-31 giu nguyen SAU hang, va phien ban "thu sau" cua mockup sinh o luot XAC
+            // NHAN ke tiep. 🔴 `force = false` o luot goi dau: neu no ve voi
+            // `needs_confirmation` thi KHONG mot byte nao da duoc ghi.
+            crate::commands::segment::wire::restore_segment_version,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

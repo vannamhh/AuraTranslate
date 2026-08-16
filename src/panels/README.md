@@ -249,3 +249,60 @@ giới trên đường ghi. Đổi giá trị đó là lật nhánh ① của `o
 thở" như cờ nguồn — và đó là một phép đo, không một gu: năm cột chia chung một tập track hàng,
 nên một `padding-bottom` đặt riêng ở ô bản dịch kéo **cả hàng** cao lên *(đo: 38,00 → 46,00 px,
 ô nguyên văn cũng 46)*. Hai cấu trúc đoạn khác nhau **không** biểu diễn được bằng hai khoảng thở.
+
+## Lịch sử phiên bản segment (Story 2.6) — bề mặt ở **App**, state ở đây
+
+Ba tệp của story này, và chỗ đặt từng tệp là một quyết định:
+
+| Tệp | Vai | Vì sao ở đó |
+|---|---|---|
+| `src/SegmentHistoryOverlay.vue` | lớp phủ | con trực tiếp của `App.vue`, **không** một panel — khuôn `ShortcutsOverlay.vue`/`AttributionOverlay.vue` |
+| `segmentHistoryState.ts` | trạng thái + định tuyến | state **cấp module**, sống sót qua một lượt `api.clear()` đổi preset |
+| `segmentHistoryTime.ts` | định dạng thời điểm | hàm **thuần**, `now` đi vào qua tham số |
+
+### Vì sao **không** mở lịch sử ngay trong hàng của lưới
+
+🔴 **Một hàng KHÔNG phải một phần tử DOM** (xem đầu `GridPanel.vue`): năm cột là năm `subgrid`
+chia chung một tập track, nên chèn một khối "giữa hai hàng" là thứ hình dạng đó **không diễn
+đạt được**. Đường tab-trong-panel-Lookup cũng bị loại, bằng số đo: cột thật của bố cục Ⓑ-2 rộng
+**238,5 px** còn mockup vẽ một cột danh sách 270 px **cộng** một cột nội dung.
+
+### Hàng đang nhắm — khuôn giữ được HAI luật thoạt nhìn xung khắc
+
+`historyAimedVersionId` + `aimHistoryVersion()` là khuôn `aimedShortcutRow` của Story 1.21:
+
+- **AD-34 §1** *(Kiểm A của `check:commands`)* đòi mọi `@click` là **đúng một**
+  `dispatch('<id>')` với id **literal** ⇒ một nút **không thể** mang `@click="restore(row.id)"`.
+- **§KHÔNG-LÀM** cấm một command cho mỗi hàng ⇒ không thể sinh id theo `version_id`.
+
+⇒ Hàng được **nhắm** bằng `@mousedown`/`@focusin` *(Kiểm A nói nguyên văn "chỉ `@click`", nên
+hai sự kiện đó được xử lý tự do)*, rồi ba command **không tham số** đọc mục tiêu **lúc chạy**.
+
+### Chốt chống mất bản nháp — quy tắc ở **Rust**, nghĩa vụ flush ở **đây**
+
+🔴 Phép so *"bản đang soạn có bản sao trong `segment_version` không"* chạy ở Rust, và nó so
+trên **ĐĨA**. `editorEditedText` có thể còn giữ ký tự chưa xuống WAL (AD-35: idle 2 s, trần
+cứng 5 s) ⇒ `restoreVersion()` **phải flush trước**, nếu không chốt so với một bản **cũ hơn thứ
+người dùng đang nhìn** và nó sẽ **không hỏi** ở đúng ca cần hỏi nhất.
+
+⚠️ Mệnh đề này **không cưỡng chế được ở tầng Rust** — lệnh khôi phục chỉ đọc thứ đã ở trên đĩa
+và không biết gì về văn bản đang gõ trong webview. Lưới **duy nhất** là
+`tests/frontend/segmentHistory.test.ts` §④, và nó khẳng định **thứ tự trên dây**
+(`['flush', 'restore']`), không chỉ *"có gọi flush"*.
+
+⚠️ **Đừng tính lại chốt đó ở TypeScript** dù nó trông dễ *(so `editorEditedText` với danh sách
+phiên bản)* — một phép tính thứ hai là một nguồn sự thật thứ hai, và nó sẽ rẽ khỏi Rust ở đúng
+ca biên. AD-1.
+
+### `historyTimeLabel` trả một **mô tả**, không một chuỗi
+
+Nó trả `{ key, params }` và nơi gọi ghép bằng `t()`. Ba luật cùng lúc: chuỗi ở lại `vi.json`;
+tham số mang **dữ liệu**, không mang **câu**; và hàm kiểm được **tất định** mà không cần một
+bảng chuỗi giả.
+
+🔴 Hàm **không tự đọc `Date.now()`** — cùng luật đã có cho `layout/writeSchedule.ts`. Chỗ đọc
+đồng hồ là `SegmentHistoryOverlay.vue`, một chỗ duy nhất. ⇒ Test **không** `vi.useFakeTimers()`.
+
+⚠️ Phép so ngày đọc theo **giờ địa phương**, cố ý **không** `toISOString()` — cái sau trả về
+theo UTC nên nó rẽ sai ở hai chiều ngược nhau tuỳ dấu offset. **GIỚI HẠN THẬT:** ở UTC đúng
+(offset 0) cả hai chiều biến mất và ca canh nó **rỗng nghĩa**; runner CI chạy UTC. Ghi nợ.

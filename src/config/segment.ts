@@ -234,6 +234,96 @@ export type SetSegmentParagraphEndResult = {
   error: IpcError | null
 }
 
+/**
+ * Một hàng **lịch sử phiên bản** — Story 2.6 · FR101 · AC1 · AC5.
+ *
+ * ⚠️ **`snake_case`, đúng như trên dây.** `commands/segment.rs::SegmentVersionRow` cố ý KHÔNG
+ * đặt `#[serde(rename_all = "camelCase")]`.
+ *
+ * ⚠️ Bốn trường, đúng bốn cột của bảng. **Không** nhãn xuất xứ *(FR117, Story 2.7)*, **không**
+ * cặp TM *(FR56, Epic 7)* — Quyết định #5 đường (a) (Ice ký 2026-08-16) giữ nguyên lằn ranh
+ * mà `schema.rs` khai bằng chữ. Bốn nhãn của mockup ghi nợ, bốn chủ tách rời.
+ */
+export type SegmentVersion = {
+  id: number
+  segment_id: number
+  target_text: string
+  /**
+   * **ISO-8601 UTC có mili giây** (`YYYY-MM-DDTHH:MM:SS.sssZ`), sinh ở tầng SQL.
+   *
+   * 🔴 Đây là **mốc KÝ**, không phải `segment.updated_at` *(mốc sửa **văn bản**)*. Hai mốc
+   * không nói cùng một chuyện — dùng nhầm cho một danh sách mà **mọi hàng mang cùng một mốc**,
+   * và mốc đó là lần gõ cuối chứ không phải lần ký.
+   *
+   * ⚠️ Định dạng hiển thị làm ở **frontend**, không ở Rust (Consistency Conventions §Ngày giờ).
+   */
+  created_at: string
+}
+
+/** Ba trạng thái, cùng khuôn `ReadChapterSegmentsResult`. */
+export type ReadSegmentHistoryResult = {
+  versions: SegmentVersion[] | null
+  error: IpcError | null
+}
+
+/**
+ * Kết quả một lượt **khôi phục** — Story 2.6 · AC2.
+ *
+ * ⚠️ `snake_case`, đúng như trên dây.
+ */
+export type RestoreOutcome = {
+  segment_id: number
+  /** Trạng thái **sau** lượt gọi. */
+  status: string
+  /** Lượt gọi này có **ghi** hay không. */
+  restored: boolean
+  /**
+   * 🔴 **Lượt ghi bị GIỮ LẠI vì nó sắp xoá vĩnh viễn một bản nháp chưa từng được ký.**
+   *
+   * Khi trường này `true`, **không một byte nào được ghi**. Chỗ gọi hỏi lại người dùng rồi gọi
+   * lại với `force = true`. Chữ ký #2(a) của Ice, 2026-08-16.
+   */
+  needs_confirmation: boolean
+  /**
+   * Bản nháp sắp bị ghi đè — để **hiện nó ra**, không chỉ nói *"có thứ sẽ mất"*.
+   * `null` khi `needs_confirmation` là `false`.
+   */
+  unsigned_draft: string | null
+}
+
+/** Ba trạng thái, cùng khuôn `ConfirmSegmentResult`. */
+export type RestoreSegmentVersionResult = {
+  outcome: RestoreOutcome | null
+  error: IpcError | null
+}
+
+/**
+ * Payload trả về có **đúng bốn trường, đúng kiểu** không — kiểm **lúc chạy**, Story 2.6.
+ *
+ * 🔴 Vì sao guard này tồn tại trong khi sáu adapter cũ của tệp này **không** có cái tương
+ * đương: nó đóng một lớp lỗi **đã xảy ra thật** *(nguyên vụ ghi ở `commands/segment.rs`)* —
+ * Rust quên gửi một trường ⇒ `undefined` phía webview ⇒ một giá trị falsy đọc thành một câu
+ * trả lời hợp lệ, và **mọi** test frontend vẫn xanh vì fixture chép tay có sẵn trường đó.
+ *
+ * ⚠️ **Lệch quy ước có chủ ý, và nó là một món nợ chứ không một cải tiến trọn vẹn:** sau lượt
+ * này tệp có **hai** loại adapter — sáu cái tin payload, hai cái kiểm nó. Một kho nửa này nửa
+ * kia là một kho mà người sau không đoán được luật. Ghi nợ có chủ **Ice** *(câu hỏi quy ước:
+ * nâng cả sáu cái kia lên, hay hạ hai cái này xuống)*.
+ */
+function isSegmentVersionArray(value: unknown): value is SegmentVersion[] {
+  if (!Array.isArray(value)) return false
+  return value.every((row: unknown) => {
+    if (typeof row !== 'object' || row === null) return false
+    const v = row as Partial<SegmentVersion>
+    return (
+      typeof v.id === 'number' &&
+      typeof v.segment_id === 'number' &&
+      typeof v.target_text === 'string' &&
+      typeof v.created_at === 'string'
+    )
+  })
+}
+
 /** Tên command trên dây. Khớp `src-tauri/src/commands/segment.rs` (module `wire`). */
 const CMD_SPLIT_CHAPTER = 'split_chapter_into_segments'
 /** Tên command trên dây — **không tham số nào**, xem doc-comment của hàm thuần phía Rust. */
@@ -261,6 +351,16 @@ const CMD_SET_SEGMENT_OMITTED = 'set_segment_omitted'
  * sắp làm gì"*.
  */
 const CMD_SET_SEGMENT_PARAGRAPH_END = 'set_segment_paragraph_end'
+/** Tên command trên dây — Story 2.6. `segment_id` đi dưới tên `segmentId`. */
+const CMD_READ_SEGMENT_HISTORY = 'read_segment_history'
+/**
+ * Tên command trên dây — Story 2.6.
+ *
+ * ⚠️ Đừng nhầm với `editor.restore_segment`: cái tên đó **đã bị chiếm** cho lệnh **bỏ cờ cắt
+ * bỏ** của Story 2.5c (FR133), và nó là một `CommandRegistry` id chứ không một tên command
+ * trên dây. Hai khái niệm khác nhau ở hai danh mục khác nhau.
+ */
+const CMD_RESTORE_SEGMENT_VERSION = 'restore_segment_version'
 
 /** Có cầu IPC của Tauri trong window này không — cùng khuôn `./chapter.ts::hasIpcBridge`. */
 function hasIpcBridge(): boolean {
@@ -522,6 +622,120 @@ export async function setSegmentParagraphEnd(
 
     console.info(
       `[segment] không gọi được \`${CMD_SET_SEGMENT_PARAGRAPH_END}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { outcome: null, error: null }
+  }
+}
+
+/**
+ * Đọc **lịch sử phiên bản** của một câu, mới nhất trước — Story 2.6 · FR101 · AC1 · AC3 · AC4.
+ *
+ * 🔴 **KHÔNG BAO GIỜ NÉM.** Một `invoke`, một `try/catch`, trả hình dạng **ba trạng thái** —
+ * cùng luật với mọi adapter ở `src/config/*.ts`.
+ *
+ * ⚠️ `invoke()` gửi tham số dạng **camelCase** (`segmentId`) dù hàm Rust nhận `snake_case`;
+ * chiều **trả về** thì giữ `snake_case`. Hai chiều khác nhau, và đây là chỗ dễ sai nhất trên dây.
+ *
+ * 🔴 **Một mảng RỖNG và một `null` nói hai chuyện khác nhau, đừng gộp:**
+ * - `{ versions: [], error: null }` — segment có thật, **chưa từng được xác nhận**. Đây là
+ *   trạng thái rỗng của AC3, và bề mặt phải **nói ra cơ chế** *(lịch sử sinh ra khi xác nhận,
+ *   không phải khi gõ)*.
+ * - `{ versions: null, error: <IpcError> }` — một phép từ chối phân biệt được.
+ * - `{ versions: null, error: null }` — **không có cầu IPC** (`npm run dev` ngoài Tauri).
+ *
+ * ⚠️ Segment **đã về hưu** vẫn trả đủ lịch sử (AC4) — đường này **đọc**, và nó cố ý **không**
+ * mang hàng rào `err.segment.retired` của ba lệnh ghi.
+ */
+export async function readSegmentHistory(segmentId: number): Promise<ReadSegmentHistoryResult> {
+  try {
+    const versions = await invoke<SegmentVersion[]>(CMD_READ_SEGMENT_HISTORY, { segmentId })
+
+    // 🔴 KIEM KIEU LUC CHAY, va no dong mot lop loi DA XAY RA THAT.
+    //
+    // Ban dau Story 2.5 them `status` vao kieu TypeScript nhung quen them vao struct Rust va
+    // vao cau `SELECT`. Rust khong gui truong do ⇒ `segment.status` la `undefined` phia
+    // webview ⇒ `isConfirmed` LUON `false` tren san pham that — va 74/74 test frontend van
+    // xanh, vi fixture chep tay co san cot. Chi e2e bat duoc.
+    //
+    // Mot kieu TypeScript la mot LOI KHAI ve du lieu da di qua day, khong mot bao dam cua
+    // trinh bien dich. Guard nay la cho duy nhat biet su that.
+    //
+    // ⚠️ No BIEN mot payload sai thanh mot trang thai PHAN BIET DUOC, khong phai mot dong log
+    //    roi di tiep — mot guard chi ghi log la mot guard khong lam gi ca.
+    if (!isSegmentVersionArray(versions)) {
+      console.error(
+        `[segment] \`${CMD_READ_SEGMENT_HISTORY}\` tra ve mot hinh dang KHONG dung hop dong day — mot truong bi thieu hoac sai kieu`,
+      )
+      return { versions: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    return { versions, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { versions: null, error: err }
+
+    // 🔴 Cùng ba nhánh và cùng lý do với `setSegmentOmitted` — xem chú thích ở đó.
+    if (hasIpcBridge()) {
+      console.error(
+        `[segment] \`${CMD_READ_SEGMENT_HISTORY}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { versions: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[segment] không gọi được \`${CMD_READ_SEGMENT_HISTORY}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { versions: null, error: null }
+  }
+}
+
+/**
+ * **Khôi phục** văn bản đích của một câu về một phiên bản cũ — Story 2.6 · FR101 · AC2.
+ *
+ * 🔴 **KHÔNG BAO GIỜ NÉM.** Cùng khuôn ba trạng thái.
+ *
+ * ⚠️ Ba tham số đi dạng **camelCase** (`segmentId`, `versionId`, `force`); trường **trả về**
+ * giữ `snake_case`.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 HAI LƯỢT GỌI, VÀ LƯỢT ĐẦU CÓ THỂ **KHÔNG GHI GÌ**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Gọi lần đầu với `force = false`. Nếu kết quả về với `needs_confirmation = true` thì
+ * **không một byte nào đã được ghi**, và `unsigned_draft` mang chính bản nháp sắp mất — hiện
+ * nó ra, hỏi người dùng, rồi gọi lại với `force = true`.
+ *
+ * ⚠️ `needs_confirmation` **không** phải một lỗi: nó không đi qua `error`, và chỗ gọi đừng
+ * định tuyến nó vào ô báo lỗi.
+ *
+ * 🔴 **Nghĩa vụ của chỗ gọi: FLUSH mọi ký tự đang chờ TRƯỚC lượt gọi này.** Chốt chống mất
+ * bản nháp so trên **đĩa**, và bộ đệm gõ có thể còn giữ ký tự chưa xuống WAL (AD-35: idle 2 s,
+ * trần cứng 5 s). Không flush trước ⇒ chốt so với một bản cũ hơn thứ người dùng đang nhìn, và
+ * nó sẽ **không hỏi** ở đúng ca cần hỏi nhất.
+ */
+export async function restoreSegmentVersion(
+  segmentId: number,
+  versionId: number,
+  force: boolean,
+): Promise<RestoreSegmentVersionResult> {
+  try {
+    const outcome = await invoke<RestoreOutcome>(CMD_RESTORE_SEGMENT_VERSION, {
+      segmentId,
+      versionId,
+      force,
+    })
+    return { outcome, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: null, error: err }
+
+    // 🔴 Cùng ba nhánh và cùng lý do với `setSegmentOmitted` — xem chú thích ở đó.
+    if (hasIpcBridge()) {
+      console.error(
+        `[segment] \`${CMD_RESTORE_SEGMENT_VERSION}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[segment] không gọi được \`${CMD_RESTORE_SEGMENT_VERSION}\` — chạy ngoài Tauri? ${String(err)}`,
     )
     return { outcome: null, error: null }
   }

@@ -2783,6 +2783,18 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   đã ghi cho `target_text`. Story 2.6 mang đường đọc *(lịch sử theo `segment_id`, sắp theo thời
   điểm)*, nên nó mang index **cùng lượt** — đúng cách bước 5 mang `idx_segment_chapter_ord` cùng
   lúc với đường đọc cần nó. **Chủ: Story 2.6.**
+  → ✅ **ĐÃ ĐÓNG 2026-08-16 (Story 2.6).** Bước di trú **10** mang
+  `CREATE INDEX idx_segment_version_segment_created ON segment_version (segment_id, created_at DESC)`
+  — Quyết định #7 đường (a), Ice ký. Index tới **cùng lượt** với đường đọc biện minh cho nó
+  (`commands/segment.rs::read_segment_history`), đúng như món nợ này đòi.
+  🔴 Và nó tới bằng một **bước mới** chứ không bằng một dòng thêm vào hằng của bước 7: một
+  `project.db` đã ở v7 không bao giờ chạy lại hằng đó, nên sửa tại chỗ cho ra **hai lược đồ
+  khác nhau mang cùng số 7** — vết sẹo số 4 ở một hình dạng êm hơn *(vết sẹo cũ ít nhất còn làm
+  `Store::open` từ chối; lượt này thì im lặng)*.
+  Hai ca hợp đồng đứng canh, cả hai đã chạy đỏ-rồi-xanh trên hai đòn bẩy *(đổi tên index · đổi
+  chỗ hai cột)*. ⚠️ Ca hình dạng đọc `pragma_index_info` chứ **không** so chuỗi DDL — đo được:
+  một index sai thứ tự cột vẫn chứa cả `ON SEGMENT_VERSION` lẫn `CREATED_AT DESC`, nên một phép
+  `contains()` sẽ **xanh trên đúng thứ nó tồn tại để bắt**.
 
 - ⚠️ **`updated_at` của `segment` KHÔNG đổi ở lượt xác nhận.** Cột đó mang nghĩa *"mốc sửa **văn
   bản**"* — nó do `save_segment_targets` sinh, và `SEGMENT_DDL` phân biệt nó với `created_at`
@@ -2790,6 +2802,18 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   ghi riêng chính xác hơn: `segment_version.created_at`. ⚠️ Ghi ra vì **Story 2.6 sẽ đọc cả hai
   mốc** và phải biết chúng nói hai chuyện khác nhau. **Chủ: Story 2.6** *(xác nhận lại mệnh đề này
   khi dựng màn hình lịch sử)*.
+  → ✅ **ĐÃ ĐÓNG 2026-08-16 (Story 2.6).** Mệnh đề **đã xác nhận lại bằng cách đọc mã**, không
+  chép: câu ghi của `confirm_segment` là `UPDATE segment SET status = ?1 WHERE id = ?2` —
+  **không** có `updated_at`. ⇒ *"một lượt ký không sửa một ký tự nào nên nó không đụng
+  `updated_at`"* vẫn đúng nguyên văn.
+  Màn hình lịch sử đọc `segment_version.created_at`, và mệnh đề được ghi vào doc-comment của
+  chính đường đọc kèm hệ quả đo được của việc dùng nhầm: `updated_at` sẽ cho một danh sách mà
+  **mọi hàng mang cùng một mốc**, và mốc đó là lần gõ cuối chứ không phải lần ký.
+  🔵 **Một vế MỚI mà món nợ gốc chưa nói tới, phát hiện lúc dựng đường ghi:** lượt **khôi phục**
+  thì **CÓ** đụng `updated_at`, và nó phải đụng — khôi phục **sửa văn bản thật**, nên nó rơi
+  đúng vào nghĩa *"mốc sửa văn bản"* mà `SEGMENT_DDL` khai cho cột đó. Hai lệnh ghi, hai hành vi
+  ngược nhau trên cùng một cột, và cả hai đều đúng: `confirm_segment` **không** đụng vì nó không
+  sửa chữ; `restore_segment_version` **có** đụng vì nó sửa.
 
 - 🔴 **Story 2.5 phá một giả định hiệu năng của cả Epic 2 — đã ĐO và đã VÁ trong story, ghi lại
   vì nó đổi cách đọc mọi số cũ.** Tới hết Story 2.3, `wanted` của `measureGutterRules` có **nhiều
@@ -3639,3 +3663,144 @@ chạy trả lời cả hai)*.
   thích phải nói đúng rằng đây là **quy ước tay**, không phải một cổng.
   **Chủ: một story hạ tầng cổng** *(gộp cùng khuyết tật `check-i18n` Kiểm A mà chính Story 2.5d đã
   ghi ở trên — hai món cùng chạm một tệp)*.
+
+---
+
+## Story 2.6 — Lịch sử phiên bản segment và khôi phục (2026-08-16)
+
+Sáu món dưới đây ghi **lúc Ice ký tám quyết định mở của Task 0**, không phải lúc nghiệm thu —
+đúng luật *"phần lệch ghi vào `deferred-work.md` kèm chủ ngay lúc ký"* (story §Task 0.3). Không
+mục nào mồ côi.
+
+- 🟡 **AC4 đóng MỘT NỬA: vế "bề mặt vào" cho một segment đã về hưu không đối chứng được.**
+  Chữ ký **#8(a)** đóng đúng mệnh đề mà AC4 phát biểu — *"lịch sử vẫn tra lại được"* — bằng một
+  test hợp đồng dựng `retired_at` bằng SQL trực tiếp. Vế còn hở là vế **người dùng**: hôm nay
+  **không đường mã nào cho một segment về hưu**. Đo lại 2026-08-16 từ nguồn: `retired_at` là
+  `None` cho mọi segment, `grep merge_segment` trên `src-tauri/src/**` cho **0 đường mã**
+  *(xem bẫy grep ngay dưới)*, và Story 2.8 là `backlog`. `schema.rs:296-298` ghi thẳng rằng cột
+  có mặt sớm để 2.8 không phải mở một bước di trú thứ hai.
+  ⇒ Khi 2.8 dựng gộp/tách, **nghiệm thu lại AC4 trên một segment về hưu THẬT**, không trên một
+  hàng dựng bằng SQL. **Chủ: Story 2.8.**
+
+- 🟡 **Bốn nhãn của mockup không được dựng — chữ ký #5(a), và chúng có BỐN chủ tách rời.**
+  `data-integrity.html` vẽ mỗi hàng phiên bản kèm một nhãn; bảng `segment_version` có **đúng bốn
+  cột** (`id` · `segment_id` · `target_text` · `created_at`, `schema.rs:460-467`) và
+  doc-comment ngay trên khai bằng chữ rằng cột xuất xứ thuộc 2.7 và cột cặp TM thuộc Epic 7.
+  | Nhãn | Cần năng lực | Chủ |
+  | --- | --- | --- |
+  | `đang dùng` + dòng *"bạn sửa · đã xác nhận"* | xuất xứ FR117 | **Story 2.7** |
+  | `từ bản review` | Review Mode FR94 | **Epic 8** |
+  | `từ AI` | — | **Epic 4** |
+  | `từ TM` | FR58 | **Epic 7** |
+  ⚠️ Nhãn `đang dùng` mang một cái bẫy riêng đã đo: so theo **nội dung** thì hai phiên bản trùng
+  văn bản làm nhãn khớp **nhiều** hàng. Story nào dựng nó phải nhớ theo **id**, không theo nội
+  dung — tức nó cần một cột hoặc một quy ước mới, không chỉ một lượt render.
+
+- 🟡 **Vế DIFF (`So với phiên bản trước`) không được dựng — chữ ký #4(a).**
+  Mockup vẽ `<del>`/`<ins>`; **không AC nào của Story 2.6 đòi diff**. `src-tauri/Cargo.toml:86-89`
+  ghi sẵn cả hai số — `similar` 3.1.1 · `dissimilar` 1.0.11 — và **cố ý không cài cái nào**.
+  🔵 **Chủ cụ thể hơn thứ story ghi:** chú thích tại chỗ nói chốt ở **Story 8.1**, không chỉ
+  *"Giai đoạn 5"* — *"sau khi thử cả hai trên bản review thật"*. Ghi số cụ thể vì một món nợ chủ
+  *"một giai đoạn"* là một món nợ không ai nhận.
+  🔴 Khi diff được dựng: **không** `v-html`. Rust phân tích thành mô hình dữ liệu có cấu trúc,
+  Vue render từ mô hình đó, và mô hình **không có nhánh nào mang HTML** (AD-16).
+  **Chủ: Story 8.1.**
+
+- 🔴 **HỞ THẬT: `is_target_paragraph_end` KHÔNG được khôi phục cùng `target_text`, và bảng không
+  có chỗ nào lưu nó.** Cờ ngắt đoạn của bản dịch (bước di trú 9, Story 2.5d, AD-46) là **dữ liệu
+  riêng của bản dịch** — nó sống trên `segment`, không trên `segment_version`. AC2 nói khôi phục
+  *"văn bản đích"* và **không nói cờ đích**. ⇒ Một lượt khôi phục trả `target_text` về bản cũ
+  nhưng **giữ nguyên cấu trúc đoạn hiện tại**, và với một bản dịch từng ngắt đoạn khác đi thì hai
+  thứ đó **không còn nói cùng một chuyện**.
+  ⚠️ Đây **không** phải một lỗi cài đặt — nó là một khoảng hở **ngữ nghĩa** mà cả AD-31, AD-46 lẫn
+  năm AC của story này đều không nói tới. Ba đường thoát, cả ba đòi một quyết định chứ không một
+  dòng mã: ① thêm cột cờ vào `segment_version` *(một bước di trú, và làm "phiên bản" mang nghĩa
+  rộng hơn "văn bản")* · ② khai bằng chữ rằng khôi phục **chỉ** đụng văn bản · ③ khôi phục cũng
+  hạ cờ về một giá trị mặc định *(mất dữ liệu, đường tệ nhất)*.
+  Story 2.6 làm ①-không, ②-có: ghi mệnh đề vào doc-comment tại chỗ và ghi món nợ này.
+  **Chủ: Ice** *(quyết định ngữ nghĩa, không phải một lượt cài đặt)*.
+
+- 🟡 **Lượt từ chối khôi phục thừa hưởng một bề mặt báo lỗi đang dở.** `editorConfirmError` hiện
+  một chuỗi **cố định**, không đọc `message_key` thật — món nợ đã ghi ở `:2825-2840` (🟡, chủ Ice).
+  Đường khôi phục của story này dựng thêm ba nhánh từ chối *(không tìm thấy · đã về hưu · phiên
+  bản không thuộc segment đó)* và cả ba đi vào đúng bề mặt dở đó.
+  ⚠️ Ghi ra vì nó làm món nợ cũ **nặng thêm**, không phải vì nó là món mới: trước story này có
+  hai lệnh Editor dùng ô lỗi chung, nay là ba. **Chủ: Ice** *(gộp vào món `:2825-2840` đã có)*.
+
+- ⚠️ **Mockup nói phiên bản "thứ sáu" xuất hiện NGAY lúc khôi phục; chữ ký #1(a) làm nó xuất hiện
+  MUỘN HƠN MỘT NHỊP.** `data-integrity.html:226-229` viết đậm *"Khôi phục là tạo phiên bản
+  mới… đẩy nó lên thành phiên bản thứ sáu"*. Bảng Rule của AD-31 (`ARCHITECTURE-SPINE.md:374-381`)
+  có **đúng sáu hàng và không hàng nào là "khôi phục"** — đây là một **mâu thuẫn đo được giữa hai
+  tài liệu quy hoạch**, không một chỗ đọc nhầm.
+  Ice ký **#1(a)**: AD-31 không sửa một chữ, AC2 đúng nguyên văn, và lời hứa *"lịch sử chỉ dài
+  thêm, không bao giờ ngắn đi"* **vẫn giữ** — nó chỉ dài thêm ở **lượt xác nhận kế tiếp**, do
+  chính hàng 2 của AD-31 sinh ra.
+  ⇒ Phần lệch còn lại là **một câu trong mockup nói sai về THỜI ĐIỂM**, không về cơ chế. Dev
+  **không** sửa mockup và **không** sửa `epics.md` — sửa một tài liệu tầng quy hoạch là một lượt
+  riêng của Ice. **Chủ: Ice.**
+
+- ⚠️ **Bẫy đo: một phép `grep` tiền đề có thể tự bắt chính câu nói về nó.**
+  Task 0.6 của Story 2.6 đòi đo lại `grep "merge_segment" src-tauri/src`. Kết quả thô là **1**,
+  không phải 0 — và dòng khớp duy nhất là `core/segment/paragraph.rs:10`, một **doc-comment** viết
+  nguyên văn *"`grep …` trên `src-tauri/src/**` cho **0**"*. Số thật vẫn là **0 đường mã**, nhưng
+  một lượt đọc số thô kết luận ngược, và kết luận ngược đó chặn đúng một quyết định (#8).
+  ⇒ Luật rút ra, áp cho mọi lượt đo tiền đề về sau: **đọc NỘI DUNG dòng khớp, đừng đếm.** Kho này
+  ghi kết quả đo vào chú thích rất dày *(đó là văn hoá có chủ ý)*, nên lớp bẫy này sẽ **gặp lại**.
+  Không có cổng nào canh được nó. **Chủ: không ai — đây là một luật đọc, ghi ra để người sau khỏi
+  vấp lại.**
+
+- ⚠️ **Ca `toISOString()` của `historyTimeLabel` RỖNG NGHĨA trên CI, và CI là nơi duy nhất chạy
+  tự động.** Story 2.6 dựng quy ước định dạng thời gian đầu tiên của kho
+  (`src/panels/segmentHistoryTime.ts`), và phép so ngày của nó phải đọc theo **giờ địa phương**
+  chứ không `toISOString()` — cái sau trả về theo UTC nên nó rẽ sai ở hai chiều ngược nhau tuỳ
+  dấu offset *(offset dương: mốc sáng sớm hôm nay đọc thành "hôm qua"; offset âm: mốc tối muộn
+  hôm qua thôi đọc thành "hôm qua")*.
+  **Đo 2026-08-16:** ca `tests/frontend/segmentHistoryTime.test.ts` bắt được cái bẫy này **trên
+  máy của Ice (UTC+7)** — đỏ-rồi-xanh đã chạy hai lượt. Ca đã được viết để **tự chọn chiều** theo
+  offset đang chạy, nên nó cũng bắt được ở múi giờ âm.
+  🔴 Nhưng ở **UTC đúng** (offset 0) cả hai chiều biến mất và ca **xanh kể cả trên một hàm dùng
+  `toISOString()`**. Runner GitHub Actions chạy **UTC**. ⇒ Mệnh đề này hôm nay được canh **chỉ ở
+  lượt `pre-push` trên máy người chạy**, không ở CI. Ca tự khai điều đó bằng một nhánh
+  `expect(offsetMin).toBe(0)` thay vì giả vờ đã đo.
+  ⚠️ Đường đóng: đặt `TZ` tường minh cho một tệp test *(vitest `environmentOptions` hoặc một
+  `process.env.TZ` đặt trước khi nạp module)*. Chưa làm vì nó là một quyết định về **cấu hình bộ
+  chạy test**, không một dòng trong story này — và đặt `TZ` toàn cục sẽ chạm mọi tệp test khác.
+  **Chủ: một story hạ tầng cổng** *(gộp cùng hai món `check-i18n` đã ghi ở trên)*.
+
+- ⚠️ **Sau Story 2.6, `src/config/segment.ts` có HAI loại adapter, và một kho nửa này nửa kia là
+  một kho không đoán được luật.** Sáu adapter cũ *(`splitChapterIntoSegments` ·
+  `readOpenChapterSegments` · `saveSegmentTargets` · `confirmSegment` · `setSegmentOmitted` ·
+  `setSegmentParagraphEnd`)* **tin** payload thành công và chỉ kiểm hình dạng của **lỗi**
+  (`isIpcError`). Adapter `readSegmentHistory` của story này **kiểm cả payload** lúc chạy
+  (`isSegmentVersionArray`), và biến một hình dạng sai thành một trạng thái **phân biệt được**.
+  Lý do lệch: nó đóng một lớp lỗi **đã xảy ra thật** — bản đầu Story 2.5 quên thêm `status` vào
+  struct Rust và vào câu `SELECT` ⇒ `undefined` phía webview ⇒ `isConfirmed` luôn `false` **trên
+  sản phẩm thật**, trong khi 74/74 test frontend vẫn xanh vì fixture chép tay có sẵn cột.
+  ⚠️ Nhưng lý do đó áp cho **cả sáu** adapter kia y hệt, nên lượt này đóng lỗ ở **hai** chỗ và để
+  hở ở **sáu**. Câu hỏi thật là một câu hỏi **quy ước**: nâng cả sáu lên, hay hạ hai cái này
+  xuống và tin vào lưới Rust + e2e. Không cổng nào canh sự nhất quán này. **Chủ: Ice.**
+
+## Deferred from: code review of 2-6-lich-su-phien-ban-segment-va-khoi-phuc (2026-08-16)
+
+- 🟡 **Không chỉ dấu nào nói *"phiên bản nào đang được dùng"* — và đường suy từ nội dung đã bị
+  BÁC, không phải chưa nghĩ tới.** Bản dựng đầu của Story 2.6 gắn một viền trái
+  `--color-primary` cho hàng có `target_text` trùng văn bản đang dùng (`hist-current`), kèm một
+  lời tự biện minh rằng *"nó cố ý không mang chữ"*. Code review 2026-08-16 bác lập luận đó và
+  **Ice chốt gỡ**: đây **chính là** phép so mà bảng của Quyết định #5 gọi tên là *"suy được,
+  nhưng KHÔNG AN TOÀN — hai phiên bản trùng văn bản thì nhãn khớp NHIỀU hàng"*, và chữ ký (a) là
+  *"không nhãn nào"*. Lập luận *chữ thì cấm, màu thì không* không đứng được: chuỗi thao tác
+  **ký → sửa → hoàn tác về bản cũ** là chuyện thường ngày và nó sinh hai hàng trùng văn bản ⇒ cả
+  hai cùng sáng viền, tức chỉ dấu **nói dối** ở đúng ca nó được dựng để phục vụ.
+  ⇒ Vế này đóng được ở **Story 2.7**: cột xuất xứ (FR117) làm câu hỏi *"hàng nào đang dùng"* trả
+  lời được theo **`id`** chứ không theo **nội dung** — tức đúng đường (b) mà Quyết định #5 mô tả
+  là an toàn nhưng chưa dựng được ở 2.6. **Chủ: Story 2.7** *(cùng chủ với bốn nhãn kia)*.
+
+- ⚠️ **`restore_segment_version` KHÔNG hỏi lại khi văn bản hiện tại là chuỗi RỖNG**, và vế miễn
+  trừ đó (`!current_text.is_empty()`, `segment.rs`) nay đã có lý do viết ra tại chỗ nhưng
+  **chưa có một ca hợp đồng nào** dựng tình huống. Hôm nay vô hại — ô rỗng không có chữ nào của
+  người dùng để mất, và bỏ vế này đi thì mọi câu **chưa dịch** đều bị hỏi một câu vô nghĩa ở
+  lượt khôi phục đầu tiên *(mà một hộp thoại hỏi thừa là thứ làm người dùng bấm "đồng ý" theo
+  phản xạ, tức làm chốt THẬT mất tác dụng)*. 🔴 Nhưng mệnh đề *"rỗng = không có gì để mất"* hết
+  đúng vào ngày **"rỗng" mang một nghĩa RIÊNG** khác *"chưa dịch"* — ví dụ một lượt xoá sạch có
+  chủ ý ở Review Mode, hay một segment về hưu do gộp/tách. **Chủ: Story 2.8** *(gộp/tách segment
+  — chỗ gần nhất mà "rỗng" có thể tách nghĩa)*.

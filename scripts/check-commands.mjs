@@ -232,13 +232,24 @@ const TS_FLOOR = 30 // số THẬT 2026-08-14 (sau Story 2.5b): 37 tệp `.ts` �
  */
 // 🔵 ĐẾM LẠI 2026-08-14 (Story 2.5b): **+1** (`editor.next_untranslated`) và **−1**
 // (`layout.toggle_*` từ bốn xuống ba, theo `PANEL_SUFFIXES`) ⇒ 34 → **35**. Giữ sàn 29.
-// 🔵 ĐO LẠI 2026-08-16 (Story 2.5d), không chép: **39** command thật — 33/39 = 84,6 %.
-// Dòng cũ ghi *"số THẬT 2026-08-14 (sau Story 2.5b): 35 command — 29/35 = 82,9 %"*, và nó đã
-// hết đúng **hai** lần kể từ đó: 2.5c thêm `editor.omit_segment`/`editor.restore_segment`
-// (→ 37) mà không nâng sàn, 2.5d thêm `editor.end_target_paragraph`/`editor.join_target_paragraph`
-// (→ 39). ⚠️ Một sàn không được nâng **không làm cổng đỏ** — nó chỉ lặng lẽ mất ý nghĩa, vì
-// sàn là **cận dưới**: 29 trên 39 là 74 %, tức mười command có thể biến mất mà cổng vẫn xanh.
-const COMMAND_FLOOR = 33
+// 🔵 ĐO LẠI 2026-08-16 (Story 2.6), không chép: **41** command thật — 35/41 = 85,4 %.
+// Dòng cũ ghi *"ĐO LẠI 2026-08-16 (Story 2.5d): 39 command — 33/39 = 84,6 %"*, và nó hết đúng
+// khi 2.6 thêm `history.open`/`history.close` (→ 41).
+// 🔵 **SỬA 2026-08-16 (code review Story 2.6): con số 41 ở dòng trên SAI, số thật là 44.**
+// Story 2.6 đăng ký **năm** command `history.*` (`commands/index.ts:827-834`), không hai —
+// dòng trên chỉ đếm `open`/`close` rồi bỏ quên `restore`/`confirm_restore`/`cancel_restore`.
+// Đo bằng cách chạy chính cổng này: `OK   44 command`. ⇒ 35/44 = **79,5 %**, tức sàn đã rơi
+// **dưới** dải 80–85 % và chín command có thể biến mất mà cổng vẫn xanh. Sàn nay là **37**
+// (37/44 = 84,1 %).
+// 🔴 Bài học đắt hơn con số: dòng sai nằm ngay dưới một dòng tự xưng *"không chép"*, trong một
+// story mà luật đo của nó là *"đo lại, đừng chép"*. Một phép đo **tự khai** là đã đo vẫn phải
+// đối chứng bằng cách CHẠY thứ nó đo — `npm run check:commands` in ra con số thật, và nó rẻ.
+// ⚠️ Một sàn không được nâng **không làm cổng đỏ** — nó chỉ lặng lẽ mất ý nghĩa, vì sàn là
+// **cận dưới**.
+// 🔴 Khuôn này đã lặp lại **ba** lượt liên tiếp (2.5c · 2.5d · 2.6) và mỗi lượt phải sửa bằng
+// tay. Không cổng nào canh chính cái sàn này — nó là một con số người phải nâng, và cái duy
+// nhất nhắc là dòng chú thích đang đọc.
+const COMMAND_FLOOR = 37
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.

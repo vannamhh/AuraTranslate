@@ -43,6 +43,7 @@ import AttributionOverlay from './AttributionOverlay.vue'
 // Story 2.3 — thanh trạng thái, vỏ ứng dụng (Quyết định #5).
 import StatusBar from './StatusBar.vue'
 import ShortcutsOverlay from './ShortcutsOverlay.vue'
+import SegmentHistoryOverlay from './SegmentHistoryOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -271,6 +272,9 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 1.21 · AC1–AC13 — cùng khuôn: lớp phủ tự quản `v-if` qua `shortcutsOverlayIsOpen`. -->
     <ShortcutsOverlay />
+
+    <!-- Story 2.6 · FR101 · AC1–AC3 — cùng khuôn: lớp phủ tự quản `v-if` qua `historyIsOpen`. -->
+    <SegmentHistoryOverlay />
   </main>
 </template>
 

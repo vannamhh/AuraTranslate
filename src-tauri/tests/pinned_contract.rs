@@ -163,16 +163,22 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     // 🔵 CAP NHAT 2026-08-15 (Story 2.5c): sau buoc → BAY, dich 7 → 8 (cot `is_omitted`).
     // 🔵 CAP NHAT 2026-08-16 (Story 2.5d): bay buoc → TAM, dich 8 → 9 (cot
     //    `is_target_paragraph_end`, FR134/AD-46).
+    // 🔵 CAP NHAT 2026-08-16 (Story 2.6): tam buoc → CHIN, dich 9 → 10 (index
+    //    `idx_segment_version_segment_created`, FR101). ⚠️ Buoc 10 la buoc dau tien KHONG
+    //    them mot cot nao — no dung mot cau truc dan xuat. Hai con so duoi day van chi la
+    //    NEO: menh de cua ca nay khong doi mot chu, no canh viec `pinned_entry` khong nam
+    //    trong `project.db`.
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        8,
-        "`PROJECT_MIGRATIONS` phai co tam buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
-         6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d"
+        9,
+        "`PROJECT_MIGRATIONS` phai co chin buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
+         6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
+         10 cua Story 2.6"
     );
     assert_eq!(
         opened.store.schema_version(),
-        9,
-        "mot `project.db` moi phai dung o phien ban 9 (so 4 da chay)"
+        10,
+        "mot `project.db` moi phai dung o phien ban 10 (so 4 da chay)"
     );
 
     let has_table: i64 = opened

@@ -98,6 +98,17 @@ import {
   resetShortcut,
   unassignShortcut,
 } from './config/shortcutsState'
+// ── Story 2.6 — lịch sử phiên bản segment ────────────────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `dictSourcesState.ts`: `segmentHistoryState.ts` dùng `ref`
+// của Vue và gọi `@tauri-apps/api` xuyên qua `config/segment.ts`.
+import {
+  cancelPendingRestore,
+  closeSegmentHistory,
+  confirmPendingRestore,
+  openSegmentHistory,
+  restoreAimedVersion,
+} from './panels/segmentHistoryState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -329,6 +340,13 @@ async function boot(): Promise<void> {
       captureShortcut,
       unassignShortcut,
       resetShortcut,
+      // Story 2.6 · FR101 · AC1 — HAI handler tĩnh, không một lệnh bập bênh. Câu đang nhắm
+      // đọc lúc chạy, không qua một tham số `segment_id`.
+      openSegmentHistory,
+      closeSegmentHistory,
+      restoreAimedVersion,
+      confirmPendingRestore,
+      cancelPendingRestore,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
