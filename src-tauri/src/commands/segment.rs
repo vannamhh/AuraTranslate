@@ -1201,10 +1201,25 @@ pub const TRANSLATION_ORIGIN_SELF: &str = "self";
 pub const TRANSLATION_ORIGIN_OTHER: &str = "other";
 /// FR117 *"nhập từ tài liệu song ngữ"* (FR115, Epic 6). Trục nhị phân FR118: **của người khác**.
 ///
-/// ⚠️ Chưa đường mã nào **ghi** giá trị này hôm nay, và nó vẫn ở đây có chủ ý: [`is_translation_origin`]
-/// phải nhận nó, nếu không một `.atproj` do một bản tương lai ghi sẽ bị chính bản này gọi là
-/// hỏng. Đây **không** phải một nhánh chết kiểu *"giữ phòng khi đổi ý"* — nó là vế **đọc** của
-/// một danh mục mà AD-47 ⑥ khai là ĐÓNG.
+/// ⚠️ Chưa đường mã nào **ghi** giá trị này hôm nay, và nó vẫn ở đây có chủ ý: nó là cái tên
+/// mà Epic 6 (FR115) sẽ dùng, khai sẵn để Epic đó không tự đặt một tên riêng.
+///
+/// 🔵 **SỬA 2026-08-16 (code review) — bản trước khai một lớp bảo vệ KHÔNG TỒN TẠI.** Nguyên
+/// văn nó viết: *"[`is_translation_origin`] phải nhận nó, nếu không một `.atproj` do một bản
+/// tương lai ghi sẽ bị chính bản này gọi là hỏng"*. Không có `fn is_translation_origin` nào
+/// trong kho — `grep` toàn cây trả về đúng dòng chú thích đó và không gì khác. ⇒ Câu ấy mô tả
+/// một vế **đọc** chưa ai viết, và nó sai ngay từ lúc được gõ ra.
+///
+/// 🔴 **Vế đọc đó hôm nay KHÔNG có, và đây là hình dạng thật của khoảng hở:** [`TRANSLATION_ORIGINS`]
+/// chỉ được một chỗ duy nhất đọc — ca `the_translation_origin_catalogue_matches_ad_47_row_by_row`
+/// — nên nó canh **giá trị khai trong mã nguồn**, không canh **giá trị đi vào cột**. Đường đọc
+/// sản phẩm (`SELECT ... translation_origin` trong [`confirm_segment`]) lấy thẳng ra `String`,
+/// không đối chiếu danh mục. Một `.atproj` mang giá trị lạ đi qua sạch. Ghi nợ có chủ thay vì
+/// dựng một hàm ở đây: một phép kiểm lúc chạy phải khai **nó làm gì khi gặp giá trị lạ**
+/// *(từ chối mở? hạ về `''`? báo lỗi?)*, và đó là một quyết định lược đồ, không một dòng mã.
+///
+/// ⚠️ Và không cổng nào bắt được chính lỗi vừa sửa: kho **không** chạy `cargo doc` với
+/// `rustdoc::broken_intra_doc_links` ở bất kỳ đâu trong 11 cổng, CI, hay `pre-push`.
 pub const TRANSLATION_ORIGIN_BILINGUAL_IMPORT: &str = "bilingual_import";
 
 /// Danh mục **ĐÓNG** của `segment.translation_origin` — AD-47 ⑥.
@@ -1369,6 +1384,12 @@ enum ConfirmReject {
 /// AD-47 ① định nghĩa mốc là *"bản do lượt ghi **không-phải-người-dùng** gần nhất đặt"* — hôm
 /// nay lượt nạp Chương là lượt ghi loại đó **duy nhất đã cài**, nên mốc là bản lúc nạp.
 ///
+/// 🔵 **Phép so đó cắt khoảng trắng bao ngoài cả hai vế** — chữ ký thứ **mười** của Ice
+/// (2026-08-16, từ một lượt code review). AC4 viết *"so văn bản đích hiện tại với bản lúc
+/// nạp"* và chữ đó là so **nguyên văn**; `trim()` đọc rộng mệnh đề ấy ra. Lý do đầy đủ, kèm
+/// cái giá và vế **chưa** phủ *(chuẩn hoá Unicode)*, ở ngay chỗ dùng — tìm `🔵 Code review
+/// 2026-08-16` trong thân hàm.
+///
 /// 🔴 **Vì sao tham số này đến từ webview chứ không đọc ở đây** — Quyết định #2 đường (b),
 /// Ice ký 2026-08-16. Mốc **không tồn tại trên đĩa**: đĩa bị ghi đè dần theo từng lượt flush
 /// AD-35, nên một phép so với đĩa **phá AC5** *(gõ `AB` rồi hoàn tác về `A`: mỗi lượt flush
@@ -1490,7 +1511,36 @@ pub fn confirm_segment(
         // xu di cung mot thao tac logic, va o day chuyen tiep trang thai la thao tac do. Hai
         // cau la hai cho de mot luot sua sau nay chi cham mot nua — dung khuon "chu ky thi
         // hanh dung MOT NUA" da lap bon lan o 2.5b va 2.6.
-        let origin = if target_text != text_at_load || translation_origin.is_empty() {
+        //
+        // 🔵 Code review 2026-08-16 (chu ky thu MUOI cua Ice) — `trim()` HAI VE, va no doi
+        //    cach doc AC4.
+        //
+        // Ban dau day la `target_text != text_at_load`, mot phep so `String` THO. Nhanh ② cach
+        // day 22 dong da phai doi tu `is_empty()` sang `trim().is_empty()` o mot luot code
+        // review TRUOC (2026-08-14) vi mot ly do da DO duoc: `contenteditable` de lai ky tu vo
+        // hinh (`U+00A0`, khoang trang cuoi dong) ma `str::is_empty()` khong thay. Cung mot
+        // nguon hiem hoa do di thang vao nhanh nay va o day no KHONG duoc va — nen mot cau
+        // nguoi dung chi DUYET, khong sua mot chu, lech moc dung mot ky tu vo hinh va nhan
+        // nhan `self`.
+        //
+        // ⚠️ Cai gia, ghi ra thay vi giau: AC4 viet "so van ban dich hien tai voi ban luc nap",
+        // va chu do la so NGUYEN VAN. `trim()` doc rong menh de ay ra — mot khoang trang cuoi
+        // nguoi dung CO Y go THOI duoc coi la mot luot sua. Ice chot doi do 2026-08-16.
+        //
+        // ⚠️ Chua phu, va phai noi ra thay vi de nguoi sau tuong da xet: chuan hoa Unicode
+        // (NFC/NFD). Hai chuoi trong GIONG HET nhau tren man hinh van khac nhau tung byte neu
+        // mot ben dung ky tu dung san va ben kia dung dau ket hop. Doi do can mot phu thuoc
+        // MOI (`unicode-normalization`) nen no phai di qua cua ra giay phep NFR15 truoc — ghi
+        // no vao so no, khong tien tay cai.
+        //
+        // ⚠️ GIOI HAN THAT cua ca phep va nay, do 2026-08-16: hom nay no khong doi mot ket qua
+        // nao. Tap gia tri that tren dia la `{'', 'self'}` (buoc 11 backfill `confirmed`→
+        // `self`, `insert_segments` ghi `''`, chinh cau `UPDATE` duoi day ghi `self`), ma `''`
+        // roi vao ve `is_empty()` ⇒ `self`, con `'self'` thi HAI nhanh cho cung ket qua. ⇒ Ban
+        // va nay la mot lop chan dat TRUOC cho Epic 4/6/7/8 — Epic dau tien sinh ra `other`
+        // hay `bilingual_import` la Epic dau tien phep so nay co he qua.
+        let origin = if target_text.trim() != text_at_load.trim() || translation_origin.is_empty()
+        {
             TRANSLATION_ORIGIN_SELF
         } else {
             translation_origin.as_str()

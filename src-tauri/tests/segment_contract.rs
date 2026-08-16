@@ -5050,6 +5050,66 @@ fn typing_and_undoing_back_to_the_mark_counts_as_untouched() {
     cleanup(&root);
 }
 
+/// 🔵 **Code review 2026-08-16 — một `U+00A0` do `contenteditable` để lại KHÔNG phải một lượt
+/// sửa.** Chữ ký thứ **mười** của Ice.
+///
+/// 🔴 Ca này canh đúng nửa mà lượt rà tìm ra là còn hở: nhánh ② của `confirm_segment` đã được
+/// một lượt code review TRƯỚC (2026-08-14) đổi từ `is_empty()` sang `trim().is_empty()` vì
+/// `contenteditable` để lại ký tự vô hình — nhưng nhánh ④ *(phép so mốc)* vẫn so `String` THÔ,
+/// nên cùng một ký tự vô hình đó làm một câu người dùng **chỉ duyệt** mang nhãn *tôi dịch*.
+///
+/// ⚠️ **Vì sao fixture phải dùng `TRANSLATION_ORIGIN_OTHER`, ghi ra vì đây là chỗ ca này rất
+/// dễ thành một ca XANH GIẢ:** với `''` hay `'self'` — hai giá trị **duy nhất** một `.atproj`
+/// thật mang hôm nay — hai nhánh của phép phân xử cho **cùng** kết quả `self`, nên ca sẽ xanh
+/// bất kể có `trim()` hay không. Chỉ một xuất xứ **phi-`self`** mới phân biệt được hai nhánh.
+/// ⇒ Ca này đo một đường **chưa tới được trên sản phẩm**, và nó có mặt vì Epic 4/6/7/8 sẽ mở
+/// đường đó ra — đúng vai *"lớp chặn đặt TRƯỚC"* mà doc-comment ở chỗ dùng đã ghi.
+///
+/// Chạy đỏ-rồi-xanh: bỏ `.trim()` ở một trong hai vế của `segment.rs`, ca này phải ĐỎ.
+#[test]
+fn a_stray_invisible_space_is_not_an_edit() {
+    use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_OTHER;
+
+    let root = temp_dir("origin-nbsp");
+    let opened = create_work_from_text(&root, "Khoang trang vo hinh", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = read_all_segment_rows(&opened);
+    let (id, chapter_id) = (rows[0].0, rows[0].1);
+
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = ?1, translation_origin = ?2 WHERE id = ?3",
+                ("Ban goc.", TRANSLATION_ORIGIN_OTHER, id),
+            )?;
+            Ok(())
+        })
+        .expect("dung fixture that bai");
+
+    // `U+00A0` (NO-BREAK SPACE) cuoi dong + mot khoang trang thuong. Day la thu `contenteditable`
+    // de lai khi tieu diem ra vao mot o, KHONG phai thu nguoi dung go.
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban goc.\u{00A0} ")])
+        .expect("luot flush that bai");
+
+    // Moc van la ban LUC NAP, khong mang ky tu vo hinh nao.
+    confirm_segment(Some(&opened), id, "Ban goc.").expect("xac nhan that bai");
+
+    assert_eq!(
+        read_origin(&opened, id),
+        TRANSLATION_ORIGIN_OTHER,
+        "mot `U+00A0` do contenteditable de lai KHONG phai mot luot sua. So THO o day gan nhan \
+         `self` cho mot cau nguoi dung chi DUYET, va nhan sai do di vinh vien vao kho TM cua \
+         Epic 7 -- `str::trim()` cat theo `char::is_whitespace` cua Unicode nen no phu `U+00A0`"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
 /// **AC6 — xác nhận lại một câu ĐÃ ký không ghi một byte nào, kể cả xuất xứ.**
 ///
 /// Nhánh ③ của `confirm_segment` (AC13 của Story 2.5) trả về **trước** nhánh chuyển tiếp, nên

@@ -3908,3 +3908,60 @@ mục nào mồ côi.
   ⚠️ **Bài học phương pháp, ghi vì dev vừa mắc:** đừng chạy việc nặng song song với một bộ đo
   **thời gian thực trên engine thật**. Bộ đo đó không phân biệt được *"sản phẩm hỏng"* với *"máy
   bận"*, nên mọi lượt đỏ nó cho đều dẫn tới một cuộc chẩn đoán vô ích.
+
+## Deferred from: code review of 2-7-xuat-xu-ban-dich-cap-segment (2026-08-16)
+
+- ⚠️ **Không cổng TỰ ĐỘNG nào canh hình dạng dây `textAtLoad` ↔ `text_at_load`** — Blind Hunter
+  nêu độc lập, và phép rà xác nhận: khuôn hai lớp làm hàm thuần `confirm_segment`
+  (`segment.rs:1407`) được `cargo test` gọi thẳng, **bỏ qua** `wire::confirm_segment`
+  (`:2021`, cần `AppHandle` nên `tests/**` không gọi được). ⇒ Lượt đổi hình dạng dây của story
+  này đi qua **382 ca Rust + 133 ca vitest đều xanh** và chỉ đỏ ở một spec e2e — mà e2e **cố ý
+  nằm ngoài `pre-push`** (`project-context.md` §*Hai thứ CỐ Ý nằm ngoài pre-push*).
+  🔵 **KHÔNG mở món mới** — đây là cùng một lỗ với món *"Rust TIN mốc do webview khai"* ngay
+  trên (mục Story 2.7) và với vụ cột `status` của Story 2.5. Ghi ở đây vì lượt rà làm rõ **hình
+  dạng** của nó: cái hở không phải *"thiếu một ca test"* mà là *"tầng `wire` không có đường
+  nghiệm thu tự động nào"*, nên một ca test thêm vào `segment_contract.rs` **không đóng được**.
+  ⚠️ **Chưa đo:** liệu một ca ở tầng `tests/**` có đọc được danh sách tham số của
+  `#[tauri::command]` mà không dựng webview hay không. Đó là phép đo đầu tiên chủ nó phải chạy.
+  **Chủ: story nào dựng bề mặt xác nhận thứ hai** *(nối tiếp món cũ, không mở món thứ ba)*.
+
+- 🔴 **Mốc ghim theo PHIÊN panel, xuất xứ đọc SỐNG từ đĩa — hai thứ lệch pha, và vòng ký thứ
+  hai trong cùng phiên không trả lại được xuất xứ gốc.** Edge Case Hunter nêu; phép rà xác nhận
+  đường đi **có thật về cấu trúc**: `editorPanelState.ts:795` lấy mốc từ `segments.value`, thứ
+  ghim **lúc nạp** và không đường flush nào chạm — còn bước ③ ngay dưới **cố ý** chỉ vá `status`
+  vào ảnh chụp, **không** chạm `target_text`. Trong khi đó `segment.rs:1493` đọc
+  `translation_origin` **sống** trong chính giao dịch.
+  ⇒ Đường đi: nạp một câu `target = A · origin = other` → sửa `A→B` *(flush hạ về `draft` ở
+  `segment.rs:1873`)* → ký ⇒ `self` **đúng**, đĩa nay `B · self` → sửa ngược `B→A` → ký lại.
+  Mốc **vẫn là `A`** *(chưa ai làm mới nó)*, văn bản **là `A`** ⇒ *"y hệt"* ⇒ giữ nguyên ⇒ giữ
+  `self`. Nhưng đọc theo AC3 + AC5 *(hoàn tác về nguyên trạng ⇒ coi như không sửa ⇒ giữ xuất xứ
+  **lúc nạp**)* thì câu trả lời đúng là `other`. Xuất xứ gốc bị xoá ở vòng ký thứ nhất và
+  **không vòng hoàn tác nào lấy lại được**.
+  ⚠️ **Đo được, và nó hạ mức món này xuống:** đường **chưa tới được hôm nay** — tập giá trị thật
+  trên đĩa là `{'', 'self'}`, mà cả hai đều cho `self` ở mọi nhánh. Nó kích hoạt câm lặng đúng
+  vào Epic đầu tiên ghi `other`/`bilingual_import`.
+  🔴 **Câu hỏi phải trả lời trước khi sửa, không phải một dòng mã:** *"xuất xứ lúc nạp"* nghĩa
+  là lúc nạp **phiên panel**, hay lúc bắt đầu **vòng draft hiện tại**? Hai cách đọc đều đứng
+  được, và chúng cho hai kết quả khác nhau ở đúng ca trên. **Chủ: Epic đầu tiên sinh ra một xuất
+  xứ phi-`self`** *(Epic 6 FR115 hoặc Epic 4, tuỳ cái nào tới trước)*.
+
+- ⚠️ **Vế ĐỌC của danh mục đóng `translation_origin` không tồn tại** — phát hiện ở lượt rà
+  2026-08-16, cả Blind Hunter lẫn Acceptance Auditor cùng chỉ vào nó độc lập. Doc-comment của
+  `TRANSLATION_ORIGIN_BILINGUAL_IMPORT` khai một hàm `is_translation_origin` *"phải nhận"* giá
+  trị lạ; `grep` toàn kho: **0 kết quả**, hàm đó chưa từng được viết. Chú thích **đã sửa tại
+  chỗ** (`segment.rs:1204`), nhưng khoảng hở nó mô tả thì còn: `TRANSLATION_ORIGINS` chỉ có một
+  chỗ đọc là **một ca test**, nên nó canh *giá trị khai trong mã nguồn*, không canh *giá trị đi
+  vào cột*. Một `.atproj` do một bản tương lai ghi mang giá trị thứ năm đi qua sạch.
+  🔴 Đóng nó **không** phải thêm một hàm: một phép kiểm lúc chạy phải khai trước **nó làm gì khi
+  gặp giá trị lạ** — từ chối mở *(cùng khuôn "lược đồ mới hơn ⇒ không bao giờ ghi vào")*, hạ về
+  `''`, hay báo lỗi. Đó là một quyết định lược đồ. **Chủ: Ice.**
+  ⚠️ Kèm một mệnh đề đo được, ghi vì nó rộng hơn món này: kho **không** chạy `cargo doc` với
+  `rustdoc::broken_intra_doc_links` ở bất kỳ đâu trong 11 cổng · CI · `pre-push` — nên **mọi**
+  liên kết intra-doc gãy trong kho hôm nay đều im lặng. Chính lỗi vừa sửa là ca đầu tiên.
+
+- 🟡 **Chuẩn hoá Unicode (NFC/NFD) chưa phủ ở phép so mốc FR117.** Chữ ký thứ mười của Ice
+  (2026-08-16) đưa `trim()` vào cả hai vế của `segment.rs:1493`, và nó phủ khoảng trắng bao
+  ngoài — **không** phủ hai chuỗi trông giống hệt nhau trên màn hình nhưng khác nhau từng byte
+  vì một bên dùng ký tự dựng sẵn còn bên kia dùng dấu kết hợp. Phủ nốt vế đó cần một phụ thuộc
+  **MỚI** (`unicode-normalization`), nên nó phải đi qua **cửa rà giấy phép NFR15 ba bước** trước
+  — không tiện tay cài. **Chủ: Ice** *(cùng hạng với các quyết định phụ thuộc khác)*.

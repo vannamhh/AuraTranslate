@@ -4,7 +4,7 @@ baseline_commit: 440c6d5cb079ea8212eecbd64c8f03e8e8c13f34
 
 # Story 2.7: Xuất xứ bản dịch cấp segment
 
-Status: review
+Status: done
 
 **Epic:** 2 — Biên tập theo segment · **Covers:** FR117
 **Story trước:** 2.6 (done 2026-08-16) · **Story sau:** 2.8 (backlog)
@@ -454,6 +454,25 @@ commit **riêng** trước dòng mã đầu tiên — Ice chốt 2026-08-16, đ�
 đọc được một mình"*. Commit `5a7e007`. ⇒ **Baseline thật của diff story này là `5a7e007`**, còn
 `baseline_commit` ở frontmatter giữ nguyên `440c6d5` *(mốc số đo, không mốc diff)*.
 
+🔵 **CHỮ KÝ THỨ MƯỜI — 2026-08-16, từ lượt code review ba tầng, SAU khi story chuyển `review`.**
+
+**Ice chốt: `trim()` cả hai vế của phép so mốc** (`segment.rs:1493`).
+
+Lượt rà tìm ra nhánh ② *(`target_text.trim().is_empty()`)* và nhánh ④ *(`target_text !=
+text_at_load`)* cách nhau 22 dòng mà **xử lý khác nhau cùng một nguồn hiểm hoạ**: nhánh ② đã
+được một lượt code review TRƯỚC (2026-08-14) vá vì `contenteditable` để lại `U+00A0`; nhánh ④
+thì chưa ai xét.
+
+🔴 **Đây là một lượt đọc rộng AC4, nên nó phải được viết ra chứ không lặng lẽ vào mã.** AC4
+viết *"so văn bản đích hiện tại với bản lúc nạp"* và chữ đó là so **nguyên văn**. Sau chữ ký
+này, một khoảng trắng bao ngoài — kể cả do người dùng **cố ý** gõ — **thôi** được coi là một
+lượt sửa. Bảy AC còn lại không đổi.
+
+⚠️ **Vế CHƯA phủ, ghi ra thay vì để người sau tưởng đã xét:** chuẩn hoá Unicode (NFC/NFD). Hai
+chuỗi giống hệt nhau trên màn hình vẫn khác nhau từng byte nếu một bên dùng ký tự dựng sẵn còn
+bên kia dùng dấu kết hợp. Phủ nốt cần một **phụ thuộc mới** ⇒ phải qua cửa NFR15 ba bước ⇒ ghi
+nợ, **chủ: Ice**.
+
 ### Debug Log References
 
 #### Ⓐ Bốn phép tự kiểm ĐỎ-RỒI-XANH ở tầng Rust (Task 6.4)
@@ -708,6 +727,41 @@ mốc là một **chỗ đọc mới** của một bất biến đã có tên v�
 | 2026-08-16 | Biến thật = **tải CPU do chính tôi tạo**. Chạy lại nhánh trên máy rảnh: **8/8**. Đã chẩn đoán |
 | 2026-08-16 | ✅ Ice duyệt **tên cột `translation_origin`** — chữ ký thứ chín, ngoài tám quyết định của Task 0 |
 | 2026-08-16 | Story chuyển sang `review` |
+| 2026-08-16 | **Code review BA TẦNG** (Blind Hunter · Edge Case Hunter · Acceptance Auditor, song song, không tầng nào thấy tầng kia): 9 phát hiện thô ⇒ 1 quyết định · 2 vá · 1 nợ · 3 loại |
+| 2026-08-16 | ✅ Ice duyệt **`trim()` cả hai vế phép so mốc** — chữ ký thứ **mười**, và nó **đọc rộng AC4** |
+| 2026-08-16 | Ba bản vá đã áp; `cargo test --locked` **383/0** · vitest 133/133 · 11 cổng · build. Story chuyển sang `done` |
 
 ### Review Findings
+
+**Lượt rà ba tầng 2026-08-16** — Blind Hunter · Edge Case Hunter · Acceptance Auditor, chạy song song, không tầng nào thấy kết luận của tầng kia. 9 phát hiện thô ⇒ 1 quyết định · 2 vá · 1 nợ · 3 loại (2 trùng nhau đã gộp).
+
+- [x] [Review][Decision] ✅ **ICE CHỐT 2026-08-16 — `trim()` cả hai vế** *(chữ ký thứ mười, ghi ở `§Chữ ký của Ice`)*. Đã vá `segment.rs:1493` + doc-comment nêu lý do, cái giá, và vế chưa phủ + ca `a_stray_invisible_space_is_not_an_edit` **đỏ-được đã đo**. Vế Unicode NFC/NFD ghi nợ, chủ Ice. — **Phép so mốc ở nhánh ④ là so THÔ, trong khi nhánh ② ngay trên nó đã phải `trim()` cho cùng lớp hiểm hoạ** — `segment.rs:1493` viết `target_text != text_at_load`, so `String` byte-với-byte. `segment.rs:1471` thì viết `target_text.trim().is_empty()`, và doc-comment 🔵 của nó ghi lý do bằng chữ: *"một `U+00A0` do `contenteditable` để lại KHÔNG rỗng theo `str::is_empty()`"* — tức chính kho đã đo được rằng `contenteditable` để lại ký tự vô hình. Cùng nguồn hiểm hoạ, vá ở một nhánh, để hở ở nhánh kia. Đường đi: người dùng bấm vào một câu sẵn có, không sửa chữ nào, `contenteditable` để lại một `U+00A0` cuối dòng ⇒ flush ghi xuống đĩa ⇒ `target_text` lệch mốc đúng một ký tự vô hình ⇒ ghi `self` cho một câu người dùng chỉ duyệt. ⚠️ **Hôm nay hệ quả BẰNG KHÔNG và phải nói ra**: tập giá trị thật trên đĩa là `{'', 'self'}` *(bước 11 backfill `confirmed`→`self`, `insert_segments` ghi `''`, `confirm_segment` ghi `self`)*, mà `''` đi vào nhánh `is_empty()` ⇒ `self`, còn `'self'` thì hai nhánh cho cùng kết quả. ⇒ Nó **chỉ kích hoạt** khi Epic 4/6/7/8 sinh ra giá trị `other`/`bilingual_import` đầu tiên. Cần Ice chốt vì `trim()` **đổi nghĩa AC4** (*"so văn bản đích hiện tại với bản lúc nạp"* — chữ trong AC là so nguyên văn), và một khoảng trắng cuối do người dùng cố ý gõ thì đúng là một lượt sửa. Trục thứ hai chưa ai xét: chuẩn hoá Unicode NFC/NFD.
+
+- [x] [Review][Patch] ✅ Doc-comment khai một lớp bảo vệ không tồn tại — `is_translation_origin` chưa từng được viết `[src-tauri/src/commands/segment.rs:1204]`. Đã sửa tại chỗ kèm 🔵 và ngày; khoảng hở thật *(`TRANSLATION_ORIGINS` chỉ một ca test đọc, đường đọc sản phẩm không đối chiếu danh mục)* ghi nợ, **chủ Ice** — đóng nó là một quyết định lược đồ *(gặp giá trị lạ thì từ chối mở? hạ về `''`? báo lỗi?)*, không một hàm.
+- [x] [Review][Patch] ✅ Mốc ghim theo PHIÊN panel còn xuất xứ đọc SỐNG từ đĩa — vòng ký thứ hai trong cùng phiên không trả lại được xuất xứ gốc phi-`self` `[src/panels/editorPanelState.ts:795 + src-tauri/src/commands/segment.rs:1493]`. **Không sửa mã** — đường chưa tới được hôm nay *(đĩa chỉ mang `{'', 'self'}`)*, và câu phải trả lời trước là một câu ngữ nghĩa: *"xuất xứ lúc nạp"* là lúc nạp **phiên panel** hay lúc bắt đầu **vòng draft hiện tại**. Đã ghi nợ kèm đường đi đầy đủ, **chủ: Epic đầu tiên sinh ra một xuất xứ phi-`self`**.
+
+- [x] [Review][Defer] Không cổng tự động nào canh hình dạng dây `textAtLoad` ↔ `text_at_load` — chỉ e2e chạy tay `[src-tauri/src/commands/segment.rs:2021 + src/config/segment.ts:538]` — deferred, pre-existing (đã có chủ trong `deferred-work.md`)
+
+**Ba phát hiện bị loại, ghi ra thay vì im lặng bỏ:**
+
+1. *"Ca `a_freshly_imported_chapter_starts_with_no_translation_origin` xanh cả khi bỏ `?6`"* — **đúng sự thật, và đã được khai bằng chữ ngay tại chỗ** (`segment_contract.rs:5158-5162`) kèm lý do nó vẫn đáng tồn tại (khoá mệnh đề mà Epic 6 sắp phá). Đây là khuôn *"ghi thẳng chỗ YẾU thay vì giấu"* của kho, không phải một điểm mù bị giấu.
+2. *"Chỉ 4/10 ca Rust mới có bằng chứng đỏ-rồi-xanh"* — đọc nhầm phương pháp. Bốn phép tự kiểm đột biến **mã sản phẩm**, không đột biến từng test; hàng *"phép phân xử → `if true`"* cho **2 đỏ / 4 xanh** và hai ca đỏ đó **chính là** AC3 và AC5. Không phát hiện được ca rỗng cụ thể nào.
+3. *"Nhánh `translation_origin.is_empty()` che mọi lỗi tương lai quên đặt xuất xứ"* — rủi ro có thật nhưng **đã ghi nguyên văn** trong `deferred-work.md` mục AD-47 ③: *"Quên vế xuất xứ ⇒ lượt xác nhận kế tiếp ghi tôi dịch cho chữ người dùng chưa gõ, và không cổng nào đỏ"*, kèm chủ cho từng cơ chế. Thêm: phương án thay thế *(để flush tự đặt `origin='self'`)* **phá AC5** — gõ rồi hoàn tác về nguyên trạng vẫn bị flush đóng dấu `self`. Nhánh hiện tại đứng được.
+
+#### Phép tự kiểm ĐỎ-RỒI-XANH của lượt vá này
+
+| Gỡ cái gì | Ca phải đỏ | Đo được |
+|---|---|---|
+| `.trim()` ở vế `target_text` của `segment.rs:1493` | `a_stray_invisible_space_is_not_an_edit` | **1 đỏ / 102 xanh** |
+
+⚠️ **Một bẫy phương pháp gặp thật lúc trả lại bản vá, ghi ra vì nó cho một kết quả sai TRÔNG NHƯ
+thật:** `mv tệp.bak tệp` **giữ nguyên mtime cũ**, nên cargo tưởng không có gì đổi và chạy lại
+**binary đã đột biến** — ca vẫn đỏ sau khi bản vá đã được trả lại, và đọc thẳng thì nó nói *"bản
+vá không có tác dụng"*. `touch` rồi chạy lại: **103/103**. ⇒ Khi phục hồi một tệp trong một lượt
+tự kiểm, dùng `git checkout` hoặc `touch` sau `mv`.
+
+**Nghiệm thu lượt vá (2026-08-16):** 11 cổng npm xanh · `npm run build` *(hai lượt `vue-tsc
+--noEmit` + `vite build`)* xanh · vitest **133/133** · `cargo test --locked` **383 passed / 0
+failed** *(baseline 382, +1 ca mới)* · `segment_contract` **103/103** *(baseline 102)*.
+E2E **không chạy lại** — lượt vá không chạm hình dạng dây, và bộ e2e cố ý nằm ngoài `pre-push`.
 
