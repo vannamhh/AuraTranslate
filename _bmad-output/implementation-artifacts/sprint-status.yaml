@@ -1,5 +1,5 @@
 # generated: 2026-08-03T13:04:45
-# last_updated: 2026-08-15T18:40:00
+# last_updated: 2026-08-16T07:40:00
 # 2026-08-12: Epic 2 mo — story 2.1 chuyen sang ready-for-dev (create-story).
 # 2026-08-12: story 2.2 chuyen sang ready-for-dev (create-story).
 # 2026-08-12: story 2.3 chuyen sang ready-for-dev (create-story).
@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-15T11:30:00
+last_updated: 2026-08-16T07:40:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -401,7 +401,70 @@ development_status:
   # ⚠️ `subgrid` da do ep o ban dich cao 388 px theo cot nguyen van (deferred-work.md:3131-3162).
   #   Story nay them ap luc NGUOC CHIEU — o ban dich nhieu dong day track cao len — mot chieu do
   #   ma phep do cu chua tinh.
-  2-5d-ngat-doan-ban-dich: ready-for-dev
+  # 🔵 2026-08-15 — 2.5d chuyen sang in-progress (dev-story). Baseline do TRUOC khi cham dong
+  #   dau tien, tren HEAD 0069808: cargo test --locked 347/0/5 · vitest 101/101 — KHOP so ghi
+  #   trong story. Toolchain: rustc/cargo 1.97.1 · Node 22.22.2 · npm 10.9.7 · vitest 4.1.10.
+  #   Do lai bon tien de tu NGUON (khong tu ghi chep): PROJECT_MIGRATIONS dich 8 qua bay buoc
+  #   [1,2,3,5,6,7,8] => so ke tiep la **9** · `white-space` trong GridPanel.vue = 0 ket qua ·
+  #   `merge_segment` tren src-tauri/src = 0 ket qua · `EditorPanel.vue` KHONG ton tai.
+  # ✅ 2026-08-16 — 2.5d XONG, chuyen sang `review`. Ice ky SAU quyet dinh cua Task 0
+  #   (#1 -> LAT sang (d) · #2(b) pre-line · #3(c) hai lenh · #4(Ⓑ) ky SAU phep do ·
+  #   #5(c) `is_target_paragraph_end` · #6(b) ham thuan).
+  #   Nghiem thu: 11 cong npm (gom check:scope + check:scope:bundled chay tay) · build ·
+  #   vue-tsc · vitest 102/102 · cargo test 359/0/5 · e2e 7/7 spec, 9/9 ca (8m25).
+  #   Buoc di tru 9 DA TIEU (`segment.is_target_paragraph_end`, DDL+DML trong MOT hang —
+  #   buoc dau tien cua kho lam vay). So ke tiep la **10**. Nguon su that van la
+  #   `PROJECT_MIGRATIONS` (schema.rs), khong phai dong nay.
+  # 🔵 QUYET DINH #1 BI LAT BANG PHEP DO (c) -> (d), va day la lan thu hai trong Epic 2 mot
+  #   chu ky bi chinh ban do cua story lat. Hai so lat no: `A<br>` hien **1 dong** (phai
+  #   `A<br><br>` moi ra 2) o dung ca THUONG NHAT — bam Enter cuoi cau; va duoi
+  #   `white-space: pre-line`, `execCommand('insertLineBreak')` cua chinh WebKit dung mot
+  #   **text node `\n`** (0 phan tu con, textContent = "A\nB"), engine tu them `\n` canh chot.
+  #   => Duong (d) dong AC1 ma `reportEdit`/`restoreEditedText` KHONG sua mot dong.
+  # 🔴 HAI CHU KY RANG NHAU, chua ai viet ra truoc do: hinh dang DOM ma engine dung PHU THUOC
+  #   `white-space` (doi chung: khong pre-line => `<br>` va textContent doc ra "AB"). Tuc
+  #   `pre-line` la TIEN DE VAN HANH cua Quyet dinh #1, khong mot dong CSS trang tri.
+  # 🔴 STORY NOI SAI MOT DIEU KIEN, va do la mot khuyet tat that: Task 5.4 viet "neu Ice chon
+  #   #5(b) thi `INSERT` phai set co dich tuong minh". Sai — buoc 9 backfill cac hang DA CO
+  #   tren dia, con Chuong nhap SAU luot di tru di qua `insert_segments` noi `DEFAULT 0` la
+  #   thu duy nhat cap gia tri. => Voi MOI duong ky, `INSERT` phai set tuong minh, neu khong
+  #   MOI Chuong moi co co dich tat het — ca thuong nhat cua AC2. Do duoc: ca kiem do voi
+  #   [(2,true,false),(3,true,false)] truoc luot va.
+  # 🔵 Quyet dinh #4 ky SAU khi co so, dung nhu duong (c) doi: `padding-bottom` chi o o ban
+  #   dich day track 38,00 -> 46,00 px (o nguyen van CUNG 46) => khuon `.cell.para-end` cua co
+  #   nguon KHONG dung lai duoc cho mot co chi-thuoc-mot-cot. Chi bao la mau duong ke day.
+  # ⚠️ LUAT DUNG (Task 1.3) KHONG kich hoat: bon vong ban do chay, **0** vong bi phep do bac.
+  #   Ba lan doi thuoc la "so that, trat cau hoi" — mot loai khac han, phan biet o §Debug Log Ⓐ.
+  # 🟡 BA AC dong MOT NUA: AC3 (hai ca bien chua co be mat — Story 2.8) · AC4 (duong xuat la
+  #   khung rong — Epic 8) · AC6 (ve "giu nguyen o moi noi khac" dung theo CAU TRUC, khong co
+  #   be mat soan thao thu hai de doi chung).
+  # 🔵 SUA 2026-08-16 (code review): dong tren truoc do viet "ca ba ghi no co chu" — SAI voi
+  #   chinh diff cua no. deferred-work.md luc do co 7 muc, KHONG muc nao la AC6. Luot ra da
+  #   them muc AC6 (chu: Story 8.11). Ba AC nay gio moi that su co chu.
+  # 🔴 CON MOT MON CHO ICE: Task 1.5 — go tieng Viet BANG BO GO roi bam Enter GIUA CAU tren
+  #   may that. `Enter` la phim chot dau cua Telex; neu mot luot chot dau bi luot xuong dong
+  #   an mat thi trieu chung la MAT CHU, khong phai mot loi.
+  # 🔴 MON MOI: `check-i18n.mjs` Kiem A — mot ten the nhac trong COMMENT cua template `.vue`
+  #   lam bo quet bao FAIL o mot comment KHAC cach do 20 dong. Cong DO chu khong xanh, nhung
+  #   no do SAI CHO. Chu: mot story ha tang cong.
+  # 🔵 Bay mon no moi/da giao lai vao deferred-work.md.
+  # ✅ 2026-08-16 — code review BA TANG (Blind Hunter · Edge Case Hunter · Acceptance Auditor),
+  #   khong tang nao truot. 11 phat hien tho ⇒ 9 vet + 1 hoan + 1 loai. Ice ky ba quyet dinh:
+  #   D1(a) lenh TU CHOI kem khoa moi · D2(b) dan GIU `\n` · D3 GIU `--color-primary`.
+  # 🔴 MOT VI PHAM AC3 DANG SONG bi bat, va no KHONG nam trong mon no da ghi: `Mod+Alt+P` BAT
+  #   duoc co dich tren segment CUOI Chuong. Hang rao ca ① cua AD-37 truoc do chi song o duong
+  #   NHAP (`split::mark_paragraph_end`), khong o duong GHI. Da va: khoa `SegmentEndsChapter`,
+  #   chi chan chieu BAT — chieu BO di tiep, vi do la duong duy nhat sua mot hang da sai.
+  # 🔴 MOT CAU TRONG CHINH TEP NAY DA SAI va da sua o tren: "ca ba AC ghi no co chu" — luc viet,
+  #   deferred-work.md co 7 muc va KHONG muc nao la AC6.
+  # 🔵 Hai chu thich MOI viet trong story bi bac bang phep doc nguon: (1) `isTypingZone` KHONG
+  #   phai thu giu AC11 — `sameMods` moi la (keys.ts:508-510 thoat truoc); (2) Kiem A cua
+  #   check:i18n KHONG quet `.ts`, nen dong chuan doan o main.ts khong cong nao canh.
+  # ⚠️ NGHIEM THU LAI SAU LUOT VA: 9 cong doc-tep + build + vue-tsc XANH · vitest **103/103**
+  #   (+1 ca moi) · cargo test **359/0/5**. 🔴 BA duong CHUA chay lai: e2e · check:scope ·
+  #   check:scope:bundled (deu can cua so Tauri that / cong 1420 trong). Luot va CO cham duong
+  #   ma e2e canh (dan + Enter trong GridPanel) ⇒ chua nghiem thu duoc vế do.
+  2-5d-ngat-doan-ban-dich: done
   2-6-lich-su-phien-ban-segment-va-khoi-phuc: backlog
   2-7-xuat-xu-ban-dich-cap-segment: backlog
   2-8-gop-va-tach-segment-tuong-minh: backlog

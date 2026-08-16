@@ -98,20 +98,30 @@ pub(crate) fn insert_segments(
     chapter_id: i64,
     segments: &[SplitSegment],
 ) -> SqlResult<()> {
+    // 🔴 `is_target_paragraph_end` SET TƯỜNG MINH, không để `DEFAULT 0` cấp — Story 2.5d, AC2.
+    //
+    // ⚠️ Đây là chỗ mà bước di trú 9 **không** với tới được, và nó là ca THƯỜNG NHẤT của AC2.
+    // Bước 9 backfill các hàng **đã có trên đĩa**; một Chương nhập **sau** lượt di trú đi qua
+    // đúng câu `INSERT` này, nơi `DEFAULT 0` của `ALTER TABLE` là thứ duy nhất cấp giá trị.
+    // ⇒ Không có `?5` dưới đây, mọi Chương mới có cờ đích **tắt hết** trong khi cờ nguồn bật
+    // đúng chỗ — tức "bản dịch soi gương bản gốc" sai ngay từ giây đầu tiên, và sai **im
+    // lặng**: bề mặt tiêu thụ của cột này là đường xuất (Epic 8), chưa tồn tại.
+    // 🔴 Đo được, không suy: ca `a_freshly_imported_chapter_mirrors_the_source_flag_...` đỏ
+    // với `[(2, true, false), (3, true, false)]` trước lượt sửa này.
+    //
+    // ⚠️ Và **một giá trị, hai cột** ở đây là đúng AD-46 chứ không phải một bản sao thừa: cờ
+    // đích *bắt đầu* bằng cờ nguồn rồi sống độc lập. Bộ tách vẫn chỉ sinh **một** cờ
+    // (`SplitSegment`), nên không có nguồn sự thật thứ hai nào được dựng ở đây.
     let mut stmt = tx.prepare_cached(
         "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, \
-         created_at, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+         is_target_paragraph_end, created_at, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
          strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
     )?;
     for (index, segment) in segments.iter().enumerate() {
         let ord = i64::try_from(index).unwrap_or(i64::MAX).saturating_add(1);
-        stmt.execute((
-            chapter_id,
-            ord,
-            &segment.text,
-            i64::from(segment.is_paragraph_end),
-        ))?;
+        let paragraph_end = i64::from(segment.is_paragraph_end);
+        stmt.execute((chapter_id, ord, &segment.text, paragraph_end, paragraph_end))?;
     }
     Ok(())
 }
@@ -161,6 +171,19 @@ pub(crate) fn insert_segments(
 ///   ⚠️ Cột này đi vào đây **cùng lượt** với bước di trú sinh ra nó, đúng vì vụ `status` ở
 ///   trên — lưới riêng của nó là
 ///   `segment_contract.rs::the_load_command_carries_the_is_omitted_column_over_the_wire`.
+///
+/// - `is_target_paragraph_end` — cờ **kết đoạn của BẢN DỊCH** (FR134/AD-46), Story 2.5d.
+///   Bước di trú 9.
+///   🔴 **Một cờ THỨ HAI, không phải một cách đọc khác của cờ nguồn** (AC4): nhịp của tiếng
+///   Việt không buộc phải là nhịp của bản gốc. Lúc nhập, nó **bằng** cờ nguồn (AC2); từ đó
+///   hai cờ sống độc lập và người dùng đổi cờ đích bằng lệnh riêng.
+///   🔴 **AC4 nói thẳng: đường mã nào cần cấu trúc đoạn của bản dịch thì ĐỌC CỘT NÀY, không
+///   suy ra từ nội dung nguồn.** Đó là lý do nó phải đi qua dây thay vì để webview tự tính
+///   — một phép suy ở webview là một nguồn sự thật thứ hai, và nó sẽ rẽ khỏi đĩa đúng vào
+///   ngày người dùng đổi cờ đầu tiên.
+///   ⚠️ Cột thứ **BA** liên tiếp đi vào đây cùng lượt với bước di trú sinh ra nó, đúng vì vụ
+///   `status` ở trên. Lưới riêng:
+///   `segment_contract.rs::the_load_command_carries_the_target_paragraph_end_column_over_the_wire`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ChapterSegment {
     pub id: i64,
@@ -171,6 +194,7 @@ pub struct ChapterSegment {
     pub retired_at: Option<String>,
     pub status: String,
     pub is_omitted: bool,
+    pub is_target_paragraph_end: bool,
 }
 
 /// Trọn bộ segment của Chương **đang mở** — thứ đi ra qua dây.
@@ -325,7 +349,7 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
 
         let mut stmt = conn.prepare(
             "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
-             is_omitted \
+             is_omitted, is_target_paragraph_end \
              FROM segment WHERE chapter_id = ?1 ORDER BY ord",
         )?;
         let rows = stmt.query_map([chapter_id], |row| {
@@ -334,6 +358,8 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
             let flag: i64 = row.get(4)?;
             // ⚠️ `is_omitted` cung la INTEGER 0/1 -- cung phep doi, cung ly do (Story 2.5c).
             let omitted: i64 = row.get(7)?;
+            // ⚠️ `is_target_paragraph_end` cung la INTEGER 0/1 (Story 2.5d, buoc 9).
+            let target_para_end: i64 = row.get(8)?;
             Ok(ChapterSegment {
                 id: row.get(0)?,
                 ord: row.get(1)?,
@@ -343,6 +369,7 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
                 retired_at: row.get(5)?,
                 status: row.get(6)?,
                 is_omitted: omitted != 0,
+                is_target_paragraph_end: target_para_end != 0,
             })
         })?;
         let segments = rows.collect::<SqlResult<Vec<ChapterSegment>>>()?;
@@ -354,6 +381,154 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
     })?;
 
     Ok(loaded)
+}
+
+/// **Đặt cờ kết đoạn của BẢN DỊCH cho một câu** — hàm thuần, đây là thứ test gọi.
+/// Story 2.5d · FR134 · AD-46 · AC2 · AC4 · Quyết định #3 đường (c) (Ice ký 2026-08-15).
+///
+/// `ends_paragraph = true` là *"sau câu này, bản dịch xuống đoạn mới"*; `false` là bỏ.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 GHI **RỜI RẠC**, KHÔNG QUA BỘ ĐỆM GÕ — và đây là một luật, không một lựa chọn
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `project-context.md:520-522`: *"Thao tác RỜI RẠC ghi NGAY, không qua bộ đệm gõ. Định
+/// tuyến chúng qua bộ đệm khiến một thao tác người dùng **thấy đã xong** nằm chờ tới 5 giây
+/// rồi biến mất nếu app sập"*. Đổi ranh giới đoạn là một thao tác như vậy: người dùng bấm,
+/// thấy hàng đổi hình, và coi như xong.
+/// ⇒ Một `open.store.write`, một giao dịch, ngay lập tức. **Không** đi qua
+/// [`save_segment_targets`] và **không** đi qua lịch flush của AD-35.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 KHÔNG ĐỤNG `updated_at`, VÀ KHÔNG ĐỤNG `is_paragraph_end`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `updated_at` — cùng lý do đã ghi cho [`set_segment_omitted`]: nó là mốc của **văn bản**,
+/// và cổng AC8 (`a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else`) đứng
+/// trên mệnh đề đó.
+/// `is_paragraph_end` — **AD-37 vẫn sở hữu cờ nguồn**, và AD-46 khai bằng chữ *"AD-37 không
+/// sửa một chữ"*. Một lượt đổi cờ đích chạm sang cờ nguồn là đổi **cấu trúc của bản gốc**,
+/// thứ mà AD-4 nói tính một lần lúc nhập và không bao giờ tính lại.
+///
+/// # Lỗi
+/// - chưa Tác phẩm nào mở ⇒ `project.no_work_open`;
+/// - `segment_id` không có trong Tác phẩm đang mở ⇒ `segment.not_found`;
+/// - segment đã về hưu (AD-5) ⇒ `segment.retired`;
+/// - segment là câu **cuối Chương** và lượt gọi xin **BẬT** cờ ⇒ `segment.ends_chapter`.
+///
+/// 🔵 **CẬP NHẬT 2026-08-16 (code review) — mệnh đề cũ ở đây đã HẾT ĐÚNG, sửa tại chỗ.**
+/// Bản đầu viết *"**Không** khoá `err.segment.*` mới: hai nhánh từ chối ở đây là **đúng
+/// hai** nhánh mà `set_segment_omitted` đã có… Dựng một khoá thứ ba nói cùng một chuyện là
+/// hai cách gọi tên cho một sự thật"*. Vế **lý lẽ** vẫn đúng và vẫn được giữ; vế **đếm**
+/// thì sai, vì lượt rà tìm ra một nhánh thứ ba mà bản đầu bỏ sót: ca ① của AD-37.
+/// ⇒ `SegmentEndsChapter` **không** phải "một cách gọi tên thứ hai": nó nói câu **tồn
+/// tại**, **còn sống**, và vẫn không mang cờ được — một sự thật mà `not_found` lẫn
+/// `retired` đều **không** diễn đạt nổi. Ba nhánh, ba sự thật, ba khoá. Ice ký đường (a).
+pub fn set_segment_paragraph_end(
+    open: Option<&OpenWork>,
+    segment_id: i64,
+    ends_paragraph: bool,
+) -> Result<ParagraphEndOutcome, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+
+    let reject: Arc<Mutex<Option<OmitReject>>> = Arc::new(Mutex::new(None));
+    let reject_in = Arc::clone(&reject);
+
+    let outcome = open.store.write(move |tx: &Transaction<'_>| {
+        let set_reject = |r: OmitReject| {
+            *reject_in
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(r);
+        };
+
+        // ① Doc trang thai hien tai — TRONG cung giao dich voi luot ghi.
+        let found = tx.query_row(
+            "SELECT is_target_paragraph_end, retired_at, chapter_id, ord \
+             FROM segment WHERE id = ?1",
+            [segment_id],
+            |row| {
+                let flag: i64 = row.get(0)?;
+                let retired_at: Option<String> = row.get(1)?;
+                let chapter_id: i64 = row.get(2)?;
+                let ord: i64 = row.get(3)?;
+                Ok((flag != 0, retired_at, chapter_id, ord))
+            },
+        );
+
+        let (current, retired_at, chapter_id, ord) = match found {
+            Ok(value) => value,
+            Err(SqlError::QueryReturnedNoRows) => {
+                set_reject(OmitReject::NotFound);
+                return Err(SqlError::QueryReturnedNoRows);
+            }
+            Err(err) => return Err(err),
+        };
+
+        if retired_at.is_some() {
+            set_reject(OmitReject::Retired);
+            return Err(SqlError::QueryReturnedNoRows);
+        }
+
+        // ② CA ① CUA AD-37 — segment CUOI Chuong khong mang co ket doan, LUON LUON.
+        //
+        // 🔴 Code review 2026-08-16, Ice ky duong (a). Truoc luot va nay hang rao chi song
+        // trong `split::mark_paragraph_end` (duong NHAP) va trong ham thuan
+        // `paragraph::at_end_of_chapter` — nen mot lenh `Mod+Alt+P` tren cau cuoi Chuong
+        // BAT duoc co, va luoi ve mot ranh gioi doan duoi cau cuoi cung (`tgt-para-end`).
+        // AC3 doi ba ca bien ap **y nguyen** cho co dich; day la ca thu nhat, va no phai
+        // duoc cuong che o CHO GHI, khong chi o duong nhap.
+        //
+        // ⚠️ **Chi chan chieu BAT.** Mot lenh BO co tren cau cuoi Chuong di tiep: neu dia
+        // dang mang `1` o do (du lieu tu truoc luot va nay, hoac mot lan sua bang SQL) thi
+        // day la duong DUY NHAT sua no ve dung. Tu choi ca hai chieu la khoa cung mot hang
+        // sai vinh vien.
+        //
+        // ⚠️ Va no dung TRUOC nhanh no-op ben duoi, co chu y: neu dia da mang `1` va nguoi
+        // dung lai xin `1`, nhanh no-op tra `Ok` — tuc mot hang SAI di qua ma khong ai keu.
+        if ends_paragraph {
+            let has_successor: i64 = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM segment \
+                 WHERE chapter_id = ?1 AND ord > ?2 AND retired_at IS NULL)",
+                (chapter_id, ord),
+                |row| row.get(0),
+            )?;
+            if has_successor == 0 {
+                set_reject(OmitReject::EndsChapter);
+                return Err(SqlError::QueryReturnedNoRows);
+            }
+        }
+
+        // ③ DA o dung gia tri ⇒ khong ghi mot byte nao, cung luat voi `set_segment_omitted`.
+        if current == ends_paragraph {
+            return Ok(());
+        }
+
+        // ④ DUNG MOT cot.
+        tx.execute(
+            "UPDATE segment SET is_target_paragraph_end = ?1 WHERE id = ?2",
+            (i64::from(ends_paragraph), segment_id),
+        )?;
+
+        Ok(())
+    });
+
+    match outcome {
+        Ok(()) => Ok(ParagraphEndOutcome {
+            segment_id,
+            is_target_paragraph_end: ends_paragraph,
+        }),
+        Err(err) => {
+            let taken = reject
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .take();
+            match taken {
+                Some(OmitReject::NotFound) => Err(segment_not_found(segment_id)),
+                Some(OmitReject::Retired) => Err(segment_retired(segment_id)),
+                Some(OmitReject::EndsChapter) => Err(segment_ends_chapter(segment_id)),
+                // O rong ⇒ day la mot loi KHO that, khong mot phep tu choi nghiep vu.
+                None => Err(err.into()),
+            }
+        }
+    }
 }
 
 /// Một mục của lô ghi bản dịch — Story 2.3, AC13.
@@ -613,6 +788,21 @@ fn segment_retired(segment_id: i64) -> IpcError {
     )
 }
 
+/// Segment là câu **cuối Chương** ⇒ không đặt được cờ kết đoạn cho bản dịch.
+///
+/// 🔴 Ca ① của AD-37, và là ca biên duy nhất **không** hỏi cờ cũ — code review 2026-08-16,
+/// Ice ký đường (a). Hàm thuần phát biểu ca này là
+/// [`crate::core::segment::paragraph::at_end_of_chapter`]; đây là chỗ nó được cưỡng chế
+/// trên **đường ghi**, thứ mà `split::mark_paragraph_end` chỉ làm được cho đường **nhập**.
+fn segment_ends_chapter(segment_id: i64) -> IpcError {
+    IpcError::new(
+        "segment.ends_chapter",
+        MessageKey::SegmentEndsChapter,
+        BTreeMap::from([("segment_id".to_owned(), segment_id.to_string())]),
+        false,
+    )
+}
+
 /// Câu chưa dịch ⇒ **từ chối**. Quyết định #7, Ice ký 2026-08-14.
 fn segment_nothing_to_confirm(segment_id: i64) -> IpcError {
     IpcError::new(
@@ -809,6 +999,19 @@ pub struct OmitOutcome {
     pub is_omitted: bool,
 }
 
+/// Kết quả một lượt đặt **cờ kết đoạn của bản dịch** — Story 2.5d, FR134 · AD-46.
+///
+/// ⚠️ Cùng hình dạng và cùng lý do với [`OmitOutcome`] ngay trên: trạng thái **sau** lượt
+/// gọi, không một cờ *"vừa đổi"*. Đổi cờ đoạn **không phải** một chuyển tiếp AD-31, nên
+/// không có sự kiện nào để webview phân biệt *"vừa bật"* với *"đã bật từ trước"*.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ParagraphEndOutcome {
+    /// Segment vừa được đặt cờ.
+    pub segment_id: i64,
+    /// Trạng thái **sau** lượt gọi.
+    pub is_target_paragraph_end: bool,
+}
+
 /// Lý do một lượt cắt bỏ / bỏ cờ bị **từ chối**, mang ra khỏi closure ghi.
 ///
 /// ⚠️ Cùng khuôn và cùng lý do định lượng với [`ConfirmReject`]: `Store::write` gói mọi
@@ -819,6 +1022,13 @@ enum OmitReject {
     NotFound,
     /// `retired_at` khác `NULL` (AD-5).
     Retired,
+    /// Segment là câu **cuối Chương** — chỉ [`set_segment_paragraph_end`] dùng nhánh này.
+    ///
+    /// ⚠️ Vì sao nó sống trong `OmitReject` chứ không một enum thứ ba: hai lệnh dùng chung
+    /// enum này đọc **cùng một hàng** và từ chối theo **cùng một khuôn**; một enum riêng
+    /// cho đúng một biến thể là hai bảng phải giữ khớp bằng kỷ luật. Lệnh cắt bỏ không bao
+    /// giờ dựng biến thể này, và `match` của nó nói ra điều đó bằng một nhánh tường minh.
+    EndsChapter,
 }
 
 /// **Cắt bỏ một câu khỏi bản dịch, hoặc bỏ cờ đó** — hàm thuần, đây là thứ test gọi.
@@ -935,6 +1145,11 @@ pub fn set_segment_omitted(
             match taken {
                 Some(OmitReject::NotFound) => Err(segment_not_found(segment_id)),
                 Some(OmitReject::Retired) => Err(segment_retired(segment_id)),
+                // 🔴 Nhanh nay KHONG DUNG DEN o day, va no viet ra thay vi mot `_ =>`:
+                // "cau cuoi Chuong" khong phai mot ly do tu choi cua lenh CAT BO — mot cau
+                // cuoi van cat bo duoc. Mot `_ =>` gop chung se nuot mat su that do vao
+                // ngay bien the thu tu ra doi.
+                Some(OmitReject::EndsChapter) => Err(err.into()),
                 // O rong ⇒ day la mot loi KHO that, khong mot phep tu choi nghiep vu.
                 None => Err(err.into()),
             }
@@ -1146,8 +1361,8 @@ pub fn unconfirm_edited_segments(
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use super::{
-        ChapterSegments, ConfirmOutcome, IpcError, OmitOutcome, SaveOutcome, SegmentTargetEdit,
-        SplitOutcome,
+        ChapterSegments, ConfirmOutcome, IpcError, OmitOutcome, ParagraphEndOutcome, SaveOutcome,
+        SegmentTargetEdit, SplitOutcome,
     };
     use crate::commands::project::OpenWorkState;
 
@@ -1299,5 +1514,27 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::set_segment_omitted(guard.as_ref(), segment_id, omitted)
+    }
+
+    /// Vỏ mỏng cho [`super::set_segment_paragraph_end`] — Story 2.5d.
+    ///
+    /// 🔴 `try_state`, **không** `state()`: mở kho có thể đã thất bại và `app.manage()` chưa
+    /// từng chạy ⇒ `state()` panic ⇒ `panic = "abort"` giết cả tiến trình.
+    /// ⚠️ **Không một quyết định nào ở đây** — vỏ chỉ lấy `State` rồi gọi xuống hàm thuần.
+    #[tauri::command]
+    pub fn set_segment_paragraph_end(
+        app: tauri::AppHandle,
+        segment_id: i64,
+        ends_paragraph: bool,
+    ) -> Result<ParagraphEndOutcome, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::set_segment_paragraph_end(None, segment_id, ends_paragraph);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::set_segment_paragraph_end(guard.as_ref(), segment_id, ends_paragraph)
     }
 }

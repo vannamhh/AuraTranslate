@@ -165,17 +165,53 @@ describe('vùng gõ — MỖI Ô MỘT EDITING HOST RIÊNG (Quyết định #3, 
     wrapper.unmount()
   })
 
-  it('`Enter` bị CHẶN trong vùng gõ — cấu trúc đoạn là dữ liệu đã lưu (AD-37)', async () => {
+  /*
+   * 🔵 **MỆNH ĐỀ CỦA CA NÀY BỊ LẬT 2026-08-16 (Story 2.5d, FR134/AD-46) — viết lại, không xoá.**
+   *
+   * Tên cũ: *"`Enter` bị CHẶN trong vùng gõ — cấu trúc đoạn là dữ liệu đã lưu (AD-37)"*, và nó
+   * khẳng định **hai** lượt `preventDefault`. Cả hai đã hết đúng, nhưng **theo hai kiểu khác
+   * nhau**, và trộn chúng lại là cách đọc sai cả hai:
+   *
+   * | Vế cũ | Nay | Vì sao |
+   * |---|---|---|
+   * | `keydown` `Enter` ⇒ `defaultPrevented` | **KHÔNG** còn chặn ở lớp phím | Vế *"`Enter` trần không ký câu nào"* chuyển sang `keys.ts::isTypingZone` — nó chặn theo **vùng gõ**, không theo tên phím |
+   * | `beforeinput insertParagraph` ⇒ `defaultPrevented` | **VẪN** `defaultPrevented` | Nhưng vì một lý do **ngược hẳn**: không phải để chặn xuống dòng, mà để **thay** nó bằng `insertLineBreak` |
+   *
+   * 🔴 Vế được **GIỮ NGUYÊN**, và nó là thứ đắt nhất ở đây: *"không `data-segment-id` nào nhân
+   * đôi"*. Xuống dòng trong một ô **không** tách câu. AD-37 vẫn sở hữu cờ nguồn, cấu trúc đoạn
+   * của bản dịch sống ở cột `is_target_paragraph_end` (bước di trú 9) — **không** ở ký tự `\n`.
+   *
+   * ⚠️ `happy-dom` **không phải** WebKit: ca này canh **hợp đồng của mã dự án** *(chặn cái gì,
+   * phát cái gì, cây neo có đổi không)*. Vế *"engine dựng text node hay `<br>`"* thuộc **bàn đo**
+   * (`2-5d-ban-do/`, WKWebView thật), và vế *"`\n` tới được đĩa"* thuộc **e2e**.
+   */
+  it('`Enter` xuống dòng trong ô bản dịch mà KHÔNG tách câu (AD-46)', async () => {
     const { wrapper } = await mountEditor()
     putCaretIn(12, 4)
     await wrapper.vm.$nextTick()
 
     const before = document.querySelectorAll('[data-segment-id]').length
+
+    // ── ① Lớp phím KHÔNG còn nuốt `Enter` ────────────────────────────────────────────
+    // 🔴 Đây là vế bị lật. Một `preventDefault()` ở đây sẽ chặn luôn lượt `beforeinput` mà
+    // engine phát ra sau đó ⇒ AC1 chết ở tầng phím, trước khi nhánh ① kịp chạy.
     const key = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
     sentence(12).dispatchEvent(key)
-    expect(key.defaultPrevented).toBe(true)
+    expect(key.defaultPrevented).toBe(false)
 
-    // Và nhánh `beforeinput` chặn cả đường không có phím nào (menu chuột phải, IME).
+    // ── ② Một lượt commit IME vẫn đi lọt nguyên vẹn ──────────────────────────────────
+    // 🔴 `Enter` là **phím chốt dấu** của Telex; ăn nó là ăn mất chữ. Chốt `isComposing`
+    // đứng trước mọi nhánh khác và ca này canh nó.
+    const composing = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+      isComposing: true,
+    })
+    sentence(12).dispatchEvent(composing)
+    expect(composing.defaultPrevented).toBe(false)
+
+    // ── ③ `beforeinput insertParagraph` VẪN bị chặn — nhưng để ĐỔI, không để cấm ──────
     const para = new InputEvent('beforeinput', {
       inputType: 'insertParagraph',
       bubbles: true,
@@ -184,8 +220,52 @@ describe('vùng gõ — MỖI Ô MỘT EDITING HOST RIÊNG (Quyết định #3, 
     sentence(12).dispatchEvent(para)
     expect(para.defaultPrevented).toBe(true)
 
-    // Không câu nào bị tách ⇒ không `data-segment-id` nào nhân đôi.
+    // ── ④ `insertLineBreak` ĐI QUA — đó là lượt mà nhánh ① tự phát ────────────────────
+    // ⚠️ Nếu ca này đỏ vì `defaultPrevented === true`, nghĩa là ai đó đã gộp hai `inputType`
+    // lại như bản trước 2.5d — và lượt xuống dòng sẽ tự chặn chính nó.
+    const lineBreak = new InputEvent('beforeinput', {
+      inputType: 'insertLineBreak',
+      bubbles: true,
+      cancelable: true,
+    })
+    sentence(12).dispatchEvent(lineBreak)
+    expect(lineBreak.defaultPrevented).toBe(false)
+
+    // ── ⑤ VẾ GIỮ NGUYÊN: không câu nào bị tách ⇒ không `data-segment-id` nào nhân đôi ──
     expect(document.querySelectorAll('[data-segment-id]').length).toBe(before)
+
+    wrapper.unmount()
+  })
+
+  /*
+   * 🔴 **Đường ghi nhận được `\n`** — Story 2.5d, AC1, Task 3.7.
+   *
+   * ⚠️ Ca này canh **đường ghi**, KHÔNG canh hành vi engine. `happy-dom` không dựng lượt
+   * `insertLineBreak` nào; nó cũng không cần — mệnh đề ở đây là *"nếu DOM mang `\n` thì tập
+   * chờ nhận đúng chuỗi có `\n`, không bị làm phẳng ở một chặng nào"*. Vế *"engine có dựng ra
+   * `\n` không"* đã đo ở bàn đo Task 1, và vế *"`\n` tới được đĩa"* là e2e (Task 10.3).
+   *
+   * Ba chặng mà một `\n` có thể chết mà không ai thấy: `reportEdit` đọc `textContent` · lượt
+   * vào `Map` của `noteEditorEdit` · và câu `UPDATE` ở Rust. Ca này canh chặng ĐẦU.
+   */
+  it('một lượt xuống dòng đưa chuỗi CÓ `\\n` vào tập chờ, không bị làm phẳng', async () => {
+    const { state, wrapper } = await mountEditor()
+    putCaretIn(13, 0)
+    await wrapper.vm.$nextTick()
+
+    // Engine đã hạ cánh `\n` vào DOM rồi mới phát `input` — mô phỏng đúng thứ tự đó, và mô
+    // phỏng đúng **hình dạng** mà bàn đo đo được trên WKWebView: MỘT text node phẳng mang
+    // `\n`, không `<br>`, không `<div>`.
+    sentence(13).textContent = 'Dong mot.\nDong hai.'
+    sentence(13).dispatchEvent(new InputEvent('input', { inputType: 'insertLineBreak', bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    const pending = state.editorEditedText.value.get(13)
+    expect(pending).toBe('Dong mot.\nDong hai.')
+    // 🔴 Mệnh đề trung tâm, viết tách ra để lượt đỏ nói đúng nguyên nhân: một chặng làm phẳng
+    // sẽ cho `"Dong mot. Dong hai."` — một chuỗi **hợp lệ trông như thật**, và nó sẽ đi trọn
+    // xuống đĩa mà không cổng nào đỏ.
+    expect(pending?.includes('\n')).toBe(true)
 
     wrapper.unmount()
   })
@@ -204,10 +284,21 @@ describe('vùng gõ — MỖI Ô MỘT EDITING HOST RIÊNG (Quyết định #3, 
     wrapper.unmount()
   })
 
-  it('dán nhiều dòng KHÔNG mang xuống dòng vào `target_text`, và KHÔNG tiêm phần tử nào', async () => {
+  it('dán nhiều dòng GIỮ `\n` vào `target_text`, và vẫn KHÔNG tiêm phần tử nào', async () => {
     // Mệnh đề này là hệ quả trực tiếp của mũi thăm dò Task 0.1: `contenteditable="true"` một
     // mình để **cả hai** engine tiêm markup và một `\n` thật vào trong một câu. Cái lọc là
     // đòn bẩy, và đây là lưới của nó ở tầng hợp đồng.
+    //
+    // 🔵 **VIẾT LẠI 2026-08-16 (code review, Ice ký đường (b)) — MỘT NỬA mệnh đề đã lật.**
+    // Bản cũ đòi `\n` bị làm phẳng thành khoảng trắng và tên ca viết *"KHÔNG mang xuống
+    // dòng"*. Mệnh đề đó đúng khi nó được viết, và nó đứng trên một tiền đề nay đã hết hiệu
+    // lực: hồi đó `\n` **không thể** tồn tại trong `target_text`, nên giữ nó lại nghĩa là mất
+    // nó. AC1 của chính Story 2.5d vừa làm `\n` thành một ký tự hợp lệ ⇒ một đường vào ô làm
+    // phẳng còn đường kia thì không là **hai luật cho một ô**.
+    //
+    // 🔴 **Nửa KHÔNG lật, và nó mới là nửa đắt:** *"KHÔNG tiêm phần tử nào"*. Đó là mệnh đề
+    // mũi thăm dò Task 0.1 đã trả tiền để biết, và lượt vá không được nới nó một ly — ba
+    // `expect` cuối của ca này giữ nguyên từng chữ.
     const { state, wrapper } = await mountEditor()
     putCaretIn(13, 0)
     await wrapper.vm.$nextTick()
@@ -224,14 +315,55 @@ describe('vùng gõ — MỖI Ô MỘT EDITING HOST RIÊNG (Quyết định #3, 
 
     expect(paste.defaultPrevented).toBe(true)
     const text = state.editorEditedText.value.get(13) ?? ''
-    expect(text).toBe('dòng một dòng hai dòng ba')
-    expect(/[\r\n]/.test(text)).toBe(false)
+    // 🔴 Ba dòng ở lại BA dòng — và `\r\n` chuẩn hoá về `\n`, không đi tiếp dưới dạng `\r`:
+    //    một ô mang `\r` cho `textContent` lệch khỏi chuỗi trên đĩa ở lượt đọc lại, và
+    //    `white-space: pre-line` không vẽ `\r` thành gì cả.
+    expect(text).toBe('dòng một\ndòng hai\ndòng ba')
+    expect(text.includes('\r')).toBe(false)
     // 🔴 KHÔNG phần tử nào bên trong câu — `<pre>`, `<span style>`, `<div>` đều là cấu trúc.
     expect(sentence(13).querySelectorAll('*').length).toBe(0)
     // 🔵 B11 (2026-08-14): `2 ×` số câu — một câu nay có **hai** neo *(ô nguyên văn + ô bản
     // dịch)*. Mệnh đề thật của ca này **không đổi**: một lượt dán **không được tách hay nhân
     // một `data-segment-id` nào**. Chỉ con số đổi.
     expect(document.querySelectorAll('[data-segment-id]').length).toBe(FIXTURE_SEGMENTS.length * 2)
+
+    wrapper.unmount()
+  })
+
+  it('một ô chỉ chứa `\\n` vẫn được LƯỚI đọc là RỖNG — cùng định nghĩa với Rust', async () => {
+    // 🔴 **Hai tầng, MỘT định nghĩa "rỗng"** — code review 2026-08-16.
+    //
+    // Lưới vẽ viền đứt `.cell-tgt.empty` cho câu **chưa dịch**; Rust từ chối ký một câu chưa
+    // dịch bằng `target_text.trim().is_empty()` (`commands/segment.rs`, `confirm_segment`).
+    // Trước lượt vá, lưới hỏi `=== ''` — và hai phép hỏi đó chỉ trùng nhau chừng nào ô KHÔNG
+    // chứa được khoảng trắng. AC1 của chính story này vừa cho nó chứa `\n`.
+    //
+    // ⇒ Ca hỏng đo được: bấm `Enter` trong một ô rỗng cho `"\n"`. Ô **mất** viền đứt nên
+    // trông đã dịch, mà `confirm_segment` vẫn từ chối — người dùng không có cách nào biết vì
+    // sao. Đây là lưới giữ hai tầng nói cùng một thứ tiếng.
+    const { state, wrapper } = await mountEditor()
+    // 🔴 Câu **13** là câu duy nhất của fixture mang `target_text: ''` — ca này đứng trên
+    //    đúng tiền đề đó, nên nó khẳng định tiền đề thay vì giả định.
+    const id = 13
+    expect(FIXTURE_SEGMENTS.find((s) => s.id === id)?.target_text).toBe('')
+    putCaretIn(id, 0)
+    await wrapper.vm.$nextTick()
+
+    expect(sentence(id).classList.contains('empty')).toBe(true)
+
+    // Engine đã hạ cánh ký tự vào DOM rồi mới phát `input` — mô phỏng đúng thứ tự đó.
+    sentence(id).textContent = '\n'
+    sentence(id).dispatchEvent(new Event('input', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    expect(state.editorEditedText.value.get(id)).toBe('\n')
+    expect(sentence(id).classList.contains('empty')).toBe(true)
+
+    // ── Đối chứng: một ký tự THẬT thì ô thôi rỗng — nếu không ca trên xanh vì lý do sai ──
+    sentence(id).textContent = 'a'
+    sentence(id).dispatchEvent(new Event('input', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(sentence(id).classList.contains('empty')).toBe(false)
 
     wrapper.unmount()
   })
@@ -291,10 +423,33 @@ describe('vùng gõ — MỖI Ô MỘT EDITING HOST RIÊNG (Quyết định #3, 
       FIXTURE_SEGMENTS.length,
     )
 
-    // ⚠️ `Enter` KHÔNG compose thì vẫn bị chặn — nếu không, ca trên chứng minh sai điều.
+    // 🔵 **VẾ NÀY BỊ LẬT 2026-08-16 (Story 2.5d, AD-46) — sửa tại chỗ, kèm lý do.**
+    // Bản cũ đòi `Enter` **không** compose thì `defaultPrevented === true`, và nó dùng lượt
+    // chặn đó để chứng minh chốt `isComposing` có tác dụng. Từ 2.5d **không lượt chặn nào ở
+    // lớp phím nữa** ⇒ mệnh đề cũ mất đối tượng, và giữ nó là để một ca đỏ vì một hành vi
+    // **đã cố ý bỏ**.
+    //
+    // 🔴 Nhưng thứ nó **mua** thì không được mất: *"chốt `isComposing` đứng trước và có tác
+    // dụng"*. Nay đo bằng một mệnh đề đúng vai hơn — hàm phải trả về **sớm** ở lượt composing
+    // và vì thế **không** phát lượt `execCommand` nào. Cách quan sát được từ ngoài: một lượt
+    // `beforeinput insertParagraph` **có** bị chặn *(nhánh ① chạy)*, còn một `keydown` mang
+    // `isComposing` thì **không** để lại dấu vết nào.
     const plainEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
     sent.dispatchEvent(plainEnter)
-    expect(plainEnter.defaultPrevented).toBe(true)
+    expect(plainEnter.defaultPrevented).toBe(false)
+
+    const composingEnter = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+      isComposing: true,
+    })
+    sent.dispatchEvent(composingEnter)
+    expect(composingEnter.defaultPrevented).toBe(false)
+    // Cấu trúc neo KHÔNG đổi sau cả hai lượt — vế đắt nhất, giữ nguyên từ bản cũ.
+    expect(document.querySelectorAll('[contenteditable="true"]').length).toBe(
+      FIXTURE_SEGMENTS.length,
+    )
 
     wrapper.unmount()
   })

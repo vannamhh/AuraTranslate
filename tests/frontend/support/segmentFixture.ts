@@ -52,6 +52,9 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     // có ca nào đi qua.
     status: 'confirmed',
     is_omitted: false,
+    // 🔵 2026-08-16 (Story 2.5d) — cột `is_target_paragraph_end` ra đời cùng bước di trú 9.
+    // Câu này giữ cờ đích **BẰNG** cờ nguồn (`false`), đúng AC2 lúc nhập.
+    is_target_paragraph_end: false,
   },
   {
     id: 12,
@@ -63,6 +66,10 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     // Đã dịch, CHƯA ký — hàng mà Quyết định #3 phân xử: *không vạch*.
     status: 'draft',
     is_omitted: false,
+    // 🔴 Hàng DUY NHẤT có cờ NGUỒN bật, nên nó là hàng duy nhất phân biệt được *"cờ đích soi
+    // gương cờ nguồn"* với *"cờ đích luôn tắt"*. Giữ nó bằng `true` — một fixture mà mọi hàng
+    // đều `false` sẽ xanh với cả một `DEFAULT 0` không bao giờ được backfill.
+    is_target_paragraph_end: true,
   },
   {
     id: 13,
@@ -74,6 +81,8 @@ export const FIXTURE_SEGMENTS: readonly ChapterSegment[] = [
     // Chưa dịch ⇒ *không vạch*, và Quyết định #7 cấm xác nhận nó.
     status: 'draft',
     is_omitted: false,
+    // Câu CUỐI Chương ⇒ cờ tắt, luôn luôn (AD-37, ca biên có mã thi hành) — ở cả hai cột.
+    is_target_paragraph_end: false,
   },
 ]
 

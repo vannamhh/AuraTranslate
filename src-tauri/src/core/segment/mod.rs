@@ -17,6 +17,11 @@
 //! module này dựng sẵn cái chốt thay vì giao nghĩa vụ cho trí nhớ. Xem doc-comment của nó —
 //! nghĩa vụ FR133 hôm nay chỉ phát biểu MỘT CHIỀU và không AC nào ở phía tiêu thụ canh nó.
 
+//! [`paragraph`] — bảng ba ca biên của AD-37 áp cho một **CẶP** cờ kết đoạn (Story 2.5d,
+//! FR134, AD-46, AC3). Cùng khuôn và cùng lý do với [`omit`]: nghĩa vụ có thật, bề mặt tiêu
+//! thụ *(gộp/tách tường minh — Story 2.8)* thì chưa. Dựng cái chốt thay vì giao cho trí nhớ.
+
 pub mod import;
 pub mod omit;
+pub mod paragraph;
 pub mod split;

@@ -99,6 +99,24 @@ export type ChapterSegment = {
    * làm phép đổi `0/1 → bool` trước khi gửi. Không có giá trị thứ ba để một union nói dối.
    */
   is_omitted: boolean
+  /**
+   * Cờ **kết đoạn của BẢN DỊCH** (FR134/AD-46, Story 2.5d) — bước di trú 9.
+   *
+   * 🔴 **Một cờ THỨ HAI, không một cách đọc khác của [`is_paragraph_end`]:** nhịp của tiếng
+   * Việt không buộc phải là nhịp của bản gốc. Lúc một Chương được nhập, hai cờ **bằng
+   * nhau** (AC2 — *"bản dịch soi gương bản gốc cho tới khi người dùng đổi"*); từ đó chúng
+   * sống độc lập.
+   *
+   * 🔴 **AC4 — đường mã nào cần cấu trúc đoạn của bản dịch thì ĐỌC TRƯỜNG NÀY.** Không suy
+   * từ `is_paragraph_end`, không suy từ nội dung nguồn, và **không** suy từ vị trí các `\n`
+   * trong `target_text`. Ba phép suy đó đều chạy được và đều **rẽ khỏi đĩa** đúng vào ngày
+   * người dùng đổi cờ đầu tiên — một nguồn sự thật thứ hai, im lặng.
+   *
+   * ⚠️ Đừng nhầm nó với `\n` **trong** `target_text`: `\n` là **xuống dòng bên trong một
+   * câu** (AC1, người dùng gõ ra); cờ này là **ranh giới đoạn sau câu** (dữ liệu đã lưu).
+   * Hai khái niệm khác nhau, và AD-46 giữ chúng tách rời có chủ ý.
+   */
+  is_target_paragraph_end: boolean
 }
 
 /**
@@ -197,6 +215,25 @@ export type SetSegmentOmittedResult = {
   error: IpcError | null
 }
 
+/**
+ * Kết quả một lượt đặt **cờ kết đoạn của bản dịch** — **`snake_case`**, đúng
+ * `commands::segment::ParagraphEndOutcome`. Story 2.5d · FR134 · AD-46.
+ *
+ * ⚠️ Cùng hình dạng và cùng lý do với [`OmitOutcome`]: trạng thái **sau** lượt gọi, không
+ * một cờ *"vừa đổi"* — đổi cờ đoạn không phải một chuyển tiếp AD-31.
+ */
+export type ParagraphEndOutcome = {
+  segment_id: number
+  /** Trạng thái **sau** lượt gọi. */
+  is_target_paragraph_end: boolean
+}
+
+/** Ba trạng thái, cùng khuôn `SetSegmentOmittedResult`. */
+export type SetSegmentParagraphEndResult = {
+  outcome: ParagraphEndOutcome | null
+  error: IpcError | null
+}
+
 /** Tên command trên dây. Khớp `src-tauri/src/commands/segment.rs` (module `wire`). */
 const CMD_SPLIT_CHAPTER = 'split_chapter_into_segments'
 /** Tên command trên dây — **không tham số nào**, xem doc-comment của hàm thuần phía Rust. */
@@ -213,6 +250,17 @@ const CMD_CONFIRM_SEGMENT = 'confirm_segment'
  * doc-comment của `wire::set_segment_omitted` phía Rust.
  */
 const CMD_SET_SEGMENT_OMITTED = 'set_segment_omitted'
+/**
+ * Tên command trên dây — cờ **kết đoạn của bản dịch** (FR134/AD-46), Story 2.5d.
+ *
+ * ⚠️ Cùng khuôn `CMD_SET_SEGMENT_OMITTED` ngay trên: **MỘT** tên trên dây cho **HAI** lệnh
+ * của `CommandRegistry` (`editor.end_target_paragraph` · `editor.join_target_paragraph`) —
+ * chúng khác nhau ở đúng tham số `endsParagraph`.
+ * 🔴 Hai lệnh chứ không một lệnh bập bênh: Quyết định #3 của Story 2.5c đã bác hình dạng
+ * bập bênh, và lý do vẫn đứng nguyên ở đây — *"nhãn của một phím bập bênh không nói được nó
+ * sắp làm gì"*.
+ */
+const CMD_SET_SEGMENT_PARAGRAPH_END = 'set_segment_paragraph_end'
 
 /** Có cầu IPC của Tauri trong window này không — cùng khuôn `./chapter.ts::hasIpcBridge`. */
 function hasIpcBridge(): boolean {
@@ -432,6 +480,48 @@ export async function setSegmentOmitted(
 
     console.info(
       `[segment] không gọi được \`${CMD_SET_SEGMENT_OMITTED}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { outcome: null, error: null }
+  }
+}
+
+/**
+ * Đặt **cờ kết đoạn của bản dịch** cho một câu — Story 2.5d · FR134 · AD-46.
+ *
+ * 🔴 **KHÔNG BAO GIỜ NÉM.** Một `invoke`, một `try/catch`, trả hình dạng **ba trạng thái** —
+ * cùng luật với mọi adapter ở `src/config/*.ts`.
+ *
+ * ⚠️ `invoke()` gửi tham số dạng **camelCase** (`segmentId`, `endsParagraph`) dù hàm Rust
+ * nhận `snake_case`; chiều **trả về** thì giữ `snake_case`. Hai chiều khác nhau, và đây là
+ * chỗ dễ sai nhất trên dây.
+ *
+ * ⚠️ Ba lối từ chối đều **phân biệt được** bằng `message_key`: `err.segment.not_found` ·
+ * `err.segment.retired` · `err.project.no_work_open`. Chỗ gọi **không** được đoán lại lý do
+ * từ chuỗi.
+ */
+export async function setSegmentParagraphEnd(
+  segmentId: number,
+  endsParagraph: boolean,
+): Promise<SetSegmentParagraphEndResult> {
+  try {
+    const outcome = await invoke<ParagraphEndOutcome>(CMD_SET_SEGMENT_PARAGRAPH_END, {
+      segmentId,
+      endsParagraph,
+    })
+    return { outcome, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: null, error: err }
+
+    // 🔴 Cùng ba nhánh và cùng lý do với `setSegmentOmitted` — xem chú thích ở đó.
+    if (hasIpcBridge()) {
+      console.error(
+        `[segment] \`${CMD_SET_SEGMENT_PARAGRAPH_END}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[segment] không gọi được \`${CMD_SET_SEGMENT_PARAGRAPH_END}\` — chạy ngoài Tauri? ${String(err)}`,
     )
     return { outcome: null, error: null }
   }

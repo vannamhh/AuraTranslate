@@ -114,8 +114,19 @@ pub struct SplitSegment {
     /// trắng**, và **không bao giờ chứa `\n` hay `\r`** — xem doc-comment của
     /// [`split_source_text`].
     pub text: String,
-    /// AD-37 — *"sau câu này là xuống dòng"*. **Một** cờ dùng chung cho cả nguyên văn và
-    /// bản dịch (AC6): không `source_paragraph_end`/`target_paragraph_end`.
+    /// AD-37 — *"sau câu này là xuống dòng"*. Cờ kết đoạn của **nguyên văn** (AC6).
+    ///
+    /// 🔵 **CẬP NHẬT 2026-08-16 (Story 2.5d) — dòng này đã HẾT ĐÚNG VỀ MÃ, sửa tại chỗ.**
+    /// Bản cũ viết *"**Một** cờ dùng chung cho cả nguyên văn và bản dịch: không
+    /// `source_paragraph_end`/`target_paragraph_end`"*. **AD-46** (FR134) nới nó: bản dịch
+    /// nay có cờ riêng trên đĩa — `segment.is_target_paragraph_end`, bước di trú 9.
+    ///
+    /// 🔴 Nhưng **bộ tách vẫn chỉ sinh MỘT cờ**, và đó là chủ ý chứ không phải một chỗ còn
+    /// thiếu: lúc nhập, cờ đích **bằng** cờ nguồn (AC2 — *"bản dịch soi gương bản gốc cho
+    /// tới khi người dùng đổi"*), nên một cờ thứ hai ở đây sẽ là một bản sao mà hai chỗ
+    /// cùng ghi. Đường nhập chép giá trị này sang cột đích **một lần**; từ đó hai cờ sống
+    /// độc lập, và người dùng đổi cờ đích bằng lệnh riêng.
+    /// ⚠️ AD-37 **vẫn sở hữu** cờ nguồn và không sửa một chữ — AD-46 khai đúng như vậy.
     pub is_paragraph_end: bool,
 }
 
@@ -179,6 +190,22 @@ pub struct SplitSegment {
 /// | Gộp segment | theo **câu cuối** của nhóm gộp | Story 2.8 |
 /// | Tách segment | theo **mảnh cuối**; mọi mảnh trước nhận cờ **tắt** | Story 2.8 |
 /// | Segment cuối Chương | **tắt, luôn luôn** | **Story 2.1 — AC7** |
+///
+/// 🔵 **CẬP NHẬT 2026-08-16 (Story 2.5d, AD-46) — bảng này nay chạy cho HAI cờ.**
+/// Bản dịch có cờ kết đoạn **riêng** (`segment.is_target_paragraph_end`, bước di trú 9), và
+/// AC3 của 2.5d đòi ba ca trên áp cho nó **y nguyên**. Ba dòng bảng **không đổi một chữ** —
+/// thứ đổi là **số lần** chúng chạy.
+///
+/// 🔴 **Và đây là chỗ Story 2.8 sẽ vấp nếu chỉ đọc bảng:** cách viết tự nhiên là lấy
+/// `is_paragraph_end` của câu cuối rồi coi cờ đích *"chắc cũng vậy"*. Lượt suy đó **xoá
+/// quyết định ngắt đoạn của người dùng** ở mọi câu mà hai cờ đã khác nhau — và không cổng
+/// nào đỏ. Hai cờ đi theo câu cuối **độc lập**.
+/// ⇒ Bảng đã thành mã: [`crate::core::segment::paragraph`] *(`at_end_of_chapter` · `merged` ·
+/// `split_into`, cộng test hợp đồng)*. **Gọi nó, đừng cài lại.**
+///
+/// ⚠️ Bộ tách ở tệp này vẫn chỉ sinh **một** cờ, và đó là chủ ý: lúc nhập, cờ đích **bằng**
+/// cờ nguồn (AC2 của 2.5d), nên một cờ thứ hai ở đây sẽ là một bản sao mà hai chỗ cùng ghi.
+/// Phép soi gương có đúng một tên: `paragraph::ParagraphFlags::mirrored`.
 ///
 /// # Bất biến của giá trị trả về
 ///

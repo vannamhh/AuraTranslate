@@ -23,6 +23,7 @@ Component đặt tên `PascalCase.vue` (Consistency Conventions). Panel Lookup �
 | Hợp đồng vùng chọn dùng chung + Auto-Lookup | **1.18** *(2.5b: đăng ký theo **CỘT**, `SourceHanViet` nhượng lượt đăng ký — xem `hanVietSurfaces.ts`)* | ✅ đã dựng |
 | Tách từ tiếng Trung cho tab Hán Việt — double-click chọn cả CỤM TỪ | **1.18b** | ✅ đã dựng |
 | Bật/tắt nguồn từ điển *(dải chip)* + bề mặt ghi công *(lớp phủ Attribution)* | **1.19** | ✅ đã dựng |
+| **Ngắt đoạn của bản dịch** — `Enter` xuống dòng trong ô, cộng một cờ kết đoạn **riêng cho cột bản dịch** | **2.5d** | ✅ đã dựng |
 
 **Story sở hữu nội dung: 1.14 → 2.5b.** `PanelFrame.vue` hôm nay là **vỏ**, không phải panel: thanh tiêu đề, tiêu đề `ui-md`, và thân **để trống**. `WorkspaceMode.vue` dựng **hai** `PanelFrame` — `panel.source` và `panel.editor`, đúng cặp *Nguyên văn | Bản dịch* mà UX-DR15 nói *"không bao giờ nhường"*. Hai chứ không bốn: một cái không đủ để nhìn thấy tương phản có/không tiêu điểm, bốn cái là dựng trước Story 1.14. **Story 1.14 thay chỗ hai cái này bằng bốn panel trong `dockview`** — và 🔵 **Story 2.5b thu bốn xuống BA**, gộp `panel.source` + `panel.editor` thành `panel.grid`.
 
@@ -223,3 +224,28 @@ lúc chạy** (0 tới 10 nguồn), còn `CommandRegistry` là một danh sách 
 `document.activeElement` — **không** một tham số trên command. WKWebView **không đặt tiêu
 điểm cho `<button>` khi bấm chuột**, nên đọc mỗi `activeElement` là để cả đường chuột chết
 trên macOS trong khi xanh trên Windows *(NFR14)*.
+
+### Ngắt đoạn của **bản dịch**: một `\n` và một cờ, HAI khái niệm khác nhau
+
+Story 2.5d dựng hai thứ trong cùng một ô, và chúng **rất dễ đọc gộp làm một**:
+
+| Thứ | Là gì | Ở đâu |
+|---|---|---|
+| `\n` **trong** `target_text` | **xuống dòng bên trong một câu** — người dùng gõ ra bằng `Enter` (AC1) | một ký tự của chuỗi, trên đĩa |
+| `segment.is_target_paragraph_end` | **ranh giới đoạn SAU câu** — dữ liệu đã lưu (AC2, AC4) | một cột, bước di trú **9** |
+
+🔴 **Đường mã nào cần cấu trúc đoạn của bản dịch thì ĐỌC CỘT** — không suy từ
+`is_paragraph_end` của cột nguyên văn, và **không** đếm `\n`. Cả hai phép suy đều chạy ra kết
+quả trông đúng, và cả hai rẽ khỏi đĩa đúng vào ngày người dùng đổi cờ đầu tiên. Rà 2026-08-16:
+`split('\n')` · `lines()` trên `src/**` và `src-tauri/src/**` ⇒ **0** đường suy.
+
+⚠️ **`white-space: pre-line` trên `.cell-tgt` KHÔNG phải một dòng trang trí** — nó là **tiền
+đề vận hành** của `Enter`. Đo trên WKWebView 605.1.15 thật *(`2-5d-ban-do/`)*: dưới `pre-line`,
+`execCommand('insertLineBreak')` dựng một **text node `\n`** *(`textContent === "A\nB"`)*; **không**
+`pre-line` thì cùng lệnh đó dựng `<br>` và `textContent` đọc ra **`"AB"`** — mất trắng ranh
+giới trên đường ghi. Đổi giá trị đó là lật nhánh ① của `onBeforeInput` trong im lặng.
+
+⚠️ Cờ đích hiển thị bằng **màu đường kẻ đáy** của riêng ô bản dịch, **không** bằng "khoảng
+thở" như cờ nguồn — và đó là một phép đo, không một gu: năm cột chia chung một tập track hàng,
+nên một `padding-bottom` đặt riêng ở ô bản dịch kéo **cả hàng** cao lên *(đo: 38,00 → 46,00 px,
+ô nguyên văn cũng 46)*. Hai cấu trúc đoạn khác nhau **không** biểu diễn được bằng hai khoảng thở.

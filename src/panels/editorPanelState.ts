@@ -24,6 +24,7 @@ import {
   readOpenChapterSegments,
   saveSegmentTargets,
   setSegmentOmitted,
+  setSegmentParagraphEnd,
 } from '../config/segment'
 import type { ChapterSegment, SegmentTargetEdit } from '../config/segment'
 import type { IpcError } from '../i18n'
@@ -808,6 +809,60 @@ export async function setCurrentSegmentOmitted(omitted: boolean): Promise<OmitRe
   }
 
   return outcome.is_omitted ? 'omitted' : 'restored'
+}
+
+/** Kết quả một lượt đổi **cờ kết đoạn của bản dịch** — cùng hình dạng với [`OmitResult`]. */
+export type ParagraphEndResult = 'no-caret' | 'refused' | 'ended' | 'joined'
+
+/**
+ * **Đặt hay bỏ cờ kết đoạn của BẢN DỊCH** cho câu đang có con trỏ — Story 2.5d · FR134 ·
+ * AD-46 · AC2 · Quyết định #3 đường (c) (Ice ký 2026-08-15).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 ẢNH CHỤP DỰNG BẰNG **MẢNG MỚI**, phần tử dựng bằng **trải phần tử cũ**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Cùng hai vế và cùng hai đường hỏng với [`setCurrentSegmentOmitted`] ngay trên:
+ * [`segments`] là `shallowRef` *(sửa tại chỗ không bắn watcher nào)*, và `ParagraphEndOutcome`
+ * chỉ chở **hai** trường nên một phần tử dựng lại từ nó sẽ **mất** `status`, `target_text`,
+ * `source_text` và cả `is_paragraph_end`. Đổi cờ đoạn đổi **một** trường.
+ *
+ * 🔴 **KHÔNG đụng `is_paragraph_end`** khi trải — AD-37 vẫn sở hữu cờ nguồn, và AD-46 khai
+ * bằng chữ *"AD-37 không sửa một chữ"*.
+ *
+ * ⚠️ **Không** dời con trỏ, cùng lý do [`setCurrentSegmentOmitted`]: thao tác này đảo ngược
+ * được, và người dùng có thể muốn bỏ ngay nếu vừa bấm nhầm.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ⚠️ KHÔNG CÓ Ô LỖI RIÊNG CHO LỆNH NÀY, VÀ ĐÓ LÀ MỘT LỰA CHỌN CÓ GHI NỢ
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Kho hôm nay có **hai** ô lỗi cho hai lệnh Editor, và **một** trong hai chưa ai đọc:
+ * [`editorConfirmError`] được `GridPanel.vue` hiện ở cột trạng thái; [`editorOmitError`] thì
+ * được export mà **không component nào đọc**. Thêm một ô thứ **ba** ở đây là nhân một bề mặt
+ * chết — nên lượt từ chối đi ra bằng **giá trị trả về**, và `main.ts` ghi chẩn đoán.
+ * 🔴 Vế *"người dùng thấy được vì sao lượt đổi cờ trượt"* vì thế **còn hở**, ghi nợ có chủ ở
+ * `deferred-work.md`. Đừng đọc dòng này thành *"đã có đường ra màn hình"*.
+ */
+export async function setCurrentSegmentParagraphEnd(
+  endsParagraph: boolean,
+): Promise<ParagraphEndResult> {
+  const id = caretSegmentId.value
+  if (id === null) return 'no-caret'
+
+  const { outcome } = await setSegmentParagraphEnd(id, endsParagraph)
+  if (outcome === null) {
+    // ⚠️ Ca *"không có cầu IPC"* (`npm run dev` trong một trình duyệt thường) cũng vào đây.
+    //    Không ca nào được coi là đã đặt cờ.
+    return 'refused'
+  }
+
+  const index = segments.value.findIndex((s) => s.id === id)
+  if (index >= 0) {
+    const next = [...segments.value]
+    next[index] = { ...next[index], is_target_paragraph_end: outcome.is_target_paragraph_end }
+    segments.value = next
+  }
+
+  return outcome.is_target_paragraph_end ? 'ended' : 'joined'
 }
 
 /**

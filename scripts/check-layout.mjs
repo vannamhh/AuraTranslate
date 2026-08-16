@@ -449,6 +449,20 @@ const ALLOWED_GLOBAL_MEMBERS = new Set([
   // API DOM chuẩn, không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
   'document.caretPositionFromPoint',
   'document.caretRangeFromPoint',
+  // Story 2.5d, AC1 · AC6 — `GridPanel.vue::onBeforeInput` chặn `insertParagraph` rồi phát
+  // `insertLineBreak` để engine tự dựng lượt xuống dòng. ĐÂY LÀ MỘT PHÉP ĐO trên WKWebView
+  // 605.1.15 thật (bàn đo Task 1, 2026-08-15), không một lượt tiện tay:
+  //   • thả `insertParagraph` chạy ⇒ engine dựng `A<div>B</div>` và `cell.textContent` đọc
+  //     ra `"AB"` — DOM hai dòng, đĩa MỘT chuỗi. AC1 hỏng mà không cổng nào đỏ;
+  //   • `insertLineBreak` dưới `white-space: pre-line` ⇒ text node `"\n"`, 0 phần tử con,
+  //     `textContent === "A\nB"`, và ở cuối nội dung engine tự thêm `\n` canh chót;
+  //   • đường tự chèn bằng `Range` (không cần API này) cũng ĐẠT, nhưng phải tự xử lý ca
+  //     cuối-nội-dung mà engine đang làm hộ — Ice ký đường engine 2026-08-16.
+  // ⚠️ `execCommand` là API bị khai tử trong đặc tả, và điều đó được cân nhắc: nó là đường
+  // DUY NHẤT gọi được lượt soạn thảo gốc của engine kèm undo-stack thật. Không có nó, mọi
+  // lượt sửa phải tự dựng bằng `Range`, và `⌘Z` của người dùng mất lịch sử.
+  // API DOM chuẩn, không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
+  'document.execCommand',
 ])
 
 const GLOBAL_MEMBER_RE = /\b(window|document|globalThis|self|top|parent)\s*\.\s*([A-Za-z_$][A-Za-z0-9_$]*)/g

@@ -299,6 +299,19 @@ export type CommandDeps = {
    */
   setSegmentOmitted?: (omitted: boolean) => void
 
+  /**
+   * **Đặt / bỏ cờ kết đoạn của BẢN DỊCH** cho câu đang có con trỏ. Handler chung của
+   * `editor.end_target_paragraph` và `editor.join_target_paragraph` (Story 2.5d, FR134 ·
+   * AD-46 · AC2).
+   *
+   * ⚠️ **MỘT** cổng cho **HAI** command, cùng khuôn và cùng lý do với `setSegmentOmitted`
+   * ngay trên: hai **id đăng ký** khác nhau ở đúng một boolean.
+   *
+   * 🔴 Cắm `setSegmentParagraphEnd` của `config/segment.ts` thẳng vào đây là **sai đường** —
+   * ảnh chụp hiển thị sống ở `editorPanelState.ts::setCurrentSegmentParagraphEnd`.
+   */
+  setSegmentParagraphEnd?: (endsParagraph: boolean) => void
+
   /** Đặt caret vào bề mặt chữ đầu tiên đã đăng ký. Handler của `selection.focus_source`. */
   focusSelectionSource?: () => boolean
   /** Mở rộng vùng chọn một KÝ TỰ sang trái. Handler của `selection.extend_left`. */
@@ -1012,6 +1025,39 @@ function registerAll(target: Registry, deps: CommandDeps): void {
           return portMissing(id, 'setSegmentOmitted')
         }
         deps.setSegmentOmitted(omitted)
+      },
+    })
+  }
+
+  // ── Story 2.5d — CỜ KẾT ĐOẠN CỦA BẢN DỊCH (FR134 · AD-46) ────────────────────
+  //
+  // **HAI** command, không một command bập bênh — Quyết định #3 đường (c), Ice ký 2026-08-15.
+  //
+  // 🔴 Cùng lý do nguyên văn với `editor.omit_segment`/`editor.restore_segment` ngay trên, và
+  // lần này nó là một tiền lệ **đã được kiểm**: Quyết định #3 của Story 2.5c bác hình dạng
+  // bập bênh vì *"nhãn của một phím bập bênh không nói được nó sắp làm gì"*, và bảng phím tắt
+  // của Story 1.21 hiện đúng một nhãn cho mỗi hàng.
+  //
+  // ⚠️ Hợp âm mang `Mod`, cùng lý do đã ghi ở trên: một hợp âm thiếu phím bổ trợ chính bị nuốt
+  // trong vùng gõ (`keys.ts` — `lacksPrimaryMod && isTypingZone`), tức nó sẽ **không bao giờ
+  // bắn** ở đúng chỗ nó cần bắn — con trỏ đang nằm trong ô bản dịch.
+  //
+  // ⚠️ `Mod+Alt+P` và `Mod+Alt+U` **chưa ai chiếm**: `Mod+Alt` hôm nay dùng `1` `2` `←` `→`
+  // `O` `J` `V` `L` `S` `X` `R`. `conflictFor` chạy trên **toàn registry** (không theo chế
+  // độ), nên một lượt trùng lộ ra ngay ở `register()`.
+  for (const [id, endsParagraph, chord] of [
+    ['editor.end_target_paragraph', true, 'Mod+Alt+P'],
+    ['editor.join_target_paragraph', false, 'Mod+Alt+U'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: [chord],
+      run: () => {
+        if (deps.setSegmentParagraphEnd === undefined) {
+          return portMissing(id, 'setSegmentParagraphEnd')
+        }
+        deps.setSegmentParagraphEnd(endsParagraph)
       },
     })
   }

@@ -518,6 +518,20 @@ function onCellMouseUp(event: MouseEvent): void {
  */
 let caretTarget: HTMLElement | null = null
 
+/**
+ * Chốt chống đệ quy cho nhánh ① của [`onBeforeInput`] — Story 2.5d, AD-46.
+ *
+ * 🔴 **Một biến module, KHÔNG một `ref`.** Nó không bao giờ đi vào render: vòng đời của nó
+ * nằm gọn trong **một** lượt gọi `execCommand` đồng bộ *(bật → gọi → tắt trong `finally`)*,
+ * và một `ref` ở đây chỉ mua thêm một lượt đánh thức reactivity cho một giá trị không ai
+ * hiển thị. Cùng khuôn `caretTarget` ngay trên.
+ *
+ * ⚠️ `try`/`finally` chứ không hai dòng thẳng: nếu `execCommand` ném, một chốt kẹt ở `true`
+ * sẽ làm **mọi** lượt `Enter` sau đó im lặng không làm gì — đúng lớp lỗi *"hỏng mà không ai
+ * lần được"*.
+ */
+let insertingLineBreak = false
+
 function ensureCaretNextFrame(cell: HTMLElement): void {
   caretTarget = cell
 
@@ -679,9 +693,15 @@ watch(
  * của bộ kiểm chính tả hệ điều hành. Một handler bám `keydown` bỏ lọt trọn ba đường đó.
  *
  * Ba nhóm, ba xử lý:
- * ① **Cấu trúc đoạn** (`insertParagraph`/`insertLineBreak`) ⇒ **chặn**. AD-37 nói cấu trúc
- *    đoạn là dữ liệu **ĐÃ LƯU** (`segment.is_paragraph_end`), không phải thứ gõ ra.
- *    ⚠️ Quyền xuống dòng **trong ô bản dịch** là FR134/AD-46, **Story 2.5d**. Đừng mở sớm.
+ * ① **Cấu trúc đoạn** (`insertParagraph`) ⇒ **chặn, rồi tự phát một `insertLineBreak`**.
+ *    🔵 **CẬP NHẬT 2026-08-16 (Story 2.5d, AD-46) — nhánh này ĐÃ ĐỔI NGHĨA.** Bản cũ chặn
+ *    cả `insertParagraph` lẫn `insertLineBreak` và **không xử lý gì thêm**, với dòng dặn
+ *    *"Quyền xuống dòng trong ô bản dịch là FR134/AD-46, Story 2.5d. Đừng mở sớm."* —
+ *    story đó là story này, và cửa nay **mở**, nhưng **chỉ ở ô bản dịch** (AC6).
+ *    ⚠️ Vế của AD-37 **không** bị nới một chữ: `is_paragraph_end` vẫn là dữ liệu ĐÃ LƯU,
+ *    và một lượt xuống dòng ở đây **không** tách câu, **không** đụng cờ nào. Nó chỉ thêm
+ *    một ký tự `\n` vào `target_text` của **đúng một** segment. Cấu trúc đoạn của bản dịch
+ *    sống ở cột `is_target_paragraph_end` (bước di trú 9), không ở ký tự này.
  * ② **Chèn từ một nguồn NGOÀI bàn phím** ⇒ **chặn, rồi tự chèn văn bản THUẦN đã làm phẳng**.
  *    Đo được: không có nhánh này thì cả hai engine tiêm markup — `<pre>`, `<span style>`, và
  *    trên WebKit cả `<div>` khối — cộng một `\n` thật vào `target_text`.
@@ -696,11 +716,58 @@ function onBeforeInput(event: InputEvent): void {
   const cell = targetCellOf(event.target instanceof Node ? event.target : null)
   if (cell === null) return
 
-  // ① Cấu trúc đoạn — AD-37.
-  if (event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak') {
+  // ① Cấu trúc đoạn — AD-37 giữ cờ nguồn; AD-46 mở quyền xuống dòng ở ô bản dịch.
+  //
+  // 🔴 **`insertLineBreak` ĐI QUA, `insertParagraph` bị đổi thành `insertLineBreak`** — và
+  // đây là một PHÉP ĐO trên WKWebView thật (bàn đo Task 1, `2-5d-ban-do/README.md`,
+  // 2026-08-15), không một sở thích. Bốn số quyết định hình dạng này:
+  //
+  //   • thả `insertParagraph` chạy ⇒ engine dựng `A<div>B</div>`, và `cell.textContent`
+  //     đọc ra **`"AB"`** — DOM hai dòng, đĩa MỘT chuỗi liền. AC1 hỏng ở vế *"ký tự lưu vào
+  //     `target_text`"* mà **không cổng nào đỏ**;
+  //   • `insertLineBreak` dưới `white-space: pre-line` ⇒ engine dựng **text node `"\n"`**,
+  //     `0` phần tử con, `textContent === "A\nB"`. Đúng thứ đường ghi cần;
+  //   • ở **cuối** nội dung engine tự thêm một `\n` canh chót ⇒ ô vẽ ra **2 dòng** thật.
+  //     Đường `<br>` phải tự làm việc đó: đo được `A<br>` = **1 dòng**, `A<br><br>` = 2;
+  //   • đối chứng: **không** `pre-line` thì chính `insertLineBreak` lại dựng `<br>` và
+  //     `textContent` về lại `"AB"`.
+  //
+  // ⇒ 🔴 `white-space: pre-line` ở `<style scoped>` **KHÔNG phải một dòng trang trí** — nó
+  // là **tiền đề vận hành** của nhánh này. Đổi nó là lật hình dạng DOM mà engine dựng, và
+  // đường ghi im lặng mất `\n`. Hai chỗ đó phải đọc cùng nhau.
+  if (event.inputType === 'insertParagraph') {
     event.preventDefault()
+    // 🔴 CHỐT CHỐNG ĐỆ QUY. `execCommand('insertLineBreak')` tự phát một `beforeinput`
+    // `insertLineBreak` **đồng bộ**, và nó đi qua đúng handler này. Không có chốt thì lượt
+    // thứ hai lại rơi vào nhánh ① — hôm nay vô hại vì `insertLineBreak` không còn bị chặn,
+    // nhưng nó là một vòng chờ sẵn cho lượt sửa kế tiếp. Đo được: đúng **một** sự kiện phát
+    // ra mỗi lượt (bàn đo E1).
+    if (insertingLineBreak) return
+    insertingLineBreak = true
+    // 🔴 GIÁ TRỊ TRẢ VỀ ĐƯỢC ĐỌC — code review 2026-08-16. `execCommand` là một API đã bị
+    // khai tử trong đặc tả, và hợp đồng của nó là trả `false` khi trượt, KHÔNG ném. Chốt
+    // `insertingLineBreak` ở trên chỉ canh ca NÉM (nó nằm trong `finally`). Không đọc giá
+    // trị trả về thì một lượt trả `false` làm `Enter` biến mất **không dấu vết**:
+    // `preventDefault()` đã chạy ở trên, nên engine cũng không còn làm gì nữa.
+    // ⚠️ Bàn đo chứng minh nó chạy trên WKWebView; nửa Blink là món nợ đã ghi có chủ. Dòng
+    // chẩn đoán này là thứ phân biệt *"phím không ăn"* với *"phím ăn rồi nhưng mất chữ"*.
+    let inserted = false
+    try {
+      inserted = document.execCommand('insertLineBreak')
+    } finally {
+      insertingLineBreak = false
+    }
+    if (!inserted) {
+      // ⚠️ Chẩn đoán viết bằng tiếng Anh, KHÔNG tiếng Việt: Kiểm A của `check-i18n.mjs` cấm
+      // chuỗi tiếng Việt ở vị trí mã trong `.vue` và `.rs`.
+      console.warn('[grid] insertLineBreak refused by the engine — the newline was dropped')
+    }
+    // `preventDefault()` đã cắt lượt `input` của engine cho sự kiện GỐC, nhưng lượt
+    // `insertLineBreak` ở trên phát `input` của chính nó và `onEditInput` bắt được — nên
+    // KHÔNG gọi `reportEdit` ở đây, gọi là ghi hai lần cùng một nội dung.
     return
   }
+  if (event.inputType === 'insertLineBreak') return
 
   // ② Chèn từ ngoài bàn phím.
   const FROM_OUTSIDE = ['insertFromPaste', 'insertFromDrop', 'insertReplacementText']
@@ -712,9 +779,28 @@ function onBeforeInput(event: InputEvent): void {
   // trượt thì người dùng dán lại; một `data-segment-id` mất là hỏng **vĩnh viễn** (AD-3).
   event.preventDefault()
   const raw = event.dataTransfer?.getData('text/plain') ?? event.data ?? ''
-  // Xuống dòng → **một khoảng trắng**, không bị bỏ đi: dán hai đoạn vào một ô thì hai chữ ở
-  // hai đầu ranh giới phải còn cách nhau, nếu không chúng dính thành một từ không tồn tại.
-  const flat = raw.replace(/[\r\n]+/g, ' ').replace(/[ \t]+/g, ' ')
+  // 🔵 CẬP NHẬT 2026-08-16 (code review, Ice ký đường (b)) — LƯỢT DÁN NAY GIỮ `\n`.
+  //
+  // Bản cũ viết: *"Xuống dòng → **một khoảng trắng**, không bị bỏ đi: dán hai đoạn vào một ô
+  // thì hai chữ ở hai đầu ranh giới phải còn cách nhau, nếu không chúng dính thành một từ
+  // không tồn tại"*. Lý lẽ đó đúng **khi nó được viết**, và nó đúng vì một tiền đề đã hết
+  // hiệu lực: hồi đó `\n` **không thể** tồn tại trong ô, nên giữ nó lại nghĩa là mất nó.
+  // AC1 của Story 2.5d vừa làm `\n` thành một ký tự hợp lệ của `target_text`.
+  //
+  // 🔴 Vế mà lý lẽ cũ bảo vệ **vẫn được giữ nguyên**: hai chữ ở hai đầu ranh giới vẫn cách
+  // nhau — bằng chính `\n`, một dấu tách thật, thay vì bị nuốt. Thứ đã đổi là `\n` nay tới
+  // được đĩa; thứ KHÔNG đổi là phép gộp khoảng trắng ngang (`[ \t]+` → một dấu cách).
+  //
+  // ⚠️ Lớp chặn tiêm markup của nhánh ② **không** bị nới một ly: `preventDefault()` vẫn chạy
+  // ở trên và văn bản vẫn do chính hàm này chèn bằng `insertNode`, engine không được thả.
+  // ⚠️ `\r\n` và `\r` chuẩn hoá về `\n` — một ô mang `\r` sẽ cho `textContent` lệch khỏi
+  // chuỗi trên đĩa ở lượt đọc lại, và `pre-line` không vẽ `\r` thành gì cả.
+  // 🔴 Vế thị giác *"`\n` dán vào hiện ra hai dòng thật trên WKWebView"* CHƯA ĐO — ghi nợ có
+  // chủ ở `deferred-work.md`, không tự chấm đạt. Vế dữ liệu thì có lưới vitest.
+  const flat = raw.replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ')
+  // ⚠️ Vẫn là `=== ''`, KHÔNG `.trim() === ''`: lượt vá 2026-08-16 chỉ được Ice ký cho vế
+  // *"dán giữ `\n`"*. Đổi cửa thoát này thành `trim()` là lặng lẽ thêm một quyết định thứ
+  // hai — một lượt dán đúng một `\n` sẽ biến mất thay vì chèn một lần xuống dòng.
   if (flat === '') return
 
   const selection = window.getSelection()
@@ -746,11 +832,40 @@ function onBeforeInput(event: InputEvent): void {
 }
 
 /**
- * AC11 — `Enter` **trơn KHÔNG BAO GIỜ xác nhận**, và nó cũng không xuống dòng ở story này.
+ * AC11 — `Enter` **trơn KHÔNG BAO GIỜ xác nhận**. 🔵 Vế *"và nó cũng không xuống dòng"* đã
+ * **hết đúng từ 2026-08-16** (Story 2.5d, FR134/AD-46): trong ô bản dịch nó **có** xuống
+ * dòng. Sửa tại chỗ thay vì để mệnh đề lặng lẽ sai.
  *
  * ⚠️ Hai lớp cho hai thứ khác nhau, **không** hai nguồn sự thật: nhánh ① của [`onBeforeInput`]
- * chặn **lượt sửa DOM**; dòng dưới đây chặn **sự kiện phím** trước khi nó rơi xuống `keys.ts`,
+ * xử lý **lượt sửa DOM**; hàm này canh **sự kiện phím** trước khi nó rơi xuống `keys.ts`,
  * nơi một `Enter` trần sẽ được đem đi so với bảng hợp âm.
+ *
+ * 🔵 **VÌ SAO LỚP NÀY KHÔNG CÒN `preventDefault()` — và vì sao AC11 vẫn đứng.**
+ * Trước 2.5d, dòng `if (event.key === 'Enter') event.preventDefault()` làm **hai** việc
+ * cùng lúc: chặn xuống dòng, **và** chặn `Enter` rơi xuống bảng hợp âm. Story này cần bỏ
+ * việc thứ nhất mà giữ việc thứ hai — nên câu hỏi thật là *"ai giữ việc thứ hai?"*.
+ *
+ * 🔵 **CẬP NHẬT 2026-08-16 (code review) — câu trả lời cũ ở đây GỌI SAI CƠ CHẾ, sửa tại chỗ.**
+ * Bản đầu viết: *"`keys.ts:510` bỏ qua mọi hợp âm không mod khi `isTypingZone(event.target)`
+ * ⇒ `Enter` trần không bao giờ tới bảng hợp âm"*. Đọc lại `keys.ts:508-510` thì **thứ tự mới
+ * là thứ quyết định**, và `isTypingZone` **không bao giờ được chạm tới** cho một `Enter` trần:
+ *
+ * ```
+ * for (const entry of compiled) {
+ *   if (entry.code !== event.code || !sameMods(entry.mods, mods)) continue   // ← thoát ở ĐÂY
+ *   if (lacksPrimaryMod(entry.mods) && isTypingZone(event.target)) return false
+ * ```
+ *
+ * Hợp âm **duy nhất** gắn phím `Enter` trong toàn registry là `editor.confirm_segment` =
+ * `Mod+Enter` (`src/commands/index.ts`). Một `Enter` **trần** không khớp `sameMods` với nó ⇒
+ * vòng lặp `continue` và `handle` trả `false` **trước** dòng `isTypingZone`.
+ *
+ * ⇒ 🔴 **AC11 đứng, nhưng nhờ `sameMods`, KHÔNG nhờ `isTypingZone`.** Phân biệt này không phải
+ * chẻ chữ: `isTypingZone` chỉ vào cuộc khi một hợp âm **đã khớp**, nên nó là hàng rào cho
+ * *"một hợp âm KHÔNG MOD đã đăng ký"* — hôm nay chưa có cái nào gắn `Enter`. Ngày ai đó thêm
+ * một lệnh `Enter` trần *(hoàn toàn hợp lệ)*, `isTypingZone` mới là thứ giữ AC11, và **lúc đó**
+ * nó phải được đo lại. Tin nhầm rằng nó đang canh việc này hôm nay là bỏ qua đúng phép đo đó.
+ * ⚠️ Cả hai mệnh đề **đo bằng vitest**, không suy: `editorTypingZone.test.ts`.
  *
  * 🔴 **IME đứng trước mọi thứ** — cùng dòng và cùng lý do `keys.ts:504`. Một lượt commit
  * composition của bộ gõ tiếng Việt phát `keydown` mang `code` vật lý; **ăn nó là ăn mất chữ**.
@@ -762,8 +877,16 @@ function onBeforeInput(event: InputEvent): void {
  * phỏng được một bộ gõ tiếng Việt thật. Nó chỉ lộ ra ở tay người dùng.
  */
 function onEditKeydown(event: KeyboardEvent): void {
+  // 🔴 **DÒNG NÀY KHÔNG ĐƯỢC CHẠM** — cùng dòng và cùng lý do `keys.ts:506`. Một lượt commit
+  // composition của bộ gõ tiếng Việt phát `keydown` mang `code` vật lý; **ăn nó là ăn mất
+  // chữ**. Nó đứng TRƯỚC mọi nhánh khác, và nó phải ở lại kể cả khi hàm này không còn nhánh
+  // nào sau nó: một hàm rỗng ở đây là một chỗ mà lượt sửa kế tiếp sẽ viết vào, và người viết
+  // sẽ không biết về chốt này.
   if (event.isComposing) return
-  if (event.key === 'Enter') event.preventDefault()
+  // 🔵 2026-08-16 (Story 2.5d, AC6): lượt `preventDefault()` cho `Enter` **đã gỡ** — xem
+  // doc-comment ngay trên. Vế *"`Enter` trần không ký câu nào"* nay do `keys.ts` giữ, và cụ
+  // thể là do phép so **mods** (`Enter` trần không khớp `Mod+Enter`), KHÔNG do `isTypingZone`
+  // — code review 2026-08-16 sửa lại chỗ gọi tên này.
 }
 
 /** Đọc văn bản **từ chính DOM** rồi đưa vào tập chờ. Chỗ duy nhất làm việc đó. */
@@ -966,6 +1089,22 @@ const chapterId = computed(() => editorChapterId.value)
             ⚠️ Văn bản render `s.target_text` — bản **LÚC NẠP**. Văn bản đang gõ đi đường
             [`restoreEditedText`], KHÔNG qua một binding phản ứng. Xem khối *"DOM SỞ HỮU VĂN
             BẢN"* ở script.
+
+            🔴 `tgt-para-end` — cờ kết đoạn của **BẢN DỊCH** (Story 2.5d, FR134/AD-46). Nó đọc
+            `s.is_target_paragraph_end`, tức **dữ liệu đã lưu** (AC4) — **không** suy từ
+            `is_paragraph_end` của cột nguyên văn, và **không** suy từ vị trí các `\n` trong
+            `target_text`. Hai phép suy đó đều chạy ra kết quả trông đúng, và cả hai rẽ khỏi
+            đĩa đúng vào ngày người dùng đổi cờ đầu tiên.
+            ⚠️ Class đặt trên **từng ô**, vì một hàng KHÔNG phải một phần tử DOM — xem khối
+            đầu tệp. Cái giá hình học của lựa chọn này đã đo, ghi ở khối style cuối tệp.
+
+            🔵 CẬP NHẬT 2026-08-16 (code review) — `empty` đo bằng `.trim()`, KHÔNG `=== ''`.
+            Trước lượt vá này lưới hỏi `=== ''` còn Rust hỏi `target_text.trim().is_empty()`
+            (`commands/segment.rs`, đường `confirm_segment`). Hai định nghĩa "rỗng" chỉ trùng
+            nhau chừng nào ô KHÔNG chứa được khoảng trắng — và AC1 của Story 2.5d vừa cho nó
+            chứa `\n`. Hệ quả đo được: bấm `Enter` trong một ô rỗng cho `"\n"`, ô MẤT viền đứt
+            nên trông đã dịch, mà `confirm_segment` vẫn từ chối ký — người dùng không có cách
+            nào biết vì sao. 🔴 Rust là nguồn sự thật cho "rỗng"; lưới đi theo, không ngược lại.
           -->
           <div
             v-for="s in editorSegments"
@@ -973,9 +1112,10 @@ const chapterId = computed(() => editorChapterId.value)
             class="cell cell-tgt"
             :class="{
               'para-end': s.is_paragraph_end,
-              empty: (editorEditedText.get(s.id) ?? s.target_text) === '',
+              empty: (editorEditedText.get(s.id) ?? s.target_text).trim() === '',
               editing: editorCaretSegmentId === s.id,
               omitted: s.is_omitted,
+              'tgt-para-end': s.is_target_paragraph_end,
             }"
             :data-segment-id="s.id"
             data-col="tgt"
@@ -1107,6 +1247,15 @@ const chapterId = computed(() => editorChapterId.value)
  *
  * 🔴 Chỉ **ĐỌC** cờ `is_paragraph_end` đã lưu (AD-37, B3). Một dòng `text.split('\n')` lúc
  * render đi qua **mọi cổng** và làm hỏng FR121 ở Epic 8 — không cổng nào đỏ vì chuyện đó.
+ * 🔴 **CẢNH BÁO NÀY NẶNG THÊM TỪ 2026-08-16 (Story 2.5d).** Trước đó `target_text` **không
+ * bao giờ** chứa `\n`, nên một `split('\n')` lúc render là một đường sai *lý thuyết*. Nay
+ * `\n` là một ký tự **hợp lệ và thường gặp** trong đó (AC1, FR134) — tức lượt suy ấy sẽ
+ * **chạy ra kết quả**, và kết quả sẽ trông đúng cho tới ngày người dùng đổi cờ đích.
+ * ⇒ Cấu trúc đoạn của **bản dịch** đọc từ `is_target_paragraph_end` (bước di trú 9, AC4),
+ * **không** từ vị trí các `\n`. Hai khái niệm khác nhau: `\n` là xuống dòng **trong** một
+ * câu, cờ là ranh giới đoạn **sau** câu.
+ * ⚠️ Rà 2026-08-16 (Task 7.4): `split('\n')` · `split("\n")` · `lines()` trên `src/**` và
+ * `src-tauri/src/**` ⇒ **0** đường suy. Con số ghi ra thay vì để im lặng đọc thành "đã rà".
  *
  * ⚠️ Một hàng rỗng bị loại có lý do đo được, không vì gu: nó sẽ là một hàng **không có
  * `segment.id`**, tức một hàng mà mọi phép đếm `[data-segment-id]` phải học cách bỏ qua — và
@@ -1233,6 +1382,35 @@ const chapterId = computed(() => editorChapterId.value)
  * một khoảng trắng lạ ⇒ một Chương mới hiện ra thành một dải khoảng hở rời rạc)*. Lời giải
  * đúng nằm ở **cấu trúc**, không ở một lượt vá hình học: một Ô có chiều cao, không một span.
  */
+/*
+ * 🔴 `white-space: pre-line` — TIỀN ĐỀ VẬN HÀNH của FR134/AD-46, không một dòng trang trí.
+ * Story 2.5d, Quyết định #2 đường (b) (Ice ký 2026-08-15). **Đừng đổi mà không đọc hết.**
+ *
+ * Nó làm HAI việc, và cả hai đều đo được trên WKWebView 605.1.15 thật
+ * (`2-5d-ban-do/README.md`, 2026-08-15):
+ *
+ * ① **Vẽ ra `\n` đã lưu.** Ô này render `{{ s.target_text }}`, tức một chuỗi đi thẳng vào
+ *    DOM thành text node. Đo được: cùng một `"A\nB"`, `white-space: normal` cho **1 dòng**,
+ *    `pre-line` cho **2**. Không có dòng này, một Chương vừa mở hiện bản dịch **mất hết
+ *    ngắt đoạn** — đĩa đúng, màn hình sai, không lỗi nào được ném.
+ *
+ * ② **Quyết định hình dạng DOM mà engine dựng lúc gõ.** Đo được: `execCommand(
+ *    'insertLineBreak')` trong ô này dựng một **text node `"\n"`** *(0 phần tử con,
+ *    `textContent === "A\nB"`)*; đối chứng **không** `pre-line` thì chính lệnh đó dựng
+ *    `<br>` và `textContent` đọc ra **`"AB"`** — mất trắng ranh giới trên đường ghi.
+ *    ⇒ Đổi giá trị này là **lật nhánh ① của `onBeforeInput`** ở một tệp khác, trong im lặng.
+ *
+ * ⚠️ `pre-line` chứ **không** `pre-wrap` (Ice ký): `pre-wrap` giữ cả khoảng trắng đầu/cuối
+ * dòng, tức mọi bản dịch cũ trên đĩa có khoảng trắng thừa sẽ **đổi hình dạng hiển thị** ngay
+ * lượt cập nhật này. Hai giá trị cho **cùng** số dòng (đo: 2/2) nên vế ① không mất gì.
+ * ⚠️ `check:tokens` **không** soi `white-space` (`PURE_COLOR_PROPS`/`COMPOSITE_COLOR_PROPS`)
+ * ⇒ viết thẳng ở đây là hợp lệ, không cần token, không cần miễn trừ có tên.
+ * ⚠️ Cột nguyên văn **không** nhận dòng này — story không có AC nào đòi đụng nó, và
+ * `SourceHanViet.vue` đã có `pre-wrap` riêng của nó.
+ */
+.cell-tgt {
+  white-space: pre-line;
+}
 .cell-tgt.empty {
   min-height: 1.95em;
   border-bottom-style: dashed;
@@ -1267,6 +1445,55 @@ const chapterId = computed(() => editorChapterId.value)
  */
 .cell-tgt.editing {
   background-color: var(--color-surface-accent);
+}
+
+/*
+ * 🔴 CỜ KẾT ĐOẠN CỦA **BẢN DỊCH** — chỉ báo PHI HÌNH HỌC. Story 2.5d, FR134 · AD-46,
+ * Quyết định #4 đường (Ⓑ), Ice ký 2026-08-16 **sau khi có số**, không trước.
+ *
+ * ⚠️ **VÌ SAO KHÔNG DÙNG LẠI KHUÔN `.cell.para-end` CỦA CỜ NGUỒN — một phép đo, không một gu.**
+ * Năm cột là năm `subgrid` chia **chung một tập track hàng** và `.cell` mặc định
+ * `align-self: stretch`, nên **track = max(chiều cao các ô cùng hàng)**. Đo trên WKWebView
+ * 605.1.15 thật (bàn đo vòng 5, 2026-08-15), cùng một hàng, nền **38,00 px**:
+ *
+ *   | hình dạng | track hàng |
+ *   |---|---|
+ *   | `padding-bottom: 14px` **chỉ** ở ô bản dịch | **46,00 px** — và ô nguyên văn **cũng** 46 |
+ *   | đổi kiểu đường kẻ đáy ở ô bản dịch | **38,00 px** |
+ *   | một ký tự ở cột nhãn trạng thái | **38,00 px** |
+ *
+ * ⇒ Một *"khoảng thở"* đặt riêng ở ô bản dịch **kéo cả năm ô giãn theo**, tức nó nói dối:
+ * người đọc thấy cả hàng thở ra và tưởng **bản gốc** cũng kết đoạn ở đó. **Hai cấu trúc
+ * đoạn khác nhau không biểu diễn được bằng hai khoảng thở trong cùng một lưới.**
+ *
+ * 🔴 **`border-bottom-color`, KHÔNG `border-bottom-width`.** Đường viền cộng vào chiều cao
+ * hộp, nên một lượt làm dày là đúng cái bẫy 46 px ở trên bằng một cái tên khác. Màu đổi,
+ * bề dày **giữ nguyên 1px**.
+ *
+ * ⚠️ **KHÔNG** thêm giá trị vào `SEGMENT_RULE_VALUES` và **KHÔNG** dựng một khối `.rule-<x>`:
+ * Kiểm I (`check-commands.mjs`) đối chiếu **ba chiều và cả chiều ngược lại**, nên một
+ * `.rule-<x>` lạ trong CSS làm cổng FAIL. Đây là một class của **ô**, không một giá trị vạch.
+ * ⚠️ **KHÔNG** `opacity` trung gian (Kiểm D) và **KHÔNG** `ornament` làm màu chữ — đây là màu
+ * **đường viền**, không màu chữ, nên sàn AA của Kiểm C không áp; `--color-primary` đã là token
+ * của vạch lề, dùng lại nó giữ *"ranh giới có nghĩa"* nói bằng **một** thứ tiếng.
+ *
+ * ⚠️ **GIỚI HẠN THẬT:** ô **chưa dịch** đã dùng `border-bottom-style: dashed`. Một ô vừa chưa
+ * dịch vừa kết đoạn sẽ hiện **nét đứt màu primary** — đọc được, nhưng đó là một tổ hợp chưa
+ * ai vẽ trong `DESIGN.md`. Ghi ra thay vì để người sau tưởng đã được xét.
+ *
+ * 🔵 **2026-08-16 (code review) — lượt tái dùng token này ĐÃ ĐƯỢC XÉT, Ice ký GIỮ.** Lượt rà
+ * nêu đúng một chỗ: `--color-primary` đang mang nghĩa *"hàng đang có con trỏ"* ở cột vạch
+ * (`.rule.rule-primary`), nên hai nghĩa khác nhau nay dùng chung một sắc **trong cùng một
+ * khung nhìn**, và người đã học *"primary = hàng đang hoạt động"* có thể đọc nhầm viền này
+ * thành *"hàng tôi vừa bấm"*. Ice giữ nguyên, vì hai chỗ khác **hình dạng** (nền vạch đặc ở
+ * cột ① so với một đường viền 1px ở đáy ô) và cùng nghĩa rộng *"đang bật"*.
+ * ⇒ 🔴 Đây là một lượt tái dùng **có chủ ý**, không một lượt với tay lấy token gần nhất. Lượt
+ * rà sau đừng hỏi lại; nếu muốn lật thì phải mang một phép đo về **nhầm lẫn thật**, không một
+ * lý lẽ về sự đồng nhất — và một token thứ hai là một quyết định thiết kế phải viết vào
+ * `DESIGN.md`, không một dòng CSS.
+ */
+.cell-tgt.tgt-para-end {
+  border-bottom-color: var(--color-primary);
 }
 
 /*

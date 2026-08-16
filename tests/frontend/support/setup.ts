@@ -58,3 +58,31 @@ if (!('ResizeObserver' in globalThis)) {
     },
   })
 }
+
+/**
+ * `document.execCommand` — `happy-dom@20.11.2` **không cài** nó *(một `TypeError: is not a
+ * function` lúc gọi, không một ca đỏ đọc được)*. Story 2.5d.
+ *
+ * Ai đọc nó: `GridPanel.vue::onBeforeInput` nhánh ① — nó chặn `insertParagraph` rồi gọi
+ * `execCommand('insertLineBreak')` để **engine** tự dựng lượt xuống dòng (FR134/AD-46,
+ * Ice ký đường (d) 2026-08-16 sau bàn đo Task 1).
+ *
+ * 🔴 **LỚP GIẢ NÀY KHÔNG SOẠN THẢO GÌ CẢ, và đó là chủ ý — đừng "cải thiện" nó.**
+ * Nó trả `false` và không đụng DOM. Lý do: thứ `execCommand('insertLineBreak')` làm trên
+ * WebKit là **chuẩn hoá DOM của một engine thật** *(dựng text node `"\n"` dưới
+ * `white-space: pre-line`, dựng `<br>` khi không có — đo 2026-08-15,
+ * `2-5d-ban-do/README.md`)*. Một lớp giả cố mô phỏng việc đó sẽ dựng **nguồn sự thật thứ
+ * hai** về hành vi engine, và cây test này sẽ khẳng định một hình dạng DOM mà **không
+ * engine nào thật sự dựng** — đúng lớp lỗi mà bốn đường nghiệm thu của AC25 tồn tại để
+ * chặn.
+ *
+ * ⇒ Vai của nó dừng ở: *"lượt gọi không ném, nên ca vitest kiểm được **hợp đồng chặn/không
+ * chặn** của handler"*. Vế *"engine dựng ra cái gì"* thuộc **bàn đo**, vế *"`\n` tới được
+ * đĩa"* thuộc **e2e** (Task 10.3). Ba vai, không chồng nhau.
+ */
+if (typeof document.execCommand !== 'function') {
+  Object.defineProperty(document, 'execCommand', {
+    configurable: true,
+    value: () => false,
+  })
+}

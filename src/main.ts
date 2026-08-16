@@ -29,6 +29,7 @@ import {
   confirmCurrentSegment,
   goToNextUntranslated,
   setCurrentSegmentOmitted,
+  setCurrentSegmentParagraphEnd,
   wireExitFlush,
 } from './panels/editorPanelState'
 // ── Story 1.14 — ba cổng của tầng bố cục ────────────────────────────────────────────
@@ -278,6 +279,23 @@ async function boot(): Promise<void> {
           //
           // ⚠️ Chẩn đoán viết KHÔNG DẤU — Kiểm A của `check:i18n`.
           console.warn(`[grid] khong dat duoc co cat bo: ${result}`)
+        })
+      },
+      // Story 2.5d · FR134/AD-46 — cờ kết đoạn của BẢN DỊCH. Cùng cửa và cùng lý do với hai
+      // dep ngay trên: đi qua `setCurrentSegmentParagraphEnd` của `editorPanelState.ts`,
+      // KHÔNG thẳng `setSegmentParagraphEnd` của `config/segment.ts` — ảnh chụp hiển thị
+      // (`editorSegments`) sống trong hàm đó, và một lượt nối tắt đổi đĩa mà không đổi lưới.
+      setSegmentParagraphEnd: (endsParagraph: boolean) => {
+        void setCurrentSegmentParagraphEnd(endsParagraph).then((result) => {
+          if (result === 'ended' || result === 'joined') return
+          // ⚠️ `'refused'` VÀO đây, khác hai dep trên: lệnh này KHÔNG có ô lỗi riêng —
+          // xem doc-comment của `setCurrentSegmentParagraphEnd` và món nợ ghi ở đó.
+          // ⚠️ Chẩn đoán viết KHÔNG DẤU — **quy ước TAY, không một cổng**. Kiểm A của
+          //    `check:i18n` quét đúng hai quần thể: `.rs` và `.vue` (`check-i18n.mjs:860-861`);
+          //    `main.ts` là `.ts` nên nằm NGOÀI phạm vi và dòng này có dấu cũng không ai đỏ.
+          //    🔵 Ba dòng cùng kiểu ở trên (`:248` · `:264` · `:281`) còn ghi sai điều đó —
+          //    món nợ có chủ ở `deferred-work.md`, code review 2026-08-16.
+          console.warn(`[grid] khong dat duoc co ket doan ban dich: ${result}`)
         })
       },
       // 🔴 STORY 1.18 — LƯỢT GỠ DEP TỐI THIỂU MÀ STORY 1.17 ĐÃ HẸN.

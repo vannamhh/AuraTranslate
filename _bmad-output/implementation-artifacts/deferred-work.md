@@ -3505,3 +3505,137 @@ một ô có `SourceHanViet` bên trong *(cột nguyên văn, chế độ song s
 gạch ngang **kế thừa** xuống mọi con, nên phần Hán Việt cũng bị gạch — đúng hay không thì
 chưa có ai phán.
 **Chủ: Ice** *(một lượt nhìn bằng mắt)* — hoặc một story sau có động tới cột Hán Việt.
+
+---
+
+## Story 2.5d — Ngắt đoạn của bản dịch (2026-08-16)
+
+### 🟡 AC3 vế **gộp** và vế **tách do người dùng gọi** — bảng ba ca chưa có chỗ áp
+
+AC3 đòi ba ca biên của AD-37 áp **y nguyên** cho cờ đích. Đo lại 2026-08-16:
+`grep "fn merge_segments\|merge_segment\|MergeSegment"` trên `src-tauri/src/**` ⇒ **0** kết
+quả; Story 2.8 *(gộp/tách tường minh)* là `backlog`.
+
+**Đã đóng được vế nào:** ca *"segment cuối Chương ⇒ cờ tắt, luôn luôn"* có mã thi hành ở
+đường nhập, và vì cờ đích **bằng** cờ nguồn lúc nhập (AC2), ba ca đúng cho cờ đích **theo
+dẫn xuất**. Cưỡng chế bằng
+`segment_contract.rs::a_freshly_imported_chapter_mirrors_the_source_flag_into_the_target_flag_row_by_row`.
+
+**Còn hở:** ngày người dùng đã **đổi** cờ đích rồi mới gộp/tách — lúc đó hai cờ khác nhau và
+bảng phải chạy **hai lần, độc lập**. Quyết định #6 đường (b) *(Ice ký 2026-08-15)* dựng sẵn
+hàm thuần `core::segment::paragraph` *(`at_end_of_chapter` · `merged` · `split_into`)* cộng
+bốn ca hợp đồng, để Story 2.8 chỉ việc gọi.
+🔴 **Cái bẫy đã ghi thành test:** cách viết tự nhiên ở 2.8 là lấy cờ của câu cuối rồi coi cờ
+đích *"chắc cũng vậy"* — lượt suy đó **xoá quyết định ngắt đoạn của người dùng**, và không
+cổng nào đỏ.
+**Chủ: Story 2.8.**
+
+### 🟡 AC4 vế *"đường xuất đọc cả hai nguồn"* — bề mặt tiêu thụ là khung rỗng
+
+AC4 nói *"đường mã nào cần cấu trúc đoạn của bản dịch thì đọc dữ liệu đã lưu"*. Cột đã có,
+dây IPC đã chở nó, lưới đã đọc nó. Nhưng bề mặt **tiêu thụ thật** là đường xuất, và
+`core/export/mod.rs` vẫn là **6 dòng toàn doc-comment, 0 dòng mã** *(đo lại 2026-08-16)*.
+⚠️ Cùng khuôn lỗi mà 2.5c tìm ra cho FR133: nghĩa vụ phát biểu **một chiều**, không AC nào
+của Epic 8 tham chiếu ngược lại AD-46 ⇒ người viết Story 8.3 đọc AC của chính nó, thấy đủ,
+và xuất ra một tệp mang nhịp của **bản gốc**.
+**Chủ: Epic 8** *(Story 8.3 · 8.4 · 8.6)*.
+
+### 🟡 Lượt đổi cờ đích bị TỪ CHỐI không có đường ra màn hình
+
+`setCurrentSegmentParagraphEnd` trả `'refused'` và `main.ts` ghi một `console.warn`. Không ô
+lỗi riêng, **có chủ ý**: kho hôm nay đã có hai ô lỗi Editor và **một** trong hai
+(`editorOmitError`) được export mà **không component nào đọc** — thêm ô thứ ba là nhân một bề
+mặt chết. ⇒ Người dùng bấm `Mod+Alt+P` trên một segment đã về hưu thì **không thấy gì**.
+**Chủ: một story dựng đường báo lỗi dùng chung cho lệnh Editor** *(gộp luôn `editorOmitError`)*.
+
+### 🔴 `check-i18n.mjs` Kiểm A: một tên thẻ nhắc trong COMMENT của template làm hỏng bộ quét
+
+Đo được 2026-08-16, tái lập chắc chắn: viết `` `<style>` `` **bên trong** một `<!-- … -->` của
+template `.vue` làm Kiểm A báo FAIL ở **một comment khác, cách đó 20 dòng**
+(`GridPanel.vue:1071`). Nguyên nhân: `scanTemplate` gặp `<` + chữ cái thì chuyển sang state
+`tag` — và nó làm vậy **kể cả khi đang ở trong một comment** mà nó vừa nhảy qua, vì lượt nhảy
+kết thúc ở `-->` đầu tiên còn phần văn bản sau đó được đọc lại từ đầu ở state `text`.
+⚠️ Hậu quả **không phải** một lượt bỏ lọt *(cổng đỏ chứ không xanh)*, nhưng nó **đỏ sai chỗ**,
+và người sửa sẽ đi tìm ở dòng cổng chỉ vào — cách xa nguyên nhân. Lượt này mất một vòng chẩn
+đoán để lần ra.
+**Vá tạm đang dùng:** không nhắc tên thẻ trong comment của template. **Chủ: một story hạ tầng
+cổng.**
+
+### ⚠️ Vế **Blink** của mọi phép đo hình học và hành vi engine — khoảng mù có tên
+
+Bàn đo `2-5d-ban-do/` chạy **chỉ trên WKWebView 605.1.15**. Vế Blink chỉ tới được qua
+WebView2/Windows, và kho **không có đường nghiệm thu tại chỗ** cho nửa đó.
+🔴 Đây **không** phải một lo xa: tiền lệ trực tiếp là `Backspace` offset 0 — WebKit phát **0**
+`beforeinput`, Blink thì có *(deferred-work, Story 2.5b)*. Hai engine **đã** nói ngược nhau ở
+đúng địa hạt này một lần.
+Cụ thể chưa đo trên Blink: `insertLineBreak` dưới `pre-line` có dựng text node `\n` không, và
+`A<br>` có vẽ ra một dòng hay hai.
+**Chủ: Story 1.22** *(hạ tầng e2e hai nền tảng)*.
+
+### ⚠️ Độ trễ dời con trỏ sau khi Task 8 thêm một nhánh vào `:class` — GIAO LẠI, không tự chấm
+
+Story 2.5d thêm `'tgt-para-end': s.is_target_paragraph_end` vào biểu thức `:class` của ô bản
+dịch — tức một thuộc tính nữa được tính **cho mỗi hàng** ở mỗi lượt render.
+
+🔴 **Không đo được ở story này, và không được suy ra:** phép đo độ trễ dời con trỏ cần bộ đo
+9.850 câu, và bộ đo đó là của **Story 2.4** *(đang treo ở chỗ chưa tiêm được `bench.js` vào
+webview bản release)*. Số gần nhất còn hiệu lực: **706–770 ms** trên 9.850 câu, **vượt trần
+NFR2 (50 ms/frame) ~15 lần** — đo ở Story 2.5b, còn hở, chủ **Story 2.4**.
+⇒ Story này **không** làm số đó tốt lên và cũng **không** khẳng định nó không xấu đi. Một
+thuộc tính boolean thêm vào một object literal đã có bốn nhánh là **nhỏ so với 706 ms**, nhưng
+đó là một **suy luận**, và luật của kho cấm đánh dấu đạt bằng suy luận.
+**Chủ: Story 2.4** *(bộ đo NFR2)*.
+
+---
+
+## Deferred from: code review of 2-5d-ngat-doan-ban-dich (2026-08-16)
+
+### 🟡 AC6 vế *"giữ nguyên ở mọi nơi khác"* — không có bề mặt thứ hai để đối chứng
+
+AC6 đòi gỡ hai lớp chặn `Enter` **ở ô bản dịch**, và **giữ nguyên ở mọi nơi khác**. Vế gỡ
+đóng và đo được. Vế **giữ nguyên** thì chỉ đúng **theo CẤU TRÚC**: `@beforeinput`/`@keydown`
+gắn đúng trên `div.col-tgt`, cột nguyên văn không mang listener nào. Đó là một lập luận về
+hình dạng mã, **không** một phép đo trên một bề mặt thứ hai — vì hôm nay **không có** bề mặt
+soạn thảo nào khác trong sản phẩm để `Enter` được bấm thử ở đó.
+
+🔴 **Vì sao món này phải nằm ở đây thay vì được chấm đạt:** *"không đánh dấu đạt bằng suy
+luận"*. Cấu trúc đúng hôm nay không chứng minh cấu trúc đúng vào ngày bề mặt thứ hai ra đời —
+và đúng vào ngày đó, người viết nó sẽ đọc AC6 thấy chữ *"đã đóng"* rồi không kiểm gì cả.
+
+⇒ **Đóng bằng cách:** story nào dựng bề mặt soạn thảo thứ hai chạy lại đúng hai mệnh đề của
+AC6 trên bề mặt đó — `Enter` làm gì, và `Mod+Enter` có còn ký được không.
+
+**Chủ: Story 8.11** *(`8-11-review-mode-bo-cuc-hai-cua-so-side-by-side` — bề mặt soạn thảo thứ
+hai gần nhất trong sổ sprint; nếu một story sớm hơn dựng bề mặt trước thì món này theo về đó)*.
+
+### 🟡 Lượt DÁN giữ `\n` — vế DỮ LIỆU đã đo, vế THỊ GIÁC thì chưa
+
+Code review 2026-08-16, Ice ký đường (b): nhánh ② của `onBeforeInput` (`GridPanel.vue`) thôi
+làm phẳng `\n` thành khoảng trắng, để một đường vào ô mang **một** luật với `Enter` gõ tay.
+
+Vế **dữ liệu** có lưới: `\n` dán vào đi tới `target_text` nguyên vẹn (vitest). Vế **thị giác**
+— *"`\n` dán vào hiện ra hai dòng thật dưới `white-space: pre-line` trên WKWebView"* — **chưa
+đo**. Bàn đo `2-5d-ban-do/` đo `insertLineBreak` của engine; đường này chèn một **text node do
+chính mã dựng**, và bàn đo chưa chạy vòng nào cho nó.
+
+⚠️ Suy luận *"cùng là text node mang `\n`, cùng `pre-line`, nên cùng hiện hai dòng"* rất
+mạnh — và luật của kho vẫn cấm chấm đạt bằng nó.
+
+**Chủ: Story 1.22** *(hạ tầng e2e hai nền tảng — gộp cùng vế Blink đã ghi ở trên, một lượt
+chạy trả lời cả hai)*.
+
+- **Ba chú thích ở `src/main.ts:248,264,281` khẳng định sai phạm vi Kiểm A của `check:i18n`** — cả
+  ba viết *"Chẩn đoán viết KHÔNG DẤU — Kiểm A của `check:i18n`"*, nhưng `check-i18n.mjs:839,860-861`
+  cho thấy Kiểm A quét đúng hai quần thể: `rsFiles` (`.rs`) và `vueFiles` (`.vue`). `src/main.ts` là
+  `.ts` ⇒ **không cổng nào canh những dòng đó**; chúng có dấu cũng không ai đỏ. Quy ước viết không
+  dấu ở đây vẫn đáng giữ (nhất quán phong cách với `.rs`/`.vue`), chỉ **lý do** ghi ra là sai — và
+  một lý do sai là thứ người sau sẽ tin thay vì đo lại.
+  🔴 **Có sẵn từ trước, không do Story 2.5d gây ra** — ba dòng này đến từ Story 2.5 và 2.5c. Lượt
+  rà 2.5d bắt được vì story lặp lại đúng mẫu đó ở một dòng thứ tư (`main.ts:293`); dòng thứ tư được
+  vá trong chính lượt rà, ba dòng cũ để lại đây.
+  ⚠️ Món này **không** phải "sửa ba chú thích". Câu hỏi thật đứng sau nó: quy ước *"chẩn đoán viết
+  không dấu"* trong `src/**/*.ts` hôm nay **không có cổng nào canh** — nên hoặc nó được nới thành
+  một luật có cổng (mở rộng quần thể Kiểm A sang `.ts`, kèm xét lại sàn quần thể), hoặc ba chú
+  thích phải nói đúng rằng đây là **quy ước tay**, không phải một cổng.
+  **Chủ: một story hạ tầng cổng** *(gộp cùng khuyết tật `check-i18n` Kiểm A mà chính Story 2.5d đã
+  ghi ở trên — hai món cùng chạm một tệp)*.

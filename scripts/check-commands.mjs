@@ -232,7 +232,13 @@ const TS_FLOOR = 30 // số THẬT 2026-08-14 (sau Story 2.5b): 37 tệp `.ts` �
  */
 // 🔵 ĐẾM LẠI 2026-08-14 (Story 2.5b): **+1** (`editor.next_untranslated`) và **−1**
 // (`layout.toggle_*` từ bốn xuống ba, theo `PANEL_SUFFIXES`) ⇒ 34 → **35**. Giữ sàn 29.
-const COMMAND_FLOOR = 29 // số THẬT 2026-08-14 (sau Story 2.5b): 35 command — 29/35 = 82,9%
+// 🔵 ĐO LẠI 2026-08-16 (Story 2.5d), không chép: **39** command thật — 33/39 = 84,6 %.
+// Dòng cũ ghi *"số THẬT 2026-08-14 (sau Story 2.5b): 35 command — 29/35 = 82,9 %"*, và nó đã
+// hết đúng **hai** lần kể từ đó: 2.5c thêm `editor.omit_segment`/`editor.restore_segment`
+// (→ 37) mà không nâng sàn, 2.5d thêm `editor.end_target_paragraph`/`editor.join_target_paragraph`
+// (→ 39). ⚠️ Một sàn không được nâng **không làm cổng đỏ** — nó chỉ lặng lẽ mất ý nghĩa, vì
+// sàn là **cận dưới**: 29 trên 39 là 74 %, tức mười command có thể biến mất mà cổng vẫn xanh.
+const COMMAND_FLOOR = 33
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.

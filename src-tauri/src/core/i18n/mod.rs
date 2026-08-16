@@ -228,6 +228,25 @@ message_keys! {
     /// bởi một thao tác trông vô hại.
     SegmentNothingToConfirm => "err.segment.nothing_to_confirm" ["segment_id"],
 
+    // ── Story 2.5d (AD-46 · AD-37 · FR134) — MỘT khoá, và đúng một ──────────────────
+    //
+    // Lệnh đổi cờ kết đoạn của bản dịch tái dùng `ProjectNoWorkOpen` · `SegmentNotFound` ·
+    // `SegmentRetired` cho ba ca đầu — cùng câu, cùng nghĩa. Chỉ ca dưới đây là RIÊNG.
+    //
+    // 🔴 **Vì sao một khoá THỨ BA chứ không mượn `SegmentRetired`** — code review
+    // 2026-08-16, Ice ký đường (a). Hai khoá cũ nói *"câu không tồn tại"* và *"câu đã về
+    // hưu"*; khoá này nói một sự thật **khác hẳn**: câu **tồn tại**, **còn sống**, và vẫn
+    // không mang cờ được. Mượn một trong hai câu kia là nói dối về trạng thái của segment
+    // — đúng thứ AC14 của Story 2.5 cấm khi nó đòi mọi lượt từ chối **phân biệt được**.
+    /// Segment là câu **cuối Chương** ⇒ không đặt được cờ kết đoạn cho bản dịch — AC3 của
+    /// Story 2.5d, ca ① của AD-37: *"segment cuối Chương → tắt, LUÔN LUÔN"*.
+    ///
+    /// 🔴 *"Luôn luôn"* nghĩa là **kể cả khi người dùng bấm phím tường minh**: một đoạn
+    /// không thể kết thúc sau câu cuối cùng, vì không có gì đứng sau nó để tách khỏi.
+    /// Ca này là ca biên duy nhất **không** hỏi cờ cũ — xem
+    /// [`crate::core::segment::paragraph::at_end_of_chapter`], hàm thuần phát biểu nó.
+    SegmentEndsChapter => "err.segment.ends_chapter" ["segment_id"],
+
     // **KHÔNG có `ProjectMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
     // 2026-08-06). Cơ chế từ chối một `meta.json` mới hơn vẫn còn nguyên và vẫn có test
     // (`MetaError::SchemaTooNew` + `WorkMeta::read`), nhưng không đường sản phẩm nào

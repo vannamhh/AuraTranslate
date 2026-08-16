@@ -280,10 +280,19 @@ CREATE TABLE chapter (
 ///   trên `ord`, cùng lý do [`CHAPTER_DDL`] đã ghi: Epic 2 tự quyết cơ chế sắp lại, và nó có
 ///   thể để hở tạm thời trong một giao dịch nhiều bước. Đánh số **từ 1**, liên tục, không
 ///   lỗ — Story 2.10 (*"segment kế tiếp"*) đứng trên giả định đó.
-/// - `is_paragraph_end` — AC6 + AD-37. **Một** cột, dùng chung cho nguyên văn và bản dịch;
-///   **không** `source_paragraph_end`/`target_paragraph_end`. `INTEGER` 0/1 vì SQLite không
-///   có kiểu boolean; cưỡng chế giá trị hợp lệ là việc của tầng Rust, cùng khuôn
-///   `chapter.status` và `config_value.kind`.
+/// - `is_paragraph_end` — AC6 + AD-37. Cờ kết đoạn của **nguyên văn**. `INTEGER` 0/1 vì
+///   SQLite không có kiểu boolean; cưỡng chế giá trị hợp lệ là việc của tầng Rust, cùng
+///   khuôn `chapter.status` và `config_value.kind`.
+///   🔵 **CẬP NHẬT 2026-08-16 (Story 2.5d) — dòng này đã HẾT ĐÚNG VỀ MÃ và được sửa tại
+///   chỗ.** Bản cũ viết *"**Một** cột, dùng chung cho nguyên văn và bản dịch; **không**
+///   `source_paragraph_end`/`target_paragraph_end`"*. Nó đúng từ Story 2.1 tới 2.5c, và
+///   **AD-46** (FR134) là thứ nới nó: bản dịch nay có cờ riêng
+///   [`SEGMENT_TARGET_PARAGRAPH_END_DDL`] *(`is_target_paragraph_end`, bước 9)*, vì nhịp của
+///   tiếng Việt không buộc phải là nhịp của bản gốc.
+///   🔴 **AD-37 vẫn SỞ HỮU cột này** và không sửa một chữ — AD-46 khai đúng như vậy. Vế
+///   *"tính MỘT LẦN lúc nhập, không đường mã nào tính lại lúc nạp"* áp cho **cả hai** cờ.
+///   ⚠️ Và đây là chỗ dễ đọc nhầm nhất: cột thứ hai **không** phải `source_paragraph_end` —
+///   không có cột nào tên vậy, và sẽ không có. Cờ nguồn giữ nguyên tên lịch sử của nó.
 /// - `retired_at` — AD-5 *"về hưu = tombstone"*. Story 2.1 **không** cho segment nào về hưu;
 ///   cột có mặt để Story 2.8 không phải mở một bước di trú thứ hai chỉ để thêm một cột, và
 ///   để `ornament` (giá trị vạch lề thứ 5) có chỗ đọc.
@@ -510,12 +519,79 @@ CREATE TABLE segment_version (
 pub const SEGMENT_OMITTED_DDL: &str =
     "ALTER TABLE segment ADD COLUMN is_omitted INTEGER NOT NULL DEFAULT 0;";
 
-/// Bộ di trú của `project.db`. Hôm nay **bảy** bước — Story 1.15 · 2.1 · 2.2 · 2.5 · 2.5c.
+/// Cờ **kết đoạn của BẢN DỊCH** (FR134) — **bước 9 của `project.db`**, Story 2.5d, AC2 ·
+/// AC5 · Quyết định #5 đường (c) (Ice ký 2026-08-15).
 ///
-/// 🔴 **Bảy bước, và đích là phiên bản 8.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO SỐ **9**
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 5 · 6 · 7 · 8 đã tiêu ([`SEGMENT_DDL`] 2.1, [`SEGMENT_TARGET_TEXT_DDL`] 2.2,
+/// [`SEGMENT_STATUS_AND_VERSION_DDL`] 2.5, [`SEGMENT_OMITTED_DDL`] 2.5c). ⇒ Đọc
+/// [`PROJECT_MIGRATIONS`] ngay dưới chứ đừng đọc một ghi chép ở nơi khác — `sprint-status.yaml`
+/// còn mang một dòng từ Story 2.1 nói *"bước kế tiếp là 5"*, và dòng đó đã hết đúng **bốn**
+/// lần kể từ khi được viết.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO MỘT `ALTER TABLE` CHỨ KHÔNG SỬA [`SEGMENT_DDL`] — cùng lý do bước 6, 7 và 8
+/// ─────────────────────────────────────────────────────────────────────────────
+/// [`SEGMENT_DDL`] là DDL của một bảng **tạo mới**; một `project.db` đã ở phiên bản 5 không
+/// bao giờ chạy lại nó. Sửa nó tại chỗ cho ra **hai lược đồ khác nhau cho cùng một số phiên
+/// bản** — đúng vết sẹo số 4 ghi ở [`PROJECT_MIGRATIONS`].
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO MỘT CÂU `UPDATE` ĐI CÙNG — bước ĐẦU TIÊN của kho trộn DDL với DML
+/// ─────────────────────────────────────────────────────────────────────────────
+/// AC2 đòi cờ đích **mặc định bằng cờ nguồn**, tức một giá trị **theo hàng**. Mà `DEFAULT`
+/// của SQLite **phải là hằng** — `DEFAULT is_paragraph_end` không tồn tại *(cùng ràng buộc
+/// mà bước 6 và 7 đã ghi lại tại chỗ)*. ⇒ Vế *"bằng cờ nguồn"* **không** diễn đạt được
+/// trong `ADD COLUMN`, và nó phải là một câu thứ hai.
+///
+/// [`migrate`] chạy `tx.execute_batch(m.sql)`, nên **nhiều câu ngăn bằng `;` chạy trọn
+/// trong MỘT giao dịch** — hoặc cả hai câu cùng vào, hoặc không câu nào. Đó là thứ làm
+/// đường này an toàn trên **21** `project.db` thật *(**10.477** hàng `segment`, đo
+/// 2026-08-12)*.
+///
+/// ⚠️ **Tiền lệ chỉ đi được nửa đường, ghi ra thay vì giấu:** [`SEGMENT_STATUS_AND_VERSION_DDL`]
+/// (bước 7) đã dùng đúng cơ chế nhiều câu / một giao dịch, nhưng đó là **DDL + DDL**. Đây
+/// là **DDL + DML**, và kho chưa bước nào làm vậy. Ice ký đường (c) 2026-08-15 sau khi cả
+/// hai vế được đặt lên bàn: đường còn lại *(backfill ở một lượt ghi Rust riêng sau khi mở
+/// kho)* giữ bước di trú thuần DDL, nhưng mở một **cửa sổ** mà đĩa mang cờ đích sai và
+/// **không** `PRAGMA user_version` nào nói ra điều đó.
+///
+/// 🔴 Và một câu `UPDATE` như thế **không** phá lằn ranh mà Quyết định #4 của Story 2.1
+/// đặt ra *(xem [`SEGMENT_DDL`])*: lằn ranh đó cấm nhét một **quy tắc nghiệp vụ đang chạy**
+/// vào lược đồ. Câu này không phát biểu một quy tắc — nó **chép một giá trị đã có sang một
+/// cột mới đúng một lần**, tại đúng thời điểm cột đó ra đời. Quy tắc *"cờ đích soi gương cờ
+/// nguồn cho tới khi người dùng đổi"* sống ở tầng Rust: đường nhập set cờ tường minh, và
+/// lệnh đổi cờ ghi rời rạc.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 TÊN CỘT — Quyết định #5, đường (c)
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `is_target_paragraph_end`, giữ tiền tố `is_` như `is_paragraph_end` và `is_omitted`.
+/// Đường (a) *(`target_paragraph_end`, không tiền tố)* cũng hợp lệ; Ice ký (c) cho một từ
+/// vựng đồng nhất. ⇒ **Dùng MỘT từ ở mọi tầng** — TS, lệnh, tài liệu — không đặt từ thứ
+/// hai, đúng luật Quyết định #5 của Story 2.5c.
+///
+/// ⚠️ **AD-37 vẫn SỞ HỮU cờ nguồn.** Cột này **không** thay `is_paragraph_end` và **không**
+/// đổi nghĩa của nó. AD-46 là thứ nới AD-37, và nó khai bằng chữ *"AD-37 không sửa một
+/// chữ"*.
+///
+/// ⚠️ **KHÔNG** `CHECK` — cùng khuôn `status`, `is_omitted` và `chapter.status`.
+/// ⚠️ **KHÔNG** `CREATE INDEX`: không đường đọc nào lọc theo cột này; lượt nạp lấy cả
+/// Chương rồi lọc trong bộ nhớ.
+pub const SEGMENT_TARGET_PARAGRAPH_END_DDL: &str = concat!(
+    "ALTER TABLE segment ADD COLUMN is_target_paragraph_end INTEGER NOT NULL DEFAULT 0;",
+    "UPDATE segment SET is_target_paragraph_end = is_paragraph_end;"
+);
+
+/// Bộ di trú của `project.db`. Hôm nay **tám** bước — Story 1.15 · 2.1 · 2.2 · 2.5 · 2.5c ·
+/// 2.5d.
+///
+/// 🔴 **Tám bước, và đích là phiên bản 9.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from`
-/// nên một lỗ hổng không làm bước nào bị bỏ qua.
+/// (`[1, 2, 3, 5, 6, 7, 8, 9]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
+/// `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
 ///
 /// ⚠️ Con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
 /// gỡ ở lượt Ice ký lại 2026-08-11 *(vết sẹo ghi đầy đủ ở cuối doc-comment này)*. Một
@@ -528,6 +604,15 @@ pub const SEGMENT_OMITTED_DDL: &str =
 ///
 /// 🔵 **CẬP NHẬT 2026-08-15 (Story 2.5c):** đích chuyển từ **7** lên **8** — bước
 /// [`SEGMENT_OMITTED_DDL`] (FR133). Câu *"sáu bước, đích là 7"* đã hết đúng, sửa tại chỗ.
+///
+/// 🔵 **CẬP NHẬT 2026-08-16 (Story 2.5d):** đích chuyển từ **8** lên **9** — bước
+/// [`SEGMENT_TARGET_PARAGRAPH_END_DDL`] (FR134/AD-46). Câu *"bảy bước, đích là 8"* đã hết
+/// đúng, sửa tại chỗ.
+/// 🔴 Bước 9 là bước **đầu tiên** của kho mang **DDL + DML** trong một hằng. Lý do đầy đủ ở
+/// doc-comment của chính hằng đó; điều đáng nhớ **ở đây** là mệnh đề *"mỗi bước một hằng"*
+/// ngay dưới nói về **số hằng**, không về **số câu SQL** — [`migrate`] đã chạy
+/// `execute_batch` từ đầu, nên nhiều câu trong một bước là hình dạng **sẵn có**, không một
+/// lượt nới.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -614,6 +699,14 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 8,
         sql: SEGMENT_OMITTED_DDL,
+    },
+    // Story 2.5d — co ket doan cua BAN DICH (FR134/AD-46): cot
+    // `segment.is_target_paragraph_end`, cong mot cau `UPDATE` backfill bang co nguon.
+    // 🔴 **9, khong phai 5** — 5, 6, 7 va 8 da tieu. Buoc DAU TIEN cua kho mang DDL + DML
+    // trong mot hang; ly do day du o doc-comment cua [`SEGMENT_TARGET_PARAGRAPH_END_DDL`].
+    Migration {
+        to_version: 9,
+        sql: SEGMENT_TARGET_PARAGRAPH_END_DDL,
     },
 ];
 

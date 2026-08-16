@@ -199,26 +199,83 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
     await expect(status).toMatch(/^Đã lưu \d+ giây trước$/)
   })
 
-  it('`Enter` KHÔNG tách câu — cấu trúc đoạn là dữ liệu đã lưu (AD-37)', async () => {
-    await openWorkspaceWithWork('Story 2.3 — Enter bị chặn')
+  /*
+   * 🔵 **CA NÀY ĐỔI MỆNH ĐỀ 2026-08-16 (Story 2.5d, FR134/AD-46) — viết lại, không xoá.**
+   *
+   * Tên cũ: *"`Enter` KHÔNG tách câu — cấu trúc đoạn là dữ liệu đã lưu (AD-37)"*, và nó khẳng
+   * định `Enter` **bị chặn**. Vế *"không tách câu"* **vẫn đúng và ở lại**; vế *"bị chặn"* đã
+   * hết đúng — trong ô bản dịch `Enter` nay **xuống dòng** (AC1).
+   *
+   * 🔴 **VÀ ĐÂY LÀ ĐƯỜNG DUY NHẤT BẮT ĐƯỢC LỚP LỖI TRUNG TÂM CỦA STORY.** Bàn đo dừng ở DOM;
+   * `vitest` chạy trên `happy-dom` với fixture chép tay; `cargo test` không có webview nào.
+   * Chỉ ca này đi trọn **phím → DOM → tập chờ → flush → `project.db` → lệnh đọc**, trên engine
+   * mà sản phẩm thật sự chạy. Lớp lỗi nó canh: *"DOM có hai dòng, đĩa có một chuỗi liền"* —
+   * `textContent` của `<div>a</div><div>b</div>` là `"ab"`, và **không cổng nào đỏ vì chuyện đó**.
+   */
+  it('`Enter` xuống dòng trong ô, `\n` đi tới `project.db`, và KHÔNG câu nào bị tách', async () => {
+    await openWorkspaceWithWork('Story 2.5d — Enter xuống dòng')
+
+    /*
+     * 🔴 NẠP LẠI WEBVIEW — cùng lý do và cùng phép đo với `grid-empty-cell.e2e.mjs`.
+     *
+     * ⚠️ **Lượt vá này KHÔNG thừa, và nó có một phép đo riêng ở chính ca này:** bản đầu không
+     * nạp lại và đỏ với `target_text` = `"Bản dịch gõ trong WKWebView thật.Dong mot.\nDong hai."`
+     * — tức ô đang mang chữ mà **ca thứ nhất của chính tệp này** vừa gõ. Cả hai ca dùng chung
+     * một `$APPDATA` tạm (`wdio.conf.mjs::onPrepare`), nên `app_config` sống sót qua từng phiên
+     * app: app khởi động **thẳng vào** `workspace` với Tác phẩm cũ, lưới mount và nạp segment
+     * của Tác phẩm đó, rồi `create_work_from_text` của fixture đi đường **IPC** — đường **không**
+     * gọi `resetEditorPanel()`.
+     *
+     * 🔴 Ghi rõ vì nó dễ đọc nhầm thành một khuyết tật sản phẩm: **phép đo của ca này ĐẠT ngay
+     * ở lượt đỏ đó** — chuỗi trên đĩa **có** `\n` đúng chỗ. Thứ sai là **điều kiện đầu vào**,
+     * không phải cơ chế. Món nợ *"fixture e2e không reset state panel"* có chủ: Story 1.22.
+     */
+    await browser.execute(() => {
+      window.location.reload()
+    })
+    await $('[data-col="tgt"]').waitForExist({
+      timeout: 30_000,
+      timeoutMsg: 'Nạp lại webview rồi mà không thấy ô `[data-col="tgt"]` nào sau 30 giây.',
+    })
 
     const before = await readSegmentsFromDisk()
     const targetId = before.segments[0].id
     await realClick(await $(`[data-col="tgt"][data-segment-id="${targetId}"]`))
     await browser.pause(200)
 
-    // Vế PHÍM: `browser.keys` bắn `keydown` thật, và đó đúng là thứ `onEditKeydown` canh.
-    await browser.keys(['Enter'])
-    await browser.keys(['Enter'])
-    // Vế SỰ KIỆN SOẠN THẢO: `insertParagraph` là inputType mà một `Enter` thật sinh ra — nhánh
-    // ① của `onBeforeInput` phải chặn nó, kể cả khi lượt phím đã bị chặn ở tầng trên.
+    // ── ① Gõ, xuống dòng, gõ tiếp ────────────────────────────────────────────────
+    //
+    // ⚠️ `execCommand`, **không** `browser.keys`: giới hạn của bộ đo đã ghi ở đầu tệp —
+    // `browser.keys()` chỉ bắn `keydown`/`keyup` và không đi vào đường nhập văn bản gốc của
+    // WKWebView. Cả hai đi qua **cùng** đường soạn thảo của engine, và nhánh ① của
+    // `onBeforeInput` chặn theo `inputType` chứ không theo phím.
     await browser.execute(() => {
+      document.execCommand('insertText', false, 'Dong mot.')
       document.execCommand('insertParagraph')
+      document.execCommand('insertText', false, 'Dong hai.')
     })
     await browser.pause(300)
 
+    // ── ② DOM: hai dòng THẬT, một text node phẳng, KHÔNG markup ───────────────────
+    const dom = await browser.execute(() => {
+      const cell = document.activeElement
+      const r = document.createRange()
+      r.selectNodeContents(cell)
+      const tops = [...new Set([...r.getClientRects()].map((b) => +b.top.toFixed(2)))]
+      return {
+        soDong: tops.length,
+        soPhanTuCon: cell.querySelectorAll('*').length,
+        textContent: cell.textContent,
+      }
+    })
+    // 🔴 `soPhanTuCon === 0` là mệnh đề chống **tiêm markup**: nếu engine dựng `<div>` hay
+    // `<br>` thì `textContent` ngay dưới sẽ nuốt mất ranh giới, và đĩa nhận một chuỗi liền.
+    await expect(dom.soPhanTuCon).toBe(0)
+    await expect(dom.textContent).toBe('Dong mot.\nDong hai.')
+    await expect(dom.soDong).toBe(2)
+
+    // ── ③ KHÔNG câu nào bị tách — vế GIỮ NGUYÊN từ bản cũ, và là vế đắt nhất ──────
     const ids = await browser.execute(() =>
-      // 🔵 B11 — đếm theo CỘT, không theo id trần: `[data-segment-id]` nay khớp `2 ×` số câu.
       [...document.querySelectorAll('[data-col="tgt"]')].map((el) =>
         Number(el.getAttribute('data-segment-id')),
       ),
@@ -226,13 +283,21 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
     await expect(ids.length).toBe(before.segments.length)
     await expect(new Set(ids).size).toBe(ids.length)
 
-    // Và không `<br>` nào bị tiêm vào TRONG câu đang gõ.
-    // ⚠️ `?? 0`, không `?? -1`: vế *"vùng gõ tồn tại"* đã được ca thứ nhất khẳng định bằng bốn
-    // assert. Ở đây mệnh đề là *"không có `<br>` nào"*, và một vùng gõ vắng mặt cũng thoả nó —
-    // đọc `-1` thành một ca đỏ là trộn hai mệnh đề vào một phép kiểm.
-    const brInside = await browser.execute(
-      () => document.activeElement?.querySelectorAll?.('br').length ?? 0,
-    )
-    await expect(brInside).toBe(0)
+    // ── ④ FLUSH, rồi đọc lại bằng ĐÚNG lệnh IPC của sản phẩm ─────────────────────
+    await browser.pause(FLUSH_WAIT_MS)
+    const after = await readSegmentsFromDisk()
+    const saved = after.segments.find((s) => s.id === targetId)
+
+    // 🔴 MỆNH ĐỀ TRUNG TÂM. Một chặng làm phẳng sẽ cho `"Dong mot. Dong hai."` — một chuỗi
+    // **hợp lệ trông như thật**, đi trọn xuống đĩa mà không một lỗi nào được ném.
+    await expect(saved.target_text).toBe('Dong mot.\nDong hai.')
+    await expect(saved.target_text.includes('\n')).toBe(true)
+
+    // ── ⑤ Cờ kết đoạn của BẢN DỊCH đi qua dây, và một `\n` KHÔNG bật nó ──────────
+    //
+    // 🔴 Hai khái niệm khác nhau: `\n` là xuống dòng **trong** một câu; cờ là ranh giới đoạn
+    // **sau** câu (AC4). Nếu một đường mã nào suy cờ từ nội dung, ca này đỏ.
+    await expect(typeof saved.is_target_paragraph_end).toBe('boolean')
+    await expect(saved.is_target_paragraph_end).toBe(before.segments[0].is_target_paragraph_end)
   })
 })

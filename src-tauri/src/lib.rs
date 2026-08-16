@@ -335,6 +335,7 @@ pub fn run() {
             // chung khac nhau o dung mot boolean, xem doc-comment cua vo. Cung hang voi
             // `confirm_segment`: thao tac ROI RAC ghi NGAY, khong qua bo dem go 2s/5s.
             crate::commands::segment::wire::set_segment_omitted,
+            crate::commands::segment::wire::set_segment_paragraph_end,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

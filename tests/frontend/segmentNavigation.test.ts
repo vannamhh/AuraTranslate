@@ -149,6 +149,9 @@ describe('navigationSegmentOf — văn bản ĐANG GÕ thắng bản lúc nạp'
       retired_at: null,
       status: 'draft',
       is_omitted: false,
+      // 🔵 2026-08-16 (Story 2.5d) — cột `is_target_paragraph_end`, bước di trú 9.
+      // Mặc định BẰNG `is_paragraph_end` ngay trên, đúng AC2 lúc nhập.
+      is_target_paragraph_end: false,
       ...over,
     }
   }
