@@ -256,7 +256,11 @@ const TS_FLOOR = 30 // số THẬT 2026-08-14 (sau Story 2.5b): 37 tệp `.ts` �
 // ⚠️ Đây đúng lớp lỗi mà code review Story 2.6 bắt được: chú thích ở đó tự khai *"đo lại,
 // không chép"* rồi ghi **41** trong khi cổng in **44** — nó chỉ đếm 2 trong 5 command mới của
 // chính story đó. ⇒ Lượt này chạy cổng trước, đọc số, rồi mới sửa dòng dưới.
-const COMMAND_FLOOR = 38
+// 🔵 **38 → 39, Story 2.9 (2026-08-17).** Cổng in **47** command sau khi thêm
+// `editor.clear_source_cuts` *(Story 2.8 ghi 46 — đúng +1, không hơn)*. Đo lại bằng cách chạy
+// cổng RỒI sửa dòng này, đúng thứ tự mà chú thích ngay trên đòi. 39/47 = **83 %**, giữa dải
+// 80–85 %; để nguyên 38 thì sàn tụt xuống 81 % và mất dần ý nghĩa qua từng story.
+const COMMAND_FLOOR = 39
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.

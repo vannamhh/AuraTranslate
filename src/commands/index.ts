@@ -327,6 +327,14 @@ export type CommandDeps = {
    * ⚠️ Cùng nghĩa vụ và cùng cái bẫy với `mergeSegments` ngay trên.
    */
   splitSegment?: () => void
+  /**
+   * **Xoá trọn tập điểm cắt đang chờ ở cột nguyên văn** — Story 2.9, AC8.
+   *
+   * ⚠️ Đây là một lượt xoá **state của webview**, không một lượt ghi đĩa — nên nó KHÔNG mang
+   * nghĩa vụ flush của hai dep ngay trên. Nó vẫn đi qua `editorPanelState.ts` vì ô nhớ sống ở
+   * đó, không vì một hợp đồng nào.
+   */
+  clearSourceCuts?: () => void
 
   /** Đặt caret vào bề mặt chữ đầu tiên đã đăng ký. Handler của `selection.focus_source`. */
   focusSelectionSource?: () => boolean
@@ -1200,9 +1208,20 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * `lacksPrimaryMod = !meta && !ctrl`): chúng vẫn bắn khi caret đang nằm trong ô bản dịch,
    * đúng chỗ duy nhất hai thao tác này có nghĩa.
    */
+  //
+  // 🔵 **STORY 2.9, AC8 — `editor.clear_source_cuts` KHÔNG mang `Mod`, và đó là một ngoại lệ
+  // CÓ ĐO, không một lượt quên.** `Escape` là phím lui theo quy ước của mọi trình soạn thảo;
+  // gắn nó sau một phím bổ trợ là đặt một quy ước riêng cho một thao tác quen thuộc.
+  // 🔴 **Hệ quả phải ghi ra:** vì thiếu `Mod`, `keys.ts:510` **chặn** hợp âm này khi tiêu điểm
+  // nằm trong vùng gõ — tức ở đúng chỗ người dùng đang đứng sau khi vừa gõ. Command này vì thế
+  // **một mình không đủ**, và `GridPanel.vue::onEditKeydown` bắt `Escape` trực tiếp rồi
+  // `dispatch` **chính id này**. Hai cửa, MỘT command — cùng khuôn cử chỉ `Backspace` của AC1.
+  // ⇒ Đăng ký ở đây **không thừa**: nó là thứ làm phím gán lại được (FR22) và hiện trong bảng
+  //   phím của Story 1.21. Gỡ nó đi là rút một tính năng, không dọn một dòng.
   for (const [id, port, chord] of [
     ['editor.merge_segments', 'mergeSegments', 'Mod+M'],
     ['editor.split_segment', 'splitSegment', 'Mod+Slash'],
+    ['editor.clear_source_cuts', 'clearSourceCuts', 'Escape'],
   ] as const) {
     target.register({
       id,

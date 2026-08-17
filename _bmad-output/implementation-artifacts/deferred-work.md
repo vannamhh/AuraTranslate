@@ -4312,3 +4312,83 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   ⚠️ Vá này chỉ đóng cho **spec của 2.9**. Khuôn `waitForExist` rồi đọc ngay còn nguyên ở các
   spec khác, và nó là một **ứng viên chưa ai xét** cho món *"bộ e2e chập chờn"*.
   **Chủ: story hạ tầng e2e.**
+
+- 🔴 **HỎNG DỮ LIỆU IM LẶNG ở tab Hán Việt — TÌM RA và ĐÃ VÁ cùng ngày (Story 2.9, AC9).**
+  Ice báo *"chưa thấy điểm cắt, và chưa cắt được"*; bàn đo cho một bảng nặng hơn hẳn triệu
+  chứng. Trên `京都春風。` (**5 ký tự**), `sourceCutOffsetOf` trả **17** ở kiểu `switch` và
+  **19** ở `parallel`. Nguyên nhân lớn nhất **không nằm trong ba giả thuyết ban đầu**: dòng
+  `Nguồn: thieu-chuu` (`.hv-sources`, 17 ký tự) nằm **trong ô** và bị phép đếm mù cộng vào.
+  🔴 **Hôm nay nó chưa hỏng im lặng chỉ vì MAY** — hai con số tình cờ vượt biên một câu 5 chữ
+  nên Rust từ chối. Trên một câu Chương thật (40–60 chữ), `19` nằm **trong biên** và `⌘/` cắt
+  **sai chỗ, im lặng**, trên dữ liệu mà AD-5 không cho hoàn tác.
+  ✅ Đã vá: phép **đếm mù** thay bằng **đọc neo** `data-src-start`; không neo ⇒ `null`.
+  Đo lại sau vá, cùng bàn đo: `switch` **0** *(đầu từ được bấm)* · `parallel` **2** ✅
+
+- ⚠️ **Ở kiểu `parallel`, một chỗ cắt nằm GIỮA một từ KHÔNG vẽ được dấu.** Chữ ký của Ice
+  (2026-08-17) cho `parallel` cắt **chính xác từng chữ**, và phép ánh xạ làm đúng thế *(đo:
+  offset 2 trong base `京都`)*. Nhưng dấu cắt vẽ bằng **`::before`** trên phần tử mang neo, nên
+  nó chỉ đặt được ở **đầu** phần tử — một chỗ cắt giữa `京` và `都` không có chỗ bám.
+  🔴 **Vì sao không chen một `<span class="cut-mark">` vào giữa:** `resolveSwitch()` ánh xạ
+  ngược bằng **CHỈ SỐ** (`host.children[i]` ↔ `segments[i]`), và doc-comment của template ghi
+  thẳng *"thêm/bớt/đổi thứ tự một phần tử ở đây là làm truy vấn tra cứu sai im lặng"*. Một dấu
+  cắt bằng **text node** thì đi vào `Selection.toString()` của Auto-Lookup.
+  ⇒ Hai đường rẻ đều phá một thứ đang chạy. **Chủ: Ice** — chọn giữa (a) cho `.hv-unit` nguyên
+  khối luôn *(cắt theo ranh giới từ ở CẢ hai kiểu xem; mọi dấu cắt vẽ được, mất độ chính xác
+  giữa từ)*, hay (b) giữ độ chính xác và nhận một dấu cắt vô hình ở ca giữa từ.
+  ⚠️ Ghi ra vì im lặng ở đây đúng bằng khuyết tật vừa vá: một chỗ cắt **không nhìn thấy**.
+
+- 🔴 **Một bàn đo CHÉP hàm sản phẩm sẽ đo BẢN CHÉP, và bản chép cũ đi — đo được trong chính
+  story này.** Sau lượt vá AC9, `2-9-ban-do/han-viet-cho-cat.e2e.mjs` chạy lại vẫn cho **17**
+  và **19** y hệt lượt trước, trong khi DOM đã mang neo *(`neoVao: "src-piece"` chứng minh)*.
+  ⇒ Nó báo *"chưa vá"* trên một sản phẩm **đã vá**. Cùng họ với *"một con số THẬT, trả lời SAI
+  câu hỏi"* mà `2-5d-ban-do` đã đặt tên, nhưng ở một cơ chế mới chưa ai ghi.
+  **Chủ: một luật cho bàn đo** — hoặc cấm chép, hoặc buộc cập nhật cùng lượt với hàm gốc.
+
+- ⚠️ **`.cell-src.has-cuts` nay KHÔNG còn là "kênh duy nhất ở chế độ Hán Việt".** Chú thích ở
+  `GridPanel.vue` khai nó bằng chữ như thế *(và trỏ về một món nợ có chủ)*; sau AC9 dấu cắt
+  **vẽ được** ở cả hai kiểu xem qua `::before`. Đã sửa chú thích tại chỗ kèm 🔵.
+  Món còn lại là một câu hỏi **thẩm mỹ**: giữ cả hai kênh *(viền ô + dấu cắt)* hay bỏ một.
+  **Chủ: Ice.**
+
+  → ✅ **ĐÃ ĐÓNG 2026-08-17 — Ice dùng thật rồi chốt: BỎ.** Nguyên văn: *"bỏ dấu gạch đứng ở
+  trước câu đi, nó không cần thiết"*. Viền `has-cuts` **và chính lớp đó** đã gỡ; hai spec e2e
+  đọc nó chuyển sang `data-cut-count` *(chở một SỐ, chặt hơn một cờ)*. Cùng lượt: dấu cắt cao
+  `1em` → **`1,3em`** và đổi `ornament` → **`primary`** — `ornament` đo được **2,44/2,64** trên
+  `surface`, tức mờ đến mức `check:tokens` cấm nó làm màu chữ.
+  🔴 Chiều cao hàng **đã đo, không suy**: 71px → **71px**, chênh 0/0 *(`2-9-ban-do/
+  dau-cat-chieu-cao.e2e.mjs`)*. `subgrid` làm một phần tử inline cao hơn line box đẩy cả track
+  và kéo ô bản dịch theo — cái giá đó đã đo một lần ở 2.5b (388px), nên nó không được tin bằng mắt.
+
+- ⚠️ **`hasPrimaryModifier` và `caretAtCellStart` nay sống cạnh `sourceCutOffsetOf` trong
+  `editorSegments.ts`, và tệp đó khai bằng chữ *"KHÔNG `import` giá trị nào, KHÔNG Vue, KHÔNG
+  DOM"*.** Vế "không DOM" đã **hết đúng theo chữ** từ Story 2.8 *(`sourceCutOffsetOf` gọi
+  `createTreeWalker`)*, và Story 2.9 thêm hai hàm nữa đụng DOM. Điều kiện THẬT mà cổng
+  `check:commands` cần là *"nạp được bằng Node thuần"* — thân hàm đụng DOM thì không sao, chỉ
+  `import` giá trị mới giết cổng. ⇒ Chú thích đang mô tả một luật **chặt hơn** luật thật, và
+  người sau sẽ hoặc tin nhầm hoặc phá nhầm. **Chủ: một story hạ tầng** *(sửa chú thích cho
+  đúng điều kiện, hoặc tách tệp)*.
+
+- ⚠️ **Hai khối CSS của dấu cắt phải đổi CÙNG LÚC, và KHÔNG cổng nào canh việc chúng khớp.**
+  `GridPanel.vue::.cut-mark` *(nhánh văn bản thuần)* và `SourceHanViet.vue::.cut-here::before`
+  *(cả hai kiểu xem Hán Việt)* vẽ **cùng một** khái niệm bằng **hai** khối rời — chúng không
+  dùng chung được vì một cái là phần tử còn cái kia là pseudo-element, và `SourceHanViet` có
+  `<style scoped>` riêng. Lượt 2026-08-17 sửa cả hai *(cao 1,3em · `primary`)* và ghi cảnh báo
+  tại chỗ ở cả hai đầu, nhưng một lượt sau vẫn có thể sửa một nửa: người dùng sẽ thấy dấu cắt
+  đổi hình khi bật tab Hán Việt, và **không phép kiểm nào đỏ**.
+  **Chủ: một story hạ tầng cổng** *(hoặc một token dùng chung cho hình dạng dấu cắt)*.
+
+---
+
+## Deferred from: code review of 2-9-gop-bang-backspace-dau-o (2026-08-17)
+
+- 🟡 **`sourceCut` (Story 2.8) không được dọn ở `resetEditorPanel()`** — `editorPanelState.ts:443-492`
+  dọn `confirmError` · `caretPlacement` · `confirmNotice` (thêm ở code review 2026-08-15) nhưng
+  **không** dọn `sourceCut`, một ô nhớ chở `segment.id` + offset của Tác phẩm đang mở. Nằm ngoài
+  diff của 2.9 nên không vá ở lượt này.
+  ⚠️ **Quan sát rộng hơn, và nó mới là món thật:** luật viết bằng chữ ở `:479-487` — *"áp cho mọi
+  ô nhớ THÊM VÀO TỆP NÀY sau này: hỏi 'ô này thuộc Tác phẩm hay thuộc ứng dụng?'"* — **không có
+  cổng nào canh**. Bằng chứng: nó đã bị bỏ sót ở **hai story liên tiếp** (`sourceCut` ở 2.8,
+  `regroupNotice`/`regroupError` ở 2.9), cả hai đi qua trọn mười một cổng. Một luật chỉ sống trong
+  một khối chú thích là một luật sẽ bị quên lần thứ ba.
+  **Chủ: một story hạ tầng cổng** *(một phép kiểm đếm `shallowRef`/`ref` cấp module trong
+  `editorPanelState.ts` và đối chiếu với thân `resetEditorPanel`)*.

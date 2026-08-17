@@ -332,12 +332,15 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
       const cell = document.querySelector(`[data-col="src"][data-segment-id="${id}"]`)
       return {
         dem: cell?.getAttribute('data-cut-count') ?? null,
-        coVien: cell?.classList.contains('has-cuts') ?? false,
+        // 🔵 2026-08-17 — trường `coVien` ĐÃ GỠ cùng lớp `has-cuts` (Ice chốt: *"bỏ dấu gạch
+        // đứng ở trước câu đi, nó không cần thiết"*). Lớp đó là một kênh THAY THẾ cho ngày
+        // dấu cắt chưa vẽ được ở tab Hán Việt; Story 2.9 · AC9 làm nó vẽ được ⇒ kênh hết việc.
+        // Mệnh đề *"kênh thị giác phải THẤY ĐƯỢC hai điểm"* không đổi một chữ — `soDauCat` là
+        // vế mang nó, và nó CHẶT hơn một cờ.
         soDauCat: cell?.querySelectorAll('.cut-mark').length ?? -1,
       }
     }, truoc.hang[0].id)
     await expect(soDiem.dem).toBe('2')
-    await expect(soDiem.coVien).toBe(true)
     await expect(soDiem.soDauCat).toBe(2)
 
     // ── ② MỘT lượt `⌘/` ───────────────────────────────────────────────────────────

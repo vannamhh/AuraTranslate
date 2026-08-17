@@ -282,23 +282,88 @@ export function ruleClassOf(rule: SegmentRuleValue): string | null {
 export function sourceCutOffsetOf(cell: Element, node: Node, offsetInNode: number): number | null {
   if (!cell.contains(node)) return null
   // 🔴 Một text node nằm dưới `<rt>` là **ÂM HÁN VIỆT**, không một ký tự nào của
-  // `source_text`. Xem khối 🔵 ở doc-comment trên.
+  // `source_text`. Giữ lại dù §🔵 2026-08-17 làm nó **thừa theo cấu tạo** *(`<rt>` không mang
+  // neo, nên nhánh dưới đã trả `null`)*: nó là một chốt rẻ cho đúng cái bẫy đã lọt một lần,
+  // và một hàng rào thừa ở đây không tốn gì.
   if (duoiRt(cell, node)) return null
 
+  // ── ĐỌC NEO — §🔵 2026-08-17 ────────────────────────────────────────────────────
+  const neo = neoNguonCua(cell, node)
+  if (neo === null) return null
+  const batDau = Number(neo.getAttribute(SRC_START))
+  if (!Number.isFinite(batDau)) return null
+
+  // 🔴 **NGUYÊN KHỐI** — `.hv-word` ở kiểu `switch` (chữ ký của Ice, 2026-08-17). Thứ trên
+  // màn hình là **ÂM**, không phải chữ Hán, nên một cú bấm ở đó nói được *"TỪ nào"* mà
+  // không nói được *"ký tự nào trong từ"*. Cộng thêm offset ở đây là dựng một con số từ một
+  // chuỗi **khác hẳn** `source_text` — đúng phép đếm vừa bị bác.
+  if (neo.hasAttribute(SRC_ATOMIC)) return batDau
+
+  // Phần tử mang **chính** ký tự nguồn *(mảnh văn bản thuần · `.hv-text` · base `<ruby>`)*
+  // ⇒ đếm ký tự đứng trước caret **bên trong nó**, bỏ qua `<rt>`.
+  //
+  // 🔴 `offsetInNode` là một chỉ số **UTF-16** *(mọi offset của DOM Range đều thế)*, nên nó
+  // phải đi qua `demKyTu` chứ không cộng thẳng — xem khối 🔵 vế ②.
   let truoc = 0
-  const walker = cell.ownerDocument.createTreeWalker(cell, NodeFilter.SHOW_TEXT)
+  const walker = cell.ownerDocument.createTreeWalker(neo, NodeFilter.SHOW_TEXT)
   let n = walker.nextNode()
   while (n !== null && n !== node) {
     if (!duoiRt(cell, n)) truoc += demKyTu(n.textContent)
     n = walker.nextNode()
   }
-  // `node` KHÔNG phải một text node của ô *(vd chính `cell` khi ô rỗng)* ⇒ `walker` chạy hết
-  // mà không gặp nó. Trả tổng độ dài, tức **cuối** ô — cùng ngữ nghĩa "bấm vào khoảng trống
-  // sau câu" mà đường chuột của ô bản dịch đã chọn.
-  //
-  // 🔴 `offsetInNode` là một chỉ số **UTF-16** *(mọi offset của DOM Range đều thế)*, nên nó
-  // phải đi qua `demKyTu` chứ không cộng thẳng — xem khối 🔵 vế ②.
-  return truoc + (n === null ? 0 : demKyTu(n.textContent?.slice(0, offsetInNode)))
+  // `node` không phải text node của neo *(vd chính phần tử neo)* ⇒ walker chạy hết mà không
+  // gặp nó. Trả `batDau + truoc`, tức **cuối** phần tử — cùng ngữ nghĩa *"bấm vào khoảng
+  // trống sau chữ"* mà đường chuột của ô bản dịch đã chọn.
+  return batDau + truoc + (n === null ? 0 : demKyTu(n.textContent?.slice(0, offsetInNode)))
+}
+
+/** Thuộc tính neo: chỉ số ký tự nguồn nơi phần tử này bắt đầu. */
+const SRC_START = 'data-src-start'
+/**
+ * Chỉ cắt được ở **đầu** phần tử này. **Hai** lý do khác nhau đều dùng cùng một neo:
+ *
+ * ① **Không mang ký tự nguồn trên màn hình** — `.hv-word` ở kiểu `switch`: thứ hiển thị là
+ *    **ÂM** Hán Việt, nên một cú bấm nói được *"TỪ nào"* mà không nói được *"ký tự nào"*.
+ *    Chữ ký của Ice, 2026-08-17.
+ *
+ * ② 🔵 **Không VẼ được dấu ở giữa** — mảnh `.hv-text` *(dấu câu, số, chữ Latin)*, thêm ở lượt
+ *    code review 2026-08-17. Mảnh này **mang** chính ký tự nguồn nên phép đếm cho một offset
+ *    **chính xác từng ký tự**, và đó lại là vấn đề: `SourceHanViet.vue` vẽ dấu cắt bằng
+ *    `cutSet.has(seg.srcStart)` — so với điểm **ĐẦU** mảnh — nên một offset ở **giữa** mảnh là
+ *    một chỗ cắt **có hiệu lực mà không hiện ở đâu cả**. Rust vẫn thực thi nó đúng, trên dữ liệu
+ *    AD-5 không cho hoàn tác, còn người dùng không thấy nó nằm đâu.
+ *    🔴 Chuỗi `」，` hay `……` dài ≥2 ký tự là chuyện **thường** trong tiểu thuyết, không một ca
+ *    hiếm. Ice ký *"TỪ CHỐI offset giữa mảnh"*: mất độ chính xác giữa `」，` là một cái giá đọc
+ *    được, còn một chỗ cắt tàng hình thì không.
+ *    ⚠️ Đường sửa còn lại — chẻ `.hv-text` theo từng điểm mã để vẽ được dấu ở mọi chỗ — **bị
+ *    cấm bằng chữ**: nó đổi số con của host, và `resolveSwitch` ánh xạ `children[i]` ↔
+ *    `segments[i]`, nên mỗi lượt tra từ sau dấu cắt trả **sai chữ**, không lỗi nào ném.
+ *
+ * ⚠️ **Neo này KHÔNG phủ ca base `<ruby>` ở kiểu `parallel`** (`.hv-unit`, một TỪ Hán nhiều
+ * chữ): ở đó AC9 đòi bằng chữ *"chính xác từng chữ"* nên nó **phải** giữ phép đếm, và một chỗ
+ * cắt giữa từ vẫn không vẽ được dấu. Đó là món nợ đã ghi có chủ ở `GridPanel.vue` §`pendingCuts`
+ * — lượt này **không** đóng nó, và cũng không được lặng lẽ đóng nó bằng cách thêm neo vào đây.
+ */
+const SRC_ATOMIC = 'data-src-atomic'
+
+/**
+ * Tổ tiên gần nhất **trong `cell`** mang neo `data-src-start`, hoặc `null`.
+ *
+ * ⚠️ Chặn ở `cell` chứ không đi hết lên `document` — cùng lý do [`duoiRt`] đã ghi.
+ *
+ * 🔴 **`null` là một câu trả lời ĐÚNG, không một ca sót.** Nó là thứ làm dòng
+ * `Nguồn: thieu-chuu` (`.hv-sources`), câu trạng thái (`.hv-notice`) và `<rt>` **không** đẻ
+ * ra một chỗ cắt — theo **cấu tạo**, không nhờ một danh sách loại trừ phải bảo trì. Một phần
+ * tử mới thêm vào ô mà quên neo sẽ **im lặng không cắt được**, chứ không **cắt sai chỗ**; hai
+ * kiểu hỏng đó cách nhau rất xa khi AD-5 không cho hoàn tác.
+ */
+function neoNguonCua(cell: Element, node: Node): Element | null {
+  let p: Element | null = node instanceof Element ? node : node.parentElement
+  while (p !== null && cell.contains(p)) {
+    if (p.hasAttribute(SRC_START)) return p
+    p = p.parentElement
+  }
+  return null
 }
 
 /**
@@ -439,4 +504,41 @@ function duoiRt(cell: Element, node: Node): boolean {
     p = p.parentElement
   }
   return false
+}
+
+/**
+ * 🔴 **Chỉ số ĐIỂM MÃ trong văn bản GỐC cho mỗi điểm mã của chuỗi đã chuẩn hoá xuống dòng.**
+ *
+ * Story 2.9, AC9 — chỗ cắt phải là một chỉ số của `source_text` **như Rust thấy nó**, và
+ * `regroup.rs::split_at` đếm bằng `chars()`, tức **điểm mã của bản GỐC**.
+ *
+ * ⚠️ `SourceHanViet.vue` chuẩn hoá `\r\n` *(hai điểm mã)* và `\r` *(một)* thành `\n` *(một)*
+ * **trước** lượt tách từ, vì `wordStartOffsets` trả chỉ số theo chuỗi nó nhận. Bỏ qua phép ánh xạ
+ * ngược này làm **mọi** chỗ cắt sau một `\r\n` lệch đúng một ký tự — im lặng, và đúng lớp lỗi mà
+ * cả story ấy tồn tại để đóng. `\r` **có thể** có mặt: FR125 *(chuẩn hoá xuống dòng)* thuộc Epic 6
+ * và còn `backlog`, còn `core/segment/import.rs` thì không chuẩn hoá.
+ *
+ * ⚠️ Trả về một bảng theo **ĐIỂM MÃ**, không theo đơn vị mã UTF-16: `[...text]` duyệt theo điểm
+ * mã, nên một ký tự ngoài BMP *(CJK Extension B, có thật trong văn Hán cổ và tên riêng)* chiếm
+ * **một** ô của bảng chứ không hai. Cùng đơn vị mà `chars()` của Rust đếm.
+ *
+ * 🔵 **Dời từ `SourceHanViet.vue` sang đây ở lượt code review 2026-08-17 — vì một khoảng hở
+ * NGHIỆM THU, không vì một khuyết tật.** Tầng Acceptance Auditor đo được: `editorSourceCut.test.ts`
+ * chỉ kiểm `sourceCutOffsetOf()` trên DOM **dựng tay** đã có sẵn `data-src-start`, nên không ca
+ * nào đi qua phép ánh xạ này; đường verify duy nhất là một **bàn đo tay**
+ * (`2-9-ban-do/han-viet-cho-cat.e2e.mjs`) không nằm trong `npm run test`. Nằm trong một
+ * `<script setup>`, hàm không có đường nào để vitest gọi tới. ⇒ Một lượt hồi quy ở đây *(ai đó
+ * sửa vòng lặp, hay đổi phép chuẩn hoá)* sẽ **không cổng nào đỏ**, trên đúng con số mà một chỗ
+ * cắt sai im lặng đi ra từ.
+ */
+export function originalOffsets(text: string): number[] {
+  const ky = [...text]
+  const out: number[] = []
+  for (let i = 0; i < ky.length; i += 1) {
+    out.push(i)
+    // `\r\n` là **một** điểm mã sau chuẩn hoá nhưng **hai** ở bản gốc ⇒ nhảy qua `\n`, và mọi
+    // chỉ số sau đó dời đúng một bậc. `\r` trần thì không nhảy: một thành một.
+    if (ky[i] === '\r' && ky[i + 1] === '\n') i += 1
+  }
+  return out
 }

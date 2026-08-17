@@ -119,7 +119,7 @@ const confirmNoticeKey = computed<string | null>(() => {
 /**
  * 🔴 **Story 2.9 · AC4 — bảng tra THỨ HAI, và nó cũng ĐÓNG.**
  *
- * Sáu khoá, đóng trên `Exclude<RegroupNotice, 'refused'>`. `'refused'` **không** có mặt ở đây
+ * Bảy khoá, đóng trên `Exclude<RegroupNotice, 'refused'>`. `'refused'` **không** có mặt ở đây
  * có chủ ý: lý do từ chối là câu chữ của **Rust** *(`err.segment.no_previous` và họ hàng)*, đi
  * ra màn hình qua `tError()`. Chép nó thành một khoá thứ bảy ở đây là dựng nguồn sự thật thứ
  * hai cho cùng một mệnh đề — và bản sao sẽ lệch vào ngày Rust thêm một lý do.
@@ -132,6 +132,11 @@ const confirmNoticeKey = computed<string | null>(() => {
  * ⚠️ `'split'` · `'no-cut'` **không** thuộc phạm vi Story 2.9 *(chúng là đường `⌘/` của Story
  * 2.8)*, nhưng chúng đi qua **cùng** `regroup()` nên bảng phải phủ chúng — một `Record` thiếu
  * khoá không biên dịch được, và đó chính là chốt đang làm việc.
+ *
+ * ✅ **Và chốt ấy đã làm việc thật, 2026-08-17.** Lượt code review thêm `'busy'` vào
+ * `RegroupResultCode` cho khoá chống-gọi-lại của `regroup()`; `RegroupNotice` suy ra từ kiểu đó
+ * nên bảng này **đỏ ngay** ở `vue-tsc` cho tới khi khoá thứ bảy có mặt. Đó là một phép đo, không
+ * một lời hứa: cơ chế được nêu ở đây đã bắt đúng lượt sửa đầu tiên chạm vào nó.
  */
 const REGROUP_NOTICE_KEYS: Record<
   Exclude<NonNullable<typeof editorRegroupNotice.value>, 'refused'>,
@@ -143,6 +148,7 @@ const REGROUP_NOTICE_KEYS: Record<
   'no-cut': 'panel.grid.regroup_no_cut',
   'flush-failed': 'panel.grid.regroup_flush_failed',
   'still-dirty': 'panel.grid.regroup_still_dirty',
+  busy: 'panel.grid.regroup_busy',
 }
 
 /**
@@ -201,9 +207,20 @@ const regroupNoticeText = computed<string | null>(() => {
       hai câu"*, vì một cái nói dữ liệu chưa an toàn còn cái kia nói một thao tác đã xong.
       Và cả hai đều khẩn hơn *"đã lưu 12 giây trước"*.
 
-      ⚠️ Hai ô nhớ **không bao giờ** cùng mang giá trị trong một lượt dùng thật: cả hai được
-      dọn ở `noteEditorEdit`, và hai thao tác không xảy ra cùng một tick. Thứ tự này là hàng
-      rào cho ca **không lường trước**, không cho một ca đã biết.
+      🔵 **2026-08-17 — mệnh đề cũ ở đây ĐÃ HẾT ĐÚNG, và nó sai ngay từ lượt viết ra.** Bản cũ
+      khẳng định *"hai ô nhớ không bao giờ cùng mang giá trị trong một lượt dùng thật: cả hai được
+      dọn ở `noteEditorEdit`"*. Code review ba tầng bác nó bằng số đo, và **hai tầng độc lập tái
+      hiện bằng vitest**: `confirmNotice` chỉ bị dọn ở **ba** cửa, `regroup()` không là một trong
+      ba, và cử chỉ `Backspace` **không** đi qua `noteEditorEdit` *(`preventDefault()` cắt hẳn
+      chuỗi `beforeinput`→`input`→`reportEdit`)*. ⇒ Một `⌘Enter` hụt rồi một lượt gộp **thành
+      công** để thanh này hiện câu của lượt hụt, tức AC4 không đạt.
+
+      ✅ **Nay mệnh đề ấy đúng theo CẤU TẠO, không theo một lời hứa.** Bất biến sống ở
+      `editorPanelState.ts::ghiRegroupNotice` — *"thao tác vừa xảy ra sở hữu thanh trạng thái"*:
+      ai ghi một ô thì dọn ô còn lại, và vế đối xứng nằm ở cửa có khoá của `confirmCurrentSegment`.
+      🔴 Vì thế thứ tự `v-if`/`v-else-if` ở đây **không còn quan sát được** — nó là hàng rào cho ca
+      không lường trước, và **đừng** đọc nó thành một luật ưu tiên đang làm việc. Sửa thứ tự khi
+      thấy một câu sai chỉ dời chỗ nói dối sang ô nhớ kia; chỗ phải sửa là bất biến ở tệp trạng thái.
     -->
     <span v-else-if="regroupNoticeText !== null" class="notice">{{ regroupNoticeText }}</span>
     <span v-else-if="secondsSinceSave !== null" class="saved">{{

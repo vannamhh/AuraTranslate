@@ -349,7 +349,11 @@ describe('Story 2.9 — gộp bằng Backspace ở đầu ô, trong WKWebView th
     const demDauCat = async () =>
       await browser.execute(() => ({
         dauCat: document.querySelectorAll('[data-col="src"] .cut-mark').length,
-        oCoDauCat: document.querySelectorAll('[data-col="src"].has-cuts').length,
+        // 🔵 2026-08-17 — đọc `data-cut-count`, KHÔNG lớp `has-cuts`: lớp đó đã gỡ cùng
+        // viền của nó (Ice chốt). Thuộc tính này chở một SỐ, tức chặt hơn một cờ.
+        oCoDauCat: [...document.querySelectorAll('[data-col="src"]')].filter(
+          (c) => Number(c.getAttribute('data-cut-count')) > 0,
+        ).length,
       }))
 
     await expect((await demDauCat()).dauCat).toBe(0)

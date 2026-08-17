@@ -66,10 +66,24 @@ import {
 } from './sourcePanelState'
 import { everySourceOffForRoute } from './dictSourcesState'
 import { WORD_JOINER, wordStartOffsets } from './wordBoundary'
+// 🔵 2026-08-17 (code review) — `originalOffsets` sống ở `editorSegments.ts`, không ở đây. Nó là
+// một mệnh đề **thuần** về phép ánh xạ chỉ số, và trong một `<script setup>` nó không có đường
+// nào để vitest gọi tới: không export, không mount được mà không dựng fixture từ điển. Cùng lý do
+// `caretAtCellStart` và `sourceCutOffsetOf` đã ở đó.
+import { originalOffsets } from './editorSegments'
 
 const props = defineProps<{
   sourceText: string
   viewMode: 'switch' | 'parallel'
+  /**
+   * 🔴 **Tập điểm cắt đang chờ của CHÍNH câu này** — Story 2.9, AC9. Chỉ số ký tự nguồn.
+   *
+   * Trước lượt này dấu cắt **không vẽ được** ở tab Hán Việt: ô dựng bằng hai nhánh loại trừ
+   * nhau và `.cut-mark` chỉ sống ở nhánh văn bản thuần. `GridPanel.vue` đã ghi giới hạn đó
+   * bằng chữ *("kênh duy nhất ở chế độ Hán Việt, nơi dấu cắt không vẽ được")*, và Ice gặp nó
+   * ở tay: *"vẫn chưa thấy điểm cắt"*.
+   */
+  cuts?: readonly number[]
   /**
    * 🔴 **Vai của bề mặt này trong hợp đồng vùng chọn** — Story 2.5b, AC7.
    *
@@ -125,9 +139,9 @@ const effectiveViewMode = computed(() => (props.viewMode === 'parallel' && canUs
  * giới **TỪ**, thuần trình bày, không lưu xuống đĩa, không `id` — khác đơn vị, khác vòng đời.
  */
 type Segment =
-  | { kind: 'break' }
-  | { kind: 'text'; text: string }
-  | { kind: 'han'; chars: string[]; readings: (string | null)[] }
+  | { kind: 'break'; srcStart: number }
+  | { kind: 'text'; text: string; srcStart: number }
+  | { kind: 'han'; chars: string[]; readings: (string | null)[]; srcStart: number }
 
 /**
  * ⚠️ Ngắt dòng được CHUẨN HOÁ ở đây — Bẫy `deferred-work.md:527`: văn bản nhập từ tệp
@@ -150,20 +164,23 @@ const NEWLINES = /\r\n?/g
 function buildSegments(text: string): Segment[] {
   const normalized = text.replace(NEWLINES, '\n')
   const wordStarts = wordStartOffsets(normalized)
+  // Chỉ số điểm mã GỐC cho mỗi điểm mã của `normalized` — xem [`originalOffsets`].
+  const goc = originalOffsets(text)
 
   const out: Segment[] = []
   let buffer = ''
-  let word: { chars: string[]; readings: (string | null)[] } | null = null
+  let bufferStart = 0
+  let word: { chars: string[]; readings: (string | null)[]; start: number } | null = null
 
   const flushText = (): void => {
     if (buffer !== '') {
-      out.push({ kind: 'text', text: buffer })
+      out.push({ kind: 'text', text: buffer, srcStart: bufferStart })
       buffer = ''
     }
   }
   const flushWord = (): void => {
     if (word !== null) {
-      out.push({ kind: 'han', chars: word.chars, readings: word.readings })
+      out.push({ kind: 'han', chars: word.chars, readings: word.readings, srcStart: word.start })
       word = null
     }
   }
@@ -172,14 +189,20 @@ function buildSegments(text: string): Segment[] {
   // (`ch.length`) — `wordStartOffsets` trả chỉ số theo đơn vị mã, cùng đơn vị mà
   // `Range.startOffset` đếm. Hai trong bảy dải của `isHanChar` nằm ngoài BMP.
   let at = 0
+  // 🔴 Chỉ số ĐIỂM MÃ trong `normalized`, tách hẳn khỏi `at` *(đơn vị mã, dùng cho ICU)*.
+  //    Hai đơn vị này chỉ trùng khi mọi ký tự nằm trong BMP, và hai trong bảy dải của
+  //    `isHanChar` thì không — cùng cái bẫy đã làm `sourceCutOffsetOf` sai một lần.
+  let cp = 0
   for (const ch of normalized) {
     const index = at
     at += ch.length
+    const srcAt = goc[cp] ?? cp
+    cp += 1
 
     if (ch === '\n') {
       flushText()
       flushWord()
-      out.push({ kind: 'break' })
+      out.push({ kind: 'break', srcStart: srcAt })
       continue
     }
     if (isHanChar(ch)) {
@@ -187,7 +210,7 @@ function buildSegments(text: string): Segment[] {
       // Ranh giới TỪ do ICU quyết. Ký tự Hán đầu tiên của một cụm luôn mở một từ mới; các
       // ký tự sau chỉ mở từ mới khi ICU nói đây là một điểm bắt đầu.
       if (word !== null && wordStarts.has(index)) flushWord()
-      if (word === null) word = { chars: [], readings: [] }
+      if (word === null) word = { chars: [], readings: [], start: srcAt }
       word.chars.push(ch)
       // 🔴 Âm vẫn tra theo TỪNG KÝ TỰ — `hanVietByChar` khoá theo ký tự và story này không
       // sửa nó. Ký tự thiếu âm để `null` ở ĐÚNG âm tiết của nó (Quyết định #4a): `台湾` với
@@ -198,6 +221,7 @@ function buildSegments(text: string): Segment[] {
     }
     // Mẩu KHÔNG-Hán (dấu câu, số, chữ Latin) vẫn là một segment `text` như trước.
     flushWord()
+    if (buffer === '') bufferStart = srcAt
     buffer += ch
   }
   flushText()
@@ -206,6 +230,23 @@ function buildSegments(text: string): Segment[] {
 }
 
 const segments = computed(() => buildSegments(props.sourceText))
+
+/**
+ * 🔴 **DẤU CẮT VẼ BẰNG `::before`, KHÔNG bằng một phần tử con — và đó là một RÀNG BUỘC, không
+ * một lựa chọn thẩm mỹ.**
+ *
+ * `resolveSwitch()` ánh xạ ngược bằng **CHỈ SỐ**: `host.children[i]` ứng một-một với
+ * `segments[i]`, và doc-comment của template ghi thẳng *"thêm/bớt/đổi thứ tự một phần tử ở
+ * đây là làm truy vấn tra cứu sai im lặng"*. Một `<span class="cut-mark">` chen vào giữa hai
+ * segment **lệch cả bảng** ⇒ mỗi lượt tra từ sau dấu cắt trả **sai chữ**, không lỗi nào ném.
+ *
+ * ⚠️ Và một dấu cắt bằng **text node** cũng không được: nó sẽ đi vào `Selection.toString()`
+ * của Auto-Lookup rồi vào mọi lượt sao chép — chính lý do nhánh văn bản thuần khai dấu cắt là
+ * một `<span>` **RỖNG** mang `aria-hidden`.
+ *
+ * ⇒ Pseudo-element: không phải node, không vào `children`, không vào vùng chọn.
+ */
+const cutSet = computed(() => new Set(props.cuts ?? []))
 
 /**
  * 🔴 Ký tự GIỮ CHỖ cho một ký tự Hán không có âm — **một ký tự, không một câu**.
@@ -745,9 +786,15 @@ onBeforeUnmount(() => {
         của Tác phẩm. --><span
           v-else-if="seg.kind === 'text'"
           class="hv-text"
+          :class="{ 'cut-here': cutSet.has(seg.srcStart) }"
+          :data-src-start="seg.srcStart"
+          data-src-atomic="1"
         >{{ seg.text }}</span><span
           v-else
           class="hv-word"
+          :class="{ 'cut-here': cutSet.has(seg.srcStart) }"
+          :data-src-start="seg.srcStart"
+          data-src-atomic="1"
         ><!-- aura-allow-text: âm Hán Việt đã gom (DỮ LIỆU từ điển) hoặc ký tự giữ chỗ
         `READING_PLACEHOLDER`, kèm `WORD_JOINER` giữ cụm âm liền nhau với ICU. --><span
             v-for="(reading, j) in seg.readings"
@@ -763,10 +810,15 @@ onBeforeUnmount(() => {
       ><br v-if="seg.kind === 'break'" /><!-- aura-allow-text: mẩu KHÔNG-Hán của nguyên
         văn (khoảng trắng, dấu câu, chữ Latin xen giữa) — DỮ LIỆU của Tác phẩm. --><span
         v-else-if="seg.kind === 'text'"
+        :class="{ 'cut-here': cutSet.has(seg.srcStart) }"
+        :data-src-start="seg.srcStart"
+        data-src-atomic="1"
       >{{ seg.text
       }}</span><span
         v-else
         class="hv-unit"
+        :class="{ 'cut-here': cutSet.has(seg.srcStart) }"
+        :data-src-start="seg.srcStart"
       ><!-- aura-allow-text: chuỗi ký tự Hán của MỘT TỪ trong nguyên
         văn — DỮ LIỆU. --><ruby>{{ seg.chars.join('')
       }}<!-- aura-allow-text: các âm Hán Việt đã gom của từ đó (DỮ LIỆU từ điển), ký tự
@@ -776,6 +828,28 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/*
+ * 🔵 STORY 2.9 · AC9 — DẤU CẮT ĐANG CHỜ, vẽ bằng `::before`.
+ *
+ * Cùng hình dạng và cùng token với `.cut-mark` của nhánh văn bản thuần
+ * (`GridPanel.vue`) — một dấu cắt phải trông **y hệt** ở cả ba bề mặt, nếu không người dùng
+ * phải học ba ký hiệu cho một khái niệm.
+ * 🔴 **Hai khối này phải đổi CÙNG LÚC.** Không cổng nào canh việc chúng khớp nhau; lượt
+ * 2026-08-17 *(cao 1em → 1,3em, `ornament` → `primary`)* đã sửa cả hai, và lượt sau cũng phải
+ * thế. Lý lẽ đầy đủ ở doc-comment của `.cut-mark` trong `GridPanel.vue`.
+ *
+ * 🔴 `::before`, KHÔNG một phần tử con — xem doc-comment của [`cutSet`]. Và `content: ''`
+ * cộng `inline-block`: một pseudo-element rỗng không đi vào `Selection.toString()`.
+ */
+.cut-here::before {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1.3em;
+  vertical-align: text-bottom;
+  background-color: var(--color-primary);
+}
+
 /*
  * 🔴 VÙNG CUỘN — ĐỪNG BỎ `flex: 1` HAY `overflow: auto`.
  *

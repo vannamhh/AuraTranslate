@@ -24,12 +24,33 @@ function oNguon(html: string): Element {
   return cell
 }
 
+/**
+ * 🔵 **2026-08-17, STORY 2.9 · AC9 — HÌNH DẠNG Ô ĐỔI, và mọi ca dưới đây đổi theo.**
+ *
+ * `sourceCutOffsetOf` **thôi đếm mù** mọi text node của ô; nó đọc một **NEO** `data-src-start`
+ * trên phần tử mang ký tự nguồn. Lý do đầy đủ và bảng số ở khối §AC9 cuối tệp.
+ *
+ * ⇒ Mỗi ca ở đây nay bọc mảnh nguồn trong một `<span class="src-piece" data-src-start="…">`,
+ * đúng hình dạng template sinh ra sau AC9. **Mệnh đề của từng ca KHÔNG đổi một chữ** — bài
+ * học `<rt>` và bài học code-point vẫn nguyên, chỉ khác cơ chế thi hành: trước là hai chốt
+ * viết tay, nay là hệ quả của cấu tạo.
+ */
 describe('Story 2.8 — chỗ cắt ở cột nguyên văn', () => {
+  /** Bọc một mảnh nguồn đúng khuôn template sau AC9, rồi trả text node của nó. */
+  function neo(cell: Element, text: string, start: number): Text {
+    const span = document.createElement('span')
+    span.className = 'src-piece'
+    span.setAttribute('data-src-start', String(start))
+    const t = document.createTextNode(text)
+    span.appendChild(t)
+    cell.appendChild(span)
+    return t
+  }
+
   it('① một text node duy nhất ⇒ offset đi thẳng', () => {
-    const cell = oNguon('Mr. Smith đến.')
-    const text = cell.firstChild
-    expect(text).not.toBeNull()
-    expect(sourceCutOffsetOf(cell, text as Node, 3)).toBe(3)
+    const cell = oNguon('')
+    const text = neo(cell, 'Mr. Smith đến.', 0)
+    expect(sourceCutOffsetOf(cell, text, 3)).toBe(3)
   })
 
   it('② hình dạng THẬT của template — hai `#comment` chia chuỗi, mảnh trước RỖNG', () => {
@@ -38,8 +59,7 @@ describe('Story 2.8 — chỗ cắt ở cột nguyên văn', () => {
     const cell = oNguon('<!-- a -->')
     cell.appendChild(document.createTextNode(''))
     cell.appendChild(document.createComment(' b '))
-    const chinh = document.createTextNode('Một câu nguồn để bộ nhập có việc mà làm.')
-    cell.appendChild(chinh)
+    const chinh = neo(cell, 'Một câu nguồn để bộ nhập có việc mà làm.', 0)
     cell.appendChild(document.createTextNode(''))
 
     // ⚠️ Tổng độ dài các text node đứng trước là **0** ⇒ hai cách cho cùng số. Ca này ghim
@@ -49,12 +69,14 @@ describe('Story 2.8 — chỗ cắt ở cột nguyên văn', () => {
 
   it('🔴 ③ ca PHÂN BIỆT hai cách — có chữ đứng trước thì `offset` trần SAI', () => {
     const cell = oNguon('')
-    cell.appendChild(document.createTextNode('東京'))
+    neo(cell, '東京', 0)
+    const unit = document.createElement('span')
+    unit.setAttribute('data-src-start', '2')
     const ruby = document.createElement('ruby')
     ruby.appendChild(document.createTextNode('京都'))
-    cell.appendChild(ruby)
-    const sau = document.createTextNode('です。')
-    cell.appendChild(sau)
+    unit.appendChild(ruby)
+    cell.appendChild(unit)
+    const sau = neo(cell, 'です。', 4)
 
     // `sau` đứng sau 2 + 2 = 4 ký tự.
     expect(sourceCutOffsetOf(cell, sau, 1)).toBe(5)
@@ -76,14 +98,16 @@ describe('Story 2.8 — chỗ cắt ở cột nguyên văn', () => {
    */
   it('🔴 ③b hình dạng THẬT của Hán Việt — `<rt>` KHÔNG được đếm là ký tự nguồn', () => {
     const cell = oNguon('')
+    const unit = document.createElement('span')
+    unit.setAttribute('data-src-start', '0')
     const ruby = document.createElement('ruby')
     ruby.appendChild(document.createTextNode('京'))
     const rt = document.createElement('rt')
     rt.appendChild(document.createTextNode('kinh'))
     ruby.appendChild(rt)
-    cell.appendChild(ruby)
-    const sau = document.createTextNode('都です。')
-    cell.appendChild(sau)
+    unit.appendChild(ruby)
+    cell.appendChild(unit)
+    const sau = neo(cell, '都です。', 1)
 
     // `source_text` là `京都です。` ⇒ ký tự ngay sau `京` là chỉ số **1**.
     expect(sourceCutOffsetOf(cell, sau, 0)).toBe(1)
@@ -123,10 +147,8 @@ describe('Story 2.8 — chỗ cắt ở cột nguyên văn', () => {
     expect([...astral].length).toBe(1)
 
     const cell = oNguon('')
-    const truoc = document.createTextNode(`${astral}${astral}`)
-    cell.appendChild(truoc)
-    const sau = document.createTextNode('走了。')
-    cell.appendChild(sau)
+    const truoc = neo(cell, `${astral}${astral}`, 0)
+    const sau = neo(cell, '走了。', 2)
 
     // `source_text` = `𠀀𠀀走了。` ⇒ Rust thấy 5 ký tự, và `走` bắt đầu ở chỉ số **2**.
     expect(sourceCutOffsetOf(cell, sau, 0)).toBe(2)
@@ -146,9 +168,186 @@ describe('Story 2.8 — chỗ cắt ở cột nguyên văn', () => {
     expect(sourceCutOffsetOf(cell, ngoai.firstChild as Node, 2)).toBeNull()
   })
 
-  it('⑤ bấm vào khoảng trống của một ô ⇒ CUỐI ô, không đầu ô', () => {
-    const cell = oNguon('Một câu.')
-    // `caretPositionFromPoint` trả chính `cell` khi điểm bấm không rơi vào text node nào.
-    expect(sourceCutOffsetOf(cell, cell, 0)).toBe('Một câu.'.length)
+  it('🔵 ⑤ bấm vào khoảng trống của một ô ⇒ `null` — ĐỔI HÀNH VI ở AC9, và đổi theo chiều tốt', () => {
+    // `caretRangeFromPoint` trả chính `cell` khi điểm bấm không rơi vào text node nào, và
+    // `cell` **không mang neo** ⇒ hàm từ chối.
+    //
+    // 🔵 **Bản trước trả `'Một câu.'.length`, tức CUỐI ô.** Con số đó luôn bị
+    // `regroup.rs::split_at` từ chối bằng `segment.cut_leaves_empty_piece` — một chỗ cắt ở
+    // cuối câu để lại một mảnh rỗng. ⇒ Đường cũ đổi một cú bấm vô nghĩa thành một dấu cắt
+    // trông như thật, rồi để `⌘/` báo lỗi ở một bước sau, xa chỗ người dùng vừa bấm.
+    // Đường mới **không ghi nhận gì** — đúng chính sách `onSourceCellMouseUp` đã khai bằng
+    // chữ: *"một điểm cắt đoán bừa là một lượt tách sai chỗ trên dữ liệu người dùng"*.
+    const cell = oNguon('')
+    neo(cell, 'Một câu.', 0)
+    expect(sourceCutOffsetOf(cell, cell, 0)).toBe(null)
+  })
+})
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 🔵 STORY 2.9 · AC9 — PHÉP ÁNH XẠ ĐỔI TỪ *ĐẾM MÙ* SANG *ĐỌC NEO*
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * Ice báo 2026-08-17: *"ở phần Hán Việt vẫn chưa thấy điểm cắt, và chưa cắt được"*.
+ * Bàn đo `2-9-ban-do/han-viet-cho-cat.e2e.mjs` trên WKWebView thật, nguyên văn `京都春風。`
+ * (**5 ký tự**):
+ *
+ * | Tab | `sourceCutOffsetOf` trả | Neo vào | Trong biên? |
+ * |---|---|---|---|
+ * | Nguyên văn *(đối chứng)* | 5 | text node của ô | — |
+ * | Hán Việt **switch** | **17** | `.hv-syl` = `"kinh"` — **ÂM**, không phải chữ Hán | ❌ |
+ * | Hán Việt **parallel** | **19** | base `<ruby>` = `"京都"`, đúng phải là **2** | ❌ |
+ *
+ * 🔴 **Nguyên nhân lớn nhất là thứ không ai nêu trong ba giả thuyết ban đầu:** dòng
+ * `Nguồn: thieu-chuu` (`.hv-sources`, **17 ký tự**) nằm **trong ô** và bị đếm.
+ *
+ * 🔴 **Và hôm nay nó KHÔNG hỏng im lặng chỉ vì MAY:** `17`/`19` tình cờ vượt biên một câu 5
+ * chữ nên Rust từ chối. Trên một câu Chương thật *(40–60 chữ)*, `19` nằm **trong biên** và
+ * `⌘/` cắt **sai chỗ, im lặng**, trên dữ liệu mà AD-5 không cho hoàn tác.
+ *
+ * ⇒ Phép đếm mù bị thay bằng một **NEO tường minh**: `data-src-start` trên đúng những phần tử
+ * mang ký tự nguồn. Không neo ⇒ **`null`**, tức từ chối — `.hv-sources`, `.hv-notice`, `<rt>`
+ * đều rơi vào đó theo **cấu tạo**, không nhờ một danh sách loại trừ phải bảo trì.
+ */
+describe('Story 2.9 · AC9 — chỗ cắt đọc NEO `data-src-start`', () => {
+  /** Ô nguyên văn ở nhánh VĂN BẢN THUẦN, đúng hình dạng template sau AC9. */
+  function oThuan(text: string, start = 0): { cell: Element; manh: Text } {
+    const cell = oNguon('')
+    const span = document.createElement('span')
+    span.className = 'src-piece'
+    span.setAttribute('data-src-start', String(start))
+    const manh = document.createTextNode(text)
+    span.appendChild(manh)
+    cell.appendChild(span)
+    return { cell, manh }
+  }
+
+  it('① mảnh văn bản thuần ⇒ neo + offset trong mảnh', () => {
+    const { cell, manh } = oThuan('Mr. Smith đến.')
+    expect(sourceCutOffsetOf(cell, manh, 3)).toBe(3)
+  })
+
+  it('🔴 ② mảnh THỨ HAI của một ô đã có điểm cắt ⇒ cộng NEO, không đếm lại từ đầu', () => {
+    const cell = oNguon('')
+    for (const [text, start] of [
+      ['京都', 0],
+      ['春風。', 2],
+    ] as const) {
+      const span = document.createElement('span')
+      span.className = 'src-piece'
+      span.setAttribute('data-src-start', String(start))
+      span.appendChild(document.createTextNode(text))
+      cell.appendChild(span)
+    }
+    const manhHai = cell.children[1].firstChild as Node
+    expect(sourceCutOffsetOf(cell, manhHai, 1)).toBe(3)
+  })
+
+  it('🔴 ③ DÒNG NGUỒN của Hán Việt ⇒ `null`, KHÔNG một con số', () => {
+    // Đây là con số 17 của bàn đo. Không neo ⇒ từ chối, theo cấu tạo.
+    const cell = oNguon('')
+    const p = document.createElement('p')
+    p.className = 'hv-sources'
+    const chu = document.createTextNode('Nguồn: thieu-chuu')
+    p.appendChild(chu)
+    cell.appendChild(p)
+    expect(sourceCutOffsetOf(cell, chu, 5)).toBe(null)
+  })
+
+  it('🔴 ④ ÂM Hán Việt ở kiểu `switch` ⇒ cắt theo RANH GIỚI TỪ (Ice ký)', () => {
+    // `.hv-word` mang neo VÀ cờ nguyên khối: chữ Hán gốc không có trên màn hình, nên một cú
+    // bấm vào âm chỉ nói được *"từ nào"*, không nói được *"ký tự nào trong từ"*.
+    const cell = oNguon('')
+    const word = document.createElement('span')
+    word.className = 'hv-word'
+    word.setAttribute('data-src-start', '2')
+    word.setAttribute('data-src-atomic', '1')
+    const syl = document.createElement('span')
+    syl.className = 'hv-syl'
+    const am = document.createTextNode('xuân')
+    syl.appendChild(am)
+    word.appendChild(syl)
+    cell.appendChild(word)
+
+    // Bấm giữa chữ "xuân" (offset 2) vẫn cho **đầu từ** = 2, không 2 + 2.
+    expect(sourceCutOffsetOf(cell, am, 2)).toBe(2)
+    expect(sourceCutOffsetOf(cell, am, 0)).toBe(2)
+  })
+
+  it('🔵 ④b mảnh `.hv-text` NGUYÊN KHỐI ⇒ neo về ĐẦU mảnh, không giữa mảnh (code review 2026-08-17)', () => {
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // 🔴 Ca này canh một lượt đổi HÀNH VI, và trước nó không phép kiểm nào canh.
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // Tầng Edge Case Hunter đo được: mảnh `.hv-text` *(dấu câu, số, chữ Latin)* **mang** chính ký
+    // tự nguồn, nên phép đếm cho một offset **chính xác từng ký tự** — và đó lại là vấn đề, vì
+    // `SourceHanViet.vue` vẽ dấu cắt bằng `cutSet.has(seg.srcStart)`, tức so với **ĐẦU** mảnh.
+    // ⇒ Một offset ở giữa mảnh là một chỗ cắt **có hiệu lực mà không hiện ở đâu cả**: Rust thực
+    //   thi nó đúng, trên dữ liệu AD-5 không cho hoàn tác, còn người dùng không thấy nó ở đâu.
+    //
+    // Ice ký 2026-08-17: **TỪ CHỐI offset giữa mảnh**. Bất biến — mọi offset trong một mảnh
+    // KHÔNG-Hán đều vẽ được dấu. Cái giá là mất độ chính xác bên trong `」，`, và nó đọc được.
+    //
+    // ⚠️ Chuỗi `」，` dài 2 ký tự là chuyện **thường** trong tiểu thuyết, không một ca hiếm — đó
+    // là vì sao nó không đi đường ghi nợ.
+    const cell = oNguon('')
+    const manh = document.createElement('span')
+    manh.className = 'hv-text'
+    manh.setAttribute('data-src-start', '7')
+    manh.setAttribute('data-src-atomic', '1')
+    const chu = document.createTextNode('」，')
+    manh.appendChild(chu)
+    cell.appendChild(manh)
+
+    // Bấm ở giữa `」，` (offset 1) cho **đầu mảnh** = 7, không 8.
+    expect(sourceCutOffsetOf(cell, chu, 1)).toBe(7)
+    expect(sourceCutOffsetOf(cell, chu, 2)).toBe(7)
+    expect(sourceCutOffsetOf(cell, chu, 0)).toBe(7)
+  })
+
+  it('🔴 ⑤ base `<ruby>` ở kiểu `parallel` ⇒ chính xác từng CHỮ', () => {
+    const cell = oNguon('')
+    const unit = document.createElement('span')
+    unit.className = 'hv-unit'
+    unit.setAttribute('data-src-start', '0')
+    const ruby = document.createElement('ruby')
+    const base = document.createTextNode('京都')
+    const rt = document.createElement('rt')
+    rt.appendChild(document.createTextNode('kinh đô'))
+    ruby.append(base, rt)
+    unit.appendChild(ruby)
+    cell.appendChild(unit)
+
+    // Đây là con số **2** mà bàn đo nói đúng phải là, thay cho **19**.
+    expect(sourceCutOffsetOf(cell, base, 2)).toBe(2)
+    expect(sourceCutOffsetOf(cell, base, 1)).toBe(1)
+  })
+
+  it('🔴 ⑥ `<rt>` ⇒ `null`, và nay nó là hệ quả của CẤU TẠO chứ không một chốt riêng', () => {
+    const cell = oNguon('')
+    const unit = document.createElement('span')
+    unit.className = 'hv-unit'
+    unit.setAttribute('data-src-start', '0')
+    const ruby = document.createElement('ruby')
+    const rt = document.createElement('rt')
+    const am = document.createTextNode('kinh đô')
+    rt.appendChild(am)
+    ruby.append(document.createTextNode('京都'), rt)
+    unit.appendChild(ruby)
+    cell.appendChild(unit)
+    expect(sourceCutOffsetOf(cell, am, 3)).toBe(null)
+  })
+
+  it('⑦ node ngoài ô ⇒ `null`', () => {
+    const { cell } = oThuan('京都春風。')
+    const ngoai = document.createTextNode('ở ngoài')
+    document.body.appendChild(ngoai)
+    expect(sourceCutOffsetOf(cell, ngoai, 2)).toBe(null)
+  })
+
+  it('🔴 ⑧ ký tự NGOÀI BMP đếm bằng điểm mã, không code unit', () => {
+    // Bài học ② của code review 2.8, phải sống sót qua lượt đổi cấu tạo này.
+    const { cell, manh } = oThuan('𠀀𠀁春')
+    // Hai ký tự astral = 4 code unit JS, nhưng 2 `chars()` của Rust.
+    expect(sourceCutOffsetOf(cell, manh, 4)).toBe(2)
   })
 })

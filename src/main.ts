@@ -28,6 +28,7 @@ import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 import {
   confirmCurrentSegment,
   goToNextUntranslated,
+  clearEditorSourceCut,
   mergeCurrentSegment,
   setCurrentSegmentOmitted,
   setCurrentSegmentParagraphEnd,
@@ -325,6 +326,12 @@ async function boot(): Promise<void> {
           // Đừng đọc dòng này thành "đã có đường ra màn hình". Món nợ có chủ.
           console.warn(`[grid] khong gop duoc segment: ${result}`)
         })
+      },
+      // Story 2.9 · AC8 — xoá tập điểm cắt. Cùng cửa `editorPanelState.ts` với hai dep trên,
+      // nhưng KHÔNG cùng nghĩa vụ: đây là một lượt xoá state webview, không một lượt ghi đĩa,
+      // nên nó không trả về gì để mà xử lý.
+      clearSourceCuts: () => {
+        clearEditorSourceCut()
       },
       splitSegment: () => {
         void splitCurrentSegment().then((result) => {

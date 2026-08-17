@@ -4,7 +4,7 @@ baseline_commit: 4d72cd44c95c4dac132833d96097c01bccc061fa
 
 # Story 2.9: Gộp bằng `Backspace` ở đầu ô
 
-Status: review
+Status: done
 
 **Covers:** FR78 · UX-DR32 · AD-5
 **Epic:** 2 — Biên tập theo segment
@@ -107,6 +107,35 @@ driver đó, theo cấu tạo**. Ice xác nhận 2026-08-17: **double-click TRA 
 ⇒ FR21 **sống**; vế kia là giới hạn của **BỘ ĐO**, không của sản phẩm.
 
 ---
+
+**AC8 — `Esc` xoá tập điểm cắt** *(🔵 THÊM 2026-08-17, Ice yêu cầu)*
+**Given** cột nguyên văn đang có một hoặc nhiều điểm cắt chờ
+**When** người dùng bấm `Esc`
+**Then** **cả tập** bị xoá, không chỉ điểm cuối
+
+**AC9 — Chỗ cắt phải đúng ở tab HÁN VIỆT** *(🔵 THÊM 2026-08-17, Ice báo)*
+**Given** người dùng đang xem tab Hán Việt, ở kiểu `switch` hoặc `parallel`
+**When** `Mod`+click vào cột nguyên văn
+**Then** một điểm cắt **đúng chỗ** được ghi nhận — theo **ranh giới từ** ở `switch` *(chữ Hán
+gốc không có trên màn hình)*, **chính xác từng chữ** ở `parallel` *(base `<ruby>` có mặt)*
+**And** dấu cắt **hiện ra** ở cả hai kiểu xem
+
+🔴 **Đây là một lỗ HỎNG DỮ LIỆU IM LẶNG, không một khuyết tật hiển thị.** Đo trên WKWebView
+thật (`2-9-ban-do/han-viet-cho-cat.e2e.mjs`), nguyên văn `京都春風。` — **5 ký tự**:
+
+| Tab | `sourceCutOffsetOf` trả | Neo vào | Đúng phải là |
+|---|---|---|---|
+| Nguyên văn *(đối chứng)* | 5 | text node của ô | — |
+| Hán Việt **switch** | **17** | `.hv-syl` = `"kinh"` — **ÂM**, không phải chữ Hán | ≤ 4 |
+| Hán Việt **parallel** | **19** | base `<ruby>` = `"京都"` | **2** |
+
+Nguyên nhân lớn nhất **không nằm trong ba giả thuyết ban đầu**: dòng `Nguồn: thieu-chuu`
+(`.hv-sources`, **17 ký tự**) nằm **trong ô** và bị phép đếm mù cộng vào.
+
+🔴 **Và hôm nay nó chưa hỏng im lặng chỉ vì MAY:** `17`/`19` tình cờ **vượt biên** một câu 5
+chữ nên Rust từ chối — đó là thứ Ice thấy dưới dạng *"chưa cắt được"*. Trên một câu Chương
+thật *(40–60 chữ)*, `19` nằm **trong biên** và `⌘/` cắt **sai chỗ, im lặng**, trên dữ liệu mà
+**AD-5 không cho hoàn tác**.
 
 ## 🔴 Task 0 — CỬA CHẶN: AC5 (`⌘Z`) chưa có mô hình, và chọn một mô hình là một `AD` MỚI
 
@@ -214,12 +243,112 @@ sửa `epics.md`** cho khớp mã. Ghi một món nợ **có chủ** vào `defer
 - [x] 6.5 Sửa **hai** ca của `segment-merge-split.e2e.mjs` *(chúng bắn `mouseup` trơn)* — cùng lượt, không để lại một cổng đỏ không ai hiểu
 - [x] 6.6 Sửa tài liệu cùng lượt: `EXPERIENCE.md:169` *(văn xuôi)* + bảng Phím `:267` *(một hàng mới)*, kèm 🔵 và ngày
 
+### Task 7 — `Esc` xoá tập điểm cắt (AC: 8) *(🔵 THÊM 2026-08-17)*
+- [x] 7.1 `clearEditorSourceCut()` — về `null`, **không** một tập rỗng; vô hại khi chưa có điểm nào
+- [x] 7.2 Command `editor.clear_source_cuts` + hợp âm `Escape` + dep ở `main.ts` — vế làm phím **gán lại được** (FR22) và hiện trong bảng phím
+- [x] 7.3 🔴 Cửa **thứ hai** ở `onEditKeydown`: `Escape` không mang `Mod` nên `keys.ts:510` chặn nó trong vùng gõ — **đúng chỗ người dùng đang đứng**. Hai cửa, **một** command
+- [x] 7.4 **Không** `preventDefault()` — `Esc` còn là phím đóng của các lớp phủ; ăn nó là bịt đường thoát của chúng
+- [x] 7.5 vitest 5 ca, gồm ca `isComposing` *(chốt bộ gõ đứng trước nhánh mới)*; `COMMAND_FLOOR` 38 → **39** *(cổng in 47)*
+
+### Task 8 — Chỗ cắt ở tab Hán Việt (AC: 9) *(🔵 THÊM 2026-08-17)*
+- [x] 8.1 Bàn đo trên WKWebView thật — đo **hình dạng DOM** và chạy chính phép ánh xạ sản phẩm ở cả hai kiểu xem
+- [x] 8.2 `buildSegments` mang **tầm nguồn** (`srcStart`) cho mọi segment, kèm phép ánh xạ `\r\n` → gốc *(FR125 còn `backlog`, `\r` CÓ thể có mặt)*
+- [x] 8.3 Phát neo `data-src-start` ra DOM ở cả hai kiểu xem; `.hv-word` thêm `data-src-atomic` *(chữ ký "ranh giới từ" của Ice)*
+- [x] 8.4 Nhánh văn bản thuần cũng mang neo — `<span class="src-piece">`, **không** thêm một ký tự nào vào `Selection.toString()`
+- [x] 8.5 🔴 `sourceCutOffsetOf` đổi từ **đếm mù** sang **đọc neo**; không neo ⇒ `null` *(từ chối)* — `.hv-sources`, `.hv-notice`, `<rt>` rơi vào đó theo **CẤU TẠO**
+- [x] 8.6 Dấu cắt vẽ bằng **`::before`**, không một phần tử con — `resolveSwitch` ánh xạ `host.children[i]` ↔ `segments[i]`, thêm một con là làm tra cứu **sai im lặng**
+- [x] 8.7 Sửa 6 ca của `editorSourceCut.test.ts` sang hình dạng mới, **giữ nguyên bài học** (`<rt>` · code point)
+
+### Task 9 — Dấu cắt dễ nhận diện, và gỡ kênh thay thế (AC: 9) *(🔵 THÊM 2026-08-17, Ice dùng thật)*
+- [x] 9.1 Dấu cắt cao `1em` → **`1,3em`**, màu `ornament` → **`primary`** — `ornament` là `#a9a196`/`#6a6459`, đo được **2,44/2,64** trên `surface` nên `check:tokens` **cấm** nó làm màu chữ; một dấu cắt là thứ phải **tìm thấy**
+- [x] 9.2 Sửa **cả hai** khối CSS cùng lượt (`GridPanel.vue::.cut-mark` và `SourceHanViet.vue::.cut-here::before`) — **không cổng nào canh** việc chúng khớp nhau, ghi cảnh báo tại chỗ
+- [x] 9.3 🔴 **ĐO** chiều cao hàng trước/sau — `subgrid` làm một phần tử inline cao hơn line box đẩy **cả track** và kéo ô bản dịch theo *(cái giá đã đo ở 2.5b: 388px)*. Kết quả: **71px → 71px**, chênh **0/0**, dấu cắt có mặt
+- [x] 9.4 Gỡ viền `has-cuts` **và gỡ luôn lớp đó** — nó là kênh THAY THẾ cho ngày dấu cắt chưa vẽ được ở tab Hán Việt; AC9 làm nó vẽ được ⇒ kênh hết việc. Giữ một lớp không tạo kiểu gì chỉ để e2e chọn được là mở đúng tiền lệ kho này cố ý chưa mở
+- [x] 9.5 Sửa hai spec e2e đọc lớp vừa gỡ sang `data-cut-count` *(chở một SỐ, chặt hơn một cờ)*; sửa hai doc-comment đã hết đúng kèm 🔵 + ngày
+
 ### Task 5 — Sổ nợ
 - [x] 5.1 Đóng món `deferred-work.md:3036-3061` *(tiền đề `beforeinput` đã lật)* bằng `→ ✅ ĐÃ ĐÓNG <ngày> (Story 2.9)` — **nối thêm, không xoá mục gốc**
 - [x] 5.2 Đóng vế *"dòng báo"* của `:4103-4109`; vế `⌘Z` thì **giữ 🟡** và ghi chủ theo phán định Task 0
 - [x] 5.3 Ghi món *"`@keydown` nay mang một thao tác thật ⇒ luật Kiểm A phải được xem lại"* — chủ theo phán định của Ice *(xem cạm bẫy ②)*
 - [x] 5.4 Rà lại `deferred-work.md:3821-3829` *(`restore_segment_version` khi văn bản rỗng)* — còn hở không, và story này có chạm không — **KHÔNG chạm**, lý do ghi tại chỗ
 - [x] 5.5 Ghi mọi món mới phát sinh, **mỗi món một chủ**, không món nào mồ côi — **5 món mới**, 2 món đóng bằng cách nối tiếp
+
+### Review Findings
+
+Lượt code review BA TẦNG *(Blind Hunter · Edge Case Hunter · Acceptance Auditor, `claude-opus-5`)*,
+2026-08-17, mốc diff `4d72cd4` → cây làm việc.
+
+🔵 **Mọi số đo của Dev Agent Record đã được đo lại từ nguồn và KHỚP 100%** — `npx vitest run`
+177/177 (17 tệp) · `check-commands` 47 command / `COMMAND_FLOOR` 39 · 6 khoá `panel.grid.regroup_*`
+· 11/6/6/5/16 ca mỗi tệp test · `src-tauri/**` không đổi một byte · `vue-tsc` sạch. Không một
+con số nào là *"số đo không ai đo"*.
+
+- [x] [Review][Patch] **Chỗ cắt giữa một mảnh `.hv-text` có hiệu lực nhưng KHÔNG vẽ được dấu — rộng hơn món nợ đã ghi** — ✅ **Ice ký 2026-08-17: TỪ CHỐI offset giữa mảnh.** `sourceCutOffsetOf` neo về điểm **ĐẦU** mảnh `.hv-text`, đúng khuôn `.hv-word` đã làm qua `data-src-atomic`. Bất biến mới: **mọi offset tạo được đều vẽ được dấu**. Đánh đổi đã cân: người dùng mất độ chính xác giữa `」，` — nhưng không bao giờ có một chỗ cắt tàng hình trên dữ liệu AD-5 không cho hoàn tác, và `resolveSwitch` **không bị đụng**. Chi tiết đường hỏng: `sourceCutOffsetOf` tính offset **chính xác từng ký tự** bên trong mảnh không-Hán (`editorSegments.ts:302-317`, mảnh này **không** mang `data-src-atomic`), nên người dùng đặt được một chỗ cắt hợp lệ ở **giữa** một mảnh. Nhưng `cutSet.has(seg.srcStart)` (`SourceHanViet.vue:806, 828`) chỉ so với điểm **ĐẦU** mảnh ⇒ chỗ cắt đó **không hiện dấu ở đâu cả**, ở **cả hai** kiểu xem. Món nợ đã ghi (`GridPanel.vue:699-700`) chỉ phủ ca *"giữa một TỪ HÁN ở kiểu `parallel`"*, không phủ ca này. Mảnh `.hv-text` là dấu câu/Latin/số — chuỗi `」，` hay `……` dài ≥2 ký tự là chuyện thường trong tiểu thuyết. ⇒ Một chỗ cắt Rust **sẽ thực thi đúng** mà người dùng không thấy nó nằm ở đâu, trên dữ liệu AD-5 không cho hoàn tác. Ba đường sửa khác nhau vật chất, một trong số đó đụng bất biến `resolveSwitch` — cần Ice chốt.
+- [x] [Review][Patch] **`buildSegments`/`originalOffsets` (AC9) không có lưới hồi quy tự động** — ✅ **Ice ký 2026-08-17: tách `originalOffsets` sang `editorSegments.ts` + vitest.** Đúng khuôn `caretAtCellStart` đã đi *(một mệnh đề thuần, kiểm được bằng vitest)*. Ca bắt buộc: `\r\n` · `\r` trần · ký tự ngoài BMP. Đóng nửa rủi ro cao nhất — phép ánh xạ làm lệch **mọi** chỗ cắt sau một `\r\n`. Vế `buildSegments` *(đọc `hanVietByChar.value`, cần fixture từ điển)* **không** thuộc lượt này. Chi tiết: `editorSourceCut.test.ts` chỉ kiểm `sourceCutOffsetOf()` trên DOM **dựng tay** đã có sẵn `data-src-start`; không ca nào đi qua `buildSegments()`/`originalOffsets()` thật. Đường duy nhất verify phép ánh xạ `\r\n`→gốc và ca ngoài BMP là `2-9-ban-do/han-viet-cho-cat.e2e.mjs` — một **bàn đo tay**, không nằm trong `e2e/specs/`, không chạy trong `npm run test`. `originalOffsets` là hàm **thuần**, tách được ngay; `buildSegments` đọc `hanVietByChar.value` nên tách cần tiêm phụ thuộc. Phạm vi phủ đến đâu là một quyết định.
+- [x] [Review][Patch] **`confirmNotice` đè `regroupNotice` — AC4 KHÔNG đạt trong một ca thật, và chú thích tại chỗ tự khai SAI** [src/StatusBar.vue:195] — `v-if="confirmNoticeKey !== null"` thắng vô điều kiện `v-else-if="regroupNoticeText !== null"`. Chú thích khẳng định *"Hai ô nhớ không bao giờ cùng mang giá trị trong một lượt dùng thật"* — **sai, đo được**: `confirmNotice` chỉ bị dọn ở BA chỗ (`editorPanelState.ts:298` · `:491` · `:730`), và `regroup()` **không** nằm trong số đó. Ba giá trị `'no-caret'`/`'flush-failed'`/`'still-dirty'` ở lại vô thời hạn. Cử chỉ `Backspace` **không** gọi `noteEditorEdit` (`preventDefault()` cắt hẳn chuỗi `beforeinput`→`input`→`reportEdit`). ⇒ `⌘Enter` hụt → click sang câu khác → `Backspace` gộp **THÀNH CÔNG** → thanh vẫn hiện câu cũ. Chiều ngược lại cũng hỏng: một `regroupNotice` cũ che mốc *"Đã lưu"* mà UX-DR30 đòi. **Hai tầng độc lập tái hiện bằng vitest thật.** Không ca nào trong 177 ca dựng lại kịch bản có sẵn một `confirmNotice` trước lượt gộp.
+- [x] [Review][Patch] **`resetEditorPanel()` không dọn `regroupNotice`/`regroupError` — câu báo rò sang Tác phẩm khác** [src/panels/editorPanelState.ts:443] — hàm dọn `confirmError` · `caretPlacement` · `confirmNotice` nhưng bỏ hai ô nhớ mới của story này (`:1125`, `:1150`). 🔴 Chính khối chú thích ngay trên nó (`:479-487`) viết ra bằng chữ cái luật *"áp cho mọi ô nhớ THÊM VÀO TỆP NÀY sau này: hỏi 'ô này thuộc Tác phẩm hay thuộc ứng dụng?'"* — và ghi rõ `segment.id` đếm lại từ 1 ở **từng** Tác phẩm nên đụng id là chuyện gần như chắc chắn. ⇒ Ở Tác phẩm B, câu *"Câu số N là câu đầu Chương…"* của Tác phẩm A hiện lên **trước khi** người dùng bấm gì. Đúng lớp lỗi đã bị bắt và vá ở code review 2026-08-15, tái diễn ở story tiếp theo trong **cùng tệp**.
+- [x] [Review][Patch] **Không có khoá `regroupInFlight` — hai lượt `Backspace` RỜI RẠC bấm nhanh dispatch hai lần** [src/panels/editorPanelState.ts:1212] — `event.repeat` (`GridPanel.vue:1158`) chỉ chặn auto-repeat của **hệ điều hành**, không chặn hai cú bấm rời rạc (*"bấm lại cho chắc"*). `confirmCurrentSegment` **đã có** khoá riêng cho đúng đường hỏng này (`confirmInFlight`, `:738`, thêm ở code review 2026-08-13 kèm lý do *"một promise chứ không một cờ"*); `regroup`/`mergeCurrentSegment` **không có**. Vì `preventDefault()` giữ nguyên DOM và caret ở offset 0, cú bấm thứ hai vẫn qua `caretAtCellStart` và dispatch lại cho **cùng** `id`. Lượt IPC thứ hai trả `refused` (segment đã về hưu) và **ghi đè** `regroupNotice` từ `'merged'` thành `'refused'` ⇒ thanh báo *"chưa gộp được"* cho một thao tác **đã gộp xong** — nói dối đúng chiều nguy hiểm, trên dữ liệu không lui được.
+- [x] [Review][Defer] **`sourceCut` (Story 2.8) cũng không được dọn ở `resetEditorPanel()`** [src/panels/editorPanelState.ts:443] — deferred, pre-existing. Cùng lớp với món Patch ở trên nhưng thuộc 2.8, nằm ngoài diff này. ⚠️ Nó củng cố một quan sát đáng ghi: luật *"mọi ô nhớ mới phải qua `resetEditorPanel()`"* **không có cổng nào canh**, và đã bị bỏ sót **hai story liên tiếp**.
+
+#### Ⓐ Lượt vá — năm món, và một lỗ hổng trong lưới của CHÍNH lượt review
+
+🔴 **Cả năm bản vá được nghiệm thu bằng ĐỘT BIẾN MÃ SẢN PHẨM**, không bằng một lượt chạy xanh:
+
+| Đột biến | Ca bắt được |
+|---|---|
+| `ghiRegroupNotice` không dọn `confirmNotice` | ① — 1 đỏ |
+| `confirmCurrentSegment` không dọn `regroupNotice` | ①b — 1 đỏ |
+| `resetEditorPanel` không dọn hai ô nhớ | ② — 1 đỏ |
+| gỡ khoá `regroupInFlight` | ③ và ③b — 2 đỏ |
+| gỡ `data-src-atomic` khỏi `.hv-text` *(lượt đầu)* | 🔴 **KHÔNG ca nào — 191/191 xanh** |
+| gỡ `data-src-atomic`, **sau khi thêm `hanVietCutAnchors.test.ts`** | 2 đỏ *(cả hai kiểu xem)* |
+
+🔴 **Lượt thứ năm là một lỗ hổng thật trong lưới tôi vừa viết, và chính đột biến tìm ra nó.**
+`editorSourceCut.test.ts` dựng DOM **bằng tay** rồi tự gắn `data-src-atomic` ⇒ nó canh
+`sourceCutOffsetOf` **tôn trọng** neo, nhưng **không** canh `SourceHanViet.vue` **phát ra** neo.
+Hai mệnh đề khác nhau, và chỗ cắt tàng hình xuất hiện khi vế **thứ hai** hỏng. Đóng bằng một tệp
+mount **component thật** — đúng khuôn ca ⑨b mà lượt dev đã tự trả giá để biết.
+
+⚠️ **Một vế Ice chốt KHÔNG phủ trọn như câu đề xuất của tôi viết, và tôi thu hẹp nó thay vì thi
+hành quá tay.** Bất biến *"mọi offset tạo được đều vẽ được dấu"* đòi neo cả `.hv-unit` *(base
+`<ruby>` ở `parallel`)* — nhưng làm thế **vi phạm AC9**, vốn đòi bằng chữ *"chính xác từng chữ ở
+`parallel`"*. ⇒ Chỉ `.hv-text` mang neo; bất biến thu về *"mọi offset trong một mảnh KHÔNG-Hán đều
+vẽ được dấu"*, và ca *"giữa một TỪ HÁN ở `parallel`"* **vẫn là món nợ đã ghi có chủ**, không bị
+lượt này đóng. Một ca test giữ cho nó không bị lặng lẽ đóng bằng một dòng thuộc tính.
+
+🔵 **`'busy'` từ chối và KÊU, không NHẬP vào lượt đang bay** — khác `confirmInFlight` có chủ ý.
+Lượt xác nhận là một thao tác trên một câu nên nhập vào là đúng; `regroup` là cửa chung của **hai**
+lệnh, nên cho lượt sau nhận kết quả lượt trước là **đánh rơi một thao tác người dùng trong im
+lặng** — đúng lớp vừa vá, chỉ dời chỗ.
+
+**Số đo sau lượt vá — đo lại từ nguồn, không chép của lượt dev:**
+
+| Đường | Sau lượt dev | Sau lượt vá | Δ |
+|---|---|---|---|
+| `npx vitest run` | 177/177, 17 tệp | **199/199, 19 tệp** | **+22** ca, +2 tệp |
+| Chín cổng đọc-tệp | 9/9 | **9/9 exit 0** | — |
+| `check:scope` · `check:scope:bundled` | exit 0 | **exit 0 · exit 0** | — |
+| `npm run build` · `vue-tsc --noEmit` | xanh | **exit 0 · exit 0** | — |
+| `COMMAND_FLOOR` | sàn 39 | **sàn 39** | 0 — không command mới |
+| `src-tauri/**` | không đổi | **`git diff` rỗng** | 0 ⇒ số `cargo` 401/0/5 đứng theo cấu tạo |
+
+**e2e sau lượt vá — chạy lại hai spec đúng đường bị chạm, trên WKWebView 605.1.15 thật:**
+
+| Spec | Vì sao spec này | Kết quả |
+|---|---|---|
+| `segment-backspace-merge.e2e.mjs` | khẳng định **câu chữ** của thanh trạng thái — đúng thứ vá ① ② ③ đụng | **3/3 xanh** (3m 43s) |
+| `segment-merge-split.e2e.mjs` | canh đường `⌘M`/`⌘/`, tức cửa chung `regroup()` nay có khoá | **3/3 xanh** (3m 22s) |
+
+🔵 **Vá ④ KHÔNG đụng đường e2e nào, và đó là một phép đo chứ không một suy luận:**
+`grep -ln "hv-\|han-viet\|hanViet" e2e/specs/*.mjs` ⇒ **rỗng**. Không spec nào chạm tab Hán Việt;
+bốn spec đặt chỗ cắt đều bấm ở **cột nguyên văn thuần**, nơi `.src-piece` **không** mang
+`data-src-atomic` nên phép đếm từng ký tự ở đó giữ nguyên. Đường verify của vá ④ là bàn đo tay
+`han-viet-cho-cat.e2e.mjs`, và nó nằm ngoài `e2e/specs/` theo thiết kế.
+
+⚠️ **Chưa chạy e2e TRỌN BỘ** *(~15 phút, cần máy rảnh)*. Hai spec trên là hai spec duy nhất chạm
+bề mặt lượt vá sửa; ba spec đỏ-trong-bộ mà lượt dev ghi *(`attribution-focus` ·
+`editor-confirm-segment` · `editor-typing-flush`)* **không** chạm bề mặt nào của lượt vá này, và
+món *"xanh riêng, đỏ trong bộ"* đã có chủ ở `deferred-work.md`.
 
 ---
 
@@ -804,6 +933,8 @@ muốn **ghi đè**. ⇒ Gỡ tham số thừa, không thêm một `eslint-disab
 | **AC5** `⌘Z` | 🔴 **NỢ, có chủ** | chờ `AD-48`. Hồ sơ bàn giao đã soạn |
 | **AC6** không chặn | ✅ | e2e ca ② — lưới không đổi, không hộp thoại, và lượt từ chối **nói ra** |
 | **AC7** cử chỉ chỗ cắt | ✅ | vitest 6 ca *(hai nền tảng)* · e2e ca ③ *(đối chứng hai chiều)* |
+| **AC8** `Esc` xoá tập | ✅ | vitest 5 ca, gồm ca `isComposing` · 2 lượt đột biết đỏ đúng chỗ |
+| **AC9** chỗ cắt ở Hán Việt | 🟡 | bàn đo trên WKWebView: 17→**0** · 19→**2** · vitest 16 ca · chiều cao hàng **71→71px**. **Vế dấu cắt GIỮA từ ở `parallel` còn hở**, có chủ |
 
 🔴 **Không vế nào tự chấm đạt bằng suy luận.** AC5 **không sai** vì đường đi chưa tới nó
 *(`project-context.md` §"Năng lực chưa dựng ≠ lệch spec")*; `epics.md` **không bị sửa một chữ**.
@@ -838,11 +969,11 @@ của hệ điều hành *(chữ ký ③)*; ③ một lượt chốt của **b�
 |---|---|---|---|
 | `cargo test --locked` | 401 / 0 / 5 | **401 / 0 / 5** | **0** *(có chủ ý — §②)* |
 | `segment_contract.rs` | 121 | **121** | **0** |
-| `npx vitest run` | 141/141, 13 tệp | **164/164, 16 tệp** | **+23** ca, +3 tệp |
+| `npx vitest run` | 141/141, 13 tệp | **177/177, 17 tệp** | **+36** ca, +4 tệp |
 | Chín cổng đọc-tệp | 9/9 | **9/9** | — |
 | `check:scope` · `check:scope:bundled` | — | **exit 0 · exit 0** | *(chạy tay)* |
 | `npm run build` · `vue-tsc --noEmit` | — | **xanh · xanh** | — |
-| `COMMAND_FLOOR` | sàn 38 | **sàn 38** | **0** |
+| `COMMAND_FLOOR` | sàn 38 | **sàn 39** *(cổng in 47)* | +1 — `editor.clear_source_cuts` |
 | e2e spec mới | — | **3/3 ca** (4m 06s) | — |
 | e2e spec 2.8 *(sau lượt đổi cử chỉ)* | 3/3 | **3/3** (2m 36s) | 0 |
 
@@ -875,7 +1006,18 @@ của tôi — **3/3 xanh** (0-7, 3m 19s).
 ### File List
 
 **Sửa (UPDATE):**
-- `src/panels/editorSegments.ts` — thêm `caretAtCellStart()` và `hasPrimaryModifier()`
+- `src/panels/editorSegments.ts` — thêm `caretAtCellStart()`, `hasPrimaryModifier()`,
+  `neoNguonCua()`; `sourceCutOffsetOf()` đổi từ **đếm mù** sang **đọc neo** (AC9)
+- `src/panels/SourceHanViet.vue` — `srcStart` cho mọi segment + phép ánh xạ `\r\n`; neo
+  `data-src-start`/`data-src-atomic` ra DOM; prop `cuts`; dấu cắt `::before` (AC9)
+- `src/commands/index.ts` — dep `clearSourceCuts` + command `editor.clear_source_cuts` (AC8)
+- `src/main.ts` — nối dep `clearSourceCuts` (AC8)
+- `scripts/check-commands.mjs` — `COMMAND_FLOOR` 38 → 39
+- `src/panels/GridPanel.vue` — `.cut-mark` cao 1,3em + `primary`; **gỡ** lớp và viền
+  `has-cuts`; hai doc-comment đã hết đúng sửa tại chỗ (Task 9)
+- `src/panels/SourceHanViet.vue` — `.cut-here::before` khớp `.cut-mark` (Task 9)
+- `e2e/specs/segment-merge-split.e2e.mjs` · `e2e/specs/segment-backspace-merge.e2e.mjs` —
+  đọc `data-cut-count` thay cho lớp `has-cuts` (Task 9)
 - `src/panels/GridPanel.vue` — nhánh `Backspace` trong `onEditKeydown`; chốt `Mod` ở
   `onSourceCellMouseUp` (AC7); hằng `PLATFORM`; import `caretAtCellStart`/`hasPrimaryModifier`/`detectIsMac`
 - `src/panels/editorPanelState.ts` — `RegroupNotice` + `regroupNotice` + `editorRegroupNotice`;
@@ -886,6 +1028,8 @@ của tôi — **3/3 xanh** (0-7, 3m 19s).
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — trạng thái + ghi chép
 - `_bmad-output/implementation-artifacts/2-9-gop-bang-backspace-dau-o.md` — tệp story này
 - `e2e/specs/segment-merge-split.e2e.mjs` — hai lượt `mouseup` thêm `metaKey` (hệ quả của AC7)
+- `tests/frontend/editorSourceCut.test.ts` — 6 ca đổi sang hình dạng neo, **giữ nguyên bài
+  học**; cộng 8 ca mới cho AC9
 - `_bmad-output/planning-artifacts/ux-designs/ux-AuraTranslate-2026-08-02/EXPERIENCE.md` —
   văn xuôi `:169` + một hàng mới trong bảng Phím `:267`
 
@@ -893,6 +1037,9 @@ của tôi — **3/3 xanh** (0-7, 3m 19s).
 - `tests/frontend/editorCaretAtCellStart.test.ts` — 11 ca
 - `tests/frontend/editorRegroupNotice.test.ts` — 6 ca
 - `tests/frontend/editorSourceCutGesture.test.ts` — 6 ca, lái **cả hai** nền tảng
+- `tests/frontend/editorClearSourceCuts.test.ts` — 5 ca (AC8)
+- `_bmad-output/implementation-artifacts/2-9-ban-do/han-viet-cho-cat.e2e.mjs` — bàn đo AC9
+- `_bmad-output/implementation-artifacts/2-9-ban-do/dau-cat-chieu-cao.e2e.mjs` — bàn đo Task 9.3
 - `e2e/specs/segment-backspace-merge.e2e.mjs` — 3 ca
 - `_bmad-output/planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md` — hồ sơ bàn giao `AD-48`
 - `_bmad-output/implementation-artifacts/2-9-ban-do/README.md`

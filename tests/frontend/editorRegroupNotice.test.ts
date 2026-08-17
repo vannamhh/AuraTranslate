@@ -232,3 +232,158 @@ describe('Story 2.9 · AC4 — dòng báo hệ quả của lượt gộp', () =>
     wrapper.unmount()
   })
 })
+
+/**
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * 🔵 NHÓM NÀY SINH RA Ở LƯỢT CODE REVIEW BA TẦNG, 2026-08-17
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * Ba khuyết tật dưới đây đi qua **trọn 177 ca** của lượt dev cộng mười một cổng, và cả ba cùng
+ * một lớp: **một ô nhớ mới thiếu một cửa mà tệp đó đã có sẵn cửa cho ô nhớ cũ.** Ba lần, cùng
+ * một tệp.
+ *
+ * 🔴 Vì sao lượt dev không bắt được: mọi ca của nó dựng một trạng thái **sạch** rồi gộp. Không ca
+ * nào dựng **một câu báo đã có sẵn** trước lượt gộp, và không ca nào chạy `resetEditorPanel()`.
+ * Bài học phương pháp, ghi ra để lượt sau đọc: một ô nhớ mới cần ba câu hỏi — *ai dọn nó?* ·
+ * *nó thuộc Tác phẩm hay thuộc ứng dụng?* · *hai lượt gọi chồng nhau thì sao?*
+ */
+describe('🔵 Code review 2026-08-17 — ba cửa mà hai ô nhớ mới của Story 2.9 còn thiếu', () => {
+  it('🔴 ① câu của lượt XÁC NHẬN không được che câu của lượt gộp THÀNH CÔNG', async () => {
+    // Đường hỏng nguyên bản: `StatusBar.vue` khai `v-if` của `confirmNotice` **trước**
+    // `v-else-if` của câu gộp, và `regroup()` không dọn `confirmNotice`. Cử chỉ `Backspace`
+    // cũng không đi qua `noteEditorEdit` *(`preventDefault()` cắt chuỗi `input`)*.
+    // ⇒ AC4 không đạt: gộp xong mà thanh vẫn nói câu của một thao tác đã trôi qua.
+    const { state, StatusBar } = await tuoi()
+    const wrapper = mount(StatusBar)
+    await state.ensureSegmentsLoaded()
+
+    // ① Một lượt `⌘Enter` hụt — chưa đặt caret ⇒ `confirmNotice = 'no-caret'`.
+    expect(await state.confirmCurrentSegment()).toBe('no-caret')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.notice').text()).toBe(
+      'Chưa có câu nào đang được chọn — đặt con trỏ vào một câu rồi xác nhận.',
+    )
+
+    // ② Người dùng **không gõ chữ nào** *(nên `noteEditorEdit` không chạy)*, chỉ đặt caret rồi
+    //    bấm `Backspace`.
+    state.setEditorCaret(12)
+    ketQuaGop.value = {
+      outcome: { retired: FIXTURE_SEGMENTS.slice(0, 2).map((s) => ({ ...s })), new_segments: [HANG_GOP] },
+      error: null,
+    }
+    expect(await state.mergeCurrentSegment()).toBe('done')
+    await wrapper.vm.$nextTick()
+
+    // 🔴 Mệnh đề: thanh nói về **thao tác vừa xảy ra**, không về một thao tác đã trôi qua.
+    expect(wrapper.find('.notice').text()).toBe(
+      'Đã gộp hai câu. Câu mới chưa xác nhận — lịch sử của hai câu cũ vẫn tra lại được.',
+    )
+    wrapper.unmount()
+  })
+
+  it('🔴 ①b chiều NGƯỢC LẠI — câu gộp cũ không được che mốc "Đã lưu" của lượt xác nhận', async () => {
+    // Cùng một khuyết tật, đổi chiều: `confirmCurrentSegment` không dọn `regroupNotice`, nên một
+    // câu *"Đã gộp hai câu…"* sống sót qua một lượt xác nhận **thành công** và che mốc mà UX-DR30
+    // đòi. Vế đối xứng của bất biến, và nó cần ca riêng vì nó đi qua **cửa khác**.
+    const { state, StatusBar } = await tuoi()
+    const wrapper = mount(StatusBar)
+    await state.ensureSegmentsLoaded()
+    state.setEditorCaret(12)
+    ketQuaGop.value = {
+      outcome: { retired: FIXTURE_SEGMENTS.slice(0, 2).map((s) => ({ ...s })), new_segments: [HANG_GOP] },
+      error: null,
+    }
+    await state.mergeCurrentSegment()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.notice').exists()).toBe(true)
+
+    // Một lượt xác nhận chạy sau đó — kết quả nào cũng được, mệnh đề không phụ thuộc vào nó.
+    await state.confirmCurrentSegment()
+    await wrapper.vm.$nextTick()
+
+    // 🔴 Đo trên **toàn** thanh, không trên `.notice`: một lượt xác nhận bị từ chối dọn **cả hai**
+    // ô nhớ *(lý do từ chối đi ra qua `confirmError`, thứ `GridPanel.vue` đọc — không phải thanh
+    // này)*, nên thanh có thể không còn phần tử nào. `.find('.notice').text()` sẽ **ném** ở đó, và
+    // một ca ném vì hình dạng bề mặt là một ca nói về bề mặt, không về mệnh đề đang kiểm.
+    expect(wrapper.text()).not.toContain('Đã gộp hai câu')
+    wrapper.unmount()
+  })
+
+  it('🔴 ② `resetEditorPanel()` dọn câu báo — nó thuộc TÁC PHẨM, không thuộc ứng dụng', async () => {
+    // `segment.id` là `AUTOINCREMENT` trong `project.db` của **từng** Tác phẩm, nên mỗi Tác phẩm
+    // đếm lại từ 1 ⇒ số `11` trong câu từ chối của Tác phẩm A trỏ một câu **khác** ở Tác phẩm B.
+    // Đúng lớp lỗi đã bị bắt và vá cho `confirmError`/`caretPlacement` ở code review 2026-08-15.
+    const { state, StatusBar } = await tuoi()
+    const wrapper = mount(StatusBar)
+    await state.ensureSegmentsLoaded()
+    state.setEditorCaret(11)
+    ketQuaGop.value = {
+      outcome: null,
+      error: {
+        code: 'segment_no_previous',
+        message_key: 'err.segment.no_previous',
+        params: { segment_id: '11' },
+        retryable: false,
+      },
+    }
+    expect(await state.mergeCurrentSegment()).toBe('refused')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.notice').exists()).toBe(true)
+
+    // Đúng hàm `modes/libraryImport.ts::finishSubmit` gọi khi Tác phẩm đang mở BỊ THAY.
+    state.resetEditorPanel()
+    await wrapper.vm.$nextTick()
+
+    // 🔴 Không một câu nào của Tác phẩm cũ được ở lại — người dùng chưa bấm gì ở Tác phẩm mới.
+    expect(wrapper.find('.notice').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('🔴 ③ hai lượt gộp CHỒNG NHAU ⇒ lượt sau trả `busy` và NÓI RA, không ghi đè câu của lượt đầu', async () => {
+    // `event.repeat` chỉ chặn auto-repeat của **hệ điều hành**; hai cú `Backspace` **rời rạc** bấm
+    // nhanh thì không. Và vì nhánh đó `preventDefault()`, DOM cùng caret y nguyên ở offset 0 nên
+    // cú thứ hai qua trọn `caretAtCellStart` và dispatch lại cho **cùng** một `id`.
+    //
+    // 🔴 Không có khoá, lượt IPC thứ hai trả `refused` *(segment đã về hưu)* và ghi đè câu
+    // `'merged'` ⇒ thanh báo *"chưa gộp được"* cho một thao tác **đã gộp xong**. Nói dối đúng
+    // chiều nguy hiểm, trên một lượt ghi mà AD-5 không cho hoàn tác.
+    const { state, StatusBar } = await tuoi()
+    const wrapper = mount(StatusBar)
+    await state.ensureSegmentsLoaded()
+    state.setEditorCaret(12)
+    ketQuaGop.value = {
+      outcome: { retired: FIXTURE_SEGMENTS.slice(0, 2).map((s) => ({ ...s })), new_segments: [HANG_GOP] },
+      error: null,
+    }
+
+    // Hai lượt phát **cùng một tick**, không `await` giữa chúng — đúng hình dạng hai cú bấm nhanh.
+    const [dau, sau] = await Promise.all([state.mergeCurrentSegment(), state.mergeCurrentSegment()])
+
+    // 🔴 Lượt đầu xong việc; lượt sau bị **từ chối và nói ra**, không NHẬP vào lượt đầu. Nhập vào
+    // sẽ trả `'done'` cho một thao tác chưa từng được phát — một lượt đánh rơi im lặng.
+    expect(dau).toBe('done')
+    expect(sau).toBe('busy')
+    wrapper.unmount()
+  })
+
+  it('③b `busy` có câu chữ — bảng tra ĐÓNG không cho một giá trị nào lọt ra màn hình câm', async () => {
+    const { state, StatusBar } = await tuoi()
+    const wrapper = mount(StatusBar)
+    await state.ensureSegmentsLoaded()
+    state.setEditorCaret(12)
+    ketQuaGop.value = {
+      outcome: { retired: FIXTURE_SEGMENTS.slice(0, 2).map((s) => ({ ...s })), new_segments: [HANG_GOP] },
+      error: null,
+    }
+
+    const chay = state.mergeCurrentSegment()
+    // Lượt thứ hai phát trong lúc lượt đầu còn bay ⇒ nó ghi câu `'busy'`.
+    expect(await state.mergeCurrentSegment()).toBe('busy')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.notice').text()).toBe(
+      'Một lượt gộp hoặc tách đang chạy — lượt vừa bấm chưa được phát. Chờ nó xong rồi bấm lại.',
+    )
+
+    await chay
+    wrapper.unmount()
+  })
+})

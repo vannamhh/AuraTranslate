@@ -285,16 +285,29 @@ const sourceTokenClass = computed(() => (isChinese.value ? 'tok-source-cjk' : 't
  * `project-context.md` §*Rỗng IM LẶNG* cấm: họ bấm ba chỗ, quên mất, rồi `⌘/` cắt câu thành
  * bốn mảnh mà không hiểu vì đâu — trên dữ liệu AD-5 **không cho hoàn tác**.
  *
- * ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện:** dấu cắt chỉ vẽ được ở
- * đường **chữ trần**. Ở chế độ Hán Việt, ô do `SourceHanViet.vue` dựng và chỗ cắt rơi vào
- * giữa các `<ruby>` — cắm dấu vào đó là chẻ một `<ruby>` làm đôi, thứ vừa sai ngữ nghĩa vừa
- * đụng hợp đồng vùng chọn của Auto-Lookup (`hanVietSurfaces.ts`). ⇒ Ở chế độ đó ô chỉ nhận
- * **viền `has-cuts`**, tức người dùng biết *"câu này đang có điểm chờ"* nhưng không thấy
- * **ở đâu**. Món nợ có chủ ở `deferred-work.md`.
+ * 🔵 **CẬP NHẬT 2026-08-17 (Story 2.9 · AC9) — mệnh đề cũ đã HẾT ĐÚNG.** Bản trước viết
+ * *"dấu cắt chỉ vẽ được ở đường chữ trần […] ở chế độ Hán Việt ô chỉ nhận viền `has-cuts`,
+ * tức người dùng biết 'câu này đang có điểm chờ' nhưng không thấy **ở đâu**"*.
+ *
+ * Dấu cắt **nay vẽ được ở cả hai kiểu xem Hán Việt**, bằng `::before` trên phần tử mang neo
+ * `data-src-start` (`SourceHanViet.vue`). Lo ngại cũ *(chẻ một `<ruby>` làm đôi)* **vẫn
+ * đúng** và chính là lý do phải đi đường pseudo-element: `resolveSwitch()` ánh xạ ngược bằng
+ * **CHỈ SỐ** `host.children[i]`, nên một phần tử con chen vào làm tra cứu **sai im lặng**.
+ * ⇒ Không `<ruby>` nào bị chẻ; không con nào được thêm.
+ * ⚠️ Vế **còn hở**: một chỗ cắt nằm GIỮA một từ ở kiểu `parallel` tính đúng nhưng không có
+ * chỗ bám để vẽ. Món nợ có chủ (**Ice**) ở `deferred-work.md`.
  */
 const pendingCuts = computed<{ segmentId: number; offsets: readonly number[] } | null>(
   () => editorSourceCut.value,
 )
+
+/** Tập điểm cắt đang chờ của một hàng — rỗng nếu hàng này không có điểm nào. */
+function cutOffsetsOf(segmentId: number): readonly number[] {
+  const c = pendingCuts.value
+  return c !== null && c.segmentId === segmentId ? c.offsets : EMPTY_CUTS
+}
+/** Một mảng rỗng DÙNG CHUNG — trả `[]` mới mỗi lượt render làm prop đổi tham chiếu mỗi tick. */
+const EMPTY_CUTS: readonly number[] = []
 
 /** Số điểm cắt đang chờ của một hàng. `0` ⇒ hàng này không có điểm nào. */
 function cutCountOf(segmentId: number): number {
@@ -312,6 +325,27 @@ function cutCountOf(segmentId: number): number {
  * ⚠️ Điểm nằm ngoài chuỗi bị bỏ qua **ở đây**, không bị chặn: tầng thuần Rust là chỗ từ chối
  * (AD-1), còn ô này chỉ vẽ thứ vẽ được.
  */
+/**
+ * 🔴 **Chỉ số ký tự nguồn nơi mỗi mảnh của [`sourcePiecesOf`] bắt đầu** — Story 2.9, AC9.
+ *
+ * Cùng biên, cùng thứ tự, cùng đơn vị *(điểm mã)* với hàm kia. Nó tồn tại để mỗi mảnh mang
+ * được một **NEO** `data-src-start` trong DOM, thứ mà `sourceCutOffsetOf` đọc thay cho phép
+ * đếm mù mọi text node.
+ *
+ * ⚠️ Hai hàm phải giữ **cùng một** phép chia. Tách chúng ra là mời một lượt lệch im lặng —
+ * đây là chỗ duy nhất trong story chấp nhận một bản sao, và nó chấp nhận được vì cả hai đọc
+ * chung `pendingCuts` và cùng lọc/sắp y hệt.
+ */
+function sourcePieceStartsOf(segmentId: number, text: string): readonly number[] {
+  const n = cutCountOf(segmentId)
+  if (n === 0) return [0]
+  const ky = [...text]
+  const moc = [...(pendingCuts.value?.offsets ?? [])]
+    .filter((o) => o > 0 && o < ky.length)
+    .sort((a, b) => a - b)
+  return [0, ...moc]
+}
+
 function sourcePiecesOf(segmentId: number, text: string): readonly string[] {
   const n = cutCountOf(segmentId)
   if (n === 0) return [text]
@@ -1086,6 +1120,28 @@ function onEditKeydown(event: KeyboardEvent): void {
   // — code review 2026-08-16 sửa lại chỗ gọi tên này.
 
   // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔵 STORY 2.9 · AC8 — `Esc` XOÁ TẬP ĐIỂM CẮT, và nó cần cửa NÀY chứ không chỉ registry
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // `editor.clear_source_cuts` **đã đăng ký** với hợp âm `Escape` (`commands/index.ts`), và
+  // lượt đăng ký đó không thừa: nó là thứ làm phím gán lại được (FR22) và hiện trong bảng
+  // phím của Story 1.21.
+  // 🔴 Nhưng nó **một mình không tới nơi**: `Escape` không mang phím bổ trợ chính, nên
+  // `keys.ts:510` (`lacksPrimaryMod && isTypingZone`) **chặn** nó khi tiêu điểm nằm trong một
+  // ô bản dịch — tức ở đúng chỗ người dùng đang đứng sau khi vừa gõ. Cùng cạm bẫy mà nhánh
+  // `Backspace` ngay dưới đã phải đi vòng, ở một phím khác.
+  // ⇒ Bắt trực tiếp rồi `dispatch` **CHÍNH** id đã đăng ký. Hai cửa, **một** command — không
+  //   một đường xoá thứ hai.
+  //
+  // ⚠️ **KHÔNG** `preventDefault()`: `Esc` còn là phím đóng của các lớp phủ *(màn hình phím
+  // tắt, Attribution, lịch sử phiên bản)*, và ăn nó ở đây là bịt đường thoát của chúng khi
+  // tiêu điểm tình cờ nằm trong lưới. Một lượt xoá tập điểm cắt **không** loại trừ một lượt
+  // đóng lớp phủ — hai việc ở hai tầng.
+  if (event.key === 'Escape') {
+    dispatch('editor.clear_source_cuts')
+    return
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
   // 🔴 STORY 2.9 · AC1 · AC6 — CỬ CHỈ `Backspace` Ở ĐẦU Ô LÀ LỆNH GỘP (FR78 · UX-DR32)
   // ═══════════════════════════════════════════════════════════════════════════════
   if (event.key !== 'Backspace') return
@@ -1291,7 +1347,6 @@ const chapterId = computed(() => editorChapterId.value)
             :class="{
               'para-end': s.is_paragraph_end,
               omitted: s.is_omitted,
-              'has-cuts': cutCountOf(s.id) > 0,
             }"
             :data-segment-id="s.id"
             :data-cut-count="cutCountOf(s.id)"
@@ -1306,6 +1361,7 @@ const chapterId = computed(() => editorChapterId.value)
               v-if="showHanViet"
               :source-text="s.source_text"
               :view-mode="viewMode"
+              :cuts="cutOffsetsOf(s.id)"
               surface-role="cell"
             />
             <!--
@@ -1319,8 +1375,17 @@ const chapterId = computed(() => editorChapterId.value)
             <template v-else
               ><template v-for="(manh, i) in sourcePiecesOf(s.id, s.source_text)" :key="i"
                 ><span v-if="i > 0" class="cut-mark" aria-hidden="true"></span
-                ><!-- aura-allow-text: nguyên văn của Tác phẩm — DỮ LIỆU, không chuỗi giao
-                     diện (NFR16). Không `v-html` (AD-16). -->{{ manh }}</template
+                ><!-- 🔵 2026-08-17 (AC9) — mỗi mảnh nay là một `<span>` mang NEO
+                     `data-src-start`. Trước lượt này mảnh là text node trần và
+                     `sourceCutOffsetOf` phải **đếm mù** mọi text node trong ô — phép đếm đó
+                     sai hẳn ở tab Hán Việt *(đo: 17 và 19 trên một câu 5 chữ)*.
+                     ⚠️ `<span>` KHÔNG thêm một ký tự nào vào `Selection.toString()`, nên
+                     Auto-Lookup (FR21) không bị chạm.
+                     aura-allow-text: nguyên văn của Tác phẩm — DỮ LIỆU, không chuỗi giao
+                     diện (NFR16). Không `v-html` (AD-16). --><span
+                  class="src-piece"
+                  :data-src-start="sourcePieceStartsOf(s.id, s.source_text)[i]"
+                >{{ manh }}</span></template
               ></template
             >
           </div>
@@ -1606,21 +1671,55 @@ const chapterId = computed(() => editorChapterId.value)
  * ⚠️ `vertical-align` neo theo chiều cao dòng chứ không theo baseline: cột nguyên văn dựng
  * bằng ba họ font khác nhau *(`read-cjk` và `source-latin`)* và baseline của chúng lệch nhau.
  */
+/*
+ * 🔵 **2026-08-17 (Ice yêu cầu) — CAO HƠN và ĐỔI MÀU: `ornament` → `primary`.**
+ *
+ * `ornament` là `#a9a196` (sáng) / `#6a6459` (tối) — một màu **nét trang trí**, cố ý mờ. Trên
+ * nền `surface` nó đo được **2,44 / 2,64** *(đã ghi ở Quyết định #9(a) của 2.5b)*, tức mờ đến
+ * mức `check:tokens` **cấm** nó làm màu chữ. Một dấu cắt là thứ người dùng phải **tìm thấy**,
+ * không một đường viền nền.
+ *
+ * `primary` (`#2f5d63` / `#7fb3ba`) là màu nhấn của ứng dụng và nằm trong danh sách màu CHỮ
+ * hợp lệ của `check-tokens.mjs:274` — tức nó đã qua cửa tương phản, dù dấu này không phải chữ.
+ * Nó cũng đúng ngữ nghĩa: một điểm cắt đang chờ là **việc người dùng đang làm**, không một
+ * trạng thái của câu.
+ *
+ * ⚠️ **Vì sao KHÔNG dùng `error`:** một chỗ cắt chưa thực hiện không phải một lỗi, và nhuộm
+ * đỏ nó là dạy người dùng một mức khẩn cấp sẽ phải lạm phát ở story sau — cùng lý lẽ mà
+ * `StatusBar.vue` đã ghi cho câu báo.
+ *
+ * 🔴 **`height` đo bằng `em` và `vertical-align: text-bottom` giữ nguyên — chiều cao HÀNG
+ * không được đổi.** Lưới dùng `subgrid`, nên một phần tử inline cao hơn line box sẽ đẩy
+ * **cả track hàng** và kéo theo ô bản dịch *(cái giá đó đã đo ở 2.5b: hàng Hán Việt song song
+ * đẩy ô bản dịch lên 388px)*. `1,3em` nằm trong line box của cỡ chữ nguồn — đo lại nếu ai đổi
+ * `--leading-*` của cột này.
+ */
 .cut-mark {
   display: inline-block;
   width: 2px;
-  height: 1em;
+  height: 1.3em;
   vertical-align: text-bottom;
-  background-color: var(--color-ornament);
+  background-color: var(--color-primary);
 }
 
 /*
- * Ô đang giữ điểm cắt chờ — kênh **duy nhất** ở chế độ Hán Việt, nơi dấu cắt không vẽ được.
- * Xem doc-comment của `pendingCuts` cho giới hạn thật và món nợ có chủ.
+ * 🔵 **2026-08-17 (Ice chốt) — VIỀN `has-cuts` ĐÃ GỠ, cùng với chính lớp đó.**
+ *
+ * Nó là `border-left: 2px solid var(--color-ornament)` trên ô nguyên văn, và nó tồn tại vì
+ * một lý do **đã hết đúng**: ở chế độ Hán Việt dấu cắt *"không vẽ được"*, nên ô cần một kênh
+ * nói *"câu này đang có điểm chờ"* mà không nói **ở đâu**. Story 2.9 · AC9 làm dấu cắt vẽ
+ * được ở **cả hai** kiểu xem ⇒ kênh thay thế hết việc.
+ *
+ * 🔴 Ice dùng thật rồi chốt: *"bỏ dấu gạch đứng ở trước câu đi, nó không cần thiết"*. Hai
+ * kênh cho một khái niệm bắt người đọc học hai ký hiệu, và cái mờ hơn thì nói ít hơn.
+ *
+ * ⚠️ Lớp `has-cuts` **gỡ luôn**, không giữ lại làm mối nối cho test: một lớp không tạo kiểu
+ * gì là mã chết, và giữ nó chỉ để `e2e` chọn được là mở đúng tiền lệ mà kho này cố ý chưa mở
+ * *(`e2e/support/workspace.mjs` §"không thêm mối nối `data-` chỉ để test chọn được")*.
+ * `data-cut-count` ở lại — nó chở **số**, tức nhiều hơn một cờ, và hai spec đọc nó.
+ *
+ * ⚠️ Gỡ viền cũng xoá một lượt xê dịch 2px mà chỉ những ô có điểm cắt phải chịu.
  */
-.cell-src.has-cuts {
-  border-left: 2px solid var(--color-ornament);
-}
 
 /*
  * Cột ② — số câu. `on-surface-variant` (Quyết định #9(a)); `DESIGN.md` frontmatter khai
