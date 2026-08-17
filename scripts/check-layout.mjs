@@ -449,6 +449,19 @@ const ALLOWED_GLOBAL_MEMBERS = new Set([
   // API DOM chuẩn, không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
   'document.caretPositionFromPoint',
   'document.caretRangeFromPoint',
+  // Story 2.8, AC2 — `GridPanel.vue::onSourceCellMouseUp` đổi một điểm bấm ở CỘT NGUYÊN VĂN
+  // thành một **chỉ số ký tự trong `source_text`**, tức chỗ cắt của `⌘/`.
+  //
+  // 🔴 Vì sao phải duyệt text node thay vì lấy `offset` trần: một ô nguyên văn chứa NHIỀU text
+  // node *(hai `#comment` `aura-allow-text` chia chuỗi làm ba — đo trên WKWebView thật ngày
+  // 2026-08-17, `childNodes = [COMMENT, TEXT(0), COMMENT, TEXT(40), TEXT(0)]`)*, nên
+  // `anchorOffset` là offset **trong một node**, không phải trong ô. Hôm nay tổng độ dài các
+  // node đứng trước là **0** nên hai cách cho cùng kết quả; bật Hán Việt lên thì ô mang thêm
+  // `<ruby>`/`<rt>` và phép lấy trần **sai im lặng** — cắt nhầm chỗ trên dữ liệu người dùng,
+  // mà AD-5 không cho hoàn tác.
+  //
+  // API DOM chuẩn, chỉ ĐỌC, không mở cửa sổ/kho thứ hai — AC1/AC12 canh đúng hai thứ đó.
+  'document.createTreeWalker',
   // Story 2.5d, AC1 · AC6 — `GridPanel.vue::onBeforeInput` chặn `insertParagraph` rồi phát
   // `insertLineBreak` để engine tự dựng lượt xuống dòng. ĐÂY LÀ MỘT PHÉP ĐO trên WKWebView
   // 605.1.15 thật (bàn đo Task 1, 2026-08-15), không một lượt tiện tay:

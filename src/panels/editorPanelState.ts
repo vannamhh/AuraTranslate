@@ -21,12 +21,14 @@ import { readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import {
   confirmSegment,
+  mergeSegments,
   readOpenChapterSegments,
   saveSegmentTargets,
   setSegmentOmitted,
   setSegmentParagraphEnd,
+  splitSegment,
 } from '../config/segment'
-import type { ChapterSegment, SegmentTargetEdit } from '../config/segment'
+import type { ChapterSegment, RegroupOutcome, SegmentTargetEdit } from '../config/segment'
 import type { IpcError } from '../i18n'
 import { createEditorFlush, EDITOR_RETRY_FLOOR_MS } from './editorFlush'
 import { navigationSegmentOf, nextUntranslatedId } from './segmentNavigation'
@@ -1003,4 +1005,250 @@ export function goToNextUntranslated(): boolean {
   setEditorCaret(next)
   caretPlacement.value = next
   return true
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 2.8 — GỘP và TÁCH tường minh (FR78 · AD-5 · AD-47 ①)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Kết quả một lượt gộp/tách, ở dạng nơi gọi cần. Bốn giá trị, bốn việc khác nhau.
+ *
+ * `'done'` ⇒ đĩa đã đổi và ảnh chụp đã theo kịp. `'no-caret'` ⇒ chưa xác định được câu nào.
+ * `'flush-failed'` / `'still-dirty'` ⇒ tập chờ chưa xuống đĩa, **không** ghi đè.
+ * `'refused'` ⇒ Rust từ chối; lý do nằm ở [`editorRegroupError`].
+ */
+export type RegroupResultCode =
+  | 'done'
+  | 'no-caret'
+  | 'no-cut'
+  | 'flush-failed'
+  | 'still-dirty'
+  | 'refused'
+
+/**
+ * 🔴 **Điểm cắt đang có ở CỘT NGUYÊN VĂN** — Quyết định #2 đường (e), Ice ký 2026-08-17.
+ *
+ * `offset` đếm **ký tự Unicode** trong `source_text` của segment đó.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 VÌ SAO MỘT TRẠNG THÁI RIÊNG, KHÔNG ĐỌC `window.getSelection()` LÚC CẦN
+ * ─────────────────────────────────────────────────────────────────────────────
+ * **Đo 2026-08-17 trên WKWebView 605.1.15 thật** *(bàn đo `2-8-ban-do/`)*: một cú bấm vào ô
+ * `[data-col="src"]` cho `selectionType = "None"`, `rangeCount = 0`; một lượt **kéo chọn**
+ * cũng vậy, kể cả với sáu bước trung gian và kể cả sau khi tài liệu đã có tiêu điểm. Đối
+ * chứng ô bản dịch cho `"Caret"` ⇒ thước tốt. ⇒ **Không có vùng chọn nào để đọc** ở cột
+ * nguyên văn; đường (a) của Quyết định #2 mất tiền đề.
+ *
+ * Cái mà phép đo **cho phép**: `setPosition`/`modify` chạy được ở đó, và `anchorOffset` ánh
+ * xạ **thẳng** vào chỉ số ký tự của `source_text` *(mọi text node đứng trước node văn bản
+ * cộng lại dài **0** — đo ở bước ⓪ của bàn đo)*. ⇒ Sản phẩm **tự đặt** điểm cắt từ toạ độ cú
+ * bấm, đúng khuôn đường chuột mà Story 2.5b đã phải dựng cho ô **bản dịch**.
+ *
+ * 🔵 **2026-08-17, code review — vế *"chưa đo"* ở trên ĐÃ ĐÓNG.** `sourceCutOffsetOf` nay bỏ
+ * qua mọi text node nằm dưới `<rt>` và đếm bằng **code point**, nên phép ánh xạ đúng cả khi
+ * Hán Việt bật. Hai ca vitest *(③b, ③d)* khoá cả hai vế và cả hai đã đo đỏ-rồi-xanh.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 2026-08-17 — MỘT ĐIỂM thành MỘT TẬP. Chữ ký của Ice cho AC7 vế *"nhiều mảnh"*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `epics.md:2522` đòi tách thành **nhiều** mảnh; bản đầu cài đúng **hai**. Ice ký cơ chế
+ * **tích luỹ**: mỗi cú bấm vào cột nguyên văn **thêm** một điểm, `⌘/` cắt tại tất cả cùng một
+ * lượt. Đây là một tương tác **chưa tài liệu nào của dự án mô tả** — nó được nêu ra và ký,
+ * không suy ra từ một đặc tả có sẵn.
+ *
+ * 🔴 **Tập luôn thuộc về ĐÚNG MỘT segment.** Bấm sang một câu khác **thay** cả tập, không nối
+ * thêm: một tập trải trên hai câu không có nghĩa nào ở tầng dưới *(`split_segment` nhận đúng
+ * một `segment_id`)*, và giữ nó lại là mời một lượt tách dùng chỗ cắt của câu khác.
+ *
+ * 🔴 **Bấm TRÙNG một điểm đã có thì GỠ nó ra** — đó là đường lui duy nhất của người dùng, và
+ * nó phải có: `⌘Z` chưa được đặc tả *(Quyết định #9, ghi nợ chủ Story 2.9)*, nên nếu bấm nhầm
+ * mà không gỡ được thì đường thoát duy nhất là bấm sang câu khác rồi bấm lại từ đầu.
+ */
+const sourceCut = ref<{ segmentId: number; offsets: number[] } | null>(null)
+/** Xem [`sourceCut`]. `null` ⇒ chưa ai bấm vào cột nguyên văn trong phiên này. */
+export const editorSourceCut: DeepReadonly<Ref<{ segmentId: number; offsets: number[] } | null>> =
+  readonly(sourceCut)
+
+/**
+ * Ghi nhận một điểm cắt ở cột nguyên văn. Gọi từ đường chuột của `GridPanel.vue`.
+ *
+ * Ba nhánh, và cả ba là một mệnh đề về **ý người dùng**, không về dữ liệu:
+ * ① segment khác ⇒ **thay** cả tập; ② điểm đã có ⇒ **gỡ** nó; ③ còn lại ⇒ **thêm**.
+ *
+ * ⚠️ **Không** kiểm `offset` nằm trong chuỗi ở đây: tầng thuần Rust
+ * (`core::segment::regroup::split_at`) đã từ chối tường minh mọi chỗ cắt để lại một mảnh
+ * rỗng, và một phép kiểm thứ hai ở webview là một bản sao sẽ lệch — đúng AD-1.
+ *
+ * ⚠️ **Tập giữ nguyên thứ tự bấm, không sắp ở đây.** `split_at` sắp lại tại chỗ nó dùng và có
+ * một ca hợp đồng khoá mệnh đề *"thứ tự bấm không đổi kết quả"*. Sắp ở cả hai chỗ là hai
+ * nguồn sự thật cho một luật.
+ */
+export function setEditorSourceCut(segmentId: number, offset: number): void {
+  const dang = sourceCut.value
+  if (dang === null || dang.segmentId !== segmentId) {
+    sourceCut.value = { segmentId, offsets: [offset] }
+    return
+  }
+  const i = dang.offsets.indexOf(offset)
+  const offsets = i === -1 ? [...dang.offsets, offset] : dang.offsets.filter((_, j) => j !== i)
+  // Gỡ điểm cuối cùng ⇒ về `null`, không một tập RỖNG. Hai giá trị cho cùng một trạng thái
+  // là chỗ một phép kiểm `!== null` sẽ nói dối.
+  sourceCut.value = offsets.length === 0 ? null : { segmentId, offsets }
+}
+
+/** Lỗi của lượt gộp/tách gần nhất, hoặc `null`. Tầng UI hiển thị bằng `tError()`. */
+const regroupError = ref<IpcError | null>(null)
+/** Xem [`regroupError`]. */
+export const editorRegroupError: DeepReadonly<Ref<IpcError | null>> = readonly(regroupError)
+
+/**
+ * 🔴 **Vá ảnh chụp sau một lượt gộp/tách** — và đây là chỗ AD-47 ① được thi hành ở webview.
+ *
+ * AD-47 ① đòi mỗi lượt ghi không-phải-người-dùng đặt lại **mốc so sánh** của segment về đúng
+ * văn bản vừa ghi. Mốc **không sống trên đĩa**: Quyết định #2(b) của Story 2.7 đặt nó ở
+ * [`segments`]. Chèn nguyên hàng Rust vừa trả về **là** lượt đặt mốc đó — không một bước thứ
+ * hai, và vì thế không một nửa nào rơi được.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 2026-08-17 — HÀNG VỀ HƯU **BỊ GỠ** KHỎI ẢNH CHỤP. Chữ ký #6(b) đã bị LẬT
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Bản đầu **giữ** hàng về hưu trong mảng, mang `retired_at` khác `null` để
+ * `resolveSegmentRule` vẽ vạch `ornament` mờ — chữ ký #6(b) của Ice, ký cùng ngày.
+ *
+ * **Ice lật nó sau khi dùng thật:** *"đã tách ra 2 câu, nhưng câu cũ vẫn tồn tại và số thứ tự
+ * vẫn chiếm, gây rối nội dung"*. Đó là một phép đo mà không bảng đường nào thay được — cái
+ * giá *"lưới phình theo số lần sửa"* đã được viết ra và nhận trước khi ký, nhưng nó chỉ đọc
+ * được thành *"gây rối"* khi có người thật nhìn vào một Chương thật.
+ *
+ * 🔴 **GỠ KHỎI LƯỚI, KHÔNG XOÁ KHỎI ĐĨA.** Hàng vẫn nằm trong `project.db` với `retired_at`
+ * khác `NULL`; `read_segment_history` **không** hỏi cột đó, nên AC4 *(lịch sử phiên bản của
+ * một segment đã về hưu vẫn tra lại được)* còn nguyên. Xoá hàng là mất lịch sử **vĩnh viễn**,
+ * đúng thứ AD-5 tồn tại để chống.
+ *
+ * ⚠️ **Số thứ tự tự sửa theo, không cần một dòng nào:** lưới đánh số bằng **chỉ số mảng**
+ * (`GridPanel.vue`, `{{ i + 1 }}`), nên một hàng không có trong mảng thì không chiếm số.
+ */
+function applyRegroup(outcome: RegroupOutcome): void {
+  const veHuu = new Set(outcome.retired.map((row) => row.id))
+  const next: ChapterSegment[] = []
+  let inserted = false
+  for (const row of segments.value) {
+    if (!veHuu.has(row.id)) {
+      next.push(row)
+      continue
+    }
+    // 🔴 Hàng mới thế chỗ nhóm vừa về hưu, tại **đúng vị trí** nhóm đó đang đứng — và đúng
+    // MỘT lần cho cả nhóm. Nối vào cuối mảng thay vì thế chỗ sẽ làm thứ tự đọc của lưới
+    // khác thứ tự trên đĩa, im lặng: `ord` phía Rust đã đánh lại 1..N theo vị trí cũ.
+    if (!inserted) {
+      next.push(...outcome.new_segments)
+      inserted = true
+    }
+  }
+  // Ảnh chụp không có hàng nào của nhóm ⇒ nối vào cuối thay vì đánh rơi. Ca này không tới
+  // được hôm nay *(caret sinh từ chính mảng này)*, và nó viết ra vì cái giá hai bên lệch xa:
+  // đánh rơi một hàng mới là để đĩa và màn hình nói hai điều khác nhau, im lặng.
+  if (!inserted) next.push(...outcome.new_segments)
+  segments.value = next
+}
+
+/**
+ * Ba nhịp chung của **mọi** lượt gộp/tách: flush tập chờ, gọi Rust, vá ảnh chụp.
+ *
+ * ⚠️ Rút ra vì **hai** lệnh dùng chung, không vì nó dài — cùng lý do
+ * [`flushEditorBeforeDiscreteWrite`] đã phải rút ra ở code review 2026-08-16: *"một khuôn
+ * được chép là một khuôn sẽ chép thiếu"*, và lượt chép ấy đã xảy ra thật một lần.
+ */
+async function regroup(
+  id: number,
+  goi: () => Promise<{ outcome: RegroupOutcome | null; error: IpcError | null }>,
+  ten: string,
+): Promise<RegroupResultCode> {
+  // ① AD-35 vế (c) — bản dịch đi vào hàng mới đọc từ **ĐĨA**, nên mọi ký tự đang chờ phải
+  //    xuống WAL trước. Cùng cửa với lượt ký và lượt khôi phục.
+  const flushed = await flushEditorBeforeDiscreteWrite()
+  if (flushed === 'failed') return 'flush-failed'
+  if (flushed === 'still-dirty') {
+    // 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."*
+    console.error(
+      `[editor] KHONG ${ten} segment ${id}: tap cho van do sau hai luot flush — ` +
+        `tu choi thay vi dung mot hang moi tu mot van ban cu hon thu dang tren man hinh.`,
+    )
+    return 'still-dirty'
+  }
+
+  const { outcome, error } = await goi()
+  if (outcome === null) {
+    // ⚠️ `error === null` cũng vào đây: ca *"không có cầu IPC"*. Không ca nào coi là đã xong.
+    regroupError.value = error
+    return 'refused'
+  }
+  regroupError.value = null
+
+  // ② Vá ảnh chụp — và đó là lượt đặt mốc AD-47 ①. Xem [`applyRegroup`].
+  applyRegroup(outcome)
+
+  // ③ Con trỏ về **hàng mới đầu tiên**. Không để nó trỏ một `id` vừa về hưu: bốn lệnh ghi
+  //    hiện có đều từ chối một segment về hưu, nên caret ở đó là một caret mà mọi phím tiếp
+  //    theo sẽ từ chối — im lặng với người dùng, và họ không biết vì sao.
+  // 🔴 `.at(0)`, KHÔNG `[0]` — và đó là *"sửa KIỂU cho nó nói thật"*, không một lượt đổi cú
+  //    pháp cho đẹp. `[0]` khai kiểu `ChapterSegment` **đặc**, nên một phép kiểm `undefined`
+  //    cạnh nó là *"thừa"* theo trình biên dịch và `@typescript-eslint/no-unnecessary-condition`
+  //    **đỏ** — trong khi mảng này đến **qua dây IPC**, tức một **lời khai**, không một bảo đảm
+  //    của trình biên dịch. Đường sai rẻ ở đây là một `eslint-disable`; nó cho exit 0 trên đúng
+  //    chỗ mà một payload rỗng sẽ ném `undefined.id` lúc chạy. `.at()` trả `T | undefined`
+  //    **theo cấu tạo**, nên kiểu nói đúng sự thật và không cần một miễn trừ nào.
+  const dich = outcome.new_segments.at(0)
+  if (dich !== undefined) {
+    setEditorCaret(dich.id)
+    caretPlacement.value = dich.id
+  }
+  // ④ Điểm cắt vừa tiêu thụ **phải chết**. Nó trỏ một `segment.id` mà lượt này vừa cho về
+  //    hưu; giữ lại là để lượt `⌘/` kế tiếp chạy trên một câu đã không còn — và Rust sẽ từ
+  //    chối bằng `segment.retired`, một câu **đúng chữ nhưng sai nguyên nhân** với người dùng.
+  //
+  // 🔵 **2026-08-17, code review — CÓ ĐIỀU KIỆN, không vô điều kiện.** Bản đầu xoá sau **mọi**
+  //    lượt gộp hoặc tách, và câu biện minh ở trên chỉ đúng ở **đường tách**. Ở đường gộp,
+  //    điểm cắt có thể trỏ một câu **không nằm trong nhóm vừa về hưu**: bấm cột nguyên văn ở
+  //    câu 5 để sắp tách, rồi `⌘M` gộp câu 1+2 — câu 5 nguyên vẹn nhưng cả tập điểm cắt bay.
+  //    `⌘/` kế tiếp trả `'no-cut'`, mà `'no-cut'` chỉ đi ra `console.warn` ⇒ người dùng không
+  //    thấy gì và phải tự đoán vì sao thao tác không chạy. Đúng lớp *"im lặng"* mà
+  //    `project-context.md` cấm.
+  const cut = sourceCut.value
+  if (cut !== null && outcome.retired.some((r) => r.id === cut.segmentId)) sourceCut.value = null
+  return 'done'
+}
+
+/**
+ * **Gộp câu đang có caret với câu liền trên nó** — Story 2.8, AC1.
+ *
+ * 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."* Câu đầu Chương là một
+ * câu trả lời **hợp lệ** *(`segment.no_previous`)*, không một lỗi lập trình.
+ */
+export async function mergeCurrentSegment(): Promise<RegroupResultCode> {
+  const id = caretSegmentId.value
+  if (id === null) return 'no-caret'
+  return await regroup(id, () => mergeSegments(id), 'gop')
+}
+
+/**
+ * **Tách câu tại điểm cắt đang có ở CỘT NGUYÊN VĂN** — Story 2.8, AC2.
+ *
+ * 🔴 **Đích là `sourceCut.segmentId`, KHÔNG `caretSegmentId`** — và đó là ngữ nghĩa của
+ * `epics.md:2552`: *"không có phép chiếu nào từ vị trí con trỏ bên tiếng Việt sang chỗ cắt
+ * bên tiếng Trung. Cùng lý do Trados và memoQ đều bắt tách ở cột nguồn"*. Người dùng bấm vào
+ * cột nguyên văn của **hàng X** rồi gõ `⌘/`; caret gõ chữ có thể đang ở một hàng khác, và
+ * lấy nó làm đích là tách nhầm câu.
+ *
+ * ⇒ Chưa bấm vào cột nguyên văn ⇒ `'no-cut'`, một câu trả lời **hợp lệ**.
+ */
+export async function splitCurrentSegment(): Promise<RegroupResultCode> {
+  const cut = sourceCut.value
+  if (cut === null) return 'no-cut'
+  // 🔵 2026-08-17 — gửi **cả tập**, một lượt. Xem [`sourceCut`] và `regroup.rs::split_at`:
+  // gọi `⌘/` `n` lần để có `n + 1` mảnh là đường (c) đã bị bác bằng số đo *(nó cho 5 hàng về
+  // hưu thay vì 3, cộng một segment trung gian mang một `id` không ai từng thấy)*.
+  const offsets = [...cut.offsets]
+  return await regroup(cut.segmentId, () => splitSegment(cut.segmentId, offsets), 'tach')
 }

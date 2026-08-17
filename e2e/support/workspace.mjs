@@ -40,10 +40,23 @@ export const WORK_SUFFIX = '.atproj'
  *
  * @param {string} name tên Tác phẩm — nên mang dấu của lượt chạy để đọc ra được nếu nó
  *   rơi nhầm vào thư mục thật
+ * @param {string} [text] văn bản nguồn. Mặc định là **một** câu.
+ *
+ *   🔵 Tham số này thêm ở Story 2.8, và nó là một tham số **TUỲ CHỌN có giá trị mặc định y
+ *   nguyên chuỗi cũ** — có chủ ý. `2-5b-ban-do` đã ghi bằng chữ rằng *"đổi một fixture dùng
+ *   chung để chữa một ca là cách rẻ nhất để làm đỏ năm ca khác"*; một tham số tuỳ chọn không
+ *   đổi một byte nào cho bảy spec đang gọi nó không tham số. Lý do cần nó: gộp/tách đòi **ít
+ *   nhất hai** segment, và chuỗi mặc định cho đúng **một**.
+ *
+ *   ⚠️ Tác phẩm tạo với `sourceLang: 'zh'`, nên bộ tách nhìn `。！？；` — không dấu chấm
+ *   tiếng Anh. Một chuỗi tiếng Việt có dấu `.` vẫn cho **một** segment.
  * @returns {Promise<void>}
  */
-export async function openWorkspaceWithWork(name) {
-  const created = await browser.execute(async (workName) => {
+export async function openWorkspaceWithWork(
+  name,
+  text = 'Một câu nguồn để bộ nhập có việc mà làm.',
+) {
+  const created = await browser.execute(async (workName, sourceText) => {
     const internals = window.__TAURI_INTERNALS__
     if (internals === undefined) return { ok: false, detail: 'không có cầu IPC' }
     try {
@@ -51,13 +64,13 @@ export async function openWorkspaceWithWork(name) {
         name: workName,
         sourceLang: 'zh',
         genre: 'general',
-        text: 'Một câu nguồn để bộ nhập có việc mà làm.',
+        text: sourceText,
       })
       return { ok: true, detail: '' }
     } catch (err) {
       return { ok: false, detail: String(err && err.code ? err.code : err) }
     }
-  }, name)
+  }, name, text)
 
   if (!created.ok) {
     throw new Error(

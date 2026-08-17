@@ -21,7 +21,15 @@
 //! FR134, AD-46, AC3). Cùng khuôn và cùng lý do với [`omit`]: nghĩa vụ có thật, bề mặt tiêu
 //! thụ *(gộp/tách tường minh — Story 2.8)* thì chưa. Dựng cái chốt thay vì giao cho trí nhớ.
 
+//! [`regroup`] — phép tính THUẦN cho hàng mới của một lượt gộp/tách tường minh (Story 2.8,
+//! FR78, AD-5, AD-47 ④). Khác [`omit`] và [`paragraph`] ở đúng một điểm: bề mặt tiêu thụ
+//! của nó **có thật** ngay trong story dựng nó (`commands::segment::merge_segments` ·
+//! `split_segment`). Nó tách ra vì một lý do khác — bốn luật ngoài mã (AD-37 · AD-47 ④ ·
+//! chữ ký #5(a) · #3(b)) không được sống trong một closure `Store::write` mà `tests/**`
+//! gọi không tới.
+
 pub mod import;
 pub mod omit;
 pub mod paragraph;
+pub mod regroup;
 pub mod split;

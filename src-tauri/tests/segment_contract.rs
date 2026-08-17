@@ -2048,9 +2048,19 @@ fn a_chapter_with_real_translations_round_trips_through_the_load_command() {
                     (text, ord),
                 )?;
             }
-            // Cau 5 ve huu -- nguon du lieu DUY NHAT cua gia tri vach `ornament`, va hom nay
-            // khong duong SAN PHAM nao dat duoc no (Story 2.8). Bom bang SQL la cach duy nhat
-            // nhin thay nhanh do chay.
+            // 🔵 2026-08-17 (Story 2.8) — VAI CUA HANG NAY DA DOI, va no doi NGUOC.
+            //
+            // Luc viet (Story 2.2), cau nay la "nguon du lieu DUY NHAT cua gia tri vach
+            // `ornament`": chua duong san pham nao dat duoc `retired_at`, nen bom bang SQL la
+            // cach duy nhat nhin thay nhanh do chay.
+            //
+            // Story 2.8 dung duong do THAT (gop/tach), roi Ice LAT chu ky #6(b) sau mot luot
+            // dung that: hang ve huu **khong** duoc hien trong luoi nua. ⇒ Hang nay nay canh
+            // menh de NGUOC LAI: duong nap phai LOC no ra.
+            //
+            // ⚠️ No **o lai** trong fixture chu khong bi xoa, va do la ca gia tri nhat: mot
+            // fixture chi co hang con song khong phan biet duoc "loc dung" voi "khong co gi de
+            // loc".
             tx.execute(
                 "UPDATE segment SET retired_at = '2026-08-12T00:00:00.000Z' WHERE ord = 5",
                 [],
@@ -2060,7 +2070,24 @@ fn a_chapter_with_real_translations_round_trips_through_the_load_command() {
         .expect("bom ban dich bang SQL that bai");
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
-    assert_eq!(loaded.segments.len(), 5, "fixture phai co dung nam cau");
+    assert_eq!(
+        loaded.segments.len(),
+        4,
+        "🔵 2026-08-17 (Story 2.8): fixture co NAM hang tren dia, nhung duong nap tra ve BON \
+         -- hang thu nam da ve huu. Mot con so 5 o day nghia la `WHERE retired_at IS NULL` \
+         da bi go, va trieu chung o nguoi dung la dung cau Ice bao: \"cau cu van ton tai va \
+         so thu tu van chiem, gay roi noi dung\""
+    );
+    // Va hang do van NAM TREN DIA -- loc khoi luoi KHONG phai xoa. AD-5 + AC4 doi lich su
+    // phien ban cua no tra lai duoc, ma mot hang bi xoa thi khong con gi de tra.
+    let tren_dia: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment", [], |r| r.get(0)))
+        .expect("dem hang tren dia");
+    assert_eq!(
+        tren_dia, 5,
+        "loc khoi LUOI, khong xoa khoi DIA -- xoa la mat lich su VINH VIEN (AD-5)"
+    );
 
     let got: Vec<(&str, bool)> = loaded
         .segments
@@ -2074,10 +2101,11 @@ fn a_chapter_with_real_translations_round_trips_through_the_load_command() {
             (translations[1].1, false),
             (translations[2].1, false),
             ("", false),
-            (translations[3].1, true),
         ],
-        "ban dich phai di qua TRON duong cua san pham -- ke ca cau RONG (nhanh *khong vach*) \
-         va cau da ve huu (nhanh `ornament`)"
+        "ban dich phai di qua TRON duong cua san pham -- ke ca cau RONG (nhanh *khong vach*). \
+         🔵 Cau thu nam (da ve huu) KHONG con o day tu Story 2.8: no bi loc o tang Rust. Moi \
+         phan tu con lai phai mang `retired_at = None` -- mot `true` lot vao day nghia la bo \
+         loc dang de mot hang ve huu di qua"
     );
 
     // Co ket doan van la thu DA LUU, khong bi luot `UPDATE` dung toi.
@@ -2087,7 +2115,7 @@ fn a_chapter_with_real_translations_round_trips_through_the_load_command() {
             .iter()
             .map(|s| s.is_paragraph_end)
             .collect::<Vec<_>>(),
-        vec![false, true, false, false, false],
+        vec![false, true, false, false],
     );
 
     drop(opened);
@@ -5339,4 +5367,914 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
 
     drop(migrated);
     cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// STORY 2.8 — GỘP VÀ TÁCH SEGMENT TƯỜNG MINH (FR78 · AD-5 · AD-37 · AD-47 ④)
+//
+// 🔴 Tám ca dưới đây chạy trên **hàm thuần** `core::segment::regroup`, không chạm đĩa.
+// Đó là cả lý do module đó tách khỏi closure `Store::write`: bốn luật ngoài mã (AD-37 ·
+// AD-47 ④ · chữ ký #5(a) · #3(b)) phải gọi tới được từ đây.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// **Chữ ký #3(b)** — dấu nối `source_text` đi theo **ngôn ngữ NGUỒN**.
+///
+/// 🔴 Ca này là lý do đường (a) bị loại: `" "` cho mọi ngôn ngữ **sai** ở Tác phẩm tiếng
+/// Trung, tức ca thường nhất của sản phẩm.
+#[test]
+fn merging_joins_chinese_sources_without_a_space_and_every_other_language_with_one() {
+    use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
+    use auratranslate_lib::core::segment::regroup::{merge, SegmentPart};
+
+    let parts = [
+        SegmentPart {
+            source_text: "他走了。",
+            target_text: "",
+            flags: ParagraphFlags::mirrored(false),
+            is_omitted: false,
+            translation_origin: "",
+        },
+        SegmentPart {
+            source_text: "她留下。",
+            target_text: "",
+            flags: ParagraphFlags::mirrored(false),
+            is_omitted: false,
+            translation_origin: "",
+        },
+    ];
+
+    assert_eq!(
+        merge(&parts, "zh").expect("nhom hai phan tu phai gop duoc").source_text,
+        "他走了。她留下。",
+        "hai cau tieng Trung noi nhau KHONG co khoang trang -- day la ve ma duong (a) lam sai"
+    );
+
+    // ⚠️ Mọi giá trị khác `"zh"` đi nhánh khoảng trắng, đúng luật mặc định đã khai bằng chữ
+    // ở `split.rs::LANG_CHINESE`. Kiểm cả một giá trị KHÔNG có trong FR23 — cột
+    // `work.source_lang` nhận chuỗi tự do.
+    for lang in ["en", "fr", ""] {
+        let parts = [
+            SegmentPart {
+                source_text: "He left.",
+                target_text: "",
+                flags: ParagraphFlags::mirrored(false),
+                is_omitted: false,
+                translation_origin: "",
+            },
+            SegmentPart {
+                source_text: "She stayed.",
+                target_text: "",
+                flags: ParagraphFlags::mirrored(false),
+                is_omitted: false,
+                translation_origin: "",
+            },
+        ];
+        assert_eq!(
+            merge(&parts, lang).expect("gop duoc").source_text,
+            "He left. She stayed.",
+            "`source_lang = {lang:?}` phai di nhanh khoang trang -- chi `zh` la ngoai le"
+        );
+    }
+}
+
+/// 🔴 **Một lượt gộp không được đẻ ra một ký tự người dùng chưa từng gõ.**
+///
+/// Nối `"A"` với `""` bằng `" "` cho `"A "`, và khoảng trắng đó **nằm trên đĩa vĩnh viễn**
+/// mà không bề mặt nào lộ ra: `confirm_segment` nay `trim()` hai vế nên phép so mốc vẫn
+/// đúng, và không cổng nào đọc `target_text`. Một lỗi im lặng hoàn hảo.
+#[test]
+fn merging_never_manufactures_whitespace_the_user_never_typed() {
+    use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
+    use auratranslate_lib::core::segment::regroup::{merge, SegmentPart};
+
+    let da_dich = SegmentPart {
+        source_text: "他走了。",
+        target_text: "Anh ta di roi.",
+        flags: ParagraphFlags::mirrored(false),
+        is_omitted: false,
+        translation_origin: "self",
+    };
+    let chua_dich = SegmentPart {
+        source_text: "她留下。",
+        target_text: "",
+        flags: ParagraphFlags::mirrored(false),
+        is_omitted: false,
+        translation_origin: "",
+    };
+
+    assert_eq!(
+        merge(&[da_dich, chua_dich], "zh").expect("gop duoc").target_text,
+        "Anh ta di roi.",
+        "manh RONG bi bo qua -- khong mot khoang trang duoi duoc noi vao"
+    );
+    assert_eq!(
+        merge(&[chua_dich, da_dich], "zh").expect("gop duoc").target_text,
+        "Anh ta di roi.",
+        "va cung the o chieu nguoc lai -- khong mot khoang trang DAU nao"
+    );
+    assert_eq!(
+        merge(&[chua_dich, chua_dich], "zh").expect("gop duoc").target_text,
+        "",
+        "hai cau CHUA DICH gop lai van la chua dich -- khong phai mot chuoi mot khoang trang"
+    );
+    assert_eq!(
+        merge(&[da_dich, da_dich], "zh").expect("gop duoc").target_text,
+        "Anh ta di roi. Anh ta di roi.",
+        "hai ban dich THAT thi van noi bang dung mot khoang trang"
+    );
+}
+
+/// **Chữ ký #5(a) của Ice** — bất kỳ mảnh nào đã cắt bỏ ⇒ hàng mới đã cắt bỏ.
+///
+/// ⚠️ Chiều này **ngược** AD-47 ④ ở ca bất đồng, và ca kế tiếp canh chính chỗ đó.
+#[test]
+fn merging_carries_the_omitted_flag_from_any_piece_not_from_all_of_them() {
+    use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
+    use auratranslate_lib::core::segment::regroup::{merge, SegmentPart};
+
+    let base = SegmentPart {
+        source_text: "x",
+        target_text: "",
+        flags: ParagraphFlags::mirrored(false),
+        is_omitted: false,
+        translation_origin: "",
+    };
+    let da_cat = SegmentPart {
+        is_omitted: true,
+        ..base
+    };
+
+    assert!(
+        merge(&[base, da_cat], "zh").expect("gop duoc").is_omitted,
+        "MOT manh da cat la du -- chu ky #5(a) chon chieu an toan cho quyet dinh cua nguoi dung"
+    );
+    assert!(
+        merge(&[da_cat, base], "zh").expect("gop duoc").is_omitted,
+        "va thu tu khong doi ket qua"
+    );
+    assert!(
+        !merge(&[base, base], "zh").expect("gop duoc").is_omitted,
+        "khong manh nao da cat thi hang moi KHONG cat -- luat khong duoc bat co tu hu khong"
+    );
+}
+
+/// **AD-47 ④, nguyên văn** — đồng ý ⇒ giữ; **bất kỳ** bất đồng nào ⇒ `other`.
+///
+/// 🔴 Ca cuối canh đúng **cái mất** mà AD-47 ④ ghi sẵn bằng chữ: gộp một câu `""` *(chưa
+/// dịch)* với một câu *tôi dịch* **cũng** rơi vào nhánh bất đồng. Ai đọc ca này sau đừng
+/// "sửa" nó thành `self` — đó là luật, không phải một lỗi.
+#[test]
+fn merging_keeps_a_unanimous_origin_and_falls_back_to_other_on_any_disagreement() {
+    use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
+    use auratranslate_lib::core::segment::regroup::{merge, SegmentPart, ORIGIN_OTHER};
+
+    let part = |origin: &'static str| SegmentPart {
+        source_text: "x",
+        target_text: "y",
+        flags: ParagraphFlags::mirrored(false),
+        is_omitted: false,
+        translation_origin: origin,
+    };
+
+    assert_eq!(
+        merge(&[part("self"), part("self")], "zh").expect("gop duoc").translation_origin,
+        "self",
+        "moi manh cung mot gia tri ⇒ giu nguyen gia tri do (AD-47 ④, ve dong y)"
+    );
+    assert_eq!(
+        merge(&[part(""), part("")], "zh").expect("gop duoc").translation_origin,
+        "",
+        "hai cau chua dich dong y voi nhau o gia tri rong -- va rong la mot GIA TRI, khong \
+         phai mot cho trong de doan lai"
+    );
+    assert_eq!(
+        merge(&[part("self"), part("bilingual_import")], "zh")
+            .expect("gop duoc")
+            .translation_origin,
+        ORIGIN_OTHER,
+        "bat ky bat dong nao ⇒ `other` (AD-47 ④, ve bat dong)"
+    );
+    assert_eq!(
+        merge(&[part(""), part("self")], "zh").expect("gop duoc").translation_origin,
+        ORIGIN_OTHER,
+        "🔴 CAI MAT ma AD-47 ④ da ghi san bang chu: gop mot cau CHUA DICH voi mot cau `self` \
+         cung roi vao nhanh bat dong. Day la LUAT, khong phai mot loi -- dung sua ca nay \
+         thanh `self`"
+    );
+}
+
+/// Nhóm **rỗng** ⇒ `None`, ở cả hai luật cùng lúc.
+#[test]
+fn merging_an_empty_group_invents_nothing() {
+    use auratranslate_lib::core::segment::regroup::merge;
+
+    assert_eq!(
+        merge(&[], "zh"),
+        None,
+        "mot nhom gop RONG phai tra `None` -- dung lop \"rong im lang\" ma project-context cam"
+    );
+}
+
+/// 🔴 **Mảnh SAU của một lượt tách không có bản dịch ⇒ không có xuất xứ để khai.**
+///
+/// Đây là một **suy dẫn** từ AD-47 ④ cộng mệnh đề mà `insert_segments` đã khai bằng chữ,
+/// không một luật mới. Làm ngược lại cho một hàng **tự mâu thuẫn** trên đĩa người dùng:
+/// *"tôi đã dịch câu này"* + `target_text` rỗng.
+#[test]
+fn splitting_gives_the_tail_piece_no_translation_and_therefore_no_origin() {
+    use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
+    use auratranslate_lib::core::segment::regroup::{split_at, SegmentPart, ORIGIN_NONE};
+
+    let part = SegmentPart {
+        source_text: "Mr. Smith den.",
+        target_text: "Ong Smith den.",
+        flags: ParagraphFlags {
+            source: true,
+            target: false,
+        },
+        is_omitted: true,
+        translation_origin: "self",
+    };
+
+    let pieces = split_at(&part, &[3]).expect("cat o giua chuoi phai ra hai manh");
+    assert_eq!(pieces.len(), 2, "tach doi cho dung HAI manh");
+
+    assert_eq!(pieces[0].source_text, "Mr.");
+    assert_eq!(pieces[1].source_text, " Smith den.");
+
+    assert_eq!(
+        pieces[0].target_text, "Ong Smith den.",
+        "manh DAU giu tron ban dich (chu ky #3(b), ve tach)"
+    );
+    assert_eq!(
+        pieces[1].target_text, "",
+        "manh SAU khong co ban dich -- khong co phep chieu nao tu cho cat ben nguon sang \
+         ban dich (epics.md:2552)"
+    );
+    assert_eq!(
+        pieces[0].translation_origin, "self",
+        "manh mang ban dich giu nguyen xuat xu cua no (AD-47 ④, ca tam thuong)"
+    );
+    assert_eq!(
+        pieces[1].translation_origin, ORIGIN_NONE,
+        "🔴 manh KHONG co ban dich thi khong co xuat xu nao de khai. Cho no `self` la dung \
+         mot hang TU MAU THUAN tren dia: \"toi da dich cau nay\" + \"chua co ban dich\""
+    );
+
+    // Cắt bỏ là một **trục độc lập** và nó đi theo **cả hai** mảnh: người dùng đã quyết định
+    // câu này không thuộc bản dịch, và một lượt tách không đảo quyết định đó.
+    assert!(pieces[0].is_omitted && pieces[1].is_omitted);
+
+    // AD-37 ca ③ — mảnh CUỐI giữ cặp cờ, mảnh trước tắt **cả hai** cột.
+    assert_eq!(
+        pieces[0].flags,
+        ParagraphFlags {
+            source: false,
+            target: false
+        },
+        "manh TRUOC tat ca hai cot"
+    );
+    assert_eq!(
+        pieces[1].flags,
+        ParagraphFlags {
+            source: true,
+            target: false
+        },
+        "manh CUOI giu nguyen CAP co -- tung cot mot, khong mot phep OR"
+    );
+}
+
+/// 🔴 **Chỗ cắt đếm KÝ TỰ, không byte** — và một chỉ số hỏng không được giết tiến trình.
+///
+/// `panic = "abort"` biến mọi `panic!` thành cái chết của tiến trình: không unwind, không
+/// `Drop`, không cơ hội flush WAL. Đây là chỗ **duy nhất** của story này nhận một chỉ số từ
+/// webview, nên nó là chỗ duy nhất phải chịu được một số bất kỳ.
+#[test]
+fn splitting_counts_characters_not_bytes_and_refuses_a_cut_that_leaves_an_empty_piece() {
+    use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
+    use auratranslate_lib::core::segment::regroup::{split_at, SegmentPart};
+
+    // "他走了。" = 4 ký tự, **12 byte**. Một chỉ số byte ở đây rơi giữa một ký tự.
+    let part = SegmentPart {
+        source_text: "他走了。",
+        target_text: "",
+        flags: ParagraphFlags::mirrored(false),
+        is_omitted: false,
+        translation_origin: "",
+    };
+    assert_eq!(part.source_text.len(), 12, "tien de cua ca nay: 12 byte");
+    assert_eq!(part.source_text.chars().count(), 4, "va 4 ky tu");
+
+    let pieces = split_at(&part, &[2]).expect("cat sau ky tu thu hai");
+    assert_eq!(pieces[0].source_text, "他走");
+    assert_eq!(pieces[1].source_text, "了。");
+
+    for cut in [0, 4, 5, 12, usize::MAX] {
+        assert_eq!(
+            split_at(&part, &[cut]),
+            None,
+            "cho cat {cut} de lai mot manh RONG (hoac nam ngoai chuoi) ⇒ phai tu choi. Mot \
+             hang `segment` khong co van ban nguon la dung thu khong duong ma nao phia sau \
+             biet xu ly"
+        );
+    }
+}
+
+/// 🔴 **`n` chỗ cắt cho `n + 1` mảnh, trong MỘT lượt** — AC7 vế *"nhiều mảnh"*, chữ ký của
+/// Ice ngày 2026-08-17 sau code review.
+///
+/// Ca này khoá bốn mệnh đề mà bản hai-mảnh **không phát biểu được**:
+/// ① số mảnh đi theo số chỗ cắt; ② mảnh **đầu** giữ trọn bản dịch và xuất xứ, **mọi** mảnh
+/// sau rỗng cả hai *(không chỉ mảnh thứ hai)*; ③ AD-37 ca ③ áp cho `n` mảnh — chỉ mảnh
+/// **cuối** giữ cặp cờ; ④ thứ tự bấm chuột của người dùng không phải thứ tự trong câu.
+#[test]
+fn splitting_at_many_cuts_makes_one_piece_more_than_the_cuts_in_a_single_pass() {
+    use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
+    use auratranslate_lib::core::segment::regroup::{split_at, SegmentPart, ORIGIN_NONE};
+
+    // 12 ky tu: 他走了。她来了。我看见。
+    let part = SegmentPart {
+        source_text: "他走了。她来了。我看见。",
+        target_text: "Han di roi.",
+        flags: ParagraphFlags {
+            source: true,
+            target: true,
+        },
+        is_omitted: false,
+        translation_origin: "self",
+    };
+    assert_eq!(part.source_text.chars().count(), 12, "tien de cua ca nay");
+
+    // 🔴 CO Y dua vao KHONG SAP XEP: nguoi dung bam cho thu hai TRUOC cho thu nhat, va
+    //    khong luat nao buoc ho bam theo thu tu doc.
+    let pieces = split_at(&part, &[8, 4]).expect("hai cho cat hop le phai ra BA manh");
+
+    assert_eq!(pieces.len(), 3, "① hai cho cat ⇒ BA manh, khong hai");
+    assert_eq!(pieces[0].source_text, "他走了。");
+    assert_eq!(pieces[1].source_text, "她来了。");
+    assert_eq!(pieces[2].source_text, "我看见。");
+
+    // ② Manh DAU giu tron ban dich va xuat xu; MOI manh sau rong CA HAI.
+    assert_eq!(pieces[0].target_text, "Han di roi.");
+    assert_eq!(pieces[0].translation_origin, "self");
+    for (i, m) in pieces.iter().enumerate().skip(1) {
+        assert_eq!(m.target_text, "", "manh {i} khong duoc mang ban dich");
+        assert_eq!(
+            m.translation_origin, ORIGIN_NONE,
+            "manh {i} khong co ban dich ⇒ khong co xuat xu de khai. Mot `self` o day la mot \
+             hang TU MAU THUAN tren dia"
+        );
+    }
+
+    // ③ AD-37 ca ③ voi n = 3: chi manh CUOI giu cap co.
+    let tat = ParagraphFlags {
+        source: false,
+        target: false,
+    };
+    assert_eq!(pieces[0].flags, tat, "manh dau tat ca hai cot");
+    assert_eq!(pieces[1].flags, tat, "manh GIUA cung tat -- ca nay chi ton tai tu n >= 3");
+    assert_eq!(
+        pieces[2].flags,
+        ParagraphFlags {
+            source: true,
+            target: true
+        },
+        "chi manh CUOI giu nguyen cap co"
+    );
+
+    // ④ Sap xep tai cho goi ⇒ dua vao da sap cho ket qua Y HET.
+    assert_eq!(
+        split_at(&part, &[4, 8]),
+        split_at(&part, &[8, 4]),
+        "thu tu bam chuot khong duoc doi ket qua"
+    );
+}
+
+/// 🔴 **HAI chỗ cắt TRÙNG NHAU ⇒ từ chối** — một biên **chỉ tồn tại từ lượt đa-mảnh**.
+///
+/// Bản hai-mảnh không phát biểu được ca này: với một chỉ số duy nhất thì *"trùng"* vô nghĩa.
+/// Hai chỗ cắt bằng nhau cho một mảnh giữa **rỗng** — cùng lớp *"rỗng im lặng"* mà ba ca biên
+/// cũ (`0`, cuối chuỗi, ngoài chuỗi) đã chặn, chỉ khác đường vào.
+///
+/// ⚠️ Và `cuts` **rỗng** cũng bị từ chối: không có lượt tách nào được yêu cầu, nên trả một
+/// mảnh duy nhất bằng chính segment cũ sẽ là **về hưu + tạo mới cho một thao tác rỗng** —
+/// một `id` mới, lịch sử rỗng, không một ký tự nào đổi.
+#[test]
+fn splitting_refuses_duplicate_cuts_and_an_empty_cut_list() {
+    use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
+    use auratranslate_lib::core::segment::regroup::{split_at, SegmentPart};
+
+    let part = SegmentPart {
+        source_text: "他走了。她来了。",
+        target_text: "",
+        flags: ParagraphFlags::mirrored(false),
+        is_omitted: false,
+        translation_origin: "",
+    };
+
+    assert_eq!(
+        split_at(&part, &[]),
+        None,
+        "khong cho cat nao ⇒ khong mot luot tach nao duoc yeu cau. Ve huu + tao moi cho mot \
+         thao tac RONG la mot `id` moi va mot lich su rong, khong mot ky tu nao doi"
+    );
+    assert_eq!(
+        split_at(&part, &[4, 4]),
+        None,
+        "hai cho cat TRUNG NHAU ⇒ manh giua RONG ⇒ tu choi"
+    );
+    assert_eq!(
+        split_at(&part, &[2, 6, 2]),
+        None,
+        "trung nhau o bat ky dau trong danh sach, ke ca khi chua sap xep"
+    );
+    // Doi chung: cung so luong cho cat, khong trung ⇒ di qua.
+    assert!(
+        split_at(&part, &[2, 6]).is_some(),
+        "doi chung -- hai cho cat KHAC nhau thi hop le"
+    );
+}
+
+/// 🔴 **Hai hằng xuất xứ ở `core::segment::regroup` phải khớp `commands::segment`.**
+///
+/// `core::**` không được phụ thuộc `commands::**` *(chiều đúng là commands → core, và
+/// `tests/segment_boundary.rs` cưỡng chế)*, nên hai chuỗi `"other"` / `""` sống ở **hai**
+/// chỗ và **không cổng nào** canh chúng khớp nhau. Ca này là cái canh đó.
+#[test]
+fn the_two_origin_constants_of_the_pure_layer_match_the_command_layer_verbatim() {
+    use auratranslate_lib::commands::segment::{TRANSLATION_ORIGIN_NONE, TRANSLATION_ORIGIN_OTHER};
+    use auratranslate_lib::core::segment::regroup::{ORIGIN_NONE, ORIGIN_OTHER};
+
+    assert_eq!(
+        ORIGIN_OTHER, TRANSLATION_ORIGIN_OTHER,
+        "hai hang phai la CUNG mot chuoi -- mot lech giua chung cho ra mot gia tri xuat xu \
+         khong nam trong danh muc dong cua AD-47, va khong cong nao do"
+    );
+    assert_eq!(
+        ORIGIN_NONE, TRANSLATION_ORIGIN_NONE,
+        "va cung the voi gia tri \"chua co ban dich\""
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// STORY 2.8 — ĐƯỜNG SQL THẬT: về hưu + tạo mới, trên một `project.db` thật
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Đọc thẳng bảng `segment` — thứ mọi ca dưới đây dùng để nhìn **đĩa**, không nhìn qua một
+/// lệnh đọc có thể tự lọc.
+///
+/// 🔴 Đọc **thô** có chủ ý: `read_open_chapter_segments` là một **đường đọc**, và một ca
+/// canh đĩa mà đi qua nó sẽ xanh y nguyên vào ngày đường đọc đó bắt đầu lọc.
+fn hang_tho(
+    opened: &auratranslate_lib::commands::project::OpenWork,
+) -> Vec<(i64, i64, String, String, bool, bool, bool, String, bool)> {
+    opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id, ord, source_text, target_text, is_paragraph_end, \
+                 is_target_paragraph_end, is_omitted, status, retired_at \
+                 FROM segment ORDER BY ord, id",
+            )?;
+            let rows = stmt.query_map([], |r| {
+                let para: i64 = r.get(4)?;
+                let tpara: i64 = r.get(5)?;
+                let omit: i64 = r.get(6)?;
+                let retired: Option<String> = r.get(8)?;
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    para != 0,
+                    tpara != 0,
+                    omit != 0,
+                    r.get(7)?,
+                    retired.is_some(),
+                ))
+            })?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })
+        .expect("doc tho bang segment")
+}
+
+/// **AC1 · AC3** — gộp hai câu: cả hai **về hưu**, một hàng mới ra đời **chưa xác nhận** với
+/// **lịch sử rỗng**.
+///
+/// 🔴 Ca này cũng canh AD-31 §bảng máy trạng thái hàng *"Về hưu do gộp/tách ⇒ **không** tạo
+/// `segment_version`"*. Bản năng khi đọc *"đừng để mất bản dịch"* là chụp một phiên bản
+/// trước khi cho về hưu — và lượt chụp đó phá AC3 theo một cách đọc rất giống một tính năng.
+#[test]
+fn merging_retires_both_rows_and_creates_one_unconfirmed_row_with_an_empty_history() {
+    use auratranslate_lib::commands::segment::{confirm_segment, merge_segments, save_segment_targets, SegmentTargetEdit};
+
+    let root = temp_dir("2-8-merge");
+    let opened = create_work_from_text(&root, "2.8 gop", "zh", "", "一。二。三。".to_owned())
+        .expect("tao tac pham");
+
+    // Hai cau dau CO ban dich va DA XAC NHAN -- de ca nay canh duoc ca menh de "lich su rong"
+    // (chung co lich su that truoc khi gop) lan menh de "hang moi CHUA xac nhan".
+    for (id, text) in [(1i64, "Mot."), (2, "Hai.")] {
+        save_segment_targets(
+            Some(&opened),
+            1,
+            &[SegmentTargetEdit {
+                id,
+                target_text: text.to_owned(),
+            }],
+        )
+        .expect("ghi ban dich");
+        confirm_segment(Some(&opened), id, "").expect("xac nhan");
+    }
+
+    let out = merge_segments(Some(&opened), 2).expect("gop cau 2 voi cau lien tren no");
+    let ve_huu_ids: Vec<i64> = out.retired.iter().map(|r| r.id).collect();
+    assert_eq!(ve_huu_ids, vec![1, 2], "ca HAI hang cu ve huu (AC1)");
+    assert!(
+        out.retired.iter().all(|r| r.retired_at.is_some()),
+        "hai hang tra ve phai MANG `retired_at` that -- webview ve vach `ornament` bang chinh \
+         truong do, va mot danh sach `id` tran buoc no BIA ra mot moc thoi gian (AD-1)"
+    );
+    assert_eq!(out.new_segments.len(), 1, "va dung MOT hang moi ra doi");
+
+    let moi = &out.new_segments[0];
+    assert!(moi.id > 2, "hang moi mang mot `id` CHUA TUNG dung (AD-3)");
+    assert_eq!(
+        moi.status, "draft",
+        "AC3 -- segment moi bat dau CHUA XAC NHAN, du ca hai cau cu deu da xac nhan"
+    );
+    assert_eq!(moi.source_text, "一。二。", "hai cau tieng Trung noi nhau KHONG khoang trang");
+    assert_eq!(moi.target_text, "Mot. Hai.", "hai ban dich noi bang dung mot khoang trang");
+    assert_eq!(moi.retired_at, None, "hang moi con song");
+
+    // AC3, ve LICH SU RONG -- va no phai dung DU hai cau cu deu co `segment_version` that.
+    let history = read_segment_history(Some(&opened), moi.id).expect("doc lich su hang moi");
+    assert!(
+        history.is_empty(),
+        "AC3 -- lich su cua segment moi phai RONG. Mot luot chup `segment_version` truoc khi \
+         cho ve huu se pha dung menh de nay, va no doc rat giong mot tinh nang"
+    );
+
+    let tho = hang_tho(&opened);
+    let ve_huu: Vec<i64> = tho.iter().filter(|r| r.8).map(|r| r.0).collect();
+    assert_eq!(ve_huu, vec![1, 2], "dung hai hang mang `retired_at` khac NULL");
+
+    cleanup(&root);
+}
+
+/// 🔴 **AC4 trên một segment về hưu THẬT** — không một hàng dựng bằng SQL.
+///
+/// `deferred-work.md:3675-3683` ghi thẳng khoảng hở này: mọi ca AC4 trước story này bơm
+/// `retired_at` bằng SQL trực tiếp, nên chúng canh *"đường đọc không hỏi `retired_at`"* chứ
+/// **không** canh *"một lượt gộp thật để lại lịch sử tra được"*. Story 2.8 là lượt đầu tiên
+/// đóng được vế đó, và đây là ca đóng nó.
+#[test]
+fn the_history_of_a_genuinely_retired_segment_still_reads_back_after_a_real_merge() {
+    use auratranslate_lib::commands::segment::{confirm_segment, merge_segments, save_segment_targets, SegmentTargetEdit};
+
+    let root = temp_dir("2-8-ac4");
+    let opened = create_work_from_text(&root, "2.8 AC4", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham");
+
+    save_segment_targets(
+        Some(&opened),
+        1,
+        &[SegmentTargetEdit {
+            id: 1,
+            target_text: "Ban dich se song sot qua luot gop.".to_owned(),
+        }],
+    )
+    .expect("ghi ban dich");
+    confirm_segment(Some(&opened), 1, "").expect("xac nhan -- day la luot sinh ra hang lich su");
+
+    let truoc = read_segment_history(Some(&opened), 1).expect("doc lich su truoc khi gop");
+    assert_eq!(truoc.len(), 1, "tien de: cau 1 co dung mot phien ban truoc luot gop");
+
+    merge_segments(Some(&opened), 2).expect("gop -- cau 1 ve huu THAT sau lenh nay");
+
+    let sau = read_segment_history(Some(&opened), 1).expect("doc lich su SAU khi cau 1 ve huu");
+    assert_eq!(
+        sau, truoc,
+        "AC4 -- lich su phien ban cua mot segment DA VE HUU van tra lai duoc, nguyen ven. \
+         Duong DOC va duong GHI tu choi KHAC NHAU: bon lenh ghi tu choi mot segment ve huu, \
+         duong doc thi khong duoc phep"
+    );
+
+    cleanup(&root);
+}
+
+/// **Chữ ký #7(a)** — `ord` đánh lại **liên tục 1..N** cho hàng còn sống; hàng về hưu đậu ở
+/// `ord` của **hàng đầu nhóm**.
+///
+/// 🔴 Vế thứ hai không phải trang trí: AD-5 hứa *"chỗ đánh dấu khi đọc (FR119) trỏ tới
+/// segment về hưu vẫn **mở được về đúng vị trí trong Chương**"*. Một hàng về hưu mang `ord`
+/// cũ ở cuối dãy sẽ đáp xuống sai chỗ.
+#[test]
+fn merging_renumbers_the_living_rows_from_one_and_parks_the_retired_ones_at_the_group_head() {
+    use auratranslate_lib::commands::segment::merge_segments;
+
+    let root = temp_dir("2-8-ord");
+    let opened = create_work_from_text(&root, "2.8 ord", "zh", "", "一。二。三。四。".to_owned())
+        .expect("tao tac pham");
+
+    // Gop cau 3 voi cau 2 -- co y KHONG o dau day, de mot phep danh lai chi-tu-cho-cham
+    // phan biet duoc voi mot phep danh lai ca Chuong.
+    let out = merge_segments(Some(&opened), 3).expect("gop cau 3 voi cau 2");
+    let moi_id = out.new_segments[0].id;
+
+    let tho = hang_tho(&opened);
+    let song: Vec<(i64, i64)> = tho
+        .iter()
+        .filter(|r| !r.8)
+        .map(|r| (r.0, r.1))
+        .collect();
+    assert_eq!(
+        song,
+        vec![(1, 1), (moi_id, 2), (4, 3)],
+        "ba hang con song mang `ord` 1..3 LIEN TUC, va hang moi dung dung cho nhom cu tung dung"
+    );
+
+    let ve_huu: Vec<(i64, i64)> = tho.iter().filter(|r| r.8).map(|r| (r.0, r.1)).collect();
+    assert_eq!(
+        ve_huu,
+        vec![(2, 2), (3, 2)],
+        "hai hang ve huu dau o `ord` cua HANG DAU NHOM (2) -- AD-5 hua mot cho danh dau tro \
+         toi chung van mo duoc ve DUNG VI TRI trong Chuong"
+    );
+
+    cleanup(&root);
+}
+
+/// **AC2 · AC7** — tách một câu: câu cũ về hưu, hai mảnh mới ra đời **đúng thứ tự**, và cờ
+/// kết đoạn theo **mảnh cuối** với mọi mảnh trước **tắt cả hai cột**.
+#[test]
+fn splitting_retires_the_source_row_and_creates_the_pieces_in_reading_order() {
+    use auratranslate_lib::commands::segment::{split_segment, set_segment_paragraph_end};
+
+    let root = temp_dir("2-8-split");
+    let opened =
+        create_work_from_text(&root, "2.8 tach", "en", "", "Mr. Smith came. He left.".to_owned())
+            .expect("tao tac pham");
+
+    let truoc = hang_tho(&opened);
+    // Bo tach cau tieng Anh cat o "Mr." -- dung ca ma AC ton tai de giai. Ta khong dua vao
+    // so segment bo tach sinh ra; ta lay hang DAU va tach no bang tay.
+    let dau = truoc[0].0;
+
+    // Cho cau dau mot co dich BAT va co nguon TAT -- hai co LECH nhau, dung hinh dang ma mot
+    // luot cai "co dich chac cung nhu co nguon" se lam hong.
+    set_segment_paragraph_end(Some(&opened), dau, true).expect("bat co dich");
+
+    let cut = truoc[0].2.chars().count() - 1;
+    let out = split_segment(Some(&opened), dau, vec![cut]).expect("tach cau dau");
+    assert_eq!(
+        out.retired.iter().map(|r| r.id).collect::<Vec<_>>(),
+        vec![dau],
+        "dung MOT hang cu ve huu"
+    );
+    assert!(out.retired[0].retired_at.is_some(), "va no mang `retired_at` that");
+    assert_eq!(out.new_segments.len(), 2, "va HAI manh ra doi");
+
+    let noi_lai = format!("{}{}", out.new_segments[0].source_text, out.new_segments[1].source_text);
+    assert_eq!(
+        noi_lai, truoc[0].2,
+        "hai manh noi lai phai bang DUNG van ban goc -- khong mot ky tu nao roi, khong mot \
+         ky tu nao them"
+    );
+    assert!(
+        out.new_segments[0].ord < out.new_segments[1].ord,
+        "hai manh dung DUNG THU TU doc"
+    );
+
+    // AD-37 ca ③ -- manh CUOI giu cap co, manh truoc tat CA HAI cot.
+    assert!(
+        !out.new_segments[0].is_paragraph_end && !out.new_segments[0].is_target_paragraph_end,
+        "manh TRUOC tat ca hai cot"
+    );
+    assert!(
+        out.new_segments[1].is_target_paragraph_end,
+        "manh CUOI giu co DICH cua cau goc -- mot luot cai chi chep co nguon se xoa mat no"
+    );
+
+    assert_eq!(out.new_segments[0].status, "draft");
+    assert_eq!(out.new_segments[1].status, "draft");
+
+    cleanup(&root);
+}
+
+/// **AD-37 ca ①** — gộp hai câu **CUỐI Chương**: cặp cờ của hàng mới **TẮT cả hai**, luôn luôn.
+#[test]
+fn merging_the_last_two_sentences_of_a_chapter_ends_no_paragraph_in_either_column() {
+    use auratranslate_lib::commands::segment::{merge_segments, set_segment_paragraph_end};
+
+    let root = temp_dir("2-8-cuoi");
+    let opened = create_work_from_text(&root, "2.8 cuoi", "zh", "", "一。二。三。".to_owned())
+        .expect("tao tac pham");
+
+    // Bat co DICH cua cau cuoi bang SQL -- lenh san pham tu choi cau cuoi Chuong (dung the),
+    // nen day la cach duy nhat dung mot hinh dang "co dich BAT o cau cuoi" de doi chung.
+    opened
+        .store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET is_target_paragraph_end = 1, is_paragraph_end = 1 WHERE ord = 3",
+                [],
+            )?;
+            Ok(())
+        })
+        .expect("bom co bang SQL");
+    // Cau 2 thi dat bang duong san pham -- no khong phai cau cuoi.
+    set_segment_paragraph_end(Some(&opened), 2, true).expect("bat co dich cau 2");
+
+    let out = merge_segments(Some(&opened), 3).expect("gop hai cau CUOI Chuong");
+    let moi = &out.new_segments[0];
+    assert!(
+        !moi.is_paragraph_end && !moi.is_target_paragraph_end,
+        "AD-37 ca ① -- segment CUOI Chuong tat CA HAI co, LUON LUON, ke ca khi nguoi dung \
+         da tu bat co dich. Mot doan khong the ket thuc sau cau cuoi cung"
+    );
+
+    cleanup(&root);
+}
+
+/// 🔴 **Mọi lượt từ chối của gộp/tách PHÂN BIỆT ĐƯỢC** — bốn nhánh, bốn `MessageKey`.
+///
+/// Cùng luật AC14 của Story 2.5 đã đặt cho `confirm_segment`: một câu chung chung gửi người
+/// dùng đi sửa nhầm chỗ.
+#[test]
+fn every_refusal_of_merge_and_split_carries_its_own_message_key() {
+    use auratranslate_lib::commands::segment::{merge_segments, split_segment};
+
+    let root = temp_dir("2-8-tu-choi");
+    let opened = create_work_from_text(&root, "2.8 tu choi", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham");
+
+    // ① Chua Tac pham nao mo.
+    assert_eq!(
+        merge_segments(None, 1).unwrap_err().code(),
+        "project.no_work_open"
+    );
+    assert_eq!(
+        split_segment(None, 1, vec![1]).unwrap_err().code(),
+        "project.no_work_open"
+    );
+
+    // ② `segment_id` khong co.
+    assert_eq!(
+        merge_segments(Some(&opened), 9_999).unwrap_err().code(),
+        "segment.not_found"
+    );
+    assert_eq!(
+        split_segment(Some(&opened), 9_999, vec![1]).unwrap_err().code(),
+        "segment.not_found"
+    );
+
+    // ③ Cau DAU Chuong -- khong co cau nao lien tren no. Mot ca THUONG NHAT, khong mot ca bien.
+    assert_eq!(
+        merge_segments(Some(&opened), 1).unwrap_err().code(),
+        "segment.no_previous",
+        "gop o cau dau Chuong phai co mot cau NOI RIENG -- no khong phai \"khong tim thay\" \
+         va cung khong phai \"da ve huu\""
+    );
+
+    // ④ Cho cat de lai mot manh RONG.
+    for cut in [0usize, 2, 50] {
+        assert_eq!(
+            split_segment(Some(&opened), 1, vec![cut]).unwrap_err().code(),
+            "segment.cut_leaves_empty_piece",
+            "cho cat {cut} de lai mot manh rong ⇒ tu choi"
+        );
+    }
+
+    // ⑤ Segment DA VE HUU -- duong GHI tu choi. Dung mot hang ve huu THAT.
+    let out = merge_segments(Some(&opened), 2).expect("gop de sinh ra hai hang ve huu that");
+    for id in out.retired.iter().map(|r| r.id) {
+        assert_eq!(
+            merge_segments(Some(&opened), id).unwrap_err().code(),
+            "segment.retired"
+        );
+        assert_eq!(
+            split_segment(Some(&opened), id, vec![1]).unwrap_err().code(),
+            "segment.retired"
+        );
+    }
+
+    cleanup(&root);
+}
+
+/// 🔴 **Không lượt gộp/tách nào ghi một hàng `segment_version`** — AD-31, và một lượt vi
+/// phạm nó **không cổng nào đỏ**.
+#[test]
+fn neither_merge_nor_split_ever_writes_a_segment_version_row() {
+    use auratranslate_lib::commands::segment::{confirm_segment, merge_segments, save_segment_targets, split_segment, SegmentTargetEdit};
+
+    let root = temp_dir("2-8-khong-version");
+    let opened = create_work_from_text(&root, "2.8 version", "zh", "", "一。二。三。".to_owned())
+        .expect("tao tac pham");
+
+    save_segment_targets(
+        Some(&opened),
+        1,
+        &[SegmentTargetEdit {
+            id: 1,
+            target_text: "Mot.".to_owned(),
+        }],
+    )
+    .expect("ghi ban dich");
+    confirm_segment(Some(&opened), 1, "").expect("xac nhan -- luot DUY NHAT duoc phep sinh version");
+
+    let dem = |opened: &auratranslate_lib::commands::project::OpenWork| -> i64 {
+        opened
+            .store
+            .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment_version", [], |r| r.get(0)))
+            .expect("dem segment_version")
+    };
+    let truoc = dem(&opened);
+    assert_eq!(truoc, 1, "tien de: dung mot hang lich su ton tai truoc khi gop/tach");
+
+    let out = merge_segments(Some(&opened), 2).expect("gop");
+    assert_eq!(dem(&opened), truoc, "mot luot GOP khong sinh them mot hang lich su nao");
+
+    split_segment(Some(&opened), out.new_segments[0].id, vec![2]).expect("tach");
+    assert_eq!(dem(&opened), truoc, "va mot luot TACH cung khong");
+
+    cleanup(&root);
+}
+
+/// 🔴 **Sau một lượt gộp/tách THẬT, lưới không còn thấy hàng cũ — nhưng ĐĨA thì còn.**
+///
+/// Ca này canh đúng thứ Ice gặp khi dùng thật ngày 2026-08-17: *"đã tách ra 2 câu, nhưng câu
+/// cũ vẫn tồn tại và số thứ tự vẫn chiếm, gây rối nội dung"*. Nó là lượt **lật** chữ ký #6(b)
+/// viết thành một phép khẳng định.
+///
+/// ⚠️ Ca 2.2 ở trên canh cùng mệnh đề nhưng trên một hàng về hưu **bơm bằng SQL**. Ca này đi
+/// **đường sản phẩm** — và hai ca không thừa nhau: một cái canh bộ lọc, cái kia canh rằng
+/// đường ghi thật sinh ra đúng thứ bộ lọc đang chờ.
+#[test]
+fn the_grid_stops_showing_a_row_the_moment_a_real_merge_or_split_retires_it() {
+    use auratranslate_lib::commands::segment::{merge_segments, split_segment};
+
+    let root = temp_dir("2-8-loc-luoi");
+    let opened = create_work_from_text(&root, "2.8 loc", "zh", "", "一。二。三。".to_owned())
+        .expect("tao tac pham");
+
+    let dem_tren_dia = || -> i64 {
+        opened
+            .store
+            .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment", [], |r| r.get(0)))
+            .expect("dem hang tren dia")
+    };
+
+    assert_eq!(read_open_chapter_segments(Some(&opened)).unwrap().segments.len(), 3);
+    assert_eq!(dem_tren_dia(), 3);
+
+    // ── GOP: hai hang ve huu, mot hang moi ⇒ luoi 3 → 2, dia 3 → 4 ─────────────────
+    let gop = merge_segments(Some(&opened), 2).expect("gop cau 2 voi cau lien tren");
+    let sau_gop = read_open_chapter_segments(Some(&opened)).expect("nap lai");
+    assert_eq!(
+        sau_gop.segments.len(),
+        2,
+        "gop hai cau ⇒ luoi con HAI hang, khong BA. Mot con so 3 o day la trieu chung nguyen \
+         van cua bao cao 2026-08-17: \"cau cu van ton tai va so thu tu van chiem\""
+    );
+    assert!(
+        sau_gop.segments.iter().all(|s| s.retired_at.is_none()),
+        "khong mot hang nao di ra luoi mang `retired_at`"
+    );
+    assert_eq!(
+        dem_tren_dia(),
+        4,
+        "va DIA thi tang: hai hang cu O LAI (ve huu), mot hang moi them vao. Loc khoi LUOI \
+         khong phai xoa khoi DIA -- xoa la mat lich su VINH VIEN (AD-5)"
+    );
+
+    // AC4 van dung tren chinh hang vua bi loc khoi luoi.
+    for row in &gop.retired {
+        assert!(row.retired_at.is_some());
+        read_segment_history(Some(&opened), row.id)
+            .expect("lich su cua mot segment DA VE HUU van tra lai duoc (AC4)");
+    }
+
+    // ── TACH: mot hang ve huu, hai manh moi ⇒ luoi 2 → 3, dia 4 → 6 ────────────────
+    let id_moi = gop.new_segments[0].id;
+    split_segment(Some(&opened), id_moi, vec![2]).expect("tach hang vua gop");
+    let sau_tach = read_open_chapter_segments(Some(&opened)).expect("nap lai");
+    assert_eq!(
+        sau_tach.segments.len(),
+        3,
+        "tach mot cau ⇒ luoi co BA hang (hai manh + cau con lai), khong BON"
+    );
+    assert!(sau_tach.segments.iter().all(|s| s.retired_at.is_none()));
+    assert_eq!(dem_tren_dia(), 6, "dia: 4 + 2 manh moi");
+
+    // 🔴 Va `ord` cua nhung hang CON SONG lien tuc 1..N -- day la thu lam "so thu tu" dung
+    // tro lai. Luoi danh so bang chi so mang, nhung mot `ord` thung lo tren dia se lo ra o
+    // dung ngay dau tien co ai doc no.
+    assert_eq!(
+        sau_tach.segments.iter().map(|s| s.ord).collect::<Vec<_>>(),
+        vec![1, 2, 3],
+        "`ord` cua cac hang con song phai LIEN TUC 1..N sau moi luot gop/tach"
+    );
+
+    cleanup(&root);
 }

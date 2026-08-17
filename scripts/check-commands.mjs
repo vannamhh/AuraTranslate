@@ -249,7 +249,14 @@ const TS_FLOOR = 30 // số THẬT 2026-08-14 (sau Story 2.5b): 37 tệp `.ts` �
 // 🔴 Khuôn này đã lặp lại **ba** lượt liên tiếp (2.5c · 2.5d · 2.6) và mỗi lượt phải sửa bằng
 // tay. Không cổng nào canh chính cái sàn này — nó là một con số người phải nâng, và cái duy
 // nhất nhắc là dòng chú thích đang đọc.
-const COMMAND_FLOOR = 37
+// 🔵 2026-08-17, Story 2.8 — 37 → 38. Số THẬT do lại **từ chính cổng này in ra**, không từ
+// một lượt đếm bằng mắt: `npm run check:commands` báo **46 command** sau khi thêm
+// `editor.merge_segments` và `editor.split_segment` (baseline 44). 38 / 46 = **82,6 %**, nằm
+// giữa dải 80–85 % mà luật sàn quần thể đặt ra.
+// ⚠️ Đây đúng lớp lỗi mà code review Story 2.6 bắt được: chú thích ở đó tự khai *"đo lại,
+// không chép"* rồi ghi **41** trong khi cổng in **44** — nó chỉ đếm 2 trong 5 command mới của
+// chính story đó. ⇒ Lượt này chạy cổng trước, đọc số, rồi mới sửa dòng dưới.
+const COMMAND_FLOOR = 38
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.

@@ -247,6 +247,25 @@ message_keys! {
     /// [`crate::core::segment::paragraph::at_end_of_chapter`], hàm thuần phát biểu nó.
     SegmentEndsChapter => "err.segment.ends_chapter" ["segment_id"],
 
+    // ── Story 2.8 (FR78 · AD-5) — HAI khoá, và cùng một phép thử cho cả hai ─────────
+    //
+    // Lệnh gộp và lệnh tách tái dùng `ProjectNoWorkOpen` · `SegmentNotFound` ·
+    // `SegmentRetired` cho ba ca đầu — cùng câu, cùng nghĩa. Hai khoá dưới đây là RIÊNG vì
+    // cả hai nói một sự thật **không khoá nào đang có nói được**: câu **tồn tại**, **còn
+    // sống**, và thao tác vẫn không chạy được. Cùng phép thử đã dựng khoá thứ ba ở 2.5d.
+    /// Gộp mà segment đang chọn là câu **ĐẦU** Chương ⇒ không có câu nào liền trên nó.
+    ///
+    /// ⚠️ Chữ ký #1(a) của Ice (2026-08-17) chốt *"gộp đúng hai — câu đang có caret và câu
+    /// **liền trên** nó"*, nên *"không có câu liền trên"* là một ca **thường nhật**, không
+    /// một ca biên: nó xảy ra mỗi lần người dùng bấm `⌘M` ở câu đầu Chương.
+    SegmentNoPrevious => "err.segment.no_previous" ["segment_id"],
+    /// Chỗ cắt để lại một mảnh **rỗng**, hoặc nằm ngoài `source_text`.
+    ///
+    /// 🔴 Một hàng `segment` không có văn bản nguồn là *"rỗng im lặng"* ở dạng tệ nhất —
+    /// không đường mã nào phía sau biết xử lý nó, và nó nằm trên đĩa vĩnh viễn. Chặn ở
+    /// tầng thuần ([`crate::core::segment::regroup::split_at`]) và nói ra ở đây.
+    SegmentCutLeavesEmptyPiece => "err.segment.cut_leaves_empty_piece" ["segment_id"],
+
     // **KHÔNG có `ProjectMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
     // 2026-08-06). Cơ chế từ chối một `meta.json` mới hơn vẫn còn nguyên và vẫn có test
     // (`MetaError::SchemaTooNew` + `WorkMeta::read`), nhưng không đường sản phẩm nào

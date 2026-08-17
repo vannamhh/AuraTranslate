@@ -273,8 +273,15 @@ tr.conflict td{background:var(--tm-bg)}
         <tr><td>Tra cụm đang chọn</td><td class="cid">lookup.query.selection</td><td><span class="kc">tự động</span></td><td>Auto-Lookup chạy khi vùng chọn dừng — không cần phím</td></tr>
         <tr><td>Xác nhận segment</td><td class="cid">editor.segment.confirm</td><td><span class="kc">⌘↵</span></td><td></td></tr>
         <tr><td>Segment chưa dịch kế tiếp</td><td class="cid">editor.segment.nextUntranslated</td><td><span class="kc">⌥↓</span></td><td></td></tr>
-        <tr><td>Gộp hai segment</td><td class="cid">editor.segment.merge</td><td><span class="kc">⌘M</span></td><td></td></tr>
-        <tr><td>Tách segment</td><td class="cid">editor.segment.split</td><td><span class="kc">⌘/</span></td><td></td></tr>
+        <!-- 🔵 SỬA 2026-08-17 (Story 2.8) — hai command id ở đây viết `editor.segment.merge` /
+             `editor.segment.split`, một văn phạm BA ĐOẠN không có tiền lệ nào trong 46 command
+             đang đăng ký. Bản đúng nằm ở `src/commands/index.ts` và nó có CHỮ KÝ CŨ HƠN: Ice
+             ký 2026-08-14 (Quyết định #4 của Story 2.5) khai đích danh `editor.merge_segments`
+             / `editor.split_segment`. Lý do theo chữ ký cũ không phải thâm niên: command id
+             nằm trong bảng keybinding của người dùng (Story 1.21), nên một lượt đổi tên về sau
+             MỒ CÔI phím tắt người dùng đã gán, im lặng — bài học Quyết định #5 của 2.5b. -->
+        <tr><td>Gộp hai segment</td><td class="cid">editor.merge_segments</td><td><span class="kc">⌘M</span></td><td></td></tr>
+        <tr><td>Tách segment</td><td class="cid">editor.split_segment</td><td><span class="kc">⌘/</span></td><td></td></tr>
         <tr><td>Đưa bản dịch AI sang Editor</td><td class="cid">ai.result.moveToEditor</td><td><span class="kc">⌘⇧↵</span></td><td>Luôn do người dùng chủ động (FR72)</td></tr>
         <tr class="conflict"><td>Dịch cả lô segment đang chọn</td><td class="cid">ai.translate.batch</td><td><span class="kc cf">⌘⇧T</span></td><td><b>Trùng với</b> “Chuyển sang tab Hán Việt” — một trong hai phải đổi</td></tr>
         <tr class="conflict"><td>Chuyển sang tab Hán Việt</td><td class="cid">source.tab.hanviet</td><td><span class="kc cf">⌘⇧T</span></td><td>Gán sau, nên đang bị chặn</td></tr>

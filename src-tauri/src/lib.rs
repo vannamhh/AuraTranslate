@@ -348,6 +348,16 @@ pub fn run() {
             // NHAN ke tiep. 🔴 `force = false` o luot goi dau: neu no ve voi
             // `needs_confirmation` thi KHONG mot byte nao da duoc ghi.
             crate::commands::segment::wire::restore_segment_version,
+            // Story 2.8 — GOP va TACH tuong minh (FR78, AD-5). Thao tac ROI RAC ghi NGAY.
+            // 🔴 "Ve huu + tao moi", KHONG sua tai cho — va dung doc AD-32 (gop/tach CHUONG)
+            // thanh luat cua hai lenh nay: no noi NGUOC LAI, giu nguyen `segment.id`.
+            // 🔴 KHONG `INSERT` mot hang `segment_version` nao cho luot ve huu: AD-31 §bang
+            // may trang thai co mot hang viet thang "Ve huu do gop/tach (AD-5) | ve huu |
+            // khong tao", va AC3 doi segment moi bat dau voi lich su RONG.
+            // ⚠️ Ca hai TRA VE hang moi day du (chu ky #4(a)): moc so sanh cua AD-47 ① song o
+            // webview, va segment moi mang mot `id` chua tung co trong mang do.
+            crate::commands::segment::wire::merge_segments,
+            crate::commands::segment::wire::split_segment,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

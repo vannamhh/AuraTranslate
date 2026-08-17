@@ -8,7 +8,7 @@
 //!
 //! **Hai trong ba ca không có bề mặt để áp** (đo 2026-08-15, và đo lại 2026-08-16):
 //! `grep "fn merge_segments\|merge_segment\|MergeSegment"` trên `src-tauri/src/**` cho **0**
-//! kết quả, và Story 2.8 *(gộp và tách segment tường minh)* là `backlog`. Hôm nay:
+//! kết quả, và Story 2.8 *(gộp và tách segment tường minh)* là `backlog`. Lúc đó:
 //!
 //! | Ca | Có mã thi hành? | Ở đâu |
 //! |---|---|---|
@@ -16,20 +16,37 @@
 //! | Tách → theo mảnh cuối | **Có, chỉ ở đường NHẬP** | [`super::split`] |
 //! | Gộp → theo câu cuối | **Không** — mới là một bảng trong doc-comment | — |
 //!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! 🔵 2026-08-17 — BA MỆNH ĐỀ TRÊN ĐÃ HẾT ĐÚNG. Story 2.8 đã dựng, và nó GỌI module này
+//! ─────────────────────────────────────────────────────────────────────────────
+//! Sửa tại chỗ thay vì để chúng lặng lẽ sai (`project-context.md:352-353`); phát hiện ở lượt
+//! code review ba tầng ngày 2026-08-17, khi tệp này **không** nằm trong diff của story mà ba
+//! câu của nó thì đã nói ngược cây nguồn.
+//!
+//! | Mệnh đề cũ | Hôm nay |
+//! |---|---|
+//! | *"Story 2.8 là `backlog`"* | 2.8 đã dựng xong, ở `review` |
+//! | *"Gộp → theo câu cuối: **Không**"* | **Có** — [`super::regroup::merge`] gọi [`merged`] |
+//! | *"AC3 vẫn không đóng trọn … ghi nợ có chủ Story 2.8"* | AC3 **đã đóng**; món nợ đóng tại chỗ ở `deferred-work.md` |
+//!
+//! ⇒ Hai nơi gọi thật hôm nay: [`super::regroup::merge`] gọi [`merged`], và
+//! [`super::regroup::split_at`] gọi [`split_into`] với **`n` bất kỳ** *(AC7 vế "nhiều mảnh",
+//! chữ ký của Ice 2026-08-17)*. Cộng [`at_end_of_chapter`], áp ở tầng SQL của
+//! `commands::segment` vì ca ① hỏi một câu về **vị trí**.
+//!
 //! ⚠️ **Và có một khoảng hở thật, khác hẳn khoảng hở của [`super::omit`]:** chừng nào cờ đích
 //! còn **bằng** cờ nguồn *(AC2, lúc nhập)*, ba ca biên đúng cho cờ đích **theo dẫn xuất** —
 //! không cần một dòng mã thứ hai. Vế còn hở là ngày người dùng đã **đổi** cờ đích rồi mới
 //! gộp hoặc tách: lúc đó hai cờ khác nhau, và bảng ba ca phải chạy **hai lần, độc lập**.
 //! Người viết Story 2.8 đọc AC của chính nó, thấy *"cờ đi theo câu cuối"*, cài **một** lượt
 //! cho `is_paragraph_end` — và cờ đích của người dùng biến mất. Không cổng nào đỏ.
+//! 🔵 **Vế này 2.8 ĐÃ đóng** — Task 3.2, hai cờ đọc riêng từng cột ở `load_segment_for_write`
+//! và ca hợp đồng dùng một cặp cờ **lệch nhau**, nên một lượt chép cờ nguồn sang cờ đích cho
+//! đỏ. Câu trên giữ lại vì nó nói *vì sao* hàm này tồn tại, không vì nó còn là một khoảng hở.
 //!
 //! ⇒ **Quyết định #6 đường (b), Ice ký 2026-08-15:** dựng **hàm thuần** hôm nay kèm test hợp
 //! đồng, đúng khuôn [`super::omit`] đã dựng cho một nghĩa vụ chưa có bề mặt tiêu thụ. Story
-//! 2.8 chỉ việc gọi.
-//!
-//! 🔴 **Đây KHÔNG phải "dựng gộp/tách"**, và AC3 **vẫn không đóng trọn** ở story này: không
-//! có đường gộp nào để nghiệm thu. Phần đó là 🟡, ghi nợ có chủ **Story 2.8** ở
-//! `deferred-work.md`. Đừng đọc module này thành *"AC3 xong"*.
+//! 2.8 chỉ việc gọi — 🔵 và nó **đã** gọi.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 LOGIC Ở **RUST**, KHÔNG MỘT `v-if` Ở VUE — AD-1

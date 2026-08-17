@@ -28,8 +28,10 @@ import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 import {
   confirmCurrentSegment,
   goToNextUntranslated,
+  mergeCurrentSegment,
   setCurrentSegmentOmitted,
   setCurrentSegmentParagraphEnd,
+  splitCurrentSegment,
   wireExitFlush,
 } from './panels/editorPanelState'
 // ── Story 1.14 — ba cổng của tầng bố cục ────────────────────────────────────────────
@@ -307,6 +309,30 @@ async function boot(): Promise<void> {
           //    🔵 Ba dòng cùng kiểu ở trên (`:248` · `:264` · `:281`) còn ghi sai điều đó —
           //    món nợ có chủ ở `deferred-work.md`, code review 2026-08-16.
           console.warn(`[grid] khong dat duoc co ket doan ban dich: ${result}`)
+        })
+      },
+      // Story 2.8 · FR78/AD-5 — GỘP và TÁCH tường minh. Cùng cửa và cùng lý do với ba dep
+      // ngay trên: đi qua `editorPanelState.ts`, KHÔNG thẳng `mergeSegments`/`splitSegment`
+      // của `config/segment.ts`. Ở đây cái giá của một lượt nối tắt cao hơn hẳn: hai hàm kia
+      // còn mang **flush tập chờ trước lượt ghi** (AD-35 vế (c) — bản dịch đi vào hàng mới
+      // đọc từ ĐĨA) và **lượt đặt mốc AD-47 ①** (chèn hàng mới vào `segments`). Nối tắt là
+      // ghi một hàng mới từ một văn bản cũ hơn thứ đang trên màn hình, im lặng.
+      mergeSegments: () => {
+        void mergeCurrentSegment().then((result) => {
+          if (result === 'done' || result === 'refused') return
+          // ⚠️ `'refused'` KHÔNG vào đây: nó có đường ra qua `editorRegroupError` — ⚠️ và
+          // đường đó **chưa có component nào đọc**, đúng khuôn `editorOmitError` đã ghi.
+          // Đừng đọc dòng này thành "đã có đường ra màn hình". Món nợ có chủ.
+          console.warn(`[grid] khong gop duoc segment: ${result}`)
+        })
+      },
+      splitSegment: () => {
+        void splitCurrentSegment().then((result) => {
+          if (result === 'done' || result === 'refused') return
+          // ⚠️ `'no-cut'` là câu trả lời **hợp lệ**, không một lỗi: người dùng chưa bấm vào
+          // cột nguyên văn nên chưa có chỗ nào để cắt. Nó kêu chứ không ném — cùng luật
+          // *"hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném"*.
+          console.warn(`[grid] khong tach duoc segment: ${result}`)
         })
       },
       // 🔴 STORY 1.18 — LƯỢT GỠ DEP TỐI THIỂU MÀ STORY 1.17 ĐÃ HẸN.

@@ -75,7 +75,12 @@ import { resolveHanVietSelection } from './hanVietSurfaces'
 import type { DockviewPanelProps } from '../layout/panelProps'
 import { t } from '../i18n'
 import { dispatch } from '../commands'
-import { resolveSegmentRule, ruleClassOf, segmentRuleInputOf } from './editorSegments'
+import {
+  resolveSegmentRule,
+  ruleClassOf,
+  segmentRuleInputOf,
+  sourceCutOffsetOf,
+} from './editorSegments'
 import type { SegmentRuleValue } from './editorSegments'
 import {
   activeTab,
@@ -96,9 +101,11 @@ import {
   editorLoadError,
   editorPending,
   editorSegments,
+  editorSourceCut,
   ensureSegmentsLoaded,
   noteEditorEdit,
   setEditorCaret,
+  setEditorSourceCut,
 } from './editorPanelState'
 
 defineProps<DockviewPanelProps>()
@@ -268,6 +275,56 @@ const showHanViet = computed(() => isChinese.value && activeTab.value === 'han_v
  */
 const sourceTokenClass = computed(() => (isChinese.value ? 'tok-source-cjk' : 'tok-source-latin'))
 
+/**
+ * 🔴 **KÊNH THỊ GIÁC CHO TẬP ĐIỂM CẮT ĐANG CHỜ** — Story 2.8, AC7, chữ ký của Ice 2026-08-17.
+ *
+ * Cơ chế tích luỹ *(mỗi cú bấm thêm một điểm, `⌘/` cắt hết)* dựng một trạng thái **giữa hai
+ * thao tác**, và một trạng thái người dùng không nhìn thấy là đúng lớp lỗi mà
+ * `project-context.md` §*Rỗng IM LẶNG* cấm: họ bấm ba chỗ, quên mất, rồi `⌘/` cắt câu thành
+ * bốn mảnh mà không hiểu vì đâu — trên dữ liệu AD-5 **không cho hoàn tác**.
+ *
+ * ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện:** dấu cắt chỉ vẽ được ở
+ * đường **chữ trần**. Ở chế độ Hán Việt, ô do `SourceHanViet.vue` dựng và chỗ cắt rơi vào
+ * giữa các `<ruby>` — cắm dấu vào đó là chẻ một `<ruby>` làm đôi, thứ vừa sai ngữ nghĩa vừa
+ * đụng hợp đồng vùng chọn của Auto-Lookup (`hanVietSurfaces.ts`). ⇒ Ở chế độ đó ô chỉ nhận
+ * **viền `has-cuts`**, tức người dùng biết *"câu này đang có điểm chờ"* nhưng không thấy
+ * **ở đâu**. Món nợ có chủ ở `deferred-work.md`.
+ */
+const pendingCuts = computed<{ segmentId: number; offsets: readonly number[] } | null>(
+  () => editorSourceCut.value,
+)
+
+/** Số điểm cắt đang chờ của một hàng. `0` ⇒ hàng này không có điểm nào. */
+function cutCountOf(segmentId: number): number {
+  const c = pendingCuts.value
+  return c !== null && c.segmentId === segmentId ? c.offsets.length : 0
+}
+
+/**
+ * Chia `source_text` của một hàng thành các mảnh **theo đúng tập điểm cắt đang chờ**.
+ *
+ * ⚠️ **Cắt bằng code point, không `slice` trần** — cùng đơn vị mà `sourceCutOffsetOf` sinh ra
+ * và `regroup.rs::split_at` tiêu thụ. Một `slice` UTF-16 ở đây vẽ dấu cắt **lệch chỗ** so với
+ * chỗ Rust sẽ cắt thật, tức một bản xem trước **nói dối**.
+ *
+ * ⚠️ Điểm nằm ngoài chuỗi bị bỏ qua **ở đây**, không bị chặn: tầng thuần Rust là chỗ từ chối
+ * (AD-1), còn ô này chỉ vẽ thứ vẽ được.
+ */
+function sourcePiecesOf(segmentId: number, text: string): readonly string[] {
+  const n = cutCountOf(segmentId)
+  if (n === 0) return [text]
+  const ky = [...text]
+  const moc = [...(pendingCuts.value?.offsets ?? [])]
+    .filter((o) => o > 0 && o < ky.length)
+    .sort((a, b) => a - b)
+  const bien = [0, ...moc, ky.length]
+  const ra: string[] = []
+  for (let i = 0; i < bien.length - 1; i += 1) {
+    ra.push(ky.slice(bien[i], bien[i + 1]).join(''))
+  }
+  return ra
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // AC7 · B1 — HỢP ĐỒNG VÙNG CHỌN THEO **CỘT**, hai lời gọi, hai vai KHÔNG được đảo
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -351,22 +408,127 @@ function setCaret(node: Node, offset: number): boolean {
  * và đó là nhánh thật sự phải xử.
  */
 function placeCaretAtPoint(cell: HTMLElement, x: number, y: number): boolean {
-  const range = (() => {
-    const pos = document.caretPositionFromPoint(x, y)
-    if (pos !== null) {
-      const r = document.createRange()
-      r.setStart(pos.offsetNode, pos.offset)
-      r.collapse(true)
-      return r
-    }
-    return document.caretRangeFromPoint(x, y)
-  })()
-
-  if (range === null) return false
+  // 🔵 **2026-08-17 (Story 2.8) — HÀM NÀY ĐÃ NÉM Ở MỌI CÚ BẤM, SUỐT TỪ STORY 2.5b.**
+  //
+  // Bản cũ gọi `document.caretPositionFromPoint(x, y)` **trần** ở dòng đầu. Đo trong cửa sổ
+  // Tauri thật ngày 2026-08-17 (`2-8-ban-do/caret-api-cot-dich.e2e.mjs`):
+  //
+  // | API | `typeof` |
+  // |---|---|
+  // | `document.caretPositionFromPoint` | **`"undefined"`** |
+  // | `document.caretRangeFromPoint` | `"function"` |
+  //
+  // Một lời gọi tới thứ `undefined` **NÉM `TypeError`**, nó không trả `null` — nên nhánh
+  // *"hồi phòng"* ở dòng dưới **chưa bao giờ chạy tới**, và cú ném giết trọn phần còn lại của
+  // `onCellMouseUp`, gồm cả `ensureCaretNextFrame` — thứ mà doc-comment của chính nó gọi là
+  // *"đường DUY NHẤT chạy được khi engine không làm"*.
+  //
+  // 🔴 **Vì sao KHÔNG ai thấy suốt hai story:** caret vẫn hiện. Đo cùng lượt, sau một cú bấm
+  // chuột thật vào ô bản dịch: `selectionType = "Caret"`, `rangeCount = 1`,
+  // `activeElement` = chính ô — **và** một `TypeError` cộng một `[Vue warn]` trong console.
+  // Caret ấy đến từ `cell.focus()` ở trên cộng hành vi mặc định của engine, **không** từ
+  // đường vá mà ba vòng chẩn đoán của Story 2.3 và 2.5b đã mua. Ca `grid-empty-cell` xanh
+  // trên một sản phẩm mà nửa cơ chế của nó đang chết.
+  //
+  // ⇒ Ice chốt 2026-08-17: sửa trong Story 2.8, dùng chung [`caretPointAt`].
+  const diem = caretPointAt(x, y)
+  if (diem === null) return false
   // 🔴 **PHÂN GIẢI ĐƯỢC KHÔNG PHẢI ĐÚNG CHỖ** — bắt bằng chính bộ e2e, 2026-08-12. Một
-  // `Range` trỏ ra ngoài ô là "thành công" theo hàm này mà người dùng không gõ được một chữ.
-  if (!cell.contains(range.startContainer)) return false
-  return setCaret(range.startContainer, range.startOffset)
+  // vị trí trỏ ra ngoài ô là "thành công" theo hàm này mà người dùng không gõ được một chữ.
+  if (!cell.contains(diem.node)) return false
+  return setCaret(diem.node, diem.offset)
+}
+
+/**
+ * 🔴 **Phân giải một điểm màn hình thành `(node, offset)` — CÓ DÒ NĂNG LỰC, và đó là một
+ * phép đo chứ không một dòng phòng xa.**
+ *
+ * **Đo 2026-08-17 trong cửa sổ Tauri thật** *(`2-8-ban-do/tach-chan-doan.e2e.mjs`, vòng 4)*:
+ *
+ * | API | `typeof` trên WKWebView này |
+ * |---|---|
+ * | `document.caretPositionFromPoint` | **`"undefined"`** |
+ * | `document.caretRangeFromPoint` | `"function"` — trả `offset: 19`, node **trong** ô |
+ *
+ * 🔴 Một lời gọi **trần** tới cái thứ nhất không trả `null` — nó **NÉM `TypeError`**. Trong
+ * một handler sự kiện, cú ném đó giết trọn phần còn lại của handler và **không** hiện ra ở
+ * đâu ngoài một dòng `[Vue warn] Unhandled error during execution of native event handler`.
+ * Triệu chứng ở người dùng: *"bấm vào cột nguyên văn thì không có gì xảy ra"* — không lỗi,
+ * không cổng nào đỏ.
+ *
+ * ⚠️ **Thứ tự thử: `caretRangeFromPoint` TRƯỚC.** Nó là API **WebKit thật sự có**;
+ * `caretPositionFromPoint` là bản chuẩn hoá mới hơn và có mặt trên Blink. Đặt bản chuẩn
+ * trước rồi *"hồi phòng"* là tối ưu cho engine mà sản phẩm **không** chạy trên đó.
+ */
+function caretPointAt(x: number, y: number): { node: Node; offset: number } | null {
+  if (typeof document.caretRangeFromPoint === 'function') {
+    const range = document.caretRangeFromPoint(x, y)
+    if (range !== null) return { node: range.startContainer, offset: range.startOffset }
+  }
+  if (typeof document.caretPositionFromPoint === 'function') {
+    const pos = document.caretPositionFromPoint(x, y)
+    if (pos !== null) return { node: pos.offsetNode, offset: pos.offset }
+  }
+  return null
+}
+
+/**
+ * 🔴 **`mouseup` trên CỘT NGUYÊN VĂN — ghi nhận điểm cắt cho `⌘/`** (Story 2.8, Quyết định
+ * #2 đường (e), Ice ký 2026-08-17 **sau** phép đo).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 VÌ SAO SẢN PHẨM PHẢI TỰ ĐẶT ĐIỂM CẮT — một phép đo, không một dòng phòng xa
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Chữ ký đầu của Quyết định #2 là *"lấy chỗ cắt từ **vùng chọn đang có** ở cột nguyên văn"*.
+ * **Bàn đo `2-8-ban-do/` bác nó bằng số**, trên WKWebView 605.1.15 trong cửa sổ Tauri thật:
+ *
+ * | Cử chỉ trên một ô `[data-col="src"]` | `selectionType` | `rangeCount` |
+ * |---|---|---|
+ * | một cú bấm | **`"None"`** | **0** |
+ * | kéo chọn, **sáu** bước trung gian | **`"None"`** | **0** |
+ * | kéo **sau khi** tài liệu đã có tiêu điểm | **`"None"`** | **0** |
+ * | *đối chứng* — bấm ô `[data-col="tgt"]` | `"Caret"` | 1 |
+ *
+ * ⇒ *"Vùng chọn đang có"* là một tiền đề **không tồn tại**. Hai giả thuyết về bàn đo đã bị
+ * loại từng cái *(cú `blur()` của chính bàn đo; lượt kéo quá thô)*.
+ *
+ * Cái mà phép đo **cho phép**: `caretPositionFromPoint`/`caretRangeFromPoint` phân giải được
+ * ở đó, và offset ánh xạ **thẳng** vào chỉ số ký tự của `source_text`. ⇒ Cùng khuôn
+ * [`onCellMouseUp`] ngay dưới — sản phẩm tự làm thứ engine không làm. Đây là **lần thứ hai**
+ * kho này phải dựng đúng bản vá đó cho đúng engine đó.
+ *
+ * ⚠️ **KHÔNG `focus()` ô nguồn, khác hẳn [`onCellMouseUp`].** Cột nguyên văn không
+ * `contenteditable` và không `tabindex` — một lượt `focus()` ở đây hoặc là no-op, hoặc dựng
+ * một bề mặt tiêu điểm **thứ tư** trong lưới và chạm hợp đồng AD-34 §2. Đường này chỉ cần
+ * một **toạ độ**, không cần tiêu điểm.
+ *
+ * ⚠️ `@mouseup`, **không** `@click` — cùng lý do `check-commands.mjs` Kiểm A đã ghi cho ô
+ * bản dịch: `@click` là cửa của **thao tác**, còn đây là một lượt ghi nhận vị trí.
+ *
+ * ⚠️ **Không phân giải được ⇒ KHÔNG ghi nhận gì**, và không có nhánh dự phòng *"neo về cuối"*
+ * như ô bản dịch. Một điểm cắt đoán bừa là một lượt tách sai chỗ **trên dữ liệu người dùng**,
+ * và AD-5 không cho hoàn tác; còn không ghi nhận thì `⌘/` trả `'no-cut'` và người dùng bấm lại.
+ */
+function onSourceCellMouseUp(event: MouseEvent): void {
+  const from = event.target instanceof Element ? event.target : event.target instanceof Node ? event.target.parentElement : null
+  const cell = from?.closest<HTMLElement>('[data-col="src"]') ?? null
+  const id = segmentIdOf(cell)
+  if (cell === null || id === null) return
+
+  const diem = caretPointAt(event.clientX, event.clientY)
+  if (diem === null) return
+  const { node, offset } = diem
+  // 🔴 **PHÂN GIẢI ĐƯỢC KHÔNG PHẢI ĐÚNG CHỖ** — cùng cái bẫy mà `placeCaretAtPoint` đã ghi và
+  // chính bộ e2e bắt được ngày 2026-08-12: một vị trí trỏ **ra ngoài** ô là "thành công" theo
+  // API mà nó thuộc về một câu khác.
+  if (!cell.contains(node)) return
+
+  // 🔴 Phép ánh xạ offset → chỉ số ký tự sống ở `editorSegments.ts` — một **module thuần**
+  // kiểm được bằng `vitest` + `happy-dom`. Một mệnh đề nằm trong thân handler này thì chỉ
+  // kiểm được bằng e2e. Cùng lý do `segmentNavigation.ts` tồn tại.
+  const cut = sourceCutOffsetOf(cell, node, offset)
+  if (cut === null) return
+  setEditorSourceCut(id, cut)
 }
 
 /**
@@ -1043,9 +1205,15 @@ const chapterId = computed(() => editorChapterId.value)
             v-for="s in editorSegments"
             :key="s.id"
             class="cell cell-src"
-            :class="{ 'para-end': s.is_paragraph_end, omitted: s.is_omitted }"
+            :class="{
+              'para-end': s.is_paragraph_end,
+              omitted: s.is_omitted,
+              'has-cuts': cutCountOf(s.id) > 0,
+            }"
             :data-segment-id="s.id"
+            :data-cut-count="cutCountOf(s.id)"
             data-col="src"
+            @mouseup="onSourceCellMouseUp"
           >
             <!--
               AC8 — Hán Việt sống TRONG ô nguyên văn, hai chế độ FR19, người dùng tự bật tắt.
@@ -1057,9 +1225,21 @@ const chapterId = computed(() => editorChapterId.value)
               :view-mode="viewMode"
               surface-role="cell"
             />
-            <!-- aura-allow-text: nguyên văn của Tác phẩm — DỮ LIỆU, không chuỗi giao diện
-                 (NFR16). Không `v-html` (AD-16). -->
-            <template v-else>{{ s.source_text }}</template>
+            <!--
+              🔵 2026-08-17, AC7 — nguyên văn chia thành mảnh theo TẬP ĐIỂM CẮT đang chờ, mỗi
+              ranh giới một dấu. Không điểm nào ⇒ `sourcePiecesOf` trả đúng MỘT mảnh, tức
+              đường thường giữ nguyên hình dạng cây.
+
+              ⚠️ Dấu cắt RỖNG và mang `aria-hidden` — nó không phải chữ, và một ký tự thật ở
+              đây sẽ đi vào `Selection.toString()` của Auto-Lookup rồi vào mọi lượt sao chép.
+            -->
+            <template v-else
+              ><template v-for="(manh, i) in sourcePiecesOf(s.id, s.source_text)" :key="i"
+                ><span v-if="i > 0" class="cut-mark" aria-hidden="true"></span
+                ><!-- aura-allow-text: nguyên văn của Tác phẩm — DỮ LIỆU, không chuỗi giao
+                     diện (NFR16). Không `v-html` (AD-16). -->{{ manh }}</template
+              ></template
+            >
           </div>
         </div>
 
@@ -1326,6 +1506,37 @@ const chapterId = computed(() => editorChapterId.value)
 
 .rule.rule-ornament {
   background-color: var(--color-ornament);
+}
+
+/*
+ * 🔴 DẤU ĐIỂM CẮT ĐANG CHỜ — Story 2.8, AC7, kênh thị giác của cơ chế tích luỹ.
+ *
+ * ⚠️ `inline-block` + `width` chứ không một ký tự: một ký tự thật *(`|`, `‸`)* đi vào
+ * `Selection.toString()` của Auto-Lookup và vào mọi lượt sao chép của người dùng. Dấu này là
+ * **giao diện**, không phải nguyên văn của Tác phẩm.
+ *
+ * ⚠️ Màu từ token `--color-ornament`, cùng token với vạch hàng về hưu — hai thứ nói cùng một
+ * điều: *"đây là một chỗ đánh dấu của công cụ, không phải nội dung"*. `check:tokens` Kiểm B
+ * cấm mọi màu viết thẳng, và Kiểm F cấm bóng đổ / gradient / lớp nổi — dấu này không dùng cái
+ * nào trong ba.
+ *
+ * ⚠️ `vertical-align` neo theo chiều cao dòng chứ không theo baseline: cột nguyên văn dựng
+ * bằng ba họ font khác nhau *(`read-cjk` và `source-latin`)* và baseline của chúng lệch nhau.
+ */
+.cut-mark {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  vertical-align: text-bottom;
+  background-color: var(--color-ornament);
+}
+
+/*
+ * Ô đang giữ điểm cắt chờ — kênh **duy nhất** ở chế độ Hán Việt, nơi dấu cắt không vẽ được.
+ * Xem doc-comment của `pendingCuts` cho giới hạn thật và món nợ có chủ.
+ */
+.cell-src.has-cuts {
+  border-left: 2px solid var(--color-ornament);
 }
 
 /*

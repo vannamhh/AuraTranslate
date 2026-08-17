@@ -311,6 +311,22 @@ export type CommandDeps = {
    * ảnh chụp hiển thị sống ở `editorPanelState.ts::setCurrentSegmentParagraphEnd`.
    */
   setSegmentParagraphEnd?: (endsParagraph: boolean) => void
+  /**
+   * **Gộp câu đang có caret với câu liền trên nó** — Story 2.8, AC1 · AC8.
+   *
+   * ⚠️ Cùng cái bẫy mà `confirmSegment` đã ghi: đừng cắm thẳng `mergeSegments` của
+   * `config/segment.ts` vào đây. Adapter đó chỉ ghi **đĩa**; lượt gộp còn phải **flush bộ
+   * đệm gõ trước** *(bản dịch đi vào hàng mới đọc từ đĩa)* và **cập nhật mảng `segments`**
+   * sau *(mốc so sánh của AD-47 ① sống ở webview)*. Cổng nối thật là
+   * `editorPanelState.ts`, và `main.ts` nối hai đầu.
+   */
+  mergeSegments?: () => void
+  /**
+   * **Tách câu đang có caret tại chỗ cắt trong cột nguyên văn** — Story 2.8, AC2 · AC8.
+   *
+   * ⚠️ Cùng nghĩa vụ và cùng cái bẫy với `mergeSegments` ngay trên.
+   */
+  splitSegment?: () => void
 
   /** Đặt caret vào bề mặt chữ đầu tiên đã đăng ký. Handler của `selection.focus_source`. */
   focusSelectionSource?: () => boolean
@@ -1140,6 +1156,66 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       },
     })
   }
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 2.8 — GỘP và TÁCH segment tường minh (FR78 · AD-5 · AC8)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * **AC8 nguyên văn:** *"`⌘M` và `⌘/` là command đã đăng ký, **không phải hệ quả phụ của
+   * việc gõ**"*. Hai lời gọi `register()` dưới đây **là** vế nghiệm thu của AC đó —
+   * `check:commands` Kiểm A canh mệnh đề ấy trên toàn cây.
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🔴 HAI CÁI TÊN, VÀ MỘT TRONG HAI ĐÃ CÓ CHỮ KÝ TỪ 2026-08-14
+   * ─────────────────────────────────────────────────────────────────────────────
+   * `mockups/settings.html:276-277` viết `editor.segment.merge` / `editor.segment.split`;
+   * doc-comment ở đầu khối `editor.confirm_segment` — **Ice ký 2026-08-14, Quyết định #4 của
+   * Story 2.5** — khai đích danh `editor.merge_segments` / `editor.split_segment`.
+   *
+   * **Ice chốt 2026-08-17: theo chữ ký cũ.** Lý do không phải thâm niên: command id nằm
+   * trong **bảng keybinding của người dùng** (Story 1.21, `global.db` loại `shortcut`), nên
+   * một lượt đổi tên về sau **mồ côi phím tắt người dùng đã gán, IM LẶNG** — đúng bài học
+   * Quyết định #5 của Story 2.5b. ⇒ `mockups/settings.html` là tài liệu phải sửa, và nó đã
+   * được sửa cùng lượt này.
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * ⚠️ HỢP ÂM: BA TÀI LIỆU NÓI BA ĐIỀU, và bảng Phím là bản CŨ
+   * ─────────────────────────────────────────────────────────────────────────────
+   * `epics.md:2498, 2502` *(AC — nguồn chính thức)* và `EXPERIENCE.md:169` đều `⌘M`/`⌘/`;
+   * chỉ bảng Phím `EXPERIENCE.md:267` viết `⌘T` cho tách. Ice chốt theo **AC**, và
+   * `EXPERIENCE.md:267` đã sửa tại chỗ kèm 🔵 + ngày.
+   *
+   * ⚠️ **Cả hai hợp âm rảnh hôm nay** — đo 2026-08-17: `grep KeyM` trên `src/commands/**` cho
+   * **0**; `Slash` chỉ có trong bảng tra `NAMED_CODES`/`KEY_GLYPHS` (`keys.ts:114, 292`),
+   * chưa command nào dùng. `conflictFor` chạy trên **toàn registry**, không theo chế độ, nên
+   * một lượt trùng lộ ra ngay ở `register()`.
+   *
+   * 🔴 **MỘT XUNG ĐỘT TƯƠNG LAI, ghi ra hôm nay thay vì để nó nổ im lặng ở Epic 7:**
+   * `mockups/tm-manage.html:128` dùng `⌘M` mở màn hình **Quản lý TM**. Va chạm đó chưa xảy
+   * ra *(Quản lý TM là Epic 7)*, và tài liệu **chưa từng gọi tên nó** — trong khi xung đột
+   * `⌘⇧T` thì `settings.html:274-275` đã đánh dấu bằng `class="conflict"`. Món nợ có chủ
+   * **Epic 7** đã vào `deferred-work.md`.
+   *
+   * ⚠️ Hai hợp âm mang `Mod`, nên chúng đi qua được luật vùng gõ (`keys.ts:415` —
+   * `lacksPrimaryMod = !meta && !ctrl`): chúng vẫn bắn khi caret đang nằm trong ô bản dịch,
+   * đúng chỗ duy nhất hai thao tác này có nghĩa.
+   */
+  for (const [id, port, chord] of [
+    ['editor.merge_segments', 'mergeSegments', 'Mod+M'],
+    ['editor.split_segment', 'splitSegment', 'Mod+Slash'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: [chord],
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
+
   // ── Story 1.21 — màn hình phím tắt ────────────────────────────────────────────
   //
   // 🔴 NĂM ID TĨNH, và đó là §KHÔNG-LÀM ⑤ viết thành chữ ký — cùng khuôn `toggleDictSource`

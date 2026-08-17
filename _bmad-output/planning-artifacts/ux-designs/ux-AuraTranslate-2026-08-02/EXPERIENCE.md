@@ -168,7 +168,7 @@ Hệ thống **không bao giờ tự coi một câu là xong**. Khớp TM 100% v
 
 **Gộp và tách câu** — `⌘M` gộp, `⌘/` tách. Cả hai là command đăng ký, không phải hệ quả phụ của việc gõ.
 
-**Gộp ngầm** — gõ đè lên đúng vị trí ranh giới **là** ra lệnh gộp. Hệ thống thực hiện đúng ngữ nghĩa AD-5: hai câu cũ về hưu và vẫn tra lại được lịch sử, câu mới bắt đầu ở trạng thái chưa xác nhận với lịch sử rỗng. Một dòng báo ở lề, hoàn tác bằng `⌘Z`. **Không chặn, không hỏi lại** — chặn lại sẽ phá đúng cảm giác tự do mà Editor liền mạch tồn tại để có.
+**Gộp ngầm** — 🔵 **SỬA 2026-08-17 (Story 2.8).** Câu này mang bản UX-DR32 **CŨ** — *"gõ đè lên đúng vị trí ranh giới **là** ra lệnh gộp"*. Tiền đề đó đã bị Sprint Change Proposal 2026-08-14 bác *(trong lưới hai cột, ranh giới giữa hai câu là ranh giới **HÀNG**, không một vị trí con trỏ trong một dòng văn liền tục)*, và `epics.md` đã sửa theo: cử chỉ kích hoạt nay là **`Backspace` ở đầu ô** (Story 2.9). Ngữ nghĩa AD-5 dưới đây **không đổi một chữ**. Bản đúng: **`Backspace` ở đầu ô bản dịch** **là** ra lệnh gộp. Hệ thống thực hiện đúng ngữ nghĩa AD-5: hai câu cũ về hưu và vẫn tra lại được lịch sử, câu mới bắt đầu ở trạng thái chưa xác nhận với lịch sử rỗng. Một dòng báo ở lề, hoàn tác bằng `⌘Z`. **Không chặn, không hỏi lại** — chặn lại sẽ phá đúng cảm giác tự do mà Editor liền mạch tồn tại để có.
 
 **Đưa bản dịch AI sang Editor** — `⌘⇧↵`, luôn do người dùng chủ động (FR72). Không có đường nào để kết quả AI tự chảy vào Bản dịch.
 
@@ -264,7 +264,7 @@ Hán Việt sống **bên trong ô nguyên văn**. Cả hai chế độ FR19 cò
 | `Enter` | **Xuống dòng trong ô** — và đây là chỗ chứa quyền *"bản dịch ngắt đoạn khác bản gốc"* |
 | `Shift+Enter` | dự phòng cho xuống dòng, nếu bản dựng cần hai đường |
 | `Backspace` đầu ô | **Gộp với câu trên** — cử chỉ của mọi trình soạn thảo |
-| `⌘T` | **Tách câu, thực hiện ở CỘT NGUYÊN VĂN** |
+| `⌘/` | **Tách câu, thực hiện ở CỘT NGUYÊN VĂN** — 🔵 **SỬA 2026-08-17 (Story 2.8):** ô này viết `⌘T`, ngược `epics.md:2502` *(AC, nguồn chính thức)* và ngược chính dòng `:169` của tệp này. Hợp âm đã đăng ký trong mã là `Mod+Slash`. |
 | `⌥↓` | **Câu chưa dịch kế tiếp** |
 
 🔴 **`Enter` trơn KHÔNG được giao việc xác nhận, và đây là một quyết định có bằng chứng.** OmegaT có dùng `Enter` để sang câu, nhưng kèm tuỳ chọn *"Use TAB to Advance"* đặt ra **chính vì `Enter` va chạm với bộ gõ IME**. Người dùng của sản phẩm này gõ **tiếng Việt bằng bộ gõ**, nơi `Enter` là phím chốt dấu. Giao `Enter` cho việc ký nghĩa là một lượt chốt Telex có thể **xác nhận nhầm một câu rồi nhảy đi**.

@@ -3423,6 +3423,16 @@ segment tường minh)*, vì nó là story đầu tiên trong epic **buộc** ph
 segment cùng lúc" ở tầng UI. 🔴 Ai nhận: **đừng** sửa `epics.md` cho khớp mã đã viết
 (`project-context.md:456-458`) — AC1 vẫn đúng, chỉ là đường đi chưa tới.
 
+→ 🟡 **2.8 ĐÃ XÉT VÀ TỪ CHỐI — món này VẪN HỞ, chủ chuyển đi.** Quyết định #1, Ice ký đường
+**(a)** ngày 2026-08-17: gộp đúng **hai** câu *(câu có caret + câu liền trên)*, không dựng
+chọn nhiều hàng. Lý do y hệt lý do 2.5c đã ghi và nó **vẫn đứng**: không tài liệu nào của dự
+án mô tả **cơ chế** chọn. ⇒ Ứng viên *"2.8"* ở trên **hết đúng**; chủ mới: một story sau của
+Epic 2, hoặc một story UX dựng cơ chế chọn nhiều hàng trước.
+⚠️ **Đọc kèm:** AC7 vế *"nhiều mảnh"* — khoảng hở song sinh của AC6 — thì 2.8 **đã đóng** ở
+lượt code review 2026-08-17 bằng cơ chế **tích luỹ điểm cắt**, một tương tác Ice ký tại chỗ.
+Hai khoảng hở cùng hình dạng, hai số phận khác nhau, và cái khác nhau là: tách chỉ cần nhiều
+**điểm trong một câu**, còn gộp cần nhiều **câu** — chỉ vế sau mới đụng khái niệm chọn hàng.
+
 ### 🟡 AC5 vế "ẩn hoàn toàn ở đầu ra" — hai bề mặt tiêu thụ CHƯA TỒN TẠI
 
 **Số đo 2026-08-15 (mở tệp ra đọc, không suy từ tên):**
@@ -3554,6 +3564,13 @@ bốn ca hợp đồng, để Story 2.8 chỉ việc gọi.
 cổng nào đỏ.
 **Chủ: Story 2.8.**
 
+→ ✅ **ĐÃ ĐÓNG 2026-08-17 (Story 2.8).** `core::segment::regroup::merge` gọi `merged()` và
+`split_at` gọi `split_into()` — hai bề mặt tiêu thụ mà Quyết định #6(b) đã dựng sẵn hàm thuần
+để chờ. **Cái bẫy đã ghi thành test thì KHÔNG sập:** Task 3.2 đọc hai cờ **riêng từng cột** ở
+`load_segment_for_write`, và ca hợp đồng dùng một cặp cờ **lệch nhau** nên một lượt chép cờ
+nguồn sang cờ đích cho đỏ. ⚠️ Món này được đóng ở lượt **code review** ngày 2026-08-17, không
+ở lượt dev — diff của story chỉ nối thêm ở cuối tệp và bỏ sót cả bốn món có chủ 2.8.
+
 ### 🟡 AC4 vế *"đường xuất đọc cả hai nguồn"* — bề mặt tiêu thụ là khung rỗng
 
 AC4 nói *"đường mã nào cần cấu trúc đoạn của bản dịch thì đọc dữ liệu đã lưu"*. Cột đã có,
@@ -3681,6 +3698,12 @@ mục nào mồ côi.
   có mặt sớm để 2.8 không phải mở một bước di trú thứ hai.
   ⇒ Khi 2.8 dựng gộp/tách, **nghiệm thu lại AC4 trên một segment về hưu THẬT**, không trên một
   hàng dựng bằng SQL. **Chủ: Story 2.8.**
+
+  → ✅ **ĐÃ ĐÓNG 2026-08-17 (Story 2.8).** Ca
+  `the_history_of_a_genuinely_retired_segment_still_reads_back_after_a_real_merge` chạy một
+  lượt `merge_segments` **thật** rồi tra lịch sử của hàng vừa về hưu — không một `retired_at`
+  nào dựng bằng SQL. Vế *"bề mặt vào"* vì thế có mã sản phẩm sinh ra nó lần đầu.
+  ⚠️ Đóng ở lượt **code review** 2026-08-17, không ở lượt dev.
 
 - 🟡 **Bốn nhãn của mockup không được dựng — chữ ký #5(a), và chúng có BỐN chủ tách rời.**
   `data-integrity.html` vẽ mỗi hàng phiên bản kèm một nhãn; bảng `segment_version` có **đúng bốn
@@ -3838,7 +3861,13 @@ mục nào mồ côi.
   | Chấp nhận thay đổi Review Mode (FR94) | *người khác dịch* | Epic 8 |
   | Điền sẵn từ TM khớp 100% (FR58) | xuất xứ của cặp TM nguồn | Story 7.4 |
   | Đưa đề xuất AI sang Editor | *người khác dịch* | Epic 4 |
-  | Gộp/tách segment (AD-47 ④) | đồng ý ⇒ giữ · bất đồng ⇒ *người khác dịch* | Story 2.8 |
+  | Gộp/tách segment (AD-47 ④) | đồng ý ⇒ giữ · bất đồng ⇒ *người khác dịch* | ✅ Story 2.8 |
+
+  → ✅ **HÀNG "Gộp/tách segment" ĐÃ ĐÓNG 2026-08-17 (Story 2.8).** `regroup::merged_origin`
+  cài AD-47 ④ nguyên văn *(đồng ý ⇒ giữ · bất đồng ⇒ `other`)*, và `split_at` cho mọi mảnh
+  **không phải mảnh đầu** một xuất xứ rỗng — một suy dẫn, không một luật mới: mảnh đó chưa có
+  bản dịch nào để khai. Bốn hàng còn lại của bảng **vẫn hở**, giữ nguyên chủ.
+  ⚠️ Đóng ở lượt **code review** 2026-08-17, không ở lượt dev.
   🔴 Mỗi chủ phải làm **cả hai** vế của AD-47 ①: đặt **mốc** *và* đặt **xuất xứ**, trong cùng
   một thao tác. Quên vế xuất xứ ⇒ lượt xác nhận kế tiếp ghi *tôi dịch* cho chữ người dùng chưa
   gõ, và **không cổng nào đỏ**.
@@ -3965,3 +3994,189 @@ mục nào mồ côi.
   vì một bên dùng ký tự dựng sẵn còn bên kia dùng dấu kết hợp. Phủ nốt vế đó cần một phụ thuộc
   **MỚI** (`unicode-normalization`), nên nó phải đi qua **cửa rà giấy phép NFR15 ba bước** trước
   — không tiện tay cài. **Chủ: Ice** *(cùng hạng với các quyết định phụ thuộc khác)*.
+
+---
+
+## Story 2.8 — gộp và tách segment tường minh (2026-08-17)
+
+- 🟡 **AC6 vế *"gộp một NHÓM"* đóng một nửa** — chữ ký #1(a) của Ice (2026-08-17) chốt gộp
+  **đúng hai**: câu đang có caret và câu liền trên. Tầng thuần đã sẵn sàng cho `n` bất kỳ
+  (`core::segment::regroup::merge` nhận một lát cắt, `paragraph::merged` cũng vậy), nên phần
+  còn thiếu là **bề mặt chọn nhiều hàng** — thứ không tồn tại trong kho
+  (`editorPanelState.ts:57` là một `Ref<number | null>`) và **không tài liệu nào của dự án mô
+  tả cơ chế chọn**: không Shift+click, không kéo chọn, không Shift+mũi tên ở PRD, epics,
+  `EXPERIENCE.md` hay `DESIGN.md`.
+  ⚠️ Đây là **lượt lặp lại thứ hai** của đúng một câu hỏi — Quyết định #1 của Story 2.5c hỏi y
+  hệt cho *"một dải câu"* của FR133 và Ice cũng ký *"một câu"*, ghi nợ với chủ là *"ứng viên tự
+  nhiên là 2.8"* (`:3397-3424`). Nay 2.8 đã đi qua và **không** mở nó ⇒ món nợ **đổi chủ**, chứ
+  không đóng. **Chủ: một story sau của Epic 2 dựng cơ chế chọn nhiều hàng** — và story đó phải
+  đóng **cả hai** món cùng lượt.
+
+- 🔴 **`⌘/` có thể là một phím tắt CHẾT trên bàn phím thật, và bộ đo không phân biệt được.**
+  Đo 2026-08-17 trong cửa sổ Tauri thật: `browser.keys(['Meta', '/'])` giao một `keydown` mang
+  **`code: "/"`**, không `"Slash"` ⇒ hợp âm `Mod+Slash` **không khớp**, `defaultPrevented:
+  false`, **0** command chạy. Đối chứng cùng lượt: `⌘M` giao `code: "KeyM"` ⇒ khớp.
+  ⚠️ **Ice thử tay 2026-08-17 và báo *"đã thử ⌘/ nhưng không có gì xảy ra"*.** Số đó **không
+  tách được hai khả năng**, và phải ghi ra đúng mức: lượt thử ấy diễn ra khi mã còn mang khuyết
+  tật `caretPositionFromPoint` (xem mục dưới), nên *"không có gì xảy ra"* cũng là triệu chứng
+  đúng của **thiếu điểm cắt**, không riêng của một hợp âm chết.
+  🔴 Hai đường đóng, và **không** đường nào là "nới hằng cho hết đỏ": ① một lượt gõ `⌘/` bằng
+  tay **sau bản vá này**, trên một câu đã bấm vào cột nguyên văn; ② nếu vẫn câm thì `keys.ts`
+  phải chấp cả hai `code` — và đó là một lượt nới **danh mục đóng**, tức một quyết định.
+  **Chủ: Ice.**
+
+- 🟡 **AC5 (*"cặp TM đã ghi ở lại nguyên"*) đóng bằng CẤU TRÚC, không bằng một phép đo.**
+  Bảng TM chưa tồn tại trong lược đồ, nên không đường sản phẩm nào đối chứng được. Thứ nói được
+  hôm nay: **không câu SQL nào** của `merge_segments`/`split_segment` chạm một bảng ngoài
+  `segment`. **Chủ: Epic 7** — nghiệm thu lại cùng lượt bảng TM ra đời.
+
+- 🟡 **Luật `is_omitted` khi gộp (chữ ký #5(a)) chưa có chỗ đứng trong spine.** Ice phán định
+  2026-08-17 rằng *"bất kỳ mảnh nào đã cắt ⇒ segment mới đã cắt"* nằm **trong biên độ AD-5** và
+  **không** cần một `AD` mới ⇒ cửa chặn Task 0.4 không kích hoạt. Nhưng hôm nay nguồn **duy
+  nhất** phát biểu luật ấy là một ca test
+  (`merging_carries_the_omitted_flag_from_any_piece_not_from_all_of_them`) cộng một doc-comment.
+  ⚠️ Và nó **ngược chiều** AD-47 ④ ở ca bất đồng — 47 ④ chọn chiều bi quan cho một **nhãn**, luật
+  này chọn chiều an toàn cho một **quyết định của người dùng**. Hai cột cùng một ca mà khác
+  chiều là đúng thứ một story sau sẽ đọc nhầm. **Chủ: Ice** *(một dòng trong AD-5, hoặc một mục
+  của AD kế tiếp chạm segment)*.
+
+- ✅ **~~Lưới phình theo số lần sửa, VĨNH VIỄN~~ → ĐÃ ĐÓNG 2026-08-17 (Story 2.8), bằng một
+  lượt DÙNG THẬT.** Chữ ký #6(b) giữ hàng về hưu **ở lại trong lưới** với vạch `ornament`, và
+  món nợ này ghi đúng cái giá của nó. Ice **lật** chữ ký ấy cùng ngày, sau khi dùng: *"đã tách
+  ra 2 câu, nhưng câu cũ vẫn tồn tại và số thứ tự vẫn chiếm, gây rối nội dung"*.
+  ⇒ Đóng bằng `WHERE retired_at IS NULL` ở `read_open_chapter_segments` + `applyRegroup` gỡ
+  hàng về hưu khỏi ảnh chụp. **Lọc khỏi LƯỚI, không xoá khỏi ĐĨA** — AC4 còn nguyên, và một ca
+  hợp đồng khoá cả hai vế (lưới 3 → 2, đĩa 3 → 4).
+  🔴 **Bài học giữ lại, vì nó rộng hơn món nợ:** cái giá này **đã được viết ra bằng chữ TRƯỚC
+  KHI KÝ** và vẫn không đủ để thấy. Ba lý lẽ đứng sau #6(b) đều **vẫn đúng** hôm nay; cả ba
+  cộng lại thua một lượt người thật nhìn vào một Chương thật.
+
+- 🟡 **Nhánh `'ornament'` của `resolveSegmentRule` KHÔNG CÒN ĐƯỜNG TỚI** — hệ quả trực tiếp của
+  lượt lật ngay trên. Nó **không** bị gỡ, và đó là một lựa chọn có lý do: `ornament` *"mờ đã về
+  hưu"* là **một trong sáu** giá trị vạch mà UX-DR19 (`epics.md:555`) khai, nên gỡ nó khỏi mã
+  là làm mã lệch một UX-DR **đang đứng** — `project-context.md:456-458` cấm sửa spec cho khớp
+  mã.
+  ⇒ Hai đường đóng, và cả hai là **một quyết định**, không một lượt dọn: ① một bề mặt nào đó
+  *(lịch sử? điều hướng tới chỗ đánh dấu FR119?)* cho hàng về hưu một chỗ hiện, và nhánh này
+  sống lại; ② UX-DR19 rút xuống năm giá trị, và **đó là một lượt sửa spec** phải đi qua thủ tục
+  của nó. **Chủ: Ice.**
+
+- ⚠️ **`⌘M` sẽ va Quản lý TM ở Epic 7.** `mockups/tm-manage.html:128` dùng `⌘M` mở màn hình
+  Quản lý TM; Story 2.8 vừa đăng ký `⌘M` cho `editor.merge_segments`. Va chạm **chưa xảy ra**
+  *(Quản lý TM là Epic 7)*, và tài liệu **chưa từng gọi tên nó** — trong khi xung đột `⌘⇧T` thì
+  `mockups/settings.html:274-275` đã đánh dấu bằng `class="conflict"`. `conflictFor` chạy trên
+  **toàn registry** nên nó sẽ đỏ ở `register()` chứ không im lặng — nhưng nó đỏ ở một story
+  không hiểu vì sao. **Chủ: Epic 7.**
+
+- ⚠️ **Phép ánh xạ *"offset → chỉ số ký tự"* chưa đo với Hán Việt BẬT.**
+  `editorSegments.ts::sourceCutOffsetOf` cộng dồn độ dài mọi text node đứng trước, nên nó
+  **đúng theo cấu trúc** cho cả hai trạng thái. Nhưng số đo nền
+  *(`2-8-ban-do/README.md` bước ⓪: `soPhanTuCon = 0`, ba text node `[0, 40, 0]`)* lấy với Hán
+  Việt **TẮT**. Bật lên thì ô mang thêm `<ruby>`/`<rt>`, và `<rt>` mang `user-select: none`
+  (`SourceHanViet.vue:980`) — một biến chưa ai đo ở đường **caret**, khác đường **vùng chọn**.
+  **Chủ: story đầu tiên chạm lại đường tách**, hoặc một lượt đo tay của Ice.
+
+- 🔴 **Bộ e2e KHÔNG giao được một cú bấm chuột tới cột nguyên văn** — đo 2026-08-17, ba cách
+  nhắm *(toạ độ tuyệt đối · `origin` + lệch · `origin` trần)*, và **cùng lệnh đó trên ô
+  `[data-col="tgt"]` thì ăn**. ⇒ Spec `segment-merge-split.e2e.mjs` phải bắn một `MouseEvent`
+  **tổng hợp** lên ô, với toạ độ lấy từ hộp dòng thật.
+  ⚠️ **Vế KHÔNG được phủ, và phải nói ra:** *"một cú bấm CHUỘT THẬT vào cột nguyên văn có tới
+  được `onSourceCellMouseUp` không"*. **Chủ: Ice** *(một lượt bấm tay)*, hoặc **story hạ tầng
+  e2e** nếu nó tìm ra cách lái con trỏ tới một vùng không soạn thảo được.
+  🔵 Gộp vào cùng chủ với hai món đã có: `devServerIsUp()` tin một Vite hấp hối (`:3345-3354`)
+  và `FLUSH_WAIT_MS` thua một máy đang biên dịch (`:3902-3906`).
+
+- 🔴 **Auto-Lookup bằng chuột ở cột nguồn CHƯA CÓ đường nghiệm thu, và có thể đang chết.**
+  Đo 2026-08-17 (`2-8-ban-do/README.md` vòng 2–3): trên WKWebView, **không cử chỉ chuột nào**
+  tạo ra một vùng chọn ở cột nguyên văn — không caret từ một cú bấm, không `Range` từ một lượt
+  kéo, kể cả sau khi tài liệu đã có tiêu điểm. Đối chứng ô bản dịch cho `"Caret"` ⇒ thước tốt.
+  FR21 (Story 1.18, **đã phát hành**) dựa **toàn bộ** vào vùng chọn đó
+  (`GridPanel.vue:309` → `attachSelectionWatcher` bắt `mouseup` → `currentSelectionText()`), và
+  bộ e2e hôm nay **không có spec nào** cho nó.
+  ⚠️ Ứng viên còn lại — *"driver không lái được máy chọn văn bản của WebKit trong nội dung
+  không sửa được"* — **không loại trừ được bằng chính driver đó**, theo cấu tạo. Và món ngay
+  trên vừa cho nó một chỗ dựa: driver cũng không giao được một cú bấm tới cột đó.
+  🔴 **Ice chốt 2026-08-17: tách hẳn thành một story hạ tầng**, gộp với hai món *"bộ e2e chập
+  chờn"*. **Chủ: story hạ tầng e2e** — và một lượt bôi đen bằng tay của Ice đóng được vế *"sản
+  phẩm có hỏng không"* ngay hôm nay.
+
+- 🟡 **Khe thông điệp của `StatusBar` vẫn đóng, và `⌘Z` vẫn chưa có mô hình.** Chữ ký #9(a)
+  (Ice, 2026-08-17) giữ 2.8 đúng phạm vi tám AC: **không** dòng báo hệ quả, **không** hoàn tác.
+  ⚠️ Cái giá, ghi ra thay vì giấu: gộp là một thao tác **phá huỷ** *(hai câu biến khỏi chỗ cũ)*
+  chạy **im lặng và không lui được**. `editorRegroupError` có tồn tại nhưng **chưa component
+  nào đọc** — cùng khuôn `editorOmitError` đã ghi từ 2.5c.
+  **Chủ: Story 2.9** cho dòng báo; **Ice** cho `⌘Z` *(chưa FR/AD/UX-DR nào chốt mô hình undo, và
+  chọn một mô hình là một `AD` MỚI)*.
+
+- ⚠️ **`ord` trong ảnh chụp webview thành CŨ sau một lượt gộp/tách.** Chữ ký #7(a) đánh lại
+  `ord` **liên tục 1..N cho cả Chương** trong Rust, còn `applyRegroup` chỉ vá những hàng bị
+  chạm. Hôm nay vô hại **theo một phép đo, không theo một lập luận**: `grep '\.ord'` trên
+  `src/**` cho **0** chỗ đọc — lưới đánh số hàng bằng **chỉ số mảng** và thứ tự đọc là thứ tự
+  mảng. **Chủ: story đầu tiên đọc `segment.ord` ở webview** — nó phải chọn giữa vá đủ hoặc nạp
+  lại Chương (đường #4(b), đã bị loại vì nạp 9.850 hàng cho một thao tác sửa một chỗ).
+
+---
+
+## Deferred from: code review of story-2.8 (2026-08-17)
+
+*(Lượt rà ba tầng — Blind Hunter · Edge Case Hunter · Acceptance Auditor. Mười phát hiện còn
+lại sau phân loại: hai quyết định Ice chốt tại chỗ, tám bản vá. Các món dưới đây là thứ **lượt
+vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
+
+- 🟡 **Dấu điểm cắt KHÔNG vẽ được ở chế độ Hán Việt.** Cơ chế tích luỹ *(Ice ký 2026-08-17 cho
+  AC7)* vẽ mỗi ranh giới một dấu ở đường **chữ trần** — `GridPanel.vue::sourcePiecesOf` cộng
+  `.cut-mark`. Ở chế độ Hán Việt ô do `SourceHanViet.vue` dựng và chỗ cắt rơi vào **giữa các
+  `<ruby>`**; cắm dấu vào đó là chẻ một `<ruby>` làm đôi, thứ vừa sai ngữ nghĩa vừa đụng hợp
+  đồng vùng chọn của Auto-Lookup (`hanVietSurfaces.ts`). ⇒ Ở chế độ đó ô chỉ nhận **viền
+  `has-cuts`**: người dùng biết *"câu này đang có điểm chờ"* và biết **bao nhiêu điểm**
+  (`data-cut-count`), nhưng **không thấy chúng ở đâu**. 🔴 Phép **ánh xạ** thì đã đúng ở cả hai
+  chế độ *(`<rt>` bị loại khỏi phép đếm, hai ca vitest ③b/③d khoá)* — hở là vế **hiển thị**,
+  không vế đúng-sai. **Chủ: một story sau của Epic 2 có động tới lưới Hán Việt.**
+
+- 🟡 **`⌘Z` cho một lượt tách ĐA-MẢNH — cùng món nợ cũ, nhưng cái giá đã lớn hơn.** Quyết định
+  #9(a) *(Ice ký 2026-08-17)* chốt 2.8 không dựng undo, chủ **Story 2.9**. Lượt đa-mảnh
+  **không đổi** quyết định đó nhưng đổi hậu quả: một cú `⌘/` nay phá **một** hàng thành `n`
+  hàng, `n` không chặn trên. Cộng với việc không có dòng báo hệ quả *(cũng #9(a))*, một lượt
+  bấm nhầm bốn chỗ rồi `⌘/` là **năm** hàng mới, im lặng, không lui được. ⚠️ Đường lui **duy
+  nhất** hôm nay: bấm trùng một điểm đã có thì **gỡ** nó ra — đã cài, nhưng nó chỉ lui được
+  **trước** khi bấm `⌘/`. **Chủ: Story 2.9** *(cùng chủ với dòng báo và `⌘Z`)*.
+
+- 🔴 **Luật `is_omitted` khi gộp (chữ ký #5(a)) VẪN chưa có chỗ đứng trong spine.** Món này đã
+  ghi ở lượt dev; nhắc lại ở đây vì lượt rà xác nhận nó là mệnh đề **duy nhất** của story mà
+  nguồn phát biểu là một ca test, không một `AD`. Ice phán định 2026-08-17 rằng nó nằm trong
+  biên độ AD-5 và Task 0.4 không kích hoạt. ⚠️ Và lượt rà thêm một số cho hồ sơ: `is_omitted`
+  *(bất kỳ ⇒ cắt)* và `translation_origin` *(bất đồng ⇒ `other`)* là **hai trường cạnh nhau
+  trong cùng một struct giải "bất đồng" NGƯỢC CHIỀU nhau**. Cả hai đều đúng theo chữ ký; cái
+  thiếu là một chỗ viết ra **vì sao** hai chiều khác nhau, ở nơi story sau sẽ đọc. **Chủ: Ice**
+  *(một `AD` mới, hoặc một dòng trong AD-5)*.
+
+- ⚠️ **Ca e2e đa-mảnh mang y nguyên HAI giới hạn của bàn đo, không thêm và không bớt.**
+  `segment-merge-split.e2e.mjs` ca *"tách BA mảnh"* dùng một `MouseEvent` tổng hợp *(bộ đo
+  không giao được cú bấm tới cột nguyên văn qua **ba** cách nhắm)* và một `KeyboardEvent` mang
+  `code: 'Slash'` *(`browser.keys(['Meta','/'])` giao `code: "/"`)*. ⇒ Hai vế **chưa được phủ**
+  vẫn là hai vế cũ: *"chuột thật có tới `onSourceCellMouseUp` không"* và *"WKWebView thật báo
+  `code` gì cho phím gạch chéo"*. **Chủ: Ice** *(một lượt bấm và gõ tay)* — không phải một món
+  mới, nhưng ca mới **không** thu hẹp nó.
+
+- ⚠️ **`split_at` cắt theo code point, không theo CỤM CHỮ CÁI.** Một chỗ cắt giữa một ký tự cơ
+  sở và một dấu tổ hợp *(chuỗi NFD)* cho hai mảnh "hợp lệ" mà mảnh sau mở đầu bằng một dấu mồ
+  côi. **Không với tới hôm nay**: nguồn duy nhất của `cut` là caret của WebKit, và caret không
+  đậu giữa một cụm. Ghi ra vì `split_at` là `pub` và một chỗ gọi thứ hai sẽ không có hàng rào
+  đó. **Chủ: story nào cho `split_at` một chỗ gọi không đến từ caret.**
+
+- ⚠️ **`ORDER BY ord` thiếu khoá phụ: đã vá MỘT chỗ, chưa rà HẾT kho.** Lượt rà vá
+  `read_open_chapter_segments` (`ORDER BY ord, id`) sau khi thấy hai truy vấn khác của cùng
+  story đã có khoá phụ còn nó thì không. **Chưa ai đếm** còn bao nhiêu `ORDER BY` trên một cột
+  không `UNIQUE` ở phần còn lại của `commands/**`. `ord` cố ý không `UNIQUE` (`schema.rs:279-282`)
+  nên đây là một lớp, không một ca. **Chủ: một story hạ tầng, hoặc một cổng tĩnh mới.**
+
+- 🔵 **Quan sát MỚI cho món nợ *"bộ e2e chập chờn"* (2026-08-17, lượt code review 2.8).**
+  `editor-typing-flush.e2e.mjs:184` đỏ trong bộ **trọn bộ** *(nhận `""` thay vì chữ vừa gõ)*
+  và xanh **2/2** khi chạy riêng — khuôn đã biết. Cái **mới**: trước ca đỏ có **hơn 20** dòng
+  `WARN tauri-service:window: Failed to get window states: Error: Tauri core.invoke not
+  available after 5s timeout`. ⇒ Cầu IPC của **bàn đo** không lên trong suốt spec đó, một ứng
+  viên chưa từng nêu trong hai món nợ cũ *(`devServerIsUp` tin một Vite hấp hối · `FLUSH_WAIT_MS`
+  thua một máy đang biên dịch)* và cũng khác biểu hiện của lượt ② lượt dev
+  *(`Couldn't find element for "pointerMove"`)*. 🔴 **Ba biểu hiện, một khuôn *"xanh riêng, đỏ
+  trong bộ"*** — chưa ai đặt tên nguyên nhân, và luật sau Story 1.22 cấm chấm "đã chẩn đoán"
+  khi mới có triệu chứng. **Chủ: story hạ tầng e2e** *(cùng chủ với hai món trên)*.

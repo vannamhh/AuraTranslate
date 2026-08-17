@@ -362,6 +362,18 @@ const CMD_READ_SEGMENT_HISTORY = 'read_segment_history'
  */
 const CMD_RESTORE_SEGMENT_VERSION = 'restore_segment_version'
 
+/** Tên command trên dây — Story 2.8, FR78 · AD-5. */
+const CMD_MERGE_SEGMENTS = 'merge_segments'
+/**
+ * Tên command trên dây — Story 2.8.
+ *
+ * ⚠️ Đừng nhầm với `split_chapter_into_segments` ngay trên: cái kia chạy **bộ tách câu** trên
+ * nguyên khối `chapter.source_text` **một lần lúc nhập** (AD-4); cái này tách **một segment
+ * đã tồn tại** tại một chỗ người dùng chỉ đích danh, và nó cho segment cũ **về hưu** (AD-5).
+ * Hai khái niệm khác nhau, và AD-4 cấm cái thứ nhất chạy lại lần thứ hai.
+ */
+const CMD_SPLIT_SEGMENT = 'split_segment'
+
 /** Có cầu IPC của Tauri trong window này không — cùng khuôn `./chapter.ts::hasIpcBridge`. */
 function hasIpcBridge(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
@@ -758,6 +770,122 @@ export async function restoreSegmentVersion(
 
     console.info(
       `[segment] không gọi được \`${CMD_RESTORE_SEGMENT_VERSION}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { outcome: null, error: null }
+  }
+}
+
+/**
+ * Hình dạng `RegroupOutcome` phía Rust — **`snake_case`, đúng như trên dây**. Story 2.8.
+ *
+ * 🔴 **`new_segments` mang hàng ĐẦY ĐỦ, và đó là chữ ký #4(a) của Ice** *(2026-08-17)*, không
+ * một lượt trả về hào phóng. AD-47 ① đòi mỗi lượt ghi không-phải-người-dùng đặt lại **mốc so
+ * sánh** của segment về đúng văn bản vừa ghi — và mốc **không sống trên đĩa**: Quyết định
+ * #2(b) của Story 2.7 đặt nó ở webview, trong mảng `segments` (`editorPanelState.ts:34`).
+ * Segment mới mang một `id` **chưa từng có** trong mảng đó ⇒ cách duy nhất đặt được mốc mà
+ * không dựng một nguồn sự thật thứ hai là chèn nguyên hàng vào mảng.
+ *
+ * 🔴 **`retired` mang HÀNG ĐẦY ĐỦ, không một danh sách `id`.** Chữ ký #6(b) giữ hàng về hưu
+ * **ở lại trong lưới** với vạch `ornament`, và vị từ vẽ vạch đó là `retiredAt !== null`
+ * (`editorSegments.ts:162`). Với một danh sách `id` trần, chỗ này chỉ còn cách **bịa** một
+ * mốc thời gian để vạch hiện lên — một giá trị dựng ở frontend cho một cột của đĩa, đúng thứ
+ * AD-1 cấm.
+ *
+ * ⚠️ Và nó cũng không suy được theo chiều kia: *"những id không có trong `new_segments`"*
+ * đúng cho gộp và **sai cho tách** *(một id cũ, hai id mới)*.
+ */
+export type RegroupOutcome = {
+  /** Những segment vừa **về hưu** (AD-5), hàng đầy đủ. Gộp: hai. Tách: một. */
+  retired: ChapterSegment[]
+  /** Những hàng vừa **tạo mới**, đã ở hình dạng dây. Gộp: một. Tách: hai. */
+  new_segments: ChapterSegment[]
+}
+
+/** Ba trạng thái, cùng khuôn mọi adapter của tệp này. */
+export type RegroupResult = {
+  outcome: RegroupOutcome | null
+  error: IpcError | null
+}
+
+/**
+ * **Gộp một segment với segment liền trên nó** — Story 2.8, AC1.
+ *
+ * ⚠️ `segmentId` là **camelCase trên dây** dù Rust nhận `segment_id`; trường **trả về** thì
+ * giữ `snake_case`. Hai chiều khác nhau, và tệp này là chỗ duy nhất gõ cả hai cái tên.
+ *
+ * ⚠️ **Nghĩa vụ của nơi gọi:** flush mọi ký tự đang chờ **trước** lượt gọi này. Bản dịch đi
+ * vào hàng mới đọc từ **đĩa**, và `editorEditedText` có thể còn giữ ký tự chưa xuống WAL
+ * (AD-35). Cùng nghĩa vụ mà `restoreSegmentVersion` đã mang.
+ *
+ * 🔴 **TIN payload, không kiểm lúc chạy** — và lựa chọn đó nói ra thay vì để im lặng. Tệp
+ * này có chín adapter, **tám** tin payload và đúng một (`readSegmentHistory`) kiểm; lệch
+ * quy ước ấy là một món nợ **đang mở, chủ Ice** (`deferred-work.md`). Đi theo số đông là
+ * giữ món nợ ở đúng một chỗ thay vì tách nó làm hai.
+ *
+ * ⚠️ **Cái giá, ghi ra:** hình dạng dây của lệnh này **không** có lưới nào ngoài **e2e** —
+ * đúng lớp lỗi đã lọt hai lần *(cột `status` ở 2.5, tham số `textAtLoad` ở 2.7)*, cả hai lần
+ * đều qua sạch toàn bộ test Rust lẫn vitest vì fixture chép tay luôn có sẵn trường.
+ */
+export async function mergeSegments(segmentId: number): Promise<RegroupResult> {
+  try {
+    const outcome = await invoke<RegroupOutcome>(CMD_MERGE_SEGMENTS, { segmentId })
+    return { outcome, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: null, error: err }
+
+    // 🔴 Cùng ba nhánh và cùng lý do với `setSegmentOmitted` — xem chú thích ở đó.
+    if (hasIpcBridge()) {
+      console.error(
+        `[segment] \`${CMD_MERGE_SEGMENTS}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[segment] không gọi được \`${CMD_MERGE_SEGMENTS}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { outcome: null, error: null }
+  }
+}
+
+/**
+ * **Tách một segment tại `cuts`** — Story 2.8, AC2 · AC7.
+ *
+ * Mỗi phần tử của `cuts` đếm **ký tự Unicode** của `source_text`, không byte. `n` chỗ cắt cho
+ * `n + 1` mảnh trong **một** lượt ghi. Tầng Rust chịu được một số bất kỳ và từ chối tường
+ * minh khi một chỗ cắt để lại một mảnh rỗng *(kể cả ca hai chỗ cắt trùng nhau)*.
+ *
+ * 🔵 **2026-08-17 — `cut: number` thành `cuts: number[]`**, chữ ký của Ice cho AC7 vế *"nhiều
+ * mảnh"* sau code review.
+ * 🔴 Đây là một lượt **đổi hình dạng dây**, và kho này đã để lọt đúng lớp lỗi ấy **hai lần**
+ * *(cột `status` ở 2.5, tham số `textAtLoad` ở 2.7)*: cả hai lần toàn bộ test Rust và vitest
+ * đều xanh, vì fixture chép tay luôn có sẵn trường. ⇒ **e2e là lưới duy nhất** cho vế này.
+ *
+ * ⚠️ Tên tham số trên dây là **`cuts`** (camelCase — `invoke` gửi camelCase dù hàm Rust nhận
+ * `snake_case`); trường của `RegroupOutcome` **trả về** thì giữ `snake_case`.
+ *
+ * ⚠️ Cùng nghĩa vụ flush và cùng quy ước *"tin payload"* như [`mergeSegments`].
+ */
+export async function splitSegment(
+  segmentId: number,
+  cuts: readonly number[],
+): Promise<RegroupResult> {
+  try {
+    const outcome = await invoke<RegroupOutcome>(CMD_SPLIT_SEGMENT, { segmentId, cuts })
+    return { outcome, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: null, error: err }
+
+    // 🔴 Cùng ba nhánh và cùng lý do với `setSegmentOmitted` — xem chú thích ở đó.
+    if (hasIpcBridge()) {
+      console.error(
+        `[segment] \`${CMD_SPLIT_SEGMENT}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[segment] không gọi được \`${CMD_SPLIT_SEGMENT}\` — chạy ngoài Tauri? ${String(err)}`,
     )
     return { outcome: null, error: null }
   }
