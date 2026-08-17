@@ -29,8 +29,13 @@
 // hợp đồng với người dùng là *"bạn không phải bận tâm về việc lưu"*, và một chỉ báo nhấp nháy
 // là đúng thứ bắt họ bận tâm.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { t } from './i18n'
-import { editorConfirmNotice, editorLastSavedAt } from './panels/editorPanelState'
+import { t, tError } from './i18n'
+import {
+  editorConfirmNotice,
+  editorLastSavedAt,
+  editorRegroupError,
+  editorRegroupNotice,
+} from './panels/editorPanelState'
 
 /**
  * Đồng hồ của thanh này — **một `setInterval` 1 giây DUY NHẤT**, và nó chỉ chạy khi có gì để đếm.
@@ -110,6 +115,59 @@ const confirmNoticeKey = computed<string | null>(() => {
   if (notice === null) return null
   return CONFIRM_NOTICE_KEYS[notice]
 })
+
+/**
+ * 🔴 **Story 2.9 · AC4 — bảng tra THỨ HAI, và nó cũng ĐÓNG.**
+ *
+ * Sáu khoá, đóng trên `Exclude<RegroupNotice, 'refused'>`. `'refused'` **không** có mặt ở đây
+ * có chủ ý: lý do từ chối là câu chữ của **Rust** *(`err.segment.no_previous` và họ hàng)*, đi
+ * ra màn hình qua `tError()`. Chép nó thành một khoá thứ bảy ở đây là dựng nguồn sự thật thứ
+ * hai cho cùng một mệnh đề — và bản sao sẽ lệch vào ngày Rust thêm một lý do.
+ *
+ * ⚠️ **Vì sao KHÔNG nới `CONFIRM_NOTICE_KEYS` ra:** bảng kia đóng trên `ConfirmResult`, và
+ * toàn bộ giá trị của nó là `vue-tsc` **đỏ** khi ai đó thêm một kết quả mà quên bảng. Nới nó
+ * thành `string` để nhét thêm câu của lượt gộp gỡ đúng cái chốt ấy, cho **cả hai** lượt.
+ * ⇒ Hai bảng, cả hai đóng. Cái giá là một nhánh `v-else-if` nữa ở template.
+ *
+ * ⚠️ `'split'` · `'no-cut'` **không** thuộc phạm vi Story 2.9 *(chúng là đường `⌘/` của Story
+ * 2.8)*, nhưng chúng đi qua **cùng** `regroup()` nên bảng phải phủ chúng — một `Record` thiếu
+ * khoá không biên dịch được, và đó chính là chốt đang làm việc.
+ */
+const REGROUP_NOTICE_KEYS: Record<
+  Exclude<NonNullable<typeof editorRegroupNotice.value>, 'refused'>,
+  string
+> = {
+  merged: 'panel.grid.regroup_merged',
+  split: 'panel.grid.regroup_split',
+  'no-caret': 'panel.grid.regroup_no_caret',
+  'no-cut': 'panel.grid.regroup_no_cut',
+  'flush-failed': 'panel.grid.regroup_flush_failed',
+  'still-dirty': 'panel.grid.regroup_still_dirty',
+}
+
+/**
+ * Câu của lượt gộp/tách gần nhất, hoặc `null`.
+ *
+ * 🔴 Nhánh `'refused'` đọc `editorRegroupError` — **người đọc đầu tiên** của ô nhớ đó. Trước
+ * story này nó được export mà không component nào đọc, nên một lượt từ chối *(ví dụ
+ * `segment.no_previous` ở câu đầu Chương — ca **thường nhất** của cử chỉ `Backspace`)* **không
+ * đổi một pixel nào**. Đúng lớp *"rỗng IM LẶNG"* mà `project-context.md` cấm.
+ *
+ * ⚠️ `error === null` cùng lúc với `notice === 'refused'` là ca *"không có cầu IPC"*
+ * (`regroup()` ghi cả hai). Nó vẫn phải **nói ra** — im lặng ở đây là đúng thứ vừa vá xong,
+ * nên nhánh dùng câu chung của `'flush-failed'`: thao tác chưa xong, dữ liệu còn nguyên.
+ */
+const regroupNoticeText = computed<string | null>(() => {
+  const notice = editorRegroupNotice.value
+  if (notice === null) return null
+  if (notice !== 'refused') return t(REGROUP_NOTICE_KEYS[notice])
+  const err = editorRegroupError.value
+  if (err === null) return t(REGROUP_NOTICE_KEYS['flush-failed'])
+  // ⚠️ **MỘT tham số, không hai.** `tError(err, err.params)` là thừa và `check:lint` đỏ đúng
+  // chỗ: `tError` đã tự đọc `err.params` ở nhánh cuối (`i18n/index.ts`, `t(key, params ??
+  // err.params)`). Tham số thứ hai chỉ dành cho nơi gọi muốn **ghi đè** bảng tham số.
+  return tError(err)
+})
 </script>
 
 <template>
@@ -135,6 +193,19 @@ const confirmNoticeKey = computed<string | null>(() => {
       ở `noteEditorEdit`, không bằng một hẹn giờ.
     -->
     <span v-if="confirmNoticeKey !== null" class="notice">{{ t(confirmNoticeKey) }}</span>
+    <!--
+      aura-allow-text: KẾT QUẢ của `t()`/`tError()`. 🔵 Story 2.9, AC4 — câu của lượt gộp/tách.
+
+      🔴 Nó đứng **SAU** câu xác nhận và **TRƯỚC** mốc *"Đã lưu"*, và thứ tự đó là một quyết
+      định: một lượt `⌘Enter` bị từ chối nói *"chưa lưu được bản dịch"* — khẩn hơn *"đã gộp
+      hai câu"*, vì một cái nói dữ liệu chưa an toàn còn cái kia nói một thao tác đã xong.
+      Và cả hai đều khẩn hơn *"đã lưu 12 giây trước"*.
+
+      ⚠️ Hai ô nhớ **không bao giờ** cùng mang giá trị trong một lượt dùng thật: cả hai được
+      dọn ở `noteEditorEdit`, và hai thao tác không xảy ra cùng một tick. Thứ tự này là hàng
+      rào cho ca **không lường trước**, không cho một ca đã biết.
+    -->
+    <span v-else-if="regroupNoticeText !== null" class="notice">{{ regroupNoticeText }}</span>
     <span v-else-if="secondsSinceSave !== null" class="saved">{{
       t('status.saved_seconds_ago', { seconds: String(secondsSinceSave) })
     }}</span>

@@ -296,6 +296,10 @@ export function noteEditorEdit(segmentId: number, targetText: string): void {
   // ⚠️ Dọn ở ĐÂY, không bằng một `setTimeout`: một câu tự biến mất sau N giây là một hẹn giờ
   // phải chọn N, phải test, và nó vẫn sai với người đọc chậm. Sự kiện thì không phải chọn gì.
   confirmNotice.value = null
+  // 🔵 Story 2.9, AC4 — câu báo của lượt gộp/tách đi cùng cửa và cùng lý do. Cả bảy giá trị
+  // của `RegroupNotice` mô tả một thời điểm **đã trôi qua**; giữ chúng lại trong lúc người
+  // dùng đang gõ là để một câu ĐÚNG-LÚC-ĐÓ nói dối ở hiện tại.
+  regroupNotice.value = null
 }
 
 /**
@@ -1103,6 +1107,31 @@ const regroupError = ref<IpcError | null>(null)
 export const editorRegroupError: DeepReadonly<Ref<IpcError | null>> = readonly(regroupError)
 
 /**
+ * 🔴 **Điều thanh trạng thái phải nói sau lượt gộp/tách gần nhất** — Story 2.9, AC4.
+ *
+ * Danh mục **ĐÓNG**. `'refused'` là ca duy nhất không mang sẵn câu chữ: lý do nằm ở
+ * [`editorRegroupError`] và đi ra màn hình qua `tError()` — Rust là nguồn sự thật cho lý do
+ * từ chối, và chép nó sang một bảng ở đây là dựng nguồn sự thật thứ hai.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 VÌ SAO MỘT Ô NHỚ THỨ HAI, KHÔNG NỚI `confirmNotice` RA
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `confirmNotice` đóng trên `ConfirmResult`, và `StatusBar.vue::CONFIRM_NOTICE_KEYS` là một
+ * `Record` **đủ khoá** trên kiểu đó — nên thêm một kết quả vào `ConfirmResult` mà quên bảng
+ * tra làm `vue-tsc` **đỏ**. Đó là toàn bộ giá trị của nó. Nới nó thành `string` để nhét thêm
+ * câu của lượt gộp là gỡ đúng cái chốt ấy, cho **cả hai** lượt.
+ * ⇒ Hai ô nhớ, hai bảng tra, **cả hai đóng**. Cái giá là một nhánh `v-else-if` nữa ở template.
+ *
+ * ⚠️ **Hai ô nhớ mà một chỗ hiện** — thanh cao 34px chỉ chứa một mệnh đề. Thứ tự ưu tiên nằm
+ * ở `StatusBar.vue`, không ở đây; chỗ này chỉ ghi *"lượt gộp/tách vừa rồi nói gì"*.
+ */
+export type RegroupNotice = 'merged' | 'split' | Exclude<RegroupResultCode, 'done'>
+
+const regroupNotice = shallowRef<RegroupNotice | null>(null)
+/** Xem [`regroupNotice`]. `StatusBar.vue` đọc. `null` ⇒ không có gì để nói. */
+export const editorRegroupNotice: DeepReadonly<Ref<RegroupNotice | null>> = readonly(regroupNotice)
+
+/**
  * 🔴 **Vá ảnh chụp sau một lượt gộp/tách** — và đây là chỗ AD-47 ① được thi hành ở webview.
  *
  * AD-47 ① đòi mỗi lượt ghi không-phải-người-dùng đặt lại **mốc so sánh** của segment về đúng
@@ -1163,18 +1192,22 @@ function applyRegroup(outcome: RegroupOutcome): void {
 async function regroup(
   id: number,
   goi: () => Promise<{ outcome: RegroupOutcome | null; error: IpcError | null }>,
-  ten: string,
+  ten: 'gop' | 'tach',
 ): Promise<RegroupResultCode> {
   // ① AD-35 vế (c) — bản dịch đi vào hàng mới đọc từ **ĐĨA**, nên mọi ký tự đang chờ phải
   //    xuống WAL trước. Cùng cửa với lượt ký và lượt khôi phục.
   const flushed = await flushEditorBeforeDiscreteWrite()
-  if (flushed === 'failed') return 'flush-failed'
+  if (flushed === 'failed') {
+    regroupNotice.value = 'flush-failed'
+    return 'flush-failed'
+  }
   if (flushed === 'still-dirty') {
     // 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."*
     console.error(
       `[editor] KHONG ${ten} segment ${id}: tap cho van do sau hai luot flush — ` +
         `tu choi thay vi dung mot hang moi tu mot van ban cu hon thu dang tren man hinh.`,
     )
+    regroupNotice.value = 'still-dirty'
     return 'still-dirty'
   }
 
@@ -1182,9 +1215,15 @@ async function regroup(
   if (outcome === null) {
     // ⚠️ `error === null` cũng vào đây: ca *"không có cầu IPC"*. Không ca nào coi là đã xong.
     regroupError.value = error
+    regroupNotice.value = 'refused'
     return 'refused'
   }
   regroupError.value = null
+  // 🔴 Story 2.9, AC4 — ô nhớ dòng báo đặt **cùng chỗ** `regroupError` được dọn, không ở một
+  // nhánh thứ hai. Hai ô nhớ cho cùng một sự kiện mà đặt ở hai chỗ là chỗ một lượt sửa sau
+  // sẽ dọn một cái và quên cái kia — và thanh trạng thái sẽ nói dối **về thao tác vừa xảy
+  // ra**, thứ khó phát hiện nhất vì nó luôn hiện *một* câu đúng ngữ pháp.
+  regroupNotice.value = ten === 'gop' ? 'merged' : 'split'
 
   // ② Vá ảnh chụp — và đó là lượt đặt mốc AD-47 ①. Xem [`applyRegroup`].
   applyRegroup(outcome)
@@ -1228,7 +1267,14 @@ async function regroup(
  */
 export async function mergeCurrentSegment(): Promise<RegroupResultCode> {
   const id = caretSegmentId.value
-  if (id === null) return 'no-caret'
+  // 🔴 Story 2.9, AC4 — lượt trả sớm này KHÔNG đi qua `regroup()`, nên nó phải tự đặt ô nhớ.
+  // Trước bản vá, đây là ca **im lặng nhất** của cả đường: không IPC nào được phát ⇒ không lỗi
+  // nào tồn tại để hiển thị ⇒ màn hình không đổi một pixel. Cùng khuôn `confirmCurrentSegment`
+  // đã phải vá ở code review 2026-08-15.
+  if (id === null) {
+    regroupNotice.value = 'no-caret'
+    return 'no-caret'
+  }
   return await regroup(id, () => mergeSegments(id), 'gop')
 }
 
@@ -1245,7 +1291,11 @@ export async function mergeCurrentSegment(): Promise<RegroupResultCode> {
  */
 export async function splitCurrentSegment(): Promise<RegroupResultCode> {
   const cut = sourceCut.value
-  if (cut === null) return 'no-cut'
+  // Cùng lý do lượt trả sớm của `mergeCurrentSegment` phải đặt ô nhớ — xem chú thích ở đó.
+  if (cut === null) {
+    regroupNotice.value = 'no-cut'
+    return 'no-cut'
+  }
   // 🔵 2026-08-17 — gửi **cả tập**, một lượt. Xem [`sourceCut`] và `regroup.rs::split_at`:
   // gọi `⌘/` `n` lần để có `n + 1` mảnh là đường (c) đã bị bác bằng số đo *(nó cho 5 hàng về
   // hưu thay vì 3, cộng một segment trung gian mang một `id` không ai từng thấy)*.

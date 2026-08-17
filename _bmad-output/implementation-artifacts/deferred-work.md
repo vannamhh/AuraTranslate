@@ -3060,6 +3060,17 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
 
   **Chủ: Story 2.9.**
 
+  → ✅ **ĐÃ ĐÓNG 2026-08-17 (Story 2.9).** Nhánh cắm ở `keydown` (`GridPanel.vue::onEditKeydown`),
+  **sau** chốt `event.isComposing` và không chạm một dòng nào của nó. Tiền đề đo lại từ nguồn
+  trên cây hôm nay, **có đối chứng dương** — thứ bảng ở trên thiếu: `2-9-ban-do/` §Ⓓ chạy
+  `execCommand('delete')` hai lượt trên **cùng một ô**, caret ở offset 0 và caret ở offset 3.
+  Offset 0 cho **0** `beforeinput` / **0** `input` / `textContent` không đổi; offset 3 cho
+  `["deleteContentBackward"]` ở cả hai sự kiện và `"bốn năm sáu"` → `"bố năm sáu"`.
+  ⇒ Thước hoạt động, và con số ở offset 0 là mệnh đề về **engine**, không về bàn đo.
+  🔴 **Một chi tiết mới, đáng ghi riêng:** `execCommand('delete')` trả **`true`** trong khi
+  KHÔNG làm gì. Giá trị trả về của nó nói *"lệnh được nhận"*, không *"lệnh có tác dụng"* — ai
+  đọc nó thành *"đã xoá"* sẽ có một lượt thành công không có thật.
+
 - 🔴 **CÚ BẤM ĐẦU TIÊN VÀO MỘT PANEL GIẾT CARET VỪA ĐẶT — hợp đồng tiêu điểm AD-34 va vào
   hợp đồng vùng gõ.** *(Đo 2026-08-15, Story 2.5b Task 12.2, trong WKWebView 605.1.15 thật.)*
 
@@ -4100,6 +4111,20 @@ mục nào mồ côi.
   chờn"*. **Chủ: story hạ tầng e2e** — và một lượt bôi đen bằng tay của Ice đóng được vế *"sản
   phẩm có hỏng không"* ngay hôm nay.
 
+  → ✅ **VẾ *"SẢN PHẨM CÓ HỎNG KHÔNG"* ĐÃ ĐÓNG 2026-08-17 (Story 2.9) — bằng chữ ký của Ice,
+  đúng cách mục này đã hẹn.** Ice xác nhận trên máy thật: **double-click vào một từ ở cột
+  nguyên văn TRA ĐƯỢC**, kết quả hiện ở Panel Lookup.
+  ⇒ **FR21 SỐNG.** Mệnh đề *"có thể đang chết"* hết đúng, và ứng viên còn lại được xác nhận:
+  *"driver không lái được máy chọn văn bản của WebKit trong nội dung không sửa được"* là một
+  giới hạn của **BỘ ĐO**, không của sản phẩm. Đây là lớp mệnh đề mà chữ ký của Ice **là** đường
+  nghiệm thu duy nhất — cùng hạng với *"gõ tiếng Việt bằng bộ gõ"*.
+  🟡 **Vế *"chưa có đường nghiệm thu"* thì CÒN MỞ** và giữ nguyên chủ *(story hạ tầng e2e)*:
+  hôm nay vẫn **không spec nào** canh FR21 trên lưới, nên nó có thể chết lại trong im lặng.
+  🔵 **Và món này vừa đẻ ra một khuyết tật THẬT, đã vá cùng ngày:** chính vì cột đó dùng chung
+  `mouseup` với đường đánh dấu chỗ cắt của Story 2.8, **mỗi lượt tra một từ để ĐỌC cũng rơi một
+  dấu cắt** — và một cú double-click *(hai `mouseup`)* rơi **hai** dấu. Ice tìm ra bằng cách
+  dùng thật và ký lượt đổi cử chỉ sang `Mod`+click (Story 2.9, AC7).
+
 - 🟡 **Khe thông điệp của `StatusBar` vẫn đóng, và `⌘Z` vẫn chưa có mô hình.** Chữ ký #9(a)
   (Ice, 2026-08-17) giữ 2.8 đúng phạm vi tám AC: **không** dòng báo hệ quả, **không** hoàn tác.
   ⚠️ Cái giá, ghi ra thay vì giấu: gộp là một thao tác **phá huỷ** *(hai câu biến khỏi chỗ cũ)*
@@ -4107,6 +4132,19 @@ mục nào mồ côi.
   nào đọc** — cùng khuôn `editorOmitError` đã ghi từ 2.5c.
   **Chủ: Story 2.9** cho dòng báo; **Ice** cho `⌘Z` *(chưa FR/AD/UX-DR nào chốt mô hình undo, và
   chọn một mô hình là một `AD` MỚI)*.
+
+  → 🟡 **VẾ "DÒNG BÁO" ĐÃ ĐÓNG 2026-08-17 (Story 2.9); vế `⌘Z` CÒN MỞ.**
+  Khe mở bằng một ô nhớ **thứ hai** (`regroupNotice`) cộng một `Record` **thứ hai**
+  (`StatusBar.vue::REGROUP_NOTICE_KEYS`, sáu khoá) — **không** nới `CONFIRM_NOTICE_KEYS` thành
+  `string`. Lý do viết tại chỗ: toàn bộ giá trị của bảng cũ là `vue-tsc` đỏ khi ai đó thêm một
+  kết quả mà quên bảng, và nới nó gỡ đúng cái chốt ấy cho **cả hai** lượt.
+  `editorRegroupError` nay **có người đọc** — nhánh `'refused'` đi qua `tError()`, nên câu từ
+  chối là câu của **Rust**, không một bản chép ở frontend. Ca **thường nhất** của cử chỉ mới
+  *(`Backspace` ở câu đầu Chương)* vì thế thôi im lặng; e2e khoá cả hai chiều
+  (`segment-backspace-merge.e2e.mjs`).
+  🔴 **Vế `⌘Z` giữ nguyên chủ là Ice**, và Story 2.9 đã soạn hồ sơ bàn giao cho nó:
+  `planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md` — hai đường (A)/(B) kèm hệ quả
+  trên đĩa, ba mức phạm vi, tám ràng buộc cứng, sáu điều kiện nghiệm thu.
 
 - ⚠️ **`ord` trong ảnh chụp webview thành CŨ sau một lượt gộp/tách.** Chữ ký #7(a) đánh lại
   `ord` **liên tục 1..N cho cả Chương** trong Rust, còn `applyRegroup` chỉ vá những hàng bị
@@ -4180,3 +4218,97 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   *(`Couldn't find element for "pointerMove"`)*. 🔴 **Ba biểu hiện, một khuôn *"xanh riêng, đỏ
   trong bộ"*** — chưa ai đặt tên nguyên nhân, và luật sau Story 1.22 cấm chấm "đã chẩn đoán"
   khi mới có triệu chứng. **Chủ: story hạ tầng e2e** *(cùng chủ với hai món trên)*.
+
+## Deferred from: 2-9-gop-bang-backspace-dau-o (2026-08-17)
+
+- 🔴 **`AC5` (`⌘Z`) chưa có mô hình, và chọn một mô hình là `AD-48`.** Ice ký 2026-08-17 chữ
+  ký ① *(giao 5/6 AC, ghi nợ AC5)* — nên story này đóng AC1·AC2·AC3·AC4·AC6 và **không viết một
+  dòng mã nào** của AC5. Đo lại từ nguồn cùng ngày: `grep -rniE "undo|redo|UndoManager"` trên
+  `src/` + `src-tauri/src/` cho **0 cơ chế** *(8 dòng trúng đều là chữ `dock`/`undock` của
+  dockview cộng một chú thích)*; `grep -rn "KeyZ" src/commands/` cho **0**; bảng Phím của
+  `EXPERIENCE.md:261-268` **không có hàng `⌘Z`** *(chữ "hoàn tác bằng `⌘Z`" chỉ có trong VĂN
+  XUÔI của UX-DR32 — một **lời hứa**, không một mô hình)*; `grep -c "^### AD-"` = **47**.
+  🔴 Hai đường cài đặt đều **hỏng vĩnh viễn dữ liệu người dùng theo hai kiểu khác nhau**, và
+  cả hai biên dịch sạch qua mười một cổng: **(A)** gỡ `retired_at` + xoá hàng mới ⇒ `segment.id`
+  cũ **sống lại**, đụng thẳng AD-3 *("bất biến, không tái dùng sau khi về hưu")* và đòi một
+  **năng lực ghi chưa từng tồn tại** *(đo: `retired_at` đọc ở sáu chỗ, ĐẶT ở đúng một —
+  `write_regroup`; `core/i18n/mod.rs:215` ghi bằng chữ "chỉ đặt được bằng SQL")*; **(B)** một
+  lượt tách mới ⇒ tuân thủ AD-5 hoàn hảo **và chính vì thế** mất dữ liệu: một `⌘Z` biến **một**
+  chỗ đánh dấu FR119 thành **hai** chỗ mang ghi chú *"câu này đã đổi"*, cho một thao tác người
+  dùng vừa **huỷ bỏ**.
+  ⇒ Hồ sơ bàn giao đã soạn: `planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md`.
+  **Chủ: Ice** *(phán định phạm vi)* → **Winston** *(soạn `AD-48`)*.
+
+- 🔴 **`@keydown` NAY MANG MỘT THAO TÁC THẬT ⇒ luật của `check:commands` Kiểm A phải được xem
+  lại — và chính cổng đó đã dặn trước ngày này.** `scripts/check-commands.mjs:2348-2349` in ra
+  **mỗi lượt chạy**: *"Kiểm A chỉ canh `@click`. `@keydown`/`@input`/`@submit` KHÔNG thuộc luật
+  này; **ngày một `@keydown` mang thao tác thật xuất hiện, luật phải được xem lại**."*
+  Trước story này `onEditKeydown` **không mang thao tác nào** — chỉ một chốt `isComposing`. Nay
+  nó mang một thao tác **phá huỷ và không lui được** *(gộp segment, AD-5, và `⌘Z` đang là món nợ
+  ngay trên)*.
+  🔵 **Lượt cài đã giảm bề mặt xuống mức nhỏ nhất có thể mà không đợi một cổng mới:** nhánh
+  `Backspace` **không** gọi thẳng `mergeCurrentSegment()` mà `dispatch('editor.merge_segments')`
+  — một command **đã đăng ký**, tức cùng đường với `⌘M` ở một bậc **cao hơn** một lời gọi thẳng,
+  và đúng AD-34 §1 cộng `project-context.md` *("một lời gọi thẳng dựng một đường thứ hai mà
+  `check:commands` KHÔNG nhìn thấy")*. `COMMAND_FLOOR` **không đổi** — story không thêm command
+  nào; nếu nó đổi thì đó là dấu hiệu đã đi sai đường.
+  ⚠️ Nhưng **vẫn không cổng nào canh** rằng nhánh ấy `dispatch` chứ không tự cài đặt lại, và
+  cũng không cổng nào đếm được *"còn `@keydown` nào khác mang thao tác"*. **Chủ: một story hạ
+  tầng cổng** *(hoặc Ice, nếu muốn đóng ngay bằng một Kiểm mới)*.
+
+- ⚠️ **Ba mệnh đề của cử chỉ `Backspace` KHÔNG đường nghiệm thu nào của dự án mô phỏng được —
+  chữ ký của Ice là đường nghiệm thu duy nhất.** Đo 2026-08-17 (`2-9-ban-do/` §Vòng 1): **mọi**
+  sự kiện WebDriver giao đều mang `isTrusted: false` *(cả `browser.keys` lẫn Actions API)*, và
+  một sự kiện không tin cậy **không có default action** — đối chứng: caret ở **GIỮA** ô,
+  `startOffset: 3`, `Backspace` qua driver cũng **không xoá một ký tự nào**.
+  ⇒ ① `preventDefault()` có chặn nổi lượt xoá của một phím **thật** không *(rủi ro **thấp**: ở
+  đúng offset 0 của một editing host WebKit không có gì để xoá lui — `2-9-ban-do/` §Ⓓ đo được
+  `textContent` không đổi; dòng đó là lớp phòng **thứ hai**)*; ② auto-repeat của hệ điều hành
+  *(chữ ký ③ — WebDriver `keyDown` giữ 600 ms cho **đúng một** `keydown`, `repeat: false`)*;
+  ③ một lượt chốt của **bộ gõ tiếng Việt** không bị nhánh mới ăn mất.
+  **Chủ: Ice** *(một lượt kiểm tay trên máy thật, cùng lớp với Task 1.4/1.5 của các story trước)*.
+
+- 🔵 **Món `restore_segment_version` khi văn bản RỖNG (`:3821-3829`) rà lại 2026-08-17 —
+  KHÔNG chạm, và lý do đáng ghi.** Story 2.9 **không** sinh thêm một đường tạo segment rỗng:
+  nghiệp vụ gộp dùng nguyên `regroup::merge` của Story 2.8, và `regroup.rs:121` **lọc bỏ mảnh
+  rỗng trước khi nối** — một lượt gộp hai câu chưa dịch cho `target_text` rỗng đúng như hai câu
+  nguồn, không một chuỗi `" "` mới. Cử chỉ mới chỉ đổi **cách gọi**, không đổi **cái được ghi**.
+  ⇒ Món giữ nguyên chủ **Story 2.8** đã ghi; mệnh đề *"rỗng có thể tách nghĩa ở gộp/tách"* vẫn
+  chưa có ca hợp đồng nào.
+
+- ⚠️ **Ba ca e2e của story này ĐỤNG TRẦN `mochaOpts.timeout` 120 s, và trần đó nay còn rất ít
+  biên.** Đo 2026-08-17: mỗi lệnh WebDriver của bộ đo trả giá **~5 giây** — service in
+  `Tauri core.invoke not available after 5s timeout` ở **mỗi** lệnh — nên chi phí một ca tỉ lệ
+  **số lệnh**, không tỉ lệ việc nó làm. Ba ca rời chạy 1m40 · 1m48 · 1m40; ca thứ ba **trượt
+  bằng timeout** khi đứng cuối chuỗi, và **xanh 1/1 khi chạy riêng**.
+  🔴 **Ban vá KHÔNG phải nới trần** *(vá triệu chứng, `project-context.md` cấm bằng chữ)* — hai
+  đối chứng âm được gộp vào **một** `it()` dùng chung một lượt dựng Tác phẩm, còn 2m28 cho cả
+  spec. Nhưng đó là một lượt mua biên, không một lượt sửa nguyên nhân: story sau thêm **một**
+  ca vào spec này sẽ đụng trần lần nữa.
+  ⇒ Nguyên nhân thật *(vì sao `core.invoke` của **bàn đo** không lên)* trùng với quan sát mới
+  ghi ở món *"bộ e2e chập chờn"* ngay trên. **Chủ: story hạ tầng e2e.**
+
+- 🔴 **Cử chỉ chuột của lưới KHÔNG CỔNG NÀO CANH, và nay chúng đã có ba.** Story 2.9 thêm cái
+  thứ ba *(`Mod`+click đánh dấu chỗ cắt)* bên cạnh hai cái sẵn có ở cột nguyên văn — bấm trơn
+  *(nay để trống)* và vùng chọn cho Auto-Lookup. `check:commands` Kiểm A **chỉ canh `@click`**,
+  và cả ba đường này đi qua `@mouseup`. ⇒ Không phép kiểm tĩnh nào trả lời được câu *"còn cử chỉ
+  chuột nào đang giẫm lên nhau"* — đúng câu hỏi mà một lượt dùng thật của Ice vừa phải trả lời
+  thay. Cùng lớp với món *"`@keydown` nay mang một thao tác thật"* ngay trên.
+  **Chủ: một story hạ tầng cổng.**
+
+- ⚠️ **`PLATFORM` của `GridPanel.vue` KHÔNG tiêm được, khác `installCommands`.** `hasPrimaryModifier`
+  nhận nền tảng qua **tham số** và có `tests/frontend/editorSourceCutGesture.test.ts` lái cả hai
+  ca *(bốn lượt đột biến mã sản phẩm, mỗi lượt đỏ đúng chỗ)*, nhưng **dây nối** ở component thì
+  gọi thẳng `detectIsMac()` một lần lúc dựng. ⇒ Không đường nghiệm thu nào chứng minh **component**
+  truyền đúng nền tảng xuống vị từ. Hôm nay vô hại *(một dòng, không nhánh)*; nó thành một khoảng
+  hở vào ngày có cử chỉ chuột thứ hai cần `Mod`. **Chủ: story đầu tiên thêm một cử chỉ chuột có
+  phím bổ trợ.**
+
+- 🔴 **Bàn đo của chính Story 2.9 mang một khuyết tật đã vá, và bài học đáng giữ hơn bản vá:**
+  `waitForExist('[data-col="src"]')` **không phân biệt** *"Chương mới đã nạp"* với *"Chương CŨ
+  còn nằm đó"*. Ca đầu của spec gộp 3 hàng thành 2; ca sau dựng một Tác phẩm mới, đọc ngay và
+  thấy **2** — một lượt đỏ nói về **bàn đo** chứ không về sản phẩm *(nguyên văn: `Expected: 3,
+  Received: 2`)*. Đã vá bằng `doiLuoiCo(n)` — chờ **số hàng mong đợi**, không chờ "tồn tại".
+  ⚠️ Vá này chỉ đóng cho **spec của 2.9**. Khuôn `waitForExist` rồi đọc ngay còn nguyên ở các
+  spec khác, và nó là một **ứng viên chưa ai xét** cho món *"bộ e2e chập chờn"*.
+  **Chủ: story hạ tầng e2e.**

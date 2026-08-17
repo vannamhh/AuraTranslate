@@ -178,7 +178,19 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
       const x = Math.round(r.x + r.width * 0.3)
       const y = Math.round(r.y + r.height / 2)
       cell.dispatchEvent(
-        new MouseEvent('mouseup', { clientX: x, clientY: y, bubbles: true, cancelable: true }),
+        new MouseEvent('mouseup', {
+          clientX: x,
+          clientY: y,
+          bubbles: true,
+          cancelable: true,
+          // 🔵 2026-08-17 (Story 2.9, AC7) — cử chỉ đánh dấu chỗ cắt nay đòi `Mod`.
+          // Một cú bấm TRƠN không đánh dấu gì nữa: cột này dùng chung `mouseup` với
+          // Auto-Lookup (FR21), và mỗi lượt tra một từ để ĐỌC cũng rơi một dấu cắt.
+          // ⚠️ `metaKey`, viết thẳng, vì runner LÀ macOS. Vế lái-hai-nền-tảng nằm ở
+          //    `hasPrimaryModifier` và có `editorSourceCutGesture.test.ts` phủ cả hai ca —
+          //    một bộ e2e chỉ chạy trên macOS không phải chỗ diễn đạt mệnh đề đó.
+          metaKey: true,
+        }),
       )
       return { ok: true, x, y, chu: node.data }
     }, truoc.hang[0].id)
@@ -293,7 +305,19 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
       const diem = [0.25, 0.6].map((ty) => Math.round(r.x + r.width * ty))
       for (const x of diem) {
         cell.dispatchEvent(
-          new MouseEvent('mouseup', { clientX: x, clientY: y, bubbles: true, cancelable: true }),
+          new MouseEvent('mouseup', {
+          clientX: x,
+          clientY: y,
+          bubbles: true,
+          cancelable: true,
+          // 🔵 2026-08-17 (Story 2.9, AC7) — cử chỉ đánh dấu chỗ cắt nay đòi `Mod`.
+          // Một cú bấm TRƠN không đánh dấu gì nữa: cột này dùng chung `mouseup` với
+          // Auto-Lookup (FR21), và mỗi lượt tra một từ để ĐỌC cũng rơi một dấu cắt.
+          // ⚠️ `metaKey`, viết thẳng, vì runner LÀ macOS. Vế lái-hai-nền-tảng nằm ở
+          //    `hasPrimaryModifier` và có `editorSourceCutGesture.test.ts` phủ cả hai ca —
+          //    một bộ e2e chỉ chạy trên macOS không phải chỗ diễn đạt mệnh đề đó.
+          metaKey: true,
+        }),
         )
       }
       return { ok: true, diem, chu: node.data }

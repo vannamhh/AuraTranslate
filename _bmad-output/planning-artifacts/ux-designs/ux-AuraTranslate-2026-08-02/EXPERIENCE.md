@@ -166,7 +166,7 @@ Hệ thống **không bao giờ tự coi một câu là xong**. Khớp TM 100% v
 >
 > **Ca áp dụng đầu tiên, chính là lượt sửa này:** bản cũ liệt kê ba bề mặt. Hai bề mặt sau — Đề xuất AI và Bản dịch — chứa **tiếng Việt đã dịch**; tra chúng trong một từ điển zh→vi / en→vi cho **0 hàng, 0 lỗi, 0 ms** rồi **thay mất** thứ người dùng đang đọc ở Panel Lookup *(FR21 · `sprint-change-proposal-2026-08-13.md`)*. **Thao tác** giữ nguyên; **cài đặt** sửa ở đúng chỗ nó tệ hơn.
 
-**Gộp và tách câu** — `⌘M` gộp, `⌘/` tách. Cả hai là command đăng ký, không phải hệ quả phụ của việc gõ.
+**Gộp và tách câu** — `⌘M` gộp, `⌘/` tách. Cả hai là command đăng ký, không phải hệ quả phụ của việc gõ. 🔵 **BỔ SUNG 2026-08-17 (Story 2.9, Ice ký):** chỗ cắt cho `⌘/` đánh dấu bằng **`Mod`+click** ở cột nguyên văn — một cú **bấm đơn hay double-click TRƠN không đánh dấu gì**. Lý do: cột đó dùng chung `mouseup` với **Auto-Lookup** (FR21), nên trước lượt sửa này mỗi lần tra một từ để **đọc** cũng rơi một dấu cắt, và một cú double-click *(bắn hai `mouseup`)* rơi **hai** dấu — cho một lượt `⌘/` người dùng không định gọi, trên dữ liệu mà AD-5 không cho hoàn tác.
 
 **Gộp ngầm** — 🔵 **SỬA 2026-08-17 (Story 2.8).** Câu này mang bản UX-DR32 **CŨ** — *"gõ đè lên đúng vị trí ranh giới **là** ra lệnh gộp"*. Tiền đề đó đã bị Sprint Change Proposal 2026-08-14 bác *(trong lưới hai cột, ranh giới giữa hai câu là ranh giới **HÀNG**, không một vị trí con trỏ trong một dòng văn liền tục)*, và `epics.md` đã sửa theo: cử chỉ kích hoạt nay là **`Backspace` ở đầu ô** (Story 2.9). Ngữ nghĩa AD-5 dưới đây **không đổi một chữ**. Bản đúng: **`Backspace` ở đầu ô bản dịch** **là** ra lệnh gộp. Hệ thống thực hiện đúng ngữ nghĩa AD-5: hai câu cũ về hưu và vẫn tra lại được lịch sử, câu mới bắt đầu ở trạng thái chưa xác nhận với lịch sử rỗng. Một dòng báo ở lề, hoàn tác bằng `⌘Z`. **Không chặn, không hỏi lại** — chặn lại sẽ phá đúng cảm giác tự do mà Editor liền mạch tồn tại để có.
 
@@ -264,6 +264,7 @@ Hán Việt sống **bên trong ô nguyên văn**. Cả hai chế độ FR19 cò
 | `Enter` | **Xuống dòng trong ô** — và đây là chỗ chứa quyền *"bản dịch ngắt đoạn khác bản gốc"* |
 | `Shift+Enter` | dự phòng cho xuống dòng, nếu bản dựng cần hai đường |
 | `Backspace` đầu ô | **Gộp với câu trên** — cử chỉ của mọi trình soạn thảo |
+| `Mod`+click | **Đánh dấu chỗ cắt** ở cột nguyên văn — 🔵 **THÊM 2026-08-17 (Story 2.9).** Bấm đơn/double-click trơn để trống cho tra cứu (FR21). Bấm trùng một điểm đã có thì **gỡ** nó ra. |
 | `⌘/` | **Tách câu, thực hiện ở CỘT NGUYÊN VĂN** — 🔵 **SỬA 2026-08-17 (Story 2.8):** ô này viết `⌘T`, ngược `epics.md:2502` *(AC, nguồn chính thức)* và ngược chính dòng `:169` của tệp này. Hợp âm đã đăng ký trong mã là `Mod+Slash`. |
 | `⌥↓` | **Câu chưa dịch kế tiếp** |
 
