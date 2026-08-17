@@ -260,7 +260,21 @@ const TS_FLOOR = 30 // số THẬT 2026-08-14 (sau Story 2.5b): 37 tệp `.ts` �
 // `editor.clear_source_cuts` *(Story 2.8 ghi 46 — đúng +1, không hơn)*. Đo lại bằng cách chạy
 // cổng RỒI sửa dòng này, đúng thứ tự mà chú thích ngay trên đòi. 39/47 = **83 %**, giữa dải
 // 80–85 %; để nguyên 38 thì sàn tụt xuống 81 % và mất dần ý nghĩa qua từng story.
-const COMMAND_FLOOR = 39
+// 🔵 **39 → 41, Story 2.10 (2026-08-18).** Cổng in **49** command sau khi thêm
+// `editor.next_segment` và `editor.prev_segment` *(Story 2.9 ghi 47 — đúng +2, không hơn)*.
+// Chạy cổng, đọc số, rồi mới sửa dòng này. 41/49 = **83,7 %**, giữa dải 80–85 %; để nguyên 39
+// thì tụt xuống 79,6 %, tức **ra khỏi dải** — đúng thứ ba story liên tiếp trước đây phải sửa.
+//
+// ⚠️ **Một lượt đọc sai của chính lượt này, ghi lại vì nó là bài học chứ không vì thủ tục:**
+// Task 0.1 đo được *"sàn 39, số thật 47"* và đọc nó thành *"sàn thấp hơn thực tế 8 đơn vị ⇒ nó
+// không canh được gì"*, rồi đề xuất nâng thẳng lên **49**. Sai, và sai vì **chưa đọc doc-comment
+// ngay trên đây**: sàn là **cận dưới có chủ ý**, đặt ở ~80–85 % số thật, chính vì *"một lượt
+// quét hỏng (glob sai, `SKIP_DIRS` nuốt nhầm) tụt sâu hơn khoảng đó rất nhiều"*. 39/47 = 83 % là
+// **đúng thiết kế**, không một khuyết tật. Một sàn đặt **bằng** số thật thì mọi lượt thêm
+// command đều làm cổng đỏ oan — nó đổi một cận dưới thành một phép so bằng.
+// ⇒ Cùng lớp với luật đã ghi ở `project-context.md`: *"cây nguồn thắng"*, và ở đây cây nguồn là
+//   doc-comment của chính cơ chế mình đang sửa.
+const COMMAND_FLOOR = 41
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.

@@ -105,6 +105,87 @@ export function nextUntranslatedId(
   return null
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 2.10 — ĐIỀU HƯỚNG TUẦN TỰ. AC1 · AC2 · AC7
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 🔴 **HAI HỌ VỊ TỪ, HAI LUẬT LỌC KHÁC NHAU — và khác biệt đó là một QUYẾT ĐỊNH, không một
+ * chỗ quên đồng bộ.** Quyết định #3 của Story 2.10, Ice ký 2026-08-18.
+ *
+ * | Vị từ | Trả lời câu | Câu đã **cắt bỏ** (`isOmitted`) |
+ * |---|---|---|
+ * | [`nextUntranslatedId`] | *"chỗ tiếp theo tôi phải LÀM"* — điều hướng **theo việc** | **bỏ qua** (AC5) |
+ * | [`nextSegmentId`] · [`prevSegmentId`] | *"câu ngay CẠNH"* — điều hướng **theo vị trí** | 🔴 **DỪNG LẠI** |
+ *
+ * ⚠️ **Vì sao hai vị từ này KHÔNG bỏ qua, dù đối xứng sẽ đẹp hơn:** `editor.restore_segment`
+ * *(Story 2.5c)* chạy **trên câu đang có caret**. Nếu cả ba lệnh điều hướng đều nhảy qua hàng
+ * đã cắt bỏ thì **không đường bàn phím nào** đưa caret tới đó được nữa ⇒ FR133 vế *"đảo ngược
+ * được bất cứ lúc nào"* chỉ còn đường **chuột**, và NFR17 (`prd.md:903`, *"mọi thao tác hoàn
+ * toàn bằng bàn phím"*) hỏng **im lặng**. Không cổng nào đỏ vì chuyện đó; lưới duy nhất là ca
+ * *"next/prev DỪNG ở câu đã cắt bỏ"* ở `tests/frontend/segmentNavigation.test.ts`.
+ *
+ * 🔴 **Câu đã VỀ HƯU thì vẫn bỏ, và lý do khác hẳn** — nó không phải một lựa chọn của người
+ * dùng, nó là một hàng đã **chết** sau lượt gộp/tách (Story 2.8). Bỏ ở **cả hai vai**: không
+ * phải đích, và không chặn đường. Đối xứng với [`nextUntranslatedId`] dòng `retiredAt`.
+ *
+ * 🔴 **DUYỆT BẰNG CHỈ SỐ MẢNG, KHÔNG BẰNG `segment.ord`** — món nợ đã ghi ở `deferred-work.md`
+ * *(`ord` trong ảnh chụp webview thành **cũ** sau một lượt gộp/tách; chủ là "story đầu tiên đọc
+ * `segment.ord` ở webview")*. Mảng do Rust trả về đã `ORDER BY ord, id`, nên **thứ tự mảng LÀ
+ * thứ tự**. Chốt cấu tạo cho luật này: [`NavigationSegment`] **không khai** trường `ord` — đọc
+ * nó ở đây là một lỗi biên dịch, không một lượt rà soát.
+ *
+ * @param segments theo `ord` — thứ tự do Rust quyết, hàm này **không** sắp lại.
+ * @param fromId câu đang đứng. `null` **hoặc không tìm thấy** ⇒ xem [`buocTu`].
+ */
+export function nextSegmentId(
+  segments: readonly NavigationSegment[],
+  fromId: number | null,
+): number | null {
+  return buocTu(segments, fromId, 1)
+}
+
+/** Câu ngay **trước**. Cùng luật với [`nextSegmentId`], ngược chiều. */
+export function prevSegmentId(
+  segments: readonly NavigationSegment[],
+  fromId: number | null,
+): number | null {
+  return buocTu(segments, fromId, -1)
+}
+
+/**
+ * Thân chung của hai vị từ trên. **Một** vòng lặp, không hai bản sao ngược chiều.
+ *
+ * ⚠️ Gộp lại có chủ ý: hai bản sao đối xứng là đúng hình dạng mà một lượt sửa **chỉ chạm một
+ * bản** sẽ đi qua mọi cổng rồi cho `next` và `prev` bất đồng về luật lọc — và bất đồng ấy chỉ
+ * lộ ra khi ai đó bấm phím ngược lại ngay sau một lượt gộp.
+ *
+ * 🔴 **`fromId` là `null` hoặc không tìm thấy ⇒ điểm xuất phát là NGOÀI dải, ở đúng đầu ngược
+ * chiều đi** — nên `next` cho câu **đầu** và `prev` cho câu **cuối**. Hai hàm vì thế **không**
+ * đối xứng ở ca này, và đó là câu trả lời đúng: một `prevSegmentId(…, null) === null` sẽ làm
+ * phím *"câu trước"* chết câm ngay sau một lượt gộp làm mất câu đang đứng.
+ *
+ * ⚠️ Ca *"không tìm thấy"* gộp chung với ca `null` — cùng lý lẽ và cùng khuôn
+ * [`nextUntranslatedId`]: một `fromId` trỏ vào câu **vừa bị gộp mất** là ca thật (Story 2.8),
+ * và nó phải cho một hành vi **có nghĩa** thay vì không hành vi nào.
+ */
+function buocTu(
+  segments: readonly NavigationSegment[],
+  fromId: number | null,
+  buoc: 1 | -1,
+): number | null {
+  const tim = fromId === null ? -1 : segments.findIndex((s) => s.id === fromId)
+  const from = tim >= 0 ? tim : buoc === 1 ? -1 : segments.length
+  for (let i = from + buoc; i >= 0 && i < segments.length; i += buoc) {
+    const s = segments[i]
+    // Hàng đã chết: không phải đích, và **không chặn đường** — nên `continue`, không `break`.
+    if (s.retiredAt !== null) continue
+    // 🔴 KHÔNG lọc `isOmitted` ở đây. Xem bảng hai họ vị từ trong doc-comment trên.
+    return s.id
+  }
+  return null
+}
+
 /**
  * Dựng dữ kiện cho [`nextUntranslatedId`] từ một hàng đã nạp cộng tập chờ đang gõ.
  *

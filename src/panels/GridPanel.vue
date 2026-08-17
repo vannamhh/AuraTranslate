@@ -909,11 +909,59 @@ watch(
     if (host === null) return
     const target = host.querySelector<HTMLElement>(`[data-segment-id="${id}"]`)
     if (target === null) return
+    // 🔵 **STORY 2.10 · AC8 NỬA SAU — `focus()` LÀ VẾ CUỘN, và nó ĐÃ Ở ĐÂY TỪ TRƯỚC.**
+    //
+    // Story 2.10 mở đầu bằng mệnh đề *"cuộn tới hàng — CHƯA CÓ, Task 4"* *(`grep scrollIntoView`
+    // trên tệp này cho 0 kết quả)*. **Phép đo bác mệnh đề ấy**: `focus()` trên một phần tử ngoài
+    // vùng nhìn tự cuộn nó vào, và nó cuộn **khéo hơn** đường tự cài — xem khối §AC8 ở dưới.
+    // ⇒ Không một dòng cuộn nào được thêm ở đây, và đó là **kết quả của ba lượt đo**, không một
+    //   lượt bỏ sót. Ice ký 2026-08-18.
     target.focus()
     setCaret(target.firstChild ?? target, 0)
   },
   { flush: 'post' },
 )
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 AC8 NỬA SAU — VÌ SAO KHÔNG CÓ HÀM CUỘN NÀO Ở TỆP NÀY. Story 2.10, Ice ký 2026-08-18
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 2.10 giao Task 4 *"cuộn tới hàng, tức thì, không hiệu ứng"* với tiền đề
+// *"CHƯA CÓ — `grep scrollIntoView|scrollTop` trên tệp này = 0 kết quả"*. Tiền đề đó **sai**, và
+// nó sai theo đúng cách mà AC8 **nửa đầu** đã sai: cả hai vế đã được dựng sẵn ở nơi khác.
+// Nửa đầu do `ruleById` lo; nửa sau do `focus()` lo.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// BA PHÉP ĐO, và phép thứ nhất là một ĐỘT BIẾN chứ không một lượt đọc mã
+// ─────────────────────────────────────────────────────────────────────────────
+// ① Bản đầu cài `cuonToiHang()` *(tính `scrollTop` bằng tay, ngữ nghĩa nearest)* và ca e2e
+//    §Ⓒ xanh. Task 7.3 **gỡ lời gọi đó** khỏi mã sản phẩm rồi chạy lại: **4/4 vẫn xanh**.
+// ② Thêm `focus({ preventScroll: true })` để buộc công thức phải làm việc, rồi gỡ lại
+//    `preventScroll`: **4/4 vẫn xanh**, kể cả ca Ⓔ *(ngữ nghĩa nearest)*.
+// ③ Bàn đo `2-10-ban-do/focus-co-tu-cuon-khong.e2e.mjs` (WKWebView 605.1.15, hàng 50/60):
+//
+//    | Lượt | `scrollTop` sau | hàng nằm trọn | `SECTION.panel` |
+//    |---|---|---|---|
+//    | `focus()` một mình | **1569** | ✅ | 0 — không đụng |
+//    | `focus({preventScroll:true})` *(đối chứng ÂM)* | 0 | ❌ | 0 |
+//    | `focus({preventScroll:true})` + công thức | **1242** | ✅ | 0 |
+//
+// 🔴 **Và chênh lệch 1569 vs 1242 KHÔNG phải một khuyết tật của `focus()` — nó là ưu điểm.**
+// WebKit **căn giữa** khi hàng đích ở **xa** *(1569 ≈ giữa; đối chứng độc lập: `block:'center'`
+// đo 1571)*, và dùng **nearest** khi nó chỉ vừa ló khỏi mép *(đo ở ca Ⓔ: dịch đúng **38 px** =
+// một chiều cao hàng)*. ⇒ Nhảy xa thì người dùng có ngữ cảnh trên dưới; bấm liên tục thì vùng
+// nhìn không giật. Công thức tự cài **ép nearest ở mọi ca**, tức nó dán hàng đích vào sát mép
+// dưới sau một lượt nhảy xa — **xấu hơn**.
+//
+// ⇒ Giữ lại công thức là giữ một hàm mà **không phép đo nào của dự án phân biệt được**, để đổi
+//   lấy một hành vi **kém hơn**. Kho này gọi đó là mã chết, và §Miễn trừ của `project-context.md`
+//   cấm đúng hình dạng ấy.
+//
+// ⚠️ **CÁI GIÁ, ghi ra thay vì để người sau tự phát hiện:** AC8 nửa sau nay dựa vào **hành vi
+// engine**, không vào một dòng mã đọc được ở đây. Không chuẩn nào bảo đảm nó, và không cổng nào
+// canh nó — một bản WebKit sau có thể đổi. Lưới thật là ca Ⓒ + Ⓔ của
+// `e2e/specs/segment-navigation.e2e.mjs` *(chạy tay)*, và món nợ đã vào `deferred-work.md` kèm
+// chủ. 🔴 **Đừng thêm `preventScroll` vào lời gọi `focus()` ở trên** — làm thế là tắt vế cuộn
+// duy nhất đang có, và mọi ca nghiệm thu tự động vẫn xanh.
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔴 CỬA DUY NHẤT MÀ MỘT LƯỢT SỬA VĂN BẢN ĐI QUA — chặn theo `inputType`, không theo phím
@@ -1477,6 +1525,13 @@ const chapterId = computed(() => editorChapterId.value)
 <style scoped>
 .load-error {
   margin: 0;
+  /*
+   * 🔵 `flex: none` thêm 2026-08-17, cùng lượt `.panel-body` thành flex column. Mặc định
+   * `flex-shrink: 1` cho phép **co** một dải chữ khi chỗ hẹp — và một câu lỗi bị co là một câu
+   * lỗi người dùng đọc không ra, tức đúng lớp *"rỗng IM LẶNG"* mà chuỗi này tồn tại để chống.
+   * Luật chung ở `PanelFrame.vue::.panel-body` §GIỚI HẠN THẬT: mọi con không-cuộn khai `flex: none`.
+   */
+  flex: none;
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
   line-height: var(--leading-ui-md-wrap);
@@ -1488,7 +1543,33 @@ const chapterId = computed(() => editorChapterId.value)
  */
 .tabs {
   display: flex;
-  gap: var(--space-inline-sm);
+  /*
+   * 🔵 SỬA 2026-08-18 — `--space-inline-sm` ⇒ `--space-panel-inline`. HỒI QUY của Story 2.5b,
+   * Ice tìm ra bằng mắt: hai tab *"Trung"* và *"Hán Việt"* **dính vào nhau**.
+   *
+   * 🔴 **`--space-inline-sm` CHƯA BAO GIỜ TỒN TẠI.** Khối `spacing` của `tokens.json` có đúng
+   * chín khoá và không có `inline-sm`; `applyTheme` phát `--space-<tên>` từ **chính** khối đó
+   * (`tokens/index.ts:106-107`), nên biến này không được đặt ở đâu. Một `var()` không xác định
+   * làm **cả khai báo** `gap` không hợp lệ ⇒ `gap` về `normal` = **0**.
+   *
+   * ⚠️ **Vì sao giá trị đúng là `panel-inline`, và đó là một phép đo lịch sử chứ không một lựa
+   * chọn của tôi:** `git show ca33072^:src/panels/SourcePanel.vue` cho `gap: var(--space-panel-
+   * inline)` ở đúng dải tab này — **16px, chạy được** từ Story 1.16. Commit `ca33072` (2.5b) chép
+   * dải tab sang đây và **đổi** token trong lượt chép. ⇒ Đây là hoàn nguyên về giá trị đã có chữ
+   * ký, **không** một lượt xin một khoảng cách mới. Chú thích ngay dưới nói *"chép hình dạng và
+   * token từ `SourcePanel.vue`"* — nó đúng về hình dạng và **sai về token**, đúng ở dòng này.
+   *
+   * 🔴 **Đường sai rẻ ở đây là thêm `"inline-sm": "8px"` vào `tokens.json`** cho hết lỗi. Đó là
+   * dựng một giá trị thiết kế **chưa ai chọn**, và nó làm dải tab khác 16px mà không ai quyết —
+   * trong khi số 16 thì có nguồn. *"Sửa nguồn cho nó nói thật"*, không nhét một token cho vừa mã.
+   *
+   * ⚠️ **KHÔNG CỔNG NÀO CANH LỚP LỖI NÀY** và nó đi qua trọn mười một cổng suốt ba story:
+   * `check:tokens` Kiểm B đọc CSS để bắt **màu viết thẳng**, nó không đối chiếu tên `var()` với
+   * bảng token. Một tham chiếu token không tồn tại là **CSS chết im lặng**. Đã ghi nợ có chủ.
+   * *(Đo 2026-08-18: đối chiếu chín khoá `spacing` với mọi `--space-*` trong `src/**` ⇒ `inline-sm`
+   * là ca DUY NHẤT của toàn cây. Bốn khoá khai mà không dùng: `gutter-width` · ba `read-measure-*`.)*
+   */
+  gap: var(--space-panel-inline);
   align-items: baseline;
   flex: none;
   margin-bottom: var(--space-panel-block);
@@ -1521,8 +1602,33 @@ const chapterId = computed(() => editorChapterId.value)
  * riêng là phá đúng thứ `subgrid` vừa mua. Cùng lý do `EditorPanel.vue::.edbody` đặt hộp cuộn
  * ở khung bao chứ không ở trang văn.
  */
+/*
+ * 🔴 HỘP CUỘN DUY NHẤT của lưới — năm cột `subgrid` phải cuộn CÙNG nhau.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 SỬA 2026-08-17 — `height: 100%` ⇒ `flex: 1`. Ice tìm ra bằng mắt (Task 4.5)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `height: 100%` ở đây **sai bất kể `.panel-body` là flex hay không**, vì hộp này **không** phải
+ * con duy nhất của slot: dải tab Hán Việt (`.tabs`) đứng trước nó khi Chương là `zh`. Xin 100%
+ * chiều cao trong khi đã bị đẩy xuống **30px** *(tab 18px + `--space-panel-block` 12px)* làm nội
+ * dung tràn `.panel`, và `.panel` mang `overflow: hidden` ⇒ **30px đáy bị cắt vĩnh viễn**.
+ *
+ * ⚠️ Triệu chứng người dùng thấy, và nó không phải 30px trang trí: khi đã cuộn tới đáy, đáy hàng
+ * **cuối** trùng đúng vùng bị cắt ⇒ **dòng cuối của câu nguồn cuối Chương mất chữ**, và không cử
+ * chỉ nào lấy lại được. Xảy ra ở **mọi** Chương tiếng Trung — tức ca thường nhất của sản phẩm.
+ * `focus()` làm đúng phần việc của nó; lỗi nằm ở hộp, không ở lượt cuộn.
+ *
+ * 🔴 `flex: 1` **cộng** `min-height: 0` — thiếu vế thứ hai thì một hộp cuộn trong flex column
+ * lấy `min-height: auto` theo nội dung và **không co lại**, tức nó tràn y như cũ chỉ bằng một
+ * đường khác. Hai dòng là một chốt, không hai lượt gõ.
+ *
+ * ⚠️ Chốt này dựa vào `.panel-body` khai `display: flex; flex-direction: column` — xem khối lý do
+ * ở `PanelFrame.vue::.panel-body`, nơi nguyên nhân được đóng cho **cả ba** panel. Đổi một trong
+ * hai chỗ mà không đổi chỗ kia thì lưới **không cuộn được** *(mất `flex` container)* hoặc trở lại
+ * cắt chữ *(mất `flex: 1`)*.
+ */
 .grid-scroll {
-  height: 100%;
+  flex: 1;
   min-height: 0;
   overflow: auto;
 }

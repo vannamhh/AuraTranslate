@@ -2846,6 +2846,48 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   **Chủ: Story 2.10** *(điều hướng segment — nó **dùng lại** đường dời con trỏ tối thiểu của 2.5
   chứ không dựng đường thứ hai, nên nó là chỗ duy nhất trả lời được câu "đi đâu khi hết Chương")*.
 
+  → 🟡 **ĐÓNG MỘT NỬA 2026-08-18 (Story 2.10, Quyết định #6 đường (c) — Ice ký).**
+
+  **Cách đóng:** `confirmCurrentSegmentUnguarded` nay ghi cờ `kyTrungCauCuoi` ở đúng nhánh biết
+  sự thật (`following === undefined`), và cửa có khoá của `confirmCurrentSegment` biến nó thành
+  `editorNavNotice = 'confirmed-last'` ⇒ thanh trạng thái nói *"Đã xác nhận câu cuối Chương. Con
+  trỏ ở nguyên vì không còn câu nào phía dưới."*. ⇒ Người dùng **biết** chuyện gì vừa xảy ra.
+
+  🔴 **PHẦN CÒN HỞ, và nó là đúng phần AC1 đòi:** vạch lề **vẫn `primary`**, không `confirmed`.
+  Đóng bằng **thông tin**, không bằng **màu**. Hai đường đóng trọn đều bị loại, mỗi đường một lý
+  do đã ghi:
+  - **Đảo thứ tự `primary`/`confirmed` trong `resolveSegmentRule`** — 🔴 quyết định có chữ ký, không đảo.
+  - **`⌘Enter` ở câu cuối nhả caret (`setEditorCaret(null)`)** — lo ngại *"bỏ rơi bộ đệm gõ"* mà
+    story nêu đã bị **BÁC bằng phép đo** *(bước ① của `confirmCurrentSegmentUnguarded` đã
+    `flushEditorBeforeDiscreteWrite()` trước lượt IPC, nên tập chờ sạch theo cấu tạo tại điểm
+    gọi)*. Nhưng một rủi ro **khác** lộ ra khi đọc `onSelectionChange` (`GridPanel.vue:875-882`):
+    đường đó dựng trạng thái `caretSegmentId === null` **trong khi DOM focus vẫn trong ô** — hai
+    nguồn sự thật nói ngược nhau, **không cổng nào canh** — và `onSelectionChange` đặt lại id ở
+    lượt dịch caret kế tiếp, nên hiệu lực thị giác chỉ **tạm**. Nó mua một vế thị giác tạm thời
+    bằng một trạng thái lệch thường trực.
+
+  ⚠️ Ca *"ký câu cuối ⇒ thanh nói ra"* ở `tests/frontend/editorNavNotice.test.ts` **cố ý KHÔNG
+  kiểm vạch lề** — vạch vẫn `primary`, và một ca khẳng định ngược lại sẽ là một lời hứa sai nằm
+  trong chính bộ test.
+
+  **Chủ của phần còn hở: chưa có — nó cần một AD.** Vế thị giác chỉ đóng trọn được bằng cách đổi
+  ngữ nghĩa của `resolveSegmentRule` *(một bất biến có chữ ký)* hoặc bằng một khái niệm caret thứ
+  hai *("caret logic" tách khỏi "DOM focus")*. Cả hai là **quyết định kiến trúc**, và luật kho
+  viết bằng chữ: *"đổi một bất biến kiến trúc là một `AD` MỚI, không phải một dòng mã"*.
+  ⇒ **Chủ: Ice phân định → Winston soạn AD.** Story 2.10 dừng đúng ở đây thay vì tự chọn.
+
+  🔵 **HỒ SƠ BÀN GIAO ĐÃ SOẠN 2026-08-17** (lượt code review ba tầng của 2.10, Ice ký đường 1):
+  `planning-artifacts/ad-brief-2026-08-17-vach-le-cau-cuoi-chuong.md` — đúng khuôn hai tiền lệ
+  (`ad-brief-2026-08-16-xuat-xu-ban-dich.md` · `ad-brief-2026-08-17-mo-hinh-hoan-tac.md`). Bốn
+  đường trình kèm cái giá, không kèm khuyến nghị.
+  🔴 **Và hồ sơ đó mang một phép đo MỚI làm khoảng hở rộng hơn mục này mô tả:** cột nhãn trạng
+  thái (`GridPanel.vue:244-251`) khoá theo **cùng** `SegmentRuleValue`, nên ở câu cuối Chương nó
+  đọc ra **"đang sửa"**, không *"đã xác nhận"*. Cột ấy **là** kênh khả năng tiếp cận *(vạch mang
+  `aria-hidden="true"`, `:1368`, và doc-comment `:240-242` khai cột ⑤ là lý do vạch được phép
+  ẩn)*. ⇒ Vế còn hở **không** chỉ là *"bằng màu"* như dòng trên viết — nó chạm **AD-34 §2** và
+  **NFR17**. Mệnh đề *"đóng bằng thông tin, không bằng màu"* vì thế đúng một nửa: thanh trạng thái
+  nói được, nhưng **hàng** thì không, và trình đọc màn hình chỉ có hàng.
+
 - 🔴 **Ba khoá lỗi `err.segment.*` vừa dựng KHÔNG có đường ra màn hình.** `confirm_segment` phía
   Rust trả đúng ba `IpcError` phân biệt được (`not_found` · `retired` · `nothing_to_confirm`), và
   `vi.json` có đủ ba câu tiếng Việt. Nhưng ở tầng giao diện: `editorConfirmError` được **export mà
@@ -4392,3 +4434,155 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   một khối chú thích là một luật sẽ bị quên lần thứ ba.
   **Chủ: một story hạ tầng cổng** *(một phép kiểm đếm `shallowRef`/`ref` cấp module trong
   `editorPanelState.ts` và đối chiếu với thân `resetEditorPanel`)*.
+
+
+---
+
+## Deferred from: 2-10-dieu-huong-segment (2026-08-18)
+
+- 🔴 **`SECTION.panel` cuộn được dù mang `overflow-y: hidden`, và không ai lấy lại được 18 px
+  đó.** Đo trên WKWebView 605.1.15 thật, bàn đo `2-10-ban-do/cuon-vong2-to-tien.e2e.mjs` §Ⓕ: một
+  lượt `el.scrollIntoView()` trên một ô của lưới cuộn **cả** `SECTION.panel` từ `scrollTop` 0 →
+  **18**, kéo `.panel-body` lên 18 px. `overflow: hidden` nghĩa *"không vẽ thanh cuộn"*, **không**
+  nghĩa *"không cuộn được"* — nên người dùng không có thanh để kéo về và không cử chỉ nào đưa nó
+  lại. Xảy ra **một lần**, ở **lượt điều hướng đầu tiên** của phiên.
+  🔵 **SỬA 2026-08-17 (code review ba tầng) — hai mệnh đề của đoạn này đã hết đúng, và cái sai
+  là ở chỗ GÁN CÔNG TRẠNG.** Bản đầu viết: *"Story 2.10 tránh được nó bằng chữ ký #7(b) (gán
+  `scrollTop` bằng tay…)"*. Mệnh đề ấy **hết đúng trong cùng story**: `cuonToiHang` — toàn bộ mã
+  của đường #7(b) — **đã bị GỠ** ở vòng 3 sau ba lượt đột biến, Ice ký. ⇒ Sản phẩm hôm nay
+  **không có một dòng mã cuộn nào**, nên nó không thể được bảo vệ bởi một cơ chế không tồn tại.
+  ⚠️ Và bản đầu còn nêu **`focus()`** là tác nhân tái kích hoạt — trong khi `focus()` là **đúng
+  thứ sản phẩm đang dùng**, tức đoạn này tự nói ngược: *"không phải lỗi đang sống"* cộng *"`focus()`
+  kích hoạt lại nó"* với một sản phẩm mà `focus()` là cơ chế duy nhất.
+
+  🔴 **Lý do THẬT khiến sản phẩm hôm nay an toàn, và nó là một phép đo, không một suy luận:**
+  `focus()` **không** cuộn tổ tiên. Bàn đo `2-10-ban-do/focus-co-tu-cuon-khong.e2e.mjs` đọc
+  `scrollTopPanel` ở **cả bốn** ca và `SECTION.panel` = **0** ở mọi ca *(Ⓘ `focus()` một mình ·
+  Ⓙ `preventScroll` đối chứng âm · Ⓚ `preventScroll`+công thức · Ⓛ ô đã có tiêu điểm)* — xem bảng
+  §vòng 3 của `2-10-ban-do/README.md`. ⇒ Tác nhân đã đo được là **`scrollIntoView`**, và chỉ nó.
+  Đừng thừa kế câu *"`focus()` cũng kích hoạt"* — nó chưa từng có số đo đỡ lưng.
+
+  Câu hỏi gốc còn nguyên: **vì sao `SECTION.panel` có `scrollHeight > clientHeight`?** Đó là
+  18 px nội dung đang bị cắt mà không ai khai. Bất kỳ ai gọi **`scrollIntoView`** trên một phần tử
+  trong panel sau này đều kích hoạt lại nó.
+  **Chủ: một story bố cục của Epic 1** *(hoặc lượt rà `.panel`/`.panel-body` kế tiếp)*.
+
+  → 🟡 **NGUYÊN NHÂN ĐÃ TÌM RA VÀ ĐÃ VÁ 2026-08-17 — nhưng CHƯA ĐO LẠI, nên đóng một nửa.**
+
+  **Câu hỏi mở của mục này** *("vì sao `SECTION.panel` có `scrollHeight > clientHeight`?")* **nay
+  có câu trả lời**, và nó đến từ **mắt Ice**, không từ một cổng: Task 4.5 của Story 2.10 phát hiện
+  *"hàng cuối bị che mất chữ"* trên một Chương tiếng Trung.
+
+  **Nguyên nhân:** `.panel-body` (`PanelFrame.vue`) là một **khối thường**, còn `.grid-scroll` xin
+  `height: 100%`. `GridPanel` đặt **hai** con vào slot — dải tab Hán Việt rồi hộp cuộn — nên hộp
+  cuộn lấy *toàn bộ* chiều cao trong khi đã bị đẩy xuống **30 px** *(tab `ui-sm` 12px × 1,5 = 18px
+  + `--space-panel-block` 12px)*. Tràn 30 px, `.panel` mang `overflow: hidden` ⇒ cắt, không thanh
+  cuộn nào lấy lại. Khi đã cuộn tới đáy, đáy **hàng cuối** trùng đúng vùng bị cắt.
+  ⇒ Con số **18** của bàn đo không phải tổng tràn: `scrollIntoView` cuộn mỗi tổ tiên **đúng lượng
+  cần**, không tới đáy. 18 ≤ 30, hai số không mâu thuẫn.
+
+  **Cách vá — ở NGUYÊN NHÂN, vì đây là lần THỨ HAI cùng lớp lỗi:** `.panel-body` nay khai
+  `display: flex; flex-direction: column`, và `.grid-scroll` đổi `height: 100%` ⇒ `flex: 1;
+  min-height: 0`. Lần đầu là `SourceHanViet.vue:853-861` *(code review 2026-08-06, cả ba tầng)* —
+  lần đó vá bằng cách dạy **một** panel viết `flex: 1`, và luật chỉ sống trong một khối chú thích
+  nên panel kế tiếp lặp lại y nguyên. Đã rà cả ba panel tiêu thụ trước khi đổi; `AiTranslationPanel`
+  và `LookupPanel` mỗi cái có **đúng một** con trong slot khai `height: 100%` ⇒ hình dạng không đổi.
+
+  🔴 **PHẦN CÒN HỞ, và nó là vế nghiệm thu:** không đường **tự động** nào của dự án thấy được lượt
+  vá này. 225 ca vitest và mười cổng đều xanh **cả trước lẫn sau** — `happy-dom` **không bố cục**.
+  ⇒ Mệnh đề *"`SECTION.panel` nay có `scrollHeight === clientHeight`"* và *"hàng cuối nằm trọn"*
+  **chưa được đo**. Đóng trọn cần một trong hai: một spec bàn đo đọc hai số đó trên WKWebView thật,
+  hoặc mắt Ice lần thứ hai.
+  ⚠️ Và cái bẫy mới do chính lượt vá mở ra, ghi ra thay vì để người sau gặp: flex column cho mọi
+  con `flex-shrink: 1` mặc định ⇒ một con không khai `flex: none` bị **co** thay vì làm tràn.
+  `.tabs` và `.load-error` đã khai; **không cổng nào canh câu này** cho con thứ ba.
+  **Chủ phần còn hở: Ice** *(một lượt nhìn, hoặc một lượt cho phép chạy bàn đo)*.
+
+  → ✅ **ĐÃ ĐÓNG 2026-08-17 — Ice nghiệm thu bằng mắt trên bản dựng thật:** *"đã pass, không bị ẩn
+  nữa"*. Hàng cuối Chương tiếng Trung nay hiện đủ chữ. ⇒ Cả hai vế của mục này đóng: nguyên nhân
+  *(vá ở `PanelFrame.vue::.panel-body` + `GridPanel.vue::.grid-scroll`)* và nghiệm thu *(mắt Ice —
+  đúng đường mà Task 4.5 khai từ đầu là đường duy nhất cho vế này)*.
+  ⚠️ **Cái bẫy do lượt vá mở ra thì KHÔNG đóng theo:** flex column cho mọi con `flex-shrink: 1`
+  mặc định ⇒ một con không khai `flex: none` bị **co** thay vì làm tràn, và **không cổng nào canh
+  câu đó**. Hôm nay `.tabs` và `.load-error` đã khai. **Chủ: panel nào đặt con thứ ba vào slot của
+  `PanelFrame`** — luật đã ghi tại chỗ ở `PanelFrame.vue::.panel-body` §GIỚI HẠN THẬT.
+
+- 🔴 **Không cổng nào canh `scroll-behavior`, và AC8 của story này phụ thuộc vào nó.** Đo
+  2026-08-18: `grep -rn "scroll-behavior" _bmad-output/` ⇒ **0 kết quả**; trên `src/` ⇒ đúng **2**
+  kết quả, cả hai là **chú thích** (`LookupPanel.vue`), không một dòng CSS. Giá trị đang hiệu lực
+  lúc chạy là `auto` trên cả hộp cuộn lẫn `documentElement` — mà `auto` **uỷ quyền cho CSS**.
+  ⇒ Mệnh đề *"không `scroll-behavior: smooth` ở bất kỳ đâu trong `src/**`"* là một **quy ước sống
+  trong hai khối chú thích**, không một luật cưỡng chế được. Ngày ai đó thêm nó, **AC7 của Panel
+  Lookup và AC8 của Panel Editor hỏng CÙNG LÚC và IM LẶNG**, và cả mười một cổng vẫn xanh.
+  ⚠️ 🔵 Hai chú thích ấy trích `DESIGN.md:342` cho một luật **chưa từng tồn tại** — đã **sửa tại
+  chỗ** ở lượt này *(dòng 342 nói về chiều rộng `ch` của Chế độ đọc)*. Nguồn thật gần nhất là
+  `DESIGN.md:373`, và nó thuộc phạm vi **Panel Lookup**, không toàn ứng dụng.
+  **Chủ: một story hạ tầng cổng** *(một phép kiểm chuỗi trên `src/**/*.vue` là đủ — cùng họ với
+  Kiểm B của `check-tokens`)*. Hoặc: Ice cho `DESIGN.md` một mệnh đề toàn ứng dụng thật, rồi cổng
+  cưỡng chế nó.
+
+- 🟡 **`goToNextSegment`/`goToPrevSegment` đăng ký mà KHÔNG có phím mặc định** — Quyết định #2
+  đường (c), Ice ký. Đủ chữ AC9 *("command đăng ký, gán phím được")* và chúng có mặt trong bảng
+  phím của Story 1.21 để người dùng tự gán. ⚠️ Hệ quả thật, ghi ra thay vì để người sau tự phát
+  hiện: **hai lệnh này vô hình cho tới khi người dùng tự gán phím**, nên AC1/AC2 hôm nay chỉ chạy
+  được qua `dispatch()`.
+  **Chủ: Ice** *(một lượt xem lại bảng Phím khi Epic 2 xong và có đủ ngữ cảnh về bảng phím tổng)*.
+
+- ⚠️ **Vế *"`⌥↓` thật có bị macOS nuốt không, và `preventDefault()` có chặn nổi không"* vẫn chưa
+  đóng** — mọi sự kiện driver mang `isTrusted: false`, và một sự kiện không tin cậy **không có
+  default action**, nên một phép kiểm sẽ trả *"chặn được"* trên **mọi** engine kể cả engine không
+  cho chặn. Cùng lớp với *"không bộ chạy test nào mô phỏng được một bộ gõ tiếng Việt thật"*.
+  ⚠️ Chữ ký #1(c) *(đổi sang `Mod+Alt+ArrowDown`)* làm nó **hết chặn** — đường đã ký không cướp
+  `⌥↓` nữa. Nó ở lại đây như một mệnh đề chưa đóng cho bất kỳ ai sau này muốn đường *"cửa thứ hai
+  ở `onEditKeydown`"*.
+  🔵 **CHỦ ĐẶT LẠI 2026-08-17 (code review).** Bản đầu ghi *"Chủ: chưa cần"* — theo chữ luật của
+  `project-context.md` §Sổ nợ *("Mọi thứ… KÈM MỘT CHỦ. Không có mục nào mồ côi")* thì đó là một mục
+  **mồ côi**, và *"chưa cần"* là đúng cái hình dạng mà một mục không chủ mang khi nó trông vô hại.
+  **Chủ: Ice** — và chủ ấy có một **điều kiện kích hoạt viết ra**: bất kỳ lượt nào đề xuất đường
+  *"cửa thứ hai ở `onEditKeydown`"* cho một hợp âm **không** mang `Mod` *(tức bất kỳ lượt nào lật
+  chữ ký #1(c) của Story 2.10)* thì mục này **chặn** lượt đó cho tới khi có một phép đo trên máy
+  thật. Không lượt nào như thế được đi bằng suy luận từ mã: thước của dự án **không đo được** vế
+  này *(`isTrusted: false` ⇒ không default action ⇒ mọi phép kiểm trả "chặn được" trên mọi engine)*.
+
+- 🔴 **AC8 nửa sau dựa vào HÀNH VI ENGINE, không vào một dòng mã đọc được** — và đó là một
+  quyết định có chữ ký, không một chỗ bỏ sót. Story 2.10 giao Task 4 *"cuộn tới hàng — CHƯA CÓ"*;
+  ba phép đo bác tiền đề đó *(xem `GridPanel.vue` §"AC8 NỬA SAU")*: `target.focus()` đã tự cuộn
+  hàng vào vùng nhìn, **không** đụng một tổ tiên nào, và nó **khéo hơn** một công thức tự cài —
+  **căn giữa** khi hàng ở xa *(`scrollTop` 1569)*, **nearest** khi nó chỉ vừa ló khỏi mép *(dịch
+  đúng 38 px = một chiều cao hàng)*. Một công thức ép nearest ở mọi ca dán hàng đích vào sát mép
+  dưới sau lượt nhảy xa, tức **xấu hơn**. ⇒ Ice ký **gỡ** `cuonToiHang` 2026-08-18; không mã cuộn
+  nào ở `GridPanel.vue`.
+  ⚠️ **Cái giá:** không chuẩn nào bảo đảm hành vi ấy và **không cổng nào canh nó**. Một bản WebKit
+  sau đổi cách cuộn khi nhận tiêu điểm ⇒ AC8 hỏng **im lặng**, và cả mười một cổng vẫn xanh.
+  Lưới duy nhất là ca Ⓒ + Ⓔ của `e2e/specs/segment-navigation.e2e.mjs` — **chạy tay**.
+  ⚠️ Cùng lớp: `happy-dom` **không bố cục**, nên vitest không bao giờ thay được lưới đó.
+  **Chủ: bộ e2e trong CI** *(hôm nay e2e không chạy trên runner nào — action item A5 của retro
+  Epic 1 đã ghi vế Windows của cùng khoảng trống này)*.
+
+- ⚠️ **Ba lượt đột biến của Story 2.10 cho một bài học phương pháp, ghi lại vì nó sẽ lặp.** Ca
+  e2e §Ⓒ *("đã cuộn" + "hàng nằm trọn")* **xanh ở CẢ HAI** thế giới — có `cuonToiHang` và không.
+  Nó là một ca **tự xưng** là canh một hàm mà thật ra đo một hàm khác. Chỉ một phép so về **độ
+  dịch** *(ca Ⓔ)* mới phân biệt được *nearest* với *căn giữa*.
+  ⇒ **Một ca test khẳng định "X đã xảy ra" không chứng minh "mã CỦA TÔI làm X".** Đường phân biệt
+  duy nhất là gỡ mã ra và chạy lại — đúng thứ Task 7.3 đòi, và ở story này nó bắt được **hai** ca
+  vô hiệu liên tiếp.
+
+## Deferred from: code review of 2-10-dieu-huong-segment (2026-08-17)
+
+- ⚠️ **Một lượt điều hướng đồng bộ trong lúc `confirmCurrentSegment` đang bay kéo caret về chỗ
+  `confirm` đã chọn, ghi đè chỗ người dùng vừa tới.** Đường đua: `⌘Enter` chạy tới
+  `await flushEditorBeforeDiscreteWrite()` / `await confirmSegment(...)`; trong lúc chờ, người
+  dùng bấm một lệnh điều hướng — chúng **đồng bộ** và **không** bị `confirmInFlight` khoá *(khoá
+  đó chỉ nối tiếp các lượt `confirm` với nhau)*. Khi lượt xác nhận resume, nó tính `following` từ
+  vị trí của câu **cũ** trong ảnh chụp rồi gọi `setEditorCaret(following.id)` +
+  `caretPlacement.value` (`editorPanelState.ts:921-924`), và watcher đường lệnh ở
+  `GridPanel.vue` kéo caret DOM theo.
+  ⚠️ **Không mất dữ liệu** — lượt `setEditorCaret` ấy vẫn mang vế (d) của AD-35 nên bộ đệm của
+  câu người dùng vừa gõ được flush đúng về câu đó. Hệ quả là **caret nhảy**, không phải chữ sai chỗ.
+  🔵 **Lớp lỗi có TRƯỚC Story 2.10** *(`editor.next_untranslated` của 2.5b đã là một đường điều
+  hướng đồng bộ)*, nên đây **không** phải khuyết tật do 2.10 tạo ra. Nhưng 2.10 thêm **hai** lệnh
+  nữa đi đúng đường đó ⇒ bề mặt chạm tới rộng hơn hẳn, và không test nào của kho dựng kịch bản
+  xen kẽ này.
+  **Chủ: story đầu tiên phân xử "khoá bàn phím trong lúc một lượt ghi rời rạc đang bay"** *(cùng
+  họ với `regroupInFlight` ở 2.8 — chỗ đó đã chọn **từ chối và kêu** thay vì nhập vào lượt đang
+  bay; câu hỏi ở đây là ba lệnh điều hướng có phải theo cùng luật đó không)*.

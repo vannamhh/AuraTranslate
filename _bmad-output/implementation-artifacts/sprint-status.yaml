@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-18T00:00:00
+last_updated: 2026-08-18T01:00:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -1372,7 +1372,7 @@ development_status:
   #   tieu no. Nguon su that la `PROJECT_MIGRATIONS` (schema.rs), khong dong nay.
   # Baseline do lai tu nguon tren HEAD `a664dac` (cay SACH): cargo test --locked **401/0/5** ·
   #   segment_contract **121** · vitest **199/199** (19 tep) · COMMAND_FLOOR san **39**.
-  2-10-dieu-huong-segment: in-progress
+  2-10-dieu-huong-segment: review
   2-11-chuyen-chuong-trong-workspace: backlog
   # 2-12-sync-scrolling: XOA 2026-08-14 — FR20 da RUT (Ice ky). Luoi nuot 2/3 cap panel cua
   # FR20; cap con lai (luoi <-> AI Translation) van con THAT nhung Ice chot khong giu.

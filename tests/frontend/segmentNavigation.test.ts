@@ -10,7 +10,13 @@
  * dịch"*: một câu đã gõ xong mà chưa ai bấm xác nhận vẫn mang `status = 'draft'`.
  */
 import { describe, expect, it } from 'vitest'
-import { isUntranslated, navigationSegmentOf, nextUntranslatedId } from '../../src/panels/segmentNavigation'
+import {
+  isUntranslated,
+  navigationSegmentOf,
+  nextSegmentId,
+  nextUntranslatedId,
+  prevSegmentId,
+} from '../../src/panels/segmentNavigation'
 import type { NavigationSegment } from '../../src/panels/segmentNavigation'
 import type { ChapterSegment } from '../../src/config/segment'
 
@@ -229,5 +235,149 @@ describe('ba chỗ đọc `draft` phải ĐỒNG Ý với nhau', () => {
         targetText: 'X',
       }),
     ).toBe('draft')
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 2.10 — HAI VỊ TỪ TUẦN TỰ. AC1 · AC2 · AC7
+// ═════════════════════════════════════════════════════════════════════════════════
+/**
+ * 🔴 **Vì sao chúng KHÔNG cùng luật lọc với [`nextUntranslatedId`]** — Quyết định #3, Ice ký
+ * 2026-08-18, và nó là một quyết định về **năng lực**, không về đối xứng.
+ *
+ * `nextSegmentId`/`prevSegmentId` là điều hướng **VỊ TRÍ**: chúng trả lời *"câu ngay cạnh"*.
+ * `nextUntranslatedId` là điều hướng **THEO VIỆC**: nó trả lời *"chỗ tiếp theo tôi phải làm"*,
+ * nên nó bỏ qua câu đã cắt bỏ (AC5).
+ *
+ * ⚠️ Nếu **cả ba** cùng bỏ qua `isOmitted` thì **không đường bàn phím nào** đưa caret tới một
+ * câu đã cắt bỏ được nữa — và `editor.restore_segment` chạy **trên câu đang có caret**. ⇒ FR133
+ * vế *"đảo ngược được bất cứ lúc nào"* chỉ còn đường chuột, NFR17 (*"mọi thao tác hoàn toàn
+ * bằng bàn phím"*) hỏng **im lặng**, và không cổng nào đỏ. Ca `next/prev DỪNG ở câu đã cắt bỏ`
+ * dưới đây là lưới duy nhất cho mệnh đề đó.
+ */
+describe('nextSegmentId / prevSegmentId — điều hướng VỊ TRÍ (Story 2.10)', () => {
+  const ds: readonly NavigationSegment[] = [
+    seg({ id: 10 }),
+    seg({ id: 20, status: 'confirmed', targetText: 'đã ký' }),
+    seg({ id: 30 }),
+  ]
+
+  it('AC1 — từ một câu ⇒ câu ngay SAU nó', () => {
+    expect(nextSegmentId(ds, 10)).toBe(20)
+    expect(nextSegmentId(ds, 20)).toBe(30)
+  })
+
+  it('AC2 — từ một câu ⇒ câu ngay TRƯỚC nó', () => {
+    expect(prevSegmentId(ds, 30)).toBe(20)
+    expect(prevSegmentId(ds, 20)).toBe(10)
+  })
+
+  it('🔴 KHÔNG bỏ qua câu đã dịch hay đã ký — đây là điều hướng VỊ TRÍ', () => {
+    // Ca này là chỗ hai họ vị từ tách nhau: `nextUntranslatedId` từ 10 nhảy **qua** 20.
+    expect(nextSegmentId(ds, 10)).toBe(20)
+    expect(nextUntranslatedId(ds, 10)).toBe(30)
+  })
+
+  /**
+   * 🔴 Quyết định #5(a), Ice ký — con trỏ **ở nguyên** và chỗ gọi **báo**. `null` là câu trả
+   * lời *"không còn câu nào phía đó"*, và nó **không** phải một lỗi.
+   */
+  it('AC7 — hết biên ⇒ `null`, KHÔNG quay vòng', () => {
+    expect(nextSegmentId(ds, 30)).toBeNull()
+    expect(prevSegmentId(ds, 10)).toBeNull()
+  })
+
+  /**
+   * 🔴 CA QUYẾT ĐỊNH của Quyết định #3. Gỡ vế `isOmitted` khỏi `nextUntranslatedId` **hoặc**
+   * thêm nó vào hai vị từ này đều làm ca này đỏ.
+   */
+  it('🔴 next/prev DỪNG ở câu đã cắt bỏ — đường bàn phím duy nhất tới FR133', () => {
+    const coCatBo: readonly NavigationSegment[] = [
+      seg({ id: 10 }),
+      seg({ id: 20, isOmitted: true }),
+      seg({ id: 30 }),
+    ]
+    expect(nextSegmentId(coCatBo, 10)).toBe(20)
+    expect(prevSegmentId(coCatBo, 30)).toBe(20)
+    // Đối chứng: lệnh THEO VIỆC vẫn nhảy qua nó — AC5 còn nguyên.
+    expect(nextUntranslatedId(coCatBo, 10)).toBe(30)
+  })
+
+  /**
+   * ⚠️ Câu về hưu bị bỏ ở **cả hai vai**: không phải đích, và không chặn đường. Đối xứng với
+   * `nextUntranslatedId:101`, và lý do khác hẳn `isOmitted`: một câu đã về hưu sau lượt
+   * gộp/tách **không còn là câu người dùng làm việc trên đó** (Story 2.8) — nó không phải một
+   * lựa chọn của người dùng, nó là một hàng đã chết.
+   */
+  it('câu đã VỀ HƯU bị bỏ qua ở cả hai vai — không phải đích, không chặn đường', () => {
+    const coVeHuu: readonly NavigationSegment[] = [
+      seg({ id: 10 }),
+      seg({ id: 20, retiredAt: '2026-08-18T00:00:00Z' }),
+      seg({ id: 30 }),
+    ]
+    expect(nextSegmentId(coVeHuu, 10)).toBe(30)
+    expect(prevSegmentId(coVeHuu, 30)).toBe(10)
+  })
+
+  it('câu về hưu ở BIÊN ⇒ `null`, không trả một hàng đã chết', () => {
+    const bienVeHuu: readonly NavigationSegment[] = [
+      seg({ id: 10, retiredAt: '2026-08-18T00:00:00Z' }),
+      seg({ id: 20 }),
+      seg({ id: 30, retiredAt: '2026-08-18T00:00:00Z' }),
+    ]
+    expect(nextSegmentId(bienVeHuu, 20)).toBeNull()
+    expect(prevSegmentId(bienVeHuu, 20)).toBeNull()
+  })
+
+  /**
+   * 🔴 Khuôn `nextUntranslatedId:95-98`, và nó có một lý do thật: `fromId` trỏ vào một câu
+   * **vừa bị gộp mất** là ca có thật từ Story 2.8. Hành vi phải **có nghĩa**, không phải không
+   * hành vi nào.
+   *
+   * ⚠️ Hai hàm **không** đối xứng ở đây, và đó là có chủ ý: *"từ hư không"* đi tới thì gặp câu
+   * **đầu**, đi lui thì gặp câu **cuối**. Một `prevSegmentId(ds, null) === null` sẽ làm phím
+   * *"câu trước"* chết câm ngay sau một lượt gộp.
+   */
+  it('`fromId` là `null` hoặc không tìm thấy ⇒ hành vi CÓ NGHĨA ở cả hai chiều', () => {
+    expect(nextSegmentId(ds, null)).toBe(10)
+    expect(prevSegmentId(ds, null)).toBe(30)
+    expect(nextSegmentId(ds, 999)).toBe(10)
+    expect(prevSegmentId(ds, 999)).toBe(30)
+  })
+
+  it('danh sách rỗng ⇒ `null`, không ném', () => {
+    expect(nextSegmentId([], null)).toBeNull()
+    expect(prevSegmentId([], null)).toBeNull()
+    expect(nextSegmentId([], 10)).toBeNull()
+    expect(prevSegmentId([], 10)).toBeNull()
+  })
+
+  /**
+   * ⚠️ Danh sách chỉ toàn câu về hưu là ca thật sau một lượt gộp lớn, và nó là chỗ một vòng
+   * lặp viết vội trả về chính `fromId` *(tức phím "không làm gì" nhưng chỗ gọi tưởng đã dời)*.
+   */
+  it('toàn bộ đã về hưu ⇒ `null` từ mọi vị trí, kể cả `null`', () => {
+    const chetHet: readonly NavigationSegment[] = [
+      seg({ id: 10, retiredAt: '2026-08-18T00:00:00Z' }),
+      seg({ id: 20, retiredAt: '2026-08-18T00:00:00Z' }),
+    ]
+    expect(nextSegmentId(chetHet, null)).toBeNull()
+    expect(prevSegmentId(chetHet, null)).toBeNull()
+    expect(nextSegmentId(chetHet, 10)).toBeNull()
+    expect(prevSegmentId(chetHet, 20)).toBeNull()
+  })
+
+  /**
+   * 🔴 Cạm bẫy ⑥ — duyệt bằng **chỉ số mảng**, KHÔNG bằng `segment.ord`. `ord` trong ảnh chụp
+   * webview thành **cũ** sau một lượt gộp/tách *(món nợ đã ghi, chủ là "story đầu tiên đọc
+   * `segment.ord` ở webview")*. Kiểu `NavigationSegment` **không có** trường `ord` — đó là
+   * chốt cấu tạo; ca này là chốt hành vi cho cùng mệnh đề.
+   */
+  it('🔴 thứ tự đến từ MẢNG, không từ `id` — một mảng nghịch đảo id vẫn đi đúng chiều', () => {
+    const nghichDao: readonly NavigationSegment[] = [seg({ id: 30 }), seg({ id: 20 }), seg({ id: 10 })]
+    expect(nextSegmentId(nghichDao, 30)).toBe(20)
+    expect(nextSegmentId(nghichDao, 20)).toBe(10)
+    expect(prevSegmentId(nghichDao, 10)).toBe(20)
+    expect(nextSegmentId(nghichDao, 10)).toBeNull()
   })
 })

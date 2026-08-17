@@ -267,7 +267,24 @@ watch(lookupPending, (now, before) => {
     playFade()
 
     // 🔴 AC7 — vị trí cuộn về đầu **TỨC THÌ**. không `scrollIntoView`, không `behavior: 'smooth'`,
-    // không `scroll-behavior` trong CSS (`DESIGN.md:342` cấm cả ứng dụng).
+    // không `scroll-behavior` trong CSS.
+    //
+    // 🔵 **SỬA 2026-08-18 (Story 2.10) — vế trong ngoặc của dòng trên ĐÃ HẾT ĐÚNG, và nó chưa
+    // từng đúng.** Bản cũ viết *"(`DESIGN.md:342` cấm cả ứng dụng)"*. Đo lại từ nguồn:
+    // `DESIGN.md:342` nói về **chiều rộng `ch` của Chế độ đọc**, không một chữ nào về cuộn; và
+    // `grep -rn "scroll-behavior"` trên **toàn** `_bmad-output/` trả **0 kết quả**. ⇒ Luật
+    // *"cấm `scroll-behavior` toàn ứng dụng"* **chưa từng tồn tại** ở dạng đó.
+    //
+    // Hai mệnh đề gần nhất còn thật: `DESIGN.md:373` *(“Vị trí cuộn — về đầu tức thì, không bao
+    // giờ cuộn có hiệu ứng”)* nằm trong bảng Motion **của chính Panel Lookup** — tức nó chống
+    // đỡ AC7 ở đây, nhưng **chỉ ở đây**; và `DESIGN.md:379` *(ba cấm chung toàn ứng dụng)* thì
+    // thật sự toàn ứng dụng nhưng **không nêu tên** `scroll-behavior`.
+    //
+    // ⚠️ **Hệ quả phải biết, không phải một chi tiết trích dẫn:** mệnh đề *"không `scroll-behavior`
+    // ở đâu trong `src/**`"* là một **quy ước sống trong hai khối chú thích** *(đây và `:830`)*,
+    // **không** một luật có cổng canh. Ai thêm một dòng `scroll-behavior: smooth` sẽ đi qua trọn
+    // cả mười một cổng và làm hỏng **im lặng** cả AC7 ở đây lẫn AC8 của `GridPanel.vue`.
+    // Đúng §Bẫy tài liệu của `project-context.md`: *"tin cây nguồn hiện tại hơn một chú thích"*.
     //
     // ⚠️ Sau `nextTick`: `scrollTop = 0` trên nội dung CŨ rồi Vue thay nội dung mới là một
     // lượt đặt vào hư không — chiều cao vùng cuộn đổi cùng lượt đó.
@@ -827,8 +844,16 @@ onBeforeUnmount(() => {
 /*
  * Vùng cuộn thật. `scrollTop = 0` của AC7 đặt lên phần tử NÀY.
  *
- * 🔴 không `scroll-behavior: smooth` ở đây hay bất kỳ đâu trong `src/**` — `DESIGN.md:342`
- * cấm cho cả ứng dụng, và AC7 đếm lại con số đó ở Task 9.
+ * 🔴 không `scroll-behavior: smooth` ở đây hay bất kỳ đâu trong `src/**`.
+ *
+ * 🔵 **SỬA 2026-08-18 (Story 2.10) — lý do trích dẫn ở đây ĐÃ HẾT ĐÚNG.** Bản cũ viết
+ * *"`DESIGN.md:342` cấm cho cả ứng dụng"*; dòng 342 hôm nay nói về chiều rộng `ch` của Chế độ
+ * đọc, và `grep -rn "scroll-behavior"` trên toàn `_bmad-output/` trả **0 kết quả**. Nguồn thật
+ * cho AC7 là `DESIGN.md:373`, bảng Motion **của Panel Lookup** — đủ cho tệp này, **không** cho
+ * cả ứng dụng. Khối lý do đầy đủ ở chỗ đặt `scrollTop = 0`.
+ *
+ * ⚠️ ⇒ Mệnh đề *"không ở bất kỳ đâu trong `src/**`"* là một **quy ước**, không một luật có cổng
+ * canh. Story 2.10 nhận nó làm tiền đề cho AC8 của `GridPanel.vue` và ghi rõ chỗ hở đó tại chỗ.
  */
 .lookup-scroll {
   flex: 1;

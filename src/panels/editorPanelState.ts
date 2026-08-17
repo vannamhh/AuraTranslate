@@ -31,7 +31,13 @@ import {
 import type { ChapterSegment, RegroupOutcome, SegmentTargetEdit } from '../config/segment'
 import type { IpcError } from '../i18n'
 import { createEditorFlush, EDITOR_RETRY_FLOOR_MS } from './editorFlush'
-import { navigationSegmentOf, nextUntranslatedId } from './segmentNavigation'
+import {
+  navigationSegmentOf,
+  nextSegmentId,
+  nextUntranslatedId,
+  prevSegmentId,
+} from './segmentNavigation'
+import type { NavigationSegment } from './segmentNavigation'
 
 const segments = shallowRef<readonly ChapterSegment[]>([])
 const chapterId = shallowRef<number | null>(null)
@@ -295,11 +301,14 @@ export function noteEditorEdit(segmentId: number, targetText: string): void {
   //
   // ⚠️ Dọn ở ĐÂY, không bằng một `setTimeout`: một câu tự biến mất sau N giây là một hẹn giờ
   // phải chọn N, phải test, và nó vẫn sai với người đọc chậm. Sự kiện thì không phải chọn gì.
-  confirmNotice.value = null
   // 🔵 Story 2.9, AC4 — câu báo của lượt gộp/tách đi cùng cửa và cùng lý do. Cả bảy giá trị
   // của `RegroupNotice` mô tả một thời điểm **đã trôi qua**; giữ chúng lại trong lúc người
   // dùng đang gõ là để một câu ĐÚNG-LÚC-ĐÓ nói dối ở hiện tại.
-  regroupNotice.value = null
+  //
+  // 🔵 Story 2.10 — nay đi qua [`datThongBao`], **tham số rỗng**: người dùng gõ tiếp nghĩa là
+  // KHÔNG thao tác nào sở hữu thanh trạng thái nữa. Câu điều hướng *(ô nhớ thứ ba)* thuộc cùng
+  // một lớp và được dọn ở đây nhờ đúng lượt gọi này — không một dòng thứ ba phải nhớ viết.
+  datThongBao({})
 }
 
 /**
@@ -487,8 +496,6 @@ export function resetEditorPanel(): void {
   // mười một cổng, và cả hai bị bỏ quên ở đây.
   confirmError.value = null
   caretPlacement.value = null
-  // Cùng lý do: một câu *"chưa lưu được bản dịch"* thuộc Tác phẩm vừa bị thay.
-  confirmNotice.value = null
 
   // 🔵 **Thêm 2026-08-17 (code review ba tầng — HAI tầng độc lập bắt được).** Hai ô nhớ của
   // Story 2.9 rơi vào **đúng cái bẫy mà khối chú thích ngay trên đây mô tả**, ở story liền sau.
@@ -507,7 +514,22 @@ export function resetEditorPanel(): void {
   // lượt đều đi qua trọn mười một cổng. Một luật chỉ sống trong một khối chú thích là một luật
   // sẽ bị quên lần thứ ba. Món dựng cổng đã vào `deferred-work.md`.
   regroupError.value = null
-  regroupNotice.value = null
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔵 STORY 2.10 — LẦN THỨ BA CỦA CÙNG MỘT LUẬT, và lượt này nó KHÔNG phải một lượt nhớ
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // Khối ngay trên viết: *"một luật chỉ sống trong một khối chú thích là một luật sẽ bị quên
+  // lần thứ ba"*. Story 2.10 **là** lần thứ ba — nó thêm `navNotice`.
+  //
+  // 🔴 Lượt này ô nhớ mới đi vào đây **theo cấu tạo, không theo trí nhớ**: cả ba ô câu chữ chỉ
+  // có một cửa ghi ([`datThongBao`]) và cửa ấy gán **cả ba** ở mọi lời gọi. ⇒ Một lời gọi
+  // tham số rỗng ở đây dọn ô thứ ba, và nó sẽ dọn ô thứ **tư** vào ngày ai đó thêm — không cần
+  // sửa dòng này.
+  //
+  // ⚠️ Đây **không** phải cổng mà `deferred-work.md` còn nợ: nó chỉ đóng đúng ba (rồi N) ô câu
+  // chữ đi qua [`datThongBao`]. Một ô nhớ **không phải câu chữ** *(khuôn `sourceCut`,
+  // `confirmError`, `caretPlacement`)* vẫn phải nhớ bằng tay, và vẫn không cổng nào canh.
+  datThongBao({})
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -746,22 +768,50 @@ export async function confirmCurrentSegment(): Promise<ConfirmResult> {
     //
     // ⚠️ Nhánh *joiner* ở trên (`return running`) CỐ Ý không ghi: lượt gốc sẽ ghi khi nó xong,
     // và hai lượt cùng ghi một giá trị chỉ là một lần thừa, không một mâu thuẫn.
-    confirmNotice.value = result === 'confirmed' || result === 'refused' ? null : result
     // 🔵 2026-08-17 (code review) — vế ĐỐI XỨNG của bất biến ở [`ghiRegroupNotice`]: thao tác vừa
-    // xảy ra sở hữu thanh trạng thái. Không có dòng này, một câu *"Đã gộp hai câu…"* của lượt
+    // xảy ra sở hữu thanh trạng thái. Không có vế dọn, một câu *"Đã gộp hai câu…"* của lượt
     // trước sống sót qua một lượt `⌘Enter` **thành công** và che mốc *"Đã lưu N giây trước"* —
     // cùng một khuyết tật, chỉ đổi chiều.
-    regroupNotice.value = null
+    //
+    // 🔵 Story 2.10 — cả hai vế nay là **một** lời gọi [`datThongBao`], và vế thứ ba *(dọn câu
+    // điều hướng)* có mặt **theo cấu tạo** thay vì phải nhớ.
+    //
+    // 🔴 **Và đây là chỗ Quyết định #6(c) được thi hành** — nhánh duy nhất ghi một câu ở lượt
+    // xác nhận **THÀNH CÔNG**. Xem [`kyTrungCauCuoi`] về vì sao tín hiệu đi bằng một cờ chứ
+    // không bằng một phép suy ra từ `caretSegmentId`.
+    if (result === 'confirmed') datThongBao({ nav: kyTrungCauCuoi ? 'confirmed-last' : null })
+    else datThongBao({ confirm: result === 'refused' ? null : result })
     return result
   } finally {
     confirmInFlight = null
   }
 }
 
+/**
+ * 🔴 **Lượt xác nhận vừa rồi có phải ở câu CUỐI Chương không** — Story 2.10, Quyết định #6(c).
+ *
+ * ⚠️ **Vì sao một cờ chứ không một phép suy ra ở cửa có khoá.** Ứng viên hiển nhiên là so
+ * `caretSegmentId` **trước** và **sau** lượt `await`: không đổi ⇒ không dời được ⇒ câu cuối. Nó
+ * sai ở **hai** ca, và cả hai đều im lặng:
+ *   ① Người dùng bấm sang một câu khác **trong lúc** lượt IPC đang bay ⇒ caret đổi vì một lý do
+ *      khác ⇒ suy ra *"đã dời được"* ⇒ câu báo **không hiện** ở đúng ca nó phải hiện.
+ *   ② `index < 0` *(câu vừa ký không có trong ảnh chụp)* cũng để caret nguyên và cũng trả
+ *      `'confirmed'` ⇒ suy ra *"câu cuối Chương"* ⇒ câu báo hiện **sai**.
+ * ⇒ Cờ được ghi ở **đúng nhánh biết sự thật** (`following === undefined`), nên nó không đoán.
+ *
+ * 🔴 Đặt lại `false` ở **đầu** mỗi lượt chạy, không ở cuối: [`confirmInFlight`] bảo đảm mỗi lúc
+ * chỉ có **một** lượt bay *(nhánh joiner trả lại chính promise đang chạy)*, nên một lượt reset
+ * ở đầu là đủ và không có ca hai lượt ghi đè nhau. Đặt lại ở cuối thì một đường `return` sớm
+ * nào đó sẽ bỏ qua nó và giá trị của lượt **trước** rò sang lượt sau.
+ */
+let kyTrungCauCuoi = false
+
 /** Lượt xác nhận đang bay, hoặc `null`. Xem khối lý do trong [`confirmCurrentSegment`]. */
 let confirmInFlight: Promise<ConfirmResult> | null = null
 
 async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
+  // 🔵 Story 2.10 — xem khối lý do của [`kyTrungCauCuoi`]. Đặt lại ở ĐÂY, trước mọi `return`.
+  kyTrungCauCuoi = false
   const id = caretSegmentId.value
   if (id === null) return 'no-caret'
 
@@ -872,6 +922,21 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
     if (following !== undefined) {
       setEditorCaret(following.id)
       caretPlacement.value = following.id
+    } else {
+      // 🔵 STORY 2.10, Quyết định #6(c) — MÓN NỢ `deferred-work.md:2837-2847` ĐÓNG MỘT NỬA.
+      //
+      // Đây là **câu cuối Chương**: không có câu kế để dời con trỏ sang, nên `primary` vẫn
+      // thắng `confirmed` ở `resolveSegmentRule` và vạch lề **không đổi màu** dù `segment.status`
+      // trong CSDL đã đúng. Nó xảy ra **đúng một lần mỗi Chương**, ở đúng câu cuối.
+      //
+      // 🔴 Không vá bằng cách đảo thứ tự `primary`/`confirmed` *(quyết định có chữ ký, không
+      // đảo)*, và không vá bằng `setEditorCaret(null)` *(đường (b), Ice loại: nó dựng một trạng
+      // thái `caretSegmentId === null` trong khi DOM focus VẪN trong ô — hai nguồn sự thật nói
+      // ngược nhau, không cổng nào canh — và `onSelectionChange` đặt lại id ở lượt dịch caret
+      // kế tiếp nên hiệu lực thị giác chỉ là tạm)*.
+      //
+      // ⇒ Đóng bằng **thông tin**. 🟡 Vế thị giác **vẫn hụt** và đã ghi lại vào sổ nợ kèm chủ.
+      kyTrungCauCuoi = true
     }
   }
 
@@ -1027,12 +1092,130 @@ export async function setCurrentSegmentParagraphEnd(
  * trần. Chỗ này chỉ **xếp thứ tự** hai lượt gọi.
  */
 export function goToNextUntranslated(): boolean {
-  const list = segments.value.map((s) => navigationSegmentOf(s, editedText.value))
-  const next = nextUntranslatedId(list, caretSegmentId.value)
-  if (next === null) return false
-  setEditorCaret(next)
-  caretPlacement.value = next
+  return doiConTroToi(nextUntranslatedId(danhSachDieuHuong(), caretSegmentId.value))
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 2.10 — HAI LỆNH TUẦN TỰ. AC1 · AC2 · AC7
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Ảnh chụp hiển thị **cộng** tập chờ đang gõ, ở dạng ba vị từ thuần cần.
+ *
+ * ⚠️ Vế *"cộng tập chờ đang gõ"* không phải một chi tiết: văn bản **chưa flush** không nằm
+ * trong hàng dữ liệu, và bỏ nó làm lệnh *"câu chưa dịch kế tiếp"* nhảy **vào chính câu người
+ * dùng vừa gõ xong** — đúng ca thường nhất của phím này. Xem [`navigationSegmentOf`].
+ */
+function danhSachDieuHuong(): readonly NavigationSegment[] {
+  return segments.value.map((s) => navigationSegmentOf(s, editedText.value))
+}
+
+/**
+ * 🔴 **ĐƯỜNG DỜI CON TRỎ, VÀ NÓ CÓ ĐÚNG MỘT BẢN.** Ba lệnh điều hướng đều đi qua đây.
+ *
+ * ⇒ Trả `true` khi con trỏ **đã dời**, `false` khi không còn câu nào phía đó.
+ *
+ * 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."* Hết Chương là một câu trả
+ * lời **hợp lệ**, không một lỗi. Con trỏ **ở nguyên**, và chỗ gọi báo ra màn hình *(Quyết định
+ * #5(a) và AC6 — `console` **là** im lặng theo định nghĩa của dự án)*.
+ *
+ * 🔴 **Hai dòng dưới đây là hai việc KHÁC nhau, và thứ tự không đảo được:**
+ *   ① `setEditorCaret(id)` mang vế **(d) *rời segment*** của hợp đồng flush AD-35 — nó **ghi
+ *      xuống đĩa** văn bản của câu vừa rời (`:145-150`). Mỗi lượt điều hướng vì thế lưu bài
+ *      **miễn phí**, *nếu* đi qua hàm này.
+ *   ② `caretPlacement.value` là yêu cầu *"đặt caret DOM vào đầu ô"* mà watcher **đường lệnh**
+ *      ở `GridPanel.vue` đọc. Đường **chuột** không đi qua nó, có chủ ý.
+ *
+ * ⚠️ **Một đường dời con trỏ thứ hai làm mất chữ người dùng vừa gõ, IM LẶNG, và không cổng nào
+ * đỏ.** Đó là toàn bộ lý do hàm này tồn tại thay vì ba bản sao ba dòng.
+ *
+ * ⚠️ AD-47 **không** bị chạm: flush theo AD-35 chở đúng **bộ đệm gõ**, nên xuất xứ vẫn là *tôi
+ * dịch* và không cột xuất xứ nào phải đặt. `ARCHITECTURE-SPINE.md` khai vế này bằng chữ.
+ */
+function doiConTroToi(id: number | null): boolean {
+  if (id === null) return false
+  setEditorCaret(id)
+  caretPlacement.value = id
   return true
+}
+
+/**
+ * **Segment kế tiếp** — AC1. Điều hướng **theo vị trí**: nó **không** bỏ qua câu đã cắt bỏ.
+ *
+ * ⇒ Trả `false` ở **cuối** Chương; chỗ gọi ghi `'at-last'`.
+ */
+export function goToNextSegment(): boolean {
+  return doiConTroToi(nextSegmentId(danhSachDieuHuong(), caretSegmentId.value))
+}
+
+/**
+ * **Segment trước đó** — AC2. Xem [`goToNextSegment`].
+ *
+ * ⇒ Trả `false` ở **đầu** Chương; chỗ gọi ghi `'at-first'`.
+ */
+export function goToPrevSegment(): boolean {
+  return doiConTroToi(prevSegmentId(danhSachDieuHuong(), caretSegmentId.value))
+}
+
+/**
+ * 🔴 **AC6 · AC7 — BÁO RA MÀN HÌNH, và đây là chỗ nó được thi hành.**
+ *
+ * ⚠️ Trước Story 2.10, nhánh *"hết câu chưa dịch"* chỉ có một `console.info` ở
+ * `commands/index.ts`. Theo định nghĩa của dự án, `console` **là** im lặng: người dùng bấm phím
+ * và **không một pixel nào đổi**. Đó là *"rỗng IM LẶNG"* áp lên một thao tác người dùng **chủ
+ * động** — ca tệ nhất của lớp lỗi đó, và là lý do AC6 tồn tại.
+ *
+ * 🔴 Ghi câu báo **chỉ khi không dời được**. Một lượt dời **thành công** không được ghi **CÂU**
+ * nào: nó đã tự nói bằng vạch lề và bằng vị trí caret, và một câu thừa trên thanh 34px sẽ **đẩy**
+ * mốc *"Đã lưu N giây trước"* mà UX-DR30 đòi.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 SỬA 2026-08-17 (code review ba tầng) — *"không ghi CÂU nào"* KHÔNG bằng *"không DỌN gì"*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Bản đầu của hàm này viết `if (!daDoi) ghiNavNotice(...)` rồi `return` — nhánh thành công
+ * **không chạm** một ô nhớ nào. Hai tầng rà độc lập tìm ra cùng khuyết tật, và nó tái hiện được:
+ *
+ * > Con trỏ ở câu cuối ⇒ `next_segment` ⇒ thanh hiện *"Đã ở câu cuối Chương…"*. Bấm
+ * > `prev_segment` ⇒ **dời được** ⇒ thanh **vẫn** hiện câu đó, dù con trỏ đã đi.
+ * > *(Đo: `editorNavNotice.value` còn `'at-last'` sau một lượt trả `true`.)*
+ *
+ * ⚠️ **Và nó gây ra ĐÚNG tai hoạ mà đoạn lý do trên muốn tránh.** `navNoticeKey` đứng **trước**
+ * `secondsSinceSave` trong chuỗi `v-else-if` (`StatusBar.vue:267-269`), nên một câu kẹt lại **che
+ * mốc *"Đã lưu N giây trước"* vô thời hạn** — cho tới khi người dùng tình cờ gõ chữ, ký, hoặc
+ * gộp/tách *(ba đường duy nhất còn gọi [`datThongBao`])*. Trong một ứng dụng mà NFR18 là *"mất ≤
+ * 5 s công việc"*, mốc đó là dấu hiệu **duy nhất** người dùng thấy rằng bài đang được lưu.
+ *
+ * 🔴 Lời giải là [`datThongBao`] với **tham số rỗng** — nó dọn cả ba ô và **không** thêm câu nào,
+ * tức thoả trọn đoạn lý do trên. Khuôn này đã có **hai** tiền lệ trong chính tệp này:
+ * [`noteEditorEdit`] *(người dùng gõ tiếp ⇒ mọi câu cũ hết đúng)* và nhánh `'confirmed'` của
+ * [`confirmCurrentSegment`] *(`{ nav: … ? 'confirmed-last' : null }` — vế `null` là đúng lượt dọn
+ * này)*.
+ *
+ * ⚠️ **Vì sao lượt dọn này KHÔNG cướp câu của `confirm`/`regroup`:** cả hai đường đó dời con trỏ
+ * bằng `setEditorCaret` **trực tiếp** (`:923-924` · `:1616-1617`), **không** qua hàm này. Nên
+ * `'confirmed-last'` và `'merged'`/`'split'` không đi qua cửa dọn ở đây. Đã kiểm từng đường gọi.
+ */
+function dieuHuongVaBao(daDoi: boolean, khiKhongDoi: NavNotice): boolean {
+  // Dời được ⇒ thao tác vừa xảy ra **là** lượt điều hướng này, nên nó sở hữu thanh trạng thái —
+  // và điều nó có để nói là *"không có gì để nói"*. Tham số rỗng: dọn ba ô, thêm 0 câu.
+  if (daDoi) datThongBao({})
+  else ghiNavNotice(khiKhongDoi)
+  return daDoi
+}
+
+/** [`goToNextUntranslated`] + câu báo AC6. Đây là thứ `commands/index.ts` gọi. */
+export function goToNextUntranslatedCoBao(): boolean {
+  return dieuHuongVaBao(goToNextUntranslated(), 'no-untranslated')
+}
+
+/** [`goToNextSegment`] + câu báo AC7. */
+export function goToNextSegmentCoBao(): boolean {
+  return dieuHuongVaBao(goToNextSegment(), 'at-last')
+}
+
+/** [`goToPrevSegment`] + câu báo AC7. */
+export function goToPrevSegmentCoBao(): boolean {
+  return dieuHuongVaBao(goToPrevSegment(), 'at-first')
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1177,6 +1360,93 @@ const regroupNotice = shallowRef<RegroupNotice | null>(null)
 /** Xem [`regroupNotice`]. `StatusBar.vue` đọc. `null` ⇒ không có gì để nói. */
 export const editorRegroupNotice: DeepReadonly<Ref<RegroupNotice | null>> = readonly(regroupNotice)
 
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 2.10 — Ô NHỚ THỨ BA, VÀ CÙNG LƯỢT: MỘT CỬA GHI DUY NHẤT CHO CẢ BA
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 🔴 **Điều thanh trạng thái phải nói sau lượt ĐIỀU HƯỚNG gần nhất** — Story 2.10, AC6 · AC7.
+ * Danh mục **ĐÓNG**, và `StatusBar.vue::NAV_NOTICE_KEYS` là một `Record` đủ khoá trên nó.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Vì sao một ô nhớ THỨ BA — Quyết định #4 đường (b), Ice ký 2026-08-18
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Đường rẻ hơn là **nới [`RegroupNotice`]** ra vài giá trị nữa. Nó bị loại vì **sai ngữ
+ * nghĩa**: cái tên đó nghĩa là *"gộp/tách"*, và một câu về điều hướng nhét vào đó làm nguồn sự
+ * thật lệch tên — người đọc sau sẽ đi tìm lượt gộp nào vừa xảy ra.
+ *
+ * ⚠️ Và tiền lệ đã từ chối đúng lối tắt ấy **một lần rồi**: khối lý do của [`RegroupNotice`]
+ * ngay trên đây giải thích vì sao nó **không** nới `confirmNotice` ra. Đi lại lối đó ở story
+ * kế tiếp là bỏ qua một bài học đã trả giá.
+ */
+export type NavNotice =
+  /** AC6 — không còn segment chưa dịch nào **phía dưới**. Con trỏ ở nguyên. */
+  | 'no-untranslated'
+  /** AC7 — đã ở segment **đầu** Chương, không có câu trước. */
+  | 'at-first'
+  /** AC7 — đã ở segment **cuối** Chương, không có câu sau. */
+  | 'at-last'
+  /**
+   * 🔵 Quyết định #6 đường (c), Ice ký 2026-08-18 — món nợ `deferred-work.md:2837-2847`.
+   *
+   * `⌘Enter` ở câu **cuối** Chương ký thành công nhưng **không dời được con trỏ** *(không có
+   * câu kế)*, nên `resolveSegmentRule` giữ `primary` thắng `confirmed` và vạch lề **không đổi
+   * màu**. `segment.status` trong CSDL thì đúng; chỉ vế thị giác hụt.
+   *
+   * ⇒ Đóng bằng **thông tin** thay vì bằng màu. 🟡 Đây là **một nửa** món nợ, không phải cả —
+   * vạch vẫn `primary`. Phần còn hở đã ghi lại vào sổ nợ kèm chủ mới.
+   */
+  | 'confirmed-last'
+
+const navNotice = shallowRef<NavNotice | null>(null)
+/** Xem [`navNotice`]. `StatusBar.vue` đọc. `null` ⇒ không có gì để nói. */
+export const editorNavNotice: DeepReadonly<Ref<NavNotice | null>> = readonly(navNotice)
+
+/**
+ * 🔴 **CỬA GHI DUY NHẤT CHO CẢ BA Ô NHỚ CỦA THANH TRẠNG THÁI.** Story 2.10, Quyết định #4(b).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 VÌ SAO MỘT HÀM CHỨ KHÔNG BA LỜI GỌI — và vì sao nó ghi CẢ BA, mỗi lượt
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Bất biến là *"thao tác vừa xảy ra sở hữu thanh trạng thái: ai ghi một ô thì dọn các ô còn
+ * lại"*. Với **hai** ô, [`ghiRegroupNotice`] cài nó bằng hai dòng và nó đứng. Với **ba** ô,
+ * cùng cách viết cần **sáu** dòng rải ở ba chỗ — và một chỗ quên một dòng là bất biến hở, im
+ * lặng, không cổng nào đỏ. Chi phí ấy đã được nêu **trước** khi ký, không sau.
+ *
+ * 🔴 **Chốt nằm ở chữ ký hàm, không ở kỷ luật người viết:** hàm này gán **cả ba** ref ở **mọi**
+ * lời gọi. Một tham số **vắng mặt NGHĨA LÀ `null`** — có chủ ý, và đó là lý do `?? null` ở đây
+ * không phải một lượt cẩu thả. ⇒ *Không tồn tại cú pháp* để ghi một ô mà không dọn hai ô kia.
+ * Bất biến trở thành một mệnh đề về **cấu tạo**, không một mệnh đề về thói quen.
+ *
+ * ⚠️ **Hệ quả cho lượt sửa kế tiếp:** thêm một ô nhớ thứ tư thì thêm một trường vào đây và
+ * **một dòng gán** — không phải đi tìm ba chỗ gọi. Và 🔴 nhớ [`resetEditorPanel`]: luật *"ô nhớ
+ * thuộc Tác phẩm phải có mặt ở đó"* **không có cổng nào canh** và đã bị bỏ sót **hai story liên
+ * tiếp** (`sourceCut` ở 2.8 · `regroupNotice`/`regroupError` ở 2.9).
+ *
+ * 🔴 **Không gán trần `confirmNotice.value` / `regroupNotice.value` / `navNotice.value` ở đâu
+ * nữa** — trừ [`resetEditorPanel`], nơi lượt gán là *"vứt state của Tác phẩm cũ"* chứ không
+ * phải *"thao tác này sở hữu thanh"*, và nó đi qua hàm này với **tham số rỗng**.
+ */
+function datThongBao(o: {
+  confirm?: Exclude<ConfirmResult, 'confirmed' | 'refused'> | null
+  regroup?: RegroupNotice | null
+  nav?: NavNotice | null
+}): void {
+  confirmNotice.value = o.confirm ?? null
+  regroupNotice.value = o.regroup ?? null
+  navNotice.value = o.nav ?? null
+}
+
+/**
+ * Ghi câu của lượt **điều hướng** vừa rồi, và dọn hai ô kia. Vỏ mỏng trên [`datThongBao`].
+ *
+ * ⚠️ Tồn tại để chỗ gọi đọc ra **ý định** chứ không đọc ra một object literal — cùng vai và
+ * cùng khuôn [`ghiRegroupNotice`].
+ */
+function ghiNavNotice(notice: NavNotice): void {
+  datThongBao({ nav: notice })
+}
+
 /**
  * 🔴 **Ghi câu của lượt gộp/tách, và DỌN câu của lượt xác nhận cùng lúc.**
  *
@@ -1211,8 +1481,9 @@ export const editorRegroupNotice: DeepReadonly<Ref<RegroupNotice | null>> = read
  *   nữa — một lượt gán trần là đúng chỗ bất biến này sẽ hở lần thứ hai.
  */
 function ghiRegroupNotice(notice: RegroupNotice): void {
-  regroupNotice.value = notice
-  confirmNotice.value = null
+  // 🔵 Story 2.10 — thân hàm chuyển sang [`datThongBao`]. Hành vi **không đổi một bước nào**
+  // cho hai ô cũ; cái đổi là vế thứ ba *(dọn câu điều hướng)* nay có mặt mà không ai phải nhớ.
+  datThongBao({ regroup: notice })
 }
 
 /**

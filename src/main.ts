@@ -27,7 +27,9 @@ import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 // Story 2.3 — AD-35 vế (e): flush bản dịch chưa lưu TRƯỚC khi cửa sổ đóng.
 import {
   confirmCurrentSegment,
-  goToNextUntranslated,
+  goToNextSegmentCoBao,
+  goToNextUntranslatedCoBao,
+  goToPrevSegmentCoBao,
   clearEditorSourceCut,
   mergeCurrentSegment,
   setCurrentSegmentOmitted,
@@ -263,7 +265,14 @@ async function boot(): Promise<void> {
       // Story 2.5b · AC12 — `⌥↓`. Cùng cửa và cùng lý do với `confirmSegment`: phép chọn
       // sống ở `panels/segmentNavigation.ts` (module thuần), state ở `editorPanelState.ts`,
       // và `commands/index.ts` không được `import` cả hai (luật erasable-only).
-      goToNextUntranslated,
+      //
+      // 🔵 Story 2.10 — ba cổng nay trỏ vào bản **CÓ BÁO** (`…CoBao`). Bản không báo vẫn được
+      // export vì `tests/frontend/**` gọi thẳng chúng để kiểm vế dời con trỏ tách khỏi vế câu
+      // chữ; chỗ nối dây của sản phẩm thì luôn là bản có báo, vì AC6/AC7 đòi **báo ra màn
+      // hình** và `console` theo định nghĩa của dự án **là** im lặng.
+      goToNextUntranslated: goToNextUntranslatedCoBao,
+      goToNextSegment: goToNextSegmentCoBao,
+      goToPrevSegment: goToPrevSegmentCoBao,
       confirmSegment: () => {
         void confirmCurrentSegment().then((result) => {
           if (result === 'confirmed' || result === 'refused') return

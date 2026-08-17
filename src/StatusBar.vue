@@ -32,6 +32,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { t, tError } from './i18n'
 import {
   editorConfirmNotice,
+  editorNavNotice,
   editorLastSavedAt,
   editorRegroupError,
   editorRegroupNotice,
@@ -174,6 +175,35 @@ const regroupNoticeText = computed<string | null>(() => {
   // err.params)`). Tham số thứ hai chỉ dành cho nơi gọi muốn **ghi đè** bảng tham số.
   return tError(err)
 })
+
+/**
+ * 🔴 **Story 2.10 · AC6 · AC7 — bảng tra THỨ BA, và nó cũng ĐÓNG.**
+ *
+ * Bốn khoá, đóng trên `NavNotice`. Cùng cơ chế và cùng lý do hai bảng trên: thêm một giá trị
+ * vào `NavNotice` mà quên bảng này ⇒ `vue-tsc` **đỏ**, vì `Record` đòi đủ khoá.
+ *
+ * ⚠️ **Vì sao không có nhánh `'refused'` như bảng gộp/tách:** ba lệnh điều hướng **không đi qua
+ * Rust**. Chúng là phép chọn trên một ảnh chụp đã nằm sẵn trong bộ nhớ, nên không có `IpcError`
+ * nào để đọc và không có lý do từ chối nào thuộc về Rust.
+ *
+ * 🔴 **Đây là ô nhớ thứ BA, và cái giá của nó đã được nêu trước khi ký** *(Quyết định #4 đường
+ * (b), Ice ký 2026-08-18)*: bất biến *"ai ghi một ô thì dọn các ô còn lại"* thành **N chiều**.
+ * Nó được trả bằng cách dựng **một cửa ghi duy nhất** — `editorPanelState.ts::datThongBao` —
+ * thay vì bằng ba lời gọi dọn rải rác. ⇒ Thứ tự `v-if`/`v-else-if` ở template dưới đây, y như
+ * hai nhánh trước, **không quan sát được**; nó là hàng rào cho ca không lường trước.
+ */
+const NAV_NOTICE_KEYS: Record<NonNullable<typeof editorNavNotice.value>, string> = {
+  'no-untranslated': 'panel.grid.nav_no_untranslated',
+  'at-first': 'panel.grid.nav_at_first',
+  'at-last': 'panel.grid.nav_at_last',
+  'confirmed-last': 'panel.grid.nav_confirmed_last',
+}
+
+const navNoticeKey = computed<string | null>(() => {
+  const notice = editorNavNotice.value
+  if (notice === null) return null
+  return NAV_NOTICE_KEYS[notice]
+})
 </script>
 
 <template>
@@ -223,6 +253,18 @@ const regroupNoticeText = computed<string | null>(() => {
       thấy một câu sai chỉ dời chỗ nói dối sang ô nhớ kia; chỗ phải sửa là bất biến ở tệp trạng thái.
     -->
     <span v-else-if="regroupNoticeText !== null" class="notice">{{ regroupNoticeText }}</span>
+    <!--
+      aura-allow-text: KẾT QUẢ của `t()`. 🔵 Story 2.10, AC6 · AC7 — câu của lượt điều hướng.
+
+      Nó đứng **SAU** hai câu kia và **TRƯỚC** mốc *"Đã lưu"*, cùng thang ưu tiên: một câu nói
+      *"dữ liệu chưa an toàn"* khẩn hơn một câu nói *"một thao tác đã xong"*, và cả hai khẩn hơn
+      *"đã ở câu cuối Chương"* — vế cuối này chỉ trả lời một phím vừa bấm, không cảnh báo gì.
+
+      🔴 Y như hai nhánh trên: thứ tự ở đây **không quan sát được** khi bất biến của
+      `datThongBao` đứng. Thấy một câu sai thì sửa **bất biến**, đừng sửa thứ tự — đổi thứ tự
+      chỉ dời chỗ nói dối sang một ô nhớ khác.
+    -->
+    <span v-else-if="navNoticeKey !== null" class="notice">{{ t(navNoticeKey) }}</span>
     <span v-else-if="secondsSinceSave !== null" class="saved">{{
       t('status.saved_seconds_ago', { seconds: String(secondsSinceSave) })
     }}</span>

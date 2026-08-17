@@ -284,6 +284,22 @@ export type CommandDeps = {
   goToNextUntranslated?: () => boolean
 
   /**
+   * Dời con trỏ sang segment **ngay sau** / **ngay trước**. Handler của `editor.next_segment`
+   * và `editor.prev_segment` (Story 2.10, AC1 · AC2).
+   *
+   * ⚠️ Cùng hợp đồng `boolean` với [`goToNextUntranslated`], và cùng lý do — nhưng `false` ở
+   * đây nghĩa **khác**: *"đã ở biên Chương"*, không *"đã dịch hết"*. Hai câu khác nhau nên
+   * chúng là **hai** ô nhớ khác nhau ở thanh trạng thái.
+   *
+   * 🔴 Ba lệnh này **không** cùng luật lọc: next/prev là điều hướng **vị trí** nên chúng
+   * **dừng** ở câu đã cắt bỏ *(Quyết định #3, Ice ký 2026-08-18)*, còn `next_untranslated` là
+   * điều hướng **theo việc** nên nó bỏ qua. Lý do ở `segmentNavigation.ts::nextSegmentId`.
+   */
+  goToNextSegment?: () => boolean
+  /** Xem [`goToNextSegment`]. */
+  goToPrevSegment?: () => boolean
+
+  /**
    * **Cắt bỏ / bỏ cờ** câu đang có con trỏ. Handler chung của `editor.omit_segment` và
    * `editor.restore_segment` (Story 2.5c, FR133 · AC1 · AC4).
    *
@@ -1050,36 +1066,122 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * đúng thứ Quyết định #4 của Story 2.5 đã chốt cho cả 2.8/2.9/2.10.
    *
    * ─────────────────────────────────────────────────────────────────────────────
-   * 🔴 VÌ SAO `Alt+ArrowDown` CHỨ KHÔNG MỘT PHÍM MŨI TÊN TRẦN
+   * 🔵 HỢP ÂM ĐÃ ĐỔI 2026-08-18 — `⌥↓` ⇒ `⌘⌥↓`. Story 2.10, Quyết định #1 đường (c), Ice ký
    * ─────────────────────────────────────────────────────────────────────────────
-   * ⚠️ `Alt` **không** phải phím bổ trợ chính (`lacksPrimaryMod` ở `keys.ts:287`), nên hợp âm
-   * này **bị nuốt khi con trỏ đang ở trong vùng gõ** — và đó là **đúng thứ ta cần**: một
-   * `⌥↓` trong ô bản dịch trên macOS là *"xuống cuối đoạn"* của hệ điều hành, và cướp nó là
-   * lấy mất một phím người dùng đã có phản xạ.
+   * **Mệnh đề cũ ở đây đã hết đúng, và nó hết đúng vì một phép đo, không vì một lượt đổi gu.**
    *
-   * 🔵 **Hệ quả phải ghi ra, không để người sau tự phát hiện:** phím này vì thế chạy khi con
-   * trỏ **KHÔNG** ở trong một ô đang gõ — tức sau một lượt bấm ra ngoài, hoặc từ bàn phím
-   * thuần. Đó là một **giới hạn thật** của lượt cài hôm nay, không một mệnh đề của AC12.
-   * AC12 chỉ đòi *"nhảy tới câu chưa dịch kế tiếp"*; nó không nói phím phải chạy **trong**
-   * vùng gõ. Món này có chủ: **Story 2.10** *(điều hướng segment)* sẽ phải phân xử cả bảng
-   * phím điều hướng cùng một lượt, và lúc đó nó có đủ ngữ cảnh mà hôm nay chưa có.
+   * Bản 2.5b viết rằng việc `Alt` không phải phím bổ trợ chính — nên hợp âm **bị nuốt trong
+   * vùng gõ** (`keys.ts:415` + `:510`) — là *"đúng thứ ta cần"*, vì `⌥↓` trong một ô văn bản
+   * trên macOS là *"xuống cuối đoạn"* của hệ điều hành. Khối đó cũng **giao món nợ đích danh
+   * cho Story 2.10**. Đây là lượt trả.
+   *
+   * 🔴 **Vế "đúng thứ ta cần" là vế hết đúng, và bàn đo cho nó một con số** *(2026-08-18,
+   * WKWebView 605.1.15 — `2-10-ban-do/README.md` §Task 1.3 vòng 2)*. Biến duy nhất khác nhau
+   * giữa hai ca là `event.target`:
+   *
+   * | ca | target | `defaultPrevented` | vạch lề |
+   * |---|---|---|---|
+   * | `⌥↓` | ô đang gõ | **`false`** | 0 → 0, **không dời** |
+   * | `⌥↓` *(đối chứng dương)* | `body` | **`true`** | **0 → 1** |
+   *
+   * ⇒ Ca **thường nhất** của FR25 — *vừa gõ xong một câu, muốn nhảy tới câu chưa dịch kế tiếp*
+   * — là ca caret **đang ở trong vùng gõ**, và ở đó phím **không bắn**. AC12 vẫn "đạt" theo
+   * chữ, nhưng tính năng **chết trong tay người dùng**. Một giới hạn có chủ khác một tính năng
+   * không dùng được, và 2.5b không có cách nào biết vế nào là vế thật cho tới khi đo.
+   *
+   * 🔴 **`Mod+Alt+ArrowDown` đi qua `keys.ts:510` sạch, và điều đó cũng ĐO ĐƯỢC** — cùng bàn đo,
+   * trong **cùng một ô đang gõ**: `Mod+Enter` cho `defaultPrevented: true` *(đi qua)*,
+   * `Alt+ArrowDown` cho `false` *(bị nuốt)*, và `F9` chưa đăng ký cho `false` *(đối chứng ÂM —
+   * nó chứng minh `true` ở hàng đầu là tín hiệu thật, không phải giá trị mặc định)*.
+   *
+   * ⚠️ **Vì sao KHÔNG đi đường "cửa thứ hai ở `onEditKeydown`"** *(khuôn `Backspace`/`Escape`
+   * của 2.9, và nó rẻ hơn)*: đường ấy **giữ** `⌥↓` nên nó **cướp** *"xuống cuối đoạn"* của
+   * macOS, và vế *"`preventDefault()` có chặn nổi một phím THẬT không"* là mệnh đề **không
+   * đường nghiệm thu nào của dự án đóng được** — mọi sự kiện driver mang `isTrusted: false`, và
+   * một sự kiện không tin cậy **không có default action**, nên phép kiểm sẽ trả *"chặn được"*
+   * trên mọi engine kể cả engine không cho chặn. Ký đường đó là ký một mệnh đề chưa ai kiểm.
+   *
+   * 🔵 **Rủi ro *"mồ côi phím người dùng đã gán"* KHÔNG xảy ra, và đó là một mệnh đề về KIỂU:**
+   * `ChordOverrides` là `Record<CommandId, readonly string[]>` (`keys.ts:457`) — khoá theo
+   * **id**. Lượt này giữ **nguyên id** `editor.next_untranslated`, chỉ đổi `keys`, và
+   * `createKeymap` ưu tiên `overrides` qua `hasOwnProperty` (`:474-477`). ⇒ Ai đã tự gán phím
+   * thì **giữ nguyên phím của họ**; chỉ **mặc định** đổi.
    *
    * ⚠️ Khớp bằng `event.code` (`ArrowDown`) nên việc `⌥↓` sinh một ký tự lạ trên macOS không
-   * thành vấn đề — xem `keys.ts` §"KHỚP BẰNG `event.code`".
+   * thành vấn đề — xem `keys.ts` §"KHỚP BẰNG `event.code`". Bàn đo xác nhận driver giao đúng
+   * `code: "ArrowDown"`, khác ca `⌘/` của 2.8 nơi nó giao `code: "/"` thay vì `"Slash"`.
    */
   target.register({
     id: 'editor.next_untranslated',
     labelKey: 'command.editor.next_untranslated',
-    keys: ['Alt+ArrowDown'],
+    keys: ['Mod+Alt+ArrowDown'],
     run: () => {
       if (deps.goToNextUntranslated === undefined) {
         return portMissing('editor.next_untranslated', 'goToNextUntranslated')
       }
-      // ⚠️ Chẩn đoán viết KHÔNG DẤU — Kiểm A của `check:i18n`. Và nó là `info`, không `warn`:
-      // hết câu chưa dịch là một trạng thái BÌNH THƯỜNG của một Chương đã dịch xong.
-      if (!deps.goToNextUntranslated()) {
-        console.info('[grid] khong con cau chua dich nao o phia duoi — con tro giu nguyen.')
+      // 🔵 STORY 2.10 · AC6 — `console.info` ĐÃ GỠ, và đó là chỗ AC6 đang hỏng trước lượt này.
+      //
+      // Bản cũ ghi `console.info('[grid] khong con cau chua dich nao…')` khi không dời được.
+      // Theo định nghĩa của dự án, `console` **là** im lặng: người dùng bấm phím và **không một
+      // pixel nào đổi**. AC6 đòi *"báo rõ điều đó thay vì im lặng không làm gì"* ⇒ mệnh đề ấy
+      // **không đạt** cho tới hôm nay.
+      //
+      // 🔴 Câu báo nay đi vào `editorNavNotice` và ra `StatusBar.vue` — cùng hạ tầng, cùng bất
+      // biến *"thao tác vừa xảy ra sở hữu thanh trạng thái"* với hai ô nhớ đã có. Vế đó nằm
+      // trọn trong `editorPanelState.ts`, nên chỗ này chỉ gọi **một** hàm và không kiểm gì.
+      deps.goToNextUntranslated()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 2.10 — `editor.next_segment` · `editor.prev_segment` (FR25 · AC1 · AC2 · AC9)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🔴 KHÔNG PHÍM MẶC ĐỊNH — Quyết định #2 đường (c), Ice ký 2026-08-18
+   * ─────────────────────────────────────────────────────────────────────────────
+   * `keys` **vắng mặt**, có chủ ý. AC9 đòi *"đều là command đăng ký, gán phím được"* — nó
+   * **không** đòi một phím mặc định cụ thể, và đăng ký ở đây là đủ cả hai vế: lệnh chạy được
+   * qua `dispatch`, và nó hiện trong bảng phím của Story 1.21 để người dùng tự gán.
+   *
+   * ⚠️ **Phân biệt ba trạng thái của `keys`, và nó có nghĩa** (`keys.ts:444-455`): `keys`
+   * **vắng mặt** ở đây nghĩa *"spec không đề xuất phím nào"*, khác hẳn một `overrides[id] = []`
+   * của người dùng — cái sau nghĩa *"thao tác này CỐ Ý không có phím"*. Hai câu khác nhau, và
+   * `hasOwnProperty` là chỗ chúng được phân biệt.
+   *
+   * ⚠️ Đường bị loại và lý do: **(a)** `⌥↑`/`⌥↓`-đối xứng thừa hưởng nguyên vấn đề của Quyết
+   * định #1 *(và `⌥↓` đã bị chiếm — `createKeymap` **ném** khi hai command giành một hợp âm)*;
+   * **(b)** một hợp âm mang `Mod` thì chạy được ở mọi chỗ, nhưng nó buộc một **hàng mới** vào
+   * bảng Phím của `EXPERIENCE.md` — tài liệu thuộc quyền Ice — cho một hợp âm bốn ngón chưa ai
+   * xin.
+   *
+   * 🔴 **Hai lệnh riêng, không một lệnh nhận tham số hướng.** Cùng lý lẽ mà Quyết định #3 của
+   * Story 2.5c đã chốt cho `omit`/`restore`: một id **là** thứ người dùng gán phím vào và thấy
+   * trong bảng phím tắt, nên *"segment kế tiếp"* và *"segment trước đó"* phải là hai dòng đọc
+   * được ở đó. Hai `run` này khác nhau đúng một lời gọi — nhưng chúng khác nhau **ở tầng người
+   * dùng**, và đó là tầng quyết định hình dạng registry.
+   */
+  target.register({
+    id: 'editor.next_segment',
+    labelKey: 'command.editor.next_segment',
+    run: () => {
+      if (deps.goToNextSegment === undefined) {
+        return portMissing('editor.next_segment', 'goToNextSegment')
       }
+      // AC7 — biên Chương báo bằng `editorNavNotice`, xem nhánh `editor.next_untranslated`.
+      deps.goToNextSegment()
+    },
+  })
+
+  target.register({
+    id: 'editor.prev_segment',
+    labelKey: 'command.editor.prev_segment',
+    run: () => {
+      if (deps.goToPrevSegment === undefined) {
+        return portMissing('editor.prev_segment', 'goToPrevSegment')
+      }
+      deps.goToPrevSegment()
     },
   })
 

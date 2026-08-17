@@ -222,9 +222,51 @@ onBeforeUnmount(() => {
   line-height: var(--leading-ui-md);
 }
 
-/* Thân để TRỐNG — nội dung là Story 1.16 (Source), 1.17 (Lookup), Epic 2/4. */
+/*
+ * Thân để TRỐNG — nội dung là Story 1.16 (Source), 1.17 (Lookup), Epic 2/4.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 `display: flex` + `column` LÀ MỘT CHỐT, KHÔNG MỘT LƯỢT DỌN — thêm 2026-08-17
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Trước lượt này `.panel-body` là một **khối thường**, và hệ quả là một khuyết tật mất chữ
+ * **Ice tìm ra bằng mắt** *(Task 4.5 của Story 2.10 — không thước nào của dự án bắt được)*:
+ *
+ * > Trong một Chương tiếng Trung, **dòng cuối của hàng cuối bị cắt và không thao tác nào với
+ * > tới được.**
+ *
+ * Cơ chế: một panel đặt **nhiều** con vào slot — `GridPanel` đặt dải tab Hán Việt rồi hộp cuộn
+ * — và hộp cuộn xin `height: 100%`. Trong bố cục khối, `100%` là **toàn bộ** chiều cao
+ * `.panel-body`, nên nó cộng thêm chiều cao dải tab *(`ui-sm` 12px × 1,5 = **18px** + `margin-
+ * bottom` `--space-panel-block` = **12px** ⇒ **30px**)* và tràn ra ngoài. `.panel` mang
+ * `overflow: hidden` *(có chủ ý, xem khối `.panel`)* ⇒ 30px đáy bị cắt **và không có thanh cuộn
+ * nào để lấy lại**.
+ *
+ * ⇒ Với `flex-direction: column`, con cuối khai `flex: 1; min-height: 0` và lấy **phần còn
+ * lại**, không phải toàn bộ. Phép cộng gây tràn không còn tồn tại được.
+ *
+ * 🔴 **Đây là lần THỨ HAI cùng lớp lỗi trong kho, nên nó được đóng ở NGUYÊN NHÂN.** Lần đầu:
+ * `SourceHanViet.vue:853-861`, bắt ở code review 2026-08-06 bởi cả ba tầng — *"mọi thứ vượt
+ * chiều cao panel bị cắt và không với tới được bằng bất kỳ thao tác nào"*. Lần đó vá bằng cách
+ * dạy **một** panel viết `flex: 1` thay vì `height: 100%`; luật ấy chỉ sống trong một khối chú
+ * thích, nên panel kế tiếp lặp lại đúng lỗi. Sửa ở khung là chỗ duy nhất luật này **cấu trúc
+ * hoá** được.
+ *
+ * ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện:** flex column làm mọi con mang
+ * `flex-shrink: 1` mặc định ⇒ một con **không** khai `flex: none` có thể bị **co** thay vì làm
+ * tràn. Co một dải chữ là một kiểu mất chữ khác, chỉ im lặng hơn. ⇒ Mọi con không-cuộn trong
+ * slot phải khai `flex: none` tường minh *(`GridPanel::.tabs` và `::.load-error` đã khai)*.
+ * Không cổng nào canh câu này.
+ *
+ * ⚠️ Đã rà **cả ba** panel tiêu thụ trước khi đổi, không chỉ chỗ hỏng: `AiTranslationPanel`
+ * (`.ai-surface`) và `LookupPanel` (`.lookup-body`) mỗi cái đặt **đúng một** con vào slot và con
+ * ấy khai `height: 100%` — với một con duy nhất không tràn thì flex column cho **cùng** hình
+ * dạng. `.hv-surface` của `SourceHanViet` nằm sâu trong `.grid-scroll` (`GridPanel.vue:1408`),
+ * **không** phải con trực tiếp, nên `flex: 1` của nó trơ như trước và lượt này không đụng nó.
+ */
 .panel-body {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 </style>
