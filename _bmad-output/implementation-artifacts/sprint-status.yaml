@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-17T18:00:00
+last_updated: 2026-08-18T00:00:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -1320,7 +1320,59 @@ development_status:
   2-9-gop-bang-backspace-dau-o: done
   # 2.10 them HAI AC: bo qua cau da cat bo (FR133), va dinh nghia "chua dich" nay la
   # status='draft' VA target_text rong — vi 'draft' da tach khoi 'chua dich'.
-  2-10-dieu-huong-segment: backlog
+  # 🔵 2026-08-17 — create-story: chuyen sang ready-for-dev.
+  # 🔴 MOT NUA STORY NAY DA DUNG ROI, o Story 2.5b — do duoc, khong mot an tuong:
+  #   `src/panels/segmentNavigation.ts` (module THUAN) da cai DUNG TUNG CHU ba menh de AC:
+  #   `isUntranslated` :63-65 (CA HAI ve — status='draft' VA targetText===''), bo qua
+  #   `isOmitted` :102, `nextUntranslatedId` :91-106 (KHONG quay vong). Cong
+  #   `goToNextUntranslated` (editorPanelState.ts:1029) va command `editor.next_untranslated`
+  #   voi phim `Alt+ArrowDown` (commands/index.ts:1070-1084). AC8 nua dau (vach doi `primary`)
+  #   cung TU DONG theo `ruleById` — 0 dong ma moi.
+  #   => Viet lai bat cu thu nao trong so do la loi thiet ke. Pham vi THAT chi NAM viec:
+  #   ① hai lenh tuan tu next/prev (grep `nextSegmentId|prevSegmentId` = **0** ket qua) ·
+  #   ② bao ro RA MAN HINH (hom nay chi `console.info` o index.ts:1078-1081 => AC6 DANG HONG) ·
+  #   ③ cuon toi hang tuc thi (grep `scrollIntoView|scrollTop` trong GridPanel.vue = **0**) ·
+  #   ④ phan xu ca bang phim dieu huong · ⑤ "di dau khi het Chuong".
+  # 🔴 BAY QUYET DINH MO phai co chu ky cua Ice TRUOC dong ma dau tien (Task 0 chan moi task):
+  #   #1 `⌥↓` co duoc chay TRONG vung go khong — `keys.ts:510` nuot moi hop am khong-Mod trong
+  #      vung go, va Story 2.5b GIAO DICH DANH mon nay cho 2.10 (commands/index.ts:1060-1065).
+  #      🔴 Day la cua nang nhat: ca THUONG NHAT cua FR25 la nguoi dung vua go xong mot cau,
+  #      tuc caret DANG o trong vung go => hom nay phim khong ban. AC3 "dat" theo chu ma tinh
+  #      nang CHET trong tay nguoi dung. Duong (b) thi cuop `⌥↓` = "xuong cuoi doan" cua macOS.
+  #   #2 phim mac dinh cho next/prev — bang Phim (EXPERIENCE.md:261-269) co BAY hang va KHONG
+  #      hang nao cho hai lenh nay. AC9 khong doi mot phim cu the.
+  #   #3 next/prev co bo qua cau da cat bo khong — AC5 IM LANG ve hai lenh tuan tu.
+  #      🔴 Bo qua ca ba lenh => KHONG duong ban phim nao toi duoc cau do de KHOI PHUC no,
+  #      tuc FR133 ve "dao nguoc duoc" chi con duong chuot va NFR17 hong im lang.
+  #   #4 o nho thu ba tren StatusBar hay noi `RegroupNotice` (sai ngu nghia). Duong o moi lam
+  #      bat bien "ai ghi mot o thi don o con lai" thanh N chieu.
+  #   #5 hanh vi o bien: dung yen + bao, hay dung yen im lang. Quay vong bi CAM boi tien le
+  #      co ly do tai cho (segmentNavigation.ts:74-77).
+  #   #6 "di dau khi het Chuong" — mon no GIAO DICH DANH (deferred-work.md:2837-2847). Dao
+  #      thu tu `primary`/`confirmed` bi CAM (quyet dinh co chu ky).
+  #   #7 co che cuon: `scrollIntoView({block:'nearest'})` hay `scrollTop` tinh tay.
+  # 🔴 MOT TRICH DAN TRONG MA SAN PHAM DA HET DUNG, bat duoc luc soan story: LookupPanel.vue
+  #   :270 va :830 trich `DESIGN.md:342` cho luat "khong `scroll-behavior`, cam ca ung dung".
+  #   Do 2026-08-17: dong 342 hom nay noi ve chieu rong `ch` cua Che do doc, va
+  #   `grep -rn "scroll-behavior" ux-designs/` = **0 ket qua** — luat do CHUA TUNG ton tai o
+  #   dang toan ung dung. => Lop bao ve thu hai ma duong (a) tuong co thi KHONG co, nen
+  #   `behavior: 'instant'` la BAT BUOC chu khong mot luot can than thua. Da ghi Task 4.3 sua
+  #   tai cho hai chu thich do kem 🔵 + ngay.
+  # ⚠️ Hai bay da ghi trong story: (a) `draft` co HAI nghia o hai tang — DB-`draft`
+  #   (schema.rs:407-421, = "chua xac nhan") ⊋ UI-`draft` (`resolveSegmentRule`, = "da co chu").
+  #   Cai AC4 bang `resolveSegmentRule(seg)==='draft'` cho ket qua NGUOC HOAN TOAN;
+  #   (b) `segment.ord` trong anh chup webview thanh CU sau mot luot gop/tach => duyet bang
+  #   CHI SO MANG, dung doc `ord` (doc `ord` la NHAN mon no do vao story nay).
+  # ⚠️ NFR2: mot luot DOI CON TRO tren 9.850 cau do duoc **706-770 ms** (tran 50 ms) — chinh
+  #   duong nong ma story nay them HAI lenh nua di qua. Chu van la **Story 2.4**; 2.10 DO va
+  #   GHI SO (Task 1.4), KHONG tu cham dat va KHONG tu va.
+  # ⚠️ Tang Rust KHONG cham mot dong: `read_open_chapter_segments` da tra du status/target_text/
+  #   is_omitted/retired_at/ord va da loc `retired_at IS NULL` o tang SQL. `PROJECT_MIGRATIONS`
+  #   co MUOI buoc [1,2,3,5,6,7,8,9,10,11], dich **11** => ke tiep la **12**, story nay KHONG
+  #   tieu no. Nguon su that la `PROJECT_MIGRATIONS` (schema.rs), khong dong nay.
+  # Baseline do lai tu nguon tren HEAD `a664dac` (cay SACH): cargo test --locked **401/0/5** ·
+  #   segment_contract **121** · vitest **199/199** (19 tep) · COMMAND_FLOOR san **39**.
+  2-10-dieu-huong-segment: in-progress
   2-11-chuyen-chuong-trong-workspace: backlog
   # 2-12-sync-scrolling: XOA 2026-08-14 — FR20 da RUT (Ice ky). Luoi nuot 2/3 cap panel cua
   # FR20; cap con lai (luoi <-> AI Translation) van con THAT nhung Ice chot khong giu.
