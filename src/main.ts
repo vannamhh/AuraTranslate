@@ -27,8 +27,10 @@ import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 // Story 2.3 — AD-35 vế (e): flush bản dịch chưa lưu TRƯỚC khi cửa sổ đóng.
 import {
   confirmCurrentSegment,
+  goToNextChapter,
   goToNextSegmentCoBao,
   goToNextUntranslatedCoBao,
+  goToPrevChapter,
   goToPrevSegmentCoBao,
   clearEditorSourceCut,
   mergeCurrentSegment,
@@ -273,6 +275,11 @@ async function boot(): Promise<void> {
       goToNextUntranslated: goToNextUntranslatedCoBao,
       goToNextSegment: goToNextSegmentCoBao,
       goToPrevSegment: goToPrevSegmentCoBao,
+      // Story 2.11 (FR26) — hai lenh chuyen Chuong. Hop dong `void`, khong `boolean`: ket
+      // qua chua ton tai luc `run()` tra ve (hai luot IPC noi tiep), nen no di ra bang thanh
+      // trang thai. Xem `CommandDeps.goToNextChapter`.
+      goToNextChapter,
+      goToPrevChapter,
       confirmSegment: () => {
         void confirmCurrentSegment().then((result) => {
           if (result === 'confirmed' || result === 'refused') return

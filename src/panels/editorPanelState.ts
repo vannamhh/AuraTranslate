@@ -17,8 +17,11 @@
  * ⚠️ Bảng ánh xạ *trạng thái → vạch* **không** ở đây: nó sống ở `./editorSegments.ts`, một
  * module thuần mà cổng `import()` chạy được. Đừng kéo nó về đây cho gần.
  */
-import { readonly, ref, shallowRef } from 'vue'
+import { nextTick, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
+import { enterFocus } from '../commands'
+import { openAdjacentChapter } from '../config/chapter'
+import type { ChapterDirection } from '../config/chapter'
 import {
   confirmSegment,
   mergeSegments,
@@ -458,6 +461,19 @@ export async function flushEditorBeforeDiscreteWrite(): Promise<PreWriteFlushRes
  * Tác phẩm B xong, Editor vẫn hiện segment của Tác phẩm **A** — không lỗi, không cảnh báo.
  *
  * ⚠️ Chỗ gọi duy nhất là `modes/libraryImport.ts::finishSubmit`. Đừng rải lời gọi này ra.
+ *
+ * 🔵 **SỬA 2026-08-18 (Story 2.11) — câu ngay trên HẾT ĐÚNG: nay có HAI chỗ gọi.**
+ * Chỗ thứ hai là [`switchChapter`] *(đổi **Chương** trong cùng Tác phẩm)*, và nó đi qua đây
+ * theo **chữ ký #8 đường (a) của Ice**, không theo một lượt tiện tay. Ba đường đã cân:
+ * - **(a)** tái dùng hàm này ⇒ một nguồn sự thật cho *"dọn state"*, và hai ô sót được vá
+ *   **cùng lượt** *(xem khối `sourceCut`/`omitError` bên dưới)*;
+ * - **(b)** một `resetChapterState()` riêng ⇒ hai hàm cùng canh một tập ô là **hai nguồn sự
+ *   thật**, và luật *"ô nhớ mới phải qua đây"* vốn đã không có cổng nào canh;
+ * - **(c)** dọn tối thiểu tại chỗ ⇒ đúng cái đã sinh ra hai ô sót.
+ *
+ * 🔴 **Câu "đừng rải lời gọi này ra" KHÔNG bị huỷ, nó được làm chặt hơn:** hàm này gọi được
+ * từ đúng **hai** đường, và **cả hai** phải flush **XONG** trước — xem khối `flush.reset()`
+ * bên dưới, nơi thứ tự ấy là một mệnh đề chứ không một lời khuyên.
  */
 export function resetEditorPanel(): void {
   // Vô hiệu hoá mọi lượt nạp ĐANG BAY — xem [`sequence`].
@@ -524,6 +540,28 @@ export function resetEditorPanel(): void {
   // lượt đều đi qua trọn mười một cổng. Một luật chỉ sống trong một khối chú thích là một luật
   // sẽ bị quên lần thứ ba. Món dựng cổng đã vào `deferred-work.md`.
   regroupError.value = null
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔵 STORY 2.11 — HAI Ô SÓT, và một trong hai đã nằm trong sổ nợ TỪ STORY 2.8
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // Khối ngay trên viết *"một luật chỉ sống trong một khối chú thích là một luật sẽ bị quên
+  // lần thứ ba"*. Đúng — và nó cũng đúng **lùi về quá khứ**: hàm này dọn 13 ô và bỏ sót
+  // **hai**, cả hai đều thuộc Tác phẩm, cả hai đi qua trọn mười một cổng.
+  //
+  // 🔴 `sourceCut` chở `{ segmentId, offsets[] }` của Chương/Tác phẩm cũ. Đường hỏng:
+  //   ① Người dùng `Mod`+click đánh dấu một chỗ cắt ở câu số 7 của Chương A.
+  //   ② Đổi Tác phẩm — hoặc, **từ story này**, đổi **Chương**.
+  //   ③ `⌘/` ⇒ lệnh tách chạy trên `segmentId` số 7 **của Chương mới**, một hàng người dùng
+  //      chưa từng nhìn thấy, trên dữ liệu mà **AD-5 không cho hoàn tác**.
+  //   Món nợ này đã ghi bằng chữ ngay trong hàm này từ Story 2.8 và ở lại hở hai story.
+  //
+  // 🔴 `omitError` chở một `IpcError` mang `params.segment_id` — **chưa ai nêu nó**, kể cả
+  // lượt rà 2.9 vừa vá hai ô cùng hạng (`confirmError` · `regroupError`). Nó lọt vì nó là ô
+  // duy nhất trong hạng đó **chưa component nào đọc** (`editorOmitError`, `:956-965`), tức
+  // biểu hiện của nó hôm nay là **0 pixel**. Đó là lý do để vá nó **bây giờ**, không phải lý
+  // do để hoãn: ngày một component đọc nó, khuyết tật ra đời đã sẵn sàng.
+  sourceCut.value = null
+  omitError.value = null
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // 🔵 STORY 2.10 — LẦN THỨ BA CỦA CÙNG MỘT LUẬT, và lượt này nó KHÔNG phải một lượt nhớ
@@ -1280,6 +1318,170 @@ export function goToPrevSegmentCoBao(): boolean {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 2.11 — CHUYỂN CHƯƠNG (FR26 · AC1 · AC2 · AC3 · AC4)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// ─────────────────────────────────────────────────────────────────────────────────
+// 🔴 THỨ TỰ LÀ TOÀN BỘ NỘI DUNG CỦA HÀM NÀY — không một `try/catch` nào thay được nó
+// ─────────────────────────────────────────────────────────────────────────────────
+// `save_segment_targets`/`flush_segment_targets` nhận `chapter_id` **từ webview**
+// (`commands/segment.rs:1112-1116` · `:1828-1836`). Nửa Rust nay giữ *"Chương đang mở"* trên
+// `OpenWork` (chữ ký #2(a)), nên một lượt `open_adjacent_chapter` **dời con trỏ ấy ngay lập
+// tức**. ⇒ Một lô flush còn **đang bay** lúc đó sẽ đáp xuống mang `chapter_id` **CŨ**, Rust
+// trả `segment.unknown_ids`, và **bản dịch biến mất trong im lặng**.
+//
+// Đây **đúng** lớp lỗi mà `modes/libraryImport.ts:119-132` đã ghi ra bằng chữ cho lượt đổi
+// **Tác phẩm**, và lời giải ở đó — sau một lượt đo lại đường thật — là **THỨ TỰ**: flush phải
+// xong **trước lượt `replace_open_work`**, không phải trước `resetEditorPanel()`. Cùng mệnh
+// đề, cùng hình dạng, một tầng khác: ở đây flush phải xong **trước lượt `invoke`**.
+//
+// ⚠️ **Và điều kiện đó KHÔNG được đọc thành "trước khi dọn state".** `resetEditorPanel()`
+// chạy `flush.reset()`, hàm **vứt vô điều kiện** tập chờ — gọi nó trước lượt flush là tự tay
+// ăn mất bản dịch chưa lưu. Hai ràng buộc, một thứ tự: **flush → invoke → dọn → nạp**.
+//
+// ─────────────────────────────────────────────────────────────────────────────────
+// 🔴 AC3 LÀ MỘT LƯỢT **THI HÀNH** AD-35 VẾ (d), KHÔNG MỘT VẾ THỨ SÁU — Ice ký 2026-08-18
+// ─────────────────────────────────────────────────────────────────────────────────
+// AD-35 (`SPINE:423`) liệt kê đúng năm đường flush và *"chuyển Chương"* **không có tên**
+// trong đó. Hai cách đọc đã được cân, và Ice ký **lập luận A**: chuyển Chương **là** rời
+// segment *(vế d)* theo **cấu tạo** — không đường nào rời Chương mà không rời câu đang gõ.
+// ⇒ 0 chữ của spine bị sửa, và cửa chặn AD của Task 0.4 **không** kích hoạt.
+//
+// *(Lập luận B đã bị loại: vế (d) trong mã được định nghĩa là* `caretSegmentId` *đổi giá trị
+// — `:144-150` — tức nó đòi có một "câu B", mà một lượt chuyển Chương rời câu A không sang
+// một câu B nào của Chương cũ. Nếu Ice đọc theo hướng đó thì đây đã là một AD mới.)*
+
+/**
+ * 🔴 **Chốt chống chồng lượt.** Hai lượt `⌘⌥]` liên tiếp trong khi lượt đầu còn đang bay là
+ * chuyện **thường**, không một ca biên: một lượt chuyển Chương đi qua **hai** lượt IPC nối
+ * tiếp *(flush, rồi `open_adjacent_chapter`)*, và phím thì không chờ ai.
+ *
+ * ⚠️ [`sequence`] **không** đủ cho việc này, và đó là chỗ dễ đọc nhầm: nó vô hiệu hoá một
+ * lượt **nạp** đã bay, nhưng nó không ngăn hai lượt `open_adjacent_chapter` cùng chạy — mà
+ * hai lượt ấy **cùng dời con trỏ Chương phía Rust**, mỗi lượt một bước. Người dùng bấm hai
+ * lần và nhảy **hai** Chương, trong khi màn hình chỉ kịp nạp một.
+ */
+let dangChuyenChuong = false
+
+/**
+ * **Chuyển sang Chương kề** — Story 2.11 · FR26.
+ *
+ * Trả `true` khi Chương **thật sự** đổi. Không ném: mọi đường hỏng đi ra bằng một câu trên
+ * thanh trạng thái, đúng luật *"hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU"*.
+ */
+async function switchChapter(direction: ChapterDirection): Promise<boolean> {
+  // ⚠️ Cửa chặn *"chưa nạp xong"* — cùng mệnh đề và cùng câu báo với [`dieuHuongVaBao`]. Nó
+  // được viết lại ở đây thay vì tái dùng hàm kia vì `dieuHuongVaBao` nhận một thunk **đồng
+  // bộ**; bọc một `Promise` vào đó là để nó trả `true` trước khi biết kết quả.
+  if (!editorHasLoaded()) {
+    ghiNavNotice('loading')
+    return false
+  }
+
+  if (dangChuyenChuong) {
+    console.info('[editor] mot luot chuyen Chuong dang bay — bo qua luot nay')
+    return false
+  }
+  dangChuyenChuong = true
+
+  try {
+    // ── ① FLUSH, và ĐỌC KẾT QUẢ ────────────────────────────────────────────────────
+    //
+    // 🔴 Cả **ba** giá trị được xử lý, và hai trong ba **CHẶN**. Khuôn đã có chữ ký:
+    // `libraryImport.ts:145-150` chặn lượt đổi Tác phẩm khi flush trượt, với phán quyết ghi
+    // bằng chữ — *"Người dùng bị cản một lượt và thấy lý do; họ thử lại, hoặc họ chép bản
+    // dịch ra ngoài. Cả hai đường đều tốt hơn một lượt mất chữ không ai biết."*
+    //
+    // ⚠️ **Tiền lệ ấy chỉ phủ MỘT NỬA, và nửa kia là mới ở đây.** Đường đổi Tác phẩm gọi
+    // `flushEditorNow()` — **một** lượt — nên nó chỉ có `'failed'` để đọc. Hàm hai lượt dưới
+    // đây là nơi gọi **đầu tiên** của kho phải phán quyết `'still-dirty'`: một ký tự gõ
+    // trong lúc lô đầu đang bay nằm **ngoài** ảnh chụp, nên `'saved'` của lượt đầu **không**
+    // đồng nghĩa với *"tập chờ sạch"* (`:429-443`).
+    const flushed = await flushEditorBeforeDiscreteWrite()
+    if (flushed !== 'clean') {
+      console.error(
+        `[editor] chuyen Chuong bi CHAN: luot flush tra '${flushed}' — ban dich chua xuong dia`,
+      )
+      datThongBao({ confirm: flushed === 'failed' ? 'flush-failed' : 'still-dirty' })
+      return false
+    }
+
+    // ── ② DỜI CON TRỎ CHƯƠNG phía Rust ─────────────────────────────────────────────
+    const { switched, error } = await openAdjacentChapter(direction)
+
+    if (error !== null) {
+      loadError.value = error
+      return false
+    }
+    // Không lỗi mà cũng không kết quả ⇒ chạy ngoài Tauri (`npm run dev` trong trình duyệt
+    // thường). Adapter đã ghi `console.info`; không một câu nào lên màn hình.
+    if (switched === null) return false
+
+    if (switched.outcome !== 'moved') {
+      // 🔴 KHÔNG quay vòng, và báo bằng **câu của Chương**, không câu của câu.
+      ghiNavNotice(switched.outcome === 'at-last' ? 'at-last-chapter' : 'at-first-chapter')
+      return false
+    }
+
+    // ── ③ DỌN state của Chương cũ, RỒI ④ NẠP Chương mới ────────────────────────────
+    //
+    // 🔴 `resetEditorPanel()` phải chạy **sau** ②: nó tăng [`sequence`], tức vô hiệu hoá mọi
+    // lượt nạp đang bay của Chương **cũ**. Chạy nó trước ② thì một lượt nạp cũ vẫn hợp lệ
+    // trong cửa sổ giữa hai lời gọi và đổ segment của Chương cũ lên màn hình sau lượt đổi.
+    //
+    // ⚠️ `flush.reset()` bên trong nó vứt tập chờ **vô điều kiện** — an toàn ở đây **vì** ①
+    // vừa trả `'clean'`, không vì hàm ấy hiền.
+    resetEditorPanel()
+
+    // `resetEditorPanel()` đặt `requested = false`, nên lượt gọi này chạy IPC thật.
+    await ensureSegmentsLoaded()
+
+    // ── ⑤ TIÊU ĐIỂM phải Ở LẠI trong lưới — AD-34 §2 ───────────────────────────────
+    //
+    // 🔴 Lượt chuyển thay **toàn bộ** hàng của `v-for`, và `segment.id` là
+    // `AUTOINCREMENT` **theo Tác phẩm** nên Chương mới gần như chắc chắn mang một tập khoá
+    // khác ⇒ Vue **gỡ** đúng cái ô `contenteditable` đang giữ tiêu điểm. Trình duyệt trả
+    // tiêu điểm về `document.body`, và AD-34 §2 cấm thẳng chuyện đó: từ `body` thì không
+    // hợp âm nào của vùng gõ còn nghĩa, và vòng xoay panel mất điểm bắt đầu.
+    //
+    // ⚠️ `await nextTick()` là **bắt buộc**, không một lượt phòng xa: tại thời điểm
+    // `ensureSegmentsLoaded()` trả về, Vue **chưa** vá DOM — ô cũ vẫn còn, tiêu điểm vẫn
+    // hợp lệ, và một `enterFocus` ở đó là no-op rồi tiêu điểm rơi ngay sau đó.
+    //
+    // ⚠️ `enterFocus` **không** cần một thành viên mới trong `FOCUS_OWNERS`: `panel.grid`
+    // đã ở đó từ Story 2.5b. Và nó **tự bỏ qua** khi tiêu điểm đã nằm trong owner — bản vá
+    // gốc của `focus.ts::enter()` mà Ice ký ở 2.5b — nên lời gọi này chỉ có tác dụng đúng
+    // ở ca nó tồn tại để đóng.
+    //
+    // 🔴 **VẾ NÀY CHƯA CÓ ĐƯỜNG NGHIỆM THU, và tôi KHÔNG chấm nó đạt.** `happy-dom` không
+    // phải WebKit, còn e2e thì **không tới được** một lượt chuyển thành công *(không đường
+    // sản phẩm nào sinh Chương thứ hai — cùng món nợ với AC1/AC2)*. Ghi nợ có chủ.
+    await nextTick()
+    enterFocus('panel.grid')
+    return true
+  } finally {
+    dangChuyenChuong = false
+  }
+}
+
+/**
+ * **Chương sau** — AC1. Đây là thứ `commands/index.ts` gọi *(qua `CommandDeps`)*.
+ *
+ * ⚠️ `void`, không `Promise<boolean>`: `CommandRegistry.run` là đồng bộ, và khuôn
+ * fire-and-forget này đã có tiền lệ ở `submitPastedText`/`submitFilePath` *(`index.ts:207`)*.
+ * Mọi kết quả — kể cả một lượt bị chặn — đã đi ra bằng thanh trạng thái bên trong
+ * [`switchChapter`].
+ */
+export function goToNextChapter(): void {
+  void switchChapter('next')
+}
+
+/** **Chương trước** — AC2. Xem [`goToNextChapter`]. */
+export function goToPrevChapter(): void {
+  void switchChapter('prev')
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 // 🔴 STORY 2.8 — GỘP và TÁCH tường minh (FR78 · AD-5 · AD-47 ①)
 // ═════════════════════════════════════════════════════════════════════════════════
 
@@ -1483,6 +1685,25 @@ export type NavNotice =
    * sáu** cho một màn hình vốn đã nói ra sự thật.
    */
   | 'loading'
+  /**
+   * 🔵 **Thêm 2026-08-18 (Story 2.11 · AC4) — Ice ký Quyết định #5 đường (a).**
+   *
+   * Đã ở **Chương ĐẦU** của Tác phẩm; lệnh *Chương trước* không đi đâu cả.
+   *
+   * 🔴 **VÌ SAO KHÔNG TÁI DÙNG `'at-first'`** — và đây là một mệnh đề đo được, không một gu
+   * đặt tên. `panel.grid.nav_at_first` đọc nguyên văn *"Đã ở **câu** đầu Chương — không có
+   * **câu** nào phía trên"* (`vi.json:107`). Dùng lại nó cho biên **Chương** là để màn hình
+   * **nói dối** về đúng thứ người dùng vừa cố làm: họ xin sang một Chương khác, và màn hình
+   * trả lời về một câu.
+   *
+   * ⚠️ Đường bị loại — **một ô nhớ thứ tư** *(Quyết định #5(b))*: Quyết định #4(b) của Story
+   * 2.10 đã cân đúng chuyện này và ghi ra, một ô mới làm bất biến *"ai ghi một ô thì dọn ô
+   * còn lại"* thành **N chiều**. Thêm một giá trị vào danh mục đóng này thì `datThongBao`
+   * dọn nó **theo cấu tạo**, không cần một dòng nào mới.
+   */
+  | 'at-first-chapter'
+  /** AC4, nửa đối xứng — đã ở **Chương CUỐI**. Xem [`'at-first-chapter'`] cho lý do đầy đủ. */
+  | 'at-last-chapter'
 
 const navNotice = shallowRef<NavNotice | null>(null)
 /** Xem [`navNotice`]. `StatusBar.vue` đọc. `null` ⇒ không có gì để nói. */

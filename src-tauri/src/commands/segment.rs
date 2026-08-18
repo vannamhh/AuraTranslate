@@ -770,9 +770,23 @@ pub fn restore_segment_version(
 /// người dùng chỉ đích danh trong Thư viện, và `deferred-work.md:542` đếm 25 Chương như
 /// vậy.
 ///
-/// ⚠️ Story 2.11 sở hữu biến thể nhận `chapter_id`. **Đừng** thêm sẵn một tham số
+/// ⚠️ ~~Story 2.11 sở hữu biến thể nhận `chapter_id`. **Đừng** thêm sẵn một tham số
 /// `Option<i64>` hôm nay: một nhánh không chỗ gọi nào đi qua là một nhánh không ai nghiệm
-/// thu được — cùng luật đã ghi cho danh mục `MessageKey` (`core::i18n`).
+/// thu được — cùng luật đã ghi cho danh mục `MessageKey` (`core::i18n`).~~
+///
+/// 🔵 **SỬA 2026-08-18 — Story 2.11 ĐÃ CHẠY, và nó KHÔNG thêm tham số nào vào lệnh này.**
+/// Ice ký Quyết định #2 đường (a) và #3 đường (a): *"Chương đang mở"* sống thành một trường
+/// trên [`crate::commands::project::OpenWork`], và Chương kề do **Rust** quyết qua một lệnh
+/// riêng ([`crate::commands::chapter::open_adjacent_chapter`]) — webview chỉ nói **hướng**.
+/// ⇒ Lệnh này vẫn **không** nhận `chapter_id`, nhưng lý do nay khác hẳn: không phải *"chỉ có
+/// một giá trị hợp lệ"* mà là *"giá trị ấy là **quy tắc nghiệp vụ** và nó ở lại Rust"* (AD-1).
+/// Đường (c) — thêm `chapter_id: Option<i64>` vào hai lệnh đọc — đã được trình cho Ice và
+/// **bị loại**, đúng theo lời cấm nguyên bản ở trên.
+///
+/// ⚠️ Ba dòng ngay trên đoạn gạch ngang *(Epic 1 tạo đúng một Chương)* **vẫn đúng về dữ
+/// liệu** — không đường sản phẩm nào sinh Chương thứ hai hôm nay, món nợ có chủ là Epic 6 —
+/// nhưng nó **không còn** là tiền đề của mã: `read_open_chapter_segments` nay đọc
+/// `OpenWork::chapter_id`, không `ORDER BY ord LIMIT 1`.
 ///
 /// ⚠️ `ORDER BY ord` là **có chủ đích**, không phải trang trí: `idx_segment_chapter_ord`
 /// (`chapter_id, ord`) thành covering cho đúng lượt đọc này, nên SQLite khỏi một lượt sắp
@@ -827,13 +841,14 @@ pub fn restore_segment_version(
 pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegments, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
 
-    let loaded = open.store.read(|conn| {
-        // Cung quy tac chon Chuong voi `read_open_chapter`: mot Tac pham mot Chuong o Epic 1.
-        let chapter_id: i64 =
-            conn.query_row("SELECT id FROM chapter ORDER BY ord LIMIT 1", [], |row| {
-                row.get(0)
-            })?;
+    // 🔵 SUA 2026-08-18 (Story 2.11 · Quyet dinh #2(a), Ice ky). Ban cu chay
+    // `SELECT id FROM chapter ORDER BY ord LIMIT 1` — mot cau SQL THU HAI suy ra Chuong dang
+    // mo, doc lap voi cau thu nhat o `commands::chapter::read_open_chapter`. Hai cho suy ra
+    // cung mot du kien la hai nguon su that; ngay khi Chuong thu hai ton tai, ca hai tra ve
+    // Chuong DAU mai mai va khong cong nao do. Nay ca hai deu HOI `OpenWork::chapter_id`.
+    let chapter_id = open.chapter_id;
 
+    let loaded = open.store.read(move |conn| {
         let mut stmt = conn.prepare(
             "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
              is_omitted, is_target_paragraph_end \

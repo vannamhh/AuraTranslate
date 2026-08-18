@@ -274,7 +274,16 @@ const TS_FLOOR = 30 // số THẬT 2026-08-14 (sau Story 2.5b): 37 tệp `.ts` �
 // command đều làm cổng đỏ oan — nó đổi một cận dưới thành một phép so bằng.
 // ⇒ Cùng lớp với luật đã ghi ở `project-context.md`: *"cây nguồn thắng"*, và ở đây cây nguồn là
 //   doc-comment của chính cơ chế mình đang sửa.
-const COMMAND_FLOOR = 41
+// 🔵 **41 → 43, Story 2.11 (2026-08-18).** Cổng in **51** command sau khi thêm
+// `editor.next_chapter` và `editor.prev_chapter` *(Story 2.10 ghi 49 — đúng +2, không hơn)*.
+// Chạy cổng, đọc số, rồi mới sửa dòng này — đúng thứ tự mà lượt code review Story 2.6 đã trả
+// giá để dựng ra. 43/51 = **84,3 %**, giữa dải 80–85 %; để nguyên 41 thì tụt xuống 80,4 %,
+// tức chạm mép dưới và mất ý nghĩa ở story kế tiếp.
+// ⚠️ **Ba sàn kia KHÔNG đổi, và đó là một kết luận đã đo chứ không một lượt bỏ qua:** story
+// này thêm **0** tệp `.vue`, **0** tệp `.ts` *(mọi thay đổi nằm trong tệp đã có)*, **0**
+// `@click` và **0** lời gọi `dispatch()` — hai lệnh mới tới được bằng **phím**, không bằng một
+// bề mặt bấm. Cổng in lại đúng 16 `.vue` · 39 `.ts` · 25 `@click` · 34 `dispatch()`.
+const COMMAND_FLOOR = 43
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.

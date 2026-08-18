@@ -50,6 +50,34 @@ pub struct OpenWork {
     pub scope: crate::core::scope::ScopeResolver,
     /// Metadata vừa tạo/đọc — vỏ IPC trả trường này ra ngoài (`Store` không `Serialize`).
     pub meta: WorkMeta,
+    /// 🔵 **THÊM 2026-08-18 (Story 2.11 · FR26 · Quyết định #2 đường (a), Ice ký)** —
+    /// `chapter.id` của **Chương đang mở**.
+    ///
+    /// ─────────────────────────────────────────────────────────────────────────
+    /// 🔴 VÌ SAO MỘT TRƯỜNG, VÀ VÌ SAO NÓ Ở **RUST** CHỨ KHÔNG Ở WEBVIEW
+    /// ─────────────────────────────────────────────────────────────────────────
+    /// Trước story này *"Chương đang mở"* **không được lưu ở đâu cả** — nó được **suy ra
+    /// động** mỗi lượt gọi bằng `ORDER BY ord LIMIT 1`, ở **hai** chỗ độc lập
+    /// (`commands::chapter::read_open_chapter` và
+    /// `commands::segment::read_open_chapter_segments`). Hình dạng đó đúng khi một Tác
+    /// phẩm có đúng một Chương và **chỉ** khi đó: ngay khi Chương thứ hai tồn tại, hai câu
+    /// SQL kia trả về Chương ĐẦU mãi mãi, và không cổng nào đỏ.
+    ///
+    /// Đường bị loại và lý do (Quyết định #2, 2026-08-18):
+    /// - **(b) webview giữ và truyền qua dây** — đụng AD-1. Câu phải trả lời là *"'Chương
+    ///   nào đang mở' là state UI hay một quy tắc nghiệp vụ?"*, và nó là quy tắc: nó quyết
+    ///   định **hàng nào trên đĩa** được đọc và ghi.
+    /// - **(c) lưu xuống đĩa** — kéo theo một bước di trú cho một nghĩa vụ (AC5/FR12) mà
+    ///   Quyết định #4(c) vừa giao **trọn** cho Epic 5.
+    ///
+    /// ⚠️ **HỆ QUẢ SỐNG CÒN, và nó là một lỗ MẤT DỮ LIỆU không AC nào nêu:**
+    /// `save_segment_targets`/`flush_segment_targets` nhận `chapter_id` **từ webview**. Một
+    /// lô flush đang bay lúc trường này đổi sẽ mang `chapter_id` **CŨ** ⇒ Rust trả
+    /// `segment.unknown_ids` ⇒ bản dịch biến mất **im lặng**. ⇒ Điều kiện thật không phải
+    /// *"flush trước khi dọn state"* mà là **flush xong TRƯỚC lượt đổi trường này** — đúng
+    /// lời giải mà `modes/libraryImport.ts:119-132` đã ghi bằng chữ cho lượt đổi **Tác
+    /// phẩm**, và ở đó lời giải là **THỨ TỰ**, không phải một `try/catch`.
+    pub chapter_id: i64,
 }
 
 /// Thư mục gốc mặc định chứa mọi `.atproj` — `~/Documents/AuraTranslate/` (AD-23).
@@ -151,14 +179,21 @@ pub fn create_work(
         // chen được vào giữa hai dòng này.
         let chapter_id = tx.last_insert_rowid();
         crate::commands::segment::insert_segments(tx, chapter_id, &segments)?;
-        Ok(())
+        // 🔵 2026-08-18 (Story 2.11) — `chapter_id` đi RA khỏi closure thay vì bị bỏ.
+        // `OpenWork::chapter_id` phải được đặt bằng chính hàng vừa chèn; đọc lại nó bằng
+        // một câu `ORDER BY ord LIMIT 1` sau giao dịch là dựng lại đúng lối suy-ra-động mà
+        // trường ấy tồn tại để xoá.
+        Ok(chapter_id)
     });
 
-    if let Err(err) = write_result {
-        store.close();
-        remove_folder(&dir);
-        return Err(err.into());
-    }
+    let chapter_id = match write_result {
+        Ok(chapter_id) => chapter_id,
+        Err(err) => {
+            store.close();
+            remove_folder(&dir);
+            return Err(err.into());
+        }
+    };
 
     // Quyết định #3: `meta.json` ghi NGAY SAU KHI giao dịch commit, ở tầng THAO TÁC —
     // dựng lại từ `project.db` vừa ghi (AD-33), không giữ dữ liệu song song mà trôi.
@@ -206,6 +241,7 @@ pub fn create_work(
         store,
         scope,
         meta,
+        chapter_id,
     })
 }
 

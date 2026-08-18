@@ -200,6 +200,12 @@ const NAV_NOTICE_KEYS: Record<NonNullable<typeof editorNavNotice.value>, string>
   // 🔵 2026-08-18 (code review lượt HAI) — khoá thứ NĂM. Bảng `Record` đóng đã làm đúng việc
   //    nó được dựng để làm: thêm `'loading'` vào `NavNotice` mà chưa sửa đây thì `vue-tsc` đỏ.
   loading: 'panel.grid.nav_loading',
+  // 🔵 2026-08-18 (Story 2.11 · AC4) — khoá thứ SÁU và thứ BẢY. Bảng `Record` đóng lại làm
+  //    đúng việc nó được dựng để làm: thêm hai giá trị vào `NavNotice` mà chưa sửa đây thì
+  //    `vue-tsc` đỏ. 🔴 Hai khoá RIÊNG, không tái dùng `nav_at_first`/`nav_at_last` — hai
+  //    chuỗi đó nói *"câu"*, còn đây là biên **Chương**.
+  'at-first-chapter': 'panel.grid.nav_at_first_chapter',
+  'at-last-chapter': 'panel.grid.nav_at_last_chapter',
 }
 
 const navNoticeKey = computed<string | null>(() => {

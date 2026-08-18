@@ -300,6 +300,24 @@ export type CommandDeps = {
   goToPrevSegment?: () => boolean
 
   /**
+   * **Chuyển sang Chương kề** trong cùng Tác phẩm. Handler của `editor.next_chapter` và
+   * `editor.prev_chapter` (Story 2.11, FR26 · AC1 · AC2 · AC3 · AC4).
+   *
+   * 🔴 **`void`, KHÔNG `boolean`** — và đây là chỗ hợp đồng của hai lệnh này khác ba lệnh
+   * điều hướng ở trên, không một lượt viết cẩu thả. Một lượt chuyển Chương đi qua **hai**
+   * lượt IPC nối tiếp *(flush theo AD-35, rồi `open_adjacent_chapter`)*, nên kết quả của nó
+   * **chưa tồn tại** tại thời điểm `run()` phải trả về. Một `boolean` ở đây chỉ có thể là một
+   * lời khai **đoán trước**, và nó sẽ nói *"đã đổi"* cho một lượt bị chặn.
+   *
+   * ⇒ Mọi kết cục — chặn vì flush trượt, biên Chương, lỗi IPC — đi ra bằng **thanh trạng
+   * thái** bên trong `editorPanelState.ts::switchChapter`, không bằng giá trị trả về. Khuôn
+   * fire-and-forget này đã có tiền lệ ở [`submitPastedText`]/[`submitFilePath`].
+   */
+  goToNextChapter?: () => void
+  /** Xem [`goToNextChapter`]. */
+  goToPrevChapter?: () => void
+
+  /**
    * **Cắt bỏ / bỏ cờ** câu đang có con trỏ. Handler chung của `editor.omit_segment` và
    * `editor.restore_segment` (Story 2.5c, FR133 · AC1 · AC4).
    *
@@ -1182,6 +1200,75 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('editor.prev_segment', 'goToPrevSegment')
       }
       deps.goToPrevSegment()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 2.11 — `editor.next_chapter` · `editor.prev_chapter` (FR26, AC1 · AC2 · AC6)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * **HAI id**, cùng khuôn `editor.next_segment`/`prev_segment` ngay trên: *"một id **là** thứ
+   * người dùng gán phím vào và thấy trong bảng phím tắt"* (Quyết định #3 của Story 2.5c).
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🔴 VÌ SAO `Mod+Alt+]` / `Mod+Alt+[` — và vì sao KHÔNG `⌥←`/`⌥→` trần
+   * ─────────────────────────────────────────────────────────────────────────────
+   * Ice ký Quyết định #6, hai nửa, ngày 2026-08-18. Ba đường bị loại, mỗi đường một lý do
+   * **đo được**:
+   *
+   * ① **`⌥←`/`⌥→` trần — CHẾT ở đúng ca thường nhất của FR26.** `keys.ts:510` bỏ mọi hợp âm
+   *    `lacksPrimaryMod` khi `isTypingZone(event.target)`, và ca thường nhất của *"sang Chương
+   *    sau"* là **người dùng vừa gõ xong câu cuối** ⇒ caret **đang** trong một ô bản dịch
+   *    (`isContentEditable`) ⇒ phím không bắn. Đây **không** một suy luận: Story 2.10 đã đo
+   *    thật trên WKWebView 605.1.15 và **lật một chữ ký** vì đúng chuyện này (`⌥↓` → `⌘⌥↓`,
+   *    số đo ở `:1092-1112`).
+   *
+   * ② 🔴 **Và "chỗ đã đặt trước" cho `⌥←`/`⌥→` DỰA TRÊN MỘT LƯỢT ĐỌC NHẦM — đo lại 2026-08-18.**
+   *    `deferred-work.md:151` (Story 1.14) viết *"không đụng `⌥←` `⌥→` trần (Chương trước/sau
+   *    — `EXPERIENCE.md:148`, Story 2.11)"*. Dòng 148 của tệp đó **nay là đoạn Auto-Lookup**;
+   *    hàng thật `| ⌥← ⌥→ | Chương trước / sau trong cùng lần nhập |` nằm ở **`:184`**, và nó
+   *    thuộc bảng *"Sửa ranh giới bóc"* (`:174-186`) — tức **màn xem trước NHẬP**, UX-DR33
+   *    (`epics.md:599`), không phải Workspace. Bảng Phím của **Workspace** (`:261-269`) không
+   *    một hàng nào cho chuyển Chương. ⇒ `⌥←`/`⌥→` **chưa bao giờ** được đặt chỗ ở đây.
+   *
+   * ③ **Không phím mặc định** (khuôn `editor.next_segment`, chữ ký #2(c) của 2.10) — loại, vì
+   *    story này **không** có bề mặt bấm được nào, nên FR26 *("mạch làm việc không bị cắt")*
+   *    sẽ chỉ với tới được **sau khi** người dùng tự gán phím ở màn hình phím tắt.
+   *
+   * ⇒ Cặp ngoặc mang `Mod`, nên chúng đi qua `keys.ts:510` **sạch** — cùng lý lẽ đã ghi cho
+   * `editor.omit_segment`/`restore_segment` ở `:1208-1214`. Đo trên bộ 49 command trước lượt
+   * này: `Mod+Alt` đang dùng `1` `2` `←` `→` `↓` `O` `J` `V` `L` `S` `X` `R` `P` `U` —
+   * `BracketLeft`/`BracketRight` **chưa ai chiếm**, và cả hai đã có sẵn hàng trong
+   * `NAMED_CODES` (`keys.ts:121-122`) lẫn bảng ký hiệu hiển thị (`:299-300`).
+   *
+   * ⚠️ **Họ `editor.*`, không một họ `chapter.*` mới** (nửa sau của chữ ký #6): mọi lệnh của
+   * lưới sống ở đây, và người dùng tìm chúng cạnh `editor.next_segment` trong bảng phím tắt.
+   * 🔴 Đổi id về sau là **mồ côi phím người dùng đã gán, im lặng** — `ScopeKind::Shortcut` lưu
+   * **theo id** (`kinds.rs:200-204`). Chốt một lần, và đây là lần đó.
+   */
+  target.register({
+    id: 'editor.next_chapter',
+    labelKey: 'command.editor.next_chapter',
+    keys: ['Mod+Alt+BracketRight'],
+    run: () => {
+      if (deps.goToNextChapter === undefined) {
+        return portMissing('editor.next_chapter', 'goToNextChapter')
+      }
+      // AC4 — biên Chương báo bằng `editorNavNotice`; xem hợp đồng `void` ở [`CommandDeps`].
+      deps.goToNextChapter()
+    },
+  })
+
+  target.register({
+    id: 'editor.prev_chapter',
+    labelKey: 'command.editor.prev_chapter',
+    keys: ['Mod+Alt+BracketLeft'],
+    run: () => {
+      if (deps.goToPrevChapter === undefined) {
+        return portMissing('editor.prev_chapter', 'goToPrevChapter')
+      }
+      deps.goToPrevChapter()
     },
   })
 

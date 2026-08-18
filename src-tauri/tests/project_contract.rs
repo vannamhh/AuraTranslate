@@ -17,7 +17,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::commands::chapter::read_open_chapter;
+use auratranslate_lib::commands::chapter::{
+    ChapterDirection, ChapterSwitchOutcome, open_adjacent_chapter, read_open_chapter,
+};
 use auratranslate_lib::commands::project::{create_work_from_file, create_work_from_text};
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
@@ -623,6 +625,289 @@ fn the_source_lang_is_read_from_the_work_never_guessed_from_the_text() {
     assert_eq!(
         chapter.source_lang, "en",
         "source_lang phai la truong bat bien cua Tac pham, khong doan tu noi dung"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 2.11 · FR26 — chuyển Chương trong Workspace
+//
+// 🔴 VÌ SAO NHỮNG CA DƯỚI ĐÂY CHÈN CHƯƠNG THỨ HAI BẰNG **SQL TRỰC TIẾP**
+// ─────────────────────────────────────────────────────────────────────────────────
+// Không đường sản phẩm nào sinh ra Chương thứ hai hôm nay: `create_work` chèn đúng một
+// hàng `chapter` với `ord = 1` viết cứng, một lượt, không vòng lặp (`project.rs:137-142`),
+// và `grep "INSERT INTO chapter" src-tauri/src` cho **đúng một** kết quả. Đường sinh
+// Chương thứ hai thuộc epic khác — FR14 (nhập hàng loạt) → Epic 6, FR15 (gộp/tách Chương)
+// → Epic 5.
+//
+// ⇒ Ice ký **Quyết định #1 đường (a)** ngày 2026-08-18: dựng **trọn** cơ chế, nghiệm thu
+// AC1/AC2 bằng **hợp đồng dữ liệu** ở đây, và ghi một món nợ **có chủ** cho vế *"không
+// đường sản phẩm nào"*. Khuôn này đã có chữ ký hai lần: chữ ký #8(a) của Story 2.6
+// (`retired_at`) và AC3 của Story 2.7 (xuất xứ phi-`self`) — cả hai cùng lý do, cả hai
+// ghi nợ thay vì tự chấm đạt.
+//
+// ⚠️ **Giá đã trả và phải nói ra:** AC1/AC2 **không** có đường e2e. Bốn đường nghiệm thu
+// của dự án có bốn vai, và vai *"hợp đồng dữ liệu ở biên và với `ord` thưa"* là của
+// `cargo test`. Nhưng *"người dùng bấm phím và Chương đổi"* thì hôm nay **không đường nào
+// với tới được** — đó là món nợ, không phải một ca đã xanh.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Chèn một hàng `chapter` **thẳng bằng SQL** và trả `chapter.id` vừa sinh.
+///
+/// ⚠️ `ord` là **tham số**, có chủ ý: hai ca dưới đây cần dựng một bảng `chapter` mà
+/// `ord` **trùng nhau** — thứ mà không đường sản phẩm nào sinh ra được hôm nay, nhưng
+/// lược đồ **cho phép** (`schema.rs:249` cố ý không `UNIQUE`).
+fn insert_chapter_directly(opened: &auratranslate_lib::commands::project::OpenWork, ord: i64, text: &str) -> i64 {
+    let text = text.to_owned();
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (?1, NULL, ?2, 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                (ord, &text),
+            )?;
+            Ok(tx.last_insert_rowid())
+        })
+        .expect("chen Chuong bang SQL truc tiep that bai")
+}
+
+/// 🔴 **AC1** — gọi *Chương sau* mở ra Chương kế tiếp, và `OpenWork` **nhớ** lượt đổi đó.
+///
+/// Vế thứ hai mới là vế dễ hụt: một lệnh trả đúng dữ liệu nhưng **không** dời con trỏ
+/// Chương trên `OpenWork` sẽ cho lượt gọi thứ hai trả lại **cùng** một Chương — và không
+/// một phép khẳng định nào về giá trị trả về bắt được chuyện đó.
+#[test]
+fn moving_to_the_next_chapter_opens_the_following_row_and_remembers_the_move() {
+    let root = temp_dir("next-chapter");
+    let mut opened = create_work_from_text(&root, "Chuyen Chuong", "zh", "", "Chuong mot.".to_owned())
+        .expect("tao tac pham that bai");
+
+    let first = opened.chapter_id;
+    let second = insert_chapter_directly(&opened, 2, "Chuong hai.");
+    let third = insert_chapter_directly(&opened, 3, "Chuong ba.");
+
+    let moved = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
+        .expect("chuyen sang Chuong sau that bai");
+    assert_eq!(moved.outcome, ChapterSwitchOutcome::Moved);
+    let chapter = moved.chapter.expect("mot luot doi THAT SU phai mang Chuong moi");
+    assert_eq!(chapter.chapter_id, second);
+    assert_eq!(chapter.source_text, "Chuong hai.");
+    assert_eq!(
+        opened.chapter_id, second,
+        "con tro Chuong tren OpenWork phai doi — neu khong, luot goi ke tiep tra lai cung mot Chuong"
+    );
+
+    // Lượt thứ hai đi tiếp, không đứng yên — đây là phép đối chứng cho câu trên.
+    let again = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
+        .expect("chuyen sang Chuong sau lan hai that bai");
+    assert_eq!(again.outcome, ChapterSwitchOutcome::Moved);
+    assert_eq!(again.chapter.expect("phai co Chuong").chapter_id, third);
+
+    assert_ne!(first, second, "hai Chuong phai la hai hang khac nhau");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// 🔴 **AC2** — *Chương trước* mở ra Chương liền trước, đối xứng với AC1.
+#[test]
+fn moving_to_the_previous_chapter_opens_the_row_immediately_before() {
+    let root = temp_dir("prev-chapter");
+    let mut opened = create_work_from_text(&root, "Chuong Truoc", "zh", "", "Chuong mot.".to_owned())
+        .expect("tao tac pham that bai");
+
+    let first = opened.chapter_id;
+    let second = insert_chapter_directly(&opened, 2, "Chuong hai.");
+
+    opened.chapter_id = second;
+
+    let moved = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Prev)
+        .expect("chuyen ve Chuong truoc that bai");
+    assert_eq!(moved.outcome, ChapterSwitchOutcome::Moved);
+    assert_eq!(moved.chapter.expect("phai co Chuong").chapter_id, first);
+    assert_eq!(opened.chapter_id, first);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// 🔴 **AC4** — ở Chương CUỐI, lệnh *Chương sau* báo biên và **không quay vòng**.
+///
+/// Ba mệnh đề trong một ca, và cả ba đều cần: kết quả là một trạng thái **phân biệt được**
+/// (không phải `Err` — *"đã ở Chương cuối"* không phải một lỗi); **không** Chương nào được
+/// trả về; và con trỏ Chương trên `OpenWork` **đứng nguyên**.
+#[test]
+fn the_last_chapter_reports_the_boundary_instead_of_wrapping_around() {
+    let root = temp_dir("last-chapter");
+    let mut opened = create_work_from_text(&root, "Bien Cuoi", "zh", "", "Chuong duy nhat.".to_owned())
+        .expect("tao tac pham that bai");
+
+    let only = opened.chapter_id;
+
+    let stopped = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
+        .expect("vuot bien KHONG duoc la mot Err — do khong phai mot loi");
+    assert_eq!(stopped.outcome, ChapterSwitchOutcome::AtLast);
+    assert!(
+        stopped.chapter.is_none(),
+        "khong doi Chuong thi khong mang mot Chuong nao ve — mot khoi source_text thua o day \
+         la mot loi moi de webview thay Chuong da doi"
+    );
+    assert_eq!(opened.chapter_id, only, "KHONG quay vong ve dau");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// 🔴 **AC4**, nửa đối xứng — ở Chương ĐẦU, lệnh *Chương trước* báo biên.
+///
+/// ⚠️ Mọi Chương tồn tại hôm nay vừa là Chương đầu **vừa là** Chương cuối, nên ca này và
+/// ca trên chạy trên **cùng** một hình dạng dữ liệu mà sản phẩm thật sinh ra.
+#[test]
+fn the_first_chapter_reports_the_boundary_instead_of_wrapping_around() {
+    let root = temp_dir("first-chapter");
+    let mut opened = create_work_from_text(&root, "Bien Dau", "zh", "", "Chuong duy nhat.".to_owned())
+        .expect("tao tac pham that bai");
+
+    let only = opened.chapter_id;
+
+    let stopped = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Prev)
+        .expect("vuot bien KHONG duoc la mot Err");
+    assert_eq!(stopped.outcome, ChapterSwitchOutcome::AtFirst);
+    assert!(stopped.chapter.is_none());
+    assert_eq!(opened.chapter_id, only, "KHONG quay vong ve cuoi");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// 🔴 **`ord` KHÔNG `UNIQUE`, và Chương kề phải phân giải bằng bộ đôi `(ord, id)`.**
+///
+/// `schema.rs:249` cố ý không đặt `UNIQUE` trên `chapter.ord`, và không gì bảo đảm nó liên
+/// tục. Một cài đặt `ord + 1` **biên dịch sạch, đi qua mọi cổng**, và trỏ sai hàng ngay khi
+/// hai Chương chia nhau một `ord` — đúng lớp lỗi mà lượt code review 2026-08-17 trên
+/// `segment.rs` gọi là *"một phép trừ im lặng trỏ sai hàng"*.
+///
+/// Ca này dựng đúng hình dạng đó: **ba** Chương cùng `ord = 1`, phân biệt nhau **chỉ** bằng
+/// `id`. Với `ord + 1` thì không hàng nào có `ord = 2` ⇒ lệnh báo *"đã ở Chương cuối"* trên
+/// một Tác phẩm còn hai Chương phía sau.
+#[test]
+fn adjacent_chapters_break_ord_ties_by_id_never_by_arithmetic() {
+    let root = temp_dir("ord-ties");
+    let mut opened = create_work_from_text(&root, "Ord Trung", "zh", "", "Chuong mot.".to_owned())
+        .expect("tao tac pham that bai");
+
+    let first = opened.chapter_id;
+    let second = insert_chapter_directly(&opened, 1, "Chuong hai.");
+    let third = insert_chapter_directly(&opened, 1, "Chuong ba.");
+
+    let step_one = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
+        .expect("buoc mot that bai");
+    assert_eq!(step_one.outcome, ChapterSwitchOutcome::Moved);
+    assert_eq!(
+        step_one.chapter.expect("phai co Chuong").chapter_id,
+        second,
+        "ba Chuong cung ord = 1: hang ke tiep phai phan giai bang `id`, khong bang mot phep cong"
+    );
+
+    let step_two = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
+        .expect("buoc hai that bai");
+    assert_eq!(step_two.chapter.expect("phai co Chuong").chapter_id, third);
+
+    // Và đường về cũng phải phân giải bằng `id`, không chỉ đường đi.
+    let back = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Prev)
+        .expect("buoc lui that bai");
+    assert_eq!(back.chapter.expect("phai co Chuong").chapter_id, second);
+    assert_ne!(first, second);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// `ord` **thưa** (1, 7, 900) — cùng luật, một hình dạng khác: `ord + 1` cũng chết ở đây.
+#[test]
+fn adjacent_chapters_work_on_a_sparse_ord_sequence() {
+    let root = temp_dir("ord-sparse");
+    let mut opened = create_work_from_text(&root, "Ord Thua", "zh", "", "Chuong mot.".to_owned())
+        .expect("tao tac pham that bai");
+
+    let far = insert_chapter_directly(&opened, 900, "Chuong xa.");
+    let middle = insert_chapter_directly(&opened, 7, "Chuong giua.");
+
+    let step_one = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
+        .expect("buoc mot that bai");
+    assert_eq!(step_one.chapter.expect("phai co Chuong").chapter_id, middle);
+
+    let step_two = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
+        .expect("buoc hai that bai");
+    assert_eq!(step_two.chapter.expect("phai co Chuong").chapter_id, far);
+
+    let step_three = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
+        .expect("buoc ba that bai");
+    assert_eq!(step_three.outcome, ChapterSwitchOutcome::AtLast);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Chưa Tác phẩm nào mở ⇒ **cùng** khoá `project.no_work_open`, không một khoá thứ hai.
+#[test]
+fn switching_chapters_without_a_work_open_reuses_the_named_error() {
+    let err = open_adjacent_chapter(None, ChapterDirection::Next)
+        .expect_err("chua Tac pham nao mo phai la mot loi");
+
+    assert_eq!(err.code(), "project.no_work_open");
+    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+    assert!(!err.retryable());
+}
+
+/// 🔴 **Món nợ `deferred-work.md:650`, giao đích danh story này** — hàng `chapter` vắng mặt
+/// ⇒ một lỗi **CÓ TÊN**, không `store.read_failed`.
+///
+/// Trước story này `conn.query_row(...)` ném `QueryReturnedNoRows`, đi qua
+/// `From<StoreError>` thành `store.read_failed`, và người dùng đọc *"không mở được kho dữ
+/// liệu"* cho một Tác phẩm hoàn toàn lành lặn. Ca này dựng đúng trạng thái đó bằng cách
+/// **xoá** hàng `chapter` — một hình dạng mà Epic 5 (gộp/tách/sắp lại Chương, FR15) sẽ với
+/// tới thật.
+#[test]
+fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
+    let root = temp_dir("chapter-gone");
+    let opened = create_work_from_text(&root, "Chuong Bien Mat", "zh", "", "Noi dung.".to_owned())
+        .expect("tao tac pham that bai");
+
+    let gone = opened.chapter_id;
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("DELETE FROM segment WHERE chapter_id = ?1", [gone])?;
+            tx.execute("DELETE FROM chapter WHERE id = ?1", [gone])?;
+            Ok(())
+        })
+        .expect("xoa hang chapter that bai");
+
+    let err = read_open_chapter(Some(&opened)).expect_err("Chuong vang mat phai la mot loi");
+
+    assert_eq!(
+        err.code(),
+        "segment.chapter_not_found",
+        "phai la mot loi CO TEN, khong phai `store.read_failed` — mot Tac pham lanh lan \
+         khong duoc doc thanh mot kho hong"
+    );
+    assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
+    assert_eq!(
+        err.params().get("chapter_id").map(String::as_str),
+        Some(gone.to_string().as_str()),
+        "tham so mang DU LIEU (chapter_id), khong mang mot cau"
     );
 
     let dir = opened.dir.clone();

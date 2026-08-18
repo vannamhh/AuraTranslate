@@ -306,6 +306,10 @@ pub fn run() {
             crate::commands::project::wire::create_work_from_text,
             crate::commands::project::wire::create_work_from_file,
             crate::commands::chapter::wire::read_open_chapter,
+            // Story 2.11 — chuyen Chuong trong Workspace (FR26). RUST quyet Chuong ke
+            // (Quyet dinh #3(a), Ice ky 2026-08-18): webview chi noi HUONG, va luat "ke la
+            // gi" — so sanh bo doi `(ord, id)`, khong `ord + 1` — o lai mot cho.
+            crate::commands::chapter::wire::open_adjacent_chapter,
             crate::commands::dict::wire::read_han_viet,
             crate::commands::dict::wire::lookup_dictionary,
             crate::commands::dict::wire::list_dict_sources,
