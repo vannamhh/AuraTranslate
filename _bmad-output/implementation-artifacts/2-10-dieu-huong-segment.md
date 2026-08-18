@@ -4,7 +4,7 @@ baseline_commit: a664dac
 
 # Story 2.10: Điều hướng segment
 
-Status: review
+Status: done
 
 **Covers:** FR25 · AD-34 §1 · NFR17
 **Epic:** 2 — Biên tập theo segment
@@ -985,8 +985,22 @@ bàn đo Ⓘ đọc đồng bộ · không giật khi bấm liên tục: e2e Ⓔ
 - `src/panels/GridPanel.vue` — UPDATE: khối §"AC8 NỬA SAU" *(vì sao KHÔNG có mã cuộn nào)*
 - `src/panels/LookupPanel.vue` — UPDATE: 🔵 sửa **hai** chú thích trích `DESIGN.md:342` cho một
   luật chưa từng tồn tại
-- `src/i18n/vi.json` — UPDATE: 2 khoá `command.editor.*` + 4 khoá `panel.grid.nav_*`
+- `src/i18n/vi.json` — UPDATE: 2 khoá `command.editor.*` + **5** khoá `panel.grid.nav_*`
+  *(🔵 khoá thứ năm `nav_loading` thêm ở code review lượt hai)*
 - `scripts/check-commands.mjs` — UPDATE: `COMMAND_FLOOR` 39 → 41
+
+**🔵 Sửa thêm ở code review lượt HAI (2026-08-18) — năm patch**
+- `src/panels/editorPanelState.ts` — `NavNotice` +`'loading'` · `dieuHuongVaBao` nhận **thunk** và
+  chặn trước bằng `editorHasLoaded()` · `setCurrentSegmentOmitted` + `setCurrentSegmentParagraphEnd`
+  gọi `datThongBao({})` · 🔵 hai mệnh đề hết đúng ở doc-comment `goToNextUntranslated` (`⌥↓` ·
+  *"ghi một dòng chẩn đoán"*) · 🔵 dẫn chứng hết hạn ở `editorHasLoaded` (`deferred-work.md:542`)
+- `src/StatusBar.vue` — `NAV_NOTICE_KEYS` khoá thứ năm *(bảng `Record` đóng buộc sửa cùng lượt)*
+- `src/panels/segmentNavigation.ts` — §GIỚI HẠN THẬT cho nhánh `retiredAt` · 🔵 sửa mệnh đề
+  *"`null` cho tới Story 2.8"*
+- `src/main.ts` — 🔵 gỡ `⌥↓` khỏi một chú thích lịch sử
+- `e2e/specs/segment-navigation.e2e.mjs` — selector neo bằng `.grid-scroll` + `closest('.panel')`
+- `tests/frontend/editorNavNotice.test.ts` — **+3 ca** *(cửa sổ đang tải · đối chứng dương · Cắt
+  bỏ dọn thanh)*, cộng mock `setSegmentOmitted` ở biên IPC. **228 / 228** sau lượt vá.
 
 **Nghiệm thu**
 - `tests/frontend/segmentNavigation.test.ts` — UPDATE: +11 ca cho hai vị từ mới
@@ -1125,6 +1139,128 @@ bằng chứng ca mới canh đúng chốt vừa dựng, và là bằng chứng 
 ⚠️ **Một chỗ lệch nhỏ không tính là phát hiện:** mọi mốc ngày trong §Dev Agent Record ghi
 **2026-08-18**, còn đồng hồ hệ thống lúc rà là **2026-08-17**. Ghi ra để người sau không đọc lượt
 rà này thành *"rà trước khi viết"*.
+
+---
+
+#### Lượt rà mã thứ HAI — 2026-08-18, ba tầng, chạy trên cây ĐÃ vá năm patch của lượt một
+
+Cùng khuôn ba tầng (Blind Hunter · Edge Case Hunter · Acceptance Auditor, cả ba không thấy hội
+thoại của nhau). Bộ diff giao: `a664dac` → cây làm việc, **chỉ** `src/ tests/ scripts/ e2e/` —
+1.984 dòng *(tệp story, sổ nợ và bàn đo đi vào làm ngữ cảnh, không vào diff, để tầng nghiệm thu
+không đếm hai lần)*.
+
+**Tầng nghiệm thu: KHÔNG phát hiện mới.** Bảy số của §Số nghiệm thu cuối đã được đo lại **độc lập
+lần thứ hai** và cả bảy đứng. Chín cổng đọc-tệp · vitest 225/225 (20 tệp) · `build` + `vue-tsc`
+đều xanh, chạy thật lúc rà.
+
+- [x] [Review][Decision] ✅ **ĐÃ CHỐT 2026-08-18 — Ice ký đường (b): một giá trị `NavNotice` thứ
+      NĂM (`'loading'`) cộng khoá `panel.grid.nav_loading`**, chữ Ice duyệt: *"Chương đang tải —
+      chưa xác định được câu nào."* Đã vá; xem §Số nghiệm thu của lượt hai.
+      🔴 **Lượt vá tìm ra một vế chưa ai khai:** cửa chặn phải đặt được ở **một** chỗ, nên
+      `dieuHuongVaBao` đổi tham số từ `boolean` sang **thunk** `() => boolean`. Một `boolean` được
+      tính xong **trước** khi vào hàm, nên cửa chặn buộc phải nằm ở ba chỗ gọi — đúng hình dạng
+      mà một lượt sửa chỉ chạm hai bản sẽ đi qua mọi cổng. Với thunk thì *không tồn tại cú pháp*
+      để gọi một lệnh điều hướng mà đi vòng qua cửa. Cùng lý lẽ `datThongBao` đã dùng.
+      🔵 Và cửa chặn **không chỉ đổi câu chữ** — nó chặn cả lượt **chạy** lệnh: dời con trỏ theo
+      một ảnh chụp rỗng là một việc sai, không chỉ một câu sai.
+      *(Bối cảnh gốc của mục này:)* — **Câu báo điều hướng NÓI DỐI trong cửa sổ Chương đang tải**
+      [`src/panels/editorPanelState.ts:1198-1219`] — `libraryImport.ts:197` gọi
+      `void ensureSegmentsLoaded()` **không `await`**; trong cửa sổ đó `segments.value` rỗng và
+      `pending` là `true`. `editor.next_untranslated` **có** phím mặc định
+      (`Mod+Alt+ArrowDown`, `commands/index.ts:1117`) nên chạm tới được bằng bàn phím. Bấm phím
+      trong cửa sổ ấy ⇒ `danhSachDieuHuong()` trả `[]` ⇒ `nextUntranslatedId` trả `null` ⇒
+      `ghiNavNotice('no-untranslated')` ⇒ thanh hiện *"Không còn câu nào chưa dịch ở phía dưới"*
+      trên một Chương có thể đang có hàng trăm câu chưa dịch. **Không** hàm nào trong ba hàm
+      `…CoBao` đọc `editorHasLoaded()` (`:92`) hay `editorPending` (`:79`); 16 ca của
+      `editorNavNotice.test.ts` không ca nào dựng `pending === true`.
+      🔴 **Cần Ice chốt vì hai phương án đều hợp lệ và cả hai có giá:** (a) khi chưa nạp xong thì
+      **dọn, không nói gì** (`datThongBao({})`) — không tốn khoá `vi.json` nào, nhưng một phím
+      bấm ra **không một pixel nào đổi**, đúng thứ AC6 tồn tại để chống; (b) một giá trị
+      `NavNotice` **thứ năm** cộng một khoá `vi.json` mới (*"Chương đang tải…"*) — trung thực,
+      nhưng thêm một chuỗi và một nhánh cho một cửa sổ chỉ dài bằng một lượt IPC.
+      ⚠️ **Vế thứ hai của phát hiện gốc BỊ BÁC, lần thứ hai:** tầng rà viện
+      `deferred-work.md:542` (*"mọi Chương Epic 1 có `segment_count = 0`"*) để chứng minh Chương
+      thật sự rỗng chạm tới được — nhưng đó là một mục **đã ĐÓNG 2026-08-12 ở Story 2.1** (bước
+      di trú 5 + hai đường tách). Một bằng chứng hết hạn không dựng lại được một tiền đề đã mất.
+
+- [x] [Review][Patch] **Cắt bỏ và Kết đoạn không dọn `navNotice` — biến thể THỨ BA của đúng
+      khuyết tật lượt một vừa vá** [`src/panels/editorPanelState.ts:1001-1022` ·
+      `:1055-1076`] — `setCurrentSegmentOmitted` và `setCurrentSegmentParagraphEnd` không gọi
+      `datThongBao`, cửa ghi duy nhất mà chính lượt trước dựng. Đứng ở câu cuối Chương, bấm
+      `next_segment` ⇒ `'at-last'`; rồi bấm Cắt bỏ (FR133) hoặc Kết đoạn (FR134) trên chính câu
+      đó ⇒ thao tác chạy thật nhưng thanh **vẫn** hiện câu điều hướng cũ, và vì `navNoticeKey`
+      đứng trước `secondsSinceSave` trong chuỗi `v-else-if` (`StatusBar.vue:267`), mốc *"Đã lưu
+      N giây trước"* bị che tiếp.
+      ⚠️ Vế `navNotice` **do lượt này gây ra** — ô nhớ ấy chưa tồn tại trước Story 2.10. Vế
+      `confirmNotice`/`regroupNotice` thì có sẵn từ trước.
+
+- [x] [Review][Patch] **Selector `.panel` trong ca e2e mới không neo vào GridPanel ⇒ lưới tự
+      nhận là *"duy nhất"* có thể XANH GIẢ** [`e2e/specs/segment-navigation.e2e.mjs:242`] —
+      `document.querySelector('.panel')?.scrollTop`. `PanelFrame.vue:144` là chỗ **duy nhất**
+      khai `class="panel"`, nhưng component ấy được **cả ba** panel dựng
+      (`GridPanel.vue:1295` · `LookupPanel.vue:330` · `AiTranslationPanel.vue:49`), và preset
+      mặc định `B2_GRID_LEFT` (`workspaceLayout.ts:115-117`) đặt cả ba **cạnh nhau**, không
+      tab ẩn. `querySelector` lấy phần tử đầu theo thứ tự DOM — thứ tự do cây split của dockview
+      quyết, không có gì bảo đảm đó là `.panel` bao lưới. Trúng `panel.lookup` hay
+      `panel.ai_translation` thì `scrollTop` **luôn** 0 và `expect(...).toBe(0)` xanh vô điều
+      kiện, để lọt đúng hồi quy 0→18 mà chú thích nói ca này tồn tại để bắt.
+      🔴 Vá được vì `.grid-scroll` có thật (`GridPanel.vue:1352`):
+      `document.querySelector('.grid-scroll')?.closest('.panel')`.
+
+- [x] [Review][Patch] **Doc-comment của `goToNextUntranslated` mang HAI mệnh đề đã hết đúng, và
+      nó đứng sát thân hàm lượt này vừa viết lại** [`src/panels/editorPanelState.ts:1079` ·
+      `:1085`] — dòng `:1079` còn ghi hợp âm `⌥↓` trong khi `commands/index.ts:1117` nay khai
+      `Mod+Alt+ArrowDown`, và cả khối lý do `:1069-1112` giải thích **vì sao** `⌥↓` trần sai
+      *(bị nuốt trong vùng gõ)* — giữ nó ở đây tái tạo đúng ngộ nhận story vừa sửa. Dòng `:1085`
+      còn ghi *"chỗ gọi ghi một dòng chẩn đoán"*, mô tả `console.info` mà `commands/index.ts:517`
+      đã **gỡ** ở chính lượt này.
+      ⚠️ Cùng loại, nhẹ hơn: `src/main.ts:265` còn *"Story 2.5b · AC12 — `⌥↓`"*.
+      🔴 Luật đòi khuôn này: sửa **tại chỗ** kèm 🔵 và ngày — diff đã làm đúng thế cho hai bảng
+      chú thích `DESIGN.md`, chỉ bỏ sót doc-comment của chính hàm mình đổi thân.
+
+- [x] [Review][Patch] **Nhánh lọc `retiredAt` trong `buocTu` KHÔNG có đường sản phẩm nào tới, và
+      chỗ yếu đó không được ghi ra** [`src/panels/segmentNavigation.ts:32` · `:182`] — hàng về
+      hưu bị lọc **ngay ở SQL** (`src-tauri/src/commands/segment.rs:840`,
+      `WHERE retired_at IS NULL`) và `applyRegroup` còn **gỡ hẳn** chúng khỏi `segments.value`
+      (`editorPanelState.ts:1508-1517`). ⇒ `NavigationSegment.retiredAt` chưa từng khác `null`
+      trên đường thật; ba ca vitest là lưới **duy nhất**, và một lượt đổi `continue` thành
+      `break` sẽ không Chương thật nào lộ triệu chứng.
+      ⚠️ Không phải một kết quả sai — hàm thuần đúng trên input giả lập. Nó là **mã phòng thủ
+      không đo được ở sản phẩm**, và kho có đúng một tiền lệ cùng loại *(nhánh `'ornament'`,
+      `segment.rs:816-819`)* **được ghi thành nợ có chủ**. Nhánh này thì chưa.
+      🔴 Cộng một mệnh đề đã hết đúng ngay cạnh: `:32` viết *"`null` cho mọi segment **cho tới
+      Story 2.8**"* — ngụ ý sau 2.8 thì khác, trong khi thực tế vẫn luôn `null`.
+
+**Một mục bị bác, ghi ra thay vì im lặng bỏ:** vế *"Chương thật sự có 0 segment"* của phát hiện
+Decision ở trên — xem đoạn ⚠️ trong chính mục đó.
+
+**Số nghiệm thu SAU năm patch của lượt HAI — đo lại, không suy luận (2026-08-18):**
+
+| Đường | Trước lượt rà hai | Sau năm patch |
+|---|---|---|
+| `npx vitest run` | 225 / 225, 20 tệp | **228 / 228, 20 tệp** *(+3 ca, xem hai lượt đột biến dưới)* |
+| 9 cổng đọc-tệp | xanh | **xanh** |
+| `npm run build` · `vue-tsc` | xanh | **xanh** |
+| `cargo test --locked` | 401 / 0 / 5 | **không chạy lại — `git diff HEAD -- src-tauri/` = 0 dòng**, Ranh giới ① còn nguyên |
+| Command đã đăng ký · `COMMAND_FLOOR` | 49 · 41 | **không đổi** — lượt vá không thêm command nào |
+| Khoá `vi.json` | 4 khoá `panel.grid.nav_*` | **5** *(`nav_loading`)*; bảng `Record` đóng của `StatusBar.vue` buộc sửa cùng lượt |
+
+🔴 **HAI lượt đột biến, vì một ca chưa bao giờ đỏ là một ca chưa ai biết nó canh gì:**
+
+1. Gỡ khối `if (!editorHasLoaded())` khỏi `dieuHuongVaBao` ⇒ **đúng một** ca đỏ
+   *(`bấm phím trong cửa sổ ĐANG TẢI`)*, **17 ca còn lại xanh** — gồm cả ca đối chứng dương
+   `nạp xong rồi thì cửa chặn KHÔNG cản`.
+2. Gỡ `datThongBao({})` khỏi `setCurrentSegmentOmitted` ⇒ **đúng một** ca đỏ
+   *(`Cắt bỏ sau một lượt điều hướng thất bại`)*, 17 ca còn lại xanh.
+
+⚠️ **Đối chứng dương của lượt ① không thừa:** thiếu nó, một cài đặt trả `'loading'` **luôn luôn**
+cũng xanh — cửa chặn sẽ giết cả ba lệnh điều hướng mà không ca nào thấy.
+
+🔴 **CÒN HỞ, ghi ra thay vì làm tròn lên:** patch selector `.panel` **không có đường tự động nào
+nghiệm thu** — nó sống trong `e2e/`, mà bộ e2e chạy tay và chưa vào CI. Lượt vá đúng theo suy luận
+cấu trúc *(ba panel cùng dựng `PanelFrame`, `querySelector` lấy phần tử đầu theo thứ tự DOM)*,
+nhưng mệnh đề *"thước cũ thật sự đo nhầm panel"* chỉ đóng được bằng một lượt chạy trên WKWebView
+thật. Cùng chủ với món nợ *"bộ e2e trong CI"* đã có.
 
 ---
 

@@ -84,10 +84,20 @@ export const editorCaretSegmentId: DeepReadonly<Ref<number | null>> = readonly(c
  * 🔴 Lượt nạp **đã trả lời và trả lời được** — điều kiện để một danh sách rỗng có nghĩa.
  *
  * Vì sao vị từ này phải tồn tại: `segments` rỗng trong **ba** hoàn cảnh khác hẳn nhau — chưa
- * nạp, đang chờ IPC, và *"Chương này thật sự chưa có segment nào"* *(25 Chương của Epic 1,
- * `deferred-work.md:542`)*. Chỉ hoàn cảnh thứ ba được phép hiện câu *"chưa tách câu nào"*;
- * hai hoàn cảnh kia mà hiện câu đó là màn hình khẳng định dứt khoát một điều nó chưa biết —
- * đúng lỗ mà `hanVietPending` của Story 1.16 tồn tại để bịt.
+ * nạp, đang chờ IPC, và *"Chương này thật sự chưa có segment nào"*. Chỉ hoàn cảnh thứ ba được
+ * phép hiện câu *"chưa tách câu nào"*; hai hoàn cảnh kia mà hiện câu đó là màn hình khẳng định
+ * dứt khoát một điều nó chưa biết — đúng lỗ mà `hanVietPending` của Story 1.16 tồn tại để bịt.
+ *
+ * 🔵 **2026-08-18 (code review lượt HAI) — gỡ một dẫn chứng đã hết hạn.** Dòng trên từng viện
+ * *"25 Chương của Epic 1, `deferred-work.md:542`"* làm ví dụ cho hoàn cảnh thứ ba. Món nợ ấy
+ * **đã ĐÓNG 2026-08-12 ở Story 2.1** *(bước di trú 5 + hai đường tách, không đường nào tính
+ * ngầm)*, nên nó không còn chứng minh được gì. Mệnh đề **ba hoàn cảnh** thì vẫn đứng — chỉ dẫn
+ * chứng chết. ⚠️ Một lượt rà đã đọc chính dòng này thành *"Chương rỗng chạm tới được"*: một dẫn
+ * chứng hết hạn để lại trong mã **không nằm im**, nó đi tiếp thành một kết luận sai.
+ *
+ * 🔴 **KHÔNG CỔNG NÀO CANH VỊ TỪ NÀY ĐƯỢC DÙNG.** Nó là một hàm export mà chỗ quên gọi vẫn biên
+ * dịch sạch — và đường điều hướng của Story 2.10 **đã quên** đúng một lượt *(vá 2026-08-18, xem
+ * [`dieuHuongVaBao`])*. Thêm một bề mặt đọc `segments` thì hỏi trước: nó đã đi qua đây chưa.
  */
 export function editorHasLoaded(): boolean {
   return !pending.value && loadError.value === null && chapterId.value !== null
@@ -1011,6 +1021,14 @@ export async function setCurrentSegmentOmitted(omitted: boolean): Promise<OmitRe
   }
   omitError.value = null
 
+  // 🔵 2026-08-18 (code review lượt HAI) — BIẾN THỂ THỨ BA của cùng một khuyết tật.
+  //
+  // Lượt cắt bỏ này **là** thao tác vừa xảy ra, nên nó sở hữu thanh trạng thái; điều nó có để nói
+  // là *"không có gì để nói"*. Thiếu dòng này, một `'at-last'` ghi lúc trước **kẹt lại** và —
+  // vì `navNoticeKey` đứng trước `secondsSinceSave` trong chuỗi `v-else-if` (`StatusBar.vue:267`)
+  // — nó che mốc *"Đã lưu N giây trước"* vô thời hạn. Cùng tai hoạ mà [`dieuHuongVaBao`] mô tả.
+  datThongBao({})
+
   const index = segments.value.findIndex((s) => s.id === id)
   if (index >= 0) {
     const next = [...segments.value]
@@ -1065,6 +1083,9 @@ export async function setCurrentSegmentParagraphEnd(
     return 'refused'
   }
 
+  // 🔵 2026-08-18 (code review lượt HAI) — xem khối lý do cùng dòng ở [`setCurrentSegmentOmitted`].
+  datThongBao({})
+
   const index = segments.value.findIndex((s) => s.id === id)
   if (index >= 0) {
     const next = [...segments.value]
@@ -1076,13 +1097,24 @@ export async function setCurrentSegmentParagraphEnd(
 }
 
 /**
- * **Nhảy tới câu chưa dịch kế tiếp** — Story 2.5b, AC12 · `⌥↓`.
+ * **Nhảy tới câu chưa dịch kế tiếp** — Story 2.5b, AC12.
  *
  * ⇒ Trả `true` khi con trỏ **đã dời**, `false` khi không còn câu nào.
  *
  * 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."* Hết Chương là một câu
  * trả lời **hợp lệ**, không một lỗi: nó nghĩa là **không còn câu nào chưa dịch ở phía dưới**.
- * Con trỏ **ở nguyên**, và chỗ gọi ghi một dòng chẩn đoán.
+ * Con trỏ **ở nguyên**, và chỗ gọi **báo ra màn hình**.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 SỬA 2026-08-18 (code review lượt HAI) — hai mệnh đề của đoạn trên đã hết đúng
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ① Hợp âm **không còn là `⌥↓`** — `commands/index.ts:1117` nay khai `Mod+Alt+ArrowDown`
+ *    (`⌘⌥↓`), và khối lý do `commands/index.ts:1069-1112` giải thích vì sao `⌥↓` **trần** sai
+ *    *(bị nuốt trong vùng gõ)*. Giữ `⌥↓` ở đây là tái tạo đúng ngộ nhận Story 2.10 vừa sửa.
+ *    ⇒ **Gỡ hẳn số hợp âm khỏi dòng đầu** thay vì cập nhật nó: hợp âm là thứ người dùng gán
+ *    lại được (`ChordOverrides`, Story 1.21), nên một bản chép ở đây sẽ lệch lần nữa.
+ * ② *"chỗ gọi ghi một dòng chẩn đoán"* mô tả `console.info` mà `commands/index.ts:517` đã
+ *    **gỡ** ở chính Story 2.10 — `console` **là** im lặng theo định nghĩa của dự án (AC6).
  *
  * ⚠️ Dùng lại **đúng** đường dời con trỏ mà Quyết định #1 của Story 2.5 đã dựng
  * (`setEditorCaret` + [`caretPlacement`]), không một đường thứ hai. Đó cũng là lý do một lượt
@@ -1194,8 +1226,37 @@ export function goToPrevSegment(): boolean {
  * ⚠️ **Vì sao lượt dọn này KHÔNG cướp câu của `confirm`/`regroup`:** cả hai đường đó dời con trỏ
  * bằng `setEditorCaret` **trực tiếp** (`:923-924` · `:1616-1617`), **không** qua hàm này. Nên
  * `'confirmed-last'` và `'merged'`/`'split'` không đi qua cửa dọn ở đây. Đã kiểm từng đường gọi.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 SỬA 2026-08-18 (code review lượt HAI) — *"không dời được"* KHÔNG bằng *"không còn câu nào"*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Bản trước nhận một `boolean` **đã tính xong** và đọc mọi lượt trả `false` thành *"hết câu"*.
+ * Nhưng một ảnh chụp **rỗng vì chưa nạp** cũng cho `false`, và câu đi ra khi đó là một lời khẳng
+ * định dứt khoát về một điều màn hình **chưa biết**. Xem [`NavNotice`] nhánh `'loading'` cho
+ * đường đi tái hiện được và phép đo.
+ *
+ * ⚠️ Lỗ này lọt **cả lượt rà thứ nhất**: nó bị nêu ở dạng *"Chương thật sự có 0 segment"* và bị
+ * **bác đúng** *(món nợ 25 Chương Epic 1 đã đóng ở Story 2.1)*. Vế sống — cửa sổ `void
+ * ensureSegmentsLoaded()` **không `await`** — thì chưa ai xét. Ghi ra vì bài học không nằm ở
+ * khuyết tật: **một tiền đề sai không làm kết luận sai**, và một mục bị bác đáng được đọc lại
+ * bằng tiền đề khác trước khi coi là đã xong.
  */
-function dieuHuongVaBao(daDoi: boolean, khiKhongDoi: NavNotice): boolean {
+function dieuHuongVaBao(doi: () => boolean, khiKhongDoi: NavNotice): boolean {
+  // 🔵 2026-08-18 (code review lượt HAI) — CỬA CHẶN ĐỨNG TRƯỚC, và nó phải đứng ở ĐÂY.
+  //
+  // 🔴 Vì sao tham số thành một HÀM chứ không còn là `boolean`: một `boolean` được tính **xong**
+  //    trước khi vào hàm này, nên cửa chặn buộc phải nằm ở **ba** chỗ gọi — và ba bản sao của
+  //    cùng một mệnh đề là đúng hình dạng mà một lượt sửa chỉ chạm hai bản sẽ đi qua mọi cổng.
+  //    Với một thunk, *không tồn tại cú pháp* để gọi một lệnh điều hướng mà đi vòng qua cửa này.
+  //    Cùng lý lẽ và cùng khuôn `datThongBao` §"Chốt nằm ở chữ ký hàm, không ở kỷ luật người viết".
+  //
+  // ⚠️ Chưa nạp xong thì **không lệnh nào được chạy** — không chỉ không báo. Chạy nó trên một
+  //    ảnh chụp rỗng là dời con trỏ theo một danh sách chưa tồn tại.
+  if (!editorHasLoaded()) {
+    ghiNavNotice('loading')
+    return false
+  }
+  const daDoi = doi()
   // Dời được ⇒ thao tác vừa xảy ra **là** lượt điều hướng này, nên nó sở hữu thanh trạng thái —
   // và điều nó có để nói là *"không có gì để nói"*. Tham số rỗng: dọn ba ô, thêm 0 câu.
   if (daDoi) datThongBao({})
@@ -1205,17 +1266,17 @@ function dieuHuongVaBao(daDoi: boolean, khiKhongDoi: NavNotice): boolean {
 
 /** [`goToNextUntranslated`] + câu báo AC6. Đây là thứ `commands/index.ts` gọi. */
 export function goToNextUntranslatedCoBao(): boolean {
-  return dieuHuongVaBao(goToNextUntranslated(), 'no-untranslated')
+  return dieuHuongVaBao(goToNextUntranslated, 'no-untranslated')
 }
 
 /** [`goToNextSegment`] + câu báo AC7. */
 export function goToNextSegmentCoBao(): boolean {
-  return dieuHuongVaBao(goToNextSegment(), 'at-last')
+  return dieuHuongVaBao(goToNextSegment, 'at-last')
 }
 
 /** [`goToPrevSegment`] + câu báo AC7. */
 export function goToPrevSegmentCoBao(): boolean {
-  return dieuHuongVaBao(goToPrevSegment(), 'at-first')
+  return dieuHuongVaBao(goToPrevSegment, 'at-first')
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1397,6 +1458,31 @@ export type NavNotice =
    * vạch vẫn `primary`. Phần còn hở đã ghi lại vào sổ nợ kèm chủ mới.
    */
   | 'confirmed-last'
+  /**
+   * 🔵 **Thêm 2026-08-18 (code review lượt HAI) — Ice ký đường (b) của Quyết định #10.**
+   *
+   * Ảnh chụp segment **chưa dùng được**: đang chờ IPC, chưa nạp, hoặc lượt nạp đã lỗi
+   * *(ba hoàn cảnh của [`editorHasLoaded`])*. Con trỏ ở nguyên.
+   *
+   * 🔴 **VÌ SAO NÓ PHẢI LÀ MỘT GIÁ TRỊ RIÊNG chứ không dùng lại `'no-untranslated'`** — và
+   * đây là một khuyết tật đã **đo được**, không một khả năng lý thuyết.
+   * `libraryImport.ts:197` gọi `void ensureSegmentsLoaded()` **không `await`**. Trong cửa sổ
+   * đó [`segments`] rỗng, và `editor.next_untranslated` **có** phím mặc định
+   * (`Mod+Alt+ArrowDown`, `commands/index.ts:1117`) nên bàn phím **chạm tới được**. Đường cũ
+   * cho ra *"Không còn câu nào chưa dịch ở phía dưới"* trên một Chương có thể đang có hàng
+   * trăm câu chưa dịch — một câu **khẳng định dứt khoát điều màn hình chưa biết**, đúng lớp
+   * lỗi mà doc-comment của [`editorHasLoaded`] (`:86-90`) đã gọi tên từ Story 1.16.
+   *
+   * ⚠️ **Đường (a) — im lặng — đã bị loại, và nó KHÔNG miễn phí như nó trông:** một phím bấm
+   * ra **không một pixel nào đổi** là đúng thứ AC6 tồn tại để chống. Cái giá của đường đã
+   * chọn, ghi ra: một khoá `vi.json` và một nhánh cho một cửa sổ chỉ dài bằng một lượt IPC.
+   *
+   * ⚠️ **GIỚI HẠN THẬT:** [`editorHasLoaded`] gộp cả ca `loadError !== null`, nên một lượt
+   * nạp **lỗi** cũng hiện câu *"đang tải"* — hơi lệch. Chấp nhận vì `GridPanel.vue` đã hiện
+   * `.load-error` nói đúng nguyên nhân ở chỗ khác, và tách ca đó ra đòi một giá trị **thứ
+   * sáu** cho một màn hình vốn đã nói ra sự thật.
+   */
+  | 'loading'
 
 const navNotice = shallowRef<NavNotice | null>(null)
 /** Xem [`navNotice`]. `StatusBar.vue` đọc. `null` ⇒ không có gì để nói. */

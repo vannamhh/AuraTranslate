@@ -53,6 +53,17 @@ async function confirmGia() {
   return ketQuaKy.value
 }
 
+/**
+ * 🔵 **Thêm 2026-08-18 (code review lượt HAI).** Lượt cắt bỏ giả, luôn thành công.
+ *
+ * ⚠️ Giả ở **biên IPC** như ba hàm trên, không bằng một setter chỉ-test: ca dùng nó nghiệm thu
+ * rằng `setCurrentSegmentOmitted` **dọn thanh trạng thái**, và một setter đi vòng qua đúng thân
+ * hàm cần đo.
+ */
+async function omitGia(segmentId: number, omitted: boolean) {
+  return { outcome: { segment_id: segmentId, is_omitted: omitted }, error: null }
+}
+
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return {
@@ -60,6 +71,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
     readOpenChapterSegments: readFixture,
     saveSegmentTargets: recordSave,
     confirmSegment: confirmGia,
+    setSegmentOmitted: omitGia,
   }
 })
 
@@ -437,5 +449,94 @@ describe('AC5 vs Quyết định #3 — cùng một Chương, hai lệnh đi kh�
     state.setEditorCaret(CAU_DAU)
     expect(state.goToNextUntranslated()).toBe(true)
     expect(state.editorCaretSegmentId.value).toBe(CAU_CUOI)
+  })
+})
+
+/**
+ * 🔵 **NHÓM THÊM 2026-08-18 — code review lượt HAI, hai khuyết tật tái hiện được.**
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * 🔴 VÌ SAO NHÓM NÀY KHÔNG THỂ DỰNG BẰNG MỘT `toBeNull()` NHƯ PHẢN XẠ ĐẦU TIÊN
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * Cùng bài học mà ca *"thất bại RỒI thành công"* của lượt rà thứ nhất đã trả giá để học:
+ * `tuoi()` gọi `vi.resetModules()`, nên `navNotice` là `null` **từ đầu mọi ca**. Một phép so
+ * `toBeNull()` trên một ô **chưa ai ghi** không phân biệt *"đã dọn"* với *"chưa từng bẩn"*.
+ * ⇒ Ca dọn ở dưới **làm bẩn ô nhớ trước** bằng một lượt điều hướng thất bại thật.
+ */
+describe('Code review lượt HAI — cửa chặn "chưa nạp" và lượt dọn của Cắt bỏ', () => {
+  /**
+   * 🔴 **Đường đi tái hiện được, và nó là đường THẬT chứ không một trạng thái dựng tay.**
+   *
+   * `libraryImport.ts:197` gọi `void ensureSegmentsLoaded()` **không `await`**. Ca này tái hiện
+   * đúng cửa sổ ấy: gọi mà **không** `await`, rồi bấm phím ngay — y như người dùng mở Tác phẩm
+   * xong bấm `⌘⌥↓` trước khi IPC trả lời.
+   *
+   * ⚠️ Trước lượt vá, câu đi ra là *"Không còn câu nào chưa dịch ở phía dưới"* trên một Chương
+   * đang có **hai** câu chưa dịch trong fixture — một khẳng định dứt khoát về điều màn hình
+   * chưa biết. Đột biến để xác nhận ca này đỏ được: gỡ khối `if (!editorHasLoaded())` khỏi
+   * `dieuHuongVaBao` ⇒ ca này ĐỎ *(nhận câu `nav_no_untranslated`)*, mọi ca khác vẫn XANH.
+   */
+  it('🔴 bấm phím trong cửa sổ ĐANG TẢI ⇒ báo "đang tải", KHÔNG báo "hết câu"', async () => {
+    const { state, StatusBar } = await tuoi()
+    const wrapper = mount(StatusBar)
+
+    // Lượt nạp đang BAY — cố ý không `await`, đúng khuôn `void ensureSegmentsLoaded()`.
+    const dangNap = state.ensureSegmentsLoaded()
+
+    expect(state.goToNextUntranslatedCoBao()).toBe(false)
+    await wrapper.vm.$nextTick()
+
+    expect(cauTrenThanh(wrapper)).toBe('Chương đang tải — chưa xác định được câu nào.')
+    // 🔴 Và con trỏ **không** được dời theo một danh sách chưa tồn tại.
+    expect(state.editorCaretSegmentId.value).toBeNull()
+
+    await dangNap
+    wrapper.unmount()
+  })
+
+  /**
+   * ⚠️ Ca đối chứng DƯƠNG cho ca trên — không có nó, một cài đặt trả `'loading'` **luôn luôn**
+   * cũng xanh, và cửa chặn sẽ giết cả ba lệnh điều hướng mà không ai biết.
+   */
+  it('🔴 nạp xong rồi thì cửa chặn KHÔNG cản — đối chứng dương', async () => {
+    const { state, StatusBar } = await tuoi()
+    const wrapper = mount(StatusBar)
+    await state.ensureSegmentsLoaded()
+    state.setEditorCaret(CAU_DAU)
+
+    expect(state.goToNextUntranslatedCoBao()).toBe(true)
+    await wrapper.vm.$nextTick()
+
+    expect(state.editorCaretSegmentId.value).toBe(CAU_CUOI)
+    expect(cauTrenThanh(wrapper)).toBeNull()
+    wrapper.unmount()
+  })
+
+  /**
+   * 🔴 **Biến thể THỨ BA của khuyết tật *"thao tác mới không dọn câu cũ"*.**
+   *
+   * Cắt bỏ (FR133) chạy thật nhưng không đi qua `datThongBao`, nên một `'at-last'` ghi lúc
+   * trước kẹt lại — và vì `navNoticeKey` đứng **trước** `secondsSinceSave` trong chuỗi
+   * `v-else-if` (`StatusBar.vue:267`), nó che mốc *"Đã lưu N giây trước"* vô thời hạn.
+   *
+   * Đột biến: gỡ `datThongBao({})` khỏi `setCurrentSegmentOmitted` ⇒ ca này ĐỎ.
+   */
+  it('🔴 Cắt bỏ sau một lượt điều hướng thất bại ⇒ câu cũ phải bị DỌN', async () => {
+    const { state, StatusBar } = await tuoi()
+    const wrapper = mount(StatusBar)
+    await state.ensureSegmentsLoaded()
+
+    // ① Làm bẩn ô nhớ bằng một lượt thất bại THẬT.
+    state.setEditorCaret(CAU_CUOI)
+    expect(state.goToNextSegmentCoBao()).toBe(false)
+    await wrapper.vm.$nextTick()
+    expect(cauTrenThanh(wrapper)).toBe('Đã ở câu cuối Chương — không có câu nào phía dưới.')
+
+    // ② Cắt bỏ chính câu đó — thao tác này nay sở hữu thanh trạng thái.
+    expect(await state.setCurrentSegmentOmitted(true)).toBe('omitted')
+    await wrapper.vm.$nextTick()
+
+    expect(cauTrenThanh(wrapper)).toBeNull()
+    wrapper.unmount()
   })
 })

@@ -262,7 +262,7 @@ async function boot(): Promise<void> {
       // ném**: một hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném.
       //
       // ⚠️ Chẩn đoán viết KHÔNG DẤU — Kiểm A của `check:i18n` cấm chữ tiếng Việt ở vị trí mã.
-      // Story 2.5b · AC12 — `⌥↓`. Cùng cửa và cùng lý do với `confirmSegment`: phép chọn
+      // Story 2.5b · AC12. Cùng cửa và cùng lý do với `confirmSegment`: phép chọn
       // sống ở `panels/segmentNavigation.ts` (module thuần), state ở `editorPanelState.ts`,
       // và `commands/index.ts` không được `import` cả hai (luật erasable-only).
       //

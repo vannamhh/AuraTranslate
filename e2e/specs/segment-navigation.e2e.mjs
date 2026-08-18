@@ -233,7 +233,21 @@ describe('Story 2.10 — điều hướng segment trong WKWebView thật', () =>
         // 🔴 Tác dụng phụ mà đường `scrollIntoView` gây ra và đường đã ký thì không — bàn đo
         //    vòng 2 đo được `SECTION.panel` (`overflow-y: hidden`) bị cuộn 0 → 18. Ca này là
         //    lưới tự động **duy nhất** cho vế đó.
-        scrollTopPanel: document.querySelector('.panel')?.scrollTop ?? null,
+        //
+        // 🔵 SỬA 2026-08-18 (code review lượt HAI) — `querySelector('.panel')` trần là một
+        //    THƯỚC MÙ, và một lưới "duy nhất" đo bằng thước mù thì không phải một lưới.
+        //    `PanelFrame.vue:144` là chỗ duy nhất KHAI `class="panel"`, nhưng component ấy được
+        //    **cả ba** panel dựng (`GridPanel.vue` · `LookupPanel.vue` · `AiTranslationPanel.vue`)
+        //    và preset mặc định `B2_GRID_LEFT` (`workspaceLayout.ts:115-117`) đặt cả ba **cạnh
+        //    nhau**, không tab ẩn ⇒ ba `<section class="panel">` cùng có mặt lúc assertion chạy.
+        //    `querySelector` lấy phần tử đầu theo thứ tự DOM, mà thứ tự đó do cây split của
+        //    dockview quyết — không gì bảo đảm nó là `.panel` bao lưới. Trúng `panel.lookup` hay
+        //    `panel.ai_translation` thì `scrollTop` **luôn** 0 và `toBe(0)` xanh **vô điều kiện**,
+        //    tức đúng hồi quy 0 → 18 mà ca này tồn tại để bắt sẽ đi qua lọt.
+        // ⇒ Neo bằng `.grid-scroll` (`GridPanel.vue:1352`) — nó CHỈ có trong lưới — rồi đi ngược
+        //    lên tổ tiên `.panel` thật. `null` khi không tìm thấy là một tín hiệu đọc được, không
+        //    phải một số 0 giả.
+        scrollTopPanel: document.querySelector('.grid-scroll')?.closest('.panel')?.scrollTop ?? null,
       }
     }, HANG_DICH)
 

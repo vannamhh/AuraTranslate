@@ -4611,3 +4611,50 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   **Chủ: một story hạ tầng cổng** *(cùng chỗ với món nợ `scroll-behavior` ở khối 2-10 phía trên —
   hai món nợ này là **cùng một** hình dạng: một quy ước không ai cưỡng chế, và cả hai đỏ được bằng
   một phép quét chuỗi trên `src/**`)*.
+
+## Deferred from: code review of 2-10-dieu-huong-segment, lượt HAI (2026-08-18)
+
+- 🔴 **Lượt vá selector `.panel` trong `e2e/specs/segment-navigation.e2e.mjs:242` KHÔNG có đường
+  nghiệm thu nào — nó đúng theo suy luận cấu trúc, không theo một phép đo.** Thước cũ
+  (`document.querySelector('.panel')`) là một thước **mù**: `PanelFrame.vue:144` là chỗ duy nhất
+  khai `class="panel"`, nhưng cả ba panel dựng component ấy (`GridPanel` · `LookupPanel` ·
+  `AiTranslationPanel`) và preset mặc định `B2_GRID_LEFT` đặt cả ba **cạnh nhau**, nên
+  `querySelector` lấy phần tử đầu theo thứ tự DOM — thứ tự do cây split của dockview quyết. Trúng
+  một panel không bị đụng thì `scrollTop` **luôn** 0 và `toBe(0)` xanh **vô điều kiện**.
+  ⇒ Đã neo lại bằng `.grid-scroll` rồi `closest('.panel')`.
+  ⚠️ **Vế còn hở:** mệnh đề *"thước cũ THẬT SỰ đo nhầm panel trên WKWebView"* chưa ai đo. Bộ e2e
+  chạy tay và chưa vào CI, nên cả thước cũ lẫn thước mới đều **chưa chạy một lượt nào** kể từ lượt
+  sửa. Có khả năng thứ tự DOM của dockview vẫn luôn cho `panel.grid` đứng đầu, tức thước cũ **vô
+  tình** đúng — nhưng *"vô tình đúng"* không phải một lưới.
+  🔴 Điều đo được ngay khi bộ e2e chạy: chạy ca Ⓓ **trước** và **sau** lượt sửa selector; nếu hai
+  lượt cho cùng một số thì thước cũ vô tình đúng và món nợ này đóng bằng một ghi chú, nếu khác
+  nhau thì nó đóng bằng một lượt xanh-giả vừa bị bắt.
+  **Chủ: bộ e2e trong CI** *(cùng chủ với món nợ AC8 nửa sau ở khối 2-10 phía trên — cả hai chờ
+  đúng một điều kiện khởi hành)*.
+
+- 🟡 **Nhánh `if (s.retiredAt !== null) continue` trong `segmentNavigation.ts::buocTu` là mã phòng
+  thủ KHÔNG ĐO ĐƯỢC ở sản phẩm.** Hai hàng rào đứng trước, mỗi hàng đủ một mình:
+  `src-tauri/src/commands/segment.rs:840` lọc `WHERE retired_at IS NULL`, và
+  `editorPanelState.ts::applyRegroup` (`:1508-1517`) gỡ hẳn hàng về hưu khỏi `segments.value`.
+  ⇒ Đổi `continue` thành `break` đi qua **mọi** cổng và **không một Chương thật nào** lộ triệu
+  chứng. Lưới duy nhất là ba ca vitest.
+  🔵 **Đóng một nửa 2026-08-18:** chỗ yếu **đã được ghi ra** thành §GIỚI HẠN THẬT trong
+  doc-comment của `buocTu`, cộng một lượt sửa mệnh đề hết đúng ở `NavigationSegment.retiredAt`
+  *(dòng cũ viết `null` "cho tới Story 2.8", ngụ ý sau 2.8 thì khác — đo lại: vẫn luôn `null`)*.
+  🔴 **Phần CÒN HỞ:** không cổng nào kiểm chéo hai workspace. Một lượt nới `WHERE` ở Rust cho một
+  tính năng *"xem lịch sử gộp"* sẽ đưa hàng về hưu ra webview mà không ai nhớ tới hàm này — cùng
+  hình dạng với món nợ `is_han` *(hai định nghĩa, hai workspace, không cổng kiểm chéo)*.
+  **Chủ: story đầu tiên đưa hàng về hưu ra khỏi Rust** *(hôm nay chưa story nào định làm thế; nếu
+  Epic 5 dựng màn hình lịch sử gộp thì nó là chủ)*.
+
+- ⚠️ **`editorHasLoaded()` là một vị từ mà KHÔNG CỔNG NÀO canh việc nó được dùng.** Nó tồn tại từ
+  Story 1.16 chính vì lớp lỗi *"`segments` rỗng vì ba lý do khác hẳn nhau"*, nhưng nó là một hàm
+  export mà **chỗ quên gọi vẫn biên dịch sạch** — và đường điều hướng của Story 2.10 đã quên đúng
+  một lượt *(vá 2026-08-18: `dieuHuongVaBao` nay chặn trước bằng `NavNotice` `'loading'`)*.
+  🔴 Đây là **lần thứ hai** cùng lớp: `hanVietPending` của 1.16 là lần thứ nhất, và nó cũng được
+  dựng sau một lượt màn hình khẳng định điều nó chưa biết.
+  ⚠️ **Chưa rõ phép kiểm đúng hình dạng gì** — *"mọi bề mặt đọc `segments` phải đi qua
+  `editorHasLoaded`"* khó diễn đạt bằng một phép quét chuỗi mà không đỏ oan. Ghi ra để lần thứ ba
+  không phải phát hiện lại từ đầu.
+  **Chủ: Ice phân định** — nó có đáng một phép kiểm, hay đáng một dòng trong `project-context.md`
+  §Critical Don't-Miss Rules và thế là đủ.

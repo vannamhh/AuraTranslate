@@ -29,7 +29,13 @@ export type NavigationSegment = {
   readonly status: string
   /** Văn bản đích **hiệu lực** — bản đang gõ nếu có, không thì bản lúc nạp. */
   readonly targetText: string
-  /** `segment.retired_at`. `null` cho mọi segment cho tới Story 2.8. */
+  /**
+   * `segment.retired_at`.
+   *
+   * 🔵 **SỬA 2026-08-18 (code review lượt HAI).** Dòng cũ viết *"`null` cho mọi segment **cho
+   * tới Story 2.8**"* — ngụ ý sau 2.8 thì khác. Đo lại: **vẫn luôn `null` trên đường thật**, và
+   * Story 2.8 không lật điều đó. Xem §GIỚI HẠN THẬT ở [`buocTu`].
+   */
   readonly retiredAt: string | null
   /**
    * `segment.is_omitted` — câu đã bị **cắt bỏ khỏi bản dịch** (FR133, Story 2.5c).
@@ -168,6 +174,28 @@ export function prevSegmentId(
  * ⚠️ Ca *"không tìm thấy"* gộp chung với ca `null` — cùng lý lẽ và cùng khuôn
  * [`nextUntranslatedId`]: một `fromId` trỏ vào câu **vừa bị gộp mất** là ca thật (Story 2.8),
  * và nó phải cho một hành vi **có nghĩa** thay vì không hành vi nào.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 GIỚI HẠN THẬT — nhánh `retiredAt` KHÔNG CÓ ĐƯỜNG SẢN PHẨM NÀO TỚI (ghi 2026-08-18)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Dòng `if (s.retiredAt !== null) continue` ngay dưới **chưa từng chạy** trên dữ liệu thật, và
+ * nó có **hai** hàng rào đứng trước, mỗi hàng đủ một mình:
+ *   ① `src-tauri/src/commands/segment.rs:840` — `WHERE retired_at IS NULL`. Hàng về hưu **không
+ *      bao giờ ra khỏi Rust**.
+ *   ② `editorPanelState.ts::applyRegroup` (`:1508-1517`) — đường cập nhật sống sau gộp/tách
+ *      **gỡ hẳn** hàng về hưu khỏi `segments.value`, không giữ lại với `retired_at` khác `null`.
+ *
+ * ⇒ Nhánh này là **mã phòng thủ không đo được ở sản phẩm**. Nó không sai — nó **không quan sát
+ * được**: đổi `continue` thành `break` sẽ đi qua mọi cổng, và **không một Chương thật nào** lộ
+ * triệu chứng để ai đó lần ra. Lưới duy nhất là ba ca `tests/frontend/segmentNavigation.test.ts`
+ * *(`câu đã VỀ HƯU bị bỏ qua ở cả hai vai` · `câu về hưu ở BIÊN` · `toàn bộ đã về hưu`)*; xoá
+ * hay làm yếu chúng là làm lỗi **vĩnh viễn vô hình**.
+ *
+ * 🔴 **Giữ nhánh, không gỡ** — hàng rào ① nằm trong SQL của một workspace **khác**, và không cổng
+ * nào kiểm chéo hai bên. Một lượt nới `WHERE` ở Rust cho một tính năng *"xem lịch sử gộp"* sẽ đưa
+ * hàng về hưu ra webview mà không ai nhớ tới hàm này. Đây là cùng lớp với nhánh `'ornament'`
+ * *(`segment.rs:816-819`)*, và nhánh đó đã được ghi thành nợ có chủ — dòng này là mục ghi tương
+ * ứng cho nhánh về hưu.
  */
 function buocTu(
   segments: readonly NavigationSegment[],

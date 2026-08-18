@@ -107,6 +107,7 @@
   "panel.grid.nav_at_first": "Đã ở câu đầu Chương — không có câu nào phía trên.",
   "panel.grid.nav_at_last": "Đã ở câu cuối Chương — không có câu nào phía dưới.",
   "panel.grid.nav_confirmed_last": "Đã xác nhận câu cuối Chương. Con trỏ ở nguyên vì không còn câu nào phía dưới.",
+  "panel.grid.nav_loading": "Chương đang tải — chưa xác định được câu nào.",
   "panel.grid.state_confirmed": "đã xác nhận",
   "panel.grid.state_editing": "đang sửa",
   "panel.grid.state_draft": "chưa xác nhận",

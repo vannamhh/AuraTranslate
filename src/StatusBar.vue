@@ -197,6 +197,9 @@ const NAV_NOTICE_KEYS: Record<NonNullable<typeof editorNavNotice.value>, string>
   'at-first': 'panel.grid.nav_at_first',
   'at-last': 'panel.grid.nav_at_last',
   'confirmed-last': 'panel.grid.nav_confirmed_last',
+  // 🔵 2026-08-18 (code review lượt HAI) — khoá thứ NĂM. Bảng `Record` đóng đã làm đúng việc
+  //    nó được dựng để làm: thêm `'loading'` vào `NavNotice` mà chưa sửa đây thì `vue-tsc` đỏ.
+  loading: 'panel.grid.nav_loading',
 }
 
 const navNoticeKey = computed<string | null>(() => {

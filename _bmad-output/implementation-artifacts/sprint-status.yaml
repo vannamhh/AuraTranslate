@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-18T01:00:00
+last_updated: 2026-08-18T07:10:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -1372,7 +1372,25 @@ development_status:
   #   tieu no. Nguon su that la `PROJECT_MIGRATIONS` (schema.rs), khong dong nay.
   # Baseline do lai tu nguon tren HEAD `a664dac` (cay SACH): cargo test --locked **401/0/5** ·
   #   segment_contract **121** · vitest **199/199** (19 tep) · COMMAND_FLOOR san **39**.
-  2-10-dieu-huong-segment: review
+  # ✅ 2026-08-18 — code review BA TANG luot HAI (Blind Hunter · Edge Case Hunter · Acceptance
+  #   Auditor, chay tren cay DA va nam patch cua luot mot). Tang nghiem thu: KHONG phat hien moi,
+  #   bay so cua story do lai doc lap lan hai va ca bay dung. Nam phat hien moi, ca nam da va:
+  #   ① `NavNotice` thu NAM (`'loading'`) — luot dieu huong bam trong cua so `void
+  #      ensureSegmentsLoaded()` KHONG `await` bao "khong con cau nao chua dich" tren mot Chuong
+  #      dang co hang tram cau. Ice ky duong (b). `dieuHuongVaBao` doi tham so sang THUNK de cua
+  #      chan dat duoc o MOT cho thay vi ba.
+  #   ② Cat bo + Ket doan nay goi `datThongBao({})` — bien the THU BA cua "thao tac moi khong don
+  #      cau cu", cung tai hoa che moc "Da luu N giay truoc".
+  #   ③ Selector `.panel` trong e2e neo lai bang `.grid-scroll` + `closest('.panel')` — ba panel
+  #      cung dung `PanelFrame`, thuoc cu co the cho XANH GIA vo dieu kien.
+  #   ④⑤ Bon menh de da het dung sua tai cho kem 🔵 (`⌥↓` · `console.info` · dan chung
+  #      `deferred-work.md:542` da dong o Story 2.1 · `retiredAt` "cho toi Story 2.8").
+  #   🔴 Mot muc BI BAC lan hai: "Chuong that su 0 segment" — tang ra vien mot mon no DA DONG
+  #      2026-08-12. Mot bang chung het han khong dung lai duoc mot tien de da mat.
+  #   Do lai sau va: 9/9 cong xanh · vitest **228/228** (20 tep, +3 ca) · build+vue-tsc xanh ·
+  #   `git diff -- src-tauri/` = 0 dong. HAI luot dot bien, moi luot dung MOT ca do.
+  #   Ba mon no moi co chu vao `deferred-work.md`. Story chuyen `review` -> `done`.
+  2-10-dieu-huong-segment: done
   2-11-chuyen-chuong-trong-workspace: backlog
   # 2-12-sync-scrolling: XOA 2026-08-14 — FR20 da RUT (Ice ky). Luoi nuot 2/3 cap panel cua
   # FR20; cap con lai (luoi <-> AI Translation) van con THAT nhung Ice chot khong giu.
