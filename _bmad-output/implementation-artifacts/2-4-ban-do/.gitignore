@@ -1,0 +1,23 @@
+# Tạo tác SINH RA lúc chạy bàn đo — không phải bàn đo.
+#
+# Bàn đo (script + `chapters/` + README) thì VÀO kho: nó phải dựng lại được.
+# Thứ một lượt chạy đẻ ra thì KHÔNG: nó là số của một lượt, và số đã chốt sống trong
+# §Debug Log của tệp story cùng báo cáo mũi thăm dò, không sống ở đây.
+#
+# 🔴 `draft-home/` là chỗ `$HOME` nháp của Quyết định #1 đường (d) — nó chứa `.atproj` và
+# `global.db` sinh ra trong lúc đo. Để nó lọt vào index là vừa làm bẩn diff của story
+# (luật «diff của một story phải đọc được một mình») vừa đẩy dữ liệu chạy thử vào kho.
+draft-home/
+alive-home/
+
+# Ảnh chụp hàng rào dữ liệu thật: mang đường dẫn và băm tệp riêng tư của máy đo.
+fence-*.txt
+
+# Đầu ra của một lượt chạy.
+kill2-*.tsv
+wal2-*.tsv
+cpu2-*.tsv
+app2-*.log
+typing2-*.log
+*.png
+load-*.tsv

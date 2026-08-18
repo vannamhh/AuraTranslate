@@ -2201,10 +2201,17 @@ So that tôi không phát hiện ra chúng xung khắc sau khi đã xây tám st
 **Then** chọn được một giá trị đạt **cả hai** ngưỡng trên
 **And** giá trị đó ghi vào hàng Deferred tương ứng của `ARCHITECTURE-SPINE.md`, đánh dấu đã đóng
 
-**Given** thư viện editor cho Panel Editor
+**Given** thư viện editor cho **cột bản dịch của lưới** *(`panel.grid`)*
 **When** chọn
 **Then** lựa chọn được ghi lại kèm lý do
 **And** nó tuân hợp đồng trạng thái AD-31 nên không lan ra ngoài module
+
+> 🔵 **Sửa 2026-08-18** *(Sprint Change Proposal 2026-08-18c, Ice ký)*: *"Panel Editor"* → *"cột bản
+> dịch của lưới"* theo lượt lật sang lưới ngày 2026-08-14. **Câu hỏi không đổi một chữ, và hợp đồng
+> AD-31 cũng vậy** — nhưng nó nặng hơn: bề mặt cũ đặt `contenteditable` lên **đúng một** `<span>`
+> tại một thời điểm, lưới đặt nó lên **mọi ô**, nên doctrine *"DOM sở hữu văn bản bản dịch, Vue
+> không"* áp cho một bề mặt rộng hơn hẳn. Cùng lớp với action item **B4** của retro Epic 2 *(đã
+> đóng cho Epic 3 và Epic 6, sót Epic 2)*.
 
 **Given** hai ngưỡng NFR2 và NFR18 không đạt được đồng thời
 **When** xảy ra

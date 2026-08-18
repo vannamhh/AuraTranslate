@@ -32,9 +32,14 @@ import { createWriteSchedule } from '../layout/writeSchedule'
 /**
  * Yên bao lâu thì flush — **2 giây**, AC1 nguyên văn.
  *
- * ⚠️ **TẠM — chủ là Story 2.4** (`ARCHITECTURE-SPINE.md:883`, hàng Deferred *"ngưỡng WAL +
+ * ⚠️ **TẠM — chủ là Story 2.4** (`ARCHITECTURE-SPINE.md:990`, hàng Deferred *"ngưỡng WAL +
  * nhịp flush cụ thể"*). Story này dựng **cơ chế**; 2.4 hiệu chỉnh **con số**, và nó phải
  * hiệu chỉnh cùng lúc với `Tuning::wal_threshold_bytes` vì hai số đó **đánh đổi lẫn nhau**.
+ *
+ * 🔵 **Sửa 2026-08-18 (Story 2.4 · AC14): số dòng cũ `:883` đã trỏ sai.** SPINE dài thêm và
+ * cả ba con trỏ của story 2.4 trôi cùng lượt (`:894/:897/:899` → `:990/:993/:995`). ⇒ Tên
+ * hàng được chép vào chú thích này **có chủ ý**: một con trỏ chỉ có số sẽ trôi lần nữa và
+ * không ai tìm lại được; tên hàng thì `grep` ra.
  *
  * 🔴 Con số này đã có một chỗ khác đứng trên nó: `Tuning::idle_before_passive = 5 s` được đặt
  * *"cố ý dài hơn nhịp flush 2 s của AD-35"* (`core/store/mod.rs:207-208`). Đổi 2000 ở đây mà
@@ -59,7 +64,7 @@ export const EDITOR_HARD_CAP_MS = 5000
  * 🔴 **SÀN giữa hai lượt thử lại sau một lượt ghi TRƯỢT** — code review 2026-08-13, Ice ký.
  *
  * ⚠️ **TẠM — chủ là Story 2.4**, cùng hàng Deferred với [`EDITOR_IDLE_MS`] và
- * [`EDITOR_HARD_CAP_MS`] (`ARCHITECTURE-SPINE.md:883`).
+ * [`EDITOR_HARD_CAP_MS`] — *"ngưỡng WAL + nhịp flush cụ thể"*, `ARCHITECTURE-SPINE.md:990`.
  *
  * Vì sao con số này phải tồn tại, và nó KHÔNG phải một lượt "cho chắc": `onFlushed()` chỉ gọi
  * `schedule.onWrite()` khi tập chờ đã **sạch**, nên một lượt ghi trượt để `deadline()` đứng

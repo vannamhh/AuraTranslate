@@ -1,0 +1,17 @@
+# Moi truong do — Story 2.4, lượt hiệu chuẩn 2026-08-18
+date_utc: 2026-08-18T07:53:07Z
+macos: 15.7.9 (24G830)
+model: MacBookPro16,1 · Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
+rust: rustc 1.97.1 (8bab26f4f 2026-07-14)
+cargo: cargo 1.97.1 (c980f4866 2026-06-30)
+node: v22.22.2
+tauri_cli: tauri-cli 2.11.4
+webkit: 20621.3.11.11.3
+profile: release nguyen ven (opt-level=s, lto, codegen-units=1, panic=abort, strip) — KHONG wdio, KHONG debug-assertions
+binary: 5027112 B  18 Aug 14:43
+head: c097eb3
+--- AC22: trang thai may ---
+Now drawing from 'AC Power'
+ -InternalBattery-0 (id=7340131)	100%; charged; 0:00 remaining present: true
+cpu_speed_limit: 	CPU_Speed_Limit 	= 100
+loadavg: { 7.19 6.77 6.64 }

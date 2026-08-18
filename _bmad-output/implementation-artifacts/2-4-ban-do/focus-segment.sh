@@ -22,13 +22,27 @@ source "$SCRATCH/front.sh"
 
 WIN_X=200; WIN_Y=25
 
-# Ứng viên: quét ngang qua đầu dòng, nhiều dòng. Thứ tự theo xác suất trúng đã đo
-# (hàng y=190 và y=220 từng ăn ở lượt quét lưới).
+# 🔵 HIỆU CHUẨN LẠI 2026-08-18 — bề mặt đã đổi, và bộ ứng viên cũ trỏ RA NGOÀI lưới.
+#
+# Bộ cũ (`640,165` …) hiệu chuẩn ngày 2026-08-13 trên `EditorPanel.vue` — một dòng văn liên
+# tục chiếm gần trọn cửa sổ. Lượt correct-course 2026-08-14 thay nó bằng `GridPanel.vue`:
+# một LƯỚI HAI CỘT chiếm NỬA TRÁI cửa sổ, nửa phải là panel Tra cứu.
+# ⇒ `x = +640` nay rơi vào panel **Tra cứu**. Bàn đo cũ sẽ trượt cả 16 ứng viên và lượt
+# chẩn đoán tiếp theo sẽ đi tìm một khuyết tật con trỏ KHÔNG TỒN TẠI.
+#
+# Số mới đo bằng HAI đường độc lập, và chúng khớp nhau — đó là lý do tin được:
+#   ① Ảnh chụp `calib-3-workspace.png` (cửa sổ chuẩn hoá {200,25,1200,900}, Retina ×2):
+#      cột `[data-col="tgt"]` trải x = +270 … +474 so gốc cửa sổ, tâm ≈ +372.
+#   ② Suy từ CSS `grid-template-columns: 3px 30px 1fr 1fr 96px` (`GridPanel.vue:1645`) trên
+#      panel Đối chiếu rộng ~589 điểm ⇒ tâm cột đích ≈ +365.
+#
+# ⚠️ Trục y thì GIỮ NGUYÊN được: hàng đầu vẫn nằm quanh +170, và số cũ +165 vốn đã đúng.
+# Vẫn quét nhiều hàng, vì chiều cao hàng đổi theo độ dài câu nguồn.
 CAND=(
-  "640,165" "660,165" "620,165" "680,165"
-  "640,195" "660,195" "620,195" "680,195"
-  "640,150" "660,150" "640,210" "660,210"
-  "700,165" "700,195" "600,165" "600,195"
+  "372,170" "340,170" "404,170" "300,170"
+  "372,230" "340,230" "404,230" "300,230"
+  "372,350" "340,350" "372,480" "340,480"
+  "440,170" "440,230" "280,170" "466,170"
 )
 
 probe_count() { sqlite3 -readonly "$DB" "select count(*) from segment where target_text<>'';" 2>/dev/null || echo 0 }
@@ -41,12 +55,17 @@ for c in "${CAND[@]}"; do
   cliclick c:$((WIN_X + DX)),$((WIN_Y + DY))
   sleep 0.4
   osascript -e 'tell application "System Events" to keystroke "x"' >/dev/null 2>&1
-  sleep 2.4          # nhịp flush 2 s của AD-35 + biên
+  # 🔵 Sửa 2026-08-18: 2,4 s → 4,5 s. Số 2,4 là con số ĐÃ ĐƯỢC ĐO LÀ HỎNG — `README.md`
+  # §Hằng số ghi *"nhịp nghiệm thu con trỏ ≥ 4,5 s · 2,4 s cho ÂM TÍNH GIẢ ở cả 16 ứng viên"*,
+  # nhưng lượt lưu bàn đo vào kho để sót số cũ trong mã. ⇒ Bản đã commit sẽ báo *"không điểm
+  # nào đặt được con trỏ"* trên MỌI ứng viên, và lượt chẩn đoán tiếp theo sẽ đi vá toạ độ
+  # trong khi chỗ hỏng nằm ở NHỊP. Đúng lớp lỗi §Hai lỗi của chính bàn đo đã ghi tên ba lần.
+  sleep 4.5          # 2 s `EDITOR_IDLE_MS` + đường ghi + biên
   AFTER=$(probe_count)
   if [ "${AFTER:-0}" -gt "${BEFORE:-0}" ]; then
     # 🟢 trúng. Xoá ký tự dò để nó không lẫn vào số đo.
     osascript -e 'tell application "System Events" to key code 51' >/dev/null 2>&1
-    sleep 2.4
+    sleep 4.5          # cùng lý do: lượt XOÁ cũng phải hạ cánh vào kho trước khi đo
     echo "$DX,$DY"
     exit 0
   fi

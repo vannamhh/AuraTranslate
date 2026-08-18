@@ -145,67 +145,98 @@
   }
 
   // ── ⑤ ba ĐƯỜNG NÓNG (AC12) ──────────────────────────────────────────────────────
-  // Đo CHI PHÍ MỘT LƯỢT của đúng ba chỗ §Điều kiện khởi hành mục 6 gọi tên. Bàn đo KHÔNG
-  // gọi hàm nội bộ của component (nó không với tới được) — nó tái lập ĐÚNG phép tính mà
-  // ba chỗ đó chạy, trên ĐÚNG cây DOM thật đang hiển thị.
+  //
+  // 🔵 VIẾT LẠI 2026-08-18 — Sprint Change Proposal 2026-08-18c, Ice ký.
+  //
+  // 🔴 Bản cũ hỏi `.doc` và `.sent` và đo ba đường của `EditorPanel.vue`. Lượt correct-course
+  // 2026-08-14 thay bề mặt đó bằng lưới `GridPanel.vue`. Đếm ngày 2026-08-18: `.doc` và `.sent`
+  // có ĐÚNG 0 chỗ sống trong `src/`, `nearestSentenceTo` có 0 chỗ, `EditorPanel.vue` không tồn
+  // tại. ⇒ Bản cũ trả về "KHÔNG THẤY .doc" — nó đo RỖNG, không đo ra một số xấu. Đó đúng lớp lỗi
+  // "xanh rỗng" mà AC15 của Story 2.3 đặt tên và AC21 của chính story này cấm.
+  //
+  // Bàn đo KHÔNG gọi hàm nội bộ của component (nó không với tới được) — nó tái lập ĐÚNG phép
+  // tính mà ba chỗ đó chạy, trên ĐÚNG cây DOM thật đang hiển thị.
   function hotpaths() {
-    var doc = document.querySelector('.doc')
-    if (!doc) { paint('KHÔNG THẤY .doc'); return null }
+    var grid = document.querySelector('.grid')
+    var colTgt = document.querySelector('.col-tgt')
+    if (!grid || !colTgt) { paint('KHÔNG THẤY .grid/.col-tgt'); return null }
+
     function med(f, reps) {
       var xs = []
       for (var i = 0; i < reps; i++) { var t = performance.now(); f(); xs.push(performance.now() - t) }
       xs.sort(function (a, b) { return a - b })
       return { median: +xs[Math.floor(reps / 2)].toFixed(3), max: +xs[reps - 1].toFixed(3), reps: reps }
     }
-    var spans = doc.querySelectorAll('[data-segment-id]')
+
+    var cells = colTgt.querySelectorAll('[data-segment-id]')
     var r = {
-      nSpans: spans.length,
-      // `restoreEditedText()` — querySelectorAll trên CẢ Chương mỗi lượt dựng lại
+      nCells: cells.length,
+      nNodes: grid.querySelectorAll('*').length,   // 2.5b đo 49.256 ở 9.850 câu — đối chiếu
+
+      // ① `restoreEditedText()` (`GridPanel.vue:843`, watcher `:859`) — ĐƯỜNG DUY NHẤT sống sót
+      // từ AC12 bản cũ. `querySelectorAll('[data-segment-id]')` trên CẢ Chương mỗi lượt dựng lại,
+      // trong khi `editedText` thường chỉ mang vài mục.
       restoreEditedText: med(function () {
-        var all = doc.querySelectorAll('[data-segment-id]')
+        var all = colTgt.querySelectorAll('[data-segment-id]')
         for (var i = 0; i < all.length; i++) { void all[i].getAttribute('data-segment-id') }
       }, 30),
-      // `nearestSentenceTo()` — duyệt TỪNG câu, gọi getClientRects()/getBoundingClientRect()
-      nearestSentenceTo: med(function () {
-        var all = doc.querySelectorAll('.sent')
-        var best = null, bd = Infinity
+
+      // ② `onSelectionChange()` → `setEditorCaret()` (`GridPanel.vue:875`, đăng ký `:885`) —
+      // kế thừa trực tiếp của `:data-caret`. Nó ghi vào một ref phản ứng ĐỌC TRONG HÀM RENDER,
+      // nên mỗi lượt `selectionchange` bắt Vue duyệt lại `v-for` trên NĂM cột.
+      // ⚠️ Tái lập vế đắt: một lượt đọc + ghi lớp trên toàn danh sách của cả năm cột.
+      // 2.5b đo 24–34 ms ở 9.850 câu.
+      selectionRepaint: med(function () {
+        var all = grid.querySelectorAll('.cell')
         for (var i = 0; i < all.length; i++) {
-          var rects = all[i].getClientRects()
-          for (var j = 0; j < rects.length; j++) {
-            var d = Math.abs(rects[j].top - 300) + Math.abs(rects[j].left - 300)
-            if (d < bd) { bd = d; best = all[i] }
-          }
+          all[i].classList.toggle('__bench_probe__')
+          all[i].classList.toggle('__bench_probe__')
         }
-        return best
       }, 10),
-      // `:data-caret` — mỗi `selectionchange` bắt Vue duyệt lại v-for trên tới N span.
-      // Tái lập vế ĐẮT: một lượt đọc thuộc tính + ghi lại trên toàn danh sách.
-      dataCaretRepaint: med(function () {
-        var all = doc.querySelectorAll('.sent')
-        for (var i = 0; i < all.length; i++) {
-          var v = all[i].getAttribute('data-caret')
-          all[i].setAttribute('data-caret', v === 'true' ? 'false' : 'false')
-        }
+
+      // ③ DỜI CON TRỎ — `placeCaretAtPoint()` (`:459`) + `ensureCaretNextFrame()` (`:766`).
+      // 🔴 ĐÂY LÀ ĐƯỜNG 2.5b ĐO 706–770 ms Ở 9.850 CÂU, vượt trần NFR2 ~15 lần, và là đường
+      // THƯỜNG NHẤT của tính năng: mỗi lần người dùng bấm sang câu khác.
+      // Tái lập: đặt vùng chọn thật vào một ô khác rồi ép bố cục chạy, đúng như đường sản phẩm.
+      caretMove: med(function () {
+        var i = (Math.random() * cells.length) | 0
+        var cell = cells[i]
+        var sel = window.getSelection()
+        var rg = document.createRange()
+        rg.selectNodeContents(cell)
+        rg.collapse(true)
+        sel.removeAllRanges()
+        sel.addRange(rg)
+        void grid.offsetHeight            // ép bố cục, không để nó trôi sang frame sau
       }, 10),
     }
     B.hotpath = r
-    paint('ĐƯỜNG NÓNG xong · ' + r.nSpans + ' span')
+    paint('ĐƯỜNG NÓNG xong · ' + r.nCells + ' ô · ' + r.nNodes + ' node')
     return r
   }
 
   // ── ⑥ lượt DỰNG lại cả Chương (AC13) ───────────────────────────────────────────
-  // Đo cửa sổ "lúc dựng Chương" — thứ Quyết định #3 tách RIÊNG khỏi số nghiệm thu AC1.
+  // Đo cửa sổ "lúc dựng Chương" — thứ Quyết định #3 tách RIÊNG khỏi số nghiệm thu AC1, và lượt
+  // mở rộng AC1 ngày 2026-08-18 KHÔNG đụng vế đó.
+  //
+  // 🔴 Số này KHÔNG được đặt cạnh mốc cũ (300,1 ms Blink · 1.308,0 ms WebKit). Mốc đó đo "dựng
+  // 9.850 <span> trong một dòng văn liên tục"; lưới dựng ~49.256 node trong năm cột subgrid.
+  // `deferred-work.md:3258`: ghi hai số đó cạnh nhau như một lượt "cải thiện" LÀ NÓI DỐI.
   function measureRebuild() {
-    var doc = document.querySelector('.doc')
-    if (!doc) { paint('KHÔNG THẤY .doc'); return null }
-    var html = doc.innerHTML
+    var grid = document.querySelector('.grid')
+    if (!grid) { paint('KHÔNG THẤY .grid'); return null }
+    var html = grid.innerHTML
     var t0 = performance.now()
-    doc.innerHTML = ''
-    doc.innerHTML = html
-    void doc.offsetHeight               // ép bố cục chạy, không để nó trôi sang frame sau
+    grid.innerHTML = ''
+    grid.innerHTML = html
+    void grid.offsetHeight              // ép bố cục chạy, không để nó trôi sang frame sau
     var ms = performance.now() - t0
-    B.build = { rebuildMs: +ms.toFixed(1), nSpans: doc.querySelectorAll('.sent').length }
-    paint('DỰNG LẠI ' + B.build.rebuildMs + ' ms · ' + B.build.nSpans + ' span')
+    B.build = {
+      rebuildMs: +ms.toFixed(1),
+      nCells: grid.querySelectorAll('.cell-tgt').length,
+      nNodes: grid.querySelectorAll('*').length,
+    }
+    paint('DỰNG LẠI ' + B.build.rebuildMs + ' ms · ' + B.build.nNodes + ' node')
     return B.build
   }
 

@@ -31,7 +31,10 @@ b = glob.glob('dist/assets/index-*.js')
 assert len(b) == 1, b
 src = io.open(b[0], encoding='utf-8').read()
 assert '__bench_alive__' not in src, 'đã tiêm rồi'
-bench = io.open('/private/tmp/claude-501/-Users-hoangnam-LocalSites-addon-AuraTranslate/c867a03a-72ca-4cf1-9aba-0c0f95cfb7a7/scratchpad/bench.js', encoding='utf-8').read()
+# 🔵 Sửa 2026-08-18: đường dẫn cũ trỏ vào scratchpad của phiên 2026-08-13, thư mục đó đã bị
+# dọn. Một tạo tác đã lưu vào kho mà còn trỏ ra NGOÀI kho là một tạo tác không dựng lại được
+# — đúng cái mà lượt lưu bàn đo vào kho tồn tại để chống. Trỏ vào chính kho.
+bench = io.open('_bmad-output/implementation-artifacts/2-4-ban-do/bench.js', encoding='utf-8').read()
 io.open(b[0], 'w', encoding='utf-8').write(src + '\n;/* ── BÀN ĐO STORY 2.4 — KHÔNG VÀO KHO ── */\n' + bench)
 print('   đã tiêm vào', b[0])
 PY

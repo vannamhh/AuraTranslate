@@ -19,11 +19,11 @@ Status: in-progress
 **Nguồn AC:** `epics.md:2118-2149`
 
 **Hàng Deferred story này ĐÓNG:**
-- `ARCHITECTURE-SPINE.md:894` — *"Ngưỡng kích thước WAL buộc checkpoint (AD-12) + nhịp flush cụ thể (AD-35)"* **(AC3)**
-- `ARCHITECTURE-SPINE.md:897` — *"Thư viện editor cho panel Editor"* **(AC4)**
+- `ARCHITECTURE-SPINE.md:990` — *"Ngưỡng kích thước WAL buộc checkpoint (AD-12) + nhịp flush cụ thể (AD-35)"* **(AC3)**
+- `ARCHITECTURE-SPINE.md:993` — *"Thư viện editor cho panel Editor"* **(AC4)**
 
 **Hàng Deferred story này ĐI QUA mà KHÔNG đóng:**
-- `ARCHITECTURE-SPINE.md:899` — *"Chiến lược ảo hoá danh sách dài"*, **Giai đoạn 3**. 🔴 Story này
+- `ARCHITECTURE-SPINE.md:995` — *"Chiến lược ảo hoá danh sách dài"*, **Giai đoạn 3**. 🔴 Story này
   **đo** trần của nó và **báo**, story này **không dựng** ảo hoá. Xem AC13.
 
 **Nợ có chủ đích danh là story này, ĐÓNG hết ở đây** *(mười mục, mỗi mục một dòng — đừng gộp)*:
@@ -36,10 +36,10 @@ Status: in-progress
 | `:570` | một phiên chạy **HAI** kho (`global.db` + `project.db`), mỗi kho một luồng + pool 4 | Task 5 · AC10 |
 | `:591` | đỉnh RSS thật của một lượt nhập 100 MB (`MAX_IMPORT_BYTES`) | Task 7b · AC18 |
 | `:2084-2090` | trần NFR2 khi dựng 9.850 `<span>` — 300,1 ms Blink · 1.308,0 ms WebKit | Task 6 · AC13 |
-| `:2167-2168` | `:data-caret` bắt Vue dựng lại cả trang mỗi lượt `selectionchange` | Task 6 · AC12 |
+| `:2225` 🔵 | `:data-caret` bắt Vue dựng lại cả trang mỗi lượt `selectionchange` → kế thừa bởi `onSelectionChange`→`setEditorCaret` | Task 6 · AC12 |
 | `:2419` | ba ảnh bàn đo 2.2 phải chụp lại + lời khai NFR15 sai ở `2-2-ban-do-editor.html:11` | Task 9 · AC17 |
-| `:2441` | `restoreEditedText()` quét **cả Chương** mỗi lượt dựng lại | Task 6 · AC12 |
-| `:2449` | `nearestSentenceTo()` ép bố cục lại mỗi cú bấm hụt — **chỗ duy nhất của 2.3 không kèm số đo** | Task 6 · AC12 |
+| `:2511` 🔵 | `restoreEditedText()` quét **cả Chương** mỗi lượt dựng lại *(đường duy nhất sống sót sang lưới)* | Task 6 · AC12 |
+| ~~`:2518`~~ | ~~`nearestSentenceTo()` ép bố cục lại mỗi cú bấm hụt~~ → 🔵 **MẤT HIỆU LỰC 2026-08-18**: hàm có **0** chỗ trong `src/` sau correct-course 2026-08-14. Thay bằng đường **dời con trỏ** *(`deferred-work.md:3245-3262`, đã đo 706–770 ms)* | Task 6 · AC12 |
 
 **Nợ ĐI QUA mà KHÔNG đóng, và mỗi cái đã có chủ khác:**
 - `deferred-work.md:2290-2297` — ca e2e *gõ lần đầu vào một câu **chưa dịch*** còn đỏ. **Chủ: Story 2.3 (tiếp)**, chờ lượt gõ tay của Ice. Xem §Điều kiện khởi hành mục 2 — nó là **điều kiện đầu vào** của story này, không phải việc của story này.
@@ -147,13 +147,20 @@ dễ hơn mà không ghi ra**.
 
 ### 6. BA ĐƯỜNG NÓNG chưa ai đo, cả ba có chủ là story này
 
-Ba món này ra đời trong lượt vá 2026-08-13 của 2.3 và **chưa từng đi qua bàn đo hai engine**:
+> 🔵 **BẢNG NÀY ĐÃ ĐƯỢC THAY 2026-08-18** *(Sprint Change Proposal 2026-08-18c, Ice ký)*. Ba đường
+> cũ ~~`:data-caret` (`EditorPanel.vue:892`) · `restoreEditedText()` (`:294`, `:300`) ·
+> `nearestSentenceTo()` (`:565`, `:602`, `:636`)~~ ra đời trong lượt vá 2026-08-13 của 2.3, trên
+> bề mặt `EditorPanel.vue`. Lượt correct-course 2026-08-14 xoá bề mặt đó. Đếm 2026-08-18:
+> `nearestSentenceTo` = **0** chỗ trong `src/`, `:data-caret` chỉ còn trong một chú thích,
+> `EditorPanel.vue` **không tồn tại**. Giữ nguyên văn ở trên như **bản ghi lịch sử**, gạch ngang.
+
+Ba đường nóng **thật** của bề mặt lưới, và một trong ba **đã có số**:
 
 | Đường | Chỗ | Vì sao nó đắt |
 | --- | --- | --- |
-| `:data-caret` | `EditorPanel.vue:892` | `editorCaretSegmentId` là ref phản ứng đọc trong hàm render ⇒ **mỗi lượt `selectionchange`** chạy lại `v-for` trên tới 9.850 `<span>`. `selectionchange` bắn **liên tục** trong lúc kéo chọn. ⚠️ Đổi sang tra `Map` **KHÔNG** vá được — chi phí ở lượt duyệt danh sách của Vue |
-| `restoreEditedText()` | `EditorPanel.vue:294`, `:300` | `querySelectorAll('[data-segment-id]')` trên **cả Chương** mỗi lượt dựng lại trang, trong khi `editedText` thường chỉ mang vài mục. O(cả Chương) thay cho O(số câu đang gõ dở) |
-| `nearestSentenceTo()` | `EditorPanel.vue:565`, gọi ở `:602`, `:636` | mỗi cú bấm rơi vào khoảng trống `.doc` duyệt **từng** câu và gọi `getClientRects()`/`getBoundingClientRect()`. 🔴 Đây là **chỗ duy nhất** của cả lượt 2.3 không kèm số đo |
+| **dời con trỏ** — `placeCaretAtPoint()` + `ensureCaretNextFrame()` | `GridPanel.vue:459`, `:766` | 🔴 **đã đo 706–770 ms ở 9.850 câu** *(`deferred-work.md:3252`)* — vượt trần NFR2 **~15×**, và là đường **thường nhất** của tính năng: mỗi lần người dùng bấm sang câu khác. Đây là con số mà cửa chặn **B1** của retro Epic 2 hỏi |
+| `onSelectionChange()` → `setEditorCaret()` | `GridPanel.vue:875`, đăng ký `:885` | kế thừa trực tiếp của `:data-caret` — ref phản ứng đọc trong hàm render ⇒ mỗi lượt `selectionchange` chạy lại `v-for` trên **năm** cột. `selectionchange` bắn **liên tục** trong lúc kéo chọn. ⚠️ Đổi sang tra `Map` **KHÔNG** vá được — chi phí ở lượt duyệt danh sách của Vue. Đã đo **24–34 ms** ở 9.850 câu |
+| `restoreEditedText()` | `GridPanel.vue:843`, watcher `:859` | **đường duy nhất sống sót** — `querySelectorAll('[data-segment-id]')` trên **cả Chương** mỗi lượt dựng lại, trong khi `editedText` thường chỉ mang vài mục. O(cả Chương) thay cho O(số câu đang gõ dở) |
 
 ### 7. Đường checkpoint: trong một phiên gõ liên tục, CHỈ vế ngưỡng chạy được
 
@@ -275,8 +282,8 @@ riêng của Ice.
 ⚠️ **Đừng chạm một AD nào.** `lint_spine.py` phải trả **0 findings** sau lượt sửa
 (`.claude/skills/bmad-architecture/scripts/lint_spine.py`).
 
-⚠️ **Số dòng của bảng Deferred đã TRÔI** kể từ story 2.3: hàng *"ngưỡng WAL"* nay ở **`:894`**
-(2.3 ghi `:883`), *"thư viện editor"* ở **`:897`** (ghi `:886`), *"ảo hoá"* ở **`:899`** (ghi `:888`)
+⚠️ **Số dòng của bảng Deferred đã TRÔI** kể từ story 2.3: hàng *"ngưỡng WAL"* nay ở **`:990`**
+(2.3 ghi `:883`), *"thư viện editor"* ở **`:993`** (ghi `:886`), *"ảo hoá"* ở **`:995`** (ghi `:888`)
 — bảng Stack lớn thêm ba hàng ở lượt 2.3. **Đọc lại số dòng trước khi trích, đừng chép từ story cũ.**
 
 ### 13. Mọi bằng chứng chỉ trên macOS
@@ -306,6 +313,32 @@ Nguyên văn từ `epics.md:2126-2149`, đánh số để tham chiếu:
 **AC1** — **Given** một phiên gõ liên tục ít nhất 30 phút trên một Chương thật · **When** đo ·
 **Then** **không frame nào vượt 50 ms** trong lúc auto-save chạy (NFR2)
 
+> 🔵 **CỬA SỔ ĐO MỞ RỘNG — Ice ký 2026-08-18, Sprint Change Proposal 2026-08-18c, đường (b).**
+> NFR2 nguyên văn nói *"trong lúc auto-save chạy"*, và AC1 bản gốc chép đúng vế đó. Nhưng đường
+> đang vượt trần **~15 lần** là đường **DỜI CON TRỎ** *(706–770 ms ở 9.850 câu — 2.5b,
+> `deferred-work.md:3252`)*, và nó **không** nằm trong cửa sổ auto-save. ⇒ Theo đúng câu chữ cũ,
+> story này có thể cho AC1 **xanh** trong khi vi phạm đó sống nguyên vẹn trên bề mặt chính.
+>
+> ⚠️ **Đây không phải một lỗi soạn AC.** Lúc AC1 được viết, đường dời con trỏ **chưa tồn tại** —
+> bề mặt cũ đặt `contenteditable` lên **đúng một** `<span>` tại một thời điểm. Lưới đặt nó lên
+> **mọi ô**. Cơ chế mới đẻ ra một đường nóng mới, và AC được viết trước nó.
+>
+> **Nghiệm thu — HAI cửa sổ, đo tách bạch, cấm trộn vào một cột:**
+>
+> | Cửa sổ | Nghiệm thu mệnh đề nào | Trần |
+> | --- | --- | --- |
+> | **trong lúc auto-save chạy** | NFR2 **nguyên văn** | 50 ms |
+> | **một lượt dời con trỏ** *(mỗi lần người dùng bấm sang câu khác)* | vế **mở rộng** Ice ký | 50 ms |
+> | *lúc dựng Chương* | 🔵 **không** nghiệm thu AC1 — giao cho AC13 | — |
+>
+> 🔴 **Điều kiện kích hoạt AC5 rộng theo, và đó là cái giá đã được cân:** nếu đường dời con trỏ
+> **không** hạ được xuống 50 ms trong phạm vi hằng số mà story này được phép chạm, đó là ca
+> *"một ngưỡng trượt một mình"* của AC5 ⇒ dừng, báo Ice theo khuôn Task 10, **và Epic 2 dừng theo**.
+> Dev **không** được tự nới trần, tự thêm thư viện, hay tự mở ảo hoá.
+>
+> ⚠️ Vế *"Chương thật"* vẫn theo lượt chốt 2026-08-13: **thang nhân tạo**, và báo cáo **cấm** viết
+> *"đã đo trên một Chương thật"*. **Cỡ mẫu phiên: n = 3.**
+
 > 🔴 **AC1 chạy trên một THANG NHÂN TẠO, không phải một Chương thật — Ice chốt 2026-08-13.**
 > Lý do đo được, không phải quên: thư viện thật của Ice **không có Chương nào cỡ thường nhật**.
 > Khoảng **669 → 48.639 ký tự rỗng hoàn toàn**; chỉ có fixture nhỏ và hai tài liệu ngoại lệ *(một
@@ -332,7 +365,7 @@ với kết quả nhất quán
 giá trị đạt **cả hai** ngưỡng trên · **And** giá trị đó ghi vào hàng Deferred tương ứng của
 `ARCHITECTURE-SPINE.md`, đánh dấu đã đóng
 
-> 🔴 **Dòng đóng `:894` PHẢI khai phạm vi nó thật sự đóng.** Hàng Deferred gốc đóng khung bài toán
+> 🔴 **Dòng đóng `:990` PHẢI khai phạm vi nó thật sự đóng.** Hàng Deferred gốc đóng khung bài toán
 > là `wal_threshold_bytes` ⟷ nhịp flush **đánh đổi lẫn nhau** để đạt **cả** NFR18 **và** NFR2.
 > Nếu số đo cho thấy NFR18 **không** treo trên `wal_threshold_bytes` *(§Điều kiện khởi hành mục
 > 7-8)*, thì cặp đánh đổi thật hẹp hơn cặp gốc — và khuôn `✅ Đã đóng` sẽ đóng một **câu hỏi hẹp
@@ -340,7 +373,7 @@ giá trị đạt **cả hai** ngưỡng trên · **And** giá trị đó ghi v�
 > cặp nào hoá ra không tồn tại, kèm số. Không có câu đó, người đọc SPINE sau này tin nhầm rằng
 > trade-off gốc *(WAL ⟷ NFR18)* đã được giải triệt để.
 
-**AC4** — **Given** thư viện editor cho Panel Editor · **When** chọn · **Then** lựa chọn được ghi
+**AC4** — **Given** thư viện editor cho **cột bản dịch của lưới** *(`panel.grid`)* 🔵 *(sửa 2026-08-18: bản gốc ghi “Panel Editor” — tên panel đã chết sau correct-course 2026-08-14; câu hỏi và hợp đồng AD-31 **không đổi một chữ**, và nó còn NẶNG hơn: bề mặt cũ đặt `contenteditable` lên đúng một `<span>`, lưới đặt lên **mọi ô**)* · **When** chọn · **Then** lựa chọn được ghi
 lại kèm lý do · **And** nó tuân hợp đồng trạng thái AD-31 nên không lan ra ngoài module
 
 **AC5** — **Given** hai ngưỡng NFR2 và NFR18 không đạt được đồng thời · **When** xảy ra · **Then**
@@ -401,7 +434,7 @@ Nghiệm thu: bộ kill của AC2 chạy **tại mọi điểm** của lưới `
 *(≥ 20 lượt kill hợp lệ mỗi điểm — xem AC2 và AC9)*, và cửa sổ mất dữ liệu **max của từng điểm**
 được đặt cạnh nhau thành một bảng theo ngưỡng. Bảng đó **là** câu trả lời cho AC3: nó cho thấy
 trực tiếp cặp đánh đổi thật, không cần suy từ một giả thuyết. Lưới phẳng ⇒ NFR18 không treo trên
-ngưỡng WAL, ghi số và ghi kết luận đó vào dòng đóng `:894` *(AC3)*. Lưới dốc ⇒ cặp đánh đổi gốc
+ngưỡng WAL, ghi số và ghi kết luận đó vào dòng đóng `:990` *(AC3)*. Lưới dốc ⇒ cặp đánh đổi gốc
 có thật, chọn giá trị từ chính bảng.
 
 ⚠️ **Kênh mà §mục 8 bỏ sót, và AC8 phải đo cho ra:** lập luận *"flush trả `Ok` là đã bền trên đĩa
@@ -487,34 +520,71 @@ một delta khổng lồ **không phải** một frame rớt)*; mốc 0 của ph
 > Ca 100% có tiền lệ trong chính story này: *"Lượt hỏng ③"* ở §Dev Agent Record. Không có ba mức
 > trên, đường ra duy nhất là đo lại vô hạn.
 
-**AC12 — ba đường nóng của §Điều kiện khởi hành mục 6 đều có SỐ.** `:data-caret` · `restoreEditedText()`
-· `nearestSentenceTo()`. Mỗi cái: chi phí một lượt, ở Chương **thật** và ở Chương **9.850 câu**.
+**AC12 — ba đường nóng của bề mặt LƯỚI đều có SỐ.** Mỗi cái: chi phí một lượt, ở thang nhân tạo và
+ở Chương **9.850 câu**.
+
+> 🔵 **VIẾT LẠI 2026-08-18 — Sprint Change Proposal 2026-08-18c, Ice ký.** Bản cũ gọi tên
+> ~~`:data-caret` · `restoreEditedText()` · `nearestSentenceTo()`~~ trên `EditorPanel.vue`. Đếm
+> trên cây nguồn ngày 2026-08-18: `nearestSentenceTo` = **0** chỗ trong `src/`; `:data-caret` chỉ
+> còn trong một **chú thích** (`editorPanelState.ts:67`); `EditorPanel.vue` **không tồn tại**.
+> ⇒ Bản cũ đo một cây DOM đã bị lượt correct-course 2026-08-14 xoá — nó trả về **rỗng**, không
+> trả về một số xấu. Ba đường dưới đây là ba đường nóng **thật** của bề mặt hiện tại.
+
+| Đường | Chỗ | Vì sao nó đắt |
+| --- | --- | --- |
+| **dời con trỏ** — `placeCaretAtPoint()` + `ensureCaretNextFrame()` | `GridPanel.vue:459`, `:766` | 🔴 **đã đo 706–770 ms ở 9.850 câu** *(`deferred-work.md:3252`)*, vượt trần NFR2 **~15×**. Đây là đường **thường nhất** của tính năng: mỗi lần người dùng bấm sang câu khác |
+| `onSelectionChange()` → `setEditorCaret()` | `GridPanel.vue:875`, đăng ký `:885` | kế thừa trực tiếp của `:data-caret` — nó ghi vào một ref phản ứng **đọc trong hàm render**, nên mỗi lượt `selectionchange` chạy lại `v-for` trên **năm** cột. Đã đo **24–34 ms** ở 9.850 câu |
+| `restoreEditedText()` | `GridPanel.vue:843`, watcher `:859` | **đường duy nhất sống sót** từ AC12 bản cũ — `querySelectorAll('[data-segment-id]')` trên **cả Chương** mỗi lượt dựng lại, trong khi `editedText` thường chỉ mang vài mục |
+
 🔴 **Vá chỉ khi số nói cần**, và một bản vá ở đây phải kèm **đỏ-rồi-xanh** cộng một dòng nói vì sao
-nó **không** phải thứ mà hàng Deferred *"ảo hoá danh sách dài"* sẽ làm lại từ đầu ở Giai đoạn 3 —
-`deferred-work.md:2441` nói thẳng rằng vá lẻ `restoreEditedText()` là *"tối ưu một hằng số trước khi
-biết bậc độ lớn có đổi không"*.
+nó **không** phải thứ mà hàng Deferred *"ảo hoá danh sách dài"* (`:995`) sẽ làm lại từ đầu ở Giai
+đoạn 3 — `deferred-work.md:2441` nói thẳng rằng vá lẻ `restoreEditedText()` là *"tối ưu một hằng số
+trước khi biết bậc độ lớn có đổi không"*.
 
-**AC13 — trần 9.850 span được đo lại VỚI CHỮ THẬT, và story này KHÔNG dựng ảo hoá.** Số 2.2 đo khi
-mọi `target_text` còn rỗng. Đo lại sau khi Chương có bản dịch thật; số mới vào báo cáo cạnh số cũ.
-🔴 Hàng Deferred `ARCHITECTURE-SPINE.md:899` là **Giai đoạn 3** và story này **không** mở nó — nó
-ghi số, ghi hệ quả, và ghi **điều kiện mở lại** cho hàng đó nếu số mới đòi mở sớm.
+⚠️ **Ba biểu thức `:class` boolean mà Story 2.5c thêm vào bốn trong năm `v-for`** — ở 9.850 câu là
+**39.400** phép đọc thuộc tính mỗi lượt dời con trỏ (`deferred-work.md:3572-3583`). Đo chúng **trên
+cây sau 2.5c** và so với **706–770 ms**, 🔴 **không** so với một mốc trước lưới. Mục nợ đó đã tự viết
+ra rằng *"không tự chấm «không ảnh hưởng đáng kể» — đó là một suy luận"*.
 
-> 📏 **"Đòi mở sớm" là một ngưỡng SỐ, không phải một cảm nhận.** Mốc so là trần **1,4 s** mà Story
-> 1.16 đã chấp nhận cho một lượt dựng. Ghim:
+**AC13 — trần của bề mặt LƯỚI được đo lại, và story này KHÔNG dựng ảo hoá.**
+
+> 🔵 **VIẾT LẠI 2026-08-18 — Sprint Change Proposal 2026-08-18c, Ice ký.**
 >
-> | Số mới ở trần 9.850 span *(engine chậm nhất)* | Phán quyết `:899` |
+> 🔴 **Mốc cũ *(300,1 ms Blink · 1.308,0 ms WebKit)* MẤT HIỆU LỰC THEO CẤU TRÚC, và nó KHÔNG được
+> đặt cạnh số mới.** Nó đo ~~*"dựng 9.850 `<span>` trong một dòng văn liên tục"*~~; lưới **không
+> dựng một `<span>` nào** — nó dựng **49.256 node** trong năm cột `subgrid`.
+> `deferred-work.md:3258` đã viết bằng chữ: ghi hai số đó cạnh nhau như một lượt *"cải thiện"* là
+> **nói dối**. ⇒ Mốc cũ khai là **bản ghi lịch sử**, gạch ngang, **không xoá**.
+>
+> ⚠️ Hệ quả kéo theo: lượt *"đo lại trên đúng bàn Playwright hai engine cũ, chỉ đổi một biến là
+> chữ thật"* mà Ice ghim ngày 2026-08-13 **cũng hết đúng** — bàn đo đó dựng một hình dạng DOM
+> không còn tồn tại. Vế *"cấm trộn số in-app và số ngoài-app chung một cột"* thì **vẫn đứng**.
+
+**Mốc so mới là số của Story 2.5b** *(`deferred-work.md:3252`, 2026-08-15, WKWebView 605.1.15, bản
+dựng thật)*:
+
+| Phép đo | 2.000 câu | **9.850 câu** |
+| --- | --- | --- |
+| node DOM trong lưới | 10.005 | **49.256** *(5 node/câu — đúng năm cột)* |
+| một lượt `selectionchange` + 2 frame | 12 / 34 / 34 ms | 24 / 33 / 33 ms |
+| một lượt **dời con trỏ** | 226 / 173 / 195 / 189 / 161 ms | 🔴 **770 / 706 / 767 ms** |
+
+🔴 Hàng Deferred `ARCHITECTURE-SPINE.md:995` là **Giai đoạn 3** và story này **không** mở nó — nó
+ghi số, ghi hệ quả, và ghi **điều kiện mở lại**.
+
+> 📏 **"Đòi mở sớm" là một ngưỡng SỐ, và nó được tính lại trên đường DỜI CON TRỎ.**
+> Ngưỡng cũ *(1,4 s / 2,0 s)* mượn trần của Story 1.16 cho **một lượt dựng chạy một lần mỗi
+> Chương**. Đường dời con trỏ chạy **mỗi lần người dùng bấm sang câu khác**, nên nó phải cân theo
+> trần NFR2 *(50 ms)*, không theo trần của một thao tác chạy một lần.
+>
+> | Số mới ở 9.850 câu *(đường dời con trỏ)* | Phán quyết `:995` |
 > | --- | --- |
-> | < 1,4 s | giữ nguyên Giai đoạn 3, ghi số, **không** mở |
-> | 1,4 s → 2,0 s | ghi **điều kiện mở lại** kèm số; Ice quyết, dev **không** tự mở |
-> | > 2,0 s **hoặc** tăng > 50 % so với số 2.2 | 🔴 **đòi mở sớm** — vào mục *"Cần Ice quyết"* với bảng Được/Mất |
+> | ≤ 50 ms | 🟢 đạt NFR2 — giữ Giai đoạn 3, ghi số, **không** mở |
+> | 50 → 200 ms | ghi **điều kiện mở lại** kèm số; Ice quyết, dev **không** tự mở |
+> | > 200 ms **hoặc** không giảm so với 706–770 ms | 🔴 **đòi mở sớm** — vào mục *"Cần Ice quyết"* với bảng Được/Mất |
 >
-> 🔵 **Bàn đo được giữ nguyên — Ice chốt 2026-08-13.** Số cũ *(300,1 ms Blink · 1.308,0 ms
-> WebKit)* đến từ bàn Playwright **hai engine, ngoài app**. Task 3 bản cũ đổi **cả hai** biến cùng
-> lúc — bàn đo *(→ Tauri thật, chỉ WKWebView)* **và** dữ liệu *(→ chữ thật)* — nên chênh lệch
-> không quy được cho biến nào. Ghim: đo lại trần 9.850 span **trên đúng bàn Playwright hai engine
-> cũ**, chỉ đổi **một** biến là chữ thật. Số in-app WKWebView ghi thành **cột thứ ba, dán nhãn bàn
-> đo khác** — 🔴 **cấm** đặt số in-app và số ngoài-app chung một cột. Cột ba lệch xa cột WebKit là
-> một **phát hiện** *(bàn đo ngoài app không đại diện)* phải ghi ra, không phải chỗ hoà giải cho êm.
+> ⚠️ Lượt **dựng Chương** vẫn được đo và báo **tách riêng**, nhưng nó **không** nghiệm thu AC1 —
+> đúng ranh giới mà Quyết định #3 đã ghim, và lượt mở rộng AC1 ngày 2026-08-18 **không** đụng vế đó.
 
 **AC14 — nếu đổi một hằng, đổi ở ĐÚNG một chỗ khai, và mọi thứ đứng trên nó phải xanh lại.**
 `Tuning::default` (`mod.rs:229-243`) và ba hằng `editorFlush.ts` (`:43`, `:56`, `:78`) là **những
@@ -525,12 +595,18 @@ kèm ngày và kèm lệnh đo lại.
 
 > 🔧 **Sửa luôn SỐ DÒNG sai bên trong chính doc-comment đó.** `src/panels/editorFlush.ts` trỏ
 > `ARCHITECTURE-SPINE.md:883` ở **hai** chỗ — `:35` và `:62` — nhưng hàng *"ngưỡng WAL"* nay ở
-> **`:894`**, đúng như §Điều kiện khởi hành mục 12 tự xác nhận. Bản cũ của Task 5 chỉ đòi sửa
+> **`:990`**, đúng như §Điều kiện khởi hành mục 12 tự xác nhận. Bản cũ của Task 5 chỉ đòi sửa
 > *nội dung* doc-comment, nên `:883` sẽ sống sót qua lượt sửa và tiếp tục trỏ sai. Nghiệm thu:
 > `grep -rn "ARCHITECTURE-SPINE.md:8[0-9][0-9]" src/ src-tauri/` trả về **0** dòng còn trỏ `:883`.
 
 **AC15 — sau lượt đổi số, TOÀN BỘ lưới hiện có xanh lại.** **9/9** cổng npm · `npm run build` ·
-`npm run test` **≥ 32/32** · `cargo test --locked` **≥ 319 xanh / 0 đỏ**. 🔴 Đặc biệt:
+`npm run test` **≥ 249/249** *(21 tệp)* · `cargo test --locked` **≥ 409 xanh / 0 đỏ / 5 ignored**.
+
+> 🔵 **SÀN ĐO LẠI 2026-08-18** *(Sprint Change Proposal 2026-08-18c)*. Sàn cũ ~~≥ 32/32~~ và
+> ~~≥ 319/0~~ chụp cây nguồn ngày 2026-08-13; quần thể thật hôm nay là **249** và **409**.
+> ⚠️ Sàn cũ thấp hơn thật **~7,8×** ở vế vitest ⇒ dùng nó để nghiệm thu là để một lượt mất **hàng
+> trăm** ca đi qua cổng mà không ai thấy. *(§Debug Log 2026-08-13 đã bắt được một nửa chuyện này
+> khi ghi 40/40 và nói *"số đã TRÔI"* — lượt này đóng nốt.)* 🔴 Đặc biệt:
 `store_contract.rs` lái cơ chế bằng `Tuning` **thu nhỏ** *(tick và idle tính bằng chục mili-giây)*
 — một lượt đổi `Default` mà làm một ca đó đỏ là dấu hiệu ca đó đọc `Default` thay vì nhận tham số.
 Sửa **ca test**, đừng lùi con số.
@@ -543,11 +619,22 @@ là một **quyết định của Ice**, không của dev — trình bảng Đư
 ⚠️ Công cụ đo *(Playwright, `hyperfine`, script `.mjs` dùng một lần…)* chạy từ bộ nhớ đệm `npx`
 **ngoài kho**, cùng khuôn Story 2.2 và 2.3 — **không** vào `package.json`.
 
-**AC17 — hai món nợ tài liệu đích danh của story này được đóng.** ① ba ảnh bàn đo của 2.2
-(`2-2-ban-do/ban-do-blink-light.png` · `ban-do-webkit-dark.png` · `ban-do-webkit-light.png`) chụp
-lại sau khi fixture thêm câu thứ sáu; ② `2-2-ban-do-editor.html:11` còn khai *"Dự án CỐ Ý không có
-bộ chạy test frontend"* — lời khai đó **hết đúng** từ 2026-08-12, sửa nó *(đừng xoá trắng — xoá
-trắng là đánh mất luôn cái cửa, đúng lý lẽ Task 0b.7 của 2.3)*.
+**AC17 — hai món nợ tài liệu đích danh của story này được xử.** Một vế **bỏ**, một vế **giữ**.
+
+> 🔵 **SỬA 2026-08-18 — Sprint Change Proposal 2026-08-18c, Ice ký.**
+
+① ~~ba ảnh bàn đo của 2.2 (`2-2-ban-do/ban-do-blink-light.png` · `ban-do-webkit-dark.png` ·
+`ban-do-webkit-light.png`) chụp lại sau khi fixture thêm câu thứ sáu~~ → 🔴 **BỎ.** Ba ảnh đó chụp
+bề mặt `EditorPanel.vue`, và Story 2.5b khai `Supersedes:` **4/8 AC của Story 2.2**. Chụp lại ảnh
+của một bề mặt đã bị thay là **sản xuất bằng chứng cho một thứ không còn tồn tại**. ⇒ Giữ nguyên ba
+tệp và khai chúng là **bản ghi lịch sử** bằng một dòng trong `deferred-work.md` — đúng khuôn mà
+action item **B5** của retro Epic 2 đặt cho tồn dư sau correct-course *(*"hoặc sửa kèm 🔵 hoặc khai
+bằng chữ là bản ghi lịch sử"*)*.
+
+② `2-2-ban-do-editor.html:11` còn khai *"Dự án CỐ Ý không có bộ chạy test frontend"* — 🟢 **GIỮ**,
+vế này **không** phụ thuộc bề mặt. Đã kiểm 2026-08-18: dòng 11 còn nguyên lời khai đó. Nó **hết
+đúng** từ 2026-08-12. Sửa nó *(đừng xoá trắng — xoá trắng là đánh mất luôn cái cửa, đúng lý lẽ
+Task 0b.7 của 2.3)*.
 
 **AC18 — đỉnh RSS của một lượt nhập 100 MB được đo, hoặc được TRẢ LẠI kèm chủ mới có tên.**
 `deferred-work.md:591` gán món này cho story này *("cho con số")*. Nó **tách rời** khỏi cặp
@@ -840,7 +927,7 @@ DOM đó**. Thêm một thư viện là **giao lại quyền sở hữu text nod
 mà đường (c) của Quyết định #1 ở Story 2.3 đã làm **biến mất**, và lật một doctrine vừa được ký bằng
 máu: *"DOM sở hữu văn bản bản dịch, Vue không"* (`deferred-work.md:2261`).
 
-**(c) Hoãn tiếp.** 🔴 **Loại thẳng** — AC4 là AC của story này, và hàng Deferred `:897` ghi *Giai
+**(c) Hoãn tiếp.** 🔴 **Loại thẳng** — AC4 là AC của story này, và hàng Deferred `:993` ghi *Giai
 đoạn 2*, tức **bây giờ**. Hoãn lần nữa là để một hàng Deferred trôi qua đúng cửa sổ nó được hẹn.
 
 **Đề xuất mặc định: (a).** Điều kiện để phán quyết đó **có giá trị** chứ không phải một lượt hợp
@@ -868,12 +955,12 @@ và **cái gì sẽ vỡ** nếu một story sau thay nó bằng một thư vi�
   - [x] **1.0 — kiểm đầu vào bằng TAY**: mở app, bấm vào một câu **chưa dịch**, gõ một chữ. Ghi kết quả. 🔴 Không gõ được ⇒ **DỪNG**, báo Ice, story về `backlog` (§Điều kiện khởi hành mục 2) — 🟢 **CỬA MỞ 2026-08-13**, Ice xác nhận lại lần hai
   - [ ] Dựng bàn đo theo phán quyết Quyết định #1 · #2 · #3 · #4
   - [ ] 🔴 **Hàng rào chiều âm chạy TRƯỚC lượt kill đầu tiên**: chụp trạng thái `~/Documents/AuraTranslate/` và `$APPDATA` thật *(danh sách tệp + kích thước + mtime)*; đối chiếu lại sau cả bộ đo
-  - [ ] **Hàng rào chiều dương**: mọi `.atproj`/`global.db` sinh ra phải nằm trong vùng nháp — kiểm bằng máy, không bằng mắt
+  - [x] **Hàng rào chiều dương**: mọi `.atproj`/`global.db` sinh ra phải nằm trong vùng nháp — kiểm bằng máy, không bằng mắt — 🟢 **2026-08-18**, `fence.sh positive` = 3 tạo tác, tất cả trong `$HOME` nháp
   - [ ] Liệt kê **mọi** đường ghi của app và trả lời từng đường *"nó rơi vào đâu khi bàn đo chạy"* (bài học Story 1.22)
-  - [ ] Ghi phiên bản: macOS · Rust · Node · `@tauri-apps/cli` · WebKit · model máy · profile build
-  - [ ] **Lượt đối chứng chi phí bàn đo** — cùng bàn đo, cùng thời lượng, không gõ (AC21)
-  - [ ] Đổi **nhịp lấy mẫu** một lượt; frame max đổi theo ⇒ đang đo bàn đo, không đo sản phẩm (AC21)
-  - [ ] Ghi trạng thái máy: nguồn điện · tiết lưu nhiệt · tải nền (AC22)
+  - [x] Ghi phiên bản: macOS · Rust · Node · `@tauri-apps/cli` · WebKit · model máy · profile build — 🟢 `2-4-ban-do/env-2026-08-18.txt` *(macOS 15.7.9 · rustc 1.97.1 · Node 22.22.2 · tauri-cli 2.11.4 · WebKit 20621.3.11.11.3 · MacBookPro16,1 i9-9980HK · release nguyên vẹn)*
+  - [x] **Lượt đối chứng chi phí bàn đo** — cùng bàn đo, cùng thời lượng, không gõ (AC21) — 🟢 **2026-08-18** `ac21-control.sh`, ba chế độ: chi phí bàn đo **dưới ngưỡng nhiễu** *(delta `loadavg` −0,61 / +0,00 / −0,84)*. ⚠️ Loại được **bàn đo**, chưa loại được **tải nền của máy** *(6–7 trên 8 nhân)*
+  - [x] Đổi **nhịp lấy mẫu** một lượt; frame max đổi theo ⇒ đang đo bàn đo, không đo sản phẩm (AC21) — 🟢 **2026-08-18** nhịp `stat()` 1000 ms → 4000 ms *(`WAL_EVERY`, đã tách khỏi nhịp lấy mẫu tiêu điểm để đổi ĐÚNG MỘT biến)*: trung bình cửa sổ 8,28 s → 8,53 s, chênh lệch **nhỏ hơn độ tản trong nhóm** ⇒ vòng `stat()` **bị bác**
+  - [x] Ghi trạng thái máy: nguồn điện · tiết lưu nhiệt · tải nền (AC22) — 🟢 cắm sạc · `CPU_Speed_Limit = 100` *(không tiết lưu)* · ⚠️ `loadavg = 7,19` trên máy **8 nhân**, đủ để thổi số ⇒ lượt đối chứng AC21 là bắt buộc trước khi chốt
 
 - [ ] **Task 2 — Thang đo vào máy** (AC: 1, 2, 13)
   - [ ] 🔴 **Thư viện thật KHÔNG có Chương cỡ thường nhật** — khoảng 669 → 48.639 ký tự rỗng hoàn toàn. Ice chốt 2026-08-13: dùng **thang nhân tạo** cắt từ một tài liệu duy nhất, **không** giả vờ đó là Chương thật (AC1)
@@ -886,7 +973,7 @@ và **cái gì sẽ vỡ** nếu một story sau thay nó bằng một thư vi�
   - [ ] Lấy mẫu frame theo Quyết định #3; **ghi số mẫu bị bộ lọc loại**, và áp ba mức phán quyết ≤50% / >50% / **=100%** của AC11
   - [ ] 🔵 Ghi mốc `blur`/`focus` cửa sổ; loại khoảng mất tiêu điểm thành **hạng mục riêng**; mất > **5 %** thời lượng ⇒ **bỏ phiên, chạy lại** (AC21)
   - [ ] Tách **hai** cửa sổ: *"trong lúc auto-save chạy"* (nghiệm thu AC1) và *"lúc dựng Chương"* (giao cho AC13)
-  - [ ] Đo ba đường nóng của §mục 6 — `:data-caret` · `restoreEditedText()` · `nearestSentenceTo()` — ở **cả hai** cỡ (AC12)
+  - [ ] 🔵 Đo ba đường nóng của §mục 6 *(bề mặt lưới — thay 2026-08-18)* — **dời con trỏ** `placeCaretAtPoint`+`ensureCaretNextFrame` · `onSelectionChange`→`setEditorCaret` · `restoreEditedText()` — ở **cả hai** cỡ (AC12)
   - [ ] 🔴 Đo lại trần dựng 9.850 span **với chữ thật, TRÊN ĐÚNG BÀN PLAYWRIGHT HAI ENGINE CŨ** — đổi **một** biến duy nhất là chữ. Đặt cạnh số cũ *(300,1 ms Blink · 1.308,0 ms WebKit)* (AC13)
   - [ ] 🔴 Số in-app WKWebView ghi thành **cột thứ ba, dán nhãn bàn đo khác** — cấm chung cột với số ngoài-app. Cột ba lệch xa cột WebKit ⇒ ghi ra như một **phát hiện** (AC13)
   - [ ] Ghi **max của từng phiên riêng**; 🔴 **cấm gộp mẫu**; mọi câu về độ ổn định kèm cỡ mẫu ngay trong câu (AC19)
@@ -912,10 +999,10 @@ và **cái gì sẽ vỡ** nếu một story sau thay nó bằng một thư vi�
   - [ ] Mỗi điểm ghi thêm: frame max · số lượt checkpoint theo vế **ngưỡng** · đỉnh `.db-wal` · 🔵 **thời gian chờ khoá của mỗi lượt flush, tách riêng khỏi thời gian ghi** — kênh `busy_timeout` mà §mục 8 bỏ sót (AC8)
   - [ ] Sáu hàng `Tuning` — mỗi hàng **đúng một** nhãn trong ba nhãn của AC7, kèm số hoặc kèm chủ mới có tên. 🔴 Nhãn ba dùng **≥ 3** lần ⇒ **DỪNG trước Task 8**, báo Ice (AC7)
   - [ ] 🔴 Kiểm chéo `idle_before_passive` ⟷ `EDITOR_IDLE_MS`: đổi nhịp flush mà quên ràng buộc *"cố ý dài hơn"* là làm luồng checkpoint đánh nhau với đường gõ (§mục 4)
-  - [ ] 🔵 **Dựng CỔNG MÁY cho ràng buộc đó**, không để nó sống bằng câu chữ: một `debug_assert!`/ca test giữ bất biến `idle_before_passive > EDITOR_IDLE_MS` sau khi **cả hai** số đã hiệu chỉnh. Bản cũ chỉ có một dòng nhắc trong Task 5 — hai lượt sửa riêng biệt *(hạ cái này, nâng cái kia)* lọt hết mọi cổng cho tới khi Task 11 chạy xong
+  - [x] 🔵 **Dựng CỔNG MÁY cho ràng buộc đó**, không để nó sống bằng câu chữ: một `debug_assert!`/ca test giữ bất biến `idle_before_passive > EDITOR_IDLE_MS` sau khi **cả hai** số đã hiệu chỉnh. — 🟢 **2026-08-18** `src-tauri/tests/flush_cadence_contract.rs`, 5 ca, đỏ-rồi-xanh trên tệp THẬT. 🔵 Dựng **trước** lượt hiệu chỉnh có chủ ý: tệp giữ **quan hệ**, không giữ **giá trị**, nên nó đúng ở cả hai phía lượt hiệu chỉnh — và lượt hiệu chỉnh nằm trong tầm canh của nó thay vì nằm ngoài. Bản cũ chỉ có một dòng nhắc trong Task 5 — hai lượt sửa riêng biệt *(hạ cái này, nâng cái kia)* lọt hết mọi cổng cho tới khi Task 11 chạy xong
   - [ ] Đổi số **chỉ ở chỗ khai** — `Tuning::default` (`mod.rs:229-243`) và ba hằng `editorFlush.ts` (`:43`, `:56`, `:78`). **Không** đụng `writeSchedule.ts:57,67` (AC14)
   - [ ] Sửa mọi doc-comment *"TẠM — chủ là Story 2.4"* thành số đã đo + ngày + lệnh đo lại
-  - [ ] 🔧 **Sửa luôn số dòng sai TRONG doc-comment**: `editorFlush.ts:35` và `:62` trỏ `ARCHITECTURE-SPINE.md:883`, vị trí thật là **`:894`**. Nghiệm thu: `grep -rn "ARCHITECTURE-SPINE.md:883" src/ src-tauri/` trả **0** dòng (AC14)
+  - [x] 🔧 **Sửa luôn số dòng sai TRONG doc-comment**: `editorFlush.ts:35` và `:62` trỏ `ARCHITECTURE-SPINE.md:883`, vị trí thật là **`:990`**. Nghiệm thu: `grep -rn "ARCHITECTURE-SPINE.md:883" src/ src-tauri/` trả **0** dòng (AC14) — 🟢 **2026-08-18**, `grep` trả **0**. Vị trí `:990` xác minh lại từ chính SPINE, không tin số trong story. Kèm một dòng 🔵 tại chỗ ghi vì sao **tên hàng** được chép vào chú thích: con trỏ chỉ có số đã trôi một lần rồi
 
 - [ ] **Task 6 — Ba đường nóng: số trước, vá sau (nếu có)** (AC: 12, 13)
   - [ ] Ghi số cho cả ba trước khi cân nhắc một dòng vá nào
@@ -937,10 +1024,10 @@ và **cái gì sẽ vỡ** nếu một story sau thay nó bằng một thư vi�
   - [ ] Mục *"Cần Ice quyết"* tách riêng, bảng **Được / Mất**
   - [ ] Một dòng về khoảng mù Windows — trích **`deferred-work.md:1954-1957`**, không phải `:145` (AC20)
   - [ ] 🔵 **Mở một hàng `deferred-work.md` riêng cho CÁC CON SỐ vừa chốt** — liệt kê **từng** giá trị đã ghi vào `Tuning::default`, cảnh báo chưa đo trên NTFS/WebView2, **chủ: Ice**, mở ở **cuối dự án**. Một dòng "NFR chỉ nghiệm thu trên macOS" không che được việc sáu con số dùng chung cho cả hai nền tảng (AC20)
-  - [ ] `ARCHITECTURE-SPINE.md:894` — đóng hàng *"Ngưỡng WAL + nhịp flush"*, khuôn gạch ngang + `✅ Đã đóng`
-  - [ ] 🔴 **Dòng đóng `:894` phải khai PHẠM VI nó thật sự đóng** — một câu nói cặp đánh đổi nào được dò thật và cặp nào hoá ra không tồn tại, kèm số từ bảng lưới của AC8. Thiếu câu đó, người đọc SPINE sau này tin nhầm trade-off gốc *(WAL ⟷ NFR18)* đã giải triệt để (AC3)
-  - [ ] `ARCHITECTURE-SPINE.md:897` — đóng hàng *"Thư viện editor"*, cùng khuôn
-  - [ ] 🔴 **Không** đóng `:899` *(ảo hoá)*; ghi **điều kiện mở lại** nếu số mới đòi mở sớm
+  - [ ] `ARCHITECTURE-SPINE.md:990` — đóng hàng *"Ngưỡng WAL + nhịp flush"*, khuôn gạch ngang + `✅ Đã đóng`
+  - [ ] 🔴 **Dòng đóng `:990` phải khai PHẠM VI nó thật sự đóng** — một câu nói cặp đánh đổi nào được dò thật và cặp nào hoá ra không tồn tại, kèm số từ bảng lưới của AC8. Thiếu câu đó, người đọc SPINE sau này tin nhầm trade-off gốc *(WAL ⟷ NFR18)* đã giải triệt để (AC3)
+  - [ ] `ARCHITECTURE-SPINE.md:993` — đóng hàng *"Thư viện editor"*, cùng khuôn
+  - [ ] 🔴 **Không** đóng `:995` *(ảo hoá)*; ghi **điều kiện mở lại** nếu số mới đòi mở sớm
   - [ ] `lint_spine.py` trả **0 findings**
   - [ ] `.memlog.md` của architecture: một dòng `(version)` ghi số đo, một dòng `(decision)` ghi phán quyết thư viện editor
 
@@ -961,6 +1048,11 @@ và **cái gì sẽ vỡ** nếu một story sau thay nó bằng một thư vi�
 
 ### Review Findings
 
+> 🔵 **BẢN GHI LỊCH SỬ — đọc theo mốc `6a4e6b8` (2026-08-13), đừng trích số dòng từ đây.**
+> Ba số dòng bảng Deferred đã trôi kể từ đó: `:894/:897/:899` nay là **`:990/:993/:995`**
+> *(Sprint Change Proposal 2026-08-18c)*. Khối dưới đây giữ nguyên văn vì lịch sử của một
+> phát hiện là bằng chứng cho quyết định kế tiếp.
+>
 > Rà soát đối kháng ba tầng ngày 2026-08-13, mốc gốc `6a4e6b8`. 24 phát hiện còn lại sau gộp trùng,
 > 1 loại làm nhiễu. Mức nặng chấm theo hệ quả cho **người cầm story này đi tiếp**, không theo mức
 > tầng con tự gán. `[Decision]` phải giải trước `[Patch]`.
@@ -1012,7 +1104,7 @@ editor bằng doctrine `deferred-work.md:2261` *(không phải AD đánh số)*.
 
 | Thứ | Trạng thái | Nguồn |
 | --- | --- | --- |
-| Vùng gõ Editor *(một câu tại một thời điểm)* | **ĐÃ CÓ** — đo 6/6 trên hai engine | `EditorPanel.vue` · 2.3 §Task 0.1 |
+| Vùng gõ Editor | 🔵 **ĐỔI HÌNH DẠNG 2026-08-14** — ~~một câu `contenteditable` tại một thời điểm~~ → **mọi ô** của cột bản dịch luôn `contenteditable` | `GridPanel.vue` · 2.5b |
 | Đường flush AD-35 đủ năm vế (a)…(e) | **ĐÃ CÓ**, vế *"xác nhận segment"* chờ Story 2.5 | `editorFlush.ts` · `lib.rs:350` |
 | Thanh trạng thái *"Đã lưu N giây trước"* | **ĐÃ CÓ** | `src/StatusBar.vue` |
 | `PRAGMA synchronous = FULL`, có lưới | **ĐÃ ĐO** = `2` | `store_contract.rs` |
@@ -1022,7 +1114,7 @@ editor bằng doctrine `deferred-work.md:2261` *(không phải AD đánh số)*.
 | Bộ chạy trong WKWebView thật | **ĐÃ CÓ**, **chập chờn** (8 lượt: 6 xanh/2 đỏ), **không gõ được chữ** | `e2e/**` · `wdio.conf.mjs` |
 | Sáu số `Tuning` đã hiệu chỉnh | **CHƯA** — story này | `mod.rs:229-243` |
 | Ba hằng nhịp flush đã hiệu chỉnh | **CHƯA** — story này | `editorFlush.ts:43,56,78` |
-| Ảo hoá danh sách dài | **CHƯA CÓ**, và **không** thuộc story này | SPINE`:899` |
+| Ảo hoá danh sách dài | **CHƯA CÓ**, và **không** thuộc story này | SPINE`:995` |
 | Cột `segment.status` · bảng `segment_version` | **CHƯA CÓ** — Story 2.5 · 2.6 | AD-31 |
 
 ### Ranh giới AD — cái story này được phép và không được phép
@@ -1147,11 +1239,11 @@ Tệp **sửa** *(dự kiến — hình dạng cuối theo phán quyết Task 0 
 ```
 src-tauri/src/core/store/mod.rs        # Tuning::default + doc-comment "TẠM" → số đã đo
 src/panels/editorFlush.ts              # ba hằng + doc-comment "TẠM" → số đã đo
-ARCHITECTURE-SPINE.md                  # bảng Deferred: đóng :894 và :897 (+ bảng Stack nếu AC4 chốt "có")
+ARCHITECTURE-SPINE.md                  # bảng Deferred: đóng :990 và :993 (+ bảng Stack nếu AC4 chốt "có")
 architecture/.../.memlog.md            # một dòng (version) + một dòng (decision)
 _bmad-output/implementation-artifacts/2-2-ban-do-editor.html   # sửa lời khai NFR15 ở dòng 11
 _bmad-output/implementation-artifacts/deferred-work.md         # đóng mười món, mở món mới KÈM CHỦ
-src/panels/EditorPanel.vue             # CHỈ nếu Task 6 kết luận cần vá, và chỉ ba đường đã nêu tên
+src/panels/GridPanel.vue               # CHỈ nếu Task 6 kết luận cần vá, và chỉ ba đường đã nêu tên
 ```
 
 🔴 **Không** đụng: `src/layout/writeSchedule.ts` *(hằng của bố cục — Story 1.14; hành vi —
@@ -1169,7 +1261,7 @@ thường không thêm)*:
 | `check-commands.mjs` `VUE_FLOOR` (`:211`) · `check-i18n.mjs` (`:289`) | 13 | **16** tệp `.vue` |
 | `check-commands.mjs` `COMMAND_FLOOR` (`:226`) | 29 | — |
 | `check-commands.mjs` `CLICK_FLOOR` (`:244`) · `DISPATCH_FLOOR` (`:245`) | 17 · 23 | — |
-| `check-commands.mjs` `SELECTION_SURFACE_FLOOR` (`:1908`) | 7 | ⚠️ **đừng gỡ** lời gọi ở `EditorPanel.vue:67` |
+| `check-commands.mjs` `SELECTION_SURFACE_FLOOR` (`:2025`) 🔵 | **6** *(đo 2026-08-18; story ghi 7 ở `:1908` — cả sàn lẫn số dòng đã trôi)* | ⚠️ lưới đăng ký theo **CỘT**, không theo ô — `selectionContract.ts:112` có cổng đếm **tĩnh** |
 | `check-i18n.mjs` `RS_FLOOR` (`:279`) | 36 | **42** tệp `.rs` *(chú thích tại chỗ còn ghi 43 — số cũ, cổng đếm lúc chạy nên nó không sai lệch phép kiểm)* |
 | `check-layout.mjs` `FILE_FLOOR` (`:97`) | 43 | **52** tệp `src/**` |
 | `check-tokens.mjs` `FILE_FLOOR` (`:91`) · `COMPONENT_FILE_FLOOR` (`:92`) | 45 · 43 | — |
@@ -1189,13 +1281,15 @@ tiền tố `test_`.
 - AC nguyên văn — `_bmad-output/planning-artifacts/epics.md:2118-2149`
 - NFR2 — `epics.md:326` · NFR18 — `epics.md:368` · hợp đồng flush dạng bảng — `:415` · hàng *"Ngưỡng WAL + nhịp flush"* trong bảng NFR — `:454` · ghi chú cài đặt Epic 2 *(mũi thăm dò bắt buộc)* — `:830-836`
 - AD-1 — `ARCHITECTURE-SPINE.md:75-79` · AD-4 — `:95-101` · **AD-11 — `:153-157`** · **AD-12 — `:159-163`** · AD-21 — `:302-306` · AD-31 — `:368-392` · AD-34 — `:406-417` · **AD-35 — `:419-425`**
-- **Hàng Deferred phải đóng** — `ARCHITECTURE-SPINE.md:894` *(ngưỡng WAL + nhịp flush)* · `:897` *(thư viện editor)* · **hàng KHÔNG đóng** — `:899` *(ảo hoá danh sách dài)*
+- **Hàng Deferred phải đóng** — `ARCHITECTURE-SPINE.md:990` *(ngưỡng WAL + nhịp flush)* · `:993` *(thư viện editor)* · **hàng KHÔNG đóng** — `:995` *(ảo hoá danh sách dài)*
 - Khuôn đóng một hàng Deferred *(gạch ngang + ✅ Đã đóng)* — hàng HVTĐTD và hàng FR115, cùng bảng
 - `Tuning` sáu số tạm + doc-comment *"chủ sở hữu là Story 2.4"* — `src-tauri/src/core/store/mod.rs:62-68`, `:175-243` · `Store::write` — `:612-618` · `Store::checkpoint_stats` — `:677`
 - Luồng checkpoint, hai vế kích hoạt — `core/store/checkpoint.rs:286-315` · `CheckpointStats` — `:58-70`, `:163-170` · PASSIVE/TRUNCATE — `:329-390` · vì sao PASSIVE ở nền và TRUNCATE chỉ lúc đóng — `:1-34`
 - Ba PRAGMA + luật *"đặt rồi ĐỌC LẠI"* — `core/store/pragmas.rs` · `synchronous = FULL` có lưới — `src-tauri/tests/store_contract.rs::the_write_connection_fsyncs_the_wal_on_every_commit` · ngưỡng WAL thu nhỏ 64 KiB — `store_contract.rs:589-615`
 - Ba hằng nhịp flush — `src/panels/editorFlush.ts:43`, `:56`, `:78` · hình dạng AD-35 — `src/layout/writeSchedule.ts:31-97` · **cặp hằng của bố cục, KHÔNG đụng** — `:57`, `:67` · bảng hai chỗ dùng — `:32-33` · cổng đứng trên nó — `scripts/check-layout.mjs:288`
-- Ba đường nóng — `src/panels/EditorPanel.vue:892` *(`:data-caret`)* · `:294`, `:300` *(`restoreEditedText`)* · `:565`, `:602`, `:636` *(`nearestSentenceTo`)*
+- **Ba đường nóng** *(bề mặt lưới — thay 2026-08-18)* — `src/panels/GridPanel.vue:459`, `:766` *(dời con trỏ: `placeCaretAtPoint` + `ensureCaretNextFrame`)* · `:875`, `:885` *(`onSelectionChange` → `setEditorCaret`)* · `:843`, `:859` *(`restoreEditedText`)*
+- **Số mốc của bề mặt lưới** — `deferred-work.md:3245-3262` *(2.5b: 49.256 node · dời con trỏ **706–770 ms** ở 9.850 câu)* · `:3572-3583` *(2.5c: 39.400 phép đọc thuộc tính thêm)* · `:4707` *(2.11 chất thêm lên cùng đường)*
+- ~~Ba đường nóng cũ — `src/panels/EditorPanel.vue:892` · `:294`, `:300` · `:565`, `:602`, `:636`~~ *(bản ghi lịch sử — tệp không còn tồn tại)*
 - Móc e2e hai lớp AD-45 — `src-tauri/src/lib.rs:60-144` · `default_library_root` — `src-tauri/src/commands/project.rs:61-80` · `wire_exit_flush` — `lib.rs:343-350` · `RunEvent::Exit` — `:272-278`
 - `[profile.release]` *(`opt-level = "s"`, `lto`, `panic = "abort"`, `strip`)* — `src-tauri/Cargo.toml`
 - Fixture workspace + hai lựa chọn có chủ ý — `e2e/support/workspace.mjs` · giới hạn bộ e2e *(chập chờn, `element.click()` không trung thực, `$APPDATA`/Library root)* — `e2e/wdio.conf.mjs` §Giới hạn · chuột thật — `e2e/support/pointer.mjs`
@@ -1668,7 +1762,325 @@ một tài liệu markdown nhiều dòng ngắn, **không** phải văn xuôi d�
 **thật** và **lặp lại được**, nhưng nó là trần của *một hình dạng văn bản*, không của *một Chương
 tiểu thuyết cỡ đó*. Ghi ra để không ai đọc bảng NFR2 rộng hơn thứ nó đo.
 
+#### 🔴 RÀ ĐIỀU KIỆN KHỞI HÀNH LẠI 2026-08-18 — mốc gốc đã trôi 47 commit, và một NỬA bàn đo chết theo
+
+Chạy trước phép đo đầu tiên của lượt này, đúng luật *"kiểm điều kiện đo trước khi tin một số"*.
+Mốc gốc của story là `6a4e6b8` *(2026-08-13)*; `HEAD` hôm nay là `c097eb3` — **47 commit**, gồm trọn
+lượt correct-course 2026-08-14 thay bề mặt Editor.
+
+**Cái CÒN đứng — đo, không suy:**
+
+| Thứ | Trạng thái hôm nay | Bằng chứng |
+| --- | --- | --- |
+| Bàn đo | 🟢 **CÒN trong kho**, không mất theo scratchpad | `2-4-ban-do/` — 12 tệp, commit `93fb807` |
+| `cliclick` *(đường `mousedown` thật)* | 🟢 **đã cài** | `/usr/local/bin/cliclick` |
+| Bộ phân loại AC9 | 🟢 **7/7 xanh** chạy lại hôm nay | `./classify-selftest.sh` |
+| Nửa **IPC** của `bench.js` | 🟢 **còn sống** | `save_segment_targets` (`lib.rs:332`) · `put_config` (`commands/config.rs:145`) |
+| Sáu số `Tuning` · ba hằng flush | 🟢 **chưa dòng nào bị đổi** | `mod.rs:234-239` · `editorFlush.ts:43,56,78` |
+
+**Cái đã HẾT ĐÚNG — bốn món, mỗi món một phép đếm:**
+
+1. 🔴 **Nửa DOM của `bench.js` đo RỖNG.** `EditorPanel.vue` **không còn tồn tại** *(→ `GridPanel.vue`)*.
+   `.doc` và `.sent` có **0** chỗ sống trong `src/` — hai chỗ còn lại nằm trong **chú thích**
+   (`GridPanel.vue:839`, `:1879`, khối *"hoàn nguyên có lý do"*). Mà `bench.js:152` và `:199` mở đầu
+   bằng `document.querySelector('.doc')` rồi thoát với `KHÔNG THẤY .doc`. ⇒ ba đầu dò AC12 **và**
+   đầu dò trần dựng AC13 trả về **không gì cả**, không phải trả về một số xấu.
+2. 🔴 **Ba đường nóng của AC12 nay không còn ba.** `nearestSentenceTo` = **0** chỗ trong `src/`;
+   `:data-caret` chỉ còn trong một chú thích (`editorPanelState.ts:67`); **chỉ** `restoreEditedText`
+   còn sống (`GridPanel.vue:843`, watcher `:859`).
+3. 🔴 **Mốc so của AC13 mất hiệu lực theo CẤU TRÚC, không theo thời gian.** Retro Epic 2 §F6:
+   *"mọi số cũ đo trên mô hình «N `<span>` trong một dòng văn liên tục», mô hình đó không còn"*.
+   ⇒ Cột *300,1 ms Blink · 1.308,0 ms WebKit* không còn là thứ đặt cạnh được.
+4. 🔵 **Và đã có một số NFR2 MỚI mà tệp story này chưa biết.** Story 2.5b đo: một lượt **đổi con
+   trỏ** trên 9.850 câu = **706–770 ms**, trần NFR2 = 50 ms ⇒ **vượt ~15 lần**. Story 2.10 thêm hai
+   lệnh và 2.11 thêm một lượt chuyển, **cả hai đi qua đúng đường nóng đó**, cả hai ghi *"chủ vẫn là
+   Story 2.4"*. Retro Epic 2 §F6 gọi đúng tên tình trạng: *"con số lớn dần trong khi người chủ của
+   nó bị đóng băng"*.
+
+**Sàn AC15 đã trôi, và trôi xa:**
+
+| Đường | Story ghi | §Debug Log 08-13 | **Đo hôm nay 08-18** |
+| --- | --- | --- | --- |
+| `npm run test` | ≥ 32/32 | 40/40 *(6 tệp)* | **249/249 (21 tệp)** |
+| `cargo test --locked` | ≥ 319/0 | — | **409 xanh / 0 đỏ / 5 ignored** *(18 nhị phân)* |
+
+⚠️ Dùng sàn cũ để nghiệm thu là để một lượt mất **hàng trăm** ca đi qua cổng mà không ai thấy.
+
+⇒ **Phân đôi phạm vi, và đây là chỗ lượt này DỪNG để hỏi Ice:**
+
+| Nửa | Chạy được không |
+| --- | --- |
+| **NFR18** *(Task 4 · Task 5 · AC2/3/7/8/9)* | 🟡 **về nguyên tắc có** — nửa này *"KHÔNG CẦN bàn đo tiêm"* *(đã ghi ở lượt trước)*, và bộ phân loại vừa tự kiểm xanh. Nhưng nó vẫn lái GUI, mà các hằng GUI của `README.md` §Hằng số **hiệu chuẩn trên màn hình cũ**; và điều kiện *"độc chiếm phiên đăng nhập GUI"* là một cửa **mở bằng tay** |
+| **NFR2** *(Task 3 · Task 6 · AC1/12/13)* | 🔴 **KHÔNG** — đầu dò đo một cây DOM không còn tồn tại. Đây **không** phải chỗ chặn cũ *(«chưa tiêm được `bench.js`»)*; nó là một chỗ chặn **mới**, và nó nằm ở tầng **AC**, không ở tầng bàn đo |
+
+🔴 **Vì sao lượt này KHÔNG tự vá `bench.js` cho khớp `GridPanel.vue`:** AC12 gọi tên **ba** đường
+nóng cụ thể và AC13 gọi tên **một** phép so cụ thể. Cả bốn cái tên ấy nay trỏ vào hư không. Viết lại
+chúng là **đổi nội dung một AC**, tức một lượt correct-course của Ice — không phải một lượt sửa mã
+của dev *(`project-context.md` §Story và spec: *"Dev không sửa tài liệu quy hoạch"*)*.
+
+#### 🟢 LƯỢT HIỆU CHUẨN 2026-08-18 — bàn đo ĐỨNG LẠI trên bề mặt lưới, và nó tìm ra hai lỗi của chính nó
+
+Ice ký ba việc 2026-08-18: ① nửa NFR2 đi qua **correct-course**, ngoài lượt dev này; ② nửa NFR18
+chạy **một lượt hiệu chuẩn** trước khi đốt ≥120 lượt kill; ③ đường gõ **giữ ASCII**, phần tiếng
+Việt ghi nợ. Mục này ghi lượt ②.
+
+**Nhị phân được đo là bản dựng LẠI hôm nay**, không phải bản 13/8: `5.027.112 B`, 14:43, mới hơn
+`build.rs` *(cổng chống lớp lỗi «tài nguyên nhúng cũ» đã ghi tên ở lượt trước)*. Release nguyên vẹn
+— không `wdio`, không `debug-assertions`, `Cargo.toml` không đổi một dòng.
+
+**Ba lỗi của bàn đo, tìm bằng cách CHẠY nó, và cả ba đã vá:**
+
+| # | Lỗi | Vì sao nó nguy hiểm hơn vẻ ngoài | Vá |
+| --- | --- | --- | --- |
+| ① | `focus-segment.sh` dùng `sleep 2.4` | Chính `README.md` §Hằng số ghi *"≥ 4,5 s · 2,4 s cho **âm tính giả** ở cả 16 ứng viên"* — **số đã biết là hỏng vẫn nằm trong mã**. Bản đã commit sẽ báo *"không đặt được con trỏ"* trên mọi ứng viên, và lượt chẩn đoán sau sẽ đi vá **toạ độ** trong khi chỗ hỏng ở **nhịp** | → `4.5` |
+| ② | `grep -c … \|\| echo 0` ở **bảy** biến | `grep -c` in `0` **và** thoát mã 1 ⇒ `\|\| echo 0` nối dòng thứ hai ⇒ `perl` chết cú pháp ⇒ `BLURPCT` **RỖNG** ⇒ 🔴 **cổng mất tiêu điểm của AC21 không chặn gì**. Một lượt mất tiêu điểm sẽ đi qua như mẫu HỢP LỆ và số đo sẽ đổ cho sản phẩm một khoản mất dữ liệu do bàn đo gây ra. Lỗi này **đã có tên trong `README.md`** nhưng bản vá chưa bao giờ vào mã | bỏ `\|\| echo 0` |
+| ③ | `build-bench.sh:34` đọc `bench.js` từ scratchpad phiên 13/8 | Thư mục đó đã bị dọn ⇒ một tạo tác *đã lưu vào kho* vẫn **không dựng lại được** — đúng cái mà lượt lưu bàn đo vào kho tồn tại để chống | trỏ vào `2-4-ban-do/bench.js` |
+
+⚠️ Cả ba đều là **hàng rào báo sai**, đúng hạng lỗi mà §Hai lỗi của chính bàn đo đã ghi tên ba lần.
+Lượt đầu chạy với ② còn sống cho `blur=` **rỗng**; lượt sau khi vá cho `blur=0.0%` — tức tiêu điểm
+**thật sự** giữ được, chứ không phải *"không ai đo"*.
+
+**Hiệu chuẩn lại toạ độ — bằng một ẢNH CHỤP, không một lượt quét mù:**
+
+| Hằng | 13/8 *(bề mặt `EditorPanel.vue`)* | **18/8 *(bề mặt `GridPanel.vue`)*** | Phán quyết |
+| --- | --- | --- | --- |
+| Tab×5 tới ô đường dẫn · nút `(+85,+685)` | 5 · `(+85,+685)` | **y nguyên** | 🟢 form Library không đổi (`LibraryMode.vue:80,85,93,126`) |
+| Tab Workspace | `(+101,+46)` | **y nguyên** | 🟢 |
+| Ô gõ | `(+640,+165)` | 🔴 **`(+372,+170)`** | cột `[data-col="tgt"]` nay trải `+270…+474`; `+640` rơi vào panel **Tra cứu** |
+
+Số mới đo bằng **hai đường độc lập và chúng khớp**: ① ảnh `calib-3-workspace.png` cho tâm cột đích
+≈ `+372`; ② suy từ `grid-template-columns: 3px 30px 1fr 1fr 96px` (`GridPanel.vue:1645`) trên panel
+rộng ~589 điểm cho ≈ `+365`. ⇒ `focus-segment.sh` **trúng ngay ứng viên đầu tiên ở cả 4/4 lượt**.
+
+**Hai hàng rào, cả hai xanh, và chiều âm được tự kiểm ĐỎ-rồi-XANH trước khi tin:**
+`fence.sh snap before-2026-08-18` = **152 dòng** *(13/8 là 116 — thư viện Ice đã lớn thêm)*; một
+dòng giả thêm vào cho **đỏ**, mã thoát 1; sau cả lượt đo `diff` trả 🟢 **y nguyên từng byte**;
+chiều dương 🟢 — 3 tạo tác, tất cả trong `$HOME` nháp.
+
+##### 📊 SỐ SƠ BỘ NFR18 tại 4 MiB, TRÊN BỀ MẶT LƯỚI — n = 4, một điểm lưới
+
+| Nhãn | Đã bơm | Kho giữ tới | Cửa sổ đo được | `blur` |
+| --- | --- | --- | --- | --- |
+| `calib0818` lượt 1 | `[18]` | `[13]` | **7,394 s** | *(cổng còn hỏng)* |
+| `calib0818` lượt 2 | `[18]` | `[13]` | **7,282 s** | *(cổng còn hỏng)* |
+| `calib0818b` lượt 1 | `[15]` | `[9]` | **9,392 s** | **0,0 %** |
+| `calib0818b` lượt 2 | `[17]` | `[12]` | **9,048 s** | **0,0 %** |
+
+Hiệu chỉnh bắt buộc trước khi đọc: mốc bơm ghi **trước** lượt `osascript`, nên cửa sổ cộng luôn thời
+gian gõ ra chính câu đó. Đo phần thổi phồng: khoảng giữa hai lượt bơm ≈ **1,4 s**, nhịp người
+0,6–1,4 s ⇒ phần gõ ≈ **0,4 s**. ⇒ sau hiệu chỉnh: **6,88 · 6,88 · 8,99 · 8,65 s**.
+
+🔴 **Cả 4/4 vượt trần 5 s, và vượt cả `EDITOR_HARD_CAP_MS` — một hằng CỐ Ý không reset bởi phím gõ.**
+Kho tụt sau dòng gõ **5–6 câu** một cách nhất quán. `busy(p/g) = 0/0` ở cả bốn lượt ⇒ **không lượt
+checkpoint nào bị chặn**, nên chỗ trễ **không** nằm ở tranh chấp khoá.
+
+⚠️ **KHÔNG được đọc bảng trên thành một phán quyết NFR18, và có bốn lý do cụ thể:**
+1. **n = 4**, trong khi AC2 đòi **≥ 20 mẫu hợp lệ mỗi điểm lưới**. AC19 nguyên văn: *"nói cỡ mẫu ra,
+   đừng nói ổn định"*.
+2. **Một điểm lưới duy nhất** *(4 MiB mặc định)*. Lưới sáu điểm của Task 5 chưa chạy ⇒ chưa biết cái
+   đuôi này có treo trên `wal_threshold_bytes` hay không — đúng câu hỏi AC8 tồn tại để trả lời.
+3. `loadavg = 7,19` trên một máy **8 nhân** lúc đo *(AC22)*. Tải nền cỡ đó đủ để thổi số, và lượt
+   **đối chứng chi phí bàn đo** của AC21 **chưa chạy**.
+4. Số 13/8 *(trung vị 3,484 · max 6,538)* đo trên **bề mặt cũ**. Đặt hai bảng cạnh nhau là so hai
+   bề mặt **và** hai cỡ mẫu cùng lúc — 🔴 **cấm** kết luận *"lưới làm NFR18 xấu đi"* từ đây.
+
+⇒ Cái lượt này **đã** kết luận được, và chỉ chừng này: **bàn đo NFR18 đứng lại được trên bề mặt
+lưới**, đường GUI thông từ màn Library tới con trỏ trong ô gõ, hai hàng rào xanh, cổng AC21 sống.
+Đó đúng là câu hỏi mà lượt hiệu chuẩn được giao.
+
+#### 🟢 ĐỐI CHỨNG AC21 (2026-08-18) — bàn đo KHÔNG phải thứ đang bị đo, nhưng máy thì có tải
+
+Ice ký 2026-08-18: chạy đối chứng AC21 **trước** khi đốt ≥120 lượt kill, vì nó trả lời câu
+*"con số ~9 s là của sản phẩm hay của máy đang tải"*. Hai vế của AC21, cả hai đã chạy.
+
+##### Vế ① — đổi NHỊP LẤY MẪU, giữ nguyên mọi thứ khác
+
+🔧 Bản cũ **không chạy được phép thử này**: nhịp `stat()` và nhịp lấy mẫu tiêu điểm bị buộc vào
+**cùng** một vòng `sleep 1`, nên đổi cái này là đổi luôn độ phân giải của cổng AC21 — tức đổi
+**hai** biến. Đã tách: vòng vẫn chạy 1 s cho tiêu điểm, `stat()` chạy mỗi `WAL_EVERY` vòng.
+`WAL_EVERY=1` là nhịp **1000 ms mà AC21 ghim**, và mọi số chính đo ở nhịp đó.
+
+| Nhịp `stat()` | Cửa sổ mất dữ liệu đo được | Trung bình | n |
+| --- | --- | --- | --- |
+| **1000 ms** *(ghim)* | 7,394 · 7,282 · 9,392 · 9,048 s | **8,28 s** | 4 |
+| **4000 ms** *(đối chứng)* | 7,494 · 9,566 s | **8,53 s** | 2 |
+
+⇒ **Cửa sổ KHÔNG đổi theo nhịp lấy mẫu.** Độ tản **trong** mỗi nhóm *(7,3 → 9,6 s)* lớn hơn hẳn
+chênh lệch **giữa** hai nhóm *(0,25 s)*. Theo đúng tiêu chí AC21 — *"nếu số đổi theo nhịp lấy mẫu
+thì thứ đang được đo là bàn đo"* — vòng `stat()` **bị loại** khỏi danh sách nghi can.
+
+##### Vế ② — chi phí của chính bàn đo, cùng thời lượng, KHÔNG gõ
+
+Bốn nguồn chi phí của AC21, và trạng thái thật của từng nguồn ở nửa NFR18 hôm nay:
+
+| Nguồn | Có mặt không |
+| --- | --- |
+| vòng lấy mẫu frame *(rAF)* | **vắng** — `bench.js` chưa tiêm, và nửa NFR2 đã chuyển sang correct-course |
+| vòng `stat()` `.db-wal` | có — **đã bác ở vế ①** |
+| bộ bơm phím `osascript` | có — mỗi câu là **một tiến trình `osascript` mới**, đây là nguồn đắt nhất còn lại |
+| vòng đo tranh chấp CPU/I-O *(AC10 vế ②)* | **chưa dựng** |
+
+`ac21-control.sh`, ba chế độ, mỗi chế độ 25 s, đo `loadavg` 1 phút:
+
+| Chế độ | trước | sau | delta |
+| --- | --- | --- | --- |
+| ① máy trần *(không chạy gì)* | 7,57 | 6,96 | **−0,61** |
+| ② + vòng lấy mẫu | 6,96 | 6,96 | **+0,00** |
+| ③ + vòng lấy mẫu **và** bộ bơm phím | 6,96 | 6,12 | **−0,84** |
+
+⇒ **Chi phí của bàn đo nằm DƯỚI ngưỡng nhiễu của chính máy đo.** Chế độ nặng nhất cho `loadavg`
+**giảm**, trong khi máy trần tự trôi −0,61 — tức tín hiệu bàn đo nhỏ hơn biên độ trôi nền.
+
+🔴 **Nhưng vế ② chỉ bác được MỘT nửa câu hỏi, và nửa còn lại phải nói ra thay vì nuốt:** nó cho
+thấy **bàn đo** không tạo ra tải, nó **không** cho thấy **máy** đang rảnh. `loadavg` nền là
+**6–7 trên một máy 8 nhân** *(MacBookPro16,1, i9-9980HK)*, và tải đó đến từ phần mềm khác của Ice,
+không từ story này. Với một mệnh đề về **đuôi phân bố** như NFR2/NFR18, đó là một nhiễu có thật.
+⇒ Ghi vào báo cáo như một **điều kiện của phép đo**, và lưới sáu điểm nên chạy trên một máy rảnh
+hơn nếu muốn số đuôi mang nghĩa.
+
+##### Cái đối chứng này ĐÃ loại, và cái nó CHƯA loại
+
+| Nghi can cho cửa sổ ~8,3 s | Trạng thái |
+| --- | --- |
+| vòng `stat()` của bàn đo | 🟢 **bác** — đổi nhịp 4× không đổi phân bố |
+| bộ bơm phím `osascript` | 🟢 **bác** — chi phí dưới ngưỡng nhiễu |
+| mất tiêu điểm giữa phiên | 🟢 **bác** — `blur = 0,0 %` ở mọi lượt sau khi vá cổng |
+| tranh chấp khoá `busy_timeout` | 🟢 **bác** — `busy(p/g) = 0/0` ở mọi lượt |
+| `wal_threshold_bytes` | 🔴 **CHƯA BIẾT** — mới đo **một** điểm lưới *(4 MiB)*; đây đúng là câu hỏi AC8 tồn tại để trả lời |
+| tải nền của máy đo | 🔴 **CHƯA loại** — `loadavg` 6–7 trên 8 nhân |
+| đường flush của sản phẩm | 🔴 **CHƯA loại** — và nó là nghi can còn lại nặng nhất, vì `EDITOR_HARD_CAP_MS = 5000` là một trần **cố ý không reset bởi phím gõ** mà cửa sổ đo được đang vượt |
+
+#### 🟢 LƯỢT 2026-08-18 (b) — hai mảnh Task 5 KHÔNG cần máy rảnh, và một lỗi của chính lượt này
+
+Điều kiện đo hôm nay **cấm** cả hai nửa còn lại của story, và con số nói ra điều đó:
+
+| Lúc | `loadavg` | Nhân logic |
+| --- | --- | --- |
+| 15:49 | **162,88** / 106,59 / 69,77 | 16 |
+| 15:51 | **111,35** / 98,94 / 68,07 | 16 |
+
+Thủ phạm đo được: `Virtualization.framework` *(VM của Docker — 9,1 GB RSS, 111 % CPU)* · Brave ·
+Docker Desktop. ⚠️ Đối chiếu: lượt 18/8 (a) **đã gắn cờ AC22** ở `loadavg = 7,19`, và chính con số
+đó là lý do *"chưa loại được tải nền"*. Hôm nay cao hơn **~15 lần** con số đã bị gắn cờ.
+⇒ Chạy lưới sáu điểm hay chạy phiên NFR2 lúc này là sản xuất một bảng số không đọc được — cùng lớp
+lỗi mà §Điều kiện khởi hành đã đặt tên cho Task 1.0.
+
+**Vậy lượt này làm đúng hai mảnh của Task 5 mà điều kiện máy KHÔNG chạm tới**, và ghi rõ chúng nằm
+**ngoài trình tự** vì phần trong trình tự đang bị chặn:
+
+| Mảnh | Nghiệm thu |
+| --- | --- |
+| AC14 — con trỏ `:883` sai trong doc-comment | `grep -rn "ARCHITECTURE-SPINE.md:883" src/ src-tauri/` trả **0** |
+| Cổng máy cho bất biến ① của §mục 4 | `flush_cadence_contract.rs` — 5 ca, đỏ-rồi-xanh trên tệp thật |
+
+##### Con trỏ `:883` — xác minh lại từ nguồn, không tin số trong story
+
+`:990` **đọc lại từ chính SPINE** trước khi sửa: `:990` = hàng *"Ngưỡng kích thước WAL buộc
+checkpoint (AD-12) + nhịp flush cụ thể (AD-35)"* · `:993` = thư viện editor · `:995` = ảo hoá.
+Khớp References đã sửa của correct-course.
+
+🔵 Kèm một dòng tại chỗ ghi **tên hàng** vào chú thích. Lý do đo được, không phải gu: con trỏ này
+**đã trỏ sai một lần rồi** — cả ba con trỏ của story trôi cùng lượt (`:894/:897/:899` →
+`:990/:993/:995`). Một con trỏ chỉ có số sẽ trôi lần nữa và không ai tìm lại được; tên hàng thì
+`grep` ra.
+
+##### Cổng bất biến — chỗ khó không phải viết test, mà là KHÔNG dựng nguồn sự thật thứ hai
+
+Trước khi viết, hỏi đúng câu §Testing Rules bắt hỏi — *"mệnh đề này đã có chủ chưa"*. Đo:
+
+| Mệnh đề | Chủ đang sống |
+| --- | --- |
+| `EDITOR_IDLE_MS == 2000` · `EDITOR_HARD_CAP_MS == 5000` | `tests/frontend/editorFlush.test.ts:56-57` |
+| hành vi `createWriteSchedule` | `check-layout.mjs` Kiểm B |
+| `Tuning::default()` dựng đúng sáu số | `store_contract.rs` |
+| **quan hệ `idle_before_passive` ⟷ `EDITOR_IDLE_MS`** | 🔴 **KHÔNG AI** |
+
+⇒ Chỉ mối ghép **xuyên hai workspace** là chưa có chủ, và nó không thể có chủ ở một bên: vitest
+không thấy `Tuning`, test Rust không đọc TypeScript. Nên tệp mới ôm **đúng** mệnh đề đó.
+
+🔴 **Và lượt đỏ-rồi-xanh bắt được một lỗi của chính lượt này.** Bản đầu của tệp có
+`assert_eq!(declared_ms(&source, "EDITOR_IDLE_MS"), Ok(2000))` — tức **ghim giá trị**, đúng cái vừa
+tự nhắc là không được làm. Nó chỉ lộ ra khi lượt đỏ cho **hai** ca đỏ thay vì một: ca bất biến
+*(đúng)* và ca bộ bóc *(sai — nó đang canh một mệnh đề đã có chủ ở vitest)*. Hệ quả nếu để lại:
+lượt hiệu chỉnh của Task 5 phải sửa **hai** chỗ cho một con số, và chỗ thứ hai nằm ở workspace khác.
+⇒ Viết lại thành *"bóc được, đúng một khai báo"*, **không** ghim số. Sau khi sửa, lượt đỏ cho đúng
+**một** ca đỏ.
+
+⚠️ Ghi ra thay vì lặng lẽ sửa, vì bài học là của lớp lỗi chứ không của một dòng: *"một phép kiểm
+mới rất dễ vô tình trở thành nguồn sự thật thứ hai, và cách rẻ nhất để phát hiện là đọc xem lượt ĐỎ
+làm bao nhiêu ca đỏ"*.
+
+##### Nghiệm thu lượt này (AC15)
+
+`9/9` cổng đọc-tệp exit 0 · `npm run build` ✅ · vitest **249/249** *(21 tệp, không đổi — lượt này
+không thêm test frontend)* · `cargo test --locked` **414 xanh / 0 đỏ / 5 ignored** *(mốc gốc 409 ⇒
++5 của tệp mới, khớp)*.
+
+🔴 **Hai nửa còn lại của story KHÔNG nhúc nhích, và lượt này không tự chấm đạt cho món nào:** sáu số
+`Tuning` và ba hằng `editorFlush.ts` **chưa đổi một giá trị nào** — lượt này chỉ chạm doc-comment.
+Lưới sáu điểm vẫn chờ **Ice** và một cái máy rảnh; Task 3 · Task 6 vẫn chờ cùng điều kiện đó.
+
 ### Completion Notes List
+
+#### 📌 TRẠNG THÁI SAU LƯỢT 2026-08-18 — bàn đo đã đứng, lưới đã giao, story vẫn `in-progress`
+
+Bài học #6 của Epic 1: *"`in-progress` không phải chỗ đậu — để dở thì ghi **nguyên nhân cụ thể**"*.
+Nguyên nhân hôm nay **khác hẳn** nguyên nhân 13/8, và đó là điều đáng ghi nhất.
+
+**Ba chữ ký của Ice trong lượt này:**
+
+| # | Câu hỏi | Phán quyết |
+| --- | --- | --- |
+| ⑴ | AC12/AC13 gọi tên bốn thứ nay không còn tồn tại | **correct-course trước, dev đo sau** — nửa NFR2 ra khỏi lượt dev này |
+| ⑵ | Chạy lưới ngay hay hiệu chuẩn trước | **một lượt hiệu chuẩn**, rồi **đối chứng AC21**, rồi mới lưới |
+| ⑶ | `osascript keystroke` chỉ gõ được ASCII | **giữ ASCII**, phần tiếng Việt + IME + ca *xoá lùi* là **nợ có chủ** |
+
+**Cái đã đứng và lặp lại được sau lượt này:**
+
+| Việc | Trạng thái | Bằng chứng |
+| --- | --- | --- |
+| Nhị phân release **hiện tại** | 🟢 dựng lại | 5.027.112 B · 18/8 14:43 · mới hơn `build.rs` |
+| Đường GUI trên bề mặt **lưới** | 🟢 thông suốt | 6/6 lượt trúng con trỏ **ngay ứng viên đầu** |
+| Hàng rào dữ liệu thật | 🟢 hai chiều, tự kiểm **đỏ-rồi-xanh** | 152 dòng · `diff` y nguyên từng byte sau cả lượt đo |
+| Cổng AC21 *(mất tiêu điểm)* | 🟢 **sống** sau khi vá | `blur = 0,0 %` thay cho một trường rỗng |
+| Đối chứng AC21 hai vế | 🟢 xong | vòng `stat()` bị bác · chi phí bàn đo dưới ngưỡng nhiễu |
+| Môi trường + trạng thái máy | 🟢 ghi | `env-2026-08-18.txt` |
+| Bộ chạy trọn lưới 6 điểm | 🟢 **giao cho Ice**, ba hàng rào tự kiểm | `run-grid.sh` · `grid-table.sh` |
+| Mốc gốc AC15 | 🟢 **đo lại** | vitest **249/249** *(21 tệp)* · cargo **409/0/5** |
+
+🔴 **Không một dòng mã sản phẩm nào bị chạm trong lượt này** — `git status` chỉ có `_bmad-output/`.
+Sáu số `Tuning` và ba hằng `editorFlush.ts` **chưa đổi một dòng**, đúng như Task 5 chưa chạy.
+
+**Vì sao story CHƯA đóng được — hai chỗ, và chúng khác hạng nhau:**
+
+1. **Lưới sáu điểm chưa chạy.** Đây **không** phải một chỗ chặn kỹ thuật nữa — bộ chạy đã có, đã
+   tự kiểm, và điều kiện còn lại là **một cái máy rảnh trong 3,5 giờ**. Ice ký đường *"giao lệnh,
+   Ice tự chạy"*. ⇒ Chủ của bước kế: **Ice**.
+2. 🔴 **Nửa NFR2 đã ra khỏi phạm vi lượt dev, và nó cần một lượt correct-course.** AC12 gọi tên ba
+   đường nóng *(`:data-caret` · `restoreEditedText()` · `nearestSentenceTo()`)*, AC13 gọi tên phép
+   so với *300,1 ms Blink · 1.308,0 ms WebKit*. Đo hôm nay: `nearestSentenceTo` có **0** chỗ trong
+   `src/`; `:data-caret` chỉ còn trong một chú thích; chỉ `restoreEditedText` còn sống; và mốc so
+   của AC13 **mất hiệu lực theo cấu trúc** *(retro Epic 2 §F6)*. ⇒ Chủ: **Ice → correct-course**.
+
+⚠️ **Và một dữ kiện phải đi cùng mục 2, đừng để nó chìm:** NFR2 **đã có** một con số mới mà tệp
+story này ra đời trước khi biết — **706–770 ms** cho một lượt đổi con trỏ trên 9.850 câu *(Story
+2.5b)*, tức **~15× trần 50 ms**. Story 2.10 và 2.11 chất thêm lên **đúng đường nóng đó** và cả hai
+ghi *"chủ vẫn là Story 2.4"*. Retro Epic 2 §F6 gọi đúng tên: *"con số lớn dần trong khi người chủ
+của nó bị đóng băng"*. Lượt correct-course của mục 2 nên nhận luôn con số này làm điểm khởi hành.
+
+##### 🔴 Số NFR18 hiện có, và ranh giới của nó
+
+Sáu mẫu hợp lệ tại **một** điểm lưới *(4 MiB mặc định)*, trên bề mặt lưới, `blur = 0,0 %`,
+`busy = 0/0`: **7,28 · 7,39 · 7,49 · 9,05 · 9,39 · 9,57 s** *(cận trên; trừ ≈ 0,4 s thời gian gõ)*.
+
+⇒ Nói được: **6/6 vượt trần 5 s**, và vượt cả `EDITOR_HARD_CAP_MS = 5000` — một trần **cố ý không
+reset bởi phím gõ**. Bốn nghi can đã bị bác bằng đo *(vòng `stat()` · bộ bơm phím · mất tiêu điểm ·
+tranh chấp khoá)*.
+
+🔴 **Chưa nói được, và đây là ranh giới cứng:** n = 6 so với sàn **20 mẫu mỗi điểm** của AC2; **một**
+điểm lưới trong sáu; `loadavg` nền 6–7 trên máy 8 nhân chưa loại được. ⇒ **Cấm** khai đây là phán
+quyết NFR18, và **cấm** đặt cạnh bảng 13/8 *(trung vị 3,484 · max 6,538)* để kết luận *"lưới làm
+NFR18 xấu đi"* — hai bảng đó khác nhau **cả bề mặt lẫn cỡ mẫu**.
 
 #### 🔴 TRẠNG THÁI DỪNG 2026-08-13 — `in-progress`, và đây là nguyên nhân CỤ THỂ
 
@@ -1823,6 +2235,58 @@ chạm **mtime**, không chạm nội dung.
 
 ### File List
 
+Lượt 2026-08-18 **(b)** — hai mảnh Task 5 không cần máy rảnh:
+
+**Sửa:**
+```
+src/panels/editorFlush.ts    # AC14 — con trỏ SPINE :883 → :990 (2 chỗ) + tên hàng chép vào chú thích
+```
+
+**Thêm:**
+```
+src-tauri/tests/flush_cadence_contract.rs   # cổng máy cho bất biến idle_before_passive > EDITOR_IDLE_MS
+```
+
+⚠️ **Giá trị của sáu số `Tuning` và ba hằng `editorFlush.ts` KHÔNG đổi ở lượt này** — chỉ doc-comment.
+Sàn AC15 sau lượt: vitest 249/249 · cargo **414/0/5**.
+
+---
+
+Lượt 2026-08-18 **(a)** — 🔴 **0 tệp mã sản phẩm**. Toàn bộ nằm trong tạo tác của mũi thăm dò.
+
+**Sửa:**
+```
+_bmad-output/implementation-artifacts/2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi.md
+_bmad-output/implementation-artifacts/2-4-ban-do/README.md
+_bmad-output/implementation-artifacts/2-4-ban-do/focus-segment.sh      # nhịp 2,4 s → 4,5 s · toạ độ +640 → +372
+_bmad-output/implementation-artifacts/2-4-ban-do/kill-campaign-v2.sh   # vá cổng AC21 · tách nhịp stat() · ghi loadavg
+_bmad-output/implementation-artifacts/2-4-ban-do/build-bench.sh        # đường dẫn bench.js trỏ vào kho
+```
+
+**Thêm:**
+```
+_bmad-output/implementation-artifacts/2-4-ban-do/run-grid.sh           # bộ chạy trọn lưới 6 điểm (giao cho Ice)
+_bmad-output/implementation-artifacts/2-4-ban-do/grid-table.sh         # gom kết quả thành bảng AC8
+_bmad-output/implementation-artifacts/2-4-ban-do/ac21-control.sh       # đối chứng chi phí bàn đo
+_bmad-output/implementation-artifacts/2-4-ban-do/calib-shot.sh         # hiệu chuẩn toạ độ bằng ảnh chụp
+_bmad-output/implementation-artifacts/2-4-ban-do/env-2026-08-18.txt    # môi trường đo (AC19 · AC22)
+_bmad-output/implementation-artifacts/2-4-ban-do/.gitignore            # giữ tạo tác CHẠY ra ngoài index
+```
+
 ### Review Findings
 
 ### Change Log
+
+| Ngày | Việc |
+| --- | --- |
+| 2026-08-18 | **Rà điều kiện khởi hành lại sau 47 commit.** Mốc gốc `6a4e6b8` → `c097eb3`. Bàn đo còn trong kho; nửa **IPC** của `bench.js` còn sống; nửa **DOM** chết theo `EditorPanel.vue`. Sàn AC15 đo lại: **249/249** vitest · **409/0/5** cargo *(story ghi ≥32 / ≥319)*. |
+| 2026-08-18 | **Ba chữ ký của Ice**: ⑴ nửa NFR2 → correct-course · ⑵ hiệu chuẩn + đối chứng AC21 trước khi chạy lưới · ⑶ giữ đường gõ ASCII, ghi nợ phần tiếng Việt. |
+| 2026-08-18 | **Hiệu chuẩn lại bàn đo cho bề mặt lưới.** Ô gõ `(+640,+165)` → **`(+372,+170)`**, đo bằng hai đường độc lập khớp nhau. Hằng của màn Library và tab Workspace giữ nguyên. 6/6 lượt trúng ngay ứng viên đầu. |
+| 2026-08-18 | **Vá ba lỗi của chính bàn đo**, cả ba hạng *hàng rào báo sai*: `sleep 2.4` đã biết là hỏng vẫn nằm trong mã · `grep -c \|\| echo 0` làm **chết cổng AC21** · `pgrep -f` báo oan *"app đang chạy"*. Hai lỗi đầu **đã có tên trong README từ 13/8 mà chưa bao giờ được vá**. |
+| 2026-08-18 | **Đối chứng AC21, cả hai vế.** Đổi nhịp `stat()` 1000 → 4000 ms: cửa sổ **không** đổi theo nhịp. Chi phí bàn đo **dưới ngưỡng nhiễu**. ⇒ bác bốn nghi can; còn `wal_threshold_bytes` và đường flush. |
+| 2026-08-18 | **Giao bộ chạy trọn lưới sáu điểm** (`run-grid.sh` + `grid-table.sh`) — chạy lại được, tự trả lại hằng số, ba hàng rào **tự kiểm đỏ-rồi-xanh**. Chủ bước kế: **Ice**, khi máy rảnh 3,5 giờ. |
+| 2026-08-18 | Số NFR18 sơ bộ tại 4 MiB trên bề mặt lưới: **6/6 mẫu vượt trần 5 s**. Ghi kèm ranh giới — n=6 so với sàn 20, một điểm lưới trong sáu, tải nền chưa loại. **Chưa phải phán quyết.** |
+| 2026-08-18 | **Điều kiện đo bị bác bằng số, không bằng cảm giác:** `loadavg` **162,88 → 111,35** trên 16 nhân *(VM Docker 9,1 GB RSS)*, so với `7,19` mà AC22 đã gắn cờ ở lượt (a). ⇒ Lưới sáu điểm và phiên NFR2 **không chạy** lượt này. |
+| 2026-08-18 | **AC14 — con trỏ SPINE `:883` đã sai, sửa thành `:990`** ở `editorFlush.ts:35,62`; `grep` nghiệm thu trả **0**. Vị trí xác minh lại từ chính SPINE. Kèm tên hàng vào chú thích vì con trỏ chỉ-có-số đã trôi một lần. |
+| 2026-08-18 | **Dựng cổng máy cho bất biến ① của §mục 4** — `src-tauri/tests/flush_cadence_contract.rs`, 5 ca, đỏ-rồi-xanh trên tệp thật. Nó ôm **đúng** mối ghép xuyên hai workspace; ba mệnh đề đơn-ngôn-ngữ giữ nguyên chủ cũ. |
+| 2026-08-18 | 🔴 **Lượt ĐỎ bắt lỗi của chính bản test:** bản đầu ghim `Ok(2000)` ⇒ nguồn sự thật thứ hai cho một số đã có chủ ở vitest. Lộ ra vì lượt đỏ cho **hai** ca đỏ thay vì một. Đã viết lại thành *"bóc được, đúng một khai báo"*. |

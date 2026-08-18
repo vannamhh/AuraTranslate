@@ -4719,3 +4719,50 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
 
 - ⚠️ **`AD-48` chưa được soạn, và nó KHÔNG chết theo AC5.** Ice rút AC5 nhưng câu hỏi *"`⌘Z` làm gì trong ứng dụng này"* vẫn phải có một chỗ đứng: Epic 3 trở đi còn thêm thao tác rời rạc *(duyệt glossary hàng loạt FR53, điền sẵn từ TM FR58, đề xuất AI)*, và mỗi thao tác ấy sẽ hỏi lại đúng câu này. Không viết ra thì mỗi epic phải đo lại từ đầu — đúng chi phí mà 47 `AD` kia tồn tại để tránh. Nội dung nay **nhỏ hơn nhiều** so với hồ sơ gốc: một mệnh đề *(Epic 2 không có mô hình hoàn tác; đường quay lại là gọi lại chính lệnh; và đây là lý do)*, cộng một câu khai rằng **AD-3, AD-5, AD-31 không đổi một chữ** *(khuôn AD-47 đã dùng)*. Hồ sơ: `planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md` §11.4.
   **Chủ: Winston.** 🔴 Dev **không** tự soạn `AD` *(`project-context.md:461-463`)*.
+
+---
+
+## 🔵 2026-08-18 — Sprint Change Proposal 2026-08-18c: nửa NFR2 của Story 2.4 đã có AC SỐNG trở lại
+
+Ba mục dưới đây ghi **"Chủ: Story 2.4"** nhưng từ 2026-08-14 chúng trỏ vào **AC12/AC13 bản chết** —
+hai AC đó gọi tên `EditorPanel.vue` · `.doc` · `.sent` · `nearestSentenceTo()`, và cả bốn bị lượt
+correct-course hôm đó xoá. Retro Epic 2 §F6 gọi đúng tên tình trạng: *"không phải giao nợ, đó là
+**xếp nợ vào một cái hộp khoá**"*.
+
+Ice ký ngày 2026-08-18: AC12 và AC13 viết lại trên bề mặt lưới, và **AC1 mở rộng phủ cả đường dời
+con trỏ**. ⇒ Ba mục này nay trỏ được vào một AC **đang hoạt động**:
+
+| Mục | Nợ | Nay thuộc AC |
+| --- | --- | --- |
+| `:3245-3262` | 2.5b đo dời con trỏ **706–770 ms** ở 9.850 câu, vượt trần NFR2 ~15× | **AC1** *(vế mở rộng)* + **AC12** hàng ① + **AC13** *(mốc so)* |
+| `:3572-3583` | 2.5c thêm 39.400 phép đọc thuộc tính mỗi lượt dời con trỏ | **AC12** — đo trên cây **sau** 2.5c, so với 706–770 ms |
+| `:4707` | 2.11 thêm một đường nạp lại toàn bộ lưới vào cùng bề mặt | **AC12** hàng ② |
+
+🔴 **Và một hệ quả phải nói ra:** vì AC1 nay phủ đường dời con trỏ, nếu đường đó **không** hạ được
+xuống 50 ms trong phạm vi hằng số mà Story 2.4 được phép chạm, đó là ca *"một ngưỡng trượt một
+mình"* của **AC5** ⇒ dừng, báo Ice, **và Epic 2 dừng theo**. Cái giá đó đã được cân và ký.
+
+### Bản ghi lịch sử — ba ảnh bàn đo của Story 2.2
+
+`2-2-ban-do/ban-do-blink-light.png` · `ban-do-webkit-dark.png` · `ban-do-webkit-light.png` chụp bề
+mặt `EditorPanel.vue`, mà Story 2.5b khai `Supersedes:` **4/8 AC của Story 2.2**.
+
+⇒ Vế ① của **AC17** *(«chụp lại ba ảnh»)* được **BỎ** ngày 2026-08-18: chụp lại ảnh của một bề mặt
+đã bị thay là sản xuất bằng chứng cho một thứ không còn tồn tại. Ba tệp **giữ nguyên**, khai bằng
+chữ là **bản ghi lịch sử** — đúng khuôn action item **B5** của retro Epic 2.
+⚠️ Vế ② của AC17 *(lời khai NFR15 sai ở `2-2-ban-do-editor.html:11`)* thì **vẫn đứng** — nó không
+phụ thuộc bề mặt, và đã kiểm 2026-08-18 là còn nguyên.
+**Chủ: Story 2.4** *(vế ②)*.
+
+### 🟡 Hai tên panel chết NGOÀI phạm vi lượt này — giao cho B5
+
+Lượt rà 2026-08-18 sửa `epics.md:2204` *(AC4 của Story 2.4)* và hàng Deferred *"Thư viện editor"*
+của `ARCHITECTURE-SPINE.md`. Nhưng còn **hai** chỗ nữa gọi *"Panel Editor"* trong một mệnh đề
+**đang hoạt động**, và cả hai nằm ngoài phạm vi Ice ký *(rà 22 AC của Story 2.4)*:
+
+- `epics.md:477` — bảng giai đoạn, *"Panel Editor + AI Translation (BYOK/local) + Glossary…"*
+- `epics.md:1833` — một AC của story khác: *"bôi đen một cụm từ ở Panel AI Translation hoặc **Panel Editor**"*
+
+⚠️ Ghi ra thay vì tự sửa: `epics.md` là lượt riêng của Ice, và action item **B4** của retro Epic 2
+đã đóng vế Epic 3 + Epic 6 nhưng **sót Epic 2**. Hai chỗ này thuộc đúng lượt rà đó.
+**Chủ: Winston** *(action item **B5** — rà tồn dư tài liệu quy hoạch sau correct-course)*.

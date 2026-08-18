@@ -83,7 +83,9 @@ while [ "$valid" -lt "$NEED" ] && [ "$shots" -lt "$CAP" ]; do
 
   # mở Workspace rồi đặt con trỏ vào MỘT CÂU — cliclick phát mousedown THẬT.
   # `System Events ... click at` KHÔNG đặt được con trỏ vào contenteditable (đo được: kho trả 0).
-  # Toạ độ tương đối gốc cửa sổ, hiệu chuẩn bằng lưới 20 điểm: ô đầu dòng ở (+640, +165).
+  # Toạ độ tương đối gốc cửa sổ. 🔵 Hiệu chuẩn LẠI 2026-08-18: ô đầu dòng nay ở (+372, +170),
+  # không còn (+640, +165) — bề mặt đổi từ `EditorPanel.vue` sang lưới hai cột `GridPanel.vue`
+  # và `+640` nay rơi vào panel Tra cứu. Xem đầu `focus-segment.sh`.
   require_front $PID 6 >/dev/null || { echo "  🔴 mất tiêu điểm trước khi mở Workspace"; kill -9 $PID 2>/dev/null; continue; }
   cliclick c:$((WIN_X + 101)),$((WIN_Y + 46))      # tab Workspace
   sleep 4
@@ -105,11 +107,23 @@ while [ "$valid" -lt "$NEED" ] && [ "$shots" -lt "$CAP" ]; do
   TYPER=$!
 
   # lấy mẫu .db-wal CẢ HAI kho + tiêu điểm cửa sổ (AC10 vế ① · AC21)
+  #
+  # 🔵 Tách hai nhịp 2026-08-18 cho lượt ĐỐI CHỨNG của AC21. Bản cũ buộc hai phép lấy mẫu vào
+  # CÙNG một vòng `sleep 1`, nên không đổi được nhịp `stat()` mà không đổi luôn độ phân giải
+  # của cổng tiêu điểm — tức không đổi được MỘT biến. AC21 đòi đúng phép thử đó: *"nếu số đổi
+  # theo nhịp lấy mẫu, thì thứ đang được đo là bàn đo"*.
+  # ⇒ Vòng vẫn chạy mỗi 1 s cho tiêu điểm; `stat()` chỉ chạy mỗi `WAL_EVERY` vòng.
+  # `WAL_EVERY=1` là nhịp 1000 ms mà AC21 GHIM — mặc định, và mọi số chính đo ở nhịp đó.
+  WAL_EVERY="${WAL_EVERY:-1}"
   BLURF="$SCRATCH/.blur-$LABEL-$r"; : > "$BLURF"
-  ( while kill -0 $TYPER 2>/dev/null; do
-      printf '%s\t%s\t%s\t%s\n' "$r" "$(now)" \
-        "$(stat -f '%z' "$DB-wal" 2>/dev/null || echo 0)" \
-        "$(stat -f '%z' "$APPDATA/global.db-wal" 2>/dev/null || echo 0)" >> "$WALLOG"
+  ( k=0
+    while kill -0 $TYPER 2>/dev/null; do
+      k=$((k+1))
+      if [ $((k % WAL_EVERY)) -eq 0 ]; then
+        printf '%s\t%s\t%s\t%s\n' "$r" "$(now)" \
+          "$(stat -f '%z' "$DB-wal" 2>/dev/null || echo 0)" \
+          "$(stat -f '%z' "$APPDATA/global.db-wal" 2>/dev/null || echo 0)" >> "$WALLOG"
+      fi
       echo "$(frontmost)" >> "$BLURF"
       sleep 1
     done ) &
@@ -120,6 +134,11 @@ while [ "$valid" -lt "$NEED" ] && [ "$shots" -lt "$CAP" ]; do
 
   # AC10 vế ② — thời gian CPU TỪNG LUỒNG, ngay trước lượt kill
   ps -M "$PID" 2>/dev/null | awk -v r="$r" 'NR>1 && NF>=6 {print r"\t"NR-1"\t"$(NF-2)}' >> "$CPULOG"
+
+  # AC22: tải máy NGAY TRƯỚC lượt kill. Một phiên đủ dài để máy đổi trạng thái, và số đuôi là
+  # chỗ một lượt tải nền hiện ra trước tiên. Ghi ra thay vì để người đọc đoán.
+  LOADAVG=$(sysctl -n vm.loadavg | awk '{print $2}')
+  echo "$r\t$(now)\t$LOADAVG\t${WAL_EVERY}" >> "$SCRATCH/load-$LABEL.tsv"
 
   WALP=$(stat -f '%z' "$DB-wal" 2>/dev/null || echo 0)
   WALG=$(stat -f '%z' "$APPDATA/global.db-wal" 2>/dev/null || echo 0)
@@ -133,17 +152,27 @@ while [ "$valid" -lt "$NEED" ] && [ "$shots" -lt "$CAP" ]; do
   # 🔴 KHONG phan biet hoa thuong: `frontmost` tra ve `auratranslate` (chu thuong, ten nhi
   # phan), khong phai `AuraTranslate` (ten bundle). Ban truoc dung `grep -cv 'AuraTranslate'`
   # ⇒ MOI mau bi dem la mat tieu diem ⇒ blur 100% ⇒ bo sach moi luot. Hang rao bao oan chinh no.
-  OFF=$(grep -civ 'auratranslate' "$BLURF" 2>/dev/null || echo 0)
+  # 🔴 Vá 2026-08-18 — LỖI NÀY ĐÃ ĐƯỢC GHI TÊN Ở `README.md` §Hai lỗi của chính bàn đo, NHƯNG
+  # BẢN VÁ CHƯA BAO GIỜ VÀO MÃ. `grep -c` in ra `0` **và** thoát mã 1 khi không khớp gì ⇒
+  # `|| echo 0` nối thêm một dòng `0` nữa ⇒ biến đếm thành chuỗi HAI DÒNG ⇒ `perl` phía dưới
+  # gặp `100*0\n0/1` và chết cú pháp ⇒ `BLURPCT` RỖNG ⇒ phép thử `>5%` của AC21 không bao giờ
+  # đúng ⇒ **cổng mất tiêu điểm của AC21 không chặn gì cả**.
+  # ⇒ Đây đúng lớp lỗi "xanh rỗng": một lượt mất tiêu điểm giữa phiên sẽ đi qua như một mẫu
+  # HỢP LỆ, và số đo đọc ra sẽ đổ lỗi cho sản phẩm một khoản mất dữ liệu mà bàn đo gây ra.
+  # `grep -c` LUÔN in một số, kể cả khi bằng 0 — nên không cần đường lui nào.
+  OFF=$(grep -civ 'auratranslate' "$BLURF" 2>/dev/null); OFF=${OFF:-0}
   BLURPCT=$(perl -e "printf '%.1f', 100*$OFF/$TOT")
   rm -f "$BLURF"
 
   # ── chẩn đoán checkpoint, tách theo KHO (AC10) ───────────────────────────────
-  BUSYP=$(grep -c 'store\[project\].*blocked' "$LOGF" 2>/dev/null || echo 0)
-  BUSYG=$(grep -c 'store\[global\].*blocked'  "$LOGF" 2>/dev/null || echo 0)
-  PASP=$(grep -c 'store\[project\].*PASSIVE'  "$LOGF" 2>/dev/null || echo 0)
-  PASG=$(grep -c 'store\[global\].*PASSIVE'   "$LOGF" 2>/dev/null || echo 0)
-  THRP=$(grep -c 'store\[project\].*threshold' "$LOGF" 2>/dev/null || echo 0)
-  THRG=$(grep -c 'store\[global\].*threshold'  "$LOGF" 2>/dev/null || echo 0)
+  # 🔴 Cùng lỗi hai-dòng như `OFF` ở trên — sáu biến này đẻ ra 120 hàng rác trong TSV ở lượt
+  # 2026-08-13 và làm phép đếm `busy` VÔ GIÁ TRỊ (không phải bằng 0). Bỏ `|| echo 0`.
+  BUSYP=$(grep -c 'store\[project\].*blocked' "$LOGF" 2>/dev/null); BUSYP=${BUSYP:-0}
+  BUSYG=$(grep -c 'store\[global\].*blocked'  "$LOGF" 2>/dev/null); BUSYG=${BUSYG:-0}
+  PASP=$(grep -c 'store\[project\].*PASSIVE'  "$LOGF" 2>/dev/null); PASP=${PASP:-0}
+  PASG=$(grep -c 'store\[global\].*PASSIVE'   "$LOGF" 2>/dev/null); PASG=${PASG:-0}
+  THRP=$(grep -c 'store\[project\].*threshold' "$LOGF" 2>/dev/null); THRP=${THRP:-0}
+  THRG=$(grep -c 'store\[global\].*threshold'  "$LOGF" 2>/dev/null); THRG=${THRG:-0}
 
   # ── đọc kho bằng sqlite3 CHỈ ĐỌC, không mở app lại (Quyết định #4) ───────────
   # 🔴 Rut chi so LON NHAT trong TOAN BO van ban, khong phai chi so DAU TIEN cua moi segment.
