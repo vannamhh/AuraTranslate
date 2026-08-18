@@ -4656,5 +4656,15 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   ⚠️ **Chưa rõ phép kiểm đúng hình dạng gì** — *"mọi bề mặt đọc `segments` phải đi qua
   `editorHasLoaded`"* khó diễn đạt bằng một phép quét chuỗi mà không đỏ oan. Ghi ra để lần thứ ba
   không phải phát hiện lại từ đầu.
-  **Chủ: Ice phân định** — nó có đáng một phép kiểm, hay đáng một dòng trong `project-context.md`
-  §Critical Don't-Miss Rules và thế là đủ.
+  ~~**Chủ: Ice phân định** — nó có đáng một phép kiểm, hay đáng một dòng trong `project-context.md`
+  §Critical Don't-Miss Rules và thế là đủ.~~
+  → ✅ **ĐÃ ĐÓNG 2026-08-18 — Ice chốt: một dòng, KHÔNG một cổng.** Đã thêm vào
+  `project-context.md` §Critical Don't-Miss Rules ▸ *"Rỗng IM LẶNG bị cấm"* — đúng mục, vì đây là
+  một biến thể của lớp lỗi trung tâm chứ không một lớp mới.
+  🔴 **Ghi thẳng cái mà lượt đóng này KHÔNG mua được:** một dòng trong `project-context.md` là một
+  luật **agent đọc**, không một cổng **cưỡng chế**. Lần thứ ba vẫn vi phạm được mà không lượt CI
+  nào đỏ — khác với `check:commands` hay `check:layout`. Điều nó mua: lần thứ ba sẽ **nhận ra**
+  thay vì phát hiện lại từ đầu, và đó là thứ hai lần trước đều thiếu.
+  ⚠️ **Điều kiện mở lại:** nếu lớp lỗi này hụt **lần thứ ba**, thì bằng chứng đã đủ để không cần
+  bàn nữa — dựng phép kiểm, và dựng như một phép kiểm THÊM vào một cổng có sẵn, không một cổng
+  thứ mười hai *(cùng hình dạng với món nợ `--space-inline-sm` và `scroll-behavior`)*.

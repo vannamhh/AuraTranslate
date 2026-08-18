@@ -13,7 +13,7 @@ sections_completed:
     'critical_rules',
   ]
 status: 'complete'
-rule_count: 130
+rule_count: 131
 optimized_for_llm: true
 existing_patterns_found: 7
 ---
@@ -492,6 +492,11 @@ lỗi nào** và biểu hiện thành *"tra từ không ra kết quả"* — kh�
   chữ hoa có nghĩa (`API`, `Wikipedia`), 184 nhóm chỉ phân biệt nhau bằng chữ hoa. Dùng
   `headword IN (?1, ?2)` trong **một** truy vấn, không fallback dây chuyền. Phép hạ chữ
   thường phải **không phụ thuộc locale**.
+- 🔴 **Một danh sách rỗng KHÔNG tự nói vì sao nó rỗng — hỏi vị từ `…HasLoaded` TRƯỚC khi kết
+  luận.** Chưa nạp · đang chờ IPC · thật sự không có: chỉ ca thứ ba được phép nói *"không
+  có"*; hai ca kia mà nói thế là màn hình khẳng định dứt khoát một điều nó chưa biết. Các vị
+  từ ấy là hàm export nên **chỗ quên gọi vẫn biên dịch sạch, và không cổng nào canh** — đã
+  hụt **hai** lần: `hanVietPending` (1.16) và lệnh điều hướng (2.10, `editorHasLoaded`).
 
 #### 🔴 Dữ liệu người dùng — chỗ hỏng là VĨNH VIỄN
 
@@ -610,4 +615,4 @@ không xoá nó.)*
   mới · một mệnh đề ở đây hết đúng.
 - Luật đã trở nên hiển nhiên thì **gỡ** — độ dài của tệp này là chi phí thật ở mỗi lượt gọi.
 
-Last Updated: 2026-08-16
+Last Updated: 2026-08-18
