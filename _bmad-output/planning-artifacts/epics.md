@@ -2656,6 +2656,56 @@ So that mạch làm việc của tôi không bị cắt.
 
 ---
 
+### Story 2.12: Hạ tầng e2e và cổng còn thiếu
+
+**Covers:** đường đóng cho **11 món nợ hạ tầng e2e** của Epic 2 *(không FR mới)* · liên đới **AD-35**, **AD-45** · action item **B2** của retro Epic 2
+
+> ⚠️ **Story này sinh từ một action item retro, KHÔNG từ lượt quy hoạch gốc — ghi thẳng thay vì để nó trông bình thường.** Cùng khuôn Story 1.22: một cụm khuyết tật có tên đang sống trong một tệp retro mà **không tạo tác nào ở tầng quy hoạch chịu trách nhiệm cho chúng**. Khác một điểm, và điểm đó nặng hơn: cụm này sở hữu **11** món nợ và **không có ngày** cho tới khi cửa chặn ② ra đời.
+>
+> 🔴 **SỐ HIỆU `2.12` ĐƯỢC TÁI DÙNG.** Khối `~~Story 2.12: Sync Scrolling~~ — XOÁ` ngay dưới đây là một **bản ghi lịch sử** *(FR20 rút, Ice ký 2026-08-14)*. Hai story **không liên quan gì nhau**; slug trong `sprint-status.yaml` khác nhau nên hai khoá không đụng nhau.
+>
+> 🔴 **ĐÂY LÀ CỬA CHẶN ② — Epic 3 không mở trước khi story này chạy xong** *(Ice ký 2026-08-18)*. Thứ tự Ice chốt: **Story 2.4 → Story 2.12 → Epic 3.**
+
+As a người dựng AuraTranslate,
+I want bộ đo e2e nói thật và hai cổng còn thiếu đứng dậy,
+So that Epic 3 không dựng một cột dữ liệu mới lên trên một lưới nghiệm thu đang nói dối.
+
+**Vì sao nó là cửa chặn, đo được:** bộ e2e là lưới **DUY NHẤT** bắt được lỗi hình dạng dây — đã chứng minh **bốn** lần *(2.5: 74/74 vitest xanh trong khi `isConfirmed` luôn `false` trong app thật; 2.7: 382 Rust + 133 vitest đều xanh trong khi dây gãy)*. **Và cùng lúc** nó là một bộ đo nói dối: *"xanh riêng, đỏ trong bộ"* ở **năm** story *(2.6 · 2.8 · 2.9 · 2.10 · 2.11)*, 8 lượt trọn bộ = 6 xanh · 2 đỏ, trong đó **một lần đỏ chưa bao giờ được chẩn đoán**. Epic 3 thêm một cột dữ liệu mới *(Glossary)* và một kênh trang trí thứ hai lên **đúng** bề mặt đó.
+
+**Acceptance Criteria:**
+
+**Given** Vite đang chạy nhưng module graph đã vỡ *(vẫn trả 200 cho `/`)*
+**When** `devServerIsUp()` chạy
+**Then** nó trả `false`, và bộ e2e dừng với một câu nói **đúng nguyên nhân**
+
+**Given** hai spec chạy nối tiếp trong cùng một lượt trọn bộ
+**When** spec thứ hai bắt đầu
+**Then** không state cấp module nào của panel sống sót từ spec trước
+**And** điều đó đúng **do fixture**, không do mỗi spec tự gọi `window.location.reload()`
+
+**Given** một spec chờ một thay đổi trạng thái mà trạng thái cũ và mới có **cùng hình dạng DOM**
+**When** nó chờ
+**Then** nó chờ **trạng thái đích**, không chờ *"phần tử tồn tại"*
+
+**Given** một spec cần biết một lượt flush đã xong
+**When** nó chờ
+**Then** nó chờ một **sự kiện quan sát được**, không chờ một khoảng thời gian
+**And** không hằng số nào của **AD-35** bị nới
+
+**Given** một ô nhớ cấp module mới thêm vào một tệp state của panel
+**When** cổng chạy
+**Then** cổng **đỏ** nếu ô đó không đi qua hàm reset tương ứng, hoặc không có một **miễn trừ có tên**
+
+**Given** một cột mới của bảng `segment` ra đời qua một bước di trú
+**When** cổng chạy
+**Then** cổng **đỏ** nếu cột đó chưa xuất hiện ở mọi chỗ bắt buộc — **không chỉ** ở đường flush mà cổng-AC8 hiện canh
+
+**Given** bộ e2e trọn bộ chạy trên máy đã thoả điều kiện đã ký
+**When** chạy
+**Then** kết quả **tái lập được**, và mọi ca đỏ còn lại **có nguyên văn lỗi được bắt**
+
+---
+
 ### ~~Story 2.12: Sync Scrolling~~ — XOÁ
 
 > 🔵 **XOÁ KHỎI EPIC 2 NGÀY 2026-08-14** *(Sprint Change Proposal, Ice ký)*. Story này phục vụ **FR20**, và FR20 đã **rút**.
@@ -2665,6 +2715,52 @@ So that mạch làm việc của tôi không bị cắt.
 > ⚠️ **Rủi ro đã nêu trước khi chốt, ghi lại thay vì để trôi:** nếu Epic 4 dựng chế độ dịch **theo lô** *(`epics.md` §Epic 4 cho gọi AI "từng segment hoặc theo lô")* thì panel Đề xuất AI mang nội dung cả Chương, và nhu cầu cuộn cùng nhau **quay lại** — lúc đó **không FR nào chứa nó**. Món nợ **có chủ là Epic 4**, ghi ở `deferred-work.md`.
 >
 > ⇒ **Nhu cầu mà FR20 thật sự phục vụ không mất, nó được HÌNH DẠNG trả lời:** *"bấm câu gốc thì câu dịch sáng lên"* và *"mắt không phải tìm lại chỗ"* biến mất **thay vì phải cài** — cùng một hàng là cùng một câu. *(Nhu cầu liên kết bấm-để-đối-chiếu có thật — Ice hỏi 2026-08-14 — và `epics.md` **chưa từng có FR nào** cho nó.)*
+
+---
+
+### Story 2.13: Phân loại sổ nợ — 199 mục mồ côi và một luật đang bị phá
+
+**Covers:** đóng một **vi phạm luật đang sống** *(không FR mới)* · `project-context.md:447-448`
+
+> ⚠️ **Story này sinh từ một lượt ĐO, không từ lượt quy hoạch gốc.** Luật *"không có mục nào mồ côi"* đã tồn tại và đang bị phá **199** lần. Đếm thật trên 4.691 dòng của `deferred-work.md` *(2026-08-18, HEAD `4b30199`)*: **448** mục / 83 khối · **361** mở · **50** nửa 🟡 · **37** đóng ✅ · tỉ lệ đóng **8,3 %**.
+>
+> ⚠️ Retro Epic 2 **không sai** — con số *"~157 mục, 22 đóng"* của nó là **khoảng Epic 2**. Cả sổ lớn gấp gần **ba lần** khung đó. Hai con số đo hai thứ khác nhau.
+>
+> 🔴 **Quy ước `Chủ:` ĐANG HOẠT ĐỘNG** — Epic 2 = **65/81 (80 %)** mục mở có chủ; Epic 1 = **41/197 (21 %)**. ⇒ Đây là một khối **DI SẢN DÙNG MỘT LẦN** *(156 mục Epic 1 viết trước khi luật tồn tại)*, **không** phải một cơ chế còn thiếu. Đừng dựng một quy trình định kỳ cho một vấn đề dùng một lần.
+>
+> 🔴 **Thứ tự: sau Story 2.4 VÀ sau Story 2.12** *(Ice chốt 2026-08-18)*. Đây **không** phải cửa chặn Epic 3.
+
+As a người duy trì AuraTranslate,
+I want mọi món nợ đang mở có một chủ đọc được,
+So that sổ nợ trở lại là một hàng đợi có người phục vụ, thay vì một kho trung thực mà không ai đọc.
+
+**Phân bố 199 mục mồ côi:** 40 font/từ điển · 29 Windows *(→ B7)* · 10 nghiệm thu tay *(→ B10)* · 7 đo lại một con số · **113 cần đọc tay** *(33 cổng `check-*` · 17 test · 17 `src/` · 6 tài liệu · 4 CI · 36 không bám bề mặt nào)*.
+
+**Acceptance Criteria:**
+
+**Given** sổ nợ sau lượt này
+**When** đếm bằng lệnh ghi trong story
+**Then** số mục **MỞ** mà không có `Chủ:` = **0**
+
+**Given** một mục được chuyển sang ✅ ĐÃ ĐÓNG
+**When** đóng
+**Then** kèm một **phép kiểm đã chạy** *(lệnh + kết quả + ngày)*, không một suy luận từ việc story liên quan đã `done`
+
+**Given** một mục thuộc nhóm có chủ tự nhiên *(29 Windows → B7, 10 nghiệm thu tay → B10)*
+**When** giao chủ
+**Then** giao bằng một **tham chiếu**, không chép nội dung mục sang chỗ khác
+
+**Given** bất kỳ mục nào
+**When** xử lý
+**Then** **không mục nào bị XOÁ** — đóng bằng **nối tiếp**, đóng một nửa ghi **🟡 kèm phần còn hở**
+
+**Given** ai đó muốn kiểm lại con số
+**When** chạy một lệnh ghi trong story
+**Then** ra đúng bảng **trước** và **sau** lượt này, kèm ngày và HEAD
+
+**Given** một story tương lai thêm một mục nợ **không có chủ**
+**When** cơ chế đã ký chạy
+**Then** nó **bị bắt** *(hình dạng cơ chế — cổng tĩnh, một dòng luật, hay rút — là một quyết định của Task 0)*
 
 ---
 
