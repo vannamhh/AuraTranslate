@@ -80,7 +80,7 @@ Hai đường. Chúng cho **hai cái đĩa khác nhau**, và người dùng khô
 |---|---|---|
 | Việc làm | Gỡ `retired_at` của hai hàng cũ **và xoá** hàng mới | Chạy `split` trên hàng vừa gộp, tại đúng chỗ nối |
 | `segment.id` cũ | **Quay lại** | **Không bao giờ quay lại** |
-| Dữ liệu gắn theo id *(lịch sử phiên bản, trạng thái xác nhận, xuất xứ FR117, ghi nhớ proofreader)* | Còn nguyên | **Mất** — hai id thứ ba và thứ tư ra đời với lịch sử rỗng |
+| Dữ liệu gắn theo id *(lịch sử phiên bản, trạng thái xác nhận, xuất xứ FR117, ghi nhớ proofreader)* | Còn nguyên | **Mất** — hai id thứ ba và thứ tư ra đời với lịch sử rỗng 🔵 *(2026-08-18: hàng này ĐÚNG nhưng **thiếu vế nặng nhất** — đường (B) còn không trả lại **chính bản dịch**. Xem §9.2.)* |
 | Chỗ đánh dấu FR119 | Trỏ về đúng câu | Trỏ vào một câu **thứ ba** không ai từng thấy |
 | Số hàng trên đĩa sau một vòng gộp→hoàn tác | 3 *(2 sống + 1 xoá)* → 2 sống | **5** hàng, 3 về hưu |
 
@@ -186,3 +186,90 @@ chưa component nào đọc — đúng lớp "rỗng IM LẶNG" mà `project-con
 Không đề xuất một đường. Hai đường ở §3 được trình **cùng cái giá của chúng**, và cái giá nằm trên
 đĩa người dùng — đó là loại quyết định `project-context.md:464-466` giao cho Ice và cho một `AD`,
 không cho một lượt dev.
+
+---
+
+## 9. 🔵 Bổ sung 2026-08-18 — đo lại trên HEAD `91cfed1`, và MỘT VẾ BỊ THIẾU
+
+**Vì sao có mục này:** Ice yêu cầu một hồ sơ đủ để phân định. Lượt đo lại cho thấy §1–§7 **đứng
+nguyên**, nhưng bảng §3 **thiếu vế nặng nhất của đường (B)** — và vế đó đổi cái giá của nó về chất,
+không về lượng.
+
+### 9.1 Tiền đề của §1 — đo lại, **7/7 còn đúng**
+
+| Phép đo | Brief *(2026-08-17, `4d72cd4`)* | Hôm nay *(2026-08-18, `91cfed1`)* |
+|---|---|---|
+| `grep -c "^### AD-"` | 47 | **47** ✅ |
+| Cơ chế undo trong `src/` + `src-tauri/src/` | 0 | **0** ✅ *(1 dòng trúng là chú thích)* |
+| Command `Mod+Z` | 0 | **0** ✅ |
+| Nơi **ĐẶT** `retired_at` | 1 | **1** ✅ — `commands/segment.rs:2220` |
+| Bảng tham chiếu `segment_id` | — | **1** — chỉ `segment_version` |
+| Cột thật của `segment` | 13 | **13** ✅ *(8 gốc + `target_text` · `status` · `is_omitted` · `is_target_paragraph_end` · `translation_origin`)* |
+| Bước di trú `project.db` kế tiếp | 12 | **12** ✅ *(đã tiêu: 1·2·3·5·6·7·8…)* |
+
+⇒ **Không tiền đề nào của hồ sơ đã hết đúng.** Hai story chen vào giữa *(2.10, 2.11)* không chạm mô
+hình hoàn tác.
+
+### 9.2 🔴 VẾ BỊ THIẾU — đường (B) không trả lại chính **BẢN DỊCH**
+
+Bảng §3 nói (B) mất *"lịch sử phiên bản, trạng thái xác nhận, xuất xứ, ghi nhớ proofreader"*. Đúng,
+nhưng nó **giả định** hai hàng mới ít nhất mang lại **văn bản dịch cũ**. Đo trên `regroup.rs` thì
+không:
+
+| Đo | Kết quả |
+|---|---|
+| `split` chia gì | **chỉ `source_text`** — `chars[dau..cuoi]` *(`regroup.rs:278`)* |
+| `target_text` của mảnh **đầu** | **toàn bộ** bản dịch của hàng bị tách *(`:280-281`)* |
+| `target_text` của **mọi mảnh sau** | **RỖNG** |
+| `translation_origin` của mọi mảnh sau | **`""`** *(`ORIGIN_NONE`, `:302-306`)* — có doc-comment giải thích và nó **đúng cho ca tách thường**: một mảnh chưa có bản dịch thì chưa có xuất xứ để khai |
+
+⇒ **Một lượt `⌘Z` theo đường (B) trên một lượt gộp hai câu ĐÃ DỊCH cho ra:**
+**một** segment giữ **toàn bộ** bản dịch của cả hai, và **một** segment **rỗng**.
+
+🔴 **Đó không phải một lượt hoàn tác. Đó là một trạng thái sai nhìn thấy được trên màn hình** — và
+nó nằm trên đĩa vĩnh viễn. Cái giá của (B) không phải *"mất siêu dữ liệu"*; nó là **mất bản dịch của
+người dùng ngay trên bề mặt**.
+
+⚠️ **Ghi rõ để không đọc thành một lỗi:** `split` cư xử **đúng** cho việc nó được dựng — tách một
+câu nguồn chưa dịch. Vế thiếu là **không có** năng lực *"chia lại `target_text` tại chỗ nối"*, và
+`⌘Z` theo đường (B) đòi đúng năng lực đó. Đây là một **năng lực chưa dựng**, không một khuyết tật.
+
+⇒ **Đường (B) như mô tả ở §3 không cài được nếu không thêm một năng lực thứ ba** — và năng lực ấy
+lại đòi biết **chỗ nối nằm ở đâu trong bản dịch**, một thông tin **không có trên đĩa** *(gộp nối hai
+`target_text` và không lưu vị trí nối)*.
+
+### 9.3 Hai vế của bảng §3 nhẹ hơn brief hàm ý — đo được
+
+| Vế của §3 | Đo hôm nay |
+|---|---|
+| *"(B) mất **xuất xứ FR117**"* | ⚠️ **Nửa đúng.** Lượt **gộp** GIỮ xuất xứ *(`merge` → `merged_origin`, `regroup.rs:144-151`: mọi mảnh cùng giá trị ⇒ giữ; bất đồng ⇒ `ORIGIN_OTHER`)*. Cái mất nằm ở lượt **tách** ngược lại *(§9.2)*, và ở ca bất đồng thì xuất xứ riêng đã mất **ngay lúc gộp**, trước cả `⌘Z` |
+| *"(B) làm hỏng **chỗ đánh dấu FR119**"* | ⚠️ **Cái giá TƯƠNG LAI, không phải hôm nay.** `grep -rniE "bookmark\|danh_dau\|needsReview" src/ src-tauri/src/` = **0**. FR119 thuộc **C1/Library**, chưa dựng. Vế này vẫn thật, nhưng nó tới ở Epic 5, không ở Epic 2 |
+
+🔴 **Và một vế NẶNG HƠN brief nói:** `write_regroup` *(`commands/segment.rs:2234-2249`)* **không**
+chèn `status` ⇒ hàng mới mặc định `'draft'`. Cộng với AD-31 *(gộp không tạo `segment_version`)*, một
+lượt gộp **đã** làm mất trạng thái xác nhận và bỏ lại lịch sử ở hàng về hưu — **trước** khi ai bấm
+`⌘Z`. ⇒ **Chỉ đường (A) trả lại được thứ chính lượt gộp đã lấy đi.** Đường (B) không có đường nào
+với tới hai thứ đó, kể cả khi thêm năng lực chia lại `target_text`.
+
+### 9.4 ⇒ Câu hỏi §3 nên đọc lại thành một câu khác
+
+Sau khi đo, hai đường **không** phải hai cách cài cùng một tính năng. Chúng là **hai định nghĩa khác
+nhau của `⌘Z`**:
+
+| | Câu `⌘Z` thật sự hứa |
+|---|---|
+| **(A)** | *"Đưa đĩa về đúng trạng thái trước lượt gộp"* — gồm cả lịch sử và trạng thái xác nhận. Đòi một **ngoại lệ có tên của AD-3** |
+| **(B)** | *"Tháo nhóm vừa gộp"* — không hứa khôi phục gì. Đòi thêm **năng lực chia lại `target_text`**, và cần một thông tin **không có trên đĩa** |
+
+**Câu Winston cần Ice trả lời, gọn lại thành một:** `⌘Z` sau một lượt gộp là một lời hứa **khôi
+phục**, hay một lời hứa **tháo nhóm**? Mọi thứ còn lại — AD-3 có ngoại lệ không, bước di trú 12 có
+cần không, phạm vi ①/②/③ — đi theo câu đó.
+
+### 9.5 Thứ mục này **KHÔNG** làm
+
+**Không đề xuất một đường** — giữ nguyên §8. Số đo ở đây làm cái giá của (B) **nặng hơn** brief hàm
+ý, nhưng *"đắt hơn"* không phải *"sai"*: `project-context.md:464-466` — *"đừng loại một phương án chỉ
+vì nó đắt"*. Nếu Ice chọn (B) với lời hứa **tháo nhóm**, đó là một `AD` đứng được, và nó **rẻ hơn**
+một ngoại lệ của AD-3.
+
+**Không sửa `epics.md`** — khuyến nghị §7 *(giao 5/6 AC, AC5 thành nợ có chủ)* giữ nguyên.
