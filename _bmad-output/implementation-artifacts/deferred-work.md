@@ -4586,3 +4586,28 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   **Chủ: story đầu tiên phân xử "khoá bàn phím trong lúc một lượt ghi rời rạc đang bay"** *(cùng
   họ với `regroupInFlight` ở 2.8 — chỗ đó đã chọn **từ chối và kêu** thay vì nhập vào lượt đang
   bay; câu hỏi ở đây là ba lệnh điều hướng có phải theo cùng luật đó không)*.
+
+- 🔴 **Không cổng nào đối chiếu tên `var(--<token>)` với bảng token — một tham chiếu KHÔNG TỒN TẠI
+  là CSS chết im lặng.** Đo 2026-08-18 (lượt code review 2.10, sau khi Ice tìm ra bằng mắt): dải
+  tab Hán Việt của `GridPanel.vue` viết `gap: var(--space-inline-sm)`, và `inline-sm` **chưa bao
+  giờ** có trong khối `spacing` của `tokens.json` *(đúng chín khoá)*. `applyTheme` phát
+  `--space-<tên>` từ **chính** khối đó (`tokens/index.ts:106-107`) ⇒ biến không được đặt ⇒ **cả**
+  khai báo `gap` không hợp lệ ⇒ `gap` về `normal` = **0** ⇒ hai tab *"Trung"*/*"Hán Việt"* dính
+  nhau. Sống từ `ca33072` (Story 2.5b, 2026-08-15) tới 2026-08-18: **ba story, mười một cổng, một
+  lượt code review ba tầng — tất cả xanh.**
+  ⚠️ Vì sao `check:tokens` không thấy: Kiểm B đọc CSS để bắt **màu viết thẳng** *(hướng ngược —
+  giá trị đáng lẽ phải là token)*. Không phép kiểm nào đi hướng còn lại *(tên token phải có thật)*.
+  ⇒ Hai hướng là **hai** mệnh đề, và hôm nay chỉ một hướng có chủ.
+  🔵 Ca cụ thể **đã vá** *(hoàn nguyên về `--space-panel-inline`, giá trị chạy được từ Story 1.16 —
+  xem khối lý do ở `GridPanel.vue::.tabs`)*, nhưng **lớp lỗi thì chưa có lưới nào.**
+  ⚠️ Đo kèm, vì nó nói phạm vi thật của món nợ: đối chiếu chín khoá `spacing` với mọi `--space-*`
+  trong `src/**` ⇒ `inline-sm` là ca **duy nhất** của toàn cây hôm nay. Bốn khoá khai mà không dùng
+  (`gutter-width` · `read-measure-lg/md/sm`) — **không** phải lỗi, nhưng phép kiểm mới nên báo
+  chúng ở mức ghi chú chứ đừng làm đỏ, kẻo nó thành một cổng ai cũng học cách bỏ qua.
+  🔴 **Đây là một phép kiểm THÊM VÀO `check-tokens.mjs`, KHÔNG một cổng thứ mười hai** — thêm cổng
+  là sửa **ba** danh sách (`package.json` · `ci.yml` · `.githooks/pre-push`) và `check:gates` canh
+  cả ba. Phạm vi đủ nhỏ: đọc bảng token, quét `--<tiền tố>-<tên>` trong `src/**/*.vue` + `*.css`,
+  đỏ ở một tên không có khai báo. Cộng một phép **tự kiểm chứng minh nó đỏ được** (luật của một cổng).
+  **Chủ: một story hạ tầng cổng** *(cùng chỗ với món nợ `scroll-behavior` ở khối 2-10 phía trên —
+  hai món nợ này là **cùng một** hình dạng: một quy ước không ai cưỡng chế, và cả hai đỏ được bằng
+  một phép quét chuỗi trên `src/**`)*.
