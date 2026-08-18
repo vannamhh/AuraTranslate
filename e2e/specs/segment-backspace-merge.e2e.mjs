@@ -39,6 +39,7 @@
  * thay vì `"Slash"`, làm `⌘/` câm một lượt)*. Ở đây nhánh sản phẩm đọc `event.key`, và một sự
  * kiện tổng hợp mang đúng trường đó.
  */
+import { waitForGridRows } from '../support/gridWait.mjs'
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
 import { realClick } from '../support/pointer.mjs'
 
@@ -113,24 +114,17 @@ async function caretDauO(idSegment) {
  * mệnh đề đang kiểm — nên chờ nó là hợp lệ, khác hẳn việc nới một ngưỡng cho hết đỏ.
  */
 async function doiLuoiCo(soHang) {
-  await $('[data-col="src"]').waitForExist({ timeout: 30_000 })
-  await browser.waitUntil(async () => (await chupLuoi()).soHang === soHang, {
-    timeout: 30_000,
-    timeoutMsg:
-      `Lưới không hiện đúng ${soHang} hàng sau 30 giây.\n` +
-      'Ứng viên thường nhất: Chương của Tác phẩm TRƯỚC còn nằm trên lưới — fixture không\n' +
-      'reset state panel (deferred-work.md, món "bộ e2e chập chờn").',
-  })
+  // 🔵 **STORY 2.12 · AC3** — khuôn tự vá tại chỗ nay đi qua helper dùng chung
+  // `support/gridWait.mjs`, để chỗ thứ tư không phải phát hiện lại cùng một điều.
+  await waitForGridRows(soHang)
 }
 
 describe('Story 2.9 — gộp bằng Backspace ở đầu ô, trong WKWebView thật', () => {
   it('🔴 AC1+AC4 — Backspace ở đầu ô gộp với câu trên, và thanh trạng thái NÓI RA hệ quả', async () => {
     await openWorkspaceWithWork('Story 2.9 — Backspace gộp', '一。二。三。')
-    // Cùng lượt nạp lại của `grid-empty-cell.e2e.mjs`, cùng lý do (state module-level rò qua
-    // các phiên app vì `$APPDATA` dùng chung). Vá của BÀN ĐO, không của sản phẩm.
-    await browser.execute(() => {
-      window.location.reload()
-    })
+    // 🔵 **STORY 2.12 · AC2 — lượt `reload()` ở đây ĐÃ GỠ 2026-08-18.**
+    // Fixture `openWorkspaceWithWork` nay tự dọn state panel bằng `resetPanelState()` (cầu
+    // `import()` gọi thẳng năm hàm `reset*`, quyết định #5(b) Ice ký). Vá tại chỗ hết việc.
     await doiLuoiCo(3)
 
     const truoc = await chupLuoi()
@@ -193,9 +187,9 @@ describe('Story 2.9 — gộp bằng Backspace ở đầu ô, trong WKWebView th
     // trước story này: `editorRegroupError` được export mà không component nào đọc, nên người
     // dùng bấm `Backspace` và **không có gì xảy ra**.
     await openWorkspaceWithWork('Story 2.9 — đối chứng âm', '一。二。三。')
-    await browser.execute(() => {
-      window.location.reload()
-    })
+    // 🔵 **STORY 2.12 · AC2 — lượt `reload()` ở đây ĐÃ GỠ 2026-08-18.**
+    // Fixture `openWorkspaceWithWork` nay tự dọn state panel bằng `resetPanelState()` (cầu
+    // `import()` gọi thẳng năm hàm `reset*`, quyết định #5(b) Ice ký). Vá tại chỗ hết việc.
     await doiLuoiCo(3)
 
     const truoc = await chupLuoi()
@@ -294,9 +288,9 @@ describe('Story 2.9 — gộp bằng Backspace ở đầu ô, trong WKWebView th
     // Câu đầu DÀI có chủ ý — cùng lý do 2.8 đã ghi: tâm ô phải rơi vào GIỮA CHỮ, không vào
     // khoảng trống sau chữ (chỗ đó cho chỗ cắt = cuối câu, và Rust từ chối đúng luật).
     await openWorkspaceWithWork('Story 2.9 — cử chỉ chỗ cắt', '一二三四五六七八九十甲乙丙丁戊己庚辛。五。')
-    await browser.execute(() => {
-      window.location.reload()
-    })
+    // 🔵 **STORY 2.12 · AC2 — lượt `reload()` ở đây ĐÃ GỠ 2026-08-18.**
+    // Fixture `openWorkspaceWithWork` nay tự dọn state panel bằng `resetPanelState()` (cầu
+    // `import()` gọi thẳng năm hàm `reset*`, quyết định #5(b) Ice ký). Vá tại chỗ hết việc.
     await doiLuoiCo(2)
 
     const truoc = await chupLuoi()

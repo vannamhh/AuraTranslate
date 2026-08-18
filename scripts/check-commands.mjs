@@ -221,7 +221,12 @@ const VUE_FLOOR = 13 // số THẬT 2026-08-11 (sau Story 1.21): 15 tệp `.vue`
 // ⇒ 36 → **37**. Sàn 30 nay là 81,1%, vẫn trong dải ~81–85% mà doc-comment trên đặt ra.
 // ⚠️ Sàn là **cận dưới**: bớt tệp không làm cổng đỏ, nó chỉ làm sàn vô nghĩa — nên lượt đếm
 // lại này là bắt buộc kể cả khi kết luận là "giữ nguyên".
-const TS_FLOOR = 30 // số THẬT 2026-08-14 (sau Story 2.5b): 37 tệp `.ts` — 30/37 = 81,1%
+// 🔴 NÂNG 2026-08-18 (Story 2.12 · Task 7.5) — số thật lên **39**, nên sàn 30 tụt xuống
+// **76,9%**, dưới dải ~81–85% mà chính doc-comment trên đặt ra.
+// ⚠️ **Sàn này KHÔNG nằm trong việc story 2.12 được giao** — Task 7.5 chỉ nêu đích danh
+// `check-layout.mjs`. Nó lòi ra vì lượt đo lại của Task 7.5 đếm CẢ HAI sàn đọc `src/**` thay
+// vì đúng một, và bỏ qua nó sau khi đã thấy thì đúng bằng việc biết một cổng đã tắt mà im.
+const TS_FLOOR = 33 // số THẬT 2026-08-18 (Story 2.12): 39 tệp `.ts` — 33/39 = 84,6%
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
  * hai `layout.preset_*` · **ba** `layout.toggle_*` *(🔵 bốn → ba, Story 2.5b)* · hai

@@ -79,6 +79,28 @@
  *    mẫu đã lừa một lần. Ai gặp một lượt đỏ không tái lập được: **bắt nguyên văn trước**,
  *    đừng chạy lại cho tới khi xanh rồi đi tiếp.
  *
+ * 🔵 **CẬP NHẬT 2026-08-18 (Story 2.12) — bản ghi "8 lượt = 6 xanh · 2 đỏ" ở trên ĐÃ HẾT
+ *    ĐÚNG.** Có một lượt trọn bộ **THỨ CHÍN**, ghi ở `deferred-work.md`: **8 passed / 3
+ *    failed, 18m51s**. Số thật hôm nay: **9 lượt = 6 xanh · 3 đỏ**.
+ *      - `editor-typing-flush` — xanh ở lượt chạy lại.
+ *      - `attribution-focus` *(lần đỏ ② ở trên)* — nay có **thêm một vế chẩn đoán, chưa phải
+ *        một nguyên nhân**: nó xanh **4/4 khi chạy MỘT MÌNH trên CẢ HAI cây** *(cây story và
+ *        baseline `5d94ba1`)*, tức nó đỏ **chỉ trong lô**. Nguyên nhân **vẫn chưa ai đặt tên**.
+ *      - `segment-navigation` — đỏ trong lô **trên cả BASELINE** *(before-hook hết 60 s chờ 40
+ *        hàng)*. Chạy một mình: **9/10** trên cây story so với **5/5** trên baseline.
+ *        🔴 `1/10` so với `0/5` **không phân biệt được hai cây** — không chứng minh có hồi quy,
+ *        và cũng không chứng minh không có.
+ *
+ * 🔵 **VÀ BỐN NGUỒN NHIỄU ĐÃ CÓ BẢN VÁ, 2026-08-18 (Story 2.12 · AC1-AC4):**
+ *    `devServerIsUp` nay đi trọn module graph *(`support/devServerHealth.mjs`)* · fixture dọn
+ *    state panel bằng cầu `import()` *(`support/panelReset.mjs`)* · khuôn chờ trạng thái đích
+ *    *(`support/gridWait.mjs`)* · chờ mốc lưu thay vì `pause(FLUSH_WAIT_MS)`
+ *    *(`support/flushWait.mjs`)*.
+ *    🔴 **ĐỪNG ĐỌC BỐN DÒNG TRÊN THÀNH "BỘ ĐO ĐÃ NÓI THẬT".** Chúng gỡ bốn nguồn nhiễu **đã
+ *    đặt tên được**; mệnh đề *"kết quả tái lập được"* là một phép **ĐO**, và phép đo đó **chưa
+ *    chạy một lượt nào** — AC7 và Task 8.4 của Story 2.12 hoãn theo chữ ký #0 của Ice, chờ
+ *    Story 2.4 đóng. Bản ghi này sẽ được nối tiếp ở lượt đo ấy, **không** bị viết đè.
+ *
  * 🔴 **KHÔNG chạy song song (`maxInstances: 1`), và đó là một quyết định, không một chỗ
  *    chưa làm tới.** Hai lý do, lý do đầu là một hồi quy **đúng theo cấu tạo** chứ không
  *    một rủi ro cần đo:
@@ -101,6 +123,11 @@ import { fileURLToPath } from 'node:url'
 import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { spawn } from 'node:child_process'
+import {
+  crawlModuleGraph,
+  describeBrokenGraph,
+  selfCheckDevServerHealth,
+} from './support/devServerHealth.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -198,6 +225,52 @@ async function devServerIsUp() {
 }
 
 /**
+ * Một module qua dây, ở hình dạng mà [`crawlModuleGraph`] nhận.
+ *
+ * ⚠️ **20 giây, không 1 giây.** Đo 2026-08-18: lượt biến đổi đầu tiên của `/src/main.ts`
+ * trên một Vite nguội **vượt 3 giây** và trượt timeout — tức một trần chật biến một Vite
+ * hoàn toàn lành thành *"hấp hối"*. Đó đúng là chiều đỏ oan, và một phép kiểm đỏ oan sẽ
+ * bị nới cho hết đỏ.
+ */
+async function fetchDevModule(path) {
+  const res = await fetch(`${DEV_URL}${path}`, { signal: AbortSignal.timeout(20_000) })
+  return {
+    status: res.status,
+    contentType: res.headers.get('content-type'),
+    body: await res.text(),
+  }
+}
+
+/**
+ * 🔴 **AC1 — Vite ĐANG CHẠY không đồng nghĩa app NẠP ĐƯỢC.**
+ *
+ * [`devServerIsUp`] ngay trên chỉ trả lời *"có ai đang nghe cổng không"*, và nó phải giữ
+ * đúng vai hẹp đó: vòng chờ 60 giây dưới kia hỏi **mỗi 500 ms**, nên nó cần một phép hỏi
+ * rẻ. Phép kiểm ĐẮT — đi trọn module graph — chạy **đúng một lần**, sau khi đã có người
+ * phục vụ, và nó là thứ quyết định bộ có được chạy tiếp hay không.
+ *
+ * Số đo dựng nên quyết định này nằm ở doc-comment của `support/devServerHealth.mjs`; hai
+ * dòng đáng nhắc lại tại chỗ:
+ *   · `/` giống nhau **tới từng byte** giữa Vite lành và Vite hấp hối ⇒ `res.ok` không thể
+ *     biết gì, và bản cũ chỉ có đúng `res.ok`;
+ *   · lượt duyệt tốn **270 ms** (ấm) / **4.129 ms** (nguội) — và khoản nguội là chi phí
+ *     **dời chỗ**, không chi phí thêm: nó làm ấm Vite trước khi app mở.
+ *
+ * @throws {Error} kèm tên module gãy — AC1 vế *"nói ĐÚNG nguyên nhân"*
+ */
+async function assertModuleGraphHealthy() {
+  // Phán quyết phải chứng minh nó đỏ được TRƯỚC khi ai tin một lượt xanh của nó.
+  await selfCheckDevServerHealth()
+
+  const started = Date.now()
+  const { visited, bad } = await crawlModuleGraph(fetchDevModule)
+  const ms = Date.now() - started
+
+  if (bad.length > 0) throw new Error(describeBrokenGraph(bad, visited.length))
+  console.log(`[e2e] module graph lành — ${visited.length} module, ${ms} ms.`)
+}
+
+/**
  * Nhị phân được lái.
  *
  * 🔴 `debug`, KHÔNG `release`, và hai lớp gác nói cùng một câu: plugin WebDriver đứng
@@ -250,6 +323,10 @@ export const config = {
 
     if (await devServerIsUp()) {
       console.log(`[e2e] ${DEV_URL} đã có người phục vụ — dùng lại, KHÔNG dựng thêm.`)
+      // 🔴 Dùng lại KHÔNG có nghĩa là tin. Một Vite của ai đó để mở từ trước là đúng chỗ
+      // graph vỡ hay bị bỏ quên nhất — nó không được dựng bởi lượt chạy này nên không ai
+      // vừa nhìn thấy nó lành.
+      await assertModuleGraphHealthy()
       return
     }
     console.log(`[e2e] dựng Vite ở ${DEV_URL}…`)
@@ -260,7 +337,10 @@ export const config = {
     })
     const deadline = Date.now() + 60_000
     while (Date.now() < deadline) {
-      if (await devServerIsUp()) return
+      if (await devServerIsUp()) {
+        await assertModuleGraphHealthy()
+        return
+      }
       await new Promise((r) => setTimeout(r, 500))
     }
     throw new Error(

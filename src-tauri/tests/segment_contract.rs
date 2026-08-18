@@ -6278,3 +6278,134 @@ fn the_grid_stops_showing_a_row_the_moment_a_real_merge_or_split_retires_it() {
 
     cleanup(&root);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 2.12 · AC6 — LƯỚI TRỌN HÀNG CHO ĐƯỜNG GHI **THỨ HAI**
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 **Mọi cột của một hàng `segment` MỚI do `write_regroup` sinh ra phải được đặt CÓ CHỦ Ý.**
+///
+/// ## Lỗ đã ĐO ĐƯỢC, không một khả năng lý thuyết
+///
+/// Bảng `segment` có **đúng hai** chỗ `INSERT` (`grep -rn "INSERT INTO segment" src-tauri/src`):
+///   · `commands/segment.rs:132`  — đường **nhập**;
+///   · `commands/segment.rs:2234` — `write_regroup`, tức **gộp/tách segment**.
+///
+/// Cổng-AC8 (`a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else`) canh
+/// đường **flush**, và chỉ đường đó. Tám ca `regroup` đã có trong tệp này chạy trên **hàm
+/// thuần** `core::segment::regroup` — chúng **không chạm đĩa**, nên chúng không thấy câu
+/// `INSERT` một lần nào. ⇒ Đường ghi thứ hai **không cổng nào đỏ** nếu nó thiếu một cột.
+/// Ghi ở `2-8-gop-va-tach-segment-tuong-minh.md:508`, mở lại thành AC6 của Story 2.12.
+///
+/// ## Hình dạng hỏng, và vì sao nó im lặng
+///
+/// Câu `INSERT` ở `:2234` liệt kê **tên cột tường minh**. Một bước di trú thêm cột thứ mười
+/// bốn mà không sửa câu đó vẫn **biên dịch sạch và chạy sạch** — SQLite điền `DEFAULT` cho
+/// cột không được nêu. Hàng mới ra đời mang một giá trị **không ai quyết định**.
+///
+/// ⚠️ Và đó không phải một lo xa: cột `translation_origin` chính là ca ấy. Nếu nó rơi về
+/// `DEFAULT` trên đường gộp, mọi câu sinh ra bởi một lượt gộp sẽ khai sai xuất xứ — Epic 7
+/// gắn nhãn cặp TM theo cột đó, `RagInjector` xếp nó lên đầu, và **không lần ngược được**.
+/// AD-47 gọi gộp/tách đích danh trong danh mục đóng *"phải đặt CẢ HAI: mốc so sánh VÀ cột
+/// xuất xứ"*.
+///
+/// ## 🔴 Vì sao ca này KHÔNG THỂ mục lại — cùng cơ chế mà cổng-AC8 dùng
+///
+/// Nó dựng một `SegmentRow` **trọn hàng** rồi so bằng `assert_eq!`. Ngày cột thứ mười bốn ra
+/// đời, `SegmentRow` **buộc phải** nhận một trường nữa *(ca tự kiểm
+/// `the_raw_column_reader_sees_every_column_the_segment_table_actually_has` đỏ ngay lượt chạy
+/// đầu nếu không)* — và lúc đó dòng dựng `SegmentRow(...)` dưới đây **không biên dịch được**.
+///
+/// ⇒ Người thêm cột **buộc phải trả lời** *"một hàng do gộp/tách sinh ra mang giá trị nào ở
+/// cột này"*, ngay tại lượt di trú. Không ai phải nhớ gì cả. Đây đúng là thứ mà khuôn *"chữ
+/// ký thi hành đúng MỘT NỬA"* — đã lặp **năm** lần trong Epic 2 — không cưỡng chế được bằng
+/// một lời dặn trong chú thích.
+#[test]
+fn a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default() {
+    use auratranslate_lib::commands::segment::{
+        confirm_segment, merge_segments, save_segment_targets, SegmentTargetEdit,
+        TRANSLATION_ORIGIN_SELF,
+    };
+
+    let root = temp_dir("2-12-regroup-cot");
+    let opened = create_work_from_text(&root, "2.12 cot regroup", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham");
+
+    // Hai cau dau co ban dich that VA da XAC NHAN, va ca hai ve deu bat buoc:
+    //   · co ban dich  ⇒ `target_text` cua hang moi KHONG rong, tuc phep khang dinh duoi kia
+    //     phan biet duoc "da ghep that" voi "roi ve DEFAULT chuoi rong";
+    //   · da xac nhan  ⇒ `translation_origin` cua ca hai thanh `"self"` (AD-47: xuat xu duoc
+    //     dat CUNG LUC voi chuyen tiep sang da xac nhan).
+    //
+    // 🔴 Ve thu hai la ve DUY NHAT phan biet duoc "cot duoc mang qua CO CHU Y" voi "cot roi
+    // ve DEFAULT". Bo no di thi ca hai cau nguon deu mang xuat xu rong, `merged_origin` tra
+    // ve chuoi rong, va mot cau `INSERT` da bo sot han cot nay cung cho DUNG chuoi rong ay --
+    // ca xanh tren mot san pham dang hong. Do la mot bay DA CAN THAT o luot dung ca nay.
+    for (id, text) in [(1i64, "Mot."), (2, "Hai.")] {
+        save_segment_targets(
+            Some(&opened),
+            1,
+            &[SegmentTargetEdit {
+                id,
+                target_text: text.to_owned(),
+            }],
+        )
+        .expect("ghi ban dich");
+        confirm_segment(Some(&opened), id, "").expect("xac nhan -- day la cho xuat xu duoc dat");
+    }
+
+    let out = merge_segments(Some(&opened), 2).expect("gop cau 2 voi cau lien tren no");
+    assert_eq!(out.new_segments.len(), 1, "mot luot gop sinh dung MOT hang moi");
+    let moi_id = out.new_segments[0].id;
+
+    let rows = read_all_segment_rows(&opened);
+    let moi = rows
+        .iter()
+        .find(|r| r.0 == moi_id)
+        .expect("hang moi phai doc lai duoc bang chinh bo doc muoi ba cot");
+
+    // ── LUOI TRON HANG ────────────────────────────────────────────────────────────
+    //
+    // Ba cot khong the doan truoc mot cach tat dinh, va CHI ba cot do duoc muon lai tu chinh
+    // hang doc duoc: `id` (autoincrement) va hai moc thoi gian. Moi cot con lai viet TRAN.
+    //
+    // ⚠️ `created_at` va `updated_at` muon lai co chu y, va no KHONG lam phep kiem rong: ca
+    // rieng ngay duoi khang dinh chung khac `null` va bang nhau -- mot hang VUA sinh chua the
+    // co hai moc lech nhau.
+    let expected = SegmentRow(
+        moi.0,                          // id — autoincrement
+        1,                              // chapter_id — cung Chuong
+        1,                              // ord — nhom moi chiem `ord` cua cau DAU nhom
+        "一。二。".to_owned(),          // source_text — hai cau goc noi lai, AD-4
+        0,                              // is_paragraph_end — cau cuoi nhom khong ket doan
+        None,                           // retired_at — hang MOI, chua ve huu
+        moi.6.clone(),                  // created_at
+        moi.7.clone(),                  // updated_at
+        "Mot. Hai.".to_owned(),         // target_text — hai ban dich ghep lai
+        "draft".to_owned(),             // 🔴 status — AC3 cua 2.8: hang moi CHUA xac nhan,
+                                        // KE CA khi ca hai cau nguon DA xac nhan
+        0,                              // is_omitted — khong cat bo
+        0,                              // is_target_paragraph_end
+        TRANSLATION_ORIGIN_SELF.to_owned(), // 🔴 translation_origin — AD-47, KHONG roi ve DEFAULT
+    );
+    assert_eq!(
+        moi, &expected,
+        "AC6: moi cot cua mot hang do `write_regroup` sinh ra phai duoc dat CO CHU Y.\n\
+         Mot cot lech o day nghia la cau `INSERT` o `commands/segment.rs:2234` da bo sot no \
+         va SQLite dien `DEFAULT` -- mot gia tri khong ai quyet dinh, khong mot loi nao duoc \
+         nem, va khong mot cong nao khac do."
+    );
+
+    // Hai moc thoi gian: mot hang VUA sinh phai co ca hai, va chung phai bang nhau.
+    assert!(!moi.6.is_empty(), "`created_at` rong -- cau INSERT bo sot no");
+    assert_eq!(
+        moi.6, moi.7,
+        "mot hang vua sinh khong the co `created_at` khac `updated_at` -- hai `strftime` cua \
+         cung mot cau INSERT"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}

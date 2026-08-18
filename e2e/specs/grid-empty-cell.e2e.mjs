@@ -31,6 +31,7 @@
  * ③ Spec này **không** đo hình học *(chiều cao ô, `subgrid` giữ hàng thẳng)*. Vế đó thuộc bàn
  *    đo `2-5b-ban-do/`, đã chạy trên cả hai engine.
  */
+import { waitForGridRows } from '../support/gridWait.mjs'
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
 import { realClick } from '../support/pointer.mjs'
 
@@ -62,15 +63,11 @@ describe('Story 2.5b — ô CHƯA DỊCH của lưới đặt được con trỏ
      * fixture hiện tại, và đổi một fixture dùng chung để chữa một ca là cách rẻ nhất để làm
      * đỏ năm ca khác. Món nợ *"fixture nên reset state"* ghi ở `deferred-work.md`, chủ 1.22.
      */
-    await browser.execute(() => {
-      window.location.reload()
-    })
-    await $('[data-col="tgt"]').waitForExist({
-      timeout: 30_000,
-      timeoutMsg:
-        'Nạp lại webview rồi mà không thấy một ô `[data-col="tgt"]` nào sau 30 giây — ' +
-        'lưới không dựng được, hoặc Tác phẩm đang mở không có segment nào.',
-    })
+    // 🔵 **STORY 2.12 · AC2 — lượt `reload()` ở đây ĐÃ GỠ 2026-08-18.**
+    // Fixture `openWorkspaceWithWork` nay tự dọn state panel bằng `resetPanelState()` (cầu
+    // `import()` gọi thẳng năm hàm `reset*`, quyết định #5(b) Ice ký). Vá tại chỗ hết việc.
+    // 🔵 **STORY 2.12 · AC3** — chờ TRẠNG THÁI ĐÍCH, không chờ *"phần tử tồn tại"*.
+    await waitForGridRows(1, { col: 'tgt', what: 'lưới của grid-empty-cell' })
 
     // ── ① Lưới có mặt, và MỌI ô bản dịch của một Chương mới đều RỖNG ─────────────────
     //

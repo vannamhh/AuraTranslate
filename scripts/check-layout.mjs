@@ -98,7 +98,16 @@ function walk(dir, out = [], seen = new Set()) {
 // (`SourcePanel.vue` · `EditorPanel.vue` · `editorGutter.ts`), thêm ba
 // (`GridPanel.vue` · `hanVietSurfaces.ts` · `segmentNavigation.ts`). Một lượt lật hình dạng
 // **cân bằng theo số tệp** là chuyện tình cờ, không một mệnh đề — nên nó được đếm, không suy.
-const FILE_FLOOR = 43 // số THẬT 2026-08-14 (sau Story 2.5b): 52 tệp `src/**` — 43/52 = 82,7%
+// 🔴 NÂNG 2026-08-18 (Story 2.12 · Task 7.5) — số thật lên **55**, nên sàn 43 tụt xuống
+// **78,2%**, DƯỚI dải 80-85% mà `project-context.md` đặt. Ba story (2.5c · 2.5d · 2.10) thêm
+// tệp mà không ai đếm lại; chú thích cũ còn ghi "52" trong khi `walk()` đếm được 55.
+// ⚠️ Đây là hình dạng hỏng ÊM nhất của một sàn: nó KHÔNG đỏ oan bao giờ, nó chỉ lặng lẽ thôi
+// canh. Một sàn dưới dải là một sàn đã tắt mà không ai biết — cùng lớp nợ với một miễn trừ
+// hết cần mà ở lại.
+// 🔴 Và đây chính là ràng buộc Ice ký kèm quyết định #7: *"cổng nào đọc `src/**` thì phải
+// xét lại sàn quần thể"*. Đo chứ không ước: `find src -type f \( -name '*.ts' -o -name
+// '*.vue' … \) | wc -l` = **55** (39 `.ts` + 16 `.vue`), 2026-08-18.
+const FILE_FLOOR = 46 // số THẬT 2026-08-18 (Story 2.12): 55 tệp `src/**` — 46/55 = 83,6%
 
 let files = []
 try {

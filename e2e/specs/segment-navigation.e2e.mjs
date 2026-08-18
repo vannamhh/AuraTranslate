@@ -49,6 +49,7 @@
  *
  *     npm run test:e2e -- --spec e2e/specs/segment-navigation.e2e.mjs
  */
+import { waitForGridRows } from '../support/gridWait.mjs'
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
 import { realClick } from '../support/pointer.mjs'
 
@@ -117,28 +118,10 @@ async function docTuDia() {
  * nạp"* với *"Chương cũ còn đó"*. Vế *"nội dung câu đầu"* là vế duy nhất bắt được ca đó.
  */
 async function doiChuong(soHang) {
-  await browser.waitUntil(
-    async () =>
-      await browser.execute(
-        (n) => document.querySelectorAll('[data-col="tgt"]').length === n,
-        soHang,
-      ),
-    {
-      timeout: 60_000,
-      timeoutMsg:
-        `Sau 60 giay luoi van khong co dung ${soHang} hang — loi HA TANG cua spec, khong mot\n` +
-        'khuyet tat san pham. Dung doc mot ca do phia sau no thanh mot hoi quy.',
-    },
-  )
-  const cauDau = await browser.execute(
-    () => document.querySelectorAll('[data-col="src"]')[0]?.textContent ?? null,
-  )
-  if (cauDau !== CAU(1)) {
-    throw new Error(
-      `DANH TINH PHIEN KHONG KHOP — cau dau la ${JSON.stringify(cauDau)}, mong doi ` +
-        `${JSON.stringify(CAU(1))}. Loi HA TANG; moi so sau dong nay noi ve du lieu sai.`,
-    )
-  }
+  // 🔵 **STORY 2.12 · AC3** — khuôn tự vá tại chỗ nay đi qua `support/gridWait.mjs`.
+  // ⚠️ Trần 60 s giữ nguyên, KHÔNG hạ về mặc định 30 s của helper: ca này chờ sau một lượt
+  // ghi IPC ngoài luồng cộng một lượt nạp lại webview, và nó là ca ĐÃ đụng trần thật.
+  await waitForGridRows(soHang, { col: 'tgt', timeout: 60_000, what: 'Chương vừa dựng' })
 }
 
 /** Chỉ số hàng đang mang vạch `primary`. Vạch là một **class** ở cột riêng, không một `data-`. */
@@ -168,6 +151,13 @@ describe('Story 2.10 — điều hướng segment trong WKWebView thật', () =>
     await doChu(tuDia.chapter_id, edits)
 
     // Nạp lại để ảnh chụp của webview theo kịp đĩa — lượt ghi trên đi thẳng qua IPC.
+    //
+    // 🔵 **STORY 2.12 · AC2 — lượt này CỐ Ý Ở LẠI, và nó KHÁC HẠNG với tám lượt đã gỡ.**
+    // Tám lượt kia vá một **rò rỉ state cấp module** giữa hai spec; `resetPanelState()` của
+    // fixture thay hẳn được chúng. Lượt này không vá một rò rỉ nào — nó đồng bộ webview với
+    // một lượt ghi **ngoài luồng**: `doChu()` ở trên gửi thẳng IPC, nên đĩa đổi mà không một
+    // đường phản ứng nào của app biết. ⇒ `resetPanelState()` KHÔNG thay được nó, và gỡ nó đi
+    // sẽ cho một ca đọc lưới **trước** khi lưới biết mình đã cũ.
     await browser.execute(() => {
       window.location.reload()
     })

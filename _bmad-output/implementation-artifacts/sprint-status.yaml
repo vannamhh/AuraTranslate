@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-18T15:05:00
+last_updated: 2026-08-18T16:40:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -1653,7 +1653,7 @@ development_status:
   #   ⇒ Task 0.1 phai DO LAI baseline SAU khi 2-4 dong. Bang trong tep story chup HEAD 4b30199,
   #   tuc TRUOC 2.4 — dung dung no nhu mot so da chot.
   #   ⚠️ Story van `ready-for-dev` tu 2026-08-18: thu cho la luot DEV, khong phai ho so.
-  2-12-ha-tang-e2e-va-cong-con-thieu: ready-for-dev
+  2-12-ha-tang-e2e-va-cong-con-thieu: in-progress
 
   # 🔴 STORY NAY DONG MOT VI PHAM LUAT DANG SONG, khong them nang luc.
   #   project-context.md:447-448 viet bang chu: "Moi thu ... KEM MOT CHU. Khong co muc nao mo coi."

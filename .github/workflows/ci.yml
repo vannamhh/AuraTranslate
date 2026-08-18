@@ -179,6 +179,19 @@ jobs:
       - name: check workspace layout (AC1, AC4, AC7, AC12 — Story 1.14)
         run: npm run check:layout
 
+      # Cổng thứ MƯỜI HAI — Story 2.12 · AC5. Mọi ô nhớ cấp module trong `src/**/*.ts` phải
+      # đi qua một hàm reset, hoặc mang một miễn trừ CÓ TÊN kèm lý do đọc được tại chỗ.
+      #
+      # 🔴 Nó đóng một luật đã bị bỏ sót HAI STORY LIÊN TIẾP mà không cổng nào đỏ:
+      # `sourceCut` (2.8) và `omitError` (2.9) được thêm vào `editorPanelState.ts` mà không
+      # nối vào `resetEditorPanel()`. Cả hai lượt đi qua chín cổng, `cargo test` và vitest
+      # sạch sẽ. Hình dạng hỏng: đổi Tác phẩm ⇒ màn hình khẳng định một điều thuộc về một
+      # Tác phẩm khác, và không một lỗi nào được ném.
+      #
+      # ⚠️ Đọc tệp thôi, không cần `dist/` — giữ ở cụm đọc-tệp này.
+      - name: check ô nhớ cấp module đi qua hàm reset (cổng thứ mười hai — Story 2.12)
+        run: npm run check:panel-refs
+
       # Cổng thứ MƯỜI — lint có kiểu (`01be1c2`, lượt code review Story 1.21). Nó đóng
       # đúng lớp lỗi mà chín cổng kia không canh được: `if (someRef)` trên một `Ref` của
       # Vue là TypeScript hợp lệ, `vue-tsc` im, và nhánh bên trong thành mã chết. Hai

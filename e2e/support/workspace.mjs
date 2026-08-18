@@ -32,6 +32,8 @@
  *    điểm), không vì bàn đo. Bàn phím tránh hẳn câu hỏi đó và đi đúng đường NFR17 hứa.
  */
 
+import { resetPanelState } from './panelReset.mjs'
+
 /** Khớp `DOCUMENTS_SUBFOLDER` ở `src-tauri/src/commands/project.rs`. */
 export const WORK_SUFFIX = '.atproj'
 
@@ -56,6 +58,18 @@ export async function openWorkspaceWithWork(
   name,
   text = 'Một câu nguồn để bộ nhập có việc mà làm.',
 ) {
+  // ── 🔴 AC2 (Story 2.12) — DỌN TRƯỚC, không dọn sau ───────────────────────────────
+  //
+  // Đặt ở ĐẦU fixture chứ không cuối spec, và đó là một quyết định: một spec đỏ giữa chừng
+  // không bao giờ chạy tới phần dọn của chính nó, nên *"dọn sau"* để lại rác đúng vào lượt
+  // chạy mà ta cần đọc kết quả nhất. Dọn ở đầu thì mỗi spec bắt đầu từ một chỗ đã biết
+  // **bất kể** spec trước kết thúc thế nào.
+  //
+  // ⚠️ Fixture này tạo Tác phẩm qua IPC nên nó **đi vòng qua** `finishSubmit` — đường duy
+  // nhất trong sản phẩm gọi các hàm `reset*`. Không có dòng này thì mỗi lượt gọi fixture
+  // dựng một Tác phẩm mới **trên state của Tác phẩm cũ**.
+  await resetPanelState()
+
   const created = await browser.execute(async (workName, sourceText) => {
     const internals = window.__TAURI_INTERNALS__
     if (internals === undefined) return { ok: false, detail: 'không có cầu IPC' }

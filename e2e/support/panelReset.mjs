@@ -1,0 +1,129 @@
+/**
+ * Dọn state cấp module của các panel giữa hai spec — **AC2 của Story 2.12**.
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * VÌ SAO TỆP NÀY TỒN TẠI
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * Đo 2026-08-18 (Task 0.3): `e2e/support/**` có **0** hook `before`/`beforeEach`. Bù lại,
+ * **CHÍN** lượt `window.location.reload()` nằm rải trong **SÁU** tệp spec — và các spec còn
+ * lại không vá gì cả. *(Hồ sơ story ghi "ba spec"; đó là một phần ba bề mặt thật.)*
+ *
+ * Fixture `openWorkspaceWithWork` tạo Tác phẩm qua IPC `create_work_from_text`, tức nó **đi
+ * vòng qua** `modes/libraryImport.ts::finishSubmit` — đường DUY NHẤT trong sản phẩm gọi các
+ * hàm `reset*`. Nên state của spec trước sống nguyên sang spec sau.
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * 🔴 ICE KÝ ĐƯỜNG (b) — 2026-08-18, quyết định #5
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * *"Fixture gọi THẲNG các hàm reset."* Hai đường bị loại, và lý do là số đo:
+ *
+ * - **(a) chuẩn hoá `reload()` vào fixture** — nó reset bằng cách **giết cả webview state**,
+ *   nên nó che luôn những rò rỉ thật mà cổng `check:panel-refs` (AC5) tồn tại để thấy. Một
+ *   bộ đo không phân biệt được *"module sạch"* với *"trang vừa dựng lại"* thì không đo AC2.
+ * - **(c) một phiên app mới mỗi spec** — lượt trọn bộ thứ chín **đã** mất 18m51s, và ba ca
+ *   **đã** đụng trần `mochaOpts.timeout` 120 s.
+ *
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * 🔴 VÀ VÌ SAO ĐƯỜNG NÀY LÀ **0 DÒNG MÃ SẢN PHẨM** — đo, không suy
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * Chữ ký #5 mang một ràng buộc: (b) cần *"một đường gọi được từ driver"*, và nếu đường đó
+ * phải **phơi một thứ lên `window`** thì đó là mã sản phẩm phục vụ bộ đo — đúng hình dạng
+ * đã bị loại ở quyết định #4(b), tức **cửa `AD` kích hoạt lại**.
+ *
+ * Nó không phải như vậy, và đây là phép đo (2026-08-18, Vite dev trên cây thật):
+ * mọi đường `/src/…` trong module đã biến đổi của `main.ts` **không mang một query string
+ * nào** — `"/src/panels/editorPanelState.ts"`, không `"…?v=abc"`. Đo bằng
+ * `curl -s …/src/main.ts | grep -oE '"/src/[^"]*"'`, 19 đường, 0 đường có `?`.
+ *
+ * ⇒ Một `import('/src/panels/editorPanelState.ts')` chạy trong trang phân giải về **đúng
+ * URL app đã nạp**, và registry module của ES phân biệt theo URL đã phân giải ⇒ **cùng một
+ * module record, cùng những ô nhớ cấp module**. Không cần một dòng nào trong `src/`.
+ *
+ * ⚠️ **Và mệnh đề đó phải được KIỂM ở lúc chạy, không tin suông** — xem hàng rào ở
+ * [`resetPanelState`]. Một `import()` cho ra một **bản sao** module (URL lệch một ký tự,
+ * một lượt HMR chèn `?t=`) sẽ dọn state của bản sao và trả về **thành công**. Đó đúng là
+ * hình dạng *"xanh giả"* mà cả story này tồn tại để chống: fixture báo đã dọn, state thật
+ * còn nguyên, và spec sau đỏ vì một lý do không ai lần được.
+ */
+
+/**
+ * Năm module mang state **theo Tác phẩm/Chương**, cùng tên hàm reset của mỗi module.
+ *
+ * 🔴 **`dictSourcesState` và `lookupTiming` CỐ Ý vắng mặt, và cả hai đều có hàm reset.**
+ * Đây không phải một chỗ bỏ sót:
+ *   · `resetDictSources()` xoá tập nguồn bị tắt — cấu hình tầng **Global**, chỉ nạp lại một
+ *     lần lúc khởi động. Gọi nó ở đây làm mọi nguồn người dùng đã tắt bật lại trong bộ nhớ
+ *     trong khi đĩa giữ tập cũ. Xem doc-comment của chính hàm đó.
+ *   · `resetLookupTiming()` dọn bàn đo độ trễ — một công cụ chẩn đoán, không state của phiên.
+ */
+const PANEL_MODULES = [
+  ['/src/panels/editorPanelState.ts', 'resetEditorPanel'],
+  ['/src/panels/sourcePanelState.ts', 'resetSourcePanel'],
+  ['/src/panels/lookupPanelState.ts', 'resetLookupPanel'],
+  ['/src/panels/lookupHistoryState.ts', 'resetLookupHistory'],
+  ['/src/panels/segmentHistoryState.ts', 'resetSegmentHistory'],
+]
+
+/**
+ * Dọn state panel trong trang đang mở.
+ *
+ * @returns {Promise<{ called: string[] }>}
+ * @throws {Error} khi cầu `import()` không cho đúng module của app, hay khi một hàm reset
+ *   đã đổi tên — cả hai đều là lỗi HẠ TẦNG và cả hai đều phải kêu, không được lặng lẽ bỏ qua
+ */
+export async function resetPanelState() {
+  const outcome = await browser.execute(async (modules) => {
+    const called = []
+    for (const [path, fnName] of modules) {
+      let mod
+      try {
+        mod = await import(/* @vite-ignore */ path)
+      } catch (err) {
+        return { ok: false, detail: `import("${path}") ném: ${String(err)}` }
+      }
+      const fn = mod[fnName]
+      if (typeof fn !== 'function') {
+        return {
+          ok: false,
+          detail:
+            `"${path}" không xuất một hàm tên \`${fnName}\`. ` +
+            `Nó xuất: ${Object.keys(mod).join(', ') || '(không gì cả)'}`,
+        }
+      }
+      fn()
+      called.push(fnName)
+    }
+    return { ok: true, called, rowsLeft: document.querySelectorAll('[data-col="src"]').length }
+  }, PANEL_MODULES)
+
+  if (!outcome.ok) {
+    throw new Error(
+      `Fixture KHÔNG dọn được state panel: ${outcome.detail}\n\n` +
+        'Đây là lỗi HẠ TẦNG của bàn đo, KHÔNG một hồi quy sản phẩm. Đừng đọc một ca đỏ phía\n' +
+        'sau nó thành một khuyết tật giao diện — và đừng vá bằng `window.location.reload()`:\n' +
+        'đường đó đã bị loại có chữ ký (quyết định #5, Ice 2026-08-18) vì nó che đúng lớp rò\n' +
+        'rỉ mà `check:panel-refs` tồn tại để thấy.',
+    )
+  }
+
+  // ── 🔴 HÀNG RÀO: chứng minh cầu `import()` chạm ĐÚNG module của app ────────────────
+  //
+  // Không có vế này, một `import()` trả về một **bản sao** module sẽ dọn state của bản sao
+  // rồi báo thành công — fixture xanh, rò rỉ nguyên vẹn, spec sau đỏ vì một lý do khác hẳn.
+  //
+  // Phép kiểm đi qua **DOM**, có chủ ý: lưới đối chiếu render từ `segments` của
+  // `editorPanelState`, nên 0 hàng `[data-col="src"]` là bằng chứng **quan sát được từ bên
+  // ngoài** rằng chính ô nhớ app đang đọc đã bị dọn. Đọc lại `segments` qua cùng cái
+  // `import()` thì chỉ chứng minh bản sao nhất quán với chính nó.
+  if (outcome.rowsLeft !== 0) {
+    throw new Error(
+      `Đã gọi ${outcome.called.length} hàm reset mà lưới còn ${outcome.rowsLeft} hàng nguyên văn.\n\n` +
+        '🔴 Nghĩa là `import()` KHÔNG chạm module mà app đang đọc — nhiều khả năng URL đã lệch\n' +
+        '(một lượt HMR chèn `?t=…`, hay một tệp đổi chỗ). Cầu reset đang dọn một BẢN SAO.\n' +
+        'Đo lại bằng: `curl -s http://localhost:1420/src/main.ts | grep -oE \'"/src/[^"]*"\'`\n' +
+        '— mọi đường phải KHÔNG mang query string. Đây là tiền đề của quyết định #5(b).',
+    )
+  }
+
+  return { called: outcome.called }
+}

@@ -56,6 +56,8 @@
  */
 
 import { realClick } from '../support/pointer.mjs'
+import { waitForGridRows } from '../support/gridWait.mjs'
+import { markFlushBaseline, waitForFlushAfter } from '../support/flushWait.mjs'
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
 
 /**
@@ -67,8 +69,16 @@ import { openWorkspaceWithWork } from '../support/workspace.mjs'
  * bộ phân giải của bundler, và mã bơm vào qua WebDriver không đi qua Vite. Fixture
  * `e2e/support/workspace.mjs` đã đi đúng đường đó từ đầu.
  */
-/** Khớp `EDITOR_IDLE_MS` của `src/panels/editorFlush.ts` (2 000 ms) + một khoảng dư. */
-const FLUSH_WAIT_MS = 3_500
+/*
+ * 🔵 **`FLUSH_WAIT_MS` ĐÃ GỠ 2026-08-18 — Story 2.12 · AC4, và nó GỠ chứ không NỚI.**
+ *
+ * Hằng cũ là `3_500`, so với `EDITOR_IDLE_MS = 2000` cho biên **1.500 ms** — biên mà một máy
+ * đang biên dịch Rust ăn hết *(phân xử Story 2.7: máy bận 7/8 ba lần liên tiếp, máy rảnh 8/8
+ * trên cả hai cây)*. Hai chỗ dùng nó nay chờ **mốc lưu đổi** qua `support/flushWait.mjs`.
+ *
+ * 🔴 Ghi ra vì đường vá SAI ở đây rẻ và trông giống hệt đường đúng: nâng `3_500` lên `8_000`
+ * cũng làm bộ hết chập chờn — và làm NFR18 hết được canh. B2 cấm đích danh việc đó.
+ */
 
 async function readSegmentsFromDisk() {
   return browser.execute(async () => {
@@ -90,6 +100,11 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
     const sentences = await $$('[data-col="tgt"]')
     await expect(sentences.length).toBeGreaterThan(0)
     const before = await readSegmentsFromDisk()
+
+    // 🔵 **STORY 2.12 · AC4** — chụp mốc lưu TRƯỚC khi gõ. Xem `support/flushWait.mjs`:
+    // các ca của tệp này dùng CHUNG một phiên app, nên ca thứ hai bắt đầu với một mốc đã
+    // khác `null` — một phép chờ *"tới khi có mốc lưu"* sẽ trả về ngay và không đo gì cả.
+    const flushBaseline = await markFlushBaseline()
     const targetId = before.segments[0].id
 
     // ── ① 🔵 MỆNH ĐỀ ĐỔI (Story 2.5b · Quyết định #3b): MỌI ô bản dịch gõ được ─────────
@@ -176,7 +191,11 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
     await expect(ids.length).toBe(before.segments.length)
 
     // ── ④ Chờ nhịp flush của AD-35, rồi đọc lại từ ĐĨA qua chính lệnh đọc của sản phẩm ──
-    await browser.pause(FLUSH_WAIT_MS)
+    //
+    // 🔵 **STORY 2.12 · AC4** — chờ một TRẠNG THÁI, không một khoảng thời gian. Bản cũ là
+    // `pause(FLUSH_WAIT_MS)`, và biên 1.500 ms của nó so với `EDITOR_IDLE_MS` bị một máy
+    // đang biên dịch Rust ăn hết *(phân xử 2.7: máy bận 7/8 ba lần, máy rảnh 8/8)*.
+    await waitForFlushAfter(flushBaseline, { what: 'lượt flush sau khi gõ' })
     const after = await readSegmentsFromDisk()
 
     const saved = after.segments.find((s) => s.id === targetId)
@@ -230,15 +249,18 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
      * ở lượt đỏ đó** — chuỗi trên đĩa **có** `\n` đúng chỗ. Thứ sai là **điều kiện đầu vào**,
      * không phải cơ chế. Món nợ *"fixture e2e không reset state panel"* có chủ: Story 1.22.
      */
-    await browser.execute(() => {
-      window.location.reload()
-    })
-    await $('[data-col="tgt"]').waitForExist({
-      timeout: 30_000,
-      timeoutMsg: 'Nạp lại webview rồi mà không thấy ô `[data-col="tgt"]` nào sau 30 giây.',
-    })
+    // 🔵 **STORY 2.12 · AC2 — lượt `reload()` ở đây ĐÃ GỠ 2026-08-18.**
+    // Fixture `openWorkspaceWithWork` nay tự dọn state panel bằng `resetPanelState()` (cầu
+    // `import()` gọi thẳng năm hàm `reset*`, quyết định #5(b) Ice ký). Vá tại chỗ hết việc.
+    // 🔵 **STORY 2.12 · AC3** — chờ TRẠNG THÁI ĐÍCH, không chờ *"phần tử tồn tại"*.
+    await waitForGridRows(1, { col: 'tgt', what: 'lưới sau lượt dựng Tác phẩm' })
 
     const before = await readSegmentsFromDisk()
+
+    // 🔵 **STORY 2.12 · AC4** — chụp mốc lưu TRƯỚC khi gõ. Xem `support/flushWait.mjs`:
+    // các ca của tệp này dùng CHUNG một phiên app, nên ca thứ hai bắt đầu với một mốc đã
+    // khác `null` — một phép chờ *"tới khi có mốc lưu"* sẽ trả về ngay và không đo gì cả.
+    const flushBaseline = await markFlushBaseline()
     const targetId = before.segments[0].id
     await realClick(await $(`[data-col="tgt"][data-segment-id="${targetId}"]`))
     await browser.pause(200)
@@ -284,7 +306,10 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
     await expect(new Set(ids).size).toBe(ids.length)
 
     // ── ④ FLUSH, rồi đọc lại bằng ĐÚNG lệnh IPC của sản phẩm ─────────────────────
-    await browser.pause(FLUSH_WAIT_MS)
+    //
+    // 🔵 **STORY 2.12 · AC4** — và ĐÂY là ca mà bẫy *"đã có sẵn"* cắn thật: ca trên đã
+    // flush trong cùng phiên app, nên mốc lưu khác `null` ngay khi ca này bắt đầu.
+    await waitForFlushAfter(flushBaseline, { what: 'lượt flush sau lượt xuống dòng' })
     const after = await readSegmentsFromDisk()
     const saved = after.segments.find((s) => s.id === targetId)
 

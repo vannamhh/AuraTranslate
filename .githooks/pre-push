@@ -57,9 +57,9 @@ fail() {
 
 START=$(date +%s)
 echo ''
-echo 'pre-push — chín cổng, test frontend, build, cargo test.'
+echo 'pre-push — mười cổng, test frontend, build, cargo test.'
 
-for gate in deps tokens i18n commands layout dict dict-manifest lint gates; do
+for gate in deps tokens i18n commands layout panel-refs dict dict-manifest lint gates; do
   printf '  %-14s' "$gate"
   if npm run --silent "check:$gate" >/dev/null 2>&1; then
     green 'OK'

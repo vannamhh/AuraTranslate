@@ -4,7 +4,12 @@ baseline_commit: 4b30199263b5a5ad9dd13d3a4c8cd810951d1ba7
 
 # Story 2.12: Hạ tầng e2e và cổng còn thiếu
 
-Status: ready-for-dev
+Status: in-progress
+
+🔴 **KHÔNG phải `review`, và đó là một phán quyết chứ không một chỗ chưa làm tới.** Sáu trong bảy AC
+đã đóng kèm bằng chứng; **AC7 chưa chạy một lượt đo nào**. Ba subtask còn hở *(1.5 · 4.4 · 8.4)* bị
+chặn bởi **chính chữ ký #0 của Ice** *(hoãn tới khi Story 2.4 đóng)* cộng một va chạm cổng 1420.
+⇒ **Cửa chặn ② chưa đóng trọn. Epic 3 chưa mở được.** Chi tiết ở §Completion Notes List.
 
 **Covers:** **không FR nào.** Story hạ tầng — nguồn là **action item B2** của retro Epic 2.
 **Epic:** 2 — Biên tập theo segment
@@ -355,95 +360,96 @@ lượt xanh — đó chính là mệnh đề story này tồn tại để sửa
 
 ### Task 0 — Cửa chặn: tám quyết định (AC: 1-7) — **CHẶN MỌI TASK KHÁC**
 
-- [ ] 0.1 **ĐO LẠI** cả bảng §Điều kiện khởi hành từ nguồn — **không chép** bảng đó
-- [ ] 0.2 Trình tám quyết định kèm số đo; nhận chữ ký của Ice; ghi ngày + đường bị loại
-- [ ] 0.3 Đo lại bốn nguyên nhân của F3 từ nguồn — retro tự khai chúng mới *"đo được một PHẦN"*
-- [ ] 0.4 🔴 Cửa `AD`: nếu #4 = (b)/(c) ⇒ **dừng story**, soạn hồ sơ bàn giao cho Winston
+- [x] 0.1 **ĐO LẠI** cả bảng §Điều kiện khởi hành từ nguồn — **không chép** bảng đó
+- [x] 0.2 Trình tám quyết định kèm số đo; nhận chữ ký của Ice; ghi ngày + đường bị loại
+- [x] 0.3 Đo lại bốn nguyên nhân của F3 từ nguồn — retro tự khai chúng mới *"đo được một PHẦN"*
+- [x] 0.4 🔴 Cửa `AD`: nếu #4 = (b)/(c) ⇒ **dừng story**, soạn hồ sơ bàn giao cho Winston
 
 ### Task 1 — `devServerIsUp` nói thật (AC: 1)
 
-- [ ] 1.1 Dựng **đối chứng dương**: một Vite hấp hối thật *(module graph vỡ, `/` vẫn 200)*
-- [ ] 1.2 Chứng minh `devServerIsUp()` **hôm nay** trả `true` trên đó — bắt **nguyên văn**
-- [ ] 1.3 Vá theo chữ ký #6; chứng minh nó **đỏ** trên đối chứng dương và **xanh** trên Vite lành
-- [ ] 1.4 Câu báo khi dừng phải nói **đúng nguyên nhân**, không để 11 spec đỏ vì lý do khác
-- [ ] 1.5 ⚠️ **Vế phía client, cạm bẫy 8:** một cửa sổ `about:blank` với `document.body` rỗng đi qua
+- [x] 1.1 Dựng **đối chứng dương**: một Vite hấp hối thật *(module graph vỡ, `/` vẫn 200)*
+- [x] 1.2 Chứng minh `devServerIsUp()` **hôm nay** trả `true` trên đó — bắt **nguyên văn**
+- [x] 1.3 Vá theo chữ ký #6; chứng minh nó **đỏ** trên đối chứng dương và **xanh** trên Vite lành
+- [x] 1.4 Câu báo khi dừng phải nói **đúng nguyên nhân**, không để 11 spec đỏ vì lý do khác
+- [ ] 1.5 🔴 **CHẶN — đòi một lượt chạy e2e thật** *(cùng điều kiện với 8.4)*. Đã ghi một mục nợ
+      **có chủ** thay vì lặng lẽ gộp vào AC1, đúng như mục này dặn. ⚠️ **Vế phía client, cạm bẫy 8:** một cửa sổ `about:blank` với `document.body` rỗng đi qua
       `devServerIsUp` sạch. Đo xem nó còn tái lập được không; nếu còn ⇒ nêu với Ice như một mục nợ
       **có chủ**, đừng lặng lẽ gộp vào AC1
 
 ### Task 2 — Fixture reset state panel (AC: 2)
 
-- [ ] 2.1 Đo rò rỉ hiện tại: dựng một ca chứng minh state spec trước sống sang spec sau
-- [ ] 2.2 Dựng cơ chế reset theo chữ ký #5, đặt ở `e2e/support/**`
-- [ ] 2.3 Gỡ ba lượt `window.location.reload()` vá tại chỗ — hoặc ghi rõ vì sao **giữ**
-- [ ] 2.4 ⚠️ Đừng phá phép **tự kiểm dương tính `global.db`** *(`wdio.conf.mjs:287-343`)* và hai biến
+- [x] 2.1 Đo rò rỉ hiện tại: dựng một ca chứng minh state spec trước sống sang spec sau
+- [x] 2.2 Dựng cơ chế reset theo chữ ký #5, đặt ở `e2e/support/**`
+- [x] 2.3 Gỡ ba lượt `window.location.reload()` vá tại chỗ — hoặc ghi rõ vì sao **giữ**
+- [x] 2.4 ⚠️ Đừng phá phép **tự kiểm dương tính `global.db`** *(`wdio.conf.mjs:287-343`)* và hai biến
       chuyển hướng `AURATRANSLATE_E2E_DATA_DIR` · `AURATRANSLATE_E2E_LIBRARY_ROOT`
 
 ### Task 3 — Khuôn chờ trạng thái đích (AC: 3)
 
-- [ ] 3.1 Liệt kê **mọi** chỗ `waitForExist(...)` rồi đọc ngay mà trạng thái cũ/mới **cùng hình dạng DOM**
-- [ ] 3.2 Rút khuôn dùng chung từ ba chỗ đã tự vá *(`segment-navigation:116-124` ·
+- [x] 3.1 Liệt kê **mọi** chỗ `waitForExist(...)` rồi đọc ngay mà trạng thái cũ/mới **cùng hình dạng DOM**
+- [x] 3.2 Rút khuôn dùng chung từ ba chỗ đã tự vá *(`segment-navigation:116-124` ·
       `segment-backspace-merge:106-124` · `segment-merge-split:87`)* vào `e2e/support/**`
-- [ ] 3.3 Chuyển các chỗ còn lại sang khuôn đó — **25** lượt `browser.pause()` là cận trên, không phải
+- [x] 3.3 Chuyển các chỗ còn lại sang khuôn đó — **25** lượt `browser.pause()` là cận trên, không phải
       danh sách phải xoá hết *(`realClick` ở `pointer.mjs:54,56` có `pause` **CÓ CHỦ ĐÍCH** — giữ)*
 
 ### Task 4 — Chờ SỰ KIỆN thay vì chờ thời gian (AC: 4)
 
-- [ ] 4.1 Dựng tín hiệu theo chữ ký #4 *(hoặc dừng ở cửa `AD` nếu #4 = (b)/(c))*
-- [ ] 4.2 Thay `pause(FLUSH_WAIT_MS)` ở `editor-typing-flush.e2e.mjs:179,287` bằng chờ tín hiệu
-- [ ] 4.3 🔴 **Chứng minh không hằng số nào bị nới**: `EDITOR_IDLE_MS` = 2000, `EDITOR_HARD_CAP_MS`
+- [x] 4.1 Dựng tín hiệu theo chữ ký #4 *(hoặc dừng ở cửa `AD` nếu #4 = (b)/(c))*
+- [x] 4.2 Thay `pause(FLUSH_WAIT_MS)` ở `editor-typing-flush.e2e.mjs:179,287` bằng chờ tín hiệu
+- [x] 4.3 🔴 **Chứng minh không hằng số nào bị nới**: `EDITOR_IDLE_MS` = 2000, `EDITOR_HARD_CAP_MS`
       = 5000 *(`editorFlush.ts:43,56`)* **không đổi một chữ số**
-- [ ] 4.4 Đo lại trên **máy bận** — đây là điều kiện mà biên 1.500 ms đã trượt
+- [ ] 4.4 🔴 **CHẶN — Ice ký #0b: đẩy sang Task 8.4 cùng chữ ký #8.** Đo lại trên **máy bận** — đây là điều kiện mà biên 1.500 ms đã trượt
 
 ### Task 5 — Cổng ô nhớ cấp module (AC: 5)
 
-- [ ] 5.1 Chốt phạm vi theo chữ ký #2 *(`.ts` cấp module vs `.vue` script-setup — bẫy đỏ oan)*
-- [ ] 5.2 Viết cổng theo khuôn `check-layout.mjs` — `abort()` cho lỗi hạ tầng *(`:39-51`)*, `fail()`
+- [x] 5.1 Chốt phạm vi theo chữ ký #2 *(`.ts` cấp module vs `.vue` script-setup — bẫy đỏ oan)*
+- [x] 5.2 Viết cổng theo khuôn `check-layout.mjs` — `abort()` cho lỗi hạ tầng *(`:39-51`)*, `fail()`
       tích luỹ, mã thoát quyết ở cuối tệp *(`:625-645`)*
-- [ ] 5.3 **Miễn trừ CÓ TÊN kèm lý do tại chỗ** — khuôn `Map<name, reason>` của `check-gates.mjs:87-130`
-- [ ] 5.4 🔴 **Phép TỰ KIỂM** — khuôn `check-layout.mjs:556-617`: ca dương *(ref mới không qua reset ⇒
+- [x] 5.3 **Miễn trừ CÓ TÊN kèm lý do tại chỗ** — khuôn `Map<name, reason>` của `check-gates.mjs:87-130`
+- [x] 5.4 🔴 **Phép TỰ KIỂM** — khuôn `check-layout.mjs:556-617`: ca dương *(ref mới không qua reset ⇒
       phải đỏ)* **và** ca âm đối chứng *(tên chỉ giống ⇒ không được đỏ)*. Gọi **CHÍNH** hàm đang chạy
       thật, **không** một bản chép *(bài học F4 ②)*
-- [ ] 5.5 Chứng minh cổng **đỏ** trên `sourceCut` và `omitError` nếu hoàn nguyên chúng khỏi `resetEditorPanel`
+- [x] 5.5 Chứng minh cổng **đỏ** trên `sourceCut` và `omitError` nếu hoàn nguyên chúng khỏi `resetEditorPanel`
 
 ### Task 6 — Cổng cột mới của bảng `segment` (AC: 6)
 
-- [ ] 6.1 Dựng theo chữ ký #3 — (a) ca Rust, (b) cổng tĩnh, hay (c) cả hai
-- [ ] 6.2 Đóng lỗ **đã đo**: `write_regroup` *(`segment.rs:2210`, `INSERT` ở `:2234`)* không được canh
-- [ ] 6.3 Nếu là cổng tĩnh: parser SQL là **tập con nghiêm ngặt tự viết**; cú pháp ngoài tập con ⇒
+- [x] 6.1 Dựng theo chữ ký #3 — (a) ca Rust, (b) cổng tĩnh, hay (c) cả hai
+- [x] 6.2 Đóng lỗ **đã đo**: `write_regroup` *(`segment.rs:2210`, `INSERT` ở `:2234`)* không được canh
+- [x] 6.3 Nếu là cổng tĩnh: parser SQL là **tập con nghiêm ngặt tự viết**; cú pháp ngoài tập con ⇒
       **FAIL, không bỏ qua**. 🔴 **Không thêm phụ thuộc npm cho một cổng**
-- [ ] 6.4 Phép **TỰ KIỂM** như 5.4
-- [ ] 6.5 Đừng dựng lại thứ đã có: `the_raw_column_reader_sees_every_column_the_segment_table_actually_has`
+- [x] 6.4 Phép **TỰ KIỂM** như 5.4
+- [x] 6.5 Đừng dựng lại thứ đã có: `the_raw_column_reader_sees_every_column_the_segment_table_actually_has`
       *(`segment_contract.rs:2236-2261`)* đã canh **một** vế — nâng hằng **13** cùng lượt nếu cột đổi
 
 ### Task 7 — Ba danh sách và sàn (AC: 5, 6)
 
-- [ ] 7.1 `package.json` `"scripts"` *(`:9-25`)*
-- [ ] 7.2 `.github/workflows/ci.yml` — cùng nhóm với chín bước `check:*` hiện có
-- [ ] 7.3 `.githooks/pre-push:62` — thêm tên **không** tiền tố `check:` vào chuỗi `for gate in …`
-- [ ] 7.4 `npm run check:gates` phải **xanh** — Kiểm D/E/F canh đúng ba danh sách trên
-- [ ] 7.5 Xét lại **sàn quần thể** nếu cổng mới đọc `src/**`; sàn cũ *(`check-layout.mjs:101` = 43,
+- [x] 7.1 `package.json` `"scripts"` *(`:9-25`)*
+- [x] 7.2 `.github/workflows/ci.yml` — cùng nhóm với chín bước `check:*` hiện có
+- [x] 7.3 `.githooks/pre-push:62` — thêm tên **không** tiền tố `check:` vào chuỗi `for gate in …`
+- [x] 7.4 `npm run check:gates` phải **xanh** — Kiểm D/E/F canh đúng ba danh sách trên
+- [x] 7.5 Xét lại **sàn quần thể** nếu cổng mới đọc `src/**`; sàn cũ *(`check-layout.mjs:101` = 43,
       chú thích "52", số thật **55**)* nâng theo **số THẬT, đo chứ không ước**
 
 ### Task 8 — Nghiệm thu (AC: 1-7)
 
-- [ ] 8.1 Chín cổng cũ + hai cổng mới: **exit 0**
-- [ ] 8.2 `npm run test` — không **giảm** so với **249/249** *(21 tệp)*
-- [ ] 8.3 `cargo test --locked` — không **giảm** so với **409 passed / 0 failed / 5 ignored**
-- [ ] 8.4 🔴 Bộ e2e **trọn bộ**, số lượt và loại máy theo chữ ký #8. Ghi **nguyên văn** mọi ca đỏ
-- [ ] 8.5 ⚠️ **Đột biến để chứng minh bộ đo mới không rỗng** — khuôn đã trả lãi ở 2.11: một ca test
+- [x] 8.1 Chín cổng cũ + hai cổng mới: **exit 0**
+- [x] 8.2 `npm run test` — không **giảm** so với **249/249** *(21 tệp)*
+- [x] 8.3 `cargo test --locked` — không **giảm** so với **409 passed / 0 failed / 5 ignored**
+- [ ] 8.4 🔴 **CHẶN — Ice ký #0: hoãn tới khi Story 2.4 đóng.** Bộ e2e **trọn bộ**, số lượt và loại máy theo chữ ký #8. Ghi **nguyên văn** mọi ca đỏ
+- [x] 8.5 ⚠️ **Đột biến để chứng minh bộ đo mới không rỗng** — khuôn đã trả lãi ở 2.11: một ca test
       *"flush TRƯỚC lượt chuyển"* ban đầu **không canh gì**, lộ ra chỉ khi bỏ `await` mà ca vẫn xanh
-- [ ] 8.6 Ghi số kèm **phiên bản toolchain và ngày** — *"số đo không truy nguyên được thì không phải số đo"*
+- [x] 8.6 Ghi số kèm **phiên bản toolchain và ngày** — *"số đo không truy nguyên được thì không phải số đo"*
 
 ### Task 9 — Sổ nợ và tài liệu
 
-- [ ] 9.1 Đóng **11** mục nợ chủ *"story hạ tầng e2e"* — `deferred-work.md:3402` `:3671` `:3722`
+- [x] 9.1 Đóng **11** mục nợ chủ *"story hạ tầng e2e"* — `deferred-work.md:3402` `:3671` `:3722`
       `:3978` `:4136` `:4146` `:4167` `:4257` `:4325` `:4353` `:4690`. 🔴 Đóng bằng **nối tiếp**
       `→ ✅ ĐÃ ĐÓNG <ngày> (Story 2.12)`, **không xoá**. Đóng một nửa ⇒ **🟡 kèm phần còn hở**
-- [ ] 9.2 Các mục chủ *"story hạ tầng cổng"*: `:4684` *(`resetEditorPanel`)* đóng bởi AC5; `:4288`
+- [x] 9.2 Các mục chủ *"story hạ tầng cổng"*: `:4684` *(`resetEditorPanel`)* đóng bởi AC5; `:4288`
       *(`@keydown`)* · `:4337` *(cử chỉ chuột)* · `:4251` *(`ORDER BY ord`)* — **ngoài phạm vi**, giữ
       chủ hoặc đổi chủ **tường minh**
-- [ ] 9.3 Mọi vế không nghiệm thu được ⇒ nợ mới **có chủ**, không mục nào mồ côi
-- [ ] 9.4 `wdio.conf.mjs:70-80` — cập nhật bản ghi lượt chạy kèm 🔵 và ngày, **sửa tại chỗ** mệnh đề
+- [x] 9.3 Mọi vế không nghiệm thu được ⇒ nợ mới **có chủ**, không mục nào mồ côi
+- [x] 9.4 `wdio.conf.mjs:70-80` — cập nhật bản ghi lượt chạy kèm 🔵 và ngày, **sửa tại chỗ** mệnh đề
       đã hết đúng thay vì để nó lặng lẽ sai
 
 ---
@@ -678,26 +684,249 @@ bộ đo chập chờn làm **mọi số đo trước đó hết so sánh đư�
 
 ### Agent Model Used
 
+`claude-opus-5` — lượt dev 2026-08-18.
+
+### Task 0.1 — ĐO LẠI bảng §Điều kiện khởi hành từ nguồn (KHÔNG chép)
+
+🔴 **Cây đã đi SÁU commit kể từ lúc story được soạn.** `baseline_commit` của frontmatter là
+`4b30199`; HEAD lúc đo là **`6931e87`**. Sáu commit đó chạm `epics.md` (+117), `deferred-work.md`
+(+77), `sprint-status.yaml` (+120), ba Sprint Change Proposal mới, `ARCHITECTURE-SPINE.md`,
+**`src-tauri/tests/flush_cadence_contract.rs` (MỚI, 217 dòng)** và `src/panels/editorFlush.ts`.
+⇒ Bảng của story là số **trước** sáu commit đó. Đo lại toàn bộ, 2026-08-18 16:20-16:40.
+
+| Thứ | Story ghi | **Đo lại** | Phán quyết | Cách đo |
+|---|---|---|---|---|
+| `cargo test --locked` | 409 / 0 / 5 | **414 / 0 / 5** | 🔵 **LỆCH +5** | chạy thật; +5 là `flush_cadence_contract.rs` của `6931e87` |
+| `vitest` | 249 / 249, 21 tệp | **249 / 249, 21 tệp** | ✅ khớp | `npx vitest run` (vitest 4.1.10), 8,82 s |
+| Spec e2e | 11 tệp · 21 `it()` | **11 tệp · 21 `it()`** | ✅ khớp | đếm từng tệp |
+| `browser.pause()` trong `e2e/specs/` | 25 | **25** | ✅ khớp | `grep -rn "browser.pause(" e2e/specs/ \| wc -l` |
+| Ô nhớ cấp module ngoài `resetEditorPanel` | 4 | **5** | 🔴 **LỆCH +1** | `inFlight:262` cũng KHÔNG qua reset — story bỏ sót. Bốn cái kia đúng: `kyTrungCauCuoi:886` · `confirmInFlight:889` · `dangChuyenChuong:1404` · `regroupInFlight:2005` |
+| Tổng ô nhớ cấp module `editorPanelState.ts` | *(không ghi)* | **23** *(15 `ref`/`shallowRef` + 8 `let`)* | ➕ số mới | `grep -E "^(const\|let) …"` |
+| Tệp `src/panels/**` không có hàm reset nào | 2 | **2** | ✅ khớp | `dictSourcesState.ts` *(6 ô)* · `segmentHistoryState.ts` *(9 ô)*; thêm `lookupTiming.ts` có **4** ô cấp module và cũng không reset — ứng viên thứ ba |
+| `INSERT INTO segment` | 2 | **2** | ✅ khớp | `segment.rs:132` nhập · `:2234` regroup *(`:1617` là `segment_version`, không tính)* |
+| Cột bảng `segment` mà `SegmentRow` đọc | 13 | **13** | ✅ khớp | `segment_contract.rs:2180-2187` `SegmentRow` tuple struct |
+| Cổng-AC8 | `:2333` | **`:2333`** | ✅ khớp | `a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else` |
+| `FLUSH_WAIT_MS` vs `EDITOR_IDLE_MS` | 3500 vs 2000 ⇒ biên 1500 | **3500 vs 2000 ⇒ biên 1500** | ✅ khớp | ⚠️ **dòng đã dời**: `editorFlush.ts:48` *(không `:43`)* · `:61` *(không `:56`)* |
+| Sàn `check-layout` vs số thật `src/**` | 43 vs 55 | **43 vs 55** ⇒ **78,2 %** | ✅ khớp, và **dưới dải 80-85 %** | `check-layout.mjs:101`; `SCAN_EXT` khớp 55 tệp *(39 `.ts` + 16 `.vue`)* |
+| Số cổng `pre-push` | 9 | **9** + `test` + `build` + `cargo test` | ✅ khớp | `.githooks/pre-push:62` |
+
+**Ba tiền đề của story bị phép đo BÁC — ghi ra thay vì im lặng thi hành:**
+
+1. 🔴 **AC2 nói *"ba spec tự vá tại chỗ"*. Đo được: CHÍN lượt `window.location.reload()` trong SÁU tệp.**
+   `segment-merge-split:66,134,280` · `segment-backspace-merge:132,197,298` · `editor-typing-flush:234` ·
+   `segment-navigation:172` · `grid-empty-cell:66`. Story dẫn ba dòng *(grid-empty-cell:65-67 ·
+   segment-backspace-merge:131-133 · editor-typing-flush:233-235)* — đúng, nhưng đó là **một phần ba**
+   bề mặt. ⇒ Task 2.3 nặng gấp ba lần story ước.
+2. 🔵 **`waitUntil` đã có ở BỐN tệp, 11 lượt** *(`segment-merge-split` 4 · `segment-backspace-merge` 4 ·
+   `shortcuts-capture-mouse` 2 · `segment-navigation` 1)*, không phải ba chỗ. Và `waitForExist` còn
+   **14** lượt, trong đó `e2e/support/workspace.mjs:89` nằm ngay trong **fixture dùng chung**.
+3. 🔴 **Cạm bẫy 1 *(cổng AC5 đỏ oan trên `.vue`)* nhỏ hơn story ước RẤT nhiều.** Story nói *"hàng chục
+   chỗ"*. Đo được: **6** lượt `ref(`/`shallowRef(`/`reactive(` trong toàn bộ `src/**/*.vue`
+   *(`LookupPanel.vue` ×2 · `PanelTab.vue` · `PanelFrame.vue` · `App.vue` · `StatusBar.vue`)*.
+   ⇒ Cái giá của việc **mở rộng** phạm vi cổng sang `.vue` là 6 miễn trừ, không hàng chục.
+
+### Task 0.3 — Đo lại bốn nguyên nhân F3 từ nguồn
+
+| Nguyên nhân F3 | Trạng thái đo được | Bằng chứng |
+|---|---|---|
+| ① `devServerIsUp()` tin một Vite hấp hối | ✅ **TÁI LẬP** — mã nguyên vẹn: một `fetch(DEV_URL)` timeout 1 s, `return res.ok`. **Không đọc body, không kiểm một asset nào.** | `wdio.conf.mjs:191-198`; dùng ở `:251` *(bỏ qua dựng Vite)* và `:263` *(vòng chờ 60 s)* |
+| ② fixture không reset state panel | ✅ **TÁI LẬP, và nặng hơn story ghi** — `grep` hook trong `e2e/support/**` cho **0** kết quả `before`/`beforeEach`. Bù lại bằng 9 lượt `reload()` rải trong 6 spec *(xem lệch ①)* | `e2e/support/*.mjs`; `e2e/specs/**` |
+| ③ khuôn `waitForExist` rồi đọc ngay | ✅ **TÁI LẬP** — 14 lượt `waitForExist`, gồm một lượt **trong chính fixture** *(`workspace.mjs:89`)* | như trên |
+| ④ biên `FLUSH_WAIT_MS` − `EDITOR_IDLE_MS` = 1.500 ms | ✅ **TÁI LẬP nguyên số** | `editor-typing-flush.e2e.mjs:71,179,287` · `editorFlush.ts:48,61` |
+
+🔴 **Và một dữ kiện MỚI mà story chưa có, nặng hơn cả bốn cái trên:**
+`deferred-work.md:4709` ghi một **lượt chạy trọn bộ thứ CHÍN**, ngày 2026-08-18:
+**8 passed / 3 failed, 18m51s.** Bản ghi ở `wdio.conf.mjs:70-80` *(nguồn mà AC7 và quyết định #8
+dựa vào)* mới dừng ở **8 lượt = 6 xanh · 2 đỏ** ⇒ **bản ghi đó đã hết đúng**. Số thật hôm nay:
+**9 lượt = 6 xanh · 3 đỏ.** Ba ca đỏ của lượt thứ chín:
+- `editor-typing-flush` — xanh ở lượt chạy lại;
+- `attribution-focus` — **4/4 xanh khi chạy MỘT MÌNH trên CẢ HAI cây** *(story và baseline `5d94ba1`)*
+  ⇒ lần đỏ ② nay **đã có thêm một vế chẩn đoán**: nó đỏ **chỉ trong lô**;
+- `segment-navigation` — đỏ trong lô **trên cả baseline** *(before-hook hết 60 s chờ 40 hàng)*;
+  chạy một mình: **9/10** trên cây story so với **5/5** trên baseline.
+  🔴 `1/10` so với `0/5` **không phân biệt được hai cây** — không chứng minh có hồi quy, và cũng
+  không chứng minh không có.
+⇒ Đây là đầu vào trực tiếp cho **quyết định #8**, và nó nói rằng ngưỡng *"tái lập được"* phải trả
+lời cho một bộ đang đỏ **trên chính baseline**, không chỉ một bộ chập chờn.
+
+### Cửa chặn thứ tự — CHƯA gỡ (đo 2026-08-18)
+
+`sprint-status.yaml:191` — **`2-4-…: in-progress`**, không `done`. Bản ghi cùng tệp, lượt 18/8 (b):
+*"🔴 ĐIỀU KIỆN ĐO BỊ BÁC BẰNG SỐ: loadavg **162,88 → 111,35** trên 16 nhân … so với **7,19** mà AC22
+đã gắn cờ ⇒ lưới 6 điểm và phiên NFR2 **KHÔNG chạy được hôm nay**. Chờ ① vẫn nguyên, **chủ vẫn là ICE**."*
+⇒ §Thứ tự của story *(2.4 → 2.12 → Epic 3, Ice ký 2026-08-18)* **chưa thoả**, và nó là tiền đề tường
+minh của Task 0.1 *(*"đo lại SAU khi 2.4 đóng"*)* và của quyết định **#4** + **#8**.
+
+### Câu hỏi ⑴ — ĐÃ ĐÓNG, không cần Ice trả lời nữa
+
+`epics.md:2672` **nay CÓ** `### Story 2.12: Hạ tầng e2e và cổng còn thiếu` với đủ bảy AC, vào qua
+commit `13e1e22` *(`docs(correct-course): hai story sống ở tầng thực thi mà không có mặt ở tầng quy
+hoạch…`)* — tức đường **(b)** *(correct-course có phạm vi, chủ PM/Winston)* đã chạy. Bảy AC của
+`epics.md` **khớp** bảy AC của tệp story. Khối `~~Sync Scrolling~~ — XOÁ` vẫn ở `:2722`, ngay **dưới**
+mục mới ⇒ bẫy đọc nhầm đã được vô hiệu.
+
 ### Chữ ký Task 0
 
 | # | Quyết định | Chữ ký | Ngày | Đường bị loại và vì sao |
 |---|---|---|---|---|
-| 1 | Windows/Blink | | | |
-| 2 | Phạm vi cổng AC5 | | | |
-| 3 | Cổng AC6: tĩnh hay Rust | | | |
-| 4 | Tín hiệu flush *(cửa `AD`?)* | | | |
-| 5 | Cơ chế fixture reset | | | |
-| 6 | Vá `devServerIsUp` | | | |
-| 7 | Cổng thứ 10/11 hay gộp | | | |
-| 8 | Ngưỡng "tái lập được" | | | |
+| 0 | **Thứ tự** *(2.4 chưa đóng)* | **Làm phần ĐỘC LẬP với 2.4** — Ice | 2026-08-18 | Loại *"dừng hẳn chờ 2.4"* *(2.4 đang chờ một máy rảnh, chủ là Ice ⇒ cửa chặn ② treo vô hạn)*; loại *"chạy trọn bộ"* *(mọi số của #4/#8 sẽ đo trên một cây sắp đổi)*. ⇒ **Task 4 và Task 8.4 HOÃN**; Task 1·2·3·5·6·7·9 chạy |
+| 1 | Windows/Blink | **(c) chỉ macOS/WKWebView, VÀ ghi một mục nợ mới nêu đích danh** — Ice | 2026-08-18 | Loại (a) *(chỉ macOS, không ghi gì thêm)* — *"trung thực hơn (a) một dòng, cùng chi phí"*; loại (b) *(ôm vế Windows)* — không có máy Windows ⇒ story chặn ngay, cửa chặn ② không đóng. ⇒ **AC7 là một mệnh đề MỘT NỀN TẢNG**, và Task 9.3 phải mở một mục nợ mới nói đúng câu đó. Hai món 1.22 *(`:3671` `:3722`)* **giữ nguyên chủ**, không đổi sang 2.12 |
+| 2 | Phạm vi cổng AC5 | **(2b) toàn `src/**/*.ts`** · **(2a) 5 cờ/mutex BẮT BUỘC reset** · **(2c) dựng reset cho `dictSourcesState.ts` + `segmentHistoryState.ts` + `lookupTiming.ts`** — Ice | 2026-08-18 | **(2b)** loại *"chỉ `src/panels/**/*.ts`"* *(một tệp state cấp module đặt ngoài `panels/` không được canh)* và loại *"kèm `.vue` có luật phân biệt"* *(một parser SFC tập con tự viết là chính chỗ cổng có thể sai; loại `.vue` theo đuôi tệp ⇒ **0** đỏ oan, và 6 chỗ `ref(` trong `.vue` không cần một miễn trừ nào)*. **(2a)** loại *"miễn trừ CÓ TÊN"* — đây đúng lớp mà `sourceCut`/`omitError` đã lọt qua **hai story liên tiếp**. **(2c)** loại *"ngoài phạm vi, ghi nợ"* cho **cả ba** tệp; `lookupTiming.ts` là ứng viên thứ ba **story không biết**, lòi ra ở Task 0.1 |
+| 3 | Cổng AC6: tĩnh hay Rust | **(a) một ca Rust nữa** — Ice | 2026-08-18 | Loại (b) *(cổng tĩnh + parser SQL tự viết)* và (c) *(cả hai)*. ⇒ Mệnh đề đi đường `cargo test`, cùng khuôn cổng-AC8 đã có. ⚠️ **Giới hạn ghi thẳng:** nó canh **hành vi một đường**; một đường `INSERT INTO segment` **thứ ba** ra đời sau vẫn **mù** ⇒ nợ có chủ ở Task 9.3 |
+| 4 | Tín hiệu flush *(cửa `AD`?)* | **(a) `waitUntil` trên chuỗi `StatusBar`** — Ice | 2026-08-18 | Loại (b) *(`data-*` trên `StatusBar`)* và (c) *(sự kiện `window` khi vào WAL)* — **cả hai đều thêm một bề mặt quan sát được mới** ⇒ đúng hình dạng AD-2. ✅ **CỬA `AD` (Task 0.4) KHÔNG KÍCH HOẠT** — (a) là **0 dòng mã sản phẩm mới**. ⚠️ Giá đã nêu và Ice nhận: bộ đo bám **văn bản người dùng thấy**, một lượt đổi `vi.json` làm nó đỏ oan ⇒ nợ có chủ |
+| 5 | Cơ chế fixture reset | **(b) fixture gọi THẲNG các hàm reset** — Ice | 2026-08-18 | Loại (a) *(chuẩn hoá `reload()`)* — nó reset bằng cách **giết cả webview state**, che luôn những rò rỉ thật mà cổng AC5 tồn tại để thấy; loại (c) *(phiên app mới mỗi spec)* — lượt trọn bộ thứ chín **đã** mất 18m51s và ba ca **đã** đụng trần `mochaOpts.timeout` 120 s; loại *"(a) + cổng AC5 bù lại"*. 🔴 **Ràng buộc kéo theo:** (b) cần *"một đường gọi được từ driver"* ⇒ **phải đo trước** xem `import()` động qua Vite dev có cho **0 dòng mã sản phẩm** không. Nếu phải phơi một thứ lên `window` ⇒ đó là **mã sản phẩm phục vụ bộ đo**, cùng hình dạng đã bị loại ở #4(b) ⇒ **cửa `AD` kích hoạt lại** |
+| 6 | Vá `devServerIsUp` | *(không cần chữ ký — story ghi *"ba hướng để **ĐO**, không phải để chọn trên giấy"*; phán quyết đến từ **đối chứng dương** ở Task 1.1-1.3)* | | |
+| 7 | Cổng thứ 10/11 hay gộp | **(a) hai cổng mới độc lập** — Ice | 2026-08-18 | Loại (b) *(gộp vào `check:layout` + `check:commands`)* — *"một cổng mang hai mệnh đề khác miền là chỗ mệnh đề yếu bị mệnh đề mạnh che"*. ⚠️ **Nhưng #3 = (a) ⇒ AC6 KHÔNG cần một cổng tĩnh** ⇒ số cổng mới thật sự là **MỘT** *(`check:panel-refs` cho AC5)*, không hai. Ghi ra thay vì làm tròn: `pre-push` đi từ 9 → **10** cổng, không 11 |
+| 8 | Ngưỡng "tái lập được" | | | *(HOÃN cùng Task 8.4 theo chữ ký #0)* |
+| 0b | **Task 4 còn hoãn không** | **LÀM LUÔN Task 4** — Ice | 2026-08-18 | #4=(a) chờ một **trạng thái quan sát được**, không chờ một khoảng thời gian ⇒ nó **xoá biên 1.500 ms khỏi phép đo**, tức xoá đúng cái phụ thuộc vào bản vá NFR2 của 2.4. Task 4.3 là một phép **đọc mã**. Chỉ **Task 4.4** *(đo lại trên máy bận)* còn cần một lượt chạy thật ⇒ đẩy sang Task 8.4 cùng #8 |
 
 ### Debug Log References
 
+**Đối chứng dương cho AC1** — Vite dev trên cổng **1421** *(cổng 1420 đang bận: `lsof -i:1420` cho
+một tiến trình `node` với một `com.apple` gắn vào, tức `npm run tauri dev` của Ice đang mở. Bộ đo
+**không** giết nó — đây đúng va chạm cổng mà §Cách chạy của story cảnh báo)*. Vite hấp hối dựng bằng
+một lượt phá **thật** ở `src/App.vue`, phục hồi bằng `git checkout` trong cùng một lệnh.
+
+**Bốn vòng chẩn đoán, hai vòng bị phép đo BÁC** *(luật dừng: đếm vòng **giả thuyết bị bác**, không
+đếm vòng sửa thước — đây là 2/3)*:
+
+| Vòng | Giả thuyết | Phán quyết |
+|---|---|---|
+| ① | *"Kiểm `/` kỹ hơn là đủ"* | 🔴 **BÁC** — `/` là `index.html` tĩnh, giống nhau **tới từng byte** (200 · `text/html` · 355 B) trên cả Vite lành lẫn Vite hấp hối |
+| ② | *"Nạp module entry là đủ"* — chính đường (a) mà story đề nghị | 🔴 **BÁC** — Vite biến đổi module **lười, theo từng yêu cầu**. `/src/main.ts` vẫn **200 · 88.494 B** sạch trong khi `/src/App.vue` đã **500** |
+| ③ | *"Đi theo graph từ entry"* | ✅ **ĐỨNG** — lành 58 module / 190-270 ms · hấp hối dừng ở 35 module, nêu đích danh module gãy |
+| ④ | *"`.json` dưới `/src/` cũng phải là JavaScript"* | 🔴 **BÁC** — `tokens.json` và `vi.json` được phục vụ `application/json` trên một Vite **hoàn toàn lành** ⇒ hai dương tính giả, phải có luật riêng theo đuôi tệp |
+
+**Hai lỗi CỦA CHÍNH BỘ ĐO, bắt được bằng đột biến — không bằng đọc lại:**
+
+1. 🔴 **Cổng `check:panel-refs` bản đầu XANH trên chính khuyết tật nó sinh ra để bắt.** Lượt đột
+   biến Task 5.5 hoàn nguyên đúng `sourceCut.value = null` và `omitError.value = null`, và cổng
+   **không đỏ**. Luật khớp là *"tên có xuất hiện trong thân hàm reset"*; `resetEditorPanel` gọi mấy
+   hàm phụ, và tầng-một kéo theo những dòng chỉ **ĐỌC** hai ô ấy ⇒ một lượt đọc thành bằng chứng cho
+   một lượt dọn. ⇒ Siết thành `isAssignedIn()` — phải là một lượt **GÁN**. Ca tự kiểm ③ khoá lỗ đó.
+   ⚠️ **Nếu lượt đột biến không chạy, cổng đã vào kho ở trạng thái không bao giờ đỏ được.**
+2. 🔴 **`bodyOf()` lấy dấu `{` ĐẦU TIÊN sau tên hàm** — với `function datThongBao(o: { … })` thì đó
+   là ngoặc của **kiểu tham số**, không phải thân hàm. Hệ quả đo được: `confirmNotice` và `navNotice`
+   bị chấm *chưa dọn* trong khi `datThongBao` dọn cả ba — một lượt **ĐỎ OAN**, và nó suýt được vá
+   bằng hai miễn trừ **sai**. ⇒ Cân dấu ngoặc **tròn** trước, rồi mới tìm `{`.
+3. 🔴 **Ca Rust AC6 bản đầu đỏ vì KỲ VỌNG của dev sai, không vì sản phẩm.** Hai câu nguồn chưa xác
+   nhận ⇒ xuất xứ cả hai là chuỗi rỗng ⇒ `merged_origin` trả chuỗi rỗng. ⚠️ Và đó là một **bẫy xanh
+   giả**: một câu `INSERT` đã bỏ sót hẳn cột `translation_origin` cũng cho **đúng** chuỗi rỗng ấy.
+   ⇒ Ca sửa thành *xác nhận cả hai trước*, và lượt đột biến sau đó cho `""` vs `"self"` — tức vế
+   *"xác nhận trước"* là **bắt buộc**, không một chi tiết.
+
+**Một lượt suýt mất việc, ghi ra:** `git checkout -- src/panels/editorPanelState.ts` dùng để phục hồi
+lượt đột biến Task 5.5 đã cuốn theo **cả bản vá năm cờ** của cùng tệp. Phát hiện ở lượt đối chứng âm
+ngay sau đó *(cổng xanh trong khi nó phải đỏ)*. ⇒ Từ vòng sau dùng `cp` ra `/tmp` chứ không `git
+checkout` khi tệp đang mang thay đổi chưa commit.
+
 ### Completion Notes List
+
+🔴 **STORY CHƯA XONG — ba mục còn hở, và cả ba bị chặn bằng một điều kiện có tên.**
+
+**Đã đóng: AC1 · AC2 · AC3 · AC4 · AC5 · AC6** *(sáu trong bảy)*.
+**Còn hở: AC7** — và nó là vế **nặng nhất**, vì nó là phép đo duy nhất trả lời *"bộ đo đã nói thật
+chưa"*. ⇒ **Cửa chặn ② CHƯA đóng trọn. Epic 3 chưa mở được.**
+
+| AC | Trạng thái | Bằng chứng |
+|---|---|---|
+| AC1 `devServerIsUp` | ✅ | `support/devServerHealth.mjs` duyệt BFS trọn graph. Ba lượt trên đối chứng dương **thật**: lành → xanh (58 module, 190 ms) · hấp hối → **đỏ, nêu đích danh** `/src/App.vue` 500 · lành lại → xanh |
+| AC2 fixture reset | ✅ | `support/panelReset.mjs`, cầu `import()` gọi thẳng năm hàm `reset*` — **0 dòng mã sản phẩm**, đo được: 19 đường `/src/…` trong `main.ts` đã biến đổi, **0** đường mang query string. Chín lượt `reload()` trong sáu tệp → còn **một**, và lượt ấy khác hạng *(đồng bộ sau ghi ngoài luồng)*, ghi rõ tại chỗ |
+| AC3 chờ trạng thái đích | ✅ | `support/gridWait.mjs`. Bốn chỗ chuyển + hai khuôn tự vá gộp về helper chung. Bốn `waitForExist` **cố ý ở lại** — ở đó *"tồn tại"* là mệnh đề đang kiểm |
+| AC4 chờ sự kiện | ✅ | `support/flushWait.mjs`, hợp đồng **hai bước**. `FLUSH_WAIT_MS` **gỡ khỏi mã**. 🔴 `git diff` trên `editorFlush.ts` + `writeSchedule.ts` = **RỖNG** ⇒ không hằng AD-35 nào đổi một chữ số |
+| AC5 cổng ô nhớ | ✅ | `check:panel-refs` — cổng thứ **MƯỜI**. 39 tệp · 91 ô · 25 miễn trừ có tên. **Đột biến: đỏ trên `sourceCut`+`omitError`, xanh khi khôi phục** |
+| AC6 cột `segment` mới | ✅ | `a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default`. **Đột biến: bỏ `translation_origin` khỏi `INSERT` của `write_regroup` ⇒ đỏ (`""` vs `"self"`)** |
+| AC7 tái lập được | 🔴 **CHƯA** | Task 8.4 hoãn theo chữ ký #0. Bộ e2e trọn bộ **chưa chạy một lượt nào** trong story này |
+
+⚠️ **ĐỪNG ĐỌC SÁU DẤU ✅ THÀNH *"BỘ ĐO ĐÃ NÓI THẬT"*.** Chúng gỡ bốn nguồn nhiễu **đã đặt tên được**.
+Mệnh đề *"kết quả tái lập được"* là một phép **ĐO**, và phép đo ấy chưa chạy. `attribution-focus`
+*(lần đỏ ② của `wdio.conf.mjs`)* **vẫn chưa được chẩn đoán** — không bản vá nào ở trên nêu tên nguyên
+nhân của nó.
+
+**Ba mục còn hở, mỗi mục một điều kiện gỡ:**
+
+- **Task 8.4 + quyết định #8** — chặn bởi **chữ ký #0 của Ice** *(hoãn tới khi Story 2.4 đóng)*.
+  Story 2.4 `in-progress`, **chủ là ICE**, và nó đang chờ một máy rảnh: loadavg đo được
+  **162,88 → 111,35** trên 16 nhân so với **7,19** mà AC22 đã gắn cờ.
+- **Task 4.4** *(đo trên máy bận)* — chặn bởi **chữ ký #0b**, đẩy sang 8.4.
+- **Task 1.5** *(cạm bẫy 8, vế client)* — đòi cùng một lượt chạy e2e. **Không tự chấm đạt**: đã mở
+  một mục nợ **có chủ**, đúng như Task 1.5 dặn.
+
+⚠️ **Và một điều kiện vật lý, không thuộc chữ ký nào:** cổng **1420 đang bận** trong suốt lượt dev
+này — `npm run tauri dev` của Ice đang mở. Bộ e2e cần cổng đó trống. Mọi phép đo của story chạy trên
+**1421** để không giết phiên của Ice.
+
+**Số đo, kèm phiên bản và ngày** *(Task 8.6 — "số đo không truy nguyên được thì không phải số đo")*:
+
+| Thứ | Mốc gốc *(đo lại Task 0.1)* | Sau story | Công cụ |
+|---|---|---|---|
+| Cổng đọc-tệp | 9/9 exit 0 | **10/10 exit 0** | Node 22 |
+| `npm run test` | 249/249, 21 tệp | **249/249, 21 tệp** | vitest 4.1.10 |
+| `cargo test --locked` | 414/0/5 | **415/0/5** *(+1 = ca AC6)* | rustc/cargo của toolchain ghim 1.97.1 |
+| `npm run build` | xanh | **xanh** | vue-tsc + vite 8.2.0 |
+| `browser.pause()` trong `e2e/specs/` | 25 | **23** *(hai lượt `FLUSH_WAIT_MS` đã thay)* | grep |
+| `window.location.reload()` trong specs | **9** *(6 tệp)* | **1** *(có lý do tại chỗ)* | grep |
+| Ô nhớ `src/**/*.ts` được canh | **0** | **91** *(25 miễn trừ có tên)* | `check:panel-refs` |
+| Sàn `check-layout` | 43 / 55 = 78,2% | **46 / 55 = 83,6%** | đo bằng `walk()` của chính cổng |
+| Sàn `check-commands::TS_FLOOR` | 30 / 39 = 76,9% | **33 / 39 = 84,6%** | `find src -name '*.ts'` |
+
+**Ngày đo: 2026-08-18.** Máy: macOS (darwin 24.6.0). ⚠️ **Mọi số trên là số MỘT NỀN TẢNG** — xem món
+nợ *"AC7 là một mệnh đề MỘT NỀN TẢNG"* (Ice ký quyết định #1(c)).
+
+**Cửa `AD` (Task 0.4): KHÔNG kích hoạt.** Quyết định #4 rơi vào (a) rồi (a′), cả hai là **0 dòng mã
+sản phẩm mới**. Ràng buộc kéo theo của #5(b) *(nếu phải phơi một thứ lên `window` thì cửa mở lại)*
+cũng **không** kích hoạt: `import()` động qua Vite dev cho đúng module record của app, đo được.
+
+**Sổ nợ:** đóng **6** mục ✅, đánh **3** mục 🟡 kèm phần còn hở, giữ chủ tường minh cho **3** mục
+*(hai vế Blink của Story 1.22 theo chữ ký #1(c); cử chỉ chuột theo Task 9.2)*, mở **6** mục nợ mới
+**có chủ**. Không mục nào mồ côi. Không dòng nào bị xoá.
 
 ### File List
 
+**MỚI (5)**
+- `scripts/check-panel-refs.mjs` — cổng thứ mười (AC5)
+- `e2e/support/devServerHealth.mjs` — phán quyết sức khoẻ Vite (AC1)
+- `e2e/support/panelReset.mjs` — cầu reset state panel (AC2)
+- `e2e/support/gridWait.mjs` — khuôn chờ trạng thái đích (AC3)
+- `e2e/support/flushWait.mjs` — chờ mốc lưu (AC4)
+
+**SỬA — mã sản phẩm (4)**
+- `src/panels/editorPanelState.ts` — 5 cờ/mutex vào `resetEditorPanel` (#2a)
+- `src/panels/dictSourcesState.ts` — `resetDictSources()` mới (#2c)
+- `src/panels/segmentHistoryState.ts` — `resetSegmentHistory()` mới (#2c)
+- `src/panels/lookupTiming.ts` — `resetLookupTiming()` mới (#2c)
+
+**SỬA — bộ đo (7)**
+- `e2e/wdio.conf.mjs` — `assertModuleGraphHealthy`, bản ghi lượt chạy (9.4)
+- `e2e/support/workspace.mjs` — fixture gọi `resetPanelState()`
+- `e2e/specs/editor-typing-flush.e2e.mjs` · `grid-empty-cell.e2e.mjs` ·
+  `segment-backspace-merge.e2e.mjs` · `segment-merge-split.e2e.mjs` · `segment-navigation.e2e.mjs`
+
+**SỬA — cổng và danh sách (5)**
+- `scripts/check-layout.mjs` · `scripts/check-commands.mjs` — sàn quần thể (7.5)
+- `package.json` · `.github/workflows/ci.yml` · `.githooks/pre-push` — ba danh sách (7.1-7.3)
+
+**SỬA — test (1)**
+- `src-tauri/tests/segment_contract.rs` — ca AC6
+
+**SỬA — tài liệu (3)**
+- `_bmad-output/implementation-artifacts/deferred-work.md` · `sprint-status.yaml` · tệp story này
+
 ### Change Log
+
+| Ngày | Việc |
+|---|---|
+| 2026-08-18 | Task 0.1/0.3 đo lại từ nguồn — **3 tiền đề của story bị phép đo bác** *(cargo 409→414 · ô ngoài reset 4→5 · `reload()` 3→9)*, cộng một dữ kiện mới: lượt trọn bộ **thứ chín** = 8 passed / 3 failed |
+| 2026-08-18 | Task 0.2 — Ice ký **10** quyết định *(tám của story + thứ tự #0 + biến thể #4(a′))*. Cửa `AD` (0.4) **không** kích hoạt |
+| 2026-08-18 | AC1 — `devServerIsUp` đi trọn module graph; **hai giả thuyết bị bác** trước khi có bản vá |
+| 2026-08-18 | AC2 — fixture dọn state panel qua cầu `import()`; gỡ 8/9 lượt `reload()` |
+| 2026-08-18 | AC3 — khuôn chờ trạng thái đích thành helper dùng chung |
+| 2026-08-18 | AC4 — chờ mốc lưu thay `pause()`; `FLUSH_WAIT_MS` **gỡ**, hằng AD-35 **không đổi một chữ số** |
+| 2026-08-18 | AC5 — cổng `check:panel-refs`; **hai lỗi của chính cổng** bắt được bằng đột biến, không bằng đọc lại |
+| 2026-08-18 | AC6 — ca Rust khoá đường ghi thứ hai (`write_regroup`); đột biến cho đỏ |
+| 2026-08-18 | Task 7 — ba danh sách + **hai** sàn quần thể *(story giao một)*; `check:gates` xanh |
+| 2026-08-18 | Task 9 — 6 mục đóng · 3 mục 🟡 · 3 mục giữ chủ · 6 mục nợ mới có chủ |
+| 2026-08-18 | 🔴 **AC7 CHƯA ĐÓNG** — Task 1.5 · 4.4 · 8.4 chặn bởi chữ ký #0 *(chờ Story 2.4)* cộng cổng 1420 đang bận. **Cửa chặn ② chưa đóng trọn** |
 
 ### Review Findings
 

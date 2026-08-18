@@ -40,6 +40,29 @@ const queries: string[] = []
 let enabled = false
 
 /**
+ * 🔵 **STORY 2.12 · AC5** — dọn hàng đợi và mọi mẫu đã đo.
+ *
+ * Ice ký 2026-08-18 (quyết định #2c). Tệp này là **ứng viên thứ ba, story không biết tới** —
+ * nó lòi ra ở lượt đo lại Task 0.1, không có trong bảng của story.
+ *
+ * ⚠️ Vì sao [`pending`] là ô đáng dọn nhất trong bốn ô: nó là một hàng đợi **FIFO ghép cặp**
+ * `markDispatch` ↔ `markPainted`. Một lượt `markDispatch` không bao giờ được ghép cặp — vì
+ * Tác phẩm đổi giữa chừng, hay panel bị gỡ trước `requestAnimationFrame` — để lại một mốc đầu
+ * mồ côi ở **đầu** hàng đợi. Lượt `markPainted` kế tiếp ghép vào mốc mồ côi ấy và ghi một độ
+ * trễ **cộng cả khoảng thời gian giữa hai lượt tra**. Bảng số của AC4 khi đó mang một con số
+ * không phải của truy vấn nó gán, và con số đó **lớn hơn sự thật** — tức nó nói dối về đúng
+ * phía làm ta lo lắng.
+ *
+ * 🔴 [`enabled`] KHÔNG bị đặt lại: nó là một công tắc chẩn đoán do người đo bật, không một
+ * mẩu state của phiên. Dọn nó ở đây là tự tắt bàn đo giữa một lượt đo.
+ */
+export function resetLookupTiming(): void {
+  pending.length = 0
+  samples.length = 0
+  queries.length = 0
+}
+
+/**
  * Mốc ĐẦU — gọi trong handler `mouseup` của hợp đồng, **TRƯỚC** `dispatch`.
  *
  * ⚠️ *"Từ lúc thả chuột"* là chữ của `epics.md:1774`. Một mốc đặt sau `dispatch` đo một

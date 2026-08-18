@@ -371,6 +371,31 @@ export async function restoreVersion(versionId: number, force: boolean): Promise
   }
 }
 
+/**
+ * 🔵 **STORY 2.12 · AC5** — đưa hộp thoại lịch sử phiên bản về trạng thái chưa từng mở.
+ *
+ * Ice ký 2026-08-18 (quyết định #2c). Đây là tệp thứ hai trong `src/panels/**` có ô nhớ cấp
+ * module mà không hàm reset nào — và nó là tệp **đáng canh hơn** trong hai tệp đó, vì cả chín
+ * ô đều mang dữ liệu **của một segment cụ thể thuộc một Tác phẩm cụ thể**.
+ *
+ * ⚠️ Hình dạng hỏng nếu thiếu hàm này, và nó không ném lỗi nào: đổi Tác phẩm trong lúc hộp
+ * thoại đang mở thì [`segmentId`] còn trỏ vào một `segment.id` của Tác phẩm CŨ. `segment.id`
+ * **không bao giờ tái dùng** trong cùng một kho, nhưng hai kho khác nhau đánh số **độc lập**
+ * — nên id ấy tồn tại thật ở kho mới, trỏ vào một câu khác hẳn. Một lượt khôi phục FR101 khi
+ * đó ghi bản dịch của câu này đè lên câu kia, và *"chỗ hỏng là VĨNH VIỄN"*.
+ */
+export function resetSegmentHistory(): void {
+  isOpen.value = false
+  segmentId.value = null
+  versions.value = []
+  pending.value = false
+  loadError.value = null
+  restoreError.value = null
+  restoreNotice.value = null
+  pendingRestore.value = null
+  aimedVersionId.value = null
+}
+
 /** Bỏ câu hỏi đang chờ mà **không** khôi phục — người dùng giữ bản đang soạn. */
 export function cancelPendingRestore(): void {
   pendingRestore.value = null

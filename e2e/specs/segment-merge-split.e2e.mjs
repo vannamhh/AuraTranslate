@@ -29,6 +29,7 @@
  * âm phím tắt **là** một `keydown`, và đó chính xác là thứ `CommandRegistry` nghe. Vế bộ gõ
  * tiếng Việt thì không đường nào của dự án mô phỏng được; nó không thuộc phạm vi story này.
  */
+import { waitForGridRows, waitForGridText } from '../support/gridWait.mjs'
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
 import { realClick } from '../support/pointer.mjs'
 
@@ -60,15 +61,17 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
     // và bộ tách nhìn `。` vì Tác phẩm khai `sourceLang: 'zh'`.
     await openWorkspaceWithWork('Story 2.8 — gộp', '一。二。三。')
 
-    // Cùng lượt nạp lại của `grid-empty-cell.e2e.mjs`, cùng lý do (state module-level rò qua
-    // các phiên app vì `$APPDATA` dùng chung). Vá của BÀN ĐO, không của sản phẩm.
-    await browser.execute(() => {
-      window.location.reload()
-    })
-    await $('[data-col="src"]').waitForExist({ timeout: 30_000 })
+    // 🔵 **STORY 2.12 · AC2 — lượt `reload()` ở đây ĐÃ GỠ 2026-08-18.**
+    // Fixture `openWorkspaceWithWork` nay tự dọn state panel bằng `resetPanelState()` (cầu
+    // `import()` gọi thẳng năm hàm `reset*`, quyết định #5(b) Ice ký). Vá tại chỗ hết việc.
+    // 🔵 **STORY 2.12 · AC3** — chờ TRẠNG THÁI ĐÍCH, không chờ *"phần tử tồn tại"*.
+    // `waitForExist` không phân biệt *"Chương MỚI đã nạp"* với *"Chương CŨ còn đó"* — hai
+    // trạng thái cùng hình dạng DOM. Vế đếm hàng dưới đây nay là **tiền đề đã được chờ**,
+    // nên `expect(truoc.soHang)` cũ đã thành một phép kiểm không bao giờ đỏ được và bị gỡ.
+    await waitForGridRows(3, { what: 'Tác phẩm "Story 2.8 — gộp"' })
+    await waitForGridText(0, '一。')
 
     const truoc = await chupLuoi()
-    await expect(truoc.soHang).toBe(3)
     await expect(truoc.soVachVeHuu).toBe(0)
 
     // ── ① Đặt caret vào ô bản dịch của câu THỨ HAI ────────────────────────────────
@@ -130,13 +133,16 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
     // vào giữa chữ.
     await openWorkspaceWithWork('Story 2.8 — tách', '一二三四五六七八九十甲乙丙丁戊己庚辛。五。')
 
-    await browser.execute(() => {
-      window.location.reload()
-    })
-    await $('[data-col="src"]').waitForExist({ timeout: 30_000 })
+    // 🔵 **STORY 2.12 · AC2 — lượt `reload()` ở đây ĐÃ GỠ 2026-08-18.**
+    // Fixture `openWorkspaceWithWork` nay tự dọn state panel bằng `resetPanelState()` (cầu
+    // `import()` gọi thẳng năm hàm `reset*`, quyết định #5(b) Ice ký). Vá tại chỗ hết việc.
+    // 🔵 **STORY 2.12 · AC3** — chờ TRẠNG THÁI ĐÍCH, không chờ *"phần tử tồn tại"*.
+    // `waitForExist` không phân biệt *"Chương MỚI đã nạp"* với *"Chương CŨ còn đó"* — hai
+    // trạng thái cùng hình dạng DOM. Vế đếm hàng dưới đây nay là **tiền đề đã được chờ**,
+    // nên `expect(truoc.soHang)` cũ đã thành một phép kiểm không bao giờ đỏ được và bị gỡ.
+    await waitForGridRows(2, { what: 'Tác phẩm tách' })
 
     const truoc = await chupLuoi()
-    await expect(truoc.soHang).toBe(2)
 
     // ── ① Bấm vào GIỮA ô nguyên văn của câu đầu ───────────────────────────────────
     //
@@ -276,13 +282,16 @@ describe('Story 2.8 — gộp và tách segment trong WKWebView thật', () => {
       '一二三四五六七八九十甲乙丙丁戊己庚辛壬癸。五。',
     )
 
-    await browser.execute(() => {
-      window.location.reload()
-    })
-    await $('[data-col="src"]').waitForExist({ timeout: 30_000 })
+    // 🔵 **STORY 2.12 · AC2 — lượt `reload()` ở đây ĐÃ GỠ 2026-08-18.**
+    // Fixture `openWorkspaceWithWork` nay tự dọn state panel bằng `resetPanelState()` (cầu
+    // `import()` gọi thẳng năm hàm `reset*`, quyết định #5(b) Ice ký). Vá tại chỗ hết việc.
+    // 🔵 **STORY 2.12 · AC3** — chờ TRẠNG THÁI ĐÍCH, không chờ *"phần tử tồn tại"*.
+    // `waitForExist` không phân biệt *"Chương MỚI đã nạp"* với *"Chương CŨ còn đó"* — hai
+    // trạng thái cùng hình dạng DOM. Vế đếm hàng dưới đây nay là **tiền đề đã được chờ**,
+    // nên `expect(truoc.soHang)` cũ đã thành một phép kiểm không bao giờ đỏ được và bị gỡ.
+    await waitForGridRows(2, { what: 'Tác phẩm tách' })
 
     const truoc = await chupLuoi()
-    await expect(truoc.soHang).toBe(2)
 
     // ── ① HAI cú bấm, hai vị trí khác nhau, cùng một ô ────────────────────────────
     //

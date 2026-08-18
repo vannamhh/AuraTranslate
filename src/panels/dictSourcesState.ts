@@ -350,6 +350,34 @@ export function openAttribution(): void {
 }
 
 /**
+ * 🔵 **STORY 2.12 · AC5** — đưa module về đúng trạng thái TRƯỚC [`loadDictSources`].
+ *
+ * Ice ký 2026-08-18 (quyết định #2c): tệp này là một trong hai tệp `src/panels/**` có ô nhớ
+ * cấp module mà **không hàm reset nào**, và đường *"ngoài phạm vi, ghi nợ"* bị loại.
+ *
+ * 🔴 **VÀ NÓ CỐ Ý KHÔNG NẰM TRÊN ĐƯỜNG ĐỔI TÁC PHẨM — đọc dòng này trước khi nối nó vào.**
+ * [`disabled`] là cấu hình tầng **Global** (`commands/dict.rs` đọc `disabled_sources(store)`
+ * cho MỌI lượt tra, không theo Tác phẩm), và nó chỉ được nạp lại **một lần lúc khởi động**
+ * qua [`loadDictSources`]. Gọi hàm này ở chỗ `resetEditorPanel()` được gọi sẽ xoá tập bị tắt
+ * trong bộ nhớ mà **không ai đọc lại nó từ đĩa** ⇒ mọi nguồn người dùng đã tắt lặng lẽ bật
+ * lại, và đĩa vẫn giữ tập cũ nên lần khởi động sau chúng tắt lại. Một khuyết tật **chỉ hiện
+ * ra khi đổi Tác phẩm**, và không cổng nào đỏ.
+ *
+ * ⇒ Chủ gọi hợp lệ: một lượt dựng lại phiên **có kèm** một lượt [`loadDictSources`] ngay sau.
+ */
+export function resetDictSources(): void {
+  toggleSequence += 1
+  sources.value = []
+  sourcesError.value = null
+  disabled.value = new Set()
+  attributionOpen.value = false
+  aimedCode = null
+  // Hàng đợi ghi về lại trạng thái "không có gì đang bay". Xem [`writeQueue`]: một lượt ghi
+  // của phiên CŨ còn treo ở đuôi hàng đợi sẽ nối tiếp vào lượt ghi đầu của phiên MỚI.
+  writeQueue = Promise.resolve()
+}
+
+/**
  * Đóng lớp phủ Attribution. Gọi từ `Escape` và từ nút đóng.
  *
  * ⚠️ Việc **trả tiêu điểm về chỗ cũ** (UX-DR17) sống trong chính component — nó cần phần tử

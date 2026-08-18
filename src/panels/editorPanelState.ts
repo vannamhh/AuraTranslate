@@ -608,7 +608,31 @@ export function resetEditorPanel(): void {
   // ⚠️ Đây **không** phải cổng mà `deferred-work.md` còn nợ: nó chỉ đóng đúng ba (rồi N) ô câu
   // chữ đi qua [`datThongBao`]. Một ô nhớ **không phải câu chữ** *(khuôn `sourceCut`,
   // `confirmError`, `caretPlacement`)* vẫn phải nhớ bằng tay, và vẫn không cổng nào canh.
+  // 🔵 **HẾT ĐÚNG 2026-08-18 (Story 2.12, AC5)** — nay CÓ một cổng canh: `check:panel-refs`
+  // đỏ khi một ô nhớ cấp module không đi qua một hàm reset và cũng không có miễn trừ có tên.
   datThongBao({})
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔵 STORY 2.12 — NĂM CỜ/MUTEX TIẾN TRÌNH, và vì sao chúng vào đây chứ không được miễn
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // Ice ký 2026-08-18 (quyết định #2a): năm ô dưới đây **bắt buộc** đi qua reset, đường
+  // *"miễn trừ CÓ TÊN"* bị loại. Lý do là một phép đếm, không một sở thích: đây đúng lớp mà
+  // `sourceCut` (Story 2.8) và `omitError` (Story 2.9) đã lọt qua **hai story liên tiếp**, và
+  // không cổng nào đỏ cả hai lần.
+  //
+  // ⚠️ **Ba dòng promise KHÔNG phải mã chết chỉ vì mỗi lượt bay tự dọn mình ở `finally`.**
+  // Chúng tự dọn khi lượt bay **kết thúc**; `resetEditorPanel()` chạy đúng lúc Tác phẩm đổi
+  // dưới chân một lượt bay **CHƯA** kết thúc. Ô còn giữ promise của Tác phẩm CŨ, nên lời gọi
+  // kế tiếp *"chờ lượt đang bay rồi hẵng chạy"* sẽ chờ — rồi đọc kết quả của một Tác phẩm
+  // khác. Một câu trả lời sai trông hoàn toàn bình thường.
+  //
+  // 🔴 `sequence += 1` ở đầu hàm này làm những lượt bay ấy **vô hại**, không làm chúng **biến
+  // mất**. Hai vế khác nhau, và chỉ vế thứ hai mới là reset.
+  inFlight = null
+  confirmInFlight = null
+  regroupInFlight = null
+  kyTrungCauCuoi = false
+  dangChuyenChuong = false
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
