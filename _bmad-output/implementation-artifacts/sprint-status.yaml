@@ -1,4 +1,4 @@
-# last_updated: 2026-08-18T00:30:00
+# last_updated: 2026-08-18T13:20:00
 # generated: 2026-08-03T13:04:45
 # 2026-08-12: Epic 2 mo — story 2.1 chuyen sang ready-for-dev (create-story).
 # 2026-08-12: story 2.2 chuyen sang ready-for-dev (create-story).
@@ -1557,6 +1557,50 @@ development_status:
   # FR20; cap con lai (luoi <-> AI Translation) van con THAT nhung Ice chot khong giu.
   # ⚠️ Neu Epic 4 dung che do dich THEO LO thi nhu cau quay lai va luc do KHONG FR nao
   # chua no — mon no co chu la Epic 4, ghi day du o deferred-work.md.
+
+  # 🔴 SO HIEU 2-12 DUOC TAI DUNG. Khoa duoi day KHONG phai sync-scrolling song lai — slug khac
+  #   nen hai khoa khong dung nhau. Ghi ra bang chu theo yeu cau cua retro (epic-2-retro:350-352).
+  #   Nguon: action item B2 cua retro Epic 2 — KHONG tu epics.md, va epics.md hom nay KHONG co
+  #   muc `### Story 2.12` nao dang hoat dong (cho do la khoi `~~Sync Scrolling~~ — XOA`,
+  #   epics.md:2659-2667). Bo sung mot muc vao epics.md la mot luot correct-course, chu la PM —
+  #   cau hoi ⑴ trong tep story.
+  # 🔴 DAY LA CUA CHAN ② Ice ky 2026-08-18: Epic 3 KHONG mo truoc khi story nay chay xong.
+  #   Bay AC dan xuat tu sau mon cua B2 cong mot AC nghiem thu. Story CO Y dung o AC7: trong kho
+  #   "cong AC8" la biet danh cua mot test Rust (segment_contract.rs:2333), khong phai AC thu tam
+  #   cua story nao — mot "AC8" o day se lam hai thu khac han mang cung mot ten.
+  #   Baseline do lai tu nguon 2026-08-18 tren HEAD 4b30199: cargo test --locked 409/0/5 ignored ·
+  #   vitest 249/249 (21 tep) · 11 spec e2e / 21 it() · 25 luot browser.pause() · 4 o nho cap
+  #   module ngoai resetEditorPanel · 2 tep src/panels/** khong co ham reset nao.
+  #   Task 0 co TAM quyet dinh cho chu ky, trong do #4 (tin hieu "flush xong" lo ra bang gi) la
+  #   ung vien CUA `AD` — neu kich hoat thi DUNG story, soan ho so ban giao, khong tu soan AD.
+  # 🔴 THU TU Ice chot 2026-08-18: Story 2.4 (cua chan ①, B1) go TRUOC story nay.
+  #   2-4 -> 2-12 -> Epic 3. Khong song song.
+  #   Ly do doi NOI DUNG chu khong chi doi lich: mot ban va NFR2 cham DUNG duong nong ma chu ky
+  #   #4 (tin hieu "flush xong") va #8 (nguong "tai lap duoc") dang do; bien 1.500 ms giua
+  #   FLUSH_WAIT_MS va EDITOR_IDLE_MS co the tu noi ra HOAC hep lai sau khi 2.4 va.
+  #   ⇒ Task 0.1 phai DO LAI baseline SAU khi 2-4 dong. Bang trong tep story chup HEAD 4b30199,
+  #   tuc TRUOC 2.4 — dung dung no nhu mot so da chot.
+  #   ⚠️ Story van `ready-for-dev` tu 2026-08-18: thu cho la luot DEV, khong phai ho so.
+  2-12-ha-tang-e2e-va-cong-con-thieu: ready-for-dev
+
+  # 🔴 STORY NAY DONG MOT VI PHAM LUAT DANG SONG, khong them nang luc.
+  #   project-context.md:447-448 viet bang chu: "Moi thu ... KEM MOT CHU. Khong co muc nao mo coi."
+  #   Dem that ca 4.691 dong deferred-work.md ngay 2026-08-18 (HEAD 4b30199):
+  #     448 muc / 83 khoi · 361 mo · 50 nua 🟡 · 37 dong ✅ · ti le dong 8,3%
+  #     199 muc MO ma KHONG co `Chu:` — Epic 1: 156 · Epic 2: 16 · khac: 27
+  #   ⚠️ Retro Epic 2 KHONG sai — con so "~157 muc, 22 dong" cua no la KHOANG EPIC 2.
+  #     Ca so lon gap gan BA lan khung do. Hai con so do hai thu khac nhau, ghi ra thay vi de troi.
+  #   🔴 PHAT HIEN LAT HUONG XU LY: quy uoc `Chu:` DANG HOAT DONG. Epic 2 = 65/81 (80%) muc mo co
+  #     chu; Epic 1 = 41/197 (21%). ⇒ KHONG can mot co che moi, KHONG can story don no dinh ky.
+  #     Day la mot khoi DI SAN DUNG MOT LAN: 156 muc Epic 1 viet TRUOC khi luat `Chu:` ton tai.
+  #   Phan bo 199 muc: 40 font/tu dien · 29 Windows (-> B7) · 10 nghiem thu tay (-> B10) ·
+  #     7 do lai mot con so · 113 CAN DOC TAY (33 cong check-* · 17 test · 17 src/ · 6 tai lieu ·
+  #     4 CI · 36 khong bam be mat nao).
+  # 🔴 THU TU Ice chot 2026-08-18: SAU ca 2-4 VA 2-12. Day KHONG phai cua chan Epic 3.
+  #   Task 0.1 phai DO LAI bang — 2.12 nhan chu 11 muc va Task 9 cua no se dong chung.
+  #   Sau quyet dinh cho chu ky; #4 (them mot trang thai THU TU cho so no) la mot doi QUY UOC KHO
+  #   ⇒ neu kich hoat thi DUNG, neu voi Ice nhu mot luot sua project-context.md rieng.
+  2-13-phan-loai-so-no-va-luat-khong-mo-coi: ready-for-dev
   # ✅ 2026-08-18 — RETRO EPIC 2 XONG, che do MOT PHAN (Ice chot): 12/14 story done, `2-3` va
   #   `2-4` con in-progress va duoc coi la DOI TUONG cua phien, khong phan thieu cua no.
   #   Tai lieu: implementation-artifacts/epic-2-retro-2026-08-18.md
