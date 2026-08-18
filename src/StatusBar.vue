@@ -206,6 +206,14 @@ const NAV_NOTICE_KEYS: Record<NonNullable<typeof editorNavNotice.value>, string>
   //    chuỗi đó nói *"câu"*, còn đây là biên **Chương**.
   'at-first-chapter': 'panel.grid.nav_at_first_chapter',
   'at-last-chapter': 'panel.grid.nav_at_last_chapter',
+  // 🔵 2026-08-18 (code review ba tầng) — khoá thứ TÁM, CHÍN và MƯỜI. Ba đường hỏng của lượt
+  //    chuyển Chương trước lượt rà này nói **sai chỗ**: hai nhánh flush mượn kênh `confirm`
+  //    *("…nên chưa **xác nhận**" — người dùng không xác nhận gì cả)*, còn nhánh lỗi IPC ghi
+  //    `loadError` và khoá chết cả lưới. 🔴 Cùng lập luận đã dựng ra hai khoá Chương ở trên,
+  //    áp cho ba đường còn lại — xem `editorPanelState.ts::NavNotice`.
+  'chapter-switch-failed': 'panel.grid.nav_chapter_switch_failed',
+  'chapter-flush-failed': 'panel.grid.nav_chapter_flush_failed',
+  'chapter-still-dirty': 'panel.grid.nav_chapter_still_dirty',
 }
 
 const navNoticeKey = computed<string | null>(() => {

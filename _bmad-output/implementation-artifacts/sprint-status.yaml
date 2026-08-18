@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-18T12:40:00
+last_updated: 2026-08-18T11:45:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -1521,7 +1521,38 @@ development_status:
   #   mot loi CO TEN) va :151 (cho dat truoc `⌥←`/`⌥→` dua tren mot luot doc nham — hang that o
   #   `EXPERIENCE.md:184` thuoc man xem truoc NHAP, UX-DR33; **dinh chinh**, khong xoa).
   #   Bay mon no moi vao deferred-work.md, tat ca co chu.
-  2-11-chuyen-chuong-trong-workspace: review
+  # ✅ 2026-08-18 — code review BA TANG (Blind Hunter · Edge Case Hunter · Acceptance Auditor,
+  #   chay song song, khong mang boi canh). Nua RUST di qua SACH ca ba tang: so sanh bo doi
+  #   `(ord, id)`, khong `ord + 1`, khong quay vong, con tro doi SAU truy van. Ca NAM phat hien
+  #   nam o lop dieu phoi TypeScript (`switchChapter`) — noi bao dam duoc viet ra rat day bang
+  #   chu nhung ba khoang ho khong duoc do toi. HAI trong nam duoc HAI tang doc lap chi dung
+  #   cung mot dong. Ice ky HAI quyet dinh, ca NAM da va cung luot:
+  #   ① Cua so mat chu giua ② `open_adjacent_chapter` va ③ `resetEditorPanel()` — go tiep trong
+  #      luc luot IPC dang bay thi `flush.reset()` vut vo dieu kien. Ice ky duong (a): KHOA GO
+  #      suot luot chuyen, dong cua so TU GOC de menh de "① la phep chung minh duy nhat" dung
+  #      tro lai theo CAU TAO. Duong (b) — kiem `isDirty()` lai truoc ③ — bi loai vi con mot
+  #      cai duoi khong co loi giai: luot flush them ma van truot thi con tro Rust da doi roi.
+  #   ② Mot loi IPC nhat thoi ghi `loadError` ⇒ `editorHasLoaded()` tra `false` VINH VIEN ⇒ khoa
+  #      chet ca luoi, moi lenh dieu huong, lan chinh luot thu lai. Ice ky duong (a): mot kenh
+  #      RIENG (`NavNotice` + khoa `vi.json` moi), `loadError` khong bi dung.
+  #   ③ Panel Source KHONG duoc don/nap lai ⇒ hai panel tren cung mot man hinh noi ve HAI Chuong
+  #      khac nhau, khong loi nao. Dung nguyen van kich ban ma `sourcePanelState.ts:352-355` da
+  #      ghi cho cap TAC PHAM, tai dien o cap CHUONG.
+  #   ④ Cau chan muon kenh `confirm` ⇒ man hinh noi "…nen chua XAC NHAN" cho mot nguoi vua bam
+  #      `Mod+Alt+]`. Dung nguyen tac ma Quyet dinh #5 cua chinh story dat ra, bo sot cach 4 dong.
+  #   ⑤ 🔴 Tien de "lo flush dang bay mang `chapter_id` CU ⇒ `segment.unknown_ids` ⇒ mat chu"
+  #      la SAI, va no duoc chep o BON cho. `save_segment_targets` (`segment.rs:1171-1193`) kiem
+  #      va ghi tren CHINH `project.db` dang mo, KHONG doc `OpenWork::chapter_id`; Chuong cu van
+  #      con nguyen trong cung CSDL sau mot luot doi Chuong. Ket luan ve THU TU giu nguyen, LY DO
+  #      doi. ⚠️ Va menh de sai ay da tra gia: no hut het chu y ve mot moi nguy KHONG ton tai,
+  #      trong khi moi nguy CO THAT (①) nam cach do sau dong va khong luot ra noi bo nao nhin.
+  #   Da BAC 1 muc (chot chong chong luot bo qua im lang) — ly do bac phu DUNG MOT NUA, da ghi.
+  #   Do sau khi va: vitest 249 (truoc 242, bay ca moi) · cargo test --locked 409 · check:i18n
+  #   227 khoa · check:commands 51 command · check:lint sach · vue-tsc + build sach.
+  #   🔴 Mot ca test CU phai sua: no khang dinh CHINH khuyet tat (`editorLoadError` mang loi).
+  #   Mot ca test khoa mot khuyet tat la mot ca test lam khuyet tat ay song lau hon.
+  #   Story chuyen `review` -> `done`.
+  2-11-chuyen-chuong-trong-workspace: done
   # 2-12-sync-scrolling: XOA 2026-08-14 — FR20 da RUT (Ice ky). Luoi nuot 2/3 cap panel cua
   # FR20; cap con lai (luoi <-> AI Translation) van con THAT nhung Ice chot khong giu.
   # ⚠️ Neu Epic 4 dung che do dich THEO LO thi nhu cau quay lai va luc do KHONG FR nao

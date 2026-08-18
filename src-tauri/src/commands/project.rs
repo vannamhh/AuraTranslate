@@ -70,13 +70,28 @@ pub struct OpenWork {
     /// - **(c) lưu xuống đĩa** — kéo theo một bước di trú cho một nghĩa vụ (AC5/FR12) mà
     ///   Quyết định #4(c) vừa giao **trọn** cho Epic 5.
     ///
-    /// ⚠️ **HỆ QUẢ SỐNG CÒN, và nó là một lỗ MẤT DỮ LIỆU không AC nào nêu:**
-    /// `save_segment_targets`/`flush_segment_targets` nhận `chapter_id` **từ webview**. Một
-    /// lô flush đang bay lúc trường này đổi sẽ mang `chapter_id` **CŨ** ⇒ Rust trả
-    /// `segment.unknown_ids` ⇒ bản dịch biến mất **im lặng**. ⇒ Điều kiện thật không phải
-    /// *"flush trước khi dọn state"* mà là **flush xong TRƯỚC lượt đổi trường này** — đúng
-    /// lời giải mà `modes/libraryImport.ts:119-132` đã ghi bằng chữ cho lượt đổi **Tác
-    /// phẩm**, và ở đó lời giải là **THỨ TỰ**, không phải một `try/catch`.
+    /// 🔵 **SỬA 2026-08-18 (code review ba tầng) — ĐOẠN NÀY TỪNG PHÁT BIỂU MỘT PHÉP ĐO SAI.**
+    ///
+    /// ~~*"`save_segment_targets`/`flush_segment_targets` nhận `chapter_id` từ webview. Một lô
+    /// flush đang bay lúc trường này đổi sẽ mang `chapter_id` CŨ ⇒ Rust trả
+    /// `segment.unknown_ids` ⇒ bản dịch biến mất im lặng."*~~
+    ///
+    /// **Đã đọc lại mã và nó không đúng.** `save_segment_targets` (`segment.rs:1171-1193`) kiểm
+    /// `SELECT COUNT(*) FROM chapter WHERE id = ?1` rồi ghi bằng
+    /// `UPDATE segment … WHERE id = ?2 AND chapter_id = ?3` — cả hai chạy trên **chính
+    /// `project.db` đang mở**, và **không đường nào đọc `OpenWork::chapter_id`**. Khác lượt đổi
+    /// **Tác phẩm** *(nơi cả `Store` bị trỏ sang một tệp khác)*, Chương cũ **vẫn còn nguyên
+    /// trong cùng CSDL** sau một lượt đổi Chương ⇒ một lô tới trễ mang `chapter_id` cũ **ghi
+    /// đúng vào Chương cũ**: `touched == expected`, không `unknown_ids`, không mất chữ.
+    ///
+    /// ⇒ **Kết luận về thứ tự KHÔNG đổi** *(flush → invoke → dọn → nạp)*, nhưng **lý do đổi**:
+    /// nó đúng vì tính nhất quán con trỏ/UI, không vì một đường mất chữ qua `unknown_ids`.
+    ///
+    /// 🔴 **Và mệnh đề sai ấy phải trả giá, ghi ra để lượt sau đừng lặp:** nó hút hết chú ý về
+    /// phía một mối nguy **không tồn tại**, trong khi mối nguy **có thật** — người dùng gõ tiếp
+    /// trong cửa sổ giữa lượt `invoke` và lượt `resetEditorPanel()`, rồi `flush.reset()` vứt
+    /// chữ ấy vô điều kiện — nằm cách đó sáu dòng và không lượt rà nội bộ nào nhìn. Nó được
+    /// đóng ở `panels/editorPanelState.ts::noteEditorEdit`, bằng một cửa khoá gõ.
     pub chapter_id: i64,
 }
 

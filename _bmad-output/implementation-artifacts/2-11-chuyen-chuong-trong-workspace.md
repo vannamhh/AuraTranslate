@@ -4,7 +4,7 @@ baseline_commit: 5d94ba181cf6ede4fcecaa3acce97c4c540c0f97
 
 # Story 2.11: Chuyển Chương trong Workspace
 
-Status: review
+Status: done
 
 **Covers:** FR26
 **Epic:** 2 — Biên tập theo segment
@@ -859,6 +859,135 @@ sau story vẫn mười bước, đích **11**, bước kế tiếp **12**. *(Kh
   doc-comment trong mã đã hết đúng. `epics.md` **không sửa một chữ**.
 
 ### Review Findings
+
+**Code review BA TẦNG (Blind Hunter · Edge Case Hunter · Acceptance Auditor, 2026-08-18)** trên
+commit `76a42dc`, diff mã + test 1.704 dòng. Cả ba tầng chạy song song, không mang bối cảnh
+cuộc trò chuyện. Mọi phát hiện dưới đây **đã được kiểm lại trên cây nguồn** trước khi chấm mức —
+không mục nào nhận nguyên văn từ tầng rà.
+
+🔵 **Nửa Rust đi qua sạch.** Ba tầng độc lập cùng kết luận `open_adjacent_chapter` đúng: so sánh
+bộ đôi `(ord, id)`, không `ord + 1`, không quay vòng, con trỏ dời **sau** truy vấn. `cargo test`
+409 ca xanh · vitest 242 ca xanh · `check:commands` 51 command, không hợp âm nào giành nhau.
+**Toàn bộ năm phát hiện nằm ở lớp điều phối TypeScript (`switchChapter`)** — nơi bảo đảm được
+viết ra rất dày bằng chữ nhưng ba khoảng hở không được đo tới.
+
+- [x] [Review][Patch] 🔴 **Chữ gõ trong lúc `open_adjacent_chapter` đang bay bị `flush.reset()`
+  nuốt, im lặng, vĩnh viễn** — `switchChapter` chứng minh tập chờ sạch ở bước ①
+  (`editorPanelState.ts:1400`) rồi `await openAdjacentChapter()` ở bước ②
+  (`:1410`) rồi `resetEditorPanel()` ở bước ③ (`:1434`). Giữa ② và ③ **không phép kiểm
+  `isDirty()` nào chạy lại**, mà `GridPanel.vue:1498` khai `contenteditable="true"` tĩnh trên mọi
+  ô và `dangChuyenChuong` chỉ chặn gọi lại `switchChapter`, **không** chặn `noteEditorEdit`.
+  ⇒ Một ký tự gõ trong cửa sổ round-trip của ② đi vào tập chờ, rồi `flush.reset()`
+  (`:496` — *"vứt vô điều kiện"*) xoá nó không ghi, không log, không cảnh báo. Dữ liệu mà AD-5
+  không cho hoàn tác. **Hai tầng độc lập cùng chỉ đúng dòng này.**
+  Chú thích tại chỗ (`:1432-1433`) khai *"an toàn ở đây **vì** ① vừa trả `'clean'`"* — mệnh đề ấy
+  chỉ đúng **tại thời điểm ①**, không đúng tại ③.
+  ✅ **Ice ký 2026-08-18 — đường (a): KHOÁ GÕ suốt lượt chuyển.** Đóng cửa sổ từ gốc thay vì
+  đuổi theo nó: trong suốt `dangChuyenChuong`, `noteEditorEdit` bỏ qua. ⇒ ① vẫn là phép chứng
+  minh **duy nhất** và nó **đủ**, vì không đường nào làm tập chờ dơ lại sau ①. Không đụng AD-35,
+  không thêm một lượt IPC. Đường (b) *(kiểm `isDirty()` lại trước ③)* bị loại vì nó còn một cái
+  đuôi không có lời giải: nếu lượt flush thêm ấy **vẫn** trượt thì con trỏ Rust đã dời rồi và
+  không chặn lại được.
+- [x] [Review][Patch] 🔴 **Một lỗi IPC nhất thời khoá CHẾT Editor tới khi rời Tác phẩm** —
+  nhánh lỗi của bước ② ghi `loadError.value = error` rồi `return false`
+  (`editorPanelState.ts:1412-1415`) và **không** gọi `resetEditorPanel()`. Đã grep toàn tệp:
+  `loadError` chỉ được ghi ở **ba** chỗ — `:131` (nạp), `:484` (`resetEditorPanel`), `:1413` (mới) —
+  và **không đường thứ tư nào dọn nó**. `editorHasLoaded()` (`:106`) kiểm
+  `loadError === null`, nên từ lúc đó: ① `GridPanel.vue` thay **toàn bộ lưới** bằng một dòng lỗi;
+  ② mọi lệnh điều hướng câu báo *"Chương đang tải — chưa xác định được câu nào"*, một câu **sai
+  sự thật**; ③ `switchChapter` **tự khoá mình** ở cửa chặn đầu hàm (`:1376`) nên không thử lại
+  được. Lối thoát duy nhất: rời Workspace về Library. Đúng lớp lỗi mà chính tệp này đã ghi luật
+  để chặn ở `:133-136` — *"một lượt TRƯỢT không được khoá vĩnh viễn đường nạp"* — nhưng luật đó
+  chưa được áp cho nhánh mới. **Hai tầng độc lập cùng chỉ đúng dòng này.**
+  ✅ **Ice ký 2026-08-18 — đường (a): một kênh RIÊNG, không đụng `loadError`.** Bỏ
+  `loadError.value = error`; lượt chuyển trượt đi ra bằng một giá trị `NavNotice` mới cộng một
+  khoá `vi.json` mới. ⇒ Lưới Chương hiện tại **ở nguyên**, dùng được, và thử lại được. Đúng luật
+  mà chính tệp này đã ghi ở `:133-136`. Đường (b) *(giữ `loadError`, mở một đường thoát)* bị
+  loại: nó để câu *"Chương đang tải"* sai sự thật nằm lại, và nó đòi một bề mặt bấm mà story
+  này không có.
+- [x] [Review][Patch] 🔴 Panel Source giữ nguyên Chương CŨ sau một lượt chuyển thành công — hai
+  panel trên cùng màn hình nói về hai Chương khác nhau, không lỗi nào
+  [src/panels/editorPanelState.ts:1434-1437]
+- [x] [Review][Patch] Lượt chuyển bị chặn vì flush trượt hiện câu *"…nên **chưa xác nhận**"* —
+  màn hình trả lời về một thao tác người dùng không hề làm [src/panels/editorPanelState.ts:1405]
+- [x] [Review][Patch] Tiền đề *"lô flush đang bay mang `chapter_id` CŨ ⇒ `segment.unknown_ids` ⇒
+  mất chữ"* **sai** — chép ở BỐN chỗ, và nó là lý do khoảng hở thật bị bỏ sót
+  [src-tauri/src/commands/project.rs:343-349]
+
+**Chi tiết ba mục `Patch`:**
+
+**P1 — Panel Source không được dọn và không được nạp lại.** `switchChapter` gọi
+`resetEditorPanel()` + `ensureSegmentsLoaded()`, **không** gọi `resetSourcePanel()` +
+`ensureChapterLoaded()`. `chapterRequested`/`hanVietRequested` ở `sourcePanelState.ts` là cache
+**module-level không có khoá vô hiệu hoá** — chính doc-comment của `resetSourcePanel`
+(`sourcePanelState.ts:342-358`) viết ra điều đó, và ghi *"chỗ gọi duy nhất là
+`libraryImport.ts::finishSubmit`"*. Câu ấy **vẫn đúng sau story này**, và đó là khuyết tật:
+`libraryImport.ts:159-190` gọi **cả ba** reset rồi **nạp lại ngay tại chỗ** kèm một khối chú
+thích 15 dòng giải thích *"vứt state cũ là CHƯA ĐỦ"*. Story 2.11 tái dùng đúng một phần ba khuôn
+đó. ⇒ Sau `⌘⌥]`: lưới bản dịch sang Chương mới, còn nguyên văn + bảng âm Hán Việt + `source_lang`
+*(⇒ tab Hán Việt hiện/ẩn)* vẫn là của Chương cũ. Đúng nguyên văn kịch bản mà
+`sourcePanelState.ts:352-355` đã ghi cho cấp **Tác phẩm**, tái diễn ở cấp **Chương**.
+*(Ghi chú: `resetLookupPanel()` thì **không** thuộc lượt vá này — lịch sử tra cứu thuộc Tác phẩm,
+không thuộc Chương. Xem `lookupHistoryState.ts:348-357`.)*
+⚠️ **Và nó giao với một quan sát thứ hai:** Rust **đã** trả `ChapterSwitch.chapter` mang
+`source_text` của Chương mới — nguyên khối văn bản, tối đa 9.850 câu — mà webview **vứt đi không
+đọc** (`editorPanelState.ts:1420`). Payload đó đang được serialize và truyền qua dây mỗi lượt
+chuyển, và nó **chính là** thứ Panel Source cần.
+
+**P2 — câu chặn nói về một thao tác khác.** `datThongBao({ confirm: … })`
+(`editorPanelState.ts:1405`) tái dùng kênh `confirm` vốn thuộc lượt xác nhận segment (`⌘Enter`).
+`StatusBar.vue:110-111` → `vi.json:99-100` cho ra: *"Chưa lưu được bản dịch nên **chưa xác nhận**.
+Bản dịch vẫn còn trên màn hình."* — nhưng người dùng vừa bấm `Mod+Alt+]` để **chuyển Chương**,
+không xác nhận gì cả. Story không thêm khoá `vi.json` nào cho ngữ cảnh này *(4 khoá mới: hai
+`command.*`, hai `panel.grid.nav_*_chapter`)*.
+🔴 **Đây đúng nguyên tắc mà Quyết định #5 của chính story này đã đặt ra** — *"dùng lại
+`nav_at_first` cho biên Chương là để màn hình nói dối"* — áp đúng cho `NavNotice` nhưng bỏ sót
+`ConfirmNotice` cách đó **bốn dòng**. Ca test `editorChapterSwitch.test.ts:230-248` chỉ khẳng định
+`not.toBeNull()`, **không** khẳng định nội dung, nên lỗ này đi qua sạch cả 8 phép đột biến của
+Task 6.5. Món nợ **không** được ghi ở đâu.
+
+**P3 — một phép đo được trình bày như chắc chắn, và nó sai.** Bốn chỗ chép cùng một mệnh đề
+*(`project.rs:343-349` · `editorPanelState.ts:1327-1336` · `editorChapterSwitch.test.ts:7-16`
+· tệp story)*: *"`save_segment_targets` nhận `chapter_id` từ webview ⇒ một lô đang bay lúc con trỏ
+đổi sẽ mang `chapter_id` CŨ ⇒ Rust trả `segment.unknown_ids` ⇒ bản dịch biến mất im lặng."*
+**Đã đọc mã Rust: nó không đúng.** `segment.rs:1171-1193` kiểm `SELECT COUNT(*) FROM chapter WHERE
+id = ?1` và ghi bằng `UPDATE segment … WHERE id = ?2 AND chapter_id = ?3` — cả hai chạy trên
+**chính `project.db` đang mở**, và **không đường nào đọc `OpenWork::chapter_id`**. Khác lượt đổi
+**Tác phẩm** *(nơi cả `Store` bị thay sang một tệp khác)*, Chương cũ **vẫn còn nguyên trong cùng
+CSDL** sau lượt đổi Chương ⇒ một lô tới trễ mang `chapter_id` cũ **ghi đúng vào Chương cũ**,
+`touched == expected`, không `unknown_ids`, không mất chữ.
+⇒ Kết luận *"flush → invoke → dọn → nạp"* **vẫn đúng và phải giữ**, nhưng nó đúng vì **tính nhất
+quán con trỏ/UI**, không vì đường mất chữ đã mô tả. 🔴 **Và đây không phải một lỗi chính tả:**
+mệnh đề sai ấy hút hết chú ý về phía một mối nguy **không tồn tại**, trong khi mối nguy **có
+thật** — cửa sổ ② → ③ ở mục Decision thứ nhất — nằm cách đó sáu dòng và không ai nhìn.
+Luật của kho: *"một quyết định không hiển nhiên phải kèm một PHÉP ĐO, không một sở thích"* và
+*"khi một mệnh đề hết đúng, SỬA TẠI CHỖ"*.
+
+**✅ ĐÃ VÁ CẢ NĂM — 2026-08-18, cùng lượt với lượt rà.** Số đo sau khi vá:
+vitest **249** ca xanh *(trước 242 — bảy ca mới)* · `cargo test --locked` **409** ca xanh ·
+`check:i18n` 227 khoá · `check:commands` 51 command · `check:lint` sạch · `vue-tsc` + `vite build`
+sạch. Tệp chạm: `editorPanelState.ts` · `StatusBar.vue` · `vi.json` · `project.rs` ·
+`editorChapterSwitch.test.ts`.
+
+🔴 **Một ca test CŨ phải sửa, và nó đáng ghi ra:** ca *"lỗi IPC ⇒ … lỗi đi ra bằng
+`editorLoadError`"* khẳng định **chính khuyết tật** — nó khoá lại hành vi ghi `loadError`. Một ca
+test khoá một khuyết tật là một ca test làm khuyết tật ấy sống lâu hơn. Vế *"không nạp lại"* giữ
+nguyên; vế kênh báo lỗi chuyển sang ca mới.
+
+⚠️ **GIỚI HẠN THẬT của lượt vá, ghi ra thay vì để người sau tự phát hiện:**
+① Cửa khoá gõ nuốt vài chục ms phím **không báo** — nhận có ý thức, và kết luận ấy hết đúng ngày
+lượt ② chậm tới mức đo được. ② Ba câu `NavNotice` mới là chuỗi **tĩnh**, không chở được `code`
+của `IpcError`; chi tiết đi vào `console.error`. Đưa nó lên màn hình đòi **một ô nhớ thứ tư** —
+thứ Quyết định #4(b) của Story 2.10 đã cân và loại. ③ Cả năm bản vá nghiệm thu bằng **vitest**;
+đường e2e vẫn **không tới được** vì không đường sản phẩm nào sinh Chương thứ hai — cùng món nợ
+có chủ với AC1/AC2, không một món mới.
+
+**Đã bác — 1 mục:** *"chốt `dangChuyenChuong` bỏ qua lượt bấm thứ hai im lặng, chỉ `console.info`"*
+(Blind Hunter). Bác vì lượt đầu **vẫn đang chạy và sẽ đổi màn hình ngay sau đó** — người dùng
+không rơi vào ca *"bấm phím mà không một pixel nào đổi"*. Một câu trạng thái cho một lượt bấm
+kép nhanh là **nhiễu**, và nó sẽ đẩy mất mốc *"Đã lưu"* mà ca test `editorChapterSwitch.test.ts:348-358` vừa dựng ra để giữ.
+⚠️ Lý do bác này phủ **đúng một nửa**: nó phủ ca bấm kép **nhanh**. Nếu về sau lượt ② chậm tới
+mức người dùng bấm lại vì tưởng phím không ăn, kết luận này hết đúng — đọc lại kèm số đo.
 
 ---
 

@@ -22,6 +22,10 @@ import type { DeepReadonly, Ref } from 'vue'
 import { enterFocus } from '../commands'
 import { openAdjacentChapter } from '../config/chapter'
 import type { ChapterDirection } from '../config/chapter'
+// 🔵 CODE REVIEW 2026-08-18 — lượt đổi CHƯƠNG phải dọn và nạp lại Panel Source, đúng như lượt
+// đổi TÁC PHẨM đã làm ở `modes/libraryImport.ts`. Xem khối lý do trong [`switchChapter`].
+// ⚠️ Không vòng: `sourcePanelState.ts` chỉ import `config/*` và `i18n`, không import tệp này.
+import { ensureChapterLoaded, resetSourcePanel } from './sourcePanelState'
 import {
   confirmSegment,
   mergeSegments,
@@ -300,6 +304,33 @@ function armFlushTimer(floorMs = 0): void {
  * kiểm được tất định. Tệp này là tầng có tác dụng phụ — nó được phép đọc đồng hồ.
  */
 export function noteEditorEdit(segmentId: number, targetText: string): void {
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🔵 CODE REVIEW BA TẦNG 2026-08-18 — CỬA SỔ MẤT CHỮ CỦA LƯỢT CHUYỂN CHƯƠNG
+  //    Ice ký đường (a): KHOÁ GÕ suốt lượt chuyển
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // [`switchChapter`] chứng minh tập chờ sạch ở bước ① rồi `await` một lượt IPC ở bước ② rồi
+  // gọi `resetEditorPanel()` ở bước ③, mà `flush.reset()` bên trong nó **vứt vô điều kiện**.
+  // Giữa ② và ③ **không phép kiểm nào chạy lại** — nên một ký tự gõ trong cửa sổ round-trip
+  // của ② đi vào tập chờ rồi bị xoá không ghi: không lỗi, không log, không cảnh báo, trên dữ
+  // liệu mà AD-5 không cho hoàn tác. HAI tầng rà độc lập cùng chỉ đúng dòng này.
+  //
+  // 🔴 Vá ở ĐÂY chứ không ở [`switchChapter`], và đó là toàn bộ nội dung của chữ ký:
+  // đóng cửa sổ **từ gốc** làm mệnh đề *"① là phép chứng minh duy nhất"* đúng trở lại **theo
+  // cấu tạo**. Đường bị loại — kiểm `flush.isDirty()` lại trước ③ rồi flush thêm một lượt —
+  // còn một cái đuôi không có lời giải: nếu lượt thêm ấy **vẫn** trượt thì con trỏ Chương
+  // phía Rust đã dời rồi và không chặn lại được.
+  //
+  // ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện:** vài chục ms gõ **không
+  // ăn**, và người dùng không được báo. Nhận nó có ý thức — một câu trạng thái cho một cửa sổ
+  // ngắn hơn một nhịp phím là nhiễu, và nó đẩy mất mốc *"Đã lưu"* của UX-DR30. Ngày lượt ②
+  // chậm tới mức đo được, kết luận này hết đúng: đọc lại kèm số đo, đừng kế thừa nó.
+  if (dangChuyenChuong) {
+    console.info(
+      `[editor] bo qua mot luot go tren segment ${segmentId}: dang chuyen Chuong, tap cho sap bi vut`,
+    )
+    return
+  }
+
   const next = new Map(editedText.value)
   next.set(segmentId, targetText)
   editedText.value = next
@@ -1324,16 +1355,25 @@ export function goToPrevSegmentCoBao(): boolean {
 // ─────────────────────────────────────────────────────────────────────────────────
 // 🔴 THỨ TỰ LÀ TOÀN BỘ NỘI DUNG CỦA HÀM NÀY — không một `try/catch` nào thay được nó
 // ─────────────────────────────────────────────────────────────────────────────────
-// `save_segment_targets`/`flush_segment_targets` nhận `chapter_id` **từ webview**
-// (`commands/segment.rs:1112-1116` · `:1828-1836`). Nửa Rust nay giữ *"Chương đang mở"* trên
-// `OpenWork` (chữ ký #2(a)), nên một lượt `open_adjacent_chapter` **dời con trỏ ấy ngay lập
-// tức**. ⇒ Một lô flush còn **đang bay** lúc đó sẽ đáp xuống mang `chapter_id` **CŨ**, Rust
-// trả `segment.unknown_ids`, và **bản dịch biến mất trong im lặng**.
+// 🔵 SUA 2026-08-18 (code review ba tang) — DOAN NAY TUNG PHAT BIEU MOT PHEP DO SAI.
 //
-// Đây **đúng** lớp lỗi mà `modes/libraryImport.ts:119-132` đã ghi ra bằng chữ cho lượt đổi
-// **Tác phẩm**, và lời giải ở đó — sau một lượt đo lại đường thật — là **THỨ TỰ**: flush phải
-// xong **trước lượt `replace_open_work`**, không phải trước `resetEditorPanel()`. Cùng mệnh
-// đề, cùng hình dạng, một tầng khác: ở đây flush phải xong **trước lượt `invoke`**.
+// Ban cu viet: *"mot lo flush con dang bay luc `open_adjacent_chapter` doi con tro se dap
+// xuong mang `chapter_id` CU, Rust tra `segment.unknown_ids`, va ban dich bien mat im lang"*.
+// **Doc lai ma Rust thi no khong dung.** `save_segment_targets` (`segment.rs:1171-1193`) kiem
+// `SELECT COUNT(*) FROM chapter WHERE id = ?1` roi ghi bang
+// `UPDATE segment … WHERE id = ?2 AND chapter_id = ?3` — ca hai chay tren **chinh `project.db`
+// dang mo**, va **khong duong nao doc `OpenWork::chapter_id`**. Khac luot doi **Tac pham**
+// *(noi ca `Store` bi tro sang mot tep khac)*, Chuong cu **van con nguyen trong cung CSDL**
+// sau mot luot doi Chuong ⇒ mot lo toi tre mang `chapter_id` cu **ghi dung vao Chuong cu**.
+//
+// ⇒ **Ket luan ve thu tu KHONG doi**, nhung **ly do doi**: thu tu duoi day dung vi tinh nhat
+// quan con tro/UI *(mot luot nap cu khong duoc do segment Chuong cu len man hinh sau luot
+// doi)*, khong vi mot duong mat chu qua `unknown_ids`.
+//
+// 🔴 **Va menh de sai ay da tra gia:** no hut het chu y ve phia mot moi nguy **khong ton
+// tai**, trong khi moi nguy **co that** — nguoi dung go tiep trong cua so giua ② va ③, roi
+// `flush.reset()` vut chu ay vo dieu kien — nam cach do sau dong va khong luot ra noi bo nao
+// nhin. No duoc dong o [`noteEditorEdit`], bang mot cua khoa go.
 //
 // ⚠️ **Và điều kiện đó KHÔNG được đọc thành "trước khi dọn state".** `resetEditorPanel()`
 // chạy `flush.reset()`, hàm **vứt vô điều kiện** tập chờ — gọi nó trước lượt flush là tự tay
@@ -1402,7 +1442,10 @@ async function switchChapter(direction: ChapterDirection): Promise<boolean> {
       console.error(
         `[editor] chuyen Chuong bi CHAN: luot flush tra '${flushed}' — ban dich chua xuong dia`,
       )
-      datThongBao({ confirm: flushed === 'failed' ? 'flush-failed' : 'still-dirty' })
+      // 🔵 CODE REVIEW 2026-08-18 — thôi mượn kênh `confirm`. Hai câu cũ
+      // (`panel.grid.confirm_*`) đọc nguyên văn *"…nên **chưa xác nhận**"*, tức chúng trả lời
+      // về một thao tác người dùng **không hề làm**. Xem [`NavNotice`] cho lập luận đầy đủ.
+      ghiNavNotice(flushed === 'failed' ? 'chapter-flush-failed' : 'chapter-still-dirty')
       return false
     }
 
@@ -1410,7 +1453,15 @@ async function switchChapter(direction: ChapterDirection): Promise<boolean> {
     const { switched, error } = await openAdjacentChapter(direction)
 
     if (error !== null) {
-      loadError.value = error
+      // 🔵 CODE REVIEW 2026-08-18 — **KHÔNG** ghi `loadError` ở đây. Bản cũ làm thế, và
+      // `editorHasLoaded()` kiểm `loadError === null` nên một lỗi IPC **nhất thời** *(kể cả
+      // `retryable: true`)* khoá chết cả lưới lẫn mọi lệnh điều hướng lẫn chính lượt thử lại,
+      // tới khi người dùng rời Tác phẩm. Chương hiện tại **vẫn nạp tốt** — nó không có lỗi
+      // gì; thứ trượt là lượt **chuyển**. Xem [`NavNotice`] cho chữ ký của Ice.
+      console.error(
+        `[editor] chuyen Chuong TRUOT: ${error.code} (${error.message_key}), retryable=${String(error.retryable)}`,
+      )
+      ghiNavNotice('chapter-switch-failed')
       return false
     }
     // Không lỗi mà cũng không kết quả ⇒ chạy ngoài Tauri (`npm run dev` trong trình duyệt
@@ -1433,8 +1484,33 @@ async function switchChapter(direction: ChapterDirection): Promise<boolean> {
     // vừa trả `'clean'`, không vì hàm ấy hiền.
     resetEditorPanel()
 
+    // ═════════════════════════════════════════════════════════════════════════════
+    // 🔵 CODE REVIEW BA TẦNG 2026-08-18 — PANEL SOURCE PHẢI ĐI CÙNG LƯỢT NÀY
+    // ═════════════════════════════════════════════════════════════════════════════
+    // Bản cũ dọn và nạp lại **một mình** Panel Editor. Nhưng `chapterRequested` và
+    // `hanVietRequested` ở `sourcePanelState.ts` là **cache module-level không có khoá vô
+    // hiệu hoá** — chính doc-comment của `resetSourcePanel()` viết ra điều đó, và nó còn ghi
+    // *"chỗ gọi duy nhất là `libraryImport.ts::finishSubmit`"*. Câu ấy **vẫn đúng** sau Story
+    // 2.11, và đó chính là khuyết tật: sau `⌘⌥]`, lưới bản dịch sang Chương mới trong khi
+    // nguyên văn + bảng âm Hán Việt + `source_lang` *(⇒ tab Hán Việt hiện/ẩn)* vẫn là của
+    // Chương **cũ**. Hai panel trên cùng một màn hình nói về hai Chương khác nhau, không lỗi
+    // nào. Đúng nguyên văn kịch bản `sourcePanelState.ts:352-355` đã ghi cho cấp **Tác
+    // phẩm**, tái diễn ở cấp **Chương**.
+    //
+    // 🔴 **Vứt state cũ là CHƯA ĐỦ — phải NẠP LẠI ngay tại đây**, cùng lý do và cùng chữ đã
+    // ghi ở `libraryImport.ts:173-190`: chỗ DUY NHẤT gọi `ensureChapterLoaded()` là
+    // `GridPanel.vue::onMounted`, mà ba chế độ sống trong `<KeepAlive>` nên **không có
+    // `mounted` lần thứ hai**. Bỏ lời gọi dưới đây là để Panel Source đứng ở *"Chưa có Chương
+    // nào được mở"* cho tới lượt khởi động lại app.
+    //
+    // ⚠️ `resetLookupPanel()` **cố ý không** nằm trong lượt này: lịch sử và bộ ghim tra cứu
+    // thuộc **Tác phẩm**, không thuộc Chương *(`lookupHistoryState.ts:348-357`)*. Vứt chúng
+    // ở một lượt đổi Chương là xoá đúng thứ người dùng vừa tra để dịch chương này.
+    resetSourcePanel()
+
     // `resetEditorPanel()` đặt `requested = false`, nên lượt gọi này chạy IPC thật.
     await ensureSegmentsLoaded()
+    await ensureChapterLoaded()
 
     // ── ⑤ TIÊU ĐIỂM phải Ở LẠI trong lưới — AD-34 §2 ───────────────────────────────
     //
@@ -1704,6 +1780,36 @@ export type NavNotice =
   | 'at-first-chapter'
   /** AC4, nửa đối xứng — đã ở **Chương CUỐI**. Xem [`'at-first-chapter'`] cho lý do đầy đủ. */
   | 'at-last-chapter'
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔵 CODE REVIEW BA TẦNG 2026-08-18 — BA GIÁ TRỊ CHO BA ĐƯỜNG HỎNG CỦA LƯỢT CHUYỂN
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * Ba nhánh chặn của [`switchChapter`] trước lượt rà này nói **sai chỗ** hoặc **không nói**:
+   *
+   * - hai nhánh flush mượn kênh `confirm` ⇒ thanh hiện *"…nên **chưa xác nhận**"* cho một
+   *   người dùng vừa bấm `Mod+Alt+]` và **không xác nhận gì cả** *(`vi.json:99-100`)*;
+   * - nhánh lỗi IPC ghi `loadError` ⇒ lưới bị thay bằng một dòng lỗi, `editorHasLoaded()`
+   *   trả `false` **vĩnh viễn** *(không đường nào dọn `loadError` ngoài `resetEditorPanel`)*,
+   *   nên mọi lệnh điều hướng sau đó báo *"Chương đang tải"* — sai sự thật — và chính
+   *   `switchChapter` **tự khoá mình** ở cửa chặn đầu hàm.
+   *
+   * 🔴 Đây đúng nguyên tắc mà Quyết định #5 của Story 2.11 đã đặt cho `'at-first-chapter'`
+   * cách đó bốn dòng — *"tái dùng một câu của CÂU cho biên CHƯƠNG là để màn hình nói dối"* —
+   * áp cho `NavNotice` nhưng bỏ sót `ConfirmNotice` và bỏ sót nhánh lỗi. Ice ký đường (a):
+   * một kênh **riêng**, `loadError` **không bị đụng**, lưới Chương hiện tại **ở nguyên** và
+   * người dùng **thử lại được**. Đúng luật đã ghi ở [`ensureSegmentsLoaded`] *(`:133-136`)*:
+   * *"một lượt TRƯỢT không được khoá vĩnh viễn đường nạp"*.
+   *
+   * ⚠️ **GIỚI HẠN THẬT:** ba câu này là chuỗi **tĩnh** — chúng không chở được `code` hay
+   * `params` của `IpcError`. Chi tiết ấy đi vào `console.error` cho người gỡ lỗi, không lên
+   * màn hình. Đường đưa nó lên màn hình là **một ô nhớ thứ tư**, thứ Quyết định #4(b) của
+   * Story 2.10 đã cân và loại; đảo lại quyết định đó là một lượt riêng, không một lượt vá.
+   */
+  | 'chapter-switch-failed'
+  /** Lượt flush trước khi chuyển **trượt** — bản dịch chưa xuống đĩa nên lượt chuyển bị chặn. */
+  | 'chapter-flush-failed'
+  /** Văn bản đổi **trong lúc** lô đang bay ⇒ tập chờ còn dơ sau hai lượt flush. */
+  | 'chapter-still-dirty'
 
 const navNotice = shallowRef<NavNotice | null>(null)
 /** Xem [`navNotice`]. `StatusBar.vue` đọc. `null` ⇒ không có gì để nói. */
