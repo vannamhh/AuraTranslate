@@ -273,3 +273,89 @@ vì nó đắt"*. Nếu Ice chọn (B) với lời hứa **tháo nhóm**, đó l
 một ngoại lệ của AD-3.
 
 **Không sửa `epics.md`** — khuyến nghị §7 *(giao 5/6 AC, AC5 thành nợ có chủ)* giữ nguyên.
+
+---
+
+## 10. ✅ CHỮ KÝ CỦA ICE — câu §3 đã chốt 2026-08-18
+
+> ### 🖊️ **Câu hỏi thứ nhất: đường (A) — NGHỊCH ĐẢO THẬT.**
+> **Ice ký 2026-08-18.** `⌘Z` sau một lượt gộp là một lời hứa **KHÔI PHỤC**, không phải một lời hứa
+> tháo nhóm. Đường (B) bị loại.
+
+**Đường bị loại và vì sao, ghi lại thay vì để trôi:** (B) rẻ hơn và **không** sai — nhưng §9.2 đo
+được rằng nó cho ra *"một segment giữ toàn bộ bản dịch, một segment rỗng"*, và nó **không** với tới
+được trạng thái xác nhận cùng lịch sử phiên bản mà chính lượt gộp đã lấy đi *(§9.3)*.
+
+⇒ **`AD-48` phải khai một NGOẠI LỆ CÓ TÊN của AD-3** *(`SPINE:89-93` — `segment.id` bất biến, không
+tái dùng sau khi về hưu)*. Đây là việc của **Winston**, không của một lượt dev.
+
+### 10.1 (A) kéo theo gì — đo trên HEAD `91cfed1`
+
+| Năng lực (A) đòi | Tồn tại hôm nay? | Bằng chứng |
+|---|---|---|
+| Đưa `retired_at` về `NULL` | **KHÔNG** | `retired_at` **đặt** ở đúng một chỗ *(`segment.rs:2220`)*; `core/i18n/mod.rs` ghi *"`retired_at` chỉ đặt được bằng SQL"* |
+| Gỡ hàng gộp khỏi lưới | **KHÔNG** | xem 10.2 |
+| Giữ được *"lượt gộp vừa rồi gồm những id nào"* | **KHÔNG** | không bảng nhật ký; xem 10.3 |
+
+### 10.2 🔴 PHÁT HIỆN MỚI — (A) có HAI biến thể, và một trong hai phá một mệnh đề chưa ai viết ra
+
+Brief §3 mô tả (A) là *"gỡ `retired_at` của hai hàng cũ **và xoá** hàng mới"*. Đo:
+
+| Phép đo | Kết quả |
+|---|---|
+| `grep -rn "DELETE FROM segment" src-tauri/src/` | **0** — chưa từng có |
+| Mọi `DELETE FROM` trong cả kho | **2**, và cả hai trên **dữ liệu dẫn xuất/cấu hình**: `config_value` *(`scope/store.rs`)* · `pinned_entry` *(`pinned.rs`)* |
+
+⇒ **Kho chưa bao giờ xoá một dòng nội dung người dùng nào.** Mệnh đề đó **không được viết ra ở đâu**
+— không `AD`, không `project-context.md` — nhưng nó **đúng trên toàn cây**, và (A) như mô tả sẽ là
+lần đầu phá nó.
+
+**Hai biến thể, Winston phải chọn một *(hoặc Ice, nếu Winston thấy nó là câu của Ice)*:**
+
+| | **(A1) XOÁ hàng gộp** | **(A2) CHO HÀNG GỘP VỀ HƯU** |
+|---|---|---|
+| Việc | `DELETE` hàng mới, gỡ `retired_at` hai hàng cũ | `retired_at` cho hàng mới, gỡ `retired_at` hai hàng cũ |
+| Đĩa sau một vòng gộp→`⌘Z` | **2** hàng, sạch như chưa từng gộp | **3** hàng *(2 sống + 1 về hưu)* |
+| Phá mệnh đề *"không xoá nội dung người dùng"* | **CÓ** — lần đầu trong kho | **KHÔNG** |
+| Còn dấu vết lượt gộp để lần ngược | **Không** | **Có** |
+| Đụng AD-3 | Chỉ ở vế *"sống lại"* | Cùng vế, **cộng** một hàng về hưu chưa từng được ai xác nhận |
+
+⚠️ **(A2) không tự động đúng hơn.** Nó để lại một hàng về hưu mà người dùng **chưa bao giờ thấy tồn
+tại**, và mọi đường đọc lịch sử sẽ gặp nó. Ghi ra vì *"đường an toàn"* ở đây không miễn phí.
+
+### 10.3 Câu §4 còn mở — nhưng nay phân định được bằng số
+
+`AD-48` chưa đủ điều kiện nghiệm thu §6 mục 2 cho tới khi phạm vi ①/②/③ có chữ ký. Đo **năm** bề mặt
+ghi rời rạc đang tồn tại, và **hai trong năm đã có nghịch đảo là một lệnh người dùng có sẵn**:
+
+| Thao tác rời rạc | Lệnh | Nghịch đảo hôm nay |
+|---|---|---|
+| Gộp / tách / xoá dấu cắt | `editor.merge_segments` · `split_segment` · `clear_source_cuts` | 🔴 **Không** — đây chính là chỗ (A) phải dựng |
+| Xác nhận segment | `editor.confirm_segment` | 🔴 **Không có lệnh bỏ xác nhận.** Và AD-31 nói lượt xác nhận **TẠO** một `segment_version` ⇒ hoàn tác nó đòi `DELETE` trên `segment_version` — **lại** đúng mệnh đề của §10.2 |
+| Cắt bỏ câu (FR133) | `editor.omit_segment` ↔ `editor.restore_segment` | ✅ **Có sẵn, là một cặp** |
+| Ngắt / nối đoạn đích (FR134) | `editor.end_target_paragraph` ↔ `editor.join_target_paragraph` | ✅ **Có sẵn, là một cặp** |
+| Khôi phục phiên bản (FR101) | `restore_segment_version` | ⚠️ Ghi `target_text` **kèm mốc**, và là **ngoại lệ có tên duy nhất** của AD-47 |
+
+⇒ **Mức ② rẻ hơn brief §4 hàm ý:** 2/5 bề mặt đã nghịch đảo được bằng lệnh đang chạy. Chỗ đắt thật
+là **gộp/tách** *(đằng nào (A) cũng phải dựng cho mức ①)* và **xác nhận** *(đòi lần `DELETE` thứ hai
+trên nội dung người dùng)*.
+
+**Và câu vòng đời của §4 nay có một câu trả lời đo được cho mức ①:** thứ cần giữ để hoàn tác **một**
+lượt gộp là *"id hàng mới + id hai hàng cũ"*. Giữ nó **trong bộ nhớ tiến trình Rust**, phạm vi một
+phiên, thì **không cần bảng mới và không cần bước di trú 12** — AD-1 cho phép *(quy tắc nghiệp vụ ở
+Rust)*, AD-11 không đụng tới *(mọi lượt ghi vẫn qua một `Writer`)*.
+🔴 Chỉ khi phạm vi là **②/③** hoặc `⌘Z` phải **sống qua một lượt đóng/mở Tác phẩm** thì bảng nhật ký
+— và bước **12** — mới trở thành bắt buộc.
+
+### 10.4 Winston cần gì để soạn `AD-48`
+
+1. ✅ Câu §3 — **(A)**, Ice ký 2026-08-18.
+2. 🔲 Câu §4 — phạm vi **①/②/③**, và `⌘Z` có sống qua đóng/mở Tác phẩm không.
+3. 🔲 Biến thể **(A1) xoá** hay **(A2) về hưu** *(§10.2)* — và nếu (A1), khai bằng chữ rằng đây là
+   lần đầu kho xoá nội dung người dùng.
+4. Khai **AD-3 đổi gì**, hoặc rằng nó **không đổi một chữ** và đây là một ngoại lệ có tên *(khuôn
+   AD-47 đã dùng với AD-31/AD-5)*.
+5. Khai **AD-5 đổi gì** — một hàng đã về hưu sống lại là ca AD-5 chưa xét.
+6. Nếu phạm vi đòi bảng mới ⇒ nói rõ **bước di trú 12** và ai sở hữu bảng đó.
+7. Giữ ràng buộc §6 mục 5: **không** khai một bề mặt nhìn thấy mới cho Epic 2 *(chữ ký #4(a) của
+   Story 2.7 đang đứng)*.
