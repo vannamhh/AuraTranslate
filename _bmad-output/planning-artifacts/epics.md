@@ -2559,9 +2559,15 @@ So that tôi không phải dừng lại ra lệnh cho công cụ giữa dòng su
 **When** thực hiện
 **Then** một dòng báo hiện ở lề nêu **hệ quả**, ví dụ *"Đã gộp hai câu. Câu mới chưa xác nhận — lịch sử của hai câu cũ vẫn tra lại được."*
 
-**Given** gộp vừa xảy ra
-**When** người dùng bấm `⌘Z`
-**Then** hoàn tác được
+> 🔵 **AC5 RÚT 2026-08-18** *(Ice ký; Sprint Change Proposal 2026-08-18b)*. AC cũ nguyên văn: **Given** gộp vừa xảy ra · **When** người dùng bấm `⌘Z` · **Then** hoàn tác được.
+>
+> **Vì sao rút, đo được:** ① **không FR nào đòi hoàn tác** — `grep "undo|hoàn tác|⌘Z" prd.md` chỉ trúng chữ `undock` *(FR17)*; ② `EXPERIENCE.md:169` *(Ice ký 2026-08-17)* đã viết thẳng *"trên dữ liệu mà **AD-5 không cho hoàn tác**"*; ③ dòng báo đang chạy *(`vi.json:101`)* nói đúng hệ quả và **không hứa** hoàn tác. Lời hứa `⌘Z` tồn tại ở **đúng một câu văn xuôi** *(`EXPERIENCE.md:171`)*, và câu đó là một **mẩu sót** của chính lượt sửa 2026-08-17 ở dòng ấy — đúng khuôn **F1** của retro Epic 2 *(chữ ký thi hành đúng một nửa, lặp năm lần)*.
+>
+> **Đường thay thế, đã có sẵn:** gộp và tách **là lệnh người dùng** *(`editor.merge_segments` · `editor.split_segment`)*. Muốn quay lại thì gộp/tách lại — **không byte nào bị phá**: lượt gộp **nối** `target_text` *(`regroup.rs:186`)*, và lịch sử hai câu cũ **vẫn đọc được** *(`lib.rs:346`)*. Cái mất là **công sức thao tác**, không phải dữ liệu.
+>
+> ⚠️ Đây **không** phải *"năng lực chưa dựng ≠ lệch spec"* *(`project-context.md:456-458`)* — luật đó bảo vệ một AC mô tả **đích đến** khi đường đi chưa tới. Ca này là **quyết định không dựng**, có chữ ký và có lý do đo được, nên nó đi qua **correct-course** chứ không thành một món nợ.
+>
+> 🔴 **Cửa chặn `AD-48` phân giải bằng cách RÚT AC, không bằng một mô hình.** `AD-48` vẫn được soạn *(chủ: Winston)*, nhưng nay chỉ khai một mệnh đề: *Epic 2 không có mô hình hoàn tác, và đây là lý do.*
 
 **Given** người dùng bấm `Backspace` ở đầu ô
 **When** xảy ra

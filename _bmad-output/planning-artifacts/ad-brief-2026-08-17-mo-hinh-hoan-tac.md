@@ -278,9 +278,14 @@ một ngoại lệ của AD-3.
 
 ## 10. ✅ CHỮ KÝ CỦA ICE — câu §3 đã chốt 2026-08-18
 
-> ### 🖊️ **Câu hỏi thứ nhất: đường (A) — NGHỊCH ĐẢO THẬT.**
-> **Ice ký 2026-08-18.** `⌘Z` sau một lượt gộp là một lời hứa **KHÔI PHỤC**, không phải một lời hứa
-> tháo nhóm. Đường (B) bị loại.
+> ### ~~🖊️ Câu hỏi thứ nhất: đường (A) — NGHỊCH ĐẢO THẬT.~~ 🔵 **ĐÃ BỊ THAY — xem §11**
+> ~~**Ice ký 2026-08-18.** `⌘Z` sau một lượt gộp là một lời hứa **KHÔI PHỤC**, không phải một lời hứa
+> tháo nhóm. Đường (B) bị loại.~~
+>
+> 🔵 **Chữ ký này sống **vài giờ** và bị chính Ice thay cùng ngày bằng một đường **thứ ba** mà cả hồ
+> sơ lẫn lượt đo đều chưa nêu: **rút `⌘Z` cho gộp/tách**. Giữ nguyên khối này thay vì xoá — lịch sử
+> của một quyết định là bằng chứng cho quyết định kế tiếp. **Vế loại (B) vẫn đứng** và §9.2 vẫn là
+> lý do loại nó.
 
 **Đường bị loại và vì sao, ghi lại thay vì để trôi:** (B) rẻ hơn và **không** sai — nhưng §9.2 đo
 được rằng nó cho ra *"một segment giữ toàn bộ bản dịch, một segment rỗng"*, và nó **không** với tới
@@ -359,3 +364,68 @@ Rust)*, AD-11 không đụng tới *(mọi lượt ghi vẫn qua một `Writer`)
 6. Nếu phạm vi đòi bảng mới ⇒ nói rõ **bước di trú 12** và ai sở hữu bảng đó.
 7. Giữ ràng buộc §6 mục 5: **không** khai một bề mặt nhìn thấy mới cho Epic 2 *(chữ ký #4(a) của
    Story 2.7 đang đứng)*.
+
+🔵 **§10.4 ĐÃ HẾT ĐÚNG từ §11.** Bảy mục trên viết cho một `AD` phải **chọn giữa (A) và (B)**. Quyết
+định cuối rút cả hai. Danh sách còn hiệu lực nằm ở **§11.4**.
+
+---
+
+## 11. ✅ QUYẾT ĐỊNH CUỐI — đường (C): RÚT `⌘Z` cho gộp/tách. Ice ký 2026-08-18
+
+> ### 🖊️ **Không dựng mô hình hoàn tác cho gộp/tách. AC5 của Story 2.9 RÚT.**
+> Gộp và tách **đã là lệnh người dùng**. Muốn quay lại thì gọi lại chính chúng.
+> **Ice ký 2026-08-18.** Thay chữ ký (A) ở §10.
+
+**Đường thứ ba này do Ice nêu**, sau khi §9 và §10 đo xong cái giá của (A) và (B). Hồ sơ **không**
+nghĩ ra nó — ghi ra vì đó là một dữ kiện về cách quyết định này được tìm thấy.
+
+### 11.1 Bốn phép đo chống lưng
+
+| # | Phép đo | Kết quả |
+|---|---|---|
+| ① | `grep -rniE "undo\|hoàn tác\|⌘Z" prd.md` | Chỉ trúng `undock` *(FR17)*. **Không FR nào đòi hoàn tác** |
+| ② | `EXPERIENCE.md:169` *(Ice ký 2026-08-17)* | *"…trên dữ liệu mà **AD-5 không cho hoàn tác**"* |
+| ③ | `vi.json:101` — dòng báo **đang chạy** | *"Đã gộp hai câu. Câu mới chưa xác nhận — lịch sử của hai câu cũ vẫn tra lại được."* — **không hứa** hoàn tác |
+| ④ | `EXPERIENCE.md:171` | Chỗ **duy nhất** hứa `⌘Z`, và nó là một **mẩu sót** — xem 11.2 |
+
+### 11.2 🔴 Lời hứa `⌘Z` chưa bao giờ là một quyết định
+
+`EXPERIENCE.md:171` mang dấu 🔵 **SỬA 2026-08-17 (Story 2.8)**: lượt ấy thay **cử chỉ kích hoạt**
+*(gõ đè → `Backspace` ở đầu ô)* nhưng **để nguyên** vế `hoàn tác bằng ⌘Z` ở cuối câu.
+
+⇒ Đúng khuôn **F1** của retro Epic 2 — *"chữ ký thi hành ĐÚNG MỘT NỬA, lặp năm lần; nửa rơi luôn là
+nửa RẺ: một dòng chuỗi hoặc một câu phải xoá."* AC5 **kế thừa** mẩu sót đó. Rút nó là **đóng nốt nửa
+còn lại**, không cắt một tính năng đã cân nhắc.
+
+### 11.3 Tiền đề của Ice — kiểm, và nó ĐÚNG
+
+| Phép đo | Kết quả |
+|---|---|
+| Lượt gộp có phá `target_text` không | **Không** — `join_targets(parts)`, **nối** *(`regroup.rs:186`)* |
+| Tách lại thì văn bản đi đâu | Mảnh đầu giữ **toàn bộ**, mảnh sau rỗng *(`regroup.rs:280-281`)* ⇒ cắt/dán được |
+| Lịch sử hai câu cũ | **Vẫn đọc được** *(`lib.rs:346`)* |
+
+⇒ **Không byte nào bị phá.** Mất **công sức thao tác**, không mất dữ liệu.
+
+🔵 **Đính chính §9.2 của chính hồ sơ này:** ở đó mình gọi kết quả tách-lại là *"một trạng thái sai
+nhìn thấy được"*. Đúng **với một nút dán nhãn "hoàn tác"** — nó hứa khôi phục rồi giao thứ khác.
+Cùng trạng thái ấy khi **người dùng tự làm** thì không lời hứa nào bị phá. **Khác biệt nằm ở LỜI HỨA,
+không ở byte.** Mệnh đề §9.2 **vẫn đúng cho đường (B)** và vẫn là lý do loại (B).
+
+### 11.4 `AD-48` — vẫn cần, nhưng đổi hẳn kích thước
+
+Winston soạn **một** mệnh đề: *Epic 2 không có mô hình hoàn tác; gộp/tách không hoàn tác được; đường
+quay lại là gọi lại chính lệnh gộp/tách — và đây là lý do.*
+
+**Vì sao vẫn là một `AD`:** Epic 3 trở đi còn thêm thao tác rời rạc *(duyệt glossary hàng loạt, điền
+sẵn từ TM, đề xuất AI)*. Không viết ra thì câu *"`⌘Z` làm gì"* quay lại ở **mỗi** epic.
+
+**Không còn cần:** ngoại lệ AD-3 · đường `DELETE` trên nội dung người dùng · năng lực `retired_at →
+NULL` · bảng nhật ký · bước di trú 12. AD-3, AD-5, AD-31 **không đổi một chữ**.
+
+### 11.5 Chỗ hở, ghi ra
+
+Bấm `⌘Z` **không có gì xảy ra và không phản hồi nào** *(`grep "KeyZ" src/commands/` = 0)* — đúng lớp
+**"rỗng IM LẶNG"**. Ghi thành một món nợ **có chủ là Ice**, không tự chọn hình dạng.
+
+**Thi hành:** Sprint Change Proposal **2026-08-18b**.

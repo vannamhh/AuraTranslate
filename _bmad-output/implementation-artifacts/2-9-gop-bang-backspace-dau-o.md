@@ -77,6 +77,29 @@ nhận — lịch sử của hai câu cũ vẫn tra lại được."*
 **When** người dùng bấm `⌘Z`
 **Then** hoàn tác được
 
+> 🔵 **AC5 ĐÃ RÚT 2026-08-18** *(Ice ký; SCP 2026-08-18b)* — giữ nguyên văn ở trên vì lịch sử của
+> một AC là bằng chứng cho quyết định kế tiếp.
+>
+> **Cửa chặn `AD-48` phân giải bằng cách RÚT AC, không bằng một mô hình.** Cả hai đường của hồ sơ
+> bàn giao bị loại: **(A)** đòi một ngoại lệ có tên của AD-3 cộng đường `DELETE` **đầu tiên** trên
+> nội dung người dùng; **(B)** cho ra *"một segment giữ toàn bộ bản dịch, một segment rỗng"*
+> *(đo ở `regroup.rs:280-281`)*. Ice nêu một đường **thứ ba** mà hồ sơ chưa có: **không dựng `⌘Z`
+> cho gộp/tách** — gộp và tách đã là lệnh người dùng, muốn quay lại thì gọi lại chúng.
+>
+> **Bốn phép đo chống lưng:** ① `grep "undo|hoàn tác|⌘Z" prd.md` chỉ trúng `undock` ⇒ **không FR nào
+> đòi hoàn tác**; ② `EXPERIENCE.md:169` *(Ice ký 2026-08-17)* đã viết *"trên dữ liệu mà AD-5 không
+> cho hoàn tác"*; ③ dòng báo đang chạy *(`vi.json:101`)* nói đúng hệ quả và **không hứa** hoàn tác;
+> ④ chỗ duy nhất hứa `⌘Z` là `EXPERIENCE.md:171`, và nó là **mẩu sót** của lượt sửa 2026-08-17 ở
+> chính dòng ấy — khuôn **F1** của retro Epic 2.
+>
+> **Tiền đề *"tự gộp/tách lại được"* đã kiểm và ĐÚNG:** lượt gộp **nối** `target_text`
+> *(`regroup.rs:186`)*, lịch sử hai câu cũ **vẫn đọc được** *(`lib.rs:346`)* ⇒ **không byte nào bị
+> phá**; cái mất là **công sức thao tác**.
+>
+> `epics.md` và `EXPERIENCE.md:171` đã sửa cùng lượt. `Status: done` của story **không đổi** — AC5
+> nay là *đã rút*, không phải *chưa đạt*. Chỗ hở còn lại *(bấm `⌘Z` không phản hồi)* và `AD-48`
+> *(bản nhỏ, chủ Winston)* ghi ở `deferred-work.md`, khối **SCP 2026-08-18b**.
+
 **AC6 — Không chặn**
 **Given** người dùng bấm `Backspace` ở đầu ô
 **When** xảy ra

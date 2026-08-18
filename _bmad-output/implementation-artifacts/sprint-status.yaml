@@ -1,4 +1,4 @@
-# last_updated: 2026-08-18T13:20:00
+# last_updated: 2026-08-18T14:05:00
 # generated: 2026-08-03T13:04:45
 # 2026-08-12: Epic 2 mo — story 2.1 chuyen sang ready-for-dev (create-story).
 # 2026-08-12: story 2.2 chuyen sang ready-for-dev (create-story).
@@ -1317,6 +1317,22 @@ development_status:
   #   `resetEditorPanel()`. Quan sat rong hon moi la mon that: luat *"moi o nho moi phai qua
   #   resetEditorPanel()"* KHONG CO CONG NAO CANH, va da bi bo sot HAI story lien tiep. Chu: mot
   #   story ha tang cong (dem `ref` cap module va doi chieu voi than `resetEditorPanel`).
+  # 🔵 2026-08-18 — CUA CHAN AD-48 DA PHAN GIAI, VA KHONG BANG MOT MO HINH. Ice ky duong (C):
+  #   RUT ⌘Z cho gop/tach. AC5 rut khoi epics.md (SCP 2026-08-18b). Moi menh de o cac khoi log
+  #   phia tren noi "chon mot mo hinh la mot AD MOI" nay la BAN GHI LICH SU — huong da doi.
+  #   Bon phep do chong lung: ① grep "undo|hoan tac|⌘Z" tren prd.md chi trung `undock` => KHONG
+  #   FR nao doi hoan tac; ② EXPERIENCE.md:169 (Ice ky 2026-08-17) da viet "tren du lieu ma AD-5
+  #   khong cho hoan tac"; ③ dong bao dang chay (vi.json:101) noi dung he qua va KHONG hua hoan
+  #   tac; ④ cho duy nhat hua ⌘Z la EXPERIENCE.md:171 — va no la MAU SOT cua chinh luot sua
+  #   2026-08-17 o dong ay (khuon F1 cua retro Epic 2: chu ky thi hanh dung mot nua).
+  #   Tien de "tu gop/tach lai duoc" da kiem va DUNG: gop NOI target_text (regroup.rs:186), lich
+  #   su hai cau cu VAN DOC DUOC (lib.rs:346) => khong byte nao bi pha, mat CONG SUC THAO TAC.
+  #   ⇒ KHONG con can: ngoai le AD-3 · duong DELETE dau tien tren noi dung nguoi dung · nang luc
+  #   retired_at -> NULL · bang nhat ky · buoc di tru 12. AD-3/AD-5/AD-31 khong doi mot chu.
+  #   🔴 CON HO, ca hai ghi o deferred-work.md khoi "SCP 2026-08-18b": (a) bam ⌘Z KHONG phan hoi
+  #   gi — rong IM LANG, chu la Ice; (b) AD-48 VAN phai soan nhung ban NHO (mot menh de), chu la
+  #   Winston — dev khong tu soan AD. Status `done` cua 2-9 KHONG doi: AC5 nay la DA RUT, khong
+  #   phai chua dat.
   2-9-gop-bang-backspace-dau-o: done
   # 2.10 them HAI AC: bo qua cau da cat bo (FR133), va dinh nghia "chua dich" nay la
   # status='draft' VA target_text rong — vi 'draft' da tach khoi 'chua dich'.

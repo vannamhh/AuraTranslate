@@ -4191,6 +4191,12 @@ mục nào mồ côi.
   🔴 **Vế `⌘Z` giữ nguyên chủ là Ice**, và Story 2.9 đã soạn hồ sơ bàn giao cho nó:
   `planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md` — hai đường (A)/(B) kèm hệ quả
   trên đĩa, ba mức phạm vi, tám ràng buộc cứng, sáu điều kiện nghiệm thu.
+  → ✅ **ĐÃ ĐÓNG 2026-08-18 (SCP 2026-08-18b — AC5 RÚT).** Ice ký đường **(C)**: không dựng mô
+  hình hoàn tác cho gộp/tách; đường quay lại là **gọi lại chính lệnh gộp/tách**. Cách đóng: đo
+  được rằng **không FR nào đòi hoàn tác** *(`grep` trên `prd.md` chỉ trúng `undock`)*, và lời hứa
+  `⌘Z` tồn tại ở **đúng một câu văn xuôi** *(`EXPERIENCE.md:171`)* vốn là **mẩu sót** của lượt sửa
+  2026-08-17 — mâu thuẫn với `:169` trong cùng tệp. `EXPERIENCE.md:171` và AC5 ở `epics.md` đã sửa.
+  ⚠️ **Chỗ hở mới, đã mở một mục riêng ở cuối tệp:** bấm `⌘Z` không phản hồi gì.
 
 - ⚠️ **`ord` trong ảnh chụp webview thành CŨ sau một lượt gộp/tách.** Chữ ký #7(a) đánh lại
   `ord` **liên tục 1..N cho cả Chương** trong Rust, còn `applyRegroup` chỉ vá những hàng bị
@@ -4224,6 +4230,11 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   bấm nhầm bốn chỗ rồi `⌘/` là **năm** hàng mới, im lặng, không lui được. ⚠️ Đường lui **duy
   nhất** hôm nay: bấm trùng một điểm đã có thì **gỡ** nó ra — đã cài, nhưng nó chỉ lui được
   **trước** khi bấm `⌘/`. **Chủ: Story 2.9** *(cùng chủ với dòng báo và `⌘Z`)*.
+  → 🟡 **ĐÓNG MỘT NỬA 2026-08-18 (SCP 2026-08-18b).** Vế *"chờ `⌘Z` gỡ giúp"* **CHẾT** — Ice ký
+  đường (C), không có `⌘Z`. Đường lui chính thức nay là **gọi lại lệnh gộp**, và với một lượt tách
+  `n` mảnh đó là **n−1 lượt gộp bằng tay** — đắt, nhưng đo được và **không mất dữ liệu**.
+  🔴 **CÒN HỞ:** một lượt `⌘/` đa-mảnh vẫn **im lặng về cái giá đó TRƯỚC khi chạy**. **Chủ: Ice**
+  *(cùng chủ với chỗ hở `⌘Z` ở mục cuối tệp — một quyết định về dòng báo phủ được cả hai)*.
 
 - 🔴 **Luật `is_omitted` khi gộp (chữ ký #5(a)) VẪN chưa có chỗ đứng trong spine.** Món này đã
   ghi ở lượt dev; nhắc lại ở đây vì lượt rà xác nhận nó là mệnh đề **duy nhất** của story mà
@@ -4284,6 +4295,14 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   dùng vừa **huỷ bỏ**.
   ⇒ Hồ sơ bàn giao đã soạn: `planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md`.
   **Chủ: Ice** *(phán định phạm vi)* → **Winston** *(soạn `AD-48`)*.
+  → 🟡 **ĐÓNG MỘT NỬA 2026-08-18 (SCP 2026-08-18b).** ✅ **Vế "Ice phán định" ĐÃ ĐÓNG:** Ice ký một
+  đường **THỨ BA** mà hồ sơ chưa nêu — **(C) rút `⌘Z` cho gộp/tách**, AC5 rút khỏi `epics.md`. Cả
+  (A) lẫn (B) bị loại; chi tiết và bốn phép đo ở §11 của hồ sơ.
+  ⇒ **Không còn cần:** ngoại lệ AD-3 · đường `DELETE` đầu tiên trên nội dung người dùng · năng lực
+  `retired_at → NULL` · bảng nhật ký · bước di trú 12. AD-3, AD-5, AD-31 **không đổi một chữ**.
+  🔴 **CÒN HỞ — vế Winston:** `AD-48` **vẫn phải được soạn**, nhưng nay chỉ khai một mệnh đề *(Epic 2
+  không có mô hình hoàn tác, và đây là lý do)*. Cần thế vì Epic 3+ còn thêm thao tác rời rạc; không
+  viết ra thì câu hỏi quay lại mỗi epic. **Chủ: Winston.** 🔴 Dev **không** tự soạn `AD`.
 
 - 🔴 **`@keydown` NAY MANG MỘT THAO TÁC THẬT ⇒ luật của `check:commands` Kiểm A phải được xem
   lại — và chính cổng đó đã dặn trước ngày này.** `scripts/check-commands.mjs:2348-2349` in ra
@@ -4689,3 +4708,14 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
 
 - ⚠️ **Bộ e2e KHÔNG cho một lượt xanh trọn bộ, và chế độ LÔ là nơi cái đỏ tập trung — dữ kiện MỚI cho món nợ bàn đo của Story 2.5b.** Đo 2026-08-18, trọn bộ 11 spec: **8 passed / 3 failed** (18m51s). Ba ca đỏ đã chạy đối chứng trên **cả hai** cây *(cây story và baseline `5d94ba1`)*: `editor-typing-flush` xanh ở lượt chạy lại; `attribution-focus` **4/4 xanh khi chạy một mình** trên **cả hai** cây *(tức nó chỉ đỏ trong lô)*; `segment-navigation` đỏ trong lô **trên cả baseline** *(before-hook hết 60 s chờ 40 hàng)*, và chạy một mình cho **9/10 xanh** trên cây story so với **5/5 xanh** trên baseline. 🔴 **1/10 so với 0/5 không phân biệt được hai cây** — nó không chứng minh có hồi quy, và **cũng không chứng minh không có**. ⇒ Món nợ không phải một ca đỏ cụ thể mà là **bàn đo không cho một phán quyết đọc được**: một bộ mà chế độ lô đỏ trên baseline thì mọi lượt story sau phải trả cùng cái giá phân xử này bằng tay *(lượt này tốn ~25 phút chạy đối chứng)*. **Chủ: một story hạ tầng e2e** *(cùng chủ với món `devServerIsUp()` đã ghi ở lượt rà 2.5b — không mở một mục thứ hai cho cùng một bàn đo)*.
   ⚠️ **Và giới hạn của chính lượt phân xử, ghi ra thay vì để người sau tưởng đã phủ:** e2e **không chạm một dòng nào** của Story 2.11 — không spec nào gọi `open_adjacent_chapter`, vì không đường sản phẩm nào sinh Chương thứ hai. Ba ca đỏ ở trên nói về **hồi quy**, không về **tính năng mới**.
+
+## Deferred from: SCP 2026-08-18b — rút `⌘Z` cho gộp/tách (2026-08-18)
+
+- 🔴 **`⌘Z` bấm vào KHÔNG PHẢN HỒI GÌ — và đó là "rỗng IM LẶNG", đúng lớp lỗi trung tâm của dự án.** Đo: `grep -rn "KeyZ" src/commands/` = **0**, `grep -rniE "undo|redo" src/ src-tauri/src/` = **0 cơ chế**. Ice ký đường **(C)** ngày 2026-08-18 *(SCP 2026-08-18b)*: không dựng mô hình hoàn tác cho gộp/tách, đường quay lại là **gọi lại chính lệnh gộp/tách**. Quyết định ấy **đúng và đã đo**, nhưng nó để lại một chỗ hở mà chính nó không đóng: `⌘Z` là phím mà **cả thế giới phần mềm gán nghĩa "hoàn tác"**, và bấm vào một phím như thế mà màn hình không nói gì là **một màn hình im lặng về một điều nó biết** — `project-context.md:473-499` cấm đúng hình dạng này *(*"một danh sách rỗng không tự nói vì sao nó rỗng"*)*.
+  ⚠️ **Vì sao nó KHÔNG tự đóng bằng dòng báo đã có:** `vi.json:101` *("Đã gộp hai câu…")* chỉ hiện **sau** một lượt gộp thành công. Nó không nói gì cho một lượt `⌘Z`, và cũng không nói gì **trước** một lượt `⌘/` đa-mảnh *(xem món nợ 🟡 ở lượt rà Story 2.9)*.
+  **Hai đường đóng, chưa chốt:** ① một dòng báo ở `StatusBar` — *"Gộp/tách không hoàn tác được — tách lại rồi chuyển chữ sang ô dưới"*; ② quyết định để nguyên, **viết ra bằng chữ** kèm lý do. 🔴 Đường ② là một quyết định hợp lệ, **không** phải một lượt bỏ qua — nhưng nó phải được viết, không được im lặng.
+  ⚠️ **Ràng buộc nếu chọn ①:** `⌘Z` có `primaryMod` nên nó **không** bị `keys.ts:510` chặn trong vùng gõ *(khác `Backspace`)* ⇒ nó bắn **cả khi con trỏ đang ở trong ô bản dịch**. Một dòng báo gắn vào đó sẽ hiện giữa lúc người dùng đang gõ — đúng chỗ dễ thành phiền. Và command mới phải đi qua `CommandRegistry` *(AD-34 §1)*, không cài thẳng trong `GridPanel.vue`.
+  **Chủ: Ice** *(chốt hình dạng — một dòng báo, hay một quyết định để nguyên viết ra)*. Một quyết định phủ được **cả hai** chỗ hở: `⌘Z` và lượt `⌘/` đa-mảnh.
+
+- ⚠️ **`AD-48` chưa được soạn, và nó KHÔNG chết theo AC5.** Ice rút AC5 nhưng câu hỏi *"`⌘Z` làm gì trong ứng dụng này"* vẫn phải có một chỗ đứng: Epic 3 trở đi còn thêm thao tác rời rạc *(duyệt glossary hàng loạt FR53, điền sẵn từ TM FR58, đề xuất AI)*, và mỗi thao tác ấy sẽ hỏi lại đúng câu này. Không viết ra thì mỗi epic phải đo lại từ đầu — đúng chi phí mà 47 `AD` kia tồn tại để tránh. Nội dung nay **nhỏ hơn nhiều** so với hồ sơ gốc: một mệnh đề *(Epic 2 không có mô hình hoàn tác; đường quay lại là gọi lại chính lệnh; và đây là lý do)*, cộng một câu khai rằng **AD-3, AD-5, AD-31 không đổi một chữ** *(khuôn AD-47 đã dùng)*. Hồ sơ: `planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md` §11.4.
+  **Chủ: Winston.** 🔴 Dev **không** tự soạn `AD` *(`project-context.md:461-463`)*.
