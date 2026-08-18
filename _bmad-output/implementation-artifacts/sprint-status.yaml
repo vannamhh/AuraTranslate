@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-18T11:45:00
+last_updated: 2026-08-18T12:10:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -1557,7 +1557,20 @@ development_status:
   # FR20; cap con lai (luoi <-> AI Translation) van con THAT nhung Ice chot khong giu.
   # ⚠️ Neu Epic 4 dung che do dich THEO LO thi nhu cau quay lai va luc do KHONG FR nao
   # chua no — mon no co chu la Epic 4, ghi day du o deferred-work.md.
-  epic-2-retrospective: optional
+  # ✅ 2026-08-18 — RETRO EPIC 2 XONG, che do MOT PHAN (Ice chot): 12/14 story done, `2-3` va
+  #   `2-4` con in-progress va duoc coi la DOI TUONG cua phien, khong phan thieu cua no.
+  #   Tai lieu: implementation-artifacts/epic-2-retro-2026-08-18.md
+  #   Do lai tu nguon, khong chep story file: 9/9 cong doc-tep exit 0 · vitest 249/249 (21 tep) ·
+  #   cargo test --locked 409/0. KHOP so ghi trong story 2-11.
+  #   🔴 HAI CUA CHAN Ice ky, Epic 3 KHONG mo truoc chung: (B1) go Story 2.4 — NFR2 vuot tran
+  #   ~15 lan (706-770 ms / 50 ms) va Epic 3 trang tri them len dung duong nong do; (B2) dung
+  #   Story 2.12 ha tang e2e — e2e la luoi DUY NHAT cho hinh dang day, va no dang la mot bo do
+  #   noi doi ("xanh rieng, do trong bo" o 2.6/2.8/2.9/2.10/2.11).
+  #   🔵 TIEN DE CHAN CUA `2-3` DA HET DUNG, do 2026-08-18: `execCommand('insertText')` khong con
+  #   tren duong do (GridPanel.vue:987) · `grid-empty-cell.e2e.mjs` khang dinh dung ca do tren
+  #   WKWebView that · StatusBar.vue ton tai (339 dong) · lib.rs:670 noi CloseRequested toi flush
+  #   (AD-35 ve (e)). KHONG tu cham `done` — can mot luot dong co chu (B3).
+  epic-2-retrospective: done
 
   # Epic 3: Glossary — chốt thuật ngữ một lần, dùng mãi
   epic-3: backlog
@@ -1761,9 +1774,9 @@ action_items:
     owner: "Dev"
     status: done
   - epic: 1
-    action: "🔴 BO E2E CHAP CHON — dinh chinh ban ghi C3 hom qua (noi 'on dinh' tren n=2). Tam luot: 6 xanh 2 do. Lan do ① `shortcuts-capture-mouse` da chan doan va va (tham chieu chet sau luot reset). Lan do ② `attribution-focus` CHUA chan doan — nguyen van loi khong kip bat. Luat: gap mot luot do khong tai lap duoc thi BAT NGUYEN VAN TRUOC"
+    action: "🔴 BO E2E CHAP CHON — dinh chinh ban ghi C3 hom qua (noi 'on dinh' tren n=2). Tam luot: 6 xanh 2 do. Lan do ① `shortcuts-capture-mouse` da chan doan va va (tham chieu chet sau luot reset). Lan do ② `attribution-focus` CHUA chan doan — nguyen van loi khong kip bat. Luat: gap mot luot do khong tai lap duoc thi BAT NGUYEN VAN TRUOC. ⏳ CO TIEN TRIEN qua Epic 2 (retro 2026-08-18): bon nguyen nhan da do duoc mot phan — `devServerIsUp()` tin mot Vite hap hoi vi no van tra 200 · fixture khong reset state panel · khuon `waitForExist` roi doc ngay khong phan biet Chuong moi voi Chuong cu · `FLUSH_WAIT_MS 3500` so voi idle AD-35 2000 ms cho bien chi 1500 ms, va mot may dang bien dich Rust an het bien do (phan xu bang nam luot tron bo o Story 2.7: may ban 7/8 ba lan, may ranh 8/8 tren CA HAI cay). Chuyen thanh Story 2.12 — action item B2 cua retro Epic 2"
     owner: "Dev"
-    status: open
+    status: in-progress
   - epic: 10
     action: "📌 De ngo cho Story 10.4: doi nut mo Attribution ra titlebar canh nut phim tat? Cho do do duoc la tieu diem dinh, nen no dong luon menh de chat cua AC11. Cham UX va `mockups/`"
     owner: "Ice"
@@ -1792,5 +1805,48 @@ action_items:
     status: open
   - epic: 1
     action: "Ba mon no tai lieu cu VAN MO, xac nhan lai 2026-08-11: AD-23 con liet ke `$RESOURCE/dict/**` (chu: Ice) · so do AD-13 con canh `dict --> matching` (chu: Winston) · bang phong doan Porter o AD-44 ③ chua thay bang so do that cua Story 1.12 (chu: Winston)"
+    owner: "Ice"
+    status: open
+
+  # ── Retrospective Epic 2, 2026-08-18 (che do MOT PHAN) ────────────────────────────
+  # Tai lieu: implementation-artifacts/epic-2-retro-2026-08-18.md
+  - epic: 2
+    action: "🔴 CUA CHAN B1 — go Story 2.4: dung cho duoc bo do (tiem `bench.js` vao webview ban release; bon luot build hong, bon gia thuyet bi bac), roi do NFR18 va NFR2 DONG THOI. Ly do la cua chan: 2.5b do duoc doi con tro tren 9.850 cau = 706-770 ms so voi tran NFR2 50 ms => vuot ~15 lan; 2.10 va 2.11 deu them lenh di qua DUNG duong nong do va deu ghi 'chu van la Story 2.4', trong khi 2.4 khong chay duoc. Epic 3 trang tri them len chinh duong do. Moc hieu nang cu (deferred-work.md:2113-2129) MAT HIEU LUC THEO CAU TRUC. Epic 3 KHONG mo truoc khi B1 xong"
+    owner: "Ice"
+    status: open
+  - epic: 2
+    action: "🔴 CUA CHAN B2 — dung Story 2.12 ha tang e2e va cong con thieu, chay TRUOC Epic 3. Gom: `devServerIsUp()` tin mot Vite hap hoi · fixture khong reset state panel · khuon `waitForExist` roi doc ngay · `FLUSH_WAIT_MS 3500` so voi idle AD-35 2000 ms (CHO MOT SU KIEN, KHONG noi hang so) · cong dem `ref` cap module doi chieu `resetEditorPanel` (luat nay da bi bo sot HAI story lien tiep: `sourceCut` 2.8, `omitError` 2.9) · cong canh 'cot moi phai qua AC8' (khuon nay da lap BON lan: status · is_omitted · is_target_paragraph_end · translation_origin). Ly do la cua chan: e2e la luoi DUY NHAT cho hinh dang day (vitest xanh tren san pham hong BON lan: 74/74 o 2.5 · 130/130 o 2.6 · 382+133 o 2.7 · 191/191 o 2.9), va no dang la mot bo do noi doi. ⚠️ So hieu 2-12 tung dung cho `2-12-sync-scrolling` (XOA 2026-08-14) — slug khac nen khoa khong dung, ghi ra de khong ai doc nham"
+    owner: "Ice"
+    status: open
+  - epic: 2
+    action: "B3 — luot dong co chu cho Story `2-3`. Tien de chan DA HET DUNG, do 2026-08-18: `execCommand('insertText')` khong con tren duong do (GridPanel.vue:987 'de engine lam') · `e2e/specs/grid-empty-cell.e2e.mjs` khang dinh DUNG ca do tren WKWebView that (bam chuot that vao o rong => selectionType 'Caret', rangeCount 1, neoTrongO true; go => inserted.ok true, beforeinput/insertText) · StatusBar.vue ton tai 339 dong (AC7) · lib.rs:670 noi `WindowEvent::CloseRequested` toi mot luot flush o webview (AD-35 ve (e)). 🔴 KHONG duoc cham `done` bang suy luan — duyet lai 17 AC. Mon no con lai co chu: `EDITOR_IDLE_MS`/`EDITOR_HARD_CAP_MS` tu khai 'TAM — chu la Story 2.4'"
+    owner: "Ice"
+    status: open
+  - epic: 2
+    action: "✅ XONG 2026-08-18 (B4) — sua ten panel chet trong tai lieu quy hoach. Do: `grep SourcePanel|EditorPanel` tren src/ = 0 (ca hai tep bi xoa o Story 2.5b), nhung epics.md con nhac ten cu o 29 cho (5 trong Epic 3, 1 trong Epic 6) va prd.md 10 cho. Sprint change proposal 2026-08-14 co xu FR121 o Epic 8 nhung SOT ten panel o Epic 3/6. Da sua 11 cho o epics.md (FR42 · FR50 · hai hang bang FR->Epic · hai blurb Epic 3 · Story 3.3 AC · TIEU DE Story 3.4 · Story 3.4 AC · Story 3.9 AC · Epic 6 AC · hang 'Thu vien editor') va 2 cho o prd.md (FR42, FR50), tat ca kem 🔵 + ngay + ly do. FR50 nay cho luon rang buoc ky thuat: cot nguyen van anh xa nguoc bang CHI SO (`host.children[i]` <-> `segments[i]`) va da mang BA cu chi chuot tren cung mot `mouseup`. 🔴 Day KHONG phai 'sua spec cho khop ma' (project-context.md:456-458 cam thu khac) ma la dong mot cho SOT PHAM VI cua mot luot doi ten DA KY. Kiem sau khi sua: Epic 3 va Epic 6 = 0 ten chet"
+    owner: "Dev"
+    status: done
+  - epic: 2
+    action: "B5 — ra ton du tai lieu quy hoach sau correct-course 2026-08-14. Con lai: prd.md muc `#### Panel Source` (:401) · bang thuat ngu (:221) · hai bang giai doan (:1061-1062); epics.md hang `FR19 | Epic 1 | Panel Source + tab Han Viet` (:667) va hai bang roadmap (:476-477). Moi cho hoac sua kem 🔵 hoac khai bang chu la BAN GHI LICH SU — dung sua len. Cac cho o Epic 1 (8) va Epic 2 (4, gom khoi supersede cua Story 2.2) CO Y giu nguyen"
+    owner: "Winston"
+    status: open
+  - epic: 2
+    action: "B6 — `AD-48` (mo hinh hoan tac) chua duoc viet, va no dang chan AC5 cua Story 2.9. Ho so ban giao da soan: planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md (hai duong (A)/(B) kem he qua tren dia · ba muc pham vi · tam rang buoc cung · sau dieu kien nghiem thu). Ice phan dinh -> Winston soan AD. Dieu kien xong: AD-48 co mat trong ARCHITECTURE-SPINE.md, lint_spine.py sach, AC5 mo lai"
+    owner: "Ice"
+    status: open
+  - epic: 2
+    action: "🔴 B7 — A5 cua retro Epic 1 LAP LAN THU HAI, va nay DA LO MOC. Retro Epic 1 §10.3 viet bang chu: 'Story 2.4 do NFR18/NFR2 dong thoi, va NFR14 la menh de hai nen tang. Mot bang nghiem thu Windows phai ton tai TRUOC luc do, khong sau.' Epic 2 khep lai voi 0 bang chung Windows cho 145 ca Rust moi + 249 ca vitest + 11 spec e2e — chay macOS-only tu dau toi cuoi. Dieu kien xong: bang ton tai, co ngay, moi no Windows cua Epic 1 va Epic 2 tro vao no"
+    owner: "Ice"
+    status: open
+  - epic: 2
+    action: "B8 — A4 cua retro Epic 1 KHONG DUOC DUNG TOI suot ca Epic 2: 28 hang ban do thi giac cua Story 1.20 + 1.21. Hai story do van `in-progress`. Dieu kien xong: 1.20 va 1.21 len `done`, tru hang can may Windows (tro sang B7)"
+    owner: "Ice"
+    status: open
+  - epic: 2
+    action: "B9 — dat ten va ghi thanh luat HAI bai hoc cua phat hien F4 vao project-context.md §Testing Rules, kem tep:dong lam bang chung: ① mot listener chan doan phai CHIU DUOC engine ma no dang do (2.8: listener cua chinh ban do goi `caretPositionFromPoint` tran => NEM truoc dong `push` => mang rong => dev doc con so rong thanh 'khong mot mouseup nao toi document', mot menh de ve ENGINE rut ra tu mot cu nem cua BAN DO); ② mot ban do CHEP ham san pham se do BAN CHEP, va ban chep cu di (2.9: sau khi va AC9, ban do van cho 17 va 19 y het, tuc bao 'chua va' tren mot san pham DA VA). Ca hai da ton ba vong chan doan moi cai"
+    owner: "Dev"
+    status: open
+  - epic: 2
+    action: "B10 — phat hien F8 chua co chu va chua co lich: MOI phat hien muon va dat nhat cua Epic 2 den tu Ice DUNG APP THAT (2.5b go tieng Viet bang bo go · 2.8 'cau cu van ton tai' lat chu ky #6 lan ba · 2.9 AC7 double-click ban HAI mouseup => hai dau cat · 2.9 AC9 `⌘/` chet, ban do cho 17/19 ky tu tren mot cau 5 chu, va no chua hong im lang CHI VI MAY · 2.9 dau cat qua mo). Ly do khong duong tu dong nao thay: moi su kien driver giao deu `isTrusted: false`, va mot su kien khong tin cay KHONG co default action. Quyet mot hinh dang: mot hang nghiem thu tay BAT BUOC moi story cham be mat, hay mot luot dung that co lich moi cuoi epic. Hom nay no la mot thoi quen may man, khong mot quy trinh"
     owner: "Ice"
     status: open

@@ -402,7 +402,7 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 
 **FR19.** **Cột nguyên văn của lưới** hiển thị văn bản gốc (Anh hoặc Trung) kèm **Hán Việt** cho tài liệu tiếng Trung — xem ở chế độ chuyển đổi hoặc song song, **người dùng tự bật tắt**. 🔵 *(Sửa 2026-08-14: chữ "tab" rút — Hán Việt sống **bên trong ô nguyên văn**. Hai chế độ không đổi một chữ; Ice ký kèm lời từ chối mọi mặc định "thông minh".)*
 
-**FR42.** Panel Source hiển thị hình ảnh nhúng **đúng vị trí** của chúng trong văn bản gốc.
+**FR42.** **Cột nguyên văn của lưới** hiển thị hình ảnh nhúng **đúng vị trí** của chúng trong văn bản gốc. 🔵 *(Sửa 2026-08-18: "Panel Source" → "cột nguyên văn của lưới". Panel đó gộp vào `panel.grid` ở **Story 2.5b**; `grep SourcePanel|EditorPanel` trên `src/` = **0**. Lượt correct-course 2026-08-14 xử FR121 ở Epic 8 nhưng **sót tên panel ở Epic 3 và Epic 6**.)*
 
 **FR44.** **Alt-text của hình ảnh là một segment dịch được** — tham gia Translation Memory, Glossary và luồng xác nhận như mọi segment khác. Đây là điều kiện để yêu cầu "bảo lưu liên kết hình ảnh và Alt-text" khi xuất `.md` (C8) có nghĩa thật: alt-text phải được *dịch*, không chỉ được *giữ lại*.
 
@@ -545,7 +545,7 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 > **Ranh giới đã chốt:** v1 hỗ trợ chia sẻ cộng đồng **chỉ qua trao đổi file** — Glossary (CSV/TSV), prompt (file văn bản), TM (TMX). **Không xây định dạng gói, không xây hạ tầng phân phối, không có server hay tài khoản.** Cộng đồng chia sẻ qua GitHub và diễn đàn, đúng cách QuickTranslator từng lan toả. Nhất quán với trụ định vị #3.
 
-**FR50.** Mọi thuật ngữ có trong Glossary được **đánh dấu trực quan trong panel Source**, để người dịch thấy ngay câu đang dịch chứa thuật ngữ nào. Mục **chờ chốt bản dịch** (FR114) cũng được đánh dấu, nhưng **phân biệt được** với mục đã chốt — đó chính là cơ hội để người dịch chốt nó.
+**FR50.** Mọi thuật ngữ có trong Glossary được **đánh dấu trực quan ở cột nguyên văn của lưới**, để người dịch thấy ngay câu đang dịch chứa thuật ngữ nào. 🔵 *(Sửa 2026-08-18 — xem ghi chú ở FR42.)* Mục **chờ chốt bản dịch** (FR114) cũng được đánh dấu, nhưng **phân biệt được** với mục đã chốt — đó chính là cơ hội để người dịch chốt nó.
 
 **FR51.** Khớp thuật ngữ **phân theo ngôn ngữ**: tiếng Trung dùng khớp chính xác; tiếng Anh dùng khớp mờ ở cấp hình thái từ (stemming) để bắt được các biến thể.
 

@@ -117,7 +117,7 @@ FR25: Điều hướng nhanh giữa segment: kế tiếp, trước đó, và **s
 
 FR26: Chuyển Chương ngay trong Workspace (Chương trước / Chương sau) mà không phải quay về Library.
 
-FR42: Panel Source hiển thị hình ảnh nhúng **đúng vị trí** của chúng trong văn bản gốc.
+FR42: **Cột nguyên văn của lưới** hiển thị hình ảnh nhúng **đúng vị trí** của chúng trong văn bản gốc. 🔵 *(Sửa 2026-08-18: "Panel Source" → "cột nguyên văn của lưới". Panel đó gộp vào `panel.grid` ở **Story 2.5b**; `grep SourcePanel|EditorPanel` trên `src/` = **0**. Lượt correct-course 2026-08-14 có xử FR121 ở Epic 8 nhưng **sót tên panel ở Epic 3 và Epic 6** — đây là lượt đóng chỗ sót đó, không phải sửa spec cho khớp mã.)*
 
 FR44: **Alt-text của hình ảnh là một segment dịch được** — tham gia Translation Memory, Glossary và luồng xác nhận như mọi segment khác.
 
@@ -173,7 +173,7 @@ FR48: **Thêm nhanh vào Glossary từ bất kỳ panel nào**: bôi đen cụm 
 
 FR49: Quản lý Glossary: tìm kiếm, sửa, xoá, **nhập và xuất** dưới định dạng văn bản mở (CSV/TSV).
 
-FR50: Mọi thuật ngữ có trong Glossary được **đánh dấu trực quan trong Panel Source**. Mục *chờ chốt bản dịch* (FR114) cũng được đánh dấu nhưng **phân biệt được** với mục đã chốt.
+FR50: Mọi thuật ngữ có trong Glossary được **đánh dấu trực quan ở cột nguyên văn của lưới**. Mục *chờ chốt bản dịch* (FR114) cũng được đánh dấu nhưng **phân biệt được** với mục đã chốt. 🔵 *(Sửa 2026-08-18: "Panel Source" → "cột nguyên văn của lưới" — xem ghi chú ở FR42.)* 🔴 **Ràng buộc đo được, không một lượt đổi tên:** cột đó ánh xạ ngược bằng **CHỈ SỐ** (`host.children[i] ↔ segments[i]`) và doc-comment của template ghi thẳng *"thêm/bớt/đổi thứ tự một phần tử ở đây là làm truy vấn tra cứu SAI IM LẶNG"*. Nó đã mang neo `data-src-start`, `<rt>` Hán Việt, dòng `.hv-sources`, và **ba** cử chỉ chuột trên cùng một `mouseup`. Một dấu Glossary ở đây là kênh trang trí **thứ hai** và cử chỉ **thứ tư** trên chính bề mặt mà Story 2.9 đã hỏng im lặng một lần *(đếm ra 19 ký tự cho một câu 5 chữ)*.
 
 FR51: Khớp thuật ngữ **phân theo ngôn ngữ**: tiếng Trung khớp chính xác; tiếng Anh khớp mờ ở cấp hình thái từ (stemming).
 
@@ -459,7 +459,7 @@ Trích từ `ARCHITECTURE-SPINE.md` (43 bất biến AD-1…AD-43), `build-seque
 |---|---|---|
 | ~~**Đo dung lượng thật + rà giấy phép SIL OFL của font nhúng**, và chọn biến thể vùng TC/SC~~ | ✅ **Đã xong 2026-08-03 (Story 1.1)** | Đo thật: font chiếm **21,29 MB**; tổng với database hiện tại **151,29 MB**, dưới trần. SIL OFL 1.1 cả ba, tương thích GPL v3. Biến thể vùng chốt **TC**. *(Ước 30–50 MB của bản này **quá cao** — số thật 25,991 MiB trên đĩa.)* **Rủi ro còn mở:** dư địa dưới trần chỉ còn ~47 MB cho các nguồn từ điển còn lại **cộng toàn bộ mã sản phẩm** — vẫn là thay đổi **tầng PRD** nếu vỡ |
 | **Ngưỡng kích thước WAL buộc checkpoint (AD-12) + nhịp flush cụ thể (AD-35)** — đo trên Editor thật, cùng lúc | **Giai đoạn 2** | Đạt NFR18 (≤5 s) mà không phạm NFR2 (không frame >50 ms) |
-| **Thư viện editor cho panel Editor** · **cách phân tích khung SSE** (rà GPLv3 trước — `reqwest-sse`, `sseer` **chưa xác nhận giấy phép**) | Giai đoạn 2 | AD-31 và AD-22 đã cố định hợp đồng nên lựa chọn không lan ra ngoài module |
+| **Thư viện editor cho vùng gõ** 🔵 *(2026-08-18: hàng này đã HẾT MỞ một nửa — chữ ký #6(a) của Story 2.5b chốt **không thư viện editor**, và "panel Editor" không còn tồn tại. Vế SSE giữ nguyên.)* · **cách phân tích khung SSE** (rà GPLv3 trước — `reqwest-sse`, `sseer` **chưa xác nhận giấy phép**) | Giai đoạn 2 | AD-31 và AD-22 đã cố định hợp đồng nên lựa chọn không lan ra ngoài module |
 | **Thư viện bóc nội dung** (`dom_smoothie` 0.18.0 MIT, chưa ghim) — bóc thử trên các site thật, đo tỉ lệ bóc sai. **[A12]** | Giai đoạn 3 | Tỉ lệ sai cao **không chặn** — đường sửa tay FR123 là nghiệm thu |
 | **Thư viện phát hiện bảng mã** (`chardetng` 1.0.0 + `encoding_rs` 0.8.35, đều tương thích GPLv3) — dò thử trên `.txt` GBK và Big5 thật. **[A13]** | Giai đoạn 3 | Cùng mũi thăm dò với A12 |
 | **HTTP client cho `Fetcher`** — theo dõi chuyển hướng để cưỡng chế allowlist, giới hạn kích thước, timeout | Giai đoạn 3 | Nhiều khả năng dùng lại `reqwest` |
@@ -689,7 +689,7 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | FR39 | Epic 1 | Truy vấn 1/2/3+ ký tự đều trả kết quả |
 | FR40 | Epic 1 | Stemming tiếng Anh (`Matcher` dùng chung) |
 | FR41 | Epic 1 | Lịch sử tra cứu + ghim |
-| FR42 | Epic 6 | Ảnh trong Panel Source — cần `ASSET` từ đường nhập |
+| FR42 | Epic 6 | Ảnh ở **cột nguyên văn của lưới** — cần `ASSET` từ đường nhập 🔵 *(2026-08-18)* |
 | FR43 | Epic 6 | Ảnh trong Chế độ đọc — cần `ASSET` |
 | FR44 ⇄ | Epic 6 ⇄ Epic 7 | Alt-text là Segment vai `alt` (AD-42). *Phần cấu trúc ở 6.13; phần nghiệm thu TM ở 7.1* |
 | FR45 | Epic 6 | Ảnh lưu trong `.atproj/assets/` |
@@ -697,7 +697,7 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | FR47 | Epic 3 | Trường của một mục Glossary |
 | FR48 | Epic 3 | Thêm nhanh từ bất kỳ panel nào |
 | FR49 | Epic 3 | Quản lý + xuất/nhập CSV/TSV |
-| FR50 | Epic 3 | Đánh dấu thuật ngữ trong Panel Source |
+| FR50 | Epic 3 | Đánh dấu thuật ngữ ở **cột nguyên văn của lưới** 🔵 *(2026-08-18)* |
 | FR51 | Epic 3 | Khớp thuật ngữ theo ngôn ngữ |
 | FR52 | Epic 3 | Quét ứng viên khi nhập tài liệu |
 | FR53 | Epic 3 | Duyệt hàng loạt một phím |
@@ -877,7 +877,7 @@ Người dịch dịch trọn một Chương **bằng tay, không cần AI và k
 
 ### Epic 3: Glossary — chốt thuật ngữ một lần, dùng mãi
 
-Người dịch bôi đen một cụm từ ở bất kỳ panel nào và thêm vào Glossary mà **không rời màn hình đang làm việc**; thuật ngữ đã chốt hiện ngay dấu trực quan trong Panel Source. Sau một lần nhập lớn, hàng trăm ứng viên do máy quét ra hiện thành bảng chờ xếp theo tần suất, **duyệt bằng một phím mỗi mục, không phải gõ chữ nào** — ứng viên tiếng Trung còn kèm sẵn bản dịch âm Hán Việt, chạy hoàn toàn ngoại tuyến. Glossary và bộ prompt xuất/nhập round-trip qua CSV/TSV để chia sẻ trong cộng đồng.
+Người dịch bôi đen một cụm từ ở bất kỳ panel nào và thêm vào Glossary mà **không rời màn hình đang làm việc**; thuật ngữ đã chốt hiện ngay dấu trực quan ở cột nguyên văn của lưới. Sau một lần nhập lớn, hàng trăm ứng viên do máy quét ra hiện thành bảng chờ xếp theo tần suất, **duyệt bằng một phím mỗi mục, không phải gõ chữ nào** — ứng viên tiếng Trung còn kèm sẵn bản dịch âm Hán Việt, chạy hoàn toàn ngoại tuyến. Glossary và bộ prompt xuất/nhập round-trip qua CSV/TSV để chia sẻ trong cộng đồng.
 
 **FRs covered:** FR46, FR47, FR48, FR49, FR50, FR51, FR52, FR53, FR55, FR113, FR114
 
@@ -2670,7 +2670,7 @@ So that mạch làm việc của tôi không bị cắt.
 
 ## Epic 3: Glossary — chốt thuật ngữ một lần, dùng mãi
 
-Người dịch bôi đen một cụm từ ở bất kỳ panel nào và thêm vào Glossary mà **không rời màn hình đang làm việc**; thuật ngữ đã chốt hiện ngay dấu trực quan trong Panel Source. Sau một lần nhập lớn, hàng trăm ứng viên do máy quét ra hiện thành bảng chờ xếp theo tần suất, **duyệt bằng một phím mỗi mục, không phải gõ chữ nào** — ứng viên tiếng Trung còn kèm sẵn bản dịch âm Hán Việt, chạy hoàn toàn ngoại tuyến. Glossary xuất/nhập round-trip qua CSV/TSV để chia sẻ trong cộng đồng.
+Người dịch bôi đen một cụm từ ở bất kỳ panel nào và thêm vào Glossary mà **không rời màn hình đang làm việc**; thuật ngữ đã chốt hiện ngay dấu trực quan ở cột nguyên văn của lưới. Sau một lần nhập lớn, hàng trăm ứng viên do máy quét ra hiện thành bảng chờ xếp theo tần suất, **duyệt bằng một phím mỗi mục, không phải gõ chữ nào** — ứng viên tiếng Trung còn kèm sẵn bản dịch âm Hán Việt, chạy hoàn toàn ngoại tuyến. Glossary xuất/nhập round-trip qua CSV/TSV để chia sẻ trong cộng đồng.
 
 ### Story 3.1: Mô hình Glossary hai tầng và vòng đời ba trạng thái
 
@@ -2763,7 +2763,7 @@ So that tôi không bỏ qua chỉ vì ngại mở một màn hình khác.
 
 **Acceptance Criteria:**
 
-**Given** người dùng bôi đen một cụm từ ở Panel Source, Panel Lookup, Panel AI Translation hoặc Panel Editor
+**Given** người dùng bôi đen một cụm từ ở **cột nguyên văn của lưới**, Panel Lookup, Panel AI Translation hoặc **cột bản dịch của lưới** 🔵 *(Sửa 2026-08-18 — xem ghi chú ở FR42. `selectionContract.ts` đăng ký theo **CỘT**, không theo từng ô; hai cột mang hai vai khác nhau đúng như FR21 đã thu hẹp 2026-08-13.)*
 **When** gọi lệnh thêm thuật ngữ
 **Then** hộp thêm nhanh mở ra với cụm đó điền sẵn
 
@@ -2790,7 +2790,7 @@ So that tôi không bỏ qua chỉ vì ngại mở một màn hình khác.
 
 ---
 
-### Story 3.4: Khớp thuật ngữ theo ngôn ngữ và đánh dấu trong Panel Source
+### Story 3.4: Khớp thuật ngữ theo ngôn ngữ và đánh dấu ở cột nguyên văn của lưới
 
 **Covers:** FR50, FR51
 
@@ -2800,7 +2800,7 @@ So that tôi không dịch lệch khỏi chính quyết định của mình.
 
 **Acceptance Criteria:**
 
-**Given** một câu ở Panel Source chứa thuật ngữ có trong Glossary
+**Given** một câu ở **cột nguyên văn của lưới** chứa thuật ngữ có trong Glossary
 **When** hiển thị
 **Then** thuật ngữ đó được đánh dấu bằng màu `primary`
 
@@ -3040,7 +3040,7 @@ So that một quyết định sai từ nửa năm trước không kéo dài mãi
 **Given** một mục
 **When** người dùng xoá
 **Then** mục biến khỏi Glossary
-**And** đánh dấu của nó trong Panel Source cũng mất theo
+**And** đánh dấu của nó ở **cột nguyên văn của lưới** cũng mất theo
 
 **Given** một mục ở tầng Tác phẩm
 **When** người dùng muốn đẩy lên tầng Global
@@ -4817,7 +4817,7 @@ So that tôi hiểu được ngữ cảnh của đoạn văn quanh nó.
 **Acceptance Criteria:**
 
 **Given** một Chương có ảnh nhúng
-**When** mở Panel Source
+**When** mở **cột nguyên văn của lưới** 🔵 *(Sửa 2026-08-18 — xem ghi chú ở FR42)*
 **Then** ảnh hiển thị **đúng vị trí** của chúng trong văn bản gốc
 
 **Given** một Chương có ảnh nhúng
