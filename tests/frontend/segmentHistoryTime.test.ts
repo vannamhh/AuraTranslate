@@ -85,9 +85,34 @@ describe('historyTimeLabel — bốn nhánh, thời điểm đi vào qua tham s�
    * (offset 0) cả hai chiều biến mất và ca này **rỗng nghĩa** — nó xanh kể cả trên một hàm
    * dùng `toISOString()`. Runner CI của GitHub chạy **UTC**. ⇒ Mệnh đề này được canh **trên
    * máy của người chạy pre-push**, không trên CI. Đã ghi nợ có chủ.
+   *
+   * ═══════════════════════════════════════════════════════════════════════════════════
+   * 🔵 2026-08-19 — CHÍNH DÒNG TRUNG THỰC CỦA CA NÀY LÀ CHỖ VỠ, và nó làm CI đỏ 5 lượt
+   * ═══════════════════════════════════════════════════════════════════════════════════
+   * Mệnh đề *"ở UTC ca này rỗng nghĩa"* ở trên **đúng**, và nó được viết ra trước khi nó
+   * gây hại. Thứ nó không thấy: dòng `expect(offsetMin).toBe(0)` bên dưới — dòng viết ra
+   * **đúng để khỏi giả vờ đã đo** — là câu DUY NHẤT của ca này chạy trên CI, và nó là câu
+   * duy nhất **sai**.
+   *
+   * 🔴 Vì sao: `-x` với `x === 0` cho **`-0`**, không `+0`. Rồi `-0 > 0` sai và `-0 < 0`
+   * **cũng** sai, nên cả hai nhánh bị bỏ qua và luồng rơi xuống dòng khẳng định — nơi
+   * `toBe` dùng `Object.is`, thứ **phân biệt** `-0` với `+0`.
+   *
+   * ⚠️ **Đo 2026-08-19, hai chiều:** `TZ=UTC npx vitest run` trên cây chưa vá cho
+   * *"AssertionError: expected -0 to be +0"* — **đúng nguyên văn câu CI báo**, trên cả
+   * `macos-26` và `windows-2025`. Cùng lệnh không đặt `TZ` (máy Ice, UTC+7 ⇒ `offsetMin`
+   * `420`) cho **11/11 xanh**, vì luồng rẽ nhánh đầu và **không bao giờ tới** dòng ấy.
+   * ⇒ `pre-push` xanh và CI đỏ **cùng đúng một lúc**, và chỗ mù nằm ở múi giờ của người chạy.
+   *
+   * 🔴 Vá ở **nguồn của giá trị**, không nới câu khẳng định: `0 - x` cho `+0` khi `x` là `0`,
+   * và cho **cùng một số** với `-x` ở mọi múi giờ khác — nên hai nhánh `> 0` / `< 0` hành xử
+   * y nguyên và ca test **không yếu đi một chút nào**. Đường rẻ hơn là đổi câu khẳng định
+   * thành `toBe(-0)` hay `expect(offsetMin === 0)`; cả hai **giấu** cái bẫy `-0` thay vì gỡ nó,
+   * và cái bẫy ấy sẽ cắn lần nữa ở chỗ khác.
    */
   it('một mốc CÙNG NGÀY địa phương không được rẽ sai vì UTC — cái bẫy `toISOString()`', () => {
-    const offsetMin = -new Date(NOW).getTimezoneOffset()
+    // 🔴 `0 - x`, KHÔNG `-x` — xem doc-comment ngay trên. `-0` làm cả ba nhánh dưới nói dối.
+    const offsetMin = 0 - new Date(NOW).getTimezoneOffset()
 
     if (offsetMin > 0) {
       // Sang som HOM NAY: 06:30 dia phuong. O UTC+7 thi day la 23:30 NGAY HOM TRUOC theo UTC.
@@ -109,6 +134,8 @@ describe('historyTimeLabel — bốn nhánh, thời điểm đi vào qua tham s�
     }
 
     // offset === 0 ⇒ ca nay RONG NGHIA o day. Khang dinh chinh dieu do thay vi gia vo da do.
+    // 🔵 2026-08-19: dong nay la duong DUY NHAT cua ca test chay tren CI (runner o UTC). Giu
+    // `toBe` — no la thu da bat duoc `-0`, va ha no ve `===` la go mat chinh phep phan biet ay.
     expect(offsetMin).toBe(0)
   })
 
