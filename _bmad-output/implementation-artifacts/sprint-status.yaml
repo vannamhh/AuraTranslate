@@ -1729,7 +1729,10 @@ development_status:
   # 🔵 2026-08-19 — `in-progress` -> `review`. Nghiem thu: 11 cong exit 0 · vitest 250/250 ·
   #   build exit 0 · cargo 415/0 · so no 5162 -> 5212 dong (CHI dai ra, AC4) · 469 muc · 0 mo coi ·
   #   0 dong ma san pham bi cham. Luot ra ba tang tim 20 muc, da va HET.
-  #   🔴 KHONG dat `done`: Quyet dinh #5 CHUA CO CHU KY cua Ice. Cau truc Task 0 danh rieng chu ky
+  #   ✅ 2026-08-19 — QUYET DINH #5 DA CO CHU KY (Ice: XAC NHAN duong da thi hanh — doc HET, khong
+  #   lay mau). SAU tren SAU chu ky da du; muc no cho #5 da dong kem cach dong.
+  #   Story o lai `review` (khong tu nhay `done`): day la trang thai "dev xong, cho Ice nghiem thu".
+  #   🔵 Ghi chu cu, da het dung: "KHONG dat `done`: Quyet dinh #5 CHUA CO CHU KY cua Ice. Cau truc Task 0 danh rieng chu ky
   #   ay cho Ice, nen dat `done` la "cham dat bang suy luan". Da ghi #5 thanh mot muc no CO CHU
   #   trong deferred-work.md thay vi de no song trong van xuoi rai rac.
   2-13-phan-loai-so-no-va-luat-khong-mo-coi: review

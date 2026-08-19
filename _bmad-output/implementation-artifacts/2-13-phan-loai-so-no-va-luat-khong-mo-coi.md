@@ -295,7 +295,16 @@ cổng chĩa đi đâu cũng được.
 bằng dạng khác** — theo luật hẹp chúng là mồ côi, và viết lại chúng thành `Chủ:` là phần **rẻ
 nhất và đóng được ngay**.
 
-#### Quyết định #5 — CHƯA KÝ, và nó chờ một số đo chưa có
+#### ✅ Quyết định #5 — ICE KÝ 2026-08-19: XÁC NHẬN đường đã thi hành (đọc HẾT, không lấy mẫu)
+
+**Sáu trên sáu chữ ký đã đủ.** Ice xác nhận đường **chặt** — đọc hết nhóm *"không bám bề mặt nào"*,
+không lấy mẫu — tức chữ ký này **xác nhận** thứ đã làm chứ không đổi một dòng công việc nào.
+⚠️ Và giữ nguyên phần trung thực: con số của nhóm ấy **khác `36`** như story gốc khai, vì bộ phân
+loại gốc không được ghi lại. Số ghi ở §Task 3.3 là số **đo được**, không phải số chép.
+
+*(Nguyên văn tình trạng trước lượt ký, giữ lại để lịch sử quyết định đọc được:)*
+
+#### ~~Quyết định #5 — CHƯA KÝ, và nó chờ một số đo chưa có~~
 
 `#5` *(36 mục "không bám bề mặt nào": đọc hết hay lấy mẫu)* **chưa ký**, có lý do: nhóm ấy được
 định nghĩa bằng chính **bộ phân loại chủ đề**, mà bộ ấy — như bảng `40 / 29 / 10 / 7 / 113 / 36`

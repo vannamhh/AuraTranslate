@@ -5205,6 +5205,10 @@ trước khi nới** — chúng có mặt để lượt đó có dữ liệu th�
   một **chữ ký còn thiếu** trên một quyết định mà cấu trúc Task 0 của story dành riêng cho Ice.
   🔴 Và con số của nhóm ấy **khác 36** như story gốc khai — bộ phân loại gốc không được ghi lại, nên
   `36` không tái lập được. **Chủ: Ice** — ký hoặc rút #5 trước khi story chuyển `done`.
+  → ✅ **ĐÃ ĐÓNG 2026-08-19 (Story 2.13).** Ice ký: **XÁC NHẬN** đường đã thi hành *(đọc hết, không
+  lấy mẫu)*. Cách đóng: một chữ ký, không một lượt làm thêm — vế thực chất đã đúng từ trước, mục nợ
+  này chỉ tồn tại vì **chữ ký** còn thiếu. ⚠️ Vế *"con số nhóm khác 36 vì bộ phân loại gốc không
+  được ghi"* **vẫn đúng** và ở lại trong story, không bị lượt ký này làm tròn lên.
 
 - ⚠️ **Sàn quần thể `ITEM_FLOOR = 397` của `check:debt-owner` hiệu chuẩn trên MỘT phép đo** *(467 mục,
   2026-08-19)*. Sổ này chỉ dài ra *(AC4 cấm xoá mục)*, nên sàn sẽ ngày càng xa thực tế và ngày càng
