@@ -642,16 +642,19 @@ fn the_wal_stops_growing_once_it_crosses_the_threshold() {
         "`idle_before_passive` đặt một giờ mà vế (a) vẫn kích hoạt ⇒ điều kiện rảnh đang đọc sai"
     );
 
-    // ── Mệnh đề 1: CHỮNG LẠI ────────────────────────────────────────────────────
-    // Đợt hai ghi đúng lượng bằng đợt một, nên một WAL "phình vô hạn" sẽ xấp xỉ gấp đôi.
-    // Đây KHÔNG phải chỗ đòi tệp co lại — PASSIVE chép frame rồi cho SQLite dùng lại
-    // chỗ đó, tệp giữ nguyên cỡ và ngừng lớn. Xem ca 6.
-    assert!(
-        after_second <= after_first * 2,
-        "`.db-wal` vẫn phình: {after_first} B sau đợt một, {after_second} B sau đợt hai \
-         (cùng lượng ghi). Stats: {stats:?}"
-    );
-
+    // ═════════════════════════════════════════════════════════════════════════════
+    // 🔵 CODE REVIEW 2026-08-19 — HAI MỆNH ĐỀ ĐỔI CHỖ, và thứ tự LÀ một mệnh đề
+    // ═════════════════════════════════════════════════════════════════════════════
+    // Bản trước khẳng định *"chững lại"* TRƯỚC *"có trần"*. Hậu quả đo được: lượt CI
+    // `32212786258` trên `macos-26` panic ở *"chững lại"*, nên *"có trần"* — mệnh đề **mạnh
+    // hơn và ít phụ thuộc nhịp hơn**, theo đúng chữ của chú thích 2026-08-11 ngay dưới —
+    // **không bao giờ được đánh giá**. Người đọc lượt đỏ ấy không có đường nào biết bảo đảm
+    // thật còn đứng hay không; phải tính bằng tay mới thấy nó đứng, và đứng thoải mái
+    // *(210.152 / 327.680 = 64% trần)*.
+    //
+    // 🔴 ⇒ Mệnh đề YẾU hơn đứng trước sẽ CHE mệnh đề mạnh ở **mọi** lượt đỏ. Thứ tự ở đây
+    // không phải gu trình bày — nó quyết định một lượt đỏ nói ra được điều gì. Trần đi trước.
+    //
     // ── Mệnh đề 2: CÓ TRẦN ──────────────────────────────────────────────────────
     // Mệnh đề mạnh hơn và ít phụ thuộc nhịp hơn: tổng đã ghi là hai đợt, mà WAL phải giữ
     // ở gần ngưỡng. Không có cơ chế của AC5 thì WAL ≈ toàn bộ lượng đã ghi.
@@ -707,10 +710,60 @@ fn the_wal_stops_growing_once_it_crosses_the_threshold() {
         "`.db-wal` đang giữ {after_second} B (đợt một: {after_first} B) trong khi tổng đã \
          ghi là {written} B, trần {ceiling} B = {WAL_CEILING_NUM}/{WAL_CEILING_DEN} — tức \
          nó lớn theo lượng ghi chứ không theo ngưỡng.\n\n\
-         ĐỪNG nới trần theo phản xạ: mệnh đề 1 (*chững lại*) ở ngay trên đã xanh hay chưa, \
+         ĐỪNG nới trần theo phản xạ: mệnh đề 1 (*chững lại*) ở ngay DƯỚI đã xanh hay chưa, \
          và `threshold_triggered`/`frames_checkpointed` dưới đây nói cơ chế có chạy hay \
          không. Hai câu đó phân biệt *một hồi quy của tầng Store* với *một trần hiệu chuẩn \
          sai*. Stats: {stats:?}"
+    );
+
+    // ── Mệnh đề 1: CHỮNG LẠI ────────────────────────────────────────────────────
+    //
+    // Đây KHÔNG phải chỗ đòi tệp co lại — PASSIVE chép frame rồi cho SQLite dùng lại chỗ đó,
+    // tệp giữ nguyên cỡ và **ngừng lớn**. Xem ca 8.
+    //
+    // ═════════════════════════════════════════════════════════════════════════════
+    // 🔴 HÌNH DẠNG ĐỔI 2026-08-19 — phép so CŨ PHẠT chính cơ chế nó đo
+    // ═════════════════════════════════════════════════════════════════════════════
+    // Bản cũ: `after_second <= after_first * 2`. Nó **tự tham chiếu**, và đó là khuyết tật:
+    // `after_first` được chụp **đúng lúc cơ chế phản ứng lần đầu** *(ngay sau khi
+    // `threshold_triggered > 0`)*, nên nó nằm sát `THRESHOLD`. ⇒ **Cơ chế càng phản ứng
+    // nhanh, `after_first` càng nhỏ, và trần `×2` càng NGẶT.** Một lượt vá làm checkpoint
+    // nhanh hơn sẽ làm ca này ĐỎ. Không cổng nào bắt được kiểu ngược đời đó.
+    //
+    // ⚠️ **Đo, hai máy, cùng mã, cùng `after_first` = 94.792 B từng byte:**
+    //   · máy Ice (macOS): đợt hai -> **94.792 B** — WAL quay đầu trọn vẹn, lớn thêm **0 B**;
+    //   · `macos-26` CI:   đợt hai -> **210.152 B** — lớn thêm **115.360 B**.
+    //   Cả hai đều dưới trần của mệnh đề 2. Khác biệt là `walRestartLog` của SQLite: nó chỉ
+    //   quay WAL về đầu tệp khi một giao dịch ghi bắt đầu đúng lúc `nBackfill == mxFrame`, và
+    //   nhịp đó rơi vào nhau hay không là chuyện của MÁY — chú thích 2026-08-11 ngay trên đã
+    //   ghi đúng hiện tượng này cho `windows-2025`.
+    //
+    // ⇒ Phép so mới đo **đợt hai cộng thêm bao nhiêu so với lượng nó GHI** — một hằng số, không
+    // một mẫu của chính nó. Không cơ chế nào thì đợt hai cộng gần đủ `ROUND_BYTES`; có cơ chế
+    // thì nó cộng một phần nhỏ. Hai điểm đo: **0%** (máy Ice) và **17,6%** (CI).
+    //
+    // 🔴 **Trần 1/4 KHÔNG phải một lượt nới** — nó là một trục KHÁC. Trần cũ ràng `after_second`
+    // vào `after_first`; trần này ràng **mức LỚN THÊM** vào lượng ghi. Mệnh đề 2 *(trần theo
+    // tổng lượng ghi)* **không bị chạm một chữ**, và nó vẫn là phép kiểm chặt nhất của ca này.
+    // Sức răn còn nguyên: không có cơ chế AC5, mức lớn thêm ≈ `ROUND_BYTES`, tức **4× vượt**.
+    //
+    // ⚠️ **n = 2 máy.** Hai điểm đo không vẽ được một phân bố. 1/4 nằm giữa số đo cao nhất
+    // (17,6%) và ngưỡng *"cơ chế vắng mặt"* (≈100%), gần số đo hơn để nó còn bắt được hồi quy —
+    // cùng lý lẽ và cùng tỉ lệ mà Ice đã ký cho mệnh đề 2 ngày 2026-08-11.
+    const GROWTH_NUM: u64 = 1;
+    const GROWTH_DEN: u64 = 4;
+    let round_bytes = (ROUNDS * BLOB) as u64;
+    let growth = after_second.saturating_sub(after_first);
+    let growth_cap = round_bytes * GROWTH_NUM / GROWTH_DEN;
+    assert!(
+        growth <= growth_cap,
+        "`.db-wal` vẫn phình: đợt hai cộng thêm {growth} B trong khi nó chỉ ghi {round_bytes} B \
+         — trần {growth_cap} B ({GROWTH_NUM}/{GROWTH_DEN}). {after_first} B sau đợt một, \
+         {after_second} B sau đợt hai.\n\n\
+         ĐỌC HAI CÂU NÀY TRƯỚC KHI NỚI: mệnh đề 2 (*có trần*) ở ngay TRÊN đã xanh — nếu nó \
+         xanh thì WAL vẫn bị chặn theo ngưỡng, và chỗ hỏng nằm ở `walRestartLog` không rơi \
+         nhịp, KHÔNG ở tầng Store. Và `threshold_triggered`/`frames_checkpointed` dưới đây nói \
+         cơ chế có chạy hay không. Stats: {stats:?}"
     );
 
     drop(store);
