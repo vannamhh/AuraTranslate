@@ -89,3 +89,10 @@ _bmad/
 .claude/
 .kiro/
 .zencoder/
+
+# 🔵 2026-08-19 — `.github/agents/` phải viết ĐỦ ĐƯỜNG, không một tên trần.
+# Nó là 16 tệp định nghĩa agent do trình cài BMAD sinh, cùng hạng với bốn dòng trên. Nhưng nó
+# sống dưới `.github/`, mà `.github/` là hạ tầng kho THẬT — `.github/workflows/ci.yml` là tệp
+# workflow DUY NHẤT của dự án (AC4 của Story 1.3) và nó BẮT BUỘC ở lại trong index.
+# ⇒ Ignore đúng thư mục con, không ignore `.github/`.
+.github/agents/
