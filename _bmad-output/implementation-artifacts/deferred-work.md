@@ -5055,7 +5055,11 @@ nợ có chủ là chỗ cho thứ **không nghiệm thu được**; đây là t
 
 ### 🔴 Một vế nghiệm thu CÒN LẠI của lượt code review — có chủ, có lệnh, không một dấu ✅
 
-**Lượt e2e trọn bộ thứ MƯỜI BA** — `npm run test:e2e` *(~13 phút, cần cổng 1420 trống)*.
+**Lượt e2e trọn bộ thứ MƯỜI BA** → ✅ **ĐÃ ĐÓNG 2026-08-19 (Story 2.12)** — Ice chạy
+`npm run test:e2e`: **11/11 xanh, 0 đỏ, 12m46s**, và ba đường mã mới **đã được kiểm là thật sự
+chạy** *(hàng rào `resetPanelState` qua năm spec · `truncated` + hai ca tự kiểm qua `onPrepare` ·
+`waitForGridText` hai lần trong `doiChuong`, một lần sau `reload()`)*. ⇒ Vế *"chưa nghiệm thu ở tầng
+engine thật"* dưới đây **hết đúng**, ~~gạch ngang~~ thay vì xoá. Nguyên văn lúc mở:
 **Chủ: Ice.** Lý do là một phép đo, không một thủ tục: lượt vá 2026-08-19 chạm **ba** chỗ trong
 `e2e/**` — vế danh tính của `doiChuong` *(`segment-navigation.e2e.mjs`)* · hàng rào chờ-trạng-thái
 của `resetPanelState` *(`panelReset.mjs`)* · vế `truncated` *(`devServerHealth.mjs` + `wdio.conf.mjs`)*

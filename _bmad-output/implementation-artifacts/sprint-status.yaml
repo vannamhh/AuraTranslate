@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-19T09:35:00
+last_updated: 2026-08-19T10:05:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -1671,11 +1671,19 @@ development_status:
   #   🔴 KHONG chuyen `done`, va ly do la mot phep do chu khong mot muc con ho: luot va cham
   #   `e2e/**` (ve danh tinh `doiChuong` · hang rao `resetPanelState` · ve `truncated`), ma AC7
   #   doi mot luot e2e TRON BO. Luot 12 (11/11 xanh) do tren cay TRUOC luot va.
-  #   ⇒ Can luot thu MUOI BA. Chu: ICE, chay tay (`npm run test:e2e`, ~13 phut, cong 1420 trong).
+  #   ✅ LUOT THU MUOI BA DA CHAY (Ice, 2026-08-19): 11/11 xanh, 0 do, 12m46s (luot 12: 13m01s).
+  #   Va ba duong ma moi DA THAT SU CHAY trong luot ay — kiem chu khong tin suong: hang rao
+  #   `resetPanelState` di qua NAM spec (`support/workspace.mjs:98`) · `truncated` + hai ca tu kiem
+  #   moi di qua `onPrepare` · `waitForGridText(0, CAU(1))` chay HAI lan trong `doiChuong`, mot lan
+  #   SAU `reload()`. ⇒ AC7 nay dung tren CHINH cay dang o trong kho.
+  #   🔴 GIOI HAN CO TEN GIU NGUYEN: `n=1` (chu ky #8). Luot 13 chung minh bo XANH DUOC tren cay da
+  #   va; no KHONG chung minh bo het chap chon, va no KHONG dong mon no "`attribution-focus` chua
+  #   bao gio duoc chan doan" (spec ay xanh 59s — mot luot xanh khong phai mot luot chan doan).
+  #   ⚠️ Task 1.5 (cua so trang, ve client) VAN ho sau BON luot. No chan 0 AC; no co chu.
   #   Muc nang nhat cua luot ra: `resetSegmentHistory()` da viet ma CHUA noi day — cua so hong du
   #   lieu VINH VIEN con nguyen, va `check:panel-refs` xanh tren no vi cong chi hoi "co ham reset
   #   khong", khong hoi "ai GOI ham do". Da va + mot ca vitest do-duoc-bang-dot-bien.
-  2-12-ha-tang-e2e-va-cong-con-thieu: in-progress
+  2-12-ha-tang-e2e-va-cong-con-thieu: done
 
   # 🔴 STORY NAY DONG MOT VI PHAM LUAT DANG SONG, khong them nang luc.
   #   project-context.md:447-448 viet bang chu: "Moi thu ... KEM MOT CHU. Khong co muc nao mo coi."

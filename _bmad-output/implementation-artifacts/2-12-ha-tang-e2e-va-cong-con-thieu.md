@@ -4,17 +4,17 @@ baseline_commit: 4b30199263b5a5ad9dd13d3a4c8cd810951d1ba7
 
 # Story 2.12: Hạ tầng e2e và cổng còn thiếu
 
-Status: in-progress
+Status: done
 
-> 🔵 **2026-08-19 — `review` → `in-progress` sau lượt code review ba tầng.** 13/13 patch đã vá và
-> nghiệm thu trên bốn đường tự động; hai quyết định đã có chữ ký của Ice. Story **không** chuyển
-> `done` vì một lý do đo được, không vì một mục nào còn hở: lượt vá chạm `e2e/**` *(vế danh tính
-> của `doiChuong` · hàng rào `resetPanelState` · vế `truncated`)*, và **AC7 của chính story này đòi
-> một lượt e2e trọn bộ**. Lượt 12 *(11/11 xanh)* đo trên cây **trước** lượt vá. ⇒ Cần lượt **thứ
-> mười ba**; chủ là **Ice**, chạy tay. Chi tiết ở §Review Findings.
+> 🔵 **2026-08-19 — `review` → `in-progress` → `done`.** Lượt code review ba tầng đóng 13/13 patch
+> và 2/2 quyết định *(Ice ký)*. Story treo ở `in-progress` đúng một khoảng, vì lượt vá chạm `e2e/**`
+> và **AC7 đòi một lượt trọn bộ** — lượt 12 đo trên cây **trước** lượt vá, nên nó không nói được gì
+> về cây sau đó. **Ice đã chạy lượt thứ MƯỜI BA: 11/11 xanh, 0 đỏ, 12m46s.** ⇒ AC7 nay đứng trên
+> **chính cây đang ở trong kho**, không trên một ảnh chụp cũ. Chi tiết ở §Review Findings.
 
-🟡 **BẢY TRÊN BẢY AC đóng kèm bằng chứng, gồm AC7 — nhưng bằng chứng của AC7 đo trên cây TRƯỚC lượt
-code review 2026-08-19; xem hộp 🔵 ngay trên và §Review Findings.** Nguyên văn lượt ký gốc:
+✅ **BẢY TRÊN BẢY AC đóng kèm bằng chứng, gồm AC7 — và bằng chứng của AC7 đã được ĐO LẠI trên cây
+sau lượt code review** *(lượt thứ mười ba, 2026-08-19: **11/11 xanh, 0 đỏ, 12m46s**)*. Nguyên văn
+lượt ký gốc *(lượt 12, trên cây trước lượt vá)*:
 ✅ **BẢY TRÊN BẢY AC đóng kèm bằng chứng, gồm AC7** *(lượt e2e trọn bộ thứ mười hai: **11/11 xanh,
 0 đỏ, 13m01s**, theo chữ ký #8 của Ice: `n=1` và phải xanh 11/11)*.
 ⇒ **Cửa chặn ② ĐÓNG. Epic 3 mở được.**
@@ -1073,11 +1073,28 @@ trong hàng đợi toàn URL đã thăm)*. Ca âm ③ dựng đúng biên ấy �
 ngược về đỉnh đầu. ⇒ **Một ca âm không cắn được đột biến không phải một ca âm**, và chỉ đột biến
 mới nói ra điều đó — đúng bài học mà Task 5.5 của chính story này đã học một lần.
 
-🔴 **VẾ CÒN LẠI, KHÔNG CHẤM ĐẠT BẰNG SUY LUẬN:** hai mục sửa `e2e/**` *(vế danh tính của
-`doiChuong` · hàng rào `resetPanelState` · vế `truncated`)* **chưa** đi qua một lượt e2e thật. Bộ
-e2e chạy tay *(`npm run test:e2e`, ~13 phút, cần cổng 1420 trống)*, và nó là đường nghiệm thu **duy
-nhất** cho hình dạng dây. Lượt 12 *(11/11 xanh)* đo trên cây **trước** lượt vá này.
-⇒ Cần một lượt trọn bộ **thứ mười ba** trước khi story đóng. Chủ: **Ice**.
+#### ✅ VẾ CÒN LẠI ĐÃ ĐÓNG — lượt e2e trọn bộ thứ MƯỜI BA, Ice chạy 2026-08-19
+
+**11/11 xanh · 0 đỏ · 12m46s** *(lượt 12: 13m01s)*. Đây là bằng chứng cho **cây sau lượt vá**; lượt
+12 đo trên cây trước, nên nó không thay được lượt này.
+
+🔴 **Và ba đường mã mới ĐÃ THẬT SỰ CHẠY trong lượt ấy — kiểm chứ không tin suông.** Một lượt xanh mà
+mã mới không đi qua thì nó không là bằng chứng cho gì cả:
+
+| Cơ chế | Chỗ chạy | Bằng chứng |
+|---|---|---|
+| Hàng rào chờ-trạng-thái của `resetPanelState` *(vòng `requestAnimationFrame`)* | `support/workspace.mjs:98`, trong `openWorkspaceWithWork` | **NĂM** spec đi qua fixture đó — `editor-typing-flush` · `grid-empty-cell` · `segment-backspace-merge` · `segment-merge-split` · `segment-navigation` — tất cả xanh ⇒ `rowsAfterReset === 0` giữ được trong **WKWebView thật**, và hàng rào **không đỏ oan**. Đây là vế mà `happy-dom` **không** kiểm được. |
+| Vế `truncated` + hai ca tự kiểm mới | `wdio.conf.mjs:377,389` → `selfCheckDevServerHealth()` | `onPrepare` không ném ⇒ ca dương ③ *(chuỗi 300 module)* và ca âm ③ *(biên đúng 250 đỉnh, duyệt trọn)* chạy đúng chiều trên engine thật, không chỉ trên Node. |
+| Vế danh tính `waitForGridText(0, CAU(1))` | `segment-navigation.e2e.mjs:140`, trong `doiChuong` | Gọi **hai lần** ở `before` *(một lượt sau `reload()`)*, và spec cho **4 passing** ⇒ vế vừa nối lại **đúng** và không đỏ oan. Chính lượt sau `reload()` là ca mà đếm hàng một mình cho xanh trên Chương cũ. |
+
+⚠️ **GIỚI HẠN CÓ TÊN, GIỮ NGUYÊN — không làm tròn lên:** `n=1` *(chữ ký #8 của Ice)*. Lượt 13 chứng
+minh bộ **XANH ĐƯỢC trên cây đã vá**; nó **không** chứng minh bộ hết chập chờn, và nó không đóng món
+nợ *"`attribution-focus` chưa bao giờ được chẩn đoán"* — spec ấy xanh ở đây *(59s)*, đúng như nó đã
+xanh ở lượt 12, và một lượt xanh không phải một lượt chẩn đoán. Cả hai vẫn là nợ **có chủ** trong
+`deferred-work.md`.
+
+⚠️ **Task 1.5** *(cửa sổ trắng, vế client)* vẫn hở sau **bốn** lượt e2e — vẫn không lượt nào **dựng
+được** một cửa sổ trắng để đo. Không chấm đạt bằng suy luận; nợ có chủ giữ nguyên.
 
 #### Chữ ký của Ice trên hai quyết định — 2026-08-19
 
