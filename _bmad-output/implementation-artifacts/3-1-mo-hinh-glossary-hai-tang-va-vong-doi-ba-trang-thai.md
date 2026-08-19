@@ -2,7 +2,7 @@
 title: 'Story 3.1 — Mô hình Glossary hai tầng và vòng đời ba trạng thái'
 type: 'feature'
 created: '2026-08-19'
-status: 'review'
+status: 'done'
 baseline_commit: 'a83a1b756abae08cbc0c8f5a595c1be722f0c95c'
 review_loop_iteration: 2
 context:
