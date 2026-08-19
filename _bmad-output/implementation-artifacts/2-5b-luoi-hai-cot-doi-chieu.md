@@ -1131,3 +1131,116 @@ ngay dưới mỗi mục; cả năm chuyển thành bản vá ⇒ tổng **13** 
 - [x] [Review][Patch] `File List` kê `editorFlush.ts` vào mục *"Sửa"* nhưng `git diff` trên tệp đó **trống** [_bmad-output/implementation-artifacts/2-5b-luoi-hai-cot-doi-chieu.md:1017]
 
 **Hoãn — 0.** Không phát hiện nào thuộc lớp *"đã có từ trước, không do lượt này gây ra"*.
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔵 CORRECT COURSE 2026-08-14 (Ice duyet tron goi) — be mat nhap lat sang LUOI HAI COT
+  # doi chieu. Nguon: planning-artifacts/sprint-change-proposal-2026-08-14.md
+  # Ba story CHEN vao day (khuon 1.10b/1.11b/1.18b) vi 2.9 va 2.10 dua vao hinh dang —
+  # luoi phai dung TRUOC chung. Danh so chen de KHONG story done nao doi dinh danh.
+  # 2.5b gop panel Source + Editor thanh MOT (panel.grid) ⇒ con BA panel. No mang theo
+  # AC superseded cua Story 2.2 (4/8) va Story 1.14 (AC 'bon slot panel').
+  # 🔵 2026-08-14 — 2.5b chuyen sang ready-for-dev (create-story).
+  # ✅ 2026-08-14 — ICE KY TRON GOI CHIN QUYET DINH cua Task 0, tat ca theo duong de xuat:
+  #   #1 (b) CSS Grid chu-cot voi `subgrid` · #2 (a) token `draft` thu 17, vai `stroke` ·
+  #   #3 (b) moi o cot ban dich la mot editing host rieng — VA DO LA MOT LUOT LAT Quyet dinh
+  #      #1 cua Story 2.3 ("vung go la MOT cau tai mot thoi diem") ·
+  #   #4 (a) go `editorGutter.ts`, giu phep do trong so · #5 (a) panel id doi, preset id GIU TEN
+  #      doi NGHIA (preset_grid = Ⓑ-2 mac dinh, preset_columns = Ⓑ-1) ·
+  #   #6 (a) khong thu vien editor — ⚠️ Ice ky TRUOC khi co so cua Task 1; chu ky nay KHONG mien
+  #      cho Task 1, va LUAT DUNG thang chu ky neu phep do truot ·
+  #   #7 (a) khong ao hoa, giao so cho Story 2.4 · #8 (a) cot nhan trang thai + thanh trang thai,
+  #      VA DAY LA CHU KY HOP DONG UX-DR30 O PHAM VI TOI THIEU ·
+  #   #9 (a) `on-surface-variant` cho cot so cau va cot nhan trang thai, go mien tru `⏐` da chet.
+  # 🔴 BA CHO CHU KY CHUA PHU HET (Task 0.4) — dev phai quay lai hoi, dung tu lap:
+  #   ① gia tri mau hai theme cua token `draft` (Ice ky DUONG, chua ky SO) — hoi truoc Task 4.4;
+  #   ② hinh dang neo `data-segment-id` (`data-col="src"|"tgt"`) — xac nhan lai sau Task 1;
+  #   ③ Quyet dinh #6 ky truoc phep do — neu Task 1.2 truot thi DUNG, dung di tim thu vien.
+  # ── Boi canh chin quyet dinh (giu lai de story sau doc duoc ly do) ──────────────────
+  # Bon cai nang nhat:
+  #   #1 AC2 doi HANG, AC7 doi COT la MOT be mat dang ky — hai doi hoi nay XUNG KHAC trong DOM
+  #      thuong: trong <table> mot cot KHONG co phan tu to tien, ma selectionContract duyet bang
+  #      `el.contains(anchor)`. Duong de xuat: CSS Grid chu-cot voi `subgrid` (Safari 16+ /
+  #      Chrome 117+), va PHAI DO tren ca hai engine — ba engine bat dong o gap va auto-sizing.
+  #   #2 them 'draft' vao SEGMENT_RULE_VALUES ⇒ Kiem I doi `var(--color-draft)` ⇒ hoac mot token
+  #      thu 17 (DESIGN.md:196 canh bao) hoac noi cong. Ban dung dung ornament+opacity: Kiem I DO.
+  #   #3 `contenteditable` dat o dau. Day la mot luot LAT Quyet dinh #1 cua Story 2.3 (Ice da ky
+  #      "mot cau tai mot thoi diem") — tien de cu khong con ton tai, phai ky lai tuong minh.
+  #   #5 PresetId nam TREN DIA (ScopeKind::LayoutPreset) va command id nam trong bang keybinding
+  #      (Story 1.21) ⇒ doi ten la mo coi phim tat nguoi dung da gan, IM LANG. De xuat: giu ten,
+  #      doi nghia.
+  # 🔴 CUA CHAN — Task 1: dung mui tham do va GO TAY vao mot cau CHUA DICH tren WKWebView that.
+  #   Khong go duoc thi DUNG, bao Ice, 2.5b quay ve `backlog`. Day la mon cua Story 2.3 con treo,
+  #   va gia thuyet "luoi sua nguyen nhan goc" CHUA duoc do.
+  # 2.5b dong 3 mon co chu dich danh: deferred-work.md :2863-2873 (chieu cao hang Han Viet, CHUA
+  #   DO) · :2875-2885 (so phan editorGutter.ts, khong xoa im lang) · :2896-2908 (thu vien editor
+  #   + khuyet tat "sap ho"). Va no doc lai :2317-2371 · :2528-2584 · :2801-2816.
+  # ⚠️ 2.5b KHONG tu cham NFR2 dat — no GIAO SO cho Story 2.4. Moi so hieu nang cu cua Epic 2 do
+  #   tren mo hinh "N <span> trong mot dong van lien tuc": chung MAT HIEU LUC THEO CAU TRUC,
+  #   khong phai bi dong.
+  # ⚠️ Tang Rust KHONG sua mot dong; KHONG buoc di tru nao. So ke tiep van la 8 (Story 2.5c).
+  # 🔵 2026-08-14 — 2.5b chuyen sang in-progress (dev-story). Baseline do lai truoc khi sua
+  #   dong dau tien: cargo test 338/0/5 · vitest 78/78 — KHOP voi so ghi trong story.
+  # ✅ TASK 1 (CUA CHAN) DA MO. Ban do hai nhanh, nam menh de, hai engine:
+  #   (1) caret trong o rong — `contenteditable` TRAN: KHONG (activeElement=SECTION.mode);
+  #       CO duong chuot san pham (setPosition o mouseup): DAT. => GridPanel PHAI mang duong chuot.
+  #   (2) go mot ky tu: DAT · (4) "sap ho": DAT (o rong 38px = o co chu 38px) ·
+  #   (5) subgrid giu hang thang: DAT, lech 0px ca hai engine.
+  #   (3) Backspace offset 0: KHONG phat `beforeinput` tren WebKit (Blink CO) — bat dong engine.
+  # 🔴 CON MOT MON CHO ICE: Task 1.4 — go tieng Viet BANG BO GO vao o rong tren may that.
+  # 🔴 HAI MON NO MOI co chu vao deferred-work.md:
+  #   - bo e2e khong tu kiem danh tinh phien (cong 4445 bi chiem => do NHAM ung dung). Chu: 1.22
+  #   - Backspace offset 0 khong phat beforeinput tren WebKit => tien de cua 2.9 da LAT. Chu: 2.9
+  # ⚠️ Task 2 (bon panel -> ba) DA VIET ROI HOAN NGUYEN — Ice chot. Ly do: build XANH nhung app
+  #   hong luc chay (PANEL_COMPONENTS tro 'grid' ma WorkspaceDock chua co GridPanel.vue), va
+  #   KHONG cong nao canh moi noi do. Chi tiet o §Dev Agent Record Ⓓ. Cay nguon = baseline.
+  # ✅ 2026-08-15 — TASK 2-6 · 9 · 10.1 · 11 · 12 XONG. Luoi `subgrid` nam cot dung duoc;
+  #   vach nam->sau (token `draft` thu 17, muon dung so cua `ornament` => 0 cap tuong phan moi);
+  #   hop dong vung chon theo COT voi `selectionContract.ts` KHONG sua mot dong; lenh `⌥↓` moi.
+  #   Nghiem thu: 9 cong npm · build · vitest 83/83 · cargo 338/0/5 (Rust khong cham mot dong).
+  # 🔴 LUAT DUNG KICH HOAT LAN THU HAI o Task 12.2 — AC3 CHAN:
+  #   cu bam DAU TIEN vao luoi mat caret. Nguyen nhan DA CHAN DOAN XONG:
+  #   `WorkspaceDock.vue:591-611` -> `enterFocus(id)` -> `focus.ts::enter()` chay `el.focus()`
+  #   VO DIEU KIEN tren goc panel, ke ca khi tieu diem DA nam trong panel do. Cu bam thu HAI an.
+  #   Bon luot va bi BAC bang phep do. Hai duong sua deu cham hop dong tieu diem AD-34:
+  #     (A) `focus.ts::enter()` bo qua khi `el.contains(document.activeElement)` — mot cho sua,
+  #         phu ca sau diem vao focus;
+  #     (B) cho goi o `WorkspaceDock` tu kiem — ban kinh hep hon, khong dong ca cho panel khac.
+  #   => ICE CHOT. Dung va bang mot luot thu nam trong `GridPanel.vue`.
+  #   Ca nghiem thu DANG DO CO CHU: `e2e/specs/grid-empty-cell.e2e.mjs`.
+  # ⬜ Chua lam: Task 7 (do chieu cao hang Han Viet) · Task 8 (do hieu nang, giao so cho 2.4) ·
+  #   Task 10.2 · Task 13 (tai lieu — con 37 cho nhac EditorPanel/SourcePanel/"bon panel") ·
+  #   Task 14 (nghiem thu cuoi).
+  # 🔴 CON MOT MON CHO ICE: Task 1.4 — go tieng Viet BANG BO GO tren may that.
+  # ✅ 2026-08-15 — 2.5b XONG, chuyen sang `review`. Moi task tick tru DUNG MOT MON CUA ICE.
+  #   Nghiem thu: 11/11 cong npm (gom check:scope + check:scope:bundled chay tay) · build ·
+  #   vitest 83/83 · cargo test 338/0/5 (Rust KHONG cham mot dong) · e2e 3/4 luot ca bo 7/7.
+  #   Ice ky duong (A) cho `focus.ts::enter()`: bo qua `focus()` khi tieu diem DA o trong owner.
+  #   AD-34 §2 khong sua mot chu — no noi ve mot luot CHUYEN, va khong co luot chuyen nao.
+  # ✅ 2026-08-15 — ICE XAC NHAN TASK 1.4 DAT: go tieng Viet BANG BO GO tren may that, chu ha
+  #   canh, dau khong roi. Day la bat bien ma khong duong nghiem thu nao cua du an mo phong
+  #   duoc, nen chu ky cua Ice LA duong nghiem thu duy nhat. MOI TASK DA TICK.
+  # 🔴 HAI PHEP DO CHO SO XAU, ca hai DA GIAO LAI, khong tu cham dat:
+  #   - Han Viet SONG SONG: hang cao 388px = 11,47 dong (uoc luong noi ~330px / 6-7 dong).
+  #     Cot that cua B-2 chi 238,5px. `subgrid` keo theo O BAN DICH cung cao 388px. Chu: Ice.
+  #   - Doi con tro tren 9.850 cau: 706-770 ms => VUOT TRAN NFR2 ~15 lan. Chu: Story 2.4.
+  #     Moc cu :2113-2129 MAT HIEU LUC THEO CAU TRUC; :2198-2207 CON hieu luc ve co che.
+  # 🔵 Nam mon no moi/da dong vao deferred-work.md — xem §Dev Agent Record cua story.
+  # ✅ 2026-08-15 — RA MA BA TANG XONG => `done`. 13 phat hien · 13 ban va · 0 hoan · 0 loai.
+  #   Ice ky 5 quyet dinh. Nghiem thu: 11 cong · vue-tsc · eslint · build · vitest 83 -> 89 ·
+  #   cargo 338/0/5. AC7 nay XANH THAT (`git diff f990dd5 -- selectionContract.ts` = 0 dong).
+  # 🔴 KHUON LAP LAI BA LAN — phat hien that cua luot ra: chu ky #5(a) · #8 · #9(a) deu duoc
+  #   thi hanh DUNG MOT NUA. Nua kho, co chu thich 🔵 dep thi lam; nua la MOT DONG CHUOI hoac
+  #   MOT CAU PHAI XOA thi roi. Khong cong nao canh nua do.
+  #   Hau qua nang nhat da va: nhan bo cuc noi doi — nguoi dung bam "Bo cuc bon cot" (mot bo cuc
+  #   DA RUT) de nhan B-1. Nay la "Luoi ben trai" / "Luoi tren dinh".
+  # 🔵 Hai ve khong cong nao canh, ca hai dong bang DO: (2) thanh trang thai — 6 ca vitest, tu
+  #   kiem do 5/6; (1) guard `caretTarget` — e2e 8 luot, 5 dat/3 do, KHONG luot do nao roi vao
+  #   phep khang dinh caret. Do duoc "guard khong pha", KHONG do duoc "guard chua duoc cuoc dua".
+  # 🔴 MON MOI, TO HON STORY NAY: bo e2e tung 7/7 DO vi mot khuyet tat cua BAN DO —
+  #   `wdio.conf.mjs::devServerIsUp()` tin mot Vite hap hoi vi no van tra 200 cho `/`.
+  #   Chan moi story sau co dong toi WKWebView. Chu: mot story ha tang e2e. deferred-work.md.
+```

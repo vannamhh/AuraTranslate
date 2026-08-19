@@ -2290,3 +2290,41 @@ _bmad-output/implementation-artifacts/2-4-ban-do/.gitignore            # giữ t
 | 2026-08-18 | **AC14 — con trỏ SPINE `:883` đã sai, sửa thành `:990`** ở `editorFlush.ts:35,62`; `grep` nghiệm thu trả **0**. Vị trí xác minh lại từ chính SPINE. Kèm tên hàng vào chú thích vì con trỏ chỉ-có-số đã trôi một lần. |
 | 2026-08-18 | **Dựng cổng máy cho bất biến ① của §mục 4** — `src-tauri/tests/flush_cadence_contract.rs`, 5 ca, đỏ-rồi-xanh trên tệp thật. Nó ôm **đúng** mối ghép xuyên hai workspace; ba mệnh đề đơn-ngôn-ngữ giữ nguyên chủ cũ. |
 | 2026-08-18 | 🔴 **Lượt ĐỎ bắt lỗi của chính bản test:** bản đầu ghim `Ok(2000)` ⇒ nguồn sự thật thứ hai cho một số đã có chủ ở vitest. Lộ ra vì lượt đỏ cho **hai** ca đỏ thay vì một. Đã viết lại thành *"bóc được, đúng một khai báo"*. |
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔴 2.4 la MOT MUI THAM DO: san pham giao ra la SO DO + mot bao cao, khong mot be mat moi.
+  # No dong 10 mon no co chu dich danh (sau so `Tuning` · nguong WAL that · hai kho chay chong ·
+  # tran 9.850 span · ba duong nong cua 2.3 · RSS nhap 100 MB · hai mon no tai lieu), va no dong
+  # HAI hang Deferred cua SPINE (`:894` nguong WAL+nhip flush · `:897` thu vien editor).
+  # ⚠️ DIEU KIEN KHOI HANH: story 2.3 con `in-progress` va 2.4 do tren dung be mat cua no.
+  # Task 1.0 la mot luot kiem bang TAY — go vao mot cau CHUA DICH. Khong go duoc thi DUNG, bao Ice,
+  # va 2.4 quay ve `backlog`. Do hieu nang cua mot be mat chua go duoc la san xuat mot bang so vo nghia.
+  #
+  # 🔴 TRANG THAI THAT (2026-08-13, sau code review): 2.4 KHONG dung o "cho khoi hanh".
+  # No DA CHAY va DANG TREO o mot cho khac han: chua tiem duoc `bench.js` vao webview ban release
+  # (bon luot build hong, bon gia thuyet bi bac). Tuc BO DO chua dung noi — moi so cua AC1/AC2/
+  # AC12/AC13 deu doc ra tu cai bo do do. Dung doc dong "dieu kien chan" o tren nhu la can tro
+  # duy nhat. Task 0 nay da co LUAT DUNG rieng cho lop loi nay: 3 vong chan doan bi bac ⇒ DUNG.
+  #
+  # 🔴 TIEN DE CUA AC1 KHONG TON TAI: thu vien that cua Ice khong co Chuong co thuong nhat
+  # (khoang 669 → 48.639 ky tu rong hoan toan). Ice chot 2026-08-13: dung THANG NHAN TAO, va bao
+  # cao CAM viet "da do tren mot Chuong that".
+  # 🔵 LUOT 18/8 (b): hai manh Task 5 KHONG can may ranh da dong — AC14 (con tro SPINE :883 -> :990,
+  #   grep = 0) va CONG MAY cho bat bien `idle_before_passive > EDITOR_IDLE_MS`
+  #   (`src-tauri/tests/flush_cadence_contract.rs`, 5 ca, do-roi-xanh tren tep that).
+  #   Sau so `Tuning` va ba hang `editorFlush.ts` VAN nguyen gia tri — luot nay chi cham doc-comment.
+  #   Nghiem thu: 9/9 cong exit 0 · build ✅ · vitest 249/249 · cargo **414/0/5** (moc goc 409, +5).
+  #   🔴 DIEU KIEN DO BI BAC BANG SO: loadavg **162,88 -> 111,35** tren 16 nhan luc 15:49-15:51
+  #   (VM Docker 9,1 GB RSS, 111% CPU), so voi 7,19 ma AC22 DA gan co o luot (a) — cao hon ~15 lan.
+  #   ⇒ Luoi 6 diem va phien NFR2 KHONG chay duoc hom nay. Cho ① van nguyen, chu van la ICE.
+  # 🔵 DINH CHINH 2026-08-19 (code review Story 2.12) — DOC DONG DUOI DAY CHO DUNG NGHIA.
+  #   `in-progress` o day KHONG con nghia "2.12 va Epic 3 phai cho". Ice ky 2026-08-19: chu "go"
+  #   trong §Thu tu cua story 2.12 mang nghia HEP — 2.4 het la mot cho chan KY THUAT, dung nhu
+  #   ghi chu ngay tren da noi. Ba menh de phan biet duoc: ⑴ 2.4 het chan 2.12 (DA THOA) ·
+  #   ⑵ 2.4 `done` (CHUA — luoi 6 diem) · ⑶ AC7 cua 2.12 (DAT, khong muon ⑵ de dung).
+  #   ⇒ Dong nay o lai `in-progress` mot cach TRUNG THUC, va no khong chan gi nua.
+```

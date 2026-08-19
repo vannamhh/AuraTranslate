@@ -29,11 +29,21 @@
 #     cổng chạy mỗi lượt push. Chạy tay:  npm run test:e2e
 #
 # ⚠️ GIỚI HẠN THẬT, ghi ra thay vì để người sau tưởng nhầm: cổng này chạy trên **macOS
-# của Ice**, nên nó KHÔNG nói được gì về nửa Windows. GitHub Actions nay chỉ chạy khi bấm
-# tay (`workflow_dispatch`, Ice chốt 2026-08-12 — hạn mức để dành cho dự án khác), và trọn
-# phần Windows đã dời về CUỐI dự án. Trong lúc đó,
-# nửa đó không có đường nghiệm thu nào — 263 ca xanh đo ở run `31469843146` là một ảnh chụp,
-# không phải một trạng thái được canh. Xem action item A5 của retrospective.
+# của Ice**, nên nó KHÔNG nói được gì về nửa Windows.
+#
+# 🔵 CẬP NHẬT 2026-08-19 — hai mệnh đề ở đây đã hết đúng, sửa tại chỗ. Bản trước viết
+# *"GitHub Actions nay chỉ chạy khi bấm tay (`workflow_dispatch`, Ice chốt 2026-08-12 —
+# hạn mức để dành cho dự án khác)"* và *"trọn phần Windows đã dời về CUỐI dự án"*. Cả hai
+# đã bị chính `ci.yml` lật:
+#   · `ci.yml:46-49` khai `push:` + `pull_request:` + `workflow_dispatch:` — lượt tạm dừng
+#     sống đúng MỘT ngày, rồi quyết định "repo công khai" của Ice làm lý do hạn mức hết
+#     hiệu lực (`ci.yml:24-38`);
+#   · `ci.yml:70-81` chạy `windows-2025` trong CÙNG matrix với macOS ở MỌI lượt, và
+#     `ci.yml:343-508` dựng + đo ba biến thể `.msi` mỗi lượt.
+#
+# ⇒ Nửa Windows NAY có đường nghiệm thu: mỗi lượt push. Nhưng nó không nằm ở cổng này —
+# `pre-push` xanh vẫn KHÔNG nói gì về Windows, nên vẫn phải đọc lượt CI trước khi kết
+# luận. Xem action item A5 của retrospective Epic 1.
 #
 # Bỏ qua một lượt:  git push --no-verify
 # Gỡ hẳn:           git config --unset core.hooksPath

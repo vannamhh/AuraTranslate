@@ -734,3 +734,113 @@ nợ đúng"*, Edge Case Hunter đo ra một vi phạm AC3 **đang sống trong 
 - [x] [Review][Patch] Chú thích MỚI khẳng định sai phạm vi Kiểm A [src/main.ts:293] — `check-i18n.mjs:839,860-861` cho thấy Kiểm A quét đúng `rsFiles` (`.rs`) + `vueFiles` (`.vue`). `src/main.ts` là `.ts`, **ngoài phạm vi**: dòng chẩn đoán này có dấu cũng không cổng nào đỏ. Quy ước viết không dấu vẫn tốt; chỉ **lý do** ghi ra là sai.
 - [x] [Review][Patch] Giá trị trả về của `document.execCommand('insertLineBreak')` không được kiểm [src/panels/GridPanel.vue:748] — `preventDefault()` đã chạy trước đó, nên nếu lệnh (API đã bị khai tử trong đặc tả) trả `false` thay vì ném, `Enter` **biến mất không dấu vết**: chốt `insertingLineBreak` chỉ canh ca `execCommand` NÉM. Bàn đo chứng minh nó chạy trên WebKit; nửa Blink là món nợ đã ghi. Vá tối thiểu: một dòng chẩn đoán khi trả `false`.
 - [x] [Review][Defer] Cùng khẳng định sai về Kiểm A đã có sẵn ba chỗ [src/main.ts:248,264,281] — deferred, pre-existing (Story 2.5 · 2.5c). Diff này chỉ lặp lại mẫu, không tạo ra nó.
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 2.5d di qua AD-46 MOI (AD-37 giu nguyen van). No go hai lop chan Enter CHI o o ban dich.
+  # 🔵 2026-08-15 — create-story: chuyen sang ready-for-dev. So di tru ke tiep DO LAI tu nguon
+  #   (`PROJECT_MIGRATIONS`, schema.rs:580-618): bay buoc 1·2·3·5·6·7·8, dich 8 ⇒ ke tiep la **9**.
+  #   Story mang SAU quyet dinh mo phai co chu ky cua Ice TRUOC dong ma dau tien (Task 0 chan
+  #   moi task khac), va Task 1 (ban do WKWebView) chan Task 3:
+  #   #1 `Enter` chen CAI GI vao DOM. De engine tu lam thi no tiem markup (`<div>`/`<br>`) —
+  #      dung duong ma nhanh ② cua `onBeforeInput` ton tai de chan — va `textContent` cua
+  #      `<div>a</div><div>b</div>` la "ab", KHONG mot ky tu xuong dong nao. Tuc AC1 hong o ve
+  #      "ky tu luu vao target_text" ma KHONG cong nao do.
+  #   #2 `white-space` cho `.cell-tgt`. Grep toan `src/`: GridPanel.vue co 0 khai `white-space`
+  #      ⇒ mac dinh `normal` ⇒ `\n` bi gop thanh mot khoang trang. Day la diem chan THAT MA
+  #      KHONG AC NAO NEU: dia dung, man hinh khong doi mot pixel.
+  #   #3 co che nguoi dung DOI co dich. FR134 hua "cho toi khi nguoi dung doi" nhung khong AC
+  #      nao cua story mo ta thao tac, va bang phim EXPERIENCE.md:262-268 khong co hang nao.
+  #   #4 hien thi co dich. `subgrid` lam "khoang tho" thanh thuoc tinh cua HANG — mot
+  #      `padding-bottom` chi o o ban dich van keo ca track cao len. Hai cau truc doan khac
+  #      nhau khong bieu dien duoc bang hai khoang tho. (Suy luan tu ma, CHUA do — Task 1.2⑤.)
+  #   #5 ten/kieu cot + cach backfill. `DEFAULT` cua SQLite PHAI la hang, ma AC2 doi backfill
+  #      "bang co nguon" — mot gia tri theo HANG. Duong thoat: `execute_batch` chay nhieu cau
+  #      trong MOT giao dich (schema.rs:739), buoc 7 da co tien le — nhung tien le do la
+  #      DDL+DDL, con day la DDL+DML. Chua buoc nao cua kho lam vay.
+  #   #6 AC3 "ba ca bien AD-37 ap y nguyen": HAI trong ba ca CHUA CO MA. Story 2.8 (gop/tach)
+  #      la `backlog`; grep `merge_segment` tren src-tauri/src = 0 ket qua.
+  # 🔴 BA MOC DONG CUA AC6 TRO VAO MOT TEP DA BI XOA. AC6 viet `EditorPanel.vue:769` va `:842`;
+  #   tep do bi xoa o Story 2.5b (commit ca33072). Hai lop chan hom nay o `GridPanel.vue`:
+  #   nhanh ① cua `onBeforeInput` (:699-703) va `onEditKeydown` (:764-767). Ve "giu nguyen o
+  #   moi noi khac" DA DUNG theo cau truc — `targetCellOf` chi khop `[data-col="tgt"]`.
+  # ⚠️ Bay da ghi trong story: (a) fixture `STEP_NINE` (segment_contract.rs:1128) dang dung so 9
+  #   lam so "tuong lai" — sau story nay phai nang len 10, neu khong cong AD-30 xanh ma vo nghia
+  #   (dung khuon 2.5c vua di qua voi so 8); (b) ten test
+  #   `the_project_migration_set_reaches_eight_through_seven_steps` MANG SO HIEU nen sai lai o
+  #   MOI story them mot buoc — 2.5c da go so khoi bon ten khac nhung sot ten nay;
+  #   (c) hai doc-comment TRONG MA noi nguoc AD-46 (schema.rs:283-286 va split.rs:118-119, ca hai
+  #   viet "khong source_paragraph_end/target_paragraph_end") — phai sua; con AD-37 o spine thi
+  #   KHONG, vi AD-46 khai bang chu "AD-37 khong sua mot chu".
+  # ⚠️ WebKit im lang o bien: `Backspace` offset 0 phat 0 `beforeinput` tren WKWebView, Blink thi
+  #   co (deferred-work.md:3012-3037). Dung suy hanh vi `insertParagraph` cua WebKit tu Blink.
+  # ⚠️ `subgrid` da do ep o ban dich cao 388 px theo cot nguyen van (deferred-work.md:3131-3162).
+  #   Story nay them ap luc NGUOC CHIEU — o ban dich nhieu dong day track cao len — mot chieu do
+  #   ma phep do cu chua tinh.
+  # 🔵 2026-08-15 — 2.5d chuyen sang in-progress (dev-story). Baseline do TRUOC khi cham dong
+  #   dau tien, tren HEAD 0069808: cargo test --locked 347/0/5 · vitest 101/101 — KHOP so ghi
+  #   trong story. Toolchain: rustc/cargo 1.97.1 · Node 22.22.2 · npm 10.9.7 · vitest 4.1.10.
+  #   Do lai bon tien de tu NGUON (khong tu ghi chep): PROJECT_MIGRATIONS dich 8 qua bay buoc
+  #   [1,2,3,5,6,7,8] => so ke tiep la **9** · `white-space` trong GridPanel.vue = 0 ket qua ·
+  #   `merge_segment` tren src-tauri/src = 0 ket qua · `EditorPanel.vue` KHONG ton tai.
+  # ✅ 2026-08-16 — 2.5d XONG, chuyen sang `review`. Ice ky SAU quyet dinh cua Task 0
+  #   (#1 -> LAT sang (d) · #2(b) pre-line · #3(c) hai lenh · #4(Ⓑ) ky SAU phep do ·
+  #   #5(c) `is_target_paragraph_end` · #6(b) ham thuan).
+  #   Nghiem thu: 11 cong npm (gom check:scope + check:scope:bundled chay tay) · build ·
+  #   vue-tsc · vitest 102/102 · cargo test 359/0/5 · e2e 7/7 spec, 9/9 ca (8m25).
+  #   Buoc di tru 9 DA TIEU (`segment.is_target_paragraph_end`, DDL+DML trong MOT hang —
+  #   buoc dau tien cua kho lam vay). So ke tiep la **10**. Nguon su that van la
+  #   `PROJECT_MIGRATIONS` (schema.rs), khong phai dong nay.
+  # 🔵 QUYET DINH #1 BI LAT BANG PHEP DO (c) -> (d), va day la lan thu hai trong Epic 2 mot
+  #   chu ky bi chinh ban do cua story lat. Hai so lat no: `A<br>` hien **1 dong** (phai
+  #   `A<br><br>` moi ra 2) o dung ca THUONG NHAT — bam Enter cuoi cau; va duoi
+  #   `white-space: pre-line`, `execCommand('insertLineBreak')` cua chinh WebKit dung mot
+  #   **text node `\n`** (0 phan tu con, textContent = "A\nB"), engine tu them `\n` canh chot.
+  #   => Duong (d) dong AC1 ma `reportEdit`/`restoreEditedText` KHONG sua mot dong.
+  # 🔴 HAI CHU KY RANG NHAU, chua ai viet ra truoc do: hinh dang DOM ma engine dung PHU THUOC
+  #   `white-space` (doi chung: khong pre-line => `<br>` va textContent doc ra "AB"). Tuc
+  #   `pre-line` la TIEN DE VAN HANH cua Quyet dinh #1, khong mot dong CSS trang tri.
+  # 🔴 STORY NOI SAI MOT DIEU KIEN, va do la mot khuyet tat that: Task 5.4 viet "neu Ice chon
+  #   #5(b) thi `INSERT` phai set co dich tuong minh". Sai — buoc 9 backfill cac hang DA CO
+  #   tren dia, con Chuong nhap SAU luot di tru di qua `insert_segments` noi `DEFAULT 0` la
+  #   thu duy nhat cap gia tri. => Voi MOI duong ky, `INSERT` phai set tuong minh, neu khong
+  #   MOI Chuong moi co co dich tat het — ca thuong nhat cua AC2. Do duoc: ca kiem do voi
+  #   [(2,true,false),(3,true,false)] truoc luot va.
+  # 🔵 Quyet dinh #4 ky SAU khi co so, dung nhu duong (c) doi: `padding-bottom` chi o o ban
+  #   dich day track 38,00 -> 46,00 px (o nguyen van CUNG 46) => khuon `.cell.para-end` cua co
+  #   nguon KHONG dung lai duoc cho mot co chi-thuoc-mot-cot. Chi bao la mau duong ke day.
+  # ⚠️ LUAT DUNG (Task 1.3) KHONG kich hoat: bon vong ban do chay, **0** vong bi phep do bac.
+  #   Ba lan doi thuoc la "so that, trat cau hoi" — mot loai khac han, phan biet o §Debug Log Ⓐ.
+  # 🟡 BA AC dong MOT NUA: AC3 (hai ca bien chua co be mat — Story 2.8) · AC4 (duong xuat la
+  #   khung rong — Epic 8) · AC6 (ve "giu nguyen o moi noi khac" dung theo CAU TRUC, khong co
+  #   be mat soan thao thu hai de doi chung).
+  # 🔵 SUA 2026-08-16 (code review): dong tren truoc do viet "ca ba ghi no co chu" — SAI voi
+  #   chinh diff cua no. deferred-work.md luc do co 7 muc, KHONG muc nao la AC6. Luot ra da
+  #   them muc AC6 (chu: Story 8.11). Ba AC nay gio moi that su co chu.
+  # 🔴 CON MOT MON CHO ICE: Task 1.5 — go tieng Viet BANG BO GO roi bam Enter GIUA CAU tren
+  #   may that. `Enter` la phim chot dau cua Telex; neu mot luot chot dau bi luot xuong dong
+  #   an mat thi trieu chung la MAT CHU, khong phai mot loi.
+  # 🔴 MON MOI: `check-i18n.mjs` Kiem A — mot ten the nhac trong COMMENT cua template `.vue`
+  #   lam bo quet bao FAIL o mot comment KHAC cach do 20 dong. Cong DO chu khong xanh, nhung
+  #   no do SAI CHO. Chu: mot story ha tang cong.
+  # 🔵 Bay mon no moi/da giao lai vao deferred-work.md.
+  # ✅ 2026-08-16 — code review BA TANG (Blind Hunter · Edge Case Hunter · Acceptance Auditor),
+  #   khong tang nao truot. 11 phat hien tho ⇒ 9 vet + 1 hoan + 1 loai. Ice ky ba quyet dinh:
+  #   D1(a) lenh TU CHOI kem khoa moi · D2(b) dan GIU `\n` · D3 GIU `--color-primary`.
+  # 🔴 MOT VI PHAM AC3 DANG SONG bi bat, va no KHONG nam trong mon no da ghi: `Mod+Alt+P` BAT
+  #   duoc co dich tren segment CUOI Chuong. Hang rao ca ① cua AD-37 truoc do chi song o duong
+  #   NHAP (`split::mark_paragraph_end`), khong o duong GHI. Da va: khoa `SegmentEndsChapter`,
+  #   chi chan chieu BAT — chieu BO di tiep, vi do la duong duy nhat sua mot hang da sai.
+  # 🔴 MOT CAU TRONG CHINH TEP NAY DA SAI va da sua o tren: "ca ba AC ghi no co chu" — luc viet,
+  #   deferred-work.md co 7 muc va KHONG muc nao la AC6.
+  # 🔵 Hai chu thich MOI viet trong story bi bac bang phep doc nguon: (1) `isTypingZone` KHONG
+  #   phai thu giu AC11 — `sameMods` moi la (keys.ts:508-510 thoat truoc); (2) Kiem A cua
+  #   check:i18n KHONG quet `.ts`, nen dong chuan doan o main.ts khong cong nao canh.
+  # ⚠️ NGHIEM THU LAI SAU LUOT VA: 9 cong doc-tep + build + vue-tsc XANH · vitest **103/103**
+  #   (+1 ca moi) · cargo test **359/0/5**. 🔴 BA duong CHUA chay lai: e2e · check:scope ·
+  #   check:scope:bundled (deu can cua so Tauri that / cong 1420 trong). Luot va CO cham duong
+  #   ma e2e canh (dan + Enter trong GridPanel) ⇒ chua nghiem thu duoc vế do.
+```

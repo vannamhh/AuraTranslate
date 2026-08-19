@@ -679,3 +679,22 @@ tệp nào trong repo bị đụng để đo.
 **Đã hoãn:**
 
 - [x] [Review][Defer] `insert_segments` chuẩn bị lại statement cho mỗi hàng *(low)* [`src-tauri/src/commands/segment.rs:74-88`] — hoãn, chưa đo. `tx.execute` với chuỗi literal parse lại SQL mỗi lượt; một Chương ~9.850 segment chạy ngần ấy lượt parse trong **một** closure của writer nối tiếp duy nhất. Chưa ai đo chi phí thật, và story này đặt chuẩn *"đo chứ không ước"* — đề xuất một tối ưu chưa đo là tự phá chuẩn đó. Đo trước, vá sau.
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 2.1 dong action item A6 cua Epic 1: buoc di tru ke tiep cua `project.db` phai
+  # danh so 5 — so 4 la mot so DA CHAY (`schema.rs:280-296`).
+  # 🔵 2026-08-14 — cau tren dung o thoi diem Story 2.1 va NAY DA HET DUNG voi vai tro
+  # "buoc ke tiep": 5 da tieu (SEGMENT_DDL, 2.1) va 6 da tieu (SEGMENT_TARGET_TEXT_DDL,
+  # 2.2). Buoc ke tiep hom nay la **7** (Story 2.5). Ve "so 4 CHAY, khong tai dung" thi
+  # van dung mai mai — cong canh no: segment_contract.rs:472.
+  # 🔵 CAP NHAT CUOI 2026-08-14: **7 DA TIEU** (Story 2.5 — cot `segment.status` + bang
+  #   `segment_version`). So ke tiep la **8**. Nguon su that la `PROJECT_MIGRATIONS`
+  #   (schema.rs), khong phai dong nay — doc ma, dung doc mot ghi chep o noi khac.
+  # 2.1 XONG 2026-08-12 (Rust 301 xanh/0 do · 11/11 cong npm). Buoc di tru danh so 5 —
+  # cong cam so 4 quay lai da chay do-roi-xanh. HAI mon con cho Ice: bam lenh tach tren 21
+  # Chuong that (mot luot GHI vao du lieu that), va commit/push + workflow_dispatch.
+```

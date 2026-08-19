@@ -806,3 +806,221 @@ Nguyên văn: `expect(received).toContain(expected)` · `Expected substring: "B�
 ⚠️ **KHÔNG chấm "đã chẩn đoán"** *(luật sau Story 1.22)*. Ba lượt chạy cộng một chuỗi lỗi nguyên văn cộng một phép so với lượt ② — đủ để loại lượt vá khỏi danh sách nghi phạm, không đủ để đặt tên nguyên nhân. Ghi vào món nợ *"bộ e2e chập chờn"* đã có chủ, kèm quan sát `core.invoke` ở trên.
 
 ✅ **Ca 2.8 xanh ở CẢ HAI lượt trọn bộ và cả lượt riêng** — 3/3, kể cả ca đa-mảnh. Và `grid-empty-cell` *(2.5b)* xanh, tức lượt đổi render cột nguyên văn **không** làm hồi quy đường chuột của ô bản dịch.
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔵 2026-08-16 — create-story: chuyen sang ready-for-dev. Story mang CHIN quyet dinh mo
+  #   phai co chu ky cua Ice TRUOC dong ma dau tien (Task 0 chan moi task khac), va Task 0.4
+  #   la mot CUA CHAN — khuon nay DA KICH HOAT THAT mot lan o 2.7 (AD-47 giao Winston).
+  # 🔴 DIEU KIEN KHOI HANH: cay lam viec BAN, va thu ban KHONG phai tao tac cua story nay —
+  #   sau tep sua chua commit la ban va code review cua Story 2.7 (`segment.rs` +
+  #   `segment_contract.rs`: `trim()` hai ve cua phep so moc, chu ky thu MUOI cua Ice).
+  #   Theo project-context.md:425-426: hoi Ice, commit rieng, TRUOC dong ma dau tien.
+  # 🔵 STORY NAY CO THE TIEU 0 BUOC DI TRU — lan dau cua chuoi 2.5c/2.5d/2.6/2.7. Cot
+  #   `retired_at` DA CO tu buoc 5 (SEGMENT_DDL, schema.rs:351), va deferred-work.md:1961-1968
+  #   ghi thang rang no duoc dat som CHINH DE 2.8 khoi mo mot buoc thu hai. So ke tiep neu
+  #   can van la **12** — do lai tu PROJECT_MIGRATIONS (schema.rs), dung doc dong nay.
+  # ✅ BON THU DA DUNG SAN, dev KHONG duoc phat minh lai:
+  #   - `core/segment/paragraph.rs` — ba ca bien cua AD-37 (`merged` :99 · `split_into` :111 ·
+  #     `at_end_of_chapter` :81), Quyet dinh #6(b) cua 2.5d dung SAN CHO story nay. Doc-comment
+  #     :88-98 ghi thang cai bay: lay co nguon cua cau cuoi roi suy "co dich chac cung vay"
+  #     XOA quyet dinh ngat doan cua nguoi dung, va khong cong nao do.
+  #   - Vach `ornament` cho hang ve huu — `editorSegments.ts:161` + CSS GridPanel.vue:1327-1329,
+  #     dung tu 2.5b voi ghi chu "0 duong toi duoc tren du lieu that".
+  #   - `retired_at` tren day (`config/segment.ts:75`) va hang rao tu choi `segment_retired()`
+  #     (`commands/segment.rs:1276-1283`, 4 lenh ghi dang dung).
+  #   - `SegmentRow` da la tuple struct tu 2.7 ⇒ tran 12 phan tu cua std khong con chan.
+  # 🔴 XUAT XU KHONG PHAI QUYET DINH MO — AD-47 ④ (SPINE:715-717) da khai bang chu: moi manh
+  #   cung mot gia tri ⇒ giu; BAT KY bat dong nao ⇒ `other`. Tach la ca tam thuong. Dev THI
+  #   HANH, khong hoi lai. Va AD-47 ① buoc dat CA HAI (moc + xuat xu) trong cung thao tac —
+  #   gop/tach nam trong danh muc DONG (project-context.md:505-512).
+  # 🔴 CHIN QUYET DINH MO, hai cai co the de ra mot AD MOI:
+  #   #1 gop HAI hay gop mot NHOM — AC1 va AC6 cua CUNG story noi hai dieu khac nhau, va nang
+  #      luc chon nhieu HANG khong ton tai (`editorPanelState.ts:57` la Ref<number|null>;
+  #      grep selectedIds|multiSelect|Set<number> tren src/ = 0). Lap lai #1 cua 2.5c.
+  #   🔴 #2 TACH O DAU — diem chan that: dac ta buoc tach o COT NGUYEN VAN (epics.md:2552,
+  #      EXPERIENCE.md:267) ma cot do KHONG `contenteditable`, KHONG `tabindex`
+  #      (GridPanel.vue:1041-1049; contenteditable="true" viet cung chi o :1122, cot tgt)
+  #      ⇒ khong co caret de cat. Task 1 (ban do WKWebView) CHAN task cai dat cua #2.
+  #   #3 `target_text` cua segment moi — 8 AC im lang, ma AD-47 ③ liet gop/tach vao danh muc
+  #      cac luot GHI `target_text`. Gop va tach KHONG doi xung: noi thi xac dinh, tach thi
+  #      khong co phep chieu nao tu ban dich sang cho cat ben nguon.
+  #   #4 MOC so sanh cho segment MOI — moc song o webview (mang `segments`, Quyet dinh #2(b)
+  #      cua 2.7), ma segment moi mang mot `id` chua tung co trong mang do.
+  #   🔴 #5 `is_omitted` khi gop mot cau DA CAT voi mot cau chua — AD-5 im lang, AD-47 ④ chi
+  #      giai MOT cot. Day DUNG KHUON da sinh ra AD-47 ⇒ UNG VIEN CUA CHAN Task 0.4.
+  #   #6 hang DA VE HUU co o lai trong luoi khong — do duoc: `read_open_chapter_segments`
+  #      (segment.rs:788-791) KHONG co `WHERE retired_at IS NULL`, va `resolveSegmentRule`
+  #      da co nhanh ornament ⇒ gop hai cau hom nay cho ra BA hang. Khong AC nao neu.
+  #      UX-DR19 (epics.md:555) keo mot chieu, AD-5 (:109) keo chieu kia.
+  #   #7 danh lai `ord` + co tieu buoc 12 khong — chua duong ma nao danh lai `ord`
+  #      (grep 'SET ord' = 1 ket qua duy nhat, chinh luc INSERT). Cot khong UNIQUE, co chu y.
+  #   #8 hop am phim — BA tai lieu noi BA dieu: epics/`EXPERIENCE.md:169`/settings.html deu
+  #      `⌘M`+`⌘/`, nhung bang Phim `EXPERIENCE.md:267` viet `⌘T`. Ca hai hop am RANH hom nay
+  #      (grep KeyM = 0; Slash chi o bang tra). Va command id co HAI ten: settings.html viet
+  #      `editor.segment.merge`, con `commands/index.ts:977-980` — ICE KY 2026-08-14 — viet
+  #      `editor.merge_segments`. Chot mot lan; doi ten ve sau la mo coi phim tat da gan.
+  #   🔴 #9 dong bao + `⌘Z` — mockup ve ca hai, AC cua 2.8 doi CA HAI DEU KHONG (chung thuoc
+  #      2.9). Va KHONG FR/AD/UX-DR nao chot mo hinh undo ⇒ chon dung undo la mot AD MOI.
+  #      `StatusBar.vue:17-19` tu khai khe thong diep la mot Record DONG, khong co cho trong.
+  # ⚠️ Bay da ghi trong story: (a) ba neo so hoc chi ap neu #7 sinh buoc 12 — im lang o day
+  #   doc giong mot luot quen, nen phai ghi ra bang chu; (b) `insert_segments` KHONG tai dung
+  #   duoc nguyen trang (viet cung `translation_origin = ''` va soi guong co nguon sang co
+  #   dich, ca hai SAI cho segment sinh tu gop/tach); (c) `⌘M` da bi mockup tm-manage.html:128
+  #   chiem cho Quan ly TM — va chua ai ghi no, trong khi xung dot `⌘⇧T` thi da duoc danh dau;
+  #   (d) `EXPERIENCE.md:171` con mang ban UX-DR32 CU ("go de len ranh gioi"), epics.md da sua.
+  # ⚠️ AD-32 la BAY SONG SINH: no la luat cho gop/tach CHUONG va noi NGUOC LAI (giu nguyen
+  #   `segment.id`). Doc nham no thanh luat cua story nay thi moi AC hong ma ma van bien dich.
+  # 🔴 AC5 (cap TM o lai nguyen) KHONG co duong san pham nao doi chung — bang TM chua ton tai.
+  #   Dong bang CAU TRUC (khong cau SQL nao cham bang do) va ghi no, chu: Epic 7.
+  # 🔵 Baseline khoi hanh: cargo test --locked 383/0/5 · segment_contract 103/103 ·
+  #   vitest 133/133 (12 tep, do lai bang `npx vitest run`) · 11 cong npm · COMMAND_FLOOR
+  #   san 37 / cong in 44 · e2e 8/8 spec. Do lai ca bay dong tu NGUON o Task 0.3.
+  # 🔵 2026-08-17 — 2.8 chuyen sang in-progress (dev-story). Task 0 CHAN moi task khac: chin
+  #   quyet dinh mo cho Ice ky, va Task 0.4 la mot CUA CHAN (#5 `is_omitted` va #9c undo deu
+  #   co the de ra mot AD MOI — khuon nay DA KICH HOAT THAT mot lan o 2.7).
+  #   🔵 DIEU KIEN KHOI HANH HET DUNG: story viet "cay lam viec BAN, sau tep chua commit".
+  #   Do 2026-08-17: cay SACH, thu duy nhat chua theo doi la chinh tep story. Cac ban va code
+  #   review cua 2.7 da vao commit `dfa9c95`. => Task 0.6 khong con viec.
+  #   Baseline do TRUOC khi cham dong dau tien, tren HEAD dfa9c95: cargo test --locked 383/0/5 ·
+  #   segment_contract 103/103 · vitest 133/133 (12 tep) · 9 cong doc-tep xanh · COMMAND_FLOOR
+  #   san 37 / cong in 44 · buoc di tru ke tiep **12** (PROJECT_MIGRATIONS dich o to_version 11,
+  #   schema.rs:849-911). KHOP ca bay dong cua bang §Dieu kien khoi hanh.
+  #   🔵 MOT TIEN DE CUA STORY SAI SO ma dung ket luan (Task 0.5): grep selectedIds|multiSelect|
+  #   rowSelection|Set<number> tren src/ story ghi 0, do duoc **2** — ca hai o wordBoundary.ts
+  #   (offset ky tu trong mot chuoi, khong phai chon hang). Menh de "khong co chon nhieu hang"
+  #   VAN DUNG. Dung bai hoc #3 cua chinh story, lan nay bay nam TRONG story.
+  # ✅ 2026-08-17 — 2.8 XONG, chuyen sang `review`. Moi task tick tru HAI o `[⊘]` co ly do
+  #   (dieu kien `neu` khong xay ra: buoc di tru 12 khong sinh, va #6 ky (b) nen khong go
+  #   nhanh `ornament`). Mot dau [x] o do la mot loi khai sai.
+  #   🔵 STORY DAU TIEN CUA CHUOI TIEU **0 BUOC DI TRU** (2.5c/2.5d/2.6/2.7 deu tieu mot buoc):
+  #   `retired_at` da co trong SEGMENT_DDL tu buoc 5, dat som CHINH DE 2.8 khoi mo buoc thu hai.
+  #   So ke tiep VAN LA **12**. Ba neo so hoc CO Y khong doi — ghi ra bang chu o Completion
+  #   Notes ⓪, vi im lang o do doc giong mot luot quen (neo nay da sai BA lan lien tiep).
+  #   Nghiem thu: 11 cong npm (9 doc-tep + check:scope + check:scope:bundled chay tay) · build ·
+  #   vue-tsc · vitest **138/138** (13 tep) · cargo test --locked **399/0/5**.
+  #   Baseline 383 + 133 => +16 Rust, +5 vitest. COMMAND_FLOOR 37 -> **38** (cong in 46).
+  #   e2e: HAI luot tron bo, ghi ca hai. ① truoc luot lat #6: **9/9 spec, 13/13 ca** (13m13).
+  #   ② sau luot lat: **8/9** — `editor-typing-flush` do voi nguyen van "Couldn't find element
+  #   for pointerMove", tuc KHONG tim thay phan tu de bam, khong mot khang dinh nao ve luoi.
+  #   ③ chay rieng spec do: **2/2** (2m21). => Khong phai hoi quy; khop khuon hai mon no "bo
+  #   e2e chap chon" da co chu (:3093-3115 fixture khong reset state panel).
+  #   ⚠️ KHONG cham "da chan doan" — luat sau 1.22 doi BAT NGUYEN VAN truoc, va thu toi co du
+  #   de noi "khong phai hoi quy", KHONG du de noi "nguyen nhan la X".
+  #
+  # ✅ ICE KY **MUOI MOT** chu ky, khong chin: chin cua Task 0, cong hai chu ky LAT do chinh
+  #   phep do de ra.
+  #   #1(a) gop dung hai · #2(a) -> **LAT sang (e)** · #3(b) noi theo ngon ngu · #4(a) lenh tra
+  #   hang moi day du · #5(a) bat ky manh nao da cat · #6(a) -> **LAT sang (b)** · #7(a) danh
+  #   lai ord 1..N · #8 ⌘M/⌘/ + editor.merge_segments/editor.split_segment · #8③ 2.8 sua tai
+  #   cho · #9(a) khong dong bao khong undo.
+  #
+  # 🔴 CUA CHAN TASK 0.4 NEU RA, ICE PHAN DINH KHONG KICH HOAT: chu ky #5(a) lap im lang cua
+  #   AD-5 ve mot cot du lieu nguoi dung — dung khuon da sinh ra AD-47 o 2.7. Ice chot no nam
+  #   TRONG bien do AD-5 => khong AD moi, story di tiep. Mon no ghi rieng (chu: Ice) vi hom nay
+  #   nguon DUY NHAT phat bieu luat ay la mot ca test.
+  #
+  # 🔴 HAI CHU KY BI CHINH PHEP DO LAT, ca hai deu la thong tin MOI khong co trong bang duong:
+  #   ① #2(a) "lay cho cat tu vung chon dang co o cot nguyen van" — ban do WKWebView (ba vong,
+  #     `2-8-ban-do/`) do: KHONG cu chi chuot nao tao duoc vung chon o cot do (bam don "None"/0,
+  #     keo 6 buoc "None"/0, keo sau khi tai lieu co tieu diem "None"/0); doi chung o ban dich
+  #     "Caret" => thuoc tot. Hai gia thuyet ve ban do da bi loai tung cai. => Tien de KHONG TON
+  #     TAI. Ice ky duong (e) — **san pham TU dat caret tu toa do cu bam**, dung khuon duong
+  #     chuot ma 2.5b da phai dung cho o BAN DICH. Duong (e) KHONG co trong bang bon duong cua
+  #     story; dev de xuat tu so do.
+  #   ② #6(a) "loc hang ve huu o Rust" — dev NEU MOT DINH CHINH: bang duong cua chinh dev khai
+  #     duong (c) cho nhanh `ornament` "mot duong toi that qua be mat lich su 2.6". SAI. Do lai:
+  #     `resolveSegmentRule` co DUNG MOT noi goi (GridPanel.vue:214); be mat lich su doc
+  #     `SegmentVersionRow`, khong dung vach le. => Luoi la nguon DUY NHAT cua nhanh do. Ice ky
+  #     lai **(b)**: giu hang ve huu trong luoi, ve `ornament` mo. Gia da nhan: luoi PHINH theo
+  #     so lan sua, VINH VIEN (gop hai cau cho BA hang).
+  #
+  # 🔴 MOT KHUYET TAT CUA MA **DA PHAT HANH** bi bat, va no to hon story nay:
+  #   `document.caretPositionFromPoint` **KHONG TON TAI** tren WKWebView (typeof = "undefined"),
+  #   va mot loi goi TRAN **NEM TypeError** — no khong tra `null`.
+  #   `GridPanel.vue::placeCaretAtPoint` (Story **2.5b**, dang chay trong ban phat hanh) goi
+  #   dung API do, tran, o DONG DAU => `onCellMouseUp` chet ngay tai do o MOI cu bam vao o ban
+  #   dich, va `ensureCaretNextFrame` — thu ma doc-comment cua chinh no goi la "duong DUY NHAT
+  #   chay duoc khi engine khong lam" — **CHUA BAO GIO CHAY**.
+  #   ⚠️ Vi sao khong ai thay suot hai story: caret VAN HIEN (do: selectionType "Caret",
+  #   rangeCount 1, activeElement = chinh o) — no den tu `cell.focus()` cong hanh vi mac dinh
+  #   cua engine, KHONG tu duong va ma ba vong chan doan cua 2.3 va 2.5b da mua.
+  #   `grid-empty-cell.e2e.mjs` xanh tren mot san pham ma NUA CO CHE cua no dang chet.
+  #   ✅ Ice chot: SUA TRONG STORY NAY. Mot ham `caretPointAt` do nang luc (uu tien
+  #   `caretRangeFromPoint`, thu WebKit that su co), hai noi goi. Hai spec cua 2.5b/2.5d xanh
+  #   SAU luot va => `ensureCaretNextFrame` nay chay that lan dau, va khong lam hoi quy.
+  #
+  # 🔴 BA GIOI HAN CUA BAN DO do duoc, va MOT trong ba da NOI DOI dev ba vong lien:
+  #   (1) `browser.keys(['Meta','/'])` giao `code: "/"`, khong `"Slash"` => hop am khong khop,
+  #       0 command chay. Doi chung `⌘M` giao `code: "KeyM"` => khop.
+  #   (2) KHONG giao duoc mot cu bam chuot toi cot nguyen van qua BA cach nham, trong khi cung
+  #       lenh do tren o `[data-col="tgt"]` thi an.
+  #   (3) 🔴 Listener chan doan cua CHINH BAN DO goi `caretPositionFromPoint` tran => no NEM
+  #       truoc dong `push` => `chuot` rong o moi vong, va dev doc con so rong ay thanh "khong
+  #       mot mouseup nao toi document" — mot menh de ve ENGINE dung tu mot cu nem cua BAN DO.
+  #       Dung lop bay ma 2-5d-ban-do da dat ten: mot con so THAT, tra loi SAI cau hoi.
+  #       Bai hoc: mot listener chan doan phai CHIU DUOC engine ma no dang do.
+  #
+  # 🔴 CON MOT MON CHO ICE, va no la mot cau hoi ve MOT PHIM TAT DANG SONG: `⌘/` co the la mot
+  #   phim tat CHET tren ban phim that. Bo do khong phan biet duoc "driver gui sai `code`" voi
+  #   "engine bao vay", theo cau tao. Ice da thu tay va bao "khong co gi xay ra" — nhung luot
+  #   thu do dien ra KHI MA CON MANG khuyet tat `caretPositionFromPoint`, nen no khong tach
+  #   duoc hai kha nang. Thu lai SAU ban va nay, tren mot cau da bam vao cot nguyen van.
+  #
+  # 🔴 LUOT LAT THU BA CUA #6, va no den tu MOT LUOT DUNG THAT — khong mot phep doc nguon nao
+  #   thay duoc no. Ice bao sau khi `⌘/` chay duoc: "da tach ra 2 cau, nhung cau cu van ton tai
+  #   va so thu tu van chiem, gay roi noi dung". => Chot cuoi: **LOC**.
+  #   `read_open_chapter_segments` them `AND retired_at IS NULL`; `applyRegroup` GO hang ve huu
+  #   khoi anh chup thay vi va chung vao.
+  #   🔴 "Xoa" o day la AN KHOI LUOI, khong xoa khoi DIA — hang van nam trong project.db voi
+  #   `retired_at` khac NULL, `read_segment_history` khong hoi cot do, nen AC4 con nguyen. Mot
+  #   ca hop dong khoa CA HAI ve cung luc: luoi 3 -> 2, dia 3 -> 4.
+  #   ⚠️ So thu tu tu sua theo, khong mot dong nao cho rieng no: luoi danh so bang CHI SO MANG,
+  #   va `ord` tren dia da duoc chu ky #7(a) danh lai 1..N tu dau. Ca e2e nay doc THANG cot so
+  #   nguoi dung nhin thay (`.cell-num`).
+  #   🔴 DIEU DANG GHI NHAT khong phai quyet dinh, ma la: cai gia nay DA DUOC VIET RA BANG CHU
+  #   TRUOC KHI KY (bang duong cua #6(b) co dung cau "luoi phinh theo so lan sua") va van khong
+  #   du de thay. Ba ly le dung sau #6(b) deu VAN DUNG hom nay; ca ba cong lai thua mot luot
+  #   nguoi that nhin vao mot Chuong that.
+  #   🟡 He qua CHUA dong: nhanh `ornament` cua `resolveSegmentRule` nay KHONG con duong toi.
+  #   KHONG go no — `ornament` la mot trong SAU gia tri vach ma UX-DR19 khai, va go la lam ma
+  #   lech mot UX-DR dang dung (project-context.md:456-458). Mon no rieng, chu: Ice.
+  #
+  # 🟡 MUOI MOT mon no vao deferred-work.md, moi mon mot chu. Mot mon DA DONG bang cach noi
+  #   tiep (khong xoa muc goc): "luoi phinh theo so lan sua" — dong boi chinh luot lat tren. Trong do hai mon DOI CHU chu khong
+  #   dong: "chon nhieu hang" (2.5c -> mot story sau cua Epic 2) va "Auto-Lookup bang chuot o
+  #   cot nguon chua co duong nghiem thu" (Ice chot: tach han thanh mot story ha tang e2e).
+  # 🔵 Tai lieu sua tai cho kem 🔵 + ngay: EXPERIENCE.md:171 (ban UX-DR32 CU) · :267 (`⌘T` ->
+  #   `⌘/`) · mockups/settings.html:276-277 (command id theo chu ky 2026-08-14 cua Ice).
+  # ✅ 2026-08-17 — code review BA TANG (Blind Hunter · Edge Case Hunter · Acceptance Auditor,
+  #   phien sach song song, cung cap mo hinh). 10 phat hien sau phan loai, 3 bac lam nhieu.
+  #   Ice chot HAI quyet dinh; ca 8 ban va da ap. Story sang `done`.
+  #   🔴 HAI LOI NANG NHAT NAM TRONG CUNG MOT HAM — `editorSegments.ts::sourceCutOffsetOf`,
+  #   phep anh xa offset -> cho cat. Cung mot bieu hien: `⌘/` cat dung cho nguoi dung KHONG
+  #   bam, im lang, tren du lieu AD-5 khong cho hoan tac, va khong cong nao do.
+  #   ① `<rt>` (am Han Viet) bi dem la ky tu nguon — do bang happy-dom tren dung hinh dang DOM
+  #     san pham: cu bam dang le cho 1 tra ve 5. 🔴 Kho DA DO va GHI RA dung cai bay do tu
+  #     2026-08-07 (`SourceHanViet.vue` §"`ruby.textContent` GOP CA `<rt>`") — va ca test cua
+  #     ham moi dung mot `<ruby>` KHONG CO `<rt>`, nen phep kiem KHONG THE do.
+  #   ② Dem code unit UTF-16 trong khi Rust dem code point (`chars()`). Mot ky tu ngoai BMP
+  #     (CJK Ext B, co that trong van ban Han co) day cho cat lech mot, va thuong VAN TRONG
+  #     BIEN nen khong loi nao nem.
+  #   🔴 AC7 ve "nhieu manh" DONG MOT NUA ma khong quyet dinh, khong chu ky, khong mot dong no
+  #   — trong khi AC6 cung hinh dang thi co ca Quyet dinh #1, chu ky Ice, va mot muc 🟡 co chu.
+  #   Ice ky 2026-08-17: DUNG da-manh ngay trong story nay, co che TICH LUY (moi cu bam them
+  #   mot diem, `⌘/` cat het). Day tren doi `cut: number` -> `cuts: number[]`.
+  #   ⚠️ Toi da neu lo ngai truoc khi thi hanh — co che gom nhieu diem cat la mot tuong tac
+  #   CHUA tai lieu nao mo ta, dung cho Quyet dinh #1 va Story 2.5c da tu choi hai lan. Ice can
+  #   va giu quyet dinh; hinh dang cu the do Ice chon tu ba phuong an kem so do.
+  #   Sau lat: cargo 399 -> 401 · segment_contract 119 -> 121 · vitest 138 -> 141 · 9 cong xanh
+  #   · build + vue-tsc xanh · 4 dot bien MA SAN PHAM, moi cai do dung mot ca cua no.
+  #   e2e TRON BO 8/9 spec (13m12) — ca do la `editor-typing-flush`, thu DA DO trong bo tron bo
+  #   o luot ② cua chinh luot dev, tuc TRUOC ban va; xanh 2/2 khi chay rieng. Ca 2.8 xanh 3/3
+  #   ca hai luot, ke ca ca da-manh tren WKWebView that.
+  #   🔵 So no: 3 mon chu 2.8 DONG TAI CHO (`→ ✅ ĐÃ ĐÓNG`) — luot dev chi noi them o cuoi tep
+  #   va bo sot ca bon. Mon "dai cau" KHONG dong: 2.8 da xet va tu choi (chu ky #1(a)) ⇒ 🟡
+  #   chuyen chu. Cong 7 mon moi tu luot ra, moi mon mot chu.
+```

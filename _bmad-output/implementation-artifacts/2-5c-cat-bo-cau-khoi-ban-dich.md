@@ -615,3 +615,55 @@ phụ thuộc mới, không `AD` mới.
 | 2026-08-15 | Task 5 — điều hướng bỏ qua; `isUntranslated` **không đổi nghĩa** |
 | 2026-08-15 | Task 6 — chốt lọc `core::segment::omit` cho AC5 |
 | 2026-08-15 | Task 7 — nghiệm thu; ba vế không đo được ở tầng này đi vào sổ nợ kèm chủ |
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 2.5c dung buoc di tru 8; 2.5d dung buoc 9. Doc PROJECT_MIGRATIONS (schema.rs), dung
+  # doc mot ghi chep o noi khac — ke ca dong nay.
+  # 🔵 2026-08-15 — create-story: chuyen sang ready-for-dev. Story mang NAM quyet dinh mo
+  #   phai co chu ky cua Ice TRUOC khi viet dong ma dau tien (Task 0 chan moi task khac):
+  #   #1 "mot dai cau" — nang luc chon nhieu HANG chua ton tai (`editorPanelState.ts:51` la
+  #      mot `Ref<number|null>`), va dac ta khong mo ta co che chon. Ba duong, khong mac dinh.
+  #   #2 AC5 "an hoan toan o Che do doc va moi ban xuat" — CA HAI be mat la KHUNG RONG:
+  #      `core/export/mod.rs` co 7 dong toan doc-comment; `ReadingMode.vue` tu ghi "khung rong".
+  #      Nghia vu FR133 con phat bieu MOT CHIEU — khong AC nao cua Epic 5/8 tham chieu nguoc lai.
+  #   #3 cach GOI thao tac — dac ta khong noi (grep EXPERIENCE/DESIGN/prd/epics: 0 ket qua).
+  #   #4 o da cat bo con go duoc khong — dung vao menh de "khong binding dong" 2.5b vua dat.
+  #   #5 ten/kieu cot: `is_omitted INTEGER` hay `omitted_at TEXT`, ca hai deu co tien le.
+  # ⚠️ Hai bay da ghi trong story: (a) loai suy `translate="no"` cua XLIFF chi dung MOT NUA —
+  #   XLIFF KHOA va GIU nguyen van o ban xuat, AC5 doi AN HOAN TOAN; (b) so 8 dang bi
+  #   `segment_contract.rs:912` dung lam so "tuong lai" trong mot fixture — sau story nay
+  #   fixture do mat y nghia ma VAN XANH, phai nang len 9.
+  # ⚠️ AC6 ("bo qua cau da cat bo") trung nguyen van voi mot AC cua Story 2.10 (epics.md:2599).
+  #   2.5c chay truoc ⇒ 2.5c DUNG, 2.10 chi nghiem thu lai. Dung dung duong thu hai.
+  # 🔵 2026-08-15 — 2.5c chuyen sang in-progress (dev-story). Baseline: commit d55d4ae
+  #   (cargo 338/0/5 · vitest 89/89 — KHOP so ghi trong story).
+  # ✅ 2026-08-15 — 2.5c XONG, chuyen sang `review`. Ice ky NAM quyet dinh cua Task 0
+  #   (#1(b) mot cau · #2(b) chot loc o Rust · #3(b) hai lenh · #4(b) chan onBeforeInput ·
+  #   #5(a) `is_omitted INTEGER`), CONG mot quyet dinh #6 phat sinh giua chung.
+  #   Nghiem thu: 11 cong npm (gom check:scope + check:scope:bundled chay tay) · build ·
+  #   vue-tsc · vitest 101/101 · cargo test 347/0/5 · e2e 7/7 spec, 9/9 ca (7m56).
+  #   Buoc di tru 8 DA TIEU (`segment.is_omitted`). So ke tiep la **9** (Story 2.5d).
+  #   Nguon su that van la `PROJECT_MIGRATIONS` (schema.rs), khong phai dong nay.
+  # 🔴 QUYET DINH #6 — dac ta TU MAU THUAN, bat giua Task 4: `DESIGN.md:148` khai mau
+  #   `ornament` cho hang da cat bo, ma `ornament` bi `check-tokens.mjs:1300-1334` CAM lam
+  #   mau chu (do 2026-08-15: 2,44 sang / 2,64 toi — truot san AA 4,5). Tu kiem da chay:
+  #   dat `ornament` => cong DO; tra lai => XANH. Ice ky duong (a) `on-surface-variant`
+  #   (5,60 / 5,56). Day dung khuon Quyet dinh #9(a) cua 2.5b da giai mot lan.
+  # 🔴 KHUON LAP LAI LAN THU TU: `DESIGN.md:145` va `:146` van khai `ornament` cho hai cot
+  #   ma MA da dung `on-surface-variant` tu 2.5b, VA chung mau thuan voi chinh `DESIGN.md:213`.
+  #   Da sua ca hai. Mon con lai la mot cau hoi QUY TRINH: khoi §components cua DESIGN.md
+  #   khong co cong nao canh, nen no troi khoi ma moi story. Chu: Ice.
+  # 🔴 CON MOT MON CHO ICE: Task 4.5 — nhin bang mat rang hang da cat bo van THANG HANG
+  #   trong subgrid, va `line-through` KE THUA xuong SourceHanViet trong o nguyen van.
+  #   Khong duong nghiem thu nao cua du an mo phong duoc ve hinh hoc (happy-dom khong phai WebKit).
+  # 🟡 BA AC dong MOT NUA, ca ba ghi no co chu, KHONG tu cham dat:
+  #   AC1 (ve "dai cau" — chu ky #1(b)) · AC3 (ve hinh hoc) · AC5 (hai be mat tieu thu la
+  #   khung rong: `core/export/mod.rs` 6 dong toan doc-comment, `ReadingMode.vue` tu ghi rong).
+  # 🔴 AC6 TRUNG CHU VOI STORY 2.10 (epics.md:2599-2602, nguyen van cung menh de):
+  #   2.5c DA DUNG no. 2.10 chi NGHIEM THU LAI — dung dung duong thu hai.
+  # 🔵 Sau mon no moi/da dong vao deferred-work.md — ba mon ghi LUC KY Task 0, ba mon luc nghiem thu.
+```

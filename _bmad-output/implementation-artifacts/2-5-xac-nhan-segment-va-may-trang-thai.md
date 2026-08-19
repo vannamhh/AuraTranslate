@@ -645,3 +645,84 @@ Blind Hunter trượt lượt đầu vì treo watchdog; phóng lại với diff 
 - [x] [Review][Patch] Khe hở AC1 ở câu cuối Chương đã tự thú trong chú thích nhưng chưa vào `deferred-work.md` kèm chủ [src/panels/editorPanelState.ts:503-504]
 - [x] [Review][Patch] **Ba khoá lỗi mới KHÔNG tới được màn hình, và một chú thích khai ngược lại.** `editorConfirmError` được export nhưng **không nơi nào render**; `ConfirmResult` bị vứt ở chỗ gọi duy nhất (`main.ts:229` — `void confirmCurrentSegment()`). ⇒ Hôm nay bấm `Mod+Enter` trên một câu chưa dịch thì **không gì xảy ra trên màn hình**: cả ba khoá `err.segment.*` vừa dựng đều tới hư không. AC14 **vẫn đạt** (nó nói về hợp đồng IPC, và Rust trả đúng `IpcError` phân biệt được) — nhưng doc-comment `editorPanelState.ts:439-441` khai *"*`'refused'`* mang lỗi ra bằng *`editorConfirmError`*… chỗ gọi hiển thị bằng *`tError()`*"*, và **chỗ gọi đó không tồn tại**. Cần: một mục sổ nợ **có chủ** cho vế hiển thị, và sửa chú thích cho nó thôi nói một điều chưa đúng. [src/panels/editorPanelState.ts:439-446] [src/main.ts:229]
 - [x] [Review][Patch] Ba con trỏ tài liệu, hai cái trỏ vào tệp test KHÔNG tồn tại và bịa ra thư mục con mà cây test cố ý không dùng [src/panels/editorSegments.ts:136] [src/panels/editorSegments.ts:173] [src/config/segment.ts:317]
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  #
+  # 🔵 CAP NHAT 2026-08-18 — CHO CHAN CU DA HET DUNG, va cho chan MOI khac hang.
+  #   Da lam trong luot 18/8: nhi phan release dung LAI (5.027.112 B) · ban do hieu chuan lai cho
+  #   be mat LUOI (o go +640,+165 -> +372,+170; hai duong do doc lap khop nhau) · 6/6 luot trung
+  #   con tro ngay ung vien dau · hang rao du lieu that hai chieu, tu kiem do-roi-xanh · doi chung
+  #   AC21 ca hai ve XONG · ba loi CUA CHINH BAN DO da va (hai trong ba da co ten trong README tu
+  #   13/8 ma chua bao gio duoc va — mot lam CHET cong AC21) · `run-grid.sh` + `grid-table.sh` da
+  #   giao, chay lai duoc, tu tra lai hang so, ba hang rao tu kiem do-roi-xanh.
+  #   0 dong ma san pham bi cham. Sau so `Tuning` va ba hang `editorFlush.ts` VAN nguyen ban.
+  #
+  #   🔴 HAI CHO CON LAI, ca hai chu la ICE, va chung KHAC HANG NHAU:
+  #   ① LUOI 6 DIEM chua chay. KHONG con la mot cho chan ky thuat — dieu kien con lai la MOT CAI
+  #      MAY RANH 3,5 gio. Ice ky duong "giao lenh, Ice tu chay":
+  #        cd _bmad-output/implementation-artifacts/2-4-ban-do && ./run-grid.sh
+  #      ⚠️ Do 18/8: loadavg nen 6-7 tren may 8 nhan. NFR18 la menh de ve DUOI phan bo, nen chay
+  #      luoi tren may dang tai se cho mot bang duoi khong doc duoc.
+  #   ② ✅ NUA NFR2 ĐA QUA CORRECT-COURSE 2026-08-18 — Ice ky, da thi hanh.
+  #      Tai lieu: planning-artifacts/sprint-change-proposal-2026-08-18c-nfr2-be-mat-luoi.md
+  #      Ra TRON 22 AC (Ice ky pham vi): 🟢 12 giu nguyen · 🟡 7 sua du kien · 🔴 3 viet lai.
+  #      - AC12 -> ba duong nong THAT cua luoi: doi con tro (GridPanel.vue:459,:766 — DA DO
+  #        706-770 ms) · onSelectionChange->setEditorCaret (:875,:885) · restoreEditedText
+  #        (:843,:859 — duong duy nhat song sot).
+  #      - AC13 -> moc so doi sang bang cua 2.5b; moc cu (300,1/1.308,0 ms) GACH NGANG, khong
+  #        xoa (no do "dung 9.850 <span>", luoi dung ~49.256 node — hai so khong so duoc).
+  #        Nguong doi mo ao hoa tinh lai tren duong DOI CON TRO: 50 ms / 200 ms.
+  #      - AC17 ve ① (chup lai 3 anh ban do 2.2) BO — be mat da bi Supersedes; ve ② GIU.
+  #      - AC3/AC14/References: so dong Deferred :894/:897/:899 -> :990/:993/:995.
+  #      - AC15: san 32 -> 249 vitest, 319 -> 409 cargo.
+  #      - AC4 + epics.md:2204 + SPINE hang Deferred: "Panel Editor" -> "cot ban dich cua luoi".
+  #        lint_spine.py = 0 findings.
+  #      - bench.js: ba dau do DOM viet lai cho be mat luoi (cu hoi `.doc`/`.sent` = do RONG).
+  #
+  #      🔴 PHAT HIEN NGOAI DU KIEN, Ice ky duong (b): AC1 KHONG phu duong dang vi pham.
+  #        NFR2 nguyen van do "trong luc auto-save chay"; duong vuot tran ~15x la duong DOI
+  #        CON TRO, nam NGOAI cua so do. Theo cau chu cu, 2.4 co the cho AC1 XANH trong khi
+  #        vi pham do song nguyen. ⇒ AC1 MO RONG phu ca duong doi con tro.
+  #        ⚠️ He qua da can va da ky: dieu kien kich hoat AC5 rong theo — neu duong doi con tro
+  #        khong ha duoc xuong 50 ms trong pham vi hang so, do la ca "mot nguong truot mot minh"
+  #        ⇒ dung, bao Ice, VA EPIC 2 DUNG THEO.
+  #
+  #      🟡 Hai ten panel chet NGOAI pham vi (epics.md:477 va :1833) -> giao B5/Winston.
+  #   📊 So NFR18 so bo tai 4 MiB TREN BE MAT LUOI, n=6, blur=0,0%, busy=0/0:
+  #      7,28 · 7,39 · 7,49 · 9,05 · 9,39 · 9,57 s (can tren; tru ~0,4 s thoi gian go)
+  #      ⇒ 6/6 VUOT tran 5 s, va vuot ca EDITOR_HARD_CAP_MS. Bon nghi can da bi bac bang do.
+  #      🔴 CAM doc thanh phan quyet NFR18: n=6 so voi san 20 cua AC2, MOT diem luoi trong sau,
+  #      tai nen chua loai. Va CAM dat canh bang 13/8 (trung vi 3,484) — khac ca be mat lan co mau.
+  #   🔵 Chu y: dong "TIEN DE CUA AC1" o tren VAN dung; dong "chua tiem duoc bench.js" nay chi con
+  #      ap cho nua NFR2, va nua do da chuyen chu sang correct-course.
+  # 🔵 2026-08-14 — 2.5 chuyen sang ready-for-dev (create-story). Ice ky: cu dung 2.5, ghi
+  # dieu kien khoi hanh, KHONG tu cham dat cho mon nao cua 2.3/2.4.
+  # 🔴 SO DI TRU KE TIEP LA **7**, khong phai 5 — dong `:112-113` cua tep nay da HET DUNG.
+  #   Do lai tu nguon 2026-08-14: `PROJECT_MIGRATIONS` (schema.rs:431-455) dich o 6 —
+  #   1·2·3·**5**·6, so 4 van chay. 5 = SEGMENT_DDL (2.1), 6 = SEGMENT_TARGET_TEXT_DDL (2.2).
+  # 🔴 BAY QUYET DINH CHO ICE KY o Task 0 truoc khi viet dong ma dau tien. Hai cai da co
+  #   chu ky ghi san trong so no tu Story 2.2:
+  #   #1 vach `primary` NUOT `confirmed` — AC1 va KF-2 (EXPERIENCE.md:290) mo ta mot doi mau
+  #      KHONG xay ra khi con tro dung tren chinh cau vua xac nhan (editorSegments.ts:117-125).
+  #   #2 hai vach CHONG NHAU khi hai cau ngan cung mot dong (deferred-work.md:2052-2064) —
+  #      2.5 la story dau tien lam hai vach cung ton tai.
+  #   #3 bang nam gia tri THIEU MOT HANG: "da dich tay, chua xac nhan, con tro cho khac".
+  #   #7 xac nhan mot cau CHUA DICH: cho hay tu choi — cho thi Epic 7 ghi mot cap TM co ve
+  #      dich RONG, roi FR58 dien san bao rong do o mot Chuong sau. Hong VINH VIEN.
+  # 2.5 dong 4 mon co chu dich danh: deferred-work.md :2046 · :2052-2064 · :2066-2072 ·
+  #   :2388-2391 (ve "xac nhan segment" cua AC3 Story 2.3, cho dung 2.5).
+  # ✅ 2026-08-14 — 2.5 XONG, chuyen sang `review`. Bay quyet dinh Ice ky het.
+  #   Nghiem thu: 11 cong npm · build · vitest 74/74 · cargo test 336/0/5 · e2e 2/2.
+  #   Tam cong moi da chay do-roi-xanh. Ba thu PHEP DO bac va da sua trong story:
+  #   (1) buoc lan co dinh 5px TRAN mang o ca doi thoai ⇒ buoc CO;
+  #   (2) thu tu ha-truoc-ghi-sau nam o vo `wire` ⇒ khong cong nao do ⇒ keo xuong ham thuan;
+  #   (3) `assignGutterLanes` ban dau O(n^2) = 254-482 ms tren 9.850 vach ⇒ quet duong 4-8 ms.
+  #   🔴 E2E BAT MOT KHUYET TAT ma ca bon duong kia bo lot: `read_open_chapter_segments`
+  #   khong gui `status` qua day ⇒ `isConfirmed` LUON false trong app that, trong khi
+  #   74/74 vitest van xanh (fixture chep tay co cap `status`). Da va + dung luoi.
+  #   🔴 CON MOT MON CHO ICE: Task 1.1 — go tay vao mot cau CHUA DICH tren app that.
+```

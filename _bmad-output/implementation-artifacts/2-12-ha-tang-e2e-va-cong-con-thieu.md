@@ -1162,3 +1162,57 @@ thay vì để trôi — Ice muốn đóng bằng một luật, một hook, hay 
 **⑸ B10 vẫn chưa có chủ và chưa có lịch** — *"mọi phát hiện đắt nhất của Epic 2 đến từ Ice dùng app
 thật, và nó không có chủ, không có lịch, không có tên trong sổ."* Story này **không** đóng B10, và
 nó là thứ duy nhất trong retro mà một story không thể đóng được.
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔴 SO HIEU 2-12 DUOC TAI DUNG. Khoa duoi day KHONG phai sync-scrolling song lai — slug khac
+  #   nen hai khoa khong dung nhau. Ghi ra bang chu theo yeu cau cua retro (epic-2-retro:350-352).
+  #   Nguon: action item B2 cua retro Epic 2 — KHONG tu epics.md, va epics.md hom nay KHONG co
+  #   muc `### Story 2.12` nao dang hoat dong (cho do la khoi `~~Sync Scrolling~~ — XOA`,
+  #   epics.md:2659-2667). Bo sung mot muc vao epics.md la mot luot correct-course, chu la PM —
+  #   cau hoi ⑴ trong tep story.
+  # 🔴 DAY LA CUA CHAN ② Ice ky 2026-08-18: Epic 3 KHONG mo truoc khi story nay chay xong.
+  #   Bay AC dan xuat tu sau mon cua B2 cong mot AC nghiem thu. Story CO Y dung o AC7: trong kho
+  #   "cong AC8" la biet danh cua mot test Rust (segment_contract.rs:2333), khong phai AC thu tam
+  #   cua story nao — mot "AC8" o day se lam hai thu khac han mang cung mot ten.
+  #   Baseline do lai tu nguon 2026-08-18 tren HEAD 4b30199: cargo test --locked 409/0/5 ignored ·
+  #   vitest 249/249 (21 tep) · 11 spec e2e / 21 it() · 25 luot browser.pause() · 4 o nho cap
+  #   module ngoai resetEditorPanel · 2 tep src/panels/** khong co ham reset nao.
+  #   Task 0 co TAM quyet dinh cho chu ky, trong do #4 (tin hieu "flush xong" lo ra bang gi) la
+  #   ung vien CUA `AD` — neu kich hoat thi DUNG story, soan ho so ban giao, khong tu soan AD.
+  # 🔴 THU TU Ice chot 2026-08-18: Story 2.4 (cua chan ①, B1) go TRUOC story nay.
+  #   2-4 -> 2-12 -> Epic 3. Khong song song.
+  #   Ly do doi NOI DUNG chu khong chi doi lich: mot ban va NFR2 cham DUNG duong nong ma chu ky
+  #   #4 (tin hieu "flush xong") va #8 (nguong "tai lap duoc") dang do; bien 1.500 ms giua
+  #   FLUSH_WAIT_MS va EDITOR_IDLE_MS co the tu noi ra HOAC hep lai sau khi 2.4 va.
+  #   ⇒ Task 0.1 phai DO LAI baseline SAU khi 2-4 dong. Bang trong tep story chup HEAD 4b30199,
+  #   tuc TRUOC 2.4 — dung dung no nhu mot so da chot.
+  #   ⚠️ Story van `ready-for-dev` tu 2026-08-18: thu cho la luot DEV, khong phai ho so.
+  # ✅ AC7 DAT 2026-08-19 — luot e2e tron bo THU 12: 11/11 xanh, 0 do, 13m01s, exit 0.
+  # Chu ky #8 (Ice, 2026-08-19): n=1 luot, va phai XANH 11/11. CUA CHAN ② DONG — Epic 3 mo duoc.
+  # 🔴 GIOI HAN CO TEN, neu TRUOC khi ky va Ice giu nguyen: n=1 chung minh bo XANH DUOC, KHONG
+  #   chung minh bo het chap chon. Bang chung con nong: cung cay cung may, luot 10 va 11 cho 6 do.
+  #   `attribution-focus` (lan do ② cua wdio.conf) xanh o luot 12 nhung CHUA BAO GIO duoc chan doan.
+  #   No la mot mon no CO CHU trong deferred-work.md, khong mot dau ✅.
+  # ⚠️ Task 1.5 (cua so trang, ve client) VAN CHUA DO sau ba luot — khong cham dat bang suy luan.
+  # 🔵 2026-08-19 — `review` → `in-progress` sau CODE REVIEW BA TANG. 13/13 patch da va, 2/2 quyet
+  #   dinh da co chu ky Ice, bon duong tu dong xanh (10 cong · vitest 250/250 · build · cargo 415).
+  #   🔴 KHONG chuyen `done`, va ly do la mot phep do chu khong mot muc con ho: luot va cham
+  #   `e2e/**` (ve danh tinh `doiChuong` · hang rao `resetPanelState` · ve `truncated`), ma AC7
+  #   doi mot luot e2e TRON BO. Luot 12 (11/11 xanh) do tren cay TRUOC luot va.
+  #   ✅ LUOT THU MUOI BA DA CHAY (Ice, 2026-08-19): 11/11 xanh, 0 do, 12m46s (luot 12: 13m01s).
+  #   Va ba duong ma moi DA THAT SU CHAY trong luot ay — kiem chu khong tin suong: hang rao
+  #   `resetPanelState` di qua NAM spec (`support/workspace.mjs:98`) · `truncated` + hai ca tu kiem
+  #   moi di qua `onPrepare` · `waitForGridText(0, CAU(1))` chay HAI lan trong `doiChuong`, mot lan
+  #   SAU `reload()`. ⇒ AC7 nay dung tren CHINH cay dang o trong kho.
+  #   🔴 GIOI HAN CO TEN GIU NGUYEN: `n=1` (chu ky #8). Luot 13 chung minh bo XANH DUOC tren cay da
+  #   va; no KHONG chung minh bo het chap chon, va no KHONG dong mon no "`attribution-focus` chua
+  #   bao gio duoc chan doan" (spec ay xanh 59s — mot luot xanh khong phai mot luot chan doan).
+  #   ⚠️ Task 1.5 (cua so trang, ve client) VAN ho sau BON luot. No chan 0 AC; no co chu.
+  #   Muc nang nhat cua luot ra: `resetSegmentHistory()` da viet ma CHUA noi day — cua so hong du
+  #   lieu VINH VIEN con nguyen, va `check:panel-refs` xanh tren no vi cong chi hoi "co ham reset
+  #   khong", khong hoi "ai GOI ham do". Da va + mot ca vitest do-duoc-bang-dot-bien.
+```

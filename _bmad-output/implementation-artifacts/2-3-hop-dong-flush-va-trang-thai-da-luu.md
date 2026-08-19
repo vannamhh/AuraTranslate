@@ -1008,3 +1008,46 @@ công bố, xem D3)*.
 | 2026-08-13 | 🔴 **Code review ba tầng** — 18 phát hiện sau gộp trùng, **11 vá · 5 hoãn · 2 nhiễu**. Ba khuyết tật nặng đều nằm trên đường flush lúc **ghi trượt** và lúc **thoát**: ① một lượt ghi trượt quay vòng ở `setTimeout(…, 0)` — đo được **8 001** lượt IPC trong 10 giây, và `error` bị nuốt nên không một dòng log nào; ② `inFlight` là `boolean` khiến `await flushEditorNow()` là một **lời hứa rỗng**, nên chữ gõ trong lúc lô bay chết cùng lượt thoát; ③ lệnh `CloseRequested` **thứ hai** đẻ một luồng chờ thứ hai và `release()` sớm ⇒ `destroy()` khi lô ghi gốc còn bay. Cả ba nay có lưới máy. Tầng Acceptance Auditor **không** tìm được vi phạm AC nào về hành vi — thứ lọt lưới là những đường mà **không AC nào mô tả** |
 | 2026-08-13 | 🔴 **Một lượt điều tra ca đỏ `<span>` rỗng — KHÔNG kết luận được, và một khẳng định đã được RÚT LẠI.** Đo được và tái lập được: chuỗi `pointer` của WebDriver để cửa sổ mất tiêu điểm **hệ điều hành** *(`hasFocus: false` · `selType: "None"` · `activeElement: SECTION.mode`)*, và WebKit không giữ vùng chọn trong một cửa sổ như vậy ⇒ ca đỏ **không phân biệt được** *"sản phẩm hỏng"* với *"bộ đo hỏng"*. Nhưng lượt xanh trọn vẹn *(`SPAN.sent` · `Caret` · `execCommand` `true` · 2/2)* chỉ xảy ra **một lần trên tám**, và câu *"sản phẩm không hỏng"* viết ra dựa trên nó **đã bị rút**: một mẫu bằng 1 trên một bộ đo đã ghi là chập chờn không phải một phép đo. Mã dựng trên kết luận đó đã **gỡ**. Ba việc kế tiếp và số đo đầy đủ ở `deferred-work.md` §*Đo thêm về ca đỏ `<span>` rỗng*. **AC8 vẫn KHÔNG đạt** |
 | 2026-08-13 | 🔵 **Ba lời khai lệch nhau về e2e được hợp nhất bằng một PHÉP ĐO, không bằng một lượt chọn.** `npm run test:e2e` chạy thật: `editor-typing-flush.e2e.mjs` = **1 xanh / 1 đỏ**, đỏ ở `:133`. ⇒ §ĐÍNH CHÍNH đúng; *"2/2 xanh"* ở §Completion Notes sai; checkbox Task 3 còn mang chẩn đoán **AD-34** đã bị bác. Cả ba chỗ viết lại theo **một** bản, và chính tệp e2e nay mang một khối chú thích nói rằng ca đó đỏ **có chủ** — cấm `skip`, cấm đổi mệnh đề, cấm né bằng fixture có sẵn chữ |
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔵 ICE KY 2026-08-12 luc dung story: NFR15 ve "khong bo chay test frontend" duoc LAT.
+  # 2.3 dung `vitest@4.1.10` + `@vue/test-utils@2.4.11` + `happy-dom@20.11.2` (ca ba MIT).
+  # ⚠️ Cua ra giay phep cua NFR15 VAN DUNG cho goi thu tu — no chua bao gio cam nang luc,
+  # no bat di qua mot quy trinh. Va no KHONG cap phep cho mot thu vien EDITOR (chu: 2.4).
+  # Ice cung chot Quyet dinh #1 = duong (c) (vung go la MOT cau tai mot thoi diem) va
+  # Quyet dinh #2 = duong (a) (tai dung `createWriteSchedule`, khong dung lich thu hai).
+  # 2.3 dong HAI mon no co chu dich danh cua 2.2: cong Kiem J (`check-commands.mjs:2068`)
+  # HET HAN o day va phai duoc go CUNG LUOT voi hop dong flush; va `isTypingZone`
+  # (`deferred-work.md:180-182`) — day la luot dau tien du an co mot vung go that.
+  # ⚠️ Thanh trang thai CHUA TON TAI trong app (AC7 buoc dung no), va duong flush luc
+  # THOAT app cung chua co hook nao chay truoc `RunEvent::Exit` — hai khoang trong that.
+  # 🔵 DINH CHINH 2026-08-13: chan doan "AD-34 gianh tieu diem" la SAI. Ice da ky duong ①
+  # (cho `section.mode`/`section.panel` thoi gianh tieu diem) nhung ban va do KHONG duoc thi
+  # hanh — phep do cho thay KHONG AI GIANH ca: `focus.ts::enter()` chi chay luc doi che do,
+  # chot chong-roi-`body` chi ghi console, `PanelFrame` chi NGHE focusin/focusout. Thu dat
+  # tieu diem len `section.panel` la HANH VI MAC DINH cua trinh duyet, va no chon vay chi vi
+  # `<span>` CHUA `contenteditable` luc engine xu ly cu bam (Vue va DOM o mot microtask sau).
+  # ⇒ Nguyen nhan that: mot luot dat thuoc tinh BAT DONG BO. Da va bang `setAttribute` DONG BO
+  # ngay trong `mousedown`. AD-34 va `focus.ts` KHONG bi cham mot dong.
+  #
+  # 🔴 GIU `in-progress` — con DUNG MOT ca chua chay: luot go DAU TIEN vao mot cau CHUA DICH.
+  # Cau do la mot `<span>` RONG, rong 0 pixel, khong text node de neo caret ⇒ `execCommand(
+  # 'insertText')` tra `false`. Day la ca THUONG NHAT cua tinh nang, khong phai ca bien.
+  # Ba huong da thu chua du, ba huong chua thu — ghi o `deferred-work.md`.
+  #
+  # Moi phan con lai XONG va XANH: 9/9 cong npm · build · npm test 32/32 ·
+  # cargo test 319/0/5 (+9 ca) · e2e 1/2. Bon luot do-roi-xanh da tai lap.
+  # AC3 va AC17 mang no co chu (2.5 · `panic = "abort"`); Kiem J DA GO dung luc.
+  #
+  # 🔵 2026-08-13 — SPRINT CHANGE PROPOSAL (Ice duyet): AC23 DOI NGHIA. No hoi "Auto-Lookup con
+  # chay tren be mat Editor khong?" va do ra CON CHAY, dong dung nhanh hop le. No KHONG BAO GIO
+  # hoi "co NEN chay khong?" — Ice tra loi ngay 2026-08-13: KHONG. AC23 nay doc: "Editor KHONG
+  # phat luot tra tu dien". `EditorPanel.vue` + `AiTranslationPanel.vue` doi vai 'source' →
+  # 'display'; `editorAutoLookup.test.ts` dao menh de + THEM mot ca doi chung duong; Kiem F
+  # nhan menh de ③ ghim hai panel. Chi tiet: `planning-artifacts/sprint-change-proposal-2026-08-13.md`.
+  # ⚠️ Cung luot do sua mot menh de NGUYEN TAC o `EXPERIENCE.md:131` — xem §4.8 cua proposal.
+```

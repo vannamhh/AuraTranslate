@@ -20,7 +20,15 @@ existing_patterns_found: 7
 
 # Project Context for AI Agents
 
-_Tệp này chứa các luật và khuôn mẫu bắt buộc mà agent phải theo khi viết mã trong dự án. Trọng tâm là những chi tiết KHÔNG hiển nhiên — thứ một agent dễ bỏ sót._
+🔵 **2026-08-19 — tệp này KHÔNG còn là chỉ dẫn bắt buộc.** Luật bắt buộc nay sống trong
+`AGENTS.md` ở gốc kho (nạp mọi phiên) và sáu tệp `AGENTS.md` lồng theo thư mục
+(`src/` · `src-tauri/` · `scripts/` · `tests/` · `e2e/` · `tools/dict-build/`) — chúng gắn
+theo VỊ TRÍ nên agent không phải tự chọn đi lấy. Tệp này ở lại làm **tham chiếu sâu**: nó
+chở lịch sử đo đạc và lý do đầy đủ, thứ không vừa một khối nạp mỗi lượt gọi.
+
+⇒ Mâu thuẫn giữa tệp này và `AGENTS.md` thì **`AGENTS.md` thắng**, và báo lại chỗ lệch.
+
+_Trọng tâm dưới đây là những chi tiết KHÔNG hiển nhiên — thứ một agent dễ bỏ sót._
 
 ---
 
@@ -61,7 +69,13 @@ tác phẩm gốc. Lớp này được đóng gói rời **chính vì** rủi ro
 cách xoá đúng một tệp, không đụng ba tệp kia.
 
 ⇒ Không gộp lớp, không "hợp nhất cho gọn", không đưa dữ liệu của nó vào `dict-core.db`.
-Vi phạm luật này **đi qua sạch cả mười một cổng** và không cho một lượt CI đỏ nào.
+
+🔵 **2026-08-19 — sửa nửa lý do.** Bản trước viết *"vi phạm luật này đi qua sạch cả mười
+một cổng"*. Nay **có** một cổng cho chiều GỠ:
+`src-tauri/tests/dict_sources.rs:2146::deleting_any_detachable_layer_keeps_the_whole_lookup_suite_green`
+xoá thật từng tệp gỡ rời trên đĩa và khẳng định đúng một lớp biến mất — tức FR112 được
+nghiệm thu bằng máy. Nhưng chiều **GỘP** thì vẫn không ai canh: không cổng nào đỏ nếu dữ
+liệu Trần Văn Chánh bị nướng vào `dict-core.db`. ⇒ Luật đứng nguyên, chỉ lý do hẹp lại.
 
 ### Ràng buộc phiên bản KHÔNG đọc được từ tệp manifest
 
@@ -84,7 +98,9 @@ Vi phạm luật này **đi qua sạch cả mười một cổng** và không ch
 - **Sàn SQLite:** FTS5 `trigram` (≥ 3.34) và `remove_diacritics 0` (≥ 3.27). Đến từ
   crate, không từ SQLite của hệ điều hành.
 - **Node ≥ 22.18** — ba phép kiểm của `check-i18n.mjs` dựa vào việc Node bóc kiểu
-  TypeScript mặc định.
+  TypeScript mặc định. ⚠️ **Số đó không được ghim ở đâu cả** (đo 2026-08-19): không
+  `engines` trong `package.json`, không `.nvmrc`, và CI ghim `node-version: '22'` — một số
+  TRÔI. Ràng buộc thật chỉ sống trong một chú thích ở `ci.yml:148`.
 - **Font: chỉ `Source Sans 3` khai Reserved Font Name `'Source'`** — subset riêng tệp đó
   thì BẮT BUỘC đổi tên font nội bộ; hai họ kia không khai nên subset thoải mái.
   `Source Serif 4` có **hai** tệp trên đĩa (roman + italic).
@@ -165,6 +181,10 @@ quyết định kiến trúc đang mở (chốt ở Giai đoạn 5, sau khi th�
 - **Adapter IPC ở `src/config/*.ts` KHÔNG BAO GIỜ ném.** Một `invoke`, một `try/catch`,
   trả về hình dạng **ba trạng thái** `{ <giá trị> | null, error: IpcError | null }`. Tầng
   UI hiển thị lỗi bằng `tError()`, không bằng `try/catch`.
+  🔵 **2026-08-19: sáu tệp, không phải cả thư mục.** `bootstrap` · `chapter` · `dict` ·
+  `pinned` · `project` · `segment` mang khuôn này. **`shortcutsState.ts` KHÔNG phải adapter**
+  — nó import `vue` và gọi xuống `bootstrap.ts`, nên đừng đọc luật trên như một mệnh đề về
+  mọi tệp trong `src/config/`.
 - **Luôn kiểm kiểu LÚC CHẠY cho dữ liệu qua dây.** `IpcError` phía TS là một **lời khai**
   về dữ liệu đã đi qua IPC, không phải bảo đảm của trình biên dịch — Rust có thể trả
   `null` cho `params` sau một lượt đổi lược đồ, và type guard là chỗ duy nhất biết.
@@ -219,7 +239,11 @@ quyết định kiến trúc đang mở (chốt ở Giai đoạn 5, sau khi th�
 - **Đăng ký command ở `main.ts`, KHÔNG trong `App.vue`** — một lượt HMR dựng lại
   component sẽ gọi `installCommands()` lần hai và `register()` ném vì id trùng.
 - 🔴 **Luật "erasable-only" cho bốn tệp**: `src/commands/{index,registry,focus}.ts` và
-  `src/layout/writeSchedule.ts` phải **nạp được bằng Node thuần** — cổng `check:commands`
+  `src/layout/writeSchedule.ts` phải **nạp được bằng Node thuần**
+  *(🔵 2026-08-19 — luật là **cấm import GIÁ TRỊ từ `vue`/`dockview`**, KHÔNG phải "không
+  import gì". Chỉ `resolve.ts` và `writeSchedule.ts` là zero-import; `commands/index.ts:19-24`
+  có sáu `import` và `focus.ts:36` có một, tất cả trỏ vào các module erasable-only khác —
+  hợp lệ.)* — cổng `check:commands`
   (Kiểm C/D/E) và `check:layout` (Kiểm B) `import()` chúng để chạy phép kiểm **HÀNH VI**
   trên chính mã sản phẩm. ⇒ Không `import` giá trị của `vue`/`dockview`; không `enum`,
   `namespace`, parameter property. **Một `import` giá trị ở đó giết ba phép kiểm cùng lúc.**
@@ -245,6 +269,10 @@ quyết định kiến trúc đang mở (chốt ở Giai đoạn 5, sau khi th�
   `IDLE_MS 500 / HARD_CAP_MS 5000` (**không** mang bảo đảm AD-35); Editor dùng
   `EDITOR_IDLE_MS 2000 / EDITOR_HARD_CAP_MS 5000` (**có**). Dùng chung *hình dạng*, không
   dùng chung *bảo đảm* — đừng gộp hai cặp hằng.
+  🔵 **2026-08-19 — hai cặp ở HAI TỆP, không cùng một tệp.** `writeSchedule.ts:57,67` chỉ
+  định nghĩa cặp bố cục; cặp Editor sống ở `src/panels/editorFlush.ts:48,61` và đi vào qua
+  tham số của `createWriteSchedule`. Bảng trong doc-comment của `writeSchedule.ts` liệt kê
+  cả hai, nên nó dễ đọc nhầm là nơi khai cả hai.
 - **Không cửa sổ OS thứ hai** (AD-24): `addPopoutGroup` là đường **duy nhất** trong
   dockview gọi `window.open` — cấm. `check:layout` Kiểm C là một **danh sách CHO PHÉP**
   cho mọi thành viên của `window`/`document` mà `src/**` chạm tới; thêm một cái tên là
@@ -300,12 +328,20 @@ học**, **bố cục** hay **engine thật** thuộc bàn đo/e2e, không thu�
 #### Luật của một CỔNG (áp cho mọi `scripts/check-*.mjs`)
 
 - **Mã thoát là phán quyết.** Không có cổng nào ghi log rồi đi tiếp.
-- **Mỗi cổng phải có phép TỰ KIỂM chứng minh nó ĐỎ ĐƯỢC — và không đỏ oan.** *(Kiểm D của
-  `check-layout`, Kiểm C của `check-gates`.)* Một cổng chưa bao giờ đỏ là một cổng chưa ai
-  biết nó có chạy không.
+- **Cổng MỚI phải có phép TỰ KIỂM chứng minh nó ĐỎ ĐƯỢC — và không đỏ oan.** Một cổng
+  chưa bao giờ đỏ là một cổng chưa ai biết nó có chạy không.
+  🔵 **Đo 2026-08-19: 4/13**, không phải "mỗi cổng" — bản trước viết như một mô tả hiện
+  trạng và nó chưa bao giờ đúng. Có tự kiểm: `check-gates` Kiểm C · `check-layout` Kiểm D ·
+  `check-panel-refs` Kiểm C · `check-debt-owner` Kiểm B. Tám cổng còn lại chưa có, nên một
+  lượt xanh của chúng **không** là bằng chứng chúng đang chạy. Món nợ có chủ ở
+  `deferred-work.md`; câu trên nay là luật cho cổng **mới**, tức một mệnh đề kiểm được.
 - 🔴 **Lỗi hạ tầng KHÔNG phải một phép kiểm đỏ.** Không đọc được tệp ⇒ `abort()` và thoát
   khác 0 kèm câu *"đây là lỗi hạ tầng, không phải đạt"*. Đừng bao giờ báo một kết quả
   không có thật.
+  🔵 **Đo 2026-08-19: 8/13 mang đúng khuôn đó.** `check-panel-refs.mjs:78` lệch (thoát **2**,
+  chữ khác); `check-scope`, `check-scope-bundled`, `check-dict-manifest` **không có**
+  `abort()` — chúng `process.exit(1)` trần, nên ở ba cổng đó một lỗi hạ tầng đọc lên giống
+  hệt một phép kiểm đỏ.
 - 🔴 **Không phán quyết nào được đọc tham số từ chính thứ nó đang kiểm.** Sàn WCAG, danh
   sách vai, danh sách loại trừ — đóng băng **trong script**. *(Đã đo: ba đường thoát đều
   cho exit 0 trong khi sản phẩm mang một cặp tương phản 4,245:1.)*
@@ -324,7 +360,8 @@ học**, **bố cục** hay **engine thật** thuộc bàn đo/e2e, không thu�
 
 - **`check:scope` + `check:scope:bundled`** — dựng cửa sổ Tauri thật, cần **cổng 1420
   trống**; chúng trượt nếu đang mở `npm run tauri dev`. Chạy tay.
-- **Bộ e2e** — mỗi spec mở một cửa sổ thật (~1,5 phút) **và nó ghi vào `global.db` cùng
+- **Bộ e2e** — 🔵 2026-08-19: nó nằm ngoài **cả hai** đường tự động, không riêng `pre-push`;
+  `test:e2e` xuất hiện **0 lần** trong `ci.yml`. Mỗi spec mở một cửa sổ thật (~1,5 phút) **và nó ghi vào `global.db` cùng
   thư mục gốc Library THẬT của người chạy** nếu hai biến môi trường chuyển hướng không
   xuống được tiến trình con. `wdio.conf.mjs` có phép **tự kiểm dương tính** (`global.db`
   phải NẰM trong thư mục tạm) trước khi xoá bất cứ gì. Chạy tay.
@@ -407,6 +444,8 @@ học**, **bố cục** hay **engine thật** thuộc bàn đo/e2e, không thu�
 - **Thư mục mang một khái niệm thì có `README.md`** — hôm nay: `src/{commands,i18n,layout,
   modes,panels,tokens}` · `src-tauri/resources/{dict,fonts}` · `tools/dict-build`. Thêm
   một khái niệm vào một trong số đó thì cập nhật README cùng lượt.
+  ⚠️ **Đo 2026-08-19: `src/config/` và `src/selftest/` thiếu** — hai thư mục ra đời sau lượt
+  liệt kê trên, và không cổng nào đếm README.
 
 ### Development Workflow Rules
 
@@ -414,7 +453,11 @@ học**, **bố cục** hay **engine thật** thuộc bàn đo/e2e, không thu�
 
 - 🔴 **Nhánh mặc định là `master`, KHÔNG phải `main`.** Viết cứng `branches: [main]` trong
   một workflow ⇒ CI **không bao giờ chạy** và **không lỗi nào được ném**.
-- **`core.hooksPath = .githooks`.** `pre-push` chạy: chín cổng đọc-tệp → `npm run test`
+- **`core.hooksPath = .githooks`.** 🔵 2026-08-19: từ nay `npm ci`/`npm install` tự đặt nó
+  qua script `prepare` trong `package.json` — trước đó một bản clone mới bỏ qua **toàn bộ**
+  pre-push trong im lặng, và không tệp nào trong cây nói ra điều đó.
+  `pre-push` chạy: **mười một** cổng đọc-tệp *(🔵 chín → mười một: `check:panel-refs` Story
+  2.12, `check:debt-owner` Story 2.13)* → `npm run test`
   (vitest) → `npm run build` → `cargo test --locked`. Đỏ là **dừng**, không phải cảnh báo.
   *(Đo 2026-08-11: cổng 11s · build 5s · cargo test 34s.)*
 - **Bỏ qua một lượt: `git push --no-verify` — và phải VIẾT LÝ DO vào commit message.**
@@ -488,9 +531,15 @@ lỗi nào** và biểu hiện thành *"tra từ không ra kết quả"* — kh�
 - **Vị từ điều phối zh/en là HÌNH DẠNG CHUỖI TRUY VẤN**, không phải ngôn ngữ của Tác phẩm.
   Bôi đen `API` trong một truyện tiếng Trung mà lọc `lang='zh'` ⇒ **0 hàng**, dù mục `API`
   có thật. Rỗng im lặng sinh ra bởi chính hàng rào chống rỗng im lặng.
-- **`is_han` có ĐÚNG MỘT định nghĩa** — `tools/dict-build/src/char_idx.rs::is_han`. Hai
-  workspace tách rời và **không có cổng kiểm chéo**: hai định nghĩa lệch nhau sẽ tra vào
-  một `char_idx` chưa bao giờ lập chỉ mục ký tự đó ⇒ rỗng, không lỗi.
+- **`is_han`: hai bản chép CỐ Ý, và có cổng kiểm chéo.** 🔵 **2026-08-19 — bản trước viết
+  *"ĐÚNG MỘT định nghĩa"* và *"không có cổng kiểm chéo"*; cả hai vế đều sai.** Định nghĩa
+  gốc ở `tools/dict-build/src/char_idx.rs::is_han`, và `src-tauri/src/core/dict/mod.rs:164`
+  chép nguyên văn vì hai workspace tách rời không import chéo được. **Hai** cổng canh:
+  `src-tauri/tests/dict_lookup.rs:1591::han_ranges_are_verbatim_from_dict_build_char_idx`
+  đọc tệp kia như **văn bản** rồi so dải CJK, và
+  `dict_boundary.rs:330::exactly_one_definition_of_is_han_exists_under_src_tauri`.
+  Nguy cơ thì vẫn nguyên: hai định nghĩa lệch nhau sẽ tra vào một `char_idx` chưa bao giờ
+  lập chỉ mục ký tự đó ⇒ rỗng, không lỗi. Thứ đổi là **đã có ai canh**.
 - **Không có sổ đăng ký *"tệp `.db` nào chứa ngôn ngữ nào"*.** Mọi tệp đang gắn đều được
   tra; `lang` lọc **trong SQL**. Một sổ như vậy sai im lặng đúng vào ngày một lớp gỡ rời
   được thêm hay gỡ (FR112).
@@ -503,6 +552,8 @@ lỗi nào** và biểu hiện thành *"tra từ không ra kết quả"* — kh�
   có"*; hai ca kia mà nói thế là màn hình khẳng định dứt khoát một điều nó chưa biết. Các vị
   từ ấy là hàm export nên **chỗ quên gọi vẫn biên dịch sạch, và không cổng nào canh** — đã
   hụt **hai** lần: `hanVietPending` (1.16) và lệnh điều hướng (2.10, `editorHasLoaded`).
+  🔵 2026-08-19 — tên export thật là **`sourceHanVietPending`** (`src/panels/sourcePanelState.ts:177`);
+  `hanVietPending` là `ref` riêng tư ở `:94`, nên `grep` theo tên đó sẽ trượt bản export.
 
 #### 🔴 Dữ liệu người dùng — chỗ hỏng là VĨNH VIỄN
 
@@ -557,9 +608,13 @@ lỗi nào** và biểu hiện thành *"tra từ không ra kết quả"* — kh�
 
 #### 🔴 Ranh giới module
 
-- **Không module nào ngoài `ai/` được phụ thuộc `ai/`** (chiều ngược lại thì hợp lệ). Có
-  test cưỡng chế. Vi phạm ⇒ FR77 (*chạy đầy đủ khi không cấu hình AI*) chết, và chỉ lộ ra
-  khi một người dùng **không có API key** thử.
+- **Không module nào ngoài `ai/` được phụ thuộc `ai/`** (chiều ngược lại thì hợp lệ).
+  Vi phạm ⇒ FR77 (*chạy đầy đủ khi không cấu hình AI*) chết, và chỉ lộ ra khi một người
+  dùng **không có API key** thử.
+  🔵 **2026-08-19 — CHƯA có test cưỡng chế.** Bản trước viết *"Có test cưỡng chế"*.
+  `src-tauri/src/core/ai/mod.rs` ghi thẳng rằng phép kiểm đó *"thuộc Story 4.1"*, và `ai/`
+  hôm nay mới là một stub doc-comment. Đừng tin bất biến này đang được canh.
+  *(Cùng dạng: AD-41 — phạm vi mạng — cũng chưa có bộ test riêng; `core/webimport/` là stub.)*
 - **Không hợp nhất nguồn từ điển. Ở bất kỳ đâu.** Kết quả trả về **theo từng nguồn**, giữ
   nguyên bất đồng; cột `source` bắt buộc trên mọi bản ghi nghĩa. Cũng **không** hợp nhất
   `zh` với `en`.

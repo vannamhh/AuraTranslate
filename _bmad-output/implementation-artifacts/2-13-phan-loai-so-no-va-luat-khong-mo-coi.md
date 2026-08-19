@@ -731,3 +731,60 @@ người chạy"*. Cùng hình dạng với cái bẫy `-0` sáng nay *(`fa70fe3
 **Vá:** dựng giá trị mong đợi bằng **`join`** ở cả hai vế, nên phép so trở thành phép so ngữ nghĩa
 và nói cùng một điều trên cả hai nền tảng. Ca `--file` tuyệt đối **không** nằm trong bốn ca đỏ
 *(`isAbsolute('/x/…')` đúng trên cả hai)* — ghi ra để không ai "sửa" một ca đang đúng.
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔴 STORY NAY DONG MOT VI PHAM LUAT DANG SONG, khong them nang luc.
+  #   project-context.md:447-448 viet bang chu: "Moi thu ... KEM MOT CHU. Khong co muc nao mo coi."
+  #   Dem that ca 4.691 dong deferred-work.md ngay 2026-08-18 (HEAD 4b30199):
+  #     448 muc / 83 khoi · 361 mo · 50 nua 🟡 · 37 dong ✅ · ti le dong 8,3%
+  #     199 muc MO ma KHONG co `Chu:` — Epic 1: 156 · Epic 2: 16 · khac: 27
+  #   ⚠️ Retro Epic 2 KHONG sai — con so "~157 muc, 22 dong" cua no la KHOANG EPIC 2.
+  #     Ca so lon gap gan BA lan khung do. Hai con so do hai thu khac nhau, ghi ra thay vi de troi.
+  #   🔴 PHAT HIEN LAT HUONG XU LY: quy uoc `Chu:` DANG HOAT DONG. Epic 2 = 65/81 (80%) muc mo co
+  #     chu; Epic 1 = 41/197 (21%). ⇒ KHONG can mot co che moi, KHONG can story don no dinh ky.
+  #     Day la mot khoi DI SAN DUNG MOT LAN: 156 muc Epic 1 viet TRUOC khi luat `Chu:` ton tai.
+  #   Phan bo 199 muc: 40 font/tu dien · 29 Windows (-> B7) · 10 nghiem thu tay (-> B10) ·
+  #     7 do lai mot con so · 113 CAN DOC TAY (33 cong check-* · 17 test · 17 src/ · 6 tai lieu ·
+  #     4 CI · 36 khong bam be mat nao).
+  # 🔴 THU TU Ice chot 2026-08-18: SAU ca 2-4 VA 2-12. Day KHONG phai cua chan Epic 3.
+  #   Task 0.1 phai DO LAI bang — 2.12 nhan chu 11 muc va Task 9 cua no se dong chung.
+  #   Sau quyet dinh cho chu ky; #4 (them mot trang thai THU TU cho so no) la mot doi QUY UOC KHO
+  #   ⇒ neu kich hoat thi DUNG, neu voi Ice nhu mot luot sua project-context.md rieng.
+  # 🔵 2026-08-19 — `ready-for-dev` -> `in-progress`. Task 0 DA DONG nam tren sau chu ky (Ice):
+  #   #1 pham vi TRON · luat chu HEP (chi `Chu:`) · #2 `check:dict`+manifest, muc can mo `.db` GIU MO ·
+  #   #3 cong `check:debt-owner` · #4 trang thai thu TU viet bang CHU (da thi hanh o `ae5d9b4`) ·
+  #   #6 tran theo NHOM. `#5` chua ky — no cho bo phan loai chu de chay, va Ice ky "dung lai bo do
+  #   va ghi vao kho".
+  #   🔴 HAI CHU KY TUONG TAC: #1 duoc trinh voi so 202 (luat chu RONG) nhung luat chu chot la HEP
+  #   => "mo coi" tren HEAD la 217, khong 202. AC1 = "217 -> 0". Trong 217 co 15 muc dang ghi chu
+  #   bang dang khac (`Chu van la` · `chu so huu` · `giao cho` · `thuoc Story/Epic`).
+  #   🔵 DINH CHINH 2026-08-19 (luot ra buoc 4): bang Task 0.1 ban DAU cua toi SAI — bo dem tam
+  #   nhan "dong" bang nguyen van `DA DONG` nen bo sot ~60 muc dong bang `→ ✅ DONG`/`DA SOAT`/
+  #   `DA KY`/`DA GO`. Menh de "no rong tang 13" la he qua cua bo dem sai — GACH BO.
+  #   SO DUNG, bang chinh lenh da ghi (`check-debt-owner.mjs --report`):
+  #     TRUOC `4b30199`: 448 tong · 305 mo · 46 nua · 97 dong · 187 MO COI
+  #     SAU   HEAD:      467 tong · 302 mo · 52 nua · 106 dong · 7 KHONG LAM · 0 MO COI
+  #   ⚠️ Bo dem GOC cua story mac DUNG loi do (khai 37 dong o cho lenh cho 97) => con so 199 o
+  #   tieu de story KHONG tai lap duoc; so tai lap duoc tren cung commit la 187.
+  # 🔵 2026-08-19 (cung ngay, luot dev) — Task 0.3-5 XONG bang so do: `scripts/check-debt-owner.mjs`
+  #   dung moi (cong + lenh dem AC5, 13 ca tu kiem), gan that vao ca ba danh sach cong SAU KHI dat
+  #   0 mo coi. Ket qua: 467 muc khong doi (khong xoa gi), mo-khong-chu tu 190 (sau lot "re nhat"
+  #   20 muc) xuong 0. `pre-push` xanh 71s (11 cong + test 250 xanh + build + cargo test 0 do).
+  #   🔴 CON TREO: quyet dinh #5 (doc het hay lay mau 83 muc "khong bam be mat", da doi tu 36) CHUA
+  #   duoc Ice ky lai nhu mot vong doi thoai song — dev agent da xu ly theo duong doc het (chat
+  #   nhat) nhung ban ghi chu ky chinh thuc cho con so 83 con cho Ice xac nhan. Giu `in-progress`,
+  #   KHONG tu chuyen `done`.
+  # 🔵 2026-08-19 — `in-progress` -> `review`. Nghiem thu: 11 cong exit 0 · vitest 250/250 ·
+  #   build exit 0 · cargo 415/0 · so no 5162 -> 5212 dong (CHI dai ra, AC4) · 469 muc · 0 mo coi ·
+  #   0 dong ma san pham bi cham. Luot ra ba tang tim 20 muc, da va HET.
+  #   ✅ 2026-08-19 — QUYET DINH #5 DA CO CHU KY (Ice: XAC NHAN duong da thi hanh — doc HET, khong
+  #   lay mau). SAU tren SAU chu ky da du; muc no cho #5 da dong kem cach dong.
+  #   Story o lai `review` (khong tu nhay `done`): day la trang thai "dev xong, cho Ice nghiem thu".
+  #   🔵 Ghi chu cu, da het dung: "KHONG dat `done`: Quyet dinh #5 CHUA CO CHU KY cua Ice. Cau truc Task 0 danh rieng chu ky
+  #   ay cho Ice, nen dat `done` la "cham dat bang suy luan". Da ghi #5 thanh mot muc no CO CHU
+  #   trong deferred-work.md thay vi de no song trong van xuoi rai rac.
+```

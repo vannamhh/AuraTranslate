@@ -1132,3 +1132,128 @@ Spec Files:  8 passed, 8 total (100% completed) in 00:09:29
 ⚠️ **Một vế vẫn KHÔNG đóng, ghi ra thay vì để tưởng đã xét: chưa có ca nào canh chính bản vá.** Ba mệnh đề mới — *"tập chờ dơ sau hai lượt flush ⇒ TỪ CHỐI"*, *"kết quả của câu A không ghi vào ô của câu B"*, *"câu hỏi đang chờ khoá được danh sách"* — dựa vào một lượt đọc mắt cộng một lượt e2e đi **đường xanh**, không một đòn bẩy nào làm chúng **đỏ**. Luật của kho đòi ngược lại: *"một cổng chưa bao giờ đỏ là một cổng chưa ai biết nó có chạy không"*. Cụ thể, ca `④` hiện có chỉ khẳng định thứ tự `['flush','restore']` — nó **vẫn xanh** nếu ai đó gỡ lượt flush thứ hai. **Chủ: Ice** *(quyết định có mở một lượt bổ sung ca hay không)*.
 
 **Đã kiểm và KHỚP** *(ghi ra vì một lượt rà không tìm thấy gì cũng là một phép đo)*: bước di trú 10 đúng số/DDL/hai ca hợp đồng · `read_segment_history` và `restore_segment_version` đúng hình dạng #1(a) *(không `INSERT`)* · hàng rào `segment_id` · AC4 đọc-khác-ghi · `historyTimeLabel` không đọc `Date.now()` · tái dùng `z-index: 10` và câu miễn trừ có tên, không thêm `FOCUS_OWNERS` · bảy mục ghi nợ lúc ký khớp tám chữ ký, gồm khoảng hở AD-46 · `cargo test --locked` **372/0/5** và `npm run test` **130/130** khớp đúng số story tự khai.
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔵 2026-08-16 — create-story: chuyen sang ready-for-dev. So di tru ke tiep DO LAI tu nguon
+  #   (`PROJECT_MIGRATIONS`, schema.rs:665-711): tam buoc [1,2,3,5,6,7,8,9], dich 9 => ke tiep
+  #   la **10**. Bang `segment_version` DA CO tu buoc 7 (Story 2.5) — story nay la luot DAU TIEN
+  #   doc no. Hai mon no ghi chu dich danh la 2.6: deferred-work.md:2780-2785 (index) va
+  #   :2787-2792 (hai moc thoi gian KHONG noi cung mot chuyen).
+  #   Story mang TAM quyet dinh mo phai co chu ky cua Ice TRUOC dong ma dau tien (Task 0 chan
+  #   moi task khac):
+  #   🔴 #1 KHOI PHUC GHI GI VAO LICH SU — mot MAU THUAN DO DUOC giua hai tai lieu quy hoach.
+  #      Bang Rule cua AD-31 (ARCHITECTURE-SPINE.md:374-381) co dung SAU hang va KHONG hang nao
+  #      la "khoi phuc"; mockup data-integrity.html:226-229 thi viet dam "Khoi phuc la tao phien
+  #      ban moi... day no len thanh phien ban thu sau". AC2 dung ve phia AD-31 (trang thai ve
+  #      CHUA XAC NHAN). Neu Ice ky duong (b)/(c) thi do la mot **AD MOI**, khong mot dong ma —
+  #      Task 0.4 DUNG story lai cho toi khi AD duoc viet ra.
+  #   🔴 #2 MOT LO MAT DU LIEU KHONG AC NAO NEU. Mot hang segment_version chi sinh o DUNG MOT
+  #      cho (segment.rs:955-959, trong confirm_segment) => van ban dich CHUA TUNG DUOC KY khong
+  #      co ban sao nao o dau ca. Mot luot khoi phuc len mot segment dang mang ban nhap chua ky
+  #      XOA VINH VIEN ban nhap do. Chinh cai lo ma mockup viet ra bang chu.
+  #   #3 be mat: lop noi cap App (khuon ShortcutsOverlay/AttributionOverlay — hai tien le, ca
+  #      hai KHONG co muc trong FOCUS_OWNERS) · mot tab trong panel Lookup · hay trong chinh luoi.
+  #      🔴 Duong "trong luoi" vuong mot rang buoc CUNG: mot hang KHONG phai mot phan tu DOM
+  #      (GridPanel.vue:5-24) — nam cot la nam subgrid chia chung mot tap track.
+  #   🔴 #4 mockup ve DIFF <del>/<ins>, ma `similar` 3.1.1 va `dissimilar` 1.0.11 duoc ghi san
+  #      trong Cargo.toml:86-89 va **co y khong cai cai nao** — cai mot cai hom nay la am tham
+  #      dong mot quyet dinh kien truc chot o Giai doan 5. VA nam AC cua story KHONG doi diff.
+  #   #5 bon nhan cua mockup tro vao bon nang luc chua dung (2.7 · Epic 4 · Epic 7 · FR94).
+  #      `segment_version` co DUNG BON cot, va schema.rs:436-459 khai bang chu rang cot xuat xu
+  #      thuoc Story 2.7, cot cap TM thuoc Epic 7.
+  #   #6 dinh dang thoi diem: grep toLocale|Intl.DateTimeFormat|new Date( tren src/ = **0**.
+  #      StatusBar.vue:36-83 lam so hoc epoch thuan. Mockup dung BA dang cung luc.
+  #   #7 hinh dang index + so buoc di tru (mon no :2780-2785).
+  #   #8 AC4 "segment da ve huu" — `retired_at` la None cho MOI segment hom nay; grep
+  #      merge_segment tren src-tauri/src = 0; Story 2.8 la backlog.
+  # 🔴 DUONG DOC va DUONG GHI PHAI TU CHOI KHAC NHAU: doc lich su cua mot segment da ve huu
+  #   PHAI tra du (AC4); khoi phuc thi PHAI tu choi (no ghi). Ba lenh ghi hien co deu tra
+  #   MessageKey::SegmentRetired — dung cho chung, sai cho duong doc.
+  # ⚠️ Bay da ghi trong story: (a) fixture "tuong lai" STEP_TEN (segment_contract.rs:1313-1345)
+  #   dang dung so 10 — sau story nay phai nang len **11** va doi ten, neu khong cong AD-30 xanh
+  #   ma vo nghia (luot lap lai THU BA cua luat do); (b) hai neo o pinned_contract.rs:160-175
+  #   (len() 8->9, schema_version 9->10); (c) ten `editor.restore_segment` DA BI CHIEM — no la
+  #   lenh bo co cat bo cua 2.5c (FR133), khong phai khoi phuc phien ban; (d) cay `.atproj`
+  #   trong mockup (`history.db`/`segments.db`/`tm.db` roi nhau) DA LOI THOI — thuc te la MOT
+  #   `project.db` (atproj.rs:6, AD-9); (e) `⌘H` chi xuat hien trong mockup, khong co trong
+  #   bang phim EXPERIENCE.md:261-268 lan bang cua settings.html — id lenh va hop am la quyet
+  #   dinh CUA STORY NAY. Grep KeyH tren commands/index.ts = 0 => `Mod+H` trong.
+  # ⚠️ AD-46 la mot khoang HO chua ai noi toi: `is_target_paragraph_end` la du lieu rieng cua
+  #   ban dich, ma `segment_version` KHONG luu co => khoi phuc khong the tra no ve. Ghi no.
+  # ⚠️ Cong `check-i18n.mjs` Kiem A bao FAIL SAI CHO khi mot ten the duoc nhac trong COMMENT
+  #   cua template `.vue` (deferred-work.md:3551-3564, chua va). Story nay viet mot `.vue` moi.
+  # 🔵 2026-08-16 — 2.6 chuyen sang in-progress (dev-story). Task 0 CHAN moi task khac:
+  #   tam quyet dinh mo cho Ice ky, va #1 co the de ra mot AD MOI (Task 0.4 dung story lai).
+  #   Baseline do TRUOC khi cham dong dau tien, tren HEAD 64cf7cb: cargo test --locked 359/0/5 ·
+  #   vitest 103/103 — KHOP so ghi trong story. Bon tien de do lai tu NGUON deu khop.
+  # 🔴 BAY DO tim ra o Task 0.6: grep `merge_segment` tra 1 ket qua chu khong 0, va dong khop
+  #   la mot DOC-COMMENT viet nguyen van "grep ... cho 0" (paragraph.rs:10). So that van la 0
+  #   duong ma. Luat rut ra: DOC NOI DUNG dong khop, dung dem. Kho nay ghi ket qua do vao chu
+  #   thich rat day nen lop bay nay se gap lai.
+  # ✅ 2026-08-16 — Ice ky TAM quyet dinh: #1(a) khong INSERT · #2(a) hoi lai · #3(a) lop phu
+  #   cap App · #4(a) khong diff · #5(a) khong nhan · #6(b) tuong doi+tuyet doi · #7(a)
+  #   (segment_id, created_at DESC) · #8(a) test hop dong.
+  #   🔵 #1(a) LA CHU KY GO CUA CHAN: AD-31 khong sua mot chu ⇒ Task 0.4 KHONG kich hoat ⇒
+  #   khong AD moi ⇒ story di tiep duoc. Hai duong kia deu de ra mot AD.
+  #   Do lai bang git diff --stat tren planning-artifacts: RONG — spine khong bi cham mot dong.
+  # ✅ Buoc di tru 10 DA TIEU (`idx_segment_version_segment_created`). So ke tiep la **11**.
+  #   Nguon su that van la `PROJECT_MIGRATIONS` (schema.rs), khong phai dong nay.
+  #   Fixture "tuong lai" nang 10 -> 11, luot lap lai THU BA cua luat do.
+  # 🔵 BA PHEP DO lat/thu hep mot menh de, ghi vi chung doi cach doc so:
+  #   (1) ve go hoa `id DESC` CHIU LUC — 12 luot ky lien tiep cho 11 moc khac nhau (hai luot
+  #       trung mili giay). Va bon ca doc KHONG canh duoc no: go `id DESC` ra, chung van 8/8
+  #       xanh ⇒ phai DUNG va cham bang SQL, khong duoc CHO dong ho va cham;
+  #   (2) fixture "tuong lai" la mot neo LUC BIEN DICH — go mot buoc cho E0080, khong mot ca do;
+  #   (3) mot phep so chuoi DDL se XANH tren index sai thu tu cot (SQL van chua ca
+  #       "ON SEGMENT_VERSION" lan "CREATED_AT DESC") ⇒ ca hinh dang doc `pragma_index_info`.
+  # 🔴 CHU KY #3(a) VA VAO AD-34 §1: `@click` phai la DUNG MOT `dispatch('<id>')` voi id
+  #   literal, ma §KHONG-LAM cam mot command cho moi hang. Go bang khuon `aimedShortcutRow`
+  #   cua Story 1.21 — nham bang @mousedown/@focusin (Kiem A chi canh @click), ba command
+  #   khong tham so. `COMMAND_FLOOR` 33 -> 35 (41 command that).
+  # ✅ 2026-08-16 — 2.6 XONG, chuyen sang `review`. Moi task tick, khong mon nao treo cho Ice.
+  #   Nghiem thu: 11 cong npm (9 doc-tep + check:scope + check:scope:bundled chay tay) · build ·
+  #   vue-tsc · vitest 130/130 · cargo test --locked 372/0/5 · e2e 8/8 spec, 11/11 ca (9m40).
+  #   Baseline 359/0/5 + 103/103 => +13 ca Rust, +27 ca vitest.
+  # 🔴 E2E: BA luot, ghi ca ba. Luot ① 7/8 — spec do KHONG xac dinh duoc vi chinh lenh cua toi
+  #   `tail -45` da cat mat phan dau output. Luot ② bon spec dau chay rieng: 4/4. Luot ③ tron
+  #   bo giu tron output: 8/8. => Do la chap chon cua BAN DO, khop khuon hai mon no da ghi
+  #   (:3093-3115 fixture khong reset state panel · :3274-3330 devServerIsUp tin Vite hap hoi).
+  #   ⚠️ KHONG cham "da chan doan": luat sau 1.22 doi BAT NGUYEN VAN TRUOC, va toi khong bat
+  #   duoc. Bai hoc: dung `tail` output cua mot luot e2e.
+  # 🔵 HAI ca e2e cua 2.6 la duong DUY NHAT do duoc menh de trung tam (bon truong cua
+  #   `SegmentVersionRow` co that tren day). Ca 130 ca vitest deu KHONG bat duoc lop loi do —
+  #   fixture chep tay co san bon truong, dung nhu 74/74 da xanh tren san pham hong o 2.5.
+  # 🟡 BA AC dong MOT NUA, ca ba ghi no co chu: AC4 (be mat vao — Story 2.8) · AC1 ve nhan
+  #   (bon nang luc chua dung — 2.7 · Epic 4 · Epic 7 · Epic 8) · AC2 ve co doan
+  #   (`is_target_paragraph_end` khong khoi phuc duoc, `segment_version` khong luu co — chu: Ice).
+  # 🔴 HAI MON NO MOI do chinh luot nay de ra:
+  #   - ca `toISOString()` RONG NGHIA tren CI (runner chay UTC, ca chi co nghia o offset khac 0).
+  #     Ca tu khai dieu do bang mot nhanh `expect(offsetMin).toBe(0)`. Chu: story ha tang cong.
+  #   - `src/config/segment.ts` nay co HAI loai adapter: sau cai tin payload, hai cai kiem no
+  #     luc chay. Ly do lech la mot lop loi DA XAY RA THAT, nhung ly do do ap cho ca sau cai
+  #     kia y het. Cau hoi QUY UOC. Chu: Ice.
+  # 🔵 Chin mon no moi/da dong vao deferred-work.md — bay ghi LUC KY Task 0, hai luc nghiem thu.
+  #   Hai mon co chu 2.6 DA DONG bang cach NOI TIEP, khong xoa muc goc.
+  # ✅ 2026-08-16 — code review BA TANG (Blind Hunter · Edge Case Hunter · Acceptance Auditor):
+  #   10 phat hien tho, 9 giu + 1 bac. Ice ky MOT quyet dinh (go `.hist-current` — chi dau "dang
+  #   dung" suy tu phep so noi dung, dung phep so ma Quyet dinh #5 goi la KHONG an toan). Chin
+  #   patch DA VA, khong mon nao de lai lam action item.
+  #   🔴 Hai mon nang nhat, ca hai o tang dieu phoi TypeScript — duong Rust KHONG co khuyet tat
+  #   nao (13 ca hop dong cua Task 2-3 giu duoc no):
+  #     ① Chot chong mat ban nhap thi hanh DUNG MOT NUA: doc-comment khai "khuon hai luot flush
+  #       ap nguyen o day", ma ma chay MOT luot. Bao dam cua chu ky #2(a) mat trong im lang.
+  #       Va KHONG bang cach chep khuon lan hai — luot chep chinh la thu pham. Nay no la
+  #       `editorPanelState.ts::flushEditorBeforeDiscreteWrite()`, hai noi goi mot cua.
+  #     ② `COMMAND_FLOOR` dung tren so do SAI: chu thich tu xung "do lai, khong chep" ghi 41,
+  #       cong in ra 44 (chi dem 2 trong 5 command moi cua chinh story). San 35 → 37.
+  #   Nghiem thu lai sau va: cargo 372/0/5 · vitest 130/130 · build xanh · sau cong doc-tep xanh
+  #   · e2e TRON BO 8/8 spec, 11/11 ca (9m29s, port 4455 vi 4445 bi gdrive-su PID 49798 giu).
+  #   🔴 `editor-confirm-segment` 2/2 xanh la ca dang gia nhat: luot va SUA duong ky cua 2.5b,
+  #   va menh de "hanh vi khong doi" phai do tren engine that chu khong suy tu 372 ca Rust.
+  #   ⚠️ CON HO, chu Ice: chua co ca nao canh chinh ban va — ba menh de moi chua tung DO. Ca ④
+  #   hien co van xanh neu ai do go luot flush thu hai.
+```

@@ -776,3 +776,14 @@ chính. ⑥ doc-comment `SEGMENT_ID_ATTR` khai đủ **bốn** chỗ và vì sao
 Kiểm I và Kiểm J, và một cổng đã sửa mà chỉ chứng minh *"còn xanh"* thì chưa chứng minh gì.
 
 **Bác bỏ bằng phép đo (1):** *"`.gutter { padding-top: 4px }` làm mọi vạch lệch xuống 4px vì containing block là padding-box"*. Đo trên Blink headless với đúng bộ CSS của `EditorPanel.vue`: `markTop − gutterBorderBoxTop = **0**`. Mép trên *padding box* trùng mép trên *border box* khi không có viền — `padding-top` nằm **trong** padding box, không dời gốc của nó. `origin = gutter.getBoundingClientRect().top` là đúng.
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 2.2 XONG 2026-08-12 (code review: 1 decision Ice ky, 7 patch da va, 1 defer, 1 bac bo bang
+  # phep do). Nghiem thu sau khi va: 9 cong xanh · build xanh · cargo test 310/0/5 · ba ca
+  # do-roi-xanh cua Kiem I/J tai lap. Ice KY `tabindex="0"` cho panel THU HAI.
+  # Mon con treo, da co chu: chup lai 3 anh ban do sau khi fixture them cau thu sau (Story 2.4).
+```

@@ -1015,3 +1015,171 @@ mức người dùng bấm lại vì tưởng phím không ăn, kết luận nà
 có bề mặt nhìn thấy được:** nếu **#6 = (a)** *(không phím mặc định)* thì FR26 chỉ với tới được **sau
 khi người dùng tự gán phím** ở màn hình phím tắt. FR26 tồn tại để *"mạch làm việc không bị cắt"* —
 Ice có chấp nhận hình dạng đó, hay muốn một phím mặc định / một bề mặt bấm được?
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ TRẠNG THÁI, nội dung story thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔵 2026-08-18 — create-story: chuyen sang ready-for-dev.
+  # 🔴 TIEN DE CUA BON TREN SAU AC KHONG TON TAI: mot Tac pham co DUNG MOT Chuong. Do tu ba phia,
+  #   khong mot an tuong: `grep -rn "INSERT INTO chapter" src-tauri/src` = **1** ket qua
+  #   (project.rs:138), va hang do chen `ord = 1` VIET CUNG, mot luot, khong vong lap;
+  #   `grep list_chapters|read_chapters` = **0**; va CA HAI lenh doc chon Chuong bang cung mot cau
+  #   SQL cung khong tham so — chapter.rs:77 va segment.rs:833, deu `ORDER BY ord LIMIT 1`.
+  #   ⇒ AC1/AC2 khong co Chuong thu hai de mo, tren moi `.atproj` ton tai hom nay (21 Tac pham
+  #   that, moi cai 1 Chuong — deferred-work.md:559-560), va khong duong e2e nao toi duoc.
+  #   ⇒ AC4 (bien) la ca DUY NHAT voi toi duoc bang san pham: moi Chuong hom nay vua la Chuong dau
+  #   VUA LA Chuong cuoi. Day la AC de nghiem thu nhat, khong phai kho nhat.
+  #   Duong sinh Chuong thu hai thuoc epic khac: FR14 -> Epic 6 (epics.md:662), FR15 -> Epic 5 (:663).
+  #   🔴 KHONG phai mot ly do sua epics.md — project-context.md:456-458.
+  # 🔴 AC5 PHAT BIEU DUNG NGUYEN VAN FR12, ma FR12 la cua **Epic 5** (epics.md:660). Story nay khai
+  #   `Covers: FR26` va chi FR26 (epics.md:2625). Va hom nay 0 manh ha tang nao ton tai: 0/9
+  #   `ScopeKind` cho vi tri doc (kinds.rs:157-219) · `config_value` nam o `global.db`, cot `value`
+  #   TEXT phang, chi phuc vu ba loai GlobalOnly (schema.rs:98-105) · `grep -rn "scroll"
+  #   src-tauri/src` = **0** · va luoi KHONG co mot dong cuon tuong minh nao — cuon den tu HANH VI
+  #   ENGINE sau `target.focus()` (GridPanel.vue:903-923), duong do chi chay khi
+  #   `editorCaretPlacement` duoc dat, tuc KHONG chay o luong mo Chuong.
+  #   ⚠️ Ha tang nay co BA cho tieu thu, khong rieng 2.11 — UX-DR34 (epics.md:601) doi y het cho
+  #   luot DOI CHE DO ("dung Chuong, dung cau, dung vi tri cuon").
+  # 🔴 TAM QUYET DINH MO phai co chu ky cua Ice TRUOC dong ma dau tien (Task 0 chan moi task khac):
+  #   #1 story nay giao CAI GI khi tien de AC1/AC2 khong ton tai — dung tron co che + test hop dong
+  #      chen Chuong thu hai bang SQL truc tiep (khuon chu ky #8(a) cua 2.6 va AC3 cua 2.7), dung
+  #      them duong sinh Chuong (lan FR14/AD-39), hay doi story xuong sau Epic 6.
+  #   🔴 #2 "Chuong dang mo" song o dau — `OpenWork` (project.rs:43-53) mang DUNG BON truong
+  #      dir/store/scope/meta, KHONG truong nao la chapter_id ⇒ hom nay Chuong dang mo KHONG duoc
+  #      luu o dau ca, no duoc SUY RA DONG moi luot goi. Ba duong: (a) truong moi tren `OpenWork` ·
+  #      (b) webview giu va truyen qua day — dung AD-1 · (c) luu xuong dia (keo theo #4).
+  #      🔴 RANG BUOC CUNG, mot lo MAT DU LIEU khong AC nao neu: `save_segment_targets`/
+  #      `flush_segment_targets` NHAN `chapter_id` tu webview (segment.rs:1112-1116 · :1828-1836).
+  #      Doi Chuong giua luc mot lo flush DANG BAY ⇒ lo do mang `chapter_id` CU ⇒ Rust tra
+  #      `segment.unknown_ids` ⇒ ban dich bien mat IM LANG. Dung lop loi ma libraryImport.ts:119-132
+  #      da ghi bang chu cho luot doi TAC PHAM, va loi giai o do la THU TU, khong mot try/catch.
+  #   #3 hinh dang lenh Rust. Ma san pham DA GIAO DICH DANH story nay, hai cho, bang chu:
+  #      segment.rs:773-775 ("Story 2.11 so huu bien the nhan `chapter_id`. Dung them san mot tham so
+  #      `Option<i64>` hom nay") va chapter.rs:72-74. 🔴 CAM `ord + 1`: `ord` co y khong UNIQUE
+  #      (schema.rs:249 + :233-235) va khong bao dam lien tuc — dung so sanh BO DOI (ord, id), dung
+  #      khuon segment.rs da dung cho luot tim cau lien tren.
+  #   #4 AC5 dung trong PHIEN (a) · dung xuong dia + buoc di tru 12 (b) · hay ghi no tron cho Epic 5
+  #      (c, khuon chu ky ① cua 2.9). Neu (b): luu bang `segment.id` hay bang pixel — AD-3 (SPINE:93)
+  #      noi bang chu "moi du lieu gan theo segment tham chieu `id`, KHONG BAO GIO tham chieu vi tri".
+  #   #5 kenh bao bien (AC4). `NavNotice` la danh muc DONG nam gia tri (editorPanelState.ts:1443-1485)
+  #      va `StatusBar.vue::NAV_NOTICE_KEYS` (:195-203) la mot `Record` DU KHOA ⇒ them mot gia tri ma
+  #      quen bang tra thi `vue-tsc` DO (mot cong THAT). 🔴 `panel.grid.nav_at_first`/`nav_at_last`
+  #      (vi.json:107-108) noi "cau dau/cuoi Chuong" ⇒ tai dung cho bien CHUONG la de man hinh NOI DOI.
+  #   🔴 #6 id lenh + phim mac dinh. Khong gian phim DA CHAT: `Mod+Alt+←/→` bi
+  #      `focus.prev_panel`/`focus.next_panel` chiem (index.ts:640-659) · `Mod+Alt+↓` bi
+  #      `editor.next_untranslated` · `⌘⇧…` la khong gian UX-DR35 (epics.md:603) · va `⌥←/⌥→` TRAN
+  #      CHET o dung ca thuong nhat cua FR26: keys.ts:509-510 + `lacksPrimaryMod` (:415) +
+  #      `isTypingZone` (:434-439) nuot moi hop am khong-Mod khi caret dang trong o ban dich — tuc
+  #      dung luc nguoi dung vua go xong cau cuoi. Y HET ly do 2.10 phai lat `⌥↓` -> `⌘⌥↓`.
+  #      🔴 VA "CHO DA DAT TRUOC" cho `⌥←/⌥→` DUA TREN MOT LUOT DOC NHAM — do lai 2026-08-18:
+  #      deferred-work.md:151 dan `EXPERIENCE.md:148`, nhung dong 148 nay la doan Auto-Lookup, va hang
+  #      that (`| ⌥← ⌥→ | Chuong truoc / sau trong cung lan nhap |`) nam o **:184**, thuoc bang "Sua
+  #      ranh gioi boc" (:174-186) — tuc MAN XEM TRUOC NHAP, khong phai Workspace. epics.md:599 xac
+  #      nhan: do la UX-DR33. Bang Phim cua Workspace (EXPERIENCE.md:261-269) KHONG mot hang nao cho
+  #      chuyen Chuong. ⇒ `⌥←/⌥→` CHUA BAO GIO duoc dat cho cho Workspace.
+  #   🔴 #7 UNG VIEN CUA CHAN TASK 0.4: AC3 co phai mot ve THU SAU cua AD-35 khong. AD-35
+  #      (SPINE:419-425) liet ke DUNG NAM duong va "chuyen Chuong" KHONG co ten trong do. Lap luan A
+  #      (khong AD moi): chuyen Chuong LA roi segment (ve d) theo cau tao. Lap luan B: ve (d) trong MA
+  #      duoc dinh nghia la "`caretSegmentId` doi gia tri" (editorPanelState.ts:146-152) — no doi CO
+  #      MOT CAU B, ma mot luot chuyen Chuong roi cau A khong sang cau B nao cua Chuong cu.
+  #      Neu Ice doc B ⇒ AD MOI ⇒ dung story, soan ho so ban giao cho Winston (khuon AD-47 o 2.7,
+  #      AD-48 o 2.9), KHONG tu soan AD.
+  #   #8 doi Chuong tai dung `resetEditorPanel()` (:462-543) hay dung duong thu hai. Ham do don 13 o
+  #      va BO SOT HAI: `sourceCut` (:1342, da co no ghi bang chu ngay trong ham o :522-525) va
+  #      `omitError` (:956 — CHUA AI NEU, no cung hang voi `confirmError`/`regroupError` von CO duoc
+  #      don). `sourceCut` mang mot `segmentId` cua Chuong cu ⇒ mot `⌘/` sau luot chuyen cat vao mot
+  #      hang khong con tren man hinh, tren du lieu ma AD-5 khong cho hoan tac.
+  # ⚠️ HAI mon no giao DICH DANH story nay: deferred-work.md:650 (`read_open_chapter` voi 0 Chuong
+  #   nem `QueryReturnedNoRows` ⇒ `store.read_failed` ⇒ nguoi dung doc "khong mo duoc kho du lieu" cho
+  #   mot Tac pham lanh lan — "Story 2.x (chon/chuyen Chuong) mo dung nhanh nay") va :151 (cho dat
+  #   truoc `⌥←/⌥→`, nay phai DINH CHINH chu khong xoa).
+  # ⚠️ Bay da ghi trong story: (a) ba neo so hoc CHI AP neu #4 sinh buoc 12 — segment_contract.rs:511
+  #   `vec![1,2,3,5,6,7,8,9,10,11]` · :1562 `STEP_TWELVE: [Migration; 11]` (ba thu doi cung luot: ten
+  #   hang · kich thuoc mang · so gia; chi kich thuoc mang bao duoc, bang E0080) · pinned_contract.rs
+  #   :174-184 (len 10 · schema_version 11). 🔴 Neu #4 KHONG sinh buoc 12 thi ba neo CO Y khong doi va
+  #   PHAI ghi ra bang chu — im lang o do doc giong mot luot quen (khuon 2.8 da di qua);
+  #   (b) AD-32 la BAY SONG SINH: gop/tach CHUONG giu nguyen `segment.id`, NGUOC AD-5 (gop/tach
+  #   SEGMENT thi ve huu). Doc nham mot cai thanh cai kia pha sach lich su Chuong da dich xong.
+  # ⚠️ Story KHONG can mot phu thuoc moi ⇒ cua NFR15 khong mo. Ghi ra thay vi im lang.
+  # ⚠️ NFR2 (706-770 ms tren 9.850 cau, tran 50 ms) chu VAN LA Story 2.4 — 2.11 do va ghi so, khong
+  #   tu cham dat va khong tu va.
+  # Baseline do lai TU NGUON 2026-08-18 tren HEAD `5d94ba1` (cay SACH): cargo test --locked
+  #   **401/0/5** · vitest **228/228** (20 tep) · **49** command da dang ky (san COMMAND_FLOOR **41**)
+  #   · PROJECT_MIGRATIONS [1,2,3,5,6,7,8,9,10,11] dich 11 ⇒ buoc ke tiep **12**.
+  #   🔴 Task 0.1 phai DO LAI ca bay dong, khong chep.
+  # 🔵 2026-08-18 — 2.11 chuyen sang in-progress (dev-story). Baseline commit `5d94ba1`.
+  #   Cay ban dung HAI tao tac cua chinh story nay (tep story + entry nay) => KHONG commit rieng,
+  #   dung §Git cua story. Task 0.1 DO LAI bay tien de tu nguon: **7/7 KHOP**.
+  # ✅ 2026-08-18 — 2.11 XONG, chuyen sang `review`. Ice ky TAM quyet dinh cua Task 0:
+  #   #1(a) dung tron co che + test hop dong SQL · #2(a) truong moi tren `OpenWork` ·
+  #   #3(a) `open_adjacent_chapter(direction)`, Rust quyet Chuong ke · #4(c) AC5 ghi no tron
+  #   cho Epic 5 · #5(a) mo rong `NavNotice` · #6 phim `Mod+Alt+]`/`Mod+Alt+[`, id
+  #   `editor.next_chapter`/`prev_chapter` · #7 lap luan A (AC3 THI HANH AD-35 ve (d)) ·
+  #   #8(a) tai dung `resetEditorPanel()` + va hai o sot.
+  #   🔴 CUA CHAN AD (Task 0.4) KHONG kich hoat — 0 chu cua spine bi sua, khong ho so Winston.
+  #   Nghiem thu: 11/11 cong npm (gom check:scope + check:scope:bundled chay tay) · build ·
+  #   vue-tsc · vitest **228 -> 242** · cargo test **401 -> 409 / 0 / 5** · command **49 -> 51**
+  #   (`COMMAND_FLOOR` 41 -> 43). Buoc di tru KHONG doi: van [1,2,3,5,6,7,8,9,10,11], ke tiep 12 —
+  #   ba neo so hoc CO Y giu nguyen vi #4(c) khong sinh buoc 12, ghi ra bang chu trong story.
+  #
+  # 🔴 STORY GIAO **5/6 AC**, va cai thu sau KHONG duoc tu cham:
+  #   AC5 (khoi phuc segment + vi tri cuon) ghi no TRON cho Epic 5 — FR12 von la cua Epic 5
+  #   (epics.md:660), 0 manh ha tang ton tai, va ha tang ay co BA cho tieu thu (UX-DR34 doi y het
+  #   cho luot doi che do). Task 5 de bon o `[⊘]`, khong mot dau `[x]` nao.
+  #
+  # 🔴 AC1/AC2 XANH O TANG HOP DONG, NHUNG CHUA AI BAM DUOC — dung doc mot cai thanh cai kia.
+  #   Khong duong san pham nao sinh Chuong thu hai (`INSERT INTO chapter` = 1 ket qua, `ord = 1`
+  #   viet cung). 8 ca `project_contract.rs` chen Chuong thu hai bang SQL truc tiep (chu ky #1(a),
+  #   khuon #8(a) cua 2.6 va AC3 cua 2.7). Chu cua ve san pham: **Epic 6** (FR14).
+  #
+  # 🔴 E2E: **8/11 spec**, va TOI KHONG CHAM NO XANH. Ba ca do da phan xu bang PHEP DO tren CA HAI
+  #   cay (story va baseline 5d94ba1): `editor-typing-flush` xanh o luot chay lai ·
+  #   `attribution-focus` **4/4 xanh khi chay MOT MINH tren ca hai cay** (chi do trong LO) ·
+  #   `segment-navigation` do trong lo **tren ca baseline**, chay mot minh cho **9/10** tren cay
+  #   story so voi **5/5** tren baseline. ⚠️ 1/10 so voi 0/5 **khong phan biet duoc hai cay** — no
+  #   khong chung minh co hoi quy, va cung khong chung minh khong co. Ghi ra dung nhu vay.
+  #   ⚠️ Va e2e KHONG cham mot dong nao cua story nay: khong spec nao goi `open_adjacent_chapter`.
+  #
+  # 🔵 TASK 6.5 BAC CHINH MOT CA TEST CUA STORY: ca "flush TRUOC luot chuyen" ban dau chi do thu tu
+  #   **bat dau** (mot moc `save:`), nen phep dot bien bo `await` truoc luot flush van cho no XANH.
+  #   Menh de that la "flush DA XONG truoc" (AD-35: xong = da ghi vao WAL) => them moc `save-done:`,
+  #   dot bien chay lai thi ca DO. Tam phep dot bien, tam luot do-roi-xanh.
+  #
+  # 🔵 Hai mon no DONG/DINH CHINH: deferred-work.md:650 (`read_open_chapter` voi 0 Chuong nay tra
+  #   mot loi CO TEN) va :151 (cho dat truoc `⌥←`/`⌥→` dua tren mot luot doc nham — hang that o
+  #   `EXPERIENCE.md:184` thuoc man xem truoc NHAP, UX-DR33; **dinh chinh**, khong xoa).
+  #   Bay mon no moi vao deferred-work.md, tat ca co chu.
+  # ✅ 2026-08-18 — code review BA TANG (Blind Hunter · Edge Case Hunter · Acceptance Auditor,
+  #   chay song song, khong mang boi canh). Nua RUST di qua SACH ca ba tang: so sanh bo doi
+  #   `(ord, id)`, khong `ord + 1`, khong quay vong, con tro doi SAU truy van. Ca NAM phat hien
+  #   nam o lop dieu phoi TypeScript (`switchChapter`) — noi bao dam duoc viet ra rat day bang
+  #   chu nhung ba khoang ho khong duoc do toi. HAI trong nam duoc HAI tang doc lap chi dung
+  #   cung mot dong. Ice ky HAI quyet dinh, ca NAM da va cung luot:
+  #   ① Cua so mat chu giua ② `open_adjacent_chapter` va ③ `resetEditorPanel()` — go tiep trong
+  #      luc luot IPC dang bay thi `flush.reset()` vut vo dieu kien. Ice ky duong (a): KHOA GO
+  #      suot luot chuyen, dong cua so TU GOC de menh de "① la phep chung minh duy nhat" dung
+  #      tro lai theo CAU TAO. Duong (b) — kiem `isDirty()` lai truoc ③ — bi loai vi con mot
+  #      cai duoi khong co loi giai: luot flush them ma van truot thi con tro Rust da doi roi.
+  #   ② Mot loi IPC nhat thoi ghi `loadError` ⇒ `editorHasLoaded()` tra `false` VINH VIEN ⇒ khoa
+  #      chet ca luoi, moi lenh dieu huong, lan chinh luot thu lai. Ice ky duong (a): mot kenh
+  #      RIENG (`NavNotice` + khoa `vi.json` moi), `loadError` khong bi dung.
+  #   ③ Panel Source KHONG duoc don/nap lai ⇒ hai panel tren cung mot man hinh noi ve HAI Chuong
+  #      khac nhau, khong loi nao. Dung nguyen van kich ban ma `sourcePanelState.ts:352-355` da
+  #      ghi cho cap TAC PHAM, tai dien o cap CHUONG.
+  #   ④ Cau chan muon kenh `confirm` ⇒ man hinh noi "…nen chua XAC NHAN" cho mot nguoi vua bam
+  #      `Mod+Alt+]`. Dung nguyen tac ma Quyet dinh #5 cua chinh story dat ra, bo sot cach 4 dong.
+  #   ⑤ 🔴 Tien de "lo flush dang bay mang `chapter_id` CU ⇒ `segment.unknown_ids` ⇒ mat chu"
+  #      la SAI, va no duoc chep o BON cho. `save_segment_targets` (`segment.rs:1171-1193`) kiem
+  #      va ghi tren CHINH `project.db` dang mo, KHONG doc `OpenWork::chapter_id`; Chuong cu van
+  #      con nguyen trong cung CSDL sau mot luot doi Chuong. Ket luan ve THU TU giu nguyen, LY DO
+  #      doi. ⚠️ Va menh de sai ay da tra gia: no hut het chu y ve mot moi nguy KHONG ton tai,
+  #      trong khi moi nguy CO THAT (①) nam cach do sau dong va khong luot ra noi bo nao nhin.
+  #   Da BAC 1 muc (chot chong chong luot bo qua im lang) — ly do bac phu DUNG MOT NUA, da ghi.
+  #   Do sau khi va: vitest 249 (truoc 242, bay ca moi) · cargo test --locked 409 · check:i18n
+  #   227 khoa · check:commands 51 command · check:lint sach · vue-tsc + build sach.
+  #   🔴 Mot ca test CU phai sua: no khang dinh CHINH khuyet tat (`editorLoadError` mang loi).
+  #   Mot ca test khoa mot khuyet tat la mot ca test lam khuyet tat ay song lau hon.
+  #   Story chuyen `review` -> `done`.
+```
