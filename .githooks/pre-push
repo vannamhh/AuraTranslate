@@ -15,7 +15,9 @@
 # ── Phạm vi: cái gì Ở TRONG và vì sao ────────────────────────────────────────────
 #
 # TRONG (đo 2026-08-11: cổng 11s · build 5s · cargo test 34s; + test frontend ~2s từ 2026-08-12):
-#   chín cổng đọc-tệp · `npm run test` (vitest) · `npm run build` · `cargo test --locked`
+#   **mười một** cổng đọc-tệp · `npm run test` (vitest) · `npm run build` · `cargo test --locked`
+#   🔵 2026-08-19: chín → mười (`check:panel-refs`, Story 2.12) → mười một (`check:debt-owner`,
+#   Story 2.13). Con số ở đây và ở dòng `echo` phải đi cùng vòng lặp `for gate in …` bên dưới.
 #
 # NGOÀI, có chủ ý:
 #   - `check:scope` và `check:scope:bundled` — hai cổng này dựng một cửa sổ Tauri thật
@@ -57,9 +59,9 @@ fail() {
 
 START=$(date +%s)
 echo ''
-echo 'pre-push — mười cổng, test frontend, build, cargo test.'
+echo 'pre-push — mười một cổng, test frontend, build, cargo test.'
 
-for gate in deps tokens i18n commands layout panel-refs dict dict-manifest lint gates; do
+for gate in deps tokens i18n commands layout panel-refs dict dict-manifest lint gates debt-owner; do
   printf '  %-14s' "$gate"
   if npm run --silent "check:$gate" >/dev/null 2>&1; then
     green 'OK'
@@ -69,7 +71,7 @@ for gate in deps tokens i18n commands layout panel-refs dict dict-manifest lint 
   fi
 done
 
-# Bộ chạy test frontend — Story 2.3. Ngay sau chín cổng, TRƯỚC build: nó không cần `dist/`,
+# Bộ chạy test frontend — Story 2.3. Ngay sau **mười một** cổng, TRƯỚC build: nó không cần `dist/`,
 # và một mệnh đề mili-giây phải đỏ trước một lượt biên dịch. `check:gates` Kiểm F canh việc
 # dòng này có mặt ở cả ba danh sách.
 printf '  %-14s' 'test'

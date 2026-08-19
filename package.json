@@ -21,6 +21,7 @@
     "check:dict": "node scripts/check-dict-build.mjs",
     "check:dict-manifest": "node scripts/check-dict-manifest.mjs",
     "check:gates": "node scripts/check-gates.mjs",
+    "check:debt-owner": "node scripts/check-debt-owner.mjs",
     "test": "vitest run",
     "check:lint": "eslint src e2e tests",
     "test:e2e": "cargo build --locked --features wdio --manifest-path src-tauri/Cargo.toml && wdio run e2e/wdio.conf.mjs"

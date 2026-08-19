@@ -190,7 +190,8 @@ jobs:
       #     đi từ 9 lên 10 (`pre-push:62` đếm mười tên).
       # ⇒ Cả hai số đều đúng trên cơ sở của nó. Ghi ra vì một người đọc lần đầu sẽ tưởng một
       # trong hai là lỗi, rồi "sửa" cho khớp — và lượt sửa ấy làm một trong hai hồ sơ sai.
-      # ⚠️ `check:gates` đếm cơ sở thứ BA (12 script `check:*` trong `package.json`); nó canh
+      # ⚠️ `check:gates` đếm cơ sở thứ BA (**13** script `check:*` trong `package.json` — 12 khi
+      # dòng này được viết, +1 khi `check:debt-owner` của Story 2.13 vào); nó canh
       # việc một cổng có mặt ở cả ba danh sách, KHÔNG canh những con số hiệu này. Mọi ô nhớ cấp module trong `src/**/*.ts` phải
       # đi qua một hàm reset, hoặc mang một miễn trừ CÓ TÊN kèm lý do đọc được tại chỗ.
       #
@@ -219,6 +220,18 @@ jobs:
       # `npm run build`.
       - name: check lint có kiểu (cổng thứ mười — lượt review Story 1.21)
         run: npm run check:lint
+
+      # Cổng thứ MƯỜI BA — Story 2.13 · Quyết định #3 đường (a) (Ice ký 2026-08-19). Cưỡng
+      # chế `project-context.md:447-448`: mọi mục MỞ trong `deferred-work.md` phải mang một
+      # `Chủ:` thật. Luật đã sống từ trước Epic 1 và bị phá 217 lần trước lượt story này —
+      # xem §ĐỌC TRƯỚC của story để có số đo đầy đủ.
+      #
+      # ⚠️ Task 4.3 của story: "cổng đỏ oan dù chỉ một ca ⇒ không giao nó". Cổng này chỉ
+      # được gắn vào đây SAU KHI Kiểm A của chính nó báo 0 mục mồ côi trên toàn sổ — đã đạt
+      # ở Task 5.1. Đọc tệp thôi, không cần `dist/` — giữ ở cụm đọc-tệp này, TRƯỚC
+      # `check:gates` để cổng đó canh được chính bước này có mặt ở cả ba danh sách.
+      - name: check sổ nợ không mục mở nào mồ côi (cổng thứ mười ba — Story 2.13)
+        run: npm run check:debt-owner
 
       # Cổng thứ MƯỜI MỘT — hai danh sách cổng phải khai cùng một bộ. Nó tồn tại vì cổng
       # thứ mười ở ngay trên đã sống ba mươi tiếng trong `package.json` mà `ci.yml` không

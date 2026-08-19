@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-19T10:05:00
+last_updated: 2026-08-19T12:20:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -1702,7 +1702,37 @@ development_status:
   #   Task 0.1 phai DO LAI bang — 2.12 nhan chu 11 muc va Task 9 cua no se dong chung.
   #   Sau quyet dinh cho chu ky; #4 (them mot trang thai THU TU cho so no) la mot doi QUY UOC KHO
   #   ⇒ neu kich hoat thi DUNG, neu voi Ice nhu mot luot sua project-context.md rieng.
-  2-13-phan-loai-so-no-va-luat-khong-mo-coi: ready-for-dev
+  # 🔵 2026-08-19 — `ready-for-dev` -> `in-progress`. Task 0 DA DONG nam tren sau chu ky (Ice):
+  #   #1 pham vi TRON · luat chu HEP (chi `Chu:`) · #2 `check:dict`+manifest, muc can mo `.db` GIU MO ·
+  #   #3 cong `check:debt-owner` · #4 trang thai thu TU viet bang CHU (da thi hanh o `ae5d9b4`) ·
+  #   #6 tran theo NHOM. `#5` chua ky — no cho bo phan loai chu de chay, va Ice ky "dung lai bo do
+  #   va ghi vao kho".
+  #   🔴 HAI CHU KY TUONG TAC: #1 duoc trinh voi so 202 (luat chu RONG) nhung luat chu chot la HEP
+  #   => "mo coi" tren HEAD la 217, khong 202. AC1 = "217 -> 0". Trong 217 co 15 muc dang ghi chu
+  #   bang dang khac (`Chu van la` · `chu so huu` · `giao cho` · `thuoc Story/Epic`).
+  #   🔵 DINH CHINH 2026-08-19 (luot ra buoc 4): bang Task 0.1 ban DAU cua toi SAI — bo dem tam
+  #   nhan "dong" bang nguyen van `DA DONG` nen bo sot ~60 muc dong bang `→ ✅ DONG`/`DA SOAT`/
+  #   `DA KY`/`DA GO`. Menh de "no rong tang 13" la he qua cua bo dem sai — GACH BO.
+  #   SO DUNG, bang chinh lenh da ghi (`check-debt-owner.mjs --report`):
+  #     TRUOC `4b30199`: 448 tong · 305 mo · 46 nua · 97 dong · 187 MO COI
+  #     SAU   HEAD:      467 tong · 302 mo · 52 nua · 106 dong · 7 KHONG LAM · 0 MO COI
+  #   ⚠️ Bo dem GOC cua story mac DUNG loi do (khai 37 dong o cho lenh cho 97) => con so 199 o
+  #   tieu de story KHONG tai lap duoc; so tai lap duoc tren cung commit la 187.
+  # 🔵 2026-08-19 (cung ngay, luot dev) — Task 0.3-5 XONG bang so do: `scripts/check-debt-owner.mjs`
+  #   dung moi (cong + lenh dem AC5, 13 ca tu kiem), gan that vao ca ba danh sach cong SAU KHI dat
+  #   0 mo coi. Ket qua: 467 muc khong doi (khong xoa gi), mo-khong-chu tu 190 (sau lot "re nhat"
+  #   20 muc) xuong 0. `pre-push` xanh 71s (11 cong + test 250 xanh + build + cargo test 0 do).
+  #   🔴 CON TREO: quyet dinh #5 (doc het hay lay mau 83 muc "khong bam be mat", da doi tu 36) CHUA
+  #   duoc Ice ky lai nhu mot vong doi thoai song — dev agent da xu ly theo duong doc het (chat
+  #   nhat) nhung ban ghi chu ky chinh thuc cho con so 83 con cho Ice xac nhan. Giu `in-progress`,
+  #   KHONG tu chuyen `done`.
+  # 🔵 2026-08-19 — `in-progress` -> `review`. Nghiem thu: 11 cong exit 0 · vitest 250/250 ·
+  #   build exit 0 · cargo 415/0 · so no 5162 -> 5212 dong (CHI dai ra, AC4) · 469 muc · 0 mo coi ·
+  #   0 dong ma san pham bi cham. Luot ra ba tang tim 20 muc, da va HET.
+  #   🔴 KHONG dat `done`: Quyet dinh #5 CHUA CO CHU KY cua Ice. Cau truc Task 0 danh rieng chu ky
+  #   ay cho Ice, nen dat `done` la "cham dat bang suy luan". Da ghi #5 thanh mot muc no CO CHU
+  #   trong deferred-work.md thay vi de no song trong van xuoi rai rac.
+  2-13-phan-loai-so-no-va-luat-khong-mo-coi: review
   # ✅ 2026-08-18 — RETRO EPIC 2 XONG, che do MOT PHAN (Ice chot): 12/14 story done, `2-3` va
   #   `2-4` con in-progress va duoc coi la DOI TUONG cua phien, khong phan thieu cua no.
   #   Tai lieu: implementation-artifacts/epic-2-retro-2026-08-18.md
