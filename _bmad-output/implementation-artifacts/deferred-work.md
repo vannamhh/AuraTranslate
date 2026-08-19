@@ -5070,3 +5070,93 @@ cây **trước** lượt vá, nên nó **không** là bằng chứng cho cây h
 đỏ được trên cả ba vị từ sai)*, nhưng **không** ở tầng **engine thật** — `happy-dom` không phải
 WKWebView, và vế `requestAnimationFrame` của hàng rào `resetPanelState` chỉ chạy thật trong webview.
 ⇒ Đây là chỗ *"không nghiệm thu được ở tầng đang làm"*, đúng định nghĩa một món nợ.
+
+---
+
+## Deferred from: lượt push + kiểm tra CI (2026-08-19)
+
+✅ **CHUỖI BẢY LƯỢT ĐỎ ĐÃ DỨT** — lượt `32215808717` trên `8a4a060`: **`completed/success`**,
+`check (macos-26)` **6m28s** · `check (windows-2025)` **18m16s**. Lượt xanh trước đó là `64cf7cb`
+*(2026-08-16)*, tức master đỏ **ba ngày** qua bảy lượt push liên tiếp: `440c6d5` · `4d72cd4` ·
+`a664dac` · `8457bf3` · `0a03c68` · `d339257` · `fa70fe3`.
+
+⚠️ **Hai khuyết tật XẾP CHỒNG, và cái thứ hai chỉ lộ ra sau khi cái thứ nhất được vá.** Ghi ra vì
+nó là hình dạng đáng nhớ, không một chi tiết: `npm test` đứng **trước** `cargo test` trong job, nên
+cái bẫy `-0` *(`fa70fe3`)* làm `cargo test` **không chạy lần nào** suốt bảy lượt — và nó che một ca
+Rust đỏ ở dưới. ⇒ *"Vá cái đỏ đầu tiên"* **không** đồng nghĩa *"CI sẽ xanh"*; một job dừng ở bước
+thứ k không nói gì về bước k+1. Mỗi lượt vá phải chờ một phán quyết CI mới, không suy ra.
+
+⚠️ Số đo phụ, ghi để truy nguyên được: `29m31s` cho Windows trong `project-context.md` là **lượt
+xanh ĐẦU TIÊN** *(cache lạnh)* — nó **vẫn đúng như một mốc lịch sử**, và `18m16s` hôm nay là cùng
+job trên `Swatinem/rust-cache` đã ấm. Hai số không mâu thuẫn; đừng sửa số cũ.
+
+
+🔴 **MỘT MÓN NỢ MỚI, VÀ NÓ KHÔNG PHẢI BẢN VÁ VỪA GIAO — bản vá đã xong, chỗ hở là CÁI CANH.**
+
+Lượt kiểm CI sau khi push tìm ra: **CI đỏ NĂM lượt push liên tiếp**, sớm nhất 2026-08-17, gồm **cả
+hai commit của Story 2.12** — story mà hồ sơ ghi *"7/7 AC đóng, cửa chặn ② đóng"*. Nguyên nhân đã vá
+*(`fa70fe3`: `-x` với `x === 0` cho `-0`, và `Object.is(-0, 0)` là `false`)*. Nhưng vá xong lại để hở
+đúng cái đã cho phép nó sống năm lượt:
+
+- 🟡 **Không đường nào chạy vitest dưới một múi giờ KHÁC múi giờ người chạy.** `pre-push` chạy trên
+  máy Ice *(UTC+7)*; runner CI chạy **UTC**. Ca `segmentHistoryTime` rẽ **ba nhánh theo dấu của
+  offset**, nên hai môi trường đi hai đường mã khác nhau — và `pre-push` xanh trong khi CI đỏ **cùng
+  đúng một lúc**, không một cái nào nói dối.
+  ⚠️ **Đo 2026-08-19:** `TZ=UTC npx vitest run` tái lập **đúng nguyên văn** câu CI báo. Tức chỗ mù
+  đóng được bằng **một biến môi trường**, không cần một runner thứ hai.
+  🔴 Nhưng thêm một đường cưỡng chế là **sửa BA danh sách** *(`package.json` · `ci.yml` ·
+  `.githooks/pre-push`)* và `check:gates` Kiểm D/E/F canh cả ba — nó là một **quyết định**, không
+  một dòng cấu hình. **Chủ: Ice** *(chưa có lịch)*.
+  ⚠️ Và ghi thẳng chỗ yếu của chính đề xuất đó: chạy trọn bộ hai lần cho **hai** múi giờ làm
+  `pre-push` dài thêm ~4 s *(đo: trọn bộ 250 ca chạy 4,35 s)*. Rẻ — nhưng nó chỉ canh **hai** điểm
+  trên một trục liên tục, nên nó **không** là *"đã canh mọi múi giờ"*.
+
+- 🔴 **Và món nặng hơn, không phải chuyện kỹ thuật: KHÔNG AI ĐỌC KẾT QUẢ CI.** Kho có CI chạy mỗi
+  push *(`ci.yml`, repo công khai)*, và nó đỏ **năm lượt** mà không lượt nào bị chặn, không lượt nào
+  bị nêu. Action item **A5** của retro Epic 1 ghi *"nửa Windows không có đường nghiệm thu tại chỗ —
+  263 ca xanh trên runner Windows là một ẢNH CHỤP, không một trạng thái được canh"*. Thực tế **nặng
+  hơn mệnh đề đó**: đỏ trên **CẢ HAI** nửa, và cái được canh không phải *"nửa Windows"* mà là
+  *"có ai đọc phán quyết không"*.
+  ⇒ Đây **không** đóng được bằng một cổng trong kho — một cổng cục bộ không đọc được kết quả CI.
+  Ba đường có thật, đều cần Ice chốt: ⒜ bật thông báo GitHub cho lượt đỏ trên `master`; ⒝ một bước
+  `pre-push` hỏi `gh run list` về phán quyết của lượt push **trước** và KÊU nếu nó đỏ *(cảnh báo,
+  không chặn — không để mạng chập làm một lượt push chết)*; ⒞ một mục trong khung retro/sprint-status
+  đọc CI. **Chủ: Ice.**
+  ⚠️ Nợ này **không** ghi là 🟡 vì chưa có gì được đóng một nửa — nó mở nguyên.
+
+### Và một mục thứ hai, lộ ra CHỈ SAU KHI mục trên được vá — nó bị che 6 lượt
+
+🔴 **`store_contract::the_wal_stops_growing_once_it_crosses_the_threshold`: *"hồi quy của tầng
+Store, hay biến động runner?"* — CHƯA ĐO ĐƯỢC.**
+
+Bản vá `fa70fe3` *(cái bẫy `-0`)* là thứ cho `cargo test` chạy được **lần đầu sau 7 lượt push** —
+trước đó `npm test` đứng **trước** nó trong job và chết sớm, nên khâu Rust bị bỏ qua hoàn toàn.
+Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa hình dạng đã giao ở `8a4a060`
+*(đảo thứ tự hai mệnh đề · gỡ phép so tự tham chiếu)*, và cả hai **không** trả lời câu dưới đây:
+
+- **Cửa sổ hồi quy:** `cargo test` **XANH** trên `macos-26` ở `64cf7cb` *(2026-08-16)*, rồi
+  **không chạy trong CI lần nào** cho tới `fa70fe3` *(2026-08-19)*. Trong khoảng ấy:
+  · `tests/store_contract.rs` — **0 dòng** đổi;
+  · `core/store/mod.rs` — 3 dòng, **trơ** *(một `pub use` thêm `SEGMENT_TRANSLATION_ORIGIN_DDL`)*;
+  · `core/store/schema.rs` — **+208 dòng di trú** *(story 2.7 `translation_origin`, và `440c6d5`)*,
+    **và di trú chạy lúc `Store::open`**, tức nó đổi nội dung WAL ở thời điểm ca test bắt đầu.
+- ⚠️ **Số đo đã có, và nó KHÔNG kết luận được:** `after_first` bằng nhau **từng byte** trên hai
+  máy *(94.792 B)*, nên phần mở kho là **tất định**. Khác biệt nằm trọn ở đợt hai — máy Ice lớn
+  thêm **0 B**, `macos-26` lớn thêm **115.360 B**. Điều đó **tương thích với cả hai** giả thuyết:
+  ⒜ `walRestartLog` không rơi nhịp trên runner *(biến động máy — đúng hiện tượng chú thích
+  2026-08-11 đã ghi cho Windows)*; ⒝ 208 dòng di trú mới dịch nhịp `nBackfill == mxFrame`.
+  ⇒ **Hai điểm đo trên hai máy khác nhau không tách được hai giả thuyết ấy.** Đường tách duy
+  nhất là **cùng một máy, hai cây nguồn**: dựng lại `schema.rs` ở trạng thái `64cf7cb` rồi đo lại
+  trên **cùng** runner.
+- 🔴 **Vì sao nó là một món nợ chứ không một mục đã đóng:** `8a4a060` sửa một phép so **sai hình
+  dạng** — nó đúng bất kể câu trên trả lời thế nào. Nhưng nếu câu trả lời là ⒝, thì có một hiệu
+  ứng thật của lượt di trú lên nhịp WAL mà **không ai đo**, và nó sẽ lớn dần theo mỗi lượt thêm
+  di trú. Đóng im lặng là để một hồi quy có thật đi qua dưới một bản vá bộ đo.
+  **Chủ: Ice** *(chưa có lịch)*. Ràng buộc: cần **một** runner, hai cây nguồn — không phải một
+  máy Windows, nên nó **không** nằm sau món nợ A5.
+
+⚠️ **Và ghi thẳng một chỗ yếu của chính bản vá `8a4a060`:** trần `1/4` cho *mức lớn thêm* hiệu
+chuẩn trên **n = 2 máy**. Hai điểm đo không vẽ được một phân bố. Ba lượt đột biến chứng minh nó
+**phân biệt được** *(115.360 xanh · 655.360 đỏ 4× · 163.841 đỏ ở đúng biên)*, nhưng *"phân biệt
+được"* khác *"hiệu chuẩn đúng"*. Một lượt CI sau vượt `1/4` thì **đọc hai câu in trong thông báo
+trước khi nới** — chúng có mặt để lượt đó có dữ liệu thật mà cãi.
