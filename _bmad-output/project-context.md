@@ -450,6 +450,12 @@ học**, **bố cục** hay **engine thật** thuộc bàn đo/e2e, không thu�
   (Story x.y)` kèm cách đóng; mệnh đề đã hết đúng thì **gạch ngang**, không xoá. Lịch sử
   của một món nợ là bằng chứng cho quyết định kế tiếp.
 - **Đóng MỘT NỬA thì ghi 🟡 và liệt kê phần CÒN HỞ**, không làm tròn lên thành ✅.
+- **Một mục có thể đóng bằng cách QUYẾT ĐỊNH KHÔNG LÀM** — nối tiếp
+  `→ KHÔNG LÀM <ngày> (Story x.y) — <lý do>`. Viết bằng **chữ**, không một ký hiệu mới:
+  `✅ ĐÃ ĐÓNG` nghĩa là *đã làm và có phép kiểm*, và cho nó mang thêm một nghĩa thứ hai là
+  đúng lỗi đã làm Ice gỡ 8.298 ca U+26D4 năm 2026-08-07. Lý do là **bắt buộc**, và nó phải
+  nói **điều gì đã đổi** khiến mục này không còn đáng làm — *"không cần nữa"* một mình không
+  phải một lý do. *(Ice ký 2026-08-19, Story 2.13 quyết định #4.)*
 
 #### Story và spec
 
@@ -615,4 +621,4 @@ không xoá nó.)*
   mới · một mệnh đề ở đây hết đúng.
 - Luật đã trở nên hiển nhiên thì **gỡ** — độ dài của tệp này là chi phí thật ở mỗi lượt gọi.
 
-Last Updated: 2026-08-18
+Last Updated: 2026-08-19
