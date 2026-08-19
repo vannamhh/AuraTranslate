@@ -279,22 +279,81 @@ fn with_no_work_open_resolution_is_the_whole_global_tier() {
 // Hàng 6 — bản dịch rỗng: CHECK từ chối
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Bảy dạng "trắng" — đo 2026-08-19 trên SQLite 3.53.4: `trim(X)` MỘT tham số chỉ cắt dấu
-/// cách ASCII, nên tab/xuống dòng/NBSP/dấu cách biểu ý đều LỌT qua một `CHECK` một tham số.
-/// `GLOSSARY_ENTRY_DDL` dùng `trim(X, <bảng ký tự>)` HAI tham số — bảy ca dưới đây, cộng
-/// một chuỗi TRỘN cả bảy loại, là bằng chứng chạy được cho bảng ký tự đó, không chỉ đọc
-/// bằng mắt trong doc-comment.
-fn seven_blank_forms() -> [(&'static str, &'static str); 8] {
+/// **MỌI** dạng "trắng" — chuỗi rỗng, cả 25 điểm mã mang thuộc tính Unicode `White_Space`,
+/// và một chuỗi TRỘN.
+///
+/// 🔵 **CẬP NHẬT 2026-08-19 (vòng rà soát #2) — từ BẢY lên 25, và đó là lượt sửa THỨ HAI
+/// của cùng một lỗ hổng.** Lượt #1 phát hiện `trim(X)` MỘT tham số chỉ cắt dấu cách ASCII
+/// và thay bằng `trim(X, <bảng ký tự>)` HAI tham số với **bảy** ký tự. Đo lại: bảng bảy ký
+/// tự vẫn để **17** điểm mã đi lọt — U+0085 · U+1680 · U+2000‥U+200A (gồm U+2009 THIN
+/// SPACE) · U+2028 · U+2029 · U+202F · U+205F. Tức lượt #1 THU HẸP lỗ hổng chứ không đóng
+/// nó, và một hàm tên `seven_blank_forms` khoá đúng bảy ca mà nó liệt — không phải cái LỚP
+/// mà nó tự xưng là canh.
+///
+/// ⇒ Danh sách dưới đây là bằng chứng CHẠY ĐƯỢC cho bảng ký tự của `GLOSSARY_ENTRY_DDL`,
+/// một hàng một điểm mã. Đừng rút ngắn nó về một mẫu đại diện: một mẫu đại diện là đúng
+/// hình dạng đã để lọt 17 điểm mã suốt lượt #1.
+fn every_blank_form() -> [(&'static str, &'static str); 27] {
     [
         ("rong", ""),
-        ("dau cach ASCII", "   "),
-        ("tab", "\t\t"),
-        ("xuong dong LF", "\n\n"),
-        ("xuong dong CR", "\r\r"),
+        ("SPACE U+0020", "   "),
+        ("TAB U+0009", "\t\t"),
+        ("LF U+000A", "\n\n"),
+        ("VT U+000B", "\u{000B}\u{000B}"),
+        ("FF U+000C", "\u{000C}\u{000C}"),
+        ("CR U+000D", "\r\r"),
+        ("NEL U+0085", "\u{0085}\u{0085}"),
         ("NBSP U+00A0", "\u{00A0}\u{00A0}"),
-        ("dau cach bieu y U+3000", "\u{3000}\u{3000}"),
-        ("tron ca bay loai", " \t\n\r\u{00A0}\u{3000} "),
+        ("OGHAM SPACE U+1680", "\u{1680}\u{1680}"),
+        ("EN QUAD U+2000", "\u{2000}\u{2000}"),
+        ("EM QUAD U+2001", "\u{2001}\u{2001}"),
+        ("EN SPACE U+2002", "\u{2002}\u{2002}"),
+        ("EM SPACE U+2003", "\u{2003}\u{2003}"),
+        ("THREE-PER-EM U+2004", "\u{2004}\u{2004}"),
+        ("FOUR-PER-EM U+2005", "\u{2005}\u{2005}"),
+        ("SIX-PER-EM U+2006", "\u{2006}\u{2006}"),
+        ("FIGURE SPACE U+2007", "\u{2007}\u{2007}"),
+        ("PUNCTUATION SPACE U+2008", "\u{2008}\u{2008}"),
+        ("THIN SPACE U+2009", "\u{2009}\u{2009}"),
+        ("HAIR SPACE U+200A", "\u{200A}\u{200A}"),
+        ("LINE SEPARATOR U+2028", "\u{2028}\u{2028}"),
+        ("PARAGRAPH SEPARATOR U+2029", "\u{2029}\u{2029}"),
+        ("NARROW NBSP U+202F", "\u{202F}\u{202F}"),
+        ("MEDIUM MATH SPACE U+205F", "\u{205F}\u{205F}"),
+        ("IDEOGRAPHIC SPACE U+3000", "\u{3000}\u{3000}"),
+        (
+            "tron ca 25 loai",
+            " \t\n\u{000B}\u{000C}\r\u{0085}\u{00A0}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\
+             \u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{2028}\u{2029}\u{202F}\
+             \u{205F}\u{3000} ",
+        ),
     ]
+}
+
+/// Đối chứng dương cho [`every_blank_form`]: danh sách phải khớp **đúng** tập mà
+/// `char::is_whitespace` của Rust nhận, cộng chuỗi rỗng và chuỗi trộn.
+///
+/// 🔴 Không có ca này thì `every_blank_form` là một danh sách chép tay, và một điểm mã bị
+/// gõ sót lại đọc thành "đã canh hết" — đúng cách bảy ký tự của lượt #1 đọc thành đã đủ.
+#[test]
+fn the_blank_form_list_covers_every_unicode_whitespace_code_point() {
+    let listed: std::collections::BTreeSet<char> = every_blank_form()
+        .iter()
+        .flat_map(|(_, s)| s.chars())
+        .collect();
+
+    let expected: std::collections::BTreeSet<char> = (0u32..=0x10FFFF)
+        .filter_map(char::from_u32)
+        .filter(|c| c.is_whitespace())
+        .collect();
+
+    assert_eq!(
+        listed, expected,
+        "danh sach dang trang phai khop DUNG tap `char::is_whitespace` cua Rust -- \
+         thieu: {:?} | thua: {:?}",
+        expected.difference(&listed).collect::<Vec<_>>(),
+        listed.difference(&expected).collect::<Vec<_>>()
+    );
 }
 
 #[test]
@@ -302,7 +361,7 @@ fn an_empty_or_whitespace_only_translation_is_refused_and_writes_nothing() {
     let dir = temp_dir("empty-translation");
     let store = open_global(&dir);
 
-    for (label, blank) in seven_blank_forms() {
+    for (label, blank) in every_blank_form() {
         let result = insert_entry(
             &store,
             "term",
@@ -323,7 +382,7 @@ fn an_empty_or_whitespace_only_translation_is_refused_and_writes_nothing() {
         .expect("dem hang");
     assert_eq!(
         rows, 0,
-        "tam luot chen bi tu choi khong duoc de lai mot hang nao"
+        "moi luot chen bi tu choi khong duoc de lai mot hang nao"
     );
 
     drop(store);
@@ -339,7 +398,7 @@ fn an_empty_or_whitespace_only_source_term_is_refused_and_writes_nothing() {
     let dir = temp_dir("empty-source-term");
     let store = open_global(&dir);
 
-    for (label, blank) in seven_blank_forms() {
+    for (label, blank) in every_blank_form() {
         let result = insert_entry(
             &store,
             blank,
@@ -360,7 +419,7 @@ fn an_empty_or_whitespace_only_source_term_is_refused_and_writes_nothing() {
         .expect("dem hang");
     assert_eq!(
         rows, 0,
-        "tam luot chen bi tu choi khong duoc de lai mot hang nao"
+        "moi luot chen bi tu choi khong duoc de lai mot hang nao"
     );
 
     drop(store);
@@ -573,7 +632,7 @@ fn confirming_with_a_blank_translation_is_refused_by_the_same_check_insert_uses(
     )
     .expect("chen muc cho chot");
 
-    for (label, blank) in seven_blank_forms() {
+    for (label, blank) in every_blank_form() {
         let result = confirm_translation(&store, id, blank);
         assert!(
             matches!(result, Err(StoreError::WriteFailed { .. })),
@@ -659,6 +718,388 @@ fn confirming_an_already_confirmed_entry_again_overwrites_the_translation() {
         "ban dich phai la gia tri MOI NHAT, khong phai gia tri chot lan dau"
     );
     assert!(global["青丘"].is_confirmed());
+
+    drop(store);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Vòng rà soát #2 (2026-08-19) — năm hành vi trước đó XOÁ ĐI MÀ BỘ TEST VẪN XANH
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 `insert_entry` cắt khoảng trắng biên ở **tầng Rust**, và đây là ca DUY NHẤT đo được
+/// điều đó từ ngoài.
+///
+/// ⚠️ Ca trùng đã có (`a_duplicate_source_term_is_refused_and_the_original_row_survives`)
+/// chèn **cùng một chuỗi** hai lần, nên nó xanh y hệt dù `.trim()` ở `insert_entry` có bị
+/// xoá hay không. Các ca dạng trắng cũng không đo được: chúng bị `CHECK` của SQL chặn độc
+/// lập với tầng Rust. ⇒ Không có ca này, xoá `.trim()` khỏi `insert_entry` là một lượt đỏ
+/// KHÔNG XẢY RA, và `" 慕容"` với `"慕容"` thành hai hàng dưới một chỉ mục tự xưng là "một
+/// thuật ngữ, một mục".
+#[test]
+fn a_padded_source_term_collides_with_its_trimmed_twin_instead_of_becoming_a_second_row() {
+    let dir = temp_dir("source-term-trim-collides");
+    let store = open_global(&dir);
+
+    insert_entry(
+        &store,
+        "慕容",
+        Some("Mộ Dung"),
+        "",
+        Category::Person,
+        TermOrigin::Manual,
+    )
+    .expect("chen muc dau tien");
+
+    let padded = insert_entry(
+        &store,
+        "  慕容\t",
+        Some("Mo Dung Khac"),
+        "",
+        Category::Person,
+        TermOrigin::Manual,
+    );
+    assert!(
+        matches!(padded, Err(StoreError::WriteFailed { .. })),
+        "`  慕容\\t` phai bi cat khoang trang bien o tang Rust roi va vao DUNG mot UNIQUE. \
+         Nhan: {padded:?} -- neu la Ok, `.trim()` o insert_entry da bien mat va chi muc \
+         `mot thuat ngu, mot muc` nay giu hai hang cho cung mot thuat ngu."
+    );
+
+    let global = load_tier(&store).expect("nap tang global");
+    assert_eq!(global.len(), 1, "khong duoc co hang thu hai");
+    assert!(
+        global.contains_key("慕容"),
+        "khoa phai la dang DA CAT, khong phai `  慕容\\t`. Nhan: {:?}",
+        global.keys().collect::<Vec<_>>()
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// 🔴 `confirm_translation` cũng cắt khoảng trắng biên — cùng lý do, khác đường ghi.
+///
+/// ⚠️ Ca `confirming_an_already_confirmed_entry_again_overwrites_the_translation` truyền một
+/// chuỗi vốn đã sạch nên nó không đo được `.trim()`. Và `CHECK` của SQL **không** thay thế
+/// được tầng Rust ở đây: nó chỉ cấm chuỗi TRẮNG HOÀN TOÀN, không cấm nội dung thật mang
+/// khoảng trắng thừa hai đầu.
+#[test]
+fn confirming_a_padded_translation_stores_it_trimmed() {
+    let dir = temp_dir("confirm-trims-padding");
+    let store = open_global(&dir);
+
+    let id = insert_entry(
+        &store,
+        "青丘",
+        None,
+        "",
+        Category::Place,
+        TermOrigin::Manual,
+    )
+    .expect("chen muc cho chot");
+
+    confirm_translation(&store, id, "  Thanh Khâu\u{3000}").expect("chot ban dich co dem");
+
+    let global = load_tier(&store).expect("nap tang global");
+    assert_eq!(
+        global["青丘"].translation.as_deref(),
+        Some("Thanh Khâu"),
+        "ban dich phai duoc cat khoang trang bien TRUOC khi ghi -- neu nhan lai chuoi co \
+         dem thi `.trim()` o confirm_translation da bien mat"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// 🔴 Mọi biến thể của `Category` và `TermOrigin` phải ghi xuống đĩa được và đọc lại đúng.
+///
+/// ⚠️ Trước ca này, bộ test chỉ từng ghi `Person` · `Place` · `Other` · `Manual`. **Ba biến
+/// thể chưa từng chạm đĩa lần nào**: `DomainTerm` · `ImportScan` · `ReviewHarvest`. Một lỗi
+/// gõ trong `as_str()` của bất kỳ cái nào trong ba — `"domainterm"`, `"importscan"` — đi
+/// qua trình biên dịch sạch, đi qua cả bộ test sạch, và chỉ đỏ lần đầu Story 3.5 (quét khi
+/// nhập) hay Epic 8 (thu hoạch từ review) ghi một hàng THẬT. Ca này đóng khoảng cách giữa
+/// kiểu Rust và `CHECK … IN (…)` bằng phép chạy, không bằng lời hứa trong doc-comment.
+#[test]
+fn every_category_and_term_origin_variant_round_trips_through_the_store() {
+    let dir = temp_dir("all-enum-variants");
+    let store = open_global(&dir);
+
+    let categories = [
+        Category::Person,
+        Category::Place,
+        Category::DomainTerm,
+        Category::Other,
+    ];
+    let origins = [
+        TermOrigin::Manual,
+        TermOrigin::ImportScan,
+        TermOrigin::ReviewHarvest,
+    ];
+
+    for (i, category) in categories.iter().enumerate() {
+        for (j, term_origin) in origins.iter().enumerate() {
+            let term = format!("thuat-ngu-{i}-{j}");
+            insert_entry(
+                &store,
+                &term,
+                Some("ban dich"),
+                "",
+                *category,
+                *term_origin,
+            )
+            .unwrap_or_else(|e| {
+                panic!(
+                    "category={category} term_origin={term_origin} phai ghi xuong dia duoc \
+                     -- mot `WriteFailed` o day nghia la `as_str()` da troi khoi \
+                     `CHECK (… IN (…))` cua GLOSSARY_ENTRY_DDL. Nhan: {e:?}"
+                )
+            });
+        }
+    }
+
+    let global = load_tier(&store).expect("nap tang global");
+    assert_eq!(global.len(), categories.len() * origins.len());
+
+    for (i, category) in categories.iter().enumerate() {
+        for (j, term_origin) in origins.iter().enumerate() {
+            let entry = &global[&format!("thuat-ngu-{i}-{j}")];
+            assert_eq!(
+                entry.category, *category,
+                "category phai doc lai DUNG bien the da ghi"
+            );
+            assert_eq!(
+                entry.term_origin, *term_origin,
+                "term_origin phai doc lai DUNG bien the da ghi"
+            );
+        }
+    }
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// 🔴 **CẢ BẢY cột** phải đi trọn vòng ghi rồi đọc.
+///
+/// ⚠️ Trước ca này bộ test chỉ khẳng định `source_term` và `translation`. Năm cột còn lại —
+/// `id` · `note` · `category` · `term_origin` · `created_at` — không một dòng `assert` nào
+/// chạm tới, nên **đảo hai chỉ số cột** trong `load_tier` (`row.get(3)` là `note`,
+/// `row.get(4)` là `category`, cả hai đều `TEXT`) là một thay đổi mà không ca nào nhìn thấy;
+/// một `strftime` hỏng làm `created_at` rỗng cũng vậy.
+#[test]
+fn every_column_round_trips_through_load_tier() {
+    let dir = temp_dir("all-columns-round-trip");
+    let store = open_global(&dir);
+
+    let id = insert_entry(
+        &store,
+        "慕容",
+        Some("Mộ Dung"),
+        "ho kep, khong phai ten don",
+        Category::DomainTerm,
+        TermOrigin::ImportScan,
+    )
+    .expect("chen muc day du bay cot");
+
+    let global = load_tier(&store).expect("nap tang global");
+    let entry = &global["慕容"];
+
+    assert_eq!(entry.id, id, "id phai la rowid ma insert_entry vua tra ve");
+    assert_eq!(entry.source_term, "慕容");
+    assert_eq!(entry.translation.as_deref(), Some("Mộ Dung"));
+    assert_eq!(
+        entry.note, "ho kep, khong phai ten don",
+        "note phai doc lai nguyen van -- doc nham cot se lot ra o day"
+    );
+    assert_eq!(entry.category, Category::DomainTerm);
+    assert_eq!(entry.term_origin, TermOrigin::ImportScan);
+
+    // `created_at` sinh o tang SQL bang strftime('%Y-%m-%dT%H:%M:%fZ', 'now') -- ISO-8601
+    // UTC, dung 24 ky tu. Khong so sanh gia tri (no la thoi diem chay), so sanh HINH DANG.
+    assert_eq!(
+        entry.created_at.len(),
+        24,
+        "created_at phai la ISO-8601 UTC 24 ky tu. Nhan: {:?}",
+        entry.created_at
+    );
+    assert!(
+        entry.created_at.ends_with('Z') && entry.created_at.contains('T'),
+        "created_at phai mang `T` va ket thuc bang `Z`. Nhan: {:?}",
+        entry.created_at
+    );
+
+    // `note` mac dinh: vang mat va rong la CUNG mot dieu (doc-comment GLOSSARY_ENTRY_DDL).
+    insert_entry(
+        &store,
+        "青丘",
+        None,
+        "",
+        Category::Place,
+        TermOrigin::Manual,
+    )
+    .expect("chen muc khong ghi chu");
+    let global = load_tier(&store).expect("nap lai");
+    assert_eq!(global["青丘"].note, "", "note vang mat phai doc lai la chuoi rong");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// 🔴 Một hàng trên đĩa mang `term_origin` KHÔNG khớp `CHECK` làm `load_tier` **trả lỗi**,
+/// không rơi về một giá trị mặc định.
+///
+/// ⚠️ Đây là ca đóng khoảng trống lớn nhất của lượt rà soát #2. `decode_category` /
+/// `decode_term_origin` mang một doc-comment dài giải thích vì sao chúng TRẢ LỖI thay vì
+/// rơi về `TermOrigin::Manual` — *"xuất xứ đáng tin nhất trong ba giá trị, nên một hàng
+/// hỏng sẽ trông Y HỆT một mục người dùng tự nhập tay"*, đúng lớp lỗi AD-47. Nhưng **không
+/// một ca nào từng chạy nhánh `Err` đó**: `CHECK` chặn mọi đường ghi của chính module, nên
+/// nhánh chỉ tới được từ một đĩa đã trôi. ⇒ Trước ca này, quay `ok_or_else(..)` về
+/// `unwrap_or(TermOrigin::Manual)` là một lượt đỏ KHÔNG XẢY RA.
+///
+/// Fixture dựng bằng **ba bước THẬT đầu tiên** của `GLOBAL_MIGRATIONS` cộng một bước 4
+/// KHÔNG có `CHECK` — cùng khuôn `pinned_contract.rs::an_older_global_database_…` dùng lát
+/// cắt của bộ di trú thật thay vì một bản chép tay, để fixture không trôi khỏi sự thật.
+#[test]
+fn a_row_whose_term_origin_drifted_from_the_check_makes_load_tier_refuse_the_whole_tier() {
+    use auratranslate_lib::core::store::Migration;
+
+    /// Bước 4 KHÔNG `CHECK` — mô phỏng "một bản ứng dụng cũ/hỏng đã ghi ra hàng này".
+    /// Cùng bảy cột, cùng thứ tự, để `load_tier` đọc được tới đúng chỗ nó phải trượt.
+    const PERMISSIVE_GLOSSARY_DDL: &str = "\
+CREATE TABLE glossary_entry (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_term  TEXT    NOT NULL,
+  translation  TEXT,
+  note         TEXT    NOT NULL DEFAULT '',
+  category     TEXT    NOT NULL,
+  term_origin  TEXT    NOT NULL,
+  created_at   TEXT    NOT NULL
+);";
+
+    static DRIFTED_LADDER: [Migration; 4] = [
+        GLOBAL_MIGRATIONS[0],
+        GLOBAL_MIGRATIONS[1],
+        GLOBAL_MIGRATIONS[2],
+        Migration {
+            to_version: 4,
+            sql: PERMISSIVE_GLOSSARY_DDL,
+        },
+    ];
+
+    let dir = temp_dir("term-origin-drifted");
+    let db = dir.join("global.db");
+
+    {
+        let drifted = Store::open(StoreSpec {
+            migrations: &DRIFTED_LADDER,
+            ..StoreSpec::global(db.clone())
+        })
+        .expect("dung fixture khong CHECK");
+        assert_eq!(drifted.schema_version(), 4, "fixture phai dung o dich that");
+
+        drifted
+            .write(|tx: &Transaction<'_>| {
+                tx.execute(
+                    "INSERT INTO glossary_entry \
+                     (source_term, translation, note, category, term_origin, created_at) \
+                     VALUES ('慕容', 'Mộ Dung', '', 'person', 'khong-phai-mot-xuat-xu', 'x')",
+                    [],
+                )?;
+                Ok(())
+            })
+            .expect("mot bang khong CHECK phai nhan hang hong nay");
+        drop(drifted);
+    }
+
+    // Mo lai bang bo di tru THAT: `user_version` da la 4 nen khong buoc nao chay, va luoc
+    // do tren dia giu nguyen hinh dang khong CHECK. Day dung la ca "dia da troi".
+    let store = Store::open(StoreSpec::global(db)).expect("mo lai bang bo di tru that");
+
+    let refused = load_tier(&store);
+    assert!(
+        matches!(refused, Err(StoreError::ReadFailed { .. })),
+        "mot `term_origin` la tren dia phai lam CA TANG tu choi nap, khong duoc am tham \
+         roi ve TermOrigin::Manual -- mot hang hong khong duoc trong giong mot muc nguoi \
+         dung tu go (AD-47). Nhan: {refused:?}"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// 🔴 **`CHECK` MỘT MÌNH** — không có `.trim()` của Rust đứng trước — phải từ chối mọi dạng
+/// trắng, cho **cả hai** cột.
+///
+/// ⚠️ **Vì sao ca này bắt buộc phải tồn tại, và vì sao hai ca dạng trắng ở trên KHÔNG thay
+/// nó được.** Cả hai ca đó gọi qua `insert_entry`, thứ cắt khoảng trắng bằng `str::trim()`
+/// của Rust TRƯỚC khi chạm SQL. Một chuỗi `"\u{2009}"` bị Rust cắt thành `""`, rồi `CHECK`
+/// từ chối `''` — nên chúng xanh **y hệt** dù bảng ký tự trong `GLOSSARY_ENTRY_DDL` có bảy
+/// ký tự hay hai mươi lăm. Tức lớp Rust CHE lớp SQL, và suốt lượt rà soát #1 không phép đo
+/// nào nhìn thấy 17 điểm mã mà bảng bảy ký tự để lọt.
+///
+/// ⇒ Ca này ghi thẳng bằng SQL, đúng cửa mà một bản ứng dụng khác hay một lượt sửa tay
+/// `.db` sẽ đi, và vì thế nó đo **chính bảng ký tự của hằng DDL**, không đo `insert_entry`.
+#[test]
+fn the_check_constraint_alone_refuses_every_blank_form_on_both_columns() {
+    let dir = temp_dir("check-alone-refuses-blanks");
+    let store = open_global(&dir);
+
+    for (label, blank) in every_blank_form() {
+        let value = blank.to_owned();
+        let refused_translation = store.write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO glossary_entry \
+                 (source_term, translation, note, category, term_origin, created_at) \
+                 VALUES ('thuat ngu that', ?1, '', 'other', 'manual', 'x')",
+                [&value],
+            )?;
+            Ok(())
+        });
+        assert!(
+            matches!(refused_translation, Err(StoreError::WriteFailed { .. })),
+            "`CHECK` mot minh phai tu choi translation dang trang '{label}' -- bang ky tu \
+             cua GLOSSARY_ENTRY_DDL con thieu diem ma nay. Nhan: {refused_translation:?}"
+        );
+
+        let value = blank.to_owned();
+        let refused_source = store.write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO glossary_entry \
+                 (source_term, translation, note, category, term_origin, created_at) \
+                 VALUES (?1, 'ban dich that', '', 'other', 'manual', 'x')",
+                [&value],
+            )?;
+            Ok(())
+        });
+        assert!(
+            matches!(refused_source, Err(StoreError::WriteFailed { .. })),
+            "`CHECK` mot minh phai tu choi source_term dang trang '{label}'. \
+             Nhan: {refused_source:?}"
+        );
+    }
+
+    let rows: i64 = store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM glossary_entry", [], |r| r.get(0)))
+        .expect("dem hang");
+    assert_eq!(rows, 0, "khong luot ghi bi tu choi nao duoc de lai mot hang");
+
+    // Doi chung duong: noi dung THAT bao quanh boi khoang trang bien van di qua duoc, tuc
+    // bang ky tu khong rong tay den muc cam ca du lieu hop le.
+    let accepted = store.write(|tx: &Transaction<'_>| {
+        tx.execute(
+            "INSERT INTO glossary_entry \
+             (source_term, translation, note, category, term_origin, created_at) \
+             VALUES (' 慕容 ', ' Mộ Dung ', '', 'person', 'manual', 'x')",
+            [],
+        )?;
+        Ok(())
+    });
+    assert!(
+        accepted.is_ok(),
+        "noi dung that bao quanh boi khoang trang bien phai DI QUA -- `CHECK` chi cam \
+         chuoi TRANG HOAN TOAN. Nhan: {accepted:?}"
+    );
 
     drop(store);
     cleanup(&dir);

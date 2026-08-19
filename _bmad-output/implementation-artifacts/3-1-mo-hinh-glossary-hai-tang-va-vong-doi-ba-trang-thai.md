@@ -2,9 +2,9 @@
 title: 'Story 3.1 — Mô hình Glossary hai tầng và vòng đời ba trạng thái'
 type: 'feature'
 created: '2026-08-19'
-status: 'done'
+status: 'review'
 baseline_commit: 'a83a1b756abae08cbc0c8f5a595c1be722f0c95c'
-review_loop_iteration: 0
+review_loop_iteration: 2
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
   - '{project-root}/AGENTS.md'
@@ -124,6 +124,37 @@ cho tới lượt sửa này. Không cổng nào đỏ vì chuyện đó.
 - Sổ nợ chỉ **nối thêm**, không xoá; mục nửa đóng ghi 🟡 chứ không làm tròn lên ✅.
 - Mọi neo số phiên bản đổi đều kèm 🔵 + ngày + lý do, và mệnh đề của từng ca test không đổi.
 
+### 2026-08-19 — vòng rà soát #2
+
+**Phát hiện kích hoạt.** Bảng ký tự của lượt rà soát #1 có **bảy** ký tự và dừng ở đó — nó
+**thu hẹp** lỗ hổng chứ không đóng. Đo lại từng điểm một: bảng bảy ký tự vẫn để **17** điểm
+mã `White_Space` khác đi lọt — U+0085 · U+1680 · U+2000‥U+200A (gồm U+2009 THIN SPACE) ·
+U+2028 · U+2029 · U+202F · U+205F. Tức tuyên bố *"ca đã chốt mà bản dịch rỗng không biểu
+diễn được"* của §Intent vẫn còn sai sau lượt #1, chỉ sai hẹp hơn.
+
+**Đã sửa gì.** Cả hai `CHECK` của `GLOSSARY_ENTRY_DDL` nay liệt **trọn** 25 điểm mã
+`White_Space` — đúng tập mà `str::trim()` của Rust cắt, nên hai lớp phòng thủ lần này thật
+sự cùng một tập. `seven_blank_forms()` đổi tên thành `every_blank_form()` và nhận **cả 25**
+điểm mã cộng một chuỗi trộn. Comment ở `insert_entry` sửa lại quan hệ hai lớp: bản trước
+viết "cùng tập ký tự", nhưng lúc đó Rust là tập cha thực sự và chính lớp Rust — không phải
+`CHECK` — mới đang đóng 17 điểm còn lại.
+
+**Cửa sổ di trú đã dùng lần thứ hai, và không có lần thứ ba.** Vẫn chưa phát hành nên sửa
+hằng tại chỗ còn hợp lệ. Ghi ra ở doc-comment của hằng: sau bản phát hành đầu tiên chạm bước
+4/12, mọi lượt sửa bảng ký tự phải là một bước di trú MỚI.
+
+**Khoảng trống nghiệm thu đã đóng cùng lượt** — năm hành vi trước đó xoá đi mà bộ test vẫn
+xanh: `trim()` tầng Rust cho `source_term` và cho `confirm_translation`; nhánh `Err` của
+`decode_category`/`decode_term_origin`; ba biến thể enum chưa từng ghi xuống đĩa
+(`DomainTerm` · `ImportScan` · `ReviewHarvest`); năm cột chưa từng được khẳng định sau
+round-trip (`note` · `category` · `term_origin` · `created_at` · `id`).
+
+**KEEP — bổ sung cho danh sách của lượt #1:**
+- Bảng ký tự phải khớp `char::is_whitespace` của Rust. Thêm ký tự vào một lớp thì thêm vào
+  lớp kia CÙNG LƯỢT.
+- `every_blank_form()` là bằng chứng CHẠY ĐƯỢC cho bảng đó. Đừng rút ngắn nó về một mẫu
+  đại diện.
+
 ## Design Notes
 
 Hình dạng bảng — hai vế cưỡng chế bằng SQL, không bằng kỷ luật:
@@ -166,7 +197,6 @@ BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;
 **Manual checks (if no CLI):**
 - `git diff` trên `src-tauri/tests/scope_boundary.rs` phải **rỗng** — nếu có một dòng, cổng đã bị nới thay vì nguồn được sửa.
 - `dict-manifest.toml` phải **không đổi**: bốn tệp `.db` từ điển không liên quan tới lược đồ `global.db`/`project.db`.
-</content>
 
 ## Suggested Review Order
 

@@ -77,9 +77,19 @@ pub fn insert_entry(
     // là "một thuật ngữ, một mục" (`idx_glossary_entry_source_term`) — trim ở đây làm
     // chúng va vào ĐÚNG một `UNIQUE` và lượt chèn thứ hai bị từ chối thay vì âm thầm tạo
     // ra một mục trùng có hình dạng khác. `str::trim()` của Rust cắt theo thuộc tính
-    // Unicode `White_Space` — cùng tập ký tự mà `CHECK` hai tham số của
-    // `GLOSSARY_ENTRY_DDL` chặn (tab · xuống dòng · NBSP · dấu cách biểu ý U+3000, …), nên
-    // hai lớp phòng thủ nói cùng một ngôn ngữ.
+    // Unicode `White_Space` — 25 điểm mã.
+    //
+    // 🔵 LƯỢT RÀ SOÁT #2 (2026-08-19) — BẢN TRƯỚC CỦA COMMENT NÀY NÓI SAI QUAN HỆ HAI LỚP.
+    // Nó viết "cùng tập ký tự mà `CHECK` hai tham số chặn, nên hai lớp nói cùng một ngôn
+    // ngữ". Sai lúc đó: bảng của `CHECK` khi ấy có BẢY ký tự, còn Rust cắt 25 — Rust là
+    // tập CHA THỰC SỰ, và chính lớp Rust (không phải `CHECK`) mới là thứ đang đóng 17 điểm
+    // mã còn lại. Ai đọc comment cũ mà tin `CHECK` là lưới cấu trúc rồi bỏ `.trim()` dưới
+    // đây sẽ mở lại đúng lớp U+2009/U+202F/U+205F.
+    //
+    // Nay hai lớp ĐÃ thật sự cùng một tập: `GLOSSARY_ENTRY_DDL` liệt trọn 25 điểm mã
+    // `White_Space` (đo từng điểm một). Câu "hai lớp nói cùng một ngôn ngữ" từ nay đúng —
+    // và nó đúng nhờ một phép đo, không nhờ hai chỗ tình cờ trông giống nhau. ⇒ Thêm ký tự
+    // vào một lớp thì phải thêm vào lớp kia CÙNG LƯỢT.
     //
     // KHÔNG hạ chữ thường: `API` ≠ `api` có nghĩa trong tiếng Anh — cùng luật mà
     // `AGENTS.md` đã khoá cho từ điển ("hạ chữ thường là THÊM một khoá, không THAY khoá

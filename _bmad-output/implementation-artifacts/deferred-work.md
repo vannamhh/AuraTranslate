@@ -5317,3 +5317,77 @@ trước khi nới** — chúng có mặt để lượt đó có dữ liệu th�
     nay là chốt thay cho một story có nhiều bối cảnh hơn, và làm nó bằng một chỉ mục UNIQUE
     thì KHÔNG lùi được sau khi dữ liệu người dùng đã nằm trên đĩa.
     **(Chủ: Story 3.4 — khớp thuật ngữ theo ngôn ngữ.)**
+
+## Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai (vòng rà soát #2, 2026-08-19)
+
+*Lượt rà soát này ĐÃ ĐÓNG tại chỗ: bảng ký tự khoảng trắng (bảy → 25 điểm mã, kèm ca đo đi
+thẳng vào SQL), comment sai quan hệ hai lớp ở `insert_entry`, `Category` "ba giá trị" → bốn,
+hai chuỗi `assert!` mất dấu nối dòng, và năm khoảng trống nghiệm thu. Sáu mục dưới đây là
+những mục CÒN LẠI, không mục nào mồ côi.*
+
+- 🔴 **`GlossaryEntry.translation` là trường `pub`, nên mệnh đề *"`is_confirmed()` là vị từ
+  DUY NHẤT định nghĩa đã chốt"* (AD-36) không có gì cưỡng chế.** `entry.rs` viết mệnh đề đó
+  ở doc-comment đầu module, nhưng struct phơi trường ra công khai và
+  `glossary_boundary.rs::GLOSSARY_ONLY_SURFACE` không canh nó — một module Epic 4 gõ
+  `entry.translation.is_some()` biên dịch sạch và qua cả mười ba cổng. Tức luật quay về
+  **kỷ luật**, đúng thứ mà chính story này từ chối ở mọi chỗ khác. Hai đường sửa, cả hai
+  đổi bề mặt công khai nên cần chữ ký: ① `translation` thành riêng tư + một accessor;
+  ② thêm `".translation"` vào `GLOSSARY_ONLY_SURFACE`. **Chủ: story đầu tiên gọi
+  `entries_eligible_for_injection` từ ngoài `core/glossary/**`** (ứng viên: Epic 4).
+
+- 🔴 **`entries_eligible_for_injection(resolver, global, work)` có HAI nguồn độc lập trả
+  lời cùng một câu *"đã mở Tác phẩm nào chưa"*, và không gì bắt chúng khớp nhau.**
+  `resolver.has_work_tier()` là một; `work.is_some()` là hai. `apply_override`
+  (`scope/mod.rs`) **không bao giờ đọc `self.work`** — nó chỉ dùng dữ liệu được truyền — nên
+  một `with_work(..)` đi cùng `work: None` phân giải bằng nguyên tầng Global **trong im
+  lặng**, và mục *chờ chốt* ở tầng Tác phẩm thôi không che mục Global nữa. Đó đúng là kết
+  quả sai mà hàng 3 của I/O Matrix sinh ra để chặn, tới bằng một cửa khác. Không ca nào ghép
+  một resolver mang tầng Work với `work: None`: `with_no_work_open_resolution_is_the_whole_global_tier`
+  khẳng định `!has_work_tier()` rồi truyền `None`, tức hai vế luôn khớp trong mọi ca đang có.
+  ⇒ Cần một `debug_assert_eq!(resolver.has_work_tier(), work.is_some(), …)`, hoặc một chữ ký
+  không cho hai vế lệch được. **Chủ: Story 3.3** — story đầu tiên gọi hàm này với một
+  `OpenWork.scope` thật, tức chỗ đầu tiên hai vế có thể lệch ngoài test.
+
+- ⚠️ **`Vec<GlossaryEntry>` trả ra đánh rơi nhãn tầng, và `id` chỉ duy nhất TRONG một
+  `Store`.** `entries_eligible_for_injection` gọi `resolved_entry.value().clone()` rồi bỏ
+  `Resolved::tier()`. Hệ quả: một mục Global `id = 1` và một mục Tác phẩm `id = 1` cùng nằm
+  trong kết quả, không trường nào phân biệt được — chỗ gọi nào khoá theo `id` sẽ đụng nhau,
+  và không ai đọc được một thuật ngữ đến từ tầng nào (thứ `mockups/glossary-manage.html:169`
+  đã vẽ). **Chủ: Epic 4** — đọc mục này trước khi thiết kế hình dạng dữ liệu vào `RagInjector`.
+
+- ⚠️ **`GLOSSARY_ONLY_SURFACE` khớp định danh TRẦN (`insert_entry` · `confirm_translation`
+  · `load_tier`) như chuỗi con, trên toàn `src-tauri/src/**`.** Chính doc-comment của
+  `core/glossary/store.rs` dự báo TM/Prompt/Cấu hình AI sẽ lấy đúng khuôn module này —
+  nghĩa là một `core/tm/store.rs::load_tier` là chuyện gần như chắc chắn xảy ra, và ngày nó
+  ra đời cổng Glossary sẽ ĐỎ cho một tệp không hề chạm Glossary. Sửa bằng cách khớp đường
+  dẫn có định tính (`glossary::load_tier`) thay vì tên trần. **Chủ: epic đầu tiên dựng module
+  miền hai tầng thứ hai** (ứng viên: Epic 7, TM).
+
+- ⚠️ **Trigger một chiều chỉ canh `BEFORE UPDATE OF translation`.** `INSERT OR REPLACE`, hay
+  `DELETE` rồi `INSERT` lại, đưa một mục đã chốt về *chờ chốt* mà trigger không hề nổ. Hôm
+  nay không đường ghi nào của module đi lối đó, nên đây là một lỗ hổng của **mệnh đề**
+  (*"vòng đời khoá bằng cấu trúc, không bằng kỷ luật"*) chứ chưa phải của hành vi. Đóng bằng
+  một trigger `BEFORE DELETE … WHEN OLD.translation IS NOT NULL` — nhưng chỉ khi Story 3.9
+  (quản lý Glossary, có xoá mục) đã quyết xoá một mục đã chốt là hợp lệ hay không, vì hai
+  quyết định đó ngược chiều nhau. **Chủ: Story 3.9.**
+
+- ⚠️ **`note` không được cắt khoảng trắng biên, khác `source_term` và `translation`.**
+  `insert_entry` cắt hai cột kia rồi ghi `note` nguyên văn (`store.rs`), nên `"   "` thành
+  một cách biểu diễn THỨ BA của "không có ghi chú" — trong khi doc-comment của
+  `GLOSSARY_ENTRY_DDL` khẳng định vắng mặt và rỗng là CÙNG một điều. Một dòng `.trim()` là
+  đủ, nhưng nó đổi dữ liệu người dùng gõ nên không tự quyết ở lượt rà soát. **Chủ: Story 3.3**
+  (bề mặt đầu tiên cho người dùng gõ `note`).
+
+- ⚠️ **`entries_eligible_for_injection` quét trọn hai bảng và nhân bản mọi hàng, HAI lần,
+  mỗi lượt gọi.** `load_tier` dựng một `BTreeMap` chứa bản sao của từng hàng; rồi vòng lọc
+  `clone()` thêm lần nữa kể cả với mục sắp bị loại. Với 412 mục toàn cục (con số
+  `resolve.rs` lấy làm ví dụ) và một lượt gọi cho MỖI câu được dịch, đây là đường nóng của
+  Epic 4. Chưa đo, nên chưa gọi nó là vấn đề — nhưng phải đo trước khi `RagInjector` chạy
+  thật. **Chủ: Epic 4** — đo trước, rồi quyết cache theo phiên hay đổi chữ ký.
+
+- ⚠️ **`pinned_contract.rs::a_fresh_global_database_ends_at_the_pinned_entry_step` nay
+  khẳng định phiên bản 4, tức bước `glossary_entry`, không phải bước `pinned_entry` mà tên
+  nó nói.** Doc-comment đã ghi nhận việc giữ tên là có chủ ý, nhưng mệnh đề *"pinned_entry
+  là bước cuối cùng đã có mặt lúc story đó chạy"* nay **không được ca nào kiểm**. Thêm một
+  dòng `assert_eq!(GLOBAL_MIGRATIONS[2].sql, PINNED_ENTRY_DDL)` là đủ để tên hàm nói thật
+  trở lại. **Chủ: story kế tiếp thêm một bước vào `GLOBAL_MIGRATIONS`.**

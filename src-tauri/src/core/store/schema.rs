@@ -214,13 +214,25 @@ CREATE TABLE pinned_entry (
 /// không sửa: một bản dịch `"\t"` làm `is_confirmed()` trả `true` với nội dung trắng —
 /// đúng ca AD-36 sinh ra để chặn, và Epic 4 sẽ chèn một trường trống vào prompt.
 ///
-/// ⇒ Cả hai `CHECK` dưới đây dùng dạng **hai tham số** `trim(X, <bảng ký tự>)` với bảng
-/// `' ' || char(9) || char(10) || char(13) || char(11) || char(12) || char(160) ||
-/// char(12288)` — đã đo: chặn cả bảy loại trên, và vẫn **nhận** `"Mộ Dung"` lẫn
-/// `" 慕容 "` (nội dung thật bao quanh bởi khoảng trắng biên). Bảng ký tự viết **khai
-/// triển tại chỗ** trong cả hai `CHECK`, không đặt tên hằng phụ — `Migration::sql` là
-/// `&'static str` và `concat!` chỉ nhận literal (cùng ràng buộc đã ghi ở doc-comment của
-/// [`PROJECT_MIGRATIONS`]).
+/// ⇒ Cả hai `CHECK` dưới đây dùng dạng **hai tham số** `trim(X, <bảng ký tự>)`. Bảng ký tự
+/// viết **khai triển tại chỗ** trong cả hai `CHECK`, không đặt tên hằng phụ —
+/// `Migration::sql` là `&'static str` và `concat!` chỉ nhận literal (cùng ràng buộc đã ghi
+/// ở doc-comment của [`PROJECT_MIGRATIONS`]).
+///
+/// 🔵 **CẬP NHẬT 2026-08-19 (lượt rà soát #2) — BẢY KÝ TỰ LÀ CHƯA ĐỦ, nay là ĐỦ 25.**
+/// Bản vá đầu liệt **bảy** loại trắng và dừng ở đó. Đo lại: bảng bảy ký tự vẫn để **17**
+/// điểm mã `White_Space` khác đi lọt — U+0085 (NEL) · U+1680 (dấu cách Ogham) ·
+/// U+2000‥U+200A (mười một dấu cách in ấn, gồm U+2009 THIN SPACE) · U+2028 · U+2029 ·
+/// U+202F (NBSP hẹp) · U+205F. Tức bản vá đầu **thu hẹp** lỗ hổng chứ không đóng nó, và
+/// tuyên bố *"ca đã chốt mà bản dịch rỗng không biểu diễn được"* vẫn còn sai với 17 điểm mã
+/// đó. Bảng dưới đây liệt **trọn** thuộc tính Unicode `White_Space` (25 điểm mã) — đo từng
+/// điểm một: cả 25 bị chặn, và `"Mộ Dung"` lẫn `" 慕容 "` vẫn **nhận**.
+///
+/// ⚠️ **Vì sao đúng 25, không phải một tập tự chọn khác:** đây chính là tập mà
+/// `str::trim()` của Rust cắt, nên hai lớp phòng thủ khoá cùng một tập — xem
+/// [`crate::core::glossary::store::insert_entry`], nơi ghi rõ lớp Rust và lớp SQL quan hệ
+/// thế nào. Thêm một ký tự vào một lớp mà quên lớp kia là dựng lại đúng khoảng lệch mà
+/// lượt rà soát này vừa đóng.
 ///
 /// `source_term` mang cùng lỗ hổng và cùng bản vá: không có rào rỗng nào trước bản vá này
 /// ngoài `NOT NULL`, và nó vừa là khoá tra cứu vừa là khoá của
@@ -231,11 +243,16 @@ CREATE TABLE pinned_entry (
 /// MỘT hằng DDL mà bước 4 (`global.db`) / bước 12 (`project.db`) **đã từng chạy** trên máy
 /// dev trước khi bản vá tồn tại — đúng khuôn "sửa hằng cũ tại chỗ là hai lược đồ cho cùng
 /// một số phiên bản" mà vết sẹo số 4 của [`PROJECT_MIGRATIONS`] ghi lại. Khác vết sẹo đó,
-/// cửa sổ này **còn đóng được**: story chưa commit, chưa phát hành, nên không `.db` nào
-/// ngoài máy dev từng chạm bước này. Nhưng **mọi `global.db`/`project.db` cục bộ đang ở
-/// `user_version = 4`/`12` từ trước bản vá phải bị XOÁ rồi dựng lại** — nếu không, chúng
-/// giữ nguyên `CHECK` một-tham-số cũ trong lược đồ đã ghi, và `PRAGMA user_version` sẽ nói
-/// dối rằng lược đồ đã ở bản vá. Bộ test dùng thư mục tạm dựng mới mỗi lần nên không dính.
+/// cửa sổ này **còn đóng được**: chưa phát hành, nên không `.db` nào ngoài máy dev từng
+/// chạm bước này. Nhưng **mọi `global.db`/`project.db` cục bộ đang ở `user_version = 4`/`12`
+/// từ trước bản vá phải bị XOÁ rồi dựng lại** — nếu không, chúng giữ nguyên `CHECK` cũ
+/// trong lược đồ đã ghi, và `PRAGMA user_version` sẽ nói dối rằng lược đồ đã ở bản vá. Bộ
+/// test dùng thư mục tạm dựng mới mỗi lần nên không dính.
+///
+/// 🔴 **Cửa sổ này đã dùng HAI lần** — lượt đầu (bảng bảy ký tự) và lượt rà soát #2 (bảng
+/// 25 ký tự), cả hai trước khi phát hành. Lượt thứ ba **không** có: sau bản phát hành đầu
+/// tiên chạm bước 4/12, mọi lượt sửa bảng ký tự phải là một bước di trú MỚI, không phải
+/// một lượt sửa hằng tại chỗ nữa.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔴 `term_origin`, KHÔNG PHẢI `origin` TRẦN
@@ -283,8 +300,21 @@ CREATE TABLE glossary_entry (
   category     TEXT    NOT NULL,
   term_origin  TEXT    NOT NULL,
   created_at   TEXT    NOT NULL,
-  CHECK (trim(source_term, ' ' || char(9) || char(10) || char(13) || char(11) || char(12) || char(160) || char(12288)) <> ''),
-  CHECK (translation IS NULL OR trim(translation, ' ' || char(9) || char(10) || char(13) || char(11) || char(12) || char(160) || char(12288)) <> ''),
+  CHECK (trim(source_term, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                               || char(133) || char(160) || char(5760)
+                               || char(8192) || char(8193) || char(8194) || char(8195)
+                               || char(8196) || char(8197) || char(8198) || char(8199)
+                               || char(8200) || char(8201) || char(8202)
+                               || char(8232) || char(8233) || char(8239) || char(8287)
+                               || char(12288)) <> ''),
+  CHECK (translation IS NULL
+         OR trim(translation, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                                  || char(133) || char(160) || char(5760)
+                                  || char(8192) || char(8193) || char(8194) || char(8195)
+                                  || char(8196) || char(8197) || char(8198) || char(8199)
+                                  || char(8200) || char(8201) || char(8202)
+                                  || char(8232) || char(8233) || char(8239) || char(8287)
+                                  || char(12288)) <> ''),
   CHECK (category    IN ('person','place','domain_term','other')),
   CHECK (term_origin IN ('manual','import_scan','review_harvest'))
 );

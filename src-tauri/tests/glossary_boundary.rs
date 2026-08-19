@@ -272,10 +272,10 @@ fn only_entries_eligible_for_injection_may_be_called_from_outside_glossary() {
 
     assert!(
         violations.is_empty(),
-        "{} chỗ ngoài `{GLOSSARY_DIR}` gọi thẳng một hàm phơi dữ liệu THÔ của Glossary:
-{}
-
-         `load_tier` trả CẢ mục chờ chốt; `insert_entry`/`confirm_translation` ghi thẳng          không qua điều kiện chèn. Module khác chỉ được gọi          `core::glossary::entries_eligible_for_injection` — đúng MỘT hàm phơi ra, theo AD-36.",
+        "{} chỗ ngoài `{GLOSSARY_DIR}` gọi thẳng một hàm phơi dữ liệu THÔ của Glossary:\n{}\n\n\
+         `load_tier` trả CẢ mục chờ chốt; `insert_entry`/`confirm_translation` ghi thẳng \
+         không qua điều kiện chèn. Module khác chỉ được gọi \
+         `core::glossary::entries_eligible_for_injection` — đúng MỘT hàm phơi ra, theo AD-36.",
         violations.len(),
         violations.join("\n")
     );
@@ -299,7 +299,8 @@ fn core_glossary_actually_defines_the_restricted_surface() {
 
         assert!(
             hit,
-            "không tệp nào dưới `{GLOSSARY_DIR}` khai `{needle}` — cây đã bị cắt và phép              kiểm ranh giới đang canh một chỗ trống."
+            "không tệp nào dưới `{GLOSSARY_DIR}` khai `{needle}` — cây đã bị cắt và phép \
+             kiểm ranh giới đang canh một chỗ trống."
         );
     }
 }

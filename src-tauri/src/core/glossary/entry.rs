@@ -14,7 +14,7 @@
 
 use std::fmt;
 
-/// Phân loại thuật ngữ (FR46). Ba giá trị, cưỡng chế lại ở `CHECK (category IN (…))` của
+/// Phân loại thuật ngữ (FR46). Bốn giá trị, cưỡng chế lại ở `CHECK (category IN (…))` của
 /// `GLOSSARY_ENTRY_DDL` — cột SQL và kiểu Rust không được phép trôi khỏi nhau.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Category {
