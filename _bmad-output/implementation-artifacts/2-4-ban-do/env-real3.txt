@@ -1,6 +1,0 @@
-── TRUOC phien real3 (thang=l, 1800s) · 2026-08-19 20:25:54
-   loadavg      : { 16.04 9.73 11.60 }
-   ncpu         : 16
-   CPU_Speed_Limit: 
-   nguon dien   : Now drawing from 'AC Power'
-   top-CPU      : 109.3%% /Applications/Claude.app/Contents/MacOS/Claude  74.1%% node  66.4%% top  

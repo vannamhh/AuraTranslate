@@ -1,6 +1,0 @@
-── TRUOC phien real2 (thang=l, 1800s) · 2026-08-19 20:25:40
-   loadavg      : { 2.65 7.10 10.71 }
-   ncpu         : 16
-   CPU_Speed_Limit: 
-   nguon dien   : Now drawing from 'AC Power'
-   top-CPU      : 25.9%% /Library/Apple/System/Library/CoreServices/XProtect.app/Contents/MacOS/XProtectRemediatorDolittle  23.7%% /usr/sbin/coreaudiod  19.1%% /System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow  

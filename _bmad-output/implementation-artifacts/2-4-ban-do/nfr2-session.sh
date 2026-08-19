@@ -69,9 +69,15 @@ snap_env() {   # $1 = nhãn thời điểm
     printf '── %s · %s\n' "$1" "$(date '+%Y-%m-%d %H:%M:%S')"
     printf '   loadavg      : %s\n' "$(sysctl -n vm.loadavg)"
     printf '   ncpu         : %s\n' "$(sysctl -n hw.ncpu)"
-    printf '   CPU_Speed_Limit: %s\n' "$(pmset -g therm 2>/dev/null | awk -F': *' '/CPU_Speed_Limit/{print $2}')"
+    # 🔵 Sửa 2026-08-19, cùng ngày với lượt viết ra. Bản đầu tách bằng `-F': *'` và trường
+    # này RỖNG ở cả bốn tệp sinh ra — `pmset -g therm` in `CPU_Speed_Limit \t= 100`, tức
+    # phân tách bằng TAB + `=`, không phải `: `. Một trường AC22 luôn rỗng là đúng lớp "rỗng
+    # im lặng" mà kho cấm: nó nằm im trong hồ sơ và người đọc sau tưởng đã có ai xét.
+    # 🔴 `|| echo KHONG DOC DUOC` — thiếu số thì phải NÓI, không để một dòng trắng.
+    printf '   CPU_Speed_Limit: %s\n' "$(pmset -g therm 2>/dev/null | awk -F'=' '/CPU_Speed_Limit/{gsub(/ /,"",$2); print $2}' | head -1 || true)"
     printf '   nguon dien   : %s\n' "$(pmset -g batt 2>/dev/null | head -1)"
-    printf '   top-CPU      : %s\n' "$(ps -Ao pcpu,comm -r | awk 'NR>1&&NR<=4{printf "%s%%%% %s  ", $1, $2}')"
+    # 🔵 Sửa cùng lượt: bản đầu viết `%%%%` và in ra `23.1%%` nguyên văn — thoát dư một lớp.
+    printf '   top-CPU      : %s\n' "$(ps -Ao pcpu,comm -r | awk 'NR>1&&NR<=4{printf "%s%% %s  ", $1, $2}')"
   } >> "$ENVF"
 }
 # 🔴 CỔNG MÀN HÌNH KHOÁ — hỏi TRƯỚC khi khởi động app, không sau. Xem §CỔNG MÀN HÌNH KHOÁ
