@@ -954,7 +954,7 @@ và **cái gì sẽ vỡ** nếu một story sau thay nó bằng một thư vi�
 - [ ] **Task 1 — Điều kiện khởi hành và hàng rào dữ liệu thật** (AC: 1, 2)
   - [x] **1.0 — kiểm đầu vào bằng TAY**: mở app, bấm vào một câu **chưa dịch**, gõ một chữ. Ghi kết quả. 🔴 Không gõ được ⇒ **DỪNG**, báo Ice, story về `backlog` (§Điều kiện khởi hành mục 2) — 🟢 **CỬA MỞ 2026-08-13**, Ice xác nhận lại lần hai
   - [ ] Dựng bàn đo theo phán quyết Quyết định #1 · #2 · #3 · #4
-  - [ ] 🔴 **Hàng rào chiều âm chạy TRƯỚC lượt kill đầu tiên**: chụp trạng thái `~/Documents/AuraTranslate/` và `$APPDATA` thật *(danh sách tệp + kích thước + mtime)*; đối chiếu lại sau cả bộ đo
+  - [x] 🔴 **Hàng rào chiều âm chạy TRƯỚC lượt kill đầu tiên**: chụp trạng thái `~/Documents/AuraTranslate/` và `$APPDATA` thật *(danh sách tệp + kích thước + mtime)*; đối chiếu lại sau cả bộ đo — 🟢 **2026-08-18** `fence-grid-before.txt` 19:45 → `fence-grid-after.txt` 22:22, **152 mục**; đối chiếu lại 2026-08-19: **y nguyên từng byte**
   - [x] **Hàng rào chiều dương**: mọi `.atproj`/`global.db` sinh ra phải nằm trong vùng nháp — kiểm bằng máy, không bằng mắt — 🟢 **2026-08-18**, `fence.sh positive` = 3 tạo tác, tất cả trong `$HOME` nháp
   - [ ] Liệt kê **mọi** đường ghi của app và trả lời từng đường *"nó rơi vào đâu khi bàn đo chạy"* (bài học Story 1.22)
   - [x] Ghi phiên bản: macOS · Rust · Node · `@tauri-apps/cli` · WebKit · model máy · profile build — 🟢 `2-4-ban-do/env-2026-08-18.txt` *(macOS 15.7.9 · rustc 1.97.1 · Node 22.22.2 · tauri-cli 2.11.4 · WebKit 20621.3.11.11.3 · MacBookPro16,1 i9-9980HK · release nguyên vẹn)*
@@ -992,10 +992,10 @@ và **cái gì sẽ vỡ** nếu một story sau thay nó bằng một thư vi�
   - [ ] Vòng đo tranh chấp vào lượt đối chứng chi phí bàn đo như **nguồn thứ tư** (AC21)
 
 - [ ] **Task 5 — Dò ngưỡng WAL và sáu số `Tuning`** (AC: 3, 7, 8, 10, 14)
-  - [ ] 🔴 **LƯỚI ĐƯỢC GHIM BẰNG SỐ — sáu điểm, không phải chữ "theo lưới"**: `512 KiB · 1 MiB · 2 MiB · 4 MiB · 8 MiB · 16 MiB`. Sáu điểm phủ **năm** bậc gấp đôi và ôm hai đầu mà AC8 bản cũ dùng. Bản cũ không có biên, bước nhảy, hay điều kiện dừng — dev thử 2 điểm rồi coi là xong, hoặc dò hàng chục điểm không có đáy, cả hai đều thoả câu chữ
-  - [ ] **Điều kiện dừng:** chạy **hết** sáu điểm. Đây cũng là cái mà nhánh một-ngưỡng-trượt của **AC5** treo lên — chưa hết lưới thì **chưa** được báo Ice
+  - [x] 🔴 **LƯỚI ĐƯỢC GHIM BẰNG SỐ — sáu điểm, không phải chữ "theo lưới"**: `512 KiB · 1 MiB · 2 MiB · 4 MiB · 8 MiB · 16 MiB`. Sáu điểm phủ **năm** bậc gấp đôi và ôm hai đầu mà AC8 bản cũ dùng. Bản cũ không có biên, bước nhảy, hay điều kiện dừng — dev thử 2 điểm rồi coi là xong, hoặc dò hàng chục điểm không có đáy, cả hai đều thoả câu chữ — 🟢 **2026-08-18 19:45–22:22**, sáu trên sáu điểm
+  - [x] **Điều kiện dừng:** chạy **hết** sáu điểm. Đây cũng là cái mà nhánh một-ngưỡng-trượt của **AC5** treo lên — chưa hết lưới thì **chưa** được báo Ice — 🟢 **ĐÃ HẾT LƯỚI**, 121 lượt bắn / 120 `VALID` / 1 `RIG_FAIL`, mỗi điểm ≥ 20 mẫu hợp lệ. ⚠️ Nhưng vẫn **chưa** báo Ice được: bảng ba ca của AC5 chưa xác định được ca, vì vế NFR2 chưa đo
   - [ ] **Luật tinh chỉnh, tối đa 2 lượt:** nếu hai điểm liền nhau nằm hai bên một lằn ngưỡng *(một đạt, một trượt)*, thêm **một** điểm giữa. Quá 2 lượt tinh chỉnh ⇒ dừng, ghi số, để Ice quyết
-  - [ ] Chạy bộ kill của Task 4 **tại MỌI điểm lưới** *(≥ 20 mẫu hợp lệ mỗi điểm)*; dựng bảng cửa sổ mất dữ liệu **max theo ngưỡng** — bảng đó **là** câu trả lời cho AC3, không cần giả thuyết (AC8)
+  - [x] Chạy bộ kill của Task 4 **tại MỌI điểm lưới** *(≥ 20 mẫu hợp lệ mỗi điểm)*; dựng bảng cửa sổ mất dữ liệu **max theo ngưỡng** — bảng đó **là** câu trả lời cho AC3, không cần giả thuyết (AC8) — 🟢 **2026-08-18**, bảng ở §Kết quả LƯỚI SÁU ĐIỂM. Câu trả lời AC3: **cặp đánh đổi WAL ⟷ NFR18 không tồn tại trong tải này** *(đỉnh WAL ~740 KB, ngưỡng trơ từ 1 MiB trở lên, `busy = 0`)*
   - [ ] Mỗi điểm ghi thêm: frame max · số lượt checkpoint theo vế **ngưỡng** · đỉnh `.db-wal` · 🔵 **thời gian chờ khoá của mỗi lượt flush, tách riêng khỏi thời gian ghi** — kênh `busy_timeout` mà §mục 8 bỏ sót (AC8)
   - [ ] Sáu hàng `Tuning` — mỗi hàng **đúng một** nhãn trong ba nhãn của AC7, kèm số hoặc kèm chủ mới có tên. 🔴 Nhãn ba dùng **≥ 3** lần ⇒ **DỪNG trước Task 8**, báo Ice (AC7)
   - [ ] 🔴 Kiểm chéo `idle_before_passive` ⟷ `EDITOR_IDLE_MS`: đổi nhịp flush mà quên ràng buộc *"cố ý dài hơn"* là làm luồng checkpoint đánh nhau với đường gõ (§mục 4)
@@ -2233,6 +2233,291 @@ chạm **mtime**, không chạm nội dung.
 | `EDITOR_HARD_CAP_MS` | 5000 | | |
 | `EDITOR_RETRY_FLOOR_MS` | 2000 | | |
 
+### 🔵 Kết quả LƯỚI SÁU ĐIỂM — đọc từ đĩa 2026-08-19, và nó lật một mệnh đề của chính tệp này
+
+🔴 **Mệnh đề đã hết đúng, sửa tại chỗ.** Hàng §Change Log ngày 2026-08-18 viết *"Lưới sáu điểm và
+phiên NFR2 **không chạy** lượt này"*, và `sprint-status.yaml` chép lại nó. Câu đó đúng cho lượt
+**15:49**. Nó **hết đúng lúc 19:45 cùng ngày**: `run-grid.sh` chạy trọn sáu điểm từ **19:45 tới
+22:22** *(2 giờ 37 phút)*. Không ai ghi lại vì `2-4-ban-do/.gitignore:17` loại `kill2-*.tsv` khỏi
+index — **dữ liệu sống trên đĩa, ngoài kho, nên không lượt rà tài liệu nào thấy nó.**
+
+⇒ Điều kiện *"một cái máy rảnh 3,5 giờ"* **đã được thoả từ tối 18/8**. Thứ còn thiếu suốt một ngày
+là một lượt **đọc số và viết ra**, không phải một lượt đo lại. *(Bằng chứng mtime: `kill2-g512kib.tsv`
+20:11 · `g1mib` 20:37 · `g2mib` 21:04 · `g4mib` 21:31 · `g8mib` 21:57 · `g16mib` 22:22; hai đầu hàng
+rào `fence-grid-before.txt` 19:45 → `fence-grid-after.txt` 22:22.)*
+
+#### Bảng AC8 — in bằng chính `grid-table.sh` của story, không bằng một phép tính rời
+
+```
+nguong  ban hople   min_s trung_vi   max_s  max-tv vuot5s dinh_wal_p busy
+512kib   20    20   9.145   14.253  20.361   6.108     20    605.672    0
+1mib     21    20   8.559   15.164  22.414   7.250     20    630.392    0
+2mib     20    20   8.966   16.035  24.382   8.347     20    630.392    0
+4mib     20    20   7.747   16.552  23.760   7.208     20    634.512    0
+8mib     20    20   8.266   15.300  20.975   5.675     20    749.872    0
+16mib    20    20   8.009   13.394  20.624   7.230     20    753.992    0
+```
+
+**121 lượt bắn · 120 `VALID` · 1 `RIG_FAIL` · 0 mẫu hạng ② hay ③ của AC9.** Sáu trên sáu điểm đủ
+sàn ≥ 20 mẫu hợp lệ ⇒ **lưới đã dò HẾT**, tức điều kiện tiên quyết của nhánh AC5 đã thoả.
+
+#### 🔴 Phán quyết ①: NFR18 TRƯỢT ở mọi điểm, và nó trượt xa
+
+Cột `vuot5s` = **20 ở cả sáu điểm** — không một lượt nào trong 120 đạt trần 5 s. Mẫu **tốt nhất
+của toàn phiên** là 7,747 s; trừ ~0,4 s chi phí gõ mà `grid-table.sh` tự khai là cận trên thì vẫn
+≈ **7,3 s**. Trung vị 13,4–16,6 s ⇒ **vượt trần khoảng ba lần**. Mọi điểm bị gắn cờ **BẤT ỔN** theo
+cả hai vế dung sai của AC2 *(`max − trung vị > 2 s` **và** có mẫu > 5 s)*.
+
+#### 🔴 Phán quyết ②: cặp đánh đổi WAL ⟷ NFR18 KHÔNG TỒN TẠI trong tải này — và cột `dinh_wal_p` nói vì sao
+
+Lưới phẳng không phải vì đo hỏng. Đỉnh `.db-wal` thật **không bao giờ vượt ~740 KB**, bất kể ngưỡng
+đặt ở đâu:
+
+| Ngưỡng đặt | Đỉnh `.db-wal` thật | Tỷ lệ chạm ngưỡng |
+| --- | --- | --- |
+| 512 KiB | 605.672 B | **115 %** — điểm DUY NHẤT thật sự kích hoạt |
+| 1 MiB | 630.392 B | 60 % |
+| 2 MiB | 630.392 B | 30 % |
+| 4 MiB | 634.512 B | 15 % |
+| 8 MiB | 749.872 B | 9 % |
+| 16 MiB | 753.992 B | **4,5 % — tức 1/22** |
+
+⇒ Từ điểm 1 MiB trở lên, `wal_threshold_bytes` là một **biến TRƠ**: nó chưa từng kích hoạt một lần
+nào trong toàn bộ phiên. `busy = 0` ở cả sáu điểm xác nhận — không lượt checkpoint nào bị chặn.
+**Năm bậc gấp đôi mà trung vị chỉ đi 13,4 → 16,6 s, nhỏ hơn biên độ tản trong chính một điểm
+(5,7–8,3 s).**
+
+🔴 **Hệ quả cho AC3, và đây là câu mà dòng đóng `ARCHITECTURE-SPINE.md:990` bắt buộc phải chở:**
+hàng Deferred gốc đóng khung bài toán là `wal_threshold_bytes` ⟷ nhịp flush **đánh đổi lẫn nhau**.
+Số đo nói cặp đó **hẹp hơn** cặp đã đặt — vế `wal_threshold_bytes` **không có mặt trong bài toán**
+ở tải đã đo, vì WAL không lớn tới ngưỡng. NFR18 hỏng ở **đường flush**, không ở ngưỡng WAL. Đây
+đúng là thứ §Điều kiện khởi hành mục 8 cảnh báo trước **bằng chữ**; nay nó có **số** đứng sau.
+
+⚠️ **Và một mâu thuẫn CHƯA AI GIẢI THÍCH, ghi ra thay vì để người sau tự phát hiện:** AD-35 khai
+**trần cứng 5 s KHÔNG reset bởi phím gõ**. Một cửa sổ mất mát trung vị 14–16 s trên một hợp đồng
+như thế là tự mâu thuẫn. Ba khả năng chưa phân biệt được bằng dữ liệu hiện có — ⑴ flush có chạy
+nhưng chưa **tới WAL** trong trần; ⑵ định nghĩa `window_s` của bàn đo rộng hơn định nghĩa
+"mất công việc" của NFR18; ⑶ trần cứng không kích hoạt như khai. **Chủ: phiên Task 3, chưa chạy.**
+
+#### ⚠️ GIỚI HẠN CÓ TÊN của bảng này — Ice ký giữ số 2026-08-19
+
+Ice chốt **giữ số cũ và ghi rõ giới hạn**, thay vì đốt thêm 2,5 giờ chạy lại. Lý do chốt được ghi
+ra để lượt sau kiểm được: phát hiện cốt lõi là **đỉnh WAL ~740 KB nên ngưỡng trơ** — một kết luận
+về **hình dạng**, và tải nền không đổi được hình dạng đó. Bốn giới hạn đi kèm, không cái nào được
+làm nhẹ đi khi trích lại:
+
+1. 🔴 **Tải nền CHƯA bị loại.** Sáu lượt chạy ở `loadavg` trung bình **7,00–8,52** trên máy 8 nhân
+   *(`load-g*.tsv`)* — ngang hoặc **trên** mức 7,19 mà **chính AC22** đã gắn cờ là *"đủ để thổi
+   số"*. Lượt đối chứng AC21 loại được **bàn đo**, **không** loại được **máy**. ⇒ Con số tuyệt đối
+   là **cận trên**; kết luận *"lưới phẳng"* thì không phụ thuộc vào nó.
+2. Mọi cửa sổ cộng thêm ~0,4 s chi phí gõ — `type-driver.sh` ghi mốc bơm **trước** lượt `osascript`.
+3. `busy` là **SỐ ĐẾM** lượt checkpoint bị chặn, **không** phải thời lượng chờ khoá. Độ trễ I-O
+   thật phải đo **trong tiến trình**, tức mã sản phẩm, tức ngoài rào phạm vi mũi thăm dò này.
+   🔴 **Cấm đọc `busy = 0` thành *"không có tranh chấp I-O"*.**
+4. Chỉ macOS. `deferred-work.md:1954-1957` giữ nguyên hiệu lực.
+
+*(Sáu giá trị `dinh_wal_p` đã đọc lại trực tiếp từ `wal2-g*.tsv` bằng một đường độc lập với
+`grid-table.sh`, và khớp cả sáu: 605.672 · 630.392 · 630.392 · 634.512 · 749.872 · 753.992.
+Hai điểm 1 MiB và 2 MiB trùng nhau đúng tới byte — không phải lỗi chép, mà là hệ quả của chính
+phát hiện: WAL chạm trần tự nhiên của tải chứ không chạm ngưỡng cấu hình.)*
+
+#### Hàng rào chiều âm — ĐỨNG
+
+`./fence.sh diff grid-before grid-after` *(chạy lại 2026-08-19)*: 🟢 **y nguyên từng byte** trên cả
+**152** mục của `~/Documents/AuraTranslate` và `$APPDATA` thật. Một phiên 2h37 với 121 lượt `SIGKILL`
+không chạm một byte dữ liệu thật nào.
+
+#### Cái này CHƯA nói được, và đừng đọc nó rộng ra
+
+**Phiên NFR2 (Task 3) chưa chạy một lần nào** — `nfr2-session.sh` có mặt, **0 tệp kết quả**.
+⇒ Story **chưa** phân loại được giữa hai ca của AC5: *"loại trừ nhau"* đòi biết NFR2 đỏ hay xanh ở
+ít nhất một điểm, mà điều đó chưa đo. Thứ đã chắc là **vế NFR18 đỏ ở mọi điểm lưới**. Task 10
+**chưa** được khởi động, vì bảng ba ca của AC5 chưa xác định được ca.
+
+### 🔴 GỐC RỄ của lượt treo từ 2026-08-13 — tìm ra 2026-08-19
+
+**`bench.js` chưa bao giờ chạy được trên Tauri 2.11.5, và nó chết ở hành động ĐẦU TIÊN của nó.**
+
+`patchInvoke()` — lệnh cấp cao nhất đầu tiên của tệp — làm `I.invoke = function …`. Nhưng
+`tauri-2.11.5/scripts/core.js:81` khai thuộc tính đó bằng `Object.defineProperty(…, 'invoke',
+{ value: … })`, **chỉ có `value`** ⇒ mặc định `writable: false` **và** `configurable: false`.
+Trong `'use strict'` (`bench.js:25`), phép gán đó ném `TypeError` và giết cả IIFE — **trước**
+`title('BENCH_LOADED')`, trước dấu sống, trước mọi thứ.
+
+#### Vì sao nó ẩn được sáu ngày: HAI kênh chẩn đoán đều mù
+
+| Kênh | Vì sao nó không thấy |
+| --- | --- |
+| `document.title` | Trong Tauri, gán `document.title` **không** đổi tiêu đề cửa sổ **native**. `osascript` đọc ra `AuraTranslate` dù mã có chạy hay không — nó **không phân biệt được hai ca**, theo cả hai chiều. |
+| dấu sống qua IPC | Lượt ném xảy ra **trước** dấu sống ⇒ dấu sống vắng, và "vắng" bị đọc thành *"lượt tiêm trượt"*. Sáu ngày đi vá khâu tiêm, trong khi khâu tiêm chưa bao giờ hỏng. |
+
+⇒ Bốn giả thuyết bị bác ngày 2026-08-13 *(`strings` · CSP · cache `build.rs` · `document.title`)*
+đều bị bác **ĐÚNG**. Không cái nào là nguyên nhân, vì nguyên nhân nằm ở **một dòng của chính
+bàn đo** — và không vòng chẩn đoán nào nhìn vào đó, vì cả bốn đều hỏi *"lượt tiêm có tới nhị
+phân không"*.
+
+#### Chuỗi bằng chứng, ba tầng độc lập
+
+1. **Nguồn Tauri** — `core.js:81` khoá thuộc tính `invoke`; `src/manager/webview.rs:173` khoá
+   **chính biến toàn cục**: `Object.defineProperty(window, '__TAURI_INTERNALS__', { value: … })`.
+2. **Tái lập** — `diag-bench-throw.mjs` chạy `bench.js` trên `happy-dom`: `invoke` ghi-được ⇒
+   `title = "BENCH_LOADED"`; `writable:false` / getter-only / `Object.freeze` ⇒ **`TypeError`
+   cả ba**.
+3. **Máy thật** — `diag-seam.sh` (vòng chẩn đoán ③): ⓐ tên tài nguyên nhúng đổi thành
+   `index-SEAMPROBE.js` ⇒ **nhúng mới** · ⓑ một `put_config` đặt cạnh, **không vá gì**, ăn ngay
+   lần đầu (`n=0`) · ⓒ dấu sống bench **vắng**.
+   🔴 **Mấu chốt là ⓑ so với ⓒ**: cùng lệnh, cùng `kind`, cách nhau vài micro giây — cái **GỌI**
+   thì sống, cái **GÁN ĐÈ** thì chết.
+
+#### Hệ quả kiến trúc: KHÔNG tồn tại đường vá `invoke` từ webview
+
+Bốn đường đều đóng, và cả bốn đóng ở **nền tảng**, không ở dự án:
+
+| Đường | Vì sao đóng |
+| --- | --- |
+| gán đè `I.invoke` | `writable: false` |
+| gán đè cả `window.__TAURI_INTERNALS__` | `writable: false` *(`webview.rs:173`)* — đo được: `patchMode = "TRƯỢT khi chép: Attempted to assign to readonly property"` |
+| `Proxy` | Bất biến Proxy buộc bẫy `get` trả **đúng** giá trị gốc cho thuộc tính không-ghi-không-cấu-hình |
+| `Object.defineProperty` | `configurable: false` |
+
+🔴 **Điều này lật một tiền đề của Quyết định #3.** Bộ lọc bắt buộc *("loại delta không có
+input/flush nào")* có **hai** vế, và vế `flush` giả định một khả năng mà Tauri không cấp.
+**Ice ký 2026-08-19:** lấy mốc flush từ chỉ báo *"Đã lưu N giây trước"* (`StatusBar.vue:285`,
+`footer.status > span.saved`) bằng `MutationObserver` — chỉ **đọc** DOM, không chạm một dòng mã
+sản phẩm. `secondsSinceSave` là `computed` trên `editorLastSavedAt` (`:85-89`) nên nó render lại
+**ngay** lúc flush, không chờ nhịp một giây.
+
+⚠️ **Ba giới hạn của đường thay thế, ghi ra thay vì để người sau tưởng nhầm:** ① nó đo lúc
+**giao diện** đổi, muộn hơn lúc WAL nhận ⇒ **cận trên**; ② nó đo **thời điểm**, không đo **độ
+dài** một lượt flush ⇒ `flushMsMax` vô nghĩa ở chế độ này, **đừng trích**; ③ hai lượt flush cách
+nhau dưới một giây cho cùng chuỗi *"0 giây trước"* ⇒ không sinh mutation ⇒ lượt thứ hai **mất**,
+nên `nFlushes` là một **cận dưới**.
+
+#### Năm khuyết tật của bàn đo đã vá trong lượt này
+
+Cả năm cùng một hạng — **cho ra một bảng số trông bình thường trên một phép đo hỏng**:
+
+| # | Khuyết tật | Nếu không vá |
+| --- | --- | --- |
+| ① | `patchInvoke` ném và giết cả `bench.js` | bàn đo NFR2 chết im lặng — gốc rễ của cả story |
+| ② | `nfr2-session.sh` ghim toạ độ chết `(980,430)`, không nghiệm thu | gõ vào hư không ⇒ **NFR2 xanh** trên phiên không ai gõ |
+| ③ | Không hỏi dấu sống trước phiên | 30 phút chạy xong, JSON **rỗng**, thoát **0** |
+| ④ | Dựng Tác phẩm bằng `key 18` của chính bench + không mở Workspace | sau `location.reload()` app ở màn Library ⇒ không có lưới để bấm |
+| ⑤ | **AC13 chạy TRƯỚC phiên gõ** | `measureRebuild()` làm `grid.innerHTML=''` rồi gán lại ⇒ Vue giữ node cũ đã tháo rời, node mới là **HTML chết** ⇒ phép đo AC13 **giết chính phiên NFR2 đứng sau nó** |
+
+🔴 **⑤ là cái đắt nhất và nó không hiển nhiên**: một phép đo *đọc* trên giấy tờ hoá ra là một
+phép đo *phá*. Nay AC13 đứng **cuối**, sau phiên gõ. Đánh đổi đã ghi: bộ lấy mẫu vẫn chạy lúc đó
+*(không có phím "ngừng" riêng)* nên frame của lượt dựng lại rơi vào `all` — **không** rơi vào
+`busy`, tức phán quyết AC1 không bị đụng. Ai trích `all.max` phải biết điều đó.
+
+#### Số NFR2 ĐẦU TIÊN — nghiệm thu bàn đo, KHÔNG phải số báo cáo
+
+Phiên 20 giây, thang `m` *(16.000 ký tự, 122 segment)*, `n=1`, trên máy vừa dựng hai bản release:
+
+```
+patchMode = TRƯỢT khi chép (vế flush vắng ở lượt này)
+busy  n=817  max=92ms  p99=77  p50=25  vượt-50ms = 80/817 ≈ 10%
+all   n=1008 max=92ms  p99=75  p50=23
+hotpath  restoreEditedText 0/0 · selectionRepaint 1/2 · caretMove 0/1 ms
+build    dựng lại 738 node = 21 ms
+```
+
+🔴 **KHÔNG được trích như một số nghiệm thu** — 20 giây so với sàn 30 phút, `n=1` so với `n=3`,
+và tải nền chưa loại. Thứ nó nói được đúng **một** điều: **bàn đo chạy trọn vòng**.
+⚠️ Nhưng một điều đáng ghi: ba đường nóng của AC12 **không** phải thủ phạm ở cỡ này *(0–2 ms)*,
+trong khi ~10 % frame đã vượt trần 50 ms trên một Chương chỉ 122 câu.
+
+#### 🔵 CẬP NHẬT cuối phiên — cửa vào con trỏ ĐÃ VÁ, và nguyên nhân KHÔNG phải cái đã đoán
+
+**Toạ độ nay ĐO ĐƯỢC, không còn đoán.** `bench.js` §⑦b báo tâm phần tử trong **khung nhìn**
+cộng cỡ khung nhìn; `front.sh::to_screen` quy về màn hình từ gốc cửa sổ mà `setup-gui.sh` đã
+đặt-rồi-đọc-lại. Đo được: ô đích ở khung nhìn `[367,144,1200,872]` ⇒ màn hình `(567,197)`,
+**trúng ngay ứng viên đầu tiên**. Lệch thanh tiêu đề là **28** điểm (`900−872`) — con số mà bộ
+16 ứng viên viết cứng chưa bao giờ biết.
+
+🔴 **Và bộ 16 ứng viên cũ sai vùng, không chỉ sai điểm:** chúng nằm quanh `y = 170…480` trong
+khi ô thật ở `y ≈ 1104` *(lượt đo đầu)*. Tỷ lệ "3/7 vào được" chưa bao giờ là một cửa vào 50 %
+— đó là **ăn may**.
+
+⚠️ **Bản đầu của lượt vá này SAI, và ghi ra vì nó là một bài học dùng lại được:** nó dùng
+`window.screenX/screenY`. Máy này có **hai màn hình** *(desktop trải `0,0,3456,1080`)*, và trong
+cấu hình đó WKWebView trả về một hệ toạ độ **khác** hệ của `cliclick` — đo được: tab Workspace
+ra `(102,980)` trong khi cửa sổ nằm ở `(200,25)` cỡ `1200×900`. ⇒ Đừng tin `screenX/screenY`
+trong webview; chỉ tin thứ đo được **trong khung nhìn** cộng hình học cửa sổ mà mình tự đặt.
+
+#### 🟢 BÀN ĐO NFR2 NAY CHẠY TRỌN VÒNG VÀ LẶP LẠI ĐƯỢC — 4/4 phiên
+
+Ba chỗ chặn ở mục dưới **đã đóng hết**, và không cái nào đóng bằng một vòng thử-lại mù:
+
+| Chỗ chặn | Cách đóng | Bằng chứng |
+| --- | --- | --- |
+| Cửa vào con trỏ | Bỏ 16 toạ độ đoán; bench báo tâm ô trong **khung nhìn**, `front.sh::to_screen` quy về màn hình từ gốc cửa sổ | trúng **ngay ứng viên đầu**, 4/4 phiên |
+| Không sang được Workspace | Bỏ hẳn cú bấm toạ độ; dùng **`⌘2`** — phím tắt của chính sản phẩm (`commands/index.ts:560`, `run` gọi `setMode` **vô điều kiện**) | *"đã sang Workspace — lưới có 122 ô"*, 4/4 phiên |
+| Hai phím cuối không tới | Cổng **`settle_keys`**: gửi phím dò, chờ **bộ đếm phím nóng của bench TĂNG** rồi mới gửi phím quyết định | phím đổ số tới **ngay lượt đầu**, 2/2 phiên có cổng |
+
+🔴 **Và cổng đó lộ ra nguyên nhân thật, thứ mà vòng thử lại đã che:** bộ đếm phím nhảy
+**3 → 13** ở một phiên và **→ 7** ở phiên kia. Tức mười phím dò **không bị mất — chúng bị XẾP
+HÀNG**, rồi được xử lý cùng lúc khi app đuổi kịp. ⇒ *"Phím 3 và 5 không tới nơi"* thật ra là
+**app tụt lại sau phiên gõ khoảng 15 giây**. Đó là một mệnh đề về **NFR2**, không phải về bàn
+đo — và nó nặng hơn con số frame max. Chủ: phiên đo thật.
+
+⚠️ Trước khi có cổng, cùng tham số, phím đổ số phải bắn **2** lượt rồi **5** lượt *(trần là 5 —
+một phiên nữa là mất trắng)*. Con số đó nay được **in ra**, không nuốt.
+
+#### Số của bốn phiên chạy trọn — VẪN LÀ SỐ NGHIỆM THU BÀN ĐO
+
+Thang `m` *(16.000 ký tự, 122 segment)*, gõ 30 s, `n=1` mỗi phiên:
+
+| Phiên | ms | mẫu | input | flush | max | p99 | p50 | vượt 50 ms |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `wsfix` | 40.700 | 1.416 | 1.233 | 7 | **101** | 84 | 27 | 111/1231 = **9 %** |
+| `rep2` | 58.822 | 1.211 | 1.004 | 10 | **313** | 218 | 44 | 393/1000 = **39 %** |
+| `gate1` | 70.051 | 1.745 | 1.092 | 12 | **321** | 219 | 43 | 420/1086 = **39 %** |
+| `gate2` | 45.401 | 1.895 | 1.233 | 8 | **113** | 82 | 25 | 102/1228 = **8 %** |
+
+🔴 **CẤM trích như số nghiệm thu** — 30 giây so với sàn 30 phút, `n=1`, thang `m` chứ không
+phải Chương thật, và máy chạy lẫn với các lượt `cargo build` của chính phiên sửa này.
+
+⚠️ **Nhưng hình dạng thì đã đáng ghi, và nó PHÂN ĐÔI:** hai phiên ~**9 %** frame vượt trần với
+max ~101–113 ms, hai phiên **39 %** với max ~313–321 ms. Cùng bàn đo, cùng tham số, cùng thang.
+Một phân bố hai cụm như thế **không** giải thích được bằng nhiễu đo; nó đòi một biến chưa được
+kiểm soát — nghi can đầu là tải nền. ⇒ Phiên đo thật phải ghi `loadavg` **theo từng phiên**
+và không được gộp bốn con số này lại thành một.
+
+#### 🔴 BA thứ ĐÃ CHẶN — chưa cái nào là khuyết tật của SẢN PHẨM *(giữ lại làm lịch sử chẩn đoán)*
+
+**① Điều kiện thật không phải "bấm sang Workspace" mà là "phải có một Tác phẩm đang MỞ".**
+Ảnh chụp `fail-tab-retry.png`: sau cú bấm, app **vẫn ở Library**, và màn hình ghi
+*"Library chưa có Tác phẩm nào"* — trong khi `setup-gui.sh` đã tạo `Untitled.atproj` với **122
+segment** trên đĩa. Danh sách không làm mới, nên `dispatch('mode.workspace')` không đi đâu cả.
+Những lượt chạy được là vì app **tự** chuyển sang Workspace sau lượt tạo, và điều đó **không
+phải lúc nào cũng xảy ra**. ⇒ `setup-gui.sh` phải **mở** Tác phẩm, không chỉ **tạo** nó — và
+`nfr2-session.sh` phải nghiệm thu *"đã có Tác phẩm mở"* thay vì nghiệm thu *"đã bấm"*.
+⚠️ Nó cũng tạo Tác phẩm với **tên rỗng** (`""` → `Untitled.atproj`); chưa rõ hai chuyện có
+cùng gốc không.
+
+**② Hai phím cuối không tới nơi sau lượt gõ.** Nhật ký phím của bench *(ô `#__bench__`, thêm
+2026-08-19, đọc qua ảnh chụp)* ghi `⌨[7,7,4,7,2]` ở một phiên hỏng: phím **7·4·2 tới**, còn
+**5 (AC13) và 3 (đổ số) thì không** — dù cổng tiêu điểm xanh và vòng rAF của bench vẫn chạy,
+tức luồng chính **không nghẽn**. Chỉ phiên **20 giây** là cả hai từng tới; phiên 30 s và 60 s
+thì không. Biến phân biệt là **thời lượng gõ**. Nguyên nhân **chưa định vị**. Hàng rào hiện
+tại: bắn → **đọc kho** → chưa có thì bắn lại, tối đa 5 lượt, và **in ra** nếu phải quá một
+lượt *(con số đó tự nó là một phát hiện, đừng nuốt)*.
+
+**③ Ba giới hạn của đường mốc flush mới** — xem §①b của `bench.js`. `nFlushes` là **cận dưới**.
+
+#### Hai thứ ĐÃ vá xong trong lượt này *(giữ lại để đối chiếu lịch sử)*
+
+1. **`focus-segment.sh` chập chờn ~50 %.** Bảy phiên trong lượt này: **3 vào được, 4 trượt cả
+   16 ứng viên**, cùng script, cùng thang, cùng hình học cửa sổ. Chính đầu tệp đó đã ghi
+   *"vùng trúng không ổn định giữa các lượt"* từ 2026-08-13 — nay nó có **tỷ lệ**. Một phiên
+   30 phút × `n=3` đứng trên một cửa vào 50 % là một lượt đo sẽ hỏng giữa chừng.
+2. **`dump()` ném ở cuối phiên.** Phiên `flushtest` gõ đủ 60 s *(48 dòng `typing-flushtest.log`)*,
+   `require_front` xanh trước `key 20`, mà `__bench__` vẫn vắng — trong khi `__bench_alive__`,
+   `mode`, `workspace_layout` đều có trong kho, tức `put_config` chạy tốt suốt phiên.
+   Chưa định vị được; hàng rào nay **chụp màn hình** trước khi giết app để đọc câu
+   `paint('ĐỔ TRƯỢT: …')`, kênh duy nhất nói được lý do.
+
 ### File List
 
 Lượt 2026-08-18 **(b)** — hai mảnh Task 5 không cần máy rảnh:
@@ -2290,6 +2575,31 @@ _bmad-output/implementation-artifacts/2-4-ban-do/.gitignore            # giữ t
 | 2026-08-18 | **AC14 — con trỏ SPINE `:883` đã sai, sửa thành `:990`** ở `editorFlush.ts:35,62`; `grep` nghiệm thu trả **0**. Vị trí xác minh lại từ chính SPINE. Kèm tên hàng vào chú thích vì con trỏ chỉ-có-số đã trôi một lần. |
 | 2026-08-18 | **Dựng cổng máy cho bất biến ① của §mục 4** — `src-tauri/tests/flush_cadence_contract.rs`, 5 ca, đỏ-rồi-xanh trên tệp thật. Nó ôm **đúng** mối ghép xuyên hai workspace; ba mệnh đề đơn-ngôn-ngữ giữ nguyên chủ cũ. |
 | 2026-08-18 | 🔴 **Lượt ĐỎ bắt lỗi của chính bản test:** bản đầu ghim `Ok(2000)` ⇒ nguồn sự thật thứ hai cho một số đã có chủ ở vitest. Lộ ra vì lượt đỏ cho **hai** ca đỏ thay vì một. Đã viết lại thành *"bóc được, đúng một khai báo"*. |
+| 2026-08-19 | 🔵 **Hàng "lưới sáu điểm KHÔNG chạy" ở trên HẾT ĐÚNG — nó chỉ đúng cho lượt 15:49.** Lưới chạy **19:45–22:22 cùng ngày** và không ai ghi lại, vì `.gitignore:17` giữ `kill2-*.tsv` ngoài index nên không lượt rà tài liệu nào thấy dữ liệu. Điều kiện *"máy rảnh 3,5 giờ"* đã thoả từ tối 18/8; thứ thiếu suốt một ngày là một lượt ĐỌC SỐ. |
+| 2026-08-19 | 🔴 **NFR18 TRƯỢT 120/120 mẫu ở cả sáu điểm** — tốt nhất 7,747 s *(≈7,3 s sau khi trừ chi phí gõ)*, trung vị 13,4–16,6 s so với trần **5 s**, mọi điểm gắn cờ BẤT ỔN theo cả hai vế dung sai AC2. |
+| 2026-08-19 | 🔴 **Và đây là điều TÌM RA, không phải điều đo được:** lưới phẳng vì **đỉnh `.db-wal` không bao giờ vượt ~740 KB**, nên từ 1 MiB trở lên `wal_threshold_bytes` là một **biến TRƠ** — ở điểm 16 MiB nó mới chạm **1/22** ngưỡng, và `busy = 0` ở cả sáu. ⇒ Cặp đánh đổi WAL ⟷ NFR18 mà `ARCHITECTURE-SPINE.md:990` treo lên **không tồn tại trong tải này**; NFR18 hỏng ở **đường flush**. §Điều kiện khởi hành mục 8 đoán đúng bằng chữ từ 2026-08-13, nay có số. |
+| 2026-08-19 | ⚠️ **Mâu thuẫn chưa ai giải thích, ghi ra thay vì để người sau phát hiện:** AD-35 khai trần cứng **5 s không reset**, mà cửa sổ mất mát trung vị **14–16 s**. Ba khả năng chưa phân biệt được bằng dữ liệu hiện có. Chủ: phiên Task 3. |
+| 2026-08-19 | **Ice ký GIỮ SỐ CŨ** thay vì chạy lại 2,5 giờ trên máy rảnh, kèm bốn giới hạn có tên — nặng nhất là `loadavg` 7,00–8,52 lúc đo, **trên** mức 7,19 mà chính AC22 đã gắn cờ. Lý do chốt: phát hiện là về **hình dạng** *(ngưỡng trơ)*, và tải nền không đổi được hình dạng. |
+| 2026-08-19 | 🔴 **Một câu tôi viết ra mà không có bằng chứng, và đã gỡ:** bản nháp đầu sửa `dinh_wal_p` của điểm 2 MiB thành 634.512 B rồi bịa lý do *"grid-table.sh chép nhầm dòng"*. Đọc lại `wal2-g2mib.tsv` bằng đường độc lập: **630.392 B**, đúng y bản in gốc. Đã trả lại cả sáu giá trị và kiểm chéo cả sáu. |
+| 2026-08-19 | 🟢 **Hàng rào chiều âm ĐỨNG** qua 121 lượt `SIGKILL`: `~/Documents/AuraTranslate` và `$APPDATA` thật y nguyên từng byte trên cả **152** mục. |
+| 2026-08-19 | 🔴 **GỐC RỄ của lượt treo sáu ngày, và nó là MỘT DÒNG CỦA CHÍNH BÀN ĐO:** `patchInvoke()` gán `I.invoke = …`, mà Tauri khoá thuộc tính đó (`core.js:81`, `defineProperty` chỉ có `value`) ⇒ `'use strict'` ném `TypeError` ở lệnh cấp cao nhất ĐẦU TIÊN, giết cả `bench.js`. Bốn giả thuyết bị bác ngày 13/8 đều bị bác **đúng** — không cái nào là nguyên nhân. |
+| 2026-08-19 | 🔴 **Vì sao nó ẩn được:** cả hai kênh chẩn đoán đều mù. `document.title` không đổi tiêu đề cửa sổ native trong Tauri *(nên nó không phân biệt được hai ca)*, còn dấu sống đi qua IPC thì nằm **sau** chỗ ném. Sáu ngày đi vá khâu tiêm, trong khi khâu tiêm chưa bao giờ hỏng. |
+| 2026-08-19 | **Vòng chẩn đoán ③ (`diag-seam.sh`) hỏi BA câu trong MỘT lượt dựng** — đổi tên bundle *(tên tài nguyên nằm không nén trong nhị phân, nội dung thì nén)* · một `put_config` đặt cạnh không vá gì · dấu sống bench. Kết quả ⓐ✓ ⓑ✓ ⓒ✗ khoanh trúng chỗ hỏng, thay vì bác thêm một giả thuyết. |
+| 2026-08-19 | 🔴 **Không tồn tại đường vá `invoke` từ webview trên Tauri 2.11.5** — bốn đường đều đóng ở nền tảng, gồm cả gán đè chính biến toàn cục (`webview.rs:173` cũng `defineProperty` chỉ có `value`). Điều này **lật một tiền đề của Quyết định #3**. Ice ký: lấy mốc flush từ chỉ báo *"Đã lưu"* bằng `MutationObserver`, kèm ba giới hạn có tên. |
+| 2026-08-19 | 🔴 **Một phép đo tưởng là ĐỌC hoá ra là PHÁ:** AC13 (`measureRebuild`) làm `grid.innerHTML=''` rồi gán lại ⇒ node mới là HTML chết, không handler. Bản cũ gọi nó **trước** phiên gõ, nên **phép đo AC13 giết chính phiên NFR2 đứng sau nó**. Đã dời xuống cuối. |
+| 2026-08-19 | 🟢 **Bàn đo NFR2 chạy trọn vòng lần đầu** kể từ 2026-08-13: dấu sống ✓ · con trỏ vào ✓ · lấy mẫu ✓ · đổ số 1.389 byte ✓. Năm khuyết tật bàn đo đã vá, cả năm cùng hạng *"bảng số bình thường trên phép đo hỏng"*. |
+| 2026-08-19 | ⚠️ **Còn hai thứ chặn, và cả hai của bàn đo:** `focus-segment.sh` chập chờn **3/7 lượt vào được**; và `dump()` ném ở cuối phiên *(gõ đủ 60 s, tiêu điểm xanh, `put_config` chạy tốt suốt phiên, mà `__bench__` vẫn vắng)*. Chưa định vị cái thứ hai. |
+| 2026-08-19 | 🟢 **Cửa vào con trỏ ĐÃ VÁ và nay tất định** — bench báo toạ độ trong KHUNG NHÌN, `front.sh::to_screen` quy về màn hình từ gốc cửa sổ. Trúng ngay ứng viên đầu; lệch thanh tiêu đề đo được = **28** điểm. |
+| 2026-08-19 | 🔴 **Bộ 16 ứng viên cũ SAI VÙNG, không chỉ sai điểm** — chúng ở `y = 170…480`, ô thật ở `y ≈ 1104`. ⇒ "3/7 vào được" chưa bao giờ là một cửa vào 50 %, nó là **ăn may**. |
+| 2026-08-19 | ⚠️ **Bản đầu của lượt vá đó SAI và đã sửa:** `window.screenX/screenY` của WKWebView **không** cùng hệ với `cliclick` khi máy có hai màn hình *(desktop `0,0,3456,1080`)* — tab ra `(102,980)` trong khi cửa sổ ở `(200,25)`. Bài học dùng lại được: trong webview chỉ tin toạ độ **khung nhìn**. |
+| 2026-08-19 | 🔴 **Chỗ chặn thật KHÔNG phải cú bấm tab, mà là "chưa có Tác phẩm nào ĐANG MỞ".** Ảnh chụp: app ở Library, màn hình ghi *"Library chưa có Tác phẩm nào"*, trong khi đĩa đã có `Untitled.atproj` với 122 segment. `setup-gui.sh` **tạo** mà không **mở**; những lượt chạy được là do app TỰ chuyển, và điều đó không phải lúc nào cũng xảy ra. |
+| 2026-08-19 | ⚠️ **Nhật ký phím nóng của bench** *(mới)* ghi `⌨[7,7,4,7,2]` ở một phiên hỏng: phím 7·4·2 tới, **5 và 3 không**, dù tiêu điểm xanh và vòng rAF vẫn chạy. Biến phân biệt là **thời lượng gõ** *(20 s tới, 30/60 s không)*. Chưa định vị. Hàng rào: bắn → đọc kho → bắn lại, và **in ra** nếu phải quá một lượt. |
+| 2026-08-19 | 🟢 **Chỗ chặn "không sang được Workspace" đóng bằng cách BỎ CHUỘT**, không bằng một toạ độ tốt hơn: `mode.workspace` có sẵn phím tắt `⌘2` và `run` gọi `setMode` **vô điều kiện** (`commands/index.ts:549-566`). Toạ độ ĐO ĐƯỢC của tab vẫn trượt dù khớp ảnh chụp trong ~2 điểm — vấn đề không ở con số. 4/4 phiên sang được ngay lượt đầu. |
+| 2026-08-19 | 🔴 **Và điều TÌM RA lớn nhất của lượt vá này:** cổng `settle_keys` cho thấy bộ đếm phím nóng nhảy **3 → 13**. Mười phím dò **không bị mất, chúng bị XẾP HÀNG** rồi xử lý cùng lúc. ⇒ *"phím 3 và 5 không tới"* thật ra là **app tụt lại ~15 giây sau một phiên gõ 30 giây**. Đó là một mệnh đề về **NFR2**, nặng hơn con số frame max, và một vòng thử-lại mù đã che nó suốt bốn phiên. |
+| 2026-08-19 | 🟢 **Bàn đo NFR2 lặp lại được: 4/4 phiên chạy trọn vòng**, phím đổ số tới ngay lượt đầu ở cả 2 phiên có cổng. `flushSource` = chỉ báo *"Đã lưu"*, `nFlushes` 7–12. |
+| 2026-08-19 | 🔴 **Lượt đo THẬT đầu tiên chết vì MÀN HÌNH KHOÁ** — cả bốn phiên hỏng trong 12–19 giây, và thông báo trỏ SAI CHỖ: *"CỔNG TIÊU ĐIỂM ĐỎ — đang là [ghostty]"*. Khi khoá, app khởi động bình thường và **vẫn ghi được dấu sống vào kho**, nhưng `count windows = 0` — nửa Rust chạy đúng, chỉ nửa GUI chết. ⇒ Mọi phép kiểm dựa vào kho đều xanh trên một máy không đo được gì. |
+| 2026-08-19 | 🟢 **Dựng cổng `require_unlocked`** ở `front.sh`, gọi TRƯỚC mọi thứ ở cả `nfr2-session.sh` lẫn `run-nfr2-real.sh`; cộng `caffeinate -disu -w $$` giữ máy thức suốt lượt chạy 2 h 20 và **chết cùng tệp** — không để lại một thiết đặt hệ thống nào. Tự kiểm trên máy đang khoá: từ chối trong **1 giây**. ⚠️ Bản dò đầu viết `"CGSSessionScreenIsLocked" = Yes` (có dấu cách) và **không khớp** — tức nó báo "đang mở" trên một máy đang khoá. Khuôn đúng: `CGSSessionScreenIsLocked"=Yes`. |
+| 2026-08-19 | ⚠️ **Số smoke PHÂN ĐÔI và chưa ai giải thích:** hai phiên ~**9 %** frame vượt trần 50 ms *(max 101–113 ms)*, hai phiên **39 %** *(max 313–321 ms)* — cùng bàn đo, cùng tham số, cùng thang. Hai cụm như thế không phải nhiễu đo; nó đòi một biến chưa kiểm soát. ⇒ Phiên thật phải ghi `loadavg` theo TỪNG phiên và **cấm gộp**. |
 
 ## Nhật ký sprint-status
 

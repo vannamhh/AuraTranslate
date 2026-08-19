@@ -49,10 +49,55 @@ probe_count() { sqlite3 -readonly "$DB" "select count(*) from segment where targ
 
 BEFORE=$(probe_count)
 
-for c in "${CAND[@]}"; do
+# ── 🔵 2026-08-19 — HỎI TOẠ ĐỘ THẬT TRƯỚC, ĐOÁN SAU ─────────────────────────────────────
+# Đo được 2026-08-19: bộ 16 ứng viên viết cứng chỉ vào được **3 trên 7 lượt**, cùng script,
+# cùng thang, cùng hình học cửa sổ. Cách chữa cũ là thêm ứng viên — tức vẫn đoán, chỉ đoán
+# nhiều hơn. Nay `bench.js` sống trong bản dựng và hỏi được cây DOM thật, nên nó trả về tâm
+# một ô đang hiện theo TOẠ ĐỘ MÀN HÌNH (`bench.js` §⑦b, phím Ctrl+Alt+Shift+7).
+#
+# 🔴 Đây KHÔNG thay cú bấm bằng một sự kiện tổng hợp: vẫn `cliclick`, vẫn `mousedown` thật.
+# Thứ bị thay là phép ĐOÁN toạ độ, không phải phép BẤM.
+#
+# ⚠️ Chỉ có trên bản dựng CÓ tiêm bench. `kill-campaign-v2.sh` chạy bản release trần, nên
+# bộ 16 ứng viên ở lại làm ĐƯỜNG LÙI — đừng gỡ nó.
+APPDB="${BENCH_APPDATA:-}"
+MEASURED=""
+if [ -n "$APPDB" ] && [ -f "$APPDB/global.db" ]; then
+  require_front "$PID" 3 >/dev/null || { echo "🔴 mất tiêu điểm trước lượt hỏi toạ độ" >&2; exit 1; }
+  osascript -e "tell application \"System Events\" to key code 26 using {control down, option down, shift down}" >/dev/null 2>&1
+  for _ in 1 2 3 4 5 6 7 8; do
+    sleep 0.5
+    V=$(sqlite3 -readonly "$APPDB/global.db" "select value from config_value where key='__cellrect__';" 2>/dev/null)
+    [ -n "$V" ] && break
+  done
+  if [ -n "${V:-}" ] && [ "$V" != "NONE" ]; then
+    # Khuôn `vx,vy,iw,ih,số-ô` — quy về màn hình bằng hàm dùng chung ở `front.sh`, không tự
+    # chép lại phép tính. Kích thước cửa sổ là {1200,900} do `setup-gui.sh` đặt-rồi-đọc-lại.
+    MEASURED=$(to_screen "$V" $WIN_X $WIN_Y 1200 900) || MEASURED=""
+    [ -n "$MEASURED" ] && \
+      echo "   toạ độ ĐO ĐƯỢC: khung nhìn [$V] ⇒ màn hình $MEASURED  (tổng $(print -r -- "$V" | cut -d, -f5) ô)" >&2
+  else
+    echo "   ⚠️ bench không trả toạ độ (\"${V:-rỗng}\") — rơi về bộ 16 ứng viên" >&2
+  fi
+fi
+
+# 🔴 MỘT HỆ TOẠ ĐỘ DUY NHẤT, và đây là chỗ dễ sai nhất của lượt sửa này: bộ 16 ứng viên cũ là
+# toạ độ TƯƠNG ĐỐI gốc cửa sổ, còn số bench trả về là toạ độ MÀN HÌNH tuyệt đối. Trộn hai hệ
+# trong một vòng lặp thì cú bấm rơi ra ngoài màn hình và lượt chẩn đoán tiếp theo sẽ đi tìm
+# một khuyết tật con trỏ KHÔNG TỒN TẠI. ⇒ Quy hết về TUYỆT ĐỐI ngay tại đây, một lần.
+ABS=()
+[ -n "$MEASURED" ] && ABS+=("$MEASURED")          # đã tuyệt đối
+for c in "${CAND[@]}"; do                          # tương đối ⇒ cộng gốc cửa sổ
+  ABS+=("$((WIN_X + ${c%%,*})),$((WIN_Y + ${c##*,}))")
+done
+
+# 🔴 Vẫn giữ nguyên phép nghiệm thu "gõ ký tự dò → HỎI KHO": một toạ độ ĐO ĐƯỢC vẫn có thể
+# trượt (ô bị một lớp khác che, hoặc lưới cuộn giữa lúc đo và lúc bấm), và một cửa vào không
+# nghiệm thu là đúng thứ tệp này tồn tại để chống.
+for c in "${ABS[@]}"; do
   DX="${c%%,*}"; DY="${c##*,}"
   require_front "$PID" 3 >/dev/null || { echo "🔴 mất tiêu điểm giữa lượt dò" >&2; exit 1; }
-  cliclick c:$((WIN_X + DX)),$((WIN_Y + DY))
+  cliclick c:${DX},${DY}      # ĐÃ tuyệt đối — xem khối quy đổi ngay trên
   sleep 0.4
   osascript -e 'tell application "System Events" to keystroke "x"' >/dev/null 2>&1
   # 🔵 Sửa 2026-08-18: 2,4 s → 4,5 s. Số 2,4 là con số ĐÃ ĐƯỢC ĐO LÀ HỎNG — `README.md`

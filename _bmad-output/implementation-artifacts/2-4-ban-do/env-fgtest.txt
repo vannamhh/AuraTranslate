@@ -1,0 +1,6 @@
+── TRUOC phien fgtest (thang=l, 20s) · 2026-08-19 20:27:58
+   loadavg      : { 29.38 26.60 18.84 }
+   ncpu         : 16
+   CPU_Speed_Limit: 
+   nguon dien   : Now drawing from 'AC Power'
+   top-CPU      : 24.6%% top  15.9%% /Library/Apple/System/Library/CoreServices/XProtect.app/Contents/MacOS/XProtectRemediatorCardboardCutout  8.8%% /usr/libexec/trustd  

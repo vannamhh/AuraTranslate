@@ -5214,3 +5214,37 @@ trước khi nới** — chúng có mặt để lượt đó có dữ liệu th�
   2026-08-19)*. Sổ này chỉ dài ra *(AC4 cấm xoá mục)*, nên sàn sẽ ngày càng xa thực tế và ngày càng
   ít nghĩa — đúng cái bẫy mà `project-context.md` gọi là *"một sàn cũ là một sàn vô nghĩa"*.
   **Chủ: story kế tiếp thêm một khối `## Deferred from:` khiến tổng vượt 550** — xét lại sàn cùng lượt.
+
+---
+
+## Deferred from: 2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi (2026-08-19) — lượt gỡ cổng Epic 3
+
+- 🔴 **NFR18 TRƯỢT 120/120 mẫu, và con số đó CHƯA có bản vá.** Lưới sáu điểm chạy 2026-08-18
+  19:45–22:22 *(121 lượt bắn · 120 `VALID` · 1 `RIG_FAIL`)*: cửa sổ mất dữ liệu tốt nhất của
+  **toàn phiên** là **7,747 s** so với trần **5 s**, trung vị 13,4–16,6 s — vượt khoảng **ba lần**.
+  Mọi điểm bị gắn cờ **BẤT ỔN** theo cả hai vế dung sai AC2.
+  ⚠️ Và điều tìm ra quan trọng hơn con số: **lưới PHẲNG vì `wal_threshold_bytes` là một biến TRƠ** —
+  đỉnh `.db-wal` không bao giờ vượt ~740 KB, nên từ 1 MiB trở lên ngưỡng chưa từng kích hoạt
+  *(ở 16 MiB mới chạm 1/22)*, và `busy = 0` ở cả sáu điểm. ⇒ Cặp đánh đổi
+  `wal_threshold_bytes` ⟷ NFR18 mà `ARCHITECTURE-SPINE.md:990` treo lên **không tồn tại trong tải
+  này**; NFR18 hỏng ở **đường flush**. **Chủ: Ice** — hàng SPINE `:990` chưa được đóng, và dòng đóng
+  nó bắt buộc phải khai sự thu hẹp đó kèm số (AC3).
+
+- 🔴 **Phiên NFR2 thật (30 phút × n=3) CHƯA CHẠY — Ice chốt 2026-08-19 KHÔNG chặn Epic 3 vì nó.**
+  Bàn đo nay chạy trọn vòng và lặp lại được **5/5 phiên**, nên thứ còn thiếu là **thời gian máy**,
+  không phải một khuyết tật chưa biết. Số smoke *(30 s, `n=1`, thang `m` 122 segment)*: **9 %** frame
+  vượt trần 50 ms ở hai phiên *(max 101–113 ms)* và **39 %** ở hai phiên khác *(max 313–321 ms)*.
+  ⚠️ Hai cụm tách bạch trên cùng tham số **không** giải thích được bằng nhiễu đo — nó đòi một biến
+  chưa kiểm soát, nghi can đầu là tải nền. **Chủ: Ice** — mở lại khi có một máy rảnh ~2 giờ 20 phút
+  và màn hình mở khoá.
+
+- 🔴 **App tụt lại ~15 giây sau một phiên gõ 30 giây, và đây là một mệnh đề về NFR2 chứ không về
+  bàn đo.** Đo được qua cổng `settle_keys`: bộ đếm phím nóng nhảy **3 → 13** *(và 3 → 17 trên thang
+  `l`)* — các phím gửi trong lúc chờ **không bị mất, chúng bị XẾP HÀNG** rồi xử lý cùng lúc khi app
+  đuổi kịp. Biểu hiện cho người dùng: gõ liên tục rồi bấm một phím tắt thì **không có gì xảy ra
+  trong nhiều giây**. Chưa có FR nào chở mệnh đề này. **Chủ: phiên đo NFR2 thật** *(mục ngay trên)*.
+
+- ⚠️ **Story 3.4 là story rủi ro nhất của Epic 3, và nó vào với sổ nợ này còn mở.** Nó thêm một
+  kênh trang trí lên **cột nguyên văn của lưới** — đúng đường nóng mà cả ba mục trên đang nói tới.
+  **Chủ: Story 3.4** — đọc ba mục này trước khi viết dòng mã đầu tiên, và nếu số NFR2 vẫn chưa có
+  thì nói ra trong story thay vì giả định nó đã an toàn.

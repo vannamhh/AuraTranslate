@@ -1,0 +1,12 @@
+── TRUOC phien probeL (thang=l, 30s) · 2026-08-19 20:03:28
+   loadavg      : { 4.04 20.36 25.26 }
+   ncpu         : 16
+   CPU_Speed_Limit: 
+   nguon dien   : Now drawing from 'AC Power'
+   top-CPU      : 14.8%% top  11.6%% /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer  7.9%% /bin/zsh  
+── SAU phien probeL · 2026-08-19 20:05:26
+   loadavg      : { 5.20 15.61 22.75 }
+   ncpu         : 16
+   CPU_Speed_Limit: 
+   nguon dien   : Now drawing from 'AC Power'
+   top-CPU      : 47.9%% /Applications/Tolaria.app/Contents/MacOS/tolaria  19.3%% /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent  18.3%% top  

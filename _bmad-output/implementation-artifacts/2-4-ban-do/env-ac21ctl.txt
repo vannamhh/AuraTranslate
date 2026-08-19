@@ -1,0 +1,6 @@
+── TRUOC phien ac21ctl (thang=l, 1800s) · 2026-08-19 20:26:12
+   loadavg      : { 66.82 21.60 15.80 }
+   ncpu         : 16
+   CPU_Speed_Limit: 
+   nguon dien   : Now drawing from 'AC Power'
+   top-CPU      : 100.8%% node  100.2%% node  96.3%% node  
