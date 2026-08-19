@@ -166,7 +166,135 @@ CREATE TABLE pinned_entry (
   UNIQUE (source_code, entry_id)
 );";
 
-/// Bộ di trú của `global.db`. Hôm nay **ba** bước — Story 1.7 · 1.8 · 1.20.
+/// Lược đồ bảng `glossary_entry` — **bước 4 của `global.db`, bước 12 của `project.db`** —
+/// Story 3.1, AD-18 · AD-36 · FR46/FR47/FR114.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỘT HẰNG, DÙNG CHO **HAI** THANG DI TRÚ — đây là điều làm "hai tầng cùng hình dạng"
+/// đúng THEO ĐỊNH NGHĨA, không nhờ hai chỗ tình cờ đồng ý
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Glossary có hai tầng (Global · Tác phẩm), và mỗi tầng sống trong một `Store` khác nhau
+/// (`global.db` / `project.db` của chính `.atproj` đang mở) — không phải một cột `tier`
+/// trong cùng một bảng, cùng khuôn với mọi bảng hai tầng khác của dự án này (xem
+/// [`CONFIG_VALUE_DDL`]: "Không cột `tier`"). `ScopeResolver::apply_override` chỉ phân
+/// giải ĐÚNG khi cả hai tầng trả về **cùng một hình dạng hàng** — một trường lệch giữa
+/// hai bảng là một bug không lộ ra ở `cargo test` (mỗi bảng test độc lập) mà chỉ lộ ra
+/// lúc gọi `apply_override` thật, dưới dạng một cột đọc nhầm sang cột khác.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÒNG ĐỜI KHOÁ BẰNG **CẤU TRÚC**, KHÔNG BẰNG KỶ LUẬT — AD-36
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `translation IS NULL` **LÀ** trạng thái *chờ chốt*. Không cột `status` song song —
+/// hai dữ kiện nói cùng một chuyện thì chúng lệch được, và lệch trong im lặng (đúng ca
+/// AD-36 sinh ra để chặn: *"đã chốt mà bản dịch rỗng"*). Vị từ `is_confirmed()` ở
+/// [`crate::core::glossary::entry::GlossaryEntry`] là chỗ DUY NHẤT đọc bất biến này.
+///
+/// Trigger `glossary_entry_lifecycle_is_one_way` cưỡng chế chiều **một chiều**
+/// *(đã chốt → không bao giờ lùi về chờ chốt)* bằng SQL — không phải một quy ước ở tầng
+/// gọi mà một `UPDATE` bất cẩn phá được. `BEFORE UPDATE OF translation` + `WHEN OLD.translation
+/// IS NOT NULL AND NEW.translation IS NULL` bắt đúng và chỉ đúng chiều lùi; đặt lại CÙNG
+/// một bản dịch đã chốt, hay đổi các cột khác (`note`, `category`), đi qua bình thường.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// ⚠️ `CHECK` BẮT CHUỖI RỖNG LÀ CỐ Ý, VÀ NÓ **KHÁC** `segment.target_text`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Ở `segment`, *"chưa dịch"* là chuỗi **rỗng** `NOT NULL DEFAULT ''` ([`SEGMENT_TARGET_TEXT_DDL`])
+/// — vì mọi segment luôn tồn tại. Ở đây **ngược lại**: vắng mặt là một trạng thái **có
+/// nghĩa** (*chờ chốt*), nên `NULL` mang nghĩa và chuỗi rỗng bị `CHECK` cấm — một `INSERT`
+/// hay `UPDATE` đặt `translation = ''`/`'   '` bị SQLite từ chối thẳng, không lặng lẽ tạo
+/// ra ca "đã chốt mà bản dịch rỗng". Hai bảng chọn ngược nhau **có lý do**; đừng "đồng bộ"
+/// chúng.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `trim(X)` MỘT THAM SỐ CHỈ CẮT DẤU CÁCH ASCII — đo được, và đã ĐO SAI ở bản đầu
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Đo 2026-08-19 trên SQLite 3.53.4: `trim("   ")` bị `CHECK` một-tham-số chặn, nhưng
+/// `"\t"` · `"\n"` · `"\r"` · `"\v"` (`char(11)`) · `"\f"` (`char(12)`) · NBSP
+/// (`char(160)`, U+00A0) · dấu cách biểu ý (`char(12288)`, U+3000) đều **LỌT**. Hệ quả nếu
+/// không sửa: một bản dịch `"\t"` làm `is_confirmed()` trả `true` với nội dung trắng —
+/// đúng ca AD-36 sinh ra để chặn, và Epic 4 sẽ chèn một trường trống vào prompt.
+///
+/// ⇒ Cả hai `CHECK` dưới đây dùng dạng **hai tham số** `trim(X, <bảng ký tự>)` với bảng
+/// `' ' || char(9) || char(10) || char(13) || char(11) || char(12) || char(160) ||
+/// char(12288)` — đã đo: chặn cả bảy loại trên, và vẫn **nhận** `"Mộ Dung"` lẫn
+/// `" 慕容 "` (nội dung thật bao quanh bởi khoảng trắng biên). Bảng ký tự viết **khai
+/// triển tại chỗ** trong cả hai `CHECK`, không đặt tên hằng phụ — `Migration::sql` là
+/// `&'static str` và `concat!` chỉ nhận literal (cùng ràng buộc đã ghi ở doc-comment của
+/// [`PROJECT_MIGRATIONS`]).
+///
+/// `source_term` mang cùng lỗ hổng và cùng bản vá: không có rào rỗng nào trước bản vá này
+/// ngoài `NOT NULL`, và nó vừa là khoá tra cứu vừa là khoá của
+/// `idx_glossary_entry_source_term` — một `insert_entry("", …)` chiếm vĩnh viễn ô chuỗi
+/// rỗng của chỉ mục UNIQUE đó. `CHECK` thứ nhất của bảng dưới đây đóng lỗ này.
+///
+/// 🔴 **CỬA SỔ DI TRÚ MỘT LẦN, GHI RA VÌ NÓ ĐỔI HÀNH VI TRÊN ĐĨA CỤC BỘ:** bản vá này sửa
+/// MỘT hằng DDL mà bước 4 (`global.db`) / bước 12 (`project.db`) **đã từng chạy** trên máy
+/// dev trước khi bản vá tồn tại — đúng khuôn "sửa hằng cũ tại chỗ là hai lược đồ cho cùng
+/// một số phiên bản" mà vết sẹo số 4 của [`PROJECT_MIGRATIONS`] ghi lại. Khác vết sẹo đó,
+/// cửa sổ này **còn đóng được**: story chưa commit, chưa phát hành, nên không `.db` nào
+/// ngoài máy dev từng chạm bước này. Nhưng **mọi `global.db`/`project.db` cục bộ đang ở
+/// `user_version = 4`/`12` từ trước bản vá phải bị XOÁ rồi dựng lại** — nếu không, chúng
+/// giữ nguyên `CHECK` một-tham-số cũ trong lược đồ đã ghi, và `PRAGMA user_version` sẽ nói
+/// dối rằng lược đồ đã ở bản vá. Bộ test dùng thư mục tạm dựng mới mỗi lần nên không dính.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `term_origin`, KHÔNG PHẢI `origin` TRẦN
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Chữ *"xuất xứ"* trong PRD chỉ **bốn** thực thể rời nhau trong dự án này — bản dịch
+/// (`segment.translation_origin`), mục Glossary (cột này), tài liệu nguồn, trích dẫn từ
+/// điển — nên định danh phải tự phân biệt được. `segment.translation_origin`
+/// ([`SEGMENT_TRANSLATION_ORIGIN_DDL`]) đã lấy khuôn `<mô tả cái gì>_origin`; cột này giữ
+/// đúng khuôn đó thay vì đúc một quy ước thứ hai cho cùng một khái niệm.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// TỪNG CỘT, VÀ NÓ NEO VÀO ĐÂU
+/// ─────────────────────────────────────────────────────────────────────────────
+/// - `source_term` — khoá tra cứu, **không rỗng sau khi cắt khoảng trắng** (`CHECK` thứ
+///   nhất — P2 ở trên). `UNIQUE INDEX idx_glossary_entry_source_term` cưỡng chế *"một
+///   thuật ngữ nguồn, một mục"* ở tầng SQLite — cùng doctrine `UNIQUE (source_code,
+///   entry_id)` của [`PINNED_ENTRY_DDL`]: không có cửa sổ đua giữa một `SELECT` kiểm trùng
+///   và một `INSERT` mà hai luồng có thể chen vào giữa. `core::glossary::store::insert_entry`
+///   cắt khoảng trắng biên **ở tầng Rust** trước khi ghi, để `" 慕容"` và `"慕容"` không
+///   thành hai hàng dưới một chỉ mục tự xưng là "một thuật ngữ, một mục" — `CHECK` ở đây
+///   là lưới THỨ HAI, không phải lưới duy nhất.
+/// - `translation` — `NULL`-able, xem hai mục 🔴/⚠️ ở trên.
+/// - `note` — `NOT NULL DEFAULT ''`: một ghi chú vắng mặt và một ghi chú rỗng là **cùng
+///   một điều** (không có nhánh nghiệp vụ nào phân biệt chúng), khác hẳn `translation` —
+///   cùng lý lẽ phân biệt hai cột này với nhau ở dòng ngay trên.
+/// - `category` (**bốn** giá trị: `person` · `place` · `domain_term` · `other`) và
+///   `term_origin` (**ba** giá trị: `manual` · `import_scan` · `review_harvest`) — chuỗi cố
+///   định, cưỡng chế bằng `CHECK … IN (…)` **khác** khuôn `chapter.status`/`segment.status`/
+///   `config_value.kind` (không `CHECK`, cưỡng chế ở tầng Rust). Khác biệt có chủ: ba cột
+///   kia đổi giá trị hợp lệ theo epic tới sau (AD-31 dự trù một trạng thái thứ ba cho
+///   `segment.status`); bộ giá trị của `category` và `term_origin` đã đóng ở FR46/FR47 và
+///   Story 3.2 tồn tại đúng để KHÔNG cho `term_origin` có giá trị thứ tư ("candidate" ở lại
+///   bảng chờ riêng — AD-20).
+/// - `created_at` — cùng khuôn `chapter`/`segment`: sinh ở tầng SQL bằng `strftime`, không
+///   truyền từ Rust.
+///
+/// **Không cột `tier`** — xem mục 🔴 đầu tiên ở trên. **Không bảng ứng viên** — đó là
+/// Story 3.2, và trạng thái *ứng viên* không nằm trong bảng này (§Never của story).
+pub const GLOSSARY_ENTRY_DDL: &str = "\
+CREATE TABLE glossary_entry (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_term  TEXT    NOT NULL,
+  translation  TEXT,
+  note         TEXT    NOT NULL DEFAULT '',
+  category     TEXT    NOT NULL,
+  term_origin  TEXT    NOT NULL,
+  created_at   TEXT    NOT NULL,
+  CHECK (trim(source_term, ' ' || char(9) || char(10) || char(13) || char(11) || char(12) || char(160) || char(12288)) <> ''),
+  CHECK (translation IS NULL OR trim(translation, ' ' || char(9) || char(10) || char(13) || char(11) || char(12) || char(160) || char(12288)) <> ''),
+  CHECK (category    IN ('person','place','domain_term','other')),
+  CHECK (term_origin IN ('manual','import_scan','review_harvest'))
+);
+CREATE UNIQUE INDEX idx_glossary_entry_source_term ON glossary_entry (source_term);
+CREATE TRIGGER glossary_entry_lifecycle_is_one_way
+BEFORE UPDATE OF translation ON glossary_entry
+WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL
+BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;";
+
+/// Bộ di trú của `global.db`. Hôm nay **bốn** bước — Story 1.7 · 1.8 · 1.20 · 3.1.
 ///
 /// Không thêm bước cho một lược đồ chưa tồn tại. Mỗi story sở hữu bước di trú của
 /// chính nó, cùng lúc với bảng mà nó cần.
@@ -176,6 +304,10 @@ CREATE TABLE pinned_entry (
 /// THẬT), và đó là hành vi đúng: số phiên bản đổi phải là một quyết định có người ký, chứ
 /// không phải một hiệu ứng phụ. Đừng "sửa cho nhất quán" các con số trong `TWO_STEP` /
 /// `BROKEN_STEP_TWO` — chúng là fixture cục bộ và không phụ thuộc hằng này.
+///
+/// 🔵 **CẬP NHẬT 2026-08-19 (Story 3.1):** đích chuyển từ **3** lên **4** — bước
+/// [`GLOSSARY_ENTRY_DDL`] (tầng Global của Glossary, AD-18). Câu *"ba bước, đích là 3"* đã
+/// hết đúng, sửa tại chỗ thay vì để nó lặng lẽ sai.
 pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 1,
@@ -188,6 +320,12 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 3,
         sql: PINNED_ENTRY_DDL,
+    },
+    // Story 3.1 — tang Global cua Glossary (AD-18/AD-36): bang glossary_entry, CUNG mot
+    // hang voi buoc 12 cua project.db. Xem doc-comment cua GLOSSARY_ENTRY_DDL.
+    Migration {
+        to_version: 4,
+        sql: GLOSSARY_ENTRY_DDL,
     },
 ];
 
@@ -750,10 +888,10 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
     "UPDATE segment SET translation_origin = 'self' WHERE status = 'confirmed';"
 );
 
-/// Bộ di trú của `project.db`. Hôm nay **mười** bước — Story 1.15 · 2.1 · 2.2 · 2.5 · 2.5c ·
-/// 2.5d · 2.6 · 2.7.
+/// Bộ di trú của `project.db`. Hôm nay **mười một** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
+/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1.
 ///
-/// 🔴 **Mười bước, và đích là phiên bản 11.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// 🔴 **Mười một bước, và đích là phiên bản 12.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
 /// `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
@@ -798,6 +936,12 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// · 7 · 8; nó không hết đúng **lùi về quá khứ**, nên câu `UPDATE` chạy một lần này vẫn trung
 /// thực mãi. Lý do đầy đủ ở doc-comment của chính hằng bước 11.
 ///
+/// 🔵 **CẬP NHẬT 2026-08-19 (Story 3.1):** đích chuyển từ **11** lên **12** — bước
+/// [`GLOSSARY_ENTRY_DDL`] (tầng Tác phẩm của Glossary, AD-18/AD-36). Câu *"mười bước, đích
+/// là 11"* đã hết đúng, sửa tại chỗ. 🔴 **Cùng một hằng** với bước 4 của [`GLOBAL_MIGRATIONS`]
+/// — xem "MỘT HẰNG, DÙNG CHO HAI THANG DI TRÚ" ở doc-comment của chính hằng đó; hai tầng của
+/// Glossary phải cùng hình dạng THEO ĐỊNH NGHĨA, không nhờ hai chỗ tình cờ chép giống nhau.
+///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
 /// hai chuỗi ở **compile time** mà không thêm phụ thuộc) chỉ nhận **literal**, không
@@ -811,9 +955,10 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// SQL với nhật ký di trú.
 ///
 /// Không thêm bước cho một lược đồ chưa tồn tại — cùng luật với [`GLOBAL_MIGRATIONS`].
-/// **Không** bảng Glossary/TM/prompt/asset ở đây; mỗi epic mang bảng riêng của nó cùng lúc
-/// với bước di trú cần nó. [`SEGMENT_DDL`] có mặt vì Story 2.1 dựng chính bảng đó, không
-/// vì Epic 2 sẽ cần nó.
+/// **Không** bảng TM/prompt/asset ở đây; mỗi epic còn lại mang bảng riêng của nó cùng lúc
+/// với bước di trú cần nó. [`SEGMENT_DDL`] có mặt vì Story 2.1 dựng chính bảng đó, không vì
+/// Epic 2 sẽ cần nó — cùng lý do bước 12 ([`GLOSSARY_ENTRY_DDL`]) có mặt: Story 3.1 dựng
+/// chính bảng `glossary_entry`, không phải một epic khác đoán trước nó.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
 /// ⚠️ MỘT VẾT SẸO CÓ THẬT: `user_version = 4` ĐÃ TỒN TẠI TRÊN MÁY — Story 1.20
@@ -907,6 +1052,13 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 11,
         sql: SEGMENT_TRANSLATION_ORIGIN_DDL,
+    },
+    // Story 3.1 -- tang Tac pham cua Glossary (AD-18/AD-36): bang glossary_entry, CUNG mot
+    // hang voi buoc 4 cua global.db. Xem doc-comment cua GLOSSARY_ENTRY_DDL.
+    // 12, khong phai 5 -- 5, 6, 7, 8, 9, 10 va 11 da tieu.
+    Migration {
+        to_version: 12,
+        sql: GLOSSARY_ENTRY_DDL,
     },
 ];
 

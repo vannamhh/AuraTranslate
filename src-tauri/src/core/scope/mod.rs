@@ -120,7 +120,15 @@ impl Tier {
 ///
 /// ⚠️ Mọi lỗi mà story này thật sự phát ra qua IPC đều là lỗi **kho**, và cả năm khoá của
 /// chúng đã có từ Story 1.7 kèm `From<StoreError> for IpcError`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// 🔴 **KHÔNG `Copy` — Story 3.1.** Biến thể [`ScopeError::UnknownKind`] mang một `String`
+/// sở hữu (chuỗi gõ sai, giữ nguyên để chẩn đoán), và `String` không `Copy`. Hai biến thể
+/// cũ vẫn `Copy` được, nhưng `#[derive(Copy)]` là một lời hứa cho **cả enum** — không có
+/// "copy nửa vời" ở Rust. Xem `deferred-work.md`: đây là hệ quả đã báo trước ở §Ask First
+/// của story này *("nếu việc bỏ `Copy` khỏi `ScopeError` làm đỏ nhiều hơn
+/// `scope_contract.rs`")* — đo được: 0 chỗ khác trong `src-tauri/src/**` dựa vào `Copy`
+/// của kiểu này (`grep -n "ScopeError"` chỉ khớp `core/scope/**` và test).
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScopeError {
     /// Gọi hàm phân giải sai với ngữ nghĩa mà `kind` đã khai.
     WrongSemantics {
@@ -136,6 +144,23 @@ pub enum ScopeError {
     WorkTierForbidden {
         /// Loại dữ liệu chỉ tồn tại ở tầng Global.
         kind: ScopeKind,
+    },
+
+    /// Chuỗi trên dây không khớp `ScopeKind` nào đã khai — **Story 3.1**, đóng
+    /// `deferred-work.md:272`.
+    ///
+    /// `apply_override`/`apply_merge`/`resolve_global_only` nhận `kind: &str` (thay vì
+    /// `ScopeKind`) đúng khuôn `save_value`/`delete_value` ở ranh giới IPC, để một module
+    /// miền (Glossary, TM, Prompt, …) không bao giờ phải gõ tên kiểu `ScopeKind` trong mã
+    /// của họ — `scope_boundary.rs::FORBIDDEN_OUTSIDE_SCOPE` cấm đúng token đó ngoài
+    /// `core/scope/**`. Biến thể này là cái giá của việc nhận một chuỗi không tin được:
+    /// gõ sai tên loại giờ là một lỗi phát hiện được lúc chạy, không còn là một lỗi biên
+    /// dịch. Vẫn là lỗi **LẬP TRÌNH** — chuỗi `kind` luôn là một hằng literal ở chỗ gọi,
+    /// không phải dữ liệu người dùng — nên nó ở lại đúng lớp với hai biến thể trên và
+    /// cũng KHÔNG BAO GIỜ vượt ranh giới IPC.
+    UnknownKind {
+        /// Chuỗi đã gõ sai, giữ nguyên để chẩn đoán.
+        wire: String,
     },
 }
 
@@ -157,11 +182,25 @@ impl std::fmt::Display for ScopeError {
                 "scope[{}] is global-only; a work tier was supplied",
                 kind.as_str()
             ),
+            ScopeError::UnknownKind { wire } => {
+                write!(f, "scope[{wire}] does not name a known ScopeKind")
+            }
         }
     }
 }
 
 impl std::error::Error for ScopeError {}
+
+/// Phân giải một khoá dây thành [`ScopeKind`], hoặc [`ScopeError::UnknownKind`].
+///
+/// Chỗ DUY NHẤT ba method của [`ScopeResolver`] gọi trước khi giao lại cho [`resolve`] —
+/// giữ cho `kind: &str` ở ranh giới công khai và `kind: ScopeKind` ở tầng phân giải nội
+/// bộ không trôi khỏi nhau.
+fn parse_kind(wire: &str) -> Result<ScopeKind, ScopeError> {
+    ScopeKind::from_wire(wire).ok_or_else(|| ScopeError::UnknownKind {
+        wire: wire.to_owned(),
+    })
+}
 
 /// Chỗ **DUY NHẤT** phân giải được hai tầng (AC1).
 ///
@@ -229,11 +268,19 @@ impl ScopeResolver {
     /// ⚠️ Tên **khác** hàm nội bộ nó bọc (`apply_` chứ không `resolve_`) — có chủ đích, xem
     /// doc-comment của [`resolve::resolve_override`] và [`Self::apply_merge`].
     ///
+    /// 🔴 **`kind: &str`, không `ScopeKind` — Story 3.1, đóng `deferred-work.md:272`.** Một
+    /// module miền (Glossary hôm nay; TM/Prompt/Cấu hình AI/Luật làm sạch sau) gọi bằng một
+    /// hằng literal (`"glossary"`) và không bao giờ gõ tên kiểu `ScopeKind` — token đó vẫn
+    /// bị cấm ngoài `core/scope/**` (`scope_boundary.rs`), và trước lượt đổi chữ ký này, mọi
+    /// lời gọi HỢP LỆ cũng phải gõ `ScopeKind::Glossary` để truyền tham số, tức tự làm cổng
+    /// đó đỏ. Xem [`super::parse_kind`] cho bước phân giải nội bộ.
+    ///
     /// # Lỗi
-    /// [`ScopeError::WrongSemantics`] nếu `kind` không khai [`Semantics::Override`].
+    /// - [`ScopeError::UnknownKind`] nếu `kind` không khớp một [`ScopeKind`] nào đã khai;
+    /// - [`ScopeError::WrongSemantics`] nếu `kind` không khai [`Semantics::Override`].
     pub fn apply_override<K, V>(
         &self,
-        kind: ScopeKind,
+        kind: &str,
         global: &BTreeMap<K, V>,
         work: Option<&BTreeMap<K, V>>,
     ) -> Result<BTreeMap<K, Resolved<V>>, ScopeError>
@@ -241,6 +288,7 @@ impl ScopeResolver {
         K: Ord + Clone,
         V: Clone,
     {
+        let kind = parse_kind(kind)?;
         resolve::resolve_override(kind, global, work)
     }
 
@@ -262,11 +310,14 @@ impl ScopeResolver {
     /// `resolve::resolve_override`/`resolve_merge` — con đường lách — vẫn mang, và vẫn đỏ
     /// đúng như AC1 đòi.
     ///
+    /// 🔴 **`kind: &str`, không `ScopeKind` — cùng lý do [`Self::apply_override`].**
+    ///
     /// # Lỗi
-    /// [`ScopeError::WrongSemantics`] nếu `kind` không khai [`Semantics::Merge`].
+    /// - [`ScopeError::UnknownKind`] nếu `kind` không khớp một [`ScopeKind`] nào đã khai;
+    /// - [`ScopeError::WrongSemantics`] nếu `kind` không khai [`Semantics::Merge`].
     pub fn apply_merge<V>(
         &self,
-        kind: ScopeKind,
+        kind: &str,
         global: &[V],
         work: Option<&[V]>,
         primary: Option<&dyn Fn(&V, &V) -> Ordering>,
@@ -274,17 +325,21 @@ impl ScopeResolver {
     where
         V: Clone,
     {
+        let kind = parse_kind(kind)?;
         resolve::resolve_merge(kind, global, work, primary)
     }
 
     /// **Chỉ tầng Global** (AC5). Xem [`resolve::resolve_global_only`].
     ///
+    /// 🔴 **`kind: &str`, không `ScopeKind` — cùng lý do [`Self::apply_override`].**
+    ///
     /// # Lỗi
+    /// - [`ScopeError::UnknownKind`] nếu `kind` không khớp một [`ScopeKind`] nào đã khai;
     /// - [`ScopeError::WrongSemantics`] nếu `kind` không khai [`Semantics::GlobalOnly`];
     /// - [`ScopeError::WorkTierForbidden`] nếu `work` là `Some(..)` và không rỗng.
     pub fn resolve_global_only<K, V>(
         &self,
-        kind: ScopeKind,
+        kind: &str,
         global: &BTreeMap<K, V>,
         work: Option<&BTreeMap<K, V>>,
     ) -> Result<BTreeMap<K, Resolved<V>>, ScopeError>
@@ -292,6 +347,7 @@ impl ScopeResolver {
         K: Ord + Clone,
         V: Clone,
     {
+        let kind = parse_kind(kind)?;
         resolve::resolve_global_only(kind, global, work)
     }
 }

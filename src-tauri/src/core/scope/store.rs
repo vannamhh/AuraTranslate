@@ -221,7 +221,7 @@ pub fn load_global_config(store: &Store) -> Result<GlobalConfig, StoreError> {
         // người dùng — và `ScopeError` KHÔNG BAO GIỜ vượt ranh giới IPC (§Quyết định #7).
         // Rơi về map rỗng giữ cho ứng dụng lên được bằng mặc định thay vì dựng một từ vựng
         // lỗi thứ hai ở tầng adapter.
-        let resolved = resolver.resolve_global_only(kind, &global, None);
+        let resolved = resolver.resolve_global_only(kind.as_str(), &global, None);
         debug_assert!(
             resolved.is_ok(),
             "scope[{}] must declare GlobalOnly semantics -- see scope_kinds!",

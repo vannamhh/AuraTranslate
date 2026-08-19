@@ -230,7 +230,7 @@ fn an_override_keeps_keys_that_only_exist_in_the_global_tier() {
     let work = map(&[("b", "wb")]);
 
     let out = resolver
-        .apply_override(ScopeKind::Glossary, &global, Some(&work))
+        .apply_override("glossary", &global, Some(&work))
         .expect("`Glossary` khai `Override`");
 
     assert_eq!(
@@ -270,7 +270,7 @@ fn an_override_carries_the_shadowed_value() {
     let work = map(&[("provider", "openai"), ("temperature", "0.2")]);
 
     let out = resolver
-        .apply_override(ScopeKind::AiConfig, &global, Some(&work))
+        .apply_override("ai_config", &global, Some(&work))
         .expect("`AiConfig` khai `Override`");
 
     let provider = out.get("provider").expect("khoá `provider`");
@@ -300,7 +300,7 @@ fn an_override_without_a_work_tier_is_the_whole_global_tier() {
     let global = map(&[("a", "ga"), ("b", "gb")]);
 
     let out = resolver
-        .apply_override(ScopeKind::Glossary, &global, None)
+        .apply_override("glossary", &global, None)
         .expect("`Glossary` khai `Override`");
 
     assert_eq!(out.len(), 2);
@@ -326,7 +326,7 @@ fn a_merge_keeps_both_tiers_without_deduplicating() {
     let work: Vec<String> = ["cat", "bird"].iter().map(|s| (*s).to_owned()).collect();
 
     let out = resolver
-        .apply_merge(ScopeKind::TranslationMemory, &global, Some(&work), None)
+        .apply_merge("translation_memory", &global, Some(&work), None)
         .expect("`TranslationMemory` khai `Merge`");
 
     assert_eq!(
@@ -369,7 +369,7 @@ fn the_tier_is_always_the_secondary_sort_key() {
 
     let out = resolver
         .apply_merge(
-            ScopeKind::TranslationMemory,
+            "translation_memory",
             &global,
             Some(&work),
             Some(&by_provenance as &dyn Fn(&(u8, String), &(u8, String)) -> Ordering),
@@ -399,7 +399,7 @@ fn a_merge_without_a_primary_key_puts_work_before_global_and_stays_stable() {
     let work: Vec<String> = ["w1", "w2"].iter().map(|s| (*s).to_owned()).collect();
 
     let out = resolver
-        .apply_merge(ScopeKind::ImportCleanupRule, &global, Some(&work), None)
+        .apply_merge("import_cleanup_rule", &global, Some(&work), None)
         .expect("`ImportCleanupRule` khai `Merge`");
 
     let seen: Vec<&str> = out.iter().map(|t| t.value().as_str()).collect();
@@ -419,7 +419,7 @@ fn a_merge_without_a_work_tier_is_the_whole_global_tier() {
     let global: Vec<String> = ["a", "b"].iter().map(|s| (*s).to_owned()).collect();
 
     let out = resolver
-        .apply_merge(ScopeKind::TranslationMemory, &global, None, None)
+        .apply_merge("translation_memory", &global, None, None)
         .expect("`TranslationMemory` khai `Merge`");
 
     assert_eq!(out.len(), 2);
@@ -443,7 +443,7 @@ fn calling_the_wrong_resolver_for_a_kind_is_refused() {
 
     // `TranslationMemory` khai `Merge` — hỏi nó bằng `Override` là hỏi sai câu.
     let err = resolver
-        .apply_override(ScopeKind::TranslationMemory, &empty_map, None)
+        .apply_override("translation_memory", &empty_map, None)
         .expect_err("`Merge` không được phân giải như `Override`");
     assert_eq!(
         err,
@@ -457,7 +457,7 @@ fn calling_the_wrong_resolver_for_a_kind_is_refused() {
 
     // `Glossary` khai `Override` — hỏi nó bằng `Merge`.
     let err = resolver
-        .apply_merge(ScopeKind::Glossary, &empty_vec, None, None)
+        .apply_merge("glossary", &empty_vec, None, None)
         .expect_err("`Override` không được phân giải như `Merge`");
     assert!(matches!(
         err,
@@ -470,7 +470,7 @@ fn calling_the_wrong_resolver_for_a_kind_is_refused() {
 
     // `Shortcut` khai `GlobalOnly` — hỏi nó bằng `Override` mở đúng tầng mà UX đã cấm.
     let err = resolver
-        .apply_override(ScopeKind::Shortcut, &empty_map, None)
+        .apply_override("shortcut", &empty_map, None)
         .expect_err("`GlobalOnly` không được phân giải như `Override`");
     assert!(matches!(
         err,
@@ -483,7 +483,7 @@ fn calling_the_wrong_resolver_for_a_kind_is_refused() {
 
     // Và chiều ngược lại: một loại hai tầng không được phân giải như chỉ-Global.
     let err = resolver
-        .resolve_global_only(ScopeKind::Glossary, &empty_map, None)
+        .resolve_global_only("glossary", &empty_map, None)
         .expect_err("`Override` không được phân giải như `GlobalOnly`");
     assert!(matches!(
         err,
@@ -493,6 +493,51 @@ fn calling_the_wrong_resolver_for_a_kind_is_refused() {
             called: Semantics::GlobalOnly,
         },
     ));
+}
+
+/// 🔴 **Story 3.1** — một chuỗi trên dây không khớp `ScopeKind` nào ⇒ `UnknownKind`, không
+/// phân giải gì và không đoán về một loại nào.
+///
+/// Chữ ký của cả ba method đổi từ `kind: ScopeKind` sang `kind: &str`
+/// (`deferred-work.md:272`) đúng khuôn `save_value`/`delete_value` ở ranh giới IPC — và một
+/// chữ ký nhận chuỗi không tin được thì phải có một nhánh cho chuỗi sai. Ca này đóng nhánh
+/// đó cho cả ba method, không chỉ một.
+#[test]
+fn calling_any_resolver_method_with_an_unknown_wire_kind_is_refused() {
+    let resolver = ScopeResolver::global_only();
+    let empty_map: BTreeMap<String, String> = BTreeMap::new();
+    let empty_vec: Vec<String> = Vec::new();
+
+    let err = resolver
+        .apply_override("glosary", &empty_map, None)
+        .expect_err("mot khoa go sai khong duoc phan giai am tham");
+    assert_eq!(
+        err,
+        ScopeError::UnknownKind {
+            wire: "glosary".to_owned()
+        },
+        "loi phai giu nguyen chuoi go sai de chan doan"
+    );
+
+    let err = resolver
+        .apply_merge("glosary", &empty_vec, None, None)
+        .expect_err("mot khoa go sai khong duoc phan giai am tham");
+    assert_eq!(
+        err,
+        ScopeError::UnknownKind {
+            wire: "glosary".to_owned()
+        }
+    );
+
+    let err = resolver
+        .resolve_global_only("glosary", &empty_map, None)
+        .expect_err("mot khoa go sai khong duoc phan giai am tham");
+    assert_eq!(
+        err,
+        ScopeError::UnknownKind {
+            wire: "glosary".to_owned()
+        }
+    );
 }
 
 /// AC5 — một loại `GlobalOnly` **từ chối** dữ liệu tầng Work.
@@ -506,7 +551,7 @@ fn a_global_only_kind_refuses_a_work_tier() {
     let work = map(&[("mode.library", "Mod+9")]);
 
     let err = resolver
-        .resolve_global_only(ScopeKind::Shortcut, &global, Some(&work))
+        .resolve_global_only("shortcut", &global, Some(&work))
         .expect_err("phím tắt chỉ tồn tại ở tầng Toàn cục — `settings.html:246`");
 
     assert_eq!(
@@ -525,7 +570,7 @@ fn a_global_only_kind_accepts_an_empty_work_tier() {
     let empty: BTreeMap<String, String> = BTreeMap::new();
 
     let out = resolver
-        .resolve_global_only(ScopeKind::Shortcut, &global, Some(&empty))
+        .resolve_global_only("shortcut", &global, Some(&empty))
         .expect("một tầng Work RỖNG không khai một tầng nào — nó không phải một vi phạm");
 
     assert_eq!(out.len(), 1);

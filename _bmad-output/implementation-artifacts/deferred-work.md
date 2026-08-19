@@ -270,6 +270,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 ## Deferred from: code review of 1-8-phan-giai-cau-hinh-hai-tang (2026-08-04)
 
 - **`"ScopeKind"` vẫn còn nửa bẫy sau khi `ScopeResolver::resolve_override`/`resolve_merge` đã đổi tên thành `apply_override`/`apply_merge`** (`src-tauri/tests/scope_boundary.rs:62-67`, `src-tauri/src/core/scope/mod.rs:201,218`) — lượt sửa hôm nay xoá đúng hai token đụng độ (`resolve_override`/`resolve_merge`), nhưng lời gọi hợp lệ tương lai vẫn phải viết `ScopeKind::Glossary` (hay tương đương) để truyền tham số, và `"ScopeKind"` vẫn bị cấm ngoài `core/scope/**`. Cổng AC1 sẽ vẫn đỏ ở token này ngay lần đầu Epic 3/4/6/7 gọi `apply_override`/`apply_merge` từ module của họ — dù đường gọi hoàn toàn đúng. Xoá triệt để đòi đổi chữ ký `apply_override`/`apply_merge` sang nhận `kind: &str` thay vì `kind: ScopeKind` (giống khuôn `save_value` ở ranh giới IPC), để domain module không cần gõ tên kiểu `ScopeKind` trong mã của họ. Ice chọn KHÔNG làm việc đó ở lượt review này (2026-08-04) — giao cho story đầu tiên thật sự trở thành consumer. **(Chủ: story đầu tiên thật sự trở thành consumer của `ScopeKind`.)**
+  → ✅ **ĐÃ ĐÓNG 2026-08-19 (Story 3.1).** `ScopeResolver::apply_override`/`apply_merge`/`resolve_global_only` nay nhận `kind: &str` và phân giải nội bộ bằng `ScopeKind::from_wire` (`src-tauri/src/core/scope/mod.rs`), đúng khuôn `save_value`/`delete_value`. `core/glossary/store.rs` gọi `apply_override("glossary", ..)` bằng một hằng literal và không `use` `ScopeKind` ở đâu cả. Chữ ký sai kiểu giờ là một lỗi lúc chạy (`ScopeError::UnknownKind`) thay vì lỗi biên dịch — cổng `scope_boundary.rs::only_core_scope_may_name_the_two_tier_vocabulary` xanh **mà danh sách `FORBIDDEN_OUTSIDE_SCOPE` không đổi một dòng**, đúng như AC của story này đòi.
 - `resolve_one` trong `load_global_config` nuốt lỗi `WrongSemantics` bằng `debug_assert!` rồi `unwrap_or_default()` (`src-tauri/src/core/scope/store.rs:135-147`) — trong build release, một thay đổi ngữ nghĩa tương lai cho `AppConfig`/`Shortcut`/`LayoutPreset` mà quên sửa chỗ gọi này sẽ rơi về map rỗng im lặng thay vì lỗi. Rủi ro thấp vì `cargo test` bắt buộc trước khi merge sẽ đỏ ở debug build, nhưng ghi lại cho lượt sau. **(Chủ: một story kế tiếp chạm `core/scope`.)**
 - `watch(currentMode)` gọi `put_config` không có khoá thứ tự (`src/main.ts:178-184`) — đổi chế độ liên tiếp rất nhanh có thể khiến một giá trị trung gian được ghi cuối cùng xuống đĩa do các lời gọi `invoke` hoàn tất không đúng thứ tự gọi. Tự phục hồi ở lượt chuyển chế độ kế tiếp. **(Chủ: story kế tiếp chạm `src/main.ts` (đổi chế độ).)**
 - Nhánh lỗi `store.read_failed` của `bootstrap_config` chưa có test ép đường đọc thật trượt (`src-tauri/tests/scope_contract.rs:700`) — `every_command_error_comes_from_the_store_vocabulary` chỉ ép các nhánh `OpenFailed`/`WriteFailed`. Đường lan `?` và phép chuyển `From<StoreError>` đã được kiểm ở tầng `store` (Story 1.7); thiếu một ca tích hợp trực tiếp qua `bootstrap_config`/`load_global_config`. **(Chủ: một story kế tiếp chạm `core/scope`.)**
@@ -599,6 +600,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - ⚠️ **Trần nhập 100 MB là một con số TẠM, chưa ai đo** — `core::segment::import::MAX_IMPORT_BYTES`, Ice chốt 2026-08-06 ở lượt code review. Nó tồn tại để một tệp bệnh hoạn không giết tiến trình (`fs::read` trọn tệp + `String` + bind SQLite ≈ 3 bản trong bộ nhớ, trên **luồng invoke đồng bộ**, và `panic = "abort"` biến cạn bộ nhớ thành giết cả tiến trình). **Chưa ai đo đỉnh RSS thật** cho một tệp 100 MB đi hết chuỗi, và nó **không** phải một phép đo về *"bao nhiêu thì Editor còn dùng được"*. Còn hai lỗ nữa ghi ra thay vì giấu: ① một **cửa sổ đua** giữa `metadata()` và `read()` *(tệp phình ra ở giữa)* — đóng nó đòi đọc theo khối có trần, mà nhập theo khối là Epic 6; ② lượt nhập vẫn **chặn luồng invoke**, không có tiến độ nào ngoài cờ `busy`. **Chủ: Story 2.4** *(đo `Tuning`)* cho con số, **Epic 6** cho đường đọc theo khối.
 
 - 🔴 **Tầng Tác phẩm của `ScopeResolver` ĐÃ được cắm nhưng CHƯA CÓ MỘT CONSUMER NÀO** — sửa lại phạm vi của mục này ở lượt code review 2026-08-06, vì §Completion Notes của Story 1.15 khai **hẹp hơn thực tế**. Story đó viết *"chưa có method phân giải nào thực sự chạy với dữ liệu tầng Work"*, đúng nhưng thiếu: thực tế là **cả cái slot Tác phẩm chưa có ai đọc**. Cụ thể — `ScopeResolver::with_work` được dựng ở `commands::project::create_work` và cất vào `OpenWork.scope`, và `OpenWork.scope` **không được đọc ở đâu trong `src-tauri/src/**`**; `OpenWorkState` chỉ có đúng hai chỗ chạm (`lib.rs::open_work_slot` đăng ký, `lib.rs::close_open_work` đóng lúc thoát); và đường phân giải sản phẩm thật (`core::scope::store`) vẫn dựng `ScopeResolver::global_only()`. ⇒ **AC9 đạt về CHỮ** *(có hàm dựng thứ hai, ba chữ ký không đổi, đường sản phẩm không còn luôn truyền `None`)* **nhưng CHƯA đạt về MỤC ĐÍCH**, và Ice đã chấm như vậy ở lượt review. ⚠️ Lý do **không** vá được ở Story 1.15: `project.db` chưa có bảng nào ở tầng Tác phẩm để tra *(Glossary → Epic 3, TM → Epic 7, prompt → Epic 4)*, và thêm một bảng như thế hôm nay vi phạm luật `store::schema`: *"Không thêm bước cho một lược đồ chưa tồn tại"*. **Chủ: epic đầu tiên mang dữ liệu tầng Tác phẩm** *(ứng viên gần nhất: Epic 3, Glossary)* — story đó nối `OpenWork.scope` vào đường phân giải thật CÙNG LƯỢT với bảng đầu tiên. Hàm dựng nay đã có test (`scope_contract.rs::the_second_constructor_carries_a_work_tier_and_the_first_one_does_not`), trước lượt review nó ship với **0 test**.
+  → 🟡 **Story 3.1 (2026-08-19): hàm TIÊU THỤ đã có, CHƯA có chỗ gọi sản phẩm.** `core::glossary::entries_eligible_for_injection(resolver, global, work)` là hàm đầu tiên trong kho THẬT SỰ nhận một `ScopeResolver` mang tầng Work và phân giải nó (`scope_contract.rs`/`glossary_contract.rs` canh bằng test, gồm ca "tầng Tác phẩm chờ chốt che tầng Global đã chốt"). Nhưng **không có command IPC hay đường sản phẩm nào gọi nó với `OpenWork.scope` thật** ở story này — §Never của Story 3.1 cấm mọi bề mặt IPC/màn hình (`epics.md`: "Không màn hình ⇒ không khoá chuỗi"). ⇒ Mục nợ gốc **chưa đóng hẳn**: `OpenWork.scope` vẫn không được đọc ở đâu trong `src-tauri/src/**` ngoài test. **Chủ chuyển sang Story 3.3** (Thêm nhanh thuật ngữ từ bất kỳ panel nào) — story đầu tiên của Epic 3 dựng một bề mặt IPC thật, nên là story đầu tiên có lý do nối `OpenWork.scope` vào một lời gọi `entries_eligible_for_injection`/`load_tier` sản phẩm.
 
 - ⚠️ **`err.project.meta_too_new` và `MessageKey::ProjectMetaTooNew` ĐÃ BỊ GỠ ở lượt code review 2026-08-06** — Ice chốt. Cơ chế từ chối một `meta.json` phiên bản mới hơn **vẫn còn nguyên và vẫn có test** (`MetaError::SchemaTooNew` + `WorkMeta::read` + `project_contract.rs::a_newer_meta_schema_is_refused_without_touching_a_single_byte`); thứ bị gỡ là **bề mặt hiển thị** của nó. Lý do: Story 1.15 không dựng màn hình *"mở lại một `.atproj` đã có"*, nên `WorkMeta::read` **không có một chỗ gọi sản phẩm nào**, nên một `MessageKey` + một khoá `vi.json` cho nó là **một khoá cho tính năng chưa tồn tại** — đúng thứ Story 1.7 §Completion Notes #3 cấm và `scope_contract.rs` trích lại nguyên văn. 🔴 **Story nào dựng đường mở lại một `.atproj`** *(ứng viên: Epic 5, lưới Tác phẩm)* **thêm lại cả ba thứ — biến thể `ProjectError`, `MessageKey`, khoá `vi.json` — CÙNG MỘT LƯỢT với màn hình.** **(Chủ: một story hạ tầng kiểm thử kế tiếp.)**
 
@@ -5248,3 +5250,70 @@ trước khi nới** — chúng có mặt để lượt đó có dữ liệu th�
   kênh trang trí lên **cột nguyên văn của lưới** — đúng đường nóng mà cả ba mục trên đang nói tới.
   **Chủ: Story 3.4** — đọc ba mục này trước khi viết dòng mã đầu tiên, và nếu số NFR2 vẫn chưa có
   thì nói ra trong story thay vì giả định nó đã an toàn.
+
+## Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai (2026-08-19)
+
+- 🔴 **Mục Glossary tầng Tác phẩm của một `.atproj` đã đóng rồi mở lại KHÔNG phân giải được
+  qua đường sản phẩm — dữ liệu vẫn nguyên vẹn trên đĩa, chỉ là không đường Rust nào nạp lại
+  nó.** Story 3.1 dựng `core::glossary::entries_eligible_for_injection(resolver, global,
+  work)` — hàm đầu tiên thật sự tiêu thụ tầng Work của `ScopeResolver` (xem mục 🟡 mới ở
+  `deferred-work.md:602`). Nhưng `ScopeResolver::with_work` chỉ được dựng ở
+  `commands::project::create_work`, tức lúc **TẠO MỚI** một Tác phẩm trong phiên hiện tại —
+  không tồn tại đường mở lại một `.atproj` đã có trên đĩa (`OpenWorkState` khởi động luôn
+  `None`, không command IPC nào ngoài `create_work_*` đặt được giá trị vào đó — cùng mệnh đề
+  đã ghi ở `deferred-work.md:2465` cho Editor). Hệ quả riêng cho Glossary: người dùng thêm
+  một mục tầng Tác phẩm, đóng ứng dụng, mở lại **cùng** `.atproj` đó — mục vẫn nằm trong
+  `project.db`, nhưng không có `ScopeResolver::with_work` nào được dựng lại cho phiên mới để
+  đọc nó, nên Epic 4 (`RagInjector`) sẽ không thấy mục đó cho tới khi đường mở lại tồn tại.
+  Không vá được ở Story 3.1: mở một đường "mở lại `.atproj`" tạm bợ chỉ để phục vụ Glossary
+  là đúng bẫy *"bộ tách tạm"* mà nhiều story trước đã tự cấm cho chính miền của chúng — đường
+  mở lại là một quyết định kiến trúc của toàn Tác phẩm (menu Thư viện, `Indexer`,
+  `library-index.db`), không phải một chi tiết của riêng một bảng. **Chủ: Epic 5** (đường mở
+  lại `.atproj`) — nhặt món nợ này cùng lượt với món đã ghi ở `deferred-work.md:2465`.
+
+- ⚠️ **`entries_eligible_for_injection(resolver, global, work)` nhận `global`/`work` là
+  `BTreeMap` ĐÃ NẠP, còn `load_tier`/`insert_entry`/`confirm_translation` bị cấm gọi ngoài
+  `core/glossary/**` (`glossary_boundary.rs::only_entries_eligible_for_injection_may_be_called_from_outside_glossary`,
+  thêm ở lượt rà soát ba lớp 2026-08-19).** Hai mệnh đề này CĂNG với nhau: chỗ gọi hợp lệ
+  đầu tiên ngoài module (Epic 4) cần một `BTreeMap<String, GlossaryEntry>` cho mỗi tầng để
+  truyền vào, và cách duy nhất dựng nó hôm nay là `load_tier` — thứ cổng vừa cấm gọi từ bên
+  ngoài. Story 3.1 cố ý KHÔNG giải bài đó ("vá tại chỗ, đừng dựng lại" — chỉ đạo của lượt rà
+  soát): `entries_eligible_for_injection` có thể cần đổi chữ ký để nhận `&Store`/`Option<&Store>`
+  thay vì `BTreeMap` (đúng khuôn `core::scope::store::load_global_config`), kéo theo một kiểu
+  lỗi hợp nhất `StoreError`+`ScopeError` mà hàm chưa có hôm nay — hoặc một đường khác mà
+  story đó tự quyết với đủ bối cảnh của Epic 4. **Chủ: story đầu tiên gọi
+  `entries_eligible_for_injection` từ ngoài `core/glossary/**`** (ứng viên gần nhất: Epic 4,
+  `RagInjector`) — đọc doc-comment của chính hàm đó (`core/glossary/store.rs`) trước khi gõ
+  dòng đầu tiên.
+  → ✅ **ĐÃ ĐÓNG 2026-08-19 (Story 3.1) — cùng ngày, lượt vá cuối do Ice ký.** Cổng vừa dựng
+  ĐANG cấm đúng con đường duy nhất tới thứ nó bảo vệ — không phải một món nợ để chuyển giao
+  cho Epic 4, mà một lỗi trong chính chỉ thị vá vừa ban hành, phải đóng ngay. Đóng bằng cách
+  đổi chữ ký: `entries_eligible_for_injection(resolver: &ScopeResolver, global: &Store, work:
+  Option<&Store>) -> Result<Vec<GlossaryEntry>, GlossaryError>` — hàm tự gọi `load_tier` cho
+  từng tầng RỒI MỚI phân giải, đúng khuôn `core::scope::store::load_global_config(store:
+  &Store)`. `GlossaryError` (mới, `core/glossary/store.rs`) là enum hai biến thể `Store(StoreError)`
+  · `Scope(ScopeError)`, mỗi biến thể một `From` — không nuốt một họ lỗi vào họ kia, không
+  `unwrap`. `load_tier` ở lại `pub` (vẫn cần cho `glossary_contract.rs` dựng fixture và
+  canh mệnh đề "có mặt khi liệt kê" mà hàm phơi ra không trả lời được) nhưng không còn ai
+  NGOÀI `entries_eligible_for_injection` gọi nó — `tests/**` không nằm trong phạm vi quét
+  của `glossary_boundary.rs` (chỉ quét `src-tauri/src/**`) nên việc test gọi thẳng không
+  đụng cổng. Ca `a_pending_work_tier_entry_shadows_and_disqualifies_a_confirmed_global_entry`
+  giữ nguyên sức: gọi qua đúng chữ ký mới, và bằng chứng "lọc sau khi phân giải" vẫn đo được
+  từ NGOÀI (đầu vào → đầu ra), không phụ thuộc cách tham số được dựng.
+
+## Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai (rà soát 2026-08-19)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai.md`
+  summary: Chính sách chuẩn hoá `source_term` — hạ chữ thường và chuẩn hoá Unicode — chưa
+    được quyết, nên hai thuật ngữ khác nhau CHỈ ở chữ hoa (`Fire` / `fire`) hay ở dạng
+    Unicode vẫn là hai hàng riêng dưới `idx_glossary_entry_source_term`.
+  evidence: Story 3.1 đóng vế RỖNG (`CHECK` khoảng trắng) và vế KHOẢNG TRẮNG THỪA (cắt lúc
+    ghi), nhưng cố ý dừng trước vế chuẩn hoá — đó là quyết định của đường KHỚP, không phải
+    của bảng. Ba dữ kiện đã đo ở Epic 1 chi phối nó và cả ba nằm ở miền Story 3.4: chữ hoa
+    có nghĩa với 1.635 đầu mục tiếng Anh và 184 nhóm chỉ phân biệt nhau bằng chữ hoa
+    (`project-context.md` §Rỗng im lặng); luật của kho là *"hạ chữ thường là THÊM một khoá,
+    không THAY khoá gốc"*; và `Matcher` của Story 1.12 — thứ Story 3.4 phải dùng lại theo
+    AD-17 — đã mang sẵn ranh giới stemming cho tiếng Anh. Chốt chuẩn hoá ở tầng bảng hôm
+    nay là chốt thay cho một story có nhiều bối cảnh hơn, và làm nó bằng một chỉ mục UNIQUE
+    thì KHÔNG lùi được sau khi dữ liệu người dùng đã nằm trên đĩa.
+    **(Chủ: Story 3.4 — khớp thuật ngữ theo ngôn ngữ.)**

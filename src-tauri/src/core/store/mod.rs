@@ -94,10 +94,10 @@ pub(crate) mod writer;
 pub use checkpoint::CheckpointStats;
 pub use readonly::ReadOnlyDb;
 pub use schema::{
-    CHAPTER_DDL, CONFIG_VALUE_DDL, GLOBAL_MIGRATIONS, Migration, PINNED_ENTRY_DDL,
-    PROJECT_MIGRATIONS, SCHEMA_MIGRATION_LOG_DDL, SEGMENT_DDL, SEGMENT_OMITTED_DDL,
-    SEGMENT_STATUS_AND_VERSION_DDL, SEGMENT_TARGET_TEXT_DDL, SEGMENT_TRANSLATION_ORIGIN_DDL,
-    WORK_DDL,
+    CHAPTER_DDL, CONFIG_VALUE_DDL, GLOBAL_MIGRATIONS, GLOSSARY_ENTRY_DDL, Migration,
+    PINNED_ENTRY_DDL, PROJECT_MIGRATIONS, SCHEMA_MIGRATION_LOG_DDL, SEGMENT_DDL,
+    SEGMENT_OMITTED_DDL, SEGMENT_STATUS_AND_VERSION_DDL, SEGMENT_TARGET_TEXT_DDL,
+    SEGMENT_TRANSLATION_ORIGIN_DDL, WORK_DDL,
 };
 
 /// Kiểu giao dịch mà một job ghi nhận được. Tái xuất để chỗ gọi **không phải gõ
@@ -115,6 +115,14 @@ pub use rusqlite::Row;
 /// `&[&dyn ToSql]` phải gõ tên crate, và `store_boundary.rs` — đúng như nó phải làm —
 /// sẽ gọi đó là một vi phạm.
 pub use rusqlite::ToSql;
+/// Loại cột SQLite, tham số thứ hai của `SqlError::FromSqlConversionFailure` — Story 3.1.
+///
+/// Tái xuất vì cùng lý do năm kiểu trên: `core::glossary::store::load_tier` cần dựng một
+/// lỗi ĐÚNG BIẾN THỂ khi một cột `TEXT` trên đĩa không khớp `CHECK` của nó (ca không nên
+/// xảy ra, nhưng "rơi về giá trị đáng tin nhất" còn tệ hơn một lỗi — xem doc-comment của
+/// `core::glossary::store::decode_category`), và không có nó thì module đó phải gõ tên
+/// crate để dựng lỗi.
+pub use rusqlite::types::Type as SqlType;
 
 /// Kết nối đọc đã đặt `PRAGMA query_only = 1`.
 ///
