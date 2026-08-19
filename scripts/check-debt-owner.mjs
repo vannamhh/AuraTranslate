@@ -406,11 +406,24 @@ function runSelftest() {
     }
   }
 
-  const R = '/repo'
-  const C = '/cwd'
-  const MAC_DINH = '/repo/_bmad-output/implementation-artifacts/deferred-work.md'
+  // 🔴 **GIÁ TRỊ MONG ĐỢI DỰNG BẰNG `join`, KHÔNG BẰNG MỘT CHUỖI POSIX VIẾT CỨNG.**
+  //
+  // ⚠️ Đo được trên CI 2026-08-19, lượt `32230261773`: bốn ca dưới đây **ĐỎ trên `windows-2025`**
+  // trong khi Kiểm A — phán quyết thật — cho **đúng cùng con số** với macOS *(0/303 mồ côi, 469
+  // mục)*. Lý do: bản đầu viết `'/cwd/tmp/cu.md'` làm giá trị mong đợi, còn `path.join` trên
+  // Windows trả `\cwd\tmp\cu.md`. ⇒ Một cổng **ĐỎ OAN trên nửa số nền tảng**, đúng điều Task 4.3
+  // của Story 2.13 cấm bằng chữ: *"cổng đỏ oan trên sổ nợ sẽ bị TẮT, và lúc đó tệ hơn không có
+  // cổng"*. Và nó lọt vì `pre-push` chạy trên macOS của Ice — chỗ mù mà `project-context.md` đã ghi.
+  //
+  // ⇒ Phép so phải hỏi **NGỮ NGHĨA** *(ghép đúng chỗ nào)*, không hỏi **DẤU PHÂN CÁCH**. Dựng cả
+  // hai vế bằng `join` là cách duy nhất để ca test nói cùng một điều trên cả hai nền tảng.
+  const R = join('/repo')
+  const C = join('/cwd')
+  const MAC_DINH = join(R, '_bmad-output', 'implementation-artifacts', 'deferred-work.md')
   const caDuong = [
-    ['--file tương đối ⇒ ghép với cwd', ['--file', 'tmp/cu.md', '--report'], '/cwd/tmp/cu.md'],
+    ['--file tương đối ⇒ ghép với cwd', ['--file', 'tmp/cu.md', '--report'], join(C, 'tmp/cu.md')],
+    // `isAbsolute('/x/cu.md')` đúng trên CẢ HAI nền tảng (Windows coi đường gốc-tương-đối là tuyệt
+    // đối), nên ca này xanh ở cả hai — nó KHÔNG nằm trong bốn ca đã đỏ, ghi ra để không ai "sửa" nó.
     ['--file tuyệt đối ⇒ dùng NGUYÊN VĂN', ['--file', '/x/cu.md'], '/x/cu.md'],
     ['không có --file ⇒ sổ THẬT', ['--report'], MAC_DINH],
     ['--file cuối dòng, thiếu giá trị ⇒ sổ THẬT', ['--file'], MAC_DINH],

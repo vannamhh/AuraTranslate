@@ -701,3 +701,33 @@ chưa có story nào cho nó.
 
 - 469 mục, 0 mồ côi. Chỉ dài ra; không mục nào bị xoá (AC4).
   [`deferred-work.md`](./deferred-work.md)
+
+---
+
+## 🔴 Lượt CI sau khi push — cổng mới ĐỎ OAN trên Windows, đúng điều Task 4.3 cấm
+
+**Lượt `32230261773`, `windows-2025`, 2026-08-19.** Cổng `check:debt-owner` **đỏ**, và bốn ca đỏ là
+bốn **ca tự kiểm của chính lượt rà này** — không một ca nào của sản phẩm:
+
+```
+OK    0/303 mục mở thiếu Chủ: — 469 mục tổng, 52 nửa, 107 đóng   ← Kiểm A, ĐÚNG y hệt macOS
+FAIL  tự kiểm --file — "…ghép với cwd": mong /cwd/tmp/cu.md, nhận \cwd\tmp\cu.md
+```
+
+**Nguyên nhân:** giá trị mong đợi viết cứng dấu `/` kiểu POSIX, còn `path.join` trên Windows trả `\`.
+Phép so hỏi **DẤU PHÂN CÁCH** thay vì hỏi **NGỮ NGHĨA**.
+
+🔴 **Vì sao nó nghiêm trọng hơn một ca test sai:** Task 4.3 của chính story này viết bằng chữ —
+*"nếu cổng đỏ oan dù chỉ MỘT ca trên sổ hiện tại ⇒ KHÔNG giao nó. Một cổng đỏ oan trên sổ nợ sẽ bị
+TẮT, và lúc đó tình trạng TỆ HƠN không có cổng."* Cổng đã được giao ở trạng thái đỏ oan trên một nửa
+số nền tảng. Task 4.3 được nghiệm thu **trên macOS**, và nó không thể thấy nửa kia.
+
+⚠️ **Và đây là chỗ mù đã có tên từ trước, không một điều bất ngờ:** `project-context.md` §CI ghi
+*"nửa Windows hôm nay KHÔNG có đường nghiệm thu tại chỗ — `pre-push` chạy trên macOS của Ice"*
+*(action item A5, retro Epic 1)*. `pre-push` cho **14/14 xanh trong 73s** ngay trước lượt push này.
+⇒ *"`pre-push` xanh"* **không** đồng nghĩa *"cổng đúng"*; nó nghĩa *"cổng đúng trên nền tảng của
+người chạy"*. Cùng hình dạng với cái bẫy `-0` sáng nay *(`fa70fe3`)*: hai môi trường đi hai đường mã.
+
+**Vá:** dựng giá trị mong đợi bằng **`join`** ở cả hai vế, nên phép so trở thành phép so ngữ nghĩa
+và nói cùng một điều trên cả hai nền tảng. Ca `--file` tuyệt đối **không** nằm trong bốn ca đỏ
+*(`isAbsolute('/x/…')` đúng trên cả hai)* — ghi ra để không ai "sửa" một ca đang đúng.
