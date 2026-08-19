@@ -49,7 +49,7 @@
  *
  *     npm run test:e2e -- --spec e2e/specs/segment-navigation.e2e.mjs
  */
-import { waitForGridRows } from '../support/gridWait.mjs'
+import { waitForGridRows, waitForGridText } from '../support/gridWait.mjs'
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
 import { realClick } from '../support/pointer.mjs'
 
@@ -122,6 +122,22 @@ async function doiChuong(soHang) {
   // ⚠️ Trần 60 s giữ nguyên, KHÔNG hạ về mặc định 30 s của helper: ca này chờ sau một lượt
   // ghi IPC ngoài luồng cộng một lượt nạp lại webview, và nó là ca ĐÃ đụng trần thật.
   await waitForGridRows(soHang, { col: 'tgt', timeout: 60_000, what: 'Chương vừa dựng' })
+
+  // ═════════════════════════════════════════════════════════════════════════════════════
+  // 🔵 CODE REVIEW BA TẦNG 2026-08-19 — VẾ DANH TÍNH BỊ ĐÁNH RƠI Ở LƯỢT TÁI CẤU TRÚC
+  // ═════════════════════════════════════════════════════════════════════════════════════
+  // 🔴 Bản trước lượt chuyển sang `support/gridWait.mjs` đọc câu đầu trên lưới và ném
+  // *"DANH TINH PHIEN KHONG KHOP"* nếu nó khác `CAU(1)`. Lượt chuyển giữ vế **đếm hàng** và
+  // **đánh rơi** vế **danh tính** — trong khi doc-comment ngay trên hàm này *(không bị lượt
+  // ấy đụng tới)* vẫn khẳng định *"rồi tự kiểm danh tính"*, và chính module mới còn tự viết
+  // ra điều đó ở `support/gridWait.mjs:28-30`: *"'đúng N hàng' không chứng minh 'đúng Chương
+  // ĐÓ' … `segment-navigation` gọi đó là 'vế duy nhất bắt được ca 2.9'"*.
+  //
+  // ⚠️ Vì sao nó là một hồi quy thật, không một vế trang trí: `doiChuong` chạy **sau** một
+  // lượt `reload()`, và Chương MỚI với Chương CŨ ở spec này có **cùng số hàng**. Đếm hàng một
+  // mình cho XANH trên đúng ca *"Chương cũ còn đó"* — khuyết tật đã ĐO ĐƯỢC ở bàn đo 2.9
+  // (2026-08-17), tức lớp lỗi mà Task 1.1 của story này sinh ra để đóng.
+  await waitForGridText(0, CAU(1), { col: 'src', timeout: 60_000 })
 }
 
 /** Chỉ số hàng đang mang vạch `primary`. Vạch là một **class** ở cột riêng, không một `data-`. */

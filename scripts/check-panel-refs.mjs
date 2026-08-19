@@ -48,9 +48,20 @@
  * 3. **Chỉ theo lời gọi hàm SÂU MỘT TẦNG** từ thân hàm reset. `resetEditorPanel()` gọi
  *    `clearFlushTimer()`, và tầng một là đủ cho mọi chỗ dùng hôm nay. Một chuỗi hai tầng sẽ
  *    bị chấm là chưa dọn — lại là chiều đỏ oan, vá bằng miễn trừ.
+ * 4. 🔵 **Tầng một ấy bị chặn ở ranh giới TỆP** *(code review 2026-08-19 — chỗ duy nhất trong
+ *    tệp này chưa tự khai chỗ yếu)*. Vòng tìm hàm phụ chỉ quét trên `source` của **chính tệp
+ *    đang xét**, nên một hàm dọn được `import` từ tệp khác rồi gọi trong `reset*()` là **vô
+ *    hình** ⇒ ĐỎ OAN. Chiều an toàn, nhưng phải viết ra: không cổng nào canh việc người sau
+ *    tưởng *"sâu một tầng"* đã bao gồm cả tầng liên-tệp.
+ * 5. 🔵 **Cổng nhận diện ô nhớ trên MỘT DÒNG, và tập cú pháp là một TẬP CON nghiêm ngặt**
+ *    *(code review 2026-08-19)*. `const a = ref(0), b = ref(0)` và một khai báo trải hai dòng
+ *    nằm **ngoài** tập con. Chúng **không** bị bỏ qua trong im lặng — [`failOutOfSubset`] cho
+ *    ĐỎ kèm câu *"cú pháp ngoài tập con"*, đúng khuôn mà `project-context.md` đặt cho các
+ *    parser TOML/CSS tự viết trong `scripts/`: *"cú pháp ngoài tập con ⇒ FAIL, không bỏ qua"*.
+ *    Một lượt bỏ qua im lặng ở đây là một ô nhớ cấp module **cổng không bao giờ thấy**.
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -76,10 +87,24 @@ function fail(msg) {
   console.error(`  FAIL  ${msg}`)
 }
 
-function walk(dir, out = []) {
+function walk(dir, out = [], seen = new Set()) {
+  // 🔵 **CODE REVIEW BA TẦNG 2026-08-19** — bản đầu dùng `statSync` *(THEO liên kết)* và không
+  // mang `seen`. Một symlink trỏ ngược vào một thư mục tổ tiên trong `src/**` cho **đệ quy vô
+  // hạn** ⇒ stack overflow, tức tiến trình Node chết mà **không** một câu chẩn đoán nào —
+  // ngược đúng luật *"lỗi hạ tầng KHÔNG phải một phép kiểm đỏ; nó `abort()` kèm một câu"*.
+  // ⇒ Ba thứ dưới đây chép **đúng** khuôn `check-layout.mjs:65-77` đã thêm cho cùng nhu cầu:
+  // `realpathSync` làm khoá danh tính · `seen` chặn vòng · `lstatSync` **không** theo liên kết.
+  let key
+  try {
+    key = realpathSync(dir)
+  } catch {
+    key = dir
+  }
+  if (seen.has(key)) return out
+  seen.add(key)
   for (const name of readdirSync(dir)) {
     const full = join(dir, name)
-    if (statSync(full).isDirectory()) walk(full, out)
+    if (lstatSync(full).isDirectory()) walk(full, out, seen)
     // 🔴 `.ts` thôi — xem §Phạm vi. `.vue` loại theo ĐUÔI TỆP, không theo một parser.
     else if (name.endsWith('.ts')) out.push(full)
   }
@@ -243,17 +268,150 @@ const EXEMPT = new Map([
   ],
 ])
 
+/**
+ * 🔵 **CODE REVIEW BA TẦNG 2026-08-19 — HAI HÌNH DẠNG KHAI BÁO NGOÀI TẬP CON, và vì sao chúng
+ * phải cho ĐỎ chứ không được bỏ qua.**
+ *
+ * Ba biểu thức dưới đây nhận diện ô nhớ **trên MỘT DÒNG** và mỗi biểu thức khớp **một lần**
+ * mỗi dòng. Hai hình dạng hợp lệ của TypeScript nằm ngoài tập ấy:
+ *   ⒜ `const a = ref(0), b = ref(0)` — nhiều declarator một dòng ⇒ chỉ `a` được thấy;
+ *   ⒝ `const x =` rồi `  ref(0)` ở dòng sau ⇒ **không** dòng nào khớp, ô **vô hình**.
+ * Cả hai cho một ô nhớ cấp module mà cổng **không bao giờ thấy** — tức đúng lớp xanh-oan mà
+ * cổng này tồn tại để chống, chỉ đi vào bằng một cửa khác.
+ *
+ * 🔴 ⇒ Không nới luật, không im lặng: **FAIL kèm câu *"cú pháp ngoài tập con"***, đúng khuôn
+ * `project-context.md` đặt cho mọi parser tự viết trong `scripts/` — *"cú pháp ngoài tập con
+ * ⇒ FAIL, không bỏ qua"*. Người viết chọn: tách thành hai dòng, hoặc thêm một miễn trừ có tên.
+ *
+ * ⚠️ Chạy trên dòng ĐÃ tách chú thích/chuỗi *(xem [`stripNonCode`])*, và dấu phẩy chỉ tính ở
+ * **độ sâu 0** của `(`/`[`/`{`. Đó là điều kiện để `new Map<string, number>()` và
+ * `const BANG = { a: 1, b: 2 }` **không** bị chấm oan — hai hình dạng có thật trong `src/**`.
+ *
+ * @param {string} codeLine dòng đã qua `stripNonCode`
+ * @returns {string | null} lý do, hoặc `null` nếu trong tập con
+ */
+function outOfSubset(codeLine) {
+  if (!/^(?:const|let)\s+[A-Za-z_$][\w$]*/.test(codeLine)) return null
+  if (/^(?:const|let)\s+[A-Za-z_$][\w$]*\s*(?::[^=]*)?=\s*$/.test(codeLine)) {
+    return 'khai bao trai HAI DONG (dong ket thuc bang `=`)'
+  }
+  let depth = 0
+  for (let i = 0; i < codeLine.length; i += 1) {
+    const c = codeLine[i]
+    if (c === '(' || c === '[' || c === '{') depth += 1
+    else if (c === ')' || c === ']' || c === '}') depth -= 1
+    else if (c === ',' && depth === 0) {
+      // Chỉ là một declarator thứ hai nếu sau dấu phẩy là `ten =` hoặc `ten:`.
+      if (/^\s*[A-Za-z_$][\w$]*\s*(?::|=(?!=))/.test(codeLine.slice(i + 1))) {
+        return 'NHIEU declarator tren mot dong (`const a = …, b = …`)'
+      }
+    }
+  }
+  return null
+}
+
 /** Ô nhớ cấp module: `ref`/`shallowRef`/`reactive`, `let`, và `const` gán một hộp RỖNG. */
 const RE_REACTIVE = /^(?:const|let)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=\s*(?:ref|shallowRef|reactive|shallowReactive)\s*[(<]/
 const RE_LET = /^let\s+([A-Za-z_$][\w$]*)\b/
 const RE_EMPTY_BOX = /^const\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=\s*(?:\[\s*\]|\{\s*\}|new\s+(?:Map|Set|WeakMap|WeakSet)\s*[(<])/
 
 /**
+ * 🔵 **CODE REVIEW BA TẦNG 2026-08-19 — CỬA XANH-OAN THỨ HAI CỦA CỔNG NÀY, cùng hạng với
+ * lượt đột biến Task 5.5 nhưng ở một cơ chế KHÁC.**
+ *
+ * Lượt đột biến 5.5 đóng câu hỏi *"một lượt ĐỌC có thành bằng chứng cho một lượt DỌN không"*.
+ * Nó **không** đóng câu hỏi *"văn bản mà cổng đang đọc có phải MÃ không"*. Hai cửa còn hở:
+ *
+ * 1. [`isAssignedIn`] khớp trên văn bản thô ⇒ một dòng chú thích `// sourceCut.value = null`
+ *    hay một chuỗi lỗi chứa nguyên văn ấy **thành bằng chứng đã dọn**. Một hàm reset *"trông
+ *    như"* dọn một ô mà không gán gì vẫn đi qua Kiểm A.
+ * 2. [`bodyOf`] cân dấu ngoặc trên MỌI ký tự `{}()` ⇒ một `)` trong một chuỗi
+ *    *(`function reset(msg = ")")`)*, một `}` trong một template, hay một `{` lệch cặp trong
+ *    một chú thích **cắt thân hàm sai chỗ**: cắt sớm cho ĐỎ OAN, đọc tràn sang mã kế tiếp cho
+ *    **XANH OAN** *(một lượt gán KHÔNG thuộc hàm reset bị tính là bằng chứng)*.
+ *
+ * ⇒ Hàm này xoá **nội dung** của chú thích · chuỗi · template · regex literal, và **giữ đúng
+ * độ dài** *(thay bằng dấu cách, giữ nguyên `\n`)*. Giữ độ dài là điều kiện bắt buộc: `bodyOf`
+ * dùng `m.index` của một `matchAll` chạy trên **cùng** chuỗi này, nên một lượt xoá làm lệch
+ * chỉ số sẽ cắt thân hàm ở một chỗ khác hẳn.
+ *
+ * ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì giấu:** phép nhận diện regex literal là một **suy đoán**
+ * theo ký tự đứng trước *(khuôn quen của mọi bộ tách JS không có parser)*. Một `/` chia đứng
+ * sau một trong các ký tự ấy sẽ bị đọc thành mở regex. Hình dạng đó **không tồn tại** trong
+ * `src/**` hôm nay và nó ở chiều ĐỎ OAN, không chiều xanh oan — nên nó là một giới hạn được
+ * chọn, không một chỗ bỏ sót. Không thêm một phụ thuộc npm cho một cổng *(NFR15)*.
+ *
+ * @param {string} src
+ * @returns {string} cùng độ dài, cùng số dòng, chỉ còn MÃ
+ */
+function stripNonCode(src) {
+  const out = src.split('')
+  const blank = (from, to) => {
+    for (let k = from; k < to && k < out.length; k += 1) if (out[k] !== '\n') out[k] = ' '
+  }
+  // Ký tự có nghĩa gần nhất trước `i` — dùng để phân biệt `/` mở regex với `/` chia.
+  const prevCode = (i) => {
+    for (let k = i - 1; k >= 0; k -= 1) if (!/\s/.test(out[k])) return out[k]
+    return null
+  }
+  let i = 0
+  while (i < src.length) {
+    const c = src[i]
+    const d = src[i + 1]
+    if (c === '/' && d === '/') {
+      let j = i + 2
+      while (j < src.length && src[j] !== '\n') j += 1
+      blank(i, j)
+      i = j
+    } else if (c === '/' && d === '*') {
+      const end = src.indexOf('*/', i + 2)
+      const j = end === -1 ? src.length : end + 2
+      blank(i, j)
+      i = j
+    } else if (c === '"' || c === "'" || c === '`') {
+      let j = i + 1
+      while (j < src.length) {
+        if (src[j] === '\\') {
+          j += 2
+          continue
+        }
+        if (src[j] === c) break
+        // Một chuỗi `'`/`"` không qua được dòng mới — chốt ở đó thay vì nuốt cả tệp.
+        if (c !== '`' && src[j] === '\n') break
+        j += 1
+      }
+      blank(i + 1, j)
+      i = j + 1
+    } else if (c === '/' && '(,=:[!&|?{};+*%^~'.includes(prevCode(i) ?? '(')) {
+      let j = i + 1
+      let inClass = false
+      while (j < src.length && src[j] !== '\n') {
+        if (src[j] === '\\') {
+          j += 2
+          continue
+        }
+        if (src[j] === '[') inClass = true
+        else if (src[j] === ']') inClass = false
+        else if (src[j] === '/' && !inClass) break
+        j += 1
+      }
+      blank(i + 1, j)
+      i = j + 1
+    } else {
+      i += 1
+    }
+  }
+  return out.join('')
+}
+
+/**
  * Thân của mọi hàm `reset*` trong một tệp, CỘNG thân của mọi hàm cùng tệp được gọi từ đó.
  *
- * ⚠️ Sâu **một tầng** — xem §Giới hạn thật, mục 3.
+ * ⚠️ Sâu **một tầng** — xem §Giới hạn thật, mục 3, và mục 4 cho ranh giới TỆP.
+ * 🔵 2026-08-19: chạy trên [`stripNonCode`], không trên văn bản thô — xem doc-comment ở đó.
  */
-function resetScope(source) {
+function resetScope(rawSource) {
+  const source = stripNonCode(rawSource)
   const bodies = []
   const bodyOf = (startIdx) => {
     // 🔴 **KHÔNG lấy dấu `{` đầu tiên** — bẫy đã cắn thật ở lượt dựng cổng này, 2026-08-18:
@@ -291,7 +449,9 @@ function resetScope(source) {
   }
 
   const direct = []
-  for (const m of source.matchAll(/^export function (reset[A-Za-z0-9_$]*)\s*\(/gm)) {
+  // 🔵 2026-08-19: `(?:async )?` — bản đầu bỏ nó ở ĐÂY nhưng có nó ở vòng tìm hàm phụ ngay
+  // dưới, tức hai regex trong cùng một hàm không khai cùng một tập cú pháp.
+  for (const m of source.matchAll(/^export (?:async )?function (reset[A-Za-z0-9_$]*)\s*\(/gm)) {
     direct.push(bodyOf(m.index))
   }
   bodies.push(...direct)
@@ -374,9 +534,23 @@ for (const file of files) {
   }
   const rel = posix(file)
   const scope = resetScope(source)
-  const hasReset = /^export function reset[A-Za-z0-9_$]*\s*\(/m.test(source)
+  // 🔵 2026-08-19: quét trên dòng ĐÃ tách chú thích/chuỗi. Bản đầu quét văn bản thô, nên một
+  // `const x = ref(0)` nằm ở cột 0 **trong một khối chú thích** đếm thành một ô nhớ có thật.
+  const codeLines = stripNonCode(source).split('\n')
+  // 🔵 2026-08-19: nhận `export async function reset…` — xem `resetScope`, cùng lý do.
+  const hasReset = /^export (?:async )?function reset[A-Za-z0-9_$]*\s*\(/m.test(source)
 
-  source.split('\n').forEach((line, i) => {
+  codeLines.forEach((line, i) => {
+    const ngoaiTap = outOfSubset(line)
+    if (ngoaiTap !== null) {
+      fail(
+        `${rel}:${i + 1} — CU PHAP NGOAI TAP CON: ${ngoaiTap}.\n` +
+          `        Cong nhan dien o nho tren MOT dong, mot lan moi dong. Hinh dang nay cho mot\n` +
+          `        o nho cap module ma cong KHONG BAO GIO thay — mot xanh oan, khong mot cho\n` +
+          `        bo sot. Tach thanh hai dong, hoac them mot mien tru CO TEN kem ly do.`,
+      )
+      return
+    }
     const m = RE_REACTIVE.exec(line) ?? RE_LET.exec(line) ?? RE_EMPTY_BOX.exec(line)
     if (m === null) return
     const name = m[1]
@@ -518,6 +692,84 @@ function selfCheck() {
   const mong = ['a', 'b', 'c']
   if (bat.join(',') !== mong.join(',')) {
     problems.push(`ca am ②: cho [${mong}], bat duoc [${bat}] — hinh dang nhan dien o nho da lech`)
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════════
+  // 🔵 CODE REVIEW BA TẦNG 2026-08-19 — BỐN CA CHO BỐN CƠ CHẾ MỚI
+  // ═══════════════════════════════════════════════════════════════════════════════════
+  // 🔴 Một cơ chế mới không có phép tự kiểm là một cơ chế **chưa ai biết nó đỏ được** — đúng
+  // bài học mà chính cổng này học bằng lượt đột biến Task 5.5. Bốn ca dưới đây gọi **CHÍNH**
+  // [`stripNonCode`] · [`outOfSubset`] · [`resetScope`] đang chạy thật, không một bản chép
+  // *(bài học F4 ② của retro Epic 2)*.
+
+  // ── Ca ÂM ④: một lượt gán trong CHÚ THÍCH không được tính là đã dọn ──────────────
+  const trongChuThich = [
+    'export function resetVi(): void {',
+    '  // sourceCut.value = null   ← chỉ là một dòng chú thích, KHÔNG một lượt gán',
+    '  omitError.value = null',
+    '}',
+  ].join('\n')
+  const scopeChuThich = resetScope(trongChuThich)
+  if (isAssignedIn('sourceCut', scopeChuThich)) {
+    problems.push(
+      'ca am ④: `sourceCut` chi xuat hien trong mot CHU THICH ma cong cham la da don — ' +
+        '`stripNonCode` khong chay, hoac no khong xoa chu thich',
+    )
+  }
+  if (!isAssignedIn('omitError', scopeChuThich)) {
+    problems.push('ca am ④: `omitError` co mot luot gan THAT ma cong khong thay — da xoa qua tay')
+  }
+
+  // ── Ca ÂM ⑤: một `)` trong CHUỖI không được cắt danh sách tham số sớm ───────────
+  //
+  // Nếu `bodyOf` cân dấu ngoặc trên văn bản thô, `")"` đóng sớm và `open` trỏ vào một `{`
+  // khác — thân hàm đọc ra sai chỗ, và `daDon` biến mất.
+  const ngoacTrongChuoi = [
+    'export function resetVi(msg = ")"): void {',
+    '  daDon.value = null',
+    '}',
+  ].join('\n')
+  if (!isAssignedIn('daDon', resetScope(ngoacTrongChuoi))) {
+    problems.push(
+      'ca am ⑤: mot `)` trong CHUOI da cat danh sach tham so som — `bodyOf` dang can dau ' +
+        'ngoac tren van ban tho',
+    )
+  }
+
+  // ── Ca DƯƠNG ③: `export async function reset…` phải được nhận ───────────────────
+  const resetAsync = [
+    'export async function resetVi(): Promise<void> {',
+    '  daDon.value = null',
+    '}',
+  ].join('\n')
+  if (!isAssignedIn('daDon', resetScope(resetAsync))) {
+    problems.push('ca duong ③: `export async function reset…` khong duoc nhan — hai regex lech nhau')
+  }
+  if (!/^export (?:async )?function reset[A-Za-z0-9_$]*\s*\(/m.test(resetAsync)) {
+    problems.push('ca duong ③: regex `hasReset` khong nhan `async` — mot tep nhu the se DO OAN')
+  }
+
+  // ── Ca ⑥: tập con cú pháp — hai hình dạng PHẢI đỏ, ba hình dạng KHÔNG được đỏ oan ─
+  const phaiDo = [
+    'const a = ref(0), b = ref(0)',
+    'let x =',
+  ]
+  for (const line of phaiDo) {
+    if (outOfSubset(stripNonCode(line)) === null) {
+      problems.push(`ca ⑥: "${line}" nam NGOAI tap con ma cong khong bat — mot o nho vo hinh`)
+    }
+  }
+  const khongDuocDo = [
+    'const cache = new Map<string, number>()', // phẩy trong `<>`
+    'const BANG = { a: 1, b: 2 }', // phẩy trong `{}`
+    'const nhan = ref(0) // ghi chú, b = 1', // phẩy trong chú thích
+    "const s = ref('a, b = 1')", // phẩy trong chuỗi
+  ]
+  for (const line of khongDuocDo) {
+    const ly = outOfSubset(stripNonCode(line))
+    if (ly !== null) {
+      problems.push(`ca ⑥: "${line}" nam TRONG tap con ma cong cham la ngoai ("${ly}") — do oan`)
+    }
   }
 
   return problems

@@ -147,13 +147,46 @@ export async function resetPanelState() {
 
       // 🔴 Đọc NGAY SAU reset và TRƯỚC lượt nạp — đây là cửa sổ duy nhất mà lưới phải rỗng,
       // và nó là bằng chứng quan sát-được-từ-ngoài rằng `import()` chạm đúng module app đọc.
-      const rowsAfterReset = document.querySelectorAll('[data-col="src"]').length
+      //
+      // ═══════════════════════════════════════════════════════════════════════════════
+      // 🔵 CODE REVIEW BA TẦNG 2026-08-19 — CHỜ TRẠNG THÁI, KHÔNG ĐỌC MỘT LẦN
+      // ═══════════════════════════════════════════════════════════════════════════════
+      // 🔴 Bản đầu đọc `querySelectorAll(...).length` **một lần, đồng bộ, ngay sau** vòng
+      // reset. Vue vá DOM **bất đồng bộ** *(bộ lập lịch chạy trên microtask)*, nên lượt đọc
+      // ấy chỉ thấy 0 hàng **vì** `editorPanelState` tình cờ đứng **ĐẦU** `PANEL_MODULES` và
+      // bốn lượt `await import()` sau nó vô tình cho bộ lập lịch kịp chạy.
+      //
+      // ⚠️ Đó là một bảo đảm **do thứ tự một mảng dữ liệu**, không do một mệnh đề. Đảo
+      // `editorPanelState` xuống cuối bảng là hàng rào **đỏ oan MỌI lượt**, và câu chẩn đoán
+      // sẽ nói *"cầu reset đang dọn một BẢN SAO"* cho một cuộc đua hoàn toàn vô hại — đúng
+      // lớp *"chẩn đoán sai trên một bàn đo"* mà `gridWait`/`flushWait` viết cả một đoạn dài
+      // để tránh, chỉ khác là nó nằm trong chính hàng rào mới.
+      //
+      // ⇒ Chờ **trạng thái đích** với một trần, thay vì tin một thứ tự ngầm. Trần 2 s là
+      // rộng gấp nhiều lần một lượt vá DOM *(vài microtask)*; nó chỉ tồn tại để hàng rào
+      // KHÔNG treo vô hạn khi reset thật sự không chạm module app.
+      const deadline = Date.now() + 2000
+      let rowsAfterReset = document.querySelectorAll('[data-col="src"]').length
+      while (rowsAfterReset !== 0 && Date.now() < deadline) {
+        await new Promise((r) => requestAnimationFrame(() => r()))
+        rowsAfterReset = document.querySelectorAll('[data-col="src"]').length
+      }
 
       for (const [path, fnName] of loads) {
         const got = await grab(path, fnName)
         if (got.err !== undefined) return { ok: false, detail: got.err }
-        // `void` — hai hàm này async và `finishSubmit` cũng không chờ chúng.
-        void got.fn()
+        // 🔵 **CODE REVIEW BA TẦNG 2026-08-19** — bản đầu viết `void got.fn()`. Hai hàm này
+        // async và `finishSubmit` cũng không chờ chúng, nên **không chờ** là đúng vai. Nhưng
+        // `void` **bỏ luôn promise**, nên một rejection thành một *unhandled rejection trong
+        // context trình duyệt*: nó không truyền về Node, không về WebdriverIO, và nguyên nhân
+        // thật **biến mất**. Spec sau đó chỉ thấy `waitForGridRows` hết giờ 30/60 s.
+        // ⇒ Vẫn không chờ, nhưng **giữ NGUYÊN VĂN** — đúng luật mà `flushWait`/`gridWait`
+        // viết rất kỹ ở chỗ khác trong cùng story này.
+        got.fn().catch((err) => {
+          const text = `${fnName}() ném (bất đồng bộ, SAU lượt reset): ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`
+          window.__auraPanelResetLoadError = text
+          console.error(`[panelReset] ${text}`)
+        })
         called.push(fnName)
       }
 
@@ -180,6 +213,17 @@ export async function resetPanelState() {
   // Phép kiểm đi qua **DOM**, có chủ ý: lưới đối chiếu render từ `segments` của
   // `editorPanelState`, nên 0 hàng `[data-col="src"]` **ngay sau reset** là bằng chứng
   // quan sát được từ bên ngoài rằng chính ô nhớ app đang đọc đã bị dọn.
+  //
+  // ⚠️ **GIỚI HẠN THẬT (code review 2026-08-19), ghi ra thay vì để người sau tưởng đã xét:**
+  // tín hiệu `[data-col="src"]` do **MỘT** trong năm module chi phối. Ba module còn lại
+  // *(`lookupPanelState` · `lookupHistoryState` · `segmentHistoryState`)* **không** có một
+  // tín hiệu DOM quan sát-được tương đương ở cửa sổ này, nên hàng rào **không** chứng minh
+  // riêng từng lượt `import()` của chúng.
+  // ⇒ Nó chứng minh đúng một mệnh đề, và mệnh đề ấy là mệnh đề cần: **cây cầu `import()`
+  // chạm bản gốc**. Năm lượt đi qua **cùng** một cơ chế phân giải URL của Vite, nên một lượt
+  // trúng bản gốc là bằng chứng cho cơ chế, không chỉ cho một đỉnh. Thứ hàng rào KHÔNG bắt
+  // được là một module **đổi chỗ riêng lẻ** — ca đó do lượt `grab()` ở trên bắt, bằng câu
+  // *"không xuất một hàm tên …"*.
   if (outcome.rowsAfterReset !== 0) {
     throw new Error(
       `Đã gọi ${PANEL_MODULES.length} hàm reset mà lưới còn ${outcome.rowsAfterReset} hàng nguyên văn.\n\n` +
@@ -187,6 +231,23 @@ export async function resetPanelState() {
         '(một lượt HMR chèn `?t=…`, hay một tệp đổi chỗ). Cầu reset đang dọn một BẢN SAO.\n' +
         'Đo lại bằng: `curl -s http://localhost:1420/src/main.ts | grep -oE \'"/src/[^"]*"\'`\n' +
         '— mọi đường phải KHÔNG mang query string. Đây là tiền đề của quyết định #5(b).',
+    )
+  }
+
+  // 🔵 2026-08-19 — vế thứ hai của lượt vá `void got.fn()`: một rejection xảy ra **kịp**
+  // trước khi `execute` trả về được nêu ĐÍCH DANH ngay đây, thay vì để spec sau đọc một lượt
+  // hết giờ. Một rejection **muộn** hơn thì ở lại `window.__auraPanelResetLoadError` cộng một
+  // dòng `console.error` mang tiền tố `[panelReset]` — đủ để lần ra, không im lặng.
+  const loadError = await browser.execute(() => window.__auraPanelResetLoadError ?? null)
+  if (loadError !== null) {
+    await browser.execute(() => {
+      window.__auraPanelResetLoadError = undefined
+    })
+    throw new Error(
+      `Lượt NẠP LẠI sau reset đã ném: ${loadError}\n\n` +
+        'Đây là lỗi HẠ TẦNG của bàn đo, KHÔNG một hồi quy sản phẩm — và nó được nêu ở ĐÂY có\n' +
+        'chủ ý: bản đầu `void` mất nguyên văn này, nên ca đỏ lộ ra sau đó là một lượt hết giờ\n' +
+        '30/60 s không ai lần được về dòng nào.',
     )
   }
 

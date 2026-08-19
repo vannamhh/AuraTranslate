@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-19T07:40:00
+last_updated: 2026-08-19T09:35:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -188,6 +188,12 @@ development_status:
   #   🔴 DIEU KIEN DO BI BAC BANG SO: loadavg **162,88 -> 111,35** tren 16 nhan luc 15:49-15:51
   #   (VM Docker 9,1 GB RSS, 111% CPU), so voi 7,19 ma AC22 DA gan co o luot (a) — cao hon ~15 lan.
   #   ⇒ Luoi 6 diem va phien NFR2 KHONG chay duoc hom nay. Cho ① van nguyen, chu van la ICE.
+  # 🔵 DINH CHINH 2026-08-19 (code review Story 2.12) — DOC DONG DUOI DAY CHO DUNG NGHIA.
+  #   `in-progress` o day KHONG con nghia "2.12 va Epic 3 phai cho". Ice ky 2026-08-19: chu "go"
+  #   trong §Thu tu cua story 2.12 mang nghia HEP — 2.4 het la mot cho chan KY THUAT, dung nhu
+  #   ghi chu ngay tren da noi. Ba menh de phan biet duoc: ⑴ 2.4 het chan 2.12 (DA THOA) ·
+  #   ⑵ 2.4 `done` (CHUA — luoi 6 diem) · ⑶ AC7 cua 2.12 (DAT, khong muon ⑵ de dung).
+  #   ⇒ Dong nay o lai `in-progress` mot cach TRUNG THUC, va no khong chan gi nua.
   2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi: in-progress
   #
   # 🔵 CAP NHAT 2026-08-18 — CHO CHAN CU DA HET DUNG, va cho chan MOI khac hang.
@@ -1660,7 +1666,16 @@ development_status:
   #   `attribution-focus` (lan do ② cua wdio.conf) xanh o luot 12 nhung CHUA BAO GIO duoc chan doan.
   #   No la mot mon no CO CHU trong deferred-work.md, khong mot dau ✅.
   # ⚠️ Task 1.5 (cua so trang, ve client) VAN CHUA DO sau ba luot — khong cham dat bang suy luan.
-  2-12-ha-tang-e2e-va-cong-con-thieu: review
+  # 🔵 2026-08-19 — `review` → `in-progress` sau CODE REVIEW BA TANG. 13/13 patch da va, 2/2 quyet
+  #   dinh da co chu ky Ice, bon duong tu dong xanh (10 cong · vitest 250/250 · build · cargo 415).
+  #   🔴 KHONG chuyen `done`, va ly do la mot phep do chu khong mot muc con ho: luot va cham
+  #   `e2e/**` (ve danh tinh `doiChuong` · hang rao `resetPanelState` · ve `truncated`), ma AC7
+  #   doi mot luot e2e TRON BO. Luot 12 (11/11 xanh) do tren cay TRUOC luot va.
+  #   ⇒ Can luot thu MUOI BA. Chu: ICE, chay tay (`npm run test:e2e`, ~13 phut, cong 1420 trong).
+  #   Muc nang nhat cua luot ra: `resetSegmentHistory()` da viet ma CHUA noi day — cua so hong du
+  #   lieu VINH VIEN con nguyen, va `check:panel-refs` xanh tren no vi cong chi hoi "co ham reset
+  #   khong", khong hoi "ai GOI ham do". Da va + mot ca vitest do-duoc-bang-dot-bien.
+  2-12-ha-tang-e2e-va-cong-con-thieu: in-progress
 
   # 🔴 STORY NAY DONG MOT VI PHAM LUAT DANG SONG, khong them nang luc.
   #   project-context.md:447-448 viet bang chu: "Moi thu ... KEM MOT CHU. Khong co muc nao mo coi."

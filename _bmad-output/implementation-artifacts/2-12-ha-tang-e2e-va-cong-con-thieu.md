@@ -4,8 +4,17 @@ baseline_commit: 4b30199263b5a5ad9dd13d3a4c8cd810951d1ba7
 
 # Story 2.12: Hạ tầng e2e và cổng còn thiếu
 
-Status: review
+Status: in-progress
 
+> 🔵 **2026-08-19 — `review` → `in-progress` sau lượt code review ba tầng.** 13/13 patch đã vá và
+> nghiệm thu trên bốn đường tự động; hai quyết định đã có chữ ký của Ice. Story **không** chuyển
+> `done` vì một lý do đo được, không vì một mục nào còn hở: lượt vá chạm `e2e/**` *(vế danh tính
+> của `doiChuong` · hàng rào `resetPanelState` · vế `truncated`)*, và **AC7 của chính story này đòi
+> một lượt e2e trọn bộ**. Lượt 12 *(11/11 xanh)* đo trên cây **trước** lượt vá. ⇒ Cần lượt **thứ
+> mười ba**; chủ là **Ice**, chạy tay. Chi tiết ở §Review Findings.
+
+🟡 **BẢY TRÊN BẢY AC đóng kèm bằng chứng, gồm AC7 — nhưng bằng chứng của AC7 đo trên cây TRƯỚC lượt
+code review 2026-08-19; xem hộp 🔵 ngay trên và §Review Findings.** Nguyên văn lượt ký gốc:
 ✅ **BẢY TRÊN BẢY AC đóng kèm bằng chứng, gồm AC7** *(lượt e2e trọn bộ thứ mười hai: **11/11 xanh,
 0 đỏ, 13m01s**, theo chữ ký #8 của Ice: `n=1` và phải xanh 11/11)*.
 ⇒ **Cửa chặn ② ĐÓNG. Epic 3 mở được.**
@@ -62,6 +71,31 @@ Hai cửa chặn độc lập về nội dung nhưng **không** song song. Ice c
 ⚠️ **Nhưng story này KHÔNG chờ 2.4 để được soạn** — nó `ready-for-dev` từ 2026-08-18. Thứ chờ là
 **lượt dev**, không phải hồ sơ. Và ranh giới giữ nguyên: story này **không đo, không vá, không chấm**
 NFR2 *(xem §Ranh giới phạm vi, mục 1)*.
+
+### 🔵 CẬP NHẬT 2026-08-19 — *"gỡ"* nghĩa là gì, và vì sao câu trên đọc một mình thì sai
+
+Lượt rà ba tầng bắt được một mâu thuẫn giữa hai tệp: tiêu đề mục này đọc là *"Story 2.4 gỡ TRƯỚC"*,
+trong khi `sprint-status.yaml:191` — **nguồn thẩm quyền cho trạng thái** *(`project-context.md:459-460`)*
+— vẫn ghi `2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi: in-progress`, và diff của story này **không đụng
+dòng đó**. Đọc thẳng hai tệp cạnh nhau thì câu *"Cửa chặn ② ĐÓNG, Epic 3 mở được"* đang tựa vào một
+điều kiện chưa đóng.
+
+🔴 **Ice ký 2026-08-19: điều kiện ĐÃ THOẢ, và chữ *"gỡ"* mang nghĩa HẸP — hết là cửa chặn KỸ THUẬT,
+KHÔNG phải `done`.** Tiền đề không phải một lời báo miệng, nó là chữ đã có trong chính
+`sprint-status.yaml:202`: *"KHONG con la mot cho chan ky thuat — dieu kien con lai la MOT CAI MAY RANH
+3,5 gio"*, và hai chỗ còn lại của 2.4 đều có chủ là **Ice**.
+
+⇒ Ba mệnh đề phân biệt được, đừng gộp:
+1. **2.4 hết chặn 2.12** — ĐÃ THOẢ. Cây sạch, `EDITOR_IDLE_MS`/`EDITOR_HARD_CAP_MS` nguyên vẹn, nên
+   biên 1.500 ms mà chữ ký #8 đo được **không** đo trên một cây sắp đổi.
+2. **2.4 `done`** — CHƯA. Lưới 6 điểm chưa chạy; 2.4 ở lại `in-progress` một cách trung thực.
+3. **AC7 của story này** — ĐẠT, và nó không mượn ⑵ để đứng.
+
+⚠️ **Và ghi thẳng chỗ yếu:** mục nợ `deferred-work.md:4927-4929` dẫn commit `8457bf3` làm bằng chứng
+*"cây sạch"* cho điều kiện gỡ. `8457bf3` là **commit thứ hai của chính Story 2.12** — 0 tệp nào của
+2.4 trong đó. Nó chứng minh được mệnh đề ⑴ *(hằng số AD-35 nguyên vẹn)*, nhưng nó **không** là một
+lượt kiểm chứng độc lập về 2.4. Câu ấy đã được đọc rộng hơn thứ nó chứng minh; sửa ở đây thay vì để
+người sau tưởng đã có một lượt đối chiếu.
 
 ---
 
@@ -124,9 +158,20 @@ của một test Rust** — `a_flush_touches_exactly_target_text_and_updated_at_
 story này có một "AC8" thì hai thứ khác hẳn nhau sẽ mang cùng một cái tên trong cùng một tệp.
 
 1. **AC1** — **Given** Vite đang chạy nhưng module graph đã vỡ *(vẫn trả 200 cho `/`)* · **When**
-   `devServerIsUp()` chạy · **Then** nó trả **`false`**, và bộ e2e dừng với một câu nói đúng nguyên
-   nhân — **không** để 11 spec đỏ vì một lý do không liên quan.
-   *(B2 món ①; nợ `deferred-work.md:3402-3408`; mã `e2e/wdio.conf.mjs:191-198`.)*
+   `onPrepare` chạy phép kiểm sức khoẻ Vite · **Then** bộ e2e **dừng** với một câu nêu **đích danh**
+   module gãy — **không** để 11 spec đỏ vì một lý do không liên quan.
+   *(B2 món ①; nợ `deferred-work.md:3402-3408`.)*
+
+   > 🔵 **CHỮ CỦA AC1 SỬA TẠI CHỖ 2026-08-19 (code review ba tầng).** Bản đầu viết *"`devServerIsUp()`
+   > chạy · Then nó trả **`false`**"*. Mệnh đề ấy **hết đúng** so với bản vá đã giao, và nó hết đúng
+   > theo chiều **tốt hơn**: `devServerIsUp()` *(`wdio.conf.mjs:250-257`)* **không đổi một dòng** —
+   > nó vẫn `return res.ok`, và nó **phải** giữ đúng vai hẹp đó vì vòng chờ 60 s hỏi nó mỗi 500 ms,
+   > tức nó cần một phép hỏi **rẻ**. Phép kiểm đắt là `assertModuleGraphHealthy()`
+   > *(`wdio.conf.mjs:261+`)*: nó **NÉM**, không trả `false`, và chạy **đúng một lần** sau khi đã có
+   > người phục vụ.
+   > ⇒ Ý định của AC *(dừng bộ với đúng nguyên nhân)* **đạt**; tên hàm và kiểu trả về trong câu AC
+   > thì sai. Sửa chữ thay vì để một dấu ✅ ngầm định được đọc theo nghĩa đen — *"số đo phải truy
+   > nguyên được"* áp cho cả câu mô tả cái được đo.
 
 2. **AC2** — **Given** hai spec chạy nối tiếp trong cùng một lượt trọn bộ · **When** spec thứ hai bắt
    đầu · **Then** **không** state cấp module nào của panel sống sót từ spec trước, và điều đó đúng
@@ -876,7 +921,7 @@ chẩn đoán** — không bản vá nào của story nêu tên nguyên nhân c�
 
 | AC | Trạng thái | Bằng chứng |
 |---|---|---|
-| AC1 `devServerIsUp` | ✅ | `support/devServerHealth.mjs` duyệt BFS trọn graph. Ba lượt trên đối chứng dương **thật**: lành → xanh (58 module, 190 ms) · hấp hối → **đỏ, nêu đích danh** `/src/App.vue` 500 · lành lại → xanh |
+| AC1 sức khoẻ Vite *(chữ AC sửa 2026-08-19 — xem §AC)* | ✅ | `support/devServerHealth.mjs` duyệt BFS trọn graph. Ba lượt trên đối chứng dương **thật**: lành → xanh (58 module, 190 ms) · hấp hối → **đỏ, nêu đích danh** `/src/App.vue` 500 · lành lại → xanh |
 | AC2 fixture reset | ✅ | `support/panelReset.mjs`, cầu `import()` gọi thẳng năm hàm `reset*` — **0 dòng mã sản phẩm**, đo được: 19 đường `/src/…` trong `main.ts` đã biến đổi, **0** đường mang query string. Chín lượt `reload()` trong sáu tệp → còn **một**, và lượt ấy khác hạng *(đồng bộ sau ghi ngoài luồng)*, ghi rõ tại chỗ |
 | AC3 chờ trạng thái đích | ✅ | `support/gridWait.mjs`. Bốn chỗ chuyển + hai khuôn tự vá gộp về helper chung. Bốn `waitForExist` **cố ý ở lại** — ở đó *"tồn tại"* là mệnh đề đang kiểm |
 | AC4 chờ sự kiện | ✅ | `support/flushWait.mjs`, hợp đồng **hai bước**. `FLUSH_WAIT_MS` **gỡ khỏi mã**. 🔴 `git diff` trên `editorFlush.ts` + `writeSchedule.ts` = **RỖNG** ⇒ không hằng AD-35 nào đổi một chữ số |
@@ -982,6 +1027,94 @@ cũng **không** kích hoạt: `import()` động qua Vite dev cho đúng module
 | 2026-08-19 | Sửa **tại chỗ** ba nơi mô tả sai vai của `reload()` *(story · `deferred-work.md` · `wdio.conf.mjs`)*; mở nợ *"`n=1` không chứng minh hết chập chờn"* có chủ |
 
 ### Review Findings
+
+**Lượt rà ba tầng 2026-08-19** — dải `6931e87..HEAD` *(hai commit mang scope `story-2.12`; **không** dùng
+`baseline_commit: 4b30199` của frontmatter, vì dải đó cuốn theo bàn đo Story 2.4 và bốn commit `docs`)*.
+Ba tầng: Blind Hunter · Edge Case Hunter · Acceptance Auditor. **2 quyết định · 11 patch · 3 hoãn · 1 bác.**
+
+Nền đo trước khi chấm: `check:panel-refs` exit 0 *(39 tệp · 91 ô · 25 miễn trừ · tự kiểm xanh)* ·
+`check:gates` exit 0 *(12 script `check:*` · 10 cổng pre-push · Kiểm C 13 ca đúng chiều)* ·
+vitest **249/249** · `cargo test --test segment_contract` **122/122**.
+
+#### Quyết định cần chữ ký của Ice
+
+- [x] [Review][Decision] 🔴 **`resetSegmentHistory()` không có MỘT chỗ gọi nào trong `src/**` — cửa sổ hỏng dữ liệu VĨNH VIỄN mà chính doc-comment của nó mô tả VẪN CÒN NGUYÊN, và cổng AC5 xanh trên đúng nó** — Hai tầng độc lập *(Blind + Edge)* dừng ở cùng chỗ. Đo: `segmentHistoryState.ts:387` khai hàm; `grep -rn resetSegmentHistory src e2e scripts tests` cho **0** lời gọi trong `src/**`. Đường đổi Tác phẩm thật *(`libraryImport.ts:166-171`)* gọi `resetSourcePanel` · `resetLookupPanel` · `resetEditorPanel`; đường đổi Chương *(`editorPanelState.ts:1509,1533`)* gọi hai hàm. Chỗ gọi DUY NHẤT trong kho là bảng fixture `e2e/support/panelReset.mjs:64`. ⇒ Kịch bản mà doc-comment tự viết ra vẫn dựng được: mở lịch sử phiên bản trên Tác phẩm A → tạo Tác phẩm B mà không đóng hộp thoại → `restoreVersion()` đọc thẳng `segmentId.value` *(`segmentHistoryState.ts:274`)*, không đối chiếu Tác phẩm đang mở → ghi bản dịch của A đè lên `segment.id` cùng số của B *(hai kho đánh số ĐỘC LẬP)*. 🔴 **Và cổng `check:panel-refs` không thể bắt lớp này**: `hasReset` *(`scripts/check-panel-refs.mjs:377`)* chỉ hỏi *"tệp có một hàm `reset*` nào không"* — nó không hỏi ai gọi hàm đó. ⚠️ Đối chiếu: `resetDictSources` và `resetLookupTiming` **cũng** không có chỗ gọi, nhưng cả hai mang một dòng *"CỐ Ý KHÔNG nằm trên đường đổi Tác phẩm"* kèm lý do — `resetSegmentHistory` **không** có dòng đó, nó trình bày như một bản vá đã đóng. **Hai đường, cả hai hợp lệ, cần Ice chốt:** ⒜ nối vào `libraryImport.ts::finishSubmit` một chỗ *(đúng kịch bản doc-comment nêu)*; ⒝ nối vào **cả** đường đổi Chương *(`segment.id` không tái dùng trong cùng kho nên ca Chương nhẹ hơn — nó ghi vào một câu không nhìn thấy, không ghi vào câu khác)*. Số đo cho ⒝: `resetLookupPanel` đã bị loại khỏi lượt đổi Chương có lý do viết ra *(`editorPanelState.ts:1530-1532`)*, nên tiền lệ là **không** rải mặc định.
+- [x] [Review][Decision] **AC7 / *"Cửa chặn ② ĐÓNG — Epic 3 mở được"* ký trong khi nguồn thẩm quyền vẫn ghi Story 2.4 `in-progress`** — `sprint-status.yaml:191` *(nguồn sự thật cho trạng thái, `project-context.md:459-460`)* vẫn là `2-4-mui-tham-do-do-nfr18-va-nfr2-dong-thoi: in-progress`, và diff này **không đụng dòng đó**. Ghi chú cùng tệp *(`:200-205`)* nêu hai chỗ còn lại, chủ là **Ice**, trong đó ① *"LƯỚI 6 ĐIỂM chưa chạy — điều kiện còn lại là MỘT CÁI MÁY RẢNH 3,5 giờ"*. Mà §Thứ tự của chính story này *(`:46`)* viết: **"Story 2.4 gỡ TRƯỚC story này"**. ⇒ Câu *"Epic 3 mở được"* đang tựa vào một điều kiện chưa đóng ở nguồn thẩm quyền. **Cần Ice chốt:** ⒜ *"gỡ"* nghĩa là 2.4 hết là cửa chặn KỸ THUẬT *(đã đúng — ghi chú :202 nói thẳng thế)* ⇒ sửa chữ tại chỗ cho hai tệp khỏi mâu thuẫn; ⒝ *"gỡ"* nghĩa là 2.4 phải `done` ⇒ AC7 chưa đóng, Epic 3 chờ lưới 6 điểm.
+
+#### ✅ ĐÃ VÁ TRỌN BỘ — 2026-08-19, nghiệm thu bằng đường thật
+
+**13/13 patch đã vá · 2/2 quyết định đã ký và thi hành · 3 mục hoãn có chủ trong sổ nợ.**
+
+| Đường nghiệm thu | Trước lượt vá | Sau lượt vá |
+|---|---|---|
+| Mười cổng đọc-tệp | exit 0 | **exit 0** |
+| `npm run test` (vitest) | 21 tệp · 249 ca | **22 tệp · 250 ca** *(+1 tệp, +1 ca — mệnh đề mới)* |
+| `npm run build` (`vue-tsc`) | exit 0 | **exit 0** |
+| `cargo test --locked` | 415 | **415** *(0 dòng Rust bị chạm)* |
+
+🔴 **Bốn cơ chế mới đều đã qua ĐỘT BIẾN, không chỉ qua một lượt xanh** — *"một cổng chưa bao giờ
+đỏ là một cổng chưa ai biết nó có chạy không"*:
+
+| Đột biến hoàn nguyên | Kết quả |
+|---|---|
+| `stripNonCode` trả `src` nguyên văn | `check:panel-refs` **ĐỎ** *(2 ca tự kiểm)* |
+| `outOfSubset` trả `null` | `check:panel-refs` **ĐỎ** |
+| gỡ `(?:async )?` khỏi hai regex | `check:panel-refs` **ĐỎ** |
+| `truncated = false` | `selfCheckDevServerHealth` **ĐỎ** |
+| `truncated = queue.length > 0` | **ĐỎ** *(ca âm ③ ở đúng biên 250)* |
+| `truncated = seen.size >= MODULE_CEILING` | **ĐỎ** *(cùng ca âm ③)* |
+| gỡ `resetSegmentHistory()` khỏi `finishSubmit` | vitest mới **ĐỎ** |
+
+⚠️ **Một lượt vá bộ đo NGAY TRONG lượt rà, ghi ra vì nó là một bài học lặp lại:** ca âm cho vế
+`truncated` **bản đầu không cắn được** đột biến `queue.length > 0` — nó xanh trên cả ba vị từ, tức
+nó không phân biệt được gì. Lý do: vòng lặp `shift()` tới khi hàng đợi rỗng, nên với một graph nhỏ
+mọi vị từ cho cùng kết quả. Ba vị từ **chỉ tách nhau ở đúng biên** *(chạm trần **và** phần còn lại
+trong hàng đợi toàn URL đã thăm)*. Ca âm ③ dựng đúng biên ấy — 250 đỉnh, duyệt trọn, đỉnh cuối trỏ
+ngược về đỉnh đầu. ⇒ **Một ca âm không cắn được đột biến không phải một ca âm**, và chỉ đột biến
+mới nói ra điều đó — đúng bài học mà Task 5.5 của chính story này đã học một lần.
+
+🔴 **VẾ CÒN LẠI, KHÔNG CHẤM ĐẠT BẰNG SUY LUẬN:** hai mục sửa `e2e/**` *(vế danh tính của
+`doiChuong` · hàng rào `resetPanelState` · vế `truncated`)* **chưa** đi qua một lượt e2e thật. Bộ
+e2e chạy tay *(`npm run test:e2e`, ~13 phút, cần cổng 1420 trống)*, và nó là đường nghiệm thu **duy
+nhất** cho hình dạng dây. Lượt 12 *(11/11 xanh)* đo trên cây **trước** lượt vá này.
+⇒ Cần một lượt trọn bộ **thứ mười ba** trước khi story đóng. Chủ: **Ice**.
+
+#### Chữ ký của Ice trên hai quyết định — 2026-08-19
+
+- **⒜ `resetSegmentHistory()` nối vào ĐÚNG MỘT chỗ: đường đổi Tác phẩm** *(`libraryImport.ts::finishSubmit`)*.
+  Ice ký đường ⒜, không ⒝. Lý do đi theo tiền lệ đã có chữ: `resetLookupPanel()` bị loại khỏi lượt đổi
+  Chương với một lý do viết ra *(`editorPanelState.ts:1530-1532`)* — kho này **không rải mặc định** một
+  lời gọi reset ra mọi đường, nó đòi một lý do cho từng chỗ. Ca đổi Chương ở lại **không** phải vì nó
+  vô hại, mà vì nó **khác hạng**: `segment.id` không tái dùng trong cùng một kho, nên hộp thoại còn mở
+  ghi vào một câu **không nhìn thấy**, không ghi vào **câu khác**.
+- **⒝ *"Story 2.4 gỡ TRƯỚC"* ĐÃ THOẢ — nghĩa là hết cửa chặn KỸ THUẬT, không nghĩa là `done`.**
+  Ice ký, và tiền đề là chữ đã có trong chính `sprint-status.yaml:202`: *"KHONG con la mot cho chan ky
+  thuat — dieu kien con lai la MOT CAI MAY RANH 3,5 gio"*. ⇒ AC7 **đứng**; hai tệp phải hết mâu thuẫn
+  bằng một lượt sửa chữ tại chỗ, không bằng một dấu ✅ rộng hơn sự thật.
+
+#### Patch
+
+- [x] [Review][Patch] 🔴 `doiChuong()` mất vế kiểm DANH TÍNH, và doc-comment ngay trên nó vẫn khẳng định có — một hồi quy trên đúng khuyết tật đã ĐO ĐƯỢC ở 2.9 [e2e/specs/segment-navigation.e2e.mjs:113-124]
+- [x] [Review][Patch] Cổng phân tích văn bản THÔ: `isAssignedIn` và `bodyOf`/`resetScope` không tách chuỗi/chú thích ⇒ một dòng chú thích `// x = null` thành bằng chứng đã dọn, và một `)` trong chuỗi cắt thân hàm sai chỗ [scripts/check-panel-refs.mjs:256,329]
+- [x] [Review][Patch] `hasReset` không nhận `export async function reset…` trong khi `resetScope` thì nhận *(lệch giữa hai regex cùng tệp)*; ba regex nhận diện ô nhớ `.exec()` một lần mỗi dòng ⇒ `const a = ref(0), b = ref(0)` và khai trải hai dòng **vô hình** với cổng [scripts/check-panel-refs.mjs:247-248,377]
+- [x] [Review][Patch] `resetPanelState` đọc DOM ngay sau lượt reset, dựa vào thứ tự microtask NGẦM: hàng rào chỉ xanh vì `editorPanelState` đứng **đầu** bảng và bốn lượt `await import()` sau nó vô tình cho Vue kịp vá DOM. Đảo thứ tự bảng là hàng rào đỏ oan mọi lượt [e2e/support/panelReset.mjs:145,186]
+- [x] [Review][Patch] `void got.fn()` nuốt rejection của hai lượt nạp lại ⇒ nguyên nhân thật thành một unhandled rejection trong webview, spec sau chỉ thấy hết giờ 30/60 s — ngược đúng luật *"giữ NGUYÊN VĂN lỗi"* mà `flushWait`/`gridWait` viết rất kỹ [e2e/support/panelReset.mjs:156]
+- [x] [Review][Patch] `MODULE_CEILING` cắt IM LẶNG: thoát vì chạm trần trả về hình dạng y hệt một lượt duyệt trọn vẹn, không một cờ *"đã cắt"* ⇒ ngày quần thể vượt 250 *(hôm nay 58)*, một module vỡ nằm sau điểm cắt cho một lượt XANH trên một Vite thật sự vỡ [e2e/support/devServerHealth.mjs:65,134]
+- [x] [Review][Patch] Chữ của AC1 nói `devServerIsUp()` *"trả `false`"*, nhưng hàm đó **không đổi một dòng** — vẫn `return res.ok`. Vá thật là `assertModuleGraphHealthy()`, hàm **ném** và chạy **sau** nó. Ý định AC đạt; chữ AC hết đúng ⇒ sửa tại chỗ kèm 🔵 + ngày, không để dấu ✅ ngầm định đọc đúng nghĩa đen [e2e/wdio.conf.mjs:250-271]
+- [x] [Review][Patch] `ci.yml` gọi cổng mới *"Cổng thứ MƯỜI HAI"* và đặt nó **trước** hai bước đã mang tên *"MƯỜI"* và *"MƯỜI MỘT"* trong cùng tệp; story và `deferred-work.md` gọi nó *"cổng thứ MƯỜI"*. Hai cơ sở đếm *(12 script `check:*` vs 10 cổng pre-push)* đều đúng, và **không dòng nào nói ra** [.github/workflows/ci.yml:182]
+- [x] [Review][Patch] `walk()` không chống vòng lặp symlink — `statSync` *(theo liên kết)*, không `seen`, không `realpathSync` — khác hẳn `check-layout.mjs:65-77` đã thêm đúng ba thứ đó. Một symlink trỏ ngược trong `src/**` cho stack overflow thay vì `abort()` có kiểm soát *(luật "lỗi hạ tầng KHÔNG phải một phép kiểm đỏ")* [scripts/check-panel-refs.mjs:79]
+- [x] [Review][Patch] Hàng rào `rowsAfterReset` chỉ mang tín hiệu của **1 trong 5** module *(`[data-col="src"]` render từ `segments` của `editorPanelState`)* — ba module còn lại không có tín hiệu quan sát-được tương đương. Hàng rào đủ cho mục đích *(cầu `import()` dùng chung một cơ chế)*, nhưng doc-comment nói rộng hơn thứ nó chứng minh ⇒ ghi giới hạn thật [e2e/support/panelReset.mjs:180-194]
+- [x] [Review][Patch] §GIỚI HẠN THẬT của cổng nói *"sâu một tầng"* nhưng không nói tầng đó bị chặn ở ranh giới **TỆP** — một hàm dọn `import` từ tệp khác cho ĐỎ OAN. Chiều an toàn, nhưng vẫn là một khoảng mù chưa ghi ra, đúng chỗ duy nhất trong tệp này không tự khai chỗ yếu [scripts/check-panel-refs.mjs:48]
+
+#### Hoãn — có chủ, đã ghi vào `deferred-work.md`
+
+- [x] [Review][Defer] `judgeModuleResponse` chỉ đặc cách đuôi `.json`; một `import './x.svg'`/`.wasm` dưới `/src/**` cho ĐỎ OAN chặn cả bộ e2e [e2e/support/devServerHealth.mjs:78-100] — hoãn, chưa sống hôm nay *(đo: `.css` dưới Vite dev trả `content-type: text/javascript`)*
+- [x] [Review][Defer] `extractSrcImports` bỏ qua template literal, và một chuỗi `"/src/…"` trong chú thích thành **cạnh giả** trong graph [e2e/support/devServerHealth.mjs:113-116] — hoãn, chưa sống hôm nay *(đo: **0** ca `['"]/src/` trong `src/**`)*
+- [x] [Review][Defer] Test AC6 chỉ phủ nhánh **GỘP** của đường `INSERT` thứ hai, không phủ nhánh **TÁCH** — cùng câu `INSERT` phục vụ cả hai [src-tauri/tests/segment_contract.rs:6324] — hoãn, tiền tồn *(phạm vi Story 2.8)*
+
+#### Bác — 1 mục
+
+- **`waitForFlushAfter` dùng so sánh `>` chặt, hai lượt flush trùng mili-giây bị coi là chưa có gì mới** *(`e2e/support/flushWait.mjs:134`)*. Bác: `baseline` là mốc của lượt flush **TRƯỚC**, và idle AD-35 là **2000 ms** — hai mốc trùng mili-giây không dựng được, kể cả với độ phân giải ~15 ms của Windows.
 
 ---
 

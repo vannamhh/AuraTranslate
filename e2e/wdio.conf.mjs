@@ -158,6 +158,7 @@ import { spawn } from 'node:child_process'
 import {
   crawlModuleGraph,
   describeBrokenGraph,
+  describeTruncatedGraph,
   selfCheckDevServerHealth,
 } from './support/devServerHealth.mjs'
 
@@ -247,6 +248,16 @@ const DEV_URL = `http://localhost:${DEV_PORT}`
  */
 let viteProcess = null
 
+/**
+ * 🔵 **CODE REVIEW 2026-08-19 — ĐỌC CÙNG VỚI CHỮ ĐÃ SỬA CỦA AC1.**
+ *
+ * Hàm này **cố ý** chỉ trả lời *"có ai đang nghe cổng không"*, và nó **không** phải bản vá của
+ * AC1. Câu AC1 bản đầu viết *"`devServerIsUp()` trả `false`"*; chữ ấy đã được sửa tại chỗ ở
+ * story *(§Acceptance Criteria, mục 1)* vì vai hẹp này là một **quyết định đo được**: vòng chờ
+ * 60 giây dưới kia hỏi **mỗi 500 ms**, nên nó cần một phép hỏi rẻ. Bản vá thật là
+ * [`assertModuleGraphHealthy`] — nó **NÉM** và chạy **đúng một lần**.
+ * ⇒ Đừng "cải thiện" hàm này bằng cách nhét phép kiểm graph vào đây.
+ */
 async function devServerIsUp() {
   try {
     const res = await fetch(DEV_URL, { signal: AbortSignal.timeout(1000) })
@@ -295,10 +306,15 @@ async function assertModuleGraphHealthy() {
   await selfCheckDevServerHealth()
 
   const started = Date.now()
-  const { visited, bad } = await crawlModuleGraph(fetchDevModule)
+  const { visited, bad, truncated } = await crawlModuleGraph(fetchDevModule)
   const ms = Date.now() - started
 
   if (bad.length > 0) throw new Error(describeBrokenGraph(bad, visited.length))
+  // 🔵 **CODE REVIEW BA TẦNG 2026-08-19** — vế `truncated` phải được đọc, và đọc SAU `bad`:
+  // một graph vừa vỡ vừa bị cắt thì nguyên nhân đáng nói là **vỡ**. Bản đầu không có vế này,
+  // nên một lượt duyệt bị cắt cho đúng câu *"module graph lành"* dưới kia — một lời khai về
+  // một thứ chưa được kiểm.
+  if (truncated) throw new Error(describeTruncatedGraph(visited.length))
   console.log(`[e2e] module graph lành — ${visited.length} module, ${ms} ms.`)
 }
 

@@ -5011,3 +5011,58 @@ của `ARCHITECTURE-SPINE.md`. Nhưng còn **hai** chỗ nữa gọi *"Panel Edi
   🔴 **Và món này sẽ tái phát**, vì luật *"thêm tệp thì xét lại sàn"* hôm nay là một lời dặn trong
   chú thích, không một cổng. **Chủ: story hạ tầng cổng kế tiếp** *(một Kiểm trong `check:gates` đối
   chiếu mỗi sàn với quần thể thật của chính cổng đó, và đỏ khi tỷ lệ rơi dưới 80%)*.
+
+---
+
+## Deferred from: code review of 2-12-ha-tang-e2e-va-cong-con-thieu (2026-08-19)
+
+Lượt rà **ba tầng** trên dải `6931e87..HEAD` *(hai commit mang scope `story-2.12`)*. Ba mục dưới đây
+là thứ **không** nghiệm thu được ở story hiện tại — cả ba đều **latent**, tức đo được là **chưa sống
+hôm nay**, và chính vì thế chúng đi vào sổ chứ không thành một patch. Mỗi mục có một chủ.
+
+- 🟡 **`judgeModuleResponse` chỉ đặc cách đuôi `.json`** — `e2e/support/devServerHealth.mjs:78-100`.
+  Mọi URL khác dưới `/src/**` bị đòi `content-type` chứa `"javascript"`, không thì chấm `bad` và cả
+  bộ e2e dừng ở `onPrepare` với chẩn đoán *"Vite ĐANG CHẠY nhưng module graph đã VỠ"*.
+  ⚠️ **Đo 2026-08-19:** `.css` dưới Vite dev trả `content-type: text/javascript` ⇒ **chưa trúng bẫy**.
+  Ngày một `import icon from './x.svg'` hay một `.wasm` vào `src/**`, Vite trả content-type gốc và
+  cổng tự sinh ra đúng loại **dương tính giả** mà nó viết cả một bảng số đo để chống.
+  🔴 Và giới hạn này **không** có trong mục §GIỚI HẠN THẬT ở đầu tệp — mục đó chỉ nói về tệp mồ côi.
+  **Chủ:** story đầu tiên thêm một asset non-JS/non-JSON vào `src/**` *(chưa có lịch)*.
+
+- 🟡 **`extractSrcImports` bỏ template literal, và một chuỗi `"/src/…"` trong chú thích thành cạnh
+  giả** — `e2e/support/devServerHealth.mjs:113-116`. Regex chỉ khớp `'…'`/`"…"`, không backtick.
+  Hai chiều hỏng: ⒜ `` import(`/src/${x}.ts`) `` không sinh cạnh nào ⇒ module đó không bao giờ được
+  thăm ⇒ **xanh oan** nếu nó vỡ; ⒝ một chú thích chứa `"/src/ghi-chu.ts"` thành một cạnh thật, và
+  nếu URL đó không tồn tại thì cả bộ e2e **đỏ oan** vì một dòng chú thích.
+  ⚠️ **Đo 2026-08-19:** `grep -rn "['\"]/src/" src/` cho **0** ca ⇒ chiều ⒝ chưa sống.
+  **Chủ:** story đầu tiên dựng một `import()` động dưới `src/**` *(chưa có lịch)*.
+
+- 🟡 **Test AC6 chỉ phủ nhánh GỘP của đường `INSERT` thứ hai, không phủ nhánh TÁCH** —
+  `src-tauri/tests/segment_contract.rs:6324`
+  *(`a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default`)*. Test chỉ `use`
+  `merge_segments`; doc-comment của chính nó khai phạm vi là *"đường ghi `INSERT` thứ hai"*, mà câu
+  `INSERT` ấy phục vụ **cả gộp lẫn tách** *(Story 2.8)*. ⇒ Một cột bị bỏ sót ở một lượt di trú mà
+  chỉ ảnh hưởng hàng do **TÁCH** sinh ra sẽ không bị test này bắt.
+  **Chủ:** Story 2.8 *(chủ gốc của gộp/tách)* — bù một ca `split_segment` cùng khuôn.
+
+### Và một mục KHÔNG vào sổ, ghi ra để không ai tưởng nó đã có chủ
+
+🔴 **`resetSegmentHistory()` chưa nối vào đường đổi Tác phẩm** *(`segmentHistoryState.ts:387`, 0 lời
+gọi trong `src/**`)* **không** phải một món nợ — nó là một **quyết định đang chờ chữ ký của Ice**,
+ghi ở §Review Findings của story. Lý do phân loại: cửa sổ hỏng dữ liệu **VĨNH VIỄN** mà doc-comment
+của chính hàm ấy mô tả vẫn dựng được hôm nay, và `project-context.md` xếp lớp đó cao nhất. Một món
+nợ có chủ là chỗ cho thứ **không nghiệm thu được**; đây là thứ nghiệm thu được và **chưa làm**.
+
+### 🔴 Một vế nghiệm thu CÒN LẠI của lượt code review — có chủ, có lệnh, không một dấu ✅
+
+**Lượt e2e trọn bộ thứ MƯỜI BA** — `npm run test:e2e` *(~13 phút, cần cổng 1420 trống)*.
+**Chủ: Ice.** Lý do là một phép đo, không một thủ tục: lượt vá 2026-08-19 chạm **ba** chỗ trong
+`e2e/**` — vế danh tính của `doiChuong` *(`segment-navigation.e2e.mjs`)* · hàng rào chờ-trạng-thái
+của `resetPanelState` *(`panelReset.mjs`)* · vế `truncated` *(`devServerHealth.mjs` + `wdio.conf.mjs`)*
+— và e2e là đường nghiệm thu **DUY NHẤT** cho hình dạng dây. Lượt 12 *(11/11 xanh, 13m01s)* đo trên
+cây **trước** lượt vá, nên nó **không** là bằng chứng cho cây hôm nay.
+
+⚠️ Ba cơ chế mới trong `e2e/**` đã qua đột biến ở tầng **hàm thuần** *(`selfCheckDevServerHealth`
+đỏ được trên cả ba vị từ sai)*, nhưng **không** ở tầng **engine thật** — `happy-dom` không phải
+WKWebView, và vế `requestAnimationFrame` của hàng rào `resetPanelState` chỉ chạy thật trong webview.
+⇒ Đây là chỗ *"không nghiệm thu được ở tầng đang làm"*, đúng định nghĩa một món nợ.

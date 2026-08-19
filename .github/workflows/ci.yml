@@ -179,7 +179,19 @@ jobs:
       - name: check workspace layout (AC1, AC4, AC7, AC12 — Story 1.14)
         run: npm run check:layout
 
-      # Cổng thứ MƯỜI HAI — Story 2.12 · AC5. Mọi ô nhớ cấp module trong `src/**/*.ts` phải
+      # Cổng thứ MƯỜI HAI — Story 2.12 · AC5.
+      #
+      # 🔵 CODE REVIEW BA TẦNG 2026-08-19 — HAI CƠ SỞ ĐẾM, và trước lượt này không dòng nào
+      # nói ra. Cùng một cổng mang HAI số hiệu trong cùng một lượt commit:
+      #   · "thứ MƯỜI HAI" ở đây  = số thứ tự theo LƯỢT THÊM trong chính tệp này (lint là
+      #     thứ mười, `check:gates` thứ mười một — cả hai nằm BÊN DƯỚI, nên số lớn hơn đứng
+      #     trước là ĐÚNG theo cơ sở này, không phải một bước bị chèn sai chỗ);
+      #   · "cổng thứ MƯỜI" ở story và `deferred-work.md` = số cổng trong `.githooks/pre-push`,
+      #     đi từ 9 lên 10 (`pre-push:62` đếm mười tên).
+      # ⇒ Cả hai số đều đúng trên cơ sở của nó. Ghi ra vì một người đọc lần đầu sẽ tưởng một
+      # trong hai là lỗi, rồi "sửa" cho khớp — và lượt sửa ấy làm một trong hai hồ sơ sai.
+      # ⚠️ `check:gates` đếm cơ sở thứ BA (12 script `check:*` trong `package.json`); nó canh
+      # việc một cổng có mặt ở cả ba danh sách, KHÔNG canh những con số hiệu này. Mọi ô nhớ cấp module trong `src/**/*.ts` phải
       # đi qua một hàm reset, hoặc mang một miễn trừ CÓ TÊN kèm lý do đọc được tại chỗ.
       #
       # 🔴 Nó đóng một luật đã bị bỏ sót HAI STORY LIÊN TIẾP mà không cổng nào đỏ:

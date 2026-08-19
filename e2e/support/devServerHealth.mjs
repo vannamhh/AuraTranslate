@@ -156,7 +156,45 @@ export async function crawlModuleGraph(fetchModule) {
     if (!url.endsWith('.json')) for (const next of extractSrcImports(res.body)) queue.push(next)
   }
 
-  return { visited: [...seen], bad }
+  // 🔵 **CODE REVIEW BA TẦNG 2026-08-19 — TRẦN KHÔNG ĐƯỢC CẮT TRONG IM LẶNG.**
+  //
+  // 🔴 Bản đầu thoát vòng vì chạm trần rồi trả về hình dạng **y hệt** một lượt duyệt trọn vẹn
+  // — cùng `{ visited, bad }`, không một cờ nào. Ngày quần thể module vượt 250 *(hôm nay 58)*,
+  // một module **vỡ** nằm sau điểm cắt sẽ không bao giờ được thăm, và `assertModuleGraphHealthy`
+  // báo *"lành"* trên một Vite thật sự vỡ. Đó là xanh oan — đúng lớp lỗi mà cả tệp này viết ra
+  // để chống, đi vào bằng cửa của chính hàng rào chống vòng lặp.
+  //
+  // ⚠️ Và nó **không** phải một phép kiểm đỏ: chạm trần nghĩa là **tham số của bàn đo đã cũ**,
+  // không nghĩa là app hỏng. Luật *"lỗi hạ tầng KHÔNG phải một phép kiểm đỏ"* đòi một câu nói
+  // đúng thứ đã xảy ra, nên `truncated` đi ra ngoài như một vế **thứ ba**, và nơi gọi dựng câu
+  // chẩn đoán riêng cho nó — không trộn vào danh sách `bad`.
+  // ⚠️ Vị từ là *"còn việc CHƯA LÀM trong hàng đợi"*, không phải *"hàng đợi không rỗng"* và
+  // cũng không phải `seen.size >= MODULE_CEILING`. Hai vị từ sau đều SAI ở một chiều: hàng đợi
+  // có thể còn những URL **đã thăm** *(chúng được `push` rồi bị `continue` bỏ qua)*, và một
+  // graph có đúng 250 đỉnh duyệt **trọn vẹn** vẫn chạm `seen.size === MODULE_CEILING`. Cả hai
+  // cho ĐỎ OAN, và một phép kiểm đỏ oan sẽ bị nới cho hết đỏ.
+  const truncated = queue.some((u) => !seen.has(u))
+  return { visited: [...seen], bad, truncated }
+}
+
+/**
+ * 🔵 **Câu báo khi lượt duyệt CHẠM TRẦN — code review 2026-08-19.**
+ *
+ * 🔴 Nó cố ý **không** dùng chữ của [`describeBrokenGraph`]: hai thứ khác hạng nhau. *"Graph
+ * vỡ"* là một phán quyết về **app**; *"chạm trần"* là một phán quyết về **bàn đo**. Trộn hai
+ * câu là dạy người đọc đi sửa sai chỗ.
+ *
+ * @param {number} visitedCount
+ */
+export function describeTruncatedGraph(visitedCount) {
+  return (
+    `Luot duyet module graph CHAM TRAN ${MODULE_CEILING} sau ${visitedCount} module — no KHONG\n` +
+    'di tron graph, nen mot module vo nam sau diem cat da KHONG duoc kiem.\n\n' +
+    '🔴 Day la LOI HA TANG, KHONG mot phep kiem dat va cung KHONG mot hoi quy san pham:\n' +
+    'tran la mot hang rao chong vong lap, va cham nó nghia la tham so cua ban do da cu.\n' +
+    `Xet lai \`MODULE_CEILING\` o \`e2e/support/devServerHealth.mjs\` (so that 2026-08-18: 58),\n` +
+    'hoac tim mot `matchAll` hong dang sinh URL vo han.'
+  )
 }
 
 /**
@@ -238,6 +276,79 @@ export async function selfCheckDevServerHealth() {
     throw new Error(
       'tu kiem devServerHealth: entry gay phai cho dung 1 module gay va dung 1 dinh cham. ' +
         'Di tiep qua mot dinh hong la moi `/src/…` ra tu mot trang loi HTML.',
+    )
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════════════
+  // 🔵 CA ③ + CA ÂM ② — TRẦN, thêm ở code review 2026-08-19
+  // ═══════════════════════════════════════════════════════════════════════════════════
+  // 🔴 Vế `truncated` là một cơ chế mới, nên nó phải có phép tự kiểm **cả hai chiều** — đúng
+  // luật đã áp cho mọi vế khác của tệp này. Không có hai ca dưới đây, `truncated` vào kho ở
+  // trạng thái *"chưa ai biết nó chạy không"*, và cửa xanh-oan chỉ đổi hình dạng chứ chưa đóng.
+
+  // Ca DƯƠNG ③: một chuỗi DÀI HƠN trần ⇒ phải báo CẮT.
+  const chain = {}
+  const DAI = MODULE_CEILING + 50
+  for (let i = 0; i < DAI; i += 1) {
+    const here = i === 0 ? ENTRY_MODULE : `/src/n${i}.ts`
+    chain[here] = i === DAI - 1 ? 'export default {}' : `import "/src/n${i + 1}.ts";`
+  }
+  const serveChain = async (url) => {
+    if (!(url in chain)) throw new Error(`tu kiem: dinh la "${url}" khong co trong chuoi gia lap`)
+    return { status: 200, contentType: JS, body: chain[url] }
+  }
+  const cat = await crawlModuleGraph(serveChain)
+  if (!cat.truncated) {
+    throw new Error(
+      `tu kiem devServerHealth: mot chuoi ${DAI} module (tran ${MODULE_CEILING}) KHONG bao cat. ` +
+        'Nghia la mot module vo nam sau diem cat se cho mot luot XANH tren mot Vite that su vo.',
+    )
+  }
+  if (cat.bad.length !== 0) {
+    throw new Error(
+      'tu kiem devServerHealth: mot luot CAT khong duoc sinh ra module `bad` nao. "Cham tran" la ' +
+        'mot phan quyet ve BAN DO; "vo" la mot phan quyet ve APP. Tron hai la day nguoi doc sua sai cho.',
+    )
+  }
+
+  // Ca ÂM ②: graph lành ba đỉnh **KHÔNG** được báo cắt.
+  if (healthy.truncated) {
+    throw new Error(
+      'tu kiem devServerHealth DO OAN: mot graph lanh 3 dinh bi cham la CAT — vi tu `truncated` ' +
+        'dang doc mot thu khong phai "con viec CHUA LAM".',
+    )
+  }
+
+  // ── Ca ÂM ③: ĐÚNG `MODULE_CEILING` đỉnh, duyệt TRỌN VẸN, đỉnh cuối trỏ NGƯỢC lại ────
+  //
+  // 🔴 **Ca âm ② một mình KHÔNG phân biệt được ba vị từ** — đo bằng đột biến 2026-08-19: đổi
+  // `truncated` thành `queue.length > 0` mà tự kiểm vẫn XANH. Lý do: vòng lặp `shift()` cho tới
+  // khi hàng đợi rỗng, nên với một graph nhỏ thì `queue.length === 0` ở mọi lối ra. Hai vị từ
+  // chỉ tách nhau ở **đúng biên**: chạm trần **và** phần còn lại trong hàng đợi toàn URL đã
+  // thăm. Ca dưới đây dựng đúng biên ấy — 250 đỉnh, duyệt trọn, đỉnh cuối `import` lại đỉnh
+  // đầu ⇒ ra khỏi vòng với `queue = ['/src/n1.ts']` mà `n1` **đã** trong `seen`.
+  // ⇒ *"Cây rỗng không phải cây sạch"*, và một ca âm không cắn được đột biến không phải một ca âm.
+  const bien = {}
+  for (let i = 0; i < MODULE_CEILING; i += 1) {
+    const here = i === 0 ? ENTRY_MODULE : `/src/n${i}.ts`
+    bien[here] = i === MODULE_CEILING - 1 ? 'import "/src/n1.ts";' : `import "/src/n${i + 1}.ts";`
+  }
+  const serveBien = async (url) => {
+    if (!(url in bien)) throw new Error(`tu kiem: dinh la "${url}" khong co trong graph bien`)
+    return { status: 200, contentType: JS, body: bien[url] }
+  }
+  const tronBien = await crawlModuleGraph(serveBien)
+  if (tronBien.visited.length !== MODULE_CEILING) {
+    throw new Error(
+      `tu kiem devServerHealth: graph bien phai cham dung ${MODULE_CEILING} dinh, cham ` +
+        `${tronBien.visited.length}. Ca am nay chi co nghia khi no dung o DUNG bien.`,
+    )
+  }
+  if (tronBien.truncated) {
+    throw new Error(
+      `tu kiem devServerHealth DO OAN: ${MODULE_CEILING} dinh duyet TRON VEN bi cham la CAT. ` +
+        'Vi tu `truncated` dang doc "hang doi khong rong" hay "seen.size >= tran" thay vi "con ' +
+        'viec CHUA LAM" — ca hai deu do oan o dung bien nay. Xem chu thich tai cho.',
     )
   }
 }

@@ -23,6 +23,7 @@ import { createWorkFromFile, createWorkFromText } from '../config/project'
 import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
 import { resetLookupPanel } from '../panels/lookupPanelState'
 import { ensureSegmentsLoaded, flushEditorNow, resetEditorPanel } from '../panels/editorPanelState'
+import { resetSegmentHistory } from '../panels/segmentHistoryState'
 import type { CreatedWork } from '../config/project'
 import type { IpcError } from '../i18n'
 
@@ -169,6 +170,32 @@ function finishSubmit(created: CreatedWork | null, error: IpcError | null): void
     // lượt vứt này. Bỏ nó ra là để Editor hiện segment của Tác phẩm A dưới nhãn Tác phẩm B,
     // đúng đường hỏng mà `resetSourcePanel` đã ghi lại từ code review 2026-08-06.
     resetEditorPanel()
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // 🔵 CODE REVIEW BA TẦNG 2026-08-19 — HÀM ĐÃ VIẾT Ở STORY 2.12 MÀ CHƯA NỐI DÂY
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // 🔴 **Quyết định #4 của Story 2.12 *(đường (a), "0 dòng mã sản phẩm mới")* HẾT ĐÚNG từ
+    // 2026-08-19** — sửa tại chỗ thay vì để nó lặng lẽ sai. Lượt rà ba tầng bắt được:
+    // `resetSegmentHistory()` được viết ở `segmentHistoryState.ts:387` kèm một doc-comment mô
+    // tả đúng kịch bản hỏng dưới đây, rồi **không một lời gọi nào** trong `src/**`. Chỗ gọi duy
+    // nhất trong kho là bảng fixture `e2e/support/panelReset.mjs:64` — tức bộ đo dọn state mà
+    // sản phẩm thì không, và cổng `check:panel-refs` vẫn XANH vì nó chỉ hỏi *"tệp có một hàm
+    // `reset*` nào không"*, không hỏi **ai gọi** hàm đó.
+    //
+    // ⚠️ Kịch bản, nguyên văn từ doc-comment của chính hàm ấy: mở lịch sử phiên bản trên Tác
+    // phẩm A → tạo Tác phẩm B mà **không** đóng hộp thoại → `isOpen` còn `true` và `segmentId`
+    // còn trỏ vào một `segment.id` của A. `restoreVersion()` đọc thẳng `segmentId.value`
+    // *(`segmentHistoryState.ts:274`)* và **không** đối chiếu Tác phẩm đang mở. Hai kho đánh số
+    // `segment.id` **ĐỘC LẬP**, nên id ấy tồn tại thật ở kho mới và trỏ vào một câu khác hẳn.
+    // ⇒ Một lượt khôi phục FR101 ghi bản dịch của câu này đè lên câu kia, và *"chỗ hỏng là
+    // VĨNH VIỄN"*.
+    //
+    // 🔴 **Ice ký 2026-08-19: ĐÚNG MỘT chỗ, chính chỗ này — KHÔNG rải sang lượt đổi Chương.**
+    // Lý do là một sự khác hạng, không một sở thích: `segment.id` không tái dùng trong **cùng
+    // một** kho, nên hộp thoại còn mở qua một lượt đổi Chương ghi vào một câu **không nhìn
+    // thấy**, chứ không ghi vào **câu khác**. Cùng khuôn lý lẽ đã cho `resetLookupPanel()` ở
+    // lại ngoài lượt đổi Chương *(`editorPanelState.ts:1530-1532`)*.
+    resetSegmentHistory()
 
     // 🔴 **VỨT state cũ là CHƯA ĐỦ — phải NẠP LẠI ngay tại đây.**
     //
