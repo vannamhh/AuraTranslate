@@ -58,18 +58,6 @@ export async function openWorkspaceWithWork(
   name,
   text = 'Một câu nguồn để bộ nhập có việc mà làm.',
 ) {
-  // ── 🔴 AC2 (Story 2.12) — DỌN TRƯỚC, không dọn sau ───────────────────────────────
-  //
-  // Đặt ở ĐẦU fixture chứ không cuối spec, và đó là một quyết định: một spec đỏ giữa chừng
-  // không bao giờ chạy tới phần dọn của chính nó, nên *"dọn sau"* để lại rác đúng vào lượt
-  // chạy mà ta cần đọc kết quả nhất. Dọn ở đầu thì mỗi spec bắt đầu từ một chỗ đã biết
-  // **bất kể** spec trước kết thúc thế nào.
-  //
-  // ⚠️ Fixture này tạo Tác phẩm qua IPC nên nó **đi vòng qua** `finishSubmit` — đường duy
-  // nhất trong sản phẩm gọi các hàm `reset*`. Không có dòng này thì mỗi lượt gọi fixture
-  // dựng một Tác phẩm mới **trên state của Tác phẩm cũ**.
-  await resetPanelState()
-
   const created = await browser.execute(async (workName, sourceText) => {
     const internals = window.__TAURI_INTERNALS__
     if (internals === undefined) return { ok: false, detail: 'không có cầu IPC' }
@@ -93,6 +81,21 @@ export async function openWorkspaceWithWork(
         'phía sau nó thành một khuyết tật sản phẩm.',
     )
   }
+
+  // ── 🔴 AC2 (Story 2.12) — SOI ĐÚNG `finishSubmit`, VÀ ĐÚNG CHỖ NÓ CHẠY ────────────
+  //
+  // Fixture tạo Tác phẩm qua IPC nên nó **đi vòng qua** `modes/libraryImport.ts::finishSubmit`
+  // — điểm nghẽn DUY NHẤT trong sản phẩm vừa dọn state panel vừa phát lại lượt nạp.
+  //
+  // 🔴 **SAU lượt tạo, không TRƯỚC.** `finishSubmit` chạy sau khi `create_work_from_*` trả về,
+  // tức sau khi `replace_open_work` phía Rust đã trỏ `OpenWorkState` sang Tác phẩm MỚI. Một
+  // lượt nạp phát trước lời gọi đó sẽ nạp Tác phẩm **cũ**.
+  //
+  // ⚠️ **Bản đầu của story này đặt nó ở ĐẦU fixture và chỉ dọn, không nạp** — lý lẽ khi đó là
+  // *"một spec đỏ giữa chừng không chạy tới phần dọn của chính nó"*. Lý lẽ ấy đúng về vế dọn
+  // và **sai về vế nạp**, và phép đo đã bác nó: lượt trọn bộ thứ mười cho 5 passed / 6 failed
+  // với `Lần đọc cuối: 0` ở mọi ca đỏ — lưới không bao giờ nạp. Xem `support/panelReset.mjs`.
+  await resetPanelState()
 
   // `Mod+2` — `mode.workspace`. `Mod` phân giải thành `Meta` trên macOS.
   await browser.keys(['Meta', '2'])

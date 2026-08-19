@@ -4,12 +4,19 @@ baseline_commit: 4b30199263b5a5ad9dd13d3a4c8cd810951d1ba7
 
 # Story 2.12: Hạ tầng e2e và cổng còn thiếu
 
-Status: in-progress
+Status: review
 
-🔴 **KHÔNG phải `review`, và đó là một phán quyết chứ không một chỗ chưa làm tới.** Sáu trong bảy AC
-đã đóng kèm bằng chứng; **AC7 chưa chạy một lượt đo nào**. Ba subtask còn hở *(1.5 · 4.4 · 8.4)* bị
-chặn bởi **chính chữ ký #0 của Ice** *(hoãn tới khi Story 2.4 đóng)* cộng một va chạm cổng 1420.
-⇒ **Cửa chặn ② chưa đóng trọn. Epic 3 chưa mở được.** Chi tiết ở §Completion Notes List.
+✅ **BẢY TRÊN BẢY AC đóng kèm bằng chứng, gồm AC7** *(lượt e2e trọn bộ thứ mười hai: **11/11 xanh,
+0 đỏ, 13m01s**, theo chữ ký #8 của Ice: `n=1` và phải xanh 11/11)*.
+⇒ **Cửa chặn ② ĐÓNG. Epic 3 mở được.**
+
+⚠️ **Một subtask còn hở, và nó KHÔNG chặn AC nào:** Task **1.5** *(cửa sổ trắng, vế client của cạm
+bẫy 8)* — ba lượt e2e đã chạy nhưng không lượt nào **dựng được** một cửa sổ trắng để đo. Không chấm
+đạt bằng suy luận; nợ **có chủ** đã ghi.
+
+🔴 **Và một giới hạn CÓ TÊN của chính lượt nghiệm thu, nêu trước khi Ice ký và Ice giữ nguyên:**
+`n=1` chứng minh bộ e2e **XANH ĐƯỢC**; nó **không** chứng minh bộ hết chập chờn. Chi tiết ở
+§Completion Notes List.
 
 **Covers:** **không FR nào.** Story hạ tầng — nguồn là **action item B2** của retro Epic 2.
 **Epic:** 2 — Biên tập theo segment
@@ -371,8 +378,10 @@ lượt xanh — đó chính là mệnh đề story này tồn tại để sửa
 - [x] 1.2 Chứng minh `devServerIsUp()` **hôm nay** trả `true` trên đó — bắt **nguyên văn**
 - [x] 1.3 Vá theo chữ ký #6; chứng minh nó **đỏ** trên đối chứng dương và **xanh** trên Vite lành
 - [x] 1.4 Câu báo khi dừng phải nói **đúng nguyên nhân**, không để 11 spec đỏ vì lý do khác
-- [ ] 1.5 🔴 **CHẶN — đòi một lượt chạy e2e thật** *(cùng điều kiện với 8.4)*. Đã ghi một mục nợ
-      **có chủ** thay vì lặng lẽ gộp vào AC1, đúng như mục này dặn. ⚠️ **Vế phía client, cạm bẫy 8:** một cửa sổ `about:blank` với `document.body` rỗng đi qua
+- [ ] 1.5 🔴 **VẪN CHƯA ĐO sau BA lượt e2e — và mình KHÔNG chấm đạt bằng suy luận.** Không lượt nào
+      **dựng được** một cửa sổ trắng để đo. Có một vế giảm nhẹ *(cầu `import()` của `resetPanelState`
+      sẽ ném trên `about:blank`, nên fixture nay KÊU thay vì im)* — nhưng đó là một **suy luận**, không
+      một phép đo, nên nó không đóng mục này. Nợ **có chủ** đã ghi, đúng như mục này dặn. ⚠️ **Vế phía client, cạm bẫy 8:** một cửa sổ `about:blank` với `document.body` rỗng đi qua
       `devServerIsUp` sạch. Đo xem nó còn tái lập được không; nếu còn ⇒ nêu với Ice như một mục nợ
       **có chủ**, đừng lặng lẽ gộp vào AC1
 
@@ -398,7 +407,7 @@ lượt xanh — đó chính là mệnh đề story này tồn tại để sửa
 - [x] 4.2 Thay `pause(FLUSH_WAIT_MS)` ở `editor-typing-flush.e2e.mjs:179,287` bằng chờ tín hiệu
 - [x] 4.3 🔴 **Chứng minh không hằng số nào bị nới**: `EDITOR_IDLE_MS` = 2000, `EDITOR_HARD_CAP_MS`
       = 5000 *(`editorFlush.ts:43,56`)* **không đổi một chữ số**
-- [ ] 4.4 🔴 **CHẶN — Ice ký #0b: đẩy sang Task 8.4 cùng chữ ký #8.** Đo lại trên **máy bận** — đây là điều kiện mà biên 1.500 ms đã trượt
+- [x] 4.4 ✅ **ĐI CÙNG PHÁN QUYẾT 8.4 theo chữ ký #0b** — lượt 12 xanh trọn bộ. Đo lại trên **máy bận** — đây là điều kiện mà biên 1.500 ms đã trượt
 
 ### Task 5 — Cổng ô nhớ cấp module (AC: 5)
 
@@ -435,7 +444,7 @@ lượt xanh — đó chính là mệnh đề story này tồn tại để sửa
 - [x] 8.1 Chín cổng cũ + hai cổng mới: **exit 0**
 - [x] 8.2 `npm run test` — không **giảm** so với **249/249** *(21 tệp)*
 - [x] 8.3 `cargo test --locked` — không **giảm** so với **409 passed / 0 failed / 5 ignored**
-- [ ] 8.4 🔴 **CHẶN — Ice ký #0: hoãn tới khi Story 2.4 đóng.** Bộ e2e **trọn bộ**, số lượt và loại máy theo chữ ký #8. Ghi **nguyên văn** mọi ca đỏ
+- [x] 8.4 ✅ **ĐẠT 2026-08-19 theo chữ ký #8 (`n=1`, xanh 11/11)** — lượt 12: **11/11, 0 đỏ, 13m01s**. Bộ e2e **trọn bộ**, số lượt và loại máy theo chữ ký #8. Ghi **nguyên văn** mọi ca đỏ
 - [x] 8.5 ⚠️ **Đột biến để chứng minh bộ đo mới không rỗng** — khuôn đã trả lãi ở 2.11: một ca test
       *"flush TRƯỚC lượt chuyển"* ban đầu **không canh gì**, lộ ra chỉ khi bỏ `await` mà ca vẫn xanh
 - [x] 8.6 Ghi số kèm **phiên bản toolchain và ngày** — *"số đo không truy nguyên được thì không phải số đo"*
@@ -777,7 +786,7 @@ mục mới ⇒ bẫy đọc nhầm đã được vô hiệu.
 | 5 | Cơ chế fixture reset | **(b) fixture gọi THẲNG các hàm reset** — Ice | 2026-08-18 | Loại (a) *(chuẩn hoá `reload()`)* — nó reset bằng cách **giết cả webview state**, che luôn những rò rỉ thật mà cổng AC5 tồn tại để thấy; loại (c) *(phiên app mới mỗi spec)* — lượt trọn bộ thứ chín **đã** mất 18m51s và ba ca **đã** đụng trần `mochaOpts.timeout` 120 s; loại *"(a) + cổng AC5 bù lại"*. 🔴 **Ràng buộc kéo theo:** (b) cần *"một đường gọi được từ driver"* ⇒ **phải đo trước** xem `import()` động qua Vite dev có cho **0 dòng mã sản phẩm** không. Nếu phải phơi một thứ lên `window` ⇒ đó là **mã sản phẩm phục vụ bộ đo**, cùng hình dạng đã bị loại ở #4(b) ⇒ **cửa `AD` kích hoạt lại** |
 | 6 | Vá `devServerIsUp` | *(không cần chữ ký — story ghi *"ba hướng để **ĐO**, không phải để chọn trên giấy"*; phán quyết đến từ **đối chứng dương** ở Task 1.1-1.3)* | | |
 | 7 | Cổng thứ 10/11 hay gộp | **(a) hai cổng mới độc lập** — Ice | 2026-08-18 | Loại (b) *(gộp vào `check:layout` + `check:commands`)* — *"một cổng mang hai mệnh đề khác miền là chỗ mệnh đề yếu bị mệnh đề mạnh che"*. ⚠️ **Nhưng #3 = (a) ⇒ AC6 KHÔNG cần một cổng tĩnh** ⇒ số cổng mới thật sự là **MỘT** *(`check:panel-refs` cho AC5)*, không hai. Ghi ra thay vì làm tròn: `pre-push` đi từ 9 → **10** cổng, không 11 |
-| 8 | Ngưỡng "tái lập được" | | | *(HOÃN cùng Task 8.4 theo chữ ký #0)* |
+| 8 | Ngưỡng "tái lập được" | **n = 1 lượt trọn bộ, và phải XANH 11/11** — Ice | 2026-08-19 | Loại *(n=3 rảnh)*, *(n=3 rảnh + 1 bận)*, *(n=5 rảnh)* — cả ba đắt 45-75 phút. ⇒ Hai nửa của chữ ký đi **ngược chiều nhau**: rẻ nhất về cỡ mẫu, **chặt nhất** về phán quyết. Một ca đỏ **có nguyên văn** vẫn là **KHÔNG ĐẠT**; đường *"đỏ đồng nhất mọi lượt thì đạt"* và đường *"miễn có nguyên văn thì đạt"* đều bị loại. 🔴 **GIỚI HẠN CÓ TÊN của chính chữ ký này, nêu trước khi ký và Ice giữ nguyên:** `n=1` đúng bằng thứ retro Epic 2 đã **đính chính** — lượt chốt C3 kết luận *"ổn định"* trên `n=2` và sai; `wdio.conf.mjs:70-80` giữ bản ghi ấy. ⇒ Một lượt xanh ở `n=1` **không** chứng minh bộ hết chập chờn; nó chứng minh bộ **xanh được**. Vế còn lại thành một món nợ có chủ, không một dấu ✅ |
 | 0b | **Task 4 còn hoãn không** | **LÀM LUÔN Task 4** — Ice | 2026-08-18 | #4=(a) chờ một **trạng thái quan sát được**, không chờ một khoảng thời gian ⇒ nó **xoá biên 1.500 ms khỏi phép đo**, tức xoá đúng cái phụ thuộc vào bản vá NFR2 của 2.4. Task 4.3 là một phép **đọc mã**. Chỉ **Task 4.4** *(đo lại trên máy bận)* còn cần một lượt chạy thật ⇒ đẩy sang Task 8.4 cùng #8 |
 
 ### Debug Log References
@@ -822,11 +831,48 @@ checkout` khi tệp đang mang thay đổi chưa commit.
 
 ### Completion Notes List
 
-🔴 **STORY CHƯA XONG — ba mục còn hở, và cả ba bị chặn bằng một điều kiện có tên.**
+✅ **BẢY TRÊN BẢY AC ĐÓNG. Cửa chặn ② đóng, Epic 3 mở được.**
 
-**Đã đóng: AC1 · AC2 · AC3 · AC4 · AC5 · AC6** *(sáu trong bảy)*.
-**Còn hở: AC7** — và nó là vế **nặng nhất**, vì nó là phép đo duy nhất trả lời *"bộ đo đã nói thật
-chưa"*. ⇒ **Cửa chặn ② CHƯA đóng trọn. Epic 3 chưa mở được.**
+🔴 **Nhưng lượt đóng AC7 đi qua HAI lỗi của chính dev, và cả hai đáng đọc hơn dấu ✅.**
+
+**① Bản vá AC2 ban đầu làm bộ đo XẤU ĐI — lượt 10: 5 passed / 6 failed, so với mốc 8/3.**
+Chín lượt `window.location.reload()` bị **cả ba tài liệu** *(hồ sơ story · `deferred-work.md` ·
+`wdio.conf.mjs`)* mô tả là *"vá của BÀN ĐO cho state cấp module rò"*. **Mô tả đó thiếu một nửa:**
+`reload()` dựng lại webview ⇒ chạy lại `main.ts` ⇒ `GridPanel.vue::onMounted` ⇒
+`ensureChapterLoaded()`. Nó mang **HAI** vai — dọn state **và** phát một lượt nạp. Bản vá chỉ thay
+vai thứ nhất ⇒ lưới **không bao giờ nạp**.
+⇒ Đúng khuôn *"chữ ký thi hành đúng MỘT NỬA"* mà retro Epic 2 gọi tên **năm** lần; đây là lần thứ
+**sáu**. Và `libraryImport.ts:173` **đã viết sẵn câu trả lời từ 2026-08-07**: *"VỨT state cũ là CHƯA
+ĐỦ — phải NẠP LẠI ngay tại đây."* Bản vá thật: `resetPanelState()` soi **cả hai** nửa của
+`finishSubmit`, và chuyển về **SAU** lượt tạo Tác phẩm — đúng chỗ `finishSubmit` chạy.
+
+**② Chẩn đoán của chính bộ đo NÓI DỐI, và nó đẩy lượt chẩn đoán đi sai hướng ngay câu đầu.**
+`timeoutMsg` của `browser.waitUntil` là một **chuỗi dựng lúc tạo object tham số**, nên `${seen}` bị
+nội suy **trước** khi vòng chờ chạy một lần nào ⇒ nó in giá trị **khởi tạo** `-1` ở mọi lượt đỏ.
+Ba ca đỏ của lượt 10 đều báo *"lần đọc cuối thấy -1"*, và `-1` **không phải một giá trị đọc được**.
+Sau khi sửa cho nó nói thật *(lượt 11)*: `Lần đọc cuối: **0**` ở mọi ca, **không** một lượt
+`browser.execute` nào ném ⇒ lưới đọc được **0 hàng ở mọi vòng suốt 30 giây**, tức **không bao giờ
+nạp** chứ không nạp chậm. Chính con số ấy chỉ thẳng vào lỗi ①.
+🔴 **Lỗi ② phải sửa TRƯỚC mới tìm ra lỗi ①.** Một bộ đo nói dối không chỉ giấu khuyết tật — nó
+**chủ động** dẫn người chẩn đoán đi sai. Luật rút ra, nay ghi trong cả `gridWait.mjs` lẫn
+`flushWait.mjs`: **mọi con số trong một câu báo lỗi phải đọc SAU vòng chờ** *(dựng câu trong
+`catch`)*, và **lỗi mà `waitUntil` nuốt phải giữ nguyên văn rồi in kèm**.
+
+**Ba lượt trọn bộ, cùng cây, cùng máy:**
+
+| # | Kết quả | Thời gian | Điều lượt đó dạy |
+|---|---|---|---|
+| 10 | 5 passed · **6 failed** | 16m18 | Bản vá AC2 làm bộ xấu đi ba spec |
+| 11 | 5 passed · **6 failed** | 14m12 | `Lần đọc cuối: 0` ⇒ lưới không bao giờ nạp |
+| **12** | **11 passed · 0 failed** | **13m01** | Sau khi cầu reset soi cả hai nửa của `finishSubmit` |
+
+🔴 **GIỚI HẠN CÓ TÊN của lượt nghiệm thu AC7 — nêu TRƯỚC khi Ice ký #8, và Ice giữ nguyên.**
+`n=1` đúng bằng thứ retro Epic 2 đã **đính chính**: lượt chốt C3 kết luận *"ổn định"* trên `n=2` và
+**sai**. ⇒ Lượt 12 chứng minh bộ **XANH ĐƯỢC**; nó **không** chứng minh bộ hết chập chờn — hai mệnh
+đề khác nhau, và chỉ mệnh đề thứ nhất được mua. Bằng chứng còn nóng: **cùng cây, cùng máy**, lượt 10
+và 11 cho 6 đỏ. Vế còn lại là một món nợ **có chủ**, không một dấu ✅.
+⚠️ Và `attribution-focus` *(lần đỏ ② của `wdio.conf.mjs`)* xanh ở lượt 12 nhưng **chưa bao giờ được
+chẩn đoán** — không bản vá nào của story nêu tên nguyên nhân của nó.
 
 | AC | Trạng thái | Bằng chứng |
 |---|---|---|
@@ -836,7 +882,7 @@ chưa"*. ⇒ **Cửa chặn ② CHƯA đóng trọn. Epic 3 chưa mở được.
 | AC4 chờ sự kiện | ✅ | `support/flushWait.mjs`, hợp đồng **hai bước**. `FLUSH_WAIT_MS` **gỡ khỏi mã**. 🔴 `git diff` trên `editorFlush.ts` + `writeSchedule.ts` = **RỖNG** ⇒ không hằng AD-35 nào đổi một chữ số |
 | AC5 cổng ô nhớ | ✅ | `check:panel-refs` — cổng thứ **MƯỜI**. 39 tệp · 91 ô · 25 miễn trừ có tên. **Đột biến: đỏ trên `sourceCut`+`omitError`, xanh khi khôi phục** |
 | AC6 cột `segment` mới | ✅ | `a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default`. **Đột biến: bỏ `translation_origin` khỏi `INSERT` của `write_regroup` ⇒ đỏ (`""` vs `"self"`)** |
-| AC7 tái lập được | 🔴 **CHƯA** | Task 8.4 hoãn theo chữ ký #0. Bộ e2e trọn bộ **chưa chạy một lượt nào** trong story này |
+| AC7 tái lập được | ✅ | Lượt trọn bộ **thứ 12: 11/11 xanh, 0 đỏ, 13m01s, exit 0**, không một dòng `Error in`. Chữ ký #8: `n=1` và phải xanh 11/11. ⚠️ Giới hạn có tên ở ngay dưới bảng |
 
 ⚠️ **ĐỪNG ĐỌC SÁU DẤU ✅ THÀNH *"BỘ ĐO ĐÃ NÓI THẬT"*.** Chúng gỡ bốn nguồn nhiễu **đã đặt tên được**.
 Mệnh đề *"kết quả tái lập được"* là một phép **ĐO**, và phép đo ấy chưa chạy. `attribution-focus`
@@ -897,7 +943,7 @@ cũng **không** kích hoạt: `import()` động qua Vite dev cho đúng module
 - `src/panels/lookupTiming.ts` — `resetLookupTiming()` mới (#2c)
 
 **SỬA — bộ đo (7)**
-- `e2e/wdio.conf.mjs` — `assertModuleGraphHealthy`, bản ghi lượt chạy (9.4)
+- `e2e/wdio.conf.mjs` — `assertModuleGraphHealthy`, bản ghi lượt chạy (9.4) + ba lượt 10/11/12
 - `e2e/support/workspace.mjs` — fixture gọi `resetPanelState()`
 - `e2e/specs/editor-typing-flush.e2e.mjs` · `grid-empty-cell.e2e.mjs` ·
   `segment-backspace-merge.e2e.mjs` · `segment-merge-split.e2e.mjs` · `segment-navigation.e2e.mjs`
@@ -926,7 +972,14 @@ cũng **không** kích hoạt: `import()` động qua Vite dev cho đúng module
 | 2026-08-18 | AC6 — ca Rust khoá đường ghi thứ hai (`write_regroup`); đột biến cho đỏ |
 | 2026-08-18 | Task 7 — ba danh sách + **hai** sàn quần thể *(story giao một)*; `check:gates` xanh |
 | 2026-08-18 | Task 9 — 6 mục đóng · 3 mục 🟡 · 3 mục giữ chủ · 6 mục nợ mới có chủ |
-| 2026-08-18 | 🔴 **AC7 CHƯA ĐÓNG** — Task 1.5 · 4.4 · 8.4 chặn bởi chữ ký #0 *(chờ Story 2.4)* cộng cổng 1420 đang bận. **Cửa chặn ② chưa đóng trọn** |
+| 2026-08-18 | 🔴 AC7 chưa đóng — Task 1.5 · 4.4 · 8.4 chặn bởi chữ ký #0 *(chờ Story 2.4)* cộng cổng 1420 đang bận |
+| 2026-08-19 | Ice báo 2.4 chạy xong. **Kiểm điều kiện gỡ chứ không tin suông:** cây sạch tại `8457bf3`, hằng AD-35 nguyên vẹn ⇒ 2.4 sinh **số đo, không bản vá** ⇒ lo ngại của chữ ký #0 không thành hiện thực |
+| 2026-08-19 | 🔴 **Lượt 10: 5 passed / 6 failed** — bản vá AC2 làm bộ **xấu đi** so với mốc 8/3 |
+| 2026-08-19 | 🔴 Tìm ra chẩn đoán của chính bộ đo **nói dối**: `timeoutMsg` là chuỗi dựng sẵn ⇒ `${seen}` luôn in `-1`. Sửa `gridWait.mjs` + `flushWait.mjs` dựng câu trong `catch` và giữ nguyên văn lỗi bị nuốt |
+| 2026-08-19 | **Lượt 11: `Lần đọc cuối: 0`** mọi ca ⇒ lưới **không bao giờ nạp**. Nguyên nhân: `reload()` mang HAI vai, bản vá chỉ thay một — lần thứ **sáu** của khuôn *"thi hành đúng một nửa"* |
+| 2026-08-19 | `resetPanelState()` soi **cả hai** nửa của `finishSubmit` *(reset → đọc lưới rỗng → `ensureChapterLoaded` + `ensureSegmentsLoaded`)*, chuyển về **sau** lượt tạo Tác phẩm |
+| 2026-08-19 | ✅ **Lượt 12: 11/11 xanh, 0 đỏ, 13m01s.** Chữ ký #8 *(`n=1`, xanh trọn bộ)* ⇒ **AC7 ĐẠT, cửa chặn ② ĐÓNG** |
+| 2026-08-19 | Sửa **tại chỗ** ba nơi mô tả sai vai của `reload()` *(story · `deferred-work.md` · `wdio.conf.mjs`)*; mở nợ *"`n=1` không chứng minh hết chập chờn"* có chủ |
 
 ### Review Findings
 

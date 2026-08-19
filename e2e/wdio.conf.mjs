@@ -96,10 +96,42 @@
  *    state panel bằng cầu `import()` *(`support/panelReset.mjs`)* · khuôn chờ trạng thái đích
  *    *(`support/gridWait.mjs`)* · chờ mốc lưu thay vì `pause(FLUSH_WAIT_MS)`
  *    *(`support/flushWait.mjs`)*.
- *    🔴 **ĐỪNG ĐỌC BỐN DÒNG TRÊN THÀNH "BỘ ĐO ĐÃ NÓI THẬT".** Chúng gỡ bốn nguồn nhiễu **đã
- *    đặt tên được**; mệnh đề *"kết quả tái lập được"* là một phép **ĐO**, và phép đo đó **chưa
- *    chạy một lượt nào** — AC7 và Task 8.4 của Story 2.12 hoãn theo chữ ký #0 của Ice, chờ
- *    Story 2.4 đóng. Bản ghi này sẽ được nối tiếp ở lượt đo ấy, **không** bị viết đè.
+ *    ⚠️ Câu *"phép đo đó chưa chạy một lượt nào"* của bản ghi này **hết đúng ngày 2026-08-19**
+ *    — ba lượt đã chạy, xem ngay dưới. Giữ nguyên câu cũ vì nó đúng **lúc viết**.
+ *
+ * 🔵 **BA LƯỢT NỮA, 2026-08-18 → 19 (Story 2.12). Tổng: 12 lượt.**
+ *
+ *    | # | Kết quả | Thời gian | Điều lượt đó DẠY |
+ *    |---|---|---|---|
+ *    | **10** | 5 passed · **6 failed** | 16m18 | 🔴 Bản vá AC2 làm bộ **XẤU ĐI ba spec** so với mốc 8/3 |
+ *    | **11** | 5 passed · **6 failed** | 14m12 | Chẩn đoán sửa cho nói thật ⇒ `Lần đọc cuối: 0` mọi ca |
+ *    | **12** | **11 passed · 0 failed** | 13m01 | Sau khi cầu reset soi **cả hai** nửa của `finishSubmit` |
+ *
+ *    🔴 **Lượt 10 là bài học đắt nhất của story, và nó là một lỗi của DEV, không của hồ sơ.**
+ *    Chín lượt `window.location.reload()` bị **cả ba tài liệu** *(hồ sơ story · `deferred-work.md`
+ *    · chính tệp này)* mô tả là *"vá của BÀN ĐO cho state cấp module rò"*. **Mô tả đó thiếu một
+ *    nửa:** `reload()` dựng lại webview ⇒ chạy lại `main.ts` ⇒ `GridPanel.vue::onMounted` ⇒
+ *    `ensureChapterLoaded()`. Nó mang **HAI** vai — dọn state **và** phát một lượt nạp.
+ *    Gỡ nó mà chỉ thay vai thứ nhất ⇒ lưới **không bao giờ nạp**, 6 spec đỏ.
+ *    ⇒ Đúng khuôn *"chữ ký thi hành đúng MỘT NỬA"* mà retro Epic 2 gọi tên **năm** lần; đây là
+ *    lần thứ sáu. Và `libraryImport.ts:173` **đã viết sẵn câu trả lời từ 2026-08-07**:
+ *    *"VỨT state cũ là CHƯA ĐỦ — phải NẠP LẠI ngay tại đây."*
+ *
+ *    🔴 **Lượt 11 dạy một thứ khác, về chính bộ đo:** ba ca đỏ của lượt 10 đều báo *"lần đọc
+ *    cuối thấy -1"*, và `-1` **không phải một giá trị đọc được** — nó là giá trị **khởi tạo**.
+ *    `timeoutMsg` của `waitUntil` là một **chuỗi dựng lúc tạo object tham số**, nên `${seen}`
+ *    bị nội suy **trước** khi vòng chờ chạy. ⇒ Một bộ đo cho một **câu chẩn đoán không có
+ *    thật** trên một lượt đỏ thật, và nó đẩy lượt chẩn đoán đi sai hướng ngay câu đầu tiên.
+ *    Luật rút ra, nay ghi trong `support/gridWait.mjs`: **mọi con số trong một câu báo lỗi
+ *    phải đọc SAU vòng chờ** — dựng câu trong `catch`, không trong tham số.
+ *
+ * 🔴 **AC7 ĐẠT theo chữ ký #8 của Ice (2026-08-19): `n = 1` lượt, và phải XANH 11/11.**
+ *    Lượt 12 thoả: 11/11, 0 đỏ, máy loadavg 4,19 → 3,23 trên 16 nhân.
+ *    ⚠️ **VÀ GIỚI HẠN CÓ TÊN của chữ ký ấy, nêu TRƯỚC khi ký và Ice giữ nguyên:** `n=1` đúng
+ *    bằng thứ khối *"ĐÍNH CHÍNH 2026-08-12"* ở trên đã đính chính — lượt chốt C3 kết luận
+ *    *"ổn định"* trên `n=2` và **sai**. ⇒ Lượt 12 chứng minh bộ **XANH ĐƯỢC**; nó **không**
+ *    chứng minh bộ hết chập chờn. Hai mệnh đề khác nhau, và chỉ mệnh đề thứ nhất được mua.
+ *    Vế còn lại là một món nợ **có chủ** trong `deferred-work.md`, không một dấu ✅.
  *
  * 🔴 **KHÔNG chạy song song (`maxInstances: 1`), và đó là một quyết định, không một chỗ
  *    chưa làm tới.** Hai lý do, lý do đầu là một hồi quy **đúng theo cấu tạo** chứ không

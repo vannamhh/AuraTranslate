@@ -116,23 +116,54 @@ export function markFlushBaseline() {
 export async function waitForFlushAfter(baseline, opts = {}) {
   const timeout = opts.timeout ?? FLUSH_TIMEOUT_MS
   const what = opts.what ?? 'một lượt flush'
+
+  // 🔴 Đọc SAU vòng chờ, không nội suy vào `timeoutMsg` — xem khối bên dưới.
   let seen = baseline
-  await browser.waitUntil(
-    async () => {
-      seen = await readLastSavedAt()
-      return seen !== null && (baseline === null || seen > baseline)
-    },
-    {
-      timeout,
-      timeoutMsg:
-        `${what} không hoàn tất sau ${timeout} ms — mốc lưu vẫn là ` +
-        `${seen === null ? '`null` (CHƯA có lượt flush nào)' : seen} ` +
-        `(mốc trước thao tác: ${baseline === null ? '`null`' : baseline}).\n\n` +
-        '🔴 Đây KHÔNG phải một lượt hết giờ có thể vá bằng cách chờ lâu hơn — trần này là một\n' +
-        'hàng rào an toàn, không một ngưỡng. Mốc KHÔNG đổi sau 30 giây nghĩa là nhịp AD-35\n' +
-        'thật sự không chạy: idle 2 s và trần cứng 5 s đều đã trôi qua sáu lần.\n' +
+  let lastErr = null
+
+  try {
+    await browser.waitUntil(
+      async () => {
+        try {
+          seen = await readLastSavedAt()
+          lastErr = null
+        } catch (err) {
+          lastErr = err
+          return false
+        }
+        return seen !== null && (baseline === null || seen > baseline)
+      },
+      { timeout, timeoutMsg: 'hết giờ' },
+    )
+  } catch {
+    throw new Error(
+      `${what} không hoàn tất sau ${timeout} ms.\n` +
+        `Mốc trước thao tác: ${baseline === null ? '`null`' : baseline}\n` +
+        `Mốc lần đọc cuối:  ${lastErr !== null ? '(không đọc được)' : seen === null ? '`null` (CHƯA có lượt flush nào)' : seen}\n` +
+        (lastErr !== null
+          ? `\n🔴 NGUYÊN VĂN lỗi mà vòng chờ nuốt:\n${lastErr instanceof Error ? (lastErr.stack ?? lastErr.message) : String(lastErr)}\n`
+          : '') +
+        '\n🔴 Đây KHÔNG phải một lượt hết giờ có thể vá bằng cách chờ lâu hơn — trần này là một\n' +
+        'hàng rào an toàn, không một ngưỡng. Mốc KHÔNG đổi sau chừng đó nghĩa là nhịp AD-35\n' +
+        'thật sự không chạy: idle 2 s và trần cứng 5 s đều đã trôi qua nhiều lần.\n' +
         'Ứng viên: bộ đệm gõ không nhận ký tự nào · `flushEditorNow` ném · IPC không trả về.',
-    },
-  )
+    )
+  }
   return seen
 }
+
+/**
+ * 🔴 **VÌ SAO CÂU BÁO DỰNG TRONG `catch`, KHÔNG TRONG THAM SỐ — 2026-08-19.**
+ *
+ * `timeoutMsg` của `browser.waitUntil` là một **chuỗi**, dựng lúc tạo object tham số, tức
+ * **TRƯỚC** khi vòng chờ chạy một lần nào. Một `${seen}` đặt ở đó in ra giá trị **khởi tạo**
+ * ở mọi lượt đỏ, bất kể vòng chờ đã đọc được gì.
+ *
+ * ⚠️ Đo được ở lượt trọn bộ thứ mười *(2026-08-18)*: `support/gridWait.mjs` mắc đúng lỗi này
+ * và ba ca đỏ đều báo *"lần đọc cuối thấy -1"* — `-1` là giá trị khởi tạo, **không** một giá
+ * trị đọc được. Nó đẩy lượt chẩn đoán đi sai hướng ngay câu đầu tiên.
+ *
+ * ⇒ Và vế thứ hai cũng bắt buộc: `waitUntil` coi một lượt **ném** trong hàm điều kiện là
+ * *"chưa đúng"* rồi **nuốt** nó. Không giữ lại nguyên văn thì một lỗi thật *(cầu IPC chết,
+ * export đổi tên)* biến thành một lượt hết giờ câm, và câu báo sẽ đổ lỗi cho nhịp AD-35.
+ */

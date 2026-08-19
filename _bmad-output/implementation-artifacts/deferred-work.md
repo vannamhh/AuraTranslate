@@ -4452,6 +4452,21 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   fixture**, đừng bao giờ gọi nó với con số mà ca sắp `expect` — nếu không thì phép chờ nuốt chính
   phép kiểm. Một `expect(truoc.soHang).toBe(3)` đã thành vô nghĩa vì thế và **bị gỡ**, không giữ lại
   làm một dòng xanh không bao giờ đỏ được.
+  🔵 **ĐÍNH CHÍNH 2026-08-19 — hai mệnh đề của lượt đóng hôm qua đã hết đúng, sửa tại chỗ.**
+  ⓵ **Câu *"chín lượt `reload()` là vá của BÀN ĐO"* SAI MỘT NỬA** — và cả ba tài liệu đều chép
+  cùng cái sai đó *(hồ sơ story · mục này · `wdio.conf.mjs`)*. `reload()` dựng lại webview ⇒ chạy
+  lại `main.ts` ⇒ `GridPanel.vue::onMounted` ⇒ `ensureChapterLoaded()`. Nó mang **HAI** vai: dọn
+  state **và** phát một lượt nạp. Bản vá hôm qua chỉ thay vai thứ nhất ⇒ lượt trọn bộ **thứ mười**
+  cho **5 passed / 6 failed** *(xấu hơn mốc 8/3)*, `Lần đọc cuối: 0` ở mọi ca — lưới **không bao
+  giờ nạp**. ⇒ Đúng khuôn *"chữ ký thi hành đúng MỘT NỬA"*, **lần thứ sáu** của Epic 2. Và
+  `libraryImport.ts:173` đã viết sẵn câu trả lời từ 2026-08-07: *"VỨT state cũ là CHƯA ĐỦ — phải
+  NẠP LẠI ngay tại đây"*.
+  ⓶ **Bản vá thật:** `support/panelReset.mjs` nay soi **cả hai** nửa của `finishSubmit` *(năm hàm
+  `reset*` → đọc lưới phải rỗng → `ensureChapterLoaded()` + `ensureSegmentsLoaded()`)*, và nó chuyển
+  về **SAU** lượt tạo Tác phẩm — đúng chỗ `finishSubmit` chạy, tức sau khi `replace_open_work` đã
+  trỏ `OpenWorkState` sang Tác phẩm mới. Nghiệm thu: lượt trọn bộ **thứ mười hai** = **11/11 xanh**.
+  🔴 ⇒ Và quyết định #5 phải đọc lại kèm dòng này: đường (a) bị loại vì *"giết cả webview state"* —
+  lý do vẫn đúng, nhưng lúc ký **không ai biết** thứ nó "giết" bao gồm một vế **bắt buộc**.
 
 - 🔴 **HỎNG DỮ LIỆU IM LẶNG ở tab Hán Việt — TÌM RA và ĐÃ VÁ cùng ngày (Story 2.9, AC9).**
   Ice báo *"chưa thấy điểm cắt, và chưa cắt được"*; bàn đo cho một bảng nặng hơn hẳn triệu
@@ -4806,6 +4821,16 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   theo luồng dữ liệu, và chỉ theo lời gọi hàm **sâu một tầng**. Một ô dọn bằng `Object.assign` hay
   một chuỗi hai tầng sẽ bị chấm là chưa dọn — chiều đỏ **oan**, vá bằng miễn trừ có tên chứ không
   bằng việc nới luật.
+  🔵 **THÊM 2026-08-19 — một lỗi thứ BA của chính cổng/bộ đo, tìm ra ở lượt chạy thật.**
+  `support/gridWait.mjs` đưa giá trị đọc được vào `timeoutMsg` của `browser.waitUntil`. **`timeoutMsg`
+  là một CHUỖI dựng lúc tạo object tham số**, nên `${seen}` bị nội suy **trước** khi vòng chờ chạy một
+  lần nào ⇒ nó in giá trị **khởi tạo** *(`-1`)* ở mọi lượt đỏ, bất kể lưới thật có bao nhiêu hàng.
+  🔴 Hệ quả: ba ca đỏ của lượt trọn bộ thứ mười đều báo *"lần đọc cuối thấy -1"*, và lượt chẩn đoán
+  **đi sai hướng ngay câu đầu tiên** — người đọc *(kể cả người viết)* kết luận `browser.execute` ném
+  mọi vòng. ⇒ Một bộ đo cho một **câu chẩn đoán không có thật** trên một lượt đỏ **thật**.
+  ⚠️ Cùng lỗi có ở `support/flushWait.mjs`; cả hai đã sửa. Luật rút ra, ghi trong cả hai tệp: **mọi
+  con số trong một câu báo lỗi phải đọc SAU vòng chờ** *(dựng câu trong `catch`)*, và **lỗi mà
+  `waitUntil` nuốt phải giữ nguyên văn rồi in kèm** — `waitUntil` coi một lượt ném là *"chưa đúng"*.
 
 - ⚠️ **`'still-dirty'` nay có nơi gọi đầu tiên phán quyết nó, và nó KHÔNG có ca nghiệm thu riêng.** `flushEditorBeforeDiscreteWrite()` trả ba giá trị; đường đổi **Tác phẩm** (`libraryImport.ts:145`) chỉ gọi `flushEditorNow()` **một** lượt nên nó chưa bao giờ thấy `'still-dirty'`. `switchChapter` là nơi gọi đầu tiên chặn cả `'failed'` **lẫn** `'still-dirty'`. 🔴 Ca vitest hiện có đo được nhánh `'failed'` *(qua `failNextSave`)*; nhánh `'still-dirty'` đòi dựng một cuộc đua — một ký tự gõ **trong lúc** lô đầu đang bay — mà fixture hôm nay chưa có cách bắn. ⇒ Nhánh ấy **đúng theo cấu tạo** *(cùng một `if (flushed !== 'clean')`)* nhưng **chưa có ca nào đi qua**. Ghi ra vì *"một nhánh chưa bao giờ chạy là một nhánh chưa ai biết nó có chạy không"*. **Chủ: story kế tiếp chạm đường flush rời rạc.**
 
@@ -4898,6 +4923,28 @@ của `ARCHITECTURE-SPINE.md`. Nhưng còn **hai** chỗ nữa gọi *"Panel Edi
   đã đặt tên được**. Chúng **không** chứng minh bộ đo đã nói thật — mệnh đề đó là một phép **ĐO**, và
   phép đo đó chưa chạy một lượt nào. Cửa chặn ② vì thế **chưa đóng trọn**.
   **Chủ: Ice** *(gỡ điều kiện)* → **story hạ tầng e2e kế tiếp** *(chạy phép đo)*.
+
+  → ✅ **ĐÃ ĐÓNG 2026-08-19 (Story 2.12 · AC7).** Ice báo Story 2.4 đã chạy xong phép đo, và điều
+  kiện gỡ được kiểm chứ không tin suông: **cây sạch tại `8457bf3`, `EDITOR_IDLE_MS`/`EDITOR_HARD_CAP_MS`
+  nguyên vẹn** ⇒ 2.4 sinh ra **số đo, không sinh ra bản vá** ⇒ lo ngại phía sau chữ ký #0 *(biên
+  1.500 ms tự nới sau khi 2.4 vá)* **không thành hiện thực**. Và AC4 vốn đã xoá hẳn phụ thuộc ấy.
+  **Chữ ký #8, Ice 2026-08-19: `n = 1` lượt trọn bộ, và phải XANH 11/11.** Lượt **thứ mười hai**
+  thoả: **11 passed / 0 failed / 13m01s / exit 0**, không một dòng `Error in`; máy loadavg
+  **4,19 → 3,23** trên 16 nhân. Task 4.4 *(vế "máy bận")* đi cùng phán quyết này theo chữ ký #0b.
+
+- 🔴 **`n = 1` KHÔNG chứng minh bộ e2e hết chập chờn — nó chứng minh bộ XANH ĐƯỢC. Hai mệnh đề
+  khác nhau, và chỉ mệnh đề thứ nhất đã được mua.**
+  Giới hạn này được **nêu ra trước khi Ice ký** và Ice **giữ nguyên** — ghi ở đây thay vì để nó tan
+  vào một dấu ✅. Lý do nó đáng một mục riêng: `n=1` đúng bằng thứ retro Epic 2 đã **đính chính** —
+  lượt chốt C3 kết luận *"ổn định"* trên `n=2` và sai; `wdio.conf.mjs:70-80` còn giữ bản ghi ấy.
+  ⚠️ Và bằng chứng còn nóng: **cùng cây, cùng máy**, lượt 10 và 11 cho **6 đỏ**, lượt 12 cho **0 đỏ**.
+  Khác biệt giữa chúng là một bản vá thật — nhưng nó cho thấy khoảng dao động của bàn đo này rộng
+  đến đâu khi một biến đổi.
+  🔵 Ba ứng viên gây chập chờn **đã có tên và đã vá** *(AC1-AC4)*, nên cỡ mẫu cần để tin đã nhỏ đi
+  thật — đó là lý do `n=1` không vô lý. Nhưng `attribution-focus` *(lần đỏ ② của `wdio.conf.mjs`)*
+  **chưa bao giờ được chẩn đoán**: nó xanh ở lượt 12, và không bản vá nào nêu tên nguyên nhân của nó.
+  **Chủ: story hạ tầng e2e kế tiếp** *(hoặc một lượt `n≥3` khi có máy rảnh — rẻ hơn nhiều so với
+  phân xử bằng tay một ca đỏ trong lô, như lượt 2.11 đã tốn ~25 phút)*.
 
 - 🔴 **`AC7` của Story 2.12 là một mệnh đề MỘT NỀN TẢNG — Ice ký đường (c) của quyết định #1.**
   Mọi phép đo, mọi bản vá và mọi lượt nghiệm thu của story này chạy trên **macOS/WKWebView**. Không

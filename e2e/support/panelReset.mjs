@@ -65,44 +65,110 @@ const PANEL_MODULES = [
 ]
 
 /**
- * Dọn state panel trong trang đang mở.
+ * 🔴 **VỨT STATE CŨ LÀ CHƯA ĐỦ — PHẢI NẠP LẠI. Đây là vế mà bản đầu của tệp này THIẾU, và
+ * nó đã trả giá bằng một lượt trọn bộ.**
  *
- * @returns {Promise<{ called: string[] }>}
- * @throws {Error} khi cầu `import()` không cho đúng module của app, hay khi một hàm reset
- *   đã đổi tên — cả hai đều là lỗi HẠ TẦNG và cả hai đều phải kêu, không được lặng lẽ bỏ qua
+ * ## Phép đo, 2026-08-18 → 19
+ *
+ * Bản đầu chỉ gọi năm hàm `reset*` rồi coi là xong. Lượt trọn bộ **thứ mười** cho **5 passed
+ * / 6 failed** *(mốc gốc: 8/3)*, tức **xấu đi ba spec**. Chẩn đoán trung thực ở lượt **thứ
+ * mười một**: `Lần đọc cuối: 0` ở **mọi** ca đỏ, không một lượt `browser.execute` nào ném.
+ * Lưới đọc được **0 hàng ở mọi vòng suốt 30 giây** — nó **không bao giờ nạp**, chứ không nạp
+ * chậm.
+ *
+ * ## Vì sao — mã sản phẩm đã viết sẵn câu trả lời
+ *
+ * `modes/libraryImport.ts::finishSubmit` *(:173-197)* nói thẳng:
+ *
+ * > 🔴 **VỨT state cũ là CHƯA ĐỦ — phải NẠP LẠI ngay tại đây.** `resetSourcePanel()` gỡ cờ
+ * > `chapterRequested`, nhưng không ai gọi lại hàm nạp. Chỗ DUY NHẤT gọi
+ * > `ensureChapterLoaded()` là `GridPanel.vue::onMounted`, mà ba chế độ sống trong
+ * > `<KeepAlive>` — *"lần hiện thứ hai trở đi không có `mounted`"*.
+ *
+ * ⇒ Một lượt reset **không kèm** hai lời gọi nạp để lưới rỗng **vĩnh viễn**. Đúng khuyết tật
+ * đã bắt bằng test tay 2026-08-07, và `finishSubmit` là bản vá của nó.
+ *
+ * ## 🔴 Và vì sao lượt `window.location.reload()` cũ CHE được điều này
+ *
+ * Hồ sơ Story 2.12 và `deferred-work.md` đều mô tả chín lượt `reload()` là *"vá của BÀN ĐO
+ * cho state cấp module rò"*. **Mô tả đó thiếu một nửa.** `reload()` dựng lại toàn bộ webview,
+ * nên nó chạy lại `main.ts` → `GridPanel.vue::onMounted` → `ensureChapterLoaded()`. Tức nó
+ * mang **hai** vai: dọn state **và** phát một lượt nạp. Gỡ nó mà chỉ thay vai thứ nhất là
+ * đúng khuôn *"chữ ký thi hành đúng MỘT NỬA"* mà retro Epic 2 đã gọi tên **năm** lần.
+ *
+ * ⚠️ Ghi ra vì nó đổi cách đọc quyết định #5: đường (a) *(chuẩn hoá `reload()`)* bị loại vì
+ * *"giết cả webview state, che luôn những rò rỉ thật"* — lý do ấy vẫn đúng, nhưng nó **không
+ * biết** rằng thứ nó "giết" bao gồm một vế bắt buộc. Đường (b) chỉ đủ khi nó soi **cả hai**
+ * nửa của `finishSubmit`.
+ */
+const LOAD_CALLS = [
+  ['/src/panels/sourcePanelState.ts', 'ensureChapterLoaded'],
+  ['/src/panels/editorPanelState.ts', 'ensureSegmentsLoaded'],
+]
+
+/**
+ * Dọn state panel trong trang đang mở, **rồi phát lại lượt nạp** — soi đúng `finishSubmit`.
+ *
+ * 🔴 Gọi **SAU** lượt tạo Tác phẩm, không trước: `finishSubmit` chạy sau khi
+ * `create_work_from_*` trả về, tức sau khi `replace_open_work` phía Rust đã trỏ
+ * `OpenWorkState` sang Tác phẩm mới. Nạp trước lượt trỏ đó là nạp Tác phẩm **cũ**.
+ *
+ * @returns {Promise<{ called: string[], rowsAfterReset: number }>}
+ * @throws {Error} khi cầu `import()` không cho đúng module của app, hay khi một tên đã đổi
  */
 export async function resetPanelState() {
-  const outcome = await browser.execute(async (modules) => {
-    const called = []
-    for (const [path, fnName] of modules) {
-      let mod
-      try {
-        mod = await import(/* @vite-ignore */ path)
-      } catch (err) {
-        return { ok: false, detail: `import("${path}") ném: ${String(err)}` }
-      }
-      const fn = mod[fnName]
-      if (typeof fn !== 'function') {
-        return {
-          ok: false,
-          detail:
-            `"${path}" không xuất một hàm tên \`${fnName}\`. ` +
-            `Nó xuất: ${Object.keys(mod).join(', ') || '(không gì cả)'}`,
+  const outcome = await browser.execute(
+    async (modules, loads) => {
+      const called = []
+      const grab = async (path, name) => {
+        let mod
+        try {
+          mod = await import(/* @vite-ignore */ path)
+        } catch (err) {
+          return { err: `import("${path}") ném: ${String(err)}` }
         }
+        const fn = mod[name]
+        if (typeof fn !== 'function') {
+          return {
+            err:
+              `"${path}" không xuất một hàm tên \`${name}\`. ` +
+              `Nó xuất: ${Object.keys(mod).join(', ') || '(không gì cả)'}`,
+          }
+        }
+        return { fn }
       }
-      fn()
-      called.push(fnName)
-    }
-    return { ok: true, called, rowsLeft: document.querySelectorAll('[data-col="src"]').length }
-  }, PANEL_MODULES)
+
+      for (const [path, fnName] of modules) {
+        const got = await grab(path, fnName)
+        if (got.err !== undefined) return { ok: false, detail: got.err }
+        got.fn()
+        called.push(fnName)
+      }
+
+      // 🔴 Đọc NGAY SAU reset và TRƯỚC lượt nạp — đây là cửa sổ duy nhất mà lưới phải rỗng,
+      // và nó là bằng chứng quan sát-được-từ-ngoài rằng `import()` chạm đúng module app đọc.
+      const rowsAfterReset = document.querySelectorAll('[data-col="src"]').length
+
+      for (const [path, fnName] of loads) {
+        const got = await grab(path, fnName)
+        if (got.err !== undefined) return { ok: false, detail: got.err }
+        // `void` — hai hàm này async và `finishSubmit` cũng không chờ chúng.
+        void got.fn()
+        called.push(fnName)
+      }
+
+      return { ok: true, called, rowsAfterReset }
+    },
+    PANEL_MODULES,
+    LOAD_CALLS,
+  )
 
   if (!outcome.ok) {
     throw new Error(
-      `Fixture KHÔNG dọn được state panel: ${outcome.detail}\n\n` +
+      `Fixture KHÔNG dọn/nạp lại được state panel: ${outcome.detail}\n\n` +
         'Đây là lỗi HẠ TẦNG của bàn đo, KHÔNG một hồi quy sản phẩm. Đừng đọc một ca đỏ phía\n' +
         'sau nó thành một khuyết tật giao diện — và đừng vá bằng `window.location.reload()`:\n' +
-        'đường đó đã bị loại có chữ ký (quyết định #5, Ice 2026-08-18) vì nó che đúng lớp rò\n' +
-        'rỉ mà `check:panel-refs` tồn tại để thấy.',
+        'đường đó đã bị loại có chữ ký (quyết định #5, Ice 2026-08-18).',
     )
   }
 
@@ -112,12 +178,11 @@ export async function resetPanelState() {
   // rồi báo thành công — fixture xanh, rò rỉ nguyên vẹn, spec sau đỏ vì một lý do khác hẳn.
   //
   // Phép kiểm đi qua **DOM**, có chủ ý: lưới đối chiếu render từ `segments` của
-  // `editorPanelState`, nên 0 hàng `[data-col="src"]` là bằng chứng **quan sát được từ bên
-  // ngoài** rằng chính ô nhớ app đang đọc đã bị dọn. Đọc lại `segments` qua cùng cái
-  // `import()` thì chỉ chứng minh bản sao nhất quán với chính nó.
-  if (outcome.rowsLeft !== 0) {
+  // `editorPanelState`, nên 0 hàng `[data-col="src"]` **ngay sau reset** là bằng chứng
+  // quan sát được từ bên ngoài rằng chính ô nhớ app đang đọc đã bị dọn.
+  if (outcome.rowsAfterReset !== 0) {
     throw new Error(
-      `Đã gọi ${outcome.called.length} hàm reset mà lưới còn ${outcome.rowsLeft} hàng nguyên văn.\n\n` +
+      `Đã gọi ${PANEL_MODULES.length} hàm reset mà lưới còn ${outcome.rowsAfterReset} hàng nguyên văn.\n\n` +
         '🔴 Nghĩa là `import()` KHÔNG chạm module mà app đang đọc — nhiều khả năng URL đã lệch\n' +
         '(một lượt HMR chèn `?t=…`, hay một tệp đổi chỗ). Cầu reset đang dọn một BẢN SAO.\n' +
         'Đo lại bằng: `curl -s http://localhost:1420/src/main.ts | grep -oE \'"/src/[^"]*"\'`\n' +
@@ -125,5 +190,5 @@ export async function resetPanelState() {
     )
   }
 
-  return { called: outcome.called }
+  return { called: outcome.called, rowsAfterReset: outcome.rowsAfterReset }
 }

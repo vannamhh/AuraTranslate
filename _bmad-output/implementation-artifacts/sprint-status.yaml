@@ -61,7 +61,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-18T16:40:00
+last_updated: 2026-08-19T07:40:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -1653,7 +1653,14 @@ development_status:
   #   ⇒ Task 0.1 phai DO LAI baseline SAU khi 2-4 dong. Bang trong tep story chup HEAD 4b30199,
   #   tuc TRUOC 2.4 — dung dung no nhu mot so da chot.
   #   ⚠️ Story van `ready-for-dev` tu 2026-08-18: thu cho la luot DEV, khong phai ho so.
-  2-12-ha-tang-e2e-va-cong-con-thieu: in-progress
+  # ✅ AC7 DAT 2026-08-19 — luot e2e tron bo THU 12: 11/11 xanh, 0 do, 13m01s, exit 0.
+  # Chu ky #8 (Ice, 2026-08-19): n=1 luot, va phai XANH 11/11. CUA CHAN ② DONG — Epic 3 mo duoc.
+  # 🔴 GIOI HAN CO TEN, neu TRUOC khi ky va Ice giu nguyen: n=1 chung minh bo XANH DUOC, KHONG
+  #   chung minh bo het chap chon. Bang chung con nong: cung cay cung may, luot 10 va 11 cho 6 do.
+  #   `attribution-focus` (lan do ② cua wdio.conf) xanh o luot 12 nhung CHUA BAO GIO duoc chan doan.
+  #   No la mot mon no CO CHU trong deferred-work.md, khong mot dau ✅.
+  # ⚠️ Task 1.5 (cua so trang, ve client) VAN CHUA DO sau ba luot — khong cham dat bang suy luan.
+  2-12-ha-tang-e2e-va-cong-con-thieu: review
 
   # 🔴 STORY NAY DONG MOT VI PHAM LUAT DANG SONG, khong them nang luc.
   #   project-context.md:447-448 viet bang chu: "Moi thu ... KEM MOT CHU. Khong co muc nao mo coi."
