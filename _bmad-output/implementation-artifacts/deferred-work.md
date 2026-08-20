@@ -5362,6 +5362,12 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   ra đời cổng Glossary sẽ ĐỎ cho một tệp không hề chạm Glossary. Sửa bằng cách khớp đường
   dẫn có định tính (`glossary::load_tier`) thay vì tên trần. **Chủ: epic đầu tiên dựng module
   miền hai tầng thứ hai** (ứng viên: Epic 7, TM).
+  → 🔵 **CẬP NHẬT 2026-08-20 (Story 3.2):** đổi tên hàm chạm đúng mục này, đúng như Code Map
+  của story đã dự đoán. `insert_entry` đổi tên `insert_manual_entry` (mất tham số
+  `term_origin`); `GLOSSARY_ONLY_SURFACE` nay là `insert_manual_entry` ·
+  `confirm_translation` · `load_tier` — ba chuỗi con khác, cùng lỗ hổng. Mệnh đề CHÍNH (so
+  chuỗi con trên toàn `src-tauri/src/**`, không so đường dẫn có định tính) KHÔNG đổi — mục
+  này vẫn MỞ, vẫn cùng chủ.
 
 - ⚠️ **Trigger một chiều chỉ canh `BEFORE UPDATE OF translation`.** `INSERT OR REPLACE`, hay
   `DELETE` rồi `INSERT` lại, đưa một mục đã chốt về *chờ chốt* mà trigger không hề nổ. Hôm
@@ -5391,3 +5397,121 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   là bước cuối cùng đã có mặt lúc story đó chạy"* nay **không được ca nào kiểm**. Thêm một
   dòng `assert_eq!(GLOBAL_MIGRATIONS[2].sql, PINNED_ENTRY_DDL)` là đủ để tên hàm nói thật
   trở lại. **Chủ: story kế tiếp thêm một bước vào `GLOBAL_MIGRATIONS`.**
+
+## Deferred from: 3-2-bang-cho-ung-vien-tach-han-khoi-glossary (thực thi 2026-08-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
+  summary: Trigger `glossary_candidate_resolution_is_one_way` chỉ canh
+    `BEFORE UPDATE OF resolution` — đúng lỗ mà mục ngay trên đã ghi cho
+    `glossary_entry_lifecycle_is_one_way`, nay lặp lại ở bảng ứng viên. Một `DELETE` rồi
+    `INSERT` lại cùng `source_term` không đi qua `UPDATE` nào cả, nên trigger không hề nổ —
+    hàng mới sinh ra mang `resolution = NULL` (chờ duyệt), tức một ứng viên đã bị bỏ/duyệt
+    "sống lại" mà không phạm `UNIQUE (source_term)` (hàng cũ đã bị xoá, ô chuỗi đó đang
+    trống).
+  evidence: Hôm nay không đường ghi nào của `core::glossary::candidate_store` đi lối
+    `DELETE` + `INSERT` — `insert_candidate`/`approve_candidate`/`reject_candidate` đều chỉ
+    `INSERT` (một lần, lúc sinh ứng viên) hoặc `UPDATE resolution` — nên đây là một lỗ hổng
+    của MỆNH ĐỀ ("vòng đời khoá bằng cấu trúc, không bằng kỷ luật") chứ chưa phải của hành
+    vi hiện có. Đóng bằng một trigger `BEFORE DELETE ON glossary_candidate WHEN OLD.resolution
+    IS NOT NULL` (hoặc tương đương) — nhưng chỉ khi story sở hữu một đường ghi thật sự cần
+    `DELETE`/`INSERT OR REPLACE` đã quyết ngữ nghĩa xoá một ứng viên đã quyết là hợp lệ hay
+    không, đúng khuôn quyết định mà mục `glossary_entry` tương ứng chờ Story 3.9.
+    **(Chủ: Story 3.9 — quản lý Glossary, chủ tự nhiên của mọi quyết định xoá/tái sinh.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
+  summary: Một ứng viên có `source_term` trùng một `glossary_entry` ĐÃ CÓ SẴN (ví dụ mục đó
+    đến từ nhập tay trước khi ứng viên được quét ra) thì `approve_candidate` sẽ luôn thất
+    bại ở `UNIQUE INDEX idx_glossary_entry_source_term` — và vì `approve_candidate` không
+    phân biệt lỗi đó với bất kỳ `WriteFailed` nào khác, ứng viên nằm lại bảng chờ VĨNH VIỄN,
+    không đường nào tự thoát.
+  evidence: `epics.md:2984-2985` đặt chỗ chặn đúng lỗ này ở LƯỢT QUÉT (Story 3.5) — quét
+    không được sinh ứng viên cho một chuỗi đã có mục Glossary, chứ không phải để
+    `approve_candidate` phát hiện muộn. Story 3.2 không có lượt quét nào để áp luật đó
+    (`insert_candidate` là API thuần, không tự tra `glossary_entry` trước khi chèn — làm
+    vậy là đặt một quyết định nghiệp vụ của Story 3.5 vào một hàm mà story đó chưa tồn tại).
+    **(Chủ: Story 3.5 — quét ứng viên khi nhập tài liệu.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
+  summary: `pending_candidates` sắp theo `ORDER BY source_term` — đối chiếu BYTE của
+    SQLite, vô nghĩa cho chữ Hán (không theo âm/nét) và tiếng Việt (không theo bảng chữ cái
+    có dấu) — và mệnh đề `WHERE resolution IS NULL` chưa có chỉ mục riêng, nên mỗi lượt gọi
+    quét toàn bảng.
+  evidence: Story 3.2 chưa có bề mặt duyệt hàng loạt nào cần một thứ tự CÓ NGHĨA với người
+    dùng (tần suất giảm dần, theo AD của epic-3-context.md), và bảng chờ hôm nay quá nhỏ để
+    đo được chi phí thiếu chỉ mục — cả hai là quyết định của Story 3.8 (duyệt hàng loạt một
+    phím: "sắp theo tần suất giảm dần"), không phải của bảng.
+    **(Chủ: Story 3.8 — duyệt hàng loạt một phím.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
+  summary: Bốn hàm của `candidate_store` (`insert_candidate` · `pending_candidates` ·
+    `approve_candidate` · `reject_candidate`) CHƯA vào `GLOSSARY_ONLY_SURFACE` của
+    `glossary_boundary.rs` — hôm nay chỉ một doc-comment nói ra rằng chúng phơi dữ liệu
+    THÔ/ghi thẳng và "nên" chỉ gọi được trong `core/glossary/**`, không cổng nào canh.
+  evidence: Story 3.2 cố ý không thêm bốn tên này vào cổng vì CHƯA có chỗ gọi sản phẩm nào
+    ngoài `core/glossary/**` để nghiệm thu quyết định đó — có nên hạn chế
+    `pending_candidates`/`approve_candidate` triệt để như `load_tier`/`insert_manual_entry`
+    hay không phụ thuộc vào hình dạng bề mặt IPC mà Story 3.3/3.5/3.8 dựng (ví dụ:
+    `pending_candidates` rất có thể cần gọi được từ một `#[tauri::command]` mỏng của Story
+    3.8, trong khi `load_tier` thì không — hai hàm không nhất thiết cùng một luật).
+    **(Chủ: story dựng chỗ gọi sản phẩm đầu tiên cho bốn hàm này** — ứng viên gần nhất:
+    Story 3.5 (`insert_candidate`) hoặc Story 3.8 (`pending_candidates`/`approve_candidate`/
+    `reject_candidate`).**)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
+  summary: Khoá `UNIQUE (source_term)` của `glossary_candidate` chặn TRÙNG CHUỖI — hẹp hơn
+    luật "cùng một cặp nguồn→đích" mà `epics.md:6115-6117` đòi cho đề xuất thu hoạch từ bản
+    review (FR54/FR95, Epic 8). Hệ quả: nếu một `source_term` đã bị BỎ (`resolution =
+    'rejected'`) với một đề xuất dịch A, và sau đó bản review phát hiện cùng chuỗi nguồn nên
+    dịch thành B (một cặp KHÁC A), `UNIQUE (source_term)` vẫn chặn đứng — không phân biệt
+    được "cùng chuỗi, đề xuất khác" với "cùng chuỗi, đề xuất y hệt đã bị bỏ".
+  evidence: Bảng `glossary_candidate` của Story 3.2 không có cột "bản dịch đề xuất" (cố ý —
+    xem §Never: đó là Story 3.7/Epic 8), nên khoá duy nhất hôm nay CHỈ CÓ THỂ dựa trên
+    `source_term`. Việc phân biệt theo cặp X→Y đòi một cột mới cộng một chỉ mục UNIQUE mới —
+    quyết định thuộc về story dựng chính cột đó.
+    **(Chủ: Story 8.14 — hoặc epic sở hữu FR54/FR95, tuỳ số hiệu story cuối cùng khớp
+    `epics.md:6115-6117`.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
+  summary: Cột `resolution` của `glossary_candidate` không mang thời điểm quyết định — khác
+    `glossary_entry`/`glossary_candidate.created_at`, không có `resolved_at`. Duyệt hàng
+    loạt (Story 3.8) hay một báo cáo "đã xử lý bao nhiêu ứng viên hôm nay" không đọc được
+    mốc thời gian đó từ chính bảng.
+  evidence: I/O Matrix của Story 3.2 không đòi một AC nào cần thời điểm quyết định — chỉ cần
+    `resolution` đúng ba trạng thái. Thêm `resolved_at` hôm nay là đoán trước một nhu cầu
+    chưa ai xin, đúng luật `AGENTS.md`: "Năng lực chưa dựng không phải lệch spec, ghi nợ có
+    chủ thay vì đoán trước".
+    **(Chủ: Story 3.8 — duyệt hàng loạt một phím, story đầu tiên có khả năng cần hiển thị
+    "đã xử lý lúc nào".)**
+
+## Deferred from: 3-2-bang-cho-ung-vien-tach-han-khoi-glossary (rà soát ba lớp, 2026-08-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
+  summary: `approve_candidate` viết cứng `note = ""` khi chèn `glossary_entry` qua
+    `insert_entry_row`, và không có tham số nào cho người duyệt tự đính ghi chú lúc duyệt —
+    trong khi `insert_manual_entry` (đường nhập tay) CÓ tham số `note`.
+  evidence: Đây là một lược bỏ CÓ CHỦ Ý của story (§Never liệt các cột/tham số bị hoãn kèm
+    chủ), nhưng riêng vế này chưa từng vào sổ. `candidate_store.rs::approve_candidate` không
+    có đường nào khác gán `note` — mọi mục Glossary sinh từ một ứng viên đã duyệt LUÔN có
+    `note` rỗng, kể cả khi người duyệt muốn ghi lại lý do/ngữ cảnh ngay lúc quyết định.
+    **(Chủ: Story 3.8 — duyệt hàng loạt một phím, bề mặt đầu tiên cho người dùng thao tác
+    trên `approve_candidate` và có khả năng cần một ô ghi chú nhanh.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
+  summary: `already_decided_error` (`candidate_store.rs`) mượn hình dạng lỗi
+    `SqlError::FromSqlConversionFailure` — ĐÚNG hình dạng mà `decode_candidate_origin`/
+    `decode_resolution` dùng cho "dữ liệu trên đĩa đã trôi khỏi `CHECK`" (một lỗi HỎNG DỮ
+    LIỆU, không nên xảy ra trên đường ghi đúng). "Ứng viên đã quyết, không quyết lại được"
+    là một LỖI NGHIỆP VỤ BÌNH THƯỜNG (người dùng bấm đúp, một lượt duyệt hàng loạt đụng một
+    `id` đã xử lý) — hai loại lỗi khác hẳn nhau về mức độ nghiêm trọng và cách xử lý ở tầng
+    trên, nhưng ở `StoreError` cả hai đều chỉ là `WriteFailed { detail: String }`, không
+    phân biệt được bằng kiểu.
+  evidence: `StoreError::WriteFailed` không mang đủ cấu trúc để tầng gọi rẽ nhánh — `detail`
+    là chuỗi chẩn đoán, không dùng để `match`. Bề mặt IPC đầu tiên chạm `approve_candidate`/
+    `reject_candidate` (Story 3.3, theo Code Map của story: "story đầu tiên dựng bề mặt IPC
+    chạm tới hàm này") phải quyết cách phân biệt hai lớp lỗi này trước khi ánh xạ sang
+    `message_key` — ví dụ một biến thể `GlossaryError`/`CandidateError` mới bọc
+    `StoreError` cộng một nhánh "đã quyết" riêng, cùng khuôn `GlossaryError::Store`/
+    `GlossaryError::Scope` mà `store.rs::entries_eligible_for_injection` đã dựng cho một cặp
+    lỗi khác biệt tương tự.
+    **(Chủ: Story 3.3 — thêm nhanh thuật ngữ từ bất kỳ panel nào, story đầu tiên dựng
+    `#[tauri::command]` chạm `candidate_store`.)**

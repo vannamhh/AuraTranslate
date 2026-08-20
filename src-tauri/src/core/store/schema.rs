@@ -230,13 +230,13 @@ CREATE TABLE pinned_entry (
 ///
 /// ⚠️ **Vì sao đúng 25, không phải một tập tự chọn khác:** đây chính là tập mà
 /// `str::trim()` của Rust cắt, nên hai lớp phòng thủ khoá cùng một tập — xem
-/// [`crate::core::glossary::store::insert_entry`], nơi ghi rõ lớp Rust và lớp SQL quan hệ
+/// [`crate::core::glossary::store::insert_manual_entry`], nơi ghi rõ lớp Rust và lớp SQL quan hệ
 /// thế nào. Thêm một ký tự vào một lớp mà quên lớp kia là dựng lại đúng khoảng lệch mà
 /// lượt rà soát này vừa đóng.
 ///
 /// `source_term` mang cùng lỗ hổng và cùng bản vá: không có rào rỗng nào trước bản vá này
 /// ngoài `NOT NULL`, và nó vừa là khoá tra cứu vừa là khoá của
-/// `idx_glossary_entry_source_term` — một `insert_entry("", …)` chiếm vĩnh viễn ô chuỗi
+/// `idx_glossary_entry_source_term` — một `insert_manual_entry("", …)` chiếm vĩnh viễn ô chuỗi
 /// rỗng của chỉ mục UNIQUE đó. `CHECK` thứ nhất của bảng dưới đây đóng lỗ này.
 ///
 /// 🔴 **CỬA SỔ DI TRÚ MỘT LẦN, GHI RA VÌ NÓ ĐỔI HÀNH VI TRÊN ĐĨA CỤC BỘ:** bản vá này sửa
@@ -270,7 +270,7 @@ CREATE TABLE pinned_entry (
 ///   nhất — P2 ở trên). `UNIQUE INDEX idx_glossary_entry_source_term` cưỡng chế *"một
 ///   thuật ngữ nguồn, một mục"* ở tầng SQLite — cùng doctrine `UNIQUE (source_code,
 ///   entry_id)` của [`PINNED_ENTRY_DDL`]: không có cửa sổ đua giữa một `SELECT` kiểm trùng
-///   và một `INSERT` mà hai luồng có thể chen vào giữa. `core::glossary::store::insert_entry`
+///   và một `INSERT` mà hai luồng có thể chen vào giữa. `core::glossary::store::insert_manual_entry`
 ///   cắt khoảng trắng biên **ở tầng Rust** trước khi ghi, để `" 慕容"` và `"慕容"` không
 ///   thành hai hàng dưới một chỉ mục tự xưng là "một thuật ngữ, một mục" — `CHECK` ở đây
 ///   là lưới THỨ HAI, không phải lưới duy nhất.
@@ -289,8 +289,14 @@ CREATE TABLE pinned_entry (
 /// - `created_at` — cùng khuôn `chapter`/`segment`: sinh ở tầng SQL bằng `strftime`, không
 ///   truyền từ Rust.
 ///
-/// **Không cột `tier`** — xem mục 🔴 đầu tiên ở trên. **Không bảng ứng viên** — đó là
-/// Story 3.2, và trạng thái *ứng viên* không nằm trong bảng này (§Never của story).
+/// **Không cột `tier`** — xem mục 🔴 đầu tiên ở trên.
+///
+/// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.2) — câu "không bảng ứng viên" đã HẾT ĐÚNG.** Bảng
+/// [`GLOSSARY_CANDIDATE_DDL`] (bước **13** của `PROJECT_MIGRATIONS`, chỉ ở `project.db` —
+/// KHÔNG ở `GLOBAL_MIGRATIONS`) nay tồn tại. Trạng thái *ứng viên* vẫn không nằm trong
+/// CHÍNH bảng `glossary_entry` — nó sống trong bảng ứng viên tách riêng đó, đúng AD-20:
+/// không cơ chế tự động nào ghi thẳng vào `glossary_entry`, chỉ `approve_candidate` mới
+/// chèn được, và luôn suy `term_origin` từ `candidate_origin` của chính hàng ứng viên.
 pub const GLOSSARY_ENTRY_DDL: &str = "\
 CREATE TABLE glossary_entry (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -323,6 +329,105 @@ CREATE TRIGGER glossary_entry_lifecycle_is_one_way
 BEFORE UPDATE OF translation ON glossary_entry
 WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL
 BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;";
+
+/// Lược đồ bảng `glossary_candidate` — **bước 13 của `project.db`, KHÔNG của `global.db`**
+/// — Story 3.2, AD-20 · AD-36.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 CHỈ Ở TẦNG TÁC PHẨM — không thêm bước tương ứng vào `GLOBAL_MIGRATIONS`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Khác [`GLOSSARY_ENTRY_DDL`] (một hằng dùng cho HAI thang), bảng này chỉ có MỘT thang:
+/// một ứng viên sinh ra từ việc quét/thu hoạch một Tác phẩm cụ thể, và AC của Story 3.2
+/// khoá thẳng vào Tác phẩm đó — "Bảng ứng viên ở `global.db`" nằm trong §Never của story.
+/// Nhân bản hằng này sang `GLOBAL_MIGRATIONS` là đúng lỗi mà §Never cấm.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 HÀNG ỨNG VIÊN KHÔNG BỊ XOÁ KHI BỎ — `resolution` GHI LẠI, KHÔNG `DELETE`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `epics.md:2854-2857` viết *"nó rời bảng chờ"* khi đọc lướt qua nghe như một `DELETE`,
+/// nhưng "rời" ở đây là rời DANH SÁCH CHỜ DUYỆT (`resolution IS NULL`), không phải rời
+/// đĩa. Xoá hàng thật thì lần quét sau chèn lại được — `UNIQUE (source_term)` không còn gì
+/// để chặn — và AC kế tiếp ("không quay lại") chết ngay trong cùng một câu. `resolution`
+/// là bộ nhớ vĩnh viễn của quyết định người dùng, tách khỏi "hàng còn tồn tại trên đĩa".
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `resolution` KHÔNG SUY ĐƯỢC TỪ `glossary_entry` — cột tường minh, không phải `EXISTS`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Story 3.9 cho xoá một mục `glossary_entry`. Nếu "đã duyệt" được đọc bằng một phép
+/// `EXISTS (SELECT 1 FROM glossary_entry WHERE source_term = …)` thay vì cột này, lượt xoá
+/// đó làm một ứng viên đã duyệt sống lại thành "chưa duyệt" trong im lặng — đúng lớp lỗi
+/// *rỗng im lặng* mà `AGENTS.md` gọi là trung tâm của dự án. Cột `resolution` ghi lại
+/// *"người dùng đã quyết"*, một sự thật khác hẳn *"mục hiện có mặt trên đĩa"*, và hai bảng
+/// không được phép nói ngược nhau (AC "reject trên một id đã duyệt bị từ chối, mục
+/// Glossary đã sinh ra vẫn nguyên").
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 TRIGGER MỘT CHIỀU CANH `OLD.resolution IS NOT NULL` — MỌI GIÁ TRỊ, KHÔNG RIÊNG NULL
+/// ─────────────────────────────────────────────────────────────────────────────
+/// ⚠️ **Lượt rà soát #1 (2026-08-20) bắt một lỗ hổng ở chính DDL nháp đầu của story này:**
+/// bản đầu chỉ chặn `WHEN OLD.resolution IS NOT NULL AND NEW.resolution IS NULL` — tức
+/// đúng khuôn của [`glossary_entry_lifecycle_is_one_way`], vốn hợp lý cho MỘT cột hai giá
+/// trị (`NULL`/`không NULL`). Ở đây `resolution` có BA giá trị (`NULL` · `approved` ·
+/// `rejected`), nên khuôn đó chỉ chặn chiều LÙI VỀ `NULL` và bỏ lọt chiều NGANG:
+/// `reject_candidate` rồi `approve_candidate` trên CÙNG một `id` chạy sạch và sinh một
+/// hàng `glossary_entry` MỚI — đúng AC trung tâm *"ứng viên bị bỏ không quay lại"* chết,
+/// vì `UNIQUE (source_term)` chỉ canh đường `INSERT`, không canh đường DUYỆT LẠI. Chiều
+/// ngược (`approve` rồi `reject`) để lại `resolution = 'rejected'` cạnh một mục Glossary
+/// còn sống — hai bảng nói ngược nhau, không lỗi nào ném ra. Đo trên mã đã dựng trước khi
+/// sửa: cả hai chiều đều chạy qua, không một cổng nào đỏ.
+///
+/// ⇒ `WHEN` rút về **`OLD.resolution IS NOT NULL`** — đã quyết thì không quyết lại, KỂ CẢ
+/// quyết lại y hệt giá trị cũ. Đây là lớp BẢO ĐẢM; lớp Rust "đọc được" đứng trước nó ở
+/// [`crate::core::glossary::candidate_store::approve_candidate`]/`reject_candidate` — cùng
+/// khuôn hai lớp mà `.trim()`/`CHECK` đã dùng ở Story 3.1: lớp Rust cho một lỗi phân biệt
+/// được với "id không tồn tại", lớp trigger cho bảo đảm không phá được kể cả khi lớp Rust
+/// bị bỏ qua (đua giữa hai luồng, một lượt duyệt hàng loạt của Story 3.8, một cú bấm đúp).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// TỪNG CỘT, VÀ NÓ NEO VÀO ĐÂU
+/// ─────────────────────────────────────────────────────────────────────────────
+/// - `source_term` — cùng `CHECK` hai tham số + cùng `UNIQUE INDEX` mà `glossary_entry`
+///   dùng cho cột cùng tên; bảng ký tự khoảng trắng **TRÙNG TỪNG BYTE** với
+///   [`GLOSSARY_ENTRY_DDL`] — `tests/glossary_contract.rs` khoá mệnh đề này bằng một phép
+///   so sánh chuỗi, không chỉ bằng mắt. `UNIQUE` là cơ chế chặn "không quay lại ở lần quét
+///   sau" — không phải một phép kiểm ở tầng gọi.
+/// - `candidate_origin` — **hai** giá trị: `import_scan` · `review_harvest`. Không có
+///   `manual`: một mục nhập tay không đi qua bảng chờ (`insert_manual_entry` ghi thẳng vào
+///   `glossary_entry`), nên `CandidateOrigin` (kiểu Rust ở
+///   [`crate::core::glossary::candidate`]) chỉ khai đúng hai biến thể — không biểu diễn
+///   được ca thứ ba mà lược đồ này không cần.
+/// - `resolution` — `NULL` == *chờ duyệt* (cùng khuôn `glossary_entry.translation`: một
+///   cột, không `status` song song). Non-`NULL` là MỘT trong hai giá trị đóng
+///   (`approved`/`rejected`), cưỡng chế bằng `CHECK`.
+/// - `created_at` — cùng khuôn `glossary_entry`/`chapter`/`segment`: sinh ở tầng SQL bằng
+///   `strftime`, không truyền từ Rust.
+///
+/// **Không cột `số lần xuất hiện`/`ví dụ ngữ cảnh`** (Story 3.5) · **không `bản dịch đề
+/// xuất`** (3.7) · **không `phân loại`/`con trỏ đang duyệt`** (3.8) · **không `tỉ lệ nhất
+/// quán`** (Epic 8). `segment` nhận sáu bước `ALTER` rải khắp Epic 2 — đó là TIỀN LỆ, không
+/// phải một thiếu sót ở bảng này.
+pub const GLOSSARY_CANDIDATE_DDL: &str = "\
+CREATE TABLE glossary_candidate (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_term       TEXT NOT NULL,
+  candidate_origin  TEXT NOT NULL,
+  resolution        TEXT,
+  created_at        TEXT NOT NULL,
+  CHECK (trim(source_term, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                               || char(133) || char(160) || char(5760)
+                               || char(8192) || char(8193) || char(8194) || char(8195)
+                               || char(8196) || char(8197) || char(8198) || char(8199)
+                               || char(8200) || char(8201) || char(8202)
+                               || char(8232) || char(8233) || char(8239) || char(8287)
+                               || char(12288)) <> ''),
+  CHECK (candidate_origin IN ('import_scan','review_harvest')),
+  CHECK (resolution IS NULL OR resolution IN ('approved','rejected'))
+);
+CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term);
+CREATE TRIGGER glossary_candidate_resolution_is_one_way
+BEFORE UPDATE OF resolution ON glossary_candidate
+WHEN OLD.resolution IS NOT NULL
+BEGIN SELECT RAISE(ABORT, 'glossary candidate resolution is one-way'); END;";
 
 /// Bộ di trú của `global.db`. Hôm nay **bốn** bước — Story 1.7 · 1.8 · 1.20 · 3.1.
 ///
@@ -918,12 +1023,12 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
     "UPDATE segment SET translation_origin = 'self' WHERE status = 'confirmed';"
 );
 
-/// Bộ di trú của `project.db`. Hôm nay **mười một** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
-/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1.
+/// Bộ di trú của `project.db`. Hôm nay **mười hai** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
+/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2.
 ///
-/// 🔴 **Mười một bước, và đích là phiên bản 12.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// 🔴 **Mười hai bước, và đích là phiên bản 13.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
 /// `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
 ///
 /// ⚠️ Con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
@@ -972,6 +1077,12 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// — xem "MỘT HẰNG, DÙNG CHO HAI THANG DI TRÚ" ở doc-comment của chính hằng đó; hai tầng của
 /// Glossary phải cùng hình dạng THEO ĐỊNH NGHĨA, không nhờ hai chỗ tình cờ chép giống nhau.
 ///
+/// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.2):** đích chuyển từ **12** lên **13** — bước
+/// [`GLOSSARY_CANDIDATE_DDL`] (bảng chờ ứng viên, AD-20/AD-36). Câu *"mười một bước, đích
+/// là 12"* đã hết đúng, sửa tại chỗ. 🔴 **KHÁC** bước 4/12 của Glossary: bước này KHÔNG có
+/// bước song sinh ở [`GLOBAL_MIGRATIONS`] — bảng ứng viên chỉ tồn tại ở tầng Tác phẩm
+/// (§Never của story: "Bảng ứng viên ở `global.db`").
+///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
 /// hai chuỗi ở **compile time** mà không thêm phụ thuộc) chỉ nhận **literal**, không
@@ -987,8 +1098,9 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// Không thêm bước cho một lược đồ chưa tồn tại — cùng luật với [`GLOBAL_MIGRATIONS`].
 /// **Không** bảng TM/prompt/asset ở đây; mỗi epic còn lại mang bảng riêng của nó cùng lúc
 /// với bước di trú cần nó. [`SEGMENT_DDL`] có mặt vì Story 2.1 dựng chính bảng đó, không vì
-/// Epic 2 sẽ cần nó — cùng lý do bước 12 ([`GLOSSARY_ENTRY_DDL`]) có mặt: Story 3.1 dựng
-/// chính bảng `glossary_entry`, không phải một epic khác đoán trước nó.
+/// Epic 2 sẽ cần nó — cùng lý do bước 12 ([`GLOSSARY_ENTRY_DDL`]) và bước 13
+/// ([`GLOSSARY_CANDIDATE_DDL`]) có mặt: Story 3.1/3.2 dựng đúng bảng mà mỗi story cần,
+/// không phải một epic khác đoán trước nó.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
 /// ⚠️ MỘT VẾT SẸO CÓ THẬT: `user_version = 4` ĐÃ TỒN TẠI TRÊN MÁY — Story 1.20
@@ -1089,6 +1201,14 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 12,
         sql: GLOSSARY_ENTRY_DDL,
+    },
+    // Story 3.2 -- bang cho ung vien glossary_candidate (AD-20/AD-36), TACH HAN khoi
+    // glossary_entry va KHONG co buoc song sinh o GLOBAL_MIGRATIONS. Xem doc-comment cua
+    // GLOSSARY_CANDIDATE_DDL.
+    // 13, khong phai 5 -- 5, 6, 7, 8, 9, 10, 11 va 12 da tieu.
+    Migration {
+        to_version: 13,
+        sql: GLOSSARY_CANDIDATE_DDL,
     },
 ];
 

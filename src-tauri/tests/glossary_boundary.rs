@@ -1,5 +1,5 @@
-//! Ranh giới cây nguồn của Story 3.1 — `glossary_entry` chỉ tồn tại dưới `core/glossary/**`
-//! và `core/store/schema.rs` (nơi hằng `GLOSSARY_ENTRY_DDL` sống).
+//! Ranh giới cây nguồn của Story 3.1/3.2 — `glossary_entry`/`glossary_candidate` chỉ tồn
+//! tại dưới `core/glossary/**` và `core/store/schema.rs` (nơi hai hằng DDL sống).
 //!
 //! ⚠️ Tệp riêng có chủ ý, đúng khuôn `scope_boundary.rs`/`store_boundary.rs`: đây là phép
 //! kiểm **tĩnh trên cây nguồn**, và `glossary_contract.rs` nghiệm thu **hành vi lúc chạy**
@@ -17,6 +17,16 @@
 //! **trước** khi Epic 4 tồn tại, đúng lý do `scope_boundary.rs` đứng sẵn trước Epic 3.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
+//! 🔵 CẬP NHẬT 2026-08-20 (Story 3.2) — CHUỖI CỨNG LÀ LỖ HỔNG CÓ TÊN, VÁ TRONG LƯỢT NÀY
+//! ─────────────────────────────────────────────────────────────────────────────
+//! Cổng gốc của Story 3.1 so **một chuỗi cứng duy nhất** (`"glossary_entry"`) — một bảng
+//! khác tên đi lọt hoàn toàn. Story 3.2 tự nó là bằng chứng: `glossary_candidate` ra đời
+//! và nếu `FORBIDDEN` không đổi, cổng này XANH GIẢ trên một module Epic 8 viết thẳng `SELECT
+//! … FROM glossary_candidate …` để lách qua `approve_candidate`/`reject_candidate`. Vá lỗ
+//! đó CÙNG LƯỢT — không để nó chờ tới khi Epic 8 tồn tại rồi mới bị bắt, đúng lý do cổng
+//! này được dựng TRƯỚC Epic 4 ở đoạn trên.
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 SÀN SỐ TỆP + ĐỐI CHỨNG DƯƠNG LÀ BẮT BUỘC
 //! ─────────────────────────────────────────────────────────────────────────────
 //! *"Cây rỗng đọc thành sạch"* — bài học kế thừa từ `scope_boundary.rs`/`store_boundary.rs`.
@@ -26,38 +36,43 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Thư mục DUY NHẤT được phép mang tên bảng `glossary_entry` bằng mã sản phẩm SQL
-/// (`insert`/`select`/`update` thật).
+/// Thư mục DUY NHẤT được phép mang tên bảng `glossary_entry`/`glossary_candidate` bằng mã
+/// sản phẩm SQL (`insert`/`select`/`update` thật).
 const GLOSSARY_DIR: &str = "core/glossary";
 
-/// Tệp DUY NHẤT khác `GLOSSARY_DIR` được phép — nơi hằng `GLOSSARY_ENTRY_DDL` khai `CREATE
-/// TABLE glossary_entry`, đúng khuôn mọi hằng DDL khác của kho (`schema.rs` sở hữu MỌI tên
-/// bảng, không chỉ tên này).
+/// Tệp DUY NHẤT khác `GLOSSARY_DIR` được phép — nơi `GLOSSARY_ENTRY_DDL`/
+/// `GLOSSARY_CANDIDATE_DDL` khai `CREATE TABLE`, đúng khuôn mọi hằng DDL khác của kho
+/// (`schema.rs` sở hữu MỌI tên bảng, không chỉ hai tên này).
 const SCHEMA_FILE: &str = "core/store/schema.rs";
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
 ///
-/// Số thật lúc dựng (Story 3.1, 2026-08-19): **47** tệp — cây đã đi xa khỏi 42 (Story 2.1)
-/// qua các bước Epic 2 còn lại cộng hai tệp mới của module này
-/// (`core/glossary/entry.rs` · `core/glossary/store.rs`). Sàn đặt **dưới** số thật đúng
-/// khuôn `RS_FLOOR` của `scope_boundary.rs`/`store_boundary.rs`: nó bắt một cây bị cắt
-/// mất, không bắt việc thêm tệp mới. Sàn **38** (~80,9%).
-const RS_FLOOR: usize = 38; // số THẬT 2026-08-19: 47 tệp .rs -- 38/47 = 80,9%
+/// Số thật lúc dựng (Story 3.2, 2026-08-20): **49** tệp — cây đã đi xa khỏi 47 (Story 3.1)
+/// qua hai tệp mới của module này (`core/glossary/candidate.rs` ·
+/// `core/glossary/candidate_store.rs`). Sàn đặt **dưới** số thật đúng khuôn `RS_FLOOR` của
+/// `scope_boundary.rs`/`store_boundary.rs`: nó bắt một cây bị cắt mất, không bắt việc thêm
+/// tệp mới. Sàn giữ nguyên **38** (~77,6%) — vẫn dưới số thật, không cần nâng.
+const RS_FLOOR: usize = 38; // số THẬT 2026-08-20: 49 tệp .rs -- 38/49 = 77,6%
 
 /// Chuỗi bị cấm ngoài hai vị trí ở trên — **tên bảng thật**, chữ thường nguyên văn như nó
-/// nằm trong SQL (`CREATE TABLE glossary_entry`, `FROM glossary_entry`, …).
+/// nằm trong SQL (`CREATE TABLE glossary_entry`, `FROM glossary_candidate`, …).
 ///
 /// ⚠️ Không phải `"Glossary"` (tên module/kiểu Rust, viết hoa) và không phải `"glossary"`
 /// (khoá dây của `ScopeKind::Glossary`, `core/scope/kinds.rs:162`) — cả hai token đó xuất
 /// hiện hợp lệ ở khắp nơi (`core/scope/**`, doc-comment, `deferred-work.md`). Chỉ CHUỖI
 /// TÊN BẢNG mới là thứ cổng này canh: đó là chỗ duy nhất "chạm dữ liệu Glossary" có nghĩa
 /// theo đúng câu mà `epic-3-context.md` dùng.
-const FORBIDDEN: &str = "glossary_entry";
+///
+/// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.2) — từ MỘT chuỗi trần thành DANH SÁCH.** Bản Story
+/// 3.1 so đúng một hằng `&str`. `glossary_candidate` ra đời cùng lược đồ khác hẳn
+/// `glossary_entry`, và một chuỗi trần thứ hai không so được — mảng là hình dạng đúng cho
+/// "MỘT TẬP tên bảng bị cấm", không phải "một tên bảng".
+const FORBIDDEN_TABLES: [&str; 2] = ["glossary_entry", "glossary_candidate"];
 
 /// Vế THỨ HAI của AD-36 — *"`ai/` không có đường nào khác chạm dữ liệu Glossary"*.
 ///
-/// `core::glossary::mod` tái xuất công khai bốn hàm: `insert_entry` · `confirm_translation`
-/// · `load_tier` · `entries_eligible_for_injection`. Ba cái đầu phơi dữ liệu THÔ —
+/// `core::glossary::mod` tái xuất công khai `insert_manual_entry` · `confirm_translation` ·
+/// `load_tier` · `entries_eligible_for_injection`. Ba cái đầu phơi dữ liệu THÔ —
 /// `load_tier` trả **cả** mục *chờ chốt*, không lọc gì cả — nên một module khác gọi thẳng
 /// chúng để tự lọc lấy sẽ tự cài lại (hoặc cài SAI) đúng luật mà
 /// `entries_eligible_for_injection` đã đóng gói. Ba tên này chỉ được PHÉP xuất hiện dưới
@@ -71,7 +86,50 @@ const FORBIDDEN: &str = "glossary_entry";
 /// bất khả thi (đường DUY NHẤT dựng tham số cho hàm phơi ra DUY NHẤT lại bị chính cổng đó
 /// cấm) — Ice ký sửa chữ ký thay vì nới cổng. Ba tên vẫn chỉ được PHÉP xuất hiện dưới
 /// `core/glossary/**`; không có ca hợp lệ nào gọi chúng từ bên ngoài.
-const GLOSSARY_ONLY_SURFACE: [&str; 3] = ["insert_entry", "confirm_translation", "load_tier"];
+///
+/// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.2) — `insert_entry` đổi tên `insert_manual_entry`.**
+/// Câu tương ứng vẫn đúng: chữ ký mới không nhận `term_origin` nữa nhưng vẫn phơi dữ liệu
+/// THÔ (ghi thẳng, không qua điều kiện chèn), nên vẫn chỉ được gọi trong
+/// `core/glossary/**`. ⚠️ **Bốn hàm mới của `candidate_store` (`insert_candidate` ·
+/// `pending_candidates` · `approve_candidate` · `reject_candidate`) CỐ Ý CHƯA vào danh sách
+/// này** — chưa có chỗ gọi sản phẩm nào ngoài `core/glossary/**` để nghiệm thu một quyết
+/// định (có nên hạn chế `pending_candidates`/`approve_candidate` hay không phụ thuộc vào
+/// hình dạng bề mặt Story 3.3/3.5/3.8 dựng). Món nợ có chủ ở `deferred-work.md`.
+const GLOSSARY_ONLY_SURFACE: [&str; 3] = ["insert_manual_entry", "confirm_translation", "load_tier"];
+
+/// Token xuất xứ TỰ ĐỘNG — chỉ được sinh ra (biến thể enum, chuỗi `as_str()`) bên trong
+/// `core/glossary/**` (AD-20: chỉ `approve_candidate` được phép suy ra một `term_origin`
+/// khác `manual`, và nó suy TỪ `candidate_origin` của chính hàng ứng viên, không nhận từ
+/// một tham số mà chỗ gọi ngoài tự đặt).
+///
+/// ⚠️ Đây là vế mà Story 3.1 chỉ NHẮC TỚI trong doc-comment (`entry.rs::TermOrigin`) chứ
+/// chưa CANH: trước Story 3.2, không gì ngăn một module khác viết
+/// `"import_scan".to_owned()` thẳng và truyền vào `insert_entry` cũ. Chữ ký mới của
+/// `insert_manual_entry` (không tham số `term_origin`) đã đóng phần lớn lỗ đó, nhưng cổng
+/// này đóng phần còn lại: không tệp nào ngoài `core/glossary/**` được PHÉP GÕ hai token
+/// này, dù có gọi được hàm nào hay không.
+///
+/// 🔵 **CẬP NHẬT 2026-08-20 (lượt rà soát ba lớp) — CÓ ĐỊNH TÍNH `TermOrigin::`, không còn
+/// tên biến thể TRẦN.** Bản trước dùng `"ImportScan"`/`"ReviewHarvest"` trần, và
+/// `CandidateOrigin` (Story 3.2, `candidate.rs`) khai **hai biến thể TRÙNG TÊN**
+/// (`CandidateOrigin::ImportScan`/`CandidateOrigin::ReviewHarvest`) — một chuỗi con trần
+/// khớp CẢ HAI kiểu. Tái hiện được: một tệp ngoài `core/glossary/**` gọi
+/// `insert_candidate(store, term, CandidateOrigin::ImportScan)` — đúng hình dạng Story 3.5
+/// CẦN GỌI để đưa một ứng viên vào bảng chờ — làm cổng đỏ OAN. Có định tính
+/// `TermOrigin::` thu hẹp đúng về ý ban đầu: chỉ bắt cách VIẾT biến thể của `TermOrigin`,
+/// không bắt việc dùng `CandidateOrigin` — xem bài tự kiểm
+/// [`the_non_manual_origin_token_check_catches_term_origin_but_not_candidate_origin`] cho
+/// bằng chứng cả hai chiều.
+const NON_MANUAL_ORIGIN_TOKENS: [&str; 2] = ["TermOrigin::ImportScan", "TermOrigin::ReviewHarvest"];
+
+/// Vị từ THUẦN dùng bởi cổng thật ([`only_core_glossary_may_spell_the_non_manual_term_origin_tokens`])
+/// **VÀ** bài tự kiểm ngay dưới — tách ra để hai bên không thể lệch nhau bằng cách trùng
+/// lặp logic so chuỗi ở hai chỗ khác nhau.
+fn line_spells_a_non_manual_term_origin_token(code: &str) -> Option<&'static str> {
+    NON_MANUAL_ORIGIN_TOKENS
+        .into_iter()
+        .find(|needle| code.contains(needle))
+}
 
 fn src_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
@@ -148,9 +206,14 @@ fn the_scanned_tree_is_large_enough_to_be_real() {
 }
 
 /// 🔴 Vế chính — chỉ `core/glossary/**` và `core/store/schema.rs` được mang chuỗi
-/// `glossary_entry`.
+/// `glossary_entry` HOẶC `glossary_candidate`.
+///
+/// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.2) — đổi tên từ
+/// `only_glossary_and_schema_may_name_the_glossary_entry_table`, `FORBIDDEN` thành
+/// `FORBIDDEN_TABLES`.** Vòng lặp ngoài mới (`for needle in FORBIDDEN_TABLES`) là toàn bộ
+/// khác biệt về hành vi; mệnh đề không đổi.
 #[test]
-fn only_glossary_and_schema_may_name_the_glossary_entry_table() {
+fn only_glossary_and_schema_may_name_glossary_tables() {
     let (root, files) = all_rust_sources();
 
     let mut violations: Vec<String> = Vec::new();
@@ -164,8 +227,10 @@ fn only_glossary_and_schema_may_name_the_glossary_entry_table() {
         }
 
         for (line, code) in code_lines(file) {
-            if code.contains(FORBIDDEN) {
-                violations.push(format!("{rel}:{line}  {code}"));
+            for needle in FORBIDDEN_TABLES {
+                if code.contains(needle) {
+                    violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
+                }
             }
         }
     }
@@ -182,73 +247,85 @@ fn only_glossary_and_schema_may_name_the_glossary_entry_table() {
 
     assert!(
         violations.is_empty(),
-        "{} chỗ ngoài `core/glossary/**` và `{SCHEMA_FILE}` mang chuỗi `glossary_entry`:\n{}\n\n\
+        "{} chỗ ngoài `core/glossary/**` và `{SCHEMA_FILE}` mang tên một bảng Glossary:\n{}\n\n\
          `epic-3-context.md`: 'Epic 4 (RagInjector) phụ thuộc trực tiếp vào truy vấn mục đủ \
          điều kiện chèn mà Story 3.1 dựng — không có đường nào khác để chạm dữ liệu \
-         Glossary.' Một module khác gõ tên bảng thẳng là đúng đường tắt đó. Cần dữ liệu \
-         Glossary thì gọi `core::glossary::entries_eligible_for_injection` (hoặc \
-         `load_tier`/`insert_entry`/`confirm_translation` cho phần còn lại của vòng đời).",
+         Glossary.' Story 3.2 nói thêm: 'không cơ chế nào được tự ghi vào Glossary' (AD-20) \
+         áp CẢ cho bảng chờ ứng viên. Một module khác gõ tên bảng thẳng là đúng đường tắt \
+         đó. Cần dữ liệu Glossary thì gọi `core::glossary::entries_eligible_for_injection` \
+         (hoặc `load_tier`/`insert_manual_entry`/`confirm_translation` cho phần còn lại của \
+         vòng đời `glossary_entry`, hoặc `insert_candidate`/`pending_candidates`/ \
+         `approve_candidate`/`reject_candidate` cho `glossary_candidate`).",
         violations.len(),
         violations.join("\n")
     );
 }
 
-/// Đối chứng dương: `core::glossary` **có thật sự** mang chuỗi `glossary_entry` — không có
-/// ca này thì phép kiểm trên xanh y hệt trên một cây mà toàn bộ `core/glossary/` đã bị xoá.
+/// Đối chứng dương: `core::glossary` **có thật sự** mang CẢ HAI tên bảng — không có ca này
+/// thì phép kiểm trên xanh y hệt trên một cây mà `candidate_store.rs` (hoặc toàn bộ
+/// `core/glossary/`) đã bị xoá.
 #[test]
-fn core_glossary_actually_names_its_own_table() {
+fn core_glossary_actually_names_both_glossary_tables() {
     let (root, files) = all_rust_sources();
 
-    let hits = files
-        .iter()
-        .filter(|f| rel_posix(&root, f).starts_with(GLOSSARY_DIR))
-        .filter(|f| {
-            fs::read_to_string(f)
-                .map(|t| t.contains(FORBIDDEN))
-                .unwrap_or(false)
-        })
-        .count();
+    for needle in FORBIDDEN_TABLES {
+        let hits = files
+            .iter()
+            .filter(|f| rel_posix(&root, f).starts_with(GLOSSARY_DIR))
+            .filter(|f| {
+                fs::read_to_string(f)
+                    .map(|t| t.contains(needle))
+                    .unwrap_or(false)
+            })
+            .count();
 
-    assert!(
-        hits >= 1,
-        "0 tệp dưới `{GLOSSARY_DIR}` nhắc tới `glossary_entry`. Module gồm `mod` · `entry` \
-         (kiểu thuần, không SQL) · `store` (SQL) — `store.rs` phải gõ tên bảng để đọc/ghi \
-         nó; 0 nghĩa là cây đã bị cắt và phép kiểm ranh giới đang canh một chỗ trống."
-    );
+        assert!(
+            hits >= 1,
+            "0 tệp dưới `{GLOSSARY_DIR}` nhắc tới `{needle}`. `store.rs`/`candidate_store.rs` \
+             phải gõ tên bảng để đọc/ghi nó; 0 nghĩa là cây đã bị cắt và phép kiểm ranh giới \
+             đang canh một chỗ trống."
+        );
+    }
 }
 
-/// Đối chứng dương thứ hai: `core::store::schema` cũng thật sự mang chuỗi đó — hằng
-/// `GLOSSARY_ENTRY_DDL` sống ở đây, đúng như [`SCHEMA_FILE`] khai.
+/// Đối chứng dương thứ hai: `core::store::schema` cũng thật sự mang CẢ HAI tên — hai hằng
+/// `GLOSSARY_ENTRY_DDL`/`GLOSSARY_CANDIDATE_DDL` sống ở đây, đúng như [`SCHEMA_FILE`] khai.
+///
+/// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.2) — đổi tên từ
+/// `schema_rs_actually_declares_the_glossary_entry_table`**, tên nêu ở §KEEP của Spec
+/// Change Log lượt rà soát #1.
 #[test]
-fn schema_rs_actually_declares_the_glossary_entry_table() {
+fn schema_rs_actually_declares_both_glossary_tables() {
     let (root, files) = all_rust_sources();
 
-    let hit = files.iter().any(|f| {
-        rel_posix(&root, f) == SCHEMA_FILE
-            && fs::read_to_string(f)
-                .map(|t| t.contains(FORBIDDEN))
-                .unwrap_or(false)
-    });
+    for needle in FORBIDDEN_TABLES {
+        let hit = files.iter().any(|f| {
+            rel_posix(&root, f) == SCHEMA_FILE
+                && fs::read_to_string(f)
+                    .map(|t| t.contains(needle))
+                    .unwrap_or(false)
+        });
 
-    assert!(
-        hit,
-        "`{SCHEMA_FILE}` không nhắc tới `glossary_entry` — hằng `GLOSSARY_ENTRY_DDL` (bước 4 \
-         của `GLOBAL_MIGRATIONS`, bước 12 của `PROJECT_MIGRATIONS`) phải khai `CREATE TABLE \
-         glossary_entry` ở đúng tệp này."
-    );
+        assert!(
+            hit,
+            "`{SCHEMA_FILE}` không nhắc tới `{needle}` — hằng DDL tương ứng (bước 4/12 cho \
+             `glossary_entry`, bước 13 cho `glossary_candidate`) phải khai `CREATE TABLE \
+             {needle}` ở đúng tệp này."
+        );
+    }
 }
 // ═════════════════════════════════════════════════════════════════════════════════
 // Vế thứ hai của AD-36 — chỉ `entries_eligible_for_injection` gọi được từ module khác
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// 🔴 `insert_entry`/`confirm_translation`/`load_tier` chỉ được GỌI (và được KHAI) dưới
-/// `core/glossary/**`. Một module Epic 4 gọi `core::glossary::load_tier(global)` thẳng để
-/// tự lọc "đã chốt" biên dịch sạch và qua cả mười một cổng hôm nay — cổng này là phép kiểm
-/// DUY NHẤT bắt được nó.
+/// 🔴 `insert_manual_entry`/`confirm_translation`/`load_tier` chỉ được GỌI (và được KHAI)
+/// dưới `core/glossary/**`. Một module Epic 4 gọi `core::glossary::load_tier(global)` thẳng
+/// để tự lọc "đã chốt" biên dịch sạch và qua cả mười một cổng hôm nay — cổng này là phép
+/// kiểm DUY NHẤT bắt được nó.
 ///
 /// ⚠️ Trước ca này, ba tên đó chỉ xuất hiện trong một câu thông báo `assert!` của
-/// `only_glossary_and_schema_may_name_the_glossary_entry_table` — tức được NHẮC TỚI, không
-/// được CANH.
+/// `only_glossary_and_schema_may_name_glossary_tables` — tức được NHẮC TỚI, không được
+/// CANH.
 #[test]
 fn only_entries_eligible_for_injection_may_be_called_from_outside_glossary() {
     let (root, files) = all_rust_sources();
@@ -273,8 +350,8 @@ fn only_entries_eligible_for_injection_may_be_called_from_outside_glossary() {
     assert!(
         violations.is_empty(),
         "{} chỗ ngoài `{GLOSSARY_DIR}` gọi thẳng một hàm phơi dữ liệu THÔ của Glossary:\n{}\n\n\
-         `load_tier` trả CẢ mục chờ chốt; `insert_entry`/`confirm_translation` ghi thẳng \
-         không qua điều kiện chèn. Module khác chỉ được gọi \
+         `load_tier` trả CẢ mục chờ chốt; `insert_manual_entry`/`confirm_translation` ghi \
+         thẳng không qua điều kiện chèn. Module khác chỉ được gọi \
          `core::glossary::entries_eligible_for_injection` — đúng MỘT hàm phơi ra, theo AD-36.",
         violations.len(),
         violations.join("\n")
@@ -301,6 +378,132 @@ fn core_glossary_actually_defines_the_restricted_surface() {
             hit,
             "không tệp nào dưới `{GLOSSARY_DIR}` khai `{needle}` — cây đã bị cắt và phép \
              kiểm ranh giới đang canh một chỗ trống."
+        );
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.2 — chỉ `core/glossary/**` được PHÉP GÕ token xuất xứ tự động
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 `TermOrigin::ImportScan`/`TermOrigin::ReviewHarvest` chỉ được PHÉP xuất hiện dưới
+/// `core/glossary/**`.
+///
+/// Trước Story 3.2, `insert_entry` cũ nhận `term_origin: TermOrigin` từ NƠI GỌI, nên một
+/// module ở `core/segment/**` (Story 3.5, quét khi nhập) hay `core/review/**` (Epic 8, thu
+/// hoạch) chỉ cần viết `TermOrigin::ImportScan` và gọi thẳng là ghi vào Glossary — biên
+/// dịch sạch. Chữ ký mới của `insert_manual_entry` (không tham số `term_origin`) đóng phần
+/// LỚN lỗ đó, nhưng không đóng việc một tệp khác GÕ được `TermOrigin::ImportScan`/
+/// `TermOrigin::ReviewHarvest` (ví dụ để tự dựng một chuỗi `"import_scan"` bằng tay, lách
+/// hẳn qua kiểu Rust). Cổng này đóng phần còn lại.
+///
+/// 🔵 **CẬP NHẬT 2026-08-20 (lượt rà soát ba lớp) — dùng vị từ DÙNG CHUNG
+/// [`line_spells_a_non_manual_term_origin_token`], không tự lặp lại phép so ở đây.** Bản
+/// trước tự viết vòng lặp so chuỗi trần TẠI CHỖ, và tách rời khỏi
+/// [`NON_MANUAL_ORIGIN_TOKENS`] khiến bài tự kiểm không thể chứng minh ĐÚNG logic mà cổng
+/// này chạy. Gọi chung một hàm xoá khả năng hai bên lệch nhau.
+#[test]
+fn only_core_glossary_may_spell_the_non_manual_term_origin_tokens() {
+    let (root, files) = all_rust_sources();
+
+    let mut violations: Vec<String> = Vec::new();
+
+    for file in &files {
+        let rel = rel_posix(&root, file);
+        if rel.starts_with(GLOSSARY_DIR) {
+            continue;
+        }
+
+        for (line, code) in code_lines(file) {
+            if let Some(needle) = line_spells_a_non_manual_term_origin_token(&code) {
+                violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} chỗ ngoài `{GLOSSARY_DIR}` gõ token xuất xứ tự động:\n{}\n\n\
+         `TermOrigin::ImportScan`/`TermOrigin::ReviewHarvest` chỉ được PHÉP sinh ra bên \
+         trong `core::glossary::candidate::CandidateOrigin::to_term_origin` — chỗ DUY NHẤT \
+         trong kho suy một `term_origin` khác `manual`, và nó suy TỪ dữ liệu đã có trên đĩa \
+         (`candidate_origin` của chính hàng ứng viên), không nhận từ một tham số mà chỗ gọi \
+         ngoài tự đặt (AD-20). Gọi `CandidateOrigin::ImportScan`/`CandidateOrigin::ReviewHarvest` \
+         (ví dụ qua `insert_candidate`) là HỢP LỆ và KHÔNG bị cổng này bắt.",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+/// 🔴 TỰ KIỂM — chứng minh cổng ngay trên đỏ ĐƯỢC và không đỏ OAN, cả hai vế trên CHÍNH vị
+/// từ [`line_spells_a_non_manual_term_origin_token`] mà cổng thật gọi.
+///
+/// 🔵 **THÊM 2026-08-20 (lượt rà soát ba lớp).** Trước lượt vá này, `NON_MANUAL_ORIGIN_TOKENS`
+/// mang hai chuỗi TRẦN (`"ImportScan"`, `"ReviewHarvest"`) — và `CandidateOrigin`
+/// (`candidate.rs`, Story 3.2) khai hai biến thể TRÙNG TÊN. Tái hiện được: một tệp ngoài
+/// `core/glossary/**` gọi `insert_candidate(store, term, CandidateOrigin::ImportScan)` —
+/// đúng hình dạng Story 3.5 CẦN GỌI để nạp một ứng viên vào bảng chờ — bị cổng bắt NHẦM
+/// thành vi phạm AD-20. Vá bằng cách có định tính `TermOrigin::` (xem
+/// [`NON_MANUAL_ORIGIN_TOKENS`]); ca này khoá cả hai chiều để lượt vá không âm thầm hỏng
+/// theo hướng ngược lại (thu hẹp quá tay, không còn bắt được ca thật).
+#[test]
+fn the_non_manual_origin_token_check_catches_term_origin_but_not_candidate_origin() {
+    assert_eq!(
+        line_spells_a_non_manual_term_origin_token("let x = TermOrigin::ImportScan;"),
+        Some("TermOrigin::ImportScan"),
+        "ca DUONG THAT: TermOrigin::ImportScan phai bi bat -- day chinh la vi pham AD-20 \
+         ma cong nay dung ra de chan"
+    );
+    assert_eq!(
+        line_spells_a_non_manual_term_origin_token(
+            "let entry = TermOrigin::ReviewHarvest;"
+        ),
+        Some("TermOrigin::ReviewHarvest"),
+        "ca DUONG THAT thu hai: TermOrigin::ReviewHarvest phai bi bat"
+    );
+    assert_eq!(
+        line_spells_a_non_manual_term_origin_token(
+            "insert_candidate(store, term, CandidateOrigin::ImportScan)"
+        ),
+        None,
+        "ca AM: goi insert_candidate voi CandidateOrigin::ImportScan la HINH DANG HOP LE \
+         ma Story 3.5 can dung tu ngoai core/glossary/** -- KHONG duoc bi bat. Truoc luot va \
+         2026-08-20, mot chuoi con tran \"ImportScan\" khop CA HAI ten kieu va lam cong nay \
+         do OAN dung ca nay"
+    );
+    assert_eq!(
+        line_spells_a_non_manual_term_origin_token(
+            "let o = CandidateOrigin::ReviewHarvest;"
+        ),
+        None,
+        "ca AM thu hai: CandidateOrigin::ReviewHarvest cung KHONG duoc bi bat, cung ly do \
+         tren"
+    );
+}
+
+/// Đối chứng dương: `core::glossary` **có thật sự** đánh vần CẢ HAI token — không có ca
+/// này thì phép kiểm trên xanh y hệt trên một cây mà `entry.rs`/`candidate.rs` đã bị xoá
+/// hết biến thể `ImportScan`/`ReviewHarvest`.
+#[test]
+fn core_glossary_actually_spells_both_non_manual_origin_tokens() {
+    let (root, files) = all_rust_sources();
+
+    for needle in NON_MANUAL_ORIGIN_TOKENS {
+        let hits = files
+            .iter()
+            .filter(|f| rel_posix(&root, f).starts_with(GLOSSARY_DIR))
+            .filter(|f| {
+                fs::read_to_string(f)
+                    .map(|t| t.contains(needle))
+                    .unwrap_or(false)
+            })
+            .count();
+
+        assert!(
+            hits >= 1,
+            "0 tệp dưới `{GLOSSARY_DIR}` nhắc tới `{needle}`. `entry.rs` khai biến thể đó \
+             của `TermOrigin`, `candidate.rs` khai biến thể `CandidateOrigin` tương ứng — 0 \
+             nghĩa là cây đã bị cắt và phép kiểm ranh giới đang canh một chỗ trống."
         );
     }
 }

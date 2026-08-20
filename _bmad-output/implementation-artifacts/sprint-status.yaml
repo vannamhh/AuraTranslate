@@ -52,7 +52,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-20T00:10:00
+last_updated: 2026-08-20T09:38:12
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -143,7 +143,7 @@ development_status:
   # Epic 3: Glossary — chốt thuật ngữ một lần, dùng mãi
   epic-3: in-progress
   3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai: done
-  3-2-bang-cho-ung-vien-tach-han-khoi-glossary: backlog
+  3-2-bang-cho-ung-vien-tach-han-khoi-glossary: review
   3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao: backlog
   3-4-khop-thuat-ngu-theo-ngon-ngu-va-danh-dau-trong-panel-source: backlog
   3-5-quet-ung-vien-khi-nhap-tai-lieu: backlog

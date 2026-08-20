@@ -56,20 +56,64 @@ use super::entry::{Category, GlossaryEntry, TermOrigin};
 /// literal — module này không được `use` `ScopeKind`.
 const GLOSSARY_SCOPE_KIND: &str = "glossary";
 
-/// Chèn một mục mới. `translation = None` ⇒ hàng vào ngay trạng thái *chờ chốt* (FR114).
+/// Câu `INSERT` DÙNG CHUNG cho **cả hai** đường ghi vào `glossary_entry` — Story 3.2.
+///
+/// 🔴 **Chỉ hai chỗ gọi được phép tồn tại, và cả hai đều ở trong `core/glossary/**`:**
+/// [`insert_manual_entry`] (ngay dưới, luôn `term_origin = manual`) và
+/// [`crate::core::glossary::candidate_store::approve_candidate`] (luôn suy `term_origin`
+/// từ `candidate_origin` của chính hàng ứng viên). Đây là vế CẤU TRÚC của FR55 ("không cơ
+/// chế nào được tự ghi vào Glossary"): trước Story 3.2, `insert_entry` cũ nhận
+/// `term_origin: TermOrigin` từ NƠI GỌI — một module quét chỉ cần truyền
+/// `TermOrigin::ImportScan` là ghi thẳng, biên dịch sạch, qua mọi cổng. Thu hẹp về **một**
+/// hàm `pub(super)` không tham số `term_origin` tự do làm vi phạm đó KHÔNG BIỂU DIỄN ĐƯỢC:
+/// mọi giá trị `term_origin` đi vào đây đều đã bị khoá bởi CHÍNH LOGIC của chỗ gọi (hằng
+/// `manual`, hoặc một `CandidateOrigin::to_term_origin()` toàn phần), không phải một tham
+/// số người viết mã bên ngoài `core/glossary/**` có thể tự ý đặt.
+///
+/// ⚠️ Chữ ký nhận **chuỗi đã chuẩn bị sẵn** (đã trim, đã `as_str()`) — không tự trim, không
+/// tự gọi `Category::as_str()`/`TermOrigin::as_str()`. Cắt khoảng trắng là việc của TỪNG
+/// chỗ gọi vì hai chỗ gọi cắt hai đầu vào khác nhau (`source_term`+`translation` của
+/// `insert_manual_entry`; `translation` — `source_term` đã được `insert_candidate` cắt từ
+/// trước — của `approve_candidate`).
+pub(super) fn insert_entry_row(
+    tx: &Transaction<'_>,
+    source_term: &str,
+    translation: Option<&str>,
+    note: &str,
+    category: &str,
+    term_origin: &str,
+) -> SqlResult<i64> {
+    tx.execute(
+        "INSERT INTO glossary_entry
+            (source_term, translation, note, category, term_origin, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+        (&source_term, &translation, &note, &category, &term_origin),
+    )?;
+    Ok(tx.last_insert_rowid())
+}
+
+/// Chèn một mục **nhập tay** mới. `translation = None` ⇒ hàng vào ngay trạng thái *chờ
+/// chốt* (FR114). `term_origin` luôn `manual` — KHÔNG còn tham số cho chỗ gọi tự chọn.
+///
+/// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.2) — đổi tên từ `insert_entry`, MẤT tham số
+/// `term_origin: TermOrigin`.** Trước lượt này, bất kỳ chỗ gọi nào (kể cả một module quét
+/// tương lai ở `core/segment/**`) chỉ cần truyền `TermOrigin::ImportScan` là ghi thẳng vào
+/// Glossary — biên dịch sạch, qua cả mười một cổng của Story 3.1. Đường ghi phi-manual duy
+/// nhất còn lại là [`crate::core::glossary::candidate_store::approve_candidate`], và nó
+/// KHÔNG nhận `term_origin` từ chỗ gọi — nó suy ra từ `candidate_origin` của chính hàng
+/// ứng viên đã tồn tại từ trước. Xem doc-comment của [`insert_entry_row`] cho lý do đầy đủ.
 ///
 /// # Lỗi
 /// [`StoreError::WriteFailed`] nếu `source_term` đã tồn tại (`UNIQUE INDEX
 /// idx_glossary_entry_source_term`), hoặc `translation` là `Some("")`/khoảng trắng
 /// (`CHECK` của `GLOSSARY_ENTRY_DDL`) — cả hai đều là lỗi giao dịch SQLite lan qua
 /// `Store::write`, không phải một nhánh được kiểm tay ở đây.
-pub fn insert_entry(
+pub fn insert_manual_entry(
     store: &Store,
     source_term: &str,
     translation: Option<&str>,
     note: &str,
     category: Category,
-    term_origin: TermOrigin,
 ) -> Result<i64, StoreError> {
     // 🔴 CẮT KHOẢNG TRẮNG BIÊN, KHÔNG HẠ CHỮ THƯỜNG, KHÔNG CHUẨN HOÁ UNICODE — Story 3.1.
     //
@@ -100,16 +144,16 @@ pub fn insert_entry(
     let translation = translation.map(|t| t.trim().to_owned());
     let note = note.to_owned();
     let category = category.as_str();
-    let term_origin = term_origin.as_str();
 
     store.write(move |tx: &Transaction<'_>| {
-        tx.execute(
-            "INSERT INTO glossary_entry
-                (source_term, translation, note, category, term_origin, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
-            (&source_term, &translation, &note, &category, &term_origin),
-        )?;
-        Ok(tx.last_insert_rowid())
+        insert_entry_row(
+            tx,
+            &source_term,
+            translation.as_deref(),
+            &note,
+            category,
+            TermOrigin::Manual.as_str(),
+        )
     })
 }
 
@@ -140,8 +184,9 @@ pub fn insert_entry(
 /// này; đọc `glossary_contract.rs::confirming_an_unknown_id_succeeds_and_changes_nothing`
 /// trước khi quyết định có cần đếm số hàng đổi hay không.
 pub fn confirm_translation(store: &Store, id: i64, translation: &str) -> Result<(), StoreError> {
-    // Cùng lý do cắt khoảng trắng biên đã ghi ở `insert_entry` — chốt qua đường này cũng
-    // phải không tạo ra một bản dịch mang khoảng trắng thừa mà `insert_entry` đã cấm.
+    // Cùng lý do cắt khoảng trắng biên đã ghi ở `insert_manual_entry` — chốt qua đường này
+    // cũng phải không tạo ra một bản dịch mang khoảng trắng thừa mà `insert_manual_entry`
+    // đã cấm.
     let translation = translation.trim().to_owned();
 
     store.write(move |tx: &Transaction<'_>| {
