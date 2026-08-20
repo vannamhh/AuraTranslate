@@ -5637,3 +5637,32 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     ⇒ Đây là một khoảng trống CỦA CẢ KHO mà story này chỉ làm lộ ra, không phải một khuyết
     tật riêng của dải. **(Chủ: Story 3.9 — story kế tiếp dựng một màn hình Glossary đầy đủ
     bằng bàn phím, tức chỗ rẻ nhất để đặt luật tên khả truy cập một lần cho cả bốn bề mặt.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
+  summary: `editor-confirm-segment.e2e.mjs` ĐỎ trong lượt chạy cả bộ 2026-08-20 nhưng XANH
+    khi chạy một mình và XANH khi chạy đúng cặp `attribution-focus` → nó. Spec chập chờn,
+    và cả bộ e2e dùng CHUNG một thư mục Library tạm cho cả lượt (`wdio.conf.mjs:139`).
+  evidence: Đo 2026-08-20 trên commit `3322399`. Lượt đầy đủ: 10 xanh / 2 đỏ trong 15m13s;
+    `target_text` đọc lên là `"test"` thay vì `"Một lần ký là đủ."`, mà chuỗi `test` KHÔNG
+    phải literal trong spec nào — tức rác trạng thái. Đã loại trừ hồi quy của Story 3.3 bằng
+    ba chân: xanh khi chạy riêng (1m54s), xanh khi chạy đúng cặp đúng thứ tự (2m53s), và
+    `maxInstances: 1` với dấu thời gian bốn worker đầu không chồng lấn (08:52:29 · 08:53:21 ·
+    08:55:17 · 08:56:49). Spec đó dựa vào `browser.pause()` cố định — khuôn chập chờn kinh
+    điển. 🔴 Hệ quả rộng hơn con số: một bộ e2e cho kết quả khác nhau giữa lượt đầy đủ và
+    lượt lẻ là một bộ KHÔNG dùng làm cổng được, và nó đang là đường nghiệm thu DUY NHẤT cho
+    mọi mệnh đề về webview thật. **(Chủ: Story 3.9 — story kế tiếp thêm spec e2e cho màn hình
+    Glossary, tức chỗ đầu tiên chi phí của sự chập chờn này rơi vào một lượt phát triển thật.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
+  summary: Không spec e2e nào bôi đen được chữ bằng **chuột thật** — WebDriver pointer action
+    trong WKWebView không sinh ra một `Selection`, nên `glossary-quick-add.e2e.mjs` phải đặt
+    `Range` bằng mã trong trang sau một `realClick()`.
+  evidence: Đo 2026-08-20, hai lượt liên tiếp: kéo bằng `browser.action('pointer')` cho
+    `selection.toString() === ''` cả trước lẫn sau khi sửa hộp dòng đầu (`getClientRects()[0]`
+    thay `getBoundingClientRect()`). Chọn được đúng chuỗi RỖNG chứ không phải chọn thiếu một
+    phần là dấu hiệu không có vùng chọn nào được tạo, không phải sai số toạ độ. ⇒ Chặng
+    *"chuột kéo ⇒ trình duyệt dựng Selection"* hôm nay KHÔNG có đường nghiệm thu nào trong kho.
+    Đây là hành vi của WebKit chứ không phải mã dự án, nên mức ưu tiên thấp — nhưng nó có
+    nghĩa là FR21 (Auto-Lookup bôi đen bằng chuột) cũng chưa từng được canh đầu-cuối bằng
+    chuột thật. **(Chủ: Story 3.4 — khớp thuật ngữ và đánh dấu ở cột nguyên văn, story đầu
+    tiên mà một vùng chọn SAI sẽ hiện thành đánh dấu sai trên màn hình.)**
