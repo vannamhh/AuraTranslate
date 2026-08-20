@@ -22,6 +22,7 @@ import {
   quickAddEffectiveTier,
   quickAddHasLoaded,
   quickAddIsOpen,
+  quickAddLookupError,
   quickAddMode,
   quickAddNote,
   quickAddSaveError,
@@ -195,6 +196,17 @@ watch(quickAddIsOpen, (open) => {
 
     <p v-if="quickAddSaveError !== null" class="gqa-status gqa-error" role="alert">
       {{ tError(quickAddSaveError) }}
+    </p>
+    <!--
+      🔵 THÊM 2026-08-20 (lượt rà soát Story 3.3) — lỗi của LƯỢT TRA phải hiện ra, không
+      chìm thành một lượt "đang kiểm tra" vĩnh viễn. Đứng NGAY SAU `quickAddSaveError` và
+      NGAY TRƯỚC `quickAddSaving`/`quickAddHasLoaded`: một lượt ghi vừa trượt là tin mới
+      hơn một lượt tra đã trượt, còn `checking` bên dưới chỉ đúng khi lượt tra vẫn còn cơ
+      hội về. Không có nhánh này, `err.glossary.scope_error` và `store.open_failed` đi qua
+      dây rồi chết lặng trong `lookup.value` — dải tắt nút Lưu mà không nói vì sao.
+    -->
+    <p v-else-if="quickAddLookupError !== null" class="gqa-status gqa-error" role="alert">
+      {{ tError(quickAddLookupError) }}
     </p>
     <p v-else-if="quickAddSaving" class="gqa-status" role="status">
       {{ t('glossary.quick_add.saving') }}

@@ -129,6 +129,29 @@ export const quickAddWorkTierAvailable = computed<boolean | null>(() => {
 })
 
 /**
+ * 🔵 THÊM 2026-08-20 (lượt rà soát Story 3.3) — lỗi của LƯỢT TRA, tách hẳn khỏi
+ * [`quickAddSaveError`] (lỗi của lượt GHI).
+ *
+ * Trước hằng này, `GlossaryLookupResult` mang một `IpcError` ở biến thể `'unknown'`
+ * (`config/glossary.ts`), tầng này cất nó vào `lookup`, và KHÔNG chỗ nào đọc lại: một lượt
+ * tra trượt (`global.db` vắng mặt ⇒ `store.open_failed`, hay `apply_override` từ chối ⇒
+ * `glossary.scope_error`) làm `quickAddHasLoaded` đứng ở `false` vĩnh viễn, nên dải hiện
+ * *"đang kiểm tra…"* mãi mãi và nút Lưu tắt mãi mãi — một trạng thái chờ không bao giờ kết
+ * thúc, không một lý do nào trên màn hình. Đó đúng là lớp *rỗng im lặng* mà `AGENTS.md`
+ * liệt vào Known pitfalls trung tâm và chính story này viện dẫn ba lần.
+ *
+ * ⚠️ `null` ở đây có HAI nghĩa và cả hai đều KHÔNG phải "có lỗi": lượt tra đang bay/chưa
+ * chạy (`lookup === null`), hoặc lượt tra đã về sạch (`'none'`/`'entry'`). Biến thể
+ * `'unknown'` với `error: null` cũng trả `null` — đó là ca *chạy ngoài Tauri*, mà
+ * `config/glossary.ts` cố ý phân biệt với một lỗi thật.
+ */
+export const quickAddLookupError = computed<IpcError | null>(() => {
+  const l = lookup.value
+  if (l === null || l.found !== 'unknown') return null
+  return l.error
+})
+
+/**
  * Phát một lượt tra MỚI cho `term` — huỷ hiệu lực mọi lượt đang bay cũ hơn bằng
  * `sequence`, cùng khuôn `lookupPanelState.ts::runLookup`.
  *

@@ -179,21 +179,35 @@ pub fn insert_manual_entry(
 /// Chiều **duy nhất** bị cấm — đã chốt → `NULL` — bị trigger
 /// `glossary_entry_lifecycle_is_one_way` từ chối ở tầng SQL, không phải một kiểm tra ở đây.
 ///
-/// # Lỗi
-/// [`StoreError::WriteFailed`] nếu `translation` là chuỗi rỗng/khoảng trắng (`CHECK`).
-///
 /// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.3) — `id` KHÔNG khớp hàng nào NAY LÀ MỘT LỖI, đóng
 /// `deferred-work.md:5348-5352` phần "Chủ: Story 3.3".** Doc-comment trước của hàm này
-/// cảnh báo đúng rủi ro *"rỗng im lặng"* mà `AGENTS.md` liệt vào Known pitfalls trung tâm
-/// — story này là chỗ gọi SẢN PHẨM đầu tiên chạm hàm này (qua
-/// `commands::glossary::glossary_update_term`, gián tiếp qua `update_manual_term`), nên
-/// rủi ro đó không còn được để ngỏ. `tx.execute` trả về SỐ HÀNG bị đổi (`usize`); `0` giờ
-/// là [`StoreError::WriteFailed`] với một câu chẩn đoán đọc được, không còn `Ok(())` cho
-/// một lượt ghi không đổi gì.
+/// cảnh báo đúng rủi ro *"rỗng im lặng"* mà `AGENTS.md` liệt vào Known pitfalls trung tâm.
+/// `tx.execute` trả về SỐ HÀNG bị đổi (`usize`); `0` giờ là [`StoreError::WriteFailed`] với
+/// một câu chẩn đoán đọc được, không còn `Ok(())` cho một lượt ghi không đổi gì.
+///
+/// 🔵 **SỬA 2026-08-20 (lượt rà soát Story 3.3) — LÝ DO ghi ở lượt trên SAI, sửa tại chỗ.**
+/// Bản trước viết Story 3.3 là *"chỗ gọi SẢN PHẨM đầu tiên chạm hàm này (qua
+/// `commands::glossary::glossary_update_term`, gián tiếp qua `update_manual_term`)"*. Đo lại
+/// thì không đúng ở cả hai chặng: [`update_manual_term`] tự phát câu `UPDATE` ba cột của
+/// riêng nó và KHÔNG gọi hàm này một lần nào, còn `commands::glossary` thì bị
+/// `glossary_boundary.rs::GLOSSARY_ONLY_SURFACE` **cấm** gõ chính cái tên `confirm_translation`.
+/// `grep` trên `src-tauri/src/**`: hàm này vẫn có **0** chỗ gọi sản phẩm — chỗ duy nhất gọi
+/// nó là `glossary_contract.rs`.
+///
+/// Lượt sửa hành vi vẫn ĐÚNG, chỉ lý do là sai: hàm này được `core::glossary::mod` tái xuất
+/// công khai và là đường chốt mà Story 3.8 (duyệt hàng loạt)/3.9 sẽ đi qua, nên để `Ok(())`
+/// cho một lượt `UPDATE` 0 hàng là gài sẵn đúng cái bẫy *rỗng im lặng* cho story đầu tiên
+/// gọi tới — số chỗ gọi hôm nay là 0 hay 1 không đổi được điều đó. Một mệnh đề mô tả một
+/// đường gọi không tồn tại là đúng lớp nợ mà luật *"sửa tại chỗ, kèm 🔵 + ngày"* của
+/// `AGENTS.md` sinh ra để chống — không xoá, không để nó lặng lẽ sai.
 ///
 /// # Lỗi
 /// [`StoreError::WriteFailed`] nếu `translation` là chuỗi rỗng/khoảng trắng (`CHECK`), HOẶC
 /// nếu `id` không khớp hàng nào trong `glossary_entry`.
+///
+/// ⚠️ Khối `# Lỗi` ở đây từng có HAI bản (một bản cũ chỉ kể ca `CHECK`, đứng trước khối 🔵
+/// đầu tiên) — `rustdoc` gộp cả hai thành một mục và in bản cũ TRƯỚC, tức người đọc gặp
+/// danh sách thiếu trước danh sách đủ. Gộp về một bản 2026-08-20 cùng lượt sửa trên.
 pub fn confirm_translation(store: &Store, id: i64, translation: &str) -> Result<(), StoreError> {
     // Cùng lý do cắt khoảng trắng biên đã ghi ở `insert_manual_entry` — chốt qua đường này
     // cũng phải không tạo ra một bản dịch mang khoảng trắng thừa mà `insert_manual_entry`
