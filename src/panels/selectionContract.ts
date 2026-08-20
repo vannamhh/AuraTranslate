@@ -212,6 +212,35 @@ export function currentSelectionText(): string {
 }
 
 /**
+ * 🔴 **ĐƯỜNG RIÊNG CHO `glossary.add_term` (Story 3.3, FR48)** — KHÔNG dùng lại
+ * [`currentSelectionText`].
+ *
+ * `currentSelectionText()` lọc `surface.role !== 'source'` ở dòng cuối cùng của nó — đúng
+ * cho `lookup.lookup_selection` (chỉ tra từ điển từ bề mặt NGUỒN), nhưng SAI cho lệnh này:
+ * Panel Lookup, Panel AI Translation và cột bản dịch của lưới đều đăng ký vai `'display'`
+ * (`LookupPanel.vue:171`, `AiTranslationPanel.vue:45`, `GridPanel.vue:416`), nên lọc theo
+ * `'source'` trả RỖNG ở ba trong bốn bề mặt mà FR48 hứa *"từ bất kỳ panel nào"*. Đo được:
+ * `grep -c "role === 'source'"` tại dòng lọc của `currentSelectionText` = 1, và không có
+ * nhánh nào khác cho `'display'` đi qua.
+ *
+ * Hàm này dùng lại [`surfaceFor`] (đã hỏi `'display'` TRƯỚC `'source'`, xem doc-comment của
+ * nó) nhưng KHÔNG lọc theo `role` — bất kỳ bề mặt đã đăng ký nào, `'source'` hay
+ * `'display'`, đều hợp lệ cho lệnh này. Vùng chọn không thuộc bề mặt nào đã đăng ký (ô nhập
+ * Library, Panel chưa mount) vẫn trả `''`, đúng khuôn AC "không có vùng chọn ⇒ ô nguồn rỗng
+ * và nhận focus".
+ */
+export function currentSelectionTextForGlossaryQuickAdd(): string {
+  const selection = window.getSelection()
+  if (selection === null) return ''
+
+  const surface = surfaceFor(selection)
+  if (surface === null) return ''
+
+  const text = surface.resolve === undefined ? selection.toString() : surface.resolve(selection)
+  return text ?? ''
+}
+
+/**
  * 🔴 **TÍN HIỆU *"VÙNG CHỌN ĐÃ DỪNG"* — SỰ KIỆN, KHÔNG HẸN GIỜ** (Quyết định #5a).
  *
  * | Đường | Tín hiệu | Vì sao không cái khác |

@@ -272,6 +272,25 @@ message_keys! {
     // gọi `WorkMeta::read` — story này không dựng màn hình "mở lại một `.atproj`".
     // Một khoá cho một tính năng chưa tồn tại là đúng thứ Story 1.7 §CN #3 cấm. 🔴 Story
     // nào dựng đường mở lại (ứng viên: Epic 5) thêm lại khoá này CÙNG LƯỢT với màn hình.
+
+    // ── Story 3.3 (FR48 · AD-18 · AD-36) — BA khoá, và đúng ba ─────────────────────
+    //
+    // Bề mặt IPC ĐẦU TIÊN của `core/glossary/**` (`commands::glossary`, dải "Thêm thuật
+    // ngữ"). Lệnh đọc/ghi tái dùng khoá kho hiện có (`StoreOpenFailed`/`StoreWriteFailed`/
+    // `StoreReadFailed`) qua `impl From<GlossaryError> for IpcError` — ba khoá dưới đây chỉ
+    // cho ba ca RIÊNG của module Glossary mà không khoá kho nào diễn đạt được.
+    /// Sửa một mục Glossary bằng `(tier, id)` mà `id` không khớp hàng nào — mục đã bị xoá
+    /// giữa chừng (đua với Story 3.9, hoặc một `id` cũ còn kẹt ở webview).
+    GlossaryEntryMissing => "err.glossary.entry_missing" [],
+    /// Chọn tầng Tác phẩm cho thêm/sửa một mục Glossary khi chưa có Tác phẩm nào đang mở.
+    GlossaryWorkTierUnavailable => "err.glossary.work_tier_unavailable" [],
+    /// `ScopeResolver::apply_override` từ chối bên trong `core::glossary::GlossaryError::
+    /// Scope` — lỗi LẬP TRÌNH, không nên xảy ra trên đường gọi đúng (xem doc-comment của
+    /// `core::scope::ScopeError` và `core::glossary::store::GlossaryError`).
+    ///
+    /// ⚠️ KHÔNG tham số, cùng lý do `Unknown`: `Display` của `ScopeError` là một câu chẩn
+    /// đoán, và tham số `IpcError` phải mang DỮ LIỆU chứ không mang CÂU (AD-21).
+    GlossaryScopeError => "err.glossary.scope_error" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

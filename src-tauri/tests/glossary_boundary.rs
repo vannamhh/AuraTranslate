@@ -47,12 +47,13 @@ const SCHEMA_FILE: &str = "core/store/schema.rs";
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
 ///
-/// Số thật lúc dựng (Story 3.2, 2026-08-20): **49** tệp — cây đã đi xa khỏi 47 (Story 3.1)
-/// qua hai tệp mới của module này (`core/glossary/candidate.rs` ·
-/// `core/glossary/candidate_store.rs`). Sàn đặt **dưới** số thật đúng khuôn `RS_FLOOR` của
-/// `scope_boundary.rs`/`store_boundary.rs`: nó bắt một cây bị cắt mất, không bắt việc thêm
-/// tệp mới. Sàn giữ nguyên **38** (~77,6%) — vẫn dưới số thật, không cần nâng.
-const RS_FLOOR: usize = 38; // số THẬT 2026-08-20: 49 tệp .rs -- 38/49 = 77,6%
+/// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.3) — đo lại, nâng sàn về dải 80–85%.** Số thật lúc dựng
+/// story này: **50** tệp — cây đi từ 49 (Story 3.2) qua đúng MỘT tệp mới,
+/// `commands/glossary.rs` (bề mặt IPC đầu tiên của module). Sàn cũ (**38**, ~77,6%) đã tụt
+/// dưới dải 80–85% mà tác vụ cổng biên của story này đòi kiểm lại; nâng lên **40** (80%) —
+/// vẫn dưới số thật đúng khuôn `RS_FLOOR` của `scope_boundary.rs`/`store_boundary.rs`: nó
+/// bắt một cây bị cắt mất, không bắt việc thêm tệp mới.
+const RS_FLOOR: usize = 40; // số THẬT 2026-08-20 (Story 3.3): 50 tep .rs -- 40/50 = 80%
 
 /// Chuỗi bị cấm ngoài hai vị trí ở trên — **tên bảng thật**, chữ thường nguyên văn như nó
 /// nằm trong SQL (`CREATE TABLE glossary_entry`, `FROM glossary_candidate`, …).
@@ -96,6 +97,23 @@ const FORBIDDEN_TABLES: [&str; 2] = ["glossary_entry", "glossary_candidate"];
 /// định (có nên hạn chế `pending_candidates`/`approve_candidate` hay không phụ thuộc vào
 /// hình dạng bề mặt Story 3.3/3.5/3.8 dựng). Món nợ có chủ ở `deferred-work.md`.
 const GLOSSARY_ONLY_SURFACE: [&str; 3] = ["insert_manual_entry", "confirm_translation", "load_tier"];
+
+/// 🔵 **THÊM 2026-08-20 (Story 3.3)** — vị từ THUẦN dùng bởi cổng thật
+/// ([`only_entries_eligible_for_injection_may_be_called_from_outside_glossary`]) **VÀ**
+/// đối chứng mới bên dưới, cùng lý do [`line_spells_a_non_manual_term_origin_token`]: hai
+/// bên không thể lệch nhau bằng cách trùng lặp logic so chuỗi ở hai chỗ khác nhau.
+fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static str> {
+    GLOSSARY_ONLY_SURFACE.into_iter().find(|needle| code.contains(needle))
+}
+
+/// Ba hàm mà `commands::glossary` ĐƯỢC PHÉP gọi xuống `core::glossary` — bề mặt Story 3.3
+/// dựng đúng để thay thế `GLOSSARY_ONLY_SURFACE` cho chỗ gọi sản phẩm đầu tiên (Ice ký ở
+/// `glossary_boundary.rs:80-88`, tiền lệ Story 3.1: sửa CHỮ KÝ thay vì nới cổng).
+const QUICK_ADD_SURFACE: [&str; 3] = [
+    "resolve_term_for_quick_add",
+    "add_manual_term",
+    "update_manual_term",
+];
 
 /// Token xuất xứ TỰ ĐỘNG — chỉ được sinh ra (biến thể enum, chuỗi `as_str()`) bên trong
 /// `core/glossary/**` (AD-20: chỉ `approve_candidate` được phép suy ra một `term_origin`
@@ -339,10 +357,8 @@ fn only_entries_eligible_for_injection_may_be_called_from_outside_glossary() {
         }
 
         for (line, code) in code_lines(file) {
-            for needle in GLOSSARY_ONLY_SURFACE {
-                if code.contains(needle) {
-                    violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
-                }
+            if let Some(needle) = line_calls_a_glossary_only_surface_function(&code) {
+                violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
             }
         }
     }
@@ -506,4 +522,79 @@ fn core_glossary_actually_spells_both_non_manual_origin_tokens() {
              nghĩa là cây đã bị cắt và phép kiểm ranh giới đang canh một chỗ trống."
         );
     }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.3 — `commands::glossary` gọi ĐÚNG bề mặt mới, không lách qua bề mặt cấm
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Positive: `commands/glossary.rs` thực sự gọi cả BA hàm mới, và KHÔNG gọi bất kỳ tên nào
+/// trong `GLOSSARY_ONLY_SURFACE`. Đối chứng dương của chính story này — không có ca này thì
+/// cổng `only_entries_eligible_for_injection_may_be_called_from_outside_glossary` xanh y hệt
+/// trên một `commands/glossary.rs` không gọi gì cả (một bề mặt IPC rỗng, vô dụng).
+#[test]
+fn commands_glossary_calls_the_new_quick_add_surface_not_the_forbidden_one() {
+    let path = src_root().join("commands").join("glossary.rs");
+    assert!(
+        path.is_file(),
+        "commands/glossary.rs phai ton tai o {}",
+        path.display()
+    );
+
+    // ⚠️ `code_lines`, KHÔNG `fs::read_to_string(..).contains(..)` trần: chính doc-comment
+    // đầu tệp của `commands/glossary.rs` NHẮC TỚI cả ba tên bị cấm (để giải thích LÝ DO
+    // chúng bị cấm) — một phép so toàn văn bản sẽ tự bắt nhầm chính lời giải thích đó. Cùng
+    // kỷ luật mà `only_glossary_and_schema_may_name_glossary_tables` đã dùng cho
+    // `FORBIDDEN_TABLES` ở trên: chỉ MÃ mới đáng canh, không phải mọi dòng trong tệp.
+    let mut code = String::new();
+    for (_, line) in code_lines(&path) {
+        code.push_str(&line);
+        code.push('\n');
+    }
+
+    for needle in QUICK_ADD_SURFACE {
+        assert!(
+            code.contains(needle),
+            "commands/glossary.rs khong goi `{needle}` (trong PHAN MA, khong tinh comment) \
+             -- day la dung MOT trong ba ham ma Story 3.3 dung ra de thay the \
+             GLOSSARY_ONLY_SURFACE cho be mat IPC nay"
+        );
+    }
+    for needle in GLOSSARY_ONLY_SURFACE {
+        assert!(
+            !code.contains(needle),
+            "commands/glossary.rs goi thang `{needle}` (trong PHAN MA) -- day la mot trong \
+             ba ham bi cam ngoai core/glossary/**; dung ba ham moi \
+             (resolve_term_for_quick_add / add_manual_term / update_manual_term) thay vi \
+             lach qua day"
+        );
+    }
+}
+
+/// 🔴 Đối chứng dương thứ hai — chứng minh cổng THẬT (dùng cùng vị từ
+/// [`line_calls_a_glossary_only_surface_function`]) vẫn đỏ nếu ai đó viết một lời gọi
+/// `load_tier(...)` bên trong `commands/glossary.rs`: cổng không phải "chưa bao giờ đỏ",
+/// nó chỉ đang đỏ đúng ZERO lần trên cây hiện tại vì cây hiện tại sạch.
+#[test]
+fn the_glossary_only_surface_check_would_still_flag_a_forbidden_call_from_commands_glossary() {
+    assert_eq!(
+        line_calls_a_glossary_only_surface_function("let rows = load_tier(&global)?;"),
+        Some("load_tier"),
+        "mot loi goi load_tier gia lap phai bi vi tu nay bat -- day chinh la hinh dang ma \
+         cong that se do neu commands/glossary.rs lach qua GLOSSARY_ONLY_SURFACE"
+    );
+    assert_eq!(
+        line_calls_a_glossary_only_surface_function("insert_manual_entry(store, term, ..)"),
+        Some("insert_manual_entry"),
+    );
+    assert_eq!(
+        line_calls_a_glossary_only_surface_function("confirm_translation(store, id, t)"),
+        Some("confirm_translation"),
+    );
+    assert_eq!(
+        line_calls_a_glossary_only_surface_function("resolve_term_for_quick_add(r, g, w, t)"),
+        None,
+        "ba ham MOI cua Story 3.3 khong nam trong GLOSSARY_ONLY_SURFACE -- do la diem cua \
+         chung"
+    );
 }

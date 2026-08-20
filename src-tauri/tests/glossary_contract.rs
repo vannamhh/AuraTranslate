@@ -23,9 +23,10 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::core::glossary::{
-    CandidateOrigin, Category, TermOrigin, approve_candidate, confirm_translation,
-    entries_eligible_for_injection, insert_candidate, insert_manual_entry, load_tier,
-    pending_candidates, reject_candidate,
+    CandidateOrigin, Category, GlossaryError, GlossaryTier, TermOrigin, add_manual_term,
+    approve_candidate, confirm_translation, entries_eligible_for_injection, insert_candidate,
+    insert_manual_entry, load_tier, pending_candidates, reject_candidate,
+    resolve_term_for_quick_add, update_manual_term,
 };
 use auratranslate_lib::core::scope::{ScopeError, ScopeResolver, WorkScope};
 use auratranslate_lib::core::store::{
@@ -641,13 +642,15 @@ fn confirming_with_a_blank_translation_is_refused_by_the_same_check_insert_uses(
     cleanup(&dir);
 }
 
-/// P8(c) — `confirm_translation` với `id` KHÔNG khớp hàng nào trả `Ok(())` dù 0 hàng đổi.
+/// P8(c) — 🔵 **CẬP NHẬT 2026-08-20 (Story 3.3)** — `confirm_translation` với `id` KHÔNG
+/// khớp hàng nào NAY TRẢ VỀ LỖI, không còn `Ok(())` cho 0 hàng đổi.
 ///
-/// ⚠️ Ca này KHOÁ hành vi hiện tại bằng test — xem cảnh báo rủi ro ở doc-comment của
-/// `confirm_translation`: một lượt chốt nhắm vào một `id` không tồn tại sẽ THÀNH CÔNG mà
-/// không làm gì cả, đúng khuôn `delete_value`. **Chủ của rủi ro đó: Story 3.3.**
+/// Bản trước của test này (P8(c), Story 3.1) khoá đúng rủi ro *"rỗng im lặng"* mà chính
+/// doc-comment của `confirm_translation` cảnh báo, và ghi rõ "Chủ của rủi ro đó: Story
+/// 3.3" — đây là lượt đóng nợ đó. `tx.execute` trả về SỐ HÀNG bị đổi; `0` giờ là
+/// `StoreError::WriteFailed` với một câu chẩn đoán đọc được.
 #[test]
-fn confirming_an_unknown_id_succeeds_and_changes_nothing() {
+fn confirming_an_unknown_id_is_rejected_and_changes_nothing() {
     let dir = temp_dir("confirm-unknown-id");
     let store = open_global(&dir);
 
@@ -662,9 +665,9 @@ fn confirming_an_unknown_id_succeeds_and_changes_nothing() {
 
     let result = confirm_translation(&store, 999_999, "Thanh Khâu");
     assert!(
-        result.is_ok(),
-        "chot mot id khong ton tai phai THANH CONG (0 hang doi), khong phai mot loi. \
-         Nhan: {result:?}"
+        matches!(result, Err(StoreError::WriteFailed { .. })),
+        "chot mot id khong ton tai phai bi TU CHOI (0 hang doi la mot loi, khong con la mot \
+         thanh cong im lang). Nhan: {result:?}"
     );
 
     let global = load_tier(&store).expect("nap tang global");
@@ -1874,5 +1877,490 @@ fn the_whitespace_char_table_is_byte_identical_between_glossary_entry_and_glossa
         GLOSSARY_CANDIDATE_DDL.contains(ws_table),
         "bang ky tu khoang trang cua GLOSSARY_CANDIDATE_DDL da LECH khoi GLOSSARY_ENTRY_DDL \
          -- hai ban chep khong co cong la hai ban chep se lech. Doan can khop:\n{ws_table}"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.3 — ba hàm phơi ra mới: `resolve_term_for_quick_add` · `add_manual_term` ·
+// `update_manual_term`. I/O & Edge-Case Matrix của story này.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Không có vùng chọn khớp ở tầng nào ⇒ `resolve_term_for_quick_add` trả `None` — dải mở
+/// chế độ THÊM.
+#[test]
+fn resolve_term_for_quick_add_returns_none_when_the_term_exists_nowhere() {
+    let dir = temp_dir("quick-add-lookup-not-found");
+    let store = open_global(&dir);
+    let resolver = ScopeResolver::global_only();
+
+    let found = resolve_term_for_quick_add(&resolver, &store, None, "慕容")
+        .expect("resolve_term_for_quick_add khong loi voi kind hop le");
+    assert!(found.is_none(), "chua tung chen gi, phai la None");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Cụm có ở tầng Global ⇒ trả về `(GlossaryTier::Global, entry)` — dải mở chế độ SỬA, tầng
+/// ghim vào Global.
+#[test]
+fn resolve_term_for_quick_add_finds_a_global_only_term() {
+    let dir = temp_dir("quick-add-lookup-global-only");
+    let store = open_global(&dir);
+    insert_manual_entry(&store, "慕容", Some("Mộ Dung"), "", Category::Person)
+        .expect("chen muc global");
+    let resolver = ScopeResolver::global_only();
+
+    let (tier, entry) = resolve_term_for_quick_add(&resolver, &store, None, "慕容")
+        .expect("resolve khong loi")
+        .expect("phai tim thay");
+    assert_eq!(tier, GlossaryTier::Global);
+    assert_eq!(entry.translation.as_deref(), Some("Mộ Dung"));
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// 🔴 **Ca dễ cài ngược nhất của story** — cụm có ở CẢ hai tầng ⇒ trả về mục **tầng Tác
+/// phẩm** (AD-18 ghi đè theo từng thuật ngữ), không phải tầng Global.
+#[test]
+fn resolve_term_for_quick_add_prefers_the_work_tier_when_both_tiers_have_the_term() {
+    let dir = temp_dir("quick-add-lookup-both-tiers");
+    let global_store = open_global(&dir);
+    let work_store = open_project(&dir);
+    insert_manual_entry(&global_store, "慕容", Some("Mộ Dung"), "", Category::Person)
+        .expect("chen muc global");
+    insert_manual_entry(&work_store, "慕容", Some("Mộ Dong Rieng"), "", Category::Person)
+        .expect("chen muc work");
+    let resolver = ScopeResolver::with_work(WorkScope {
+        work_id: "wk-1".to_owned(),
+    });
+
+    let (tier, entry) =
+        resolve_term_for_quick_add(&resolver, &global_store, Some(&work_store), "慕容")
+            .expect("resolve khong loi")
+            .expect("phai tim thay");
+    assert_eq!(tier, GlossaryTier::Work, "tang Tac pham phai thang");
+    assert_eq!(entry.translation.as_deref(), Some("Mộ Dong Rieng"));
+
+    drop(global_store);
+    drop(work_store);
+    cleanup(&dir);
+}
+
+/// 🔴 **Ca thứ hai dễ cài ngược** — lượt tra KHÔNG lọc `is_confirmed`: một mục *chờ chốt*
+/// (`translation IS NULL`) vẫn mở được ở chế độ SỬA, khác hẳn `entries_eligible_for_injection`
+/// (vốn LỌC nó ra).
+#[test]
+fn resolve_term_for_quick_add_finds_a_pending_term_without_filtering_it_out() {
+    let dir = temp_dir("quick-add-lookup-pending");
+    let store = open_global(&dir);
+    insert_manual_entry(&store, "青丘", None, "", Category::Place).expect("chen muc cho chot");
+    let resolver = ScopeResolver::global_only();
+
+    let (tier, entry) = resolve_term_for_quick_add(&resolver, &store, None, "青丘")
+        .expect("resolve khong loi")
+        .expect("mot muc CHO CHOT van phai tim thay duoc");
+    assert_eq!(tier, GlossaryTier::Global);
+    assert!(!entry.is_confirmed(), "muc phai o nguyen trang thai cho chot");
+
+    // Doi chung: `entries_eligible_for_injection` LOC muc nay ra — hai ham tra loi hai cau
+    // hoi khac nhau tren cung du lieu.
+    let eligible = entries_eligible_for_injection(&resolver, &store, None).expect("eligible");
+    assert!(
+        eligible.is_empty(),
+        "muc cho chot khong duoc du dieu kien chen prompt"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Ô nguồn của dải mang khoảng trắng biên (dán nguyên vùng chọn, người dùng chưa gõ thêm gì)
+/// vẫn khớp đúng khoá đã trim trên đĩa.
+#[test]
+fn resolve_term_for_quick_add_trims_the_query_before_looking_up() {
+    let dir = temp_dir("quick-add-lookup-trims-query");
+    let store = open_global(&dir);
+    insert_manual_entry(&store, "慕容", Some("Mộ Dung"), "", Category::Person)
+        .expect("chen muc");
+    let resolver = ScopeResolver::global_only();
+
+    let found = resolve_term_for_quick_add(&resolver, &store, None, "  慕容\t")
+        .expect("resolve khong loi");
+    assert!(found.is_some(), "truy van co dem bien phai van khop hang da trim");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// `add_manual_term` ở tầng Global ghi vào đúng `&Store` được truyền làm `global`.
+#[test]
+fn add_manual_term_at_the_global_tier_writes_to_the_global_store() {
+    let dir = temp_dir("quick-add-write-global");
+    let store = open_global(&dir);
+
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "慕容",
+        Some("Mộ Dung"),
+        "",
+        Category::Person,
+    )
+    .expect("them muc o tang Global");
+
+    let global = load_tier(&store).expect("nap tang global");
+    assert_eq!(global.len(), 1);
+    assert_eq!(global["慕容"].translation.as_deref(), Some("Mộ Dung"));
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// `add_manual_term` ở tầng Tác phẩm ghi vào `&Store` của `project.db`, KHÔNG vào
+/// `global.db`.
+#[test]
+fn add_manual_term_at_the_work_tier_writes_to_the_project_store_only() {
+    let dir = temp_dir("quick-add-write-work");
+    let global_store = open_global(&dir);
+    let work_store = open_project(&dir);
+
+    add_manual_term(
+        &global_store,
+        Some(&work_store),
+        GlossaryTier::Work,
+        "青丘",
+        Some("Thanh Khâu"),
+        "",
+        Category::Place,
+    )
+    .expect("them muc o tang Tac pham");
+
+    let global = load_tier(&global_store).expect("nap tang global");
+    let work = load_tier(&work_store).expect("nap tang work");
+    assert!(global.is_empty(), "global.db khong duoc dung toi");
+    assert_eq!(work.len(), 1);
+    assert_eq!(work["青丘"].translation.as_deref(), Some("Thanh Khâu"));
+
+    drop(global_store);
+    drop(work_store);
+    cleanup(&dir);
+}
+
+/// Chọn tầng Tác phẩm khi chưa mở Tác phẩm nào (`work = None`) ⇒ từ chối với
+/// `GlossaryError::WorkTierUnavailable` — I/O Matrix *"Chọn tầng Tác phẩm khi chưa mở Tác
+/// phẩm"*.
+#[test]
+fn add_manual_term_at_the_work_tier_without_a_work_store_is_refused() {
+    let dir = temp_dir("quick-add-write-work-unavailable");
+    let store = open_global(&dir);
+
+    let result = add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Work,
+        "慕容",
+        Some("Mộ Dung"),
+        "",
+        Category::Person,
+    );
+    assert!(
+        matches!(result, Err(GlossaryError::WorkTierUnavailable)),
+        "phai tu choi voi WorkTierUnavailable. Nhan: {result:?}"
+    );
+
+    let global = load_tier(&store).expect("nap tang global");
+    assert!(global.is_empty(), "khong duoc ghi gi ca");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// `note` toàn khoảng trắng ghi xuống chuỗi rỗng — một cách biểu diễn duy nhất cho "không có
+/// ghi chú" (đóng `deferred-work.md:5380-5385`).
+#[test]
+fn add_manual_term_trims_a_whitespace_only_note_down_to_the_empty_string() {
+    let dir = temp_dir("quick-add-write-note-trim");
+    let store = open_global(&dir);
+
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "慕容",
+        Some("Mộ Dung"),
+        "   \u{3000}  ",
+        Category::Person,
+    )
+    .expect("them muc voi ghi chu toan khoang trang");
+
+    let global = load_tier(&store).expect("nap tang global");
+    assert_eq!(
+        global["慕容"].note, "",
+        "ghi chu toan khoang trang phai gon ve chuoi RONG, khong dung nguyen"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Nguồn hoặc bản dịch toàn khoảng trắng ⇒ `CHECK` từ chối qua đường `add_manual_term`.
+#[test]
+fn add_manual_term_rejects_a_blank_source_term() {
+    let dir = temp_dir("quick-add-write-blank-source");
+    let store = open_global(&dir);
+
+    let result = add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "\u{3000}",
+        Some("Mộ Dung"),
+        "",
+        Category::Person,
+    );
+    assert!(
+        matches!(result, Err(GlossaryError::Store(StoreError::WriteFailed { .. }))),
+        "nguon toan khoang trang phai bi CHECK tu choi. Nhan: {result:?}"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// `update_manual_term` sửa cả ba cột trong một lượt — "sửa có hiệu lực ngay" (Story 3.9
+/// dùng lại đúng khuôn này).
+#[test]
+fn update_manual_term_rewrites_translation_note_and_category_together() {
+    let dir = temp_dir("quick-add-update-success");
+    let store = open_global(&dir);
+    let id = add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "慕容",
+        Some("Mộ Dung"),
+        "ghi chu cu",
+        Category::Person,
+    )
+    .expect("them muc");
+
+    update_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        id,
+        Some("Mộ Dung Mới"),
+        "ghi chu moi",
+        Category::DomainTerm,
+    )
+    .expect("sua muc");
+
+    let global = load_tier(&store).expect("nap tang global");
+    let entry = &global["慕容"];
+    assert_eq!(entry.translation.as_deref(), Some("Mộ Dung Mới"));
+    assert_eq!(entry.note, "ghi chu moi");
+    assert_eq!(entry.category, Category::DomainTerm);
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Sửa một `id` đã biến mất (mục bị xoá giữa chừng — mô phỏng bằng một `id` chưa từng tồn
+/// tại) ⇒ không ghi gì, báo lỗi đọc được `GlossaryError::EntryMissing` — I/O Matrix.
+#[test]
+fn update_manual_term_on_a_vanished_id_is_rejected_and_changes_nothing() {
+    let dir = temp_dir("quick-add-update-missing-id");
+    let store = open_global(&dir);
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "青丘",
+        None,
+        "",
+        Category::Place,
+    )
+    .expect("chen mot muc that de doi chung");
+
+    let result = update_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        999_999,
+        Some("Thanh Khâu"),
+        "",
+        Category::Place,
+    );
+    assert!(
+        matches!(result, Err(GlossaryError::EntryMissing)),
+        "id khong ton tai phai tra EntryMissing. Nhan: {result:?}"
+    );
+
+    let global = load_tier(&store).expect("nap tang global");
+    assert_eq!(global.len(), 1, "khong hang moi nao duoc tao ra");
+    assert!(
+        !global["青丘"].is_confirmed(),
+        "muc that duy nhat trong kho khong duoc dung toi"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// `update_manual_term` ở tầng Tác phẩm khi chưa mở Tác phẩm nào ⇒ `WorkTierUnavailable`,
+/// cùng luật `add_manual_term`.
+#[test]
+fn update_manual_term_at_the_work_tier_without_a_work_store_is_refused() {
+    let dir = temp_dir("quick-add-update-work-unavailable");
+    let store = open_global(&dir);
+    let id = add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "慕容",
+        Some("Mộ Dung"),
+        "",
+        Category::Person,
+    )
+    .expect("them muc o Global de co mot id that");
+
+    // `id` nay chi ton tai trong `global.db` -- goi voi `tier = Work` phai bi tu choi truoc
+    // ca khi cham toi cau UPDATE, vi khong co `&Store` nao cua `project.db`.
+    let result = update_manual_term(
+        &store,
+        None,
+        GlossaryTier::Work,
+        id,
+        Some("Mo Dung Khac"),
+        "",
+        Category::Person,
+    );
+    assert!(
+        matches!(result, Err(GlossaryError::WorkTierUnavailable)),
+        "phai tu choi voi WorkTierUnavailable. Nhan: {result:?}"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// `update_manual_term` cũng cắt khoảng trắng biên của `note`/`translation` — cùng lý do
+/// `add_manual_term`.
+#[test]
+fn update_manual_term_trims_translation_and_note() {
+    let dir = temp_dir("quick-add-update-trims");
+    let store = open_global(&dir);
+    let id = add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "慕容",
+        None,
+        "",
+        Category::Person,
+    )
+    .expect("them muc cho chot");
+
+    update_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        id,
+        Some("  Mộ Dung  "),
+        "   ",
+        Category::Person,
+    )
+    .expect("sua muc");
+
+    let global = load_tier(&store).expect("nap tang global");
+    let entry = &global["慕容"];
+    assert_eq!(entry.translation.as_deref(), Some("Mộ Dung"));
+    assert_eq!(entry.note, "");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.3 (Ice bắt, 2026-08-20) — hai bản chép của cùng một hợp đồng dây không được lệch
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 `Category`/`GlossaryTier` mỗi kiểu có HAI cách viết ra dây: `as_str()`/`from_wire()`
+/// (đường ĐĨA — `INSERT`/`UPDATE`/`load_tier`) và `#[serde(rename = …)]` (đường THAM SỐ IPC
+/// của `commands::glossary::wire`, `serde` giải mã trực tiếp, không đi qua `from_wire`).
+/// Không cổng nào từng đối chiếu hai bản chép đó — đúng câu mà chính doc-comment của
+/// `the_whitespace_char_table_is_byte_identical_between_glossary_entry_and_glossary_candidate_ddl`
+/// đã nói: *"hai bản chép không có cổng là hai bản chép sẽ lệch"*.
+///
+/// Kiểm cả hai chiều cho MỖI biến thể, cùng khuôn `scope_contract.rs::the_kind_table_has_
+/// every_variant`:
+/// ① đường ĐĨA là nghịch đảo của chính nó — `from_wire(as_str(v)) == Some(v)`;
+/// ② đường DÂY giải mã ĐÚNG chuỗi mà `as_str()` sinh ra thành ĐÚNG biến thể —
+///    `serde_json::from_str::<T>(quote(as_str(v))) == Ok(v)`. Nếu `#[serde(rename)]` gõ sai
+///    một chữ, ca này đỏ dù ① vẫn xanh (① không hề chạm `serde`).
+#[test]
+fn category_and_glossary_tier_wire_strings_agree_between_as_str_and_serde_rename() {
+    for category in [
+        Category::Person,
+        Category::Place,
+        Category::DomainTerm,
+        Category::Other,
+    ] {
+        assert_eq!(
+            Category::from_wire(category.as_str()),
+            Some(category),
+            "duong DIA: from_wire(as_str({category})) phai la chinh no"
+        );
+
+        let quoted = format!("\"{}\"", category.as_str());
+        let decoded: Category = serde_json::from_str(&quoted).unwrap_or_else(|e| {
+            panic!(
+                "duong DAY: serde khong giai ma duoc chuoi {quoted} ma as_str({category}) sinh \
+                 ra -- #[serde(rename)] va as_str()/from_wire() da LECH nhau. Loi serde: {e}"
+            )
+        });
+        assert_eq!(
+            decoded, category,
+            "duong DAY giai ma dung chuoi {quoted} nhung ra SAI bien the ({decoded} thay vi \
+             {category}) -- #[serde(rename)] tro nham sang mot ten khac"
+        );
+    }
+
+    for tier in [GlossaryTier::Global, GlossaryTier::Work] {
+        assert_eq!(
+            GlossaryTier::from_wire(tier.as_str()),
+            Some(tier),
+            "duong DIA: from_wire(as_str({tier})) phai la chinh no"
+        );
+
+        let quoted = format!("\"{}\"", tier.as_str());
+        let decoded: GlossaryTier = serde_json::from_str(&quoted).unwrap_or_else(|e| {
+            panic!(
+                "duong DAY: serde khong giai ma duoc chuoi {quoted} ma as_str({tier}) sinh ra \
+                 -- #[serde(rename)] va as_str()/from_wire() da LECH nhau. Loi serde: {e}"
+            )
+        });
+        assert_eq!(
+            decoded, tier,
+            "duong DAY giai ma dung chuoi {quoted} nhung ra SAI bien the ({decoded} thay vi \
+             {tier}) -- #[serde(rename)] tro nham sang mot ten khac"
+        );
+    }
+}
+
+/// Đối chứng: một chuỗi KHÔNG khớp bất kỳ biến thể nào phải bị serde TỪ CHỐI (không đoán),
+/// đúng khuôn `ScopeKind::from_wire("khong_ton_tai") == None` của `scope_contract.rs`.
+#[test]
+fn serde_rejects_an_unknown_category_or_tier_string_instead_of_guessing() {
+    assert!(
+        serde_json::from_str::<Category>("\"khong_ton_tai\"").is_err(),
+        "mot chuoi la phai bi serde TU CHOI, khong duoc doan ve bien the nao"
+    );
+    assert!(
+        serde_json::from_str::<GlossaryTier>("\"khong_ton_tai\"").is_err(),
+        "mot chuoi la phai bi serde TU CHOI, khong duoc doan ve bien the nao"
     );
 }

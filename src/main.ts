@@ -68,6 +68,7 @@ import { runLookup } from './panels/lookupPanelState'
 import {
   attachSelectionWatcher,
   currentSelectionText,
+  currentSelectionTextForGlossaryQuickAdd,
   focusSelectionSource,
   selectionCommands,
 } from './panels/selectionContract'
@@ -116,6 +117,15 @@ import {
   openSegmentHistory,
   restoreAimedVersion,
 } from './panels/segmentHistoryState'
+// ── Story 3.3 — dải "Thêm thuật ngữ" (FR48) ──────────────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `lookupPanelState.ts`: `glossaryQuickAddState.ts` dùng
+// `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/glossary.ts`.
+import {
+  closeGlossaryQuickAdd,
+  openGlossaryQuickAdd,
+  saveGlossaryQuickAdd,
+} from './glossaryQuickAddState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -396,6 +406,15 @@ async function boot(): Promise<void> {
       restoreAimedVersion,
       confirmPendingRestore,
       cancelPendingRestore,
+      // Story 3.3 · FR48 — "Thêm nhanh thuật ngữ". `currentSelectionForGlossary` là đường
+      // RIÊNG của lệnh này (KHÔNG `currentSelectionText`, đọc doc-comment của
+      // `currentSelectionTextForGlossaryQuickAdd`).
+      currentSelectionForGlossary: currentSelectionTextForGlossaryQuickAdd,
+      openGlossaryQuickAdd,
+      saveGlossaryQuickAdd: () => {
+        void saveGlossaryQuickAdd()
+      },
+      closeGlossaryQuickAdd,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa

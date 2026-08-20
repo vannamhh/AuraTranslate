@@ -16,15 +16,26 @@ use std::fmt;
 
 /// Phân loại thuật ngữ (FR46). Bốn giá trị, cưỡng chế lại ở `CHECK (category IN (…))` của
 /// `GLOSSARY_ENTRY_DDL` — cột SQL và kiểu Rust không được phép trôi khỏi nhau.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// 🔵 **THÊM 2026-08-20 (Story 3.3) — `serde::Deserialize`, `rename` TỪNG biến thể.** Bề
+/// mặt IPC đầu tiên của `core/glossary/**` (`commands::glossary::wire`) nhận `category` như
+/// một tham số lệnh; Tauri tự giải mã JSON bằng `serde` TRƯỚC khi hàm thuần chạy — cùng
+/// khuôn `commands::project::ChapterDirection`. `#[serde(rename = …)]` từng biến thể (không
+/// `#[serde(rename_all = …)]`) vì đó là tiền lệ đã chọn ở `ChapterDirection`: đúng cho hôm
+/// nay nhưng tường minh hơn một quy tắc chuyển đổi ngầm cho biến thể tương lai.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 pub enum Category {
     /// Tên người.
+    #[serde(rename = "person")]
     Person,
     /// Địa danh.
+    #[serde(rename = "place")]
     Place,
     /// Thuật ngữ chuyên ngành.
+    #[serde(rename = "domain_term")]
     DomainTerm,
     /// Còn lại.
+    #[serde(rename = "other")]
     Other,
 }
 
@@ -100,6 +111,78 @@ impl TermOrigin {
 }
 
 impl fmt::Display for TermOrigin {
+    /// KHÔNG DẤU — chẩn đoán cho log, không phải văn bản hiển thị (NFR16).
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Tầng mà một mục Glossary **thắng** sau khi phân giải hai tầng (AD-18) — Story 3.3.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO MỘT KIỂU MỚI, KHÔNG TÁI DÙNG `core::scope::Tier`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `core::scope::Tier` đã có hai biến thể y hệt (`Global`/`Work`) và không bị
+/// `scope_boundary.rs::FORBIDDEN_OUTSIDE_SCOPE` cấm gọi từ ngoài `core/scope/**`. Nhưng
+/// giá trị này còn đi tiếp một chặng nữa mà `Tier` không đi: nó là DỮ LIỆU TRÊN DÂY (dải
+/// "Thêm thuật ngữ" ghim chế độ SỬA theo đúng giá trị này, `src/config/glossary.ts` đọc nó
+/// như một chuỗi `"global"`/`"work"`). Một kiểu riêng của `core::glossary` giữ cho hình
+/// dạng dây của module này KHÔNG phụ thuộc vào một quyết định biểu diễn của
+/// `core::scope` (đổi cách `Tier::as_str()` viết ra sẽ đổi luôn dây IPC của Glossary nếu
+/// dùng chung) — cùng lý lẽ mà `Category`/`TermOrigin` đã có kiểu riêng thay vì mượn một
+/// enum chuỗi tự do.
+///
+/// `id` của [`GlossaryEntry`] chỉ DUY NHẤT **trong một `Store`** (`deferred-work.md:5352`)
+/// — hai `Store` khác nhau (`global.db`/`project.db` của Tác phẩm đang mở) có thể cùng
+/// đánh số `id = 7` cho hai hàng khác hẳn nhau. Một `id` trần đi qua dây IPC không đủ để
+/// sửa lại đúng hàng; cặp `(GlossaryTier, id)` mới đủ — xem
+/// [`super::store::resolve_term_for_quick_add`] và [`super::store::update_manual_term`].
+/// 🔵 **THÊM 2026-08-20 — `serde::Deserialize`, cùng lý do và cùng khuôn `Category` ngay
+/// trên: tham số lệnh `tier` của `glossary.add_term`/`glossary.update_term` được Tauri
+/// giải mã trực tiếp thành kiểu này.**
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+pub enum GlossaryTier {
+    /// `global.db` — dùng cho mọi Tác phẩm.
+    #[serde(rename = "global")]
+    Global,
+    /// `project.db` của Tác phẩm đang mở.
+    #[serde(rename = "work")]
+    Work,
+}
+
+impl GlossaryTier {
+    /// Định danh máy đọc — thứ đi trên dây IPC. Không phải nhãn hiển thị (AD-21, NFR16).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            GlossaryTier::Global => "global",
+            GlossaryTier::Work => "work",
+        }
+    }
+
+    /// 🔵 **SỬA 2026-08-20 (Ice bắt) — mệnh đề trước SAI về chỗ gọi.** Bản trước viết hàm
+    /// này "phân giải một giá trị đến từ dây (đối số IPC)" — không đúng: tham số `tier` của
+    /// `glossary.add_term`/`glossary.update_term` được **`serde` giải mã trực tiếp qua
+    /// `#[serde(rename = …)]`** ở khai báo enum trên, KHÔNG đi qua hàm này. `from_wire` vì
+    /// vậy có **0 chỗ gọi sản phẩm** — cùng đúng thứ `TermOrigin`/`Category` giữ (đọc lại từ
+    /// đĩa), nhưng `GlossaryTier` **không có cột đĩa nào** để đọc lại từ đó (tầng là DẪN
+    /// XUẤT từ `Resolved::tier()` lúc phân giải, xem [`super::store::resolve_term_for_quick_add`]),
+    /// nên hàm này thật ra không có chỗ gọi sản phẩm nào cả.
+    ///
+    /// Chỗ gọi DUY NHẤT hôm nay là
+    /// `glossary_contract.rs::category_and_glossary_tier_wire_strings_agree_between_as_str_and_serde_rename`
+    /// — một phép kiểm chéo TƯỜNG MINH rằng `as_str()`/`from_wire()` (bản chép này) và
+    /// `#[serde(rename)]` (bản chép serde) không lệch nhau. Test LÀ chỗ gọi hợp lệ ở đây,
+    /// không phải một dấu hiệu hàm chết — giữ hàm này công khai để cổng đó dựng được.
+    pub fn from_wire(raw: &str) -> Option<Self> {
+        match raw {
+            "global" => Some(GlossaryTier::Global),
+            "work" => Some(GlossaryTier::Work),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for GlossaryTier {
     /// KHÔNG DẤU — chẩn đoán cho log, không phải văn bản hiển thị (NFR16).
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())

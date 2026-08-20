@@ -107,7 +107,7 @@ function walk(dir, out = [], seen = new Set()) {
 // 🔴 Và đây chính là ràng buộc Ice ký kèm quyết định #7: *"cổng nào đọc `src/**` thì phải
 // xét lại sàn quần thể"*. Đo chứ không ước: `find src -type f \( -name '*.ts' -o -name
 // '*.vue' … \) | wc -l` = **55** (39 `.ts` + 16 `.vue`), 2026-08-18.
-const FILE_FLOOR = 46 // số THẬT 2026-08-18 (Story 2.12): 55 tệp `src/**` — 46/55 = 83,6%
+const FILE_FLOOR = 47 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 58 tệp `src/**` (+GlossaryQuickAdd.vue +config/glossary.ts +glossaryQuickAddState.ts) — 47/58 = 81,0%
 
 let files = []
 try {

@@ -111,7 +111,19 @@ impl Tier {
 /// Mọi cách phân giải hai tầng hỏng.
 ///
 /// 🔴 **Lỗi LẬP TRÌNH, không phải lỗi người dùng** — và đó là lý do nó **không**
-/// `impl From<ScopeError> for IpcError` và **không bao giờ** vượt ranh giới IPC.
+/// `impl From<ScopeError> for IpcError`.
+///
+/// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.3) — mệnh đề "không bao giờ vượt ranh giới IPC" đã HẾT
+/// ĐÚNG NGUYÊN VĂN, sửa tại chỗ.** `core::glossary::GlossaryError::Scope(ScopeError)`
+/// (`core/glossary/store.rs`) nay CÓ một cầu nối qua biên IPC — nhưng cầu đó đi qua
+/// `impl From<GlossaryError> for IpcError`, KHÔNG phải một `impl From<ScopeError> for
+/// IpcError` đứng riêng (impl đó vẫn không tồn tại, và câu ngay trên vẫn đúng nguyên văn).
+/// Nhánh `Scope` của `GlossaryError` rơi về một khoá không tham số
+/// (`MessageKey::GlossaryScopeError`) — `Display` của `ScopeError` (câu chẩn đoán) không
+/// bao giờ đi vào `params`, đúng tinh thần "lỗi lập trình không có gì để nói với người
+/// dùng" mà đoạn dưới đây giải thích. Một mệnh đề mô tả một impl không có là đúng lớp nợ mà
+/// luật "sửa tại chỗ, kèm 🔵 + ngày" của `AGENTS.md` sinh ra để chống — không xoá, không để
+/// nó lặng lẽ sai.
 ///
 /// Story 1.7 §Completion Notes #3 khoá quy tắc: *"Không khoá `MessageKey` nào cho tính
 /// năng chưa tồn tại."* Cả hai biến thể dưới đây chỉ xảy ra khi mã gọi sai hàm cho loại

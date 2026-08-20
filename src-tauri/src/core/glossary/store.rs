@@ -47,10 +47,11 @@
 
 use std::collections::BTreeMap;
 
-use crate::core::scope::{ScopeError, ScopeResolver};
+use crate::core::i18n::{IpcError, MessageKey};
+use crate::core::scope::{ScopeError, ScopeResolver, Tier as ScopeTier};
 use crate::core::store::{ReadHandle, SqlError, SqlResult, SqlType, Store, StoreError, Transaction};
 
-use super::entry::{Category, GlossaryEntry, TermOrigin};
+use super::entry::{Category, GlossaryEntry, GlossaryTier, TermOrigin};
 
 /// Khoá dây của `ScopeKind::Glossary` (`core/scope/kinds.rs:162`), chép lại đây làm
 /// literal — module này không được `use` `ScopeKind`.
@@ -140,9 +141,16 @@ pub fn insert_manual_entry(
     // gốc"). KHÔNG chuẩn hoá Unicode (NFC/NFKC, …): chính sách chuẩn hoá thuật ngữ là
     // quyết định của Story 3.4 (khớp thuật ngữ theo ngôn ngữ), không phải của story này —
     // đoán trước nó ở đây là đóng băng một lựa chọn chưa ai ký.
+    // 🔵 CẬP NHẬT 2026-08-20 (Story 3.3) — `note` NAY ĐƯỢC TRIM, ĐÓNG `deferred-work.md:
+    // 5380-5385`. Bản trước (Story 3.1) chỉ trim `source_term`/`translation`; `note` đi
+    // qua `to_owned()` trần. Không có `CHECK` nào canh khoảng trắng biên của `note` (nó
+    // được phép rỗng — `GLOSSARY_ENTRY_DDL` đặt `NOT NULL DEFAULT ''`), nên một ghi chú
+    // `"   "` từng đứng nguyên trên đĩa thay vì gọn về `""`. Ice ký 2026-08-20: một cách
+    // biểu diễn duy nhất cho "không có ghi chú" — trim trước, để `""` và `"   "` không
+    // phải hai hàng khác nhau trong mắt người đọc màn hình quản lý Glossary (Story 3.9).
     let source_term = source_term.trim().to_owned();
     let translation = translation.map(|t| t.trim().to_owned());
-    let note = note.to_owned();
+    let note = note.trim().to_owned();
     let category = category.as_str();
 
     store.write(move |tx: &Transaction<'_>| {
@@ -174,15 +182,18 @@ pub fn insert_manual_entry(
 /// # Lỗi
 /// [`StoreError::WriteFailed`] nếu `translation` là chuỗi rỗng/khoảng trắng (`CHECK`).
 ///
-/// ⚠️ `id` không khớp hàng nào ⇒ câu `UPDATE` chạy **0 hàng** và vẫn trả `Ok(())` — cùng
-/// khuôn `delete_value` ("xoá một khoá không tồn tại là THÀNH CÔNG"). Rủi ro cho chỗ gọi
-/// SẢN PHẨM đầu tiên: một lượt chốt nhắm vào một `id` đã bị xoá (đua với một thao tác xoá
-/// khác, hay một tham số cũ còn kẹt lại) sẽ **im lặng không làm gì** thay vì báo lỗi —
-/// đúng lớp *"rỗng im lặng"* mà `AGENTS.md` liệt vào Known pitfalls trung tâm của dự án.
-/// Story 3.1 không đóng rủi ro này (không có chỗ gọi sản phẩm nào ở story này để nghiệm
-/// thu một phương án). **Chủ: Story 3.3** — story đầu tiên dựng bề mặt IPC chạm tới hàm
-/// này; đọc `glossary_contract.rs::confirming_an_unknown_id_succeeds_and_changes_nothing`
-/// trước khi quyết định có cần đếm số hàng đổi hay không.
+/// 🔵 **CẬP NHẬT 2026-08-20 (Story 3.3) — `id` KHÔNG khớp hàng nào NAY LÀ MỘT LỖI, đóng
+/// `deferred-work.md:5348-5352` phần "Chủ: Story 3.3".** Doc-comment trước của hàm này
+/// cảnh báo đúng rủi ro *"rỗng im lặng"* mà `AGENTS.md` liệt vào Known pitfalls trung tâm
+/// — story này là chỗ gọi SẢN PHẨM đầu tiên chạm hàm này (qua
+/// `commands::glossary::glossary_update_term`, gián tiếp qua `update_manual_term`), nên
+/// rủi ro đó không còn được để ngỏ. `tx.execute` trả về SỐ HÀNG bị đổi (`usize`); `0` giờ
+/// là [`StoreError::WriteFailed`] với một câu chẩn đoán đọc được, không còn `Ok(())` cho
+/// một lượt ghi không đổi gì.
+///
+/// # Lỗi
+/// [`StoreError::WriteFailed`] nếu `translation` là chuỗi rỗng/khoảng trắng (`CHECK`), HOẶC
+/// nếu `id` không khớp hàng nào trong `glossary_entry`.
 pub fn confirm_translation(store: &Store, id: i64, translation: &str) -> Result<(), StoreError> {
     // Cùng lý do cắt khoảng trắng biên đã ghi ở `insert_manual_entry` — chốt qua đường này
     // cũng phải không tạo ra một bản dịch mang khoảng trắng thừa mà `insert_manual_entry`
@@ -190,10 +201,13 @@ pub fn confirm_translation(store: &Store, id: i64, translation: &str) -> Result<
     let translation = translation.trim().to_owned();
 
     store.write(move |tx: &Transaction<'_>| {
-        tx.execute(
+        let changed = tx.execute(
             "UPDATE glossary_entry SET translation = ?1 WHERE id = ?2",
             (&translation, id),
         )?;
+        if changed == 0 {
+            return Err(row_missing_error(0, "glossary_entry", id));
+        }
         Ok(())
     })
 }
@@ -268,6 +282,22 @@ fn decode_term_origin(col: usize, raw: &str) -> SqlResult<TermOrigin> {
     })
 }
 
+/// Lỗi Rust-layer "đọc được" cho ca *"`UPDATE` khớp 0 hàng"* — Story 3.3, đóng
+/// `deferred-work.md:5348-5352` (`confirm_translation`) và mảnh *"sửa một `id` đã biến
+/// mất"* của I/O Matrix (`update_manual_term`).
+///
+/// Cùng khuôn `candidate_store.rs::already_decided_error`: không biến thể `rusqlite::Error`
+/// nào đặt tên cho "quy tắc nghiệp vụ bị vi phạm" (0 hàng đổi không phải một lỗi SQL —
+/// SQLite coi đó là thành công), nên `FromSqlConversionFailure` (mang một `Box<dyn Error>`
+/// tự do) là chỗ mượn hợp lý nhất để chở một câu chẩn đoán tự chọn.
+fn row_missing_error(col: usize, table: &str, id: i64) -> SqlError {
+    SqlError::FromSqlConversionFailure(
+        col,
+        SqlType::Integer,
+        format!("{table} id={id} khong ton tai -- UPDATE khop 0 hang").into(),
+    )
+}
+
 /// Hai họ lỗi gặp nhau ở [`entries_eligible_for_injection`] — chỗ DUY NHẤT trong module
 /// này vừa đọc kho (hai lượt [`load_tier`]) vừa phân giải hai tầng
 /// (`ScopeResolver::apply_override`).
@@ -288,6 +318,23 @@ pub enum GlossaryError {
     /// `ScopeResolver::apply_override` từ chối. Không nên xảy ra trên đường gọi đúng — xem
     /// doc-comment của [`entries_eligible_for_injection`].
     Scope(ScopeError),
+    /// 🔵 **THÊM 2026-08-20 (Story 3.3).** [`update_manual_term`] nhắm vào một `id` đã biến
+    /// mất (bị xoá giữa chừng — đua với Story 3.9, hay một `id` cũ còn kẹt ở webview) —
+    /// I/O Matrix *"Sửa một `id` đã biến mất"*. **Không** mang `id`/`table` như
+    /// [`row_missing_error`]: `params` của `IpcError` phải mang DỮ LIỆU chứ không mang
+    /// CÂU, và một `id` nội bộ (khoá hàng SQLite) không phải thứ người dùng đọc được gì từ
+    /// nó — nó chỉ là chẩn đoán, ở lại trong `Display` của biến thể này.
+    EntryMissing,
+    /// 🔵 **THÊM 2026-08-20 (Story 3.3).** Chỗ gọi chọn tầng Tác phẩm ([`GlossaryTier::Work`])
+    /// cho [`add_manual_term`]/[`update_manual_term`] nhưng không có `&Store` nào của
+    /// `project.db` để dùng — I/O Matrix *"Chọn tầng Tác phẩm khi chưa mở Tác phẩm"*. Trên
+    /// đường gọi ĐÚNG của `commands::glossary`, ca này không nên xảy ra (dải "Thêm thuật
+    /// ngữ" đã ẩn lựa chọn tầng Tác phẩm khi `OpenWorkState` là `None` — xem
+    /// `glossaryQuickAddState.ts`), nhưng nó KHÔNG phải lỗi lập trình theo nghĩa
+    /// [`ScopeError`]: một đua giữa "đóng Tác phẩm" và "bấm Lưu" là một trạng thái người
+    /// dùng thật có thể chạm tới, nên nó đi qua IPC như một lỗi bình thường, không
+    /// `debug_assert!`.
+    WorkTierUnavailable,
 }
 
 impl std::fmt::Display for GlossaryError {
@@ -296,6 +343,8 @@ impl std::fmt::Display for GlossaryError {
         match self {
             GlossaryError::Store(e) => write!(f, "glossary[store] {e}"),
             GlossaryError::Scope(e) => write!(f, "glossary[scope] {e}"),
+            GlossaryError::EntryMissing => write!(f, "glossary[entry_missing]"),
+            GlossaryError::WorkTierUnavailable => write!(f, "glossary[work_tier_unavailable]"),
         }
     }
 }
@@ -311,6 +360,44 @@ impl From<StoreError> for GlossaryError {
 impl From<ScopeError> for GlossaryError {
     fn from(e: ScopeError) -> Self {
         GlossaryError::Scope(e)
+    }
+}
+
+/// 🔵 **THÊM 2026-08-20 (Story 3.3)** — khuôn chép từ `core/store/mod.rs:483-506`
+/// (`impl From<StoreError> for IpcError`): đi **qua [`IpcError::new`]**, không dựng struct
+/// literal, cùng lý do đã ghi ở đó.
+///
+/// 🔴 **Nhánh `Scope` mang `code` ổn định và KHÔNG THAM SỐ.** `Display` của `ScopeError` là
+/// một câu CHẨN ĐOÁN cho log (`"scope[glossary] declares Override but was resolved as
+/// Merge"`) — đúng lớp chuỗi mà tham số `IpcError::params` bị cấm mang (params chở DỮ
+/// LIỆU, không chở CÂU; xem doc-comment của `IpcError`). Nhét `Display` vào `params` sẽ đặt
+/// nguyên văn một câu tiếng Anh chẩn đoán lên màn hình người dùng qua cửa sau. Nhánh này
+/// không nên xảy ra trên đường gọi đúng (xem doc-comment của [`GlossaryError::Scope`]);
+/// khi nó xảy ra, người dùng chỉ cần biết "có lỗi", còn chẩn đoán thật đi vào log Rust qua
+/// `Display`/`Debug` ở chỗ gọi (`commands::glossary::wire`), không qua `IpcError`.
+impl From<GlossaryError> for IpcError {
+    fn from(err: GlossaryError) -> Self {
+        match err {
+            GlossaryError::Store(e) => e.into(),
+            GlossaryError::Scope(_) => IpcError::new(
+                "glossary.scope_error",
+                MessageKey::GlossaryScopeError,
+                BTreeMap::new(),
+                false,
+            ),
+            GlossaryError::EntryMissing => IpcError::new(
+                "glossary.entry_missing",
+                MessageKey::GlossaryEntryMissing,
+                BTreeMap::new(),
+                false,
+            ),
+            GlossaryError::WorkTierUnavailable => IpcError::new(
+                "glossary.work_tier_unavailable",
+                MessageKey::GlossaryWorkTierUnavailable,
+                BTreeMap::new(),
+                false,
+            ),
+        }
     }
 }
 
@@ -337,6 +424,24 @@ pub fn entries_eligible_for_injection(
     global: &Store,
     work: Option<&Store>,
 ) -> Result<Vec<GlossaryEntry>, GlossaryError> {
+    // 🔵 THÊM 2026-08-20 (Story 3.3) — `deferred-work.md:5348-5352`: không chỗ gọi nào bắt
+    // khớp `resolver.has_work_tier()` với `work.is_some()`. Hai giá trị này PHẢI đi cùng
+    // nhau trên mọi đường gọi đúng: `resolver` chỉ mang `Some(WorkScope)` sau
+    // `ScopeResolver::with_work`, và đó chính xác là lúc `OpenWork::store` (tầng
+    // `project.db`) tồn tại để truyền vào đây làm `work`. Lệch nhau (resolver nói "có Tác
+    // phẩm" mà `work` lại `None`, hoặc ngược lại) là một lỗi LẬP TRÌNH ở chỗ gọi — hai
+    // trường của cùng một `OpenWork` bị tách rời nhau khi truyền xuống. `debug_assert_eq!`
+    // không bắn ở bản release (`Chủ: Story 3.9` — `deferred-work.md`), nên đây là lưới cho
+    // debug/`cargo test`, không phải một cưỡng chế production.
+    debug_assert_eq!(
+        resolver.has_work_tier(),
+        work.is_some(),
+        "entries_eligible_for_injection -- resolver.has_work_tier()={} nhung work.is_some()={} \
+         -- hai gia tri nay phai di cung nhau tren moi duong goi dung (deferred-work.md:5348)",
+        resolver.has_work_tier(),
+        work.is_some()
+    );
+
     let global_tier = load_tier(global)?;
     let work_tier = work.map(load_tier).transpose()?;
 
@@ -354,4 +459,149 @@ pub fn entries_eligible_for_injection(
             entry.is_confirmed().then_some(entry)
         })
         .collect())
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.3 — BA HÀM PHƠI RA MỚI, bề mặt IPC đầu tiên của `core/glossary/**`
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 Ba tên dưới đây là đường DUY NHẤT `commands::glossary` được phép chạm module này.
+// `GLOSSARY_ONLY_SURFACE` của `glossary_boundary.rs` vẫn cấm `insert_manual_entry`/
+// `confirm_translation`/`load_tier` ngoài `core/glossary/**` — ba hàm mới KHÔNG nằm trong
+// danh sách đó, và đó chính là điểm của chúng (Ice ký ở `glossary_boundary.rs:80-88`, tiền
+// lệ Story 3.1 đã đi qua đúng vòng luẩn quẩn "sửa CHỮ KÝ thay vì nới cổng" này một lần).
+
+/// Tra một `source_term` qua **hai tầng** để dải "Thêm thuật ngữ" quyết định chế độ THÊM
+/// hay SỬA (§Design Notes: `mode(source_term, lookup)`).
+///
+/// 🔴 **KHÔNG lọc `is_confirmed`** — khác hẳn [`entries_eligible_for_injection`]. Một mục
+/// *chờ chốt* bị lọc mất ở đây sẽ làm dải mở nhầm ở chế độ THÊM, và `UNIQUE INDEX
+/// idx_glossary_entry_source_term` chặn lượt lưu — người dùng thấy "không thêm được" mà
+/// không ai nói vì sao (§Design Notes). `entries_eligible_for_injection` tồn tại đúng để
+/// LỌC; hàm này tồn tại đúng để KHÔNG lọc — hai hàm phục vụ hai câu hỏi khác nhau
+/// ("thuật ngữ nào được phép ép vào prompt" và "cụm này đã có trong Glossary chưa"),
+/// không phải hai cách viết cùng một câu hỏi.
+///
+/// 🔴 **Trả `(GlossaryTier, GlossaryEntry)`, không chỉ `GlossaryEntry`.** `id` chỉ duy nhất
+/// TRONG một `Store` — xem doc-comment của [`GlossaryTier`]. Không có tầng đi kèm, một
+/// lượt SỬA sau đó không biết `id` này thuộc `global.db` hay `project.db`.
+///
+/// Cụm có ở CẢ hai tầng ⇒ trả về mục **tầng Tác phẩm** (AD-18: tầng Tác phẩm thắng theo
+/// từng thuật ngữ) — `resolver.apply_override` đã phân giải đúng việc này; hàm ở đây chỉ
+/// đọc `Resolved::tier()` của kết quả, không tự so sánh gì thêm.
+///
+/// # Lỗi
+/// Cùng hai họ lỗi với [`entries_eligible_for_injection`] — xem [`GlossaryError`].
+pub fn resolve_term_for_quick_add(
+    resolver: &ScopeResolver,
+    global: &Store,
+    work: Option<&Store>,
+    source_term: &str,
+) -> Result<Option<(GlossaryTier, GlossaryEntry)>, GlossaryError> {
+    // Cùng lưới `entries_eligible_for_injection` — hai trường của `OpenWork` không được
+    // tách rời nhau trên đường xuống đây.
+    debug_assert_eq!(
+        resolver.has_work_tier(),
+        work.is_some(),
+        "resolve_term_for_quick_add -- resolver.has_work_tier()={} nhung work.is_some()={}",
+        resolver.has_work_tier(),
+        work.is_some()
+    );
+
+    // ⚠️ Trim TRƯỚC khi tra — `insert_manual_entry`/`insert_candidate` đều lưu `source_term`
+    // đã trim (`idx_glossary_entry_source_term` khoá trên giá trị ĐÃ trim), nên một truy
+    // vấn mang khoảng trắng biên (ô nguồn của dải chưa ai gõ thêm gì, chỉ dán nguyên vùng
+    // chọn) phải trim để khớp đúng khoá.
+    let source_term = source_term.trim();
+
+    let global_tier = load_tier(global)?;
+    let work_tier = work.map(load_tier).transpose()?;
+
+    let resolved =
+        resolver.apply_override(GLOSSARY_SCOPE_KIND, &global_tier, work_tier.as_ref())?;
+
+    Ok(resolved.get(source_term).map(|resolved_entry| {
+        let tier = match resolved_entry.tier() {
+            ScopeTier::Global => GlossaryTier::Global,
+            ScopeTier::Work => GlossaryTier::Work,
+        };
+        (tier, resolved_entry.value().clone())
+    }))
+}
+
+/// Thêm một mục Glossary **nhập tay** vào tầng người dùng chọn — chế độ THÊM của dải.
+///
+/// Chọn `&Store` theo `tier` rồi gọi xuống [`insert_manual_entry`] (đường ghi phi-manual
+/// vẫn chỉ có một cửa — [`crate::core::glossary::candidate_store::approve_candidate`] —
+/// hàm này không mở thêm cửa nào, nó chỉ định tuyến `&Store` theo tầng).
+///
+/// # Lỗi
+/// [`GlossaryError::WorkTierUnavailable`] nếu `tier` là [`GlossaryTier::Work`] mà `work` là
+/// `None`. Còn lại, xem [`insert_manual_entry`] (`source_term`/`translation` rỗng ⇒
+/// `CHECK`; `source_term` đã có ⇒ `UNIQUE`).
+pub fn add_manual_term(
+    global: &Store,
+    work: Option<&Store>,
+    tier: GlossaryTier,
+    source_term: &str,
+    translation: Option<&str>,
+    note: &str,
+    category: Category,
+) -> Result<i64, GlossaryError> {
+    let store = match tier {
+        GlossaryTier::Global => global,
+        GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
+    };
+
+    insert_manual_entry(store, source_term, translation, note, category).map_err(GlossaryError::from)
+}
+
+/// Sửa `translation`/`note`/`category` của mục `(tier, id)` — chế độ SỬA của dải.
+///
+/// 🔴 **Nhận `(tier, id)`, không chỉ `id`** — cùng lý do [`resolve_term_for_quick_add`] trả
+/// về tầng đi kèm: `id` chỉ duy nhất TRONG một `Store`, nên `tier` là thứ chọn ĐÚNG kho để
+/// chạy `UPDATE` lên. Bỏ `tier` là một lượt `UPDATE` có thể nhắm nhầm kho, im lặng và
+/// không cổng nào đỏ (§Design Notes).
+///
+/// ⚠️ **Không tự chốt "chờ chốt → đã chốt"** như [`confirm_translation`]: hàm này ghi CẢ
+/// BA cột trong một câu `UPDATE`, đúng khuôn "sửa có hiệu lực ngay" mà Story 3.9 sẽ dùng
+/// lại. Trigger `glossary_entry_lifecycle_is_one_way` vẫn đứng ở tầng SQL — một lượt SỬA cố
+/// đưa `translation` từ đã chốt về `NULL` vẫn bị `RAISE(ABORT)` từ chối, không phải một
+/// nhánh được kiểm tay ở đây.
+///
+/// # Lỗi
+/// [`GlossaryError::WorkTierUnavailable`] nếu `tier` là [`GlossaryTier::Work`] mà `work` là
+/// `None`. [`GlossaryError::EntryMissing`] nếu `(tier, id)` không khớp hàng nào — I/O Matrix
+/// *"Sửa một `id` đã biến mất"*. [`GlossaryError::Store`] nếu `translation`/`note` vi phạm
+/// `CHECK`, hoặc trigger một chiều từ chối.
+pub fn update_manual_term(
+    global: &Store,
+    work: Option<&Store>,
+    tier: GlossaryTier,
+    id: i64,
+    translation: Option<&str>,
+    note: &str,
+    category: Category,
+) -> Result<(), GlossaryError> {
+    let store = match tier {
+        GlossaryTier::Global => global,
+        GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
+    };
+
+    // Cùng lý do cắt khoảng trắng biên đã ghi ở `insert_manual_entry`.
+    let translation = translation.map(|t| t.trim().to_owned());
+    let note = note.trim().to_owned();
+    let category = category.as_str();
+
+    let changed = store.write(move |tx: &Transaction<'_>| {
+        tx.execute(
+            "UPDATE glossary_entry SET translation = ?1, note = ?2, category = ?3 WHERE id = ?4",
+            (&translation, &note, category, id),
+        )
+    })?;
+
+    if changed == 0 {
+        return Err(GlossaryError::EntryMissing);
+    }
+    Ok(())
 }

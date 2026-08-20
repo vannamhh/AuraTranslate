@@ -56,6 +56,31 @@
 //! đó mở Tác phẩm này lại. **Chủ: Epic 5** (đường mở lại `.atproj` — xem `deferred-work.md`
 //! cho mục đóng đầy đủ).
 //!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! HÌNH DẠNG ĐÃ DỰNG (Story 3.3) — bề mặt IPC ĐẦU TIÊN của module này, FR48
+//! ─────────────────────────────────────────────────────────────────────────────
+//! - [`entry::GlossaryTier`] — `Global`/`Work`, kiểu RIÊNG (không tái dùng
+//!   `core::scope::Tier`) vì nó đi tiếp một chặng mà `Tier` không đi: nó là dữ liệu TRÊN
+//!   DÂY của `commands::glossary`. `id` của [`entry::GlossaryEntry`] chỉ duy nhất TRONG
+//!   một `Store`, nên một `id` trần không đủ để sửa lại đúng hàng — mọi lượt tra/sửa mang
+//!   theo cặp `(GlossaryTier, id)`.
+//! - [`store::resolve_term_for_quick_add`] — tra hai tầng qua `ScopeResolver::apply_override`,
+//!   **không lọc** `is_confirmed` (khác hẳn `entries_eligible_for_injection`, vốn tồn tại
+//!   đúng để lọc) — một mục *chờ chốt* bị lọc mất sẽ làm dải "Thêm thuật ngữ" mở nhầm chế
+//!   độ THÊM và `UNIQUE` chặn lượt lưu trong im lặng.
+//! - [`store::add_manual_term`] / [`store::update_manual_term`] — chọn `&Store` theo
+//!   `GlossaryTier` người dùng chọn rồi gọi xuống `insert_manual_entry`/một câu `UPDATE`
+//!   trực tiếp; đường ghi phi-manual vẫn chỉ có một cửa (`approve_candidate`), hai hàm này
+//!   không mở cửa thứ hai, chỉ định tuyến `&Store`.
+//! - [`store::GlossaryError`] có thêm hai biến thể không mang dữ liệu:
+//!   [`store::GlossaryError::EntryMissing`] (sửa một `id` đã biến mất) và
+//!   [`store::GlossaryError::WorkTierUnavailable`] (chọn tầng Tác phẩm khi chưa mở Tác
+//!   phẩm nào) — cộng `impl From<GlossaryError> for IpcError`, khuôn chép từ
+//!   `core/store/mod.rs::impl From<StoreError> for IpcError`.
+//! - `commands::glossary` (`src-tauri/src/commands/glossary.rs`) là chỗ ĐẦU TIÊN
+//!   `OpenWork.scope` được đọc trong mã sản phẩm — trước story này nó chỉ được đặt ở
+//!   `create_work` và không command nào khác đọc lại.
+//!
 //! ⚠️ **CÙNG GIỚI HẠN, ÁP THẲNG LÊN BẢNG CHỜ (Story 3.2).** `glossary_candidate` chỉ tồn
 //! tại ở `project.db`, nên `approve_candidate`/`reject_candidate`/`insert_candidate`/
 //! `pending_candidates` chỉ ghi/đọc được vào **tầng Tác phẩm** của Tác phẩm ĐANG MỞ trong
@@ -74,8 +99,8 @@ pub use candidate::{CandidateOrigin, GlossaryCandidate, Resolution};
 pub use candidate_store::{
     approve_candidate, insert_candidate, pending_candidates, reject_candidate,
 };
-pub use entry::{Category, GlossaryEntry, TermOrigin};
+pub use entry::{Category, GlossaryEntry, GlossaryTier, TermOrigin};
 pub use store::{
-    GlossaryError, confirm_translation, entries_eligible_for_injection, insert_manual_entry,
-    load_tier,
+    GlossaryError, add_manual_term, confirm_translation, entries_eligible_for_injection,
+    insert_manual_entry, load_tier, resolve_term_for_quick_add, update_manual_term,
 };

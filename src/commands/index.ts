@@ -500,6 +500,33 @@ export type CommandDeps = {
    * đi theo thứ tự khai báo sẽ nhảy lung tung trên màn hình mà không cổng nào đỏ.
    */
   panelRing?: () => readonly string[]
+
+  // ── Story 3.3 — "Thêm nhanh thuật ngữ" (FR48) ───────────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `currentSelection`/`runLookup`:
+  // `glossaryQuickAddState.ts` dùng `ref`/`computed` của Vue **và** gọi `@tauri-apps/api`
+  // xuyên qua `config/glossary.ts` — import thẳng nó ở đây giết Kiểm C/D/E cùng lúc.
+
+  /**
+   * 🔴 Chỗ lấy vùng chọn — **đường RIÊNG của lệnh này**, KHÔNG tái dùng `currentSelection`
+   * (đó là `currentSelectionText()`, lọc vai `source` — trả rỗng ở ba trong bốn bề mặt
+   * FR48). Cài đặt thật: `selectionContract.ts::currentSelectionTextForGlossaryQuickAdd`.
+   */
+  currentSelectionForGlossary?: () => string
+  /** Mở dải "Thêm thuật ngữ" với văn bản vùng chọn thô (rỗng nếu không có gì được bôi đen).
+   * Handler của `glossary.add_term`. */
+  openGlossaryQuickAdd?: (sourceText: string) => void
+  /**
+   * Lưu (Thêm hoặc Sửa tuỳ chế độ hiện tại của dải). Handler của `glossary.save_term`.
+   *
+   * ⚠️ Cài đặt thật là `async`; kiểu `() => void` ở đây khớp cùng khuôn `confirmSegment` —
+   * promise trả về bị bỏ qua có chủ ý, kết quả đi ra qua `ref` ở tầng module
+   * (`glossaryQuickAddState.ts::quickAddSaveError`).
+   */
+  saveGlossaryQuickAdd?: () => void
+  /** Đóng dải mà không lưu gì — trả lại focus và vùng chọn cũ. Handler của
+   * `glossary.close_quick_add`. */
+  closeGlossaryQuickAdd?: () => void
 }
 
 /**
@@ -1423,6 +1450,58 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       },
     })
   }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 3.3 — "THÊM NHANH THUẬT NGỮ" (FR48)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `glossary.add_term` là điểm vào DUY NHẤT có phím mặc định — `Mod+Alt+G`, họ phím
+   * `Mod+Alt+…` đã dùng cho preset bố cục/đi lại panel (Story 1.14) và tab Nguyên văn
+   * (Story 1.16). Đo 2026-08-20: `grep` trên hằng số hợp âm của tệp này = 0, hợp âm còn
+   * trống.
+   *
+   * `glossary.save_term`/`glossary.close_quick_add` giữ **0 hợp âm mặc định** — cùng chủ ý
+   * với `attribution.close`/`shortcuts.close`/`history.close`: `↵`/`Esc` xử lý bằng một
+   * handler CỤC BỘ trong `GlossaryQuickAdd.vue` (Kiểm A của `check:commands` nói nguyên văn
+   * "chỉ `@click`" — `@keydown`/`@submit` không thuộc luật đó, nên chúng được xử lý tự do).
+   * Hai command này tồn tại để nút Lưu/Huỷ có một `dispatch('<id>')` hợp lệ (AC1) VÀ để
+   * màn hình phím tắt (Story 1.21) liệt kê được cả hai thao tác.
+   */
+  target.register({
+    id: 'glossary.add_term',
+    labelKey: 'command.glossary.add_term',
+    keys: ['Mod+Alt+G'],
+    run: () => {
+      if (deps.openGlossaryQuickAdd === undefined) {
+        return portMissing('glossary.add_term', 'openGlossaryQuickAdd')
+      }
+      if (deps.currentSelectionForGlossary === undefined) {
+        return portMissing('glossary.add_term', 'currentSelectionForGlossary')
+      }
+      deps.openGlossaryQuickAdd(deps.currentSelectionForGlossary())
+    },
+  })
+  target.register({
+    id: 'glossary.save_term',
+    labelKey: 'command.glossary.save_term',
+    keys: undefined,
+    run: () => {
+      if (deps.saveGlossaryQuickAdd === undefined) return portMissing('glossary.save_term', 'saveGlossaryQuickAdd')
+      deps.saveGlossaryQuickAdd()
+    },
+  })
+  target.register({
+    id: 'glossary.close_quick_add',
+    labelKey: 'command.glossary.close_quick_add',
+    keys: undefined,
+    run: () => {
+      if (deps.closeGlossaryQuickAdd === undefined) {
+        return portMissing('glossary.close_quick_add', 'closeGlossaryQuickAdd')
+      }
+      deps.closeGlossaryQuickAdd()
+    },
+  })
 
   // ── Story 1.21 — màn hình phím tắt ────────────────────────────────────────────
   //

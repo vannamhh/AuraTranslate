@@ -42,6 +42,9 @@ import { configError } from './config/bootstrap'
 import AttributionOverlay from './AttributionOverlay.vue'
 // Story 2.3 — thanh trạng thái, vỏ ứng dụng (Quyết định #5).
 import StatusBar from './StatusBar.vue'
+// Story 3.3 — dải "Thêm thuật ngữ" (FR48), MỘT thể hiện ở chân workspace, ngay TRÊN
+// `<StatusBar />`. Xem doc-comment đầu `GlossaryQuickAdd.vue` cho lý do chỗ này.
+import GlossaryQuickAdd from './GlossaryQuickAdd.vue'
 import ShortcutsOverlay from './ShortcutsOverlay.vue'
 import SegmentHistoryOverlay from './SegmentHistoryOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
@@ -257,6 +260,12 @@ function focusOnPointerDown(event: MouseEvent) {
       của bố cục mà `EXPERIENCE.md:417` tính vào chiều cao — nó không được nằm dưới một khối
       chỉ có mặt trong một chế độ chạy.
     -->
+    <!--
+      Story 3.3 · FR48 — dải "Thêm thuật ngữ", tự quản `v-if` của nó qua `quickAddIsOpen`.
+      NGAY TRÊN `<StatusBar />` — xem doc-comment đầu `GlossaryQuickAdd.vue`.
+    -->
+    <GlossaryQuickAdd />
+
     <StatusBar />
 
     <!--

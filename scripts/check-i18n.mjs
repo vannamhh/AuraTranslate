@@ -276,7 +276,15 @@ const vueFiles = keep(vueAll)
 // 🔴 NÂNG 2026-08-12 (Story 2.1) — số thật lên **43**: `core/segment/split.rs` và
 // `commands/segment.rs`. Sàn 35 trên 43 là 81,4%, đã tụt khỏi dải ~85% mà lượt nâng trước
 // đặt ra; sàn lên **36** để giữ đúng dải đó. AC15 của story đòi đo chứ không ước.
-const RS_FLOOR = 36 // số THẬT 2026-08-12 (sau Story 2.1): 43 tệp `.rs` — 36/43 = 83,7%
+const RS_FLOOR = 42 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 51 tệp `.rs` — 42/51 = 82,4%
+// ⚠️ **Bước nhảy 43 → 51 KHÔNG phải một mình Story 3.3 gây ra** — đọc kỹ trước khi tưởng
+// story này tự thêm tám tệp. Sàn cũ (36) đặt từ số thật 43 hồi Story 2.1 (2026-08-12) và
+// KHÔNG ai nâng lại qua bảy story liền sau (2.2 → 3.2) dù cây tiếp tục mọc — đúng lớp trôi
+// mà chính doc-comment "sàn là cận dưới, không phải một lần đặt rồi quên" cảnh báo. Story
+// 3.3 tự nó chỉ thêm ĐÚNG MỘT tệp vào quần thể này, `commands/glossary.rs`
+// (`glossary_commands_contract.rs`/`glossary_boundary.rs` sống dưới `tests/**`, miễn trừ
+// TRỌN khỏi cả Kiểm A lẫn quần thể sàn — xem `EXEMPT`); bảy tệp còn lại là nợ đo lại tồn
+// đọng từ các story trước, nay được trả CÙNG LƯỢT vì lượt sửa này đã phải đọc lại số thật.
 // ⚠️ **KHÔNG nâng ở Story 1.20** — số thật vẫn là 14 (`commands/pinned.rs` là `.rs`, và
 // story này không thêm một component `.vue` nào; dải tab và tab Lịch sử sống trong
 // `LookupPanel.vue` đã có). Một sàn nâng mà số thật không đổi là một sàn nâng theo cảm
@@ -286,7 +294,10 @@ const RS_FLOOR = 36 // số THẬT 2026-08-12 (sau Story 2.1): 43 tệp `.rs` �
 // chạm Rust (`delete_config` · `delete_value`), nhưng nó **sửa hai tệp đã có** và không tạo
 // tệp `.rs` nào — số thật đứng nguyên ở 41. `VUE_FLOOR` thì nâng, vì `ShortcutsOverlay.vue`
 // là một tệp mới (14 → 15).
-const VUE_FLOOR = 13 // số THẬT 2026-08-11 (sau Story 1.21): 15 tệp `.vue` — 13/15 = 86,7%
+const VUE_FLOOR = 14 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 17 tệp `.vue` — 14/17 = 82,4%
+// ⚠️ Cùng bài học `RS_FLOOR` ở trên, ở quy mô nhỏ hơn: sàn cũ (13) đặt từ số thật 15 hồi
+// Story 1.21 (2026-08-11). Story 3.3 tự nó thêm ĐÚNG MỘT tệp (`GlossaryQuickAdd.vue`);
+// tệp `.vue` thứ hai làm 15 → 17 tới từ một story giữa 1.21 và 3.3 không ai nâng sàn lại.
 if (rsFiles.length < RS_FLOOR || vueFiles.length < VUE_FLOOR) {
   abort(
     `quần thể quét — ${rsFiles.length} tệp \`.rs\` (sàn ${RS_FLOOR}) · ` +

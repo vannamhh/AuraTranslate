@@ -362,6 +362,13 @@ pub fn run() {
             // webview, va segment moi mang mot `id` chua tung co trong mang do.
             crate::commands::segment::wire::merge_segments,
             crate::commands::segment::wire::split_segment,
+            // Story 3.3 -- "Them nhanh thuat ngu" (FR48). Ba lenh, khuon hai lop
+            // (`commands::glossary`): tra hai tang (khong loc is_confirmed) roi them/sua mot
+            // muc nhap tay theo TANG nguoi dung chon. Day la cho DAU TIEN `OpenWork.scope`
+            // duoc doc trong ma san pham, dong `deferred-work.md:603`.
+            crate::commands::glossary::wire::glossary_lookup_term,
+            crate::commands::glossary::wire::glossary_add_term,
+            crate::commands::glossary::wire::glossary_update_term,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

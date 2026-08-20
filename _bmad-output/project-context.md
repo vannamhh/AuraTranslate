@@ -181,10 +181,12 @@ quyết định kiến trúc đang mở (chốt ở Giai đoạn 5, sau khi th�
 - **Adapter IPC ở `src/config/*.ts` KHÔNG BAO GIỜ ném.** Một `invoke`, một `try/catch`,
   trả về hình dạng **ba trạng thái** `{ <giá trị> | null, error: IpcError | null }`. Tầng
   UI hiển thị lỗi bằng `tError()`, không bằng `try/catch`.
-  🔵 **2026-08-19: sáu tệp, không phải cả thư mục.** `bootstrap` · `chapter` · `dict` ·
-  `pinned` · `project` · `segment` mang khuôn này. **`shortcutsState.ts` KHÔNG phải adapter**
-  — nó import `vue` và gọi xuống `bootstrap.ts`, nên đừng đọc luật trên như một mệnh đề về
-  mọi tệp trong `src/config/`.
+  🔵 **2026-08-20 (Story 3.3): BẢY tệp, không sáu.** `bootstrap` · `chapter` · `dict` ·
+  `glossary` · `pinned` · `project` · `segment` mang khuôn này — `glossary.ts` là adapter
+  thứ bảy, dựng cùng bề mặt IPC đầu tiên của `core/glossary/**`. *(Mệnh đề "sáu tệp" của
+  2026-08-19 đã hết đúng, sửa tại chỗ.)* **`shortcutsState.ts` KHÔNG phải adapter** — nó
+  import `vue` và gọi xuống `bootstrap.ts`, nên đừng đọc luật trên như một mệnh đề về mọi
+  tệp trong `src/config/`.
 - **Luôn kiểm kiểu LÚC CHẠY cho dữ liệu qua dây.** `IpcError` phía TS là một **lời khai**
   về dữ liệu đã đi qua IPC, không phải bảo đảm của trình biên dịch — Rust có thể trả
   `null` cho `params` sau một lượt đổi lược đồ, và type guard là chỗ duy nhất biết.

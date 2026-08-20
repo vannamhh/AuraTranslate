@@ -601,6 +601,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 - 🔴 **Tầng Tác phẩm của `ScopeResolver` ĐÃ được cắm nhưng CHƯA CÓ MỘT CONSUMER NÀO** — sửa lại phạm vi của mục này ở lượt code review 2026-08-06, vì §Completion Notes của Story 1.15 khai **hẹp hơn thực tế**. Story đó viết *"chưa có method phân giải nào thực sự chạy với dữ liệu tầng Work"*, đúng nhưng thiếu: thực tế là **cả cái slot Tác phẩm chưa có ai đọc**. Cụ thể — `ScopeResolver::with_work` được dựng ở `commands::project::create_work` và cất vào `OpenWork.scope`, và `OpenWork.scope` **không được đọc ở đâu trong `src-tauri/src/**`**; `OpenWorkState` chỉ có đúng hai chỗ chạm (`lib.rs::open_work_slot` đăng ký, `lib.rs::close_open_work` đóng lúc thoát); và đường phân giải sản phẩm thật (`core::scope::store`) vẫn dựng `ScopeResolver::global_only()`. ⇒ **AC9 đạt về CHỮ** *(có hàm dựng thứ hai, ba chữ ký không đổi, đường sản phẩm không còn luôn truyền `None`)* **nhưng CHƯA đạt về MỤC ĐÍCH**, và Ice đã chấm như vậy ở lượt review. ⚠️ Lý do **không** vá được ở Story 1.15: `project.db` chưa có bảng nào ở tầng Tác phẩm để tra *(Glossary → Epic 3, TM → Epic 7, prompt → Epic 4)*, và thêm một bảng như thế hôm nay vi phạm luật `store::schema`: *"Không thêm bước cho một lược đồ chưa tồn tại"*. **Chủ: epic đầu tiên mang dữ liệu tầng Tác phẩm** *(ứng viên gần nhất: Epic 3, Glossary)* — story đó nối `OpenWork.scope` vào đường phân giải thật CÙNG LƯỢT với bảng đầu tiên. Hàm dựng nay đã có test (`scope_contract.rs::the_second_constructor_carries_a_work_tier_and_the_first_one_does_not`), trước lượt review nó ship với **0 test**.
   → 🟡 **Story 3.1 (2026-08-19): hàm TIÊU THỤ đã có, CHƯA có chỗ gọi sản phẩm.** `core::glossary::entries_eligible_for_injection(resolver, global, work)` là hàm đầu tiên trong kho THẬT SỰ nhận một `ScopeResolver` mang tầng Work và phân giải nó (`scope_contract.rs`/`glossary_contract.rs` canh bằng test, gồm ca "tầng Tác phẩm chờ chốt che tầng Global đã chốt"). Nhưng **không có command IPC hay đường sản phẩm nào gọi nó với `OpenWork.scope` thật** ở story này — §Never của Story 3.1 cấm mọi bề mặt IPC/màn hình (`epics.md`: "Không màn hình ⇒ không khoá chuỗi"). ⇒ Mục nợ gốc **chưa đóng hẳn**: `OpenWork.scope` vẫn không được đọc ở đâu trong `src-tauri/src/**` ngoài test. **Chủ chuyển sang Story 3.3** (Thêm nhanh thuật ngữ từ bất kỳ panel nào) — story đầu tiên của Epic 3 dựng một bề mặt IPC thật, nên là story đầu tiên có lý do nối `OpenWork.scope` vào một lời gọi `entries_eligible_for_injection`/`load_tier` sản phẩm.
+  → ✅ **ĐÃ ĐÓNG 2026-08-20 (Story 3.3).** `commands::glossary::work_context` (`src-tauri/src/commands/glossary.rs`) là chỗ ĐẦU TIÊN trong mã sản phẩm đọc `&open.scope` — nó nạp `(&Store, &ScopeResolver)` từ `OpenWork` rồi truyền cho `core::glossary::store::resolve_term_for_quick_add`, chỗ này tự gọi `ScopeResolver::apply_override` với dữ liệu THẬT ở cả hai tầng khi một Tác phẩm đang mở. Ba command `glossary_lookup_term`/`glossary_add_term`/`glossary_update_term` là bề mặt IPC đầu tiên của module này (`lib.rs::generate_handler!`). `OpenWork.scope` không còn là một trường chỉ được ĐẶT mà không ai ĐỌC.
 
 - ⚠️ **`err.project.meta_too_new` và `MessageKey::ProjectMetaTooNew` ĐÃ BỊ GỠ ở lượt code review 2026-08-06** — Ice chốt. Cơ chế từ chối một `meta.json` phiên bản mới hơn **vẫn còn nguyên và vẫn có test** (`MetaError::SchemaTooNew` + `WorkMeta::read` + `project_contract.rs::a_newer_meta_schema_is_refused_without_touching_a_single_byte`); thứ bị gỡ là **bề mặt hiển thị** của nó. Lý do: Story 1.15 không dựng màn hình *"mở lại một `.atproj` đã có"*, nên `WorkMeta::read` **không có một chỗ gọi sản phẩm nào**, nên một `MessageKey` + một khoá `vi.json` cho nó là **một khoá cho tính năng chưa tồn tại** — đúng thứ Story 1.7 §Completion Notes #3 cấm và `scope_contract.rs` trích lại nguyên văn. 🔴 **Story nào dựng đường mở lại một `.atproj`** *(ứng viên: Epic 5, lưới Tác phẩm)* **thêm lại cả ba thứ — biến thể `ProjectError`, `MessageKey`, khoá `vi.json` — CÙNG MỘT LƯỢT với màn hình.** **(Chủ: một story hạ tầng kiểm thử kế tiếp.)**
 
@@ -2695,6 +2696,13 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   chính danh sách FR48, nên tiền lệ đã có sẵn. Gỡ đăng ký ⇒ `SELECTION_SURFACE_FLOOR = 7` đỏ;
   lật vai ⇒ Kiểm F ③ đỏ. Cả hai đường đều có lưới, nhưng lưới không giải thích được **vì sao**
   — mục này làm việc đó.
+  → 🟡 **Vế Story 3.3 ĐÃ ĐÓNG 2026-08-20; vế Story 7.7 (FR60, Concordance) VẪN MỞ.**
+  `src/panels/selectionContract.ts::currentSelectionTextForGlossaryQuickAdd` là đường RIÊNG
+  mà mục này dự đoán trước — nó dùng lại `surfaceFor()` (đã hỏi `'display'` trước `'source'`)
+  nhưng KHÔNG lọc theo `role`, nên cả bốn bề mặt FR48 đều lấy được chữ, kể cả hai bề mặt vai
+  `'display'` mà mục này nói tới. `glossary.add_term` (`commands/index.ts`) gọi đường đó, không
+  qua `currentSelectionText()`. **Chủ phần còn lại: Story 7.7** — dựng đường đọc riêng tương tự
+  cho lệnh Concordance khi story đó tới lượt.
 
 - 📝 **Vế bằng MẮT của lượt sửa này chưa chạy — CHỦ: Ice.** Ba mệnh đề phải xác nhận trên
   `tauri dev` THẬT *(mọi bằng chứng ở trên là vitest trên happy-dom + cổng tĩnh, không phải
@@ -5347,6 +5355,15 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   ⇒ Cần một `debug_assert_eq!(resolver.has_work_tier(), work.is_some(), …)`, hoặc một chữ ký
   không cho hai vế lệch được. **Chủ: Story 3.3** — story đầu tiên gọi hàm này với một
   `OpenWork.scope` thật, tức chỗ đầu tiên hai vế có thể lệch ngoài test.
+  → 🟡 **ĐÓNG MỘT PHẦN 2026-08-20 (Story 3.3).** `debug_assert_eq!` đã thêm ở CẢ hai hàm
+  đọc hai tầng (`entries_eligible_for_injection` và `resolve_term_for_quick_add` mới) —
+  lệch nhau giờ nổ ngay trong debug/`cargo test`, đúng lưới mà mục này đòi. ⚠️ **Nhưng
+  `debug_assert!` không bắn ở bản release** (`Cargo.toml` không đặt `debug-assertions =
+  true` cho `[profile.release]`), nên trên đường sản phẩm PHÁT HÀNH, hai vế vẫn có thể lệch
+  trong im lặng nếu một chỗ gọi tương lai tách rời `(&open.store, &open.scope)` ra khỏi
+  nhau. **Chủ phần còn lại: Story 3.9** — chữ ký không cho hai vế lệch được (ví dụ một kiểu
+  `WorkContext<'a> { store: &'a Store, resolver: &'a ScopeResolver }` gói cặp này thành MỘT
+  tham số) vẫn chưa dựng.
 
 - ⚠️ **`Vec<GlossaryEntry>` trả ra đánh rơi nhãn tầng, và `id` chỉ duy nhất TRONG một
   `Store`.** `entries_eligible_for_injection` gọi `resolved_entry.value().clone()` rồi bỏ
@@ -5383,6 +5400,10 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   `GLOSSARY_ENTRY_DDL` khẳng định vắng mặt và rỗng là CÙNG một điều. Một dòng `.trim()` là
   đủ, nhưng nó đổi dữ liệu người dùng gõ nên không tự quyết ở lượt rà soát. **Chủ: Story 3.3**
   (bề mặt đầu tiên cho người dùng gõ `note`).
+  → ✅ **ĐÃ ĐÓNG 2026-08-20 (Story 3.3), Ice ký 2026-08-20.** `insert_manual_entry` và
+  `update_manual_term` (mới) đều `.trim()` `note` trước khi ghi — cùng khuôn
+  `source_term`/`translation`. `add_manual_term_trims_a_whitespace_only_note_down_to_the_empty_string`
+  (`glossary_contract.rs`) khoá hành vi: `note = "   \u{3000}  "` ghi xuống `""`.
 
 - ⚠️ **`entries_eligible_for_injection` quét trọn hai bảng và nhân bản mọi hàng, HAI lần,
   mỗi lượt gọi.** `load_tier` dựng một `BTreeMap` chứa bản sao của từng hàng; rồi vòng lọc
@@ -5515,3 +5536,104 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     lỗi khác biệt tương tự.
     **(Chủ: Story 3.3 — thêm nhanh thuật ngữ từ bất kỳ panel nào, story đầu tiên dựng
     `#[tauri::command]` chạm `candidate_store`.)**
+  → 🔵 **CẬP NHẬT 2026-08-20 (Story 3.3) — TIỀN ĐỀ CỦA MỤC NÀY ĐO LẠI LÀ SAI, CHUYỂN CHỦ
+    SANG STORY 3.8.** Story 3.3 xây xong bề mặt IPC đầu tiên của Epic 3
+    (`commands::glossary`), và nó KHÔNG gọi `approve_candidate`/`reject_candidate`/
+    `insert_candidate`/`pending_candidates` một lần nào — đúng §Never của chính story 3.3:
+    *"Story này không chạm `candidate_store`."* `grep -c "candidate_store\|approve_candidate\|reject_candidate"
+    src-tauri/src/commands/glossary.rs` = 0. ⇒ Mệnh đề *"bề mặt IPC đầu tiên chạm
+    `candidate_store` là Story 3.3"* đã HẾT ĐÚNG trước khi kịp đúng — nó là một dự đoán ở
+    Code Map của Story 3.2, không phải một sự thật đã xảy ra. **Chủ nay là Story 3.8**
+    (duyệt hàng loạt một phím) — story ĐẦU TIÊN thật sự dựng `#[tauri::command]` gọi
+    `approve_candidate`/`reject_candidate`, đúng ứng viên mà mục *"Bốn hàm của
+    `candidate_store` CHƯA vào `GLOSSARY_ONLY_SURFACE`"` (mục ngay phía trên trong tệp này)
+    đã nêu tên từ trước.
+
+## Deferred from: 3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao (2026-08-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
+  summary: `impl From<ScopeError> for IpcError` đứng RIÊNG vẫn không tồn tại. Cầu nối duy
+    nhất từ `ScopeError` qua biên IPC hôm nay đi qua `core::glossary::GlossaryError::Scope`
+    (`impl From<GlossaryError> for IpcError`, `core/glossary/store.rs`), một cầu nối GIÁN
+    TIẾP và CHỈ dành riêng cho module Glossary.
+  evidence: `core/scope/mod.rs` doc-comment của `ScopeError` đã sửa tại chỗ (🔵 2026-08-20)
+    để không còn khẳng định sai "không bao giờ vượt ranh giới IPC" — nhưng module tiếp theo
+    cần một cầu nối tương tự (TM, Prompt, Cấu hình AI ở Epic 4/7) sẽ phải TỰ dựng một
+    `GlossaryError`-style wrapper của riêng nó thay vì tái dùng, vì `ScopeError` cố ý không
+    `Copy`/không mang `impl From` chung — mỗi module domain hai tầng tự quyết cách nó lộ một
+    `ScopeError` ra ngoài (nếu có).
+    **(Chủ: Epic 7 — TM, module hai tầng kế tiếp dùng `ScopeResolver`; hoặc bất kỳ module
+    nào tới trước và cần một `impl From<ScopeError> for IpcError` đứng riêng thật sự.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
+  summary: `debug_assert_eq!(resolver.has_work_tier(), work.is_some(), …)` mới thêm ở
+    `entries_eligible_for_injection`/`resolve_term_for_quick_add` KHÔNG bắn ở bản phát hành
+    (`[profile.release]` không đặt `debug-assertions = true`, và `panic = "abort"` khiến
+    một `debug_assert!` bật ở release là một quyết định phải cân nhắc riêng, không phải một
+    lượt bật cờ). Trên bản đã đóng gói, hai vế `resolver`/`work` vẫn có thể lệch nhau trong
+    im lặng nếu một chỗ gọi tương lai tách rời cặp `(&OpenWork.store, &OpenWork.scope)`.
+  evidence: Task của Story 3.3 chỉ đòi "một `debug_assert_eq!`", không đòi một chữ ký cưỡng
+    chế bằng kiểu — và một kiểu gói cặp `(&Store, &ScopeResolver)` thành MỘT tham số (ví dụ
+    `WorkContext<'a>`) là một thay đổi chữ ký chạm mọi chỗ gọi `entries_eligible_for_injection`
+    hiện có, ngoài phạm vi story này.
+    **(Chủ: Story 3.9 — quản lý Glossary, lượt tiếp theo chạm cùng hai hàm này qua nghiệp vụ
+    xoá/đẩy tầng, tự nhiên đọc lại chữ ký trước khi thêm quyền mới.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
+  summary: Đổi TẦNG của một mục Glossary đã có (chuyển một mục từ `project.db` lên
+    `global.db` hoặc ngược lại) không có đường nào — `add_manual_term`/`update_manual_term`
+    (Story 3.3) chỉ THÊM mới hoặc SỬA tại chỗ trong đúng một `Store`; không hàm nào đọc một
+    hàng ở tầng này rồi ghi nó sang tầng kia.
+  evidence: §Ask First của Story 3.3 liệt đích danh "Đổi tầng của một mục đã có... chủ Story
+    3.9" — dải "Thêm thuật ngữ" cố ý KHÔNG dựng năng lực này, đúng ranh giới đã ký trước khi
+    viết dòng mã đầu tiên. `mockups/glossary-manage.html` (nếu có) là màn hình quản lý đầy
+    đủ, nơi thao tác "đẩy một mục từ Tác phẩm lên Global bằng một thao tác" thuộc về.
+    **(Chủ: Story 3.9 — quản lý Glossary.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
+  summary: Một ứng viên (`glossary_candidate`) trùng `source_term` với một mục vừa được
+    người dùng thêm TAY qua dải "Thêm thuật ngữ" (Story 3.3) sẽ nằm lại bảng chờ VĨNH VIỄN —
+    `approve_candidate` chèn qua `insert_entry_row` dùng chung, và `UNIQUE INDEX
+    idx_glossary_entry_source_term` chặn đứng lượt duyệt vì `glossary_entry` đã có hàng đó.
+  evidence: Đây là chính lỗ mà Story 3.2 đã ghi nợ cho "Story 3.5 (lượt quét) hoặc chủ sở
+    hữu FR54/FR95" — Story 3.3 KHÔNG đóng nó, mà làm nó DỄ XẢY RA HƠN: trước 3.3, đường ghi
+    tay DUY NHẤT vào `glossary_entry` là qua test; nay người dùng thật có một dải bàn phím
+    để thêm bất kỳ lúc nào, kể cả đúng lúc một ứng viên cùng chuỗi đang chờ duyệt. Chỗ chặn
+    đúng vẫn là LƯỢT QUÉT (`epics.md:2984-2985`) — quét không được sinh ứng viên trùng
+    `source_term` với một `glossary_entry` đã có — không phải `approve_candidate`.
+    **(Chủ: Story 3.5 — quét ứng viên khi nhập tài liệu, đúng chủ mà Story 3.2 đã ghi; mục
+    này chỉ nối thêm bằng chứng rằng Story 3.3 làm lỗ đó DỄ CHẠM hơn, không phải chủ mới.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
+  summary: Ba vỏ `#[tauri::command]` của `commands/glossary.rs` giữ khoá `OpenWorkState`
+    suốt cả lượt `Store::write` — tức một giao dịch SQLite chặn — nên một lượt ghi Glossary
+    chậm có thể xếp hàng mọi lời gọi IPC khác cũng cần `OpenWorkState`, gồm cả lượt đóng
+    Tác phẩm.
+  evidence: Lớp rà soát mù ngữ cảnh nêu, và tôi CHƯA đo. Nó kiểm được: so phạm vi giữ khoá
+    ở `commands/glossary.rs` với `commands/chapter.rs` và `commands/segment.rs`. Nếu ba
+    module lệch nhau thì một trong ba đang sai, và không cổng nào canh phạm vi giữ khoá.
+    NFR2 (không frame nào vượt 50 ms) là mệnh đề duy nhất có thể đỏ vì chuyện này, mà nó
+    chỉ đo được ở bàn đo tay. **(Chủ: Story 3.9 — quản lý Glossary, story kế tiếp thêm
+    lượt ghi Glossary qua cùng ba vỏ đó, tức chỗ đầu tiên có lý do đo phạm vi giữ khoá.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
+  summary: `openGlossaryQuickAdd` luôn đặt `tierChoice = 'global'` kể cả khi đang có một
+    Tác phẩm mở và `workTierAvailable` là `true` — người dùng vội bấm `↵` sẽ ghi vào tầng
+    Global một thuật ngữ chỉ thuộc về Tác phẩm đang dịch.
+  evidence: Hành vi này ĐÚNG spec (spec chỉ đòi "người dùng chọn tầng", không nói mặc định
+    nào) nên không phải lỗi — nhưng nó là một quyết định sản phẩm chưa ai chốt, và hậu quả
+    không đối xứng: ghi nhầm lên Global thì thuật ngữ riêng của một truyện rò sang mọi Tác
+    phẩm khác, còn ghi nhầm xuống Tác phẩm thì chỉ thiếu ở nơi khác. Đẩy một mục từ Tác
+    phẩm lên Global là thao tác một bước của Story 3.9; chiều ngược lại thì không.
+    **(Chủ: Ice — đây là một lựa chọn sản phẩm, không phải một lỗi kỹ thuật; nêu lại ở
+    Story 3.9 khi màn hình quản lý cho thấy hậu quả thật.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
+  summary: `<form>` của dải "Thêm thuật ngữ" không có tên khả truy cập nối với tiêu đề
+    đang hiện (`.gqa-title`), nên trình đọc màn hình đọc lên một biểu mẫu không tên.
+  evidence: Chưa đo bằng công cụ nào — kho có cổng tương phản (`check:tokens`) nhưng KHÔNG
+    có cổng nào canh vai trò hay tên khả truy cập, nên cả dải này lẫn ba lớp phủ có sẵn
+    (`ShortcutsOverlay`/`AttributionOverlay`/`SegmentHistoryOverlay`) đều chưa ai kiểm.
+    ⇒ Đây là một khoảng trống CỦA CẢ KHO mà story này chỉ làm lộ ra, không phải một khuyết
+    tật riêng của dải. **(Chủ: Story 3.9 — story kế tiếp dựng một màn hình Glossary đầy đủ
+    bằng bàn phím, tức chỗ rẻ nhất để đặt luật tên khả truy cập một lần cho cả bốn bề mặt.)**
