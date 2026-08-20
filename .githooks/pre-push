@@ -27,6 +27,13 @@
 #   - Bộ e2e — mỗi spec mở một cửa sổ thật, tốn ~1,5 phút, VÀ nó sửa `global.db` thật
 #     của người chạy (xem §Giới hạn ở `e2e/wdio.conf.mjs`). Không có việc gì trong một
 #     cổng chạy mỗi lượt push. Chạy tay:  npm run test:e2e
+#     🔵 2026-08-20 (lượt rà soát Story 3.3) — VÀ NÓ THÔI NẰM NGOÀI MỌI CỔNG. Câu trên
+#     đúng nguyên văn về `pre-push`, nhưng lượt rà soát đo ra một vế nó KHÔNG nói: bộ e2e
+#     cũng không có trong CI, tức nó chạy đúng 0 lần trong bất kỳ cổng nào và mọi mệnh đề
+#     "webview thật" đi qua `pre-push` xanh + CI xanh mà chưa từng được đo. Nay job `e2e`
+#     ở `.github/workflows/ci.yml` chạy trọn bộ theo NHỊP ĐÊM (`schedule`) và khi bấm tay
+#     — vẫn KHÔNG ở `push`, vì bộ này còn một mục nợ chập chờn chưa chẩn đoán. Nhịp đêm
+#     là chỗ đọc kết quả; `pre-push` giữ nguyên vai và nguyên lý do loại trừ.
 #
 # ⚠️ GIỚI HẠN THẬT, ghi ra thay vì để người sau tưởng nhầm: cổng này chạy trên **macOS
 # của Ice**, nên nó KHÔNG nói được gì về nửa Windows.

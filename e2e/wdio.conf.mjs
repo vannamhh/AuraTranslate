@@ -149,6 +149,14 @@
  *
  * Chạy:  npm run test:e2e                                          (cả bộ, ~3 phút)
  *        npm run test:e2e -- --spec e2e/specs/<tên>.e2e.mjs        (một tệp, khi đang vá)
+ *
+ * 🔵 **THÊM 2026-08-20 (lượt rà soát Story 3.3) — BỘ NÀY NAY CÓ MỘT CHỖ CHẠY TỰ ĐỘNG.**
+ * Job `e2e` trong `.github/workflows/ci.yml` chạy trọn bộ theo **nhịp đêm** (`cron` 18:00
+ * UTC = 01:00 UTC+7) và khi bấm tay, trên `macos-26`. Nó **không** chạy ở `push`, và điều
+ * kiện để nâng lên `push` viết thành số ngay trong doc-comment của job đó: mục nợ chập
+ * chờn phải ĐÓNG và bảng nightly phải xanh 11/11 mười lượt liên tiếp.
+ * ⇒ Bảng nightly là chỗ chuỗi số đo mà §Giới hạn ở trên nói là còn thiếu được tích lại.
+ * Đọc nó bằng `gh run list --workflow=CI`, đừng suy từ việc không thấy thông báo nào.
  */
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'

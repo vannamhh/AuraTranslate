@@ -47,6 +47,26 @@ on:
   pull_request:
   # Giữ lại đường bấm tay: nó là cách đo một lượt runner mà không cần sinh một commit.
   workflow_dispatch:
+  # ══════════════════════════════════════════════════════════════════════════════════
+  #  🔵 THÊM 2026-08-20 (lượt rà soát Story 3.3) — NHỊP ĐÊM CHO JOB `e2e`
+  # ══════════════════════════════════════════════════════════════════════════════════
+  #
+  # Job `e2e` ở dưới chỉ chạy ở nhịp này và ở `workflow_dispatch`, KHÔNG ở `push` — lý do
+  # đầy đủ nằm trong doc-comment của chính job đó. `schedule` khai ở cấp workflow nên nó
+  # kéo theo cả job `check`; đó là một hệ quả CÓ TÊN, không một tác dụng phụ bị bỏ qua:
+  # một lượt `check` mỗi đêm là canary miễn phí cho trôi toolchain/action trên một repo
+  # công khai, và nó không đổi một dòng nào trong ngữ nghĩa "chạy trên MỌI commit" của AC1.
+  #
+  # ⚠️ `cron` của GitHub Actions đọc theo **UTC**, luôn luôn, không theo múi giờ repo hay
+  # người dựng. `18:00 UTC` = **01:00 sáng UTC+7**, tức giờ máy Ice. Viết cả hai số ra đây
+  # vì đúng lớp lệch này đã cắn dự án hai lần: một cổng xanh trên máy Ice (macOS, UTC+7) mà
+  # đỏ ở CI vì ngày/giờ phân giải khác nhau.
+  #
+  # ⚠️ GitHub **bỏ qua** `schedule` trên nhánh không phải nhánh mặc định, và **tự tắt** lịch
+  # sau 60 ngày repo không hoạt động. Một bảng nightly im lặng nghĩa là "chưa chạy", KHÔNG
+  # phải "chạy và xanh" — đọc `gh run list --workflow=CI` trước khi tin nó xanh.
+  schedule:
+    - cron: '0 18 * * *'
 
 # Không `paths`/`paths-ignore`. AC1 nói "một commit BẤT KỲ". Lọc đường dẫn là đúng chỗ
 # một thay đổi thật lọt qua vì nó nằm chung commit với một tệp `.md`.
@@ -78,6 +98,14 @@ jobs:
     # Lưới an toàn cho AC7 và cho §Ngân sách CI: repo là PRIVATE, macOS tính hệ số ×10.
     # Mặc định của GitHub là 360 phút — một job treo trên macOS tiêu 3.600 phút hạn mức
     # trước khi ai kịp nhận ra. Treo phải là một lỗi tường minh, không phải một hoá đơn.
+    #
+    # 🔵 SỬA 2026-08-20 (lượt rà soát Story 3.3) — VẾ "repo là PRIVATE" Ở TRÊN ĐÃ HẾT ĐÚNG.
+    # Repo công khai từ 2026-08-12 (`gh repo view --json visibility` ⇒ `PUBLIC`, đo lại
+    # 2026-08-20), và khối `on:` đầu tệp đã ghi đúng điều đó ở cùng ngày — hai mệnh đề
+    # trong CÙNG một tệp nói ngược nhau suốt tám ngày. Runner standard miễn phí cho repo
+    # công khai, nên hệ số ×10 và "hoá đơn" không còn là lý do của `timeout-minutes`.
+    # ⇒ Trần này ở lại, nhưng vì lý do CÒN LẠI và nó tự đủ: một job TREO phải thành một
+    # lỗi tường minh trong 60 phút thay vì im lặng chiếm runner tới trần 360 phút.
     timeout-minutes: 60
 
     steps:
@@ -619,4 +647,115 @@ jobs:
       #  Đặt bước mới ngay dưới khối này. Chúng chạy trên CẢ HAI nền tảng của matrix mà
       #  không phải khai gì thêm — đó là lý do job được viết thành một job có matrix chứ
       #  không phải hai job song song.
+      #
+      #  🔵 SỬA 2026-08-20 (lượt rà soát Story 3.3) — CÂU "GẮN VÀO ĐÂY" Ở TRÊN CÓ MỘT
+      #  NGOẠI LỆ CÓ TÊN, VÀ NÓ ĐÃ ĐƯỢC DÙNG ĐÚNG MỘT LẦN.
+      #
+      #  Bộ e2e KHÔNG gắn được thành một bước trong job này, và lý do là cấu tạo chứ không
+      #  phải sở thích: một bước ở đây chạy trên CẢ HAI nền tảng của matrix (bộ e2e chưa
+      #  từng chạy trên WebView2 một lần nào — `deferred-work.md`), tốn ~15 phút (job này
+      #  đang 6 phút trên macOS), và một lượt đỏ của nó sẽ kéo đỏ CẢ nửa Windows lẫn mười
+      #  ba cổng đọc-tệp không liên quan gì tới nó. Nên nó là một JOB thứ hai, `e2e`, ở
+      #  cuối tệp này.
+      #
+      #  ⚠️ Điều đó KHÔNG nới AC4 của Story 1.3. AC4 cấm một **tệp workflow thứ hai** và
+      #  nêu lý do là "MỘT PIPELINE DUY NHẤT"; một job thứ hai trong cùng tệp giữ nguyên
+      #  cả chữ lẫn lý do — vẫn một tệp, vẫn một bảng kết quả, vẫn một chỗ để đọc. Luật
+      #  cho bước mới ở trên đứng nguyên: mặc định là một BƯỚC trong job này, và một job
+      #  riêng phải kèm một câu nói vì sao hình dạng bước không dùng được.
       # ══════════════════════════════════════════════════════════════════════════════
+
+  # ══════════════════════════════════════════════════════════════════════════════════
+  #  JOB THỨ HAI — BỘ e2e TRONG WEBVIEW THẬT. Thêm 2026-08-20 (lượt rà soát Story 3.3).
+  # ══════════════════════════════════════════════════════════════════════════════════
+  #
+  #  🔴 LỖ NÓ ĐÓNG: trước job này, `e2e/specs/**` chạy ĐÚNG 0 LẦN trong bất kỳ cổng nào.
+  #  `.githooks/pre-push` loại nó bằng tên (chi phí, và nó từng ghi vào `global.db` thật
+  #  của người chạy), và `check` ở trên không có một bước nào gọi `npm run test:e2e`.
+  #  Hệ quả đo được ở lượt rà soát Story 3.3: `glossary-quick-add.e2e.mjs` là đường
+  #  nghiệm thu DUY NHẤT cho ba mệnh đề mà `happy-dom` không canh được (dải ĐẨY
+  #  `.modeport` lên chứ không PHỦ · vùng chọn ở bề mặt vai `display` · `Esc` trả lại
+  #  tiêu điểm và vùng chọn), và cả ba đi qua `pre-push` xanh cùng CI xanh mà chưa từng
+  #  chạy một lần nào trong cổng. Thêm `position: fixed` vào `.glossary-quick-add` hôm
+  #  qua thì mọi cổng vẫn xanh.
+  #
+  #  🔴 VÌ SAO NHỊP ĐÊM CHỨ KHÔNG PHẢI MỖI LƯỢT PUSH — Ice chốt 2026-08-20, và đây là
+  #  một quyết định dựa trên số đo của chính bộ này, không một sự thận trọng chung chung.
+  #  `e2e/wdio.conf.mjs` §Giới hạn ghi 12 lượt trọn bộ, và chỉ lượt 12 xanh 11/11; nguyên
+  #  văn khối đó: *"lượt 12 chứng minh bộ XANH ĐƯỢC; nó KHÔNG chứng minh bộ hết chập
+  #  chờn"*. Lượt thứ 13 (`deferred-work.md`, commit `6e069ce` của chính Story 3.3): 10
+  #  xanh / 2 đỏ, trong đó `editor-confirm-segment` xanh khi chạy một mình và xanh khi
+  #  chạy đúng cặp — chập chờn, đã ghi nợ có chủ, chưa ai chẩn đoán. Chính mục nợ đó viết:
+  #  *"một bộ e2e cho kết quả khác nhau giữa lượt đầy đủ và lượt lẻ là một bộ KHÔNG dùng
+  #  làm cổng được"*.
+  #  ⇒ Treo nó vào `push` hôm nay là cài một cổng đỏ NGẪU NHIÊN lên `master`: nó sẽ đỏ vì
+  #  một flake chứ không vì commit, và một cổng đỏ oan là một cổng sẽ bị nới cho hết đỏ.
+  #  Nhịp đêm mua đúng thứ còn thiếu — một CHUỖI số đo, chạy tự động, trên một máy không
+  #  phải máy Ice.
+  #
+  #  🔵 ĐIỀU KIỆN NÂNG LÊN `push`, viết thành số để lượt sau không phải đoán ý: khi mục nợ
+  #  chập chờn nói trên ĐÓNG (có chẩn đoán, không chỉ có bản vá) VÀ bảng nightly cho **10
+  #  lượt liên tiếp xanh 11/11**, thì đổi đúng một dòng — bỏ `if:` dưới đây. Đừng nâng
+  #  sớm hơn bằng cảm giác: `n=2` đã lừa lượt chốt C3 một lần rồi (§Giới hạn, khối
+  #  "ĐÍNH CHÍNH 2026-08-12").
+  #  ⚠️ Và đừng "sửa" một lượt đỏ bằng `continue-on-error` hay một vòng chạy lại: cả hai
+  #  biến job này thành thứ không bao giờ đỏ, tức đúng trạng thái nó vừa được dựng để
+  #  thoát ra.
+  #
+  #  ⚠️ CHƯA ĐO, ghi ra thay vì để lượt đầu tiên đội lốt hồi quy: bộ này chưa từng chạy
+  #  trên một runner GitHub. Nó mở một CỬA SỔ THẬT và mọi spec khẳng định trên
+  #  `document.activeElement` — một runner macOS không có người ngồi trước màn hình, nên
+  #  chặng "cửa sổ có được hệ điều hành trao tiêu điểm không" là một ẩn số. Lượt nightly
+  #  ĐẦU TIÊN chính là phép đo đó. Nếu nó đỏ hàng loạt ở các ca tiêu điểm, đọc đó là
+  #  *"bàn đo chưa dựng được trên runner"*, KHÔNG phải *"sản phẩm hồi quy"* — cùng đúng
+  #  ranh giới mà `benchAbort()` trong `glossary-quick-add.e2e.mjs` dựng ra để giữ.
+  e2e:
+    name: e2e (macos-26)
+    # 🔴 KHÔNG `push`. Xem khối lý do ngay trên. `schedule` phủ nhịp đêm;
+    # `workflow_dispatch` giữ đường bấm tay để đo một lượt mà không cần sinh commit.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # ⚠️ macOS và CHỈ macOS, không matrix. `driverProvider: 'embedded'` là đường DUY NHẤT
+    # chạy được trên macOS (Apple không cấp WebDriver cho WKWebView) và bộ này chưa từng
+    # chạy trên WebView2 — nửa Windows là một món nợ CÓ CHỦ ở `deferred-work.md`, không
+    # phải một dòng matrix viết thêm là xong. Ghim ảnh `macos-26` cùng số với job `check`.
+    runs-on: macos-26
+    # Lượt trọn bộ đo trên máy Ice (16 nhân): 13m01 → 18m51. Runner chậm hơn và cache
+    # lạnh phải biên dịch `libsqlite3-sys` từ nguồn C. 45 phút là trần để một lượt TREO
+    # thành một lỗi tường minh, không phải một job chạy tới trần 360 phút mặc định.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - uses: dtolnay/rust-toolchain@1.97.1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          # ⚠️ Khoá cache RIÊNG. Job `check` dựng KHÔNG có feature `wdio`; dùng chung khoá
+          # thì hai job ghi đè cache của nhau và cả hai cùng biên dịch lại mỗi lượt.
+          key: e2e-wdio
+
+      - name: npm ci
+        run: npm ci
+
+      # ⚠️ `npm run build` TRƯỚC, cùng lý do đã ghi ở job `check`: `tauri-build` đọc
+      # `build.frontendDist` lúc biên dịch, nên thiếu `dist/` thì lượt dựng gãy ở khâu
+      # biên dịch chứ không ở một assert — một lỗi đọc khó hơn hẳn lỗi thật.
+      # Nó cũng chạy `vue-tsc --noEmit` hai lượt, nên `e2e/**` được kiểm kiểu luôn.
+      - name: npm run build
+        run: npm run build
+
+      # Bộ e2e trọn vẹn. `test:e2e` tự dựng nhị phân debug có feature `wdio` rồi gọi
+      # `wdio run` — `wdio.conf.mjs::onPrepare` tự dựng Vite, tự cấp `$APPDATA` và thư
+      # mục Library TẠM, và `onComplete` tự kiểm rằng thư mục thật y nguyên.
+      #
+      # 🔴 KHÔNG thêm `continue-on-error`, KHÔNG thêm vòng chạy lại. Đỏ ở đây phải đọc
+      # được thành một lượt đỏ thật — xem khối lý do đầu job.
+      - name: npm run test:e2e
+        run: npm run test:e2e

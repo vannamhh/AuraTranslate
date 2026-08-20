@@ -118,6 +118,20 @@ const PREPUSH_EXEMPT = new Map(
  * làm nó vô hình.
  *
  * ⚠️ Mỗi mục PHẢI kèm một lý do đọc được tại chỗ, cùng khuôn hai bảng miễn trừ ở trên.
+ *
+ * 🔵 **GHI 2026-08-20 (lượt rà soát Story 3.3) — `test:e2e` LÀ MỘT CỔNG, VÀ NÓ CỐ Ý KHÔNG
+ * NẰM TRONG BẢNG NÀY.** Job `e2e` của `.github/workflows/ci.yml` chạy `npm run test:e2e`
+ * theo nhịp đêm, nên nó là một cổng thật. Nhưng Kiểm F đòi có mặt ở **cả ba** danh sách, mà
+ * `.githooks/pre-push` loại bộ e2e **có chủ ý** (mỗi spec mở một cửa sổ thật, ~15 phút cả
+ * bộ). Thêm `test:e2e` vào bảng này làm cổng ĐỎ ngay, và cách duy nhất cho nó xanh lại là
+ * nhét bộ e2e vào `pre-push` — tức để Kiểm F lái một quyết định kiến trúc mà nó không có
+ * thẩm quyền.
+ * ⇒ Nó ở ngoài bảng, và Kiểm B là thứ đang canh nó: `npm run test:e2e` trong `ci.yml` phải
+ * tồn tại trong `package.json`. Vế còn thiếu — *"`ci.yml` phải VẪN gọi nó"* — hôm nay
+ * KHÔNG có phép kiểm nào; xoá bước đó khỏi `ci.yml` thì cả sáu phép kiểm ở đây vẫn xanh.
+ * Đó đúng lớp hỏng-im-lặng mà Kiểm F ra đời để chặn, chỉ ở một hình dạng Kiểm F chưa với
+ * tới: một cổng chạy ở HAI trong ba danh sách. Ghi ra thay vì để người sau tưởng đã kín.
+ * **(Chủ: Story 3.9 — cùng chủ với hai mục nợ e2e ở `deferred-work.md`.)**
  */
 const REQUIRED_SCRIPTS = new Map(
   /** @type {[string, string][]} */ ([

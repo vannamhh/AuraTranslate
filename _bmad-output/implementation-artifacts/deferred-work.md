@@ -5666,3 +5666,21 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     nghĩa là FR21 (Auto-Lookup bôi đen bằng chuột) cũng chưa từng được canh đầu-cuối bằng
     chuột thật. **(Chủ: Story 3.4 — khớp thuật ngữ và đánh dấu ở cột nguyên văn, story đầu
     tiên mà một vùng chọn SAI sẽ hiện thành đánh dấu sai trên màn hình.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
+  summary: Job `e2e` vừa thêm vào `.github/workflows/ci.yml` (nhịp đêm, `macos-26`) **chưa
+    chạy một lượt nào trên runner GitHub**. Bộ e2e mở một CỬA SỔ THẬT và mọi spec khẳng định
+    trên `document.activeElement`; một runner macOS không có người ngồi trước màn hình, nên
+    chặng *"hệ điều hành có trao tiêu điểm cho cửa sổ đó không"* là một ẩn số CHƯA ĐO.
+  evidence: Thêm 2026-08-20 ở lượt rà soát Story 3.3, sau khi đo ra rằng `e2e/specs/**` chạy
+    đúng **0 lần** trong mọi cổng: `.githooks/pre-push:27-29` loại nó bằng tên, và `grep -n
+    'e2e' .github/workflows/ci.yml` cho 0 kết quả trước lượt sửa này — tức ba mệnh đề
+    "webview thật" của `glossary-quick-add.e2e.mjs` đi qua `pre-push` xanh CỘNG CI xanh
+    (`gh run list`: hai commit của story đều success) mà chưa từng được một cổng nào chạy.
+    Job mới đóng vế "không chỗ nào chạy"; nó KHÔNG đóng vế "chạy được trên runner" — lượt
+    nightly đầu tiên chính là phép đo đó. 🔴 Đọc một lượt đỏ hàng loạt ở các ca tiêu điểm là
+    *"bàn đo chưa dựng được trên runner"*, KHÔNG phải *"sản phẩm hồi quy"*; và đừng vá nó
+    bằng `continue-on-error` hay một vòng chạy lại — cả hai biến job thành thứ không bao giờ
+    đỏ, đúng trạng thái nó vừa được dựng để thoát ra. **(Chủ: Story 3.9 — cùng chủ với mục
+    nợ chập chờn ngay trên, vì cùng một bảng nightly trả lời cả hai, và 3.9 là story kế tiếp
+    thêm spec e2e.)**
