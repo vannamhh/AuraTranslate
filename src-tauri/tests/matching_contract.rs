@@ -282,7 +282,7 @@ fn chinese_ngrams_slide_over_characters_not_over_tokens() {
     assert_eq!(ngrams("中國人", MatchLang::Zh, 3), ["中國人"]);
 
     // ⚠️ Đối chứng: jieba cắt `我喜欢` thành `我` + `喜欢`, nhưng n-gram ký tự KHÔNG
-    // biết tới ranh giới đó — `epics.md:4946`: *"n-gram ký tự — không có ranh giới từ"*.
+    // biết tới ranh giới đó — `epics.md` §Story 7.6: *"n-gram ký tự — không có ranh giới từ"*.
     assert_eq!(
         ngrams("我喜欢", MatchLang::Zh, 2),
         ["我喜", "喜欢"],
@@ -328,7 +328,7 @@ fn english_ngrams_slide_over_stemmed_tokens_not_over_the_raw_string() {
         ngrams("the running dogs", MatchLang::En, 2),
         ["the run", "run dog"],
         "cửa sổ phải trượt trên danh sách token ĐÃ STEM (`the` · `run` · `dog`), không \
-         trên chuỗi gốc — `epics.md:4950`."
+         trên chuỗi gốc — `epics.md` §Story 7.6."
     );
     assert_eq!(
         ngrams("The Running Dogs!", MatchLang::En, 3),

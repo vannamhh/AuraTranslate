@@ -11,7 +11,8 @@ Epic này dựng Glossary — nơi người dịch chốt cách dịch cho tên 
 - Story 3.1: Mô hình Glossary hai tầng và vòng đời ba trạng thái
 - Story 3.2: Bảng chờ ứng viên tách hẳn khỏi Glossary
 - Story 3.3: Thêm nhanh thuật ngữ từ bất kỳ panel nào
-- Story 3.4: Khớp thuật ngữ theo ngôn ngữ và đánh dấu ở cột nguyên văn của lưới
+- Story 3.4: Khớp thuật ngữ theo ngôn ngữ qua Matcher dùng chung 🔵 *(thu hẹp 2026-08-21)*
+- Story 3.4b: Đánh dấu thuật ngữ ở cột nguyên văn của lưới 🔵 *(thêm 2026-08-21 qua `correct-course`)*
 - Story 3.5: Quét ứng viên khi nhập tài liệu
 - Story 3.6: Trạng thái chờ chốt và dải mọc chốt lần đầu gặp
 - Story 3.7: Đề xuất bản dịch bằng âm Hán Việt
@@ -55,6 +56,7 @@ Epic này dựng Glossary — nơi người dịch chốt cách dịch cho tên 
 ## Cross-Story Dependencies
 
 - Story 3.4 phải dùng lại `Matcher` đã dựng ở Epic 1, không cài đặt khớp ngôn ngữ riêng cho Glossary.
+- Story 3.4b phụ thuộc bề mặt IPC `glossary_marks_for_chapter` mà Story 3.4 dựng. Nó gọi **MỘT** lượt mỗi lần mở Chương, cộng một lượt làm mới khi Glossary đổi hoặc khi segment gộp/tách — **không một lượt nào trên đường gõ** (Ice ký 2026-08-21). Đó là thứ giữ **214 ms** *(Chương 48.640 ký tự, Glossary 5.000 mục)* nằm NGOÀI trần NFR2 **50 ms**, và là lý do không story nào ở đây thêm cache hay chỉ mục ngược.
 - Story 3.7 phụ thuộc dữ liệu Hán Việt nhúng và cổng `DictionarySource` từ Epic 1.
 - Story 3.6 chia sẻ cơ chế "chỉ một dải mọc" với Epic 7 (TM khớp mờ) và Epic 9 (Proofreader); Glossary luôn thắng khi cùng kích hoạt trên một câu.
 - Epic 4 (Smart RAG Injector) phụ thuộc trực tiếp vào truy vấn "mục đủ điều kiện chèn" mà Story 3.1 dựng — không có đường nào khác để chạm dữ liệu Glossary.

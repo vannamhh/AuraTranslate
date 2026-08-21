@@ -697,7 +697,7 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | FR47 | Epic 3 | Trường của một mục Glossary |
 | FR48 | Epic 3 | Thêm nhanh từ bất kỳ panel nào |
 | FR49 | Epic 3 | Quản lý + xuất/nhập CSV/TSV |
-| FR50 | Epic 3 | Đánh dấu thuật ngữ ở **cột nguyên văn của lưới** 🔵 *(2026-08-18)* |
+| FR50 | Epic 3 | Đánh dấu thuật ngữ ở **cột nguyên văn của lưới** — **khớp + bề mặt IPC: Story 3.4 · vẽ dấu + `StatusBar`: Story 3.4b** 🔵 *(sửa lời văn 2026-08-18; tách story 2026-08-21 qua `correct-course`)* |
 | FR51 | Epic 3 | Khớp thuật ngữ theo ngôn ngữ |
 | FR52 | Epic 3 | Quét ứng viên khi nhập tài liệu |
 | FR53 | Epic 3 | Duyệt hàng loạt một phím |
@@ -2899,19 +2899,18 @@ So that tôi không bỏ qua chỉ vì ngại mở một màn hình khác.
 
 ---
 
-### Story 3.4: Khớp thuật ngữ theo ngôn ngữ và đánh dấu ở cột nguyên văn của lưới
+### Story 3.4: Khớp thuật ngữ theo ngôn ngữ qua Matcher dùng chung
 
-**Covers:** FR50, FR51
+**Covers:** FR51 · **nửa khớp + bề mặt IPC của FR50**
+🔵 *(Thu hẹp 2026-08-21 qua `correct-course` — nửa **GIAO DIỆN** của FR50 tách sang **Story 3.4b**. Phép tách theo **TẦNG**, không theo mục tiêu: đây vẫn là một mục tiêu người dùng duy nhất. Lý do đo được — spec một mảnh đo **17.408 ký tự ≈ 5.000–5.800 token** so với trần **1.600** của cửa `bmad-build`, vượt **3,1–3,6×**, trên đúng story mà `deferred-work.md:5275` tự gọi là *"rủi ro nhất của Epic 3"*. Nửa Rust nghiệm thu được một mình bằng `glossary_marks_contract.rs` mà **không cần một pixel nào**; nửa giao diện vào đường nóng với tầng dưới **đã xanh**, tức nó đo NFR2 trên **một** biến số thay vì hai.)*
 
 As a người dịch,
 I want thấy ngay câu đang dịch chứa thuật ngữ nào đã chốt,
 So that tôi không dịch lệch khỏi chính quyết định của mình.
 
-**Acceptance Criteria:**
+⚠️ **Cùng mục tiêu người dùng với Story 3.4b** — story này giao tầng **dưới** (khớp + bề mặt IPC), 3.4b giao tầng người dùng **nhìn thấy**. Hai mục, một mục tiêu.
 
-**Given** một câu ở **cột nguyên văn của lưới** chứa thuật ngữ có trong Glossary
-**When** hiển thị
-**Then** thuật ngữ đó được đánh dấu bằng màu `primary`
+**Acceptance Criteria:**
 
 **Given** văn bản tiếng Trung
 **When** khớp thuật ngữ
@@ -2926,19 +2925,73 @@ So that tôi không dịch lệch khỏi chính quyết định của mình.
 **Then** dùng **đúng component `Matcher` dùng chung** của Epic 1, không cài lại
 
 **Given** một mục ở trạng thái **chờ chốt bản dịch**
-**When** xuất hiện trong câu
-**Then** cũng được đánh dấu
-**And** **phân biệt được** với mục đã chốt
+**When** khớp
+**Then** nó **cũng ra**, mang cờ **phân biệt được** với mục đã chốt
+🔵 *(Thu hẹp 2026-08-21 — vế **VẼ** dấu phân biệt chuyển sang Story 3.4b. Lượt tra ở đây **không** lọc `is_confirmed`; `entries_eligible_for_injection` thì có, nên nó **không** dùng lại được ở đường này.)*
 
 **Given** cả hai tầng Glossary
 **When** khớp
 **Then** áp cả hai, tầng Tác phẩm thắng khi trùng
 
-**Given** người dùng rê chuột hoặc đưa tiêu điểm tới một thuật ngữ đã đánh dấu
-**When** xảy ra
-**Then** thấy bản dịch đã chốt của nó
-
 ---
+
+### Story 3.4b: Đánh dấu thuật ngữ ở cột nguyên văn của lưới
+
+**Covers:** FR50 *(nửa giao diện — nửa khớp đã đóng ở Story 3.4)*
+🔵 *(Thêm 2026-08-21 qua `correct-course` — xem ghi chú ở Story 3.4.)*
+
+As a người dịch,
+I want thấy ngay câu đang dịch chứa thuật ngữ nào đã chốt,
+So that tôi không dịch lệch khỏi chính quyết định của mình.
+
+**Acceptance Criteria:**
+
+**Given** một câu ở **cột nguyên văn của lưới** chứa thuật ngữ có trong Glossary
+**When** hiển thị
+**Then** thuật ngữ đó được đánh dấu bằng màu `primary`
+**And** đúng như vậy trên **CẢ HAI** đường render — chữ trần (`.src-piece`) và `SourceHanViet`
+🔴 `primary #2f5d63` là màu nhấn **duy nhất** của ứng dụng, dành đúng ba việc (`DESIGN.md:165`).
+
+**Given** một mục ở trạng thái **chờ chốt bản dịch**
+**When** xuất hiện trong câu
+**Then** cũng được đánh dấu, **phân biệt bằng KIỂU GẠCH CHÂN**
+🔴 **Tuyệt đối không `opacity`** — kiểm toán 2026-08-03 đo được cả hàng đã duyệt lẫn hàng đã bỏ **trượt AA** vì đúng cách đó (`DESIGN.md:221`).
+
+**Given** người dùng rê chuột **hoặc** đưa tiêu điểm tới một thuật ngữ đã đánh dấu
+**When** xảy ra
+**Then** bản dịch đã chốt hiện ở **một dòng trong `StatusBar`**
+🔴 **Không** một lớp nổi — **0** miễn trừ `z-index`. Một dòng `StatusBar` đạt **cả** vế chuột lẫn vế tiêu điểm bằng một cơ chế, và thanh đó đã chở *"Đã lưu N giây trước"* (`EXPERIENCE.md:144`).
+
+**Given** một thuật ngữ phủ **một phần** một `.hv-unit` hoặc **bắc cầu** hai `.hv-unit`
+**When** vẽ dấu
+**Then** phép cắt làm ở **TẦNG DỮ LIỆU** (`buildSegments` · `sourcePiecesOf` tự cắt tại biên thuật ngữ), **không** chèn node vào DOM
+**And** bất biến `host.children[i] ↔ segments.value[i]` giữ đúng **theo cấu tạo**
+**And** ranh giới của `Matcher` **thắng** ranh giới TỪ của ICU; ICU chỉ quyết *"double-click phủ tới đâu"*
+⚠️ AC6 (Story 1.16) và AC11+AC12 (Story 1.18) canh **chính** bề mặt này — đo **LẠI** cả hai sau khi cấu trúc node đổi, không suy từ số đo cũ (`deferred-work.md` §*"Story 3.4 KHÔNG bị chặn, nhưng nó phải TỰ CẮT `.hv-unit`"*).
+
+**Given** `glossary_marks_for_chapter` trả offset **TUYỆT ĐỐI** vào một chuỗi, còn lưới render **theo từng segment** và `ChapterSegment` không mang offset cấp Chương nào
+**When** nối hai đầu
+**Then** đường ánh xạ được chốt bằng một **PHÉP ĐO** ghi số vào story: một dấu có **bắc cầu qua chất nối** không, trên **cả hai** nhánh `Zh` và `En`
+🔴 **Gọi mỗi segment một lượt bị CẤM** — `marks_for_source_text` gọi `load_tier` cho **cả hai tầng ở MỖI lượt** (`src-tauri/src/core/glossary/store.rs`); một Chương 9.850 câu ⇒ 9.850 lần nạp.
+⚠️ Nối bằng `chapter.source_text` **không** cho một phép cộng dồn: `push_segment` **`trim()`** mỗi câu và bỏ câu rỗng, `skip_gap` nuốt trọn khe trắng (`src-tauri/src/core/segment/split.rs`), và sau gộp/tách segment (2.8/2.9) segment không còn dẫn xuất được từ văn bản Chương.
+
+**Given** tần suất gọi lại
+**When** cài
+**Then** đúng **MỘT** lượt mỗi lần mở Chương, cộng một lượt làm mới khi Glossary đổi *(thêm nhanh 3.3)* hoặc khi segment gộp/tách — **không một lượt nào trên đường gõ**
+🔴 Ice ký 2026-08-21 tại cửa ASK-FIRST của Story 3.4. Đây là thứ giữ **214 ms** *(Chương 48.640 ký tự, Glossary 5.000 mục)* **ngoài** trần NFR2 **(50 ms)** — và là lý do story này **không** thêm chỉ mục ngược, **không** thêm cache.
+
+**Given** đường mở Chương nay chở **CẢ** lượt hâm `Jieba` *(179–329 ms, trung vị ~243)* **LẪN** lượt khớp *(214 ms ở Chương lớn nhất có thật)*
+**When** nghiệm thu
+**Then** đo một **CẶP** số trên **CÙNG** một Chương tiếng Trung — trước và sau story
+**And** tách lượt **LẠNH** ra khỏi lượt ấm
+⚠️ `open_adjacent_chapter` đáng ngờ hơn `read_open_chapter`: nó là thao tác lặp lại nhiều lần trong một phiên, và lượt hâm chỉ tốn ở lần **ĐẦU** — một phép đo chạy nhiều lượt liên tiếp sẽ **giấu mất** chi phí thật.
+
+**Ghi chú cài đặt:**
+- ⚠️ **`GlossaryMark` cố ý KHÔNG mang `source_term` lẫn `id`.** Bốn trường hiện có đủ để **VẼ** một dấu, **không** đủ để trả lời *"hai dấu này có phải cùng một thuật ngữ không"*. Mọi khả năng kiểu *"tô sáng mọi lượt xuất hiện của thuật ngữ này"* hay *"rê một dấu thì làm nổi các dấu anh em"* đòi **đổi hình dạng dây** — quyết định lúc **thiết kế tương tác**, không lúc đang cài.
+- ⚠️ **`Selection.modify()` đi XUYÊN QUA `user-select: none` trên WKWebView** *(đo 2026-08-07)*. Bề mặt này là bề mặt **thứ hai** thừa hưởng cái bẫy đó, và **không cổng nào canh** — cân nhắc một vị từ dùng chung ở `selectionContract.ts`.
+- ⚠️ **ICU cắt SAI tên riêng ở một tỉ lệ có thật trên văn xuôi tiểu thuyết** — bảng 10 ca đo thật *(`傲來國` bị xé · `姑蘇`/`閶門` bị xé · `大宋` bị xé)*. Đúng thứ Glossary tồn tại để giải, và đúng lý do ranh giới `Matcher` phải **thắng** ICU.
+- ⚠️ **Chuột KÉO thật chưa từng nghiệm thu được trong WKWebView** — `browser.action('pointer')` cho `selection.toString() === ''` cả hai lượt đo 2026-08-20. Đây là story **đầu tiên** mà một vùng chọn SAI hiện thành **đánh dấu sai trên màn hình**.
+
 
 ### Story 3.5: Quét ứng viên khi nhập tài liệu
 

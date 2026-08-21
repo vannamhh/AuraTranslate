@@ -1672,7 +1672,7 @@ fn rejecting_an_approved_candidate_is_refused_and_the_glossary_entry_survives() 
 /// `glossary_entry` ĐÃ CÓ SẴN (ví dụ mục đó đến từ `insert_manual_entry` trước khi ứng
 /// viên được quét ra) thì `approve_candidate` LUÔN va vào
 /// `UNIQUE INDEX idx_glossary_entry_source_term` — ứng viên nằm lại bảng chờ VĨNH VIỄN,
-/// không đường nào tự thoát. Chỗ chặn ĐÚNG là lượt quét (`epics.md:2984-2985`, Story 3.5:
+/// không đường nào tự thoát. Chỗ chặn ĐÚNG là lượt quét (`epics.md` §Story 3.5, Story 3.5:
 /// quét không được sinh ứng viên cho một chuỗi đã có mục Glossary); `insert_candidate` là
 /// API thuần, cố ý KHÔNG tự tra `glossary_entry` trước khi chèn.
 ///

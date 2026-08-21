@@ -240,7 +240,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
 ## Deferred from: 1-8-phan-giai-cau-hinh-hai-tang (2026-08-04)
 
-- 🔴 **`ScopeResolver` chưa cache gì, và đó là một quyết định.** Consumer đường nóng duy nhất là khớp Glossary khi gõ — **Story 3.4**, dưới trần NFR2 *"không frame nào vượt 50 ms"* — và hôm nay nó chưa tồn tại. Dựng cache bây giờ là dựng một cơ chế vô hiệu hoá mà **không có gì để vô hiệu hoá**, và một cơ chế như vậy sẽ sai theo đúng cách mà không test nào bắt. Ba hàm phân giải là **thuần** nên thêm cache về sau là một lượt sửa cục bộ, không phải một lượt mổ. **Chủ sở hữu: Story 3.4** — và nó phải **đo trước** khi cache. **(Chủ: Story 3.4.)**
+- 🔴 **`ScopeResolver` chưa cache gì, và đó là một quyết định.** Consumer đường nóng duy nhất là khớp Glossary khi gõ — **Story 3.4**, dưới trần NFR2 *"không frame nào vượt 50 ms"* — và hôm nay nó chưa tồn tại. Dựng cache bây giờ là dựng một cơ chế vô hiệu hoá mà **không có gì để vô hiệu hoá**, và một cơ chế như vậy sẽ sai theo đúng cách mà không test nào bắt. Ba hàm phân giải là **thuần** nên thêm cache về sau là một lượt sửa cục bộ, không phải một lượt mổ. **Chủ sở hữu: Story 3.4b** 🔵 *(chuyển chủ 2026-08-21 — kết luận "chưa cần cache" đã ghi ở dòng dưới; nếu câu hỏi cache có ngày quay lại thì nó quay lại ở 3.4b, nơi tần suất gọi được định.)* — và nó phải **đo trước** khi cache. **(Chủ: Story 3.4b.)**
   → 🟡 **ĐO 2026-08-21 (Story 3.4) — số đo ở `:424` ngay dưới đây bao gồm CẢ chi phí
   `apply_override` (nơi `ScopeResolver` chạy) lẫn `find_terms`; đo tay không tách riêng được
   hai phần.** `apply_override` tự nó là O(số thuật ngữ) trên hai `BTreeMap` đã nạp — rẻ hơn
@@ -491,13 +491,20 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   cục bộ chứ không phải một lượt mổ.
   ⚠️ **Mục này ở lại MỞ và nó là điều kiện khởi hành của Story 3.4b** — 3.4b không được vào
   đường nóng mà chưa trả lời câu hỏi tần suất ngay trên. **(Chủ: Story 3.4b.)**
+  → 🔵 **CÂU HỎI KHỞI HÀNH ĐÃ CÓ TRẢ LỜI 2026-08-21 (Ice ký, qua `correct-course`): MỘT lượt
+  mỗi lần mở Chương, cộng một lượt làm mới khi Glossary đổi hoặc khi segment gộp/tách. KHÔNG
+  một lượt nào trên đường gõ.** ⇒ 214 ms **không** rơi vào khung hình gõ ⇒ NFR2 **không** bị
+  phá ⇒ **không** chỉ mục ngược, **không** cache. Vế **CÒN NỢ, và nó không phải vế trên**: cặp
+  số **mở Chương** — đường đó nay chở CẢ lượt hâm `Jieba` (~243 ms) LẪN lượt khớp (214 ms ở
+  Chương lớn nhất có thật), và chưa ai đo tổng. Điều kiện khởi hành của 3.4b **đóng**; món nợ
+  **ĐO ở lại MỞ**, nay là một AC của `epics.md` §Story 3.4b. **(Chủ: Story 3.4b.)**
 
 ## Deferred from: code review of 1-12-matcher-dung-chung (2026-08-05)
 
 - **Các cổng ranh giới trong `matching_boundary.rs` (và `dict_boundary.rs`/`store_boundary.rs` trước đó) là phép quét CHỮ trên mã nguồn, không phải phân tích đồ thị gọi hàm ngữ nghĩa** — một lớp bọc re-export dưới tên khác (vd. `pub use matching::find_terms as glossary_probe;` đặt trong `core/mod.rs`) có thể để `core/dict/**` gọi vào Matcher mà không chạm bất kỳ token cấm nào (`matching`/`jieba`/`stemmer`/`stem(`). Đây là giới hạn có sẵn của cả khuôn "cổng quét chữ" dùng xuyên dự án từ Story 1.9, không phải do Story 1.12 gây ra hay có thể sửa cục bộ trong một story — sửa đòi thiết kế lại triết lý cổng ranh giới trên toàn dự án. **(Chủ: một story hạ tầng kiểm thử kế tiếp.)**
 - **Không có test nào cưỡng chế lời hứa "không chạm filesystem/database/mạng" (AD-15) mà doc-comment của `core/matching/mod.rs` tuyên bố** — đúng hôm nay qua rà tay thủ công (không có lời gọi I/O nào trong mã story 1.12), nhưng không gì bắt được nếu một lượt sửa tương lai âm thầm thêm I/O vào module lá này. Khuôn cổng ranh giới hiện tại (`matching_boundary.rs`, `dict_boundary.rs`, `store_boundary.rs`) chưa có tiền lệ kiểm loại forbidden-token này cho `fs`/`net`/`rusqlite`. **(Chủ: một story kế tiếp chạm `core/matching`.)**
 - **Một số con số "đo được" gắn cứng trong doc-comment của `core/matching/mod.rs` và trong mục review trước ở tệp này (`dict.txt` = 5.071.843 byte thô; khởi tạo `Jieba` 179–329 ms bản release) không được một test nào khẳng định** — sẽ lặng lẽ lạc hậu khi phiên bản `jieba-rs` hoặc dữ liệu dict đổi, vì không cổng nào đỏ khi điều đó xảy ra. Rủi ro tài liệu, không phải rủi ro đúng/sai của mã. **(Chủ: một story kế tiếp chạm `core/matching`.)**
-- **`ngrams` và `find_terms` mỗi hàm tự tokenize/normalize lại toàn bộ văn bản đầu vào — không có bề mặt API nào để tái dùng token đã tính giữa hai lời gọi trên cùng một đoạn văn bản.** Một người tiêu thụ tương lai (Story 7.6) cần cả n-gram lẫn tìm thuật ngữ trên cùng một segment sẽ trả giá tokenize/normalize hai lần. Chủ sở hữu quyết định hình dạng API: Story 3.4/7.6, khi có người tiêu thụ thật. **(Chủ: Story 3.4/7.6.)**
+- **`ngrams` và `find_terms` mỗi hàm tự tokenize/normalize lại toàn bộ văn bản đầu vào — không có bề mặt API nào để tái dùng token đã tính giữa hai lời gọi trên cùng một đoạn văn bản.** Một người tiêu thụ tương lai (Story 7.6) cần cả n-gram lẫn tìm thuật ngữ trên cùng một segment sẽ trả giá tokenize/normalize hai lần. Chủ sở hữu quyết định hình dạng API: Story 7.6, khi có người tiêu thụ thật. **(Chủ: Story 7.6.)** 🔵 *(chuyển chủ 2026-08-21 — dòng `→ 🟡` ngay dưới đã bàn giao đích danh cho 7.6; nhãn chủ còn mang tên một story đã đóng.)*
   → 🟡 **KHÔNG CHẠM 2026-08-21 (Story 3.4) — vế của story này không kích hoạt món nợ này.**
   `marks_for_source_text` gọi `find_terms` **đúng một lần** cho mỗi lượt khớp; nó không gọi
   `ngrams` (n-gram thuộc phạm vi TM, Story 7.5/7.6, ngoài phạm vi story này). Chi phí
@@ -904,7 +911,8 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   *(đánh dấu thuật ngữ Glossary trong Panel Source)* và **Story 3.7/FR113** sẽ gặp lại đúng
   các ca này, và vì chúng cho thấy **tên riêng** là lớp sai lớn nhất — đúng thứ Glossary tồn
   tại để giải.
-  **Chủ: dữ kiện cho Story 3.4 · 3.7. Không hành động ở Epic 1.**
+  **Chủ: dữ kiện cho Story 3.4b · 3.7. Không hành động ở Epic 1.** 🔵 *(2026-08-21 — ICU cắt sai
+  là dữ kiện cho đường VẼ, không cho đường khớp; đường khớp đã đóng ở Story 3.4.)*
 
 - ⚠️ **Story 3.4 KHÔNG bị chặn, nhưng nó phải TỰ CẮT `.hv-unit`.** Rà 2026-08-07: 3.4 đánh
   dấu thuật ngữ Glossary trong Panel Source bằng ranh giới do **`Matcher` (Rust)** trả về, và
@@ -915,7 +923,9 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   quyết *"double-click phủ tới đâu"*.
   ⚠️ Và khi 3.4 tách node, nó phải giữ đúng bất biến mà `resolveSwitch()` đứng lên:
   `host.children[i]` ứng **một-một** với `segments.value[i]`.
-  **Chủ: Story 3.4.**
+  **Chủ: Story 3.4b.** 🔵 *(chuyển chủ 2026-08-21 qua `correct-course` — Story 3.4 thu hẹp còn
+  nửa Rust và đã `done`; phép cắt `.hv-unit` thuộc nửa GIAO DIỆN. Nay là **một AC** của Story
+  3.4b, `epics.md` §Story 3.4b.)*
 
 - ⚠️ **Bàn đo vùng chọn là một tệp DÙNG MỘT LẦN, không phải một lưới tự động.** Toàn bộ vế DOM
   của 1.18b *(double-click, vùng chọn, clipboard, bàn phím)* nghiệm thu bằng một trang HTML
@@ -1040,7 +1050,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   2026-08-08: **HVTĐTD không tìm được nguồn dữ liệu**. AC9 đã được neo lại vào **cơ chế** và
   nghiệm thu bằng **fixture** *(`the_author_grant_placeholder_lands_and_leaves_with_its_file`)*.
   **0** nguồn thật nào mang `license_kind = "author-grant"` hôm nay. Ba chỗ xuôi dòng vẫn mang
-  mệnh đề cũ: `epics.md:1839-1841` *(AC cuối của chính story 1.19)* · `epics.md:6202-6204`
+  mệnh đề cũ: `epics.md:1839-1841` *(AC cuối của chính story 1.19)* · `epics.md` §Story 10.4
   *(Story 10.4, **nguyên văn giống hệt** ⇒ cùng số phận)* · `mockups/sources-attribution.html`
   *(vẽ HVTĐTD như một hàng có thật)*.
   🔴 Và `deferred-work.md:292` *(nghĩa vụ thông báo tác giả HVTĐTD)* **mất điều kiện kích
@@ -2764,7 +2774,7 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   `AiTranslationPanel.vue` / `EditorPanel.vue` tắt **đúng một** đường: `currentSelectionText()`,
   tức tra từ điển. Nó **KHÔNG** tắt việc bề mặt được đăng ký. Hai story trên đọc vùng chọn ở
   hai panel đó bằng đường của **riêng chúng** *(cả hai là lệnh người dùng gọi —
-  `epics.md:2554` "gọi lệnh thêm thuật ngữ" · `epics.md:5034` "người dùng gọi lệnh
+  `epics.md:2554` "gọi lệnh thêm thuật ngữ" · `epics.md` §Story 7.7 "người dùng gọi lệnh
   Concordance")*, **không** qua `currentSelectionText()`.
   🔴 Đọc nhầm `'display'` thành *"không lấy được chữ"* sẽ dẫn tới một lượt "sửa" gỡ đăng ký
   hoặc lật vai — và `epics.md:2553` đã liệt kê **Panel Lookup** (vai `display` từ 1.18) trong
@@ -5349,7 +5359,9 @@ trước khi nới** — chúng có mặt để lượt đó có dữ liệu th�
 
 - ⚠️ **Story 3.4 là story rủi ro nhất của Epic 3, và nó vào với sổ nợ này còn mở.** Nó thêm một
   kênh trang trí lên **cột nguyên văn của lưới** — đúng đường nóng mà cả ba mục trên đang nói tới.
-  **Chủ: Story 3.4** — đọc ba mục này trước khi viết dòng mã đầu tiên, và nếu số NFR2 vẫn chưa có
+  **Chủ: Story 3.4b** 🔵 *(chuyển chủ 2026-08-21 — nửa vào ĐƯỜNG NÓNG là 3.4b, không phải 3.4;
+  nửa Rust không thêm một kênh trang trí nào lên lưới.)* — đọc ba mục này trước khi viết dòng
+  mã đầu tiên, và nếu số NFR2 vẫn chưa có
   thì nói ra trong story thay vì giả định nó đã an toàn.
 
 ## Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai (2026-08-19)
@@ -5547,7 +5559,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     bại ở `UNIQUE INDEX idx_glossary_entry_source_term` — và vì `approve_candidate` không
     phân biệt lỗi đó với bất kỳ `WriteFailed` nào khác, ứng viên nằm lại bảng chờ VĨNH VIỄN,
     không đường nào tự thoát.
-  evidence: `epics.md:2984-2985` đặt chỗ chặn đúng lỗ này ở LƯỢT QUÉT (Story 3.5) — quét
+  evidence: `epics.md` §Story 3.5 đặt chỗ chặn đúng lỗ này ở LƯỢT QUÉT (Story 3.5) — quét
     không được sinh ứng viên cho một chuỗi đã có mục Glossary, chứ không phải để
     `approve_candidate` phát hiện muộn. Story 3.2 không có lượt quét nào để áp luật đó
     (`insert_candidate` là API thuần, không tự tra `glossary_entry` trước khi chèn — làm
@@ -5582,7 +5594,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
 
 - source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
   summary: Khoá `UNIQUE (source_term)` của `glossary_candidate` chặn TRÙNG CHUỖI — hẹp hơn
-    luật "cùng một cặp nguồn→đích" mà `epics.md:6115-6117` đòi cho đề xuất thu hoạch từ bản
+    luật "cùng một cặp nguồn→đích" mà `epics.md` §Story 8.14 đòi cho đề xuất thu hoạch từ bản
     review (FR54/FR95, Epic 8). Hệ quả: nếu một `source_term` đã bị BỎ (`resolution =
     'rejected'`) với một đề xuất dịch A, và sau đó bản review phát hiện cùng chuỗi nguồn nên
     dịch thành B (một cặp KHÁC A), `UNIQUE (source_term)` vẫn chặn đứng — không phân biệt
@@ -5592,7 +5604,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     `source_term`. Việc phân biệt theo cặp X→Y đòi một cột mới cộng một chỉ mục UNIQUE mới —
     quyết định thuộc về story dựng chính cột đó.
     **(Chủ: Story 8.14 — hoặc epic sở hữu FR54/FR95, tuỳ số hiệu story cuối cùng khớp
-    `epics.md:6115-6117`.)**
+    `epics.md` §Story 8.14.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
   summary: Cột `resolution` của `glossary_candidate` không mang thời điểm quyết định — khác
@@ -5701,7 +5713,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     hữu FR54/FR95" — Story 3.3 KHÔNG đóng nó, mà làm nó DỄ XẢY RA HƠN: trước 3.3, đường ghi
     tay DUY NHẤT vào `glossary_entry` là qua test; nay người dùng thật có một dải bàn phím
     để thêm bất kỳ lúc nào, kể cả đúng lúc một ứng viên cùng chuỗi đang chờ duyệt. Chỗ chặn
-    đúng vẫn là LƯỢT QUÉT (`epics.md:2984-2985`) — quét không được sinh ứng viên trùng
+    đúng vẫn là LƯỢT QUÉT (`epics.md` §Story 3.5) — quét không được sinh ứng viên trùng
     `source_term` với một `glossary_entry` đã có — không phải `approve_candidate`.
     **(Chủ: Story 3.5 — quét ứng viên khi nhập tài liệu, đúng chủ mà Story 3.2 đã ghi; mục
     này chỉ nối thêm bằng chứng rằng Story 3.3 làm lỗ đó DỄ CHẠM hơn, không phải chủ mới.)**
@@ -5766,8 +5778,9 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     *"chuột kéo ⇒ trình duyệt dựng Selection"* hôm nay KHÔNG có đường nghiệm thu nào trong kho.
     Đây là hành vi của WebKit chứ không phải mã dự án, nên mức ưu tiên thấp — nhưng nó có
     nghĩa là FR21 (Auto-Lookup bôi đen bằng chuột) cũng chưa từng được canh đầu-cuối bằng
-    chuột thật. **(Chủ: Story 3.4 — khớp thuật ngữ và đánh dấu ở cột nguyên văn, story đầu
-    tiên mà một vùng chọn SAI sẽ hiện thành đánh dấu sai trên màn hình.)**
+    chuột thật. **(Chủ: Story 3.4b — vẽ dấu ở cột nguyên văn, story đầu tiên mà một vùng chọn
+    SAI sẽ hiện thành đánh dấu sai TRÊN MÀN HÌNH.)** 🔵 *(chuyển chủ 2026-08-21 — chỉ nửa giao
+    diện mới hiện được một dấu sai; nửa Rust của 3.4 không vẽ một pixel nào.)*
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: Job `e2e` vừa thêm vào `.github/workflows/ci.yml` (nhịp đêm, `macos-26`) **chưa
@@ -5811,6 +5824,59 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     tải gì — chưa đo `tools/dict-build` có đường không-tải hay không. **(Chủ: Story 3.9 —
     cùng chủ với hai mục nợ e2e ở trên, cùng một bảng nightly trả lời cả ba.)**
 
+## Deferred from: lượt `correct-course` tách Story 3.4b (2026-08-21)
+
+- 🔴 **19 mốc `epics.md:N` trong 10 tệp LỊCH SỬ còn trỏ hụt — và phép đo cho thấy chúng đã sai
+  TỪ TRƯỚC lượt này, không phải do nó.** Lượt tách Story 3.4/3.4b làm `epics.md` dài thêm **53
+  dòng**, nên mọi mốc `N ≥ 2942` lệch **+53**. Mười ba mốc **SỐNG** *(mã Rust · test · các mục
+  sổ nợ đang mở)* đã được đổi sang **§TÊN mục** trong cùng lượt — thứ không trôi. Mười chín mốc
+  còn lại nằm trong **bản ghi đã đóng** *(story `done` · AD brief · đề xuất sprint cũ)*, và sửa
+  số trong đó là viết lại một tài liệu đã khép.
+
+  | Tệp | Mốc còn trôi |
+  |---|---|
+  | `1-12-matcher-dung-chung.md` | `:4946` · `:4950` |
+  | `1-15-tac-pham-tren-dia-va-duong-vao-van-ban-toi-thieu.md` | `:3327-3408` · `:3390` |
+  | `1-19-bat-tat-nguon-tu-dien-va-ghi-cong.md` | `:6174-6216` · `:6202-6204` |
+  | `2-1-tach-segment-cap-cau-va-co-ket-doan.md` | `:4817-4824` · `:6039-6050` |
+  | `2-7-xuat-xu-ban-dich-cap-segment.md` | `:5066-5096` · `:5168-5170` |
+  | `3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md` | `:2984-2985` · `:6115-6117` |
+  | `ad-brief-2026-08-16-xuat-xu-ban-dich.md` | `:5168-5170` · `:5169-5170` |
+  | `ARCHITECTURE-SPINE.md` | `:5169-5170` · `:5355` |
+  | `sprint-change-proposal-2026-08-13.md` | `:5034` |
+  | `sprint-change-proposal-2026-08-13b-thu-tu-epic.md` | `:3398-3991` · `:3991-4806` |
+
+  🔴 **PHÉP ĐO LẬT MỘT GIẢ ĐỊNH, ghi ra thay vì để lượt sau tưởng "chỉ cần bước +53":** bước
+  +53 khôi phục **trung thành** trạng thái cũ — nhưng trạng thái cũ **đã sai sẵn**. Đối chứng
+  trên nhóm SỐNG, đo 2026-08-21:
+
+  | Mốc (sau khi bước +53) | Khai là gì | Nội dung THẬT ở đó | Vị trí ĐÚNG | Lệch |
+  |---|---|---|---|---|
+  | `:4999` · `:5003` | *"n-gram ký tự"* / *"token n-gram sau stemming"* — Story 7.6 | AC **ảnh/alt-text** của Epic 6 | §Story 7.6 | **+397** |
+  | `:5087` | *"người dùng gọi lệnh Concordance"* | *"vào trạng thái Đang dịch"* | §Story 7.7 | **+336** |
+  | `:6255-6257` | AC của **Story 10.4** | `### Story 9.2` | §Story 10.4 | **+373** |
+  | `:3037-3038` | Story 3.5 — quét không sinh ứng viên trùng | dòng trống + `---` | §Story 3.5 | **−2** |
+  | `:6168-6170` | *"xuất xứ thu hoạch từ bản review"* | ✅ đúng | §Story 8.14 | **0** |
+
+  ⇒ **8/13 lượt xuất hiện của nhóm SỐNG trỏ lệch hàng trăm dòng**, và cả tám lệch **trước** lượt
+  này — `epics.md` đã dài thêm ~400 dòng kể từ Story 1.12 *(2026-08-05)*. Nên với 19 mốc lịch
+  sử, **một lượt bước +53 máy móc sẽ bảo toàn đúng cái sai**; đường đúng là đối chứng từng mốc
+  rồi đổi sang §TÊN, hoặc để nguyên và chấp nhận rằng chúng là dấu vết của thời điểm viết.
+  **(Chủ: Ice — quyết định có viết lại bản ghi đã đóng hay không; đây là một câu hỏi về tính
+  toàn vẹn của lịch sử, không phải một lượt sửa kỹ thuật.)**
+
+- ⚠️ **Không cổng nào canh một tham chiếu `epics.md:N`, và lớp lỗi này TÁI DIỄN theo cấu tạo.**
+  `scripts/check-layout.mjs` và `scripts/check-commands.mjs` có nhắc `epics.md:N` nhưng **chỉ
+  trong chú thích** — không script nào đọc `epics.md`. Nên mọi lượt thêm dòng vào tệp đó làm
+  trôi im lặng mọi mốc phía dưới, kể cả mốc nằm trong `src-tauri/` đã commit. Đường ra rẻ nhất
+  đã được chứng minh chạy được trong chính lượt này: **trỏ bằng §TÊN mục** *(6/6 tên đối chứng
+  giải đúng đúng một `### Story` heading)*, cộng một cổng đọc `epics.md` và khẳng định mọi
+  `§Story X.Y` được trích còn tồn tại. ⚠️ Thêm một cổng = sửa **BA** danh sách (`package.json` ·
+  `.github/workflows/ci.yml` · `.githooks/pre-push`) và `check:gates` canh cả ba — đó là một
+  story riêng, không một lượt `correct-course`.
+  **(Chủ: một story hạ tầng cổng kế tiếp.)**
+
+
 ## Deferred from: lượt lập spec Story 3.4 (2026-08-21)
 
 - source_spec: `_bmad-output/implementation-artifacts/3-4-khop-thuat-ngu-theo-ngon-ngu-qua-matcher-dung-chung.md`
@@ -5830,7 +5896,9 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     `z-index`, và nó đạt cả vế chuột lẫn vế tiêu điểm của AC; (b) đánh dấu chạy ở **cả hai**
     đường render, và phép cắt làm ở **tầng dữ liệu** (`buildSegments` tự cắt tại biên thuật
     ngữ) chứ không chèn node vào DOM — đó là cách duy nhất giữ `host.children[i] ↔
-    segments.value[i]` đúng theo cấu tạo, đóng luôn `deferred-work.md:834`; (c) mục chờ chốt
+    segments.value[i]` đúng theo cấu tạo, đóng luôn mục §*"Story 3.4 KHÔNG bị chặn, nhưng nó phải
+    TỰ CẮT `.hv-unit`"* 🔵 *(sửa 2026-08-21 — số dòng `:834` đã TRÔI khi chính Story 3.4 chèn
+    thêm dòng phía trên; dòng đó nay TRỐNG. Trỏ bằng TÊN mục, thứ không trôi.)*; (c) mục chờ chốt
     phân biệt bằng **kiểu gạch chân**, tuyệt đối không `opacity` (`epic-3-context.md:51`).
     ⚠️ **Mở story này phải đi qua `bmad-correct-course`, không phải một dòng thêm tay vào
     `sprint-status.yaml`.** Đo 2026-08-21: mọi story hậu tố `b` của kho (`1.10b` · `1.11b` ·

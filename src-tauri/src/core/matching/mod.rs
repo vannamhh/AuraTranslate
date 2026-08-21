@@ -40,7 +40,7 @@
 //! |---|---|---|
 //! | Tách token | `jieba-rs` ([`tokenize`]) | run ký tự `char::is_ascii_alphanumeric` của `std` |
 //! | Chuẩn hoá | **đồng nhất** (chữ Hán không có hình thái từ) | hạ chữ thường **rồi** Porter2 |
-//! | n-gram | **ký tự** — không ranh giới từ (`epics.md:4946`) | **token** n-gram **sau** stemming (`epics.md:4950`) |
+//! | n-gram | **ký tự** — không ranh giới từ (`epics.md` §Story 7.6) | **token** n-gram **sau** stemming (`epics.md` §Story 7.6) |
 //! | Khớp thuật ngữ | **khớp chính xác**, chặn theo ranh giới token (`epics.md:2532`) | so khớp trên **dạng đã chuẩn hoá của cả hai vế** |
 //!
 //! 🔴 **Phép đếm độ dài n-gram là [`str::chars`]`().count()`, KHÔNG BAO GIỜ
@@ -357,10 +357,10 @@ pub fn normalize(token: &str, lang: MatchLang) -> Cow<'_, str> {
 /// Sinh n-gram của `text`.
 ///
 /// **`Zh` ⇒ n-gram KÝ TỰ** — cửa sổ trượt theo ký tự, **không** theo token và không
-/// không theo byte (`epics.md:4946`: *"n-gram ký tự — không có ranh giới từ"*).
+/// không theo byte (`epics.md` §Story 7.6: *"n-gram ký tự — không có ranh giới từ"*).
 /// `"中國人"` với `n = 2` ⇒ `["中國", "國人"]`.
 ///
-/// **`En` ⇒ token n-gram SAU stemming** (`epics.md:4950`) — cửa sổ trượt trên **danh
+/// **`En` ⇒ token n-gram SAU stemming** (`epics.md` §Story 7.6) — cửa sổ trượt trên **danh
 /// sách token đã chuẩn hoá**, không trên chuỗi gốc. Các token trong một n-gram nối
 /// bằng **một dấu cách**, nên chuỗi trả về không mang lại khoảng trắng gốc.
 ///

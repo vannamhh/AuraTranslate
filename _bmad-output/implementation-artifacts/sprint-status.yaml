@@ -52,7 +52,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-21T12:05:00
+last_updated: 2026-08-21T16:40:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -155,7 +155,16 @@ development_status:
   #    1.600. Nửa GIAO DIỆN (vẽ dấu hai đường + dòng `StatusBar`) nằm trong `deferred-work.md`
   #    §"Deferred from: lượt lập spec Story 3.4", chủ: Ice, mở qua một lượt `correct-course`.
   #    ⚠️ FR50 vì vậy CHƯA đóng ở story này; FR51 thì có.
-  3-4-khop-thuat-ngu-theo-ngon-ngu-qua-matcher-dung-chung: review
+  3-4-khop-thuat-ngu-theo-ngon-ngu-qua-matcher-dung-chung: done
+  # 🔵 2026-08-21 — THÊM QUA `correct-course` (sprint-change-proposal-2026-08-21-story-3-4b.md).
+  # Nửa GIAO DIỆN của FR50, tách khỏi 3.4 ở cửa đếm token của `bmad-build` (17.408 ký tự ≈
+  # 5.000–5.800 token so với trần 1.600). Mục ĐẦY ĐỦ ở `epics.md` §Story 3.4b — KHÔNG một khoá
+  # đúc thẳng vào tệp này, đúng ràng buộc mà `deferred-work.md` §"lượt lập spec Story 3.4" đặt.
+  # ĐIỀU KIỆN KHỞI HÀNH ĐÃ ĐÓNG: Ice ký 2026-08-21 — gọi MỘT lượt mỗi lần mở Chương, không một
+  # lượt nào trên đường gõ ⇒ 214 ms nằm NGOÀI trần NFR2 (50 ms) ⇒ không cache, không chỉ mục
+  # ngược. Món nợ ĐO còn lại: cặp số mở Chương (hâm Jieba ~243 ms + lượt khớp 214 ms) — một AC.
+  # ⚠️ FR50 chỉ đóng khi story này xanh; Story 3.4 đóng FR51 và nửa khớp + bề mặt IPC của FR50.
+  3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi: backlog
   3-5-quet-ung-vien-khi-nhap-tai-lieu: backlog
   3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap: backlog
   3-7-de-xuat-ban-dich-bang-am-han-viet: backlog
