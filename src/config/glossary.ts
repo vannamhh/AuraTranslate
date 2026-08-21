@@ -194,3 +194,118 @@ export async function updateGlossaryTerm(
     return { value: null, error: null }
   }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.4b — adapter THỨ TƯ: dấu khớp thuật ngữ cho TOÀN VĂN một Chương (FR50/FR51)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Hình dạng `GlossaryMarkWire` phía Rust — **`snake_case`, đúng như trên dây**.
+ *
+ * ⚠️ `commands/glossary.rs::GlossaryMarkWire` cố ý KHÔNG đặt
+ * `#[serde(rename_all = "camelCase")]` — cùng luật với mọi struct qua biên IPC (`is_confirmed`,
+ * không `isConfirmed`).
+ *
+ * 🔴 **`start`/`end` là ĐIỂM MÃ, không byte, không UTF-16** — Rust đã quy đổi byte → điểm mã
+ * một lần, một chỗ (`core/glossary/store.rs`). Frontend KHÔNG quy đổi lại — xem
+ * `3-4b-…md` §Design Notes "Ba đơn vị đo".
+ *
+ * ⚠️ Cố ý KHÔNG mang `id`/`source_term` — bốn trường này đủ để VẼ một dấu, không đủ để
+ * correlate hai dấu về cùng một mục Glossary (`deferred-work.md:5925-5940`). Đừng đúc thêm
+ * trường ở đây để "cho tiện" — đó là một quyết định thiết kế tương tác chưa ai mở.
+ */
+export type GlossaryMark = {
+  start: number
+  end: number
+  tier: GlossaryTierWire
+  /** `false` == mục *chờ chốt* — dấu vẫn phải vẽ, chỉ khác KIỂU (gạch chân, không opacity). */
+  is_confirmed: boolean
+  /** `null` khi và chỉ khi `is_confirmed === false`. */
+  translation: string | null
+}
+
+/**
+ * 🔴 **SIẾT 2026-08-21 (rà ba lớp, P6 + P10)** — bản đầu chỉ hỏi `typeof`, không hỏi GIÁ TRỊ.
+ * `IpcError`/`GlossaryMark` là một LỜI KHAI về dữ liệu đã qua dây, không một bảo đảm của trình
+ * biên dịch (`src/AGENTS.md`); một Rust build hỏng hoặc một lượt đổi lược đồ không đồng bộ có
+ * thể gửi `NaN`/số âm/phân số cho `start`/`end`, hoặc phá đúng bất biến mà
+ * `commands/glossary.rs::GlossaryMarkWire` doc-comment khai (`translation` chỉ `null` KHI VÀ
+ * CHỈ KHI `is_confirmed === false`). Type guard là chỗ DUY NHẤT biết — bỏ qua ở đây thì một
+ * mark hỏng đi thẳng lên `StatusBar` thành *"Bản dịch: "* RỖNG, đúng lớp *"rỗng im lặng"* mà
+ * kho cấm.
+ */
+function isGlossaryMark(value: unknown): value is GlossaryMark {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<GlossaryMark>
+  return (
+    typeof v.start === 'number' &&
+    Number.isInteger(v.start) &&
+    v.start >= 0 &&
+    typeof v.end === 'number' &&
+    Number.isInteger(v.end) &&
+    // 🔴 `>` nghiêm ngặt, không `>=`: một span rỗng (`start === end`) không phủ ký tự nào —
+    // `find_terms`/`marks_for_source_text` phía Rust không sinh được ca đó (mọi thuật ngữ
+    // rỗng bị chặn TRƯỚC khi vào lượt khớp), nên nó chỉ có thể là dữ liệu hỏng.
+    v.end > v.start &&
+    (v.tier === 'global' || v.tier === 'work') &&
+    typeof v.is_confirmed === 'boolean' &&
+    // 🔴 Bất biến CHÉO trường — đây là vế P6: `is_confirmed` và `translation` phải KHỚP nhau,
+    // không chỉ đúng KIỂU từng trường riêng lẻ.
+    (v.is_confirmed ? typeof v.translation === 'string' : v.translation === null)
+  )
+}
+
+/**
+ * 🔴 **Type guard LÚC CHẠY cho cả MẢNG** — Rust có thể trả `null` cho `translation` của một
+ * mục chờ chốt, và đây là chỗ DUY NHẤT biết hình dạng đó còn hợp lệ hay không (`src/AGENTS.md`
+ * §"Luôn kiểm kiểu LÚC CHẠY cho dữ liệu qua dây").
+ */
+function isGlossaryMarkArray(value: unknown): value is GlossaryMark[] {
+  return Array.isArray(value) && value.every(isGlossaryMark)
+}
+
+/** Ba trạng thái, cùng khuôn [`GlossaryWriteResult`]. */
+export type GlossaryMarksResult = { marks: GlossaryMark[] | null; error: IpcError | null }
+
+/** Tên command trên dây. Khớp `src-tauri/src/commands/glossary.rs` (module `wire`). */
+const CMD_MARKS_FOR_CHAPTER = 'glossary_marks_for_chapter'
+
+/**
+ * Tìm mọi dấu khớp thuật ngữ trong `text`. **Không bao giờ ném.**
+ *
+ * 🔴 **Đúng MỘT lượt mỗi lần mở Chương, cộng một lượt làm mới sau gộp/tách và sau thêm nhanh
+ * 3.3 — KHÔNG một lượt nào trên đường gõ** (Ice ký 2026-08-21, `3-4b-…md` §Intent). Chỗ gọi
+ * (`src/panels/glossaryMarksState.ts`) chịu trách nhiệm giữ kỷ luật đó; adapter này không tự
+ * giới hạn được tần suất gọi của nó.
+ *
+ * ⚠️ `text` phải là văn bản đã NỐI theo đúng phép cộng dồn mà `glossaryMarksMap.ts` dùng để
+ * chia mark tuyệt đối về từng segment (`segment.source_text` nối bằng `\n`) — KHÔNG phải
+ * `chapter.source_text` thô, thứ không cho một phép cộng dồn nghịch được (xem Design Notes
+ * của story: `push_segment` `trim()` mỗi câu và bỏ câu rỗng).
+ *
+ * ⚠️ Tham số `invoke` viết camelCase — `sourceLang`, không `source_lang`.
+ */
+export async function glossaryMarksForChapter(text: string, sourceLang: string): Promise<GlossaryMarksResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_MARKS_FOR_CHAPTER, { text, sourceLang })
+    if (!isGlossaryMarkArray(wire)) {
+      console.error(
+        `[glossary] \`${CMD_MARKS_FOR_CHAPTER}\` tra ve mot hinh dang khong dung GlossaryMark[]`,
+      )
+      return { marks: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { marks: wire, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { marks: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[glossary] \`${CMD_MARKS_FOR_CHAPTER}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { marks: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[glossary] không gọi được \`${CMD_MARKS_FOR_CHAPTER}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { marks: null, error: null }
+  }
+}

@@ -230,7 +230,9 @@ const VUE_FLOOR = 14 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 17 tệp 
 // ⚠️ **Sàn này KHÔNG nằm trong việc story 2.12 được giao** — Task 7.5 chỉ nêu đích danh
 // `check-layout.mjs`. Nó lòi ra vì lượt đo lại của Task 7.5 đếm CẢ HAI sàn đọc `src/**` thay
 // vì đúng một, và bỏ qua nó sau khi đã thấy thì đúng bằng việc biết một cổng đã tắt mà im.
-const TS_FLOOR = 34 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 41 tệp `.ts` (+config/glossary.ts +glossaryQuickAddState.ts) — 34/41 = 82,9%
+const TS_FLOOR = 36 // 🔵 NÂNG 2026-08-21 (Story 3.4b): số THẬT 44 tệp `.ts` (+glossaryMarksMap.ts
+// +glossaryMarksState.ts +glossaryTermHoverState.ts) — 36/44 = 81,8%. `VUE_FLOOR` KHÔNG đổi —
+// story này thêm 0 tệp `.vue`.
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
  * hai `layout.preset_*` · **ba** `layout.toggle_*` *(🔵 bốn → ba, Story 2.5b)* · hai

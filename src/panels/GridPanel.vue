@@ -109,6 +109,14 @@ import {
   setEditorCaret,
   setEditorSourceCut,
 } from './editorPanelState'
+// 🔵 Story 3.4b — tiêu thụ bề mặt IPC `glossary_marks_for_chapter` (Story 3.4). `glossaryMarks`
+// là mảng TUYỆT ĐỐI (offset vào chuỗi Chương nối bằng `\n`); `glossaryMarksBySegment` chia nó
+// về từng hàng — xem doc-comment của cả hai tệp cho lý do chất nối và lý do KHÔNG gộp tập biên
+// thuật ngữ với `pendingCuts`.
+import { ensureGlossaryMarksLoaded, glossaryMarks } from './glossaryMarksState'
+import { EMPTY_SEGMENT_GLOSSARY_MARKS, glossaryMarksBySegment } from './glossaryMarksMap'
+import type { SegmentTermSpan } from './glossaryMarksMap'
+import { clearHoveredGlossaryTerm, setHoveredGlossaryTerm } from './glossaryTermHoverState'
 
 defineProps<DockviewPanelProps>()
 
@@ -121,6 +129,37 @@ onMounted(() => {
   void ensureSegmentsLoaded()
   void ensureChapterLoaded()
 })
+
+/**
+ * 🔵 Story 3.4b — funnel của "dấu thuật ngữ Glossary", phủ CẢ HAI đường mở Chương mà tệp này
+ * và `editorPanelState.ts` đã có: lượt mount ĐẦU TIÊN ở trên (hai lời gọi `void`, KHÔNG
+ * `await`) và `switchChapter()` (chuyển Chương kề, đã `await` cả hai nguồn trước khi gọi
+ * tường minh — xem `editorPanelState.ts`).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * VÌ SAO `watch`, KHÔNG MỘT LƯỢT `await` THỨ HAI Ở ĐÂY
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `ensureSegmentsLoaded()`/`ensureChapterLoaded()` ở `onMounted` phía trên là `void` — không
+ * `await`. Gọi lại CHÍNH HAI HÀM ĐÓ ở đây rồi `await` chúng KHÔNG chờ được lượt gọi gốc: cả
+ * hai đều idempotent (`if (requested) return`) nên lượt gọi THỨ HAI này trả lời **ngay lập
+ * tức**, trước khi IPC thật kịp về — `editorChapterId.value`/`sourceChapter.value` vẫn `null`
+ * tại điểm `await` đó trả về. `watch` không có vấn đề này: nó chạy lại đúng lúc HAI ref này
+ * đổi giá trị, bất kể ai/khi nào phát ra lượt gọi khiến chúng đổi.
+ *
+ * ⚠️ Watch trên `editorChapterId`/`sourceChapter`, KHÔNG trên `editorSegments`: `editorSegments`
+ * đổi tham chiếu ở MỌI lượt sửa (`replaceEditorSegment`, gộp/tách) — watch nó sẽ vi phạm "đúng
+ * MỘT lượt IPC mỗi lần mở Chương" ngay trên đường xác nhận câu. `editorChapterId` chỉ đổi khi
+ * Chương thật sự đổi.
+ */
+watch(
+  [editorChapterId, sourceChapter],
+  ([chapterId, chapter]) => {
+    if (chapterId === null || chapter === null) return
+    if (!editorHasLoaded() || chapterId !== chapter.chapter_id) return
+    void ensureGlossaryMarksLoaded(chapterId, editorSegments.value, chapter.source_lang)
+  },
+  { immediate: true },
+)
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // Trạng thái màn hình — NĂM ca, và một danh sách rỗng KHÔNG được nói thay cho bốn ca kia
@@ -326,6 +365,19 @@ function cutCountOf(segmentId: number): number {
  * (AD-1), còn ô này chỉ vẽ thứ vẽ được.
  */
 /**
+ * 🔴 **Dấu thuật ngữ Glossary, đã chia về từng segment** — Story 3.4b.
+ *
+ * `Map` THƯA: một segment không có mark nào **không có mục** trong `Map` — chỗ đọc dùng
+ * [`EMPTY_SEGMENT_GLOSSARY_MARKS`] làm mặc định, cùng khuôn `EMPTY_CUTS`.
+ */
+const glossaryMarksPerSegment = computed(() => glossaryMarksBySegment(editorSegments.value, glossaryMarks.value))
+
+/** Biên cắt + span thuật ngữ của MỘT hàng — rỗng nếu hàng này không có dấu nào. */
+function glossaryTermsOf(segmentId: number) {
+  return glossaryMarksPerSegment.value.get(segmentId) ?? EMPTY_SEGMENT_GLOSSARY_MARKS
+}
+
+/**
  * 🔴 **Chỉ số ký tự nguồn nơi mỗi mảnh của [`sourcePiecesOf`] bắt đầu** — Story 2.9, AC9.
  *
  * Cùng biên, cùng thứ tự, cùng đơn vị *(điểm mã)* với hàm kia. Nó tồn tại để mỗi mảnh mang
@@ -334,31 +386,102 @@ function cutCountOf(segmentId: number): number {
  *
  * ⚠️ Hai hàm phải giữ **cùng một** phép chia. Tách chúng ra là mời một lượt lệch im lặng —
  * đây là chỗ duy nhất trong story chấp nhận một bản sao, và nó chấp nhận được vì cả hai đọc
- * chung `pendingCuts` và cùng lọc/sắp y hệt.
+ * chung `pendingCuts` VÀ `glossaryTermsOf(segmentId).boundaries`, cùng lọc/sắp y hệt.
+ *
+ * 🔴 **Story 3.4b — HAI tập điểm HỢP LẠI chỉ để CẮT, không để VẼ.** `pendingCuts` vẽ
+ * `cut-here`; biên thuật ngữ chỉ cắt. Gộp chúng ở ĐÂY (nơi quyết định mảnh nào tồn tại) là
+ * đúng và BẮT BUỘC — mảnh sinh bởi một biên thuật ngữ vẫn cần một `<span data-src-start>`
+ * riêng để tô màu/gắn hover. Việc VẼ `cut-here` vẫn tra RIÊNG `pendingCuts` ở template
+ * (`isPendingCutAt`), không suy từ việc một điểm có mặt ở mảng này.
  */
 function sourcePieceStartsOf(segmentId: number, text: string): readonly number[] {
-  const n = cutCountOf(segmentId)
-  if (n === 0) return [0]
+  const pending = cutOffsetsOf(segmentId)
+  const terms = glossaryTermsOf(segmentId).boundaries
+  if (pending.length === 0 && terms.length === 0) return [0]
   const ky = [...text]
-  const moc = [...(pendingCuts.value?.offsets ?? [])]
+  const moc = [...new Set([...pending, ...terms])]
     .filter((o) => o > 0 && o < ky.length)
     .sort((a, b) => a - b)
   return [0, ...moc]
 }
 
 function sourcePiecesOf(segmentId: number, text: string): readonly string[] {
-  const n = cutCountOf(segmentId)
-  if (n === 0) return [text]
+  const starts = sourcePieceStartsOf(segmentId, text)
+  if (starts.length === 1) return [text]
   const ky = [...text]
-  const moc = [...(pendingCuts.value?.offsets ?? [])]
-    .filter((o) => o > 0 && o < ky.length)
-    .sort((a, b) => a - b)
-  const bien = [0, ...moc, ky.length]
+  const bien = [...starts, ky.length]
   const ra: string[] = []
   for (let i = 0; i < bien.length - 1; i += 1) {
     ra.push(ky.slice(bien[i], bien[i + 1]).join(''))
   }
   return ra
+}
+
+/** `true` ⇔ `offset` là một điểm cắt NGƯỜI DÙNG đang chờ của hàng `segmentId` — dùng để quyết
+ * định vẽ `cut-here`, TÁCH khỏi việc `offset` có phải một biên thuật ngữ hay không. */
+function isPendingCutAt(segmentId: number, offset: number): boolean {
+  const c = pendingCuts.value
+  return c !== null && c.segmentId === segmentId && c.offsets.includes(offset)
+}
+
+/** Span thuật ngữ (nếu có) phủ TRỌN `[start, end)` của một mảnh — `null` ⇔ mảnh này không
+ * mang dấu Glossary nào. */
+function glossarySpanAt(segmentId: number, start: number, end: number): SegmentTermSpan | null {
+  const spans = glossaryTermsOf(segmentId).spans
+  return spans.find((s) => s.start <= start && end <= s.end) ?? null
+}
+
+/**
+ * Span thuật ngữ (nếu có) chứa ĐIỂM `offset` — khác [`glossarySpanAt`] (chứa TRỌN một
+ * KHOẢNG): đây là vế TIÊU ĐIỂM/CARET của I/O Matrix ("rê chuột / đưa tiêu điểm"), dùng bởi
+ * [`onSourceSelectionChange`].
+ *
+ * 🔴 **NỬA-MỞ `[start, end)`, GIỐNG MỌI biên khác trong story này** — KHÔNG hai đầu đóng. Một
+ * caret ở offset `end` đứng NGAY ĐẦU ký tự tiếp theo (đúng nghĩa "vị trí `N` nằm GIỮA ký tự
+ * `N-1` và ký tự `N`"), tức đã RỜI thuật ngữ. Đo được bằng ca thật
+ * (`tests/frontend/glossaryHoverSelection.test.ts` §"caret RỜI khỏi mảnh mang dấu"): hai đầu
+ * đóng làm offset `end` (đầu mảnh KẾ TIẾP) vẫn khớp thuật ngữ vừa rời — sai với chính nhánh
+ * "rời ra thì phát tín hiệu rời" mà Ice yêu cầu.
+ */
+function glossarySpanAtPoint(segmentId: number, offset: number): SegmentTermSpan | null {
+  const spans = glossaryTermsOf(segmentId).spans
+  return spans.find((s) => s.start <= offset && offset < s.end) ?? null
+}
+
+/** Một mảnh của [`sourcePiecesOf`], cộng mọi dữ kiện template cần để vẽ/gắn hover — Story 3.4b. */
+type SourcePieceInfo = {
+  text: string
+  start: number
+  isPendingCut: boolean
+  glossary: SegmentTermSpan | null
+}
+
+/** Gộp [`sourcePiecesOf`]/[`sourcePieceStartsOf`] cộng nhãn Glossary thành MỘT mảng cho `v-for`
+ * — tránh gọi lại nhiều hàm rời rạc trên cùng một chỉ số trong template. */
+function sourcePieceInfoOf(segmentId: number, text: string): readonly SourcePieceInfo[] {
+  const starts = sourcePieceStartsOf(segmentId, text)
+  const pieces = sourcePiecesOf(segmentId, text)
+  return pieces.map((piece, i) => {
+    const start = starts[i] ?? 0
+    const end = i + 1 < starts.length ? starts[i + 1] : start + [...piece].length
+    return {
+      text: piece,
+      start,
+      isPendingCut: isPendingCutAt(segmentId, start),
+      glossary: glossarySpanAt(segmentId, start, end),
+    }
+  })
+}
+
+/** Handler `@mouseenter` của một mảnh mang dấu — no-op nếu mảnh không mang dấu nào. */
+function onGlossaryPieceEnter(span: SegmentTermSpan | null): void {
+  if (span === null) return
+  setHoveredGlossaryTerm({ isConfirmed: span.isConfirmed, translation: span.translation })
+}
+
+/** Handler `@mouseleave` — luôn an toàn gọi, kể cả trên một mảnh không mang dấu. */
+function onGlossaryPieceLeave(): void {
+  clearHoveredGlossaryTerm()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -881,11 +1004,95 @@ function onSelectionChange(): void {
   if (id !== null) setEditorCaret(id)
 }
 
+/**
+ * 🔵 **Story 3.4b (bổ sung theo yêu cầu Ice, 2026-08-21) — vế TIÊU ĐIỂM của I/O Matrix "rê
+ * chuột / đưa tiêu điểm lên dấu đã chốt".** Bản đầu của story chỉ cài `@mouseenter`/
+ * `@mouseleave` và ghi nợ vế bàn phím — Ice bác: hàng đó nằm TRONG khối
+ * `<frozen-after-approval>`, không phải phạm vi tự thu hẹp. `epics.md` §Story 3.4b còn đòi
+ * "MỘT dòng StatusBar đạt CẢ hai vế bằng MỘT cơ chế".
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ĐẠT VẾ TIÊU ĐIỂM VỚI **0** TAB-STOP MỚI — cùng khuôn [`onSelectionChange`] ngay trên
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `.hv-switch`/`.hv-parallel` đã mang `tabindex="0"` từ Story 1.18 (AC11); đường mở rộng vùng
+ * chọn bằng bàn phím (`Selection.modify()`, `selectionCommands` ở `selectionContract.ts`)
+ * chạy trên `window.getSelection()` HIỆN CÓ, không cần phần tử nào đang giữ tiêu điểm DOM —
+ * đo được ở chính doc-comment của `modifySelection()` ("`tabindex="0"` trên một `<p>` không
+ * sửa được" đã ĐO xong ở Story 1.18, hai engine). ⇒ Nghe `selectionchange` — đúng sự kiện mà
+ * [`onSelectionChange`] đã dùng cho cột bản dịch — thay vì thêm một tab-stop mới cho cột
+ * nguyên văn: **0** đổi cấu trúc DOM, **0** rủi ro cho AC6/AC11/AC12 đã ký.
+ *
+ * ⚠️ **Một CƠ CHẾ, hai đường vào**: hàm này và [`onGlossaryPieceEnter`] (chuột) đều ghi vào
+ * ĐÚNG MỘT state ([`setHoveredGlossaryTerm`]/[`clearHoveredGlossaryTerm`]) — "một cơ chế" là
+ * NƠI TÍN HIỆU HẠ CÁNH, không phải một loại sự kiện DOM duy nhất; chuột và bàn phím vốn dĩ là
+ * hai loại sự kiện khác nhau ở tầng trình duyệt.
+ *
+ * ⚠️ **KHÁC [`onSelectionChange`] ở một điểm có chủ đích: hàm NÀY xoá tường minh khi
+ * `span === null`, hàm KIA thì không.** `onSelectionChange` dựa vào `onColumnFocusOut` (cột
+ * bản dịch CÓ `contenteditable`, tức focus DOM thật) để dọn khi rời cột. Cột nguyên văn không
+ * có tín hiệu blur đáng tin cho đường chữ trần (`.src-piece` không `tabindex`) — nên đây là
+ * nguồn XOÁ DUY NHẤT cho vế bàn phím, và nó phải tự xoá mỗi khi caret không còn đứng trên một
+ * thuật ngữ, kể cả khi caret rời khỏi cột nguyên văn hoàn toàn.
+ *
+ * ⚠️ **Có thể ghi đè một lượt hover CHUỘT đang hiện, và ngược lại** — cả hai cùng một state,
+ * "tín hiệu tới sau cùng thắng". Ca duy nhất lệch pha: bấm chuột vào một thuật ngữ A rồi, KHÔNG
+ * di chuột, đưa chuột đứng yên trên thuật ngữ B từ một cú di chuyển TRƯỚC đó — `selectionchange`
+ * của cú bấm đè hiển thị của B bằng A dù chuột vẫn hình học nằm trên B. Biên hiếm, chấp nhận
+ * được: không cơ chế lớp-chồng nào được dựng thêm cho ca này.
+ * 🔵 **SIẾT 2026-08-21 (rà ba lớp, P13) — ca RỘNG HƠN đã được CHẶN, không còn là "biên hiếm".**
+ * Bản đầu của hàm này dọn hover vô điều kiện khi `cell === null` — tức MỌI phím gõ ở cột bản
+ * dịch (`selectionchange` bắn theo từng ký tự trong `contenteditable`) xoá một hover chuột
+ * đang hiện, HOÀN TOÀN không liên quan tới cột nguồn. Đó KHÔNG phải "biên hiếm", nó là đường
+ * THƯỜNG NGÀY nhất của ứng dụng (gõ dịch trong khi đọc lại nguyên văn). Chốt `if (cell ===
+ * null) return` ở trên đóng đúng ca đó. Ca lệch pha CÒN LẠI (mô tả ngay trên) hẹp hơn nhiều:
+ * nó đòi một cú BẤM (không phải gõ phím) rơi đúng VÀO cột nguồn mà KHÔNG trúng thuật ngữ nào,
+ * trong khi chuột đang hình học nằm trên một thuật ngữ KHÁC — vẫn chấp nhận được, không sửa.
+ *
+ * ⚠️ Dùng chung ĐÚNG neo `data-src-start`/`sourceCutOffsetOf` mà click-để-cắt (Story 2.8/2.9)
+ * đã dùng — một hàm ánh xạ offset, hai chỗ tiêu thụ, KHÔNG một đường thứ hai.
+ */
+function onSourceSelectionChange(): void {
+  const selection = window.getSelection()
+  const anchor = selection?.anchorNode ?? null
+  const from = anchor === null ? null : anchor instanceof Element ? anchor : anchor.parentElement
+  const cell = from?.closest<HTMLElement>('[data-col="src"]') ?? null
+
+  // 🔴 **SIẾT 2026-08-21 (rà ba lớp, P13) — CHỈ dọn khi vùng chọn THẬT SỰ ở trong cột nguồn mà
+  // KHÔNG trúng thuật ngữ nào. KHÔNG dọn khi vùng chọn ở NGOÀI cột nguồn.**
+  //
+  // `selectionchange` bắn ở **document**, tức bắn cho MỌI lượt đổi vùng chọn trong app — kể cả
+  // mỗi phím gõ vào Ô BẢN DỊCH (`contenteditable`, `selectionchange` bắn theo từng ký tự). Bản
+  // đầu của hàm này gọi `clearHoveredGlossaryTerm()` vô điều kiện khi `cell === null`, tức MỖI
+  // phím gõ ở cột bản dịch xoá một dấu đang hiện do CHUỘT đặt (đứng yên trên một thuật ngữ,
+  // không di chuyển) — chuột không bắn lại `@mouseenter` vì nó không di chuyển, nên `StatusBar`
+  // rơi về "Đã lưu…" giữa chừng một cú gõ hoàn toàn không liên quan tới cột nguồn.
+  //
+  // ⇒ Phân biệt HAI ca `cell === null`, chỉ MỘT ca được dọn:
+  //   ① vùng chọn **ở NGOÀI cột nguồn** (gõ ở cột bản dịch, click nơi khác) ⇒ đây KHÔNG phải
+  //      tín hiệu về thuật ngữ — bỏ qua, KHÔNG đụng `hoveredGlossaryTerm` (chuột vẫn giữ vai).
+  //   ② vùng chọn **Ở TRONG cột nguồn** nhưng không trúng dấu nào (`span === null` trong khi
+  //      `cell !== null`) ⇒ đây LÀ tín hiệu thật "caret vừa RỜI một thuật ngữ" — dọn.
+  if (cell === null) return
+
+  const id = segmentIdOf(cell)
+  const offset =
+    anchor === null || id === null ? null : sourceCutOffsetOf(cell, anchor, selection?.anchorOffset ?? 0)
+  const span = id === null || offset === null ? null : glossarySpanAtPoint(id, offset)
+
+  if (span === null) {
+    clearHoveredGlossaryTerm()
+    return
+  }
+  setHoveredGlossaryTerm({ isConfirmed: span.isConfirmed, translation: span.translation })
+}
+
 onMounted(() => {
   document.addEventListener('selectionchange', onSelectionChange)
+  document.addEventListener('selectionchange', onSourceSelectionChange)
 })
 onBeforeUnmount(() => {
   document.removeEventListener('selectionchange', onSelectionChange)
+  document.removeEventListener('selectionchange', onSourceSelectionChange)
 })
 
 /**
@@ -1410,30 +1617,48 @@ const chapterId = computed(() => editorChapterId.value)
               :source-text="s.source_text"
               :view-mode="viewMode"
               :cuts="cutOffsetsOf(s.id)"
+              :glossary-terms="glossaryTermsOf(s.id).spans"
               surface-role="cell"
             />
             <!--
-              🔵 2026-08-17, AC7 — nguyên văn chia thành mảnh theo TẬP ĐIỂM CẮT đang chờ, mỗi
-              ranh giới một dấu. Không điểm nào ⇒ `sourcePiecesOf` trả đúng MỘT mảnh, tức
-              đường thường giữ nguyên hình dạng cây.
+              🔵 2026-08-17, AC7 — nguyên văn chia thành mảnh theo TẬP ĐIỂM CẮT đang chờ CỘNG
+              (Story 3.4b) biên thuật ngữ Glossary, mỗi ranh giới một mảnh. Không điểm nào ⇒
+              `sourcePiecesOf` trả đúng MỘT mảnh, tức đường thường giữ nguyên hình dạng cây.
 
               ⚠️ Dấu cắt RỖNG và mang `aria-hidden` — nó không phải chữ, và một ký tự thật ở
               đây sẽ đi vào `Selection.toString()` của Auto-Lookup rồi vào mọi lượt sao chép.
+
+              🔴 Story 3.4b — `cut-mark` vẽ CHỈ khi `piece.isPendingCut`: một mảnh sinh RIÊNG
+              bởi biên thuật ngữ (không phải một điểm cắt người dùng) không được vẽ dấu ngắt
+              đoạn giả — xem `sourcePieceStartsOf` và Design Notes "ba tập điểm, đừng gộp" của
+              `3-4b-…md`.
             -->
             <template v-else
-              ><template v-for="(manh, i) in sourcePiecesOf(s.id, s.source_text)" :key="i"
-                ><span v-if="i > 0" class="cut-mark" aria-hidden="true"></span
+              ><template v-for="(piece, i) in sourcePieceInfoOf(s.id, s.source_text)" :key="i"
+                ><span v-if="i > 0 && piece.isPendingCut" class="cut-mark" aria-hidden="true"></span
                 ><!-- 🔵 2026-08-17 (AC9) — mỗi mảnh nay là một `<span>` mang NEO
                      `data-src-start`. Trước lượt này mảnh là text node trần và
                      `sourceCutOffsetOf` phải **đếm mù** mọi text node trong ô — phép đếm đó
                      sai hẳn ở tab Hán Việt *(đo: 17 và 19 trên một câu 5 chữ)*.
                      ⚠️ `<span>` KHÔNG thêm một ký tự nào vào `Selection.toString()`, nên
                      Auto-Lookup (FR21) không bị chạm.
+                     🔵 Story 3.4b — `glossary-confirmed`/`glossary-pending` tô dấu thuật ngữ
+                     đã khớp. `@mouseenter`/`@mouseleave` là vế CHUỘT; vế BÀN PHÍM/TIÊU ĐIỂM
+                     đi qua `onSourceSelectionChange()` ở khối kịch bản phía trên — KHÔNG
+                     `tabindex` mới ở đây: caret di chuyển bằng `Selection.modify()` (AC11)
+                     không cần phần tử này tự focus được. Không đi qua `dispatch()` — Kiểm A
+                     của `check:commands` chỉ canh `@click`.
                      aura-allow-text: nguyên văn của Tác phẩm — DỮ LIỆU, không chuỗi giao
                      diện (NFR16). Không `v-html` (AD-16). --><span
                   class="src-piece"
-                  :data-src-start="sourcePieceStartsOf(s.id, s.source_text)[i]"
-                >{{ manh }}</span></template
+                  :class="{
+                    'glossary-confirmed': piece.glossary?.isConfirmed === true,
+                    'glossary-pending': piece.glossary?.isConfirmed === false,
+                  }"
+                  :data-src-start="piece.start"
+                  @mouseenter="onGlossaryPieceEnter(piece.glossary)"
+                  @mouseleave="onGlossaryPieceLeave()"
+                >{{ piece.text }}</span></template
               ></template
             >
           </div>
@@ -1806,6 +2031,35 @@ const chapterId = computed(() => editorChapterId.value)
   height: 1.3em;
   vertical-align: text-bottom;
   background-color: var(--color-primary);
+}
+
+/*
+ * 🔴 DẤU THUẬT NGỮ GLOSSARY ĐÃ KHỚP — Story 3.4b, FR50/FR51.
+ *
+ * ⚠️ **Hai kiểu, MỘT màu** — cả hai đọc `--color-primary` (đã chốt tô CHỮ; chờ chốt gạch chân
+ * CHỮ), đúng UX *"màu nhấn `primary` chỉ dành cho đúng ba việc, đánh dấu thuật ngữ đã chốt là
+ * việc thứ nhất"* (`epic-3-context.md`). `check-tokens` Kiểm B cấm màu viết thẳng — cả hai đều
+ * qua `var(--color-*)`.
+ *
+ * 🔴 **KHÔNG `opacity`, KHÔNG bóng đổ/gradient/lớp nổi, `z-index` KHÔNG chạm.** Chữ ký của Ice
+ * 2026-08-21 (`3-4b-…md` §Boundaries): kiểu gạch chân là kênh phân biệt DUY NHẤT giữa đã
+ * chốt/chờ chốt — không mờ đi bằng `opacity` (`check-tokens` Kiểm D cấm mọi giá trị khác 0/1
+ * trung gian).
+ *
+ * ⚠️ `text-decoration-color`/`-thickness`/`-offset` KHÔNG mang màu literal nào ngoài
+ * `var(--color-primary)` ⇒ đi qua Kiểm B tự do (`COMPOSITE_COLOR_PROPS` chỉ soi phần MÀU của
+ * một giá trị ghép) — cùng lý lẽ đã ghi cho `.cell.omitted { text-decoration: line-through }`
+ * ở dưới tệp này.
+ */
+.src-piece.glossary-confirmed {
+  color: var(--color-primary);
+}
+
+.src-piece.glossary-pending {
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-primary);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 /*

@@ -52,7 +52,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-21T16:40:00
+last_updated: 2026-08-21T19:20:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -164,7 +164,12 @@ development_status:
   # lượt nào trên đường gõ ⇒ 214 ms nằm NGOÀI trần NFR2 (50 ms) ⇒ không cache, không chỉ mục
   # ngược. Món nợ ĐO còn lại: cặp số mở Chương (hâm Jieba ~243 ms + lượt khớp 214 ms) — một AC.
   # ⚠️ FR50 chỉ đóng khi story này xanh; Story 3.4 đóng FR51 và nửa khớp + bề mặt IPC của FR50.
-  3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi: backlog
+  # 🔵 2026-08-21 — backlog → in-progress (bmad-build, spec đã duyệt ở CHECKPOINT 1).
+  # Spec: `3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi.md`, baseline `5c65256`.
+  # ⚠️ Spec đo ≈ 5.600–6.500 token so với trần 1.600 của cửa `bmad-build`; Ice ký [K] giữ
+  # nguyên phạm vi 2026-08-21 — tách dòng `StatusBar` ra sẽ làm FR50 cần story thứ BA và đẩy
+  # một AC của `epics.md` ra ngoài, đúng lớp vấn đề lượt `correct-course` hôm qua vừa đóng.
+  3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi: review
   3-5-quet-ung-vien-khi-nhap-tai-lieu: backlog
   3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap: backlog
   3-7-de-xuat-ban-dich-bang-am-han-viet: backlog

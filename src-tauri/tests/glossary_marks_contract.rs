@@ -543,3 +543,90 @@ fn the_work_tier_wins_over_global_through_the_real_glossary_marks_for_chapter_su
     cleanup(&root);
     cleanup(&global_dir);
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Chất nối `\n` không cho một dấu bắc cầu — Story 3.4b, AC "đo trên cả hai nhánh Zh và En"
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// `3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi.md` §Design Notes nối `segment.source_text`
+// bằng `\n` để chia mark tuyệt đối về từng segment ở tầng TypeScript (`glossaryMarksMap.ts`).
+// Phép nối đó CHỈ đúng nếu KHÔNG dấu nào từ `marks_for_source_text` bắc cầu qua đúng ký tự
+// `\n` mà chính nó chèn vào -- nếu có, một thuật ngữ đặt sát biên hai segment sẽ vẽ dấu lấn
+// sang segment kế bên, một nguồn dữ liệu người dùng KHÔNG viết ra.
+//
+// 🔴 Đây LÀ mệnh đề mà spec ghi "chưa ai đo" -- hai ca dưới đây đo THẬT qua chính bề mặt
+// `marks_for_source_text`, không suy từ đọc mã. Đặt ở tệp này (không ở `matching_boundary.rs`)
+// vì bề mặt MARK là chủ của mệnh đề "chất nối `\n`" -- `core::matching` không biết gì về việc
+// ai nối segment bằng ký tự gì; nó chỉ tình cờ có sẵn luật "từ chối bắc cầu qua `\n`" từ trước
+// (2026-08-05, cho ranh giới CÂU), và story 3.4b dựa vào đúng luật có sẵn đó.
+
+#[test]
+fn a_chinese_term_placed_right_across_the_newline_joiner_produces_no_mark() {
+    let global_dir = temp_dir("nl-bridge-zh-global");
+    let global = open_global(&global_dir);
+    // Chép NGUYÊN VÍ DỤ đã có trong doc-comment của `find_terms` (`core/matching/mod.rs`):
+    // "萧炎" không có trong từ điển jieba nên rơi ra TỪNG KÝ TỰ (HMM = false) -- tức mọi biên
+    // ký tự đều là biên token, và phép khớp không phụ thuộc việc jieba có "biết" cụm này.
+    add_manual_term(&global, None, GlossaryTier::Global, "萧炎", Some("Tieu Viem"), "", Category::Person)
+        .expect("them thuat ngu vao tang Global");
+
+    let resolver = ScopeResolver::global_only();
+
+    // ── ĐỐI CHỨNG DƯƠNG: liền nhau (không `\n`) ⇒ PHẢI khớp -- chứng minh ca âm dưới không
+    //    phải "thuật ngữ này chưa từng khớp được" mà đúng là `\n` đã chặn nó.
+    let lien =
+        marks_for_source_text(&resolver, &global, None, "萧炎和林动", MatchLang::Zh).expect("khong loi");
+    assert_eq!(lien.len(), 1, "doi chung: 萧炎 lien nhau phai khop dung mot dau: {lien:?}");
+    assert_eq!((lien[0].start, lien[0].end), (0, 2), "dau phai phu dung hai diem ma dau cua 萧炎");
+
+    // ── CA CHÍNH: `萧` kết thúc "segment 1", `炎和林动` mở "segment 2", nối bằng `\n` --
+    //    đúng hình dạng chuỗi mà `glossaryMarksMap.ts::joinSegmentSourceText` dựng.
+    let bac_cau = marks_for_source_text(&resolver, &global, None, "萧\n炎和林动", MatchLang::Zh)
+        .expect("khong loi");
+    assert!(
+        bac_cau.is_empty(),
+        "0 dau bac cau qua \\n -- 萧炎 KHONG duoc khop khi bi \\n chen giua: {bac_cau:?}"
+    );
+
+    drop(global);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn an_english_multi_word_term_placed_right_across_the_newline_joiner_produces_no_mark() {
+    let global_dir = temp_dir("nl-bridge-en-global");
+    let global = open_global(&global_dir);
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "fire dragon",
+        Some("Hoa Long"),
+        "",
+        Category::Other,
+    )
+    .expect("them thuat ngu vao tang Global");
+
+    let resolver = ScopeResolver::global_only();
+
+    // ── ĐỐI CHỨNG DƯƠNG: một dấu cách phân tách (không `\n`) ⇒ PHẢI khớp.
+    let lien = marks_for_source_text(&resolver, &global, None, "a fire dragon roars", MatchLang::En)
+        .expect("khong loi");
+    assert_eq!(lien.len(), 1, "doi chung: fire dragon lien nhau phai khop dung mot dau: {lien:?}");
+    assert_eq!(
+        &"a fire dragon roars"[lien[0].start..lien[0].end],
+        "fire dragon",
+        "dau phai phu dung cum fire dragon"
+    );
+
+    // ── CA CHÍNH: "fire" kết thúc "segment 1", "dragon roars" mở "segment 2", nối bằng `\n`.
+    let bac_cau = marks_for_source_text(&resolver, &global, None, "a fire\ndragon roars", MatchLang::En)
+        .expect("khong loi");
+    assert!(
+        bac_cau.is_empty(),
+        "0 dau bac cau qua \\n -- fire dragon KHONG duoc khop khi bi \\n chen giua: {bac_cau:?}"
+    );
+
+    drop(global);
+    cleanup(&global_dir);
+}

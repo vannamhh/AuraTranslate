@@ -24,7 +24,8 @@ Epic này dựng Glossary — nơi người dịch chốt cách dịch cho tên 
 
 - Hai tầng: toàn cục (mọi Tác phẩm) và theo Tác phẩm; trùng thuật ngữ thì tầng Tác phẩm thắng. Mỗi mục mang thuật ngữ nguồn, bản dịch, ghi chú, phân loại (người/địa danh/chuyên ngành/khác), ngày thêm, xuất xứ (nhập tay / đề xuất khi nhập tài liệu / thu hoạch từ bản review).
 - Vòng đời một chiều: ứng viên → chờ chốt bản dịch → đã chốt; bản dịch nullable tới khi chốt. Chỉ mục đã chốt được đưa vào ép AI — một trường trống trong prompt gợi ý sai cho mô hình rằng thuật ngữ không có bản dịch quy ước.
-- Thêm nhanh dùng được từ mọi bề mặt vùng chọn đã đăng ký (cột nguyên văn của lưới, Panel Lookup, Panel AI Translation, cột bản dịch của lưới), không rời màn hình, toàn bộ bằng bàn phím. Thuật ngữ đã chốt đánh dấu ở cột nguyên văn của lưới; mục chờ chốt cũng đánh dấu nhưng phải phân biệt được.
+- Thêm nhanh dùng được từ mọi bề mặt vùng chọn đã đăng ký (cột nguyên văn của lưới, Panel Lookup, Panel AI Translation, cột bản dịch của lưới), không rời màn hình, toàn bộ bằng bàn phím.
+- Thuật ngữ đã chốt đánh dấu bằng màu `primary` ở cột nguyên văn của lưới, trên cả hai đường render (chữ trần lẫn hiển thị Hán Việt); mục chờ chốt bản dịch cũng đánh dấu nhưng phân biệt bằng kiểu gạch chân, không dùng opacity. Rê chuột hoặc đưa tiêu điểm tới một thuật ngữ đã đánh dấu hiện bản dịch đã chốt ở một dòng `StatusBar`, không mở lớp nổi.
 - Khớp theo ngôn ngữ: tiếng Trung khớp chính xác, tiếng Anh khớp mờ qua stemming.
 - Quét khi nhập: chuỗi lặp ≥5 lần (ngưỡng cấu hình được) và không có trong từ điển nhúng, ghi vào bảng chờ kèm số lần xuất hiện + ví dụ ngữ cảnh, chạy nền không chặn người dùng.
 - Thu hoạch từ bản review (Epic 8, FR54/FR95): đổi thuật ngữ nhất quán trong bản Reviewer được đề xuất bổ sung kèm tỉ lệ nhất quán, kích hoạt độc lập với việc có mở Review Mode hay không.
@@ -44,6 +45,8 @@ Epic này dựng Glossary — nơi người dịch chốt cách dịch cho tên 
 - Âm Hán Việt cho đề xuất (FR113) đọc qua cổng `DictionarySource`, không cài lại dữ liệu bên trong `glossary/`. Thêm cạnh phụ thuộc `glossary/ → dict/`, không tạo chu trình ngược.
 - Lưu trữ: mục tầng Tác phẩm nằm trong `project.db` của Tác phẩm đó; mục tầng Global nằm trong `global.db`. Mỗi kho ghi được có đúng một kết nối ghi sau hàng đợi nối tiếp; đọc dùng pool song song (WAL); không module nào tự mở kết nối ghi riêng.
 - Không thêm port thứ tư ngoài `DictionarySource`/`TranslationProvider`/`ProjectStore` mà thiếu một Architecture Decision mới. Chuỗi hiển thị không viết cứng trong Rust — lỗi/thông báo qua IPC dạng `{ code, message_key, params, retryable }`.
+- Ranh giới của `Matcher` thắng ranh giới từ của ICU khi vẽ dấu ở lưới; ICU chỉ còn quyết vùng double-click phủ tới đâu. Phép cắt tại biên thuật ngữ làm ở tầng dữ liệu (dựng segment hiển thị tự cắt), không chèn node mới vào DOM — bất biến "một phần tử DOM ứng đúng một segment" giữ nguyên theo cấu tạo.
+- Bề mặt IPC trả offset tuyệt đối vào toàn văn bản Chương, còn lưới render theo từng segment đã `trim()` và bỏ câu rỗng — nối ngược không phải phép cộng dồn đơn giản. Gọi lại theo từng segment bị loại vì tầng dưới nạp cả hai tầng Glossary mỗi lượt gọi; đường nối phải qua đo thực tế trước khi chốt, không giả định an toàn.
 
 ## UX & Interaction Patterns
 
@@ -51,12 +54,15 @@ Epic này dựng Glossary — nơi người dịch chốt cách dịch cho tên 
 - Chỉ một dải mọc tại một thời điểm: cái nào chặn thật thắng, cái nào chỉ gợi ý thì nhường. Chốt Glossary luôn thắng vì thuật ngữ chưa chốt không tham gia ép AI — để treo là để một lỗ hổng chạy tiếp qua mọi câu sau.
 - Bảng chờ duyệt hàng loạt: mỗi dòng hiện số lần xuất hiện, ví dụ ngữ cảnh, bản dịch đề xuất khi có. Hàng đã duyệt/đã bỏ lùi ra sau bằng đổi màu chữ sang `on-surface-variant` cộng dấu tick/x — tuyệt đối không dùng `opacity` (một đợt kiểm toán trước từng để lọt lỗi tương phản chính vì dùng opacity ở đúng màn hình này).
 - Màu nhấn `primary` (xanh mực) chỉ dành cho đúng ba việc toàn ứng dụng, gồm đánh dấu thuật ngữ Glossary đã chốt — không dùng cho nút bấm hay tiêu đề thường.
+- `StatusBar` là nơi duy nhất chở bản dịch đã chốt khi rê chuột/tiêu điểm vào một thuật ngữ đánh dấu — nó đã chở dòng "Đã lưu N giây trước", bản dịch là người ở trọ thứ hai, không mở thêm bề mặt nổi mới.
 - Toàn bộ luồng thêm nhanh, duyệt hàng loạt, quản lý Glossary phải làm được hoàn toàn bằng bàn phím.
 
 ## Cross-Story Dependencies
 
 - Story 3.4 phải dùng lại `Matcher` đã dựng ở Epic 1, không cài đặt khớp ngôn ngữ riêng cho Glossary.
 - Story 3.4b phụ thuộc bề mặt IPC `glossary_marks_for_chapter` mà Story 3.4 dựng. Nó gọi **MỘT** lượt mỗi lần mở Chương, cộng một lượt làm mới khi Glossary đổi hoặc khi segment gộp/tách — **không một lượt nào trên đường gõ** (Ice ký 2026-08-21). Đó là thứ giữ **214 ms** *(Chương 48.640 ký tự, Glossary 5.000 mục)* nằm NGOÀI trần NFR2 **50 ms**, và là lý do không story nào ở đây thêm cache hay chỉ mục ngược.
+- Story 3.4b không phải story thuần frontend: đường nối offset tuyệt đối của `glossary_marks_for_chapter` với segment hiển thị chưa chốt, có thể phải đổi lại hình dạng dây IPC (chạm lại phía Rust) tuỳ kết quả đo. Nó cũng đụng lại bất biến vùng chọn/segment mà Story 1.16 và 1.18 đã canh — đo lại sau khi cấu trúc node đổi, không suy từ số đo cũ của hai story đó.
+- Story 3.4b chở kèm cả lượt hâm `Jieba` trên đường mở Chương (chi phí lần đầu của một phiên) — số đo mở Chương của story này phải tách lượt lạnh khỏi lượt ấm.
 - Story 3.7 phụ thuộc dữ liệu Hán Việt nhúng và cổng `DictionarySource` từ Epic 1.
 - Story 3.6 chia sẻ cơ chế "chỉ một dải mọc" với Epic 7 (TM khớp mờ) và Epic 9 (Proofreader); Glossary luôn thắng khi cùng kích hoạt trên một câu.
 - Epic 4 (Smart RAG Injector) phụ thuộc trực tiếp vào truy vấn "mục đủ điều kiện chèn" mà Story 3.1 dựng — không có đường nào khác để chạm dữ liệu Glossary.

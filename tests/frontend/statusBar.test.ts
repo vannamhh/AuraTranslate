@@ -313,3 +313,47 @@ describe('⑤ Quyết định #8 vế thanh trạng thái — ba kết quả KH�
     wrapper.unmount()
   })
 })
+
+/**
+ * Story 3.4b — I/O Matrix *"Đang có câu lỗi xác nhận | `confirmNoticeKey !== null` | Bản dịch
+ * thuật ngữ KHÔNG đè lên nó"*. `glossaryHoverText` là nhánh THỨ NĂM (dưới cùng, trên "Đã lưu")
+ * — mệnh đề này canh đúng THỨ TỰ `v-if`/`v-else-if` của template, thứ không cổng tĩnh nào bắt
+ * được nếu ai đó đảo hai nhánh.
+ */
+describe('Story 3.4b — nhánh bản dịch thuật ngữ KHÔNG đè lên câu báo khẩn hơn', () => {
+  it('🔴 câu lỗi xác nhận (`no-caret`) đứng, dù đang có một thuật ngữ được rê chuột tới', async () => {
+    const { state, StatusBar } = await freshStatusBar()
+    const hover = await import('../../src/panels/glossaryTermHoverState')
+    const wrapper = mount(StatusBar)
+    await state.ensureSegmentsLoaded()
+
+    // Đặt TRƯỚC lượt xác nhận — mô phỏng đúng thứ tự thời gian thật: người dùng đang rê chuột
+    // trên một dấu Glossary, rồi bấm `⌘Enter` khi CHƯA chọn câu nào.
+    hover.setHoveredGlossaryTerm({ isConfirmed: true, translation: 'Ngạo Lai quốc' })
+
+    expect(await state.confirmCurrentSegment()).toBe('no-caret')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.notice').text()).toBe(
+      'Chưa có câu nào đang được chọn — đặt con trỏ vào một câu rồi xác nhận.',
+    )
+    // 🔴 Mệnh đề trung tâm: câu về thuật ngữ KHÔNG có mặt ở đâu trên thanh, dù state hover
+    // của nó vẫn đang mang giá trị thật (chưa ai dọn nó) — thứ tự template mới là cái quyết.
+    expect(wrapper.text()).not.toContain('Ngạo Lai quốc')
+
+    wrapper.unmount()
+  })
+
+  it('KHÔNG câu lỗi nào đang treo ⇒ bản dịch thuật ngữ hiện ra bình thường', async () => {
+    const { state, StatusBar } = await freshStatusBar()
+    const hover = await import('../../src/panels/glossaryTermHoverState')
+    const wrapper = mount(StatusBar)
+    await state.ensureSegmentsLoaded()
+
+    hover.setHoveredGlossaryTerm({ isConfirmed: true, translation: 'Ngạo Lai quốc' })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.notice').text()).toBe('Bản dịch: Ngạo Lai quốc')
+    wrapper.unmount()
+  })
+})

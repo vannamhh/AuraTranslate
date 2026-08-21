@@ -25,6 +25,12 @@ import {
 } from './config/glossary'
 import type { GlossaryCategory, GlossaryLookupResult, GlossaryTierWire } from './config/glossary'
 import type { IpcError } from './i18n'
+// 🔵 Story 3.4b — một thuật ngữ vừa được thêm/sửa có thể đổi tập dấu ở cột nguyên văn của
+// lưới (mục mới khớp một câu đang mở, hoặc bản dịch của một mục đã có vừa đổi). Đây là đường
+// làm mới THỨ HAI mà `3-4b-…md` §Intent liệt kê, cạnh gộp/tách segment.
+import { editorChapterId, editorSegments } from './panels/editorPanelState'
+import { refreshGlossaryMarks } from './panels/glossaryMarksState'
+import { sourceChapter } from './panels/sourcePanelState'
 
 /**
  * Chế độ của dải — **hàm THUẦN của `(source_term, lookup)`**, không một cờ đặt lúc mở
@@ -305,6 +311,7 @@ export async function saveGlossaryQuickAdd(): Promise<boolean> {
       saveError.value = result.error
       return false
     }
+    refreshGlossaryMarksAfterSave()
     closeGlossaryQuickAdd()
     return true
   }
@@ -318,8 +325,26 @@ export async function saveGlossaryQuickAdd(): Promise<boolean> {
     saveError.value = result.error
     return false
   }
+  refreshGlossaryMarksAfterSave()
   closeGlossaryQuickAdd()
   return true
+}
+
+/**
+ * 🔵 Story 3.4b — làm mới dấu thuật ngữ của Chương đang mở sau một lượt Thêm/Sửa THÀNH CÔNG.
+ *
+ * ⚠️ **Không lỗi để báo nếu Chương chưa mở** — dải "Thêm thuật ngữ" dùng được từ MỌI bề mặt
+ * vùng chọn đã đăng ký (§Design Notes của spec 3.3), kể cả khi chưa có Chương nào mở (tầng
+ * Global). `chapterId`/`chapter` cùng `null` là ca BÌNH THƯỜNG ở đó, không một lỗi.
+ *
+ * ⚠️ `void` — mục Glossary đã lưu XUỐNG ĐĨA THẬT dù lượt làm mới này có trượt; không có gì để
+ * hoàn tác nếu IPC thứ hai này lỗi, cùng khuôn mọi lượt gọi "làm mới" khác trong kho.
+ */
+function refreshGlossaryMarksAfterSave(): void {
+  const chapterId = editorChapterId.value
+  const chapter = sourceChapter.value
+  if (chapterId === null || chapter === null || chapterId !== chapter.chapter_id) return
+  void refreshGlossaryMarks(chapterId, editorSegments.value, chapter.source_lang)
 }
 
 /**

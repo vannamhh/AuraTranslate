@@ -249,5 +249,6 @@
   "glossary.quick_add.save": "Lưu",
   "glossary.quick_add.cancel": "Huỷ",
   "glossary.quick_add.saving": "Đang lưu…",
-  "glossary.quick_add.checking": "Đang kiểm tra Glossary…"
+  "glossary.quick_add.checking": "Đang kiểm tra Glossary…",
+  "glossary.mark.pending_translation": "Thuật ngữ này chưa chốt bản dịch."
 }

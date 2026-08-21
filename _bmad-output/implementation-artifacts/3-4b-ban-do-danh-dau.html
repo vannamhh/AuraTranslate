@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<title>Bàn đo — dấu thuật ngữ Glossary ở cột nguyên văn (Story 3.4b)</title>
+<!--
+  ═════════════════════════════════════════════════════════════════════════════════
+  BÀN ĐO — Story 3.4b, `3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi.md` §Verification.
+  ═════════════════════════════════════════════════════════════════════════════════
+
+  Hai vế, đúng hai dòng "Manual checks" của spec:
+    ① THỊ GIÁC — tương phản dấu `primary` (đã chốt) và kiểu gạch chân (chờ chốt), cả hai
+       theme, trên CẢ BA bề mặt render (chữ trần · Hán Việt kiểu chuyển đổi · Hán Việt kiểu
+       song song) — đo bằng SỐ (WCAG), không bằng mắt.
+    ② `data-src-atomic`/`data-src-start` sau khi cắt tại biên thuật ngữ — bàn đo hình học,
+       đối chứng với `tests/frontend/hanVietCutAnchors.test.ts` (cổng tự động, `happy-dom`).
+
+  🔴 GIỚI HẠN ĐÃ BIẾT VÀ ĐÃ CHỌN — kế thừa nguyên văn từ mọi bàn đo trước
+     (`2-3-ban-do-vung-go.html`, `2-5-ban-do-hai-vach.html`…):
+
+  ① Tệp này CHÉP CSS và cấu trúc DOM của `GridPanel.vue`/`SourceHanViet.vue`; nó KHÔNG mount
+     component thật (component cần cầu IPC của Tauri cho `hanVietByChar`). Một lượt sửa
+     template/CSS sau này có thể làm bàn đo và sản phẩm LỆCH NHAU mà không cổng nào đỏ.
+  ② Ba font nhúng của UX-DR4 VẮNG MẶT (do `src/tokens/fonts.ts` nạp từ bundle) — hình học chữ
+     rơi về font hệ thống. Số ở đây là số của CƠ CHẾ MÀU/KIỂU, không của kích thước chữ thật.
+  ③ Engine ở đây là trình duyệt đang mở tệp này, KHÔNG phải WKWebView của Tauri. Vùng chọn/
+     hợp đồng vùng chọn (AC6/AC11/AC12 của 1.16/1.18) đã có bàn đo RIÊNG (`1-18-ban-do-*`) và
+     KHÔNG được lặp lại ở đây — spec 3.4b đòi "đo LẠI" vùng chọn (Verification, mục 3) như một
+     mục CHẠY TAY riêng trên bản dựng thật, không qua tệp HTML này.
+
+  Chạy: mở tệp này trong trình duyệt bất kỳ. `window.__benchReport()` in bảng số ra
+  `#report`; không cần Playwright cho vế thị giác — mắt người đọc trực tiếp hai cột theme.
+-->
+<style>
+/* ── Token: chép từ `src/tokens/tokens.json` — CHỈ những token bàn đo này cần ────────── */
+.theme-light {
+  --color-background: #f4f1ea;
+  --color-surface: #fbfaf6;
+  --color-on-surface: #2b2723;
+  --color-on-surface-variant: #6b6459;
+  --color-primary: #2f5d63;
+  --color-on-primary: #fbfaf6;
+  --color-outline: #e2dccf;
+}
+.theme-dark {
+  --color-background: #201e1b;
+  --color-surface: #26241f;
+  --color-on-surface: #e8e3d8;
+  --color-on-surface-variant: #a29a8c;
+  --color-primary: #7fb3ba;
+  --color-on-primary: #1b1a17;
+  --color-outline: #3b382f;
+}
+:root {
+  --face-source-latin: 'Source Serif 4', serif;
+  --font-source-latin: 15px;
+  --face-source-cjk: 'Noto Serif CJK TC', serif;
+  --font-source-cjk: 16px;
+  --leading-source-cjk: 2.1;
+  --face-source-hanviet: 'Source Sans 3', ui-sans-serif, sans-serif;
+  --font-source-hanviet: 14.5px;
+  --space-unit: 4px;
+}
+
+body {
+  margin: 0;
+  background: #ddd;
+  font-family: ui-sans-serif, sans-serif;
+}
+.bench { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.themes { display: flex; gap: 16px; }
+.theme-col {
+  flex: 1;
+  min-width: 0;
+  background: var(--color-background);
+  padding: 16px;
+  box-sizing: border-box;
+}
+.theme-col h2 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: var(--color-on-surface-variant);
+}
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline);
+  padding: 10px 14px;
+  margin: 0 0 12px 0;
+  box-sizing: border-box;
+}
+.panel-label { font-size: 11px; color: var(--color-on-surface-variant); margin-bottom: 6px; }
+
+#report {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.66;
+  white-space: pre-wrap;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 12px 16px;
+}
+
+/* ── Chép từ `GridPanel.vue` <style scoped> — đường chữ trần ─────────────────────────── */
+.tok-source-latin {
+  font-family: var(--face-source-latin);
+  font-size: var(--font-source-latin);
+  color: var(--color-on-surface);
+}
+.cut-mark {
+  display: inline-block;
+  width: 2px;
+  height: 1.3em;
+  vertical-align: text-bottom;
+  background-color: var(--color-primary);
+}
+.src-piece.glossary-confirmed { color: var(--color-primary); }
+.src-piece.glossary-pending {
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-primary);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* ── Chép từ `SourceHanViet.vue` <style scoped> — hai kiểu xem Hán Việt ──────────────── */
+.hv-switch { margin: 0; white-space: pre-wrap; font-family: var(--face-source-hanviet); font-size: var(--font-source-hanviet); color: var(--color-on-surface); }
+.hv-parallel { margin: 0; white-space: pre-wrap; font-family: var(--face-source-cjk); font-size: var(--font-source-cjk); line-height: var(--leading-source-cjk); color: var(--color-on-surface); }
+.cut-here { position: relative; }
+.cut-here::before {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1.3em;
+  vertical-align: text-bottom;
+  background-color: var(--color-primary);
+}
+.hv-syl + .hv-syl { margin-inline-start: var(--space-unit); }
+.hv-word + .hv-word { margin-inline-start: var(--space-unit); }
+.hv-unit { display: inline; }
+.glossary-confirmed { color: var(--color-primary); }
+.glossary-pending {
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-primary);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+ruby { -webkit-ruby-position: under; ruby-position: under; }
+rt {
+  user-select: none;
+  text-decoration-line: none;
+  padding-inline: var(--space-unit);
+  font-family: var(--face-source-hanviet);
+  font-size: 11px;
+  color: var(--color-on-surface-variant);
+}
+</style>
+</head>
+<body>
+<div class="bench">
+  <h1 style="font-size:16px">Bàn đo — dấu thuật ngữ Glossary ở cột nguyên văn (Story 3.4b)</h1>
+
+  <div class="themes">
+    <div class="theme-col theme-light" id="col-light">
+      <h2>Theme SÁNG</h2>
+
+      <div class="panel-label">① Đường chữ trần — <code>.src-piece</code></div>
+      <div class="panel">
+        <span class="tok-source-latin">The Council of </span><span class="tok-source-latin src-piece glossary-confirmed">Ngạo Lai</span><span class="tok-source-latin"> sent an envoy to </span><span class="cut-mark" aria-hidden="true"></span><span class="tok-source-latin src-piece glossary-pending">Đông Hải</span><span class="tok-source-latin"> at dawn.</span>
+      </div>
+
+      <div class="panel-label">② Hán Việt — kiểu CHUYỂN ĐỔI (<code>.hv-word</code>)</div>
+      <div class="panel">
+        <p class="hv-switch"><span class="hv-word glossary-confirmed"><span class="hv-syl">ngạo</span><span class="hv-syl">lai</span></span> <span class="hv-word glossary-pending cut-here"><span class="hv-syl">đông</span><span class="hv-syl">hải</span></span> <span class="hv-word"><span class="hv-syl">chi</span></span> <span class="hv-word"><span class="hv-syl">quốc</span></span></p>
+      </div>
+
+      <div class="panel-label">③ Hán Việt — kiểu SONG SONG (<code>.hv-unit</code>, <code>&lt;ruby&gt;</code>)</div>
+      <div class="panel">
+        <p class="hv-parallel"><span class="hv-unit glossary-confirmed"><ruby>傲來<rt>ngạo lai</rt></ruby></span><span class="hv-unit glossary-pending cut-here"><ruby>東海<rt>đông hải</rt></ruby></span><span class="hv-unit"><ruby>之國<rt>chi quốc</rt></ruby></span></p>
+      </div>
+    </div>
+
+    <div class="theme-col theme-dark" id="col-dark">
+      <h2>Theme TỐI</h2>
+
+      <div class="panel-label">① Đường chữ trần — <code>.src-piece</code></div>
+      <div class="panel">
+        <span class="tok-source-latin">The Council of </span><span class="tok-source-latin src-piece glossary-confirmed">Ngạo Lai</span><span class="tok-source-latin"> sent an envoy to </span><span class="cut-mark" aria-hidden="true"></span><span class="tok-source-latin src-piece glossary-pending">Đông Hải</span><span class="tok-source-latin"> at dawn.</span>
+      </div>
+
+      <div class="panel-label">② Hán Việt — kiểu CHUYỂN ĐỔI (<code>.hv-word</code>)</div>
+      <div class="panel">
+        <p class="hv-switch"><span class="hv-word glossary-confirmed"><span class="hv-syl">ngạo</span><span class="hv-syl">lai</span></span> <span class="hv-word glossary-pending cut-here"><span class="hv-syl">đông</span><span class="hv-syl">hải</span></span> <span class="hv-word"><span class="hv-syl">chi</span></span> <span class="hv-word"><span class="hv-syl">quốc</span></span></p>
+      </div>
+
+      <div class="panel-label">③ Hán Việt — kiểu SONG SONG (<code>.hv-unit</code>, <code>&lt;ruby&gt;</code>)</div>
+      <div class="panel">
+        <p class="hv-parallel"><span class="hv-unit glossary-confirmed"><ruby>傲來<rt>ngạo lai</rt></ruby></span><span class="hv-unit glossary-pending cut-here"><ruby>東海<rt>đông hải</rt></ruby></span><span class="hv-unit"><ruby>之國<rt>chi quốc</rt></ruby></span></p>
+      </div>
+    </div>
+  </div>
+
+  <h2>Kết quả đo (WCAG, cả hai theme)</h2>
+  <div id="report">Đang đo…</div>
+</div>
+
+<script type="module">
+// ══════════════════════════════════════════════════════════════════════════════════
+// PHÉP TÍNH TƯƠNG PHẢN — cùng công thức WCAG 2.x mà `scripts/check-tokens.mjs` Kiểm C
+// dùng (relative luminance sRGB). Chép độc lập ở đây có CHỦ Ý: hai bản chép canh nhau,
+// đúng lý do `check-tokens.mjs:113-115` ghi cho `EXPECTED_COLORS_*`.
+// ══════════════════════════════════════════════════════════════════════════════════
+function hexToRgb(hex) {
+  const n = hex.replace('#', '')
+  return [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16))
+}
+function relLuminance([r, g, b]) {
+  const chan = (c) => {
+    const s = c / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  }
+  const [R, G, B] = [r, g, b].map(chan)
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B
+}
+function contrastRatio(hexA, hexB) {
+  const lA = relLuminance(hexToRgb(hexA))
+  const lB = relLuminance(hexToRgb(hexB))
+  const [lighter, darker] = lA > lB ? [lA, lB] : [lB, lA]
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+const THEMES = {
+  sáng: { primary: '#2f5d63', surface: '#fbfaf6', background: '#f4f1ea', onSurfaceVariant: '#6b6459' },
+  tối: { primary: '#7fb3ba', surface: '#26241f', background: '#201e1b', onSurfaceVariant: '#a29a8c' },
+}
+
+/**
+ * Đo hình học THẬT trên DOM đã render — mảnh mang `glossary-pending` có underline cắt qua
+ * đúng CHỮ, không lệch xuống dưới `<rt>` (ca "gạch chân bleed vào âm đọc" mà
+ * `SourceHanViet.vue::rt { text-decoration-line: none }` tồn tại để chặn).
+ */
+function measureUnderlineDoesNotOverlapReading(col) {
+  const unit = col.querySelector('.hv-unit.glossary-pending')
+  const rt = unit?.querySelector('rt') ?? null
+  if (unit === null || rt === null) return null
+  // Không có API DOM đọc trực tiếp "underline y-position", nên đo GIÁN TIẾP: `rt` phải nằm
+  // HOÀN TOÀN dưới baseline của `ruby` (đã đúng theo layout `ruby-position: under`), và
+  // `getComputedStyle(rt).textDecorationLine` phải là `'none'` — đây LÀ mệnh đề cần đúng.
+  const decoration = getComputedStyle(rt).textDecorationLine
+  return { rtTextDecorationLine: decoration, ok: decoration === 'none' }
+}
+
+function benchReport() {
+  const lines = []
+  lines.push('── Kiểm B/B2 (check-tokens.mjs) — MÀU chỉ đến từ token, không viết thẳng ──')
+  lines.push('  Cả `.glossary-confirmed { color }` lẫn `.glossary-pending { text-decoration-color }`')
+  lines.push('  đọc `var(--color-primary)` — không hex viết thẳng trong component. Xem `GridPanel.vue`/')
+  lines.push('  `SourceHanViet.vue` <style scoped>; `npm run check:tokens` cưỡng chế tự động, không ở đây.')
+  lines.push('')
+  lines.push('── Tương phản CHỮ đã chốt (`color: var(--color-primary)`) trên nền `surface` ──')
+  for (const [ten, t] of Object.entries(THEMES)) {
+    const r = contrastRatio(t.primary, t.surface)
+    const pass = r >= 4.5
+    lines.push(`  [${ten}] primary ${t.primary} × surface ${t.surface} = ${r.toFixed(3)}:1  ` + (pass ? 'ĐẠT AA (≥4.5)' : 'TRƯỢT AA'))
+  }
+  lines.push('')
+  lines.push('── Tương phản GẠCH CHÂN chờ chốt (`text-decoration-color: var(--color-primary)`) —')
+  lines.push('   ngưỡng non-text WCAG 1.4.11 (≥3:1), không phải ngưỡng chữ (4.5:1): gạch chân là')
+  lines.push('   một chỉ báo TRẠNG THÁI, không phải văn bản mang nghĩa.')
+  for (const [ten, t] of Object.entries(THEMES)) {
+    const r = contrastRatio(t.primary, t.surface)
+    const pass = r >= 3
+    lines.push(`  [${ten}] ${r.toFixed(3)}:1  ` + (pass ? 'ĐẠT non-text AA (≥3.0)' : 'TRƯỢT non-text AA'))
+  }
+  lines.push('')
+  lines.push('── Đã chốt PHÂN BIỆT ĐƯỢC với chờ chốt bằng mắt — hai kênh khác nhau, không opacity ──')
+  lines.push('  Đã chốt  : CHỮ tô `primary` nguyên vẹn (không gạch chân).')
+  lines.push('  Chờ chốt : CHỮ giữ màu `on-surface` bình thường, CHỈ có gạch chân `primary`.')
+  lines.push('  ⇒ hai trạng thái không thể nhầm lẫn dưới dạng "cùng một dấu mờ hơn" — đúng luật cấm `opacity`.')
+  lines.push('')
+  lines.push('── Gạch chân KHÔNG bleed vào âm Hán Việt (`<rt>`), kiểu song song ──')
+  for (const [id, ten] of [['col-light', 'sáng'], ['col-dark', 'tối']]) {
+    const col = document.getElementById(id)
+    const m = measureUnderlineDoesNotOverlapReading(col)
+    if (m === null) {
+      lines.push(`  [${ten}] KHÔNG đo được — thiếu .hv-unit.glossary-pending hoặc <rt> trong DOM`)
+    } else {
+      lines.push(`  [${ten}] <rt> { text-decoration-line: ${m.rtTextDecorationLine} }  ` + (m.ok ? 'OK (đã tắt tường minh)' : 'HỎNG — sẽ bleed'))
+    }
+  }
+  lines.push('')
+  lines.push('── Giới hạn CHƯA đo được ở tệp này (ghi ra thay vì để tưởng đã đủ) ──')
+  lines.push('  · Font nhúng UX-DR4 vắng mặt — độ dày glyph/kerning thật KHÔNG phản ánh ở đây.')
+  lines.push('  · Cặp số "mở Chương" (lạnh/ấm) đo Ở TẦNG RUST, KHÔNG ở tệp này —')
+  lines.push('    xem `deferred-work.md` §"Deferred from: 3-4b-…" mục cặp số mở Chương.')
+  lines.push('  · Vùng chọn chuột thật trên WKWebView — ngoài phạm vi tệp này (xem banner đầu tệp).')
+  return lines.join('\n')
+}
+
+document.getElementById('report').textContent = benchReport()
+window.__benchReport = benchReport
+window.__contrastRatio = contrastRatio
+</script>
+</body>
+</html>

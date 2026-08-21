@@ -514,8 +514,9 @@ try {
  * ⚠️ Sàn là **cận dưới**: nó không đỏ oan khi thêm tệp, nhưng một sàn cũ là một sàn vô nghĩa
  * — thêm tệp vào `src/**` thì xét lại số này.
  */
-const FILE_FLOOR = 34 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 41 tệp `.ts` dưới `src/**`
-// (+config/glossary.ts +glossaryQuickAddState.ts) — 34/41 = 82,9%, giữa dải 80-85%.
+const FILE_FLOOR = 36 // 🔵 NÂNG 2026-08-21 (Story 3.4b): số THẬT 44 tệp `.ts` dưới `src/**`
+// (+glossaryMarksMap.ts +glossaryMarksState.ts +glossaryTermHoverState.ts) — 36/44 = 81,8%,
+// giữa dải 80-85%. Đo bằng `find src -name '*.ts' | wc -l`.
 if (files.length < FILE_FLOOR) {
   abort(
     `cây nguồn \`src/**\` — chỉ ${files.length} tệp \`.ts\`, dưới sàn ${FILE_FLOOR}`,

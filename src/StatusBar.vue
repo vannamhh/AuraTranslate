@@ -28,7 +28,7 @@
 // khác** — nên tệp này không có nó. Trạng thái *"đang bay"* của một lô flush **không** hiện ra:
 // hợp đồng với người dùng là *"bạn không phải bận tâm về việc lưu"*, và một chỉ báo nhấp nháy
 // là đúng thứ bắt họ bận tâm.
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { t, tError } from './i18n'
 import {
   editorConfirmNotice,
@@ -37,6 +37,11 @@ import {
   editorRegroupError,
   editorRegroupNotice,
 } from './panels/editorPanelState'
+// 🔵 Story 3.4b — nhánh THỨ NĂM: bản dịch của một thuật ngữ Glossary đang được rê chuột tới,
+// ở cột nguyên văn của lưới. `hoveredGlossaryTerm` ghi bởi `GridPanel.vue`/`SourceHanViet.vue`
+// — hai component ANH EM với tệp này, nối qua state module-level cùng khuôn bốn câu kia.
+import { hoveredGlossaryTerm } from './panels/glossaryTermHoverState'
+import { glossaryMarksError } from './panels/glossaryMarksState'
 
 /**
  * Đồng hồ của thanh này — **một `setInterval` 1 giây DUY NHẤT**, và nó chỉ chạy khi có gì để đếm.
@@ -59,6 +64,51 @@ onMounted(() => {
     // lượt gán mỗi giây là một lượt render không ai đọc.
     if (editorLastSavedAt.value !== null) now.value = Date.now()
   }, 1000)
+})
+
+/**
+ * 🔴 **Story 3.4b (rà ba lớp, P7) — lỗi tải dấu Glossary có VÒNG ĐỜI HỮU HẠN, không đứng mãi.**
+ *
+ * Trước bản vá này, `glossaryMarksError` chiếm nhánh thứ năm cho tới khi MỘT lượt tải dấu
+ * SAU đó thành công — nhưng không gì đảm bảo còn một lượt như vậy trong phiên (Chương không
+ * đổi nữa, không ai gộp/tách hay thêm nhanh thêm). Một lỗi nhất thời (`store` đóng giữa chừng)
+ * khi đó CHE VĨNH VIỄN mốc *"Đã lưu N giây trước"* — người dùng đọc ra *"ứng dụng ngừng tự
+ * lưu"* trong khi nó vẫn lưu bình thường, đúng lớp đánh đổi tín hiệu THẬT lấy tín hiệu LỖI mà
+ * UX-DR30 tồn tại để chống (chỉ khác đối tượng: ở đó là dấu chấm "chưa lưu", ở đây là một câu
+ * lỗi không tự biết mình đã cũ).
+ *
+ * ⇒ Đúng khuôn `now`/`ticker` ngay trên: MỘT `setTimeout` mỗi lượt lỗi MỚI, tự tắt câu sau
+ * [`GLOSSARY_MARKS_ERROR_DISPLAY_MS`]. `watch` (không `deep`) so bằng THAM CHIẾU đối tượng —
+ * mỗi lượt `loadMarksFor` (`glossaryMarksState.ts`) dựng một `IpcError` MỚI dù nội dung trùng
+ * lặp, nên lỗi còn TÁI DIỄN thì đồng hồ tự khởi động lại; lỗi thôi tái diễn thì nó tắt sau
+ * đúng một khoảng, và "Đã lưu N giây trước" trở lại chỗ của nó — không cần chờ một Chương/
+ * gộp/thêm nhanh MỚI để dọn.
+ */
+const GLOSSARY_MARKS_ERROR_DISPLAY_MS = 8000
+const glossaryMarksErrorVisible = ref(false)
+let glossaryMarksErrorTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(glossaryMarksError, (err) => {
+  if (glossaryMarksErrorTimer !== null) {
+    clearTimeout(glossaryMarksErrorTimer)
+    glossaryMarksErrorTimer = null
+  }
+  if (err === null) {
+    glossaryMarksErrorVisible.value = false
+    return
+  }
+  glossaryMarksErrorVisible.value = true
+  glossaryMarksErrorTimer = setTimeout(() => {
+    glossaryMarksErrorVisible.value = false
+    glossaryMarksErrorTimer = null
+  }, GLOSSARY_MARKS_ERROR_DISPLAY_MS)
+}, { immediate: true }) // 🔴 BẮT BUỘC: một lỗi đã tồn tại TRƯỚC khi `StatusBar` mount (ca
+// thường — `GridPanel.vue` nạp Chương/dấu độc lập, `StatusBar` có thể mount SAU) phải hiện
+// ngay, không chờ lượt ĐỔI kế tiếp của `glossaryMarksError` mà có thể không bao giờ tới.
+
+onBeforeUnmount(() => {
+  // 🔴 Story 3.4b — cùng luật nhả đã ghi ngay dưới, áp cho bộ đếm giờ THỨ HAI của tệp này.
+  if (glossaryMarksErrorTimer !== null) clearTimeout(glossaryMarksErrorTimer)
 })
 
 onBeforeUnmount(() => {
@@ -221,6 +271,50 @@ const navNoticeKey = computed<string | null>(() => {
   if (notice === null) return null
   return NAV_NOTICE_KEYS[notice]
 })
+
+/**
+ * 🔵 **Story 3.4b — câu của dấu thuật ngữ Glossary đang được rê chuột tới.**
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * VÌ SAO TÁI DÙNG `glossary.quick_add.translation_label` CHO CA ĐÃ CHỐT, KHÔNG MỘT KHOÁ MỚI
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `translation` là DỮ LIỆU của người dùng (một mục Glossary họ đã chốt), không một chuỗi giao
+ * diện — cùng luật `panel.source.han_viet_sources_prefix` + `sourcesLine` ở
+ * `SourceHanViet.vue`: một khoá LÀM TIỀN TỐ, dữ liệu ghép sau. `glossary.quick_add.translation_label`
+ * ("Bản dịch") đã tồn tại từ Story 3.3 đúng cho vai này — thêm một khoá thứ hai cho cùng một
+ * câu là hai nguồn sự thật cho một mệnh đề, và Story 1.7 §Completion Notes #3 cấm một khoá
+ * không có nhánh nào đi qua (ở đây thì NGƯỢC LẠI: một khoá ĐÃ có nhánh, đúc thêm một bản sao
+ * mới là điều bị cấm).
+ *
+ * Ca CHỜ CHỐT thì khác: không có `translation` nào để ghép, nên nó cần đúng MỘT khoá câu
+ * hoàn chỉnh — [`glossary.mark.pending_translation`], khoá MỚI duy nhất của story này
+ * (`3-4b-…md` §Execution).
+ *
+ * 🔴 **Đang có câu lỗi xác nhận thì bản dịch KHÔNG được đè lên nó** — I/O Matrix của story.
+ * Vị trí `v-else-if` thứ năm ở template (dưới `confirmNoticeKey`/`regroupNoticeText`/
+ * `navNoticeKey`) đã tự thoả điều đó: ba nhánh trên thắng vô điều kiện, cùng cơ chế
+ * `datThongBao` đã ghi ở `editorPanelState.ts`.
+ */
+const glossaryHoverText = computed<string | null>(() => {
+  const term = hoveredGlossaryTerm.value
+  if (term !== null) {
+    if (!term.isConfirmed) return t('glossary.mark.pending_translation')
+    // `term.translation` chỉ `null` khi `isConfirmed === false` (`GlossaryMark` phía Rust,
+    // `commands/glossary.rs::GlossaryMarkWire`) — nhánh trên đã loại ca đó.
+    return `${t('glossary.quick_add.translation_label')}: ${term.translation ?? ''}`
+  }
+
+  // 🔵 Bổ sung 2026-08-21 (Ice yêu cầu, I/O Matrix "IPC trả lỗi | kho đóng giữa chừng ⇒ lỗi
+  // hiện qua tError(), KHÔNG coi như rỗng"). `glossaryMarksState.ts` đã giữ đúng bất biến đó
+  // Ở TẦNG STATE (marks rỗng VÀ error khác null là hai điều phân biệt được — xem
+  // `glossaryMarksHaveLoaded()`), nhưng trước bản vá này KHÔNG chỗ nào hiện lỗi đó ra màn
+  // hình — một lượt IPC trượt lặng lẽ trông giống hệt "Chương này không có thuật ngữ nào".
+  // Cùng vị trí ưu tiên với câu hover (bản dịch thuật ngữ): khi không có gì đang hover, một
+  // lỗi tải dấu thật thì đáng nói hơn một khoảng trống.
+  const err = glossaryMarksError.value
+  if (err !== null && glossaryMarksErrorVisible.value) return tError(err)
+  return null
+})
 </script>
 
 <template>
@@ -282,6 +376,16 @@ const navNoticeKey = computed<string | null>(() => {
       chỉ dời chỗ nói dối sang một ô nhớ khác.
     -->
     <span v-else-if="navNoticeKey !== null" class="notice">{{ t(navNoticeKey) }}</span>
+    <!--
+      aura-allow-text: KẾT QUẢ của `t()` cộng (ca đã chốt) một chuỗi DỮ LIỆU của Tác phẩm —
+      bản dịch một thuật ngữ Glossary do người dùng chốt. 🔵 Story 3.4b — nhánh THỨ NĂM, dưới
+      ba thông báo khẩn hơn và TRÊN mốc "Đã lưu" (thứ tự ưu tiên của story: lỗi xác nhận >
+      gộp/tách > điều hướng > bản dịch thuật ngữ > "Đã lưu N giây trước").
+
+      role="status" của `<footer>` xướng câu này qua trình đọc màn hình khi nó xuất hiện —
+      I/O Matrix: "Thanh hiện bản dịch của thuật ngữ, xướng qua role=status".
+    -->
+    <span v-else-if="glossaryHoverText !== null" class="notice">{{ glossaryHoverText }}</span>
     <span v-else-if="secondsSinceSave !== null" class="saved">{{
       t('status.saved_seconds_ago', { seconds: String(secondsSinceSave) })
     }}</span>

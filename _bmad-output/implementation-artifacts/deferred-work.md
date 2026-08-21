@@ -248,6 +248,16 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   `:424` là `find_terms`, không phải `apply_override`. Kết luận cho `ScopeResolver` riêng nó:
   **chưa cần cache** — số đo không chỉ ra `apply_override` là nút cổ chai; nút cổ chai đo được
   là `find_terms`. Xem `:424` cho số thật đầy đủ và cho quyết định ASK-FIRST mà số đó kéo theo.
+  → ✅ **ĐÃ ĐÓNG 2026-08-21 (Story 3.4b) — câu hỏi tần suất mà lượt chuyển chủ ở trên chờ nay
+  có câu trả lời SẢN PHẨM, không chỉ câu trả lời trên giấy của `:492-500`.** `glossaryMarksState.ts`
+  gọi `ensureGlossaryMarksLoaded`/`refreshGlossaryMarks` đúng theo kỷ luật đã ký: MỘT lượt mỗi
+  lần mở Chương (funnel qua `watch([editorChapterId, sourceChapter], …)` ở `GridPanel.vue`,
+  cộng lượt tường minh trong `switchChapter()`), cộng đúng hai lượt làm mới có chủ (gộp/tách ở
+  `applyRegroup`, thêm nhanh ở `glossaryQuickAddState.ts`) — **0** lượt trên đường gõ
+  (`editorFlush.ts`/`noteEditorEdit` không gọi bất kỳ hàm nào ở đây). `ScopeResolver` vẫn
+  KHÔNG cache: tần suất gọi thật (≤ vài lượt/phiên mở một Chương) thấp hơn nhiều so với ngưỡng
+  mà một lượt đo trước sẽ cần để biện minh cho một cơ chế vô hiệu hoá mới. Đóng, không mở lại
+  trừ khi có số đo THẬT trên một phiên dùng dài chỉ ra ngược lại.
 
 - ~~⚠️ **Tầng Tác phẩm chưa từng chạy trên dữ liệu thật.**~~ Nhánh `Some(..)` của cả ba hàm phân giải **có test đầy đủ** *(`scope_contract.rs` cấp dữ liệu tầng Work bằng tay)*, nhưng đường sản phẩm hôm nay **luôn** truyền `None`: `.atproj` và `project.db` là **Story 1.15**, `StoreKind::Project` chưa có `StoreSpec` nào. `ScopeResolver::global_only()` là hàm dựng duy nhất tồn tại và `WorkScope` là một struct rỗng đánh dấu chỗ. **Story 1.15** cắm tầng thật vào; không ba chữ ký không phải đổi.
   → ✅ **ĐÓNG MỘT PHẦN 2026-08-06 (Story 1.15).** `WorkScope` nay mang `work_id` thật; `ScopeResolver::with_work(WorkScope)` là hàm dựng thứ hai, không ba chữ ký `apply_override`/`apply_merge`/`resolve_global_only` không đổi. Đường sản phẩm (`commands::project::create_work`) dựng một `ScopeResolver::with_work(...)` thật mỗi khi một Tác phẩm được tạo — `has_work_tier()` không còn luôn `false` trên đường sản phẩm.
@@ -498,6 +508,37 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   số **mở Chương** — đường đó nay chở CẢ lượt hâm `Jieba` (~243 ms) LẪN lượt khớp (214 ms ở
   Chương lớn nhất có thật), và chưa ai đo tổng. Điều kiện khởi hành của 3.4b **đóng**; món nợ
   **ĐO ở lại MỞ**, nay là một AC của `epics.md` §Story 3.4b. **(Chủ: Story 3.4b.)**
+  → 🟡 **ĐO 2026-08-21 (Story 3.4b) — cặp số LẠNH/ẤM đo được ở TẦNG RUST (`warm_jieba_for_source_lang`
+  + `marks_for_source_text`, cùng Glossary 5.000 mục · Chương 48.640 ký tự của bảng gốc),
+  KHÔNG PHẢI một lượt "mở Chương" đo trên webview thật.** `cargo test --release`, `rustc
+  1.97.1`, cùng máy/CPU với bảng gốc (Intel i9-9980HK, macOS/darwin 24.6.0), 4 tiến trình
+  RIÊNG (mỗi tiến trình là một `Jieba` "trinh", đúng nghĩa LẠNH của một lượt khởi động app):
+
+  | Tiến trình | Hâm Jieba (ms) | Khớp LẦN ĐẦU (ms) | **LẠNH tổng (ms)** | Khớp LẦN HAI, Jieba đã ấm (ms) |
+  |---:|---:|---:|---:|---:|
+  | 1 | 204,2 | 231,9 | **436,1** | 198,0 |
+  | 2 | 195,8 | 186,1 | **381,9** | 180,3 |
+  | 3 | 206,7 | 215,3 | **422,0** | 168,6 |
+  | 4 | 174,5 | 176,9 | **351,4** | 217,8 |
+
+  ⇒ **LẠNH (lượt mở Chương đầu tiên của một phiên): 351–436 ms, trung vị ~402 ms.** **ẤM (mọi
+  lượt mở Chương sau đó trong CÙNG phiên, kể cả Chương khác — `Jieba` chỉ hâm một lần):
+  169–218 ms, trung vị ~189 ms** — số này khớp cùng bậc với 214 ms đã đo ở `:424` (cùng hàm,
+  cùng cỡ input), chênh lệch nằm trong nhiễu đo tay.
+
+  ⚠️ **Vế CHƯA đo, ghi ra thay vì để tưởng đã đủ:** bốn số trên là chi phí THUẦN RUST
+  (`ScopeResolver::apply_override` + `find_terms` + hâm `Jieba`), KHÔNG gồm: (a) `read_open_chapter`
+  + `read_open_chapter_segments` (hai lệnh IPC ĐANG có, chạy TRƯỚC lượt khớp trên cùng đường
+  mở Chương); (b) chi phí serialize `Vec<GlossaryMarkWire>` qua IPC bridge của Tauri; (c) lượt
+  `glossaryMarksBySegment` (TS, thuần, đo được bằng `vitest` nhưng CHƯA đo trên 9.850 segment
+  thật); (d) thời gian Vue render lại DOM sau khi `glossaryMarks.value` đổi. Bốn vế đó CỘNG
+  DỒN vào đúng "cặp số mở Chương" mà người dùng CẢM NHẬN được — số 402/189 ms ở trên là một
+  **sàn dưới** của con số đó, không phải chính con số đó.
+  ⇒ **Đủ để đóng câu hỏi kiến trúc** (không lượt khớp Glossary nào rơi vào khung hình gõ, cả
+  hai đầu LẠNH/ẤM đều dưới 500 ms — một thao tác CHẠY MỘT LẦN mỗi lần mở Chương, không phải
+  đường nóng NFR1/NFR2). **CHƯA đủ để đóng câu hỏi trải nghiệm** ("mở Chương có cảm thấy chậm
+  không") — vế đó cần một phiên nghiệm thu tay trên bản dựng đóng gói, ghi lại ở mục MỚI dưới
+  đây (`## Deferred from: 3-4b-…`). **(Chủ: Story 3.4b — vế trải nghiệm, tiếp tục mở.)**
 
 ## Deferred from: code review of 1-12-matcher-dung-chung (2026-08-05)
 
@@ -926,6 +967,15 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   **Chủ: Story 3.4b.** 🔵 *(chuyển chủ 2026-08-21 qua `correct-course` — Story 3.4 thu hẹp còn
   nửa Rust và đã `done`; phép cắt `.hv-unit` thuộc nửa GIAO DIỆN. Nay là **một AC** của Story
   3.4b, `epics.md` §Story 3.4b.)*
+  → ✅ **ĐÃ ĐÓNG 2026-08-21 (Story 3.4b).** `SourceHanViet.vue::buildSegments(text,
+  termBoundaries)` flush TRƯỚC mỗi ký tự mà `termBoundaries.has(srcAt)` đúng — cùng cơ chế
+  ranh giới ICU đã dùng để flush một TỪ, chỉ khác NGUỒN quyết định. Ranh giới `Matcher` THẮNG
+  ICU theo đúng mệnh đề đã ghi: `tests/frontend/hanVietCutAnchors.test.ts` §"biên thuật ngữ
+  Glossary cắt tại tầng dữ liệu" dựng cả ba ca (phủ một phần · bắc cầu hai từ ICU · rỗng) trên
+  component THẬT, mount thật, không DOM dựng tay. Bất biến `host.children[i] ↔ segments.value[i]`
+  đứng THEO CẤU TẠO — template vẫn một Segment ↔ một phần tử con, `buildSegments` chỉ sinh
+  RA NHIỀU segment hơn, không chèn node ngoài `segments.value` (`GridPanel.vue::sourcePieceInfoOf`
+  áp cùng luật ở đường chữ trần).
 
 - ⚠️ **Bàn đo vùng chọn là một tệp DÙNG MỘT LẦN, không phải một lưới tự động.** Toàn bộ vế DOM
   của 1.18b *(double-click, vùng chọn, clipboard, bàn phím)* nghiệm thu bằng một trang HTML
@@ -5938,3 +5988,163 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     lượt sửa cả hai đầu chứ không phải một lượt sửa frontend. Ghi ra thay vì để 3.4b phát
     hiện giữa chừng. **(Chủ: Story 3.4b — quyết định lúc thiết kế tương tác, không phải lúc
     đang cài.)**
+  → ✅ **ĐÃ ĐÓNG 2026-08-21 (Story 3.4b) — quyết định lúc thiết kế: KHÔNG "tô sáng các dấu
+  anh em".** `3-4b-…md` §Never nói thẳng: *"Thêm `id`/`source_term` vào hình dạng dây để làm
+  'tô sáng các dấu anh em' — đó là một quyết định thiết kế tương tác chưa ai mở."* Story 3.4b
+  KHÔNG mở nó — mỗi dấu chỉ tương tác ĐỘC LẬP (hover/rê chuột một mảnh chỉ ảnh hưởng chính
+  mảnh đó qua `glossaryTermHoverState.ts`, không tra cứu "các mảnh khác cùng thuật ngữ"). Nếu
+  một story sau muốn tô sáng anh em, nó phải tự mở lại RÀNG BUỘC này — hình dạng dây vẫn
+  không mang `id`/`source_term`, đúng như 3.4 đã chốt.
+
+## Deferred from: 3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi (2026-08-21)
+
+- ⚠️ **Cặp số "mở Chương" CẢM NHẬN ĐƯỢC (LẠNH/ẤM) chưa đo trên webview thật — chỉ có sàn dưới
+  ở tầng Rust.** `deferred-work.md:504-522` (mục cũ, `:492-500`) đo được LẠNH ~402 ms / ẤM
+  ~189 ms cho riêng chi phí `warm_jieba_for_source_lang` + `marks_for_source_text`, nhưng
+  KHÔNG gồm hai lệnh IPC đọc Chương/segment ĐÃ CÓ từ trước, chi phí serialize qua Tauri bridge,
+  lượt `glossaryMarksBySegment` trên segment thật, hay lượt Vue render lại DOM. Bốn vế đó cần
+  một Chương thật (48.640 ký tự, 9.850 câu) mở trong một cửa sổ Tauri THẬT, đo bằng
+  `performance.now()` từ lúc gọi lệnh tới lúc dấu cuối cùng lên màn hình. ⚠️ **Không phải vì
+  môi trường KHÔNG dựng được cửa sổ** — `npm run check:scope` đã CHẠY THẬT và ĐẠT trong lượt
+  này (dựng một cửa sổ Tauri, tự đóng khi xong) — mà vì con số "cảm nhận được" đòi một
+  `.atproj` mang Glossary 5.000 mục + Chương 48.640 ký tự thật (chưa có bộ dựng fixture đó), và
+  đường gần nhất tới dữ liệu cỡ đó (`npm run test:e2e`) sửa `global.db` THẬT của người chạy máy
+  — một cái giá không nên trả ngoài một phiên Ice chủ động yêu cầu.
+  **(Chủ: Ice — cần một phiên đo tay trên bản dựng đóng gói/`npm run tauri dev`, cổng `check:scope`
+  đã có sẵn khuôn "dựng cửa sổ Tauri thật" để tham khảo.)**
+
+- ⚠️ **Khoảng cách `StatusBar` ↔ thuật ngữ — Ice GIỮ `StatusBar` 2026-08-21, nhưng chưa đo lại
+  trên sản phẩm THẬT.** `epic-3-context.md` §UX & Interaction Patterns chốt `StatusBar` là *"nơi
+  DUY NHẤT chở bản dịch đã chốt khi rê chuột/tiêu điểm"* — Story 3.4b thi hành đúng chữ đó
+  (nhánh `v-else-if` thứ năm, `hoveredGlossaryTerm`). Nhưng khoảng cách VẬT LÝ giữa một dấu ở
+  cột nguyên văn (có thể ở BẤT KỲ đâu trong lưới cuộn được, hàng thứ 9.850) và thanh trạng thái
+  (cố định đáy màn hình, 34px) là một cái giá **chưa ai đo bằng mắt trên webview thật**: người
+  dùng phải rời mắt khỏi con trỏ chuột để đọc một dòng chữ cách xa hàng trăm pixel, và với một
+  Chương dài, dấu đang rê có thể nằm NGOÀI vùng nhìn thấy của thanh trạng thái trong cùng một
+  khung hình mắt.
+  ⚠️ Đây KHÔNG phải một khuyết tật đã bắt được — nó là một RỦI RO TRẢI NGHIỆM ghi ra có chủ,
+  đúng luật *"đo trước khi tin"*: quyết định "giữ `StatusBar`" (thay vì một lớp nổi cạnh con
+  trỏ, thứ UX-DR16 cấm, hoặc một `title`/tooltip trình duyệt) đến từ VĂN BẢN quy hoạch đã có
+  trước Story 3.4b, không từ một lượt đo mới của chính story này. `3-4b-ban-do-danh-dau.html`
+  (bàn đo của story) chỉ đo được TƯƠNG PHẢN và HÌNH HỌC của dấu (`happy-dom` không phải
+  WebKit) — nó KHÔNG đo được cảm giác *"đọc được StatusBar trong khi mắt đang ở giữa lưới"*,
+  thứ chỉ đo được bằng người dùng thật trên bản dựng thật.
+  **(Chủ: Ice — cần một phiên dùng thật trên webview đóng gói để quyết định giữ nguyên hay mở
+  một cơ chế thứ hai; không phải quyết định lúc đang cài.)**
+
+- ⚠️ **Bàn phím KHÔNG tới được dấu thuật ngữ — chỉ chuột.**
+  → 🔵 **P14 (rà ba lớp 2026-08-21): mục này ĐÃ ĐÓNG — xem `→ ✅ ĐÃ ĐÓNG` bên dưới khối rủi ro.**
+  Dòng dẫn này chỉ để người lướt tìm mục MỞ không đọc nhầm; khối rủi ro gốc GIỮ NGUYÊN, không
+  xoá (luật "không bao giờ xoá một mục đã đóng").
+  I/O Matrix của story nhắc cả *"rê
+  chuột / đưa TIÊU ĐIỂM"*, nhưng `GridPanel.vue`/`SourceHanViet.vue` chỉ gắn `@mouseenter`/
+  `@mouseleave` lên mảnh mang dấu, KHÔNG `tabindex="0"`/`@focus`/`@blur`. Lý do ghi tại chỗ
+  (doc-comment của `glossaryTermHoverState.ts`): gắn tab-stop lên MỖI mảnh mang dấu (có thể
+  hàng trăm trong một Chương) là một thay đổi vào đúng bề mặt mà hợp đồng vùng chọn
+  (`selectionContract.ts`, AC6/AC11/AC12 của Story 1.16/1.18) đã đo và ký RẤT cẩn thận trên
+  cấu trúc DOM hôm nay — mở rộng nó ngoài phạm vi đo được của 3.4b là một rủi ro không cân
+  xứng với lợi ích của một story đã đủ lớn. Người dùng chỉ-bàn-phím hôm nay KHÔNG có đường nào
+  đọc bản dịch một thuật ngữ đã chốt mà không rời tay khỏi bàn phím để rê chuột.
+  **(Chủ: một story kế tiếp chạm lại `selectionContract.ts` — cần đo TRƯỚC khi thêm tab-stop,
+  không chỉ thêm rồi hy vọng không vỡ AC6/AC11/AC12.)**
+  → ✅ **ĐÃ ĐÓNG 2026-08-21 (Story 3.4b, cùng phiên — Ice bác việc hạ hàng I/O Matrix này thành
+  nợ vì nó nằm TRONG khối `<frozen-after-approval>`).** Đường đạt được KHÔNG cần tab-stop mới:
+  `.hv-switch`/`.hv-parallel` đã mang `tabindex="0"` từ Story 1.18 (AC11), và
+  `Selection.modify()` di chuyển caret không cần phần tử tự focus được — đo lại đúng mệnh đề
+  đã ký ở AC11 (`selectionContract.ts::modifySelection` doc-comment), không suy đoán mới.
+  `GridPanel.vue::onSourceSelectionChange()` nghe `selectionchange` ở `document` (CÙNG khuôn
+  `onSelectionChange` đã có cho cột bản dịch), ánh xạ caret về offset qua ĐÚNG
+  `sourceCutOffsetOf` mà click-để-cắt (2.8/2.9) dùng, rồi ghi vào ĐÚNG MỘT state
+  (`glossaryTermHoverState.ts`) mà `@mouseenter` cũng ghi — một cơ chế, hai đường vào, **0**
+  tab-stop mới, **0** đổi cấu trúc DOM. Kiểm chứng: `tests/frontend/glossaryHoverSelection.test.ts`
+  (6 ca, mount `GridPanel.vue` thật, dựng `Selection`/`Range` thật) — gồm một ca khẳng định
+  tường minh KHÔNG `.src-piece` nào mang `tabindex`. ⚠️ Biên hiếm còn lại, ghi ra không giấu:
+  bấm chuột vào thuật ngữ A rồi (KHÔNG di chuột) đưa chuột đứng yên trên thuật ngữ B từ một cú
+  di chuyển TRƯỚC đó — `selectionchange` của cú bấm đè hiển thị bằng A dù chuột hình học vẫn ở
+  B. Không dựng cơ chế lớp-chồng cho ca này (chấp nhận được, xem doc-comment của
+  `onSourceSelectionChange`).
+  🔴 **VÁ THÊM 2026-08-21, cùng phiên (P13, rà ba lớp LẦN HAI) — một ca RỘNG HƠN "biên hiếm"
+  đã lọt qua lượt review đầu.** Bản đầu của `onSourceSelectionChange` dọn `hoveredGlossaryTerm`
+  VÔ ĐIỀU KIỆN khi vùng chọn nằm NGOÀI cột nguồn — tức MỌI phím gõ ở cột bản dịch
+  (`selectionchange` bắn theo từng ký tự trong `contenteditable`) xoá một hover chuột đang
+  hiện, dù hoàn toàn không liên quan tới cột nguồn. Đây KHÔNG phải một biên hiếm — nó là đường
+  THƯỜNG NGÀY nhất (gõ dịch trong khi đọc lại nguyên văn). Vá: chỉ dọn khi vùng chọn THẬT SỰ ở
+  trong cột nguồn mà không trúng dấu nào (`if (cell === null) return` trước bước dọn). Kiểm
+  chứng: `glossaryHoverSelection.test.ts` +1 ca (gõ ở cột bản dịch không xoá hover), đối chứng
+  đỏ-xanh THẬT đã chạy (gỡ tạm dòng chặn ⇒ đúng ca đó đỏ, khôi phục ⇒ xanh lại).
+  🔵 **SỬA TẠI CHỖ 2026-08-21, cùng phiên (P8) — câu "0 tab-stop mới" ở trên ĐÚNG nhưng đọc
+  RỘNG HƠN những gì đã đo.** Nó chỉ đo được cho đường HÁN VIỆT (`.hv-switch`/`.hv-parallel` có
+  `tabindex="0"` sẵn). Đường CHỮ TRẦN (`.src-piece`, `.col.col-src`) hoàn toàn KHÔNG `tabindex`
+  (`GridPanel.vue:673`/`:1033`, có TỪ TRƯỚC story này) — đường bàn phím DUY NHẤT vào đó là lệnh
+  CÓ SẴN `selection.focus_source` (`⌘⌥S`) cộng `Shift+←/→`. Về kiến trúc, `Selection.modify()`
+  bắn `selectionchange` nguyên sinh nên `onSourceSelectionChange()` NÊN vẫn phản ứng đúng trên
+  đường đó — nhưng chuỗi ĐẦY ĐỦ trên đường chữ trần CHƯA được đo trên một webview thật, chỉ có
+  lập luận kiến trúc. Mục MỞ mới, có chủ, ngay dưới đây.**
+
+- ⚠️ **Chuỗi `⌘⌥S` → `Shift+←/→` → bản dịch thuật ngữ hiện trên `StatusBar`, đường CHỮ TRẦN —
+  chưa đo trên webview thật (P8, rà ba lớp 2026-08-21).** `selection.focus_source` là lệnh CÓ
+  SẴN từ Story 1.16/1.18, không phải một cơ chế mới của 3.4b; cái CHƯA đo là việc nó ghép nối
+  ĐÚNG với `GridPanel.vue::onSourceSelectionChange()` (mới, Story 3.4b) trên đường KHÔNG có
+  `tabindex`. Lý lẽ kiến trúc đứng (`Selection.modify()` bắn `selectionchange` nguyên sinh,
+  không cần phần tử tự focus được — cùng mệnh đề AC11 đã ký), nhưng `happy-dom` (vitest) không
+  phải WKWebView/Chromium thật, và `glossaryHoverSelection.test.ts` chỉ lái đường Hán Việt
+  (nơi có `tabindex`) qua `Selection.addRange` dựng tay + phát `selectionchange` thủ công —
+  KHÔNG lái qua chính `selection.focus_source`/`Selection.modify()` thật.
+  **(Chủ: Story 3.4b, tiếp tục — cần một phiên nghiệm thu tay: mở một Chương tiếng Trung ở tab
+  "Nguyên văn" (chữ trần), bấm `⌘⌥S`, giữ `Shift` bấm `→` qua một thuật ngữ đã chốt, xác nhận
+  `StatusBar` hiện bản dịch. Trên bản dựng đóng gói macOS, đúng khuôn mọi mục nghiệm thu tay
+  khác của story này.)**
+
+- ⚠️ **Chuột kéo thật vẫn chưa nghiệm thu được trong WKWebView cho ĐÚNG bề mặt này** —
+  `deferred-work.md:5781` đã ghi Story 3.4b là *"story đầu tiên mà một vùng chọn SAI sẽ hiện
+  thành đánh dấu sai TRÊN MÀN HÌNH"*. Story 3.4b đóng được vế DỮ LIỆU (28 ca vitest trên
+  component thật, `hanVietCutAnchors.test.ts` + `glossaryMarksMap.test.ts`) nhưng KHÔNG chạy
+  được một lượt chuột kéo thật trên WKWebView trong phiên làm việc này — quyết định PHẠM VI
+  (dựng một Chương/Glossary/Tác phẩm thật để lái chuột qua `npm run test:e2e` sửa `global.db`
+  thật của người chạy máy, và bản thân bộ e2e không có spec nào cho bề mặt Glossary hôm nay —
+  viết mới ngoài phạm vi một lượt nghiệm thu), KHÔNG phải vì môi trường thiếu cửa sổ hệ điều
+  hành (`npm run check:scope` đã dựng một cửa sổ Tauri thật và ĐẠT trong lượt này). Mục `:5781`
+  ở lại MỞ, không đóng bởi story này.
+  **(Chủ: Story 3.4b, tiếp tục — cần một phiên nghiệm thu tay trên bản dựng đóng gói macOS.)**
+
+## Deferred from: vòng rà ba lớp của Story 3.4b (2026-08-21)
+
+_Ba mục dưới đây là nhánh `defer` của lượt triage — phát hiện THẬT nhưng **không do story này
+gây ra**, hoặc lời giải nằm ngoài phạm vi một story tính năng. Mười lăm phát hiện còn lại đã vá
+trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở `§Spec Change Log` của story._
+
+- source_spec: `_bmad-output/implementation-artifacts/3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi.md`
+  summary: **Test mới của Story 3.4b khẳng định trên kết quả phân từ THẬT của `Intl.Segmenter`
+    (`文化` gộp một từ, `你好世界` tách đôi) mà chưa ai đối chứng hai runner CI cho cùng kết quả.**
+  evidence: Rà 2026-08-21 (lớp blind-hunter). Dữ liệu ICU khác nhau được giữa bản dựng Node
+    full-icu và small-icu, và kho đã trúng đúng lớp *"xanh cục bộ, đỏ ở Windows"* hai lần trong
+    một phiên trước đó (`pre-push` chạy trên macOS/UTC+7 của Ice). Rủi ro hôm nay THẤP — Node
+    ≥ 13 đóng gói full-icu mặc định và CI ghim `node-version: '22'` cho cả hai nền tảng — nhưng
+    nó là một mệnh đề CHƯA ĐO, không phải một mệnh đề đã xét. ⚠️ Phụ thuộc `Intl.Segmenter`
+    có TỪ TRƯỚC story (nó là ruột của `wordBoundary.ts`, Story 1.18b); thứ MỚI là việc một bộ
+    test khẳng định trên một kết quả phân từ cụ thể.
+    **(Chủ: lượt đọc CI đầu tiên sau khi push Story 3.4b — nếu nửa Windows xanh thì đóng mục
+    này bằng số của lượt chạy đó; nếu đỏ thì nó đã tự trả lời.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi.md`
+  summary: **`3-4b-ban-do-danh-dau.html` CHÉP TAY giá trị màu từ `tokens.json`; hai nguồn lệch
+    nhau được mà không cổng nào đỏ.**
+  evidence: Rà 2026-08-21 (lớp blind-hunter). Banner đầu tệp bàn đo tự khai đúng rủi ro này
+    nhưng không nêu đường sửa. Hôm nay hai bên KHỚP (đã đối chiếu trong lượt rà). Hậu quả khi
+    lệch: bàn đo báo một tỉ lệ tương phản ĐẠT trong khi sản phẩm mang một cặp màu khác — đúng
+    lớp *"một kết quả sai trông như bình thường"*. Lời giải đúng là sinh CSS của bàn đo TỪ
+    `tokens.json` thay vì chép, hoặc một cổng diff hai nguồn — nhưng *"thêm một cổng = sửa BA
+    danh sách"* (`package.json` · `ci.yml` · `.githooks/pre-push`, `check:gates` Kiểm D/E canh
+    cả ba), ngoài phạm vi một story tính năng.
+    **(Chủ: story hạ tầng cổng kế tiếp — cùng chủ với món nợ "8/13 cổng chưa có phép tự kiểm".)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi.md`
+  summary: **Chưa ai tách bạch *"mở Chương ĐỨNG HÌNH"* với *"mở Chương CHẬM"* — lượt hâm `Jieba`
+    chạy ĐỒNG BỘ, nên câu hỏi nó có khoá luồng giao diện của webview hay không vẫn chưa có số.**
+  evidence: Rà 2026-08-21 (lớp blind-hunter). Cặp số đã đo (LẠNH 351–436 ms · ẤM 169–218 ms,
+    trung vị ~402/~189) là chi phí THUẦN RUST, đo bằng một tệp bench tạm — nó trả lời *"tốn bao
+    lâu"*, KHÔNG trả lời *"trong lúc đó khung hình có đứng không"*. Hai thứ đó khác nhau về hậu
+    quả người dùng: 400 ms chậm là khó chịu, 400 ms đứng hình là một ứng dụng trông như đã treo.
+    ⚠️ Mục này KHÔNG trùng món nợ "cặp số mở Chương trên webview thật" — cái đó hỏi ĐỘ TRỄ, cái
+    này hỏi KHOÁ LUỒNG; một phép đo có thể trả lời cả hai nhưng phải cố ý đo cả hai.
+    **(Chủ: Story 3.4b, cùng phiên nghiệm thu tay trên bản dựng đóng gói — đo chung một lượt.)**

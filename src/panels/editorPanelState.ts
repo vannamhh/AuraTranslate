@@ -25,7 +25,7 @@ import type { ChapterDirection } from '../config/chapter'
 // 🔵 CODE REVIEW 2026-08-18 — lượt đổi CHƯƠNG phải dọn và nạp lại Panel Source, đúng như lượt
 // đổi TÁC PHẨM đã làm ở `modes/libraryImport.ts`. Xem khối lý do trong [`switchChapter`].
 // ⚠️ Không vòng: `sourcePanelState.ts` chỉ import `config/*` và `i18n`, không import tệp này.
-import { ensureChapterLoaded, resetSourcePanel } from './sourcePanelState'
+import { ensureChapterLoaded, resetSourcePanel, sourceChapter } from './sourcePanelState'
 import {
   confirmSegment,
   mergeSegments,
@@ -38,6 +38,10 @@ import {
 import type { ChapterSegment, RegroupOutcome, SegmentTargetEdit } from '../config/segment'
 import type { IpcError } from '../i18n'
 import { createEditorFlush, EDITOR_RETRY_FLOOR_MS } from './editorFlush'
+// 🔵 Story 3.4b — funnel của "dấu thuật ngữ Glossary": `switchChapter()` nạp lại sau khi
+// reset (cạnh `ensureChapterLoaded()`), `applyRegroup()` làm mới sau gộp/tách. Xem doc-comment
+// đầu `glossaryMarksState.ts` cho lý do tệp đó KHÔNG import ngược lại tệp này.
+import { ensureGlossaryMarksLoaded, refreshGlossaryMarks, resetGlossaryMarks } from './glossaryMarksState'
 import {
   navigationSegmentOf,
   nextSegmentId,
@@ -633,6 +637,14 @@ export function resetEditorPanel(): void {
   regroupInFlight = null
   kyTrungCauCuoi = false
   dangChuyenChuong = false
+
+  // 🔵 Story 3.4b — cùng luật đã rút ra ba lần ở trên: dấu thuật ngữ Glossary thuộc Chương
+  // ĐANG MỞ (offset của nó chỉ có nghĩa cùng với `segments.value` lúc nạp), nên nó phải dọn ở
+  // ĐÚNG hai đường mà hàm này đã phủ — đổi Tác phẩm (`libraryImport.ts`) VÀ đổi Chương
+  // (`switchChapter`). Không dọn ở đây thì một khoảnh khắc giữa reset và lượt nạp lại
+  // (`ensureGlossaryMarksLoaded` ngay sau `switchChapter`) vẽ dấu của Chương CŨ lên vị trí của
+  // Chương MỚI — cùng lớp lỗi mà `sourceCut`/`confirmError` ở trên tồn tại để chặn.
+  resetGlossaryMarks()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1536,6 +1548,33 @@ async function switchChapter(direction: ChapterDirection): Promise<boolean> {
     await ensureSegmentsLoaded()
     await ensureChapterLoaded()
 
+    // 🔵 Story 3.4b — dấu thuật ngữ Glossary của Chương MỚI, đúng một lượt IPC ở đây. Cả hai
+    // `await` phía trên đã xong tại điểm này (không phải một lượt gọi TRÙNG đang bay của một
+    // chỗ khác — đây LÀ lượt gọi gốc của chính `switchChapter`), nên `segments.value`/
+    // `chapterId.value`/`sourceChapter.value` đều đã khớp Chương mới **trong ca thường**.
+    // `chapterId.value` có thể là `null` nếu lượt nạp segment vừa trượt — không gọi gì trong ca
+    // đó, cùng luật mọi nhánh khác của hàm này (một lỗi nhất thời không được kéo theo một lỗi
+    // thứ hai không liên quan).
+    //
+    // 🔴 **`chapterId.value === sourceChapter.value.chapter_id` là BẮT BUỘC, không phải một
+    // hàng rào thừa** — bắt ở lượt rà 2026-08-21 (ba lớp review). Hai `await` phía trên chạy
+    // qua **hai lệnh IPC riêng** (`readOpenChapterSegments` và `readOpenChapter`); mỗi lệnh có
+    // `sequence`/vô hiệu hoá RIÊNG của chính nó, không có khoá chung. Hai lượt `switchChapter()`
+    // gọi LIÊN TIẾP nhanh (bấm `⌘⌥]` hai lần trước khi lượt đầu về) có thể để lượt ĐẦU trả lời
+    // SAU lượt hai: tại điểm này, `chapterId.value` mang Chương B (của lượt hai, mới nhất) mà
+    // `sourceChapter.value` vẫn còn mang Chương A (của lượt đầu, chưa bị vượt mặt xong) — hoặc
+    // ngược lại. Gọi `ensureGlossaryMarksLoaded` với một cặp LỆCH NHAU đó nạp dấu SAI Chương
+    // rồi gán cho Chương đang hiện — đúng bằng chính khuyết tật mà `GridPanel.vue`'s watcher
+    // (`chapterId !== chapter.chapter_id`) đã tồn tại để chặn. Hai chỗ gọi phải giữ ĐÚNG một
+    // điều kiện, không phải hai biến thể của cùng một ý.
+    if (
+      chapterId.value !== null &&
+      sourceChapter.value !== null &&
+      chapterId.value === sourceChapter.value.chapter_id
+    ) {
+      void ensureGlossaryMarksLoaded(chapterId.value, segments.value, sourceChapter.value.source_lang)
+    }
+
     // ── ⑤ TIÊU ĐIỂM phải Ở LẠI trong lưới — AD-34 §2 ───────────────────────────────
     //
     // 🔴 Lượt chuyển thay **toàn bộ** hàng của `v-for`, và `segment.id` là
@@ -1970,8 +2009,29 @@ function applyRegroup(outcome: RegroupOutcome): void {
   // Ảnh chụp không có hàng nào của nhóm ⇒ nối vào cuối thay vì đánh rơi. Ca này không tới
   // được hôm nay *(caret sinh từ chính mảng này)*, và nó viết ra vì cái giá hai bên lệch xa:
   // đánh rơi một hàng mới là để đĩa và màn hình nói hai điều khác nhau, im lặng.
-  if (!inserted) next.push(...outcome.new_segments)
+  // 🔴 **DỌN DẤU ĐỒNG BỘ, TRƯỚC khi `segments.value` đổi — bắt ở lượt rà 2026-08-21 (ba lớp
+  // review).** `refreshGlossaryMarks()` ngay dưới là **BẤT ĐỒNG BỘ** (một round-trip IPC), còn
+  // `segments.value = next` thì đồng bộ ngay tại đây. Giữa hai thời điểm đó — từ lúc hàm này
+  // trả về tới lúc `refreshGlossaryMarks` đáp lời — Vue render lại lưới với `editorSegments`
+  // MỚI trong khi `glossaryMarks` (tầng TUYỆT ĐỐI, tính theo `\n`-join của segment CŨ) vẫn còn
+  // nguyên: `glossaryMarksBySegment` (GridPanel.vue) sẽ chia những offset đó lên bố cục MỚI —
+  // đúng hàng I/O Matrix *"không dấu nào trỏ vào segment đã về hưu"* cấm. Xoá TRƯỚC khi đổi
+  // `segments.value` đóng cửa sổ đó hoàn toàn: không một lượt render nào thấy được cặp
+  // (segment mới, mark cũ) lẫn nhau.
+  resetGlossaryMarks()
   segments.value = next
+
+  // 🔵 Story 3.4b — gộp/tách đổi RANH GIỚI segment, tức đổi phép cộng dồn `\n`-join mà
+  // `glossaryMarksMap.ts` dùng để chia mark tuyệt đối về từng segment (chuỗi Chương THÔ không
+  // đổi, nhưng chuỗi GỬI CHO Rust — nối từ `segments.value` — thì có). `ensureGlossaryMarksLoaded`
+  // sẽ coi Chương này là "đã nạp rồi" và bỏ qua *(🔵 hết đúng theo hình dạng cũ: `resetGlossaryMarks()`
+  // ngay trên vừa nhả `requestedForChapterId` về `null`, nên `ensureGlossaryMarksLoaded` giờ
+  // KHÔNG còn coi Chương này là "đã nạp" — nhưng lời gọi ở đây vẫn dùng `refreshGlossaryMarks`
+  // tường minh, không dựa vào hiệu ứng phụ đó, để ý định đọc được tại chỗ)* — một trong hai
+  // lượt IPC PHỤ mà `3-4b-…md` §Intent cho phép, ngoài đúng-một-lượt-mỗi-lần-mở.
+  if (chapterId.value !== null && sourceChapter.value !== null) {
+    void refreshGlossaryMarks(chapterId.value, next, sourceChapter.value.source_lang)
+  }
 }
 
 /**

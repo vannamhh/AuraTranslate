@@ -71,6 +71,11 @@ import { WORD_JOINER, wordStartOffsets } from './wordBoundary'
 // nào để vitest gọi tới: không export, không mount được mà không dựng fixture từ điển. Cùng lý do
 // `caretAtCellStart` và `sourceCutOffsetOf` đã ở đó.
 import { originalOffsets } from './editorSegments'
+// 🔵 Story 3.4b — biên thuật ngữ Glossary CẮT ở buildSegments (xem doc-comment prop
+// `glossaryTerms` dưới đây); hover/tiêu điểm nối StatusBar qua module riêng, cùng khuôn
+// `GridPanel.vue`.
+import type { SegmentTermSpan } from './glossaryMarksMap'
+import { clearHoveredGlossaryTerm, setHoveredGlossaryTerm } from './glossaryTermHoverState'
 
 const props = defineProps<{
   sourceText: string
@@ -84,6 +89,17 @@ const props = defineProps<{
    * ở tay: *"vẫn chưa thấy điểm cắt"*.
    */
   cuts?: readonly number[]
+  /**
+   * 🔴 **Span thuật ngữ Glossary đã khớp trong CHÍNH câu này** — Story 3.4b, FR50/FR51. Chép
+   * đúng khuôn `cuts` ngay trên: offset **điểm mã**, cục bộ trong `sourceText` của prop này
+   * (không tuyệt đối vào Chương — `GridPanel.vue::glossaryTermsOf` đã chia sẵn).
+   *
+   * ⚠️ **Đây LÀ nguồn của cả hai việc `buildSegments` phải làm**: CẮT tại `start`/`end` của
+   * mỗi span (bất kể ranh giới từ ICU nói gì — ranh giới `Matcher` THẮNG, xem
+   * `deferred-work.md:914-926`), VÀ gắn nhãn (đã chốt/chờ chốt) để tô màu + hover. Hai việc đi
+   * qua CÙNG một mảng để không có đường nào để hai tập lệch nhau.
+   */
+  glossaryTerms?: readonly SegmentTermSpan[]
   /**
    * 🔴 **Vai của bề mặt này trong hợp đồng vùng chọn** — Story 2.5b, AC7.
    *
@@ -161,7 +177,26 @@ type Segment =
  */
 const NEWLINES = /\r\n?/g
 
-function buildSegments(text: string): Segment[] {
+/**
+ * 🔴 **Biên thuật ngữ Glossary, quy về tập ĐIỂM MÃ để `buildSegments` tra `.has()`** —
+ * Story 3.4b. `props.glossaryTerms` mang từng span `{start, end}` (nửa-mở); tập này gộp CẢ
+ * hai đầu của mọi span thành các điểm CẮT rời rạc — `buildSegments` không cần biết span nào
+ * đang mở, chỉ cần biết "có phải flush trước ký tự này không".
+ *
+ * ⚠️ Đơn vị: ĐIỂM MÃ vào `props.sourceText`, cùng hệ toạ độ với `srcStart` mà `buildSegments`
+ * đã tính (`goc[cp]`) — KHÔNG phải đơn vị mã, KHÔNG phải điểm mã của `normalized`. Xem
+ * `glossaryMarksMap.ts` cho nguồn của các con số này.
+ */
+const termBoundaries = computed<ReadonlySet<number>>(() => {
+  const set = new Set<number>()
+  for (const term of props.glossaryTerms ?? []) {
+    set.add(term.start)
+    set.add(term.end)
+  }
+  return set
+})
+
+function buildSegments(text: string, boundaries: ReadonlySet<number>): Segment[] {
   const normalized = text.replace(NEWLINES, '\n')
   const wordStarts = wordStartOffsets(normalized)
   // Chỉ số điểm mã GỐC cho mỗi điểm mã của `normalized` — xem [`originalOffsets`].
@@ -199,6 +234,14 @@ function buildSegments(text: string): Segment[] {
     const srcAt = goc[cp] ?? cp
     cp += 1
 
+    // 🔴 **Story 3.4b — biên thuật ngữ CẮT ở tầng dữ liệu, bất kể ICU/loại ký tự.** Đây LÀ
+    // điểm chèn mà `3-4b-…md` §Code Map gọi đích danh: một biên thuật ngữ buộc flush bất cứ
+    // thứ gì đang gom (từ HOẶC văn bản) TRƯỚC khi ký tự này được thêm vào — cùng cơ chế mà
+    // một ranh giới ICU đã dùng để flush một TỪ, chỉ khác NGUỒN của quyết định "cắt ở đây".
+    // Ranh giới `Matcher` (Rust) THẮNG ranh giới `Intl.Segmenter` (ICU) — ICU chỉ còn quyết
+    // "double-click phủ tới đâu", không còn quyết "có node riêng ở đây hay không".
+    const isTermBoundary = boundaries.has(srcAt)
+
     if (ch === '\n') {
       flushText()
       flushWord()
@@ -207,9 +250,10 @@ function buildSegments(text: string): Segment[] {
     }
     if (isHanChar(ch)) {
       flushText()
-      // Ranh giới TỪ do ICU quyết. Ký tự Hán đầu tiên của một cụm luôn mở một từ mới; các
-      // ký tự sau chỉ mở từ mới khi ICU nói đây là một điểm bắt đầu.
-      if (word !== null && wordStarts.has(index)) flushWord()
+      // Ranh giới TỪ do ICU quyết, CỘNG (Story 3.4b) một biên thuật ngữ — cái nào tới trước
+      // cũng flush. Đây là chỗ *"thuật ngữ phủ MỘT PHẦN một `.hv-unit`"* (`文` trong `文化`)
+      // và *"thuật ngữ bắc cầu HAI `.hv-unit`"* tách được thành nhiều Segment.
+      if (word !== null && (wordStarts.has(index) || isTermBoundary)) flushWord()
       if (word === null) word = { chars: [], readings: [], start: srcAt }
       word.chars.push(ch)
       // 🔴 Âm vẫn tra theo TỪNG KÝ TỰ — `hanVietByChar` khoá theo ký tự và story này không
@@ -219,8 +263,10 @@ function buildSegments(text: string): Segment[] {
       word.readings.push(hanVietByChar.value.get(ch)?.reading?.primary ?? null)
       continue
     }
-    // Mẩu KHÔNG-Hán (dấu câu, số, chữ Latin) vẫn là một segment `text` như trước.
+    // Mẩu KHÔNG-Hán (dấu câu, số, chữ Latin) vẫn là một segment `text` như trước — CỘNG
+    // (Story 3.4b) một biên thuật ngữ giữa hai ký tự KHÔNG-Hán liên tiếp cũng phải cắt buffer.
     flushWord()
+    if (isTermBoundary) flushText()
     if (buffer === '') bufferStart = srcAt
     buffer += ch
   }
@@ -229,7 +275,45 @@ function buildSegments(text: string): Segment[] {
   return out
 }
 
-const segments = computed(() => buildSegments(props.sourceText))
+const segments = computed(() => buildSegments(props.sourceText, termBoundaries.value))
+
+/**
+ * 🔴 **Độ dài (điểm mã) của một segment KHÔNG-`break`** — cần để tính `end` cục bộ và tra
+ * [`glossarySpanFor`]. `seg.text.length`/`seg.chars.length` đều đã đếm theo ĐIỂM MÃ (mỗi `ch`
+ * đẩy vào là MỘT lượt `for…of`, không một đơn vị mã) — xem vòng lặp trong [`buildSegments`].
+ */
+function segmentLength(seg: Segment): number {
+  if (seg.kind === 'break') return 0
+  return seg.kind === 'text' ? seg.text.length : seg.chars.length
+}
+
+/**
+ * Span Glossary (nếu có) phủ TRỌN segment `seg` — `null` ⇔ segment này không mang dấu nào.
+ *
+ * 🔴 **Segment sinh bởi `buildSegments` PHỦ TRỌN đúng một span hoặc KHÔNG span nào** — không
+ * bao giờ một phần: mọi `start`/`end` của [`props.glossaryTerms`] đã đi vào [`termBoundaries`]
+ * và buộc một lượt flush ở đúng điểm mã đó, nên biên segment và biên span luôn TRÙNG nhau
+ * theo cấu tạo. `<=`/`<=` ở đây là một hàng rào, không một điều kiện thường trực.
+ */
+function glossarySpanFor(seg: Segment): SegmentTermSpan | null {
+  if (seg.kind === 'break') return null
+  const start = seg.srcStart
+  const end = start + segmentLength(seg)
+  const terms = props.glossaryTerms ?? []
+  return terms.find((t) => t.start <= start && end <= t.end) ?? null
+}
+
+/** Handler `@mouseenter` của một phần tử mang dấu — no-op nếu segment không mang dấu nào. */
+function onGlossaryEnter(seg: Segment): void {
+  const span = glossarySpanFor(seg)
+  if (span === null) return
+  setHoveredGlossaryTerm({ isConfirmed: span.isConfirmed, translation: span.translation })
+}
+
+/** Handler `@mouseleave` — luôn an toàn gọi, kể cả trên một phần tử không mang dấu. */
+function onGlossaryLeave(): void {
+  clearHoveredGlossaryTerm()
+}
 
 /**
  * 🔴 **DẤU CẮT VẼ BẰNG `::before`, KHÔNG bằng một phần tử con — và đó là một RÀNG BUỘC, không
@@ -786,15 +870,27 @@ onBeforeUnmount(() => {
         của Tác phẩm. --><span
           v-else-if="seg.kind === 'text'"
           class="hv-text"
-          :class="{ 'cut-here': cutSet.has(seg.srcStart) }"
+          :class="{
+            'cut-here': cutSet.has(seg.srcStart),
+            'glossary-confirmed': glossarySpanFor(seg)?.isConfirmed === true,
+            'glossary-pending': glossarySpanFor(seg)?.isConfirmed === false,
+          }"
           :data-src-start="seg.srcStart"
           data-src-atomic="1"
+          @mouseenter="onGlossaryEnter(seg)"
+          @mouseleave="onGlossaryLeave()"
         >{{ seg.text }}</span><span
           v-else
           class="hv-word"
-          :class="{ 'cut-here': cutSet.has(seg.srcStart) }"
+          :class="{
+            'cut-here': cutSet.has(seg.srcStart),
+            'glossary-confirmed': glossarySpanFor(seg)?.isConfirmed === true,
+            'glossary-pending': glossarySpanFor(seg)?.isConfirmed === false,
+          }"
           :data-src-start="seg.srcStart"
           data-src-atomic="1"
+          @mouseenter="onGlossaryEnter(seg)"
+          @mouseleave="onGlossaryLeave()"
         ><!-- aura-allow-text: âm Hán Việt đã gom (DỮ LIỆU từ điển) hoặc ký tự giữ chỗ
         `READING_PLACEHOLDER`, kèm `WORD_JOINER` giữ cụm âm liền nhau với ICU. --><span
             v-for="(reading, j) in seg.readings"
@@ -810,15 +906,27 @@ onBeforeUnmount(() => {
       ><br v-if="seg.kind === 'break'" /><!-- aura-allow-text: mẩu KHÔNG-Hán của nguyên
         văn (khoảng trắng, dấu câu, chữ Latin xen giữa) — DỮ LIỆU của Tác phẩm. --><span
         v-else-if="seg.kind === 'text'"
-        :class="{ 'cut-here': cutSet.has(seg.srcStart) }"
+        :class="{
+          'cut-here': cutSet.has(seg.srcStart),
+          'glossary-confirmed': glossarySpanFor(seg)?.isConfirmed === true,
+          'glossary-pending': glossarySpanFor(seg)?.isConfirmed === false,
+        }"
         :data-src-start="seg.srcStart"
         data-src-atomic="1"
+        @mouseenter="onGlossaryEnter(seg)"
+        @mouseleave="onGlossaryLeave()"
       >{{ seg.text
       }}</span><span
         v-else
         class="hv-unit"
-        :class="{ 'cut-here': cutSet.has(seg.srcStart) }"
+        :class="{
+          'cut-here': cutSet.has(seg.srcStart),
+          'glossary-confirmed': glossarySpanFor(seg)?.isConfirmed === true,
+          'glossary-pending': glossarySpanFor(seg)?.isConfirmed === false,
+        }"
         :data-src-start="seg.srcStart"
+        @mouseenter="onGlossaryEnter(seg)"
+        @mouseleave="onGlossaryLeave()"
       ><!-- aura-allow-text: chuỗi ký tự Hán của MỘT TỪ trong nguyên
         văn — DỮ LIỆU. --><ruby>{{ seg.chars.join('')
       }}<!-- aura-allow-text: các âm Hán Việt đã gom của từ đó (DỮ LIỆU từ điển), ký tự
@@ -848,6 +956,27 @@ onBeforeUnmount(() => {
   height: 1.3em;
   vertical-align: text-bottom;
   background-color: var(--color-primary);
+}
+
+/*
+ * 🔴 DẤU THUẬT NGỮ GLOSSARY ĐÃ KHỚP — Story 3.4b, FR50/FR51.
+ *
+ * ⚠️ **PHẢI đổi CÙNG LÚC với khối tương ứng ở `GridPanel.vue`** — cùng lý do và cùng luật mà
+ * `.cut-here::before` ở trên đã ghi: một dấu Glossary phải trông Y HỆT ở cả hai đường render
+ * (chữ trần lẫn Hán Việt), nếu không người dùng học hai ký hiệu cho một khái niệm.
+ *
+ * `--color-primary` cho CẢ HAI kiểu — đã chốt tô CHỮ, chờ chốt gạch chân CHỮ; không `opacity`,
+ * không bóng đổ/gradient/lớp nổi (chữ ký của Ice 2026-08-21, `3-4b-…md` §Boundaries).
+ */
+.glossary-confirmed {
+  color: var(--color-primary);
+}
+
+.glossary-pending {
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-primary);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 /*
@@ -1052,6 +1181,11 @@ ruby {
 rt {
   /* 🔴 AC6 — loại khỏi vùng chọn, KHÔNG bao giờ đi vào `window.getSelection()`. */
   user-select: none;
+  /* 🔵 Story 3.4b — `.glossary-pending` ở `.hv-unit` (cha) vẽ gạch chân qua `text-decoration`,
+     thứ mà mọi hộp con thừa kế theo mặc định CSS — kể cả một ruby annotation. Tắt tường minh ở
+     đây: gạch chân là dấu cho CHỮ HÁN (base), không cho âm đọc đã có màu `on-surface-variant`
+     riêng của chính nó ngay dưới. */
+  text-decoration-line: none;
   /* 🔴 Khoảng cách giữa hai ô ruby liền nhau — xem khối trên. `--space-unit` (4px) là
      đơn vị nền của bộ token và đúng bằng con số đã đo, nên KHÔNG khai một token mới:
      `EXPECTED_SPACING` là bảng ĐÓNG BĂNG, thêm hàng vào đó cần một mục `deviations`
