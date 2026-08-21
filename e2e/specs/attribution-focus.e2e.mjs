@@ -55,8 +55,51 @@ describe('Story 1.19 · AC11 — Escape trả tiêu điểm về nút mở Attri
    * `~/Documents/AuraTranslate/` của người chạy mỗi lượt. Lịch sử đó nằm ở
    * `deferred-work.md`, và nó là lý do ca này `skip` suốt một ngày trước khi chạy được.
    */
-  it('đóng lớp phủ bằng Escape thì tiêu điểm về nút mở hoặc khung chứa nó, không rơi về <body>', async () => {
+  it('đóng lớp phủ bằng Escape thì tiêu điểm về nút mở hoặc khung chứa nó, không rơi về <body>', async function () {
     await openWorkspaceWithWork(`e2e-attribution-focus-${Date.now()}`)
+
+    // ── 🔴 TIỀN ĐỀ CÓ ĐIỀU KIỆN — thêm 2026-08-20, sau lượt CI đầu tiên ─────────────
+    //
+    // Ca này là spec DUY NHẤT của bộ thật sự cần dữ liệu từ điển: nút `[data-attribution-
+    // open]` nằm trong dải chip nguồn, và dải chỉ render khi `dictSources.length > 0`.
+    // Trên runner GitHub `src-tauri/target/debug/dict/*.db` không tồn tại (356 MB, do
+    // `tools/dict-build` sinh ra; AC cuối của Story 1.3 cấm CI tải dữ liệu từ điển), nên
+    // ca này KHÔNG chạy được ở đó. `openWorkspaceWithWork` thôi đợi nút này từ cùng ngày —
+    // nó đợi lưới — nên tiền đề phải được hỏi TẠI ĐÂY.
+    //
+    // 🔴 VÀ NÓ HỎI ĐÚNG CÂU, KHÔNG HỎI CÂU DỄ. Hỏi *"nút có mặt không"* rồi bỏ qua khi
+    // vắng sẽ nuốt luôn một hồi quy thật — ngày nút biến mất trên máy CÓ từ điển, ca này
+    // im lặng chuyển sang `skip` thay vì đỏ, tức đúng loại cổng không bao giờ đỏ mà kho
+    // này cấm. Nên nó hỏi NGUỒN TỪ ĐIỂN qua IPC, không hỏi cái nút:
+    //   · 0 nguồn  ⇒ tiền đề bàn đo không dựng được ⇒ `skip`, in ra lý do;
+    //   · có nguồn ⇒ nút PHẢI có mặt, và vắng mặt là một lượt ĐỎ thật.
+    const dictSourceCount = await browser.execute(async () => {
+      try {
+        const sources = await window.__TAURI_INTERNALS__.invoke('list_dict_sources')
+        return Array.isArray(sources) ? sources.length : -1
+      } catch {
+        return -1
+      }
+    })
+
+    if (dictSourceCount < 0) {
+      throw new Error(
+        '[BÀN ĐO HỎNG] `list_dict_sources` ném hoặc trả về một hình dạng không phải mảng.\n' +
+          'Tiền đề chưa dựng được, nên mệnh đề AC11 CHƯA ĐƯỢC ĐO — lượt đỏ này không đọc ' +
+          'thành "sản phẩm đạt" hay "sản phẩm hỏng", cả hai đều là kết quả không có thật.',
+      )
+    }
+
+    if (dictSourceCount === 0) {
+      console.warn(
+        '[BÀN ĐO KHÔNG DỰNG ĐƯỢC] `list_dict_sources` trả 0 nguồn, nên dải chip nguồn ' +
+          'không render và nút `[data-attribution-open]` không tồn tại.\n' +
+          'Mệnh đề AC11 của Story 1.19 CHƯA ĐƯỢC ĐO ở lượt này — đừng đọc lượt `skip` ' +
+          'này thành "đạt". Dựng dữ liệu từ điển (`src-tauri/target/debug/dict/*.db`) rồi ' +
+          'chạy lại. Nợ có chủ ở `deferred-work.md`.',
+      )
+      this.skip()
+    }
 
     const opener = await $(OPENER)
 

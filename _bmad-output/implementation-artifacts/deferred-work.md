@@ -5678,9 +5678,33 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     "webview thật" của `glossary-quick-add.e2e.mjs` đi qua `pre-push` xanh CỘNG CI xanh
     (`gh run list`: hai commit của story đều success) mà chưa từng được một cổng nào chạy.
     Job mới đóng vế "không chỗ nào chạy"; nó KHÔNG đóng vế "chạy được trên runner" — lượt
-    nightly đầu tiên chính là phép đo đó. 🔴 Đọc một lượt đỏ hàng loạt ở các ca tiêu điểm là
+    nightly đầu tiên chính là phép đo đó.
+    → 🔵 **ĐO RỒI 2026-08-20 (run 32393425715) — VÀ CÂU TRẢ LỜI LÀ CÓ.** Runner macOS TRAO
+    tiêu điểm cho cửa sổ: `shortcuts-focus` xanh (*"đóng lớp phủ bằng Escape thì tiêu điểm
+    về đúng nút mở, không rơi về `<body>`"*) và `shortcuts-capture-mouse` xanh (bấm chuột
+    thật rồi gõ hợp âm). Ẩn số này ĐÓNG, ngược chiều lo ngại đã ghi. Lượt đó vẫn đỏ, nhưng
+    vì hai nguyên nhân KHÁC, cả hai là hạ tầng bàn đo và cả hai đã vá cùng ngày: ① tám spec
+    chết ở `openWorkspaceWithWork` vì mốc sẵn sàng cũ (`[data-attribution-open]`) đòi dữ
+    liệu từ điển mà CI không có — mốc nay là *"lưới đã nạp ít nhất một hàng"*; ② spec đầu lô
+    đỏ sau 73 ms vì fixture hỏi `window.__TAURI_INTERNALS__` trước khi trang kịp dựng — nay
+    có vòng chờ. 🔴 Đọc một lượt đỏ hàng loạt ở các ca tiêu điểm là
     *"bàn đo chưa dựng được trên runner"*, KHÔNG phải *"sản phẩm hồi quy"*; và đừng vá nó
     bằng `continue-on-error` hay một vòng chạy lại — cả hai biến job thành thứ không bao giờ
     đỏ, đúng trạng thái nó vừa được dựng để thoát ra. **(Chủ: Story 3.9 — cùng chủ với mục
     nợ chập chờn ngay trên, vì cùng một bảng nightly trả lời cả hai, và 3.9 là story kế tiếp
     thêm spec e2e.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
+  summary: `attribution-focus.e2e.mjs` **`skip` trên CI** — nó là spec DUY NHẤT của bộ cần dữ
+    liệu từ điển (`[data-attribution-open]` chỉ render khi `dictSources.length > 0`), và
+    runner không có `src-tauri/target/debug/dict/*.db`. AC11 của Story 1.19 vì vậy KHÔNG
+    được bảng nightly phủ; nó chỉ được đo ở lượt chạy tay trên máy có từ điển.
+  evidence: Đo 2026-08-20 (run 32393425715). Thư mục từ điển trên máy Ice: **356 MB**, bốn
+    tệp `.db` do `tools/dict-build` sinh ra từ dữ liệu tải về; AC cuối của Story 1.3 cấm CI
+    tải dữ liệu từ điển, nên không có đường nào dựng chúng trên runner hôm nay. Lượt `skip`
+    hỏi `list_dict_sources` qua IPC chứ KHÔNG hỏi cái nút — hỏi cái nút sẽ nuốt luôn một hồi
+    quy thật (ngày nút biến mất trên máy CÓ từ điển, ca này im lặng `skip` thay vì đỏ), và
+    đó đúng là loại cổng không bao giờ đỏ mà kho này cấm. Có nguồn mà vắng nút vẫn ĐỎ.
+    🔴 Đường đóng thật là dựng được một `.db` TÍ HON trong CI từ một mẫu đã commit, không
+    tải gì — chưa đo `tools/dict-build` có đường không-tải hay không. **(Chủ: Story 3.9 —
+    cùng chủ với hai mục nợ e2e ở trên, cùng một bảng nightly trả lời cả ba.)**

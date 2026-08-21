@@ -58,6 +58,33 @@ export async function openWorkspaceWithWork(
   name,
   text = 'Một câu nguồn để bộ nhập có việc mà làm.',
 ) {
+  // ── 🔴 CHỜ CẦU IPC TRƯỚC KHI DÙNG NÓ — thêm 2026-08-20, sau lượt CI đầu tiên ──────
+  //
+  // Bản trước hỏi `window.__TAURI_INTERNALS__` NGAY, một lần, và trả *"không có cầu IPC"*
+  // nếu nó chưa có. Trên máy Ice không ai thấy nhánh đó bao giờ; trên runner GitHub nó nổ
+  // ở đúng spec ĐẦU TIÊN của lô (`attribution-focus`, đỏ sau **73 ms** — quá nhanh để là
+  // bất cứ thứ gì trừ một lượt hỏi trước khi trang kịp dựng), rồi mười một spec sau đó
+  // chạy bình thường. Phiên WebDriver mở xong KHÔNG đồng nghĩa `main.ts` đã chạy: bộ lái
+  // nối vào webview ngay khi cửa sổ có mặt.
+  //
+  // ⚠️ Con số trong câu báo lỗi đọc SAU vòng chờ, không nội suy vào tham số — cùng luật
+  // mà `support/gridWait.mjs` rút ra từ lượt 11 (`timeoutMsg` dựng lúc tạo object cho một
+  // câu chẩn đoán KHÔNG có thật trên một lượt đỏ thật).
+  try {
+    await browser.waitUntil(
+      async () => browser.execute(() => window.__TAURI_INTERNALS__ !== undefined),
+      { timeout: 30_000, interval: 250 },
+    )
+  } catch {
+    const url = await browser.execute(() => window.location.href)
+    throw new Error(
+      `Không thấy cầu IPC (\`window.__TAURI_INTERNALS__\`) sau 30 giây. URL đang mở: ${url}\n\n` +
+        'Đây là lỗi HẠ TẦNG của bàn đo — app chưa nạp xong, hoặc webview đang ở\n' +
+        '`about:blank` (nhị phân debug nạp `devUrl`, nên Vite phải sống trước). KHÔNG\n' +
+        'một hồi quy sản phẩm; đừng đọc ca đỏ phía sau nó thành một khuyết tật.',
+    )
+  }
+
   const created = await browser.execute(async (workName, sourceText) => {
     const internals = window.__TAURI_INTERNALS__
     if (internals === undefined) return { ok: false, detail: 'không có cầu IPC' }
@@ -100,14 +127,45 @@ export async function openWorkspaceWithWork(
   // `Mod+2` — `mode.workspace`. `Mod` phân giải thành `Meta` trên macOS.
   await browser.keys(['Meta', '2'])
 
-  // Đợi Panel Lookup có mặt THẬT, không chỉ đợi chế độ đổi: dải chip nguồn chỉ render khi
-  // `dictSources.length > 0`, tức sau một lượt IPC nữa. Một ca không đợi vế đó sẽ đỏ bằng
-  // "không tìm thấy phần tử" ở đúng lượt chạy đầu tiên trên một máy chậm.
-  await $('[data-attribution-open]').waitForExist({
-    timeout: 30_000,
-    timeoutMsg:
-      'Vào `workspace` rồi mà không thấy `[data-attribution-open]` sau 30 giây.\n' +
-      'Nút đó nằm trong dải chip nguồn của Panel Lookup, và dải đó chỉ render khi\n' +
-      '`dictSources.length > 0` — kiểm `src-tauri/target/debug/dict/*.db` có mặt chưa.',
-  })
+  // ── 🔴 MỐC SẴN SÀNG: LƯỚI ĐÃ NẠP — đổi 2026-08-20, sau lượt CI đầu tiên ──────────
+  //
+  // Bản trước đợi `[data-attribution-open]`. Lý lẽ của nó đúng và vẫn đúng — *"đợi Panel
+  // Lookup có mặt THẬT, không chỉ đợi chế độ đổi ... một ca không đợi vế đó sẽ đỏ bằng
+  // 'không tìm thấy phần tử' trên một máy chậm"* — nhưng nó mua vế đó bằng một sự phụ
+  // thuộc mà **tám trong mười hai spec không cần**: nút ấy nằm trong dải chip nguồn, và
+  // dải chỉ render khi `dictSources.length > 0`, tức khi `src-tauri/target/debug/dict/*.db`
+  // có mặt. Trên máy Ice thư mục đó **356 MB**, do `tools/dict-build` sinh ra; CI không có
+  // bước nào dựng nó và AC cuối của Story 1.3 cấm CI tải dữ liệu từ điển.
+  // ⇒ Lượt CI đầu tiên (run 32393425715, 2026-08-20): **3 xanh / 9 đỏ**, tám lượt đỏ chết
+  // ở ĐÚNG dòng này sau 30 giây, không một spec nào chạm tới mệnh đề của mình.
+  //
+  // Mốc mới là **lưới đã nạp ít nhất một hàng** — mạnh HƠN cho việc mọi chỗ gọi thật sự
+  // cần (không spec nào dùng fixture này mà không đọc lưới), và độc lập với từ điển.
+  // ⚠️ *"Ít nhất một"*, không *"đúng N"*: fixture nhận `text` tuỳ chọn nên số segment khác
+  // nhau theo chỗ gọi. Spec nào cần một con số CHÍNH XÁC vẫn gọi `waitForGridRows(n)` của
+  // `support/gridWait.mjs` như trước — mốc này không thay nó, nó chỉ dựng tiền đề.
+  //
+  // ⚠️ Số trong câu báo lỗi đọc SAU vòng chờ — cùng luật `support/gridWait.mjs`.
+  let seenRows = null
+  try {
+    await browser.waitUntil(
+      async () => {
+        seenRows = await browser.execute(
+          () => document.querySelectorAll('[data-col="src"]').length,
+        )
+        return seenRows > 0
+      },
+      { timeout: 30_000, interval: 250 },
+    )
+  } catch {
+    throw new Error(
+      `Vào \`workspace\` rồi mà lưới KHÔNG nạp một hàng nào sau 30 giây ` +
+        `(lần đọc cuối: ${seenRows === null ? 'chưa đọc được lần nào' : seenRows} ô ` +
+        `\`[data-col="src"]\`).\n\n` +
+        'Đây là lỗi HẠ TẦNG của bàn đo — Tác phẩm đã tạo qua IPC nhưng lượt nạp lưới\n' +
+        'không tới nơi. Nghi phạm theo thứ tự: `resetPanelState()` không phát lại lượt\n' +
+        'nạp (xem `support/panelReset.mjs`), hoặc `Mod+2` không vào được `workspace`.\n' +
+        'KHÔNG một hồi quy sản phẩm; đừng đọc ca đỏ phía sau nó thành một khuyết tật.',
+    )
+  }
 }
