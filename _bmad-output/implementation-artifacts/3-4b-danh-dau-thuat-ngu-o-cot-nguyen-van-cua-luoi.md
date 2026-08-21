@@ -496,8 +496,17 @@ Tauri không dựng được — xem chú thích ⚠️ ngay trên):**
   hình dạng với cái bẫy *"CI xanh không có nghĩa e2e đã chạy"* mà Story 3.4 đã trả giá để biết,
   chỉ đổi tầng. Một spec e2e cho bề mặt đánh dấu là món nợ **có chủ** ở `deferred-work.md`.
   `deferred-work.md:5781` (chuột kéo thật WKWebView) ở lại **MỞ**, không đóng bởi story này.
-- **Lượt CI sau khi push** -- **CHƯA CÓ**, vì story chưa được push. Đọc lượt CI (cả macOS lẫn
-  Windows) là bước của Ice sau khi nhận bàn giao, đúng luật đã ghi ở mọi story trước.
+- ~~**Lượt CI sau khi push** -- **CHƯA CÓ**, vì story chưa được push.~~
+  ✅ **ĐỌC RỒI 2026-08-21 — run `32499898164` trên `de5f3fd`: `check (windows-2025)` **success**
+  · `check (macos-26)` **success**.** AC cuối đóng bằng một lượt chạy thật, không bằng suy luận
+  từ `pre-push` (thứ xanh trong 103 s trên macOS/UTC+7 của Ice và theo đúng doc-comment của
+  chính nó *"KHÔNG nói được gì về nửa Windows"*).
+  ⚠️ **`e2e (macos-26)` = `skipped`** ở lượt này, đúng như `.githooks/pre-push:30-36` đã khai
+  (chỉ chạy nhịp đêm và khi bấm tay). Khác Story 3.4, lần này điều đó **không** để lại lỗ hổng:
+  bộ e2e đã chạy TAY ngay trước lượt push (12/12, `webkit 605.1.15 macos`) — và đó là bằng chứng
+  MẠNH HƠN job CI kia, vì theo `deferred-work.md` job `e2e` trên runner GitHub **chưa từng chạy
+  một lượt nào**. 🔴 Nhưng phạm vi của nó vẫn là *"không hồi quy"*, **không** phải *"bề mặt đánh
+  dấu đã qua webview thật"* — xem mục ngay trên.
 
 ## Suggested Review Order
 
