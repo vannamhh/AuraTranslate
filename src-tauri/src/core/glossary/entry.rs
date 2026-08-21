@@ -216,3 +216,34 @@ impl GlossaryEntry {
         self.translation.is_some()
     }
 }
+
+/// Một dấu khớp thuật ngữ trong một đoạn văn bản — Story 3.4, FR51.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `start`/`end` LÀ ĐIỂM MÃ, KHÔNG PHẢI BYTE
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `core::matching::find_terms` trả span **byte** (`Range<usize>` vào chuỗi gốc — xem
+/// doc-comment của nó). [`super::store::marks_for_source_text`] quy đổi byte → điểm mã
+/// **một lần, ở đúng một chỗ** trước khi trả kiểu này ra ngoài (§Design Notes của Story
+/// 3.4: ba đơn vị đo — Rust/Matcher là BYTE, dây/lưới là ĐIỂM MÃ, DOM/`Range` là UTF-16 —
+/// và Rust là nơi quy đổi byte→điểm mã, không để việc đó rơi xuống frontend nơi chuỗi JS
+/// lại là một đơn vị THỨ BA). `start`/`end` ở đây luôn là số ĐIỂM MÃ tính từ đầu chuỗi.
+///
+/// Không mang `source_term`/`id` trần: `tier` + `is_confirmed` + `translation` là đủ để vẽ
+/// dấu (nửa giao diện — tách khỏi story này, xem `deferred-work.md` §"lượt lập spec Story
+/// 3.4"); một `id` trần không đủ để sửa lại mục (cùng lý do `GlossaryTier` tồn tại).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GlossaryMark {
+    /// Vị trí ĐIỂM MÃ bắt đầu (bao gồm), tính từ đầu chuỗi được khớp.
+    pub start: usize,
+    /// Vị trí ĐIỂM MÃ kết thúc (không bao gồm).
+    pub end: usize,
+    /// Tầng của mục thắng (AD-18) — cùng lý do [`GlossaryTier`] tồn tại: `id` chỉ duy nhất
+    /// TRONG một `Store`, nên nửa giao diện cần biết tầng để hỏi lại đúng kho nếu cần.
+    pub tier: GlossaryTier,
+    /// `false` == mục *chờ chốt* — dấu vẫn ra (lượt tra KHÔNG lọc `is_confirmed`), nhưng
+    /// nửa giao diện phải VẼ KHÁC (§I/O Matrix: "Mục chờ chốt ⇒ Có dấu, `is_confirmed=false`").
+    pub is_confirmed: bool,
+    /// `None` khi mục đang *chờ chốt*. `Some` mang đúng bản dịch đã chốt.
+    pub translation: Option<String>,
+}

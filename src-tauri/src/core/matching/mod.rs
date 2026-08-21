@@ -149,6 +149,21 @@ const HMM: bool = false;
 /// `rust-version = "1.85"`), nên **không** cần `once_cell`.
 static JIEBA: LazyLock<Jieba> = LazyLock::new(Jieba::new);
 
+/// Ép [`JIEBA`] khởi tạo **ngay bây giờ**, thay vì đợi lượt gọi đầu tiên của [`tokenize`]/
+/// [`find_terms`] — Story 3.4, đóng `deferred-work.md:413`.
+///
+/// 🔴 **Gọi TỪ đường mở Chương (`commands::chapter`), KHÔNG từ thân một hàm khớp.** Khởi
+/// tạo lạnh tốn **179–329 ms** bản release (trung vị ~243 ms) — vượt trần NFR2 (50 ms)
+/// 3,6–6,6×, và chi phí đó rơi vào **lần gọi đầu tiên**. Gọi hàm này trên đường mở Chương
+/// (một thao tác đã chấp nhận độ trễ vài trăm ms, không phải một khung hình 50 ms) di dời
+/// chi phí ra khỏi đường gõ, nơi nó **có thể rơi đúng phím đầu tiên người dùng gõ**.
+///
+/// Gọi lặp lại **không tốn gì**: [`LazyLock`] chỉ chạy hàm khởi tạo đúng MỘT lần; lượt gọi
+/// [`warm`] thứ hai trở đi chỉ đọc một cờ đã set (~1 µs, dưới ngưỡng đo).
+pub fn warm() {
+    LazyLock::force(&JIEBA);
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Kiểu công khai
 // ═════════════════════════════════════════════════════════════════════════════════

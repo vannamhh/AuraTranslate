@@ -521,3 +521,137 @@ fn the_single_jieba_instance_is_actually_lazily_initialised_once() {
         );
     }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// AC10 — hâm nóng Jieba (Story 3.4, `deferred-work.md:413`) mắc THẬT vào đường mở Chương
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ Tệp riêng có chủ ý vẫn đúng: đây là phép kiểm TĨNH trên cây nguồn (đúng vai của
+// `matching_boundary.rs`), không phải hành vi lúc chạy — và nó tiếp nối đúng mạch AC9 ngay
+// trên: AC9 giữ cho chi phí khởi tạo `Jieba` (179–329 ms bản release) không NHÂN LÊN; AC10
+// giữ cho lượt HÂM chi phí đó ra khỏi đường gõ không bị XOÁ hay DỜI đi trong im lặng.
+//
+// 🔴 VÌ SAO CỔNG NÀY, KHÔNG PHẢI MỘT LƯỢT ĐỌC BẰNG MẮT — đo được, không suy luận: `grep -rn
+// "warm_jieba_for_source_lang\|core::matching::warm" src-tauri/tests` = 0 kết quả trước cổng
+// này, và xoá thẳng dòng gọi `warm_jieba_for_source_lang(...)` khỏi `read_open_chapter`
+// (`commands/chapter.rs`) để `project_contract.rs`/`segment_contract.rs` chạy `cargo test
+// --locked` — TOÀN BỘ vẫn xanh. Tức chính hồi quy NFR2 mà Story 3.4 dựng ra để chặn (khởi
+// tạo lạnh 179–329 ms rơi đúng phím đầu người dùng gõ) bò lại được mà không một cổng nào đỏ.
+
+/// Tệp sở hữu hai đường mở Chương mà lượt hâm phải mắc vào.
+const CHAPTER_COMMAND_FILE: &str = "commands/chapter.rs";
+
+/// Chuỗi cần tìm — hàm hâm nóng `Jieba` của `core::glossary` (`deferred-work.md:413`).
+const WARM_NEEDLE: &str = "warm_jieba_for_source_lang";
+
+/// Lát THÂN của một hàm top-level `pub fn NAME(` trong `text`, tính từ chữ ký của nó tới chữ
+/// ký `pub fn`/`pub(crate) fn`/`pub mod` TIẾP THEO ở cột 0 (hoặc hết tệp).
+///
+/// ⚠️ Đủ thô để không cần một bộ phân tích cú pháp Rust thật, và đủ chặt để phân biệt
+/// `read_open_chapter` với `open_adjacent_chapter` trong CÙNG một tệp — cả hai đều là hàm
+/// top-level, không lồng nhau, đúng hình dạng `commands/chapter.rs` thật sự có.
+fn top_level_fn_body<'a>(text: &'a str, name: &str) -> &'a str {
+    let sig = format!("pub fn {name}(");
+    let start = text
+        .find(&sig)
+        .unwrap_or_else(|| panic!("khong tim thay `{sig}` -- ham da doi ten hay bi xoa?"));
+    let after = start + sig.len();
+    let next_boundary = ["\npub fn ", "\npub(crate) fn ", "\npub mod "]
+        .iter()
+        .filter_map(|marker| text[after..].find(marker).map(|i| after + i))
+        .min()
+        .unwrap_or(text.len());
+    &text[start..next_boundary]
+}
+
+/// `text` (thân một hàm) THẬT SỰ gọi [`WARM_NEEDLE`] ở vị trí MÃ, không phải trong comment.
+fn fn_body_calls_warm(body: &str) -> bool {
+    code_lines(body).any(|(_, code)| code.contains(WARM_NEEDLE))
+}
+
+/// 🔴 **AC10** — cả `read_open_chapter` lẫn `open_adjacent_chapter` đều gọi
+/// `warm_jieba_for_source_lang` — hai điểm sản phẩm DUY NHẤT đưa một `source_lang` mới lên
+/// webview (`commands/chapter.rs`).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// ⚠️ GIỚI HẠN THẬT — ĐỌC TRƯỚC KHI COI CỔNG NÀY LÀ ĐỦ
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Cổng này bắt được lời gọi bị **XOÁ** hoặc **DỜI** khỏi hai hàm dưới đây — nó **KHÔNG**
+/// chứng minh lượt hâm **thật sự có tác dụng** (không đo thời gian: một ngưỡng mili-giây sẽ
+/// chập chờn trên một runner CI đang tải, đúng lý do các phép kiểm khác trong kho tránh
+/// assert theo thời gian). Bằng chứng "có tác dụng" là số đo TAY ở `deferred-work.md:413`
+/// (179–329 ms khởi tạo lạnh, ~1 µs lượt gọi ấm kế tiếp), không phải một cổng tự động.
+#[test]
+fn warm_jieba_for_source_lang_is_called_from_both_chapter_opening_functions() {
+    let files = src_sources();
+    let chapter_source = files
+        .iter()
+        .find(|(rel, _)| rel == CHAPTER_COMMAND_FILE)
+        .map(|(_, text)| text.as_str())
+        .unwrap_or_else(|| {
+            panic!("khong tim thay `{CHAPTER_COMMAND_FILE}` -- cay nguon da bi cat mat")
+        });
+
+    for func in ["read_open_chapter", "open_adjacent_chapter"] {
+        let body = top_level_fn_body(chapter_source, func);
+        assert!(
+            fn_body_calls_warm(body),
+            "`{func}` ({CHAPTER_COMMAND_FILE}) KHÔNG còn gọi `{WARM_NEEDLE}` -- đây chính là \
+             đường MỞ CHƯƠNG mà `deferred-work.md:413` đòi lượt hâm `Jieba` mắc vào. Xoá hoặc \
+             dời lời gọi này ra khỏi hàm là mở lại đúng hồi quy NFR2 mà Story 3.4 dựng ra để \
+             chặn: khởi tạo lạnh 179–329 ms rơi đúng vào phím đầu tiên người dùng gõ.\n\n\
+             GIỚI HẠN THẬT của cổng này: nó bắt lời gọi bị XOÁ/DỜI, nó KHÔNG chứng minh lượt \
+             hâm thật sự có tác dụng — xem số đo tay ở `deferred-work.md:413`."
+        );
+    }
+}
+
+/// **AC10 — đối chứng dương.** Chứng minh vị từ [`fn_body_calls_warm`] mà cổng thật ở trên
+/// gọi thật sự ĐỎ ĐƯỢC khi lời gọi biến mất, trên hai đầu vào TỔNG HỢP — không mượn cây
+/// nguồn thật (không có cách nào "xoá tạm" một dòng của `commands/chapter.rs` trong một
+/// `#[test]` mà không ghi đè tệp trên đĩa).
+///
+/// ⚠️ Không có ca này thì cổng thật ở trên xanh y hệt trên một vị từ luôn trả `true` — *"có
+/// lời gọi"* và *"vị từ hỏng, luôn nói có"* đọc giống hệt nhau trên một cây nguồn hôm nay vẫn
+/// sạch.
+#[test]
+fn the_warm_jieba_check_would_actually_flag_a_removed_call() {
+    let with_call = "pub fn read_open_chapter(open: Option<&OpenWork>) -> Result<OpenChapter, IpcError> {\n    \
+        let open = open.ok_or_else(no_work_open)?;\n    \
+        crate::core::glossary::warm_jieba_for_source_lang(&open.meta.source_lang);\n    \
+        Ok(OpenChapter {})\n}\n\n\
+        pub fn open_adjacent_chapter(open: Option<&mut OpenWork>) -> Result<ChapterSwitch, IpcError> {\n    \
+        Ok(ChapterSwitch {})\n}\n";
+    assert!(
+        fn_body_calls_warm(top_level_fn_body(with_call, "read_open_chapter")),
+        "ca DUONG THAT: mot loi goi that phai duoc vi tu nhan ra"
+    );
+
+    let without_call = "pub fn read_open_chapter(open: Option<&OpenWork>) -> Result<OpenChapter, IpcError> {\n    \
+        let open = open.ok_or_else(no_work_open)?;\n    \
+        Ok(OpenChapter {})\n}\n\n\
+        pub fn open_adjacent_chapter(open: Option<&mut OpenWork>) -> Result<ChapterSwitch, IpcError> {\n    \
+        Ok(ChapterSwitch {})\n}\n";
+    assert!(
+        !fn_body_calls_warm(top_level_fn_body(without_call, "read_open_chapter")),
+        "ca AM: mot loi goi da bi XOA phai lam vi tu tra ve false -- day chinh la hinh dang ma \
+         cong that se do neu ai xoa loi goi khoi read_open_chapter"
+    );
+
+    // Doi chung them: `top_level_fn_body` phai CAT DUNG tai `open_adjacent_chapter`, khong
+    // "nuot" ca no vao than `read_open_chapter` -- neu khong, mot loi goi CHI nam trong
+    // `open_adjacent_chapter` se lam ca tren do OAN cho `read_open_chapter`.
+    let call_only_in_second_fn = "pub fn read_open_chapter(open: Option<&OpenWork>) -> Result<OpenChapter, IpcError> {\n    \
+        Ok(OpenChapter {})\n}\n\n\
+        pub fn open_adjacent_chapter(open: Option<&mut OpenWork>) -> Result<ChapterSwitch, IpcError> {\n    \
+        crate::core::glossary::warm_jieba_for_source_lang(&open.meta.source_lang);\n    \
+        Ok(ChapterSwitch {})\n}\n";
+    assert!(
+        !fn_body_calls_warm(top_level_fn_body(call_only_in_second_fn, "read_open_chapter")),
+        "lat than cua read_open_chapter khong duoc tran sang open_adjacent_chapter"
+    );
+    assert!(
+        fn_body_calls_warm(top_level_fn_body(call_only_in_second_fn, "open_adjacent_chapter")),
+        "loi goi trong open_adjacent_chapter phai duoc chinh ham do nhan ra"
+    );
+}

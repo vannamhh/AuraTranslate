@@ -48,10 +48,11 @@
 use std::collections::BTreeMap;
 
 use crate::core::i18n::{IpcError, MessageKey};
+use crate::core::matching::{MatchLang, TermMatch, find_terms};
 use crate::core::scope::{ScopeError, ScopeResolver, Tier as ScopeTier};
 use crate::core::store::{ReadHandle, SqlError, SqlResult, SqlType, Store, StoreError, Transaction};
 
-use super::entry::{Category, GlossaryEntry, GlossaryTier, TermOrigin};
+use super::entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
 
 /// Khoá dây của `ScopeKind::Glossary` (`core/scope/kinds.rs:162`), chép lại đây làm
 /// literal — module này không được `use` `ScopeKind`.
@@ -618,4 +619,210 @@ pub fn update_manual_term(
         return Err(GlossaryError::EntryMissing);
     }
     Ok(())
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.4 — HÀM PHƠI RA THỨ TƯ: khớp thuật ngữ theo ngôn ngữ (FR50/FR51)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 `marks_for_source_text` gọi `core::matching::find_terms` (AD-17) — KHÔNG cài lại
+// phép khớp. `core/glossary/**` là module MIỀN sở hữu tra hai tầng + phân xử chồng nhau;
+// `core::matching` là module LÁ sở hữu chính phép khớp — hai trách nhiệm khác nhau, và
+// ranh giới đó được cưỡng chế ở `tests/glossary_boundary.rs` (bốn hàm phơi ra, không nới
+// `GLOSSARY_ONLY_SURFACE`) lẫn `tests/matching_boundary.rs` (module kia là LÁ).
+
+/// Suy [`MatchLang`] từ `source_lang` của một Tác phẩm — **điểm DUY NHẤT** của Story 3.4 nơi
+/// phép chọn `source_lang == LANG_CHINESE` được viết ra.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 SỬA 2026-08-21 (rà soát ba lớp) — GOM VỀ MỘT HÀM, ĐÓNG MỘT HỒI QUY ĐANG MỌC
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Bản trước của story có **HAI** chỗ tự viết `source_lang == LANG_CHINESE`
+/// (hàm này và `commands::glossary::glossary_marks_for_chapter`), nối nhau chỉ bằng một
+/// dòng chú thích "cùng nhánh split.rs:219" — đúng lớp lỗi mà chính chú thích đó cảnh báo:
+/// hai chỗ viết tay có thể trôi khỏi nhau ở lần sửa thứ ba. Gộp về đây; chỗ gọi kia giờ hỏi
+/// thẳng hàm này.
+///
+/// 🔴 **Vì sao hàm sống ở `core::glossary`, KHÔNG ở `core::matching`.** `core::matching` tự
+/// tuyên bố (doc-comment của [`crate::core::matching::MatchLang`]) **không tồn tại** một vị
+/// từ dò script nào trong module đó, và nó là **LÁ** trong đồ thị phụ thuộc (AD-13) — không
+/// `use crate::core::*`. Đặt hàm này ở đó buộc nó `use crate::core::segment::split` (cho
+/// [`crate::core::segment::split::LANG_CHINESE`]), phá cả hai bất biến cùng lúc.
+/// `core::glossary` không mang ràng buộc "LÁ" đó, và nó đã phụ thuộc cả `core::matching`
+/// (cho chính [`MatchLang`]) lẫn `core::segment` (qua module này) — đây là chỗ tự nhiên nhất
+/// để một kiểu của module kia gặp một hằng của module khác nữa.
+///
+/// Dùng LẠI đúng một hằng ([`crate::core::segment::split::LANG_CHINESE`]), KHÔNG đúc một
+/// phép chọn thứ hai — cùng nhánh mà `core::segment::split::split_source_text` đã dùng.
+pub fn match_lang_for_source_lang(source_lang: &str) -> MatchLang {
+    if source_lang == crate::core::segment::split::LANG_CHINESE {
+        MatchLang::Zh
+    } else {
+        MatchLang::En
+    }
+}
+
+/// Hâm nóng `Jieba` cho một Chương mang `source_lang` — Story 3.4, đóng
+/// `deferred-work.md:413`.
+///
+/// 🔴 **Gọi từ đường MỞ CHƯƠNG (`commands::chapter::read_open_chapter` /
+/// `open_adjacent_chapter`), KHÔNG từ thân [`marks_for_source_text`].** Xem doc-comment của
+/// [`crate::core::matching::warm`] cho số đo đầy đủ (179–329 ms bản release, lần gọi ĐẦU
+/// TIÊN). Nếu lượt hâm nằm trong đường khớp, chi phí đó rơi đúng vào khung hình đang gõ —
+/// đúng thứ NFR2 cấm. Nằm trên đường mở Chương, nó rơi vào một thao tác đã chấp nhận độ trễ
+/// vài trăm ms.
+///
+/// ⚠️ **Chỉ hâm khi [`match_lang_for_source_lang`] trả [`MatchLang::Zh`].** `Jieba` chỉ được
+/// [`crate::core::matching::tokenize`]/[`find_terms`] chạm tới ở nhánh đó (xem doc-comment
+/// của `core::matching`); hâm nó cho một Chương tiếng Anh là trả 179–329 ms mà không ai
+/// hưởng lợi.
+pub fn warm_jieba_for_source_lang(source_lang: &str) {
+    if match_lang_for_source_lang(source_lang) == MatchLang::Zh {
+        crate::core::matching::warm();
+    }
+}
+
+/// Tính danh sách ranh giới ĐIỂM MÃ của `text` — phần tử thứ `i` là vị trí BYTE của điểm mã
+/// thứ `i`; phần tử cuối là `text.len()` (ranh giới SAU điểm mã cuối cùng).
+///
+/// Dùng để quy đổi span byte của [`find_terms`] sang span điểm mã bằng `binary_search`:
+/// mọi span mà `find_terms` trả về đều rơi đúng một ranh giới UTF-8 hợp lệ (doc-comment
+/// của `TermMatch`), và với cả hai nhánh `Zh`/`En` ranh giới đó luôn TRÙNG một ranh giới
+/// ĐIỂM MÃ (jieba cắt theo điểm mã; nhánh `En` cắt theo `char_indices`) — nên
+/// `binary_search` luôn `Ok`, không bao giờ rơi vào nhánh `Err` (giữ nhánh đó chỉ để không
+/// panic nếu giả định này có ngày sai).
+fn codepoint_boundaries(text: &str) -> Vec<usize> {
+    let mut boundaries: Vec<usize> = text.char_indices().map(|(byte, _)| byte).collect();
+    boundaries.push(text.len());
+    boundaries
+}
+
+/// Quy đổi một vị trí BYTE sang vị trí ĐIỂM MÃ, dùng bảng của [`codepoint_boundaries`].
+///
+/// ⚠️ `unwrap_or_else` là lưới an toàn, không phải đường THẬT: xem doc-comment của
+/// [`codepoint_boundaries`] — `byte_offset` luôn khớp `Ok` trên đường gọi đúng.
+fn byte_to_codepoint(boundaries: &[usize], byte_offset: usize) -> usize {
+    boundaries.binary_search(&byte_offset).unwrap_or_else(|insert_at| insert_at)
+}
+
+/// Phân xử CHỒNG NHAU giữa các [`TermMatch`] — **span dài nhất thắng, hoà thì trái nhất**
+/// (§Design Notes của Story 3.4).
+///
+/// 🔴 **Vì sao phải phân xử, không trả nguyên [`find_terms`]:** `find_terms` trả span
+/// CHỒNG NHAU được — `AA` trong `AAA` là hai lượt xuất hiện thật, và hai thuật ngữ khác
+/// nhau phủ lên nhau cũng vậy (doc-comment của chính nó). Một kênh ĐÁNH DẤU thì không phân
+/// thân được: hai dấu chồng lên nhau ở cùng một chỗ không vẽ được. Phân xử **ở đây** — nơi
+/// duy nhất trong kho biết cả tập khớp — thay vì đẩy luật đó xuống cho nửa giao diện tự
+/// nghĩ ra một luật thứ hai.
+///
+/// Thuật toán: sắp theo `(độ dài giảm dần, vị trí bắt đầu tăng dần)` rồi chọn THAM LAM theo
+/// đúng thứ tự đó, bỏ qua mọi lượt khớp chồng lấn với một lượt đã chọn. Đó chính là
+/// "dài nhất thắng" (độ dài đứng trước trong khoá sắp) và "hoà thì trái nhất" (vị trí đứng
+/// sau, chỉ so khi độ dài bằng nhau).
+fn resolve_overlaps(mut matches: Vec<TermMatch>) -> Vec<TermMatch> {
+    matches.sort_by(|a, b| {
+        let len_a = a.span.end - a.span.start;
+        let len_b = b.span.end - b.span.start;
+        len_b
+            .cmp(&len_a)
+            .then_with(|| a.span.start.cmp(&b.span.start))
+            .then_with(|| a.term_index.cmp(&b.term_index))
+    });
+
+    let mut selected: Vec<TermMatch> = Vec::new();
+    for candidate in matches {
+        let overlaps = selected.iter().any(|kept| {
+            kept.span.start < candidate.span.end && candidate.span.start < kept.span.end
+        });
+        if !overlaps {
+            selected.push(candidate);
+        }
+    }
+
+    // Trả lại đúng thứ tự tất định mà `find_terms` đã hứa — chỗ gọi (Story 3.4b, nửa giao
+    // diện) không phải tự sắp lại.
+    selected.sort_by(|a, b| {
+        (a.span.start, a.span.end, a.term_index).cmp(&(b.span.start, b.span.end, b.term_index))
+    });
+    selected
+}
+
+/// **Hàm phơi ra THỨ TƯ** của `core::glossary` — Story 3.4, FR50/FR51. Tra hai tầng qua
+/// `ScopeResolver::apply_override` (**không lọc** `is_confirmed` — cùng lý do
+/// [`resolve_term_for_quick_add`]: một mục *chờ chốt* vẫn phải ra dấu, mang cờ phân biệt),
+/// rồi gọi [`find_terms`] (AD-17) trên tập thuật ngữ đã phân giải và quy đổi span
+/// byte → điểm mã **một lần, ở đúng một chỗ** (§Design Notes).
+///
+/// 🔴 **Không lọc `is_confirmed`** — khác hẳn [`entries_eligible_for_injection`]. Mục chờ
+/// chốt vẫn được đánh dấu (I/O Matrix: *"Mục chờ chốt ⇒ Có dấu, `is_confirmed=false`,
+/// `translation=null`"*) — chỉ khoá nào **đã chốt** mới được ép vào prompt (AD-36), nhưng cả
+/// hai trạng thái đều đáng được người dịch NHÌN THẤY trên lưới.
+///
+/// 🔴 **Chồng nhau được phân xử NGAY tại đây** — xem [`resolve_overlaps`]. `find_terms`
+/// KHÔNG được sửa để tự phân xử: nó phục vụ CẢ Glossary lẫn TM (AD-17, Story 7.6), và luật
+/// "một dấu cho một chỗ" là luật RIÊNG của kênh đánh dấu Glossary, không phải luật của
+/// chính phép khớp.
+///
+/// # Lỗi
+/// [`GlossaryError::Store`] nếu một trong hai lượt [`load_tier`] thất bại (kể cả kho không
+/// mở được — I/O Matrix *"`Store` đóng giữa chừng ⇒ lỗi mang `message_key`, KHÔNG
+/// `Ok(vec![])`"*); [`GlossaryError::Scope`] nếu `ScopeResolver::apply_override` từ chối
+/// (lỗi lập trình, không nên xảy ra trên đường gọi đúng).
+pub fn marks_for_source_text(
+    resolver: &ScopeResolver,
+    global: &Store,
+    work: Option<&Store>,
+    text: &str,
+    lang: MatchLang,
+) -> Result<Vec<GlossaryMark>, GlossaryError> {
+    // Cùng lưới `entries_eligible_for_injection`/`resolve_term_for_quick_add` — hai trường
+    // của cùng một `OpenWork` không được tách rời nhau trên đường xuống đây.
+    debug_assert_eq!(
+        resolver.has_work_tier(),
+        work.is_some(),
+        "marks_for_source_text -- resolver.has_work_tier()={} nhung work.is_some()={}",
+        resolver.has_work_tier(),
+        work.is_some()
+    );
+
+    let global_tier = load_tier(global)?;
+    let work_tier = work.map(load_tier).transpose()?;
+
+    let resolved =
+        resolver.apply_override(GLOSSARY_SCOPE_KIND, &global_tier, work_tier.as_ref())?;
+
+    // `payload[i]` la (source_term, tang, muc) cua khoa thu `i` cua `resolved` -- CUNG mot
+    // thu tu voi `terms` duoi day, vi ca hai deu duyet DUNG MOT lan tren cung mot BTreeMap.
+    // `term_index` cua `TermMatch` tro vao vi tri nay.
+    let payload: Vec<(GlossaryTier, &GlossaryEntry)> = resolved
+        .values()
+        .map(|resolved_entry| {
+            let tier = match resolved_entry.tier() {
+                ScopeTier::Global => GlossaryTier::Global,
+                ScopeTier::Work => GlossaryTier::Work,
+            };
+            (tier, resolved_entry.value())
+        })
+        .collect();
+    let terms: Vec<&str> = resolved.keys().map(String::as_str).collect();
+
+    let raw_matches = find_terms(text, &terms, lang);
+    let selected = resolve_overlaps(raw_matches);
+
+    let boundaries = codepoint_boundaries(text);
+    let marks = selected
+        .into_iter()
+        .map(|m| {
+            let (tier, entry) = payload[m.term_index];
+            GlossaryMark {
+                start: byte_to_codepoint(&boundaries, m.span.start),
+                end: byte_to_codepoint(&boundaries, m.span.end),
+                tier,
+                is_confirmed: entry.is_confirmed(),
+                translation: entry.translation.clone(),
+            }
+        })
+        .collect();
+
+    Ok(marks)
 }

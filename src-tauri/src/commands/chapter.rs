@@ -13,6 +13,15 @@
 //! 1.15) vừa đặt vào, hoặc `chưa có` khi webview vừa mở lại từ đầu. Không có đường
 //! `WorkMeta::read` nào ở đây.
 //!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! 🔵 THÊM 2026-08-21 (Story 3.4) — ĐÂY LÀ ĐƯỜNG "MỞ CHƯƠNG" MÀ `Jieba` HÂM NÓNG VÀO
+//! ─────────────────────────────────────────────────────────────────────────────
+//! `read_open_chapter`/`open_adjacent_chapter` là hai điểm sản phẩm duy nhất đưa một
+//! `source_lang` mới lên webview (`:119`/`:278` trước lượt sửa này). Cả hai gọi
+//! `core::glossary::warm_jieba_for_source_lang` NGAY sau khi biết `open` tồn tại — đóng
+//! `deferred-work.md:413`: khởi tạo lạnh `Jieba` tốn 179–329 ms, và nó phải rơi vào một
+//! thao tác đã chấp nhận độ trễ đó (mở Chương), không rơi vào đường gõ.
+//!
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — `scripts/check-i18n.mjs` Kiểm A quét
 //! `src-tauri/**/*.rs`.
 
@@ -99,6 +108,13 @@ pub fn read_open_chapter(open: Option<&OpenWork>) -> Result<OpenChapter, IpcErro
     // co chu: Epic 6), nhung no khong con la mot tien de cua ma nay.
     let open = open.ok_or_else(no_work_open)?;
     let chapter_id = open.chapter_id;
+
+    // 🔵 THEM 2026-08-21 (Story 3.4) — day la duong MO CHUONG ma deferred-work.md:413 cho
+    // ham Jieba vao: khoi tao lanh ton 179-329ms, va lan goi dau tien khong duoc phep roi
+    // dung phim dau nguoi dung go. Ham nong o DAY (mot thao tac da chap nhan do tre vai
+    // tram ms), khong trong than mot ham khop. Chi ham that su khi `source_lang` la tieng
+    // Trung -- xem doc-comment cua `warm_jieba_for_source_lang`.
+    crate::core::glossary::warm_jieba_for_source_lang(&open.meta.source_lang);
 
     // 🔴 `query_map().next()` chu KHONG `query_row`: `query_row` bien "0 hang" thanh mot
     // `QueryReturnedNoRows`, tuc mot loi KHO — xem `chapter_not_found`. `Option` o day la
@@ -213,6 +229,11 @@ pub fn open_adjacent_chapter(
 ) -> Result<ChapterSwitch, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
     let current = open.chapter_id;
+
+    // 🔵 THEM 2026-08-21 (Story 3.4) — cung ly do da ghi o `read_open_chapter`: day cung la
+    // mot duong MO CHUONG. Goi lap voi `read_open_chapter` khong ton gi (LazyLock chi chay
+    // ham khoi tao dung mot lan, ~1us tu lan thu hai).
+    crate::core::glossary::warm_jieba_for_source_lang(&open.meta.source_lang);
 
     // ⚠️ `ord` cua chinh Chuong dang mo — nua con lai cua bo doi. Doc trong CUNG mot lan
     // `read` voi luot tim hang ke: hai lan `read` la hai ket noi, va giua chung mot luot ghi

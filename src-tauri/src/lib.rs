@@ -369,6 +369,10 @@ pub fn run() {
             crate::commands::glossary::wire::glossary_lookup_term,
             crate::commands::glossary::wire::glossary_add_term,
             crate::commands::glossary::wire::glossary_update_term,
+            // Story 3.4 -- khop thuat ngu theo ngon ngu (FR50/FR51). Nhan `text`/`source_lang`
+            // lam tham so (khong tu doc `chapter` tu dia) -- xem doc-comment cua ham thuan.
+            // Ham nong Jieba KHONG nam o day; no mac vao duong mo Chuong o tren.
+            crate::commands::glossary::wire::glossary_marks_for_chapter,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

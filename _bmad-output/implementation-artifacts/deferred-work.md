@@ -241,6 +241,13 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 ## Deferred from: 1-8-phan-giai-cau-hinh-hai-tang (2026-08-04)
 
 - 🔴 **`ScopeResolver` chưa cache gì, và đó là một quyết định.** Consumer đường nóng duy nhất là khớp Glossary khi gõ — **Story 3.4**, dưới trần NFR2 *"không frame nào vượt 50 ms"* — và hôm nay nó chưa tồn tại. Dựng cache bây giờ là dựng một cơ chế vô hiệu hoá mà **không có gì để vô hiệu hoá**, và một cơ chế như vậy sẽ sai theo đúng cách mà không test nào bắt. Ba hàm phân giải là **thuần** nên thêm cache về sau là một lượt sửa cục bộ, không phải một lượt mổ. **Chủ sở hữu: Story 3.4** — và nó phải **đo trước** khi cache. **(Chủ: Story 3.4.)**
+  → 🟡 **ĐO 2026-08-21 (Story 3.4) — số đo ở `:424` ngay dưới đây bao gồm CẢ chi phí
+  `apply_override` (nơi `ScopeResolver` chạy) lẫn `find_terms`; đo tay không tách riêng được
+  hai phần.** `apply_override` tự nó là O(số thuật ngữ) trên hai `BTreeMap` đã nạp — rẻ hơn
+  hẳn `find_terms` (O(thuật ngữ × độ dài văn bản)) theo đúng bậc, nên phần lớn chi phí đo ở
+  `:424` là `find_terms`, không phải `apply_override`. Kết luận cho `ScopeResolver` riêng nó:
+  **chưa cần cache** — số đo không chỉ ra `apply_override` là nút cổ chai; nút cổ chai đo được
+  là `find_terms`. Xem `:424` cho số thật đầy đủ và cho quyết định ASK-FIRST mà số đó kéo theo.
 
 - ~~⚠️ **Tầng Tác phẩm chưa từng chạy trên dữ liệu thật.**~~ Nhánh `Some(..)` của cả ba hàm phân giải **có test đầy đủ** *(`scope_contract.rs` cấp dữ liệu tầng Work bằng tay)*, nhưng đường sản phẩm hôm nay **luôn** truyền `None`: `.atproj` và `project.db` là **Story 1.15**, `StoreKind::Project` chưa có `StoreSpec` nào. `ScopeResolver::global_only()` là hàm dựng duy nhất tồn tại và `WorkScope` là một struct rỗng đánh dấu chỗ. **Story 1.15** cắm tầng thật vào; không ba chữ ký không phải đổi.
   → ✅ **ĐÓNG MỘT PHẦN 2026-08-06 (Story 1.15).** `WorkScope` nay mang `work_id` thật; `ScopeResolver::with_work(WorkScope)` là hàm dựng thứ hai, không ba chữ ký `apply_override`/`apply_merge`/`resolve_global_only` không đổi. Đường sản phẩm (`commands::project::create_work`) dựng một `ScopeResolver::with_work(...)` thật mỗi khi một Tác phẩm được tạo — `has_work_tier()` không còn luôn `false` trên đường sản phẩm.
@@ -418,10 +425,72 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 
   Trung vị **~243 ms**, thấp nhất **179 ms**, cao nhất **329 ms**. Lượt gọi **ấm** kế tiếp: **1 µs** *(dưới ngưỡng đo)*. Chi phí là giải nén `dict.txt` *(**5.071.843 byte** thô, nhúng qua `include_flate::flate!`)* cộng nạp từng dòng vào một cây `cedar` — công việc **chạy lúc chạy**, không phải một hằng số biên dịch, và nó rơi vào **lần gọi đầu tiên**, tức có thể rơi đúng vào phím đầu tiên người dùng gõ.
   **Đường ra là hâm nóng `LazyLock` NGOÀI đường gõ** *(một lượt `tokenize` giả lúc mở Tác phẩm, hoặc trên một luồng nền lúc khởi động)*. **Story 1.12 cố ý KHÔNG dựng cơ chế hâm nóng** — chưa có đường gõ nào tồn tại để hâm nóng vào, và một cơ chế dựng trước người tiêu thụ là một phỏng đoán về chỗ gọi. Cổng `tests/matching_boundary.rs::the_jieba_dictionary_is_constructed_at_exactly_one_place` + `…::the_single_jieba_instance_is_actually_lazily_initialised_once` giữ cho chi phí này không nhân lên khi ai đó chuyển lời gọi vào thân một hàm bị gọi lặp.
+  → ✅ **ĐÃ ĐÓNG 2026-08-21 (Story 3.4).** `core::matching::warm()` (`LazyLock::force(&JIEBA)`) cộng
+  `core::glossary::warm_jieba_for_source_lang(source_lang)` (chỉ hâm khi `source_lang == "zh"` —
+  đường Anh không bao giờ chạm `Jieba`, hâm nó vô ích) — gọi từ `commands::chapter::read_open_chapter`
+  và `…::open_adjacent_chapter`, đúng "đường mở Chương" mà mục này chờ. Cổng hai lớp cũ
+  (`the_jieba_dictionary_is_constructed_at_exactly_one_place` · `…lazily_initialised_once`) vẫn xanh
+  không đổi — `warm()` gọi `LazyLock::force`, không thêm một lần dựng `Jieba::new` thứ hai.
 
 - 🔵 **PHÁT HIỆN MỚI: Porter2 KHÔNG có luật cho hậu tố so sánh/cực cấp (`-er` · `-est`) — `happiest` không về được `happy`.** AC7 của story liệt kê `happiest` là một *"biến thể hình thái"* mà Matcher phải nhận diện được về dạng gốc. **Đo thật lật vế đó:** `happiest` ⇒ `happiest`, trong khi `happy` ⇒ `happi` — hai vế **không** gặp nhau. Ba biến thể còn lại của AC7 thì đạt *(`running`⇒`run` · `dogs`⇒`dog` · `studies`⇒`studi`=`study`)*. Đây **không** phải lỗi cài đặt: Porter2 theo định nghĩa không xử lý `-er`/`-est`, nên một biến thể **có quy tắc** cũng rơi vào đúng giới hạn mà FR40 đã tuyên bố cho dạng **bất quy tắc**. Story đóng nó bằng cách đưa `happiest` vào ca test giới hạn có tên *(`stemming_is_not_lemmatization_irregular_and_comparative_forms_never_reach_their_lemma`)* thay vì vào ca AC7. ⚠️ **Hệ quả cần biết cho Epic 3:** một người dịch thêm thuật ngữ `happy` vào Glossary sẽ **không** thấy `happiest` được tô màu. Nếu đó là mức phủ không chấp nhận được thì đường ra là một lemmatizer — và NFR15 đòi rà giấy phép **trước** khi thêm phụ thuộc. Chủ sở hữu quyết định: **Ice / John (PM)**, ứng viên là Story 3.4. **(Chủ: Story 3.4.)**
+  → **KHÔNG LÀM 2026-08-21 (Story 3.4)** — Ice ký giữ nguyên giới hạn, không thêm lemmatizer.
+  I/O Matrix của story tự đặt hàng này thành một MỆNH ĐỀ ĐÚNG, không một chỗ chưa xong: *"Anh,
+  cực cấp | thuật ngữ `happy`, câu `…happiest…` | Không dấu — giới hạn Porter2 đã ký"*. Đóng bằng
+  một ca test **có tên**, không phải một dòng bị xoá:
+  `glossary_marks_contract.rs::english_superlative_forms_are_not_marked_a_named_porter2_limit_ice_signed_2026_08_21`
+  khẳng định `happiest` **không** được đánh dấu khi Glossary chỉ chứa `happy` — chạy thật, không
+  suy luận. Thêm một lemmatizer để đóng khoảng phủ này là đổi một phụ thuộc mới (cửa NFR15) lấy
+  một ca biên hiếm, trong khi người dịch có đường né sẵn (tự thêm `happiest` làm một mục Glossary
+  riêng nếu cần) — không có bằng chứng cầu thật nào đòi đánh đổi đó ở FR40 hôm nay.
 
 - 🟡 **`find_terms` là O(số thuật ngữ × độ dài văn bản) — không chỉ mục ngược, không cache. Chủ sở hữu: Story 3.4 / 7.5.** Story 1.12 cố ý không dựng cả hai *(§Ranh giới phạm vi: chúng thuộc 7.5/7.6 và phụ thuộc dữ liệu thật)*. Với một Glossary vài trăm thuật ngữ trên một segment vài trăm ký tự thì hình dạng hiện tại thừa đủ; với một Glossary vài nghìn thuật ngữ trên **cả chương**, nó cần đo lại trước khi đặt lên đường gõ *(NFR2 = 50 ms mỗi frame)*. **Chưa đo** — chưa có người tiêu thụ nào để đo trên đó, và một con số đo trên đầu vào tự bịa là một con số không dùng được.
+  → 🟡 **ĐO 2026-08-21 (Story 3.4) — con số THẬT, và nó KHÔNG nằm dưới trần NFR2 ở quy mô
+  Chương lớn nhất có thật. Cửa ASK-FIRST của story này (§Boundaries) kích hoạt — quyết định
+  chỉ mục ngược/cache thuộc về Ice, KHÔNG tự chọn ở đây.**
+
+  Đo `marks_for_source_text` (gồm cả hai lượt `load_tier` + `apply_override` + `find_terms` +
+  phân xử chồng nhau + quy đổi điểm mã — toàn bộ đường mà một lượt khớp thật đi qua, không chỉ
+  riêng `find_terms`), `cargo test --release` *(`[profile.release]` không đổi một dòng)*,
+  `rustc 1.97.1`, macOS/darwin 24.6.0, Intel i9-9980HK, 6 lượt/điểm đo, mỗi lượt một tiến
+  trình `Jieba` đã hâm sẵn (`warm_jieba_for_source_lang` gọi trước vòng đo, đúng đường sản
+  phẩm). Glossary **5.000 thuật ngữ tiếng Trung** *(dựng từ tổ hợp 3 ký tự trên một bảng 28
+  ký tự — CỐ Ý đặc để mô phỏng ca XẤU HƠN mức thường: nhiều thuật ngữ chia sẻ tiền tố/hậu tố
+  nên số lượt khớp chồng nhau cần phân xử cao hơn một Glossary tên riêng thật; số dưới đây là
+  một **cận trên**, không phải một con số "điển hình")*:
+
+  | Cỡ Chương (ký tự) | Trung vị (ms) | Thấp nhất | Cao nhất |
+  |---:|---:|---:|---:|
+  | 3.000 | 23,6 | 22,9 | 25,5 |
+  | 10.000 | 55,5 | 49,9 | 57,0 |
+  | 20.000 | 93,9 | 90,1 | 104,7 |
+  | **48.640** *(Chương lớn nhất có thật — `commands/segment.rs:1111`, 9.850 câu)* | **214,0** | 194,1 | 248,5 |
+
+  ⇒ **Vượt trần NFR2 (50 ms) ngay từ 10.000 ký tự** (55,5 ms), và **~4,3×** trần đó ở quy mô
+  Chương lớn nhất có thật (214,0 ms so với 50 ms). Đây là số đo trên một đầu vào DỰNG, không
+  phải một Glossary/Chương người dùng thật — nhưng nó không còn là *"chưa có người tiêu thụ
+  nào để đo trên đó"* nữa: Story 3.4 **là** người tiêu thụ đó, và con số nói *có* vấn đề ở quy
+  mô lớn, không nói *không có gì cần lo*.
+
+  🔴 **Ice ký hai điều TRƯỚC khi bất kỳ ai thêm chỉ mục ngược/cache:** ① đây đúng là điều kiện
+  ASK-FIRST mà chính spec Story 3.4 đã đặt tên trước *("Nếu phép đo `find_terms` trên một
+  Glossary vài nghìn mục cho thấy cần chỉ mục ngược hoặc cache — đo trước, chốt sau")* — Story
+  3.4 dừng lại ở việc ĐO, không tự chọn kiến trúc; ② số đo phụ thuộc **thời điểm gọi**: nếu nửa
+  giao diện (3.4b, còn hoãn) chỉ gọi hàm này khi Chương đang mở (không phải mỗi khung hình gõ),
+  214 ms một lần trên một thao tác đã chấp nhận độ trễ có thể chấp nhận được — NẾU nó gọi lại
+  trên MỖI PHÍM GÕ (khớp lại theo thời gian thực khi biên tập) thì 214 ms là một hồi quy NFR2
+  thật. **Câu hỏi cần Ice trả lời trước Story 3.4b:** tần suất gọi lại của nửa giao diện là gì
+  — mở Chương một lần, hay mỗi lượt gõ? Câu trả lời đó quyết định cache có cần hay không nhiều
+  hơn chính con số ms ở trên.
+
+  → 🔴 **ICE KÝ 2026-08-21 tại cửa ASK-FIRST của Story 3.4: DỪNG Ở ĐO, không thêm chỉ mục
+  ngược và không thêm cache trong story này.** Lý do là điều kiện, không phải khẩu vị: thiết kế
+  một cache phụ thuộc **tần suất gọi lại**, mà tần suất đó do Story 3.4b định — dựng cache hôm
+  nay là dựng một cơ chế vô hiệu hoá cho một chỗ gọi **chưa tồn tại**, đúng cái bẫy mà `:243`
+  đã ghi thành chữ cho chính `ScopeResolver` *("một cơ chế như vậy sẽ sai theo đúng cách mà
+  không test nào bắt")*. Ba hàm liên quan đều **thuần**, nên thêm cache về sau là một lượt sửa
+  cục bộ chứ không phải một lượt mổ.
+  ⚠️ **Mục này ở lại MỞ và nó là điều kiện khởi hành của Story 3.4b** — 3.4b không được vào
+  đường nóng mà chưa trả lời câu hỏi tần suất ngay trên. **(Chủ: Story 3.4b.)**
 
 ## Deferred from: code review of 1-12-matcher-dung-chung (2026-08-05)
 
@@ -429,6 +498,12 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - **Không có test nào cưỡng chế lời hứa "không chạm filesystem/database/mạng" (AD-15) mà doc-comment của `core/matching/mod.rs` tuyên bố** — đúng hôm nay qua rà tay thủ công (không có lời gọi I/O nào trong mã story 1.12), nhưng không gì bắt được nếu một lượt sửa tương lai âm thầm thêm I/O vào module lá này. Khuôn cổng ranh giới hiện tại (`matching_boundary.rs`, `dict_boundary.rs`, `store_boundary.rs`) chưa có tiền lệ kiểm loại forbidden-token này cho `fs`/`net`/`rusqlite`. **(Chủ: một story kế tiếp chạm `core/matching`.)**
 - **Một số con số "đo được" gắn cứng trong doc-comment của `core/matching/mod.rs` và trong mục review trước ở tệp này (`dict.txt` = 5.071.843 byte thô; khởi tạo `Jieba` 179–329 ms bản release) không được một test nào khẳng định** — sẽ lặng lẽ lạc hậu khi phiên bản `jieba-rs` hoặc dữ liệu dict đổi, vì không cổng nào đỏ khi điều đó xảy ra. Rủi ro tài liệu, không phải rủi ro đúng/sai của mã. **(Chủ: một story kế tiếp chạm `core/matching`.)**
 - **`ngrams` và `find_terms` mỗi hàm tự tokenize/normalize lại toàn bộ văn bản đầu vào — không có bề mặt API nào để tái dùng token đã tính giữa hai lời gọi trên cùng một đoạn văn bản.** Một người tiêu thụ tương lai (Story 7.6) cần cả n-gram lẫn tìm thuật ngữ trên cùng một segment sẽ trả giá tokenize/normalize hai lần. Chủ sở hữu quyết định hình dạng API: Story 3.4/7.6, khi có người tiêu thụ thật. **(Chủ: Story 3.4/7.6.)**
+  → 🟡 **KHÔNG CHẠM 2026-08-21 (Story 3.4) — vế của story này không kích hoạt món nợ này.**
+  `marks_for_source_text` gọi `find_terms` **đúng một lần** cho mỗi lượt khớp; nó không gọi
+  `ngrams` (n-gram thuộc phạm vi TM, Story 7.5/7.6, ngoài phạm vi story này). Chi phí
+  tokenize-lặp-lại mà mục này cảnh báo chỉ phát sinh khi CẢ HAI hàm cùng chạy trên một văn
+  bản trong cùng một lượt gọi — điều kiện đó chưa xảy ra ở đây. Món nợ vẫn mở nguyên,
+  chuyển giao đúng người tiêu thụ đầu tiên gọi cả hai: **Story 7.6**.
 - **Văn bản chuẩn hoá NFD (dấu tổ hợp, vd. một số nguồn clipboard macOS) tokenize/stem khác với văn bản NFC cùng nội dung ở đường `En` của `core/matching/`** (`char::is_alphanumeric` trong `tokenize` và `to_lowercase` trong `normalize` đều không chuẩn hoá NFC/NFD trước khi xử lý) — cùng lớp vấn đề chuẩn hoá Unicode đã ghi nhận cho một module khác ở mục *§Deferred from: code review of 1-11b-duong-tra-cuu-tieng-anh* phía trên (`core/dict/mod.rs:242`, kế thừa từ Story 1.11). Sửa đòi một quyết định chuẩn hoá Unicode chung cho toàn dự án — thuộc tầng kiến trúc, không phải một lượt vá cục bộ ở module này. **(Chủ: một story kế tiếp chạm `core/matching`.)**
 
 ## Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)
@@ -5343,6 +5418,15 @@ trước khi nới** — chúng có mặt để lượt đó có dữ liệu th�
     nay là chốt thay cho một story có nhiều bối cảnh hơn, và làm nó bằng một chỉ mục UNIQUE
     thì KHÔNG lùi được sau khi dữ liệu người dùng đã nằm trên đĩa.
     **(Chủ: Story 3.4 — khớp thuật ngữ theo ngôn ngữ.)**
+  → **KHÔNG LÀM 2026-08-21 (Story 3.4)** — đóng bằng một PHÉP ĐO ở đường khớp, không bằng một
+    lượt sửa lược đồ. `find_terms` nhánh `En` đã chuẩn hoá **CẢ HAI vế** (hạ chữ thường rồi
+    Porter2) TRƯỚC khi so khớp, nên `Fire`/`fire` gặp nhau **ở đường khớp** dù bảng vẫn giữ hai
+    hàng riêng (`marks_for_source_text` khớp cả hai). Nhánh `Zh` khớp CHÍNH XÁC nên không có gì
+    để chuẩn hoá. ⇒ Bảng **giữ nguyên KHÔNG chuẩn hoá** — đúng luật *"hạ chữ thường là THÊM một
+    khoá, không THAY khoá gốc"*, giữ được 1.635 đầu mục tiếng Anh có chữ hoa mang nghĩa, và né
+    một `UNIQUE` chuẩn hoá không lùi được sau khi dữ liệu người dùng đã nằm trên đĩa. Ba dữ kiện
+    Epic 1 nêu ở trên **vẫn đúng và vẫn là lý do** — số đo mới của Story 3.4 chỉ xác nhận vế còn
+    lại: đường khớp (không phải bảng) là nơi `Fire`/`fire` gặp nhau, đúng như dự đoán.
 
 ## Deferred from: 3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai (vòng rà soát #2, 2026-08-19)
 
@@ -5726,3 +5810,63 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     🔴 Đường đóng thật là dựng được một `.db` TÍ HON trong CI từ một mẫu đã commit, không
     tải gì — chưa đo `tools/dict-build` có đường không-tải hay không. **(Chủ: Story 3.9 —
     cùng chủ với hai mục nợ e2e ở trên, cùng một bảng nightly trả lời cả ba.)**
+
+## Deferred from: lượt lập spec Story 3.4 (2026-08-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-4-khop-thuat-ngu-theo-ngon-ngu-qua-matcher-dung-chung.md`
+  summary: **Nửa GIAO DIỆN của FR50 — vẽ dấu ở cột nguyên văn của lưới, trên CẢ HAI đường
+    render (chữ trần và `SourceHanViet`), cộng dòng `StatusBar` chở bản dịch đã chốt khi rê
+    chuột hoặc đưa tiêu điểm.** Story 3.4 thu hẹp còn nửa Rust (khớp + bề mặt IPC); nửa này
+    cần một story riêng.
+  evidence: Tách 2026-08-21, Ice ký, ở cửa đếm token của `bmad-build`: spec một mảnh đo được
+    **17.408 ký tự ≈ 5.000–5.800 token** so với trần **1.600** — vượt 3,1–3,6×, trên đúng
+    story mà `deferred-work.md:5275` tự gọi là *"rủi ro nhất của Epic 3"*. Phép tách là theo
+    TẦNG, không theo mục tiêu: cửa đơn-mục-tiêu của bước 1 đã qua, đây vẫn là một mục tiêu
+    người dùng duy nhất (FR50 + FR51). Nửa Rust nghiệm thu được một mình bằng
+    `glossary_marks_contract.rs` mà không cần một pixel nào; nửa giao diện vào đường nóng với
+    tầng dưới đã xanh, tức nó đo NFR2 trên một biến số thay vì hai.
+    🔴 **Ba quyết định của Ice ngày 2026-08-21 đi kèm mục này và KHÔNG được suy lại từ đầu:**
+    (a) kênh chở bản dịch là một dòng trong `StatusBar`, **không** một lớp nổi — 0 miễn trừ
+    `z-index`, và nó đạt cả vế chuột lẫn vế tiêu điểm của AC; (b) đánh dấu chạy ở **cả hai**
+    đường render, và phép cắt làm ở **tầng dữ liệu** (`buildSegments` tự cắt tại biên thuật
+    ngữ) chứ không chèn node vào DOM — đó là cách duy nhất giữ `host.children[i] ↔
+    segments.value[i]` đúng theo cấu tạo, đóng luôn `deferred-work.md:834`; (c) mục chờ chốt
+    phân biệt bằng **kiểu gạch chân**, tuyệt đối không `opacity` (`epic-3-context.md:51`).
+    ⚠️ **Mở story này phải đi qua `bmad-correct-course`, không phải một dòng thêm tay vào
+    `sprint-status.yaml`.** Đo 2026-08-21: mọi story hậu tố `b` của kho (`1.10b` · `1.11b` ·
+    `1.18b` · `2.5b` · `2.5c`) là một mục ĐẦY ĐỦ trong `epics.md`, và `epics.md:684` ghi
+    thẳng *"thêm 2026-08-05 qua `correct-course`"*. Đúc một khoá `3-4b` thẳng vào tệp trạng
+    thái là dựng một mục quy hoạch ngoài workflow đã có.
+    **(Chủ: Ice — mở Story 3.4b qua một lượt `bmad-correct-course` sau khi 3.4 xanh.)**
+
+## Deferred from: lượt rà soát Story 3.4 (2026-08-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-4-khop-thuat-ngu-theo-ngon-ngu-qua-matcher-dung-chung.md`
+  summary: **Chi phí 179–329 ms của lượt khởi tạo `Jieba` được DỜI CHỖ, không bị xoá — và
+    độ trễ nó cộng vào đường MỞ CHƯƠNG chưa ai đo.** Story 3.4 đóng vế NFR2 (không rơi vào
+    đường gõ) bằng `warm_jieba_for_source_lang` ở `commands/chapter.rs`, nhưng lượt hâm đó
+    chạy ĐỒNG BỘ trong `read_open_chapter`/`open_adjacent_chapter`.
+  evidence: Rà soát 2026-08-21 (lớp blind-hunter). Số 179–329 ms ở `deferred-work.md:413` đo
+    chi phí khởi tạo, không đo độ trễ mở Chương trước/sau. Spec Story 3.4 lập luận rằng mở
+    Chương *"là một thao tác đã chấp nhận độ trễ vài trăm ms"* — mệnh đề đó **hợp lý nhưng
+    chưa được đo**, và luật kho cấm đánh dấu đạt bằng suy luận. Vế cần đo là một cặp số trên
+    CÙNG một Chương tiếng Trung: mở Chương trước lượt sửa này so với sau. ⚠️ Đường chuyển
+    Chương (`open_adjacent_chapter`) đáng ngờ hơn `read_open_chapter`: nó là thao tác người
+    dùng lặp lại nhiều lần trong một phiên, và lượt hâm chỉ tốn ở lần ĐẦU nên một phép đo
+    chạy nhiều lượt liên tiếp sẽ **giấu mất** chi phí thật nếu không tách lượt lạnh ra.
+    **(Chủ: Story 3.4b — cùng phiên đo NFR2 mà nửa giao diện phải chạy trước khi vào đường
+    nóng; đo hai vế trong một lượt thay vì dựng bàn đo hai lần.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-4-khop-thuat-ngu-theo-ngon-ngu-qua-matcher-dung-chung.md`
+  summary: **`GlossaryMark` cố ý KHÔNG mang `source_term` lẫn `id`, nên nửa giao diện không
+    correlate được hai dấu về CÙNG một mục Glossary mà không đi thêm một vòng tra.** Bốn
+    trường hiện có đủ để VẼ một dấu, không đủ để trả lời *"hai dấu này có phải cùng một
+    thuật ngữ không"*.
+  evidence: Rà soát 2026-08-21 (lớp blind-hunter). Đây là một lát cắt phạm vi hợp lý cho nửa
+    Rust — thêm một trường chưa ai dùng là đúng thứ luật *"không khoá nào cho một tính năng
+    chưa tồn tại"* cấm. Nhưng nó là một RÀNG BUỘC mà người thiết kế 3.4b phải biết TRƯỚC khi
+    vẽ tương tác: bất kỳ khả năng nào kiểu *"tô sáng mọi lượt xuất hiện của thuật ngữ này"*
+    hay *"rê chuột một dấu thì làm nổi các dấu anh em"* đều đòi đổi hình dạng dây, tức một
+    lượt sửa cả hai đầu chứ không phải một lượt sửa frontend. Ghi ra thay vì để 3.4b phát
+    hiện giữa chừng. **(Chủ: Story 3.4b — quyết định lúc thiết kế tương tác, không phải lúc
+    đang cài.)**

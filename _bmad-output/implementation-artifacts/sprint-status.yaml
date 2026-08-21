@@ -52,7 +52,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-20T14:46:08
+last_updated: 2026-08-21T12:05:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -145,7 +145,17 @@ development_status:
   3-1-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai: done
   3-2-bang-cho-ung-vien-tach-han-khoi-glossary: done
   3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao: done
-  3-4-khop-thuat-ngu-theo-ngon-ngu-va-danh-dau-trong-panel-source: backlog
+  # 🔵 2026-08-21 — ĐỔI KHOÁ, hai lý do, cả hai kiểm được.
+  # ① Tên cũ `…-danh-dau-trong-panel-source` trỏ SAI BỀ MẶT: FR50 sửa 2026-08-18 từ
+  #    "Panel Source" sang "cột nguyên văn của lưới" (`epics.md:176` · `prd.md:548` · bảng
+  #    truy vết `epics.md:700`), và `grep 'SourcePanel|EditorPanel' src/` = 0. Mọi tệp quy
+  #    hoạch đã mang tên mới; khoá này là chỗ CUỐI CÙNG còn giữ tên đã hết đúng.
+  # ② Phạm vi story thu hẹp còn NỬA RUST (khớp + bề mặt IPC) — Ice ký ở cửa đếm token của
+  #    `bmad-build`: spec một mảnh đo được 17.408 ký tự ≈ 5.000–5.800 token so với trần
+  #    1.600. Nửa GIAO DIỆN (vẽ dấu hai đường + dòng `StatusBar`) nằm trong `deferred-work.md`
+  #    §"Deferred from: lượt lập spec Story 3.4", chủ: Ice, mở qua một lượt `correct-course`.
+  #    ⚠️ FR50 vì vậy CHƯA đóng ở story này; FR51 thì có.
+  3-4-khop-thuat-ngu-theo-ngon-ngu-qua-matcher-dung-chung: review
   3-5-quet-ung-vien-khi-nhap-tai-lieu: backlog
   3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap: backlog
   3-7-de-xuat-ban-dich-bang-am-han-viet: backlog

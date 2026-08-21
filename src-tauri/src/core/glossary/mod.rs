@@ -89,6 +89,29 @@
 //! "đẩy một mục từ Tác phẩm lên Global bằng một thao tác"). Không có `&Store` nào của
 //! `project.db` ⇒ không gọi được bốn hàm này — cùng đúng giới hạn "chưa mở lại được" ở
 //! trên, không phải một giới hạn thứ hai.
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! HÌNH DẠNG ĐÃ DỰNG (Story 3.4) — HÀM PHƠI RA THỨ TƯ, khớp thuật ngữ theo ngôn ngữ
+//! ─────────────────────────────────────────────────────────────────────────────
+//! - [`entry::GlossaryMark`] — kiểu THUẦN: span ĐIỂM MÃ (`start`/`end`, quy đổi từ byte của
+//!   `find_terms` MỘT LẦN trong [`store::marks_for_source_text`]) + `tier` + `is_confirmed`
+//!   + `translation`. Không mang `source_term`/`id` — vẽ dấu chỉ cần bốn thứ này.
+//! - [`store::marks_for_source_text`] — tra hai tầng qua `ScopeResolver::apply_override`
+//!   (**không lọc** `is_confirmed`, cùng lý do [`store::resolve_term_for_quick_add`]), gọi
+//!   [`crate::core::matching::find_terms`] (AD-17, không cài lại phép khớp) trên tập thuật
+//!   ngữ đã phân giải, rồi phân xử span CHỒNG NHAU (`find_terms` trả chồng nhau được — dài
+//!   nhất thắng, hoà thì trái nhất) TRƯỚC khi quy đổi byte → điểm mã.
+//! - [`store::warm_jieba_for_source_lang`] — hâm `Jieba` NGOÀI đường gõ, gọi từ đường MỞ
+//!   CHƯƠNG (`commands::chapter`), không từ thân `marks_for_source_text` — đóng
+//!   `deferred-work.md:413` (179–329 ms khởi tạo lạnh, vượt trần NFR2 3,6–6,6×).
+//! - `commands::glossary::glossary_marks_for_chapter` — hàm thuần thứ hai của
+//!   `commands::glossary`: nhận `text`/`source_lang` làm THAM SỐ (không tự đọc `chapter`
+//!   từ đĩa — frontend đã có `source_text` từ `read_open_chapter`), cùng khuôn
+//!   `glossary_lookup_term` (`Option<&Store>` + `Option<&OpenWork>`, chưa mở Tác phẩm ⇒ chỉ
+//!   khớp tầng Global, không lỗi).
+//! - ⚠️ **NỬA GIAO DIỆN (vẽ dấu ở cột nguyên văn của lưới, dòng `StatusBar`) TÁCH KHỎI
+//!   STORY NÀY** — xem `deferred-work.md` §"Deferred from: lượt lập spec Story 3.4", chủ:
+//!   Ice, mở qua một lượt `correct-course`. Story 3.4 giao đúng NỬA RUST.
 
 pub mod candidate;
 pub mod candidate_store;
@@ -99,8 +122,9 @@ pub use candidate::{CandidateOrigin, GlossaryCandidate, Resolution};
 pub use candidate_store::{
     approve_candidate, insert_candidate, pending_candidates, reject_candidate,
 };
-pub use entry::{Category, GlossaryEntry, GlossaryTier, TermOrigin};
+pub use entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
 pub use store::{
     GlossaryError, add_manual_term, confirm_translation, entries_eligible_for_injection,
-    insert_manual_entry, load_tier, resolve_term_for_quick_add, update_manual_term,
+    insert_manual_entry, load_tier, marks_for_source_text, match_lang_for_source_lang,
+    resolve_term_for_quick_add, update_manual_term, warm_jieba_for_source_lang,
 };

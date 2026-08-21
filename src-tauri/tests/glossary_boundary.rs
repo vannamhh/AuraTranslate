@@ -53,7 +53,14 @@ const SCHEMA_FILE: &str = "core/store/schema.rs";
 /// dưới dải 80–85% mà tác vụ cổng biên của story này đòi kiểm lại; nâng lên **40** (80%) —
 /// vẫn dưới số thật đúng khuôn `RS_FLOOR` của `scope_boundary.rs`/`store_boundary.rs`: nó
 /// bắt một cây bị cắt mất, không bắt việc thêm tệp mới.
-const RS_FLOOR: usize = 40; // số THẬT 2026-08-20 (Story 3.3): 50 tep .rs -- 40/50 = 80%
+///
+/// ⚠️ **ĐO LẠI 2026-08-21 (Story 3.4) — KHÔNG NÂNG, số thật KHÔNG đổi.** Story này sửa **bảy**
+/// tệp `.rs` có sẵn (`core/matching/mod.rs` · `core/glossary/entry.rs` · `…/store.rs` ·
+/// `…/mod.rs` · `commands/glossary.rs` · `commands/chapter.rs` · `lib.rs`) và không thêm một
+/// tệp `.rs` MỚI nào dưới `src-tauri/src/**` — quần thể vẫn **50**. Một sàn nâng khi số thật
+/// đứng nguyên là một sàn nâng theo cảm giác, đúng thứ `check-i18n.mjs::RS_FLOOR` (Story
+/// 1.20) đã từ chối một lần.
+const RS_FLOOR: usize = 40; // số THẬT 2026-08-21 (đo lại, Story 3.4): 50 tep .rs -- 40/50 = 80%, khong doi
 
 /// Chuỗi bị cấm ngoài hai vị trí ở trên — **tên bảng thật**, chữ thường nguyên văn như nó
 /// nằm trong SQL (`CREATE TABLE glossary_entry`, `FROM glossary_candidate`, …).
@@ -106,13 +113,20 @@ fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static st
     GLOSSARY_ONLY_SURFACE.into_iter().find(|needle| code.contains(needle))
 }
 
-/// Ba hàm mà `commands::glossary` ĐƯỢC PHÉP gọi xuống `core::glossary` — bề mặt Story 3.3
+/// Bốn hàm mà `commands::glossary` ĐƯỢC PHÉP gọi xuống `core::glossary` — bề mặt Story 3.3
 /// dựng đúng để thay thế `GLOSSARY_ONLY_SURFACE` cho chỗ gọi sản phẩm đầu tiên (Ice ký ở
 /// `glossary_boundary.rs:80-88`, tiền lệ Story 3.1: sửa CHỮ KÝ thay vì nới cổng).
-const QUICK_ADD_SURFACE: [&str; 3] = [
+///
+/// 🔵 **CẬP NHẬT 2026-08-21 (Story 3.4) — hàm THỨ TƯ, `marks_for_source_text`.** Tên hằng
+/// giữ nguyên `QUICK_ADD_SURFACE` dù nó nay phục vụ CẢ hai bề mặt của `commands::glossary`
+/// (dải "Thêm thuật ngữ" 3.3 + đánh dấu 3.4) — đổi tên sẽ chạm hai test đã có mà không đổi
+/// mệnh đề chúng canh; giữ khuôn hiện tại (một danh sách CÁC HÀM ĐƯỢC PHÉP, không phải một
+/// danh sách CHỈ-CHO-QUICK-ADD) là đúng thứ Story 3.1 đã ký ở `:80-88`.
+const QUICK_ADD_SURFACE: [&str; 4] = [
     "resolve_term_for_quick_add",
     "add_manual_term",
     "update_manual_term",
+    "marks_for_source_text",
 ];
 
 /// Token xuất xứ TỰ ĐỘNG — chỉ được sinh ra (biến thể enum, chuỗi `as_str()`) bên trong
@@ -596,5 +610,11 @@ fn the_glossary_only_surface_check_would_still_flag_a_forbidden_call_from_comman
         None,
         "ba ham MOI cua Story 3.3 khong nam trong GLOSSARY_ONLY_SURFACE -- do la diem cua \
          chung"
+    );
+    assert_eq!(
+        line_calls_a_glossary_only_surface_function("marks_for_source_text(r, g, w, text, lang)"),
+        None,
+        "ham THU TU cua Story 3.4 cung khong nam trong GLOSSARY_ONLY_SURFACE -- cung diem \
+         voi ba ham cua Story 3.3"
     );
 }

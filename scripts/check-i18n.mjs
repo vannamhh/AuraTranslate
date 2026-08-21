@@ -276,7 +276,16 @@ const vueFiles = keep(vueAll)
 // 🔴 NÂNG 2026-08-12 (Story 2.1) — số thật lên **43**: `core/segment/split.rs` và
 // `commands/segment.rs`. Sàn 35 trên 43 là 81,4%, đã tụt khỏi dải ~85% mà lượt nâng trước
 // đặt ra; sàn lên **36** để giữ đúng dải đó. AC15 của story đòi đo chứ không ước.
-const RS_FLOOR = 42 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 51 tệp `.rs` — 42/51 = 82,4%
+// ⚠️ **ĐO LẠI 2026-08-21 (Story 3.4) — KHÔNG NÂNG, số thật KHÔNG đổi.** Story sửa bảy tệp
+// `.rs` có sẵn dưới `src-tauri/src/**` và thêm **một** tệp MỚI dưới `tests/**`
+// (`glossary_marks_contract.rs`) — miễn trừ TRỌN khỏi quần thể này (`EXEMPT`).
+// 🔵 Sửa tại chỗ 2026-08-21: bản đầu của chú thích này viết *"thêm HAI tệp mới … ·
+// `zzz_scratch_bench_marks.rs`, tệp đo tạm sẽ xoá"*. Tệp đo tạm **đã xoá thật** sau khi lấy
+// xong bảng số ở `deferred-work.md:424`, nên mệnh đề "hai tệp" hết đúng ngay trong cùng
+// lượt. Một chú thích trỏ vào tệp không tồn tại là đúng thứ luật "sửa tại chỗ" tồn tại để
+// chống. Số thật vẫn **51** tệp `.rs`; cùng luật
+// "sàn nâng mà số thật không đổi là sàn nâng theo cảm giác" đã áp cho Story 1.20/1.21.
+const RS_FLOOR = 42 // đo lại 2026-08-21 (Story 3.4): số THẬT vẫn 51 tệp `.rs` — 42/51 = 82,4%, khong doi
 // ⚠️ **Bước nhảy 43 → 51 KHÔNG phải một mình Story 3.3 gây ra** — đọc kỹ trước khi tưởng
 // story này tự thêm tám tệp. Sàn cũ (36) đặt từ số thật 43 hồi Story 2.1 (2026-08-12) và
 // KHÔNG ai nâng lại qua bảy story liền sau (2.2 → 3.2) dù cây tiếp tục mọc — đúng lớp trôi
