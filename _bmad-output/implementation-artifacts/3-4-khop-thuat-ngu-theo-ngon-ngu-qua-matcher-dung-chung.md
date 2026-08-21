@@ -170,6 +170,14 @@ DOM  / Range    -> UTF-16   (mọi offset của Range)
 **Manual checks (if no CLI):**
 - **Đo `find_terms` trên một Glossary cỡ thật và một Chương thật**, ghi số + ngày + toolchain vào `deferred-work.md:424`. Một con số đo trên đầu vào tự bịa là một con số không dùng được.
 - Đọc lượt CI trên GitHub: `pre-push` xanh trên macOS không nói gì về nửa Windows.
+  → ✅ **ĐỌC RỒI 2026-08-21 — run `32453862410` trên `56859a9`: `check (macos-26)` success ·
+  `check (windows-2025)` success.** AC cuối của story đóng bằng một lượt chạy thật, không bằng
+  suy luận từ `pre-push` (thứ chạy 128 s trên macOS của Ice và theo đúng doc-comment của chính
+  nó *"KHÔNG nói được gì về nửa Windows"*). ⚠️ **Vế KHÔNG đóng, ghi ra thay vì để tưởng nhầm:**
+  job `e2e (macos-26)` ở lượt này là **`skipped`** — nó chỉ chạy theo nhịp đêm và khi bấm tay,
+  đúng như `.githooks/pre-push:30-36` đã khai. Nên không một mệnh đề "webview thật" nào của kho
+  được lượt CI này nghiệm thu; story 3.4 không thêm mệnh đề nào loại đó, nhưng câu này ở lại để
+  lượt sau không đọc "CI xanh" thành "e2e đã chạy".
 
 ## Suggested Review Order
 
