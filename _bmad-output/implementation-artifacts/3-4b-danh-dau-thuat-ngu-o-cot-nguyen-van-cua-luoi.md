@@ -477,9 +477,25 @@ Tauri không dựng được — xem chú thích ⚠️ ngay trên):**
   `resolveParallel()`/`resolveSwitch()` (chúng đọc `host.children`/`segments.value` theo CHỈ
   SỐ, không theo số lượng cố định), nhưng đây là một LẬP LUẬN, không một PHÉP ĐO — đúng luật
   "đo lại, không suy từ số cũ" mà chính AC này đặt ra. Ghi nợ ở `deferred-work.md`.
-- **Một lượt e2e chạy tay** cho vế "webview thật" — **CHƯA CHẠY** (`npm run test:e2e` sửa
-  `global.db` thật của người chạy máy — không tự ý chạy ngoài một yêu cầu tường minh).
-  `deferred-work.md:5781` (chuột kéo thật WKWebView) ở lại MỞ, không đóng bởi story này.
+- ~~**Một lượt e2e chạy tay** cho vế "webview thật" — **CHƯA CHẠY**~~
+  🟡 **ĐÃ CHẠY 2026-08-21, Ice yêu cầu tường minh — và nó chứng minh MỘT nửa, không phải cả hai.**
+  `npm run test:e2e` ⇒ **12/12 spec xanh, 8 phút 29 giây, `webkit 605.1.15 macos`** (WKWebView
+  thật). Hàng rào dữ liệu đã kiểm trước khi chạy: `onPrepare` chuyển hướng **cả hai** bề mặt
+  (`$APPDATA` qua `AURATRANSLATE_E2E_DATA_DIR`, thư mục gốc Library qua biến riêng) sang thư mục
+  tạm, và `onComplete` tự kiểm **dương tính** rằng `global.db` NẰM TRONG thư mục tạm trước khi
+  xoá.
+  ✅ **Vế ĐƯỢC chứng minh — KHÔNG HỒI QUY trên engine thật, và nó không rỗng:** story đổi cấu
+  trúc node của cột nguyên văn, và ba spec đi thẳng qua đúng chỗ đó đều xanh —
+  `segment-merge-split` (⌘/ tách câu tại điểm bấm, tức `sourceCutOffsetOf` và **độ hạt
+  click-để-cắt**), `segment-backspace-merge`, `segment-navigation`. Đây là bằng chứng **trên
+  engine thật** cho ràng buộc 🔴 *"độ hạt click-để-cắt của Story 2.9 KHÔNG được đổi"* — thứ
+  trước lượt này chỉ có `happy-dom` đỡ lưng.
+  🔴 **Vế KHÔNG được chứng minh, ghi ra thay vì để đọc nhầm:** **0/12** spec chạm bề mặt đánh
+  dấu (`grep 'glossary-confirmed|glossary-pending|glossaryMarks' e2e/specs/` = rỗng). ⇒ *"e2e
+  xanh"* ở đây **KHÔNG** có nghĩa dấu thuật ngữ đã được nghiệm thu trên WKWebView — đúng cùng
+  hình dạng với cái bẫy *"CI xanh không có nghĩa e2e đã chạy"* mà Story 3.4 đã trả giá để biết,
+  chỉ đổi tầng. Một spec e2e cho bề mặt đánh dấu là món nợ **có chủ** ở `deferred-work.md`.
+  `deferred-work.md:5781` (chuột kéo thật WKWebView) ở lại **MỞ**, không đóng bởi story này.
 - **Lượt CI sau khi push** -- **CHƯA CÓ**, vì story chưa được push. Đọc lượt CI (cả macOS lẫn
   Windows) là bước của Ice sau khi nhận bàn giao, đúng luật đã ghi ở mọi story trước.
 

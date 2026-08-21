@@ -6148,3 +6148,21 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ⚠️ Mục này KHÔNG trùng món nợ "cặp số mở Chương trên webview thật" — cái đó hỏi ĐỘ TRỄ, cái
     này hỏi KHOÁ LUỒNG; một phép đo có thể trả lời cả hai nhưng phải cố ý đo cả hai.
     **(Chủ: Story 3.4b, cùng phiên nghiệm thu tay trên bản dựng đóng gói — đo chung một lượt.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi.md`
+  summary: **Bề mặt ĐÁNH DẤU thuật ngữ chưa có một spec e2e nào — lượt chạy e2e 2026-08-21 chứng
+    minh KHÔNG HỒI QUY, không chứng minh tính năng mới hoạt động trên WKWebView.**
+  evidence: Chạy 2026-08-21 theo yêu cầu tường minh của Ice: **12/12 spec xanh, 8 phút 29 giây,
+    `webkit 605.1.15 macos`**. Nhưng `grep 'glossary-confirmed|glossary-pending|glossaryMarks'
+    trên `e2e/specs/` = **rỗng** ⇒ **0/12** spec chạm bề mặt story này dựng. Ba mệnh đề chỉ
+    engine thật trả lời được vẫn chưa ai hỏi: ① dấu có vẽ đúng trên `.hv-unit`/`.hv-word` trong
+    WKWebView sau khi `buildSegments` cắt mịn hơn không; ② `selectionchange` do
+    `Selection.modify()` thật (đường AC11) có phát đúng tín hiệu hover không — `happy-dom`
+    **không tự bắn** sự kiện đó nên `glossaryHoverSelection.test.ts` phải tự `dispatchEvent`,
+    tức chặng "engine có bắn không" là một giả định; ③ `<rt>` có thật sự không thừa kế gạch
+    chân trên WebKit không (bàn đo đo bằng Chromium headless).
+    ⚠️ Đây là cùng HÌNH DẠNG với cái bẫy *"CI xanh không có nghĩa e2e đã chạy"* (Story 3.4), chỉ
+    đổi tầng: *"e2e xanh"* không có nghĩa **bề mặt MỚI** đã được nghiệm thu. Ghi ra để lượt sau
+    không đọc "12/12 xanh" thành "3.4b đã qua webview thật".
+    **(Chủ: Story 3.4b, cùng phiên nghiệm thu tay trên bản dựng đóng gói — gộp với món nợ cặp số
+    mở Chương và món nợ "đứng hình vs chậm"; ba mệnh đề cùng cần một bản dựng thật, đo một lượt.)**
