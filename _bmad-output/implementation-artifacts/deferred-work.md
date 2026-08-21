@@ -5190,6 +5190,24 @@ Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa
   ⇒ **Hai điểm đo trên hai máy khác nhau không tách được hai giả thuyết ấy.** Đường tách duy
   nhất là **cùng một máy, hai cây nguồn**: dựng lại `schema.rs` ở trạng thái `64cf7cb` rồi đo lại
   trên **cùng** runner. **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
+- 🔵 **ĐIỂM ĐO THỨ BA, 2026-08-21 — LẦN ĐẦU TRÊN `windows-2025`, và nó nghiêng về giả thuyết ⒜.**
+  Run 32438371572 (`9583263`): `check (windows-2025)` ĐỎ ở đúng ca này —
+  `WAL 906.432 B sau đợt một -> 1.738.672 B sau đợt hai · tổng đã ghi 1.310.720 B · trần
+  983.040 B · 132,7% lượng ghi`. Stats: `passive_runs: 40 · passive_busy: 1 ·
+  threshold_triggered: 40 · frames_checkpointed: 8.709 · errors: 0`.
+  ⇒ Cơ chế CHẠY (40 lượt kích hoạt theo ngưỡng, 8.709 khung đã checkpoint), nhưng **một**
+  lượt PASSIVE bị chặn `busy` — đúng hình dạng "biến động runner" của giả thuyết ⒜, và
+  `store[global] wal_checkpoint(PASSIVE) blocked: busy=1 log=-1 checkpointed=-1` in ra ngay
+  trên dòng panic là bằng chứng trực tiếp cho vế đó, thứ mà hai điểm đo cũ không có.
+  ⚠️ **KHÔNG đọc thành "đã kết luận ⒜".** Một lượt `busy` giải thích được lượt đỏ NÀY; nó
+  không nói gì về việc 208 dòng di trú có dịch nhịp WAL hay không (giả thuyết ⒝). Đường tách
+  vẫn nguyên: cùng một máy, hai cây nguồn.
+  🔴 **Và nó bác được MỘT thứ:** lượt đỏ này KHÔNG do commit mang nó. `fffd9c2` xanh trên
+  `windows-2025` lúc 2026-08-20T16:42; `9583263` đỏ lúc 2026-08-21T02:08; `git diff --name-only
+  fffd9c2..9583263` = **ba tệp, không tệp `.rs` nào** (`e2e/support/workspace.mjs` ·
+  `e2e/specs/attribution-focus.e2e.mjs` · chính tệp này). Cùng mã Rust, hai kết quả — đó là
+  định nghĩa của chập chờn, không phải của hồi quy. **(Chủ: B7 — cùng chủ với mục cha ngay
+  trên, vì đây là một điểm đo CỦA chính câu hỏi đó, không một câu hỏi mới.)**
 - 🔴 **Vì sao nó là một món nợ chứ không một mục đã đóng:** `8a4a060` sửa một phép so **sai hình
   dạng** — nó đúng bất kể câu trên trả lời thế nào. Nhưng nếu câu trả lời là ⒝, thì có một hiệu
   ứng thật của lượt di trú lên nhịp WAL mà **không ai đo**, và nó sẽ lớn dần theo mỗi lượt thêm
