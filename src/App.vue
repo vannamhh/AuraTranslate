@@ -45,6 +45,10 @@ import StatusBar from './StatusBar.vue'
 // Story 3.3 — dải "Thêm thuật ngữ" (FR48), MỘT thể hiện ở chân workspace, ngay TRÊN
 // `<StatusBar />`. Xem doc-comment đầu `GlossaryQuickAdd.vue` cho lý do chỗ này.
 import GlossaryQuickAdd from './GlossaryQuickAdd.vue'
+// Story 3.6 — dải "Chờ chốt lần đầu gặp" (FR114), cùng slot, mọc DƯỚI `<GlossaryQuickAdd
+// />` — thứ tự DOM là thứ tự thị giác (§Tasks của spec), dù `topmostStrip` đã đảm bảo
+// không bao giờ cả hai cùng hiện.
+import GlossaryConfirmStrip from './GlossaryConfirmStrip.vue'
 import ShortcutsOverlay from './ShortcutsOverlay.vue'
 import SegmentHistoryOverlay from './SegmentHistoryOverlay.vue'
 // Story 3.5 — lớp phủ "Cài đặt ngưỡng quét Glossary" (FR47), lớp phủ THỨ TƯ. Cùng tầng,
@@ -284,6 +288,14 @@ function focusOnPointerDown(event: MouseEvent) {
       NGAY TRÊN `<StatusBar />` — xem doc-comment đầu `GlossaryQuickAdd.vue`.
     -->
     <GlossaryQuickAdd />
+
+    <!--
+      Story 3.6 · FR114 — dải "Chờ chốt lần đầu gặp", tự quản `v-if` của nó qua
+      `topmostStrip(...) === 'glossary_confirm'`. Mọc DƯỚI `<GlossaryQuickAdd />`, NGAY TRÊN
+      `<StatusBar />` — hai dải không bao giờ hoán chỗ nhau vì `topmostStrip` chỉ cho ĐÚNG
+      một dải hiện tại một thời điểm.
+    -->
+    <GlossaryConfirmStrip />
 
     <StatusBar />
 

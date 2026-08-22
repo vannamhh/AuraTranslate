@@ -31,6 +31,8 @@ function mark(
     tier: 'global',
     is_confirmed: true,
     translation: 'bản dịch',
+    id: 1,
+    source_term: 'thuật ngữ',
     ...overrides,
   }
 }
@@ -64,7 +66,7 @@ describe('glossaryMarksBySegment — chia mark tuyệt đối về từng segmen
     const segs: GlossarySegmentSource[] = [{ id: 1, source_text: '中國人' }, { id: 2, source_text: '很好' }]
     const result = glossaryMarksBySegment(segs, [mark(0, 2)])
 
-    expect(result.get(1)).toEqual({ boundaries: [2], spans: [{ start: 0, end: 2, isConfirmed: true, translation: 'bản dịch' }] })
+    expect(result.get(1)).toEqual({ boundaries: [2], spans: [{ start: 0, end: 2, isConfirmed: true, translation: 'bản dịch', id: 1, sourceTerm: 'thuật ngữ', tier: 'global' }] })
     expect(result.get(2)).toBeUndefined()
   })
 
@@ -74,7 +76,7 @@ describe('glossaryMarksBySegment — chia mark tuyệt đối về từng segmen
     const result = glossaryMarksBySegment(segs, [mark(4, 6)])
 
     expect(result.get(1)).toBeUndefined()
-    expect(result.get(2)).toEqual({ boundaries: [], spans: [{ start: 0, end: 2, isConfirmed: true, translation: 'bản dịch' }] })
+    expect(result.get(2)).toEqual({ boundaries: [], spans: [{ start: 0, end: 2, isConfirmed: true, translation: 'bản dịch', id: 1, sourceTerm: 'thuật ngữ', tier: 'global' }] })
   })
 
   it('thuật ngữ phủ MỘT PHẦN một segment ⇒ đúng MỘT biên cắt cục bộ, không phủ trọn', () => {
@@ -84,7 +86,7 @@ describe('glossaryMarksBySegment — chia mark tuyệt đối về từng segmen
 
     expect(result.get(1)).toEqual({
       boundaries: [1],
-      spans: [{ start: 0, end: 1, isConfirmed: false, translation: null }],
+      spans: [{ start: 0, end: 1, isConfirmed: false, translation: null, id: 1, sourceTerm: 'thuật ngữ', tier: 'global' }],
     })
   })
 
@@ -95,8 +97,8 @@ describe('glossaryMarksBySegment — chia mark tuyệt đối về từng segmen
 
     const entry = result.get(1)
     expect(entry?.spans).toEqual([
-      { start: 0, end: 1, isConfirmed: true, translation: 'bản dịch' },
-      { start: 2, end: 4, isConfirmed: true, translation: 'bản dịch' },
+      { start: 0, end: 1, isConfirmed: true, translation: 'bản dịch', id: 1, sourceTerm: 'thuật ngữ', tier: 'global' },
+      { start: 2, end: 4, isConfirmed: true, translation: 'bản dịch', id: 1, sourceTerm: 'thuật ngữ', tier: 'global' },
     ])
     // biên [1] của mark1 (end < len) cộng [2, 4)→ start=2 (>0) — end=4 CHẠM đúng cuối segment
     // (len=4) nên KHÔNG sinh biên ở đó (không có gì để cắt sau ký tự cuối).
@@ -109,9 +111,9 @@ describe('glossaryMarksBySegment — chia mark tuyệt đối về từng segmen
     const result = glossaryMarksBySegment(segs, [mark(2, 5)])
 
     // Segment 1 chỉ nhận phần TRƯỚC `\n`: '人' cục bộ [2, 3).
-    expect(result.get(1)).toEqual({ boundaries: [2], spans: [{ start: 2, end: 3, isConfirmed: true, translation: 'bản dịch' }] })
+    expect(result.get(1)).toEqual({ boundaries: [2], spans: [{ start: 2, end: 3, isConfirmed: true, translation: 'bản dịch', id: 1, sourceTerm: 'thuật ngữ', tier: 'global' }] })
     // Segment 2 chỉ nhận phần SAU `\n`: '很' cục bộ [0, 1) — KHÔNG mang ký tự `\n` nào.
-    expect(result.get(2)).toEqual({ boundaries: [1], spans: [{ start: 0, end: 1, isConfirmed: true, translation: 'bản dịch' }] })
+    expect(result.get(2)).toEqual({ boundaries: [1], spans: [{ start: 0, end: 1, isConfirmed: true, translation: 'bản dịch', id: 1, sourceTerm: 'thuật ngữ', tier: 'global' }] })
   })
 
   it('mark PHỦ ĐÚNG ký tự phân tách `\\n` ⇒ không chạm ký tự NGUỒN nào của segment nào cả', () => {
@@ -127,7 +129,7 @@ describe('glossaryMarksBySegment — chia mark tuyệt đối về từng segmen
     const segs: GlossarySegmentSource[] = [{ id: 1, source_text: '甲乙' }]
     const result = glossaryMarksBySegment(segs, [mark(0, 2, { is_confirmed: false, translation: null, tier: 'work' })])
 
-    expect(result.get(1)?.spans[0]).toEqual({ start: 0, end: 2, isConfirmed: false, translation: null })
+    expect(result.get(1)?.spans[0]).toEqual({ start: 0, end: 2, isConfirmed: false, translation: null, id: 1, sourceTerm: 'thuật ngữ', tier: 'work' })
   })
 
   it('ký tự NGOÀI BMP trong một segment TRƯỚC không làm lệch offset cục bộ của segment SAU', () => {
@@ -137,7 +139,7 @@ describe('glossaryMarksBySegment — chia mark tuyệt đối về từng segmen
     const result = glossaryMarksBySegment(segs, [mark(3, 5)])
 
     expect(result.get(1)).toBeUndefined()
-    expect(result.get(2)).toEqual({ boundaries: [], spans: [{ start: 0, end: 2, isConfirmed: true, translation: 'bản dịch' }] })
+    expect(result.get(2)).toEqual({ boundaries: [], spans: [{ start: 0, end: 2, isConfirmed: true, translation: 'bản dịch', id: 1, sourceTerm: 'thuật ngữ', tier: 'global' }] })
   })
 
   it('segment KHÔNG có mark nào ⇒ không có mục trong Map (thưa, không object rỗng)', () => {

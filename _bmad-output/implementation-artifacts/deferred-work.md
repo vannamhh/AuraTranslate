@@ -142,6 +142,35 @@
   - **Chốt tự kêu** ở `src/commands/focus.ts` — `console.error` ở frame kế tiếp nếu `document.activeElement` là `body`. Nó chỉ **kêu**, không vá (một vòng focus tự phục hồi sẽ đánh nhau với người dùng đang Tab và với hộp thoại của OS). Không ai đọc log thì không ai biết.
   - **Nghiệm thu tay** 2026-08-04 — bảng ở §Debug Log References của story. Chạy tay nghĩa là **không nằm trong CI**: một hồi quy đi qua CI mà không ai biết.
   - Lưới thật là lượt rà soát khi **Story 1.14** dựng bốn panel trong `dockview`, nơi thứ tự focus thật sự phức tạp. Cùng hạng với mục *"`check-tokens.mjs` không được type-check và không có test"*. **(Chủ: một story hạ tầng cổng kế tiếp.)**
+  → 🔵 **CẬP NHẬT 2026-08-22 (Story 3.6) — MỘT NỬA LÝ DO Ở TRÊN ĐÃ HẾT ĐÚNG, và mục vẫn MỞ.**
+    Mệnh đề *"dự án **không có bộ chạy test frontend** (và không được thêm — NFR15)"* hết đúng
+    từ **2026-08-12**: kho nay có vitest + `@vue/test-utils` + happy-dom, cây test ở
+    `tests/frontend/**`. *(Cửa rà giấy phép NFR15 thì vẫn đứng cho gói tiếp theo — lượt lật đi
+    QUA cửa đó, không xoá nó.)* ⇒ Lý do thật khiến vế này vẫn chưa canh được **không còn là**
+    "không có bộ chạy" mà là **phân vai bốn đường**: `happy-dom` không phải WebKit, và *"tiêu
+    điểm rơi về `body` sau khi một nhánh `v-for` bị gỡ"* là hành vi vòng đời DOM của engine
+    thật ⇒ nó thuộc **e2e / bàn đo**, không thuộc vitest. Sửa tại chỗ, không xoá.
+  → 🔵 **PHẠM VI ĐO LẠI 2026-08-22 (Story 3.6) — đường ĐỔI CHƯƠNG hở, đường GỘP/TÁCH thì KHÔNG.**
+    Bản trên viết vế này như một mệnh đề chung. Đo cụ thể trong `resetEditorPanel()`
+    (`src/panels/editorPanelState.ts:518-656`): hàm này đặt `caretPlacement.value = null`
+    (`:564`) rồi mới thu mọi bề mặt, nên **không** cơ chế nào kéo tiêu điểm về một ô; lưới
+    `v-for` khoá bằng `:key="s.id"` (`GridPanel.vue:1576,1712`) và Chương mới mang `segment.id`
+    mới ⇒ mọi ô bị gỡ ⇒ một ô gõ đang có tiêu điểm rơi về `body`. Ngược lại, đường **gộp/tách**
+    (`applyRegroupOutcome`, `:2032`) **không** hở: `:2154` đặt `caretPlacement.value = dich.id`
+    và watcher `GridPanel.vue:1109` kéo tiêu điểm về ô đích.
+    ⚠️ **Story 3.6 thêm MỘT bề mặt nữa vào đúng đường đã hở, và KHÔNG làm nó xấu đi.**
+    `resetGlossaryConfirmStrip()` (`src/glossaryConfirmStripState.ts:288`) thả `savedFocusEl`
+    mà không khôi phục — cùng hình dạng `resetGlossaryQuickAdd()` (`glossaryQuickAddState.ts:356`)
+    mà nó chép, khác ở chỗ hàm kia có **0 chỗ gọi sản phẩm** (chỉ test của nó gọi, dựng để thoả
+    `check:panel-refs`) nên hình dạng ấy vô hại ở đó. ⇒ *Khôi phục trung thành ≠ đúng.*
+    ⚠️ Một bản vá hẹp trong `resetGlossaryConfirmStrip` **không đóng được** vế này: trên đường
+    đổi Chương, `savedFocusEl` là một ô của Chương CŨ và nó cũng bị gỡ ngay sau đó — tiêu điểm
+    vẫn rơi về `body`, chỉ muộn hơn một nhịp. Lời giải thật là `resetEditorPanel()` giao tiêu
+    điểm cho điểm vào focus của Panel Lưới, tức chạm **AD-34** — và `AGENTS.md` đặt việc đó
+    ngoài tầm một dòng mã. Đây cũng là vế thứ ba của hàng *"Đổi Chương giữa chừng"* trong
+    §I/O Matrix của Story 3.6; hai vế đầu (dải thu, sổ "Để sau" xoá) ĐÃ có phép kiểm và xanh.
+    **(Chủ: Ice — phán quyết về AD-34, rồi story thi hành; cùng khuôn mục `deferred-work.md`
+    §Story 2.3 *"Chủ: Ice (phán quyết về AD-34), rồi story thi hành"*.)**
 
 - 🔴 **Nghiệm thu DOM chạy trên Blink (Chrome), KHÔNG phải WKWebView, và KHÔNG qua `tauri dev`.** Lý do đo được, không phải quên: cổng `1420` mà `vite.config.ts` ghim (`strictPort: true`) đang bị **một dự án khác của Ice** (`gdrive_suite_manager`) chiếm lúc đo, và `devUrl` trong `tauri.conf.json` trỏ cứng vào đó — mà §Ranh giới phạm vi của story không cấm đụng `tauri.conf.json`. Lượt đo chạy qua `npx vite --port 1431` rồi lái bằng Chrome. **Chưa đo:** `⌘1 ⌘2 ⌘3` đi qua **WKWebView** thật; `⌘1..3` đi qua **tầng OS** *(Chrome nuốt `⌘2` để chuyển tab — sự kiện được dựng trên `window` thay thế, tức tầng ứng dụng đã đo, tầng phân phối phím của OS thì chưa)*. Đừng viết "tương đương" bằng suy luận. **Nhặt lại:** một lượt `npm run tauri dev` khi cổng 1420 rảnh, hoặc lượt runner của Story 1.9 / 10.9. **(Chủ: Ice — quyết định hình dạng nghiệm thu tay B10/F8, `epic-2-retro-2026-08-18.md:381`; mục này chờ B10.)**
 
@@ -6021,6 +6050,16 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   mảnh đó qua `glossaryTermHoverState.ts`, không tra cứu "các mảnh khác cùng thuật ngữ"). Nếu
   một story sau muốn tô sáng anh em, nó phải tự mở lại RÀNG BUỘC này — hình dạng dây vẫn
   không mang `id`/`source_term`, đúng như 3.4 đã chốt.
+  → 🔵 2026-08-22 (Story 3.6): **TIỀN ĐỀ CUỐI ("hình dạng dây vẫn không mang `id`/
+  `source_term`") HẾT ĐÚNG — QUYẾT ĐỊNH THIẾT KẾ TƯƠNG TÁC VẪN ĐỨNG NGUYÊN.** `GlossaryMark`/
+  `GlossaryMarkWire` nay mang CẢ `id`, `source_term` VÀ `tier` (Story 3.6, FR114) — nhưng vì
+  một lý do KHÁC HẲN: dải "chờ chốt lần đầu gặp" cần một KHOÁ GHI để gọi
+  `confirm_pending_translation(tier, id, ..)`, không phải để correlate các dấu anh em. Story
+  3.6 KHÔNG mở lại quyết định "không tô sáng anh em" — `glossaryTermHoverState.ts` vẫn tương
+  tác độc lập từng mảnh, không một đường mới nào tra "các mảnh khác cùng thuật ngữ". Hai mệnh
+  đề tách bạch: TIỀN ĐỀ (dây có mang `id`/`source_term` hay không) đã đổi; QUYẾT ĐỊNH (có tô
+  sáng anh em hay không) thì không — một story sau muốn tô sáng anh em vẫn phải tự mở quyết
+  định đó, dữ liệu trên dây giờ đã sẵn có nhưng chưa ai dùng nó cho mục đích đó.
 
 ## Deferred from: 3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi (2026-08-21)
 
@@ -6284,6 +6323,11 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ⚠️ Đây đúng lớp *rỗng im lặng* mà `AGENTS.md` gọi là lỗi trung tâm của dự án, chỉ đổi tầng.
     **(Chủ: Story 3.6/3.8 — story đầu tiên dựng người nghe cho sự kiện này phải xử luôn vế
     thất bại, không chỉ vế cặp số.)**
+    → 🔵 2026-08-22 (Story 3.6): Story 3.6 KHÔNG dựng người nghe cho
+    `GLOSSARY_IMPORT_SCAN_EVENT` — dải "Chờ chốt lần đầu gặp" đọc trạng thái chờ chốt qua
+    `glossaryMarksForChapter`/`glossary_marks_for_chapter` (đã có từ Story 3.4), không qua sự
+    kiện quét khi nhập; hai cơ chế độc lập, không nối vào nhau. Chủ thu về ĐÚNG **Story 3.8**
+    (màn duyệt hàng loạt — nơi tự nhiên cần biết "lượt quét vừa xong bao nhiêu ứng viên").
 
 - source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
   summary: **Mở một Tác phẩm thứ hai giữa hai lần khoá ⇒ kết quả quét của Chương đầu MẤT
@@ -6323,3 +6367,91 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ⚠️ *"Thêm một cổng = sửa BA danh sách"*, ngoài phạm vi một story tính năng.
     **(Chủ: story hạ tầng cổng kế tiếp — cùng chủ với món nợ "bàn đo chép tay giá trị màu" và
     "8/13 cổng chưa có phép tự kiểm".)**
+
+## Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
+  summary: **Nguồn gợi ý "âm Hán Việt" — mockup của story vẽ dải chốt hiện một đề xuất bản
+    dịch suy từ âm Hán Việt của thuật ngữ khi thuật ngữ đó là chữ Hán chưa có bản dịch — story
+    này KHÔNG dựng đường đó, dải chỉ hỏi và nhận một ô nhập trần.**
+  evidence: §Never của story: *"Ba nguồn gợi ý của mockup (bạn vừa viết · âm Hán Việt · TM) —
+    hai nguồn sau thuộc Story 3.7 và Epic 7, ghi nợ có chủ, không dựng trước."* Epic 3 context
+    liệt kê rõ: *"Ứng viên tiếng Trung có thể nhận đề xuất âm Hán Việt từ dữ liệu nhúng; khi
+    không có đề xuất phù hợp, người dùng chốt bản dịch lần đầu gặp thuật ngữ trong Workspace"*
+    — câu đó ĐÚNG là mô tả đích đến của Story 3.7, và dải của Story 3.6 là nhánh "không có đề
+    xuất phù hợp" của chính câu đó.
+    **(Chủ: Story 3.7 — "Đề xuất bản dịch bằng âm Hán Việt". Khi story đó dựng xong, dải chốt
+    của Story 3.6 là chỗ TỰ NHIÊN để hiện đề xuất — không cần dựng lại một dải thứ hai.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
+  summary: **Nguồn gợi ý "TM" (bản dịch khớp mờ từ bộ nhớ dịch) — mockup vẽ dải chốt có thể
+    hiện một đề xuất mượn từ một cặp TM khớp gần đúng thuật ngữ — story này KHÔNG dựng.**
+  evidence: Cùng §Never trích ở mục trên. Đề xuất TM cho một THUẬT NGỮ (không phải một CÂU)
+    là một năng lực chưa tồn tại — `core/matching` hôm nay chỉ khớp thuật ngữ Glossary đã
+    CHỐT, không tra ngược một chuỗi ngắn vào kho TM.
+    **(Chủ: Epic 7 — bộ nhớ dịch. Cùng lý do Story 3.7: dải chốt của Story 3.6 là chỗ hiện
+    đề xuất đó khi Epic 7 dựng xong, không cần một dải thứ hai.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
+  summary: **Nguồn gợi ý "bạn vừa viết" (đoán bản dịch từ một cụm người dùng vừa gõ gần đó,
+    khớp mờ với thuật ngữ đang hỏi) — mockup vẽ, story này KHÔNG dựng, và nó cần một NĂNG LỰC
+    CHƯA TỒN TẠI, không chỉ một đường nối.**
+  evidence: Cùng §Never. Khác hai nguồn trên (mỗi nguồn có một Story/Epic chủ rõ ràng đã liệt
+    trong `epics.md`), "bạn vừa viết" đòi một phép CĂN CHỈNH CỤM (tìm trong `target_text` các
+    segment lân cận một cụm giống thuật ngữ đang hỏi, chịu được biến thể chính tả/hình thái) —
+    năng lực này chưa xuất hiện ở bất kỳ epic nào đã lập.
+    **(Chủ: Story 3.7 — cùng chủ với nguồn "âm Hán Việt" vì cả hai đều là "đề xuất trước khi
+    hỏi người dùng"; Story 3.7 hoặc một correct-course từ Ice phải quyết định phép căn chỉnh
+    cụm này thuộc phạm vi nào trước khi dựng.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
+  summary: **Hoàn tác một lượt chốt (`⌘Z` trong mockup) — story KHÔNG dựng, mô hình hoàn tác
+    của cả ứng dụng còn là một quyết định kiến trúc CHƯA CHỐT.**
+  evidence: §Never: *"Không hoàn tác (⌘Z trong mockup) — mô hình hoàn tác là
+    `ad-brief-2026-08-17-mo-hinh-hoan-tac.md`, không phải một dòng ở đây."* Một mục Glossary
+    vừa chốt xuống `translation IS NOT NULL`, và trigger `glossary_entry_lifecycle_is_one_way`
+    (`schema.rs`) cấm chiều lùi về `NULL` — hoàn tác một lượt chốt (nếu có) sẽ phải đi qua một
+    con đường KHÁC "lùi state machine", vì chính state machine đó cấm lùi có chủ ý (AD-36).
+    **(Chủ: Ice — quyết định mô hình hoàn tác toàn ứng dụng qua `ad-brief-2026-08-17-mo-hinh-
+    hoan-tac.md`. Bất kỳ đường hoàn tác nào cho lượt chốt Glossary phải tương thích với luật
+    một-chiều của AD-36, không phải một `UPDATE … SET translation = NULL` trần.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
+  summary: **Số lần xuất hiện của thuật ngữ trên dải (mockup vẽ "644 lần") — `GlossaryMark`
+    không mang trường này, dải của Story 3.6 không hiện được số đó.**
+  evidence: `GlossaryMark`/`SegmentTermSpan` (Story 3.4/3.4b, mở rộng ở Story 3.6 với
+    `id`/`source_term`) không mang `occurrence_count` — trường đó chỉ tồn tại trên
+    `GlossaryCandidate` (bảng CHỜ, Story 3.2/3.5), không trên `GlossaryEntry` (Glossary đã
+    duyệt). Một mục Glossary chờ chốt qua dải này có thể đã tồn tại từ lâu (nhập tay, hoặc
+    duyệt từ một ứng viên) — không có sổ đếm "đã gặp bao nhiêu lần kể từ khi vào Glossary".
+    **(Chủ: Story 3.8 — màn duyệt hàng loạt đã cần đọc `occurrence_count` từ bảng chờ; nếu số
+    đó cũng cần hiện trên dải chốt của Story 3.6, đó là một cột MỚI trên `GlossaryEntry` hoặc
+    một truy vấn đếm riêng — quyết định thiết kế, không phải một trường có sẵn đang bị bỏ sót.)**
+
+## Deferred from: vòng rà ba lớp của Story 3.6 (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
+  summary: **Ba lệnh mới (`glossary.confirm.focus`/`.save`/`.defer`) không có phép kiểm nào ở
+    TẦNG SỔ ĐĂNG KÝ — không ca nào chứng minh `portMissing` bắn khi port chưa tiêm, và không ca
+    nào lái `Mod+Alt+C` qua đường phân phối phím THẬT.**
+  evidence: Rà 2026-08-22 (lớp blind-hunter), tôi tự đối chứng bằng `grep`. Chỉ các hàm state
+    được kiểm trực tiếp; `registerAll()` và `keys.ts` không được chạm cho ba lệnh này. ⚠️ Tiền
+    lệ trong kho là MỎNG chứ không vắng: `tests/frontend/editorClearSourceCuts.test.ts` là tệp
+    DUY NHẤT chạm `portMissing` (đo bằng `grep -rln` trên `tests/frontend/**`), tức khoảng 1 trên
+    ~50 lệnh đã đăng ký. ⇒ Đây KHÔNG phải một lệch parity của riêng Story 3.6 — nó là một khoảng
+    trống chung của cả sổ đăng ký lệnh, và story này chỉ làm nó lớn thêm ba lệnh. Vì vậy nó vào
+    sổ thay vì thành một bản vá của lượt này. Vế hợp âm đi qua tầng OS/webview thật thì thuộc
+    e2e/bàn đo, không thuộc vitest (`happy-dom` không phân phối phím như engine thật).
+    **(Chủ: story hạ tầng cổng kế tiếp — cùng hạng với mục *"8/13 cổng chưa có phép tự kiểm"*.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
+  summary: **Món nợ `reject_candidate` (chủ Story 3.8) chỉ sống trong một chú thích của
+    `src-tauri/tests/glossary_boundary.rs`, KHÔNG có mặt trong sổ nợ này — tức nguồn sự thật của
+    một món nợ đang nằm ngoài chỗ duy nhất được khai là nguồn sự thật của nợ.**
+  evidence: Rà 2026-08-22 (lớp blind-hunter). `AGENTS.md` §Where things are chỉ `deferred-work.md`
+    là sổ nợ, và `check:debt-owner` chỉ quét tệp này — nên một món nợ khai trong một chú thích
+    Rust **không đi qua cổng nào**, không ai đếm, và sẽ chỉ được tìm thấy bởi người tình cờ đọc
+    đúng tệp test đó. `glossary_boundary.rs::QUICK_ADD_SURFACE` nay có 7 phần tử và
+    `reject_candidate` vẫn nằm ngoài, chờ Story 3.8 dựng chỗ gọi sản phẩm đầu tiên.
+    ⚠️ Mục này KHÔNG tự đóng món nợ kia — nó chỉ kéo món nợ vào nơi có cổng canh.
+    **(Chủ: Story 3.8 — cùng chủ với món nợ gốc.)**

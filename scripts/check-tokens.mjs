@@ -88,10 +88,23 @@ const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
 // Sàn cũ (37/35, đặt theo số của Story 1.19) đã tụt xuống **69,8% / 70,0%** — dưới hẳn dải
 // ~81% mà doc-comment ngay trên đặt ra, tức đúng trạng thái *"canh không được gì"* mà chính
 // nó cảnh báo. Ba story (1.20 · 1.21 · 2.1) thêm tệp mà không ai nâng sàn.
-const FILE_FLOOR = 55 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 66 tệp trong tầm quét (+1 tệp
+const FILE_FLOOR = 58 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 69 tệp trong tầm quét (+1 tệp
+// `.vue` mới, `GlossaryConfirmStrip.vue`, +2 tệp `.ts` mới, `glossaryConfirmStripState.ts` và
+// `panels/inlineStripPriority.ts`) — 58/69 = 84,1%.
+// 🔵 SỬA 2026-08-22 (rà ba lớp) — LÝ DO dòng trên SAI, sửa tại chỗ: bản đầu viết hai tệp `.ts`
+// mới "có style/khai báo CSS liên quan" — ĐO LẠI: cả hai mang **0** dòng CSS (`grep -c
+// 'style\|css\|color:\|font-'` = 0 trên cả hai). Chúng vào quần thể vì `componentFiles`
+// (`:409`) lọc TOÀN `src/**` NGOÀI `src/tokens/**` — không lọc theo có CSS hay không — nên
+// MỌI tệp `.ts`/`.vue` mới thêm vào `src/**` đều vào mẫu số này, có CSS hay không không quan
+// trọng. Con số (58/69, 84,1%) không đổi — chỉ lý do được sửa.
+// (trước đó) 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 66 tệp trong tầm quét (+1 tệp
 // `.vue` mới, `GlossarySettingsOverlay.vue`, +1 tệp `.ts` mới có style, `App.vue` không đổi
 // tên) — 55/66 = 83,3%.
-const COMPONENT_FILE_FLOOR = 52 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 63 tệp component
+const COMPONENT_FILE_FLOOR = 56 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 66 tệp component
+// ngoài `src/tokens/**` — 56/66 = 84,8%. Cùng lý do đã sửa ở `FILE_FLOOR` ngay trên: ba tệp
+// mới (một `.vue`, hai `.ts`) đều KHÔNG nằm dưới `src/tokens/**` nên đều tính vào đây, bất kể
+// có CSS hay không.
+// (trước đó) 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 63 tệp component
 // ngoài `src/tokens/**` — 52/63 = 82,5%.
 
 let failures = 0

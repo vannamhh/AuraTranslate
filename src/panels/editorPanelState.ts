@@ -42,6 +42,11 @@ import { createEditorFlush, EDITOR_RETRY_FLOOR_MS } from './editorFlush'
 // reset (cạnh `ensureChapterLoaded()`), `applyRegroup()` làm mới sau gộp/tách. Xem doc-comment
 // đầu `glossaryMarksState.ts` cho lý do tệp đó KHÔNG import ngược lại tệp này.
 import { ensureGlossaryMarksLoaded, refreshGlossaryMarks, resetGlossaryMarks } from './glossaryMarksState'
+// 🔵 Story 3.6 — dải "Chờ chốt lần đầu gặp" mang một sổ "Để sau" phạm vi ĐÚNG MỘT Chương;
+// hai chỗ dọn dấu Glossary (đổi Chương/Tác phẩm, gộp/tách) cũng là hai chỗ dọn sổ đó. Xem
+// doc-comment đầu `../glossaryConfirmStripState.ts` cho lý do tệp đó KHÔNG import ngược lại
+// tệp này (cùng lý do `glossaryMarksState.ts`).
+import { resetGlossaryConfirmStrip } from '../glossaryConfirmStripState'
 import {
   navigationSegmentOf,
   nextSegmentId,
@@ -645,6 +650,9 @@ export function resetEditorPanel(): void {
   // (`ensureGlossaryMarksLoaded` ngay sau `switchChapter`) vẽ dấu của Chương CŨ lên vị trí của
   // Chương MỚI — cùng lớp lỗi mà `sourceCut`/`confirmError` ở trên tồn tại để chặn.
   resetGlossaryMarks()
+  // 🔵 Story 3.6 — sổ "Để sau" của dải chốt có phạm vi ĐÚNG MỘT Chương; đổi Chương/Tác phẩm
+  // thì dải thu và sổ đó xoá, đúng §I/O Matrix "Đổi Chương giữa chừng".
+  resetGlossaryConfirmStrip()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -2019,6 +2027,9 @@ function applyRegroup(outcome: RegroupOutcome): void {
   // `segments.value` đóng cửa sổ đó hoàn toàn: không một lượt render nào thấy được cặp
   // (segment mới, mark cũ) lẫn nhau.
   resetGlossaryMarks()
+  // 🔵 Story 3.6 — cùng lý do: một dải đang hỏi về một segment vừa về hưu (gộp/tách) không
+  // được sống sót qua lượt đổi bố cục này.
+  resetGlossaryConfirmStrip()
   segments.value = next
 
   // 🔵 Story 3.4b — gộp/tách đổi RANH GIỚI segment, tức đổi phép cộng dồn `\n`-join mà

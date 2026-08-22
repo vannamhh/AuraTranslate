@@ -131,6 +131,20 @@
 //! - `commands::glossary::glossary_pending_candidates` — vỏ IPC CHỈ-ĐỌC thứ năm, gọi
 //!   [`pending_candidates`] — chỗ gọi sản phẩm ĐẦU TIÊN của hàm đó (Story 3.2 dựng, 0 chỗ
 //!   gọi cho tới lượt này).
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! HÌNH DẠNG ĐÃ DỰNG (Story 3.6) — trạng thái chờ chốt nay có đường CHỐT sản phẩm
+//! ─────────────────────────────────────────────────────────────────────────────
+//! - [`entry::GlossaryMark`] mang thêm `id`/`source_term` — chốt cần một KHOÁ GHI, và bề
+//!   mặt tiếng Anh khớp theo hình thái (`dragons` trên màn hình, `dragon` trong Glossary)
+//!   không cho phép suy khoá đó từ chuỗi đã cắt trên màn hình.
+//! - [`store::confirm_pending_translation`] — khuôn chép [`store::add_manual_term`]: định
+//!   tuyến `&Store` theo `tier` rồi gọi xuống [`store::confirm_translation`] (bị
+//!   `GLOSSARY_ONLY_SURFACE` cấm gọi từ `commands/**`).
+//! - `commands::glossary::glossary_confirm_pending_translation` +
+//!   `commands::glossary::glossary_approve_candidate` — hai vỏ IPC mới, chỗ gọi sản phẩm
+//!   ĐẦU TIÊN của [`store::confirm_translation`] (gián tiếp, qua hàm bọc trên) và
+//!   [`candidate_store::approve_candidate`].
 
 pub mod candidate;
 pub mod candidate_store;
@@ -152,8 +166,9 @@ pub use scan::{
 pub(crate) use candidate_store::{ImportScanWriteTicket, enqueue_import_scan_candidates};
 pub(crate) use store::filter_import_scan_candidates_by_scope;
 pub use store::{
-    GlossaryError, add_manual_term, confirm_translation, entries_eligible_for_injection,
-    insert_manual_entry, load_tier, marks_for_source_text, match_lang_for_source_lang,
+    GlossaryError, add_manual_term, confirm_pending_translation, confirm_translation,
+    entries_eligible_for_injection, insert_manual_entry, load_tier, marks_for_source_text,
+    match_lang_for_source_lang,
     resolve_term_for_quick_add, update_manual_term, warm_jieba_for_source_lang,
 };
 pub use surnames::COMMON_SURNAMES;

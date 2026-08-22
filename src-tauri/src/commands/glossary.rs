@@ -17,15 +17,21 @@
 //! apply_override` với dữ liệu THẬT ở cả hai tầng.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 CHỈ BỐN HÀM MỚI ĐƯỢC GỌI XUỐNG `core/glossary/**` — KHÔNG BA TÊN BỊ CẤM
+//! 🔴 CHỈ CÁC HÀM CỦA `QUICK_ADD_SURFACE` ĐƯỢC GỌI XUỐNG `core/glossary/**` — KHÔNG BA TÊN BỊ CẤM
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `resolve_term_for_quick_add` / `add_manual_term` / `update_manual_term` (Story 3.3) cộng
-//! `marks_for_source_text` (Story 3.4) là bề mặt DUY NHẤT mà tệp này được gọi.
-//! `insert_manual_entry` / `confirm_translation` / `load_tier` vẫn bị
+//! `resolve_term_for_quick_add` / `add_manual_term` / `update_manual_term` (Story 3.3),
+//! `marks_for_source_text` (Story 3.4), `pending_candidates` (Story 3.5), cộng
+//! `confirm_pending_translation` / `approve_candidate` (Story 3.6) là bề mặt DUY NHẤT mà
+//! tệp này được gọi xuống `core::glossary`.
+//! `insert_manual_entry` / `confirm_translation` / `load_tier` / `insert_candidate` vẫn bị
 //! `glossary_boundary.rs::GLOSSARY_ONLY_SURFACE` cấm ngoài `core/glossary/**` — kể cả ở đây.
 //! Đây là đường Ice đã ký ở `glossary_boundary.rs:80-88` khi Story 3.1 gặp đúng vòng luẩn
 //! quẩn "hàm phơi ra không đủ, hàm nội bộ thì bị cấm gọi": sửa CHỮ KÝ (thêm hàm mới trong
 //! `core::glossary::store`) thay vì nới cổng — tiền lệ Story 3.3 dùng lại nguyên vẹn.
+//! `approve_candidate` (`core::glossary::candidate_store`) KHÔNG nằm trong
+//! `GLOSSARY_ONLY_SURFACE`/không cần một hàm bọc thứ hai — Story 3.5 đã cố ý để nó ngoài
+//! danh sách cấm (doc-comment `glossary_boundary.rs::GLOSSARY_ONLY_SURFACE`), chờ đúng
+//! "story dựng chỗ gọi sản phẩm đầu tiên" — Story 3.6 là story đó.
 //!
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — `scripts/check-i18n.mjs` Kiểm A quét
 //! `src-tauri/**/*.rs`.
@@ -33,8 +39,8 @@
 use crate::commands::project::OpenWork;
 use crate::core::glossary::{
     Category, GlossaryCandidate, GlossaryEntry, GlossaryMark, GlossaryTier, add_manual_term,
-    match_lang_for_source_lang, marks_for_source_text, pending_candidates,
-    resolve_term_for_quick_add, update_manual_term,
+    approve_candidate, confirm_pending_translation, match_lang_for_source_lang,
+    marks_for_source_text, pending_candidates, resolve_term_for_quick_add, update_manual_term,
 };
 use crate::core::i18n::IpcError;
 use crate::core::scope::ScopeResolver;
@@ -212,6 +218,12 @@ pub struct GlossaryMarkWire {
     pub is_confirmed: bool,
     /// `None` khi mục đang *chờ chốt*.
     pub translation: Option<String>,
+    /// 🔵 THÊM 2026-08-22 (Story 3.6) — `glossary_entry.id`, cùng `tier` đủ để chốt mục này
+    /// qua `glossary_confirm_pending_translation` mà không cần tra lại.
+    pub id: i64,
+    /// 🔵 THÊM 2026-08-22 (Story 3.6) — khoá ghi thật, có thể KHÁC bề mặt đã khớp trên màn
+    /// hình (nhánh tiếng Anh khớp theo hình thái).
+    pub source_term: String,
 }
 
 impl From<GlossaryMark> for GlossaryMarkWire {
@@ -222,6 +234,8 @@ impl From<GlossaryMark> for GlossaryMarkWire {
             tier: mark.tier.as_str().to_owned(),
             is_confirmed: mark.is_confirmed,
             translation: mark.translation,
+            id: mark.id,
+            source_term: mark.source_term,
         }
     }
 }
@@ -337,7 +351,69 @@ pub fn glossary_pending_candidates(
     Ok(rows.into_iter().map(GlossaryCandidateWire::from).collect())
 }
 
-/// Năm vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.6 — CHỐT trạng thái chờ chốt (FR114) + NHẬN một ứng viên (vỏ IPC ghi)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Chốt bản dịch cho mục `(tier, id)` — **hàm thuần, đây là thứ test gọi**. Chỗ gọi sản
+/// phẩm ĐẦU TIÊN của [`confirm_pending_translation`] (và, gián tiếp, của
+/// `core::glossary::store::confirm_translation` — bị `GLOSSARY_ONLY_SURFACE` cấm gọi thẳng
+/// từ đây).
+///
+/// Dùng được cho CẢ HAI chiều hợp lệ của `confirm_translation` (chốt lần đầu, hoặc sửa một
+/// mục ĐÃ chốt sang bản dịch khác) — dải "Chờ chốt" của Story 3.6 chỉ dựng đường gọi cho
+/// chiều đầu, nhưng hàm thuần này không hẹp hơn hàm nó bọc.
+///
+/// # Lỗi
+/// - `global.db` vắng mặt ⇒ `store.open_failed`;
+/// - `tier == GlossaryTier::Work` mà chưa mở Tác phẩm nào ⇒ `glossary.work_tier_unavailable`;
+/// - `translation` rỗng/khoảng trắng, hoặc `id` không khớp hàng nào ⇒ `store.write_failed`.
+pub fn glossary_confirm_pending_translation(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: GlossaryTier,
+    id: i64,
+    translation: &str,
+) -> Result<(), IpcError> {
+    let global = global.ok_or_else(store_is_missing)?;
+    let work_store = work_context(open).map(|(store, _)| store);
+
+    confirm_pending_translation(global, work_store, tier, id, translation)?;
+    Ok(())
+}
+
+/// Nhận một ứng viên (id) thành một mục Glossary — **hàm thuần, đây là thứ test gọi**. Vỏ
+/// IPC GHI đầu tiên của [`approve_candidate`] (Story 3.2 dựng, 0 chỗ gọi sản phẩm cho tới
+/// lượt này).
+///
+/// `translation = None` ⇒ mục sinh ra ở trạng thái *chờ chốt* (FR114) — nhận một ứng viên
+/// không bắt buộc phải chốt bản dịch ngay (§I/O Matrix: *"Nhận một ứng viên không có đề
+/// xuất"*).
+///
+/// ⚠️ **Bảng chờ chỉ tồn tại ở `project.db`** (§Never/Code Map của story) — không như
+/// [`glossary_pending_candidates`] (một lượt ĐỌC, `None` ⇒ `Ok(vec![])` hợp lý), một lượt
+/// GHI không có Tác phẩm nào đang mở không có hàng nào để nhận — đây LÀ một sự cố (một `id`
+/// người dùng vừa thấy trên màn hình mà không còn kho nào chứa nó, ca đua "đóng Tác phẩm
+/// giữa lúc bấm Nhận"). Tái dùng `commands::chapter::no_work_open` — cùng câu mà
+/// `commands::segment` đã dùng cho đúng tình huống *"chưa mở Tác phẩm nào"*.
+///
+/// # Lỗi
+/// - chưa mở Tác phẩm nào ⇒ `project.no_work_open`;
+/// - `id` không khớp hàng nào, hoặc ứng viên `id` ĐÃ quyết (đã duyệt hoặc đã bỏ) ⇒
+///   `store.write_failed`, mang `message_key`, KHÔNG `Ok` rỗng;
+/// - `translation` là chuỗi rỗng/khoảng trắng ⇒ `store.write_failed` (`CHECK`).
+pub fn glossary_approve_candidate(
+    open: Option<&OpenWork>,
+    id: i64,
+    translation: Option<&str>,
+    category: Category,
+) -> Result<i64, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    let new_id = approve_candidate(&open.store, id, translation, category)?;
+    Ok(new_id)
+}
+
+/// Bảy vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use super::{
         Category, GlossaryCandidateWire, GlossaryMarkWire, GlossaryTier, IpcError, QuickAddLookup,
@@ -476,5 +552,56 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::glossary_pending_candidates(guard.as_ref())
+    }
+
+    /// Vỏ IPC của [`super::glossary_confirm_pending_translation`]. Story 3.6.
+    #[tauri::command]
+    pub fn glossary_confirm_pending_translation(
+        app: tauri::AppHandle,
+        tier: GlossaryTier,
+        id: i64,
+        translation: String,
+    ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::glossary_confirm_pending_translation(
+                global.as_deref(),
+                None,
+                tier,
+                id,
+                &translation,
+            );
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::glossary_confirm_pending_translation(
+            global.as_deref(),
+            guard.as_ref(),
+            tier,
+            id,
+            &translation,
+        )
+    }
+
+    /// Vỏ IPC của [`super::glossary_approve_candidate`]. Story 3.6.
+    #[tauri::command]
+    pub fn glossary_approve_candidate(
+        app: tauri::AppHandle,
+        id: i64,
+        translation: Option<String>,
+        category: Category,
+    ) -> Result<i64, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::glossary_approve_candidate(None, id, translation.as_deref(), category);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::glossary_approve_candidate(guard.as_ref(), id, translation.as_deref(), category)
     }
 }

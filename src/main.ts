@@ -27,6 +27,8 @@ import { loadBootstrapConfig, putConfig } from './config/bootstrap'
 // Story 2.3 — AD-35 vế (e): flush bản dịch chưa lưu TRƯỚC khi cửa sổ đóng.
 import {
   confirmCurrentSegment,
+  editorChapterId,
+  editorSegments,
   goToNextChapter,
   goToNextSegmentCoBao,
   goToNextUntranslatedCoBao,
@@ -55,7 +57,7 @@ import { submitFilePath, submitPastedText } from './modes/libraryImport'
 //
 // ⚠️ Cùng lý do và cùng cửa với `libraryImport.ts`: `sourcePanelState.ts` dùng `ref` của
 // Vue — import nó ở `src/commands/index.ts` giết Kiểm C/D/E.
-import { selectSourceTab, toggleHanVietView } from './panels/sourcePanelState'
+import { selectSourceTab, sourceChapter, toggleHanVietView } from './panels/sourcePanelState'
 // ── Story 1.17 — một lượt tra Panel Lookup ───────────────────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `sourcePanelState.ts`: `lookupPanelState.ts` dùng
@@ -124,8 +126,26 @@ import {
 import {
   closeGlossaryQuickAdd,
   openGlossaryQuickAdd,
+  quickAddIsOpen,
   saveGlossaryQuickAdd,
 } from './glossaryQuickAddState'
+// ── Story 3.6 — dải "Chờ chốt lần đầu gặp" (FR114) ───────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `glossaryQuickAddState.ts`: `glossaryConfirmStripState.ts`
+// dùng `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/glossary.ts`.
+//
+// 🔵 THÊM 2026-08-22 (rà ba lớp) — `focusGlossaryConfirmStrip` đổi tên qua `as` để tránh đụng
+// tên với hàm bọc CÙNG TÊN ở dưới: tệp state không tự biết `GlossaryQuickAdd` có đang mở hay
+// không (xem doc-comment đầu `glossaryConfirmStripState.ts`), nên `main.ts` — nơi BIẾT cả hai
+// — là chỗ tính `topmostStrip(...)` rồi truyền kết quả vào làm tham số `isVisible`.
+import {
+  confirmGlossaryConfirmStrip,
+  confirmStripIsOpen,
+  deferGlossaryConfirmStrip,
+  focusGlossaryConfirmStrip as focusGlossaryConfirmStripState,
+} from './glossaryConfirmStripState'
+import { topmostStrip } from './panels/inlineStripPriority'
+import type { InlineStripKind } from './panels/inlineStripPriority'
 // ── Story 3.5 — lớp phủ "Cài đặt ngưỡng quét Glossary" (FR47) ────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `glossaryQuickAddState.ts`: `glossarySettingsState.ts` dùng
@@ -431,6 +451,25 @@ async function boot(): Promise<void> {
         void saveGlossarySettings()
       },
       closeGlossarySettings,
+      // Story 3.6 · FR114 — dải "Chờ chốt lần đầu gặp". `focusGlossaryConfirmStrip` tính
+      // `topmostStrip(...)` NGAY TẠI ĐÂY (chỗ DUY NHẤT biết cả `quickAddIsOpen` LẪN
+      // `confirmStripIsOpen`) rồi truyền `isVisible` xuống state — xem doc-comment tại chỗ
+      // import. `deferGlossaryConfirmStrip` không cần ngữ cảnh Chương (dải tự đọc mục đang
+      // hỏi từ state của chính nó); `saveGlossaryConfirmStrip` đọc Chương đang mở TẠI THỜI
+      // ĐIỂM CHẠY — cùng khuôn `refreshGlossaryMarksAfterSave` của `glossaryQuickAddState.ts`.
+      focusGlossaryConfirmStrip: (initialTranslation: string) => {
+        const eligible: InlineStripKind[] = []
+        if (quickAddIsOpen.value) eligible.push('glossary_quick_add')
+        if (confirmStripIsOpen.value) eligible.push('glossary_confirm')
+        focusGlossaryConfirmStripState(initialTranslation, topmostStrip(eligible) === 'glossary_confirm')
+      },
+      saveGlossaryConfirmStrip: () => {
+        const chapterId = editorChapterId.value
+        const chapter = sourceChapter.value
+        if (chapterId === null || chapter === null || chapterId !== chapter.chapter_id) return
+        void confirmGlossaryConfirmStrip(chapterId, editorSegments.value, chapter.source_lang)
+      },
+      deferGlossaryConfirmStrip,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa

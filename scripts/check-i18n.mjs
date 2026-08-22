@@ -304,7 +304,9 @@ const RS_FLOOR = 44 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 53 tệp `
 // chạm Rust (`delete_config` · `delete_value`), nhưng nó **sửa hai tệp đã có** và không tạo
 // tệp `.rs` nào — số thật đứng nguyên ở 41. `VUE_FLOOR` thì nâng, vì `ShortcutsOverlay.vue`
 // là một tệp mới (14 → 15).
-const VUE_FLOOR = 15 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 18 tệp `.vue`
+const VUE_FLOOR = 16 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 19 tệp `.vue`
+// (+GlossaryConfirmStrip.vue) — 16/19 = 84,2%
+// (trước đó) 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 18 tệp `.vue`
 // (+GlossarySettingsOverlay.vue) — 15/18 = 83,3%
 // ⚠️ Cùng bài học `RS_FLOOR` ở trên, ở quy mô nhỏ hơn: sàn cũ (13) đặt từ số thật 15 hồi
 // Story 1.21 (2026-08-11). Story 3.3 tự nó thêm ĐÚNG MỘT tệp (`GlossaryQuickAdd.vue`);

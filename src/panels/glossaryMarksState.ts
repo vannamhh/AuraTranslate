@@ -22,6 +22,14 @@
  * — gọi tường minh sau gộp/tách (`applyRegroup`) và sau thêm nhanh một thuật ngữ
  * (`glossaryQuickAddState.ts`), đúng hai ca `3-4b-…md` §Intent liệt kê. KHÔNG chỗ nào khác
  * được gọi hai hàm này — nhất là KHÔNG trên đường gõ (Ice ký 2026-08-21).
+ *
+ * 🔵 **SỬA 2026-08-22 (Story 3.6) — CHỖ GỌI THỨ BA, mệnh đề "KHÔNG chỗ nào khác" hết đúng.**
+ * `glossaryConfirmStripState.ts::confirmGlossaryConfirmStrip` gọi `refreshGlossaryMarks` sau
+ * một lượt CHỐT bản dịch thành công (dải "chờ chốt lần đầu gặp", FR114). Đây VẪN là một thao
+ * tác RỜI RẠC — người dùng bấm Lưu, đúng một lượt — không phải một lời gọi trên đường gõ, nên
+ * nó không phá bảo đảm "đúng một lượt IPC mỗi lần MỞ Chương" mà đoạn trên nói: bảo đảm đó chỉ
+ * về [`ensureGlossaryMarksLoaded`]; [`refreshGlossaryMarks`] luôn được phép có nhiều chỗ gọi
+ * có chủ, và nay có BA (gộp/tách · thêm nhanh · chốt lần đầu gặp), không hai.
  */
 import { readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'

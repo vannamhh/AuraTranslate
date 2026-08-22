@@ -229,9 +229,17 @@ impl GlossaryEntry {
 /// và Rust là nơi quy đổi byte→điểm mã, không để việc đó rơi xuống frontend nơi chuỗi JS
 /// lại là một đơn vị THỨ BA). `start`/`end` ở đây luôn là số ĐIỂM MÃ tính từ đầu chuỗi.
 ///
-/// Không mang `source_term`/`id` trần: `tier` + `is_confirmed` + `translation` là đủ để vẽ
-/// dấu (nửa giao diện — tách khỏi story này, xem `deferred-work.md` §"lượt lập spec Story
-/// 3.4"); một `id` trần không đủ để sửa lại mục (cùng lý do `GlossaryTier` tồn tại).
+/// 🔵 **SỬA 2026-08-22 (Story 3.6) — MANG THÊM `id` + `source_term`, mệnh đề "không mang
+/// `source_term`/`id` trần" hết đúng.** Bản trước (Story 3.4) viết đúng cho PHẠM VI của nó:
+/// `tier` + `is_confirmed` + `translation` là đủ để VẼ DẤU, và lúc đó không đường sản phẩm
+/// nào cần ghi ngược lại một mục Glossary từ một dấu. Story 3.6 mở đường đó (dải mọc chốt
+/// lần đầu gặp): chốt một mục *chờ chốt* cần biết CHÍNH XÁC hàng nào (`id`, cùng lý do
+/// `GlossaryTier` tồn tại — `id` chỉ duy nhất TRONG một `Store`) và cần một KHOÁ GHI đúng
+/// (`source_term` — xem §Design Notes của Story 3.6: bề mặt tiếng Anh khớp theo hình thái,
+/// `dragons` trên màn hình có thể là hàng `dragon` trong Glossary; ghi bằng bề mặt là ghi
+/// vào một mục không tồn tại). Không có hai trường này, dải phải tự đoán khoá ghi từ chuỗi
+/// đã cắt trên màn hình (sai với biến thể hình thái) hoặc dựng một vòng IPC thứ hai để tra
+/// lại dữ liệu mà Rust đã cầm sẵn trong tay lúc dựng dấu.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GlossaryMark {
     /// Vị trí ĐIỂM MÃ bắt đầu (bao gồm), tính từ đầu chuỗi được khớp.
@@ -246,4 +254,11 @@ pub struct GlossaryMark {
     pub is_confirmed: bool,
     /// `None` khi mục đang *chờ chốt*. `Some` mang đúng bản dịch đã chốt.
     pub translation: Option<String>,
+    /// 🔵 **THÊM 2026-08-22 (Story 3.6).** `glossary_entry.id`, cùng với `tier` ở trên đủ để
+    /// gọi `confirm_pending_translation(global, work, tier, id, ..)` mà không cần tra lại.
+    pub id: i64,
+    /// 🔵 **THÊM 2026-08-22 (Story 3.6).** KHOÁ GHI thật của mục — có thể KHÁC bề mặt đã
+    /// khớp trên màn hình (`text[start..end]`) khi nhánh tiếng Anh khớp theo hình thái. Dải
+    /// chốt phải hỏi VÀ ghi vào đúng `source_term` này, không phải chuỗi cắt từ văn bản.
+    pub source_term: String,
 }

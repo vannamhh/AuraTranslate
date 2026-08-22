@@ -83,6 +83,9 @@
   "command.glossary.settings.open": "Ngưỡng quét Glossary",
   "command.glossary.settings.close": "Đóng cài đặt ngưỡng quét Glossary",
   "command.glossary.settings.save": "Lưu",
+  "command.glossary.confirm.focus": "Chốt bản dịch chờ chốt",
+  "command.glossary.confirm.save": "Lưu bản dịch chờ chốt",
+  "command.glossary.confirm.defer": "Để sau — không hỏi lại thuật ngữ này trong Chương",
   "mode.library.status": "Library chưa có Tác phẩm nào.",
   "mode.library.empty_body": "Một Tác phẩm là một dự án dịch, lưu thành một thư mục trên máy. Copy thư mục đó đi đâu cũng mở lại được.",
   "mode.library.field_name": "Tên Tác phẩm",
@@ -258,5 +261,11 @@
   "glossary.settings.intro": "Một chuỗi lặp từ đủ số lần này trở lên, và không có trong từ điển nhúng, sẽ vào bảng chờ ứng viên khi nhập một Chương mới. Áp dụng cho toàn ứng dụng, không riêng Tác phẩm này.",
   "glossary.settings.threshold_label": "Số lần lặp tối thiểu",
   "glossary.settings.threshold_invalid": "Nhập một số nguyên lớn hơn 0.",
-  "glossary.settings.cancel": "Huỷ"
+  "glossary.settings.cancel": "Huỷ",
+  "glossary.confirm.title": "Chờ chốt bản dịch: {source_term}",
+  "glossary.confirm.translation_label": "Bản dịch",
+  "glossary.confirm.save": "Lưu",
+  "glossary.confirm.defer": "Để sau",
+  "glossary.confirm.saving": "Đang lưu…",
+  "glossary.confirm.empty_error": "Nhập một bản dịch trước khi lưu."
 }

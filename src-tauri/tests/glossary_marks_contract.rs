@@ -136,6 +136,45 @@ fn an_english_inflected_form_is_marked_from_its_base_term() {
     cleanup(&global_dir);
 }
 
+/// Story 3.6 — mệnh đề mà cả story đứng lên: bề mặt cắt từ văn bản KHÔNG phải khoá ghi. Một
+/// dải chốt đọc `GlossaryMark::source_term` (không phải `text[start..end]`) để biết ghi
+/// đúng hàng `dragon` nào, kể cả khi bề mặt trên màn hình là `dragons`.
+#[test]
+fn an_english_inflected_surface_carries_the_base_source_term_not_the_surface() {
+    let global_dir = temp_dir("en-inflect-key-global");
+    let global = open_global(&global_dir);
+    let entry_id = add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them thuat ngu vao tang Global");
+
+    let resolver = ScopeResolver::global_only();
+    let text = "the dragons flew over the mountain";
+    let marks =
+        marks_for_source_text(&resolver, &global, None, text, MatchLang::En).expect("khong loi");
+
+    assert_eq!(marks.len(), 1, "phai co dung mot dau: {marks:?}");
+    assert_eq!(
+        &text[marks[0].start..marks[0].end],
+        "dragons",
+        "be mat tren man hinh la dang so nhieu"
+    );
+    assert_eq!(
+        marks[0].source_term, "dragon",
+        "khoa ghi phai la GOC, khong phai be mat da khop tren man hinh"
+    );
+    assert_eq!(marks[0].id, entry_id, "id phai dung hang glossary_entry vua them");
+
+    drop(global);
+    cleanup(&global_dir);
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Anh, cực cấp -- GIỚI HẠN CÓ TÊN, Ice ký 2026-08-21 (Porter2 khong co luat -er/-est)
 // ═════════════════════════════════════════════════════════════════════════════════

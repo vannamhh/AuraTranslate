@@ -541,6 +541,28 @@ export type CommandDeps = {
    * tầng module (`glossarySettingsState.ts::glossarySettingsSaveError`).
    */
   saveGlossarySettings?: () => void
+
+  // ── Story 3.6 — dải "Chờ chốt lần đầu gặp" (FR114) ──────────────────────────────
+  /**
+   * Vào dải bằng hợp âm — lưu tiêu điểm/vùng chọn cũ rồi focus ô nhập. Không làm gì nếu 0
+   * mục đang chờ hỏi. Handler của `glossary.confirm.focus`.
+   *
+   * Tham số là vùng chọn hiện có (cột bản dịch, hoặc bất kỳ bề mặt đã đăng ký nào) — đọc
+   * qua `currentSelectionForGlossary` NGAY TRONG handler này, cùng khuôn `openGlossaryQuickAdd`.
+   */
+  focusGlossaryConfirmStrip?: (initialTranslation: string) => void
+  /**
+   * Chốt bản dịch cho mục đang hỏi. Handler của `glossary.confirm.save`.
+   *
+   * ⚠️ Cài đặt thật là `async` và nhận `chapterId`/`segments`/`sourceLang` — kiểu `() => void`
+   * ở đây khớp cùng khuôn `saveGlossaryQuickAdd`: promise trả về bị bỏ qua có chủ ý, tham số
+   * ngữ cảnh (Chương đang mở) do CÀI ĐẶT tự đọc từ `editorPanelState.ts`/`sourcePanelState.ts`
+   * tại thời điểm chạy — dải không tự biết Chương nào đang mở.
+   */
+  saveGlossaryConfirmStrip?: () => void
+  /** Để sau — `source_term` hiện tại không hỏi lại trong Chương đang mở, trả lại tiêu điểm.
+   * Handler của `glossary.confirm.defer`. */
+  deferGlossaryConfirmStrip?: () => void
 }
 
 /**
@@ -1563,6 +1585,58 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.settings.save', 'saveGlossarySettings')
       }
       deps.saveGlossarySettings()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 3.6 — "TRẠNG THÁI CHỜ CHỐT VÀ DẢI MỌC CHỐT LẦN ĐẦU GẶP" (FR114)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `glossary.confirm.focus` là đường DUY NHẤT dải nhận tiêu điểm — nó cố ý KHÔNG cướp tiêu
+   * điểm lúc mọc (§Boundaries của spec), nên toàn bộ thao tác "vào dải bằng bàn phím" đi qua
+   * ĐÚNG một hợp âm mặc định — `Mod+Alt+C` (đo 2026-08-22: `grep` trên hằng số hợp âm của tệp
+   * này = 0, còn trống).
+   *
+   * `glossary.confirm.save`/`glossary.confirm.defer` giữ **0 hợp âm mặc định** — cùng chủ ý
+   * với `glossary.save_term`/`glossary.close_quick_add`: `↵`/`Esc` xử lý bằng một handler CỤC
+   * BỘ trong `GlossaryConfirmStrip.vue` (Kiểm A của `check:commands` chỉ canh `@click`). Hai
+   * command này tồn tại để nút Lưu/Để sau có một `dispatch('<id>')` hợp lệ VÀ để màn hình
+   * phím tắt liệt kê được cả ba thao tác.
+   */
+  target.register({
+    id: 'glossary.confirm.focus',
+    labelKey: 'command.glossary.confirm.focus',
+    keys: ['Mod+Alt+C'],
+    run: () => {
+      if (deps.focusGlossaryConfirmStrip === undefined) {
+        return portMissing('glossary.confirm.focus', 'focusGlossaryConfirmStrip')
+      }
+      // `currentSelectionForGlossary` là ĐỌC, không bắt buộc — thiếu nó chỉ mất phần điền
+      // sẵn (dải vẫn vào được, ô nhập rỗng), nên đây KHÔNG phải một `portMissing`.
+      deps.focusGlossaryConfirmStrip(deps.currentSelectionForGlossary?.() ?? '')
+    },
+  })
+  target.register({
+    id: 'glossary.confirm.save',
+    labelKey: 'command.glossary.confirm.save',
+    keys: undefined,
+    run: () => {
+      if (deps.saveGlossaryConfirmStrip === undefined) {
+        return portMissing('glossary.confirm.save', 'saveGlossaryConfirmStrip')
+      }
+      deps.saveGlossaryConfirmStrip()
+    },
+  })
+  target.register({
+    id: 'glossary.confirm.defer',
+    labelKey: 'command.glossary.confirm.defer',
+    keys: undefined,
+    run: () => {
+      if (deps.deferGlossaryConfirmStrip === undefined) {
+        return portMissing('glossary.confirm.defer', 'deferGlossaryConfirmStrip')
+      }
+      deps.deferGlossaryConfirmStrip()
     },
   })
 

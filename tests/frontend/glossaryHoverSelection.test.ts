@@ -29,6 +29,8 @@ const MARK: GlossaryMark = {
   tier: 'global',
   is_confirmed: true,
   translation: 'Một',
+  id: 1,
+  source_term: 'thuật ngữ',
 }
 
 async function docNguyenVanGia() {

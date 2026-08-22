@@ -210,9 +210,12 @@ export async function updateGlossaryTerm(
  * một lần, một chỗ (`core/glossary/store.rs`). Frontend KHÔNG quy đổi lại — xem
  * `3-4b-…md` §Design Notes "Ba đơn vị đo".
  *
- * ⚠️ Cố ý KHÔNG mang `id`/`source_term` — bốn trường này đủ để VẼ một dấu, không đủ để
- * correlate hai dấu về cùng một mục Glossary (`deferred-work.md:5925-5940`). Đừng đúc thêm
- * trường ở đây để "cho tiện" — đó là một quyết định thiết kế tương tác chưa ai mở.
+ * 🔵 **SỬA 2026-08-22 (Story 3.6) — NAY MANG `id`/`source_term`, mệnh đề "cố ý KHÔNG mang"
+ * hết đúng.** Bản trước (Story 3.4b) đúng cho PHẠM VI của nó: bốn trường cũ đủ để VẼ dấu,
+ * không đủ để correlate hai dấu về cùng một mục (`deferred-work.md:5925-5940`, mục "Story
+ * 3.4b"). Story 3.6 mở đúng đường đó: dải mọc chốt lần đầu gặp cần biết CHÍNH XÁC `id` +
+ * `source_term` (khoá ghi thật — có thể KHÁC bề mặt đã khớp trên màn hình khi nhánh tiếng
+ * Anh khớp theo hình thái) để gọi `confirmPendingGlossaryTranslation(...)`.
  */
 export type GlossaryMark = {
   start: number
@@ -222,6 +225,10 @@ export type GlossaryMark = {
   is_confirmed: boolean
   /** `null` khi và chỉ khi `is_confirmed === false`. */
   translation: string | null
+  /** `glossary_entry.id` — cùng `tier` ở trên đủ để chốt mục này mà không cần tra lại. */
+  id: number
+  /** Khoá ghi thật — có thể KHÁC `text.slice(start, end)` (nhánh tiếng Anh khớp hình thái). */
+  source_term: string
 }
 
 /**
@@ -251,7 +258,10 @@ function isGlossaryMark(value: unknown): value is GlossaryMark {
     typeof v.is_confirmed === 'boolean' &&
     // 🔴 Bất biến CHÉO trường — đây là vế P6: `is_confirmed` và `translation` phải KHỚP nhau,
     // không chỉ đúng KIỂU từng trường riêng lẻ.
-    (v.is_confirmed ? typeof v.translation === 'string' : v.translation === null)
+    (v.is_confirmed ? typeof v.translation === 'string' : v.translation === null) &&
+    typeof v.id === 'number' &&
+    Number.isInteger(v.id) &&
+    typeof v.source_term === 'string'
   )
 }
 
@@ -396,5 +406,88 @@ export async function pendingGlossaryCandidates(): Promise<GlossaryPendingCandid
       `[glossary] không gọi được \`${CMD_PENDING_CANDIDATES}\` — chạy ngoài Tauri? ${String(err)}`,
     )
     return { candidates: null, error: null }
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.6 — adapter THỨ SÁU và THỨ BẢY: chốt trạng thái chờ chốt (FR114) + nhận ứng viên
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/** Tên command trên dây. Khớp `src-tauri/src/commands/glossary.rs` (module `wire`). */
+const CMD_CONFIRM_PENDING_TRANSLATION = 'glossary_confirm_pending_translation'
+const CMD_APPROVE_CANDIDATE = 'glossary_approve_candidate'
+
+/**
+ * Chốt bản dịch cho mục `(tier, id)` — dải mọc "chờ chốt lần đầu gặp" (Story 3.6, FR114).
+ * **Không bao giờ ném.**
+ *
+ * ⚠️ Tham số `invoke` viết camelCase — xem doc-comment đầu tệp.
+ */
+export async function confirmPendingGlossaryTranslation(
+  tier: GlossaryTierWire,
+  id: number,
+  translation: string,
+): Promise<GlossaryWriteResult<true>> {
+  try {
+    await invoke(CMD_CONFIRM_PENDING_TRANSLATION, { tier, id, translation })
+    return { value: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { value: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[glossary] \`${CMD_CONFIRM_PENDING_TRANSLATION}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[glossary] không gọi được \`${CMD_CONFIRM_PENDING_TRANSLATION}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { value: null, error: null }
+  }
+}
+
+/**
+ * Nhận một ứng viên (`id`) thành một mục Glossary. **Không bao giờ ném.** Trả về `id` của
+ * mục Glossary vừa sinh khi thành công.
+ *
+ * ⚠️ `translation === null` ⇒ mục sinh ra ở trạng thái *chờ chốt* (FR114) — nhận một ứng
+ * viên không bắt buộc phải chốt bản dịch ngay. Bảng chờ chỉ tồn tại ở `project.db` — gọi
+ * hàm này khi chưa mở Tác phẩm nào trả về lỗi, không `Ok` giả (xem
+ * `commands::glossary::glossary_approve_candidate`).
+ *
+ * 🔵 THÊM 2026-08-22 (rà ba lớp) — **0 chỗ gọi sản phẩm hôm nay, đúng ranh giới story.**
+ * Bề mặt DUYỆT bảng chờ (chọn một ứng viên, gõ bản dịch/để trống, bấm Nhận) là Story 3.8 —
+ * §Never của story 3.6 cấm dựng component đó. Vỏ IPC phía Rust
+ * (`commands::glossary::glossary_approve_candidate`) đã có chỗ gọi THẬT (`cargo test`, xem
+ * `glossary_commands_contract.rs`), nhưng adapter TypeScript này thì chưa — chỗ gọi sản
+ * phẩm ĐẦU TIÊN của nó là Story 3.8, cùng khuôn doc-comment
+ * `core/glossary/mod.rs::pending_candidates` ("0 chỗ gọi cho tới lượt này").
+ *
+ * ⚠️ Tham số `invoke` viết camelCase — xem doc-comment đầu tệp.
+ */
+export async function approveGlossaryCandidate(
+  id: number,
+  translation: string | null,
+  category: GlossaryCategory,
+): Promise<GlossaryWriteResult<number>> {
+  try {
+    const newId = await invoke<number>(CMD_APPROVE_CANDIDATE, { id, translation, category })
+    return { value: newId, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { value: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[glossary] \`${CMD_APPROVE_CANDIDATE}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[glossary] không gọi được \`${CMD_APPROVE_CANDIDATE}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { value: null, error: null }
   }
 }

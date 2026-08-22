@@ -377,6 +377,11 @@ pub fn run() {
             // san pham DAU TIEN cua `core::glossary::pending_candidates` (Story 3.2 dung, 0
             // cho goi cho toi luot nay).
             crate::commands::glossary::wire::glossary_pending_candidates,
+            // Story 3.6 -- trang thai cho chot va dai moc chot lan dau gap (FR114). Chot ban
+            // dich cho mot muc CHO CHOT, va nhan mot ung vien thanh mot muc Glossary. Vo IPC
+            // GHI dau tien cua `confirm_translation` (gian tiep) va `approve_candidate`.
+            crate::commands::glossary::wire::glossary_confirm_pending_translation,
+            crate::commands::glossary::wire::glossary_approve_candidate,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

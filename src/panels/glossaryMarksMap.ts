@@ -34,7 +34,7 @@
  * ⚠️ **Hàm THUẦN** — không `import` Vue, không DOM, test được bằng dữ liệu bịa
  * (`tests/frontend/glossaryMarksMap.test.ts`).
  */
-import type { GlossaryMark } from '../config/glossary'
+import type { GlossaryMark, GlossaryTierWire } from '../config/glossary'
 
 /** Đúng bốn trường mà [`glossaryMarksBySegment`] cần từ một hàng segment. */
 export type GlossarySegmentSource = { id: number; source_text: string }
@@ -50,6 +50,22 @@ export type SegmentTermSpan = {
   end: number
   isConfirmed: boolean
   translation: string | null
+  /**
+   * 🔵 THÊM 2026-08-22 (Story 3.6) — `glossary_entry.id`, chép thẳng từ `GlossaryMark.id`.
+   * Dải "Chờ chốt" đọc trường này để biết hỏi/ghi ĐÚNG hàng nào; cắt mark về toạ độ cục bộ
+   * không được đánh rơi khoá ghi.
+   */
+  id: number
+  /**
+   * 🔵 THÊM 2026-08-22 (Story 3.6) — khoá ghi thật, chép thẳng từ `GlossaryMark.source_term`.
+   * Có thể KHÁC bề mặt đã khớp trên màn hình (nhánh tiếng Anh khớp theo hình thái).
+   */
+  sourceTerm: string
+  /**
+   * 🔵 THÊM 2026-08-22 (Story 3.6) — chép thẳng từ `GlossaryMark.tier`. Dải "Chờ chốt" cần
+   * biết tầng để gọi `confirmPendingGlossaryTranslation(tier, id, ..)` — ghi vào ĐÚNG kho.
+   */
+  tier: GlossaryTierWire
 }
 
 /** Dấu thuật ngữ của MỘT segment — biên cắt (không nhãn) cộng span (có nhãn). */
@@ -127,6 +143,9 @@ export function glossaryMarksBySegment(
         end: localEnd,
         isConfirmed: mark.is_confirmed,
         translation: mark.translation,
+        id: mark.id,
+        sourceTerm: mark.source_term,
+        tier: mark.tier,
       })
       if (localStart > 0) boundarySet.add(localStart)
       if (localEnd < len) boundarySet.add(localEnd)

@@ -40,7 +40,15 @@ function dung(
 }
 
 function term(start: number, end: number, isConfirmed = true, translation: string | null = 'X'): SegmentTermSpan {
-  return { start, end, isConfirmed, translation: isConfirmed ? translation : null }
+  return {
+    start,
+    end,
+    isConfirmed,
+    translation: isConfirmed ? translation : null,
+    id: 1,
+    sourceTerm: 'thuật ngữ',
+    tier: 'global',
+  }
 }
 
 describe('SourceHanViet — neo chỗ cắt phát ra DOM', () => {

@@ -49,7 +49,12 @@ const SRC_RS_FLOOR: usize = 34;
 /// Số thật lúc dựng (Story 2.1): **47** — 31 tệp `.ts` (30 kế thừa + `config/segment.ts`)
 /// và 15 tệp `.vue` … cộng lại 47. Sàn **38** (~81%), cùng tỷ lệ dư địa mà `TS_FLOOR`/
 /// `VUE_FLOOR` của `check-commands.mjs` đang giữ.
-const WEBVIEW_FLOOR: usize = 38;
+///
+/// 🔵 NÂNG 2026-08-22 (Story 3.6) — số THẬT lên **66** (47 `.ts` + 19 `.vue`, +
+/// `glossaryConfirmStripState.ts` + `panels/inlineStripPriority.ts` + `GlossaryConfirmStrip.vue`).
+/// Sàn 38 tụt xuống 57,6%, dưới hẳn dải 80–85% — nâng lên **56** (56/66 = 84,8%), cùng con
+/// số mà `check-commands.mjs`/`check-layout.mjs` đang giữ cho đúng quần thể này.
+const WEBVIEW_FLOOR: usize = 56;
 
 /// Bảng chữ cái kết câu tiếng Trung — AC1. **Chỉ** `core/segment/**` được mang nó.
 ///

@@ -122,6 +122,10 @@ const FORBIDDEN_TABLES: [&str; 2] = ["glossary_entry", "glossary_candidate"];
 /// candidates` nay có chỗ gọi sản phẩm thật (`commands::glossary::glossary_pending_
 /// candidates`, xem `QUICK_ADD_SURFACE`); `approve_candidate`/`reject_candidate` vẫn là
 /// nợ MỞ, chủ Story 3.8.
+/// 🔵 **CẬP NHẬT 2026-08-22 (Story 3.6) — `approve_candidate` NAY CÓ CHỖ GỌI SẢN PHẨM,
+/// chuyển sang `QUICK_ADD_SURFACE`.** `commands::glossary::glossary_approve_candidate` là
+/// chỗ gọi ĐẦU TIÊN. `reject_candidate` GIỮ NGUYÊN ngoài cả hai danh sách — vẫn là nợ mở,
+/// chủ Story 3.8 (bảng duyệt hàng loạt là chỗ tự nhiên để BỎ một ứng viên).
 const GLOSSARY_ONLY_SURFACE: [&str; 4] =
     ["insert_manual_entry", "confirm_translation", "load_tier", "insert_candidate"];
 
@@ -149,12 +153,22 @@ fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static st
 /// `resolution IS NULL`), nhưng đó đúng là việc một bề mặt "phơi để nghiệm thu bằng mắt"
 /// (§Intent của story) cần — không có điều kiện chèn nào để tách ra như
 /// `entries_eligible_for_injection` đã làm cho `glossary_entry`.
-const QUICK_ADD_SURFACE: [&str; 5] = [
+/// 🔵 **CẬP NHẬT 2026-08-22 (Story 3.6) — hàm THỨ SÁU và THỨ BẢY, `confirm_pending_
+/// translation` + `approve_candidate`.** Dải mọc chốt lần đầu gặp (FR114) là chỗ gọi sản
+/// phẩm ĐẦU TIÊN của cả hai: `confirm_pending_translation` (`core/glossary/store.rs`,
+/// khuôn chép `add_manual_term`, gọi xuống `confirm_translation` bị `GLOSSARY_ONLY_SURFACE`
+/// cấm) và `approve_candidate` (`core/glossary/candidate_store.rs`, Story 3.2 dựng — cố ý
+/// ĐỂ NGOÀI `GLOSSARY_ONLY_SURFACE`, xem doc-comment của hằng đó, chờ đúng "story dựng chỗ
+/// gọi sản phẩm đầu tiên"; Story 3.6 là story đó, `reject_candidate` thì chưa, vẫn là nợ
+/// mở cho Story 3.8).
+const QUICK_ADD_SURFACE: [&str; 7] = [
     "resolve_term_for_quick_add",
     "add_manual_term",
     "update_manual_term",
     "marks_for_source_text",
     "pending_candidates",
+    "confirm_pending_translation",
+    "approve_candidate",
 ];
 
 /// Token xuất xứ TỰ ĐỘNG — chỉ được sinh ra (biến thể enum, chuỗi `as_str()`) bên trong

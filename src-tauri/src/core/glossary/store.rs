@@ -677,6 +677,38 @@ pub fn update_manual_term(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.6 — HÀM PHƠI RA: chốt bản dịch lần đầu gặp cho một mục CHỜ CHỐT
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Chốt `translation` cho mục `(tier, id)` — khuôn CHÉP từ [`add_manual_term`]: định tuyến
+/// `&Store` theo `tier` rồi gọi xuống [`confirm_translation`] (hàm bị `GLOSSARY_ONLY_SURFACE`
+/// cấm gọi từ `commands/**`), đúng đường "sửa CHỮ KÝ thay vì nới cổng" mà Story 3.1 đã đi.
+///
+/// 🔴 **Không phân biệt "chốt lần đầu" và "sửa mục đã chốt" ở tầng này** — cùng như
+/// [`confirm_translation`], hàm này dùng được ở CẢ HAI chiều hợp lệ. Story 3.6 chỉ dựng
+/// đường gọi cho chiều đầu (dải mọc khi gặp mục *chờ chốt*), nhưng không có lý do cấu trúc
+/// nào để hàm THUẦN này hẹp hơn hàm nó bọc.
+///
+/// # Lỗi
+/// [`GlossaryError::WorkTierUnavailable`] nếu `tier` là [`GlossaryTier::Work`] mà `work` là
+/// `None`. Còn lại, xem [`confirm_translation`] (`translation` rỗng ⇒ `CHECK`; `id` không
+/// khớp hàng nào ⇒ lỗi đọc được, không `Ok(())` cho một lượt ghi 0 hàng).
+pub fn confirm_pending_translation(
+    global: &Store,
+    work: Option<&Store>,
+    tier: GlossaryTier,
+    id: i64,
+    translation: &str,
+) -> Result<(), GlossaryError> {
+    let store = match tier {
+        GlossaryTier::Global => global,
+        GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
+    };
+
+    confirm_translation(store, id, translation).map_err(GlossaryError::from)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 // Story 3.4 — HÀM PHƠI RA THỨ TƯ: khớp thuật ngữ theo ngôn ngữ (FR50/FR51)
 // ═════════════════════════════════════════════════════════════════════════════════
 //
@@ -877,6 +909,11 @@ pub fn marks_for_source_text(
                 tier,
                 is_confirmed: entry.is_confirmed(),
                 translation: entry.translation.clone(),
+                // 🔵 THÊM 2026-08-22 (Story 3.6) — `entry` là `&GlossaryEntry` đã phân giải,
+                // đọc thẳng từ `payload`; không truy vấn thêm nào (doc-comment của
+                // `marks_for_source_text`).
+                id: entry.id,
+                source_term: entry.source_term.clone(),
             }
         })
         .collect();

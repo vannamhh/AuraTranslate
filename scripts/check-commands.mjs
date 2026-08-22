@@ -208,7 +208,9 @@ const tsFiles = keep(tsAll)
 // SAI. Sàn 10 vẫn đúng theo số thật 12 nên không hạ lại; chỉ **lý do** được sửa cho khớp sự
 // thật — một con số bịa trong đúng tệp mà cả kiến trúc dựa vào để tin các con số là chính
 // thứ rot mà AC13 tồn tại để chặn.
-const VUE_FLOOR = 15 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 18 tệp `.vue`
+const VUE_FLOOR = 16 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 19 tệp `.vue`
+// (+GlossaryConfirmStrip.vue) — 16/19 = 84,2%
+// (trước đó) 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 18 tệp `.vue`
 // (+GlossarySettingsOverlay.vue) — 15/18 = 83,3%
 // ⚠️ 15 → 17 KHÔNG chỉ từ story này: sàn cũ (13) đặt từ số thật 15 hồi Story 1.21. Story
 // 3.3 tự nó thêm ĐÚNG MỘT tệp `.vue` (`GlossaryQuickAdd.vue`); tệp thứ hai là nợ đo lại
@@ -231,7 +233,9 @@ const VUE_FLOOR = 15 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 18 tệp 
 // ⚠️ **Sàn này KHÔNG nằm trong việc story 2.12 được giao** — Task 7.5 chỉ nêu đích danh
 // `check-layout.mjs`. Nó lòi ra vì lượt đo lại của Task 7.5 đếm CẢ HAI sàn đọc `src/**` thay
 // vì đúng một, và bỏ qua nó sau khi đã thấy thì đúng bằng việc biết một cổng đã tắt mà im.
-const TS_FLOOR = 37 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 45 tệp `.ts`
+const TS_FLOOR = 39 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 47 tệp `.ts`
+// (+glossaryConfirmStripState.ts, +panels/inlineStripPriority.ts) — 39/47 = 83,0%.
+// (trước đó) 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 45 tệp `.ts`
 // (+glossarySettingsState.ts) — 37/45 = 82,2%.
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
@@ -301,7 +305,10 @@ const TS_FLOOR = 37 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 45 tệp `
 // 🔵 NÂNG 2026-08-22 (Story 3.5): cổng in 57 command sau khi thêm `glossary.settings.open`/
 // `glossary.settings.close`/`glossary.settings.save` (54 → 57, đúng +3, không hơn). Sàn
 // 44 → 47 (47/57 = 82,5%, giữa dải 80–85%).
-const COMMAND_FLOOR = 47
+// 🔵 NÂNG 2026-08-22 (Story 3.6): cổng in 60 command sau khi thêm `glossary.confirm.focus`/
+// `glossary.confirm.save`/`glossary.confirm.defer` (57 → 60, đúng +3). Sàn 47 → 50
+// (50/60 = 83,3%, giữa dải 80–85%).
+const COMMAND_FLOOR = 50
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
@@ -327,12 +334,18 @@ const COMMAND_FLOOR = 47
 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 29 thuộc tính `@click` — ba `@click` mới
 // (`App.vue` nút mở lớp phủ, `GlossarySettingsOverlay.vue` nút đóng + nút Huỷ; nút Lưu là
 // `type="submit"` đi qua `@submit.prevent`, cùng lý do `GlossaryQuickAdd.vue`). 24/29 = 82,8%.
-const CLICK_FLOOR = 24
+// 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 30 thuộc tính `@click` — MỘT `@click` mới
+// (`GlossaryConfirmStrip.vue` nút "Để sau"; nút Lưu là `type="submit"` đi qua
+// `@submit.prevent`, cùng lý do hai dải kia). 25/30 = 83,3%.
+const CLICK_FLOOR = 25
 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 37 lời gọi `dispatch()` — 30/37 = 81,1%
 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 42 lời gọi `dispatch()` (+5: nút mở ở `App.vue`,
 // `@keydown.esc`/nút đóng/nút Huỷ và `@submit` của `GlossarySettingsOverlay.vue`, mỗi
 // lời gọi `dispatch('glossary.settings.*')` một chỗ). 34/42 = 81,0%.
-const DISPATCH_FLOOR = 34
+// 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 45 lời gọi `dispatch()` (+3: `@keydown.esc`/nút
+// "Để sau" và `@submit` của `GlossaryConfirmStrip.vue`, mỗi lời gọi
+// `dispatch('glossary.confirm.*')` một chỗ). 38/45 = 84,4%.
+const DISPATCH_FLOOR = 38
 
 if (vueFiles.length < VUE_FLOOR || tsFiles.length < TS_FLOOR) {
   abort(
