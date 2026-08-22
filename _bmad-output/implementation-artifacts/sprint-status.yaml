@@ -177,7 +177,7 @@ development_status:
   # BÌNH THƯỜNG của `bmad-build`: step-05 đặt spec thành `done` và gọi `sync-sprint-status`
   # với `target_status = review`. `bmad-build` KHÔNG bao giờ tự đặt `done` vào tệp này.
   # ⇒ `review` ở đây đọc là *"đã dựng xong, chờ Ice ký"*, và chỉ Ice mới lật nó sang `done`.
-  3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi: review
+  3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi: done
   # 🔵 2026-08-22 — backlog → in-progress (bmad-build, spec đã duyệt ở CHECKPOINT 1).
   # Spec: `3-5-quet-ung-vien-khi-nhap-tai-lieu.md`, baseline `99dad1f`.
   # Bốn quyết định Ice ký 2026-08-22: ① bảng họ NÚT CỨNG trong Rust (0 cửa NFR15, KHÔNG dựng
@@ -193,7 +193,7 @@ development_status:
   # nang nhat), 4 vao so no co chu, phan con lai bi bac. KHONG vong quay lai.
   # ⚠️ BA MENH DE CHUA DONG, deu can moi truong that: so do voi TU DIEN THAT (ban do chay tren
   # `DictLayers::empty()`) · NFR2 do bang khung hinh that · bo e2e (0/12 spec cham be mat nay).
-  3-5-quet-ung-vien-khi-nhap-tai-lieu: review
+  3-5-quet-ung-vien-khi-nhap-tai-lieu: done
   # 🔵 2026-08-22 — backlog → in-progress (bmad-build, spec đã duyệt ở CHECKPOINT 1).
   # Spec: `3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`, baseline `a2a0e47`.
   # Ba quyết định Ice ký 2026-08-22: ① dải mọc ở CHÂN `.shell`, cùng slot `GlossaryQuickAdd`,
@@ -217,7 +217,7 @@ development_status:
   # ⚠️ Ve "tieu diem khong roi ve `body`" cua hang I/O "Doi Chuong giua chung" DONG HAI PHAN BA:
   # no la mot lo ho CO TU TRUOC story nay (`resetEditorPanel` xoa `caretPlacement`, luoi `v-for`
   # khoa `:key="s.id"`), da noi vao muc no san co §Story 1.6. Chu: Ice — phan quyet ve AD-34.
-  3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap: review
+  3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap: done
   3-7-de-xuat-ban-dich-bang-am-han-viet: backlog
   3-8-duyet-hang-loat-mot-phim: backlog
   3-9-quan-ly-glossary: backlog
