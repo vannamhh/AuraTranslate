@@ -6,10 +6,11 @@
 //! Cùng lớp `core::matching`: mọi thứ ở đây là hàm trên `&str`/`char`, không `use
 //! crate::core::store`, không `use crate::ports`. Đây là điều kiện để
 //! `tests/glossary_scan_contract.rs` kiểm được TẤT ĐỊNH mà không cần dựng một `Store` nào.
-//! Tra "chuỗi này có trong từ điển không" đi qua một vị từ **tiêm từ chỗ gọi**
-//! (`is_known: &mut dyn FnMut(&str) -> bool`) — chỗ gọi thật (`commands::project`) tiêm một
-//! closure gọi [`crate::core::dict::lookup_grouped`]; test tiêm một closure đọc một
-//! `HashSet` cố định.
+//! 🔵 CẬP NHẬT 2026-08-22 — vị từ bool chỉ còn ở wrapper tương thích [`scan_candidates`].
+//! Đường sản phẩm đi qua [`scan_candidates_controlled`] với [`DictionaryProbe`] ba trạng
+//! thái, vì một layer lỗi không được phép bị ép thành “không có trong từ điển”. Chỗ gọi thật
+//! (`commands::project`) tiêm closure gọi [`crate::core::dict::lookup_grouped`]; test tiêm
+//! closure tất định.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 LỌC THEO TẦN SUẤT TRƯỚC, TRA TỪ ĐIỂN SAU — thứ tự là kiến trúc, không phải tối ưu sớm
@@ -17,15 +18,18 @@
 //! [`ports::dict_source::DictionarySource`] không có một vị từ tra-có/không rẻ (không
 //! `exists()`), và [`crate::core::dict::lookup_grouped`] lặp qua **mọi** lớp đang mở, không
 //! tắt sớm — số đo pha 1 duy nhất trong kho là **p95 7.324 ms** cho MỘT lượt tra một lớp.
-//! [`scan_candidates`] gọi `is_known` **chỉ** cho các chuỗi đã qua bộ lọc tần suất (+ dedup
-//! lồng, cho `Zh`) — hàng trăm chuỗi cho một Chương thật, không hàng trăm nghìn. Đảo thứ tự
-//! (tra trước, đếm sau) là biến một lượt quét thành hàng chục nghìn lượt tra `lookup_grouped`.
+//! [`scan_candidates_controlled`] gọi probe **chỉ** cho các chuỗi đã qua bộ lọc tần suất (+
+//! dedup lồng, cho `Zh`) — hàng trăm chuỗi cho một Chương thật, không hàng trăm nghìn. Đảo
+//! thứ tự (tra trước, đếm sau) là biến một lượt quét thành hàng chục nghìn lượt tra
+//! `lookup_grouped`.
 //!
 //! ⚠️ Mọi chuỗi trong `src-tauri/src/**` viết KHÔNG DẤU; doc-comment có dấu là hợp lệ.
 
 use std::collections::HashMap;
 
 use crate::core::matching::{MatchLang, ngrams, tokenize};
+
+use super::surnames::TRADITIONAL_SURNAME_ALIASES;
 
 /// Độ dài n-gram (KÝ TỰ, nhánh `Zh`) mà lượt quét sinh ra — 2 tới 4. Khớp đúng số đã đo và
 /// ghi ở §Design Notes của story: *"Một Chương 48.640 ký tự sinh khoảng 146.000 n-gram độ
@@ -47,6 +51,27 @@ pub struct ScanCandidate {
     /// I/O Matrix. **Cắt ở [`CONTEXT_EXAMPLE_CHAR_LIMIT`] ký tự** nếu dài hơn — xem
     /// [`truncated_context_example`] cho lý do và cho luật cắt (biên KÝ TỰ, không byte).
     pub context_example: String,
+}
+
+/// Kết luận của MỘT lượt tra từ điển cho ứng viên đã qua lọc tần suất.
+///
+/// `Inconclusive` là giá trị bắt buộc: `lookup_grouped` có thể trả kết quả rỗng **và**
+/// danh sách layer lỗi cùng lúc. Ép ba trạng thái này vào `bool` biến layer lỗi thành
+/// “không có trong từ điển”, rồi sinh ứng viên giả — đúng lớp rỗng im lặng trung tâm của
+/// dự án.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DictionaryProbe {
+    Known,
+    Missing,
+    Inconclusive,
+}
+
+/// Outcome của trọn lượt quét, trước mọi lượt ghi.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ScanOutcome {
+    Completed(Vec<ScanCandidate>),
+    DictionaryInconclusive,
+    Cancelled,
 }
 
 /// Trần độ dài của [`ScanCandidate::context_example`] — TÍNH BẰNG KÝ TỰ (không byte).
@@ -97,26 +122,87 @@ pub fn scan_candidates(
     surnames: &[char],
     is_known: &mut dyn FnMut(&str) -> bool,
 ) -> Vec<ScanCandidate> {
+    let mut probe = |term: &str| {
+        if is_known(term) {
+            DictionaryProbe::Known
+        } else {
+            DictionaryProbe::Missing
+        }
+    };
+    let mut never_cancelled = || false;
+    match scan_candidates_controlled(
+        segments,
+        lang,
+        threshold,
+        surnames,
+        &mut probe,
+        &mut never_cancelled,
+    ) {
+        ScanOutcome::Completed(out) => out,
+        // Wrapper tương thích không có đường tạo hai outcome này: callback bool không thể
+        // trả `Inconclusive`, còn `never_cancelled` luôn false. Trả rỗng thay vì panic —
+        // `panic = "abort"` không cho phép một assert phòng thủ trên đường sản phẩm.
+        ScanOutcome::DictionaryInconclusive | ScanOutcome::Cancelled => Vec::new(),
+    }
+}
+
+/// Biến thể sản phẩm của [`scan_candidates`]: callback từ điển giữ BA trạng thái và hook
+/// huỷ được hỏi ngay trong pha đếm lẫn trước từng lookup. Tần suất/dedup vẫn chạy trước
+/// lookup; việc thêm control không dựng một đường thuật toán thứ hai.
+pub fn scan_candidates_controlled(
+    segments: &[&str],
+    lang: MatchLang,
+    threshold: u32,
+    surnames: &[char],
+    probe_dictionary: &mut dyn FnMut(&str) -> DictionaryProbe,
+    is_cancelled: &mut dyn FnMut() -> bool,
+) -> ScanOutcome {
     let counted = match lang {
-        MatchLang::Zh => count_zh_candidates(segments),
-        MatchLang::En => count_en_candidates(segments),
+        MatchLang::Zh => count_zh_candidates(segments, is_cancelled),
+        MatchLang::En => count_en_candidates(segments, is_cancelled),
+    };
+    let Some(counted) = counted else {
+        return ScanOutcome::Cancelled;
     };
 
-    let mut out: Vec<ScanCandidate> = counted
-        .into_iter()
-        .filter(|(term, count, _)| {
-            *count >= i64::from(effective_threshold(term.as_str(), lang, threshold, surnames))
-        })
-        .filter(|(term, _, _)| !is_known(term.as_str()))
-        .map(|(term, count, first_segment)| ScanCandidate {
+    let mut out = Vec::new();
+    // Chỉ ứng viên THẬT SỰ `Missing` mới cần context. Khoá theo chỉ số segment để nhiều
+    // term cùng xuất hiện lần đầu trong một câu chỉ cắt đúng một `String`; mỗi candidate
+    // sau đó clone bản đã cắt thay vì clone/cắt cả segment ngay trong pha đếm.
+    let mut context_by_segment: HashMap<usize, String> = HashMap::new();
+    for (term, count, first_segment) in counted {
+        if count
+            < i64::from(effective_threshold(
+                term.as_str(),
+                lang,
+                threshold,
+                surnames,
+            ))
+        {
+            continue;
+        }
+        if is_cancelled() {
+            return ScanOutcome::Cancelled;
+        }
+        match probe_dictionary(&term) {
+            DictionaryProbe::Known => continue,
+            DictionaryProbe::Missing => {
+                let context_example = context_by_segment
+                    .entry(first_segment)
+                    .or_insert_with(|| truncated_context_example(segments[first_segment]))
+                    .clone();
+                out.push(ScanCandidate {
             source_term: term,
             occurrence_count: count,
-            context_example: truncated_context_example(segments[first_segment]),
-        })
-        .collect();
+                    context_example,
+                });
+            }
+            DictionaryProbe::Inconclusive => return ScanOutcome::DictionaryInconclusive,
+        }
+    }
 
     out.sort_by(|a, b| a.source_term.cmp(&b.source_term));
-    out
+    ScanOutcome::Completed(out)
 }
 
 /// Ngưỡng THẬT SỰ áp cho `term` — `threshold - 1` khi (và chỉ khi) `lang == Zh`, `term` dài
@@ -137,7 +223,12 @@ fn effective_threshold(term: &str, lang: MatchLang, threshold: u32, surnames: &[
     let Some(first) = term.chars().next() else {
         return threshold;
     };
-    if surnames.contains(&first) {
+    let listed = surnames.contains(&first)
+        || TRADITIONAL_SURNAME_ALIASES
+            .iter()
+            .find_map(|&(traditional, simplified)| (traditional == first).then_some(simplified))
+            .is_some_and(|simplified| surnames.contains(&simplified));
+    if listed {
         threshold.saturating_sub(1).max(1)
     } else {
         threshold
@@ -152,15 +243,24 @@ fn effective_threshold(term: &str, lang: MatchLang, threshold: u32, surnames: &[
 /// (§Design Notes "N-gram lồng" — chuỗi dài hơn có CÙNG tần suất với một chuỗi con của nó
 /// là phần đuôi/đầu ăn theo, không phải một thuật ngữ thật); (3) trả phần còn lại, CHƯA lọc
 /// ngưỡng/từ điển — hai bước đó là việc của [`scan_candidates`].
-fn count_zh_candidates(segments: &[&str]) -> Vec<(String, i64, usize)> {
+fn count_zh_candidates(
+    segments: &[&str],
+    is_cancelled: &mut dyn FnMut() -> bool,
+) -> Option<Vec<(String, i64, usize)>> {
     // `freq`/`first_seen` khoá theo CHUỖI — một `HashMap` là đủ vì bước dedup lồng ngay
     // dưới chỉ cần TRA (không cần thứ tự); `scan_candidates` sắp lại kết quả cuối cùng.
     let mut freq: HashMap<String, i64> = HashMap::new();
-    let mut first_seen: HashMap<String, usize> = HashMap::new();
+    let mut first_segment: HashMap<String, usize> = HashMap::new();
 
-    for (seg_index, &segment) in segments.iter().enumerate() {
+    for (segment_index, &segment) in segments.iter().enumerate() {
+        if is_cancelled() {
+            return None;
+        }
         for &n in &ZH_NGRAM_LENGTHS {
             for gram in ngrams(segment, MatchLang::Zh, n) {
+                if is_cancelled() {
+                    return None;
+                }
                 // 🔴 Loại n-gram bắc qua dấu câu/khoảng trắng — `ngrams` sinh MỌI cửa sổ
                 // trượt, kể cả những cửa sổ chứa dấu phẩy/xuống dòng/khoảng trắng ở giữa. Một
                 // "thuật ngữ" mang dấu câu không phải một chuỗi lặp có nghĩa — nó là rác hình
@@ -172,20 +272,22 @@ fn count_zh_candidates(segments: &[&str]) -> Vec<(String, i64, usize)> {
                     continue;
                 }
                 *freq.entry(gram.clone()).or_insert(0) += 1;
-                first_seen.entry(gram).or_insert(seg_index);
+                first_segment.entry(gram).or_insert(segment_index);
             }
         }
     }
 
     let dropped = zh_nested_padding(&freq);
 
+    Some(
     freq.into_iter()
         .filter(|(term, _)| !dropped.contains(term))
         .map(|(term, count)| {
-            let seg = first_seen.get(&term).copied().unwrap_or(0);
-            (term, count, seg)
+                let segment_index = first_segment.remove(&term).unwrap_or_default();
+                (term, count, segment_index)
         })
-        .collect()
+            .collect(),
+    )
 }
 
 /// Tập chuỗi "rác đuôi" — chuỗi DÀI HƠN mà tần suất **bằng ĐÚNG** tần suất của một chuỗi
@@ -239,14 +341,23 @@ fn zh_nested_padding(freq: &HashMap<String, i64>) -> std::collections::HashSet<S
 /// cho lý do khác — Story 3.4b tiêu thụ lại đúng luật này cho một mục đích thứ ba). Dãy
 /// LẤY TRỌN VẸN (không sinh mọi dãy con) làm MỘT ứng viên — module này không cố đoán thêm
 /// một tên ngắn hơn nằm bên trong một cụm dài hơn.
-fn count_en_candidates(segments: &[&str]) -> Vec<(String, i64, usize)> {
+fn count_en_candidates(
+    segments: &[&str],
+    is_cancelled: &mut dyn FnMut() -> bool,
+) -> Option<Vec<(String, i64, usize)>> {
     let mut freq: HashMap<String, i64> = HashMap::new();
-    let mut first_seen: HashMap<String, usize> = HashMap::new();
+    let mut first_segment: HashMap<String, usize> = HashMap::new();
 
-    for (seg_index, &segment) in segments.iter().enumerate() {
+    for (segment_index, &segment) in segments.iter().enumerate() {
+        if is_cancelled() {
+            return None;
+        }
         let tokens = tokenize(segment, MatchLang::En);
         let mut i = 0usize;
         while i < tokens.len() {
+            if is_cancelled() {
+                return None;
+            }
             if !is_capitalized(tokens[i].text) {
                 i += 1;
                 continue;
@@ -265,22 +376,31 @@ fn count_en_candidates(segments: &[&str]) -> Vec<(String, i64, usize)> {
             // "Fire Dragon" đứng ngay đầu câu bị loại y hệt một "The" đứng đầu câu; cả hai
             // đều là ca "hoa đầu câu", không phải "cụm hoa giữa câu".
             if run_start != 0 {
-                let phrase = &segment[tokens[run_start].span.start..tokens[run_end].span.end];
-                *freq.entry(phrase.to_owned()).or_insert(0) += 1;
-                first_seen.entry(phrase.to_owned()).or_insert(seg_index);
+                // 🔴 Chuẩn hoá từ chính token, không từ lát cắt thô của segment. Nhờ đó
+                // `Fire Dragon`, `Fire  Dragon` và `Fire, Dragon` cùng một khoá và không
+                // mang dấu câu vào `source_term`; tần suất được cộng dồn thay vì tách ba
+                // ứng viên giả chỉ vì khoảng trắng/dấu phẩy.
+                let phrase = tokens[run_start..=run_end]
+                    .iter()
+                    .map(|token| token.text)
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                *freq.entry(phrase.clone()).or_insert(0) += 1;
+                first_segment.entry(phrase).or_insert(segment_index);
             }
 
             i = run_end + 1;
         }
     }
 
-    freq
-        .into_iter()
+    Some(
+        freq.into_iter()
         .map(|(term, count)| {
-            let seg = first_seen.get(&term).copied().unwrap_or(0);
-            (term, count, seg)
+                let segment_index = first_segment.remove(&term).unwrap_or_default();
+                (term, count, segment_index)
         })
-        .collect()
+            .collect(),
+    )
 }
 
 /// Ký tự ĐẦU của `token` là một chữ cái ASCII hoa. `tokenize` (nhánh `En`) chỉ sinh token

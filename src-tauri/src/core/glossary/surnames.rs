@@ -47,3 +47,12 @@ pub const COMMON_SURNAMES: &[char] = &[
     '宁', '仇', '栾', '暴', '甘', '钭', '厉', '戎', '祖', '武', '符', '刘', '景', '詹', '束', '龙',
     '叶', '幸', '司', '韶', '郜', '黎', '蓟', '薄', '印', '宿', '白', '怀', '蒲', '邰', '从', '鄂',
 ];
+
+/// Alias phồn thể → giản thể cần cho phép nới ngưỡng họ.
+///
+/// 🔴 Không trộn alias vào [`COMMON_SURNAMES`]: tham số `surnames` của thuật toán quét là
+/// một điểm tiêm có chủ cho test, và bảng trên cố ý giữ nguyên văn bản giản thể. Alias là
+/// một bước chuẩn hoá hình dạng chữ trước phép tra bảng, không phải một họ mới. Story 3.5
+/// review đo đúng ca `蕭炎` ở `threshold - 1`; thiếu cặp này làm cùng một họ đi hai ngưỡng
+/// chỉ vì cách mã hoá chữ.
+pub(super) const TRADITIONAL_SURNAME_ALIASES: &[(char, char)] = &[('蕭', '萧')];

@@ -100,9 +100,6 @@ pub use schema::{
     SEGMENT_TRANSLATION_ORIGIN_DDL, WORK_DDL,
 };
 
-/// Kiểu giao dịch mà một job ghi nhận được. Tái xuất để chỗ gọi **không phải gõ
-/// `rusqlite`** — xem [`ReadHandle`] cho cùng lý do.
-pub use rusqlite::Transaction;
 /// Lỗi thô của SQLite, cho chỗ gọi cần rẽ nhánh trên nó bên trong một job.
 pub use rusqlite::Error as SqlError;
 /// `Result` của một job ghi/đọc, trước khi nó được bọc thành [`StoreError`].
@@ -115,6 +112,9 @@ pub use rusqlite::Row;
 /// `&[&dyn ToSql]` phải gõ tên crate, và `store_boundary.rs` — đúng như nó phải làm —
 /// sẽ gọi đó là một vi phạm.
 pub use rusqlite::ToSql;
+/// Kiểu giao dịch mà một job ghi nhận được. Tái xuất để chỗ gọi **không phải gõ
+/// `rusqlite`** — xem [`ReadHandle`] cho cùng lý do.
+pub use rusqlite::Transaction;
 /// Loại cột SQLite, tham số thứ hai của `SqlError::FromSqlConversionFailure` — Story 3.1.
 ///
 /// Tái xuất vì cùng lý do năm kiểu trên: `core::glossary::store::load_tier` cần dựng một
@@ -525,6 +525,8 @@ pub struct Store {
     shared: Arc<checkpoint::Shared>,
 }
 
+pub(crate) use writer::WriteTicket;
+
 impl Store {
     /// Mở (hoặc tạo) kho. **Thứ tự các bước là hợp đồng** — xem doc-comment của module.
     pub fn open(spec: StoreSpec) -> Result<Store, StoreError> {
@@ -625,6 +627,17 @@ impl Store {
         T: Send + 'static,
     {
         self.writer.write(job)
+    }
+
+    /// Xếp một job ghi và trả vé package-private để chỗ gọi có thể nhả state mutex trước
+    /// khi chờ writer. Đây là bề mặt bất đồng bộ DUY NHẤT của `Store`; sender/kết nối vẫn
+    /// ở kín trong [`writer`], và mọi đường công khai tiếp tục dùng [`Store::write`].
+    pub(crate) fn write_ticket<T, F>(&self, job: F) -> Result<WriteTicket<T>, StoreError>
+    where
+        F: FnOnce(&Transaction<'_>) -> SqlResult<T> + Send + 'static,
+        T: Send + 'static,
+    {
+        self.writer.enqueue(job)
     }
 
     /// Chạy một job ĐỌC trên một kết nối mượn từ pool.

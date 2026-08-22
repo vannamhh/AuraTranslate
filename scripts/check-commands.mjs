@@ -2052,7 +2052,10 @@ const SELECTION_PANEL_FILES = {
  * ⚠️ Sàn là **cận dưới**: nó canh chính CỔNG *(regex thôi khớp ⇒ mọi phép kiểm trên xanh
  * rỗng)*, không canh số bề mặt đúng. Story 1.20/3.4 sẽ THÊM bề mặt, không bớt.
  */
-const SELECTION_SURFACE_FLOOR = 6
+// 🔵 2026-08-22 (Story 3.5 review) — đếm lại bằng chính cổng: trước lượt này có 7 lời gọi
+// thật (sàn 6 đã thấp một đơn vị); `GlossarySettingsOverlay` thêm bề mặt `display` thứ tám.
+// Nâng thẳng lên số thật, không giữ phần dư khiến xoá một bề mặt mà cổng vẫn xanh.
+const SELECTION_SURFACE_FLOOR = 8
 
 const SURFACE_CALL_RE = /useSelectionSurface\s*\(\s*[^,)]+,\s*'(source|display)'/g
 

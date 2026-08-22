@@ -18,6 +18,8 @@
 //! `src-tauri/**/*.rs`.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use uuid::Uuid;
 
@@ -287,10 +289,105 @@ pub struct GlossaryImportScanEvent {
     pub chapter_id: i64,
     pub inserted: i64,
     pub skipped: i64,
+    /// `completed` hoặc `dictionary_inconclusive`. Worker bị huỷ KHÔNG phát sự kiện —
+    /// một scan cũ không được giả làm một lượt đã hoàn tất.
+    pub outcome: &'static str,
 }
 
 /// Tên sự kiện trên dây — khuôn `EXIT_FLUSH_EVENT` (`lib.rs:161`).
 pub const GLOSSARY_IMPORT_SCAN_EVENT: &str = "aura://glossary-import-scan-completed";
+const IMPORT_SCAN_COMPLETED: &str = "completed";
+const IMPORT_SCAN_DICTIONARY_INCONCLUSIVE: &str = "dictionary_inconclusive";
+
+/// Generation huỷ lượt quét cũ khi một import mới thay Tác phẩm đang mở.
+///
+/// Clone chỉ clone `Arc`, nên worker và vỏ IPC đọc cùng một bộ đếm. Không `Arc<Store>`:
+/// generation chỉ chở một số, còn mọi quyền ghi vẫn được lấy lại từ `OpenWorkState` theo
+/// `work_id` ngay trước enqueue.
+#[derive(Debug, Clone, Default)]
+pub struct ImportScanGeneration(Arc<AtomicU64>);
+
+impl ImportScanGeneration {
+    fn next(&self) -> u64 {
+        self.0.fetch_add(1, Ordering::AcqRel).wrapping_add(1)
+    }
+
+    fn is_current(&self, generation: u64) -> bool {
+        self.0.load(Ordering::Acquire) == generation
+    }
+}
+
+/// Ánh xạ DUY NHẤT từ kết quả lookup nhiều lớp sang ba trạng thái mà lượt scan hiểu.
+/// Worker và unit test cùng gọi hàm này; không test một closure bool chép lại quyết định.
+fn dictionary_probe_from_grouped(
+    grouped: &crate::core::dict::GroupedLookup,
+) -> crate::core::glossary::DictionaryProbe {
+    if !grouped.skipped.is_empty() {
+        crate::core::glossary::DictionaryProbe::Inconclusive
+    } else if !grouped.groups.is_empty() || !grouped.hidden_sources.is_empty() {
+        crate::core::glossary::DictionaryProbe::Known
+    } else if !grouped.truncated_layers.is_empty() {
+        // Trần cấp-layer có thể đã cắt mất một hit mà `groups`/`hidden_sources` không còn
+        // chứng minh được. Gọi nó là `Missing` sẽ biến dữ liệu bị cắt trang thành ứng viên
+        // giả; chỉ một lượt không chạm trần mới được kết luận dứt khoát là thiếu.
+        crate::core::glossary::DictionaryProbe::Inconclusive
+    } else {
+        crate::core::glossary::DictionaryProbe::Missing
+    }
+}
+
+/// Payload duy nhất cho nhánh từ điển không kết luận. Tách constructor khỏi `emit` để
+/// hình dạng dây (outcome và cả hai số 0) được khóa bằng serialization test mà không phải
+/// dựng một `AppHandle` giả.
+fn dictionary_inconclusive_event(chapter_id: i64) -> GlossaryImportScanEvent {
+    GlossaryImportScanEvent {
+        chapter_id,
+        inserted: 0,
+        skipped: 0,
+        outcome: IMPORT_SCAN_DICTIONARY_INCONCLUSIVE,
+    }
+}
+
+/// Quyết định DUY NHẤT ngay sau thuật toán thuần. Chỉ `Enqueue` mang candidates xuống
+/// đường ghi; `DictionaryInconclusive` chỉ cho phép phát outcome chẩn đoán, còn stale/
+/// cancelled dừng tuyệt đối — không write và không completed event.
+#[derive(Debug, PartialEq, Eq)]
+enum ImportScanNextStep {
+    Enqueue(Vec<crate::core::glossary::ScanCandidate>),
+    EmitDictionaryInconclusive,
+    Stop,
+}
+
+fn import_scan_next_step(
+    outcome: crate::core::glossary::ScanOutcome,
+    is_current: bool,
+) -> ImportScanNextStep {
+    if !is_current {
+        return ImportScanNextStep::Stop;
+    }
+    match outcome {
+        crate::core::glossary::ScanOutcome::Completed(candidates) => {
+            ImportScanNextStep::Enqueue(candidates)
+        }
+        crate::core::glossary::ScanOutcome::DictionaryInconclusive => {
+            ImportScanNextStep::EmitDictionaryInconclusive
+        }
+        crate::core::glossary::ScanOutcome::Cancelled => ImportScanNextStep::Stop,
+    }
+}
+
+/// Import đã commit là sự thật không đảo ngược. Worker scan là hậu xử lý best-effort;
+/// seam `spawn` tối thiểu làm lỗi `thread::Builder::spawn` kiểm được mà không tìm cách
+/// ép hệ điều hành cạn tài nguyên trong test.
+fn keep_committed_import_when_scan_spawn_fails<T>(
+    committed: T,
+    spawn: impl FnOnce() -> std::io::Result<()>,
+) -> T {
+    if let Err(err) = spawn() {
+        eprintln!("glossary[import_scan] tao worker that bai sau khi import da commit: {err}");
+    }
+    committed
+}
 
 /// Đọc `source_text` của mọi segment CÒN SỐNG (`retired_at IS NULL`) của Chương
 /// `chapter_id`, theo `ord` — đúng ranh giới câu mà Story 2.1 đã tách LÚC NHẬP (§Boundaries
@@ -330,6 +427,43 @@ fn guarded_open_store<'a>(open: Option<&'a OpenWork>, work_id: &str) -> Option<&
         return None;
     }
     Some(&open.store)
+}
+
+/// Khoá `OpenWorkState` đúng một vùng ngắn: xác nhận `work_id`, lọc hai tầng và enqueue;
+/// vé trả ra ngoài vùng khoá để caller chờ writer mà không chặn lệnh đổi/đóng Tác phẩm.
+/// `is_current` được hỏi ngay trước enqueue để generation cũ không xếp một lượt ghi mới.
+fn filter_and_enqueue_current_import_scan(
+    work_state: &OpenWorkState,
+    work_id: &str,
+    global: &Store,
+    candidates: &mut Vec<crate::core::glossary::ScanCandidate>,
+    is_current: &dyn Fn() -> bool,
+) -> Result<
+    Option<crate::core::glossary::ImportScanWriteTicket>,
+    crate::core::glossary::GlossaryError,
+> {
+    let guard = work_state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(open) = guard.as_ref() else {
+        return Ok(None);
+    };
+    let Some(store) = guarded_open_store(Some(open), work_id) else {
+        return Ok(None);
+    };
+
+    let skipped_by_scope = crate::core::glossary::filter_import_scan_candidates_by_scope(
+        &open.scope,
+        global,
+        store,
+        candidates,
+    )?;
+    if !is_current() {
+        return Ok(None);
+    }
+    let ticket =
+        crate::core::glossary::enqueue_import_scan_candidates(store, candidates, skipped_by_scope)?;
+    Ok(Some(ticket))
 }
 
 /// **Hàm thuần** — cùng lý do [`guarded_open_store`]: tách quyết định ra khỏi thân
@@ -382,15 +516,38 @@ fn guarded_dict_layers(
 /// 🔴 **Không `unwrap()`/`expect()` nào trên đường này** — `panic = "abort"` giết cả tiến
 /// trình (AGENTS.md), và một luồng nền là chỗ tệ nhất để việc đó xảy ra: không ai đang chờ
 /// kết quả của nó để thấy màn hình treo, người dùng chỉ thấy ứng dụng biến mất.
-fn spawn_import_scan(app: tauri::AppHandle, work_id: String, chapter_id: i64, source_lang: String) {
-    std::thread::spawn(move || {
+fn spawn_import_scan(
+    app: tauri::AppHandle,
+    work_id: String,
+    chapter_id: i64,
+    source_lang: String,
+) -> std::io::Result<()> {
+    use tauri::Manager as _;
+
+    let Some(generation_state) = app.try_state::<ImportScanGeneration>() else {
+        eprintln!("glossary[import_scan] generation state chua duoc quan ly -- bo qua luot quet");
+        return Ok(());
+    };
+    let generation_state = generation_state.inner().clone();
+    let generation = generation_state.next();
+
+    std::thread::Builder::new()
+        .name(format!("aura-import-scan-{generation}"))
+        .spawn(move || {
         use tauri::{Emitter as _, Manager as _};
+
+            let current = || generation_state.is_current(generation);
+            if !current() {
+                return;
+            }
 
         let segments: Vec<String> = {
             let Some(work_state) = app.try_state::<OpenWorkState>() else {
                 return;
             };
-            let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                let guard = work_state
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
             let Some(store) = guarded_open_store(guard.as_ref(), &work_id) else {
                 return;
             };
@@ -427,10 +584,9 @@ fn spawn_import_scan(app: tauri::AppHandle, work_id: String, chapter_id: i64, so
         let lang = crate::core::glossary::match_lang_for_source_lang(&source_lang);
         let segment_refs: Vec<&str> = segments.iter().map(String::as_str).collect();
 
-        // 🔴 Rẻ nhất trong bốn nhánh của `DictionarySource::lookup` (Code Map của story):
-        // `LookupMode::Exact` luôn chọn `QueryBranch::ExactBtree`, độc lập độ dài truy vấn.
-        // `limit = 1` — vị từ chỉ cần biết "có ít nhất một" chứ không cần liệt hết.
-        let mut is_known = |term: &str| -> bool {
+            // `skipped` mang CẢ layer hỏng lúc mở lẫn lúc lookup. Một kết quả rỗng kèm
+            // `skipped` là KHÔNG KẾT LUẬN, không phải “term không có”.
+            let mut probe_dictionary = |term: &str| {
             let result = crate::core::dict::lookup_grouped(
                 layers,
                 term,
@@ -438,33 +594,64 @@ fn spawn_import_scan(app: tauri::AppHandle, work_id: String, chapter_id: i64, so
                 1,
                 &disabled,
             );
-            !result.groups.is_empty()
+                dictionary_probe_from_grouped(&result)
         };
-
-        let candidates = crate::core::glossary::scan_candidates(
+            let mut is_cancelled = || !current();
+            let scan_outcome = crate::core::glossary::scan_candidates_controlled(
             &segment_refs,
             lang,
             threshold,
             crate::core::glossary::COMMON_SURNAMES,
-            &mut is_known,
+                &mut probe_dictionary,
+                &mut is_cancelled,
         );
 
-        let (inserted, skipped) = {
+            let mut candidates = match import_scan_next_step(scan_outcome, current()) {
+                ImportScanNextStep::Enqueue(candidates) => candidates,
+                ImportScanNextStep::Stop => return,
+                ImportScanNextStep::EmitDictionaryInconclusive => {
+                    if let Err(err) = app.emit(
+                        GLOSSARY_IMPORT_SCAN_EVENT,
+                        dictionary_inconclusive_event(chapter_id),
+                    ) {
+                        eprintln!("glossary[import_scan] phat su kien that bai: {err}");
+                    }
+                    return;
+                }
+            };
+
+            // Chỉ ENQUEUE diễn ra dưới mutex. `ticket.wait()` nằm ngoài khối, nên một
+            // writer chậm không giữ `OpenWorkState` qua giao dịch.
+            let ticket = {
             let Some(work_state) = app.try_state::<OpenWorkState>() else {
                 return;
             };
-            let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-            let Some(store) = guarded_open_store(guard.as_ref(), &work_id) else {
+                match filter_and_enqueue_current_import_scan(
+                    &work_state,
+                    &work_id,
+                    &global,
+                    &mut candidates,
+                    &current,
+                ) {
+                    Ok(Some(ticket)) => ticket,
+                    Ok(None) => return,
+                    Err(err) => {
+                        eprintln!("glossary[import_scan] loc/xep lo that bai: {err}");
                 return;
+                    }
+                }
             };
-            match crate::core::glossary::insert_import_scan_candidates(store, &candidates) {
+
+            let (inserted, skipped) = match ticket.wait() {
                 Ok(counts) => counts,
                 Err(err) => {
                     eprintln!("glossary[import_scan] ghi lo that bai: {err}");
                     return;
                 }
-            }
         };
+            if !current() {
+                return;
+            }
 
         if let Err(err) = app.emit(
             GLOSSARY_IMPORT_SCAN_EVENT,
@@ -472,11 +659,13 @@ fn spawn_import_scan(app: tauri::AppHandle, work_id: String, chapter_id: i64, so
                 chapter_id,
                 inserted,
                 skipped,
+                    outcome: IMPORT_SCAN_COMPLETED,
             },
         ) {
             eprintln!("glossary[import_scan] phat su kien that bai: {err}");
         }
-    });
+        })
+        .map(|_| ())
 }
 
 /// **Hàm thuần** — nhánh tệp của AC1 (kéo-thả **hoặc** ô nhập đường dẫn; cả hai đã
@@ -543,17 +732,22 @@ fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
 /// — dựng một `OpenWork` thật (mở `Store`) chỉ để kiểm thứ tự khoá/drop là một chi phí
 /// không cần thiết cho một mệnh đề thuần về **thứ tự**.
 fn swap_locked<T>(mutex: &std::sync::Mutex<Option<T>>, new: T) -> Option<T> {
-    let mut guard = mutex.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = mutex
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     guard.replace(new)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        create_work_from_text, guarded_dict_layers, guarded_open_store, read_chapter_segment_texts,
-        swap_locked,
+        ImportScanGeneration, ImportScanNextStep, create_work_from_text,
+        dictionary_inconclusive_event, dictionary_probe_from_grouped,
+        filter_and_enqueue_current_import_scan, guarded_dict_layers, guarded_open_store,
+        import_scan_next_step, keep_committed_import_when_scan_spawn_fails,
+        read_chapter_segment_texts, swap_locked,
     };
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
 
     /// Thư mục tạm CỦA RIÊNG ca này — pid + `AtomicU64`, cùng luật bốn điều của
@@ -596,6 +790,192 @@ mod tests {
         );
     }
 
+    /// Nối trọn hàng Matrix "B thay A": generation B sinh NGAY TRONG pha đếm của A;
+    /// hook mà worker thật dùng thấy A stale, scan trả `Cancelled`, lookup = 0 và helper
+    /// hậu-scan chọn `Stop` — biến thể duy nhất không enqueue/không phát completion.
+    #[test]
+    fn a_new_import_generation_cancels_the_old_scan_before_lookup_write_or_completion() {
+        let dir = guard_test_dir("generation-cancels-scan");
+        let opened = create_work_from_text(&dir, "Generation", "en", "", "source".to_owned())
+            .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+
+        let generation = ImportScanGeneration::default();
+        let generation_a = generation.next();
+        let segments: Vec<String> = (0..500)
+            .map(|i| format!("a beast called Fire Dragon appeared at hour {i}."))
+            .collect();
+        let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+        let mut lookup_calls = 0usize;
+        let mut probe = |_term: &str| {
+            lookup_calls += 1;
+            crate::core::glossary::DictionaryProbe::Missing
+        };
+        let mut cancellation_checks = 0usize;
+        let mut current_generation = || {
+            cancellation_checks += 1;
+            if cancellation_checks == 3 {
+                let _generation_b = generation.next();
+            }
+            !generation.is_current(generation_a)
+        };
+
+        let outcome = crate::core::glossary::scan_candidates_controlled(
+            &refs,
+            crate::core::matching::MatchLang::En,
+            5,
+            crate::core::glossary::COMMON_SURNAMES,
+            &mut probe,
+            &mut current_generation,
+        );
+        let next = import_scan_next_step(outcome, generation.is_current(generation_a));
+
+        assert_eq!(next, ImportScanNextStep::Stop);
+        assert_eq!(lookup_calls, 0, "generation cu phai dung ngay trong count");
+        let pending = crate::core::glossary::pending_candidates(&opened.store)
+            .expect("doc bang cho doi chung 0 write");
+        assert!(pending.is_empty(), "Stop khong duoc xep bat ky batch nao");
+
+        drop(opened.store);
+        guard_test_cleanup(&dir);
+    }
+
+    /// Lái chính mapping mà worker gọi bằng một `GroupedLookup` có layer lỗi thật về MẶT
+    /// kiểu dữ liệu. Outcome phải là `dictionary_inconclusive`; next-step không mang batch,
+    /// và bảng Work vẫn rỗng — không chỉ kiểm một predicate thuần tách rời.
+    #[test]
+    fn a_skipped_dictionary_layer_maps_through_the_worker_decision_to_zero_batch_writes() {
+        let dir = guard_test_dir("dictionary-inconclusive");
+        let opened =
+            create_work_from_text(&dir, "Dict Inconclusive", "en", "", "source".to_owned())
+                .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+        let grouped = crate::core::dict::GroupedLookup {
+            route: crate::core::dict::QueryRoute::En,
+            branch: crate::core::dict::QueryBranch::ExactBtree,
+            groups: Vec::new(),
+            skipped: vec![crate::core::dict::SkippedLayer {
+                path: std::path::PathBuf::from("broken-layer.db"),
+                reason: crate::core::dict::SkipReason::OpenFailed {
+                    detail: "fixture open failure".to_owned(),
+                },
+            }],
+            truncated_layers: Vec::new(),
+            // `skipped` phải thắng cả bằng chứng hit bị cắt trang: một layer hỏng làm
+            // toàn lượt không kết luận, không cho hit ở layer khác che mất lỗi.
+            hidden_sources: vec![("hidden source".to_owned(), 1)],
+            layers_loaded: false,
+        };
+        let segments: Vec<String> = (0..5)
+            .map(|i| format!("a beast called Fire Dragon appeared at hour {i}."))
+            .collect();
+        let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+        let mut probe = |_term: &str| dictionary_probe_from_grouped(&grouped);
+        let mut never_cancelled = || false;
+
+        let outcome = crate::core::glossary::scan_candidates_controlled(
+            &refs,
+            crate::core::matching::MatchLang::En,
+            5,
+            crate::core::glossary::COMMON_SURNAMES,
+            &mut probe,
+            &mut never_cancelled,
+        );
+        let next = import_scan_next_step(outcome, true);
+
+        assert_eq!(next, ImportScanNextStep::EmitDictionaryInconclusive);
+        let pending = crate::core::glossary::pending_candidates(&opened.store)
+            .expect("doc bang cho doi chung 0 write");
+        assert!(
+            pending.is_empty(),
+            "dictionary inconclusive khong mang batch de enqueue"
+        );
+
+        drop(opened.store);
+        guard_test_cleanup(&dir);
+    }
+
+    #[test]
+    fn a_hidden_source_is_a_known_hit_when_no_dictionary_layer_was_skipped() {
+        let grouped = crate::core::dict::GroupedLookup {
+            route: crate::core::dict::QueryRoute::En,
+            branch: crate::core::dict::QueryBranch::ExactBtree,
+            groups: Vec::new(),
+            skipped: Vec::new(),
+            truncated_layers: vec!["base".to_owned()],
+            hidden_sources: vec![("source cut cleanly by limit".to_owned(), 2)],
+            layers_loaded: true,
+        };
+
+        assert_eq!(
+            dictionary_probe_from_grouped(&grouped),
+            crate::core::glossary::DictionaryProbe::Known,
+            "hidden_sources da chung minh co hit, nen Known thang truncated"
+        );
+    }
+
+    #[test]
+    fn a_truncated_layer_without_a_visible_or_hidden_hit_is_inconclusive_not_missing() {
+        let grouped = crate::core::dict::GroupedLookup {
+            route: crate::core::dict::QueryRoute::En,
+            branch: crate::core::dict::QueryBranch::ExactBtree,
+            groups: Vec::new(),
+            skipped: Vec::new(),
+            truncated_layers: vec!["base".to_owned()],
+            hidden_sources: Vec::new(),
+            layers_loaded: true,
+        };
+
+        assert_eq!(
+            dictionary_probe_from_grouped(&grouped),
+            crate::core::glossary::DictionaryProbe::Inconclusive,
+            "truncated khong du bang chung de ket luan Missing"
+        );
+    }
+
+    #[test]
+    fn the_dictionary_inconclusive_payload_serializes_the_reviewed_outcome_and_zero_counts() {
+        let payload = dictionary_inconclusive_event(42);
+
+        assert_eq!(
+            serde_json::to_value(payload).expect("serialize payload"),
+            serde_json::json!({
+                "chapter_id": 42,
+                "inserted": 0,
+                "skipped": 0,
+                "outcome": "dictionary_inconclusive",
+            })
+        );
+    }
+
+    /// `thread::Builder::spawn` lỗi được tiêm thẳng qua seam mà hai wire command dùng.
+    /// Import đã commit vẫn đọc được từ SQLite và thư mục không bị đảo ngược/xoá.
+    #[test]
+    fn a_spawn_failure_after_commit_preserves_the_import_and_returns_normally() {
+        let dir = guard_test_dir("spawn-failure-after-commit");
+        let opened = create_work_from_text(
+            &dir,
+            "Spawn Failure",
+            "en",
+            "",
+            "a committed source sentence.".to_owned(),
+        )
+        .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+        let project_dir = opened.dir.clone();
+        let chapter_id = opened.chapter_id;
+
+        let opened = keep_committed_import_when_scan_spawn_fails(opened, || {
+            Err(std::io::Error::other("injected thread spawn failure"))
+        });
+
+        let rows = read_chapter_segment_texts(&opened.store, chapter_id)
+            .expect("import da commit phai con doc duoc sau spawn Err");
+        assert_eq!(rows, vec!["a committed source sentence."]);
+        assert!(project_dir.join("project.db").is_file());
+        assert!(project_dir.join("meta.json").is_file());
+
+        drop(opened.store);
+        guard_test_cleanup(&dir);
+    }
+
     /// Ca ② — `work_id` đã đổi giữa hai lần khoá (Tác phẩm CŨ đã bị thay bằng một Tác
     /// phẩm KHÁC trong `OpenWorkState`) ⇒ dừng lặng lẽ, **0 ghi**. Đối chứng bằng `SELECT`
     /// qua `pending_candidates` — không chỉ tin giá trị trả về `None` — bằng cách lái qua
@@ -606,13 +986,22 @@ mod tests {
     fn guarded_open_store_returns_none_and_blocks_every_write_when_the_work_id_has_changed_mid_scan()
     {
         let dir = guard_test_dir("work-id-changed");
-        let opened = create_work_from_text(&dir, "Doi Tac Pham Giua Chung", "zh", "", "萧炎登场".to_owned())
+        let opened = create_work_from_text(
+            &dir,
+            "Doi Tac Pham Giua Chung",
+            "zh",
+            "",
+            "萧炎登场".to_owned(),
+        )
             .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
 
         // `work_id` CHỐT LÚC SPAWN không còn khớp `opened.meta.work_id` -- mô phỏng đúng
         // ca "Tác phẩm đổi giữa hai lần khoá": `OpenWorkState` nay trỏ một Tác phẩm KHÁC.
         let stale_work_id = "khong-con-la-tac-pham-nay";
-        assert_ne!(opened.meta.work_id, stale_work_id, "fixture phai thuc su lech work_id");
+        assert_ne!(
+            opened.meta.work_id, stale_work_id,
+            "fixture phai thuc su lech work_id"
+        );
 
         let fake_candidates = vec![crate::core::glossary::ScanCandidate {
             source_term: "萧炎".to_owned(),
@@ -662,7 +1051,10 @@ mod tests {
             crate::core::glossary::COMMON_SURNAMES,
             &mut is_known,
         );
-        assert!(!candidates.is_empty(), "van ban mau (6 lan '萧炎') phai sinh it nhat mot ung vien");
+        assert!(
+            !candidates.is_empty(),
+            "van ban mau (6 lan '萧炎') phai sinh it nhat mot ung vien"
+        );
 
         // Lần khoá THỨ HAI (ghi lô) -- cùng `work_id`, đúng hình dạng hai-lần-khoá-ngắn.
         let store_for_write = guarded_open_store(Some(&opened), &work_id)
@@ -672,10 +1064,245 @@ mod tests {
                 .expect("ghi lo");
         assert!(inserted > 0, "ca thuong phai ghi duoc it nhat mot hang");
 
-        let pending = crate::core::glossary::pending_candidates(&opened.store).expect("doc lai bang cho");
-        assert!(!pending.is_empty(), "bang cho phai co hang sau mot luot quet binh thuong");
+        let pending =
+            crate::core::glossary::pending_candidates(&opened.store).expect("doc lai bang cho");
+        assert!(
+            !pending.is_empty(),
+            "bang cho phai co hang sau mot luot quet binh thuong"
+        );
 
         drop(opened.store);
+        guard_test_cleanup(&dir);
+    }
+
+    /// Một term ở Global phải biến mất TRƯỚC câu `INSERT` Work, nhưng vẫn cộng vào
+    /// `skipped`. Đối chứng giữ một term khác để chứng minh lô không bị xoá trắng.
+    #[test]
+    fn global_and_work_glossary_terms_are_resolved_before_the_batch_and_counted_as_skipped() {
+        let dir = guard_test_dir("global-filter");
+        let global = crate::core::store::Store::open(crate::core::store::StoreSpec::global(
+            dir.join("global.db"),
+        ))
+        .expect("mo global.db");
+        crate::commands::glossary::glossary_add_term(
+            Some(&global),
+            None,
+            crate::core::glossary::GlossaryTier::Global,
+            "Fire Dragon",
+            Some("Hoa Long"),
+            "",
+            crate::core::glossary::Category::Other,
+        )
+        .expect("chen term global");
+
+        let opened = create_work_from_text(&dir, "Loc Hai Tang", "en", "", "source".to_owned())
+            .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+        crate::commands::glossary::glossary_add_term(
+            Some(&global),
+            Some(&opened),
+            crate::core::glossary::GlossaryTier::Work,
+            "Ice Phoenix",
+            Some("Bang Phuong"),
+            "",
+            crate::core::glossary::Category::Other,
+        )
+        .expect("chen term Work");
+        let work_id = opened.meta.work_id.clone();
+        let state = Mutex::new(Some(opened));
+        let mut candidates = vec![
+            crate::core::glossary::ScanCandidate {
+                source_term: "Fire Dragon".to_owned(),
+                occurrence_count: 7,
+                context_example: "A beast called Fire Dragon arrived.".to_owned(),
+            },
+            crate::core::glossary::ScanCandidate {
+                source_term: "Ice Phoenix".to_owned(),
+                occurrence_count: 6,
+                context_example: "A beast called Ice Phoenix arrived.".to_owned(),
+            },
+            crate::core::glossary::ScanCandidate {
+                source_term: "Storm Tiger".to_owned(),
+                occurrence_count: 5,
+                context_example: "A beast called Storm Tiger arrived.".to_owned(),
+            },
+        ];
+
+        let ticket = filter_and_enqueue_current_import_scan(
+            &state,
+            &work_id,
+            &global,
+            &mut candidates,
+            &|| true,
+        )
+        .expect("loc va enqueue")
+        .expect("work_id dang mo phai cho phep enqueue");
+        let (inserted, skipped) = ticket.wait().expect("writer tra loi");
+        assert_eq!((inserted, skipped), (1, 2));
+
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let pending =
+            crate::core::glossary::pending_candidates(&guard.as_ref().expect("work con mo").store)
+                .expect("doc bang cho");
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].source_term, "Storm Tiger");
+        drop(guard);
+
+        let opened = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        drop(opened);
+        drop(global);
+        guard_test_cleanup(&dir);
+    }
+
+    /// Generation đổi đúng SAU khi scope filter đã chạy nhưng TRƯỚC enqueue. Callback là
+    /// điểm kiểm chính worker dùng, nên `None` ở đây đồng nghĩa không có write-ticket nào
+    /// được tạo; bảng chờ là đối chứng SQL cho vế 0 write.
+    #[test]
+    fn a_generation_that_turns_stale_after_scope_filtering_creates_no_ticket_and_writes_nothing() {
+        let dir = guard_test_dir("late-cancellation-after-scope");
+        let global = crate::core::store::Store::open(crate::core::store::StoreSpec::global(
+            dir.join("global.db"),
+        ))
+        .expect("mo global.db");
+        crate::commands::glossary::glossary_add_term(
+            Some(&global),
+            None,
+            crate::core::glossary::GlossaryTier::Global,
+            "Fire Dragon",
+            Some("Hoa Long"),
+            "",
+            crate::core::glossary::Category::Other,
+        )
+        .expect("chen term Global de chung minh scope filter da chay");
+
+        let opened = create_work_from_text(&dir, "Late Cancel", "en", "", "source".to_owned())
+            .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+        let work_id = opened.meta.work_id.clone();
+        let state = Mutex::new(Some(opened));
+        let mut candidates = vec![
+            crate::core::glossary::ScanCandidate {
+                source_term: "Fire Dragon".to_owned(),
+                occurrence_count: 5,
+                context_example: "A beast called Fire Dragon arrived.".to_owned(),
+            },
+            crate::core::glossary::ScanCandidate {
+                source_term: "Ice Phoenix".to_owned(),
+                occurrence_count: 5,
+                context_example: "A beast called Ice Phoenix arrived.".to_owned(),
+            },
+        ];
+        let generation = ImportScanGeneration::default();
+        let generation_a = generation.next();
+        let checks = AtomicUsize::new(0);
+        let current = || {
+            checks.fetch_add(1, Ordering::Relaxed);
+            let _generation_b = generation.next();
+            generation.is_current(generation_a)
+        };
+
+        let ticket = filter_and_enqueue_current_import_scan(
+            &state,
+            &work_id,
+            &global,
+            &mut candidates,
+            &current,
+        )
+        .expect("scope filter thanh cong truoc cancellation");
+
+        assert!(
+            ticket.is_none(),
+            "stale sau filter khong duoc tao write-ticket"
+        );
+        assert_eq!(
+            checks.load(Ordering::Relaxed),
+            1,
+            "mot check tat dinh ngay truoc enqueue"
+        );
+        assert_eq!(
+            candidates
+                .iter()
+                .map(|c| c.source_term.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Ice Phoenix"],
+            "Global term da bi loc, chung minh cancellation xay ra SAU scope filtering"
+        );
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let pending =
+            crate::core::glossary::pending_candidates(&guard.as_ref().expect("work con mo").store)
+                .expect("doc bang cho doi chung");
+        assert!(pending.is_empty(), "0 ticket phai tuong ung 0 write");
+        drop(guard);
+
+        let opened = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        drop(opened);
+        drop(global);
+        guard_test_cleanup(&dir);
+    }
+
+    /// Writer bị chặn bằng kênh tất định (không sleep/timing). Helper phải trả ticket và
+    /// `OpenWorkState::try_lock` phải thành công TRƯỚC khi job cản được thả.
+    #[test]
+    fn a_slow_writer_never_keeps_open_work_state_locked_while_the_ticket_waits() {
+        let dir = guard_test_dir("writer-ticket-unlocks-state");
+        let global = crate::core::store::Store::open(crate::core::store::StoreSpec::global(
+            dir.join("global.db"),
+        ))
+        .expect("mo global.db");
+        let opened = create_work_from_text(&dir, "Writer Cham", "en", "", "source".to_owned())
+            .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+        let work_id = opened.meta.work_id.clone();
+
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let blocker = opened
+            .store
+            .write_ticket(move |_tx| {
+                let _ = started_tx.send(());
+                let _ = release_rx.recv();
+                Ok(())
+            })
+            .expect("xep job can writer");
+        started_rx.recv().expect("writer phai vao job can");
+
+        let state = Mutex::new(Some(opened));
+        let mut candidates = vec![crate::core::glossary::ScanCandidate {
+            source_term: "Fire Dragon".to_owned(),
+            occurrence_count: 5,
+            context_example: "A beast called Fire Dragon arrived.".to_owned(),
+        }];
+        let scan_ticket = filter_and_enqueue_current_import_scan(
+            &state,
+            &work_id,
+            &global,
+            &mut candidates,
+            &|| true,
+        )
+        .expect("loc va enqueue")
+        .expect("work dang mo");
+
+        assert!(
+            state.try_lock().is_ok(),
+            "ticket da xep sau writer cham nhung OpenWorkState phai duoc nha truoc wait"
+        );
+        release_tx.send(()).expect("tha writer");
+        blocker.wait().expect("job can ket thuc");
+        scan_ticket.wait().expect("lo scan ket thuc");
+
+        let opened = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        drop(opened);
+        drop(global);
         guard_test_cleanup(&dir);
     }
 
@@ -732,7 +1359,10 @@ mod tests {
         let mutex: Arc<Mutex<Option<ReentrantProbe>>> = Arc::new(Mutex::new(None));
 
         let first = swap_locked(&mutex, ReentrantProbe(Arc::clone(&mutex)));
-        assert!(first.is_none(), "mutex rong luc dau ⇒ khong co gia tri CU nao");
+        assert!(
+            first.is_none(),
+            "mutex rong luc dau ⇒ khong co gia tri CU nao"
+        );
 
         let second = swap_locked(&mutex, ReentrantProbe(Arc::clone(&mutex)));
         assert!(second.is_some());
@@ -746,7 +1376,10 @@ mod tests {
         // (2) Cho phep chinh phep kiem chay them mot lan nua: `take()` trong mot khoi rieng
         //     nha `guard` TRUOC, roi `drop(last)` chay `try_lock()` khi mutex da ranh.
         let last = { mutex.lock().unwrap().take() };
-        assert!(last.is_some(), "mutex phai con dung mot gia tri sau ca hai luot swap");
+        assert!(
+            last.is_some(),
+            "mutex phai con dung mot gia tri sau ca hai luot swap"
+        );
         drop(last);
     }
 }
@@ -811,8 +1444,13 @@ pub mod wire {
         let chapter_id = opened.chapter_id;
         let scan_source_lang = source_lang.clone();
         replace_open_work(&app, opened);
-        spawn_import_scan(app, work_id, chapter_id, scan_source_lang);
-        Ok(created)
+        // Import đã commit và `OpenWorkState` đã thay xong. Spawn lỗi chỉ làm mất lượt
+        // quét nền; biến một thành công đã ghi xuống đĩa thành lỗi IPC sẽ khiến người
+        // dùng thử lại và tạo một Tác phẩm trùng.
+        Ok(super::keep_committed_import_when_scan_spawn_fails(
+            created,
+            || spawn_import_scan(app, work_id, chapter_id, scan_source_lang),
+        ))
     }
 
     /// Vỏ IPC của [`super::create_work_from_file`].
@@ -838,7 +1476,9 @@ pub mod wire {
         let chapter_id = opened.chapter_id;
         let scan_source_lang = source_lang.clone();
         replace_open_work(&app, opened);
-        spawn_import_scan(app, work_id, chapter_id, scan_source_lang);
-        Ok(created)
+        Ok(super::keep_committed_import_when_scan_spawn_fails(
+            created,
+            || spawn_import_scan(app, work_id, chapter_id, scan_source_lang),
+        ))
     }
 }

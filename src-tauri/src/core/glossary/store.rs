@@ -45,12 +45,14 @@
 //!
 //! ⚠️ Mọi chuỗi trong `src-tauri/src/**` viết KHÔNG DẤU; doc-comment có dấu là hợp lệ.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::matching::{MatchLang, TermMatch, find_terms};
 use crate::core::scope::{ScopeError, ScopeResolver, Tier as ScopeTier};
-use crate::core::store::{ReadHandle, SqlError, SqlResult, SqlType, Store, StoreError, Transaction};
+use crate::core::store::{
+    ReadHandle, SqlError, SqlResult, SqlType, Store, StoreError, Transaction,
+};
 
 use super::entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
 
@@ -260,6 +262,59 @@ pub fn load_tier(store: &Store) -> Result<BTreeMap<String, GlossaryEntry>, Store
     })
 }
 
+/// Nạp và phân giải Glossary hai tầng **một lần cho cả batch**, rồi trả tập thuật ngữ đã
+/// tồn tại ở kết quả phân giải.
+///
+/// Lượt quét Story 3.5 dùng tập này để loại ứng viên trước khi enqueue. Không gọi phân giải
+/// từng term: hai query chỉ lấy `source_term` và một lượt `ScopeResolver::apply_override`
+/// là ảnh chụp có chủ. Đường này không cần `translation`/`note`/`created_at`, nên dựng cả
+/// `GlossaryEntry` cho mọi hàng chỉ tăng allocation và kéo dài read critical section.
+/// `WHERE NOT EXISTS` tầng Work trong chính câu `INSERT` vẫn đứng sau để chặn race giữa ảnh
+/// chụp và giao dịch ghi. Hai database không có snapshot nguyên tử và hàm này cố ý không
+/// `ATTACH`/dựng giao dịch chéo.
+fn resolved_source_terms(
+    resolver: &ScopeResolver,
+    global: &Store,
+    work: &Store,
+) -> Result<BTreeSet<String>, GlossaryError> {
+    debug_assert!(
+        resolver.has_work_tier(),
+        "resolved_source_terms requires the resolver and work store to travel together"
+    );
+
+    let load_keys = |store: &Store| {
+        store.read(|conn: ReadHandle<'_>| {
+            let mut stmt =
+                conn.prepare("SELECT source_term FROM glossary_entry ORDER BY source_term")?;
+            let mut rows = stmt.query([])?;
+            let mut out = BTreeMap::new();
+            while let Some(row) = rows.next()? {
+                out.insert(row.get::<_, String>(0)?, ());
+            }
+            Ok(out)
+        })
+    };
+    let global_tier: BTreeMap<String, ()> = load_keys(global)?;
+    let work_tier: BTreeMap<String, ()> = load_keys(work)?;
+    let resolved = resolver.apply_override(GLOSSARY_SCOPE_KIND, &global_tier, Some(&work_tier))?;
+    Ok(resolved.into_keys().collect())
+}
+
+/// Lọc tại chỗ lô ứng viên theo Glossary hai tầng đã phân giải và trả số hàng bị loại.
+/// Giá trị trả về đi thẳng vào `skipped` của sự kiện hoàn tất; phép lọc nằm cạnh phép
+/// phân giải để không một chỗ gọi nào có thể lỡ kiểm riêng Global/Work trước override.
+pub(crate) fn filter_import_scan_candidates_by_scope(
+    resolver: &ScopeResolver,
+    global: &Store,
+    work: &Store,
+    candidates: &mut Vec<crate::core::glossary::scan::ScanCandidate>,
+) -> Result<i64, GlossaryError> {
+    let resolved_terms = resolved_source_terms(resolver, global, work)?;
+    let before = candidates.len();
+    candidates.retain(|candidate| !resolved_terms.contains(&candidate.source_term));
+    Ok(i64::try_from(before.saturating_sub(candidates.len())).unwrap_or(i64::MAX))
+}
+
 /// `category` trên đĩa đã đi qua `CHECK (category IN (…))` của `GLOSSARY_ENTRY_DDL` ở mọi
 /// lượt `INSERT`/`UPDATE` — một chuỗi lạ ở đây chỉ xảy ra nếu đĩa bị sửa ngoài đường của
 /// module này (một bản ứng dụng cũ hơn, một lượt sửa tay `.db`, một lỗi di trú tương lai).
@@ -278,8 +333,7 @@ fn decode_category(col: usize, raw: &str) -> SqlResult<Category> {
         SqlError::FromSqlConversionFailure(
             col,
             SqlType::Text,
-            format!("glossary_entry.category tren dia khong khop CHECK -- gia tri: {raw:?}")
-                .into(),
+            format!("glossary_entry.category tren dia khong khop CHECK -- gia tri: {raw:?}").into(),
         )
     })
 }
@@ -568,7 +622,8 @@ pub fn add_manual_term(
         GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
     };
 
-    insert_manual_entry(store, source_term, translation, note, category).map_err(GlossaryError::from)
+    insert_manual_entry(store, source_term, translation, note, category)
+        .map_err(GlossaryError::from)
 }
 
 /// Sửa `translation`/`note`/`category` của mục `(tier, id)` — chế độ SỬA của dải.
@@ -702,7 +757,9 @@ fn codepoint_boundaries(text: &str) -> Vec<usize> {
 /// ⚠️ `unwrap_or_else` là lưới an toàn, không phải đường THẬT: xem doc-comment của
 /// [`codepoint_boundaries`] — `byte_offset` luôn khớp `Ok` trên đường gọi đúng.
 fn byte_to_codepoint(boundaries: &[usize], byte_offset: usize) -> usize {
-    boundaries.binary_search(&byte_offset).unwrap_or_else(|insert_at| insert_at)
+    boundaries
+        .binary_search(&byte_offset)
+        .unwrap_or_else(|insert_at| insert_at)
 }
 
 /// Phân xử CHỒNG NHAU giữa các [`TermMatch`] — **span dài nhất thắng, hoà thì trái nhất**

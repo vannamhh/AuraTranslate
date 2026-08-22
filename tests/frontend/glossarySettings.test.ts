@@ -5,6 +5,8 @@
  * `vi.mock`, không gọi `@tauri-apps/api` thật.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 
 const putConfigMock = vi.fn()
 /** Ref giả — chỉ cần `.value`, cùng khuôn `readonly(ref(...))` phía thật. */
@@ -123,6 +125,37 @@ describe('openGlossarySettings/closeGlossarySettings', () => {
     expect(glossarySettingsOverlayIsOpen.value).toBe(false)
     expect(putConfigMock).not.toHaveBeenCalled()
   })
+
+  it('close bị chặn trong lúc save pending; save thành công mới tự đóng', async () => {
+    let finishSave: ((value: null) => void) | undefined
+    putConfigMock.mockImplementationOnce(
+      () => new Promise<null>((resolve) => {
+        finishSave = resolve
+      }),
+    )
+    const {
+      openGlossarySettings,
+      closeGlossarySettings,
+      saveGlossarySettings,
+      glossarySettingsThresholdInput,
+      glossarySettingsOverlayIsOpen,
+      glossarySettingsSaving,
+    } = await freshState()
+
+    openGlossarySettings()
+    glossarySettingsThresholdInput.value = '6'
+    const pending = saveGlossarySettings()
+    expect(glossarySettingsSaving.value).toBe(true)
+
+    closeGlossarySettings()
+    expect(glossarySettingsOverlayIsOpen.value).toBe(true)
+
+    if (finishSave === undefined) throw new Error('fixture save chưa được gọi')
+    finishSave(null)
+    await pending
+    expect(glossarySettingsSaving.value).toBe(false)
+    expect(glossarySettingsOverlayIsOpen.value).toBe(false)
+  })
 })
 
 describe('saveGlossarySettings — ô nhập từ chối giá trị hỏng, giá trị hợp lệ đi tới put_config đúng một lần', () => {
@@ -177,6 +210,25 @@ describe('saveGlossarySettings — ô nhập từ chối giá trị hỏng, giá
     expect(glossarySettingsOverlayIsOpen.value).toBe(true)
   })
 
+  it('lỗi IPC lạ đã chuẩn hoá thành err.unknown ⇒ lớp phủ ở lại để hiện lỗi', async () => {
+    const unknown = { code: 'ipc.unknown', message_key: 'err.unknown', params: {}, retryable: false }
+    putConfigMock.mockResolvedValue(unknown)
+    const {
+      openGlossarySettings,
+      saveGlossarySettings,
+      glossarySettingsThresholdInput,
+      glossarySettingsOverlayIsOpen,
+      glossarySettingsSaveError,
+    } = await freshState()
+
+    openGlossarySettings()
+    glossarySettingsThresholdInput.value = '12'
+    await saveGlossarySettings()
+
+    expect(glossarySettingsSaveError.value).toEqual(unknown)
+    expect(glossarySettingsOverlayIsOpen.value).toBe(true)
+  })
+
   it('mở lại SAU một lượt lưu thành công nạp giá trị VỪA LƯU, không giá trị bootstrap cũ', async () => {
     putConfigMock.mockResolvedValue(null)
     bootstrapThreshold = { value: 5 }
@@ -191,3 +243,35 @@ describe('saveGlossarySettings — ô nhập từ chối giá trị hỏng, giá
   })
 })
 
+describe('GlossarySettingsOverlay — bề mặt selection thật của modal', () => {
+  it('vùng chọn chữ thật trong modal vai display không trở thành nguồn Auto-Lookup', async () => {
+    const state = await freshState()
+    state.openGlossarySettings()
+    const [{ default: GlossarySettingsOverlay }, selectionContract] = await Promise.all([
+      import('../../src/GlossarySettingsOverlay.vue'),
+      import('../../src/panels/selectionContract'),
+    ])
+    const wrapper = mount(GlossarySettingsOverlay, { attachTo: document.body })
+    await nextTick()
+
+    const text = wrapper.get('.gs-intro').element.firstChild
+    if (!(text instanceof Text) || text.data.length === 0) {
+      wrapper.unmount()
+      throw new Error('modal thật phải render một text node để dựng vùng chọn')
+    }
+    const range = document.createRange()
+    range.setStart(text, 0)
+    range.setEnd(text, Math.min(8, text.data.length))
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    const selectedText = selection?.toString() ?? ''
+
+    expect(selectedText.length).toBeGreaterThan(0)
+    expect(selectionContract.currentSelectionText()).toBe('')
+    expect(selectionContract.currentSelectionTextForGlossaryQuickAdd()).toBe(selectedText)
+
+    wrapper.unmount()
+    selection?.removeAllRanges()
+  })
+})

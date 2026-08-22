@@ -132,6 +132,7 @@ import {
 // `ref` của Vue và gọi `@tauri-apps/api` xuyên qua `config/bootstrap.ts`.
 import {
   closeGlossarySettings,
+  glossarySettingsOverlayIsOpen,
   openGlossarySettings,
   saveGlossarySettings,
 } from './glossarySettingsState'
@@ -459,7 +460,8 @@ async function boot(): Promise<void> {
     // ⚠️ Lớp phủ phím tắt vẫn khai `aria-modal="true"` và vẫn `trapTab` — hai thứ đó nói về
     // **tiêu điểm**, không về hợp âm. Đừng gộp.
     void attachKeyboard(window, {
-      isBlocked: () => attributionIsOpen.value || captureIsArmed.value,
+      isBlocked: () =>
+        attributionIsOpen.value || captureIsArmed.value || glossarySettingsOverlayIsOpen.value,
     })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng

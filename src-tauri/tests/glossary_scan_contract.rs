@@ -9,7 +9,10 @@
 //!
 //! ⚠️ Mỗi hàng của I/O Matrix là ĐÚNG MỘT ca, tên hàm là một CÂU khẳng định.
 
-use auratranslate_lib::core::glossary::scan::{CONTEXT_EXAMPLE_CHAR_LIMIT, scan_candidates};
+use auratranslate_lib::core::glossary::scan::{
+    CONTEXT_EXAMPLE_CHAR_LIMIT, DictionaryProbe, ScanOutcome, scan_candidates,
+    scan_candidates_controlled,
+};
 use auratranslate_lib::core::glossary::surnames::COMMON_SURNAMES;
 use auratranslate_lib::core::matching::MatchLang;
 use auratranslate_lib::core::scope::store::{
@@ -52,7 +55,9 @@ fn a_chinese_name_repeated_forty_times_produces_one_row_with_the_right_count_and
 /// quả.
 #[test]
 fn a_nested_ngram_with_equal_frequency_to_its_substring_is_dropped_as_padding() {
-    let segments: Vec<String> = (0..40).map(|i| format!("萧炎的实力在第{i}章提升。")).collect();
+    let segments: Vec<String> = (0..40)
+        .map(|i| format!("萧炎的实力在第{i}章提升。"))
+        .collect();
     let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
 
     let mut is_known = nothing_known;
@@ -103,7 +108,11 @@ fn a_nested_ngram_with_a_different_frequency_from_its_substring_is_kept_alongsid
     let long = out
         .iter()
         .find(|c| c.source_term == "萧炎的")
-        .unwrap_or_else(|| panic!("khong thay `萧炎的` -- tan suat khac ca hai chuoi con, phai giu ca hai: {out:?}"));
+        .unwrap_or_else(|| {
+            panic!(
+                "khong thay `萧炎的` -- tan suat khac ca hai chuoi con, phai giu ca hai: {out:?}"
+            )
+        });
     assert_eq!(long.occurrence_count, 10);
 }
 
@@ -142,7 +151,9 @@ fn a_two_char_surname_shaped_string_below_threshold_by_one_is_kept_via_the_surna
     let hit = out
         .iter()
         .find(|c| c.source_term == "萧风")
-        .unwrap_or_else(|| panic!("`萧风` (ho + 1 ky tu, 4 lan, nguong 5-1=4) phai co mat: {out:?}"));
+        .unwrap_or_else(|| {
+            panic!("`萧风` (ho + 1 ky tu, 4 lan, nguong 5-1=4) phai co mat: {out:?}")
+        });
     assert_eq!(hit.occurrence_count, 4);
 }
 
@@ -160,6 +171,23 @@ fn a_surname_shaped_string_still_below_the_lowered_threshold_produces_zero_rows(
         !out.iter().any(|c| c.source_term == "萧风"),
         "3 lan < nguong da ha (4) -- van phai bi loai: {out:?}"
     );
+}
+
+/// `COMMON_SURNAMES` chủ ý chỉ giữ dạng giản thể để không dựng hai bảng luật song song;
+/// alias phồn thể phải đi qua cùng phép nới đúng một bậc.
+#[test]
+fn a_traditional_surname_alias_below_threshold_by_one_is_kept() {
+    let segments: Vec<String> = (0..4).map(|i| format!("蕭炎在第{i}章登场。")).collect();
+    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+
+    let mut is_known = nothing_known;
+    let out = scan_candidates(&refs, MatchLang::Zh, 5, COMMON_SURNAMES, &mut is_known);
+
+    let hit = out
+        .iter()
+        .find(|c| c.source_term == "蕭炎")
+        .unwrap_or_else(|| panic!("`蕭炎` phai dung cung luat ha nguong voi `萧炎`: {out:?}"));
+    assert_eq!(hit.occurrence_count, 4);
 }
 
 /// Ký tự đầu trong bảng họ, nhưng chuỗi 4 ký tự (quá dài cho luật nới) ⇒ đi đường ngưỡng
@@ -200,8 +228,36 @@ fn a_capitalized_phrase_repeated_mid_sentence_produces_one_row() {
 }
 
 #[test]
+fn whitespace_and_comma_variants_share_one_normalized_capitalized_phrase_key() {
+    let segments = [
+        "A beast called Fire Dragon appeared.",
+        "A beast called Fire  Dragon appeared.",
+        "A beast called Fire, Dragon appeared.",
+    ];
+
+    let mut is_known = nothing_known;
+    let out = scan_candidates(&segments, MatchLang::En, 3, COMMON_SURNAMES, &mut is_known);
+
+    let matching: Vec<_> = out
+        .iter()
+        .filter(|c| c.source_term.contains("Fire"))
+        .collect();
+    assert_eq!(
+        matching.len(),
+        1,
+        "ba bien the phai gom vao mot key: {out:?}"
+    );
+    assert_eq!(matching[0].source_term, "Fire Dragon");
+    assert_eq!(matching[0].occurrence_count, 3);
+    assert!(!matching[0].source_term.contains(','));
+    assert!(!matching[0].source_term.contains("  "));
+}
+
+#[test]
 fn a_capitalized_word_opening_three_hundred_segments_produces_zero_rows() {
-    let segments: Vec<String> = (0..300).map(|i| format!("The hero walked away, tired, sentence {i}.")).collect();
+    let segments: Vec<String> = (0..300)
+        .map(|i| format!("The hero walked away, tired, sentence {i}."))
+        .collect();
     let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
 
     let mut is_known = nothing_known;
@@ -221,8 +277,9 @@ fn a_capitalized_word_opening_three_hundred_segments_produces_zero_rows() {
 fn a_string_repeated_four_times_at_threshold_five_produces_zero_rows() {
     // 🔴 KHÔNG đứng đầu segment — nếu không, ca này đo nhầm luật "hoa đầu câu" (Hàng 7) chứ
     // không đo luật "dưới ngưỡng" mà tên hàm khai.
-    let segments: Vec<String> =
-        (0..4).map(|i| format!("A beast called Fire Dragon roared at hour {i}.")).collect();
+    let segments: Vec<String> = (0..4)
+        .map(|i| format!("A beast called Fire Dragon roared at hour {i}."))
+        .collect();
     let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
 
     let mut is_known = nothing_known;
@@ -232,6 +289,117 @@ fn a_string_repeated_four_times_at_threshold_five_produces_zero_rows() {
         !out.iter().any(|c| c.source_term == "Fire Dragon"),
         "4 lan < nguong 5: {out:?}"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Review 2026-08-22 — thứ tự lọc, outcome ba trạng thái và huỷ trong pha đếm
+// ═════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn a_term_below_threshold_never_reaches_the_dictionary_predicate() {
+    let segments: Vec<String> = (0..4)
+        .map(|i| format!("A beast called Fire Dragon roared at hour {i}."))
+        .collect();
+    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+    let mut calls = 0usize;
+    let mut probe = |_term: &str| {
+        calls += 1;
+        DictionaryProbe::Missing
+    };
+    let mut never_cancelled = || false;
+
+    let outcome = scan_candidates_controlled(
+        &refs,
+        MatchLang::En,
+        5,
+        COMMON_SURNAMES,
+        &mut probe,
+        &mut never_cancelled,
+    );
+
+    assert_eq!(outcome, ScanOutcome::Completed(Vec::new()));
+    assert_eq!(calls, 0, "duoi nguong phai bi loai TRUOC dictionary");
+}
+
+#[test]
+fn a_term_at_threshold_reaches_the_dictionary_predicate_exactly_once() {
+    let segments: Vec<String> = (0..5)
+        .map(|i| format!("A beast called Fire Dragon roared at hour {i}."))
+        .collect();
+    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+    let mut calls = 0usize;
+    let mut probe = |term: &str| {
+        assert_eq!(term, "Fire Dragon");
+        calls += 1;
+        DictionaryProbe::Missing
+    };
+    let mut never_cancelled = || false;
+
+    let outcome = scan_candidates_controlled(
+        &refs,
+        MatchLang::En,
+        5,
+        COMMON_SURNAMES,
+        &mut probe,
+        &mut never_cancelled,
+    );
+
+    let ScanOutcome::Completed(out) = outcome else {
+        panic!("du nguong va dictionary Missing phai hoan tat");
+    };
+    assert_eq!(out.len(), 1);
+    assert_eq!(calls, 1, "dedup xong moi lookup dung mot lan cho key");
+}
+
+#[test]
+fn an_inconclusive_dictionary_probe_aborts_the_batch_without_candidates() {
+    let segments: Vec<String> = (0..5)
+        .map(|i| format!("A beast called Fire Dragon roared at hour {i}."))
+        .collect();
+    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+    let mut probe = |_term: &str| DictionaryProbe::Inconclusive;
+    let mut never_cancelled = || false;
+
+    let outcome = scan_candidates_controlled(
+        &refs,
+        MatchLang::En,
+        5,
+        COMMON_SURNAMES,
+        &mut probe,
+        &mut never_cancelled,
+    );
+
+    assert_eq!(outcome, ScanOutcome::DictionaryInconclusive);
+}
+
+#[test]
+fn cancellation_during_count_stops_before_any_dictionary_probe() {
+    let segments: Vec<String> = (0..500)
+        .map(|i| format!("A beast called Fire Dragon roared at hour {i}."))
+        .collect();
+    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+    let mut dictionary_calls = 0usize;
+    let mut probe = |_term: &str| {
+        dictionary_calls += 1;
+        DictionaryProbe::Missing
+    };
+    let mut cancel_checks = 0usize;
+    let mut cancel_while_counting = || {
+        cancel_checks += 1;
+        cancel_checks == 3
+    };
+
+    let outcome = scan_candidates_controlled(
+        &refs,
+        MatchLang::En,
+        5,
+        COMMON_SURNAMES,
+        &mut probe,
+        &mut cancel_while_counting,
+    );
+
+    assert_eq!(outcome, ScanOutcome::Cancelled);
+    assert_eq!(dictionary_calls, 0);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -291,12 +459,18 @@ fn a_context_example_longer_than_the_limit_is_truncated_at_a_character_boundary_
 
     // Đối chứng biên: bản cắt phải là ĐÚNG {CONTEXT_EXAMPLE_CHAR_LIMIT} ký tự ĐẦU của segment
     // gốc -- không phải một chuỗi con nào khác, không mất/thêm ký tự nào ở đầu.
-    let expected_prefix: String = long_segment.chars().take(CONTEXT_EXAMPLE_CHAR_LIMIT).collect();
+    let expected_prefix: String = long_segment
+        .chars()
+        .take(CONTEXT_EXAMPLE_CHAR_LIMIT)
+        .collect();
     assert_eq!(hit.context_example, expected_prefix);
 
     // `String` hợp lệ tự nó đã chứng minh không cắt giữa một ký tự nhiều byte -- Rust không
     // cho tồn tại một `String` không hợp lệ UTF-8. Khẳng định thêm cho rõ ý test.
-    assert!(hit.context_example.is_char_boundary(hit.context_example.len()));
+    assert!(
+        hit.context_example
+            .is_char_boundary(hit.context_example.len())
+    );
 }
 
 #[test]
@@ -317,29 +491,73 @@ fn a_context_example_shorter_than_the_limit_is_kept_whole() {
     );
 }
 
+#[test]
+fn multiple_missing_terms_first_seen_in_one_segment_share_the_same_truncated_context_without_changing_output()
+ {
+    let long_segment = (0..12)
+        .map(|i| format!("a witness met Fire Dragon then Ice Phoenix near marker {i}"))
+        .collect::<Vec<_>>()
+        .join(" and ");
+    assert!(long_segment.chars().count() > CONTEXT_EXAMPLE_CHAR_LIMIT);
+    let refs = [long_segment.as_str()];
+    let mut is_known = nothing_known;
+
+    let out = scan_candidates(&refs, MatchLang::En, 5, COMMON_SURNAMES, &mut is_known);
+    let expected_context: String = long_segment
+        .chars()
+        .take(CONTEXT_EXAMPLE_CHAR_LIMIT)
+        .collect();
+    let fire = out
+        .iter()
+        .find(|candidate| candidate.source_term == "Fire Dragon")
+        .unwrap_or_else(|| panic!("khong thay Fire Dragon: {out:?}"));
+    let ice = out
+        .iter()
+        .find(|candidate| candidate.source_term == "Ice Phoenix")
+        .unwrap_or_else(|| panic!("khong thay Ice Phoenix: {out:?}"));
+
+    assert_eq!(fire.occurrence_count, 12);
+    assert_eq!(ice.occurrence_count, 12);
+    assert_eq!(fire.context_example, expected_context);
+    assert_eq!(ice.context_example, expected_context);
+    assert_eq!(fire.context_example, ice.context_example);
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Hàng 10 — Ngưỡng cấu hình sai (`core::scope::store::parse_glossary_scan_threshold`)
 // ═════════════════════════════════════════════════════════════════════════════════
 
 #[test]
 fn a_missing_threshold_key_falls_back_to_the_default() {
-    assert_eq!(parse_glossary_scan_threshold(None), DEFAULT_GLOSSARY_SCAN_THRESHOLD);
+    assert_eq!(
+        parse_glossary_scan_threshold(None),
+        DEFAULT_GLOSSARY_SCAN_THRESHOLD
+    );
 }
 
 #[test]
 fn a_non_numeric_threshold_value_falls_back_to_the_default() {
-    assert_eq!(parse_glossary_scan_threshold(Some("abc")), DEFAULT_GLOSSARY_SCAN_THRESHOLD);
+    assert_eq!(
+        parse_glossary_scan_threshold(Some("abc")),
+        DEFAULT_GLOSSARY_SCAN_THRESHOLD
+    );
 }
 
 #[test]
 fn a_zero_threshold_value_falls_back_to_the_default() {
     // "0" phan tich DUOC thanh 0u32 nhung bi chan tuong minh -- mot nguong 0 tat het bo loc.
-    assert_eq!(parse_glossary_scan_threshold(Some("0")), DEFAULT_GLOSSARY_SCAN_THRESHOLD);
+    assert_eq!(
+        parse_glossary_scan_threshold(Some("0")),
+        DEFAULT_GLOSSARY_SCAN_THRESHOLD
+    );
 }
 
 #[test]
 fn a_negative_threshold_value_falls_back_to_the_default() {
-    assert_eq!(parse_glossary_scan_threshold(Some("-3")), DEFAULT_GLOSSARY_SCAN_THRESHOLD);
+    assert_eq!(
+        parse_glossary_scan_threshold(Some("-3")),
+        DEFAULT_GLOSSARY_SCAN_THRESHOLD
+    );
 }
 
 #[test]

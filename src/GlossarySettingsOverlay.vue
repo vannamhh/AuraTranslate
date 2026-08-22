@@ -16,6 +16,7 @@ import { nextTick, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
+import { useSelectionSurface } from './panels/selectionContract'
 import {
   glossarySettingsOverlayIsOpen,
   glossarySettingsSaveError,
@@ -28,6 +29,9 @@ import {
 let returnFocusTo: HTMLElement | null = null
 
 const panel = useTemplateRef<HTMLElement>('panel')
+// Lớp phủ chứa chữ thật nhưng không phải nguồn từ điển. Đăng ký `display` để một vùng
+// chọn trong modal không phát Auto-Lookup rồi thay nội dung phía sau modal.
+useSelectionSurface(panel, 'display')
 
 watch(glossarySettingsOverlayIsOpen, (open) => {
   if (open) {

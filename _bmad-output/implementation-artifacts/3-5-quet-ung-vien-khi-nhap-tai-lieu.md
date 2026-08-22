@@ -519,3 +519,89 @@ chỉnh ngưỡng mặc định"* của §Ask First. Cả hai giới hạn đã 
 
 - Năm miễn trừ CÓ TÊN, theo tiền lệ `shortcutsState.ts` đã có sẵn.
   [`check-panel-refs.mjs:284`](../../scripts/check-panel-refs.mjs#L284)
+
+## Kết quả đóng vòng review 2026-08-22 — spec `3-5-fix-review-findings`
+
+Vòng review ghi 19 mục; đối chứng rút còn **17 finding riêng** vì hai cặp frontend mô tả
+cùng nguyên nhân và cùng hành động sửa. Finding *"writer đang bận"* cũng được thu hẹp theo
+topology thật: chưa có job project khác xếp trước trong cùng mutex; lỗi có thật là
+`OpenWorkState` bị giữ xuyên qua chính batch đã đo **19 ms / 969 hàng**. Bản vá vẫn tách
+enqueue/reply thành một write-ticket package-private, và test kênh tất định (0 sleep) chứng
+minh state được nhả trong lúc writer còn bị chặn.
+
+Các finding còn lại đã đóng theo đúng biên spec:
+
+- Lượt scan có outcome ba trạng thái; layer từ điển lỗi trả
+  `dictionary_inconclusive`, không sinh ứng viên giả. Generation mới huỷ worker cũ trong
+  pha đếm/trước lookup/trước enqueue; worker bị huỷ không phát event hoàn tất.
+- Batch nạp Global + Work đúng một lần, `ScopeResolver::apply_override` một lần, lọc term
+  đã tồn tại trước enqueue và cộng vào `skipped`; `WHERE NOT EXISTS` của Work vẫn giữ làm
+  race guard. Không `ATTACH`, không giao dịch chéo database, không `Arc<Store>`.
+- Cụm hoa được dựng lại từ token nên một/hai khoảng trắng và dấu phẩy cùng thành một key
+  sạch; alias `蕭 → 萧` dùng lại bảng họ giản thể thay vì dựng bảng luật thứ hai.
+- IPC lỗi lạ chỉ thành `null` ngoài Tauri; trong Tauri nó thành `err.unknown`, giữ modal mở.
+  Save pending sở hữu vòng đời modal; modal mở chặn keymap toàn cục và đăng ký bề mặt chọn
+  vai `display`.
+- Năm khoảng hở kiểm chứng đã có chủ: predicate dưới/đủ ngưỡng, count/context qua command,
+  lọc Global, writer/state bằng kênh, và đường IPC/event/modal trên webview thật.
+
+**Bằng chứng chạy thật sau bản vá:** `npm run test` **30 tệp / 352 ca**; `npm run build`;
+Rust unit **17/17**, `glossary_scan_contract` **24/24**, `glossary_contract` **63/63**,
+`glossary_commands_contract` **6/6**, `glossary_boundary` **11/11**; `.githooks/pre-push`
+xanh toàn bộ trong **132 giây**; targeted e2e `story-3-5-review.e2e.mjs` **2/2** trên
+WKWebView thật. Ca e2e đăng ký listener trước import, dùng Work mới cho ngưỡng persisted
+6 rồi 5 và quan sát command trả lúc event count còn 0. Tauri-service trên máy chạy không
+lấy được active-window state cho pointer đầu; spec vẫn gọi `realClick`, rồi dùng fallback
+DOM theo đúng thứ tự `mousedown → focus → mouseup → click` khi hiệu ứng chưa xảy ra. Đây là
+giới hạn của bộ lái local, không đổi phán quyết event/ngưỡng/keymap/save đã đo trong webview.
+
+### Bổ sung bằng chứng Matrix 2026-08-22
+
+🔵 **Cập nhật 2026-08-22:** sau lượt audit Matrix, số unit trực tiếp tăng từ **17/17**
+lên **19/19**. Ba khoảng phủ trước đó mới được chứng minh bằng các test rời nay đã được
+nối qua đúng quyết định mà worker sản phẩm dùng:
+
+- Một `GroupedLookup` có `SkippedLayer::OpenFailed` đi qua
+  `dictionary_probe_from_grouped` thành `DictionaryProbe::Inconclusive`, rồi đi qua
+  `import_scan_next_step` thành `EmitDictionaryInconclusive`; bảng `pending_glossary`
+  của Work thật vẫn rỗng, nên đường này không thể enqueue batch giả.
+- Một test duy nhất tạo generation A, phát generation B ngay trong callback đếm của
+  `scan_candidates`, nhận `ScanOutcome::Cancelled`, rồi chứng minh quyết định worker là
+  `Stop`: lookup không được gọi, bảng chờ rỗng và không có nhánh phát event hoàn tất.
+- Seam spawn tối thiểu được tiêm `thread::Builder::spawn` trả `Err`; Work đã commit vẫn
+  đọc được cả hàng dữ liệu, `project.db` và `meta.json`, đồng thời hàm trả bình thường —
+  lỗi khởi động scan không panic và không đảo ngược import.
+
+**Bằng chứng trực tiếp sau bổ sung:** Rust unit **19/19**,
+`glossary_scan_contract` **24/24**, `glossary_commands_contract` **6/6** và
+`glossary_boundary` **11/11**; `check:i18n` và `git diff --check` đều xanh. Full
+`.githooks/pre-push` sau bổ sung xanh toàn bộ trong **123 giây**.
+
+### Bổ sung vá review Step 4 ngày 2026-08-22
+
+🔵 **Cập nhật 2026-08-22:** mapping lookup nay giữ đủ dữ liệu cắt trang theo precedence
+đã duyệt: `skipped` thắng tuyệt đối; hit trong `groups`/`hidden_sources` là `Known`;
+chỉ có `truncated_layers` là `Inconclusive`; còn lại mới là `Missing`. Nhánh
+`dictionary_inconclusive` dùng một constructor payload đã có test serialization khóa
+`outcome` và hai số đếm 0.
+
+Pha đếm chỉ giữ chỉ số segment đầu tiên. Context được cắt sau threshold và chỉ khi probe
+trả `Missing`; nhiều term cùng segment clone đúng một chuỗi cache. Scope filter vẫn đi
+qua `ScopeResolver::apply_override`, nhưng hai query nay chỉ lấy `source_term` vào
+`BTreeMap<String, ()>`; test chạy qua cả Global lẫn Work và SQL Work race guard không đổi.
+Cancellation muộn đổi generation ngay sau scope filtering trả `None`, không tạo ticket và
+bảng chờ thật vẫn rỗng.
+
+Frontend có đủ bốn nhánh lỗi không-shaped mới cho bootstrap/delete trong và ngoài Tauri;
+component test mount `GlossarySettingsOverlay` thật, tạo Range thật trong modal và chứng
+minh vai `display` trả rỗng cho Auto-Lookup. E2E chờ `>= 1` rồi khóa đúng một event, ép
+tiền đề Library trước khi thử `Mod+2`, và fallback save kiểm lại node trong cùng lượt DOM.
+
+**Bằng chứng trực tiếp:** project worker **15/15**, Rust unit **23/23**,
+`glossary_scan_contract` **25/25**, `glossary_contract` **63/63**,
+`glossary_commands_contract` **6/6**, `glossary_boundary` **11/11**; Vitest đích danh
+**2 tệp / 33 ca**, toàn bộ Vitest **30 tệp / 357 ca**; `npm run build` và
+`check:lint` xanh; targeted WKWebView e2e **2/2** xanh. Cảnh báo active-window của
+tauri-service vẫn là giới hạn local đã ghi, không đổi phán quyết.
+
+Full `.githooks/pre-push` sau toàn bộ vá Step 4 xanh trong **105 giây**.

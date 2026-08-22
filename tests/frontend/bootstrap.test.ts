@@ -38,6 +38,7 @@ function wirePayload(glossaryScanThreshold: unknown): Record<string, unknown> {
 
 beforeEach(() => {
   mockInvoke.mockReset()
+  Reflect.deleteProperty(window, '__TAURI_INTERNALS__')
 })
 
 describe('loadBootstrapConfig — phân giải glossary_scan_threshold qua bộ phân giải THẬT', () => {
@@ -99,5 +100,64 @@ describe('loadBootstrapConfig — phân giải glossary_scan_threshold qua bộ 
     await loadBootstrapConfig()
 
     expect(bootstrapGlossaryScanThreshold.value).toBe(12)
+  })
+})
+
+describe('lỗi không có hình dạng IpcError — phân biệt Tauri thật với trình duyệt thường', () => {
+  const unknownError = {
+    code: 'ipc.unknown',
+    message_key: 'err.unknown',
+    params: {},
+    retryable: false,
+  }
+
+  it('bootstrap_config reject Error khi cầu Tauri tồn tại ⇒ err.unknown và config null', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: {} })
+    mockInvoke.mockRejectedValueOnce(new Error('bridge rejected'))
+    const { loadBootstrapConfig, configError } = await import('../../src/config/bootstrap')
+
+    const result = await loadBootstrapConfig()
+
+    expect(result).toEqual({ config: null, error: unknownError })
+    expect(configError.value).toEqual(unknownError)
+  })
+
+  it('bootstrap_config reject Error ngoài Tauri ⇒ error null để npm run dev dùng mặc định', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('no bridge'))
+    const { loadBootstrapConfig } = await import('../../src/config/bootstrap')
+
+    await expect(loadBootstrapConfig()).resolves.toEqual({ config: null, error: null })
+  })
+
+  it('put_config reject Error khi cầu Tauri tồn tại ⇒ err.unknown, không báo lưu thành công giả', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: {} })
+    mockInvoke.mockRejectedValueOnce(new Error('bridge rejected'))
+    const { putConfig } = await import('../../src/config/bootstrap')
+
+    const error = await putConfig('app_config', 'glossary_scan_threshold', '6')
+
+    expect(error).toEqual(unknownError)
+  })
+
+  it('put_config reject Error ngoài Tauri ⇒ null để npm run dev tiếp tục dùng được', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('no bridge'))
+    const { putConfig } = await import('../../src/config/bootstrap')
+
+    await expect(putConfig('app_config', 'glossary_scan_threshold', '6')).resolves.toBeNull()
+  })
+
+  it('delete_config reject Error khi cầu Tauri tồn tại ⇒ err.unknown, không báo xoá thành công giả', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: {} })
+    mockInvoke.mockRejectedValueOnce(new Error('bridge rejected'))
+    const { deleteConfig } = await import('../../src/config/bootstrap')
+
+    await expect(deleteConfig('app_config', 'mode.library')).resolves.toEqual(unknownError)
+  })
+
+  it('delete_config reject Error ngoài Tauri ⇒ null để npm run dev tiếp tục dùng được', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('no bridge'))
+    const { deleteConfig } = await import('../../src/config/bootstrap')
+
+    await expect(deleteConfig('app_config', 'mode.library')).resolves.toBeNull()
   })
 })

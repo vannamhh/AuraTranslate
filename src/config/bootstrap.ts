@@ -127,6 +127,19 @@ function isIpcError(value: unknown): value is IpcError {
   )
 }
 
+/** Có cầu IPC thật hay chỉ là phiên `npm run dev` trong trình duyệt thường. */
+function hasIpcBridge(): boolean {
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+}
+
+/** Lỗi hồi phòng khi cầu IPC tồn tại nhưng rejection không mang hợp đồng AD-21. */
+const UNKNOWN_IPC_ERROR: IpcError = {
+  code: 'ipc.unknown',
+  message_key: 'err.unknown',
+  params: {},
+  retryable: false,
+}
+
 /** Tên command trên dây. Khớp `src-tauri/src/commands/config.rs` (module `wire`). */
 const CMD_BOOTSTRAP = 'bootstrap_config'
 const CMD_PUT = 'put_config'
@@ -235,6 +248,11 @@ export async function loadBootstrapConfig(): Promise<BootstrapResult> {
       lastError.value = err
       return { config: null, error: err }
     }
+    if (hasIpcBridge()) {
+      console.error(`[config] \`${CMD_BOOTSTRAP}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      lastError.value = UNKNOWN_IPC_ERROR
+      return { config: null, error: UNKNOWN_IPC_ERROR }
+    }
     // Không có cầu IPC — `npm run dev` trong một trình duyệt thường. Ứng dụng vẫn lên
     // bằng mặc định; chẩn đoán ra console và không ra màn hình.
     console.info(
@@ -262,6 +280,10 @@ export async function putConfig(
     return null
   } catch (err) {
     if (isIpcError(err)) return err
+    if (hasIpcBridge()) {
+      console.error(`[config] \`${CMD_PUT}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return UNKNOWN_IPC_ERROR
+    }
     console.info(
       `[config] không gọi được \`${CMD_PUT}\` — chạy ngoài Tauri? ` +
         `Lựa chọn này sẽ không được nhớ. ${String(err)}`,
@@ -289,6 +311,10 @@ export async function deleteConfig(kind: string, key: string): Promise<IpcError 
     return null
   } catch (err) {
     if (isIpcError(err)) return err
+    if (hasIpcBridge()) {
+      console.error(`[config] \`${CMD_DELETE}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return UNKNOWN_IPC_ERROR
+    }
     console.info(
       `[config] không gọi được \`${CMD_DELETE}\` — chạy ngoài Tauri? ` +
         `Lựa chọn này sẽ không được nhớ. ${String(err)}`,

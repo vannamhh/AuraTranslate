@@ -609,6 +609,7 @@ fn close_dict_layers(handle: &tauri::AppHandle) {
 fn open_work_slot(app: &tauri::App) {
     use tauri::Manager as _;
     app.manage(crate::commands::project::OpenWorkState::new(None));
+    app.manage(crate::commands::project::ImportScanGeneration::default());
 }
 
 /// `RunEvent::Exit` ⇒ đóng Tác phẩm đang mở (nếu có), cùng khuôn [`close_global_store`].

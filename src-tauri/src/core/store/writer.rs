@@ -40,6 +40,30 @@ use super::{SqlResult, StoreError, StoreKind};
 /// luồng writer chỉ `touch_write()` khi có gì mới trong WAL.
 type Task = Box<dyn FnOnce(&mut Connection) -> bool + Send + 'static>;
 
+/// Vé của một job đã **xếp vào** writer nhưng có thể chưa chạy xong.
+///
+/// `pub(crate)` là ranh giới cố ý của Story 3.5 review: một consumer cần xếp job trong
+/// vùng khoá state rồi NHẢ khoá trước khi chờ. Không mở sender, connection hay transaction
+/// ra ngoài `core/store/**`; vé chỉ cho đúng một thao tác [`WriteTicket::wait`].
+pub(crate) struct WriteTicket<T> {
+    reply_rx: mpsc::Receiver<SqlResult<T>>,
+    kind: StoreKind,
+}
+
+impl<T> WriteTicket<T> {
+    /// Chờ job đã xếp trả lời. Kênh đứt là `WriterGone`, không một đường treo vô hạn.
+    pub(crate) fn wait(self) -> Result<T, StoreError> {
+        match self.reply_rx.recv() {
+            Ok(Ok(value)) => Ok(value),
+            Ok(Err(err)) => Err(StoreError::WriteFailed {
+                store: self.kind,
+                detail: err.to_string(),
+            }),
+            Err(_) => Err(StoreError::WriterGone { store: self.kind }),
+        }
+    }
+}
+
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
@@ -122,6 +146,19 @@ impl Writer {
         F: FnOnce(&Transaction<'_>) -> SqlResult<T> + Send + 'static,
         T: Send + 'static,
     {
+        self.enqueue(job)?.wait()
+    }
+
+    /// Xếp job và trả vé NGAY SAU `send`, không chờ giao dịch chạy xong.
+    ///
+    /// Hình dạng này tách đúng hai pha vốn đã có trong [`Writer::write`]; nó không dựng
+    /// writer hay hàng đợi thứ hai. Consumer bình thường tiếp tục gọi `write`; chỉ đường
+    /// cần nhả mutex state trước khi chờ mới dùng vé qua `Store::write_ticket`.
+    pub(crate) fn enqueue<T, F>(&self, job: F) -> Result<WriteTicket<T>, StoreError>
+    where
+        F: FnOnce(&Transaction<'_>) -> SqlResult<T> + Send + 'static,
+        T: Send + 'static,
+    {
         let kind = self.kind;
 
         // ⚠️ Gọi lồng: job đang chạy TRÊN luồng writer gọi lại `Store::write`/`Writer::write`.
@@ -168,17 +205,11 @@ impl Writer {
             }
         }
 
-        // Ba nhánh, và nhánh thứ ba là lý do hàm này không bao giờ treo: nếu luồng writer
-        // biến mất giữa chừng thì `reply_tx` nằm trong `task` bị thả theo, kênh đứt, và
-        // `recv()` trả `Err` thay vì chờ mãi.
-        match reply_rx.recv() {
-            Ok(Ok(value)) => Ok(value),
-            Ok(Err(err)) => Err(StoreError::WriteFailed {
-                store: kind,
-                detail: err.to_string(),
-            }),
-            Err(_) => Err(StoreError::WriterGone { store: kind }),
-        }
+        // 🔵 CẬP NHẬT 2026-08-22 — `recv()` không còn nằm ngay dưới sau khi enqueue/reply
+        // được tách thành ticket. Ba nhánh cũ vẫn nguyên vẹn trong `WriteTicket::wait`:
+        // writer trả `Ok`/`Err`, hoặc `reply_tx` bị thả làm kênh đứt và `recv()` trả `Err`
+        // thay vì chờ mãi.
+        Ok(WriteTicket { reply_rx, kind })
     }
 
     /// Đóng hàng đợi và **chờ** luồng writer xử lý hết việc đã xếp.

@@ -145,7 +145,12 @@ pub use candidate_store::{
     reject_candidate,
 };
 pub use entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
-pub use scan::{ScanCandidate, scan_candidates};
+pub use scan::{
+    DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates, scan_candidates_controlled,
+};
+
+pub(crate) use candidate_store::{ImportScanWriteTicket, enqueue_import_scan_candidates};
+pub(crate) use store::filter_import_scan_candidates_by_scope;
 pub use store::{
     GlossaryError, add_manual_term, confirm_translation, entries_eligible_for_injection,
     insert_manual_entry, load_tier, marks_for_source_text, match_lang_for_source_lang,

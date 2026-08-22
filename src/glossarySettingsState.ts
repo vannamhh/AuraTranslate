@@ -97,6 +97,9 @@ export function openGlossarySettings(): void {
 
 /** Handler thật của `glossary.settings.close` — KHÔNG lưu gì. */
 export function closeGlossarySettings(): void {
+  // Save đang bay sở hữu vòng đời modal: đóng lúc này làm người dùng mất bề mặt báo lỗi,
+  // và lượt save thành công phía dưới vẫn tự đóng đúng một lần sau khi đĩa trả lời.
+  if (saving.value) return
   overlayOpen.value = false
   saveError.value = null
 }

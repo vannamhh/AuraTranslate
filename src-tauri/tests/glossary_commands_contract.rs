@@ -33,7 +33,8 @@ use auratranslate_lib::commands::glossary::{
     glossary_add_term, glossary_lookup_term, glossary_pending_candidates, glossary_update_term,
 };
 use auratranslate_lib::commands::project::create_work_from_text;
-use auratranslate_lib::core::glossary::{CandidateOrigin, Category, GlossaryTier, insert_candidate};
+use auratranslate_lib::core::glossary::scan::ScanCandidate;
+use auratranslate_lib::core::glossary::{Category, GlossaryTier, insert_import_scan_candidates};
 use auratranslate_lib::core::store::{Store, StoreSpec};
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
@@ -91,7 +92,10 @@ fn glossary_add_term_at_the_work_tier_writes_through_a_real_open_work() {
     // `work_context` -> `resolve_term_for_quick_add` duoc chay THAT, khong bi bo qua.
     let found = glossary_lookup_term(Some(&global), Some(&opened), "慕容")
         .expect("tra lai qua commands::glossary");
-    assert!(found.work_tier_available, "co mot Tac pham dang mo qua OpenWork that");
+    assert!(
+        found.work_tier_available,
+        "co mot Tac pham dang mo qua OpenWork that"
+    );
     let entry = found.entry.expect("phai tim thay muc vua them");
     assert_eq!(entry.tier, "work", "muc phai o tang Tac pham");
     assert_eq!(entry.id, id);
@@ -99,7 +103,8 @@ fn glossary_add_term_at_the_work_tier_writes_through_a_real_open_work() {
 
     // Doi chung: global.db KHONG bi dung toi -- tra mot cum khong ton tai o tang Global
     // (dung `ScopeResolver::global_only`, khong qua OpenWork) phai RONG.
-    let global_only = glossary_lookup_term(Some(&global), None, "慕容").expect("tra chi tang global");
+    let global_only =
+        glossary_lookup_term(Some(&global), None, "慕容").expect("tra chi tang global");
     assert!(
         global_only.entry.is_none(),
         "muc vua them o tang Tac pham KHONG duoc lot sang global.db"
@@ -230,15 +235,27 @@ fn glossary_pending_candidates_lists_the_pending_queue_of_the_real_open_work() {
     let root = temp_dir("pending-candidates-real-work");
     let opened = open_work(&root, "Bang Cho");
 
-    insert_candidate(&opened.store, "萧炎", CandidateOrigin::ImportScan).expect("chen ung vien");
+    insert_import_scan_candidates(
+        &opened.store,
+        &[ScanCandidate {
+            source_term: "萧炎".to_owned(),
+            occurrence_count: 37,
+            context_example: "萧炎在乌坦城第一次登场。".to_owned(),
+        }],
+    )
+    .expect("chen ung vien quet co count/context khac mac dinh");
 
-    let rows = glossary_pending_candidates(Some(&opened)).expect("liet ke bang cho qua commands::glossary");
+    let rows = glossary_pending_candidates(Some(&opened))
+        .expect("liet ke bang cho qua commands::glossary");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].source_term, "萧炎");
     assert_eq!(rows[0].candidate_origin, "import_scan");
     assert_eq!(rows[0].resolution, None);
-    assert_eq!(rows[0].occurrence_count, 0, "insert_candidate khong dat occurrence_count");
-    assert_eq!(rows[0].context_example, None);
+    assert_eq!(rows[0].occurrence_count, 37);
+    assert_eq!(
+        rows[0].context_example.as_deref(),
+        Some("萧炎在乌坦城第一次登场。")
+    );
 
     drop(opened);
     cleanup(&root);

@@ -33,7 +33,9 @@
 //!
 //! ⚠️ Mọi chuỗi trong `src-tauri/src/**` viết KHÔNG DẤU; doc-comment có dấu là hợp lệ.
 
-use crate::core::store::{SqlError, SqlResult, SqlType, Store, StoreError, Transaction};
+use crate::core::store::{
+    SqlError, SqlResult, SqlType, Store, StoreError, Transaction, WriteTicket,
+};
 
 use super::candidate::{CandidateOrigin, GlossaryCandidate, Resolution};
 use super::entry::Category;
@@ -147,16 +149,47 @@ pub fn insert_import_scan_candidates(
     store: &Store,
     candidates: &[crate::core::glossary::scan::ScanCandidate],
 ) -> Result<(i64, i64), StoreError> {
+    enqueue_import_scan_candidates(store, candidates, 0)?.wait()
+}
+
+/// Vé ghi lô Glossary: số bị loại bởi phân giải hai tầng được cộng vào số SQL bỏ qua chỉ
+/// SAU khi writer trả lời. Wrapper giữ chi tiết `WriteTicket` trong miền Glossary, nên
+/// `commands::project` không biết transaction hay kênh phản hồi tồn tại.
+pub(crate) struct ImportScanWriteTicket {
+    ticket: WriteTicket<(i64, i64)>,
+    skipped_before_enqueue: i64,
+}
+
+impl ImportScanWriteTicket {
+    pub(crate) fn wait(self) -> Result<(i64, i64), StoreError> {
+        let (inserted, skipped_in_writer) = self.ticket.wait()?;
+        Ok((inserted, self.skipped_before_enqueue + skipped_in_writer))
+    }
+}
+
+/// Xếp lô ứng viên vào writer nhưng KHÔNG chờ. Chỗ gọi dùng nó trong vùng khoá
+/// `OpenWorkState`, nhả guard, rồi mới gọi [`ImportScanWriteTicket::wait`].
+pub(crate) fn enqueue_import_scan_candidates(
+    store: &Store,
+    candidates: &[crate::core::glossary::scan::ScanCandidate],
+    skipped_before_enqueue: i64,
+) -> Result<ImportScanWriteTicket, StoreError> {
     // Sở hữu tường minh: job ghi chạy trên luồng writer nên nó phải `Send + 'static` —
     // `candidates` không thoả (mượn), nên sao một bản trước khi `move` vào closure. Mọi
     // hàng của LÔ NÀY mang cùng `candidate_origin`: hàm này chỉ phục vụ một lượt quét khi
     // nhập (`ImportScan`), không nhận xuất xứ từ chỗ gọi.
     let rows: Vec<(String, i64, String)> = candidates
         .iter()
-        .map(|c| (c.source_term.clone(), c.occurrence_count, c.context_example.clone()))
+        .map(|c| {
+            (
+                c.source_term.clone(),
+                c.occurrence_count,
+                c.context_example.clone(),
+            )
+        })
         .collect();
 
-    store.write(move |tx: &Transaction<'_>| {
+    let ticket = store.write_ticket(move |tx: &Transaction<'_>| {
         let mut stmt = tx.prepare_cached(
             "INSERT INTO glossary_candidate
                 (source_term, candidate_origin, occurrence_count, context_example, created_at)
@@ -169,7 +202,12 @@ pub fn insert_import_scan_candidates(
         let mut skipped = 0i64;
         let candidate_origin = CandidateOrigin::ImportScan.as_str();
         for (source_term, occurrence_count, context_example) in &rows {
-            let changed = stmt.execute((source_term, candidate_origin, occurrence_count, context_example))?;
+            let changed = stmt.execute((
+                source_term,
+                candidate_origin,
+                occurrence_count,
+                context_example,
+            ))?;
             if changed > 0 {
                 inserted += 1;
             } else {
@@ -177,6 +215,10 @@ pub fn insert_import_scan_candidates(
             }
         }
         Ok((inserted, skipped))
+    })?;
+    Ok(ImportScanWriteTicket {
+        ticket,
+        skipped_before_enqueue,
     })
 }
 
