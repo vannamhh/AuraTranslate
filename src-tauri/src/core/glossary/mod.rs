@@ -112,19 +112,43 @@
 //! - ⚠️ **NỬA GIAO DIỆN (vẽ dấu ở cột nguyên văn của lưới, dòng `StatusBar`) TÁCH KHỎI
 //!   STORY NÀY** — xem `deferred-work.md` §"Deferred from: lượt lập spec Story 3.4", chủ:
 //!   Ice, mở qua một lượt `correct-course`. Story 3.4 giao đúng NỬA RUST.
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! HÌNH DẠNG ĐÃ DỰNG (Story 3.5) — quét ứng viên khi nhập tài liệu, chỗ gọi sản phẩm ĐẦU
+//! TIÊN của bảng chờ (Story 3.2 dựng bốn hàm, 0 chỗ gọi cho tới lượt này)
+//! ─────────────────────────────────────────────────────────────────────────────
+//! - [`scan`] — module LÁ, thuật toán THUẦN (`scan::scan_candidates`), không chạm DB, tiêm
+//!   vị từ tra từ điển qua tham số (§Boundaries: "lọc tần suất trước, tra sau"). Sinh
+//!   n-gram ký tự (`Zh`) hoặc cụm hoa liền nhau (`En`), phân xử "n-gram lồng", nới ngưỡng
+//!   cho hình dạng giống họ người ([`surnames`]).
+//! - [`surnames`] — mảng hằng *Bách gia tính*, dùng bởi [`scan`].
+//! - [`candidate_store::insert_import_scan_candidates`] — hàm ghi LÔ mới, MỘT
+//!   `Store::write`, lọc `glossary_entry` NGAY trong câu `INSERT` (`WHERE NOT EXISTS`),
+//!   `ON CONFLICT (source_term) DO NOTHING`. **KHÔNG** vào `GLOSSARY_ONLY_SURFACE` —
+//!   `commands::project` là chỗ gọi sản phẩm DUY NHẤT và nó nằm NGOÀI `core/glossary/**`
+//!   (xem Spec Change Log của story 3-5 cho lý do đầy đủ, và vì sao `insert_candidate`
+//!   singular thì có).
+//! - `commands::glossary::glossary_pending_candidates` — vỏ IPC CHỈ-ĐỌC thứ năm, gọi
+//!   [`pending_candidates`] — chỗ gọi sản phẩm ĐẦU TIÊN của hàm đó (Story 3.2 dựng, 0 chỗ
+//!   gọi cho tới lượt này).
 
 pub mod candidate;
 pub mod candidate_store;
 pub mod entry;
+pub mod scan;
 pub mod store;
+pub mod surnames;
 
 pub use candidate::{CandidateOrigin, GlossaryCandidate, Resolution};
 pub use candidate_store::{
-    approve_candidate, insert_candidate, pending_candidates, reject_candidate,
+    approve_candidate, insert_candidate, insert_import_scan_candidates, pending_candidates,
+    reject_candidate,
 };
 pub use entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
+pub use scan::{ScanCandidate, scan_candidates};
 pub use store::{
     GlossaryError, add_manual_term, confirm_translation, entries_eligible_for_injection,
     insert_manual_entry, load_tier, marks_for_source_text, match_lang_for_source_lang,
     resolve_term_for_quick_add, update_manual_term, warm_jieba_for_source_lang,
 };
+pub use surnames::COMMON_SURNAMES;

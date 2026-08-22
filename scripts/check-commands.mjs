@@ -208,7 +208,8 @@ const tsFiles = keep(tsAll)
 // SAI. Sàn 10 vẫn đúng theo số thật 12 nên không hạ lại; chỉ **lý do** được sửa cho khớp sự
 // thật — một con số bịa trong đúng tệp mà cả kiến trúc dựa vào để tin các con số là chính
 // thứ rot mà AC13 tồn tại để chặn.
-const VUE_FLOOR = 14 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 17 tệp `.vue` — 14/17 = 82,4%
+const VUE_FLOOR = 15 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 18 tệp `.vue`
+// (+GlossarySettingsOverlay.vue) — 15/18 = 83,3%
 // ⚠️ 15 → 17 KHÔNG chỉ từ story này: sàn cũ (13) đặt từ số thật 15 hồi Story 1.21. Story
 // 3.3 tự nó thêm ĐÚNG MỘT tệp `.vue` (`GlossaryQuickAdd.vue`); tệp thứ hai là nợ đo lại
 // tồn đọng từ một story giữa 1.21 và 3.3 không ai nâng sàn lại — cùng bài học đã ghi ở
@@ -230,9 +231,8 @@ const VUE_FLOOR = 14 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 17 tệp 
 // ⚠️ **Sàn này KHÔNG nằm trong việc story 2.12 được giao** — Task 7.5 chỉ nêu đích danh
 // `check-layout.mjs`. Nó lòi ra vì lượt đo lại của Task 7.5 đếm CẢ HAI sàn đọc `src/**` thay
 // vì đúng một, và bỏ qua nó sau khi đã thấy thì đúng bằng việc biết một cổng đã tắt mà im.
-const TS_FLOOR = 36 // 🔵 NÂNG 2026-08-21 (Story 3.4b): số THẬT 44 tệp `.ts` (+glossaryMarksMap.ts
-// +glossaryMarksState.ts +glossaryTermHoverState.ts) — 36/44 = 81,8%. `VUE_FLOOR` KHÔNG đổi —
-// story này thêm 0 tệp `.vue`.
+const TS_FLOOR = 37 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 45 tệp `.ts`
+// (+glossarySettingsState.ts) — 37/45 = 82,2%.
 /**
  * ⚠️ Sàn command: **17** hôm nay — ba chế độ · `focus.next_panel` · `focus.prev_panel` ·
  * hai `layout.preset_*` · **ba** `layout.toggle_*` *(🔵 bốn → ba, Story 2.5b)* · hai
@@ -294,10 +294,14 @@ const TS_FLOOR = 36 // 🔵 NÂNG 2026-08-21 (Story 3.4b): số THẬT 44 tệp 
 // này thêm **0** tệp `.vue`, **0** tệp `.ts` *(mọi thay đổi nằm trong tệp đã có)*, **0**
 // `@click` và **0** lời gọi `dispatch()` — hai lệnh mới tới được bằng **phím**, không bằng một
 // bề mặt bấm. Cổng in lại đúng 16 `.vue` · 39 `.ts` · 25 `@click` · 34 `dispatch()`.
-const COMMAND_FLOOR = 44 // 🔵 NÂNG 2026-08-20 (Story 3.3): cổng in 54 command sau khi thêm
+// 🔵 NÂNG 2026-08-20 (Story 3.3): cổng in 54 command sau khi thêm
 // `glossary.add_term`/`glossary.save_term`/`glossary.close_quick_add` (51 → 54, đúng +3,
 // không hơn — chạy cổng, đọc số, rồi mới sửa dòng này, đúng thứ tự luật đã đúc từ Story
 // 2.6). 44/54 = 81,5%, giữa dải 80–85%.
+// 🔵 NÂNG 2026-08-22 (Story 3.5): cổng in 57 command sau khi thêm `glossary.settings.open`/
+// `glossary.settings.close`/`glossary.settings.save` (54 → 57, đúng +3, không hơn). Sàn
+// 44 → 47 (47/57 = 82,5%, giữa dải 80–85%).
+const COMMAND_FLOOR = 47
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
@@ -315,12 +319,20 @@ const COMMAND_FLOOR = 44 // 🔵 NÂNG 2026-08-20 (Story 3.3): cổng in 54 comm
 // **6** vs 8"*) và đòi *"**mọi** hằng `*_FLOOR` bị vượt được nâng theo số thật"*. Bản đầu
 // đánh dấu nó *"không đổi ở Story 1.17"* thay vì nâng — 6/8 = 75%, dưới hẳn doctrine
 // ~81-85% mà **mọi** sàn khác trong cùng lượt tuân theo. Đúng cách 1.16 để lọt và bị bắt.
-const CLICK_FLOOR = 21 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 26 thuộc tính `@click`
+// 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 26 thuộc tính `@click`
 // — 21/26 = 80,8%. ⚠️ **Chỉ MỘT** `@click` mới, không hai: `GlossaryQuickAdd.vue` có hai
 // nút, nhưng nút Lưu là `type="submit"` đi qua `@submit.prevent` (Kiểm A KHÔNG canh
 // `@submit`) — chỉ nút Huỷ (`type="button"`) mang `@click="dispatch('glossary.close_
 // quick_add')"`. Đo lại bằng cách đọc chính tệp, không suy từ số nút bấm trên màn hình.
-const DISPATCH_FLOOR = 30 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 37 lời gọi `dispatch()` — 30/37 = 81,1%
+// 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 29 thuộc tính `@click` — ba `@click` mới
+// (`App.vue` nút mở lớp phủ, `GlossarySettingsOverlay.vue` nút đóng + nút Huỷ; nút Lưu là
+// `type="submit"` đi qua `@submit.prevent`, cùng lý do `GlossaryQuickAdd.vue`). 24/29 = 82,8%.
+const CLICK_FLOOR = 24
+// 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 37 lời gọi `dispatch()` — 30/37 = 81,1%
+// 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 42 lời gọi `dispatch()` (+5: nút mở ở `App.vue`,
+// `@keydown.esc`/nút đóng/nút Huỷ và `@submit` của `GlossarySettingsOverlay.vue`, mỗi
+// lời gọi `dispatch('glossary.settings.*')` một chỗ). 34/42 = 81,0%.
+const DISPATCH_FLOOR = 34
 
 if (vueFiles.length < VUE_FLOOR || tsFiles.length < TS_FLOOR) {
   abort(

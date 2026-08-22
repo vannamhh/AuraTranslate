@@ -47,6 +47,9 @@ import StatusBar from './StatusBar.vue'
 import GlossaryQuickAdd from './GlossaryQuickAdd.vue'
 import ShortcutsOverlay from './ShortcutsOverlay.vue'
 import SegmentHistoryOverlay from './SegmentHistoryOverlay.vue'
+// Story 3.5 — lớp phủ "Cài đặt ngưỡng quét Glossary" (FR47), lớp phủ THỨ TƯ. Cùng tầng,
+// cùng lý do ba lớp phủ kia.
+import GlossarySettingsOverlay from './GlossarySettingsOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -226,6 +229,22 @@ function focusOnPointerDown(event: MouseEvent) {
       >
         {{ t('command.shortcuts.open') }}
       </button>
+
+      <!--
+        Story 3.5 — ĐƯỜNG VÀO lớp phủ ngưỡng quét Glossary. Cùng khuôn nút phím tắt ngay
+        trên: `data-glossary-settings-open` là đường lui của tiêu điểm (UX-DR17), và
+        `@mousedown` đặt tiêu điểm trước khi `@click` phát command (cùng khuyết tật engine
+        đã ghi ở `focusOnPointerDown`).
+      -->
+      <button
+        type="button"
+        class="titlebar-act"
+        data-glossary-settings-open
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('glossary.settings.open')"
+      >
+        {{ t('command.glossary.settings.open') }}
+      </button>
     </header>
 
     <!--
@@ -284,6 +303,9 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 2.6 · FR101 · AC1–AC3 — cùng khuôn: lớp phủ tự quản `v-if` qua `historyIsOpen`. -->
     <SegmentHistoryOverlay />
+
+    <!-- Story 3.5 · FR47 — cùng khuôn: lớp phủ tự quản `v-if` qua `glossarySettingsOverlayIsOpen`. -->
+    <GlossarySettingsOverlay />
   </main>
 </template>
 

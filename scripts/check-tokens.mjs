@@ -88,10 +88,11 @@ const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
 // Sàn cũ (37/35, đặt theo số của Story 1.19) đã tụt xuống **69,8% / 70,0%** — dưới hẳn dải
 // ~81% mà doc-comment ngay trên đặt ra, tức đúng trạng thái *"canh không được gì"* mà chính
 // nó cảnh báo. Ba story (1.20 · 1.21 · 2.1) thêm tệp mà không ai nâng sàn.
-const FILE_FLOOR = 53 // 🔵 NÂNG 2026-08-21 (Story 3.4b): số THẬT 64 tệp trong tầm quét (+3 tệp
-// `.ts` mới +`index.html` không đổi) — 53/64 = 82,8%.
-const COMPONENT_FILE_FLOOR = 50 // 🔵 NÂNG 2026-08-21 (Story 3.4b): số THẬT 61 tệp component
-// ngoài `src/tokens/**` — 50/61 = 82,0%.
+const FILE_FLOOR = 55 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 66 tệp trong tầm quét (+1 tệp
+// `.vue` mới, `GlossarySettingsOverlay.vue`, +1 tệp `.ts` mới có style, `App.vue` không đổi
+// tên) — 55/66 = 83,3%.
+const COMPONENT_FILE_FLOOR = 52 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 63 tệp component
+// ngoài `src/tokens/**` — 52/63 = 82,5%.
 
 let failures = 0
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)

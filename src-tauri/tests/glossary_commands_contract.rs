@@ -29,9 +29,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::commands::glossary::{glossary_add_term, glossary_lookup_term, glossary_update_term};
+use auratranslate_lib::commands::glossary::{
+    glossary_add_term, glossary_lookup_term, glossary_pending_candidates, glossary_update_term,
+};
 use auratranslate_lib::commands::project::create_work_from_text;
-use auratranslate_lib::core::glossary::{Category, GlossaryTier};
+use auratranslate_lib::core::glossary::{CandidateOrigin, Category, GlossaryTier, insert_candidate};
 use auratranslate_lib::core::store::{Store, StoreSpec};
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
@@ -219,4 +221,33 @@ fn glossary_update_term_at_the_work_tier_rewrites_the_row_in_a_real_open_work() 
     drop(opened);
     cleanup(&root);
     cleanup(&global_dir);
+}
+
+/// Story 3.5 — chỗ gọi sản phẩm ĐẦU TIÊN của `core::glossary::pending_candidates`, qua
+/// `commands::glossary::glossary_pending_candidates`.
+#[test]
+fn glossary_pending_candidates_lists_the_pending_queue_of_the_real_open_work() {
+    let root = temp_dir("pending-candidates-real-work");
+    let opened = open_work(&root, "Bang Cho");
+
+    insert_candidate(&opened.store, "萧炎", CandidateOrigin::ImportScan).expect("chen ung vien");
+
+    let rows = glossary_pending_candidates(Some(&opened)).expect("liet ke bang cho qua commands::glossary");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].source_term, "萧炎");
+    assert_eq!(rows[0].candidate_origin, "import_scan");
+    assert_eq!(rows[0].resolution, None);
+    assert_eq!(rows[0].occurrence_count, 0, "insert_candidate khong dat occurrence_count");
+    assert_eq!(rows[0].context_example, None);
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// Chưa mở Tác phẩm nào ⇒ `Ok(vec![])`, KHÔNG một lỗi — bảng chờ chỉ tồn tại ở `project.db`
+/// (§Never/Code Map của story).
+#[test]
+fn glossary_pending_candidates_is_empty_without_a_lie_when_no_work_is_open() {
+    let rows = glossary_pending_candidates(None).expect("khong Tac pham nao van phai Ok");
+    assert!(rows.is_empty());
 }

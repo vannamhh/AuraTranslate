@@ -77,7 +77,8 @@ pub fn insert_candidate(
 pub fn pending_candidates(store: &Store) -> Result<Vec<GlossaryCandidate>, StoreError> {
     store.read(|conn| {
         let mut stmt = conn.prepare(
-            "SELECT id, source_term, candidate_origin, resolution, created_at
+            "SELECT id, source_term, candidate_origin, resolution, created_at, \
+                    occurrence_count, context_example
              FROM glossary_candidate
              WHERE resolution IS NULL
              ORDER BY source_term",
@@ -98,9 +99,84 @@ pub fn pending_candidates(store: &Store) -> Result<Vec<GlossaryCandidate>, Store
                     .map(|raw| decode_resolution(3, raw))
                     .transpose()?,
                 created_at: row.get(4)?,
+                // 🔵 THÊM 2026-08-22 (Story 3.5) — hai cột bước di trú 14. Hàng CŨ (Story
+                // 3.2, trước lượt quét đầu tiên) đọc `occurrence_count = 0`/
+                // `context_example = NULL` đúng giá trị `DEFAULT`/nullable của cột.
+                occurrence_count: row.get(5)?,
+                context_example: row.get(6)?,
             });
         }
         Ok(out)
+    })
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.5 — hàm ghi LÔ, chỗ gọi sản phẩm đầu tiên NGOÀI `core/glossary/**`
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Ghi lô ứng viên từ một lượt quét khi nhập — MỘT [`Store::write`], `prepare_cached` một
+/// lần rồi lặp (khuôn `commands/segment.rs::insert_segments`), `ON CONFLICT (source_term)
+/// DO NOTHING`.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 LỌC `glossary_entry` NGAY TRONG CÂU `INSERT` — không một lượt `SELECT` riêng trước đó
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `WHERE NOT EXISTS (SELECT 1 FROM glossary_entry WHERE source_term = ?1)` chặn đúng ca
+/// *"Đã có trong Glossary"* của I/O Matrix — một chuỗi đã là `glossary_entry` (nhập tay
+/// trước khi lượt quét chạy tới, hoặc đã được duyệt ở một Chương khác trong cùng phiên)
+/// không bao giờ được ghi vào bảng chờ, đóng đúng món nợ có chủ của story này
+/// (`deferred-work.md:5606-5617`, "quét không được sinh ứng viên trùng `source_term` với
+/// `glossary_entry`, nếu không `approve_candidate` hỏng vĩnh viễn").
+///
+/// `ON CONFLICT (source_term) DO NOTHING` chặn ca *"Đã từng bị bỏ"* — một `source_term` đã
+/// có hàng `glossary_candidate` (bất kể `resolution` là gì) không được chèn hàng thứ hai;
+/// `idx_glossary_candidate_source_term` là `UNIQUE`, và câu lệnh này **không bao giờ**
+/// `UPDATE` cột nào của hàng cũ — `resolution` một chiều (`glossary_candidate_resolution_is_
+/// one_way`) không bị chạm.
+///
+/// Trả `(đã chèn, đã bỏ qua)`, không `()`: một cặp `(0, 0)` (quét ra 0 ứng viên) và một cặp
+/// `(0, N)` (quét ra N ứng viên, cả N đều trùng dữ liệu đã có) đều là *0 hàng mới*, nhưng
+/// chúng là hai câu chuyện khác nhau — cặp số là thứ duy nhất phân biệt được *"quét chưa
+/// chạy"* với *"quét đã chạy và không có gì mới"* (§Boundaries: *"Mọi số đếm báo ra, kể cả
+/// 0 và kể cả số bị bỏ qua"*).
+///
+/// # Lỗi
+/// [`StoreError::WriteFailed`] nếu đường ghi trượt (kho đóng giữa chừng, …) — toàn lô
+/// rollback cùng nhau, đúng khuôn một giao dịch của `Store::write`.
+pub fn insert_import_scan_candidates(
+    store: &Store,
+    candidates: &[crate::core::glossary::scan::ScanCandidate],
+) -> Result<(i64, i64), StoreError> {
+    // Sở hữu tường minh: job ghi chạy trên luồng writer nên nó phải `Send + 'static` —
+    // `candidates` không thoả (mượn), nên sao một bản trước khi `move` vào closure. Mọi
+    // hàng của LÔ NÀY mang cùng `candidate_origin`: hàm này chỉ phục vụ một lượt quét khi
+    // nhập (`ImportScan`), không nhận xuất xứ từ chỗ gọi.
+    let rows: Vec<(String, i64, String)> = candidates
+        .iter()
+        .map(|c| (c.source_term.clone(), c.occurrence_count, c.context_example.clone()))
+        .collect();
+
+    store.write(move |tx: &Transaction<'_>| {
+        let mut stmt = tx.prepare_cached(
+            "INSERT INTO glossary_candidate
+                (source_term, candidate_origin, occurrence_count, context_example, created_at)
+             SELECT ?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+             WHERE NOT EXISTS (SELECT 1 FROM glossary_entry WHERE source_term = ?1)
+             ON CONFLICT (source_term) DO NOTHING",
+        )?;
+
+        let mut inserted = 0i64;
+        let mut skipped = 0i64;
+        let candidate_origin = CandidateOrigin::ImportScan.as_str();
+        for (source_term, occurrence_count, context_example) in &rows {
+            let changed = stmt.execute((source_term, candidate_origin, occurrence_count, context_example))?;
+            if changed > 0 {
+                inserted += 1;
+            } else {
+                skipped += 1;
+            }
+        }
+        Ok((inserted, skipped))
     })
 }
 

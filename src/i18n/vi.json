@@ -80,6 +80,9 @@
   "command.glossary.add_term": "Thêm thuật ngữ",
   "command.glossary.save_term": "Lưu thuật ngữ",
   "command.glossary.close_quick_add": "Đóng dải Thêm thuật ngữ",
+  "command.glossary.settings.open": "Ngưỡng quét Glossary",
+  "command.glossary.settings.close": "Đóng cài đặt ngưỡng quét Glossary",
+  "command.glossary.settings.save": "Lưu",
   "mode.library.status": "Library chưa có Tác phẩm nào.",
   "mode.library.empty_body": "Một Tác phẩm là một dự án dịch, lưu thành một thư mục trên máy. Copy thư mục đó đi đâu cũng mở lại được.",
   "mode.library.field_name": "Tên Tác phẩm",
@@ -250,5 +253,10 @@
   "glossary.quick_add.cancel": "Huỷ",
   "glossary.quick_add.saving": "Đang lưu…",
   "glossary.quick_add.checking": "Đang kiểm tra Glossary…",
-  "glossary.mark.pending_translation": "Thuật ngữ này chưa chốt bản dịch."
+  "glossary.mark.pending_translation": "Thuật ngữ này chưa chốt bản dịch.",
+  "glossary.settings.title": "Ngưỡng quét ứng viên",
+  "glossary.settings.intro": "Một chuỗi lặp từ đủ số lần này trở lên, và không có trong từ điển nhúng, sẽ vào bảng chờ ứng viên khi nhập một Chương mới. Áp dụng cho toàn ứng dụng, không riêng Tác phẩm này.",
+  "glossary.settings.threshold_label": "Số lần lặp tối thiểu",
+  "glossary.settings.threshold_invalid": "Nhập một số nguyên lớn hơn 0.",
+  "glossary.settings.cancel": "Huỷ"
 }

@@ -373,6 +373,10 @@ pub fn run() {
             // lam tham so (khong tu doc `chapter` tu dia) -- xem doc-comment cua ham thuan.
             // Ham nong Jieba KHONG nam o day; no mac vao duong mo Chuong o tren.
             crate::commands::glossary::wire::glossary_marks_for_chapter,
+            // Story 3.5 -- quet ung vien khi nhap tai lieu (FR47). Vo IPC CHI-DOC, cho goi
+            // san pham DAU TIEN cua `core::glossary::pending_candidates` (Story 3.2 dung, 0
+            // cho goi cho toi luot nay).
+            crate::commands::glossary::wire::glossary_pending_candidates,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

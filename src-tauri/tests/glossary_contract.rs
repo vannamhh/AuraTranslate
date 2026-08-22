@@ -22,11 +22,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use auratranslate_lib::core::glossary::scan::ScanCandidate;
 use auratranslate_lib::core::glossary::{
     CandidateOrigin, Category, GlossaryError, GlossaryTier, TermOrigin, add_manual_term,
     approve_candidate, confirm_translation, entries_eligible_for_injection, insert_candidate,
-    insert_manual_entry, load_tier, pending_candidates, reject_candidate,
-    resolve_term_for_quick_add, update_manual_term,
+    insert_import_scan_candidates, insert_manual_entry, load_tier, pending_candidates,
+    reject_candidate, resolve_term_for_quick_add, update_manual_term,
 };
 use auratranslate_lib::core::scope::{ScopeError, ScopeResolver, WorkScope};
 use auratranslate_lib::core::store::{
@@ -1676,9 +1677,16 @@ fn rejecting_an_approved_candidate_is_refused_and_the_glossary_entry_survives() 
 /// quét không được sinh ứng viên cho một chuỗi đã có mục Glossary); `insert_candidate` là
 /// API thuần, cố ý KHÔNG tự tra `glossary_entry` trước khi chèn.
 ///
-/// ⚠️ Tên hàm nói rõ đây là một khoảng hở CÓ CHỦ (Story 3.5, `deferred-work.md`) đang được
-/// GHIM lại bằng test, không phải một đặc tả đang được xác nhận là đúng. Nếu Story 3.5 đóng
-/// món nợ này, ca đây phải ĐỔI — không xoá âm thầm.
+/// 🔵 **CẬP NHẬT 2026-08-22 (Story 3.5) — MÓN NỢ ĐÃ ĐÓNG Ở ĐƯỜNG SẢN PHẨM, CA NÀY VẪN ĐÚNG
+/// Ở TẦNG API THUẦN.** Story 3.5 đóng chỗ chặn ĐÚNG mà doc-comment trên nêu tên: hàm ghi lô
+/// mới `insert_import_scan_candidates` lọc `glossary_entry` NGAY trong câu `INSERT`
+/// (`WHERE NOT EXISTS`) — một chuỗi ứng viên đã có mục Glossary không bao giờ được CHÈN,
+/// nên nó không bao giờ tới được `approve_candidate` để va `UNIQUE`. Xem
+/// `an_import_scan_candidate_colliding_with_an_existing_glossary_entry_is_never_inserted`
+/// ngay dưới. Ca NÀY vẫn đứng đúng vì `insert_candidate` (singular, gọi trực tiếp ở trên)
+/// **không đổi** — nó vẫn là API thuần không tự tra `glossary_entry`, và nay bị
+/// `GLOSSARY_ONLY_SURFACE` khoá lại (`glossary_boundary.rs`) đúng vì lý do đó: 0 chỗ gọi
+/// sản phẩm nào còn dùng nó theo hình dạng hở này nữa.
 #[test]
 fn a_candidate_colliding_with_an_existing_manual_glossary_entry_is_stuck_pending_forever_known_gap()
 {
@@ -1715,6 +1723,135 @@ fn a_candidate_colliding_with_an_existing_manual_glossary_entry_is_stuck_pending
         Some("Mộ Dung"),
         "muc nhap tay ban dau phai o lai NGUYEN VEN, khong bi luot duyet that bai dung toi"
     );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.5 — `insert_import_scan_candidates`, hàm ghi LÔ
+// ═════════════════════════════════════════════════════════════════════════════════
+
+fn scan_candidate(source_term: &str, occurrence_count: i64, context_example: &str) -> ScanCandidate {
+    ScanCandidate {
+        source_term: source_term.to_owned(),
+        occurrence_count,
+        context_example: context_example.to_owned(),
+    }
+}
+
+/// I/O Matrix *"Đã có trong Glossary"* — đối chứng dương cho lời hứa của
+/// `a_candidate_colliding_with_an_existing_manual_glossary_entry_is_stuck_pending_forever_known_gap`
+/// ở trên: đường ghi LÔ không bao giờ tạo ra ca kẹt đó, vì nó không bao giờ CHÈN.
+#[test]
+fn an_import_scan_candidate_colliding_with_an_existing_glossary_entry_is_never_inserted() {
+    let dir = temp_dir("scan-batch-collides-with-entry");
+    let store = open_project(&dir);
+
+    insert_manual_entry(&store, "慕容", Some("Mộ Dung"), "", Category::Person)
+        .expect("chen muc nhap tay truoc");
+
+    let (inserted, skipped) =
+        insert_import_scan_candidates(&store, &[scan_candidate("慕容", 12, "慕容出现了。")])
+            .expect("ghi lo");
+    assert_eq!((inserted, skipped), (0, 1), "chuoi da co trong glossary_entry phai bi BO QUA, khong chen");
+
+    let pending = pending_candidates(&store).expect("nap bang cho");
+    assert!(
+        pending.is_empty(),
+        "khong hang moi nao duoc chen vao glossary_candidate: {pending:?}"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// I/O Matrix *"Đã từng bị bỏ"* — `ON CONFLICT (source_term) DO NOTHING` không đổi MỘT cột
+/// nào của hàng cũ, kể cả khi lượt quét sau mang một `occurrence_count`/`context_example`
+/// khác hẳn.
+#[test]
+fn rescanning_a_rejected_source_term_via_the_batch_writer_changes_nothing_on_the_old_row() {
+    let dir = temp_dir("scan-batch-rejected-unchanged");
+    let store = open_project(&dir);
+
+    let id = insert_candidate(&store, "萧炎", CandidateOrigin::ImportScan).expect("chen truoc");
+    reject_candidate(&store, id).expect("bo di");
+
+    let (inserted, skipped) =
+        insert_import_scan_candidates(&store, &[scan_candidate("萧炎", 999, "cau khac han.")])
+            .expect("ghi lo");
+    assert_eq!((inserted, skipped), (0, 1), "chuoi da bo phai bi BO QUA, khong chen hang thu hai");
+
+    // Hang CU khong doi mot cot nao -- doi chung bang SELECT truoc/sau, dung so hang.
+    let (resolution, occurrence_count, context_example) = store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT resolution, occurrence_count, context_example FROM glossary_candidate WHERE id = ?1",
+                [id],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, i64>(1)?,
+                        r.get::<_, Option<String>>(2)?,
+                    ))
+                },
+            )
+        })
+        .expect("doc lai hang cu");
+    assert_eq!(resolution, "rejected", "resolution phai o lai 'rejected'");
+    assert_eq!(occurrence_count, 0, "occurrence_count cu (0, tu insert_candidate) khong doi");
+    assert_eq!(context_example, None, "context_example cu (NULL) khong doi");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Cặp số `(đã chèn, đã bỏ qua)` phải phân biệt được TỪNG NGUYÊN NHÂN bỏ qua trong CÙNG một
+/// lô — một chuỗi trùng `glossary_entry`, một chuỗi trùng `glossary_candidate` đã có, một
+/// chuỗi hoàn toàn mới.
+#[test]
+fn a_batch_reports_inserted_and_skipped_counts_across_mixed_rows() {
+    let dir = temp_dir("scan-batch-mixed-counts");
+    let store = open_project(&dir);
+
+    insert_manual_entry(&store, "慕容", Some("Mộ Dung"), "", Category::Person)
+        .expect("chen muc nhap tay");
+    insert_candidate(&store, "旧词", CandidateOrigin::ImportScan).expect("chen ung vien cu");
+
+    let (inserted, skipped) = insert_import_scan_candidates(
+        &store,
+        &[
+            scan_candidate("慕容", 10, "cau mot。"),       // trung glossary_entry
+            scan_candidate("旧词", 10, "cau hai。"),       // trung glossary_candidate da co
+            scan_candidate("新词", 10, "cau ba。"),        // hoan toan moi
+        ],
+    )
+    .expect("ghi lo");
+
+    assert_eq!(inserted, 1, "chi `新词` la hang moi that su");
+    assert_eq!(skipped, 2, "hai hang con lai bi bo qua vi hai ly do khac nhau");
+
+    let pending = pending_candidates(&store).expect("nap bang cho");
+    assert_eq!(pending.len(), 2, "'旧词' (cu) va '新词' (moi) phai co mat: {pending:?}");
+    let new_row = pending
+        .iter()
+        .find(|c| c.source_term == "新词")
+        .unwrap_or_else(|| panic!("khong thay '新词': {pending:?}"));
+    assert_eq!(new_row.occurrence_count, 10);
+    assert_eq!(new_row.context_example.as_deref(), Some("cau ba。"));
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// I/O Matrix *"Chương rỗng"* ở tầng ghi lô — một lô RỖNG là `(0, 0)`, không phải một lỗi.
+#[test]
+fn writing_an_empty_batch_returns_zero_inserted_and_zero_skipped() {
+    let dir = temp_dir("scan-batch-empty");
+    let store = open_project(&dir);
+
+    let (inserted, skipped) = insert_import_scan_candidates(&store, &[]).expect("ghi lo rong");
+    assert_eq!((inserted, skipped), (0, 0));
 
     drop(store);
     cleanup(&dir);

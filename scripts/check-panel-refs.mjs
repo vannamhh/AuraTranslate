@@ -208,6 +208,11 @@ const EXEMPT = new Map([
     'Preset bố cục đã nạp — loại "chỉ toàn cục" thứ hai của AD-18, cùng lý do với `keymap`.',
   ],
   [
+    'src/config/bootstrap.ts::glossaryScanThreshold',
+    'Ngưỡng quét Glossary đã nạp (Story 3.5) — cùng loại "chỉ toàn cục" với `layout`/`keymap`: ' +
+      'AppConfig là GlobalOnly (kinds.rs:218), nên "đổi Tác phẩm" không phải một sự kiện của nó.',
+  ],
+  [
     'src/modes/modeState.ts::mode',
     'Chế độ đang mở (library/workspace). Dọn nó khi đổi Tác phẩm sẽ ném người dùng về màn ' +
       'hình Library ngay giữa lượt họ vừa mở một Tác phẩm — nó là state của PHIÊN.',
@@ -265,6 +270,39 @@ const EXEMPT = new Map([
     'src/commands/index.ts::installedIsMac',
     'Nền tảng của MÁY đang chạy. Nó không đổi giữa hai Tác phẩm, và cũng không đổi giữa hai ' +
       'lần khởi động trên cùng một máy.',
+  ],
+
+  // ── Rà ba lớp 2026-08-22 (Story 3.5) — CÙNG lớp `shortcutsState.ts::overlayOpen` ─────────
+  //
+  // `resetGlossarySettings()` từng tồn tại CHỈ để qua cổng này — `grep` cho thấy chỉ chính
+  // test của nó gọi, không một đường sản phẩm nào. Đã GỠ hàm đó (mã chết là một cổng xanh
+  // trên một bất biến KHÔNG được giữ) thay vì nối nó vào một đường teardown không có thật:
+  // ngưỡng quét là `AppConfig` ⇒ `GlobalOnly` (`core/scope/kinds.rs:218`) — nó KHÔNG thuộc
+  // về Tác phẩm nào, nên "đổi Tác phẩm" không phải một sự kiện của năm ô nhớ dưới đây, đúng
+  // luật đã áp cho `shortcutsState.ts::overlayOpen` (cũng `AppConfig`/`GlobalOnly`).
+  [
+    'src/glossarySettingsState.ts::overlayOpen',
+    'Lớp phủ Cài đặt ngưỡng quét đang mở hay không — state của MÀN HÌNH, không của Tác ' +
+      'phẩm. Cùng lý lẽ `shortcutsState.ts::overlayOpen`.',
+  ],
+  [
+    'src/glossarySettingsState.ts::thresholdInput',
+    'Giá trị THÔ đang gõ trong ô nhập — chỉ có nghĩa khi lớp phủ đang mở. Cùng vòng đời ' +
+      '`overlayOpen`.',
+  ],
+  [
+    'src/glossarySettingsState.ts::knownThreshold',
+    'Ngưỡng đã lưu THÀNH CÔNG trong phiên này — dữ liệu của `app_config` (GlobalOnly), ' +
+      'sống QUA ranh giới Tác phẩm theo đúng nghĩa. Dọn nó khi đổi Tác phẩm là bắt lớp phủ ' +
+      'quên một lượt lưu vừa xong và hiện lại giá trị CŨ từ bootstrap.',
+  ],
+  [
+    'src/glossarySettingsState.ts::saving',
+    'Đang ghi ngưỡng hay không — cờ của MỘT lượt ghi `putConfig`, không của Tác phẩm.',
+  ],
+  [
+    'src/glossarySettingsState.ts::saveError',
+    'Lỗi của lượt lưu ngưỡng gần nhất — chẩn đoán của MÀN HÌNH, cùng lớp `overlayOpen`.',
   ],
 ])
 
@@ -514,9 +552,9 @@ try {
  * ⚠️ Sàn là **cận dưới**: nó không đỏ oan khi thêm tệp, nhưng một sàn cũ là một sàn vô nghĩa
  * — thêm tệp vào `src/**` thì xét lại số này.
  */
-const FILE_FLOOR = 36 // 🔵 NÂNG 2026-08-21 (Story 3.4b): số THẬT 44 tệp `.ts` dưới `src/**`
-// (+glossaryMarksMap.ts +glossaryMarksState.ts +glossaryTermHoverState.ts) — 36/44 = 81,8%,
-// giữa dải 80-85%. Đo bằng `find src -name '*.ts' | wc -l`.
+const FILE_FLOOR = 37 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 45 tệp `.ts` dưới `src/**`
+// (+glossarySettingsState.ts) — 37/45 = 82,2%, giữa dải 80-85%. Đo bằng
+// `find src -name '*.ts' | wc -l`.
 if (files.length < FILE_FLOOR) {
   abort(
     `cây nguồn \`src/**\` — chỉ ${files.length} tệp \`.ts\`, dưới sàn ${FILE_FLOOR}`,

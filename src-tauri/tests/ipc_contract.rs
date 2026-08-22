@@ -172,6 +172,9 @@ fn ipc_error_wire_shape() {
         // `src/config/bootstrap.ts` nhận `undefined`, **không lỗi nào được ném**, và lựa
         // chọn tắt nguồn của người dùng biến mất sau mỗi lần khởi động lại (Bẫy 1).
         dict_sources_disabled: String::new(),
+        // ⚠️ Story 3.5 — trường thứ **bảy**. Cùng lời dừng như hai trường trên: một trường
+        // mới đi qua IPC phải làm ai đó dừng lại và đối chiếu danh sách khoá đóng băng.
+        glossary_scan_threshold: 5,
     })
     .expect("BootstrapConfig phải serialize được");
     // ⚠️ Sắp xếp trước khi so: `serde_json::Map` là `BTreeMap` hay `IndexMap` tuỳ feature
@@ -189,6 +192,7 @@ fn ipc_error_wire_shape() {
         ok_keys,
         vec![
             "dict_sources_disabled",
+            "glossary_scan_threshold",
             "layout_presets",
             "mode",
             "shortcuts",

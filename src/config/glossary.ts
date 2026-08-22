@@ -309,3 +309,92 @@ export async function glossaryMarksForChapter(text: string, sourceLang: string):
     return { marks: null, error: null }
   }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.5 — adapter THỨ NĂM: bảng chờ ứng viên, vỏ CHỈ-ĐỌC
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Hình dạng một hàng `glossary_candidate` phía Rust — **`snake_case`, đúng như trên dây**.
+ *
+ * ⚠️ `commands/glossary.rs::GlossaryCandidateWire` cố ý KHÔNG đặt
+ * `#[serde(rename_all = "camelCase")]` — cùng luật với mọi struct qua biên IPC.
+ */
+export type GlossaryCandidate = {
+  id: number
+  source_term: string
+  candidate_origin: string
+  /** `null` == chờ duyệt — vị từ DUY NHẤT của `GlossaryCandidate::is_pending` phía Rust. */
+  resolution: string | null
+  created_at: string
+  occurrence_count: number
+  /** `null` cho hàng KHÔNG tới từ một lượt quét (nhập tay trước Story 3.5, hoặc thu hoạch
+   * từ bản review — Epic 8, chưa gán `context_example`). */
+  context_example: string | null
+}
+
+function isGlossaryCandidate(value: unknown): value is GlossaryCandidate {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<GlossaryCandidate>
+  return (
+    typeof v.id === 'number' &&
+    Number.isInteger(v.id) &&
+    typeof v.source_term === 'string' &&
+    typeof v.candidate_origin === 'string' &&
+    (v.resolution === null || typeof v.resolution === 'string') &&
+    typeof v.created_at === 'string' &&
+    typeof v.occurrence_count === 'number' &&
+    Number.isInteger(v.occurrence_count) &&
+    (v.context_example === null || typeof v.context_example === 'string')
+  )
+}
+
+/**
+ * 🔴 **Type guard LÚC CHẠY cho cả MẢNG** — cùng lý do `isGlossaryMarkArray`: dữ liệu qua
+ * IPC là một LỜI KHAI, không một bảo đảm của trình biên dịch.
+ */
+function isGlossaryCandidateArray(value: unknown): value is GlossaryCandidate[] {
+  return Array.isArray(value) && value.every(isGlossaryCandidate)
+}
+
+/** Ba trạng thái, cùng khuôn [`GlossaryMarksResult`]. */
+export type GlossaryPendingCandidatesResult = {
+  candidates: GlossaryCandidate[] | null
+  error: IpcError | null
+}
+
+/** Tên command trên dây. Khớp `src-tauri/src/commands/glossary.rs` (module `wire`). */
+const CMD_PENDING_CANDIDATES = 'glossary_pending_candidates'
+
+/**
+ * Mọi ứng viên **chờ duyệt** của Tác phẩm đang mở. **Không bao giờ ném.**
+ *
+ * ⚠️ **Vỏ CHỈ-ĐỌC** — Story 3.5 không dựng component nào duyệt bảng chờ (Story 3.8). Bề
+ * mặt này tồn tại để lượt quét khi nhập nghiệm thu được BẰNG MẮT (`§Intent` của story).
+ */
+export async function pendingGlossaryCandidates(): Promise<GlossaryPendingCandidatesResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_PENDING_CANDIDATES)
+    if (!isGlossaryCandidateArray(wire)) {
+      console.error(
+        `[glossary] \`${CMD_PENDING_CANDIDATES}\` tra ve mot hinh dang khong dung GlossaryCandidate[]`,
+      )
+      return { candidates: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { candidates: wire, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { candidates: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[glossary] \`${CMD_PENDING_CANDIDATES}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { candidates: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[glossary] không gọi được \`${CMD_PENDING_CANDIDATES}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { candidates: null, error: null }
+  }
+}

@@ -126,6 +126,15 @@ import {
   openGlossaryQuickAdd,
   saveGlossaryQuickAdd,
 } from './glossaryQuickAddState'
+// ── Story 3.5 — lớp phủ "Cài đặt ngưỡng quét Glossary" (FR47) ────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `glossaryQuickAddState.ts`: `glossarySettingsState.ts` dùng
+// `ref` của Vue và gọi `@tauri-apps/api` xuyên qua `config/bootstrap.ts`.
+import {
+  closeGlossarySettings,
+  openGlossarySettings,
+  saveGlossarySettings,
+} from './glossarySettingsState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -415,6 +424,12 @@ async function boot(): Promise<void> {
         void saveGlossaryQuickAdd()
       },
       closeGlossaryQuickAdd,
+      // Story 3.5 · FR47 — lớp phủ ngưỡng quét Glossary.
+      openGlossarySettings,
+      saveGlossarySettings: () => {
+        void saveGlossarySettings()
+      },
+      closeGlossarySettings,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa

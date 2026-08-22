@@ -494,7 +494,11 @@ const summary = summarize(items)
  * 🔴 Sàn chỉ áp cho **Kiểm A trên sổ THẬT**. `--report --file <bản cũ>` được phép nhỏ hơn: một bản
  * lịch sử **đúng là** có ít mục hơn, và chấm nó là lỗi hạ tầng thì cổng tự chặn vế TRƯỚC của AC5.
  */
-const ITEM_FLOOR = 397
+// 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 522 mục.
+// 🔵 SỬA 2026-08-22 (rà ba lớp) — 444/522 = 85,06 %, NHỈNH TRÊN dải 80-85 % mà chính khối
+// doc-comment ngay trên đặt ra (làm tròn cẩu thả: 0,85 × 522 = 443,7, làm tròn LÊN thay vì
+// XUỐNG). Hạ về 443 (443/522 = 84,87 %), đúng bên TRONG dải.
+const ITEM_FLOOR = 443
 if (DEBT_PATH === REAL_DEBT_PATH && summary.total < ITEM_FLOOR) {
   abort(
     `so no THAT — chi ${summary.total} muc, duoi san ${ITEM_FLOOR}`,

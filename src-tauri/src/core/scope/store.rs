@@ -106,6 +106,59 @@ pub fn parse_disabled_sources(raw: &str) -> BTreeSet<String> {
         .collect()
 }
 
+/// Khoá của [`ScopeKind::AppConfig`] mang **ngưỡng quét ứng viên khi nhập** — Story 3.5,
+/// lớp phủ thứ tư (`GlossarySettingsOverlay.vue`).
+///
+/// ⚠️ Ở [`ScopeKind::AppConfig`], **tầng Global**, chứ không một `ScopeKind` thứ mười và
+/// không một tầng Tác phẩm — cùng lý do đã ghi cho [`KEY_DICT_DISABLED`]: ngưỡng quét là
+/// một cấu hình ứng dụng, không phải dữ liệu của một Tác phẩm cụ thể (§Never của story:
+/// *"Không vẽ thanh chuyển phạm vi… ngưỡng là `AppConfig` ⇒ `GlobalOnly`"*).
+const KEY_GLOSSARY_SCAN_THRESHOLD: &str = "glossary_scan_threshold";
+
+/// Ngưỡng mặc định khi chưa ai cấu hình gì, hoặc khi giá trị trên đĩa hỏng — FR47, đo và
+/// chốt ở §Boundaries/§Design Notes của story (Chương mẫu thật cho ra một quần thể ứng
+/// viên hợp lý ở ngưỡng này; xem §Verification của story cho số đo).
+pub const DEFAULT_GLOSSARY_SCAN_THRESHOLD: u32 = 5;
+
+/// Phân giải ngưỡng quét từ giá trị THÔ trên đĩa — **hàm thuần, đây là thứ test gọi**.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 GETTER LÀ CHỖ DUY NHẤT BIẾT MỘT GIÁ TRỊ HỎNG — `config_value.value` LÀ TEXT KHÔNG `CHECK`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `CONFIG_VALUE_DDL` không ràng buộc hình dạng của `value` (nó phục vụ MỌI khoá của MỌI
+/// loại `GlobalOnly` — một `CHECK` riêng cho một khoá là phá vỡ đúng lược đồ dùng-chung mà
+/// bảng này tồn tại để giữ). Một giá trị hỏng trên đĩa (`"abc"`/`"0"`/`"-3"`, hay bất cứ gì
+/// một bản ứng dụng cũ/một lượt sửa tay `.db` để lại) chỉ có MỘT chỗ để bị bắt: đây.
+///
+/// I/O Matrix của story: *"`config_value` chứa `"abc"`/`"0"`/`"-3"` ⇒ Rơi về mặc định 5;
+/// Ghi chẩn đoán không dấu; KHÔNG ném."* `parse::<u32>` tự chặn `"abc"` (lỗi phân tích) và
+/// `"-3"` (dấu trừ không hợp lệ cho `u32`, KHÔNG "phân tích thành số âm rồi ép kiểu" — Rust
+/// không có bước ép kiểu ngầm đó). `"0"` phân tích ĐƯỢC thành `0u32` nhưng bị chặn tường
+/// minh bằng `== 0` — một ngưỡng 0 chấp nhận MỌI tần suất (kể cả 0 lần lặp), tức tắt hẳn cơ
+/// chế lọc mà toàn bộ story này dựng ra để có.
+///
+/// ⚠️ **Chẩn đoán ra `eprintln!`, không hoảng loạn** — cùng khuôn mọi lớp "hỏng ⇒ rơi về
+/// mặc định, nói ra" khác của kho (`decode_category`/`decode_term_origin` TRẢ LỖI vì chúng
+/// đọc dữ liệu **do chính ứng dụng ghi** qua một `CHECK`; ở đây `value` KHÔNG có `CHECK` bảo
+/// vệ, nên rơi về mặc định — không ném — là lựa chọn ĐÚNG cho một khoá cấu hình mà người
+/// dùng vẫn phải dùng được ứng dụng dù giá trị của nó hỏng).
+pub fn parse_glossary_scan_threshold(raw: Option<&str>) -> u32 {
+    let Some(raw) = raw else {
+        return DEFAULT_GLOSSARY_SCAN_THRESHOLD;
+    };
+
+    match raw.parse::<u32>() {
+        Ok(0) | Err(_) => {
+            eprintln!(
+                "scope[app_config] glossary_scan_threshold tren dia khong hop le: {raw:?} -- \
+                 roi ve mac dinh {DEFAULT_GLOSSARY_SCAN_THRESHOLD}"
+            );
+            DEFAULT_GLOSSARY_SCAN_THRESHOLD
+        }
+        Ok(value) => value,
+    }
+}
+
 /// Ba loại `GlobalOnly` đã phân giải, sẵn sàng cho tầng adapter.
 ///
 /// ⚠️ Giữ nguyên [`Resolved`] thay vì làm phẳng ngay, vì đó là **bằng chứng** rằng đường
@@ -166,6 +219,14 @@ impl GlobalConfig {
     /// Cùng giá trị, đã tách thành tập — thứ mà đường tra cứu nhận (§Quyết định #2a).
     pub fn disabled_source_codes(&self) -> BTreeSet<String> {
         parse_disabled_sources(self.dict_sources_disabled())
+    }
+
+    /// Ngưỡng quét ứng viên khi nhập, ĐÃ QUA [`parse_glossary_scan_threshold`] — Story 3.5.
+    /// Không bao giờ `0`, không bao giờ hỏng: chỗ gọi nhận thẳng một số dùng được ngay.
+    pub fn glossary_scan_threshold(&self) -> u32 {
+        parse_glossary_scan_threshold(
+            self.app.get(KEY_GLOSSARY_SCAN_THRESHOLD).map(|r| r.value().as_str()),
+        )
     }
 
     /// Hợp âm phím tắt theo id thao tác. Rỗng nghĩa là *"dùng hợp âm mặc định"*.

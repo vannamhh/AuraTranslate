@@ -76,6 +76,14 @@ export type BootstrapConfig = {
    * dẫn về **cùng một** nhánh, và `??` chỉ bắt `null`/`undefined`.
    */
   dict_sources_disabled: string
+  /**
+   * Ngưỡng quét ứng viên khi nhập tài liệu (FR47) — Story 3.5, trường thứ **bảy**.
+   *
+   * 🔴 Số nguyên `u32` phía Rust, không một chuỗi — `commands/config.rs::BootstrapConfig`
+   * nói rõ lý do: hiển thị một chuỗi thô đòi thêm một lượt `parseInt` phía TS, và
+   * `src/AGENTS.md` cấm quy tắc nghiệp vụ ở tầng này.
+   */
+  glossary_scan_threshold: number
 }
 
 /**
@@ -151,9 +159,21 @@ export const KEY_DICT_DISABLED = 'dict_sources_disabled'
  * *"một thao tác không nên đổi phím theo từng Tác phẩm"*.
  */
 export const SCOPE_SHORTCUT = 'shortcut'
+/**
+ * Khoá thứ năm đi qua cửa `app_config` — Story 3.5, FR47.
+ *
+ * ⚠️ Cùng lý do ba hằng ở trên tồn tại: `put_config` nhận `kind`/`key` là **chuỗi trên
+ * dây**, nên một lỗi gõ ở đây không có kiểu nào bắt được. Khớp
+ * `KEY_GLOSSARY_SCAN_THRESHOLD` ở `src-tauri/src/core/scope/store.rs`.
+ */
+export const KEY_GLOSSARY_SCAN_THRESHOLD = 'glossary_scan_threshold'
+
+/** Mặc định khi chưa đọc được cấu hình — khớp `DEFAULT_GLOSSARY_SCAN_THRESHOLD` phía Rust. */
+export const DEFAULT_GLOSSARY_SCAN_THRESHOLD = 5
 
 const lastError = ref<IpcError | null>(null)
 const layout = ref('')
+const glossaryScanThreshold = ref(DEFAULT_GLOSSARY_SCAN_THRESHOLD)
 
 /**
  * Bố cục đã lưu, đọc **một lần** lúc khởi động (AC4).
@@ -179,6 +199,13 @@ export const bootstrapLayout: DeepReadonly<Ref<string>> = readonly(layout)
 export const configError: DeepReadonly<Ref<IpcError | null>> = readonly(lastError)
 
 /**
+ * Ngưỡng quét ứng viên khi nhập, đọc **một lần** lúc khởi động — Story 3.5. Cùng khuôn
+ * [`bootstrapLayout`]: `GlossarySettingsOverlay.vue` đọc nó qua `template`, lượt GHI đi
+ * đường khác (`putConfig`), không quay ngược về đây.
+ */
+export const bootstrapGlossaryScanThreshold: DeepReadonly<Ref<number>> = readonly(glossaryScanThreshold)
+
+/**
  * Nạp cấu hình khởi động. Không ném — xem doc-comment đầu tệp.
  */
 export async function loadBootstrapConfig(): Promise<BootstrapResult> {
@@ -193,6 +220,14 @@ export async function loadBootstrapConfig(): Promise<BootstrapResult> {
     //    bản Rust trước Story 1.14 KHÔNG có trường này.
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
     layout.value = typeof config?.workspace_layout === 'string' ? config.workspace_layout : ''
+    // ⚠️ Cùng canh gác — một bản Rust trước Story 3.5 không có trường này, và giá trị vừa
+    // vượt ranh giới IPC nên kiểu TypeScript không nói được gì về nó.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
+    const rawThreshold: unknown = config?.glossary_scan_threshold
+    glossaryScanThreshold.value =
+      typeof rawThreshold === 'number' && Number.isInteger(rawThreshold) && rawThreshold > 0
+        ? rawThreshold
+        : DEFAULT_GLOSSARY_SCAN_THRESHOLD
     return { config, error: null }
   } catch (err) {
     if (isIpcError(err)) {

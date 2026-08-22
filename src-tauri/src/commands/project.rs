@@ -271,6 +271,214 @@ pub fn create_work_from_text(
     create_work(documents_root, name, source_lang, genre, import_text(text))
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.5 — quét ứng viên khi nhập tài liệu, chạy NGOÀI luồng giao diện (FR47)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Sự kiện phát SAU một lượt quét khi nhập — Story 3.5. Cặp số `(inserted, skipped)`, KỂ
+/// CẢ khi cả hai là 0 (§Boundaries: *"Mọi số đếm báo ra, kể cả 0"* — một Chương rỗng vẫn
+/// bắn sự kiện, phân biệt được với *"quét chưa chạy"*).
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC. Sự
+/// kiện này hôm nay **0 người tiêu thụ phía frontend** (story chỉ giao vế Rust của cặp số;
+/// bề mặt UI đọc lại nó là Story 3.6/3.8) — xem Spec Change Log của story cho lý do.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct GlossaryImportScanEvent {
+    pub chapter_id: i64,
+    pub inserted: i64,
+    pub skipped: i64,
+}
+
+/// Tên sự kiện trên dây — khuôn `EXIT_FLUSH_EVENT` (`lib.rs:161`).
+pub const GLOSSARY_IMPORT_SCAN_EVENT: &str = "aura://glossary-import-scan-completed";
+
+/// Đọc `source_text` của mọi segment CÒN SỐNG (`retired_at IS NULL`) của Chương
+/// `chapter_id`, theo `ord` — đúng ranh giới câu mà Story 2.1 đã tách LÚC NHẬP (§Boundaries
+/// của story: *"không tự đoán lại"*).
+fn read_chapter_segment_texts(
+    store: &Store,
+    chapter_id: i64,
+) -> Result<Vec<String>, crate::core::store::StoreError> {
+    store.read(move |conn: crate::core::store::ReadHandle<'_>| {
+        let mut stmt = conn.prepare(
+            "SELECT source_text FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL \
+             ORDER BY ord",
+        )?;
+        let mut rows = stmt.query([chapter_id])?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next()? {
+            out.push(row.get::<_, String>(0)?);
+        }
+        Ok(out)
+    })
+}
+
+/// **Hàm thuần** — đơn vị QUYẾT ĐỊNH đi tiếp hay dừng, tách khỏi vỏ `AppHandle`/
+/// `std::thread` để `tests/**`/`#[cfg(test)]` gọi được TRỰC TIẾP, không cần webview và
+/// không cần một luồng nền nào. Đây chính là hàm mà `spawn_import_scan` gọi ở CẢ HAI lần
+/// khoá — cùng một quyết định, không hai bản chép tay có thể trôi khỏi nhau.
+///
+/// Trả `Some(&open.store)` khi và chỉ khi có một Tác phẩm đang mở VÀ nó vẫn là ĐÚNG Tác
+/// phẩm đã chốt `work_id` lúc `spawn_import_scan` bắt đầu. `None` ⇒ dừng LẶNG LẼ — đúng
+/// I/O Matrix *"Kho đóng giữa lượt quét ⇒ luồng nền kết thúc lặng lẽ, không panic"*, mở
+/// rộng cho ca "Tác phẩm đổi" (`OpenWorkState` vẫn `Some` nhưng trỏ một Tác phẩm KHÁC —
+/// cùng lớp nguyên nhân: `open`/`work_id` không còn khớp nhau, chỉ khác `open` là `None`
+/// hay `Some(sai)`).
+fn guarded_open_store<'a>(open: Option<&'a OpenWork>, work_id: &str) -> Option<&'a Store> {
+    let open = open?;
+    if open.meta.work_id != work_id {
+        return None;
+    }
+    Some(&open.store)
+}
+
+/// **Hàm thuần** — cùng lý do [`guarded_open_store`]: tách quyết định ra khỏi thân
+/// `spawn_import_scan` để `#[cfg(test)]` gọi được trực tiếp.
+///
+/// 🔴 **VÁ 2026-08-22 (rà ba lớp) — bản trước NUỐT ca `DictLayers` chưa được quản lý.**
+/// `layers_state.as_deref().unwrap_or(&empty_layers)` gộp HAI trạng thái khác hẳn nhau vào
+/// một nhánh im lặng: ① `DictLayers` đã quản lý nhưng RỖNG (0 lớp từ điển gắn — trạng thái
+/// BÌNH THƯỜNG có tên, AD-25, `src-tauri/resources/dict/` rỗng trong git) và ② `DictLayers`
+/// CHƯA TỪNG được `app.manage(...)` (lỗi cấu hình `setup()` — không nên xảy ra, nhưng
+/// `lib.rs` luôn `app.manage` một tập lớp dù RỖNG, nên `None` ở đây chỉ có nghĩa là bước đó
+/// chưa chạy). Trộn hai ca thành một khiến ca ② — thứ đáng báo — không khác gì ca ① — thứ
+/// bình thường: `is_known` luôn `false`, bộ lọc "không có trong từ điển nhúng" vô hiệu HOÀN
+/// TOÀN, và bảng chờ ngập từ điển mà không một dòng chẩn đoán nào — đúng ca bàn đo bàn giao
+/// đã chạy phải (`DictLayers::empty()`, 969 ứng viên). Sửa: tách hai ca ra, cùng khuôn
+/// nhánh `Store` thiếu ngay trên (`eprintln!` rồi dừng) — CHỈ ca ② mới `eprintln!`/dừng; ca
+/// ① (đã quản lý, rỗng) đi tiếp lặng lẽ, đúng bản chất "trạng thái bình thường" của nó.
+fn guarded_dict_layers(
+    layers: Option<&crate::core::dict::DictLayers>,
+) -> Option<&crate::core::dict::DictLayers> {
+    if layers.is_none() {
+        eprintln!(
+            "glossary[import_scan] DictLayers chua duoc quan ly -- bo qua luot quet (chay tiep se lam is_known LUON false, vo hieu hoan toan bo loc tu dien)"
+        );
+    }
+    layers
+}
+
+/// Chạy lượt quét cho Chương `chapter_id` của Tác phẩm `work_id` trên một `std::thread`
+/// RIÊNG — spawn TỪ `wire::create_work_from_text`/`wire::create_work_from_file`, **SAU**
+/// khi `replace_open_work` đã đặt `OpenWork` vào state (tức sau khi transaction nhập đã
+/// commit — spawn TRƯỚC đó là quét một Chương chưa tồn tại).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 KHOÁ `OpenWorkState` HAI LẦN NGẮN, KHÔNG MỘT LẦN DÀI SUỐT LƯỢT QUÉT
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Giữ khoá mutex của `OpenWorkState` suốt pha quét (có thể tới vài giây trên một Chương
+/// lớn) sẽ chặn MỌI lệnh khác cần đọc `OpenWorkState` — kể cả `read_open_chapter` mà
+/// frontend gọi ngay sau khi tạo Tác phẩm để mở Chương trong Editor. Hàm này khoá ĐÚNG HAI
+/// lần, ngắn: một lần để đọc segment (rồi nhả khoá TRƯỚC khi chạy thuật toán quét, tốn CPU
+/// nhất), một lần để ghi lô (rồi nhả ngay). Cả hai lần đều gọi ĐÚNG một hàm quyết định —
+/// [`guarded_open_store`] — đối chiếu `work_id` với giá trị đã chốt lúc spawn: Tác phẩm đổi
+/// giữa hai lần khoá (một lượt tạo Tác phẩm MỚI trong lúc lượt quét của Tác phẩm CŨ còn
+/// đang chạy) làm luồng nền kết thúc LẶNG LẼ, không ghi vào kho SAI Tác phẩm — cùng I/O
+/// Matrix *"Kho đóng giữa lượt quét ⇒ kết thúc lặng lẽ, không panic"*, mở rộng cho ca "Tác
+/// phẩm đổi" (không chỉ ca "kho đóng"). [`guarded_open_store`] là **hàm thuần**, tách khỏi
+/// `AppHandle`/`std::thread` — `tests::` canh cả ba ca của hàng I/O Matrix đó trực tiếp,
+/// không qua webview/luồng nào.
+///
+/// 🔴 **Không `unwrap()`/`expect()` nào trên đường này** — `panic = "abort"` giết cả tiến
+/// trình (AGENTS.md), và một luồng nền là chỗ tệ nhất để việc đó xảy ra: không ai đang chờ
+/// kết quả của nó để thấy màn hình treo, người dùng chỉ thấy ứng dụng biến mất.
+fn spawn_import_scan(app: tauri::AppHandle, work_id: String, chapter_id: i64, source_lang: String) {
+    std::thread::spawn(move || {
+        use tauri::{Emitter as _, Manager as _};
+
+        let segments: Vec<String> = {
+            let Some(work_state) = app.try_state::<OpenWorkState>() else {
+                return;
+            };
+            let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let Some(store) = guarded_open_store(guard.as_ref(), &work_id) else {
+                return;
+            };
+            match read_chapter_segment_texts(store, chapter_id) {
+                Ok(rows) => rows,
+                Err(err) => {
+                    eprintln!("glossary[import_scan] doc segment that bai: {err}");
+                    return;
+                }
+            }
+        };
+
+        let Some(global) = app.try_state::<Store>() else {
+            eprintln!("glossary[import_scan] global.db chua duoc quan ly -- bo qua luot quet");
+            return;
+        };
+        let config = match crate::core::scope::load_global_config(&global) {
+            Ok(c) => c,
+            Err(err) => {
+                eprintln!("glossary[import_scan] doc app_config that bai: {err}");
+                return;
+            }
+        };
+        let threshold = config.glossary_scan_threshold();
+        let disabled = config.disabled_source_codes();
+
+        let layers_state = app.try_state::<crate::core::dict::DictLayers>();
+        let Some(layers): Option<&crate::core::dict::DictLayers> =
+            guarded_dict_layers(layers_state.as_deref())
+        else {
+            return;
+        };
+
+        let lang = crate::core::glossary::match_lang_for_source_lang(&source_lang);
+        let segment_refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+
+        // 🔴 Rẻ nhất trong bốn nhánh của `DictionarySource::lookup` (Code Map của story):
+        // `LookupMode::Exact` luôn chọn `QueryBranch::ExactBtree`, độc lập độ dài truy vấn.
+        // `limit = 1` — vị từ chỉ cần biết "có ít nhất một" chứ không cần liệt hết.
+        let mut is_known = |term: &str| -> bool {
+            let result = crate::core::dict::lookup_grouped(
+                layers,
+                term,
+                crate::core::dict::LookupMode::Exact,
+                1,
+                &disabled,
+            );
+            !result.groups.is_empty()
+        };
+
+        let candidates = crate::core::glossary::scan_candidates(
+            &segment_refs,
+            lang,
+            threshold,
+            crate::core::glossary::COMMON_SURNAMES,
+            &mut is_known,
+        );
+
+        let (inserted, skipped) = {
+            let Some(work_state) = app.try_state::<OpenWorkState>() else {
+                return;
+            };
+            let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let Some(store) = guarded_open_store(guard.as_ref(), &work_id) else {
+                return;
+            };
+            match crate::core::glossary::insert_import_scan_candidates(store, &candidates) {
+                Ok(counts) => counts,
+                Err(err) => {
+                    eprintln!("glossary[import_scan] ghi lo that bai: {err}");
+                    return;
+                }
+            }
+        };
+
+        if let Err(err) = app.emit(
+            GLOSSARY_IMPORT_SCAN_EVENT,
+            GlossaryImportScanEvent {
+                chapter_id,
+                inserted,
+                skipped,
+            },
+        ) {
+            eprintln!("glossary[import_scan] phat su kien that bai: {err}");
+        }
+    });
+}
+
 /// **Hàm thuần** — nhánh tệp của AC1 (kéo-thả **hoặc** ô nhập đường dẫn; cả hai đã
 /// resolve thành một `path` thật ở lớp gọi, xem AD-1/AD-16).
 ///
@@ -341,8 +549,168 @@ fn swap_locked<T>(mutex: &std::sync::Mutex<Option<T>>, new: T) -> Option<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::swap_locked;
+    use super::{
+        create_work_from_text, guarded_dict_layers, guarded_open_store, read_chapter_segment_texts,
+        swap_locked,
+    };
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::{Arc, Mutex};
+
+    /// Thư mục tạm CỦA RIÊNG ca này — pid + `AtomicU64`, cùng luật bốn điều của
+    /// `glossary_contract.rs`/`glossary_commands_contract.rs` (mỗi ca một thư mục riêng;
+    /// `Store` drop TRƯỚC khi xoá; không `sleep` dài; không ca nào treo khi trượt).
+    static NEXT_GUARD_DIR: AtomicU64 = AtomicU64::new(0);
+
+    fn guard_test_dir(tag: &str) -> std::path::PathBuf {
+        let n = NEXT_GUARD_DIR.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!(
+            "auratranslate-project-guard-{}-{}-{}",
+            std::process::id(),
+            tag,
+            n
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
+        dir
+    }
+
+    fn guard_test_cleanup(dir: &std::path::Path) {
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════
+    // I/O Matrix — "Kho đóng giữa lượt quét ⇒ luồng nền kết thúc lặng lẽ, không panic",
+    // mở rộng cho ca "Tác phẩm đổi" — Story 3.5, rà bảng I/O phát hiện hàng này KHÔNG có
+    // test nào canh (`spawn_import_scan` nhận `AppHandle` nên `tests/**` không gọi tới nó
+    // được). `guarded_open_store` là đơn vị quyết định được TÁCH RA đúng luật hai lớp của
+    // `src-tauri/AGENTS.md` để ba ca dưới đây canh được TRỰC TIẾP, không cần webview/luồng.
+    // ═════════════════════════════════════════════════════════════════════════════════
+
+    /// Ca ① — không có Tác phẩm nào đang mở (`OpenWorkState` là `None`, hoặc — như ở đây,
+    /// nơi hàm nhận thẳng `Option<&OpenWork>` — chỗ gọi truyền `None`) ⇒ dừng lặng lẽ.
+    #[test]
+    fn guarded_open_store_returns_none_when_no_work_is_open() {
+        assert!(
+            guarded_open_store(None, "bat-ky-work-id-nao").is_none(),
+            "khong co Tac pham nao dang mo -- phai tra None, khong panic"
+        );
+    }
+
+    /// Ca ② — `work_id` đã đổi giữa hai lần khoá (Tác phẩm CŨ đã bị thay bằng một Tác
+    /// phẩm KHÁC trong `OpenWorkState`) ⇒ dừng lặng lẽ, **0 ghi**. Đối chứng bằng `SELECT`
+    /// qua `pending_candidates` — không chỉ tin giá trị trả về `None` — bằng cách lái qua
+    /// ĐÚNG hình dạng mà `spawn_import_scan` dùng: chỉ ghi khi `guarded_open_store` trả
+    /// `Some`. Nếu vệ bảo vệ bị gỡ (hoặc hỏng), ứng viên GIẢ ở dưới sẽ lọt vào bảng chờ và
+    /// ca này đỏ.
+    #[test]
+    fn guarded_open_store_returns_none_and_blocks_every_write_when_the_work_id_has_changed_mid_scan()
+    {
+        let dir = guard_test_dir("work-id-changed");
+        let opened = create_work_from_text(&dir, "Doi Tac Pham Giua Chung", "zh", "", "萧炎登场".to_owned())
+            .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+
+        // `work_id` CHỐT LÚC SPAWN không còn khớp `opened.meta.work_id` -- mô phỏng đúng
+        // ca "Tác phẩm đổi giữa hai lần khoá": `OpenWorkState` nay trỏ một Tác phẩm KHÁC.
+        let stale_work_id = "khong-con-la-tac-pham-nay";
+        assert_ne!(opened.meta.work_id, stale_work_id, "fixture phai thuc su lech work_id");
+
+        let fake_candidates = vec![crate::core::glossary::ScanCandidate {
+            source_term: "萧炎".to_owned(),
+            occurrence_count: 99,
+            context_example: "cau gia.".to_owned(),
+        }];
+
+        // Đúng khuôn production ở `spawn_import_scan`: chỉ ghi khi `guarded_open_store`
+        // trả `Some`.
+        if let Some(store) = guarded_open_store(Some(&opened), stale_work_id) {
+            let _ = crate::core::glossary::insert_import_scan_candidates(store, &fake_candidates);
+        }
+
+        let pending = crate::core::glossary::pending_candidates(&opened.store)
+            .expect("doc bang cho de doi chung -- day la ve SELECT, khong chi tin gia tri tra ve");
+        assert!(
+            pending.is_empty(),
+            "work_id lech ⇒ 0 hang duoc phep ghi vao bang cho ung vien. Nhan: {pending:?}"
+        );
+
+        drop(opened.store);
+        guard_test_cleanup(&dir);
+    }
+
+    /// Ca ③ — ca THƯỜNG: `work_id` khớp ở CẢ HAI lần khoá ⇒ lượt quét chạy hết và ghi.
+    /// Đối chứng dương của ca ② — không có nó thì "0 ghi" ở ca ② có thể xanh vì thuật toán
+    /// quét/ghi tự nó hỏng, không phải vì vệ bảo vệ đúng.
+    #[test]
+    fn guarded_open_store_returns_the_store_and_a_normal_scan_runs_to_completion_and_writes() {
+        let dir = guard_test_dir("normal-run");
+        let text: String = (0..6).map(|i| format!("萧炎在第{i}章登场")).collect();
+        let opened = create_work_from_text(&dir, "Ca Thuong", "zh", "", text)
+            .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+        let work_id = opened.meta.work_id.clone();
+
+        // Lần khoá THỨ NHẤT (đọc segment) -- cùng `work_id` đã chốt lúc spawn.
+        let store = guarded_open_store(Some(&opened), &work_id)
+            .expect("work_id khop o lan khoa thu nhat -- phai tra Some(&store)");
+        let segments = read_chapter_segment_texts(store, opened.chapter_id).expect("doc segment");
+        let segment_refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+
+        let mut is_known = |_: &str| false;
+        let candidates = crate::core::glossary::scan_candidates(
+            &segment_refs,
+            crate::core::matching::MatchLang::Zh,
+            5,
+            crate::core::glossary::COMMON_SURNAMES,
+            &mut is_known,
+        );
+        assert!(!candidates.is_empty(), "van ban mau (6 lan '萧炎') phai sinh it nhat mot ung vien");
+
+        // Lần khoá THỨ HAI (ghi lô) -- cùng `work_id`, đúng hình dạng hai-lần-khoá-ngắn.
+        let store_for_write = guarded_open_store(Some(&opened), &work_id)
+            .expect("work_id van khop o lan khoa thu hai -- phai tra Some(&store)");
+        let (inserted, _skipped) =
+            crate::core::glossary::insert_import_scan_candidates(store_for_write, &candidates)
+                .expect("ghi lo");
+        assert!(inserted > 0, "ca thuong phai ghi duoc it nhat mot hang");
+
+        let pending = crate::core::glossary::pending_candidates(&opened.store).expect("doc lai bang cho");
+        assert!(!pending.is_empty(), "bang cho phai co hang sau mot luot quet binh thuong");
+
+        drop(opened.store);
+        guard_test_cleanup(&dir);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════
+    // Rà ba lớp 2026-08-22 — `guarded_dict_layers` KHÔNG được nuốt ca "chưa quản lý" thành
+    // ca "rỗng bình thường".
+    // ═════════════════════════════════════════════════════════════════════════════════
+
+    /// Bản lỗi (`unwrap_or(&DictLayers::empty())`) coi `None` và `Some(rỗng)` là MỘT — ca
+    /// này canh đúng vế bị nuốt: `None` (chưa quản lý) phải LAN RA `None`, không âm thầm
+    /// đổi thành "rỗng nhưng hợp lệ".
+    #[test]
+    fn guarded_dict_layers_returns_none_and_does_not_silently_fall_back_to_empty_when_not_managed()
+    {
+        assert!(
+            guarded_dict_layers(None).is_none(),
+            "DictLayers chua duoc quan ly -- phai lan None ra ngoai, khong tu doi thanh rong"
+        );
+    }
+
+    /// Đối chứng dương: một `DictLayers` ĐÃ quản lý (kể cả khi rỗng — trạng thái bình
+    /// thường, AD-25) phải đi qua NGUYÊN VẸN, không hàm này tự tráo bằng một bản khác.
+    #[test]
+    fn guarded_dict_layers_passes_the_managed_layers_through_unchanged() {
+        let layers = crate::core::dict::DictLayers::empty();
+        let out = guarded_dict_layers(Some(&layers));
+        assert!(
+            out.is_some(),
+            "DictLayers da quan ly (du rong) van phai di qua -- day la trang thai binh thuong"
+        );
+        assert!(
+            std::ptr::eq(out.expect("da kiem is_some o tren"), &layers),
+            "phai tra ve DUNG tham chieu da nhan, khong dung mot ban thay the nao khac"
+        );
+    }
 
     /// 🔴 **AC10 (Story 1.16)** — kiểm bằng chính cơ chế mà lỗi biểu hiện: giá trị CŨ,
     /// lúc bị drop, tự khoá LẠI cùng một mutex. Bản lỗi (`*guard = Some(new)`) drop giá
@@ -385,7 +753,7 @@ mod tests {
 
 /// Hai vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
-    use super::{IpcError, OpenWork, default_library_root, replace_open_work};
+    use super::{IpcError, OpenWork, default_library_root, replace_open_work, spawn_import_scan};
     use crate::core::library::WorkMeta;
 
     /// Thứ hai lệnh trả về — [`WorkMeta`] **cộng đường dẫn thư mục trên đĩa**.
@@ -437,7 +805,13 @@ pub mod wire {
         let root = default_library_root(&app)?;
         let opened = super::create_work_from_text(&root, &name, &source_lang, &genre, text)?;
         let created = CreatedWork::from_open(&opened);
+        // 🔴 Chốt `work_id`/`chapter_id`/`source_lang` TRƯỚC khi `opened` bị `move` vào
+        // `replace_open_work` — Story 3.5, spawn lượt quét SAU khi Tác phẩm đã vào state.
+        let work_id = opened.meta.work_id.clone();
+        let chapter_id = opened.chapter_id;
+        let scan_source_lang = source_lang.clone();
         replace_open_work(&app, opened);
+        spawn_import_scan(app, work_id, chapter_id, scan_source_lang);
         Ok(created)
     }
 
@@ -459,7 +833,12 @@ pub mod wire {
             std::path::Path::new(&path),
         )?;
         let created = CreatedWork::from_open(&opened);
+        // 🔴 Cùng lý do nhánh `create_work_from_text` ngay trên — chốt trước khi `move`.
+        let work_id = opened.meta.work_id.clone();
+        let chapter_id = opened.chapter_id;
+        let scan_source_lang = source_lang.clone();
         replace_open_work(&app, opened);
+        spawn_import_scan(app, work_id, chapter_id, scan_source_lang);
         Ok(created)
     }
 }

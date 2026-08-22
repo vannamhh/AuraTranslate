@@ -122,6 +122,14 @@ pub struct GlossaryCandidate {
     pub resolution: Option<Resolution>,
     /// ISO-8601 UTC, sinh ở tầng SQL.
     pub created_at: String,
+    /// 🔵 **THÊM 2026-08-22 (Story 3.5)** — số lần chuỗi lặp trong Chương lúc quét. Cột
+    /// `occurrence_count`, `NOT NULL DEFAULT 0` — hàng cũ (nhập tay/Story 3.2, trước lượt
+    /// quét đầu tiên) mang `0`, và đó là câu trung thực: chúng không tới từ một lượt quét.
+    pub occurrence_count: i64,
+    /// 🔵 **THÊM 2026-08-22 (Story 3.5)** — một câu chứa `source_term`, lấy từ segment ĐẦU
+    /// TIÊN gặp nó lúc quét. Cột `context_example`, **nullable**: `None` cho mọi hàng không
+    /// tới từ một lượt quét (§ cùng lý do `occurrence_count`).
+    pub context_example: Option<String>,
 }
 
 impl GlossaryCandidate {

@@ -527,6 +527,20 @@ export type CommandDeps = {
   /** Đóng dải mà không lưu gì — trả lại focus và vùng chọn cũ. Handler của
    * `glossary.close_quick_add`. */
   closeGlossaryQuickAdd?: () => void
+
+  // ── Story 3.5 — lớp phủ "Cài đặt ngưỡng quét Glossary" (FR47) ──────────────────
+  /** Mở lớp phủ ngưỡng quét. Handler của `glossary.settings.open`. */
+  openGlossarySettings?: () => void
+  /** Đóng lớp phủ ngưỡng quét mà KHÔNG lưu. Handler của `glossary.settings.close`. */
+  closeGlossarySettings?: () => void
+  /**
+   * Lưu ngưỡng đang gõ trong ô nhập. Handler của `glossary.settings.save`.
+   *
+   * ⚠️ Cài đặt thật là `async`; kiểu `() => void` ở đây khớp cùng khuôn
+   * `saveGlossaryQuickAdd` — promise trả về bị bỏ qua có chủ ý, kết quả đi ra qua `ref` ở
+   * tầng module (`glossarySettingsState.ts::glossarySettingsSaveError`).
+   */
+  saveGlossarySettings?: () => void
 }
 
 /**
@@ -1500,6 +1514,55 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.close_quick_add', 'closeGlossaryQuickAdd')
       }
       deps.closeGlossaryQuickAdd()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 3.5 — "CÀI ĐẶT NGƯỠNG QUÉT GLOSSARY" (FR47), lớp phủ thứ tư
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `glossary.settings.open` là điểm vào có phím mặc định — `Mod+Alt+T` (họ `Mod+Alt+…`
+   * đã dùng cho `glossary.add_term`/preset bố cục/đi lại panel/tab Nguyên văn). Đo
+   * 2026-08-22: `grep` trên hằng số hợp âm của tệp này cho `Mod+Alt+T` = 0, còn trống.
+   *
+   * `glossary.settings.close`/`glossary.settings.save` giữ **0 hợp âm mặc định** — cùng
+   * chủ ý với `glossary.close_quick_add`/`glossary.save_term`: `Esc`/`↵` xử lý bằng một
+   * handler CỤC BỘ trong `GlossarySettingsOverlay.vue`. Hai command này tồn tại để nút
+   * Lưu/Huỷ có một `dispatch('<id>')` hợp lệ (Kiểm A) VÀ để màn hình phím tắt liệt kê được
+   * cả ba thao tác.
+   */
+  target.register({
+    id: 'glossary.settings.open',
+    labelKey: 'command.glossary.settings.open',
+    keys: ['Mod+Alt+T'],
+    run: () => {
+      if (deps.openGlossarySettings === undefined) {
+        return portMissing('glossary.settings.open', 'openGlossarySettings')
+      }
+      deps.openGlossarySettings()
+    },
+  })
+  target.register({
+    id: 'glossary.settings.close',
+    labelKey: 'command.glossary.settings.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeGlossarySettings === undefined) {
+        return portMissing('glossary.settings.close', 'closeGlossarySettings')
+      }
+      deps.closeGlossarySettings()
+    },
+  })
+  target.register({
+    id: 'glossary.settings.save',
+    labelKey: 'command.glossary.settings.save',
+    keys: undefined,
+    run: () => {
+      if (deps.saveGlossarySettings === undefined) {
+        return portMissing('glossary.settings.save', 'saveGlossarySettings')
+      }
+      deps.saveGlossarySettings()
     },
   })
 

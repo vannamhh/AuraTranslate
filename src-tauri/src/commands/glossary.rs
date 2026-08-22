@@ -32,9 +32,9 @@
 
 use crate::commands::project::OpenWork;
 use crate::core::glossary::{
-    Category, GlossaryEntry, GlossaryMark, GlossaryTier, add_manual_term,
-    match_lang_for_source_lang, marks_for_source_text, resolve_term_for_quick_add,
-    update_manual_term,
+    Category, GlossaryCandidate, GlossaryEntry, GlossaryMark, GlossaryTier, add_manual_term,
+    match_lang_for_source_lang, marks_for_source_text, pending_candidates,
+    resolve_term_for_quick_add, update_manual_term,
 };
 use crate::core::i18n::IpcError;
 use crate::core::scope::ScopeResolver;
@@ -276,9 +276,72 @@ pub fn glossary_marks_for_chapter(
     Ok(marks.into_iter().map(GlossaryMarkWire::from).collect())
 }
 
-/// Bốn vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.5 — vỏ IPC CHỈ-ĐỌC cho bảng chờ, chỗ gọi sản phẩm ĐẦU TIÊN của `pending_candidates`
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Hình dạng trên dây của một [`GlossaryCandidate`] — Story 3.5.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC
+/// (`:64`/`:201` của tệp này).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct GlossaryCandidateWire {
+    pub id: i64,
+    pub source_term: String,
+    pub candidate_origin: String,
+    /// `None` == chờ duyệt — đây là VỊ TỪ DUY NHẤT của [`GlossaryCandidate::is_pending`],
+    /// phơi ra dưới dạng dữ liệu chứ không một cờ `is_pending` song song (cùng khuôn
+    /// `resolution` của `glossary_entry.translation`).
+    pub resolution: Option<String>,
+    pub created_at: String,
+    pub occurrence_count: i64,
+    pub context_example: Option<String>,
+}
+
+impl From<GlossaryCandidate> for GlossaryCandidateWire {
+    fn from(c: GlossaryCandidate) -> Self {
+        Self {
+            id: c.id,
+            source_term: c.source_term,
+            candidate_origin: c.candidate_origin.as_str().to_owned(),
+            resolution: c.resolution.map(|r| r.as_str().to_owned()),
+            created_at: c.created_at,
+            occurrence_count: c.occurrence_count,
+            context_example: c.context_example,
+        }
+    }
+}
+
+/// Mọi ứng viên **chờ duyệt** của Tác phẩm đang mở — **hàm thuần, đây là thứ test gọi**.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 CHỖ GỌI SẢN PHẨM ĐẦU TIÊN CỦA `core::glossary::pending_candidates` — Story 3.2 dựng,
+/// 0 chỗ gọi cho tới lượt này
+/// ─────────────────────────────────────────────────────────────────────────────
+/// §Intent của story: *"Bảng chờ được phơi qua một vỏ IPC CHỈ-ĐỌC để lượt quét nghiệm thu
+/// được bằng mắt."* Không tham số nào khác ngoài `Store` của Tác phẩm — bảng chờ chỉ tồn
+/// tại ở `project.db` (§Never/Code Map của story), nên hàm này trả `Ok(vec![])` khi chưa
+/// mở Tác phẩm nào, KHÔNG một lỗi: *"chưa có Tác phẩm nào để có bảng chờ"* là một trạng
+/// thái bình thường của ứng dụng lúc khởi động, không phải một sự cố.
+///
+/// # Lỗi
+/// đường đọc trượt (kho đóng giữa chừng, …) ⇒ lỗi kho (`store.*`), qua `From<StoreError>`.
+pub fn glossary_pending_candidates(
+    open: Option<&OpenWork>,
+) -> Result<Vec<GlossaryCandidateWire>, IpcError> {
+    let Some(open) = open else {
+        return Ok(Vec::new());
+    };
+
+    let rows = pending_candidates(&open.store)?;
+    Ok(rows.into_iter().map(GlossaryCandidateWire::from).collect())
+}
+
+/// Năm vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
-    use super::{Category, GlossaryMarkWire, GlossaryTier, IpcError, QuickAddLookup};
+    use super::{
+        Category, GlossaryCandidateWire, GlossaryMarkWire, GlossaryTier, IpcError, QuickAddLookup,
+    };
     use crate::commands::project::OpenWorkState;
     use crate::core::store::Store;
 
@@ -397,5 +460,21 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::glossary_marks_for_chapter(global.as_deref(), guard.as_ref(), &text, &source_lang)
+    }
+
+    /// Vỏ IPC của [`super::glossary_pending_candidates`]. Story 3.5.
+    #[tauri::command]
+    pub fn glossary_pending_candidates(
+        app: tauri::AppHandle,
+    ) -> Result<Vec<GlossaryCandidateWire>, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::glossary_pending_candidates(None);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::glossary_pending_candidates(guard.as_ref())
     }
 }

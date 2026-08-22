@@ -90,6 +90,17 @@ pub struct BootstrapConfig {
     /// bộ mã hoá phải nhớ giữ đồng bộ; phép tách sống ở [`crate::core::scope::parse_disabled_sources`],
     /// **một** bản, ở Rust (AD-1).
     pub dict_sources_disabled: String,
+    /// Ngưỡng quét ứng viên khi nhập tài liệu (FR47) — Story 3.5, lớp phủ thứ tư.
+    ///
+    /// ⚠️ Trường thứ **BẢY** trên dây. `tests/ipc_contract.rs` đóng băng danh sách tên
+    /// trường và nó phải được sửa **cùng lượt** — đó là hành vi ĐÚNG, và chính là thứ phép
+    /// kiểm đó tồn tại để chặn.
+    ///
+    /// 🔴 **Số nguyên `u32`, không một chuỗi.** Frontend cần giá trị này để HIỆN ra lúc mở
+    /// lớp phủ ngưỡng, không phải để quyết định gì — hiển thị một chuỗi thô đòi thêm một
+    /// lượt `parseInt` phía TS mà `src/AGENTS.md` cấm ("không quy tắc nghiệp vụ nào ở
+    /// TypeScript"): phân tích số nguyên tự nó là một quy tắc, dù nhỏ.
+    pub glossary_scan_threshold: u32,
 }
 
 /// Kho vắng mặt ⇒ lỗi *mở kho*, và đó là câu đúng theo nghĩa đen.
@@ -132,6 +143,7 @@ pub fn bootstrap_config(store: Option<&Store>) -> Result<BootstrapConfig, IpcErr
         layout_presets: config.layout_presets(),
         workspace_layout: config.workspace_layout().to_owned(),
         dict_sources_disabled: config.dict_sources_disabled().to_owned(),
+        glossary_scan_threshold: config.glossary_scan_threshold(),
     })
 }
 

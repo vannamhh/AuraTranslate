@@ -285,7 +285,8 @@ const vueFiles = keep(vueAll)
 // lượt. Một chú thích trỏ vào tệp không tồn tại là đúng thứ luật "sửa tại chỗ" tồn tại để
 // chống. Số thật vẫn **51** tệp `.rs`; cùng luật
 // "sàn nâng mà số thật không đổi là sàn nâng theo cảm giác" đã áp cho Story 1.20/1.21.
-const RS_FLOOR = 42 // đo lại 2026-08-21 (Story 3.4): số THẬT vẫn 51 tệp `.rs` — 42/51 = 82,4%, khong doi
+const RS_FLOOR = 44 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 53 tệp `.rs` (+core/glossary/scan.rs
+// +core/glossary/surnames.rs) — 44/53 = 83,0%
 // ⚠️ **Bước nhảy 43 → 51 KHÔNG phải một mình Story 3.3 gây ra** — đọc kỹ trước khi tưởng
 // story này tự thêm tám tệp. Sàn cũ (36) đặt từ số thật 43 hồi Story 2.1 (2026-08-12) và
 // KHÔNG ai nâng lại qua bảy story liền sau (2.2 → 3.2) dù cây tiếp tục mọc — đúng lớp trôi
@@ -303,7 +304,8 @@ const RS_FLOOR = 42 // đo lại 2026-08-21 (Story 3.4): số THẬT vẫn 51 t�
 // chạm Rust (`delete_config` · `delete_value`), nhưng nó **sửa hai tệp đã có** và không tạo
 // tệp `.rs` nào — số thật đứng nguyên ở 41. `VUE_FLOOR` thì nâng, vì `ShortcutsOverlay.vue`
 // là một tệp mới (14 → 15).
-const VUE_FLOOR = 14 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 17 tệp `.vue` — 14/17 = 82,4%
+const VUE_FLOOR = 15 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 18 tệp `.vue`
+// (+GlossarySettingsOverlay.vue) — 15/18 = 83,3%
 // ⚠️ Cùng bài học `RS_FLOOR` ở trên, ở quy mô nhỏ hơn: sàn cũ (13) đặt từ số thật 15 hồi
 // Story 1.21 (2026-08-11). Story 3.3 tự nó thêm ĐÚNG MỘT tệp (`GlossaryQuickAdd.vue`);
 // tệp `.vue` thứ hai làm 15 → 17 tới từ một story giữa 1.21 và 3.3 không ai nâng sàn lại.

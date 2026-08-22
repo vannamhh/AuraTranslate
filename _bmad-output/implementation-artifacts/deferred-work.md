@@ -5615,6 +5615,19 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     (`insert_candidate` là API thuần, không tự tra `glossary_entry` trước khi chèn — làm
     vậy là đặt một quyết định nghiệp vụ của Story 3.5 vào một hàm mà story đó chưa tồn tại).
     **(Chủ: Story 3.5 — quét ứng viên khi nhập tài liệu.)**
+  → ✅ **ĐÃ ĐÓNG 2026-08-22 (Story 3.5).** Hàm ghi lô mới
+    `core::glossary::candidate_store::insert_import_scan_candidates` lọc `glossary_entry`
+    NGAY trong câu `INSERT` (`WHERE NOT EXISTS (SELECT 1 FROM glossary_entry WHERE
+    source_term = ?1)`), cộng `ON CONFLICT (source_term) DO NOTHING` cho ca "đã từng bị
+    bỏ". `commands::project::spawn_import_scan` gọi hàm này — KHÔNG gọi `insert_candidate`
+    đơn lẻ — nên đường sản phẩm không còn tạo ra được ca "ứng viên kẹt vĩnh viễn" nữa. Đối
+    chứng: `glossary_contract.rs::an_import_scan_candidate_colliding_with_an_existing_
+    glossary_entry_is_never_inserted` (đếm `(inserted, skipped) == (0, 1)`, bảng chờ RỖNG
+    sau lượt ghi). Ca ghim hành vi cũ của `insert_candidate` đơn lẻ
+    (`a_candidate_colliding_with_an_existing_manual_glossary_entry_is_stuck_pending_forever_
+    known_gap`) vẫn đứng — nó ghim đúng API thuần, nay bị khoá lại trong
+    `GLOSSARY_ONLY_SURFACE` (xem mục ngay dưới), không còn chỗ gọi sản phẩm nào dùng hình
+    dạng hở đó nữa.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
   summary: `pending_candidates` sắp theo `ORDER BY source_term` — đối chiếu BYTE của
@@ -5641,6 +5654,19 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     **(Chủ: story dựng chỗ gọi sản phẩm đầu tiên cho bốn hàm này** — ứng viên gần nhất:
     Story 3.5 (`insert_candidate`) hoặc Story 3.8 (`pending_candidates`/`approve_candidate`/
     `reject_candidate`).**)**
+  → 🟡 **ĐÓNG MỘT NỬA 2026-08-22 (Story 3.5).** Quyết định thật cho `insert_candidate`:
+    Story 3.5 đo lại (`grep insert_candidate src-tauri/src/**` ngoài `core/glossary/**`) và
+    thấy **0** chỗ gọi sản phẩm — hàm ghi lô mới (`insert_import_scan_candidates`) thay thế
+    nó cho đường quét, và không đường sản phẩm nào khác cần `insert_candidate` đơn lẻ. Nó
+    khoá lại giống `insert_manual_entry`/`confirm_translation`/`load_tier`:
+    `GLOSSARY_ONLY_SURFACE` nay có **4** phần tử, không 3
+    (`glossary_boundary.rs::GLOSSARY_ONLY_SURFACE`). Quyết định thật cho `pending_candidates`:
+    NGƯỢC LẠI — `commands::glossary::glossary_pending_candidates` (vỏ IPC CHỈ-ĐỌC mới) là
+    chỗ gọi sản phẩm ĐẦU TIÊN của nó, nên nó vào `QUICK_ADD_SURFACE` (nay **5** phần tử) —
+    danh sách ĐƯỢC PHÉP, không bị khoá. **Còn hở:** `approve_candidate`/`reject_candidate`
+    vẫn CHƯA vào `GLOSSARY_ONLY_SURFACE` lẫn `QUICK_ADD_SURFACE` — Story 3.5 không dựng bề
+    mặt duyệt nào chạm chúng. **(Chủ: Story 3.8 — duyệt hàng loạt một phím, chủ tự nhiên
+    của hai hàm còn lại.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
   summary: Khoá `UNIQUE (source_term)` của `glossary_candidate` chặn TRÙNG CHUỖI — hẹp hơn
@@ -6166,3 +6192,134 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     không đọc "12/12 xanh" thành "3.4b đã qua webview thật".
     **(Chủ: Story 3.4b, cùng phiên nghiệm thu tay trên bản dựng đóng gói — gộp với món nợ cặp số
     mở Chương và món nợ "đứng hình vs chậm"; ba mệnh đề cùng cần một bản dựng thật, đo một lượt.)**
+
+## Deferred from: 3-5-quet-ung-vien-khi-nhap-tai-lieu (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
+  summary: **"Một loạt Chương" (nhập nhiều Chương cho một Tác phẩm) KHÔNG có đường sản phẩm —
+    lượt quét khi nhập của story này vì thế chỉ CHẠY ĐÚNG cho Chương DUY NHẤT mà `create_work`
+    dựng, không cho một Chương thứ hai/ba/… sau này.**
+  evidence: `commands/project.rs:181` (nay đã dịch dòng theo lượt sửa của story) là câu `INSERT
+    INTO chapter` DUY NHẤT trong toàn kho sản phẩm, và nó chạy đúng MỘT lần bên trong
+    `create_work`. `commands/chapter.rs:107-108` đã tự khai từ trước: *"không đường sản phẩm nào
+    sinh Chương thứ hai; món nợ có chủ: Epic 6"*. `spawn_import_scan` (story này) bám đúng cùng
+    đường: nó spawn TỪ `wire::create_work_from_text`/`wire::create_work_from_file`, tức đúng
+    lượt tạo Tác phẩm CÓ MỘT Chương — không có một chỗ gọi tương đương nào cho "thêm Chương vào
+    một Tác phẩm đã có" để nối lượt quét vào, vì hành động đó chưa tồn tại.
+    **(Chủ: Epic 6 — đường nhập "một loạt Chương". Khi đường đó dựng xong, nó phải tự gọi
+    `spawn_import_scan` *(hoặc hàm kế thừa)* cho MỖI Chương mới, không chỉ Chương đầu.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
+  summary: **Bảng chờ chỉ được PHƠI ra (`glossary_pending_candidates`, vỏ IPC CHỈ-ĐỌC) — chưa
+    một component Vue nào DUYỆT nó.** Người dùng không có màn hình nào để nhận/bỏ một ứng viên
+    vừa quét ra.
+  evidence: §Never của story nói tường minh: *"Không component Vue cho bảng chờ (Story 3.8).
+    Story này chỉ phơi dữ liệu."* `pending_candidates`/`approve_candidate`/`reject_candidate`
+    (Story 3.2) vẫn đứng nguyên, chưa hàm nào trong ba hàm đó có chỗ gọi sản phẩm — chỉ
+    `pending_candidates` mới có, qua vỏ CHỈ-ĐỌC của story này.
+    **(Chủ: Story 3.8 — duyệt hàng loạt một phím.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
+  summary: **AC "đo thời gian tường + số ứng viên trên một Chương tiếng Trung THẬT" chưa đóng
+    trọn — số đã đo là chi phí THUẦN (không dictionary thật), trên một văn bản TỔNG HỢP, không
+    phải Chương thật của Ice.**
+  evidence: Môi trường cài đặt (agent CLI) không mang tệp `.db` từ điển nào (`*.db` trong
+    `.gitignore`, AD-25) và không có quyền truy cập kho `.atproj` thật của Ice. Số đã đo bằng
+    một tệp bench TẠM (dựng · chạy · XOÁ ngay trong lượt này, cùng tiền lệ
+    `zzz_scratch_bench_marks.rs` của Story 3.4/3.4b), trên một văn bản tổng hợp ~48.650 ký tự /
+    8.848 câu (mô phỏng đúng QUY MÔ của Chương lớn nhất có thật — `commands/segment.rs:1111` —
+    nhưng KHÔNG phải chính văn bản đó):
+    - `scan_candidates` (n-gram + dedup lồng): **452 ms**.
+    - `insert_import_scan_candidates` (ghi lô): **19 ms**.
+    - Tổng: **~471 ms** — dưới trần 5.000 ms của §Ask First một khoảng an toàn lớn, NHƯNG con
+      số này chạy `is_known` trên `DictLayers::empty()` — **0 chi phí tra từ điển thật**. Chi
+      phí `is_known` trên dữ liệu thật CHƯA đo được ở đây: nó gọi `lookup_grouped` với
+      `LookupMode::Exact` (nhánh `ExactBtree`, được chọn vì nó rẻ nhất trong bốn nhánh — Code
+      Map của story), nhưng con số p95 duy nhất đã có trong kho (**7.324 ms**) đo nhánh
+      `CharIdx` cho một truy vấn MỘT KÝ TỰ, không đo `ExactBtree` cho một chuỗi 2-4 ký tự — hai
+      chi phí không thể suy ra lẫn nhau.
+    - Ứng viên qua lọc: **969** — VƯỢT trần 500 của §Ask First ("Nếu ngưỡng 5 cho ra … trên 500
+      ứng viên trên Chương mẫu: trình số, đừng tự chỉnh ngưỡng mặc định"). Con số này KHÔNG
+      đáng tin để kết luận ngưỡng 5 sai: văn bản tổng hợp là "súp ký tự" không mang cấu trúc
+      TỪ của ngôn ngữ thật (một lượt thử đầu, chỉ 30 ký tự lấp đầy, cho ra 1.490 — cao hơn
+      NỮA), nên tỉ lệ trùng lặp n-gram của nó cao hơn văn bản thật một cách GIẢ TẠO. Ngưỡng mặc
+      định KHÔNG bị tự đổi (đúng luật *"đừng tự chỉnh"*).
+    ⇒ Ba con số trên đủ để khẳng định KHÔNG có vấn đề hiệu năng thấy được ở quy mô này, nhưng
+    KHÔNG đủ để đóng trọn hai mệnh đề của §Ask First (trần 5s có tính is_known thật; trần 500
+    ứng viên). **Story dừng đúng ở việc ĐO những gì đo được trong môi trường này và NÓI RA giới
+    hạn** — không suy luận, không tự chỉnh ngưỡng, đúng luật trung tâm của kho.
+    **(Chủ: Ice — cần chạy tay trên một máy có `.db` từ điển thật VÀ một Chương tiếng Trung
+    thật, đọc số `scan_candidates`/`insert_import_scan_candidates`/số ứng viên qua Rust log
+    hoặc một lượt đo tương tự tệp bench đã xoá, rồi ghi thẳng vào story theo đúng luật "đo,
+    không suy luận".)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
+  summary: **AC "quét trong lúc gõ ⇒ không frame nào vượt 50 ms (NFR2)" đóng được bằng LẬP LUẬN
+    KIẾN TRÚC, không bằng một phép đo khung hình thật — §Boundaries của chính story cấm đúng
+    kiểu đóng này ("không đóng được bằng 'nó ở thread khác'").**
+  evidence: `spawn_import_scan` chạy trên một `std::thread` riêng (tiền lệ DUY NHẤT khác trong
+    mã sản phẩm là `lib.rs:774`), và pha CPU nặng nhất (`scan_candidates` + mọi lượt gọi
+    `is_known`) chạy KHÔNG giữ khoá `OpenWorkState` — hai khối khoá ngắn bao quanh nó (đọc
+    segment, ghi lô) là điều kiện để `read_open_chapter` không bị chặn. Đây là một LẬP LUẬN dựa
+    trên đọc mã, không một con số `requestAnimationFrame` thật đo trên một webview đang gõ
+    trong khi lượt quét chạy — môi trường cài đặt này không dựng được cửa sổ Tauri thật.
+    **(Chủ: Ice — nghiệm thu tay: mở một Chương tiếng Trung lớn, gõ liên tục trong 5 giây đầu
+    ngay sau khi import xong Tác phẩm chứa nó, quan sát DevTools Performance có frame nào vượt
+    50 ms không.)**
+
+## Deferred from: vòng rà ba lớp của Story 3.5 (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
+  summary: **`GLOSSARY_IMPORT_SCAN_EVENT` phát ra mà KHÔNG một người nghe nào, và mọi nhánh
+    thất bại của `spawn_import_scan` chỉ `eprintln!` — thứ người dùng bản đóng gói không bao
+    giờ thấy. Một lượt quét HỎNG hôm nay là im lặng tuyệt đối.**
+  evidence: Rà 2026-08-21/22 (lớp blind-hunter). `grep 'GLOSSARY_IMPORT_SCAN_EVENT' src/` = 0
+    người nghe — cố ý, và đúng phạm vi story (§Never cấm dựng component Vue cho bảng chờ, đó
+    là Story 3.8). Nhưng vế THẤT BẠI thì không có chủ: bốn nhánh `return` sớm trong
+    `commands/project.rs` (`guarded_open_store` trả `None` · `read_chapter_segment_texts` lỗi ·
+    `load_global_config` lỗi · `guarded_dict_layers` trả `None`) đều chỉ ghi `eprintln!`.
+    ⚠️ `AGENTS.md` khai `panic` trên Windows release "không in ra đâu"; một tiến trình GUI
+    không gắn console thì `stderr` cũng vậy. ⇒ mệnh đề "Mọi số đếm báo ra" của §Boundaries
+    đóng cho ca THÀNH CÔNG (sự kiện mang cặp số) nhưng KHÔNG đóng cho ca thất bại.
+    ⚠️ Đây đúng lớp *rỗng im lặng* mà `AGENTS.md` gọi là lỗi trung tâm của dự án, chỉ đổi tầng.
+    **(Chủ: Story 3.6/3.8 — story đầu tiên dựng người nghe cho sự kiện này phải xử luôn vế
+    thất bại, không chỉ vế cặp số.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
+  summary: **Mở một Tác phẩm thứ hai giữa hai lần khoá ⇒ kết quả quét của Chương đầu MẤT
+    VĨNH VIỄN — không hàng đợi, không thử lại, không một dấu hiệu nào.**
+  evidence: Rà 2026-08-21/22 (lớp blind-hunter). `guarded_open_store` (`commands/project.rs`)
+    từ chối ghi khi `work_id` đã đổi — ĐÚNG, và có test canh
+    (`guarded_open_store_returns_none_and_blocks_every_write_when_the_work_id_has_changed_mid_scan`,
+    tôi đã tự chạy phép đỏ→xanh trên nó). Nhưng "không ghi nhầm" và "không mất" là hai mệnh đề
+    khác nhau: lượt quét đó không được xếp lại hàng, và vì bảng chờ nằm trong `project.db` của
+    Tác phẩm cũ, KHÔNG đường sản phẩm nào chạy lại lượt quét cho một Chương đã nhập xong.
+    ⇒ người dùng nhập Tác phẩm A, mở ngay Tác phẩm B, và bảng chờ của A rỗng mãi mãi mà không
+    ai biết vì sao. Cửa sổ hẹp (khoảng nửa giây theo bàn đo tổng hợp) nhưng hậu quả vĩnh viễn.
+    **(Chủ: Story 3.8 — màn duyệt hàng loạt là chỗ đầu tiên người dùng NHÌN vào bảng chờ và
+    do đó là chỗ đầu tiên "rỗng vì mất" phân biệt được với "rỗng vì không có ứng viên"; cần
+    một vị từ `…HasScanned` chứ không chỉ một danh sách rỗng.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
+  summary: **Không có móc dùng chung ở mức "vừa chèn một Chương" — lượt quét gắn thẳng vào hai
+    vỏ `create_work_from_*`, nên đường nhập hàng loạt của Epic 6 sẽ thêm Chương mà KHÔNG quét.**
+  evidence: Rà 2026-08-21/22 (lớp blind-hunter). `spawn_import_scan` được gọi từ đúng hai chỗ,
+    cả hai là vỏ tạo Tác phẩm. Toàn kho có một `INSERT INTO chapter` (`commands/project.rs`),
+    nhưng Epic 6 sẽ thêm đường thứ hai, và không cổng nào canh mệnh đề "mỗi Chương mới sinh ra
+    một lượt quét". Lỗi sẽ không đỏ ở đâu cả — nó lộ ra thành *"nhập 2000 chương mà bảng chờ
+    chỉ có ứng viên của chương 1"*. Ghi ra ĐÂY vì lượt này là lượt duy nhất còn nhớ lý do.
+    **(Chủ: Epic 6 — story dựng nhập hàng loạt; gộp với món nợ "một loạt Chương" đã ghi ở
+    mục `## Deferred from: 3-5-…` phía trên, cùng một lượt sửa.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
+  summary: **Không cổng nào canh cặp `sprint-status.yaml` ↔ trường `status:` của chính tệp
+    story — và đó CHÍNH LÀ cách khoá `3-4b` trôi sai suốt hai commit.**
+  evidence: Phát hiện lúc định tuyến `bmad-build` 2026-08-22, đối chứng bằng `git log`: khoá
+    `3-4b-…` lần cuối được sửa ở `53035e7` (đặt `review`); hai commit SAU đó — `de5f3fd` và
+    `99dad1f` — đóng story trong tệp story (`status: 'done'`) mà không lật khoá. Suốt hai
+    commit, tệp Ice dùng để CHỌN VIỆC nói một đằng, tệp story nói một nẻo. `check:gates` canh
+    ba danh sách cổng (`package.json` · `ci.yml` · `.githooks/pre-push`) nhưng không canh cặp
+    này. Đã sửa tay khoá `3-4b` trong lượt này kèm nhật ký tại chỗ; cơ chế thì chưa.
+    ⚠️ *"Thêm một cổng = sửa BA danh sách"*, ngoài phạm vi một story tính năng.
+    **(Chủ: story hạ tầng cổng kế tiếp — cùng chủ với món nợ "bàn đo chép tay giá trị màu" và
+    "8/13 cổng chưa có phép tự kiểm".)**

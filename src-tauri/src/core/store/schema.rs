@@ -402,10 +402,16 @@ BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;";
 /// - `created_at` — cùng khuôn `glossary_entry`/`chapter`/`segment`: sinh ở tầng SQL bằng
 ///   `strftime`, không truyền từ Rust.
 ///
-/// **Không cột `số lần xuất hiện`/`ví dụ ngữ cảnh`** (Story 3.5) · **không `bản dịch đề
+/// 🔵 **CẬP NHẬT 2026-08-22 (Story 3.5) — `số lần xuất hiện`/`ví dụ ngữ cảnh` ĐÃ CÓ.** Câu
+/// dưới đây từng đúng và nay hết đúng cho hai cột đầu tiên; sửa tại chỗ thay vì để nó lặng
+/// lẽ sai. Chúng tới bằng bước di trú **14**
+/// ([`GLOSSARY_CANDIDATE_OCCURRENCE_CONTEXT_DDL`]), **không** bằng một lượt sửa hằng này —
+/// cùng tiền lệ `SEGMENT_TARGET_TEXT_DDL` đã ghi ở trên: sửa `GLOSSARY_CANDIDATE_DDL` tại
+/// chỗ sẽ làm một `project.db` cũ (di trú tới bước 13, KHÔNG chạy lại DDL này) và một kho
+/// mới (chạy DDL đã sửa) lệch lược đồ dưới cùng một số phiên bản. **Không `bản dịch đề
 /// xuất`** (3.7) · **không `phân loại`/`con trỏ đang duyệt`** (3.8) · **không `tỉ lệ nhất
-/// quán`** (Epic 8). `segment` nhận sáu bước `ALTER` rải khắp Epic 2 — đó là TIỀN LỆ, không
-/// phải một thiếu sót ở bảng này.
+/// quán`** (Epic 8) — ba cột đó vẫn giữ nguyên chủ. `segment` nhận sáu bước `ALTER` rải
+/// khắp Epic 2 — đó là TIỀN LỆ, không phải một thiếu sót ở bảng này.
 pub const GLOSSARY_CANDIDATE_DDL: &str = "\
 CREATE TABLE glossary_candidate (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -428,6 +434,34 @@ CREATE TRIGGER glossary_candidate_resolution_is_one_way
 BEFORE UPDATE OF resolution ON glossary_candidate
 WHEN OLD.resolution IS NOT NULL
 BEGIN SELECT RAISE(ABORT, 'glossary candidate resolution is one-way'); END;";
+
+/// Hai cột thêm vào `glossary_candidate` — **bước 14 của `project.db`**, Story 3.5.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `ALTER TABLE` RIÊNG, KHÔNG SỬA [`GLOSSARY_CANDIDATE_DDL`] TẠI CHỖ
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Đúng tiền lệ [`SEGMENT_TARGET_TEXT_DDL`] (bước 6 của `segment`): một `project.db` đã di
+/// trú tới bước 13 KHÔNG BAO GIỜ chạy lại `GLOSSARY_CANDIDATE_DDL` — sửa hằng đó tại chỗ
+/// làm kho CŨ (bảng thiếu hai cột) và kho MỚI (bảng có hai cột, tạo từ đầu) lệch lược đồ
+/// trong khi cùng báo `user_version = 13`. Hai cột phải tới bằng một bước **mới**.
+///
+/// - `occurrence_count INTEGER NOT NULL DEFAULT 0` — số lần chuỗi lặp trong Chương vừa
+///   quét. `NOT NULL DEFAULT 0` là giá trị AN TOÀN cho mọi hàng CŨ (Story 3.2, trước story
+///   này) — chúng không tới từ một lượt quét nên "0 lần" là câu trung thực duy nhất, không
+///   phải một chỗ trống.
+/// - `context_example TEXT` — **nullable**, không `NOT NULL DEFAULT ''`. Cùng lý do
+///   `occurrence_count`: một hàng CŨ không có câu ví dụ nào để kể, và `NULL` nói đúng điều
+///   đó; một chuỗi rỗng `''` sẽ trông như "đã quét nhưng câu ví dụ rỗng" — hai trạng thái
+///   khác nhau bị một giá trị che mất.
+///
+/// ⚠️ **Không `CHECK` nào canh hai cột này.** `occurrence_count` luôn `>= ngưỡng` trên
+/// đường ghi sản phẩm (Rust là lớp lọc duy nhất, `core::glossary::scan`), và một `CHECK
+/// (occurrence_count >= 0)` chỉ canh một bất biến mà đường ghi hôm nay không bao giờ vi
+/// phạm — thêm nó là một ràng buộc chưa ai đo cần.
+pub const GLOSSARY_CANDIDATE_OCCURRENCE_CONTEXT_DDL: &str = concat!(
+    "ALTER TABLE glossary_candidate ADD COLUMN occurrence_count INTEGER NOT NULL DEFAULT 0;",
+    "ALTER TABLE glossary_candidate ADD COLUMN context_example TEXT;"
+);
 
 /// Bộ di trú của `global.db`. Hôm nay **bốn** bước — Story 1.7 · 1.8 · 1.20 · 3.1.
 ///
@@ -1023,10 +1057,10 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
     "UPDATE segment SET translation_origin = 'self' WHERE status = 'confirmed';"
 );
 
-/// Bộ di trú của `project.db`. Hôm nay **mười hai** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
-/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2.
+/// Bộ di trú của `project.db`. Hôm nay **mười ba** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
+/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5.
 ///
-/// 🔴 **Mười hai bước, và đích là phiên bản 13.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// 🔴 **Mười ba bước, và đích là phiên bản 14.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
 /// `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
@@ -1082,6 +1116,11 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// là 12"* đã hết đúng, sửa tại chỗ. 🔴 **KHÁC** bước 4/12 của Glossary: bước này KHÔNG có
 /// bước song sinh ở [`GLOBAL_MIGRATIONS`] — bảng ứng viên chỉ tồn tại ở tầng Tác phẩm
 /// (§Never của story: "Bảng ứng viên ở `global.db`").
+///
+/// 🔵 **CẬP NHẬT 2026-08-22 (Story 3.5):** đích chuyển từ **13** lên **14** — bước
+/// [`GLOSSARY_CANDIDATE_OCCURRENCE_CONTEXT_DDL`] (`occurrence_count`/`context_example` của
+/// `glossary_candidate`). Câu *"mười hai bước, đích là 13"* đã hết đúng, sửa tại chỗ. Cùng
+/// lý do bước 13: **KHÔNG** có bước song sinh ở [`GLOBAL_MIGRATIONS`].
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -1209,6 +1248,14 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 13,
         sql: GLOSSARY_CANDIDATE_DDL,
+    },
+    // Story 3.5 -- hai cot occurrence_count/context_example cua glossary_candidate, cung
+    // KHONG co buoc song sinh o GLOBAL_MIGRATIONS. Xem doc-comment cua
+    // GLOSSARY_CANDIDATE_OCCURRENCE_CONTEXT_DDL.
+    // 14, khong phai 5 -- 5, 6, 7, 8, 9, 10, 11, 12 va 13 da tieu.
+    Migration {
+        to_version: 14,
+        sql: GLOSSARY_CANDIDATE_OCCURRENCE_CONTEXT_DDL,
     },
 ];
 

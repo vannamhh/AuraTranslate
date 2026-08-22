@@ -60,7 +60,11 @@ const SCHEMA_FILE: &str = "core/store/schema.rs";
 /// tệp `.rs` MỚI nào dưới `src-tauri/src/**` — quần thể vẫn **50**. Một sàn nâng khi số thật
 /// đứng nguyên là một sàn nâng theo cảm giác, đúng thứ `check-i18n.mjs::RS_FLOOR` (Story
 /// 1.20) đã từ chối một lần.
-const RS_FLOOR: usize = 40; // số THẬT 2026-08-21 (đo lại, Story 3.4): 50 tep .rs -- 40/50 = 80%, khong doi
+const RS_FLOOR: usize = 44; // 🔵 SUA 2026-08-22 (ra ba lop) -- 43/53 = 81% VA `check-i18n.mjs::RS_FLOOR`
+// = 44/53 = 83% khong khop nhau tren CUNG mot quan the (53 tep .rs duoi src-tauri/src/**,
+// da doi chieu: check-i18n.mjs quet ca `src-tauri/**` + `tools/**` roi tru mien tru
+// `tests/**`/`tools/**`, con lai dung 53 -- cung so voi cong nay). Hai cong khong co ly do
+// chinh dang de lech nhau tren cung mot con so; nang len 44 cho khop.
 
 /// Chuỗi bị cấm ngoài hai vị trí ở trên — **tên bảng thật**, chữ thường nguyên văn như nó
 /// nằm trong SQL (`CREATE TABLE glossary_entry`, `FROM glossary_candidate`, …).
@@ -103,7 +107,23 @@ const FORBIDDEN_TABLES: [&str; 2] = ["glossary_entry", "glossary_candidate"];
 /// này** — chưa có chỗ gọi sản phẩm nào ngoài `core/glossary/**` để nghiệm thu một quyết
 /// định (có nên hạn chế `pending_candidates`/`approve_candidate` hay không phụ thuộc vào
 /// hình dạng bề mặt Story 3.3/3.5/3.8 dựng). Món nợ có chủ ở `deferred-work.md`.
-const GLOSSARY_ONLY_SURFACE: [&str; 3] = ["insert_manual_entry", "confirm_translation", "load_tier"];
+/// 🔵 **CẬP NHẬT 2026-08-22 (Story 3.5) — hàm THỨ TƯ, `insert_candidate`.** Nửa món nợ
+/// `deferred-work.md:5630-5643` đóng ở đây: bốn hàm `candidate_store` (Story 3.2) chờ
+/// đúng "story dựng chỗ gọi sản phẩm đầu tiên" quyết định — ứng viên gần nhất ghi trong
+/// sổ nợ là *"Story 3.5 (`insert_candidate`)"*. Đo lại (`grep insert_candidate
+/// src-tauri/src/**` ngoài `core/glossary/**`): **0** chỗ gọi. Story này KHÔNG gọi hàm
+/// đơn lẻ đó — nó dựng một hàm ghi LÔ mới (`insert_import_scan_candidates`, `WHERE NOT
+/// EXISTS` + `ON CONFLICT DO NOTHING`) mà `commands::project` gọi thay. `insert_candidate`
+/// vì thế khoá lại giống `insert_manual_entry`/`confirm_translation`/`load_tier`: phơi dữ
+/// liệu THÔ (một `INSERT` trần, không lọc `glossary_entry`, không đếm `(đã chèn, đã bỏ
+/// qua)`), và một chỗ gọi sản phẩm tương lai dùng nó thay vì hàm lô mới sẽ lách qua đúng
+/// luật *"lọc `glossary_entry` trước khi ghi"* mà story này vừa dựng. `pending_candidates`/
+/// `approve_candidate`/`reject_candidate` GIỮ NGUYÊN ngoài danh sách này — `pending_
+/// candidates` nay có chỗ gọi sản phẩm thật (`commands::glossary::glossary_pending_
+/// candidates`, xem `QUICK_ADD_SURFACE`); `approve_candidate`/`reject_candidate` vẫn là
+/// nợ MỞ, chủ Story 3.8.
+const GLOSSARY_ONLY_SURFACE: [&str; 4] =
+    ["insert_manual_entry", "confirm_translation", "load_tier", "insert_candidate"];
 
 /// 🔵 **THÊM 2026-08-20 (Story 3.3)** — vị từ THUẦN dùng bởi cổng thật
 /// ([`only_entries_eligible_for_injection_may_be_called_from_outside_glossary`]) **VÀ**
@@ -122,11 +142,19 @@ fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static st
 /// (dải "Thêm thuật ngữ" 3.3 + đánh dấu 3.4) — đổi tên sẽ chạm hai test đã có mà không đổi
 /// mệnh đề chúng canh; giữ khuôn hiện tại (một danh sách CÁC HÀM ĐƯỢC PHÉP, không phải một
 /// danh sách CHỈ-CHO-QUICK-ADD) là đúng thứ Story 3.1 đã ký ở `:80-88`.
-const QUICK_ADD_SURFACE: [&str; 4] = [
+/// 🔵 **CẬP NHẬT 2026-08-22 (Story 3.5) — hàm THỨ NĂM, `pending_candidates`.** Vỏ IPC
+/// CHỈ-ĐỌC mới `glossary_pending_candidates` (`commands/glossary.rs`) là chỗ gọi sản phẩm
+/// ĐẦU TIÊN của hàm này (Story 3.2 dựng nó, 0 chỗ gọi cho tới lượt này) — đóng nốt nửa
+/// còn lại của `deferred-work.md:5630-5643`. `pending_candidates` KHÔNG lọc gì (trả TRỌN
+/// `resolution IS NULL`), nhưng đó đúng là việc một bề mặt "phơi để nghiệm thu bằng mắt"
+/// (§Intent của story) cần — không có điều kiện chèn nào để tách ra như
+/// `entries_eligible_for_injection` đã làm cho `glossary_entry`.
+const QUICK_ADD_SURFACE: [&str; 5] = [
     "resolve_term_for_quick_add",
     "add_manual_term",
     "update_manual_term",
     "marks_for_source_text",
+    "pending_candidates",
 ];
 
 /// Token xuất xứ TỰ ĐỘNG — chỉ được sinh ra (biến thể enum, chuỗi `as_str()`) bên trong
