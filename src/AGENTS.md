@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-19 against 705d17a. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
+<!-- Verified 2026-08-24 against b290336. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
 
 ## src/ — Vue 3 + TypeScript
 

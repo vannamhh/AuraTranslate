@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-19 against 705d17a. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
+<!-- Verified 2026-08-24 against b290336. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
 
 ## src-tauri/ — Rust + Tauri v2
 
@@ -34,5 +34,6 @@ Lõi ứng dụng: mọi quy tắc nghiệp vụ sống ở đây (AD-1). Worksp
 - Vị từ điều phối zh/en là HÌNH DẠNG CHUỖI TRUY VẤN, không phải ngôn ngữ của Tác phẩm: bôi đen `API` trong một truyện tiếng Trung mà lọc `lang='zh'` cho 0 hàng dù mục `API` có thật. Hạ chữ thường là THÊM một khoá, không THAY khoá gốc — 1.635 đầu mục tiếng Anh mang chữ hoa có nghĩa.
 - `LIKE` bị cấm trên đường nóng tra cứu — đo 20–50 ms.
 - ⚠️ Hai bất biến CHƯA có phép kiểm, đừng tin là đã được canh: AD-13 (không module nào ngoài `ai/` phụ thuộc `ai/`) hoãn tới Story 4.1 — `core/ai/` hôm nay là stub; AD-41 (phạm vi mạng) không được framework cưỡng chế vì capabilities của Tauri là khai báo tĩnh lúc build, và bộ test riêng của nó chưa tồn tại — `core/webimport/` cũng là stub.
+- `trim()` của SQLite chỉ cắt **dấu cách ASCII**, nên `CHECK (trim(x) <> '')` KHÔNG chặn tab, xuống dòng, NBSP hay U+3000 — đo 2026-08-19 trên SQLite 3.53.4, và rào rỗng mà spec Story 3.1 viết sẵn đã thủng bảy đường. Rào rỗng trong DDL phải liệt TRỌN 25 điểm mã `White_Space` (`GLOSSARY_ENTRY_DDL`), đúng tập mà `str::trim()` của Rust cắt; thêm một ký tự vào một lớp thì phải thêm vào lớp kia CÙNG LƯỢT. Không cổng nào canh cặp này.
 
 <!-- /bmad:context -->

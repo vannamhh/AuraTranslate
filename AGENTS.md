@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-19 against 705d17a. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-08-24 against b290336. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## AuraTranslate
 
@@ -25,9 +25,9 @@ Không gian làm việc tra từ điển và dịch thuật, chạy hoàn toàn 
 ## Running and verifying
 
 - `pre-push` chạy 11 cổng → vitest → build → `cargo test --locked`, trên **macOS của Ice**. Nó không nói gì về nửa Windows; CI chạy cả hai nền tảng mỗi lượt push, nên đọc lượt CI trước khi kết luận là xanh.
-- Bộ e2e không chạy ở cổng tự động nào — nó xuất hiện 0 lần trong `ci.yml`. Chạy tay: `npm run test:e2e`.
+- Bộ e2e chạy ở NHỊP ĐÊM, không ở `push` (`schedule` + `workflow_dispatch`, chỉ macOS) — nên một lượt push xanh vẫn không nói gì về nó, và nửa Windows chưa từng chạy. Chạy tay: `npm run test:e2e`. Cách đọc một lượt đỏ: `e2e/AGENTS.md`.
 - `check:scope` và `check:scope:bundled` ngoài `pre-push` có chủ ý: chúng dựng cửa sổ Tauri thật và cần cổng 1420 trống, nên trượt khi đang mở `npm run tauri dev`. CI có chạy; máy dev chạy tay.
-- Thêm một cổng = sửa BA danh sách (`package.json` · `.github/workflows/ci.yml` · `.githooks/pre-push`), và `check:gates` canh cả ba.
+- Thêm một cổng = sửa BA danh sách (`package.json` · `.github/workflows/ci.yml` · `.githooks/pre-push`), và `check:gates` canh cả ba cho mọi cổng `check:*`. `test:e2e` là ngoại lệ CÓ TÊN, chỉ được canh ở hai — xem `scripts/AGENTS.md`.
 - Chạy `npm run build` TRƯỚC `cargo test`: thiếu `dist/` thì `cargo test` gãy ở khâu biên dịch, không ở một assert.
 - Không đánh dấu đạt bằng suy luận. Vế nào không nghiệm thu được ở tầng đang làm thì ghi vào `deferred-work.md` kèm chủ.
 
@@ -48,5 +48,6 @@ Không gian làm việc tra từ điển và dịch thuật, chạy hoàn toàn 
 - Ranh giới segment tính MỘT LẦN lúc nhập và lưu xuống; không đường mã nào tính lại lúc nạp. Gộp/tách SEGMENT = về hưu + tạo mới, nhưng gộp/tách CHƯƠNG thì KHÔNG (chỉ đổi `chapter_id` và `ord`). Nhầm hai cái này phá sạch lịch sử của những Chương đã dịch xong, vĩnh viễn.
 - Sửa KIỂU cho nó nói thật; đừng hạ ngưỡng, thêm `eslint-disable`, hay chuyển một cặp sang danh sách loại trừ để cổng hết đỏ — cả ba đều cho exit 0 trên một sản phẩm đang hỏng. Mọi miễn trừ phải CÓ TÊN, có lý do tại chỗ, và phải chết được.
 - Đừng bắt chước một ký hiệu chưa hiểu: `grep` đếm số lần VÀ tìm định nghĩa trước khi dùng lại. Không có định nghĩa ⇒ viết chữ thường minh và nêu với Ice kèm số đo.
+- Một bộ test xanh KHÔNG chứng minh chỗ nối mới được canh — Epic 3 dính bốn lần trong năm ngày: 0/12 spec e2e chạm bề mặt mà Story 3.4b và 3.5 dựng; 68 ca Rust xanh trong khi `work_context` thoái hoá thành luôn trả `None`; 412 dòng test của dải chưa mount component lần nào. Trước khi khai một mệnh đề là đạt, `grep` đếm số ca THẬT SỰ chạm bề mặt đó, và đối chứng bằng cách GỠ chỗ nối rồi chạy bộ test CŨ — nó phải đỏ.
 
 <!-- /bmad:context -->
