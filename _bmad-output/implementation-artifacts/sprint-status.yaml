@@ -275,7 +275,7 @@ development_status:
   # quan sát — đã nối vào mục NFR2, chủ Ice.
   # Ba lượt `.githooks/pre-push` THẬT trong phiên, cả ba exit 0: 155s (cây agent giao) · 125s
   # (sau vòng 1) · 143s (sau vòng 2). `cargo test --locked`: 579 → 583 → **584** ca xanh.
-  3-7-de-xuat-ban-dich-bang-am-han-viet: review
+  3-7-de-xuat-ban-dich-bang-am-han-viet: done
   3-8-duyet-hang-loat-mot-phim: backlog
   3-9-quan-ly-glossary: backlog
   3-10-xuat-va-nhap-glossary-qua-csv-tsv: backlog
