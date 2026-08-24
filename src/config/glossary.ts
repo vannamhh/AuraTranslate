@@ -508,13 +508,11 @@ export async function confirmPendingGlossaryTranslation(
  * hàm này khi chưa mở Tác phẩm nào trả về lỗi, không `Ok` giả (xem
  * `commands::glossary::glossary_approve_candidate`).
  *
- * 🔵 THÊM 2026-08-22 (rà ba lớp) — **0 chỗ gọi sản phẩm hôm nay, đúng ranh giới story.**
- * Bề mặt DUYỆT bảng chờ (chọn một ứng viên, gõ bản dịch/để trống, bấm Nhận) là Story 3.8 —
- * §Never của story 3.6 cấm dựng component đó. Vỏ IPC phía Rust
- * (`commands::glossary::glossary_approve_candidate`) đã có chỗ gọi THẬT (`cargo test`, xem
- * `glossary_commands_contract.rs`), nhưng adapter TypeScript này thì chưa — chỗ gọi sản
- * phẩm ĐẦU TIÊN của nó là Story 3.8, cùng khuôn doc-comment
- * `core/glossary/mod.rs::pending_candidates` ("0 chỗ gọi cho tới lượt này").
+ * 🔵 THÊM 2026-08-22 (rà ba lớp) — bề mặt DUYỆT bảng chờ (chọn một ứng viên, gõ bản dịch/để
+ * trống, bấm Nhận) là Story 3.8 — §Never của story 3.6 cấm dựng component đó ở lượt đó.
+ * 🔵 **SỬA 2026-08-24 (Story 3.8) — "0 chỗ gọi sản phẩm" HẾT ĐÚNG.** `GlossaryQueueOverlay.vue`
+ * (qua `glossaryQueueState.ts::acceptGlossaryQueueCandidate`) nay là chỗ gọi sản phẩm ĐẦU
+ * TIÊN của hàm này.
  *
  * ⚠️ Tham số `invoke` viết camelCase — xem doc-comment đầu tệp.
  */
@@ -538,6 +536,44 @@ export async function approveGlossaryCandidate(
 
     console.info(
       `[glossary] không gọi được \`${CMD_APPROVE_CANDIDATE}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { value: null, error: null }
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.8 — adapter THỨ TÁM: bỏ một ứng viên (FR53/FR55)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/** Tên command trên dây. Khớp `src-tauri/src/commands/glossary.rs` (module `wire`). */
+const CMD_REJECT_CANDIDATE = 'glossary_reject_candidate'
+
+/**
+ * Bỏ một ứng viên (`id`). **Không bao giờ ném.** Ba trạng thái, cùng khuôn
+ * [`approveGlossaryCandidate`]: hàng ứng viên chuyển `resolution = 'rejected'`, **0** mục
+ * Glossary nào được sinh ra — khác hẳn Nhận.
+ *
+ * ⚠️ Bảng chờ chỉ tồn tại ở `project.db` — gọi hàm này khi chưa mở Tác phẩm nào trả về lỗi,
+ * không `Ok` giả (xem `commands::glossary::glossary_reject_candidate`).
+ *
+ * ⚠️ Tham số `invoke` viết camelCase — xem doc-comment đầu tệp.
+ */
+export async function rejectGlossaryCandidate(id: number): Promise<GlossaryWriteResult<true>> {
+  try {
+    await invoke(CMD_REJECT_CANDIDATE, { id })
+    return { value: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { value: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[glossary] \`${CMD_REJECT_CANDIDATE}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[glossary] không gọi được \`${CMD_REJECT_CANDIDATE}\` — chạy ngoài Tauri? ${String(err)}`,
     )
     return { value: null, error: null }
   }

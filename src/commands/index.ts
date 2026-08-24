@@ -563,6 +563,28 @@ export type CommandDeps = {
   /** Để sau — `source_term` hiện tại không hỏi lại trong Chương đang mở, trả lại tiêu điểm.
    * Handler của `glossary.confirm.defer`. */
   deferGlossaryConfirmStrip?: () => void
+
+  // ── Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55) ─────────────────
+  /**
+   * Mở lớp phủ, tải bảng chờ của Tác phẩm đang mở. Handler của `glossary.queue.open`.
+   *
+   * ⚠️ Cài đặt thật là `async`; kiểu `() => void` ở đây khớp cùng khuôn
+   * `saveGlossaryQuickAdd` — promise trả về bị bỏ qua có chủ ý, kết quả đi ra qua các `ref`
+   * ở tầng module (`glossaryQueueState.ts`).
+   */
+  openGlossaryQueue?: () => void
+  /** Đóng lớp phủ — KHÔNG dọn state (mở lại luôn tải lại từ đầu). Handler của
+   * `glossary.queue.close`. */
+  closeGlossaryQueue?: () => void
+  /** Nhận ứng viên đang chọn. Handler của `glossary.queue.accept` — cùng khuôn `async`
+   * bị bỏ qua kết quả như `openGlossaryQueue`. */
+  acceptGlossaryQueueCandidate?: () => void
+  /** Bỏ ứng viên đang chọn. Handler của `glossary.queue.reject`. */
+  rejectGlossaryQueueCandidate?: () => void
+  /** Chuyển con trỏ xuống hàng kế tiếp. Handler của `glossary.queue.next`. */
+  nextGlossaryQueueCandidate?: () => void
+  /** Chuyển con trỏ lên hàng trước. Handler của `glossary.queue.prev`. */
+  prevGlossaryQueueCandidate?: () => void
 }
 
 /**
@@ -1637,6 +1659,91 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.confirm.defer', 'deferGlossaryConfirmStrip')
       }
       deps.deferGlossaryConfirmStrip()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 3.8 — "DUYỆT HÀNG LOẠT MỘT PHÍM" (FR53/FR55)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `glossary.queue.open` là điểm vào có phím mặc định — `Mod+Alt+Q` (họ `Mod+Alt+…` đã
+   * dùng cho `glossary.add_term`/`glossary.settings.open`/`glossary.confirm.focus`/preset bố
+   * cục/đi lại panel/tab Nguyên văn. Đo 2026-08-24: `grep` trên hằng số hợp âm của tệp này
+   * cho `Mod+Alt+Q` = 0, còn trống.
+   *
+   * `glossary.queue.accept`/`glossary.queue.reject`/`glossary.queue.next`/
+   * `glossary.queue.prev`/`glossary.queue.close` giữ **0 hợp âm mặc định** — đúng chủ ý
+   * `glossary.save_term`/`glossary.close_quick_add`: `N`/`B`/mũi tên/`Esc` xử lý bằng một
+   * handler CỤC BỘ trong `GlossaryQueueOverlay.vue`, `dispatch('<id>')` chứ không gọi thẳng
+   * (§Always của spec: "một lời gọi thẳng dựng đường thứ hai mà `check:commands` Kiểm A
+   * không nhìn thấy"). Năm command này tồn tại để nút bấm có một `dispatch('<id>')` hợp lệ
+   * (Kiểm A) VÀ để màn hình phím tắt liệt kê được cả sáu thao tác.
+   */
+  target.register({
+    id: 'glossary.queue.open',
+    labelKey: 'command.glossary.queue.open',
+    keys: ['Mod+Alt+Q'],
+    run: () => {
+      if (deps.openGlossaryQueue === undefined) {
+        return portMissing('glossary.queue.open', 'openGlossaryQueue')
+      }
+      deps.openGlossaryQueue()
+    },
+  })
+  target.register({
+    id: 'glossary.queue.close',
+    labelKey: 'command.glossary.queue.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeGlossaryQueue === undefined) {
+        return portMissing('glossary.queue.close', 'closeGlossaryQueue')
+      }
+      deps.closeGlossaryQueue()
+    },
+  })
+  target.register({
+    id: 'glossary.queue.accept',
+    labelKey: 'command.glossary.queue.accept',
+    keys: undefined,
+    run: () => {
+      if (deps.acceptGlossaryQueueCandidate === undefined) {
+        return portMissing('glossary.queue.accept', 'acceptGlossaryQueueCandidate')
+      }
+      deps.acceptGlossaryQueueCandidate()
+    },
+  })
+  target.register({
+    id: 'glossary.queue.reject',
+    labelKey: 'command.glossary.queue.reject',
+    keys: undefined,
+    run: () => {
+      if (deps.rejectGlossaryQueueCandidate === undefined) {
+        return portMissing('glossary.queue.reject', 'rejectGlossaryQueueCandidate')
+      }
+      deps.rejectGlossaryQueueCandidate()
+    },
+  })
+  target.register({
+    id: 'glossary.queue.next',
+    labelKey: 'command.glossary.queue.next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextGlossaryQueueCandidate === undefined) {
+        return portMissing('glossary.queue.next', 'nextGlossaryQueueCandidate')
+      }
+      deps.nextGlossaryQueueCandidate()
+    },
+  })
+  target.register({
+    id: 'glossary.queue.prev',
+    labelKey: 'command.glossary.queue.prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevGlossaryQueueCandidate === undefined) {
+        return portMissing('glossary.queue.prev', 'prevGlossaryQueueCandidate')
+      }
+      deps.prevGlossaryQueueCandidate()
     },
   })
 

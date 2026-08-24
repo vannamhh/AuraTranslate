@@ -135,8 +135,10 @@ const FORBIDDEN_TABLES: [&str; 2] = ["glossary_entry", "glossary_candidate"];
 /// nợ MỞ, chủ Story 3.8.
 /// 🔵 **CẬP NHẬT 2026-08-22 (Story 3.6) — `approve_candidate` NAY CÓ CHỖ GỌI SẢN PHẨM,
 /// chuyển sang `QUICK_ADD_SURFACE`.** `commands::glossary::glossary_approve_candidate` là
-/// chỗ gọi ĐẦU TIÊN. `reject_candidate` GIỮ NGUYÊN ngoài cả hai danh sách — vẫn là nợ mở,
-/// chủ Story 3.8 (bảng duyệt hàng loạt là chỗ tự nhiên để BỎ một ứng viên).
+/// chỗ gọi ĐẦU TIÊN.
+/// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.8) — `reject_candidate` NAY CŨNG CÓ CHỖ GỌI SẢN PHẨM,
+/// chuyển sang `QUICK_ADD_SURFACE`.** `commands::glossary::glossary_reject_candidate` (lớp
+/// phủ duyệt hàng loạt) là chỗ gọi ĐẦU TIÊN — đóng nốt món nợ mà đoạn trên từng ghi tên nó.
 const GLOSSARY_ONLY_SURFACE: [&str; 4] =
     ["insert_manual_entry", "confirm_translation", "load_tier", "insert_candidate"];
 
@@ -178,7 +180,11 @@ fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static st
 /// hàm này TRỰC TIẾP (bảng ứng viên không đi qua `marks_for_source_text`); `glossary_marks_
 /// for_chapter` gọi nó GIÁN TIẾP, qua `marks_for_source_text` (`core/glossary/store.rs`) —
 /// cùng khuôn `pending_candidates`/`marks_for_source_text` đã đi.
-const QUICK_ADD_SURFACE: [&str; 8] = [
+/// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.8) — hàm THỨ CHÍN, `reject_candidate`.** Lớp phủ duyệt
+/// hàng loạt một phím (FR53/FR55): `commands::glossary::glossary_reject_candidate` là chỗ
+/// gọi ĐẦU TIÊN — đóng nốt món nợ mà `candidate_store.rs` (Story 3.2) và các đoạn 🔵 phía
+/// trên đã ghi tên "chủ Story 3.8".
+const QUICK_ADD_SURFACE: [&str; 9] = [
     "resolve_term_for_quick_add",
     "add_manual_term",
     "update_manual_term",
@@ -187,6 +193,7 @@ const QUICK_ADD_SURFACE: [&str; 8] = [
     "confirm_pending_translation",
     "approve_candidate",
     "suggest_han_viet_batch",
+    "reject_candidate",
 ];
 
 /// Token xuất xứ TỰ ĐỘNG — chỉ được sinh ra (biến thể enum, chuỗi `as_str()`) bên trong

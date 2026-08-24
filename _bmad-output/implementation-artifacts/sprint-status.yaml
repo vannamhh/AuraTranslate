@@ -276,7 +276,12 @@ development_status:
   # Ba lượt `.githooks/pre-push` THẬT trong phiên, cả ba exit 0: 155s (cây agent giao) · 125s
   # (sau vòng 1) · 143s (sau vòng 2). `cargo test --locked`: 579 → 583 → **584** ca xanh.
   3-7-de-xuat-ban-dich-bang-am-han-viet: done
-  3-8-duyet-hang-loat-mot-phim: backlog
+  # Spec: `3-8-duyet-hang-loat-mot-phim.md`, baseline `3170ce4db5d547106fd933bebde97aa2f3c8c500`.
+  # 0 bước di trú — `project.db` giữ v14. Ice chốt 2026-08-24 bỏ phím "để lại, tính sau", và
+  # chính quyết định đó làm hai cột mà `schema.rs:412` giao cho story này trở nên thừa: hàng
+  # đã quyết tự rời `WHERE resolution IS NULL`, nên "mở lại đúng vị trí" đến từ mô hình dữ
+  # liệu chứ không từ một con trỏ lưu xuống đĩa.
+  3-8-duyet-hang-loat-mot-phim: review
   3-9-quan-ly-glossary: backlog
   3-10-xuat-va-nhap-glossary-qua-csv-tsv: backlog
   epic-3-retrospective: optional

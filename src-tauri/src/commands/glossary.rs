@@ -21,8 +21,9 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! `resolve_term_for_quick_add` / `add_manual_term` / `update_manual_term` (Story 3.3),
 //! `marks_for_source_text` (Story 3.4), `pending_candidates` (Story 3.5), `confirm_pending_
-//! translation` / `approve_candidate` (Story 3.6), cộng `suggest_han_viet_batch` (Story 3.7)
-//! là bề mặt DUY NHẤT mà tệp này được gọi xuống `core::glossary`.
+//! translation` / `approve_candidate` (Story 3.6), `suggest_han_viet_batch` (Story 3.7),
+//! cộng `reject_candidate` (Story 3.8) là bề mặt DUY NHẤT mà tệp này được gọi xuống
+//! `core::glossary`.
 //! `insert_manual_entry` / `confirm_translation` / `load_tier` / `insert_candidate` vẫn bị
 //! `glossary_boundary.rs::GLOSSARY_ONLY_SURFACE` cấm ngoài `core/glossary/**` — kể cả ở đây.
 //! Đây là đường Ice đã ký ở `glossary_boundary.rs:80-88` khi Story 3.1 gặp đúng vòng luẩn
@@ -43,8 +44,8 @@ use crate::core::dict::DictLayers;
 use crate::core::glossary::{
     Category, GlossaryEntry, GlossaryMark, GlossaryTier, HanVietSuggestion, add_manual_term,
     approve_candidate, confirm_pending_translation, match_lang_for_source_lang,
-    marks_for_source_text, pending_candidates, resolve_term_for_quick_add, suggest_han_viet_batch,
-    update_manual_term,
+    marks_for_source_text, pending_candidates, reject_candidate, resolve_term_for_quick_add,
+    suggest_han_viet_batch, update_manual_term,
 };
 use crate::core::i18n::IpcError;
 use crate::core::scope::ScopeResolver;
@@ -477,7 +478,26 @@ pub fn glossary_approve_candidate(
     Ok(new_id)
 }
 
-/// Bảy vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.8 — BỎ một ứng viên (vỏ IPC ghi) — vỏ IPC đầu tiên của `reject_candidate`
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Bỏ một ứng viên (`id`) — **hàm thuần, đây là thứ test gọi**. Vỏ IPC GHI đầu tiên của
+/// [`reject_candidate`] (Story 3.2 dựng, 0 chỗ gọi sản phẩm cho tới lượt này) — chép nguyên
+/// khuôn [`glossary_approve_candidate`] ngay trên: cùng `no_work_open` khi chưa mở Tác
+/// phẩm, cùng lý do (bảng chờ chỉ tồn tại ở `project.db`).
+///
+/// # Lỗi
+/// - chưa mở Tác phẩm nào ⇒ `project.no_work_open`;
+/// - `id` không khớp hàng nào, hoặc ứng viên `id` ĐÃ quyết (đã duyệt hoặc đã bỏ) ⇒
+///   `store.write_failed`, mang `message_key`, KHÔNG `Ok` rỗng.
+pub fn glossary_reject_candidate(open: Option<&OpenWork>, id: i64) -> Result<(), IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    reject_candidate(&open.store, id)?;
+    Ok(())
+}
+
+/// Tám vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use super::{
         Category, GlossaryCandidateWire, GlossaryMarkWire, GlossaryTier, IpcError, QuickAddLookup,
@@ -701,5 +721,19 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::glossary_approve_candidate(guard.as_ref(), id, translation.as_deref(), category)
+    }
+
+    /// Vỏ IPC của [`super::glossary_reject_candidate`]. Story 3.8.
+    #[tauri::command]
+    pub fn glossary_reject_candidate(app: tauri::AppHandle, id: i64) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::glossary_reject_candidate(None, id);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::glossary_reject_candidate(guard.as_ref(), id)
     }
 }

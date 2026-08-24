@@ -156,6 +156,19 @@ import {
   openGlossarySettings,
   saveGlossarySettings,
 } from './glossarySettingsState'
+// ── Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55) ───────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `glossarySettingsState.ts`: `glossaryQueueState.ts` dùng
+// `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/glossary.ts`.
+import {
+  acceptGlossaryQueueCandidate,
+  closeGlossaryQueue,
+  nextGlossaryQueueCandidate,
+  openGlossaryQueue,
+  prevGlossaryQueueCandidate,
+  queueOverlayIsOpen,
+  rejectGlossaryQueueCandidate,
+} from './glossaryQueueState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -470,6 +483,19 @@ async function boot(): Promise<void> {
         void confirmGlossaryConfirmStrip(chapterId, editorSegments.value, chapter.source_lang)
       },
       deferGlossaryConfirmStrip,
+      // Story 3.8 · FR53/FR55 — lớp phủ "Duyệt hàng loạt một phím".
+      openGlossaryQueue: () => {
+        void openGlossaryQueue()
+      },
+      closeGlossaryQueue,
+      acceptGlossaryQueueCandidate: () => {
+        void acceptGlossaryQueueCandidate()
+      },
+      rejectGlossaryQueueCandidate: () => {
+        void rejectGlossaryQueueCandidate()
+      },
+      nextGlossaryQueueCandidate,
+      prevGlossaryQueueCandidate,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
@@ -500,7 +526,10 @@ async function boot(): Promise<void> {
     // **tiêu điểm**, không về hợp âm. Đừng gộp.
     void attachKeyboard(window, {
       isBlocked: () =>
-        attributionIsOpen.value || captureIsArmed.value || glossarySettingsOverlayIsOpen.value,
+        attributionIsOpen.value ||
+        captureIsArmed.value ||
+        glossarySettingsOverlayIsOpen.value ||
+        queueOverlayIsOpen.value,
     })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng

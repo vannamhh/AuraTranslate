@@ -71,11 +71,21 @@ pub fn insert_candidate(
 
 /// Mọi ứng viên **chờ duyệt** — `resolution IS NULL`.
 ///
-/// ⚠️ `ORDER BY source_term` là đối chiếu BYTE — vô nghĩa cho chữ Hán/tiếng Việt, và
-/// `WHERE resolution IS NULL` chưa có chỉ mục riêng. Cả hai là món nợ có chủ (Story 3.8,
-/// `deferred-work.md`) chứ không phải bị bỏ sót: story này chưa có bề mặt duyệt hàng loạt
-/// nào để cần một thứ tự có ý nghĩa với người dùng, và bảng chờ hôm nay không đủ lớn để
-/// đo được chi phí thiếu chỉ mục.
+/// 🔵 **SỬA 2026-08-24 (Story 3.8) — `ORDER BY occurrence_count DESC, id ASC`, đóng món nợ
+/// đã ghi ở đây.** Câu cũ (`ORDER BY source_term`, đối chiếu BYTE — vô nghĩa cho chữ Hán/
+/// tiếng Việt) đứng chờ đúng "story dựng bề mặt duyệt hàng loạt" mà doc-comment trước ghi
+/// tên (Story 3.8) — đây là story đó. `occurrence_count DESC` khớp §Approach của spec ("sắp
+/// theo tần suất giảm dần"); `id ASC` là mốc phụ **TẤT ĐỊNH và DUY NHẤT** — thiếu nó, hai
+/// ứng viên cùng `occurrence_count` không có thứ tự cố định giữa hai lượt `SELECT` (SQLite
+/// không hứa giữ thứ tự chèn khi `ORDER BY` không phân biệt được hai hàng), nên "mở lại
+/// đúng vị trí" (§I/O Matrix: "Đóng rồi mở lại ⇒ con trỏ ở ứng viên chưa quyết tần suất cao
+/// nhất") sẽ ngẫu nhiên đổi chỗ hai ứng viên đồng hạng giữa hai lần mở — con trỏ tưởng đứng
+/// yên nhưng thật ra đang đứng trên một hàng KHÁC. `id` là khoá chính `AUTOINCREMENT`, nên
+/// nó vừa tất định vừa không bao giờ trùng.
+///
+/// `WHERE resolution IS NULL` vẫn chưa có chỉ mục riêng — phần đó của món nợ cũ CHƯA đóng
+/// (bảng chờ hôm nay vẫn chưa đủ lớn để đo được chi phí thiếu chỉ mục); chủ vẫn ở
+/// `deferred-work.md`.
 pub fn pending_candidates(store: &Store) -> Result<Vec<GlossaryCandidate>, StoreError> {
     store.read(|conn| {
         let mut stmt = conn.prepare(
@@ -83,7 +93,7 @@ pub fn pending_candidates(store: &Store) -> Result<Vec<GlossaryCandidate>, Store
                     occurrence_count, context_example
              FROM glossary_candidate
              WHERE resolution IS NULL
-             ORDER BY source_term",
+             ORDER BY occurrence_count DESC, id ASC",
         )?;
         let mut rows = stmt.query([])?;
 

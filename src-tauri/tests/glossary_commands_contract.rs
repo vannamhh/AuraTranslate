@@ -31,7 +31,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::glossary::{
     glossary_add_term, glossary_approve_candidate, glossary_confirm_pending_translation,
-    glossary_lookup_term, glossary_pending_candidates, glossary_update_term,
+    glossary_lookup_term, glossary_pending_candidates, glossary_reject_candidate,
+    glossary_update_term,
 };
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::core::glossary::scan::ScanCandidate;
@@ -649,4 +650,227 @@ fn glossary_approve_candidate_without_an_open_work_fails_readably() {
     let err = glossary_approve_candidate(None, 1, None, Category::Other)
         .expect_err("khong the nhan ung vien khi chua mo Tac pham nao");
     assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.8 — BỎ một ứng viên (reject_candidate), qua bề mặt IPC thật
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Bỏ một ứng viên chờ duyệt qua bề mặt IPC thật: hàng biến mất khỏi `pending_candidates`
+/// (`resolution = 'rejected'`), và **0** mục Glossary nào được sinh ra — khác hẳn Nhận.
+#[test]
+fn glossary_reject_candidate_removes_the_row_from_the_pending_queue_and_writes_no_entry() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir("reject-real-work");
+    let global_dir = temp_dir("reject-real-work-global");
+    let global = open_global(&global_dir);
+    let opened = open_work(&root, "Bo Ung Vien");
+
+    insert_import_scan_candidates(
+        &opened.store,
+        &[ScanCandidate {
+            source_term: "落雁城".to_owned(),
+            occurrence_count: 4,
+            context_example: "vi du".to_owned(),
+        }],
+    )
+    .expect("chen ung vien quet");
+    let candidate_id = glossary_pending_candidates(Some(&opened), &layers, &disabled)
+        .expect("liet ke bang cho")
+        .into_iter()
+        .find(|c| c.source_term == "落雁城")
+        .expect("phai tim thay ung vien vua chen")
+        .id;
+
+    glossary_reject_candidate(Some(&opened), candidate_id).expect("bo ung vien qua commands::glossary");
+
+    let still_pending = glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("liet ke lai");
+    assert!(
+        still_pending.iter().all(|c| c.id != candidate_id),
+        "ung vien da bo khong con trong bang cho DUYET"
+    );
+
+    // 0 muc Glossary nao duoc sinh -- Bo khac han Nhan, khong tao gi ca.
+    let found = glossary_lookup_term(Some(&global), Some(&opened), "落雁城")
+        .expect("tra lai qua commands::glossary")
+        .entry;
+    assert!(found.is_none(), "Bo khong duoc sinh mot muc Glossary nao");
+
+    drop(global);
+    drop(opened);
+    cleanup(&root);
+    cleanup(&global_dir);
+}
+
+/// `id` không khớp hàng ứng viên nào ⇒ lỗi mang `message_key`, không `Ok` rỗng.
+#[test]
+fn glossary_reject_candidate_with_an_unknown_id_fails_readably() {
+    let root = temp_dir("reject-unknown-id");
+    let opened = open_work(&root, "Id La Bo");
+
+    let err = glossary_reject_candidate(Some(&opened), 999_999)
+        .expect_err("id khong ton tai phai la loi, khong phai Ok rong");
+    assert_eq!(err.message_key(), MessageKey::StoreWriteFailed);
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// Bỏ lại một ứng viên ĐÃ quyết (đã duyệt) ⇒ lỗi đọc được, hàng ứng viên cũ và mục Glossary
+/// đã sinh KHÔNG bị đổi — vòng đời một chiều (AD-36) đứng cả hai chiều (Nhận rồi Bỏ cũng bị
+/// chặn, không chỉ Bỏ rồi Bỏ lại).
+#[test]
+fn glossary_reject_candidate_on_an_already_approved_candidate_changes_nothing() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir("reject-already-approved");
+    let global_dir = temp_dir("reject-already-approved-global");
+    let global = open_global(&global_dir);
+    let opened = open_work(&root, "Da Duyet Roi Bo");
+
+    insert_import_scan_candidates(
+        &opened.store,
+        &[ScanCandidate {
+            source_term: "焚炎谷".to_owned(),
+            occurrence_count: 6,
+            context_example: "vi du".to_owned(),
+        }],
+    )
+    .expect("chen ung vien quet");
+    let candidate_id = glossary_pending_candidates(Some(&opened), &layers, &disabled)
+        .expect("liet ke bang cho")
+        .into_iter()
+        .find(|c| c.source_term == "焚炎谷")
+        .expect("phai tim thay ung vien vua chen")
+        .id;
+
+    glossary_approve_candidate(Some(&opened), candidate_id, None, Category::Place)
+        .expect("duyet lan dau phai thanh cong");
+
+    let err = glossary_reject_candidate(Some(&opened), candidate_id)
+        .expect_err("ung vien da duyet khong the bo lai");
+    assert_eq!(err.message_key(), MessageKey::StoreWriteFailed);
+
+    // Muc Glossary da sinh tu luot Nhan van con nguyen.
+    let found = glossary_lookup_term(Some(&global), Some(&opened), "焚炎谷")
+        .expect("tra lai qua commands::glossary")
+        .entry
+        .expect("muc da duyet phai con nguyen");
+    assert_eq!(found.translation, None);
+
+    drop(global);
+    drop(opened);
+    cleanup(&root);
+    cleanup(&global_dir);
+}
+
+/// Chưa có Tác phẩm nào đang mở ⇒ `project.no_work_open`, không `Ok` giả.
+#[test]
+fn glossary_reject_candidate_without_an_open_work_fails_readably() {
+    let err = glossary_reject_candidate(None, 1)
+        .expect_err("khong the bo ung vien khi chua mo Tac pham nao");
+    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.8 — THỨ TỰ của `pending_candidates`, qua bề mặt IPC thật
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// `occurrence_count DESC, id ASC` — tần suất giảm dần là tiêu chí chính, `id` tăng dần
+/// là mốc phụ TẤT ĐỊNH cho ca ĐỒNG HẠNG. Chèn cố ý KHÔNG theo thứ tự mong đợi (id tăng dần
+/// không khớp thứ tự tần suất), để một cổng vô tình giữ nguyên thứ tự CHÈN vẫn đỏ.
+#[test]
+fn glossary_pending_candidates_orders_by_occurrence_count_desc_then_id_asc_for_ties() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir("pending-order");
+    let opened = open_work(&root, "Thu Tu Bang Cho");
+
+    // Ba hàng CÙNG occurrence_count (đồng hạng) chèn theo thứ tự A, B, C -- id tăng dần
+    // đúng thứ tự chèn (AUTOINCREMENT), nên "id ASC" và "thứ tự chèn" trùng nhau ở NHÓM
+    // này -- ca đồng hạng đo đúng mốc phụ, không đo trùng lặp với ca khác hạng ở dưới.
+    insert_import_scan_candidates(
+        &opened.store,
+        &[
+            ScanCandidate {
+                source_term: "甲".to_owned(),
+                occurrence_count: 10,
+                context_example: "vi du".to_owned(),
+            },
+            ScanCandidate {
+                source_term: "乙".to_owned(),
+                occurrence_count: 10,
+                context_example: "vi du".to_owned(),
+            },
+            ScanCandidate {
+                source_term: "丙".to_owned(),
+                occurrence_count: 10,
+                context_example: "vi du".to_owned(),
+            },
+        ],
+    )
+    .expect("chen ba ung vien dong hang");
+
+    // Chèn SAU (id lớn hơn CẢ BA hàng trên) nhưng tần suất CAO HƠN -- phải đứng ĐẦU danh
+    // sách dù id lớn nhất, chứng minh occurrence_count là tiêu chí CHÍNH, không phải id.
+    insert_import_scan_candidates(
+        &opened.store,
+        &[ScanCandidate {
+            source_term: "丁".to_owned(),
+            occurrence_count: 99,
+            context_example: "vi du".to_owned(),
+        }],
+    )
+    .expect("chen ung vien tan suat cao nhat, id lon nhat");
+
+    let rows = glossary_pending_candidates(Some(&opened), &layers, &disabled)
+        .expect("liet ke bang cho qua commands::glossary");
+    let terms: Vec<&str> = rows.iter().map(|c| c.source_term.as_str()).collect();
+    assert_eq!(
+        terms,
+        vec!["丁", "甲", "乙", "丙"],
+        "tan suat 99 dung DAU du id lon nhat; ba hang dong hang 10 sap theo id TANG DAN"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// Hai lượt gọi liên tiếp trên cùng dữ liệu trả về **CÙNG MỘT** thứ tự — AC "mở hai lần
+/// liên tiếp, thứ tự hai lượt giống hệt nhau" (đo trực tiếp bằng máy, không suy từ `ORDER
+/// BY` đã đọc trong mã).
+#[test]
+fn glossary_pending_candidates_returns_the_same_order_across_two_consecutive_calls() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir("pending-order-stable");
+    let opened = open_work(&root, "On Dinh");
+
+    insert_import_scan_candidates(
+        &opened.store,
+        &[
+            ScanCandidate {
+                source_term: "壹".to_owned(),
+                occurrence_count: 3,
+                context_example: "vi du".to_owned(),
+            },
+            ScanCandidate {
+                source_term: "贰".to_owned(),
+                occurrence_count: 3,
+                context_example: "vi du".to_owned(),
+            },
+        ],
+    )
+    .expect("chen hai ung vien dong hang");
+
+    let first = glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("lan mo thu nhat");
+    let second = glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("lan mo thu hai");
+
+    let first_ids: Vec<i64> = first.iter().map(|c| c.id).collect();
+    let second_ids: Vec<i64> = second.iter().map(|c| c.id).collect();
+    assert_eq!(first_ids, second_ids, "hai lan mo lien tiep phai tra ve DUNG MOT thu tu");
+
+    drop(opened);
+    cleanup(&root);
 }

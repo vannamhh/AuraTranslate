@@ -5668,6 +5668,17 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     đo được chi phí thiếu chỉ mục — cả hai là quyết định của Story 3.8 (duyệt hàng loạt một
     phím: "sắp theo tần suất giảm dần"), không phải của bảng.
     **(Chủ: Story 3.8 — duyệt hàng loạt một phím.)**
+    → 🟡 **NỬA ĐẦU ĐÃ ĐÓNG 2026-08-24 (Story 3.8).** `pending_candidates` nay sắp
+    `ORDER BY occurrence_count DESC, id ASC` (`candidate_store.rs`). Mốc phụ `id ASC` không
+    phải trang trí: thiếu nó, hai ứng viên ĐỒNG HẠNG tần suất đổi chỗ giữa hai lượt mở, và
+    AC "đóng giữa chừng mở lại đúng vị trí" thành ngẫu nhiên.
+    **CÒN HỞ — vế chỉ mục:** `WHERE resolution IS NULL` vẫn KHÔNG có chỉ mục riêng; lược đồ
+    `glossary_candidate` chỉ mang `idx_glossary_candidate_source_term` (`schema.rs:432`).
+    Story 3.8 cố ý không thêm: một `CREATE INDEX` là DDL ⇒ một bước di trú **v15**, và Ice
+    chốt 2026-08-24 rằng story này giữ `project.db` ở **v14**. Bảng chờ vẫn chưa đủ lớn để
+    ĐO được chi phí quét toàn bảng — đừng thêm chỉ mục trước khi có số.
+    **(Chủ nửa còn lại: story đầu tiên ĐO được một bảng chờ đủ lớn, hoặc story kế tiếp đã
+    mở một bước di trú vì lý do khác.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
   summary: Bốn hàm của `candidate_store` (`insert_candidate` · `pending_candidates` ·
@@ -5696,6 +5707,11 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     vẫn CHƯA vào `GLOSSARY_ONLY_SURFACE` lẫn `QUICK_ADD_SURFACE` — Story 3.5 không dựng bề
     mặt duyệt nào chạm chúng. **(Chủ: Story 3.8 — duyệt hàng loạt một phím, chủ tự nhiên
     của hai hàm còn lại.)**
+    → ✅ **ĐÃ ĐÓNG 2026-08-24 (Story 3.8).** Cả bốn hàm nay đều có chủ trong một danh sách:
+    `insert_candidate` ở `GLOSSARY_ONLY_SURFACE` (4 phần tử); `pending_candidates` (3.5) ·
+    `approve_candidate` (3.6) · `reject_candidate` (3.8, vỏ IPC `glossary_reject_candidate`
+    là chỗ gọi sản phẩm ĐẦU TIÊN của nó) ở `QUICK_ADD_SURFACE`, nay **9** phần tử
+    (`glossary_boundary.rs:187`).
 
 - source_spec: `_bmad-output/implementation-artifacts/3-2-bang-cho-ung-vien-tach-han-khoi-glossary.md`
   summary: Khoá `UNIQUE (source_term)` của `glossary_candidate` chặn TRÙNG CHUỖI — hẹp hơn
@@ -6257,6 +6273,10 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     (Story 3.2) vẫn đứng nguyên, chưa hàm nào trong ba hàm đó có chỗ gọi sản phẩm — chỉ
     `pending_candidates` mới có, qua vỏ CHỈ-ĐỌC của story này.
     **(Chủ: Story 3.8 — duyệt hàng loạt một phím.)**
+    → ✅ **ĐÃ ĐÓNG 2026-08-24 (Story 3.8).** `src/GlossaryQueueOverlay.vue` +
+    `src/glossaryQueueState.ts` là màn hình duyệt đầu tiên; sáu lệnh `glossary.queue.*` đăng
+    ký ở `commands/index.ts`. Cả ba hàm nay có chỗ gọi sản phẩm: `pending_candidates` (nạp),
+    `approve_candidate` (phím Nhận), `reject_candidate` (phím Bỏ).
 
 - source_spec: `_bmad-output/implementation-artifacts/3-5-quet-ung-vien-khi-nhap-tai-lieu.md`
   summary: **AC "đo thời gian tường + số ứng viên trên một Chương tiếng Trung THẬT" chưa đóng
@@ -6467,6 +6487,9 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `reject_candidate` vẫn nằm ngoài, chờ Story 3.8 dựng chỗ gọi sản phẩm đầu tiên.
     ⚠️ Mục này KHÔNG tự đóng món nợ kia — nó chỉ kéo món nợ vào nơi có cổng canh.
     **(Chủ: Story 3.8 — cùng chủ với món nợ gốc.)**
+    → ✅ **ĐÃ ĐÓNG 2026-08-24 (Story 3.8).** Món nợ gốc đã tiêu: `reject_candidate` nay nằm
+    trong `QUICK_ADD_SURFACE` (9 phần tử) và có chỗ gọi sản phẩm thật. Mục này — vốn chỉ có
+    vai kéo món nợ vào nơi có cổng canh — hết vai cùng lúc.
 
 ## Deferred from: 3-7-de-xuat-ban-dich-bang-am-han-viet (2026-08-24)
 
@@ -6546,3 +6569,48 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     khỏi *"đổi đề xuất"*, và chỉ điền lại khi ô còn nguyên vẹn.
     **(Chủ: Ice — cùng một quyết định với mục ngay trên; sửa mục kia mà không sửa mục này là
     mở đúng cửa sổ mất chữ đang gõ.)**
+
+## Deferred from: 3-8-duyet-hang-loat-mot-phim (2026-08-24)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-8-duyet-hang-loat-mot-phim.md`
+  summary: **Mockup bảng chờ vẽ NĂM năng lực mà không cột nào trong lược đồ đỡ được** — bộ
+    lọc theo phân loại kèm số đếm ("Đoán là tên người 118"), "bỏ hàng loạt" theo điều kiện,
+    số Chương một thuật ngữ xuất hiện ("trong 1 640 / 2 000 Chương"), NHIỀU ví dụ ngữ cảnh
+    cho một ứng viên, và phân loại do máy đoán sẵn.
+  evidence: `mockups/glossary-queue.html` vẽ cả năm. Lược đồ `glossary_candidate` (v14) có
+    **một** cột `context_example`, **không** cột phân loại, **không** cột trải Chương, và
+    `surnames.rs:17-19` từ chối đúng vai đoán tên người bằng chữ: *"Module này KHÔNG tự nhận
+    diện 'đây là tên người' — nó chỉ trả lời 'ký tự này có nằm trong bảng họ phổ biến
+    không'"*. Không AC nào của Story 3.8 đòi năm thứ này; chúng vào §Never của story.
+    ⚠️ Đây là **năng lực chưa dựng, không phải lệch spec** — đừng sửa mockup cho khớp mã, và
+    đừng dựng một phỏng đoán mà máy chưa hề tính.
+    **(Chủ: Ice — phán quyết mockup nào còn hiệu lực; mỗi năng lực trong năm cái cần một cột
+    hoặc một bài toán nhận diện thực thể riêng.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-8-duyet-hang-loat-mot-phim.md`
+  summary: **Chip phân loại và hàng ứng viên KHÔNG bấm chuột được** — chỉ bàn phím `1`–`4`
+    đổi được phân loại, và chỉ mũi tên/Next/Prev di chuyển được con trỏ.
+  evidence: Rà 2026-08-24 (lớp blind-hunter), đối chứng ở `src/GlossaryQueueOverlay.vue`:
+    `.gq-chip` là `<span>` trần, không `@click`, không `role`, không `tabindex`, và nằm ngoài
+    `focusableWithin()` nên `Tab` cũng không tới. `.gq-row` cũng không bấm được. Khác tiền lệ
+    `GlossaryQuickAdd.vue` vốn dùng `<input type="radio">` thật.
+    ⚠️ **KHÔNG phải lệch AC:** AC của Story 3.8 đòi "duyệt bằng một phím, không phải gõ chữ
+    nào" và toàn bộ luồng bàn phím đã đủ. Đây là một bề mặt chuột còn thiếu, và một bảng chờ
+    340 hàng thì không nhảy tới hàng quan tâm bằng chuột được.
+    **(Chủ: Story 3.9 — Quản lý Glossary, story kế tiếp dựng một bề mặt danh sách có thao tác
+    chuột đầy đủ; hoặc Ice, nếu muốn nó đứng sớm hơn.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-8-duyet-hang-loat-mot-phim.md`
+  summary: **Hai lượt IM LẶNG trong lớp phủ duyệt** — bấm Nhận/Bỏ trên một hàng đã xử lý
+    không làm gì và không nói gì; và phân loại người dùng đã đổi nhưng CHƯA bấm Nhận thì bị
+    xoá sạch khi đóng rồi mở lại, cũng không một câu nào.
+  evidence: Rà 2026-08-24 (lớp blind-hunter). `glossaryQueueState.ts`:
+    `acceptGlossaryQueueCandidate`/`rejectGlossaryQueueCandidate` thoát sớm bằng
+    `if (row === undefined || row.outcome !== null) return` — không `actionError`, không câu
+    trạng thái. Và `openGlossaryQueue` luôn dựng lại `rows` từ một lượt nạp mới với mọi hàng
+    trả về `category: 'other'`, trong khi `closeGlossaryQueue` cố ý không lưu gì.
+    ⚠️ Vế thứ hai là HỆ QUẢ TRỰC TIẾP của quyết định "0 bước di trú" (Ice chốt 2026-08-24) —
+    phân loại chỉ sống tới lúc bấm Nhận. Nó đúng thiết kế; cái thiếu là một câu nói ra điều
+    đó. Cả hai vế đều là lớp *"rỗng im lặng"* mà `AGENTS.md:46` gọi là lỗi trung tâm của kho.
+    **(Chủ: Story 3.9 — Quản lý Glossary, cùng bề mặt; hoặc story đầu tiên mở một bước di trú
+    cho cột phân loại của bảng chờ.)**

@@ -1163,6 +1163,20 @@ fn inserting_a_new_candidate_makes_it_visible_in_pending_candidates() {
 /// `while let Some(row) = rows.next()?` bên trong nó chưa bao giờ LẶP. Một lỗi chỉ lộ ra ở
 /// lần lặp thứ hai trở đi (ví dụ tái sử dụng một biến ngoài vòng lặp) sẽ không cổng nào bắt
 /// được nếu thiếu ca này.
+///
+/// 🔵 **SỬA 2026-08-24 (Story 3.8, vòng rà ba lớp) — thông điệp `assert_eq!` khai SAI thứ
+/// tự.** Bản trước viết `"thu tu khai la ORDER BY source_term"` — mệnh đề đó hết đúng từ khi
+/// `pending_candidates` đổi sang `ORDER BY occurrence_count DESC, id ASC` (cùng story). Ca
+/// này VẪN xanh sau lượt đổi vì `insert_candidate` (số ít, dùng ở đây) không nhận
+/// `occurrence_count` — cột đó rơi về `DEFAULT 0` cho mọi hàng, nên phép sắp suy biến về
+/// đúng mốc phụ `id ASC`, và `id` tăng dần trùng khớp thứ tự CHÈN (`alpha` chèn trước
+/// `gamma`, hàng `beta` bị bỏ ở giữa không đổi thứ tự `id` của hai hàng còn lại). Ca này vì
+/// thế đo đúng NHÁNH ĐỒNG HẠNG của `ORDER BY` (mọi hàng cùng `occurrence_count = 0`), không
+/// đo tiêu chí chính — nhánh tiêu chí chính (tần suất khác nhau thắng cả `id` lớn hơn) đã có
+/// ca riêng ở `glossary_commands_contract.rs::
+/// glossary_pending_candidates_orders_by_occurrence_count_desc_then_id_asc_for_ties`. Sửa
+/// thông điệp cho đúng thay vì đổi fixture — mục đích GỐC của ca này (vòng lặp NHIỀU hàng,
+/// xem doc-comment trên) không cần tần suất khác nhau để đúng mục đích đó.
 #[test]
 fn pending_candidates_lists_every_still_pending_row_in_the_declared_order() {
     let dir = temp_dir("candidate-pending-multiple-rows");
@@ -1186,13 +1200,16 @@ fn pending_candidates_lists_every_still_pending_row_in_the_declared_order() {
     );
     assert_eq!(
         pending[0].id, id_alpha,
-        "thu tu khai la ORDER BY source_term -- 'alpha' truoc 'gamma'"
+        "thu tu khai la ORDER BY occurrence_count DESC, id ASC -- ca hang deu occurrence_count \
+         = 0 (mac dinh cua insert_candidate) nen suy bien ve id ASC, va id_alpha < id_gamma \
+         dung thu tu chen"
     );
     assert_eq!(pending[0].source_term, "alpha");
     assert_eq!(pending[0].candidate_origin, CandidateOrigin::ImportScan);
     assert_eq!(
         pending[1].id, id_gamma,
-        "thu tu khai la ORDER BY source_term -- 'gamma' sau 'alpha'"
+        "thu tu khai la ORDER BY occurrence_count DESC, id ASC -- cung nhanh dong hang, xem \
+         chu thich o assert ngay tren"
     );
     assert_eq!(pending[1].source_term, "gamma");
     assert_eq!(pending[1].candidate_origin, CandidateOrigin::ImportScan);

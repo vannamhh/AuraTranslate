@@ -382,6 +382,10 @@ pub fn run() {
             // GHI dau tien cua `confirm_translation` (gian tiep) va `approve_candidate`.
             crate::commands::glossary::wire::glossary_confirm_pending_translation,
             crate::commands::glossary::wire::glossary_approve_candidate,
+            // Story 3.8 -- duyet hang loat mot phim (FR53/FR55). Vo IPC GHI dau tien cua
+            // `reject_candidate` (Story 3.2 dung, 0 cho goi cho toi luot nay) -- lop phu
+            // moi Nhan/Bo tung ung vien bang phim, ORDER BY tan suat giam dan.
+            crate::commands::glossary::wire::glossary_reject_candidate,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,
