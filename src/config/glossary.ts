@@ -216,6 +216,11 @@ export async function updateGlossaryTerm(
  * 3.4b"). Story 3.6 mở đúng đường đó: dải mọc chốt lần đầu gặp cần biết CHÍNH XÁC `id` +
  * `source_term` (khoá ghi thật — có thể KHÁC bề mặt đã khớp trên màn hình khi nhánh tiếng
  * Anh khớp theo hình thái) để gọi `confirmPendingGlossaryTranslation(...)`.
+ *
+ * 🔵 **THÊM 2026-08-24 (Story 3.7, FR113) — `han_viet_suggestion` + `han_viet_status`.** Đề
+ * xuất bản dịch bằng âm Hán Việt cho thuật ngữ chữ Hán chờ chốt — xem
+ * `commands/glossary.rs::GlossaryMarkWire` phía Rust cho năm giá trị đóng của
+ * `han_viet_status`.
  */
 export type GlossaryMark = {
   start: number
@@ -229,6 +234,36 @@ export type GlossaryMark = {
   id: number
   /** Khoá ghi thật — có thể KHÁC `text.slice(start, end)` (nhánh tiếng Anh khớp hình thái). */
   source_term: string
+  /** Chuỗi đề xuất âm Hán Việt, hoặc `null` cho bốn trong năm trạng thái — xem
+   * `han_viet_status`. */
+  han_viet_suggestion: string | null
+  /** Một trong NĂM chuỗi đóng: `"ok"` · `"not_chinese"` · `"no_reading"` ·
+   * `"dict_unavailable"` · `"not_requested"` (mục ĐÃ CHỐT — `0` lượt tra Hán Việt). */
+  han_viet_status: HanVietSuggestionStatus
+}
+
+/** Năm trạng thái đóng của `han_viet_status` — khớp NGUYÊN VĂN
+ * `HanVietSuggestion::as_status_str()` phía Rust (`core/glossary/han_viet_suggestion.rs`). */
+export type HanVietSuggestionStatus =
+  | 'ok'
+  | 'not_chinese'
+  | 'no_reading'
+  | 'dict_unavailable'
+  | 'not_requested'
+
+const HAN_VIET_SUGGESTION_STATUSES: readonly HanVietSuggestionStatus[] = [
+  'ok',
+  'not_chinese',
+  'no_reading',
+  'dict_unavailable',
+  'not_requested',
+]
+
+function isHanVietSuggestionStatus(value: unknown): value is HanVietSuggestionStatus {
+  return (
+    typeof value === 'string' &&
+    (HAN_VIET_SUGGESTION_STATUSES as readonly string[]).includes(value)
+  )
 }
 
 /**
@@ -261,7 +296,15 @@ function isGlossaryMark(value: unknown): value is GlossaryMark {
     (v.is_confirmed ? typeof v.translation === 'string' : v.translation === null) &&
     typeof v.id === 'number' &&
     Number.isInteger(v.id) &&
-    typeof v.source_term === 'string'
+    typeof v.source_term === 'string' &&
+    // 🔴 THÊM 2026-08-24 (Story 3.7) — bất biến CHÉO trường, cùng doctrine `is_confirmed`/
+    // `translation` ngay trên: `han_viet_suggestion` là chuỗi CHỈ KHI `han_viet_status ===
+    // 'ok'`, `null` cho bốn trạng thái còn lại (`commands/glossary.rs::HanVietSuggestion::
+    // suggestion_text`).
+    isHanVietSuggestionStatus(v.han_viet_status) &&
+    (v.han_viet_status === 'ok'
+      ? typeof v.han_viet_suggestion === 'string'
+      : v.han_viet_suggestion === null)
   )
 }
 
@@ -341,6 +384,10 @@ export type GlossaryCandidate = {
   /** `null` cho hàng KHÔNG tới từ một lượt quét (nhập tay trước Story 3.5, hoặc thu hoạch
    * từ bản review — Epic 8, chưa gán `context_example`). */
   context_example: string | null
+  /** 🔵 THÊM 2026-08-24 (Story 3.7, FR113) — đề xuất âm Hán Việt cho `source_term`, hình
+   * dạng KHỚP `GlossaryMark` (cùng cặp trường, cùng năm chuỗi trạng thái). */
+  han_viet_suggestion: string | null
+  han_viet_status: HanVietSuggestionStatus
 }
 
 function isGlossaryCandidate(value: unknown): value is GlossaryCandidate {
@@ -355,7 +402,11 @@ function isGlossaryCandidate(value: unknown): value is GlossaryCandidate {
     typeof v.created_at === 'string' &&
     typeof v.occurrence_count === 'number' &&
     Number.isInteger(v.occurrence_count) &&
-    (v.context_example === null || typeof v.context_example === 'string')
+    (v.context_example === null || typeof v.context_example === 'string') &&
+    isHanVietSuggestionStatus(v.han_viet_status) &&
+    (v.han_viet_status === 'ok'
+      ? typeof v.han_viet_suggestion === 'string'
+      : v.han_viet_suggestion === null)
   )
 }
 

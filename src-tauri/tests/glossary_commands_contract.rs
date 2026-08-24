@@ -234,6 +234,8 @@ fn glossary_update_term_at_the_work_tier_rewrites_the_row_in_a_real_open_work() 
 /// `commands::glossary::glossary_pending_candidates`.
 #[test]
 fn glossary_pending_candidates_lists_the_pending_queue_of_the_real_open_work() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let root = temp_dir("pending-candidates-real-work");
     let opened = open_work(&root, "Bang Cho");
 
@@ -247,7 +249,7 @@ fn glossary_pending_candidates_lists_the_pending_queue_of_the_real_open_work() {
     )
     .expect("chen ung vien quet co count/context khac mac dinh");
 
-    let rows = glossary_pending_candidates(Some(&opened))
+    let rows = glossary_pending_candidates(Some(&opened), &layers, &disabled)
         .expect("liet ke bang cho qua commands::glossary");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].source_term, "萧炎");
@@ -267,7 +269,9 @@ fn glossary_pending_candidates_lists_the_pending_queue_of_the_real_open_work() {
 /// (§Never/Code Map của story).
 #[test]
 fn glossary_pending_candidates_is_empty_without_a_lie_when_no_work_is_open() {
-    let rows = glossary_pending_candidates(None).expect("khong Tac pham nao van phai Ok");
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let rows = glossary_pending_candidates(None, &layers, &disabled).expect("khong Tac pham nao van phai Ok");
     assert!(rows.is_empty());
 }
 
@@ -416,6 +420,8 @@ fn glossary_confirm_pending_translation_with_a_blank_translation_fails_and_leave
 /// viên (`import_scan`) — đóng đúng hàng I/O Matrix *"Nhận một ứng viên không có đề xuất"*.
 #[test]
 fn glossary_approve_candidate_without_a_suggestion_creates_a_pending_entry() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let root = temp_dir("approve-no-suggestion");
     let global_dir = temp_dir("approve-no-suggestion-global");
     let global = open_global(&global_dir);
@@ -430,7 +436,7 @@ fn glossary_approve_candidate_without_a_suggestion_creates_a_pending_entry() {
         }],
     )
     .expect("chen ung vien quet");
-    let candidate_id = glossary_pending_candidates(Some(&opened))
+    let candidate_id = glossary_pending_candidates(Some(&opened), &layers, &disabled)
         .expect("liet ke bang cho")
         .into_iter()
         .find(|c| c.source_term == "夜幕城")
@@ -442,7 +448,7 @@ fn glossary_approve_candidate_without_a_suggestion_creates_a_pending_entry() {
     assert!(entry_id > 0);
 
     // Hang ung vien da quyet -- khong con trong bang CHO DUYET.
-    let still_pending = glossary_pending_candidates(Some(&opened)).expect("liet ke lai");
+    let still_pending = glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("liet ke lai");
     assert!(
         still_pending.iter().all(|c| c.id != candidate_id),
         "ung vien da duyet khong con trong bang cho DUYET"
@@ -456,6 +462,98 @@ fn glossary_approve_candidate_without_a_suggestion_creates_a_pending_entry() {
     assert_eq!(found.id, entry_id);
     assert_eq!(found.translation, None, "khong dua xuat -- muc phai CHO CHOT");
     assert_eq!(found.term_origin, "import_scan");
+
+    drop(global);
+    drop(opened);
+    cleanup(&root);
+    cleanup(&global_dir);
+}
+
+/// Story 3.7 — Nhận một ứng viên CÓ đề xuất (`translation = Some("Bac Luong")`, đúng chữ ký
+/// §I/O Matrix *"`glossary_approve_candidate(id, "Bắc Lương", category)`"*) ⇒ mục Glossary
+/// MỚI mang `translation IS NOT NULL` (**đã chốt**), và hàng ứng viên cũ `resolution =
+/// 'approved'` — đối chứng bằng `SELECT` lại qua `glossary_lookup_term`/`glossary_pending_
+/// candidates`, không bằng suy luận (`glossary_approve_candidate` KHÔNG tự tính đề xuất — nó
+/// nhận `translation` từ CHỖ GỌI, đúng §Always của story: "máy chỉ ĐỀ XUẤT", không tự ghi).
+#[test]
+fn glossary_approve_candidate_with_a_suggestion_creates_a_confirmed_entry() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir("approve-with-suggestion");
+    let global_dir = temp_dir("approve-with-suggestion-global");
+    let global = open_global(&global_dir);
+    let opened = open_work(&root, "Nhan Ung Vien Co De Xuat");
+
+    insert_import_scan_candidates(
+        &opened.store,
+        &[ScanCandidate {
+            source_term: "北涼".to_owned(),
+            occurrence_count: 5,
+            context_example: "vi du".to_owned(),
+        }],
+    )
+    .expect("chen ung vien quet");
+    let candidate_id = glossary_pending_candidates(Some(&opened), &layers, &disabled)
+        .expect("liet ke bang cho")
+        .into_iter()
+        .find(|c| c.source_term == "北涼")
+        .expect("phai tim thay ung vien vua chen")
+        .id;
+
+    let entry_id =
+        glossary_approve_candidate(Some(&opened), candidate_id, Some("Bac Luong"), Category::Place)
+            .expect("nhan ung vien co de xuat qua commands::glossary");
+    assert!(entry_id > 0);
+
+    // Hang ung vien: resolution = 'approved', khong con trong bang CHO DUYET.
+    let still_pending = glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("liet ke lai");
+    assert!(
+        still_pending.iter().all(|c| c.id != candidate_id),
+        "ung vien da duyet (co de xuat) khong con trong bang cho DUYET"
+    );
+
+    // Muc Glossary moi: translation KHAC NULL -- DA CHOT, khong CHO CHOT nhu ca khong de xuat.
+    let found = glossary_lookup_term(Some(&global), Some(&opened), "北涼")
+        .expect("tra lai qua commands::glossary")
+        .entry
+        .expect("phai tim thay muc vua sinh");
+    assert_eq!(found.id, entry_id);
+    assert_eq!(
+        found.translation.as_deref(),
+        Some("Bac Luong"),
+        "de xuat da duoc CHO GOI truyen vao -- muc phai DA CHOT ngay luc sinh"
+    );
+    assert_eq!(found.term_origin, "import_scan");
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Hang I/O *"Sua mot muc da vao tu de xuat"* -- muc sinh tu de xuat KHONG duoc
+    // mang mot duong khoa rieng nao. Kiem NGAY TAI DAY thay vi mot ca rieng: mot ca
+    // rieng phai dung lai toan bo luot nhan o tren, va tien de no canh la *"muc VUA
+    // sinh tu de xuat"* -- tach ra la danh mat chinh tien de do.
+    // ⚠️ `tier = Work`: `approve_candidate` ghi vao `project.db` (bang cho ung vien
+    // chi ton tai o do), nen tang cua muc vua sinh KHONG phai `Global`.
+    glossary_update_term(
+        Some(&global),
+        Some(&opened),
+        GlossaryTier::Work,
+        entry_id,
+        Some("Bac Luong (sua tay)"),
+        "sua sau khi nhan tu de xuat",
+        Category::Place,
+    )
+    .expect("sua mot muc sinh tu de xuat -- phai di duong y het moi muc khac");
+
+    let edited = glossary_lookup_term(Some(&global), Some(&opened), "北涼")
+        .expect("tra lai sau khi sua")
+        .entry
+        .expect("muc phai con do");
+    assert_eq!(edited.id, entry_id, "sua tai cho, khong sinh hang moi");
+    assert_eq!(
+        edited.translation.as_deref(),
+        Some("Bac Luong (sua tay)"),
+        "ban dich de xuat phai bi de len -- de xuat la GIA TRI KHOI DAU, khong phai mot khoa"
+    );
+    assert_eq!(edited.note, "sua sau khi nhan tu de xuat");
 
     drop(global);
     drop(opened);
@@ -482,6 +580,8 @@ fn glossary_approve_candidate_with_an_unknown_id_fails_readably() {
 /// ứng viên cũ — hai bảng không được phép nói ngược nhau (§I/O Matrix).
 #[test]
 fn glossary_approve_candidate_on_an_already_decided_candidate_changes_nothing() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let root = temp_dir("approve-already-decided");
     let global_dir = temp_dir("approve-already-decided-global");
     let global = open_global(&global_dir);
@@ -496,7 +596,7 @@ fn glossary_approve_candidate_on_an_already_decided_candidate_changes_nothing() 
         }],
     )
     .expect("chen ung vien quet");
-    let candidate_id = glossary_pending_candidates(Some(&opened))
+    let candidate_id = glossary_pending_candidates(Some(&opened), &layers, &disabled)
         .expect("liet ke bang cho")
         .into_iter()
         .find(|c| c.source_term == "青丘")

@@ -24,6 +24,7 @@ import {
   confirmStripSaveError,
   confirmStripSaving,
   confirmStripSourceTerm,
+  confirmStripSuggestionStatus,
   confirmStripTier,
   confirmStripTranslationInput,
   syncGlossaryConfirmStripTarget,
@@ -65,8 +66,17 @@ const isVisible = computed(() => topmostStrip(eligible.value) === 'glossary_conf
  * một thời điểm, xem `<template>`). Không có liên kết này, người dùng đọc màn hình đứng
  * trong ô nhập không biết có một câu lỗi/trạng thái đang hiện ngay bên dưới.
  */
+/**
+ * 🔵 THÊM 2026-08-24 (Story 3.7, FR113) — dòng *"chưa cài dữ liệu từ điển"* nay CŨNG chiếm
+ * `id="gcs-status-msg"`, cùng chuỗi `v-if`/`v-else-if` với ba đoạn cũ (đúng MỘT đoạn render
+ * tại một thời điểm — xem `<template>`). Ưu tiên THẤP NHẤT: lỗi/đang lưu là phản hồi cho
+ * THAO TÁC người dùng vừa làm, còn dòng này chỉ mô tả TRẠNG THÁI của dữ liệu nền.
+ */
 const statusMessageId = computed<string | undefined>(() =>
-  confirmStripSaveError.value !== null || confirmStripEmptyInputError.value || confirmStripSaving.value
+  confirmStripSaveError.value !== null ||
+  confirmStripEmptyInputError.value ||
+  confirmStripSaving.value ||
+  confirmStripSuggestionStatus.value === 'dict_unavailable'
     ? 'gcs-status-msg'
     : undefined,
 )
@@ -97,6 +107,18 @@ watch(confirmStripFocusRequest, () => {
         <span class="gcs-tier">
           {{ confirmStripTier === 'work' ? t('glossary.quick_add.tier_work') : t('glossary.quick_add.tier_global') }}
         </span>
+        <!-- aura-allow-text: KẾT QUẢ của `t()`. Story 3.7, FR113: nhãn RIÊNG cho ca đề xuất
+             sẵn sàng (`han_viet_status === 'ok'`) -- đúng tiền lệ
+             `panel.source.han_viet_unknown`/`han_viet_unavailable` của Story 1.16.
+             🔴 SỐNG Ở HÀNG TIÊU ĐỀ, cạnh `.gcs-tier`, KHÔNG bên trong `<label class="gcs-field">`
+             — và đó là một ràng buộc KHẢ TRUY CẬP, không phải một lựa chọn bố cục. Tên khả
+             truy cập của `<input>` được tính từ TOÀN BỘ nội dung văn bản của `<label>` bọc nó;
+             đặt nhãn này vào trong đó khiến trình đọc màn hình đọc ô nhập thành *"Bản dịch Âm
+             Hán Việt"* — hai nhãn dính làm một cụm vô nghĩa. Ở đây nó là một chip ĐỘC LẬP,
+             đọc được riêng, đúng khuôn `.gcs-tier` ngay trên. *(Vòng rà Bước 4 bắt, 2026-08-24.)* -->
+        <span v-if="confirmStripSuggestionStatus === 'ok'" class="gcs-suggestion-label">
+          {{ t('glossary.confirm.suggestion_label') }}
+        </span>
       </div>
 
       <label class="gcs-field">
@@ -116,6 +138,9 @@ watch(confirmStripFocusRequest, () => {
         trong ba luôn render (chuỗi `v-if`/`v-else-if`), nên trùng `id` không bao giờ xảy ra
         THẬT trong DOM — ô nhập nối `aria-describedby` tới ĐÚNG đoạn đang hiện mà không cần
         `computed` chọn id theo nhánh.
+        🔵 THÊM 2026-08-24 (Story 3.7) — đoạn thứ TƯ, ưu tiên THẤP NHẤT: dòng *"chưa cài dữ
+        liệu từ điển"* khi `han_viet_status === 'dict_unavailable'` -- một ô rỗng câm là
+        đúng lớp lỗi RỖNG IM LẶNG mà kho cấm (`AGENTS.md:46`).
       -->
       <p v-if="confirmStripSaveError !== null" id="gcs-status-msg" class="gcs-status gcs-error" role="alert">
         {{ tError(confirmStripSaveError) }}
@@ -125,6 +150,14 @@ watch(confirmStripFocusRequest, () => {
       </p>
       <p v-else-if="confirmStripSaving" id="gcs-status-msg" class="gcs-status" role="status">
         {{ t('glossary.confirm.saving') }}
+      </p>
+      <p
+        v-else-if="confirmStripSuggestionStatus === 'dict_unavailable'"
+        id="gcs-status-msg"
+        class="gcs-status"
+        role="status"
+      >
+        {{ t('glossary.confirm.suggestion_unavailable') }}
       </p>
 
       <div class="gcs-row gcs-actions">
@@ -198,6 +231,15 @@ watch(confirmStripFocusRequest, () => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+/* 🔵 THÊM 2026-08-24 (Story 3.7) — nhãn RIÊNG cạnh ô nhập khi có đề xuất Hán Việt. Màu VÀ
+ * cỡ chữ chỉ từ token, cùng khuôn `.gcs-tier` — không bóng đổ, không gradient. */
+.gcs-suggestion-label {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-primary);
 }
 
 .gcs-input {

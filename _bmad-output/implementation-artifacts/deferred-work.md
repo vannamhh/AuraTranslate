@@ -6382,6 +6382,13 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     xuất phù hợp" của chính câu đó.
     **(Chủ: Story 3.7 — "Đề xuất bản dịch bằng âm Hán Việt". Khi story đó dựng xong, dải chốt
     của Story 3.6 là chỗ TỰ NHIÊN để hiện đề xuất — không cần dựng lại một dải thứ hai.)**
+    → ✅ ĐÃ ĐÓNG 2026-08-24 (Story 3.7). `core/glossary/han_viet_suggestion.rs::
+    suggest_han_viet_batch` tính đề xuất LÚC ĐỌC (không cột `suggested_translation`, AD-36),
+    `marks_for_source_text` gọi nó cho các mục chờ chốt và điền `GlossaryMark.
+    han_viet_suggestion`/`han_viet_status`; `glossaryConfirmStripState.ts::applyTarget` điền
+    thẳng vào ô nhập của dải Story 3.6 — đúng dải cũ, không dải thứ hai. `GlossaryConfirmStrip.vue`
+    hiện nhãn *"Âm Hán Việt"* khi có đề xuất và dòng *"chưa cài dữ liệu từ điển"* khi
+    `dict_unavailable`.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
   summary: **Nguồn gợi ý "TM" (bản dịch khớp mờ từ bộ nhớ dịch) — mockup vẽ dải chốt có thể
@@ -6403,6 +6410,11 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Story 3.7 — cùng chủ với nguồn "âm Hán Việt" vì cả hai đều là "đề xuất trước khi
     hỏi người dùng"; Story 3.7 hoặc một correct-course từ Ice phải quyết định phép căn chỉnh
     cụm này thuộc phạm vi nào trước khi dựng.)**
+    → 🔵 2026-08-24 (Story 3.7). Story 3.7 đã chạy và ĐÃ QUYẾT: phép căn chỉnh cụm "bạn vừa
+    viết" nằm NGOÀI FR113 (spec `3-7-…md` §Never: *"không dựng nguồn gợi ý 'bạn vừa viết'
+    (chuyển chủ sang Ice)"*) — FR113 chỉ phủ đúng đề xuất âm Hán Việt, đã đóng ở mục ngay
+    trên. **Chủ MỚI: Ice, qua một correct-course** — năng lực căn chỉnh cụm chưa xuất hiện ở
+    epic nào đã lập, và quyết định phạm vi (thuộc Epic nào, hay một năng lực mới) là của Ice.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
   summary: **Hoàn tác một lượt chốt (`⌘Z` trong mockup) — story KHÔNG dựng, mô hình hoàn tác
@@ -6455,3 +6467,82 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `reject_candidate` vẫn nằm ngoài, chờ Story 3.8 dựng chỗ gọi sản phẩm đầu tiên.
     ⚠️ Mục này KHÔNG tự đóng món nợ kia — nó chỉ kéo món nợ vào nơi có cổng canh.
     **(Chủ: Story 3.8 — cùng chủ với món nợ gốc.)**
+
+## Deferred from: 3-7-de-xuat-ban-dich-bang-am-han-viet (2026-08-24)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-7-de-xuat-ban-dich-bang-am-han-viet.md`
+  summary: **Nghiệm thu bằng mắt trên bản dựng thật CÓ dữ liệu từ điển (dải chốt hiện đúng
+    chữ đề xuất, tắt một nguồn ⇒ chữ đổi, gỡ hết `.db` ⇒ dòng thông báo hiện; tương phản AA cả
+    hai theme) — CHƯA LÀM.**
+  evidence: `resources/dict/` rỗng trong cây git (AD-25); môi trường cài đặt (agent CLI) không
+    dựng được cửa sổ Tauri thật với `.db` thật để nghiệm thu bằng mắt. Vế CẤU TRÚC đã đóng:
+    `cargo test` xanh trên `glossary_han_viet_suggestion_contract.rs` (8 ca, fixture `.db`
+    THẬT — tắt/bật nguồn đo được đúng số) và `vitest` xanh trên
+    `glossaryConfirmStripSuggestion.test.ts` (5 ca, mount `GlossaryConfirmStrip.vue` thật);
+    `check:tokens` Kiểm C xanh cho `.gcs-suggestion-label` (không token màu MỚI nào ngoài bộ
+    đã kiểm). Đo bằng mắt trên bản dựng thật là việc của Ice.
+    **(Chủ: Ice — nghiệm thu tay trên bản dựng thật, đúng khuôn mục tương ứng của Story 3.6.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-7-de-xuat-ban-dich-bang-am-han-viet.md`
+  summary: **NFR2 (lượt tính đề xuất trên đường `marks_for_source_text` không vượt 50 ms ở
+    một Chương thật) — CHƯA ĐO bằng số thật.**
+  evidence: §Ask First của story đòi dừng và trình số nếu vượt trần — môi trường này không có
+    một Chương thật + dữ liệu từ điển thật để đo. Vế KIẾN TRÚC: `suggest_han_viet_batch` gọi
+    `lookup_han_viet` ĐÚNG MỘT LẦN cho cả lô ký tự đã dedupe của TOÀN BỘ thuật ngữ chờ chốt
+    trong Chương (không N lượt cho N thuật ngữ, không N lượt cho N ký tự) — cùng kiến trúc mà
+    `lookup_han_viet`/`read_han_viet` (Story 1.16) đã đo trần cho một Chương 3.000 ký tự. Đo
+    số thật trên phần cứng của Ice là việc còn lại.
+    **(Chủ: Ice — đo trên bản dựng thật, cùng khuôn NFR2 của Story 3.6.)**
+    → 🔵 2026-08-24 (Story 3.7, vòng rà bảng I/O) — mục này nay chở thêm **một vế thứ hai, cùng
+    họ**: hàng I/O *"Dấu ĐÃ CHỐT"* khai *"**0** lượt tra Hán Việt cho dấu đó"*, và vế **0 lượt
+    tra** ấy **không phép kiểm nào quan sát** — không ca nào đếm số lượt gọi `lookup_han_viet`.
+    Nó đứng bằng đúng một dòng `.filter(|entry| !entry.is_confirmed())` khi dựng `pending_terms`
+    (`core/glossary/store.rs`). Đo lại 2026-08-24 cho thấy nhánh `if is_confirmed` trong thân
+    `map` là **phòng thủ DƯ**: vô hiệu riêng nó ⇒ **0 ca đỏ**; phải gỡ CẢ HAI vệ mới có ca đỏ.
+    ⇒ Ai gỡ dòng `.filter(...)` trong một lượt refactor sẽ không làm cổng nào đỏ, chỉ làm mọi
+    Chương trả thêm một lượt tra vô ích cho MỌI thuật ngữ đã chốt. Cùng chủ, vì cách đóng rẻ
+    nhất là gộp vào chính phép đo NFR2 ở trên (số lượt tra đọc được cùng lúc với số mili-giây).
+
+- source_spec: `_bmad-output/implementation-artifacts/3-7-de-xuat-ban-dich-bang-am-han-viet.md`
+  summary: **Nhãn nguồn cho đề xuất (`HanVietLookup::sources_used` chưa được nối ra dây) —
+    story cố ý KHÔNG khai một `source_code` cho đề xuất, vì một cụm nhiều ký tự có thể rút âm
+    từ NHIỀU lớp khác nhau (§Design Notes của story).**
+  evidence: `priority_order` chọn lớp thắng THEO TỪNG KÝ TỰ — "nguồn của đề xuất" không phải
+    một giá trị xác định được cho cả cụm. Nếu Ice muốn hiện nhãn nguồn trên dải, hình dạng
+    đúng là một danh sách `sources_used` cho CẢ CỤM, không một `source_code` đơn — trường đó
+    đã tồn tại trên `HanVietLookup` (Story 1.16) nhưng chưa được `suggest_han_viet_batch` giữ
+    lại và phơi ra ngoài (hàm hiện chỉ trả `HanVietSuggestion`, không trả kèm nguồn).
+    **(Chủ: Ice — quyết định có cần nhãn nguồn trên dải hay không; nếu có, đây là công việc mở
+    rộng `HanVietSuggestion`/`GlossaryMark`, không phải một trường đang bị bỏ sót.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-7-de-xuat-ban-dich-bang-am-han-viet.md`
+  summary: **Tắt/bật một nguồn từ điển KHÔNG làm mới dấu Glossary, nên đề xuất Hán Việt đang
+    hiện trở thành CŨ cho tới lượt đổi Chương — một khớp nối mà chính Story 3.7 vừa tạo ra.**
+  evidence: Trước story này, dấu Glossary không phụ thuộc gì vào tập nguồn từ điển; từ story
+    này `marks_for_source_text` nhận `disabled` và đề xuất đổi theo nó. Nhưng
+    `src/panels/dictSourcesState.ts:212` chỉ gọi `refreshHanViet()` (tab Hán Việt của Panel
+    Source, Story 1.19) và `:33` chỉ import đúng hàm đó — **0** lời gọi `refreshGlossaryMarks`.
+    Hàng I/O *"Nguồn thắng bị TẮT ⇒ chữ ĐỔI"* vẫn ĐÓNG ở tầng nó được viết ra (tầng tính
+    toán: `disabling_the_winning_source_changes_the_reading_instead_of_dropping_it` xanh trên
+    `.db` thật), nhưng ở tầng SẢN PHẨM người dùng tắt một nguồn rồi vẫn thấy đề xuất cũ.
+    🔴 **Vì sao đây là quyết định của Ice, không phải một dòng vá:** thêm chỗ gọi
+    `refreshGlossaryMarks` thứ **tư** đụng thẳng doc-comment `src/panels/glossaryMarksState.ts:17-24`
+    — *"KHÔNG chỗ nào khác được gọi hai hàm này"* — một câu **Ice ký 2026-08-21**. Story 3.6 đã
+    phải sửa câu đó tại chỗ để mở chỗ gọi thứ ba; chỗ thứ tư là cùng loại quyết định.
+    **(Chủ: Ice — phán quyết về chỗ gọi `refreshGlossaryMarks` thứ tư.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-7-de-xuat-ban-dich-bang-am-han-viet.md`
+  summary: **`targetsEqual` chỉ so `tier`+`id`, nên một đề xuất ĐỔI cho CÙNG một mục sẽ không
+    bao giờ vào tới dải — cửa sổ này ĐANG ĐÓNG hôm nay, và nó mở ra đúng lúc mục trên được
+    sửa.**
+  evidence: `src/glossaryConfirmStripState.ts:58-61` so đúng hai trường; `:177` `applyTarget`
+    thoát sớm khi `targetsEqual`. Hôm nay không đường nào làm `glossaryMarks` đổi trong khi
+    dải vẫn mở trên cùng `(tier, id)`: `ensureGlossaryMarksLoaded` chạy lúc mở Chương (mục
+    đổi), `refreshGlossaryMarks` chạy sau một lượt chốt THÀNH CÔNG (mục hết chờ chốt), và tắt
+    nguồn thì **không** làm mới marks (mục ngay trên). ⇒ Chưa phải lỗi đang chạy.
+    ⚠️ **Nhưng bản vá hiển nhiên là bản vá SAI:** thêm hai trường vào `targetsEqual` khiến
+    `applyTarget` chạy khi đề xuất đổi, và `applyTarget` **xoá rồi điền lại** `translationInput`
+    — tức xoá đúng những chữ người dùng đang gõ dở. Đóng mục này phải tách *"đổi danh tính"*
+    khỏi *"đổi đề xuất"*, và chỉ điền lại khi ô còn nguyên vẹn.
+    **(Chủ: Ice — cùng một quyết định với mục ngay trên; sửa mục kia mà không sửa mục này là
+    mở đúng cửa sổ mất chữ đang gõ.)**

@@ -31,6 +31,8 @@ const MARK: GlossaryMark = {
   translation: 'Một',
   id: 1,
   source_term: 'thuật ngữ',
+  han_viet_suggestion: null,
+  han_viet_status: 'not_requested',
 }
 
 async function docNguyenVanGia() {

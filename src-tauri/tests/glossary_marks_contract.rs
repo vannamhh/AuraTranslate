@@ -61,6 +61,8 @@ fn open_work(root: &Path, tag: &str) -> auratranslate_lib::commands::project::Op
 
 #[test]
 fn chinese_exact_match_marks_the_whole_term() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("zh-exact-global");
     let global = open_global(&global_dir);
     add_manual_term(
@@ -75,7 +77,7 @@ fn chinese_exact_match_marks_the_whole_term() {
     .expect("them thuat ngu vao tang Global");
 
     let resolver = ScopeResolver::global_only();
-    let marks = marks_for_source_text(&resolver, &global, None, "中國人", MatchLang::Zh)
+    let marks = marks_for_source_text(&resolver, &global, None, "中國人", MatchLang::Zh, &layers, &disabled)
         .expect("khop khong duoc loi");
 
     assert_eq!(marks.len(), 1, "phai co dung mot dau: {marks:?}");
@@ -95,6 +97,8 @@ fn chinese_exact_match_marks_the_whole_term() {
 
 #[test]
 fn a_term_cutting_across_a_jieba_token_boundary_produces_no_mark() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("zh-cut-global");
     let global = open_global(&global_dir);
     add_manual_term(&global, None, GlossaryTier::Global, "文", Some("van"), "", Category::Other)
@@ -104,7 +108,7 @@ fn a_term_cutting_across_a_jieba_token_boundary_produces_no_mark() {
     // `文化` la MOT token cua jieba (tu dien mac dinh) -- `文` cat ngang giua token do, nen
     // khong duoc nhan. Xem doc-comment cua `find_terms` cho cung dung vi du nay.
     let marks =
-        marks_for_source_text(&resolver, &global, None, "文化", MatchLang::Zh).expect("khong loi");
+        marks_for_source_text(&resolver, &global, None, "文化", MatchLang::Zh, &layers, &disabled).expect("khong loi");
 
     assert!(marks.is_empty(), "文 cat ngang token 文化 -- khong duoc co dau nao: {marks:?}");
 
@@ -118,6 +122,8 @@ fn a_term_cutting_across_a_jieba_token_boundary_produces_no_mark() {
 
 #[test]
 fn an_english_inflected_form_is_marked_from_its_base_term() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("en-inflect-global");
     let global = open_global(&global_dir);
     add_manual_term(&global, None, GlossaryTier::Global, "run", Some("chay"), "", Category::Other)
@@ -126,7 +132,7 @@ fn an_english_inflected_form_is_marked_from_its_base_term() {
     let resolver = ScopeResolver::global_only();
     let text = "the dog is running now";
     let marks =
-        marks_for_source_text(&resolver, &global, None, text, MatchLang::En).expect("khong loi");
+        marks_for_source_text(&resolver, &global, None, text, MatchLang::En, &layers, &disabled).expect("khong loi");
 
     assert_eq!(marks.len(), 1, "phai co dung mot dau: {marks:?}");
     assert_eq!(&text[marks[0].start..marks[0].end], "running", "dau phai phu dung tu running");
@@ -141,6 +147,8 @@ fn an_english_inflected_form_is_marked_from_its_base_term() {
 /// đúng hàng `dragon` nào, kể cả khi bề mặt trên màn hình là `dragons`.
 #[test]
 fn an_english_inflected_surface_carries_the_base_source_term_not_the_surface() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("en-inflect-key-global");
     let global = open_global(&global_dir);
     let entry_id = add_manual_term(
@@ -157,7 +165,7 @@ fn an_english_inflected_surface_carries_the_base_source_term_not_the_surface() {
     let resolver = ScopeResolver::global_only();
     let text = "the dragons flew over the mountain";
     let marks =
-        marks_for_source_text(&resolver, &global, None, text, MatchLang::En).expect("khong loi");
+        marks_for_source_text(&resolver, &global, None, text, MatchLang::En, &layers, &disabled).expect("khong loi");
 
     assert_eq!(marks.len(), 1, "phai co dung mot dau: {marks:?}");
     assert_eq!(
@@ -181,6 +189,8 @@ fn an_english_inflected_surface_carries_the_base_source_term_not_the_surface() {
 
 #[test]
 fn english_superlative_forms_are_not_marked_a_named_porter2_limit_ice_signed_2026_08_21() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("en-superlative-global");
     let global = open_global(&global_dir);
     add_manual_term(
@@ -201,6 +211,8 @@ fn english_superlative_forms_are_not_marked_a_named_porter2_limit_ice_signed_202
         None,
         "she is the happiest person i know",
         MatchLang::En,
+        &layers,
+        &disabled,
     )
     .expect("khong loi");
 
@@ -223,13 +235,15 @@ fn english_superlative_forms_are_not_marked_a_named_porter2_limit_ice_signed_202
 
 #[test]
 fn a_pending_entry_is_marked_with_is_confirmed_false_and_translation_null() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("zh-pending-global");
     let global = open_global(&global_dir);
     add_manual_term(&global, None, GlossaryTier::Global, "慕容", None, "", Category::Person)
         .expect("them muc cho chot vao tang Global");
 
     let resolver = ScopeResolver::global_only();
-    let marks = marks_for_source_text(&resolver, &global, None, "慕容说话了", MatchLang::Zh)
+    let marks = marks_for_source_text(&resolver, &global, None, "慕容说话了", MatchLang::Zh, &layers, &disabled)
         .expect("khong loi");
 
     assert_eq!(marks.len(), 1, "muc cho chot van phai ra dau: {marks:?}");
@@ -246,6 +260,8 @@ fn a_pending_entry_is_marked_with_is_confirmed_false_and_translation_null() {
 
 #[test]
 fn the_work_tier_wins_over_global_when_both_tiers_share_a_source_term() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let root = temp_dir("zh-ad18");
     let global_dir = temp_dir("zh-ad18-global");
     let global = open_global(&global_dir);
@@ -278,6 +294,8 @@ fn the_work_tier_wins_over_global_when_both_tiers_share_a_source_term() {
         Some(&opened.store),
         "青丘之地",
         MatchLang::Zh,
+        &layers,
+        &disabled,
     )
     .expect("khong loi");
 
@@ -297,6 +315,8 @@ fn the_work_tier_wins_over_global_when_both_tiers_share_a_source_term() {
 
 #[test]
 fn with_no_work_open_only_the_global_tier_is_matched_and_no_error_is_raised() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("en-no-work-global");
     let global = open_global(&global_dir);
     add_manual_term(
@@ -312,14 +332,14 @@ fn with_no_work_open_only_the_global_tier_is_matched_and_no_error_is_raised() {
 
     // Qua ham LOI (core), khong OpenWork nao ca.
     let resolver = ScopeResolver::global_only();
-    let marks = marks_for_source_text(&resolver, &global, None, "hello world", MatchLang::En)
+    let marks = marks_for_source_text(&resolver, &global, None, "hello world", MatchLang::En, &layers, &disabled)
         .expect("chua mo Tac pham KHONG duoc la mot loi");
     assert_eq!(marks.len(), 1);
     assert_eq!(marks[0].tier, GlossaryTier::Global);
 
     // Va qua chinh be mat IPC (`commands::glossary::glossary_marks_for_chapter`) voi
     // `open: None` -- cung mot menh de, do o CA HAI tang.
-    let via_command = glossary_marks_for_chapter(Some(&global), None, "hello world", "en")
+    let via_command = glossary_marks_for_chapter(Some(&global), None, "hello world", "en", &layers, &disabled)
         .expect("lenh IPC cung khong duoc loi khi chua mo Tac pham");
     assert_eq!(via_command.len(), 1);
     assert_eq!(via_command[0].tier, "global");
@@ -334,6 +354,8 @@ fn with_no_work_open_only_the_global_tier_is_matched_and_no_error_is_raised() {
 
 #[test]
 fn overlapping_matches_of_different_lengths_keep_only_the_longest_span() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     // 🔴 Hai tang KHAC NHAU, hai ban dich KHAC NHAU -- khong chi hai `start`/`end`. Neu
     // `marks_for_source_text` xao tron anh xa `terms` (tu `resolved.keys()`) <-> `payload`
     // (tu `resolved.values()`), ca nay se di qua neu chi kiem `start`/`end` (ca hai ung vien
@@ -363,6 +385,8 @@ fn overlapping_matches_of_different_lengths_keep_only_the_longest_span() {
         Some(&opened.store),
         "中國人",
         MatchLang::Zh,
+        &layers,
+        &disabled,
     )
     .expect("khong loi");
 
@@ -397,6 +421,8 @@ fn overlapping_matches_of_different_lengths_keep_only_the_longest_span() {
 
 #[test]
 fn overlapping_matches_of_equal_length_keep_only_the_leftmost_span() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("zh-overlap-tie-global");
     let global = open_global(&global_dir);
     // 🔴 HAI thuat ngu KHAC NHAU (khong phai cung mot thuat ngu khop hai lan) -- moi phan
@@ -414,7 +440,7 @@ fn overlapping_matches_of_equal_length_keep_only_the_leftmost_span() {
         .expect("them 𠀀𠀁");
 
     let resolver = ScopeResolver::global_only();
-    let marks = marks_for_source_text(&resolver, &global, None, "𠧜𠀀𠀁", MatchLang::Zh)
+    let marks = marks_for_source_text(&resolver, &global, None, "𠧜𠀀𠀁", MatchLang::Zh, &layers, &disabled)
         .expect("khong loi");
 
     assert_eq!(marks.len(), 1, "hai lan khop chong nhau cung do dai -- phai con DUNG MOT: {marks:?}");
@@ -437,6 +463,8 @@ fn overlapping_matches_of_equal_length_keep_only_the_leftmost_span() {
 
 #[test]
 fn a_term_outside_the_bmp_produces_a_correct_codepoint_span_without_panicking() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("zh-bmp-global");
     let global = open_global(&global_dir);
     add_manual_term(&global, None, GlossaryTier::Global, "𠧜", Some("x"), "", Category::Other)
@@ -445,7 +473,7 @@ fn a_term_outside_the_bmp_produces_a_correct_codepoint_span_without_panicking() 
     let resolver = ScopeResolver::global_only();
     // "你" (1 diem ma, 3 byte) roi "𠧜" (1 diem ma, 4 byte) -- span DIEM MA cua 𠧜 phai la
     // 1..2, KHONG phai 1..3 (UTF-16, hai code unit) va KHONG phai lech theo byte.
-    let marks = marks_for_source_text(&resolver, &global, None, "你𠧜", MatchLang::Zh)
+    let marks = marks_for_source_text(&resolver, &global, None, "你𠧜", MatchLang::Zh, &layers, &disabled)
         .expect("khong panic, khong loi");
 
     assert_eq!(marks.len(), 1, "{marks:?}");
@@ -462,11 +490,13 @@ fn a_term_outside_the_bmp_produces_a_correct_codepoint_span_without_panicking() 
 
 #[test]
 fn an_empty_glossary_matches_nothing_and_ok_empty_is_distinguishable_from_a_lookup_failure() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("empty-global");
     let global = open_global(&global_dir);
 
     let resolver = ScopeResolver::global_only();
-    let result = marks_for_source_text(&resolver, &global, None, "bat ky van ban nao", MatchLang::En);
+    let result = marks_for_source_text(&resolver, &global, None, "bat ky van ban nao", MatchLang::En, &layers, &disabled);
 
     // `Ok(vec![])` -- mot KET QUA thanh cong rong, phan biet duoc voi `Err(..)` (ca ke tiep)
     // boi chinh KIEU `Result`, khong can mot co rieng.
@@ -485,9 +515,11 @@ fn an_empty_glossary_matches_nothing_and_ok_empty_is_distinguishable_from_a_look
 
 #[test]
 fn a_missing_global_store_is_an_error_carrying_a_message_key_not_an_empty_ok() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     // `global: None` -- kho chua bao gio duoc `app.manage`, cung hinh dang "kho khong mo
     // duoc" ma moi lenh khac cua `commands::glossary` dung `store_is_missing()` de dien dat.
-    let err = glossary_marks_for_chapter(None, None, "van ban", "en")
+    let err = glossary_marks_for_chapter(None, None, "van ban", "en", &layers, &disabled)
         .expect_err("global.db vang mat PHAI la mot loi, khong `Ok(vec![])`");
 
     assert_eq!(err.code(), "store.open_failed", "phai mang dung message_key cua store");
@@ -501,6 +533,8 @@ fn a_missing_global_store_is_an_error_carrying_a_message_key_not_an_empty_ok() {
 /// xoá hay chưa từng mở.
 #[test]
 fn a_work_tier_store_closed_mid_session_is_an_error_not_an_empty_ok() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let root = temp_dir("work-store-closed");
     let global_dir = temp_dir("work-store-closed-global");
     let global = open_global(&global_dir);
@@ -517,6 +551,8 @@ fn a_work_tier_store_closed_mid_session_is_an_error_not_an_empty_ok() {
         Some(&opened.store),
         "van ban bat ky",
         MatchLang::Zh,
+        &layers,
+        &disabled,
     )
     .expect_err("tang Tac pham dong giua chung PHAI la mot loi, khong `Ok(vec![])`");
 
@@ -544,6 +580,8 @@ fn a_work_tier_store_closed_mid_session_is_an_error_not_an_empty_ok() {
 /// với `open: Some(&opened)` thật.
 #[test]
 fn the_work_tier_wins_over_global_through_the_real_glossary_marks_for_chapter_surface() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let root = temp_dir("ad18-marks-command");
     let global_dir = temp_dir("ad18-marks-command-global");
     let global = open_global(&global_dir);
@@ -570,7 +608,7 @@ fn the_work_tier_wins_over_global_through_the_real_glossary_marks_for_chapter_su
     )
     .expect("them muc trung ten o tang Tac pham");
 
-    let marks = glossary_marks_for_chapter(Some(&global), Some(&opened), "青丘之地", "zh")
+    let marks = glossary_marks_for_chapter(Some(&global), Some(&opened), "青丘之地", "zh", &layers, &disabled)
         .expect("khong loi qua be mat IPC that");
 
     assert_eq!(marks.len(), 1, "trung thuat ngu hai tang qua IPC van phai ra DUNG MOT dau: {marks:?}");
@@ -601,6 +639,8 @@ fn the_work_tier_wins_over_global_through_the_real_glossary_marks_for_chapter_su
 
 #[test]
 fn a_chinese_term_placed_right_across_the_newline_joiner_produces_no_mark() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("nl-bridge-zh-global");
     let global = open_global(&global_dir);
     // Chép NGUYÊN VÍ DỤ đã có trong doc-comment của `find_terms` (`core/matching/mod.rs`):
@@ -614,13 +654,13 @@ fn a_chinese_term_placed_right_across_the_newline_joiner_produces_no_mark() {
     // ── ĐỐI CHỨNG DƯƠNG: liền nhau (không `\n`) ⇒ PHẢI khớp -- chứng minh ca âm dưới không
     //    phải "thuật ngữ này chưa từng khớp được" mà đúng là `\n` đã chặn nó.
     let lien =
-        marks_for_source_text(&resolver, &global, None, "萧炎和林动", MatchLang::Zh).expect("khong loi");
+        marks_for_source_text(&resolver, &global, None, "萧炎和林动", MatchLang::Zh, &layers, &disabled).expect("khong loi");
     assert_eq!(lien.len(), 1, "doi chung: 萧炎 lien nhau phai khop dung mot dau: {lien:?}");
     assert_eq!((lien[0].start, lien[0].end), (0, 2), "dau phai phu dung hai diem ma dau cua 萧炎");
 
     // ── CA CHÍNH: `萧` kết thúc "segment 1", `炎和林动` mở "segment 2", nối bằng `\n` --
     //    đúng hình dạng chuỗi mà `glossaryMarksMap.ts::joinSegmentSourceText` dựng.
-    let bac_cau = marks_for_source_text(&resolver, &global, None, "萧\n炎和林动", MatchLang::Zh)
+    let bac_cau = marks_for_source_text(&resolver, &global, None, "萧\n炎和林动", MatchLang::Zh, &layers, &disabled)
         .expect("khong loi");
     assert!(
         bac_cau.is_empty(),
@@ -633,6 +673,8 @@ fn a_chinese_term_placed_right_across_the_newline_joiner_produces_no_mark() {
 
 #[test]
 fn an_english_multi_word_term_placed_right_across_the_newline_joiner_produces_no_mark() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
     let global_dir = temp_dir("nl-bridge-en-global");
     let global = open_global(&global_dir);
     add_manual_term(
@@ -649,7 +691,7 @@ fn an_english_multi_word_term_placed_right_across_the_newline_joiner_produces_no
     let resolver = ScopeResolver::global_only();
 
     // ── ĐỐI CHỨNG DƯƠNG: một dấu cách phân tách (không `\n`) ⇒ PHẢI khớp.
-    let lien = marks_for_source_text(&resolver, &global, None, "a fire dragon roars", MatchLang::En)
+    let lien = marks_for_source_text(&resolver, &global, None, "a fire dragon roars", MatchLang::En, &layers, &disabled)
         .expect("khong loi");
     assert_eq!(lien.len(), 1, "doi chung: fire dragon lien nhau phai khop dung mot dau: {lien:?}");
     assert_eq!(
@@ -659,7 +701,7 @@ fn an_english_multi_word_term_placed_right_across_the_newline_joiner_produces_no
     );
 
     // ── CA CHÍNH: "fire" kết thúc "segment 1", "dragon roars" mở "segment 2", nối bằng `\n`.
-    let bac_cau = marks_for_source_text(&resolver, &global, None, "a fire\ndragon roars", MatchLang::En)
+    let bac_cau = marks_for_source_text(&resolver, &global, None, "a fire\ndragon roars", MatchLang::En, &layers, &disabled)
         .expect("khong loi");
     assert!(
         bac_cau.is_empty(),

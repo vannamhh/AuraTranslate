@@ -65,6 +65,17 @@ const RS_FLOOR: usize = 44; // 🔵 SUA 2026-08-22 (ra ba lop) -- 43/53 = 81% VA
 // da doi chieu: check-i18n.mjs quet ca `src-tauri/**` + `tools/**` roi tru mien tru
 // `tests/**`/`tools/**`, con lai dung 53 -- cung so voi cong nay). Hai cong khong co ly do
 // chinh dang de lech nhau tren cung mot con so; nang len 44 cho khop.
+//
+// 🔵 SUA 2026-08-24 (Story 3.7, doc lai truoc khi tin) -- menh de "cung mot quan the" o tren
+// SAI. `all_rust_sources()` cua CHINH cong nay chi quet `CARGO_MANIFEST_DIR/src` (tuc
+// `src-tauri/src/**`, KHONG `tests/**`) -- do 2026-08-22 (TRUOC luot Story 3.7): 52 tep, KHONG
+// 53. `check-i18n.mjs:288` quet `src-tauri/**` (gom ca `build.rs`, tep nam CANH `src/`, khong
+// nam TRONG no) CONG `tools/**` roi tru EXEMPT (`tests/**`/`tools/**`) -- quan the do rieng
+// mang `build.rs` ma quan the cua cong nay KHONG BAO GIO co. Hai con so 52/53 trung nhau
+// TRUOC luot nay la MOT SU TRUNG HOP tren hai quan the KHAC NHAU, khong phai bang chung "cung
+// mot quan the" nhu cau tren da khang dinh -- doc so THAT truoc khi tin mot cau da viet san.
+// Story 3.7 them `core/glossary/han_viet_suggestion.rs` -- do lai NGAY DUOI day
+// (`the_scanned_tree_is_large_enough_to_be_real`).
 
 /// Chuỗi bị cấm ngoài hai vị trí ở trên — **tên bảng thật**, chữ thường nguyên văn như nó
 /// nằm trong SQL (`CREATE TABLE glossary_entry`, `FROM glossary_candidate`, …).
@@ -161,7 +172,13 @@ fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static st
 /// ĐỂ NGOÀI `GLOSSARY_ONLY_SURFACE`, xem doc-comment của hằng đó, chờ đúng "story dựng chỗ
 /// gọi sản phẩm đầu tiên"; Story 3.6 là story đó, `reject_candidate` thì chưa, vẫn là nợ
 /// mở cho Story 3.8).
-const QUICK_ADD_SURFACE: [&str; 7] = [
+///
+/// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.7) — hàm THỨ TÁM, `suggest_han_viet_batch`.** Đề xuất
+/// bản dịch bằng âm Hán Việt (FR113): `commands::glossary::glossary_pending_candidates` gọi
+/// hàm này TRỰC TIẾP (bảng ứng viên không đi qua `marks_for_source_text`); `glossary_marks_
+/// for_chapter` gọi nó GIÁN TIẾP, qua `marks_for_source_text` (`core/glossary/store.rs`) —
+/// cùng khuôn `pending_candidates`/`marks_for_source_text` đã đi.
+const QUICK_ADD_SURFACE: [&str; 8] = [
     "resolve_term_for_quick_add",
     "add_manual_term",
     "update_manual_term",
@@ -169,6 +186,7 @@ const QUICK_ADD_SURFACE: [&str; 7] = [
     "pending_candidates",
     "confirm_pending_translation",
     "approve_candidate",
+    "suggest_han_viet_batch",
 ];
 
 /// Token xuất xứ TỰ ĐỘNG — chỉ được sinh ra (biến thể enum, chuỗi `as_str()`) bên trong

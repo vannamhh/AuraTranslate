@@ -240,6 +240,13 @@ impl GlossaryEntry {
 /// vào một mục không tồn tại). Không có hai trường này, dải phải tự đoán khoá ghi từ chuỗi
 /// đã cắt trên màn hình (sai với biến thể hình thái) hoặc dựng một vòng IPC thứ hai để tra
 /// lại dữ liệu mà Rust đã cầm sẵn trong tay lúc dựng dấu.
+///
+/// 🔵 **THÊM 2026-08-24 (Story 3.7) — `han_viet_suggestion` + `han_viet_status`.** Dải chốt
+/// (Story 3.6) mở một ô nhập TRẦN cho mục chờ chốt; với danh từ riêng chữ Hán, âm Hán Việt
+/// **chính là** bản dịch quy ước và nó đã nằm sẵn trong dữ liệu nhúng (FR113, AD-36). Hai
+/// trường mới chở đề xuất đó cùng lượt với dấu — [`super::store::marks_for_source_text`] đã
+/// cầm sẵn `source_term` của mục trong tay, gọi `suggest_han_viet_batch` một lần cho cả
+/// Chương thay vì để nửa giao diện tự tra lại bằng một vòng IPC thứ hai.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GlossaryMark {
     /// Vị trí ĐIỂM MÃ bắt đầu (bao gồm), tính từ đầu chuỗi được khớp.
@@ -261,4 +268,14 @@ pub struct GlossaryMark {
     /// khớp trên màn hình (`text[start..end]`) khi nhánh tiếng Anh khớp theo hình thái. Dải
     /// chốt phải hỏi VÀ ghi vào đúng `source_term` này, không phải chuỗi cắt từ văn bản.
     pub source_term: String,
+    /// 🔵 **THÊM 2026-08-24 (Story 3.7).** Chuỗi đề xuất (`suggest_han_viet_batch(..).
+    /// suggestion_text()`), hoặc `None` cho bốn trong năm nhánh của
+    /// [`super::HanVietSuggestion`]. Mục ĐÃ CHỐT (`is_confirmed == true`) luôn mang `None` ở
+    /// đây (nhánh `NotRequested`) — **0** lượt tra Hán Việt chạy cho mục đó.
+    pub han_viet_suggestion: Option<String>,
+    /// 🔵 **THÊM 2026-08-24 (Story 3.7).** `suggest_han_viet_batch(..).as_status_str()` —
+    /// một trong năm chuỗi đóng (`"ok"` · `"not_chinese"` · `"no_reading"` ·
+    /// `"dict_unavailable"` · `"not_requested"`). Ba lý do RỖNG của `han_viet_suggestion`
+    /// phải phân biệt được trên dây; trường này là chỗ chúng phân biệt được (§I/O Matrix).
+    pub han_viet_status: &'static str,
 }

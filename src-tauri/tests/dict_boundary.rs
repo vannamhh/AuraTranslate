@@ -313,7 +313,12 @@ fn the_routing_predicate_lives_in_exactly_one_file_and_the_adapter_never_calls_i
 /// 🔴 **Quần thể này KHÁC bốn sàn `src/**` khác của kho** — nó gồm cả `tests/**`, vì bản sao
 /// `is_han` đã bị xoá sống ở `tests/**`. Chép số 34 của `store_boundary.rs` sang đây là đặt
 /// một cái sàn cho một cây khác.
-const SRC_TAURI_RS_FLOOR: usize = 46; // số THẬT 2026-08-12: 57 tệp `.rs` (src + tests) — 46/57 = 80,7%
+const SRC_TAURI_RS_FLOOR: usize = 61; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 75 tệp
+// `.rs` (53 dưới src/** + 22 dưới tests/**, gồm `han_viet_suggestion.rs` VÀ
+// `glossary_han_viet_suggestion_contract.rs` mới của story này) — 61/75 = 81,3%. Sàn cũ (46,
+// đặt 2026-08-12) đã trôi xuống 46/75 = 61,3%, xa dưới dải 80–85% qua nhiều story không ai
+// nâng lại — cùng bài học "sàn nâng mà số thật không đổi là sàn nâng theo cảm giác" áp NGƯỢC
+// chiều ở đây: số thật đã đổi rất nhiều mà sàn đứng yên là sàn RỚT theo cảm giác.
 
 /// 🔴 **AC2 vế cuối** — trong toàn bộ `src-tauri/**` chỉ còn **MỘT** định nghĩa `is_han`.
 ///
@@ -381,7 +386,9 @@ fn exactly_one_definition_of_is_han_exists_under_src_tauri() {
 /// ⚠️ Story 2.1 (2026-08-12): số thật là **42**; sàn lên **34** (81,0%), nâng cùng lượt với
 /// `store_boundary.rs`/`scope_boundary.rs`/`matching_boundary.rs`. Quần thể ở đây là
 /// `src-tauri/src/**` — **không** gồm `tests/**`, khác [`SRC_TAURI_RS_FLOOR`] ngay trên.
-const SRC_ONLY_RS_FLOOR: usize = 34; // số THẬT 2026-08-12 (sau Story 2.1): 42 tệp `.rs` — 34/42 = 81,0%
+const SRC_ONLY_RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 53 tệp `.rs`
+// dưới `src-tauri/src/**` (+`core/glossary/han_viet_suggestion.rs`) — 43/53 = 81,1%. Sàn cũ
+// (34, đặt 2026-08-12) đã trôi xuống 34/53 = 64,2% qua nhiều story không ai nâng lại.
 
 /// **Mười `code` THẬT**, đo trên bốn tệp `.db` ở `tools/dict-build/out/` ngày 2026-08-08.
 ///
@@ -1094,4 +1101,95 @@ fn mask_comments(text: &str) -> String {
         }
     }
     out
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.7 — cạnh `glossary/ → dict/` LÀ THẬT, chiều ngược lại vẫn KHÔNG tồn tại (AD-36)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Dòng **mã** của một tệp (bỏ dòng bắt đầu bằng `//`) — khuôn
+/// `glossary_boundary.rs::code_lines`, chép lại vì hai tệp test không được `use` chéo nhau.
+fn code_lines_for_dependency_check(file: &Path) -> Vec<(usize, String)> {
+    let text = fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
+    text.lines()
+        .enumerate()
+        .map(|(i, l)| (i + 1, l.trim_start().to_owned()))
+        .filter(|(_, code)| !code.starts_with("//"))
+        .collect()
+}
+
+/// 🔴 AC "có cạnh `glossary/ → dict/`, không tạo chu trình" là mệnh đề DUY NHẤT của Story
+/// 3.7 chưa có cổng nào canh trước lượt này — nó phải trở thành một PHÉP KIỂM, không một
+/// lời khai trong doc-comment. Hai vế, cùng một ca:
+///
+/// 1. `core/glossary/**` có **ít nhất một** dòng `use crate::core::dict` (`code_lines`,
+///    không tính comment) — cạnh THẬT mà AD-36 chỉ định, đối lập với `scan.rs` tiêm closure.
+/// 2. `core/dict/**` có **0** dòng nhắc `core::glossary`/`crate::core::glossary` — chiều
+///    ngược lại hôm nay là 0 và phải giữ nguyên, nếu không có cạnh này thì KHÔNG có chu
+///    trình để lo, nhưng một chu trình sẽ khoá cứng `core/dict/**` vào `core/glossary/**`
+///    (AD-13-adjacent: `core/dict` phải dùng được mà không cần biên dịch `core/glossary`).
+#[test]
+fn glossary_depends_on_dict_and_the_reverse_edge_still_does_not_exist() {
+    let glossary_dir = src_root().join("core").join("glossary");
+    let mut glossary_files = Vec::new();
+    walk(&glossary_dir, &mut glossary_files);
+    glossary_files.sort();
+    assert!(
+        glossary_files.len() >= 5,
+        "chi tim thay {} tep duoi core/glossary/** -- qua nho de la that",
+        glossary_files.len()
+    );
+
+    let has_dict_edge = glossary_files.iter().any(|file| {
+        code_lines_for_dependency_check(file)
+            .iter()
+            .any(|(_, code)| code.contains("use crate::core::dict"))
+    });
+    assert!(
+        has_dict_edge,
+        "0 tep duoi core/glossary/** co dong `use crate::core::dict` -- AD-36 chi dinh dich \
+         danh mot canh THAT (khong tiem closure nhu scan.rs); Story 3.7 phai la story mo \
+         canh nay (`core/glossary/han_viet_suggestion.rs`)."
+    );
+
+    let dict_dir = src_root().join("core").join("dict");
+    let mut dict_files = Vec::new();
+    walk(&dict_dir, &mut dict_files);
+    dict_files.sort();
+    assert!(
+        dict_files.len() >= 2,
+        "chi tim thay {} tep duoi core/dict/** -- qua nho de la that",
+        dict_files.len()
+    );
+
+    let mut reverse_edge_violations: Vec<String> = Vec::new();
+    for file in &dict_files {
+        for (line_no, code) in code_lines_for_dependency_check(file) {
+            if code.contains("core::glossary") {
+                reverse_edge_violations.push(format!(
+                    "{}:{line_no}  {code}",
+                    rel_posix(&src_root(), file)
+                ));
+            }
+        }
+    }
+    assert!(
+        reverse_edge_violations.is_empty(),
+        "core/dict/** nhac toi core::glossary o {} cho -- canh nguoc lai PHAI la 0, khong thi \
+         `glossary/ -> dict/` cong `dict/ -> glossary/` la mot CHU TRINH:\n{}",
+        reverse_edge_violations.len(),
+        reverse_edge_violations.join("\n")
+    );
+}
+
+/// Đối chứng dương của vị từ `code_lines` dùng ở cổng trên — chứng minh nó THẬT SỰ bắt được
+/// một dòng vi phạm, không phải nó chưa từng đỏ vì cây hôm nay sạch.
+#[test]
+fn the_reverse_edge_check_would_catch_a_planted_violation() {
+    let planted = "    use crate::core::glossary::GlossaryMark;";
+    assert!(
+        planted.trim_start().contains("core::glossary"),
+        "vi tu chuoi con phai bat duoc dong gia lap nay -- day chinh la hinh dang cong tren \
+         se do neu core/dict/** mot ngay nao do goi nguoc lai core::glossary"
+    );
 }

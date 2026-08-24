@@ -48,6 +48,8 @@ function term(start: number, end: number, isConfirmed = true, translation: strin
     id: 1,
     sourceTerm: 'thuật ngữ',
     tier: 'global',
+    hanVietSuggestion: null,
+    hanVietStatus: 'not_requested',
   }
 }
 

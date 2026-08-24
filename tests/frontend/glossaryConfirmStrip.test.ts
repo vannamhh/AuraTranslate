@@ -42,6 +42,8 @@ function markWire(opts: {
   tier?: 'global' | 'work'
   isConfirmed?: boolean
   translation?: string | null
+  hanVietSuggestion?: string | null
+  hanVietStatus?: 'ok' | 'not_chinese' | 'no_reading' | 'dict_unavailable' | 'not_requested'
 }) {
   return {
     start: opts.start,
@@ -51,6 +53,11 @@ function markWire(opts: {
     translation: opts.translation ?? null,
     id: opts.id,
     source_term: opts.sourceTerm,
+    // 🔵 THÊM 2026-08-24 (Story 3.7) — mặc định "chưa hỏi" (không đề xuất): bộ test này canh
+    // logic dải chốt (danh tính mục, sổ ưu tiên, sequence) chứ không canh đề xuất Hán Việt —
+    // đề xuất được canh riêng ở `glossaryConfirmStripSuggestion.test.ts`.
+    han_viet_suggestion: opts.hanVietSuggestion ?? null,
+    han_viet_status: opts.hanVietStatus ?? 'not_requested',
   }
 }
 

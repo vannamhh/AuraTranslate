@@ -42,7 +42,9 @@ const CHAPTER_READ_FILE: &str = "commands/chapter.rs";
 /// 🔴 **Quần thể này KHÁC quần thể của `check-i18n.mjs`** — ở đây là `src-tauri/src/**`,
 /// ở đó là `src-tauri/**` sau miễn trừ `tests/**` (gồm cả `build.rs`). Hai con số gần nhau
 /// và chúng **không** thay thế nhau được.
-const SRC_RS_FLOOR: usize = 34;
+const SRC_RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 53 tệp `.rs` dưới
+// `src-tauri/src/**` (+`core/glossary/han_viet_suggestion.rs`) — 43/53 = 81,1%. Sàn cũ (34)
+// đã trôi xuống 34/53 = 64,2% qua nhiều story không ai nâng lại.
 
 /// Số tệp `.ts` + `.vue` tối thiểu dưới `src/**`.
 ///

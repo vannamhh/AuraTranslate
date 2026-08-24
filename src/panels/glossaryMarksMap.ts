@@ -34,7 +34,7 @@
  * ⚠️ **Hàm THUẦN** — không `import` Vue, không DOM, test được bằng dữ liệu bịa
  * (`tests/frontend/glossaryMarksMap.test.ts`).
  */
-import type { GlossaryMark, GlossaryTierWire } from '../config/glossary'
+import type { GlossaryMark, GlossaryTierWire, HanVietSuggestionStatus } from '../config/glossary'
 
 /** Đúng bốn trường mà [`glossaryMarksBySegment`] cần từ một hàng segment. */
 export type GlossarySegmentSource = { id: number; source_text: string }
@@ -66,6 +66,18 @@ export type SegmentTermSpan = {
    * biết tầng để gọi `confirmPendingGlossaryTranslation(tier, id, ..)` — ghi vào ĐÚNG kho.
    */
   tier: GlossaryTierWire
+  /**
+   * 🔵 THÊM 2026-08-24 (Story 3.7) — chép thẳng từ `GlossaryMark.han_viet_suggestion`. Dải
+   * "Chờ chốt" điền sẵn ô nhập bằng trường này khi có (§I/O Matrix: "Dải chốt mọc ⇒ Ô nhập
+   * điền sẵn đề xuất").
+   */
+  hanVietSuggestion: string | null
+  /**
+   * 🔵 THÊM 2026-08-24 (Story 3.7) — chép thẳng từ `GlossaryMark.han_viet_status`. Chỗ dải
+   * đọc để hiện nhãn *âm Hán Việt* (`'ok'`) hoặc dòng *chưa cài dữ liệu từ điển*
+   * (`'dict_unavailable'`).
+   */
+  hanVietStatus: HanVietSuggestionStatus
 }
 
 /** Dấu thuật ngữ của MỘT segment — biên cắt (không nhãn) cộng span (có nhãn). */
@@ -146,6 +158,8 @@ export function glossaryMarksBySegment(
         id: mark.id,
         sourceTerm: mark.source_term,
         tier: mark.tier,
+        hanVietSuggestion: mark.han_viet_suggestion,
+        hanVietStatus: mark.han_viet_status,
       })
       if (localStart > 0) boundarySet.add(localStart)
       if (localEnd < len) boundarySet.add(localEnd)

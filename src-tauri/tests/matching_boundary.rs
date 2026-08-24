@@ -54,7 +54,9 @@ const MATCHING_FLOOR: usize = 1;
 /// ⚠️ Story 2.1 (2026-08-12): số thật là **42**; sàn lên **34** (81,0%), nâng cùng lượt với
 /// `store_boundary.rs`/`scope_boundary.rs` — một sàn 20 trên 42 tệp để mất hơn nửa cây mà
 /// vẫn xanh, tức nó thôi canh được đúng thứ nó tồn tại để canh.
-const SRC_RS_FLOOR: usize = 34; // số THẬT 2026-08-12 (sau Story 2.1): 42 tệp `.rs` — 34/42 = 81,0%
+const SRC_RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 53 tệp `.rs` dưới
+// `src-tauri/src/**` (+`core/glossary/han_viet_suggestion.rs`) — 43/53 = 81,1%. Sàn cũ (34,
+// đặt 2026-08-12) đã trôi xuống 34/53 = 64,2% qua nhiều story không ai nâng lại.
 
 /// Hai crate mà **chỉ** `core/matching/**` được gõ ở vị trí mã (AD-17).
 const MATCHING_ONLY_CRATES: [&str; 2] = ["jieba_rs", "tantivy_stemmers"];

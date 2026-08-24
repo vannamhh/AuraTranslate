@@ -267,5 +267,7 @@
   "glossary.confirm.save": "Lưu",
   "glossary.confirm.defer": "Để sau",
   "glossary.confirm.saving": "Đang lưu…",
-  "glossary.confirm.empty_error": "Nhập một bản dịch trước khi lưu."
+  "glossary.confirm.empty_error": "Nhập một bản dịch trước khi lưu.",
+  "glossary.confirm.suggestion_label": "Âm Hán Việt",
+  "glossary.confirm.suggestion_unavailable": "Chưa cài dữ liệu từ điển — không có đề xuất."
 }

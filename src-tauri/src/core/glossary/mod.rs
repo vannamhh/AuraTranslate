@@ -145,10 +145,37 @@
 //!   `commands::glossary::glossary_approve_candidate` — hai vỏ IPC mới, chỗ gọi sản phẩm
 //!   ĐẦU TIÊN của [`store::confirm_translation`] (gián tiếp, qua hàm bọc trên) và
 //!   [`candidate_store::approve_candidate`].
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! HÌNH DẠNG ĐÃ DỰNG (Story 3.7) — đề xuất bản dịch bằng âm Hán Việt, FR113 (AD-36)
+//! ─────────────────────────────────────────────────────────────────────────────
+//! - [`han_viet_suggestion`] — module MỚI, `use crate::core::dict::{..}` THẬT (cạnh
+//!   `glossary/ → dict/` mà AD-36 chỉ định) — **KHÁC** [`scan`] ngay bên dưới, module đó
+//!   TIÊM một closure thay vì gọi thẳng để giữ thuật toán quét THUẦN; ở đây âm Hán Việt LÀ
+//!   dữ liệu từ điển, không phải một quy tắc quét, nên đọc trực tiếp là đúng hình dạng. Xem
+//!   doc-comment đầu `han_viet_suggestion.rs` cho lý do đầy đủ.
+//! - [`han_viet_suggestion::HanVietSuggestion`] — `enum` NĂM nhánh (`Ready(String)` ·
+//!   `NotChinese` · `NoReading` · `DictUnavailable` · `NotRequested`) thay cho một
+//!   `Option<String>` trần — bốn lý do RỖNG phải phân biệt được trên dây (rỗng im lặng là
+//!   lỗi trung tâm của dự án, `AGENTS.md:46`).
+//! - [`han_viet_suggestion::suggest_han_viet_batch`] — gọi `crate::core::dict::
+//!   lookup_han_viet` ĐÚNG MỘT LẦN cho cả LÔ thuật ngữ (dedupe ký tự trước khi tra); tính
+//!   LÚC ĐỌC, **không** một cột `suggested_translation` trong `glossary_candidate`/
+//!   `glossary_entry` (một bản chép dữ liệu từ điển là nhân bản dữ liệu, AD-36 cấm — xem
+//!   §Design Notes của story cho lý do đầy đủ).
+//! - [`entry::GlossaryMark`] mang thêm `han_viet_suggestion: Option<String>` +
+//!   `han_viet_status: &'static str` — [`store::marks_for_source_text`] nay nhận thêm
+//!   `layers: &DictLayers` + `disabled: &BTreeSet<String>`, gom `source_term` của các mục
+//!   CHỜ CHỐT rồi gọi `suggest_han_viet_batch` một lần; mục ĐÃ CHỐT gán thẳng
+//!   `HanVietSuggestion::NotRequested`, **0** lượt tra cho chúng.
+//! - `commands::glossary::glossary_pending_candidates` — nay cũng nhận `layers`/`disabled`
+//!   và gọi `suggest_han_viet_batch` trực tiếp cho tập `source_term` của các ứng viên đang
+//!   chờ duyệt (bảng ứng viên không đi qua `marks_for_source_text`).
 
 pub mod candidate;
 pub mod candidate_store;
 pub mod entry;
+pub mod han_viet_suggestion;
 pub mod scan;
 pub mod store;
 pub mod surnames;
@@ -159,6 +186,7 @@ pub use candidate_store::{
     reject_candidate,
 };
 pub use entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
+pub use han_viet_suggestion::{HanVietSuggestion, suggest_han_viet_batch};
 pub use scan::{
     DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates, scan_candidates_controlled,
 };

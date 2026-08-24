@@ -37,7 +37,13 @@ use crate::ports::DictionarySource;
 /// mở được đã có bề mặt báo lỗi riêng (`bootstrap_config`, Story 1.8); biến nó thành *"không
 /// tra cứu được"* là dựng một chế độ hỏng thứ hai cho cùng một nguyên nhân. Tập rỗng = **mọi
 /// nguồn đều bật**, tức đúng hành vi mặc định của một bản cài mới.
-fn disabled_sources(store: Option<&Store>) -> BTreeSet<String> {
+///
+/// 🔵 **NÂNG 2026-08-24 (Story 3.7) — `pub(crate)`, mệnh đề "riêng tư hôm nay" hết đúng.**
+/// Đề xuất âm Hán Việt (FR113) theo **cùng bộ lọc nguồn đã tắt** với tab Hán Việt (Story
+/// 1.19 §Quyết định #3a) — `commands::glossary::wire` tái dùng đúng hàm này thay vì đúc một
+/// phép đọc `disabled_source_codes()` thứ hai, thứ sẽ lệch khỏi hàm này trong im lặng đúng
+/// ngày một trong hai chỗ đổi mà chỗ kia quên theo.
+pub(crate) fn disabled_sources(store: Option<&Store>) -> BTreeSet<String> {
     let Some(store) = store else {
         return BTreeSet::new();
     };

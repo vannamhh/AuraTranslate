@@ -20,9 +20,9 @@
 //! 🔴 CHỈ CÁC HÀM CỦA `QUICK_ADD_SURFACE` ĐƯỢC GỌI XUỐNG `core/glossary/**` — KHÔNG BA TÊN BỊ CẤM
 //! ─────────────────────────────────────────────────────────────────────────────
 //! `resolve_term_for_quick_add` / `add_manual_term` / `update_manual_term` (Story 3.3),
-//! `marks_for_source_text` (Story 3.4), `pending_candidates` (Story 3.5), cộng
-//! `confirm_pending_translation` / `approve_candidate` (Story 3.6) là bề mặt DUY NHẤT mà
-//! tệp này được gọi xuống `core::glossary`.
+//! `marks_for_source_text` (Story 3.4), `pending_candidates` (Story 3.5), `confirm_pending_
+//! translation` / `approve_candidate` (Story 3.6), cộng `suggest_han_viet_batch` (Story 3.7)
+//! là bề mặt DUY NHẤT mà tệp này được gọi xuống `core::glossary`.
 //! `insert_manual_entry` / `confirm_translation` / `load_tier` / `insert_candidate` vẫn bị
 //! `glossary_boundary.rs::GLOSSARY_ONLY_SURFACE` cấm ngoài `core/glossary/**` — kể cả ở đây.
 //! Đây là đường Ice đã ký ở `glossary_boundary.rs:80-88` khi Story 3.1 gặp đúng vòng luẩn
@@ -36,11 +36,15 @@
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — `scripts/check-i18n.mjs` Kiểm A quét
 //! `src-tauri/**/*.rs`.
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use crate::commands::project::OpenWork;
+use crate::core::dict::DictLayers;
 use crate::core::glossary::{
-    Category, GlossaryCandidate, GlossaryEntry, GlossaryMark, GlossaryTier, add_manual_term,
+    Category, GlossaryEntry, GlossaryMark, GlossaryTier, HanVietSuggestion, add_manual_term,
     approve_candidate, confirm_pending_translation, match_lang_for_source_lang,
-    marks_for_source_text, pending_candidates, resolve_term_for_quick_add, update_manual_term,
+    marks_for_source_text, pending_candidates, resolve_term_for_quick_add, suggest_han_viet_batch,
+    update_manual_term,
 };
 use crate::core::i18n::IpcError;
 use crate::core::scope::ScopeResolver;
@@ -224,6 +228,13 @@ pub struct GlossaryMarkWire {
     /// 🔵 THÊM 2026-08-22 (Story 3.6) — khoá ghi thật, có thể KHÁC bề mặt đã khớp trên màn
     /// hình (nhánh tiếng Anh khớp theo hình thái).
     pub source_term: String,
+    /// 🔵 THÊM 2026-08-24 (Story 3.7, FR113) — đề xuất âm Hán Việt, hoặc `None` (bốn trong
+    /// năm nhánh của `HanVietSuggestion` — xem `han_viet_status`).
+    pub han_viet_suggestion: Option<String>,
+    /// 🔵 THÊM 2026-08-24 (Story 3.7) — một trong năm chuỗi đóng (`"ok"` · `"not_chinese"` ·
+    /// `"no_reading"` · `"dict_unavailable"` · `"not_requested"`). `"not_requested"` cho MỌI
+    /// mục ĐÃ CHỐT (`is_confirmed == true`) — dấu đó chưa từng đi qua một lượt tra Hán Việt.
+    pub han_viet_status: String,
 }
 
 impl From<GlossaryMark> for GlossaryMarkWire {
@@ -236,6 +247,8 @@ impl From<GlossaryMark> for GlossaryMarkWire {
             translation: mark.translation,
             id: mark.id,
             source_term: mark.source_term,
+            han_viet_suggestion: mark.han_viet_suggestion,
+            han_viet_status: mark.han_viet_status.to_owned(),
         }
     }
 }
@@ -269,11 +282,17 @@ impl From<GlossaryMark> for GlossaryMarkWire {
 /// `ScopeResolver::apply_override`, không nhánh nào khác. Thêm một khoá không có nhánh nào
 /// đi qua là đúng thứ Story 1.7 §Completion Notes #3 cấm ("không khoá nào cho một tính năng
 /// chưa tồn tại").
+///
+/// 🔵 THÊM 2026-08-24 (Story 3.7) — `layers`/`disabled` đi thẳng xuống `marks_for_source_text`
+/// (đề xuất âm Hán Việt, FR113); `disabled` là bộ lọc nguồn đã tắt của tab Hán Việt, tái dùng
+/// qua `commands::dict::disabled_sources`.
 pub fn glossary_marks_for_chapter(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     text: &str,
     source_lang: &str,
+    layers: &DictLayers,
+    disabled: &BTreeSet<String>,
 ) -> Result<Vec<GlossaryMarkWire>, IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
 
@@ -286,7 +305,8 @@ pub fn glossary_marks_for_chapter(
 
     let lang = match_lang_for_source_lang(source_lang);
 
-    let marks = marks_for_source_text(resolver, global, work_store, text, lang)?;
+    let marks =
+        marks_for_source_text(resolver, global, work_store, text, lang, layers, disabled)?;
     Ok(marks.into_iter().map(GlossaryMarkWire::from).collect())
 }
 
@@ -294,7 +314,7 @@ pub fn glossary_marks_for_chapter(
 // Story 3.5 — vỏ IPC CHỈ-ĐỌC cho bảng chờ, chỗ gọi sản phẩm ĐẦU TIÊN của `pending_candidates`
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Hình dạng trên dây của một [`GlossaryCandidate`] — Story 3.5.
+/// Hình dạng trên dây của một [`crate::core::glossary::GlossaryCandidate`] — Story 3.5.
 ///
 /// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC
 /// (`:64`/`:201` của tệp này).
@@ -303,27 +323,20 @@ pub struct GlossaryCandidateWire {
     pub id: i64,
     pub source_term: String,
     pub candidate_origin: String,
-    /// `None` == chờ duyệt — đây là VỊ TỪ DUY NHẤT của [`GlossaryCandidate::is_pending`],
+    /// `None` == chờ duyệt — đây là VỊ TỪ DUY NHẤT của
+    /// [`crate::core::glossary::GlossaryCandidate::is_pending`],
     /// phơi ra dưới dạng dữ liệu chứ không một cờ `is_pending` song song (cùng khuôn
     /// `resolution` của `glossary_entry.translation`).
     pub resolution: Option<String>,
     pub created_at: String,
     pub occurrence_count: i64,
     pub context_example: Option<String>,
-}
-
-impl From<GlossaryCandidate> for GlossaryCandidateWire {
-    fn from(c: GlossaryCandidate) -> Self {
-        Self {
-            id: c.id,
-            source_term: c.source_term,
-            candidate_origin: c.candidate_origin.as_str().to_owned(),
-            resolution: c.resolution.map(|r| r.as_str().to_owned()),
-            created_at: c.created_at,
-            occurrence_count: c.occurrence_count,
-            context_example: c.context_example,
-        }
-    }
+    /// 🔵 THÊM 2026-08-24 (Story 3.7, FR113) — đề xuất âm Hán Việt cho `source_term` của
+    /// ứng viên; hình dạng KHỚP `GlossaryMarkWire` (cùng cặp trường, cùng năm chuỗi trạng
+    /// thái). Một ứng viên là **chờ duyệt**, không bao giờ đã chốt, nên `"not_requested"`
+    /// không bao giờ xuất hiện ở đây (khác `GlossaryMarkWire`, nơi mục đã chốt gán nhãn đó).
+    pub han_viet_suggestion: Option<String>,
+    pub han_viet_status: String,
 }
 
 /// Mọi ứng viên **chờ duyệt** của Tác phẩm đang mở — **hàm thuần, đây là thứ test gọi**.
@@ -340,15 +353,66 @@ impl From<GlossaryCandidate> for GlossaryCandidateWire {
 ///
 /// # Lỗi
 /// đường đọc trượt (kho đóng giữa chừng, …) ⇒ lỗi kho (`store.*`), qua `From<StoreError>`.
+///
+/// 🔵 THÊM 2026-08-24 (Story 3.7, FR113) — `layers`/`disabled` cho đề xuất âm Hán Việt. Bảng
+/// chờ ứng viên KHÔNG đi qua `marks_for_source_text` (nó không phải một dấu khớp trên văn
+/// bản, nó là một hàng chờ duyệt), nên đây là chỗ gọi `suggest_han_viet_batch` TRỰC TIẾP —
+/// **một lượt cho cả tập** `source_term` đang chờ duyệt, không một lượt cho mỗi hàng.
 pub fn glossary_pending_candidates(
     open: Option<&OpenWork>,
+    layers: &DictLayers,
+    disabled: &BTreeSet<String>,
 ) -> Result<Vec<GlossaryCandidateWire>, IpcError> {
     let Some(open) = open else {
         return Ok(Vec::new());
     };
 
     let rows = pending_candidates(&open.store)?;
-    Ok(rows.into_iter().map(GlossaryCandidateWire::from).collect())
+
+    let terms: Vec<&str> = rows.iter().map(|c| c.source_term.as_str()).collect();
+    let suggestions = suggest_han_viet_batch(layers, disabled, &terms);
+    debug_assert_eq!(
+        rows.len(),
+        suggestions.len(),
+        "suggest_han_viet_batch phai tra dung mot phan tu cho moi thuat ngu dau vao"
+    );
+
+    // 🔵 SỬA 2026-08-24 (vòng rà Bước 4) — ghép theo KHOÁ, không theo VỊ TRÍ.
+    //
+    // Bản đầu dùng `rows.into_iter().zip(suggestions)`, tức đúng cặp CHỈ KHI hai vế cùng độ
+    // dài và cùng thứ tự. `debug_assert_eq!` ngay trên KHÔNG đỡ được điều đó ở bản phát hành
+    // -- `debug_assert` biên dịch thành hư vô ở release, nên một lượt lệch độ dài sẽ để `zip`
+    // CẮT CỤT phần đuôi trong im lặng, và một lượt sắp lại `rows` giữa hai dòng sẽ dán đề
+    // xuất của thuật ngữ này lên thuật ngữ khác. Cả hai là đúng lớp *rỗng/sai IM LẶNG* mà
+    // `AGENTS.md:46` gọi là lỗi trung tâm của kho: không lỗi nào được ném, và màn hình đề
+    // xuất "Bắc Lương" cho một thuật ngữ khác hẳn.
+    //
+    // Khoá bằng `source_term` an toàn vì `glossary_candidate` mang `UNIQUE (source_term)`
+    // (`schema.rs:432`) -- không hai hàng chờ duyệt nào chung khoá. Đây cũng đúng khuôn mà
+    // `core::glossary::store::marks_for_source_text` đã dùng, vì cùng một lý do.
+    let suggestion_by_term: BTreeMap<&str, HanVietSuggestion> =
+        terms.iter().copied().zip(suggestions).collect();
+
+    Ok(rows
+        .iter()
+        .map(|c| {
+            let suggestion = suggestion_by_term
+                .get(c.source_term.as_str())
+                .unwrap_or(&HanVietSuggestion::NotRequested);
+            (c, suggestion)
+        })
+        .map(|(c, suggestion)| GlossaryCandidateWire {
+            id: c.id,
+            source_term: c.source_term.clone(),
+            candidate_origin: c.candidate_origin.as_str().to_owned(),
+            resolution: c.resolution.map(|r| r.as_str().to_owned()),
+            created_at: c.created_at.clone(),
+            occurrence_count: c.occurrence_count,
+            context_example: c.context_example.clone(),
+            han_viet_suggestion: suggestion.suggestion_text().map(str::to_owned),
+            han_viet_status: suggestion.as_status_str().to_owned(),
+        })
+        .collect())
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -419,6 +483,7 @@ pub mod wire {
         Category, GlossaryCandidateWire, GlossaryMarkWire, GlossaryTier, IpcError, QuickAddLookup,
     };
     use crate::commands::project::OpenWorkState;
+    use crate::core::dict::DictLayers;
     use crate::core::store::Store;
 
     /// Vỏ IPC của [`super::glossary_lookup_term`].
@@ -520,6 +585,11 @@ pub mod wire {
     }
 
     /// Vỏ IPC của [`super::glossary_marks_for_chapter`]. Story 3.4.
+    ///
+    /// 🔵 THÊM 2026-08-24 (Story 3.7) — `DictLayers` qua `try_state` (khuôn
+    /// `commands::dict::wire::read_han_viet`: state có thể chưa từng được `app.manage`, và
+    /// `panic = "abort"` giết cả tiến trình nếu ta thẳng tay `state::<T>()`); `disabled` đọc
+    /// qua `commands::dict::disabled_sources`, tái dùng đúng phép đọc mà tab Hán Việt dùng.
     #[tauri::command]
     pub fn glossary_marks_for_chapter(
         app: tauri::AppHandle,
@@ -529,29 +599,57 @@ pub mod wire {
         use tauri::Manager as _;
 
         let global = app.try_state::<Store>();
+        let layers = app.try_state::<DictLayers>();
+        let empty_layers = DictLayers::empty();
+        let layers = layers.as_deref().unwrap_or(&empty_layers);
+        let disabled = crate::commands::dict::disabled_sources(global.as_deref());
+
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
-            return super::glossary_marks_for_chapter(global.as_deref(), None, &text, &source_lang);
+            return super::glossary_marks_for_chapter(
+                global.as_deref(),
+                None,
+                &text,
+                &source_lang,
+                layers,
+                &disabled,
+            );
         };
         let guard = work_state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::glossary_marks_for_chapter(global.as_deref(), guard.as_ref(), &text, &source_lang)
+        super::glossary_marks_for_chapter(
+            global.as_deref(),
+            guard.as_ref(),
+            &text,
+            &source_lang,
+            layers,
+            &disabled,
+        )
     }
 
     /// Vỏ IPC của [`super::glossary_pending_candidates`]. Story 3.5.
+    ///
+    /// 🔵 THÊM 2026-08-24 (Story 3.7) — cùng khuôn `glossary_marks_for_chapter` ngay trên:
+    /// `DictLayers` qua `try_state`, `disabled` qua `commands::dict::disabled_sources`.
     #[tauri::command]
     pub fn glossary_pending_candidates(
         app: tauri::AppHandle,
     ) -> Result<Vec<GlossaryCandidateWire>, IpcError> {
         use tauri::Manager as _;
 
+        let global = app.try_state::<Store>();
+        let layers = app.try_state::<DictLayers>();
+        let empty_layers = DictLayers::empty();
+        let layers = layers.as_deref().unwrap_or(&empty_layers);
+        let disabled = crate::commands::dict::disabled_sources(global.as_deref());
+
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
-            return super::glossary_pending_candidates(None);
+            return super::glossary_pending_candidates(None, layers, &disabled);
         };
         let guard = work_state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::glossary_pending_candidates(guard.as_ref())
+        super::glossary_pending_candidates(guard.as_ref(), layers, &disabled)
     }
 
     /// Vỏ IPC của [`super::glossary_confirm_pending_translation`]. Story 3.6.

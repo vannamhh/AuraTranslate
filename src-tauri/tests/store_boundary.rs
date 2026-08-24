@@ -54,7 +54,9 @@ const STORE_DIR: &str = "core/store";
 /// (26 tệp), ở đó là `src-tauri/**` sau miễn trừ `tests/**` (27 tệp, gồm `build.rs`). Hai
 /// con số gần nhau và chúng **không** thay thế nhau được; chép số của tệp kia sang đây là
 /// đặt một cái sàn cho một cây khác.
-const RS_FLOOR: usize = 34; // số THẬT 2026-08-12 (sau Story 2.1): 42 tệp `.rs` — 34/42 = 81,0%
+const RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 53 tệp `.rs` dưới
+// `src-tauri/src/**` (+`core/glossary/han_viet_suggestion.rs`) — 43/53 = 81,1%. Sàn cũ (34,
+// đặt 2026-08-12) đã trôi xuống 34/53 = 64,2% qua nhiều story không ai nâng lại.
 
 /// Những chuỗi mà **chỉ** `core::store` được mang.
 ///

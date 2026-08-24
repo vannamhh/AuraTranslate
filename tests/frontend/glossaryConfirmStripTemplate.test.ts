@@ -55,6 +55,10 @@ function pendingMarkWire(overrides: Record<string, unknown> = {}) {
     translation: null,
     id: 7,
     source_term: '萧',
+    // 🔵 THÊM 2026-08-24 (Story 3.7) — mặc định "chưa hỏi": tệp này canh vế TEMPLATE của
+    // Story 3.6, không canh đề xuất Hán Việt (canh riêng ở `glossaryConfirmStripSuggestion.test.ts`).
+    han_viet_suggestion: null,
+    han_viet_status: 'not_requested',
     ...overrides,
   }
 }

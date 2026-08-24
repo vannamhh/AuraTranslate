@@ -1017,8 +1017,15 @@ pub struct CharacterReading {
 pub struct HanVietReading {
     /// Âm **ĐẦU TIÊN** sau khi tách nhiều âm (Quyết định #3) — cái tab hiện lên màn hình.
     pub primary: String,
-    /// Toàn bộ danh sách âm đã tách, giữ nguyên thứ tự của nguồn — Story 1.17 (Panel
-    /// Lookup) và 3.7 (FR113) cần danh sách đầy đủ, không chỉ âm đầu tiên.
+    /// Toàn bộ danh sách âm đã tách, giữ nguyên thứ tự của nguồn.
+    ///
+    /// 🔵 **SỬA 2026-08-24 (Story 3.7) — thu hẹp về ĐÚNG Story 1.17.** Bản trước khai
+    /// *"Story 1.17 và 3.7 cần danh sách đầy đủ"* — mệnh đề đó hết đúng cho vế 3.7: Ice ký
+    /// 2026-08-22 rằng đề xuất bản dịch (FR113) chỉ dùng [`Self::primary`], và
+    /// `core/glossary/han_viet_suggestion.rs::suggest_for_term` không đọc trường này —
+    /// `HanVietMarkWire`/`GlossaryMarkWire` cũng không phơi `all` ra dây cho đường đó (§Never
+    /// của story: *"Không phơi `HanVietReading.all` ra dây — chỉ `primary`"*). Story 1.17
+    /// (Panel Lookup) vẫn cần danh sách đầy đủ — trường này Ở LẠI, chỉ câu giải thích đổi.
     pub all: Vec<String>,
     /// `dict_source.code` của lớp đã THẮNG ưu tiên cho ký tự này (FR31 — nguồn bắt buộc
     /// trên mọi bản ghi).

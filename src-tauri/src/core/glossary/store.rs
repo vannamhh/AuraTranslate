@@ -47,6 +47,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::core::dict::DictLayers;
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::matching::{MatchLang, TermMatch, find_terms};
 use crate::core::scope::{ScopeError, ScopeResolver, Tier as ScopeTier};
@@ -55,6 +56,7 @@ use crate::core::store::{
 };
 
 use super::entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
+use super::han_viet_suggestion::{HanVietSuggestion, suggest_han_viet_batch};
 
 /// Khoá dây của `ScopeKind::Glossary` (`core/scope/kinds.rs:162`), chép lại đây làm
 /// literal — module này không được `use` `ScopeKind`.
@@ -857,12 +859,21 @@ fn resolve_overlaps(mut matches: Vec<TermMatch>) -> Vec<TermMatch> {
 /// mở được — I/O Matrix *"`Store` đóng giữa chừng ⇒ lỗi mang `message_key`, KHÔNG
 /// `Ok(vec![])`"*); [`GlossaryError::Scope`] nếu `ScopeResolver::apply_override` từ chối
 /// (lỗi lập trình, không nên xảy ra trên đường gọi đúng).
+///
+/// 🔵 **THÊM 2026-08-24 (Story 3.7, FR113)** — `layers`/`disabled` thêm để đề xuất âm Hán
+/// Việt tính được TRONG CÙNG lượt mở Chương, không một vòng IPC thứ hai. Chỉ các mục **CHỜ
+/// CHỐT** (`!entry.is_confirmed()`) được gom `source_term` rồi tra qua
+/// [`suggest_han_viet_batch`] — **một lượt gọi cho cả tập**, không một lượt cho mỗi dấu; mục
+/// ĐÃ CHỐT nhận thẳng [`HanVietSuggestion::NotRequested`] (§Design Notes của story: một đề
+/// xuất cho mục đã có bản dịch thật không có chỗ tiêu thụ).
 pub fn marks_for_source_text(
     resolver: &ScopeResolver,
     global: &Store,
     work: Option<&Store>,
     text: &str,
     lang: MatchLang,
+    layers: &DictLayers,
+    disabled: &BTreeSet<String>,
 ) -> Result<Vec<GlossaryMark>, GlossaryError> {
     // Cùng lưới `entries_eligible_for_injection`/`resolve_term_for_quick_add` — hai trường
     // của cùng một `OpenWork` không được tách rời nhau trên đường xuống đây.
@@ -898,22 +909,66 @@ pub fn marks_for_source_text(
     let raw_matches = find_terms(text, &terms, lang);
     let selected = resolve_overlaps(raw_matches);
 
+    // 🔵 THÊM 2026-08-24 (Story 3.7) — gom `source_term` của các mục CHỜ CHỐT trong tập ĐÃ
+    // CHỌN (sau `resolve_overlaps`, không phải toàn bộ `payload`): tra Hán Việt cho một mục
+    // đã bị một span dài hơn đè lên là công vô ích, nó không bao giờ ra dấu.
+    let pending_terms: Vec<&str> = selected
+        .iter()
+        .map(|m| payload[m.term_index].1)
+        .filter(|entry| !entry.is_confirmed())
+        .map(|entry| entry.source_term.as_str())
+        .collect();
+    let suggestions = suggest_han_viet_batch(layers, disabled, &pending_terms);
+    // `source_term -> HanVietSuggestion` -- `pending_terms`/`suggestions` cùng thứ tự, cùng
+    // độ dài (`suggest_han_viet_batch` giữ nguyên vị trí đầu vào), nên zip là an toàn; khoá
+    // bằng `source_term` (không bằng vị trí) để tra lại KHÔNG phụ thuộc thứ tự lặp bên dưới.
+    let suggestion_by_term: BTreeMap<&str, HanVietSuggestion> =
+        pending_terms.into_iter().zip(suggestions).collect();
+
     let boundaries = codepoint_boundaries(text);
     let marks = selected
         .into_iter()
         .map(|m| {
             let (tier, entry) = payload[m.term_index];
+            let is_confirmed = entry.is_confirmed();
+            // Mục ĐÃ CHỐT không đi qua `suggest_han_viet_batch` -- gán thẳng
+            // `NotRequested` (§Design Notes của Story 3.7: một đề xuất cho mục đã có bản
+            // dịch thật không có chỗ tiêu thụ, và nhãn "không phải tiếng Trung" sẽ SAI cho
+            // một thuật ngữ chữ Hán đã chốt).
+            //
+            // ⚠️ GIỚI HẠN THẬT, ghi ra thay vì để người sau tưởng đã được xét (đo trong vòng
+            // rà Bước 4, 2026-08-24): nhánh `if is_confirmed` này là **PHÒNG THỦ DƯ**, không
+            // phải chỗ gánh. Vệ THẬT là `.filter(|entry| !entry.is_confirmed())` lúc dựng
+            // `pending_terms` ngay trên -- một thuật ngữ đã chốt không bao giờ vào
+            // `suggestion_by_term`, nên `unwrap_or(&NotRequested)` ở nhánh `else` đã đỡ sẵn.
+            // Đo được: vô hiệu RIÊNG nhánh này ⇒ **0 ca đỏ**; phải gỡ CẢ HAI vệ mới có ca đỏ
+            // (`glossary_han_viet_suggestion_contract.rs::
+            // a_confirmed_chinese_mark_is_not_requested_never_not_chinese`).
+            // ⇒ Giữ nó vì nó nói ra Ý ĐỊNH ngay tại chỗ đọc, nhưng ĐỪNG tin nó là hàng rào:
+            // gỡ dòng `.filter(...)` kia sẽ không làm cổng nào đỏ, chỉ làm mọi Chương trả
+            // thêm một lượt tra vô ích cho MỌI thuật ngữ đã chốt (món nợ có chủ Ice, gộp vào
+            // phép đo NFR2 -- xem `deferred-work.md` §Deferred from: 3-7-...).
+            let suggestion = if is_confirmed {
+                &HanVietSuggestion::NotRequested
+            } else {
+                suggestion_by_term
+                    .get(entry.source_term.as_str())
+                    .unwrap_or(&HanVietSuggestion::NotRequested)
+            };
             GlossaryMark {
                 start: byte_to_codepoint(&boundaries, m.span.start),
                 end: byte_to_codepoint(&boundaries, m.span.end),
                 tier,
-                is_confirmed: entry.is_confirmed(),
+                is_confirmed,
                 translation: entry.translation.clone(),
                 // 🔵 THÊM 2026-08-22 (Story 3.6) — `entry` là `&GlossaryEntry` đã phân giải,
                 // đọc thẳng từ `payload`; không truy vấn thêm nào (doc-comment của
                 // `marks_for_source_text`).
                 id: entry.id,
                 source_term: entry.source_term.clone(),
+                // 🔵 THÊM 2026-08-24 (Story 3.7) — xem khối `suggestion` ngay trên.
+                han_viet_suggestion: suggestion.suggestion_text().map(str::to_owned),
+                han_viet_status: suggestion.as_status_str(),
             }
         })
         .collect();

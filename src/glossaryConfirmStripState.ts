@@ -34,14 +34,26 @@
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { confirmPendingGlossaryTranslation } from './config/glossary'
-import type { GlossaryMark, GlossaryTierWire } from './config/glossary'
+import type { GlossaryMark, GlossaryTierWire, HanVietSuggestionStatus } from './config/glossary'
 import type { IpcError } from './i18n'
 import { glossaryMarksBySegment } from './panels/glossaryMarksMap'
 import type { GlossarySegmentSource } from './panels/glossaryMarksMap'
 import { refreshGlossaryMarks } from './panels/glossaryMarksState'
 
-/** Mục đang được hỏi — `tier`+`id` đủ để gọi `confirmPendingGlossaryTranslation`. */
-type CurrentTarget = { tier: GlossaryTierWire; id: number; sourceTerm: string }
+/**
+ * Mục đang được hỏi — `tier`+`id` đủ để gọi `confirmPendingGlossaryTranslation`.
+ *
+ * 🔵 **THÊM 2026-08-24 (Story 3.7, FR113) — `hanVietSuggestion`/`hanVietStatus`.** Chép
+ * thẳng từ `SegmentTermSpan` lúc [`applyTarget`] đổi mục — đây là dữ liệu Rust đã cầm sẵn
+ * lúc dựng dấu (`marks_for_source_text`), không một vòng IPC thứ hai.
+ */
+type CurrentTarget = {
+  tier: GlossaryTierWire
+  id: number
+  sourceTerm: string
+  hanVietSuggestion: string | null
+  hanVietStatus: HanVietSuggestionStatus
+}
 
 function targetsEqual(a: CurrentTarget | null, b: CurrentTarget | null): boolean {
   if (a === null || b === null) return a === b
@@ -101,6 +113,15 @@ let enteredViaChord = false
 
 export const confirmStripTier = computed<GlossaryTierWire | null>(() => current.value?.tier ?? null)
 export const confirmStripSourceTerm = computed<string | null>(() => current.value?.sourceTerm ?? null)
+/**
+ * 🔵 THÊM 2026-08-24 (Story 3.7, FR113) — trạng thái đề xuất âm Hán Việt của mục đang hỏi,
+ * `null` khi không có mục nào. Template đọc trường này để hiện nhãn *âm Hán Việt* (`'ok'`)
+ * hoặc dòng *chưa cài dữ liệu từ điển* (`'dict_unavailable'`) — hai trạng thái RIÊNG, đúng
+ * tiền lệ `panel.source.han_viet_unknown`/`han_viet_unavailable` của Story 1.16.
+ */
+export const confirmStripSuggestionStatus = computed<HanVietSuggestionStatus | null>(
+  () => current.value?.hanVietStatus ?? null,
+)
 /** `true` ⇔ có một mục đang chờ hỏi — điều kiện ĐỦ ĐIỀU KIỆN của `'glossary_confirm'` cho
  * `topmostStrip`. Không tự là điều kiện HIỂN THỊ — xem doc-comment đầu tệp. */
 export const confirmStripIsOpen = computed<boolean>(() => current.value !== null)
@@ -133,11 +154,25 @@ function selectPendingSpan(
   const bySegment = glossaryMarksBySegment(segments, marks)
   const spans = bySegment.get(segmentId)?.spans ?? [] // đã sắp theo `start` tăng dần.
   const next = spans.find((s) => !s.isConfirmed && !deferred.has(s.sourceTerm))
-  return next === undefined ? null : { tier: next.tier, id: next.id, sourceTerm: next.sourceTerm }
+  return next === undefined
+    ? null
+    : {
+        tier: next.tier,
+        id: next.id,
+        sourceTerm: next.sourceTerm,
+        hanVietSuggestion: next.hanVietSuggestion,
+        hanVietStatus: next.hanVietStatus,
+      }
 }
 
-/** Áp một mục MỚI — reset ô nhập/lỗi CHỈ KHI danh tính mục đổi (không xoá chữ người dùng
- * đang gõ nếu `sync` được gọi lại cho ĐÚNG mục hiện tại). */
+/**
+ * Áp một mục MỚI — reset ô nhập/lỗi CHỈ KHI danh tính mục đổi (không xoá chữ người dùng
+ * đang gõ nếu `sync` được gọi lại cho ĐÚNG mục hiện tại).
+ *
+ * 🔵 THÊM 2026-08-24 (Story 3.7, FR113) — ô nhập ĐIỀN SẴN bằng `next.hanVietSuggestion` khi
+ * có (§I/O Matrix: "Dải chốt mọc ⇒ Ô nhập điền sẵn đề xuất"; đổi sang một mục KHÔNG đề xuất
+ * được ⇒ ô RỖNG LẠI, không giữ chữ của mục trước — cùng đúng chỗ mà bản trước đã `= ''`).
+ */
 function applyTarget(next: CurrentTarget | null): void {
   if (targetsEqual(current.value, next)) return
 
@@ -160,7 +195,7 @@ function applyTarget(next: CurrentTarget | null): void {
   enteredViaChord = false
 
   current.value = next
-  translationInput.value = ''
+  translationInput.value = next?.hanVietSuggestion ?? ''
   saveError.value = null
   emptyInputError.value = false
 }
@@ -189,9 +224,18 @@ export function syncGlossaryConfirmStripTarget(
  * lưới, vai `'display'`) TẠI THỜI ĐIỂM bấm hợp âm, do CHỖ GỌI đọc qua
  * `selectionContract.ts::currentSelectionTextForGlossaryQuickAdd` (đường ĐỌC, không phải
  * `import` — cùng khuôn `openGlossaryQuickAdd(initialSourceTerm)`: state không tự đọc DOM
- * vùng chọn, chỗ gọi ở `commands/index.ts`/`main.ts` đọc rồi truyền vào). Chỉ điền khi ô nhập
- * đang RỖNG (luôn đúng ở lượt vào ĐẦU TIÊN của một mục — [`applyTarget`] vừa xoá nó) — chốt
- * tái nhập (nhánh dưới) không chạm dòng này nên không có nguy cơ ghi đè chữ người dùng đang gõ.
+ * vùng chọn, chỗ gọi ở `commands/index.ts`/`main.ts` đọc rồi truyền vào).
+ *
+ * 🔵 **SỬA 2026-08-24 (Story 3.7) — luật điền tổng quát hoá thành "chỉ điền khi ô CHƯA BỊ
+ * NGƯỜI DÙNG SỬA", không còn hẹp thành "chỉ điền khi ô RỖNG".** [`applyTarget`] (Story 3.7)
+ * nay có thể điền SẴN một đề xuất Hán Việt vào ô nhập lúc mọc — ô không còn RỖNG theo nghĩa
+ * đen ở lượt vào ĐẦU TIÊN. "Chưa bị sửa" = ô đang mang ĐÚNG giá trị mà [`applyTarget`] vừa
+ * đặt (rỗng khi không có đề xuất, hoặc đúng chuỗi đề xuất khi có) — so `translationInput.
+ * value` với `target.hanVietSuggestion ?? ''` thay vì so với `''` trần. §I/O Matrix: "Vùng
+ * chọn THẮNG đề xuất — thao tác người dùng vừa làm đứng trên gợi ý của máy": một mục KHÔNG
+ * đề xuất (giá trị "chưa bị sửa" là `''`) suy biến về ĐÚNG luật cũ. Chốt tái nhập (nhánh
+ * dưới) không chạm dòng này nên không có nguy cơ ghi đè chữ người dùng đang gõ SAU lượt vào
+ * đầu tiên (`enteredViaChord` chặn mọi lượt fill sau đó).
  *
  * `isVisible` — dải chốt có phải dải THẮNG sổ ưu tiên hay không, TẠI THỜI ĐIỂM bấm hợp âm, do
  * CHỖ GỌI tính qua `topmostStrip(...)` (`main.ts`) rồi truyền vào — tệp này cố ý KHÔNG biết
@@ -230,7 +274,8 @@ export function focusGlossaryConfirmStrip(initialTranslation: string, isVisible:
   savedRange =
     selection !== null && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null
 
-  if (translationInput.value === '' && initialTranslation !== '') {
+  const unedited = translationInput.value === (current.value.hanVietSuggestion ?? '')
+  if (unedited && initialTranslation !== '') {
     translationInput.value = initialTranslation
   }
 

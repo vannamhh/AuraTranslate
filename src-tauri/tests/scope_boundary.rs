@@ -50,7 +50,9 @@ const STORE_DIR: &str = "core/store";
 ///
 /// ⚠️ Story 2.1 (2026-08-12): số thật là **42**; sàn 20 trên 42 tệp không còn canh được gì
 /// (mất hơn nửa cây vẫn xanh). Sàn lên **34** (81,0%), nâng cùng lượt với `store_boundary.rs`.
-const RS_FLOOR: usize = 34; // số THẬT 2026-08-12 (sau Story 2.1): 42 tệp `.rs` — 34/42 = 81,0%
+const RS_FLOOR: usize = 43; // 🔵 NÂNG 2026-08-24 (Story 3.7) — số THẬT: 53 tệp `.rs` dưới
+// `src-tauri/src/**` (+`core/glossary/han_viet_suggestion.rs`) — 43/53 = 81,1%. Sàn cũ (34,
+// đặt 2026-08-12) đã trôi xuống 34/53 = 64,2% qua nhiều story không ai nâng lại.
 
 /// 🔴 Vế test của AC1 — những chuỗi mà **chỉ** `core::scope` được mang.
 ///

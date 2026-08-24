@@ -287,6 +287,9 @@ const vueFiles = keep(vueAll)
 // "sàn nâng mà số thật không đổi là sàn nâng theo cảm giác" đã áp cho Story 1.20/1.21.
 const RS_FLOOR = 44 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 53 tệp `.rs` (+core/glossary/scan.rs
 // +core/glossary/surnames.rs) — 44/53 = 83,0%
+// 🔵 ĐO LẠI 2026-08-24 (Story 3.7) — KHÔNG NÂNG, số thật đã đổi nhưng vẫn trong dải 80–85%:
+// +1 tệp (`core/glossary/han_viet_suggestion.rs`) — 54 tệp `.rs` thật, 44/54 = 81,5%. Đính
+// chính con số "53" ở dòng trên: đã hết đúng kể từ lượt này.
 // ⚠️ **Bước nhảy 43 → 51 KHÔNG phải một mình Story 3.3 gây ra** — đọc kỹ trước khi tưởng
 // story này tự thêm tám tệp. Sàn cũ (36) đặt từ số thật 43 hồi Story 2.1 (2026-08-12) và
 // KHÔNG ai nâng lại qua bảy story liền sau (2.2 → 3.2) dù cây tiếp tục mọc — đúng lớp trôi
