@@ -124,6 +124,25 @@ pub use rusqlite::Transaction;
 /// crate để dựng lỗi.
 pub use rusqlite::types::Type as SqlType;
 
+/// `err` là vi phạm `UNIQUE` — và ĐÚNG MỘT LỚP đó, không phải một `SQLITE_CONSTRAINT_*` nào
+/// khác (`CHECK`, `TRIGGER`/`RAISE(ABORT)`, `NOT NULL`, …).
+///
+/// 🔴 **THÊM 2026-08-25 (Story 3.10, vòng rà ba lớp, P5) — chỗ DUY NHẤT được phép gõ tên
+/// `rusqlite::ffi`, đúng luật AC2 mà `store_boundary.rs::only_core_store_may_name_rusqlite`
+/// cưỡng chế.** `core::glossary::store::import_into_tier` cần phân biệt "giao dịch trượt vì
+/// `UNIQUE`" với "giao dịch trượt vì trigger AD-36" NGAY TẠI CHỖ lỗi xảy ra — so `Display`
+/// của lỗi SQL với một chuỗi con (`"UNIQUE constraint failed"`) là một chỗ nối GIÒN: thông
+/// điệp của trigger là văn bản TỰ DO do chính hằng DDL đặt
+/// (`RAISE(ABORT, 'glossary lifecycle is one-way')`), không phải một hợp đồng của module
+/// này, và một câu trigger đổi trong tương lai có thể âm thầm bẻ gãy phép so chuỗi đó theo
+/// chiều ngược lại. `extended_code` là mã số ổn định của CHÍNH SQLite cho lớp lỗi.
+pub fn is_unique_constraint_violation(err: &SqlError) -> bool {
+    matches!(
+        err,
+        SqlError::SqliteFailure(inner, _) if inner.extended_code == rusqlite::ffi::SQLITE_CONSTRAINT_UNIQUE
+    )
+}
+
 /// Kết nối đọc đã đặt `PRAGMA query_only = 1`.
 ///
 /// 🔴 **Bí danh chứ không phải kiểu mới, và đó là chủ ý.** AC2 đòi

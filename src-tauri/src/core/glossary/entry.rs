@@ -78,6 +78,13 @@ impl fmt::Display for Category {
 /// Xuất xứ mục Glossary (FR47) — **không** lẫn với `segment.translation_origin` hay
 /// xuất xứ tài liệu nguồn; xem doc-comment của `GLOSSARY_ENTRY_DDL` cho lý do đặt tên
 /// `term_origin` thay vì `origin` trần.
+///
+/// 🔵 **THÊM 2026-08-24 (Story 3.10) — biến thể THỨ TƯ, `FileImport`.** Đường nhập CSV/TSV
+/// (`core::glossary::store::import_into_tier`) tự đặt giá trị này cho MỌI hàng nó ghi —
+/// không nhận qua tham số, cùng nguyên tắc mà `ImportScan`/`ReviewHarvest` đã giữ từ Story
+/// 3.2 (FR55: không cơ chế nào tự ghi vào Glossary bằng một xuất xứ chỗ gọi tự chọn). Xem
+/// §Design Notes của spec 3.10 cho lý do một mục `manual` ở kho gửi trở thành `file_import`
+/// ở kho nhận (một giới hạn có chủ, không phải một chỗ hụt).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TermOrigin {
     /// Người dùng gõ tay.
@@ -86,15 +93,21 @@ pub enum TermOrigin {
     ImportScan,
     /// Thu hoạch từ bản review (Epic 8) rồi được duyệt qua bảng chờ (AD-20).
     ReviewHarvest,
+    /// Vào kho qua đường nhập tệp CSV/TSV (Story 3.10, FR49) — `import_into_tier` tự đặt,
+    /// không nhận qua tham số.
+    FileImport,
 }
 
 impl TermOrigin {
-    /// Định danh máy đọc — khớp NGUYÊN VĂN giá trị trong `CHECK` của `GLOSSARY_ENTRY_DDL`.
+    /// Định danh máy đọc — khớp NGUYÊN VĂN giá trị trong `CHECK` của `GLOSSARY_ENTRY_DDL`
+    /// (bốn giá trị kể từ Story 3.10 — xem
+    /// [`crate::core::store::GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL`]).
     pub const fn as_str(self) -> &'static str {
         match self {
             TermOrigin::Manual => "manual",
             TermOrigin::ImportScan => "import_scan",
             TermOrigin::ReviewHarvest => "review_harvest",
+            TermOrigin::FileImport => "file_import",
         }
     }
 
@@ -105,6 +118,7 @@ impl TermOrigin {
             "manual" => Some(TermOrigin::Manual),
             "import_scan" => Some(TermOrigin::ImportScan),
             "review_harvest" => Some(TermOrigin::ReviewHarvest),
+            "file_import" => Some(TermOrigin::FileImport),
             _ => None,
         }
     }

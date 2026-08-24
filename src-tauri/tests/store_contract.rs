@@ -882,6 +882,10 @@ fn spec_with_migrations(dir: &Path, migrations: &'static [Migration]) -> StoreSp
 /// Glossary, AD-18/AD-36) ⇒ target là 4.** Mệnh đề *"ba bước, đích là 3"* đã hết đúng, sửa
 /// tại chỗ thay vì để nó lặng lẽ sai — đúng cơ chế mà doc-comment ở trên nói câu này ĐƯỢC
 /// THIẾT KẾ để đỏ mỗi lần một story thêm một bước.
+///
+/// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.10): bước 5 dựng lại `glossary_entry` để thêm giá trị
+/// `term_origin` thứ tư, `file_import` (FR49/NFR9) ⇒ target là 5.** Câu *"bốn bước, đích là
+/// 4"* đã hết đúng, sửa tại chỗ — đúng cơ chế được thiết kế để đỏ.
 #[test]
 fn a_fresh_database_migrates_up_to_target_and_logs_it() {
     let dir = temp_dir("fresh-migrate");
@@ -889,10 +893,10 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
 
     assert_eq!(
         store.schema_version(),
-        4,
-        "`GLOBAL_MIGRATIONS` có bốn bước (Story 1.7 sổ di trú · Story 1.8 `config_value` · \
-         Story 1.20 `pinned_entry` · Story 3.1 `glossary_entry`), nên một database mới phải \
-         kết thúc ở phiên bản 4"
+        5,
+        "`GLOBAL_MIGRATIONS` có năm bước (Story 1.7 sổ di trú · Story 1.8 `config_value` · \
+         Story 1.20 `pinned_entry` · Story 3.1 `glossary_entry` · Story 3.10 gia tri \
+         term_origin thu tu), nên một database mới phải kết thúc ở phiên bản 5"
     );
 
     let (rows, versions, app_version, applied_at) = store
@@ -913,11 +917,11 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
         })
         .expect("đọc sổ di trú");
 
-    assert_eq!(rows, 4, "sổ di trú phải có đúng một bản ghi cho MỖI bước");
+    assert_eq!(rows, 5, "sổ di trú phải có đúng một bản ghi cho MỖI bước");
     assert_eq!(
         versions,
-        vec![1, 2, 3, 4],
-        "cả bốn bước phải có mặt trong sổ — một bước chạy mà không ghi sổ là đúng ca \
+        vec![1, 2, 3, 4, 5],
+        "cả năm bước phải có mặt trong sổ — một bước chạy mà không ghi sổ là đúng ca \
          *sổ nói chưa chạy mà lược đồ thì đã*"
     );
     assert_eq!(app_version, env!("CARGO_PKG_VERSION"));
@@ -974,11 +978,28 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
          một lược đồ nói dối"
     );
 
+    // Bước 5 (Story 3.10) — cùng luật, cùng lý do.
+    let file_import_step: i64 = store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger' \
+                 AND name = 'glossary_entry_lifecycle_is_one_way'",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .expect("đọc sqlite_master");
+    assert_eq!(
+        file_import_step, 1,
+        "bước 5 dựng lại `glossary_entry` phải tạo lại trigger một chiều — thiếu nó là AD-36 \
+         chết trong im lặng"
+    );
+
     // `PRAGMA user_version` thật sự đã đổi, không chỉ trường trong bộ nhớ.
     let on_disk: i64 = store
         .read(|conn| conn.query_row("PRAGMA user_version", [], |r| r.get(0)))
         .expect("đọc user_version");
-    assert_eq!(on_disk, 4);
+    assert_eq!(on_disk, 5);
 
     drop(store);
     cleanup(&dir);

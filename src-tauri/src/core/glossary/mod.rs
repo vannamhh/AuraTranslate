@@ -192,10 +192,38 @@
 //!   `store.write_failed` chung.
 //! - `commands::glossary::{glossary_list_entries, glossary_delete_term, glossary_promote_
 //!   term_to_global}` — ba vỏ IPC mới, chỗ gọi sản phẩm ĐẦU TIÊN của cả ba hàm trên.
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! HÌNH DẠNG ĐÃ DỰNG (Story 3.10) — xuất/nhập CSV/TSV, giá trị `term_origin` THỨ TƯ
+//! ─────────────────────────────────────────────────────────────────────────────
+//! - [`entry::TermOrigin::FileImport`] — giá trị thứ tư (`"file_import"`), tự đặt bởi
+//!   [`store::import_into_tier`], không nhận qua tham số (cùng nguyên tắc FR55 mà
+//!   `Manual`/`ImportScan`/`ReviewHarvest` đã giữ). Đòi một bước di trú DỰNG LẠI bảng (một
+//!   `CHECK` không `ALTER` được) — hằng MỚI
+//!   [`crate::core::store::GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL`], bước 5 của
+//!   `global.db` VÀ bước 15 của `project.db`, KHÔNG sửa [`crate::core::store::GLOSSARY_ENTRY_DDL`]
+//!   tại chỗ.
+//! - [`exchange`] — module MỚI, THUẦN (`&str` vào, `String` ra — không `rusqlite`, không
+//!   `tauri`, không `std::fs`): [`exchange::render_tier`] (xuất một tầng, 6 cột, không cột
+//!   `id`) · [`exchange::parse`] (phân tích TRỌN văn bản, trả MỌI [`exchange::ParseIssue`]
+//!   tìm được, không dừng ở lỗi đầu tiên) · [`exchange::classify`] (so với tầng đích, ba
+//!   nhánh *mới*/*giống*/*bất đồng*, hàm THUẦN). Một đường bọc nháy kép RFC 4180 DÙNG CHUNG
+//!   cho CẢ hai dấu phân cách (CSV **và** TSV) là chỗ duy nhất giữ vòng tròn xuất→nhập khép
+//!   kín.
+//! - [`store::export_tier`] — gọi [`store::load_tier`] **một tầng** (KHÔNG
+//!   [`store::list_all_entries`] — nó phát hàng bị che thành hàng thứ hai, sinh
+//!   `source_term` trùng trong tệp).
+//! - [`store::import_into_tier`] — **một** `store.write` cho TRỌN lô (§Always: "không ghi
+//!   một phần"); `GlossaryError::ImportUniqueConflict` phát hiện SAU khi giao dịch đã
+//!   rollback bằng cách nạp lại tầng, không phải một khoá đọc-trước-khi-ghi.
+//! - ⚠️ **NỬA CHỌN TỆP (hộp thoại mở/lưu, `#[tauri::command]`) TÁCH KHỎI STORY NÀY** — đang
+//!   chờ một `AD` (`ad-brief-2026-08-24-hop-thoai-chon-tep.md`). Story 3.10 giao đúng nửa
+//!   định dạng + đường ghi; chỗ nối để lại là một hàm trả `PathBuf`.
 
 pub mod candidate;
 pub mod candidate_store;
 pub mod entry;
+pub mod exchange;
 pub mod han_viet_suggestion;
 pub mod scan;
 pub mod store;
@@ -207,6 +235,10 @@ pub use candidate_store::{
     reject_candidate,
 };
 pub use entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
+pub use exchange::{
+    ConflictDecision, Delimiter, ImportRow, ImportSummary, ParseIssue, ParsedImport, RowPlan,
+    RowPlanKind, classify, parse, render_tier,
+};
 pub use han_viet_suggestion::{HanVietSuggestion, suggest_han_viet_batch};
 pub use scan::{
     DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates, scan_candidates_controlled,
@@ -216,8 +248,9 @@ pub(crate) use candidate_store::{ImportScanWriteTicket, enqueue_import_scan_cand
 pub(crate) use store::filter_import_scan_candidates_by_scope;
 pub use store::{
     GlossaryError, add_manual_term, confirm_pending_translation, confirm_translation,
-    delete_manual_term, entries_eligible_for_injection, insert_manual_entry, list_all_entries,
-    load_tier, marks_for_source_text, match_lang_for_source_lang, promote_to_global,
-    resolve_term_for_quick_add, update_manual_term, warm_jieba_for_source_lang,
+    delete_manual_term, entries_eligible_for_injection, export_tier, import_into_tier,
+    insert_manual_entry, list_all_entries, load_tier, marks_for_source_text,
+    match_lang_for_source_lang, promote_to_global, resolve_term_for_quick_add,
+    update_manual_term, warm_jieba_for_source_lang,
 };
 pub use surnames::COMMON_SURNAMES;

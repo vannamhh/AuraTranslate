@@ -982,9 +982,21 @@ fn every_column_round_trips_through_load_tier() {
 /// nhánh chỉ tới được từ một đĩa đã trôi. ⇒ Trước ca này, quay `ok_or_else(..)` về
 /// `unwrap_or(TermOrigin::Manual)` là một lượt đỏ KHÔNG XẢY RA.
 ///
-/// Fixture dựng bằng **ba bước THẬT đầu tiên** của `GLOBAL_MIGRATIONS` cộng một bước 4
+/// Fixture dựng bằng **ba bước THẬT đầu tiên** của `GLOBAL_MIGRATIONS` cộng hai bước GIẢ
 /// KHÔNG có `CHECK` — cùng khuôn `pinned_contract.rs::an_older_global_database_…` dùng lát
 /// cắt của bộ di trú thật thay vì một bản chép tay, để fixture không trôi khỏi sự thật.
+///
+/// 🔵 **SỬA 2026-08-24 (Story 3.10) — fixture nâng từ BỐN bước lên NĂM.** Bản trước dừng ở
+/// bước 4 (đích THẬT của story trước). Từ Story 3.10, đích thật là **5** — bước dựng lại
+/// `glossary_entry` với `CHECK` bốn giá trị (xem `GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL`).
+/// Nếu fixture vẫn dừng ở 4, `Store::open(StoreSpec::global(db))` cuối bài sẽ tự chạy bước 5
+/// THẬT — và bước đó CHÉP MỌI HÀNG qua một `CHECK` mới, làm chính hàng "đã trôi" mà ca này
+/// cố ý tạo ra bị `CHECK` chặn NGAY LÚC MỞ KHO (`OpenFailed`), trước khi `load_tier` có cơ
+/// hội chạy — ca test đổi ý nghĩa mà không ai chủ định. Bước 5 GIẢ ở đây KHÔNG chạm
+/// `glossary_entry` (dựng một bảng đánh dấu vô hại) — đích đạt ĐÚNG 5 mà bảng `glossary_entry`
+/// vẫn giữ nguyên hình dạng không `CHECK`, đúng ý định gốc của ca: "một hàng đã trôi tồn tại
+/// TRÊN ĐĨA, ở phiên bản HIỆN HÀNH, và `load_tier` (không phải `Store::open`) phải là chỗ
+/// bắt được nó".
 #[test]
 fn a_row_whose_term_origin_drifted_from_the_check_makes_load_tier_refuse_the_whole_tier() {
     use auratranslate_lib::core::store::Migration;
@@ -1002,13 +1014,22 @@ CREATE TABLE glossary_entry (
   created_at   TEXT    NOT NULL
 );";
 
-    static DRIFTED_LADDER: [Migration; 4] = [
+    /// Bước 5 GIẢ — chỉ để `schema_version()` chạm đích THẬT (5) mà không đưa
+    /// `glossary_entry` qua `CHECK` nào. Một bảng đánh dấu vô hại, không ai đọc nó.
+    const HARMLESS_MARKER_DDL: &str = "\
+CREATE TABLE step_five_marker (id INTEGER PRIMARY KEY);";
+
+    static DRIFTED_LADDER: [Migration; 5] = [
         GLOBAL_MIGRATIONS[0],
         GLOBAL_MIGRATIONS[1],
         GLOBAL_MIGRATIONS[2],
         Migration {
             to_version: 4,
             sql: PERMISSIVE_GLOSSARY_DDL,
+        },
+        Migration {
+            to_version: 5,
+            sql: HARMLESS_MARKER_DDL,
         },
     ];
 
@@ -1021,7 +1042,7 @@ CREATE TABLE glossary_entry (
             ..StoreSpec::global(db.clone())
         })
         .expect("dung fixture khong CHECK");
-        assert_eq!(drifted.schema_version(), 4, "fixture phai dung o dich that");
+        assert_eq!(drifted.schema_version(), 5, "fixture phai dung o dich THAT (5)");
 
         drifted
             .write(|tx: &Transaction<'_>| {
@@ -2751,5 +2772,191 @@ fn promote_to_global_rejects_an_id_that_does_not_exist_at_the_work_tier() {
 
     drop(global_store);
     drop(work_store);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.10 — bước di trú dựng lại `glossary_entry` (giá trị `term_origin` thứ tư)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 **Ca di trú trung tâm của Story 3.10** — một kho ở phiên bản CŨ (`CHECK` ba giá trị,
+/// bước 4) có hàng dữ liệu VÀ một hàng ĐÃ BỊ XOÁ, di trú lên bước 5, rồi bốn mệnh đề:
+/// 1. Hàng còn sống vẫn đủ.
+/// 2. `id` của chúng KHÔNG đổi.
+/// 3. `UNIQUE INDEX` và trigger một chiều (AD-36) còn đỏ được — không phải chỉ "còn tồn
+///    tại", mà THẬT SỰ còn từ chối đúng ca chúng sinh ra để chặn.
+/// 4. `id` cấp TIẾP THEO lớn hơn MỌI `id` từng cấp — id đã xoá (ở giữa) không được phát lại.
+///
+/// Hàng đã xoá là thứ làm mệnh đề (4) kiểm được — VÀ nó phải là hàng **`id` CAO NHẤT**,
+/// không phải một hàng ở giữa. 🔴 **Đo được (đối chứng gỡ chỗ nối, xem §Verification):
+/// xoá một hàng GIỮA không kiểm được gì.** `INSERT … SELECT id, …` tường minh vào bảng mới
+/// tự nâng mốc `sqlite_sequence` của NÓ lên đúng `id` LỚN NHẤT còn lại trong dữ liệu chép —
+/// nếu hàng bị xoá không phải hàng `id` cao nhất, mốc tự nhiên đó đã đúng sẵn mà không cần
+/// bước mang mốc riêng, và ca này xanh dù dòng `UPDATE sqlite_sequence …` bị gỡ khỏi
+/// migration. Chỉ xoá đúng hàng `id` cao nhất mới buộc bước mang mốc phải chạy thật.
+///
+/// Ladder CŨ dùng **bốn bước ĐẦU THẬT** của `GLOBAL_MIGRATIONS` (không chép tay DDL — cùng
+/// khuôn `store_contract.rs::spec_with_migrations`), nên fixture không trôi khỏi sự thật
+/// khi một bước sớm hơn đổi hình dạng.
+#[test]
+fn migrating_past_the_old_three_value_check_keeps_ids_and_carries_the_watermark_forward() {
+    use auratranslate_lib::core::store::Migration;
+
+    let dir = temp_dir("term-origin-migration-watermark");
+    let db = dir.join("global.db");
+
+    let old_ladder: &'static [Migration] = &GLOBAL_MIGRATIONS[..4];
+
+    {
+        let old = Store::open(StoreSpec {
+            migrations: old_ladder,
+            ..StoreSpec::global(db.clone())
+        })
+        .expect("mo kho o dich CU (CHECK ba gia tri)");
+        assert_eq!(old.schema_version(), 4, "fixture phai dung o dich CU");
+
+        old.write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO glossary_entry \
+                 (source_term, translation, note, category, term_origin, created_at) \
+                 VALUES ('a', NULL, '', 'person', 'manual', 'x')",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO glossary_entry \
+                 (source_term, translation, note, category, term_origin, created_at) \
+                 VALUES ('b', NULL, '', 'person', 'manual', 'x')",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO glossary_entry \
+                 (source_term, translation, note, category, term_origin, created_at) \
+                 VALUES ('c', NULL, '', 'person', 'manual', 'x')",
+                [],
+            )?;
+            Ok(())
+        })
+        .expect("chen ba hang (id 1, 2, 3)");
+
+        old.write(|tx: &Transaction<'_>| {
+            tx.execute("DELETE FROM glossary_entry WHERE source_term = 'c'", [])
+        })
+        .expect(
+            "xoa hang CO ID CAO NHAT (3) -- id nay phai bi 'dot', khong bao gio duoc phat lai. \
+             Xem doc-comment cua ca nay: PHAI la hang cao nhat, khong phai mot hang giua",
+        );
+
+        // 🔴 P8 (vòng rà ba lớp, 2026-08-25) — bước dựng lại KHAI (bằng doc-comment) rằng
+        // `idx_glossary_entry_source_term` + `glossary_entry_lifecycle_is_one_way` là HAI
+        // đối tượng DUY NHẤT gắn vào `glossary_entry`. Không gì kiểm lời khai đó trước ca
+        // này — một index/trigger THỨ BA do một story sau thêm vào (mà bước dựng lại quên
+        // tạo lại) sẽ bị `DROP TABLE` nuốt mất trong im lặng, và không cổng nào đỏ. Chụp ảnh
+        // TRƯỚC lượt di trú thật để chính lời khai này trở thành một mệnh đề kiểm được: nếu
+        // số đo ở đây một ngày nào đó không còn là hai, ca này phải ĐỎ trước khi ai tin
+        // tưởng bước dựng lại vẫn tạo lại "đúng những gì cần tạo lại".
+        let before_rebuild: Vec<(String, String)> = old
+            .read(|conn| {
+                let mut stmt = conn.prepare(
+                    "SELECT type, name FROM sqlite_master \
+                     WHERE tbl_name = 'glossary_entry' AND type IN ('index', 'trigger') \
+                     ORDER BY type, name",
+                )?;
+                stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?.collect()
+            })
+            .expect("doc sqlite_master TRUOC luot di tru");
+        assert_eq!(
+            before_rebuild,
+            vec![
+                ("index".to_owned(), "idx_glossary_entry_source_term".to_owned()),
+                ("trigger".to_owned(), "glossary_entry_lifecycle_is_one_way".to_owned()),
+            ],
+            "loi khai 'hai doi tuong DUY NHAT gan vao glossary_entry' sai TRUOC ca khi buoc di \
+             tru chay -- fixture da troi khoi GLOSSARY_ENTRY_DDL that, sua fixture chu khong \
+             sua menh de nay"
+        );
+
+        drop(old);
+    }
+
+    // Mo lai bang bo di tru THAT (GLOBAL_MIGRATIONS day du) -- buoc 5 phai chay.
+    let migrated = Store::open(StoreSpec::global(db)).expect("mo lai sau khi di tru");
+    assert_eq!(migrated.schema_version(), 5, "buoc 5 phai da chay");
+
+    // (1) + (2) hang con song du, va id KHONG doi ('a' van la 1, 'b' van la 2 -- khong bi
+    // don lai).
+    let remaining: Vec<(i64, String)> = migrated
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT id, source_term FROM glossary_entry ORDER BY id")?;
+            stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?.collect()
+        })
+        .expect("doc hang con lai");
+    assert_eq!(
+        remaining,
+        vec![(1, "a".to_owned()), (2, "b".to_owned())],
+        "di tru phai giu DU hang con song VA giu NGUYEN id cua chung -- khong don lai"
+    );
+
+    // (3) UNIQUE INDEX con do duoc.
+    let dup = migrated.write(|tx: &Transaction<'_>| {
+        tx.execute(
+            "INSERT INTO glossary_entry \
+             (source_term, translation, note, category, term_origin, created_at) \
+             VALUES ('a', NULL, '', 'person', 'manual', 'x')",
+            [],
+        )
+    });
+    assert!(
+        dup.is_err(),
+        "UNIQUE INDEX idx_glossary_entry_source_term phai con chan source_term trung sau di tru"
+    );
+
+    // (3) trigger mot chieu (AD-36) con do duoc.
+    migrated
+        .write(|tx: &Transaction<'_>| {
+            tx.execute("UPDATE glossary_entry SET translation = 'x' WHERE id = 1", [])
+        })
+        .expect("chot ban dich cho id=1");
+    let regress = migrated.write(|tx: &Transaction<'_>| {
+        tx.execute("UPDATE glossary_entry SET translation = NULL WHERE id = 1", [])
+    });
+    assert!(
+        regress.is_err(),
+        "trigger glossary_entry_lifecycle_is_one_way (AD-36) phai con chan luot lui ve NULL \
+         sau di tru"
+    );
+
+    // (4) id cap TIEP THEO lon hon MOI id tung cap: id=3 ('c', da xoa TRUOC di tru, va la id
+    // CAO NHAT tung cap) KHONG duoc phat lai -- hang moi phai nhan id=4, khong phai id=3.
+    let new_id: i64 = migrated
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO glossary_entry \
+                 (source_term, translation, note, category, term_origin, created_at) \
+                 VALUES ('d', NULL, '', 'person', 'manual', 'x')",
+                [],
+            )?;
+            Ok(tx.last_insert_rowid())
+        })
+        .expect("chen hang moi");
+    assert_eq!(
+        new_id, 4,
+        "id cap tiep theo phai la 4 (lon hon moi id tung cap: 1, 2, 3-da-xoa) -- id 3 KHONG \
+         duoc phat lai. Nhan id={new_id} -- neu la 3 thi moc sqlite_sequence da KHONG duoc \
+         mang theo qua luot di tru"
+    );
+
+    // Doi chung: CHECK bon gia tri that su nhan 'file_import' sau di tru.
+    migrated
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO glossary_entry \
+                 (source_term, translation, note, category, term_origin, created_at) \
+                 VALUES ('e', NULL, '', 'person', 'file_import', 'x')",
+                [],
+            )
+        })
+        .expect("CHECK sau di tru phai nhan 'file_import' -- gia tri thu tu");
+
+    drop(migrated);
     cleanup(&dir);
 }

@@ -6728,3 +6728,64 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     nào canh**. Không đánh dấu đạt bằng suy luận: đây là một mệnh đề đang đứng một mình.
     **(Chủ: Ice — cần một cơ chế chèn điểm dừng vào giữa hai lượt ghi để dựng ca tất định, tức
     một năng lực bàn đo mới chứ không phải một ca test thêm.)**
+
+- source_spec: `_bmad-output/planning-artifacts/ad-brief-2026-08-24-hop-thoai-chon-tep.md`
+  summary: **Nửa CHỌN TỆP của Story 3.10 tách ra và hoãn** — đúng hai chỗ: lấy đường dẫn nguồn
+    khi nhập, lấy đường dẫn đích khi xuất. Nửa định dạng (sinh/phân tích CSV-TSV, đối chiếu bất
+    đồng, ca thiếu cột, ca thiếu bản dịch) chạy ngay ở Story 3.10 và **không** đụng chỗ này.
+  evidence: AC1 nguyên văn đòi *"sinh ra file CSV hoặc TSV"*, tức một hộp thoại chọn tệp. Kho
+    cấm `tauri-plugin-fs` và `tauri-plugin-dialog` bằng `scripts/check-deps.mjs:163,165`, và
+    `src-tauri/tests/config_invariants.rs:376` viết thẳng rằng mọi quyền `<plugin>:…` là *"một
+    bề mặt IPC mới — phải là một AD mới trước đã"*. Ice chốt đi đường `tauri-plugin-dialog`
+    (chọn hai lần, lần sau đã đọc trọn số đo) ⇒ một `AD` mới, và `AD` giao Winston soạn.
+    ⚠️ **Đây là một lượt TÁCH, không phải một chỗ hở của story:** nửa định dạng nghiệm thu được
+    trọn bằng `cargo test` trên `&str`/`&Path` mà không cần một pixel nào, nên hoãn nửa kia
+    không làm nửa này xanh giả. Chỗ nối để lại là **một hàm** trả `PathBuf`.
+    Hồ sơ bàn giao chở số đo và §7 *"Điều `AD` phải trả lời"*; baseline lúc dừng `044d7a6`.
+    **(Chủ: Winston — `AD` về hộp thoại chọn tệp; rồi story nối tiếp 3.10 nối hai chỗ gọi vào.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
+  summary: **Cột `term_origin` trong tệp nhập bị đọc rồi vứt mà KHÔNG nói ra** — người dùng sửa
+    tay cột đó rồi nhập lại không nhận được một câu nào cho biết nó đã bị bỏ qua.
+  evidence: `exchange.rs` liệt `term_origin` trong `COLUMNS` nên nó là cột "đã biết", vì thế nó
+    KHÔNG rơi vào `ParsedImport::ignored_columns` — nơi mọi cột lạ được báo ra theo luật
+    *"bỏ qua và NÓI RA, không im lặng vứt"* của §I/O Matrix. Giá trị thì bị bỏ có chủ ý: §Design
+    Notes của story chốt rằng mọi mục vào đều mang `file_import`, bất kể tệp ghi gì.
+    ⚠️ **KHÔNG phải lệch spec** — hành vi đúng thiết kế; cái thiếu là một câu nói ra điều đó,
+    cùng lớp *"rỗng im lặng"* mà `AGENTS.md:46` gọi là lỗi trung tâm của kho.
+    **(Chủ: story nối tiếp 3.10 — nửa chọn tệp, nơi màn hình xem trước lượt nhập ra đời và là
+    chỗ DUY NHẤT hiển thị được câu đó cho người dùng.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
+  summary: **`split_first_logical_line` và `split_fields` bất đồng về nháy kép ĐẶT SAI CHỖ** —
+    với đầu vào không theo RFC 4180, hai hàm có thể hiểu khác nhau về việc một `\n` nằm trong
+    hay ngoài một ô đang bọc.
+  evidence: `split_first_logical_line` lật cờ `in_quotes` ở MỌI ký tự `"`, bất kể vị trí; còn
+    `split_fields` chỉ mở một ô bọc khi `"` đứng NGAY ĐẦU ô. Một `"` lạc giữa ô làm ranh giới
+    DÒNG và ranh giới Ô được tính theo hai luật khác nhau. Không ca test nào đẩy một nháy kép
+    đặt sai chỗ qua `parse`.
+    ⚠️ Chỉ với đầu vào đã hỏng sẵn — mọi tệp do chính `render_tier` sinh ra đều bọc đúng luật,
+    nên vòng tròn xuất→nhập không chạm nhánh này.
+    **(Chủ: story nối tiếp 3.10 — cùng lượt với việc đọc tệp thật từ đĩa, nơi tệp do NGƯỜI KHÁC
+    sinh ra lần đầu đi vào hệ thống.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
+  summary: **Tương tác giữa lỗi trùng `source_term` và lỗi `category` lạ chưa được kiểm** — một
+    hàng trùng mà lần xuất hiện thứ hai CŨNG sai `category` chỉ được báo là `UnknownCategory`,
+    không bao giờ góp một `DuplicateSourceTerm`.
+  evidence: Trong `exchange.rs::parse`, phép dò trùng chạy SAU phép kiểm `category`, và ô nhớ
+    `seen` chỉ được điền cho những hàng đã qua mọi phép kiểm trước đó. Hành vi này có thể đúng
+    (một hàng đã hỏng thì không cần báo hỏng hai kiểu), nhưng nó chưa được ai QUYẾT — nó là hệ
+    quả của thứ tự viết mã, không của một lựa chọn viết ra.
+    **(Chủ: story nối tiếp 3.10 — cùng lượt với màn hình xem trước, nơi hình dạng danh sách lỗi
+    hiển thị cho người dùng mới quyết được câu hỏi "một hàng báo mấy lỗi".)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
+  summary: **Một `ConflictDecision` trỏ tới `source_term` KHÔNG có trong lô bị bỏ qua trong im
+    lặng** — một lỗi của chỗ gọi (gửi quyết định cho nhầm thuật ngữ) không bao giờ lộ ra.
+  evidence: `import_into_tier` nhận `decisions: &BTreeMap<String, ConflictDecision>` và chỉ tra
+    map đó cho những hàng `Conflict` có thật; mọi khoá thừa rơi vào hư không, không lỗi, không
+    câu trạng thái, không ca test nào ghi lại hành vi này theo chiều nào.
+    ⚠️ Hôm nay chưa chỗ gọi sản phẩm nào tồn tại (§Never của story cấm dựng vỏ IPC), nên đây là
+    một hợp đồng CHƯA có ai vi phạm được — nhưng nó cũng chưa được viết ra.
+    **(Chủ: story nối tiếp 3.10 — story đầu tiên dựng một chỗ gọi thật cho hàm này.)**

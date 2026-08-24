@@ -463,7 +463,107 @@ pub const GLOSSARY_CANDIDATE_OCCURRENCE_CONTEXT_DDL: &str = concat!(
     "ALTER TABLE glossary_candidate ADD COLUMN context_example TEXT;"
 );
 
-/// Bộ di trú của `global.db`. Hôm nay **bốn** bước — Story 1.7 · 1.8 · 1.20 · 3.1.
+/// Dựng lại `glossary_entry` để `CHECK (term_origin IN (…))` nhận giá trị **thứ tư**,
+/// `'file_import'` — **bước 5 của `global.db`, bước 15 của `project.db`** — Story 3.10,
+/// FR49/NFR9 (xuất/nhập Glossary qua CSV/TSV).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỘT `CHECK` KHÔNG `ALTER` ĐƯỢC — DỰNG LẠI BẢNG LÀ ĐƯỜNG DUY NHẤT
+/// ─────────────────────────────────────────────────────────────────────────────
+/// SQLite không có `ALTER TABLE … ALTER CHECK`. [`GLOSSARY_ENTRY_DDL`] (bước 4/12) mang một
+/// `CHECK (term_origin IN ('manual','import_scan','review_harvest'))` cứng; thêm
+/// `'file_import'` bắt buộc đi qua khuôn kinh điển "tạo bảng mới → chép hàng → xoá bảng cũ →
+/// đổi tên": `CREATE TABLE glossary_entry_new (…)` với `CHECK` bốn giá trị → `INSERT … SELECT`
+/// **giữ nguyên `id`** → `DROP TABLE glossary_entry` (cuốn theo `UNIQUE INDEX` VÀ trigger) →
+/// `ALTER TABLE … RENAME TO glossary_entry` → dựng lại **cả hai** thứ vừa mất.
+///
+/// 🔴 **KHÔNG sửa [`GLOSSARY_ENTRY_DDL`] tại chỗ** — doc-comment của nó đã ghi nguyên lý:
+/// một kho đã di trú tới bước 4/12 không bao giờ chạy lại hằng đó, nên sửa tại chỗ cho ra
+/// hai lược đồ khác nhau cùng báo một `user_version`. Hằng NÀY là bước MỚI.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `id` KHÔNG ĐƯỢC TÁI DÙNG — MỐC `sqlite_sequence` PHẢI ĐI THEO, KHÔNG SUY LẠI TỪ HÀNG
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Bảng dùng `AUTOINCREMENT`; nếu đã có hàng bị xoá trước lượt di trú này, `id` cao nhất
+/// TỪNG CẤP không còn nằm trong bảng nữa — không đọc lại được bằng `MAX(id)` sau khi chép
+/// hàng. Nhưng chính hàng `sqlite_sequence` của bảng CŨ (`glossary_entry`) đã giữ đúng mốc đó
+/// suốt vòng đời AUTOINCREMENT của nó, kể cả cho id đã về hưu. Đo được (kiểm tay bằng
+/// `sqlite3` 2026-08-24, xem Verification): chèn tường minh `id` vào bảng MỚI **không** tự
+/// nâng mốc của bảng mới lên đúng giá trị lịch sử đó (nó chỉ theo `id` lớn nhất VỪA CHÈN, bỏ
+/// sót id đã xoá) — nên mốc phải được **mang theo** bằng tay:
+/// 1. `INSERT INTO sqlite_sequence (name, seq) SELECT 'glossary_entry_new', 0 WHERE NOT
+///    EXISTS (…)` — bảo đảm bảng mới CÓ một hàng `sqlite_sequence` để `UPDATE` sau nhắm vào,
+///    kể cả khi lượt `INSERT … SELECT` phía trên chưa tự tạo ra hàng đó (kho rỗng chưa từng
+///    cấp `id` nào).
+/// 2. `UPDATE sqlite_sequence SET seq = MAX(seq, COALESCE((SELECT seq FROM sqlite_sequence
+///    WHERE name = 'glossary_entry'), 0)) WHERE name = 'glossary_entry_new'` — `MAX(a, b)`
+///    **hai tham số** là dạng SCALAR của SQLite (khác `MAX(x)` dạng aggregate), nên đây so
+///    trực tiếp hai số, không cần `GROUP BY`. Chạy TRƯỚC `DROP TABLE glossary_entry` — dòng đó
+///    xoá luôn hàng `sqlite_sequence` của bảng cũ (đã đo, xem Verification), nên mốc phải
+///    được đọc ra TRƯỚC khi nó biến mất.
+///
+/// `ALTER TABLE … RENAME TO glossary_entry` sau đó tự đổi tên hàng `sqlite_sequence` từ
+/// `'glossary_entry_new'` sang `'glossary_entry'` (cơ chế nội bộ của chính lệnh `RENAME`, đã
+/// đo — xem Verification) — không cần một câu `UPDATE sqlite_sequence SET name = …` viết tay.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `DROP TABLE` CUỐN THEO INDEX VÀ TRIGGER — DỰNG LẠI CẢ HAI
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `idx_glossary_entry_source_term` (`UNIQUE`) và `glossary_entry_lifecycle_is_one_way`
+/// (vòng đời một chiều, AD-36) đều gắn vào TÊN BẢNG `glossary_entry`, không sống sót qua
+/// `DROP TABLE`. Thiếu trigger ⇒ AD-36 chết trong im lặng (một `UPDATE` lùi về `NULL` chạy
+/// sạch); thiếu index ⇒ `source_term` trùng được chèn. Cả hai được tạo lại NGUYÊN VĂN, sau
+/// `RENAME`.
+///
+/// Bốn `CHECK` giữ NGUYÊN VĂN — bảng khoảng trắng 25 điểm mã **trùng từng byte** với
+/// [`GLOSSARY_ENTRY_DDL`] (khoá bằng phép so chuỗi ở `glossary_contract.rs`, không chỉ bằng
+/// mắt) — chỉ `CHECK (term_origin IN (…))` mọc thêm `'file_import'`.
+pub const GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL: &str = "\
+CREATE TABLE glossary_entry_new (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_term  TEXT    NOT NULL,
+  translation  TEXT,
+  note         TEXT    NOT NULL DEFAULT '',
+  category     TEXT    NOT NULL,
+  term_origin  TEXT    NOT NULL,
+  created_at   TEXT    NOT NULL,
+  CHECK (trim(source_term, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                               || char(133) || char(160) || char(5760)
+                               || char(8192) || char(8193) || char(8194) || char(8195)
+                               || char(8196) || char(8197) || char(8198) || char(8199)
+                               || char(8200) || char(8201) || char(8202)
+                               || char(8232) || char(8233) || char(8239) || char(8287)
+                               || char(12288)) <> ''),
+  CHECK (translation IS NULL
+         OR trim(translation, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                                  || char(133) || char(160) || char(5760)
+                                  || char(8192) || char(8193) || char(8194) || char(8195)
+                                  || char(8196) || char(8197) || char(8198) || char(8199)
+                                  || char(8200) || char(8201) || char(8202)
+                                  || char(8232) || char(8233) || char(8239) || char(8287)
+                                  || char(12288)) <> ''),
+  CHECK (category    IN ('person','place','domain_term','other')),
+  CHECK (term_origin IN ('manual','import_scan','review_harvest','file_import'))
+);
+INSERT INTO glossary_entry_new
+  (id, source_term, translation, note, category, term_origin, created_at)
+  SELECT id, source_term, translation, note, category, term_origin, created_at
+  FROM glossary_entry;
+INSERT INTO sqlite_sequence (name, seq)
+  SELECT 'glossary_entry_new', 0
+  WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'glossary_entry_new');
+UPDATE sqlite_sequence
+  SET seq = MAX(seq, COALESCE((SELECT seq FROM sqlite_sequence WHERE name = 'glossary_entry'), 0))
+  WHERE name = 'glossary_entry_new';
+DROP TABLE glossary_entry;
+ALTER TABLE glossary_entry_new RENAME TO glossary_entry;
+CREATE UNIQUE INDEX idx_glossary_entry_source_term ON glossary_entry (source_term);
+CREATE TRIGGER glossary_entry_lifecycle_is_one_way
+BEFORE UPDATE OF translation ON glossary_entry
+WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL
+BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;";
+
+/// Bộ di trú của `global.db`. Hôm nay **năm** bước — Story 1.7 · 1.8 · 1.20 · 3.1 · 3.10.
 ///
 /// Không thêm bước cho một lược đồ chưa tồn tại. Mỗi story sở hữu bước di trú của
 /// chính nó, cùng lúc với bảng mà nó cần.
@@ -477,6 +577,10 @@ pub const GLOSSARY_CANDIDATE_OCCURRENCE_CONTEXT_DDL: &str = concat!(
 /// 🔵 **CẬP NHẬT 2026-08-19 (Story 3.1):** đích chuyển từ **3** lên **4** — bước
 /// [`GLOSSARY_ENTRY_DDL`] (tầng Global của Glossary, AD-18). Câu *"ba bước, đích là 3"* đã
 /// hết đúng, sửa tại chỗ thay vì để nó lặng lẽ sai.
+///
+/// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.10):** đích chuyển từ **4** lên **5** — bước
+/// [`GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL`] (giá trị `term_origin` thứ tư,
+/// `file_import`, CÙNG một hằng với bước 15 của `project.db`).
 pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 1,
@@ -495,6 +599,12 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 4,
         sql: GLOSSARY_ENTRY_DDL,
+    },
+    // Story 3.10 -- gia tri term_origin thu tu, 'file_import' (FR49/NFR9), CUNG mot hang voi
+    // buoc 15 cua project.db. Xem doc-comment cua GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL.
+    Migration {
+        to_version: 5,
+        sql: GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL,
     },
 ];
 
@@ -1256,6 +1366,13 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 14,
         sql: GLOSSARY_CANDIDATE_OCCURRENCE_CONTEXT_DDL,
+    },
+    // Story 3.10 -- gia tri term_origin thu tu, 'file_import' (FR49/NFR9), CUNG mot hang voi
+    // buoc 5 cua global.db. Xem doc-comment cua GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL.
+    // 15, khong phai 5 -- 5, 6, 7, 8, 9, 10, 11, 12, 13 va 14 da tieu.
+    Migration {
+        to_version: 15,
+        sql: GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL,
     },
 ];
 

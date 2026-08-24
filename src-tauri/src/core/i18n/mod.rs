@@ -302,6 +302,45 @@ message_keys! {
     /// `global.db` — **0 lượt ghi**, cả hai mục giữ nguyên. Không tham số: `source_term` là
     /// dữ liệu người dùng vừa gõ/thấy trên màn hình, không cần lặp lại qua `params`.
     GlossaryGlobalTermExists => "err.glossary.global_term_exists" [],
+
+    // ── Story 3.10 (FR49 · NFR9) — TÁM khoá, và đúng tám ────────────────────────────
+    //
+    // Bảy khoá đầu là lỗi PHÂN TÍCH (`core::glossary::exchange::ParseIssue`, trước khi có
+    // Store nào được chạm tới) — mỗi cái ứng với đúng một hàng "0 lượt ghi" của §I/O Matrix.
+    // Khoá cuối là lỗi GHI (`core::glossary::store::GlossaryError::ImportUniqueConflict`) —
+    // hàng "Va UNIQUE giữa chừng". `params` mang DỮ LIỆU (số dòng, tên cột, giá trị đọc
+    // được), không mang CÂU (AD-21).
+    //
+    // 🔴 Cặp `ParseIssue` (bảy biến thể) ↔ bảy khoá đầu ở đây ĐƯỢC CANH bằng
+    // `glossary_exchange_contract.rs::every_parse_issue_variant_maps_to_a_declared_message_key`
+    // (P7, vòng rà ba lớp 2026-08-25) — `ipc_contract.rs` chỉ canh `MessageKey` ↔ `vi.json`,
+    // KHÔNG canh `ParseIssue` ↔ `MessageKey`; ba danh sách lệch nhau không cổng nào đỏ trước
+    // khi cổng đó có mặt.
+    /// Hàng tiêu đề chứa CẢ hai dấu phân cách (`,` và TAB) hoặc KHÔNG cái nào.
+    GlossaryImportDelimiterUnresolved => "err.glossary.import_delimiter_unresolved" [],
+    /// Hàng tiêu đề thiếu cột bắt buộc. `column` là tên cột — dữ liệu, không phải câu.
+    GlossaryImportMissingColumn => "err.glossary.import_missing_column" ["column"],
+    /// Một hàng dữ liệu có số ô khác số cột của hàng tiêu đề.
+    GlossaryImportCellCountMismatch =>
+        "err.glossary.import_cell_count_mismatch" ["line", "expected", "found"],
+    /// `category` của một hàng không khớp bốn giá trị đã biết.
+    GlossaryImportUnknownCategory => "err.glossary.import_unknown_category" ["line", "value"],
+    /// `source_term` của một hàng rỗng hoặc chỉ toàn khoảng trắng sau khi cắt.
+    GlossaryImportBlankSourceTerm => "err.glossary.import_blank_source_term" ["line"],
+    /// Cùng `source_term` xuất hiện ở hai hàng dữ liệu trong CHÍNH tệp — không "dòng sau
+    /// thắng" im lặng.
+    GlossaryImportDuplicateSourceTerm =>
+        "err.glossary.import_duplicate_source_term" ["first_line", "second_line"],
+    /// 🔵 **THÊM 2026-08-25 (vòng rà ba lớp, P3).** Cột `created_at` có mặt, không rỗng,
+    /// nhưng không khớp hình dạng ISO-8601 UTC — cột này không phải văn bản tự do.
+    GlossaryImportInvalidCreatedAt => "err.glossary.import_invalid_created_at" ["line", "value"],
+    /// Một hàng phân loại *mới* lúc `classify()` nhưng `source_term` đã bị một lượt ghi
+    /// KHÁC chèn vào tầng đích trước khi giao dịch nhập kịp mở — giao dịch rollback trọn.
+    /// 🔵 **SỬA 2026-08-25 (P6)** — `value` nay có thể mang NHIỀU thuật ngữ, nối bằng `", "`
+    /// (xem `GlossaryError::ImportUniqueConflict::source_terms`, một `Vec` chứ không một
+    /// `String` — hàm ý chỗ gọi TƯƠNG LAI dựng UI tách lại bằng `", "` nếu cần liệt riêng
+    /// từng thuật ngữ; hôm nay chưa vỏ IPC nào tiêu thụ khoá này).
+    GlossaryImportUniqueConflict => "err.glossary.import_unique_conflict" ["value"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

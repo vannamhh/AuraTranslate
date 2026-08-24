@@ -46,6 +46,7 @@
 //! ⚠️ Mọi chuỗi trong `src-tauri/src/**` viết KHÔNG DẤU; doc-comment có dấu là hợp lệ.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::{Arc, Mutex};
 
 use crate::core::dict::DictLayers;
 use crate::core::i18n::{IpcError, MessageKey};
@@ -53,34 +54,48 @@ use crate::core::matching::{MatchLang, TermMatch, find_terms};
 use crate::core::scope::{ScopeError, ScopeResolver, Tier as ScopeTier};
 use crate::core::store::{
     ReadHandle, SqlError, SqlResult, SqlType, Store, StoreError, Transaction,
+    is_unique_constraint_violation,
 };
 
 use super::entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
+use super::exchange::{ConflictDecision, Delimiter, ImportSummary, RowPlan, RowPlanKind};
 use super::han_viet_suggestion::{HanVietSuggestion, suggest_han_viet_batch};
 
 /// Khoá dây của `ScopeKind::Glossary` (`core/scope/kinds.rs:162`), chép lại đây làm
 /// literal — module này không được `use` `ScopeKind`.
 const GLOSSARY_SCOPE_KIND: &str = "glossary";
 
-/// Câu `INSERT` DÙNG CHUNG cho **cả hai** đường ghi vào `glossary_entry` — Story 3.2.
+/// Câu `INSERT` DÙNG CHUNG cho **mọi** đường ghi vào `glossary_entry` — Story 3.2.
 ///
-/// 🔴 **Chỉ hai chỗ gọi được phép tồn tại, và cả hai đều ở trong `core/glossary/**`:**
-/// [`insert_manual_entry`] (ngay dưới, luôn `term_origin = manual`) và
+/// 🔴 **Bốn chỗ gọi được phép tồn tại, và cả bốn đều ở trong `core/glossary/**`:**
+/// [`insert_manual_entry`] (ngay dưới, luôn `term_origin = manual`),
 /// [`crate::core::glossary::candidate_store::approve_candidate`] (luôn suy `term_origin`
-/// từ `candidate_origin` của chính hàng ứng viên). Đây là vế CẤU TRÚC của FR55 ("không cơ
-/// chế nào được tự ghi vào Glossary"): trước Story 3.2, `insert_entry` cũ nhận
-/// `term_origin: TermOrigin` từ NƠI GỌI — một module quét chỉ cần truyền
-/// `TermOrigin::ImportScan` là ghi thẳng, biên dịch sạch, qua mọi cổng. Thu hẹp về **một**
-/// hàm `pub(super)` không tham số `term_origin` tự do làm vi phạm đó KHÔNG BIỂU DIỄN ĐƯỢC:
-/// mọi giá trị `term_origin` đi vào đây đều đã bị khoá bởi CHÍNH LOGIC của chỗ gọi (hằng
-/// `manual`, hoặc một `CandidateOrigin::to_term_origin()` toàn phần), không phải một tham
-/// số người viết mã bên ngoài `core/glossary/**` có thể tự ý đặt.
+/// từ `candidate_origin` của chính hàng ứng viên), [`promote_to_global`] (mang nguyên
+/// `term_origin` của hàng Work đang đẩy — giá trị đó đã bị khoá bởi MỘT trong ba chỗ gọi
+/// còn lại từ lúc hàng đó được tạo ra), và [`import_into_tier`] (Story 3.10, luôn
+/// `term_origin = file_import`). Đây là vế CẤU TRÚC của FR55 ("không cơ chế nào được tự ghi
+/// vào Glossary"): trước Story 3.2, `insert_entry` cũ nhận `term_origin: TermOrigin` từ NƠI
+/// GỌI — một module quét chỉ cần truyền `TermOrigin::ImportScan` là ghi thẳng, biên dịch
+/// sạch, qua mọi cổng. Thu hẹp về **một** hàm `pub(super)` không tham số `term_origin` tự do
+/// làm vi phạm đó KHÔNG BIỂU DIỄN ĐƯỢC: mọi giá trị `term_origin` đi vào đây đều đã bị khoá
+/// bởi CHÍNH LOGIC của chỗ gọi, không phải một tham số người viết mã bên ngoài
+/// `core/glossary/**` có thể tự ý đặt.
+///
+/// 🔵 **SỬA 2026-08-24 (Story 3.10) — mệnh đề "chỉ HAI chỗ gọi" ở trên đã SAI TỪ Story 3.9,
+/// sửa tại chỗ.** [`promote_to_global`] (Story 3.9) đã là chỗ gọi THỨ BA từ trước lượt này —
+/// không ai cập nhật câu trên khi nó ra đời. Đọc số THẬT (`grep insert_entry_row
+/// src/core/glossary/**`) trước khi tin một câu đã viết sẵn, đúng bài học
+/// `AGENTS.md`: "Đo trước khi chốt kiến trúc".
+///
+/// 🔵 **SỬA 2026-08-24 (Story 3.10) — tham số MỚI `created_at: Option<&str>`.** Ba chỗ gọi
+/// cũ đều truyền `None` (giữ nguyên hành vi: SQL tự sinh mốc bằng `strftime('now')`).
+/// [`import_into_tier`] là chỗ gọi DUY NHẤT có thể truyền `Some(giá trị)` — vòng tròn
+/// xuất→nhập của I/O Matrix đòi `created_at` của tệp được GIỮ NGUYÊN, không bị ghi đè bằng
+/// thời điểm nhập; xem doc-comment của [`import_into_tier`].
 ///
 /// ⚠️ Chữ ký nhận **chuỗi đã chuẩn bị sẵn** (đã trim, đã `as_str()`) — không tự trim, không
 /// tự gọi `Category::as_str()`/`TermOrigin::as_str()`. Cắt khoảng trắng là việc của TỪNG
-/// chỗ gọi vì hai chỗ gọi cắt hai đầu vào khác nhau (`source_term`+`translation` của
-/// `insert_manual_entry`; `translation` — `source_term` đã được `insert_candidate` cắt từ
-/// trước — của `approve_candidate`).
+/// chỗ gọi vì mỗi chỗ gọi cắt đầu vào của chính nó theo quy tắc riêng.
 pub(super) fn insert_entry_row(
     tx: &Transaction<'_>,
     source_term: &str,
@@ -88,13 +103,22 @@ pub(super) fn insert_entry_row(
     note: &str,
     category: &str,
     term_origin: &str,
+    created_at: Option<&str>,
 ) -> SqlResult<i64> {
-    tx.execute(
-        "INSERT INTO glossary_entry
-            (source_term, translation, note, category, term_origin, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
-        (&source_term, &translation, &note, &category, &term_origin),
-    )?;
+    match created_at {
+        None => tx.execute(
+            "INSERT INTO glossary_entry
+                (source_term, translation, note, category, term_origin, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+            (&source_term, &translation, &note, &category, &term_origin),
+        )?,
+        Some(created_at) => tx.execute(
+            "INSERT INTO glossary_entry
+                (source_term, translation, note, category, term_origin, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            (&source_term, &translation, &note, &category, &term_origin, &created_at),
+        )?,
+    };
     Ok(tx.last_insert_rowid())
 }
 
@@ -166,6 +190,7 @@ pub fn insert_manual_entry(
             &note,
             category,
             TermOrigin::Manual.as_str(),
+            None,
         )
     })
 }
@@ -341,7 +366,8 @@ fn decode_category(col: usize, raw: &str) -> SqlResult<Category> {
 }
 
 /// Cùng lý do [`decode_category`] — và cùng mức nghiêm trọng hơn hẳn, vì `Manual` là giá
-/// trị đáng tin nhất trong ba giá trị của `term_origin` (xem doc-comment ngay trên).
+/// trị đáng tin nhất trong các giá trị của `term_origin` (bốn kể từ Story 3.10 — 🔵 SỬA
+/// 2026-08-24, câu cũ nói "ba" đã hết đúng) (xem doc-comment ngay trên).
 fn decode_term_origin(col: usize, raw: &str) -> SqlResult<TermOrigin> {
     TermOrigin::from_wire(raw).ok_or_else(|| {
         SqlError::FromSqlConversionFailure(
@@ -412,6 +438,26 @@ pub enum GlossaryError {
     /// luôn đi kèm **0 lượt ghi**: không mục nào ở Global bị ghi đè, không mục nào ở Work
     /// bị xoá.
     GlobalTermExists,
+    /// 🔵 **THÊM 2026-08-24 (Story 3.10).** [`import_into_tier`] phân loại một hàng là *mới*
+    /// lúc `classify()`, nhưng lúc mở giao dịch thật thì `source_term` đó đã bị MỘT lượt ghi
+    /// khác chèn vào tầng đích — I/O Matrix *"Va UNIQUE giữa chừng"*. Giao dịch của
+    /// `import_into_tier` rollback TRỌN (0 hàng ghi).
+    ///
+    /// 🔵 **SỬA 2026-08-25 (vòng rà ba lớp, P5+P6) — hai lỗi ở bản đầu, cả hai sửa cùng
+    /// lượt:**
+    /// 1. **Chẩn đoán SAI nguyên nhân.** Bản đầu không phân biệt "giao dịch trượt vì `UNIQUE`"
+    ///    với "giao dịch trượt vì trigger AD-36 (lượt `TakeTheirs` lùi bản dịch về rỗng)" — cả
+    ///    hai đều bị gán nhãn `ImportUniqueConflict`, che mất đúng nguyên nhân thật ở ca sau.
+    ///    Nay chỉ gán nhãn này khi lỗi SQL gốc THẬT SỰ là vi phạm `UNIQUE` (kiểm bằng
+    ///    [`is_unique_constraint_violation`] ngay tại chỗ lỗi xảy ra, không đoán ngược từ việc
+    ///    nạp lại tầng).
+    /// 2. **Chỉ báo va chạm ĐẦU TIÊN.** Bản đầu dừng ở hàng `New` đầu tiên va — một lô đua với
+    ///    NHIỀU lượt chèn khác bắt người dùng thử lại từng lần một. Nay gom TRỌN danh sách.
+    ImportUniqueConflict {
+        /// MỌI thuật ngữ va — dữ liệu người dùng vừa thấy trong tệp của họ, không phải một
+        /// câu. Không bao giờ rỗng khi biến thể này được dựng.
+        source_terms: Vec<String>,
+    },
 }
 
 impl std::fmt::Display for GlossaryError {
@@ -423,6 +469,9 @@ impl std::fmt::Display for GlossaryError {
             GlossaryError::EntryMissing => write!(f, "glossary[entry_missing]"),
             GlossaryError::WorkTierUnavailable => write!(f, "glossary[work_tier_unavailable]"),
             GlossaryError::GlobalTermExists => write!(f, "glossary[global_term_exists]"),
+            GlossaryError::ImportUniqueConflict { source_terms } => {
+                write!(f, "glossary[import_unique_conflict] source_terms={source_terms:?}")
+            }
         }
     }
 }
@@ -481,6 +530,21 @@ impl From<GlossaryError> for IpcError {
                 BTreeMap::new(),
                 false,
             ),
+            GlossaryError::ImportUniqueConflict { source_terms } => {
+                let mut params = BTreeMap::new();
+                // `value` -- du lieu nguoi dung vua thay trong tep cua ho, khong phai cau.
+                // `IpcError::params` la BTreeMap<String, String> PHANG -- khong cho mot danh
+                // sach that. Noi bang ", " la lua chon HIEN THI: tung source_term khong bi
+                // cat mat, chi khong tach lai duoc bang may o day (frontend chi hien thi
+                // nguyen van, khong can tach).
+                params.insert("value".to_owned(), source_terms.join(", "));
+                IpcError::new(
+                    "glossary.import_unique_conflict",
+                    MessageKey::GlossaryImportUniqueConflict,
+                    params,
+                    false,
+                )
+            }
         }
     }
 }
@@ -863,6 +927,11 @@ pub fn promote_to_global(global: &Store, work: &Store, id: i64) -> Result<(), Gl
     }
 
     // Bước 1: INSERT global.
+    //
+    // `created_at`: None -- day tang lai la lan dau mot mục nay ton tai o global.db, nen
+    // moc "duoc tao luc nao" tu nhien sinh lai bang thoi diem day tang (khac import_into_tier,
+    // noi ca duong nhap la mot LAN THAY THE mot hang chua tung co, khong phai mot lan DI
+    // CHUYEN mot hang da co).
     global.write(move |tx: &Transaction<'_>| {
         insert_entry_row(
             tx,
@@ -871,6 +940,7 @@ pub fn promote_to_global(global: &Store, work: &Store, id: i64) -> Result<(), Gl
             &note,
             &category_raw,
             &term_origin_raw,
+            None,
         )
     })?;
 
@@ -1193,4 +1263,194 @@ pub fn marks_for_source_text(
         .collect();
 
     Ok(marks)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.10 — XUẤT/NHẬP CSV/TSV: nửa CÓ chạm kho (nửa định dạng thuần sống ở
+// `super::exchange`). Vẫn không chạm tệp — xem §Boundaries của spec 3.10.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Xuất **một tầng** thành `String` — gọi [`load_tier`] rồi [`super::exchange::render_tier`].
+///
+/// 🔴 **Không đi qua [`list_all_entries`]** — nó phát hàng bị che thành hàng THỨ HAI (cùng
+/// `source_term` với hàng thắng, khác tầng), nên dùng nó ở đây sẽ sinh `source_term` trùng
+/// trong tệp và lượt nhập lại va `UNIQUE INDEX idx_glossary_entry_source_term` ngay ở tầng
+/// vừa xuất ra — đúng lỗi mà §Never của spec 3.10 cấm đích danh.
+///
+/// # Lỗi
+/// [`GlossaryError::Store`] nếu [`load_tier`] thất bại (mở kho, đọc, hoặc một hàng vi phạm
+/// `CHECK` mà một bản ứng dụng khác đã lỡ ghi).
+pub fn export_tier(store: &Store, delimiter: Delimiter) -> Result<String, GlossaryError> {
+    let tier = load_tier(store)?;
+    Ok(super::exchange::render_tier(&tier, delimiter))
+}
+
+/// Lỗi ĐÁNH DẤU để buộc `store.write` rollback khi vòng lặp của [`import_into_tier`] đã tự
+/// gom xong danh sách va chạm — nội dung của nó KHÔNG bao giờ được đọc lại: danh sách thật
+/// đi qua kênh riêng (`Arc<Mutex<Vec<String>>>`), không qua `Display` của giá trị này. Xem
+/// doc-comment của [`import_into_tier`].
+fn unique_conflict_marker_error() -> SqlError {
+    SqlError::FromSqlConversionFailure(
+        0,
+        SqlType::Text,
+        "glossary import -- rollback: mot hoac nhieu hang New va UNIQUE".into(),
+    )
+}
+
+/// Ghi kết quả một lượt nhập vào `tier` — **một** `store.write` (§Always: "Không ghi một
+/// phần" — một lô nhập đi TRỌN trong một giao dịch, `Ok` ⇒ commit, `Err` ⇒ rollback).
+///
+/// 🔴 **`term_origin` LUÔN [`TermOrigin::FileImport`], KHÔNG nhận qua tham số** — cùng
+/// nguyên tắc mà [`insert_manual_entry`]/[`crate::core::glossary::candidate_store::approve_candidate`]
+/// đã giữ từ Story 3.2 (FR55).
+///
+/// 🔴 **Ba nhánh của [`RowPlanKind`], ba hành vi:**
+/// - [`RowPlanKind::New`] ⇒ `INSERT`, mang `plan.created_at` NGUYÊN VĂN nếu tệp có cột đó
+///   (vòng tròn xuất→nhập giữ nguyên mốc — I/O Matrix), hoặc để SQL tự sinh (`None`) nếu
+///   tệp không có cột `created_at` (I/O Matrix "Vắng cột tuỳ chọn ⇒ `created_at` = hôm nay").
+/// - [`RowPlanKind::Identical`] ⇒ **không ghi gì** — I/O Matrix: "không đề nghị gì, không
+///   ghi".
+/// - [`RowPlanKind::Conflict`] ⇒ tra `decisions` theo `source_term` (vắng mặt ⇒
+///   [`ConflictDecision::KeepMine`], §Always: mặc định giữ của tôi). `KeepMine` không ghi
+///   gì.
+///   🔴 **SỬA 2026-08-25 (vòng rà ba lớp, P1, Ice chốt) — `TakeTheirs` ghi CHỈ cột
+///   `translation`, KHÔNG BAO GIỜ chạm `note`/`category`, kể cả khi tệp CÓ mang giá trị cho
+///   chúng.** Bản đầu ghi cả ba cột vô điều kiện (khuôn `update_manual_term`) — nhưng
+///   `exchange.rs` điền `Category::Other`/`""` cho hàng VẮNG cột, nên nhập một tệp hai cột
+///   (`source_term,translation` — đúng hình dạng mockup) rồi chọn *lấy của file* XOÁ SẠCH
+///   ghi chú người dùng tự viết và HẠ phân loại `person` xuống `other`, ngược đúng §Always
+///   *"Không im lặng ghi đè"*: người dùng chỉ đồng ý đổi BẢN DỊCH, không đồng ý đổi hai cột
+///   kia. §I/O Matrix ba hàng mới (*"Bất đồng, người dùng lấy của file"* · *"…tệp thiếu cột
+///   note/category"* · *"…tệp CÓ cột note mang giá trị khác"*) khoá đúng mệnh đề này.
+///   Trigger `glossary_entry_lifecycle_is_one_way` (AD-36) vẫn đứng ở tầng SQL — một hàng ĐÃ
+///   CHỐT nhận `translation = None` từ tệp qua `TakeTheirs` vẫn bị `RAISE(ABORT)` từ chối,
+///   đúng I/O Matrix "Trigger AD-36 chặn lượt lùi về rỗng ⇒ `store.write_failed`, cả lô
+///   rollback".
+///
+/// 🔴 **`GlossaryError::ImportUniqueConflict` — gom TRỌN danh sách va, và chỉ gán nhãn này
+/// khi lỗi THẬT SỰ là vi phạm `UNIQUE`.**
+///
+/// 🔵 **SỬA 2026-08-25 (vòng rà ba lớp, P5+P6) — thiết kế lại từ đầu, hai lỗi ở bản trước:**
+/// bản trước đọc lại `tier` SAU khi `store.write` trả `Err`, rồi ĐOÁN nguyên nhân bằng cách
+/// tìm một hàng `New` mà `source_term` của nó NAY tồn tại trên đĩa. Phép đoán đó không xác
+/// nhận lỗi GỐC thật sự là gì — nếu lô CÙNG lúc vừa có một hàng `New` (tình cờ, không liên
+/// quan) đã tồn tại từ một đường ghi khác, VỪA có một `TakeTheirs` khác vi phạm trigger
+/// AD-36, thì trigger mới là nguyên nhân khiến giao dịch trượt, nhưng phép đoán vẫn gán
+/// nhãn `ImportUniqueConflict` — che mất đúng nguyên nhân thật. Nó cũng dừng ở va chạm ĐẦU
+/// TIÊN tìm thấy, không gom hết.
+///
+/// Thiết kế mới kiểm NGAY tại chỗ lỗi xảy ra, trong chính giao dịch: mỗi `INSERT` của một
+/// hàng `New` thất bại được hỏi ngay bằng [`is_unique_constraint_violation`] — nếu ĐÚNG,
+/// `source_term` được GOM vào một danh sách cục bộ và vòng lặp TIẾP TỤC (không `?`, không
+/// rollback ngay) để gom hết mọi va chạm khác trong CÙNG lô; nếu SAI (bất kỳ lỗi nào khác —
+/// bao gồm trigger AD-36), giao dịch abort NGAY qua `?`/`return Err` với lỗi SQL GỐC, không
+/// bị gán nhãn `ImportUniqueConflict`. Sau vòng lặp, nếu danh sách gom được không rỗng, hàm
+/// trả một lỗi ĐÁNH DẤU ([`unique_conflict_marker_error`]) để buộc `Store::write` rollback
+/// TRỌN (§Always: "0 hàng ghi" — kể cả những hàng `New` khác đã `INSERT` thành công trước đó
+/// trong cùng vòng lặp). Danh sách va chạm thật đi ra ngoài closure qua một kênh riêng
+/// (`Arc<Mutex<Vec<String>>>`) — không qua `Display`/chuỗi lỗi SQL, nên không cần phân tích
+/// chuỗi thô ở phía đọc kết quả.
+///
+/// # Lỗi
+/// [`GlossaryError::WorkTierUnavailable`] nếu `tier` là [`GlossaryTier::Work`] mà `work` là
+/// `None`. [`GlossaryError::ImportUniqueConflict`]/[`GlossaryError::Store`] — xem trên.
+pub fn import_into_tier(
+    global: &Store,
+    work: Option<&Store>,
+    tier: GlossaryTier,
+    plans: &[RowPlan],
+    decisions: &BTreeMap<String, ConflictDecision>,
+) -> Result<ImportSummary, GlossaryError> {
+    let store = match tier {
+        GlossaryTier::Global => global,
+        GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
+    };
+
+    let plans_owned: Vec<RowPlan> = plans.to_vec();
+    let decisions_owned: BTreeMap<String, ConflictDecision> = decisions.clone();
+
+    // Kênh riêng mang danh sách va chạm THẬT ra khỏi closure -- xem khối 🔵 ở doc-comment.
+    let conflicts: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let conflicts_for_closure = Arc::clone(&conflicts);
+
+    let result = store.write(move |tx: &Transaction<'_>| {
+        let mut summary = ImportSummary::default();
+        let mut local_conflicts: Vec<String> = Vec::new();
+
+        for plan in &plans_owned {
+            match &plan.kind {
+                RowPlanKind::New => {
+                    let inserted = insert_entry_row(
+                        tx,
+                        &plan.source_term,
+                        plan.translation.as_deref(),
+                        &plan.note,
+                        plan.category.as_str(),
+                        TermOrigin::FileImport.as_str(),
+                        plan.created_at.as_deref(),
+                    );
+                    match inserted {
+                        Ok(_) => summary.inserted += 1,
+                        // ĐÚNG là va UNIQUE -- gom lại, KHÔNG abort ngay, để vòng lặp tiếp
+                        // tục tìm hết va chạm còn lại trong cùng lô (P6).
+                        Err(e) if is_unique_constraint_violation(&e) => {
+                            local_conflicts.push(plan.source_term.clone());
+                        }
+                        // Bất kỳ lỗi nào KHÁC (kể cả một `UNIQUE` ở một ràng buộc khác, nếu
+                        // có ngày nào đó) -- abort ngay với lỗi GỐC, không gán nhãn sai (P5).
+                        Err(e) => return Err(e),
+                    }
+                }
+                RowPlanKind::Identical => {
+                    summary.identical += 1;
+                }
+                RowPlanKind::Conflict { existing_id, .. } => {
+                    let decision = decisions_owned
+                        .get(&plan.source_term)
+                        .copied()
+                        .unwrap_or(ConflictDecision::KeepMine);
+                    if decision == ConflictDecision::TakeTheirs {
+                        // 🔴 CHỈ `translation` -- xem khối 🔴 P1 ở doc-comment trên. `note`/
+                        // `category` KHÔNG đi vào câu UPDATE này, dù `plan` có mang gì.
+                        let changed = tx.execute(
+                            "UPDATE glossary_entry SET translation = ?1 WHERE id = ?2",
+                            (&plan.translation, existing_id),
+                        )?;
+                        // ⚠️ Ca này KHÔNG có mặt trong §I/O Matrix của spec (chỉ ca "New va
+                        // UNIQUE giữa chừng" được liệt) — nhưng "0 hàng đổi" đi qua trong im
+                        // lặng đúng là lớp lỗi trung tâm mà AGENTS.md cấm (`Known pitfalls`:
+                        // "Rỗng IM LẶNG"). Hàng `existing_id` biến mất GIỮA lúc `classify()`
+                        // chụp ảnh và lúc giao dịch này chạy (đua với một lượt Xoá khác) ⇒
+                        // trả lỗi để CẢ LÔ rollback, thay vì báo thành công cho một `UPDATE`
+                        // không đổi gì. Rơi về `store.write_failed` chung (không phải một
+                        // biến thể `GlossaryError` riêng — ca này ngoài phạm vi đã ký của
+                        // story, ghi nợ ở đây thay vì bịa một tên mới không ai nghiệm thu).
+                        if changed == 0 {
+                            return Err(row_missing_error(0, "glossary_entry", *existing_id));
+                        }
+                        summary.updated += 1;
+                    }
+                }
+            }
+        }
+
+        if !local_conflicts.is_empty() {
+            *conflicts_for_closure.lock().unwrap_or_else(|p| p.into_inner()) = local_conflicts;
+            return Err(unique_conflict_marker_error());
+        }
+
+        Ok(summary)
+    });
+
+    match result {
+        Ok(summary) => Ok(summary),
+        Err(e) => {
+            let collected = conflicts.lock().unwrap_or_else(|p| p.into_inner()).clone();
+            if !collected.is_empty() {
+                Err(GlossaryError::ImportUniqueConflict { source_terms: collected })
+            } else {
+                Err(GlossaryError::from(e))
+            }
+        }
+    }
 }

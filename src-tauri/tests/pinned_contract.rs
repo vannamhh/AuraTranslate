@@ -59,12 +59,16 @@ fn open_global(dir: &Path) -> Store {
 // Bước di trú thứ ba của `global.db`
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Một `global.db` mới tinh kết thúc ở **phiên bản 4**, và bảng `pinned_entry` có mặt.
+/// Một `global.db` mới tinh kết thúc ở **phiên bản 5**, và bảng `pinned_entry` có mặt.
 ///
 /// 🔵 **CẬP NHẬT 2026-08-19 (Story 3.1):** đích chuyển từ **3** lên **4** — bước
 /// `GLOSSARY_ENTRY_DDL` (tầng Global của Glossary, AD-18/AD-36). Câu *"ba bước, đích là 3"*
 /// đã hết đúng, sửa tại chỗ. Tên hàm test giữ nguyên: nó canh việc bước `pinned_entry` là
 /// bước **cuối cùng đã có mặt lúc story đó chạy**, không canh số phiên bản đích hôm nay.
+///
+/// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.10):** đích chuyển từ **4** lên **5** — bước dựng lại
+/// `glossary_entry` để thêm giá trị `term_origin` thứ tư (`file_import`, FR49/NFR9). Cùng lý
+/// do trên: tên hàm test không đổi.
 #[test]
 fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
     let dir = temp_dir("fresh-global-target");
@@ -72,14 +76,14 @@ fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
 
     assert_eq!(
         store.schema_version(),
-        4,
-        "`GLOBAL_MIGRATIONS` co bon buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
-         `pinned_entry`, 3.1 `glossary_entry`), nen mot `global.db` moi phai ket thuc o \
-         phien ban 4"
+        5,
+        "`GLOBAL_MIGRATIONS` co nam buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
+         `pinned_entry`, 3.1 `glossary_entry`, 3.10 gia tri term_origin thu tu), nen mot \
+         `global.db` moi phai ket thuc o phien ban 5"
     );
     assert_eq!(
         GLOBAL_MIGRATIONS.len(),
-        4,
+        5,
         "so buoc va so phien ban dich phai di cung nhau"
     );
 
@@ -124,7 +128,9 @@ fn an_older_global_database_migrates_up_and_keeps_its_rows() {
     let migrated = Store::open(StoreSpec::global(db)).expect("mo lai sau khi di tru");
     // 🔵 CAP NHAT 2026-08-19 (Story 3.1): dich 3 → 4 — buoc `glossary_entry` ra doi. Menh de
     // cua ca nay khong doi: di tru khong duoc dung toi cau hinh cu.
-    assert_eq!(migrated.schema_version(), 4, "buoc 3 va 4 phai da chay");
+    // 🔵 CAP NHAT 2026-08-24 (Story 3.10): dich 4 → 5 — buoc dung lai glossary_entry them
+    // gia tri term_origin thu tu. Menh de van khong doi.
+    assert_eq!(migrated.schema_version(), 5, "buoc 3, 4 va 5 phai da chay");
 
     let theme: String = migrated
         .read(|conn| {
@@ -189,18 +195,21 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     // 🔵 CAP NHAT 2026-08-22 (Story 3.5): muoi hai buoc → MUOI BA, dich 13 → 14 (cot
     //    `occurrence_count`/`context_example` cua `glossary_candidate`, KHONG co buoc song
     //    sinh o `GLOBAL_MIGRATIONS`). Hai con so duoi day van chi la NEO.
+    // 🔵 CAP NHAT 2026-08-24 (Story 3.10): muoi ba buoc → MUOI BON, dich 14 → 15 (dung lai
+    //    glossary_entry them gia tri term_origin thu tu `file_import`, CUNG mot hang voi
+    //    buoc 5 cua `global.db`). Hai con so duoi day van chi la NEO.
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        13,
-        "`PROJECT_MIGRATIONS` phai co muoi ba buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
+        14,
+        "`PROJECT_MIGRATIONS` phai co muoi bon buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
          6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
          10 cua Story 2.6, 11 cua Story 2.7, 12 cua Story 3.1, 13 cua Story 3.2, \
-         14 cua Story 3.5"
+         14 cua Story 3.5, 15 cua Story 3.10"
     );
     assert_eq!(
         opened.store.schema_version(),
-        14,
-        "mot `project.db` moi phai dung o phien ban 14 (so 4 da chay)"
+        15,
+        "mot `project.db` moi phai dung o phien ban 15 (so 4 da chay)"
     );
 
     let has_table: i64 = opened

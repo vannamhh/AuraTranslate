@@ -229,7 +229,17 @@ const QUICK_ADD_SURFACE: [&str; 12] = [
 /// không bắt việc dùng `CandidateOrigin` — xem bài tự kiểm
 /// [`the_non_manual_origin_token_check_catches_term_origin_but_not_candidate_origin`] cho
 /// bằng chứng cả hai chiều.
-const NON_MANUAL_ORIGIN_TOKENS: [&str; 2] = ["TermOrigin::ImportScan", "TermOrigin::ReviewHarvest"];
+///
+/// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.10) — biến thể THỨ BA, `TermOrigin::FileImport`.**
+/// Đường nhập CSV/TSV (`core::glossary::store::import_into_tier`) tự đặt xuất xứ này —
+/// cùng nguyên tắc AD-20/FR55 mà hai token trên đã giữ. `TermOrigin::FileImport` chỉ được
+/// PHÉP xuất hiện dưới `core/glossary/**` (nơi nó được khai và nơi `import_into_tier` gọi
+/// tới nó), giống hệt hai token kia.
+const NON_MANUAL_ORIGIN_TOKENS: [&str; 3] = [
+    "TermOrigin::ImportScan",
+    "TermOrigin::ReviewHarvest",
+    "TermOrigin::FileImport",
+];
 
 /// Vị từ THUẦN dùng bởi cổng thật ([`only_core_glossary_may_spell_the_non_manual_term_origin_tokens`])
 /// **VÀ** bài tự kiểm ngay dưới — tách ra để hai bên không thể lệch nhau bằng cách trùng
@@ -533,10 +543,13 @@ fn only_core_glossary_may_spell_the_non_manual_term_origin_tokens() {
         "{} chỗ ngoài `{GLOSSARY_DIR}` gõ token xuất xứ tự động:\n{}\n\n\
          `TermOrigin::ImportScan`/`TermOrigin::ReviewHarvest` chỉ được PHÉP sinh ra bên \
          trong `core::glossary::candidate::CandidateOrigin::to_term_origin` — chỗ DUY NHẤT \
-         trong kho suy một `term_origin` khác `manual`, và nó suy TỪ dữ liệu đã có trên đĩa \
-         (`candidate_origin` của chính hàng ứng viên), không nhận từ một tham số mà chỗ gọi \
-         ngoài tự đặt (AD-20). Gọi `CandidateOrigin::ImportScan`/`CandidateOrigin::ReviewHarvest` \
-         (ví dụ qua `insert_candidate`) là HỢP LỆ và KHÔNG bị cổng này bắt.",
+         trong kho suy một `term_origin` khác `manual` TỪ DỮ LIỆU ĐÃ CÓ TRÊN ĐĨA \
+         (`candidate_origin` của chính hàng ứng viên). `TermOrigin::FileImport` (Story 3.10) \
+         chỉ được PHÉP xuất hiện trong `core::glossary::store::import_into_tier` — nó tự đặt \
+         giá trị này cho MỌI hàng, không suy từ đĩa và không nhận từ một tham số mà chỗ gọi \
+         ngoài tự đặt (cùng nguyên tắc AD-20/FR55). Gọi `CandidateOrigin::ImportScan`/ \
+         `CandidateOrigin::ReviewHarvest` (ví dụ qua `insert_candidate`) là HỢP LỆ và KHÔNG \
+         bị cổng này bắt.",
         violations.len(),
         violations.join("\n")
     );
@@ -570,6 +583,13 @@ fn the_non_manual_origin_token_check_catches_term_origin_but_not_candidate_origi
     );
     assert_eq!(
         line_spells_a_non_manual_term_origin_token(
+            "term_origin: TermOrigin::FileImport.as_str(),"
+        ),
+        Some("TermOrigin::FileImport"),
+        "ca DUONG THAT thu ba (Story 3.10): TermOrigin::FileImport phai bi bat"
+    );
+    assert_eq!(
+        line_spells_a_non_manual_term_origin_token(
             "insert_candidate(store, term, CandidateOrigin::ImportScan)"
         ),
         None,
@@ -588,11 +608,14 @@ fn the_non_manual_origin_token_check_catches_term_origin_but_not_candidate_origi
     );
 }
 
-/// Đối chứng dương: `core::glossary` **có thật sự** đánh vần CẢ HAI token — không có ca
-/// này thì phép kiểm trên xanh y hệt trên một cây mà `entry.rs`/`candidate.rs` đã bị xoá
-/// hết biến thể `ImportScan`/`ReviewHarvest`.
+/// Đối chứng dương: `core::glossary` **có thật sự** đánh vần MỌI token — không có ca
+/// này thì phép kiểm trên xanh y hệt trên một cây mà `entry.rs`/`candidate.rs`/`store.rs`
+/// đã bị xoá hết biến thể `ImportScan`/`ReviewHarvest`/`FileImport`.
+///
+/// 🔵 **SỬA 2026-08-24 (Story 3.10) — đổi tên từ `..._spells_both_...`.** Ba token kể từ
+/// lượt này, không còn hai; tên cũ nói sai số sau khi `NON_MANUAL_ORIGIN_TOKENS` lên 3.
 #[test]
-fn core_glossary_actually_spells_both_non_manual_origin_tokens() {
+fn core_glossary_actually_spells_every_non_manual_origin_token() {
     let (root, files) = all_rust_sources();
 
     for needle in NON_MANUAL_ORIGIN_TOKENS {

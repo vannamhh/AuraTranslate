@@ -52,7 +52,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: 2026-08-03T13:04:45
-last_updated: 2026-08-24T00:00:00
+last_updated: 2026-08-25T00:00:00
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -288,8 +288,13 @@ development_status:
   # `tauri-plugin-dialog`. Ice chốt đi đường `tauri-plugin-dialog` (chọn hai lần, lần sau
   # đã đọc số đo) ⇒ đó là một `AD` MỚI, và `AD` giao Winston soạn, không phải dev.
   # Hồ sơ bàn giao: `_bmad-output/planning-artifacts/ad-brief-2026-08-24-hop-thoai-chon-tep.md`.
-  # Story ở lại `backlog` cho tới khi `AD` có. Baseline lúc dừng: `044d7a6`.
-  3-10-xuat-va-nhap-glossary-qua-csv-tsv: backlog
+  # 🔵 2026-08-24 (cùng ngày, muộn hơn) — MỆNH ĐỀ "ở lại backlog" HẾT ĐÚNG. Ice chốt TÁCH:
+  # nửa CHỌN TỆP hoãn (sổ nợ, chủ Winston) — nửa ĐỊNH DẠNG chạy ngay và KHÔNG đụng hộp thoại.
+  # Nửa đang chạy: sinh/phân tích CSV-TSV (`&str` vào, `String` ra) + một đường ghi nguyên tử
+  # + `TermOrigin::FileImport` (bước di trú thứ 5 của `global.db`, thứ 15 của `project.db` —
+  # lần ĐẦU kho dựng lại một bảng). Không đọc/ghi tệp, không vỏ `#[tauri::command]` nào.
+  # Spec: `3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`, baseline `3a1d8295a395639cb2c05a731328e1c55c83ee8a`.
+  3-10-xuat-va-nhap-glossary-qua-csv-tsv: review
   epic-3-retrospective: optional
 
   # Epic 4: AI mở & Smart RAG Injector

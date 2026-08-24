@@ -285,6 +285,7 @@ pub fn approve_candidate(
             "",
             category,
             term_origin.as_str(),
+            None,
         )
     })
 }
