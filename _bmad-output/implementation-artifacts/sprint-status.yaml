@@ -283,6 +283,12 @@ development_status:
   # liệu chứ không từ một con trỏ lưu xuống đĩa.
   3-8-duyet-hang-loat-mot-phim: done
   3-9-quan-ly-glossary: done
+  # 🔴 2026-08-24 — DỪNG Ở MỘT CỬA CHẶN, chưa có spec. AC1 (*"xuất ⇒ sinh ra file CSV hoặc
+  # TSV"*) đòi một hộp thoại chọn tệp; `check-deps.mjs:163,165` cấm `tauri-plugin-fs` và
+  # `tauri-plugin-dialog`. Ice chốt đi đường `tauri-plugin-dialog` (chọn hai lần, lần sau
+  # đã đọc số đo) ⇒ đó là một `AD` MỚI, và `AD` giao Winston soạn, không phải dev.
+  # Hồ sơ bàn giao: `_bmad-output/planning-artifacts/ad-brief-2026-08-24-hop-thoai-chon-tep.md`.
+  # Story ở lại `backlog` cho tới khi `AD` có. Baseline lúc dừng: `044d7a6`.
   3-10-xuat-va-nhap-glossary-qua-csv-tsv: backlog
   epic-3-retrospective: optional
 
