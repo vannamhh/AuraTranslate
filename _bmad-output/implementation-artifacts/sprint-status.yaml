@@ -281,8 +281,8 @@ development_status:
   # chính quyết định đó làm hai cột mà `schema.rs:412` giao cho story này trở nên thừa: hàng
   # đã quyết tự rời `WHERE resolution IS NULL`, nên "mở lại đúng vị trí" đến từ mô hình dữ
   # liệu chứ không từ một con trỏ lưu xuống đĩa.
-  3-8-duyet-hang-loat-mot-phim: review
-  3-9-quan-ly-glossary: review
+  3-8-duyet-hang-loat-mot-phim: done
+  3-9-quan-ly-glossary: done
   3-10-xuat-va-nhap-glossary-qua-csv-tsv: backlog
   epic-3-retrospective: optional
 
