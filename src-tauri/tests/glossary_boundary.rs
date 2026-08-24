@@ -184,7 +184,14 @@ fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static st
 /// hàng loạt một phím (FR53/FR55): `commands::glossary::glossary_reject_candidate` là chỗ
 /// gọi ĐẦU TIÊN — đóng nốt món nợ mà `candidate_store.rs` (Story 3.2) và các đoạn 🔵 phía
 /// trên đã ghi tên "chủ Story 3.8".
-const QUICK_ADD_SURFACE: [&str; 9] = [
+/// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.9) — BA hàm nữa, THỨ MƯỜI/MƯỜI MỘT/MƯỜI HAI: `list_all_
+/// entries` · `delete_manual_term` · `promote_to_global`.** Quản lý Glossary (FR49):
+/// `commands::glossary::{glossary_list_entries, glossary_delete_term, glossary_promote_
+/// term_to_global}` là chỗ gọi ĐẦU TIÊN của cả ba. `list_all_entries` là khuôn chép
+/// `entries_eligible_for_injection` (không lọc `is_confirmed`, phát cả `shadowed()`);
+/// `delete_manual_term` là khuôn chép `add_manual_term`/`update_manual_term`; `promote_to_
+/// global` là hàm DUY NHẤT của module ghi vào HAI `Store` khác nhau trong cùng một lượt gọi.
+const QUICK_ADD_SURFACE: [&str; 12] = [
     "resolve_term_for_quick_add",
     "add_manual_term",
     "update_manual_term",
@@ -194,6 +201,9 @@ const QUICK_ADD_SURFACE: [&str; 9] = [
     "approve_candidate",
     "suggest_han_viet_batch",
     "reject_candidate",
+    "list_all_entries",
+    "delete_manual_term",
+    "promote_to_global",
 ];
 
 /// Token xuất xứ TỰ ĐỘNG — chỉ được sinh ra (biến thể enum, chuỗi `as_str()`) bên trong

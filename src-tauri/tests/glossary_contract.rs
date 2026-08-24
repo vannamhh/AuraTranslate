@@ -25,9 +25,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::core::glossary::scan::ScanCandidate;
 use auratranslate_lib::core::glossary::{
     CandidateOrigin, Category, GlossaryError, GlossaryTier, TermOrigin, add_manual_term,
-    approve_candidate, confirm_translation, entries_eligible_for_injection, insert_candidate,
-    insert_import_scan_candidates, insert_manual_entry, load_tier, pending_candidates,
-    reject_candidate, resolve_term_for_quick_add, update_manual_term,
+    approve_candidate, confirm_translation, delete_manual_term, entries_eligible_for_injection,
+    insert_candidate, insert_import_scan_candidates, insert_manual_entry, list_all_entries,
+    load_tier, pending_candidates, promote_to_global, reject_candidate,
+    resolve_term_for_quick_add, update_manual_term,
 };
 use auratranslate_lib::core::scope::{ScopeError, ScopeResolver, WorkScope};
 use auratranslate_lib::core::store::{
@@ -2517,4 +2518,238 @@ fn serde_rejects_an_unknown_category_or_tier_string_instead_of_guessing() {
         serde_json::from_str::<GlossaryTier>("\"khong_ton_tai\"").is_err(),
         "mot chuoi la phai bi serde TU CHOI, khong duoc doan ve bien the nao"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.9 — Quản lý Glossary: `list_all_entries` · `delete_manual_term` ·
+// `promote_to_global`
+// ═════════════════════════════════════════════════════════════════════════════════
+
+fn work_scope() -> WorkScope {
+    WorkScope {
+        work_id: "0192f3c4-5678-4abc-8def-0123456789ab".to_owned(),
+    }
+}
+
+/// 🔴 **Ca trung tâm của story** — mục Global bị một mục Work cùng `source_term` che vẫn
+/// PHẢI có mặt trong `list_all_entries`, mang cờ `is_shadowed = true`. §Intent của spec:
+/// bỏ hàng này đi là làm một mục Global CÓ THẬT biến mất khỏi màn hình quản lý mà không
+/// dòng nào giải thích.
+#[test]
+fn list_all_entries_includes_a_shadowed_global_row_flagged_true() {
+    let dir = temp_dir("list-shadowed");
+    let global_store = open_global(&dir);
+    let work_store = open_project(&dir);
+
+    insert_manual_entry(&global_store, "慕容", Some("Mộ Dung"), "", Category::Person)
+        .expect("chen muc global");
+    insert_manual_entry(&work_store, "慕容", Some("Mộ Dong"), "", Category::Person)
+        .expect("chen muc work");
+
+    let resolver = ScopeResolver::with_work(work_scope());
+    let rows = list_all_entries(&resolver, &global_store, Some(&work_store))
+        .expect("list_all_entries khong loi voi kind hop le");
+
+    assert_eq!(
+        rows.len(),
+        2,
+        "dung HAI hang cho cung mot source_term: hang THANG (Work) va hang BI CHE (Global). \
+         Nhan: {rows:?}"
+    );
+
+    let winner = rows
+        .iter()
+        .find(|(tier, _, shadowed)| *tier == GlossaryTier::Work && !shadowed)
+        .expect("phai co hang THANG o tang Work");
+    assert_eq!(winner.1.translation.as_deref(), Some("Mộ Dong"));
+
+    let shadowed_row = rows
+        .iter()
+        .find(|(tier, _, shadowed)| *tier == GlossaryTier::Global && *shadowed)
+        .expect("phai co hang BI CHE o tang Global, mang co is_shadowed=true");
+    assert_eq!(shadowed_row.1.translation.as_deref(), Some("Mộ Dung"));
+
+    // Đối chứng: hàng thắng KHÔNG mang cờ, hàng Global KHÔNG bị che (không tồn tại) khi
+    // không có gì che nó — kiểm cả hai chiều để cổng không xanh giả trên "mọi hàng đều
+    // mang is_shadowed=true" hay ngược lại.
+    assert!(!winner.2, "hang THANG khong duoc mang co is_shadowed");
+
+    drop(global_store);
+    drop(work_store);
+    cleanup(&dir);
+}
+
+/// `list_all_entries` **không lọc** `is_confirmed` — khác `entries_eligible_for_injection`.
+/// Một mục chờ chốt phải hiện ra để người dùng SỬA/XOÁ nó.
+#[test]
+fn list_all_entries_includes_pending_entries_unlike_entries_eligible_for_injection() {
+    let dir = temp_dir("list-includes-pending");
+    let store = open_global(&dir);
+
+    insert_manual_entry(&store, "青丘", None, "", Category::Place).expect("chen muc cho chot");
+
+    let resolver = ScopeResolver::global_only();
+    let rows =
+        list_all_entries(&resolver, &store, None).expect("list_all_entries khong loi voi kind hop le");
+
+    assert_eq!(rows.len(), 1, "muc cho chot phai co mat khi liet ke ca hai tang");
+    assert!(!rows[0].1.is_confirmed(), "muc van o trang thai cho chot");
+    assert!(!rows[0].2, "mot tang duy nhat khong co gi de che no");
+
+    // Đối chứng: `entries_eligible_for_injection` KHÔNG trả mục này — hai hàm phục vụ hai
+    // câu hỏi khác nhau (§Design Notes của Story 3.3).
+    let eligible = entries_eligible_for_injection(&resolver, &store, None)
+        .expect("entries_eligible_for_injection khong loi voi kind hop le");
+    assert!(eligible.is_empty(), "mot muc cho chot khong duoc du dieu kien chen");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// 🔴 **Xoá một mục ĐÃ CHỐT là hợp lệ** *(Ice chốt 2026-08-24)* — trigger một chiều chỉ
+/// khớp `UPDATE OF translation`, không bao giờ khớp `DELETE`.
+#[test]
+fn delete_manual_term_removes_an_already_confirmed_entry() {
+    let dir = temp_dir("delete-confirmed");
+    let store = open_global(&dir);
+
+    let id = insert_manual_entry(&store, "青丘", Some("Thanh Khâu"), "", Category::Place)
+        .expect("chen muc da chot");
+
+    delete_manual_term(&store, None, GlossaryTier::Global, id)
+        .expect("xoa mot muc DA CHOT phai THANH CONG");
+
+    let global = load_tier(&store).expect("nap lai tang global");
+    assert!(!global.contains_key("青丘"), "muc phai bien mat sau khi xoa");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Xoá một `id` không khớp hàng nào ⇒ `GlossaryError::EntryMissing`, không phải một
+/// `Ok(())` rỗng im lặng cho một lượt ghi 0 hàng.
+#[test]
+fn delete_manual_term_rejects_an_id_that_does_not_exist() {
+    let dir = temp_dir("delete-missing-id");
+    let store = open_global(&dir);
+
+    let real_id =
+        insert_manual_entry(&store, "青丘", Some("Thanh Khâu"), "", Category::Place).expect("chen muc that");
+
+    let result = delete_manual_term(&store, None, GlossaryTier::Global, real_id + 1000);
+    assert_eq!(
+        result,
+        Err(GlossaryError::EntryMissing),
+        "id la khong ton tai phai bi TU CHOI. Nhan: {result:?}"
+    );
+
+    let global = load_tier(&store).expect("nap lai tang global");
+    assert_eq!(global.len(), 1, "muc that khong bi dung toi boi mot lenh xoa id sai");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Chọn tầng Tác phẩm khi chưa mở Tác phẩm nào ⇒ `GlossaryError::WorkTierUnavailable` —
+/// cùng khuôn `add_manual_term`/`update_manual_term`.
+#[test]
+fn delete_manual_term_at_the_work_tier_without_a_work_store_is_rejected() {
+    let dir = temp_dir("delete-work-tier-unavailable");
+    let store = open_global(&dir);
+
+    let result = delete_manual_term(&store, None, GlossaryTier::Work, 1);
+    assert_eq!(result, Err(GlossaryError::WorkTierUnavailable));
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Đẩy tầng, đích trống: `INSERT global` rồi `DELETE work`; hàng đổi tầng và giữ nguyên
+/// `translation`/`note`/`category`/`term_origin`.
+#[test]
+fn promote_to_global_moves_an_entry_when_the_destination_is_empty() {
+    let dir = temp_dir("promote-empty-destination");
+    let global_store = open_global(&dir);
+    let work_store = open_project(&dir);
+
+    let id = insert_manual_entry(&work_store, "青丘", Some("Thanh Khâu"), "ghi chu", Category::Place)
+        .expect("chen muc work");
+
+    promote_to_global(&global_store, &work_store, id).expect("day tang phai THANH CONG khi dich trong");
+
+    let global = load_tier(&global_store).expect("nap tang global");
+    let promoted = global.get("青丘").expect("muc phai xuat hien o tang Global sau khi day");
+    assert_eq!(promoted.translation.as_deref(), Some("Thanh Khâu"));
+    assert_eq!(promoted.note, "ghi chu");
+    assert_eq!(promoted.category, Category::Place);
+    assert_eq!(
+        promoted.term_origin,
+        TermOrigin::Manual,
+        "muc nhap tay o tang Work phai giu nguyen term_origin sau khi day"
+    );
+
+    let work = load_tier(&work_store).expect("nap lai tang work");
+    assert!(!work.contains_key("青丘"), "muc phai bien khoi tang Work sau khi day thanh cong");
+
+    drop(global_store);
+    drop(work_store);
+    cleanup(&dir);
+}
+
+/// 🔴 Đẩy tầng, đích ĐÃ CÓ `source_term` này ⇒ `GlossaryError::GlobalTermExists`, **0 lượt
+/// ghi**: cả hai mục giữ nguyên giá trị cũ, không ghi đè.
+#[test]
+fn promote_to_global_rejects_and_writes_nothing_when_the_destination_already_has_the_term() {
+    let dir = temp_dir("promote-destination-exists");
+    let global_store = open_global(&dir);
+    let work_store = open_project(&dir);
+
+    insert_manual_entry(&global_store, "青丘", Some("Thanh Khau Cu"), "", Category::Place)
+        .expect("chen muc global truoc");
+    let work_id = insert_manual_entry(&work_store, "青丘", Some("Thanh Khâu"), "", Category::Place)
+        .expect("chen muc work");
+
+    let result = promote_to_global(&global_store, &work_store, work_id);
+    assert_eq!(
+        result,
+        Err(GlossaryError::GlobalTermExists),
+        "dich da co source_term nay phai bi TU CHOI bang mot loi CO TEN. Nhan: {result:?}"
+    );
+
+    let global = load_tier(&global_store).expect("nap lai tang global");
+    assert_eq!(
+        global["青丘"].translation.as_deref(),
+        Some("Thanh Khau Cu"),
+        "muc Global cu KHONG duoc ghi de"
+    );
+
+    let work = load_tier(&work_store).expect("nap lai tang work");
+    assert_eq!(
+        work["青丘"].translation.as_deref(),
+        Some("Thanh Khâu"),
+        "muc Work van con nguyen -- 0 luot ghi nghia la KHONG bi xoa"
+    );
+
+    drop(global_store);
+    drop(work_store);
+    cleanup(&dir);
+}
+
+/// `id` không khớp hàng nào ở tầng Work ⇒ `GlossaryError::EntryMissing`, và `global.db`
+/// KHÔNG bị chạm — bước đọc trượt trước khi bất kỳ lượt ghi nào chạy.
+#[test]
+fn promote_to_global_rejects_an_id_that_does_not_exist_at_the_work_tier() {
+    let dir = temp_dir("promote-missing-id");
+    let global_store = open_global(&dir);
+    let work_store = open_project(&dir);
+
+    let result = promote_to_global(&global_store, &work_store, 999_999);
+    assert_eq!(result, Err(GlossaryError::EntryMissing), "id la khong ton tai o tang Work");
+
+    let global = load_tier(&global_store).expect("nap tang global");
+    assert!(global.is_empty(), "global.db khong duoc dung toi khi id da khong ton tai");
+
+    drop(global_store);
+    drop(work_store);
+    cleanup(&dir);
 }

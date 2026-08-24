@@ -169,6 +169,22 @@ import {
   queueOverlayIsOpen,
   rejectGlossaryQueueCandidate,
 } from './glossaryQueueState'
+// ── Story 3.9 — lớp phủ "Quản lý Glossary" (FR49) ─────────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `glossaryQueueState.ts`: `glossaryManageState.ts` dùng
+// `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/glossary.ts`.
+import {
+  beginGlossaryManageEdit,
+  cancelGlossaryManageEdit,
+  closeGlossaryManage,
+  deleteGlossaryManageEntry,
+  manageOverlayIsOpen,
+  nextGlossaryManageRow,
+  openGlossaryManage,
+  prevGlossaryManageRow,
+  promoteGlossaryManageEntry,
+  saveGlossaryManageEdit,
+} from './glossaryManageState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -496,6 +512,24 @@ async function boot(): Promise<void> {
       },
       nextGlossaryQueueCandidate,
       prevGlossaryQueueCandidate,
+      // Story 3.9 · FR49 — lớp phủ "Quản lý Glossary".
+      openGlossaryManage: () => {
+        void openGlossaryManage()
+      },
+      closeGlossaryManage,
+      beginGlossaryManageEdit,
+      saveGlossaryManageEdit: () => {
+        void saveGlossaryManageEdit()
+      },
+      cancelGlossaryManageEdit,
+      deleteGlossaryManageEntry: () => {
+        void deleteGlossaryManageEntry()
+      },
+      promoteGlossaryManageEntry: () => {
+        void promoteGlossaryManageEntry()
+      },
+      nextGlossaryManageRow,
+      prevGlossaryManageRow,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
@@ -529,7 +563,8 @@ async function boot(): Promise<void> {
         attributionIsOpen.value ||
         captureIsArmed.value ||
         glossarySettingsOverlayIsOpen.value ||
-        queueOverlayIsOpen.value,
+        queueOverlayIsOpen.value ||
+        manageOverlayIsOpen.value,
     })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng

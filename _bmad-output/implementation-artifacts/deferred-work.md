@@ -5813,6 +5813,11 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     hiện có, ngoài phạm vi story này.
     **(Chủ: Story 3.9 — quản lý Glossary, lượt tiếp theo chạm cùng hai hàm này qua nghiệp vụ
     xoá/đẩy tầng, tự nhiên đọc lại chữ ký trước khi thêm quyền mới.)**
+    🔵 **Đo lại 2026-08-24 (Story 3.9) — món nợ LỚN HƠN, không đóng.** Story 3.9 thêm ba hàm
+    phơi ra mang đúng hình dạng lệch được ấy (`list_all_entries` · `delete_manual_term` ·
+    `promote_to_global`), nên số chỗ gọi cặp `(&Store, &ScopeResolver)` đi từ **3 lên 6**.
+    Gói lại thành `WorkContext<'a>` vẫn là một lượt sửa chữ ký chạm mọi chỗ gọi đã có, tức
+    một đích giao được riêng — 3.9 cố ý KHÔNG làm, và ghi số mới thay vì làm tròn lên.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: Đổi TẦNG của một mục Glossary đã có (chuyển một mục từ `project.db` lên
@@ -5824,6 +5829,15 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     viết dòng mã đầu tiên. `mockups/glossary-manage.html` (nếu có) là màn hình quản lý đầy
     đủ, nơi thao tác "đẩy một mục từ Tác phẩm lên Global bằng một thao tác" thuộc về.
     **(Chủ: Story 3.9 — quản lý Glossary.)**
+    → ✅ ĐÃ ĐÓNG 2026-08-24 (Story 3.9) — `promote_to_global`
+    (`src-tauri/src/core/glossary/store.rs:823`) đọc hàng ở `project.db` rồi ghi sang
+    `global.db`, phơi ra qua vỏ IPC `glossary_promote_term_to_global`. 🔴 **Chỉ MỘT chiều
+    Work → Global được dựng**; chiều ngược lại (Global → Work) vẫn không có đường nào, và
+    AC của Story 3.9 chỉ đòi chiều đi lên. Hai kho không có giao dịch chung, nên thứ tự là
+    `INSERT` global TRƯỚC, `DELETE` work SAU: một lượt sập giữa hai bước để lại trạng thái
+    DƯ (mục ở cả hai tầng, Work vẫn thắng, làm lại được), không để lại trạng thái THIẾU.
+    Nghiệm thu: `glossary_contract.rs::promote_to_global_moves_an_entry_when_the_destination_is_empty`
+    và `…_rejects_and_writes_nothing_when_the_destination_already_has_the_term`.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: Một ứng viên (`glossary_candidate`) trùng `source_term` với một mục vừa được
@@ -5887,6 +5901,13 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     lượt lẻ là một bộ KHÔNG dùng làm cổng được, và nó đang là đường nghiệm thu DUY NHẤT cho
     mọi mệnh đề về webview thật. **(Chủ: Story 3.9 — story kế tiếp thêm spec e2e cho màn hình
     Glossary, tức chỗ đầu tiên chi phí của sự chập chờn này rơi vào một lượt phát triển thật.)**
+    🔵 **CHUYỂN CHỦ 2026-08-24 (Ice chốt, lượt Story 3.9) — chủ nay là Ice.** Công thức
+    "story kế tiếp dựng một bề mặt Glossary sẽ gánh" đã TRƯỢT một lượt đo được: Story 3.9
+    dựng xong màn hình quản lý Glossary và thêm **0** spec e2e. Điều kiện chặn của cả ba mục
+    nằm ngoài tầm mọi story epic-3 — bộ e2e chưa từng chạy trên một runner thật, và nửa
+    Windows thì chưa lần nào — nên lượt gắn chủ tiếp theo phải là một quyết định XẾP LỊCH,
+    không phải một lượt thừa kế sang story kế tiếp. Mệnh đề chủ cũ ở trên KHÔNG bị xoá: nó
+    là bằng chứng cho chính lý do đổi này.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: Không spec e2e nào bôi đen được chữ bằng **chuột thật** — WebDriver pointer action
@@ -5929,6 +5950,13 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     đỏ, đúng trạng thái nó vừa được dựng để thoát ra. **(Chủ: Story 3.9 — cùng chủ với mục
     nợ chập chờn ngay trên, vì cùng một bảng nightly trả lời cả hai, và 3.9 là story kế tiếp
     thêm spec e2e.)**
+    🔵 **CHUYỂN CHỦ 2026-08-24 (Ice chốt, lượt Story 3.9) — chủ nay là Ice.** Công thức
+    "story kế tiếp dựng một bề mặt Glossary sẽ gánh" đã TRƯỢT một lượt đo được: Story 3.9
+    dựng xong màn hình quản lý Glossary và thêm **0** spec e2e. Điều kiện chặn của cả ba mục
+    nằm ngoài tầm mọi story epic-3 — bộ e2e chưa từng chạy trên một runner thật, và nửa
+    Windows thì chưa lần nào — nên lượt gắn chủ tiếp theo phải là một quyết định XẾP LỊCH,
+    không phải một lượt thừa kế sang story kế tiếp. Mệnh đề chủ cũ ở trên KHÔNG bị xoá: nó
+    là bằng chứng cho chính lý do đổi này.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-3-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao.md`
   summary: `attribution-focus.e2e.mjs` **`skip` trên CI** — nó là spec DUY NHẤT của bộ cần dữ
@@ -5944,6 +5972,13 @@ những mục CÒN LẠI, không mục nào mồ côi.*
     🔴 Đường đóng thật là dựng được một `.db` TÍ HON trong CI từ một mẫu đã commit, không
     tải gì — chưa đo `tools/dict-build` có đường không-tải hay không. **(Chủ: Story 3.9 —
     cùng chủ với hai mục nợ e2e ở trên, cùng một bảng nightly trả lời cả ba.)**
+    🔵 **CHUYỂN CHỦ 2026-08-24 (Ice chốt, lượt Story 3.9) — chủ nay là Ice.** Công thức
+    "story kế tiếp dựng một bề mặt Glossary sẽ gánh" đã TRƯỢT một lượt đo được: Story 3.9
+    dựng xong màn hình quản lý Glossary và thêm **0** spec e2e. Điều kiện chặn của cả ba mục
+    nằm ngoài tầm mọi story epic-3 — bộ e2e chưa từng chạy trên một runner thật, và nửa
+    Windows thì chưa lần nào — nên lượt gắn chủ tiếp theo phải là một quyết định XẾP LỊCH,
+    không phải một lượt thừa kế sang story kế tiếp. Mệnh đề chủ cũ ở trên KHÔNG bị xoá: nó
+    là bằng chứng cho chính lý do đổi này.
 
 ## Deferred from: lượt `correct-course` tách Story 3.4b (2026-08-21)
 
@@ -6614,3 +6649,82 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     đó. Cả hai vế đều là lớp *"rỗng im lặng"* mà `AGENTS.md:46` gọi là lỗi trung tâm của kho.
     **(Chủ: Story 3.9 — Quản lý Glossary, cùng bề mặt; hoặc story đầu tiên mở một bước di trú
     cho cột phân loại của bảng chờ.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
+  summary: **`source_term` của một mục Glossary KHÔNG sửa được** — màn hình quản lý sửa được
+    bản dịch, ghi chú và phân loại, nhưng gõ sai chính thuật ngữ nguồn thì phải xoá rồi thêm
+    lại, và lượt thêm lại mất `created_at` gốc.
+  evidence: `update_manual_term` (`src-tauri/src/core/glossary/store.rs:649-679`) ghi đúng ba
+    cột `translation`/`note`/`category`; `idx_glossary_entry_source_term` là `UNIQUE`
+    (`schema.rs:327`), nên đổi `source_term` là một lượt ghi có thể va khoá và cần một nhánh
+    lỗi riêng.
+    ⚠️ **KHÔNG phải lệch AC:** AC của Story 3.9 viết "người dùng sửa ⇒ thay đổi lưu ngay" mà
+    không liệt kê cột nào, và ba cột đang sửa được đã phủ mọi ca sửa mà mockup vẽ. Đây là một
+    năng lực chưa dựng, không phải một chỗ lệch spec.
+    **(Chủ: Story 3.10 — Xuất/nhập CSV-TSV chạm đúng `source_term` khi đối chiếu bất đồng lúc
+    nhập, nên nhánh va `UNIQUE` phải được viết ra ở đó dù story này có dựng hay không.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
+  summary: **Không cột "Dùng" (số lần thuật ngữ xuất hiện trong Tác phẩm), và không sắp xếp
+    theo tần suất** — `mockups/glossary-manage.html:158-176` vẽ cả hai, màn hình đã dựng không
+    có cái nào.
+  evidence: `occurrence_count` là cột của `glossary_candidate` (`schema.rs:448`), **không** của
+    `glossary_entry` (`GLOSSARY_ENTRY_DDL`, `schema.rs:300-331` — bảy cột, không cột nào đếm).
+    Một ứng viên đã duyệt thành mục Glossary thì con số đó ở lại bảng chờ và không đi theo.
+    ⚠️ Cùng lớp với mục nợ mà Story 3.8 đã ghi cho chính mockup này: vẽ một con số máy chưa hề
+    tính là dựng một sự thật không có. Ba dòng khác của mockup cùng cảnh (thống kê
+    *"reviewer đổi ở 23/24 lần"* đòi dữ liệu thu hoạch-từ-review mà Epic 8 chưa dựng).
+    **(Chủ: Ice — đây là một quyết định sản phẩm, không phải một chỗ sót kỹ thuật: cột này chỉ
+    tồn tại được nếu chấp nhận một bước di trú thêm cột đếm vào `glossary_entry` và một đường
+    cập nhật nó, tức một đích giao được riêng.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
+  summary: **Xoá một mục Glossary KHÔNG có bước xác nhận** — một phím `Backspace`/`Delete` khi
+    tiêu điểm ở ngoài ô gõ là xoá thật, ngay, không hoàn tác được, kể cả với một mục đã chốt
+    dùng suốt nửa năm.
+  evidence: Vòng rà ba lớp 2026-08-24. `GlossaryManageOverlay.vue::onKeydown` bắn thẳng
+    `dispatch('glossary.manage.delete')`; `glossaryManageState.ts::deleteGlossaryManageEntry`
+    gọi `deleteGlossaryTerm` không qua một cửa hỏi lại nào. Chính tệp đó lại rất cẩn thận với
+    kích hoạt NGOÀI Ý ĐỊNH (lọc `ctrlKey`/`metaKey`/`altKey`, lọc theo target là ô gõ), nên
+    khoảng trống này không phải một lượt quên mà là một mệnh đề chưa ai quyết.
+    ⚠️ **KHÔNG phải lệch AC:** §I/O Matrix của Story 3.9 viết *"mục biến khỏi danh sách"* và
+    không nhắc một bước xác nhận nào; spec cũng không cấm. Đây là một quyết định sản phẩm.
+    **(Chủ: Ice — hai đường đều hợp lệ và ngược chiều nhau: một hộp xác nhận cho mọi lượt xoá,
+    hay một đường HOÀN TÁC sau khi xoá. Đường thứ hai hợp gu kho hơn nhưng đắt hơn nhiều vì
+    mục ở tầng Tác phẩm và tầng Toàn cục nằm ở hai kho không có giao dịch chung.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
+  summary: **Gõ vào ô tìm hoặc đổi một bộ lọc XOÁ bản sửa đang dở, không một câu nào** — người
+    dùng đang sửa bản dịch của một mục, gõ một ký tự vào ô tìm, và phần vừa gõ biến mất.
+  evidence: Vòng rà ba lớp 2026-08-24. Cả bốn hàm đặt bộ lọc (`glossaryManageState.ts:229`
+    `:236` `:243` `:250` — số dòng trước bản vá cùng ngày) gọi `discardOpenEdit()` vô điều
+    kiện, và không `<input>`/`<select>` nào của thanh công cụ bị `disabled` trong khi
+    `manageEditing` là `true`. Cùng LỚP với hai lượt im lặng mà Story 3.8 đã ghi nợ
+    (`deferred-work.md`, mục "Hai lượt IM LẶNG trong lớp phủ duyệt").
+    **(Chủ: Ice — ba đường đều hợp lệ: vô hiệu thanh công cụ trong lúc sửa · giữ bản sửa qua
+    lượt lọc · hoặc nói ra bằng một câu trước khi bỏ. Chọn đường nào là một quyết định sản
+    phẩm, không phải một lượt vá.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
+  summary: **Hàng trong lưới quản lý không bấm chuột để chọn được** — con trỏ chỉ dời bằng mũi
+    tên hoặc hai nút Chuyển lên/Chuyển xuống, mỗi lần một hàng.
+  evidence: Vòng rà ba lớp 2026-08-24. `<li class="gm-row">` không mang `@click`. Trên một
+    Glossary vài trăm mục, nhảy tới mục quan tâm tốn từng ấy lượt bấm mũi tên.
+    🔴 **Mục nợ của Story 3.8 (chip và hàng ứng viên không bấm chuột được) vì thế CHƯA ĐÓNG.**
+    Lý do ghi ở đó là *"story kế tiếp dựng một bề mặt danh sách có thao tác chuột đầy đủ"* —
+    Story 3.9 đã dựng bề mặt ấy, và nó mang **cùng** khoảng trống. Đừng đọc mục kia là đã đóng.
+    **(Chủ: Ice — cùng lượt với hai mục trên, vì cả ba là hình dạng tương tác của cùng một
+    bề mặt và tách ra thì lại được ba lượt vá rời rạc.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-9-quan-ly-glossary.md`
+  summary: **Nhánh `changed == 0` của `promote_to_global` KHÔNG có phép kiểm tất định** — nó chỉ
+    tới được bằng một cuộc đua thật giữa hai lượt ghi lên cùng một hàng Work.
+  evidence: `src-tauri/src/core/glossary/store.rs::promote_to_global` đọc hàng Work trước, nên
+    mọi ca `id` không tồn tại đã bị chặn bằng `EntryMissing` từ lượt đọc đó — ca hợp đồng
+    `promote_to_global_rejects_an_id_that_does_not_exist_at_the_work_tier` đi qua đường ấy.
+    Nhánh `DELETE` đổi 0 hàng chỉ xảy ra khi hàng biến mất GIỮA lượt đọc và lượt xoá.
+    🔵 Vòng rà 2026-08-24 đã sửa HÀNH VI của nhánh này (trả `Ok` thay vì `EntryMissing`, vì
+    trạng thái đích đã đạt — xem doc-comment tại chỗ), nhưng phép sửa đó **chưa được một ca
+    nào canh**. Không đánh dấu đạt bằng suy luận: đây là một mệnh đề đang đứng một mình.
+    **(Chủ: Ice — cần một cơ chế chèn điểm dừng vào giữa hai lượt ghi để dựng ca tất định, tức
+    một năng lực bàn đo mới chứ không phải một ca test thêm.)**

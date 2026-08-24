@@ -22,7 +22,8 @@
 //! `resolve_term_for_quick_add` / `add_manual_term` / `update_manual_term` (Story 3.3),
 //! `marks_for_source_text` (Story 3.4), `pending_candidates` (Story 3.5), `confirm_pending_
 //! translation` / `approve_candidate` (Story 3.6), `suggest_han_viet_batch` (Story 3.7),
-//! cộng `reject_candidate` (Story 3.8) là bề mặt DUY NHẤT mà tệp này được gọi xuống
+//! `reject_candidate` (Story 3.8), cộng `list_all_entries` / `delete_manual_term` /
+//! `promote_to_global` (Story 3.9) là bề mặt DUY NHẤT mà tệp này được gọi xuống
 //! `core::glossary`.
 //! `insert_manual_entry` / `confirm_translation` / `load_tier` / `insert_candidate` vẫn bị
 //! `glossary_boundary.rs::GLOSSARY_ONLY_SURFACE` cấm ngoài `core/glossary/**` — kể cả ở đây.
@@ -43,9 +44,9 @@ use crate::commands::project::OpenWork;
 use crate::core::dict::DictLayers;
 use crate::core::glossary::{
     Category, GlossaryEntry, GlossaryMark, GlossaryTier, HanVietSuggestion, add_manual_term,
-    approve_candidate, confirm_pending_translation, match_lang_for_source_lang,
-    marks_for_source_text, pending_candidates, reject_candidate, resolve_term_for_quick_add,
-    suggest_han_viet_batch, update_manual_term,
+    approve_candidate, confirm_pending_translation, delete_manual_term, list_all_entries,
+    match_lang_for_source_lang, marks_for_source_text, pending_candidates, promote_to_global,
+    reject_candidate, resolve_term_for_quick_add, suggest_han_viet_batch, update_manual_term,
 };
 use crate::core::i18n::IpcError;
 use crate::core::scope::ScopeResolver;
@@ -497,10 +498,130 @@ pub fn glossary_reject_candidate(open: Option<&OpenWork>, id: i64) -> Result<(),
     Ok(())
 }
 
-/// Tám vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.9 — Quản lý Glossary: liệt kê cả hai tầng · xoá · đẩy tầng (Work → Global)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Hình dạng trên dây của một mục Glossary trong màn hình quản lý — Story 3.9.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
+///
+/// Khác [`QuickAddTerm`]: mang thêm `is_shadowed` (Rust tính, KHÔNG chép quy tắc "Tác phẩm
+/// thắng" sang TypeScript — §Always của spec), và KHÔNG lọc `is_confirmed` (một mục chờ
+/// chốt vẫn phải hiện ra để SỬA/XOÁ).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct GlossaryEntryWire {
+    /// `"global"` hoặc `"work"`.
+    pub tier: String,
+    /// `glossary_entry.id` — chỉ có nghĩa CÙNG VỚI `tier` ở trên.
+    pub id: i64,
+    pub source_term: String,
+    /// `None` == *chờ chốt*.
+    pub translation: Option<String>,
+    pub note: String,
+    pub category: String,
+    pub term_origin: String,
+    pub created_at: String,
+    /// `true` ⇔ một mục Work cùng `source_term` đang thắng — hàng này KHÔNG được ép vào
+    /// prompt (AD-36) dù vẫn hiện trên màn hình quản lý.
+    pub is_shadowed: bool,
+}
+
+impl GlossaryEntryWire {
+    fn from_resolved(tier: GlossaryTier, entry: GlossaryEntry, is_shadowed: bool) -> Self {
+        Self {
+            tier: tier.as_str().to_owned(),
+            id: entry.id,
+            source_term: entry.source_term,
+            translation: entry.translation,
+            note: entry.note,
+            category: entry.category.as_str().to_owned(),
+            term_origin: entry.term_origin.as_str().to_owned(),
+            created_at: entry.created_at,
+            is_shadowed,
+        }
+    }
+}
+
+/// Mọi mục Glossary của **cả hai tầng** — **hàm thuần, đây là thứ test gọi**.
+///
+/// # Lỗi
+/// - `global.db` vắng mặt ⇒ `store.open_failed`;
+/// - đường đọc trượt (một trong hai tầng) ⇒ `store.read_failed`/`store.write_failed`;
+/// - `ScopeResolver::apply_override` từ chối ⇒ `glossary.scope_error` (lỗi lập trình,
+///   không nên xảy ra trên đường gọi đúng).
+pub fn glossary_list_entries(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+) -> Result<Vec<GlossaryEntryWire>, IpcError> {
+    let global = global.ok_or_else(store_is_missing)?;
+
+    let default_resolver = ScopeResolver::global_only();
+    let context = work_context(open);
+    let (resolver, work_store) = match context {
+        Some((store, resolver)) => (resolver, Some(store)),
+        None => (&default_resolver, None),
+    };
+
+    let rows = list_all_entries(resolver, global, work_store)?;
+    Ok(rows
+        .into_iter()
+        .map(|(tier, entry, shadowed)| GlossaryEntryWire::from_resolved(tier, entry, shadowed))
+        .collect())
+}
+
+/// Xoá mục `(tier, id)` — **hàm thuần, đây là thứ test gọi**.
+///
+/// # Lỗi
+/// - `global.db` vắng mặt ⇒ `store.open_failed`;
+/// - `tier == GlossaryTier::Work` mà chưa mở Tác phẩm nào ⇒ `glossary.work_tier_unavailable`;
+/// - `(tier, id)` không khớp hàng nào ⇒ `glossary.entry_missing`.
+pub fn glossary_delete_term(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: GlossaryTier,
+    id: i64,
+) -> Result<(), IpcError> {
+    let global = global.ok_or_else(store_is_missing)?;
+    let work_store = work_context(open).map(|(store, _)| store);
+
+    delete_manual_term(global, work_store, tier, id)?;
+    Ok(())
+}
+
+/// Đẩy mục `id` ở tầng **Tác phẩm** lên tầng **Toàn cục** — **hàm thuần, đây là thứ test
+/// gọi**.
+///
+/// ⚠️ **Không tham số `tier`** — khác [`glossary_delete_term`]. Lệnh này chỉ có nghĩa cho
+/// một hàng tầng Work (§I/O Matrix của spec: *"Đẩy một mục Global ⇒ Lệnh không áp dụng"*) —
+/// nửa giao diện không được phép gọi lệnh này cho một hàng `tier === 'global'`, và cấm đó
+/// đứng ở TẦNG UI (không hiện nút/không dispatch), không ở đây: `promote_to_global` (Rust)
+/// luôn đọc `id` từ `open.store` (`project.db`), nên gọi nó với một `id` chỉ tồn tại ở
+/// `global.db` tự nhiên rơi vào `glossary.entry_missing`.
+///
+/// # Lỗi
+/// - chưa mở Tác phẩm nào ⇒ `project.no_work_open` (bảng `glossary_entry` tầng Work chỉ
+///   tồn tại trong MỘT `project.db` — không có gì để đẩy nếu không có nó, cùng khuôn
+///   `glossary_approve_candidate`/`glossary_reject_candidate`);
+/// - `id` không khớp hàng nào ở tầng Work ⇒ `glossary.entry_missing`;
+/// - `source_term` đã có ở tầng Toàn cục ⇒ `glossary.global_term_exists`, **0 lượt ghi**.
+pub fn glossary_promote_term_to_global(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    id: i64,
+) -> Result<(), IpcError> {
+    let global = global.ok_or_else(store_is_missing)?;
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+
+    promote_to_global(global, &open.store, id)?;
+    Ok(())
+}
+
+/// Mười một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use super::{
-        Category, GlossaryCandidateWire, GlossaryMarkWire, GlossaryTier, IpcError, QuickAddLookup,
+        Category, GlossaryCandidateWire, GlossaryEntryWire, GlossaryMarkWire, GlossaryTier,
+        IpcError, QuickAddLookup,
     };
     use crate::commands::project::OpenWorkState;
     use crate::core::dict::DictLayers;
@@ -735,5 +856,50 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::glossary_reject_candidate(guard.as_ref(), id)
+    }
+
+    /// Vỏ IPC của [`super::glossary_list_entries`]. Story 3.9.
+    #[tauri::command]
+    pub fn glossary_list_entries(app: tauri::AppHandle) -> Result<Vec<GlossaryEntryWire>, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::glossary_list_entries(global.as_deref(), None);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::glossary_list_entries(global.as_deref(), guard.as_ref())
+    }
+
+    /// Vỏ IPC của [`super::glossary_delete_term`]. Story 3.9.
+    #[tauri::command]
+    pub fn glossary_delete_term(app: tauri::AppHandle, tier: GlossaryTier, id: i64) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::glossary_delete_term(global.as_deref(), None, tier, id);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::glossary_delete_term(global.as_deref(), guard.as_ref(), tier, id)
+    }
+
+    /// Vỏ IPC của [`super::glossary_promote_term_to_global`]. Story 3.9.
+    #[tauri::command]
+    pub fn glossary_promote_term_to_global(app: tauri::AppHandle, id: i64) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::glossary_promote_term_to_global(global.as_deref(), None, id);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::glossary_promote_term_to_global(global.as_deref(), guard.as_ref(), id)
     }
 }

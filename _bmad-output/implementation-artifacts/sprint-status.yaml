@@ -282,7 +282,7 @@ development_status:
   # đã quyết tự rời `WHERE resolution IS NULL`, nên "mở lại đúng vị trí" đến từ mô hình dữ
   # liệu chứ không từ một con trỏ lưu xuống đĩa.
   3-8-duyet-hang-loat-mot-phim: review
-  3-9-quan-ly-glossary: backlog
+  3-9-quan-ly-glossary: review
   3-10-xuat-va-nhap-glossary-qua-csv-tsv: backlog
   epic-3-retrospective: optional
 

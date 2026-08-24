@@ -386,6 +386,14 @@ pub fn run() {
             // `reject_candidate` (Story 3.2 dung, 0 cho goi cho toi luot nay) -- lop phu
             // moi Nhan/Bo tung ung vien bang phim, ORDER BY tan suat giam dan.
             crate::commands::glossary::wire::glossary_reject_candidate,
+            // Story 3.9 -- quan ly Glossary (FR49). Ba vo moi: liet ke CA HAI tang (mang co
+            // `is_shadowed` do Rust tinh, khong lap lai quy tac "Tac pham thang" o
+            // TypeScript) · xoa mot muc (ke ca da chot) · day mot muc tang Tac pham len tang
+            // Toan cuc (INSERT global TRUOC, DELETE work SAU -- hai kho khong co giao dich
+            // chung).
+            crate::commands::glossary::wire::glossary_list_entries,
+            crate::commands::glossary::wire::glossary_delete_term,
+            crate::commands::glossary::wire::glossary_promote_term_to_global,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,

@@ -171,6 +171,27 @@
 //! - `commands::glossary::glossary_pending_candidates` — nay cũng nhận `layers`/`disabled`
 //!   và gọi `suggest_han_viet_batch` trực tiếp cho tập `source_term` của các ứng viên đang
 //!   chờ duyệt (bảng ứng viên không đi qua `marks_for_source_text`).
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! HÌNH DẠNG ĐÃ DỰNG (Story 3.9) — quản lý Glossary: liệt kê cả hai tầng · xoá · đẩy tầng
+//! ─────────────────────────────────────────────────────────────────────────────
+//! - [`store::list_all_entries`] — HÀM PHƠI RA THỨ CHÍN của module này (cùng bề mặt
+//!   `QUICK_ADD_SURFACE`/`GLOSSARY_ONLY_SURFACE` mà Story 3.3 dựng ra để thay
+//!   `GLOSSARY_ONLY_SURFACE` cho `commands::glossary`). Khuôn chép
+//!   `entries_eligible_for_injection` nhưng KHÔNG lọc `is_confirmed`, và phát cả
+//!   `Resolved::shadowed()` thành một hàng thứ hai — đây là chỗ DUY NHẤT trong kho biết một
+//!   mục Global có đang bị một mục Work cùng `source_term` che hay không.
+//! - [`store::delete_manual_term`] — xoá `(tier, id)`, khuôn định tuyến `&Store` của
+//!   [`store::add_manual_term`]. Xoá một mục ĐÃ CHỐT là hợp lệ (trigger một chiều chỉ khớp
+//!   `UPDATE OF translation`, không bao giờ khớp `DELETE`).
+//! - [`store::promote_to_global`] — đẩy một mục tầng Work lên tầng Global: `INSERT global`
+//!   TRƯỚC, `DELETE work` SAU (hai kho không có giao dịch chung, và đây là thứ tự để một
+//!   lượt sập giữa chừng để lại trạng thái DƯ chứ không THIẾU). Kiểm tra "đích đã có"
+//!   TRƯỚC khi ghi (không bắt lỗi `UNIQUE` sau khi `INSERT` trượt) để trả
+//!   [`store::GlossaryError::GlobalTermExists`] — một lỗi CÓ TÊN, không phải một
+//!   `store.write_failed` chung.
+//! - `commands::glossary::{glossary_list_entries, glossary_delete_term, glossary_promote_
+//!   term_to_global}` — ba vỏ IPC mới, chỗ gọi sản phẩm ĐẦU TIÊN của cả ba hàm trên.
 
 pub mod candidate;
 pub mod candidate_store;
@@ -195,8 +216,8 @@ pub(crate) use candidate_store::{ImportScanWriteTicket, enqueue_import_scan_cand
 pub(crate) use store::filter_import_scan_candidates_by_scope;
 pub use store::{
     GlossaryError, add_manual_term, confirm_pending_translation, confirm_translation,
-    entries_eligible_for_injection, insert_manual_entry, load_tier, marks_for_source_text,
-    match_lang_for_source_lang,
+    delete_manual_term, entries_eligible_for_injection, insert_manual_entry, list_all_entries,
+    load_tier, marks_for_source_text, match_lang_for_source_lang, promote_to_global,
     resolve_term_for_quick_add, update_manual_term, warm_jieba_for_source_lang,
 };
 pub use surnames::COMMON_SURNAMES;

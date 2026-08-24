@@ -291,6 +291,17 @@ message_keys! {
     /// ⚠️ KHÔNG tham số, cùng lý do `Unknown`: `Display` của `ScopeError` là một câu chẩn
     /// đoán, và tham số `IpcError` phải mang DỮ LIỆU chứ không mang CÂU (AD-21).
     GlossaryScopeError => "err.glossary.scope_error" [],
+
+    // ── Story 3.9 (FR49 · AD-18 · AD-36) — MỘT khoá, và đúng một ────────────────────
+    //
+    // Màn hình "Quản lý Glossary" tái dùng `GlossaryEntryMissing` (Xoá/Sửa một `id` đã biến
+    // mất) và `ProjectNoWorkOpen` (đẩy tầng khi chưa mở Tác phẩm nào). Chỉ ca dưới đây là
+    // RIÊNG của thao tác "đẩy một mục lên tầng Toàn cục" — không khoá lỗi nào hiện có nói
+    // đúng "đích đã có `source_term` này rồi, 0 lượt ghi".
+    /// Đẩy một mục tầng Tác phẩm lên tầng Toàn cục mà `source_term` đã tồn tại sẵn ở
+    /// `global.db` — **0 lượt ghi**, cả hai mục giữ nguyên. Không tham số: `source_term` là
+    /// dữ liệu người dùng vừa gõ/thấy trên màn hình, không cần lặp lại qua `params`.
+    GlossaryGlobalTermExists => "err.glossary.global_term_exists" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

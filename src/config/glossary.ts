@@ -578,3 +578,147 @@ export async function rejectGlossaryCandidate(id: number): Promise<GlossaryWrite
     return { value: null, error: null }
   }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.9 — adapter THỨ CHÍN/MƯỜI/MƯỜI MỘT: liệt kê cả hai tầng · xoá · đẩy tầng
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Hình dạng `GlossaryEntryWire` phía Rust — **`snake_case`, đúng như trên dây**.
+ *
+ * ⚠️ `commands/glossary.rs::GlossaryEntryWire` cố ý KHÔNG đặt
+ * `#[serde(rename_all = ...)]` — cùng luật với mọi struct qua biên IPC.
+ *
+ * Khác [`GlossaryQuickAddEntry`]: mang thêm `is_shadowed` — cờ do RUST tính qua
+ * `ScopeResolver::apply_override` (AD-1, AD-18). Frontend KHÔNG được tự suy cờ này từ hai
+ * danh sách riêng — chép quy tắc "Tác phẩm thắng" sang TypeScript là dựng nguồn sự thật thứ
+ * hai (§Always của spec 3.9).
+ */
+export type GlossaryEntry = {
+  tier: GlossaryTierWire
+  id: number
+  source_term: string
+  /** `null` == *chờ chốt*. */
+  translation: string | null
+  note: string
+  category: GlossaryCategory
+  /** Ba giá trị đóng: `"manual"` · `"import_scan"` · `"review_harvest"`. */
+  term_origin: string
+  created_at: string
+  /** `true` ⇔ một mục Work cùng `source_term` đang thắng — hàng này (LUÔN ở tầng `"global"`
+   * khi `true`) không được ép vào prompt nhưng vẫn hiện trên màn hình quản lý. */
+  is_shadowed: boolean
+}
+
+function isGlossaryEntry(value: unknown): value is GlossaryEntry {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<GlossaryEntry>
+  return (
+    (v.tier === 'global' || v.tier === 'work') &&
+    typeof v.id === 'number' &&
+    Number.isInteger(v.id) &&
+    typeof v.source_term === 'string' &&
+    (v.translation === null || typeof v.translation === 'string') &&
+    typeof v.note === 'string' &&
+    (v.category === 'person' || v.category === 'place' || v.category === 'domain_term' || v.category === 'other') &&
+    typeof v.term_origin === 'string' &&
+    typeof v.created_at === 'string' &&
+    typeof v.is_shadowed === 'boolean'
+  )
+}
+
+/**
+ * 🔴 **Type guard LÚC CHẠY cho cả MẢNG** — cùng lý do `isGlossaryMarkArray`/
+ * `isGlossaryCandidateArray`: dữ liệu qua IPC là một LỜI KHAI, không một bảo đảm của trình
+ * biên dịch.
+ */
+function isGlossaryEntryArray(value: unknown): value is GlossaryEntry[] {
+  return Array.isArray(value) && value.every(isGlossaryEntry)
+}
+
+/** Ba trạng thái, cùng khuôn [`GlossaryMarksResult`]/[`GlossaryPendingCandidatesResult`]. */
+export type GlossaryListEntriesResult = { entries: GlossaryEntry[] | null; error: IpcError | null }
+
+/** Tên command trên dây. Khớp `src-tauri/src/commands/glossary.rs` (module `wire`). */
+const CMD_LIST_ENTRIES = 'glossary_list_entries'
+const CMD_DELETE_TERM = 'glossary_delete_term'
+const CMD_PROMOTE_TERM_TO_GLOBAL = 'glossary_promote_term_to_global'
+
+/**
+ * Mọi mục Glossary của **cả hai tầng**. **Không bao giờ ném.**
+ *
+ * ⚠️ Chưa mở Tác phẩm nào ⇒ chỉ mục tầng Global — Rust không ném lỗi cho ca đó (cùng khuôn
+ * `glossaryMarksForChapter`), nên `entries` khác `null` không có nghĩa là "cả hai tầng đều
+ * có mặt".
+ */
+export async function listGlossaryEntries(): Promise<GlossaryListEntriesResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_LIST_ENTRIES)
+    if (!isGlossaryEntryArray(wire)) {
+      console.error(`[glossary] \`${CMD_LIST_ENTRIES}\` tra ve mot hinh dang khong dung GlossaryEntry[]`)
+      return { entries: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { entries: wire, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { entries: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[glossary] \`${CMD_LIST_ENTRIES}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { entries: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[glossary] không gọi được \`${CMD_LIST_ENTRIES}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { entries: null, error: null }
+  }
+}
+
+/**
+ * Xoá mục `(tier, id)` — **kể cả một mục ĐÃ CHỐT** (hợp lệ, Ice chốt 2026-08-24). **Không
+ * bao giờ ném.**
+ *
+ * ⚠️ Tham số `invoke` viết camelCase — xem doc-comment đầu tệp.
+ */
+export async function deleteGlossaryTerm(tier: GlossaryTierWire, id: number): Promise<GlossaryWriteResult<true>> {
+  try {
+    await invoke(CMD_DELETE_TERM, { tier, id })
+    return { value: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { value: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[glossary] \`${CMD_DELETE_TERM}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[glossary] không gọi được \`${CMD_DELETE_TERM}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { value: null, error: null }
+  }
+}
+
+/**
+ * Đẩy mục `id` ở tầng **Tác phẩm** lên tầng **Toàn cục**. **Không bao giờ ném.**
+ *
+ * ⚠️ **Không tham số `tier`** — chỉ áp dụng cho một hàng `tier === 'work'`. Gọi hàm này cho
+ * một hàng `tier === 'global'` là gọi SAI ở tầng UI (§I/O Matrix: "Lệnh không áp dụng") —
+ * chỗ gọi phải tự chặn TRƯỚC khi tới đây, không dựa vào Rust để nói "không".
+ */
+export async function promoteGlossaryTermToGlobal(id: number): Promise<GlossaryWriteResult<true>> {
+  try {
+    await invoke(CMD_PROMOTE_TERM_TO_GLOBAL, { id })
+    return { value: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { value: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[glossary] \`${CMD_PROMOTE_TERM_TO_GLOBAL}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[glossary] không gọi được \`${CMD_PROMOTE_TERM_TO_GLOBAL}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { value: null, error: null }
+  }
+}

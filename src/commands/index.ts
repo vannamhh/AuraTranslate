@@ -585,6 +585,36 @@ export type CommandDeps = {
   nextGlossaryQueueCandidate?: () => void
   /** Chuyển con trỏ lên hàng trước. Handler của `glossary.queue.prev`. */
   prevGlossaryQueueCandidate?: () => void
+
+  // ── Story 3.9 — lớp phủ "Quản lý Glossary" (FR49) ───────────────────────────────
+  /**
+   * Mở lớp phủ, tải cả hai tầng của Glossary. Handler của `glossary.manage.open`.
+   *
+   * ⚠️ Cài đặt thật là `async`; kiểu `() => void` ở đây khớp cùng khuôn `openGlossaryQueue`
+   * — promise trả về bị bỏ qua có chủ ý, kết quả đi ra qua các `ref` ở tầng module
+   * (`glossaryManageState.ts`).
+   */
+  openGlossaryManage?: () => void
+  /** Đóng lớp phủ — KHÔNG dọn state (mở lại luôn tải lại từ đầu). Handler của
+   * `glossary.manage.close`. */
+  closeGlossaryManage?: () => void
+  /** Mở form Sửa cho hàng đang chọn. Handler của `glossary.manage.edit`. */
+  beginGlossaryManageEdit?: () => void
+  /** Lưu form Sửa đang mở. Handler của `glossary.manage.save` — cùng khuôn `async` bị bỏ
+   * qua kết quả như `openGlossaryManage`. */
+  saveGlossaryManageEdit?: () => void
+  /** Đóng form Sửa mà KHÔNG lưu. Handler của `glossary.manage.cancel`. */
+  cancelGlossaryManageEdit?: () => void
+  /** Xoá hàng đang chọn — kể cả một mục ĐÃ CHỐT. Handler của `glossary.manage.delete`. */
+  deleteGlossaryManageEntry?: () => void
+  /** Đẩy hàng đang chọn (tầng Tác phẩm) lên tầng Toàn cục. Handler của
+   * `glossary.manage.promote`. */
+  promoteGlossaryManageEntry?: () => void
+  /** Chuyển con trỏ xuống hàng kế tiếp (danh sách đã lọc). Handler của
+   * `glossary.manage.next`. */
+  nextGlossaryManageRow?: () => void
+  /** Chuyển con trỏ lên hàng trước (danh sách đã lọc). Handler của `glossary.manage.prev`. */
+  prevGlossaryManageRow?: () => void
 }
 
 /**
@@ -1744,6 +1774,123 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.queue.prev', 'prevGlossaryQueueCandidate')
       }
       deps.prevGlossaryQueueCandidate()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 3.9 — "QUẢN LÝ GLOSSARY" (FR49)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `glossary.manage.open` là điểm vào có phím mặc định — `Mod+Alt+M` (họ `Mod+Alt+…` đã
+   * dùng cho `glossary.add_term`/`glossary.settings.open`/`glossary.confirm.focus`/
+   * `glossary.queue.open`/preset bố cục/đi lại panel/tab Nguyên văn. Đo 2026-08-24: `grep`
+   * trên hằng số hợp âm của tệp này cho `Mod+Alt+M` = 0, còn trống.
+   *
+   * Tám lệnh còn lại giữ **0 hợp âm mặc định**, đúng chủ ý `glossary.queue.accept`/`…reject`/
+   * `…next`/`…prev`: `Sửa`/`Lưu`/`Huỷ`/`Xoá`/`Đẩy`/mũi tên xử lý bằng một handler CỤC BỘ
+   * trong `GlossaryManageOverlay.vue`, `dispatch('<id>')` chứ không gọi thẳng (§Always của
+   * spec: "một lời gọi thẳng dựng đường thứ hai mà `check:commands` Kiểm A không nhìn
+   * thấy"). Chín command này tồn tại để nút bấm có một `dispatch('<id>')` hợp lệ (Kiểm A) VÀ
+   * để màn hình phím tắt liệt kê được cả chín thao tác.
+   */
+  target.register({
+    id: 'glossary.manage.open',
+    labelKey: 'command.glossary.manage.open',
+    keys: ['Mod+Alt+M'],
+    run: () => {
+      if (deps.openGlossaryManage === undefined) {
+        return portMissing('glossary.manage.open', 'openGlossaryManage')
+      }
+      deps.openGlossaryManage()
+    },
+  })
+  target.register({
+    id: 'glossary.manage.close',
+    labelKey: 'command.glossary.manage.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeGlossaryManage === undefined) {
+        return portMissing('glossary.manage.close', 'closeGlossaryManage')
+      }
+      deps.closeGlossaryManage()
+    },
+  })
+  target.register({
+    id: 'glossary.manage.edit',
+    labelKey: 'command.glossary.manage.edit',
+    keys: undefined,
+    run: () => {
+      if (deps.beginGlossaryManageEdit === undefined) {
+        return portMissing('glossary.manage.edit', 'beginGlossaryManageEdit')
+      }
+      deps.beginGlossaryManageEdit()
+    },
+  })
+  target.register({
+    id: 'glossary.manage.save',
+    labelKey: 'command.glossary.manage.save',
+    keys: undefined,
+    run: () => {
+      if (deps.saveGlossaryManageEdit === undefined) {
+        return portMissing('glossary.manage.save', 'saveGlossaryManageEdit')
+      }
+      deps.saveGlossaryManageEdit()
+    },
+  })
+  target.register({
+    id: 'glossary.manage.cancel',
+    labelKey: 'command.glossary.manage.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelGlossaryManageEdit === undefined) {
+        return portMissing('glossary.manage.cancel', 'cancelGlossaryManageEdit')
+      }
+      deps.cancelGlossaryManageEdit()
+    },
+  })
+  target.register({
+    id: 'glossary.manage.delete',
+    labelKey: 'command.glossary.manage.delete',
+    keys: undefined,
+    run: () => {
+      if (deps.deleteGlossaryManageEntry === undefined) {
+        return portMissing('glossary.manage.delete', 'deleteGlossaryManageEntry')
+      }
+      deps.deleteGlossaryManageEntry()
+    },
+  })
+  target.register({
+    id: 'glossary.manage.promote',
+    labelKey: 'command.glossary.manage.promote',
+    keys: undefined,
+    run: () => {
+      if (deps.promoteGlossaryManageEntry === undefined) {
+        return portMissing('glossary.manage.promote', 'promoteGlossaryManageEntry')
+      }
+      deps.promoteGlossaryManageEntry()
+    },
+  })
+  target.register({
+    id: 'glossary.manage.next',
+    labelKey: 'command.glossary.manage.next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextGlossaryManageRow === undefined) {
+        return portMissing('glossary.manage.next', 'nextGlossaryManageRow')
+      }
+      deps.nextGlossaryManageRow()
+    },
+  })
+  target.register({
+    id: 'glossary.manage.prev',
+    labelKey: 'command.glossary.manage.prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevGlossaryManageRow === undefined) {
+        return portMissing('glossary.manage.prev', 'prevGlossaryManageRow')
+      }
+      deps.prevGlossaryManageRow()
     },
   })
 

@@ -406,6 +406,12 @@ pub enum GlossaryError {
     /// dùng thật có thể chạm tới, nên nó đi qua IPC như một lỗi bình thường, không
     /// `debug_assert!`.
     WorkTierUnavailable,
+    /// 🔵 **THÊM 2026-08-24 (Story 3.9).** [`promote_to_global`] tìm thấy `source_term` của
+    /// mục Work đã có sẵn ở `global.db` — I/O Matrix *"Đẩy tầng, đích đã có"*. Kiểm tra ở
+    /// TRƯỚC lượt `INSERT` (xem doc-comment của [`promote_to_global`]), nên biến thể này
+    /// luôn đi kèm **0 lượt ghi**: không mục nào ở Global bị ghi đè, không mục nào ở Work
+    /// bị xoá.
+    GlobalTermExists,
 }
 
 impl std::fmt::Display for GlossaryError {
@@ -416,6 +422,7 @@ impl std::fmt::Display for GlossaryError {
             GlossaryError::Scope(e) => write!(f, "glossary[scope] {e}"),
             GlossaryError::EntryMissing => write!(f, "glossary[entry_missing]"),
             GlossaryError::WorkTierUnavailable => write!(f, "glossary[work_tier_unavailable]"),
+            GlossaryError::GlobalTermExists => write!(f, "glossary[global_term_exists]"),
         }
     }
 }
@@ -465,6 +472,12 @@ impl From<GlossaryError> for IpcError {
             GlossaryError::WorkTierUnavailable => IpcError::new(
                 "glossary.work_tier_unavailable",
                 MessageKey::GlossaryWorkTierUnavailable,
+                BTreeMap::new(),
+                false,
+            ),
+            GlossaryError::GlobalTermExists => IpcError::new(
+                "glossary.global_term_exists",
+                MessageKey::GlossaryGlobalTermExists,
                 BTreeMap::new(),
                 false,
             ),
@@ -675,6 +688,212 @@ pub fn update_manual_term(
     if changed == 0 {
         return Err(GlossaryError::EntryMissing);
     }
+    Ok(())
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.9 — BA HÀM PHƠI RA MỚI: liệt kê cả hai tầng · xoá · đẩy tầng (Work → Global)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Mọi mục Glossary của **cả hai tầng** — khuôn chép [`entries_eligible_for_injection`]
+/// (cùng lượt `load_tier` × 2 rồi `ScopeResolver::apply_override`), nhưng khác nó ở hai
+/// điểm mà chính màn hình "Quản lý Glossary" cần và `entries_eligible_for_injection`
+/// (dựng cho Epic 4) không được phép có:
+///
+/// 1. **Không lọc `is_confirmed`** — một mục chờ chốt phải hiện ra để người dùng SỬA/XOÁ
+///    nó, không chỉ mục đã chốt.
+/// 2. **Phát cả `Resolved::shadowed()` thành một hàng thứ hai**, `(GlossaryTier::Global, ..,
+///    true)` — đây là chỗ DUY NHẤT trong `core::glossary` biết mục Global nào đang bị một
+///    mục Work cùng `source_term` che. Bỏ nó đi là làm một mục Global CÓ THẬT biến mất khỏi
+///    màn hình mà không dòng nào giải thích — đúng chỗ hở mà §Intent của spec 3.9 mô tả.
+///
+/// Mỗi phần tử trả về là `(tier, entry, is_shadowed)`; hàng thắng của một khoá luôn đứng
+/// trước hàng bị che của khoá đó (nếu có) — thứ tự tổng thể theo `source_term` (khoá của
+/// `BTreeMap` bên trong `resolver.apply_override`), KHÔNG theo `id`/`created_at`.
+///
+/// 🔵 **SỬA 2026-08-24 (vòng rà ba lớp).** Bản trước viết tiếp *"sắp lại theo cột nào người
+/// dùng chọn là việc của frontend"* và dẫn §Design Notes của spec. Sai hai vế: §Design Notes
+/// chỉ nói **LỌC** chạy trong bộ nhớ, chưa bao giờ nói **SẮP XẾP**; và Story 3.9 không dựng
+/// một cột bấm-để-sắp nào — `GlossaryManageOverlay.vue` render thẳng `manageFilteredRows`
+/// theo đúng thứ tự hàm này trả về. Một doc-comment mô tả một năng lực chưa từng tồn tại là
+/// thứ người sau sẽ tưởng đã được xét. Thứ tự trả về là thứ tự hiển thị, và chỉ thế.
+///
+/// # Lỗi
+/// Cùng hai họ lỗi với [`entries_eligible_for_injection`] — xem [`GlossaryError`].
+pub fn list_all_entries(
+    resolver: &ScopeResolver,
+    global: &Store,
+    work: Option<&Store>,
+) -> Result<Vec<(GlossaryTier, GlossaryEntry, bool)>, GlossaryError> {
+    debug_assert_eq!(
+        resolver.has_work_tier(),
+        work.is_some(),
+        "list_all_entries -- resolver.has_work_tier()={} nhung work.is_some()={}",
+        resolver.has_work_tier(),
+        work.is_some()
+    );
+
+    let global_tier = load_tier(global)?;
+    let work_tier = work.map(load_tier).transpose()?;
+
+    let resolved =
+        resolver.apply_override(GLOSSARY_SCOPE_KIND, &global_tier, work_tier.as_ref())?;
+
+    let mut out = Vec::with_capacity(resolved.len());
+    for resolved_entry in resolved.into_values() {
+        let tier = match resolved_entry.tier() {
+            ScopeTier::Global => GlossaryTier::Global,
+            ScopeTier::Work => GlossaryTier::Work,
+        };
+        // `shadowed()` đọc TRƯỚC khi `value()` tiêu thụ `resolved_entry` — cả hai đều
+        // mượn, không xung đột, và thứ tự đọc-rồi-tiêu-thụ này là thứ làm dòng dưới hợp lệ.
+        let shadowed = resolved_entry.shadowed().cloned();
+        out.push((tier, resolved_entry.value().clone(), false));
+        if let Some(shadowed_entry) = shadowed {
+            // `Resolved::new` cấm `tier == Global` mang `shadowed`, nên hàng CHE luôn ở
+            // tầng Work và hàng BỊ CHE luôn ở tầng Global — đúng AD-18 ("tầng Work thắng"),
+            // không có chiều ngược lại để mà xử.
+            out.push((GlossaryTier::Global, shadowed_entry, true));
+        }
+    }
+    Ok(out)
+}
+
+/// Xoá mục `(tier, id)` — khuôn chép [`add_manual_term`] cho việc định tuyến `&Store` theo
+/// `tier`, khuôn chép [`update_manual_term`] cho việc dịch "0 hàng đổi" thành
+/// [`GlossaryError::EntryMissing`] thay vì một `Ok(())` rỗng im lặng.
+///
+/// 🔴 **Xoá một mục ĐÃ CHỐT là hợp lệ** *(Ice chốt 2026-08-24, §Always của spec 3.9)* —
+/// trigger `glossary_entry_lifecycle_is_one_way` chỉ khớp `UPDATE OF translation`, không
+/// bao giờ khớp `DELETE`. Vòng đời một chiều của AD-36 nói *"không lượt `UPDATE` nào lùi
+/// trạng thái trong im lặng"*, không nói *"không thao tác nào tái tạo được một mục chờ
+/// chốt"* — xoá rồi thêm lại (nếu người dùng muốn) là HAI thao tác thấy được, không một
+/// đường lách ngầm quanh trigger.
+///
+/// # Lỗi
+/// [`GlossaryError::WorkTierUnavailable`] nếu `tier` là [`GlossaryTier::Work`] mà `work` là
+/// `None`. [`GlossaryError::EntryMissing`] nếu `(tier, id)` không khớp hàng nào — mục đã bị
+/// xoá ở nơi khác giữa chừng.
+pub fn delete_manual_term(
+    global: &Store,
+    work: Option<&Store>,
+    tier: GlossaryTier,
+    id: i64,
+) -> Result<(), GlossaryError> {
+    let store = match tier {
+        GlossaryTier::Global => global,
+        GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
+    };
+
+    let changed = store
+        .write(move |tx: &Transaction<'_>| tx.execute("DELETE FROM glossary_entry WHERE id = ?1", [id]))?;
+
+    if changed == 0 {
+        return Err(GlossaryError::EntryMissing);
+    }
+    Ok(())
+}
+
+/// Đẩy mục `id` ở tầng **Tác phẩm** lên tầng **Toàn cục** — `INSERT global` TRƯỚC, `DELETE
+/// work` SAU (§Always của spec 3.9: hai kho KHÔNG có giao dịch chung; sập giữa hai bước để
+/// lại mục ở CẢ HAI tầng, Work vẫn thắng theo AD-18, ngữ nghĩa không đổi, làm lại được —
+/// thứ tự ngược lại làm mục biến mất hẳn).
+///
+/// Nhận thẳng `&Store work` (không `Option`) — khác mọi hàm khác của module này: chỗ gọi
+/// (`commands::glossary::glossary_promote_term_to_global`) đã tự từ chối khi chưa mở Tác
+/// phẩm nào (`no_work_open`, cùng khuôn `glossary_approve_candidate`/`glossary_reject_
+/// candidate`), vì bảng `glossary_entry` tầng Work chỉ tồn tại trong MỘT `project.db` — hàm
+/// này không có gì để đẩy nếu không có nó.
+///
+/// 🔴 **Kiểm tra "đích đã có" TRƯỚC khi ghi, không bắt lỗi `UNIQUE` sau khi `INSERT` trượt**
+/// — §Always: "`source_term` đã có ở tầng Toàn cục ⇒ đẩy tầng TRẢ LỖI CÓ TÊN, không ghi đè"
+/// VÀ "0 lượt ghi". Một lượt `INSERT` trượt vì `UNIQUE` vẫn đúng "0 lượt ghi" (giao dịch
+/// rollback), nhưng lỗi đó đi ra dưới hình dạng `StoreError::WriteFailed` chung
+/// (`store.write_failed`), không phân biệt được với MỌI lượt ghi trượt khác — spec đòi một
+/// lỗi CÓ TÊN. Đọc TRƯỚC (khuôn `commands::segment::split_chapter_into_segments::
+/// already_split`, kiểm "đã có segment" bằng một `read` riêng trước khi ghi) mở một cửa sổ
+/// đua NHỎ (không giao dịch chung giữa hai kho — xem đoạn trên) nhưng cho một lỗi ĐỌC ĐƯỢC
+/// ở đường thường; nếu đua thật sự xảy ra, `UNIQUE INDEX idx_glossary_entry_source_term`
+/// vẫn là lưới cuối ở tầng SQL và biến nó thành một `store.write_failed` chung — không một
+/// "nửa ghi" nào lọt qua.
+///
+/// # Lỗi
+/// [`GlossaryError::EntryMissing`] nếu `id` không khớp hàng nào ở `work` — kể cả khi nó
+/// biến mất GIỮA bước đọc và bước `DELETE` (đua với một lượt Xoá khác): lúc đó mục đã có ở
+/// CẢ HAI tầng (bước `INSERT global` đã xong), Work vẫn thắng, làm lại được — đúng ngữ
+/// nghĩa "sập giữa chừng" mà §Always mô tả, dù nguyên nhân là một thao tác khác chứ không
+/// phải một lượt sập tiến trình.
+/// [`GlossaryError::GlobalTermExists`] nếu `source_term` đã có ở `global` — **0 lượt ghi**.
+/// [`GlossaryError::Store`] nếu một bước I/O khác trượt.
+pub fn promote_to_global(global: &Store, work: &Store, id: i64) -> Result<(), GlossaryError> {
+    // Đọc hàng Work TRƯỚC — `id` chỉ duy nhất TRONG `Store` của nó, và ta cần dữ liệu để
+    // dựng hàng Global tiếp theo.
+    let found: Option<(String, Option<String>, String, String, String)> =
+        work.read(move |conn: ReadHandle<'_>| {
+            let row = conn.query_row(
+                "SELECT source_term, translation, note, category, term_origin
+                 FROM glossary_entry WHERE id = ?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+            );
+            match row {
+                Ok(value) => Ok(Some(value)),
+                // Cùng khuôn `commands::segment::split_chapter_into_segments` — `SqlError`
+                // đã được `core::store` tái xuất, `OptionalExtension` thì không.
+                Err(SqlError::QueryReturnedNoRows) => Ok(None),
+                Err(err) => Err(err),
+            }
+        })?;
+    let (source_term, translation, note, category_raw, term_origin_raw) =
+        found.ok_or(GlossaryError::EntryMissing)?;
+
+    // Kiểm tra đích TRƯỚC khi ghi bất cứ gì — xem khối 🔴 ở doc-comment trên.
+    let already_exists: bool = {
+        let source_term_check = source_term.clone();
+        global.read(move |conn: ReadHandle<'_>| {
+            conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM glossary_entry WHERE source_term = ?1)",
+                [&source_term_check],
+                |r| r.get(0),
+            )
+        })?
+    };
+    if already_exists {
+        return Err(GlossaryError::GlobalTermExists);
+    }
+
+    // Bước 1: INSERT global.
+    global.write(move |tx: &Transaction<'_>| {
+        insert_entry_row(
+            tx,
+            &source_term,
+            translation.as_deref(),
+            &note,
+            &category_raw,
+            &term_origin_raw,
+        )
+    })?;
+
+    // Bước 2: DELETE work.
+    //
+    // 🔵 **SỬA 2026-08-24 (vòng rà ba lớp) — bản trước SAI cả hành vi lẫn lý do.** Nó viết
+    // rằng `changed == 0` nghĩa là *"mục giờ tồn tại ở CẢ HAI tầng — Work vẫn thắng"* rồi trả
+    // `EntryMissing`. Cả hai vế đều không đúng, và chúng gộp HAI kịch bản khác hẳn nhau:
+    //
+    // - **Sập giữa hai bước** (tiến trình chết sau `INSERT`, trước `DELETE`): hàng Work còn
+    //   nguyên ⇒ mục ở cả hai tầng, Work thắng, làm lại được. Đó là ca mà §Always mô tả, và
+    //   không đường mã nào ở đây chạy để quan sát nó.
+    // - **`changed == 0`**: hàng Work đã biến mất TRƯỚC lượt `DELETE` này (đua với một lượt
+    //   Xoá khác ở đúng hàng đó). Mục KHÔNG ở cả hai tầng — nó chỉ còn ở Global, tức đúng
+    //   trạng thái đích mà lượt đẩy tầng nhắm tới. Trả `EntryMissing` ở đây là **báo trượt
+    //   một lượt đã thành công**, và lượt thử lại sau đó cũng trượt vì hàng Work không còn.
+    //   Người dùng thấy một câu lỗi trong khi thuật ngữ đã lên Global — và nếu họ vừa cố Xoá
+    //   nó, thứ họ thấy là một mục **sống lại** ở tầng khác.
+    //
+    // ⇒ Trạng thái đích đã đạt thì trả `Ok`. Không cuộn lại lượt `INSERT`: cuộn lại cho ra
+    // *"thuật ngữ không còn ở đâu cả"*, tức đổi một trạng thái DƯ lấy một trạng thái THIẾU —
+    // ngược đúng nguyên tắc chọn thứ tự hai kho đã ghi ở §Always của spec.
+    work.write(move |tx: &Transaction<'_>| tx.execute("DELETE FROM glossary_entry WHERE id = ?1", [id]))?;
     Ok(())
 }
 

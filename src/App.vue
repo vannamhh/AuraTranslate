@@ -57,6 +57,7 @@ import GlossarySettingsOverlay from './GlossarySettingsOverlay.vue'
 // Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55), lớp phủ THỨ NĂM. Cùng tầng,
 // cùng lý do bốn lớp phủ kia.
 import GlossaryQueueOverlay from './GlossaryQueueOverlay.vue'
+import GlossaryManageOverlay from './GlossaryManageOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -266,6 +267,20 @@ function focusOnPointerDown(event: MouseEvent) {
       >
         {{ t('command.glossary.queue.open') }}
       </button>
+
+      <!--
+        Story 3.9 — ĐƯỜNG VÀO lớp phủ Quản lý Glossary. Cùng khuôn ba nút ngay trên:
+        `data-glossary-manage-open` là đường lui của tiêu điểm (UX-DR17).
+      -->
+      <button
+        type="button"
+        class="titlebar-act"
+        data-glossary-manage-open
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('glossary.manage.open')"
+      >
+        {{ t('command.glossary.manage.open') }}
+      </button>
     </header>
 
     <!--
@@ -338,6 +353,9 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 3.8 · FR53/FR55 — cùng khuôn: lớp phủ tự quản `v-if` qua `queueOverlayIsOpen`. -->
     <GlossaryQueueOverlay />
+
+    <!-- Story 3.9 · FR49 — cùng khuôn: lớp phủ tự quản `v-if` qua `manageOverlayIsOpen`. -->
+    <GlossaryManageOverlay />
   </main>
 </template>
 
