@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-24 against b290336. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
+<!-- Verified 2026-08-25 against 69b19a8. Managed by bmad-project-context; edits inside this block are replaced on refresh. -->
 
 ## scripts/ — luật của một CỔNG
 
@@ -19,6 +19,6 @@ Mười ba `check:*` cưỡng chế những mệnh đề khai báo trên TOÀN C
 
 - ⚠️ Chỉ 4/13 cổng có phép tự kiểm hôm nay (`check-gates` Kiểm C · `check-layout` Kiểm D · `check-panel-refs` Kiểm C · `check-debt-owner` Kiểm B). Tám cổng còn lại chưa chứng minh được là chúng đỏ được — đừng đọc một lượt xanh của chúng như một bảo đảm. Món nợ có chủ trong `deferred-work.md`.
 - ⚠️ `abort()` cũng chưa phủ hết: `check-panel-refs.mjs:78` lệch hình dạng (thoát 2, chữ khác), còn `check-scope`, `check-scope-bundled` và `check-dict-manifest` không có `abort()` — chúng `process.exit(1)` trần, nên một lỗi hạ tầng ở đó đọc lên giống một phép kiểm đỏ.
-- Cổng không mang tiền tố `check:` phải có mặt ở cả ba danh sách — Kiểm F canh riêng việc đó, vì Kiểm A và D chỉ duyệt tên `check:*`. ⚠️ Bảng `REQUIRED_SCRIPTS` hôm nay có ĐÚNG MỘT mục (`test`). `test:e2e` là cổng thứ hai và cố ý NẰM NGOÀI bảng (`pre-push` loại bộ e2e có chủ ý), nên nó chỉ được canh ở HAI trong ba danh sách: xoá bước `npm run test:e2e` khỏi `ci.yml` thì cả sáu phép kiểm vẫn xanh. Đừng đọc `check:gates` xanh thành "ba danh sách đã khớp". (Chủ: Story 3.9.)
+- Cổng không mang tiền tố `check:` phải có mặt ở cả ba danh sách — Kiểm F canh riêng việc đó, vì Kiểm A và D chỉ duyệt tên `check:*`. ⚠️ Bảng `REQUIRED_SCRIPTS` hôm nay có ĐÚNG MỘT mục (`test`). `test:e2e` là cổng thứ hai và cố ý NẰM NGOÀI bảng (`pre-push` loại bộ e2e có chủ ý), nên nó chỉ được canh ở HAI trong ba danh sách: xoá bước `npm run test:e2e` khỏi `ci.yml` thì cả sáu phép kiểm vẫn xanh. Đừng đọc `check:gates` xanh thành "ba danh sách đã khớp". (Chưa có chủ: Story 3.9 đóng mà `REQUIRED_SCRIPTS` không đổi một dòng.)
 
 <!-- /bmad:context -->

@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-24 against b290336. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-08-25 against 69b19a8. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## AuraTranslate
 
@@ -11,12 +11,13 @@ Không gian làm việc tra từ điển và dịch thuật, chạy hoàn toàn 
 - Không commit tệp `.db`. Dòng `*.db` trong `.gitignore` là cố ý (AD-25) — dữ liệu từ điển đi qua GitHub Release + `dict-manifest.toml`.
 - Trước khi thêm BẤT KỲ phụ thuộc nào (NFR15): mở tệp giấy phép trong nguồn ĐÃ TẢI mà đọc (`~/.cargo/registry/src/…`, `node_modules/…`), không tin nhãn registry; rồi ghi vào bảng Stack của spine TRƯỚC khi thêm. Chỉ giấy phép tương thích GPLv3 chiều đi vào.
 - Đổi một bất biến kiến trúc là một `AD` mới trong spine, không phải một dòng mã.
+- Cấp số `AD` mới thì quét CẢ spine LẪN mọi `ad-brief-*.md` chưa soạn thành AD — số lớn nhất trong spine không phải số kế tiếp. AD-48 va đúng vậy: hồ sơ hoàn tác 2026-08-17 giữ chỗ 48, lượt hộp thoại 2026-08-24 đo spine tới AD-47 rồi cấp lại 48, và B6 trong `sprint-status.yaml` vẫn mở với số đó.
 - Hai phương án đều hợp lệ ⇒ nêu cả hai kèm số đo cho Ice chốt, đừng tự chọn rồi đi tiếp.
 - Cây bẩn trước khi bắt đầu một story ⇒ commit riêng, trước, và hỏi Ice trước khi commit.
 
 ## Where things are
 
-- Bất biến kiến trúc (AD-1…AD-47, bảng Stack, Consistency Conventions): `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md`
+- Bất biến kiến trúc (AD-1…AD-48, bảng Stack, Consistency Conventions): `_bmad-output/planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md`
 - Sổ nợ: `_bmad-output/implementation-artifacts/deferred-work.md`. Trạng thái story ở `sprint-status.yaml`; nội dung story ở chính tệp story.
 - Luật theo thư mục, gắn theo vị trí: `src/AGENTS.md` · `src-tauri/AGENTS.md` · `scripts/AGENTS.md` · `tests/AGENTS.md` · `e2e/AGENTS.md` · `tools/dict-build/AGENTS.md`
 - Lịch sử đo đạc và lý do đầy đủ: `_bmad-output/project-context.md` — tham chiếu sâu, không bắt buộc đọc.
@@ -43,11 +44,11 @@ Không gian làm việc tra từ điển và dịch thuật, chạy hoàn toàn 
 
 ## Known pitfalls
 
-- Rỗng IM LẶNG là lớp lỗi trung tâm của dự án: một truy vấn trả 0 hàng trong 0,01 ms không ném lỗi nào và lộ ra thành *"tra từ không ra kết quả"* mà không ai lần được nguyên nhân. Một danh sách rỗng không tự nói vì sao nó rỗng — hỏi vị từ `…HasLoaded` trước khi kết luận "không có". Đã hụt hai lần (Story 1.16 và 2.10) và không cổng nào canh.
-- Mọi lượt ghi `target_text` mà văn bản KHÔNG đến từ bộ đệm gõ phải đặt CẢ HAI trong cùng thao tác: mốc so sánh VÀ cột xuất xứ (AD-47, danh mục đóng 7 dòng; ngoại lệ có tên duy nhất là khôi phục FR101). Quên vế xuất xứ ⇒ cặp TM mang nhãn sai, không cổng nào đỏ, và lộ ra sau hàng trăm câu dưới dạng *"AI dịch không còn giống giọng tôi"*.
+- Rỗng IM LẶNG là lớp lỗi trung tâm của dự án: một truy vấn trả 0 hàng trong 0,01 ms không ném lỗi nào và lộ ra thành *"tra từ không ra kết quả"* mà không ai lần được nguyên nhân. Một danh sách rỗng không tự nói vì sao nó rỗng — hỏi vị từ `…HasLoaded` trước khi kết luận "không có", và kiểm cả THAM SỐ đi vào vị từ đó: ở Story 3.9 vị từ thì đúng, chỗ gọi bịa `totalCount` bằng chính `filteredCount`, nên một bộ lọc quét sạch hàng trên một Glossary CÓ dữ liệu khẳng định "đang trống". Đã hụt BA lần (Story 1.16 · 2.10 · 3.9) và không cổng nào canh.
+- Mọi lượt ghi `target_text` mà văn bản KHÔNG đến từ bộ đệm gõ phải đặt CẢ HAI trong cùng thao tác: mốc so sánh VÀ cột xuất xứ (AD-47, danh mục đóng 7 dòng; ngoại lệ có tên duy nhất là khôi phục FR101). Quên vế xuất xứ ⇒ cặp TM mang nhãn sai, không cổng nào đỏ, và lộ ra sau hàng trăm câu dưới dạng *"AI dịch không còn giống giọng tôi"*. Cùng luật, rộng hơn `target_text`: một lượt ghi chạm ĐÚNG những cột người dùng đồng ý đổi — "lấy của file" ở Story 3.10 ghi `SET translation, note, category` vô điều kiện, nên một tệp hai cột xoá sạch ghi chú người dùng tự viết.
 - Ranh giới segment tính MỘT LẦN lúc nhập và lưu xuống; không đường mã nào tính lại lúc nạp. Gộp/tách SEGMENT = về hưu + tạo mới, nhưng gộp/tách CHƯƠNG thì KHÔNG (chỉ đổi `chapter_id` và `ord`). Nhầm hai cái này phá sạch lịch sử của những Chương đã dịch xong, vĩnh viễn.
 - Sửa KIỂU cho nó nói thật; đừng hạ ngưỡng, thêm `eslint-disable`, hay chuyển một cặp sang danh sách loại trừ để cổng hết đỏ — cả ba đều cho exit 0 trên một sản phẩm đang hỏng. Mọi miễn trừ phải CÓ TÊN, có lý do tại chỗ, và phải chết được.
 - Đừng bắt chước một ký hiệu chưa hiểu: `grep` đếm số lần VÀ tìm định nghĩa trước khi dùng lại. Không có định nghĩa ⇒ viết chữ thường minh và nêu với Ice kèm số đo.
-- Một bộ test xanh KHÔNG chứng minh chỗ nối mới được canh — Epic 3 dính bốn lần trong năm ngày: 0/12 spec e2e chạm bề mặt mà Story 3.4b và 3.5 dựng; 68 ca Rust xanh trong khi `work_context` thoái hoá thành luôn trả `None`; 412 dòng test của dải chưa mount component lần nào. Trước khi khai một mệnh đề là đạt, `grep` đếm số ca THẬT SỰ chạm bề mặt đó, và đối chứng bằng cách GỠ chỗ nối rồi chạy bộ test CŨ — nó phải đỏ.
+- Một bộ test xanh KHÔNG chứng minh chỗ nối mới được canh — Epic 3 dính NĂM lần trong BẢY ngày: 0/12 spec e2e chạm bề mặt mà Story 3.4b và 3.5 dựng; 68 ca Rust xanh trong khi `work_context` thoái hoá thành luôn trả `None`; 412 dòng test của dải chưa mount component lần nào; và ở Story 3.10 gỡ bản vá ra thì hai ca MỚI đỏ còn ca CŨ `..._take_theirs_updates_the_existing_row` vẫn xanh. Trước khi khai một mệnh đề là đạt, `grep` đếm số ca THẬT SỰ chạm bề mặt đó, và đối chứng bằng cách GỠ chỗ nối rồi chạy bộ test CŨ — nó phải đỏ.
 
 <!-- /bmad:context -->
