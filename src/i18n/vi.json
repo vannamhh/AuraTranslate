@@ -33,6 +33,8 @@
   "err.glossary.import_blank_source_term": "Dòng {line} có thuật ngữ nguồn rỗng hoặc chỉ toàn khoảng trắng — chưa có gì được nhập.",
   "err.glossary.import_duplicate_source_term": "Cùng một thuật ngữ nguồn xuất hiện ở dòng {first_line} và dòng {second_line} trong tệp — chưa có gì được nhập.",
   "err.glossary.import_invalid_created_at": "Dòng {line} mang thời điểm tạo {value}, không đúng định dạng ngày giờ chuẩn — chưa có gì được nhập.",
+  "err.glossary.import_unterminated_quoted_field": "Dòng {line} mở một ô bằng dấu ngoặc kép nhưng không đóng lại — chưa có gì được nhập.",
+  "err.glossary.import_duplicate_column": "Cột {column} xuất hiện nhiều hơn một lần ở hàng tiêu đề — chưa có gì được nhập.",
   "err.glossary.import_unique_conflict": "Thuật ngữ {value} vừa được thêm ở nơi khác trong lúc nhập — lượt nhập đã dừng lại, không có gì được ghi. Nạp lại rồi thử lại.",
   "err.glossary.export_write_failed": "Không ghi được tệp tại {path} — kiểm quyền ghi vào thư mục đã chọn rồi thử lại. Không có tệp cụt nào bị để lại.",
   "err.glossary.dialog_path_invalid": "Hộp thoại trả về một đường dẫn không đọc được — thử chọn lại tệp hoặc thư mục.",

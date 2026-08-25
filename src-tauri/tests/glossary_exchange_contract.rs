@@ -141,6 +141,89 @@ fn fields_needing_escaping_are_quoted_and_doubled_for_both_delimiters() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+// Mục ① (vòng rà ba lớp, cụm B 2026-08-25) — vô hiệu hoá công thức (CSV/TSV injection)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// I/O Matrix "①" — một ô BẮT ĐẦU bằng `=`/`+`/`-`/`@` phải được xuất kèm một tiền tố vô
+/// hiệu hoá công thức, và nhập lại CHÍNH TỆP ĐÓ bằng `parse` của kho phải trả về đúng TỪNG
+/// BYTE giá trị GỐC (không còn tiền tố).
+///
+/// 🔴 **CA ĐỐI CHỨNG BẮT BUỘC (thủ công): làm `needs_formula_guard` luôn trả `false` rồi
+/// chạy lại ca này — nó PHẢI ĐỎ** (ô xuất ra trần `=1+1`, một bảng tính thật sẽ chạy nó như
+/// công thức).
+#[test]
+fn a_cell_starting_with_a_formula_trigger_character_is_neutralized_on_export_and_recovered_verbatim_on_import()
+ {
+    for trigger in ["=1+1", "+A1", "-A1", "@SUM(A1:A2)"] {
+        let mut tier = BTreeMap::new();
+        tier.insert("term".to_owned(), entry(1, "term", Some(trigger)));
+
+        let text = render_tier(&tier, Delimiter::Csv);
+        let data_line = text.lines().nth(1).expect("phai co mot hang du lieu");
+        let fields: Vec<&str> = data_line.split(',').collect();
+        assert!(
+            fields[1].starts_with('\''),
+            "o BAT DAU bang ky tu cong thuc ({trigger:?}) phai duoc xuat kem tien to vo hieu \
+             hoa vo hieu hoa `'`. Dong: {data_line:?}"
+        );
+        assert_eq!(
+            &fields[1][1..],
+            trigger,
+            "sau tien to, phan con lai cua o phai la CHINH GIA TRI GOC"
+        );
+
+        let parsed = parse(&text).expect("tep vua xuat phai tu phan tich duoc");
+        assert_eq!(
+            parsed.rows[0].translation.as_deref(),
+            Some(trigger),
+            "nhap lai phai tra DUNG chuoi GOC ({trigger:?}), khong con tien to vo hieu hoa"
+        );
+    }
+}
+
+/// I/O Matrix "①", ca ĐỐI SOÁT của Ice (đo được, gỡ ra) — một giá trị GỐC đã tự bắt đầu
+/// bằng `'` rồi theo sau bởi một ký tự kích hoạt (`'=1+1`, `'+A1`, `'-A1`, `'@SUM(A1)`)
+/// PHẢI round-trip nguyên vẹn, không mất dấu `'` dẫn đầu. Bản trước của `needs_formula_
+/// guard`/`strip_formula_guard` chỉ nhìn ĐÚNG MỘT ký tự đầu, nên `'=1+1` bị coi là "không
+/// cần rào" lúc xuất (ký tự đầu là `'`) rồi bị `strip_formula_guard` CẮT NHẦM dấu `'` gốc
+/// lúc nhập (vì ký tự ngay sau nó là `=`) — vi phạm thẳng AC ① của spec cụm B ("giá trị đọc
+/// ra bằng đúng từng byte giá trị đã xuất").
+///
+/// 🔴 **CA ĐỐI CHỨNG BẮT BUỘC (thủ công): trả `needs_formula_guard`/`char_after_leading_
+/// quotes` về bản chỉ nhìn ký tự ĐẦU TIÊN (không bỏ hết `'` dẫn đầu trước khi nhìn) rồi chạy
+/// lại — ca này PHẢI ĐỎ** (`Some("=1+1")` thay vì `Some("'=1+1")`, mất ký tự đầu).
+#[test]
+fn a_value_that_already_starts_with_a_quote_followed_by_a_formula_trigger_character_round_trips_with_the_leading_quote_intact()
+ {
+    for original in ["'=1+1", "'+A1", "'-A1", "'@SUM(A1)"] {
+        let mut tier = BTreeMap::new();
+        tier.insert("term".to_owned(), entry(1, "term", Some(original)));
+
+        let text = render_tier(&tier, Delimiter::Csv);
+        let parsed = parse(&text).expect("tep vua xuat phai tu phan tich duoc");
+        assert_eq!(
+            parsed.rows[0].translation.as_deref(),
+            Some(original),
+            "gia tri GOC da tu mang mot dau ' dan dau van phai round-trip NGUYEN VEN, khong \
+             mat ky tu dau -- xuat them DUNG MOT dau ' (thanh hai dau), nhap bo DUNG MOT \
+             (tra ve dung mot, khong phai khong con dau nao)"
+        );
+    }
+
+    // Doi chung: mot gia tri bat dau bang ' nhung KHONG theo sau boi ky tu kich hoat khong
+    // duoc rao, va giu nguyen tron ven.
+    let mut tier = BTreeMap::new();
+    tier.insert("term".to_owned(), entry(1, "term", Some("'abc")));
+    let text = render_tier(&tier, Delimiter::Csv);
+    let parsed = parse(&text).expect("tep vua xuat phai tu phan tich duoc");
+    assert_eq!(
+        parsed.rows[0].translation.as_deref(),
+        Some("'abc"),
+        "'abc' khong theo sau boi ky tu kich hoat -- khong duoc rao, giu nguyen"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 // VÒNG TRÒN — ca trung tâm, đối chứng gỡ chỗ nối bắt buộc chạy tay (xem §Verification)
 // ═════════════════════════════════════════════════════════════════════════════════
 
@@ -220,6 +303,27 @@ fn delimiter_cannot_be_resolved_when_the_header_has_both_or_neither() {
     assert_eq!(parse(neither), Err(vec![ParseIssue::DelimiterUnresolved]));
 }
 
+/// I/O Matrix "④" — hàng tiêu đề TSV có một ô BỌC chứa dấu phẩy KHÔNG được hiểu nhầm là
+/// "cả hai dấu phân cách cùng có mặt". Bản trước dò trên văn bản THÔ
+/// (`header_text.contains(',')`) và trượt oan; bản vá dò trên phần NGOÀI ô bọc.
+///
+/// 🔴 **CA ĐỐI CHỨNG BẮT BUỘC (thủ công): trả `unquoted_char_present` về `header_text.
+/// contains(target)` (bản cũ) rồi chạy lại — ca này PHẢI ĐỎ** (`Err([DelimiterUnresolved])`
+/// thay vì nhận TSV).
+#[test]
+fn a_quoted_comma_inside_a_tsv_header_cell_does_not_confuse_delimiter_detection() {
+    let text = "source_term\t\"note, extra\"\ntam\tMo Dung\n";
+    let parsed = parse(text)
+        .expect("dau phay NAM TRONG mot o boc cua header TSV khong duoc bien thanh DelimiterUnresolved");
+    assert_eq!(parsed.rows.len(), 1);
+    assert_eq!(parsed.rows[0].source_term, "tam");
+    assert_eq!(
+        parsed.ignored_columns,
+        vec!["note, extra".to_owned()],
+        "ten cot LA (mang dau phay TRONG o boc) van phai duoc nhan dien dung nguyen van"
+    );
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // NHẬP — cột
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -245,6 +349,21 @@ fn unknown_header_columns_are_ignored_and_reported_not_silently_dropped() {
         parsed.ignored_columns,
         vec!["usage_count".to_owned()],
         "cot la phai duoc liet ra de NOI RA, khong bien mat khong dau vet"
+    );
+}
+
+/// I/O Matrix "⑤" — hai cột trùng TÊN ĐÃ BIẾT ở hàng tiêu đề phải là một lỗi CÓ TÊN RIÊNG
+/// mang tên cột trùng — bản trước để cột THỨ HAI mất im lặng (`position(..)` chỉ tìm khớp
+/// ĐẦU TIÊN, và nó KHÔNG lọt vào `ignored_columns` vì không phải một tên LẠ).
+///
+/// 🔴 **CA ĐỐI CHỨNG BẮT BUỘC (thủ công): bỏ khối kiểm `known_column_counts` rồi chạy lại —
+/// ca này PHẢI ĐỎ** (`parse` thành công, cột `translation` thứ hai biến mất không dấu vết).
+#[test]
+fn two_header_columns_sharing_a_known_name_are_refused_naming_the_duplicated_column() {
+    let text = "source_term,translation,translation\na,x,y\n";
+    assert_eq!(
+        parse(text),
+        Err(vec![ParseIssue::DuplicateColumn { column: "translation".to_owned() }])
     );
 }
 
@@ -297,6 +416,36 @@ fn a_blank_or_whitespace_only_source_term_is_refused_naming_the_line() {
     assert_eq!(parse(text), Err(vec![ParseIssue::BlankSourceTerm { line: 2 }]));
 }
 
+/// I/O Matrix "⑥" — `source_term` chỉ gồm một ký tự ZERO-WIDTH (U+200B) phải bị bắt là
+/// `BlankSourceTerm`, CÙNG khoá/CÙNG câu với ô rỗng — `str::trim()` KHÔNG cắt nó (đo được
+/// 2026-08-25, xem §Design Notes của spec cụm B).
+///
+/// 🔴 **CA ĐỐI CHỨNG BẮT BUỘC (thủ công): bỏ `strip_zero_width` khỏi đường trích `source_term`
+/// rồi chạy lại — ca này PHẢI ĐỎ** (`Ok`, một mục Glossary vô hình được tạo ra).
+#[test]
+fn a_source_term_containing_only_a_zero_width_character_is_refused_as_blank() {
+    let text = "source_term,translation\n\u{200B},x\n";
+    assert_eq!(parse(text), Err(vec![ParseIssue::BlankSourceTerm { line: 2 }]));
+
+    // U+FEFF GIỮA tệp (không ở đầu tệp — `strip_bom` không chạm ca này) là ca minh hoạ mà
+    // §Design Notes nêu đích danh: dán hai tệp xuất nối liền để lại một U+FEFF giữa văn bản.
+    let text = "source_term,translation\n\u{FEFF},x\n";
+    assert_eq!(parse(text), Err(vec![ParseIssue::BlankSourceTerm { line: 2 }]));
+}
+
+/// I/O Matrix "⑥b" — một `source_term` HỢP LỆ mang một ký tự zero-width kèm theo (ở đây, ở
+/// CUỐI) phải được NHẬN, và ký tự đó bị CẮT khỏi giá trị lưu xuống — không giữ một ký tự vô
+/// hình trong dữ liệu đã lưu.
+#[test]
+fn a_valid_source_term_with_a_trailing_zero_width_character_is_accepted_with_it_stripped() {
+    let text = "source_term,translation\n萧炎\u{200B},x\n";
+    let parsed = parse(text).expect("zero-width DI KEM mot thuat ngu hop le khong phai loi");
+    assert_eq!(
+        parsed.rows[0].source_term, "萧炎",
+        "ky tu zero-width phai bi CAT khoi gia tri luu xuong, khong giu nguyen"
+    );
+}
+
 /// I/O Matrix "Mục không có bản dịch" — vào CHỜ CHỐT (`translation = None`), KHÔNG phải đã
 /// chốt với chuỗi rỗng.
 #[test]
@@ -315,6 +464,28 @@ fn a_source_term_duplicated_within_the_file_is_refused_naming_both_lines() {
     assert_eq!(
         parse(text),
         Err(vec![ParseIssue::DuplicateSourceTerm { first_line: 2, second_line: 4 }])
+    );
+}
+
+/// I/O Matrix "⑦" — `source_term` trùng mà lần đầu đã bị bác vì lý do KHÁC (category lạ)
+/// vẫn phải bị gắn cờ trùng ở lần THỨ HAI. Bản trước chỉ ghi `seen` cho hàng ĐÃ QUA MỌI kiểm
+/// khác (`row_ok`), nên một hàng đầu bị bác vì lý do khác làm hàng SAU "không thấy" trùng.
+///
+/// 🔴 **CA ĐỐI CHỨNG BẮT BUỘC (thủ công): trả `seen.entry(..).or_insert(line)` về khối `if
+/// let Some(&first_line) = seen.get(source_term) { .. }` CŨ (chỉ đọc, không ghi ở đây) rồi
+/// chạy lại — ca này PHẢI ĐỎ** (chỉ báo `UnknownCategory`, mất hẳn `DuplicateSourceTerm`).
+#[test]
+fn a_duplicate_whose_first_occurrence_was_rejected_for_an_unrelated_reason_is_still_flagged_as_a_duplicate()
+ {
+    let text = "source_term,category\nX,weapon\nY,other\nX,other\n";
+    assert_eq!(
+        parse(text),
+        Err(vec![
+            ParseIssue::UnknownCategory { line: 2, value: "weapon".to_owned() },
+            ParseIssue::DuplicateSourceTerm { first_line: 2, second_line: 4 },
+        ]),
+        "dong 2 (X, category la) VA loi trung (2,4) deu phai duoc bao -- khong duoc 'khong \
+         thay trung' chi vi lan dau bi bac vi ly do khac"
     );
 }
 
@@ -407,6 +578,61 @@ fn mixed_crlf_and_lf_line_endings_both_parse_and_do_not_leak_cr_into_the_last_ce
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+// Mục ②/③ (vòng rà ba lớp, cụm B 2026-08-25) — ngoặc kép không đóng · \r trần trong ô bọc
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// I/O Matrix "②" — một ngoặc kép MỞ nhưng KHÔNG BAO GIỜ đóng phải sinh một lỗi CÓ TÊN
+/// RIÊNG mang số dòng nơi ô đó mở ra — KHÔNG được nuốt các hàng ĐÚNG phía sau thành một
+/// `CellCountMismatch` DUY NHẤT trỏ sai chỗ (ở đây: dòng CUỐI của 300 hàng đúng).
+///
+/// 🔴 **CA ĐỐI CHỨNG BẮT BUỘC (thủ công): bỏ nhánh trả `in_quotes` ở cuối
+/// `split_first_logical_line` (luôn trả `false` cho cờ thứ ba) rồi chạy lại — ca này PHẢI
+/// ĐỎ** (mất tên lỗi riêng, đổi thành `CellCountMismatch` ở dòng cuối tệp).
+#[test]
+fn an_unterminated_quoted_field_is_a_named_error_carrying_the_opening_line_not_a_cell_count_mismatch_swallowing_every_row_after_it()
+ {
+    let mut text = String::from("source_term,translation\n\"Mo Dung,ten\n");
+    for i in 0..300 {
+        text.push_str(&format!("hang-{i},x\n"));
+    }
+    assert_eq!(
+        parse(&text),
+        Err(vec![ParseIssue::UnterminatedQuotedField { line: 2 }]),
+        "phai la MOT loi CO TEN RIENG tro dung dong 2 (noi o mo ngoac kep), khong phai mot \
+         CellCountMismatch nuot tron 300 hang dung phia sau"
+    );
+}
+
+/// Cùng lỗ hổng ②, nhưng ở chính HÀNG TIÊU ĐỀ (dấu ngoặc kép mở trong header không bao giờ
+/// đóng) — số dòng phải là 1.
+#[test]
+fn an_unterminated_quoted_field_in_the_header_row_itself_is_also_a_named_error() {
+    let text = "\"source_term,translation\na,b\n";
+    assert_eq!(parse(text), Err(vec![ParseIssue::UnterminatedQuotedField { line: 1 }]));
+}
+
+/// I/O Matrix "③" — `\r` TRẦN bên trong một ô đã bọc là một RANH GIỚI DÒNG mà người dùng
+/// nhìn thấy trong trình soạn thảo, dù nó không phải một `\n`/`\r\n` mà bước tách DÒNG dùng
+/// để chia logical line. Số dòng báo lỗi của hàng SAU phải khớp số dòng người dùng tự đếm.
+///
+/// 🔴 **CA ĐỐI CHỨNG BẮT BUỘC (thủ công): trả `logical_lines` về đếm `line.matches('\n').
+/// count()` (bản cũ, chỉ đếm `\n`) thay vì `count_line_breaks` rồi chạy lại — ca này PHẢI
+/// ĐỎ** (mong `line: 4`, bản cũ cho `line: 3`).
+#[test]
+fn a_bare_cr_inside_a_quoted_field_advances_the_line_number_for_rows_after_it() {
+    // Dong 2: mot o boc "a\rb" -- nguoi dung mo bang trinh soan thao se thay HAI dong man
+    // hinh cho MOT "dong logic". Hang LOI (category la) la dong THU BA theo du lieu nhung
+    // dong THU TU theo cach dem cua nguoi dung (header=1, o boc=2..3, hang loi=4).
+    let text = "source_term,translation,category\n\"a\rb\",x,other\nc,y,weapon\n";
+    assert_eq!(
+        parse(text),
+        Err(vec![ParseIssue::UnknownCategory { line: 4, value: "weapon".to_owned() }]),
+        "hang loi phai duoc danh so DUNG BANG so dong nguoi dung dem trong trinh soan thao \
+         (header=1, o boc \\r=2..3, hang loi=4) -- khong phai 3 (neu chi dem \\n)"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 // P2 (vòng rà ba lớp 2026-08-25) — dòng logic RỖNG không phải một hàng dữ liệu
 // ═════════════════════════════════════════════════════════════════════════════════
 
@@ -481,6 +707,13 @@ fn expected_message_key_for_parse_issue(issue: &ParseIssue) -> MessageKey {
         ParseIssue::BlankSourceTerm { .. } => MessageKey::GlossaryImportBlankSourceTerm,
         ParseIssue::DuplicateSourceTerm { .. } => MessageKey::GlossaryImportDuplicateSourceTerm,
         ParseIssue::InvalidCreatedAt { .. } => MessageKey::GlossaryImportInvalidCreatedAt,
+        // 🔵 THÊM 2026-08-25 (vòng rà ba lớp, cụm B) — hai biến thể mới của mục ② và ⑤.
+        // Thêm một biến thể `ParseIssue` mà quên cập nhật `match` NÀY là một LỖI BIÊN DỊCH
+        // ở đây (không nhánh `_`), không phải một lỗ hổng im lặng.
+        ParseIssue::UnterminatedQuotedField { .. } => {
+            MessageKey::GlossaryImportUnterminatedQuotedField
+        }
+        ParseIssue::DuplicateColumn { .. } => MessageKey::GlossaryImportDuplicateColumn,
     }
 }
 
@@ -500,6 +733,8 @@ fn every_parse_issue_variant_maps_to_the_message_key_it_actually_produces() {
         ParseIssue::BlankSourceTerm { line: 3 },
         ParseIssue::DuplicateSourceTerm { first_line: 2, second_line: 5 },
         ParseIssue::InvalidCreatedAt { line: 3, value: "hom qua".to_owned() },
+        ParseIssue::UnterminatedQuotedField { line: 2 },
+        ParseIssue::DuplicateColumn { column: "translation".to_owned() },
     ];
 
     for issue in samples {
@@ -1016,4 +1251,90 @@ fn export_tier_reads_exactly_one_tier_and_does_not_duplicate_a_shadowed_entry() 
     drop(global);
     drop(work);
     cleanup(&dir);
+}
+
+
+/// I/O Matrix "⑥c" — vòng rà ba lớp, Ice ký nới phạm vi 2026-08-25.
+///
+/// `translation` là cột NẶNG NHẤT trong ba cột văn bản tự do: `.filter(|s| !s.is_empty())`
+/// của nó quyết định một mục vào CHỜ CHỐT (`None`) hay ĐÃ CHỐT (`Some`). Một ô toàn
+/// zero-width KHÔNG rỗng theo `str::trim()` (`is_whitespace` của Unicode không gồm chúng),
+/// nên trước bản vá nó lọt thành `Some("\u{200B}")` — một mục ĐÃ CHỐT mang bản dịch VÔ HÌNH,
+/// mà trigger `glossary_entry_lifecycle_is_one_way` (AD-36) khiến KHÔNG lùi lại được.
+#[test]
+fn a_translation_or_note_of_only_zero_width_characters_does_not_become_an_invisible_value() {
+    let text = "source_term,translation\n萧炎,\u{200B}\n";
+    let parsed = parse(text).expect("zero-width o cot translation khong phai loi phan tich");
+    assert_eq!(
+        parsed.rows[0].translation, None,
+        "mot `translation` toan zero-width phai doc la VANG MAT (cho chot), khong phai mot \
+         gia tri DA CHOT vo hinh -- AD-36 lam trang thai da chot khong lui lai duoc"
+    );
+
+    let text = "source_term,translation,note\n萧炎,x,\u{2060}\u{FEFF}\n";
+    let parsed = parse(text).expect("zero-width o cot note khong phai loi phan tich");
+    assert_eq!(
+        parsed.rows[0].note, "",
+        "mot `note` toan zero-width phai doc la RONG, khong phai mot chuoi vo hinh"
+    );
+
+    // Đối chứng: zero-width ĐI KÈM nội dung thật chỉ bị cắt khỏi giá trị, không giết cả ô.
+    let text = "source_term,translation,note\n萧炎,Tieu\u{200B} Viem,ghi\u{200D} chu\n";
+    let parsed = parse(text).expect("zero-width di kem noi dung that khong phai loi");
+    assert_eq!(parsed.rows[0].translation.as_deref(), Some("Tieu Viem"));
+    assert_eq!(parsed.rows[0].note, "ghi chu");
+}
+
+/// P6 (vòng rà ba lớp) — rào công thức là DELIMITER-AGNOSTIC, nhưng trước ca này mọi ca
+/// round-trip của nó chỉ chạy trên `Delimiter::Csv`, nên mệnh đề "áp cho cả hai" không có
+/// phép kiểm nào.
+#[test]
+fn the_formula_guard_round_trips_identically_under_both_delimiters() {
+    for delimiter in [Delimiter::Csv, Delimiter::Tsv] {
+        for original in ["=1+1", "+A1", "-A1", "@SUM(A1:A2)", "'=1+1", "'abc", "abc"] {
+            let mut tier = BTreeMap::new();
+            tier.insert("term".to_owned(), entry(1, "term", Some(original)));
+
+            let text = render_tier(&tier, delimiter);
+            let parsed = parse(&text).expect("tep vua xuat phai tu phan tich duoc");
+            assert_eq!(
+                parsed.rows[0].translation.as_deref(),
+                Some(original),
+                "vong tron phai tra DUNG TUNG BYTE gia tri goc {original:?} voi \
+                 delimiter {delimiter:?}"
+            );
+        }
+    }
+}
+
+/// P7 (vòng rà ba lớp) — ba ca biên mà chín mục vá của cụm B để trống.
+#[test]
+fn three_boundary_cases_the_cluster_b_patches_left_uncovered() {
+    // ① Ca ĐỐI XỨNG của mục ④: một dấu TAB nằm trong ô đã bọc ở hàng tiêu đề CSV. Trước
+    //    mục ④, phép dò chạy trên văn bản THÔ nên ô này làm `has_tab` bật lên và một tệp
+    //    CSV hợp lệ bị bác oan là `DelimiterUnresolved`.
+    let text = "source_term,translation,\"note\tphu\"\n萧炎,Tieu Viem,ghi chu\n";
+    let parsed = parse(text).expect("mot TAB trong o da boc o tieu de CSV khong duoc bac oan");
+    assert_eq!(parsed.rows.len(), 1);
+    assert_eq!(parsed.rows[0].source_term, "萧炎");
+
+    // ② Một cột đã biết lặp BA lần — đúng ca lam lo cho sai cua câu "xuat hien hai lan"
+    //    (P4). Vị từ bắn khi NHIEU HON mot lan, nên ba lần cũng phải bị bác.
+    let text = "source_term,translation,translation,translation\n萧炎,a,b,c\n";
+    assert_eq!(
+        parse(text),
+        Err(vec![ParseIssue::DuplicateColumn { column: "translation".to_owned() }]),
+        "mot cot lap BA lan cung phai bi bac, va chi bao MOT lan cho cot do"
+    );
+
+    // ③ Một ô đã bọc TRỘN `\r\n` với một `\r` trần. Mục ③ chỉ có ca `\r` trần đơn độc, nên
+    //    mệnh đề "đếm cả ba dạng ranh giới" chưa được kiểm ở dạng trộn.
+    let text = "source_term,translation\n\"dong1\r\ndong2\rdong3\",x\nBAD,y\n";
+    let parsed = parse(text).expect("o da boc tron CRLF va CR tran phai phan tich duoc");
+    assert_eq!(parsed.rows.len(), 2);
+    assert_eq!(
+        parsed.rows[1].line, 5,
+        "hang sau mot o da boc chua HAI ranh gioi dong phai mang so dong 5 -- dung so ma \
+         nguoi dung dem trong trinh soan thao"
+    );
 }

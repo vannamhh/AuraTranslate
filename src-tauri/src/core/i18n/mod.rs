@@ -303,15 +303,19 @@ message_keys! {
     /// dữ liệu người dùng vừa gõ/thấy trên màn hình, không cần lặp lại qua `params`.
     GlossaryGlobalTermExists => "err.glossary.global_term_exists" [],
 
-    // ── Story 3.10 (FR49 · NFR9) — TÁM khoá, và đúng tám ────────────────────────────
+    // ── Story 3.10 (FR49 · NFR9) — MƯỜI khoá, và đúng mười ──────────────────────────
     //
-    // Bảy khoá đầu là lỗi PHÂN TÍCH (`core::glossary::exchange::ParseIssue`, trước khi có
+    // 🔵 **CẬP NHẬT 2026-08-25 (vòng rà ba lớp, cụm B) — "TÁM khoá, và đúng tám" HẾT ĐÚNG.**
+    // Hai biến thể `ParseIssue` mới (mục ②, ⑤ của cụm B) thêm hai khoá PHÂN TÍCH nữa: từ
+    // bảy lên CHÍN. Tổng vẫn cộng thêm đúng một khoá GHI như trước ⇒ tám thành mười.
+    //
+    // Chín khoá đầu là lỗi PHÂN TÍCH (`core::glossary::exchange::ParseIssue`, trước khi có
     // Store nào được chạm tới) — mỗi cái ứng với đúng một hàng "0 lượt ghi" của §I/O Matrix.
     // Khoá cuối là lỗi GHI (`core::glossary::store::GlossaryError::ImportUniqueConflict`) —
     // hàng "Va UNIQUE giữa chừng". `params` mang DỮ LIỆU (số dòng, tên cột, giá trị đọc
     // được), không mang CÂU (AD-21).
     //
-    // 🔴 Cặp `ParseIssue` (bảy biến thể) ↔ bảy khoá đầu ở đây ĐƯỢC CANH bằng
+    // 🔴 Cặp `ParseIssue` (chín biến thể) ↔ chín khoá đầu ở đây ĐƯỢC CANH bằng
     // `glossary_exchange_contract.rs::every_parse_issue_variant_maps_to_a_declared_message_key`
     // (P7, vòng rà ba lớp 2026-08-25) — `ipc_contract.rs` chỉ canh `MessageKey` ↔ `vi.json`,
     // KHÔNG canh `ParseIssue` ↔ `MessageKey`; ba danh sách lệch nhau không cổng nào đỏ trước
@@ -334,6 +338,14 @@ message_keys! {
     /// 🔵 **THÊM 2026-08-25 (vòng rà ba lớp, P3).** Cột `created_at` có mặt, không rỗng,
     /// nhưng không khớp hình dạng ISO-8601 UTC — cột này không phải văn bản tự do.
     GlossaryImportInvalidCreatedAt => "err.glossary.import_invalid_created_at" ["line", "value"],
+    /// 🔵 **THÊM 2026-08-25 (vòng rà ba lớp, cụm B, mục ②).** Một ô mở dấu ngoặc kép nhưng
+    /// không bao giờ đóng — trước bản vá, phần còn lại của tệp bị nuốt vào MỘT hàng, và lỗi
+    /// nổi lên là `CellCountMismatch` ở dòng CUỐI tệp, trỏ sai chỗ.
+    GlossaryImportUnterminatedQuotedField =>
+        "err.glossary.import_unterminated_quoted_field" ["line"],
+    /// 🔵 **THÊM 2026-08-25 (vòng rà ba lớp, cụm B, mục ⑤).** Hàng tiêu đề mang hai cột
+    /// cùng một tên ĐÃ BIẾT — trước bản vá, cột thứ hai (và giá trị của nó) mất im lặng.
+    GlossaryImportDuplicateColumn => "err.glossary.import_duplicate_column" ["column"],
     /// Một hàng phân loại *mới* lúc `classify()` nhưng `source_term` đã bị một lượt ghi
     /// KHÁC chèn vào tầng đích trước khi giao dịch nhập kịp mở — giao dịch rollback trọn.
     /// 🔵 **SỬA 2026-08-25 (P6)** — `value` nay có thể mang NHIỀU thuật ngữ, nối bằng `", "`

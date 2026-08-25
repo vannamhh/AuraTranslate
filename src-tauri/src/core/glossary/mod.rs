@@ -240,6 +240,25 @@
 //! - `store::GlossaryError` — bảy biến thể mới cho các ca I/O của §I/O Matrix (tệp quá
 //!   lớn · phi-UTF-8 · đọc/ghi thất bại · quyết định trỏ thuật ngữ lạ · không có lô
 //!   treo · đường dẫn hộp thoại không quy đổi được).
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! 🔵 CẬP NHẬT 2026-08-25 (vòng rà Epic 3, cụm B) — HAI MỆNH ĐỀ TRÊN HẾT ĐÚNG
+//! ─────────────────────────────────────────────────────────────────────────────
+//! ① Đường ĐỌC của [`exchange_io`] KHÔNG còn là `metadata ⇒ trần ⇒ read`. Hình dạng đó có
+//!    một cửa sổ TOCTOU thật (tệp lớn lên GIỮA lúc đo và lúc đọc ⇒ trần bị bỏ qua và toàn
+//!    bộ tệp vẫn bị nạp vào bộ nhớ). Nay là `File::open ⇒ take(LIMIT + 1) ⇒ read_to_end`,
+//!    và quyết định "quá trần" dựa trên SỐ BYTE THẬT SỰ ĐÃ NẠP. Đường GHI vẫn là khuôn
+//!    `write_atomic`, nhưng tên tệp tạm nay mang hậu tố `pid`+`uuid` — khuôn gốc ghi vào
+//!    một đường NỘI BỘ CỐ ĐỊNH đã nối tiếp hoá qua `Store`, còn đây là đường NGƯỜI DÙNG
+//!    CHỌN, nơi hai lượt xuất cùng đích va nhau được.
+//! ② `exchange.rs` KHÔNG còn "hai bản vá TẠI CHỖ" — nay là MƯỜI. Ngoài hai bản vá kể trên,
+//!    cụm B thêm: rào công thức CSV/TSV hai chiều · `UnterminatedQuotedField` có tên riêng
+//!    thay vì nuốt mọi hàng sau vào một `CellCountMismatch` · đếm ranh giới dòng phủ cả `\r`
+//!    trần · dò dấu phân cách trên ô ĐÃ TÁCH thay vì văn bản thô · `DuplicateColumn` cho
+//!    cột trùng tên · cắt zero-width khỏi CẢ BA cột văn bản tự do · `seen` ghi nhận độc lập
+//!    với `row_ok`.
+//! ⇒ Số biến thể `ParseIssue` theo đó lên CHÍN (bảy + `UnterminatedQuotedField` +
+//!    `DuplicateColumn`), và `core/i18n/mod.rs` mang đúng chín khoá phân tích tương ứng.
 
 pub mod candidate;
 pub mod candidate_store;

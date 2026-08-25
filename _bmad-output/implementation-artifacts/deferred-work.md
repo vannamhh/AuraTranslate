@@ -6939,6 +6939,142 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ⚠️ Đua `.tmp` được HAI lăng kính độc lập cùng chỉ vào từ hai góc khác nhau — theo bảng "chỗ hai
     lăng kính gặp nhau" của vòng rà, đó là tín hiệu chứ không phải rác.
     **(Chủ: lượt vá kế tiếp. Làm TRƯỚC cụm C — cả hai chạm đường nhập, và C vá chồng lên `exchange.rs`.)**
+    → ✅ ĐÃ ĐÓNG 2026-08-25 (spec `spec-epic-3-review-cum-b-csv-tsv-va-ghi-tep.md`) — chín mục vá
+    (mười phát hiện, một bị bác vì tiền đề sai nhưng lỗ thật vẫn ở đúng dòng bằng một ký tự khác —
+    xem §Design Notes của spec). ① `render_field` rào bốn ký tự `=`/`+`/`-`/`@` bằng một tiền tố
+    `'` vô hiệu hoá công thức, `parse` gỡ lại đúng tiền tố đó (`strip_formula_guard`). ②
+    `ParseIssue::UnterminatedQuotedField{line}` mới — `split_first_logical_line` trả thêm một cờ
+    "hết văn bản mà vẫn còn trong ngoặc kép", `logical_lines` dừng NGAY thay vì nuốt phần còn lại
+    của tệp vào một `CellCountMismatch` trỏ sai chỗ. ③ `count_line_breaks` (đếm `\r\n`/`\r`/`\n`
+    đều là MỘT ranh giới) thay `line.matches('\n').count()` — số dòng của hàng sau một ô bọc mang
+    `\r` trần nay khớp cách người dùng đếm trong trình soạn thảo. ④ `unquoted_char_present` (một
+    lượt quét quote-aware, KHÔNG tách `split_fields` hai lượt — phương án đó bị loại vì mỗi lượt
+    tự áp một delimiter SAI cho ứng viên còn lại trước khi biết đâu là delimiter đúng, đúng cảnh
+    báo ở §Ask First của spec) thay `header_text.contains(',')` trên văn bản thô. ⑤
+    `ParseIssue::DuplicateColumn{column}` mới — hai cột trùng tên ĐÃ BIẾT ở hàng tiêu đề nay bị từ
+    chối tường minh thay vì cột sau mất im lặng. ⑥/⑥b `strip_zero_width` (U+200B/200C/200D/2060/
+    FEFF) áp cho `source_term` TRƯỚC kiểm rỗng và trước khi lưu — một `source_term` chỉ gồm ký tự
+    này bị `BlankSourceTerm` bắt đúng, một `source_term` hợp lệ kèm ký tự này được nhận với ký tự
+    đó bị cắt khỏi giá trị lưu xuống. ⑦ `seen.entry(..).or_insert(line)` ghi nhận lần ĐẦU gặp một
+    `source_term` bất kể hàng đó có qua các kiểm khác hay không — một hàng trùng mà lần đầu đã bị
+    bác vì lý do khác (ví dụ category lạ) nay vẫn bị gắn cờ trùng ở lần sau. ⑧ `read_import_file`
+    đọc CÓ CHẶN THẬT qua `File::open` + `Read::take(LIMIT + 1)` + `read_to_end` thay vì tin
+    `metadata` rồi `std::fs::read` không chặn — đóng cửa sổ TOCTOU (tệp lớn lên giữa lúc đo và lúc
+    đọc). ⑨ Tên tệp tạm của `write_export_file` mang hậu tố DUY NHẤT `std::process::id()` +
+    `uuid::Uuid::new_v4()` (crate đã có sẵn, dùng lại — không phụ thuộc mới) thay vì `<tên>.tmp`
+    trần — hai lượt xuất song song cùng đích nay dùng hai tệp tạm riêng.
+    🔵 **SỬA 2026-08-25 (Ice đo lại) — MƯỜI mục vá, không phải chín.** Mục ① tự nó gồm HAI bản vá:
+    rào công thức ban đầu (ở trên), cộng một bản vá THỨ HAI ở lượt đo lại SAU KHI đoạn này đã viết
+    lần đầu — một giá trị GỐC đã tự bắt đầu bằng `'` rồi theo sau một ký tự kích hoạt (`'=1+1`,
+    `'+A1`, `'-A1`, `'@SUM(A1)`) bị mất đúng ký tự `'` đầu qua một vòng xuất→nhập, vì
+    `needs_formula_guard`/`strip_formula_guard` bản đầu chỉ nhìn ĐÚNG MỘT ký tự thay vì đếm hết số
+    dấu `'` dẫn đầu. Vá bằng một vị từ chung (`char_after_leading_quotes`, bỏ HẾT `'` dẫn đầu rồi
+    nhìn ký tự kế tiếp), dùng ĐỐI XỨNG cho cả hai chiều — 0 cột mới, đúng cách Ice bác lời khai
+    "giới hạn có tên" mà doc-comment bản đầu viết. Ca mới:
+    `a_value_that_already_starts_with_a_quote_followed_by_a_formula_trigger_character_round_trips_
+    with_the_leading_quote_intact`. Đối chứng gỡ-chỗ-nối RIÊNG cho bản vá thứ hai này: khôi phục
+    hình dạng lỗi CŨ (`needs_formula_guard` chỉ nhìn ký tự đầu tiên VÀ `strip_formula_guard` kiểm
+    `rest` sau khi đã bỏ một dấu nháy — không kiểm cả `field`) ⇒ đỏ ĐÚNG ca mới đó, ca gốc
+    `a_cell_starting_with_...` của mục ① VẪN XANH (bug cũ chỉ chạm giá trị có `'` dẫn đầu, không
+    chạm giá trị không có) — khôi phục ⇒ xanh lại cả hai.
+    Chín phép đối chứng GỠ CHỖ NỐI đầu, chạy thật, một mục một lượt (gỡ ⇒ đỏ ⇒ khôi phục ⇒ xanh): ①
+    `needs_formula_guard` luôn `false` ⇒ đỏ 1 ca
+    (`a_cell_starting_with_a_formula_trigger_character_...`). ② bỏ cờ `unterminated` (luôn
+    `false`) ⇒ đỏ 2 ca (`an_unterminated_quoted_field_is_a_named_error_...`,
+    `an_unterminated_quoted_field_in_the_header_row_itself_is_also_a_named_error`). ③ trả
+    `logical_lines` về đếm `line.matches('\n').count()` ⇒ đỏ 1 ca
+    (`a_bare_cr_inside_a_quoted_field_advances_the_line_number_for_rows_after_it`). ④ trả
+    `unquoted_char_present` về `header_text.contains(target)` ⇒ đỏ 1 ca
+    (`a_quoted_comma_inside_a_tsv_header_cell_does_not_confuse_delimiter_detection`). ⑤ bỏ khối
+    `known_column_counts` ⇒ đỏ 1 ca
+    (`two_header_columns_sharing_a_known_name_are_refused_naming_the_duplicated_column`). ⑥ bỏ
+    `strip_zero_width` khỏi đường trích `source_term` ⇒ đỏ 2 ca
+    (`a_source_term_containing_only_a_zero_width_character_is_refused_as_blank`,
+    `a_valid_source_term_with_a_trailing_zero_width_character_is_accepted_with_it_stripped`). ⑦
+    trả `seen`/duplicate-check về bản đọc-trước-ghi-sau cũ ⇒ đỏ 1 ca
+    (`a_duplicate_whose_first_occurrence_was_rejected_for_an_unrelated_reason_is_still_flagged_as_a_duplicate`).
+    ⑧ khôi phục `metadata` ⇒ so ⇒ `std::fs::read` không chặn ⇒ đỏ 1 ca
+    (`read_import_file_never_reads_more_than_the_cap_plus_one_byte_...` — `size` trả về đổi từ
+    `LIMIT + 1` sang kích thước THẬT của tệp, ~134 MB). ⑨ trả tên tạm về `<tên>.tmp` trần ⇒ đỏ
+    (không tất định mỗi lượt, nhưng tái hiện được qua nhiều lần chạy)
+    `two_concurrent_exports_to_the_same_destination_...` — nội dung cuối cùng không còn khớp
+    NGUYÊN VẸN một trong hai bản đã ghi.
+    Số đo: `cargo test --locked` trước 680 bộ test, sau **695** (+15 ca). Ba mốc, đo từng lượt:
+    **692** sau lượt thi hành + bản vá dấu nháy dẫn đầu (9 ca cho ①-⑨ + 2 ca phụ cho ② dạng header
+    và biến thể U+FEFF của ⑥ + 1 ca cho mục ① dấu nháy dẫn đầu), rồi **695** sau vòng rà ba lớp
+    (+3 ca: mục ⑥c zero-width cho `translation`/`note` · rào công thức dưới CẢ HAI delimiter ·
+    ba ca biên P7). `npm run check:i18n`/`check:deps` xanh, 0 miễn trừ mới (382 khoá `vi.json`,
+    tăng từ **380** — 🔵 SỬA 2026-08-25, vòng rà đo lại: `git show HEAD:src/i18n/vi.json` = 380,
+    không phải 382 như bản trước ghi; hai khoá mới vẫn là `import_unterminated_quoted_field` +
+    `import_duplicate_column`). `.githooks/pre-push` xanh trọn 247s (mười một cổng + vitest +
+    build + `cargo test`). Mục thứ mười (điều tra bối cảnh cho
+    `.tmp`) không cần vá riêng — nó là bối cảnh giải thích mục ⑨, không phải một lỗ thứ mười.
+    🔵 **VÒNG RÀ BA LỚP 2026-08-25 — 14 phát hiện, 0 `intent_gap`, 0 `bad_spec`** (không vòng
+    quay lại). 8 mục `patch` đã vá (hai doc-comment hết đúng ở `store.rs` và `mod.rs`; câu
+    `import_duplicate_column` chốt cứng *"hai lần"* trong khi vị từ là `count > 1`; lý do
+    dừng-ngay của `parse` không phủ ca thân tệp; bất đối xứng 6 cột xuất / 3 cột nhập chưa ai
+    ghi giả định; hai con số sai trong chính mục này; ca TSV và ba ca biên còn trống). 1 mục
+    `patch` do Ice ký nới phạm vi (⑥c, ngay dưới). 3 mục bị BÁC bằng phép đo, không bằng phán
+    quyết — đáng ghi vì cả ba nghe rất thuyết phục: *"`UnterminatedQuotedField` đánh rơi các lỗi
+    đã gom"* (SAI — `logical_lines` chạy TRỌN trước vòng kiểm hàng, nên lúc nó trả `Err` chưa một
+    `ParseIssue` cấp-hàng nào tồn tại) · *"`DuplicateColumn` bỏ sót cột lạ trùng tên"* (hàng ma
+    trận ⑤ chốt đúng phạm vi "cột đã biết", và cột lạ trùng vẫn được NÓI RA qua `ignored_columns`)
+    · *"diff gộp chín bản vá, khó bisect"* (phạm vi Ice ký `[K]` 2026-08-25).
+    ⚠️ **Một lăng kính đưa một `guard_snippet` KHÔNG tồn tại trong mã** để minh hoạ phát hiện
+    zero-width của nó — nhưng KẾT LUẬN thì đúng và trùng với một lăng kính khác. Bác theo lý do
+    sẽ đánh rơi lỗ nặng nhất cả vòng rà. Cùng khuôn `muc-bi-bac-dang-doc-lai-bang-tien-de-khac`
+    mà chính mục ⑥ của story này đã dính một lần (sổ nợ đổ cho U+00A0; phép đo bác điều đó, lỗ
+    thật là U+200B/U+FEFF).
+    Nghiệm thu ① bằng mắt trên một bảng tính THẬT (Numbers/Excel/LibreOffice) KHÔNG chạy được ở
+    môi trường thi hành (không GUI) — ghi nợ ngay dưới, không đánh dấu đạt bằng suy luận.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-b-csv-tsv-va-ghi-tep.md`
+  summary: **Mục ① (vô hiệu hoá công thức CSV/TSV) chưa được nghiệm thu bằng mắt trên một bảng
+    tính THẬT** — chỉ có bằng chứng tự động (`parse` đọc lại đúng byte gốc).
+  evidence: §Verification của spec đòi "mở tệp xuất bằng Numbers/Excel/LibreOffice" và tự nhận vế
+    này KHÔNG nghiệm thu được bằng `cargo test`. Môi trường thi hành lượt vá này không có GUI, nên
+    không mở được một bảng tính thật để xác nhận ô `=1+1` hiển thị làm VĂN BẢN thay vì chạy công
+    thức. Cơ chế (tiền tố `'` — khuyến nghị chuẩn OWASP CSV Injection) và vòng tròn xuất→nhập đã
+    được đo tự động; phần còn lại là một xác nhận thị giác trên phần mềm thật.
+    **(Chủ: lượt QA tay kế tiếp có quyền truy cập Numbers/Excel/LibreOffice — mở tệp xuất mang một
+    ô `=1+1` và xác nhận ô đó KHÔNG chạy công thức.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-b-csv-tsv-va-ghi-tep.md`
+  summary: **Lỗ zero-width (mục ⑥ của cụm B) chỉ được vá ở lớp Rust của ĐƯỜNG NHẬP CSV/TSV** —
+    hai đường ghi khác vào cùng cột `source_term` vẫn còn thủng: `GLOSSARY_ENTRY_DDL`'s `CHECK`
+    (bảng 25 điểm mã `White_Space`) và `core::glossary::store::insert_manual_entry` (đường nhập
+    tay, dùng `str::trim()`).
+    → 🟡 **THU HẸP 2026-08-25 (vòng rà ba lớp, mục ⑥c — Ice ký nới phạm vi).** Vế "chỉ
+    `source_term`" của mục này HẾT ĐÚNG: đường nhập tệp nay cắt zero-width khỏi CẢ BA cột văn
+    bản tự do (`source_term` · `translation` · `note`). Lý do nới: `translation` nặng hơn hẳn
+    hai cột kia vì `.filter(|s| !s.is_empty())` của nó quyết định CHỜ CHỐT hay ĐÃ CHỐT — một ô
+    toàn U+200B lọt thành `Some("\u{200B}")`, tức một mục ĐÃ CHỐT mang bản dịch VÔ HÌNH mà
+    trigger `glossary_entry_lifecycle_is_one_way` (AD-36) khiến KHÔNG lùi lại được. Đối chứng
+    đã chạy: gỡ bản vá ⑥c ⇒ đúng 1 ca đỏ
+    (`a_translation_or_note_of_only_zero_width_characters_does_not_become_an_invisible_value`),
+    hai ca `source_term` cũ VẪN XANH — tức ca mới canh một bề mặt riêng, không ăn ké ca cũ.
+    ⇒ **Phần CÒN HỞ của mục này không đổi**: vế SQL (`CHECK` của `GLOSSARY_ENTRY_DDL`, cả ba
+    cột) và vế `insert_manual_entry`. Chủ giữ nguyên.
+  evidence: Đo được 2026-08-25 (`rustc -O`, chạy thật — xem §Design Notes của spec cụm B): U+200B,
+    U+200C, U+200D, U+2060, U+FEFF (giữa văn bản) không mang thuộc tính Unicode `White_Space`, nên
+    chúng lọt CẢ `str::trim()` LẪN bảng 25 điểm mã của `CHECK` trong `GLOSSARY_ENTRY_DDL`
+    (`schema.rs:300-331`). Bản vá cụm B đóng đúng MỘT trong ba chỗ nối cùng lỗ hổng — đường NHẬP
+    TỆP (`exchange.rs::parse`, hàm `strip_zero_width` mới) — theo đúng §Boundaries của spec: "Bản
+    vá zero-width chỉ đứng ở lớp Rust của ĐƯỜNG NHẬP. Không sửa `GLOSSARY_ENTRY_DDL`, không bước
+    di trú... Vế SQL và vế `insert_manual_entry` ghi thành nợ có chủ." Hai chỗ còn thủng:
+    - `store.rs::insert_manual_entry` (`source_term.trim()`, dòng ~180) — đường THÊM NHANH/NHẬP
+      TAY một mục Glossary vẫn có thể ghi một `source_term` chỉ gồm ký tự zero-width, vì
+      `str::trim()` không cắt chúng (cùng lỗ mà `exchange.rs::parse` vừa đóng, nhưng ở một chỗ
+      gọi khác).
+    - `GLOSSARY_ENTRY_DDL`'s `CHECK` — lưới THỨ HAI ở tầng SQL vẫn chỉ liệt 25 điểm mã
+      `White_Space`, không phủ năm ký tự `Cf` này; sửa DDL đòi một bước di trú MỚI (không sửa
+      hằng cũ tại chỗ — nguyên lý đã khoá ở `schema.rs:438-447`), ngoài phạm vi một lượt vá tại
+      chỗ ở `exchange.rs`/`exchange_io.rs`.
+    ⚠️ Tập ký tự đóng, chỉ năm ký tự VIẾT RA ĐƯỢC — không phủ trọn thuộc tính Unicode `Cf` (kéo
+    một crate phân loại Unicode là một cổng NFR15 mới); vế đó cũng là nợ, không phải một dòng vá.
+    **(Chủ: story đầu tiên chạm `GLOSSARY_ENTRY_DDL` — thêm một bước di trú mới mở rộng bảng ký
+    tự `CHECK`, VÀ sửa `insert_manual_entry` để trim cùng tập — hai vế phải đi CÙNG LƯỢT, đúng
+    nguyên lý "hai lớp phòng thủ không được lệch nhau" mà `schema.rs:231-235` đã ghi.)**
 
 - source_spec: none
   summary: **Cụm C — sáu phát hiện về đồng thời ở lượt nhập hai nhịp** (`core/glossary/store.rs`),
@@ -7131,3 +7267,37 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     story vá. Giới hạn này đã ghi tại chỗ ở doc-comment của cổng để nó không nói quá.
     **(Chủ: lượt sửa hạ tầng đồng thời kế tiếp của `commands/glossary.rs`, cùng chủ với mục
     `store.rs:715-719 · 787-791 · 922-926 · 1299-1303` của cụm C.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-b-csv-tsv-va-ghi-tep.md`
+  summary: **Câu lỗi "tệp quá lớn" nay báo cho người dùng một con số KHÔNG phải kích thước tệp
+    của họ** — mọi tệp vượt trần đều hiện đúng `16.777.217 byte`, dù tệp thật là 20 MB hay 20 GB.
+  evidence: Bắt ở vòng rà ba lớp 2026-08-25 (lăng kính blind-hunter), đã tự kiểm lại trên mã.
+    Mục ⑧ của cụm B thay `metadata ⇒ so ⇒ read` bằng `File::open ⇒ take(LIMIT + 1) ⇒ read_to_end`
+    để đóng một cửa sổ TOCTOU thật — đánh đổi có chủ, và doc-comment của `read_import_file` GHI RÕ
+    rằng `size` nay là số byte THẬT SỰ ĐÃ ĐỌC. Chỗ chưa ai xét: giá trị đó chảy thẳng ra câu
+    `err.import.too_large` (*"Tệp nặng {size} byte…"*), tức người dùng đọc `LIMIT + 1` như thể đó
+    là kích thước tệp của mình. Đây không phải một lỗi của bản vá — bản vá đúng; đây là một câu
+    hiển thị nay mô tả sai thứ nó cầm.
+    ⚠️ **Không sửa được bằng một dòng**: khoá `err.import.too_large` DÙNG CHUNG với
+    `core::segment::import` (trần 100 MiB), nơi phép kiểm vẫn dựa trên `metadata` và `size` vẫn LÀ
+    kích thước thật. Đổi câu ⇒ chạm cả hai bên; tách khoá ⇒ một khoá mới và một mệnh đề "dùng
+    chung vì câu ĐÚNG là câu chung" (`core/i18n/mod.rs`) hết đúng. Hai hình dạng đều hợp lệ:
+    ① bỏ `{size}` khỏi câu, chỉ nêu `{limit}` — đúng cho cả hai bên, mất một thông tin chẩn đoán;
+    ② tách khoá riêng cho Glossary. **(Chủ: Ice — đây là một quyết định hiển thị, không phải một
+    dòng vá. Lượt đầu tiên chạm `err.import.too_large` mở lại.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-b-csv-tsv-va-ghi-tep.md`
+  summary: **Hai lượt xuất Glossary song song cùng một đích đều trả `Ok(())`, nhưng chỉ MỘT lượt
+    thật sự nằm lại trên đĩa** — lượt kia biến mất không một tín hiệu nào tới người dùng.
+  evidence: Bắt ở vòng rà ba lớp 2026-08-25 (lăng kính blind-hunter), đã tự kiểm lại. Mục ⑨ đã
+    đóng vế HỎNG DỮ LIỆU (mỗi lượt dùng một tệp tạm riêng mang hậu tố `pid`+`uuid`, nên tệp đích
+    luôn là một bản TRỌN VẸN, không phải bản trộn) — đúng như hàng ⑨ của §I/O Matrix đòi, và ca
+    `two_concurrent_exports_to_the_same_destination_...` canh nó. Vế CÒN HỞ nằm ngoài hàng đó:
+    `rename` của lượt sau đè lên kết quả của lượt trước, cả hai `write_export_file` cùng trả
+    `Ok(())`, nên giao diện báo "đã xuất" HAI lần trong khi chỉ một bản tồn tại.
+    ⚠️ Bản vá đúng KHÔNG nằm ở tầng này — một `write_export_file` không biết gì về lượt gọi kia.
+    Nó thuộc tầng giao diện: vô hiệu hoá nút Xuất khi một lượt ghi đang bay. Đó là **cùng một cửa**
+    với mục cụm D đã ghi (*"Export và Import CSV không loại trừ lẫn nhau ⇒ hai hộp thoại hệ điều
+    hành có thể cùng bay"*, `GlossaryManageOverlay.vue:452-469`) — khác chiều (Export↔Export thay
+    vì Export↔Import) nhưng đóng bằng đúng một cơ chế. **(Chủ: lượt vá cụm D — đóng cả hai chiều
+    trong một lượt, đừng vá riêng chiều này.)**

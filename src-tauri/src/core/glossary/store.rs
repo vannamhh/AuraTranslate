@@ -463,10 +463,21 @@ pub enum GlossaryError {
     //
     // Sinh ra ở `super::exchange_io` (bốn ca I/O đầu) hoặc ở `commands::glossary::wire`
     // (ba ca còn lại — không cần chạm đĩa để phát hiện).
-    /// Tệp nhập vượt trần [`super::exchange_io::MAX_GLOSSARY_IMPORT_BYTES`] (16 MiB) —
-    /// kiểm bằng `metadata` TRƯỚC khi đọc byte nào. `size`/`limit` là số byte thô.
+    /// Tệp nhập vượt trần [`super::exchange_io::MAX_GLOSSARY_IMPORT_BYTES`] (16 MiB).
+    /// `size`/`limit` là số byte thô.
+    ///
+    /// 🔵 **SỬA 2026-08-25 (vòng rà ba lớp, mục ⑧) — CÂU TRÊN HẾT ĐÚNG.** Bản
+    /// trước khai kiểm bằng `metadata` TRƯỚC khi đọc byte nào — đúng cho HÌNH DẠNG CŨ của
+    /// [`super::exchange_io::read_import_file`] (`metadata` ⇒ so ⇒ `std::fs::read` không
+    /// chặn), nhưng hình dạng đó có một cửa sổ TOCTOU thật (tệp lớn lên GIỮA lúc `metadata`
+    /// đo và lúc `read` đọc). Mục ⑧ thay nó bằng `File::open` + `Read::take(LIMIT + 1)` +
+    /// `read_to_end` — quyết định "quá trần" nay dựa trên SỐ BYTE THẬT SỰ ĐÃ NẠP, không dựa
+    /// trên một con số `metadata` có thể đã cũ.
     ImportFileTooLarge {
-        /// Kích thước tệp đọc được qua `metadata`.
+        /// Số byte THẬT SỰ đã đọc — `LIMIT + 1` khi trần bị vượt (mẹo chuẩn để phân biệt
+        /// "tệp dài ĐÚNG BẰNG trần" với "tệp dài HƠN trần" mà không cần đọc trọn một tệp
+        /// khổng lồ), KHÔNG PHẢI kích thước THẬT của tệp trên đĩa — hệ quả trực tiếp của
+        /// việc không còn dựa vào `metadata` để quyết định chặn.
         size: u64,
         /// Trần đang áp.
         limit: u64,
