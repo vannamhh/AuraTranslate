@@ -6862,6 +6862,14 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     người thật bấm nút.
     **PHẦN CÒN HỞ:** bản vá **chưa được Ice mở lại trên cửa sổ thật** để xác nhận hết treo, và nửa
     **Windows** vẫn chưa chạy lần nào.
+    → 🟡 CÒN MỘT VẾ 2026-08-25 (muộn nhất) — **VẾ macOS ĐÓNG BẰNG PHÉP ĐO.** Ice mở lại trên cửa sổ
+    thật sau bản vá `#[tauri::command(async)]`: **không còn treo, hoạt động tốt**. Mệnh đề *"lệnh đồng
+    bộ chạy trên luồng chính"* nay có cả hai chiều đo được — chiều ĐỎ (bản trước treo) và chiều XANH
+    (bản vá chạy) — nên nó không còn là một lập luận.
+    ⚠️ **KHÔNG làm tròn lên:** lượt đo này chứng minh hộp thoại MỞ và CHẠY trên macOS. Nó **không**
+    nói gì về nhánh HUỶ (món nợ riêng ngay dưới, vẫn mở) và **không** nói gì về **Windows**, nơi hộp
+    thoại đi qua `rfd` trên Win32 thay vì AppKit và luật luồng chính của Tauri áp cho một vòng lặp sự
+    kiện khác hẳn. **(Chủ vế còn lại: B7 — bảng nghiệm thu Windows, chủ Ice.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary.md`
   summary: **Hàng §I/O Matrix *"Xuất, huỷ hộp thoại"* không có ca test nào** — mệnh đề *"không tệp

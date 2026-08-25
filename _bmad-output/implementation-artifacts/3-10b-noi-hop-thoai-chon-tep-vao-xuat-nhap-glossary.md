@@ -198,8 +198,14 @@ ngưỡng.
 ứng dụng đứng. Đúng lớp lỗi `AGENTS.md` gọi tên: *một bộ test xanh không chứng minh chỗ nối được
 canh*.
 
-**Còn hở:** bản vá **chưa được mở lại trên cửa sổ thật** — cho tới lượt đó, mệnh đề *"hết treo"* là
-một lời khai, không một phép đo. Nửa **Windows** vẫn chưa chạy lần nào.
+✅ **XÁC NHẬN 2026-08-25 (muộn nhất) — Ice mở lại trên cửa sổ thật: KHÔNG CÒN TREO, hoạt động tốt.**
+Mệnh đề trung tâm của mục này nay có **cả hai chiều đo được** — chiều ĐỎ (bản trước treo, macOS báo
+*Not Responding*) và chiều XANH (bản vá chạy) — nên nó không còn là một lập luận từ hai dấu hiệu.
+
+⚠️ **Vế lượt đo này KHÔNG phủ, ghi ra thay vì làm tròn lên:** nó chứng minh hộp thoại **mở và chạy**
+trên macOS. Nó không nói gì về nhánh **HUỶ** (§I/O Matrix *"Xuất, huỷ hộp thoại"* — vẫn không có ca
+test nào, món nợ riêng còn mở), và không nói gì về **Windows**, nơi hộp thoại đi qua `rfd` trên
+Win32 thay vì AppKit và luật luồng-chính của Tauri áp cho một vòng lặp sự kiện khác hẳn.
 
 ## Design Notes
 
