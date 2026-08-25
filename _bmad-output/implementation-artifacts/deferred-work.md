@@ -6743,6 +6743,13 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     không làm nửa này xanh giả. Chỗ nối để lại là **một hàm** trả `PathBuf`.
     Hồ sơ bàn giao chở số đo và §7 *"Điều `AD` phải trả lời"*; baseline lúc dừng `044d7a6`.
     **(Chủ: Winston — `AD` về hộp thoại chọn tệp; rồi story nối tiếp 3.10 nối hai chỗ gọi vào.)**
+    → 🟡 ĐÓNG MỘT NỬA 2026-08-25 — **`AD-48` đã viết** (`ARCHITECTURE-SPINE.md` §AD-48): hộp thoại
+    gọi TỪ RUST, `capabilities/main.json` giữ đúng ba quyền, `tauri_plugin_fs::init()` không đăng ký.
+    Cửa NFR15 đã qua cả hai bước cho chín crate. **PHẦN CÒN HỞ, không làm tròn lên:** ① chưa dòng mã
+    nào — `Cargo.toml` chưa thêm phụ thuộc, hai hàng `BANNED_CRATES` chưa gỡ, `export_tier`/
+    `import_into_tier` chưa có vỏ `wire` nào gọi tới; ② **byte payload NFR6 chưa ai đo** — bảng Stack
+    đếm *crate*, không đếm *byte*, và AD-48 đặt ngưỡng xét lại 1 MB trên một con số chưa tồn tại.
+    **(Chủ phần còn hở: story thi hành nối tiếp 3.10.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
   summary: **Cột `term_origin` trong tệp nhập bị đọc rồi vứt mà KHÔNG nói ra** — người dùng sửa

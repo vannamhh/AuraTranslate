@@ -5,6 +5,17 @@
 chọn đích ghi mà kho **cố ý không có**.
 **Quyết định của Ice:** đi đường `tauri-plugin-dialog` — Ice chọn **hai lần**, lần thứ hai sau khi
 đã đọc trọn số đo ở §3 của hồ sơ này.
+> ✅ **ĐÃ ĐÓNG 2026-08-25 — `AD-48` đã viết** (`ARCHITECTURE-SPINE.md` §AD-48). Ice chốt **nhánh (a)**
+> của §5 (gọi từ Rust, 0 quyền JS) và chốt **giữ vị từ rộng của `check-deps.mjs`, sửa LÝ DO** (§4).
+> Cửa NFR15 bước ① đã mở đủ **chín** tệp giấy phép; bước ② đã ghi vào bảng Stack (*"Rà NFR15 lượt năm"*).
+> ⚠️ **Hồ sơ này có MỘT CHỖ SAI, sửa ở spine chứ không xoá ở đây:** §3.2 liệt `trash` vào danh sách
+> crate mới — đo lại thì `notify-8.2.0/Cargo.toml:93` khai nó là `dev-dependencies`, **chỉ Windows**,
+> không bao giờ vào nhị phân phát hành. Và `notify` là **`CC0-1.0`**, không phải MIT/Apache như §3.4
+> ngầm giả định. Lịch sử của một quyết định là bằng chứng cho quyết định kế tiếp — nên chỗ sai ở lại,
+> kèm bản đính chính này.
+> ⇒ Còn hở: **story thi hành** nối hai chỗ gọi (`export_tier`/`import_into_tier`) vào hộp thoại, và
+> **phép đo byte payload NFR6** mà AD-48 đặt ngưỡng xét lại (1 MB).
+
 **Trạng thái Story 3.10:** **chưa viết một dòng spec nào.** Story dừng ở bước làm rõ ý định của
 `bmad-build`. Không mã, không spec, không tệp nào của story bị chạm.
 **Baseline cây nguồn:** `044d7a6` (cây sạch) · `grep -c "^### AD-"` = **47** · 13 cổng trong

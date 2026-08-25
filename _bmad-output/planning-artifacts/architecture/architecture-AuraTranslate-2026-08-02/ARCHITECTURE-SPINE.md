@@ -743,6 +743,33 @@ graph TD
 
   **⑧ Story 7.4 hết là một giả định.** AC *"xác nhận một segment điền sẵn từ TM mà không sửa ⇒ giữ nguyên xuất xứ của cặp TM nguồn"* (`epics.md:5169-5170`) thêm ở Epic 7 **trước khi** có `AD` nào chốt hình dạng. Nó nay là **hệ quả** của ③ cộng ②, không phải một luật rời.
 
+### AD-48 — Hộp thoại chọn tệp gọi TỪ RUST; không một quyền plugin nào ra JavaScript
+
+- **Binds:** C4, C8 — mọi năng lực cần một đường dẫn do NGƯỜI DÙNG chọn (Glossary CSV/TSV FR49; xuất bản cho reviewer qua `core/export/`).
+- **Prevents:** hai lớp hỏng khác nhau, và chúng đòi hai lớp chặn khác nhau.
+
+  **① Lớp hỏng của người dùng.** Trước `AD` này, kho **không có đường nào** cho người dùng chọn một tệp để ghi ra. Story 3.10 dựng trọn nửa định dạng CSV/TSV rồi dừng ở đúng chỗ đó — mã chạy được, nghiệm thu được bằng `cargo test`, và **không lối vào nào**. FR49/NFR9 hứa *"chia sẻ không cần server hay tài khoản"*; lời hứa đó không thực hiện được bằng một hàm không ai gọi tới.
+
+  **② Lớp hỏng của kiến trúc, và đây là chỗ phản trực giác.** Cài `tauri-plugin-dialog` là **cần** nhưng **không đủ** để giữ AD-1. Plugin dùng được theo hai cách, và chỉ một cách giữ được *"frontend chỉ render và giữ state UI"*. Cấp `dialog:default` — bộ quyền **mặc định** của plugin, thứ mọi hướng dẫn Tauri sẽ bảo dán vào — phơi `allow-open` · `allow-save` · `allow-message` ra JavaScript, tức frontend cầm một năng lực hệ thống. Không dòng nào trong `tauri.conf.json` cãi lại, và một người đọc lướt sẽ tưởng "đã cài plugin thì cấp quyền mặc định là đúng bài".
+
+- **Rule:** hộp thoại chọn tệp là **API phía Rust**, và JavaScript **không bao giờ** chạm tới nó.
+
+  1. **Gọi qua `DialogExt::dialog().file()` trong Rust.** Frontend `dispatch` một command đã đăng ký (AD-34); vỏ `wire` mỏng mở hộp thoại, nhận `PathBuf`, rồi gọi thẳng xuống `core/**`. Đường dẫn **không** đi ngược ra webview trừ khi có một lý do viết ra — nội dung tệp thì không bao giờ (AD-1/AD-16).
+  2. **`capabilities/main.json` giữ ĐÚNG ba quyền.** Không `dialog:*`, không `fs:*`. 🔴 **Đây là cơ chế cưỡng chế thật, không phải một lời dặn:** thiếu quyền thì lệnh `dialog` **không tồn tại** với JavaScript — ACL của Tauri từ chối ở tầng dưới `invoke`. Và nó **đã có cổng canh sẵn**: `src-tauri/tests/config_invariants.rs::main_capability_grants_the_minimum_and_no_plugin_permission` khoá đúng ba chuỗi đó bằng `assert_eq!`, kèm câu *"Mọi quyền `<plugin>:…` ở đây là một bề mặt IPC mới — phải là một AD mới trước đã"*. `AD` này **không** nới cổng đó; nó xác nhận cổng đó đang canh đúng thứ, và một `AD` tương lai muốn nhánh JavaScript phải đi qua nó.
+  3. **`tauri_plugin_fs::init()` KHÔNG được đăng ký.** `tauri-plugin-fs` vào cây phụ thuộc như một phụ thuộc **cứng** của `tauri-plugin-dialog` (`Cargo.toml`, không `optional`, không feature gate) — nhưng crate trong cây **không** bằng lệnh trên dây. `tauri-plugin-dialog-2.7.2/src/commands.rs:162` gọi `window.try_fs_scope()` trả `Option`: không đăng ký thì nó trả `None`, hộp thoại **vẫn chạy**, và **0** lệnh `fs:*` được phơi ra.
+
+- **Vì sao `tauri-plugin-dialog` chứ không `rfd` thẳng — và cái giá, ghi ra thay vì giấu.**
+
+  Ice chốt 2026-08-24, hai lượt, lượt sau sau khi đã đọc trọn số đo. Đường `rfd` thẳng thêm **1** crate; đường plugin thêm **9**. Ở nhánh Rust-only mà `Rule` trên khoá lại, tám crate kia **không mua một năng lực nào** — plugin bọc chính `rfd`, và lớp bọc bị bỏ không.
+
+  Cái chúng mua là **thứ khác**: kiểu `FilePath` chung với hệ sinh thái Tauri, và việc các trục trặc theo nền tảng do thượng nguồn Tauri duy trì thay vì dự án tự gánh. Đó là một đánh đổi hợp lệ, không phải một lỗi — nhưng nó là đánh đổi **dung lượng lấy bảo trì**, và phải đọc được như vậy.
+
+  🔴 **Điều kiện xét lại, viết ra để nó kiểm được:** dư địa NFR6 hôm nay là **3.104.634 byte** (`deferred-work.md:777`), và `prd.md:946` đã dành chỗ đó cho **HVTĐTD** + **Cổ hán văn**. Nếu phép đo `cargo tree` lúc thi hành cho thấy chín crate này ăn quá **1 MB** payload, đó **không** là lý do phá `Rule` trên — nó là lý do **đổi `tauri-plugin-dialog` sang `rfd` thẳng**, một lượt thay thế không chạm một chữ nào của ba mệnh đề `Rule`. `Rule` nói về **cách gọi**, không về **crate nào**.
+
+- ⚠️ **Vị từ của `check-deps.mjs` Kiểm 1 rộng hơn lý do nó tự khai — sửa LÝ DO, giữ VỊ TỪ** *(Ice chốt 2026-08-25)*. Cổng đó canh *"tên có mặt trong `cargo tree`"*, trong khi chú thích khai lý do là *"plugin tồn tại để phơi API ra JavaScript"*. Hai mệnh đề đó **không trùng nhau** — §Rule ③ ngay trên là bằng chứng: `tauri-plugin-fs` ở trong cây mà **không** phơi một lệnh nào. Vị từ **ở lại** vì nó cưỡng chế được bằng máy; chú thích phải nói thật rằng nó canh **mã trong nhị phân** (NFR6 + bề mặt tấn công), còn **bề mặt IPC** (NFR11) do `config_invariants.rs` canh. Hai cổng, hai mệnh đề, không cái nào thay được cái kia.
+
+  ⇒ `tauri-plugin-dialog` và `tauri-plugin-fs` rời `BANNED_CRATES`; **bốn** tên còn lại (`tauri-plugin-stronghold` · `tauri-plugin-keyring` · `tauri-plugin-sql` · `tauri-wire`) đứng nguyên, lý do không đổi một chữ.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -841,11 +868,35 @@ Khác ba lượt trước ở đúng một chỗ, và đó là chỗ đáng ghi:
 
 ⚠️ **Cây npm đi từ 530 lên 656 gói** (số `npm ls --all` đếm được, gồm cả node trùng tên ở nhiều độ sâu; số **gói đã cài** mà `check-deps.mjs` đếm là **522**). Lượt cài này làm lộ ra một **khuyết tật của chính cổng phụ thuộc**, đã vá cùng lượt: `vitest` khai `@opentelemetry/api` làm **peer tuỳ chọn chưa cài**, và `npm ls --all --json` xếp một node **rỗng** cho nó vào `dependencies` — bản trước của `check-deps.mjs` đếm node đó là thành viên cây rồi báo *"cây npm có thư viện thu thập dữ liệu"*, trong khi **không một byte** của gói đó có trên đĩa. Nay cổng chỉ đếm node **có `version`**, và in ra số node chỉ-lời-khai đã bỏ (**82**). Xem `scripts/check-deps.mjs` §④.
 
+**Rà NFR15 lượt năm — 2026-08-25, AD-48 (hộp thoại chọn tệp).** Lượt rà **TRƯỚC khi thêm**, cùng khuôn lượt bốn. Chín crate mới vào cây mặc định vì `tauri-plugin-dialog`; **cả chín tệp giấy phép đã được mở trong `~/.cargo/registry/src/…` mà đọc**, không tin trường `license`:
+
+| Crate | Trường `license` | Tệp đã mở | Ghi chú |
+|---|---|---|---|
+| `tauri-plugin-dialog` 2.7.2 | `Apache-2.0 OR MIT` | `LICENSE_MIT` (20 dòng) · `LICENSE.spdx` | `LICENSE.spdx` khai **một** gói (`tauri`), không gộp gói vendor |
+| `tauri-plugin-fs` 2.5.1 | `Apache-2.0 OR MIT` | `LICENSE_MIT` · `LICENSE_APACHE-2.0` | Phụ thuộc **cứng** của plugin trên; **không** `init()` (AD-48 §Rule ③) |
+| `rfd` 0.16.0 | `MIT` | `LICENSE` (21 dòng, MIT trần) | Lõi thật của hộp thoại; cả 9 phụ thuộc của nó **đã có sẵn** trong `Cargo.lock` |
+| `notify` 8.2.0 | **`CC0-1.0`** | `LICENSE-CC0` (40 dòng) | 🔴 Hạng khác cả bảng — hiến tặng phạm vi công cộng, tương thích GPLv3 chiều đi vào |
+| `notify-debouncer-full` 0.6.0 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | |
+| `notify-types` 2.0.0 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | |
+| `flume` 0.12.0 | `Apache-2.0/MIT` | `LICENSE-MIT` · `LICENSE-APACHE` | |
+| `file-id` 0.2.3 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | |
+| `fsevent-sys` 4.1.0 | `MIT` | `LICENSE` (22 dòng, MIT trần) | Chỉ macOS, qua feature mặc định `macos_fsevent` của `notify` |
+
+Không tệp nào gộp giấy phép của gói khác — khác hẳn ca `vitest` ở lượt bốn. Cả chín đều dễ dãi và tương thích GPL v3 theo chiều đi vào.
+
+⚠️ **`trash` KHÔNG vào cây phát hành, và bản ghi đầu tiên nói sai chỗ này.** Hồ sơ bàn giao `ad-brief-2026-08-24-hop-thoai-chon-tep.md` §3.2 liệt `trash` vào danh sách crate mới. Đo lại: `notify-8.2.0/Cargo.toml:93` khai nó là **`dev-dependencies`, chỉ cho Windows** — nó không bao giờ chạm nhị phân phát hành. Sửa tại chỗ thay vì để con số truyền tiếp.
+
+⚠️ **Số byte payload thật thì CHƯA ai đo** — bảng trên đếm *crate*, không đếm *byte*. Dư địa NFR6 còn **3.104.634 byte**, nên phép đo `cargo tree` + kích thước bundle phải chạy ở story thi hành, và AD-48 đã ghi điều kiện xét lại kèm ngưỡng (**1 MB**) nếu số đo xấu.
+
 SQLite đến từ `libsqlite3-sys` feature `bundled` — phiên bản do crate ghim, không phải SQLite của hệ điều hành. Sàn tối thiểu mà kiến trúc cần: FTS5 `trigram` (≥ 3.34) và `remove_diacritics 0` (≥ 3.27); mọi bản `bundled` hiện hành đều vượt xa.
 
-**Không dùng, đã loại có lý do:** `tauri-plugin-stronghold` (đã khai tử) · `tauri-plugin-keyring` (AD-29) · `tauri-wire` (payload 679 byte) · **`tauri-plugin-fs`** (AD-1 + AD-29 — plugin tồn tại để phơi API ra JavaScript, mà frontend chỉ render và giữ state UI; cài rồi thu hẹp scope là tự tạo bề mặt tấn công rồi rào lại. Ice chốt 2026-08-03) · **`tauri-plugin-sql`** (AD-11 — `rusqlite` trực tiếp, writer nối tiếp trong Rust) · **`tauri-plugin-dialog`** (cùng lý do `fs`) · WAL2 (không phải tính năng đã phát hành) · `LIKE` trên đường nóng tra cứu (AD-26).
+**Không dùng, đã loại có lý do:** `tauri-plugin-stronghold` (đã khai tử) · `tauri-plugin-keyring` (AD-29) · `tauri-wire` (payload 679 byte) · **`tauri-plugin-sql`** (AD-11 — `rusqlite` trực tiếp, writer nối tiếp trong Rust) · WAL2 (không phải tính năng đã phát hành) · `LIKE` trên đường nóng tra cứu (AD-26).
 
-Sáu tên trên **được cưỡng chế bằng lệnh**, không bằng kỷ luật: `scripts/check-deps.mjs` (Story 1.2) chạy `cargo tree -i` cho từng tên và trả mã thoát khác 0 nếu bất kỳ tên nào xuất hiện. Story 1.3 gắn script này vào CI.
+🔵 **2026-08-25 — `tauri-plugin-dialog` và `tauri-plugin-fs` RỜI danh sách này (AD-48).** Hai tên đó nằm đây từ 2026-08-03 với lý do *"plugin tồn tại để phơi API ra JavaScript"*. Lý do ấy **vẫn đúng** — thứ đổi là kho nay có một luật nói *cách dùng* chứ không chỉ *có hay không*: AD-48 khoá hộp thoại vào API phía Rust và giữ `capabilities/main.json` ở đúng ba quyền, nên plugin vào cây mà **không** một lệnh nào ra JavaScript. Ba tên còn lại giữ nguyên hiệu lực, và **`tauri-plugin-fs` không được `init()`** — có mặt trong cây khác hẳn có mặt trên dây (AD-48 §Rule ③).
+
+**Bốn** tên `tauri-*` trên được **cưỡng chế bằng lệnh**, không bằng kỷ luật: `scripts/check-deps.mjs` (Story 1.2) chạy `cargo tree` và trả mã thoát khác 0 nếu bất kỳ tên nào xuất hiện. Story 1.3 gắn script này vào CI. 🔵 *(2026-08-25: sáu → bốn, AD-48.)*
+
+⚠️ **Cổng đó canh MÃ TRONG NHỊ PHÂN, không canh BỀ MẶT IPC** — vị từ của nó là *"tên có mặt trong `cargo tree`"*, và AD-48 §Rule ③ là bằng chứng hai thứ đó khác nhau: `tauri-plugin-fs` ở trong cây mà phơi **0** lệnh. Bề mặt IPC do `src-tauri/tests/config_invariants.rs::main_capability_grants_the_minimum_and_no_plugin_permission` canh, bằng một `assert_eq!` trên đúng ba chuỗi quyền. Hai cổng, hai mệnh đề; đừng đọc cái này như bằng chứng cho cái kia.
 
 ⚠️ **Mệnh đề *"kho có 0 plugin Tauri"* hết đúng từ 2026-08-11 — sửa ở đây thay vì để nó lặng lẽ sai.** Bốn `tauri-plugin-*` liệt kê ở trên vẫn **cấm nguyên vẹn**, lý do AD-1 + AD-29 không đổi một chữ. `tauri-plugin-wdio-webdriver` là **ngoại lệ đầu tiên và duy nhất**, và nó khác cả bốn ở đúng chỗ quyết định: bốn cái kia tồn tại để **phơi API ra JavaScript trong bản người dùng cài**, còn cái này là một **công cụ đo** mà AD-45 giữ hoàn toàn ngoài bản phát hành bằng hai lớp chặn có cổng canh. Ngoại lệ này **không** nới luật cũ; nó đi qua một luật mới, và luật mới đó đắt hơn chứ không rẻ hơn.
 
@@ -967,11 +1018,11 @@ AuraTranslate/
 | **C1** Library | `core/library/`, `core/segment/`, `core/webimport/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34, AD-37, AD-39, AD-40, AD-41, AD-42, AD-43 |
 | **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42 |
 | **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
-| **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44 |
+| **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48 |
 | **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31 |
 | **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36 |
 | **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22 |
-| **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43 |
+| **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43, AD-48 |
 | **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35, AD-37, AD-39, AD-41, AD-43 |
 | **C10** Phát hành & tin cậy | `tools/dict-build/`, `dict-manifest.toml`, GitHub Actions | AD-10, AD-15, AD-25, AD-41 |
 

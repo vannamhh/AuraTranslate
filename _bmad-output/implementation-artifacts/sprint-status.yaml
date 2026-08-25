@@ -294,7 +294,7 @@ development_status:
   # + `TermOrigin::FileImport` (bước di trú thứ 5 của `global.db`, thứ 15 của `project.db` —
   # lần ĐẦU kho dựng lại một bảng). Không đọc/ghi tệp, không vỏ `#[tauri::command]` nào.
   # Spec: `3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`, baseline `3a1d8295a395639cb2c05a731328e1c55c83ee8a`.
-  3-10-xuat-va-nhap-glossary-qua-csv-tsv: review
+  3-10-xuat-va-nhap-glossary-qua-csv-tsv: done
   epic-3-retrospective: optional
 
   # Epic 4: AI mở & Smart RAG Injector
