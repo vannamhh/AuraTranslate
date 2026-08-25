@@ -302,7 +302,7 @@ development_status:
   # main.json` giữ đúng ba quyền, `tauri_plugin_fs::init()` không đăng ký.
   # Mục ĐẦY ĐỦ ở `epics.md` §Story 3.10b — KHÔNG một khoá đúc thẳng vào tệp này.
   # ⚠️ FR49 chỉ đóng khi story này xanh.
-  3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary: review
+  3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary: done
   epic-3-retrospective: optional
 
   # Epic 4: AI mở & Smart RAG Injector
