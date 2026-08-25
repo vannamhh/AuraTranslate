@@ -696,7 +696,7 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | FR46 | Epic 3 | Glossary hai tầng |
 | FR47 | Epic 3 | Trường của một mục Glossary |
 | FR48 | Epic 3 | Thêm nhanh từ bất kỳ panel nào |
-| FR49 | Epic 3 | Quản lý + xuất/nhập CSV/TSV |
+| FR49 | Epic 3 | Quản lý + xuất/nhập CSV/TSV — **quản lý: Story 3.9 · định dạng + đường ghi: Story 3.10 · hộp thoại chọn tệp: Story 3.10b** 🔵 *(tách 2026-08-25 qua `correct-course`, cửa chặn kiến trúc AD-48)* |
 | FR50 | Epic 3 | Đánh dấu thuật ngữ ở **cột nguyên văn của lưới** — **khớp + bề mặt IPC: Story 3.4 · vẽ dấu + `StatusBar`: Story 3.4b** 🔵 *(sửa lời văn 2026-08-18; tách story 2026-08-21 qua `correct-course`)* |
 | FR51 | Epic 3 | Khớp thuật ngữ theo ngôn ngữ |
 | FR52 | Epic 3 | Quét ứng viên khi nhập tài liệu |
@@ -781,7 +781,7 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | FR131 | Epic 8 | Khối ghi nguồn, mặc định tắt |
 | FR132 | Epic 6 | Bộ lọc "cần xem" trên màn xem trước — *N cần xem · M sạch* |
 
-**Tổng kiểm:** 132/132 FR được ánh xạ. Epic 1: 27 · Epic 2: 9 · Epic 3: **11** · Epic 4: **14** · Epic 5: 17 · Epic 6: **16** · Epic 7: 10 · Epic 8: 13 · Epic 9: 7 · Epic 10: 8.
+**Tổng kiểm:** 132/132 FR được ánh xạ. Epic 1: 27 · Epic 2: 9 · Epic 3: **12** · Epic 4: **14** · Epic 5: 17 · Epic 6: **16** · Epic 7: 10 · Epic 8: 13 · Epic 9: 7 · Epic 10: 8.
 
 > *(FR79 chuyển từ Epic 3 sang Epic 4 ngày soạn story — sửa một vi phạm luật phụ thuộc: bộ prompt chỉ được định nghĩa ở FR69.)*
 
@@ -3253,6 +3253,64 @@ So that cộng đồng chia sẻ được mà không cần server hay tài kho�
 **Given** một mục trong file nhập **không có bản dịch**
 **When** ghi
 **Then** vào trạng thái **chờ chốt**, không vào trạng thái đã chốt với bản dịch rỗng
+
+---
+
+### Story 3.10b: Nối hộp thoại chọn tệp vào xuất/nhập Glossary
+
+**Covers:** FR49 *(vế cuối)*
+
+As a người dịch,
+I want chọn tệp Glossary bằng hộp thoại của hệ điều hành,
+So that bộ thuật ngữ tôi dựng cả tháng ra khỏi được máy tôi.
+
+> 🔵 *(Thêm 2026-08-25 qua `correct-course` — `sprint-change-proposal-2026-08-25-story-3-10b.md`.
+> Nửa **định dạng** của FR49 xong ở Story 3.10; nửa này tách ra ngày 2026-08-24 vì một **cửa chặn
+> kiến trúc** — kho cấm `tauri-plugin-dialog` bằng `check-deps.mjs`, và gỡ một lệnh cấm là một `AD`
+> mới, không một dòng cấu hình. Cửa mở bằng `AD-48` ngày 2026-08-25. ⚠️ **Khác lượt tách 3.4b**,
+> vốn tách vì cửa đếm token của `bmad-build` — cùng hình dạng thủ tục, hai lý do khác hẳn.)*
+
+**Acceptance Criteria:**
+
+**Given** người dùng ở màn hình quản lý Glossary
+**When** chọn xuất
+**Then** hộp thoại **lưu tệp của hệ điều hành** mở ra
+**And** tệp được ghi đúng nơi người dùng chọn, và đường dẫn đã ghi hiện ra
+
+**Given** người dùng huỷ hộp thoại
+**When** đóng nó mà không chọn gì
+**Then** **không tệp nào được ghi, không lỗi nào hiện ra** — huỷ là một lựa chọn, không một thất bại
+
+**Given** người dùng chọn nhập
+**When** hộp thoại mở
+**Then** lọc theo `.csv` và `.tsv`
+**And** tệp được đọc rồi đi vào **đúng** đường phân tích mà Story 3.10 đã dựng — không bản sao thứ hai nào của bước đọc định dạng
+
+**Given** một tệp nhập lớn bất thường
+**When** đọc
+**Then** có **trần kích thước**, và vượt trần thì từ chối tường minh — không đọc trọn một tệp vài GB vào bộ nhớ trên luồng invoke
+
+**Given** một tệp không phải UTF-8
+**When** đọc
+**Then** từ chối tường minh, **không đoán bảng mã** *(dò bảng mã là Epic 6 — cùng ranh giới `import_file` đã đặt ở Story 1.15)*
+
+**Given** `capabilities/main.json`
+**When** story xong
+**Then** nó vẫn mang **đúng ba** quyền, và `config_invariants.rs::main_capability_grants_the_minimum_and_no_plugin_permission` xanh **không cần sửa một chữ** *(AD-48 §Rule ②)*
+
+**Given** cây phụ thuộc Rust
+**When** kiểm
+**Then** `tauri_plugin_fs::init()` **không xuất hiện** ở bất kỳ đâu trong `src-tauri/src/**` *(AD-48 §Rule ③)*
+**And** `check:deps` Kiểm 1 còn **bốn** tên cấm, và chú thích của nó nói đúng thứ nó canh — **mã trong nhị phân**, không phải bề mặt IPC
+
+**Given** bản dựng release
+**When** đo
+**Then** **payload sản phẩm được đo bằng byte** và ghi vào `deferred-work.md` kèm ngày và phiên bản toolchain
+**And** nếu chín crate mới ăn quá **1 MB**, dừng và trình số cho Ice — `AD-48` đã đặt sẵn đường quay lui (`rfd` thẳng) và nó **không** chạm một chữ nào của ba mệnh đề `Rule`
+
+**Given** mọi thao tác của story này
+**When** thực hiện
+**Then** làm được **bằng bàn phím**
 
 ---
 

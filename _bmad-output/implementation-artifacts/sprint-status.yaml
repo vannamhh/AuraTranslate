@@ -295,6 +295,14 @@ development_status:
   # lần ĐẦU kho dựng lại một bảng). Không đọc/ghi tệp, không vỏ `#[tauri::command]` nào.
   # Spec: `3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`, baseline `3a1d8295a395639cb2c05a731328e1c55c83ee8a`.
   3-10-xuat-va-nhap-glossary-qua-csv-tsv: done
+  # 🔵 2026-08-25 — THÊM QUA `correct-course` (sprint-change-proposal-2026-08-25-story-3-10b.md).
+  # Nửa CHỌN TỆP của FR49, tách khỏi 3.10 ngày 2026-08-24 vì một CỬA CHẶN KIẾN TRÚC (không
+  # phải cửa đếm token như 3.4b): kho cấm `tauri-plugin-dialog`, và gỡ lệnh cấm là một `AD`.
+  # CỬA CHẶN ĐÃ MỞ: `AD-48` viết 2026-08-25 (`fd46007`) — hộp thoại gọi TỪ RUST, `capabilities/
+  # main.json` giữ đúng ba quyền, `tauri_plugin_fs::init()` không đăng ký.
+  # Mục ĐẦY ĐỦ ở `epics.md` §Story 3.10b — KHÔNG một khoá đúc thẳng vào tệp này.
+  # ⚠️ FR49 chỉ đóng khi story này xanh.
+  3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary: backlog
   epic-3-retrospective: optional
 
   # Epic 4: AI mở & Smart RAG Injector

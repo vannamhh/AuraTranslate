@@ -6749,7 +6749,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     nào — `Cargo.toml` chưa thêm phụ thuộc, hai hàng `BANNED_CRATES` chưa gỡ, `export_tier`/
     `import_into_tier` chưa có vỏ `wire` nào gọi tới; ② **byte payload NFR6 chưa ai đo** — bảng Stack
     đếm *crate*, không đếm *byte*, và AD-48 đặt ngưỡng xét lại 1 MB trên một con số chưa tồn tại.
-    **(Chủ phần còn hở: story thi hành nối tiếp 3.10.)**
+    **(Chủ phần còn hở: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — thêm vào quy hoạch 2026-08-25 qua `correct-course`.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
   summary: **Cột `term_origin` trong tệp nhập bị đọc rồi vứt mà KHÔNG nói ra** — người dùng sửa
@@ -6760,7 +6760,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     Notes của story chốt rằng mọi mục vào đều mang `file_import`, bất kể tệp ghi gì.
     ⚠️ **KHÔNG phải lệch spec** — hành vi đúng thiết kế; cái thiếu là một câu nói ra điều đó,
     cùng lớp *"rỗng im lặng"* mà `AGENTS.md:46` gọi là lỗi trung tâm của kho.
-    **(Chủ: story nối tiếp 3.10 — nửa chọn tệp, nơi màn hình xem trước lượt nhập ra đời và là
+    **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — nửa chọn tệp, nơi màn hình xem trước lượt nhập ra đời và là
     chỗ DUY NHẤT hiển thị được câu đó cho người dùng.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
@@ -6773,7 +6773,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     đặt sai chỗ qua `parse`.
     ⚠️ Chỉ với đầu vào đã hỏng sẵn — mọi tệp do chính `render_tier` sinh ra đều bọc đúng luật,
     nên vòng tròn xuất→nhập không chạm nhánh này.
-    **(Chủ: story nối tiếp 3.10 — cùng lượt với việc đọc tệp thật từ đĩa, nơi tệp do NGƯỜI KHÁC
+    **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — cùng lượt với việc đọc tệp thật từ đĩa, nơi tệp do NGƯỜI KHÁC
     sinh ra lần đầu đi vào hệ thống.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
@@ -6784,7 +6784,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `seen` chỉ được điền cho những hàng đã qua mọi phép kiểm trước đó. Hành vi này có thể đúng
     (một hàng đã hỏng thì không cần báo hỏng hai kiểu), nhưng nó chưa được ai QUYẾT — nó là hệ
     quả của thứ tự viết mã, không của một lựa chọn viết ra.
-    **(Chủ: story nối tiếp 3.10 — cùng lượt với màn hình xem trước, nơi hình dạng danh sách lỗi
+    **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — cùng lượt với màn hình xem trước, nơi hình dạng danh sách lỗi
     hiển thị cho người dùng mới quyết được câu hỏi "một hàng báo mấy lỗi".)**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
@@ -6795,4 +6795,4 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     câu trạng thái, không ca test nào ghi lại hành vi này theo chiều nào.
     ⚠️ Hôm nay chưa chỗ gọi sản phẩm nào tồn tại (§Never của story cấm dựng vỏ IPC), nên đây là
     một hợp đồng CHƯA có ai vi phạm được — nhưng nó cũng chưa được viết ra.
-    **(Chủ: story nối tiếp 3.10 — story đầu tiên dựng một chỗ gọi thật cho hàm này.)**
+    **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — story đầu tiên dựng một chỗ gọi thật cho hàm này.)**
