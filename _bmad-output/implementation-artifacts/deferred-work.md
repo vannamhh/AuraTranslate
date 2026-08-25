@@ -6847,6 +6847,21 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     lượt khoá vòng lặp sự kiện lộ ra dưới dạng *"bấm Xuất CSV thì app đứng"*, không dưới dạng một
     ca đỏ. Đây là một mục §Ask First của spec, được ghi nợ thay vì đánh dấu đạt.
     **(Chủ: lượt QA tay kế tiếp — `npm run tauri dev`, bấm Xuất rồi Nhập trên cửa sổ thật.)**
+    → 🟡 ĐÓNG MỘT NỬA 2026-08-25 (cùng ngày, muộn hơn) — **PHÉP ĐO ĐÃ CHẠY, VÀ NÓ ĐỎ.** Ice mở hộp
+    thoại trên cửa sổ thật: ứng dụng TREO, macOS báo *"Open and Save Panel Service (auratranslate)
+    (Not Responding)"*. Nguyên nhân đo được: Tauri chạy `#[tauri::command]` **đồng bộ** trên **luồng
+    chính**, nên `blocking_pick_file()` chặn đúng vòng lặp sự kiện mà hộp thoại đang chờ — nguyên văn
+    thứ doc-comment của crate cảnh báo. 🔴 **Chỗ suy luận sai, ghi ra vì nó là bài học:** bản đầu thấy
+    *"chính plugin cũng gọi `blocking_pick_file`"* rồi kết luận an toàn, mà bỏ sót rằng lệnh của plugin
+    là **`async fn`** (`tauri-plugin-dialog-2.7.2/src/commands.rs:121`) nên nó KHÔNG chạy trên luồng
+    chính. Bằng chứng đúng, kết luận sai — hai dấu hiệu không thay được một phép đo.
+    **Đã vá:** `#[tauri::command(async)]` trên cả hai vỏ ⇒ `sync_threadpool`
+    (`tauri-macros-2.6.3/src/command/wrapper.rs:264`), không đổi một dòng thân hàm. Cổng canh
+    `config_invariants.rs::the_dialog_wires_run_off_the_main_thread` (đối chứng gỡ chỗ nối: gỡ bảy ký
+    tự `(async)` ⇒ ĐỎ, khôi phục ⇒ xanh) — vì thiếu nó đi qua trọn mười một cổng và chỉ lộ ra khi một
+    người thật bấm nút.
+    **PHẦN CÒN HỞ:** bản vá **chưa được Ice mở lại trên cửa sổ thật** để xác nhận hết treo, và nửa
+    **Windows** vẫn chưa chạy lần nào.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary.md`
   summary: **Hàng §I/O Matrix *"Xuất, huỷ hộp thoại"* không có ca test nào** — mệnh đề *"không tệp

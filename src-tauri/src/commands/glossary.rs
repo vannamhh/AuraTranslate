@@ -1226,7 +1226,20 @@ pub mod wire {
     ///
     /// Trả `Ok(None)` khi người dùng HUỶ hộp thoại (§Always: "Huỷ hộp thoại là `Ok(None)`,
     /// không một biến thể lỗi") — `Ok(Some(path))` mang đường dẫn đã ghi khi thành công.
-    #[tauri::command]
+    /// 🔴 **`(async)` KHÔNG PHẢI TRANG TRÍ — thiếu nó là TREO ỨNG DỤNG.** Tauri chạy một
+    /// `#[tauri::command]` ĐỒNG BỘ trên **luồng chính**; `blocking_save_file()`/
+    /// `blocking_pick_file()` chặn ở đó, tức chặn đúng vòng lặp sự kiện mà hộp thoại đang
+    /// chờ ⇒ bế tắc, macOS báo *"Open and Save Panel Service (auratranslate) (Not
+    /// Responding)"*. Đo 2026-08-25 trên cửa sổ thật của Ice.
+    ///
+    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ cho `sync_threadpool`
+    /// (`tauri-macros-2.6.3/src/command/wrapper.rs:264`) — chạy ngoài luồng chính, **không
+    /// đổi một dòng thân hàm**. Cùng vai với việc lệnh `open` của chính plugin là
+    /// `async fn` (`tauri-plugin-dialog-2.7.2/src/commands.rs:121`), thứ mà bản đầu của
+    /// story này nhìn thấy `blocking_pick_file` bên trong rồi kết luận nhầm là an toàn ở
+    /// một lệnh đồng bộ. Cổng canh:
+    /// `config_invariants.rs::the_dialog_wires_run_off_the_main_thread`.
+    #[tauri::command(async)]
     pub fn glossary_export_tier(app: tauri::AppHandle, tier: GlossaryTier) -> Result<Option<String>, IpcError> {
         use tauri::Manager as _;
 
@@ -1285,7 +1298,20 @@ pub mod wire {
     ///
     /// Trả `Ok(None)` khi người dùng HUỶ hộp thoại — không đọc gì, không lỗi, **không** kế
     /// hoạch nào để lại trong `State` (§I/O Matrix).
-    #[tauri::command]
+    /// 🔴 **`(async)` KHÔNG PHẢI TRANG TRÍ — thiếu nó là TREO ỨNG DỤNG.** Tauri chạy một
+    /// `#[tauri::command]` ĐỒNG BỘ trên **luồng chính**; `blocking_save_file()`/
+    /// `blocking_pick_file()` chặn ở đó, tức chặn đúng vòng lặp sự kiện mà hộp thoại đang
+    /// chờ ⇒ bế tắc, macOS báo *"Open and Save Panel Service (auratranslate) (Not
+    /// Responding)"*. Đo 2026-08-25 trên cửa sổ thật của Ice.
+    ///
+    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ cho `sync_threadpool`
+    /// (`tauri-macros-2.6.3/src/command/wrapper.rs:264`) — chạy ngoài luồng chính, **không
+    /// đổi một dòng thân hàm**. Cùng vai với việc lệnh `open` của chính plugin là
+    /// `async fn` (`tauri-plugin-dialog-2.7.2/src/commands.rs:121`), thứ mà bản đầu của
+    /// story này nhìn thấy `blocking_pick_file` bên trong rồi kết luận nhầm là an toàn ở
+    /// một lệnh đồng bộ. Cổng canh:
+    /// `config_invariants.rs::the_dialog_wires_run_off_the_main_thread`.
+    #[tauri::command(async)]
     pub fn glossary_open_import_preview(
         app: tauri::AppHandle,
         tier: GlossaryTier,

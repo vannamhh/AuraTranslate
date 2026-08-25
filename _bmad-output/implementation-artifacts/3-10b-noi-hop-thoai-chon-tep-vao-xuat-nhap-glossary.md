@@ -162,6 +162,45 @@ context:
 - Given người dùng chỉ dùng bàn phím, when xuất và nhập trọn một vòng gồm quyết một hàng bất đồng, then làm được hết, không cần chuột.
 - Given `.githooks/pre-push`, when chạy, then exit 0; và lượt CI **cả hai nền tảng** đọc xanh trước khi kết luận — `pre-push` chỉ nói về macOS của Ice.
 
+### 2026-08-25 (muộn nhất) — §Ask First NỔ: hộp thoại treo ứng dụng trên cửa sổ thật
+
+**Phép đo của Ice, thứ `cargo test` không bao giờ chạm tới.** Mở hộp thoại chọn tệp ⇒ ứng dụng
+TREO; macOS báo *"Open and Save Panel Service (auratranslate) (Not Responding)"*. Đây đúng mục
+§Ask First đã ghi (*"nếu `blocking_save_file`/`blocking_pick_file` hoá ra khoá vòng lặp sự kiện"*)
+và đúng món nợ đã ghi trước đó (*"an toàn chỉ được lập luận, chưa được đo"*).
+
+**Nguyên nhân, đo tận nguồn.** Tauri chạy một `#[tauri::command]` **đồng bộ** trên **luồng chính**;
+`blocking_*_file()` chặn ở đó, tức chặn đúng vòng lặp sự kiện mà hộp thoại đang chờ ⇒ bế tắc.
+
+🔴 **Chỗ lập luận sai, ghi ra thay vì lặng lẽ vá.** Lượt khảo sát đọc thấy *"chính plugin cũng gọi
+`blocking_pick_file`"* (`tauri-plugin-dialog-2.7.2/src/commands.rs:158,173,190,205`) và kết luận
+cách dùng đó an toàn cho một lệnh đồng bộ. Bằng chứng ĐÚNG, kết luận SAI: lệnh `open` của plugin
+là **`async fn`** (`:121`), nên nó không bao giờ chạy trên luồng chính. Hai dấu hiệu gián tiếp
+không thay được một phép đo — và spec đã đặt đúng mục này vào §Ask First chính vì thế.
+
+**Bản vá.** `#[tauri::command(async)]` trên cả hai vỏ hộp thoại. Trên một hàm ĐỒNG BỘ, thuộc tính
+đó cho `sync_threadpool` (`tauri-macros-2.6.3/src/command/wrapper.rs:264`) — chạy ngoài luồng
+chính, **không đổi một dòng thân hàm**, không đổi hợp đồng dây. Đường callback không-chặn (§Ask
+First nhắc tới) **không cần dùng**: nó là một lượt đổi hình dạng lệnh, còn đây là bảy ký tự.
+
+**Cổng canh mới — `config_invariants.rs::the_dialog_wires_run_off_the_main_thread`.** Nó khẳng
+định mỗi vỏ mở hộp thoại mang `#[tauri::command(async)]`, cộng một phép đối chứng chiều âm đếm
+ĐÚNG hai thuộc tính. ⚠️ Vị từ đếm phải bỏ dòng chú thích: bản đầu dùng `text.matches(...)` trần và
+đếm **4** vì chính doc-comment của hai vỏ có nhắc chuỗi đó — cổng đỏ oan, sửa VỊ TỪ chứ không hạ
+ngưỡng.
+
+| Gỡ chỗ nối | Kết quả |
+|---|---|
+| Gỡ đúng bảy ký tự `(async)` khỏi cả hai vỏ | **ĐỎ** — `the_dialog_wires_run_off_the_main_thread`, 20 passed / 1 failed. Khôi phục ⇒ **21 passed / 0 failed**. |
+
+⚠️ **Vì sao chỗ này BẮT BUỘC phải là một cổng:** thiếu `(async)` đi qua trọn `cargo test`, trọn
+`npm run build`, và trọn mười một cổng — nó chỉ lộ ra khi một người thật bấm nút, dưới dạng một
+ứng dụng đứng. Đúng lớp lỗi `AGENTS.md` gọi tên: *một bộ test xanh không chứng minh chỗ nối được
+canh*.
+
+**Còn hở:** bản vá **chưa được mở lại trên cửa sổ thật** — cho tới lượt đó, mệnh đề *"hết treo"* là
+một lời khai, không một phép đo. Nửa **Windows** vẫn chưa chạy lần nào.
+
 ## Design Notes
 
 **Vì sao lượt nhập đi HAI NHỊP với kế hoạch ở lại Rust.** AD-48 §Rule ① cấm nội dung tệp đi ra webview. Một thiết kế một-nhịp buộc phải gửi 604 `RowPlan` ra JS rồi nhận ngược lại — tức chở nguyên nội dung tệp qua dây hai lần, và tin vào thứ quay về. Giữ kế hoạch trong `State` của Rust giải cả ba chuyện cùng lúc: nội dung tệp không rời Rust; webview chỉ cầm một **mô hình đã kiểm** để vẽ (đúng AD-16); và một quyết định trỏ tới `source_term` không có trong lô trở thành **lỗi bắt được** thay vì rơi vào hư không — đúng món nợ `deferred-work.md:6798`.

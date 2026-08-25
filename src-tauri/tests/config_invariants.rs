@@ -808,7 +808,7 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
         // #[tauri::command] lien tiep trong `pub mod wire`, nen cat toi dau dong trong
         // `#[tauri::command]` KE TIEP sau diem bat dau la du de chua tron than ham nay.
         let after_start = &text[fn_start + fn_start_marker.len()..];
-        let fn_end_rel = after_start.find("#[tauri::command]").unwrap_or(after_start.len());
+        let fn_end_rel = after_start.find("#[tauri::command").unwrap_or(after_start.len());
         let body = &after_start[..fn_end_rel];
 
         let dialog_idx = body.find(dialog_call).unwrap_or_else(|| {
@@ -833,4 +833,68 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
              (qua `work_tier_is_open()`) TRUOC dialog, roi khoa LAI, MOI, SAU dialog."
         );
     }
+}
+
+/// 🔴 **Hai vỏ hộp thoại PHẢI chạy ngoài luồng chính — thiếu `(async)` là TREO ỨNG DỤNG.**
+///
+/// Tauri chạy một `#[tauri::command]` ĐỒNG BỘ trên luồng chính. `blocking_save_file()` /
+/// `blocking_pick_file()` chặn ở đó, tức chặn đúng vòng lặp sự kiện mà hộp thoại đang chờ
+/// ⇒ bế tắc. Đo 2026-08-25 trên cửa sổ thật: macOS báo *"Open and Save Panel Service
+/// (auratranslate) (Not Responding)"*, ứng dụng đứng hẳn.
+///
+/// `#[tauri::command(async)]` trên một hàm đồng bộ cho `sync_threadpool`
+/// (`tauri-macros-2.6.3/src/command/wrapper.rs:264`), tức một luồng khác luồng chính.
+///
+/// ⚠️ **Vì sao đây phải là một CỔNG chứ không một chú thích:** gỡ đúng bảy ký tự `(async)`
+/// đi qua trọn `cargo test`, trọn `npm run build`, và trọn mười một cổng — lỗi chỉ lộ ra
+/// khi một người thật bấm nút, dưới dạng một ứng dụng đứng, không dưới dạng một ca đỏ. Đây
+/// chính là lớp lỗi mà `AGENTS.md` gọi tên: một bộ test xanh không chứng minh chỗ nối được
+/// canh.
+#[test]
+fn the_dialog_wires_run_off_the_main_thread() {
+    let path = manifest_dir().join("src/commands/glossary.rs");
+    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+
+    // Moi vo mo mot hop thoai CHAN phai mang `(async)` NGAY TREN chu ky cua no.
+    let cases: [(&str, &str); 2] = [
+        ("glossary_export_tier", "pub fn glossary_export_tier(app: tauri::AppHandle"),
+        ("glossary_open_import_preview", "pub fn glossary_open_import_preview(\n        app: tauri::AppHandle"),
+    ];
+
+    for (name, sig) in cases {
+        let idx = text.find(sig).unwrap_or_else(|| {
+            panic!(
+                "khong tim thay chu ky vo `{name}` -- chu ky da doi? cap nhat ca test nay CUNG LUOT."
+            )
+        });
+        // Doan ngay TRUOC chu ky phai chua thuoc tinh `(async)`; lay 64 byte la du chua
+        // dong thuoc tinh ma khong voi nguoc len doc-comment cua ham TRUOC do.
+        let start = idx.saturating_sub(64);
+        let before = &text[start..idx];
+        assert!(
+            before.contains("#[tauri::command(async)]"),
+            "vo `{name}` KHONG mang `#[tauri::command(async)]` -- lenh dong bo chay tren \
+             LUONG CHINH, va `blocking_*_file()` ben trong no se chan chinh vong lap su kien \
+             ma hop thoai dang cho ⇒ TREO UNG DUNG (do 2026-08-25 tren cua so that). \
+             Doan doc duoc ngay truoc chu ky: {before:?}"
+        );
+    }
+
+    // Doi chung chieu AM: chuoi `(async)` phai di kem DUNG hai vo tren, khong roi rac cho khac
+    // trong tep -- neu mot lan sua tuong lai rai no khap noi thi ca test nay het canh dung thu.
+    // Dem theo DONG va bo dong chu thich -- `text.matches(...)` tran dem ca chuoi nam
+    // TRONG doc-comment cua chinh hai vo (chung noi ve `(async)`), nen no tra 4 chu khong
+    // phai 2. Vi tu phai dem THUOC TINH, khong dem lan nhac ten.
+    let async_cmd_count = text
+        .lines()
+        .map(str::trim_start)
+        .filter(|l| !l.starts_with("//"))
+        .filter(|l| l.starts_with("#[tauri::command(async)]"))
+        .count();
+    assert_eq!(
+        async_cmd_count, 2,
+        "dem duoc {async_cmd_count} `#[tauri::command(async)]` trong commands/glossary.rs, mong \
+         DUNG 2 (hai vo mo hop thoai). Them mot vo chan moi thi them no vao `cases` cua ca test \
+         nay CUNG LUOT; con lai la mot lan rai thuoc tinh khong co ly do."
+    );
 }
