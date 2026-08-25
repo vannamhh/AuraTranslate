@@ -292,3 +292,81 @@ describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng đượ
     wrapper.unmount()
   })
 })
+
+/**
+ * 🔵 **THÊM 2026-08-25 — vòng rà Epic 3, lăng kính adversarial.**
+ *
+ * `onCategoryKeydown` khớp `opt.digit === event.key` mà **không** lọc phím bổ trợ, trong khi
+ * anh em ruột của nó ở `GlossaryQueueOverlay.vue::onKeydown` đã có đúng bản vá đó kèm lý do
+ * viết sẵn. Dải này **không** nuốt bàn phím — đó là một quyết định Ice ký 2026-08-20
+ * (`glossaryQuickAddState.ts::openGlossaryQuickAdd`) — nên `Mod+1` vẫn bắn lệnh toàn cục
+ * `mode.library`, và bản trước của hàm này *cũng* khớp nó vì `event.key` của `⌘1` vẫn là `'1'`.
+ * ⇒ MỘT hợp âm làm HAI việc, và việc thứ hai (ghi đè phân loại của thuật ngữ đang gõ dở) im
+ * lặng hoàn toàn.
+ *
+ * ⚠️ Đây là đường DOM **cục bộ**, song song với `CommandRegistry` và không đi qua `isBlocked`
+ * — đúng lý do không cổng nào hiện có nhìn thấy nó, và đúng lý do phép kiểm phải mount thật
+ * rồi bắn một `KeyboardEvent` có `metaKey`.
+ *
+ * Đối chứng gỡ chỗ nối: gỡ dòng `if (event.ctrlKey || event.metaKey || event.altKey) return`
+ * khỏi `GlossaryQuickAdd.vue` ⇒ ca ① và ② phải ĐỎ.
+ */
+describe('dải "Thêm thuật ngữ" — hợp âm Mod+số KHÔNG được lặng lẽ đổi phân loại', () => {
+  async function stripDaMo() {
+    const { state, GlossaryQuickAdd } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    const wrapper = mount(GlossaryQuickAdd)
+    state.openGlossaryQuickAdd('慕容')
+    await settle(wrapper)
+    // Mặc định của một lượt mở là `'person'` — mốc để mọi ca dưới đây so.
+    expect(state.quickAddCategory.value).toBe('person')
+    return { state, wrapper }
+  }
+
+  it('① `⌘2` (metaKey) ⇒ phân loại GIỮ NGUYÊN — lệnh toàn cục sở hữu hợp âm này', async () => {
+    const { state, wrapper } = await stripDaMo()
+
+    await wrapper.get('fieldset.gqa-group').trigger('keydown', { key: '2', metaKey: true })
+
+    expect(state.quickAddCategory.value).toBe('person')
+    wrapper.unmount()
+  })
+
+  it('② `Ctrl+3` và `Alt+4` ⇒ cùng luật, phân loại GIỮ NGUYÊN', async () => {
+    const { state, wrapper } = await stripDaMo()
+    const nhom = wrapper.get('fieldset.gqa-group')
+
+    await nhom.trigger('keydown', { key: '3', ctrlKey: true })
+    expect(state.quickAddCategory.value).toBe('person')
+
+    await nhom.trigger('keydown', { key: '4', altKey: true })
+    expect(state.quickAddCategory.value).toBe('person')
+
+    wrapper.unmount()
+  })
+
+  it('③ phím số TRẦN vẫn đổi phân loại — bản vá không được lấy mất tính năng', async () => {
+    const { state, wrapper } = await stripDaMo()
+
+    await wrapper.get('fieldset.gqa-group').trigger('keydown', { key: '2' })
+
+    expect(state.quickAddCategory.value).toBe('place')
+    wrapper.unmount()
+  })
+
+  it('④ `Shift+1` ⇒ không khớp gì cả, và đó là CỐ Ý (bố cục US cho `event.key === "!"`)', async () => {
+    const { state, wrapper } = await stripDaMo()
+
+    // `Shift` KHÔNG nằm trong danh sách lọc; nó không cần nằm đó, vì bàn phím đã đổi chính
+    // `event.key`. Ca này khoá lời giải thích đó lại — nếu ai đó "dọn cho nhất quán" bằng
+    // cách thêm `shiftKey` vào vệ, ca ④ vẫn xanh nhưng lý do đã mất, nên nó khẳng định thêm
+    // rằng một `Shift+<digit>` TRẦN (bố cục giữ nguyên digit) VẪN đổi được.
+    await wrapper.get('fieldset.gqa-group').trigger('keydown', { key: '!', shiftKey: true })
+    expect(state.quickAddCategory.value).toBe('person')
+
+    await wrapper.get('fieldset.gqa-group').trigger('keydown', { key: '3', shiftKey: true })
+    expect(state.quickAddCategory.value).toBe('domain_term')
+
+    wrapper.unmount()
+  })
+})

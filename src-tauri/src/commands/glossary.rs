@@ -920,7 +920,15 @@ pub mod wire {
     /// ⚠️ `try_state`, không `state()` — cùng lý do mọi vỏ khác của kho: `app.manage(store)`
     /// (`global.db`) và `app.manage(OpenWorkState)` có thể chưa từng chạy, và `panic =
     /// "abort"` giết cả tiến trình nếu ta thẳng tay `state::<T>()`.
-    #[tauri::command]
+    /// 🔵 **THÊM `(async)` 2026-08-25 (vòng rà bước 4) — vỏ ĐÁNG chuyển nhất trong cả tệp.**
+    /// Nó chạy `resolve_term_for_quick_add`, thứ nạp **trọn bảng `glossary_entry` của CẢ HAI
+    /// tầng** qua `load_tier` (`core/glossary/store.rs:787`) — và nó chạy ở **mỗi lượt gõ** trong
+    /// dải Thêm nhanh (`glossaryQuickAddState.ts::scheduleQuickAddLookup`), không phải một lần
+    /// mỗi thao tác. ⚠️ Lượt dựng đầu của story này BỎ SÓT nó vì spec khai *"mười hai vỏ còn lại
+    /// là tra/ghi MỘT hàng"* — một con số chưa ai đếm. Đếm thật: sáu chỗ `load_tier`, hai chỗ nằm
+    /// dưới vỏ đồng bộ. Cổng canh:
+    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
+    #[tauri::command(async)]
     pub fn glossary_lookup_term(
         app: tauri::AppHandle,
         source_term: String,
@@ -1019,7 +1027,15 @@ pub mod wire {
     /// `commands::dict::wire::read_han_viet`: state có thể chưa từng được `app.manage`, và
     /// `panic = "abort"` giết cả tiến trình nếu ta thẳng tay `state::<T>()`); `disabled` đọc
     /// qua `commands::dict::disabled_sources`, tái dùng đúng phép đọc mà tab Hán Việt dùng.
-    #[tauri::command]
+    ///
+    /// 🔵 **THÊM `(async)` 2026-08-25 — chi phí SCALE THEO KÍCH THƯỚC CHƯƠNG.** Vỏ này chạy
+    /// Matcher trên **trọn văn bản** một Chương, ở mỗi lượt mở Chương và mỗi lượt gộp/tách
+    /// (`editorPanelState.ts::applyRegroup`). Trên luồng chính, một Chương dài giữ vòng lặp
+    /// sự kiện suốt lượt khớp. Tiêu chí chọn — viết ra thay vì chọn từng ca: **chi phí scale
+    /// theo kích thước tài liệu hoặc tập dữ liệu ⇒ chạy ngoài luồng chính**. Cổng canh giữ
+    /// danh sách và con số; đừng chép một con số thứ hai xuống đây. Cổng canh:
+    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
+    #[tauri::command(async)]
     pub fn glossary_marks_for_chapter(
         app: tauri::AppHandle,
         text: String,
@@ -1060,7 +1076,15 @@ pub mod wire {
     ///
     /// 🔵 THÊM 2026-08-24 (Story 3.7) — cùng khuôn `glossary_marks_for_chapter` ngay trên:
     /// `DictLayers` qua `try_state`, `disabled` qua `commands::dict::disabled_sources`.
-    #[tauri::command]
+    ///
+    /// 🔵 **THÊM `(async)` 2026-08-25 — chi phí SCALE THEO SỐ ỨNG VIÊN CHỜ.** Vỏ này gọi
+    /// `suggest_han_viet_batch` cho **mọi** ứng viên đang chờ, ở **mỗi lượt đọc** hàng chờ —
+    /// tức hàng trăm lượt tra từ điển đồng bộ ngay sau một lượt nhập lớn. `commands::project`
+    /// đã coi đúng phép tra theo lô này là đủ đắt để phải có một luồng nền riêng trên đường
+    /// GHI của lượt quét; đường ĐỌC thì bỏ sót. Cùng tiêu chí với
+    /// [`glossary_marks_for_chapter`] ngay trên. Cổng canh:
+    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
+    #[tauri::command(async)]
     pub fn glossary_pending_candidates(
         app: tauri::AppHandle,
     ) -> Result<Vec<GlossaryCandidateWire>, IpcError> {
@@ -1147,7 +1171,12 @@ pub mod wire {
     }
 
     /// Vỏ IPC của [`super::glossary_list_entries`]. Story 3.9.
-    #[tauri::command]
+    /// 🔵 **THÊM `(async)` 2026-08-25 (vòng rà bước 4).** `list_all_entries` nạp **trọn bảng
+    /// `glossary_entry` của CẢ HAI tầng** qua `load_tier` (`core/glossary/store.rs:922`) rồi
+    /// dựng một `Vec` cỡ toàn bộ Glossary — chi phí scale theo tập dữ liệu, đúng tiêu chí. Cùng
+    /// lượt bỏ sót với [`glossary_lookup_term`], cùng một lý do. Cổng canh:
+    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
+    #[tauri::command(async)]
     pub fn glossary_list_entries(app: tauri::AppHandle) -> Result<Vec<GlossaryEntryWire>, IpcError> {
         use tauri::Manager as _;
 
@@ -1238,7 +1267,9 @@ pub mod wire {
     /// `async fn` (`tauri-plugin-dialog-2.7.2/src/commands.rs:121`), thứ mà bản đầu của
     /// story này nhìn thấy `blocking_pick_file` bên trong rồi kết luận nhầm là an toàn ở
     /// một lệnh đồng bộ. Cổng canh:
-    /// `config_invariants.rs::the_dialog_wires_run_off_the_main_thread`.
+    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread` (🔵 2026-08-25 —
+    /// ca này đổi tên từ `the_dialog_wires_...`: vòng rà Epic 3 tìm ra ba vỏ CHẶN nữa cùng
+    /// lớp lỗi, nên danh sách mở từ hai lên năm và tên nói đúng mệnh đề nó canh).
     #[tauri::command(async)]
     pub fn glossary_export_tier(app: tauri::AppHandle, tier: GlossaryTier) -> Result<Option<String>, IpcError> {
         use tauri::Manager as _;
@@ -1310,7 +1341,9 @@ pub mod wire {
     /// `async fn` (`tauri-plugin-dialog-2.7.2/src/commands.rs:121`), thứ mà bản đầu của
     /// story này nhìn thấy `blocking_pick_file` bên trong rồi kết luận nhầm là an toàn ở
     /// một lệnh đồng bộ. Cổng canh:
-    /// `config_invariants.rs::the_dialog_wires_run_off_the_main_thread`.
+    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread` (🔵 2026-08-25 —
+    /// ca này đổi tên từ `the_dialog_wires_...`: vòng rà Epic 3 tìm ra ba vỏ CHẶN nữa cùng
+    /// lớp lỗi, nên danh sách mở từ hai lên năm và tên nói đúng mệnh đề nó canh).
     #[tauri::command(async)]
     pub fn glossary_open_import_preview(
         app: tauri::AppHandle,
@@ -1358,7 +1391,16 @@ pub mod wire {
     }
 
     /// Vỏ IPC của [`super::glossary_confirm_import`] — nhịp HAI của lượt nhập.
-    #[tauri::command]
+    ///
+    /// 🔴 **`(async)` 2026-08-25 — đúng lớp lỗi đã làm TREO ứng dụng ở lượt hộp thoại, để
+    /// nguyên trên đường GHI HÀNG LOẠT.** Vỏ này chặn trên `WriteTicket::wait()` qua trọn
+    /// vòng `import_into_tier`, thứ duyệt **mọi** `RowPlan` của lô trong MỘT giao dịch. Một
+    /// tệp CSV cỡ trần (16 MiB) vì thế giữ luồng chính suốt lượt ghi — cùng hình dạng bế tắc
+    /// mà Story 3.10b đã đo được trên cửa sổ thật, chỉ khác nguồn chặn (`blocking_*_file()`
+    /// so với một lượt ghi dài). Hai vỏ hộp thoại được vá ở chính story đó; vỏ này bị bỏ sót,
+    /// bắt ở vòng rà Epic 3 (2026-08-25). Cổng canh:
+    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
+    #[tauri::command(async)]
     pub fn glossary_confirm_import(
         app: tauri::AppHandle,
         decisions: BTreeMap<String, ConflictDecision>,

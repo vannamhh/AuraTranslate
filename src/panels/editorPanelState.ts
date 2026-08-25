@@ -2017,6 +2017,17 @@ function applyRegroup(outcome: RegroupOutcome): void {
   // Ảnh chụp không có hàng nào của nhóm ⇒ nối vào cuối thay vì đánh rơi. Ca này không tới
   // được hôm nay *(caret sinh từ chính mảng này)*, và nó viết ra vì cái giá hai bên lệch xa:
   // đánh rơi một hàng mới là để đĩa và màn hình nói hai điều khác nhau, im lặng.
+  //
+  // 🔵 **NỐI LẠI 2026-08-25 — dòng này ĐÃ BỊ XOÁ mà đoạn chú thích trên thì còn nguyên.**
+  // Lượt Story 3.4b thay đúng dòng `if (!inserted) next.push(...)` (`a2eaf7c~1`, dòng 1973)
+  // bằng hai lời gọi `reset*` ngay dưới và **không nối lại**, nên từ đó tới nay đoạn văn trên
+  // treo lơ lửng trên một chỗ trống: nó tả một vệ không còn tồn tại. Bắt ở vòng rà Epic 3
+  // (2026-08-25, lăng kính adversarial), đối chứng bằng
+  // `git show a2eaf7c~1:src/panels/editorPanelState.ts | sed -n '1973p'`.
+  // ⚠️ Đây là lớp lỗi *"khôi phục trung thành ≠ đúng"* đọc ngược: một lượt sửa máy móc giữ
+  // nguyên LỜI KHAI và đánh rơi THỨ NÓ KHAI. Chú thích không phải cổng — nên vệ này nay có
+  // một ca canh riêng ở `tests/frontend/editorRegroupGuards.test.ts`.
+  if (!inserted) next.push(...outcome.new_segments)
   // 🔴 **DỌN DẤU ĐỒNG BỘ, TRƯỚC khi `segments.value` đổi — bắt ở lượt rà 2026-08-21 (ba lớp
   // review).** `refreshGlossaryMarks()` ngay dưới là **BẤT ĐỒNG BỘ** (một round-trip IPC), còn
   // `segments.value = next` thì đồng bộ ngay tại đây. Giữa hai thời điểm đó — từ lúc hàm này
@@ -2040,7 +2051,22 @@ function applyRegroup(outcome: RegroupOutcome): void {
   // KHÔNG còn coi Chương này là "đã nạp" — nhưng lời gọi ở đây vẫn dùng `refreshGlossaryMarks`
   // tường minh, không dựa vào hiệu ứng phụ đó, để ý định đọc được tại chỗ)* — một trong hai
   // lượt IPC PHỤ mà `3-4b-…md` §Intent cho phép, ngoài đúng-một-lượt-mỗi-lần-mở.
-  if (chapterId.value !== null && sourceChapter.value !== null) {
+  //
+  // 🔵 **THÊM VẾ THỨ BA 2026-08-25 — `chapterId.value === sourceChapter.value.chapter_id`.**
+  // Chỗ gọi anh em ở [`switchChapter`] (`:1577-1581`) đã mang vế này từ lượt rà 2026-08-21
+  // kèm một câu viết thẳng: *"BẮT BUỘC, không phải một hàng rào thừa"*. Chỗ gọi ở ĐÂY thì chỉ
+  // kiểm `!== null`, tức hai chỗ gọi giữ HAI điều kiện khác nhau cho cùng một cặp ref — đúng
+  // thứ mà chú thích ở `:1577` cấm bằng chữ (*"Hai chỗ gọi phải giữ ĐÚNG một điều kiện, không
+  // phải hai biến thể của cùng một ý"*). Bắt ở vòng rà Epic 3 (2026-08-25).
+  // ⚠️ Cửa sổ lệch tới được từ ĐÂY chứ không chỉ từ `switchChapter`: `regroup` là `async` và
+  // `applyRegroup` chạy sau `await`, nên một lượt chuyển Chương bay giữa chừng để `chapterId`
+  // mang Chương B trong khi `sourceChapter` còn mang Chương A. Nạp dấu SAI Chương rồi gán cho
+  // Chương đang hiện là đúng khuyết tật mà watcher của `GridPanel.vue` đã tồn tại để chặn.
+  if (
+    chapterId.value !== null &&
+    sourceChapter.value !== null &&
+    chapterId.value === sourceChapter.value.chapter_id
+  ) {
     void refreshGlossaryMarks(chapterId.value, next, sourceChapter.value.source_lang)
   }
 }

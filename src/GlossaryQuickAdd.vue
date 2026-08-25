@@ -51,8 +51,22 @@ const CATEGORY_OPTIONS: ReadonlyArray<{
  * nên phím số được xử lý tự do ở đây — miễn nó không đụng ô gõ nào. Gắn trên `<fieldset>`
  * của NHÓM phân loại, không trên tài liệu: một phím số gõ trong ô Bản dịch/Ghi chú (một
  * bản dịch có chứa số) không nằm trong cây con này, nên nó không bao giờ bị bắt nhầm.
+ *
+ * 🔵 **LỌC PHÍM BỔ TRỢ 2026-08-25 (vòng rà Epic 3) — chép bản vá đã áp cho anh em nó ở
+ * [`GlossaryQueueOverlay.vue`] `onKeydown`.** Dải này **không** nuốt bàn phím (quyết định đã
+ * ký, `glossaryQuickAddState.ts::openGlossaryQuickAdd`), nên `Mod+1` vẫn bắn lệnh toàn cục
+ * `mode.library` — và bản trước của hàm này *cũng* khớp nó vì `event.key` của `⌘1` vẫn là
+ * `'1'`. ⇒ MỘT hợp âm làm HAI việc: đổi chế độ, và lặng lẽ ghi đè phân loại của thuật ngữ
+ * đang gõ dở. Đây là đường DOM cục bộ, không đi qua `CommandRegistry`, nên không cổng nào
+ * thấy nó.
+ *
+ * ⚠️ `Shift` CỐ Ý không nằm trong danh sách lọc — cùng lý do đã ghi ở anh em nó: nó không đổi
+ * `event.key` của digit theo cách còn khớp (bố cục US: `Shift+1` ra `'!'`), nên lọc nó là
+ * thêm một dòng không canh gì cả.
  */
 function onCategoryKeydown(event: KeyboardEvent): void {
+  if (event.ctrlKey || event.metaKey || event.altKey) return
+
   const found = CATEGORY_OPTIONS.find((opt) => opt.digit === event.key)
   if (found === undefined) return
   event.preventDefault()

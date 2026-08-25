@@ -565,6 +565,14 @@ BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;";
 
 /// Bộ di trú của `global.db`. Hôm nay **năm** bước — Story 1.7 · 1.8 · 1.20 · 3.1 · 3.10.
 ///
+/// 🔴 **Năm bước, và đích là phiên bản 5.** Không số nào bị bỏ trống ở bộ này (khác
+/// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
+/// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
+/// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
+/// đọc. 🔵 Câu này thêm 2026-08-25 để **cả hai** bộ khai đích bằng cùng một hình dạng máy
+/// đọc được; trước đó chỉ [`PROJECT_MIGRATIONS`] khai, và chính nó là bộ để tiêu đề lệch
+/// khỏi mảng suốt ba ngày.
+///
 /// Không thêm bước cho một lược đồ chưa tồn tại. Mỗi story sở hữu bước di trú của
 /// chính nó, cùng lúc với bảng mà nó cần.
 ///
@@ -1167,12 +1175,12 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
     "UPDATE segment SET translation_origin = 'self' WHERE status = 'confirmed';"
 );
 
-/// Bộ di trú của `project.db`. Hôm nay **mười ba** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
-/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5.
+/// Bộ di trú của `project.db`. Hôm nay **mười bốn** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
+/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10.
 ///
-/// 🔴 **Mười ba bước, và đích là phiên bản 14.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// 🔴 **Mười bốn bước, và đích là phiên bản 15.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
 /// `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
 ///
 /// ⚠️ Con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
@@ -1231,6 +1239,18 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// [`GLOSSARY_CANDIDATE_OCCURRENCE_CONTEXT_DDL`] (`occurrence_count`/`context_example` của
 /// `glossary_candidate`). Câu *"mười hai bước, đích là 13"* đã hết đúng, sửa tại chỗ. Cùng
 /// lý do bước 13: **KHÔNG** có bước song sinh ở [`GLOBAL_MIGRATIONS`].
+///
+/// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.10):** đích chuyển từ **14** lên **15** — bước
+/// [`GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL`] (giá trị `term_origin` thứ tư,
+/// `file_import`, CÙNG một hằng với bước 5 của `global.db`). Câu *"mười ba bước, đích là
+/// 14"* đã hết đúng, sửa tại chỗ.
+/// 🔴 **Khối này VIẾT MUỘN — 2026-08-25, ở vòng rà Epic 3, không cùng lượt với Story 3.10.**
+/// Lượt đó bump đúng doc-comment của [`GLOBAL_MIGRATIONS`] cho bước song sinh mà bỏ sót bộ
+/// này, nên suốt ba ngày tiêu đề đọc *"mười ba bước, đích là 14"* trong khi mảng ngay dưới
+/// có **14** mục và chạm `to_version` **15**. Đúng thứ rot mà đoạn ⚠️ phía trên đã gọi tên
+/// một lần rồi (bắt ở code review 2026-08-11) — lần thứ hai, nên nó nay có một cổng thật:
+/// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`.
+/// Kỷ luật của người sửa đã hụt hai lần; một ca test thì không hụt.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được

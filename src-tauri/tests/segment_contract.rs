@@ -26,7 +26,8 @@ use auratranslate_lib::core::segment::split::{
     split_source_text, EN_ABBREVIATIONS, LANG_CHINESE, SplitSegment,
 };
 use auratranslate_lib::core::store::{
-    Migration, PINNED_ENTRY_DDL, PROJECT_MIGRATIONS, Store, StoreSpec, Transaction,
+    GLOBAL_MIGRATIONS, Migration, PINNED_ENTRY_DDL, PROJECT_MIGRATIONS, Store, StoreSpec,
+    Transaction,
 };
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
@@ -483,6 +484,85 @@ fn the_project_migration_set_never_reuses_the_burned_number_four() {
         "`PROJECT_MIGRATIONS` khai lai buoc di tru so 4 -- so do DA CHAY (xem \
          `schema.rs`, vet seo Story 1.20). Buoc ke tiep sau 3 la 5."
     );
+}
+
+/// 🔴 **Tiêu đề của một bộ di trú phải nói ĐÚNG cái đích mà mảng của nó chạm tới.**
+///
+/// Doc-comment của [`PROJECT_MIGRATIONS`] tự khai đây là lý do kỷ luật ấy tồn tại: *"Một
+/// dòng tiêu đề nói một số mà bảng hằng ngay dưới nói một số khác là đúng thứ rot mà cả
+/// kiến trúc này dựa vào doc-comment để tránh"*. Nó đã sai **hai lần** — bắt bằng mắt ở code
+/// review 2026-08-11, rồi lại ở vòng rà Epic 3 2026-08-25 (Story 3.10 bump doc-comment của
+/// [`GLOBAL_MIGRATIONS`] cho bước song sinh mà bỏ sót bộ kia, nên suốt ba ngày tiêu đề đọc
+/// *"mười ba bước, đích là 14"* trên một mảng 14 mục chạm `to_version` 15).
+///
+/// ⚠️ **Không cổng nào hiện có bắt được ca này, và đó không phải một lượt quên.**
+/// `validate_strictly_increasing` chỉ đọc MẢNG; `a_fresh_database_migrates_up_to_target_and_logs_it`
+/// đỏ khi **đích** đổi, tức nó cưỡng chế đúng chiều ngược lại — nó bắt người sửa nhận ra
+/// mình vừa đổi lược đồ, rồi để mặc người đó bump con số trong văn xuôi hay không. Hai lần
+/// hụt liên tiếp là ngưỡng của dự án cho *"đừng canh bằng kỷ luật của người sửa"*.
+///
+/// 🔴 Ca này đọc **văn bản nguồn** chứ không chỉ hằng, tức lệch một nhịp với câu ở dòng 1 của
+/// tệp (*hành vi lúc chạy*). Nó ở ĐÂY thay vì `store_boundary.rs` vì nó là anh em ruột của
+/// [`the_project_migration_set_never_reuses_the_burned_number_four`] ngay trên — cùng canh
+/// một doc-comment, cùng canh cùng một vết sẹo, và tách hai ca đó ra hai tệp là dựng đúng
+/// thứ *"hai bản chép phải đồng bộ bằng tay"* mà `deferred-work.md` đang ghi nợ ở chỗ khác.
+///
+/// Chạy đỏ-rồi-xanh: hạ *"đích là phiên bản 15"* trong `schema.rs` về **14**, ca này phải ĐỎ.
+#[test]
+fn the_migration_doc_headers_state_the_target_their_array_reaches() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/core/store/schema.rs");
+    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("doc {}: {e}", path.display()));
+
+    // San quan the: mot duong dan go sai lam `find` truot va MOI khang dinh duoi day xanh ma
+    // khong kiem gi ca -- dung bai hoc "cay rong doc thanh sach" cua `store_boundary.rs`.
+    // 40_000 = mot PHAN BA kich thuoc that (do 2026-08-25: 127.262 byte). Con so nay canh
+    // "duong dan go sai / tep rong / doc truot", KHONG canh "tep teo di" -- mot san sat kich
+    // thuoc that se do o moi luot ai do go bot doc-comment, tuc no se bi ha dan cho het do va
+    // chet im lang. Sai so ba lan la co y.
+    assert!(
+        text.len() > 40_000,
+        "doc duoc {} byte tu `schema.rs` -- duoi mot phan ba kich thuoc that (127k, do          2026-08-25), qua nho de la tep that. Duong dan da doi?",
+        text.len()
+    );
+
+    for (name, anchor, migrations) in [
+        (
+            "GLOBAL_MIGRATIONS",
+            "pub const GLOBAL_MIGRATIONS: &[Migration] = &[",
+            GLOBAL_MIGRATIONS,
+        ),
+        (
+            "PROJECT_MIGRATIONS",
+            "pub const PROJECT_MIGRATIONS: &[Migration] = &[",
+            PROJECT_MIGRATIONS,
+        ),
+    ] {
+        let target = migrations
+            .iter()
+            .map(|m| m.to_version)
+            .max()
+            .unwrap_or_else(|| panic!("`{name}` rong -- khong con dich nao de doi chieu"));
+
+        // Doc-comment cua hang la doan van ban NGAY TRUOC dong khai bao no. Cat tai anchor
+        // roi lui ve dong `pub const` gan nhat phia truoc de khong nham sang doc-comment cua
+        // hang KIA -- hai bo nam trong cung mot tep.
+        let decl = text
+            .find(anchor)
+            .unwrap_or_else(|| panic!("khong tim thay khai bao `{name}` -- da doi ten?"));
+        let doc_start = text[..decl]
+            .rfind("\npub const ")
+            .map_or(0, |i| i + 1);
+        let doc = &text[doc_start..decl];
+
+        let claim = format!("đích là phiên bản {target}");
+        assert!(
+            doc.contains(&claim),
+            "doc-comment cua `{name}` KHONG chua cau {claim:?}, trong khi mang cua no cham \
+             `to_version` {target}. Tieu de noi mot so ma bang hang ngay duoi noi mot so khac \
+             la dung thu rot ma chinh doc-comment do goi ten -- sua VAN XUOI cho no noi that, \
+             va them mot khoi `🔵 CAP NHAT <ngay> (Story x.y)` thay vi sua lang le."
+        );
+    }
 }
 
 /// 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5).** Ca này trước đây tên

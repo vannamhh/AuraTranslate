@@ -835,7 +835,40 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
     }
 }
 
-/// 🔴 **Hai vỏ hộp thoại PHẢI chạy ngoài luồng chính — thiếu `(async)` là TREO ỨNG DỤNG.**
+/// 🔴 **Năm vỏ CHẶN phải chạy ngoài luồng chính — thiếu `(async)` là TREO ỨNG DỤNG.**
+///
+/// 🔵 **MỞ RỘNG 2026-08-25 (vòng rà Epic 3) — ca này trước đây tên
+/// `the_dialog_wires_run_off_the_main_thread` và chỉ canh HAI vỏ hộp thoại.** Lượt rà tìm ra
+/// ba vỏ nữa cùng lớp lỗi mà Story 3.10b bỏ sót, nên danh sách mở từ 2 lên 5 và tên ca nói
+/// đúng mệnh đề nó canh. ⚠️ **MỘT ca, MỘT danh sách, MỘT con số** — không tách thành cổng thứ
+/// hai: `deferred-work.md` đã ghi đúng món nợ *"hai bản chép cây `src-tauri/src/**` kèm hai
+/// hằng sàn phải đồng bộ bằng tay"*, và một lượt xét lại rất dễ chỉ chạm một nửa.
+///
+/// **Tiêu chí một vỏ vào danh sách này — viết ra thay vì chọn từng ca:**
+/// ① nó **chặn** trên một lượt chờ (hộp thoại hệ điều hành, `WriteTicket::wait()`), hoặc
+/// ② chi phí của nó **scale theo kích thước tài liệu hoặc tập dữ liệu**.
+/// **TÁM** vỏ còn lại ở lại đồng bộ; đừng rải `(async)` cho chúng "cho nhất quán".
+///
+/// 🔵 **MỞ LẦN HAI 2026-08-25 (vòng rà bước 4), từ năm lên BẢY — và lý do đáng nhớ hơn hai vỏ.**
+/// Bản trước của chính doc-comment này khai *"Mười vỏ còn lại … tra/ghi MỘT hàng"*, một con số
+/// **chưa ai đếm**. Đếm thật: `core/glossary/store.rs` có **sáu** chỗ `load_tier` (nạp trọn bảng
+/// một tầng), và hai trong số đó nằm dưới vỏ vẫn đồng bộ — `glossary_lookup_term`
+/// (`resolve_term_for_quick_add:787`, chạy ở **mỗi lượt gõ**) và `glossary_list_entries`
+/// (`list_all_entries:922`). ⇒ Một story sinh ra để giết đúng lớp rot *"tiêu đề nói một số, bảng
+/// dưới nói số khác"* đã tái sản xuất nó ngay trong bản vá của chính nó.
+/// ⚠️ Con số **tám** ở trên thì ĐÃ đếm: tám vỏ đồng bộ còn lại không chạm một phép nạp trọn bảng
+/// nào (`load_tier` · `list_all_entries` · `pending_candidates`), truy từng thân hàm thuần
+/// 2026-08-25.
+///
+/// ⚠️ **GIỚI HẠN THẬT của cổng này và của chính bản vá — ghi ra thay vì làm tròn lên (bắt ở
+/// vòng rà 2026-08-25).** `(async)` đưa THÂN HÀM ra khỏi luồng chính, nhưng cả năm vỏ vẫn
+/// **giữ `MutexGuard` của `OpenWorkState` xuyên suốt** phần việc đó. Một vỏ ĐỒNG BỘ khác gọi
+/// `.lock()` trong cửa sổ ấy sẽ chặn **luồng chính** cho tới khi lượt kia xong ⇒ ca xấu nhất
+/// KHÔNG đổi; thứ đổi là ca thường (webview không phát thêm lệnh Glossary nào trong lúc đó thì
+/// nó vẽ bình thường, trước đây thì đứng hẳn). Và cổng này đọc **văn bản nguồn**: nó khẳng định
+/// thuộc tính CÓ MẶT, nó không chạy một phép đo luồng nào — một lượt chặn mới len vào qua một
+/// lời gọi lồng bên trong sẽ đi qua nó mà không một dòng đỏ. Cả hai vế đã ghi nợ có chủ ở
+/// `deferred-work.md`.
 ///
 /// Tauri chạy một `#[tauri::command]` ĐỒNG BỘ trên luồng chính. `blocking_save_file()` /
 /// `blocking_pick_file()` chặn ở đó, tức chặn đúng vòng lặp sự kiện mà hộp thoại đang chờ
@@ -851,40 +884,81 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
 /// chính là lớp lỗi mà `AGENTS.md` gọi tên: một bộ test xanh không chứng minh chỗ nối được
 /// canh.
 #[test]
-fn the_dialog_wires_run_off_the_main_thread() {
+fn the_blocking_wires_run_off_the_main_thread() {
     let path = manifest_dir().join("src/commands/glossary.rs");
     let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
-    // Moi vo mo mot hop thoai CHAN phai mang `(async)` NGAY TREN chu ky cua no.
-    let cases: [(&str, &str); 2] = [
-        ("glossary_export_tier", "pub fn glossary_export_tier(app: tauri::AppHandle"),
-        ("glossary_open_import_preview", "pub fn glossary_open_import_preview(\n        app: tauri::AppHandle"),
+    // Moi vo CHAN phai mang `(async)` NGAY TREN chu ky cua no. Cot thu ba noi vi sao vo do
+    // dat tieu chi -- de mot luot doc sau khong phai suy lai.
+    let cases: [(&str, &str, &str); 7] = [
+        (
+            "glossary_export_tier",
+            "pub fn glossary_export_tier(app: tauri::AppHandle",
+            "mo hop thoai luu -- `blocking_save_file()` chan vong lap su kien",
+        ),
+        (
+            "glossary_open_import_preview",
+            "pub fn glossary_open_import_preview(\n        app: tauri::AppHandle",
+            "mo hop thoai chon tep -- `blocking_pick_file()` chan vong lap su kien",
+        ),
+        (
+            "glossary_marks_for_chapter",
+            "pub fn glossary_marks_for_chapter(\n        app: tauri::AppHandle",
+            "chay Matcher tren TRON van ban mot Chuong, moi luot mo Chuong va moi luot gop/tach",
+        ),
+        (
+            "glossary_pending_candidates",
+            "pub fn glossary_pending_candidates(\n        app: tauri::AppHandle",
+            "goi `suggest_han_viet_batch` cho MOI ung vien cho, o moi luot doc hang cho",
+        ),
+        (
+            "glossary_confirm_import",
+            "pub fn glossary_confirm_import(\n        app: tauri::AppHandle",
+            "chan tren `WriteTicket::wait()` qua tron vong ghi cua mot lo nhap co the toi 16 MiB",
+        ),
+        (
+            "glossary_lookup_term",
+            "pub fn glossary_lookup_term(\n        app: tauri::AppHandle",
+            "nap TRON bang glossary_entry ca hai tang (`load_tier`), o MOI luot go trong dai Them nhanh",
+        ),
+        (
+            "glossary_list_entries",
+            "pub fn glossary_list_entries(app: tauri::AppHandle",
+            "nap TRON bang glossary_entry ca hai tang (`load_tier`) roi dung mot Vec co toan bo Glossary",
+        ),
     ];
 
-    for (name, sig) in cases {
+    for (name, sig, why) in cases {
         let idx = text.find(sig).unwrap_or_else(|| {
             panic!(
                 "khong tim thay chu ky vo `{name}` -- chu ky da doi? cap nhat ca test nay CUNG LUOT."
             )
         });
-        // Doan ngay TRUOC chu ky phai chua thuoc tinh `(async)`; lay 64 byte la du chua
-        // dong thuoc tinh ma khong voi nguoc len doc-comment cua ham TRUOC do.
-        let start = idx.saturating_sub(64);
-        let before = &text[start..idx];
+        // DONG ngay TRUOC chu ky phai LA thuoc tinh `(async)`.
+        //
+        // ⚠️ Lui theo DONG, khong cat mot cua so N byte: doc-comment cua tep nay la tieng Viet
+        // CO DAU, nen `&text[idx - N..idx]` co the roi vao giua mot ky tu UTF-8 nhieu byte va
+        // ca test chet bang mot thong diep noi ve `byte index ... is not a char boundary` thay
+        // vi noi ve mieng vo dang thieu `(async)`. Lui theo dong thi khong co canh do.
+        let before = text[..idx]
+            .lines()
+            .rev()
+            .map(str::trim)
+            .find(|l| !l.is_empty())
+            .unwrap_or("");
         assert!(
-            before.contains("#[tauri::command(async)]"),
+            before == "#[tauri::command(async)]",
             "vo `{name}` KHONG mang `#[tauri::command(async)]` -- lenh dong bo chay tren \
-             LUONG CHINH, va `blocking_*_file()` ben trong no se chan chinh vong lap su kien \
-             ma hop thoai dang cho ⇒ TREO UNG DUNG (do 2026-08-25 tren cua so that). \
-             Doan doc duoc ngay truoc chu ky: {before:?}"
+             LUONG CHINH, va no CHAN o day: {why}. ⇒ TREO UNG DUNG (do 2026-08-25 tren cua so \
+             that, nhanh hop thoai). Dong doc duoc ngay truoc chu ky: {before:?}"
         );
     }
 
-    // Doi chung chieu AM: chuoi `(async)` phai di kem DUNG hai vo tren, khong roi rac cho khac
+    // Doi chung chieu AM: chuoi `(async)` phai di kem DUNG nam vo tren, khong roi rac cho khac
     // trong tep -- neu mot lan sua tuong lai rai no khap noi thi ca test nay het canh dung thu.
     // Dem theo DONG va bo dong chu thich -- `text.matches(...)` tran dem ca chuoi nam
-    // TRONG doc-comment cua chinh hai vo (chung noi ve `(async)`), nen no tra 4 chu khong
-    // phai 2. Vi tu phai dem THUOC TINH, khong dem lan nhac ten.
+    // TRONG doc-comment cua chinh cac vo (chung noi ve `(async)`), nen no tra nhieu hon that.
+    // Vi tu phai dem THUOC TINH, khong dem lan nhac ten.
     let async_cmd_count = text
         .lines()
         .map(str::trim_start)
@@ -892,9 +966,10 @@ fn the_dialog_wires_run_off_the_main_thread() {
         .filter(|l| l.starts_with("#[tauri::command(async)]"))
         .count();
     assert_eq!(
-        async_cmd_count, 2,
+        async_cmd_count, 7,
         "dem duoc {async_cmd_count} `#[tauri::command(async)]` trong commands/glossary.rs, mong \
-         DUNG 2 (hai vo mo hop thoai). Them mot vo chan moi thi them no vao `cases` cua ca test \
-         nay CUNG LUOT; con lai la mot lan rai thuoc tinh khong co ly do."
+         DUNG 7 (bay vo CHAN o `cases` tren). Them mot vo chan moi thi them no vao `cases` cua \
+         ca test nay CUNG LUOT, kem mot cau noi vi sao no dat tieu chi; con lai la mot lan rai \
+         thuoc tinh khong co ly do."
     );
 }

@@ -6857,7 +6857,9 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     chính. Bằng chứng đúng, kết luận sai — hai dấu hiệu không thay được một phép đo.
     **Đã vá:** `#[tauri::command(async)]` trên cả hai vỏ ⇒ `sync_threadpool`
     (`tauri-macros-2.6.3/src/command/wrapper.rs:264`), không đổi một dòng thân hàm. Cổng canh
-    `config_invariants.rs::the_dialog_wires_run_off_the_main_thread` (đối chứng gỡ chỗ nối: gỡ bảy ký
+    `config_invariants.rs::the_dialog_wires_run_off_the_main_thread` (🔵 2026-08-25 — ca này nay
+    tên `the_blocking_wires_run_off_the_main_thread`: vòng rà Epic 3 tìm ra ba vỏ CHẶN nữa cùng lớp
+    lỗi, danh sách mở từ hai lên năm. Tên cũ KHÔNG còn tồn tại trong kho) (đối chứng gỡ chỗ nối: gỡ bảy ký
     tự `(async)` ⇒ ĐỎ, khôi phục ⇒ xanh) — vì thiếu nó đi qua trọn mười một cổng và chỉ lộ ra khi một
     người thật bấm nút.
     **PHẦN CÒN HỞ:** bản vá **chưa được Ice mở lại trên cửa sổ thật** để xác nhận hết treo, và nửa
@@ -6914,3 +6916,218 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     chạm cả hai tệp, rộng hơn phạm vi một story thi hành.
     **(Chủ: story đầu tiên thêm một phép duyệt cây `src-tauri/src/**` thứ ba — hoặc lượt sửa hạ tầng
     test kế tiếp; đóng bằng một helper dùng chung và MỘT hằng sàn.)**
+
+- source_spec: none
+  summary: **Cụm B — mười phát hiện ở đường phân tích CSV/TSV và ghi tệp** (`core/glossary/exchange.rs`
+    + `exchange_io.rs`), gồm một lỗ công thức injection khi tệp xuất mở bằng bảng tính.
+  evidence: Tách khỏi lượt vá `/bmad-build "vá các lỗi review đã tìm ra"` 2026-08-25 theo lựa chọn
+    [S] của Ice; lượt đó chỉ ôm cụm A. Nguồn: vòng rà `/bmad-review epic 3` (`a2eaf7c~1..HEAD`, ba
+    lăng kính song song, 55 phát hiện).
+    Vị trí: `exchange.rs:74-99` (trường bắt đầu bằng `=` `+` `-` `@` không rào ⇒ CSV formula
+    injection) · `:393-433,439-452,578-582` (một ngoặc kép không đóng nuốt mọi hàng đúng phía sau
+    vào một `CellCountMismatch` duy nhất) · `:439-452` (`\r` trần trong trường có ngoặc kép làm mọi
+    số dòng báo lỗi phía sau lệch, dù doc-comment khai có xử lý cả `\r\n` lẫn `\n`) · `:520-529`
+    (dò dấu phân cách bằng `header_text.contains(',')` trên văn bản THÔ thay vì trên ô đã tách ⇒
+    header TSV có dấu phẩy trong ngoặc kép bị bác oan là `DelimiterUnresolved`) · `:536-549` (hai
+    cột trùng tên ⇒ cột sau mất IM LẶNG, không vào `ignored_columns`, không sinh `ParseIssue`) ·
+    `:584-588` (`str::trim()` không cắt U+00A0 ⇒ `BlankSourceTerm` không bắn, sinh một mục Glossary
+    vô hình) · `:598-652` (`seen` chỉ ghi hàng đã qua MỌI phép kiểm khác ⇒ một `source_term` trùng
+    mà lần đầu bị bác vì lý do khác thì lần sau không bị gắn cờ trùng) · `exchange_io.rs:41-61`
+    (tệp lớn lên giữa `metadata` và `read` ⇒ vượt trần 16 MiB) · `:74-127` (tên `.tmp` không hậu tố
+    pid/uuid ⇒ hai lượt xuất song song cùng đích giẫm lên nhau TRƯỚC `rename`, trong khi mã viện
+    dẫn tiền lệ `write_atomic` để khẳng định tính nguyên tử).
+    ⚠️ Đua `.tmp` được HAI lăng kính độc lập cùng chỉ vào từ hai góc khác nhau — theo bảng "chỗ hai
+    lăng kính gặp nhau" của vòng rà, đó là tín hiệu chứ không phải rác.
+    **(Chủ: lượt vá kế tiếp. Làm TRƯỚC cụm C — cả hai chạm đường nhập, và C vá chồng lên `exchange.rs`.)**
+
+- source_spec: none
+  summary: **Cụm C — sáu phát hiện về đồng thời ở lượt nhập hai nhịp** (`core/glossary/store.rs`),
+    nặng nhất là một lượt MẤT CẬP NHẬT im lặng mà người dùng đã tường minh chọn.
+  evidence: Tách khỏi lượt vá 2026-08-25 theo lựa chọn [S]; nguồn `/bmad-review epic 3`.
+    Vị trí: `store.rs:1551-1576` (`RowPlanKind::Conflict` + `TakeTheirs` chạy
+    `UPDATE … SET translation = ?1 WHERE id = ?2` — KHÔNG một phép so lạc quan nào với
+    `existing_translation` đã cho người dùng xem ở nhịp preview; thời gian suy nghĩ giữa hai nhịp
+    đủ cho một lượt ghi khác — sửa tay, một lượt nhập khác, `promote_to_global` — chen vào, và
+    người dùng chọn "lấy bản của tệp" sau khi đối chiếu *của tôi* ↔ *của tệp* đè lên một giá trị
+    THỨ BA chưa ai cho họ thấy, không lỗi, không rollback) · `:1548-1550` (hàng phân loại
+    `Identical` hoặc trỏ bằng `existing_id` ở nhịp một có thể đã đổi ở nhịp hai; `UPDATE` không
+    đối chiếu lại `source_term` ⇒ rowid tái dùng trỏ nhầm DANH TÍNH hàng) · `:1501-1587`
+    (`ImportDecisionUnknownTerm` chỉ được canh ở lớp `wire`, lớp lõi không có lớp đỡ ⇒ một quyết
+    định trỏ `source_term` không tồn tại bị bỏ im lặng khi ai đó gọi thẳng hàm thuần) ·
+    `:715-719 · 787-791 · 922-926 · 1299-1303` (bốn hàm công khai đọc `load_tier(global)` rồi
+    `load_tier(work)` qua HAI kết nối SQLite, không snapshot chung; chỉ hàm anh em
+    `resolved_source_terms` ở `:302-328` khai nhận rủi ro này ⇒ một thuật ngữ đang giữa chừng
+    `promote_to_global` có thể biến mất khỏi CẢ HAI tầng trong một lượt đọc) ·
+    `core/store/writer.rs:48-63` + `store/mod.rs:654-663` (`WriteTicket` không `#[must_use]` ⇒ thả
+    ticket mà không `.wait()` thì kết quả commit/rollback và mọi `StoreError` biến mất, không một
+    cảnh báo biên dịch).
+    **(Chủ: lượt vá kế tiếp, SAU cụm B.)**
+
+- source_spec: none
+  summary: **Cụm D — mười ba phát hiện ở frontend**: bốn đường `invoke<>` tin thẳng tham số generic,
+    một cờ kẹt vĩnh viễn khoá hẳn nút xác nhận nhập, và một phím xoá vĩnh viễn không xác nhận.
+  evidence: Tách khỏi lượt vá 2026-08-25 theo lựa chọn [S]; nguồn `/bmad-review epic 3`.
+    Vị trí: `config/glossary.ts:739-754, 877-894, 141-168, 519-542` (đường xuất, tóm tắt nhập, id
+    thêm-thuật-ngữ, id duyệt-ứng-viên đều tin thẳng generic của `invoke<>`, 0 phép kiểm lúc chạy —
+    trong khi MỌI kiểu dây nhiều trường khác TRONG CÙNG TỆP đều có guard, và chính tệp khai chính
+    sách *"dữ liệu IPC là một lời khai, không phải bảo đảm của trình biên dịch"*) · `:793-809`
+    (`isGlossaryImportPreview` kiểm `typeof === 'number'` mà thiếu `Number.isInteger`) ·
+    `:113-130` và `:592-628` (thiếu guard; cái sau bỏ bất biến chéo trường
+    `is_shadowed ⇒ tier === 'global'`) · `glossaryImportState.ts:173-190` (`confirming` kẹt `true`
+    VĨNH VIỄN, khoá hẳn nút xác nhận nhập) · `:196-204` (`cancelGlossaryImportPreview()` không đọc
+    `result.error`, khác hẳn hàm anh em ngay trên nó) · `glossaryQuickAddState.ts:196-199,307-330`
+    (không vé `sequence`: một lượt lưu cũ trả về muộn đóng dải và gán nhầm lỗi cho thuật ngữ vừa
+    gõ) · `glossaryQueueState.ts:99-104` (thiếu nhánh `'unknown'` ⇒ hàng chờ ĐANG NẠP đọc y hệt
+    hàng chờ ĐÃ NẠP VÀ CÓ HÀNG) · `GlossaryQueueOverlay.vue:209-214` (nhánh `all_reviewed` là mã
+    chết cho mục đích nó khai: `rows.value` không bao giờ co lại sau accept/reject, chỉ
+    `row.outcome` đổi) · `glossaryMarksState.ts:66-68,113-120` (phép kiểm id Chương trượt ở đua IPC
+    ⇒ `requestedForChapterId` nằm lại `null` và KHÔNG đường nào thử lại; dấu Glossary của Chương đó
+    không bao giờ được nạp — không lỗi, không dấu) · `selectionContract.ts:232-241`
+    (`surface.resolve(selection)` không `try/catch` trong khi hàm anh em cùng tệp thì có;
+    `Registry.dispatch` cũng không bọc `spec.run()` ⇒ một `throw` thoát ra khỏi listener `keydown`)
+    · `GlossaryManageOverlay.vue:223-227,408` (Backspace/Delete ở bất kỳ đâu ngoài ô nhập — đúng
+    trạng thái tiêu điểm mặc định ngay sau khi mở — xoá VĨNH VIỄN hàng đang chọn, không xác nhận,
+    không hoàn tác, trong khi đường Import cùng overlay lại có preview-trước-khi-ghi) ·
+    `:452-469` (Export và Import CSV không loại trừ lẫn nhau ⇒ hai hộp thoại hệ điều hành có thể
+    cùng bay) · `GlossaryQuickAdd.vue:167-186` (radio tầng Work không `disabled` khi
+    `quickAddWorkTierAvailable === false`; nút Lưu vẫn bật và vẫn gửi).
+    **(Chủ: lượt vá kế tiếp.)**
+
+- source_spec: none
+  summary: **Cụm E — ba lỗ hổng canh gác ĐÃ ĐO BẰNG PHÉP CẮT-THỬ THẬT**, không suy luận: cắt vệ đi
+    rồi bộ test vẫn xanh trọn.
+  evidence: Tách khỏi lượt vá 2026-08-25 theo lựa chọn [S]; nguồn lăng kính verification-gap của
+    `/bmad-review epic 3`. Đây là cụm DUY NHẤT trong 55 phát hiện mà bằng chứng là một lượt chạy,
+    không phải một lượt đọc — đúng thứ `dem-cho-noi-truoc-khi-tuyen-bo-dong` đòi.
+    ① `core/glossary/scan.rs:303-333` — luật lọc nhiễu là
+    `matches_child(&drop_last) || matches_child(&drop_first)`. **Cắt bỏ hẳn vế `drop_first`** rồi
+    chạy: `glossary_scan_contract` 25/25 · `glossary_commands_contract` 29/29 ·
+    `glossary_boundary` 11/11 · `glossary_contract` 72/72 — **XANH TRỌN**. Cả hai ca hiện có đều
+    dựng qua `drop_last` (bỏ chữ cuối của 萧炎的 ra 萧炎); không ca nào dựng chiều ngược. Hệ quả:
+    ứng viên rác neo-ĐẦU đi thẳng vào hàng chờ mà UI 3.2/3.8 cho phép duyệt vào Glossary.
+    ② `src/config/glossary.ts:94-96` — **ép `hasIpcBridge()` trả `false`** rồi chạy
+    `npx vitest run tests/frontend/glossary`: **186 ca / 14 tệp vẫn xanh nguyên**.
+    `grep __TAURI_INTERNALS__` trong mọi `glossary*.test.ts` = **0**. Hàm này gác `catch` của cả
+    15 hàm adapter; nếu nó bị lật, MỌI lượt gọi nuốt lỗi IPC thật thành `error: null` — đúng lớp
+    "rỗng im lặng" mà dự án tự ghi là bug trung tâm.
+    ③ `core/scope/store.rs:225-230` (`GlobalConfig::glossary_scan_threshold`) +
+    `commands/project.rs:574,603` — `ipc_contract.rs:177` chốt cứng giá trị mong đợi là **5**,
+    trùng khít `DEFAULT_GLOSSARY_SCAN_THRESHOLD`. Nên kể cả khi đường đọc GÃY HOÀN TOÀN (luôn trả
+    mặc định), ca đó vẫn xanh. Khoá anh em `mode` thì có ca đi-về đầy đủ ở
+    `scope_contract.rs:668-712` — khuôn đúng đã có sẵn ngay cạnh.
+    **(Chủ: lượt vá kế tiếp. Ba mục này rẻ và mỗi mục đã có sẵn phép đối chứng GỠ-CHỖ-NỐI của
+    chính nó — chiều ĐỎ đã chạy rồi.)**
+
+- source_spec: none
+  summary: **Cụm F — mười bảy mục rải rác** (`expect` dưới `panic = "abort"`, khoá giữ qua hai
+    `SELECT`, px thô ngoài lưới 4px, thiếu `aria-activedescendant`), **cộng ba món e2e/NFR2 rộng
+    hơn một story**.
+  evidence: Tách khỏi lượt vá 2026-08-25 theo lựa chọn [S]; nguồn `/bmad-review epic 3`.
+    Vị trí: `scan.rs:315-319` và `commands/glossary.rs:763-771` (hai `expect(...)` dựa trên bất
+    biến KHÔNG được cưỡng chế; `panic = "abort"` toàn dự án ⇒ một lượt refactor sau này giết cả
+    tiến trình giữa chừng nhập) · `scan.rs:118-147` + `mod.rs:266-268` (vỏ bọc `scan_candidates`
+    kiểu `bool` vẫn `pub` và vẫn re-export, trong khi chính doc-comment của module nói
+    `DictionaryProbe` ba trạng thái sinh ra vì kiểu `bool` *"biến layer lỗi thành không có trong
+    từ điển"*) · `commands/glossary.rs:1030,1069` (`unwrap_or(&DictLayers::empty())` — đúng khuôn
+    mà doc-comment của `commands/project.rs:213-235` gọi là lỗi: gộp "quản lý nhưng rỗng, AD-25,
+    bình thường" với "chưa từng quản lý, lỗi `setup()`") · `commands/project.rs:177-209` (hai lượt
+    `SELECT source_term` ĐẦY ĐỦ chạy TRONG KHI giữ `work_state.lock()`, ngược thiết kế
+    hai-khoá-ngắn mà chính doc-comment của hàm đặt ra) · `core/glossary/surnames.rs:58`
+    (`TRADITIONAL_SURNAME_ALIASES` chỉ có **蕭**; 陳 張 劉 楊 黃 không được nới ngưỡng ⇒ luật nới
+    theo họ im lặng không áp cho phần lớn văn bản phồn thể) · `candidate_store.rs:51-70` và
+    `:202-228` (`insert_candidate` không loại thuật ngữ đã có trong `glossary_entry`, và không
+    kiểm lại tầng Global lúc chèn) · `GlossarySettingsOverlay.vue:235,251,266,280` (px thô — `11px`
+    không phải bội của lưới 4px — thay vì `calc(var(--space-unit) * N)`; `check-tokens.mjs` chỉ gác
+    màu và cỡ chữ nên cổng KHÔNG thấy) · `GlossaryManageOverlay.vue:326-347` (`role="listbox"`
+    không có `aria-activedescendant` và các `li` không có `id`; chú thích cạnh đó KHAI là đã đóng
+    lỗ hổng *"screen reader biết hàng nào đang chọn"* của Story 3.8 — thiếu
+    `aria-activedescendant` thì phần lớn screen reader KHÔNG đọc con trỏ đang chạy, tức lại đúng
+    lớp `khoi-phuc-trung-thanh-khong-phai-dung`: đối chứng KẾT QUẢ với ĐIỀU NÓ KHAI).
+    ⚠️ **Ba món cuối KHÔNG thuộc cụm này về quy mô** — chúng là hạ tầng, rộng hơn một story vá:
+    `GridPanel.vue` đường vẽ dấu (`grep` mọi `e2e/specs/*.mjs` cho
+    `glossary-confirmed|glossary-pending|glossaryMarks|glossary-marker` = **RỖNG**, trong khi chính
+    commit story 3.4b ghi hai lượt lùi đã lọt và bắt được bằng MẮT chứ không bằng cổng nào) · sáu
+    component Glossary chỉ **hai** (QuickAdd, SettingsOverlay) có e2e chạm, còn
+    `GlossaryQueueOverlay` (`trapTab`) và `GlossaryConfirmStrip` — hai thứ nặng tương tác nhất —
+    không ca nào · NFR2: không một số đo nào cho chi phí VẼ của dấu/dải/overlay mới (thứ duy nhất
+    có số thật là bản vá hâm JIEBA của 3.4 — đó là chi phí KHỚP, không phải chi phí VẼ).
+    **(Chủ: lượt vá kế tiếp — cho mười bảy mục rải rác. Chủ: story đầu tiên mở rộng bộ e2e sang
+    Glossary — cho ba món e2e/NFR2, cùng chủ với món nợ e2e sẵn có.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-a-khuon-bo-sot.md`
+  summary: **Cổng `clearSourceCuts` của `main.ts` có một BẢN SAO ở `tests/frontend/editorClearSourceCuts.test.ts`,
+    và không cổng nào canh cho hai bản khớp nhau.**
+  evidence: `main.ts` không nạp được trong vitest (nó là điểm vào ứng dụng: `applyTheme` →
+    `installCommands` → `mount`, thứ tự bắt buộc, cộng `attachKeyboard` gắn thẳng vào `window`),
+    nên `mountEditor()` **chép** thân của dep `clearSourceCuts` xuống bàn test để lái đúng đường
+    sản phẩm phím → command → state. Lượt vá 2026-08-25 thêm một vệ vào cổng thật
+    (`if (quickAddIsOpen.value || confirmStripIsOpen.value) return`) và phải sửa bản sao CÙNG
+    LƯỢT — nghĩa là bản sao ấy đã lệch được một lần, và sẽ lệch lại.
+    ⚠️ **Đo được:** nhóm ca ⑥⑦⑧⑨ chứng minh HÌNH DẠNG vệ đúng trên state THẬT và registry THẬT
+    (bốn đối chứng gỡ chỗ nối đều ĐỎ đúng chỗ). Nó **không** chứng minh `main.ts` mang đúng hình
+    dạng đó. **ĐÃ ĐO 2026-08-25, không suy:** gỡ hẳn dòng vệ khỏi `main.ts` mà để nguyên bản sao ở
+    bàn test ⇒ `npx vitest run` cho **39 tệp / 476 ca, 0 đỏ**. (`cargo test` không đọc `src/main.ts`
+    một dòng nào, nên nó không nói gì về vế này — đừng cộng nó vào cho con số to hơn.) Cùng khoảng hở mà `editorNavNotice.test.ts` đã ghi bằng chữ
+    (*"`installCommands(deps)` ở `main.ts`, và cổng `check:commands` cộng e2e giữ nó"*) — trừ
+    việc `check:commands` Kiểm A chỉ canh `@click` trong `.vue`, không canh bảng dep của `main.ts`,
+    và bộ e2e chưa có ca nào chạm cử chỉ này.
+    **(Chủ: story đầu tiên mở rộng bộ e2e sang Glossary — cùng chủ với ba món e2e/NFR2 của cụm F;
+    hoặc lượt đầu tiên thêm một Kiểm mới vào `check-commands.mjs` cho bảng dep của `main.ts`.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-a-khuon-bo-sot.md`
+  summary: **Cùng lỗi `Escape` làm hai việc, còn mở ở HAI bề mặt nữa: `SegmentHistoryOverlay` và
+    `ShortcutsOverlay` ở trạng thái chỉ-đang-mở.**
+  evidence: Bắt ở vòng rà bước 4 của chính story này (lăng kính blind-hunter, 2026-08-25), **đã tự
+    kiểm lại**. `editor.clear_source_cuts` là command DUY NHẤT mang `Escape` **trần**
+    (`commands/index.ts`), và `keys.ts::isTypingZone` chỉ nuốt hợp âm không-`Mod` khi tiêu điểm ở
+    `INPUT`/`TEXTAREA`/`SELECT`/`contenteditable` — một `<button>` thì KHÔNG.
+    ① `SegmentHistoryOverlay.vue:180` khai `role="dialog" aria-modal="true"` và `:177` có
+    `@keydown.esc="closeSegmentHistory()"`, nhưng `historyIsOpen` — tuy ĐÃ được `main.ts:113,121`
+    import — **không** có mặt trong `isBlocked` (`main.ts`, đúng sáu ref, không ref nào là nó).
+    ⇒ Tab tới một `<button>` trong bảng lịch sử đang mở rồi bấm `Escape` ⇒ bảng đóng **và**
+    `clearEditorSourceCut()` chạy, im lặng.
+    ② `ShortcutsOverlay` chỉ được `captureIsArmed` che, và cái đó chỉ đúng ở trạng thái **đang chờ
+    một hợp âm** — doc-comment của `isBlocked` giải thích rành mạch vì sao trạng thái chỉ-đang-mở cố
+    ý KHÔNG bị chặn. ⚠️ Lập luận đó viết ở **Story 1.21**, còn `Escape` trần ra đời ở **Story 2.9
+    AC8** — tức nó được ký khi chưa có command nào chiếm `Escape` trần, và không ai xét lại nó khi
+    có. Đây là *"ràng buộc đúng không làm kết luận đúng"*: lý do vẫn đúng cho hợp âm mang `Mod`,
+    nhưng phạm vi của nó không phủ `Escape`.
+    🔴 **KHÔNG phải lỗi của story này** — cả hai bề mặt có trước, và story chỉ vá đúng hai DẢI mà
+    lượt rà Epic 3 gọi tên. Nhưng chúng cùng một lớp lỗi và cùng một hình dạng bản vá (thu hẹp cổng
+    `clearSourceCuts` ở `main.ts`, KHÔNG nhét vào `isBlocked` — dải/bảng không nuốt bàn phím).
+    **(Chủ: lượt vá kế tiếp của cụm A — cùng cửa `main.ts::clearSourceCuts`, hai ref thêm vào cùng
+    một biểu thức.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-a-khuon-bo-sot.md`
+  summary: **Ba vỏ mới `(async)` CHƯA được đo trên một cửa sổ thật** — AC của chính story đòi, và
+    story này không đóng được nó.
+  evidence: §Verification của spec viết: *"Given một Tác phẩm thật mở trên cửa sổ thật
+    (`npm run tauri dev`), when nhập một tệp CSV lớn rồi mở bảng chờ ứng viên, then cửa sổ không
+    đứng"*, kèm câu *"`cargo test` không dựng được cửa sổ nên không nói gì về vế này"*. Thứ ĐÃ chạy
+    là `config_invariants.rs::the_blocking_wires_run_off_the_main_thread` — một phép kiểm **văn bản
+    nguồn**: nó khẳng định thuộc tính CÓ MẶT, nó không chạy một phép đo luồng nào.
+    ⚠️ **Đối chiếu với tiền lệ ngay cạnh:** vế hộp thoại của Story 3.10b có **cả hai chiều đo được**
+    trên cửa sổ thật — chiều ĐỎ (macOS báo *"Not Responding"*) và chiều XANH (bản vá chạy). Ba vỏ
+    này mới chỉ có một lập luận cộng một cổng văn bản, tức đúng hạng bằng chứng mà chính story 3.10b
+    đã ghi là **không đủ** (*"Hai dấu hiệu gián tiếp không thay được một phép đo"*).
+    🔴 Đừng đọc `cargo test` 680 ca xanh thành *"đã hết đứng"*. Chưa một người thật nào bấm nút.
+    **(Chủ: Ice — một lượt QA tay, cùng lượt với hai món QA tay còn mở của Story 3.10b.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-a-khuon-bo-sot.md`
+  summary: **`(async)` mới đóng được NỬA mệnh đề: năm vỏ vẫn giữ `MutexGuard` của `OpenWorkState`
+    xuyên suốt phần việc chạy ngoài luồng chính**, nên một vỏ đồng bộ gọi `.lock()` trong cửa sổ đó
+    vẫn chặn luồng chính.
+  evidence: Bắt ở vòng rà bước 4 (lăng kính edge-case, 2026-08-25). `(async)` đưa THÂN HÀM ra
+    `sync_threadpool`, nhưng cả năm vỏ đều lấy `work_state.lock()` rồi giữ guard qua trọn lời gọi
+    lõi. Mười vỏ còn lại vẫn đồng bộ và cũng `.lock()` đúng mutex ấy ⇒ **ca xấu nhất không đổi**;
+    thứ đổi là ca thường (webview không phát thêm lệnh Glossary nào trong cửa sổ đó thì nó vẽ bình
+    thường, trước đây thì đứng hẳn).
+    ⚠️ **Đã tự kiểm nhánh nguy hiểm hơn mà lăng kính KHÔNG nêu, và nó SẠCH:** một
+    `glossary_cancel_import` chạy song song **không** xoá được lô đang commit —
+    `glossary_confirm_import` giữ `pending.lock()` suốt lượt ghi (`commands/glossary.rs:848`) và
+    cancel phải qua đúng khoá đó (`:887`). ⇒ Đây là **tranh khoá**, không phải mất dữ liệu.
+    Bản vá thật là thu hẹp phạm vi guard (nhả `OpenWorkState` trước lời gọi lõi, khuôn hai-khoá-ngắn
+    mà `commands/glossary.rs:1206` đã dựng cho đường hộp thoại) — chạm cả mười lăm vỏ, rộng hơn một
+    story vá. Giới hạn này đã ghi tại chỗ ở doc-comment của cổng để nó không nói quá.
+    **(Chủ: lượt sửa hạ tầng đồng thời kế tiếp của `commands/glossary.rs`, cùng chủ với mục
+    `store.rs:715-719 · 787-791 · 922-926 · 1299-1303` của cụm C.)**
