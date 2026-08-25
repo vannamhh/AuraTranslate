@@ -86,6 +86,15 @@ lý do bảng §2 có hai hàng chứ không một, và hàng thứ hai chính l
 | crate `rfd` thẳng | **1** — `rfd` 0.16.0 |
 | `tauri-plugin-dialog` | **≥9** trên macOS |
 
+🔵 **ĐÍNH CHÍNH 2026-08-25 (Story 3.10b) — hàng thứ hai SAI, đo trên cây thật là 3, không phải ≥9.**
+`notify` · `notify-debouncer-full` · `notify-types` · `flume` · `file-id` · `fsevent-sys` nằm sau
+feature **`watch`** của `tauri-plugin-fs` (`tauri-plugin-fs-2.5.1/Cargo.toml:51-54`), mà `watch`
+không mặc định và `tauri-plugin-dialog` không bật nó — `grep` trong `Cargo.lock` sau lượt thêm cho
+**0** cho cả sáu. Đường plugin thêm đúng **3** crate; chênh lệch thật giữa hai đường là **2**, không
+phải 8. Số đo byte: delta **156.392** (15% ngưỡng 1 MB). ⇒ Khuyến nghị của hồ sơ này định giá đường
+plugin ĐẮT hơn thực tế, tức nó nghiêng chống lại chính lựa chọn Ice đã chốt — và lựa chọn đó vẫn
+đúng. Sửa ở spine §AD-48 và §Rà NFR15 lượt năm; giữ nguyên ở đây kèm dòng này.
+
 Chín tên đó: `tauri-plugin-dialog` · `tauri-plugin-fs` · `rfd` · `notify` · `notify-debouncer-full`
 · `notify-types` · `flume` · `file-id` · `trash`; cộng `fsevent-sys` (macOS) hoặc `inotify` +
 `kqueue` (Linux/BSD).

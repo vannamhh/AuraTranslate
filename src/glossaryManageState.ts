@@ -39,12 +39,13 @@ import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import {
   deleteGlossaryTerm,
+  exportGlossaryTier,
   listGlossaryEntries,
   lookupGlossaryTerm,
   promoteGlossaryTermToGlobal,
   updateGlossaryTerm,
 } from './config/glossary'
-import type { GlossaryCategory, GlossaryEntry } from './config/glossary'
+import type { GlossaryCategory, GlossaryEntry, GlossaryTierWire } from './config/glossary'
 import type { IpcError } from './i18n'
 import { editorChapterId, editorSegments } from './panels/editorPanelState'
 import { refreshGlossaryMarks } from './panels/glossaryMarksState'
@@ -96,6 +97,28 @@ const savingAction = ref<'save' | 'delete' | 'promote'>('save')
 const actionError = ref<IpcError | null>(null)
 const actionNotice = ref<'promote_not_applicable' | null>(null)
 const workTierAvailable = ref(false)
+/**
+ * 🔵 **THÊM 2026-08-25 (Story 3.10b, AD-48).** Tầng đang chọn cho lượt Xuất/Nhập CSV —
+ * dùng CHUNG cho cả hai nút, vì Xuất và mở-hộp-thoại-Nhập đều cần biết tầng TRƯỚC khi
+ * `dispatch('<id>')` chạy (`dispatch` không nhận tham số, `check:commands` Kiểm A). Đây
+ * là chỗ DUY NHẤT nắm giữ lựa chọn đó — handler tiêm ở `main.ts` đọc `ref` này, không
+ * nhận nó qua đối số.
+ */
+const exchangeTierState = ref<GlossaryTierWire>('global')
+/** Thao tác Xuất đang bay — cùng khuôn `saving`, nhưng RIÊNG vì Xuất/Nhập không đổi hàng
+ * nào trong `rows` (không cần khoá form Sửa). */
+const exportBusy = ref(false)
+const exportError = ref<IpcError | null>(null)
+/** Đường dẫn vừa ghi — hiện câu "đã ghi vào …" (`role="status"`). `null` == chưa xuất lần
+ * nào kể từ lúc mở lớp phủ, HOẶC lượt xuất gần nhất bị HUỶ hoặc TRƯỢT (không lỗi, không
+ * câu) — xoá TRƯỚC MỖI lượt xuất mới, không chỉ khi lượt mới thành công (P3, vòng rà ba
+ * lớp 2026-08-25: bản trước giữ nguyên đường dẫn CŨ qua một lượt huỷ, nên huỷ sau một lượt
+ * xuất thành công đọc như thể lượt huỷ đó CŨNG đã ghi). */
+const exportedPath = ref<string | null>(null)
+/** 🔵 THÊM (P2, cùng vòng rà) — không có cầu IPC (chạy ngoài Tauri). Tách khỏi "huỷ hộp
+ * thoại" (không status nào, im lặng CÓ CHỦ) — đây PHẢI nói ra, cùng lý do
+ * `glossaryImportState.ts::GlossaryImportStatus`. */
+const exportIpcUnavailable = ref(false)
 
 /** Số thứ tự lượt mở/thao tác — chặn một lượt CŨ ghi đè lên state của một lượt MỚI hơn (đua
  * round-trip IPC), cùng khuôn `sequence` của các state Glossary khác. */
@@ -118,6 +141,11 @@ export const manageSavingAction: DeepReadonly<Ref<'save' | 'delete' | 'promote'>
 export const manageActionError: DeepReadonly<Ref<IpcError | null>> = readonly(actionError)
 export const manageActionNotice: DeepReadonly<Ref<'promote_not_applicable' | null>> = readonly(actionNotice)
 export const manageWorkTierAvailable: DeepReadonly<Ref<boolean>> = readonly(workTierAvailable)
+export const manageExchangeTier: DeepReadonly<Ref<GlossaryTierWire>> = readonly(exchangeTierState)
+export const manageExportBusy: DeepReadonly<Ref<boolean>> = readonly(exportBusy)
+export const manageExportError: DeepReadonly<Ref<IpcError | null>> = readonly(exportError)
+export const manageExportedPath: DeepReadonly<Ref<string | null>> = readonly(exportedPath)
+export const manageExportIpcUnavailable: DeepReadonly<Ref<boolean>> = readonly(exportIpcUnavailable)
 
 /**
  * Số hàng CHƯA LỌC đang giữ trong bộ nhớ.
@@ -228,6 +256,11 @@ export async function openGlossaryManage(): Promise<void> {
   actionError.value = null
   actionNotice.value = null
   workTierAvailable.value = false
+  exchangeTierState.value = 'global'
+  exportBusy.value = false
+  exportError.value = null
+  exportedPath.value = null
+  exportIpcUnavailable.value = false
 
   const [, probe] = await Promise.all([loadGlossaryManageRows(mySequence), lookupGlossaryTerm('')])
   if (mySequence !== sequence) return
@@ -436,6 +469,49 @@ export async function promoteGlossaryManageEntry(): Promise<void> {
   refreshGlossaryMarksAfterMutation()
 }
 
+/** Đổi tầng đang chọn cho Xuất/Nhập — lệnh `glossary.manage.export_csv`/`…import_csv` đọc
+ * `ref` này ngay trước khi dispatch. */
+export function setGlossaryManageExchangeTier(value: GlossaryTierWire): void {
+  exchangeTierState.value = value
+}
+
+/**
+ * Xuất tầng đang chọn — mở hộp thoại LƯU trong Rust rồi ghi. Lệnh
+ * `glossary.manage.export_csv`.
+ *
+ * 🔴 **Huỷ hộp thoại là im lặng, KHÔNG một câu nào** (§Always) — `exportedPath`/`exportError`
+ * đều giữ nguyên giá trị TRƯỚC lượt gọi này khi `path === null, error === null`.
+ */
+export async function exportGlossaryManageTier(): Promise<void> {
+  if (exportBusy.value) return
+
+  exportBusy.value = true
+  exportError.value = null
+  exportIpcUnavailable.value = false
+  // 🔴 P3 (vòng rà ba lớp 2026-08-25) — xoá đường dẫn CŨ TRƯỚC KHI hộp thoại mở, không chỉ
+  // khi lượt MỚI thành công. Bản trước giữ nguyên `exportedPath` qua một lượt huỷ/trượt kế
+  // tiếp: xuất thành công vào X, mở lại rồi HUỶ ⇒ overlay vẫn đọc "Đã ghi vào X" — đọc như
+  // thể lượt vừa huỷ cũng đã ghi.
+  exportedPath.value = null
+  const mySequence = sequence
+
+  const result = await exportGlossaryTier(exchangeTierState.value)
+  if (mySequence !== sequence) return
+
+  exportBusy.value = false
+  if (result.outcome === 'cancelled') return // Huy hop thoai -- im lang, khong doi gi (§Always).
+  if (result.outcome === 'ipc_unavailable') {
+    exportIpcUnavailable.value = true
+    return
+  }
+  if (result.outcome === 'error') {
+    exportError.value = result.error
+    return
+  }
+
+  exportedPath.value = result.path
+}
+
 /**
  * 🔴 Vứt toàn bộ state của lớp phủ — `check:panel-refs` đòi mọi ô nhớ cấp module có một
  * đường `reset*()`. **0 chỗ gọi sản phẩm hôm nay**, đúng tiền lệ `resetGlossaryQueue`: lớp
@@ -462,4 +538,9 @@ export function resetGlossaryManage(): void {
   actionError.value = null
   actionNotice.value = null
   workTierAvailable.value = false
+  exchangeTierState.value = 'global'
+  exportBusy.value = false
+  exportError.value = null
+  exportedPath.value = null
+  exportIpcUnavailable.value = false
 }

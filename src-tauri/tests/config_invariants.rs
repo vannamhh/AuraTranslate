@@ -673,3 +673,164 @@ fn the_e2e_runner_and_the_rust_side_name_the_same_variables() {
         );
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// Story 3.10b (AD-48) — hộp thoại chọn tệp gọi TỪ RUST
+// ─────────────────────────────────────────────────────────────────────────────────
+
+/// Mọi tệp `.rs` dưới `src-tauri/src/**`, đường dẫn tuyệt đối.
+///
+/// ⚠️ Bản chép tối giản của `glossary_boundary.rs::walk`/`all_rust_sources` — tệp này
+/// không có sẵn một cây quét, và dựng lại đúng khuôn đó (đệ quy, bỏ symlink) là chỗ rẻ
+/// nhất để không phụ thuộc chéo giữa hai tệp test.
+fn all_src_rust_files() -> Vec<PathBuf> {
+    fn walk(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+        let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("doc {}: {e}", dir.display()));
+        for entry in entries {
+            let entry = entry.unwrap_or_else(|e| panic!("duyet {}: {e}", dir.display()));
+            let path = entry.path();
+            let meta = fs::symlink_metadata(&path)
+                .unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
+            if meta.file_type().is_symlink() {
+                continue;
+            }
+            if meta.is_dir() {
+                walk(&path, out);
+            } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+                out.push(path);
+            }
+        }
+    }
+
+    let root = manifest_dir().join("src");
+    let mut files = Vec::new();
+    walk(&root, &mut files);
+    files.sort();
+    files
+}
+
+/// 🔴 **`tauri_plugin_dialog::init()` PHẢI được đăng ký, và `tauri_plugin_fs::init()` PHẢI
+/// vắng mặt — trong CÙNG một phép kiểm**, vì đây là đúng cặp mệnh đề AD-48 §Rule ③ đặt
+/// ra: hộp thoại chọn tệp gọi từ Rust cần plugin dialog `init()` (thiếu ⇒ `DialogExt::
+/// dialog()` panic ⇒ `panic = "abort"` giết cả tiến trình), nhưng plugin `fs` bắc cầu theo
+/// nó **không được** `init()` (có mặt trong cây phụ thuộc khác hẳn có mặt trên bề mặt IPC —
+/// `scripts/check-deps.mjs` Kiểm 1 canh vế cây, ca này canh vế mã nguồn).
+///
+/// ⚠️ Không đọc `Cargo.lock`/`cargo tree` — hai thứ đó nói crate có mặt trong CÂY, không
+/// nói gì về việc `init()` có được GỌI hay không. Chỉ `grep` trên chính mã nguồn mới trả
+/// lời đúng câu hỏi này.
+#[test]
+fn the_dialog_plugin_is_registered_and_the_fs_plugin_is_never_initialized() {
+    let files = all_src_rust_files();
+    assert!(
+        files.len() >= RS_FLOOR_FOR_DIALOG_CHECK,
+        "chỉ tìm thấy {} tệp .rs dưới src-tauri/src/** — cây quá nhỏ để là thật",
+        files.len()
+    );
+
+    let mut dialog_init_registered = false;
+    let mut fs_init_sites: Vec<String> = Vec::new();
+
+    for file in &files {
+        let text = fs::read_to_string(file).unwrap_or_else(|e| panic!("doc {}: {e}", file.display()));
+        for (i, raw_line) in text.lines().enumerate() {
+            let line = raw_line.trim_start();
+            if line.starts_with("//") {
+                continue; // Cùng luật `glossary_boundary.rs::code_lines` — bỏ dòng CHÚ THÍCH thuần.
+            }
+            if line.contains("tauri_plugin_dialog::init()") {
+                dialog_init_registered = true;
+            }
+            if line.contains("tauri_plugin_fs::init") {
+                fs_init_sites.push(format!("{}:{}", file.display(), i + 1));
+            }
+        }
+    }
+
+    assert!(
+        dialog_init_registered,
+        "khong tim thay `.plugin(tauri_plugin_dialog::init())` o bat ky dau trong \
+         src-tauri/src/** -- thieu no thi `DialogExt::dialog()` panic ngay lot goi dau \
+         tien (goi thang `state::<Dialog<R>>()`, khong `try_state`), va `panic = \"abort\"` \
+         giet ca tien trinh. Xem `lib.rs`."
+    );
+    assert!(
+        fs_init_sites.is_empty(),
+        "`tauri_plugin_fs::init` xuat hien o: {fs_init_sites:?} -- AD-48 §Rule ③ cam TUYET \
+         DOI: crate fs co mat trong cay phu thuoc (bac cau qua tauri-plugin-dialog) nhung \
+         KHONG duoc goi `init()` o bat ky dau. Goi no se phoi mot be mat IPC moi (lenh \
+         `fs:*`) ma khong mot dong ACL nao trong `capabilities/main.json` khai bao."
+    );
+}
+
+/// Sàn quần thể RIÊNG cho ca trên — cùng khuôn `RS_FLOOR` của `glossary_boundary.rs`
+/// (dải 80–85% số thật). Đo 2026-08-25 (Story 3.10b, `find src-tauri/src -name "*.rs" |
+/// wc -l`): **55** tệp `.rs` dưới `src-tauri/src/**`.
+const RS_FLOOR_FOR_DIALOG_CHECK: usize = 44;
+
+/// 🔴 **P1 (vòng rà ba lớp 2026-08-25) — `MutexGuard` của `OpenWorkState` KHÔNG được sống
+/// xuyên qua `blocking_save_file()`/`blocking_pick_file()`.** Hộp thoại hệ điều hành có
+/// thể mở NHIỀU PHÚT; giữ khoá đó suốt lượt chờ chặn MỌI lệnh khác cần `OpenWorkState`,
+/// gồm cả đường flush AD-35 (trần cứng 5s, KHÔNG reset bởi phím gõ).
+///
+/// Kiểm CẤU TRÚC trên chính mã nguồn (không có cửa sổ Tauri thật trong `cargo test` để đo
+/// hành vi lúc chạy): trong thân MỖI hàm `wire::glossary_export_tier`/`wire::
+/// glossary_open_import_preview`, dòng khoá `OpenWorkState` (`work_state.lock()` gán vào
+/// `guard`) phải đứng SAU dòng gọi `blocking_save_file()`/`blocking_pick_file()` tương
+/// ứng — không đứng trước. `work_tier_is_open()` (khoá-đọc-nhả trong một biểu thức, gọi
+/// TRƯỚC dialog) không tính, vì nó không để một `MutexGuard` nào sống ra khỏi chính nó.
+#[test]
+fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_call_not_before() {
+    let path = manifest_dir().join("src/commands/glossary.rs");
+    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+
+    let cases: [(&str, &str, &str); 2] = [
+        (
+            "glossary_export_tier",
+            "pub fn glossary_export_tier(app: tauri::AppHandle, tier: GlossaryTier) -> Result<Option<String>, IpcError> {",
+            ".blocking_save_file()",
+        ),
+        (
+            "glossary_open_import_preview",
+            "pub fn glossary_open_import_preview(\n        app: tauri::AppHandle,",
+            ".blocking_pick_file()",
+        ),
+    ];
+
+    for (name, fn_start_marker, dialog_call) in cases {
+        let fn_start = text.find(fn_start_marker).unwrap_or_else(|| {
+            panic!(
+                "khong tim thay chu ky ham `{name}` (`{fn_start_marker}`) trong commands/glossary.rs \
+                 -- chu ky da doi? cap nhat marker cua ca test nay CUNG LUOT."
+            )
+        });
+        // Than ham ket thuc o dau ham TIEP THEO (hoac cuoi tep) -- ca hai ham deu la
+        // #[tauri::command] lien tiep trong `pub mod wire`, nen cat toi dau dong trong
+        // `#[tauri::command]` KE TIEP sau diem bat dau la du de chua tron than ham nay.
+        let after_start = &text[fn_start + fn_start_marker.len()..];
+        let fn_end_rel = after_start.find("#[tauri::command]").unwrap_or(after_start.len());
+        let body = &after_start[..fn_end_rel];
+
+        let dialog_idx = body.find(dialog_call).unwrap_or_else(|| {
+            panic!(
+                "khong tim thay `{dialog_call}` trong than ham `{name}` -- ham khong con mo hop \
+                 thoai o day? cap nhat ca test nay CUNG LUOT voi bat ky lan sua cau truc nao."
+            )
+        });
+        let lock_idx = body.find(".lock()").unwrap_or_else(|| {
+            panic!(
+                "khong tim thay `.lock()` nao trong than ham `{name}` -- ham khong con doc lai \
+                 `OpenWorkState` SAU hop thoai? day dung la vi pham P1 neu that, hoac ca test nay \
+                 can cap nhat neu hinh dang doi co chu."
+            )
+        });
+
+        assert!(
+            lock_idx > dialog_idx,
+            "trong than ham `{name}`: `.lock()` (offset {lock_idx}) dung TRUOC `{dialog_call}` \
+             (offset {dialog_idx}) -- MutexGuard cua OpenWorkState dang song xuyen qua loi goi \
+             hop thoai CHAN, dung P1 da vim. Khoa OpenWorkState phai la MOT bieu thuc rieng \
+             (qua `work_tier_is_open()`) TRUOC dialog, roi khoa LAI, MOI, SAU dialog."
+        );
+    }
+}

@@ -58,6 +58,10 @@ import GlossarySettingsOverlay from './GlossarySettingsOverlay.vue'
 // cùng lý do bốn lớp phủ kia.
 import GlossaryQueueOverlay from './GlossaryQueueOverlay.vue'
 import GlossaryManageOverlay from './GlossaryManageOverlay.vue'
+// Story 3.10b — lớp phủ "Xem trước lượt nhập Glossary" (AD-48), lớp phủ THỨ BẢY. Mở TỪ
+// BÊN TRONG `GlossaryManageOverlay`, nhưng dựng ở cùng tầng gốc như mọi lớp phủ khác —
+// `z-index` (11, trên 10 của Manage) là thứ giữ nó xếp ĐÚNG lớp, không phải vị trí trong DOM.
+import GlossaryImportOverlay from './GlossaryImportOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -356,6 +360,9 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 3.9 · FR49 — cùng khuôn: lớp phủ tự quản `v-if` qua `manageOverlayIsOpen`. -->
     <GlossaryManageOverlay />
+
+    <!-- Story 3.10b · AD-48 — cùng khuôn: lớp phủ tự quản `v-if` qua `importOverlayIsOpen`. -->
+    <GlossaryImportOverlay />
   </main>
 </template>
 

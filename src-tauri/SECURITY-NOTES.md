@@ -78,8 +78,28 @@ rồi thu hẹp scope là **tự tạo một bề mặt tấn công rồi rào l
 có bề mặt để rào**.
 
 Cùng lý do đó đã loại `tauri-plugin-sql` (dùng `rusqlite` trực tiếp, AD-11),
-`tauri-plugin-keyring` (dùng crate `keyring` trực tiếp, AD-29), `tauri-plugin-dialog`.
-Ice chốt 2026-08-03. `scripts/check-deps.mjs` cưỡng chế bằng lệnh.
+`tauri-plugin-keyring` (dùng crate `keyring` trực tiếp, AD-29). Ice chốt 2026-08-03.
+`scripts/check-deps.mjs` cưỡng chế bằng lệnh.
+
+🔵 **SỬA 2026-08-25 (Story 3.10b, AD-48) — `tauri-plugin-dialog` KHÔNG còn "đã loại".**
+Câu trên liệt nó cùng hàng với `sql`/`keyring` — hết đúng: AD-48 chốt hộp thoại chọn tệp
+GỌI TỪ RUST (nhánh (a)), nên `.plugin(tauri_plugin_dialog::init())` nay đăng ký thật ở
+`lib.rs`, và JavaScript vẫn không cầm một quyền `dialog:*`/`fs:*` nào — mệnh đề gốc của
+mục này (*"frontend không có việc gì với hệ thống file"*) vẫn đúng nguyên vẹn, chỉ đổi
+CÁCH giữ nó đúng.
+
+Plugin `tauri-plugin-dialog` kéo `tauri-plugin-fs` vào cây phụ thuộc **bắc cầu**
+(`Cargo.lock`), nhưng `tauri_plugin_fs::init()` **KHÔNG được gọi ở bất kỳ đâu** trong
+`src-tauri/src/**` — có mặt trong cây phụ thuộc khác hẳn có mặt trên bề mặt IPC. Không
+`init()` ⇒ `window.try_fs_scope()` (được chính `tauri-plugin-dialog` gọi nội bộ để đặt
+scope hộp thoại) trả `None`, và mã của plugin đã bọc `if let Some(...)` nên không panic
+⇒ **0** lệnh `fs:*` phơi ra webview. `capabilities/main.json` vẫn giữ đúng BA quyền —
+lệnh do CHÍNH ứng dụng khai (`commands/glossary.rs::wire`) không cần ACL, chỉ lệnh của
+PLUGIN mới cần, và plugin dialog cũng không cần thêm gì vì JavaScript không bao giờ gọi
+thẳng vào nó (frontend chỉ `dispatch()` một command đã đăng ký, vỏ mỏng mở hộp thoại
+trong Rust). `tests/config_invariants.rs` có một ca MỚI khẳng định cả hai vế (đăng ký
+dialog + vắng mặt `tauri_plugin_fs::init`); `scripts/check-deps.mjs` Kiểm 1 đổi sang
+canh BỐN tên còn lại — xem chú thích tại chỗ đó cho lý do đầy đủ của cú lật này.
 
 ## `connect-src` phải chứa kênh IPC — nếu không, IPC âm thầm tụt hạng
 

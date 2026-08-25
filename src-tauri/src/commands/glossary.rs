@@ -39,14 +39,18 @@
 //! `src-tauri/**/*.rs`.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
 use crate::commands::project::OpenWork;
 use crate::core::dict::DictLayers;
 use crate::core::glossary::{
-    Category, GlossaryEntry, GlossaryMark, GlossaryTier, HanVietSuggestion, add_manual_term,
-    approve_candidate, confirm_pending_translation, delete_manual_term, list_all_entries,
-    match_lang_for_source_lang, marks_for_source_text, pending_candidates, promote_to_global,
-    reject_candidate, resolve_term_for_quick_add, suggest_han_viet_batch, update_manual_term,
+    Category, ConflictDecision, Delimiter, GlossaryEntry, GlossaryError, GlossaryMark,
+    GlossaryTier, HanVietSuggestion, ImportSummary, RowPlan, RowPlanKind, add_manual_term,
+    approve_candidate, classify_import_rows, confirm_pending_translation, delete_manual_term,
+    export_tier, import_into_tier, list_all_entries, match_lang_for_source_lang,
+    marks_for_source_text, parse as parse_glossary_import, pending_candidates, promote_to_global,
+    read_import_file, reject_candidate, resolve_term_for_quick_add, suggest_han_viet_batch,
+    update_manual_term, write_export_file,
 };
 use crate::core::i18n::IpcError;
 use crate::core::scope::ScopeResolver;
@@ -617,15 +621,299 @@ pub fn glossary_promote_term_to_global(
     Ok(())
 }
 
-/// Mười một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.10b — hộp thoại chọn tệp nối vào xuất/nhập CSV/TSV (AD-48)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Bốn vỏ IPC mới trong `wire` (xuất · mở-và-xem-trước nhập · xác nhận nhập · huỷ lô
+// treo), gọi thẳng `export_tier`/`import_into_tier` — hai tên đó KHÔNG nằm trong
+// `GLOSSARY_ONLY_SURFACE` (§Code Map của spec), nên không cần một hàm bọc thứ hai như
+// `classify_import_rows` phải có cho `load_tier`.
+
+/// Lô nhập đang TREO giữa nhịp một (mở + xem trước) và nhịp hai (xác nhận) — AD-48
+/// §Rule ①: nội dung tệp KHÔNG BAO GIỜ đi ra webview, kế hoạch đã phân tích Ở LẠI RUST.
+/// Dọn khi: huỷ ([`glossary_cancel_import`]), một lô MỚI thay nó ([`glossary_open_import_preview`]
+/// ghi đè `*guard`), xác nhận THÀNH CÔNG ([`glossary_confirm_import`]), hoặc Tác phẩm đóng
+/// khi lô đang treo thuộc tầng Work (`lib.rs`).
+#[derive(Debug)]
+pub struct PendingImport {
+    /// Đường dẫn tệp đã đọc — chỉ để chẩn đoán, KHÔNG đọc lại ở nhịp hai.
+    pub path: std::path::PathBuf,
+    /// Tầng đã chọn lúc mở — nhịp hai ghi vào ĐÚNG tầng này, không nhận lại qua tham số.
+    pub tier: GlossaryTier,
+    /// Kế hoạch đã phân loại — mô hình mà [`glossary_confirm_import`] ghi theo.
+    pub plans: Vec<RowPlan>,
+}
+
+/// Kiểu state Tauri quản lý cho [`PendingImport`] — `None` == không lô nào đang treo, cùng
+/// khuôn `commands::project::OpenWorkState`.
+pub type PendingImportState = std::sync::Mutex<Option<PendingImport>>;
+
+/// Chọn `&Store` theo `tier` cho đường XUẤT — `export_tier` (khác `import_into_tier`)
+/// KHÔNG nhận `tier` (§Code Map của spec: hai chữ ký LỆCH nhau, đừng giả định giống), nên
+/// bước phân giải này sống Ở ĐÂY.
+fn resolve_tier_store<'a>(
+    global: &'a Store,
+    work: Option<&'a Store>,
+    tier: GlossaryTier,
+) -> Result<&'a Store, GlossaryError> {
+    match tier {
+        GlossaryTier::Global => Ok(global),
+        GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable),
+    }
+}
+
+/// Đuôi tệp THẬT của đường dẫn NGƯỜI DÙNG VỪA CHỌN quyết định dấu phân cách (§I/O Matrix:
+/// "Đuôi lạ ⇒ CSV") — không theo trạng thái UI trước lượt chọn.
+fn delimiter_from_path(path: &Path) -> Delimiter {
+    match path.extension().and_then(|e| e.to_str()) {
+        Some(ext) if ext.eq_ignore_ascii_case("tsv") => Delimiter::Tsv,
+        _ => Delimiter::Csv,
+    }
+}
+
+/// Xuất tầng `tier` ra `path` — **hàm thuần, đây là thứ test gọi**. Một NHỊP.
+///
+/// # Lỗi
+/// - `global.db` vắng mặt ⇒ `store.open_failed`;
+/// - `tier == Work` mà chưa mở Tác phẩm nào ⇒ `glossary.work_tier_unavailable`;
+/// - ghi tệp thất bại ⇒ `glossary.export_write_failed`, **0** tệp cụt để lại
+///   (`write_export_file` dọn `.tmp` ở cả hai nhánh lỗi).
+pub fn glossary_export_tier(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: GlossaryTier,
+    path: &Path,
+) -> Result<(), IpcError> {
+    let global = global.ok_or_else(store_is_missing)?;
+    let work_store = work_context(open).map(|(store, _)| store);
+    let store = resolve_tier_store(global, work_store, tier)?;
+
+    let delimiter = delimiter_from_path(path);
+    let contents = export_tier(store, delimiter)?;
+    write_export_file(path, &contents)?;
+    Ok(())
+}
+
+/// Hình dạng "mô hình đã kiểm" của MỘT hàng bất đồng cho màn hình xem trước — AD-48 §Rule
+/// ①: cả hai bản dịch, không văn bản thô nào khác của tệp.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ImportPreviewConflictWire {
+    pub source_term: String,
+    /// Bản dịch ĐANG CÓ trong kho, trước khi có quyết định nào.
+    pub existing_translation: Option<String>,
+    /// Bản dịch tệp mang.
+    pub file_translation: Option<String>,
+}
+
+/// Hình dạng "mô hình đã kiểm" của màn hình xem trước lượt nhập — AD-48 §Rule ①: nội dung
+/// tệp KHÔNG đi ra đây, chỉ số liệu ĐÃ PHÂN TÍCH VÀ ĐÃ PHÂN LOẠI.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật mọi struct qua biên IPC.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ImportPreviewWire {
+    pub file_name: String,
+    /// `"global"` hoặc `"work"` — tầng đã chọn lúc mở, khớp [`PendingImport::tier`].
+    pub tier: String,
+    pub row_count: usize,
+    /// `header_columns.len() - ignored_columns.len()` — "N cột nhận ra được" của mockup.
+    pub recognized_column_count: usize,
+    /// Tên cột lạ ở hàng tiêu đề — NÓI RA, không im lặng vứt (I/O Matrix).
+    pub ignored_columns: Vec<String>,
+    /// `true` ⇔ hàng tiêu đề có cột `term_origin` — cột này LUÔN bị đọc rồi bỏ giá trị
+    /// (mọi mục vào đều mang `file_import`, §Design Notes). Đây là chỗ DUY NHẤT hiển thị
+    /// được sự thật đó cho người dùng.
+    pub term_origin_column_present: bool,
+    pub new_count: usize,
+    pub identical_count: usize,
+    /// Mọi hàng *bất đồng* — mặc định giữ của tôi (frontend không gửi quyết định cho hàng
+    /// người dùng không đổi ý).
+    pub conflicts: Vec<ImportPreviewConflictWire>,
+}
+
+/// Mở-và-xem-trước lượt nhập (nhịp MỘT) — **hàm thuần theo nghĩa không chạm `AppHandle`
+/// hay hộp thoại**: `path` đã được vỏ `wire` chọn xong; hàm này đọc, phân tích, phân loại
+/// so với `tier`, rồi GIỮ kế hoạch trong `pending` — AD-48 §Rule ①.
+///
+/// 🔴 **`pending` là chính `Mutex` được `.manage(...)`, nhận qua tham số** — cùng khuôn
+/// `commands::project::filter_and_enqueue_current_import_scan`: test khoá/mở được không
+/// cần webview, và một lô CŨ còn treo bị THAY vô điều kiện (§I/O Matrix: "mở lô thứ hai
+/// khi lô cũ còn treo ⇒ lô mới thay lô cũ; lô cũ không bao giờ ghi được nữa").
+///
+/// # Lỗi
+/// - `global.db` vắng mặt ⇒ `store.open_failed`;
+/// - `tier == Work` mà chưa mở Tác phẩm nào ⇒ `glossary.work_tier_unavailable`;
+/// - đọc tệp (kích thước/UTF-8/hạ tầng) ⇒ ba khoá `exchange_io` tương ứng — **0** lô nào
+///   được giữ lại khi bước đọc trượt;
+/// - phân tích hỏng ⇒ `IpcError` của [`crate::core::i18n::MessageKey`] ứng với lỗi ĐẦU
+///   TIÊN tìm được (đường dây chở đúng MỘT lỗi; `parse` đã tự gộp toàn bộ vào chẩn đoán
+///   log) — **0** lô nào được giữ lại.
+pub fn glossary_open_import_preview(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    pending: &PendingImportState,
+    tier: GlossaryTier,
+    path: &Path,
+) -> Result<ImportPreviewWire, IpcError> {
+    let global_store = global.ok_or_else(store_is_missing)?;
+    let work_store = work_context(open).map(|(store, _)| store);
+    // Xac nhan tang chon duoc TRUOC khi cham dia -- cung mot mon voi duong xuat.
+    resolve_tier_store(global_store, work_store, tier)?;
+
+    let text = read_import_file(path)?;
+    let parsed = parse_glossary_import(&text).map_err(|issues| {
+        eprintln!(
+            "glossary[import_preview] {} loi phan tich, dau tien: {}",
+            issues.len(),
+            issues[0]
+        );
+        IpcError::from(issues.into_iter().next().expect("Err chi dung khi issues khong rong"))
+    })?;
+
+    let plans = classify_import_rows(global_store, work_store, tier, &parsed.rows)?;
+
+    let new_count = plans.iter().filter(|p| matches!(p.kind, RowPlanKind::New)).count();
+    let identical_count = plans.iter().filter(|p| matches!(p.kind, RowPlanKind::Identical)).count();
+    let conflicts: Vec<ImportPreviewConflictWire> = plans
+        .iter()
+        .filter_map(|p| match &p.kind {
+            RowPlanKind::Conflict { existing_translation, .. } => Some(ImportPreviewConflictWire {
+                source_term: p.source_term.clone(),
+                existing_translation: existing_translation.clone(),
+                file_translation: p.translation.clone(),
+            }),
+            _ => None,
+        })
+        .collect();
+
+    let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let recognized_column_count = parsed.header_columns.len().saturating_sub(parsed.ignored_columns.len());
+    let term_origin_column_present =
+        parsed.header_columns.iter().any(|c| c == "term_origin");
+
+    let preview = ImportPreviewWire {
+        file_name,
+        tier: tier.as_str().to_owned(),
+        row_count: parsed.rows.len(),
+        recognized_column_count,
+        ignored_columns: parsed.ignored_columns,
+        term_origin_column_present,
+        new_count,
+        identical_count,
+        conflicts,
+    };
+
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    *guard = Some(PendingImport { path: path.to_owned(), tier, plans });
+
+    Ok(preview)
+}
+
+/// Hình dạng trên dây của [`ImportSummary`] — Story 3.10b.
+#[derive(Debug, Clone, Copy, serde::Serialize)]
+pub struct ImportSummaryWire {
+    pub inserted: i64,
+    pub updated: i64,
+    pub identical: i64,
+}
+
+impl From<ImportSummary> for ImportSummaryWire {
+    fn from(s: ImportSummary) -> Self {
+        Self { inserted: s.inserted, updated: s.updated, identical: s.identical }
+    }
+}
+
+/// Xác nhận lượt nhập (nhịp HAI) — ghi `decisions` cho lô ĐANG TREO trong `pending`.
+///
+/// 🔴 **Kế hoạch chỉ dọn khỏi `pending` khi giao dịch THÀNH CÔNG.** Lỗi giữa chừng (kể cả
+/// `ImportDecisionUnknownTerm`) GIỮ LẠI lô để người dùng thử lại — đúng chữ của §I/O
+/// Matrix "Lỗi giữa chừng ⇒ rollback trọn, kế hoạch GIỮ LẠI để thử lại".
+///
+/// # Lỗi
+/// - `global.db` vắng mặt ⇒ `store.open_failed`;
+/// - không có lô nào đang treo ⇒ `glossary.no_pending_import`;
+/// - một khoá của `decisions` không khớp `source_term` nào trong lô ⇒
+///   `glossary.import_decision_unknown_term`, **0** lượt ghi, lô GIỮ LẠI;
+/// - `tier == Work` mà Tác phẩm đã đóng từ lúc mở lô ⇒ `glossary.work_tier_unavailable`;
+/// - va `UNIQUE` giữa chừng ⇒ `glossary.import_unique_conflict`, lô GIỮ LẠI.
+pub fn glossary_confirm_import(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    pending: &PendingImportState,
+    decisions: &BTreeMap<String, ConflictDecision>,
+) -> Result<ImportSummaryWire, IpcError> {
+    let global = global.ok_or_else(store_is_missing)?;
+    let work_store = work_context(open).map(|(store, _)| store);
+
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(batch) = guard.as_ref() else {
+        return Err(IpcError::from(GlossaryError::NoPendingImport));
+    };
+
+    // Moi khoa cua `decisions` PHAI khop mot source_term MANG RowPlanKind::Conflict trong
+    // lo -- khong roi vao hu khong (§Always: "mot quyet dinh tro toi source_term khong co
+    // trong lo la mot loi tuong minh"). Kiem TRUOC khi ghi.
+    //
+    // 🔴 P5 (vòng rà ba lớp 2026-08-25) — SIẾT xuống đúng hàng `Conflict`, không phải MỌI
+    // hàng của lô. Bản trước gom `source_term` của CẢ `New`/`Identical`/`Conflict`, nên một
+    // quyết định trỏ vào một hàng `New`/`Identical` (những hàng KHÔNG có khái niệm "giữ của
+    // tôi"/"lấy của file" — `import_into_tier` chỉ tra `decisions` cho nhánh `Conflict`) qua
+    // được phép kiểm này rồi KHÔNG có tác dụng gì, im lặng — đúng lớp lỗi mà chính phép
+    // kiểm này tồn tại để chặn, chỉ lùi một hàng.
+    let known_conflict_terms: BTreeSet<&str> = batch
+        .plans
+        .iter()
+        .filter(|p| matches!(p.kind, RowPlanKind::Conflict { .. }))
+        .map(|p| p.source_term.as_str())
+        .collect();
+    if let Some(unknown) = decisions.keys().find(|k| !known_conflict_terms.contains(k.as_str())) {
+        return Err(IpcError::from(GlossaryError::ImportDecisionUnknownTerm {
+            term: unknown.clone(),
+        }));
+    }
+
+    match import_into_tier(global, work_store, batch.tier, &batch.plans, decisions) {
+        Ok(summary) => {
+            *guard = None; // Chi don LO khi giao dich THANH CONG.
+            Ok(ImportSummaryWire::from(summary))
+        }
+        Err(e) => Err(IpcError::from(e)), // Lo GIU LAI -- `guard` khong bi cham.
+    }
+}
+
+/// Huỷ lô đang treo — **0** lượt ghi, không lỗi kể cả khi không có lô nào (huỷ hai lần là
+/// vô hại, cùng khuôn `closeGlossaryQueue`/`closeGlossaryManage` phía frontend).
+pub fn glossary_cancel_import(pending: &PendingImportState) {
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    *guard = None;
+}
+
+/// Dọn lô đang treo NẾU nó thuộc tầng `tier` — **hàm thuần**, gọi từ hai chỗ trong
+/// `lib.rs`/`commands::project`: đóng Tác phẩm (`RunEvent::Exit`) VÀ mở một Tác phẩm KHÁC
+/// (`replace_open_work`), cả hai đều làm store `project.db` của lô đang treo (nếu có)
+/// biến mất hoặc đổi ý nghĩa — một `RowPlan::Conflict::existing_id` chốt từ kho CŨ không
+/// còn trỏ đúng hàng nào ở kho MỚI. §I/O Matrix: "Đóng Tác phẩm khi còn lô nhập treo ⇒ Lô
+/// bị dọn; nhịp hai sau đó trả `NoPendingImport`".
+pub fn clear_pending_import_for_tier(pending: &PendingImportState, tier: GlossaryTier) {
+    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if guard.as_ref().is_some_and(|batch| batch.tier == tier) {
+        *guard = None;
+    }
+}
+
+/// Mười lăm vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
+    use std::collections::BTreeMap;
+
     use super::{
-        Category, GlossaryCandidateWire, GlossaryEntryWire, GlossaryMarkWire, GlossaryTier,
-        IpcError, QuickAddLookup,
+        Category, ConflictDecision, GlossaryCandidateWire, GlossaryEntryWire, GlossaryError,
+        GlossaryMarkWire, GlossaryTier, ImportPreviewWire, ImportSummaryWire, IpcError,
+        PendingImportState, QuickAddLookup,
     };
     use crate::commands::project::OpenWorkState;
     use crate::core::dict::DictLayers;
     use crate::core::store::Store;
+    use tauri_plugin_dialog::DialogExt as _;
 
     /// Vỏ IPC của [`super::glossary_lookup_term`].
     ///
@@ -901,5 +1189,179 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::glossary_promote_term_to_global(global.as_deref(), guard.as_ref(), id)
+    }
+
+    // ── Story 3.10b (AD-48) — hộp thoại chọn tệp nối vào xuất/nhập ──────────────────
+
+    /// `OpenWorkState` đang mang một `OpenWork` hay không — khoá GIỮ ĐÚNG một biểu thức,
+    /// `MutexGuard` KHÔNG thoát ra ngoài hàm này.
+    ///
+    /// 🔴 **P1 (vòng rà ba lớp 2026-08-25).** Bản trước khoá `OpenWorkState` một lần rồi
+    /// GIỮ `MutexGuard` xuyên suốt `blocking_save_file()`/`blocking_pick_file()` — hộp
+    /// thoại hệ điều hành có thể mở NHIỀU PHÚT (người dùng duyệt thư mục), và giữ khoá đó
+    /// chặn MỌI lệnh khác cần `OpenWorkState` trong lúc đó, gồm cả đường flush AD-35 (trần
+    /// cứng 5s, KHÔNG reset bởi phím gõ). Hàm này là chỗ DUY NHẤT khoá `OpenWorkState` để
+    /// hỏi "có đang mở không" — khoá mở rồi đóng ngay trong một biểu thức, không có biến
+    /// `guard` nào sống ra khỏi nó.
+    fn work_tier_is_open(app: &tauri::AppHandle) -> bool {
+        use tauri::Manager as _;
+        app.try_state::<OpenWorkState>()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_some())
+            .unwrap_or(false)
+    }
+
+    /// Vỏ IPC của [`super::glossary_export_tier`] — mở hộp thoại LƯU rồi gọi hàm thuần.
+    ///
+    /// 🔴 **P1 — kiểm CẢ BA (`Store` có mặt · `tier == Work` thì Tác phẩm phải đang mở)
+    /// TRƯỚC khi mở hộp thoại**, và tra `OpenWorkState` qua [`work_tier_is_open`] — một
+    /// khoá NGẮN, không giữ `MutexGuard` qua lượt `blocking_save_file()` (xem doc-comment
+    /// của hàm đó). Không lãng phí một lượt tương tác người dùng cho một thao tác chắc
+    /// chắn trượt.
+    ///
+    /// 🔴 **Tác phẩm có thể ĐÓNG trong lúc hộp thoại còn mở** — `OpenWorkState` được khoá
+    /// LẦN THỨ HAI, MỚI, ngay TRƯỚC khi gọi hàm thuần ghi tệp, không tái dùng giá trị đã
+    /// đọc trước dialog. Một Tác phẩm đóng giữa chừng ⇒ `open` ở lần khoá thứ hai là
+    /// `None` ⇒ hàm thuần tự trả `WorkTierUnavailable` qua `resolve_tier_store`, **0**
+    /// lượt ghi — không ghi vào một kho đã cũ.
+    ///
+    /// Trả `Ok(None)` khi người dùng HUỶ hộp thoại (§Always: "Huỷ hộp thoại là `Ok(None)`,
+    /// không một biến thể lỗi") — `Ok(Some(path))` mang đường dẫn đã ghi khi thành công.
+    #[tauri::command]
+    pub fn glossary_export_tier(app: tauri::AppHandle, tier: GlossaryTier) -> Result<Option<String>, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        if global.is_none() {
+            return Err(IpcError::from(super::store_is_missing()));
+        }
+        if tier == GlossaryTier::Work && !work_tier_is_open(&app) {
+            return Err(IpcError::from(GlossaryError::WorkTierUnavailable));
+        }
+
+        let extension = if tier == GlossaryTier::Global { "glossary_global" } else { "glossary_work" };
+        // 🔴 P4 (vòng rà ba lớp 2026-08-25) — CHỈ MỘT bộ lọc, khớp tên mặc định.
+        // `set_file_name` không có móc phản ứng khi người dùng đổi bộ lọc trong hộp thoại
+        // (API `blocking_save_file` của `rfd` không phát sự kiện đó ra ngoài), nên trước
+        // đây bộ lọc TSV có mặt trong khi tên mặc định luôn `.csv` — chọn bộ lọc TSV vẫn
+        // nhận tên `….csv` và phải tự gõ lại đuôi mới thật sự ra TSV, một cái bẫy im lặng.
+        // Dấu phân cách vẫn suy TRỌN VẸN từ đuôi THẬT của đường dẫn đã chọn
+        // (`delimiter_from_path`, §I/O Matrix "Đuôi tệp quyết dấu phân cách") — người dùng
+        // muốn TSV vẫn gõ được `….tsv` trong ô tên, chỉ là hộp thoại không còn GỢI Ý một
+        // lựa chọn mà tên mặc định không theo kịp.
+        let Some(picked) = app
+            .dialog()
+            .file()
+            .add_filter("CSV", &["csv"])
+            .set_file_name(format!("{extension}.csv"))
+            .blocking_save_file()
+        else {
+            return Ok(None);
+        };
+        let path = picked.into_path().map_err(|_| IpcError::from(GlossaryError::DialogPathInvalid))?;
+
+        // Khoá MỚI, sau khi hộp thoại đã đóng — không tái dùng bất kỳ giá trị nào đọc
+        // trước dialog (P1).
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+
+        super::glossary_export_tier(global.as_deref(), open, tier, &path)?;
+        Ok(Some(path.display().to_string()))
+    }
+
+    /// Vỏ IPC của [`super::glossary_open_import_preview`] — mở hộp thoại CHỌN rồi gọi hàm
+    /// thuần. Nhịp MỘT của lượt nhập.
+    ///
+    /// 🔴 **P1 — kiểm CẢ BA (`Store` · `tier == Work` · `PendingImportState`) TRƯỚC khi mở
+    /// hộp thoại**, cùng lý do và cùng khuôn [`glossary_export_tier`] ngay trên — bản
+    /// trước chỉ kiểm `tier`/`Store` trước dialog, còn `PendingImportState` nổ SAU khi
+    /// người dùng đã chọn xong tệp, đúng thứ chính doc-comment của hàm này từng khai là
+    /// không được làm.
+    ///
+    /// 🔴 **Tác phẩm có thể ĐÓNG trong lúc hộp thoại còn mở** — `OpenWorkState` khoá LẦN
+    /// THỨ HAI, MỚI, sau khi hộp thoại trả về, cùng lý do [`glossary_export_tier`].
+    ///
+    /// Trả `Ok(None)` khi người dùng HUỶ hộp thoại — không đọc gì, không lỗi, **không** kế
+    /// hoạch nào để lại trong `State` (§I/O Matrix).
+    #[tauri::command]
+    pub fn glossary_open_import_preview(
+        app: tauri::AppHandle,
+        tier: GlossaryTier,
+    ) -> Result<Option<ImportPreviewWire>, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        if global.is_none() {
+            return Err(IpcError::from(super::store_is_missing()));
+        }
+        if tier == GlossaryTier::Work && !work_tier_is_open(&app) {
+            return Err(IpcError::from(GlossaryError::WorkTierUnavailable));
+        }
+        if app.try_state::<PendingImportState>().is_none() {
+            eprintln!(
+                "glossary[import_preview] PendingImportState chua duoc quan ly -- loi cau hinh setup()"
+            );
+            return Err(IpcError::from(GlossaryError::NoPendingImport));
+        }
+
+        let Some(picked) = app.dialog().file().add_filter("CSV/TSV", &["csv", "tsv"]).blocking_pick_file()
+        else {
+            return Ok(None);
+        };
+        let path = picked.into_path().map_err(|_| IpcError::from(GlossaryError::DialogPathInvalid))?;
+
+        // Khoá MỚI, sau khi hộp thoại đã đóng — không tái dùng bất kỳ giá trị nào đọc
+        // trước dialog (P1).
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+
+        let Some(pending) = app.try_state::<PendingImportState>() else {
+            // Đã kiểm TRƯỚC dialog — đây là một cửa sổ đua HIẾM (state bị gỡ giữa chừng,
+            // không xảy ra trên đường sản phẩm bình thường), không phải đường thường nhật.
+            return Err(IpcError::from(GlossaryError::NoPendingImport));
+        };
+
+        let preview =
+            super::glossary_open_import_preview(global.as_deref(), open, pending.inner(), tier, &path)?;
+        Ok(Some(preview))
+    }
+
+    /// Vỏ IPC của [`super::glossary_confirm_import`] — nhịp HAI của lượt nhập.
+    #[tauri::command]
+    pub fn glossary_confirm_import(
+        app: tauri::AppHandle,
+        decisions: BTreeMap<String, ConflictDecision>,
+    ) -> Result<ImportSummaryWire, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let work_state = app.try_state::<OpenWorkState>();
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+
+        let Some(pending) = app.try_state::<PendingImportState>() else {
+            return Err(IpcError::from(GlossaryError::NoPendingImport));
+        };
+
+        super::glossary_confirm_import(global.as_deref(), open, pending.inner(), &decisions)
+    }
+
+    /// Vỏ IPC của [`super::glossary_cancel_import`] — huỷ lô đang treo, dùng cả cho nút Huỷ
+    /// của màn hình xem trước.
+    #[tauri::command]
+    pub fn glossary_cancel_import(app: tauri::AppHandle) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        if let Some(pending) = app.try_state::<PendingImportState>() {
+            super::glossary_cancel_import(pending.inner());
+        }
+        Ok(())
     }
 }

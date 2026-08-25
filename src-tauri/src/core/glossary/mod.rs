@@ -219,11 +219,33 @@
 //! - ⚠️ **NỬA CHỌN TỆP (hộp thoại mở/lưu, `#[tauri::command]`) TÁCH KHỎI STORY NÀY** — đang
 //!   chờ một `AD` (`ad-brief-2026-08-24-hop-thoai-chon-tep.md`). Story 3.10 giao đúng nửa
 //!   định dạng + đường ghi; chỗ nối để lại là một hàm trả `PathBuf`.
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! HÌNH DẠNG ĐÃ DỰNG (Story 3.10b, 2026-08-25) — hộp thoại chọn tệp nối vào, AD-48
+//! ─────────────────────────────────────────────────────────────────────────────
+//! - [`exchange_io`] — module MỚI, DUY NHẤT của cây này chạm `std::fs`: đọc tệp nhập
+//!   (`metadata` ⇒ trần 16 MiB ⇒ `read` ⇒ `from_utf8` ⇒ cắt BOM, khuôn chép
+//!   `core/segment/import.rs`) và ghi tệp xuất NGUYÊN TỬ (khuôn chép
+//!   `core/library/meta.rs::write_atomic`). `exchange.rs` ở lại THUẦN — AC của Story
+//!   3.10 vẫn đúng nguyên vẹn.
+//! - `exchange.rs` — hai bản vá TẠI CHỖ: bước cắt DÒNG (`split_first_logical_line`) nay
+//!   áp đúng luật "một `"` chỉ mở ô bọc khi đứng NGAY ĐẦU Ô" mà bước cắt Ô đã có, đóng
+//!   `deferred-work.md:6776`; `seen`/kiểm `category` không còn `continue` sớm loại nhau,
+//!   nên một hàng vừa trùng `source_term` vừa sai `category` báo CẢ HAI lỗi, đóng
+//!   `deferred-work.md:6787`.
+//! - `commands::glossary` — bốn vỏ IPC mới, gọi thẳng `export_tier`/`import_into_tier`
+//!   (KHÔNG nằm trong `GLOSSARY_ONLY_SURFACE`, xem `glossary_boundary.rs`): xuất một
+//!   tầng (một nhịp) · mở-và-xem-trước một lượt nhập (nhịp một, kế hoạch ở lại `State`
+//!   Rust — AD-48 §Rule ①) · xác nhận lượt nhập (nhịp hai) · huỷ lô đang treo.
+//! - `store::GlossaryError` — bảy biến thể mới cho các ca I/O của §I/O Matrix (tệp quá
+//!   lớn · phi-UTF-8 · đọc/ghi thất bại · quyết định trỏ thuật ngữ lạ · không có lô
+//!   treo · đường dẫn hộp thoại không quy đổi được).
 
 pub mod candidate;
 pub mod candidate_store;
 pub mod entry;
 pub mod exchange;
+pub mod exchange_io;
 pub mod han_viet_suggestion;
 pub mod scan;
 pub mod store;
@@ -239,6 +261,7 @@ pub use exchange::{
     ConflictDecision, Delimiter, ImportRow, ImportSummary, ParseIssue, ParsedImport, RowPlan,
     RowPlanKind, classify, parse, render_tier,
 };
+pub use exchange_io::{MAX_GLOSSARY_IMPORT_BYTES, read_import_file, write_export_file};
 pub use han_viet_suggestion::{HanVietSuggestion, suggest_han_viet_batch};
 pub use scan::{
     DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates, scan_candidates_controlled,
@@ -247,9 +270,9 @@ pub use scan::{
 pub(crate) use candidate_store::{ImportScanWriteTicket, enqueue_import_scan_candidates};
 pub(crate) use store::filter_import_scan_candidates_by_scope;
 pub use store::{
-    GlossaryError, add_manual_term, confirm_pending_translation, confirm_translation,
-    delete_manual_term, entries_eligible_for_injection, export_tier, import_into_tier,
-    insert_manual_entry, list_all_entries, load_tier, marks_for_source_text,
+    GlossaryError, add_manual_term, classify_import_rows, confirm_pending_translation,
+    confirm_translation, delete_manual_term, entries_eligible_for_injection, export_tier,
+    import_into_tier, insert_manual_entry, list_all_entries, load_tier, marks_for_source_text,
     match_lang_for_source_lang, promote_to_global, resolve_term_for_quick_add,
     update_manual_term, warm_jieba_for_source_lang,
 };

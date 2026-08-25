@@ -615,6 +615,18 @@ export type CommandDeps = {
   nextGlossaryManageRow?: () => void
   /** Chuyển con trỏ lên hàng trước (danh sách đã lọc). Handler của `glossary.manage.prev`. */
   prevGlossaryManageRow?: () => void
+
+  // ── Story 3.10b — hộp thoại chọn tệp nối vào xuất/nhập Glossary (AD-48) ─────────
+  /** Mở hộp thoại LƯU rồi xuất tầng đang chọn. Handler của `glossary.manage.export_csv` —
+   * cùng khuôn `async` bị bỏ qua kết quả như `openGlossaryManage`. */
+  exportGlossaryManageTier?: () => void
+  /** Mở hộp thoại CHỌN rồi đọc/xem-trước một lượt nhập ở tầng đang chọn. Handler của
+   * `glossary.manage.import_csv`. */
+  openGlossaryImportPreview?: () => void
+  /** Xác nhận lượt nhập đang xem trước. Handler của `glossary.import.confirm`. */
+  confirmGlossaryImportPreview?: () => void
+  /** Huỷ lượt nhập đang xem trước. Handler của `glossary.import.cancel`. */
+  cancelGlossaryImportPreview?: () => void
 }
 
 /**
@@ -1891,6 +1903,60 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.manage.prev', 'prevGlossaryManageRow')
       }
       deps.prevGlossaryManageRow()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 3.10b — HỘP THOẠI CHỌN TỆP NỐI VÀO XUẤT/NHẬP GLOSSARY (AD-48)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * Bốn lệnh, KHÔNG hợp âm mặc định (cùng chủ ý phần lớn lệnh của `GlossaryManageOverlay.vue`
+   * — mở hộp thoại là một thao tác bấm nút, không phải một thao tác gõ phím). Cả bốn mở
+   * hộp thoại/ghi TRONG RUST — `dispatch()` là chỗ DUY NHẤT frontend chạm tới chúng.
+   */
+  target.register({
+    id: 'glossary.manage.export_csv',
+    labelKey: 'command.glossary.manage.export_csv',
+    keys: undefined,
+    run: () => {
+      if (deps.exportGlossaryManageTier === undefined) {
+        return portMissing('glossary.manage.export_csv', 'exportGlossaryManageTier')
+      }
+      deps.exportGlossaryManageTier()
+    },
+  })
+  target.register({
+    id: 'glossary.manage.import_csv',
+    labelKey: 'command.glossary.manage.import_csv',
+    keys: undefined,
+    run: () => {
+      if (deps.openGlossaryImportPreview === undefined) {
+        return portMissing('glossary.manage.import_csv', 'openGlossaryImportPreview')
+      }
+      deps.openGlossaryImportPreview()
+    },
+  })
+  target.register({
+    id: 'glossary.import.confirm',
+    labelKey: 'command.glossary.import.confirm',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmGlossaryImportPreview === undefined) {
+        return portMissing('glossary.import.confirm', 'confirmGlossaryImportPreview')
+      }
+      deps.confirmGlossaryImportPreview()
+    },
+  })
+  target.register({
+    id: 'glossary.import.cancel',
+    labelKey: 'command.glossary.import.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelGlossaryImportPreview === undefined) {
+        return portMissing('glossary.import.cancel', 'cancelGlossaryImportPreview')
+      }
+      deps.cancelGlossaryImportPreview()
     },
   })
 

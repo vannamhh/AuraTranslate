@@ -341,6 +341,32 @@ message_keys! {
     /// `String` — hàm ý chỗ gọi TƯƠNG LAI dựng UI tách lại bằng `", "` nếu cần liệt riêng
     /// từng thuật ngữ; hôm nay chưa vỏ IPC nào tiêu thụ khoá này).
     GlossaryImportUniqueConflict => "err.glossary.import_unique_conflict" ["value"],
+
+    // ── Story 3.10b (AD-48 · FR49/NFR9) — BỐN khoá MỚI, ba tái dùng ─────────────────
+    //
+    // Hộp thoại chọn tệp nối vào xuất/nhập Glossary. Ba ca I/O mượn khoá CHUNG với
+    // `core::segment::import` vì câu ĐÚNG là câu chung, không câu riêng của Glossary:
+    // `ImportTooLarge` (["size","limit"], `core::glossary::store::GlossaryError::
+    // ImportFileTooLarge` dùng trần 16 MiB thay vì 100 MiB — cùng khoá, hai con số
+    // khác), `ImportNotUtf8` (["path"], `GlossaryError::ImportNotUtf8`), `IoReadFailed`
+    // (["path"], `GlossaryError::ImportReadFailed` — lỗi mở/đọc tệp KHÁC hai ca trên,
+    // ví dụ quyền truy cập). Bốn khoá dưới đây RIÊNG vì không khoá nào hiện có nói đúng
+    // bốn sự thật này.
+    /// Ghi tệp xuất thất bại (hệ điều hành từ chối, hết dung lượng, …) — §Ask First của
+    /// spec: "ghi nguyên tử bị hệ điều hành từ chối ở một thư mục người dùng chọn".
+    /// `path` là đường dẫn người dùng vừa chọn — dữ liệu, không phải câu.
+    GlossaryExportWriteFailed => "err.glossary.export_write_failed" ["path"],
+    /// `FilePath::into_path()` của `tauri-plugin-dialog` trả lỗi (`InvalidPathUrl`) —
+    /// hộp thoại trả về một giá trị không quy đổi được thành `PathBuf`. Không tham số:
+    /// không có dữ liệu người dùng đọc được nào để mang theo, chỉ một chẩn đoán nội bộ.
+    GlossaryDialogPathInvalid => "err.glossary.dialog_path_invalid" [],
+    /// Bản đồ quyết định (nhịp hai) mang một khoá `source_term` KHÔNG có trong lô đã
+    /// phân tích ở nhịp một — §Always: "một quyết định trỏ tới `source_term` không có
+    /// trong lô là một lỗi tường minh". `value` là thuật ngữ lạ đó.
+    GlossaryImportDecisionUnknownTerm => "err.glossary.import_decision_unknown_term" ["value"],
+    /// Xác nhận lượt nhập (nhịp hai) khi chưa qua nhịp một, hoặc lô đã bị dọn (huỷ, đổi
+    /// tệp, đóng Tác phẩm ở tầng Work) — §I/O Matrix "Xác nhận khi không có lô nào".
+    GlossaryNoPendingImport => "err.glossary.no_pending_import" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

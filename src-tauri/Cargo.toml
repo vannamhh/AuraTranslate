@@ -56,6 +56,15 @@ reqwest = "=0.13.4"
 # `"1.24.0"` trần nghĩa là `^1.24.0`. Rà NFR15 (MIT OR Apache-2.0, đọc trong nguồn đã
 # tải) ghi ở story `1-15…md` §Debug Log References.
 uuid = { version = "=1.24.0", features = ["v4"] }
+# Hộp thoại chọn tệp GỌI TỪ RUST (AD-48 nhánh (a)) — Story 3.10b, xuất/nhập Glossary.
+# `DialogExt::dialog()` gọi `state::<Dialog<R>>()`, nên `.plugin(tauri_plugin_dialog::init())`
+# ở `lib.rs` là BẮT BUỘC (xem chú thích tại chỗ nối đó). Crate này kéo `tauri-plugin-fs` vào
+# cây phụ thuộc BẮC CẦU, nhưng `tauri_plugin_fs::init()` KHÔNG được gọi ở bất kỳ đâu — có mặt
+# trong cây khác hẳn có mặt trên bề mặt IPC (AD-48 §Rule ③, `config_invariants.rs` canh vế
+# webview, `check-deps.mjs` canh vế cây phụ thuộc). Giấy phép `Apache-2.0 OR MIT`, đọc trong
+# nguồn đã tải `~/.cargo/registry/src/…/tauri-plugin-dialog-2.7.2/Cargo.toml:27` — tương thích
+# GPLv3 chiều vào. Ghim `=` theo lệ của kho.
+tauri-plugin-dialog = "=2.7.2"
 
 # ── Bộ lái cửa sổ Tauri THẬT — Ice chốt 2026-08-11 ──────────────────────────────────
 #

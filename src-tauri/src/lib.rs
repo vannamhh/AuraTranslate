@@ -288,6 +288,25 @@ pub fn run() {
     #[cfg(not(all(debug_assertions, feature = "wdio")))]
     let builder = tauri::Builder::default();
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // 🔴 Story 3.10b — HỘP THOẠI CHỌN TỆP GỌI TỪ RUST (AD-48 nhánh (a))
+    // ─────────────────────────────────────────────────────────────────────────────
+    // BẮT BUỘC, kể cả khi chỉ Rust gọi `DialogExt::dialog()`: hàm đó gọi thẳng
+    // `self.state::<Dialog<R>>()` — `state()`, KHÔNG `try_state()` — nên thiếu `.plugin(...)`
+    // ở đây làm lệnh xuất/nhập Glossary PANIC ngay lượt gọi đầu tiên, và `panic = "abort"`
+    // biến nó thành cái chết của cả tiến trình: không unwind, không `Drop`, không cơ hội
+    // flush WAL. Không gác `cfg` nào — hộp thoại chạy ở CẢ debug lẫn release.
+    //
+    // 🔴 KHÔNG gọi `tauri_plugin_fs::init()` ở đây, và không ở bất kỳ đâu trong
+    // `src-tauri/src/**` (AD-48 §Rule ③, `tests/config_invariants.rs` canh mệnh đề này bằng
+    // `grep` trên chính mã nguồn). Crate `tauri-plugin-fs` có mặt trong CÂY PHỤ THUỘC (bắc
+    // cầu qua `tauri-plugin-dialog`, xem `Cargo.toml`) nhưng KHÔNG có mặt trên BỀ MẶT IPC —
+    // hai điều khác hẳn nhau. Không `init()` ⇒ `window.try_fs_scope()` trả `None` (bọc
+    // `if let Some(...)` trong chính plugin dialog, không panic) ⇒ **0** lệnh `fs:*` phơi ra
+    // webview, và `capabilities/main.json` không cần sửa một chữ (command của plugin CHƯA
+    // đăng ký thì không cần ACL).
+    let builder = builder.plugin(tauri_plugin_dialog::init());
+
     let builder = builder
         // ─────────────────────────────────────────────────────────────────────────
         // 🔴 BỀ MẶT IPC ĐẦU TIÊN CỦA DỰ ÁN — Story 1.8
@@ -394,6 +413,15 @@ pub fn run() {
             crate::commands::glossary::wire::glossary_list_entries,
             crate::commands::glossary::wire::glossary_delete_term,
             crate::commands::glossary::wire::glossary_promote_term_to_global,
+            // Story 3.10b -- hop thoai chon tep noi vao xuat/nhap CSV/TSV (AD-48). Bon vo:
+            // xuat (mot nhip, mo hop thoai LUU) · mo-va-xem-truoc mot luot nhap (nhip mot, mo
+            // hop thoai CHON, ke hoach da phan tich O LAI RUST trong PendingImportState) ·
+            // xac nhan (nhip hai, nhan ban do quyet dinh) · huy lo dang treo. Khong mot lenh
+            // fs:*/dialog:* nao phoi ra JavaScript -- webview chi dispatch bon lenh nay.
+            crate::commands::glossary::wire::glossary_export_tier,
+            crate::commands::glossary::wire::glossary_open_import_preview,
+            crate::commands::glossary::wire::glossary_confirm_import,
+            crate::commands::glossary::wire::glossary_cancel_import,
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,
@@ -627,6 +655,10 @@ fn open_work_slot(app: &tauri::App) {
     use tauri::Manager as _;
     app.manage(crate::commands::project::OpenWorkState::new(None));
     app.manage(crate::commands::project::ImportScanGeneration::default());
+    // Story 3.10b (AD-48) -- lo nhap Glossary dang TREO giua nhip mot va nhip hai. Quan ly
+    // canh OpenWorkState vi lo dang treo o tang Work phai chet cung Tac pham dang mo no --
+    // xem close_open_work.
+    app.manage(crate::commands::glossary::PendingImportState::new(None));
 }
 
 /// `RunEvent::Exit` ⇒ đóng Tác phẩm đang mở (nếu có), cùng khuôn [`close_global_store`].
@@ -638,6 +670,16 @@ fn open_work_slot(app: &tauri::App) {
 /// thoát cứng **không** đi qua đây — cùng món nợ đã ghi cho [`close_global_store`].
 fn close_open_work(handle: &tauri::AppHandle) {
     use tauri::Manager as _;
+
+    // Story 3.10b (AD-48) -- mot lo nhap Glossary dang TREO o tang Work tro toi `project.db`
+    // sap dong; du "id" cua no khong con nghia gi sau khi kho dong. Don TRUOC khi `take()`
+    // kho, dung khuon `clear_pending_import_for_tier`.
+    if let Some(pending) = handle.try_state::<crate::commands::glossary::PendingImportState>() {
+        crate::commands::glossary::clear_pending_import_for_tier(
+            &pending,
+            crate::core::glossary::GlossaryTier::Work,
+        );
+    }
 
     if let Some(state) = handle.try_state::<crate::commands::project::OpenWorkState>() {
         let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);

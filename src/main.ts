@@ -178,6 +178,8 @@ import {
   cancelGlossaryManageEdit,
   closeGlossaryManage,
   deleteGlossaryManageEntry,
+  exportGlossaryManageTier,
+  manageExchangeTier,
   manageOverlayIsOpen,
   nextGlossaryManageRow,
   openGlossaryManage,
@@ -185,6 +187,16 @@ import {
   promoteGlossaryManageEntry,
   saveGlossaryManageEdit,
 } from './glossaryManageState'
+// ── Story 3.10b — lớp phủ "Xem trước lượt nhập Glossary" (AD-48) ─────────────────────
+//
+// Cùng lý do và cùng cửa với `glossaryManageState.ts`: `glossaryImportState.ts` dùng
+// `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/glossary.ts`.
+import {
+  cancelGlossaryImportPreview,
+  confirmGlossaryImportPreview,
+  importOverlayIsOpen,
+  openGlossaryImportPreviewOverlay,
+} from './glossaryImportState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -530,6 +542,19 @@ async function boot(): Promise<void> {
       },
       nextGlossaryManageRow,
       prevGlossaryManageRow,
+      // Story 3.10b · AD-48 — hộp thoại chọn tệp nối vào xuất/nhập Glossary.
+      exportGlossaryManageTier: () => {
+        void exportGlossaryManageTier()
+      },
+      openGlossaryImportPreview: () => {
+        void openGlossaryImportPreviewOverlay(manageExchangeTier.value)
+      },
+      confirmGlossaryImportPreview: () => {
+        void confirmGlossaryImportPreview()
+      },
+      cancelGlossaryImportPreview: () => {
+        void cancelGlossaryImportPreview()
+      },
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
@@ -564,7 +589,8 @@ async function boot(): Promise<void> {
         captureIsArmed.value ||
         glossarySettingsOverlayIsOpen.value ||
         queueOverlayIsOpen.value ||
-        manageOverlayIsOpen.value,
+        manageOverlayIsOpen.value ||
+        importOverlayIsOpen.value,
     })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng

@@ -318,6 +318,56 @@ fn a_source_term_duplicated_within_the_file_is_refused_naming_both_lines() {
     );
 }
 
+/// Story 3.10b, đóng `deferred-work.md:6776` — "Nháy kép đặt sai chỗ": một `"` KHÔNG đứng
+/// đầu ô là một ký tự THƯỜNG, ở CẢ bước cắt dòng lẫn bước cắt ô. Trước bản vá, bước cắt
+/// DÒNG (`split_first_logical_line`) đảo `in_quotes` trên MỌI `"` gặp được — một dấu nháy
+/// đặt sai chỗ ở dòng 2 tự "mở một ô bọc giả" nuốt luôn dấu xuống dòng thật sau đó, nên
+/// dòng 3 (`d,e`) bị gộp vào CÙNG một dòng logic với dòng 2 và hàng này bị từ chối vì
+/// `CellCountMismatch { line: 2, expected: 2, found: 3 }` thay vì phân tích ra HAI hàng
+/// hợp lệ.
+#[test]
+fn a_stray_quote_not_at_the_start_of_a_field_is_literal_in_both_the_line_and_field_splitter() {
+    let text = "source_term,translation\na\"b,c\nd,e\n";
+    let parsed = parse(text).expect("nhay kep dat sai cho van phai phan tich duoc TRON VEN");
+    assert_eq!(
+        parsed.rows,
+        vec![
+            ImportRow {
+                line: 2,
+                source_term: "a\"b".to_owned(),
+                translation: Some("c".to_owned()),
+                note: String::new(),
+                category: Category::Other,
+                created_at: None,
+            },
+            ImportRow {
+                line: 3,
+                source_term: "d".to_owned(),
+                translation: Some("e".to_owned()),
+                note: String::new(),
+                category: Category::Other,
+                created_at: None,
+            },
+        ]
+    );
+}
+
+/// Story 3.10b, đóng `deferred-work.md:6787` — "Hàng trùng `source_term` VÀ `category` lạ":
+/// dòng thứ hai sai CẢ HAI phải báo CẢ HAI lỗi trong MỘT lượt, không chỉ lỗi ĐẦU TIÊN tìm
+/// được. Trước bản vá, kiểm `category` `continue` sớm nên lượt kiểm trùng của CHÍNH dòng đó
+/// không bao giờ chạy tới.
+#[test]
+fn a_row_that_is_both_a_duplicate_and_has_an_unknown_category_reports_both_issues() {
+    let text = "source_term,category\na,other\na,weapon\n";
+    assert_eq!(
+        parse(text),
+        Err(vec![
+            ParseIssue::UnknownCategory { line: 3, value: "weapon".to_owned() },
+            ParseIssue::DuplicateSourceTerm { first_line: 2, second_line: 3 },
+        ])
+    );
+}
+
 /// I/O Matrix "Văn bản rỗng / chỉ có tiêu đề" — 0 mục, KHÔNG lỗi, phân biệt được với "tệp
 /// hỏng".
 #[test]

@@ -335,6 +335,15 @@ pub struct ParsedImport {
     /// (I/O Matrix: "Bỏ qua cột đó và NÓI RA — không im lặng vứt"). Đây là chỗ "nói ra": chỗ
     /// gọi đọc danh sách này để hiển thị một ghi chú, không phải một placeholder rỗng.
     pub ignored_columns: Vec<String>,
+    /// 🔵 **THÊM 2026-08-25 (Story 3.10b).** TOÀN BỘ tên cột của hàng tiêu đề, đã cắt
+    /// khoảng trắng, theo ĐÚNG thứ tự trong tệp — nhận diện lẫn bị bỏ qua. Màn hình xem
+    /// trước (AD-48 §Rule ①: chỉ mô hình đã kiểm, không văn bản thô) suy ra từ trường này:
+    /// *"N cột nhận ra được"* = `header_columns.len() - ignored_columns.len()`, và *"tệp có
+    /// cột `term_origin`"* = `header_columns.contains(&"term_origin".to_owned())` — cột đó
+    /// LUÔN nằm trong [`COLUMNS`] (không bao giờ rơi vào `ignored_columns`) nhưng giá trị
+    /// của nó bị đọc rồi bỏ (§Design Notes của spec 3.10b), nên overlay cần một tín hiệu
+    /// RIÊNG để nói ra điều đó — không suy được từ `ignored_columns`.
+    pub header_columns: Vec<String>,
 }
 
 /// `s` khớp hình dạng `YYYY-MM-DDTHH:MM:SS.mmmZ` — đúng thứ SQLite
@@ -368,44 +377,72 @@ fn looks_like_iso8601_utc(s: &str) -> bool {
 /// Tìm ranh giới DÒNG LOGIC đầu tiên trong `text` — dừng ở `\n`/`\r\n` KHÔNG nằm trong một
 /// ô đang bọc nháy kép. Trả `(dòng, phần còn lại SAU dấu xuống dòng)`.
 ///
-/// ⚠️ Chưa biết dấu phân cách ở bước này — và không cần biết: việc dò RANH GIỚI dòng chỉ
-/// phụ thuộc trạng thái "đang trong nháy kép hay không", không phụ thuộc dấu phân cách.
-/// Đúng vì sao [`parse`] gọi hàm này TRƯỚC khi chọn `Delimiter`.
+/// 🔵 **SỬA 2026-08-25 (Story 3.10b) — áp ĐÚNG luật mở ô bọc của [`split_fields`]: một
+/// `"` chỉ mở ô bọc khi đứng NGAY ĐẦU Ô, không phải một `"` bất kỳ ở bất kỳ đâu.** Bản
+/// trước đảo `in_quotes` trên MỌI `"` gặp được, nên một nháy kép đặt sai chỗ giữa một ô
+/// KHÔNG bọc (`a"b,c`) tự mở một "ô bọc" giả — mọi `\n` sau đó bị nuốt vào cùng một
+/// "dòng logic" cho tới khi gặp `"` thứ hai, làm lệch số dòng của MỌI hàng phía sau.
+/// Đóng `deferred-work.md:6776`. `delimiter = None` (dùng cho hàng TIÊU ĐỀ, lúc dấu phân
+/// cách CHƯA biết) coi CẢ HAI ứng viên (`,` và TAB) là ranh giới ô — đủ an toàn cho một
+/// hàng tiêu đề (định danh máy đọc, không mang dữ liệu tự do); `delimiter = Some(d)`
+/// dùng ĐÚNG MỘT ký tự đã chốt cho các hàng dữ liệu, khớp hệt [`split_fields`].
 ///
-/// Một cặp nháy kép nhân đôi (`""`, cách thoát một nháy kép RFC 4180 bên trong ô) đảo
-/// trạng thái HAI LẦN — vào rồi ra ngay — nên phép "đảo cờ mỗi lần gặp `"`" vẫn đúng cho
-/// mục đích dò ranh giới, dù nó không tách được TỪNG Ô (đó là việc của [`split_fields`]).
-fn split_first_logical_line(text: &str) -> (&str, &str) {
+/// Một cặp nháy kép nhân đôi (`""`, cách thoát một nháy kép RFC 4180 bên trong ô) vẫn
+/// đảo trạng thái HAI LẦN khi đang Ở TRONG một ô đã bọc — vào rồi ra ngay — nên nó không
+/// bị hiểu nhầm thành một dấu đóng ô thật.
+fn split_first_logical_line(text: &str, delimiter: Option<char>) -> (&str, &str) {
+    let is_field_boundary = |c: char| match delimiter {
+        Some(d) => c == d,
+        None => c == ',' || c == '\t',
+    };
+
     let mut in_quotes = false;
+    let mut at_field_start = true;
     let mut chars = text.char_indices().peekable();
 
     while let Some((i, c)) = chars.next() {
+        if in_quotes {
+            if c == '"' {
+                if chars.peek().map(|&(_, next)| next) == Some('"') {
+                    chars.next();
+                } else {
+                    in_quotes = false;
+                }
+            }
+            continue;
+        }
+
         match c {
-            '"' => in_quotes = !in_quotes,
-            '\n' if !in_quotes => return (&text[..i], &text[i + 1..]),
-            '\r' if !in_quotes => {
+            '"' if at_field_start => {
+                in_quotes = true;
+                at_field_start = false;
+            }
+            '\n' => return (&text[..i], &text[i + 1..]),
+            '\r' => {
                 if let Some(&(j, '\n')) = chars.peek() {
                     return (&text[..i], &text[j + 1..]);
                 }
                 return (&text[..i], &text[i + 1..]);
             }
-            _ => {}
+            c if is_field_boundary(c) => at_field_start = true,
+            _ => at_field_start = false,
         }
     }
 
     (text, "")
 }
 
-/// Mọi dòng logic của `text`, kèm số dòng NGUỒN (1-based) mà nó BẮT ĐẦU — một ô bọc nháy
-/// kép mang xuống dòng thật bên trong làm một "dòng logic" trải qua NHIỀU dòng nguồn; số
-/// dòng báo lỗi là dòng nó bắt đầu, đúng thứ một người đọc file bằng trình soạn thảo sẽ đếm.
-fn logical_lines(text: &str) -> Vec<(usize, &str)> {
+/// Mọi dòng logic của `text`, kèm số dòng NGUỒN (1-based, bắt đầu từ `start_line`) mà nó
+/// BẮT ĐẦU — một ô bọc nháy kép mang xuống dòng thật bên trong làm một "dòng logic" trải
+/// qua NHIỀU dòng nguồn; số dòng báo lỗi là dòng nó bắt đầu, đúng thứ một người đọc file
+/// bằng trình soạn thảo sẽ đếm.
+fn logical_lines(text: &str, delimiter: Option<char>, start_line: usize) -> Vec<(usize, &str)> {
     let mut out = Vec::new();
     let mut remaining = text;
-    let mut line_no = 1usize;
+    let mut line_no = start_line;
 
     while !remaining.is_empty() {
-        let (line, rest) = split_first_logical_line(remaining);
+        let (line, rest) = split_first_logical_line(remaining, delimiter);
         out.push((line_no, line));
         line_no += line.matches('\n').count() + 1;
         remaining = rest;
@@ -476,8 +513,12 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
         return Ok(ParsedImport::default());
     }
 
-    let lines = logical_lines(text);
-    let (_, header_text) = lines[0];
+    // 🔵 Story 3.10b — hàng TIÊU ĐỀ tách ra TRƯỚC, bằng luật quét "cả hai ứng viên"
+    // (`delimiter = None`); dấu phân cách chỉ chốt được SAU khi đọc xong hàng đó, nên
+    // các hàng DỮ LIỆU phải tách bằng một lượt `logical_lines` THỨ HAI, dùng ĐÚNG MỘT
+    // ký tự đã chốt — xem doc-comment của `split_first_logical_line`.
+    let (header_text, body_text) = split_first_logical_line(text, None);
+    let header_line_count = header_text.matches('\n').count() + 1;
 
     let has_comma = header_text.contains(',');
     let has_tab = header_text.contains('\t');
@@ -487,6 +528,7 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
         _ => return Err(vec![ParseIssue::DelimiterUnresolved]),
     };
     let d = delimiter.as_char();
+    let lines = logical_lines(body_text, Some(d), 1 + header_line_count);
 
     let header: Vec<String> = split_fields(header_text, d).iter().map(|s| s.trim().to_owned()).collect();
     let expected = header.len();
@@ -510,7 +552,7 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
     let mut rows: Vec<ImportRow> = Vec::new();
     let mut seen: BTreeMap<String, usize> = BTreeMap::new();
 
-    for (line, raw) in &lines[1..] {
+    for (line, raw) in &lines {
         let line = *line;
 
         // 🔵 THÊM 2026-08-25 (vòng rà ba lớp, P2) — một dòng logic RỖNG (trim ra chuỗi rỗng)
@@ -545,6 +587,16 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
             continue;
         }
 
+        // 🔵 SỬA 2026-08-25 (Story 3.10b) — `category`/`created_at`/trùng `source_term` nay
+        // KHÔNG `continue` riêng lẻ nữa: mỗi ca lỗi CHỈ đánh dấu `row_ok = false` rồi ĐI
+        // TIẾP qua các kiểm còn lại của CÙNG hàng. Bản trước dừng ở lỗi ĐẦU TIÊN tìm được
+        // trên một hàng (category sai ⇒ `continue` trước khi kịp kiểm trùng), nên một hàng
+        // vừa trùng `source_term` VỪA sai `category` chỉ báo được MỘT trong hai lỗi — sai
+        // đúng mệnh đề I/O Matrix "Hàng trùng source_term VÀ category lạ ⇒ báo CẢ HAI lỗi
+        // cho hàng đó" (đóng `deferred-work.md:6787`). `seen` vẫn chỉ nhận hàng row_ok, nên
+        // hành vi của MỌI ca đơn lẻ đã có (chỉ category sai, chỉ trùng, …) không đổi.
+        let mut row_ok = true;
+
         let category = match category_idx {
             None => Category::Other,
             Some(idx) => {
@@ -559,29 +611,35 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
                                 line,
                                 value: raw_value.to_owned(),
                             });
-                            continue;
+                            row_ok = false;
+                            Category::Other
                         }
                     }
                 }
             }
         };
 
-        // 🔵 THÊM 2026-08-25 (vòng rà ba lớp, P3) — kiểm hình dạng TRƯỚC khi chấp nhận, cùng
-        // vị trí trong chuỗi mà `category`/`source_term` đã được kiểm ngay trên. Cột vắng
-        // hoặc ô rỗng vẫn là `None` (I/O Matrix "Vắng cột tuỳ chọn ⇒ created_at = hôm nay") —
-        // chỉ một Ô CÓ MẶT VÀ SAI HÌNH DẠNG mới sinh lỗi.
+        // Kiểm hình dạng TRƯỚC khi chấp nhận, cùng vị trí trong chuỗi mà `category`/
+        // `source_term` đã được kiểm ngay trên. Cột vắng hoặc ô rỗng vẫn là `None` (I/O
+        // Matrix "Vắng cột tuỳ chọn ⇒ created_at = hôm nay") — chỉ một Ô CÓ MẶT VÀ SAI
+        // HÌNH DẠNG mới sinh lỗi.
         let created_at = match created_at_idx.map(|idx| cells[idx].trim()) {
             None => None,
             Some(s) if s.is_empty() => None,
             Some(s) if looks_like_iso8601_utc(s) => Some(s.to_owned()),
             Some(s) => {
                 issues.push(ParseIssue::InvalidCreatedAt { line, value: s.to_owned() });
-                continue;
+                row_ok = false;
+                None
             }
         };
 
         if let Some(&first_line) = seen.get(source_term) {
             issues.push(ParseIssue::DuplicateSourceTerm { first_line, second_line: line });
+            row_ok = false;
+        }
+
+        if !row_ok {
             continue;
         }
 
@@ -606,7 +664,7 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
         return Err(issues);
     }
 
-    Ok(ParsedImport { rows, ignored_columns })
+    Ok(ParsedImport { rows, ignored_columns, header_columns: header })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -615,11 +673,25 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
 
 /// Quyết định của người dùng cho một hàng *bất đồng* — mặc định [`ConflictDecision::KeepMine`]
 /// (§Always: "Không im lặng ghi đè... Mặc định là giữ của tôi").
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// 🔵 **THÊM 2026-08-25 (Story 3.10b) — `serde::Deserialize`.** Bản đồ quyết định của
+/// nhịp hai (`commands::glossary::wire::confirm_import`) đi qua dây IPC dưới dạng
+/// `BTreeMap<String, ConflictDecision>` — Tauri tự giải mã JSON TRƯỚC khi hàm thuần
+/// chạy, cùng khuôn `Category`/`GlossaryTier`. `#[serde(rename = …)]` từng biến thể
+/// (không `rename_all`), cùng tiền lệ đã chọn cho hai kiểu kia.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 pub enum ConflictDecision {
     /// Giữ bản dịch đang có trong kho — KHÔNG ghi gì cho hàng này. Mặc định.
+    #[serde(rename = "keep_mine")]
     KeepMine,
-    /// Lấy bản dịch/ghi chú/phân loại từ tệp — `UPDATE` hàng đang có.
+    /// Lấy bản dịch từ tệp — `UPDATE` **CHỈ** cột `translation` của hàng đang có.
+    ///
+    /// 🔵 **SỬA 2026-08-25 (Story 3.10b) — doc cũ ("Lấy bản dịch/ghi chú/phân loại từ
+    /// tệp") HẾT ĐÚNG từ bản vá P1 của Story 3.10.** `store.rs::import_into_tier` đã đổi
+    /// câu `UPDATE` sang chỉ chạm `translation` từ 2026-08-25 (§Spec Change Log của story
+    /// đó) — `note`/`category` không bao giờ bị ghi qua nhánh này, kể cả khi tệp mang
+    /// giá trị THẬT cho chúng. Sửa tại chỗ thay vì để câu cũ nói sai mãi.
+    #[serde(rename = "take_theirs")]
     TakeTheirs,
 }
 

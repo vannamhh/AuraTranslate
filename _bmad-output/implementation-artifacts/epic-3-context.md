@@ -4,7 +4,7 @@
 
 ## Goal
 
-Epic này tạo Glossary để người dịch lưu và tái dùng một quyết định biên tập cho tên riêng, địa danh và thuật ngữ chuyên ngành. Nó phải hạ gánh nặng khởi đầu của một Tác phẩm dài bằng cách tìm ứng viên lúc nhập, nhưng vẫn giữ người dùng là người duy nhất quyết định mục nào được vào Glossary. Kết quả là một nguồn thuật ngữ đáng tin cho Workspace hôm nay và cho việc ép cách dùng nhất quán ở các năng lực sau này.
+Epic này tạo Glossary để người dịch lưu và tái dùng một quyết định biên tập cho tên riêng, địa danh và thuật ngữ chuyên ngành. Nó phải hạ gánh nặng khởi đầu của một Tác phẩm dài bằng cách tìm ứng viên lúc nhập, nhưng vẫn giữ người dùng là người duy nhất quyết định mục nào được vào Glossary. Kết quả là một nguồn thuật ngữ đáng tin cho Workspace hôm nay, cho việc ép cách dùng nhất quán ở các năng lực sau này, và cho việc chia sẻ bộ thuật ngữ với người dịch khác qua file — không cần server hay tài khoản.
 
 ## Stories
 
@@ -19,10 +19,11 @@ Epic này tạo Glossary để người dịch lưu và tái dùng một quyết
 - Story 3.8: Duyệt hàng loạt một phím
 - Story 3.9: Quản lý Glossary
 - Story 3.10: Xuất và nhập Glossary qua CSV/TSV
+- Story 3.10b: Nối hộp thoại chọn tệp vào xuất/nhập Glossary
 
 ## Requirements & Constraints
 
-Glossary có tầng Toàn cục và tầng Tác phẩm; khi cùng thuật ngữ xuất hiện ở cả hai, mục của Tác phẩm thắng. Mỗi mục lưu thuật ngữ nguồn, bản dịch có thể chưa có, ghi chú, phân loại, ngày thêm và xuất xứ. Trạng thái đi một chiều từ ứng viên sang chờ chốt bản dịch rồi đã chốt; chỉ mục đã chốt được dùng để ép cách dịch. Người dùng có thể thêm hoặc sửa mục ngay trong ngữ cảnh làm việc, quản lý chúng sau đó, và trao đổi toàn bộ dữ liệu bằng CSV/TSV không cần tài khoản hay server.
+Glossary có tầng Toàn cục và tầng Tác phẩm; khi cùng thuật ngữ xuất hiện ở cả hai, mục của Tác phẩm thắng. Mỗi mục lưu thuật ngữ nguồn, bản dịch có thể chưa có, ghi chú, phân loại, ngày thêm và xuất xứ. Trạng thái đi một chiều từ ứng viên sang chờ chốt bản dịch rồi đã chốt; chỉ mục đã chốt được dùng để ép cách dịch. Người dùng có thể thêm hoặc sửa mục ngay trong ngữ cảnh làm việc, quản lý chúng sau đó, và trao đổi toàn bộ dữ liệu bằng CSV/TSV không cần tài khoản hay server — vế xuất/nhập này gồm ba phần tách nhau: quản lý (3.9), định dạng và đường ghi (3.10), và hộp thoại chọn tệp của hệ điều hành (3.10b); yêu cầu chỉ đóng trọn khi cả ba xanh.
 
 Máy chỉ được đề xuất: mọi ứng viên phải vào bảng chờ riêng và cần thao tác duyệt tường minh để thành mục Glossary. Quét lúc nhập tìm chuỗi lặp lại chưa có trong từ điển, với ngưỡng cấu hình được; nhận diện tên người theo dữ liệu phù hợp với tiếng Trung và cụm viết hoa không ở đầu câu cho tiếng Anh. Mỗi ứng viên cần số lần xuất hiện và ví dụ ngữ cảnh, quét nền để không chặn thao tác, và không lặp lại chuỗi đã có hoặc đã bị bỏ trong cùng Tác phẩm.
 
@@ -36,12 +37,18 @@ Phân giải hai tầng bắt buộc đi qua `ScopeResolver`, với quy tắc gh
 
 Mục tầng Tác phẩm nằm trong cơ sở dữ liệu của Tác phẩm, còn tầng Toàn cục nằm trong kho toàn cục. Mọi ghi đi qua writer của kho tương ứng. Lỗi IPC dùng mã, khoá thông báo, tham số và khả năng thử lại; văn bản hiển thị thuộc tài nguyên giao diện. Phụ thuộc mới chỉ được thêm sau khi xác minh giấy phép tương thích GPLv3 và ghi nhận vào Stack.
 
+Hộp thoại chọn tệp của hệ điều hành (xuất/nhập Glossary) là **API phía Rust** — JavaScript không bao giờ chạm tới nó. Frontend chỉ dispatch một command đã đăng ký; vỏ mỏng mở hộp thoại trong Rust, nhận đường dẫn, rồi gọi thẳng xuống lớp lõi. `capabilities/main.json` giữ đúng ba quyền hiện có — không cấp quyền plugin filesystem/dialog nào ra JavaScript, và cổng kiểm cấu hình khoá đúng ba quyền đó bằng assertion. Plugin hộp thoại kéo theo một crate filesystem phụ thuộc cứng, nhưng crate đó **không được khởi tạo** — có mặt trong cây phụ thuộc khác hẳn có mặt trên bề mặt IPC. Cổng kiểm phụ thuộc canh mã có mặt trong cây (bốn tên còn bị cấm), tách biệt với cổng canh bề mặt IPC ra JavaScript — hai cổng, hai mệnh đề khác nhau. Payload nhị phân do các crate mới thêm phải được đo bằng byte và ghi lại; ngưỡng xét lại là khi chúng vượt 1 MB, và cách xử lý khi vượt là đổi sang một crate hộp thoại nhẹ hơn — không phải nới lỏng quy tắc gọi từ Rust. Tệp nhập vào phải có trần kích thước (từ chối tường minh thay vì đọc trọn tệp lớn vào bộ nhớ trên luồng invoke) và phải là UTF-8 (từ chối tường minh, không đoán bảng mã).
+
 ## UX & Interaction Patterns
 
 Thêm nhanh nhận vùng chọn từ mọi bề mặt đã đăng ký và giữ nguyên vị trí làm việc. Bảng chờ xếp theo tần suất, hiển thị số lần xuất hiện, ngữ cảnh và đề xuất khi có; nhận/bỏ và đổi phân loại phải thao tác bằng phím, đồng thời phiên duyệt dở phải mở lại đúng vị trí. Hàng đã xử lý lùi bằng màu chữ và ký hiệu, không dùng `opacity`.
 
 Dấu thuật ngữ đã chốt dùng token `primary`; mục chờ chốt dùng kiểu gạch chân thay vì giảm tương phản. Rê chuột hoặc đưa focus tới dấu hiển thị bản dịch trong `StatusBar`, không tạo lớp nổi. Việc chốt lần đầu gặp dùng dải nội tuyến đẩy nội dung xuống và thu lại sau khi xử lý; nếu nhiều dải cùng đủ điều kiện, chỉ một dải hiện và việc chốt Glossary có ưu tiên cao nhất. Mọi thao tác giao diện phải được đăng ký trước khi gắn vào chuột hoặc phím, và chỉ dùng token màu đã kiểm tương phản.
 
+Màn hình quản lý Glossary đã có sẵn hai nút xuất/nhập CSV trong thiết kế; huỷ hộp thoại chọn tệp là một lựa chọn hợp lệ (không tệp ghi, không lỗi hiện ra), không phải một trường hợp lỗi cần xử lý riêng.
+
 ## Cross-Story Dependencies
 
 Mô hình hai tầng và bảng chờ là nền cho thêm nhanh, quét, đề xuất, duyệt, quản lý và trao đổi file. Đường khớp dùng `Matcher` và dữ liệu từ điển đã có; phần vẽ dấu phụ thuộc vào bề mặt kết quả khớp. Quét ứng viên được kích hoạt bởi luồng nhập, còn duyệt hàng loạt cần cả trạng thái chờ chốt lẫn đề xuất Hán Việt để xử lý đủ mọi ứng viên. Epic kế tiếp chỉ được đọc các mục đã chốt qua truy vấn đủ điều kiện; Epic review sau này tái sử dụng chính bảng chờ, không tạo cơ chế đề xuất thứ hai.
+
+Story 3.10b chỉ nối hộp thoại chọn tệp vào hai hàm đọc/ghi định dạng mà Story 3.10 đã dựng xong (đã nghiệm thu bằng test, chưa có lối vào cho người dùng) — không mở lại và không nhân bản bước đọc định dạng. Story 3.10b không chặn story nào ở Epic 4 trở đi.

@@ -762,6 +762,8 @@ graph TD
 
   Ice chốt 2026-08-24, hai lượt, lượt sau sau khi đã đọc trọn số đo. Đường `rfd` thẳng thêm **1** crate; đường plugin thêm **9**. Ở nhánh Rust-only mà `Rule` trên khoá lại, tám crate kia **không mua một năng lực nào** — plugin bọc chính `rfd`, và lớp bọc bị bỏ không.
 
+  🔵 **2026-08-25 (Story 3.10b) — con số CHÍN ở đoạn ngay trên HẾT ĐÚNG, và nó sai theo hướng ĐẮT hơn thực tế.** Đo trên cây sau lượt thêm thật: đường plugin thêm **3** crate (`tauri-plugin-dialog` · `tauri-plugin-fs` · `rfd`), không phải chín — `notify` và họ hàng của nó nằm sau feature `watch` của `tauri-plugin-fs`, mà feature đó không mặc định và `tauri-plugin-dialog` không bật (`tauri-plugin-fs-2.5.1/Cargo.toml:51-54`; `grep` trong `Cargo.lock` cho **0** cả sáu tên). ⇒ Chênh lệch thật giữa hai đường là **2 crate**, không phải 8, và cái giá *"dung lượng lấy bảo trì"* đo được là **156.392 byte** — 15% ngưỡng xét lại. **Quyết định của Ice không đổi; nó chỉ rẻ hơn lúc chốt.** Đoạn gốc ở lại vì lịch sử một quyết định là bằng chứng cho quyết định kế tiếp — nhưng đừng trích lại con số chín.
+
   Cái chúng mua là **thứ khác**: kiểu `FilePath` chung với hệ sinh thái Tauri, và việc các trục trặc theo nền tảng do thượng nguồn Tauri duy trì thay vì dự án tự gánh. Đó là một đánh đổi hợp lệ, không phải một lỗi — nhưng nó là đánh đổi **dung lượng lấy bảo trì**, và phải đọc được như vậy.
 
   🔴 **Điều kiện xét lại, viết ra để nó kiểm được:** dư địa NFR6 hôm nay là **3.104.634 byte** (`deferred-work.md:777`), và `prd.md:946` đã dành chỗ đó cho **HVTĐTD** + **Cổ hán văn**. Nếu phép đo `cargo tree` lúc thi hành cho thấy chín crate này ăn quá **1 MB** payload, đó **không** là lý do phá `Rule` trên — nó là lý do **đổi `tauri-plugin-dialog` sang `rfd` thẳng**, một lượt thay thế không chạm một chữ nào của ba mệnh đề `Rule`. `Rule` nói về **cách gọi**, không về **crate nào**.
@@ -868,25 +870,27 @@ Khác ba lượt trước ở đúng một chỗ, và đó là chỗ đáng ghi:
 
 ⚠️ **Cây npm đi từ 530 lên 656 gói** (số `npm ls --all` đếm được, gồm cả node trùng tên ở nhiều độ sâu; số **gói đã cài** mà `check-deps.mjs` đếm là **522**). Lượt cài này làm lộ ra một **khuyết tật của chính cổng phụ thuộc**, đã vá cùng lượt: `vitest` khai `@opentelemetry/api` làm **peer tuỳ chọn chưa cài**, và `npm ls --all --json` xếp một node **rỗng** cho nó vào `dependencies` — bản trước của `check-deps.mjs` đếm node đó là thành viên cây rồi báo *"cây npm có thư viện thu thập dữ liệu"*, trong khi **không một byte** của gói đó có trên đĩa. Nay cổng chỉ đếm node **có `version`**, và in ra số node chỉ-lời-khai đã bỏ (**82**). Xem `scripts/check-deps.mjs` §④.
 
-**Rà NFR15 lượt năm — 2026-08-25, AD-48 (hộp thoại chọn tệp).** Lượt rà **TRƯỚC khi thêm**, cùng khuôn lượt bốn. Chín crate mới vào cây mặc định vì `tauri-plugin-dialog`; **cả chín tệp giấy phép đã được mở trong `~/.cargo/registry/src/…` mà đọc**, không tin trường `license`:
+**Rà NFR15 lượt năm — 2026-08-25, AD-48 (hộp thoại chọn tệp).** Lượt rà **TRƯỚC khi thêm**, cùng khuôn lượt bốn. Bảng dưới rà **chín** crate mà lượt khảo sát trước khi thêm dự đoán sẽ vào cây; **cả chín tệp giấy phép đã được mở trong `~/.cargo/registry/src/…` mà đọc**, không tin trường `license`.
+
+🔵 **2026-08-25 (muộn hơn, Story 3.10b) — con số CHÍN sai; thật ra là BA.** Đo trên cây sau lượt thêm thật: `Cargo.lock` nhận đúng **`tauri-plugin-dialog`** · **`tauri-plugin-fs`** · **`rfd`** (cộng mười mục `windows-*` chỉ dành cho đích Windows, không biên dịch trên macOS). **Sáu** tên còn lại — `notify` · `notify-debouncer-full` · `notify-types` · `flume` · `file-id` · `fsevent-sys` — **chưa bao giờ vào cây**, và `grep` trong `Cargo.lock` cho **0** cho cả sáu. Nguyên nhân đọc thẳng từ nguồn đã tải: `tauri-plugin-fs-2.5.1/Cargo.toml:51-54` gate `notify` + `notify-debouncer-full` sau feature **`watch`**, mà `watch` **không** nằm trong bộ mặc định và `tauri-plugin-dialog` không bật nó. Sáu hàng ấy **ở lại bảng** — lượt rà giấy phép đã chạy thật và là bằng chứng cho quyết định kế tiếp nếu một ngày kho cần feature `watch` — nhưng chúng được đánh dấu **KHÔNG TRONG CÂY** để không ai đọc bảng này thành một bản kê cây phụ thuộc.
 
 | Crate | Trường `license` | Tệp đã mở | Ghi chú |
 |---|---|---|---|
-| `tauri-plugin-dialog` 2.7.2 | `Apache-2.0 OR MIT` | `LICENSE_MIT` (20 dòng) · `LICENSE.spdx` | `LICENSE.spdx` khai **một** gói (`tauri`), không gộp gói vendor |
-| `tauri-plugin-fs` 2.5.1 | `Apache-2.0 OR MIT` | `LICENSE_MIT` · `LICENSE_APACHE-2.0` | Phụ thuộc **cứng** của plugin trên; **không** `init()` (AD-48 §Rule ③) |
-| `rfd` 0.16.0 | `MIT` | `LICENSE` (21 dòng, MIT trần) | Lõi thật của hộp thoại; cả 9 phụ thuộc của nó **đã có sẵn** trong `Cargo.lock` |
-| `notify` 8.2.0 | **`CC0-1.0`** | `LICENSE-CC0` (40 dòng) | 🔴 Hạng khác cả bảng — hiến tặng phạm vi công cộng, tương thích GPLv3 chiều đi vào |
-| `notify-debouncer-full` 0.6.0 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | |
-| `notify-types` 2.0.0 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | |
-| `flume` 0.12.0 | `Apache-2.0/MIT` | `LICENSE-MIT` · `LICENSE-APACHE` | |
-| `file-id` 0.2.3 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | |
-| `fsevent-sys` 4.1.0 | `MIT` | `LICENSE` (22 dòng, MIT trần) | Chỉ macOS, qua feature mặc định `macos_fsevent` của `notify` |
+| `tauri-plugin-dialog` 2.7.2 | `Apache-2.0 OR MIT` | `LICENSE_MIT` (20 dòng) · `LICENSE.spdx` | ✅ **TRONG CÂY.** `LICENSE.spdx` khai **một** gói (`tauri`), không gộp gói vendor |
+| `tauri-plugin-fs` 2.5.1 | `Apache-2.0 OR MIT` | `LICENSE_MIT` · `LICENSE_APACHE-2.0` | ✅ **TRONG CÂY.** Phụ thuộc **cứng** của plugin trên; **không** `init()` (AD-48 §Rule ③) |
+| `rfd` 0.16.0 | `MIT` | `LICENSE` (21 dòng, MIT trần) | ✅ **TRONG CÂY.** Lõi thật của hộp thoại; cả 9 phụ thuộc của nó **đã có sẵn** trong `Cargo.lock` |
+| `notify` 8.2.0 | **`CC0-1.0`** | `LICENSE-CC0` (40 dòng) | 🔵 **KHÔNG TRONG CÂY** (feature `watch`, không mặc định). Nếu một ngày vào: hạng giấy phép khác cả bảng — hiến tặng phạm vi công cộng, tương thích GPLv3 chiều đi vào |
+| `notify-debouncer-full` 0.6.0 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | 🔵 **KHÔNG TRONG CÂY** (feature `watch`) |
+| `notify-types` 2.0.0 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | 🔵 **KHÔNG TRONG CÂY** (bắc cầu qua `notify`) |
+| `flume` 0.12.0 | `Apache-2.0/MIT` | `LICENSE-MIT` · `LICENSE-APACHE` | 🔵 **KHÔNG TRONG CÂY** (bắc cầu qua `notify`) |
+| `file-id` 0.2.3 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | 🔵 **KHÔNG TRONG CÂY** (bắc cầu qua `notify-debouncer-full`) |
+| `fsevent-sys` 4.1.0 | `MIT` | `LICENSE` (22 dòng, MIT trần) | 🔵 **KHÔNG TRONG CÂY** — nó đi qua `notify`, mà `notify` không vào |
 
 Không tệp nào gộp giấy phép của gói khác — khác hẳn ca `vitest` ở lượt bốn. Cả chín đều dễ dãi và tương thích GPL v3 theo chiều đi vào.
 
 ⚠️ **`trash` KHÔNG vào cây phát hành, và bản ghi đầu tiên nói sai chỗ này.** Hồ sơ bàn giao `ad-brief-2026-08-24-hop-thoai-chon-tep.md` §3.2 liệt `trash` vào danh sách crate mới. Đo lại: `notify-8.2.0/Cargo.toml:93` khai nó là **`dev-dependencies`, chỉ cho Windows** — nó không bao giờ chạm nhị phân phát hành. Sửa tại chỗ thay vì để con số truyền tiếp.
 
-⚠️ **Số byte payload thật thì CHƯA ai đo** — bảng trên đếm *crate*, không đếm *byte*. Dư địa NFR6 còn **3.104.634 byte**, nên phép đo `cargo tree` + kích thước bundle phải chạy ở story thi hành, và AD-48 đã ghi điều kiện xét lại kèm ngưỡng (**1 MB**) nếu số đo xấu.
+🔵 **2026-08-25 (Story 3.10b) — số byte payload ĐÃ ĐO; mệnh đề *"chưa ai đo"* hết đúng.** Hai bản dựng `--release` chỉ khác nhau **đúng một phụ thuộc**, cùng một `dist/` không dựng lại giữa hai lượt (Tauri nhúng `dist/` vào nhị phân, nên đo ở cuối story sẽ gộp cả phần frontend mới vào): baseline ở `ce5d276` = **7.555.496 byte** → sau khi thêm = **7.711.888 byte**. **Delta = 156.392 byte (≈152,7 KiB)**, tức **15%** ngưỡng xét lại 1 MB — không kích điều kiện quay lui `rfd` thẳng. macOS, `rustc 1.97.1 (8bab26f4f)` · `cargo 1.97.1`. ⚠️ Dư địa NFR6 tổng (**3.104.634 byte**) vẫn thuộc **Story 10.1**; delta này ăn 5% dư địa đó.
 
 SQLite đến từ `libsqlite3-sys` feature `bundled` — phiên bản do crate ghim, không phải SQLite của hệ điều hành. Sàn tối thiểu mà kiến trúc cần: FTS5 `trigram` (≥ 3.34) và `remove_diacritics 0` (≥ 3.27); mọi bản `bundled` hiện hành đều vượt xa.
 

@@ -29,6 +29,8 @@ import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import type { GlossaryCategory } from './config/glossary'
+import type { GlossaryTierWire } from './config/glossary'
+import { importOpening } from './glossaryImportState'
 import {
   manageActionError,
   manageActionNotice,
@@ -41,6 +43,11 @@ import {
   manageEditTranslation,
   manageEditing,
   manageEmptyReasonFor,
+  manageExchangeTier,
+  manageExportBusy,
+  manageExportError,
+  manageExportIpcUnavailable,
+  manageExportedPath,
   manageFilteredRows,
   manageTotalRows,
   manageLoadError,
@@ -53,6 +60,7 @@ import {
   manageWorkTierAvailable,
   setGlossaryManageCategoryFilter,
   setGlossaryManageConfirmedFilter,
+  setGlossaryManageExchangeTier,
   setGlossaryManageOriginFilter,
   setGlossaryManageSearch,
 } from './glossaryManageState'
@@ -165,6 +173,13 @@ function onConfirmedFilterChange(event: Event): void {
   const target = event.target
   if (!(target instanceof HTMLSelectElement)) return
   setGlossaryManageConfirmedFilter(target.value as GlossaryManageConfirmedFilter)
+}
+
+/** Story 3.10b — radio (KHÔNG `<select>`, hai lựa chọn cố định) chọn tầng Xuất/Nhập. */
+function onExchangeTierChange(value: GlossaryTierWire, event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement) || !target.checked) return
+  setGlossaryManageExchangeTier(value)
 }
 
 /**
@@ -402,6 +417,73 @@ function onKeydown(event: KeyboardEvent): void {
         <button type="button" class="gm-act" @click="dispatch('glossary.manage.next')">
           {{ t('glossary.manage.next') }}
         </button>
+      </div>
+
+      <!--
+        Story 3.10b (AD-48) — hộp thoại chọn tệp gọi TỪ RUST. Tầng đang chọn ở đây quyết
+        định CẢ Xuất lẫn Nhập (`dispatch` không nhận tham số — handler tiêm đọc
+        `manageExchangeTier` ngay trước khi mở hộp thoại, xem `glossaryManageState.ts`).
+      -->
+      <div class="gm-exchange">
+        <fieldset class="gm-exchange-tier" role="radiogroup" :aria-label="t('glossary.manage.exchange_tier_label')">
+          <legend class="gm-field-label">{{ t('glossary.manage.exchange_tier_label') }}</legend>
+          <label class="gm-radio-label">
+            <input
+              type="radio"
+              name="gm-exchange-tier"
+              :checked="manageExchangeTier === 'global'"
+              @change="onExchangeTierChange('global', $event)"
+            />
+            {{ t('glossary.quick_add.tier_global') }}
+          </label>
+          <label class="gm-radio-label">
+            <input
+              type="radio"
+              name="gm-exchange-tier"
+              :disabled="!manageWorkTierAvailable"
+              :checked="manageExchangeTier === 'work'"
+              @change="onExchangeTierChange('work', $event)"
+            />
+            {{ t('glossary.quick_add.tier_work') }}
+          </label>
+        </fieldset>
+
+        <div class="gm-exchange-actions">
+          <button
+            type="button"
+            class="gm-act"
+            :disabled="manageExportBusy"
+            @click="dispatch('glossary.manage.export_csv')"
+          >
+            {{ t('glossary.manage.export_csv') }}
+          </button>
+          <button
+            type="button"
+            class="gm-act"
+            data-glossary-import-open
+            :disabled="importOpening"
+            @click="dispatch('glossary.manage.import_csv')"
+          >
+            {{ t('glossary.manage.import_csv') }}
+          </button>
+        </div>
+
+        <p v-if="manageExportError !== null" class="gm-status gm-error" role="alert">
+          <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+          {{ tError(manageExportError) }}
+        </p>
+        <!--
+          🔴 P2 (vòng rà ba lớp 2026-08-25) — nhánh RIÊNG cho "không có cầu IPC", tách khỏi
+          huỷ hộp thoại (huỷ không đổi state nào, nên không rơi vào nhánh nào ở đây cả).
+        -->
+        <p v-else-if="manageExportIpcUnavailable" class="gm-status" role="status">
+          {{ t('glossary.manage.export_ipc_unavailable') }}
+        </p>
+        <p v-else-if="manageExportBusy" class="gm-status" role="status">{{ t('glossary.manage.exporting') }}</p>
+        <p v-else-if="manageExportedPath !== null" class="gm-status" role="status">
+          <!-- aura-allow-text: KẾT QUẢ của `t()` (đã nội suy đường dẫn qua tham số). -->
+          {{ t('glossary.manage.export_done', { path: manageExportedPath }) }}
+        </p>
       </div>
     </section>
   </div>
@@ -645,5 +727,40 @@ function onKeydown(event: KeyboardEvent): void {
 .gm-act-primary {
   color: var(--color-on-surface);
   border-color: var(--color-primary);
+}
+
+/* Story 3.10b (AD-48) — hộp thoại chọn tệp. */
+.gm-exchange {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 2);
+  margin-top: var(--space-panel-block);
+  padding-top: var(--space-panel-block);
+  border-top: 1px solid var(--color-outline);
+}
+
+.gm-exchange-tier {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 3);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.gm-radio-label {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface);
+  cursor: pointer;
+}
+
+.gm-exchange-actions {
+  display: flex;
+  gap: calc(var(--space-unit) * 2);
 }
 </style>

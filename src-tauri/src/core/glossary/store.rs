@@ -58,7 +58,7 @@ use crate::core::store::{
 };
 
 use super::entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
-use super::exchange::{ConflictDecision, Delimiter, ImportSummary, RowPlan, RowPlanKind};
+use super::exchange::{ConflictDecision, Delimiter, ImportRow, ImportSummary, RowPlan, RowPlanKind};
 use super::han_viet_suggestion::{HanVietSuggestion, suggest_han_viet_batch};
 
 /// Khoá dây của `ScopeKind::Glossary` (`core/scope/kinds.rs:162`), chép lại đây làm
@@ -458,6 +458,55 @@ pub enum GlossaryError {
         /// câu. Không bao giờ rỗng khi biến thể này được dựng.
         source_terms: Vec<String>,
     },
+
+    // ── Story 3.10b (AD-48) — BẢY biến thể MỚI, hộp thoại chọn tệp nối vào ──────────
+    //
+    // Sinh ra ở `super::exchange_io` (bốn ca I/O đầu) hoặc ở `commands::glossary::wire`
+    // (ba ca còn lại — không cần chạm đĩa để phát hiện).
+    /// Tệp nhập vượt trần [`super::exchange_io::MAX_GLOSSARY_IMPORT_BYTES`] (16 MiB) —
+    /// kiểm bằng `metadata` TRƯỚC khi đọc byte nào. `size`/`limit` là số byte thô.
+    ImportFileTooLarge {
+        /// Kích thước tệp đọc được qua `metadata`.
+        size: u64,
+        /// Trần đang áp.
+        limit: u64,
+    },
+    /// Nội dung tệp không giải mã được bằng UTF-8 (`String::from_utf8`, KHÔNG
+    /// `_lossy`) — không đoán bảng mã, dò bảng mã là Epic 6.
+    ImportNotUtf8 {
+        /// Đường dẫn tệp — chẩn đoán, và tham số `path` của `MessageKey::ImportNotUtf8`.
+        path: String,
+    },
+    /// Mở/đọc tệp nhập thất bại vì lý do KHÁC kích thước và bảng mã (quyền truy cập,
+    /// tệp bị xoá giữa lúc chọn và lúc đọc, …).
+    ImportReadFailed {
+        /// Đường dẫn tệp — chẩn đoán, và tham số `path` của `MessageKey::IoReadFailed`.
+        path: String,
+        /// Lỗi thô. Không đi lên giao diện.
+        detail: String,
+    },
+    /// Ghi tệp xuất thất bại (hệ điều hành từ chối thư mục người dùng chọn, hết dung
+    /// lượng, …). `exchange_io::write_export_file` dọn `.tmp` ở CẢ HAI nhánh lỗi trước
+    /// khi biến thể này được dựng — không tệp cụt nào bị để lại.
+    ExportWriteFailed {
+        /// Đường dẫn đích người dùng đã chọn — dữ liệu, không phải câu.
+        path: String,
+        /// Lỗi thô. Không đi lên giao diện.
+        detail: String,
+    },
+    /// `FilePath::into_path()` của `tauri-plugin-dialog` trả lỗi (`InvalidPathUrl`) —
+    /// hộp thoại trả về một giá trị không quy đổi được thành `PathBuf`.
+    DialogPathInvalid,
+    /// Bản đồ quyết định của nhịp hai mang một khoá `source_term` KHÔNG có trong
+    /// `Vec<RowPlan>` của lô đang treo — §Always: "một quyết định trỏ tới `source_term`
+    /// không có trong lô là một lỗi tường minh", đóng `deferred-work.md:6798`.
+    ImportDecisionUnknownTerm {
+        /// Thuật ngữ lạ đọc được từ khoá của bản đồ quyết định.
+        term: String,
+    },
+    /// Xác nhận lượt nhập (nhịp hai) khi chưa qua nhịp một, hoặc lô đã bị dọn (huỷ, mở
+    /// lô khác, đóng Tác phẩm ở tầng Work khi lô đang treo thuộc tầng đó).
+    NoPendingImport,
 }
 
 impl std::fmt::Display for GlossaryError {
@@ -472,6 +521,23 @@ impl std::fmt::Display for GlossaryError {
             GlossaryError::ImportUniqueConflict { source_terms } => {
                 write!(f, "glossary[import_unique_conflict] source_terms={source_terms:?}")
             }
+            GlossaryError::ImportFileTooLarge { size, limit } => {
+                write!(f, "glossary[import_file_too_large] size={size} limit={limit}")
+            }
+            GlossaryError::ImportNotUtf8 { path } => {
+                write!(f, "glossary[import_not_utf8] path={path}")
+            }
+            GlossaryError::ImportReadFailed { path, detail } => {
+                write!(f, "glossary[import_read_failed] path={path} detail={detail}")
+            }
+            GlossaryError::ExportWriteFailed { path, detail } => {
+                write!(f, "glossary[export_write_failed] path={path} detail={detail}")
+            }
+            GlossaryError::DialogPathInvalid => write!(f, "glossary[dialog_path_invalid]"),
+            GlossaryError::ImportDecisionUnknownTerm { term } => {
+                write!(f, "glossary[import_decision_unknown_term] term={term}")
+            }
+            GlossaryError::NoPendingImport => write!(f, "glossary[no_pending_import]"),
         }
     }
 }
@@ -545,6 +611,62 @@ impl From<GlossaryError> for IpcError {
                     false,
                 )
             }
+            // 🔵 Story 3.10b — ba biến thể ĐẦU mượn khoá CHUNG với `core::segment::import`
+            // (`MessageKey::ImportTooLarge`/`ImportNotUtf8`/`IoReadFailed`): câu đúng là
+            // câu chung, không câu riêng của Glossary — xem chú thích tại khai báo khoá.
+            GlossaryError::ImportFileTooLarge { size, limit } => {
+                let mut params = BTreeMap::new();
+                params.insert("size".to_owned(), size.to_string());
+                params.insert("limit".to_owned(), limit.to_string());
+                IpcError::new(
+                    "glossary.import_file_too_large",
+                    MessageKey::ImportTooLarge,
+                    params,
+                    false,
+                )
+            }
+            GlossaryError::ImportNotUtf8 { path } => {
+                let mut params = BTreeMap::new();
+                params.insert("path".to_owned(), path);
+                IpcError::new("glossary.import_not_utf8", MessageKey::ImportNotUtf8, params, false)
+            }
+            GlossaryError::ImportReadFailed { path, .. } => {
+                let mut params = BTreeMap::new();
+                params.insert("path".to_owned(), path);
+                IpcError::new("glossary.import_read_failed", MessageKey::IoReadFailed, params, false)
+            }
+            GlossaryError::ExportWriteFailed { path, .. } => {
+                let mut params = BTreeMap::new();
+                params.insert("path".to_owned(), path);
+                IpcError::new(
+                    "glossary.export_write_failed",
+                    MessageKey::GlossaryExportWriteFailed,
+                    params,
+                    false,
+                )
+            }
+            GlossaryError::DialogPathInvalid => IpcError::new(
+                "glossary.dialog_path_invalid",
+                MessageKey::GlossaryDialogPathInvalid,
+                BTreeMap::new(),
+                false,
+            ),
+            GlossaryError::ImportDecisionUnknownTerm { term } => {
+                let mut params = BTreeMap::new();
+                params.insert("value".to_owned(), term);
+                IpcError::new(
+                    "glossary.import_decision_unknown_term",
+                    MessageKey::GlossaryImportDecisionUnknownTerm,
+                    params,
+                    false,
+                )
+            }
+            GlossaryError::NoPendingImport => IpcError::new(
+                "glossary.no_pending_import",
+                MessageKey::GlossaryNoPendingImport,
+                BTreeMap::new(),
+                false,
+            ),
         }
     }
 }
@@ -1283,6 +1405,28 @@ pub fn marks_for_source_text(
 pub fn export_tier(store: &Store, delimiter: Delimiter) -> Result<String, GlossaryError> {
     let tier = load_tier(store)?;
     Ok(super::exchange::render_tier(&tier, delimiter))
+}
+
+/// Phân loại `rows` đã phân tích (từ [`super::exchange::parse`]) so với tầng `tier` —
+/// Story 3.10b, nhịp MỘT của lượt nhập.
+///
+/// 🔴 **Bọc `load_tier` để giải một vòng luẩn quẩn ranh giới, cùng tiền lệ [`export_tier`]
+/// ngay trên.** `commands::glossary` cần `Vec<RowPlan>` để giữ trong `PendingImportState`
+/// (AD-48 §Rule ①: kế hoạch ở lại Rust), nhưng `glossary_boundary.rs::GLOSSARY_ONLY_SURFACE`
+/// cấm nó tự gọi `load_tier`. `classify` (hàm THUẦN) không bị cấm, nhưng không tự có tầng
+/// ĐÍCH đã nạp để so — hàm này là đường DUY NHẤT dựng ra tham số đó mà không mở cổng.
+pub fn classify_import_rows(
+    global: &Store,
+    work: Option<&Store>,
+    tier: GlossaryTier,
+    rows: &[ImportRow],
+) -> Result<Vec<RowPlan>, GlossaryError> {
+    let store = match tier {
+        GlossaryTier::Global => global,
+        GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
+    };
+    let existing = load_tier(store)?;
+    Ok(super::exchange::classify(rows, &existing))
 }
 
 /// Lỗi ĐÁNH DẤU để buộc `store.write` rollback khi vòng lặp của [`import_into_tier`] đã tự

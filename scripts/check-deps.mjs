@@ -150,9 +150,22 @@ if (npmNames.size < NPM_TREE_FLOOR) {
 // ─────────────────────────────────────────────────────────────────────────────────
 // Kiểm 1 — phụ thuộc đã loại phải VẮNG MẶT trong cây phụ thuộc (AC2)
 //
-// Ba tên đầu là nguyên văn AC2. `tauri-plugin-fs` là quyết định của Ice 2026-08-03,
-// cùng hạng lý do (AD-1 + AD-29): plugin tồn tại để phơi API ra JavaScript, mà
-// frontend chỉ render và giữ state UI — nó không có việc gì với hệ thống file.
+// Ba tên đầu là nguyên văn AC2. `tauri-plugin-sql`/`tauri-plugin-keyring` là quyết định
+// của Ice 2026-08-03, cùng hạng lý do (AD-1 + AD-29): plugin tồn tại để phơi API ra
+// JavaScript, mà frontend chỉ render và giữ state UI.
+//
+// 🔵 **LẬT 2026-08-25 (Story 3.10b, AD-48) — `tauri-plugin-fs` VÀ `tauri-plugin-dialog`
+// GỠ khỏi danh sách này.** Lý do bị cấm ban đầu ("không phơi filesystem ra JS") vẫn
+// ĐÚNG NGUYÊN VẸN — cái LẬT là hộp thoại chọn tệp nay gọi TỪ RUST (AD-48 nhánh (a)),
+// nên `tauri-plugin-dialog` **có mặt** trong cây phụ thuộc một cách CÓ CHỦ Ý, và nó kéo
+// `tauri-plugin-fs` theo BẮC CẦU (`Cargo.lock`). Kiểm 1 ở đây canh MÃ CÓ MẶT TRONG CÂY —
+// tức bề mặt tấn công nhị phân (NFR6) — KHÁC HẲN bề mặt IPC ra JavaScript (NFR11), thứ
+// `src-tauri/tests/config_invariants.rs::main_capability_grants_the_minimum_and_no_
+// plugin_permission` canh bằng cách khoá `capabilities/main.json` ở đúng ba quyền. Hai
+// cổng, hai mệnh đề: một crate CÓ MẶT trong cây không đồng nghĩa nó có MỘT lệnh nào phơi
+// ra webview — `tauri_plugin_fs::init()` không được gọi ở bất kỳ đâu trong
+// `src-tauri/src/**` (`grep` rỗng, canh bởi `config_invariants.rs`), nên **0** lệnh
+// `fs:*` phơi ra dù crate có mặt. Bốn tên còn lại và lý do của chúng không đổi một chữ.
 // ─────────────────────────────────────────────────────────────────────────────────
 console.log('\nKiểm 1 — phụ thuộc đã loại phải vắng mặt (AC2)')
 
@@ -160,9 +173,7 @@ const BANNED_CRATES = [
   ['tauri-plugin-stronghold', 'đã khai tử'],
   ['tauri-plugin-keyring', 'AD-29 — dùng crate `keyring` trực tiếp'],
   ['tauri-wire', 'payload 679 byte'],
-  ['tauri-plugin-fs', 'AD-1 + AD-29 — Ice chốt 2026-08-03'],
   ['tauri-plugin-sql', 'AD-11 — dùng `rusqlite` trực tiếp'],
-  ['tauri-plugin-dialog', 'cùng lý do: không phơi filesystem ra JS'],
 ]
 
 for (const [crate, why] of BANNED_CRATES) {

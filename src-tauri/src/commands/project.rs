@@ -716,6 +716,18 @@ pub type OpenWorkState = std::sync::Mutex<Option<OpenWork>>;
 fn replace_open_work(app: &tauri::AppHandle, new_work: OpenWork) {
     use tauri::Manager as _;
 
+    // Story 3.10b (AD-48) -- mo mot Tac pham KHAC lam `project.db` cua no doi hoan toan; mot
+    // lo nhap Glossary dang TREO o tang Work (neu co) tro toi kho CU, va `RowPlanKind::
+    // Conflict::existing_id` cua no khong con dung nghia o kho MOI. Don TRUOC khi swap, cung
+    // khuon `close_open_work` (`lib.rs`) -- ca hai duong deu lam mot `project.db` bien mat
+    // khoi tam voi cua lo dang treo.
+    if let Some(pending) = app.try_state::<crate::commands::glossary::PendingImportState>() {
+        crate::commands::glossary::clear_pending_import_for_tier(
+            &pending,
+            crate::core::glossary::GlossaryTier::Work,
+        );
+    }
+
     if let Some(state) = app.try_state::<OpenWorkState>() {
         drop(swap_locked(&state, new_work));
     }

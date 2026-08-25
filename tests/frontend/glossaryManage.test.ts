@@ -22,6 +22,7 @@ const promoteMock = vi.fn()
 const updateMock = vi.fn()
 const lookupMock = vi.fn()
 const refreshMarksMock = vi.fn()
+const exportMock = vi.fn()
 
 const fakeChapterId = ref<number | null>(42)
 const fakeSegments = ref<readonly { id: number }[]>([{ id: 1 }])
@@ -36,6 +37,7 @@ vi.mock('../../src/config/glossary', () => ({
   promoteGlossaryTermToGlobal: (id: number) => promoteMock(id),
   updateGlossaryTerm: (...args: unknown[]) => updateMock(...args),
   lookupGlossaryTerm: (term: string) => lookupMock(term),
+  exportGlossaryTier: (tier: string) => exportMock(tier),
 }))
 
 vi.mock('../../src/panels/editorPanelState', () => ({
@@ -61,6 +63,7 @@ async function freshState() {
   updateMock.mockReset()
   lookupMock.mockReset()
   refreshMarksMock.mockReset()
+  exportMock.mockReset()
   fakeChapterId.value = 42
   fakeSegments.value = [{ id: 1 }]
   fakeSourceChapter.value = { chapter_id: 42, source_lang: 'zh' }
@@ -335,6 +338,59 @@ describe('Đẩy tầng (Work → Global)', () => {
 
     expect(promoteMock).not.toHaveBeenCalled()
     expect(manageActionNotice.value).toBe('promote_not_applicable')
+  })
+})
+
+describe('Xuất CSV — P2/P3 (vòng rà ba lớp 2026-08-25)', () => {
+  it('P3 — huỷ NGAY SAU một lượt xuất thành công không còn đọc đường dẫn CŨ', async () => {
+    const { openGlossaryManage, exportGlossaryManageTier, manageExportedPath } = await freshState()
+    listMock.mockResolvedValue({ entries: [], error: null })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await openGlossaryManage()
+
+    exportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/a.csv' })
+    await exportGlossaryManageTier()
+    expect(manageExportedPath.value).toBe('/tmp/a.csv')
+
+    // Mo lai roi HUY -- duong dan CU khong duoc doc thanh "da ghi" cua lot nay.
+    exportMock.mockResolvedValue({ outcome: 'cancelled' })
+    await exportGlossaryManageTier()
+    expect(manageExportedPath.value).toBeNull()
+  })
+
+  it('P2 — không có cầu IPC hiện câu RIÊNG, khác hẳn huỷ hộp thoại (im lặng)', async () => {
+    const { openGlossaryManage, exportGlossaryManageTier, manageExportedPath, manageExportIpcUnavailable } =
+      await freshState()
+    listMock.mockResolvedValue({ entries: [], error: null })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await openGlossaryManage()
+
+    exportMock.mockResolvedValue({ outcome: 'cancelled' })
+    await exportGlossaryManageTier()
+    expect(manageExportIpcUnavailable.value).toBe(false)
+    expect(manageExportedPath.value).toBeNull()
+
+    exportMock.mockResolvedValue({ outcome: 'ipc_unavailable' })
+    await exportGlossaryManageTier()
+    expect(manageExportIpcUnavailable.value).toBe(true)
+  })
+
+  it('lượt xuất trượt THẬT hiện lỗi và xoá đường dẫn cũ', async () => {
+    const { openGlossaryManage, exportGlossaryManageTier, manageExportError, manageExportedPath } =
+      await freshState()
+    listMock.mockResolvedValue({ entries: [], error: null })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await openGlossaryManage()
+
+    exportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/a.csv' })
+    await exportGlossaryManageTier()
+
+    const err = { code: 'x', message_key: 'err.unknown', params: {}, retryable: false }
+    exportMock.mockResolvedValue({ outcome: 'error', error: err })
+    await exportGlossaryManageTier()
+
+    expect(manageExportError.value).toEqual(err)
+    expect(manageExportedPath.value).toBeNull()
   })
 })
 

@@ -6750,6 +6750,16 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `import_into_tier` chưa có vỏ `wire` nào gọi tới; ② **byte payload NFR6 chưa ai đo** — bảng Stack
     đếm *crate*, không đếm *byte*, và AD-48 đặt ngưỡng xét lại 1 MB trên một con số chưa tồn tại.
     **(Chủ phần còn hở: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — thêm vào quy hoạch 2026-08-25 qua `correct-course`.)**
+    → ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — CẢ HAI VẾ CÒN HỞ đã đóng. ① `Cargo.toml` thêm
+    `tauri-plugin-dialog = "=2.7.2"`; `.plugin(tauri_plugin_dialog::init())` đăng ký ở `lib.rs`
+    (không gác `cfg`); `scripts/check-deps.mjs` gỡ hai hàng `tauri-plugin-fs`/`tauri-plugin-dialog`
+    khỏi `BANNED_CRATES`; bốn vỏ `#[tauri::command]` mới (`glossary_export_tier` ·
+    `glossary_open_import_preview` · `glossary_confirm_import` · `glossary_cancel_import`) gọi
+    thẳng `export_tier`/`import_into_tier`. ② **Byte payload NFR6 đã đo**: baseline (chỉ mã, HEAD
+    `ce5d276`) = **7.555.496 byte** (2026-08-25 10:09, macOS, `rustc 1.97.1`); sau ĐÚNG một phụ
+    thuộc (`Cargo.toml` + đăng ký plugin, cùng `dist/` không dựng lại) = **7.711.888 byte**
+    (2026-08-25 10:26). **Delta = 156.392 byte (≈152,7 KiB)** — dưới xa ngưỡng xét lại 1 MB của
+    AD-48; không cần đường quay lui `rfd` thẳng.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
   summary: **Cột `term_origin` trong tệp nhập bị đọc rồi vứt mà KHÔNG nói ra** — người dùng sửa
@@ -6762,6 +6772,11 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     cùng lớp *"rỗng im lặng"* mà `AGENTS.md:46` gọi là lỗi trung tâm của kho.
     **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — nửa chọn tệp, nơi màn hình xem trước lượt nhập ra đời và là
     chỗ DUY NHẤT hiển thị được câu đó cho người dùng.)**
+    → ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — `ParsedImport::header_columns` (trường mới) mang
+    TOÀN BỘ tên cột hàng tiêu đề; `commands::glossary::glossary_open_import_preview` tính
+    `term_origin_column_present = header_columns.contains("term_origin")` và trả nó trong
+    `ImportPreviewWire`. `GlossaryImportOverlay.vue` hiện câu `glossary.import.term_origin_note`
+    khi cờ đó `true` — chỗ DUY NHẤT trong sản phẩm nói ra sự thật này.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
   summary: **`split_first_logical_line` và `split_fields` bất đồng về nháy kép ĐẶT SAI CHỖ** —
@@ -6775,6 +6790,14 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     nên vòng tròn xuất→nhập không chạm nhánh này.
     **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — cùng lượt với việc đọc tệp thật từ đĩa, nơi tệp do NGƯỜI KHÁC
     sinh ra lần đầu đi vào hệ thống.)**
+    → ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — `split_first_logical_line` nay áp ĐÚNG luật của
+    `split_fields`: một `"` chỉ mở ô bọc khi đứng NGAY ĐẦU Ô (tham số `delimiter: Option<char>`
+    mới — `None` cho hàng tiêu đề, coi cả `,`/TAB là ranh giới; `Some(d)` cho hàng dữ liệu, đúng
+    MỘT ký tự đã chốt). Ca mới
+    `a_stray_quote_not_at_the_start_of_a_field_is_literal_in_both_the_line_and_field_splitter`
+    (`glossary_exchange_contract.rs`) khoá mệnh đề; đối chứng GỠ chỗ nối (trả `split_first_logical_line`
+    về luật cũ "đảo cờ ở mọi `"`") xác nhận ca đó ĐỎ đúng
+    (`CellCountMismatch { line: 2, expected: 2, found: 3 }`), khôi phục ⇒ xanh.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
   summary: **Tương tác giữa lỗi trùng `source_term` và lỗi `category` lạ chưa được kiểm** — một
@@ -6786,6 +6809,12 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     quả của thứ tự viết mã, không của một lựa chọn viết ra.
     **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — cùng lượt với màn hình xem trước, nơi hình dạng danh sách lỗi
     hiển thị cho người dùng mới quyết được câu hỏi "một hàng báo mấy lỗi".)**
+    → ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — Ice chốt: một hàng báo CẢ HAI lỗi. `exchange.rs::parse`
+    không còn `continue` sớm ở lỗi `category`/`created_at`; mỗi hàng gom hết mọi lỗi áp dụng được
+    (category sai · created_at sai · trùng `source_term`, kiểm theo đúng thứ tự đó) trước khi
+    quyết định `continue` hay nhận hàng. Ca mới
+    `a_row_that_is_both_a_duplicate_and_has_an_unknown_category_reports_both_issues` khoá mệnh đề
+    `Err([UnknownCategory{line:3,..}, DuplicateSourceTerm{first_line:2,second_line:3}])`.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`
   summary: **Một `ConflictDecision` trỏ tới `source_term` KHÔNG có trong lô bị bỏ qua trong im
@@ -6796,3 +6825,69 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ⚠️ Hôm nay chưa chỗ gọi sản phẩm nào tồn tại (§Never của story cấm dựng vỏ IPC), nên đây là
     một hợp đồng CHƯA có ai vi phạm được — nhưng nó cũng chưa được viết ra.
     **(Chủ: `3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary` — story đầu tiên dựng một chỗ gọi thật cho hàm này.)**
+    → ✅ ĐÃ ĐÓNG 2026-08-25 (Story 3.10b) — `commands::glossary::glossary_confirm_import` kiểm
+    MỌI khoá của `decisions` khớp một `source_term` trong lô đang treo TRƯỚC khi gọi
+    `import_into_tier` — khoá lạ ⇒ `GlossaryError::ImportDecisionUnknownTerm { term }`, **0** lượt
+    ghi, lô GIỮ LẠI. Ca `confirming_with_a_decision_pointing_at_an_unknown_term_fails_and_keeps_the_batch`
+    (`glossary_import_dialog_contract.rs`) khoá mệnh đề; đối chứng GỠ chỗ nối (bỏ hẳn bước kiểm)
+    xác nhận ĐỎ đúng — không có bước kiểm, quyết định lạ bị ÂM THẦM bỏ qua và lô vẫn ghi thành
+    công (`ImportSummaryWire { inserted: 1, .. }` thay vì lỗi). Khôi phục ⇒ xanh.
+
+## Deferred from: 3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary (2026-08-25)
+
+- source_spec: `_bmad-output/implementation-artifacts/3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary.md`
+  summary: 🔴 **Hộp thoại THẬT chưa mở lần nào** — `blocking_save_file`/`blocking_pick_file` được
+    kết luận là an toàn trên luồng `#[tauri::command]` bằng SUY LUẬN, không bằng một phép đo.
+  evidence: Doc-comment của crate (`tauri-plugin-dialog-2.7.2/src/lib.rs:662-663`) viết nguyên văn
+    *"This is a blocking operation, and should \*NOT\* be used when running on the main thread."*
+    Hai dấu hiệu đỡ cho lựa chọn hiện tại: chính plugin gọi `blocking_pick_file` trong lệnh `open`
+    của nó (`src/commands.rs:158,173,190,205`), và Tauri chạy command đồng bộ ngoài luồng UI. Cả
+    hai là DẤU HIỆU, không phải phép đo trên cây này.
+    ⚠️ `cargo test` **không dựng cửa sổ**, nên 669 ca xanh không nói một chữ nào về vế này; và một
+    lượt khoá vòng lặp sự kiện lộ ra dưới dạng *"bấm Xuất CSV thì app đứng"*, không dưới dạng một
+    ca đỏ. Đây là một mục §Ask First của spec, được ghi nợ thay vì đánh dấu đạt.
+    **(Chủ: lượt QA tay kế tiếp — `npm run tauri dev`, bấm Xuất rồi Nhập trên cửa sổ thật.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary.md`
+  summary: **Hàng §I/O Matrix *"Xuất, huỷ hộp thoại"* không có ca test nào** — mệnh đề *"không tệp
+    nào ghi, không lỗi nào hiện"* cho chiều XUẤT chưa được canh.
+  evidence: Nhánh huỷ của chiều NHẬP có ca phủ ở vitest (*"huỷ hộp thoại chọn tệp … KHÔNG mở lớp
+    phủ"*), nhưng nhánh huỷ của chiều XUẤT nằm TRONG vỏ `wire` sau lời gọi `blocking_save_file` —
+    không lái được từ `cargo test` vì không có cách trả `None` giả cho một hộp thoại thật.
+    ⚠️ Đường mã có và đọc được (`Ok(None)` khi `blocking_save_file` trả `None`); cái thiếu là bằng
+    chứng CHẠY ĐƯỢC. Cùng lớp khó với những cửa sổ đua mà Story 3.9 và 3.10 đã ghi nợ.
+    **(Chủ: cùng lượt QA tay với mục trên — huỷ hộp thoại Xuất và xác nhận không tệp nào sinh ra.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary.md`
+  summary: **AC *"mọi thao tác làm được bằng bàn phím"* chưa có phép kiểm tự động** — nó đúng theo
+    NGỮ NGHĨA của các phần tử đã dùng, không theo một lượt đo.
+  evidence: Overlay mới dùng `radiogroup`/`<input type="radio">` và `<button>`, tức bàn phím chạy
+    được theo ngữ nghĩa HTML sẵn có, và đó chính là lý do hình dạng ấy được chọn thay vì chip
+    `@click` (§Design Notes). Nhưng `happy-dom` **không phải WebKit** — mọi mệnh đề về tiêu điểm
+    thật và thứ tự Tab thuộc bàn đo/e2e (`tests/AGENTS.md`). Kho chưa có ca e2e nào chạm bề mặt này.
+    ⚠️ Cùng món nợ cũ với `deferred-work.md` §*"vế thị giác hai nền tảng"* — story này KHÔNG đóng
+    nó, chỉ kế thừa.
+    **(Chủ: lượt QA tay kế tiếp, hoặc story đầu tiên mở rộng bộ e2e sang Glossary.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary.md`
+  summary: **Nửa Windows của hộp thoại chưa chạy lần nào** — hộp thoại đi qua một cài đặt hệ điều
+    hành khác hẳn (`rfd` trên Win32 so với AppKit), và bộ e2e chỉ chạy macOS ở nhịp đêm.
+  evidence: `.githooks/pre-push` chạy trên macOS của Ice; CI chạy hai nền tảng mỗi lượt push nhưng
+    chỉ `cargo test`, mà `cargo test` không dựng cửa sổ. Bộ e2e (`schedule` + `workflow_dispatch`,
+    **chỉ macOS**) chưa từng chạy nửa Windows — món nợ đã có sẵn, story này thêm một bề mặt mới
+    vào đúng vùng chưa được canh đó.
+    **(Chủ: B7 — bảng nghiệm thu Windows, chủ Ice, `epic-2-retro-2026-08-18.md:378`.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/3-10b-noi-hop-thoai-chon-tep-vao-xuat-nhap-glossary.md`
+  summary: **`config_invariants.rs::all_src_rust_files` là bản chép thứ hai của `glossary_boundary.rs::walk`/
+    `all_rust_sources`, kèm một hằng SÀN THỨ HAI phải đồng bộ bằng tay** (`RS_FLOOR_FOR_DIALOG_CHECK = 44`).
+  evidence: Phát hiện ở vòng rà ba lớp 2026-08-25; chính doc-comment của hàm mới tự khai nó là bản
+    gần-trùng. Hai cổng nay duyệt cây `src-tauri/src/**` bằng hai đoạn mã riêng và canh sàn quần thể
+    bằng hai con số riêng. `scripts/AGENTS.md` viết *"Thêm tệp vào `src/**` thì xét lại sàn"* — với hai
+    sàn ở hai tệp, một lượt xét lại rất dễ chỉ chạm một nửa, và nửa còn lại tụt xuống vô nghĩa **trong
+    im lặng** (sàn là cận DƯỚI nên nó không bao giờ đỏ vì quá thấp).
+    ⚠️ **Không phải lỗi của story này** — story chỉ cần một phép duyệt cây để canh AD-48 §Rule ③ và đã
+    dùng lại đúng khuôn có sẵn. Cái thiếu là một helper dùng chung, và đó là một lượt sửa hạ tầng test
+    chạm cả hai tệp, rộng hơn phạm vi một story thi hành.
+    **(Chủ: story đầu tiên thêm một phép duyệt cây `src-tauri/src/**` thứ ba — hoặc lượt sửa hạ tầng
+    test kế tiếp; đóng bằng một helper dùng chung và MỘT hằng sàn.)**

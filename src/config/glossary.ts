@@ -702,6 +702,218 @@ export async function deleteGlossaryTerm(tier: GlossaryTierWire, id: number): Pr
  * một hàng `tier === 'global'` là gọi SAI ở tầng UI (§I/O Matrix: "Lệnh không áp dụng") —
  * chỗ gọi phải tự chặn TRƯỚC khi tới đây, không dựa vào Rust để nói "không".
  */
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 3.10b — adapter THỨ MƯỜI HAI đến MƯỜI LĂM: hộp thoại chọn tệp nối vào xuất/nhập
+// (AD-48). Cả bốn lệnh MỞ HỘP THOẠI TRONG RUST — adapter này không cầm một quyền
+// `dialog:*`/`fs:*` nào, chỉ `dispatch()` một command đã đăng ký (§Design Notes của spec).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/** Tên command trên dây. Khớp `src-tauri/src/commands/glossary.rs` (module `wire`). */
+const CMD_EXPORT_TIER = 'glossary_export_tier'
+const CMD_OPEN_IMPORT_PREVIEW = 'glossary_open_import_preview'
+const CMD_CONFIRM_IMPORT = 'glossary_confirm_import'
+const CMD_CANCEL_IMPORT = 'glossary_cancel_import'
+
+/**
+ * Kết quả một lượt XUẤT. **Không bao giờ ném.**
+ *
+ * 🔴 **P2 (vòng rà ba lớp 2026-08-25) — BỐN nhánh phân biệt được, không còn gộp "huỷ hộp
+ * thoại" với "không có cầu IPC" vào cùng một hình dạng `{ path: null, error: null }`.**
+ * Bản trước hai ca đó đọc GIỐNG HỆT nhau ở tầng UI — chạy ngoài Tauri, bấm Xuất CSV không
+ * xảy ra gì và không nói gì, đúng lớp "rỗng im lặng" mà `AGENTS.md` gọi là lỗi trung tâm
+ * của kho. `outcome: 'cancelled'` (§Always: "Huỷ hộp thoại là `Ok(None)`, không một biến
+ * thể lỗi" — im lặng CÓ CHỦ) giờ tách khỏi `outcome: 'ipc_unavailable'` (một trạng thái
+ * PHẢI nói ra được ở tầng gọi).
+ */
+export type GlossaryExportResult =
+  | { outcome: 'done'; path: string }
+  | { outcome: 'cancelled' }
+  | { outcome: 'ipc_unavailable' }
+  | { outcome: 'error'; error: IpcError }
+
+/**
+ * Mở hộp thoại LƯU rồi xuất tầng `tier` — **không bao giờ ném**.
+ *
+ * ⚠️ Tham số `invoke` viết camelCase — xem doc-comment đầu tệp.
+ */
+export async function exportGlossaryTier(tier: GlossaryTierWire): Promise<GlossaryExportResult> {
+  try {
+    const path = await invoke<string | null>(CMD_EXPORT_TIER, { tier })
+    return path === null ? { outcome: 'cancelled' } : { outcome: 'done', path }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: 'error', error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[glossary] \`${CMD_EXPORT_TIER}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[glossary] không gọi được \`${CMD_EXPORT_TIER}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { outcome: 'ipc_unavailable' }
+  }
+}
+
+/** Một hàng *bất đồng* của màn hình xem trước — mang CẢ HAI bản dịch. */
+export type GlossaryImportConflict = {
+  source_term: string
+  existing_translation: string | null
+  file_translation: string | null
+}
+
+/**
+ * Hình dạng `ImportPreviewWire` phía Rust — **`snake_case`, đúng như trên dây**. AD-48
+ * §Rule ①: mô hình ĐÃ KIỂM, không một byte nội dung tệp thô nào.
+ */
+export type GlossaryImportPreview = {
+  file_name: string
+  tier: GlossaryTierWire
+  row_count: number
+  recognized_column_count: number
+  ignored_columns: string[]
+  term_origin_column_present: boolean
+  new_count: number
+  identical_count: number
+  conflicts: GlossaryImportConflict[]
+}
+
+function isGlossaryImportConflict(value: unknown): value is GlossaryImportConflict {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<GlossaryImportConflict>
+  return (
+    typeof v.source_term === 'string' &&
+    (v.existing_translation === null || typeof v.existing_translation === 'string') &&
+    (v.file_translation === null || typeof v.file_translation === 'string')
+  )
+}
+
+/**
+ * 🔴 Type guard LÚC CHẠY — cùng lý do `isGlossaryMark`/`isGlossaryEntry`: dữ liệu qua IPC
+ * là một LỜI KHAI, không một bảo đảm của trình biên dịch.
+ */
+function isGlossaryImportPreview(value: unknown): value is GlossaryImportPreview {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<GlossaryImportPreview>
+  return (
+    typeof v.file_name === 'string' &&
+    (v.tier === 'global' || v.tier === 'work') &&
+    typeof v.row_count === 'number' &&
+    typeof v.recognized_column_count === 'number' &&
+    Array.isArray(v.ignored_columns) &&
+    v.ignored_columns.every((c) => typeof c === 'string') &&
+    typeof v.term_origin_column_present === 'boolean' &&
+    typeof v.new_count === 'number' &&
+    typeof v.identical_count === 'number' &&
+    Array.isArray(v.conflicts) &&
+    v.conflicts.every(isGlossaryImportConflict)
+  )
+}
+
+/**
+ * Kết quả nhịp MỘT. **Không bao giờ ném.**
+ *
+ * 🔴 **P2 (vòng rà ba lớp 2026-08-25) — cùng bốn nhánh với [`GlossaryExportResult`], cùng
+ * lý do.** `outcome: 'cancelled'` (huỷ hộp thoại chọn tệp — im lặng CÓ CHỦ, §Always) tách
+ * khỏi `outcome: 'ipc_unavailable'` (không có cầu IPC — PHẢI nói ra). Bản trước gộp cả hai
+ * vào `{ preview: null, error: null }`, nên nhánh rẽ bốn ca của
+ * `glossaryImportState.ts::openGlossaryImportPreviewOverlay` không bao giờ đọc được
+ * `'ipc_unavailable'` — điều kiện `result.error === null` ở đó luôn đúng cho CẢ hai ca.
+ */
+export type GlossaryImportPreviewResult =
+  | { outcome: 'loaded'; preview: GlossaryImportPreview }
+  | { outcome: 'cancelled' }
+  | { outcome: 'ipc_unavailable' }
+  | { outcome: 'error'; error: IpcError }
+
+/**
+ * Mở hộp thoại CHỌN rồi đọc/phân tích/phân loại — nhịp MỘT của lượt nhập. **Không bao giờ
+ * ném.** Kế hoạch đã phân loại Ở LẠI RUST (`PendingImportState`) — hàm này chỉ nhận về một
+ * MÔ HÌNH ĐÃ KIỂM để vẽ màn hình xem trước.
+ *
+ * ⚠️ Tham số `invoke` viết camelCase — xem doc-comment đầu tệp.
+ */
+export async function openGlossaryImportPreview(tier: GlossaryTierWire): Promise<GlossaryImportPreviewResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_OPEN_IMPORT_PREVIEW, { tier })
+    if (wire === null) return { outcome: 'cancelled' }
+    if (!isGlossaryImportPreview(wire)) {
+      console.error(
+        `[glossary] \`${CMD_OPEN_IMPORT_PREVIEW}\` tra ve mot hinh dang khong dung GlossaryImportPreview`,
+      )
+      return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
+    }
+    return { outcome: 'loaded', preview: wire }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: 'error', error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[glossary] \`${CMD_OPEN_IMPORT_PREVIEW}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[glossary] không gọi được \`${CMD_OPEN_IMPORT_PREVIEW}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { outcome: 'ipc_unavailable' }
+  }
+}
+
+/** Quyết định của người dùng cho một hàng bất đồng — khớp NGUYÊN VĂN `ConflictDecision::…`
+ * (`#[serde(rename = …)]`) phía Rust. */
+export type GlossaryConflictDecision = 'keep_mine' | 'take_theirs'
+
+/** Hình dạng `ImportSummaryWire` phía Rust — **`snake_case`, đúng như trên dây**. */
+export type GlossaryImportSummary = { inserted: number; updated: number; identical: number }
+
+/** Ba trạng thái, cùng khuôn [`GlossaryWriteResult`]. */
+export type GlossaryConfirmImportResult = { summary: GlossaryImportSummary | null; error: IpcError | null }
+
+/**
+ * Xác nhận lượt nhập — nhịp HAI. **Không bao giờ ném.** `decisions` chỉ cần mang khoá cho
+ * những hàng người dùng đổi ý (`take_theirs`) — vắng mặt == giữ của tôi (mặc định).
+ *
+ * ⚠️ Tham số `invoke` viết camelCase — `decisions` là một object phẳng
+ * `{ [source_term]: 'keep_mine' | 'take_theirs' }`, KHÔNG lồng thêm một cấp.
+ */
+export async function confirmGlossaryImport(
+  decisions: Record<string, GlossaryConflictDecision>,
+): Promise<GlossaryConfirmImportResult> {
+  try {
+    const summary = await invoke<GlossaryImportSummary>(CMD_CONFIRM_IMPORT, { decisions })
+    return { summary, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { summary: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[glossary] \`${CMD_CONFIRM_IMPORT}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { summary: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[glossary] không gọi được \`${CMD_CONFIRM_IMPORT}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { summary: null, error: null }
+  }
+}
+
+/**
+ * Huỷ lô đang treo. **Không bao giờ ném.** Vô hại khi không có lô nào — cùng khuôn
+ * `closeGlossaryQueue`/`closeGlossaryManage` phía frontend.
+ */
+export async function cancelGlossaryImport(): Promise<GlossaryWriteResult<true>> {
+  try {
+    await invoke(CMD_CANCEL_IMPORT)
+    return { value: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { value: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[glossary] \`${CMD_CANCEL_IMPORT}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[glossary] không gọi được \`${CMD_CANCEL_IMPORT}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { value: null, error: null }
+  }
+}
+
 export async function promoteGlossaryTermToGlobal(id: number): Promise<GlossaryWriteResult<true>> {
   try {
     await invoke(CMD_PROMOTE_TERM_TO_GLOBAL, { id })
