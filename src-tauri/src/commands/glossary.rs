@@ -835,7 +835,9 @@ impl From<ImportSummary> for ImportSummaryWire {
 /// - một khoá của `decisions` không khớp `source_term` nào trong lô ⇒
 ///   `glossary.import_decision_unknown_term`, **0** lượt ghi, lô GIỮ LẠI;
 /// - `tier == Work` mà Tác phẩm đã đóng từ lúc mở lô ⇒ `glossary.work_tier_unavailable`;
-/// - va `UNIQUE` giữa chừng ⇒ `glossary.import_unique_conflict`, lô GIỮ LẠI.
+/// - va `UNIQUE` giữa chừng ⇒ `glossary.import_unique_conflict`, lô GIỮ LẠI;
+/// - giá trị đã đổi dưới chân người dùng giữa hai nhịp (`TakeTheirs` so lạc quan trượt) ⇒
+///   `glossary.import_stale_conflict`, lô GIỮ LẠI.
 pub fn glossary_confirm_import(
     global: Option<&Store>,
     open: Option<&OpenWork>,
@@ -850,28 +852,15 @@ pub fn glossary_confirm_import(
         return Err(IpcError::from(GlossaryError::NoPendingImport));
     };
 
-    // Moi khoa cua `decisions` PHAI khop mot source_term MANG RowPlanKind::Conflict trong
-    // lo -- khong roi vao hu khong (§Always: "mot quyet dinh tro toi source_term khong co
-    // trong lo la mot loi tuong minh"). Kiem TRUOC khi ghi.
-    //
-    // 🔴 P5 (vòng rà ba lớp 2026-08-25) — SIẾT xuống đúng hàng `Conflict`, không phải MỌI
-    // hàng của lô. Bản trước gom `source_term` của CẢ `New`/`Identical`/`Conflict`, nên một
-    // quyết định trỏ vào một hàng `New`/`Identical` (những hàng KHÔNG có khái niệm "giữ của
-    // tôi"/"lấy của file" — `import_into_tier` chỉ tra `decisions` cho nhánh `Conflict`) qua
-    // được phép kiểm này rồi KHÔNG có tác dụng gì, im lặng — đúng lớp lỗi mà chính phép
-    // kiểm này tồn tại để chặn, chỉ lùi một hàng.
-    let known_conflict_terms: BTreeSet<&str> = batch
-        .plans
-        .iter()
-        .filter(|p| matches!(p.kind, RowPlanKind::Conflict { .. }))
-        .map(|p| p.source_term.as_str())
-        .collect();
-    if let Some(unknown) = decisions.keys().find(|k| !known_conflict_terms.contains(k.as_str())) {
-        return Err(IpcError::from(GlossaryError::ImportDecisionUnknownTerm {
-            term: unknown.clone(),
-        }));
-    }
-
+    // 🔵 SỬA 2026-08-25 (Cụm C, C3) — phép kiểm "moi khoa cua `decisions` PHAI khop mot
+    // source_term MANG RowPlanKind::Conflict" TỪNG sống ở đây, một luật NGHIỆP VỤ đặt sai
+    // tầng (AD-1: `commands/mod.rs:2`, "Adapter thuần, KHÔNG chứa quy tắc nghiệp vụ"). Nó đã
+    // dời XUỐNG `import_into_tier` (`core/glossary/store.rs`) — hàm đó kiểm TRƯỚC khi mở
+    // giao dịch, cùng lỗi `ImportDecisionUnknownTerm`, và là đường DUY NHẤT (đếm lại
+    // 2026-08-25 -- `grep -c "import_into_tier(" glossary_exchange_contract.rs`, trừ một dòng
+    // chú thích -- **20** lời gọi thẳng trong `glossary_exchange_contract.rs` bỏ qua hẳn lớp
+    // adapter này; con số này đổi theo mỗi ca mới thêm, đừng tin lại một con số cũ mà không
+    // đếm). Không nhân đôi luật ở đây nữa -- lỗi đi xuyên qua từ chỗ gọi ngay dưới.
     match import_into_tier(global, work_store, batch.tier, &batch.plans, decisions) {
         Ok(summary) => {
             *guard = None; // Chi don LO khi giao dich THANH CONG.

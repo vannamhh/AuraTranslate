@@ -973,3 +973,83 @@ fn the_blocking_wires_run_off_the_main_thread() {
          thuoc tinh khong co ly do."
     );
 }
+
+/// 🔴 **Vé ghi phải mang `#[must_use]`, VÀ `unused_must_use` phải ở mức `deny` — ba vế, một
+/// cổng** (Cụm C, C5, Ice chốt 2026-08-25).
+///
+/// **Vì sao cổng này tồn tại, đo được chứ không suy:** bản vá C5 gồm hai vế — thuộc tính trên
+/// hai kiểu vé, và `[lints.rust] unused_must_use = "deny"` trong `Cargo.toml` nâng cảnh báo
+/// thành lỗi biên dịch. Đo 2026-08-25, mỗi lượt khôi phục ngay: gỡ dòng `deny` khỏi
+/// `Cargo.toml` ⇒ `cargo test --locked` **703 xanh, 0 đỏ**; gỡ `#[must_use]` khỏi
+/// `WriteTicket` ⇒ cũng **703 xanh, 0 đỏ**, exit 0. ⇒ Trước khi có ca này, **cả hai vế của
+/// bản vá có thể biến mất mà không một dòng đỏ nào** — vì hôm nay 0 chỗ trong kho thả một vé,
+/// nên không có chỗ nào cho lint nổ. Doctest `compile_fail` ở `WriteTicket` canh đúng **cơ
+/// chế** Rust trên một kiểu THẾ THÂN (kiểu thật là `pub(crate)`, doctest luôn biên dịch như
+/// một crate ngoài nên không gọi tới được) — nó không canh chỗ nối tới mã sản phẩm. Ca này
+/// canh đúng chỗ nối đó.
+///
+/// ⚠️ **Giới hạn thật, ghi ra thay vì làm tròn lên:** cổng này đọc **văn bản nguồn**. Nó
+/// khẳng định thuộc tính CÓ MẶT và dòng lint CÓ MẶT; nó không chứng minh một vé bị thả sẽ đỏ
+/// — vế đó do chính trình biên dịch giữ, và chỉ nổ khi có một chỗ thả thật. Nó cũng KHÔNG
+/// bắt được ca `let ticket = …?;` rồi để biến rơi khỏi phạm vi: không lint nào trong Rust hôm
+/// nay bắt ca đó (xem doc-comment của `WriteTicket`).
+#[test]
+fn the_write_tickets_are_must_use_and_the_lint_that_gives_it_teeth_is_denied() {
+    // Ba vế đi CÙNG NHAU, MỘT ca, MỘT danh sách -- tách thành ba cổng thì một lượt xét lại
+    // rất dễ chỉ chạm một vế, đúng khuôn "MOT ca, MOT danh sach" mà
+    // `the_blocking_wires_run_off_the_main_thread` ngay trên đã đặt.
+    let cases = [
+        (
+            "src/core/store/writer.rs",
+            "#[must_use]\npub(crate) struct WriteTicket<T> {",
+            "the mot ve ghi da xep hang doi -- tha no la tha TRON ket qua commit/rollback va \
+             moi `StoreError` di cung",
+        ),
+        (
+            "src/core/glossary/candidate_store.rs",
+            "#[must_use]\npub(crate) struct ImportScanWriteTicket {",
+            "vo boc mien Glossary boc mot `WriteTicket` ben trong -- phai mang lai dung rang \
+             buoc, khong thua huong tu kieu ben trong no",
+        ),
+    ];
+
+    for (rel, needle, why) in cases {
+        let path = manifest_dir().join(rel);
+        let text = fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        assert!(
+            text.contains(needle),
+            "`{rel}` khong con mang `{needle}` -- {why}. Kho KHONG co cong `cargo fmt` (da \
+             grep `.githooks/pre-push`), nen ca nay so khop CHUOI NGUYEN VAN nhieu dong -- MOT \
+             lan dinh dang lai VO Y (cach thut, xuong dong) se lam ca do voi mot cau doc nhu \
+             mot hoi quy that. Doc TRUOC KHI SUA: neu `{rel}` mo (hoac mot `git diff`) cho \
+             thay `#[must_use]` VAN CON tren dong ngay truoc struct -- chi khac dinh dang/\
+             khoang trang -- thi day KHONG phai bug, cap nhat chuoi moc `needle` o tren cho \
+             khop hinh dang moi va CUNG LUOT do (khong sua rieng phan chu ky). Neu `#[must_use]` \
+             THAT SU bi go khoi kieu thi do LA bug -- dung sua ca test cho het do, khoi phuc \
+             thuoc tinh."
+        );
+    }
+
+    // Ve thu ba: thuoc tinh khong co rang neu lint van la warn-by-default. Doc `Cargo.toml`
+    // va bo dong chu thich -- khoi chu thich ngay tren muc `[lints.rust]` CO nhac lai chuoi
+    // `unused_must_use`, nen mot phep `contains` tran se xanh oan khi dong that bi comment ra.
+    let cargo_path = manifest_dir().join("Cargo.toml");
+    let cargo = fs::read_to_string(&cargo_path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", cargo_path.display()));
+    let has_deny = cargo
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.starts_with('#'))
+        .any(|l| l == r#"unused_must_use = "deny""#);
+    assert!(
+        has_deny,
+        "`Cargo.toml` khong con dong `unused_must_use = \"deny\"` o muc `[lints.rust]` (dong \
+         bi comment ra cung tinh la khong con). Thieu no thi `#[must_use]` tren hai kieu ve \
+         chi con la mot CANH BAO -- exit 0 tren mot san pham dang hong, dung thu ma \
+         AGENTS.md cam. Da do (2026-08-25): go rieng dong nay (giu `#[must_use]` tren ca hai \
+         kieu) khong lam `cargo build`/`cargo test` do o cho nao khac -- con so ca test tong \
+         cua bo se doi theo tung lan repo them/bot ca, nen KHONG neu mot con so co dinh o day \
+         de tranh dung lop rot ma chinh mon no dang canh."
+    );
+}

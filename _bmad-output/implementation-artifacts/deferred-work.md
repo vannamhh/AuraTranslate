@@ -7098,6 +7098,104 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ticket mà không `.wait()` thì kết quả commit/rollback và mọi `StoreError` biến mất, không một
     cảnh báo biên dịch).
     **(Chủ: lượt vá kế tiếp, SAU cụm B.)**
+  → 🟡 **ĐÓNG MỘT PHẦN 2026-08-25**, theo
+    `spec-epic-3-review-cum-c-dong-thoi-duong-commit-nhap.md`. **C1 · C3 · C5 đã vá**; **C2
+    đóng bằng `→ KHÔNG LÀM`**; **C4 (bốn hàm đọc hai tầng qua hai kết nối) TÁCH RIÊNG** thành
+    mục nợ có chủ của chính nó (xem `Cụm C4` ngay dưới) — nó đòi một `AD` mới, không phải một
+    bản vá tại chỗ. Đọc mục này xong thì đọc CẢ hai mục con, đừng dừng ở câu "đã vá".
+    - **C1 (mất cập nhật im lặng ở `TakeTheirs`) — ĐÃ VÁ.** `import_into_tier` nay chạy
+      `UPDATE glossary_entry SET translation = ?1 WHERE id = ?2 AND translation IS ?3`, với
+      `?3` là `existing_translation` mà `classify()` chụp ở nhịp preview — một phép so LẠC
+      QUAN, NULL-an-toàn (`IS`, không `=`). Biến thể lỗi mới `GlossaryError::ImportStaleConflict`
+      đi trọn bộ bốn mắt (biến thể · `impl From<…> for IpcError` · khoá `message_keys!` ·
+      câu `vi.json`). `changed == 0` nay tách hai nghĩa: hàng biến mất (④, hành vi GIỮ NGUYÊN)
+      và giá trị đã đổi (①/③b, lỗi mới). Đối chứng gỡ chỗ nối (bỏ vế `AND translation IS ?3`,
+      quay về `UPDATE … WHERE id = ?2` trần): **2 ca đỏ đúng** —
+      `take_theirs_is_refused_when_the_translation_changed_under_the_users_feet_between_preview_and_confirm`
+      và
+      `take_theirs_is_refused_when_a_pending_row_was_confirmed_by_someone_else_between_preview_and_confirm`
+      (`glossary_exchange_contract.rs`); khôi phục ⇒ xanh.
+    - **C2 (rowid tái dùng trỏ nhầm danh tính hàng) — `→ KHÔNG LÀM 2026-08-25`, ba phép đo bác
+      cơ chế mà C2 nêu tên.** Xem §Design Notes của spec Cụm C: (1) `glossary_entry` khai
+      `id INTEGER PRIMARY KEY AUTOINCREMENT` (`schema.rs:302`) — AD-3 cấm phát lại một `id` đã
+      về hưu, và cơ chế `AUTOINCREMENT` (khác `INTEGER PRIMARY KEY` trần) chặn đúng việc tái
+      dùng rowid lớn nhất vừa xoá ở tầng lược đồ; (2) `grep "SET source_term"` trên toàn kho =
+      **0 khớp** — ba câu `UPDATE glossary_entry` hiện có, trỏ bằng TÊN HÀM vì số dòng
+      rot ngay trong commit này (`confirm_translation` · `update_manual_term` · nhánh
+      `TakeTheirs` của `import_into_tier`), chỉ chạm `translation`/`note`/`category`, nên cặp `(id, source_term)` bất biến suốt vòng đời
+      một hàng; (3) bước di trú duy nhất (`schema.rs:548-551`) chép `id` NGUYÊN VẸN và nâng
+      `sqlite_sequence` theo, không đánh số lại. ⇒ `WHERE id` đủ để trỏ đúng danh tính, và ca
+      "hàng biến mất" đã có `row_missing_error` bắt. ⚠️ Ba phép đo này đọc TRẠNG THÁI HÔM NAY —
+      story đầu tiên thêm một đường ĐỔI TÊN thuật ngữ (sửa `source_term` của một hàng còn sống)
+      làm chúng hết đúng ngay lập tức. **(Chủ: story đầu tiên chạm `UPDATE … SET source_term` —
+      đo lại ba mệnh đề trên TRƯỚC khi tin `WHERE id` vẫn đủ.)**
+    - **C3 (`ImportDecisionUnknownTerm` chỉ canh ở lớp `wire`) — ĐÃ VÁ.** Luật dời từ
+      `commands/glossary.rs:863-873` xuống `import_into_tier` (`core/glossary/store.rs`), kiểm
+      TRƯỚC khi mở giao dịch, cùng hình dạng `work.ok_or(...)` đã có sẵn trong hàm. Không giữ
+      hai bản: chỗ gọi ở `commands/glossary.rs::glossary_confirm_import` không còn tự kiểm, chỉ
+      để lỗi đi xuyên qua. Đối chứng gỡ chỗ nối (xoá khối kiểm khỏi `import_into_tier`, không
+      thêm gì thay thế): **4 ca đỏ đúng** — hai ca MỚI gọi thẳng lõi
+      (`import_into_tier_rejects_a_decision_pointing_at_a_term_absent_from_the_batch_entirely`,
+      `import_into_tier_rejects_a_decision_pointing_at_a_new_row_instead_of_a_conflict`,
+      `glossary_exchange_contract.rs`) VÀ hai ca CŨ đi qua lớp `commands`
+      (`confirming_with_a_decision_pointing_at_an_unknown_term_fails_and_keeps_the_batch`,
+      `confirming_with_a_decision_pointing_at_a_new_row_instead_of_a_conflict_is_rejected`,
+      `glossary_import_dialog_contract.rs`) — bằng chứng luật chỉ còn sống ở MỘT chỗ. Khôi phục
+      ⇒ cả bốn xanh.
+    - **C5 (`WriteTicket` thiếu `#[must_use]`) — ĐÃ VÁ, và §Ask First của nó đã được Ice
+      chốt 2026-08-25: NÂNG `unused_must_use` lên `deny`.** `#[must_use]` đặt trên KIỂU
+      `WriteTicket<T>` (`core/store/writer.rs`) và trên `ImportScanWriteTicket`
+      (`core/glossary/candidate_store.rs`) — không trên hàm sinh ra chúng (`Result` đã tự
+      `#[must_use]`). `src-tauri/Cargo.toml` thêm `[lints.rust] unused_must_use = "deny"` —
+      ĐÚNG một lint, không nâng `-D warnings` toàn bộ và không thêm lint nào khác, theo phạm
+      vi Ice ký. Phép đo cho phép nâng: `RUSTFLAGS="-D warnings" cargo check --locked` → exit
+      0, **0 cảnh báo** trong toàn crate 2026-08-25 (đo lại, không suy) — nâng không làm gãy
+      build nào đang xanh. Kể từ bản vá này, §I/O Matrix ca ⑧ là một CỔNG COMPILE THẬT: bất
+      kỳ chỗ nào trong crate thả một vé bằng một câu lệnh trần đều làm
+      `cargo build`/`check`/`test` ĐỎ ngay lập tức (đo bằng một hàm dò tạm
+      `self.write_ticket(|_| Ok(())).unwrap();` viết trần: có `#[must_use]` + `[lints.rust]`
+      ⇒ `error: unused `WriteTicket` that must be used` — biên dịch THẤT BẠI, không còn chỉ là
+      một cảnh báo; gỡ MỘT trong hai vế (`#[must_use]` hoặc `[lints.rust]`) ⇒ trở lại cảnh báo
+      hoặc sạch hoàn toàn, không còn lỗi. Hàm dò chỉ tồn tại trong lượt đối chứng, không nằm
+      lại trong cây nguồn).
+      Một doctest `compile_fail` tại doc-comment của `WriteTicket` (`core/store/writer.rs`)
+      dựng lại đúng ca ⑧ TRÊN MỘT KIỂU CÙNG HÌNH DẠNG và ghi rõ vì sao: `WriteTicket` cùng mọi
+      hàm sinh ra nó là `pub(crate)` CÓ CHỦ ("không mở sender, connection hay transaction ra
+      ngoài `core/store/**`"), còn một doctest luôn biên dịch như MỘT CRATE NGOÀI — đo bằng BA
+      thực nghiệm độc lập 2026-08-25: gọi thẳng tên ⇒ `E0425`; nhập qua đường dẫn đủ ⇒ `E0603
+      module is private`; một hàm bọc `#[cfg(doctest)]` cũng KHÔNG lọt vào rlib mà doctest
+      liên kết (`cfg(doctest)` chỉ áp cho đoạn doctest, không áp cho crate thư viện nó liên
+      kết tới) ⇒ vẫn `E0603`. ⇒ **Không doctest nào gọi được `WriteTicket` thật** — mở tầm
+      nhìn ra `pub` để một doctest gọi được là ĐỔI một bất biến kiến trúc, việc của một `AD`
+      mới do Ice ký, không phải một dòng mã tự quyết. Doctest hiện có vì vậy chứng minh ĐÚNG
+      cơ chế Rust (`#[must_use]` + `deny` chặn câu lệnh trần, không chặn `let` rồi rơi khỏi
+      phạm vi — khối `ignore` thứ hai minh hoạ đúng giới hạn đó), không phải một ca ràng buộc
+      trực tiếp với kiểu thật; ràng buộc với kiểu THẬT nằm ở phép đo hàm-dò-tạm trên đĩa thật
+      (đoạn trên), không phải ở doctest.
+      Đối chứng gỡ chỗ nối chạy thật, khôi phục sau mỗi lượt: gỡ `#[must_use]` khỏi
+      `SameShapeAsWriteTicket` trong khối doctest ⇒ ca `compile_fail` **ĐỎ** ("Test compiled
+      successfully, but it's marked `compile_fail`"); khôi phục rồi gỡ dòng
+      `#![deny(unused_must_use)]` khỏi cùng khối ⇒ **ĐỎ** cùng lý do; khôi phục ⇒ xanh.
+      ⚠️ **Giới hạn CÒN NGUYÊN sau khi nâng, không đổi:** lint chỉ nổ khi giá trị bị thả NGAY
+      TẠI một câu lệnh; `let ticket = store.write_ticket(job)?;` rồi để `ticket` rơi khỏi phạm
+      vi ở cuối hàm KHÔNG bị bắt — không lint nào trong Rust hôm nay bắt được ca đó.
+      🔵 **SỬA 2026-08-25 (muộn hơn cùng ngày) — hai mệnh đề ở trên hết đúng, và lý do đáng
+      nhớ hơn bản vá.** Bản trên khai ca ⑧ đã thành *"một CỔNG COMPILE THẬT"* và khai ràng buộc
+      với kiểu THẬT *"nằm ở phép đo hàm-dò-tạm"*. Đo lại trên cây nguồn thật, mỗi lượt khôi
+      phục ngay: gỡ dòng `unused_must_use = "deny"` khỏi `Cargo.toml` ⇒ `cargo test --locked`
+      **703 xanh, 0 đỏ**; gỡ `#[must_use]` khỏi `WriteTicket<T>` ⇒ cũng **703 xanh, 0 đỏ**,
+      exit 0. ⇒ **Cả hai vế của bản vá có thể biến mất mà không một dòng đỏ nào** — `deny`
+      không có chỗ nào để nổ vì hôm nay 0 chỗ trong kho thả một vé, còn doctest thì canh kiểu
+      THẾ THÂN. Một hàm dò KHÔNG COMMIT không canh được gì sau khi nó biến mất; nó là một phép
+      đo, không phải một cổng. ⇒ C5 khi ấy **không đạt** luật 🔴 *"gỡ bản vá ra thì ca đó ĐỎ"*.
+      🔴 Đây đúng lớp `khoi-phuc-trung-thanh-khong-phai-dung`: đối chứng KẾT QUẢ với ĐIỀU NÓ
+      KHAI. **Đã đóng nốt** (Ice chốt cùng ngày, BỔ SUNG chứ không thay lint):
+      `tests/config_invariants.rs::the_write_tickets_are_must_use_and_the_lint_that_gives_it_teeth_is_denied`
+      — MỘT ca, BA vế (hai `#[must_use]` + dòng `deny`, và phép so BỎ dòng chú thích vì khối
+      chú thích ngay trên `[lints.rust]` có nhắc lại chính chuỗi đó). Ba đối chứng gỡ chỗ nối
+      đều **ĐỎ**, khôi phục ⇒ xanh. ⚠️ Cổng này đọc VĂN BẢN NGUỒN: nó canh thuộc tính và dòng
+      lint CÓ MẶT, nó không chứng minh một vé bị thả sẽ đỏ — vế đó do trình biên dịch giữ và
+      chỉ nổ khi có một chỗ thả thật.
 
 - source_spec: none
   summary: **Cụm D — mười ba phát hiện ở frontend**: bốn đường `invoke<>` tin thẳng tham số generic,
@@ -7301,3 +7399,57 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     hành có thể cùng bay"*, `GlossaryManageOverlay.vue:452-469`) — khác chiều (Export↔Export thay
     vì Export↔Import) nhưng đóng bằng đúng một cơ chế. **(Chủ: lượt vá cụm D — đóng cả hai chiều
     trong một lượt, đừng vá riêng chiều này.)**
+
+- source_spec: none
+  summary: **C4 — bốn hàm công khai của `core/glossary/store.rs` đọc hai tầng qua HAI kết nối
+    SQLite mà không một snapshot chung nào**, nên một thuật ngữ đang giữa chừng `promote_to_global`
+    có thể biến mất khỏi CẢ HAI tầng trong một lượt đọc.
+  evidence: Tách khỏi lượt vá cụm C ngày 2026-08-25 theo lựa chọn [S] của Ice; nguồn gốc là mục
+    thứ tư của cụm C (`deferred-work.md`, mục `Cụm C`), tự nó tách khỏi `/bmad-review epic 3`.
+    Vị trí, trỏ bằng TÊN vì số dòng rot ngay trong chính commit ghi nó ra (bắt ở vòng rà
+    2026-08-25: bốn số dòng bản đầu đã lệch 38-61 dòng vì lượt vá cụm C chèn thêm mã phía
+    trên): `entries_eligible_for_injection` · `resolve_term_for_quick_add` · `list_all_entries`
+    · `marks_for_source_text` — cả bốn gọi `load_tier(global)`
+    rồi `load_tier(work)` thành hai lượt `Store::read` riêng.
+    ⚠️ **Vì sao KHÔNG đi cùng lượt vá cụm C:** đóng nó thật sự là **lật một bất biến đã ký**, không
+    phải một bản vá tại chỗ. `resolved_source_terms` (`:299-301`) khai thành lời một quyết định có
+    chủ — *"Hai database không có snapshot nguyên tử và hàm này cố ý không `ATTACH`/dựng giao dịch
+    chéo"* — nên một snapshot chung đòi `ATTACH` hoặc một giao dịch chéo hai kho, tức một `AD` mới
+    trong spine chứ không phải một dòng mã (§Policy của `AGENTS.md`). Còn hình dạng rẻ hơn — chép
+    câu khai nhận rủi ro xuống bốn chỗ — đúng là thứ `sua-kieu-thay-vi-nhet-canh-bao` cấm: nó làm
+    lỗ hổng hết kêu mà không đóng lỗ hổng.
+    🔴 Ba mục còn lại của cụm C (C1 mất cập nhật ở `TakeTheirs`, C2 danh tính rowid, C3
+    `ImportDecisionUnknownTerm` ở lớp lõi) và C5 (`WriteTicket` thiếu `#[must_use]`) ĐÃ đi vào lượt
+    vá 2026-08-25 — xem `spec-epic-3-review-cum-c-dong-thoi-duong-commit-nhap.md`. Mục này là phần
+    CÒN LẠI, đừng đọc lượt vá đó thành "cụm C đã đóng".
+    **(Chủ: lượt sửa hạ tầng đồng thời kế tiếp của `commands/glossary.rs` — cùng chủ với mục thu
+    hẹp phạm vi `MutexGuard` của mười lăm vỏ; và nếu chọn hình dạng snapshot chung thì dừng ở cửa
+    chặn AD và soạn hồ sơ bàn giao cho Winston, đừng tự soạn AD.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-c-dong-thoi-duong-commit-nhap.md`
+  summary: **Một hàng bị XOÁ giữa hai nhịp làm biến mất mọi va chạm đã gom được của những hàng
+    KHÁC trong cùng lô** — người dùng nhận `store.write_failed` chung thay vì danh sách thuật ngữ
+    va chạm mà lô đó thật sự có.
+  evidence: Bắt ở vòng rà ba lăng kính 2026-08-25 (lăng kính edge-case, và lăng kính blind-hunter
+    nêu độc lập cùng chỗ), đã tự kiểm lại trên mã. Trong vòng lặp của
+    `core/glossary/store.rs::import_into_tier`, nhánh `still_present == None` chạy
+    `return Err(row_missing_error(...))` **ngay**, không xả `local_conflicts` /
+    `local_stale_conflicts` vào hai kênh `Arc<Mutex<…>>`. Khối `match result` phía ngoài vì thế
+    thấy cả hai kênh rỗng và rơi về `GlossaryError::from(e)` ⇒ `store.write_failed`. Mọi va chạm
+    `UNIQUE` và va chạm lạc quan đã gom được cho những hàng đứng TRƯỚC trong cùng lô bị mất khỏi
+    câu báo.
+    ⚠️ **Bất đối xứng này chưa được nói ra ở đâu**, trong khi chính doc-comment mới của lượt vá
+    nhấn mạnh cam kết ngược lại cho hai danh sách kia (*"gom TRỌN danh sách, không dừng ở va chạm
+    đầu tiên"*). Khuôn thoát-sớm-không-xả có TRƯỚC lượt vá này (nhánh `New` của P6 cụm B:
+    `Err(e) => return Err(e)`); thứ lượt này thêm vào là một danh sách NỮA để mất.
+    🔴 **Không phải mất dữ liệu:** cả lô vẫn rollback trọn, **0 lượt ghi** ở mọi nhánh. Đây là
+    chất lượng CHẨN ĐOÁN — người dùng đọc một câu không nói được điều gì đã xảy ra, đúng họ lỗi mà
+    cụm C sinh ra để đóng, nhưng ở một ca lô-hỗn-hợp mà §I/O Matrix của spec không liệt (hàng ⑦
+    chỉ định nghĩa thứ tự `UNIQUE` ↔ lạc quan, không định nghĩa ca có thêm một hàng bị xoá).
+    ⚠️ **Vì sao KHÔNG vá trong lượt này:** bản vá đúng là xả cả hai danh sách trước lượt
+    `return`, nhưng khi ấy lô hỗn hợp sẽ báo va chạm thay vì `row_missing` — tức ĐỔI lỗi mà người
+    dùng thấy ở ca ④, và hàng ④ của §I/O Matrix (khối `<frozen-after-approval>`, Ice đã ký) viết
+    rõ *"Giữ NGUYÊN hành vi hiện có… không đổi nhãn, không gộp vào ①"*. Đổi nó là renegotiate một
+    khối đã đông cứng, không phải một dòng vá.
+    **(Chủ: Ice — một quyết định hiển thị, cùng hạng với mục `err.import.too_large` đang mở. Lượt
+    đầu tiên mở lại hàng ④ của Matrix chốt luôn: lô hỗn hợp báo lỗi nào.)**

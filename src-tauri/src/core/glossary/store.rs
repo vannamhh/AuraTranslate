@@ -459,6 +459,41 @@ pub enum GlossaryError {
         source_terms: Vec<String>,
     },
 
+    /// 🔵 **THÊM 2026-08-25 (Cụm C, `spec-epic-3-review-cum-c-dong-thoi-duong-commit-nhap.md`,
+    /// C1) — lớp lỗi hôm nay KHÔNG có tên.** Trước bản vá này, nhánh `TakeTheirs` của
+    /// [`import_into_tier`] ghi `UPDATE … SET translation = ?1 WHERE id = ?2` KHÔNG so lại
+    /// `existing_translation` — giá trị người dùng đã đối chiếu *của tôi* ↔ *của tệp* ở nhịp
+    /// preview. Một lượt ghi khác (sửa tay, một lượt nhập khác, `promote_to_global`, …) chen
+    /// vào GIỮA nhịp preview và nhịp xác nhận thì bị ghi đè âm thầm — 0 lỗi, 0 rollback, đúng
+    /// lớp "rỗng im lặng" mà `AGENTS.md` gọi là lỗi trung tâm của dự án. Biến thể này đặt tên
+    /// cho đúng lớp đó: một hoặc nhiều hàng `Conflict` mà `translation` đang có trên đĩa đã
+    /// KHÁC giá trị người dùng nhìn thấy ở nhịp preview, tại thời điểm giao dịch thật chạy.
+    ///
+    /// Bao gồm CẢ ca ③b (mục *chờ chốt* — `existing_translation = None` lúc preview — vừa
+    /// được người khác chốt lúc xác nhận): toán tử so NULL-an-toàn của SQLite
+    /// (`translation IS ?3`, không `= ?3`) coi `NULL IS NULL` là khớp và `Some(x) IS NULL` là
+    /// không khớp, nên ca đó rơi đúng vào nhánh này, không phải một nhánh riêng.
+    ///
+    /// KHÔNG gộp với ca ④ (hàng biến mất — [`row_missing_error`], hành vi GIỮ NGUYÊN): hai ca
+    /// đó là hai câu chuyện khác nhau và I/O Matrix của spec Cụm C đòi giữ chúng tách biệt.
+    ///
+    /// 🔴 **Gom TRỌN danh sách, cùng khuôn [`GlossaryError::ImportUniqueConflict`]** — một lô
+    /// có thể va nhiều hàng cùng lúc, không dừng ở va chạm đầu tiên.
+    ///
+    /// ⚠️ **Thứ tự báo khi MỘT lô vừa có va `UNIQUE` (hàng `New`) VỪA có va lạc quan (hàng
+    /// `Conflict`) — I/O Matrix ca ⑦.** Cả hai danh sách được GOM riêng (không đường nào abort
+    /// sớm), nhưng khi cả hai đều không rỗng, [`GlossaryError::ImportUniqueConflict`] được ưu
+    /// tiên báo — đây KHÔNG phải một lựa chọn tuỳ ý mới: khối kiểm `local_conflicts` đã đứng
+    /// TRƯỚC khối kiểm `local_stale_conflicts` trong chính mã nguồn của [`import_into_tier`]
+    /// (thứ tự đã có SẴN từ P6, chỉ thêm một nhánh `else if` ngay sau nó), nên thứ tự này SUY
+    /// RA ĐƯỢC từ mã hiện có, không phải một quyết định cần hỏi Ice (§Ask First của spec chỉ
+    /// áp khi thứ tự KHÔNG suy ra được).
+    ImportStaleConflict {
+        /// MỌI thuật ngữ mà giá trị đang có trên đĩa đã đổi so với lúc người dùng xem trước —
+        /// dữ liệu, không phải một câu. Không bao giờ rỗng khi biến thể này được dựng.
+        source_terms: Vec<String>,
+    },
+
     // ── Story 3.10b (AD-48) — BẢY biến thể MỚI, hộp thoại chọn tệp nối vào ──────────
     //
     // Sinh ra ở `super::exchange_io` (bốn ca I/O đầu) hoặc ở `commands::glossary::wire`
@@ -531,6 +566,9 @@ impl std::fmt::Display for GlossaryError {
             GlossaryError::GlobalTermExists => write!(f, "glossary[global_term_exists]"),
             GlossaryError::ImportUniqueConflict { source_terms } => {
                 write!(f, "glossary[import_unique_conflict] source_terms={source_terms:?}")
+            }
+            GlossaryError::ImportStaleConflict { source_terms } => {
+                write!(f, "glossary[import_stale_conflict] source_terms={source_terms:?}")
             }
             GlossaryError::ImportFileTooLarge { size, limit } => {
                 write!(f, "glossary[import_file_too_large] size={size} limit={limit}")
@@ -618,6 +656,18 @@ impl From<GlossaryError> for IpcError {
                 IpcError::new(
                     "glossary.import_unique_conflict",
                     MessageKey::GlossaryImportUniqueConflict,
+                    params,
+                    false,
+                )
+            }
+            GlossaryError::ImportStaleConflict { source_terms } => {
+                let mut params = BTreeMap::new();
+                // Cung mot hinh dang voi ImportUniqueConflict o tren -- xem doc-comment tai
+                // khai bao bien the (Cum C, C1).
+                params.insert("value".to_owned(), source_terms.join(", "));
+                IpcError::new(
+                    "glossary.import_stale_conflict",
+                    MessageKey::GlossaryImportStaleConflict,
                     params,
                     false,
                 )
@@ -1452,6 +1502,18 @@ fn unique_conflict_marker_error() -> SqlError {
     )
 }
 
+/// Cùng vai trò với [`unique_conflict_marker_error`] — lỗi ĐÁNH DẤU cho danh sách va LẠC
+/// QUAN (Cụm C, C1) đã tự gom xong. Nội dung KHÔNG bao giờ được đọc lại; danh sách thật đi
+/// qua kênh riêng (`stale_conflicts` của [`import_into_tier`]).
+fn stale_conflict_marker_error() -> SqlError {
+    SqlError::FromSqlConversionFailure(
+        0,
+        SqlType::Text,
+        "glossary import -- rollback: mot hoac nhieu hang Conflict bi doi duoi chan nguoi dung"
+            .into(),
+    )
+}
+
 /// Ghi kết quả một lượt nhập vào `tier` — **một** `store.write` (§Always: "Không ghi một
 /// phần" — một lô nhập đi TRỌN trong một giao dịch, `Ok` ⇒ commit, `Err` ⇒ rollback).
 ///
@@ -1482,6 +1544,28 @@ fn unique_conflict_marker_error() -> SqlError {
 ///   đúng I/O Matrix "Trigger AD-36 chặn lượt lùi về rỗng ⇒ `store.write_failed`, cả lô
 ///   rollback".
 ///
+///   🔵 **SỬA 2026-08-25 (Cụm C, C1) — `TakeTheirs` nay là một PHÉP SO LẠC QUAN, không còn
+///   một `UPDATE` vô điều kiện theo `id`.** Câu lệnh mang thêm `AND translation IS ?3`, với
+///   `?3` là `existing_translation` mà [`super::exchange::classify`] đã chụp ở nhịp preview
+///   — giá trị người dùng THẬT SỰ đối chiếu trước khi bấm "lấy của file". Một lượt ghi khác
+///   chen vào giữa nhịp preview và nhịp xác nhận (sửa tay, một lượt nhập khác,
+///   `promote_to_global`, …) làm điều kiện đó không khớp ⇒ [`GlossaryError::ImportStaleConflict`],
+///   không phải một lượt ghi đè âm thầm. Xem doc-comment tại khai báo biến thể đó cho đầy đủ.
+///
+/// 🔴 **`GlossaryError::ImportDecisionUnknownTerm` — kiểm TRƯỚC KHI MỞ GIAO DỊCH, cùng hình
+/// dạng với `work.ok_or(...)`.**
+///
+/// 🔵 **THÊM 2026-08-25 (Cụm C, C3) — luật này chuyển XUỐNG ĐÂY từ
+/// `commands::glossary::glossary_confirm_import`.** Trước bản vá, `commands/glossary.rs` là
+/// nơi DUY NHẤT chặn một quyết định trỏ tới một `source_term` không mang `RowPlanKind::Conflict`
+/// trong lô — một luật NGHIỆP VỤ sống sai tầng (AD-1: `commands/mod.rs:2`, *"Adapter thuần,
+/// KHÔNG chứa quy tắc nghiệp vụ"*). Đếm lại 2026-08-25 (`grep -c "import_into_tier(" \
+/// glossary_exchange_contract.rs`, trừ một dòng chú thích): **20** lời gọi thẳng hàm này
+/// trong `glossary_exchange_contract.rs` — bằng chứng đường vòng qua `commands` không phải lý
+/// thuyết. Con số này RA sau mỗi ca mới thêm; đừng tin lại một con số cũ mà không đếm — xem
+/// vụ con số "13" của chính bản vá này bị đóng đinh sai chỉ vì bảy ca C1 mới ra đời cùng lượt.
+/// Adapter không còn tự kiểm — nó để lỗi này đi xuyên qua từ đây.
+///
 /// 🔴 **`GlossaryError::ImportUniqueConflict` — gom TRỌN danh sách va, và chỉ gán nhãn này
 /// khi lỗi THẬT SỰ là vi phạm `UNIQUE`.**
 ///
@@ -1508,7 +1592,10 @@ fn unique_conflict_marker_error() -> SqlError {
 ///
 /// # Lỗi
 /// [`GlossaryError::WorkTierUnavailable`] nếu `tier` là [`GlossaryTier::Work`] mà `work` là
-/// `None`. [`GlossaryError::ImportUniqueConflict`]/[`GlossaryError::Store`] — xem trên.
+/// `None`. [`GlossaryError::ImportDecisionUnknownTerm`] nếu một khoá của `decisions` không
+/// khớp `source_term` của hàng `Conflict` nào trong `plans` — kiểm TRƯỚC khi mở giao dịch,
+/// **0** lượt ghi. [`GlossaryError::ImportUniqueConflict`]/[`GlossaryError::ImportStaleConflict`]/
+/// [`GlossaryError::Store`] — xem trên.
 pub fn import_into_tier(
     global: &Store,
     work: Option<&Store>,
@@ -1521,16 +1608,47 @@ pub fn import_into_tier(
         GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
     };
 
+    // 🔴 C3 (Cụm C, `spec-epic-3-review-cum-c-dong-thoi-duong-commit-nhap.md`) — KIỂM TRƯỚC
+    // KHI MỞ GIAO DỊCH, cùng hình dạng với dòng `work.ok_or(...)` ngay trên. Luật này TỪNG
+    // sống ở `commands/glossary.rs::glossary_confirm_import` — sai tầng theo AD-1
+    // (`commands/mod.rs:2`: *"Adapter thuần, KHÔNG chứa quy tắc nghiệp vụ"*): đếm lại
+    // 2026-08-25 (`grep -c "import_into_tier(" glossary_exchange_contract.rs`, trừ một dòng
+    // chú thích) ⇒ **20** lời gọi THẲNG hàm này trong `glossary_exchange_contract.rs` chứng
+    // minh đường vòng qua lớp `commands` không phải lý thuyết — trước bản vá này, một chỗ gọi
+    // thẳng (bỏ qua adapter)
+    // có thể ghi một quyết định trỏ tới một `source_term` không tồn tại trong lô mà không ai
+    // chặn. Dời xuống đây thay vì CHÉP một bản nữa (đúng lớp lỗi mà cụm A đã ghi thành nợ:
+    // "một cổng có một bản sao, không cổng nào canh cho hai bản khớp nhau") — chỗ gọi ở
+    // `commands/glossary.rs` không còn tự kiểm, chỉ còn để lỗi này đi xuyên qua.
+    //
+    // Siết đúng hàng mang `RowPlanKind::Conflict` — một quyết định trỏ vào hàng `New`/
+    // `Identical` (những hàng KHÔNG có khái niệm "giữ của tôi"/"lấy của file") phải bị từ
+    // chối như một thuật ngữ lạ, không được lặng lẽ bỏ qua (P5, giữ nguyên khi dời tầng).
+    let known_conflict_terms: BTreeSet<&str> = plans
+        .iter()
+        .filter(|p| matches!(p.kind, RowPlanKind::Conflict { .. }))
+        .map(|p| p.source_term.as_str())
+        .collect();
+    if let Some(unknown) = decisions.keys().find(|k| !known_conflict_terms.contains(k.as_str())) {
+        return Err(GlossaryError::ImportDecisionUnknownTerm { term: unknown.clone() });
+    }
+
     let plans_owned: Vec<RowPlan> = plans.to_vec();
     let decisions_owned: BTreeMap<String, ConflictDecision> = decisions.clone();
 
     // Kênh riêng mang danh sách va chạm THẬT ra khỏi closure -- xem khối 🔵 ở doc-comment.
     let conflicts: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     let conflicts_for_closure = Arc::clone(&conflicts);
+    // 🔵 THÊM (Cụm C, C1) -- kênh riêng THỨ HAI, cùng khuôn, cho danh sách va lạc quan (giá
+    // trị đã đổi dưới chân người dùng giữa hai nhịp). Xem doc-comment của
+    // `GlossaryError::ImportStaleConflict` cho lý do dùng HAI kênh tách biệt thay vì một.
+    let stale_conflicts: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let stale_conflicts_for_closure = Arc::clone(&stale_conflicts);
 
     let result = store.write(move |tx: &Transaction<'_>| {
         let mut summary = ImportSummary::default();
         let mut local_conflicts: Vec<String> = Vec::new();
+        let mut local_stale_conflicts: Vec<String> = Vec::new();
 
         for plan in &plans_owned {
             match &plan.kind {
@@ -1559,7 +1677,7 @@ pub fn import_into_tier(
                 RowPlanKind::Identical => {
                     summary.identical += 1;
                 }
-                RowPlanKind::Conflict { existing_id, .. } => {
+                RowPlanKind::Conflict { existing_id, existing_translation } => {
                     let decision = decisions_owned
                         .get(&plan.source_term)
                         .copied()
@@ -1567,31 +1685,76 @@ pub fn import_into_tier(
                     if decision == ConflictDecision::TakeTheirs {
                         // 🔴 CHỈ `translation` -- xem khối 🔴 P1 ở doc-comment trên. `note`/
                         // `category` KHÔNG đi vào câu UPDATE này, dù `plan` có mang gì.
+                        //
+                        // 🔴 C1 (Cụm C) -- SO LẠC QUAN: `existing_translation` là giá trị
+                        // người dùng ĐÃ THẤY ở nhịp preview (`classify()` chụp nó vào chính
+                        // biến thể `RowPlanKind::Conflict` này), đưa THẲNG vào ĐIỀU KIỆN ghi
+                        // thay vì chỉ vào câu `SET`. `translation IS ?3` (KHÔNG `= ?3`) là
+                        // toán tử so NULL-AN-TOÀN của SQLite: `WHERE translation = NULL` luôn
+                        // cho UNKNOWN (khớp KHÔNG hàng nào, kể cả khi giá trị hiện tại đúng
+                        // là NULL), trong khi `translation IS NULL` khớp đúng một hàng có giá
+                        // trị NULL -- thiếu vế này sẽ biến MỌI lượt `TakeTheirs` hợp lệ trên
+                        // một mục *chờ chốt* thành một lỗi giả (I/O Matrix ca ③).
                         let changed = tx.execute(
-                            "UPDATE glossary_entry SET translation = ?1 WHERE id = ?2",
-                            (&plan.translation, existing_id),
+                            "UPDATE glossary_entry
+                                SET translation = ?1
+                                WHERE id = ?2 AND translation IS ?3",
+                            (&plan.translation, existing_id, existing_translation),
                         )?;
-                        // ⚠️ Ca này KHÔNG có mặt trong §I/O Matrix của spec (chỉ ca "New va
-                        // UNIQUE giữa chừng" được liệt) — nhưng "0 hàng đổi" đi qua trong im
-                        // lặng đúng là lớp lỗi trung tâm mà AGENTS.md cấm (`Known pitfalls`:
-                        // "Rỗng IM LẶNG"). Hàng `existing_id` biến mất GIỮA lúc `classify()`
-                        // chụp ảnh và lúc giao dịch này chạy (đua với một lượt Xoá khác) ⇒
-                        // trả lỗi để CẢ LÔ rollback, thay vì báo thành công cho một `UPDATE`
-                        // không đổi gì. Rơi về `store.write_failed` chung (không phải một
-                        // biến thể `GlossaryError` riêng — ca này ngoài phạm vi đã ký của
-                        // story, ghi nợ ở đây thay vì bịa một tên mới không ai nghiệm thu).
                         if changed == 0 {
-                            return Err(row_missing_error(0, "glossary_entry", *existing_id));
+                            // 🔵 SỬA (Cụm C, C1) -- `changed == 0` NAY MANG HAI NGHĨA, trước
+                            // bản vá này chỉ có một. Phân biệt bằng một lượt đọc lại NGAY
+                            // TRONG CÙNG giao dịch (không mở cửa sổ đua thứ hai: giao dịch
+                            // đang giữ khoá ghi của kết nối duy nhất -- AD-11):
+                            //   -- hàng KHÔNG còn tồn tại nữa -- ca ④ (hành vi GIỮ NGUYÊN như
+                            //      trước bản vá: `row_missing_error`, không đổi nhãn, không
+                            //      gộp vào ①/③b);
+                            //   -- hàng CÒN tồn tại (nghĩa là điều kiện `translation IS ?3`
+                            //      không khớp) -- ca ①/③b MỚI: một lượt ghi khác đã đổi giá
+                            //      trị dưới chân người dùng giữa hai nhịp. Gom vào
+                            //      `local_stale_conflicts` (cùng khuôn `local_conflicts` của
+                            //      P6: KHÔNG abort ngay, để vòng lặp gom hết va chạm khác
+                            //      trong CÙNG lô -- I/O Matrix ca ⑦).
+                            let still_present: Option<Option<String>> = match tx.query_row(
+                                "SELECT translation FROM glossary_entry WHERE id = ?1",
+                                [*existing_id],
+                                |r| r.get(0),
+                            ) {
+                                Ok(value) => Some(value),
+                                // Cùng khuôn `promote_to_global` -- `SqlError` đã được
+                                // `core::store` tái xuất, `OptionalExtension` thì không.
+                                Err(SqlError::QueryReturnedNoRows) => None,
+                                Err(e) => return Err(e),
+                            };
+                            match still_present {
+                                None => {
+                                    return Err(row_missing_error(0, "glossary_entry", *existing_id));
+                                }
+                                Some(_current_translation_now_different) => {
+                                    local_stale_conflicts.push(plan.source_term.clone());
+                                }
+                            }
+                        } else {
+                            summary.updated += 1;
                         }
-                        summary.updated += 1;
                     }
                 }
             }
         }
 
+        // ⚠️ THỨ TỰ CÓ Ý NGHĨA khi CẢ HAI danh sách cùng không rỗng (I/O Matrix ca ⑦) -- xem
+        // khối ⚠️ ở doc-comment của `GlossaryError::ImportStaleConflict`: `local_conflicts`
+        // (UNIQUE) được kiểm TRƯỚC `local_stale_conflicts` (lạc quan) vì khối kiểm đó đã đứng
+        // ở đây TỪ P6, trước khi C1 tồn tại -- thứ tự này suy ra được từ mã hiện có, không
+        // phải một lựa chọn tuỳ ý áp thêm.
         if !local_conflicts.is_empty() {
             *conflicts_for_closure.lock().unwrap_or_else(|p| p.into_inner()) = local_conflicts;
             return Err(unique_conflict_marker_error());
+        }
+        if !local_stale_conflicts.is_empty() {
+            *stale_conflicts_for_closure.lock().unwrap_or_else(|p| p.into_inner()) =
+                local_stale_conflicts;
+            return Err(stale_conflict_marker_error());
         }
 
         Ok(summary)
@@ -1602,10 +1765,13 @@ pub fn import_into_tier(
         Err(e) => {
             let collected = conflicts.lock().unwrap_or_else(|p| p.into_inner()).clone();
             if !collected.is_empty() {
-                Err(GlossaryError::ImportUniqueConflict { source_terms: collected })
-            } else {
-                Err(GlossaryError::from(e))
+                return Err(GlossaryError::ImportUniqueConflict { source_terms: collected });
             }
+            let stale = stale_conflicts.lock().unwrap_or_else(|p| p.into_inner()).clone();
+            if !stale.is_empty() {
+                return Err(GlossaryError::ImportStaleConflict { source_terms: stale });
+            }
+            Err(GlossaryError::from(e))
         }
     }
 }

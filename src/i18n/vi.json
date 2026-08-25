@@ -40,6 +40,7 @@
   "err.glossary.dialog_path_invalid": "Hộp thoại trả về một đường dẫn không đọc được — thử chọn lại tệp hoặc thư mục.",
   "err.glossary.import_decision_unknown_term": "Quyết định vừa gửi nhắc tới thuật ngữ {value}, không có trong tệp đang xem trước — chưa có gì được ghi.",
   "err.glossary.no_pending_import": "Không có lượt nhập nào đang chờ xác nhận — chọn lại tệp trước.",
+  "err.glossary.import_stale_conflict": "Bản dịch của thuật ngữ {value} đã bị đổi ở nơi khác trong lúc xem trước — lượt nhập đã dừng lại, không có gì được ghi. Nạp lại rồi thử lại.",
   "status.saved_seconds_ago": "Đã lưu {seconds} giây trước",
   "command.mode.library": "Library",
   "command.mode.workspace": "Workspace",

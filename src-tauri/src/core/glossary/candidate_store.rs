@@ -165,6 +165,13 @@ pub fn insert_import_scan_candidates(
 /// Vé ghi lô Glossary: số bị loại bởi phân giải hai tầng được cộng vào số SQL bỏ qua chỉ
 /// SAU khi writer trả lời. Wrapper giữ chi tiết `WriteTicket` trong miền Glossary, nên
 /// `commands::project` không biết transaction hay kênh phản hồi tồn tại.
+///
+/// 🔴 **THÊM 2026-08-25 (Cụm C, C5) — `#[must_use]` đặt trên KIỂU, cùng lý do
+/// `core::store::writer::WriteTicket<T>`.** Vỏ bọc miền Glossary này bọc một `WriteTicket`
+/// bên trong nên phải mang lại đúng ràng buộc: thả nó mà không `.wait()` cũng thả trọn kết
+/// quả `(so_them, so_bo_qua)` và mọi `StoreError` đi cùng, không một cảnh báo nào khác bắt
+/// được — xem doc-comment đầy đủ tại kiểu đó.
+#[must_use]
 pub(crate) struct ImportScanWriteTicket {
     ticket: WriteTicket<(i64, i64)>,
     skipped_before_enqueue: i64,

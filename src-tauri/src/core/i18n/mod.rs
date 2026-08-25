@@ -379,6 +379,15 @@ message_keys! {
     /// Xác nhận lượt nhập (nhịp hai) khi chưa qua nhịp một, hoặc lô đã bị dọn (huỷ, đổi
     /// tệp, đóng Tác phẩm ở tầng Work) — §I/O Matrix "Xác nhận khi không có lô nào".
     GlossaryNoPendingImport => "err.glossary.no_pending_import" [],
+
+    // ── Cụm C (`spec-epic-3-review-cum-c-dong-thoi-duong-commit-nhap.md`, C1) — MỘT khoá ────
+    //
+    // `TakeTheirs` của `import_into_tier` nay so LẠC QUAN với giá trị người dùng đã thấy ở
+    // nhịp preview; một lượt ghi khác chen vào giữa hai nhịp làm phép so đó trượt.
+    /// Bản dịch của một hàng *bất đồng* đã bị đổi ở nơi khác trong lúc người dùng xem trước
+    /// (hoặc, cho một mục *chờ chốt*, đã bị người khác chốt) — §I/O Matrix ①/③b. `value` là
+    /// mọi thuật ngữ va, nối bằng `", "` — cùng hình dạng `GlossaryImportUniqueConflict`.
+    GlossaryImportStaleConflict => "err.glossary.import_stale_conflict" ["value"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

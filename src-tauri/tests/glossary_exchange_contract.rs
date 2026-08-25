@@ -31,7 +31,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::core::glossary::{
     Category, ConflictDecision, Delimiter, GlossaryEntry, GlossaryError, GlossaryTier,
     ImportRow, ParseIssue, RowPlan, RowPlanKind, TermOrigin, add_manual_term, classify,
-    export_tier, import_into_tier, load_tier, parse, render_tier,
+    delete_manual_term, export_tier, import_into_tier, load_tier, parse, render_tier,
+    update_manual_term,
 };
 use auratranslate_lib::core::i18n::{IpcError, MessageKey};
 use auratranslate_lib::core::store::{Store, StoreSpec};
@@ -1337,4 +1338,286 @@ fn three_boundary_cases_the_cluster_b_patches_left_uncovered() {
         "hang sau mot o da boc chua HAI ranh gioi dong phai mang so dong 5 -- dung so ma \
          nguoi dung dem trong trinh soan thao"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// CỤM C — `spec-epic-3-review-cum-c-dong-thoi-duong-commit-nhap.md`
+// C1 (so lạc quan) · C3 (kiểm quyết định lạ dời xuống lõi) · I/O Matrix ①②③③b④⑤⑥⑦
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// I/O Matrix ① — `TakeTheirs` trên một hàng mà `translation` đã bị MỘT lượt ghi khác đổi
+/// GIỮA nhịp preview (`classify()`) và nhịp xác nhận (`import_into_tier()`). Trước bản vá
+/// C1, câu `UPDATE … WHERE id = ?2` không so lại `existing_translation` nên lượt ghi kia bị
+/// đè mất trong im lặng — 0 lỗi, 0 rollback. Ca này mô phỏng ĐÚNG cửa sổ đua: một lượt ghi
+/// THẬT (`update_manual_term`) chen vào SAU khi `classify()` đã chụp ảnh preview.
+#[test]
+fn take_theirs_is_refused_when_the_translation_changed_under_the_users_feet_between_preview_and_confirm()
+ {
+    let dir = temp_dir("import-c1-stale-conflict");
+    let store = open_global(&dir);
+    let id = add_manual_term(&store, None, GlossaryTier::Global, "term", Some("cu"), "", Category::Other)
+        .expect("chen truoc");
+
+    // Nhip MOT (preview): nguoi dung thay "cu" ↔ "tu tep" va chon "lay cua file".
+    let existing = load_tier(&store).expect("nap tang o nhip preview");
+    let plans = classify(&[row("term", Some("tu tep"))], &existing);
+    match &plans[0].kind {
+        RowPlanKind::Conflict { existing_translation, .. } => {
+            assert_eq!(existing_translation.as_deref(), Some("cu"))
+        }
+        other => panic!("phai la Conflict, nhan: {other:?}"),
+    }
+
+    // GIUA hai nhip: mot luot ghi KHAC (sua tay, khong lien quan gi toi luot nhap) doi
+    // translation duoi chan nguoi dung -- dung cua so dua ma spec C1 mo ta.
+    update_manual_term(&store, None, GlossaryTier::Global, id, Some("da doi boi noi khac"), "", Category::Other)
+        .expect("mo phong mot luot ghi KHAC chen vao giua hai nhip");
+
+    let mut decisions = BTreeMap::new();
+    decisions.insert("term".to_owned(), ConflictDecision::TakeTheirs);
+
+    let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions);
+    assert_eq!(
+        result,
+        Err(GlossaryError::ImportStaleConflict { source_terms: vec!["term".to_owned()] }),
+        "gia tri da doi duoi chan nguoi dung phai bi tu choi bang mot loi CO TEN RIENG, \
+         khong duoc ghi de am tham. Nhan: {result:?}"
+    );
+
+    let tier = load_tier(&store).expect("nap lai");
+    assert_eq!(
+        tier["term"].translation.as_deref(),
+        Some("da doi boi noi khac"),
+        "0 luot ghi -- gia tri cua luot ghi GIUA chung phai con nguyen, lượt nhap KHONG duoc \
+         de len no"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// I/O Matrix ③ — `TakeTheirs` trên một mục CHỜ CHỐT (`existing_translation = None`) mà
+/// không ai chen vào: `NULL` phải so khớp `NULL`. Đối chứng NGƯỢC chiều cho C1 — nếu phép so
+/// lạc quan không NULL-an-toàn (`= ?3` thay vì `IS ?3`), ca này ĐỎ dù không có cửa sổ đua
+/// nào cả, đúng cảnh báo 🔴 của §Always trong spec.
+#[test]
+fn take_theirs_matches_null_safely_on_a_pending_row_when_nothing_changed_since_preview() {
+    let dir = temp_dir("import-c1-null-safe-pending");
+    let store = open_global(&dir);
+    add_manual_term(&store, None, GlossaryTier::Global, "term", None, "", Category::Other)
+        .expect("chen truoc -- CHO CHOT, translation = None");
+
+    let existing = load_tier(&store).expect("nap tang");
+    assert_eq!(existing["term"].translation, None);
+    let plans = classify(&[row("term", Some("chot lan dau"))], &existing);
+    match &plans[0].kind {
+        RowPlanKind::Conflict { existing_translation, .. } => assert_eq!(*existing_translation, None),
+        other => panic!("phai la Conflict (cho chot khac 'chot lan dau'), nhan: {other:?}"),
+    }
+
+    let mut decisions = BTreeMap::new();
+    decisions.insert("term".to_owned(), ConflictDecision::TakeTheirs);
+
+    let summary = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions).expect(
+        "TakeTheirs tren mot muc CHO CHOT khong ai chen vao phai THANH CONG -- NULL IS NULL \
+         phai khop",
+    );
+    assert_eq!(summary.updated, 1);
+
+    let tier = load_tier(&store).expect("nap lai");
+    assert_eq!(tier["term"].translation.as_deref(), Some("chot lan dau"));
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// I/O Matrix ③b — mục CHỜ CHỐT vừa được MỘT NGƯỜI KHÁC chốt giữa nhịp preview và nhịp xác
+/// nhận: `existing_translation` chụp ở preview là `None`, nhưng đĩa hiện đã mang `Some(..)`.
+/// Cùng lỗi CÓ TÊN như ① — không phải một nhánh riêng.
+#[test]
+fn take_theirs_is_refused_when_a_pending_row_was_confirmed_by_someone_else_between_preview_and_confirm()
+ {
+    let dir = temp_dir("import-c1-pending-confirmed-elsewhere");
+    let store = open_global(&dir);
+    let id = add_manual_term(&store, None, GlossaryTier::Global, "term", None, "", Category::Other)
+        .expect("chen truoc -- CHO CHOT");
+
+    let existing = load_tier(&store).expect("nap tang o nhip preview");
+    let plans = classify(&[row("term", Some("tu tep"))], &existing);
+    match &plans[0].kind {
+        RowPlanKind::Conflict { existing_translation, .. } => assert_eq!(*existing_translation, None),
+        other => panic!("phai la Conflict, nhan: {other:?}"),
+    }
+
+    // GIUA hai nhip: MOT NGUOI KHAC chot ban dich cho muc nay.
+    update_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        id,
+        Some("da chot boi nguoi khac"),
+        "",
+        Category::Other,
+    )
+    .expect("mo phong mot nguoi khac chot ban dich giua hai nhip");
+
+    let mut decisions = BTreeMap::new();
+    decisions.insert("term".to_owned(), ConflictDecision::TakeTheirs);
+
+    let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions);
+    assert_eq!(
+        result,
+        Err(GlossaryError::ImportStaleConflict { source_terms: vec!["term".to_owned()] }),
+        "mot muc CHO CHOT vua duoc CHOT o noi khac phai bi tu choi CUNG mot loi voi ca ① -- \
+         khong phai mot nhanh rieng. Nhan: {result:?}"
+    );
+
+    let tier = load_tier(&store).expect("nap lai");
+    assert_eq!(
+        tier["term"].translation.as_deref(),
+        Some("da chot boi nguoi khac"),
+        "0 luot ghi -- ban dich da chot o noi khac phai con nguyen"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// I/O Matrix ④ — hàng biến mất GIỮA nhịp preview và nhịp xác nhận (một lượt Xoá khác chen
+/// vào). Hành vi GIỮ NGUYÊN như trước bản vá C1 (`row_missing_error` ⇒ `GlossaryError::Store`)
+/// — KHÔNG được gộp vào lỗi CÓ TÊN của ①/③b, dù cả hai đều xuất phát từ cùng một
+/// `changed == 0`. Đây là ca TRUNG TÂM chứng minh `changed == 0` đã được phân biệt đúng HAI
+/// nghĩa sau bản vá.
+#[test]
+fn take_theirs_keeps_the_pre_existing_row_missing_behavior_when_the_row_was_deleted_mid_flight() {
+    let dir = temp_dir("import-c1-row-deleted-mid-flight");
+    let store = open_global(&dir);
+    let id = add_manual_term(&store, None, GlossaryTier::Global, "term", Some("cu"), "", Category::Other)
+        .expect("chen truoc");
+
+    let existing = load_tier(&store).expect("nap tang o nhip preview");
+    let plans = classify(&[row("term", Some("tu tep"))], &existing);
+
+    // GIUA hai nhip: hang bi XOA boi mot luot khac -- KHAC han ca ① (hang con song, chi doi
+    // gia tri).
+    delete_manual_term(&store, None, GlossaryTier::Global, id).expect("mo phong mot luot Xoa chen vao");
+
+    let mut decisions = BTreeMap::new();
+    decisions.insert("term".to_owned(), ConflictDecision::TakeTheirs);
+
+    let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions);
+    assert!(
+        matches!(result, Err(GlossaryError::Store(_))),
+        "hang bi XOA phai giu HANH VI CU (loi Store chung), KHONG duoc gan nham nhan \
+         ImportStaleConflict -- hai ca nay la hai cau chuyen khac nhau. Nhan: {result:?}"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// I/O Matrix ⑤ — C3 dời xuống lõi: gọi THẲNG `import_into_tier` (bỏ qua hẳn lớp
+/// `commands::glossary`) với một quyết định trỏ một thuật ngữ KHÔNG có trong lô. Trước bản
+/// vá, chỉ lớp `commands` chặn ca này — một chỗ gọi thẳng (13 lời gọi thẳng đã có trong tệp
+/// này) sẽ ghi quyết định đó mà không ai kiểm.
+#[test]
+fn import_into_tier_rejects_a_decision_pointing_at_a_term_absent_from_the_batch_entirely() {
+    let dir = temp_dir("import-c3-unknown-term-core-level");
+    let store = open_global(&dir);
+
+    let plans = classify(&[row("moc", Some("Moc Dung"))], &BTreeMap::new());
+    let mut decisions = BTreeMap::new();
+    decisions.insert("khong-co-trong-lo".to_owned(), ConflictDecision::TakeTheirs);
+
+    let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions);
+    assert_eq!(
+        result,
+        Err(GlossaryError::ImportDecisionUnknownTerm { term: "khong-co-trong-lo".to_owned() }),
+        "mot khoa la trong ban do quyet dinh phai bi tu choi NGAY O LOI, truoc khi mo giao \
+         dich -- nhan: {result:?}"
+    );
+
+    let tier = load_tier(&store).expect("nap lai");
+    assert!(tier.is_empty(), "0 luot ghi -- kiem TRUOC khi mo giao dich, hang New cung khong duoc chen");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// I/O Matrix ⑥ — cùng luật, gọi THẲNG lõi với một quyết định trỏ một hàng `New` (không phải
+/// `Conflict`). `New` không có khái niệm "giữ của tôi"/"lấy của file", nên một quyết định trỏ
+/// vào nó phải bị từ chối NHƯ MỘT THUẬT NGỮ LẠ, không được lặng lẽ bỏ qua (P5, giữ nguyên khi
+/// dời tầng xuống `import_into_tier`).
+#[test]
+fn import_into_tier_rejects_a_decision_pointing_at_a_new_row_instead_of_a_conflict() {
+    let dir = temp_dir("import-c3-decision-on-new-row-core-level");
+    let store = open_global(&dir);
+    add_manual_term(&store, None, GlossaryTier::Global, "ly", Some("Ly cu"), "", Category::Other)
+        .expect("dung truoc de tao Conflict");
+
+    let existing = load_tier(&store).expect("nap tang");
+    // "ly" phan loai Conflict; "moc" phan loai New.
+    let plans = classify(&[row("ly", Some("Ly moi")), row("moc", Some("Moc Dung"))], &existing);
+    assert!(matches!(plans[0].kind, RowPlanKind::Conflict { .. }));
+    assert_eq!(plans[1].kind, RowPlanKind::New);
+
+    let mut decisions = BTreeMap::new();
+    decisions.insert("moc".to_owned(), ConflictDecision::TakeTheirs);
+
+    let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions);
+    assert_eq!(
+        result,
+        Err(GlossaryError::ImportDecisionUnknownTerm { term: "moc".to_owned() }),
+        "quyet dinh tro vao hang New phai bi tu choi, khong duoc lang le bo qua. Nhan: {result:?}"
+    );
+
+    let tier = load_tier(&store).expect("nap lai");
+    assert!(!tier.contains_key("moc"), "0 luot ghi -- hang New cung khong duoc chen");
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// I/O Matrix ⑦ — một lô có CẢ va `UNIQUE` (hàng `New`) LẪN một hàng ① (va lạc quan) trong
+/// CÙNG một lượt. Thứ tự báo là TẤT ĐỊNH: `ImportUniqueConflict` được ưu tiên, đúng thứ tự
+/// khối kiểm `local_conflicts`/`local_stale_conflicts` đã đứng trong `import_into_tier` — xem
+/// khối ⚠️ ở doc-comment của `GlossaryError::ImportStaleConflict`.
+#[test]
+fn a_batch_with_both_a_unique_conflict_and_a_stale_optimistic_conflict_reports_the_unique_conflict_first()
+ {
+    let dir = temp_dir("import-c1-c3-mixed-unique-and-stale");
+    let store = open_global(&dir);
+    let id = add_manual_term(&store, None, GlossaryTier::Global, "term", Some("cu"), "", Category::Other)
+        .expect("hang se thanh va lac quan");
+
+    let existing = load_tier(&store).expect("nap tang o nhip preview");
+    // "da-ton-tai" duoc chup anh la New luc classify (chua co trong tang luc do).
+    // "term" duoc chup anh la Conflict, existing_translation = Some("cu").
+    let plans = classify(&[row("da-ton-tai", Some("tu tep")), row("term", Some("tu tep khac"))], &existing);
+
+    // GIUA hai nhip: HAI luot ghi khac chen vao -- mot lam "da-ton-tai" va UNIQUE, mot doi
+    // "term" duoi chan nguoi dung.
+    add_manual_term(&store, None, GlossaryTier::Global, "da-ton-tai", Some("da co tu noi khac"), "", Category::Other)
+        .expect("mo phong luot ghi lam va UNIQUE");
+    update_manual_term(&store, None, GlossaryTier::Global, id, Some("da doi boi noi khac"), "", Category::Other)
+        .expect("mo phong luot ghi lam va lac quan");
+
+    let mut decisions = BTreeMap::new();
+    decisions.insert("term".to_owned(), ConflictDecision::TakeTheirs);
+
+    let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions);
+    assert_eq!(
+        result,
+        Err(GlossaryError::ImportUniqueConflict { source_terms: vec!["da-ton-tai".to_owned()] }),
+        "khi CA HAI danh sach cung khong rong, ImportUniqueConflict phai duoc bao TRUOC -- \
+         thu tu TAT DINH, khong ngau nhien. Nhan: {result:?}"
+    );
+
+    // 0 luot ghi -- ca lo rollback, kem "term" cua vong va lac quan.
+    let tier = load_tier(&store).expect("nap lai");
+    assert_eq!(tier["term"].translation.as_deref(), Some("da doi boi noi khac"), "0 luot ghi");
+    assert_eq!(tier["da-ton-tai"].translation.as_deref(), Some("da co tu noi khac"), "0 luot ghi");
+
+    drop(store);
+    cleanup(&dir);
 }

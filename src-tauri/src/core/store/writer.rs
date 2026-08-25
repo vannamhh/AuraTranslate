@@ -45,6 +45,94 @@ type Task = Box<dyn FnOnce(&mut Connection) -> bool + Send + 'static>;
 /// `pub(crate)` là ranh giới cố ý của Story 3.5 review: một consumer cần xếp job trong
 /// vùng khoá state rồi NHẢ khoá trước khi chờ. Không mở sender, connection hay transaction
 /// ra ngoài `core/store/**`; vé chỉ cho đúng một thao tác [`WriteTicket::wait`].
+///
+/// 🔴 **THÊM 2026-08-25 (Cụm C, C5) — `#[must_use]` đặt trên KIỂU, không trên hàm sinh ra
+/// nó.** Thả một vé mà không gọi [`WriteTicket::wait`] nghĩa là thả TRỌN kết quả commit/
+/// rollback và mọi [`StoreError`] đi cùng nó — job vẫn CHẠY (đã enqueue), chỉ không ai còn
+/// biết nó thành công hay thất bại. `Result` trả về từ [`Writer::enqueue`]/
+/// [`super::Store::write_ticket`] đã tự `#[must_use]` (mọi `Result` đều vậy), nên đánh dấu
+/// trên HÀM là dư — ca thật sự lọt lưới là sau khi đã `?`/`.expect()` mở `Result` đó ra,
+/// `let ticket = store.write_ticket(job)?;` rồi để `ticket` rơi khỏi phạm vi mà không
+/// `.wait()`. Chỉ một `#[must_use]` trên CHÍNH kiểu `WriteTicket<T>` mới bắt được câu đó.
+///
+/// ⚠️ **Giới hạn thật, không phải một lỗ hổng bị bỏ sót:** `#[must_use]` chỉ nổ khi giá trị
+/// bị thả NGAY TẠI một câu lệnh (`store.write_ticket(job)?;` viết trần). Một biến cục bộ giữ
+/// `ticket` rồi rơi khỏi phạm vi ở cuối hàm KHÔNG bị lint này bắt — không lint nào trong Rust
+/// hôm nay bắt được ca đó. Hôm nay (2026-08-25) **0 chỗ đang thả vé** trong toàn kho (đã rà
+/// mọi chỗ sinh/tiêu thụ), nên bản vá này không sửa một lỗi đang sống — nó chặn lỗi KẾ TIẾP.
+///
+/// 🔴 **THÊM 2026-08-25 (Cụm C, Ice chốt) — `[lints.rust] unused_must_use = "deny"` trong
+/// `Cargo.toml` nâng cảnh báo này thành LỖI BIÊN DỊCH cho cả crate** (đo trước khi nâng:
+/// `RUSTFLAGS="-D warnings" cargo check --locked` → exit 0, 0 cảnh báo trong toàn crate
+/// 2026-08-25 — nâng không làm gãy build nào đang xanh). §I/O Matrix ca ⑧ giờ là một CỔNG
+/// COMPILE THẬT, không còn một lượt bấm tay: bất kỳ chỗ nào trong crate thả một vé bằng một
+/// câu lệnh trần đều làm `cargo build`/`cargo check`/`cargo test` ĐỎ ngay, không cần một ca
+/// test riêng mới bắt được.
+///
+/// ⚠️ **Vì sao doctest dưới đây KHÔNG gọi được `WriteTicket` thật.** `WriteTicket` — và mọi
+/// hàm sinh ra nó ([`Writer::enqueue`]/[`super::Store::write_ticket`]) — đều `pub(crate)`, cố
+/// ý (xem đoạn đầu doc-comment này). Một doctest luôn biên dịch như MỘT CRATE NGOÀI (đúng luật
+/// riêng tư thường của Rust cho `pub(crate)`), nên không đường nào gọi được `WriteTicket`
+/// thật từ đây — đã đo bằng BA thực nghiệm độc lập 2026-08-25: nhập thẳng tên ⇒
+/// `E0425 cannot find type`; nhập qua đường dẫn đủ
+/// (`auratranslate_lib::core::store::writer::WriteTicket`) ⇒ `E0603 module is private`; và
+/// một hàm bọc đánh dấu `#[cfg(doctest)]` cũng KHÔNG lọt vào rlib mà doctest liên kết (`cfg
+/// (doctest)` chỉ áp cho CHÍNH đoạn doctest, không áp cho crate thư viện đang được biên dịch
+/// để doctest liên kết tới) ⇒ vẫn `E0603`. Mở rộng tầm nhìn của `WriteTicket` ra `pub` để một
+/// doctest gọi được là ĐỔI một bất biến kiến trúc (đúng câu mà chính đoạn trên vừa khoá:
+/// "Không mở sender, connection hay transaction ra ngoài `core/store/**`") — đó là việc của
+/// một `AD` mới do Ice ký, không phải một dòng mã tự quyết ở đây.
+///
+/// Khối dưới đây vì vậy dựng một kiểu THAY THẾ CÙNG HÌNH DẠNG (một `#[must_use]` trên KIỂU,
+/// một hàm sinh nó, một câu lệnh trần thả nó) để chứng minh ĐÚNG cơ chế mà `[lints.rust]` áp
+/// dụng cho `WriteTicket` thật — Cargo áp `[lints]` cho các TARGET của gói (lib/bin/test/
+/// bench/example), KHÔNG áp cho chương trình riêng mà `rustdoc` biên dịch cho một doctest
+/// (đo được: bỏ dòng `#![deny(unused_must_use)]` dưới đây thì khối này chỉ CẢNH BÁO, không
+/// còn lỗi, và ca `compile_fail` tự đỏ vì "biên dịch thành công" — nên dòng đó PHẢI có mặt để
+/// mô phỏng đúng mức nghiêm mà `Cargo.toml` áp cho crate thật).
+///
+/// ```compile_fail
+/// #![deny(unused_must_use)]
+///
+/// #[must_use]
+/// struct SameShapeAsWriteTicket;
+///
+/// fn enqueue_like_write_ticket() -> SameShapeAsWriteTicket {
+///     SameShapeAsWriteTicket
+/// }
+///
+/// fn main() {
+///     enqueue_like_write_ticket(); // cau lenh tran -- dung ca I/O Matrix ⑧, khong `.wait()`
+/// }
+/// ```
+///
+/// Đối chứng NGƯỢC cho giới hạn ⚠️ ở trên — cùng khối, chỉ đổi câu lệnh trần thành một `let`
+/// rồi để biến rơi khỏi phạm vi: KHÔNG lỗi, KHÔNG cảnh báo, biên dịch sạch. Đây LÀ khối
+/// `compile_fail` phải thất bại theo nghĩa "không được đỏ" — dùng `ignore` thay vì
+/// `compile_fail` vì mục đích của khối này là chứng minh nó BIÊN DỊCH ĐƯỢC, không phải nó
+/// gãy; `ignore` chặn nó khỏi bị chạy như một ca "phải biên dịch" bắt buộc trong khi vẫn hiện
+/// trong tài liệu như một ví dụ đọc được.
+///
+/// ```ignore
+/// #![deny(unused_must_use)]
+///
+/// #[must_use]
+/// struct SameShapeAsWriteTicket;
+///
+/// fn enqueue_like_write_ticket() -> SameShapeAsWriteTicket {
+///     SameShapeAsWriteTicket
+/// }
+///
+/// fn does_not_wait() {
+///     let ticket = enqueue_like_write_ticket();
+///     // `ticket` roi khoi pham vi o day ma khong `.wait()` -- KHONG lint nao bat duoc.
+/// }
+///
+/// fn main() {
+///     does_not_wait();
+/// }
+/// ```
+#[must_use]
 pub(crate) struct WriteTicket<T> {
     reply_rx: mpsc::Receiver<SqlResult<T>>,
     kind: StoreKind,

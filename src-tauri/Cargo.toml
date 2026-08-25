@@ -114,3 +114,24 @@ lto = true
 opt-level = "s"
 panic = "abort"
 strip = true
+
+# ── Lint ────────────────────────────────────────────────────────────────────────────
+#
+# 🔴 NÂNG DUY NHẤT `unused_must_use` LÊN `deny` (Cụm C, C5, Ice chốt 2026-08-25) — KHÔNG
+# nâng `-D warnings` toàn bộ, KHÔNG thêm lint nào khác. Phạm vi Ice ký đúng MỘT lint này,
+# vì lý do phía sau nó là cụ thể, không phải "cảnh báo nói chung nên đỏ": một
+# `WriteTicket<T>`/`ImportScanWriteTicket` bị thả mà không `.wait()` (`core/store/writer.rs`,
+# `core/glossary/candidate_store.rs`) thả TRỌN kết quả commit/rollback và mọi `StoreError`
+# đi cùng nó — job vẫn CHẠY (đã enqueue), chỉ không ai còn biết nó thành công hay thất bại,
+# đúng lớp "rỗng im lặng" mà AGENTS.md gọi là lỗi trung tâm của dự án.
+#
+# Phép đo cho phép nâng (đo lại 2026-08-25, không suy): `RUSTFLAGS="-D warnings" cargo check
+# --locked` → exit 0, 0 cảnh báo trong TOÀN crate. Nâng đúng lint này không làm gãy build
+# nào đang xanh.
+#
+# ⚠️ Giới hạn CÒN NGUYÊN sau khi nâng: lint chỉ nổ khi giá trị bị thả NGAY TẠI một câu lệnh
+# (`store.write_ticket(job)?;` viết trần). `let ticket = store.write_ticket(job)?;` rồi để
+# `ticket` rơi khỏi phạm vi ở cuối hàm KHÔNG bị bắt — không lint nào trong Rust hôm nay bắt
+# được ca đó. Xem doctest `compile_fail` tại `WriteTicket` cho ca THẬT SỰ bị chặn.
+[lints.rust]
+unused_must_use = "deny"

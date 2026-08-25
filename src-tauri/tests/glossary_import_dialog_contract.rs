@@ -24,7 +24,9 @@ use auratranslate_lib::commands::glossary::{
     glossary_confirm_import, glossary_export_tier, glossary_open_import_preview,
 };
 use auratranslate_lib::commands::project::create_work_from_text;
-use auratranslate_lib::core::glossary::{Category, ConflictDecision, GlossaryTier, add_manual_term};
+use auratranslate_lib::core::glossary::{
+    Category, ConflictDecision, GlossaryTier, add_manual_term, update_manual_term,
+};
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::store::{Store, StoreSpec};
 
@@ -641,6 +643,64 @@ fn import_read_failure_surfaces_io_read_failed_with_the_real_path_param() {
         Some(path.display().to_string().as_str())
     );
     assert!(pending.lock().unwrap().is_none(), "0 lo nao duoc giu lai khi doc trot");
+
+    cleanup(&root);
+    cleanup(&global_dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// P1 (vòng rà ba lăng kính, Cụm C review 2026-08-25) — nhánh `GlossaryError::
+// ImportStaleConflict` → `IpcError` CHƯA lần nào chạy qua chính đường chuyển đổi đó khi
+// đi qua lớp `commands::glossary`. Bảy ca C1 mới (`glossary_exchange_contract.rs`) gọi
+// THẲNG `import_into_tier` và assert trên `GlossaryError::ImportStaleConflict` THÔ, không
+// bao giờ đụng `impl From<GlossaryError> for IpcError`; `ipc_contract.rs` chỉ đối chiếu
+// danh mục TĨNH `message_keys!` với `vi.json`, không dựng một `GlossaryError` nào rồi hỏi
+// nó phân giải ra khoá gì. Đo bằng phép cắt thử: đổi
+// `MessageKey::GlossaryImportStaleConflict` thành `MessageKey::GlossaryImportUniqueConflict`
+// ở đúng nhánh đó (`core/glossary/store.rs`) rồi chạy TRỌN bốn tệp liên quan — không một ca
+// nào đỏ, vì không ca nào trước đây đi qua đường chuyển đổi thật. Cùng khuôn ca anh em
+// `export_write_failure_surfaces_export_write_failed_with_the_real_path_param` (:597 của
+// chính tệp này) đã dựng cho `ExportWriteFailed` — dựng lại đúng khuôn đó cho
+// `ImportStaleConflict`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Một lượt ghi khác đổi bản dịch của `"term"` GIỮA nhịp preview và nhịp xác nhận (đi TRỌN
+/// qua `commands::glossary`, không gọi thẳng lõi) — đi qua ĐÚNG đường
+/// `GlossaryError::ImportStaleConflict` → `IpcError`, khẳng định `message_key()` VÀ
+/// `params()["value"]` mang đúng `source_term`. Lô GIỮ LẠI (không bị dọn vì lỗi), cùng chữ
+/// của §I/O Matrix "Lỗi giữa chừng ⇒ rollback trọn, kế hoạch GIỮ LẠI để thử lại".
+#[test]
+fn confirming_take_theirs_after_a_concurrent_write_surfaces_import_stale_conflict_with_the_real_term() {
+    let root = temp_dir("confirm-stale-conflict");
+    let global_dir = temp_dir("confirm-stale-conflict-global");
+    let global = open_global(&global_dir);
+    let pending = PendingImportState::new(None);
+
+    let id = add_manual_term(&global, None, GlossaryTier::Global, "term", Some("cu"), "", Category::Other)
+        .expect("chen truoc");
+
+    let path = write_file(&root, "in.csv", "source_term,translation\nterm,tu tep\n");
+    let preview = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
+        .expect("mo va xem truoc phai thanh cong");
+    assert_eq!(preview.conflicts.len(), 1, "'term' phai phan loai Conflict o nhip preview");
+
+    // GIUA hai nhip: mot luot ghi KHAC (khong lien quan gi toi luot nhap) doi translation
+    // duoi chan nguoi dung -- dung cua so dua ma C1 mo ta.
+    update_manual_term(&global, None, GlossaryTier::Global, id, Some("da doi boi noi khac"), "", Category::Other)
+        .expect("mo phong mot luot ghi KHAC chen vao giua hai nhip");
+
+    let mut decisions = BTreeMap::new();
+    decisions.insert("term".to_owned(), ConflictDecision::TakeTheirs);
+
+    let err = glossary_confirm_import(Some(&global), None, &pending, &decisions)
+        .expect_err("gia tri da doi duoi chan nguoi dung phai bi tu choi qua IpcError");
+
+    assert_eq!(err.message_key(), MessageKey::GlossaryImportStaleConflict);
+    assert_eq!(err.params().get("value").map(String::as_str), Some("term"));
+    assert!(
+        pending.lock().unwrap().is_some(),
+        "lo phai GIU LAI de thu lai -- khong bi don vi mot loi giua chung"
+    );
 
     cleanup(&root);
     cleanup(&global_dir);
