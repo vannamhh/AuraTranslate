@@ -46,6 +46,7 @@ import {
   updateGlossaryTerm,
 } from './config/glossary'
 import type { GlossaryCategory, GlossaryEntry, GlossaryTierWire } from './config/glossary'
+import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 import type { IpcError } from './i18n'
 import { editorChapterId, editorSegments } from './panels/editorPanelState'
 import { refreshGlossaryMarks } from './panels/glossaryMarksState'
@@ -81,6 +82,15 @@ const originFilterState = ref<GlossaryManageOriginFilter>('all')
 const confirmedFilterState = ref<GlossaryManageConfirmedFilter>('all')
 const cursor = ref(0)
 const editing = ref(false)
+/**
+ * `${tier}:${id}` của hàng đang **chờ xác nhận xoá** (nhịp MỘT), hoặc `null` — cụm D vá.
+ *
+ * 🔴 Khoá theo `(tier, id)`, KHÔNG theo chỉ số con trỏ: một lượt lọc/tìm có thể xếp lại
+ * danh sách đã lọc mà không đổi con trỏ SỐ, nên so bằng chỉ số sẽ đọc nhầm một hàng KHÁC là
+ * "đang chờ" (§Always: "một phím lỡ tay không được là toàn bộ khoảng cách tới nó" — sai
+ * hàng còn tệ hơn không hàng nào).
+ */
+const deletePendingKey = ref<string | null>(null)
 const editTranslationInput = ref('')
 const editNoteInput = ref('')
 const editCategoryInput = ref<GlossaryCategory>('other')
@@ -187,6 +197,19 @@ export const manageCurrentRow = computed<GlossaryEntry | null>(
   () => manageFilteredRows.value.at(cursor.value) ?? null,
 )
 
+function rowKey(row: GlossaryEntry): string {
+  return `${row.tier}:${row.id}`
+}
+
+/**
+ * Đúng khi hàng ĐANG CHỌN đang ở **nhịp MỘT** — chờ xác nhận xoá (cụm D vá, §Tasks: "một
+ * phím lỡ tay không được là toàn bộ khoảng cách tới" một thao tác không hoàn tác được).
+ */
+export const manageDeletePending = computed<boolean>(() => {
+  const row = manageCurrentRow.value
+  return row !== null && deletePendingKey.value === rowKey(row)
+})
+
 /**
  * BỐN ca rỗng, phân biệt được trên màn hình (§Always của spec — "rỗng phải nói vì sao nó
  * rỗng"). `totalCount`/`filteredCount` phân biệt ca thứ ba (Glossary trống thật) với ca thứ
@@ -206,9 +229,28 @@ export function manageEmptyReasonFor(
   return null
 }
 
-/** Đóng form Sửa mà KHÔNG lưu — dùng nội bộ mỗi khi lọc/tìm/điều hướng đổi hàng đang chọn. */
+/**
+ * Đóng form Sửa mà KHÔNG lưu, VÀ làm tan trạng thái chờ xác nhận xoá (nếu có) — dùng nội bộ
+ * mỗi khi lọc/tìm/điều hướng đổi hàng đang chọn.
+ *
+ * 🔴 THÊM `deletePendingKey.value = null` (cụm D vá) — §I/O Matrix ⑬: "dời con trỏ ... trạng
+ * thái chờ tan". `nextGlossaryManageRow`/`prevGlossaryManageRow`/bốn hàm đổi bộ lọc đều gọi
+ * hàm này, nên một chỗ vá phủ hết mọi đường dời con trỏ cùng lúc.
+ */
 function discardOpenEdit(): void {
   editing.value = false
+  deletePendingKey.value = null
+}
+
+/**
+ * Làm tan trạng thái chờ xác nhận xoá mà KHÔNG xoá gì — `Escape` khi đang ở nhịp MỘT
+ * (§I/O Matrix ⑬, §Always: "Escape huỷ nhịp một"). KHÔNG qua `CommandRegistry`: đây là một
+ * chuyển trạng thái THUẦN UI, cục bộ, 0 lượt IPC — cùng tiền lệ `setGlossaryQueueCategory`
+ * (phím cục bộ không cần đăng ký làm command khi nó không phải một "thao tác" người dùng có
+ * thể gán lại phím, xem doc-comment `GlossaryQueueOverlay.vue::onKeydown`).
+ */
+export function cancelGlossaryManageDeleteConfirm(): void {
+  deletePendingKey.value = null
 }
 
 async function loadGlossaryManageRows(mySequence: number): Promise<boolean> {
@@ -249,6 +291,7 @@ export async function openGlossaryManage(): Promise<void> {
   confirmedFilterState.value = 'all'
   cursor.value = 0
   editing.value = false
+  deletePendingKey.value = null
   editTranslationInput.value = ''
   editNoteInput.value = ''
   editCategoryInput.value = 'other'
@@ -258,6 +301,7 @@ export async function openGlossaryManage(): Promise<void> {
   workTierAvailable.value = false
   exchangeTierState.value = 'global'
   exportBusy.value = false
+  setGlossaryExchangeBusy(false)
   exportError.value = null
   exportedPath.value = null
   exportIpcUnavailable.value = false
@@ -328,6 +372,8 @@ export function beginGlossaryManageEdit(): void {
   if (saving.value) return
   const row = manageCurrentRow.value
   if (row === null) return
+  // 🔴 THÊM (cụm D vá) — §I/O Matrix ⑬: "vào chế độ sửa" làm trạng thái chờ xác nhận xoá tan.
+  deletePendingKey.value = null
   editing.value = true
   editTranslationInput.value = row.translation ?? ''
   editNoteInput.value = row.note
@@ -394,12 +440,24 @@ function refreshGlossaryMarksAfterMutation(): void {
 async function reloadGlossaryManageRowsAfterMutation(mySequence: number): Promise<void> {
   const ok = await loadGlossaryManageRows(mySequence)
   if (!ok || mySequence !== sequence) return
+  // 🔴 THÊM (cụm D vá) — §I/O Matrix ⑬: "một lượt nạp lại" làm trạng thái chờ xác nhận xoá
+  // tan. Danh sách vừa nạp lại TRỌN VẸN (khối 🔴 đầu tệp) — `id` cũ có thể không còn ở hàng
+  // nào cả, hoặc giờ trỏ một hàng khác hẳn; giữ khoá cũ là để nhịp HAI xác nhận nhầm hàng.
+  deletePendingKey.value = null
   const maxIndex = manageFilteredRows.value.length - 1
   if (cursor.value > maxIndex) cursor.value = Math.max(0, maxIndex)
 }
 
 /**
  * Xoá hàng ĐANG CHỌN — kể cả một mục ĐÃ CHỐT (hợp lệ). Lệnh `glossary.manage.delete`.
+ *
+ * 🔴 **HAI NHỊP (cụm D vá, §Always/§Tasks) — cùng dispatch, cùng id, không command mới.**
+ * Nhịp MỘT (`deletePendingKey.value !== key`): chỉ đổi trạng thái hàng sang "chờ xác nhận
+ * xoá", **0** lượt IPC — cùng hình dạng preview-trước-khi-ghi mà `glossaryImportState.ts`
+ * đã có cho lượt Nhập. Nhịp HAI (bấm lại đúng hàng đó, hoặc bấm nút "Xoá" lần hai): ghi thật.
+ * Bất kỳ điều gì khác (dời con trỏ, `Escape`, vào chế độ sửa, một lượt nạp lại) làm trạng
+ * thái chờ tan TRƯỚC khi nhịp HAI có cơ hội chạy — xem `discardOpenEdit`/
+ * `cancelGlossaryManageDeleteConfirm`/`reloadGlossaryManageRowsAfterMutation`.
  *
  * Thành công ⇒ mục biến khỏi danh sách (nạp lại trọn), `refreshGlossaryMarks` chạy.
  * Trượt ⇒ hàng ở lại, KHÔNG gọi refresh (§I/O Matrix).
@@ -408,7 +466,24 @@ export async function deleteGlossaryManageEntry(): Promise<void> {
   if (saving.value) return
   const row = manageCurrentRow.value
   if (row === null) return
+  const key = rowKey(row)
 
+  if (deletePendingKey.value !== key) {
+    // Nhịp MỘT — chỉ đổi trạng thái. KHÔNG một lượt IPC nào ở nhánh này (§Always).
+    // 🔴 SỬA (vòng rà thứ hai, #5) — DỌN `actionError`/`actionNotice` ở đây: chuỗi `v-if` của
+    // đoạn status trong `.vue` kiểm `manageActionError !== null` TRƯỚC `manageDeletePending`,
+    // nên một lỗi còn sót từ một lượt Sửa/Đẩy tầng trượt TRƯỚC ĐÓ sẽ che mất câu xác nhận —
+    // người dùng chỉ thấy nhãn nút đổi chữ, không thấy vì sao (một cảnh báo cũ án ngữ phía
+    // trên câu hint mới). Nhịp MỘT là một khởi đầu MỚI cho luồng xoá, nó phải dọn sạch tàn dư
+    // của bất kỳ thao tác nào trước đó.
+    deletePendingKey.value = key
+    actionError.value = null
+    actionNotice.value = null
+    return
+  }
+
+  // Nhịp HAI — xác nhận: ghi thật.
+  deletePendingKey.value = null
   savingAction.value = 'delete'
   saving.value = true
   actionError.value = null
@@ -483,9 +558,13 @@ export function setGlossaryManageExchangeTier(value: GlossaryTierWire): void {
  * đều giữ nguyên giá trị TRƯỚC lượt gọi này khi `path === null, error === null`.
  */
 export async function exportGlossaryManageTier(): Promise<void> {
-  if (exportBusy.value) return
+  // 🔴 THÊM (cụm D vá) — `glossaryExchangeBusy` chặn TRÊN CẢ một lượt Nhập đang mở hộp
+  // thoại hệ điều hành, không chỉ một lượt Xuất khác (`exportBusy` một mình chỉ canh được
+  // chính nó). Xem `glossaryExchangeGate.ts` cho lý do không import lẫn nhau.
+  if (exportBusy.value || glossaryExchangeBusy.value) return
 
   exportBusy.value = true
+  setGlossaryExchangeBusy(true)
   exportError.value = null
   exportIpcUnavailable.value = false
   // 🔴 P3 (vòng rà ba lớp 2026-08-25) — xoá đường dẫn CŨ TRƯỚC KHI hộp thoại mở, không chỉ
@@ -499,6 +578,7 @@ export async function exportGlossaryManageTier(): Promise<void> {
   if (mySequence !== sequence) return
 
   exportBusy.value = false
+  setGlossaryExchangeBusy(false)
   if (result.outcome === 'cancelled') return // Huy hop thoai -- im lang, khong doi gi (§Always).
   if (result.outcome === 'ipc_unavailable') {
     exportIpcUnavailable.value = true
@@ -530,6 +610,7 @@ export function resetGlossaryManage(): void {
   confirmedFilterState.value = 'all'
   cursor.value = 0
   editing.value = false
+  deletePendingKey.value = null
   editTranslationInput.value = ''
   editNoteInput.value = ''
   editCategoryInput.value = 'other'
@@ -540,6 +621,11 @@ export function resetGlossaryManage(): void {
   workTierAvailable.value = false
   exchangeTierState.value = 'global'
   exportBusy.value = false
+  // 🔵 SỬA (vòng rà thứ hai, #8) — gọi `resetGlossaryExchangeGate()`, không
+  // `setGlossaryExchangeBusy(false)` trần: đây LÀ hàm `reset*()` mà doc-comment của
+  // `glossaryExchangeGate.ts` khai là chỗ gọi, và `resetGlossaryExchangeGate` là export
+  // sống — không phải mã chết — CHỈ KHI có ít nhất một `reset*()` thật sự gọi nó.
+  resetGlossaryExchangeGate()
   exportError.value = null
   exportedPath.value = null
   exportIpcUnavailable.value = false

@@ -19,6 +19,7 @@ import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { cancelGlossaryImport, confirmGlossaryImport, openGlossaryImportPreview } from './config/glossary'
 import type { GlossaryConflictDecision, GlossaryImportPreview, GlossaryTierWire } from './config/glossary'
+import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 import type { IpcError } from './i18n'
 
 /**
@@ -51,6 +52,19 @@ const opening = ref(false)
 let sequence = 0
 
 export const importOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
+/**
+ * 🔵 SỬA (vòng rà thứ hai, #14) — **0 chỗ gọi `.vue` hôm nay**, ghi ra thay vì để đọc như một
+ * export chết. `GlossaryManageOverlay.vue`'s nút "Nhập CSV" chuyển `:disabled` sang cờ DÙNG
+ * CHUNG `glossaryExchangeBusy` (cụm D vá) — cờ RIÊNG này không còn là nguồn cho MỘT template
+ * nào. Nó vẫn sống vì hai lý do: ① nó là cờ RIÊNG mà `glossaryExchangeBusy` được dựng LÊN TỪ
+ * đó (`openGlossaryImportPreviewOverlay` đặt cả hai CÙNG NHỊP) — gỡ nó tức gỡ luôn khả năng
+ * phân biệt "lượt mở NÀY còn đang bay" khỏi "cờ dùng chung đang `true` vì lượt của module
+ * KIA"; ② `tests/frontend/glossaryImportPreview.test.ts` (mục #12) VÀ
+ * `glossaryExchangeGate.test.ts` dùng đúng SỰ PHÂN BIỆT đó để chứng minh một lượt mở CŨ không
+ * hạ nhầm cờ dùng chung của một thao tác MỚI — xoá export này xoá luôn khả năng viết ca đó.
+ * Cùng khuôn `manageExportBusy` (`glossaryManageState.ts`) — cờ chị em bên Xuất, vẫn còn
+ * chỗ gọi `.vue` (câu "Đang xuất…" và vế `!manageExportBusy` của #10).
+ */
 export const importOpening: DeepReadonly<Ref<boolean>> = readonly(opening)
 export const importStatus: DeepReadonly<Ref<GlossaryImportStatus>> = readonly(status)
 export const importLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
@@ -120,15 +134,37 @@ export const importConfirmSummary = computed<{ newCount: number; keepCount: numb
  * vì cả ba đều là chuyện PHẢI nói ra (P2, vòng rà ba lớp 2026-08-25).
  */
 export async function openGlossaryImportPreviewOverlay(tier: GlossaryTierWire): Promise<void> {
-  if (opening.value) return // P9 -- chan bam chong, cung khuon exportGlossaryManageTier.
+  if (opening.value || glossaryExchangeBusy.value) return // P9 + cua loai tru Xuat<->Nhap.
 
   opening.value = true
+  setGlossaryExchangeBusy(true)
   sequence += 1
   const mySequence = sequence
 
+  // 🔴 SỬA (cụm D vá, mục ⑦ của I/O Matrix) — reset `confirming`/`confirmError` NGAY khi một
+  // lượt mở MỚI bắt đầu, KHÔNG đợi biết `outcome`. Lý do: một lượt `confirmGlossaryImportPreview`
+  // đang bay từ TRƯỚC lượt mở này mang `mySequence` của sequence CŨ; khi nó về, điều kiện
+  // `mySequence !== sequence` bên trong nó sẽ ĐÚNG (sequence vừa tăng ở trên) và nó bỏ qua
+  // luôn dòng `confirming.value = false` của chính nó. Bản trước chỉ hạ hai cờ này ở nhánh
+  // KHÔNG `'cancelled'` bên dưới — nên nếu lượt mở lại này huỷ hộp thoại (`outcome:
+  // 'cancelled'`, return sớm ngay dưới đây), `confirming` kẹt `true` MÃI MÃI và nút xác nhận
+  // của lượt xem-trước cũ (nếu còn hiện) khoá vĩnh viễn.
+  confirming.value = false
+  confirmError.value = null
+
   const result = await openGlossaryImportPreview(tier)
-  opening.value = false
+  // 🔵 SỬA (vòng rà thứ hai, #12) — kiểm vé TRƯỚC rồi mới hạ cờ, cùng khuôn đường anh em
+  // `exportGlossaryManageTier` (`glossaryManageState.ts`). Bản trước hạ CẢ HAI cờ
+  // (`opening`/`glossaryExchangeBusy`) VÔ ĐIỀU KIỆN, kể cả khi `mySequence !== sequence` —
+  // tức lượt gọi NÀY đã bị một `resetGlossaryImport()` vượt mặt trong lúc `await`. Vô hại
+  // hôm nay (`resetGlossaryImport` có 0 chỗ gọi sản phẩm, xem `glossaryExchangeGate.ts`), NHƯNG
+  // nếu một lượt Xuất THẬT SỰ MỚI đã kịp bắt đầu và đặt `glossaryExchangeBusy = true` ngay
+  // trong khoảng hở đó, dòng `setGlossaryExchangeBusy(false)` vô điều kiện của lượt Nhập CŨ
+  // sẽ HẠ NHẦM cờ của lượt Xuất MỚI — đúng lớp lỗi mà cờ dùng chung này tồn tại để chặn. Kiểm
+  // vé trước loại bỏ khả năng đó: một lượt CŨ không còn chạm cờ nào cả.
   if (mySequence !== sequence) return
+  opening.value = false
+  setGlossaryExchangeBusy(false)
 
   // 🔴 P2 (vòng rà ba lớp 2026-08-25) — `outcome` PHÂN BIỆT `'cancelled'` (huỷ hộp thoại,
   // im lặng CÓ CHỦ, §Always) khỏi `'ipc_unavailable'` (không có cầu IPC — PHẢI mở lớp phủ
@@ -140,8 +176,6 @@ export async function openGlossaryImportPreviewOverlay(tier: GlossaryTierWire): 
 
   overlayOpen.value = true
   decisions.value = {}
-  confirming.value = false
-  confirmError.value = null
 
   if (result.outcome === 'ipc_unavailable') {
     status.value = 'ipc_unavailable'
@@ -190,17 +224,30 @@ export async function confirmGlossaryImportPreview(): Promise<void> {
 }
 
 /**
- * Huỷ lô đang treo và đóng lớp phủ — lệnh `glossary.import.cancel`. **0** lượt ghi, không
- * lỗi (§I/O Matrix "Nhập, huỷ ở màn hình xem trước").
+ * Huỷ lô đang treo và đóng lớp phủ — lệnh `glossary.import.cancel`. **0** lượt ghi phía
+ * Glossary (§I/O Matrix "Nhập, huỷ ở màn hình xem trước").
+ *
+ * 🔴 SỬA (cụm D vá, mục ⑧ của I/O Matrix) — bản trước thân callback là một no-op:
+ * `result.error` chưa từng được ĐỌC. Lớp phủ vẫn đóng NGAY (đúng cũ, trước cả khi Rust trả
+ * về) — đó KHÔNG phải điều bị vá; điều bị vá là một lượt `glossary_cancel_import` trượt ở
+ * tầng IPC (cầu mất kết nối, không phải logic nghiệp vụ) biến mất không dấu vết. Wire
+ * `glossary_cancel_import` (`src-tauri/src/commands/glossary.rs:1415-1422`) LUÔN trả
+ * `Ok(())`, nên nhánh dưới đây chỉ chạm khi chính cầu IPC trượt — một CHẨN ĐOÁN cho người
+ * phát triển, không phải một câu cho người dùng (huỷ vẫn là im lặng có chủ ở tầng UI).
  */
 export async function cancelGlossaryImportPreview(): Promise<void> {
   if (confirming.value) return
 
   const mySequence = sequence
   overlayOpen.value = false // Dong NGAY -- khong cho nguoi dung cho lot goi huy tra ve.
-  void cancelGlossaryImport().then(() => {
-    if (mySequence !== sequence) return
-  })
+
+  const result = await cancelGlossaryImport()
+  if (mySequence !== sequence) return
+  if (result.error !== null) {
+    console.error(
+      `[glossary-import] \`glossary_cancel_import\` tra ve loi khi huy lo dang treo: ${JSON.stringify(result.error)}`,
+    )
+  }
 }
 
 /**
@@ -218,4 +265,8 @@ export function resetGlossaryImport(): void {
   confirming.value = false
   confirmError.value = null
   opening.value = false
+  // 🔵 SỬA (vòng rà thứ hai, #8) — gọi `resetGlossaryExchangeGate()`, cùng khuôn
+  // `resetGlossaryManage`: đây LÀ hàm `reset*()` mà doc-comment của `glossaryExchangeGate.ts`
+  // khai là chỗ gọi.
+  resetGlossaryExchangeGate()
 }

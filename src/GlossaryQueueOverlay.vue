@@ -11,7 +11,7 @@
 // (§Always): cục bộ, KHÔNG qua registry, đúng tiền lệ `GlossaryQuickAdd.vue:55-60`.
 //
 // Không chuỗi tiếng Việt nào trong `.vue` (NFR16, AD-21) — mọi văn bản qua `t()`/`tError()`.
-import { nextTick, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
@@ -27,6 +27,7 @@ import {
   queueRows,
   queueSaving,
   queueStatus,
+  queueUnprocessedCount,
   setGlossaryQueueCategory,
 } from './glossaryQueueState'
 
@@ -37,6 +38,15 @@ const panel = useTemplateRef<HTMLElement>('panel')
 // Lớp phủ chứa chữ thật (thuật ngữ, ví dụ ngữ cảnh) nhưng không phải nguồn từ điển. Đăng ký
 // `display` để một vùng chọn trong modal không phát Auto-Lookup rồi thay nội dung phía sau.
 useSelectionSurface(panel, 'display')
+
+/**
+ * 🔴 THÊM (vòng rà thứ hai, #13) — `queueEmptyReasonFor(...)` gọi LẶP bốn lần trong template
+ * bản trước (một lần mỗi nhánh `v-if`/`v-else-if`). Một `computed` DUY NHẤT ở đây tính lại
+ * đúng một lần mỗi khi `queueStatus`/`queueUnprocessedCount` đổi, và bốn nhánh template chỉ
+ * còn so sánh với giá trị đã có sẵn — không đổi Ý NGHĨA (cùng hàm thuần, cùng hai tham số),
+ * chỉ đổi SỐ LẦN GỌI.
+ */
+const queueEmptyReason = computed(() => queueEmptyReasonFor(queueStatus.value, queueUnprocessedCount.value))
 
 watch(queueOverlayIsOpen, (open) => {
   if (open) {
@@ -189,27 +199,24 @@ function onKeydown(event: KeyboardEvent): void {
       </header>
 
       <!--
-        🔵 THÊM 2026-08-24 (vòng rà ba lớp) — nhánh "đang tải" (`queueStatus === 'unknown'`,
-        lượt `openGlossaryQueue` còn đang bay). Không có nhánh này, thân modal RỖNG TRẮNG
-        trong khoảng chờ round-trip IPC đầu tiên — không nhánh `v-if`/`v-else-if` nào bên
-        dưới khớp `'unknown'`, đúng lớp *rỗng im lặng* mà kho cấm, dù rất ngắn.
+        🔵 THÊM 2026-08-24 (vòng rà ba lớp), 🔴 DỜI vào `queueEmptyReasonFor` (cụm D vá,
+        vòng rà Epic 3) — nhánh "đang tải" (`queueStatus === 'unknown'`, lượt
+        `openGlossaryQueue` còn đang bay). Bản trước canh mệnh đề này bằng một `v-if` RIÊNG
+        tại đây CỘNG một nhánh trong `queueEmptyReasonFor` — hai chỗ cùng canh MỘT mệnh đề là
+        hai nguồn sự thật (§Design Notes của spec). Nay hàm là nguồn DUY NHẤT.
       -->
-      <p v-if="queueStatus === 'unknown'" class="gq-status" role="status">{{ t('glossary.queue.loading') }}</p>
+      <p v-if="queueEmptyReason === 'loading'" class="gq-status" role="status">
+        {{ t('glossary.queue.loading') }}
+      </p>
 
       <!-- Ba câu rỗng KHÁC NHAU — §Always của spec: "rỗng phải nói vì sao nó rỗng". -->
-      <p v-else-if="queueEmptyReasonFor(queueStatus, queueRows.length) === 'no_work'" class="gq-empty">
+      <p v-else-if="queueEmptyReason === 'no_work'" class="gq-empty">
         {{ t('glossary.queue.empty_no_work') }}
       </p>
-      <p
-        v-else-if="queueEmptyReasonFor(queueStatus, queueRows.length) === 'ipc_unavailable'"
-        class="gq-empty"
-      >
+      <p v-else-if="queueEmptyReason === 'ipc_unavailable'" class="gq-empty">
         {{ t('glossary.queue.empty_ipc_unavailable') }}
       </p>
-      <p
-        v-else-if="queueEmptyReasonFor(queueStatus, queueRows.length) === 'all_reviewed'"
-        class="gq-empty"
-      >
+      <p v-else-if="queueEmptyReason === 'all_reviewed'" class="gq-empty">
         {{ t('glossary.queue.empty_all_reviewed') }}
       </p>
       <p v-else-if="queueStatus === 'error' && queueLoadError !== null" class="gq-empty gq-error" role="alert">

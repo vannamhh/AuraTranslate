@@ -94,12 +94,39 @@ export const queueActionError: DeepReadonly<Ref<IpcError | null>> = readonly(act
  */
 export const queueCurrentRow = computed<GlossaryQueueRow | null>(() => rows.value.at(cursor.value) ?? null)
 
-/** Đúng khuôn `quickAddLookupHasLoaded` — chỉ `'loaded'` cho phép khẳng định "bảng chờ
- * sạch"; bốn trạng thái còn lại phải hiện câu giải thích RIÊNG của chúng, không im lặng. */
-export function queueEmptyReasonFor(s: GlossaryQueueStatus, rowCount: number): 'no_work' | 'ipc_unavailable' | 'all_reviewed' | null {
+/**
+ * Số hàng CHƯA XỬ LÝ (`outcome === null`) — cụm D vá. Thước đo đúng cho "đã duyệt hết",
+ * KHÁC `queueRows.length` (một hằng số trong một phiên mở, xem doc-comment
+ * [`queueEmptyReasonFor`]).
+ */
+export const queueUnprocessedCount = computed<number>(() => rows.value.filter((r) => r.outcome === null).length)
+
+/**
+ * Đúng khuôn `quickAddLookupHasLoaded` — chỉ `'loaded'` cho phép khẳng định "bảng chờ sạch";
+ * bốn trạng thái còn lại phải hiện câu giải thích RIÊNG của chúng, không im lặng.
+ *
+ * 🔴 **SỬA (cụm D vá, vòng rà Epic 3) — hai vá gộp:**
+ * ① `'unknown'` nay có một ca **CÓ TÊN** (`'loading'`) thay vì rơi vào `return null` — bản
+ *    trước để `GlossaryQueueOverlay.vue` tự canh `queueStatus === 'unknown'` bằng một `v-if`
+ *    RIÊNG ở template, hai chỗ cùng canh một mệnh đề là hai nguồn sự thật (§Design Notes).
+ * ② tham số đổi từ `rowCount` (`queueRows.length`, một HẰNG SỐ trong một phiên mở — `rows`
+ *    chỉ bị GÁN LẠI ở `openGlossaryQueue`/`resetGlossaryQueue`, còn Nhận/Bỏ chỉ đổi
+ *    `row.outcome`, KHÔNG BAO GIỜ co mảng) sang `unprocessedCount` (số hàng `outcome ===
+ *    null`, đo bằng [`queueUnprocessedCount`] — một `computed` lọc TRỌN mảng, KHÔNG
+ *    `firstPendingIndexFrom` bên dưới: hàm đó chỉ cần biết CÓ hàng chưa xử lý hay không, kể
+ *    từ một điểm bắt đầu, để tiến con trỏ — nó dừng ở phần tử ĐẦU TIÊN khớp, không đếm hết).
+ *    Bản trước `rowCount === 0` là mã CHẾT cho mục đích "đã duyệt hết": nó chỉ đúng khi bảng
+ *    chờ RỖNG NGAY TỪ ĐẦU (đã đi qua nhánh `no_work`/danh sách rỗng ở `openGlossaryQueue` từ
+ *    trước), không bao giờ đúng SAU KHI người dùng Nhận/Bỏ hết mọi hàng của một phiên có dữ liệu.
+ */
+export function queueEmptyReasonFor(
+  s: GlossaryQueueStatus,
+  unprocessedCount: number,
+): 'loading' | 'no_work' | 'ipc_unavailable' | 'all_reviewed' | null {
+  if (s === 'unknown') return 'loading'
   if (s === 'no_work') return 'no_work'
   if (s === 'ipc_unavailable') return 'ipc_unavailable'
-  if (s === 'loaded' && rowCount === 0) return 'all_reviewed'
+  if (s === 'loaded' && unprocessedCount === 0) return 'all_reviewed'
   return null
 }
 

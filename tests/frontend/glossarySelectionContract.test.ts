@@ -24,7 +24,7 @@
  * Dựng bề mặt DOM theo đúng khuôn `editorAutoLookup.test.ts::mountEditorSurface` — cùng
  * tiền lệ, cùng lý do (một hộp chứa text node thật, đăng ký qua `registerSelectionSurface`).
  */
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   currentSelectionText,
   currentSelectionTextForGlossaryQuickAdd,
@@ -94,5 +94,51 @@ describe('currentSelectionTextForGlossaryQuickAdd — đối chứng hai chiều
     // chọn" của AC (dải mở, ô nguồn rỗng và nhận focus).
     expect(currentSelectionText()).toBe('')
     expect(currentSelectionTextForGlossaryQuickAdd()).toBe('')
+  })
+})
+
+/**
+ * §I/O Matrix ⑮ (cụm D vá, vòng rà Epic 3) — `resolve()` là mã của PANEL (`SourceHanViet.vue`),
+ * ngoài tầm kiểm soát của tệp này, và cả hai hàm chạy dưới một lượt `dispatch` từ bàn phím.
+ * Đối chứng gỡ-chỗ-nối: gỡ `try/catch` quanh `surface.resolve(selection)` ở CẢ HAI hàm ⇒ hai
+ * ca dưới đây ĐỎ (ngoại lệ thoát ra ngoài thay vì bị bọc).
+ */
+describe('⑮ resolve() ném — ngoại lệ KHÔNG được thoát ra ngoài, trả về rỗng và chẩn đoán', () => {
+  it('currentSelectionText — resolve() ném ⇒ trả "", console.error nêu đích danh', () => {
+    const { sentence, release } = mountSurface('source')
+    selectInside(sentence, 0, 2)
+
+    // `registerSelectionSurface` chỉ nhận resolver LÚC ĐĂNG KÝ — đăng ký lại đúng phần tử để
+    // gắn một resolver ném (cùng cơ chế "idempotent" mà doc-comment của hàm đó khai).
+    const throwing = registerSelectionSurface(sentence.parentElement as HTMLElement, 'source', () => {
+      throw new Error('panel resolver hỏng')
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    expect(currentSelectionText()).toBe('')
+    expect(errorSpy).toHaveBeenCalledTimes(1)
+    expect(String(errorSpy.mock.calls[0]?.[0])).toContain('resolve()')
+
+    errorSpy.mockRestore()
+    throwing()
+    release()
+  })
+
+  it('currentSelectionTextForGlossaryQuickAdd — resolve() ném ⇒ trả "", console.error nêu đích danh', () => {
+    const { sentence, release } = mountSurface('display')
+    selectInside(sentence, 0, 2)
+
+    const throwing = registerSelectionSurface(sentence.parentElement as HTMLElement, 'display', () => {
+      throw new Error('panel resolver hỏng')
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    expect(currentSelectionTextForGlossaryQuickAdd()).toBe('')
+    expect(errorSpy).toHaveBeenCalledTimes(1)
+    expect(String(errorSpy.mock.calls[0]?.[0])).toContain('resolve()')
+
+    errorSpy.mockRestore()
+    throwing()
+    release()
   })
 })

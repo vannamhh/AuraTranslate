@@ -207,8 +207,18 @@ export function currentSelectionText(): string {
   // ký) ⇒ rỗng ⇒ command không phát lượt tra. AC3.
   if (surface === null || surface.role !== 'source') return ''
 
-  const text = surface.resolve === undefined ? selection.toString() : surface.resolve(selection)
-  return text ?? ''
+  if (surface.resolve === undefined) return selection.toString()
+
+  // 🔴 SỬA (cụm D vá, vòng rà Epic 3) — `resolve` là callback do PANEL tự cung cấp
+  // (`SourceHanViet.vue`), tức mã NGOÀI tầm kiểm soát của tệp này. Hàm này chạy dưới một lượt
+  // `dispatch` phát từ bàn phím (`attachSelectionWatcher`/`Mod+Alt+L`); một lượt ném ở đây
+  // không được thoát ra khỏi listener `keydown` — cùng khuôn `modifySelection` cùng tệp.
+  try {
+    return surface.resolve(selection) ?? ''
+  } catch (err) {
+    console.error(`[selection] \`resolve()\` của bề mặt nguồn ném khi lấy văn bản vùng chọn: ${String(err)}`)
+    return ''
+  }
 }
 
 /**
@@ -236,8 +246,19 @@ export function currentSelectionTextForGlossaryQuickAdd(): string {
   const surface = surfaceFor(selection)
   if (surface === null) return ''
 
-  const text = surface.resolve === undefined ? selection.toString() : surface.resolve(selection)
-  return text ?? ''
+  if (surface.resolve === undefined) return selection.toString()
+
+  // 🔴 SỬA (cụm D vá, vòng rà Epic 3) — cùng lý do `currentSelectionText`: `resolve` là mã
+  // của panel, và hàm này cũng chạy dưới một lượt `dispatch` từ bàn phím (`glossary.add_term`
+  // qua Auto-Lookup/phím tắt). Ngoại lệ không được thoát ra ngoài.
+  try {
+    return surface.resolve(selection) ?? ''
+  } catch (err) {
+    console.error(
+      `[selection] \`resolve()\` của bề mặt (Thêm nhanh Glossary) ném khi lấy văn bản vùng chọn: ${String(err)}`,
+    )
+    return ''
+  }
 }
 
 /**

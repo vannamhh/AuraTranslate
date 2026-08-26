@@ -264,6 +264,62 @@ describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng đượ
     wrapper.unmount()
   })
 
+  it('🔴 §I/O Matrix ⑰ (cụm D vá) — radio tầng Tác phẩm `disabled`, radio tầng Toàn cục KHÔNG bị đụng, 0 round-trip IPC vô ích khi bấm nó', async () => {
+    // Đối chứng gỡ-chỗ-nối: gỡ vế `|| quickAddWorkTierAvailable === false` khỏi `:disabled`
+    // của radio "work" trong `GlossaryQuickAdd.vue` ⇒ ca này ĐỎ (radio vẫn bấm được).
+    const { state, GlossaryQuickAdd } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+
+    const wrapper = mount(GlossaryQuickAdd)
+    state.openGlossaryQuickAdd('慕容')
+    await settle(wrapper)
+
+    const workTier = wrapper.find<HTMLInputElement>('input[name="gqa-tier"][value="work"]')
+    const globalTier = wrapper.find<HTMLInputElement>('input[name="gqa-tier"][value="global"]')
+    expect(workTier.attributes('disabled')).toBeDefined()
+    expect(globalTier.attributes('disabled')).toBeUndefined() // câu lý do vẫn hiện, KHÔNG đổi radio kia.
+
+    wrapper.unmount()
+  })
+
+  it('🔴 #6 (vòng rà thứ hai) — khả dụng LẬT GIỮA PHIÊN (đã chọn "work" lúc còn khả dụng, rồi sửa nguồn) ⇒ nút Lưu TẮT, KHÔNG tự chuyển tierChoice', async () => {
+    // Đối chứng gỡ-chỗ-nối: gỡ `|| quickAddWorkTierBlocked` khỏi `:disabled` của nút Lưu
+    // trong `GlossaryQuickAdd.vue` ⇒ ca này ĐỎ (nút Lưu vẫn bật).
+    const { state, GlossaryQuickAdd } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+
+    const wrapper = mount(GlossaryQuickAdd)
+    state.openGlossaryQuickAdd('慕容')
+    await settle(wrapper)
+
+    // Chọn tầng "work" trong khi nó ĐANG khả dụng — cùng đường người dùng thật đi qua
+    // (`onTierChange`), không ép state nội bộ.
+    const workTierBefore = wrapper.find<HTMLInputElement>('input[name="gqa-tier"][value="work"]')
+    await workTierBefore.setValue(true)
+    expect(state.quickAddTierChoice.value).toBe('work')
+    expect(wrapper.find('.gqa-act-primary').attributes('disabled')).toBeUndefined()
+
+    // Sửa ô nguồn — phát một lượt tra MỚI, lượt này trả về `workTierAvailable: false` (Tác
+    // phẩm vừa đóng, hay chuyển sang một mục không có Tác phẩm nào mở).
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    const sourceInput = wrapper.find<HTMLInputElement>('input.gqa-input')
+    await sourceInput.setValue('新')
+    await settle(wrapper)
+
+    // Mệnh đề trung tâm: nút Lưu TẮT — round-trip vô ích (gửi `tier: 'work'` để Rust từ chối)
+    // không xảy ra.
+    expect(wrapper.find('.gqa-act-primary').attributes('disabled')).toBeDefined()
+
+    // 🔴 KHÔNG tự chuyển `tierChoice` sang 'global' — `src/AGENTS.md` cấm đoán ý người dùng.
+    // Lựa chọn của họ ("work") vẫn còn nguyên, chỉ bị KHOÁ (mục ⑰) và nút Lưu bị chặn theo.
+    expect(state.quickAddTierChoice.value).toBe('work')
+    const workTierAfter = wrapper.find<HTMLInputElement>('input[name="gqa-tier"][value="work"]')
+    expect(workTierAfter.element.checked).toBe(true)
+    expect(workTierAfter.attributes('disabled')).toBeDefined() // mục ⑰ — vẫn khoá đúng.
+
+    wrapper.unmount()
+  })
+
   it('lượt tra CHƯA về ⇒ KHÔNG hiện lý do — đừng nói sai khi còn chưa biết', async () => {
     const { state, GlossaryQuickAdd } = await freshStrip()
     lookupMock.mockReturnValue(new Promise(() => {}))

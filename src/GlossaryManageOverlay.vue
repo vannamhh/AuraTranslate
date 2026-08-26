@@ -30,14 +30,16 @@ import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import type { GlossaryCategory } from './config/glossary'
 import type { GlossaryTierWire } from './config/glossary'
-import { importOpening } from './glossaryImportState'
+import { glossaryExchangeBusy } from './glossaryExchangeGate'
 import {
+  cancelGlossaryManageDeleteConfirm,
   manageActionError,
   manageActionNotice,
   manageCategoryFilter,
   manageConfirmedFilter,
   manageCursor,
   manageCurrentRow,
+  manageDeletePending,
   manageEditCategory,
   manageEditNote,
   manageEditTranslation,
@@ -183,6 +185,19 @@ function onExchangeTierChange(value: GlossaryTierWire, event: Event): void {
 }
 
 /**
+ * 🔴 Cụm D vá — `Escape` khi đang ở nhịp MỘT (chờ xác nhận xoá) HUỶ nhịp đó, KHÔNG đóng cả
+ * lớp phủ (§Always: "Escape huỷ nhịp một"). Chỉ khi KHÔNG có gì đang chờ xác nhận thì
+ * `Escape` mới rơi về hành vi cũ — đóng lớp phủ, đúng một lời gọi `dispatch(...)`.
+ */
+function onEscape(): void {
+  if (manageDeletePending.value) {
+    cancelGlossaryManageDeleteConfirm()
+    return
+  }
+  dispatch('glossary.manage.close')
+}
+
+/**
  * 🔴 Cùng khuôn `GlossaryQueueOverlay.vue::onKeydown` — filter `ctrlKey`/`metaKey`/`altKey`
  * TRƯỚC MỌI NHÁNH (§Always: quên nó thì `⌘Backspace` xoá một mục ngoài ý định).
  *
@@ -222,6 +237,13 @@ function onKeydown(event: KeyboardEvent): void {
       return
     case 'Backspace':
     case 'Delete':
+      // 🔴 THÊM (vòng rà thứ hai, #1 — NẶNG NHẤT) — `event.repeat` CHỈ lọc ở NHÁNH NÀY, không
+      // ở đầu hàm: `ArrowUp`/`ArrowDown` phải giữ được tự lặp (giữ phím để chạy nhanh qua
+      // danh sách là thao tác bình thường). Xoá thì khác — `deleteGlossaryManageEntry` nhịp
+      // MỘT trả về ĐỒNG BỘ và không đặt cờ bận nào, nên một cú nhấn-GIỮ (hệ điều hành tự lặp
+      // `keydown`) chạy nhịp một rồi nhịp hai trong đúng MỘT thao tác người dùng cảm nhận là
+      // một lần bấm — đúng kịch bản mà cả tính năng hai-nhịp tồn tại để chặn.
+      if (event.repeat) return
       event.preventDefault()
       dispatch('glossary.manage.delete')
       return
@@ -235,7 +257,7 @@ function onKeydown(event: KeyboardEvent): void {
   <div
     v-if="manageOverlayIsOpen"
     class="gm-scrim"
-    @keydown.esc="dispatch('glossary.manage.close')"
+    @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
     @keydown="onKeydown"
   >
@@ -331,13 +353,25 @@ function onKeydown(event: KeyboardEvent): void {
             role="option"
             tabindex="-1"
             :aria-selected="i === manageCursor"
-            :class="{ 'gm-row-current': i === manageCursor, 'gm-row-shadowed': row.is_shadowed }"
+            :class="{
+              'gm-row-current': i === manageCursor,
+              'gm-row-shadowed': row.is_shadowed,
+              'gm-row-delete-pending': i === manageCursor && manageDeletePending,
+            }"
           >
             <!-- aura-allow-text: DỮ LIỆU (`source_term` của chính hàng). -->
             <span class="gm-term">{{ row.source_term }}</span>
             <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
             <span class="gm-badge">{{ row.tier === 'global' ? t('glossary.quick_add.tier_global') : t('glossary.quick_add.tier_work') }}</span>
             <span v-if="row.is_shadowed" class="gm-badge gm-badge-shadowed">{{ t('glossary.manage.shadowed_badge') }}</span>
+            <!--
+              Cụm D vá — trạng thái "chờ xác nhận xoá" phân biệt bằng CHỮ (câu riêng, không
+              chỉ đổi màu) trên đúng hàng đang chờ (§Always: "phân biệt bằng chữ và ký hiệu,
+              không bằng opacity trung gian").
+            -->
+            <span v-if="i === manageCursor && manageDeletePending" class="gm-badge gm-badge-delete-pending">
+              {{ t('glossary.manage.delete_confirm_badge') }}
+            </span>
             <!-- aura-allow-text: DỮ LIỆU (`translation` của chính hàng) hoặc KẾT QUẢ của `t()`. -->
             <span v-if="row.translation !== null" class="gm-translation">{{ row.translation }}</span>
             <span v-else class="gm-badge gm-badge-pending">{{ t('glossary.manage.pending_badge') }}</span>
@@ -400,13 +434,26 @@ function onKeydown(event: KeyboardEvent): void {
           )
         }}
       </p>
+      <!--
+        Cụm D vá — nhịp MỘT của lượt xoá: chữ RIÊNG (không chỉ đổi nút), cùng độ ưu tiên với
+        `manageSaving` (không đang lưu khi đang chờ xác nhận, hai nhánh không chồng nhau).
+      -->
+      <p v-else-if="manageDeletePending" class="gm-status gm-error" role="status">
+        {{ t('glossary.manage.delete_confirm_hint') }}
+      </p>
 
       <div v-if="!manageEditing" class="gm-actions">
         <button type="button" class="gm-act" :disabled="manageCurrentRow === null" @click="dispatch('glossary.manage.edit')">
           {{ t('glossary.manage.edit') }}
         </button>
-        <button type="button" class="gm-act" :disabled="manageCurrentRow === null" @click="dispatch('glossary.manage.delete')">
-          {{ t('glossary.manage.delete') }}
+        <button
+          type="button"
+          class="gm-act"
+          :class="{ 'gm-act-danger': manageDeletePending }"
+          :disabled="manageCurrentRow === null"
+          @click="dispatch('glossary.manage.delete')"
+        >
+          {{ t(manageDeletePending ? 'glossary.manage.delete_confirm_button' : 'glossary.manage.delete') }}
         </button>
         <button type="button" class="gm-act" :disabled="manageCurrentRow === null" @click="dispatch('glossary.manage.promote')">
           {{ t('glossary.manage.promote') }}
@@ -449,10 +496,16 @@ function onKeydown(event: KeyboardEvent): void {
         </fieldset>
 
         <div class="gm-exchange-actions">
+          <!--
+            Cụm D vá — Xuất và Nhập LOẠI TRỪ lẫn nhau: hai hộp thoại hệ điều hành cùng bay là
+            một trạng thái không ai định nghĩa hành vi (§Tasks). `glossaryExchangeBusy` là cờ
+            DÙNG CHUNG (xem `glossaryExchangeGate.ts`) — đúng khi MỘT TRONG HAI đang mở hộp
+            thoại, không chỉ cờ RIÊNG của chính nút này.
+          -->
           <button
             type="button"
             class="gm-act"
-            :disabled="manageExportBusy"
+            :disabled="glossaryExchangeBusy"
             @click="dispatch('glossary.manage.export_csv')"
           >
             {{ t('glossary.manage.export_csv') }}
@@ -461,14 +514,24 @@ function onKeydown(event: KeyboardEvent): void {
             type="button"
             class="gm-act"
             data-glossary-import-open
-            :disabled="importOpening"
+            :disabled="glossaryExchangeBusy"
             @click="dispatch('glossary.manage.import_csv')"
           >
             {{ t('glossary.manage.import_csv') }}
           </button>
         </div>
 
-        <p v-if="manageExportError !== null" class="gm-status gm-error" role="alert">
+        <!--
+          🔴 THÊM (vòng rà thứ hai, #10) — `:disabled="glossaryExchangeBusy"` làm MỘT trong
+          hai nút xám đi mà không một câu nào khi chính THAO TÁC KIA (không phải thao tác của
+          nút này) đang mở hộp thoại — trái nguyên tắc "rỗng/khoá phải nói vì sao" của kho.
+          Đứng ĐẦU chuỗi `v-if`: đây là tin MỚI NHẤT (lý do nút vừa xám đi ngay bây giờ), ưu
+          tiên hơn một kết quả CŨ còn sót của chính lượt Xuất trước đó.
+        -->
+        <p v-if="glossaryExchangeBusy && !manageExportBusy" class="gm-status" role="status">
+          {{ t('glossary.manage.exchange_busy_other') }}
+        </p>
+        <p v-else-if="manageExportError !== null" class="gm-status gm-error" role="alert">
           <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
           {{ tError(manageExportError) }}
         </p>
@@ -642,6 +705,26 @@ function onKeydown(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
+/*
+ * Cụm D vá — trạng thái "chờ xác nhận xoá" phân biệt bằng chữ riêng ở
+ * `.gm-badge-delete-pending` (span text + viền BỐN CẠNH của chính badge, xem khối dưới),
+ * CỘNG nhãn nút đổi chữ ở template — không một mình `opacity` (§Always của spec).
+ *
+ * 🔵 SỬA (vòng rà thứ hai, #15) — câu trên bớt chữ "VIỀN...trên hàng": `.gm-row` (`:677-688`)
+ * chỉ khai `border-bottom`, không bốn cạnh, nên quy tắc dưới đây chỉ đổi màu ĐÚNG MỘT nét
+ * ĐÁY của hàng — một tín hiệu phụ, tinh tế, không phải "một cái viền quanh hàng". Tín hiệu
+ * CHÍNH của nhịp chờ là chữ (badge + nhãn nút), đúng như câu trên (đã sửa) khai; nét đáy này
+ * chỉ là một gợi ý thị giác thêm, không đứng một mình.
+ */
+.gm-row-delete-pending {
+  border-color: var(--color-error);
+}
+
+.gm-badge-delete-pending {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
 .gm-term {
   font-weight: var(--weight-ui-md-strong);
 }
@@ -727,6 +810,13 @@ function onKeydown(event: KeyboardEvent): void {
 .gm-act-primary {
   color: var(--color-on-surface);
   border-color: var(--color-primary);
+}
+
+/* Cụm D vá — nút Xoá ở nhịp HAI (chờ xác nhận): viền + chữ token màu lỗi, cộng nhãn nút đã
+ * đổi chữ ở template. Không `opacity`, không màu viết thẳng (§Always của spec). */
+.gm-act-danger {
+  color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 /* Story 3.10b (AD-48) — hộp thoại chọn tệp. */

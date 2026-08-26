@@ -71,6 +71,40 @@ export type GlossaryLookupResult =
   | { found: 'none'; workTierAvailable: boolean }
   | { found: 'entry'; entry: GlossaryQuickAddEntry; workTierAvailable: boolean }
 
+/**
+ * 🔴 Type guard LÚC CHẠY cho `GlossaryQuickAddEntry` (mục LỒNG bên trong `QuickAddLookupWire`)
+ * — cụm D vá (vòng rà Epic 3, 2026-08-26). Trước bản vá này, `lookupGlossaryTerm` là đường
+ * DUY NHẤT trong bảy adapter của tệp KHÔNG kiểm hình dạng một object lồng trước khi dùng nó
+ * — `wire.entry` đi thẳng vào `GlossaryLookupResult` mà không ai hỏi nó có đúng hình dạng
+ * `GlossaryQuickAddEntry` hay không. Cùng khuôn `isGlossaryEntry`/`isGlossaryMark`: dữ liệu
+ * qua IPC là một LỜI KHAI, không một bảo đảm của trình biên dịch.
+ */
+function isGlossaryQuickAddEntry(value: unknown): value is GlossaryQuickAddEntry {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<GlossaryQuickAddEntry>
+  return (
+    (v.tier === 'global' || v.tier === 'work') &&
+    typeof v.id === 'number' &&
+    Number.isInteger(v.id) &&
+    typeof v.source_term === 'string' &&
+    (v.translation === null || typeof v.translation === 'string') &&
+    typeof v.note === 'string' &&
+    (v.category === 'person' || v.category === 'place' || v.category === 'domain_term' || v.category === 'other') &&
+    typeof v.term_origin === 'string' &&
+    typeof v.created_at === 'string'
+  )
+}
+
+/**
+ * 🔴 Type guard LÚC CHẠY cho `QuickAddLookupWire` — phong bì, kiểm CẢ trường phẳng
+ * (`work_tier_available`) LẪN mục lồng (`entry`, qua [`isGlossaryQuickAddEntry`]).
+ */
+function isQuickAddLookupWire(value: unknown): value is QuickAddLookupWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<QuickAddLookupWire>
+  return typeof v.work_tier_available === 'boolean' && (v.entry === null || isGlossaryQuickAddEntry(v.entry))
+}
+
 function isIpcError(value: unknown): value is IpcError {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<IpcError>
@@ -112,7 +146,11 @@ const UNKNOWN_IPC_ERROR: IpcError = {
  */
 export async function lookupGlossaryTerm(sourceTerm: string): Promise<GlossaryLookupResult> {
   try {
-    const wire = await invoke<QuickAddLookupWire>(CMD_LOOKUP, { sourceTerm })
+    const wire = await invoke<unknown>(CMD_LOOKUP, { sourceTerm })
+    if (!isQuickAddLookupWire(wire)) {
+      console.error(`[glossary] \`${CMD_LOOKUP}\` tra ve mot hinh dang khong dung QuickAddLookupWire`)
+      return { found: 'unknown', error: UNKNOWN_IPC_ERROR }
+    }
     return wire.entry === null
       ? { found: 'none', workTierAvailable: wire.work_tier_available }
       : { found: 'entry', entry: wire.entry, workTierAvailable: wire.work_tier_available }
@@ -146,13 +184,20 @@ export async function addGlossaryTerm(
   category: GlossaryCategory,
 ): Promise<GlossaryWriteResult<number>> {
   try {
-    const id = await invoke<number>(CMD_ADD, {
+    const id = await invoke<unknown>(CMD_ADD, {
       tier,
       sourceTerm,
       translation,
       note,
       category,
     })
+    // 🔴 THÊM (cụm D vá) — `id` trần đi tiếp vào state sẽ thành KHOÁ TRA CỨU cho mọi lượt
+    // sửa/xoá về sau (§Tasks). Một số thực (`12.5`) hay một chuỗi (`"12"`) không ai kiểm sẽ
+    // đi thẳng vào đó mà không một cổng nào bắt được.
+    if (typeof id !== 'number' || !Number.isInteger(id)) {
+      console.error(`[glossary] \`${CMD_ADD}\` tra ve mot id khong phai so nguyen: ${String(id)}`)
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { value: id, error: null }
   } catch (err) {
     if (isIpcError(err)) return { value: null, error: err }
@@ -522,7 +567,13 @@ export async function approveGlossaryCandidate(
   category: GlossaryCategory,
 ): Promise<GlossaryWriteResult<number>> {
   try {
-    const newId = await invoke<number>(CMD_APPROVE_CANDIDATE, { id, translation, category })
+    const newId = await invoke<unknown>(CMD_APPROVE_CANDIDATE, { id, translation, category })
+    // 🔴 THÊM (cụm D vá) — cùng lý do `addGlossaryTerm`: một `id` không phải số nguyên đi
+    // tiếp vào state sẽ thành khoá tra cứu cho mọi lượt sửa/xoá về sau.
+    if (typeof newId !== 'number' || !Number.isInteger(newId)) {
+      console.error(`[glossary] \`${CMD_APPROVE_CANDIDATE}\` tra ve mot id khong phai so nguyen: ${String(newId)}`)
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { value: newId, error: null }
   } catch (err) {
     if (isIpcError(err)) return { value: null, error: err }
@@ -623,7 +674,12 @@ function isGlossaryEntry(value: unknown): value is GlossaryEntry {
     (v.category === 'person' || v.category === 'place' || v.category === 'domain_term' || v.category === 'other') &&
     typeof v.term_origin === 'string' &&
     typeof v.created_at === 'string' &&
-    typeof v.is_shadowed === 'boolean'
+    typeof v.is_shadowed === 'boolean' &&
+    // 🔴 THÊM (cụm D vá) — bất biến CHÉO trường mà chính doc-comment của `GlossaryEntry`
+    // (`:608-610`) đã khai: `is_shadowed === true` chỉ có nghĩa cho một hàng LUÔN ở tầng
+    // `'global'` (`ScopeResolver::apply_override` chỉ che một mục Global bằng một mục Work
+    // cùng `source_term`, không bao giờ ngược lại).
+    (!v.is_shadowed || v.tier === 'global')
   )
 }
 
@@ -738,8 +794,18 @@ export type GlossaryExportResult =
  */
 export async function exportGlossaryTier(tier: GlossaryTierWire): Promise<GlossaryExportResult> {
   try {
-    const path = await invoke<string | null>(CMD_EXPORT_TIER, { tier })
-    return path === null ? { outcome: 'cancelled' } : { outcome: 'done', path }
+    const path = await invoke<unknown>(CMD_EXPORT_TIER, { tier })
+    if (path === null) return { outcome: 'cancelled' } // ⚠️ `null` LÀ "đã huỷ hộp thoại" — giữ nguyên.
+    // 🔴 THÊM (vòng rà thứ hai, #11) — `typeof path !== 'string'` cho một CHUỖI RỖNG đi lọt
+    // (`typeof '' === 'string'`), nên `outcome: 'done', path: ''` từng là một hình dạng hợp
+    // lệ ⇒ giao diện báo "đã ghi vào " (rỗng sau chữ "vào"). Một đường dẫn KHÔNG THỂ rỗng —
+    // từ chối tường minh, cùng khuôn `hasIpcBridge()`/`isIpcError` của tệp: không đoán, không
+    // im lặng.
+    if (typeof path !== 'string' || path === '') {
+      console.error(`[glossary] \`${CMD_EXPORT_TIER}\` tra ve mot duong dan khong hop le: ${JSON.stringify(path)}`)
+      return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
+    }
+    return { outcome: 'done', path }
   } catch (err) {
     if (isIpcError(err)) return { outcome: 'error', error: err }
 
@@ -797,12 +863,16 @@ function isGlossaryImportPreview(value: unknown): value is GlossaryImportPreview
     typeof v.file_name === 'string' &&
     (v.tier === 'global' || v.tier === 'work') &&
     typeof v.row_count === 'number' &&
+    Number.isInteger(v.row_count) &&
     typeof v.recognized_column_count === 'number' &&
+    Number.isInteger(v.recognized_column_count) &&
     Array.isArray(v.ignored_columns) &&
     v.ignored_columns.every((c) => typeof c === 'string') &&
     typeof v.term_origin_column_present === 'boolean' &&
     typeof v.new_count === 'number' &&
+    Number.isInteger(v.new_count) &&
     typeof v.identical_count === 'number' &&
+    Number.isInteger(v.identical_count) &&
     Array.isArray(v.conflicts) &&
     v.conflicts.every(isGlossaryImportConflict)
   )
@@ -864,6 +934,25 @@ export type GlossaryConflictDecision = 'keep_mine' | 'take_theirs'
 /** Hình dạng `ImportSummaryWire` phía Rust — **`snake_case`, đúng như trên dây**. */
 export type GlossaryImportSummary = { inserted: number; updated: number; identical: number }
 
+/**
+ * 🔴 Type guard LÚC CHẠY cho `GlossaryImportSummary` — cụm D vá. Ba trường số của nó chảy
+ * THẲNG ra câu tóm tắt hiện cho người dùng (`glossary.import.confirm_summary` sau khi ghi,
+ * hoặc câu tương đương) — trước bản vá này `confirmGlossaryImport` trả `wire` thẳng, không
+ * ai kiểm hình dạng.
+ */
+function isGlossaryImportSummary(value: unknown): value is GlossaryImportSummary {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<GlossaryImportSummary>
+  return (
+    typeof v.inserted === 'number' &&
+    Number.isInteger(v.inserted) &&
+    typeof v.updated === 'number' &&
+    Number.isInteger(v.updated) &&
+    typeof v.identical === 'number' &&
+    Number.isInteger(v.identical)
+  )
+}
+
 /** Ba trạng thái, cùng khuôn [`GlossaryWriteResult`]. */
 export type GlossaryConfirmImportResult = { summary: GlossaryImportSummary | null; error: IpcError | null }
 
@@ -878,8 +967,12 @@ export async function confirmGlossaryImport(
   decisions: Record<string, GlossaryConflictDecision>,
 ): Promise<GlossaryConfirmImportResult> {
   try {
-    const summary = await invoke<GlossaryImportSummary>(CMD_CONFIRM_IMPORT, { decisions })
-    return { summary, error: null }
+    const wire = await invoke<unknown>(CMD_CONFIRM_IMPORT, { decisions })
+    if (!isGlossaryImportSummary(wire)) {
+      console.error(`[glossary] \`${CMD_CONFIRM_IMPORT}\` tra ve mot hinh dang khong dung GlossaryImportSummary`)
+      return { summary: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { summary: wire, error: null }
   } catch (err) {
     if (isIpcError(err)) return { summary: null, error: err }
 

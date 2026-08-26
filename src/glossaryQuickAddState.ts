@@ -135,6 +135,24 @@ export const quickAddWorkTierAvailable = computed<boolean | null>(() => {
 })
 
 /**
+ * 🔴 THÊM (vòng rà thứ hai, #6) — đúng khi lượt Lưu SẼ gửi `tier: 'work'` trong khi tầng đó
+ * KHÔNG dùng được. `tierChoice` chỉ reset lúc mở/đóng dải (§Design Notes), KHÔNG theo mỗi
+ * lượt tra mới: chọn 'work' khi đang khả dụng, rồi sửa `source_term` — lượt tra MỚI có thể
+ * trả `workTierAvailable: false` (Tác phẩm vừa đóng, hoặc chuyển sang một mục không có Tác
+ * phẩm) trong khi radio "work" vẫn `checked` VÀ vừa `disabled` (mục ⑰ khoá nó lại), nút Lưu
+ * vẫn bật ⇒ `saveGlossaryQuickAdd` gửi `tier: 'work'`, Rust từ chối bằng
+ * `GlossaryError::WorkTierUnavailable` — đúng round-trip vô ích mà mục ⑰ tồn tại để đóng,
+ * tới bằng một đường KHÁC (tầng hiệu lực lật SAU khi đã chọn, không phải lúc chọn).
+ *
+ * 🔴 KHÔNG tự chuyển `tierChoice` sang `'global'` ở đây — `src/AGENTS.md`: "Đừng 'vá' bằng
+ * cách tự chuyển chế độ: đó là đoán ý người dùng." Radio "Toàn cục" vẫn còn đó, và câu lý do
+ * (`glossary.quick_add.tier_work_unavailable_reason`) đã là đường ra.
+ */
+export const quickAddWorkTierBlocked = computed<boolean>(
+  () => quickAddEffectiveTier.value === 'work' && quickAddWorkTierAvailable.value === false,
+)
+
+/**
  * 🔵 THÊM 2026-08-20 (lượt rà soát Story 3.3) — lỗi của LƯỢT TRA, tách hẳn khỏi
  * [`quickAddSaveError`] (lỗi của lượt GHI).
  *

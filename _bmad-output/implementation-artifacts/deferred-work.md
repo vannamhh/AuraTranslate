@@ -7226,6 +7226,65 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     cùng bay) · `GlossaryQuickAdd.vue:167-186` (radio tầng Work không `disabled` khi
     `quickAddWorkTierAvailable === false`; nút Lưu vẫn bật và vẫn gửi).
     **(Chủ: lượt vá kế tiếp.)**
+  → ✅ **ĐÃ ĐÓNG 2026-08-26**, theo
+    `spec-epic-3-review-cum-d-guard-ipc-va-thao-tac-pha-huy.md`. Đo lại trên `0f07184` trước khi
+    vá: **hai trong mười ba mục bị BÁC bằng phép đo** (xem hai gạch đầu dòng KHÔNG LÀM ngay
+    dưới); **mười một mục đúng nguyên**, trải ra **mười bốn chỗ vá**, mỗi chỗ kèm một ca test
+    đối chứng gỡ-chỗ-nối đã CHẠY THẬT (revert từng tệp/hunk, chạy bộ test liên quan, ghi số ca
+    đỏ, khôi phục) — không suy luận. Bộ test frontend đi từ 479 ca (39 tệp) lên **518 ca (42
+    tệp)**; `check:i18n`/`check:commands`/`check:tokens`/`check:panel-refs`/`check:lint`/
+    `npm run build`/`cargo test`/`.githooks/pre-push` đều exit 0 sau lượt vá.
+    - **Bốn đường `invoke<>` tin thẳng generic** (đường dẫn trả về của `exportGlossaryTier`, id trả về của
+      `addGlossaryTerm`/`approveGlossaryCandidate`, `confirmGlossaryImport`) — **ĐÃ VÁ.** Cả bốn
+      nay `invoke<unknown>` rồi kiểm hình dạng lúc chạy (đường dẫn phải là chuỗi, `null` VẪN là
+      "đã huỷ hộp thoại"; id trả về phải là số nguyên; tóm tắt nhập phải có ba trường số nguyên)
+      trước khi đi tiếp vào state. Đối chứng: `tests/frontend/glossaryConfigGuards.test.ts`.
+    - **`isGlossaryImportPreview` thiếu `Number.isInteger`** — **ĐÃ VÁ**, bốn trường số
+      (`row_count`/`recognized_column_count`/`new_count`/`identical_count`) nay đều kiểm.
+    - **`lookupGlossaryTerm` thiếu guard cho object lồng, `isGlossaryEntry` thiếu bất biến chéo
+      trường** — **ĐÃ VÁ.** `QuickAddLookupWire` (kể cả `GlossaryQuickAddEntry` lồng bên trong)
+      nay có guard riêng; `isGlossaryEntry` nay ép `is_shadowed ⇒ tier === 'global'` như chính
+      doc-comment của kiểu đó đã khai.
+    - **`glossaryQuickAddState.ts:196-199,307-330` (vé `sequence` cho `saveGlossaryQuickAdd`) →
+      KHÔNG LÀM 2026-08-26 — đo lại trên `0f07184`, kịch bản mục nợ mô tả không dựng được.**
+      Kịch bản đòi dải phải đóng RỒI MỞ LẠI trong lúc một lượt lưu đang bay. Ba cửa chặn đồng
+      bộ đã khép kín nó: `saveGlossaryQuickAdd:298` `if (saving.value) return` ·
+      `closeGlossaryQuickAdd:277` `if (saving.value) return` · `openGlossaryQuickAdd:217`
+      `if (isOpen.value) return` (doc-comment tại chỗ của cửa thứ hai nói thẳng "không có ca nào
+      cần `Esc` phải thắng một lượt ghi đang bay"). Thêm một vé `sequence` là thêm một nhánh mã
+      không bao giờ chạy — đúng lớp `tests/AGENTS.md` gọi là "mã chết vĩnh viễn trong sản phẩm".
+      **0 dòng đổi** ở `glossaryQuickAddState.ts` (đối chứng: `git diff --stat` của lượt vá).
+    - **`glossaryMarksState.ts:66-68,113-120` (đua id Chương) → KHÔNG LÀM 2026-08-26 — đo được
+      NGƯỢC với điều mục nợ khai.** `requestedForChapterId = null` (`:105`, tồn tại từ commit
+      tạo tệp `53035e7`, Story 3.4b) là dòng MỞ đường thử lại, không phải dòng khoá nó:
+      `ensureGlossaryMarksLoaded:118` `if (requestedForChapterId === chapterId) return` chỉ
+      chặn khi hai giá trị BẰNG NHAU, nên `null` luôn mở lại được. Mọi lượt ghi
+      `sequence`/`requestedForChapterId` nằm TRƯỚC `await` và JS đơn luồng ⇒ không kẽ hở trong
+      chính tệp; hai chỗ gọi ở `editorPanelState.ts` (`:1578-1584,:2065-2071`) đã có guard khớp
+      nhau. **0 dòng đổi** ở `glossaryMarksState.ts`.
+    - **`glossaryQueueState.ts:99-104` thiếu nhánh `'unknown'`, VÀ `all_reviewed` là mã chết** —
+      **ĐÃ VÁ**, gộp cả hai trong một lượt (bản nợ chỉ nêu vế đầu; vế `all_reviewed` là mã chết
+      cho mục đích nó khai — đo được: `rows.value` không co lại sau Nhận/Bỏ, chỉ `row.outcome`
+      đổi). `queueEmptyReasonFor` nay nhận `unprocessedCount` (không `rows.length`) và trả
+      `'loading'` có tên cho `'unknown'`; `GlossaryQueueOverlay.vue` dời nhánh "đang tải" vào
+      hàm, không còn hai chỗ canh cùng mệnh đề.
+    - **`glossaryImportState.ts:173-190` (`confirming` kẹt `true`) VÀ `:196-204`
+      (`cancelGlossaryImportPreview` không đọc `result.error`)** — **ĐÃ VÁ**, cả hai. `confirming`/
+      `confirmError` nay reset NGAY khi một lượt mở MỚI bắt đầu (không đợi biết `outcome`);
+      `cancelGlossaryImportPreview` nay đọc `result.error` và ghi một chẩn đoán nêu đích danh.
+    - **`selectionContract.ts:232-241` (`resolve()` không `try/catch`) VÀ `Registry.dispatch`
+      không bọc `spec.run()`** — **ĐÃ VÁ**, cả hai. `throw` cho một `CommandId` chưa đăng ký ở
+      `registry.ts:203-211` GIỮ NGUYÊN (nửa cưỡng chế lúc chạy của AC1, không nằm trong phạm vi
+      bọc này).
+    - **`GlossaryManageOverlay.vue:223-227,408` (Backspace/Delete xoá vĩnh viễn, không xác
+      nhận)** — **ĐÃ VÁ** bằng một nhịp xác nhận NỘI TUYẾN hai bước trong CHÍNH lớp phủ đó
+      (không component hộp thoại dùng chung — kho chưa có, dựng một cái là một quyết định kiến
+      trúc riêng). Cùng `dispatch('glossary.manage.delete')` cho cả hai nhịp; `Escape` huỷ nhịp
+      một mà KHÔNG đóng lớp phủ.
+    - **`:452-469` (Export/Import không loại trừ lẫn nhau)** — **ĐÃ VÁ**, xem mục
+      "Hai lượt xuất Glossary song song..." ngay dưới cho cơ chế và tên chỗ gác.
+    - **`GlossaryQuickAdd.vue:167-186` (radio tầng Work không `disabled`)** — **ĐÃ VÁ**, chép
+      khuôn `GlossaryManageOverlay.vue:443` (`:disabled="!manageWorkTierAvailable"`).
 
 - source_spec: none
   summary: **Cụm E — ba lỗ hổng canh gác ĐÃ ĐO BẰNG PHÉP CẮT-THỬ THẬT**, không suy luận: cắt vệ đi
@@ -7399,6 +7458,20 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     hành có thể cùng bay"*, `GlossaryManageOverlay.vue:452-469`) — khác chiều (Export↔Export thay
     vì Export↔Import) nhưng đóng bằng đúng một cơ chế. **(Chủ: lượt vá cụm D — đóng cả hai chiều
     trong một lượt, đừng vá riêng chiều này.)**
+  → ✅ **ĐÃ ĐÓNG 2026-08-26, theo `spec-epic-3-review-cum-d-guard-ipc-va-thao-tac-pha-huy.md` —
+    và chiều Export↔Export cụ thể của MỤC NÀY đã đóng TỪ TRƯỚC khi mục nợ này được viết.**
+    Chỗ gác đã có sẵn: `glossaryManageState.ts:486` `if (exportBusy.value) return` (cộng vé
+    `mySequence`), thêm ở Story 3.10b (`5e77e73`) — một lượt Xuất thứ hai trong lúc lượt đầu còn
+    bay bị chặn tại chỗ, nút "Xuất CSV" cũng `:disabled="manageExportBusy"` (nay
+    `:disabled="glossaryExchangeBusy"`, xem dưới). Đo lại 2026-08-26: `exportBusy` đứng NGUYÊN
+    qua lượt vá này, không đường nào rút mất. Lỗ THẬT mà lượt vá cụm D đóng THÊM là chiều
+    Export↔Import (khác chiều với mục nợ này) — cờ dùng chung `glossaryExchangeBusy`
+    (`src/glossaryExchangeGate.ts`, module RIÊNG để tránh `glossaryManageState.ts` và
+    `glossaryImportState.ts` `import` lẫn nhau) nay chặn CẢ hai nút "Xuất CSV"/"Nhập CSV" khi
+    MỘT TRONG HAI đang mở hộp thoại hệ điều hành, đo bằng `tests/frontend/glossaryExchangeGate.test.ts`
+    (ba ca: Xuất chặn Nhập, Nhập chặn Xuất, mở lại lớp phủ giữa chừng không kẹt cờ `true` mãi
+    mãi). Không đổi tầng Rust (`write_export_file` không biết gì về lượt gọi kia — đúng như
+    mục nợ này đã ghi; bản vá vẫn đứng ở tầng giao diện, không phải tầng lõi).
 
 - source_spec: none
   summary: **C4 — bốn hàm công khai của `core/glossary/store.rs` đọc hai tầng qua HAI kết nối
@@ -7453,3 +7526,28 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     khối đã đông cứng, không phải một dòng vá.
     **(Chủ: Ice — một quyết định hiển thị, cùng hạng với mục `err.import.too_large` đang mở. Lượt
     đầu tiên mở lại hàng ④ của Matrix chốt luôn: lô hỗn hợp báo lỗi nào.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-d-guard-ipc-va-thao-tac-pha-huy.md`
+  summary: **Một `throw` sau `await` bên trong handler của một command vẫn thoát ra thành unhandled
+    promise rejection** — `try/catch` mà cụm D thêm vào `Registry.dispatch` chỉ bắt được ném ĐỒNG BỘ.
+  evidence: Bắt ở vòng rà ba lăng kính 2026-08-26 (blind-hunter và edge-case nêu độc lập cùng chỗ),
+    đã tự kiểm lại trên mã. `src/commands/registry.ts` khai `run: () => void` (`:51`) và **0/55**
+    handler trong `src/commands/index.ts` viết `run: async` — nhưng phần lớn thân handler gọi
+    `void someAsyncFn()` (khuôn `main.ts:569-570`). Một lỗi ném SAU `await` đầu tiên bên trong hàm
+    async đó không đi qua `try { spec.run() } catch` được: lúc `catch` chạy thì `run()` đã trả về.
+    Chuỗi thật: `keys.ts:593` `addEventListener('keydown', …)` → `handle()` → `:523`
+    `registry.dispatch(...)` → `spec.run()` → `void asyncFn()` ⇒ rejection nổi lên `window`.
+    ⚠️ **Đây là lỗ CÓ TRƯỚC cụm D, không do cụm D sinh ra** — thứ cụm D làm là thu hẹp câu khai của
+    doc-comment cho nó thôi hứa nhiều hơn điều nó làm (mục #7 của vòng rà), và ghi giới hạn ra thành
+    chữ tại chỗ. Lỗ thì vẫn nguyên.
+    ⚠️ **Không sửa được bằng một dòng ở `registry.ts`:** đóng nó thật sự đòi chọn một trong ba hình
+    dạng, cả ba đều là quyết định chứ không phải một bản vá — ① đổi `run` thành `() => void | Promise<void>`
+    rồi `dispatch` bắt cả nhánh Promise (đổi một kiểu công khai mà `check:commands` Kiểm C/D/E gọi
+    thật); ② một `window.addEventListener('unhandledrejection', …)` ở `main.ts` (một đường chẩn đoán
+    TOÀN CỤC mới, và `check:layout` Kiểm C là một danh sách CHO PHÉP cho mọi thành viên `window` mà
+    `src/**` chạm tới — thêm một cái tên là một quyết định phải viết ra); ③ cấm `void asyncFn()` trong
+    thân handler và bắt mỗi handler tự bọc (rẻ về kiến trúc, đắt về số chỗ sửa: 55 handler).
+    🔴 `registry.ts` mang banner *"TỆP NÀY KHÔNG ĐƯỢC IMPORT BẤT CỨ THỨ GÌ"* nên hình dạng nào cũng
+    phải sống được với ràng buộc đó.
+    **(Chủ: lượt đầu tiên chạm lại `CommandRegistry` — cùng chủ với bất kỳ story nào mở lại AD-34 §1.
+    Nếu chọn hình dạng ② thì dừng ở cửa `check:layout` Kiểm C và trình Ice cái tên mới, đừng tự thêm.)**

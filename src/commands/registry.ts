@@ -211,7 +211,36 @@ export function createRegistry(): Registry {
           'TRƯỚC khi bind vào chuột hoặc phím (AD-34 §1).',
       )
     }
-    spec.run()
+    /**
+     * 🔴 THÊM (cụm D vá, vòng rà Epic 3) — một lượt NÉM ĐỒNG BỘ trong `spec.run()` KHÔNG
+     * được thoát ra khỏi listener `keydown` (Nhóm ④ của spec: `keys.ts` gắn listener ở pha
+     * `capture` trên `window`, một lượt ném ở đây có thể chặn cả các listener khác chạy sau
+     * nó tuỳ trình duyệt). Chẩn đoán viết tay bằng `console.error` — KHÔNG mượn một tiện ích
+     * log từ tệp khác: banner đầu tệp cấm `import` bất cứ thứ gì, và `console` là một global,
+     * không một `import`.
+     *
+     * 🔵 **SỬA (vòng rà thứ hai, #7) — câu trên hẹp lại, và GIỚI HẠN THẬT viết ra thay vì để
+     * người sau tưởng bọc kín.** `try/catch` chỉ bắt được một lượt ném XẢY RA TRƯỚC KHI
+     * `spec.run()` trả quyền điều khiển lại — tức đúng NỬA của một handler đồng bộ. Phần lớn
+     * `run:` của `commands/index.ts` gọi một `deps.xxx()` mà bản thân nó bọc một hàm `async`
+     * theo khuôn `void asyncFn()` (ví dụ `main.ts:552,557,561`:
+     * `deleteGlossaryManageEntry: () => { void deleteGlossaryManageEntry() }`) — `void` trả
+     * quyền điều khiển NGAY, TRƯỚC KHI promise bên trong settle, nên khối `try` này đã thoát
+     * khỏi phạm vi bảo vệ từ lâu trước khi một rejection xảy ra. Một `deleteGlossaryManageEntry()`
+     * reject THẬT trở thành một **unhandled promise rejection** — không đi qua nhánh `catch`
+     * ở đây, không hiện một dòng `console.error` nào từ CHÍNH tệp này. Bọc này vì vậy đóng
+     * đúng lớp lỗi nó khai (ném ĐỒNG BỘ từ một handler đồng bộ thật, ví dụ phím `1`-`4` đổi
+     * phân loại cục bộ) — nó không phải, và không tự xưng là, một tấm lưới cho MỌI cách một
+     * `run()` có thể trượt.
+     *
+     * ⚠️ Nhánh `throw` cho id CHƯA ĐĂNG KÝ ở trên GIỮ NGUYÊN — nó là nửa cưỡng chế lúc chạy
+     * của AC1 và không nằm trong phạm vi bọc này.
+     */
+    try {
+      spec.run()
+    } catch (err) {
+      console.error(`[commands] \`${id}\` ném lỗi khi chạy: ${String(err)}`)
+    }
   }
 
   /** ⚠️ Bản sao. Kho nội bộ không rò ra ngoài — xem doc-comment của `frozen()`. */

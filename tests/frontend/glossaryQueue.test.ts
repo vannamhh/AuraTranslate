@@ -489,14 +489,23 @@ describe('GlossaryQueueOverlay.vue — bàn phím cục bộ dispatch ĐÚNG l�
 
 describe('GlossaryQueueOverlay.vue — dấu ✓/✕ mang tín hiệu ĐỌC ĐƯỢC, không chỉ màu', () => {
   it('hàng đã Nhận render span sr-only "Đã nhận." ngoài dấu ✓ (aria-hidden)', async () => {
+    // 🔴 SỬA (cụm D vá) — HAI hàng, không MỘT: sau khi `queueEmptyReasonFor` đo "đã duyệt
+    // hết" bằng SỐ HÀNG CHƯA XỬ LÝ (không còn `rows.length === 0`, mã chết cho mục đích đó),
+    // Nhận hàng DUY NHẤT của một bảng chờ một-hàng làm `unprocessedCount` về 0 ⇒ nhánh
+    // "bảng chờ đã sạch" SỐNG (đúng mục đích của bản vá, §I/O Matrix ⑩) và danh sách (cùng
+    // dấu ✓/✕ của nó) không còn render. Ca này giữ MỘT hàng CÒN chờ để danh sách vẫn render.
     const { state, i18n, GlossaryQueueOverlay } = await freshOverlay()
-    pendingMock.mockResolvedValue({ candidates: [candidate({ id: 1 })], error: null })
+    pendingMock.mockResolvedValue({
+      candidates: [candidate({ id: 1 }), candidate({ id: 2, source_term: '乙' })],
+      error: null,
+    })
     approveMock.mockResolvedValue({ value: 1, error: null })
     await state.openGlossaryQueue()
     // Đi qua đường Nhận THẬT (cùng adapter giả `config/glossary.ts` mà mọi ca khác của tệp
     // này dùng) — không ép state nội bộ, giữ mount test này là một lượt tích hợp thật.
     await state.acceptGlossaryQueueCandidate()
     expect(state.queueRows.value[0]?.outcome).toBe('accepted')
+    expect(state.queueRows.value[1]?.outcome).toBeNull() // hàng thứ hai còn chờ ⇒ danh sách còn sống.
 
     const wrapper = mount(GlossaryQueueOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
@@ -506,5 +515,72 @@ describe('GlossaryQueueOverlay.vue — dấu ✓/✕ mang tín hiệu ĐỌC Đ�
     expect(wrapper.text()).toContain(i18n.t('glossary.queue.row_status_accepted'))
 
     wrapper.unmount()
+  })
+})
+
+describe('queueEmptyReasonFor — cụm D vá: "loading" có tên riêng, "all_reviewed" đo bằng số hàng CHƯA xử lý', () => {
+  it('"unknown" trả "loading" (KHÔNG null) — vị từ tự khai, template không cần một v-if riêng canh cùng mệnh đề', async () => {
+    const { queueEmptyReasonFor } = await freshState()
+    expect(queueEmptyReasonFor('unknown', 0)).toBe('loading')
+  })
+
+  it('🔴 ĐỐI CHỨNG mã-chết-cũ: "loaded" với rows.length > 0 nhưng MỌI hàng đã xử lý ⇒ "all_reviewed" (bản cũ đo bằng rowCount===0 không bao giờ đúng ở đây)', async () => {
+    const { openGlossaryQueue, acceptGlossaryQueueCandidate, queueEmptyReasonFor, queueStatus, queueUnprocessedCount } =
+      await freshState()
+    pendingMock.mockResolvedValue({ candidates: [candidate({ id: 1 })], error: null })
+    approveMock.mockResolvedValue({ value: 1, error: null })
+    await openGlossaryQueue()
+    await acceptGlossaryQueueCandidate()
+
+    expect(queueUnprocessedCount.value).toBe(0)
+    expect(queueEmptyReasonFor(queueStatus.value, queueUnprocessedCount.value)).toBe('all_reviewed')
+  })
+
+  it('"loaded" còn hàng CHƯA xử lý ⇒ null (danh sách vẫn hiện, không phải câu rỗng nào)', async () => {
+    const { openGlossaryQueue, acceptGlossaryQueueCandidate, queueEmptyReasonFor, queueStatus, queueUnprocessedCount } =
+      await freshState()
+    pendingMock.mockResolvedValue({ candidates: [candidate({ id: 1 }), candidate({ id: 2 })], error: null })
+    approveMock.mockResolvedValue({ value: 1, error: null })
+    await openGlossaryQueue()
+    await acceptGlossaryQueueCandidate() // chỉ hàng ĐẦU được xử lý.
+
+    expect(queueUnprocessedCount.value).toBe(1)
+    expect(queueEmptyReasonFor(queueStatus.value, queueUnprocessedCount.value)).toBeNull()
+  })
+
+  it('GlossaryQueueOverlay.vue — Nhận hết mọi hàng ⇒ DOM chuyển sang câu "đã sạch", danh sách biến mất', async () => {
+    const { state, i18n, GlossaryQueueOverlay } = await freshOverlay()
+    pendingMock.mockResolvedValue({ candidates: [candidate({ id: 1 })], error: null })
+    approveMock.mockResolvedValue({ value: 1, error: null })
+    await state.openGlossaryQueue()
+    await state.acceptGlossaryQueueCandidate()
+
+    const wrapper = mount(GlossaryQueueOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.gq-list').exists()).toBe(false)
+    expect(wrapper.text()).toContain(i18n.t('glossary.queue.empty_all_reviewed'))
+
+    wrapper.unmount()
+  })
+
+  it('🔴 #13 (vòng rà thứ hai) — GlossaryQueueOverlay.vue gọi queueEmptyReasonFor(...) ĐÚNG MỘT LẦN mỗi lượt render, không bốn', async () => {
+    // Đối chứng gỡ-chỗ-nối: rải lại bốn lời gọi trực tiếp `queueEmptyReasonFor(queueStatus,
+    // queueUnprocessedCount)` vào bốn nhánh `v-if`/`v-else-if` của template (bỏ `computed`
+    // `queueEmptyReason`) ⇒ ca này ĐỎ (spy đếm được 4 lượt gọi thay vì 1).
+    const { state, GlossaryQueueOverlay } = await freshOverlay()
+    pendingMock.mockResolvedValue({ candidates: [], error: null })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false }) // ⇒ status 'no_work'.
+    await state.openGlossaryQueue()
+
+    const spy = vi.spyOn(state, 'queueEmptyReasonFor')
+
+    const wrapper = mount(GlossaryQueueOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    expect(spy).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+    spy.mockRestore()
   })
 })

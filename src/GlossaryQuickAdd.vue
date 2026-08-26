@@ -31,6 +31,7 @@ import {
   quickAddTierChoice,
   quickAddTranslation,
   quickAddWorkTierAvailable,
+  quickAddWorkTierBlocked,
   setQuickAddSourceTerm,
 } from './glossaryQuickAddState'
 
@@ -194,7 +195,7 @@ watch(quickAddIsOpen, (open) => {
             name="gqa-tier"
             value="work"
             :checked="quickAddEffectiveTier === 'work'"
-            :disabled="quickAddMode === 'edit'"
+            :disabled="quickAddMode === 'edit' || quickAddWorkTierAvailable === false"
             @change="onTierChange"
           />
           {{ t('glossary.quick_add.tier_work') }}
@@ -233,7 +234,9 @@ watch(quickAddIsOpen, (open) => {
       <button
         type="submit"
         class="gqa-act gqa-act-primary"
-        :disabled="quickAddSaving || quickAddMode === 'unknown' || quickAddSourceTerm.trim() === ''"
+        :disabled="
+          quickAddSaving || quickAddMode === 'unknown' || quickAddSourceTerm.trim() === '' || quickAddWorkTierBlocked
+        "
       >
         {{ t('glossary.quick_add.save') }}
       </button>
