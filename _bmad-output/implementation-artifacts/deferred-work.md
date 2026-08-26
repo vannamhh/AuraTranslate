@@ -114,6 +114,7 @@
   → 🟡 **SOÁT MỘT PHẦN 2026-08-06 (Story 1.14, AC11 ⚠️(b)) — và nó tìm ra MỘT CHỖ LỆCH THẬT.** Bốn chuỗi đầu tiên chạy qua `ui-md` là bốn câu trạng thái panel, và **một trong bốn XUỐNG DÒNG THẬT**: `panel.ai_translation.status` dài 96 ký tự, chạy hai dòng ở panel rộng 700px. `ui-md` khai `wraps: false` với giãn dòng **1.5** — **dưới sàn 1.66**.
   🔴 **Ghi ra thay vì lặng lẽ sửa cờ.** `DESIGN.md` khai `ui-md` là *"Tiêu đề panel — nhãn một dòng"*; đổi `wraps` thành `true` sẽ đòi nâng giãn dòng lên 1.66 cho **mọi** nhãn giao diện — một quyết định thị giác toàn ứng dụng, không phải một lần sửa JSON, và nó chạm `DESIGN.md`. Ba đường: *(a)* rút ngắn câu trạng thái về một dòng; *(b)* thêm token `ui-md-wrap` ở 1.66 cho câu trạng thái; *(c)* nâng `ui-md` lên 1.66. **CHƯA CHỐT — quyết định của Ice.** Nhặt lại ở **Story 1.16/1.17**, nơi bề mặt đọc thật buộc phải mở lại chính bảng này.
   → ✅ **ĐÓNG MỘT PHẦN 2026-08-06 (Story 1.17, Quyết định #7).** Ice chốt đường **(b)** — token thứ 17 `ui-md-wrap` (họ `ui`, 12px/1.66, `wraps: true`) vào `tokens.json` + sổ `deviations` + `EXPECTED_COUNTS.typography` (16→17) của `check-tokens.mjs`. Áp cho **ba** chỗ dùng cũ nêu ở mục `:129` (`.load-error`/`.parallel-note` của `SourcePanel.vue`, `.hv-notice` của `SourceHanViet.vue`) **và** mọi câu trạng thái mới của Panel Lookup. `.parallel-note` đổi cỡ 11,5px→12px (chấp nhận, ghi ra ở `tokens.json` deviations). ⚠️ **`PanelFrame.vue .status`** (câu trạng thái MẶC ĐỊNH dùng chung bởi mọi panel — kể cả `panel.ai_translation.status` dài 96 ký tự xuống dòng thật đã nêu ở mục này) **VẪN ở `ui-md`, chưa đổi** — ngoài phạm vi story 1.17 (component đó không phải nội dung Panel Lookup); nhặt lại khi Epic 4 (AI Translation) dựng nội dung thật.
+  → ✅ **ĐÓNG TRỌN 2026-08-26 (Story 4.1, Ice chốt cùng ngày).** `PanelFrame.vue .status` chuyển `ui-md` → `ui-md-wrap` (`--face-ui-md-wrap`/`--font-ui-md-wrap`/`--leading-ui-md-wrap`) — cùng 13px, giãn dòng 1,5 → 1,66, đúng đường **(b)** đã chốt ở trên, áp cho component MẶC ĐỊNH thay vì chỉ ba chỗ dùng cũ. Ba panel truyền `status-key` (AI Translation · Lookup · Grid) đổi theo cùng lượt vì chúng dùng chung một component. Câu `panel.ai_translation.status` (`vi.json:190`) đồng thời được viết lại — thêm vế *"mọi năng lực khác vẫn chạy đầy đủ"* (94 → 135 ký tự, đo lại 2026-08-26) theo giọng MỜI (UX-DR27/FR77, Kiểm D `check-i18n` xác nhận không "chúng tôi"/"bạn"). Không còn vế `PanelFrame.vue`/`.status` nào bỏ ngỏ trong mục này.
 
 - **`scripts/check-tokens.mjs` không được type-check và không có test** — cùng hạng với mục *"không có clippy · rustfmt · ESLint · test runner frontend"* ở trên: `tsconfig.json` chỉ include `src/**` + `env.d.ts`, nên **cả tầng cưỡng chế** nằm ngoài mọi phép kiểm tĩnh. Bù lại một phần bằng nghiệm thu đỏ-rồi-xanh 28 ca (Task 3) — nhưng đó là test của *hành vi cổng*, chạy tay, không nằm trong CI. Một hồi quy trong chính script sẽ đi qua CI mà không ai biết. Thuộc lượt bổ sung công cụ frontend. **(Chủ: một story hạ tầng cổng kế tiếp.)**
 
@@ -7843,3 +7844,133 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     🔴 Đây là lỗi **đỏ oan**, không phải xanh giả, nên nó không che một khuyết tật sản phẩm; nhưng
     nó dạy người sửa rằng cách thoát là đổi văn bản của mình, và bài học đó sai.
     **(Chủ: một story hạ tầng cổng — gộp cùng hai món `check-i18n` Kiểm A đã ghi ở trên.)**
+
+## Deferred from: 4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi (2026-08-26)
+
+- source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
+  summary: **Năm trong sáu AC của Story 4.1 đúng một cách RỖNG hôm nay** — chúng đứng vững vì
+    `core/ai/` có 0 dòng mã và 0 chỗ gọi thật ngoài tệp test vừa dựng, không vì một vi phạm
+    THẬT nào từng bị bắt trên cây sống.
+  evidence: Đo lúc đóng story (2026-08-26): `core/ai/mod.rs` — 10 dòng, 100% doc-comment, 0 dòng
+    mã; `src-tauri/src/**` có 55 tệp `.rs` (`AI_FLOOR = 1`, `SRC_RS_FLOOR = 44`, 44/55 = 80%).
+    `src-tauri/tests/ai_boundary.rs` sáu ca xanh, nhưng AC *"một tệp mang token cấm ⇒ ca
+    ĐỎ, nêu đích danh `file:line`"* và AC *"cây sạch ⇒ mọi ca XANH, ca gieo tổng hợp chứng
+    minh vị từ nổ được"*) chỉ được chứng minh bằng CA GIEO VI PHẠM TỔNG HỢP dựng tay
+    (`the_bare_dependency_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code`)
+    cộng NĂM phép GỠ-CHỖ-NỐI thật đã chạy và ghi số (xem §Completion Notes: ba lượt gieo vào
+    `src-tauri/src/lib.rs` và `src-tauri/src/core/scope/mod.rs` cho đúng 1 ca đỏ mỗi lượt; một
+    đối chứng ÂM giữ 4/4 xanh; một lượt gieo `AI_DIR` gõ sai cho 2 ca đỏ) — nhưng CHƯA một vi
+    phạm THẬT nào từng tồn tại trong cây để cổng tự bắt: mọi vi phạm đều do chính người nghiệm
+    thu gieo vào rồi gỡ ra.
+    🔵 **Sửa tại chỗ 2026-08-26 — bản đầu của mục này SAI HAI VẾ.** Nó viết *"AC (sàn quần thể
+    đỏ khi cây bị cắt)… chưa được kích hoạt thật ở đây"* và ghi lượt gieo `super::ai::…` là vào
+    `core/dict/mod.rs`. Cả hai là mô tả một DỰ ĐỊNH chứ không phải một phép đo — agent thi hành
+    chết vì lỗi API trước khi chạy chúng, và người nghiệm thu chạy lại trên hai tệp khác. Sàn
+    quần thể ĐÃ được kích hoạt thật. Giữ lại nguyên văn chỗ sai thay vì xoá, đúng luật của sổ này.
+    AC *"toàn bộ cổng/test kho xanh"* đúng nhưng không nói gì riêng về AD-13 trên một cây CÓ Epic
+    4 thật. Mười một story còn lại của Epic 4 (4.2–4.12) sẽ là lần đầu tiên `core/ai/` có từ vựng
+    thật để cổng này canh trên dữ liệu sống thay vì một chuỗi dựng tay.
+    **(Chủ: Story 4.2 — story đầu tiên thêm mã thật vào `core/ai/`. Ảnh chụp nền tiếp theo:
+    đo lại số dòng mã/số tệp của `core/ai/` và chạy `ai_boundary.rs` trên cây đó — còn xanh
+    hay không, và `AI_FLOOR`/`SRC_RS_FLOOR` có cần nâng.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
+  summary: **Chiều ĐƯỢC PHÉP của AD-13 — `ai/` đọc `glossary/`/`tm/`/`segment/` — chưa được
+    chứng minh, kể cả bằng một ca rỗng.**
+  evidence: `epic-4-context.md` §Technical Decisions khai *"Chiều ngược lại hợp lệ: `ai/` được
+    đọc `glossary/`, `tm/`, `segment/`"*, nhưng `ai_boundary.rs` (Story 4.1) chỉ dựng được vế
+    CẤM (module khác phụ thuộc `ai/`) — hôm nay không có gì để canh ở chiều ngược vì `core/ai/`
+    0 dòng mã. Khi Story 4.6 (`RagInjector`) dựng lời gọi thật xuống
+    `core::glossary::entries_eligible_for_injection`, `glossary_boundary.rs` (Story 3.1/3.2,
+    quét TRỌN `src-tauri/src/**`) về mặt quần thể ĐÃ bao `core/ai/` — một lời gọi cấm
+    (`load_tier`/tên bảng thô) từ `ai/` sẽ bị `glossary_boundary.rs` bắt như bắt bất kỳ module
+    nào khác — nhưng mệnh đề đó CHƯA từng được chứng minh bằng một ca dương thật, vì chưa một
+    dòng mã `ai/` nào gọi xuống `glossary/` để tự làm chứng.
+    **(Chủ: Story 4.6 — dựng `RagInjector`, chỗ đầu tiên `ai/` thật sự gọi xuống `glossary/`;
+    xác nhận lúc đó rằng `glossary_boundary.rs` bắt đúng nếu `ai/` lách qua bề mặt cấm.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
+  summary: **AC ranh giới của `ai_boundary.rs` mới canh được Epic 1–3 (55 tệp hôm nay);
+    `epic-4-context.md` đòi nó chạy LẠI trên bộ test của cả Epic 5 và Epic 6 khi Story 4.2 tới
+    lượt.**
+  evidence: §Technical Decisions của `epic-4-context.md`: *"khi Story 4.2 trở đi tới lượt, AC
+    ranh giới phải chạy lại trên bộ test của cả Epic 5 và Epic 6, không chỉ Epic 1–3 như văn
+    bản gốc."* Về mặt CƠ CHẾ, `ai_boundary.rs` đã bao trọn mọi tệp tương lai của Epic 5/6 một
+    khi chúng tồn tại — nó quét `src-tauri/src/**` bất kể tệp đó do Epic nào viết ra, không cần
+    sửa gì thêm ở chính tệp test. Nhưng mệnh đề *"đã chạy và bắt được trên Epic 5/6"* chỉ đúng
+    SAU khi hai Epic đó có tệp `.rs` thật để quét qua — hôm nay chúng chưa tồn tại
+    (`sprint-status.yaml` quyết định thời điểm).
+    **(Chủ: Story 4.2 — chạy lại `ai_boundary.rs` trên cây SAU khi Epic 5 và Epic 6 đã đóng,
+    xác nhận `SRC_RS_FLOOR` phản ánh đúng quần thể mới và không tệp Epic 5/6 nào lọt miễn trừ.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
+  summary: **Điểm mù có tên — một `pub use ai::Foo;` thêm vào `core/mod.rs` cho module khác
+    viết `crate::core::Foo` mà không đánh vần `ai` một lần nào, và cổng ranh giới sẽ xanh trên
+    một AD-13 đã bị phá.**
+  evidence: `ai_boundary.rs::core_mod_rs_declares_the_ai_module_bare_with_no_reexport` khoá lại
+    hình dạng AN TOÀN hôm nay (`core/mod.rs` khai `pub mod ai;` trần, 0 `pub use ai::`) nhưng tự
+    ghi rõ giới hạn ngay trong doc-comment: ca đó chỉ kiểm DÒNG trong `core/mod.rs`, nó không
+    chứng minh không ai re-export ở một tệp khác rồi vòng qua. Hai token bare
+    (`crate::core::ai`, `super::ai`) cũng không bắt được một đường vòng qua alias re-export
+    (gọi `crate::core::SomeType` sau khi `SomeType` đã được `pub use ai::SomeType` ở
+    `core/mod.rs`) — đường đó không đánh vần `ai` ở vị trí mã của CHỖ GỌI, nên phép quét
+    không thấy nó.
+    **(Chủ: Story 4.2 — quyết định có cần một cổng quét "0 `pub use` nào re-export từ `ai::`
+    ở bất kỳ đâu trong `src-tauri/src/**`" hay không, một khi `ai/` bắt đầu có kiểu/hàm thật
+    để người ta muốn re-export.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
+  summary: **Hai rủi ro mở của Story 4.1 chưa có lực cưỡng chế** — `walk()` chưa từng chạy trên
+    một hệ tệp Windows THẬT, và vế thị giác của lượt di trú `.status` sang `ui-md-wrap` chưa ai nhìn.
+  evidence: §Completion Notes của story ghi cả hai, nhưng `check-debt-owner` chỉ canh những mục
+    có mặt TRONG sổ này — một rủi ro chỉ nằm ở §Completion Notes thì không có gì buộc ai mở lại.
+    Vế Windows: ca `the_core_ai_exemption_still_matches_when_the_path_arrives_windows_shaped`
+    nghiệm thu phép CHUẨN HOÁ `\` → `/` (và đỏ được — lượt gieo 6), nhưng `walk()` trên hệ tệp
+    Windows thật thì chỉ job `windows-2025` của CI chạm tới. Vế thị giác: `.status` đổi giãn dòng
+    1,5 → 1,66 ảnh hưởng BA câu trạng thái (AI Translation · Lookup · Grid) và kho không có
+    đường nghiệm thu thị giác tự động nào.
+    **(Chủ: vế Windows — lượt đọc CI đầu tiên sau khi Ice push, cùng chủ với B7 bảng nghiệm thu
+    Windows; vế thị giác — lượt `npm run tauri dev` kế tiếp của Ice.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
+  summary: **`code_lines()` chỉ bỏ chú thích DÒNG (`//`), không hiểu khối `/* … */`** — nên một
+    token bị cấm nhắc trong một khối chú thích nhiều dòng sẽ làm cổng ĐỎ OAN.
+  evidence: Vòng rà đối kháng của Story 4.1 tìm ra (hai lớp độc lập). Đo 2026-08-26: **sáu trong
+    bảy** tệp `*_boundary.rs` mang đúng khuôn này (`code.starts_with("//")` và không gì khác);
+    `segment_boundary.rs:143::is_comment` là ngoại lệ — nó xử THÊM `* ` và `*/`, tức đã bắt được
+    phần THÂN và phần ĐÓNG của một khối `/* … */`, chỉ để hở dòng MỞ (`/* …`). Nên đây không
+    phải một hành vi thống nhất mà là **sáu bản chép cùng lỗ cộng một bản chép đã vá một nửa**,
+    và không ai biết bản vá nửa vời đó tồn tại. Sửa riêng ở `ai_boundary.rs` sẽ thành hành vi
+    thứ BA cho cùng một khuôn. Là đỏ oan
+    chứ không phải xanh giả, nên nó không che một khuyết tật sản phẩm — nhưng nó dạy người sửa
+    rằng cách thoát là đổi văn bản chú thích của mình, và bài học đó sai (đúng họ với món
+    `check-i18n` regex đã ghi ở cụm F).
+    **(Chủ: một story hạ tầng cổng — gộp cùng ba món `check-i18n`/`check-tokens` đã ghi trong sổ.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
+  summary: **Năm helper đọc-cây (`src_root`/`rel_posix`/`walk`/`code_lines`/`all_rust_sources`)
+    nay có BẢY bản chép, không một module dùng chung** — một bản vá ở một chỗ không tự lan.
+  evidence: Story 4.1 là bằng chứng sống: nó phải tự thêm phép chuẩn hoá `\` → `/` và ca NFR14
+    cho `rel_posix`, và bản vá đó **không** lan sang sáu tệp `*_boundary.rs` kia. Cùng lớp với ba
+    khuyết tật "thiếu neo biên" mà vòng rà 1 vừa bắt.
+    🔵 **ĐÃ ĐO 2026-08-26 — không còn là nghi vấn.** Năm tệp (`scope` `:175,:222,:251,:289` ·
+    `glossary` `:343,:393,:456,:487` · `matching` `:215,:236,:272,:299,:309` · `store`
+    `:142,:206,:235` · `segment` `:182,:322`) đều khớp miễn trừ thư mục bằng `starts_with(<DIR>)`
+    trần — **cùng lỗ hổng XANH GIẢ ② mà `ai_boundary.rs` vừa vá**. Nhưng vế thứ hai của phép đo
+    làm nhẹ mức độ: `core/` hôm nay có 12 thư mục con và **0 cặp nào là tiền tố của cặp kia**
+    (`ai dict export glossary i18n library matching scope segment store tm webimport`) ⇒ lỗ hổng
+    là **TIỀM ẨN, chưa kích hoạt ở bất kỳ tệp nào**. Nó nổ vào ngày ai đó thêm `core/dictionary/`
+    cạnh `core/dict/`, `core/segmentation/` cạnh `core/segment/`, hay `core/glossary_import/`
+    cạnh `core/glossary/` — và ba cái tên đó đều là tên người ta thật sự đặt.
+    **(Chủ: một story hạ tầng cổng — nâng năm chỗ kia lên khuôn `is_inside_<dir>()` của
+    `ai_boundary.rs`; hoặc gộp helper một lượt, vì đây là lần thứ hai cùng một bản vá phải chép tay.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/4-1-module-ai-co-lap-va-test-cuong-che-ranh-gioi.md`
+  summary: **Sàn quần thể của bảy tệp `*_boundary.rs` là ảnh chụp gõ tay, không có cơ chế chống
+    trôi** — và bốn tệp cũ ĐÃ trôi (ghi 53, số thật hôm nay 55).
+  evidence: Story 4.1 đo lại và đặt `SRC_RS_FLOOR = 44` (44/55 = 80%) cho tệp mới, nhưng KHÔNG
+    nâng bốn sàn cũ đã lệch — ngoài phạm vi story, và nâng sàn của một tệp khác là chạm một mệnh
+    đề có chủ khác. Sàn là cận DƯỚI nên một sàn trôi không làm cổng đỏ; nó chỉ lặng lẽ mất tác
+    dụng, đúng thứ khó phát hiện nhất. Không cổng nào đếm lại các sàn này.
+    **(Chủ: một story hạ tầng cổng — quyết định giữa (a) đo lại và nâng cả bảy sàn một lượt, hay
+    (b) dựng một phép kiểm tính tỉ lệ sàn/quần thể thật và đỏ khi tỉ lệ tụt dưới ~70%.)**

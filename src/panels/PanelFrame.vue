@@ -212,14 +212,25 @@ onBeforeUnmount(() => {
   background-color: var(--color-primary);
 }
 
-/* UX-DR27 — câu trạng thái, `ui-md` màu chữ phụ. Không màu `error`, kể cả ở panel AI. */
+/*
+ * UX-DR27 — câu trạng thái, màu chữ phụ. Không màu `error`, kể cả ở panel AI.
+ *
+ * 🔵 SỬA 2026-08-26 (Story 4.1, Ice chốt) — `ui-md` → `ui-md-wrap`. `deferred-work.md:116`
+ * đã ghi từ Story 1.17: câu trạng thái của panel AI Translation (94 ký tự hôm nay, và Story
+ * 4.1 còn dài thêm để nói rõ "mọi năng lực khác vẫn chạy đầy đủ") xuống dòng THẬT ở panel
+ * hẹp, còn `ui-md` khai `wraps: false` với giãn dòng 1,5 — dưới sàn 1,66 mà `DESIGN.md
+ * §Giãn dòng` đòi cho chữ chạy thành đoạn. `ui-md-wrap` (token thứ 17, Story 1.17 Quyết định
+ * #7) đã tồn tại sẵn cho đúng việc này; ba panel dùng `.status` qua `status-key` (AI
+ * Translation · Lookup · Grid) đổi theo cùng lượt. Cùng 13px — khác biệt DUY NHẤT là giãn
+ * dòng 1,5 → 1,66.
+ */
 .status {
   margin: 0;
   flex: none;
   color: var(--color-on-surface-variant);
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
 }
 
 /*
