@@ -1,7 +1,7 @@
 //! I/O & Edge-Case Matrix của Story 3.5 (quét ứng viên khi nhập tài liệu) — TẦNG THUẦN,
-//! không `Store` nào dựng ở tệp này. `core::glossary::scan::scan_candidates` là module LÁ
-//! (doc-comment của chính nó) — điều kiện để mọi ca dưới đây chạy TẤT ĐỊNH, không cần một
-//! `.atproj` nào.
+//! không `Store` nào dựng ở tệp này. `core::glossary::scan::scan_candidates_controlled` là
+//! module LÁ (doc-comment của chính nó) — điều kiện để mọi ca dưới đây chạy TẤT ĐỊNH, không
+//! cần một `.atproj` nào.
 //!
 //! ⚠️ Ca *"Đã có trong Glossary"*/*"Đã từng bị bỏ"* của I/O Matrix chạm SQL
 //! (`WHERE NOT EXISTS`/`ON CONFLICT DO NOTHING`) — chúng nằm ở `glossary_contract.rs`
@@ -10,10 +10,10 @@
 //! ⚠️ Mỗi hàng của I/O Matrix là ĐÚNG MỘT ca, tên hàm là một CÂU khẳng định.
 
 use auratranslate_lib::core::glossary::scan::{
-    CONTEXT_EXAMPLE_CHAR_LIMIT, DictionaryProbe, ScanOutcome, scan_candidates,
+    CONTEXT_EXAMPLE_CHAR_LIMIT, DictionaryProbe, ScanCandidate, ScanOutcome,
     scan_candidates_controlled,
 };
-use auratranslate_lib::core::glossary::surnames::COMMON_SURNAMES;
+use auratranslate_lib::core::glossary::surnames::{COMMON_SURNAMES, TRADITIONAL_SURNAME_ALIASES};
 use auratranslate_lib::core::matching::MatchLang;
 use auratranslate_lib::core::scope::store::{
     DEFAULT_GLOSSARY_SCAN_THRESHOLD, parse_glossary_scan_threshold,
@@ -22,6 +22,43 @@ use auratranslate_lib::core::scope::store::{
 /// Vị từ `is_known` không bao giờ trả `true` — dùng cho mọi ca không cần một từ điển giả.
 fn nothing_known(_term: &str) -> bool {
     false
+}
+
+/// Adapter TEST `bool -> DictionaryProbe`, giữ CỤC BỘ ở bàn test này — 🔵 2026-08-26 (cụm
+/// F ③). `core::glossary::scan::scan_candidates` (vỏ `bool` công khai) đã bị xoá: nó có 0
+/// chỗ gọi sản phẩm và biến một layer LỖI thành "không có trong từ điển", đúng lớp rỗng im
+/// lặng trung tâm của dự án. Mọi ca dưới đây chỉ cần một vị từ `bool` tất định nên tự giữ
+/// đúng phần thân adapter đã xoá, không phục hồi một API sản phẩm. ⚠️ `commands/project.rs`
+/// (`#[cfg(test)] mod tests::scan_candidates_bool_probe`) giữ một bản CHÉP SONG SONG của
+/// đúng phần thân này — hai crate test khác nhau (tích hợp `tests/**` so với đơn vị trong
+/// `src/`) không chia sẻ mã được, và NFR15 cấm thêm một crate hỗ trợ mới chỉ để hợp nhất
+/// hai bản chép sáu dòng.
+fn scan_candidates(
+    segments: &[&str],
+    lang: MatchLang,
+    threshold: u32,
+    surnames: &[char],
+    is_known: &mut dyn FnMut(&str) -> bool,
+) -> Vec<ScanCandidate> {
+    let mut probe = |term: &str| {
+        if is_known(term) {
+            DictionaryProbe::Known
+        } else {
+            DictionaryProbe::Missing
+        }
+    };
+    let mut never_cancelled = || false;
+    match scan_candidates_controlled(
+        segments,
+        lang,
+        threshold,
+        surnames,
+        &mut probe,
+        &mut never_cancelled,
+    ) {
+        ScanOutcome::Completed(out) => out,
+        ScanOutcome::DictionaryInconclusive | ScanOutcome::Cancelled => Vec::new(),
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -330,6 +367,85 @@ fn a_surname_shaped_prefix_on_a_four_char_string_does_not_get_the_lowered_thresh
         !out.iter().any(|c| c.source_term == "萧风雷动"),
         "4 ky tu -- bang ho KHONG noi (chi noi cho 2-3 ky tu); 4 lan < nguong day du 5: {out:?}"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Cụm F ④ — năm cặp alias phồn thể mới (`陳/陈 張/张 劉/刘 楊/杨 黃/黄`), Ice chốt 2026-08-26
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// §I/O Matrix ④a — chuỗi 2 ký tự bắt đầu bằng MỘT trong năm chữ phồn thể mới (`陳`), tần
+/// suất = ngưỡng − 1 ⇒ ngưỡng hạ còn `threshold - 1`, giống hệt vế giản thể `陈` (cùng cơ
+/// chế đã canh ở `a_traditional_surname_alias_below_threshold_by_one_is_kept` cho `蕭`).
+///
+/// Đối chứng GỠ-CHỖ-NỐI (§Boundaries cụm F): gỡ cặp `('陳', '陈')` khỏi
+/// `TRADITIONAL_SURNAME_ALIASES` ⇒ ca này phải ĐỎ.
+#[test]
+fn a_new_traditional_surname_alias_below_threshold_by_one_is_kept() {
+    let segments: Vec<String> = (0..4).map(|i| format!("陳風在第{i}章登场。")).collect();
+    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+
+    let mut is_known = nothing_known;
+    let out = scan_candidates(&refs, MatchLang::Zh, 5, COMMON_SURNAMES, &mut is_known);
+
+    let hit = out
+        .iter()
+        .find(|c| c.source_term == "陳風")
+        .unwrap_or_else(|| panic!("`陳風` (ho phon the + 1 ky tu, 4 lan, nguong 5-1=4) phai co mat: {out:?}"));
+    assert_eq!(hit.occurrence_count, 4);
+}
+
+/// §I/O Matrix ④b — đối chứng NGƯỢC: chuỗi 2 ký tự bắt đầu bằng một chữ phồn thể **không**
+/// phải họ (`鬍`, "râu" — chính chữ mà §Boundaries nêu tên là bẫy nếu ai đó nhập trọn 134
+/// cặp đo được), tần suất = ngưỡng − 1 ⇒ ngưỡng GIỮ NGUYÊN `threshold`, 0 hàng — bảng chỉ
+/// NỚI cho họ, không nới bừa cho mọi chữ phồn thể.
+#[test]
+fn a_non_surname_traditional_character_does_not_get_the_lowered_threshold() {
+    let segments: Vec<String> = (0..4).map(|i| format!("鬍子在第{i}章登场。")).collect();
+    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+
+    let mut is_known = nothing_known;
+    let out = scan_candidates(&refs, MatchLang::Zh, 5, COMMON_SURNAMES, &mut is_known);
+
+    assert!(
+        !out.iter().any(|c| c.source_term == "鬍子"),
+        "`鬍` khong phai mot ho -- 4 lan < nguong DAY DU 5 phai bi loai (khong duoc noi): {out:?}"
+    );
+}
+
+/// §I/O Matrix ④c — ca QUẦN THỂ: khẳng định CẢ HAI mệnh đề mà bảng đo 134 cặp cho thấy dễ
+/// vỡ nhất, trên TOÀN BỘ `TRADITIONAL_SURNAME_ALIASES` chứ không chỉ cặp mới thêm — mọi vế
+/// GIẢN phải là một họ thật (nằm trong `COMMON_SURNAMES`), và vế PHỒN không được TỰ NÓ là
+/// một họ KHÁC trong bảng. `於` là ca duy nhất trong 134 cặp đo được mắc vế thứ hai (nó
+/// nằm SẴN trong `COMMON_SURNAMES`) — đây là ca sẽ ĐỎ nếu ai đó dán nguyên bảng đo vào
+/// `TRADITIONAL_SURNAME_ALIASES` thay vì năm cặp Ice đã chốt.
+///
+/// ⚠️ **GIỚI HẠN THẬT của ca này — ghi ra thay vì để người sau tin nó bắt được mọi cặp sai
+/// (vòng rà 1, 2026-08-26).** Ca này CHỈ chặn được lớp *"vế phồn tự nó là một họ KHÁC trong
+/// bảng"* (khuôn `於→于`). Nó KHÔNG chặn được lớp *"chữ phồn KHÔNG phải họ, vế giản LÀ một
+/// họ thật"* — `衚→胡` (ngõ hẹp) lọt qua CẢ HAI `assert!` y hệt `鬍→胡` lọt qua ca ④b: `衚`
+/// không nằm trong `COMMON_SURNAMES` (qua được vế 2) và `胡` là một họ thật (qua được vế 1),
+/// nhưng `衚` không hề mang hình dạng tên người. Đo được: cả năm chữ phồn của lớp 1
+/// (`鬍 週 鬱 餘 衚`, xem `surnames.rs` doc-comment của `TRADITIONAL_SURNAME_ALIASES`) đều
+/// qua trót lọt ca quần thể này nếu ai đó thêm chúng vào bảng — **duyệt qua ca ④c KHÔNG ĐỦ**
+/// để nghiệm thu một cặp mới; còn cần đối chiếu TAY (hoặc một ca mới) rằng vế PHỒN thật sự
+/// mang hình dạng một họ, không chỉ "không phải một họ khác đã có".
+#[test]
+fn every_traditional_surname_alias_maps_to_a_real_surname_and_the_traditional_side_is_not_itself_a_listed_surname()
+ {
+    for &(traditional, simplified) in TRADITIONAL_SURNAME_ALIASES {
+        assert!(
+            COMMON_SURNAMES.contains(&simplified),
+            "ve GIAN `{simplified}` cua cap ({traditional}, {simplified}) khong nam trong \
+             COMMON_SURNAMES -- moi alias phai chuan hoa VE MOT HO THAT, khong phai mot chu tuy y"
+        );
+        assert!(
+            !COMMON_SURNAMES.contains(&traditional),
+            "ve PHON `{traditional}` cua cap ({traditional}, {simplified}) TU NO da la mot ho \
+             KHAC trong COMMON_SURNAMES -- day dung la bay `於→于` (`於` da la mot ho rieng): \
+             mot alias nhu vay se noi nguong cho MOI chuoi bat dau bang `{traditional}`, du no \
+             khong mang hinh dang ten nguoi"
+        );
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

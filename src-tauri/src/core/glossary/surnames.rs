@@ -55,4 +55,49 @@ pub const COMMON_SURNAMES: &[char] = &[
 /// một bước chuẩn hoá hình dạng chữ trước phép tra bảng, không phải một họ mới. Story 3.5
 /// review đo đúng ca `蕭炎` ở `threshold - 1`; thiếu cặp này làm cùng một họ đi hai ngưỡng
 /// chỉ vì cách mã hoá chữ.
-pub(super) const TRADITIONAL_SURNAME_ALIASES: &[(char, char)] = &[('蕭', '萧')];
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔵 **THÊM 2026-08-26 (cụm F ⑤) — năm cặp `陳/陈 張/张 劉/刘 楊/杨 黃/黄`, Ice chốt.**
+/// ─────────────────────────────────────────────────────────────────────────────
+/// **Phép đo đã chạy** (2026-08-26, `src-tauri/resources/dict/dict-core.db`, `dict_entry`
+/// DISTINCT `headword`/`headword_simp`, cả hai dài đúng 1 ký tự, khác nhau): **7.362** cặp
+/// phồn→giản một ký tự; **134** cặp có vế giản NẰM trong [`COMMON_SURNAMES`], phủ
+/// **110/272** họ; **0** cặp mơ hồ (một phồn thể ứng với nhiều giản thể). Năm cặp trên là
+/// NĂM trong 134 cặp đó — mỗi vế giản (`陈 张 刘 杨 黄`) đều có sẵn trong
+/// [`COMMON_SURNAMES`], và không vế phồn nào (`陳 張 劉 楊 黃`) tự nó là một họ KHÁC trong
+/// bảng, nên cả năm qua được cả hai mệnh đề mà ca quần thể ④c canh.
+///
+/// 🔴 **KHÔNG nhập trọn 134 cặp đo được — chính phép đo đó bác nó, bằng HAI lý do khác
+/// nhau, không phải một.**
+///
+/// **Lớp 1 — alias sai NỚI NGƯỠNG cho chuỗi không mang hình dạng tên người.** Đúng cho
+/// `鬍→胡` (râu), `週→周` (tuần), `鬱→郁` (u uất), `餘→余`, `衚→胡` (ngõ hẹp) — đo lại 2026-08-26:
+/// cả NĂM vế phồn này đều KHÔNG có trong [`COMMON_SURNAMES`], nên `effective_threshold` sẽ
+/// đi qua nhánh alias và hạ ngưỡng cho một chữ không phải họ. Đây là lớp lỗi mà tham số
+/// `surnames` cố ý tách ra để KHÔNG trộn (xem đoạn trên).
+///
+/// **Lớp 2 — `於→于` KHÔNG thuộc lớp 1.** 🔵 **SỬA 2026-08-26 (vòng rà 1) — bản đầu của
+/// đoạn này viết SAI cả VỊ TRÍ lẫn CƠ CHẾ.** Đo lại: `於` nằm ở **hàng 13, cột 11** của
+/// [`COMMON_SURNAMES`] (không phải "hàng 6, cột 1" — hàng 6 cột 2 mới là `于`, vế GIẢN của
+/// chính cặp này, một chữ khác hẳn). Và mệnh đề *"alias `於→于` sai sẽ nới ngưỡng"* cũng SAI
+/// về cơ chế: `effective_threshold` tra `surnames.contains(&first) ||
+/// TRADITIONAL_SURNAME_ALIASES.iter().find_map(...)…` — `於` ĐÃ có sẵn trong
+/// `COMMON_SURNAMES`, nên vế ĐẦU của phép `||` đã đoản mạch đúng TRƯỚC khi bảng alias được
+/// tra tới; thêm cặp `('於','于')` **không đổi một chút hành vi thời gian chạy nào** (ca
+/// quần thể ④c xác nhận điều này bằng cách khác: nó đỏ không phải vì ngưỡng đổi, mà vì bản
+/// thân mệnh đề "vế phồn không được tự nó là một họ khác" bị vi phạm). Lý do THẬT để loại
+/// `於→于` là **MÔ HÌNH, không phải NGƯỠNG**: alias đó khai `於` và `于` là CÙNG một họ (một
+/// bước chuẩn hoá hình dạng chữ, đúng vai của bảng), trong khi [`COMMON_SURNAMES`] coi
+/// chúng là HAI họ RIÊNG (hai mục khác nhau trong *Bách gia tính*) — trộn hai họ khác nhau
+/// thành một là sai về NGỮ NGHĨA của bảng, không phải một lỗ hổng ngưỡng.
+///
+/// Phần còn lại của bảng 134 cặp là một mục nợ **có chủ**, kèm nguyên bảng đo — xem
+/// `deferred-work.md` §Cụm F — không phải một lượt gõ tay ở đây.
+///
+/// 🔵 **MỞ PHẠM VI 2026-08-26 (cụm F) — `pub`, từ `pub(super)`.** Ca quần thể ④c
+/// (`glossary_scan_contract.rs`) đọc THẲNG mảng này để khẳng định cả hai mệnh đề mà một
+/// cặp mơ hồ (`於→于`) sẽ vi phạm — cùng khuôn [`COMMON_SURNAMES`] đã `pub` sẵn cho đúng lý
+/// do đó. Bản thân bảng vẫn KHÔNG được trộn vào `COMMON_SURNAMES` (xem đoạn đầu doc-comment
+/// này) — mở phạm vi chỉ đổi ai ĐỌC được nó, không đổi việc nó có được TRA hay không.
+pub const TRADITIONAL_SURNAME_ALIASES: &[(char, char)] =
+    &[('蕭', '萧'), ('陳', '陈'), ('張', '张'), ('劉', '刘'), ('楊', '杨'), ('黃', '黄')];

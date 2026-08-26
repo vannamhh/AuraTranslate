@@ -7388,7 +7388,10 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     chạy, không phải một dòng vá; lượt đầu tiên chạm `vitest.config` mở lại.)**
 
 - source_spec: none
-  summary: **Cụm F — mười bảy mục rải rác** (`expect` dưới `panic = "abort"`, khoá giữ qua hai
+  summary: **Cụm F — 🔵 SỬA 2026-08-26: đúng mười bốn mục rải rác, không mười bảy** (danh sách
+    ngay dưới đây chỉ đếm được 14 vị trí; ba trong 14 đó lại bị chính một lượt đọc lại bằng phép
+    đo BÁC — xem `spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md` §Intent. Tám trong mười một
+    mục còn lại ĐÃ VÁ, xem →) (`expect` dưới `panic = "abort"`, khoá giữ qua hai
     `SELECT`, px thô ngoài lưới 4px, thiếu `aria-activedescendant`), **cộng ba món e2e/NFR2 rộng
     hơn một story**.
   evidence: Tách khỏi lượt vá 2026-08-25 theo lựa chọn [S]; nguồn `/bmad-review epic 3`.
@@ -7420,8 +7423,187 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `GlossaryQueueOverlay` (`trapTab`) và `GlossaryConfirmStrip` — hai thứ nặng tương tác nhất —
     không ca nào · NFR2: không một số đo nào cho chi phí VẼ của dấu/dải/overlay mới (thứ duy nhất
     có số thật là bản vá hâm JIEBA của 3.4 — đó là chi phí KHỚP, không phải chi phí VẼ).
-    **(Chủ: lượt vá kế tiếp — cho mười bảy mục rải rác. Chủ: story đầu tiên mở rộng bộ e2e sang
-    Glossary — cho ba món e2e/NFR2, cùng chủ với món nợ e2e sẵn có.)**
+    **(Chủ: 🔵 lượt vá cụm F (`spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`) đã đóng TÁM
+    trong mười một mục rải rác — xem →. Chủ: story đầu tiên mở rộng bộ e2e sang Glossary — cho
+    ba món e2e/NFR2, cùng chủ với món nợ e2e sẵn có, KHÔNG đụng trong lượt cụm F.)**
+  → 🟡 **ĐÓNG MỘT PHẦN 2026-08-26 (spec `spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`).**
+    Của mười bốn vị trí đếm được (không mười bảy — sửa tại chỗ ở trên), **tám** đứng vững và
+    đã vá.
+    🔵 **ĐƠN VỊ ĐẾM — SỬA 2026-08-26 (vòng rà 1).** Văn bản dưới đây liệt **tám bản vá** (①–⑦,
+    ⑤ đứng chung với ⑥ trong đánh số) nhưng chúng phủ **mười một vị trí**, không tám — `8 + 3
+    (bị bác) = 11`, không `14`, vì HAI mục gộp nhiều vị trí vào MỘT bản vá: ④ gộp **hai** chỗ
+    gọi (`glossary_marks_for_chapter` · `glossary_pending_candidates`), và ⑥ gộp **bốn** khai
+    báo px (`gap` · `padding` của `.gs-input` · `padding-left` của `.gs-alert` · `padding` của
+    `.gs-save`). Đếm theo VỊ TRÍ (không theo BẢN VÁ): ①=1 + ②=1 + ③=1 + ④=2 + ⑤=1 + ⑥=4 + ⑦=1 =
+    **11**, cộng ba vị trí bị bác (a/b/c dưới đây) = **14**, đúng con số mà §Intent của spec đã
+    sửa tại chỗ bằng 🔵. Đơn vị ĐẾM trong đoạn liệt kê `①`–`⑦` ngay dưới là BẢN VÁ (tám), không
+    phải VỊ TRÍ (mười một) — hai con số khác nhau, cả hai đều đúng, đừng lẫn.
+    ① hai điểm panic của `glossary_open_import_preview` (`issues[0]` trần + `.expect(...)`)
+    tách thành hàm thuần `first_issue_or_unknown` (`commands/glossary.rs`), rỗng ⇒
+    `MessageKey::Unknown`, không panic · ② `expect` của `scan.rs::zh_nested_padding` — bị BÁC
+    một phần (xem dưới) nhưng VẪN vá bằng cách viết lại duyệt `freq.iter()`, bỏ hẳn
+    `.get(...).expect(...)` · ③ `pub fn scan_candidates` (vỏ `bool`, `scan.rs` + re-export
+    `mod.rs`) xoá hẳn — 0 chỗ gọi sản phẩm, adapter `bool → DictionaryProbe` chuyển xuống CỤC BỘ
+    ở từng bàn test (`glossary_scan_contract.rs` + `commands/project.rs::tests`); cổng cấu trúc
+    mới `glossary_boundary.rs::zero_scan_functions_under_core_glossary_accept_a_bool_dictionary_callback`
+    canh nó không sống lại · ④ hai chỗ `unwrap_or(&empty_layers)` ở `commands/glossary.rs`
+    (`glossary_marks_for_chapter` · `glossary_pending_candidates`) đổi sang `guarded_dict_layers`
+    DÙNG CHUNG với `commands/project.rs` (mở phạm vi `pub(crate)`, thêm tham số `surface` cho
+    chẩn đoán đúng bề mặt gọi) · ⑤ năm cặp alias phồn thể `陳/陈 張/张 劉/刘 楊/杨 黃/黄` thêm vào
+    `TRADITIONAL_SURNAME_ALIASES` (đo xác nhận, 5/134 cặp) · ⑥ bốn khai báo px thô của
+    `GlossarySettingsOverlay.vue` đổi `calc(var(--space-unit) * N)`, giữ NGUYÊN pixel (kể cả
+    `11px` — khuôn "nét dẫn" ~~6 chỗ/5 tệp~~ 🔵 **7 chỗ/5 tệp** (SỬA 2026-08-26, vòng rà 2 P5
+    — xem ngay dưới), Ice chốt KHÔNG làm tròn 12px).
+    ⚠️ **THÊM 2026-08-26 (vòng rà 1) — khuôn "nét dẫn" còn một `11px` THỨ HAI, chưa được đếm
+    vào bảy chỗ vì nó không đứng cạnh `border-left`.** `panels/LookupRecord.vue:311`
+    `.lookup-citation` mang `margin: 4px 0 0 11px;` NGAY TRÊN `padding-left: 11px;` (`:312`,
+    chỗ ĐÃ đếm) — hai khai báo `11px` liền kề trong CÙNG một rule.
+    🔵 **SỬA 2026-08-26 (vòng rà 2, P5) — con số "6 chỗ / 5 tệp" mà đoạn trên (và §Never)
+    từng khai là ĐÚNG thì SAI: đo lại tìm ra chỗ THỨ BẢY, `panels/LookupPanel.vue:1154
+    .lookup-row` (`padding: 2px 0 2px 11px; border-left: 2px solid transparent;`).** Nó viết
+    `padding` DẠNG RÚT GỌN bốn giá trị, nên mọi lượt `grep 'padding-left: 11px'` trước đó
+    (cụm F ⑥ LẪN vòng rà 1) đều lọt qua nó — SITE thật là cặp `border-left: 2px` + lề `11px`,
+    dù viết `padding-left: 11px` hay shorthand `padding: … 11px`, không phải chuỗi
+    `padding-left: 11px` riêng lẻ. Danh sách đúng, bảy chỗ: `GlossarySettingsOverlay.vue:266`
+    (nay `calc`) · `ShortcutsOverlay.vue:432` · `ShortcutsOverlay.vue:446` ·
+    `AttributionOverlay.vue:333` · `panels/LookupPanel.vue:1059` · `panels/
+    LookupPanel.vue:1154` · `panels/LookupRecord.vue:312`. Quyết định `* 2.75` của Ice
+    KHÔNG đổi — phép đo mới chỉ củng cố nó (11px vẫn là hằng số dùng chung).
+    Một lượt chuyển token SAU này trên `LookupRecord.vue` rất dễ sửa `padding-left` mà bỏ
+    quên `margin` — hai khai báo cùng giá trị, cùng rule, một cái có tên trong sổ này, cái
+    kia thì không. Không sửa `LookupRecord.vue`/`LookupPanel.vue`/`ShortcutsOverlay.vue`/
+    `AttributionOverlay.vue` trong lượt cụm F (§Never: bốn tệp ngoài
+    `GlossarySettingsOverlay.vue` "không được chạm một dòng") — ghi ra để lượt vá tương lai
+    không bỏ sót chỗ nào trong bảy. · ⑦
+    `GlossaryManageOverlay.vue` — `id` ổn định trên mỗi `<li>` + `aria-activedescendant` trên
+    `<ul>` trỏ hàng ở `manageCursor`, vắng mặt khi rỗng; chú thích cạnh đó SỬA lại cho khớp thứ
+    nó thật sự đóng.
+    **Ba mục còn lại của 14 bị BÁC bằng phép đo, mỗi mục để lại dư địa CÓ CHỦ** (§Design Notes
+    của spec cụm F, không đóng bằng suy luận):
+    (a) *"hai `expect` dựa trên bất biến KHÔNG được cưỡng chế"* — chỉ MỘT đúng
+    (`commands/glossary.rs:770`, đã vá ở ①); `scan.rs:319` SAI tiền đề — `freq: &HashMap` là
+    mượn bất biến trọn hàm, borrow-checker cưỡng chế nó, 0 đường nổ hôm nay. Dư địa thật: một
+    lượt refactor sau đưa `freq` thành `&mut` MỚI mở đường đó — đã vá phòng ngừa ở ② dù tiền đề
+    gốc sai, không nợ gì thêm.
+    (b) *"`project.rs:177-209` hai `SELECT` ngược thiết kế hai-khoá-ngắn"* — SAI vị trí VÀ sai
+    kết luận: chỗ thật là `filter_and_enqueue_current_import_scan` (`:435-467`) gọi
+    `store.rs:302-328 resolved_source_terms`, và doc-comment của chính hàm khai đúng thẳng nó
+    *"xác nhận work_id, lọc hai tầng và enqueue"* — mã làm ĐÚNG điều nó khai. Dư địa thật: hai
+    lượt `SELECT source_term` không `WHERE`/`LIMIT` chạy trong lúc giữ khoá là một câu hỏi CHI
+    PHÍ chưa ai đo, không phải một vi phạm kiến trúc. **(Chủ: một lượt đo chi phí quét trên một
+    Chương lớn, chưa xếp lịch.)**
+    (c) *"`insert_candidate` không loại thuật ngữ đã có, không kiểm lại tầng Global"* — hàm đó
+    có 0 chỗ gọi sản phẩm, bị `GLOSSARY_ONLY_SURFACE` khoá, và `glossary_contract.rs:1709-1764`
+    đã ghim hành vi này CÓ CHỦ Ý; đường sản phẩm thật (`resolved_source_terms` +
+    `filter_import_scan_candidates_by_scope`) ĐÃ lọc cả hai tầng trước khi enqueue. Dư địa thật:
+    `store.rs:299-301` tự khai `WHERE NOT EXISTS` trong câu `INSERT` chỉ canh tầng Work, nên còn
+    một cửa sổ đua HẸP giữa ảnh chụp và một lượt ghi cho một thuật ngữ vừa được đẩy lên Global.
+    Đóng nó cần snapshot chéo hai kho ⇒ nợ **C4 / một `AD` mới**, không phải một lượt vá.
+    **(Chủ: một `AD` mới khi C4 được xếp lịch — không phải lượt vá cụm F.)**
+    Đối chứng gỡ-chỗ-nối cho cả tám mục đã vá: xem §Completion Notes của
+    `spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md` — mỗi bản vá kèm tên ca + số ca đỏ thật
+    khi gỡ. Ba món e2e/NFR2 (dòng trên) GIỮ NGUYÊN mở, không đụng trong lượt này (§Never của
+    spec cụm F) — cùng chủ với món nợ e2e sẵn có.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`
+  summary: **16 tệp `.vue` còn lại mang px thô ngoài lưới 4px** — cụm F chỉ vá MỘT tệp
+    (`GlossarySettingsOverlay.vue`, 4 khai báo); `check-tokens.mjs` không Kiểm nào đọc
+    `padding`/`margin`/`gap` nên cổng không thấy quần thể này.
+  evidence: Đo 2026-08-26 (cùng lượt cụm F ⑥): **17** tệp `.vue` toàn cây mang px thô ngoài
+    viền 1px, **104** khai báo, **~53** lệch lưới 4px. Nặng nhất `panels/LookupPanel.vue`
+    (19) · `modes/LibraryMode.vue` (18) · `ShortcutsOverlay.vue` (14). `GlossarySettingsOverlay.vue`
+    đóng góp 4 (đã vá cụm F, đổi sang `calc(var(--space-unit) * N)`, giữ nguyên pixel). **16**
+    tệp còn lại là mục nợ này — Ice chốt 2026-08-26: KHÔNG sửa 16 tệp còn lại trong lượt cụm F
+    (chỉ tệp cụm F nêu), KHÔNG thêm Kiểm spacing vào `check-tokens.mjs` lượt này. `check-tokens.mjs`
+    có 7 Kiểm hôm nay (A tokens.json · B màu · B2 chỉ 12 thuộc tính chữ · C tương phản · D
+    opacity · E giãn dòng · F bóng/gradient · G phân tách panel) — không Kiểm nào canh khoảng
+    cách, nên một Kiểm THỨ TÁM (đọc `padding`/`margin`/`gap`, so sánh bội số của `--space-unit`)
+    là điều kiện để đóng mục nợ này KHÔNG chỉ bằng một lượt gõ tay 16 tệp mà còn có cổng giữ nó
+    không rot lại.
+    🔵 **THÊM 2026-08-26 (vòng rà 2, P8) — BỐN trong 16 tệp này mang khuôn "nét dẫn"
+    (`padding-left: 11px` HOẶC shorthand `padding: … 11px` + `border-left: 2px`, tổng lề
+    quang học 13px), và mục nợ này TRƯỚC ĐÓ không nhắc nó một chữ.** `ShortcutsOverlay.vue`
+    (2 chỗ, `.sc-note`/`.sc-alert`) · `AttributionOverlay.vue` (`.attr-note`) ·
+    `panels/LookupPanel.vue` (2 chỗ, `.lookup-disagree`/`.lookup-row` — chỗ SAU viết
+    shorthand, dễ bị một lượt grep `padding-left: 11px` bỏ sót) · `panels/LookupRecord.vue`
+    (`.lookup-citation`, cộng một `11px` THỨ HAI ở `margin` chưa từng thuộc khuôn này — xem
+    mục nợ `→` của Cụm F ngay trên). Ràng buộc *"không đổi 11px mà không đổi CẢ BẢY chỗ/5 tệp
+    cùng lượt"* (Ice chốt 2026-08-26, đo lại vòng rà 2 — 7 chỗ, không 6) SỐNG Ở
+    `GlossarySettingsOverlay.vue` (chú thích `.gs-alert`), KHÔNG ở đây — người thi hành mục
+    nợ này (chạm CSS diện rộng) rất dễ sửa `padding-left: 11px` của một trong bốn tệp trên
+    thành token mà KHÔNG biết nó phải đổi ĐỒNG BỘ với ba chỗ còn lại. Đọc chú thích
+    `.gs-alert` của `GlossarySettingsOverlay.vue` TRƯỚC KHI chạm bất kỳ chỗ nào trong bốn
+    tệp này.
+  **(Chủ: lượt vá kế tiếp chạm CSS trên diện rộng, hoặc lượt dựng Kiểm spacing thứ tám cho
+  `check-tokens.mjs`.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`
+  summary: **~104 họ phồn thể còn lại chưa có alias trong `TRADITIONAL_SURNAME_ALIASES`** —
+    cụm F chỉ thêm năm cặp đo xác nhận (`陳/陈 張/张 劉/刘 楊/杨 黃/黄`); KHÔNG nhập trọn 134 cặp
+    đo được — chính phép đo đó bác việc nhập trọn.
+  evidence: Phép đo 2026-08-26 (`src-tauri/resources/dict/dict-core.db`, `dict_entry` DISTINCT
+    `headword`/`headword_simp`, cả hai dài 1 ký tự, khác nhau): **7.362** cặp phồn→giản một ký
+    tự; **134** cặp có vế giản nằm trong `COMMON_SURNAMES`, phủ **110/272** họ; **0** cặp mơ hồ
+    (một phồn thể ứng nhiều giản thể). Sau khi trừ năm cặp cụm F đã thêm (`蕭` đã có sẵn từ
+    Story 3.5), còn **128** cặp trong bảng đo dưới đây chưa vào mã sản phẩm.
+    🔵 **SỬA 2026-08-26 (vòng rà 2, P6) — "phủ phần còn lại của 105 họ" SAI một đơn vị, đúng
+    là 104.** Mã nay có **6** cặp trong bảng alias (5 mới `陳張劉楊黃` + `蕭` sẵn có từ Story
+    3.5); sáu vế GIẢN của chúng (`萧 陈 张 刘 杨 黄`) là SÁU họ phân biệt trong 110 họ đo được
+    ⇒ số họ CÒN THIẾU alias = `110 − 6 = ` **104**, không phải 105 (số cũ thiếu đúng một đơn
+    vị — có thể do đếm `陈` hai lần hoặc quên trừ `蕭`, không đo lại được nguồn gốc chính xác).
+    128 cặp còn lại có thể phủ trùng một số trong 104 họ đó (một họ có thể mang nhiều vế phồn
+    khác nhau) — 128 và 104 là hai đơn vị KHÁC NHAU (cặp so với họ), không cộng/trừ được cho
+    nhau.
+    🔴 **KHÔNG nhập trọn** — bảng chứa alias SAI cho phép nới: `鬍→胡` (râu, KHÔNG
+    phải họ) · `週→周` (tuần) · `鬱→郁`/`鬰→郁` (u uất) · `餘→余`, và bẫy đáng nhớ nhất — `於→于`
+    trong khi `於` ĐÃ tự nó là một họ RIÊNG trong `COMMON_SURNAMES`. Một lượt thêm tiếp PHẢI: ①
+    đo lại (`dict-core.db` có thể đổi theo phiên bản từ điển), ② duyệt TỪNG cặp qua đúng ca quần
+    thể `glossary_scan_contract.rs::every_traditional_surname_alias_maps_to_a_real_surname_and_the_traditional_side_is_not_itself_a_listed_surname`
+    (cụm F ④c) TRƯỚC khi thêm — cặp nào làm ca đó đỏ (vế phồn tự nó là một họ khác trong bảng)
+    KHÔNG được thêm.
+
+    **Bảng đo đầy đủ — 134 cặp `phồn→giản` có vế giản là một họ trong `COMMON_SURNAMES`** (năm
+    cặp đánh dấu `✓` đã vào mã sản phẩm ở cụm F; `於→于` đánh dấu `✗` là cặp DUY NHẤT mắc bẫy
+    "vế phồn tự nó là một họ khác" — không được thêm cho tới khi có quyết định khác):
+
+    㝛→宿 · 㢘→廉 · 乹→干 · 乾→干 · 亁→干 · 亷→廉 · 倖→幸 · 傢→家 · 儲→储 · 劉→刘✓ ·
+    厲→厉 · 吳→吴 · 呂→吕 · 咊→和 · 單→单 · 嚴→严 · 囌→苏 · 婁→娄 · 孫→孙 · 宮→宫 ·
+    寕→宁 · 寧→宁 · 幹→干 · 張→张✓ · 強→强 · 彊→强 · 從→从 · 慼→戚 · 慽→戚 · 應→应 ·
+    懷→怀 · 於→于✗ · 旹→时 · 時→时 · 栁→柳 · 栢→柏 · 桺→柳 · 楊→杨✓ · 楳→梅 · 榮→荣 ·
+    槑→梅 · 樂→乐 · 樑→梁 · 欒→栾 · 欝→郁 · 湯→汤 · 瀋→沈 · 烏→乌 · 甦→苏 · 甯→宁 ·
+    畢→毕 · 盧→卢 · 硃→朱 · 秌→秋 · 穀→谷 · 竇→窦 · 筦→管 · 範→范 · 紀→纪 · 經→经 ·
+    繆→缪 · 羅→罗 · 芲→花 · 華→华 · 萬→万 · 葉→叶 · 蓆→席 · 蔔→卜 · 蔣→蒋 · 蔴→麻 ·
+    蕭→萧（đã có, Story 3.5） · 薊→蓟 · 薑→姜 · 藍→蓝 · 蘇→苏 · 蘓→苏 · 蘤→花 · 衚→胡 ·
+    衛→卫 · 裵→裴 · 計→计 · 許→许 · 談→谈 · 諸→诸 · 謝→谢 · 讎→仇 · 讐→仇 · 貝→贝 ·
+    費→费 · 賀→贺 · 賁→贲 · 賈→贾 · 趙→赵 · 車→车 · 週→周 · 鄒→邹 · 鄔→邬 · 鄧→邓 ·
+    鄭→郑 · 鈄→钭 · 鈕→钮 · 錢→钱 · 鍾→钟 · 鐘→钟 · 閔→闵 · 陳→陈✓ · 陸→陆 · 雲→云 ·
+    鞦→秋 · 韋→韦 · 韓→韩 · 項→项 · 顏→颜 · 顔→颜 · 顧→顾 · 餘→余 · 馬→马 · 馮→冯 ·
+    駱→骆 · 鬆→松 · 鬍→胡 · 鬰→郁 · 鬱→郁 · 魯→鲁 · 鮑→鲍 · 鳳→凤 · 麯→曲 · 麴→曲 ·
+    黃→黄✓ · 齊→齐 · 龍→龙 · 龐→庞 · 龔→龚 · 龢→和
+
+  **(Chủ: lượt vá kế tiếp chạm bảng họ, sau khi đo lại và duyệt từng cặp qua ca ④c —
+  KHÔNG dán nguyên bảng vào mã sản phẩm mà không qua bước duyệt đó.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`
+  summary: **`focusInitialTarget()` (`src/GlossaryManageOverlay.vue`) kiểm `list.value !== null`
+    trước khi `.focus()`, nhưng KHÔNG phép kiểm hồi quy XÁC ĐỊNH nào canh nhánh đó — ca ⑤d
+    nương vào một khoảng hở giữa hai lượt flush của Vue mà mock IPC gần-như-tức-thời của
+    vitest tình cờ tái hiện được, không phải một cơ chế được TẠO RA có chủ đích.**
+  evidence: Tự bắt bằng `console.log` tại chỗ ở vòng rà 1 (2026-08-26): khi trạng thái JS
+    (`manageStatus`/`manageFilteredRows`) đã phản ánh "đã tải xong" nhưng DOM (template ref
+    `list`) CHƯA kịp patch, `list.value?.focus()` là một no-op im lặng — bản đầu của hàm
+    `return` luôn ở đó, bỏ qua nhánh dự phòng `panel.value?.focus()`, để tiêu điểm rơi ra
+    `document.body`. Sửa bằng cách thêm điều kiện `list.value !== null` vào nhánh rẽ. Ca
+    ⑤d (`tests/frontend/glossaryManage.test.ts`) đi qua ĐÚNG đường sản phẩm này và xanh sau
+    khi sửa — nhưng nó xanh vì mock `listMock`/`lookupMock` resolve gần như tức thời, TÌNH CỜ
+    tái hiện đúng khoảng hở flush đã bắt lỗi; nó không CHỦ ĐỘNG ép khoảng hở đó xảy ra (ví dụ
+    qua một `Promise` treo tay để buộc trạng thái JS đi trước DOM một nhịp CÓ KIỂM SOÁT). Gỡ
+    điều kiện `list.value !== null` khỏi `focusInitialTarget()` mà chạy lại `npx vitest run
+    tests/frontend/glossaryManage` hôm nay: chưa đo được nó có đỏ chắc chắn hay không (phụ
+    thuộc đúng khoảng hở may rủi kể trên) — đây chính là lý do mục nợ này tồn tại thay vì một
+    khẳng định "đã canh".
+  **(Chủ: cùng chủ với món e2e Glossary — story đầu tiên mở rộng bộ e2e sang Glossary; hoặc
+  một lượt dựng cơ chế kiểm soát thứ tự flush/DOM-patch có chủ đích cho riêng ca này.)**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-a-khuon-bo-sot.md`
   summary: **Cổng `clearSourceCuts` của `main.ts` có một BẢN SAO ở `tests/frontend/editorClearSourceCuts.test.ts`,
@@ -7627,3 +7809,37 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     phải sống được với ràng buộc đó.
     **(Chủ: lượt đầu tiên chạm lại `CommandRegistry` — cùng chủ với bất kỳ story nào mở lại AD-34 §1.
     Nếu chọn hình dạng ② thì dừng ở cửa `check:layout` Kiểm C và trình Ice cái tên mới, đừng tự thêm.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`
+  summary: 🔴 **Ca ⑤d chứng minh `.focus()` ĐƯỢC GỌI trên `<ul class="gm-list">`, KHÔNG chứng minh
+    `<ul>` thật sự focus ĐƯỢC** — gỡ hẳn `tabindex="-1"` khỏi nó thì cả 37 ca vẫn XANH.
+  evidence: **ĐÃ ĐO 2026-08-26 (vòng rà 1, không suy):** xoá đúng dòng `tabindex="-1"` khỏi thẻ
+    `<ul>` trong `src/GlossaryManageOverlay.vue`, để nguyên mọi thứ khác ⇒ `npx vitest run
+    tests/frontend/glossaryManage` cho **37/37 xanh**, ca ⑤d KHÔNG đỏ. Khôi phục ⇒ vẫn xanh.
+    Nguyên nhân: `happy-dom` cho `.focus()` thành công trên MỌI phần tử bất kể `tabindex`, còn
+    engine thật thì `.focus()` trên một phần tử không focus được là một **no-op**.
+    ⚠️ Hệ quả đúng là lớp *"xanh giả"* trung tâm của dự án: nếu `tabindex="-1"` bị một lượt sửa sau
+    gỡ đi, `<ul>` không nhận tiêu điểm trong WebKit/WebView2 ⇒ `aria-activedescendant` quay lại
+    nằm trên một phần tử không giữ tiêu điểm ⇒ trình đọc màn hình lại không đọc được con trỏ, đúng
+    khuyết tật mà cụm F ⑦ vừa vá — mà bộ vitest vẫn xanh trọn và không cổng nào đỏ.
+    🔴 Đây là phép GỠ-CHỖ-NỐI số (6) mà §Verification của spec cụm F đòi; nó **không chạy được ở
+    tầng vitest**, nên mục này được ghi nợ thay vì chấm đạt (`AGENTS.md`: *"không đánh dấu đạt bằng
+    suy luận"*). Vế `aria-activedescendant` bị gỡ thì ⑤a/⑤b vẫn đỏ đúng — chỉ vế **focus được**
+    là chưa ai canh.
+    **(Chủ: story đầu tiên mở rộng bộ e2e sang Glossary — cùng chủ với ba món e2e/NFR2 của cụm F;
+    một ca WebKit thật khẳng định `document.activeElement` là `<ul>` sau khi bảng Quản lý mở.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-f-muc-rai-rac-bon-tang.md`
+  summary: **`check-i18n.mjs` dò vùng `<script>`/`<style>` bằng regex không hiểu chú thích HTML**,
+    nên một chuỗi mang hình dạng `<script …>` nằm trong một chú thích `.vue` mở ra một "vùng
+    script" giả kéo tới hết tệp.
+  evidence: Va thật trong lượt vá cụm F vòng rà 1 (2026-08-26): một chú thích HTML mới trong
+    `src/GlossaryManageOverlay.vue` có nhắc tới `` `<script setup>` `` như một trích dẫn văn bản;
+    regex `/<(script|style)\b[^>]*>/gi` của `check-i18n.mjs` khớp ngay bên trong chú thích, coi mọi
+    thứ sau đó là mã, và cổng nổ ra **56 phát hiện oan**. Vá tại chỗ bằng cách viết lại câu chú
+    thích, tức tránh triệu chứng chứ không sửa cổng.
+    ⚠️ Cùng họ với hai khuyết tật `check-i18n` đã ghi trước đó trong sổ này (Kiểm A) — cổng đọc
+    `.vue` bằng regex thay vì một parser tối thiểu, nên biên `template`/`script` là phỏng đoán.
+    🔴 Đây là lỗi **đỏ oan**, không phải xanh giả, nên nó không che một khuyết tật sản phẩm; nhưng
+    nó dạy người sửa rằng cách thoát là đổi văn bản của mình, và bài học đó sai.
+    **(Chủ: một story hạ tầng cổng — gộp cùng hai món `check-i18n` Kiểm A đã ghi ở trên.)**

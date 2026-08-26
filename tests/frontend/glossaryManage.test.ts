@@ -918,3 +918,247 @@ describe('GlossaryManageOverlay.vue — đối chứng vòng rà: ca rỗng, ph�
     expect(state.manageWorkTierAvailable.value).toBe(false)
   })
 })
+
+/**
+ * Cụm F ⑦ (2026-08-26) — `aria-activedescendant` trên `<ul class="gm-list">`. Trước bản vá
+ * này, `role="listbox"`/`aria-selected` tồn tại nhưng KHÔNG hàng nào bị mọi 37 ca hiện có
+ * (grep `aria`/`activedescendant`/`listbox` cho 0 kết quả TRƯỚC lượt vá) chạm tới — chú
+ * thích cạnh `<ul>` khai đã đóng lỗ hổng AC7 mà chưa hề có phép kiểm nào canh mệnh đề đó.
+ */
+describe('GlossaryManageOverlay.vue — `aria-activedescendant` trỏ đúng con trỏ (cụm F ⑤)', () => {
+  async function freshOverlay(deps: Partial<CommandDeps> = {}) {
+    vi.resetModules()
+    listMock.mockReset()
+    deleteMock.mockReset()
+    promoteMock.mockReset()
+    updateMock.mockReset()
+    lookupMock.mockReset()
+    refreshMarksMock.mockReset()
+    fakeChapterId.value = 42
+    fakeSegments.value = [{ id: 1 }]
+    fakeSourceChapter.value = { chapter_id: 42, source_lang: 'zh' }
+
+    const state = await import('../../src/glossaryManageState')
+    const commands = await import('../../src/commands')
+    const mergedDeps: Partial<CommandDeps> = {
+      nextGlossaryManageRow: state.nextGlossaryManageRow,
+      prevGlossaryManageRow: state.prevGlossaryManageRow,
+      ...deps,
+    }
+    commands.installCommands(mergedDeps as CommandDeps)
+    const GlossaryManageOverlay = (await import('../../src/GlossaryManageOverlay.vue')).default
+    return { state, GlossaryManageOverlay }
+  }
+
+  it('⑤a con trỏ ở hàng thứ n ⇒ `<ul>` mang `aria-activedescendant` bằng ĐÚNG `id` của `<li>` thứ n', async () => {
+    const { state, GlossaryManageOverlay } = await freshOverlay()
+    listMock.mockResolvedValue({
+      entries: [entry({ id: 1, source_term: 'một' }), entry({ id: 2, source_term: 'hai' })],
+      error: null,
+    })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await state.openGlossaryManage()
+    expect(state.manageCursor.value).toBe(0)
+
+    const wrapper = mount(GlossaryManageOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    const list = wrapper.get('.gm-list')
+    const rows = wrapper.findAll('.gm-list li')
+    expect(rows).toHaveLength(2)
+    const activeId = list.attributes('aria-activedescendant')
+    expect(activeId).toBeDefined()
+    expect(activeId).toBe(rows[0]?.attributes('id'))
+    expect(activeId).not.toBe(rows[1]?.attributes('id'))
+
+    wrapper.unmount()
+  })
+
+  it('⑤b con trỏ di chuyển n → n+1 ⇒ `aria-activedescendant` đổi theo, trỏ `id` hàng mới', async () => {
+    const { state, GlossaryManageOverlay } = await freshOverlay()
+    listMock.mockResolvedValue({
+      entries: [entry({ id: 1, source_term: 'một' }), entry({ id: 2, source_term: 'hai' })],
+      error: null,
+    })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await state.openGlossaryManage()
+
+    const wrapper = mount(GlossaryManageOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    const list = wrapper.get('.gm-list')
+    const rows = wrapper.findAll('.gm-list li')
+    const firstId = rows[0]?.attributes('id')
+    const secondId = rows[1]?.attributes('id')
+    expect(list.attributes('aria-activedescendant')).toBe(firstId)
+
+    await wrapper.get('.gm-scrim').trigger('keydown', { key: 'ArrowDown' })
+    await wrapper.vm.$nextTick()
+    expect(state.manageCursor.value).toBe(1)
+    expect(list.attributes('aria-activedescendant')).toBe(secondId)
+    expect(list.attributes('aria-activedescendant')).not.toBe(firstId)
+
+    wrapper.unmount()
+  })
+
+  it('⑤c danh sách rỗng (bộ lọc loại hết hàng) ⇒ `<ul>` KHÔNG mang `aria-activedescendant` trỏ một `id` không tồn tại', async () => {
+    const { state, GlossaryManageOverlay } = await freshOverlay()
+    listMock.mockResolvedValue({ entries: [entry({ id: 1, category: 'place' })], error: null })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await state.openGlossaryManage()
+    state.setGlossaryManageCategoryFilter('person') // loại hết hàng -- danh sách lọc rỗng.
+    expect(state.manageFilteredRows.value).toHaveLength(0)
+
+    const wrapper = mount(GlossaryManageOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    // Danh sách rỗng ⇒ nhánh `<p class="gm-empty">` render, KHÔNG `<ul class="gm-list">` --
+    // đối chứng "thuộc tính vắng mặt" vì phần tử mang nó còn không tồn tại trong DOM.
+    expect(wrapper.find('.gm-list').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  /**
+   * ⑤d (vòng rà 1, 2026-08-26) — phần tử mang `aria-activedescendant` phải CHÍNH LÀ
+   * `document.activeElement` khi danh sách có hàng. Đây là vế mà ⑤a/⑤b/⑤c KHÔNG canh: cả ba
+   * ca đó gọi `state.openGlossaryManage()` RỒI MỚI `mount(...)`, nên `manageOverlayIsOpen`
+   * đã `true` NGAY LÚC watcher (`watch(manageOverlayIsOpen, …)` trong `<script setup>`) được
+   * dựng — watcher không thấy một lượt CHUYỂN `false → true` nào và KHÔNG BAO GIỜ chạy (Vue
+   * `watch()` không tự chạy lúc mới đăng ký, khác `watchEffect`). Ba ca cũ vì thế chỉ đọc
+   * GIÁ TRỊ `aria-activedescendant` do template tính sẵn, không đi qua đường `.focus()` sản
+   * phẩm dùng thật — đúng cơ chế mà trình đọc màn hình đọc lệ thuộc vào, và đúng lỗ hổng mà
+   * bản đầu của mục ⑦ tưởng đã đóng (WAI-ARIA chỉ tôn trọng `aria-activedescendant` trên
+   * phần tử ĐANG GIỮ TIÊU ĐIỂM).
+   */
+  it('⑤d phần tử mang `aria-activedescendant` phải CHÍNH LÀ `document.activeElement` khi danh sách có hàng', async () => {
+    const { state, GlossaryManageOverlay } = await freshOverlay()
+    listMock.mockResolvedValue({
+      entries: [entry({ id: 1, source_term: 'một' }), entry({ id: 2, source_term: 'hai' })],
+      error: null,
+    })
+    lookupMock.mockResolvedValue(workOpenProbe)
+
+    // 🔴 Thứ tự NGƯỢC ba ca ⑤a/⑤b/⑤c: mount TRƯỚC khi mở, để watcher focus-ban-đầu thấy
+    // đúng một lượt chuyển `false → true` và THẬT SỰ chạy.
+    const wrapper = mount(GlossaryManageOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.gm-scrim').exists()).toBe(false) // chua mo -- doi chung khoi diem.
+
+    await state.openGlossaryManage()
+    // `openGlossaryManage()` đặt `manageOverlayIsOpen` NGAY (kích watcher focus-ban-đầu,
+    // lúc đó `manageStatus` còn `'unknown'` ⇒ rơi về `panel`) RỒI MỚI `await` tải danh sách
+    // (chuyển `manageStatus` sang `'loaded'`, kích watcher THỨ HAI dời tiêu điểm sang
+    // `<ul>`). Hai `nextTick`: một cho DOM cập nhật sau khi mở, một cho DOM cập nhật sau khi
+    // watcher thứ hai gọi `list.value?.focus()`.
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    const list = wrapper.get('.gm-list')
+    const activeId = list.attributes('aria-activedescendant')
+    expect(activeId).toBeDefined()
+
+    // Mệnh đề TRUNG TÂM của ca này: KHÔNG chỉ giá trị thuộc tính đúng, mà phần tử MANG
+    // thuộc tính đó (`<ul>`, CONTAINER) phải THẬT SỰ đang giữ tiêu điểm DOM -- WAI-ARIA chỉ
+    // tôn trọng `aria-activedescendant` trên phần tử ĐANG giữ tiêu điểm. `activeId` là một
+    // THAM CHIẾU tới `<li>` "đang chọn ảo" (kiểm ở ⑤a/⑤b) -- KHÔNG phải id của chính `<ul>`
+    // (container không có `id`), nên hai giá trị này không bằng nhau, và không NÊN bằng nhau.
+    expect(document.activeElement).toBe(list.element)
+    expect(document.getElementById(activeId as string)).not.toBeNull() // tham chieu phai GIAI QUYET duoc
+
+    // Đối chứng ÂM: `panel` (`role="dialog"`) — đích focus CŨ — KHÔNG còn giữ tiêu điểm.
+    const panel = wrapper.get('.gm-panel')
+    expect(document.activeElement).not.toBe(panel.element)
+
+    wrapper.unmount()
+  })
+
+  /**
+   * ⑤e (P1, vòng rà 2, 2026-08-26) — HỒI QUY do watcher 0→N của cụm F ⑦/vòng rà 1: chiều
+   * NGƯỢC (N→0) thiếu, nên xoá hàng CUỐI CÙNG trong khi tiêu điểm đang ở `<ul>` làm `<ul>`
+   * bị gỡ khỏi DOM CÙNG LÚC nó đang giữ tiêu điểm — trình duyệt đẩy tiêu điểm ra
+   * `document.body`, NGOÀI `.gm-scrim`, nơi `trapTab`/`onEscape`/`onKeydown` nghe qua
+   * bubbling — Tab/Escape/mũi tên/nhịp xoá NGỪNG PHẢN HỒI.
+   *
+   * 🔴 Dùng hai nhịp XOÁ THẬT (`state.deleteGlossaryManageEntry()`, gọi trực tiếp, KHÔNG
+   * `scrim.trigger('keydown', …)`) — `.trigger()` bắn thẳng vào phần tử chỉ định, không
+   * định tuyến theo `document.activeElement` thật, nên nó sẽ xanh giả trên đúng lỗi P1.
+   */
+  it('⑤e (P1) tiêu điểm dời VỀ `panel` khi danh sách cạn hẳn sau khi xoá hàng cuối cùng — không rơi ra `document.body`', async () => {
+    const { state, GlossaryManageOverlay } = await freshOverlay()
+    listMock.mockResolvedValue({ entries: [entry({ id: 1, source_term: 'một' })], error: null })
+    lookupMock.mockResolvedValue(workOpenProbe)
+
+    // Mount TRƯỚC khi mở (khuôn ⑤d) để watcher focus-ban-đầu THẬT SỰ chạy và đưa tiêu điểm
+    // lên `<ul>` một khi danh sách có đúng MỘT hàng.
+    const wrapper = mount(GlossaryManageOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    await state.openGlossaryManage()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    const list = wrapper.get('.gm-list')
+    expect(document.activeElement).toBe(list.element) // khoi diem: tieu diem dang o <ul>.
+
+    deleteMock.mockResolvedValue({ value: true, error: null })
+    listMock.mockResolvedValue({ entries: [], error: null }) // sau khi xoa: danh sach rong.
+
+    await state.deleteGlossaryManageEntry() // nhip MOT -- 0 luot IPC.
+    expect(deleteMock).not.toHaveBeenCalled()
+    await state.deleteGlossaryManageEntry() // nhip HAI -- ghi that, nap lai rong.
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(state.manageFilteredRows.value).toHaveLength(0)
+    expect(wrapper.find('.gm-list').exists()).toBe(false) // <ul> da bi go khoi DOM.
+
+    // Mệnh đề TRUNG TÂM: tiêu điểm KHÔNG rơi ra `document.body` -- nó dời về `panel`, phần
+    // tử còn SỐNG TRONG `.gm-scrim`, giữ Tab/Escape/mũi tên bubbling được.
+    const panel = wrapper.get('.gm-panel')
+    expect(document.activeElement).toBe(panel.element)
+    expect(document.activeElement).not.toBe(document.body)
+
+    wrapper.unmount()
+  })
+
+  /**
+   * ⑤f (P2b, vòng rà 2, 2026-08-26) — mệnh đề *"không bao giờ cướp tiêu điểm khỏi một ô
+   * người dùng đang thao tác"* mà chú thích của watcher 0→N tự khai, chưa từng có ca canh.
+   * Đặt tiêu điểm THẬT vào ô tìm (không qua simulated keyboard event), đổi bộ lọc sao cho
+   * danh sách VẪN còn hàng (không phải ca 0→N, mà một identity MỚI của `manageFilteredRows`
+   * trong khi N vẫn > 0 suốt) — tiêu điểm phải giữ NGUYÊN ở ô tìm.
+   */
+  it('⑤f (P2b) đổi bộ lọc trong khi danh sách vẫn còn hàng KHÔNG cướp tiêu điểm khỏi ô tìm đang gõ', async () => {
+    const { state, GlossaryManageOverlay } = await freshOverlay()
+    listMock.mockResolvedValue({
+      entries: [
+        entry({ id: 1, source_term: 'một', category: 'place' }),
+        entry({ id: 2, source_term: 'hai', category: 'person' }),
+      ],
+      error: null,
+    })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await state.openGlossaryManage()
+
+    const wrapper = mount(GlossaryManageOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    // Tự tay chuyển tiêu điểm sang ô tìm -- mô phỏng người dùng đang thao tác ở đó, KHÔNG
+    // qua `.trigger('keydown', …)` trên `.gm-scrim` (không định tuyến theo tiêu điểm thật).
+    const searchInput = wrapper.get('.gm-toolbar input[type="text"]').element as HTMLInputElement
+    searchInput.focus()
+    expect(document.activeElement).toBe(searchInput)
+
+    // Đổi bộ lọc sao cho danh sách VẪN còn đúng MỘT hàng (không rỗng, không phải ca N→0).
+    state.setGlossaryManageCategoryFilter('place')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    expect(state.manageFilteredRows.value).toHaveLength(1)
+
+    // Mệnh đề TRUNG TÂM: tiêu điểm KHÔNG bị cướp về `<ul>` hay `panel` -- nó vẫn ở ô tìm.
+    expect(document.activeElement).toBe(searchInput)
+
+    wrapper.unmount()
+  })
+})

@@ -117,7 +117,7 @@
 //! HÌNH DẠNG ĐÃ DỰNG (Story 3.5) — quét ứng viên khi nhập tài liệu, chỗ gọi sản phẩm ĐẦU
 //! TIÊN của bảng chờ (Story 3.2 dựng bốn hàm, 0 chỗ gọi cho tới lượt này)
 //! ─────────────────────────────────────────────────────────────────────────────
-//! - [`scan`] — module LÁ, thuật toán THUẦN (`scan::scan_candidates`), không chạm DB, tiêm
+//! - [`scan`] — module LÁ, thuật toán THUẦN (`scan::scan_candidates_controlled`), không chạm DB, tiêm
 //!   vị từ tra từ điển qua tham số (§Boundaries: "lọc tần suất trước, tra sau"). Sinh
 //!   n-gram ký tự (`Zh`) hoặc cụm hoa liền nhau (`En`), phân xử "n-gram lồng", nới ngưỡng
 //!   cho hình dạng giống họ người ([`surnames`]).
@@ -282,9 +282,7 @@ pub use exchange::{
 };
 pub use exchange_io::{MAX_GLOSSARY_IMPORT_BYTES, read_import_file, write_export_file};
 pub use han_viet_suggestion::{HanVietSuggestion, suggest_han_viet_batch};
-pub use scan::{
-    DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates, scan_candidates_controlled,
-};
+pub use scan::{DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates_controlled};
 
 pub(crate) use candidate_store::{ImportScanWriteTicket, enqueue_import_scan_candidates};
 pub(crate) use store::filter_import_scan_candidates_by_scope;

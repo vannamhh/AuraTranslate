@@ -6,11 +6,12 @@
 //! Cùng lớp `core::matching`: mọi thứ ở đây là hàm trên `&str`/`char`, không `use
 //! crate::core::store`, không `use crate::ports`. Đây là điều kiện để
 //! `tests/glossary_scan_contract.rs` kiểm được TẤT ĐỊNH mà không cần dựng một `Store` nào.
-//! 🔵 CẬP NHẬT 2026-08-22 — vị từ bool chỉ còn ở wrapper tương thích [`scan_candidates`].
-//! Đường sản phẩm đi qua [`scan_candidates_controlled`] với [`DictionaryProbe`] ba trạng
-//! thái, vì một layer lỗi không được phép bị ép thành “không có trong từ điển”. Chỗ gọi thật
-//! (`commands::project`) tiêm closure gọi [`crate::core::dict::lookup_grouped`]; test tiêm
-//! closure tất định.
+//! 🔵 CẬP NHẬT 2026-08-26 (cụm F) — vị từ `bool` (wrapper tương thích `scan_candidates`,
+//! đã xoá) không còn tồn tại trong module này: **0** hàm quét nào ở đây phơi callback
+//! `bool` ra ngoài. Đường DUY NHẤT là [`scan_candidates_controlled`] với [`DictionaryProbe`]
+//! ba trạng thái, vì một layer lỗi không được phép bị ép thành “không có trong từ điển”. Chỗ
+//! gọi thật (`commands::project`) tiêm closure gọi [`crate::core::dict::lookup_grouped`];
+//! bàn test tự giữ một adapter `bool → DictionaryProbe` CỤC BỘ cho tiện nghi của chính nó.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 LỌC THEO TẦN SUẤT TRƯỚC, TRA TỪ ĐIỂN SAU — thứ tự là kiến trúc, không phải tối ưu sớm
@@ -102,8 +103,8 @@ fn truncated_context_example(segment: &str) -> String {
 }
 
 /// Quét `segments` (đã tách câu lúc nhập, Story 2.1 — KHÔNG tự đoán lại ranh giới) tìm chuỗi
-/// lặp **≥ ngưỡng** và **không có trong từ điển nhúng** (`is_known`), trả về theo thứ tự
-/// `source_term` tăng dần (tất định — hai lượt chạy trên cùng đầu vào cho cùng thứ tự).
+/// lặp **≥ ngưỡng** và **không có trong từ điển nhúng**, trả về theo thứ tự `source_term`
+/// tăng dần (tất định — hai lượt chạy trên cùng đầu vào cho cùng thứ tự).
 ///
 /// `threshold` — ngưỡng đọc từ `app_config` (`core::scope::store`), đã qua `parse::<u32>` +
 /// mặc định + chặn `<= 0` ở TẦNG GỌI; hàm này tin nó là một số dương hợp lệ.
@@ -112,43 +113,13 @@ fn truncated_context_example(segment: &str) -> String {
 /// `Zh` để hạ ngưỡng xuống `threshold - 1` cho MỘT hình dạng hẹp: chuỗi 2–3 ký tự có ký tự
 /// ĐẦU nằm trong bảng họ (§Design Notes: *"Bảng họ chỉ NỚI, không THÊM cột"*).
 ///
-/// `is_known` — vị từ "chuỗi này đã có trong từ điển nhúng chưa", gọi ĐÚNG MỘT LẦN cho mỗi
-/// ứng viên đã qua bộ lọc tần suất (thứ tự lọc là bất biến trung tâm — xem doc-comment đầu
-/// module).
-pub fn scan_candidates(
-    segments: &[&str],
-    lang: MatchLang,
-    threshold: u32,
-    surnames: &[char],
-    is_known: &mut dyn FnMut(&str) -> bool,
-) -> Vec<ScanCandidate> {
-    let mut probe = |term: &str| {
-        if is_known(term) {
-            DictionaryProbe::Known
-        } else {
-            DictionaryProbe::Missing
-        }
-    };
-    let mut never_cancelled = || false;
-    match scan_candidates_controlled(
-        segments,
-        lang,
-        threshold,
-        surnames,
-        &mut probe,
-        &mut never_cancelled,
-    ) {
-        ScanOutcome::Completed(out) => out,
-        // Wrapper tương thích không có đường tạo hai outcome này: callback bool không thể
-        // trả `Inconclusive`, còn `never_cancelled` luôn false. Trả rỗng thay vì panic —
-        // `panic = "abort"` không cho phép một assert phòng thủ trên đường sản phẩm.
-        ScanOutcome::DictionaryInconclusive | ScanOutcome::Cancelled => Vec::new(),
-    }
-}
-
-/// Biến thể sản phẩm của [`scan_candidates`]: callback từ điển giữ BA trạng thái và hook
-/// huỷ được hỏi ngay trong pha đếm lẫn trước từng lookup. Tần suất/dedup vẫn chạy trước
-/// lookup; việc thêm control không dựng một đường thuật toán thứ hai.
+/// `probe_dictionary` — vị từ BA trạng thái ([`DictionaryProbe`]) "chuỗi này đã có trong từ
+/// điển nhúng chưa", gọi ĐÚNG MỘT LẦN cho mỗi ứng viên đã qua bộ lọc tần suất (thứ tự lọc là
+/// bất biến trung tâm — xem doc-comment đầu module). 🔵 2026-08-26 (cụm F) — wrapper tương
+/// thích `bool` từng đứng ở đây đã bị xoá: 0 chỗ gọi sản phẩm dùng nó (chỗ gọi thật luôn đi
+/// qua hàm này với [`DictionaryProbe`]), và một vị từ `bool` ép layer LỖI thành "không có
+/// trong từ điển" — đúng lớp rỗng im lặng trung tâm của dự án. Chỗ cần một adapter `bool`
+/// (bàn test tất định) nay tự giữ adapter đó CỤC BỘ, không còn là API công khai của module.
 pub fn scan_candidates_controlled(
     segments: &[&str],
     lang: MatchLang,
@@ -242,13 +213,13 @@ fn effective_threshold(term: &str, lang: MatchLang, threshold: u32, surnames: &[
 /// Ba bước, đúng thứ tự: (1) đếm mọi n-gram, mọi độ dài; (2) loại "chuỗi cha là rác đuôi"
 /// (§Design Notes "N-gram lồng" — chuỗi dài hơn có CÙNG tần suất với một chuỗi con của nó
 /// là phần đuôi/đầu ăn theo, không phải một thuật ngữ thật); (3) trả phần còn lại, CHƯA lọc
-/// ngưỡng/từ điển — hai bước đó là việc của [`scan_candidates`].
+/// ngưỡng/từ điển — hai bước đó là việc của [`scan_candidates_controlled`].
 fn count_zh_candidates(
     segments: &[&str],
     is_cancelled: &mut dyn FnMut() -> bool,
 ) -> Option<Vec<(String, i64, usize)>> {
     // `freq`/`first_seen` khoá theo CHUỖI — một `HashMap` là đủ vì bước dedup lồng ngay
-    // dưới chỉ cần TRA (không cần thứ tự); `scan_candidates` sắp lại kết quả cuối cùng.
+    // dưới chỉ cần TRA (không cần thứ tự); `scan_candidates_controlled` sắp lại kết quả cuối cùng.
     let mut freq: HashMap<String, i64> = HashMap::new();
     let mut first_segment: HashMap<String, usize> = HashMap::new();
 
@@ -312,11 +283,21 @@ fn zh_nested_padding(freq: &HashMap<String, i64>) -> std::collections::HashSet<S
         }
         // Chép danh sách trước khi so — `freq` không đổi trong vòng lặp này, chỉ `dropped`
         // đổi, nên một `Vec` chụp một lần là đủ và tất định (sắp để lặp cùng thứ tự mọi lần).
-        let mut terms: Vec<&String> = freq.keys().filter(|t| t.chars().count() == n).collect();
-        terms.sort();
+        // 🔵 2026-08-26 (cụm F) — duyệt `freq.iter()` thay vì `freq.keys()` rồi `freq.get()`:
+        // bản trước tách `term` khỏi `freq` qua `keys()` rồi tra lại bằng
+        // `.get(term).expect(...)`, một bước vòng mà tự nó không bao giờ thất bại
+        // (borrow-checker đã cưỡng chế `freq: &HashMap` là bất biến trọn hàm) nhưng bước đó
+        // mở một đường `.expect()` mà một lượt refactor sau đưa `freq` thành `&mut` sẽ biến
+        // thành cái chết của tiến trình (`panic = "abort"`). Đọc thẳng từ `iter()` giữ cả
+        // giá trị lẫn khoá cùng một lượt, không còn bước tra lại nào để giả định.
+        let mut terms: Vec<(&String, i64)> = freq
+            .iter()
+            .filter(|(t, _)| t.chars().count() == n)
+            .map(|(t, &f)| (t, f))
+            .collect();
+        terms.sort_by(|a, b| a.0.cmp(b.0));
 
-        for term in terms {
-            let term_freq = *freq.get(term).expect("term den tu chinh freq.keys()");
+        for (term, term_freq) in terms {
             let chars: Vec<char> = term.chars().collect();
             let drop_last: String = chars[..chars.len() - 1].iter().collect();
             let drop_first: String = chars[1..].iter().collect();

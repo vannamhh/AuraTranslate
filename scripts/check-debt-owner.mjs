@@ -498,7 +498,20 @@ const summary = summarize(items)
 // 🔵 SỬA 2026-08-22 (rà ba lớp) — 444/522 = 85,06 %, NHỈNH TRÊN dải 80-85 % mà chính khối
 // doc-comment ngay trên đặt ra (làm tròn cẩu thả: 0,85 × 522 = 443,7, làm tròn LÊN thay vì
 // XUỐNG). Hạ về 443 (443/522 = 84,87 %), đúng bên TRONG dải.
-const ITEM_FLOOR = 443
+// 🔵 NÂNG 2026-08-26 (cụm F, vòng rà 1) — số THẬT nay 577 mục (spec cụm F đóng tám bản vá,
+// nối `→` vào một mục sẵn có, và thêm hai mục nợ mới). 443/577 = 76,8 % — TRƯỢT dưới dải
+// 80-85 % mà chính khối doc-comment ngay trên đặt ra, đúng lớp lỗi mà đoạn 🔴 SÀN QUẦN THỂ
+// ở trên cảnh báo ("một sàn cũ là một sàn vô nghĩa — sổ này chỉ dài ra"). Làm tròn ĐÚNG bài
+// học của lượt sửa 2026-08-22 ngay trên: 0,85 × 577 = 490,45 — làm tròn XUỐNG (không lặp lại
+// lỗi làm tròn LÊN mà lượt đó đã bắt), thành 490 (490/577 = 84,9 %, đúng bên TRONG dải).
+// 🔵 SỬA 2026-08-26 (vòng rà 2, P7) — căn cứ "577 mục" ở trên đã LỆCH: Ice nối thêm hai mục
+// nợ vào sổ SAU khi đoạn trên được viết (không phải một lỗi của lượt vá). Đo NGAY TRƯỚC khi
+// ghi dòng này (sau khi chính lượt vá P1-P8 nối thêm một mục nợ nữa, "list.value !== null
+// chưa co phep kiem hoi quy"): số THẬT **580** mục. Sàn **490** vẫn ĐÚNG dải: 490/580 =
+// 84,5 %, vẫn bên TRONG 80-85 % — chỉ con số CĂN CỨ lệch theo mỗi lượt sổ dài thêm, giá trị
+// sàn không cần đổi mỗi lần. Ghi lại để lượt sau không tưởng nhầm 577/579 là số thật — và
+// đo LẠI (không tin số ở đây) nếu khoảng cách với sàn đã hẹp đáng kể.
+const ITEM_FLOOR = 490
 if (DEBT_PATH === REAL_DEBT_PATH && summary.total < ITEM_FLOOR) {
   abort(
     `so no THAT — chi ${summary.total} muc, duoi san ${ITEM_FLOOR}`,

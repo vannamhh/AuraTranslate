@@ -481,12 +481,21 @@ fn filter_and_enqueue_current_import_scan(
 /// đã chạy phải (`DictLayers::empty()`, 969 ứng viên). Sửa: tách hai ca ra, cùng khuôn
 /// nhánh `Store` thiếu ngay trên (`eprintln!` rồi dừng) — CHỈ ca ② mới `eprintln!`/dừng; ca
 /// ① (đã quản lý, rỗng) đi tiếp lặng lẽ, đúng bản chất "trạng thái bình thường" của nó.
-fn guarded_dict_layers(
-    layers: Option<&crate::core::dict::DictLayers>,
-) -> Option<&crate::core::dict::DictLayers> {
+///
+/// 🔵 **MỞ PHẠM VI 2026-08-26 (cụm F)** — `pub(crate)`, dùng CHUNG cho
+/// `commands::glossary::wire::{glossary_marks_for_chapter, glossary_pending_candidates}`
+/// (`glossary.rs` ghi *"THÊM 2026-08-24"* và tái lập ĐÚNG anti-pattern này bằng
+/// `unwrap_or(&empty_layers)`, hai ngày SAU khi nó bị gọi tên ở đây). Tham số `surface` mới
+/// là nguyên nhân duy nhất khiến hàm không còn "thuần một tham số": chẩn đoán phải nêu đúng
+/// bề mặt đang gọi (`import_scan` / `marks_for_chapter` / `pending_candidates`), không in
+/// cứng `[import_scan]` cho một chỗ gọi khác hẳn.
+pub(crate) fn guarded_dict_layers<'a>(
+    layers: Option<&'a crate::core::dict::DictLayers>,
+    surface: &str,
+) -> Option<&'a crate::core::dict::DictLayers> {
     if layers.is_none() {
         eprintln!(
-            "glossary[import_scan] DictLayers chua duoc quan ly -- bo qua luot quet (chay tiep se lam is_known LUON false, vo hieu hoan toan bo loc tu dien)"
+            "glossary[{surface}] DictLayers chua duoc quan ly -- bo qua (chay tiep se lam is_known LUON false, vo hieu hoan toan bo loc tu dien)"
         );
     }
     layers
@@ -576,7 +585,7 @@ fn spawn_import_scan(
 
         let layers_state = app.try_state::<crate::core::dict::DictLayers>();
         let Some(layers): Option<&crate::core::dict::DictLayers> =
-            guarded_dict_layers(layers_state.as_deref())
+            guarded_dict_layers(layers_state.as_deref(), "import_scan")
         else {
             return;
         };
@@ -782,6 +791,41 @@ mod tests {
 
     fn guard_test_cleanup(dir: &std::path::Path) {
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// Adapter TEST `bool -> DictionaryProbe`, giữ CỤC BỘ ở bàn test này — 🔵 2026-08-26
+    /// (cụm F). `core::glossary::scan::scan_candidates` (vỏ `bool` công khai) đã bị xoá:
+    /// nó có 0 chỗ gọi sản phẩm và biến một layer LỖI thành "không có trong từ điển". Đường
+    /// sản phẩm thật của `spawn_import_scan` tiêm closure gọi `dictionary_probe_from_grouped`
+    /// thẳng vào `scan_candidates_controlled`; ca test dưới đây chỉ cần một vị từ `bool` tất
+    /// định nên tự giữ đúng phần thân adapter đã xoá, không phục hồi một API sản phẩm.
+    fn scan_candidates_bool_probe(
+        segments: &[&str],
+        lang: crate::core::matching::MatchLang,
+        threshold: u32,
+        surnames: &[char],
+        is_known: &mut dyn FnMut(&str) -> bool,
+    ) -> Vec<crate::core::glossary::ScanCandidate> {
+        let mut probe = |term: &str| {
+            if is_known(term) {
+                crate::core::glossary::DictionaryProbe::Known
+            } else {
+                crate::core::glossary::DictionaryProbe::Missing
+            }
+        };
+        let mut never_cancelled = || false;
+        match crate::core::glossary::scan_candidates_controlled(
+            segments,
+            lang,
+            threshold,
+            surnames,
+            &mut probe,
+            &mut never_cancelled,
+        ) {
+            crate::core::glossary::ScanOutcome::Completed(out) => out,
+            crate::core::glossary::ScanOutcome::DictionaryInconclusive
+            | crate::core::glossary::ScanOutcome::Cancelled => Vec::new(),
+        }
     }
 
     // ═════════════════════════════════════════════════════════════════════════════════
@@ -1056,7 +1100,7 @@ mod tests {
         let segment_refs: Vec<&str> = segments.iter().map(String::as_str).collect();
 
         let mut is_known = |_: &str| false;
-        let candidates = crate::core::glossary::scan_candidates(
+        let candidates = scan_candidates_bool_probe(
             &segment_refs,
             crate::core::matching::MatchLang::Zh,
             5,
@@ -1330,7 +1374,7 @@ mod tests {
     fn guarded_dict_layers_returns_none_and_does_not_silently_fall_back_to_empty_when_not_managed()
     {
         assert!(
-            guarded_dict_layers(None).is_none(),
+            guarded_dict_layers(None, "import_scan").is_none(),
             "DictLayers chua duoc quan ly -- phai lan None ra ngoai, khong tu doi thanh rong"
         );
     }
@@ -1340,7 +1384,7 @@ mod tests {
     #[test]
     fn guarded_dict_layers_passes_the_managed_layers_through_unchanged() {
         let layers = crate::core::dict::DictLayers::empty();
-        let out = guarded_dict_layers(Some(&layers));
+        let out = guarded_dict_layers(Some(&layers), "import_scan");
         assert!(
             out.is_some(),
             "DictLayers da quan ly (du rong) van phai di qua -- day la trang thai binh thuong"

@@ -20,12 +20,13 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::glossary::{
-    PendingImportState, clear_pending_import_for_tier, glossary_cancel_import,
-    glossary_confirm_import, glossary_export_tier, glossary_open_import_preview,
+    PendingImportState, clear_pending_import_for_tier, first_issue_or_unknown,
+    glossary_cancel_import, glossary_confirm_import, glossary_export_tier,
+    glossary_open_import_preview,
 };
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::core::glossary::{
-    Category, ConflictDecision, GlossaryTier, add_manual_term, update_manual_term,
+    Category, ConflictDecision, GlossaryTier, ParseIssue, add_manual_term, update_manual_term,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::store::{Store, StoreSpec};
@@ -704,4 +705,31 @@ fn confirming_take_theirs_after_a_concurrent_write_surfaces_import_stale_conflic
 
     cleanup(&root);
     cleanup(&global_dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Cụm F ① — `first_issue_or_unknown`, hàm THUẦN tách khỏi khối `map_err` tại chỗ của
+// `glossary_open_import_preview` (2026-08-26). `Err(vec![])` không có đường nào sinh ra từ
+// `parse()` thật (mọi điểm `return Err(...)` của `exchange.rs::parse` dùng vec-literal khác
+// rỗng hoặc canh `!issues.is_empty()` trước) -- hàm thuần này là đường nghiệm thu DUY NHẤT
+// của §I/O Matrix ①b.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// §I/O Matrix ①a — `issues` KHÔNG rỗng ⇒ `IpcError` của phần tử ĐẦU TIÊN (hành vi hôm
+/// nay, không đổi).
+#[test]
+fn first_issue_or_unknown_returns_the_error_of_the_first_issue_when_the_list_is_not_empty() {
+    let issues = vec![ParseIssue::DelimiterUnresolved, ParseIssue::MissingColumn { column: "source_term" }];
+    let err = first_issue_or_unknown(issues);
+    assert_eq!(err.message_key(), MessageKey::GlossaryImportDelimiterUnresolved);
+}
+
+/// §I/O Matrix ①b — `issues` RỖNG (bất biến *"`Err` chỉ đi kèm `issues` không rỗng"* đã
+/// VỠ) ⇒ `MessageKey::Unknown`, KHÔNG panic, KHÔNG `abort`. Đối chứng GỠ-CHỖ-NỐI
+/// (§Boundaries cụm F): khôi phục `.expect("Err chi dung khi issues khong rong")` ở nhánh
+/// `None` của `first_issue_or_unknown` ⇒ ca này phải ĐỎ (panic ngay tại `Vec::new()`).
+#[test]
+fn first_issue_or_unknown_returns_message_key_unknown_without_panicking_when_the_list_is_empty() {
+    let err = first_issue_or_unknown(Vec::new());
+    assert_eq!(err.message_key(), MessageKey::Unknown);
 }

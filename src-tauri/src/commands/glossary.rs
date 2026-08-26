@@ -52,7 +52,7 @@ use crate::core::glossary::{
     read_import_file, reject_candidate, resolve_term_for_quick_add, suggest_han_viet_batch,
     update_manual_term, write_export_file,
 };
-use crate::core::i18n::IpcError;
+use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError, StoreKind};
 
@@ -731,6 +731,47 @@ pub struct ImportPreviewWire {
     pub conflicts: Vec<ImportPreviewConflictWire>,
 }
 
+/// **Hàm thuần** — tách khỏi khối `map_err` tại chỗ của [`glossary_open_import_preview`]
+/// (🔵 2026-08-26, cụm F ①). Một closure tại chỗ không lái được từ `tests/**`: `Err(vec![])`
+/// không có đường nào sinh ra từ `parse()` thật (mọi điểm `return Err(...)` của
+/// `exchange.rs::parse` dùng vec-literal khác rỗng hoặc canh `!issues.is_empty()` trước —
+/// §Code Map ①). Tách thành hàm thuần là điều kiện để §I/O Matrix ①b có một phép kiểm CHẠY
+/// ĐƯỢC thay vì một lời khai.
+///
+/// ①a — `issues` KHÔNG rỗng: trả `IpcError` của phần tử ĐẦU TIÊN (hành vi hôm nay, không
+/// đổi), kèm chẩn đoán nêu tổng số lỗi và lỗi đầu.
+///
+/// ①b — `issues` RỖNG: bất biến *"`Err` chỉ đi kèm `issues` không rỗng"* đã VỠ. Bản trước
+/// gọi `.expect("Err chi dung khi issues khong rong")` ở đúng nhánh này — một `.expect()`
+/// sản phẩm trong `commands/**` mà `panic = "abort"` biến thành cái chết của tiến trình
+/// GIỮA một lượt nhập. Trả [`MessageKey::Unknown`] (AD-21, không tham số, có chủ ý) thay
+/// vào đó, và ghi chẩn đoán nêu ĐÍCH DANH bất biến đã vỡ — không im lặng nuốt ca này.
+pub fn first_issue_or_unknown(issues: Vec<crate::core::glossary::ParseIssue>) -> IpcError {
+    let issue_count = issues.len();
+    match issues.into_iter().next() {
+        Some(first) => {
+            eprintln!(
+                "glossary[import_preview] {issue_count} loi phan tich, dau tien: {first}"
+            );
+            IpcError::from(first)
+        }
+        None => {
+            eprintln!(
+                "glossary[import_preview] bat bien vo: Err(issues) voi issues RONG (0 loi) -- \
+                 parse() phai luon kem it nhat mot ParseIssue khi tra Err (xem \
+                 core/glossary/exchange.rs::parse); day la mot bat bien da vo, khong phai mot \
+                 ca binh thuong"
+            );
+            IpcError::new(
+                "glossary.import_parse_issues_empty",
+                MessageKey::Unknown,
+                BTreeMap::new(),
+                false,
+            )
+        }
+    }
+}
+
 /// Mở-và-xem-trước lượt nhập (nhịp MỘT) — **hàm thuần theo nghĩa không chạm `AppHandle`
 /// hay hộp thoại**: `path` đã được vỏ `wire` chọn xong; hàm này đọc, phân tích, phân loại
 /// so với `tier`, rồi GIỮ kế hoạch trong `pending` — AD-48 §Rule ①.
@@ -745,9 +786,10 @@ pub struct ImportPreviewWire {
 /// - `tier == Work` mà chưa mở Tác phẩm nào ⇒ `glossary.work_tier_unavailable`;
 /// - đọc tệp (kích thước/UTF-8/hạ tầng) ⇒ ba khoá `exchange_io` tương ứng — **0** lô nào
 ///   được giữ lại khi bước đọc trượt;
-/// - phân tích hỏng ⇒ `IpcError` của [`crate::core::i18n::MessageKey`] ứng với lỗi ĐẦU
-///   TIÊN tìm được (đường dây chở đúng MỘT lỗi; `parse` đã tự gộp toàn bộ vào chẩn đoán
-///   log) — **0** lô nào được giữ lại.
+/// - phân tích hỏng, `issues` không rỗng ⇒ `IpcError` của [`crate::core::i18n::MessageKey`]
+///   ứng với lỗi ĐẦU TIÊN tìm được (đường dây chở đúng MỘT lỗi; `parse` đã tự gộp toàn bộ
+///   vào chẩn đoán log); `issues` RỖNG (bất biến vỡ) ⇒ [`MessageKey::Unknown`] — xem
+///   [`first_issue_or_unknown`]. **0** lô nào được giữ lại trong cả hai nhánh.
 pub fn glossary_open_import_preview(
     global: Option<&Store>,
     open: Option<&OpenWork>,
@@ -761,14 +803,7 @@ pub fn glossary_open_import_preview(
     resolve_tier_store(global_store, work_store, tier)?;
 
     let text = read_import_file(path)?;
-    let parsed = parse_glossary_import(&text).map_err(|issues| {
-        eprintln!(
-            "glossary[import_preview] {} loi phan tich, dau tien: {}",
-            issues.len(),
-            issues[0]
-        );
-        IpcError::from(issues.into_iter().next().expect("Err chi dung khi issues khong rong"))
-    })?;
+    let parsed = parse_glossary_import(&text).map_err(first_issue_or_unknown)?;
 
     let plans = classify_import_rows(global_store, work_store, tier, &parsed.rows)?;
 
@@ -899,7 +934,7 @@ pub mod wire {
         GlossaryMarkWire, GlossaryTier, ImportPreviewWire, ImportSummaryWire, IpcError,
         PendingImportState, QuickAddLookup,
     };
-    use crate::commands::project::OpenWorkState;
+    use crate::commands::project::{OpenWorkState, guarded_dict_layers};
     use crate::core::dict::DictLayers;
     use crate::core::store::Store;
     use tauri_plugin_dialog::DialogExt as _;
@@ -1035,7 +1070,16 @@ pub mod wire {
         let global = app.try_state::<Store>();
         let layers = app.try_state::<DictLayers>();
         let empty_layers = DictLayers::empty();
-        let layers = layers.as_deref().unwrap_or(&empty_layers);
+        // 🔵 SUA 2026-08-26 (vong ra 1) -- qua `guarded_dict_layers` DUNG CHUNG (`commands::
+        // project`, mo pham vi luot nay) roi `.unwrap_or(&empty_layers)` -- KHONG mot khoi
+        // `match`/`if let` viet tay: vo `wire::` nay khong goi duoc tu `tests/**` (moi ca
+        // Rust import ham THUAN `commands::glossary::…`, khong phai `wire::`), va bo e2e
+        // chua doc truong `han_viet_*`, nen mot nhanh viet tay o day la mot cho go nham ma
+        // khong phep kiem nao chay qua. Ket qua cuoi van la `&empty_layers` khi chua quan
+        // ly (giu hanh vi cu, duong nay khong dung luot doc), nhung nay CO chan doan neu
+        // dich danh be mat goi qua tham so `"marks_for_chapter"`.
+        let layers = guarded_dict_layers(layers.as_deref(), "marks_for_chapter")
+            .unwrap_or(&empty_layers);
         let disabled = crate::commands::dict::disabled_sources(global.as_deref());
 
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
@@ -1082,7 +1126,11 @@ pub mod wire {
         let global = app.try_state::<Store>();
         let layers = app.try_state::<DictLayers>();
         let empty_layers = DictLayers::empty();
-        let layers = layers.as_deref().unwrap_or(&empty_layers);
+        // 🔵 SUA 2026-08-26 (vong ra 1) -- cung khuon `glossary_marks_for_chapter` ngay
+        // tren: qua `guarded_dict_layers` DUNG CHUNG roi `.unwrap_or(&empty_layers)`, khong
+        // mot khoi `match` viet tay (cung ly do: vo nay khong co ca test nao chay qua).
+        let layers = guarded_dict_layers(layers.as_deref(), "pending_candidates")
+            .unwrap_or(&empty_layers);
         let disabled = crate::commands::dict::disabled_sources(global.as_deref());
 
         let Some(work_state) = app.try_state::<OpenWorkState>() else {

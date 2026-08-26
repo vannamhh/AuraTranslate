@@ -28,7 +28,7 @@ import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
-import type { GlossaryCategory } from './config/glossary'
+import type { GlossaryCategory, GlossaryEntry } from './config/glossary'
 import type { GlossaryTierWire } from './config/glossary'
 import { glossaryExchangeBusy } from './glossaryExchangeGate'
 import {
@@ -76,11 +76,35 @@ const panel = useTemplateRef<HTMLElement>('panel')
 // `display` để một vùng chọn trong modal không phát Auto-Lookup rồi thay nội dung phía sau.
 useSelectionSurface(panel, 'display')
 
+/**
+ * 🔵 THÊM 2026-08-26 (cụm F ⑦, vòng rà 1 — Ice chốt) — `<ul class="gm-list" role="listbox">`,
+ * template ref RIÊNG khỏi `panel`. Bản đầu của mục ⑦ đặt `aria-activedescendant` lên `<ul>`
+ * nhưng KHÔNG BAO GIỜ focus nó — tiêu điểm luôn ở `panel` (`role="dialog"`), và WAI-ARIA chỉ
+ * cho trình đọc màn hình tôn trọng `aria-activedescendant` trên phần tử ĐANG giữ tiêu điểm.
+ * Ice chốt: cho `<ul>` một `tabindex="-1"` (template) và focus CHÍNH NÓ thay `panel` khi
+ * danh sách có hàng — KHÔNG chuyển thuộc tính sang `panel`, vì `panel` mang `role="dialog"`
+ * và ARIA 1.2 không liệt `dialog` trong các vai nhận `aria-activedescendant`.
+ */
+const list = useTemplateRef<HTMLElement>('list')
+
+/**
+ * Tiêu điểm ban đầu của lớp phủ: `<ul>` khi danh sách CÓ hàng (để `aria-activedescendant`
+ * có nghĩa ngay từ đầu), `panel` khi không (đang tải / rỗng / lỗi — `<ul>` không render ở
+ * các trạng thái đó, xem template `v-if="manageFilteredRows.length === 0"`).
+ */
+function focusInitialTarget(): void {
+  if (manageStatus.value === 'loaded' && manageFilteredRows.value.length > 0 && list.value !== null) {
+    list.value.focus()
+    return
+  }
+  panel.value?.focus()
+}
+
 watch(manageOverlayIsOpen, (open) => {
   if (open) {
     // 🔴 KHÔNG lưu `document.activeElement` trần — xem `focusReturnTargetOnOpen`.
     returnFocusTo = focusReturnTargetOnOpen('[data-glossary-manage-open]')
-    void nextTick(() => panel.value?.focus())
+    void nextTick(focusInitialTarget)
     return
   }
 
@@ -103,6 +127,50 @@ watch(manageOverlayIsOpen, (open) => {
   console.warn('[glossary-manage] focus-return target is gone; focus falls back to body.')
 })
 
+/**
+ * 🔵 THÊM 2026-08-26 (cụm F ⑦, vòng rà 1) — `openGlossaryManage()` đặt `manageOverlayIsOpen`
+ * THÀNH `true` NGAY, rồi mới `await` lượt tải danh sách (`glossaryManageState.ts`) — nên tại
+ * thời điểm watcher trên chạy, danh sách gần như luôn CHƯA có hàng (`manageStatus` vẫn
+ * `'unknown'`), và `focusInitialTarget()` đúng đắn rơi về `panel`. Watcher RIÊNG này bắt lượt
+ * danh sách chuyển sang "có hàng" SAU ĐÓ (dù lúc mở lần đầu, hay một bộ lọc vừa cho ra kết
+ * quả) và chuyển tiêu điểm từ `panel` sang `<ul>` — CHỈ khi tiêu điểm còn đang ở ĐÚNG `panel`
+ * (tức người dùng CHƯA chủ động chuyển nó đi đâu, ví dụ gõ vào ô tìm) — không bao giờ cướp
+ * tiêu điểm khỏi một ô người dùng đang thao tác.
+ */
+watch(manageFilteredRows, () => {
+  if (!manageOverlayIsOpen.value) return
+  if (manageStatus.value !== 'loaded' || manageFilteredRows.value.length === 0) return
+  if (document.activeElement !== panel.value) return
+  void nextTick(() => list.value?.focus())
+})
+
+/**
+ * 🔴 P1 (vòng rà 2, 2026-08-26) — HỒI QUY do chính watcher trên gây ra, ba nguồn độc lập
+ * cùng bắt. Watcher trên chỉ có chiều 0 → N (không hàng → có hàng). Chiều NGƯỢC (N → 0)
+ * thiếu: tiêu điểm đang ở `<ul>` → người dùng xoá hàng CUỐI CÙNG (nhịp `Backspace`/`Delete`
+ * hai lượt) → danh sách nạp lại RỖNG → `v-if="manageFilteredRows.length === 0"` GỠ HẲN
+ * `<ul>` khỏi DOM trong khi nó đang giữ tiêu điểm → trình duyệt đẩy tiêu điểm về
+ * `document.body`.
+ *
+ * Hậu quả nặng hơn một lỗi tiêu điểm đơn thuần: `trapTab`/`onEscape`/`onKeydown` đều gắn
+ * trên `.gm-scrim` và nghe qua BUBBLING từ `document.activeElement`. Tiêu điểm ở `body`
+ * nằm NGOÀI `.gm-scrim` ⇒ Tab, Escape, mũi tên, và cả nhịp xoá hai lượt NGỪNG PHẢN HỒI cho
+ * tới khi người dùng bấm chuột vào modal. TRƯỚC vòng rà 1 lỗi này không tồn tại: tiêu điểm
+ * luôn ở `panel` (nằm TRONG `.gm-scrim`), nên phím vẫn bubbling — bản vá ⑦ (chuyển tiêu
+ * điểm sang `<ul>`) mở ra nó.
+ *
+ * Vệ ĐỐI XỨNG với watcher trên: khi danh sách VỀ rỗng VÀ tiêu điểm đang ở ĐÚNG `<ul>` (tức
+ * nó chưa bị người dùng chuyển đi đâu khác — cùng kỷ luật "không cướp tiêu điểm" của watcher
+ * kia), dời tiêu điểm về `panel` — nơi nó SỐNG TRONG `.gm-scrim`, giữ Tab/Escape/mũi tên
+ * bubbling được.
+ */
+watch(manageFilteredRows, () => {
+  if (!manageOverlayIsOpen.value) return
+  if (manageFilteredRows.value.length > 0) return
+  if (document.activeElement !== list.value) return
+  void nextTick(() => panel.value?.focus())
+})
+
 function focusableWithin(root: HTMLElement): HTMLElement[] {
   return Array.from(
     root.querySelectorAll<HTMLElement>(
@@ -112,7 +180,18 @@ function focusableWithin(root: HTMLElement): HTMLElement[] {
   )
 }
 
-/** Bẫy tiêu điểm — điều kiện để `aria-modal="true"` không phải một lời khai sai. */
+/**
+ * Bẫy tiêu điểm — điều kiện để `aria-modal="true"` không phải một lời khai sai.
+ *
+ * 🔵 XÉT LẠI 2026-08-26 (cụm F ⑦, vòng rà 1) — tiêu điểm nay có thể xuất phát từ `<ul
+ * class="gm-list">`, không chỉ từ `panel`. KHÔNG cần sửa: `focusableWithin(root)` đã loại
+ * MỌI phần tử `tabindex="-1"` khỏi `stops` (`:not([tabindex="-1"])`), và `<ul>`/`<li>` đều
+ * mang thuộc tính đó — nên `<ul>` không bao giờ lọt vào `stops`, đúng như `panel` chưa từng
+ * lọt vào trước đây. `active instanceof HTMLElement && stops.indexOf(active) === -1` đã sẵn
+ * một nhánh cho "tiêu điểm đang ở một phần tử NGOÀI `stops`" (rơi về đầu/cuối danh sách tuỳ
+ * `shiftKey`) — nhánh đó áp ĐÚNG như nhau cho cả hai điểm xuất phát `panel`/`<ul>`, không
+ * phân biệt. Ca `..._focus_moves_off_the_list_into_the_toolbar_on_tab` canh đúng mệnh đề này.
+ */
 function trapTab(event: KeyboardEvent): void {
   const root = panel.value
   if (root === null) return
@@ -129,6 +208,17 @@ function trapTab(event: KeyboardEvent): void {
   const step = event.shiftKey ? -1 : 1
   const next = index === -1 ? (event.shiftKey ? stops.length - 1 : 0) : index + step
   stops[(next + stops.length) % stops.length].focus()
+}
+
+/**
+ * `id` DOM ổn định cho một hàng của `.gm-list` — 🔵 THÊM 2026-08-26 (cụm F ⑦). Dùng CHUNG
+ * giữa `<li :id>` và `<ul :aria-activedescendant>` bên dưới, để hai bên không thể lệch
+ * nhau bằng cách chép công thức ghép chuỗi ở hai chỗ. Cùng định danh mà `:key` của `<li>`
+ * đã dùng (`${row.tier}:${row.id}`) — chỉ đổi `:` thành `-` vì `id` không cấm ký tự đó
+ * nhưng một `id` mang `:` gây rắc rối với `querySelector` (`:` mở một pseudo-class).
+ */
+function manageOptionId(row: Pick<GlossaryEntry, 'tier' | 'id'>): string {
+  return `gm-option-${row.tier}-${row.id}`
 }
 
 /** Bốn phân loại — khớp `Category::as_str()` phía Rust, khuôn `CATEGORY_OPTIONS` của
@@ -338,16 +428,41 @@ function onKeydown(event: KeyboardEvent): void {
         </p>
 
         <!--
-          🔵 `role="listbox"`/`option` + `aria-selected` (vá 2026-08-24). Trước đó hàng đang
-          chọn CHỈ được đánh dấu bằng lớp nền `.gm-row-current`, tức một tín hiệu chỉ tồn tại
-          bằng MÀU — cùng lớp thiếu sót mà bản vá P7 của Story 3.8 đã đóng cho dấu ✓/✕. Người
-          dùng trình đọc màn hình điều hướng bằng mũi tên (AC7) không có cách nào biết con trỏ
-          đang ở đâu. `tabindex="-1"` giữ hàng ngoài vòng Tab: điều hướng hàng là việc của
-          mũi tên, `Tab` dành cho các nút thao tác.
+          `role="listbox"`/`option` + `aria-selected` (vá 2026-08-24) + `id`/
+          `aria-activedescendant`/tiêu điểm (🔵 SỬA 2026-08-26, cụm F ⑦, vòng rà 1).
+          Bản 2026-08-24 gắn `aria-selected` trên MỖI hàng, nhưng tiêu điểm DOM sống ở
+          `panel` (`role="dialog"`) chứ không đi theo `manageCursor` — `aria-selected` một
+          mình không nói được "con trỏ đang ở đâu" cho trình đọc màn hình (nó chỉ nói "hàng
+          nào ĐƯỢC CHỌN", một câu khác).
+
+          Bản đầu của mục ⑦ (cùng ngày) thêm `aria-activedescendant` lên `<ul>` này nhưng
+          KHÔNG cho `<ul>` `tabindex` và KHÔNG bao giờ focus nó — chú thích lúc đó khai `<ul>`
+          là "container giữ tiêu điểm", trong khi tiêu điểm THẬT vẫn ở `panel`. WAI-ARIA chỉ
+          tôn trọng `aria-activedescendant` trên phần tử ĐANG giữ tiêu điểm, nên bản đó không
+          giao được điều nó khai — một chú thích "đã đóng lỗ hổng" trong khi lỗ hổng vẫn còn,
+          đúng lớp lỗi `khoi-phuc-trung-thanh-khong-phai-dung`.
+
+          Bản NÀY: `<ul>` mang `tabindex="-1"` (TypeScript, `list.value?.focus()`) và tiêu
+          điểm chuyển TỚI CHÍNH `<ul>` khi danh sách có hàng (`focusInitialTarget`/watcher
+          trên `manageFilteredRows`, xem khối kịch bản phía trên) — KHÔNG chuyển `aria-
+          activedescendant` sang `panel` (`role="dialog"` không được ARIA 1.2 liệt trong các
+          vai nhận thuộc tính này). `tabindex="-1"` trên `<li>` giữ HÀNG ngoài vòng Tab —
+          điều hướng hàng là việc của mũi tên (bắt ở `.gm-scrim`), `Tab` dành cho toolbar/nút
+          thao tác; `<ul>` CŨNG mang `tabindex="-1"` vì nó nhận tiêu điểm bằng JS, không bằng
+          Tab (cùng khuôn `panel` — cả hai đều KHÔNG nằm trong `stops` của `trapTab`).
         -->
-        <ul v-else class="gm-list" role="listbox" :aria-label="t('glossary.manage.list_label')">
+        <ul
+          v-else
+          ref="list"
+          class="gm-list"
+          role="listbox"
+          tabindex="-1"
+          :aria-label="t('glossary.manage.list_label')"
+          :aria-activedescendant="manageCurrentRow === null ? undefined : manageOptionId(manageCurrentRow)"
+        >
           <li
             v-for="(row, i) in manageFilteredRows"
+            :id="manageOptionId(row)"
             :key="`${row.tier}:${row.id}`"
             class="gm-row"
             role="option"

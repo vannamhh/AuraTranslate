@@ -232,7 +232,7 @@ function onInput(event: Event): void {
 .gs-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: calc(var(--space-unit) * 1); /* = 4px, khuôn GlossaryQuickAdd.vue:262 */
   margin-bottom: var(--space-panel-block);
 }
 
@@ -248,7 +248,7 @@ function onInput(event: Event): void {
 
 .gs-input {
   width: 8em;
-  padding: 4px 6px;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1.5); /* = 4px 6px */
   border: 1px solid var(--color-outline);
   background: var(--color-background);
   font-family: var(--face-ui-mono);
@@ -260,10 +260,37 @@ function onInput(event: Event): void {
 /*
  * Câu từ chối — UX-DR27: nói ra bằng CHỮ, không bằng màu một mình; màu ở đây chỉ là lớp
  * thứ hai, cùng khuôn `.sc-alert` của `ShortcutsOverlay.vue`.
+ *
+ * 🔴 `padding-left` — 🔵 2026-08-26 (cụm F ⑥) đổi px thô sang `calc(var(--space-unit) *
+ * 2.75)`, GIỮ NGUYÊN 11px: đây là khuôn "nét dẫn" dùng CHUNG ở 7 chỗ / 5 tệp
+ * (`.gs-alert` đây · `ShortcutsOverlay.vue:446 .sc-alert` · `ShortcutsOverlay.vue:432
+ * .sc-note` · `AttributionOverlay.vue:333 .attr-note` · `panels/LookupPanel.vue:1059
+ * .lookup-disagree` · `panels/LookupPanel.vue:1154 .lookup-row` · `panels/
+ * LookupRecord.vue:312 .lookup-citation`), tổng lề quang học 13px cùng `border-left: 2px`.
+ * Đo 2026-08-26, Ice chốt: KHÔNG làm tròn lên 12px (`calc(var(--space-unit) * 3)`) — điều
+ * đó để `ShortcutsOverlay.vue` mang hai lề LỆCH nhau 1px cho hai câu nằm cạnh nhau
+ * (`.sc-note` 11px cũ vs `.sc-alert` 12px mới, dòng `:427`/`:444`). Một bội số lẻ có lý do
+ * viết ra đọc được hơn một `px` thô không ai giải thích. KHÔNG đổi giá trị này mà không
+ * đổi CẢ SÁU chỗ kia cùng lượt.
+ *
+ * 🔵 SỬA 2026-08-26 (vòng rà 2, P5) — con số ĐÚNG là **7 chỗ**, không 6 như bản đo
+ * 2026-08-26 (cụm F ⑥) và vòng rà 1 đều ghi. `panels/LookupPanel.vue:1154 .lookup-row`
+ * (`padding: 2px 0 2px 11px; border-left: 2px solid transparent;`) là chỗ THỨ BẢY — nó
+ * viết `padding` DẠNG RÚT GỌN bốn giá trị, nên mọi lượt `grep 'padding-left: 11px'` (cả
+ * cụm F ⑥ lẫn vòng rà 1) đều lọt qua nó. Đo LẠI đúng: tìm cặp `border-left: 2px` + lề
+ * `11px` (dù viết `padding-left: 11px` hay shorthand `padding: … 11px`), KHÔNG chỉ tìm
+ * chuỗi `padding-left: 11px` — lượt sau đừng lặp lại lỗi grep này.
+ *
+ * ⚠️ THÊM 2026-08-26 (vòng rà 1) — `panels/LookupRecord.vue:311` `.lookup-citation` mang
+ * MỘT `11px` THỨ HAI ở `margin: 4px 0 0 11px;`, ngay TRÊN `padding-left: 11px;` (`:312`,
+ * chỗ đã đếm ở trên) — cùng rule, cùng giá trị, nhưng KHÔNG thuộc khuôn "7 chỗ / 5 tệp" ở
+ * đây (nó không đứng cạnh `border-left`). Một lượt chuyển token sau này trên tệp đó rất dễ
+ * sửa `padding-left` mà bỏ quên `margin`. Xem `deferred-work.md` §Cụm F cho đầy đủ — KHÔNG
+ * sửa ở đây, `LookupRecord.vue` nằm ngoài phạm vi lượt này.
  */
 .gs-alert {
   margin: 0 0 var(--space-panel-block) 0;
-  padding-left: 11px;
+  padding-left: calc(var(--space-unit) * 2.75); /* = 11px, xem chú thích trên */
   border-left: 2px solid var(--color-error);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
@@ -277,7 +304,7 @@ function onInput(event: Event): void {
 }
 
 .gs-save {
-  padding: 4px 12px;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3); /* = 4px 12px */
   border: 1px solid var(--color-outline);
   background: none;
   cursor: pointer;

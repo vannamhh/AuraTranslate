@@ -1053,3 +1053,163 @@ fn the_write_tickets_are_must_use_and_the_lint_that_gives_it_teeth_is_denied() {
          de tranh dung lop rot ma chinh mon no dang canh."
     );
 }
+
+/// 🔴 **Cụm F ④ (2026-08-26, sửa vòng rà 1) — `commands/glossary.rs` phải gọi
+/// `guarded_dict_layers` DÙNG CHUNG ở CẢ HAI vỏ `glossary_marks_for_chapter`/
+/// `glossary_pending_candidates` TRƯỚC khi rơi về `&empty_layers`.**
+///
+/// Trước bản vá cụm F, cả hai vỏ tự viết `layers.as_deref().unwrap_or(&empty_layers)` mà
+/// KHÔNG qua `guarded_dict_layers` — gộp "chưa từng `app.manage`" (lỗi cấu hình `setup()`,
+/// đáng chẩn đoán) với "đã quản lý nhưng rỗng" (AD-25, bình thường) vào MỘT nhánh im lặng,
+/// đúng anti-pattern mà doc-comment của `commands/project.rs::guarded_dict_layers` gọi tên
+/// hai ngày TRƯỚC nó. Hình dạng ĐÚNG (vòng rà 1, Ice chốt) là một COMBINATOR, không một
+/// khối `match`/`if let` viết tay: `guarded_dict_layers(...).unwrap_or(&empty_layers)` —
+/// một khối `match` ở đây có nhánh để gõ nhầm mà 0 phép kiểm nào chạy qua (vỏ `wire::`
+/// không gọi được từ `tests/**`), còn một combinator thì không có nhánh nào để đảo.
+///
+/// **Vì sao cổng này là một phép so CẤU TRÚC, không phải một chuỗi literal.** Bản đầu của
+/// cổng này so `code_only.contains("unwrap_or(&empty_layers)")` — literal, gắn chết tên
+/// biến `empty_layers`. Cùng anti-pattern dưới một tên biến KHÁC (`unwrap_or(&empty)` —
+/// đúng tên mà ba chỗ hợp lệ ở `commands/dict.rs` dùng, xem `dict.rs:61-64`) đi lọt hoàn
+/// toàn. Cổng dưới đây neo vào `layers.as_deref()` — lời gọi DUY NHẤT biến `Option<&Store<
+/// DictLayers>>` (từ `try_state`) thành `Option<&DictLayers>`, bất kể chỗ gọi sau đó rơi về
+/// đâu bằng tên biến gì — và đòi MỌI câu lệnh chứa cụm đó cũng phải chứa `guarded_dict_
+/// layers(` trong cùng câu lệnh. Đổi tên biến `empty_layers` thành bất cứ gì không né được
+/// cổng này; chỉ có cách BỎ hẳn `guarded_dict_layers(` mới né được, và đó chính là điều cấm.
+///
+/// **Đã sửa (vòng rà 1) ba khuyết tật của bản đầu:**
+/// (a) bộ lọc chỉ bỏ dòng mở đầu bằng `//`, sót dòng mở đầu bằng `*` của một khối `/* … */`
+/// — một chú thích khối nhắc chuỗi cấm sẽ làm cổng đỏ oan. Khuôn đúng chép từ `:625` cùng
+/// tệp: lọc CẢ `//` lẫn `*`.
+/// (b) phép so literal ở trên.
+/// (c) `call_count >= 2` lỏng hơn cần thiết — đổi `== 2`, đúng khuôn đếm TUYỆT ĐỐI của
+/// [`the_blocking_wires_run_off_the_main_thread`] ngay trên (một cổng đếm `>=` không bắt
+/// được việc thêm một chỗ gọi THỨ BA lặng lẽ mà quên xoá một trong hai chỗ cũ).
+///
+/// **Đối chứng GỠ-CHỖ-NỐI (§Boundaries cụm F):** đổi MỘT trong hai vỏ từ
+/// `guarded_dict_layers(...).unwrap_or(&empty_layers)` sang `layers.as_deref().unwrap_or(&empty)`
+/// (bỏ hẳn `guarded_dict_layers(`, đổi cả tên biến fallback để chứng minh cổng không neo
+/// vào TÊN BIẾN) ⇒ ca này phải ĐỎ, nêu đích danh câu lệnh vi phạm.
+#[test]
+fn commands_glossary_uses_the_shared_guarded_dict_layers_helper_not_a_bare_unwrap_or_empty() {
+    let path = manifest_dir().join("src/commands/glossary.rs");
+    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+
+    // ⚠️ Chỉ dòng MÃ, không phải toàn văn bản: chú thích cạnh hai chỗ gọi (2026-08-26) tự
+    // NHẮC TỚI đúng cụm bị canh để giải thích lý do -- một phép `contains` toàn văn bản sẽ
+    // tự bắt nhầm chính lời giải thích đó. Cùng kỷ luật mà `glossary_boundary.rs::only_
+    // glossary_and_schema_may_name_glossary_tables` dùng cho `FORBIDDEN_TABLES`. Lọc CẢ
+    // `//` lẫn `*` (khuôn `:625` cùng tệp) -- bỏ sót `*` để lọt một khối `/* … */`.
+    //
+    // 🔴 P4 (vòng rà 2, 2026-08-26) -- bộ lọc trên chỉ loại dòng MỞ ĐẦU bằng `//`/`*`, không
+    // cắt một chú thích CUỐI DÒNG (`code; // ghi chú`). Vì các dòng được nối bằng MỘT
+    // KHOẢNG TRẮNG (`join(" ")`), KHÔNG bằng một DÒNG MỚI, phần sau `//` của một chú thích
+    // cuối dòng không hề bị che -- nó dán THẲNG vào câu lệnh kế tiếp qua đúng một dấu cách,
+    // tức vừa có thể tạo ra một trận khớp GIẢ (chữ trong chú thích vô tình ghép với mã xung
+    // quanh thành một chuỗi trùng khớp) vừa có thể NUỐT một vi phạm thật (một `;` nằm trong
+    // văn bản chú thích cắt sai một câu lệnh của `violations` bên dưới thành hai mảnh,
+    // không mảnh nào tự đủ để bị bắt). Cắt phần cuối dòng bắt đầu từ `//` trước khi nối --
+    // ⚠️ giới hạn ghi thẳng: đây là một phép cắt THÔ (không hiểu chuỗi ký tự chứa hai dấu
+    // gạch chéo liền nhau bên trong dấu nháy kép), an toàn cho tệp này vì đã đo (grep tìm
+    // chuỗi mã mang hai dấu gạch chéo liền nhau trong dấu nháy kép trên `commands/
+    // glossary.rs` -- 0 kết quả).
+    let code_only: String = text
+        .lines()
+        .map(str::trim_start)
+        .filter(|l| !l.starts_with("//") && !l.starts_with('*'))
+        .map(|l| l.find("//").map_or(l, |idx| &l[..idx]))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    let call_count = code_only.matches("guarded_dict_layers(").count();
+    assert_eq!(
+        call_count, 2,
+        "`commands/glossary.rs` goi `guarded_dict_layers(` {call_count} lan trong PHAN MA -- \
+         can DUNG HAI, mot cho `glossary_marks_for_chapter` va mot cho `glossary_pending_\
+         candidates` (Cum F ④). Khac hai (thieu hoac thua) nghia la mot vo dang doc DictLayers \
+         khong qua ham dung chung, mat chan doan dung be mat goi ma `guarded_dict_layers` \
+         them vao, hoac mot chо goi thu ba lang le xen vao ma khong ai xet lai con so nay."
+    );
+
+    // 🔴 Phép so CẤU TRÚC: MỌI câu lệnh (cắt bởi `;`, sau khi đã gộp mọi dòng thành MỘT
+    // chuỗi phẳng ở trên -- nên một lời gọi trải nhiều dòng qua rustfmt vẫn nằm TRỌN trong
+    // một "câu lệnh" ở đây) chứa `layers.as_deref()` -- điểm DUY NHẤT biến `Option<&DictLayers>`
+    // ra khỏi `try_state` -- cũng phải chứa `guarded_dict_layers(`. Neo vào lời gọi đó, KHÔNG
+    // neo vào tên biến `empty_layers`/`empty` mà chỗ gọi rơi về.
+    let violations: Vec<&str> = code_only
+        .split(';')
+        .filter(|stmt| stmt.contains("layers.as_deref()") && !stmt.contains("guarded_dict_layers("))
+        .collect();
+    assert!(
+        violations.is_empty(),
+        "{} cau lenh goi `layers.as_deref()` (diem DUY NHAT mo `Option<&DictLayers>` tu \
+         `try_state`) ma KHONG qua `guarded_dict_layers(` truoc khi roi ve gia tri du phong:\n{}\n\n\
+         Day dung la anti-pattern ma doc-comment cua `commands/project.rs::guarded_dict_layers` \
+         da goi ten: gop ca \"DictLayers chua tung duoc quan ly\" (loi setup(), dang chan doan) \
+         voi \"da quan ly nhung rong\" (AD-25, binh thuong) vao MOT nhanh im lang -- du chо goi \
+         roi ve gia tri du phong duoi ten bien nao. Dung `guarded_dict_layers(...).unwrap_or(&empty_layers)`.",
+        violations.len(),
+        violations.join("\n---\n")
+    );
+}
+
+/// 🔴 **P3 (vòng rà 2, 2026-08-26) — cổng trên KHÔNG canh tham số `surface`.** Hoán hai
+/// literal (`"marks_for_chapter"` sang chỗ gọi của `glossary_pending_candidates` và ngược
+/// lại) giữ nguyên `call_count == 2` VÀ giữ nguyên phép so cấu trúc ở trên (cả hai vẫn gọi
+/// `guarded_dict_layers(` trên một câu lệnh chứa `layers.as_deref()`) — cổng phía trên XANH,
+/// trong khi mục đích của tham số `surface` (chẩn đoán `eprintln!` nêu ĐÚNG bề mặt đang gọi,
+/// §Boundaries cụm F: *"không in `[import_scan]` cho một lượt `marks_for_chapter`"*) đã hỏng
+/// hoàn toàn — một chẩn đoán trỏ sai tên hàm còn tệ hơn không chẩn đoán.
+///
+/// Khuôn đọc-nguồn chép từ `the_blocking_wires_run_off_the_main_thread` ngay trên trong tệp
+/// này: tìm chữ ký vỏ `wire::` bằng marker, cắt thân hàm tới `#[tauri::command` KẾ TIẾP (hoặc
+/// hết tệp), rồi khẳng định literal ĐÚNG nằm TRONG thân hàm đó — không phải "literal có mặt ở
+/// đâu đó trong tệp" (phép `contains` toàn văn bản sẽ xanh dù hai literal đã hoán chỗ, vì cả
+/// hai vẫn tồn tại TRONG TỆP, chỉ sai VỊ TRÍ).
+///
+/// **Đối chứng GỠ-CHỖ-NỐI:** hoán hai literal ⇒ ca này phải ĐỎ, nêu đích danh vỏ nào mang
+/// literal sai.
+#[test]
+fn the_guarded_dict_layers_surface_literal_names_the_wire_it_actually_sits_in() {
+    let path = manifest_dir().join("src/commands/glossary.rs");
+    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+
+    let cases: [(&str, &str, &str); 2] = [
+        (
+            "glossary_marks_for_chapter",
+            "pub fn glossary_marks_for_chapter(
+        app: tauri::AppHandle",
+            "\"marks_for_chapter\"",
+        ),
+        (
+            "glossary_pending_candidates",
+            "pub fn glossary_pending_candidates(
+        app: tauri::AppHandle",
+            "\"pending_candidates\"",
+        ),
+    ];
+
+    for (name, fn_start_marker, expected_literal) in cases {
+        let fn_start = text.find(fn_start_marker).unwrap_or_else(|| {
+            panic!(
+                "khong tim thay chu ky vo `{name}` (`{fn_start_marker}`) trong commands/glossary.rs \
+                 -- chu ky da doi? cap nhat marker cua ca test nay CUNG LUOT."
+            )
+        });
+        let after_start = &text[fn_start + fn_start_marker.len()..];
+        let fn_end_rel = after_start.find("#[tauri::command").unwrap_or(after_start.len());
+        let body = &after_start[..fn_end_rel];
+
+        assert!(
+            body.contains("guarded_dict_layers("),
+            "than vo `{name}` khong con goi `guarded_dict_layers(` -- chu ky da doi, hoac cong \
+             nay can cap nhat CUNG LUOT voi bat ky lan sua cau truc nao."
+        );
+        assert!(
+            body.contains(expected_literal),
+            "than vo `{name}` goi `guarded_dict_layers(...)` nhung KHONG mang literal \
+             {expected_literal} trong chinh than no -- tham so `surface` da bi hoan/sua sai, \
+             mat het gia tri chan doan ma tham so do duoc them vao de dat (Cum F ④, vong ra 2 P3)."
+        );
+    }
+}

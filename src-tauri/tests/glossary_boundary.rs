@@ -718,3 +718,74 @@ fn the_glossary_only_surface_check_would_still_flag_a_forbidden_call_from_comman
          voi ba ham cua Story 3.3"
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Cụm F ③ — `core/glossary/**` không được phơi lại một hàm quét nhận callback `bool`
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Chữ ký callback mà `pub fn scan_candidates` (vỏ `bool` tương thích, xoá 2026-08-26 —
+/// cụm F) mang: `&mut dyn FnMut(&str) -> bool`. Đường sản phẩm DUY NHẤT hôm nay là
+/// `scan_candidates_controlled`, nhận `&mut dyn FnMut(&str) -> DictionaryProbe` BA trạng
+/// thái — một callback `bool` ép layer LỖI thành "không có trong từ điển", đúng lớp rỗng
+/// im lặng trung tâm của dự án (`AGENTS.md` §Known pitfalls; §Design Notes cụm F).
+const BOOL_SCAN_CALLBACK_SIGNATURE: &str = "dyn FnMut(&str) -> bool";
+
+/// 🔴 Cổng cấu trúc — `core/glossary/**` phơi **0** hàm quét nào nhận callback `bool`.
+/// Khuôn đọc-nguồn CHÉP từ `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`
+/// (đọc thẳng văn bản nguồn qua `code_lines`, không cần dựng gì để chạy được) — dùng lại
+/// `code_lines`/`all_rust_sources`/`rel_posix` sẵn có ở đầu tệp này thay vì chép một bản
+/// đọc-tệp thứ hai.
+///
+/// **Đối chứng GỠ-CHỖ-NỐI (§Boundaries cụm F):** dựng lại `pub fn scan_candidates` với
+/// đúng chữ ký cũ (`is_known: &mut dyn FnMut(&str) -> bool`) ở `core/glossary/scan.rs` ⇒ ca
+/// này phải ĐỎ.
+#[test]
+fn zero_scan_functions_under_core_glossary_accept_a_bool_dictionary_callback() {
+    let (root, files) = all_rust_sources();
+    let mut violations: Vec<String> = Vec::new();
+
+    for file in &files {
+        let rel = rel_posix(&root, file);
+        if !rel.starts_with(GLOSSARY_DIR) {
+            continue;
+        }
+        for (line, code) in code_lines(file) {
+            if code.contains(BOOL_SCAN_CALLBACK_SIGNATURE) {
+                violations.push(format!("{rel}:{line}  {code}"));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} cho duoi `{GLOSSARY_DIR}` phoi mot chu ky callback `bool` cho ham quet:\n{}\n\n\
+         `pub fn scan_candidates` (vo bool tuong thich) da bi xoa 2026-08-26 (cum F) -- 0 cho \
+         goi san pham dung no, va vo bool ep mot layer LOI thanh \"khong co trong tu dien\". \
+         Duong san pham DUY NHAT la `scan_candidates_controlled` (DictionaryProbe ba trang \
+         thai). Mot adapter bool tat dinh cho bang test thi giu no CUC BO trong tep test, \
+         dung phuc hoi mot API san pham duoi day.",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+/// Đối chứng dương: `DictionaryProbe` — kiểu BA trạng thái mà đường sản phẩm dùng thay cho
+/// `bool` — vẫn thật sự tồn tại dưới `core/glossary/**`. Không có ca này thì phép kiểm trên
+/// xanh y hệt trên một cây mà `scan.rs` đã bị xoá sạch, không riêng gì wrapper `bool`.
+#[test]
+fn core_glossary_still_defines_the_three_state_dictionary_probe() {
+    let (root, files) = all_rust_sources();
+    let hit = files
+        .iter()
+        .filter(|f| rel_posix(&root, f).starts_with(GLOSSARY_DIR))
+        .any(|f| {
+            fs::read_to_string(f)
+                .map(|t| t.contains("enum DictionaryProbe"))
+                .unwrap_or(false)
+        });
+    assert!(
+        hit,
+        "khong tep nao duoi `{GLOSSARY_DIR}` khai `enum DictionaryProbe` -- cay da bi cat va \
+         phep kiem ranh gioi phia tren dang canh mot cho trong."
+    );
+}
