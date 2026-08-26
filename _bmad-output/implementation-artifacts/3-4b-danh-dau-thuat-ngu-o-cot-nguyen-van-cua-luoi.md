@@ -572,3 +572,35 @@ Tauri không dựng được — xem chú thích ⚠️ ngay trên):**
 
 - Sàn quần thể đã nâng theo ba tệp `.ts` mới, số đo bằng `find` kèm ngày.
   [`check-panel-refs.mjs:517`](../../scripts/check-panel-refs.mjs#L517)
+
+---
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-26: tệp đó giữ TRẠNG THÁI, nội dung story
+thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔵 2026-08-21 — THÊM QUA `correct-course` (sprint-change-proposal-2026-08-21-story-3-4b.md).
+  # Nửa GIAO DIỆN của FR50, tách khỏi 3.4 ở cửa đếm token của `bmad-build` (17.408 ký tự ≈
+  # 5.000–5.800 token so với trần 1.600). Mục ĐẦY ĐỦ ở `epics.md` §Story 3.4b — KHÔNG một khoá
+  # đúc thẳng vào tệp này, đúng ràng buộc mà `deferred-work.md` §"lượt lập spec Story 3.4" đặt.
+  # ĐIỀU KIỆN KHỞI HÀNH ĐÃ ĐÓNG: Ice ký 2026-08-21 — gọi MỘT lượt mỗi lần mở Chương, không một
+  # lượt nào trên đường gõ ⇒ 214 ms nằm NGOÀI trần NFR2 (50 ms) ⇒ không cache, không chỉ mục
+  # ngược. Món nợ ĐO còn lại: cặp số mở Chương (hâm Jieba ~243 ms + lượt khớp 214 ms) — một AC.
+  # ⚠️ FR50 chỉ đóng khi story này xanh; Story 3.4 đóng FR51 và nửa khớp + bề mặt IPC của FR50.
+  # 🔵 2026-08-21 — backlog → in-progress (bmad-build, spec đã duyệt ở CHECKPOINT 1).
+  # Spec: `3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi.md`, baseline `5c65256`.
+  # ⚠️ Spec đo ≈ 5.600–6.500 token so với trần 1.600 của cửa `bmad-build`; Ice ký [K] giữ
+  # nguyên phạm vi 2026-08-21 — tách dòng `StatusBar` ra sẽ làm FR50 cần story thứ BA và đẩy
+  # một AC của `epics.md` ra ngoài, đúng lớp vấn đề lượt `correct-course` hôm qua vừa đóng.
+  # 🔵 2026-08-22 — GIỮ NGUYÊN `review`. Lượt `bmad-build` hôm nay ĐÃ ĐỊNH LẬT khoá này sang
+  # `done` vì tệp story nói `status: 'done'` còn khoá nói `review`, và `git log` cho thấy hai
+  # commit (`de5f3fd`, `99dad1f`) đóng AC sau lượt cuối chạm khoá (`53035e7`). Kết luận đó SAI
+  # và đã hoàn tác trong cùng phiên.
+  # ⇒ Cặp (spec `done` · khoá `review`) KHÔNG phải một chỗ lệch — nó là TRẠNG THÁI KẾT THÚC
+  # BÌNH THƯỜNG của `bmad-build`: step-05 đặt spec thành `done` và gọi `sync-sprint-status`
+  # với `target_status = review`. `bmad-build` KHÔNG bao giờ tự đặt `done` vào tệp này.
+  # ⇒ `review` ở đây đọc là *"đã dựng xong, chờ Ice ký"*, và chỉ Ice mới lật nó sang `done`.
+```
+

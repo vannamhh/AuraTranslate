@@ -426,3 +426,71 @@ số ca đã thêm, không có ca nào biến mất giữa chừng).*
 
 - Span cắt về toạ độ cục bộ mà không đánh rơi đề xuất.
   [`glossaryMarksMap.ts:74`](../../src/panels/glossaryMarksMap.ts#L74)
+
+---
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-26: tệp đó giữ TRẠNG THÁI, nội dung story
+thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔵 2026-08-24 — backlog → in-progress (bmad-build, spec đã duyệt ở CHECKPOINT 1).
+  # Spec: `3-7-de-xuat-ban-dich-bang-am-han-viet.md`, baseline `dae3a3d3ba2665b64038bf339f7b1f5ffcd47fa3`.
+  # Ba quyết định Ice ký 2026-08-24: ① story NỐI vào dải chốt của 3.6 (không chỉ Rust+IPC) —
+  # đóng luôn mục nợ `deferred-work.md:6374` mà chủ đã ghi đích danh là Story 3.7 · ② ký tự đa
+  # âm chỉ lấy `primary`, KHÔNG phơi `HanVietReading.all` ra dây, và doc-comment
+  # `core/dict/mod.rs:1019` phải sửa TẠI CHỖ vì mệnh đề "3.7 cần danh sách đầy đủ" hết đúng ·
+  # ③ nợ "bạn vừa viết" (`:6394`) KHÔNG dựng ở đây — chuyển chủ sang Ice qua correct-course,
+  # vì nó đòi một phép căn chỉnh cụm chưa xuất hiện ở bất kỳ epic nào và 0 AC của 3.7 nhắc nó.
+  # 🔴 AD-36 đã viết sẵn cạnh `glossary/ → dict/` cho FR113 — AC không phải điều story tự phát
+  # minh. Hôm nay cạnh đó là 0 (`scan.rs` cố ý tiêm closure thay vì `use`); chiều ngược
+  # `dict/ → glossary/` cũng 0 ⇒ không chu trình. Đây là chỗ gọi SẢN PHẨM ĐẦU TIÊN của
+  # `DictionarySource::han_viet` từ ngoài `commands::dict`.
+  # 🔴 Đề xuất tính LÚC ĐỌC, 0 bước migration — lược đồ `project.db` ở nguyên v14. Một cột
+  # `suggested_translation` là bản chép dữ liệu từ điển vào `project.db` (AD-36 cấm) và nó lệch
+  # câm đúng ngày người dùng tắt một nguồn.
+  # 🔴 Rỗng có BỐN lý do, không một: chưa cài từ điển · không phải chữ Hán · có chữ Hán nhưng
+  # thiếu âm · dấu đã chốt nên không hỏi. `resources/dict/` RỖNG trong cây git (AD-25) nên ca
+  # "chưa cài" là ca thường gặp nhất ở máy dev — thiếu nhánh đó thì mọi ca khác xanh giả.
+  # ⚠️ Spec đo 22.087 ký tự tổng / 19.241 tới §Spec Change Log ≈ 6.400–7.700 token so với trần
+  # 1.600; Ice ký [K] giữ nguyên phạm vi. NHỎ HƠN cả 3.5 (26.151) và 3.6 (23.090) đo cùng
+  # thước. ⚠️ Con số "28.289" ghi cho 3.6 ở khối trên KHÔNG so sánh trực tiếp được — phương
+  # pháp đo của nó không được ghi lại, nên đây là hai thước khác nhau, không phải một chỗ lệch.
+  # 🔵 2026-08-24 — in-progress → review (bmad-build: dựng xong, CHO ICE KÝ).
+  # `.githooks/pre-push` xanh trong 153s (mười một cổng + `npm run test` 402 ca + `npm run
+  # build` + `cargo test --locked` 579 ca). Ba đối chứng đỏ→xanh THẬT chạy tay: ca
+  # `DictUnavailable ≠ NoReading` · cổng đồ thị phụ thuộc `glossary/ → dict/` · luật "vùng chọn
+  # thắng đề xuất". CHƯA ĐÓNG (cần môi trường thật, ghi ở `deferred-work.md`): nghiệm thu bằng
+  # mắt trên bản dựng thật có dữ liệu từ điển · NFR2 đo bằng số thật · CI hai nền tảng · bộ e2e
+  # (0/? spec chạm bề mặt này).
+  # 🔵 2026-08-24 — HAI VÒNG RÀ CHẠY SAU khối trên; khối đó là lời khai của lượt thi hành, và
+  # cả hai vòng đều tìm thấy chỗ nó chưa nói tới. Trạng thái `review` không đổi.
+  # 🔴 VÒNG 1 (rà bảng I/O, độc lập): 15 hàng đối chiếu — BỐN hàng KHÔNG có phép kiểm nào
+  # (dải chốt nửa Rust · dấu ĐÃ CHỐT · sửa mục vào từ đề xuất · lớp `.db` hỏng), một hàng
+  # (ngắt mạng) chỉ vá được một nửa. Đối chứng: thay cả khối tính đề xuất trong
+  # `marks_for_source_text` bằng một hằng ⇒ `glossary_marks_contract.rs` VẪN XANH TRỌN 17/17.
+  # ⚠️ Lượt đối chứng LẬT một mệnh đề: nhánh `if is_confirmed` là PHÒNG THỦ DƯ (vô hiệu riêng
+  # nó ⇒ 0 ca đỏ); vệ thật là `.filter(|entry| !entry.is_confirmed())` lúc dựng `pending_terms`.
+  # 🔴 VÒNG 2 (ba lớp rà đối kháng, Bước 4): 0 intent_gap, 0 bad_spec ⇒ KHÔNG vòng quay lại,
+  # `review_loop_iteration` vẫn 0. Phát hiện nặng nhất là MỘT LỖ CỦA CHÍNH VÒNG 1 — lần thứ hai
+  # liên tiếp sau Story 3.6 mà lượt tự kiểm bỏ sót: vòng 1 vá chỗ nối `marks_for_source_text`
+  # rồi tuyên bố đóng, trong khi chỗ nối THỨ HAI (`glossary_pending_candidates`) chưa ai canh —
+  # `grep han_viet` trong `glossary_commands_contract.rs` = 0, cả 5 lời gọi truyền
+  # `DictLayers::empty()`. Đối chứng: gỡ lượt tính đề xuất ⇒ đúng 1 ca mới đỏ, 15/15 ca cũ XANH.
+  # 🔴 `debug_assert_eq!` canh độ dài TRƯỚC `zip` chết ở bản phát hành ⇒ lệch độ dài thì `zip`
+  # CẮT CỤT im lặng, sắp lại `rows` thì đề xuất dán nhầm thuật ngữ. Nay ghép theo KHOÁ.
+  # 🔴 Nhãn "Âm Hán Việt" nằm trong `<label>` ⇒ tên khả truy cập của ô nhập thành "Bản dịch Âm
+  # Hán Việt". Nay là chip độc lập ở hàng tiêu đề.
+  # ⚠️ HAI MỤC CHỜ ICE PHÁN QUYẾT (`deferred-work.md`) — không phải một dòng vá:
+  # ① Tắt/bật một nguồn KHÔNG làm mới dấu Glossary (`dictSourcesState.ts:212` chỉ gọi
+  #   `refreshHanViet()`). Story này VỪA TẠO khớp nối đó. Thêm chỗ gọi `refreshGlossaryMarks`
+  #   thứ TƯ đụng một câu Ice ký 2026-08-21 (`glossaryMarksState.ts:17-24`).
+  # ② `targetsEqual` chỉ so `tier`+`id` — cửa sổ ĐANG ĐÓNG hôm nay, mở ra đúng lúc ① được sửa;
+  #   và bản vá hiển nhiên là bản vá SAI (`applyTarget` xoá rồi điền lại ⇒ mất chữ đang gõ).
+  # ⚠️ Vế "0 lượt tra Hán Việt cho dấu đã chốt" của hàng I/O *Dấu ĐÃ CHỐT* KHÔNG phép kiểm nào
+  # quan sát — đã nối vào mục NFR2, chủ Ice.
+  # Ba lượt `.githooks/pre-push` THẬT trong phiên, cả ba exit 0: 155s (cây agent giao) · 125s
+  # (sau vòng 1) · 143s (sau vòng 2). `cargo test --locked`: 579 → 583 → **584** ca xanh.
+```
+

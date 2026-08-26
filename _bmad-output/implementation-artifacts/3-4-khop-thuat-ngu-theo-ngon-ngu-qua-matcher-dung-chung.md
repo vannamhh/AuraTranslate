@@ -251,3 +251,24 @@ DOM  / Range    -> UTF-16   (mọi offset của Range)
 
 - Giới hạn Porter2 ghi thành ca CÓ TÊN, không giấu trong một ca AC.
   [`glossary_marks_contract.rs:144`](../../src-tauri/tests/glossary_marks_contract.rs#L144)
+
+---
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-26: tệp đó giữ TRẠNG THÁI, nội dung story
+thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔵 2026-08-21 — ĐỔI KHOÁ, hai lý do, cả hai kiểm được.
+  # ① Tên cũ `…-danh-dau-trong-panel-source` trỏ SAI BỀ MẶT: FR50 sửa 2026-08-18 từ
+  #    "Panel Source" sang "cột nguyên văn của lưới" (`epics.md:176` · `prd.md:548` · bảng
+  #    truy vết `epics.md:700`), và `grep 'SourcePanel|EditorPanel' src/` = 0. Mọi tệp quy
+  #    hoạch đã mang tên mới; khoá này là chỗ CUỐI CÙNG còn giữ tên đã hết đúng.
+  # ② Phạm vi story thu hẹp còn NỬA RUST (khớp + bề mặt IPC) — Ice ký ở cửa đếm token của
+  #    `bmad-build`: spec một mảnh đo được 17.408 ký tự ≈ 5.000–5.800 token so với trần
+  #    1.600. Nửa GIAO DIỆN (vẽ dấu hai đường + dòng `StatusBar`) nằm trong `deferred-work.md`
+  #    §"Deferred from: lượt lập spec Story 3.4", chủ: Ice, mở qua một lượt `correct-course`.
+  #    ⚠️ FR50 vì vậy CHƯA đóng ở story này; FR51 thì có.
+```
+

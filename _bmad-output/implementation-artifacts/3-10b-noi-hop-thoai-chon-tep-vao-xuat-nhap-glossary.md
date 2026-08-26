@@ -419,3 +419,21 @@ không đổi (P9 không thêm command mới — `opening` là state nội bộ,
 
 - Giải mã chuỗi dây thật của `ConflictDecision` — gõ sai `rename` nay đỏ được.
   [`glossary_import_dialog_contract.rs:552`](../../src-tauri/tests/glossary_import_dialog_contract.rs#L552)
+
+---
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-26: tệp đó giữ TRẠNG THÁI, nội dung story
+thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔵 2026-08-25 — THÊM QUA `correct-course` (sprint-change-proposal-2026-08-25-story-3-10b.md).
+  # Nửa CHỌN TỆP của FR49, tách khỏi 3.10 ngày 2026-08-24 vì một CỬA CHẶN KIẾN TRÚC (không
+  # phải cửa đếm token như 3.4b): kho cấm `tauri-plugin-dialog`, và gỡ lệnh cấm là một `AD`.
+  # CỬA CHẶN ĐÃ MỞ: `AD-48` viết 2026-08-25 (`fd46007`) — hộp thoại gọi TỪ RUST, `capabilities/
+  # main.json` giữ đúng ba quyền, `tauri_plugin_fs::init()` không đăng ký.
+  # Mục ĐẦY ĐỦ ở `epics.md` §Story 3.10b — KHÔNG một khoá đúc thẳng vào tệp này.
+  # ⚠️ FR49 chỉ đóng khi story này xanh.
+```
+

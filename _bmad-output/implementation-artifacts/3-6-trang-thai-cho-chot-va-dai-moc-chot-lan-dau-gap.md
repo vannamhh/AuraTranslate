@@ -485,3 +485,37 @@ không chạy thì tính là thiếu). **12 hàng đóng trọn; 1 hàng đóng 
 
 - Canh CHỖ NỐI, không canh hàm: gỡ lời gọi ⇒ ca đỏ.
   [`glossaryConfirmStripResetWiring.test.ts:83`](../../tests/frontend/glossaryConfirmStripResetWiring.test.ts#L83)
+
+---
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-26: tệp đó giữ TRẠNG THÁI, nội dung story
+thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔵 2026-08-22 — backlog → in-progress (bmad-build, spec đã duyệt ở CHECKPOINT 1).
+  # Spec: `3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`, baseline `a2a0e47`.
+  # Ba quyết định Ice ký 2026-08-22: ① dải mọc ở CHÂN `.shell`, cùng slot `GlossaryQuickAdd`,
+  # KHÔNG chèn track vào subgrid của lưới (hai mockup vẽ 2026-08-02, trước khi lưới hai cột
+  # ra đời ở Story 2.5b) · ② AC "nhận ứng viên" đóng bằng vỏ IPC `glossary_approve_candidate`,
+  # 0 component Vue — bề mặt duyệt vẫn là Story 3.8 · ③ dựng sổ ưu tiên dải có tên, đóng thứ
+  # tự bốn loại theo `EXPERIENCE.md:75-81`.
+  # ⚠️ Spec đo 28.289 ký tự ≈ 8.100–9.400 token so với trần 1.600 — LỚN NHẤT kho tới nay, hơn
+  # spec 3.5 (5.900–6.800) và hơn 1,5× con số đã buộc Story 3.4 phải tách. Ice ký [K] giữ
+  # nguyên phạm vi. Đường cắt nếu sau này cần: nửa Rust + adapter ↔ nửa giao diện, và mở 3.6b
+  # phải đi qua `bmad-correct-course`, không đúc thẳng một khoá vào tệp này.
+  # ⚠️ FR114 chỉ đóng khi story này xanh. Đây cũng là chỗ gọi SẢN PHẨM ĐẦU TIÊN của
+  # `confirm_translation` và `approve_candidate` — cả hai Story 3.1/3.2 dựng, 0 chỗ gọi tới nay.
+  # 🔵 2026-08-22 — in-progress → review (bmad-build step-05: dung xong, CHO ICE KY).
+  # Ba lop ra doi khang: 13 phat hien, 10 vao ban va, 2 vao so no co chu, 1 bi bac. KHONG vong
+  # quay lai (0 intent_gap, 0 bad_spec) nen `review_loop_iteration` van 0.
+  # Hai phat hien nang nhat deu LOT QUA luot tu kiem cua chinh buoc 3: mot task danh `[x]` ma
+  # tep chua bi cham (`glossaryMarksState.ts`), va 0 luot `mount()` nao cho component moi.
+  # ⚠️ BON MENH DE CHUA DONG, deu can moi truong that: do chieu cao `.modeport` khi dai moc ·
+  # NFR2 do bang khung hinh that · CI hai nen tang · bo e2e (0/13 spec cham be mat nay).
+  # ⚠️ Ve "tieu diem khong roi ve `body`" cua hang I/O "Doi Chuong giua chung" DONG HAI PHAN BA:
+  # no la mot lo ho CO TU TRUOC story nay (`resetEditorPanel` xoa `caretPlacement`, luoi `v-for`
+  # khoa `:key="s.id"`), da noi vao muc no san co §Story 1.6. Chu: Ice — phan quyet ve AD-34.
+```
+

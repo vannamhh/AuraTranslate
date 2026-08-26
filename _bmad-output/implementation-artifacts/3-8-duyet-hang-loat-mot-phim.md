@@ -351,3 +351,19 @@ dựng. Chạy tay + đọc số hồi quy là việc của Ice.
 
 - Mệnh đề cũ đã hết đúng, sửa tại chỗ thay vì để nó lặng lẽ sai.
   [`glossary_contract.rs:1169`](../../src-tauri/tests/glossary_contract.rs#L1169)
+
+---
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-26: tệp đó giữ TRẠNG THÁI, nội dung story
+thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # Spec: `3-8-duyet-hang-loat-mot-phim.md`, baseline `3170ce4db5d547106fd933bebde97aa2f3c8c500`.
+  # 0 bước di trú — `project.db` giữ v14. Ice chốt 2026-08-24 bỏ phím "để lại, tính sau", và
+  # chính quyết định đó làm hai cột mà `schema.rs:412` giao cho story này trở nên thừa: hàng
+  # đã quyết tự rời `WHERE resolution IS NULL`, nên "mở lại đúng vị trí" đến từ mô hình dữ
+  # liệu chứ không từ một con trỏ lưu xuống đĩa.
+```
+

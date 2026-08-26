@@ -605,3 +605,29 @@ tiền đề Library trước khi thử `Mod+2`, và fallback save kiểm lại 
 tauri-service vẫn là giới hạn local đã ghi, không đổi phán quyết.
 
 Full `.githooks/pre-push` sau toàn bộ vá Step 4 xanh trong **105 giây**.
+
+---
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-26: tệp đó giữ TRẠNG THÁI, nội dung story
+thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔵 2026-08-22 — backlog → in-progress (bmad-build, spec đã duyệt ở CHECKPOINT 1).
+  # Spec: `3-5-quet-ung-vien-khi-nhap-tai-lieu.md`, baseline `99dad1f`.
+  # Bốn quyết định Ice ký 2026-08-22: ① bảng họ NÚT CỨNG trong Rust (0 cửa NFR15, KHÔNG dựng
+  # lại bốn `.db`) · ② dựng bề mặt Settings thật, không ghi nợ nửa giao diện · ③ thêm vỏ IPC
+  # đọc bảng chờ, KHÔNG component Vue (đó là 3.8) · ④ vế "một loạt Chương" thành nợ Epic 6.
+  # ⚠️ Spec đo 20.544 ký tự ≈ 5.900–6.800 token so với trần 1.600; Ice ký [K] giữ nguyên phạm
+  # vi — LỚN HƠN cả spec 3.4 lúc nó buộc phải tách. Đường cắt nếu sau này cần: nửa Rust (6/8
+  # AC) ↔ nửa giao diện (2 AC còn lại), không cần story thứ ba.
+  # ⚠️ FR52 chỉ đóng khi story này xanh. Đây cũng là chỗ gọi SẢN PHẨM ĐẦU TIÊN của lõi bảng
+  # chờ mà Story 3.2 dựng — trước lượt này, `candidate_store` có 0 chỗ gọi.
+  # 🔵 2026-08-22 — in-progress → review (bmad-build step-05: dung xong, CHO ICE KY).
+  # Ba lop ra doi khang: 16 phat hien, 6 vao ban va (da tu chay lai phep do->xanh cho hai cai
+  # nang nhat), 4 vao so no co chu, phan con lai bi bac. KHONG vong quay lai.
+  # ⚠️ BA MENH DE CHUA DONG, deu can moi truong that: so do voi TU DIEN THAT (ban do chay tren
+  # `DictLayers::empty()`) · NFR2 do bang khung hinh that · bo e2e (0/12 spec cham be mat nay).
+```
+

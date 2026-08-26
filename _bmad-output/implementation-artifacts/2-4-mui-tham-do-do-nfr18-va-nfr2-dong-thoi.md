@@ -2639,3 +2639,17 @@ Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ T
   #   ⑵ 2.4 `done` (CHUA — luoi 6 diem) · ⑶ AC7 cua 2.12 (DAT, khong muon ⑵ de dung).
   #   ⇒ Dong nay o lai `in-progress` mot cach TRUNG THUC, va no khong chan gi nua.
 ```
+
+🔵 **Gỡ bổ sung 2026-08-26** — bảy dòng dưới đây nằm ở **đầu** `sprint-status.yaml`, ngoài khối
+`epic-2`, nên lượt gỡ 2026-08-19 không quét tới. Cùng một luật, cùng nguyên văn, không sửa một
+ký tự.
+
+```
+# 2026-08-13: story 2.4 chuyen sang in-progress (create-story) — mui tham do, co dieu kien chan.
+# 2026-08-13: 2.4 DA CHAY VA DANG TREO. Khong phai "cho khoi hanh" — chinh BO DO chua dung noi:
+#   bon luot build hong, bon gia thuyet bi bac, chua tiem duoc `bench.js` vao webview ban release.
+#   Chi tiet o §Dev Agent Record cua story (chan o muc "Vi sao KHONG duoc di tiep khi chua go").
+# 2026-08-13: code review ba tang tren 2.4 — 6 decision (Ice da ky het) + 17 patch, tat ca DA VA.
+#   Sau lan chot cua Ice noi rong ngan sach do: luoi 6 diem x >=20 mau hop le, cong do tranh chap
+#   CPU/I-O hai che do. Xem §Review Findings trong story.
+```

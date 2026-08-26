@@ -339,3 +339,25 @@ Ba đối chứng bắt buộc của §Verification, mỗi ca gỡ rồi khôi p
 
 - Khoảng hở vòng rà tìm ra: `created_at` đi trọn đường ghi rồi đọc lại từ kho.
   [`glossary_exchange_contract.rs:916`](../../src-tauri/tests/glossary_exchange_contract.rs#L916)
+
+---
+
+## Nhật ký sprint-status
+
+Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-26: tệp đó giữ TRẠNG THÁI, nội dung story
+thuộc về tệp này. Không sửa một ký tự.
+
+```
+  # 🔴 2026-08-24 — DỪNG Ở MỘT CỬA CHẶN, chưa có spec. AC1 (*"xuất ⇒ sinh ra file CSV hoặc
+  # TSV"*) đòi một hộp thoại chọn tệp; `check-deps.mjs:163,165` cấm `tauri-plugin-fs` và
+  # `tauri-plugin-dialog`. Ice chốt đi đường `tauri-plugin-dialog` (chọn hai lần, lần sau
+  # đã đọc số đo) ⇒ đó là một `AD` MỚI, và `AD` giao Winston soạn, không phải dev.
+  # Hồ sơ bàn giao: `_bmad-output/planning-artifacts/ad-brief-2026-08-24-hop-thoai-chon-tep.md`.
+  # 🔵 2026-08-24 (cùng ngày, muộn hơn) — MỆNH ĐỀ "ở lại backlog" HẾT ĐÚNG. Ice chốt TÁCH:
+  # nửa CHỌN TỆP hoãn (sổ nợ, chủ Winston) — nửa ĐỊNH DẠNG chạy ngay và KHÔNG đụng hộp thoại.
+  # Nửa đang chạy: sinh/phân tích CSV-TSV (`&str` vào, `String` ra) + một đường ghi nguyên tử
+  # + `TermOrigin::FileImport` (bước di trú thứ 5 của `global.db`, thứ 15 của `project.db` —
+  # lần ĐẦU kho dựng lại một bảng). Không đọc/ghi tệp, không vỏ `#[tauri::command]` nào.
+  # Spec: `3-10-xuat-va-nhap-glossary-qua-csv-tsv.md`, baseline `3a1d8295a395639cb2c05a731328e1c55c83ee8a`.
+```
+
