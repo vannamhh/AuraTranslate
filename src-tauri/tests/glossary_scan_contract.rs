@@ -116,6 +116,132 @@ fn a_nested_ngram_with_a_different_frequency_from_its_substring_is_kept_alongsid
     assert_eq!(long.occurrence_count, 10);
 }
 
+/// Rác **neo-ĐẦU**: chuỗi dài khớp chuỗi con qua nhánh `drop_first` và **CHỈ** nhánh đó.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO CA NÀY TỒN TẠI — hai ca ngay trên KHÔNG canh được nửa `drop_first`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `zh_nested_padding` loại một chuỗi khi `matches_child(&drop_last) ||
+/// matches_child(&drop_first)`. Không ca nào trước đây **cô lập** được vế PHẢI:
+/// - Ca thứ nhất (`..._equal_frequency_...`) khớp **CẢ HAI** vế — trong `萧炎的实力在第{i}章
+///   提升。` thì `萧炎` và `炎的` đều đúng 40 như `萧炎的`. Một phép HOẶC mà cả hai vế cùng
+///   đúng thì cắt vế nào nó cũng xanh, nên nó không nói được gì về vế phải.
+/// - Ca thứ hai (`..._different_frequency_...`) **cố ý thêm câu riêng cho `炎的`** để phép so
+///   KHÔNG tình cờ chạm vế phải (đọc chú thích ⚠️ của nó).
+///
+/// ⇒ Vế `drop_first` chưa từng có ai canh. *(🔵 2026-08-26 — bản đầu của chú thích này viết
+/// hai ca kia *"đều đi qua vế TRÁI"*; vế trái thì đúng, nhưng ca thứ nhất khớp cả hai, và
+/// nói *"đi qua vế trái"* làm người đọc tưởng vế phải đã bị loại trừ ở đó. Sửa tại chỗ.)*
+///
+/// ⚠️ **Đo 2026-08-26 trên `3be0f5f`** (vòng rà Epic 3, cụm E): cắt bỏ hẳn
+/// `|| matches_child(&drop_first)` khỏi `scan.rs` rồi chạy — `glossary_scan_contract` 25/25 ·
+/// `glossary_commands_contract` 29/29 · `glossary_boundary` 11/11 · `glossary_contract` 72/72,
+/// **XANH TRỌN**. Hệ quả thật: ứng viên rác neo-đầu (`在萧炎`, `的实力`, `了一个`) đi thẳng vào
+/// bảng chờ mà UI Story 3.2/3.8 cho phép duyệt vào Glossary bằng MỘT phím.
+///
+/// **Cách fixture cô lập đúng một nhánh:** `在萧炎` xuất hiện 40 lần, và
+/// - `drop_first` = `萧炎` cũng đúng **40** *(chuỗi này không đứng ở đâu khác)* ⇒ vế phải KHỚP;
+/// - `drop_last` = `在萧` là **47** *(bảy câu `在萧家` không kèm `炎`)* ⇒ vế trái KHÔNG khớp.
+///
+/// 🔴 **Hai con số ấy được KHẲNG ĐỊNH trong ca, không chỉ viết ở chú thích** (vòng rà bước 4,
+/// lăng kính blind-hunter, 2026-08-26). Nếu một lượt sửa fixture về sau vô tình làm `在萧` cũng
+/// bằng 40 thì vế TRÁI khớp, `在萧炎` vẫn bị loại, và ca này **xanh vì một lý do khác hẳn** —
+/// một phép kiểm xanh trên một mệnh đề nó không còn kiểm nữa.
+///
+/// ⚠️ `萧` nằm trong `COMMON_SURNAMES`, nên `effective_threshold` hạ ngưỡng của `萧炎` xuống 4.
+/// Ở fixture này điều đó **trơ**: mọi tần suất (40 · 47 · 49) đều vượt xa cả 4 lẫn 5. Ghi ra
+/// vì luật hạ ngưỡng theo họ là một đường mã KHÁC hẳn đường dedup đang canh, và một người đọc
+/// sau nên biết hai đường ấy tình cờ chạm nhau ở đây chứ không phụ thuộc nhau.
+///
+/// Gỡ vế phải ra ⇒ `在萧炎` sống sót ⇒ ca này ĐỎ ở đúng `assert!` cuối.
+#[test]
+fn a_head_anchored_ngram_matching_only_its_drop_first_child_is_dropped_as_padding() {
+    // 40 câu mang `在萧炎` -- `萧炎` KHÔNG bao giờ đứng ngoài cụm này, nên hai tần suất bằng nhau.
+    let mut segments: Vec<String> = (0..40)
+        .map(|i| format!("他在萧炎身旁站了第{i}天。"))
+        .collect();
+    // BẢY câu mang `在萧` KHÔNG kèm `炎` -- đẩy `在萧` lên 47, lệch khỏi 40 của `在萧炎`, để
+    // phép so KHÔNG tình cờ khớp qua nhánh `drop_last`. Không có bảy câu này thì ca vẫn xanh
+    // sau khi gỡ vế phải, tức nó không canh gì cả.
+    for i in 0..7 {
+        segments.push(format!("他在萧家住了第{i}天。"));
+    }
+    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+
+    let mut is_known = nothing_known;
+    let out = scan_candidates(&refs, MatchLang::Zh, 5, COMMON_SURNAMES, &mut is_known);
+
+    let short = out
+        .iter()
+        .find(|c| c.source_term == "萧炎")
+        .unwrap_or_else(|| panic!("khong thay `萧炎` -- chuoi con phai o lai: {out:?}"));
+    assert_eq!(short.occurrence_count, 40);
+
+    // 🔴 Ghim SỐ HỌC của fixture trước khi khẳng định kết luận. `在萧` phải LỆCH 40, nếu không
+    // thi ve TRAI cung khop va ca nay xanh vi mot ly do khac han (xem doc-comment).
+    let drop_last_sibling = out
+        .iter()
+        .find(|c| c.source_term == "在萧")
+        .unwrap_or_else(|| panic!("khong thay `在萧` -- fixture khong dung nhu chu thich: {out:?}"));
+    assert_eq!(
+        drop_last_sibling.occurrence_count, 47,
+        "`在萧` phai LECH khoi 40 de ve `drop_last` KHONG khop -- day la dieu kien duy nhat \
+         lam ca nay co-lap duoc nhanh `drop_first`"
+    );
+
+    assert!(
+        !out.iter().any(|c| c.source_term == "在萧炎"),
+        "chuoi dai `在萧炎` phai bi loai qua nhanh `drop_first` -- tan suat bang chuoi con \
+         `萧炎` (40), con `在萧` (47) thi lech. Con no trong ket qua nghia la ve \
+         `|| matches_child(&drop_first)` khong chay: {out:?}"
+    );
+}
+
+/// Đối chứng CHIỀU NGƯỢC của ca ngay trên: cùng hình dạng neo-đầu, nhưng **cả hai** chuỗi
+/// con lệch tần suất ⇒ `在萧炎` là một chuỗi thật và phải được GIỮ.
+///
+/// 🔴 Không thừa, và không trùng ca `..._different_frequency_...` ở trên: ca đó dựng chiều
+/// **đuôi**. Không có ca này thì `assert!` phủ định của ca trên xanh cả trong một thế giới
+/// nơi `在萧炎` không bao giờ ra được khỏi lượt quét vì một lý do khác hẳn (bộ lọc
+/// `is_alphanumeric`, ngưỡng, hay `ZH_NGRAM_LENGTHS`) — tức một phép kiểm khẳng định một
+/// điều nó chưa từng quan sát.
+#[test]
+fn a_head_anchored_ngram_matching_neither_child_is_kept() {
+    let mut segments: Vec<String> = (0..40)
+        .map(|i| format!("他在萧炎身旁站了第{i}天。"))
+        .collect();
+    // `在萧` lên 47 -- lệch khỏi 40 của `在萧炎` (vế `drop_last` không khớp).
+    for i in 0..7 {
+        segments.push(format!("他在萧家住了第{i}天。"));
+    }
+    // `萧炎` lên 49 -- lệch khỏi 40 (vế `drop_first` cũng không khớp). Đây là DÒNG DUY NHẤT
+    // khác ca trên, và nó phải đủ để lật kết luận.
+    for i in 0..9 {
+        segments.push(format!("萧炎独自离开第{i}处山谷。"));
+    }
+    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+
+    let mut is_known = nothing_known;
+    let out = scan_candidates(&refs, MatchLang::Zh, 5, COMMON_SURNAMES, &mut is_known);
+
+    let short = out
+        .iter()
+        .find(|c| c.source_term == "萧炎")
+        .unwrap_or_else(|| panic!("khong thay `萧炎`: {out:?}"));
+    assert_eq!(short.occurrence_count, 49);
+
+    let long = out
+        .iter()
+        .find(|c| c.source_term == "在萧炎")
+        .unwrap_or_else(|| {
+            panic!(
+                "khong thay `在萧炎` -- tan suat (40) khac CA HAI chuoi con (`在萧` 47, \
+                 `萧炎` 49), phai giu ca hai: {out:?}"
+            )
+        });
+    assert_eq!(long.occurrence_count, 40);
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Hàng 3 — Zh, có trong từ điển
 // ═════════════════════════════════════════════════════════════════════════════════

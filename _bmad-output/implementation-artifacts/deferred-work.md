@@ -7298,9 +7298,15 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `glossary_boundary` 11/11 · `glossary_contract` 72/72 — **XANH TRỌN**. Cả hai ca hiện có đều
     dựng qua `drop_last` (bỏ chữ cuối của 萧炎的 ra 萧炎); không ca nào dựng chiều ngược. Hệ quả:
     ứng viên rác neo-ĐẦU đi thẳng vào hàng chờ mà UI 3.2/3.8 cho phép duyệt vào Glossary.
-    ② `src/config/glossary.ts:94-96` — **ép `hasIpcBridge()` trả `false`** rồi chạy
-    `npx vitest run tests/frontend/glossary`: **186 ca / 14 tệp vẫn xanh nguyên**.
-    `grep __TAURI_INTERNALS__` trong mọi `glossary*.test.ts` = **0**. Hàm này gác `catch` của cả
+    ② ~~`src/config/glossary.ts:94-96`~~ — **ép `hasIpcBridge()` trả `false`** rồi chạy
+    `npx vitest run tests/frontend/glossary`: ~~**186 ca / 14 tệp vẫn xanh nguyên**~~.
+    🔵 **2026-08-26 — hai số đếm và số dòng đều hết đúng, sửa tại chỗ.** Số `186/14` đo TRƯỚC
+    lượt vá cụm D (nó thêm `glossaryConfigGuards.test.ts` và `glossaryExchangeGate.test.ts`);
+    đo lại trên `3be0f5f` là **238 ca / 16 tệp**, và mệnh đề *"vẫn xanh nguyên"* thì **đứng
+    nguyên** — chỉ quần thể lớn hơn. Số dòng `:94-96` cũng lệch vì cụm D chèn hai type guard
+    phía trên: hàm nay ở `:128-130`. ⇒ Trỏ bằng **TÊN hàm** `hasIpcBridge`, đừng trỏ số dòng.
+    `grep __TAURI_INTERNALS__` trong mọi `glossary*.test.ts` = **0** *(đo lại 2026-08-26: 0 trên
+    cả 16 tệp — mệnh đề còn nguyên)*. Hàm này gác `catch` của cả
     15 hàm adapter; nếu nó bị lật, MỌI lượt gọi nuốt lỗi IPC thật thành `error: null` — đúng lớp
     "rỗng im lặng" mà dự án tự ghi là bug trung tâm.
     ③ `core/scope/store.rs:225-230` (`GlobalConfig::glossary_scan_threshold`) +
@@ -7310,6 +7316,76 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `scope_contract.rs:668-712` — khuôn đúng đã có sẵn ngay cạnh.
     **(Chủ: lượt vá kế tiếp. Ba mục này rẻ và mỗi mục đã có sẵn phép đối chứng GỠ-CHỖ-NỐI của
     chính nó — chiều ĐỎ đã chạy rồi.)**
+  → ✅ **ĐÃ ĐÓNG 2026-08-26, theo `spec-epic-3-review-cum-e-le-hong-canh-gac.md`.** Không một
+    dòng mã sản phẩm nào đổi — cả ba là lỗ hổng NGHIỆM THU, và `git status src/ src-tauri/src/`
+    sạch sau lượt vá. Ba vệ nay có chủ, và **chiều ĐỎ đã chạy lại trên `3be0f5f`, không suy**:
+    ① `glossary_scan_contract.rs::a_head_anchored_ngram_matching_only_its_drop_first_child_is_dropped_as_padding`
+    (cộng đối chứng ngược `..._matching_neither_child_is_kept`). Fixture cô lập đúng một nhánh:
+    `在萧炎` 40 lần với `drop_first` = `萧炎` **cũng 40** (khớp) còn `drop_last` = `在萧` **47**
+    (lệch, nhờ bảy câu `在萧家`). **Cắt `|| matches_child(&drop_first)` ⇒ ĐÚNG MỘT ca đỏ**, và
+    `glossary_boundary` 11/11 · `glossary_commands_contract` 29/29 · `glossary_contract` 72/72
+    vẫn XANH — tức trước lượt này thật sự không ai canh vế đó. Bộ scan: 25 → **27** ca.
+    ② `tests/frontend/glossaryIpcBridge.test.ts` — bảng **15 adapter × 2 chiều** + một ca đếm
+    quần thể (`②c`), mock ở đúng biên `@tauri-apps/api/core` để `hasIpcBridge()` THẬT chạy.
+    **Ép trả `false` ⇒ 15 ca `②a` đỏ; ép trả `true` ⇒ 15 ca `②b` đỏ**; cả hai lượt, 16 tệp
+    glossary kia xanh nguyên. Ca `②a` còn khẳng định chẩn đoán **nêu đích danh tên command** —
+    mười lăm khối `catch` gần như giống hệt nhau nên một tên chép nhầm sang khối bên cạnh không
+    làm hỏng gì ngoài đúng thứ người chẩn đoán cần. Bộ glossary: 238 → **269** ca / 17 tệp.
+    ③ `scope_contract.rs::the_glossary_scan_threshold_survives_a_write_and_a_reopen` — ghi `12`
+    (một giá trị KHÁC mặc định, đó là điều kiện duy nhất làm ca nói được điều gì) → đóng/mở kho
+    → đọc lại; cộng lượt ghi đè `7` kèm `COUNT(*) = 1`, và một giá trị rác `"abc"` đi qua ĐÚNG
+    đường đọc ⇒ rơi về 5, không ném. **Thay thân getter bằng `DEFAULT_GLOSSARY_SCAN_THRESHOLD`
+    trần ⇒ đúng ca này đỏ, còn `ipc_contract` 5/5 vẫn XANH** — đúng nguyên văn điều mục ③ khai.
+    Bộ scope: 23 → **24** ca.
+    Cổng sau lượt vá: 11/11 xanh · `npm run test` **43 tệp / 561 ca** · `cargo test --locked`
+    **708 ca**, 0 đỏ. ⚠️ **Vế còn hở, đã tách thành mục riêng ngay dưới:** nửa `commands/project.rs`
+    của mục ③ (ngưỡng đi tới `scan_candidates_controlled` của lượt quét khi nhập) KHÔNG nghiệm thu
+    được ở tầng này — đừng đọc ca ③ thành *"ngưỡng cấu hình đã tới được lượt quét"*.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-e-le-hong-canh-gac.md`
+  summary: **Nửa `commands/project.rs` của đường đọc `glossary_scan_threshold` vẫn không ai
+    canh** — ca đi-về mới chỉ chứng minh ngưỡng tới được **webview**, không chứng minh nó tới
+    được **lượt quét khi nhập**.
+  evidence: Tách khỏi lượt vá cụm E ngày 2026-08-26 theo §Ask First của spec (*"không nghiệm thu
+    được ở tầng đang làm thì ghi một món nợ có chủ, đừng chấm đạt bằng suy luận"*).
+    `the_glossary_scan_threshold_survives_a_write_and_a_reopen` canh `Store → GlobalConfig →
+    bootstrap_config`, tức đúng nửa đi ra dây IPC. Chỗ gọi thứ hai — `commands/project.rs`,
+    hàm quét khi nhập, gọi `load_global_config` rồi `config.glossary_scan_threshold()` rồi bơm
+    số đó vào `scan_candidates_controlled` — nằm trong closure của `spawn_import_scan`, một
+    **luồng OS** dựng bằng `std::thread::Builder::new().spawn(...)` mà closure BẮT một
+    `tauri::AppHandle` rồi gọi `app.try_state`/`app.emit` *(🔵 2026-08-26 — bản đầu của mục này
+    viết "một task sinh từ `AppHandle`"; sai, không có `tauri::async_runtime` nào ở đường này.
+    Bắt ở vòng rà bước 4 của chính lượt vá, đã tự kiểm lại trên mã. Kết luận không đổi.)*, nên nó
+    KHÔNG gọi được từ `tests/**` mà không dựng webview (đây chính là lớp lỗi mà khuôn hai lớp
+    của `src-tauri/AGENTS.md` tồn tại để chặn, và đường quét khi nhập chưa được tách theo khuôn
+    đó). ⚠️ Hệ quả nếu nó gãy: người dùng đặt ngưỡng 12 ở `GlossarySettingsOverlay`, lớp phủ
+    HIỆN 12 vì nó đọc qua `bootstrap_config` — nay đã có ca canh — nhưng lượt quét vẫn chạy ở 5.
+    Hai đường đọc, một cái có chủ và một cái không, mà giao diện lại khẳng định giùm cả hai.
+    Bản vá đúng là tách một **hàm thuần** nhận ngưỡng làm tham số ra khỏi task, đúng khuôn hai
+    lớp — rộng hơn một lượt thêm ca test.
+    **(Chủ: lượt đầu tiên tách đường quét khi nhập theo khuôn hai lớp; cùng chủ với mục
+    `(async)` giữ `MutexGuard` của cụm A, vì cả hai đều là việc mở lại chỗ nối
+    `commands/project.rs` ↔ `core::glossary`.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-3-review-cum-e-le-hong-canh-gac.md`
+  summary: **Bộ vitest của Glossary ĐỎ NGẪU NHIÊN 5–8 ca khi máy đang tải nặng** — và lượt đỏ
+    đó đọc lên giống hệt một khuyết tật sản phẩm, không giống một lượt hết giờ.
+  evidence: Bắt tình cờ trong lượt vá cụm E, 2026-08-26, **đã tự kiểm và cô lập được nguyên
+    nhân**. Chạy `npx vitest run tests/frontend/glossary` TRONG KHI `cargo` đang biên dịch:
+    hai lượt liên tiếp cho **8 đỏ** rồi **7 đỏ**, và **tập ca đỏ đổi giữa hai lượt**. Cùng lệnh,
+    cùng cây nguồn, thêm cờ `--no-file-parallelism` ⇒ **16 tệp / 238 ca xanh trọn**. ⇒ Nguyên
+    nhân là tranh CPU của bộ chạy song song theo TỆP, không phải một phụ thuộc thật.
+    🔴 **Không phải do lượt vá cụm E:** đã đo với tệp `glossaryIpcBridge.test.ts` **gỡ hẳn ra
+    khỏi cây** — vẫn 8 đỏ / 7 đỏ. Chập chờn có trước.
+    ⚠️ Vì sao đáng một mục nợ chứ không phải một ghi chú: mọi ca đỏ đều dừng ở mốc ~5.000 ms,
+    tức chúng là **timeout của `vi.waitFor`/flush**, nhưng câu báo lỗi in ra là câu assert của
+    chính ca đó (*"0 mảnh mang lớp glossary-*"*, *"dải KHÔNG hiện"*). Một người đọc lượt đỏ ấy
+    sẽ đi tìm khuyết tật ở `GridPanel`/dải chốt và không tìm thấy gì — đúng lớp *"một kết quả
+    sai trông như bình thường"* mà §Critical Don't-Miss Rules đặt tiêu chí. Nó cũng là một
+    nguồn đỏ-oan cho CI (runner Windows chậm hơn macOS của Ice rất nhiều). Hai hình dạng vá đều
+    hợp lệ và cần Ice chốt: ① nới trần thời gian cho nhóm ca mount component; ② ghim
+    `fileParallelism` cho cây test frontend. **(Chủ: Ice — đây là một quyết định về cấu hình bộ
+    chạy, không phải một dòng vá; lượt đầu tiên chạm `vitest.config` mở lại.)**
 
 - source_spec: none
   summary: **Cụm F — mười bảy mục rải rác** (`expect` dưới `panic = "abort"`, khoá giữ qua hai

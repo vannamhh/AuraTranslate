@@ -37,6 +37,10 @@ use auratranslate_lib::core::scope::{
     DEFAULT_MODE, DEFAULT_THEME, ScopeError, ScopeResolver, Tier, delete_value,
     load_global_config, save_value,
 };
+// ⚠️ Qua `scope::store::`, KHÔNG qua `scope::` — `mod.rs` tái xuất `DEFAULT_MODE`/
+// `DEFAULT_THEME` nhưng KHÔNG tái xuất hằng này (đo 2026-08-26: `mod.rs:69-72`). Cùng đường
+// mà `glossary_scan_contract.rs:18-20` đã dùng.
+use auratranslate_lib::core::scope::store::DEFAULT_GLOSSARY_SCAN_THRESHOLD;
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction, Tuning};
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -710,6 +714,128 @@ fn the_last_mode_survives_a_write_and_a_reopen() {
     assert_eq!(
         bootstrap_config(Some(&store)).expect("bootstrap").mode,
         "workspace"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Cùng vòng ghi → đọc, cho khoá **`glossary_scan_threshold`** (Story 3.5, FR47).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO CA NÀY TỒN TẠI — `ipc_contract.rs` KHÔNG canh được đường đọc
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Chỗ duy nhất nhắc tới khoá này trong `tests/**` trước lượt vá cụm E là
+/// `ipc_contract.rs::…` — một ca **hình dạng serialize** dựng một `BootstrapConfig` bằng
+/// struct literal với `glossary_scan_threshold: 5`. Nó không chạm một `Store` nào, và **5**
+/// trùng khít [`DEFAULT_GLOSSARY_SCAN_THRESHOLD`]. ⇒ Kể cả khi
+/// `GlobalConfig::glossary_scan_threshold` gãy hoàn toàn — luôn trả mặc định, đọc nhầm khoá,
+/// hay không bao giờ chạm `self.app` — ca đó vẫn xanh.
+///
+/// ⚠️ **Đo 2026-08-26 trên `3be0f5f`** (vòng rà Epic 3, cụm E, lăng kính verification-gap):
+/// thay thân getter bằng `DEFAULT_GLOSSARY_SCAN_THRESHOLD` trần rồi chạy — `scope_contract`
+/// 23/23 và `ipc_contract` 5/5, **XANH TRỌN**. Khoá anh em `mode` thì có
+/// [`the_last_mode_survives_a_write_and_a_reopen`] ngay trên; ca này chỉ chép khuôn đó xuống
+/// một khoá bị bỏ quên.
+///
+/// ⚠️ **PHẠM VI, ghi ra thay vì để người sau tưởng đã được xét:** ca này canh đường đọc
+/// `Store → GlobalConfig → bootstrap_config`, tức nửa đi tới **webview**. Nửa còn lại —
+/// `commands/project.rs` đọc cùng getter rồi bơm ngưỡng vào `scan_candidates_controlled` của
+/// lượt quét khi nhập — nằm trong closure của `spawn_import_scan`, một **luồng OS** dựng bằng
+/// `std::thread::Builder::new().spawn(...)` mà closure BẮT một `tauri::AppHandle` rồi gọi
+/// `app.try_state`/`app.emit`. ⇒ `tests/**` không gọi tới đó được nếu không dựng một app, nên
+/// vế ấy ở lại `deferred-work.md` kèm chủ. Đừng đọc ca này thành *"ngưỡng cấu hình đã tới
+/// được lượt quét"*.
+/// *(🔵 2026-08-26 — bản đầu viết *"một task sinh từ `AppHandle`"*, bắt ở vòng rà bước 4. Sai:
+/// không có `tauri::async_runtime` nào ở đường này, và cụm đó sẽ đẩy người đọc sau đi tìm
+/// nhầm chỗ. Seam `keep_committed_import_when_scan_spawn_fails` có sẵn chỉ phơi ca **spawn
+/// trượt**, không phơi đường ngưỡng — nên kết luận không đổi, chỉ cơ chế được gọi đúng tên.)*
+///
+/// Phép phân giải giá trị thô là việc của [`parse_glossary_scan_threshold`], và nó **đã có
+/// chủ** ở Hàng 10 của `glossary_scan_contract.rs` — ca dưới đây không dựng lại phép kiểm ấy,
+/// nó chỉ khẳng định chuỗi thô TRÊN ĐĨA thật sự đi tới được hàm đó (nhánh `"abc"`).
+#[test]
+fn the_glossary_scan_threshold_survives_a_write_and_a_reopen() {
+    let dir = temp_dir("glossary-threshold-roundtrip");
+
+    {
+        let store = open_store(&dir);
+        assert_eq!(
+            bootstrap_config(Some(&store))
+                .expect("bootstrap")
+                .glossary_scan_threshold,
+            DEFAULT_GLOSSARY_SCAN_THRESHOLD,
+            "kho rỗng ⇒ ngưỡng mặc định 5 (FR47). Khoá VẮNG MẶT, không một hàng giá trị rỗng."
+        );
+
+        put_config(Some(&store), "app_config", "glossary_scan_threshold", "12")
+            .expect("ghi ngưỡng");
+        drop(store);
+    }
+
+    // Mở LẠI kho — giá trị phải nằm trên đĩa, không trong bộ nhớ của lượt trước.
+    //
+    // 🔴 **12, không 5.** Một giá trị KHÁC mặc định là điều kiện duy nhất làm ca này nói được
+    // điều gì: với `5` thì một getter gãy (luôn trả mặc định) vẫn cho ca xanh — đó chính là
+    // cách `ipc_contract.rs` mất hết giá trị cho mệnh đề này.
+    let store = open_store(&dir);
+    assert_eq!(
+        bootstrap_config(Some(&store))
+            .expect("bootstrap sau khi mở lại")
+            .glossary_scan_threshold,
+        12,
+        "ngưỡng người dùng đặt phải sống qua một lượt đóng/mở — nếu không thì lớp phủ \
+         `GlossarySettingsOverlay` đang ghi vào hư không và mọi lượt quét khi nhập vẫn chạy \
+         ở 5 trong im lặng"
+    );
+
+    // Ghi đè lên chính khoá đó ⇒ `ON CONFLICT` cập nhật, không dựng hàng thứ hai.
+    save_value(&store, "app_config", "glossary_scan_threshold", "7").expect("ghi lại ngưỡng");
+    let rows: i64 = store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM config_value \
+                 WHERE kind = 'app_config' AND key = 'glossary_scan_threshold'",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .expect("đếm hàng");
+    assert_eq!(
+        rows, 1,
+        "`PRIMARY KEY (kind, key)` + `ON CONFLICT DO UPDATE` ⇒ đúng MỘT hàng cho mỗi khoá."
+    );
+    assert_eq!(
+        bootstrap_config(Some(&store))
+            .expect("bootstrap")
+            .glossary_scan_threshold,
+        7
+    );
+
+    // Giá trị HỎNG trên đĩa, đi qua ĐÚNG đường đọc này ⇒ rơi về mặc định, KHÔNG ném.
+    // Phân biệt được với ca "kho rỗng" ở đầu: hàng vẫn tồn tại, chỉ giá trị là rác.
+    save_value(&store, "app_config", "glossary_scan_threshold", "abc").expect("ghi giá trị rác");
+    assert_eq!(
+        bootstrap_config(Some(&store))
+            .expect("bootstrap phải KHÔNG ném trên một giá trị rác")
+            .glossary_scan_threshold,
+        DEFAULT_GLOSSARY_SCAN_THRESHOLD,
+        "một `.db` sửa tay hay một bản ứng dụng cũ để lại rác ⇒ rơi về 5 kèm chẩn đoán, \
+         không một lượt hoảng loạn (`panic = \"abort\"` giết cả tiến trình)"
+    );
+    let rows_after: i64 = store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM config_value \
+                 WHERE kind = 'app_config' AND key = 'glossary_scan_threshold'",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .expect("đếm hàng sau giá trị rác");
+    assert_eq!(
+        rows_after, 1,
+        "rơi về mặc định là một quyết định của ĐƯỜNG ĐỌC — nó không được tự dọn hàng trên đĩa"
     );
 
     drop(store);
