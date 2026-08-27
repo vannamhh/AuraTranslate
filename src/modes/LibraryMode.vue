@@ -93,9 +93,14 @@ onActivated(() => {
         biểu diễn được ca `document_dir()` trượt. Câu MỚI chỉ nói đúng trạng thái CHƯA BIẾT;
         đường dẫn THẬT chỉ hiện sau khi `RescanReport.root` (do Rust phân giải) về tới đây.
       -->
+      <!--
+        🔵 THÊM (2026-08-27, vòng rà THỨ HAI P8) — `role="status"`: ba node hàng xóm
+        (`.root-missing`/`.status`/`.error`) đều mang nó, còn node này thì không -- đường dẫn
+        gốc đổi (sau một lượt quét/đổi thư mục gốc) mà trình đọc màn hình không được báo.
+      -->
       <!-- aura-allow-text: `currentLibraryRoot` là ĐƯỜNG DẪN đĩa (dữ liệu), không câu UI; nhánh
            còn lại đi qua t() -- Kiểm A2 không đọc tĩnh được toán tử `??`. -->
-      <p class="root-value">{{ currentLibraryRoot ?? t('mode.library.root_not_scanned_yet') }}</p>
+      <p class="root-value" role="status">{{ currentLibraryRoot ?? t('mode.library.root_not_scanned_yet') }}</p>
       <!--
         🔵 THÊM (2026-08-27, vòng rà bốn lớp P1) — câu RIÊNG khi gốc đã quét KHÔNG còn tồn
         tại trên đĩa, phân biệt hẳn với "đã quét, không có Tác phẩm nào" (đó là node

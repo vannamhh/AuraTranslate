@@ -24,7 +24,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::core::i18n::{IpcError, MessageKey};
-use crate::core::library::indexer::{Indexer, IndexedWork};
+use crate::core::library::indexer::{IndexError, Indexer, IndexedWork};
 use crate::core::store::{Store, StoreError, StoreKind};
 
 /// Một hàng mồ côi, gói lại cho dây IPC — `PathBuf` không `Serialize` trực tiếp thành thứ
@@ -115,7 +115,11 @@ pub fn rescan(indexer: Option<&Indexer>, root: &Path) -> Result<RescanReport, Ip
     // (người dùng bấm) không được đứng ngoài quy ước đó.
     outcome.log_if_notable("rescan");
 
-    let orphans = indexer.list_orphans()?;
+    // 🔵 SỬA (2026-08-27, vòng rà THỨ HAI P3) — KHÔNG còn gọi `indexer.list_orphans()` ở
+    // đây. Đó là một lượt ĐỌC RIÊNG, không khoá, chạy SAU khi `rebuild()` đã trả về — một
+    // lượt quét/gỡ khác chen vào đúng khe hở đó làm `orphans` phản ánh một thế hệ KHÁC với
+    // `indexed`/`conflicts`/`skipped` trong CÙNG report này. `outcome.current_orphans` là
+    // ảnh chụp lấy TRONG cùng phạm vi khoá của `Indexer::rebuild` — dùng thẳng nó.
     Ok(RescanReport {
         root: root.display().to_string(),
         // P1 -- không vứt `root_missing` nữa, chuyển thẳng nguyên vẹn.
@@ -123,23 +127,48 @@ pub fn rescan(indexer: Option<&Indexer>, root: &Path) -> Result<RescanReport, Ip
         indexed: outcome.indexed,
         conflicts: outcome.conflicts.len(),
         skipped: outcome.skipped.len(),
-        orphans: orphans.into_iter().map(OrphanEntry::from).collect(),
+        orphans: outcome.current_orphans.into_iter().map(OrphanEntry::from).collect(),
     })
+}
+
+/// **THÊM (2026-08-27, vòng rà THỨ HAI P9)** — `err.library.not_orphaned` phải nói được
+/// TÊN mục, không chỉ `work_id` (một UUID trần không phải thứ người dùng nhận ra).
+fn not_orphaned(work_id: String, name: String) -> IpcError {
+    let mut params = BTreeMap::new();
+    params.insert("work_id".to_owned(), work_id);
+    params.insert("name".to_owned(), name);
+    IpcError::new("library.not_orphaned", MessageKey::LibraryNotOrphaned, params, false)
 }
 
 /// **Hàm thuần** — gỡ đúng một hàng mồ côi, trả danh sách mồ côi CÒN LẠI (§I/O Matrix:
 /// "trả danh sách mồ côi còn lại").
 ///
+/// 🔵 **THÊM tham số `name` (2026-08-27, vòng rà THỨ HAI P9).** `Indexer::forget_orphan`
+/// không biết "tên mà người dùng đang thấy" — đó là dữ liệu của TẦNG GỌI
+/// (`LibraryMode.vue` đang hiển thị `currentLibraryOrphan.name` ngay lúc người dùng bấm),
+/// nên hàm này nhận nó qua tham số và tự dựng `IpcError` cho ca từ chối thay vì đi qua
+/// `From<IndexError>` chung (nó chỉ có `work_id`).
+///
 /// # Lỗi
 /// `indexer = None` ⇒ `library.indexer_missing`; `work_id` không tồn tại hoặc đang sống ⇒
-/// `library.not_orphaned` (qua `IndexError::NotOrphaned`).
-pub fn forget_orphan(indexer: Option<&Indexer>, work_id: &str) -> Result<Vec<OrphanEntry>, IpcError> {
+/// `library.not_orphaned` (mang CẢ `work_id` LẪN `name` vừa truyền vào).
+pub fn forget_orphan(
+    indexer: Option<&Indexer>,
+    work_id: &str,
+    name: &str,
+) -> Result<Vec<OrphanEntry>, IpcError> {
     let indexer = indexer.ok_or_else(indexer_is_missing)?;
 
-    indexer.forget_orphan(work_id)?;
-
-    let orphans = indexer.list_orphans()?;
-    Ok(orphans.into_iter().map(OrphanEntry::from).collect())
+    // 🔵 SỬA (2026-08-27, vòng rà THỨ HAI P3) — `Indexer::forget_orphan` nay TỰ trả danh
+    // sách mồ côi còn lại (chụp trong cùng phạm vi khoá) — không còn một lượt
+    // `list_orphans()` riêng, không khoá, chạy SAU. Cùng lý do đã sửa ở `rescan` ngay trên.
+    match indexer.forget_orphan(work_id) {
+        Ok(orphans) => Ok(orphans.into_iter().map(OrphanEntry::from).collect()),
+        // P9 -- KHÔNG uỷ quyền cho `From<IndexError> for IpcError` ở ca này: hàm đó chỉ biết
+        // `work_id`. Bắt riêng để nạp thêm `name` do chỗ gọi cung cấp.
+        Err(IndexError::NotOrphaned { work_id }) => Err(not_orphaned(work_id, name.to_owned())),
+        Err(other) => Err(other.into()),
+    }
 }
 
 /// **Hàm thuần** — mọi thứ xảy ra SAU khi hộp thoại chọn thư mục đã đóng.
@@ -221,9 +250,12 @@ pub mod wire {
     pub fn library_forget_orphan(
         app: tauri::AppHandle,
         work_id: String,
+        // 🔵 THÊM (2026-08-27, vòng rà THỨ HAI P9) — frontend gửi `name` (đã hiển thị sẵn
+        // trên màn hình) để một lượt từ chối nói được TÊN, không chỉ UUID trần.
+        name: String,
     ) -> Result<Vec<OrphanEntry>, IpcError> {
         let indexer = app.try_state::<Indexer>();
-        super::forget_orphan(indexer.as_deref(), &work_id)
+        super::forget_orphan(indexer.as_deref(), &work_id, &name)
     }
 
     /// Vỏ IPC mở hộp thoại CHỌN THƯ MỤC rồi đổi `AppConfig::library_root` + quét lại ngay

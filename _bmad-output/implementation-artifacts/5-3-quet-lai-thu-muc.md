@@ -15,20 +15,26 @@ context:
 warnings: ['oversized']
 deferred:
   - summary: >-
-      Ba vỏ `#[tauri::command(async)]` của story này không ca tự động nào chạm — AC6
-      ("quét lại không chặn thao tác") chỉ được nghiệm thu bằng một mệnh đề CẤU TRÚC.
+      🔵 SỬA (2026-08-27, vòng rà THỨ HAI P6) — mục này VIẾT TRƯỚC khi dựng
+      `e2e/specs/story-5-3-rescan.e2e.mjs` và không quay lại sửa. Nay MỘT trong ba vỏ
+      (`library_choose_root`, hộp thoại native) vẫn không ca tự động nào chạm; HAI vỏ kia
+      (`library_rescan`, `library_forget_orphan`) đã có 6 ca e2e chạm thật qua WKWebView.
     evidence: |-
-      `library_index_contract.rs`/`library_commands_contract.rs` gọi hàm THUẦN
-      (`Indexer::*`, `commands::library::{rescan,forget_orphan,apply_chosen_root}`);
-      `tests/frontend/libraryRescan.test.ts` chạy trên happy-dom với `invoke` giả. Ba vỏ
-      `library_rescan`/`library_choose_root`/`library_forget_orphan` chỉ bị SO CHUỖI chữ ký
-      ở `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`. Bộ e2e của story
-      vẫn 0 spec, và bộ e2e nằm ngoài cả `pre-push` lẫn `ci.yml`. Vế THẬT của AC6 ("gõ được
-      trong lúc quét") sống ở §Manual checks, tức tay người. Đã ghi nợ có chủ ở
-      `deferred-work.md` (chủ: Story 5.6); mục này lặp lại ở frontmatter để lượt rà sau
-      không phải tự tìm.
+      `e2e/specs/story-5-3-rescan.e2e.mjs` (6 ca, xem §Chạy trên ỨNG DỤNG THẬT) đi trọn
+      đường nút thật → `dispatch` → registry → `invoke` → `Indexer` → DOM cho
+      `library_rescan`/`library_forget_orphan` — đây LÀ lần đầu hai vỏ đó được một phép kiểm
+      chạm tới, không chỉ bị so chuỗi chữ ký. `library_choose_root` vẫn CHỈ bị SO CHUỖI ở
+      `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`: hộp thoại chọn thư
+      mục là native, ngoài tầm WebDriver, và bấm nó trong một lượt tự động sẽ TREO cửa sổ
+      chờ người thật. Vế THẬT của AC6 ("gõ được trong lúc quét") vẫn sống ở §Manual checks —
+      dựng một thư viện đủ lớn để đo là một phép đo chập chờn theo tốc độ đĩa người chạy.
+      Mệnh đề "bộ e2e nằm ngoài cả `pre-push` lẫn `ci.yml`" ĐÃ SAI nửa sau: `ci.yml` có job
+      `e2e` chạy ở nhịp `schedule` (cron `0 18 * * *`) + `workflow_dispatch` — mệnh đề đúng
+      là "ngoài `pre-push` và ngoài `push`, nhưng CÓ trong `ci.yml` ở nhịp đêm". Đã ghi nợ có
+      chủ ở `deferred-work.md` (chủ: Story 5.6, nối tiếp — không viết đè lịch sử); mục này
+      lặp lại ở frontmatter để lượt rà sau không phải tự tìm.
     location: >-
-      src-tauri/src/commands/library.rs (mod wire)
+      src-tauri/src/commands/library.rs (mod wire) — riêng library_choose_root
     severity: medium
   - summary: >-
       Con trỏ danh sách mồ côi kẹp theo CHỈ SỐ, không theo danh tính — thứ tự đổi giữa hai
@@ -68,6 +74,50 @@ deferred:
     location: >-
       e2e/specs/story-5-3-rescan.e2e.mjs
     severity: medium
+  - summary: >-
+      AC4 nói "cảnh báo" nhưng sản phẩm cho một CON SỐ TRẦN, và spec 5.3 không nêu đây là
+      một chỗ hai cách đọc — trong khi nó có nêu chỗ tương tự về cờ mồ côi.
+    evidence: |-
+      `RescanReport.conflicts` chỉ chở `usize`; `WorkIdConflict` có đủ hai đường dẫn nhưng
+      chỉ đi ra `stderr` qua `log_if_notable`. Con số nằm cùng một câu với "đã lập chỉ mục"
+      và "bỏ qua", trong một node `.status` bình thường — không `role="alert"`, không class
+      `.error` mà chính tệp đó dùng cho lỗi thật. Không ca nào (unit/contract/e2e) chạy kịch
+      bản trùng `work_id` qua giao diện. Bề mặt hiển thị đã có chủ (Story 5.6, ghi từ 5.2);
+      thứ CHƯA có chủ là quyết định "cảnh báo" nghĩa là một con số hay một affordance riêng.
+    location: >-
+      src-tauri/src/commands/library.rs (RescanReport.conflicts)
+    severity: medium
+  - summary: >-
+      `default_library_root` vẫn là `pub fn` trần — không cổng nào buộc chỗ gọi MỚI đi qua
+      `resolve_library_root`, nên "bề mặt rỗng im lặng thứ hai" mà AC5 tồn tại để chặn có
+      thể mọc lại mà không ai đỏ.
+    evidence: |-
+      Kho đã có đúng khuôn cần thiết ở `library_index_boundary.rs` (cấm mọi tệp ngoài danh
+      sách miễn trừ nhắc một định danh). `default_library_root` không có đối ứng như vậy;
+      kỷ luật hiện nay chỉ là một câu trong doc-comment.
+    location: >-
+      src-tauri/src/commands/project.rs
+    severity: medium
+  - summary: >-
+      Sau một lượt quét TRƯỢT, màn hình hiện dải báo lỗi mới cạnh kết quả CŨ mà không đánh
+      dấu kết quả đó là đã cũ.
+    evidence: |-
+      `rescanLibraryFolder`/`chooseLibraryRootFolder` đặt `lastError` rồi `return` — không
+      chạm `libraryRoot`/`orphans`/ba con số. Giữ dữ liệu cũ là lựa chọn ĐÚNG (xoá đi là mất
+      thông tin), nhưng màn hình không nói ra rằng chúng đến từ một lượt trước.
+    location: >-
+      src/modes/libraryRescan.ts
+    severity: low
+  - summary: >-
+      Vòng đánh dấu mồ côi chạy một `UPDATE` mỗi hàng cũ, bên trong giao dịch đang giữ
+      `rebuild_lock`, thay vì một câu lệnh theo tập.
+    evidence: |-
+      Với một thư viện lớn đó là O(số hàng) lượt round-trip nối tiếp dưới đúng cái khoá chặn
+      mọi lượt quét/gỡ khác — ngược chiều mục tiêu AC6. Chưa đo được vì Epic 5 không có
+      đường tạo 5.000 Chương thật (đó là FR14/Epic 6, phép đo đủ điều kiện là Story 6.18).
+    location: >-
+      src-tauri/src/core/library/indexer.rs
+    severity: low
 ---
 
 <intent-contract>
@@ -225,7 +275,40 @@ deferred:
   **P9 [vừa] — hai nút điều hướng mồ côi không có nhãn cho trình đọc màn hình.** Thêm `:aria-label="t('mode.library.orphan_prev'|'orphan_next')"` cho cả hai nút, hai khoá `vi.json` mới.
   ⇒ `cargo test --locked`: 792 → **805** ca (13 ca mới, đúng số học: 1 + 4 + 3 + 5). `npm run test`: 573 → **576** ca (3 ca mới). Chín cổng `check:*` (`commands` `i18n` `tokens` `gates` `debt-owner` `deps` `layout` `panel-refs` `dict-manifest`) xanh. `npm run build` xanh.
 
-## Review Triage Log
+- **Vòng rà THỨ HAI — mười một bản vá, tất cả `patch`, chạy trên diff đầy đủ `c533c62..HEAD` gồm cả bàn đo e2e.**
+  **Chủ đề xuyên suốt:** bốn mục là tài liệu/phép đo nói sai về chính mã, ba trong số đó là ca "viết ghi chú VỀ chỗ sai thay vì SỬA chỗ sai" — sửa NGUỒN ở cả bốn, không thêm ghi chú thứ hai.
+  **P1 [NẶNG] — huỷ hộp thoại chọn thư mục báo `err.unknown`.** `chooseLibraryRoot()` dùng chung `callRescan()` với `rescanLibrary()`; `library_choose_root` trả `Option<RescanReport>` nên huỷ ⇒ `null` trên dây ⇒ `isRescanReport(null)` (đúng vai của nó cho `library_rescan`) từ chối `null` ⇒ `err.unknown` đi tới người dùng, ngược §I/O Matrix. Tách `callChooseRoot` xử lý `null` làm ca HUỶ TRƯỚC khi chạm `isRescanReport`. Thêm ca adapter (`invoke` trả `null` ⇒ ba trạng thái rỗng) và ca state (`chooseLibraryRootFolder()` sau một lượt quét thành công giữ nguyên toàn bộ state). **Đối chứng GỠ đã chạy:** khôi phục đường dùng chung `callRescan` ⇒ đúng hai ca mới đỏ, tái hiện nguyên văn `err.unknown`; khôi phục.
+  **P2 [NẶNG] — `resolve_library_root` không một phép kiểm HÀNH VI nào.** Cổng vòng một chỉ so THỨ TỰ CHUỖI trong mã nguồn, không bao giờ GỌI hàm — ba nhánh (giá trị đã cấu hình, `load_global_config` lỗi, `store = None`) chưa từng chạy, và bộ e2e cũng không với tới vì móc override luôn có mặt. Tách hai hàm THUẦN: `resolve_library_root_from(override, configured, default: closure)` và `resolve_configured_library_root(store) -> Option<String>` — cả hai không cần `AppHandle`. Thêm 8 ca hành vi (override thắng cấu hình, cấu hình thắng mặc định, mặc định chỉ chạy khi cả hai vắng, lỗi từ default được truyền nguyên vẹn, `store = None`, kho mới chưa cấu hình gì, giá trị đã lưu, đọc trượt qua `ReaderPool::close()` rơi về "chưa cấu hình"). Cổng quét nguồn CŨ vẫn giữ, sửa needle theo hình dạng vỏ mới (`resolve_configured_library_root(store)` thay `load_global_config(store)`) — nó canh THỨ TỰ TRONG VỎ, việc khác với hành vi. **Đối chứng GỠ đã chạy:** đảo nhánh `store = None` cho nó trả một giá trị giả thay vì `None` ⇒ đúng ca mới đỏ; khôi phục.
+  **P3 [vừa] — `rebuild_lock` chỉ bọc `rebuild`; ba phát hiện, một gốc.** `rescan`/`forget_orphan` ở tầng lệnh gọi `list_orphans()` RIÊNG, KHÔNG khoá, sau khi `rebuild`/`forget_orphan` đã commit — một lượt quét khác chen vào giữa làm `orphans` phản ánh thế hệ khác với `indexed`/`conflicts`/`skipped`; `Indexer::forget_orphan` không lấy khoá nên một `rebuild` chen ngang có thể lật cờ giữa chừng; và một `list_orphans()` trượt sau khi ghi đã xong biến một thao tác ĐÃ THÀNH CÔNG thành một lỗi khó hiểu. Một bản vá đóng cả ba: `RebuildOutcome::current_orphans` và trị trả về mới của `Indexer::forget_orphan` (`Vec<IndexedWork>`) đều là ẢNH CHỤP lấy TRONG cùng phạm vi khoá; `forget_orphan` nay lấy `rebuild_lock`. `commands::library` dùng thẳng ảnh chụp, không gọi `list_orphans()` lần hai. Thêm ca đồng thời (`forget_orphan_running_alongside_concurrent_rebuilds_never_reports_a_false_not_orphaned`).
+  **P4 [vừa] — §Verification mang hai con số mà §Spec Change Log đã đo là sai.** Dòng "ba tệp"/"831" chưa từng được sửa dù mục ③ ở trên đã đo ra năm tệp/860. Sửa TẠI CHỖ kèm 🔵, giữ nguyên Change Log làm lịch sử.
+  **P5 [vừa] — doc-comment của `LIBRARY_WORK_DDL` khai một ngữ nghĩa đã bị xoá.** `PRIMARY KEY` không còn là "lưới chắn trùng" từ khi `rebuild` chuyển sang UPSERT — một work_id trùng lọt tới SQL nay ghi đè êm ái, không nổ lỗi ràng buộc. Sửa để nói thẳng VẾ ĐÃ MẤT: phát hiện trùng nay hoàn toàn ở tầng Rust (`first_seen`), trước khi chạm SQL.
+  **P6 [vừa] — hai mệnh đề tự viết về độ phủ SAI vì viết trước khi dựng bàn đo e2e, không quay lại sửa.** `e2e/specs/story-5-3-rescan.e2e.mjs` (6 ca) chạm HAI trong BA vỏ; `ci.yml:712` CÓ job `e2e` ở nhịp `schedule`+`workflow_dispatch`. Sửa ba chỗ: frontmatter `deferred`, §Rủi ro còn lại mục 2, và nối tiếp (không viết đè) mục tương ứng ở `deferred-work.md`.
+  **P7 [nhẹ]** — gỡ tiêu đề `## Review Triage Log` rỗng thứ hai, sót lại từ khuôn (do chính tôi tạo ra ở vòng rà trước khi nối `addition = anchor + ...` với anchor đã có sẵn heading đó).
+  **P8 [nhẹ]** — thêm `role="status"` cho `.root-value`, khớp ba node hàng xóm.
+  **P9 [nhẹ]** — `err.library.not_orphaned` thêm tham số `name` (đã có sẵn ở chỗ gọi — frontend đang hiển thị nó) cạnh `work_id`; `commands::library::forget_orphan` nhận `name: &str`, tự dựng `IpcError` cho ca `NotOrphaned` thay vì đi qua `From<IndexError>` chung (`Indexer` không biết "tên đang hiển thị").
+  **P10 [nhẹ]** — thêm hai ca cho cửa chống tái nhập (`rescanBusy`) và cửa bỏ kết quả cũ (`mySequence !== sequence`, kích hoạt qua `resetLibraryRescan()` giữa một lượt IPC đang bay).
+  **P11 [nhẹ]** — thêm ca `apply_chosen_root` với `store: None` ⇒ `store.open_failed`, không panic, không bỏ qua im lặng bước ghi cấu hình.
+  ⇒ `cargo test --locked`: 805 → **815** ca. `npm run test`: 576 → **580** ca. Chín cổng `check:*` + `check:lint` xanh. `npm run build` xanh.
+
+### 2026-08-27 — Review pass (vòng HAI, trên diff đã commit `c533c62..HEAD` gồm cả bàn đo e2e)
+
+- intent_gap: 0
+- bad_spec: 0
+- patch: 11: (high 2, medium 4, low 5)
+- defer: 4: (high 0, medium 2, low 2)
+- reject: 5: (high 0, medium 0, low 5)
+- addressed_findings:
+  - `[high]` `[patch]` **Huỷ hộp thoại chọn thư mục báo `err.unknown` — một lỗi THẬT, đi tới màn hình.** `chooseLibraryRoot()` dùng chung `callRescan()` với `rescanLibrary()`, nhưng `library_choose_root` trả `Ok(None)` khi huỷ ⇒ trên dây là `null` ⇒ `isRescanReport(null)` trả `false` ⇒ nhánh "SAI HÌNH DẠNG" chạy trên một `null` HỢP LỆ. Ngược §I/O Matrix và ngược chính doc-comment của `ChooseRootResult` cách đó 60 dòng. Tách `callChooseRoot`, xử lý `null` TRƯỚC guard; `isRescanReport` giữ nguyên độ chặt cho `library_rescan` nơi `null` thật sự là câu trả lời hỏng. Đối chứng GỠ đã chạy: đúng 2 ca huỷ đỏ, 11 ca kia xanh. ⚠️ **Bài học nằm ở chỗ khác:** vòng MỘT tôi tách `apply_chosen_root` *để* hàng ma trận này có phép đo, và ghi vào Change Log rằng nó đã đóng. Phép đo đó đặt ở tầng Rust — nơi mã vốn đúng — trong khi hành vi người dùng thấy hỏng ở tầng trên. Một phép đo đặt sai TẦNG cho đúng cảm giác an toàn mà nó không có quyền cho.
+  - `[high]` `[patch]` **`resolve_library_root` không có một phép kiểm HÀNH VI nào**, dù nó là hàm quyết định *ứng dụng đọc/ghi thư mục nào*. Cổng P5 của vòng một chỉ so **thứ tự chuỗi trong mã nguồn**, không bao giờ gọi hàm; bộ e2e luôn chạy với biến môi trường đặt sẵn nên nó thoát ở nhánh đầu và ba nhánh còn lại chưa từng chạy. Tách hàm thuần `resolve_library_root_from(override, configured, default)` + `resolve_configured_library_root(store)`, thêm 8 ca cho cả ba nhánh. Đối chứng GỠ đã chạy (đảo nhánh `store = None` ⇒ ca mới đỏ). Đây cũng là chỗ duy nhất trong kho có thể bắt được lượt e2e đỏ chưa giải thích được, nếu nó tái diễn.
+  - `[medium]` `[patch]` `rebuild_lock` chỉ bọc `rebuild` — ba phát hiện một gốc: `rescan` đọc `list_orphans()` NGOÀI khoá nên báo cáo trộn được hai thế hệ; `forget_orphan` không lấy khoá nên đua được với một lượt quét và sinh `library.not_orphaned` sai nguyên nhân; `list_orphans()` trượt SAU khi mutation đã commit làm `?` báo lỗi cho một thao tác ĐÃ xảy ra. Vá bằng một nước: `rebuild`/`forget_orphan` tự trả ảnh chụp mồ côi lấy TRONG phạm vi đã khoá, và `forget_orphan` lấy khoá.
+  - `[medium]` `[patch]` §Verification của spec vẫn mang hai con số (*"ba tệp"*, *"831 dòng"*) mà §Spec Change Log của **cùng tệp** đã đo là sai (5 tệp, 860 dòng). Tôi ghi lại bản sửa thay vì thực hiện nó. Sửa hai dòng tại chỗ, giữ mục Change Log làm lịch sử.
+  - `[medium]` `[patch]` doc-comment `LIBRARY_WORK_DDL` còn khai *"mỗi lượt `rebuild` xoá sạch bảng rồi chèn lại"* và mô tả `work_id PRIMARY KEY` như lưới chắn trùng cuối. Từ story này `rebuild` là UPSERT, nên một hàng trùng lọt tới SQL **ghi đè im lặng** — lưới chắn đó đã mất. Viết lại, nói thẳng vế vừa mất.
+  - `[medium]` `[patch]` Hai mệnh đề tôi tự viết về độ phủ đều sai: *"bộ e2e của story vẫn 0 spec"* (viết trước khi dựng bàn đo, không quay lại sửa) và *"bộ e2e nằm ngoài cả `pre-push` LẪN `ci.yml`"* (nửa sau sai — `ci.yml:712` có job `e2e` chạy `schedule` cron `0 18 * * *` + `workflow_dispatch`; tôi chép lại một mệnh đề của Story 5.2 vốn hết đúng từ 2026-08-20). Sửa cả ba chỗ mang chúng, nối tiếp chứ không viết đè.
+  - `[low]` `[patch]` spec có **hai** tiêu đề `## Review Triage Log`, một rỗng sót lại từ khuôn — gỡ.
+  - `[low]` `[patch]` `.root-value` thiếu `role="status"` trong khi ba node hàng xóm đều có: đường dẫn gốc đổi mà trình đọc màn hình không được báo (NFR17).
+  - `[low]` `[patch]` `err.library.not_orphaned` chỉ nội suy `work_id` (UUID trần) trong khi `name` có sẵn ở chỗ gọi — thêm `name` vào bảng tham số bắt buộc và vào chuỗi.
+  - `[low]` `[patch]` `libraryRescan.ts` có hai cửa đồng thời (chống tái nhập `rescanBusy`, bỏ kết quả cũ `mySequence !== sequence`) mà tệp test tự khai là vai của nó — không ca nào chạm. Thêm hai ca.
+  - `[low]` `[patch]` `apply_chosen_root` với `store: None` không ca nào chạm dù doc-comment khai nhánh đó. Thêm một ca.
 
 ## Design Notes
 
@@ -256,9 +339,9 @@ deferred:
 - `npm run test` -- expected: xanh; baseline 5.2 là **43 tệp / 567 ca**, story này thêm đúng một tệp frontend ⇒ 44 tệp và số ca tăng, không giảm.
 - `npm run check:commands && npm run check:i18n && npm run check:tokens && npm run check:gates && npm run check:debt-owner` -- expected: xanh. `check:gates` xanh **mà không** sửa ba danh sách (cổng mới là test Rust, không phải `check-*.mjs`).
 - `npm run build` -- expected: xanh (`vue-tsc` thấy mọi kiểu mới, kể cả cây `tests/frontend/**`).
-- `grep -rn "StoreSpec::library_index\|StoreKind::LibraryIndex" src-tauri/src` -- expected: **ba tệp** — `core/library/indexer.rs`, `core/store/mod.rs` (điểm khai), `lib.rs` **chỉ ở dòng `///`**. Một dòng **mã** ở `commands/library.rs` là vi phạm thật; nếu cổng vẫn xanh thì **cổng hỏng**. *(Lệnh grep không phân biệt mã với chú thích — phán quyết thuộc về `cargo test --test library_index_boundary`, thứ CÓ lọc `//`.)*
+- 🔵 **SỬA (2026-08-27, vòng rà THỨ HAI P4) — con số dưới đây đã sai, §Spec Change Log mục ③ đã đo lại nhưng bản thân dòng này chưa từng được sửa.** `grep -rn "StoreSpec::library_index\|StoreKind::LibraryIndex" src-tauri/src` -- expected: **năm tệp** — `core/library/indexer.rs`, `core/store/mod.rs` (điểm khai), `lib.rs`, `core/i18n/mod.rs`, `commands/library.rs`, và **chỉ ba tệp ĐẦU** được phép nhắc ở vị trí MÃ (`lib.rs` chỉ ở dòng `///`); hai tệp SAU (`core/i18n/mod.rs`, `commands/library.rs`) chỉ được nhắc ở dòng `//`. Một dòng **mã** ở `commands/library.rs` nhắc `StoreKind::LibraryIndex`/`StoreSpec::library_index` là vi phạm thật; nếu cổng vẫn xanh thì **cổng hỏng**. *(Lệnh grep không phân biệt mã với chú thích — phán quyết thuộc về `cargo test --test library_index_boundary`, thứ CÓ lọc `//`.)*
 - `grep -rn "rusqlite\|Connection::open" src-tauri/src/core/library/ src-tauri/src/commands/library.rs` -- expected: **0 dòng**.
-- `cd src-tauri && cargo tree --locked -e normal | wc -l` -- expected: **831** dòng, không đổi — story này không thêm một phụ thuộc nào (`tauri-plugin-dialog` đã có sẵn từ 3.10b).
+- 🔵 **SỬA (2026-08-27, vòng rà THỨ HAI P4)** — `cd src-tauri && cargo tree --locked -e normal | wc -l` -- expected: **860** dòng, không đổi — con số 831 chép từ Story 5.2 đã lỗi thời (đo lại 2026-08-27, xem §Spec Change Log mục ③: `Cargo.toml`/`Cargo.lock` không đổi một byte ở story này). Mệnh đề đáng giữ vẫn đúng và đã đo: story này thêm **0** phụ thuộc nào (`tauri-plugin-dialog` đã có sẵn từ 3.10b).
 
 **Đối chứng bắt buộc (một bộ test xanh KHÔNG chứng minh chỗ nối được canh):**
 - Gỡ vế đánh dấu mồ côi ra khỏi `Indexer::rebuild` rồi chạy lại `cargo test` -- expected: **đỏ**, và đỏ ở ca nói về mồ côi. Xanh ⇒ ca test chưa chạm bề mặt thật, sửa ca test chứ không sửa mã.
@@ -340,8 +423,19 @@ Mẫu ba lượt: **2 xanh · 1 đỏ**. Lượt đỏ chưa chẩn đoán đư�
 ### Rủi ro còn lại — ghi ra thay vì để người sau tự phát hiện
 
 1. 🔴 **Chỉ mục không còn dẫn xuất trọn vẹn từ đĩa.** Cờ `orphaned` là mẩu trạng thái duy nhất trong `library_work` không suy ra được từ các `.atproj`; xoá `library-index.db` rồi dựng lại làm mọi hàng mồ côi biến mất. §Design Notes cân hai phương án và chọn phương án hẹp hơn (cờ ở chính kho dẫn xuất). **Đây là chỗ đợi Ice chốt** — nếu Ice muốn cờ sống ở `global.db`, đó là một quyết định kiến trúc, không phải một lượt sửa mã.
-2. ⚠️ **Ba vỏ `#[tauri::command]` không ca tự động nào chạm**, và vế THẬT của AC6 (*"gõ được trong lúc quét"*) chỉ nghiệm thu bằng tay. Bộ e2e của story vẫn 0 spec, và bộ e2e nằm ngoài cả `pre-push` lẫn `ci.yml`. Đã ghi nợ có chủ (Story 5.6) và lặp ở frontmatter `deferred`.
+2. 🔵 **SỬA (2026-08-27, vòng rà THỨ HAI P6) — mục này VIẾT TRƯỚC khi dựng bộ e2e của story, không quay lại sửa.** Nay **hai trong ba** vỏ (`library_rescan`, `library_forget_orphan`) có 6 ca e2e chạm THẬT qua WKWebView (xem §Chạy trên ỨNG DỤNG THẬT); chỉ `library_choose_root` (hộp thoại native, ngoài tầm WebDriver) còn hở. Vế THẬT của AC6 (*"gõ được trong lúc quét"*) vẫn chỉ nghiệm thu bằng tay. Và mệnh đề "bộ e2e nằm ngoài cả `pre-push` lẫn `ci.yml`" sai nửa sau: `ci.yml:712` có job `e2e` chạy ở nhịp `schedule` (cron `0 18 * * *`) + `workflow_dispatch` — đúng là *ngoài `pre-push` và ngoài `push`, nhưng CÓ trong `ci.yml` ở nhịp đêm*. Đã ghi nợ có chủ (Story 5.6, phần còn hở) và sửa lại frontmatter `deferred`.
 3. 🟡 **§Manual checks đóng MỘT NỬA.** Bốn trong sáu mục nay chạy tự động trên cửa sổ thật (xem §Chạy trên ỨNG DỤNG THẬT). Hai mục còn hở, và chúng hở vì lý do kỹ thuật chứ không vì thiếu thời gian: hộp thoại native không lái được bằng WebDriver, và AC6 cần một thư viện lớn thật.
 4. ⚠️ **`check:debt-owner` đã ĐỎ từ TRƯỚC baseline** — một mục nợ mồ côi của Story 5.1 ở `deferred-work.md`. Đối chứng đã chạy: khôi phục tệp về `c533c62` rồi chạy cổng ⇒ exit 1. Đã vá bằng một dòng nêu Ice là người quyết định (*"có đưa `cargo clippy --all-targets` vào một cổng hay không"*). Việc này **nằm ngoài phạm vi story** và được báo riêng.
-5. ⚠️ **`pre-push` chưa chạy, CI chưa đọc.** Mọi số đo trên đây đến từ macOS của Ice; nửa Windows chưa nói gì.
+5. ⚠️ **`pre-push` chưa chạy trọn một lượt, CI chưa đọc.** Chưa push, nên mọi số đo trên đây đến từ macOS của Ice; nửa Windows chưa nói gì về story này.
+
 6. 🔴 **Một lượt e2e ĐỎ chưa chẩn đoán được, và nó chạm đúng vế dữ liệu thật.** Lượt chạy đầu của spec mới (5/6 đỏ) cho thấy ứng dụng **ĐỌC** `~/Documents/AuraTranslate` — thư viện thật của Ice — thay vì thư mục tạm: `.root-value` ra đường dẫn thật, `.orphan-name` ra `Epochtime`, một Tác phẩm có thật. **Không byte nào bị GHI vào đó** (đã kiểm sau cả ba lượt: 0 mục mang dấu e2e, mtime thư mục cha không đổi). Hai lượt sau xanh sạch. Tôi **không** giải thích được nó từ mã, và giả thuyết đầu tiên tôi nêu (*cầu IPC hỏng*) đã bị chính số đo bác — cảnh báo đó có mặt ở cả ba lượt. Nguyên văn log đã cất, nợ ghi có chủ (Ice). ⚠️ Đáng chú ý: hàng rào âm của `wdio.conf.mjs` so **chữ ký thư mục**, nên nó canh chiều GHI và **không** canh chiều ĐỌC — đúng chỗ lượt này lọt qua.
+
+### Vòng rà THỨ HAI — 2026-08-27, bổ sung
+
+Bốn lớp rà chạy lại trên diff đã commit (`c533c62..HEAD`, 3.967 dòng, gồm cả bàn đo e2e). **11 patch · 4 defer · 5 reject · 0 intent_gap · 0 bad_spec** — chi tiết ở §Review Triage Log.
+
+Điều đáng ghi hơn từng mục: **bốn trong mười một bản vá là tài liệu hoặc phép đo nói sai về chính mã**, và ba trong số đó là ca *"ghi chú VỀ chỗ sai thay vì SỬA chỗ sai"*. Cộng bản vá nặng nhất — một phép đo đặt **sai tầng** (đóng hàng "huỷ hộp thoại" ở Rust trong khi hành vi người dùng hỏng ở TypeScript) — vòng này bắt được nhiều lỗi trong cách tôi **kiểm** hơn trong cách sản phẩm **chạy**.
+
+Đo lại sau vá: `cargo test --locked` **815 xanh / 0 đỏ** · `npm run test` **44 tệp / 580 ca** · `build`, `check:lint` và chín cổng tĩnh xanh · bộ e2e chạy lại sau khi P9 đổi hợp đồng trên dây của `library_forget_orphan`: **6/6 xanh** trên cửa sổ thật. Hai đối chứng GỠ tự chạy: bỏ nhánh huỷ ⇒ đúng 2 ca đỏ; đảo nhánh `store = None` ⇒ ca mới đỏ. Mẫu e2e tới nay: **3 xanh · 1 đỏ** (lượt đỏ vẫn chưa chẩn đoán được, xem mục 6).
+
+Phạm vi bỏ qua ĐÃ nói ra, không làm tròn: `library.choose_root` vẫn không có ca tự động nào — hộp thoại native nằm ngoài webview, và bấm nó trong một lượt tự động sẽ treo cửa sổ chờ người thật. Đó là 1 trong 3 vỏ IPC.

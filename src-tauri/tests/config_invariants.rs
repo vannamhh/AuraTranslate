@@ -1088,10 +1088,24 @@ fn needles_appear_in_order(body: &str, needles: &[&str]) -> Result<(), String> {
 /// hình") -- lý do: bộ e2e dựng cửa sổ THẬT, và nếu một `library_root` sống sót từ một phiên
 /// chạy tay trước đó bị đọc TRƯỚC móc e2e, bộ e2e sẽ ghi vào thư mục Library thật của người
 /// chạy.
+///
+/// 🔵 **SỬA (2026-08-27, vòng rà THỨ HAI P2) — needle thứ hai đổi tên, KHÔNG đổi mệnh đề.**
+/// `resolve_library_root` nay là một VỎ MỎNG chỉ gọi `resolve_library_root_from(override,
+/// configured, default)` (xem P2 — tách hàm THUẦN để có phép kiểm HÀNH VI, thứ cổng nguồn
+/// này không thay thế được, chỉ bổ sung: cổng này canh THỨ TỰ TRONG VỎ — ai đó viết lại vỏ
+/// bằng tay mà đảo thứ tự đối số vẫn phải bị bắt — còn hành vi THẬT của phép ưu tiên nằm ở
+/// `commands::project::tests::resolve_library_root_from_*`). `load_global_config(store)`
+/// không còn xuất hiện TRỰC TIẾP trong thân `resolve_library_root` nữa — nó nằm bên trong
+/// `resolve_configured_library_root(store)`, hàm THUẦN mới. Needle đổi theo, thứ tự ưu tiên
+/// (bất biến thật) thì không đổi.
 #[test]
 fn resolve_library_root_checks_the_e2e_override_before_the_configured_value_before_the_default() {
     let body = resolve_library_root_body();
-    let needles = ["library_root_override()", "load_global_config(store)", "default_library_root(app)"];
+    let needles = [
+        "library_root_override()",
+        "resolve_configured_library_root(store)",
+        "default_library_root(app)",
+    ];
     needles_appear_in_order(&body, &needles).unwrap_or_else(|reason| {
         panic!(
             "thu tu uu tien trong `resolve_library_root` sai: {reason}. Bat bien duoc ghi trong \
@@ -1107,11 +1121,17 @@ fn resolve_library_root_checks_the_e2e_override_before_the_configured_value_befo
 #[test]
 fn the_order_predicate_would_actually_flag_a_reversed_order() {
     let reversed_body = "fn resolve_library_root() {
-    let x = default_library_root(app);
-    let y = load_global_config(store);
-    let z = library_root_override();
+    resolve_library_root_from(
+        default_library_root(app),
+        resolve_configured_library_root(store),
+        library_root_override(),
+    )
 }";
-    let needles = ["library_root_override()", "load_global_config(store)", "default_library_root(app)"];
+    let needles = [
+        "library_root_override()",
+        "resolve_configured_library_root(store)",
+        "default_library_root(app)",
+    ];
     assert!(
         needles_appear_in_order(reversed_body, &needles).is_err(),
         "vi tu KHONG bat duoc mot chuoi dung tay co thu tu DAO NGUOC -- cong nay dang mu"
@@ -1122,11 +1142,17 @@ fn the_order_predicate_would_actually_flag_a_reversed_order() {
 #[test]
 fn the_order_predicate_does_not_flag_the_correct_order() {
     let correct_body = "fn resolve_library_root() {
-    let a = library_root_override();
-    let b = load_global_config(store);
-    let c = default_library_root(app);
+    resolve_library_root_from(
+        library_root_override(),
+        resolve_configured_library_root(store),
+        default_library_root(app),
+    )
 }";
-    let needles = ["library_root_override()", "load_global_config(store)", "default_library_root(app)"];
+    let needles = [
+        "library_root_override()",
+        "resolve_configured_library_root(store)",
+        "default_library_root(app)",
+    ];
     assert!(
         needles_appear_in_order(correct_body, &needles).is_ok(),
         "vi tu bao loi OAN tren mot chuoi co thu tu DUNG"

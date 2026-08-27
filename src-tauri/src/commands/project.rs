@@ -153,32 +153,68 @@ pub fn resolve_library_root(
     app: &tauri::AppHandle,
     store: Option<&Store>,
 ) -> Result<PathBuf, IpcError> {
-    if let Some(root) = crate::library_root_override() {
+    resolve_library_root_from(
+        crate::library_root_override(),
+        resolve_configured_library_root(store),
+        || default_library_root(app),
+    )
+}
+
+/// 🔵 THÊM (2026-08-27, vòng rà THỨ HAI P2) — **hàm thuần**, tách khỏi `resolve_library_root`
+/// đúng khuôn hai lớp của `src-tauri/AGENTS.md` (và đúng nước cờ `apply_chosen_root` đã đi).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO TÁCH — `resolve_library_root` KHÔNG CÓ MỘT PHÉP KIỂM HÀNH VI NÀO
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Trước bản vá, cả ba nhánh ưu tiên nằm trong MỘT hàm đòi `&tauri::AppHandle` — crate này
+/// không có `tauri::test`/`MockRuntime` (`src-tauri/Cargo.toml` không khai `test-utils`), nên
+/// không ca nào trong `tests/**` gọi được hàm đó. Cổng quét NGUỒN ở `config_invariants.rs`
+/// (vòng rà TRƯỚC) chỉ so THỨ TỰ CHUỖI trong mã — nó không chạy hàm, nên đảo nhánh nào cũng
+/// không làm ca nào đỏ. Tách phần LÕI (không đụng `AppHandle`) ra hàm này: `override_root`
+/// và `configured` là hai mảnh đã phân giải SẴN, và `default` là một closure chỉ được GỌI
+/// khi cả hai vế trên đều vắng mặt — test truyền một closure giả (không chạm `document_dir()`)
+/// để phủ được đường "rơi về mặc định" mà không cần `AppHandle` thật.
+///
+/// **Thứ tự là bất biến (không đổi khi tách):** móc e2e (`override_root`) LUÔN thắng, kể cả
+/// khi đã có giá trị cấu hình — bộ e2e dựng cửa sổ THẬT, và một `library_root` sống sót từ
+/// một phiên chạy tay trước đó không được phép làm nó ghi vào thư mục Library thật của người
+/// chạy.
+fn resolve_library_root_from(
+    override_root: Option<PathBuf>,
+    configured: Option<String>,
+    default: impl FnOnce() -> Result<PathBuf, IpcError>,
+) -> Result<PathBuf, IpcError> {
+    if let Some(root) = override_root {
         return Ok(root);
     }
+    if let Some(configured) = configured {
+        return Ok(PathBuf::from(configured));
+    }
+    default()
+}
 
-    if let Some(store) = store {
-        match load_global_config(store) {
-            Ok(config) => {
-                if let Some(root) = config.library_root() {
-                    return Ok(PathBuf::from(root));
-                }
-            }
-            // 🔵 THÊM (2026-08-27, vòng rà bốn lớp P4) — nhánh `Err` trước đây bị NUỐT im
-            // lặng (`if let Ok(..) = ..`), nên một `global.db` hỏng làm ứng dụng lặng lẽ rơi
-            // về gốc mặc định mà không một dòng nào trong log -- ngược lệ đã ghi của kho
-            // ("mở kho trượt ⇒ ghi chẩn đoán rồi đi tiếp", `AGENTS.md`). Chẩn đoán KHÔNG DẤU
-            // (NFR16/Kiểm A của `check:i18n`), rồi vẫn rơi về mặc định như cũ -- vế "đi tiếp"
-            // không đổi, chỉ thêm vế "nói ra".
-            Err(err) => {
-                eprintln!(
-                    "library[root] doc AppConfig::library_root that bai, roi ve mac dinh: {err}"
-                );
-            }
+/// 🔵 THÊM (2026-08-27, vòng rà THỨ HAI P2) — **hàm thuần**, nhận thẳng `Option<&Store>`
+/// (không `AppHandle`) nên test được với một `Store::open` thật, không cần cửa sổ Tauri.
+/// Gom cả BA nhánh mà cổng vòng rà trước không với tới: `store = None` ⇒ `None`; đọc
+/// `AppConfig::library_root` trượt (`global.db` hỏng) ⇒ chẩn đoán rồi `None`; đọc thành công
+/// nhưng chưa ai cấu hình gì ⇒ `None`; đọc thành công VÀ có cấu hình ⇒ `Some(..)`.
+fn resolve_configured_library_root(store: Option<&Store>) -> Option<String> {
+    let store = store?;
+    match load_global_config(store) {
+        Ok(config) => config.library_root(),
+        // 🔵 THÊM (2026-08-27, vòng rà bốn lớp P4) — nhánh `Err` trước đây bị NUỐT im lặng
+        // (`if let Ok(..) = ..`), nên một `global.db` hỏng làm ứng dụng lặng lẽ rơi về gốc
+        // mặc định mà không một dòng nào trong log -- ngược lệ đã ghi của kho ("mở kho trượt
+        // ⇒ ghi chẩn đoán rồi đi tiếp", `AGENTS.md`). Chẩn đoán KHÔNG DẤU (NFR16/Kiểm A của
+        // `check:i18n`), rồi vẫn rơi về mặc định như cũ -- vế "đi tiếp" không đổi, chỉ thêm
+        // vế "nói ra".
+        Err(err) => {
+            eprintln!(
+                "library[root] doc AppConfig::library_root that bai, roi ve mac dinh: {err}"
+            );
+            None
         }
     }
-
-    default_library_root(app)
 }
 
 /// **Hàm thuần** — tạo một Tác phẩm mới trên đĩa từ một [`ImportedChapter`] đã có sẵn.
@@ -1492,6 +1528,135 @@ mod tests {
             "mutex phai con dung mot gia tri sau ca hai luot swap"
         );
         drop(last);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════
+    // P2 (vòng rà THỨ HAI, 2026-08-27) — `resolve_library_root_from`/
+    // `resolve_configured_library_root` KHÔNG có một phép kiểm HÀNH VI nào trước bản vá:
+    // cả ba nhánh sống trong `resolve_library_root(app, store)`, đòi `&tauri::AppHandle` mà
+    // crate này không có cách dựng giả (không `test-utils`). Tách hai hàm THUẦN để phủ được
+    // BA nhánh: giá trị đã cấu hình thắng · `load_global_config` lỗi ⇒ rơi về mặc định ·
+    // `store = None` ⇒ rơi về mặc định — cộng ca "override thắng giá trị cấu hình" (nay
+    // kiểm được vì không cần `AppHandle`).
+    // ═════════════════════════════════════════════════════════════════════════════
+
+    static NEXT_ROOT_DIR: AtomicU64 = AtomicU64::new(0);
+
+    fn root_test_dir(tag: &str) -> std::path::PathBuf {
+        let n = NEXT_ROOT_DIR.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!(
+            "auratranslate-resolve-library-root-{}-{}-{}",
+            std::process::id(),
+            tag,
+            n
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
+        dir
+    }
+
+    fn root_test_cleanup(dir: &std::path::Path) {
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// §Always của story 5.3: móc e2e LUÔN thắng, kể cả khi đã có giá trị cấu hình.
+    #[test]
+    fn resolve_library_root_from_override_wins_even_when_configured_is_present() {
+        let result = super::resolve_library_root_from(
+            Some(std::path::PathBuf::from("/override")),
+            Some("/da-cau-hinh".to_owned()),
+            || panic!("default KHONG duoc goi khi override co mat"),
+        );
+        assert_eq!(result.unwrap(), std::path::PathBuf::from("/override"));
+    }
+
+    #[test]
+    fn resolve_library_root_from_uses_the_configured_value_when_override_is_absent() {
+        let result = super::resolve_library_root_from(
+            None,
+            Some("/da-cau-hinh".to_owned()),
+            || panic!("default KHONG duoc goi khi da co gia tri cau hinh"),
+        );
+        assert_eq!(result.unwrap(), std::path::PathBuf::from("/da-cau-hinh"));
+    }
+
+    #[test]
+    fn resolve_library_root_from_calls_the_default_only_when_both_are_absent() {
+        let result =
+            super::resolve_library_root_from(None, None, || Ok(std::path::PathBuf::from("/mac-dinh")));
+        assert_eq!(result.unwrap(), std::path::PathBuf::from("/mac-dinh"));
+    }
+
+    #[test]
+    fn resolve_library_root_from_propagates_a_default_error() {
+        let result = super::resolve_library_root_from(None, None, || {
+            Err(crate::core::store::StoreError::OpenFailed {
+                store: crate::core::store::StoreKind::Global,
+                detail: "gia lap".to_owned(),
+            }
+            .into())
+        });
+        assert!(result.is_err(), "loi tu default phai duoc truyen nguyen ven, khong bi nuot");
+    }
+
+    #[test]
+    fn resolve_configured_library_root_with_no_store_is_not_configured() {
+        assert_eq!(super::resolve_configured_library_root(None), None);
+    }
+
+    #[test]
+    fn resolve_configured_library_root_with_nothing_saved_is_not_configured() {
+        let dir = root_test_dir("fresh");
+        let store = crate::core::store::Store::open(crate::core::store::StoreSpec::global(
+            dir.join("global.db"),
+        ))
+        .unwrap_or_else(|e| panic!("mo global.db: {e}"));
+
+        assert_eq!(super::resolve_configured_library_root(Some(&store)), None);
+
+        drop(store);
+        root_test_cleanup(&dir);
+    }
+
+    #[test]
+    fn resolve_configured_library_root_returns_a_saved_value() {
+        let dir = root_test_dir("configured");
+        let store = crate::core::store::Store::open(crate::core::store::StoreSpec::global(
+            dir.join("global.db"),
+        ))
+        .unwrap_or_else(|e| panic!("mo global.db: {e}"));
+        crate::core::scope::save_value(&store, "app_config", "library_root", "/tu-cau-hinh")
+            .unwrap_or_else(|e| panic!("ghi cau hinh: {e}"));
+
+        assert_eq!(
+            super::resolve_configured_library_root(Some(&store)),
+            Some("/tu-cau-hinh".to_owned())
+        );
+
+        drop(store);
+        root_test_cleanup(&dir);
+    }
+
+    /// `ReaderPool::close()` (doc-comment của chính nó): "Sau lời gọi này, `read()` trả
+    /// `StoreError::PoolClosed`" — cách TẤT ĐỊNH duy nhất để dựng một `load_global_config`
+    /// trượt mà không cần một `global.db` hỏng thật trên đĩa.
+    #[test]
+    fn resolve_configured_library_root_falls_back_to_not_configured_when_the_read_fails() {
+        let dir = root_test_dir("read-fails");
+        let store = crate::core::store::Store::open(crate::core::store::StoreSpec::global(
+            dir.join("global.db"),
+        ))
+        .unwrap_or_else(|e| panic!("mo global.db: {e}"));
+        store.close();
+
+        assert_eq!(
+            super::resolve_configured_library_root(Some(&store)),
+            None,
+            "doc cau hinh truot khong duoc lam ung dung nga -- phai roi ve 'chua cau hinh'"
+        );
+
+        drop(store);
+        root_test_cleanup(&dir);
     }
 }
 

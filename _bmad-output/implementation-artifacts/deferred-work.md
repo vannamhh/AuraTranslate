@@ -8084,6 +8084,17 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     webview thật) — không ca nào trong hai bộ đó chạm `#[tauri::command]` thật. Bộ e2e của
     story này vẫn **0** (không có trong Tasks/AC của `5-3-quet-lai-thu-muc.md`, và §Verification
     của nó cũng không đòi). Chủ giữ nguyên Story 5.6, mở rộng theo đúng nghĩa mục này đã đặt ra.
+    🔵 **NỐI TIẾP 2026-08-27 (vòng rà THỨ HAI, P6) — hai mệnh đề ở đoạn NGAY TRÊN đã SAI, sửa
+    bằng cách nối tiếp, không viết đè.** ① *"Bộ e2e của story này vẫn 0"* — sai: đoạn đó
+    được viết TRƯỚC khi `e2e/specs/story-5-3-rescan.e2e.mjs` (6 ca) ra đời, và không ai quay
+    lại sửa. Nay HAI trong BA vỏ (`library_rescan`, `library_forget_orphan`) có ca e2e chạm
+    THẬT qua WKWebView — chỉ `library_choose_root` (hộp thoại native, ngoài tầm WebDriver)
+    còn đúng như mô tả cũ. ② *"bộ e2e nằm ngoài cả `pre-push` lẫn `ci.yml`"* — sai nửa sau:
+    `.github/workflows/ci.yml:712` có job `e2e` chạy ở nhịp `schedule` (cron `0 18 * * *`) +
+    `workflow_dispatch`. Mệnh đề đúng là *"ngoài `pre-push` và ngoài `push`, nhưng CÓ trong
+    `ci.yml` ở nhịp đêm"*. Phần còn thật và còn mở: `library_choose_root` vẫn không ca tự
+    động nào chạm (hộp thoại native), và AC6 ("gõ được trong lúc quét") vẫn chỉ nghiệm thu
+    bằng tay. Chủ giữ nguyên Story 5.6 cho phần còn hở.
 
 - source_spec: `_bmad-output/implementation-artifacts/5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat.md`
   summary: **Hai lượt `Indexer::rebuild` chạy chồng có thể xen kẽ và để chỉ mục phản ánh một ảnh chụp

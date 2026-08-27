@@ -1444,10 +1444,22 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 /// ─────────────────────────────────────────────────────────────────────────────
 /// - `work_id` — **khoá chính**, trùng [`crate::core::library::meta::WorkMeta::work_id`].
 ///   `PRIMARY KEY` trần (không `AUTOINCREMENT` — không có rowid nào cần giữ ổn định qua thời
-///   gian; kho này bị XOÁ TOÀN BỘ và dựng lại mỗi lần lệch phiên bản, và mỗi lượt
-///   `Indexer::rebuild` xoá sạch bảng rồi chèn lại) là cơ chế phát hiện trùng của
-///   §Boundaries *"trùng `work_id` ⇒ phát hiện"*: SQLite tự từ chối hàng thứ hai, không cần
-///   một `SELECT` kiểm trùng ở tầng Rust mà một cửa sổ đua có thể chen vào giữa.
+///   gian; kho này bị XOÁ TOÀN BỘ và dựng lại mỗi lần lệch phiên bản).
+///
+///   🔵 **SỬA (2026-08-27, vòng rà THỨ HAI P5) — mệnh đề cũ HẾT ĐÚNG, và VẾ ĐÃ MẤT phải nói
+///   thẳng, không chỉ đổi câu mô tả.** Bản trước viết *"mỗi lượt `Indexer::rebuild` xoá sạch
+///   bảng rồi chèn lại"* và gọi `PRIMARY KEY` này là *"cơ chế phát hiện trùng của §Boundaries
+///   — SQLite tự từ chối hàng thứ hai"*. Từ Story 5.3, `rebuild` là ĐỐI CHIẾU
+///   (`INSERT … ON CONFLICT (work_id) DO UPDATE`, xem `core/library/indexer.rs`), không còn
+///   xoá-sạch-ghi-lại — và hệ quả là **lưới chắn SQL đó không còn tồn tại**: một hàng trùng
+///   `work_id` lọt tới câu `INSERT` này sẽ đi vào nhánh `DO UPDATE` và **ghi đè ÊM ÁI**, không
+///   nổ lỗi ràng buộc nữa. `PRIMARY KEY` giờ chỉ còn giữ vai trò cấu trúc (đảm bảo tại-mọi-
+///   thời-điểm không có HAI hàng cùng `work_id` cùng tồn tại), KHÔNG còn là nơi phát hiện
+///   trùng — việc phát hiện trùng `.atproj` cùng `work_id` (§Boundaries) nay diễn ra HOÀN
+///   TOÀN ở tầng Rust, TRƯỚC khi chạm SQL: `Indexer::rebuild` tự giữ một `HashMap` `first_seen`
+///   và chỉ đưa ĐÚNG MỘT `(work_id, meta)` (mục đầu theo thứ tự quét đã sắp) vào câu UPSERT
+///   mỗi lượt; các mục trùng sau bị gạt ra `WorkIdConflict` trước khi tới `store.write`, nên
+///   SQL không bao giờ THẤY một work_id thứ hai để mà từ chối.
 /// - `atproj_path` — đường dẫn **TUYỆT ĐỐI trên máy này** tới `<Tên>.atproj/`. Khác
 ///   `meta.json`, nơi AC5 của Story 1.15 **cấm** đường tuyệt đối (nó theo `.atproj` khi Tác
 ///   phẩm bị copy sang máy khác) — chỉ mục thì **không** theo: nó là dẫn xuất **cục bộ**, và

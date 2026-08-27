@@ -145,7 +145,9 @@ export async function forgetCurrentLibraryOrphan(): Promise<void> {
   lastError.value = null
   const mySequence = ++sequence
 
-  const result = await forgetLibraryOrphan(target.work_id)
+  // P9 (vòng rà THỨ HAI, 2026-08-27) -- gửi kèm `name` đang hiển thị, để Rust dựng được
+  // một câu từ chối nói TÊN thay vì chỉ UUID trần.
+  const result = await forgetLibraryOrphan(target.work_id, target.name)
   if (mySequence !== sequence) return
 
   rescanBusy.value = false

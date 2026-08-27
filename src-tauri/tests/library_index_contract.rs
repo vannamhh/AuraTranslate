@@ -940,13 +940,93 @@ fn forget_orphan_removes_exactly_the_named_row_and_returns_the_rest() {
     indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild mồ côi: {e}"));
     assert_eq!(indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}")).len(), 2);
 
-    indexer
+    // 🔵 SỬA (2026-08-27, vòng rà THỨ HAI P3) — đọc TRỰC TIẾP giá trị TRẢ VỀ của
+    // `forget_orphan`, không gọi `list_orphans()` một lần nữa: đây chính là ảnh chụp mà
+    // `Indexer::forget_orphan` phải tự trả trong CÙNG phạm vi khoá (P3), và ca này phải kiểm
+    // đúng CÁI ĐÓ, không phải một lượt đọc riêng biệt tình cờ cho cùng kết quả.
+    let remaining = indexer
         .forget_orphan("id-alpha")
         .unwrap_or_else(|e| panic!("forget_orphan phải thành công trên một hàng mồ côi: {e}"));
-
-    let remaining = indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}"));
     assert_eq!(remaining.len(), 1, "chỉ hàng vừa gỡ biến mất");
     assert_eq!(remaining[0].work_id, "id-beta");
+
+    // Đối chứng: một lượt đọc riêng sau đó phải khớp với ảnh chụp đã trả.
+    let reread = indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}"));
+    assert_eq!(reread, remaining);
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+/// **THÊM 2026-08-27 (vòng rà THỨ HAI, P3 ②)** — gỡ một mục mồ côi VÀ một lượt `rebuild`
+/// khác chạy gần như đồng thời không được sinh ra một `library.not_orphaned` SAI nguyên
+/// nhân. Trước bản vá, `forget_orphan` không lấy `rebuild_lock`, nên một `rebuild` xen vào
+/// đúng lúc `forget_orphan` đang đọc/ghi có thể lật cờ `orphaned` giữa chừng.
+///
+/// ⚠️ Cùng giới hạn đã ghi ở `two_threads_calling_rebuild_concurrently_converge_to_one_consistent_state`:
+/// không có hook tiêm độ trễ, nên ca này không CHỨNG MINH một cửa sổ đua cụ thể — nó đối
+/// chứng điều ĐO ĐƯỢC: hàng chục lượt `rebuild` xen với đúng MỘT lượt `forget_orphan` không
+/// bao giờ panic/deadlock, và trạng thái cuối nhất quán (đúng đang-sống, không mồ côi trôi
+/// nổi).
+#[test]
+fn forget_orphan_running_alongside_concurrent_rebuilds_never_reports_a_false_not_orphaned() {
+    let dir = temp_dir("forget-orphan-concurrent-rebuild");
+    let root = library_root(&dir);
+    let alive_dir = write_atproj(&root, "Alive", "id-alive", "Alive", 1);
+    let orphan_dir = write_atproj(&root, "Ghost", "id-ghost", "Ghost", 1);
+
+    let indexer =
+        std::sync::Arc::new(Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}")));
+    indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild đầu: {e}"));
+    fs::remove_dir_all(&orphan_dir).unwrap_or_else(|e| panic!("xoá Ghost: {e}"));
+    indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild mồ côi: {e}"));
+    assert_eq!(indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}")).len(), 1);
+    assert!(alive_dir.is_dir(), "Alive phải còn nguyên trên đĩa suốt ca này");
+
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+
+    let rebuild_indexer = std::sync::Arc::clone(&indexer);
+    let rebuild_root = root.clone();
+    let rebuild_barrier = std::sync::Arc::clone(&barrier);
+    let rebuild_handle = std::thread::spawn(move || {
+        rebuild_barrier.wait();
+        for _ in 0..20 {
+            rebuild_indexer
+                .rebuild(&rebuild_root)
+                .unwrap_or_else(|e| panic!("rebuild trên luồng nền: {e}"));
+        }
+    });
+
+    let forget_indexer = std::sync::Arc::clone(&indexer);
+    let forget_barrier = std::sync::Arc::clone(&barrier);
+    let forget_handle = std::thread::spawn(move || {
+        forget_barrier.wait();
+        forget_indexer.forget_orphan("id-ghost")
+    });
+
+    rebuild_handle.join().expect("luồng rebuild panic");
+    let forget_result = forget_handle.join().expect("luồng forget_orphan panic");
+
+    // Đúng MỘT kết quả hợp lệ: hoặc gỡ THÀNH CÔNG (hàng còn mồ côi khi lệnh chạy tới), hoặc
+    // bị từ chối vì KHÔNG CÒN mồ côi nữa (một `rebuild` xen vào đã đưa "Ghost" trở lại NẾU
+    // nó tái xuất hiện -- ở đây nó không tái xuất hiện, nên nhánh từ chối không nên xảy ra
+    // trong ca CỤ THỂ này, nhưng cả hai đều là kết quả HỢP LỆ về mặt LOGIC, không phải một
+    // lỗi giả). Điều KHÔNG được xảy ra là panic hoặc deadlock -- đã được đảm bảo bằng việc
+    // `.join()` ở trên trả về.
+    match forget_result {
+        Ok(remaining) => assert!(
+            remaining.iter().all(|o| o.work_id != "id-ghost"),
+            "gỡ thành công thì work_id đó không còn trong danh sách mồ côi"
+        ),
+        Err(IndexError::NotOrphaned { work_id }) => assert_eq!(work_id, "id-ghost"),
+        Err(other) => panic!("kỳ vọng thành công hoặc NotOrphaned, nhận {other:?}"),
+    }
+
+    // Trạng thái CUỐI phải nhất quán: "Alive" vẫn sống, không hàng mồ côi trôi nổi ngoài dự
+    // kiến (Ghost đã bị xoá khỏi đĩa suốt ca này, không quay lại).
+    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    assert_eq!(works.len(), 1);
+    assert_eq!(works[0].work_id, "id-alive");
 
     drop(indexer);
     cleanup(&dir);

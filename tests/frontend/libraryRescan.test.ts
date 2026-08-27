@@ -59,7 +59,7 @@ describe('config/library.ts — adapter không bao giờ ném', () => {
     mockInvoke.mockRejectedValueOnce(rustError)
 
     const { forgetLibraryOrphan } = await import('../../src/config/library')
-    const result = await forgetLibraryOrphan('id-x')
+    const result = await forgetLibraryOrphan('id-x', 'Ten hien thi')
 
     expect(result.orphans).toBeNull()
     expect(result.error).toEqual(rustError)
@@ -183,5 +183,97 @@ describe('config/library.ts — kiểm KIỂU LÚC CHẠY cho `RescanReport` (P1
     expect(result.error?.code).toBe('ipc.unknown')
 
     Reflect.deleteProperty(window, '__TAURI_INTERNALS__')
+  })
+})
+
+describe('P1 vòng rà THỨ HAI (2026-08-27) — huỷ hộp thoại chọn thư mục KHÔNG được là một lỗi', () => {
+  it('config/library.ts: `chooseLibraryRoot()` với `invoke` trả `null` ⇒ ba trạng thái rỗng, không lỗi', async () => {
+    mockInvoke.mockResolvedValueOnce(null)
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true })
+
+    const { chooseLibraryRoot } = await import('../../src/config/library')
+    const result = await chooseLibraryRoot()
+
+    // 🔴 Đúng bug đã ĐO: bản trước gọi CHUNG `callRescan`, và `isRescanReport(null)` trả
+    // `false` khiến nhánh này từng trả `{ report: null, error: UNKNOWN_IPC_ERROR }`.
+    expect(result.report).toBeNull()
+    expect(result.error).toBeNull()
+
+    Reflect.deleteProperty(window, '__TAURI_INTERNALS__')
+  })
+
+  it('modes/libraryRescan.ts: `chooseLibraryRootFolder()` sau một lượt HUỶ giữ nguyên toàn bộ state đã có từ lượt quét trước', async () => {
+    // Lượt quét ĐẦU -- thành công, dựng state có thật để đối chứng "giữ nguyên".
+    mockInvoke.mockResolvedValueOnce(RESCAN_REPORT_ONE_ORPHAN)
+    const state = await import('../../src/modes/libraryRescan')
+    await state.rescanLibraryFolder()
+    expect(state.libraryRescanError.value).toBeNull()
+    const rootBefore = state.currentLibraryRoot.value
+    const orphansBefore = state.libraryOrphans.value
+    const indexedBefore = state.libraryIndexedCount.value
+    const conflictsBefore = state.libraryConflictCount.value
+    const skippedBefore = state.librarySkippedCount.value
+
+    // Lượt "Đổi thư mục gốc" thứ hai -- người dùng HUỶ hộp thoại.
+    mockInvoke.mockResolvedValueOnce(null)
+    await state.chooseLibraryRootFolder()
+
+    expect(state.libraryRescanError.value).toBeNull()
+    expect(state.currentLibraryRoot.value).toBe(rootBefore)
+    expect(state.libraryOrphans.value).toBe(orphansBefore)
+    expect(state.libraryIndexedCount.value).toBe(indexedBefore)
+    expect(state.libraryConflictCount.value).toBe(conflictsBefore)
+    expect(state.librarySkippedCount.value).toBe(skippedBefore)
+  })
+})
+
+describe('P10 (vòng rà THỨ HAI, 2026-08-27) — hai cửa đồng thời của libraryRescan.ts', () => {
+  it('cửa CHỐNG TÁI NHẬP: `rescanLibraryFolder()` gọi lần hai trong khi lần đầu còn đang bay bị bỏ qua ngay, không thêm một lượt `invoke` nào', async () => {
+    const state = await import('../../src/modes/libraryRescan')
+
+    let resolveFirst: (value: unknown) => void = () => {}
+    const pending = new Promise((resolve) => {
+      resolveFirst = resolve
+    })
+    mockInvoke.mockReturnValueOnce(pending)
+
+    const first = state.rescanLibraryFolder() // chưa resolve -- `rescanBusy` đang `true`.
+    expect(state.libraryRescanBusy.value).toBe(true)
+
+    // Lượt gọi THỨ HAI trong khi lượt đầu còn đang bay -- `if (rescanBusy.value) return`
+    // phải chặn nó NGAY, không gọi `invoke` thêm lần nào.
+    await state.rescanLibraryFolder()
+    expect(mockInvoke).toHaveBeenCalledTimes(1)
+
+    resolveFirst(RESCAN_REPORT_ONE_ORPHAN)
+    await first
+    expect(state.libraryRescanBusy.value).toBe(false)
+  })
+
+  it('cửa BỎ KẾT QUẢ CŨ: `resetLibraryRescan()` giữa một lượt IPC đang bay chặn kết quả CŨ ghi đè lên state đã reset', async () => {
+    const state = await import('../../src/modes/libraryRescan')
+
+    let resolveFirst: (value: unknown) => void = () => {}
+    const pending = new Promise((resolve) => {
+      resolveFirst = resolve
+    })
+    mockInvoke.mockReturnValueOnce(pending)
+
+    const inFlight = state.rescanLibraryFolder() // chưa resolve.
+
+    // Đặt lại TOÀN BỘ state GIỮA CHỪNG -- `resetLibraryRescan()` không đi qua cửa `rescanBusy`
+    // (nó không phải một trong ba thao tác IPC), và nó tăng `sequence` -- đúng cơ chế mà
+    // `mySequence !== sequence` tồn tại để bắt.
+    state.resetLibraryRescan()
+    expect(state.libraryScanHasLoadedState.value).toBe(false)
+    expect(state.currentLibraryRoot.value).toBeNull()
+
+    // Lượt IPC CŨ giờ mới trả về -- kết quả của nó KHÔNG được phép ghi đè state đã reset.
+    resolveFirst(RESCAN_REPORT_ONE_ORPHAN)
+    await inFlight
+
+    expect(state.libraryScanHasLoadedState.value).toBe(false)
+    expect(state.currentLibraryRoot.value).toBeNull()
+    expect(state.libraryOrphans.value).toEqual([])
   })
 })

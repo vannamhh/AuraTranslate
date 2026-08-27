@@ -117,6 +117,51 @@ async function callRescan(cmd: string, args?: Record<string, unknown>): Promise<
     // P1 -- không tin thẳng kiểu generic của `invoke<T>()`: đó là một khai báo phía TS,
     // không một bảo đảm từ Rust. Hình dạng sai (thiếu `root_missing`, kiểu lệch) ⇒ hồi
     // phòng bằng lỗi THẬT, không chuyển tiếp một giá trị đã biết là sai hình dạng.
+    //
+    // 🔴 `library_rescan` (Rust) trả `Result<RescanReport, IpcError>` -- KHÔNG `Option`.
+    // `null` ở ĐÂY là một câu trả lời HỎNG (không phải "huỷ hộp thoại" -- lệnh này không mở
+    // hộp thoại nào), nên `isRescanReport(null)` PHẢI trả `false` và rơi vào nhánh dưới. Vì
+    // sao hàm này không dùng chung với `choose_root`: xem `callChooseRoot` ngay dưới.
+    if (!isRescanReport(report)) {
+      console.error(`[library] \`${cmd}\` trả một RescanReport SAI HÌNH DẠNG: ${JSON.stringify(report)}`)
+      return { report: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { report, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { report: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[library] \`${cmd}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { report: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[library] không gọi được \`${cmd}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { report: null, error: null }
+  }
+}
+
+/**
+ * 🔵 THÊM (2026-08-27, vòng rà bốn lớp P1) — TÁCH khỏi `callRescan`, không dùng chung nữa.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 VÌ SAO MỘT HÀM RIÊNG — BẢN TRƯỚC GHI SAI IM LẶNG CA "HUỶ HỘP THOẠI"
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `library_choose_root` (Rust) trả `Result<Option<RescanReport>, IpcError>` -- `Ok(None)`
+ * là ca HUỶ, đã ghi trong hợp đồng của `ChooseRootResult` NGAY TRÊN. Trên dây, `Ok(None)`
+ * thành `null`. Bản trước gọi CHUNG `callRescan` cho cả `rescanLibrary` lẫn
+ * `chooseLibraryRoot` -- `isRescanReport(null)` trả `false` (nó loại `null` ngay dòng đầu,
+ * ĐÚNG cho `library_rescan` nơi `null` là một câu trả lời hỏng), nên nhánh "SAI HÌNH DẠNG"
+ * chạy nhầm trên một `null` HỢP LỆ ⇒ người dùng bấm Huỷ nhận `err.unknown` -- một lỗi THẬT,
+ * đi tới màn hình -- ngược đúng §I/O Matrix ("Huỷ hộp thoại ⇒ không một biến thể lỗi").
+ *
+ * ⇒ `null` được xử lý làm ca HUỶ TRƯỚC KHI chạm `isRescanReport` — hàm đó giữ nguyên vai
+ * "hình dạng sai là hình dạng sai" cho `callRescan`, không bị nới để nuốt luôn ca hợp lệ.
+ */
+async function callChooseRoot(cmd: string, args?: Record<string, unknown>): Promise<ChooseRootResult> {
+  try {
+    const report = await invoke<RescanReport | null>(cmd, args)
+    if (report === null) {
+      // Huỷ hộp thoại -- Ok(None), KHÔNG một biến thể lỗi (§I/O Matrix).
+      return { report: null, error: null }
+    }
     if (!isRescanReport(report)) {
       console.error(`[library] \`${cmd}\` trả một RescanReport SAI HÌNH DẠNG: ${JSON.stringify(report)}`)
       return { report: null, error: UNKNOWN_IPC_ERROR }
@@ -145,13 +190,20 @@ export async function rescanLibrary(): Promise<RescanResult> {
  * một biến thể lỗi).
  */
 export async function chooseLibraryRoot(): Promise<ChooseRootResult> {
-  return callRescan(CMD_CHOOSE_ROOT)
+  return callChooseRoot(CMD_CHOOSE_ROOT)
 }
 
-/** Gỡ một mục mồ côi khỏi chỉ mục — lệnh `library.forget_orphan`. */
-export async function forgetLibraryOrphan(workId: string): Promise<ForgetOrphanResult> {
+/**
+ * Gỡ một mục mồ côi khỏi chỉ mục — lệnh `library.forget_orphan`.
+ *
+ * 🔵 THÊM tham số `name` (2026-08-27, vòng rà THỨ HAI P9) — `err.library.not_orphaned` nay
+ * cần cả `work_id` LẪN `name` để nói được TÊN mục cho người dùng, không chỉ một UUID trần.
+ * `name` đã có sẵn ở CHỖ GỌI (đang hiển thị trên màn hình), nên gửi thẳng nó đi thay vì để
+ * Rust phải tra lại.
+ */
+export async function forgetLibraryOrphan(workId: string, name: string): Promise<ForgetOrphanResult> {
   try {
-    const orphans = await invoke<OrphanEntry[]>(CMD_FORGET_ORPHAN, { workId })
+    const orphans = await invoke<OrphanEntry[]>(CMD_FORGET_ORPHAN, { workId, name })
     return { orphans, error: null }
   } catch (err) {
     if (isIpcError(err)) return { orphans: null, error: err }

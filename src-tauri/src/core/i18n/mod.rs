@@ -401,7 +401,14 @@ message_keys! {
     /// [`crate::core::library::indexer::Indexer::forget_orphan`] gọi trên một `work_id`
     /// không tồn tại, hoặc tồn tại nhưng đang SỐNG (`orphaned = 0`) — cùng một câu cho cả
     /// hai ca (§I/O Matrix: không im lặng thành công, không mập mờ giữa hai lý do).
-    LibraryNotOrphaned => "err.library.not_orphaned" ["work_id"],
+    ///
+    /// 🔵 **THÊM tham số `name` (2026-08-27, vòng rà THỨ HAI P9).** `work_id` một mình là
+    /// một UUID trần — không phải thứ người dùng NHẬN RA. `name` của mục mồ côi đã có sẵn
+    /// ở CHỖ GỌI (`LibraryMode.vue` đang hiển thị nó ngay lúc người dùng bấm "Gỡ khỏi chỉ
+    /// mục"), nên `commands::library::forget_orphan` nhận nó qua tham số và tự dựng
+    /// `IpcError` cho ca này thay vì đi qua `From<IndexError>` chung (`Indexer` không biết
+    /// "tên mà người dùng đang thấy" — đó là dữ liệu của TẦNG GỌI, không phải của chỉ mục).
+    LibraryNotOrphaned => "err.library.not_orphaned" ["work_id", "name"],
     /// Thư mục gốc người dùng chọn qua hộp thoại không dùng được (ví dụ: một tệp thường,
     /// không phải thư mục). Không tham số: đường dẫn cụ thể không phải dữ liệu cần thiết cho
     /// câu này, và hộp thoại chọn thư mục của hệ điều hành đã tự lọc phần lớn ca sai hình

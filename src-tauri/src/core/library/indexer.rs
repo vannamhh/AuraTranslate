@@ -269,12 +269,18 @@ impl Indexer {
             Ok(newly_orphaned)
         })?;
 
+        // P3 -- ảnh chụp mồ côi lấy NGAY ĐÂY, trong khi `_guard` (rebuild_lock) còn sống:
+        // không lượt `rebuild`/`forget_orphan` nào khác chen được vào giữa giao dịch vừa
+        // commit và lượt đọc này. Xem doc-comment của `RebuildOutcome::current_orphans`.
+        let current_orphans = self.list_rows("WHERE orphaned = 1")?;
+
         Ok(RebuildOutcome {
             indexed,
             root_missing: false,
             conflicts,
             skipped,
             orphans,
+            current_orphans,
         })
     }
 
@@ -292,12 +298,15 @@ impl Indexer {
         let orphans = self.store.write(|tx: &Transaction<'_>| {
             tx.execute("UPDATE library_work SET orphaned = 1 WHERE orphaned = 0", [])
         })?;
+        // P3 -- cùng lý do nhánh `rebuild` bình thường: chụp TRONG khi khoá còn sống.
+        let current_orphans = self.list_rows("WHERE orphaned = 1")?;
         Ok(RebuildOutcome {
             indexed: 0,
             root_missing: true,
             conflicts: Vec::new(),
             skipped: Vec::new(),
             orphans,
+            current_orphans,
         })
     }
 
@@ -342,6 +351,18 @@ impl Indexer {
     /// tiền điều kiện `orphaned = 1`. KHÔNG chạm đĩa một byte (§Never của story: "không tự
     /// sửa/di chuyển/xoá bất kỳ `.atproj` nào — `forget_orphan` xoá một hàng chỉ mục").
     ///
+    /// Trả danh sách mồ côi CÒN LẠI (§I/O Matrix: "trả danh sách mồ côi còn lại") — chụp
+    /// TRONG cùng phạm vi đã khoá, cùng lý do và cùng khuôn [`Self::rebuild`]. Xem
+    /// doc-comment của [`RebuildOutcome::current_orphans`] cho lý do đầy đủ (P3, vòng rà
+    /// THỨ HAI): tách rời lượt xoá khỏi lượt đọc-lại để một `list_orphans()` gọi RIÊNG là
+    /// mở đúng khe hở mà `rebuild_lock` tồn tại để đóng.
+    ///
+    /// 🔴 **Giữ `rebuild_lock` — không chỉ giao dịch xoá.** Trước bản vá, hàm này KHÔNG lấy
+    /// khoá đó, nên một lượt `rebuild` chạy chen có thể lật cờ `orphaned` GIỮA lúc frontend
+    /// đọc mục này (còn mồ côi) và lúc lệnh xoá này chạy tới, cho ra một `library.not_orphaned`
+    /// sai nguyên nhân (bảng nói "không phải mồ côi" trong khi người dùng vừa thấy nó mồ côi
+    /// một giây trước).
+    ///
     /// # Lỗi
     /// [`IndexError::NotOrphaned`] khi `work_id` không tồn tại HOẶC tồn tại nhưng
     /// `orphaned = 0` — CÙNG một nhánh từ chối cho cả hai ca (§I/O Matrix: "gỡ nhầm một hàng
@@ -349,7 +370,14 @@ impl Indexer {
     /// và không mập mờ giữa hai lý do). `WHERE work_id = ?1 AND orphaned = 1` trong MỘT câu
     /// `DELETE` là cách SQLite tự trả về đúng phân biệt đó qua số hàng bị đổi — không cần một
     /// `SELECT` kiểm trước rồi `DELETE` sau (cửa sổ đua giữa hai câu).
-    pub fn forget_orphan(&self, work_id: &str) -> Result<(), IndexError> {
+    pub fn forget_orphan(&self, work_id: &str) -> Result<Vec<IndexedWork>, IndexError> {
+        // 🔵 THÊM (2026-08-27, vòng rà THỨ HAI P3) — cùng khoá với `rebuild`, xem lý do ở
+        // khối 🔴 ngay trên.
+        let _guard = self
+            .rebuild_lock
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
         let owned = work_id.to_owned();
         let deleted = self.store.write(move |tx: &Transaction<'_>| {
             tx.execute(
@@ -363,7 +391,8 @@ impl Indexer {
                 work_id: work_id.to_owned(),
             });
         }
-        Ok(())
+
+        Ok(self.list_rows("WHERE orphaned = 1")?)
     }
 }
 
@@ -527,11 +556,27 @@ pub struct RebuildOutcome {
     /// ứng dụng hiểu. Các Tác phẩm còn lại vẫn vào chỉ mục bình thường.
     pub skipped: Vec<SkippedEntry>,
     /// **THÊM Story 5.3.** Số hàng vừa CHUYỂN sang `orphaned = 1` ở lượt này — không phải
-    /// tổng số hàng mồ côi hiện có (đó là `Indexer::list_orphans().len()`). `0` là bình
+    /// tổng số hàng mồ côi hiện có (đó là [`Self::current_orphans`]`.len()`). `0` là bình
     /// thường (mọi hàng đã ở đúng vị trí, hoặc đây là lượt quét đầu tiên trên một chỉ mục
     /// rỗng); khác `root_missing`, một `orphans > 0` không tự nó là một lỗi — nó là bằng
     /// chứng đối chiếu đang hoạt động.
     pub orphans: usize,
+    /// 🔵 **THÊM (2026-08-27, vòng rà THỨ HAI P3)** — ảnh chụp TOÀN BỘ hàng mồ côi hiện có,
+    /// lấy TRONG cùng phạm vi đã khoá bởi `rebuild_lock` — KHÔNG phải một lượt
+    /// `list_orphans()` riêng gọi SAU khi hàm này đã trả về.
+    ///
+    /// ─────────────────────────────────────────────────────────────────────────
+    /// 🔴 VÌ SAO — BA PHÁT HIỆN, MỘT GỐC
+    /// ─────────────────────────────────────────────────────────────────────────
+    /// Trước bản vá, `commands::library::rescan` gọi `rebuild()` (có khoá) RỒI
+    /// `list_orphans()` (KHÔNG khoá) như hai lời gọi tách rời. Một lượt `rebuild`/
+    /// `forget_orphan` khác chen vào đúng khe hở giữa hai lời gọi đó làm `orphans` trên dây
+    /// phản ánh một THẾ HỆ KHÁC với `indexed`/`conflicts`/`skipped` trong CÙNG một báo cáo —
+    /// ngược đúng lời hứa của doc-comment `RescanReport` ("một lượt gọi là đủ cho cả màn
+    /// hình"). Trường này đóng lỗ đó: nó được đọc trong khi `_guard` (khoá `rebuild_lock`)
+    /// còn sống, nên không lượt `rebuild`/`forget_orphan` nào khác có thể chen vào giữa lúc
+    /// giao dịch vừa commit và lúc ảnh chụp này được chụp.
+    pub current_orphans: Vec<IndexedWork>,
 }
 
 impl RebuildOutcome {

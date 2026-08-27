@@ -247,7 +247,8 @@ fn every_library_command_reports_a_missing_indexer_instead_of_panicking() {
     let rescan_err = rescan(None, &root).expect_err("không có Indexer thì không quét được");
     assert_eq!(rescan_err.code(), "library.indexer_missing");
 
-    let forget_err = forget_orphan(None, "id-bat-ky").expect_err("không có Indexer thì không gỡ được");
+    let forget_err =
+        forget_orphan(None, "id-bat-ky", "Ten bat ky").expect_err("không có Indexer thì không gỡ được");
     assert_eq!(forget_err.code(), "library.indexer_missing");
 
     let choose_err = apply_chosen_root(Some(&global), None, Some(&dir))
@@ -323,9 +324,13 @@ fn forget_orphan_at_the_command_layer_carries_the_right_code_and_work_id_param_f
     let indexer = open_indexer(&dir);
     rescan(Some(&indexer), &root).expect("rescan");
 
-    let err = forget_orphan(Some(&indexer), "id-alive").expect_err("hàng đang sống phải bị từ chối");
+    let err = forget_orphan(Some(&indexer), "id-alive", "Alive")
+        .expect_err("hàng đang sống phải bị từ chối");
     assert_eq!(err.code(), "library.not_orphaned");
     assert_eq!(err.params().get("work_id").map(String::as_str), Some("id-alive"));
+    // P9 (vòng rà THỨ HAI) -- `name` do CHỖ GỌI truyền vào phải có mặt trong `params`, không
+    // chỉ `work_id` (một UUID trần không phải thứ người dùng nhận ra).
+    assert_eq!(err.params().get("name").map(String::as_str), Some("Alive"));
 
     drop(indexer);
     cleanup(&dir);
@@ -342,10 +347,44 @@ fn forget_orphan_at_the_command_layer_carries_the_right_code_and_work_id_param_f
     let indexer = open_indexer(&dir);
     rescan(Some(&indexer), &root).expect("rescan");
 
-    let err = forget_orphan(Some(&indexer), "id-la-mot-cai-ten-la")
+    let err = forget_orphan(Some(&indexer), "id-la-mot-cai-ten-la", "Ten hien thi luc bam nut")
         .expect_err("work_id lạ phải bị từ chối");
     assert_eq!(err.code(), "library.not_orphaned");
     assert_eq!(err.params().get("work_id").map(String::as_str), Some("id-la-mot-cai-ten-la"));
+    assert_eq!(
+        err.params().get("name").map(String::as_str),
+        Some("Ten hien thi luc bam nut"),
+        "ca work_id LA cung phai mang dung `name` da truyen vao -- khong roi mat no"
+    );
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// P11 (vòng rà THỨ HAI, 2026-08-27) — `apply_chosen_root` với `store: None` không ca nào
+// chạm, dù doc-comment của nó khai nhánh "ghi cấu hình trượt ⇒ lỗi kho".
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// `store = None` ⇒ `put_config` bên trong `apply_chosen_root` phải trả lỗi *mở kho* (đi qua
+/// `commands::config::put_config` ⇒ `store_is_missing()`), KHÔNG panic và KHÔNG âm thầm bỏ
+/// qua bước ghi cấu hình. Đường dẫn được chọn hợp lệ (một thư mục có thật) để ca này chỉ đo
+/// đúng MỘT biến — sự vắng mặt của `Store` — không lẫn với ca "đường dẫn không phải thư mục".
+#[test]
+fn choosing_a_root_with_no_global_store_reports_a_store_error_instead_of_silently_skipping_the_write() {
+    let dir = temp_dir("choose-root-no-store");
+    let chosen = dir.join("chosen-root");
+    fs::create_dir_all(&chosen).expect("tạo gốc mới");
+
+    let indexer = open_indexer(&dir);
+
+    let err = apply_chosen_root(None, Some(&indexer), Some(&chosen))
+        .expect_err("Store vắng mặt phải là một lỗi, không phải một lượt bỏ qua im lặng");
+    assert_eq!(
+        err.code(),
+        "store.open_failed",
+        "phải đi qua `commands::config::put_config` -- cùng khoá mà mọi lệnh ghi AppConfig khác dùng khi Store vắng mặt"
+    );
 
     drop(indexer);
     cleanup(&dir);
