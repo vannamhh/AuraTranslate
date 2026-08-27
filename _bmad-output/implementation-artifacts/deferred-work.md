@@ -7974,3 +7974,31 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     dụng, đúng thứ khó phát hiện nhất. Không cổng nào đếm lại các sàn này.
     **(Chủ: một story hạ tầng cổng — quyết định giữa (a) đo lại và nâng cả bảy sàn một lượt, hay
     (b) dựng một phép kiểm tính tỉ lệ sàn/quần thể thật và đỏ khi tỉ lệ tụt dưới ~70%.)**
+
+## Deferred from: 5-1-mo-hinh-library-hai-tang (2026-08-27)
+
+- source_spec: `_bmad-output/implementation-artifacts/5-1-mo-hinh-library-hai-tang.md`
+  summary: **`work` không mang cột `cover`/ảnh bìa** — Story 5.1 §Never cấm tường minh thêm nó
+    hôm nay: 0 lần xuất hiện của `cover` trong toàn bộ `src-tauri/src` + `src`, và không đường
+    sản phẩm nào ghi hay đọc nó. Thêm cột + bump `META_SCHEMA_VERSION` 1→2 cho một tính năng
+    chưa tồn tại là đúng thứ Story 1.7 §Completion Notes #3 cấm.
+  evidence: Epic 5 §Requirements ghi *"Mỗi Tác phẩm mang tên, bìa (tuỳ chọn), ngôn ngữ nguồn…"*,
+    và Story 5.6 (lưới Tác phẩm) là nơi bìa LẦN ĐẦU được nhìn thấy — trước đó không màn hình
+    nào đọc nó nên không có gì để nghiệm thu ngoài một cột nằm im.
+    **(Chủ: Story 5.6 — thêm cột `cover` + di trú `META_SCHEMA_VERSION` 1→2 CÙNG LƯỢT với màn
+    hình lưới Tác phẩm đọc nó lần đầu.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/5-1-mo-hinh-library-hai-tang.md`
+  summary: **`work.updated_at` không bao giờ sống** — ghi đúng một lần lúc `INSERT`
+    (`commands/project.rs`, câu `INSERT INTO work`) và không câu `UPDATE` nào trong toàn kho
+    chạm cột này. Một Tác phẩm dịch xong mười Chương vẫn đọc `updated_at` bằng đúng thời điểm
+    tạo — cột nói dối theo đúng nghĩa đen ngay khi có UI nào đọc nó.
+  evidence: Story 5.2 (Indexer) là nơi "sắp xếp theo ngày sửa" lần đầu làm lời khai đó lộ ra —
+    `library-index.db` cần một mốc thời gian sửa THẬT để sắp xếp/lọc Tác phẩm, và Indexer là
+    thành phần duy nhất được phép ghi dẫn xuất, nên nó cũng là nơi tự nhiên quyết định
+    `work.updated_at` sống bằng cách nào (mỗi lượt ghi `chapter`/`segment`, hay suy ra lúc quét).
+    **(Chủ: Story 5.2 — quyết định cơ chế làm `work.updated_at` sống, kèm test hợp đồng.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/5-1-mo-hinh-library-hai-tang.md`
+  summary: 22 cảnh báo `cargo clippy --all-targets` có sẵn ở bảy tệp, chưa có chủ — và `-D warnings` chỉ phơi ra 8 trong số đó.
+  evidence: `-D warnings` dừng ngay ở crate lib nên KHÔNG bao giờ chạm tới target test — chạy `cargo clippy --all-targets` trần mới thấy đủ: `tests/segment_contract.rs` 12 · `commands/pinned.rs` 3 · `tests/ai_boundary.rs` 2 · `commands/glossary.rs` 2 · `core/scope/resolve.rs` 1 · `core/scope/mod.rs` 1 · `core/glossary/exchange.rs` 1. Tám cái ở tầng lib đo tại baseline `7d1165f` trước mọi thay đổi của story — `useless_conversion` (`commands/glossary.rs:1316,1393`), `redundant_closure` (`commands/pinned.rs:116,164,197`), `redundant_guards` (`core/glossary/exchange.rs:945`), `type_complexity` (`core/scope/resolve.rs:198`, `core/scope/mod.rs:335`). Story 5.1 KHÔNG đẻ thêm cảnh báo nào: `segment_contract.rs` là tệp story có sửa và mang 3 cảnh báo `err_expect`, nhưng ở dòng 1755/3857/3863 — story chỉ sửa 1965/2072/2972/3484/3501/3859/4030/6280/6284, không dòng nào trùng; `ai_boundary.rs` không nằm trong diff. Đáng ghi vì `clippy` KHÔNG phải cổng của kho — chuỗi `cargo clippy` không xuất hiện trong `.github/workflows/ci.yml`, `package.json`, hay `scripts/` — nên nợ này không có đường nào tự lộ ra, và nó đã âm thầm làm một dòng `expected: không cảnh báo` trong §Verification của Story 5.1 thành kỳ vọng không bao giờ đạt được.

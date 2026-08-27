@@ -18,7 +18,7 @@
 
 use std::path::{Path, PathBuf};
 
-use super::ProjectError;
+use super::WorkError;
 
 /// Thư mục con chứa ảnh — Epic 6 ghi vào đây; story này chỉ đảm bảo nó tồn tại.
 const ASSETS_DIR: &str = "assets";
@@ -157,14 +157,14 @@ pub fn sanitize_name(name: &str) -> String {
 /// ở mọi đường ghi ảnh.
 ///
 /// # Lỗi
-/// [`ProjectError::CreateFailed`] nếu I/O trượt (quyền, đĩa đầy, tên quá dài) hoặc nếu cả
+/// [`WorkError::CreateFailed`] nếu I/O trượt (quyền, đĩa đầy, tên quá dài) hoặc nếu cả
 /// [`MAX_NAME_ATTEMPTS`] hậu tố đều đã bị chiếm.
-pub fn create_work_folder(root: &Path, name: &str) -> Result<PathBuf, ProjectError> {
+pub fn create_work_folder(root: &Path, name: &str) -> Result<PathBuf, WorkError> {
     let base = sanitize_name(name);
 
     // Thư mục gốc chứa các `.atproj` có thể chưa tồn tại (lần chạy đầu tiên). Bước này
     // KHÔNG phải bước tạo độc quyền — nó tạo thư mục CHA, không phải Tác phẩm.
-    std::fs::create_dir_all(root).map_err(|e| ProjectError::CreateFailed {
+    std::fs::create_dir_all(root).map_err(|e| WorkError::CreateFailed {
         detail: format!("create root {}: {e}", root.display()),
     })?;
 
@@ -182,7 +182,7 @@ pub fn create_work_folder(root: &Path, name: &str) -> Result<PathBuf, ProjectErr
                 // `assets/` trượt là đúng, không đụng dữ liệu của ai khác.
                 if let Err(e) = std::fs::create_dir(dir.join(ASSETS_DIR)) {
                     remove_folder(&dir);
-                    return Err(ProjectError::CreateFailed {
+                    return Err(WorkError::CreateFailed {
                         detail: format!("create {}/{ASSETS_DIR}: {e}", dir.display()),
                     });
                 }
@@ -190,14 +190,14 @@ pub fn create_work_folder(root: &Path, name: &str) -> Result<PathBuf, ProjectErr
             }
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
             Err(e) => {
-                return Err(ProjectError::CreateFailed {
+                return Err(WorkError::CreateFailed {
                     detail: format!("create {}: {e}", dir.display()),
                 });
             }
         }
     }
 
-    Err(ProjectError::CreateFailed {
+    Err(WorkError::CreateFailed {
         detail: format!("all {MAX_NAME_ATTEMPTS} name attempts for {base:?} are taken"),
     })
 }

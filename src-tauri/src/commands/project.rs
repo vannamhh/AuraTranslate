@@ -118,7 +118,7 @@ pub fn default_library_root(app: &tauri::AppHandle) -> Result<PathBuf, IpcError>
     }
 
     let documents = app.path().document_dir().map_err(|e| {
-        crate::core::library::ProjectError::CreateFailed {
+        crate::core::library::WorkError::CreateFailed {
             detail: format!("resolve document_dir: {e}"),
         }
     })?;
@@ -246,7 +246,7 @@ pub fn create_work(
         );
         store.close();
         remove_folder(&dir);
-        return Err(crate::core::library::ProjectError::from(err).into());
+        return Err(crate::core::library::WorkError::from(err).into());
     }
 
     let scope = crate::core::scope::ScopeResolver::with_work(crate::core::scope::WorkScope {

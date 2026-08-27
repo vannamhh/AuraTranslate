@@ -38,7 +38,7 @@ Không gian làm việc tra từ điển và dịch thuật, chạy hoàn toàn 
 - Mệnh đề hết đúng thì SỬA TẠI CHỖ kèm 🔵 và ngày; đừng xoá, và đừng để nó lặng lẽ sai.
 - Ký hiệu: 🔴 luật không được phá · ⚠️ bẫy hoặc giới hạn · ✅ đã đóng · 🟡 đóng một nửa · 🔵 cập nhật, mệnh đề cũ hết đúng · ⇒ kết luận. Emoji `U+26D4` bị cấm toàn kho — viết `không`/`KHÔNG` thành chữ. Đừng đúc một ký hiệu mới cho một quy ước mới; viết thành chữ.
 - Commit: `type(scope): câu tiếng Việt`, và câu đó nói ĐIỀU ĐÃ TÌM RA, không chỉ điều đã sửa.
-- Thuật ngữ cố định trong mã: Tác phẩm→`Work` · Chương→`Chapter` · Chế độ đọc→`ReadingMode` · Hán Việt→`HanViet` · lớp nền/gỡ rời→`BaseLayer`/`DetachableLayer`. Cấm `Project`/`Book`/`Novel`/`Document` cho `Work` — `StoreKind::Project` và `ProjectStore` đặt tên cho KHO `.atproj`, không cho thực thể. Không cổng nào canh luật này.
+- Thuật ngữ cố định trong mã: Tác phẩm→`Work` · Chương→`Chapter` · Chế độ đọc→`ReadingMode` · Hán Việt→`HanViet` · lớp nền/gỡ rời→`BaseLayer`/`DetachableLayer`. Cấm `Project`/`Book`/`Novel`/`Document` cho `Work`. Miễn trừ đủ tám mục, tất cả đặt tên cho KHO chứ không cho thực thể: `.atproj` · `project.db` · `StoreKind::Project` · `ProjectStore` · `PROJECT_MIGRATIONS` · `commands/project.rs` · `ports/project_store.rs` · `tests/project_contract.rs`. Cổng canh luật này: `src-tauri/tests/naming_boundary.rs` (Story 5.1) — danh sách ở đây và mảng `STORE_EXEMPT` trong cổng phải khớp nhau từng mục.
 - Sổ nợ đóng bằng chữ, ba cách: `→ ✅ ĐÃ ĐÓNG <ngày> (Story x.y)` · `→ 🟡` kèm phần còn hở · `→ KHÔNG LÀM <ngày> (Story x.y) — <lý do>`, lý do phải nói ĐIỀU GÌ ĐÃ ĐỔI. Không bao giờ xoá một mục đã đóng.
 - Năng lực chưa dựng ≠ lệch spec. Đừng sửa `epics.md`/`prd.md` cho khớp mã đã viết — ghi một món nợ có chủ.
 

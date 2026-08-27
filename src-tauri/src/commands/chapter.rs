@@ -47,7 +47,7 @@ pub struct OpenChapter {
 
 /// Tác phẩm đang mở ⇒ lỗi *chưa mở Tác phẩm nào*, và đó là câu đúng theo nghĩa đen.
 ///
-/// Đi qua `IpcError::new` với `MessageKey::ProjectNoWorkOpen` — không phải một lỗi kho
+/// Đi qua `IpcError::new` với `MessageKey::WorkNoneOpen` — không phải một lỗi kho
 /// (`StoreError`), nên nó không thuộc từ vựng `store.*` (§Quyết định của Story 1.16).
 ///
 /// ⚠️ Riêng tư trở lại từ 2026-08-11: Story 1.20 từng nâng nó lên `pub(crate)` để
@@ -62,8 +62,8 @@ pub struct OpenChapter {
 /// kỷ luật.
 pub(crate) fn no_work_open() -> IpcError {
     IpcError::new(
-        "project.no_work_open",
-        MessageKey::ProjectNoWorkOpen,
+        "work.none_open",
+        MessageKey::WorkNoneOpen,
         std::collections::BTreeMap::new(),
         false,
     )

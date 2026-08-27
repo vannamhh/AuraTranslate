@@ -30,7 +30,7 @@ use crate::core::i18n::{IpcError, MessageKey};
 /// lỗi command đều từ từ vựng kho" một cách có ý thức (xem `tests/scope_contract.rs` và
 /// Completion Notes của story).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ProjectError {
+pub enum WorkError {
     /// Không dựng được `<Tên>.atproj/` trên đĩa — quyền, tên trùng, hoặc I/O khác.
     CreateFailed {
         /// Lỗi thô, chỉ để chẩn đoán.
@@ -49,27 +49,27 @@ pub enum ProjectError {
 // nguyên văn. 🔴 **Story nào dựng đường mở lại `.atproj` (ứng viên: Epic 5, lưới Tác phẩm)
 // sở hữu việc thêm lại biến thể này + `MessageKey` + khoá `vi.json` CÙNG MỘT LƯỢT.**
 
-impl std::fmt::Display for ProjectError {
+impl std::fmt::Display for WorkError {
     /// ⚠️ KHÔNG DẤU — chẩn đoán cho log (NFR16).
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ProjectError::CreateFailed { detail } => {
-                write!(f, "project create failed: {detail}")
+            WorkError::CreateFailed { detail } => {
+                write!(f, "work create failed: {detail}")
             }
         }
     }
 }
 
-impl std::error::Error for ProjectError {}
+impl std::error::Error for WorkError {}
 
-impl From<MetaError> for ProjectError {
+impl From<MetaError> for WorkError {
     fn from(err: MetaError) -> Self {
         match err {
-            MetaError::Io { detail, .. } => ProjectError::CreateFailed { detail },
+            MetaError::Io { detail, .. } => WorkError::CreateFailed { detail },
             // ⚠️ Gộp vào `CreateFailed` **có chủ ý** — hai con số giữ lại trong chuỗi chẩn
             // đoán, không mất. Xem khối comment ở trên về vì sao không có một hạng
             // lỗi hiển thị riêng cho ca này hôm nay.
-            MetaError::SchemaTooNew { found, supported } => ProjectError::CreateFailed {
+            MetaError::SchemaTooNew { found, supported } => WorkError::CreateFailed {
                 detail: format!("meta schema {found} is newer than supported {supported}"),
             },
         }
@@ -78,13 +78,13 @@ impl From<MetaError> for ProjectError {
 
 /// 🔴 Đi qua [`IpcError::new`], không dựng struct literal — cùng luật với
 /// `From<StoreError> for IpcError`.
-impl From<ProjectError> for IpcError {
-    fn from(err: ProjectError) -> Self {
+impl From<WorkError> for IpcError {
+    fn from(err: WorkError) -> Self {
         use std::collections::BTreeMap;
 
         match err {
-            ProjectError::CreateFailed { .. } => {
-                IpcError::new("project.create_failed", MessageKey::ProjectCreateFailed, BTreeMap::new(), false)
+            WorkError::CreateFailed { .. } => {
+                IpcError::new("work.create_failed", MessageKey::WorkCreateFailed, BTreeMap::new(), false)
             }
         }
     }

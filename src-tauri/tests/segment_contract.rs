@@ -1962,8 +1962,8 @@ fn a_chapter_with_no_segments_still_creates_a_work() {
 #[test]
 fn splitting_without_an_open_work_is_refused() {
     let err = split_chapter_into_segments(None, 1).expect_err("phai tu choi khi chua mo Tac pham");
-    assert_eq!(err.code(), "project.no_work_open");
-    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+    assert_eq!(err.code(), "work.none_open");
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 }
 
 #[test]
@@ -2069,8 +2069,8 @@ fn an_explicit_split_lays_down_segments_for_an_old_chapter() {
 #[test]
 fn loading_segments_without_an_open_work_is_refused() {
     let err = read_open_chapter_segments(None).expect_err("phai tu choi khi chua mo Tac pham");
-    assert_eq!(err.code(), "project.no_work_open");
-    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+    assert_eq!(err.code(), "work.none_open");
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 }
 
 /// Lượt nạp trả **đúng** các hàng đã ghi, **theo `ord`**, kèm cờ kết đoạn đã lưu.
@@ -2969,7 +2969,7 @@ fn every_refusal_of_confirm_carries_its_own_message_key_and_writes_nothing() {
     // ① Chua Tac pham nao mo.
     assert_eq!(
         confirm_segment(None, id, "").expect_err("phai tu choi").message_key(),
-        MessageKey::ProjectNoWorkOpen
+        MessageKey::WorkNoneOpen
     );
 
     // ② `segment.id` khong ton tai.
@@ -3481,7 +3481,7 @@ fn setting_the_omitted_flag_to_the_value_it_already_has_writes_nothing() {
 /// **Ba lối từ chối, và cả ba PHÂN BIỆT ĐƯỢC** — *"Rỗng IM LẶNG bị cấm"*.
 ///
 /// ⚠️ Không khoá `err.segment.*` **mới** nào được thêm cho story này: ba nhánh từ chối ở
-/// đây đã có khoá riêng từ Story 2.5 *(`ProjectNoWorkOpen` · `SegmentNotFound` ·
+/// đây đã có khoá riêng từ Story 2.5 *(`WorkNoneOpen` · `SegmentNotFound` ·
 /// `SegmentRetired`)*, và không nhánh nào của cắt bỏ là một lý do từ chối **mới**. Một khoá
 /// thứ tư nói cùng một điều là một danh mục đóng bị nới không lý do.
 #[test]
@@ -3498,7 +3498,7 @@ fn every_refusal_of_omitting_carries_its_own_message_key_and_writes_nothing() {
         set_segment_omitted(None, id, true)
             .expect_err("phai tu choi")
             .message_key(),
-        MessageKey::ProjectNoWorkOpen
+        MessageKey::WorkNoneOpen
     );
 
     // ② `segment.id` khong ton tai.
@@ -3856,7 +3856,7 @@ fn every_refusal_of_the_target_paragraph_command_carries_its_own_message_key() {
     let err = set_segment_paragraph_end(None, 1, true)
         .err()
         .expect("khong co Tac pham nao mo PHAI bi tu choi");
-    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 
     // ② Segment khong ton tai.
     let err = set_segment_paragraph_end(Some(&opened), 9_999_999, true)
@@ -4027,8 +4027,8 @@ fn typed_text_round_trips_through_the_flush_and_the_load_command() {
 fn saving_without_an_open_work_is_refused() {
     let err = save_segment_targets(None, 1, &[edit(1, "gi cung duoc")])
         .expect_err("ghi ma chua mo Tac pham phai bi tu choi");
-    assert_eq!(err.code(), "project.no_work_open");
-    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+    assert_eq!(err.code(), "work.none_open");
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 }
 
 #[test]
@@ -6277,11 +6277,11 @@ fn every_refusal_of_merge_and_split_carries_its_own_message_key() {
     // ① Chua Tac pham nao mo.
     assert_eq!(
         merge_segments(None, 1).unwrap_err().code(),
-        "project.no_work_open"
+        "work.none_open"
     );
     assert_eq!(
         split_segment(None, 1, vec![1]).unwrap_err().code(),
-        "project.no_work_open"
+        "work.none_open"
     );
 
     // ② `segment_id` khong co.

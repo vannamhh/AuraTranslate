@@ -525,7 +525,7 @@ export async function saveSegmentTargets(
  * `segmentId`. Đây là chỗ duy nhất trong kho gõ cái tên đó.
  *
  * ⚠️ Bốn lối từ chối đều **phân biệt được** bằng `message_key` (AC14) — `err.segment.*`:
- * `not_found` · `retired` · `nothing_to_confirm`, cộng `err.project.no_work_open`. Chỗ gọi
+ * `not_found` · `retired` · `nothing_to_confirm`, cộng `err.work.none_open`. Chỗ gọi
  * **không** được đoán lại lý do từ chuỗi.
  *
  * ─────────────────────────────────────────────────────────────────────────────
@@ -591,7 +591,7 @@ export async function confirmSegment(
  * bình thường sau đó và ghi đè đúng chỗ của nó.
  *
  * ⚠️ Ba lối từ chối đều **phân biệt được** bằng `message_key`: `err.segment.not_found` ·
- * `err.segment.retired` · `err.project.no_work_open`. Chỗ gọi **không** được đoán lại lý do
+ * `err.segment.retired` · `err.work.none_open`. Chỗ gọi **không** được đoán lại lý do
  * từ chuỗi.
  */
 export async function setSegmentOmitted(
@@ -630,7 +630,7 @@ export async function setSegmentOmitted(
  * chỗ dễ sai nhất trên dây.
  *
  * ⚠️ Ba lối từ chối đều **phân biệt được** bằng `message_key`: `err.segment.not_found` ·
- * `err.segment.retired` · `err.project.no_work_open`. Chỗ gọi **không** được đoán lại lý do
+ * `err.segment.retired` · `err.work.none_open`. Chỗ gọi **không** được đoán lại lý do
  * từ chuỗi.
  */
 export async function setSegmentParagraphEnd(

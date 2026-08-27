@@ -13,6 +13,7 @@
 //! ⚠️ `Store::write` nhận một closure lấy `&Transaction` — kiểu tái xuất từ `core::store` —
 //! nên các ca dưới đây thao tác thẳng `work`/`chapter` mà không gõ tên crate SQLite.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -23,6 +24,7 @@ use auratranslate_lib::commands::chapter::{
 use auratranslate_lib::commands::project::{create_work_from_file, create_work_from_text};
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
+use auratranslate_lib::core::scope::{ScopeResolver, Tier, WorkScope};
 use auratranslate_lib::core::segment::import::{import_file, import_text};
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
 use uuid::Uuid;
@@ -582,8 +584,8 @@ fn a_folder_name_survives_both_platforms_rules() {
 fn reading_the_open_chapter_without_a_work_open_is_a_named_error() {
     let err = read_open_chapter(None).expect_err("chua Tac pham nao mo phai la mot loi");
 
-    assert_eq!(err.code(), "project.no_work_open");
-    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+    assert_eq!(err.code(), "work.none_open");
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
     assert!(!err.retryable(), "khong Tac pham nao mo khong phai mot loi tam thoi");
     assert!(
         err.params().is_empty(),
@@ -866,8 +868,8 @@ fn switching_chapters_without_a_work_open_reuses_the_named_error() {
     let err = open_adjacent_chapter(None, ChapterDirection::Next)
         .expect_err("chua Tac pham nao mo phai la mot loi");
 
-    assert_eq!(err.code(), "project.no_work_open");
-    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+    assert_eq!(err.code(), "work.none_open");
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
     assert!(!err.retryable());
 }
 
@@ -913,4 +915,491 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
     let dir = opened.dir.clone();
     drop(opened);
     cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.1 — ba mệnh đề của Epic 5 §Requirements chỉ sống trong chú thích trước story
+// này: không có thực thể tầng thứ ba, `source_lang` bất biến, Glossary/TM phân giải ở
+// `Tier::Work`. `naming_boundary.rs` cưỡng chế QUY ƯỚC ĐẶT TÊN (tĩnh trên cây nguồn); ba ca
+// dưới đây cưỡng chế HÌNH DẠNG DỮ LIỆU và HÀNH VI LÚC CHẠY — trộn hai thứ vào một tệp là
+// làm hỏng đúng thứ khiến cả hai đọc được (xem doc-comment đầu `naming_boundary.rs`).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Mọi bảng KHÔNG PHẢI thực thể tầng — chi tiết/thuộc tính gắn theo `chapter`/`work`
+/// (`segment`/`segment_version`, `glossary_entry`/`glossary_candidate`), sổ sách nội bộ của
+/// chính cơ chế di trú (`schema_migration_log`), hoặc do SQLite tự sinh
+/// (`sqlite_sequence`, mọi bảng dùng `AUTOINCREMENT`).
+const NON_ENTITY_DETAIL_TABLES: [&str; 6] = [
+    "glossary_candidate",
+    "glossary_entry",
+    "schema_migration_log",
+    "segment",
+    "segment_version",
+    "sqlite_sequence",
+];
+
+/// **Hàm thuần** — lọc `tables` qua [`NON_ENTITY_DETAIL_TABLES`]. Tách khỏi thân test để
+/// [`the_entity_table_check_would_actually_flag_a_seeded_third_tier_table`] gọi được trên
+/// một danh sách DỰNG TAY, không cần mở `Store` — cùng khuôn đối chứng dương mà
+/// `the_update_source_lang_check_would_actually_flag_a_seeded_violation` đã dùng cho vế
+/// `source_lang`.
+fn entity_tables(tables: &[String]) -> Vec<String> {
+    tables.iter().filter(|t| !NON_ENTITY_DETAIL_TABLES.contains(&t.as_str())).cloned().collect()
+}
+
+/// 🔴 **Story 5.1** — `project.db` không mang một bảng THỰC THỂ nào giữa `work` và
+/// `chapter`. AD-9/Story 1.15 nói mô hình là hai tầng, đúng hai: một tài liệu đơn lẻ là một
+/// Tác phẩm có đúng một Chương, không một cấp trung gian (`volume`/`book`/`series`, …).
+///
+/// Một bảng MỚI xuất hiện ngoài [`NON_ENTITY_DETAIL_TABLES`] bắt ca dưới đây đỏ — đọc lý do
+/// bảng đó tồn tại trước khi thêm nó vào miễn trừ: nếu nó là một CONTAINER giữa Work và
+/// Chapter, đó là vi phạm AD-9 thật và là quyết định phạm vi của Ice, không phải một lượt vá
+/// tiện tay.
+#[test]
+fn project_db_has_no_entity_table_between_work_and_chapter() {
+    let root = temp_dir("no-third-tier");
+
+    let opened = create_work_from_text(&root, "Ba Tang", "zh", "", "noi dung".to_owned())
+        .expect("tao tac pham that bai");
+
+    let tables: Vec<String> = opened
+        .store
+        .read(|conn| {
+            let mut stmt =
+                conn.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")?;
+            let mut rows = stmt.query([])?;
+            let mut out = Vec::new();
+            while let Some(row) = rows.next()? {
+                out.push(row.get::<_, String>(0)?);
+            }
+            Ok(out)
+        })
+        .expect("doc danh sach bang cua project.db that bai");
+
+    assert_eq!(
+        entity_tables(&tables),
+        vec!["chapter".to_owned(), "work".to_owned()],
+        "project.db mang mot bang THUC THE ngoai `work`/`chapter`: toan bo bang tim thay la \
+         {tables:?}. Neu day la mot chi tiet hop le (nhu segment/glossary), them vao \
+         NON_ENTITY_DETAIL_TABLES kem ly do tai sao no khong phai mot container. Neu day la \
+         mot thuc the tang THU BA giua Work va Chapter -- DUNG LAI, day la vi pham AD-9 that \
+         va la quyet dinh pham vi cua Ice."
+    );
+
+    drop(opened.store);
+    cleanup(&root);
+}
+
+/// 🔴 **Vòng rà đối kháng — P8.** Ca trên chỉ đối chiếu `sqlite_master` THẬT với một danh
+/// sách cứng — không có gì chứng minh vị từ [`entity_tables`] thật sự BẮT được một bảng thực
+/// thể tầng ba nếu nó xuất hiện. Ca này gieo tay một bảng `volume` (container giả định giữa
+/// Work và Chapter) vào một danh sách bảng dựng tay, độc lập với `project.db` hôm nay có gì.
+#[test]
+fn the_entity_table_check_would_actually_flag_a_seeded_third_tier_table() {
+    let seeded_tables: Vec<String> = [
+        "chapter",
+        "glossary_candidate",
+        "glossary_entry",
+        "schema_migration_log",
+        "segment",
+        "segment_version",
+        "sqlite_sequence",
+        "volume", // <- gieo: mot container tang BA dung tay, giua Work va Chapter
+        "work",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect();
+
+    let entities = entity_tables(&seeded_tables);
+
+    assert_eq!(
+        entities,
+        vec!["chapter".to_owned(), "volume".to_owned(), "work".to_owned()],
+        "ca DUONG THAT: mot bang `volume` gieo tay phai lot qua bo loc \
+         NON_ENTITY_DETAIL_TABLES va bi vi tu bat, nhung entity_tables tra ve {entities:?}"
+    );
+}
+
+/// Đường dẫn dựa trên `CARGO_MANIFEST_DIR` — không đi qua `naming_boundary.rs` (tệp đó KHÔNG
+/// canh mệnh đề nào về `source_lang`; xem phân công ở đầu §Story 5.1 của tệp này) nên walk
+/// cây nguồn được viết lại cục bộ, tối giản, đúng khuôn mọi `*_boundary.rs` khác.
+fn walk_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("doc thu muc {}: {e}", dir.display()));
+    for entry in entries {
+        // 🔵 VA (vong ra doi khang) — ban truoc `entries.flatten()` NUOT mot `DirEntry` loi va
+        // BO QUA IM LANG ca tep do, lam phep quet hut ma khong co tin hieu nao. Mot phep kiem
+        // "cay rong doc thanh sach" khong dong duoc gi neu tung ENTRY co the tu lang le bien mat.
+        let entry = entry.unwrap_or_else(|e| panic!("doc mot muc trong {}: {e}", dir.display()));
+        let path = entry.path();
+        let meta = fs::symlink_metadata(&path)
+            .unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
+        if meta.file_type().is_symlink() {
+            continue;
+        }
+        if meta.is_dir() {
+            walk_rs_files(&path, out);
+        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+            out.push(path);
+        }
+    }
+}
+
+/// Mọi chuỗi literal (`"..."`/`r"..."`/`r#"..."#`/`b"..."`) trong `text`, nối các đoạn bị cắt
+/// bởi `\` cuối dòng — đúng ngữ nghĩa nối chuỗi của Rust cho khuôn `"UPDATE segment SET ... \`
+/// xuống dòng `WHERE ..."` mà `core/store/schema.rs`/`commands/segment.rs` dùng khắp nơi.
+///
+/// 🔴 **VÁ (vòng rà đối kháng)** — bản trước có BA lỗ, cả ba cho XANH GIẢ:
+/// 1. **Ký tự literal chứa `"`** (`'"'`) làm một bộ tách chỉ phản ứng với `"` lệch pha: nó đọc
+///    `'` như một ký tự thường, rồi đọc `"` bên trong làm MỞ một chuỗi, và nuốt mọi thứ tới
+///    dấu `"` thật kế tiếp — có thể trôi qua nhiều dòng, làm mất đúng chuỗi SQL cần quét.
+/// 2. **Raw string** (`r"…"`/`r#"…"#`) không có escape `\` — bản trước xử `\` bên trong raw
+///    string như một escape THẬT, làm sai nội dung trích ra.
+/// 3. **Comment `//` được cắt Ở TẦNG DÒNG, trước khi hàm này chạy** (bản trước nhận `text` đã
+///    bị `no_update_statement_anywhere_touches_source_lang` xoá trắng mọi dòng bắt đầu bằng
+///    `//`): một dòng NỐI TIẾP của một chuỗi xuyên dòng (sau dấu `\` cuối dòng trước) mà tình
+///    cờ mở đầu bằng `//` (sau khi trim) bị xoá trắng NHƯ MỘT DÒNG COMMENT dù nó là NỘI DUNG
+///    CHUỖI — mất một phần literal mà không có dấu hiệu nào.
+///
+/// Sửa bằng MỘT bộ quét CÓ TRẠNG THÁI xuyên suốt `text` gốc (không tiền xử lý dòng trước):
+/// comment `//` chỉ bị cắt khi con trỏ đang Ở NGOÀI một chuỗi; ký tự literal (`'x'`, `'\n'`,
+/// `'\''`, `'\u{2019}'`, …) được nhận diện và NHẢY QUA nguyên khối, không để `"` bên trong nó
+/// mở nhầm một chuỗi; raw string được trích theo đúng số dấu `#` của chính nó, không xử `\`.
+///
+/// ⚠️ **GIỚI HẠN CÒN LẠI, ghi ra thay vì để người sau tự phát hiện** (đúng chuẩn mà
+/// `naming_boundary.rs` đã theo cho mọi vị từ quét tĩnh của nó):
+/// - **Không xử khối `/* … */`** — cùng lý do `naming_boundary.rs::the_rust_tree_still_has_zero_block_comments`
+///   đã đo và khoá lại: `src-tauri/src/**` có 0 khối comment C thật (đo 2026-08-27). Nếu số đó
+///   đổi, ca đó đỏ trước, không phải ca này đỏ oan hay bỏ sót.
+/// - **SQL ghép bằng `format!`/`concat!`/nối `String` lúc chạy nằm NGOÀI tầm quét**: đây là
+///   một bộ trích LITERAL TĨNH, không phải một trình thông dịch Rust. Một `UPDATE` chạm
+///   `source_lang` được LẮP RA từ nhiều mảnh literal rời (không mảnh nào tự nó mang cả hai từ
+///   khoá `UPDATE` và `source_lang`) sẽ không bị ca này bắt. Cả kho hôm nay không chỗ nào ghép
+///   SQL theo cách đó (mọi câu SQL trong `core/store/**`/`commands/**` là MỘT literal, nối
+///   bằng `\`-continuation) — nhưng đây là một giả định về HIỆN TRẠNG, không phải một bảo đảm
+///   của chính vị từ.
+fn rust_string_literals(text: &str) -> Vec<String> {
+    let chars: Vec<char> = text.chars().collect();
+    let n = chars.len();
+    let mut out = Vec::new();
+    let mut i = 0usize;
+
+    while i < n {
+        // Raw string (tuỳ chọn tiền tố `b`): `r"…"`, `r#"…"#`, `br"…"`, `br#"…"#`, …
+        if chars[i] == 'r' || (chars[i] == 'b' && chars.get(i + 1) == Some(&'r')) {
+            let r_at = if chars[i] == 'b' { i + 1 } else { i };
+            if chars.get(r_at) == Some(&'r') {
+                let mut k = r_at + 1;
+                let mut hashes = 0usize;
+                while chars.get(k) == Some(&'#') {
+                    hashes += 1;
+                    k += 1;
+                }
+                if chars.get(k) == Some(&'"') {
+                    let content_start = k + 1;
+                    let closing: Vec<char> =
+                        std::iter::once('"').chain(std::iter::repeat_n('#', hashes)).collect();
+                    let mut m = content_start;
+                    while m < n && chars[m..(m + closing.len()).min(n)] != closing[..] {
+                        m += 1;
+                    }
+                    out.push(chars[content_start..m].iter().collect());
+                    i = (m + closing.len()).min(n);
+                    continue;
+                }
+            }
+        }
+
+        // Ký tự literal — nhảy qua NGUYÊN KHỐI, không để `"` bên trong (vd. `'"'`) mở nhầm một
+        // chuỗi. Không khớp được (vd. dấu `'` mở đầu MỘT lifetime như `'a`) ⇒ coi là một ký tự
+        // thường, đi tiếp — lifetime không có `"` bên trong nên không có gì để lệch pha.
+        if chars[i] == '\'' {
+            if let Some(end) = char_literal_end(&chars, i) {
+                i = end;
+                continue;
+            }
+            i += 1;
+            continue;
+        }
+
+        // Comment dòng — CHỈ cắt khi đang NGOÀI một chuỗi (đúng vị trí trong vòng lặp này).
+        if chars[i] == '/' && chars.get(i + 1) == Some(&'/') {
+            while i < n && chars[i] != '\n' {
+                i += 1;
+            }
+            continue;
+        }
+
+        // Chuỗi thường — nối các đoạn bị cắt bởi `\` cuối dòng.
+        if chars[i] == '"' {
+            let mut j = i + 1;
+            let mut literal = String::new();
+            while j < n {
+                match chars[j] {
+                    '\\' => {
+                        j += 1;
+                        if j >= n {
+                            break;
+                        }
+                        if chars[j] == '\n' {
+                            j += 1;
+                            while j < n && matches!(chars[j], ' ' | '\t') {
+                                j += 1;
+                            }
+                        } else {
+                            literal.push(chars[j]);
+                            j += 1;
+                        }
+                    }
+                    '"' => {
+                        j += 1;
+                        break;
+                    }
+                    c => {
+                        literal.push(c);
+                        j += 1;
+                    }
+                }
+            }
+            out.push(literal);
+            i = j;
+            continue;
+        }
+
+        i += 1;
+    }
+
+    out
+}
+
+/// `chars[start] == '\''` — trả về chỉ số NGAY SAU dấu `'` đóng nếu đây đúng là một KÝ TỰ
+/// literal (`'x'`, `'\n'`, `'\''`, `'\u{2019}'`, …), hoặc `None` nếu không khớp hình dạng đó
+/// (nhiều khả năng nhất: một APOSTROPHE mở đầu LIFETIME, vd. `&'a str`, không có dấu đóng).
+fn char_literal_end(chars: &[char], start: usize) -> Option<usize> {
+    let n = chars.len();
+    let mut i = start + 1;
+    if i >= n {
+        return None;
+    }
+    if chars[i] == '\\' {
+        i += 1;
+        if i >= n {
+            return None;
+        }
+        if chars[i] == 'u' && chars.get(i + 1) == Some(&'{') {
+            i += 2;
+            while i < n && chars[i] != '}' {
+                i += 1;
+            }
+            if i >= n {
+                return None;
+            }
+            i += 1;
+        } else {
+            i += 1;
+        }
+    } else {
+        i += 1;
+    }
+    (chars.get(i) == Some(&'\'')).then_some(i + 1)
+}
+
+/// 🔴 **Story 5.1** — `work.source_lang` là bất biến (AD-18, AC1): *"ngôn ngữ nguồn được đặt
+/// lúc tạo và không đổi được về sau"*. `schema.rs` tự khai mệnh đề này bằng CHỮ ở doc-comment
+/// của `WORK_DDL` (*"bất biến này được cưỡng chế ở tầng ứng dụng… không có `UPDATE` nào chạm
+/// cột này"*) — ca này biến lời tự khai đó thành một phép đo: quét MỌI chuỗi SQL trong
+/// `src-tauri/src/**`, đòi không chuỗi nào vừa mang từ khoá `UPDATE` vừa nhắc `source_lang`.
+///
+/// ⚠️ Quét chuỗi literal, không quét theo TÊN BẢNG `work`: một `UPDATE` tương lai chạm cột
+/// khác của `work` (`name`, `genre`, …) là hợp lệ và không phải mệnh đề ca này canh — chỉ
+/// `source_lang` là bất biến, không phải cả hàng.
+#[test]
+fn no_update_statement_anywhere_touches_source_lang() {
+    let src_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut files = Vec::new();
+    walk_rs_files(&src_root, &mut files);
+
+    assert!(
+        files.len() >= 40,
+        "chi tim thay {} tep `.rs` duoi `src-tauri/src/**` -- cay qua nho de la that, nghi \
+         pham: goc quet sai",
+        files.len()
+    );
+
+    let mut violations: Vec<String> = Vec::new();
+    for file in &files {
+        let text = fs::read_to_string(file).unwrap_or_else(|e| panic!("doc {}: {e}", file.display()));
+
+        // ⚠️ `rust_string_literals` NHẬN VĂN BẢN GỐC, không một bản đã tiền xử lý xoá dòng
+        // `//` — chính hàm đó cắt comment CÓ TRẠNG THÁI (chỉ ngoài chuỗi). Tiền xử lý theo
+        // DÒNG từng làm mất một dòng NỐI TIẾP của một chuỗi xuyên dòng nếu dòng đó tình cờ mở
+        // đầu bằng `//` sau khi trim — xem doc-comment của `rust_string_literals`.
+        for literal in rust_string_literals(&text) {
+            if literal.contains("UPDATE") && literal.contains("source_lang") {
+                violations.push(format!("{}: {literal:?}", file.display()));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "{} chuoi SQL vua mang `UPDATE` vua nhac `source_lang`:\n{}\n\n\
+         AD-18/AC1: `source_lang` la truong BAT BIEN, dat luc tao Tac pham va khong doi duoc \
+         ve sau. Neu day la mot thay doi CO CHU (vd. mo duong sua ngon ngu nguon sau khi tao \
+         -- chua story nao dinh nghia), day la mot quyet dinh kien truc can Ice chot, khong \
+         phai mot lan sua tien tay.",
+        violations.len(),
+        violations.join("\n")
+    );
+}
+
+/// Vị từ đối chứng của [`rust_string_literals`] — cùng đối chứng dương/âm mà mọi phép quét
+/// tĩnh khác trong kho đòi: chứng minh vị từ NỔ ĐƯỢC trên một chuỗi vi phạm dựng tay, độc
+/// lập với việc cây nguồn hôm nay có gì.
+#[test]
+fn the_update_source_lang_check_would_actually_flag_a_seeded_violation() {
+    let seeded = r#"
+        tx.execute(
+            "UPDATE work SET source_lang = ?1 \
+             WHERE id = 1",
+            (&new_lang,),
+        )?;
+    "#;
+
+    let literals = rust_string_literals(seeded);
+    assert!(
+        literals
+            .iter()
+            .any(|l| l.contains("UPDATE") && l.contains("source_lang")),
+        "ca DUONG THAT dung tay: mot UPDATE cham source_lang phai bi vi tu bat, nhung \
+         rust_string_literals tra ve {literals:?}"
+    );
+
+    let clean = r#"
+        tx.execute(
+            "INSERT INTO work (id, work_id, name, source_lang, genre, created_at, updated_at) \
+             VALUES (1, ?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+             strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+            (&work_id, &name, &source_lang, &genre),
+        )?;
+    "#;
+    let clean_literals = rust_string_literals(clean);
+    assert!(
+        !clean_literals
+            .iter()
+            .any(|l| l.contains("UPDATE") && l.contains("source_lang")),
+        "ca AM: mot INSERT nhac `source_lang` (khong `UPDATE`) khong duoc bi bat oan: \
+         {clean_literals:?}"
+    );
+}
+
+/// 🔴 **Vòng rà đối kháng — P5.** Ba lỗ của `rust_string_literals` (ký tự literal chứa dấu
+/// nháy kép, raw string, dòng nối tiếp mở đầu bằng `//`), mỗi lỗ một ca dựng tay, độc lập với
+/// cây nguồn hôm nay có gì.
+#[test]
+fn rust_string_literals_handles_char_literals_raw_strings_and_wrapped_comment_shaped_lines() {
+    // (1) Ky tu literal chua dau nhay kep khong duoc mo nham mot chuoi -- SQL that dung NGAY
+    // SAU no van phai trich duoc nguyen ven, khong bi nuot vao "chuoi" bat dau tu dau nhay kep
+    // ben trong ky tu literal do.
+    let with_quote_char_literal = "const QUOTE: char = '\"';\ntx.execute(\"UPDATE work SET source_lang = ?1 WHERE id = 1\", (&lang,))?;";
+    let literals_1 = rust_string_literals(with_quote_char_literal);
+    assert!(
+        literals_1.iter().any(|l| l.contains("UPDATE") && l.contains("source_lang")),
+        "ca DUONG THAT (1): ky tu chua dau nhay kep lam lech pha bo tach, nen UPDATE that sau \
+         no bi mat. Nhan duoc: {literals_1:?}"
+    );
+
+    // (2) Raw string khong co escape backslash -- mot backslash ben trong raw string KHONG
+    // duoc noi dong hay bi nuot; noi dung phai ra dung nguyen van, gom ca dau backslash do.
+    let raw = "let pattern = r\"UPDATE work SET source_lang = \\d\";";
+    let literals_2 = rust_string_literals(raw);
+    assert_eq!(
+        literals_2,
+        vec!["UPDATE work SET source_lang = \\d".to_owned()],
+        "ca DUONG THAT (2): raw string phai ra dung nguyen van, backslash KHONG phai escape \
+         ben trong no. Nhan duoc: {literals_2:?}"
+    );
+
+    // (3) Mot dong NOI TIEP cua chuoi xuyen dong ma mo dau bang `//` sau khi trim khong duoc bi
+    // hieu nham la mot dong comment -- no van la NOI DUNG CHUOI, vi con tro dang O TRONG chuoi
+    // khi gap `//` do.
+    let wrapped =
+        "tx.execute(\n    \"UPDATE work SET \\\n     // source_lang = ?1\",\n    (),\n)?;";
+    let literals_3 = rust_string_literals(wrapped);
+    assert!(
+        literals_3.iter().any(|l| l.contains("UPDATE") && l.contains("source_lang")),
+        "ca DUONG THAT (3): dong noi tiep mo dau bang `//` van la NOI DUNG CHUOI, khong phai \
+         comment -- nhan duoc {literals_3:?}"
+    );
+
+    // Doi chung AM: mot comment `//` THAT (ngoai chuoi) mang ca hai tu khoa khong duoc bat oan.
+    let real_comment =
+        "// UPDATE work SET source_lang = ?1 -- vi du trong comment, khong phai ma";
+    let literals_4 = rust_string_literals(real_comment);
+    assert!(
+        literals_4.is_empty(),
+        "ca AM: mot dong COMMENT THAT nhac ca hai tu khoa khong duoc sinh ra literal nao: \
+         {literals_4:?}"
+    );
+}
+
+/// 🔴 **Vòng rà đối kháng — P6.** Comment `//` cuối dòng (SAU một chuỗi thật trên cùng dòng)
+/// phải bị cắt, không được đọc như một phần chuỗi.
+#[test]
+fn a_trailing_line_comment_after_real_code_is_not_read_as_part_of_a_literal() {
+    let line = "tx.execute(\"SELECT 1\", ())?; // UPDATE work SET source_lang = ?1 trong comment";
+    let literals = rust_string_literals(line);
+    assert_eq!(
+        literals,
+        vec!["SELECT 1".to_owned()],
+        "comment `//` cuoi dong phai bi cat -- chi chuoi THAT truoc no duoc giu lai: {literals:?}"
+    );
+}
+
+/// 🔴 **Story 5.1** — `ScopeKind::Glossary` và `ScopeKind::TranslationMemory` đều phân giải
+/// được ở `Tier::Work`, không chỉ khai NGỮ NGHĨA đúng trong bảng AD-18 (`kinds.rs`). Epic 5
+/// §Requirements: *"Glossary và TM gắn ở tầng Tác phẩm"* — mệnh đề đó chưa từng có phép kiểm
+/// trước story này (Approach của story tự khai điều đó).
+///
+/// Glossary khai [`auratranslate_lib::core::scope::Semantics::Override`]: một khoá trùng ở
+/// cả hai tầng phải thắng về tầng Work. TranslationMemory khai
+/// [`auratranslate_lib::core::scope::Semantics::Merge`]: cả hai tầng cùng áp, và mục đến từ
+/// tầng Work phải mang đúng nhãn `Tier::Work` của chính nó (AD-19, không khử trùng lặp).
+#[test]
+fn glossary_and_translation_memory_both_resolve_at_the_work_tier() {
+    let resolver = ScopeResolver::with_work(WorkScope { work_id: "work-under-test".to_owned() });
+
+    // Glossary — Semantics::Override (AD-18): khoa trung o ca hai tang phai thang ve Work.
+    let global_glossary: BTreeMap<&str, &str> = BTreeMap::from([("hero", "global-nghia")]);
+    let work_glossary: BTreeMap<&str, &str> = BTreeMap::from([("hero", "work-nghia")]);
+    let resolved = resolver
+        .apply_override("glossary", &global_glossary, Some(&work_glossary))
+        .expect("Glossary phai phan giai duoc voi mot tang Work khong rong");
+    assert_eq!(
+        resolved.get("hero").map(|r| r.tier()),
+        Some(Tier::Work),
+        "khoa trung o ca hai tang phai thang ve TANG WORK cho Glossary (Semantics::Override)"
+    );
+    assert_eq!(
+        resolved.get("hero").map(|r| *r.value()),
+        Some("work-nghia"),
+        "gia tri thang phai la gia tri cua tang Work, khong phai tang Global bi che"
+    );
+
+    // TranslationMemory — Semantics::Merge (AD-18): ca hai tang cung ap, tang la khoa phu.
+    let global_tm = vec!["cap global"];
+    let work_tm = vec!["cap work"];
+    let merged = resolver
+        .apply_merge::<&str>("translation_memory", &global_tm, Some(&work_tm), None)
+        .expect("TranslationMemory phai phan giai duoc voi mot tang Work khong rong");
+    assert!(
+        merged.iter().any(|t| t.tier() == Tier::Work && *t.value() == "cap work"),
+        "ket qua hop nhat cua TranslationMemory phai co it nhat mot muc mang nhan Tier::Work: \
+         {merged:?}"
+    );
+    assert!(
+        merged.iter().any(|t| t.tier() == Tier::Global && *t.value() == "cap global"),
+        "AD-19: giu nguyen bat dong -- muc Global khong bi khu trung lap hay bi tang Work che \
+         mat: {merged:?}"
+    );
 }

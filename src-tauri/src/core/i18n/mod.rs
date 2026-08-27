@@ -153,16 +153,16 @@ message_keys! {
     /// **số byte thô**: dữ liệu, không phải câu (AD-21).
     ImportTooLarge => "err.import.too_large" ["size", "limit"],
     /// Không dựng được `<Tên>.atproj/` trên đĩa (AC2, AC8).
-    ProjectCreateFailed => "err.project.create_failed" [],
+    WorkCreateFailed => "err.work.create_failed" [],
     /// Đường đọc Chương gọi trước khi có Tác phẩm nào mở (Story 1.16, AC8) —
     /// `OpenWorkState` rỗng, không phải một lỗi kho.
-    ProjectNoWorkOpen => "err.project.no_work_open" [],
+    WorkNoneOpen => "err.work.none_open" [],
 
     // ─────────────────────────────────────────────────────────────────────────
     // TẦNG SEGMENT — Story 2.1 (AD-3 · AD-4 · AD-5 · AD-21 · AD-37)
     //
     // Hai khoá, và đúng hai: lệnh tách tường minh có đúng hai cách từ chối RIÊNG của
-    // nó. *"Chưa mở Tác phẩm nào"* tái dùng `ProjectNoWorkOpen` — cùng câu, cùng
+    // nó. *"Chưa mở Tác phẩm nào"* tái dùng `WorkNoneOpen` — cùng câu, cùng
     // nghĩa, và một khoá thứ hai cho nó là hai chuỗi phải giữ khớp nhau bằng kỷ luật.
     //
     // **KHÔNG** khoá nào cho "tái tách một Chương đã có segment": thao tác đó là
@@ -180,7 +180,7 @@ message_keys! {
     // ── Story 2.3 (AD-35 · AD-31 · FR100) — MỘT khoá, và đúng một ────────────────
     //
     // Lệnh ghi bản dịch tái dùng `SegmentChapterNotFound` cho ca *"Chương không thuộc
-    // Tác phẩm đang mở"* và `ProjectNoWorkOpen` cho ca *"chưa mở Tác phẩm nào"* — cùng
+    // Tác phẩm đang mở"* và `WorkNoneOpen` cho ca *"chưa mở Tác phẩm nào"* — cùng
     // câu, cùng nghĩa, và một khoá thứ hai cho chúng là hai chuỗi phải giữ khớp bằng
     // kỷ luật. Chỉ ca dưới đây là RIÊNG của nó.
     //
@@ -198,7 +198,7 @@ message_keys! {
 
     // ── Story 2.5 (AD-31 · AD-5 · FR24 · FR56 · FR101) — BA khoá, và đúng ba ────────
     //
-    // Lệnh xác nhận tái dùng `ProjectNoWorkOpen` cho ca *"chưa mở Tác phẩm nào"*. Ba ca
+    // Lệnh xác nhận tái dùng `WorkNoneOpen` cho ca *"chưa mở Tác phẩm nào"*. Ba ca
     // dưới đây là RIÊNG của nó, và AC14 đòi cả ba **phân biệt được**: *"không trả 'đã
     // xong' cho một lượt không ghi gì"*.
     //
@@ -230,7 +230,7 @@ message_keys! {
 
     // ── Story 2.5d (AD-46 · AD-37 · FR134) — MỘT khoá, và đúng một ──────────────────
     //
-    // Lệnh đổi cờ kết đoạn của bản dịch tái dùng `ProjectNoWorkOpen` · `SegmentNotFound` ·
+    // Lệnh đổi cờ kết đoạn của bản dịch tái dùng `WorkNoneOpen` · `SegmentNotFound` ·
     // `SegmentRetired` cho ba ca đầu — cùng câu, cùng nghĩa. Chỉ ca dưới đây là RIÊNG.
     //
     // 🔴 **Vì sao một khoá THỨ BA chứ không mượn `SegmentRetired`** — code review
@@ -249,7 +249,7 @@ message_keys! {
 
     // ── Story 2.8 (FR78 · AD-5) — HAI khoá, và cùng một phép thử cho cả hai ─────────
     //
-    // Lệnh gộp và lệnh tách tái dùng `ProjectNoWorkOpen` · `SegmentNotFound` ·
+    // Lệnh gộp và lệnh tách tái dùng `WorkNoneOpen` · `SegmentNotFound` ·
     // `SegmentRetired` cho ba ca đầu — cùng câu, cùng nghĩa. Hai khoá dưới đây là RIÊNG vì
     // cả hai nói một sự thật **không khoá nào đang có nói được**: câu **tồn tại**, **còn
     // sống**, và thao tác vẫn không chạy được. Cùng phép thử đã dựng khoá thứ ba ở 2.5d.
@@ -266,7 +266,7 @@ message_keys! {
     /// tầng thuần ([`crate::core::segment::regroup::split_at`]) và nói ra ở đây.
     SegmentCutLeavesEmptyPiece => "err.segment.cut_leaves_empty_piece" ["segment_id"],
 
-    // **KHÔNG có `ProjectMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
+    // **KHÔNG có `WorkMetaTooNew` ở đây, và đó là một quyết định** (Ice, code review
     // 2026-08-06). Cơ chế từ chối một `meta.json` mới hơn vẫn còn nguyên và vẫn có test
     // (`MetaError::SchemaTooNew` + `WorkMeta::read`), nhưng không đường sản phẩm nào
     // gọi `WorkMeta::read` — story này không dựng màn hình "mở lại một `.atproj`".
@@ -295,7 +295,7 @@ message_keys! {
     // ── Story 3.9 (FR49 · AD-18 · AD-36) — MỘT khoá, và đúng một ────────────────────
     //
     // Màn hình "Quản lý Glossary" tái dùng `GlossaryEntryMissing` (Xoá/Sửa một `id` đã biến
-    // mất) và `ProjectNoWorkOpen` (đẩy tầng khi chưa mở Tác phẩm nào). Chỉ ca dưới đây là
+    // mất) và `WorkNoneOpen` (đẩy tầng khi chưa mở Tác phẩm nào). Chỉ ca dưới đây là
     // RIÊNG của thao tác "đẩy một mục lên tầng Toàn cục" — không khoá lỗi nào hiện có nói
     // đúng "đích đã có `source_term` này rồi, 0 lượt ghi".
     /// Đẩy một mục tầng Tác phẩm lên tầng Toàn cục mà `source_term` đã tồn tại sẵn ở

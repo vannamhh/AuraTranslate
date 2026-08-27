@@ -650,7 +650,7 @@ fn glossary_approve_candidate_on_an_already_decided_candidate_changes_nothing() 
 fn glossary_approve_candidate_without_an_open_work_fails_readably() {
     let err = glossary_approve_candidate(None, 1, None, Category::Other)
         .expect_err("khong the nhan ung vien khi chua mo Tac pham nao");
-    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -771,7 +771,7 @@ fn glossary_reject_candidate_on_an_already_approved_candidate_changes_nothing() 
 fn glossary_reject_candidate_without_an_open_work_fails_readably() {
     let err = glossary_reject_candidate(None, 1)
         .expect_err("khong the bo ung vien khi chua mo Tac pham nao");
-    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1062,7 +1062,7 @@ fn glossary_promote_term_to_global_without_an_open_work_fails_readably() {
 
     let err = glossary_promote_term_to_global(Some(&global), None, 1)
         .expect_err("khong the day tang khi chua mo Tac pham nao");
-    assert_eq!(err.message_key(), MessageKey::ProjectNoWorkOpen);
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 
     drop(global);
     cleanup(&global_dir);
