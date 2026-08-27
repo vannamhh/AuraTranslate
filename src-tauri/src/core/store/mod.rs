@@ -95,9 +95,9 @@ pub use checkpoint::CheckpointStats;
 pub use readonly::ReadOnlyDb;
 pub use schema::{
     CHAPTER_DDL, CONFIG_VALUE_DDL, GLOBAL_MIGRATIONS, GLOSSARY_CANDIDATE_DDL, GLOSSARY_ENTRY_DDL,
-    Migration, PINNED_ENTRY_DDL, PROJECT_MIGRATIONS, SCHEMA_MIGRATION_LOG_DDL, SEGMENT_DDL,
-    SEGMENT_OMITTED_DDL, SEGMENT_STATUS_AND_VERSION_DDL, SEGMENT_TARGET_TEXT_DDL,
-    SEGMENT_TRANSLATION_ORIGIN_DDL, WORK_DDL,
+    LIBRARY_INDEX_MIGRATIONS, LIBRARY_WORK_DDL, Migration, PINNED_ENTRY_DDL, PROJECT_MIGRATIONS,
+    SCHEMA_MIGRATION_LOG_DDL, SEGMENT_DDL, SEGMENT_OMITTED_DDL, SEGMENT_STATUS_AND_VERSION_DDL,
+    SEGMENT_TARGET_TEXT_DDL, SEGMENT_TRANSLATION_ORIGIN_DDL, WORK_DDL,
 };
 
 /// Lỗi thô của SQLite, cho chỗ gọi cần rẽ nhánh trên nó bên trong một job.
@@ -158,18 +158,26 @@ pub type ReadHandle<'a> = &'a rusqlite::Connection;
 
 /// Năm loại kho của AD-7 mà story này chạm tới — **khai hết, dựng đúng một**.
 ///
-/// [`StoreKind::Global`] và [`StoreKind::Project`] có mã khởi tạo hôm nay — Story 1.15
-/// dựng vế thứ hai (`project.db`, nằm trong một `.atproj` do người dùng chọn, không phải
-/// `$APPDATA`). `library-index.db` là **Epic 5**, và AD-8 còn nói nó **không di trú** — xoá
-/// rồi dựng lại — tức nó cần một nhánh khác mà story đó phải tự quyết. Viết sẵn mã cho loại
-/// kia hôm nay là mã không ai gọi, và nó sẽ sai theo đúng cách mà không test nào bắt.
+/// [`StoreKind::Global`], [`StoreKind::Project`] và [`StoreKind::LibraryIndex`] có mã khởi
+/// tạo hôm nay. Story 1.15 dựng vế thứ hai (`project.db`, nằm trong một `.atproj` do người
+/// dùng chọn, không phải `$APPDATA`). 🔵 **Story 5.2 dựng vế thứ ba** (`library-index.db` dưới
+/// `$APPDATA`) — và hiện thực đúng nhánh mà AD-8 đòi: **không di trú**, lệch phiên bản (cả hai
+/// chiều) ⇒ xoá tệp rồi dựng lại. Nhánh đó sống ở
+/// [`crate::core::library::indexer::Indexer::open`], KHÔNG ở [`Store::open`] — module này chỉ
+/// khai kho ([`StoreSpec::library_index`]) và cung cấp hạ tầng chung mà nhánh đó cần
+/// ([`delete_if_schema_version_differs`]); mở kho thật đi qua đúng MỘT chỗ, `Indexer::open`
+/// (`tests/library_index_boundary.rs` canh).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum StoreKind {
     /// `$APPDATA/global.db` — cấu hình, glossary chung, TM chung, phím tắt.
     Global,
     /// `<tác phẩm>.atproj/project.db` — **Story 1.15**.
     Project,
-    /// `$APPDATA/library-index.db` — chỉ mục dẫn xuất, **Epic 5**, không di trú (AD-8).
+    /// `$APPDATA/library-index.db` — chỉ mục dẫn xuất, **Story 5.2**, không di trú (AD-8):
+    /// lệch phiên bản (cả hai chiều) ⇒
+    /// [`crate::core::library::indexer::Indexer::open`] xoá tệp rồi dựng lại, không đi qua
+    /// nhánh từ chối mở của [`Store::open`] bước 3 — thứ `project.db`/`global.db` dựa vào
+    /// (AD-30) nhưng SAI cho một kho dẫn xuất.
     LibraryIndex,
 
     /// Một tệp từ điển `.db` — **CHỈ ĐỌC, LUÔN LUÔN** (AD-7). Story 1.11.
@@ -289,7 +297,9 @@ pub struct StoreSpec {
 impl StoreSpec {
     /// Kho `global.db` với bộ di trú và `Tuning` mặc định.
     ///
-    /// Không có `StoreSpec::library_index` hôm nay — xem [`StoreKind`].
+    /// 🔵 **CẬP NHẬT Story 5.2** — `StoreSpec::library_index` (ngay dưới) nay tồn tại; câu cũ
+    /// *"Không có `StoreSpec::library_index` hôm nay"* đã hết đúng, sửa tại chỗ thay vì để nó
+    /// lặng lẽ sai. Xem [`StoreKind::LibraryIndex`] cho nhánh không-di-trú của kho đó.
     pub fn global(path: PathBuf) -> Self {
         Self {
             kind: StoreKind::Global,
@@ -310,6 +320,24 @@ impl StoreSpec {
             path,
             tuning: Tuning::default(),
             migrations: PROJECT_MIGRATIONS,
+        }
+    }
+
+    /// Kho `library-index.db` dưới `$APPDATA` — **Story 5.2**, bộ di trú
+    /// [`LIBRARY_INDEX_MIGRATIONS`] và `Tuning` mặc định.
+    ///
+    /// 🔴 **Chỉ [`crate::core::library::indexer::Indexer::open`] được gọi
+    /// `Store::open(StoreSpec::library_index(..))`** — `tests/library_index_boundary.rs` canh
+    /// việc không module thứ ba nào gọi hàm này hay nhắc [`StoreKind::LibraryIndex`]. Hàm này
+    /// tự nó chỉ **mô tả** kho, giống hệt [`StoreSpec::project`]; nhánh KHÔNG-DI-TRÚ của AD-8
+    /// (lệch phiên bản ⇒ xoá tệp trước khi mở, không để [`Store::open`] từ chối) sống ở
+    /// `Indexer::open`, KHÔNG ở đây.
+    pub fn library_index(path: PathBuf) -> Self {
+        Self {
+            kind: StoreKind::LibraryIndex,
+            path,
+            tuning: Tuning::default(),
+            migrations: LIBRARY_INDEX_MIGRATIONS,
         }
     }
 }
@@ -769,4 +797,121 @@ pub(crate) fn wal_len(db: &Path) -> std::io::Result<u64> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(0),
         Err(e) => Err(e),
     }
+}
+
+/// Đường dẫn tệp `-shm` cạnh một tệp `.db` — sidecar SQLite THỨ HAI của chế độ WAL (bên cạnh
+/// `-wal`, xem [`wal_path`]). Cùng lý do [`wal_path`] không dùng `Path::with_extension`: nối
+/// vào `OsString` thô, không giả định đường dẫn là UTF-8 hợp lệ (Windows).
+pub(crate) fn shm_path(db: &Path) -> PathBuf {
+    let mut raw = db.as_os_str().to_owned();
+    raw.push("-shm");
+    PathBuf::from(raw)
+}
+
+/// Đọc `PRAGMA user_version` của một tệp **NẾU nó tồn tại và đọc được** — không qua
+/// [`Store::open`]: không di trú, không đặt PRAGMA WAL, không sao lưu, không sửa một byte.
+/// `Ok(None)` nghĩa là tệp chưa tồn tại (không phải lỗi). `Err` nghĩa là tệp CÓ MẶT nhưng
+/// SQLite từ chối mở/đọc nó (không phải một database hợp lệ, đĩa hỏng, …) — chỗ gọi
+/// ([`delete_if_schema_version_differs`]) quyết định phải làm gì với ca đó, hàm này chỉ báo
+/// đúng sự thật đã thấy.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// VÌ SAO KHÔNG DÙNG THẲNG [`Store::open`] RỒI ĐỌC [`Store::schema_version`]
+/// ─────────────────────────────────────────────────────────────────────────────
+/// [`Store::open`] **TỪ CHỐI MỞ** (bước 3, [`StoreError::SchemaTooNew`]) khi `found > target`
+/// — đúng hành vi AD-30 mà `global.db`/`project.db` cần, SAI cho một kho DẪN XUẤT muốn XOÁ VÀ
+/// DỰNG LẠI thay vì từ chối (AD-8). Hàm này là nửa **ĐỌC** của nhánh không-di-trú:
+/// [`delete_if_schema_version_differs`] gọi nó TRƯỚC khi quyết định xoá, và
+/// `Indexer::open` (`core/library/indexer.rs`) gọi hàm ĐÓ trước cả [`Store::open`] — tại thời
+/// điểm `Store::open` chạy, `found` luôn là `0` (tệp mới, hoặc vừa bị xoá) nên nhánh từ chối
+/// không bao giờ bị chạm cho kho này.
+///
+/// 🔴 **VÁ (vòng rà ba lớp, P2)** — mở qua [`pragmas::open_connection_for_peek`], KHÔNG
+/// [`pragmas::open_connection`]: hàm kia mang `SQLITE_OPEN_CREATE`, nên trên một cửa sổ đua
+/// (`path.exists()` đúng, tệp bị xoá ngay sau đó) nó sẽ ÂM THẦM TẠO một tệp rỗng và đọc ra
+/// `user_version = 0` — trái với chính lời khai `Ok(None)` == "tệp chưa tồn tại" ngay trên. Mở
+/// không-CREATE thì một tệp vắng mặt luôn trả lỗi mở, không bao giờ tạo tệp.
+pub(crate) fn peek_schema_version(path: &Path, kind: StoreKind) -> Result<Option<u32>, StoreError> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let conn = pragmas::open_connection_for_peek(path, kind)?;
+    let version = schema::read_user_version(&conn, kind)?;
+    drop(conn);
+    Ok(Some(version))
+}
+
+/// Xoá `<path>` + sidecar `-wal`/`-shm`, bỏ qua lỗi `NotFound` trên chính `path` (chỗ gọi có
+/// thể đã biết tệp không đọc được / đã biến mất, không phải một tệp còn nguyên bị xoá thất
+/// bại). Sidecar luôn `let _ =` — chúng có thể chưa từng tồn tại.
+fn delete_store_file_and_sidecars(path: &Path, kind: StoreKind) -> Result<(), StoreError> {
+    match std::fs::remove_file(path) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => {
+            return Err(StoreError::OpenFailed {
+                store: kind,
+                detail: format!("delete stale/unreadable {}: {e}", path.display()),
+            });
+        }
+    }
+    let _ = std::fs::remove_file(wal_path(path));
+    let _ = std::fs::remove_file(shm_path(path));
+    Ok(())
+}
+
+/// Xoá `<path>` + sidecar `-wal`/`-shm` khi (a) version tìm được LỆCH khỏi đích của
+/// `migrations` — **cả hai chiều** (AD-8, Design Notes của Story 5.2) — **hoặc** (b) tệp CÓ
+/// MẶT nhưng KHÔNG ĐỌC ĐƯỢC PHIÊN BẢN của nó (rác, hỏng, không phải SQLite hợp lệ). Không làm
+/// gì nếu tệp chưa tồn tại, hoặc version đã khớp đích.
+///
+/// 🔴 **VÁ (vòng rà ba lớp, P1) — "không đọc được" phải ĐỒNG HẠNG với "lệch phiên bản", không
+/// phải một nhánh lỗi đẩy lên bằng `?`.** Bản trước gọi `peek_schema_version(path, kind)?` —
+/// dấu `?` đó là lỗ hổng: một tệp RÁC/HỎNG ở `path` (đĩa hỏng nửa chừng, một lượt ghi bị cắt
+/// cụt, …) làm `peek_schema_version` trả `Err` (SQLite không đọc nổi header), lỗi đó đẩy thẳng
+/// lên `Indexer::open`, và `lib.rs::open_library_index` (nhánh "mở trượt ⇒ log rồi ĐI TIẾP")
+/// không bao giờ quản lý `Indexer` — Library RỖNG VĨNH VIỄN, không một dòng nào nói vì sao, cho
+/// tới khi người dùng tự tay xoá tệp. Đúng lớp "rỗng im lặng" mà
+/// `AGENTS.md::Known pitfalls` gọi tên là trung tâm của dự án, và nó đi NGƯỢC AD-8: kho DẪN
+/// XUẤT thì xoá luôn là thao tác AN TOÀN — kể cả khi lý do là "hỏng", không chỉ "cũ".
+///
+/// ⇒ Bắt lỗi từ `peek_schema_version` tại đây, ghi một dòng chẩn đoán KHÔNG DẤU nêu rõ lý do
+/// (khác dòng chẩn đoán cho nhánh "lệch phiên bản" — hai nguyên nhân khác nhau khi debug), rồi
+/// xoá-và-tiếp-tục giống hệt nhánh kia. Test hợp đồng:
+/// `tests/library_index_contract.rs::an_unreadable_index_file_is_deleted_and_rebuilt_not_left_broken_forever`.
+///
+/// 🔴 **Đây là hạ tầng CHUNG cho nhánh KHÔNG-DI-TRÚ mà doc-comment của [`StoreKind::LibraryIndex`]
+/// giao lại bằng chữ** — hàm nhận `migrations` bất kỳ (không riêng library-index), sống ở đây
+/// vì [`wal_path`]/[`shm_path`] và cơ chế PRAGMA đã sống ở module này.
+/// [`crate::core::library::indexer::Indexer::open`] là chỗ gọi DUY NHẤT hôm nay — hàm này
+/// không mang tên `library_index` nên KHÔNG nằm trong danh sách needle của
+/// `tests/library_index_boundary.rs`; cổng đó canh `StoreSpec::library_index`/
+/// `StoreKind::LibraryIndex`, không canh hạ tầng chung này.
+pub(crate) fn delete_if_schema_version_differs(
+    path: &Path,
+    kind: StoreKind,
+    migrations: &[Migration],
+) -> Result<(), StoreError> {
+    let found = match peek_schema_version(path, kind) {
+        Ok(Some(found)) => found,
+        Ok(None) => return Ok(()),
+        Err(err) => {
+            // Chuoi khong dau: cung luat `core/store/**` cua module nay.
+            eprintln!(
+                "store[{}] {} khong doc duoc phien ban luoc do ({err}) -- xoa va dung lai vi \
+                 day la kho dan xuat (AD-8), khong phai nguon su that",
+                kind.as_str(),
+                path.display()
+            );
+            return delete_store_file_and_sidecars(path, kind);
+        }
+    };
+
+    schema::validate_strictly_increasing(migrations, kind)?;
+    let target = schema::target_version(migrations);
+    if found == target {
+        return Ok(());
+    }
+
+    delete_store_file_and_sidecars(path, kind)
 }

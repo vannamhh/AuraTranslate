@@ -1396,6 +1396,91 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     },
 ];
 
+/// Lược đồ bảng `library_work` — **bước 1, VÀ DUY NHẤT, MÃI MÃI, của `library-index.db`** —
+/// Story 5.2, AD-8.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỘT BƯỚC DUY NHẤT — VÀ VÌ SAO NÓ KHÔNG BAO GIỜ CÓ BƯỚC 2
+/// ─────────────────────────────────────────────────────────────────────────────
+/// [`GLOBAL_MIGRATIONS`]/[`PROJECT_MIGRATIONS`] thêm một bước MỚI mỗi khi lược đồ đổi — di
+/// trú chỉ tiến, không bao giờ sửa một hằng đã chạy trên đĩa thật (AD-30, và vết sẹo số 4 của
+/// [`PROJECT_MIGRATIONS`] ghi lại cái giá của việc phá luật đó). `library-index.db` là kho
+/// **DẪN XUẤT** (AD-8): nó không giữ một byte dữ liệu nào mà `.atproj` không còn khai, nên
+/// không có gì để **DI TRÚ** — chỉ có gì để **DỰNG LẠI**. Khi hình dạng bảng này đổi, hằng
+/// NÀY được viết lại TẠI CHỖ và `to_version` TĂNG — ngược hẳn quy tắc "sửa hằng cũ tại chỗ là
+/// hai lược đồ cho cùng một số" mà mọi bảng khác trong tệp này phải theo: ở ĐÓ viết lại tại
+/// chỗ là lỗi vì kho đó **phải** di trú; Ở ĐÂY viết lại tại chỗ là **đúng** vì kho này không
+/// bao giờ di trú. [`super::Store::open`] không bao giờ chạm nhánh từ chối mở
+/// ([`StoreError::SchemaTooNew`]) cho kho này: [`crate::core::library::indexer::Indexer::open`]
+/// so `PRAGMA user_version` với đích TRƯỚC khi gọi `Store::open`, và XOÁ tệp (cả hai chiều
+/// lệch) thay vì để `Store::open` quyết — nên bước 1 luôn chạy trên một tệp RỖNG, không bao
+/// giờ nửa chừng qua một `ALTER TABLE`.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 CẢ `schema_migration_log` LẪN `library_work` TRONG CÙNG MỘT BƯỚC — VÌ SAO BẮT BUỘC
+/// ─────────────────────────────────────────────────────────────────────────────
+/// [`migrate`] (dùng CHUNG cho mọi kho) ghi một hàng vào `schema_migration_log` NGAY SAU khi
+/// chạy SQL của mỗi bước — kể cả bước 1. Bảng đó vì thế phải tồn tại TRƯỚC câu `INSERT` đó
+/// chạy, và vì đây là bước DUY NHẤT của kho này (không có bước 2 để "đợi" bảng nghiệp vụ, khác
+/// [`GLOBAL_MIGRATIONS`]/[`PROJECT_MIGRATIONS`] nơi bước 1 chỉ mang bảng nhật ký), cả hai
+/// `CREATE TABLE` phải nằm trong CÙNG một hằng.
+///
+/// ⚠️ Văn bản `schema_migration_log` dưới đây **PHẢI TRÙNG BYTE** với [`SCHEMA_MIGRATION_LOG_DDL`]
+/// — không tái dùng được hằng đó trực tiếp vì `Migration::sql` đòi một `&'static str` và
+/// `concat!` chỉ nhận literal, không nhận đường dẫn hằng (cùng ràng buộc mà doc-comment của
+/// [`GLOSSARY_CANDIDATE_OCCURRENCE_CONTEXT_DDL`] đã ghi).
+///
+/// 🔵 **SỬA (vòng rà ba lớp, P4) — con số cũ SAI, đếm lại cho đúng.** Bản trước viết *"bản
+/// chép tay THỨ BA của cùng DDL đó, sau bước 1 của `GLOBAL_MIGRATIONS` và bước 1 của
+/// `PROJECT_MIGRATIONS`"* — sai: bước 1 của cả hai bộ đó chỉ **tham chiếu** hằng
+/// [`SCHEMA_MIGRATION_LOG_DDL`] bằng tên (`sql: SCHEMA_MIGRATION_LOG_DDL`), không chép tay lại
+/// văn bản của nó. Đếm bằng `grep -n "CREATE TABLE schema_migration_log"` trên chính tệp này
+/// (2026-08-27): văn bản `CREATE TABLE schema_migration_log (…)` xuất hiện LITERAL đúng **hai**
+/// lần — hằng gốc [`SCHEMA_MIGRATION_LOG_DDL`] và hằng NÀY. ⇒ Đây là bản chép tay **THỨ HAI**,
+/// không phải thứ ba.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// TỪNG CỘT, VÀ NÓ NEO VÀO ĐÂU
+/// ─────────────────────────────────────────────────────────────────────────────
+/// - `work_id` — **khoá chính**, trùng [`crate::core::library::meta::WorkMeta::work_id`].
+///   `PRIMARY KEY` trần (không `AUTOINCREMENT` — không có rowid nào cần giữ ổn định qua thời
+///   gian; kho này bị XOÁ TOÀN BỘ và dựng lại mỗi lần lệch phiên bản, và mỗi lượt
+///   `Indexer::rebuild` xoá sạch bảng rồi chèn lại) là cơ chế phát hiện trùng của
+///   §Boundaries *"trùng `work_id` ⇒ phát hiện"*: SQLite tự từ chối hàng thứ hai, không cần
+///   một `SELECT` kiểm trùng ở tầng Rust mà một cửa sổ đua có thể chen vào giữa.
+/// - `atproj_path` — đường dẫn **TUYỆT ĐỐI trên máy này** tới `<Tên>.atproj/`. Khác
+///   `meta.json`, nơi AC5 của Story 1.15 **cấm** đường tuyệt đối (nó theo `.atproj` khi Tác
+///   phẩm bị copy sang máy khác) — chỉ mục thì **không** theo: nó là dẫn xuất **cục bộ**, và
+///   Library cần biết Tác phẩm nằm ở đâu trên **máy này** để mở nó.
+/// - Sáu cột còn lại (`name`/`source_lang`/`genre`/`created_at`/`updated_at`/`chapter_count`)
+///   — **đúng** các trường của [`crate::core::library::meta::WorkMeta`], không hơn không kém.
+///   §Never của story cấm tường minh: **không** `cover` (chủ Story 5.6), **không** cột trạng
+///   thái vòng đời (chủ Story 5.4), **không** cột tiến độ (chủ Story 5.5).
+pub const LIBRARY_WORK_DDL: &str = "\
+CREATE TABLE schema_migration_log (
+  version     INTEGER PRIMARY KEY,
+  applied_at  TEXT NOT NULL,
+  app_version TEXT NOT NULL
+);
+CREATE TABLE library_work (
+  work_id       TEXT PRIMARY KEY,
+  atproj_path   TEXT NOT NULL,
+  name          TEXT NOT NULL,
+  source_lang   TEXT NOT NULL,
+  genre         TEXT NOT NULL,
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT NOT NULL,
+  chapter_count INTEGER NOT NULL
+);";
+
+/// Bộ di trú của `library-index.db` — **đúng MỘT bước, mãi mãi**. Xem doc-comment của
+/// [`LIBRARY_WORK_DDL`] cho lý do đây KHÔNG phải một thiếu sót: kho dẫn xuất không di trú
+/// (AD-8), nó bị xoá-và-dựng-lại khi lược đồ đổi, không bao giờ được thêm bước 2.
+pub const LIBRARY_INDEX_MIGRATIONS: &[Migration] = &[Migration {
+    to_version: 1,
+    sql: LIBRARY_WORK_DDL,
+}];
+
 /// Phiên bản cao nhất mà một bộ di trú đạt tới. Bộ rỗng ⇒ 0.
 ///
 /// 🔴 Chỉ đáng tin **sau** [`validate_strictly_increasing`]: hàm này tin `.last()` là

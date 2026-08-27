@@ -9,11 +9,16 @@
 //! - [`meta`] — `meta.json`, đọc được không cần mở SQLite (AC3), ghi nguyên tử
 //!   (Quyết định #3), dựng lại được từ `project.db` (AD-33).
 //! - [`atproj`] — dựng `<Tên>.atproj/` + `assets/` trên đĩa (AC2, AC5, AC6).
+//! - [`indexer`] — `library-index.db`, chỉ mục dẫn xuất (AD-8) — **Story 5.2**.
 //!
-//! ⚠️ Story này **không** dựng `library-index.db` — màn hình Library đọc thẳng
-//! `meta.json` chỉ vì chưa có chỉ mục (Story 5.2 sở hữu `library-index.db`).
+//! 🔵 **CẬP NHẬT 2026-08-27 (Story 5.2) — câu dưới đây đã HẾT ĐÚNG, sửa tại chỗ thay vì để nó
+//! lặng lẽ sai.** ~~*"Story này không dựng `library-index.db` — màn hình Library đọc thẳng
+//! `meta.json` chỉ vì chưa có chỉ mục (Story 5.2 sở hữu `library-index.db`)."*~~ `library-index.db`
+//! nay tồn tại (xem [`indexer`]). Điều còn đúng: chưa màn hình nào đọc nó — [`indexer::Indexer::list_works`]
+//! là đường ĐỌC duy nhất có test hôm nay; bề mặt hiển thị (lưới Tác phẩm) là Story 5.6.
 
 pub mod atproj;
+pub mod indexer;
 pub mod meta;
 
 pub use atproj::{create_work_folder, remove_folder, sanitize_name};

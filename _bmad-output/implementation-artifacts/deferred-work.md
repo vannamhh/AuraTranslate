@@ -7998,7 +7998,93 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     thành phần duy nhất được phép ghi dẫn xuất, nên nó cũng là nơi tự nhiên quyết định
     `work.updated_at` sống bằng cách nào (mỗi lượt ghi `chapter`/`segment`, hay suy ra lúc quét).
     **(Chủ: Story 5.2 — quyết định cơ chế làm `work.updated_at` sống, kèm test hợp đồng.)**
+  → 🟡 **Story 5.2 (2026-08-27): PHẠM VI RỘNG HƠN LỜI KHAI GỐC — chủ chuyển sang Story 5.6.**
+    Bốn phép đo trình Ice 2026-08-27 (§Design Notes của story, "Phạm vi hẹp"): (1)
+    `work.updated_at` — đúng như lời khai gốc, 1 lần ghi (`project.rs:177`), **0** `UPDATE`;
+    (2) **`chapter.updated_at` cũng đóng băng** — **0** `UPDATE` toàn cây, và sổ nợ gốc chỉ
+    nêu `work` nên khai HẸP HƠN khuyết tật thật; (3) `meta.json` có đúng MỘT chỗ gọi
+    `write_atomic` sản phẩm (`project.rs:242`), nên MỌI trường của nó — không riêng
+    `updated_at` — đúng đúng một lần trong đời (hệ quả trực tiếp của (1)+(2), xem mục "meta.json
+    đóng băng từ lúc tạo" ở phần "Deferred from: 5-2-…" cuối tệp này); (4) bơm `work.updated_at`
+    trong giao dịch flush làm cổng
+    đang xanh `segment_contract.rs::a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else`
+    ĐỎ — tức phải mở lại một AC đã ký của Story 2.3, ngoài phạm vi một story Library. Ice chốt
+    hẹp 2026-08-27: Story 5.2 CHÉP TRUNG THÀNH `meta.json` (kể cả hai giá trị đóng băng), không
+    sửa cơ chế ghi. **Chủ chuyển sang Story 5.6** — nơi cột "ngày sửa" của lưới Tác phẩm LẦN
+    ĐẦU hiển thị giá trị này, đúng khuôn "story dựng màn hình đầu tiên đọc một trường sở hữu
+    luôn quyết định cơ chế làm trường đó sống".
 
 - source_spec: `_bmad-output/implementation-artifacts/5-1-mo-hinh-library-hai-tang.md`
   summary: 22 cảnh báo `cargo clippy --all-targets` có sẵn ở bảy tệp, chưa có chủ — và `-D warnings` chỉ phơi ra 8 trong số đó.
   evidence: `-D warnings` dừng ngay ở crate lib nên KHÔNG bao giờ chạm tới target test — chạy `cargo clippy --all-targets` trần mới thấy đủ: `tests/segment_contract.rs` 12 · `commands/pinned.rs` 3 · `tests/ai_boundary.rs` 2 · `commands/glossary.rs` 2 · `core/scope/resolve.rs` 1 · `core/scope/mod.rs` 1 · `core/glossary/exchange.rs` 1. Tám cái ở tầng lib đo tại baseline `7d1165f` trước mọi thay đổi của story — `useless_conversion` (`commands/glossary.rs:1316,1393`), `redundant_closure` (`commands/pinned.rs:116,164,197`), `redundant_guards` (`core/glossary/exchange.rs:945`), `type_complexity` (`core/scope/resolve.rs:198`, `core/scope/mod.rs:335`). Story 5.1 KHÔNG đẻ thêm cảnh báo nào: `segment_contract.rs` là tệp story có sửa và mang 3 cảnh báo `err_expect`, nhưng ở dòng 1755/3857/3863 — story chỉ sửa 1965/2072/2972/3484/3501/3859/4030/6280/6284, không dòng nào trùng; `ai_boundary.rs` không nằm trong diff. Đáng ghi vì `clippy` KHÔNG phải cổng của kho — chuỗi `cargo clippy` không xuất hiện trong `.github/workflows/ci.yml`, `package.json`, hay `scripts/` — nên nợ này không có đường nào tự lộ ra, và nó đã âm thầm làm một dòng `expected: không cảnh báo` trong §Verification của Story 5.1 thành kỳ vọng không bao giờ đạt được.
+
+## Deferred from: 5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat (2026-08-27)
+
+- source_spec: `_bmad-output/implementation-artifacts/5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat.md`
+  summary: **`meta.json` (và do đó mọi cột `library_work` chép từ nó) là ẢNH CHỤP lúc tạo,
+    không phải trạng thái sống** — hệ quả trực tiếp của nợ `work.updated_at`/`chapter.updated_at`
+    (mục "Deferred from: 5-1-…" ở trên, mở rộng bởi story này): `Indexer` chép TRUNG THÀNH đúng
+    những gì `meta.json` khai (§Boundaries của story này cấm tường minh "không suy diễn, không
+    vá"), nên chỉ mục cũng đóng băng theo — cột "ngày sửa" và `chapter_count` trong
+    `library-index.db` là giá trị LÚC TẠO cho tới khi nguồn (`meta.json`) sống thật. Chỉ mục
+    ĐÚNG (nó phản chiếu đĩa trung thực — đúng điều FR98/NFR10 đòi); thứ sai là nguồn.
+  evidence: đo 2026-08-27 (§Design Notes của Story 5.2, "Phạm vi hẹp"): `meta.json` có đúng
+    MỘT chỗ gọi `write_atomic` sản phẩm (`commands/project.rs:242`), ngay sau `create_work`;
+    không đường mã nào khác ghi lại nó.
+    **(Chủ: Story 5.5 — Tiến độ Tác phẩm — sở hữu cơ chế làm `chapter_count`/ngày sửa của
+    `meta.json` sống thật, cùng lượt với màn hình tiến độ lần đầu đọc nó.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat.md`
+  summary: **AC7 chỉ đóng được MỘT NỬA, có chủ** — `Indexer::list_works` (đường ĐỌC) tồn tại
+    và có test hợp đồng, nhưng KHÔNG màn hình nào đọc nó: `src/modes/LibraryMode.vue` vẫn là
+    khung rỗng có chủ ý, và `tests/frontend/**` có **0** tệp chạm Library.
+  evidence: đo 2026-08-27 — không chỗ gọi sản phẩm nào (frontend) nhắc `list_works`/
+    `library-index.db`; §Design Notes của Story 5.2 ghi rõ đây là năng lực CHƯA DỰNG, không
+    phải lệch spec (`AGENTS.md::Conventions` — "năng lực chưa dựng ≠ lệch spec").
+    **(Chủ: Story 5.6 — lưới Tác phẩm, lọc và sắp xếp — VÀ Story 5.9 — tìm kiếm full-text
+    xuyên Library — hai bề mặt đọc `library-index.db` mà Epic 5 §Cross-Story Dependencies đã
+    giao trước.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat.md`
+  summary: **Xung đột `work_id` trùng (hai `.atproj` cùng UUID) được PHÁT HIỆN và GHI LẠI
+    (`Indexer::rebuild` trả `RebuildOutcome::conflicts`, có test) nhưng KHÔNG có bề mặt HIỂN
+    THỊ nào** — mục sau bị loại khỏi chỉ mục âm thầm đối với người dùng, dù không âm thầm đối
+    với mã (đúng §Boundaries "không gộp, không ghi đè im lặng" — cái thiếu là hiển thị, không
+    phải phát hiện).
+  evidence: đo 2026-08-27 — `RebuildOutcome::conflicts` không có chỗ đọc sản phẩm nào ngoài
+    `tests/library_index_contract.rs`; không `MessageKey`/khoá `vi.json` nào cho ca này (§Never
+    của story này cấm dựng bề mặt IPC/màn hình ở lượt này).
+    **(Chủ: Story 5.6 — lưới Tác phẩm — nơi hai Tác phẩm cùng `work_id` lần đầu có thể được
+    NHÌN THẤY cạnh nhau, nên là nơi tự nhiên quyết định cảnh báo hiển thị thế nào.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat.md`
+  summary: **Dây nối giữa "vừa tạo Tác phẩm / vừa khởi động" và `library-index.db` KHÔNG ca tự động nào
+    chạm** — `reindex_after_create_work` (`commands/project.rs`), `open_library_index` và
+    `close_library_index` (`lib.rs`) chỉ chạy khi có `AppHandle` thật.
+  evidence: Đo ở vòng rà Story 5.2. `tests/project_contract.rs` gọi hàm THUẦN
+    `create_work_from_text`/`_from_file`, không bao giờ gọi `wire::`, nên không test Rust nào chạm
+    `reindex_after_create_work`; kho cũng không bật đường mock của Tauri (`grep -rn
+    "mock_builder\|MockRuntime\|tauri::test" src-tauri/` → 0 kết quả, và `test-utils` không có trong
+    `src-tauri/Cargo.toml`). Bộ e2e DUY NHẤT gọi lệnh IPC thật (`e2e/specs/library-root-redirect.e2e.mjs`)
+    chỉ khẳng định `.atproj` nằm đúng thư mục, không đọc `library-index.db` một lần nào (`grep -rln
+    "library-index\|list_works\|library_index" e2e/` → 0 tệp). 🔴 **Đối chứng đã CHẠY THẬT, không suy
+    luận (2026-08-27):** gỡ cả hai lời gọi `reindex_after_create_work` ra khỏi `commands/project.rs` rồi
+    chạy lại toàn bộ ⇒ **774 ca Rust xanh, 0 đỏ, VÀ 43 tệp / 567 ca frontend xanh** — y hệt lượt chưa gỡ.
+    Tệp đã khôi phục, SHA-256 trùng khớp bản trước khi gỡ. Lõi `Indexer`
+    thì được phủ dày (19 ca); chỗ hở đúng là ĐOẠN NỐI. Nhắc thêm: bộ e2e nằm ngoài CẢ `pre-push` LẪN
+    `ci.yml`, nên một ca e2e mới cũng chưa phải một cổng được canh.
+    **(Chủ: Story 5.6 — lưới Tác phẩm là story đầu tiên đọc chỉ mục qua bề mặt sản phẩm, nên nó là chỗ
+    đầu tiên một dây nối đứt lộ ra thành màn hình rỗng, và là chỗ rẻ nhất để dựng phép kiểm đầu-tới-cuối.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat.md`
+  summary: **Hai lượt `Indexer::rebuild` chạy chồng có thể xen kẽ và để chỉ mục phản ánh một ảnh chụp
+    không phải mới nhất** — lượt quét thư mục nằm NGOÀI giao dịch ghi.
+  evidence: `Indexer::rebuild` quét đĩa (`scan_atproj_dirs`) rồi mới mở một `store.write` riêng để
+    `DELETE` + `INSERT`. Hai lượt gọi có thể chồng nhau trong sản phẩm: `open_library_index` chạy một
+    lượt lúc khởi động (`lib.rs`), còn `reindex_after_create_work` chạy một lượt nữa sau mỗi lần tạo Tác
+    phẩm (`commands/project.rs`) — nếu lượt A quét trước lượt B nhưng ghi sau, chỉ mục giữ ảnh chụp CŨ
+    hơn. Hậu quả bị chặn trên: `store::Writer` nối tiếp nên không có ghi rách, chỉ mục là DẪN XUẤT nên
+    lượt `rebuild` kế tiếp tự sửa, và không dữ liệu người dùng nào mất. Chưa có ca nào chạy hai `rebuild`
+    đồng thời.
+    **(Chủ: Story 5.3 — quét lại thư mục — vì nó sở hữu quét tăng dần và sẽ thêm chỗ gọi `rebuild` thứ ba
+    do người dùng bấm, tức là story biến một khả năng lý thuyết thành một cửa sổ thật.)**

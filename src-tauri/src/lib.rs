@@ -29,6 +29,9 @@ pub const SCOPE_SELFTEST_EVENT: &str = "selftest:scope-check";
 /// Tên tệp kho toàn cục dưới `$APPDATA`. Xem [`open_global_store`].
 const GLOBAL_DB_FILE: &str = "global.db";
 
+/// Tên tệp chỉ mục Library dẫn xuất dưới `$APPDATA` — Story 5.2. Xem [`open_library_index`].
+const LIBRARY_INDEX_DB_FILE: &str = "library-index.db";
+
 /// Tên biến môi trường chỉ `$APPDATA` của tiến trình này sang một thư mục khác — **chỉ e2e**.
 ///
 /// 🔴 Giá trị là **chính thư mục dữ liệu**, không phải thư mục cha của nó:
@@ -435,6 +438,7 @@ pub fn run() {
             open_global_store(app);
             open_dict_layers(app);
             open_work_slot(app);
+            open_library_index(app);
             wire_drag_drop(app);
             // Story 2.3 — AD-35 vế (e). `manage` PHẢI chạy trước `wire_exit_flush`: hook đó
             // đọc state ra bằng `try_state`, và một state chưa quản lý làm nó bỏ qua lượt
@@ -458,6 +462,7 @@ pub fn run() {
             close_global_store(handle);
             close_dict_layers(handle);
             close_open_work(handle);
+            close_library_index(handle);
         }
     });
 }
@@ -661,6 +666,82 @@ fn open_work_slot(app: &tauri::App) {
     app.manage(crate::commands::glossary::PendingImportState::new(None));
 }
 
+/// Mở `$APPDATA/library-index.db` và đưa nó vào state — **Story 5.2**, cùng khuôn
+/// [`open_global_store`].
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 CHỈ HAI DÒNG CHẠM `Indexer`/`app.manage` — MỌI THỨ KHÁC LÀ HẠ TẦNG ĐÃ CÓ
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `crate::core::library::indexer::Indexer::open(...)` (nhánh không-di-trú của AD-8) rồi
+/// `app.manage(indexer)` — đúng khuôn `Ok(store) => { app.manage(store); }` của
+/// [`open_global_store`]. `lib.rs` không tự dựng `StoreSpec::library_index` hay gọi
+/// `StoreKind::LibraryIndex` ở đâu khác — cổng ranh giới của `tests/library_index_boundary.rs`
+/// chỉ miễn trừ `core/library/indexer.rs` (chỗ gọi) và điểm khai `core/store/mod.rs`.
+///
+/// 🔵 **CẬP NHẬT (vòng rà ba lớp, P3)** — đoạn này từng tránh đánh vần đủ hai định danh trên
+/// để giữ một ca test xanh (`the_forbidden_needles_appear_in_exactly_the_two_exempt_files_and_nowhere_else`
+/// từng quét TOÀN VĂN không lọc comment, nên một dòng doc-comment nhắc `StoreKind::LibraryIndex`
+/// ở đây sẽ bị đếm là "tệp thứ ba"). Đó là uốn tài liệu sản phẩm để giữ test xanh — đúng thứ
+/// luật (a) của kho cấm. Ca test đó nay dùng LẠI đúng vị từ đã lọc comment mà cổng chính
+/// (Phần 2) dùng, nên đoạn này được viết lại cho nói thẳng.
+///
+/// Mở trượt ⇒ ghi chẩn đoán rồi ĐI TIẾP, không chặn khởi động — cùng lý do
+/// [`open_global_store`]: một chỉ mục hỏng vẫn để `.atproj` trên đĩa nguyên vẹn (AD-8, "xoá
+/// chỉ mục là thao tác an toàn" áp cả chiều "chỉ mục không mở được").
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// LƯỢT `rebuild` ĐẦU TIÊN CHẠY NGAY Ở ĐÂY — vì sao không đợi một lệnh IPC
+/// ─────────────────────────────────────────────────────────────────────────────
+/// §Manual checks của story: *"xoá `library-index.db` bằng tay, mở lại ứng dụng: chỉ mục dựng
+/// lại"* — không có lệnh IPC "quét lại" nào ở story này (đó là Story 5.3), nên chỗ DUY NHẤT có
+/// thể tự động dựng lại chỉ mục sau khi tệp bị xoá là lúc khởi động. `default_library_root`
+/// tự xử lý cả móc e2e (AD-45), nên nhánh debug/release không rẽ ở đây.
+fn open_library_index(app: &tauri::App) {
+    use tauri::Manager as _;
+
+    // Móc e2e đứng TRƯỚC `app_data_dir()`, cùng khuôn [`open_global_store`] — xem
+    // `E2E_DATA_DIR_ENV`.
+    let dir = match data_dir_override() {
+        Some(dir) => dir,
+        None => match app.path().app_data_dir() {
+            Ok(dir) => dir,
+            Err(err) => {
+                eprintln!("store[library-index] cannot resolve the app data directory: {err}");
+                return;
+            }
+        },
+    };
+
+    if let Err(err) = std::fs::create_dir_all(&dir) {
+        eprintln!("store[library-index] cannot create {}: {err}", dir.display());
+        return;
+    }
+
+    match crate::core::library::indexer::Indexer::open(dir.join(LIBRARY_INDEX_DB_FILE)) {
+        Ok(indexer) => {
+            match crate::commands::project::default_library_root(app.handle()) {
+                Ok(root) => match indexer.rebuild(&root) {
+                    // Vòng rà ba lớp, P7 — `RebuildOutcome` không còn bị vứt: xung đột
+                    // `work_id`/entry bị bỏ qua phải có ÍT NHẤT một dòng chẩn đoán.
+                    Ok(outcome) => outcome.log_if_notable("startup"),
+                    Err(err) => {
+                        eprintln!("store[library-index] initial rebuild failed: {err}");
+                    }
+                },
+                Err(err) => {
+                    // `IpcError` không mang `Display` (AD-21: nó chở dữ liệu máy đọc, không
+                    // một câu) — `{err:?}` là chẩn đoán, không phải văn bản hiển thị.
+                    eprintln!("store[library-index] cannot resolve the library root: {err:?}");
+                }
+            }
+            app.manage(indexer);
+        }
+        Err(err) => {
+            eprintln!("store[library-index] open failed, running without an index: {err}");
+        }
+    }
+}
+
 /// `RunEvent::Exit` ⇒ đóng Tác phẩm đang mở (nếu có), cùng khuôn [`close_global_store`].
 ///
 /// ⚠️ Trên Windows một tệp `project.db` còn mở là một `remove_dir_all` thất bại (NFR14) —
@@ -686,6 +767,15 @@ fn close_open_work(handle: &tauri::AppHandle) {
         if let Some(open) = guard.take() {
             open.store.close();
         }
+    }
+}
+
+/// `RunEvent::Exit` ⇒ đóng `library-index.db` — Story 5.2, cùng khuôn [`close_global_store`].
+fn close_library_index(handle: &tauri::AppHandle) {
+    use tauri::Manager as _;
+
+    if let Some(indexer) = handle.try_state::<crate::core::library::indexer::Indexer>() {
+        indexer.close();
     }
 }
 

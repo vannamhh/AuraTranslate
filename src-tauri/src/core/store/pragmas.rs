@@ -52,6 +52,29 @@ pub(crate) fn open_connection(path: &Path, kind: StoreKind) -> Result<Connection
     })
 }
 
+/// Mở một kết nối bằng cờ tường minh, **KHÔNG mang `SQLITE_OPEN_CREATE`** — dùng cho đường DÒ
+/// [`super::peek_schema_version`], nơi mục đích là ĐỌC THỬ một tệp có thể chưa tồn tại, không
+/// phải tạo ra nó chỉ vì đọc thử.
+///
+/// 🔴 **VÁ (vòng rà ba lớp, P2)** — [`open_connection`] mang `SQLITE_OPEN_CREATE`, nên dùng nó
+/// ở đường DÒ có một cửa sổ đua thật: `path.exists()` trả `true`, tệp bị xoá NGAY SAU đó (đúng
+/// ca [`super::peek_schema_version`] tồn tại để canh — một `library-index.db` bị người dùng tự
+/// xoá bằng tay giữa lúc ứng dụng đang khởi động), rồi lượt mở CREATE một tệp RỖNG MỚI TOANH và
+/// đọc ra `user_version = 0` — sai với chính lời khai của `peek_schema_version`
+/// (*"`Ok(None)` nghĩa là tệp chưa tồn tại"*): hàm đó đã ÂM THẦM TẠO một tệp trong khi tuyên bố
+/// tệp không tồn tại. Không `SQLITE_OPEN_CREATE` ở đây thì một tệp vắng mặt (dù kiểm tra
+/// `exists()` trước đó có trúng lúc đua hay không) luôn trả lỗi `CANTOPEN`, không bao giờ tạo
+/// tệp — và lỗi đó đi qua đúng nhánh "không đọc được ⇒ xoá-và-dựng-lại" mà P1 vá (xem
+/// [`super::delete_if_schema_version_differs`]), chứ không lặng lẽ bịa ra một phiên bản `0`.
+pub(crate) fn open_connection_for_peek(path: &Path, kind: StoreKind) -> Result<Connection, StoreError> {
+    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+
+    Connection::open_with_flags(path, flags).map_err(|e| StoreError::OpenFailed {
+        store: kind,
+        detail: format!("open (peek, no-create) {}: {e}", path.display()),
+    })
+}
+
 /// Mở một tệp **CHỈ ĐỌC** bằng cờ tường minh — đường của [`StoreKind::Dict`] (AC7).
 ///
 /// `SQLITE_OPEN_READ_ONLY | SQLITE_OPEN_NO_MUTEX`. Ba thứ **vắng mặt** ở đây đều là
