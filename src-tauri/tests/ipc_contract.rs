@@ -387,10 +387,15 @@ fn ipc_error_new_rejects_missing_params_in_debug() {
     );
 }
 
-/// **THÊM Story 5.3.** Đóng băng tên trường của HAI struct wire mới
-/// (`commands::library::{RescanReport, OrphanEntry}`) — cùng khuôn phần `ok_shape`/`ok_keys`
-/// của [`ipc_error_wire_shape`] ở trên: một trường mới đi qua IPC mà không ai đối chiếu là
-/// đúng thứ ca này tồn tại để chặn.
+/// **THÊM Story 5.3.** Đóng băng tên trường của các struct wire của `commands::library` —
+/// cùng khuôn phần `ok_shape`/`ok_keys` của [`ipc_error_wire_shape`] ở trên: một trường mới
+/// đi qua IPC mà không ai đối chiếu là đúng thứ ca này tồn tại để chặn.
+///
+/// 🔵 **SỬA (2026-08-27, phán quyết Ice #3) — thêm `ConflictEntry`, `conflicts` đổi hình
+/// dạng.** `RescanReport.conflicts` không còn là một `usize` nén — AC4 nói "phát hiện VÀ
+/// cảnh báo", và một con số trần không mang đủ dữ kiện cho vế "cảnh báo" (không nói được CHỖ
+/// NÀO trùng). Nay nó là `Vec<ConflictEntry>`, đóng băng CẢ hai tầng khoá (top-level VÀ một
+/// mục `conflicts`) cùng lượt với `orphans`/`OrphanEntry`.
 #[test]
 fn library_wire_structs_keep_snake_case_field_names() {
     let report = auratranslate_lib::commands::library::RescanReport {
@@ -398,7 +403,12 @@ fn library_wire_structs_keep_snake_case_field_names() {
         // P1 (vòng rà bốn lớp 2026-08-27) -- trường mới, đóng băng cùng lượt.
         root_missing: false,
         indexed: 1,
-        conflicts: 0,
+        // Phán quyết Ice #3 -- không còn một `usize` trần.
+        conflicts: vec![auratranslate_lib::commands::library::ConflictEntry {
+            work_id: "id-2".to_owned(),
+            kept_path: "/tmp/kept.atproj".to_owned(),
+            duplicate_path: "/tmp/duplicate.atproj".to_owned(),
+        }],
         skipped: 0,
         orphans: vec![auratranslate_lib::commands::library::OrphanEntry {
             work_id: "id-1".to_owned(),
@@ -437,5 +447,24 @@ fn library_wire_structs_keep_snake_case_field_names() {
         vec!["atproj_path", "name", "work_id"],
         "khoá trên dây của OrphanEntry là snake_case. Nhận được: {orphan_keys:?}. Nghi phạm số \
          một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+
+    let conflict_value = value
+        .get("conflicts")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())
+        .expect("conflicts phải mang ít nhất một mục cho ca test này");
+    let mut conflict_keys: Vec<&str> = conflict_value
+        .as_object()
+        .expect("một mục conflicts phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    conflict_keys.sort_unstable();
+    assert_eq!(
+        conflict_keys,
+        vec!["duplicate_path", "kept_path", "work_id"],
+        "khoá trên dây của ConflictEntry là snake_case. Nhận được: {conflict_keys:?}. Nghi phạm \
+         số một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
     );
 }

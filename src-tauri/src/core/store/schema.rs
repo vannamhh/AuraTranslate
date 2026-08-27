@@ -563,9 +563,62 @@ BEFORE UPDATE OF translation ON glossary_entry
 WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL
 BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;";
 
-/// Bộ di trú của `global.db`. Hôm nay **năm** bước — Story 1.7 · 1.8 · 1.20 · 3.1 · 3.10.
+/// Lược đồ bảng `library_orphan` — **bước 6 của `global.db`, KHÔNG có bước song sinh ở
+/// `PROJECT_MIGRATIONS`/`LIBRARY_INDEX_MIGRATIONS`** — phán quyết Ice #1 (2026-08-27, lật
+/// §Design Notes vòng một của `5-3-quet-lai-thu-muc.md`).
 ///
-/// 🔴 **Năm bước, và đích là phiên bản 5.** Không số nào bị bỏ trống ở bộ này (khác
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO CỜ MỒ CÔI SỐNG Ở ĐÂY, KHÔNG Ở `library-index.db` — LẬT QUYẾT ĐỊNH VÒNG MỘT
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Story 5.3 vòng một chọn giữ cờ mồ côi làm một cột (`orphaned`) NGAY TRONG `library_work`
+/// (xem lịch sử ở doc-comment của [`LIBRARY_WORK_DDL`]) — lý lẽ khi đó: "hẹp hơn, không kho
+/// mới, mất mát khi xoá chỉ mục chỉ là MẤT MỘT LỜI NHẮC". Ice bác lý lẽ đó 2026-08-27: một
+/// LỜI NHẮC mà người dùng phải **chủ động gỡ** (`forget_orphan`, không có đường tự động nào
+/// xoá nó) không phải một cache — nó là một **quyết định người dùng đã ghi lại** ("tôi biết
+/// đường dẫn cũ, tôi CHƯA gỡ nó"), và một quyết định người dùng không được phép biến mất chỉ
+/// vì `library-index.db` bị xoá tay hoặc lệch phiên bản (AD-8 hứa "xoá chỉ mục là an toàn" —
+/// lời hứa đó chỉ ĐÚNG khi kho không giữ gì ngoài thứ suy ra được từ `.atproj`). ⇒ Cờ mồ côi
+/// chuyển sang `global.db`, đúng mái nhà của mọi dữ liệu người dùng khác không gắn với một
+/// `.atproj` cụ thể (mục ghim — [`PINNED_ENTRY_DDL`], Glossary chung — [`GLOSSARY_ENTRY_DDL`]),
+/// và `library_work` quay lại dẫn xuất TRỌN VẸN (xem [`LIBRARY_WORK_DDL`]).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 CỬA MỘT CHIỀU — HẠ CẤP ỨNG DỤNG SAU KHI BƯỚC NÀY PHÁT HÀNH SẼ MẤT ĐƯỜNG VÀO GLOSSARY
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Di trú của `global.db` CHỈ TIẾN (AD-30): gặp `PRAGMA user_version` MỚI HƠN bản ứng dụng
+/// hiểu ⇒ [`super::Store::open`] TỪ CHỐI MỞ, không bao giờ ghi vào (bước 3 của `Store::open`,
+/// `StoreError::SchemaTooNew`) — khác hẳn `library-index.db` (AD-8, dẫn xuất, xoá-và-dựng-lại
+/// vô hại). `global.db` mang Glossary chung, mục ghim, và MỌI cấu hình `AppConfig` — không
+/// phải một kho có thể "xoá rồi dựng lại" mà không mất gì. **Hệ quả PHẢI nói thẳng, không để
+/// người sau tự phát hiện:** một khi một `global.db` đã di trú qua bước 6 (đích 6) trên máy
+/// người dùng, HẠ CẤP xuống một bản ứng dụng cũ hơn bước này (`GLOBAL_MIGRATIONS` đích ≤ 5) sẽ
+/// làm bản cũ đó THẤY `user_version = 6 > 5` và TỪ CHỐI MỞ `global.db` — người dùng **mất
+/// đường vào Glossary chung và mọi mục đã ghim** cho tới khi họ nâng cấp trở lại. Đây không
+/// phải một lỗi tiềm ẩn cần vá; đó là bản chất của AD-30 áp dụng cho bước NÀY như mọi bước
+/// khác của `GLOBAL_MIGRATIONS` — ghi ra ở đây để một quyết định "phát hành rồi hạ cấp" trong
+/// tương lai không phải tự suy luận lại cái giá của nó.
+///
+/// - `work_id` — khoá chính, TRÙNG [`crate::core::library::meta::WorkMeta::work_id`] (cùng
+///   định danh với `library_work.work_id`, chỉ khác BẢNG/KHO đang giữ nó).
+/// - `atproj_path` — đường dẫn CŨ, TUYỆT ĐỐI trên máy này, giữ NGUYÊN VĂN từ lúc hàng thành
+///   mồ côi — đủ để màn hình nêu "nó trỏ tới đâu" (AC3) mà KHÔNG cần đọc `library-index.db`.
+/// - `name` — ảnh chụp tên Tác phẩm lúc thành mồ côi, cùng lý do `headword`/`gloss` là ảnh
+///   chụp ở [`PINNED_ENTRY_DDL`]: đủ để hiện lại hàng mà không phải tra `library-index.db`.
+///
+/// **Không** cột thời điểm (`orphaned_at`) — cùng lý lẽ mà §Design Notes của
+/// `5-3-quet-lai-thu-muc.md` đã ghi cho cột `orphaned` cũ ("một cột cho một câu hỏi chưa ai
+/// hỏi"): chưa AC nào đòi sắp mục mồ côi theo thời gian.
+pub const LIBRARY_ORPHAN_DDL: &str = "\
+CREATE TABLE library_orphan (
+  work_id     TEXT PRIMARY KEY,
+  atproj_path TEXT NOT NULL,
+  name        TEXT NOT NULL
+);";
+
+/// Bộ di trú của `global.db`. Hôm nay **sáu** bước — Story 1.7 · 1.8 · 1.20 · 3.1 · 3.10 ·
+/// phán quyết Ice #1 (Story 5.3, 2026-08-27).
+///
+/// 🔴 **Sáu bước, và đích là phiên bản 6.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -589,6 +642,10 @@ BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;";
 /// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.10):** đích chuyển từ **4** lên **5** — bước
 /// [`GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL`] (giá trị `term_origin` thứ tư,
 /// `file_import`, CÙNG một hằng với bước 15 của `project.db`).
+///
+/// 🔵 **CẬP NHẬT 2026-08-27 (phán quyết Ice #1, Story 5.3):** đích chuyển từ **5** lên **6** —
+/// bước [`LIBRARY_ORPHAN_DDL`] (bảng `library_orphan`, cờ mồ côi của Library chuyển từ
+/// `library-index.db` sang đây). Câu *"năm bước, đích là 5"* đã hết đúng, sửa tại chỗ.
 pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 1,
@@ -613,6 +670,13 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 5,
         sql: GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL,
+    },
+    // Phan quyet Ice #1 (2026-08-27, Story 5.3) -- co mo coi cua Library chuyen tu
+    // library-index.db sang day. Xem doc-comment cua LIBRARY_ORPHAN_DDL cho ly le day du
+    // (bao gom canh bao CUA MOT CHIEU: ha cap sau buoc nay mat duong vao Glossary/muc ghim).
+    Migration {
+        to_version: 6,
+        sql: LIBRARY_ORPHAN_DDL,
     },
 ];
 
@@ -1468,13 +1532,16 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 ///   — **đúng** các trường của [`crate::core::library::meta::WorkMeta`], không hơn không kém.
 ///   §Never của story cấm tường minh: **không** `cover` (chủ Story 5.6), **không** cột trạng
 ///   thái vòng đời (chủ Story 5.4), **không** cột tiến độ (chủ Story 5.5).
-/// - `orphaned` — **THÊM Story 5.3, bump `to_version` 1 → 2 (viết lại TẠI CHỖ, đúng luật của
-///   một kho dẫn xuất — xem khối 🔴 ngay trên).** `INTEGER NOT NULL DEFAULT 0`, boolean
-///   (0/1), KHÔNG một mốc thời gian — xem §Design Notes của story `5-3-quet-lai-thu-muc.md`
-///   ("Cột `orphaned` là boolean, không phải mốc thời gian"). Đây là mẩu trạng thái DUY NHẤT
-///   trong bảng này không suy ra được từ `.atproj` trên đĩa — một hàng mồ côi vẫn giữ
-///   `atproj_path` CŨ để "nêu rõ nó trỏ tới đâu" (AC3), và `Indexer::rebuild` (Story 5.3) là
-///   nơi DUY NHẤT đặt cờ này.
+/// 🔵 **SỬA (2026-08-27, phán quyết Ice #1, LẬT quyết định 5.3) — cột `orphaned` đã BỊ GỠ,
+/// `to_version` 2 → 3.** Story 5.3 từng thêm cột này ngay tại đây (`to_version` 1 → 2) vì lúc
+/// đó cờ mồ côi được coi là một mẩu trạng thái của CHÍNH chỉ mục dẫn xuất. Ice chốt lại
+/// 2026-08-27: cờ mồ côi là **dữ liệu người dùng** ("người dùng CHỌN giữ lại một lời nhắc",
+/// không phải một sự thật suy ra được từ đĩa) — nó KHÔNG thuộc về một kho tự xưng là "xoá đi
+/// dựng lại vô hại" (AD-8). Cờ mồ côi nay sống ở bảng `library_orphan` của `global.db` (xem
+/// [`LIBRARY_ORPHAN_DDL`]), và `library_work` quay lại ĐÚNG nghĩa cũ: "những gì đang có mặt
+/// trên đĩa ngay bây giờ" — dẫn xuất TRỌN VẸN, không hàng nào sống sót một lượt xoá-dựng-lại.
+/// Xem §Spec Change Log + §Design Notes của `5-3-quet-lai-thu-muc.md` cho lý lẽ đầy đủ và
+/// phương án đã cân.
 pub const LIBRARY_WORK_DDL: &str = "\
 CREATE TABLE schema_migration_log (
   version     INTEGER PRIMARY KEY,
@@ -1489,8 +1556,7 @@ CREATE TABLE library_work (
   genre         TEXT NOT NULL,
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL,
-  chapter_count INTEGER NOT NULL,
-  orphaned      INTEGER NOT NULL DEFAULT 0
+  chapter_count INTEGER NOT NULL
 );";
 
 /// Bộ di trú của `library-index.db` — **đúng MỘT bước, mãi mãi**. Xem doc-comment của
@@ -1498,11 +1564,21 @@ CREATE TABLE library_work (
 /// (AD-8), nó bị xoá-và-dựng-lại khi lược đồ đổi, không bao giờ được thêm bước 2.
 ///
 /// 🔵 **NÂNG 2026-08-27 (Story 5.3): `to_version` 1 → 2** — cột `orphaned` thêm vào
-/// [`LIBRARY_WORK_DDL`] (viết lại TẠI CHỖ, không một bước di trú thứ hai). Mọi
-/// `library-index.db` ở `to_version` 1 bị `Indexer::open` xoá-và-dựng-lại như một tệp lệch
-/// phiên bản bình thường — không mất dữ liệu người dùng, chỉ mất chính chỉ mục (dẫn xuất).
+/// [`LIBRARY_WORK_DDL`] (viết lại TẠI CHỖ, không một bước di trú thứ hai). ~~Mọi
+/// `library-index.db` ở `to_version` 1 bị `Indexer::open` xoá-và-dựng-lại…~~
+///
+/// 🔵 **NÂNG LẦN HAI (2026-08-27, phán quyết Ice #1): `to_version` 2 → 3** — cột `orphaned`
+/// vừa thêm ở bản nâng trên đã bị GỠ (xem doc-comment của [`LIBRARY_WORK_DDL`]). Đây vẫn là
+/// một lượt VIẾT LẠI TẠI CHỖ đúng luật của kho dẫn xuất — không một bước di trú thứ hai/ba.
+/// Mọi `library-index.db` ở `to_version` 1 HOẶC 2 bị `Indexer::open` xoá-và-dựng-lại như một
+/// tệp lệch phiên bản bình thường. ⚠️ **Cửa sổ này chưa phát hành** (Story 5.3 mới đi vào
+/// nhánh chính cùng ngày) nên không `library-index.db` thật nào ngoài máy dev từng mang cột
+/// `orphaned`; hàng mồ côi (nếu có) trong một tệp `to_version = 2` cục bộ sẽ biến mất cùng
+/// tệp bị xoá, KHÔNG được chuyển sang `global.db` — đúng lời hứa gốc của AD-8 ("xoá chỉ
+/// mục là an toàn, chỉ mất MỘT LỜI NHẮC, không mất dữ liệu người dùng thật": bản thân `.atproj`
+/// trên đĩa không hề bị chạm). Không mất dữ liệu người dùng THẬT, chỉ mất chính chỉ mục.
 pub const LIBRARY_INDEX_MIGRATIONS: &[Migration] = &[Migration {
-    to_version: 2,
+    to_version: 3,
     sql: LIBRARY_WORK_DDL,
 }];
 

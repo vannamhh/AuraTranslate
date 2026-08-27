@@ -160,7 +160,7 @@
  */
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { spawn } from 'node:child_process'
 import {
@@ -196,6 +196,12 @@ const LIBRARY_ROOT_ENV = 'AURATRANSLATE_E2E_LIBRARY_ROOT'
 
 /** Tên tệp kho toàn cục — khớp `GLOBAL_DB_FILE` ở `src-tauri/src/lib.rs`. */
 const GLOBAL_DB_FILE = 'global.db'
+
+/**
+ * Tên tệp chỉ mục Library dẫn xuất — khớp `LIBRARY_INDEX_DB_FILE` ở `src-tauri/src/lib.rs`.
+ * Nằm CÙNG thư mục với `GLOBAL_DB_FILE` ở trên (`$APPDATA`, không phải thư mục gốc Library).
+ */
+const LIBRARY_INDEX_DB_FILE = 'library-index.db'
 
 /** Thư mục con dưới `~/Documents/` — khớp `DOCUMENTS_SUBFOLDER` ở `commands/project.rs`. */
 const DOCUMENTS_SUBFOLDER = 'AuraTranslate'
@@ -459,6 +465,68 @@ export const config = {
     // `global.db` thật giống hệt nhau trước và sau lượt chạy.
     const storePath = join(dataDir, GLOBAL_DB_FILE)
     const redirected = existsSync(storePath)
+
+    // ── Hàng rào chiều ĐỌC: `library-index.db` không được nhắc đường dẫn Library THẬT ──
+    //
+    // 🔴 PHÁN QUYẾT Ice 2026-08-27 — hàng rào ÂM ở trên (`realLibrarySignature`) chỉ canh
+    // chiều GHI (thư mục thật có mọc/mất mục hay không); nó KHÔNG canh chiều ĐỌC. Một lượt
+    // chạy đã lọt qua nó trong khi vẫn ĐỌC `~/Documents/AuraTranslate` thật và lập chỉ mục
+    // các Tác phẩm ở đó (xem mục nợ "Một lượt e2e ĐỎ chưa chẩn đoán được",
+    // `deferred-work.md`) — dấu vết mà hàng rào GHI không để lại, vì không byte nào bị ghi
+    // vào chính thư mục thật đó.
+    //
+    // Hàng rào DƯƠNG ở đây: đọc `library-index.db` (nằm trong `$APPDATA` tạm, CÙNG thư mục
+    // với `global.db`) DẠNG BYTE — không phân tích SQLite, không thêm phụ thuộc npm
+    // (`scripts/AGENTS.md`) — và FAIL cả lượt chạy nếu nội dung chứa chuỗi con đúng đường
+    // dẫn Library THẬT. SQLite lưu một cột `TEXT` dưới dạng UTF-8 thô ngay trong trang dữ
+    // liệu của tệp `.db`, nên một chuỗi con khớp byte-cho-byte là bằng chứng THẬT, không
+    // suy luận — đúng cách `atproj_path`/`library_orphan.atproj_path` (phán quyết Ice #1)
+    // sẽ mang nguyên văn đường dẫn nếu ứng dụng lỡ lập chỉ mục thư viện thật.
+    //
+    // ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì giấu:** hàng rào này chỉ bắt được đường dẫn ĐÃ ĐI
+    // VÀO chỉ mục (`library_work.atproj_path`, và nay cũng có thể là một hàng mồ côi trong
+    // `global.db` — nhưng đó là kho THỨ NHẤT, đã canh bởi hàng rào chữ ký ở trên qua cùng
+    // `redirected`). Một lượt chỉ ĐỌC thư mục thật mà không lập chỉ mục được gì (ví dụ gốc
+    // bị coi là rỗng vì một lỗi khác, hoặc ứng dụng đóng trước khi quét xong) vẫn LỌT qua
+    // đây — hàng rào canh DẤU VẾT còn lại trên đĩa, không canh hành vi ĐỌC tại đúng thời
+    // điểm nó xảy ra.
+    const indexPath = join(dataDir, LIBRARY_INDEX_DB_FILE)
+    let indexBytes = null
+    try {
+      indexBytes = readFileSync(indexPath)
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        // Chưa từng mở/lập chỉ mục trong lượt chạy này -- KHÔNG phải lỗi, bỏ qua êm.
+        indexBytes = null
+      } else {
+        // Lỗi HẠ TẦNG (quyền, đĩa hỏng, …) -- KHÔNG phải một phép kiểm ĐỎ. Phân biệt tường
+        // minh, đúng luật cổng của kho: một cổng đỏ vì hạ tầng phải NÓI RÕ đó là hạ tầng,
+        // không lẫn với một phát hiện thật (mã lỗi ${err.code} đi vào cảnh báo bên dưới để
+        // người đọc log không phải đoán).
+        console.warn(
+          `[e2e] không đọc được ${indexPath} để kiểm hàng rào chiều ĐỌC (${err.code}) -- ` +
+            'bỏ qua phép kiểm này, đây là lỗi HẠ TẦNG, không phải một phát hiện.',
+        )
+        indexBytes = null
+      }
+    }
+    if (indexBytes !== null) {
+      const needle = Buffer.from(realLibraryPath(), 'utf8')
+      if (indexBytes.includes(needle)) {
+        rmSync(dataDir, { recursive: true, force: true })
+        dataDir = null
+        throw new Error(
+          `${LIBRARY_INDEX_DB_FILE} chứa đường dẫn Library THẬT của bạn:\n  ${realLibraryPath()}\n\n` +
+            'Nghĩa là ứng dụng đã ĐỌC và lập chỉ mục thư viện thật trong lượt e2e này, dù\n' +
+            'không byte nào bị GHI vào thư mục đó (hàng rào chữ ký ở trên không bắt được\n' +
+            'chiều này). Đây chính là dấu vết của "Một lượt e2e ĐỎ chưa chẩn đoán được"\n' +
+            '(`deferred-work.md`) — đọc mục đó trước khi sửa bất cứ dòng nào.\n\n' +
+            '⚠️ Giới hạn của chính hàng rào này: nó chỉ bắt đường dẫn ĐÃ ĐI VÀO chỉ mục —\n' +
+            'một lượt đọc thư mục thật mà không lập chỉ mục gì vẫn lọt qua.',
+        )
+      }
+    }
+
     rmSync(dataDir, { recursive: true, force: true })
     const usedDir = dataDir
     dataDir = null

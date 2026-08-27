@@ -17,7 +17,7 @@ const RESCAN_REPORT_ONE_ORPHAN = {
   root: '/tmp/library',
   root_missing: false,
   indexed: 2,
-  conflicts: 0,
+  conflicts: [],
   skipped: 0,
   orphans: [{ work_id: 'id-orphan', name: 'Ghost Work', atproj_path: '/tmp/library/Ghost.atproj' }],
 }
@@ -95,7 +95,7 @@ describe('modes/libraryRescan.ts — con trỏ mồ côi kẹp lại sau khi m�
       root: '/tmp/library',
       root_missing: false,
       indexed: 0,
-      conflicts: 0,
+      conflicts: [],
       skipped: 0,
       orphans: [
         { work_id: 'id-a', name: 'A', atproj_path: '/tmp/A.atproj' },
@@ -140,7 +140,7 @@ describe('P1 (vòng rà bốn lớp, 2026-08-27) — `root_missing` phải phân
       root: '/gốc-đã-mất',
       root_missing: true,
       indexed: 0,
-      conflicts: 0,
+      conflicts: [],
       skipped: 0,
       orphans: [],
     })
@@ -169,7 +169,7 @@ describe('config/library.ts — kiểm KIỂU LÚC CHẠY cho `RescanReport` (P1
     mockInvoke.mockResolvedValueOnce({
       root: '/tmp/library',
       indexed: 1,
-      conflicts: 0,
+      conflicts: [],
       skipped: 0,
       orphans: [],
     })
@@ -183,6 +183,72 @@ describe('config/library.ts — kiểm KIỂU LÚC CHẠY cho `RescanReport` (P1
     expect(result.error?.code).toBe('ipc.unknown')
 
     Reflect.deleteProperty(window, '__TAURI_INTERNALS__')
+  })
+
+  /**
+   * **THÊM (2026-08-27, phán quyết Ice #3)** — đối chứng GỠ bắt buộc: nén dữ liệu xung đột
+   * trở lại thành một con số (hình dạng TRƯỚC phán quyết #3, khi `conflicts` còn là
+   * `number`) phải làm guard từ chối, không chuyển tiếp im lặng. Không có ca này, một lượt
+   * Rust lùi về hình dạng cũ (hoặc một chỗ gọi TS quên cập nhật) sẽ đi qua `isRescanReport`
+   * và đổ một con số trần vào chỗ đang mong một mảng — đúng lớp lỗi "bộ test xanh không
+   * chứng minh chỗ nối được canh" mà `AGENTS.md::Known pitfalls` gọi tên.
+   */
+  it('một `RescanReport` với `conflicts` là SỐ (hình dạng cũ, trước phán quyết Ice #3) bị từ chối', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      root: '/tmp/library',
+      root_missing: false,
+      indexed: 1,
+      conflicts: 2, // hình dạng CŨ -- một `usize` trần, không còn hợp lệ.
+      skipped: 0,
+      orphans: [],
+    })
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true })
+
+    const { rescanLibrary } = await import('../../src/config/library')
+    const result = await rescanLibrary()
+
+    expect(result.report).toBeNull()
+    expect(result.error).not.toBeNull()
+    expect(result.error?.code).toBe('ipc.unknown')
+
+    Reflect.deleteProperty(window, '__TAURI_INTERNALS__')
+  })
+})
+
+describe('phán quyết Ice #3 (2026-08-27) — dữ liệu xung đột có cấu trúc, không chỉ một con số', () => {
+  it('`rescanLibraryFolder()` với `conflicts` chở hai mục cập nhật `libraryConflicts`/`firstLibraryConflict`/`libraryConflictCount`', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      root: '/tmp/library',
+      root_missing: false,
+      indexed: 1,
+      conflicts: [
+        { work_id: 'id-dup', kept_path: '/tmp/library/A.atproj', duplicate_path: '/tmp/library/B.atproj' },
+        { work_id: 'id-dup-2', kept_path: '/tmp/library/C.atproj', duplicate_path: '/tmp/library/D.atproj' },
+      ],
+      skipped: 0,
+      orphans: [],
+    })
+    const state = await import('../../src/modes/libraryRescan')
+
+    await state.rescanLibraryFolder()
+
+    expect(state.libraryConflictCount.value).toBe(2)
+    expect(state.libraryConflicts.value).toHaveLength(2)
+    expect(state.firstLibraryConflict.value).toEqual({
+      work_id: 'id-dup',
+      kept_path: '/tmp/library/A.atproj',
+      duplicate_path: '/tmp/library/B.atproj',
+    })
+  })
+
+  it('không có xung đột nào ⇒ `firstLibraryConflict` là `null`, `libraryConflicts` rỗng', async () => {
+    mockInvoke.mockResolvedValueOnce(RESCAN_REPORT_ONE_ORPHAN) // conflicts: []
+    const state = await import('../../src/modes/libraryRescan')
+
+    await state.rescanLibraryFolder()
+
+    expect(state.firstLibraryConflict.value).toBeNull()
+    expect(state.libraryConflicts.value).toEqual([])
   })
 })
 

@@ -2879,8 +2879,12 @@ fn migrating_past_the_old_three_value_check_keeps_ids_and_carries_the_watermark_
     }
 
     // Mo lai bang bo di tru THAT (GLOBAL_MIGRATIONS day du) -- buoc 5 phai chay.
+    //
+    // 🔵 SUA (2026-08-27, phan quyet Ice #1) -- dich chuyen tu 5 len 6: buoc 6 them bang
+    // `library_orphan` (khong cham `glossary_entry`), nen no chay THEM sau buoc 5 ma khong
+    // anh huong menh de cua ca nay.
     let migrated = Store::open(StoreSpec::global(db)).expect("mo lai sau khi di tru");
-    assert_eq!(migrated.schema_version(), 5, "buoc 5 phai da chay");
+    assert_eq!(migrated.schema_version(), 6, "buoc 5 VA 6 phai da chay");
 
     // (1) + (2) hang con song du, va id KHONG doi ('a' van la 1, 'b' van la 2 -- khong bi
     // don lai).

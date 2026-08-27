@@ -104,20 +104,21 @@ fn write_atproj(root: &Path, folder: &str, work_id: &str, name: &str) -> PathBuf
 #[test]
 fn a_brand_new_atproj_copied_into_the_root_appears_after_one_rescan() {
     let dir = temp_dir("new-atproj");
+    let global = open_global(&dir);
     let root = library_root(&dir);
     write_atproj(&root, "First", "id-first", "Tac pham dau");
 
     let indexer = open_indexer(&dir);
-    let before = rescan(Some(&indexer), &root).expect("lượt quét đầu");
+    let before = rescan(Some(&indexer), Some(&global), &root).expect("lượt quét đầu");
     assert_eq!(before.indexed, 1);
     assert!(before.orphans.is_empty());
 
     // Người dùng copy một thư mục `.atproj` thứ hai vào bằng Finder/Explorer.
     write_atproj(&root, "Second", "id-second", "Tac pham hai");
 
-    let after = rescan(Some(&indexer), &root).expect("lượt quét sau khi copy");
+    let after = rescan(Some(&indexer), Some(&global), &root).expect("lượt quét sau khi copy");
     assert_eq!(after.indexed, 2, "Tác phẩm vừa copy vào phải có mặt sau ĐÚNG một lượt quét");
-    assert_eq!(after.conflicts, 0);
+    assert!(after.conflicts.is_empty());
     assert_eq!(after.skipped, 0);
     assert!(
         after.orphans.is_empty(),
@@ -127,11 +128,11 @@ fn a_brand_new_atproj_copied_into_the_root_appears_after_one_rescan() {
     let works = indexer.list_works().expect("list_works");
     let ids: Vec<&str> = works.iter().map(|w| w.work_id.as_str()).collect();
     assert!(ids.contains(&"id-first") && ids.contains(&"id-second"), "cả hai phải còn: {ids:?}");
-    assert!(works.iter().all(|w| !w.orphaned));
 
     assert_eq!(after.root, root.display().to_string(), "báo cáo phải nêu đúng gốc vừa quét");
 
     drop(indexer);
+    drop(global);
     cleanup(&dir);
 }
 
@@ -244,11 +245,11 @@ fn every_library_command_reports_a_missing_indexer_instead_of_panicking() {
     fs::create_dir_all(&root).expect("tạo gốc");
     let global = open_global(&dir);
 
-    let rescan_err = rescan(None, &root).expect_err("không có Indexer thì không quét được");
+    let rescan_err = rescan(None, Some(&global), &root).expect_err("không có Indexer thì không quét được");
     assert_eq!(rescan_err.code(), "library.indexer_missing");
 
-    let forget_err =
-        forget_orphan(None, "id-bat-ky", "Ten bat ky").expect_err("không có Indexer thì không gỡ được");
+    let forget_err = forget_orphan(None, Some(&global), "id-bat-ky", "Ten bat ky")
+        .expect_err("không có Indexer thì không gỡ được");
     assert_eq!(forget_err.code(), "library.indexer_missing");
 
     let choose_err = apply_chosen_root(Some(&global), None, Some(&dir))
@@ -271,16 +272,18 @@ fn every_library_command_reports_a_missing_indexer_instead_of_panicking() {
 #[test]
 fn rescan_on_a_root_that_does_not_exist_reports_root_missing_true() {
     let dir = temp_dir("rescan-root-missing");
+    let global = open_global(&dir);
     let root = library_root(&dir); // chưa từng tạo
 
     let indexer = open_indexer(&dir);
-    let report = rescan(Some(&indexer), &root).expect("rescan trên gốc vắng không phải lỗi");
+    let report = rescan(Some(&indexer), Some(&global), &root).expect("rescan trên gốc vắng không phải lỗi");
 
     assert!(report.root_missing, "gốc chưa từng tồn tại phải báo root_missing = true");
     assert_eq!(report.indexed, 0);
     assert!(report.orphans.is_empty());
 
     drop(indexer);
+    drop(global);
     cleanup(&dir);
 }
 
@@ -289,11 +292,12 @@ fn rescan_on_a_root_that_does_not_exist_reports_root_missing_true() {
 #[test]
 fn rescan_on_a_root_that_exists_but_is_truly_empty_reports_root_missing_false() {
     let dir = temp_dir("rescan-root-empty");
+    let global = open_global(&dir);
     let root = library_root(&dir);
     fs::create_dir_all(&root).expect("tạo gốc rỗng thật");
 
     let indexer = open_indexer(&dir);
-    let report = rescan(Some(&indexer), &root).expect("rescan trên gốc rỗng không phải lỗi");
+    let report = rescan(Some(&indexer), Some(&global), &root).expect("rescan trên gốc rỗng không phải lỗi");
 
     assert!(
         !report.root_missing,
@@ -303,6 +307,7 @@ fn rescan_on_a_root_that_exists_but_is_truly_empty_reports_root_missing_false() 
     assert_eq!(report.indexed, 0);
 
     drop(indexer);
+    drop(global);
     cleanup(&dir);
 }
 
@@ -318,13 +323,14 @@ fn rescan_on_a_root_that_exists_but_is_truly_empty_reports_root_missing_false() 
 #[test]
 fn forget_orphan_at_the_command_layer_carries_the_right_code_and_work_id_param_for_a_live_row() {
     let dir = temp_dir("commands-forget-live");
+    let global = open_global(&dir);
     let root = library_root(&dir);
     write_atproj(&root, "Alive", "id-alive", "Alive");
 
     let indexer = open_indexer(&dir);
-    rescan(Some(&indexer), &root).expect("rescan");
+    rescan(Some(&indexer), Some(&global), &root).expect("rescan");
 
-    let err = forget_orphan(Some(&indexer), "id-alive", "Alive")
+    let err = forget_orphan(Some(&indexer), Some(&global), "id-alive", "Alive")
         .expect_err("hàng đang sống phải bị từ chối");
     assert_eq!(err.code(), "library.not_orphaned");
     assert_eq!(err.params().get("work_id").map(String::as_str), Some("id-alive"));
@@ -333,6 +339,7 @@ fn forget_orphan_at_the_command_layer_carries_the_right_code_and_work_id_param_f
     assert_eq!(err.params().get("name").map(String::as_str), Some("Alive"));
 
     drop(indexer);
+    drop(global);
     cleanup(&dir);
 }
 
@@ -341,13 +348,14 @@ fn forget_orphan_at_the_command_layer_carries_the_right_code_and_work_id_param_f
 #[test]
 fn forget_orphan_at_the_command_layer_carries_the_right_code_and_work_id_param_for_an_unknown_id() {
     let dir = temp_dir("commands-forget-unknown");
+    let global = open_global(&dir);
     let root = library_root(&dir);
     fs::create_dir_all(&root).expect("tạo gốc");
 
     let indexer = open_indexer(&dir);
-    rescan(Some(&indexer), &root).expect("rescan");
+    rescan(Some(&indexer), Some(&global), &root).expect("rescan");
 
-    let err = forget_orphan(Some(&indexer), "id-la-mot-cai-ten-la", "Ten hien thi luc bam nut")
+    let err = forget_orphan(Some(&indexer), Some(&global), "id-la-mot-cai-ten-la", "Ten hien thi luc bam nut")
         .expect_err("work_id lạ phải bị từ chối");
     assert_eq!(err.code(), "library.not_orphaned");
     assert_eq!(err.params().get("work_id").map(String::as_str), Some("id-la-mot-cai-ten-la"));
@@ -358,6 +366,7 @@ fn forget_orphan_at_the_command_layer_carries_the_right_code_and_work_id_param_f
     );
 
     drop(indexer);
+    drop(global);
     cleanup(&dir);
 }
 

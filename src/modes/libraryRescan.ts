@@ -19,7 +19,7 @@
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { chooseLibraryRoot, forgetLibraryOrphan, rescanLibrary } from '../config/library'
-import type { OrphanEntry } from '../config/library'
+import type { ConflictEntry, OrphanEntry } from '../config/library'
 import type { IpcError } from '../i18n'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,6 +33,10 @@ const rootMissing = ref(false)
 const orphans = ref<OrphanEntry[]>([])
 const orphanCursor = ref(0)
 const indexedCount = ref(0)
+// 🔵 THÊM (2026-08-27, phán quyết Ice #3) — dữ liệu CÓ CẤU TRÚC của xung đột, không chỉ đếm.
+// `conflictCount` (ngay dưới) vẫn giữ NGUYÊN vai cũ (dòng ba-con-số); `conflicts` phục vụ
+// node cảnh báo RIÊNG mà AC4 đòi ("phát hiện VÀ cảnh báo" — hai vế).
+const conflicts = ref<ConflictEntry[]>([])
 const conflictCount = ref(0)
 const skippedCount = ref(0)
 const rescanBusy = ref(false)
@@ -48,6 +52,7 @@ export const libraryRootMissing: DeepReadonly<Ref<boolean>> = readonly(rootMissi
 export const libraryOrphans: DeepReadonly<Ref<OrphanEntry[]>> = readonly(orphans)
 export const libraryOrphanCursor: DeepReadonly<Ref<number>> = readonly(orphanCursor)
 export const libraryIndexedCount: DeepReadonly<Ref<number>> = readonly(indexedCount)
+export const libraryConflicts: DeepReadonly<Ref<ConflictEntry[]>> = readonly(conflicts)
 export const libraryConflictCount: DeepReadonly<Ref<number>> = readonly(conflictCount)
 export const librarySkippedCount: DeepReadonly<Ref<number>> = readonly(skippedCount)
 export const libraryRescanBusy: DeepReadonly<Ref<boolean>> = readonly(rescanBusy)
@@ -63,6 +68,16 @@ export const libraryRescanError: DeepReadonly<Ref<IpcError | null>> = readonly(l
  */
 export const currentLibraryOrphan = computed<OrphanEntry | null>(() => orphans.value.at(orphanCursor.value) ?? null)
 
+/**
+ * **THÊM (2026-08-27, phán quyết Ice #3)** — chỗ trùng `work_id` ĐẦU TIÊN, hoặc `null` nếu
+ * lượt quét gần nhất không phát hiện chỗ nào. Cùng khuôn `currentLibraryOrphan` ngay trên
+ * (`.at(0)`, không `[0]` — `noUncheckedIndexedAccess` không bật, `.at()` khai đúng
+ * `T | undefined`): `LibraryMode.vue` chỉ cần nêu đích danh chỗ trùng đầu tiên kèm cả hai
+ * đường dẫn, và "và N chỗ nữa" khi nhiều hơn một — không dựng danh sách/lưới (Story 5.6 sở
+ * hữu phần đó).
+ */
+export const firstLibraryConflict = computed<ConflictEntry | null>(() => conflicts.value.at(0) ?? null)
+
 function clampCursor(): void {
   const maxIndex = orphans.value.length - 1
   if (orphanCursor.value > maxIndex) orphanCursor.value = Math.max(0, maxIndex)
@@ -73,14 +88,18 @@ function applyReport(report: {
   root: string
   root_missing: boolean
   indexed: number
-  conflicts: number
+  conflicts: ConflictEntry[]
   skipped: number
   orphans: OrphanEntry[]
 }): void {
   libraryRoot.value = report.root
   rootMissing.value = report.root_missing
   indexedCount.value = report.indexed
-  conflictCount.value = report.conflicts
+  // Phán quyết Ice #3 -- giữ NGUYÊN dữ liệu xung đột (node cảnh báo), và suy con số cũ từ
+  // `.length` (dòng ba-con-số) thay vì nhận nó rời rạc từ Rust -- một nguồn sự thật DUY NHẤT,
+  // không hai trường có thể trôi khỏi nhau.
+  conflicts.value = report.conflicts
+  conflictCount.value = report.conflicts.length
   skippedCount.value = report.skipped
   orphans.value = report.orphans
   libraryScanHasLoaded.value = true
@@ -183,6 +202,7 @@ export function resetLibraryRescan(): void {
   orphans.value = []
   orphanCursor.value = 0
   indexedCount.value = 0
+  conflicts.value = []
   conflictCount.value = 0
   skippedCount.value = 0
   rescanBusy.value = false

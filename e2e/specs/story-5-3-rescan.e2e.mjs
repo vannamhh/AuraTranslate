@@ -29,7 +29,7 @@
  *    thiếu nó thì dừng ngay, không đoán một đường dẫn.
  */
 
-import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 
 import { realClick } from '../support/pointer.mjs'
@@ -46,6 +46,8 @@ const ROOT_VALUE = '.root-block .root-value'
 const ROOT_MISSING = '.root-block .root-missing'
 const ORPHAN_NAME = '.orphan-row .orphan-name'
 const ORPHAN_PATH = '.orphan-row .orphan-path'
+/** Node cảnh báo xung đột `work_id` — phán quyết Ice #3 (2026-08-27), `LibraryMode.vue`. */
+const CONFLICT_WARNING = '.root-block .conflict-warning'
 
 /** Bấm "Quét lại" rồi chờ lượt quét xong (nút hết `disabled`). */
 async function rescanAndWait() {
@@ -175,6 +177,44 @@ describe('Story 5.3 · FR99 — quét lại thư mục trong cửa sổ thật',
     await rescanAndWait()
     expect(await (await $(ROOT_MISSING)).getText()).toBe('')
     expect(await resultLine()).toContain('Đã lập chỉ mục 0')
+  })
+
+  /**
+   * Phán quyết Ice #3 (2026-08-27) — AC4 nói "phát hiện VÀ CẢNH BÁO", và ca này là ca DUY
+   * NHẤT trong cả ba tầng (Rust/frontend/e2e) đi TRỌN đường nút thật → `dispatch` →
+   * `invoke` → `Indexer::rebuild` → `RescanReport.conflicts` (nay có cấu trúc) → DOM cho
+   * đúng kịch bản "hai Tác phẩm cùng `work_id`".
+   *
+   * `create_work_from_text` luôn sinh một UUID MỚI mỗi lần gọi (không có đường IPC nào tạo
+   * hai Tác phẩm cùng `work_id`), nên fixture phải dựng THẲNG trên đĩa — đúng cách
+   * `library_index_contract.rs::a_duplicate_work_id_keeps_the_first_entry_and_reports_the_conflict_with_both_paths`
+   * đã làm ở tầng Rust: COPY một `.atproj` đã có `meta.json` hợp lệ (từ `parkingLot`, còn
+   * nguyên sau ca "Gỡ khỏi chỉ mục" ở trên) vào HAI thư mục MỚI cùng gốc, giữ NGUYÊN
+   * `work_id` bên trong — chỉ tên thư mục khác nhau.
+   */
+  it('hai `.atproj` cùng work_id ⇒ node cảnh báo nêu đúng CẢ HAI đường dẫn', async () => {
+    const parkedSource = join(parkingLot, `${WORK_NAME}.atproj`)
+    expect(existsSync(parkedSource)).toBe(true)
+
+    // Tên đặt để thứ tự SẮP XẾP (Indexer quét theo tên đã sắp) tất định: "-A" trước "-B".
+    const keptDir = join(libraryRoot, `${WORK_NAME}-Conflict-A.atproj`)
+    const duplicateDir = join(libraryRoot, `${WORK_NAME}-Conflict-B.atproj`)
+    cpSync(parkedSource, keptDir, { recursive: true })
+    cpSync(parkedSource, duplicateDir, { recursive: true })
+
+    try {
+      await rescanAndWait()
+
+      expect(await resultLine()).toContain('Đã lập chỉ mục 1')
+
+      const warning = await (await $(CONFLICT_WARNING)).getText()
+      expect(warning).toContain(keptDir)
+      expect(warning).toContain(duplicateDir)
+    } finally {
+      // Dọn TRƯỚC khi `onComplete` của wdio chạy phép tự kiểm chữ ký thư mục Library thật.
+      rmSync(keptDir, { recursive: true, force: true })
+      rmSync(duplicateDir, { recursive: true, force: true })
+    }
   })
 
   after(() => {

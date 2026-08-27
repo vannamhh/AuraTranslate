@@ -732,7 +732,9 @@ fn open_library_index(app: &tauri::App) {
             let global = app.try_state::<crate::core::store::Store>();
             match crate::commands::project::resolve_library_root(app.handle(), global.as_deref())
             {
-                Ok(root) => match indexer.rebuild(&root) {
+                // Phan quyet Ice #1 (2026-08-27) -- co mo coi song o `library_orphan`
+                // (global.db), nen `rebuild` can cung `global` vua fetch o tren.
+                Ok(root) => match indexer.rebuild(&root, global.as_deref()) {
                     // Vòng rà ba lớp, P7 — `RebuildOutcome` không còn bị vứt: xung đột
                     // `work_id`/entry bị bỏ qua phải có ÍT NHẤT một dòng chẩn đoán.
                     Ok(outcome) => outcome.log_if_notable("startup"),

@@ -21,6 +21,18 @@ export type OrphanEntry = {
   atproj_path: string
 }
 
+/**
+ * **THÊM (2026-08-27, phán quyết Ice #3)** — một cặp `.atproj` cùng `work_id`, khớp
+ * `commands::library::ConflictEntry` phía Rust, `snake_case`.
+ */
+export type ConflictEntry = {
+  work_id: string
+  /** Đường dẫn `.atproj` đang có mặt trong chỉ mục (mục ĐẦU, theo thứ tự quét đã sắp). */
+  kept_path: string
+  /** Đường dẫn `.atproj` trùng `work_id`, bị loại khỏi lượt ghi này. */
+  duplicate_path: string
+}
+
 /** Kết quả một lượt quét — khớp `commands::library::RescanReport`. */
 export type RescanReport = {
   /** Thư mục gốc VỪA quét — chỉ Rust biết bộ phân giải (móc e2e ⇒ cấu hình ⇒ mặc định) đã
@@ -34,7 +46,13 @@ export type RescanReport = {
    */
   root_missing: boolean
   indexed: number
-  conflicts: number
+  /**
+   * 🔵 SỬA (2026-08-27, phán quyết Ice #3) — đổi từ `number` sang `ConflictEntry[]`. AC4 nói
+   * "phát hiện VÀ cảnh báo" — hai vế, và một con số nén không đủ dữ kiện cho vế "cảnh báo":
+   * nó không nói được CHỖ NÀO trùng. `.length` vẫn cho con số cũ khi chỉ cần đếm (dòng
+   * ba-con-số của màn hình).
+   */
+  conflicts: ConflictEntry[]
   skipped: number
   orphans: OrphanEntry[]
 }
@@ -65,6 +83,23 @@ export type ChooseRootResult = RescanResult
  * biên dịch -- Rust có thể trả thiếu một trường sau một lượt đổi lược đồ mà không tệp
  * `.ts` nào ở đây biết trước, và guard là chỗ DUY NHẤT phát hiện điều đó.
  */
+/**
+ * 🔵 SỬA (2026-08-27, phán quyết Ice #3) — `conflicts` nay là một mảng, không một `number`.
+ * Kiểm `Array.isArray` cộng hình dạng của MỤC ĐẦU (nếu có) — cùng mức chặt mà `orphans` đã
+ * có ngay bên dưới (`Array.isArray`, không đào sâu từng phần tử): một mảng rỗng là hợp lệ
+ * theo định nghĩa (không có xung đột nào), nên không có "mục đầu" nào để kiểm trong ca đó.
+ */
+function isConflictEntryArray(value: unknown): value is ConflictEntry[] {
+  if (!Array.isArray(value)) return false
+  if (value.length === 0) return true
+  const first = value[0] as Partial<ConflictEntry>
+  return (
+    typeof first.work_id === 'string' &&
+    typeof first.kept_path === 'string' &&
+    typeof first.duplicate_path === 'string'
+  )
+}
+
 function isRescanReport(value: unknown): value is RescanReport {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<RescanReport>
@@ -72,7 +107,7 @@ function isRescanReport(value: unknown): value is RescanReport {
     typeof v.root === 'string' &&
     typeof v.root_missing === 'boolean' &&
     typeof v.indexed === 'number' &&
-    typeof v.conflicts === 'number' &&
+    isConflictEntryArray(v.conflicts) &&
     typeof v.skipped === 'number' &&
     Array.isArray(v.orphans)
   )

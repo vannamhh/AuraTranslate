@@ -149,6 +149,8 @@
   "mode.library.rescan": "Quét lại",
   "mode.library.rescan_busy": "Đang quét…",
   "mode.library.rescan_result": "Đã lập chỉ mục {indexed} · trùng work_id {conflicts} · bỏ qua {skipped}",
+  "mode.library.conflict_warning": "Hai Tác phẩm cùng work_id — đang giữ {kept_path}, đã bỏ qua {duplicate_path}.",
+  "mode.library.conflict_more": "và {count} chỗ nữa.",
   "mode.library.orphans_heading": "Mục mồ côi",
   "mode.library.orphans_not_loaded": "Bấm Quét lại để biết có mục mồ côi nào không.",
   "mode.library.orphans_none": "Không có mục mồ côi nào.",

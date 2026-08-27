@@ -74,6 +74,16 @@ deferred:
     location: >-
       e2e/specs/story-5-3-rescan.e2e.mjs
     severity: medium
+    resolution: >-
+      🟡 ĐÓNG MỘT NỬA 2026-08-27 (phán quyết Ice #2) — KHÔNG làm tròn lên ✅. Vế "hàng rào chỉ
+      canh chiều GHI" nay ĐÓNG: `wdio.conf.mjs::onComplete` thêm một hàng rào DƯƠNG đọc
+      `library-index.db` (byte, không phân tích SQLite) trong `$APPDATA` tạm và FAIL cả lượt
+      nếu nội dung chứa chuỗi con đúng đường dẫn Library THẬT — phân biệt lỗi hạ tầng (không
+      đọc được tệp) với một phát hiện thật, và tệp vắng mặt là êm, không lỗi. Giới hạn ghi
+      ngay tại chỗ trong mã: chỉ bắt đường dẫn ĐÃ ĐI VÀO chỉ mục, một lượt đọc thư mục thật mà
+      không lập chỉ mục gì vẫn lọt. Vế "lượt đỏ chưa chẩn đoán được" VẪN MỞ — hàng rào mới chỉ
+      là một cơ chế PHÁT HIỆN cho lần sau, nó không giải thích được lượt đỏ ĐÃ xảy ra trong
+      quá khứ. Chủ giữ nguyên Ice.
   - summary: >-
       AC4 nói "cảnh báo" nhưng sản phẩm cho một CON SỐ TRẦN, và spec 5.3 không nêu đây là
       một chỗ hai cách đọc — trong khi nó có nêu chỗ tương tự về cờ mồ côi.
@@ -87,6 +97,16 @@ deferred:
     location: >-
       src-tauri/src/commands/library.rs (RescanReport.conflicts)
     severity: medium
+    resolution: >-
+      🔵 ĐÓNG MỘT PHẦN 2026-08-27 (phán quyết Ice #3). Vế "chưa có bề mặt nói ra" nay ĐÓNG:
+      `RescanReport.conflicts` đổi từ `usize` sang `Vec<ConflictEntry>` (work_id/kept_path/
+      duplicate_path, đóng băng ở ipc_contract.rs), và `LibraryMode.vue` có một node
+      `.conflict-warning` RIÊNG (role="status", tách khỏi dòng ba-con-số) nêu đích danh chỗ
+      trùng đầu tiên kèm cả hai đường dẫn, cộng "và N chỗ nữa" khi nhiều hơn một. Ca kiểm ở
+      cả ba tầng: library_commands_contract.rs (tầng lệnh), tests/frontend/libraryRescan.test.ts
+      (tầng state), e2e/specs/story-5-3-rescan.e2e.mjs (nút thật → DOM thật). Vế "danh
+      sách/lưới các chỗ trùng" VẪN thuộc Story 5.6 — không đổi, ranh giới Ice chốt: story này
+      chỉ nợ 5.6 phần "hiển thị danh sách", không nợ phần "nói ra rằng có chuyện".
   - summary: >-
       `default_library_root` vẫn là `pub fn` trần — không cổng nào buộc chỗ gọi MỚI đi qua
       `resolve_library_root`, nên "bề mặt rỗng im lặng thứ hai" mà AC5 tồn tại để chặn có
@@ -242,6 +262,17 @@ deferred:
   **③ Hai con số trong §Verification của chính spec này SAI, sửa tại chỗ thay vì để chúng lặng lẽ sai.** `cargo tree --locked -e normal` cho **860** dòng, không phải 831 — đối chứng: `Cargo.toml`/`Cargo.lock` không đổi một byte ở story này (`git status`), nên 860 là hiện trạng có TRƯỚC story, và con số 831 chép từ tài liệu Story 5.2 đã lỗi thời. Mệnh đề đáng giữ vẫn đúng và đã đo: **story này thêm 0 phụ thuộc**. Lệnh `grep` cho `StoreSpec::library_index` nay khớp **năm** tệp, không ba — hai tệp mới (`core/i18n/mod.rs`, `commands/library.rs`) chỉ khớp ở dòng `//`. Đây đúng là cái bẫy mà §Spec Change Log của Story 5.2 đã gọi tên (*"`grep` không phân biệt mã với chú thích"*), và tôi chép lại kỳ vọng hỏng đó vào spec này; phán quyết thuộc về `cargo test --test library_index_boundary` (có lọc `//`), thứ đang xanh với đúng hai tệp ở vị trí MÃ.
   **KEEP:** (5) nhánh huỷ hộp thoại phải ở lại trong một hàm THUẦN nhận `Option<&Path>` — kéo nó về inline trong vỏ là làm hàng ma trận đó mất phép đo lần nữa; (6) `apply_chosen_root` ghi cấu hình TRƯỚC rồi mới quét: một lượt quét trượt vẫn phải để lại lựa chọn của người dùng trên đĩa.
 
+- **Phán quyết Ice, 2026-08-27 — ba quyết định trên ba chỗ mở mà story để lại sau khi đã `done`/đã đẩy/CI xanh cả hai nền tảng.** Đây KHÔNG phải một vòng rà tự động (bốn lớp/blind/edge-case/…) — đây là Ice đọc §Rủi ro còn lại + §Review Triage Log của chính story này và RA QUYẾT ĐỊNH ở ba chỗ đã ghi rõ là "chờ Ice chốt"/"chưa có chủ".
+
+  **#1 (lớn nhất) — LẬT lựa chọn (a) mà §Design Notes vòng một đã ghi và tôi đã tự chọn.** §Rủi ro còn lại mục 1 (và §Design Notes "Hệ quả phải nói thẳng…") tự nêu tên đúng lựa chọn (a)/(b) và mời Ice xác nhận. Ice KHÔNG xác nhận (a) — Ice CHỌN (b), tức LẬT quyết định tôi đã tự đưa ra khi dựng story. **Lý do lật:** lý lẽ của tôi cho (a) — *"cờ mồ côi là một mẩu trạng thái vô hại, mất nó chỉ mất một lời nhắc"* — đánh giá sai bản chất của chính cái cờ đó. Một hàng chỉ mất cờ mồ côi khi người dùng CHỦ ĐỘNG bấm `forget_orphan`; không cơ chế tự động nào xoá nó. Đó không phải một mẩu cache tình cờ tồn tại — đó là một QUYẾT ĐỊNH NGƯỜI DÙNG đã ghi lại ("tôi biết đường dẫn cũ, tôi CHƯA gỡ nó"), và một quyết định người dùng không được phép biến mất chỉ vì kho dẫn xuất `library-index.db` bị xoá tay hay lệch phiên bản lược đồ (AD-8 hứa "xoá chỉ mục là an toàn" — lời hứa đó chỉ đúng khi kho không giữ gì ngoài thứ suy ra được, và cột `orphaned` đã phá đúng điều kiện đó). ⇒ Cờ mồ côi chuyển sang bảng `library_orphan` mới trong **`global.db`** (`core::library::orphan_store` sở hữu mọi SQL của nó; `Indexer::rebuild`/`forget_orphan`/`list_orphans` gọi xuống, nhận thêm `global: Option<&Store>`); `library_work`/`library-index.db` quay lại dẫn xuất TRỌN VẸN (cột `orphaned` bị gỡ, `LIBRARY_WORK_DDL` viết lại tại chỗ, `LIBRARY_INDEX_MIGRATIONS` đích 2→3; `GLOBAL_MIGRATIONS` đích 5→6 với bước `LIBRARY_ORPHAN_DDL`). Vì hai kho không có giao dịch chung, thứ tự ghi là FAIL-SAFE có chủ: ghi `global.db` TRƯỚC, xoá khỏi `library-index.db` SAU (bước hai trượt ⇒ hàng có mặt ở cả hai nơi, lượt quét kế tiếp tự sửa; thứ tự ngược lại làm mất lời nhắc VĨNH VIỄN) — ca hợp đồng mới:
+    `library_index_contract.rs::orphan_write_order_is_fail_safe_write_global_before_deleting_from_index`
+    (đối chứng GỠ đã chạy: đảo thứ tự ⇒ ca này ĐỎ đúng ở khẳng định "hàng còn nguyên trong library_work", khôi phục). **Cái giá phải ghi ra:** `global.db` mang AD-30 (di trú CHỈ TIẾN, gặp lược đồ mới hơn ⇒ TỪ CHỐI MỞ) — hạ cấp ứng dụng sau khi bước 6 đã chạy trên máy người dùng sẽ làm `global.db` từ chối mở, mất đường vào Glossary chung VÀ mọi mục đã ghim, không chỉ mất chỉ mục Library. Ghi ở doc-comment của `LIBRARY_ORPHAN_DDL`, ở §Design Notes (sửa tại chỗ, giữ mệnh đề cũ dưới 🔵), và ở `src-tauri/AGENTS.md:29` (sửa tại chỗ lần hai, giữ cả hai lớp lịch sử).
+    Cổng ranh giới `library_index_boundary.rs` vẫn xanh **không nới danh sách miễn trừ** — module mới `orphan_store.rs` không nhắc `StoreSpec::library_index`/`StoreKind::LibraryIndex` một lần nào (nó không chạm kho đó).
+
+  **#2 — hàng rào chiều ĐỌC cho bộ e2e, đóng vế "hàng rào", KHÔNG đóng vế "lượt đỏ chưa chẩn đoán".** §Rủi ro còn lại mục 6 tự nêu tên đúng lỗ hổng: hàng rào chữ ký thư mục ở `wdio.conf.mjs::onComplete` canh chiều GHI, không canh chiều ĐỌC — đúng chỗ lượt e2e đỏ (không giải thích được) đã lọt qua. Ice chốt: thêm một hàng rào DƯƠNG đọc `library-index.db` (byte thô, không phân tích SQLite — không thêm phụ thuộc npm, `scripts/AGENTS.md`) trong `$APPDATA` tạm, FAIL cả lượt nếu nội dung chứa chuỗi con đúng đường dẫn Library THẬT; tệp vắng mặt ⇒ bỏ qua êm; lỗi đọc tệp (hạ tầng) tách riêng khỏi một phát hiện thật. Giới hạn ghi ngay tại chỗ: chỉ bắt được đường dẫn ĐÃ ĐI VÀO chỉ mục. **Đối chứng GỠ đã chạy** (script trích nguyên logic, không suy luận): tệp chỉ mục dựng tay chứa đường dẫn thật ⇒ hàng rào phát hiện đúng (`FAIL-detected-real-path`); tệp sạch/tệp vắng mặt ⇒ đi qua êm. Vế "lượt đỏ ĐÃ xảy ra chưa chẩn đoán được" **VẪN MỞ** — một hàng rào mới chỉ phát hiện LẦN SAU, nó không giải thích được lượt đỏ trong quá khứ; đánh dấu 🟡, không ✅.
+
+  **#3 — AC4 "cảnh báo" là một bề mặt, không phải một con số nén.** §Review Triage Log (mục AC4, `[medium]` `[patch]` bị hoãn lại thành nợ 5.6) và §Rủi ro còn lại đều tự nêu tên đúng khoảng trống: *"cảnh báo"* của AC4 chưa từng được quyết định là một affordance riêng hay chỉ một con số. Ice chốt: một AFFORDANCE RIÊNG, và ranh giới hẹp: story này đóng phần *"nói ra rằng có chuyện"*, Story 5.6 vẫn giữ phần *"hiển thị danh sách"* (lưới Tác phẩm). `RescanReport.conflicts` đổi từ `usize` sang `Vec<ConflictEntry>` (work_id/kept_path/duplicate_path, đóng băng ở `ipc_contract.rs` cùng lượt); `LibraryMode.vue` có node `.conflict-warning` RIÊNG (`role="status"`, tách khỏi dòng ba-con-số, chỉ hiện khi có xung đột, nêu chỗ trùng ĐẦU TIÊN kèm cả hai đường dẫn + "và N chỗ nữa"). Ca kiểm ba tầng: `library_commands_contract.rs` (tầng lệnh) · `tests/frontend/libraryRescan.test.ts` (tầng state, gồm đối chứng GỠ nén-về-số) · `e2e/specs/story-5-3-rescan.e2e.mjs` (nút thật → DOM thật, dựng hai `.atproj` cùng `work_id` bằng cách copy fixture đã có, vì `create_work_from_text` luôn sinh UUID mới). **Đối chứng GỠ đã chạy:** nén `conflicts` về lại một con số trong fixture giả lập của `libraryRescan.test.ts` ⇒ ca `library_wire_structs_keep_snake_case_field_names`-tương tự (guard kiểu) từ chối, ca mới đỏ đúng ở khẳng định `error?.code === 'ipc.unknown'`.
+
 ## Review Triage Log
 
 ### 2026-08-27 — Review pass
@@ -314,14 +345,56 @@ deferred:
 
 **Vì sao `forget_orphan` không phải "đường ghi thứ hai".** Story 5.2 cấm một hàm `index_one(...)` chạy song song với `rebuild` vì đó là **hai chỗ cùng dựng cùng một hàng** và chúng sẽ trôi khỏi nhau ở logic phát hiện trùng `work_id`. `forget_orphan` không dựng hàng nào: nó **xoá đúng một hàng đã tồn tại**, với tiền điều kiện `orphaned = 1`, và nó không đọc đĩa. Không có logic nào để trôi. Ranh giới đúng là *"chỉ `rebuild` được quyết một hàng trông như thế nào"*, không phải *"chỉ tồn tại đúng một câu SQL"*.
 
-🔴 **Hệ quả phải nói thẳng: chỉ mục KHÔNG còn dẫn xuất trọn vẹn từ đĩa.** Cờ mồ côi là mẩu trạng thái **duy nhất** trong `library-index.db` không suy ra được từ các `.atproj` — xoá tệp chỉ mục rồi dựng lại thì mọi hàng mồ côi biến mất. Hai phương án đã cân, và cả hai đều thoả AC:
+🔵 **SỬA (2026-08-27, phán quyết Ice #1) — toàn bộ khối dưới đây (mệnh đề gốc + lựa chọn (a))
+ĐÃ HẾT ĐÚNG, giữ nguyên làm lịch sử thay vì xoá.** Mệnh đề gốc và lý lẽ chọn (a) từng đứng ở
+đây, đúng nguyên văn lúc dựng: *"Hệ quả phải nói thẳng: chỉ mục KHÔNG còn dẫn xuất trọn vẹn từ
+đĩa. Cờ mồ côi là mẩu trạng thái duy nhất trong `library-index.db` không suy ra được từ các
+`.atproj` — xoá tệp chỉ mục rồi dựng lại thì mọi hàng mồ côi biến mất. Hai phương án đã cân,
+và cả hai đều thoả AC: (a) cờ sống trong `library-index.db` (đã chọn) — không kho mới, không
+phụ thuộc mới… Mất mát khi xoá chỉ mục là mất một lời nhắc, không mất dữ liệu người dùng…
+(b) cờ sống trong `global.db` — sống sót qua một lượt xoá chỉ mục, nhưng đưa từ vựng Library
+vào một kho khác, dựng một nguồn sự thật thứ hai… ⇒ Chọn (a) vì nó hẹp hơn… Đây là chỗ đáng để
+Ice xác nhận lúc rà: nếu Ice muốn (b), đó là một quyết định kiến trúc, không phải một lượt sửa
+mã."*
 
-- **(a) cờ sống trong `library-index.db`** *(đã chọn)* — không kho mới, không phụ thuộc mới, `Indexer` vẫn là module duy nhất chạm kho này. Mất mát khi xoá chỉ mục là **mất một lời nhắc**, không mất dữ liệu người dùng; FR98 (*"dựng lại hoàn toàn từ các `.atproj`"*) vẫn đúng cho mọi thứ **suy ra được**, và một chỉ mục vừa dựng lại từ số không mà không có mồ côi nào là một trạng thái **trung thực**, không phải một trạng thái sai.
-- **(b) cờ sống trong `global.db`** — sống sót qua một lượt xoá chỉ mục, nhưng đưa từ vựng Library vào một kho khác, dựng một nguồn sự thật thứ hai về *"Tác phẩm nào từng tồn tại"*, và mở đúng lớp lỗi *"hai dữ kiện nói cùng một chuyện thì chúng lệch được"*.
+Ice đã xác nhận, và chọn **(b)**, lật quyết định (a) ở trên. **Lý do lật, nguyên văn phán
+quyết #1 (2026-08-27):** cờ mồ côi không phải "một mẩu trạng thái vô hại" như lựa chọn (a) giả
+định — nó là một **quyết định người dùng đã ghi lại** ("tôi biết đường dẫn cũ, tôi CHƯA gỡ
+nó"), vì đường DUY NHẤT xoá nó là `forget_orphan`, một thao tác người dùng CHỦ ĐỘNG bấm, không
+một cơ chế tự động nào. Một quyết định người dùng không được phép biến mất chỉ vì
+`library-index.db` — một kho tự xưng "xoá đi dựng lại vô hại" (AD-8) — bị xoá tay hoặc lệch
+phiên bản lược đồ. Đúng lớp lỗi mà lựa chọn (b) ở trên đã tự nêu tên nhưng bị đánh giá nhẹ hơn
+sự hẹp của (a): *"hai dữ kiện nói cùng một chuyện thì chúng lệch được"* — ở ĐÂY hai dữ kiện là
+*"work_id này có mặt trong `library_work`"* và *"work_id này có mặt trong `library_orphan`"*,
+và chúng KHÔNG lệch được vì `Indexer::rebuild` là nơi DUY NHẤT quyết định chuyển một hàng giữa
+hai bảng, đối xứng ở cả hai chiều (xem khối 🔴 "THỨ TỰ GHI GIỮA HAI KHO" trong doc-comment của
+`Indexer::rebuild`, `core/library/indexer.rs`).
 
-⇒ Chọn (a) vì nó **hẹp hơn**, và ghi nguyên vế yếu ra đây thay vì để người sau tự phát hiện. Đây là chỗ đáng để Ice xác nhận lúc rà: nếu Ice muốn (b), đó là một quyết định kiến trúc, không phải một lượt sửa mã.
+⇒ Cờ mồ côi nay sống ở bảng `library_orphan` **`global.db`** (bước di trú mới, đích 6 —
+`core::store::schema::LIBRARY_ORPHAN_DDL`), sở hữu bởi module riêng
+`core::library::orphan_store` mà `Indexer` gọi xuống. `library_work`/`library-index.db` QUAY
+LẠI dẫn xuất TRỌN VẸN — cột `orphaned` bị GỠ, `LIBRARY_WORK_DDL` viết lại TẠI CHỖ, bump
+`LIBRARY_INDEX_MIGRATIONS` lên đích 3 (kho dẫn xuất không di trú — xoá-và-dựng-lại đúng AD-8).
+Mất mát khi xoá `library-index.db` bây giờ là **con số không** — không hàng nào trong đó không
+suy ra được từ `.atproj`.
 
-**Cột `orphaned` là boolean, không phải mốc thời gian.** Một cột `orphaned_at TEXT` nghe đầy đủ hơn nhưng kéo theo một phụ thuộc đồng hồ vào đúng đường mà mọi phép kiểm phải chạy tất định — và AC3 chỉ đòi *"nêu rõ nó trỏ tới đâu"*, thứ mà `atproj_path` đã lưu sẵn trả lời trọn vẹn. Thêm một cột cho một câu hỏi chưa ai hỏi là đúng thứ §Never của Story 5.2 cấm.
+🔴 **Cái giá của lựa chọn (b), ghi ra ngay tại đây vì đây là chỗ nó thuộc về:** `global.db` có
+AD-30 (di trú CHỈ TIẾN — gặp lược đồ mới hơn ⇒ TỪ CHỐI MỞ, không giống `library-index.db`/AD-8
+nơi lệch phiên bản chỉ xoá-và-dựng-lại). Một khi bước 6 đã chạy trên máy người dùng, HẠ CẤP
+ứng dụng xuống bản không biết bước 6 làm `global.db` bị từ chối mở — mất đường vào Glossary
+chung VÀ mọi mục đã ghim, không chỉ mất chỉ mục Library. Đây là cửa MỘT CHIỀU, và nó là đúng
+cái giá mà (a) từng tránh được bằng cách không tồn tại một kho thứ hai để mà lệch phiên bản.
+Ice đã cân cái giá này khi ra phán quyết — ghi lại ở đây để người đọc sau không phải tự suy.
+
+🔵 **SỬA (2026-08-27, phán quyết Ice #1) — mệnh đề dưới đây nói về một cột `orphaned` nay
+không còn tồn tại (nó là cột `library_work.orphaned`, đã bị GỠ khi cờ mồ côi chuyển sang bảng
+`library_orphan` của `global.db`), nhưng LÝ LẼ vẫn đúng và áp thẳng vào bảng MỚI.** **Bảng
+`library_orphan` không có cột thời gian, không phải bảo boolean.** Một cột `orphaned_at TEXT`
+nghe đầy đủ hơn nhưng kéo theo một phụ thuộc đồng hồ vào đúng đường mà mọi phép kiểm phải chạy
+tất định — và AC3 chỉ đòi *"nêu rõ nó trỏ tới đâu"*, thứ mà `atproj_path` + `name` đã lưu sẵn
+trả lời trọn vẹn. Thêm một cột cho một câu hỏi chưa ai hỏi là đúng thứ §Never của Story 5.2
+cấm — nguyên văn để lại làm bằng chứng: *"Cột `orphaned` là boolean, không phải mốc thời
+gian."*
 
 **Vị từ mồ côi: BỐN cách viết, BA cách sai.** ① *"`work_id` không có mặt trong tập ĐỌC ĐƯỢC"* — sai: một `.atproj` còn nằm nguyên đó nhưng `meta.json` hỏng không đọc được, nên nó bị gọi là mồ côi; đó là loại câu sai người dùng sẽ tin rồi đi tìm tệp ở chỗ khác (hạng `skipped` của Story 5.2 mới là chỗ đúng của ca đó). ② *"`atproj_path` không còn tồn tại trên đĩa"* — cũng sai, và sai ở ca **đổi thư mục gốc**: các `.atproj` của gốc cũ vẫn nằm nguyên trên đĩa, nên chúng ở lại chỉ mục như những hàng **đang sống** trỏ ra ngoài thư viện — chỉ mục khi đó khẳng định một điều nó không kiểm được.
 
@@ -422,13 +495,13 @@ Mẫu ba lượt: **2 xanh · 1 đỏ**. Lượt đỏ chưa chẩn đoán đư�
 
 ### Rủi ro còn lại — ghi ra thay vì để người sau tự phát hiện
 
-1. 🔴 **Chỉ mục không còn dẫn xuất trọn vẹn từ đĩa.** Cờ `orphaned` là mẩu trạng thái duy nhất trong `library_work` không suy ra được từ các `.atproj`; xoá `library-index.db` rồi dựng lại làm mọi hàng mồ côi biến mất. §Design Notes cân hai phương án và chọn phương án hẹp hơn (cờ ở chính kho dẫn xuất). **Đây là chỗ đợi Ice chốt** — nếu Ice muốn cờ sống ở `global.db`, đó là một quyết định kiến trúc, không phải một lượt sửa mã.
+1. ✅ **ĐÃ ĐÓNG 2026-08-27 (phán quyết Ice #1) — Chỉ mục không còn dẫn xuất trọn vẹn từ đĩa.** ~~Cờ `orphaned` là mẩu trạng thái duy nhất trong `library_work` không suy ra được từ các `.atproj`; xoá `library-index.db` rồi dựng lại làm mọi hàng mồ côi biến mất. §Design Notes cân hai phương án và chọn phương án hẹp hơn (cờ ở chính kho dẫn xuất). Đây là chỗ đợi Ice chốt — nếu Ice muốn cờ sống ở `global.db`, đó là một quyết định kiến trúc, không phải một lượt sửa mã.~~ Ice đã chốt: cờ mồ côi LÀ dữ liệu người dùng (một quyết định "chưa gỡ", không phải cache), nên nó chuyển sang bảng `library_orphan` của `global.db`. `library_work`/`library-index.db` quay lại dẫn xuất TRỌN VẸN — không cột nào không suy ra được từ `.atproj`. Cái giá mới (cửa một chiều của AD-30 trên `global.db`) đã ghi ở doc-comment `LIBRARY_ORPHAN_DDL`, §Design Notes, và `src-tauri/AGENTS.md:29`. Xem §Spec Change Log mục "Phán quyết Ice, 2026-08-27" #1 cho chi tiết đầy đủ.
 2. 🔵 **SỬA (2026-08-27, vòng rà THỨ HAI P6) — mục này VIẾT TRƯỚC khi dựng bộ e2e của story, không quay lại sửa.** Nay **hai trong ba** vỏ (`library_rescan`, `library_forget_orphan`) có 6 ca e2e chạm THẬT qua WKWebView (xem §Chạy trên ỨNG DỤNG THẬT); chỉ `library_choose_root` (hộp thoại native, ngoài tầm WebDriver) còn hở. Vế THẬT của AC6 (*"gõ được trong lúc quét"*) vẫn chỉ nghiệm thu bằng tay. Và mệnh đề "bộ e2e nằm ngoài cả `pre-push` lẫn `ci.yml`" sai nửa sau: `ci.yml:712` có job `e2e` chạy ở nhịp `schedule` (cron `0 18 * * *`) + `workflow_dispatch` — đúng là *ngoài `pre-push` và ngoài `push`, nhưng CÓ trong `ci.yml` ở nhịp đêm*. Đã ghi nợ có chủ (Story 5.6, phần còn hở) và sửa lại frontmatter `deferred`.
 3. 🟡 **§Manual checks đóng MỘT NỬA.** Bốn trong sáu mục nay chạy tự động trên cửa sổ thật (xem §Chạy trên ỨNG DỤNG THẬT). Hai mục còn hở, và chúng hở vì lý do kỹ thuật chứ không vì thiếu thời gian: hộp thoại native không lái được bằng WebDriver, và AC6 cần một thư viện lớn thật.
 4. ⚠️ **`check:debt-owner` đã ĐỎ từ TRƯỚC baseline** — một mục nợ mồ côi của Story 5.1 ở `deferred-work.md`. Đối chứng đã chạy: khôi phục tệp về `c533c62` rồi chạy cổng ⇒ exit 1. Đã vá bằng một dòng nêu Ice là người quyết định (*"có đưa `cargo clippy --all-targets` vào một cổng hay không"*). Việc này **nằm ngoài phạm vi story** và được báo riêng.
 5. ⚠️ **`pre-push` chưa chạy trọn một lượt, CI chưa đọc.** Chưa push, nên mọi số đo trên đây đến từ macOS của Ice; nửa Windows chưa nói gì về story này.
 
-6. 🔴 **Một lượt e2e ĐỎ chưa chẩn đoán được, và nó chạm đúng vế dữ liệu thật.** Lượt chạy đầu của spec mới (5/6 đỏ) cho thấy ứng dụng **ĐỌC** `~/Documents/AuraTranslate` — thư viện thật của Ice — thay vì thư mục tạm: `.root-value` ra đường dẫn thật, `.orphan-name` ra `Epochtime`, một Tác phẩm có thật. **Không byte nào bị GHI vào đó** (đã kiểm sau cả ba lượt: 0 mục mang dấu e2e, mtime thư mục cha không đổi). Hai lượt sau xanh sạch. Tôi **không** giải thích được nó từ mã, và giả thuyết đầu tiên tôi nêu (*cầu IPC hỏng*) đã bị chính số đo bác — cảnh báo đó có mặt ở cả ba lượt. Nguyên văn log đã cất, nợ ghi có chủ (Ice). ⚠️ Đáng chú ý: hàng rào âm của `wdio.conf.mjs` so **chữ ký thư mục**, nên nó canh chiều GHI và **không** canh chiều ĐỌC — đúng chỗ lượt này lọt qua.
+6. 🟡 **ĐÓNG MỘT NỬA 2026-08-27 (phán quyết Ice #2) — Một lượt e2e ĐỎ chưa chẩn đoán được, và nó chạm đúng vế dữ liệu thật.** Lượt chạy đầu của spec mới (5/6 đỏ) cho thấy ứng dụng **ĐỌC** `~/Documents/AuraTranslate` — thư viện thật của Ice — thay vì thư mục tạm: `.root-value` ra đường dẫn thật, `.orphan-name` ra `Epochtime`, một Tác phẩm có thật. **Không byte nào bị GHI vào đó** (đã kiểm sau cả ba lượt: 0 mục mang dấu e2e, mtime thư mục cha không đổi). Hai lượt sau xanh sạch. Tôi **không** giải thích được nó từ mã, và giả thuyết đầu tiên tôi nêu (*cầu IPC hỏng*) đã bị chính số đo bác — cảnh báo đó có mặt ở cả ba lượt. Nguyên văn log đã cất, nợ ghi có chủ (Ice). Vế đã ĐÓNG: hàng rào âm cũ của `wdio.conf.mjs` so **chữ ký thư mục** (canh chiều GHI) nay có thêm một hàng rào DƯƠNG đọc `library-index.db` dạng byte trong `$APPDATA` tạm, canh đúng chiều ĐỌC mà lượt đỏ này lọt qua — đối chứng GỠ đã chạy (dựng tay một tệp chứa đường dẫn thật ⇒ hàng rào bắt đúng). Vế VẪN MỞ, không làm tròn lên ✅: hàng rào mới chỉ PHÁT HIỆN cho lần sau, nó không giải thích được NGUYÊN NHÂN của lượt đỏ đã xảy ra — chủ giữ nguyên Ice.
 
 ### Vòng rà THỨ HAI — 2026-08-27, bổ sung
 

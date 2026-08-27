@@ -10,6 +10,9 @@
 //!   (Quyết định #3), dựng lại được từ `project.db` (AD-33).
 //! - [`atproj`] — dựng `<Tên>.atproj/` + `assets/` trên đĩa (AC2, AC5, AC6).
 //! - [`indexer`] — `library-index.db`, chỉ mục dẫn xuất (AD-8) — **Story 5.2**.
+//! - [`orphan_store`] — bảng `library_orphan` của `global.db` — **phán quyết Ice #1, Story
+//!   5.3, 2026-08-27**: cờ mồ côi là dữ liệu người dùng, không phải trạng thái của chỉ mục
+//!   dẫn xuất, nên nó sống ở đây chứ không phải một cột trong `indexer::IndexedWork`.
 //!
 //! 🔵 **CẬP NHẬT 2026-08-27 (Story 5.2) — câu dưới đây đã HẾT ĐÚNG, sửa tại chỗ thay vì để nó
 //! lặng lẽ sai.** ~~*"Story này không dựng `library-index.db` — màn hình Library đọc thẳng
@@ -20,6 +23,7 @@
 pub mod atproj;
 pub mod indexer;
 pub mod meta;
+pub mod orphan_store;
 
 pub use atproj::{create_work_folder, remove_folder, sanitize_name};
 pub use meta::{META_SCHEMA_VERSION, MetaError, WorkMeta};

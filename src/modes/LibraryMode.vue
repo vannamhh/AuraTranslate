@@ -26,6 +26,8 @@ import {
 import {
   currentLibraryOrphan,
   currentLibraryRoot,
+  firstLibraryConflict,
+  libraryConflicts,
   libraryIndexedCount,
   libraryOrphanCursor,
   libraryOrphans,
@@ -145,6 +147,32 @@ onActivated(() => {
       </p>
       <!-- aura-allow-text: như trên, qua tError(). -->
       <p class="error" role="status">{{ libraryRescanError ? tError(libraryRescanError) : '' }}</p>
+
+      <!--
+        🔵 THÊM (2026-08-27, phán quyết Ice #3) — AC4 nói "phát hiện VÀ CẢNH BÁO", hai vế.
+        Trước bản vá, `conflicts` chỉ là một con số nén nằm CÙNG câu với "đã lập chỉ mục"/"bỏ
+        qua" ở node `.status` ngay trên — không phải một bề mặt cảnh báo, đúng lỗ mà mục nợ
+        AC4 trong deferred-work.md ghi. Node này TÁCH HẲN, chỉ hiện khi có xung đột, nêu ĐÍCH
+        DANH chỗ trùng ĐẦU TIÊN kèm CẢ HAI đường dẫn, và "và N chỗ nữa" khi nhiều hơn một —
+        KHÔNG dựng danh sách/lưới các chỗ trùng (Story 5.6 sở hữu phần "hiển thị danh sách";
+        story này chỉ nợ 5.6 phần đó, không nợ phần "nói ra rằng có chuyện").
+        `role="status"`, cùng khuôn `.root-missing` ngay trên: một cảnh báo phát sinh từ một
+        lượt quét đã THÀNH CÔNG, không phải một lỗi thao tác (đó là `.error`, `role="alert"`
+        thuộc về `GlossaryQueueOverlay.vue`, không phải đây).
+      -->
+      <p v-if="firstLibraryConflict" class="conflict-warning" role="status">
+        <!-- aura-allow-text: hai đường dẫn là DỮ LIỆU đĩa; câu bao quanh đi qua t(). -->
+        {{
+          t('mode.library.conflict_warning', {
+            kept_path: firstLibraryConflict.kept_path,
+            duplicate_path: firstLibraryConflict.duplicate_path,
+          })
+        }}
+        <!-- aura-allow-text: số đếm là DỮ LIỆU; câu bao quanh đi qua t(). -->
+        <template v-if="libraryConflicts.length > 1">
+          {{ t('mode.library.conflict_more', { count: String(libraryConflicts.length - 1) }) }}
+        </template>
+      </p>
 
       <p class="section-heading">{{ t('mode.library.orphans_heading') }}</p>
       <!--
@@ -482,6 +510,22 @@ onActivated(() => {
 .root-actions {
   display: flex;
   gap: 8px;
+}
+
+/**
+ * 🔵 THÊM (2026-08-27, phán quyết Ice #3) — cùng khuôn `.root-missing` ngay trên: một cảnh
+ * báo phát sinh TỪ một lượt quét (không phải một lỗi thao tác). Sống bên trong `.root-block`
+ * (thừa `max-width` của khối cha) — chỉ khác `.root-missing` ở chỗ nó có thể mang HAI đường
+ * dẫn dài trong cùng một câu, nên `word-break` được đặt tường minh tại đây thay vì dựa vào
+ * kế thừa. Toàn bộ màu/cỡ chữ qua token — `check:tokens` cấm viết thẳng.
+ */
+.conflict-warning {
+  margin: 8px 0 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-error);
+  word-break: break-all;
 }
 
 .orphan-row {

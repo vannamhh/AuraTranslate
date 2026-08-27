@@ -1723,7 +1723,12 @@ pub mod wire {
             eprintln!("library[index] Indexer chua duoc quan ly -- bo qua lan dua Tac pham vao chi muc");
             return;
         };
-        match indexer.rebuild(root) {
+        // Phan quyet Ice #1 (2026-08-27) -- co mo coi song o `library_orphan` (global.db),
+        // nen `rebuild` can mot `&Store` toan cuc. `open_global_store` chay TRUOC setup nay
+        // (xem `resolve_library_root` ngay tren chinh ham goi), nen Store da (co the) duoc
+        // `app.manage()`.
+        let global = app.try_state::<Store>();
+        match indexer.rebuild(root, global.as_deref()) {
             // Vòng rà ba lớp, P7 — `RebuildOutcome` không còn bị vứt: xung đột `work_id`/
             // entry bị bỏ qua phải có ÍT NHẤT một dòng chẩn đoán, cùng khuôn `lib.rs::open_library_index`.
             Ok(outcome) => outcome.log_if_notable("create_work"),

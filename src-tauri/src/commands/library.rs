@@ -10,8 +10,12 @@
 //! `tests/library_index_boundary.rs` canh: chỉ `core/library/indexer.rs` (chỗ gọi) và
 //! `core/store/mod.rs` (điểm khai) được nhắc `StoreSpec::library_index`/
 //! `StoreKind::LibraryIndex`. Tệp này KHÔNG bao giờ được nhắc hai định danh đó — cần đọc/ghi
-//! `library-index.db` thì gọi qua `Indexer::rebuild`/`Indexer::forget_orphan`/
-//! `Indexer::list_orphans`, đúng những gì hai hàm thuần dưới đây làm.
+//! `library-index.db` thì gọi qua `Indexer::rebuild`/`Indexer::forget_orphan`, đúng những gì
+//! hai hàm thuần dưới đây làm. 🔵 **SỬA (2026-08-27, phán quyết Ice #1)** — cờ mồ côi (bảng
+//! `library_orphan`) sống ở `global.db`, KHÔNG ở `library-index.db`; `rescan`/`forget_orphan`
+//! nay nhận thêm một `Option<&Store>` (toàn cục) để ghi/đọc bảng đó, truyền tiếp xuống
+//! `Indexer::rebuild`/`forget_orphan`. Tệp này vẫn không tự viết SQL cho bảng đó — xem
+//! `core::library::orphan_store`.
 //!
 //! `library_choose_root` là vỏ CHẶN duy nhất của tệp này (hộp thoại chọn thư mục) — cả ba
 //! vỏ đều mang `#[tauri::command(async)]` vì `library_rescan` quét đĩa + ghi kho đồng bộ có
@@ -24,11 +28,15 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::core::i18n::{IpcError, MessageKey};
-use crate::core::library::indexer::{IndexError, Indexer, IndexedWork};
+use crate::core::library::indexer::{IndexError, Indexer, WorkIdConflict};
+use crate::core::library::orphan_store::OrphanRecord;
 use crate::core::store::{Store, StoreError, StoreKind};
 
-/// Một hàng mồ côi, gói lại cho dây IPC — `PathBuf` không `Serialize` trực tiếp thành thứ
-/// frontend đọc được thuận tiện, nên đường dẫn đi qua dưới dạng chuỗi hiển thị được.
+/// Một hàng mồ côi, gói lại cho dây IPC — hình dạng trên dây TRÙNG [`OrphanRecord`] (đường
+/// dẫn đã là `String` từ tầng `Indexer`, xem phán quyết Ice #1) nên đây gần như một alias,
+/// nhưng vẫn giữ struct RIÊNG ở tầng lệnh: `core::library::orphan_store` là chi tiết triển
+/// khai của lõi, còn struct này là HỢP ĐỒNG trên dây — hai vai khác nhau dù hôm nay trùng
+/// hình dạng (cùng khuôn `RescanReport`/`RebuildOutcome` không phải cùng một struct).
 ///
 /// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật mọi struct qua biên (AD-21):
 /// `snake_case` giữ nguyên ở chiều TRẢ VỀ.
@@ -41,12 +49,37 @@ pub struct OrphanEntry {
     pub atproj_path: String,
 }
 
-impl From<IndexedWork> for OrphanEntry {
-    fn from(work: IndexedWork) -> Self {
+impl From<OrphanRecord> for OrphanEntry {
+    fn from(record: OrphanRecord) -> Self {
         Self {
-            work_id: work.work_id,
-            name: work.name,
-            atproj_path: work.atproj_path.display().to_string(),
+            work_id: record.work_id,
+            name: record.name,
+            atproj_path: record.atproj_path,
+        }
+    }
+}
+
+/// **THÊM (2026-08-27, phán quyết Ice #3)** — một cặp `.atproj` cùng `work_id`, gói lại cho
+/// dây IPC. Thay thế con số trần `conflicts: usize` mà bản trước gửi — AC4 nói *"phát hiện
+/// **VÀ** cảnh báo"*, và một con số trần không đủ dữ kiện để một màn hình nêu ĐÍCH DANH chỗ
+/// trùng (AC4 đòi "hai Tác phẩm cùng `work.id`", không chỉ "có N xung đột").
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật mọi struct qua biên (AD-21).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ConflictEntry {
+    pub work_id: String,
+    /// Đường dẫn `.atproj` **đang có mặt** trong chỉ mục (mục ĐẦU, theo thứ tự quét đã sắp).
+    pub kept_path: String,
+    /// Đường dẫn `.atproj` **trùng `work_id`**, bị loại khỏi lượt ghi này.
+    pub duplicate_path: String,
+}
+
+impl From<WorkIdConflict> for ConflictEntry {
+    fn from(conflict: WorkIdConflict) -> Self {
+        Self {
+            work_id: conflict.work_id,
+            kept_path: conflict.kept_path.display().to_string(),
+            duplicate_path: conflict.duplicate_path.display().to_string(),
         }
     }
 }
@@ -68,7 +101,12 @@ pub struct RescanReport {
     /// vì sao rỗng"). Màn hình phải hiện một câu RIÊNG khi trường này `true`.
     pub root_missing: bool,
     pub indexed: usize,
-    pub conflicts: usize,
+    /// 🔵 **SỬA (2026-08-27, phán quyết Ice #3) — đổi từ `usize` sang `Vec<ConflictEntry>`.**
+    /// AC4 viết *"phát hiện **VÀ** cảnh báo"* — hai vế, và một con số nén không đủ dữ kiện
+    /// cho vế "cảnh báo": nó không nói được CHỖ NÀO trùng. `.len()` vẫn cho con số cũ khi một
+    /// chỗ gọi chỉ cần đếm (dòng ba-con-số của màn hình) — không mất khả năng cũ, chỉ thêm
+    /// dữ kiện. Đóng băng ở `tests/ipc_contract.rs` cùng lượt.
+    pub conflicts: Vec<ConflictEntry>,
     pub skipped: usize,
     pub orphans: Vec<OrphanEntry>,
 }
@@ -103,29 +141,36 @@ fn store_is_missing() -> IpcError {
 
 /// **Hàm thuần** — quét lại `root`, trả ba con số của AC1 cộng danh sách mồ côi hiện tại.
 ///
+/// 🔵 **THÊM tham số `global` (2026-08-27, phán quyết Ice #1).** Cờ mồ côi nay sống ở
+/// `library_orphan` (`global.db`) — `Indexer::rebuild` cần một `&Store` đã mở tới kho đó để
+/// ghi/đọc. Vỏ [`wire::library_rescan`] đã fetch `Store` sẵn cho [`crate::commands::project::resolve_library_root`],
+/// nên đây không phải một chỗ gọi `try_state` thứ hai — chỉ là truyền tiếp cùng một giá trị.
+///
 /// # Lỗi
-/// `indexer = None` ⇒ `library.indexer_missing`; quét/ghi trượt ⇒ lỗi của
+/// `indexer = None` ⇒ `library.indexer_missing`; `global = None` hoặc quét/ghi trượt ⇒ lỗi của
 /// [`crate::core::library::indexer::IndexError`] (qua `From<IndexError> for IpcError`).
-pub fn rescan(indexer: Option<&Indexer>, root: &Path) -> Result<RescanReport, IpcError> {
+pub fn rescan(
+    indexer: Option<&Indexer>,
+    global: Option<&Store>,
+    root: &Path,
+) -> Result<RescanReport, IpcError> {
     let indexer = indexer.ok_or_else(indexer_is_missing)?;
 
-    let outcome = indexer.rebuild(root)?;
+    let outcome = indexer.rebuild(root, global)?;
     // Cùng đường chẩn đoán CHUNG mà `lib.rs::open_library_index` và
     // `commands::project::wire::reindex_after_create_work` đã dùng — chỗ gọi thứ BA
     // (người dùng bấm) không được đứng ngoài quy ước đó.
     outcome.log_if_notable("rescan");
 
-    // 🔵 SỬA (2026-08-27, vòng rà THỨ HAI P3) — KHÔNG còn gọi `indexer.list_orphans()` ở
-    // đây. Đó là một lượt ĐỌC RIÊNG, không khoá, chạy SAU khi `rebuild()` đã trả về — một
-    // lượt quét/gỡ khác chen vào đúng khe hở đó làm `orphans` phản ánh một thế hệ KHÁC với
-    // `indexed`/`conflicts`/`skipped` trong CÙNG report này. `outcome.current_orphans` là
-    // ảnh chụp lấy TRONG cùng phạm vi khoá của `Indexer::rebuild` — dùng thẳng nó.
+    // `outcome.current_orphans` là ảnh chụp lấy TRONG cùng phạm vi khoá của
+    // `Indexer::rebuild` (nay đọc từ `global.db`) — dùng thẳng nó, không một lượt đọc riêng.
     Ok(RescanReport {
         root: root.display().to_string(),
         // P1 -- không vứt `root_missing` nữa, chuyển thẳng nguyên vẹn.
         root_missing: outcome.root_missing,
         indexed: outcome.indexed,
-        conflicts: outcome.conflicts.len(),
+        // Phán quyết Ice #3 -- chở NGUYÊN dữ liệu xung đột, không nén thành `.len()`.
+        conflicts: outcome.conflicts.into_iter().map(ConflictEntry::from).collect(),
         skipped: outcome.skipped.len(),
         orphans: outcome.current_orphans.into_iter().map(OrphanEntry::from).collect(),
     })
@@ -150,19 +195,20 @@ fn not_orphaned(work_id: String, name: String) -> IpcError {
 /// `From<IndexError>` chung (nó chỉ có `work_id`).
 ///
 /// # Lỗi
-/// `indexer = None` ⇒ `library.indexer_missing`; `work_id` không tồn tại hoặc đang sống ⇒
-/// `library.not_orphaned` (mang CẢ `work_id` LẪN `name` vừa truyền vào).
+/// `indexer = None` ⇒ `library.indexer_missing`; `global = None` ⇒ lỗi kho toàn cục;
+/// `work_id` không tồn tại hoặc đang sống ⇒ `library.not_orphaned` (mang CẢ `work_id` LẪN
+/// `name` vừa truyền vào).
 pub fn forget_orphan(
     indexer: Option<&Indexer>,
+    global: Option<&Store>,
     work_id: &str,
     name: &str,
 ) -> Result<Vec<OrphanEntry>, IpcError> {
     let indexer = indexer.ok_or_else(indexer_is_missing)?;
 
-    // 🔵 SỬA (2026-08-27, vòng rà THỨ HAI P3) — `Indexer::forget_orphan` nay TỰ trả danh
-    // sách mồ côi còn lại (chụp trong cùng phạm vi khoá) — không còn một lượt
-    // `list_orphans()` riêng, không khoá, chạy SAU. Cùng lý do đã sửa ở `rescan` ngay trên.
-    match indexer.forget_orphan(work_id) {
+    // `Indexer::forget_orphan` tự trả danh sách mồ côi còn lại (chụp trong cùng phạm vi
+    // khoá) — không một lượt `list_orphans()` riêng, không khoá, chạy SAU.
+    match indexer.forget_orphan(work_id, global) {
         Ok(orphans) => Ok(orphans.into_iter().map(OrphanEntry::from).collect()),
         // P9 -- KHÔNG uỷ quyền cho `From<IndexError> for IpcError` ở ca này: hàm đó chỉ biết
         // `work_id`. Bắt riêng để nạp thêm `name` do chỗ gọi cung cấp.
@@ -209,7 +255,9 @@ pub fn apply_chosen_root(
         &path.display().to_string(),
     )?;
 
-    let report = rescan(indexer, path)?;
+    // `store` LÀ `global.db` -- cùng giá trị `rescan`/`Indexer::rebuild` cần cho
+    // `library_orphan` (phán quyết Ice #1). Không một `try_state` thứ hai.
+    let report = rescan(indexer, store, path)?;
     Ok(Some(report))
 }
 
@@ -238,7 +286,9 @@ pub mod wire {
         let store = app.try_state::<Store>();
         let root =
             crate::commands::project::resolve_library_root(&app, store.as_deref())?;
-        super::rescan(indexer.as_deref(), &root)
+        // Cùng `store` vừa dùng cho `resolve_library_root` -- `Indexer::rebuild` cần nó để
+        // ghi/đọc `library_orphan` (phán quyết Ice #1). Một `try_state` DUY NHẤT cho cả hai.
+        super::rescan(indexer.as_deref(), store.as_deref(), &root)
     }
 
     /// Vỏ IPC của [`super::forget_orphan`].
@@ -255,7 +305,10 @@ pub mod wire {
         name: String,
     ) -> Result<Vec<OrphanEntry>, IpcError> {
         let indexer = app.try_state::<Indexer>();
-        super::forget_orphan(indexer.as_deref(), &work_id, &name)
+        // `library_orphan` sống ở `global.db` (phán quyết Ice #1) -- fetch cùng khuôn hai vỏ
+        // kia của tệp này.
+        let store = app.try_state::<Store>();
+        super::forget_orphan(indexer.as_deref(), store.as_deref(), &work_id, &name)
     }
 
     /// Vỏ IPC mở hộp thoại CHỌN THƯ MỤC rồi đổi `AppConfig::library_root` + quét lại ngay

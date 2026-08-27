@@ -69,6 +69,10 @@ fn open_global(dir: &Path) -> Store {
 /// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.10):** đích chuyển từ **4** lên **5** — bước dựng lại
 /// `glossary_entry` để thêm giá trị `term_origin` thứ tư (`file_import`, FR49/NFR9). Cùng lý
 /// do trên: tên hàm test không đổi.
+///
+/// 🔵 **CẬP NHẬT 2026-08-27 (phán quyết Ice #1, Story 5.3):** đích chuyển từ **5** lên **6** —
+/// bước `library_orphan` (cờ mồ côi của Library chuyển từ `library-index.db` sang đây). Cùng
+/// lý do trên: tên hàm test vẫn không đổi.
 #[test]
 fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
     let dir = temp_dir("fresh-global-target");
@@ -76,14 +80,14 @@ fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
 
     assert_eq!(
         store.schema_version(),
-        5,
-        "`GLOBAL_MIGRATIONS` co nam buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
-         `pinned_entry`, 3.1 `glossary_entry`, 3.10 gia tri term_origin thu tu), nen mot \
-         `global.db` moi phai ket thuc o phien ban 5"
+        6,
+        "`GLOBAL_MIGRATIONS` co sau buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
+         `pinned_entry`, 3.1 `glossary_entry`, 3.10 gia tri term_origin thu tu, phan quyet \
+         Ice #1 bang library_orphan), nen mot `global.db` moi phai ket thuc o phien ban 6"
     );
     assert_eq!(
         GLOBAL_MIGRATIONS.len(),
-        5,
+        6,
         "so buoc va so phien ban dich phai di cung nhau"
     );
 
@@ -130,7 +134,9 @@ fn an_older_global_database_migrates_up_and_keeps_its_rows() {
     // cua ca nay khong doi: di tru khong duoc dung toi cau hinh cu.
     // 🔵 CAP NHAT 2026-08-24 (Story 3.10): dich 4 → 5 — buoc dung lai glossary_entry them
     // gia tri term_origin thu tu. Menh de van khong doi.
-    assert_eq!(migrated.schema_version(), 5, "buoc 3, 4 va 5 phai da chay");
+    // 🔵 CAP NHAT 2026-08-27 (phan quyet Ice #1, Story 5.3): dich 5 → 6 — buoc `library_orphan`.
+    // Menh de van khong doi: di tru khong dung toi cau hinh cu.
+    assert_eq!(migrated.schema_version(), 6, "buoc 3, 4, 5 va 6 phai da chay");
 
     let theme: String = migrated
         .read(|conn| {

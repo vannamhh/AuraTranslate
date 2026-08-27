@@ -8153,6 +8153,17 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     vì phán quyết cần ở đây là một quyết định về HÀNG RÀO: hàng rào âm hôm nay chỉ canh chiều GHI;
     canh thêm chiều ĐỌC (ví dụ bắt `resolve_library_root` từ chối chạy khi biến e2e có mặt mà kết
     quả lại nằm ngoài nó) là một cơ chế mới, không phải một lượt vá.)**
+    → 🟡 **ĐÓNG MỘT NỬA 2026-08-27 (phán quyết Ice #2).** Vế HÀNG RÀO đã đóng: `wdio.conf.mjs::onComplete`
+    nay đọc `library-index.db` (dạng byte thô, không phân tích SQLite, không thêm phụ thuộc npm)
+    trong `$APPDATA` tạm và FAIL cả lượt nếu nội dung chứa chuỗi con đúng đường dẫn Library THẬT —
+    canh đúng chiều ĐỌC mà hàng rào chữ ký cũ bỏ sót. Tệp vắng mặt ⇒ bỏ qua êm (chưa quét lần nào);
+    lỗi đọc tệp (hạ tầng) tách riêng khỏi một phát hiện thật, không lẫn vào nhau. Giới hạn ghi ngay
+    tại chỗ trong mã: chỉ bắt được đường dẫn ĐÃ ĐI VÀO chỉ mục — một lượt đọc thư mục thật mà không
+    lập chỉ mục gì vẫn lọt qua. Đối chứng GỠ đã chạy (script trích nguyên logic thật, không suy
+    luận): tệp chỉ mục dựng tay chứa đường dẫn thật ⇒ hàng rào phát hiện đúng; tệp sạch/vắng mặt ⇒
+    đi qua êm. **Vế "lượt đỏ đã xảy ra chưa chẩn đoán được" VẪN MỞ, không làm tròn lên ✅** — một
+    hàng rào mới chỉ là một cơ chế PHÁT HIỆN cho lần sau, nó không giải thích được nguyên nhân của
+    lượt đỏ đã xảy ra trong quá khứ. Chủ giữ nguyên Ice.
 
 - source_spec: `_bmad-output/implementation-artifacts/5-3-quet-lai-thu-muc.md`
   summary: **Mở Library hôm nay không có đường ĐỌC THUẦN — mọi lượt hiện danh sách mục mồ

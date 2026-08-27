@@ -886,6 +886,10 @@ fn spec_with_migrations(dir: &Path, migrations: &'static [Migration]) -> StoreSp
 /// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.10): bước 5 dựng lại `glossary_entry` để thêm giá trị
 /// `term_origin` thứ tư, `file_import` (FR49/NFR9) ⇒ target là 5.** Câu *"bốn bước, đích là
 /// 4"* đã hết đúng, sửa tại chỗ — đúng cơ chế được thiết kế để đỏ.
+///
+/// 🔵 **CẬP NHẬT 2026-08-27 (phán quyết Ice #1, Story 5.3): bước 6 thêm bảng `library_orphan`
+/// (cờ mồ côi của Library chuyển từ `library-index.db` sang `global.db`) ⇒ target là 6.**
+/// Câu *"năm bước, đích là 5"* đã hết đúng, sửa tại chỗ — đúng cơ chế được thiết kế để đỏ.
 #[test]
 fn a_fresh_database_migrates_up_to_target_and_logs_it() {
     let dir = temp_dir("fresh-migrate");
@@ -893,10 +897,11 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
 
     assert_eq!(
         store.schema_version(),
-        5,
-        "`GLOBAL_MIGRATIONS` có năm bước (Story 1.7 sổ di trú · Story 1.8 `config_value` · \
+        6,
+        "`GLOBAL_MIGRATIONS` có sáu bước (Story 1.7 sổ di trú · Story 1.8 `config_value` · \
          Story 1.20 `pinned_entry` · Story 3.1 `glossary_entry` · Story 3.10 gia tri \
-         term_origin thu tu), nên một database mới phải kết thúc ở phiên bản 5"
+         term_origin thu tu · phan quyet Ice #1 bang library_orphan), nên một database mới \
+         phải kết thúc ở phiên bản 6"
     );
 
     let (rows, versions, app_version, applied_at) = store
@@ -917,10 +922,10 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
         })
         .expect("đọc sổ di trú");
 
-    assert_eq!(rows, 5, "sổ di trú phải có đúng một bản ghi cho MỖI bước");
+    assert_eq!(rows, 6, "sổ di trú phải có đúng một bản ghi cho MỖI bước");
     assert_eq!(
         versions,
-        vec![1, 2, 3, 4, 5],
+        vec![1, 2, 3, 4, 5, 6],
         "cả năm bước phải có mặt trong sổ — một bước chạy mà không ghi sổ là đúng ca \
          *sổ nói chưa chạy mà lược đồ thì đã*"
     );
@@ -999,7 +1004,8 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
     let on_disk: i64 = store
         .read(|conn| conn.query_row("PRAGMA user_version", [], |r| r.get(0)))
         .expect("đọc user_version");
-    assert_eq!(on_disk, 5);
+    // 🔵 5 → 6 (2026-08-27, phán quyết Ice #1, Story 5.3) — bước 6 thêm `library_orphan`.
+    assert_eq!(on_disk, 6);
 
     drop(store);
     cleanup(&dir);
