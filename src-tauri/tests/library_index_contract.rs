@@ -442,17 +442,24 @@ fn a_missing_library_root_yields_an_empty_index_with_a_reason_and_creates_no_dir
     cleanup(&dir);
 }
 
-/// Vòng rà ba lớp, P8 — bản trên chỉ dựng một root CHƯA TỪNG tồn tại, nên câu `DELETE FROM
-/// library_work` của nhánh `root_missing` (`Indexer::clear_for_missing_root`) chưa bao giờ
-/// chạy trên một bảng CÓ HÀNG: xoá một bảng rỗng "thành công" không chứng minh được gì. Ca này
-/// dựng chỉ mục N=2 hàng THẬT trước, rồi mới xoá root, để câu `DELETE` đó thật sự có việc để
-/// làm.
+/// Vòng rà ba lớp, P8 — bản trên chỉ dựng một root CHƯA TỪNG tồn tại, nên câu đánh dấu mồ côi
+/// của nhánh `root_missing` chưa bao giờ chạy trên một bảng CÓ HÀNG. Ca này dựng chỉ mục N=2
+/// hàng THẬT trước, rồi mới xoá root, để nhánh đó thật sự có việc để làm.
+///
+/// 🔵 **ĐỔI NGỮ NGHĨA (Story 5.3) — bản trước khẳng định bảng bị XOÁ SẠCH.** Trước story này,
+/// `Indexer::clear_for_missing_root` chạy `DELETE FROM library_work` và ca này khẳng định
+/// `list_works()` rỗng làm bằng chứng của điều đó. Nay `root_missing` nghĩa là "tập `.atproj`
+/// liệt kê được là rỗng" ⇒ MỌI hàng đang sống thành MỒ CÔI (`Indexer::mark_all_orphaned_for_missing_root`),
+/// KHÔNG bị xoá — `list_works()` (chỉ trả hàng sống) vẫn rỗng, đúng như bản cũ mong đợi, nhưng
+/// vì một lý do khác hẳn: hai hàng cũ còn NGUYÊN trong bảng, dưới dạng mồ côi, đọc được qua
+/// `list_orphans()`. Đây chính là I/O Matrix "Đổi thư mục gốc": chỉ mục nói về THƯ VIỆN, không
+/// nói về đĩa.
 #[test]
-fn a_root_that_existed_with_rows_then_vanishes_leaves_the_index_empty_not_stale() {
+fn a_root_that_existed_with_rows_then_vanishes_leaves_every_row_orphaned_not_deleted() {
     let dir = temp_dir("root-vanishes-with-rows");
     let root = library_root(&dir);
-    write_atproj(&root, "One", "id-one", "One", 1);
-    write_atproj(&root, "Two", "id-two", "Two", 2);
+    let one = write_atproj(&root, "One", "id-one", "One", 1);
+    let two = write_atproj(&root, "Two", "id-two", "Two", 2);
 
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
     let first = indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild đầu: {e}"));
@@ -474,15 +481,30 @@ fn a_root_that_existed_with_rows_then_vanishes_leaves_the_index_empty_not_stale(
         second.root_missing,
         "rỗng phải CÓ LÝ DO — phân biệt được với 'đã quét, thật sự rỗng'"
     );
+    assert_eq!(second.orphans, 2, "cả hai hàng phải CHUYỂN sang mồ côi ở đúng lượt này");
 
     let works = indexer
         .list_works()
         .unwrap_or_else(|e| panic!("list_works sau khi root biến mất: {e}"));
     assert!(
         works.is_empty(),
-        "bảng phải THẬT SỰ được xoá sạch (DELETE chạy trên một bảng CÓ hàng), không còn 2 hàng \
-         cũ trôi nổi: {works:?}"
+        "list_works() chỉ trả hàng ĐANG SỐNG -- cả hai hàng vừa thành mồ côi, nên nó rỗng: {works:?}"
     );
+
+    let mut orphans = indexer
+        .list_orphans()
+        .unwrap_or_else(|e| panic!("list_orphans sau khi root biến mất: {e}"));
+    orphans.sort_by(|a, b| a.work_id.cmp(&b.work_id));
+    assert_eq!(
+        orphans.len(),
+        2,
+        "hai hàng phải CÒN NGUYÊN trong bảng dưới dạng mồ côi -- KHÔNG bị xoá"
+    );
+    assert!(orphans.iter().all(|o| o.orphaned));
+    assert_eq!(orphans[0].work_id, "id-one");
+    assert_eq!(orphans[0].atproj_path, one, "đường dẫn CŨ phải giữ nguyên (AC3: nêu rõ nó trỏ tới đâu)");
+    assert_eq!(orphans[1].work_id, "id-two");
+    assert_eq!(orphans[1].atproj_path, two);
 
     drop(indexer);
     cleanup(&dir);
@@ -656,6 +678,366 @@ fn a_root_that_exists_but_cannot_be_read_as_a_directory_is_a_hard_error_not_a_si
         IndexError::Io { path, .. } => assert_eq!(path, root),
         other => panic!("kỳ vọng IndexError::Io, nhận {other:?}"),
     }
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.3 — "Quét lại thư mục" (FR99). Ngữ nghĩa mồ côi mới: `rebuild` ĐỐI CHIẾU thay vì
+// xoá-sạch-ghi-lại. Phủ trọn §I/O Matrix của story: di chuyển trong gốc · xoá/chuyển ra
+// ngoài · quay lại · gỡ · gỡ nhầm · hỏng-mà-còn-đó · hai lượt quét chồng nhau.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn moving_an_atproj_within_the_root_updates_the_path_and_keeps_exactly_one_row() {
+    let dir = temp_dir("move-within-root");
+    let root = library_root(&dir);
+    write_atproj(&root, "Old-Name", "id-move", "Work", 1);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+    indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild đầu: {e}"));
+
+    let old_dir = root.join("Old-Name.atproj");
+    let new_dir = root.join("New-Name.atproj");
+    fs::rename(&old_dir, &new_dir).unwrap_or_else(|e| panic!("đổi tên thư mục: {e}"));
+
+    let outcome = indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild sau di chuyển: {e}"));
+    assert_eq!(outcome.indexed, 1);
+    assert_eq!(outcome.orphans, 0, "di chuyển TRONG gốc không tạo mồ côi nào");
+
+    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    assert_eq!(works.len(), 1, "đúng MỘT hàng, không phải một hàng cũ + một hàng mới");
+    assert_eq!(works[0].work_id, "id-move");
+    assert_eq!(works[0].atproj_path, new_dir, "atproj_path phải là đường dẫn MỚI");
+    assert!(!works[0].orphaned);
+
+    assert!(
+        indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}")).is_empty()
+    );
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+#[test]
+fn deleting_an_atproj_marks_it_orphaned_and_keeps_the_stale_path() {
+    let dir = temp_dir("delete-becomes-orphan");
+    let root = library_root(&dir);
+    let work_dir = write_atproj(&root, "Gone", "id-gone", "Gone", 1);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+    indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild đầu: {e}"));
+
+    fs::remove_dir_all(&work_dir).unwrap_or_else(|e| panic!("xoá .atproj: {e}"));
+
+    let outcome = indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild sau khi xoá: {e}"));
+    assert_eq!(outcome.indexed, 0);
+    assert_eq!(outcome.orphans, 1);
+
+    assert!(indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}")).is_empty());
+
+    let orphans = indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}"));
+    assert_eq!(orphans.len(), 1, "hàng phải Ở LẠI dưới dạng mồ côi, không biến mất");
+    assert_eq!(orphans[0].work_id, "id-gone");
+    assert_eq!(orphans[0].atproj_path, work_dir, "phải NÊU RÕ nó từng trỏ tới đâu (AC3)");
+    assert!(orphans[0].orphaned);
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+/// AC3 nguyên văn: *"quét lại RỒI KHỞI ĐỘNG LẠI ứng dụng, then hàng đó vẫn ở đó"* — vế "khởi
+/// động lại" là phần mà ca ngay trên KHÔNG chạm tới (nó giữ nguyên MỘT `Indexer` từ đầu tới
+/// cuối). Ca này đóng `Indexer` (mô phỏng thoát ứng dụng) rồi MỞ LẠI (mô phỏng khởi động lại)
+/// trước khi đọc lại danh sách mồ côi — không dựa vào giả định "SQLite tự bền" mà không đo.
+#[test]
+fn an_orphan_row_survives_closing_and_reopening_the_indexer() {
+    let dir = temp_dir("orphan-survives-restart");
+    let root = library_root(&dir);
+    let work_dir = write_atproj(&root, "Gone", "id-gone", "Gone", 1);
+
+    {
+        let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+        indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild đầu: {e}"));
+        fs::remove_dir_all(&work_dir).unwrap_or_else(|e| panic!("xoá .atproj: {e}"));
+        let outcome = indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild sau khi xoá: {e}"));
+        assert_eq!(outcome.orphans, 1);
+        // Đóng TRƯỜNG ("thoát ứng dụng") -- luật 2 của tệp này (drop trước khi rời scope).
+    }
+
+    // "Khởi động lại ứng dụng" -- mở LẠI đúng tệp `library-index.db`, KHÔNG gọi `rebuild()`
+    // lần nào ở đây: AC3 đòi hàng còn đó ngay cả TRƯỚC một lượt quét mới, chỉ từ việc mở lại.
+    let reopened = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở lại indexer: {e}"));
+    let orphans = reopened.list_orphans().unwrap_or_else(|e| panic!("list_orphans sau khi mở lại: {e}"));
+    assert_eq!(orphans.len(), 1, "hàng mồ côi phải SỐNG SÓT qua một lượt đóng-rồi-mở-lại");
+    assert_eq!(orphans[0].work_id, "id-gone");
+    assert_eq!(orphans[0].atproj_path, work_dir, "đường dẫn CŨ vẫn phải còn nguyên sau khởi động lại");
+    assert!(orphans[0].orphaned);
+
+    drop(reopened);
+    cleanup(&dir);
+}
+
+#[test]
+fn an_orphan_that_reappears_is_restored_without_a_second_row() {
+    let dir = temp_dir("orphan-reappears");
+    let root = library_root(&dir);
+    let work_dir = write_atproj(&root, "Back", "id-back", "Back", 1);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+    indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild đầu: {e}"));
+
+    fs::remove_dir_all(&work_dir).unwrap_or_else(|e| panic!("xoá .atproj: {e}"));
+    let orphaned_outcome = indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild mồ côi: {e}"));
+    assert_eq!(orphaned_outcome.orphans, 1);
+    assert_eq!(indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}")).len(), 1);
+
+    // "Copy lại vào gốc" -- cùng `work_id`, viết lại y hệt fixture ban đầu.
+    write_atproj(&root, "Back", "id-back", "Back", 1);
+    let restored = indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild sau khi quay lại: {e}"));
+    assert_eq!(restored.indexed, 1);
+    assert_eq!(restored.orphans, 0);
+
+    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    assert_eq!(works.len(), 1, "KHÔNG tạo hàng thứ hai");
+    assert_eq!(works[0].work_id, "id-back");
+    assert!(!works[0].orphaned);
+    assert!(indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}")).is_empty());
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Đổi thư mục gốc" — `Indexer::rebuild` không biết gì về "gốc CŨ"/"gốc MỚI", nó
+/// chỉ biết `root: &Path` của LƯỢT GỌI này; đổi thư mục gốc ở tầng cấu hình (`AppConfig`,
+/// `commands::project::resolve_library_root`) chỉ đổi GIÁ TRỊ được truyền vào lượt `rebuild`
+/// kế tiếp — cùng cơ chế mà ca này tái lập trực tiếp ở tầng `Indexer`, không cần chạm tới
+/// `ScopeResolver`/dialog. Các `.atproj` của gốc CŨ vẫn NGUYÊN trên đĩa (test không xoá gì),
+/// nhưng gốc MỚI không liệt kê được chúng ⇒ chúng phải thành mồ côi — "chỉ mục nói về THƯ
+/// VIỆN, không nói về đĩa" (§Design Notes).
+#[test]
+fn switching_to_a_different_root_orphans_the_old_roots_rows_without_touching_its_files() {
+    let dir = temp_dir("switch-root");
+    let old_root = dir.join("old-library");
+    let new_root = dir.join("new-library");
+    let old_work = write_atproj(&old_root, "OldWork", "id-old", "OldWork", 1);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+    let first = indexer.rebuild(&old_root).unwrap_or_else(|e| panic!("rebuild trên gốc cũ: {e}"));
+    assert_eq!(first.indexed, 1);
+
+    // Người dùng "chọn thư mục D qua hộp thoại" -- `new_root` có một Tác phẩm KHÁC hẳn.
+    write_atproj(&new_root, "NewWork", "id-new", "NewWork", 1);
+    let second = indexer.rebuild(&new_root).unwrap_or_else(|e| panic!("rebuild trên gốc mới: {e}"));
+    assert_eq!(second.indexed, 1, "Tác phẩm của gốc MỚI phải được lập chỉ mục");
+    assert_eq!(second.orphans, 1, "hàng của gốc CŨ phải thành mồ côi -- nó không có trong gốc mới");
+
+    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    assert_eq!(works.len(), 1);
+    assert_eq!(works[0].work_id, "id-new", "chỉ Tác phẩm của gốc MỚI được coi là đang sống");
+
+    let orphans = indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}"));
+    assert_eq!(orphans.len(), 1);
+    assert_eq!(orphans[0].work_id, "id-old");
+    assert_eq!(orphans[0].atproj_path, old_work, "giữ nguyên đường dẫn CŨ");
+
+    // "dù thư mục đó vẫn còn trên đĩa" -- test không xoá `old_root`, khẳng định nó còn nguyên.
+    assert!(old_work.is_dir(), "gốc CŨ không được ai đụng vào -- chỉ mục không nói về đĩa");
+    assert!(old_work.join("meta.json").is_file());
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+/// **THÊM 2026-08-27 (vòng rà bốn lớp, P3)** — kịch bản thứ TƯ của vị từ mồ côi: một đường
+/// dẫn bị Tác phẩm KHÁC chiếm phải làm hàng CŨ thành mồ côi, không được để lại như một hàng
+/// sống trỏ vào thư mục nay thuộc về ai khác.
+///
+/// A sống ở `/gốc/Foo.atproj`. Người dùng xoá A rồi copy B (work_id KHÁC hẳn) vào một thư
+/// mục CŨNG tên `Foo.atproj`. Trước bản vá P3, `Foo.atproj` vẫn nằm trong tập "đã liệt kê
+/// được" nên hàng của A bị coi là "đường dẫn còn đó" ⇒ KHÔNG mồ côi — sai, vì cái đang nằm ở
+/// đó là B, không phải A.
+#[test]
+fn a_path_reclaimed_by_a_different_work_orphans_the_old_occupants_row() {
+    let dir = temp_dir("path-reclaimed-by-another-work");
+    let root = library_root(&dir);
+    write_atproj(&root, "Foo", "id-a", "A", 1);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+    let first = indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild đầu: {e}"));
+    assert_eq!(first.indexed, 1);
+    assert_eq!(
+        indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"))[0].work_id,
+        "id-a"
+    );
+
+    // Xoá A, rồi copy B vào MỘT thư mục CÙNG TÊN (`Foo.atproj`) -- work_id KHÁC hẳn.
+    fs::remove_dir_all(root.join("Foo.atproj")).unwrap_or_else(|e| panic!("xoá Foo.atproj: {e}"));
+    write_atproj(&root, "Foo", "id-b", "B", 1);
+
+    let second = indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild sau khi B chiếm chỗ: {e}"));
+    assert_eq!(second.indexed, 1, "chỉ B được lập chỉ mục ở đường dẫn đó");
+    assert_eq!(second.orphans, 1, "hàng CŨ của A phải thành mồ côi -- đường dẫn nay thuộc về B, không phải A");
+
+    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    assert_eq!(works.len(), 1);
+    assert_eq!(works[0].work_id, "id-b", "chỉ B được coi là đang sống ở đường dẫn đó");
+
+    let orphans = indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}"));
+    assert_eq!(orphans.len(), 1, "A phải Ở LẠI dưới dạng mồ côi, không bị B che khuất");
+    assert_eq!(orphans[0].work_id, "id-a");
+    assert!(orphans[0].orphaned);
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+#[test]
+fn an_atproj_whose_meta_json_breaks_after_being_indexed_is_skipped_not_orphaned() {
+    let dir = temp_dir("indexed-then-broken");
+    let root = library_root(&dir);
+    let work_dir = write_atproj(&root, "Breaks", "id-breaks", "Breaks", 1);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+    let first = indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild đầu: {e}"));
+    assert_eq!(first.indexed, 1);
+
+    // `meta.json` hỏng, nhưng thư mục `.atproj` VẪN CÒN ĐÓ -- vế HAI của vị từ mồ côi phải
+    // giữ hàng này lại, không đánh dấu mồ côi.
+    fs::write(work_dir.join("meta.json"), b"{ khong phai json hop le")
+        .unwrap_or_else(|e| panic!("ghi meta.json hỏng: {e}"));
+
+    let second = indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild sau khi hỏng: {e}"));
+    assert_eq!(second.indexed, 0, "meta.json hỏng thì không đọc được nữa");
+    assert_eq!(second.skipped.len(), 1, "phải rơi vào SKIPPED");
+    assert_eq!(
+        second.orphans, 0,
+        "KHÔNG được thành mồ côi -- thư mục còn nằm đó, nói 'nó không còn ở đây' là SAI"
+    );
+
+    assert!(
+        indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}")).is_empty(),
+        "không hàng nào được đánh dấu mồ côi ở ca này"
+    );
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+#[test]
+fn forget_orphan_removes_exactly_the_named_row_and_returns_the_rest() {
+    let dir = temp_dir("forget-orphan-ok");
+    let root = library_root(&dir);
+    let alpha_dir = write_atproj(&root, "Alpha", "id-alpha", "Alpha", 1);
+    write_atproj(&root, "Beta", "id-beta", "Beta", 1);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+    indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild đầu: {e}"));
+
+    fs::remove_dir_all(&alpha_dir).unwrap_or_else(|e| panic!("xoá Alpha: {e}"));
+    fs::remove_dir_all(root.join("Beta.atproj")).unwrap_or_else(|e| panic!("xoá Beta: {e}"));
+    indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild mồ côi: {e}"));
+    assert_eq!(indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}")).len(), 2);
+
+    indexer
+        .forget_orphan("id-alpha")
+        .unwrap_or_else(|e| panic!("forget_orphan phải thành công trên một hàng mồ côi: {e}"));
+
+    let remaining = indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}"));
+    assert_eq!(remaining.len(), 1, "chỉ hàng vừa gỡ biến mất");
+    assert_eq!(remaining[0].work_id, "id-beta");
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+#[test]
+fn forget_orphan_refuses_a_row_that_is_still_alive() {
+    let dir = temp_dir("forget-orphan-refuses-live");
+    let root = library_root(&dir);
+    write_atproj(&root, "Alive", "id-alive", "Alive", 1);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+    indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let err = indexer
+        .forget_orphan("id-alive")
+        .expect_err("gỡ một hàng ĐANG SỐNG phải bị từ chối, không im lặng thành công");
+    match err {
+        IndexError::NotOrphaned { work_id } => assert_eq!(work_id, "id-alive"),
+        other => panic!("kỳ vọng IndexError::NotOrphaned, nhận {other:?}"),
+    }
+    assert_eq!(
+        indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}")).len(),
+        1,
+        "0 lượt xoá -- hàng phải còn nguyên"
+    );
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+#[test]
+fn forget_orphan_refuses_a_work_id_that_does_not_exist() {
+    let dir = temp_dir("forget-orphan-refuses-unknown");
+    let root = library_root(&dir);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+    indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let err = indexer
+        .forget_orphan("id-khong-ton-tai")
+        .expect_err("work_id lạ phải bị từ chối trên CÙNG nhánh với 'gỡ nhầm hàng sống'");
+    match err {
+        IndexError::NotOrphaned { work_id } => assert_eq!(work_id, "id-khong-ton-tai"),
+        other => panic!("kỳ vọng IndexError::NotOrphaned, nhận {other:?}"),
+    }
+
+    drop(indexer);
+    cleanup(&dir);
+}
+
+/// Hai lượt `rebuild` gọi từ HAI LUỒNG gần như đồng thời (khởi động + người dùng bấm) phải
+/// NỐI TIẾP, không cho ra một trạng thái trộn — deferred-work.md:8079, chủ Story 5.3.
+///
+/// ⚠️ **Giới hạn thật của ca này, ghi ra thay vì làm tròn lên:** không có một hook tiêm được
+/// độ trễ vào giữa lượt QUÉT ĐĨA và lượt GHI của `Indexer::rebuild` (đó là chỗ interleave
+/// thật sự nguy hiểm — xem doc-comment của `Indexer::rebuild_lock`), nên ca này không CHỨNG
+/// MINH được rằng thiếu Mutex sẽ tạo ra một ảnh chụp trộn cụ thể. Nó đối chứng điều ĐO ĐƯỢC:
+/// hàng chục lượt gọi `rebuild` đồng thời từ nhiều luồng, trên một root ổn định, không bao
+/// giờ panic/deadlock và LUÔN hội tụ về đúng trạng thái trên đĩa ở cuối cùng — tức Mutex
+/// không làm rơi mất một lượt ghi nào và không có race giữa các lượt ghi.
+#[test]
+fn two_threads_calling_rebuild_concurrently_converge_to_one_consistent_state() {
+    let dir = temp_dir("concurrent-rebuild");
+    let root = library_root(&dir);
+    write_atproj(&root, "One", "id-one", "One", 1);
+    write_atproj(&root, "Two", "id-two", "Two", 2);
+
+    let indexer =
+        std::sync::Arc::new(Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}")));
+
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+    let mut handles = Vec::new();
+    for _ in 0..2 {
+        let indexer = std::sync::Arc::clone(&indexer);
+        let root = root.clone();
+        let barrier = std::sync::Arc::clone(&barrier);
+        handles.push(std::thread::spawn(move || {
+            for _ in 0..20 {
+                barrier.wait();
+                indexer.rebuild(&root).unwrap_or_else(|e| panic!("rebuild trên luồng nền: {e}"));
+            }
+        }));
+    }
+    for handle in handles {
+        handle.join().expect("một luồng rebuild panic");
+    }
+
+    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    assert_eq!(works.len(), 2, "trạng thái cuối phải khớp ĐÚNG những gì còn trên đĩa");
+    assert!(indexer.list_orphans().unwrap_or_else(|e| panic!("list_orphans: {e}")).is_empty());
 
     drop(indexer);
     cleanup(&dir);

@@ -388,6 +388,25 @@ message_keys! {
     /// (hoặc, cho một mục *chờ chốt*, đã bị người khác chốt) — §I/O Matrix ①/③b. `value` là
     /// mọi thuật ngữ va, nối bằng `", "` — cùng hình dạng `GlossaryImportUniqueConflict`.
     GlossaryImportStaleConflict => "err.glossary.import_stale_conflict" ["value"],
+
+    // ── Story 5.3 (AD-8 · FR99) — ĐÚNG HAI khoá ─────────────────────────────────────
+    //
+    // Bề mặt IPC "Quét lại thư mục". Danh mục ĐÓNG: `IndexError::Io` tái dùng
+    // `IoReadFailed` thay vì đúc một khoá thứ ba (xem `commands::library`/
+    // `core::library::indexer::IndexError`), và `Indexer` chưa được quản lý tái dùng
+    // `StoreOpenFailed` (params `{"store": "library_index"}`) thay vì một khoá thứ ba nữa —
+    // `commands/library.rs` KHÔNG được nhắc `StoreKind::LibraryIndex` (cổng ranh giới
+    // `library_index_boundary.rs`), nên nó dựng `IpcError` bằng khoá CHUNG này, không bằng
+    // một `StoreError::OpenFailed { store: StoreKind::LibraryIndex, .. }` thật.
+    /// [`crate::core::library::indexer::Indexer::forget_orphan`] gọi trên một `work_id`
+    /// không tồn tại, hoặc tồn tại nhưng đang SỐNG (`orphaned = 0`) — cùng một câu cho cả
+    /// hai ca (§I/O Matrix: không im lặng thành công, không mập mờ giữa hai lý do).
+    LibraryNotOrphaned => "err.library.not_orphaned" ["work_id"],
+    /// Thư mục gốc người dùng chọn qua hộp thoại không dùng được (ví dụ: một tệp thường,
+    /// không phải thư mục). Không tham số: đường dẫn cụ thể không phải dữ liệu cần thiết cho
+    /// câu này, và hộp thoại chọn thư mục của hệ điều hành đã tự lọc phần lớn ca sai hình
+    /// dạng trước khi trả về.
+    LibraryRootInvalid => "err.library.root_invalid" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

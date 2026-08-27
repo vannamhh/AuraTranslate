@@ -16,7 +16,7 @@ use auratranslate_lib::core::glossary::scan::{
 use auratranslate_lib::core::glossary::surnames::{COMMON_SURNAMES, TRADITIONAL_SURNAME_ALIASES};
 use auratranslate_lib::core::matching::MatchLang;
 use auratranslate_lib::core::scope::store::{
-    DEFAULT_GLOSSARY_SCAN_THRESHOLD, parse_glossary_scan_threshold,
+    DEFAULT_GLOSSARY_SCAN_THRESHOLD, parse_glossary_scan_threshold, resolve_library_root_value,
 };
 
 /// Vị từ `is_known` không bao giờ trả `true` — dùng cho mọi ca không cần một từ điển giả.
@@ -805,4 +805,43 @@ fn a_negative_threshold_value_falls_back_to_the_default() {
 #[test]
 fn a_valid_threshold_value_parses_through_unchanged() {
     assert_eq!(parse_glossary_scan_threshold(Some("12")), 12);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// P7 (vòng rà bốn lớp, 2026-08-27) — `core::scope::store::resolve_library_root_value`
+// (Story 5.3) KHÔNG một ca nào, dù doc-comment của chính nó tự khai "hàm thuần, đây là thứ
+// test gọi" và "chép khuôn `parse_glossary_scan_threshold`". Đặt CÙNG TỆP với hàm anh em đó
+// (`parse_glossary_scan_threshold`, ngay trên) theo đúng chỉ dẫn P7 — KHÔNG phải một hàng
+// của §I/O Matrix Story 3.5 mà tệp này sở hữu, chỉ mượn cùng mái nhà vì lý do đó.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn a_missing_library_root_value_resolves_to_not_configured() {
+    assert_eq!(resolve_library_root_value(None), None);
+}
+
+#[test]
+fn an_empty_library_root_value_resolves_to_not_configured() {
+    assert_eq!(resolve_library_root_value(Some("")), None);
+}
+
+#[test]
+fn a_whitespace_only_library_root_value_resolves_to_not_configured() {
+    assert_eq!(resolve_library_root_value(Some("   \t  ")), None);
+}
+
+#[test]
+fn a_real_library_root_value_is_trimmed_and_kept() {
+    assert_eq!(
+        resolve_library_root_value(Some("  /tmp/thu-vien  ")),
+        Some("/tmp/thu-vien".to_owned())
+    );
+}
+
+#[test]
+fn a_real_library_root_value_without_surrounding_whitespace_passes_through_unchanged() {
+    assert_eq!(
+        resolve_library_root_value(Some("/tmp/thu-vien")),
+        Some("/tmp/thu-vien".to_owned())
+    );
 }

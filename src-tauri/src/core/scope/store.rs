@@ -120,6 +120,35 @@ const KEY_GLOSSARY_SCAN_THRESHOLD: &str = "glossary_scan_threshold";
 /// viên hợp lý ở ngưỡng này; xem §Verification của story cho số đo).
 pub const DEFAULT_GLOSSARY_SCAN_THRESHOLD: u32 = 5;
 
+/// Khoá của [`ScopeKind::AppConfig`] mang **thư mục gốc Library**, người dùng chọn qua hộp
+/// thoại — Story 5.3, AD-48.
+///
+/// ⚠️ Ở [`ScopeKind::AppConfig`], **tầng Global**, chứ không một `ScopeKind` thứ mười và
+/// không một tầng Tác phẩm — cùng lý do đã ghi cho [`KEY_DICT_DISABLED`]/
+/// [`KEY_GLOSSARY_SCAN_THRESHOLD`]: thư mục chứa MỌI `.atproj` là một cấu hình ứng dụng,
+/// không phải dữ liệu của một Tác phẩm cụ thể. Khoá thứ SÁU của cùng một cửa mà
+/// `theme`/`mode`/`workspace_layout`/`dict_sources_disabled`/`glossary_scan_threshold` đã
+/// đi qua.
+const KEY_LIBRARY_ROOT: &str = "library_root";
+
+/// Phân giải thư mục gốc Library từ giá trị THÔ trên đĩa — **hàm thuần, đây là thứ test
+/// gọi**. Chép khuôn [`parse_glossary_scan_threshold`]: đây là chỗ DUY NHẤT biết một giá trị
+/// trên đĩa hỏng, vì `config_value.value` không mang `CHECK` nào (phục vụ MỌI khoá của MỌI
+/// loại `GlobalOnly`).
+///
+/// Rỗng hoặc chỉ toàn khoảng trắng ⇒ coi như **chưa cấu hình** (`None`) — người gọi rơi về
+/// [`crate::commands::project::default_library_root`]. Đây KHÔNG phải một lỗi: một hàng
+/// `library_root = ""` có thể là kết quả của một lượt xoá cấu hình bằng tay, hoặc một phiên
+/// bản trước ghi chuỗi rỗng trước khi khoá này tồn tại.
+pub fn resolve_library_root_value(raw: Option<&str>) -> Option<String> {
+    let trimmed = raw.map(str::trim).unwrap_or("");
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_owned())
+    }
+}
+
 /// Phân giải ngưỡng quét từ giá trị THÔ trên đĩa — **hàm thuần, đây là thứ test gọi**.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -227,6 +256,13 @@ impl GlobalConfig {
         parse_glossary_scan_threshold(
             self.app.get(KEY_GLOSSARY_SCAN_THRESHOLD).map(|r| r.value().as_str()),
         )
+    }
+
+    /// Thư mục gốc Library người dùng đã cấu hình, ĐÃ QUA [`resolve_library_root_value`] —
+    /// Story 5.3. `None` ⇒ chưa cấu hình ⇒ chỗ gọi rơi về
+    /// [`crate::commands::project::default_library_root`].
+    pub fn library_root(&self) -> Option<String> {
+        resolve_library_root_value(self.app.get(KEY_LIBRARY_ROOT).map(|r| r.value().as_str()))
     }
 
     /// Hợp âm phím tắt theo id thao tác. Rỗng nghĩa là *"dùng hợp âm mặc định"*.

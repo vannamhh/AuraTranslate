@@ -9,18 +9,31 @@
 //! tự dựng `StoreSpec` cho kho này.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! BA THAO TÁC, VÀ CHỈ BA
+//! NĂM THAO TÁC — Story 5.3 thêm hai (GỠ mồ côi tường minh, LIỆT KÊ mồ côi)
 //! ─────────────────────────────────────────────────────────────────────────────
 //! - [`Indexer::open`] — mở (hoặc dựng mới) `library-index.db`, hiện thực nhánh KHÔNG-DI-TRÚ
 //!   của AD-8: lệch phiên bản lược đồ (cả hai chiều) ⇒ xoá tệp + sidecar rồi dựng lại, KHÔNG
 //!   đi qua nhánh từ chối mở mà `project.db`/`global.db` dựa vào (AD-30).
 //! - [`Indexer::rebuild`] — quét thư mục gốc Library, đọc **chỉ** `meta.json` của mỗi
-//!   `.atproj` (AD-9: không mở `project.db` lần nào), rồi ghi TOÀN BỘ kết quả vào
-//!   `library_work` trong **một** giao dịch qua `store::Writer`. Đây là đường ghi DUY NHẤT
-//!   của module này — không có một đường "chèn một hàng" thứ hai chạy song song với nó, kể cả
-//!   khi chỉ một Tác phẩm vừa được tạo (xem `commands::project::wire::create_work_from_text`,
-//!   nơi gọi lại đúng hàm này).
-//! - [`Indexer::list_works`] — đường ĐỌC, dùng cho Story 5.6/5.9.
+//!   `.atproj` (AD-9: không mở `project.db` lần nào), rồi **ĐỐI CHIẾU** kết quả với
+//!   `library_work` trong **một** giao dịch qua `store::Writer`. 🔵 **ĐỔI NGỮ NGHĨA (Story
+//!   5.3):** trước đây hàm này `DELETE FROM library_work` rồi `INSERT` lại toàn bộ — một
+//!   `.atproj` bị xoá/di chuyển ra ngoài gốc biến mất khỏi chỉ mục IM LẶNG. Nay nó UPSERT mọi
+//!   mục đọc được (`orphaned = 0`) rồi đánh dấu `orphaned = 1` cho mọi hàng còn lại mà
+//!   `atproj_path` KHÔNG nằm trong tập `.atproj` vừa liệt kê được — hàng ĐƯỢC GIỮ, không bị
+//!   xoá (§Design Notes "vị từ mồ côi: ba cách viết, hai cách sai"). Toàn bộ scan+ghi chạy
+//!   dưới [`Indexer::rebuild_lock`] — hai lượt `rebuild` gọi đồng thời phải NỐI TIẾP, không
+//!   xen kẽ giai đoạn quét với giai đoạn ghi (deferred-work.md:8079, chủ Story 5.3).
+//!   Đây vẫn là đường ghi DUY NHẤT của module này — không có một đường "chèn một hàng" thứ
+//!   hai chạy song song với nó, kể cả khi chỉ một Tác phẩm vừa được tạo (xem
+//!   `commands::project::wire::create_work_from_text`, nơi gọi lại đúng hàm này).
+//! - [`Indexer::forget_orphan`] — **THÊM Story 5.3.** Xoá đúng MỘT hàng mồ côi khỏi chỉ mục —
+//!   đường XOÁ tường minh, có tiền điều kiện `orphaned = 1`, không phải một đường ghi thứ hai
+//!   (§Design Notes "vì sao forget_orphan không phải đường ghi thứ hai").
+//! - [`Indexer::list_works`] — đường ĐỌC mọi hàng ĐANG SỐNG (`orphaned = 0`), dùng cho Story
+//!   5.6/5.9.
+//! - [`Indexer::list_orphans`] — **THÊM Story 5.3.** Đường ĐỌC mọi hàng mồ côi
+//!   (`orphaned = 1`), dùng cho màn hình tối thiểu của story này.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! VÌ SAO "một đường ghi duy nhất" LÀ MỘT QUYẾT ĐỊNH, KHÔNG PHẢI SỰ LƯỜI BIẾNG
@@ -36,9 +49,11 @@
 //! NGAY HÔM NAY. Nếu phép đo sau này buộc phải tách đường, đó là một quyết định kiến trúc mới
 //! (AD), không phải một lượt tối ưu tiện tay.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
+use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::{
     LIBRARY_INDEX_MIGRATIONS, ReadHandle, Store, StoreError, StoreKind, StoreSpec, Transaction,
 };
@@ -55,6 +70,16 @@ const ATPROJ_EXTENSION: &str = "atproj";
 /// `store: Store` tự lo qua field drop).
 pub struct Indexer {
     store: Store,
+    /// **THÊM Story 5.3.** Nối tiếp TOÀN BỘ một lượt [`Indexer::rebuild`] — cả giai đoạn
+    /// QUÉT đĩa lẫn giai đoạn GHI, không chỉ giai đoạn ghi (`store::Writer` đã nối tiếp phần
+    /// đó một mình). Hai lượt `rebuild` gọi gần như đồng thời (khởi động + người dùng bấm)
+    /// phải hoàn tất TUẦN TỰ; nếu không, lượt A quét được tập `.atproj` CŨ rồi ghi SAU lượt B
+    /// sẽ đánh dấu mồ côi một hàng mà lượt B vừa thêm — một ảnh chụp trộn. Xem §Design Notes
+    /// "Vì sao một Mutex chứ không một AtomicU64 thế hệ" của story `5-3-quet-lai-thu-muc.md`.
+    ///
+    /// `()` — khoá không giữ dữ liệu nào, nó chỉ là một chốt chặn. `lock().unwrap_or_else(..)`
+    /// theo lệ kho (`AGENTS.md`): một panic ở luồng khác giữ khoá không được lan sang đây.
+    rebuild_lock: Mutex<()>,
 }
 
 impl Indexer {
@@ -74,7 +99,10 @@ impl Indexer {
         )?;
 
         let store = Store::open(StoreSpec::library_index(path))?;
-        Ok(Indexer { store })
+        Ok(Indexer {
+            store,
+            rebuild_lock: Mutex::new(()),
+        })
     }
 
     /// Đóng kho — cùng khuôn `close_global_store`/`close_open_work` ở `lib.rs`. Idempotent
@@ -96,8 +124,17 @@ impl Indexer {
     /// được với 'không có Tác phẩm nào', không rơi im lặng"*). [`IndexError::Store`] nếu lượt
     /// ghi trượt.
     pub fn rebuild(&self, root: &Path) -> Result<RebuildOutcome, IndexError> {
+        // Khoá TOÀN BỘ scan+ghi ngay từ đây — xem doc-comment của `rebuild_lock`. Giữ khoá
+        // xuyên suốt cả hàm (biến `_guard` sống tới cuối scope) là điểm mấu chốt: nó không
+        // chỉ khoá lượt ghi (đã nối tiếp qua `store::Writer`), nó khoá cả lượt ĐỌC ĐĨA phía
+        // trên, thứ mà hai lượt `rebuild` gọi gần nhau có thể chạy xen kẽ nếu không có nó.
+        let _guard = self
+            .rebuild_lock
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
         if !root.exists() {
-            return self.clear_for_missing_root();
+            return self.mark_all_orphaned_for_missing_root();
         }
 
         let scan = match scan_atproj_dirs(root)? {
@@ -107,7 +144,7 @@ impl Indexer {
             // đó thành `IndexError::Io` — một LỖI CỨNG cho đúng tình huống mà nhánh
             // `root_missing` êm ái ngay trên đã tồn tại để canh. `scan_atproj_dirs` tự ánh xạ
             // `NotFound` về [`ScanRootOutcome::RootMissing`]; xử lý y hệt fast-path phía trên.
-            ScanRootOutcome::RootMissing => return self.clear_for_missing_root(),
+            ScanRootOutcome::RootMissing => return self.mark_all_orphaned_for_missing_root(),
             ScanRootOutcome::Scanned(scan) => scan,
         };
 
@@ -122,6 +159,23 @@ impl Indexer {
         // giữa lượt liệt kê không còn huỷ cả lượt quét bằng `?` nữa, nên nó phải có mặt trong
         // kết quả cuối cùng như MỌI `.atproj` bị bỏ qua khác.
         let mut skipped: Vec<SkippedEntry> = scan.skipped;
+
+        // 🔵 SỬA (2026-08-27, vòng rà bốn lớp P3) — vế HAI của vị từ mồ côi ĐÃ SAI, và mệnh đề
+        // "vị từ mồ côi: ba cách viết, hai cách sai" của §Design Notes HẾT ĐÚNG: nó thiếu ca
+        // thứ tư. Bản trước dựng tập chặn mồ côi từ TOÀN BỘ `scan.dirs` (mọi `.atproj` liệt
+        // kê được, không cần đọc được `meta.json`) — sai ở kịch bản "đường dẫn bị Tác phẩm
+        // KHÁC chiếm": A từng sống ở `/gốc/Foo.atproj`; người dùng xoá A rồi copy B vào một
+        // thư mục CŨNG tên `Foo.atproj`. B đọc được ⇒ `Foo.atproj` vẫn nằm trong `scan.dirs`
+        // ⇒ hàng của A (không đọc được ở lượt này) bị coi là "đường dẫn còn đó" nên KHÔNG bị
+        // đánh dấu mồ côi — một hàng SỐNG nói dối, trỏ vào thư mục nay thuộc về B.
+        //
+        // ⇒ Câu đúng không phải *"đường dẫn này có được liệt kê không"* mà là *"đường dẫn
+        // này có được liệt kê MÀ KHÔNG đọc được `meta.json` không"* — một đường dẫn ĐỌC ĐƯỢC
+        // đã thuộc về ĐÚNG `work_id` nó vừa khai (nằm trong `first_seen`/`kept`), không phải
+        // một tấm khiên chung cho MỌI `work_id` từng đứng ở đó. Tập `unreadable_paths` dưới
+        // đây chỉ gom những `.atproj` CÒN NẰM ĐÓ nhưng `meta.json` KHÔNG đọc được — đúng và
+        // chỉ đúng ca "hỏng nhưng còn" (§Design Notes ca ①) mới được nó che chắn.
+        let mut unreadable_paths: HashSet<String> = HashSet::new();
 
         for dir in scan.dirs {
             match WorkMeta::read(&dir) {
@@ -140,22 +194,40 @@ impl Indexer {
                 // dụng hiểu) qua chính kiểu của nó — `Display` của cả hai đủ để chẩn đoán,
                 // không cần một trường `kind` thứ hai ở đây (`SkippedEntry::reason` là chuỗi
                 // chẩn đoán, KHÔNG DẤU, không phải văn bản hiển thị — cùng luật NFR16).
-                Err(err) => skipped.push(SkippedEntry {
-                    path: dir,
-                    reason: err.to_string(),
-                }),
+                Err(err) => {
+                    unreadable_paths.insert(dir.display().to_string());
+                    skipped.push(SkippedEntry {
+                        path: dir,
+                        reason: err.to_string(),
+                    });
+                }
             }
         }
 
         let indexed = kept.len();
-        self.store.write(move |tx: &Transaction<'_>| {
-            tx.execute("DELETE FROM library_work", [])?;
+        let orphans = self.store.write(move |tx: &Transaction<'_>| {
+            // Vế MỘT của vị từ mồ côi — "work_id không đọc được ở lượt này" — thoả bằng
+            // chính việc một hàng KHÔNG nằm trong `kept` (nó không được UPSERT ở đây).
+            //
+            // 🔴 UPSERT, không `DELETE` + `INSERT` — đây là chỗ đổi ngữ nghĩa CHÍNH của
+            // story. `work_id` là khoá chính nên `ON CONFLICT` là cách SQLite tự phân biệt
+            // "Tác phẩm này đã có trong chỉ mục" (cập nhật đường dẫn/metadata, gỡ cờ mồ côi)
+            // với "Tác phẩm mới" (chèn hàng) — không cần một `SELECT` kiểm trùng ở tầng Rust.
             for (dir, meta) in &kept {
                 tx.execute(
                     "INSERT INTO library_work \
                      (work_id, atproj_path, name, source_lang, genre, created_at, \
-                      updated_at, chapter_count) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                      updated_at, chapter_count, orphaned) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0) \
+                     ON CONFLICT (work_id) DO UPDATE SET \
+                       atproj_path   = excluded.atproj_path, \
+                       name          = excluded.name, \
+                       source_lang   = excluded.source_lang, \
+                       genre         = excluded.genre, \
+                       created_at    = excluded.created_at, \
+                       updated_at    = excluded.updated_at, \
+                       chapter_count = excluded.chapter_count, \
+                       orphaned      = 0",
                     (
                         &meta.work_id,
                         &dir.display().to_string(),
@@ -168,7 +240,33 @@ impl Indexer {
                     ),
                 )?;
             }
-            Ok(())
+
+            // Mọi hàng CÒN LẠI (không vừa UPSERT ở trên): mồ côi khi và chỉ khi `atproj_path`
+            // của nó KHÔNG nằm trong `unreadable_paths` — vế HAI của vị từ (P3). Đọc lại toàn
+            // bảng trong CÙNG giao dịch (không phải một `Store::read` riêng) để không có cửa
+            // sổ đua giữa "đọc trạng thái cũ" và "ghi trạng thái mới".
+            let mut stmt = tx.prepare("SELECT work_id, atproj_path FROM library_work")?;
+            let existing: Vec<(String, String)> = stmt
+                .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+                .collect::<crate::core::store::SqlResult<Vec<_>>>()?;
+            drop(stmt);
+
+            let mut newly_orphaned = 0usize;
+            for (work_id, atproj_path) in existing {
+                if first_seen.contains_key(&work_id) {
+                    continue; // Vừa upsert ở trên -- `orphaned` đã là 0.
+                }
+                if unreadable_paths.contains(&atproj_path) {
+                    continue; // Thư mục còn ĐÓ nhưng meta.json hỏng (ca "hỏng nhưng còn" -- KHÔNG mồ côi).
+                }
+                let changed = tx.execute(
+                    "UPDATE library_work SET orphaned = 1 WHERE work_id = ?1 AND orphaned = 0",
+                    [&work_id],
+                )?;
+                newly_orphaned += changed;
+            }
+
+            Ok(newly_orphaned)
         })?;
 
         Ok(RebuildOutcome {
@@ -176,36 +274,53 @@ impl Indexer {
             root_missing: false,
             conflicts,
             skipped,
+            orphans,
         })
     }
 
-    /// Xoá sạch `library_work` và trả một [`RebuildOutcome`] rỗng-có-lý-do
-    /// (`root_missing: true`) — dùng CHUNG bởi cả fast-path (`!root.exists()`) lẫn nhánh đua
-    /// P6 (`root` biến mất giữa `exists()` và `read_dir`). Bảng có thể còn hàng từ một lượt
-    /// quét trước (root vừa bị gỡ/ổ ngoài rút ra) — xoá sạch để chỉ mục PHẢN ÁNH đĩa hôm nay,
-    /// không phải đĩa hôm qua.
-    fn clear_for_missing_root(&self) -> Result<RebuildOutcome, IndexError> {
-        self.store.write(|tx: &Transaction<'_>| {
-            tx.execute("DELETE FROM library_work", [])?;
-            Ok(())
+    /// Đánh dấu MỌI hàng đang sống thành mồ côi (`orphaned = 1`) và trả một
+    /// [`RebuildOutcome`] rỗng-có-lý-do (`root_missing: true`) — dùng CHUNG bởi cả fast-path
+    /// (`!root.exists()`) lẫn nhánh đua P6 (`root` biến mất giữa `exists()` và `read_dir`).
+    ///
+    /// 🔵 **ĐỔI NGỮ NGHĨA (Story 5.3) — trước đây `clear_for_missing_root` XOÁ SẠCH bảng.**
+    /// Gốc vắng mặt nghĩa là **tập `.atproj` liệt kê được là rỗng** — đúng vị từ mồ côi ở
+    /// [`Indexer::rebuild`] áp cho MỌI hàng đang sống, không phải một nhánh riêng "xoá sạch".
+    /// Chỉ mục nói về THƯ VIỆN (thư mục gốc đang cấu hình), không nói về đĩa nói chung: các
+    /// `.atproj` của một gốc CŨ vẫn có thể còn nguyên trên đĩa (ca "đổi thư mục gốc"), nhưng
+    /// chúng không còn nằm trong thư viện đang quét.
+    fn mark_all_orphaned_for_missing_root(&self) -> Result<RebuildOutcome, IndexError> {
+        let orphans = self.store.write(|tx: &Transaction<'_>| {
+            tx.execute("UPDATE library_work SET orphaned = 1 WHERE orphaned = 0", [])
         })?;
         Ok(RebuildOutcome {
             indexed: 0,
             root_missing: true,
             conflicts: Vec::new(),
             skipped: Vec::new(),
+            orphans,
         })
     }
 
-    /// Đường ĐỌC — mọi hàng của `library_work`, sắp theo `work_id` (tất định; sắp theo tên/
-    /// ngày là việc của Story 5.6, không phải của story này).
+    /// Đường ĐỌC — mọi hàng ĐANG SỐNG (`orphaned = 0`) của `library_work`, sắp theo `work_id`
+    /// (tất định; sắp theo tên/ngày là việc của Story 5.6, không phải của story này).
     pub fn list_works(&self) -> Result<Vec<IndexedWork>, StoreError> {
-        self.store.read(|conn: ReadHandle<'_>| {
-            let mut stmt = conn.prepare(
+        self.list_rows("WHERE orphaned = 0")
+    }
+
+    /// **THÊM Story 5.3.** Đường ĐỌC — mọi hàng MỒ CÔI (`orphaned = 1`), cho màn hình tối
+    /// thiểu của story này. Không lọc/sắp theo tiêu chí nào khác `work_id` — 5.6 sở hữu phần
+    /// đó.
+    pub fn list_orphans(&self) -> Result<Vec<IndexedWork>, StoreError> {
+        self.list_rows("WHERE orphaned = 1")
+    }
+
+    fn list_rows(&self, predicate: &'static str) -> Result<Vec<IndexedWork>, StoreError> {
+        self.store.read(move |conn: ReadHandle<'_>| {
+            let mut stmt = conn.prepare(&format!(
                 "SELECT work_id, atproj_path, name, source_lang, genre, created_at, \
-                 updated_at, chapter_count \
-                 FROM library_work ORDER BY work_id",
-            )?;
+                 updated_at, chapter_count, orphaned \
+                 FROM library_work {predicate} ORDER BY work_id"
+            ))?;
             let rows = stmt.query_map([], |row| {
                 Ok(IndexedWork {
                     work_id: row.get(0)?,
@@ -216,10 +331,39 @@ impl Indexer {
                     created_at: row.get(5)?,
                     updated_at: row.get(6)?,
                     chapter_count: row.get(7)?,
+                    orphaned: row.get::<_, i64>(8)? != 0,
                 })
             })?;
             rows.collect()
         })
+    }
+
+    /// **THÊM Story 5.3.** Xoá đúng MỘT hàng mồ côi khỏi chỉ mục — đường XOÁ tường minh, có
+    /// tiền điều kiện `orphaned = 1`. KHÔNG chạm đĩa một byte (§Never của story: "không tự
+    /// sửa/di chuyển/xoá bất kỳ `.atproj` nào — `forget_orphan` xoá một hàng chỉ mục").
+    ///
+    /// # Lỗi
+    /// [`IndexError::NotOrphaned`] khi `work_id` không tồn tại HOẶC tồn tại nhưng
+    /// `orphaned = 0` — CÙNG một nhánh từ chối cho cả hai ca (§I/O Matrix: "gỡ nhầm một hàng
+    /// đang sống" và "gỡ một `work_id` không có" đều phải từ chối, không im lặng thành công
+    /// và không mập mờ giữa hai lý do). `WHERE work_id = ?1 AND orphaned = 1` trong MỘT câu
+    /// `DELETE` là cách SQLite tự trả về đúng phân biệt đó qua số hàng bị đổi — không cần một
+    /// `SELECT` kiểm trước rồi `DELETE` sau (cửa sổ đua giữa hai câu).
+    pub fn forget_orphan(&self, work_id: &str) -> Result<(), IndexError> {
+        let owned = work_id.to_owned();
+        let deleted = self.store.write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "DELETE FROM library_work WHERE work_id = ?1 AND orphaned = 1",
+                [&owned],
+            )
+        })?;
+
+        if deleted == 0 {
+            return Err(IndexError::NotOrphaned {
+                work_id: work_id.to_owned(),
+            });
+        }
+        Ok(())
     }
 }
 
@@ -382,6 +526,12 @@ pub struct RebuildOutcome {
     /// `.atproj` bị bỏ qua: thiếu/hỏng `meta.json`, hoặc `meta_schema_version` mới hơn bản
     /// ứng dụng hiểu. Các Tác phẩm còn lại vẫn vào chỉ mục bình thường.
     pub skipped: Vec<SkippedEntry>,
+    /// **THÊM Story 5.3.** Số hàng vừa CHUYỂN sang `orphaned = 1` ở lượt này — không phải
+    /// tổng số hàng mồ côi hiện có (đó là `Indexer::list_orphans().len()`). `0` là bình
+    /// thường (mọi hàng đã ở đúng vị trí, hoặc đây là lượt quét đầu tiên trên một chỉ mục
+    /// rỗng); khác `root_missing`, một `orphans > 0` không tự nó là một lỗi — nó là bằng
+    /// chứng đối chiếu đang hoạt động.
+    pub orphans: usize,
 }
 
 impl RebuildOutcome {
@@ -417,6 +567,16 @@ impl RebuildOutcome {
                 first.reason
             );
         }
+        // **THÊM Story 5.3** -- ve mo coi vao CUNG duong chan doan nay, khong dung mot
+        // duong thu hai (doc-comment cua ham nay da noi ro ly do: hai cho goi san pham
+        // khong duoc trooi khoi nhau).
+        if self.orphans > 0 {
+            eprintln!(
+                "library[index:{surface}] {} .atproj thanh mo coi o luot quet nay -- \
+                 atproj_path khong con nam trong tap vua liet ke duoc",
+                self.orphans
+            );
+        }
     }
 }
 
@@ -440,12 +600,15 @@ pub struct SkippedEntry {
     pub reason: String,
 }
 
-/// Một hàng của `library_work`, cho đường đọc [`Indexer::list_works`].
+/// Một hàng của `library_work`, cho đường đọc [`Indexer::list_works`]/[`Indexer::list_orphans`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexedWork {
     pub work_id: String,
     /// Đường dẫn TUYỆT ĐỐI trên máy này — khác `meta.json`, nơi đường tuyệt đối bị cấm
     /// (AC5, Story 1.15). Xem doc-comment của `LIBRARY_WORK_DDL` (`core/store/schema.rs`).
+    ///
+    /// Trên một hàng MỒ CÔI, đây là đường dẫn CŨ — cố ý giữ nguyên, không xoá/làm rỗng: AC3
+    /// đòi hàng mồ côi "nêu rõ nó trỏ tới đâu".
     pub atproj_path: PathBuf,
     pub name: String,
     pub source_lang: String,
@@ -453,6 +616,11 @@ pub struct IndexedWork {
     pub created_at: String,
     pub updated_at: String,
     pub chapter_count: u32,
+    /// **THÊM Story 5.3.** `true` ⇒ hàng mồ côi (`.atproj` không còn nằm trong tập vừa quét
+    /// được). [`Indexer::list_works`] chỉ trả hàng `false`; [`Indexer::list_orphans`] chỉ trả
+    /// hàng `true` — trường này có mặt trên cả hai đường đọc để một chỗ gọi tương lai gộp cả
+    /// hai (nếu có) vẫn phân biệt được, không đoán từ đường gọi.
+    pub orphaned: bool,
 }
 
 /// Mọi cách một lượt [`Indexer::rebuild`] hỏng mà KHÔNG phải một `.atproj` con bị bỏ qua (đó
@@ -466,6 +634,10 @@ pub enum IndexError {
     Io { path: PathBuf, detail: String },
     /// Kho `library-index.db` ghi trượt.
     Store(StoreError),
+    /// **THÊM Story 5.3.** [`Indexer::forget_orphan`] gọi trên một `work_id` không tồn tại,
+    /// hoặc tồn tại nhưng đang SỐNG (`orphaned = 0`) — cùng một nhánh từ chối cho cả hai ca
+    /// (§I/O Matrix của story).
+    NotOrphaned { work_id: String },
 }
 
 impl std::fmt::Display for IndexError {
@@ -477,6 +649,9 @@ impl std::fmt::Display for IndexError {
                 write!(f, "index[{}] io failed: {detail}", path.display())
             }
             IndexError::Store(err) => write!(f, "index[store] {err}"),
+            IndexError::NotOrphaned { work_id } => {
+                write!(f, "index[forget_orphan] work_id={work_id} is not an orphaned row")
+            }
         }
     }
 }
@@ -486,5 +661,35 @@ impl std::error::Error for IndexError {}
 impl From<StoreError> for IndexError {
     fn from(err: StoreError) -> Self {
         IndexError::Store(err)
+    }
+}
+
+/// 🔴 Đi qua [`IpcError::new`], không dựng struct literal — cùng luật với
+/// `From<StoreError> for IpcError` (`core/store/mod.rs`).
+///
+/// ⚠️ `IndexError::Io` tái dùng [`MessageKey::IoReadFailed`] thay vì đúc một khoá thứ ba
+/// (§Tasks của story `5-3-quet-lai-thu-muc.md`: "danh mục đóng, và `IndexError::Io` tái
+/// dùng `IoReadFailed`").
+impl From<IndexError> for IpcError {
+    fn from(err: IndexError) -> Self {
+        match err {
+            IndexError::Io { path, detail } => {
+                let mut params = BTreeMap::new();
+                params.insert("path".to_owned(), path.display().to_string());
+                let _ = detail; // Chẩn đoán thô -- không đi vào `params` (AD-21: params mang dữ liệu, không mang câu).
+                IpcError::new("library.io_read_failed", MessageKey::IoReadFailed, params, false)
+            }
+            IndexError::Store(err) => err.into(),
+            IndexError::NotOrphaned { work_id } => {
+                let mut params = BTreeMap::new();
+                params.insert("work_id".to_owned(), work_id);
+                IpcError::new(
+                    "library.not_orphaned",
+                    MessageKey::LibraryNotOrphaned,
+                    params,
+                    false,
+                )
+            }
+        }
     }
 }

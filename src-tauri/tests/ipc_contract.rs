@@ -386,3 +386,56 @@ fn ipc_error_new_rejects_missing_params_in_debug() {
         false,
     );
 }
+
+/// **THÊM Story 5.3.** Đóng băng tên trường của HAI struct wire mới
+/// (`commands::library::{RescanReport, OrphanEntry}`) — cùng khuôn phần `ok_shape`/`ok_keys`
+/// của [`ipc_error_wire_shape`] ở trên: một trường mới đi qua IPC mà không ai đối chiếu là
+/// đúng thứ ca này tồn tại để chặn.
+#[test]
+fn library_wire_structs_keep_snake_case_field_names() {
+    let report = auratranslate_lib::commands::library::RescanReport {
+        root: "/tmp/library".to_owned(),
+        // P1 (vòng rà bốn lớp 2026-08-27) -- trường mới, đóng băng cùng lượt.
+        root_missing: false,
+        indexed: 1,
+        conflicts: 0,
+        skipped: 0,
+        orphans: vec![auratranslate_lib::commands::library::OrphanEntry {
+            work_id: "id-1".to_owned(),
+            name: "Tên".to_owned(),
+            atproj_path: "/tmp/x.atproj".to_owned(),
+        }],
+    };
+    let value = serde_json::to_value(&report).expect("RescanReport phải serialize được");
+    let mut top_keys: Vec<&str> = value
+        .as_object()
+        .expect("RescanReport phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    top_keys.sort_unstable();
+    assert_eq!(
+        top_keys,
+        vec!["conflicts", "indexed", "orphans", "root", "root_missing", "skipped"],
+        "khoá trên dây của RescanReport là snake_case. Nhận được: {top_keys:?}."
+    );
+
+    let orphan_value = value
+        .get("orphans")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())
+        .expect("orphans phải mang ít nhất một mục cho ca test này");
+    let mut orphan_keys: Vec<&str> = orphan_value
+        .as_object()
+        .expect("một mục orphans phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    orphan_keys.sort_unstable();
+    assert_eq!(
+        orphan_keys,
+        vec!["atproj_path", "name", "work_id"],
+        "khoá trên dây của OrphanEntry là snake_case. Nhận được: {orphan_keys:?}. Nghi phạm số \
+         một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+}

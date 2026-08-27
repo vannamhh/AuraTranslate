@@ -1213,6 +1213,19 @@ fn char_literal_end(chars: &[char], start: usize) -> Option<usize> {
 /// ⚠️ Quét chuỗi literal, không quét theo TÊN BẢNG `work`: một `UPDATE` tương lai chạm cột
 /// khác của `work` (`name`, `genre`, …) là hợp lệ và không phải mệnh đề ca này canh — chỉ
 /// `source_lang` là bất biến, không phải cả hàng.
+///
+/// 🔵 **MIỄN TRỪ CÓ TÊN, THÊM 2026-08-27 (Story 5.3) — bảng `library_work` không thuộc phạm
+/// vi ca này.** `library_work` (`library-index.db`) là một CACHE DẪN XUẤT (AD-8): TOÀN BỘ
+/// hàng của nó — kể cả cột `source_lang`, chép nguyên văn từ `meta.json` — được GHI LẠI ở
+/// MỌI lượt `Indexer::rebuild` (Story 5.3 đổi ngữ nghĩa từ xoá-sạch-ghi-lại sang đối chiếu/
+/// UPSERT). Đây KHÔNG phải bất biến AD-18/AC1 mà ca này tồn tại để canh (`work.source_lang`
+/// trong `project.db`, đặt lúc tạo và không đổi được) — hai bảng, hai kho, hai luật khác
+/// nhau chỉ trùng TÊN CỘT. Giá trị bên trong không đổi (WorkMeta::source_lang cũng bất biến
+/// theo đúng luật đó), chỉ CÂU LỆNH ghi lại nó mỗi lượt quét — cùng cách toàn bộ `name`/
+/// `genre`/`chapter_count` cũng được ghi lại. Miễn trừ CÓ TÊN (`"library_work"` — chỉ SQL
+/// nhắm đúng bảng đó mới được loại), không phải một sự hạ ngưỡng: một `UPDATE work SET
+/// source_lang` tương lai (không nhắc `library_work`) vẫn bị bắt, xem
+/// [`the_update_source_lang_check_would_actually_flag_a_seeded_violation`] ngay dưới.
 #[test]
 fn no_update_statement_anywhere_touches_source_lang() {
     let src_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
@@ -1235,9 +1248,14 @@ fn no_update_statement_anywhere_touches_source_lang() {
         // DÒNG từng làm mất một dòng NỐI TIẾP của một chuỗi xuyên dòng nếu dòng đó tình cờ mở
         // đầu bằng `//` sau khi trim — xem doc-comment của `rust_string_literals`.
         for literal in rust_string_literals(&text) {
-            if literal.contains("UPDATE") && literal.contains("source_lang") {
-                violations.push(format!("{}: {literal:?}", file.display()));
+            if !literal.contains("UPDATE") || !literal.contains("source_lang") {
+                continue;
             }
+            // Miễn trừ CÓ TÊN — xem khối 🔵 ở doc-comment ngay trên hàm này.
+            if literal.contains("library_work") {
+                continue;
+            }
+            violations.push(format!("{}: {literal:?}", file.display()));
         }
     }
 
@@ -1290,6 +1308,36 @@ fn the_update_source_lang_check_would_actually_flag_a_seeded_violation() {
             .any(|l| l.contains("UPDATE") && l.contains("source_lang")),
         "ca AM: mot INSERT nhac `source_lang` (khong `UPDATE`) khong duoc bi bat oan: \
          {clean_literals:?}"
+    );
+}
+
+/// **THÊM Story 5.3.** Đối chứng của miễn trừ `"library_work"` — xem khối 🔵 ở doc-comment
+/// của [`no_update_statement_anywhere_touches_source_lang`]. Vị từ CHUNG (`.contains("UPDATE")
+/// && .contains("source_lang") && !.contains("library_work")`) phải cho ra hai kết luận khác
+/// nhau trên hai chuỗi chỉ khác nhau ĐÚNG một điểm: bảng đích.
+#[test]
+fn the_library_work_exemption_is_named_and_does_not_swallow_the_work_table() {
+    let is_violation = |literal: &str| {
+        literal.contains("UPDATE") && literal.contains("source_lang") && !literal.contains("library_work")
+    };
+
+    // Câu UPSERT thật của `Indexer::rebuild` (Story 5.3) -- MIỄN TRỪ, vì nó nhắm `library_work`,
+    // một cache dẫn xuất (AD-8), không phải bất biến AD-18 của `work`.
+    let library_work_upsert = "INSERT INTO library_work (work_id, source_lang) VALUES (?1, ?2) \
+         ON CONFLICT (work_id) DO UPDATE SET source_lang = excluded.source_lang";
+    assert!(
+        !is_violation(library_work_upsert),
+        "UPSERT nhắm `library_work` phải được miễn trừ -- nó là một cache dẫn xuất, không \
+         phải bất biến AD-18 của bảng `work`"
+    );
+
+    // Đổi ĐÚNG một điểm -- bảng đích thành `work` -- và vị từ phải bắt lại NGAY, chứng minh
+    // miễn trừ không nuốt luôn cả một `UPDATE work` thật.
+    let work_update = "UPDATE work SET source_lang = ?1 WHERE id = 1";
+    assert!(
+        is_violation(work_update),
+        "một UPDATE nhắm bảng `work` (không nhắc `library_work`) PHẢI vẫn bị bắt -- miễn trừ \
+         không được rộng hơn đúng bảng nó đặt tên"
     );
 }
 

@@ -25,6 +25,7 @@ use uuid::Uuid;
 
 use crate::core::i18n::IpcError;
 use crate::core::library::{WorkMeta, create_work_folder, remove_folder};
+use crate::core::scope::load_global_config;
 use crate::core::segment::import::{ImportedChapter, import_file, import_text};
 use crate::core::segment::split::split_source_text;
 use crate::core::store::{Store, StoreSpec, Transaction};
@@ -100,9 +101,15 @@ pub struct OpenWork {
 /// Thư mục gốc mặc định chứa mọi `.atproj` — `~/Documents/AuraTranslate/` (AD-23).
 ///
 /// Không viết cứng `$HOME` — `app.path().document_dir()` là đường duy nhất (NFR14).
-/// ⚠️ Scope động của AD-23 hôm nay được cưỡng chế bằng **kỷ luật mã Rust** (module này là
-/// nơi DUY NHẤT gọi hàm này), không phải bởi framework — xem Completion Notes của story
-/// `1-15…md`.
+///
+/// 🔵 **SỬA 2026-08-27 (Story 5.3) — mệnh đề "module này là nơi DUY NHẤT gọi hàm này" HẾT
+/// ĐÚNG.** Bản trước (Story 1.15) đúng: không đường sản phẩm nào cho người dùng ĐỔI thư mục
+/// gốc, nên `default_library_root` là điểm phân giải DUY NHẤT. Story 5.3 thêm một khoá
+/// `AppConfig` (`library_root`, Story 5.3) đọc TRƯỚC hàm này — [`resolve_library_root`] ngay
+/// dưới là bộ phân giải MỚI, và nó là hàm này KHÔNG còn gọi được trực tiếp từ bên ngoài
+/// module để tạo/tìm `.atproj`; mọi chỗ gọi SẢN PHẨM (`lib.rs::open_library_index`,
+/// `wire::create_work_from_text`/`_from_file`) phải đi qua [`resolve_library_root`], không
+/// gọi thẳng hàm này. Hàm này ở lại làm **hồi phòng cuối cùng** của bộ phân giải đó.
 pub fn default_library_root(app: &tauri::AppHandle) -> Result<PathBuf, IpcError> {
     use tauri::Manager as _;
 
@@ -124,6 +131,54 @@ pub fn default_library_root(app: &tauri::AppHandle) -> Result<PathBuf, IpcError>
     })?;
 
     Ok(documents.join(DOCUMENTS_SUBFOLDER))
+}
+
+/// **THÊM Story 5.3.** Bộ phân giải thư mục gốc Library MỚI — móc e2e ⇒ giá trị người dùng
+/// đã cấu hình (`AppConfig::library_root`) ⇒ [`default_library_root`]. **Mọi** chỗ gọi sản
+/// phẩm phải đi qua hàm này, không gọi thẳng `default_library_root` — nếu không, một Tác
+/// phẩm mới có thể sinh ra ở `~/Documents/AuraTranslate/` trong khi màn hình Library đang
+/// hiển thị (và quét) một thư mục gốc KHÁC mà người dùng vừa chọn, một "chỗ rỗng im lặng
+/// thứ hai" mà AC5 của story tồn tại để chặn.
+///
+/// 🔴 **Thứ tự ưu tiên là bất biến (§Always của story) — móc e2e ĐỨNG TRƯỚC giá trị người
+/// dùng cấu hình.** Bộ e2e dựng cửa sổ THẬT; nếu một giá trị `library_root` sống sót từ một
+/// phiên chạy tay trước đó của người phát triển bị đọc TRƯỚC móc e2e, bộ e2e sẽ ghi vào thư
+/// mục Library thật của người chạy — đúng lớp lỗi mà `library_root_override()` tồn tại để
+/// chặn cho `default_library_root` (xem doc-comment ở đó).
+///
+/// `store = None` (kho toàn cục chưa được quản lý) rơi thẳng về [`default_library_root`] —
+/// không phải một lỗi, cùng khuôn mọi đường đọc cấu hình khác của kho khi `global.db` không
+/// mở được (`AGENTS.md`: "mở kho trượt ⇒ ghi chẩn đoán rồi đi tiếp").
+pub fn resolve_library_root(
+    app: &tauri::AppHandle,
+    store: Option<&Store>,
+) -> Result<PathBuf, IpcError> {
+    if let Some(root) = crate::library_root_override() {
+        return Ok(root);
+    }
+
+    if let Some(store) = store {
+        match load_global_config(store) {
+            Ok(config) => {
+                if let Some(root) = config.library_root() {
+                    return Ok(PathBuf::from(root));
+                }
+            }
+            // 🔵 THÊM (2026-08-27, vòng rà bốn lớp P4) — nhánh `Err` trước đây bị NUỐT im
+            // lặng (`if let Ok(..) = ..`), nên một `global.db` hỏng làm ứng dụng lặng lẽ rơi
+            // về gốc mặc định mà không một dòng nào trong log -- ngược lệ đã ghi của kho
+            // ("mở kho trượt ⇒ ghi chẩn đoán rồi đi tiếp", `AGENTS.md`). Chẩn đoán KHÔNG DẤU
+            // (NFR16/Kiểm A của `check:i18n`), rồi vẫn rơi về mặc định như cũ -- vế "đi tiếp"
+            // không đổi, chỉ thêm vế "nói ra".
+            Err(err) => {
+                eprintln!(
+                    "library[root] doc AppConfig::library_root that bai, roi ve mac dinh: {err}"
+                );
+            }
+        }
+    }
+
+    default_library_root(app)
 }
 
 /// **Hàm thuần** — tạo một Tác phẩm mới trên đĩa từ một [`ImportedChapter`] đã có sẵn.
@@ -1442,8 +1497,9 @@ mod tests {
 
 /// Hai vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
-    use super::{IpcError, OpenWork, default_library_root, replace_open_work, spawn_import_scan};
+    use super::{IpcError, OpenWork, replace_open_work, resolve_library_root, spawn_import_scan};
     use crate::core::library::WorkMeta;
+    use crate::core::store::Store;
 
     /// Thứ hai lệnh trả về — [`WorkMeta`] **cộng đường dẫn thư mục trên đĩa**.
     ///
@@ -1524,7 +1580,11 @@ pub mod wire {
         genre: String,
         text: String,
     ) -> Result<CreatedWork, IpcError> {
-        let root = default_library_root(&app)?;
+        use tauri::Manager as _;
+        // 🔴 Story 5.3 — resolve_library_root, KHÔNG default_library_root: một Tác phẩm
+        // mới phải sinh ra trong đúng thư mục người dùng đã chọn, nếu không AC5 của story
+        // mở ra một chỗ rỗng im lặng thứ hai (xem doc-comment của resolve_library_root).
+        let root = resolve_library_root(&app, app.try_state::<Store>().as_deref())?;
         let opened = super::create_work_from_text(&root, &name, &source_lang, &genre, text)?;
         let created = CreatedWork::from_open(&opened);
         reindex_after_create_work(&app, &root);
@@ -1552,7 +1612,9 @@ pub mod wire {
         genre: String,
         path: String,
     ) -> Result<CreatedWork, IpcError> {
-        let root = default_library_root(&app)?;
+        use tauri::Manager as _;
+        // 🔴 Cùng lý do nhánh `create_work_from_text` ngay trên.
+        let root = resolve_library_root(&app, app.try_state::<Store>().as_deref())?;
         let opened = super::create_work_from_file(
             &root,
             &name,

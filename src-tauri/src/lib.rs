@@ -327,6 +327,11 @@ pub fn run() {
             crate::commands::config::wire::delete_config,
             crate::commands::project::wire::create_work_from_text,
             crate::commands::project::wire::create_work_from_file,
+            // Story 5.3 — "Quet lai thu muc" (FR99). Ba vo, ca ba `(async)` -- xem
+            // doc-comment cua `commands::library`.
+            crate::commands::library::wire::library_rescan,
+            crate::commands::library::wire::library_choose_root,
+            crate::commands::library::wire::library_forget_orphan,
             crate::commands::chapter::wire::read_open_chapter,
             // Story 2.11 — chuyen Chuong trong Workspace (FR26). RUST quyet Chuong ke
             // (Quyet dinh #3(a), Ice ky 2026-08-18): webview chi noi HUONG, va luat "ke la
@@ -692,10 +697,11 @@ fn open_work_slot(app: &tauri::App) {
 /// ─────────────────────────────────────────────────────────────────────────────
 /// LƯỢT `rebuild` ĐẦU TIÊN CHẠY NGAY Ở ĐÂY — vì sao không đợi một lệnh IPC
 /// ─────────────────────────────────────────────────────────────────────────────
-/// §Manual checks của story: *"xoá `library-index.db` bằng tay, mở lại ứng dụng: chỉ mục dựng
-/// lại"* — không có lệnh IPC "quét lại" nào ở story này (đó là Story 5.3), nên chỗ DUY NHẤT có
-/// thể tự động dựng lại chỉ mục sau khi tệp bị xoá là lúc khởi động. `default_library_root`
-/// tự xử lý cả móc e2e (AD-45), nên nhánh debug/release không rẽ ở đây.
+/// §Manual checks của story 5.2: *"xoá `library-index.db` bằng tay, mở lại ứng dụng: chỉ mục
+/// dựng lại"* — chỗ DUY NHẤT tự động dựng lại chỉ mục sau khi tệp bị xoá là lúc khởi động; nay
+/// Story 5.3 CỘNG THÊM một lệnh IPC "quét lại" (`commands::library::wire::library_rescan`), nên
+/// đây không còn là đường DUY NHẤT gọi `rebuild`, chỉ là đường ĐẦU TIÊN mỗi phiên.
+/// `resolve_library_root` tự xử lý cả móc e2e (AD-45), nên nhánh debug/release không rẽ ở đây.
 fn open_library_index(app: &tauri::App) {
     use tauri::Manager as _;
 
@@ -719,7 +725,13 @@ fn open_library_index(app: &tauri::App) {
 
     match crate::core::library::indexer::Indexer::open(dir.join(LIBRARY_INDEX_DB_FILE)) {
         Ok(indexer) => {
-            match crate::commands::project::default_library_root(app.handle()) {
+            // 🔴 Story 5.3 — `resolve_library_root`, KHÔNG `default_library_root`: lượt quét
+            // lúc khởi động phải nhìn CÙNG một thư mục gốc mà người dùng bấm "quét lại" sẽ
+            // nhìn sau đó. `open_global_store(app)` chạy TRƯỚC lời gọi này (`setup()` ở trên)
+            // nên `Store` toàn cục đã (có thể) được `app.manage()` tại thời điểm này.
+            let global = app.try_state::<crate::core::store::Store>();
+            match crate::commands::project::resolve_library_root(app.handle(), global.as_deref())
+            {
                 Ok(root) => match indexer.rebuild(&root) {
                     // Vòng rà ba lớp, P7 — `RebuildOutcome` không còn bị vứt: xung đột
                     // `work_id`/entry bị bỏ qua phải có ÍT NHẤT một dòng chẩn đoán.

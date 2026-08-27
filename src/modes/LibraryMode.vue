@@ -23,6 +23,19 @@ import {
   unwireDragDrop,
   wireDragDropOnce,
 } from './libraryImport'
+import {
+  currentLibraryOrphan,
+  currentLibraryRoot,
+  libraryIndexedCount,
+  libraryOrphanCursor,
+  libraryOrphans,
+  libraryRescanBusy,
+  libraryRescanError,
+  libraryRootMissing,
+  libraryScanHasLoadedState,
+  libraryConflictCount,
+  librarySkippedCount,
+} from './libraryRescan'
 import { t, tError } from '../i18n'
 
 const root = useTemplateRef<HTMLElement>('root')
@@ -63,6 +76,131 @@ onActivated(() => {
 <template>
   <!-- `tabindex="-1"` để phần tử nhận được focus lập trình. Nó KHÔNG vào thứ tự Tab. -->
   <section ref="root" class="mode" tabindex="-1">
+    <!--
+      Story 5.3 — "Quét lại thư mục" (FR99). Màn hình TỐI THIỂU CÓ CHỦ: chỉ thư mục gốc,
+      nút quét lại, danh sách mục mồ côi (con trỏ một mục, cùng khuôn GlossaryQueueOverlay),
+      và ba con số kết quả — KHÔNG lưới Tác phẩm/lọc/sắp xếp/bìa/vòng đời/tiến độ (5.4-5.6
+      sở hữu).
+    -->
+    <div class="root-block">
+      <p class="section-heading">{{ t('mode.library.root_heading') }}</p>
+      <!--
+        🔵 SỬA (2026-08-27, vòng rà bốn lớp P2) — bản trước khẳng định một điều CHƯA BIẾT.
+        `currentLibraryRoot === null` chỉ nghĩa là "chưa quét lần nào trong PHIÊN NÀY" -- một
+        người dùng đã cấu hình gốc riêng từ phiên trước sẽ thấy màn hình nói sai về thư mục
+        của họ. Bản trước còn chép cứng `~/Documents/AuraTranslate/` vào chuỗi hiển thị,
+        đúng thứ `default_library_root` (Rust) cố ý tránh ("Không viết cứng $HOME") và không
+        biểu diễn được ca `document_dir()` trượt. Câu MỚI chỉ nói đúng trạng thái CHƯA BIẾT;
+        đường dẫn THẬT chỉ hiện sau khi `RescanReport.root` (do Rust phân giải) về tới đây.
+      -->
+      <!-- aura-allow-text: `currentLibraryRoot` là ĐƯỜNG DẪN đĩa (dữ liệu), không câu UI; nhánh
+           còn lại đi qua t() -- Kiểm A2 không đọc tĩnh được toán tử `??`. -->
+      <p class="root-value">{{ currentLibraryRoot ?? t('mode.library.root_not_scanned_yet') }}</p>
+      <!--
+        🔵 THÊM (2026-08-27, vòng rà bốn lớp P1) — câu RIÊNG khi gốc đã quét KHÔNG còn tồn
+        tại trên đĩa, phân biệt hẳn với "đã quét, không có Tác phẩm nào" (đó là node
+        `.status` bên dưới nói ba con số kết quả). role="status" LUÔN có mặt.
+      -->
+      <!-- aura-allow-text: nhánh đúng đi qua t() với tham số root (dữ liệu); nhánh sai là chuỗi rỗng. -->
+      <p class="root-missing" role="status">
+        {{ libraryScanHasLoadedState && libraryRootMissing ? t('mode.library.root_missing', { root: currentLibraryRoot ?? '' }) : '' }}
+      </p>
+      <div class="root-actions">
+        <button
+          type="button"
+          class="btn"
+          :disabled="libraryRescanBusy"
+          @click="dispatch('library.choose_root')"
+        >
+          {{ t('mode.library.choose_root') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          :disabled="libraryRescanBusy"
+          @click="dispatch('library.rescan')"
+        >
+          <!-- aura-allow-text: cả hai nhánh đi qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+          {{ libraryRescanBusy ? t('mode.library.rescan_busy') : t('mode.library.rescan') }}
+        </button>
+      </div>
+
+      <!-- role="status" LUÔN có mặt (không v-if) -- cùng lý lẽ với dải báo lỗi của form nhập. -->
+      <!-- aura-allow-text: cả hai nhánh đi qua t()/chuỗi rỗng -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+      <p class="status" role="status">
+        {{
+          libraryScanHasLoadedState
+            ? t('mode.library.rescan_result', {
+                indexed: String(libraryIndexedCount),
+                conflicts: String(libraryConflictCount),
+                skipped: String(librarySkippedCount),
+              })
+            : ''
+        }}
+      </p>
+      <!-- aura-allow-text: như trên, qua tError(). -->
+      <p class="error" role="status">{{ libraryRescanError ? tError(libraryRescanError) : '' }}</p>
+
+      <p class="section-heading">{{ t('mode.library.orphans_heading') }}</p>
+      <!--
+        🔴 Vị từ `libraryScanHasLoadedState` TRƯỚC khi kết luận "không có mục mồ côi nào" —
+        danh sách rỗng TRƯỚC lượt quét đầu tiên là "chưa biết", không phải "không có"
+        (AGENTS.md::Known pitfalls).
+      -->
+      <!-- aura-allow-text: ba nhánh đều qua t()/chuỗi rỗng. -->
+      <p class="status" role="status">
+        {{
+          !libraryScanHasLoadedState
+            ? t('mode.library.orphans_not_loaded')
+            : libraryOrphans.length === 0
+              ? t('mode.library.orphans_none')
+              : ''
+        }}
+      </p>
+
+      <div v-if="currentLibraryOrphan" class="orphan-row">
+        <!-- aura-allow-text: tên Tác phẩm là DỮ LIỆU người dùng gõ, không một câu UI. -->
+        <p class="orphan-name">{{ currentLibraryOrphan.name }}</p>
+        <p class="orphan-path">{{ t('mode.library.orphan_path', { path: currentLibraryOrphan.atproj_path }) }}</p>
+        <div class="orphan-actions">
+          <!--
+            🔵 THÊM (2026-08-27, vòng rà bốn lớp P9) — `aria-label` cho cả hai nút: `‹`/`›`
+            trần không mang nghĩa gì cho trình đọc màn hình (NFR17 đòi mọi thao tác dùng
+            được bằng bàn phím VÀ có nhãn rõ ràng). Khoá qua `t()`, không một chuỗi viết
+            thẳng — cùng luật NFR16/AD-21.
+          -->
+          <button
+            type="button"
+            class="btn"
+            :disabled="libraryOrphanCursor === 0"
+            :aria-label="t('mode.library.orphan_prev')"
+            @click="dispatch('library.orphan_prev')"
+          >
+            ‹
+          </button>
+          <!-- aura-allow-text: vị trí con trỏ là SỐ ĐẾM (dữ liệu), không một câu UI. -->
+          <span class="orphan-position">{{ libraryOrphanCursor + 1 }} / {{ libraryOrphans.length }}</span>
+          <button
+            type="button"
+            class="btn"
+            :disabled="libraryOrphanCursor >= libraryOrphans.length - 1"
+            :aria-label="t('mode.library.orphan_next')"
+            @click="dispatch('library.orphan_next')"
+          >
+            ›
+          </button>
+          <button
+            type="button"
+            class="btn"
+            :disabled="libraryRescanBusy"
+            @click="dispatch('library.forget_orphan')"
+          >
+            {{ t('mode.library.forget_orphan') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!--
       🔴 Xác nhận đứng CẠNH form, KHÔNG bọc form trong một `v-else`. Bản trước dùng
       `v-if`/`v-else` và `createdWork` không bao giờ được đặt lại, nên tạo xong Tác phẩm
@@ -300,5 +438,81 @@ onActivated(() => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-error);
+}
+
+/* Story 5.3 — "Quét lại thư mục". Cùng khuôn token/cỡ chữ với `.empty`/`.field` ở trên. */
+.root-block {
+  max-width: 420px;
+  margin-bottom: var(--space-panel-block);
+  padding-bottom: var(--space-panel-block);
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.section-heading {
+  margin: 0 0 8px;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  font-weight: var(--weight-ui-md-strong);
+  color: var(--color-on-surface);
+}
+
+.root-value {
+  margin: 0 0 10px;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+  word-break: break-all;
+}
+
+.root-missing {
+  margin: 4px 0 0;
+  min-height: 1em;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-error);
+}
+
+.root-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.orphan-row {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--color-outline);
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
+}
+
+.orphan-name {
+  margin: 0 0 4px;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  font-weight: var(--weight-ui-md-strong);
+  color: var(--color-on-surface);
+}
+
+.orphan-path {
+  margin: 0 0 8px;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+  word-break: break-all;
+}
+
+.orphan-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.orphan-position {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 </style>

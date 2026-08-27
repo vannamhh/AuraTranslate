@@ -1452,10 +1452,17 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 ///   `meta.json`, nơi AC5 của Story 1.15 **cấm** đường tuyệt đối (nó theo `.atproj` khi Tác
 ///   phẩm bị copy sang máy khác) — chỉ mục thì **không** theo: nó là dẫn xuất **cục bộ**, và
 ///   Library cần biết Tác phẩm nằm ở đâu trên **máy này** để mở nó.
-/// - Sáu cột còn lại (`name`/`source_lang`/`genre`/`created_at`/`updated_at`/`chapter_count`)
+/// - Sáu cột kế (`name`/`source_lang`/`genre`/`created_at`/`updated_at`/`chapter_count`)
 ///   — **đúng** các trường của [`crate::core::library::meta::WorkMeta`], không hơn không kém.
 ///   §Never của story cấm tường minh: **không** `cover` (chủ Story 5.6), **không** cột trạng
 ///   thái vòng đời (chủ Story 5.4), **không** cột tiến độ (chủ Story 5.5).
+/// - `orphaned` — **THÊM Story 5.3, bump `to_version` 1 → 2 (viết lại TẠI CHỖ, đúng luật của
+///   một kho dẫn xuất — xem khối 🔴 ngay trên).** `INTEGER NOT NULL DEFAULT 0`, boolean
+///   (0/1), KHÔNG một mốc thời gian — xem §Design Notes của story `5-3-quet-lai-thu-muc.md`
+///   ("Cột `orphaned` là boolean, không phải mốc thời gian"). Đây là mẩu trạng thái DUY NHẤT
+///   trong bảng này không suy ra được từ `.atproj` trên đĩa — một hàng mồ côi vẫn giữ
+///   `atproj_path` CŨ để "nêu rõ nó trỏ tới đâu" (AC3), và `Indexer::rebuild` (Story 5.3) là
+///   nơi DUY NHẤT đặt cờ này.
 pub const LIBRARY_WORK_DDL: &str = "\
 CREATE TABLE schema_migration_log (
   version     INTEGER PRIMARY KEY,
@@ -1470,14 +1477,20 @@ CREATE TABLE library_work (
   genre         TEXT NOT NULL,
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL,
-  chapter_count INTEGER NOT NULL
+  chapter_count INTEGER NOT NULL,
+  orphaned      INTEGER NOT NULL DEFAULT 0
 );";
 
 /// Bộ di trú của `library-index.db` — **đúng MỘT bước, mãi mãi**. Xem doc-comment của
 /// [`LIBRARY_WORK_DDL`] cho lý do đây KHÔNG phải một thiếu sót: kho dẫn xuất không di trú
 /// (AD-8), nó bị xoá-và-dựng-lại khi lược đồ đổi, không bao giờ được thêm bước 2.
+///
+/// 🔵 **NÂNG 2026-08-27 (Story 5.3): `to_version` 1 → 2** — cột `orphaned` thêm vào
+/// [`LIBRARY_WORK_DDL`] (viết lại TẠI CHỖ, không một bước di trú thứ hai). Mọi
+/// `library-index.db` ở `to_version` 1 bị `Indexer::open` xoá-và-dựng-lại như một tệp lệch
+/// phiên bản bình thường — không mất dữ liệu người dùng, chỉ mất chính chỉ mục (dẫn xuất).
 pub const LIBRARY_INDEX_MIGRATIONS: &[Migration] = &[Migration {
-    to_version: 1,
+    to_version: 2,
     sql: LIBRARY_WORK_DDL,
 }];
 

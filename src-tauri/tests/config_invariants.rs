@@ -883,55 +883,82 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
 /// khi một người thật bấm nút, dưới dạng một ứng dụng đứng, không dưới dạng một ca đỏ. Đây
 /// chính là lớp lỗi mà `AGENTS.md` gọi tên: một bộ test xanh không chứng minh chỗ nối được
 /// canh.
+///
+/// 🔵 **MỞ LẦN BA 2026-08-27 (Story 5.3) — danh sách `cases` đổi hình dạng, từ `(sig, why)`
+/// đọc trên MỘT tệp cứng thành `(tệp, sig, why)` đọc trên NHIỀU tệp.** Bản trước viết cứng
+/// `src/commands/glossary.rs` (`let path = manifest_dir().join("src/commands/glossary.rs")`)
+/// — một vỏ CHẶN ở tệp KHÁC không được canh, và Story 5.3 vừa tạo đúng một tệp như thế
+/// (`commands/library.rs`, ba vỏ CHẶN mới: hộp thoại chọn thư mục + hai lượt ghi qua
+/// `store::Writer` trên một thư viện có thể lớn). Hình dạng mới chép khuôn
+/// `the_write_tickets_are_must_use_and_the_lint_that_gives_it_teeth_is_denied` ngay dưới —
+/// ca đó đã đọc nhiều hơn một tệp từ trước.
 #[test]
 fn the_blocking_wires_run_off_the_main_thread() {
-    let path = manifest_dir().join("src/commands/glossary.rs");
-    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-
-    // Moi vo CHAN phai mang `(async)` NGAY TREN chu ky cua no. Cot thu ba noi vi sao vo do
-    // dat tieu chi -- de mot luot doc sau khong phai suy lai.
-    let cases: [(&str, &str, &str); 7] = [
+    // Moi vo CHAN phai mang `(async)` NGAY TREN chu ky cua no. Cot thu hai la chu ky, cot thu
+    // ba noi vi sao vo do dat tieu chi -- de mot luot doc sau khong phai suy lai.
+    let cases: [(&str, &str, &str); 10] = [
         (
-            "glossary_export_tier",
+            "src/commands/glossary.rs",
             "pub fn glossary_export_tier(app: tauri::AppHandle",
             "mo hop thoai luu -- `blocking_save_file()` chan vong lap su kien",
         ),
         (
-            "glossary_open_import_preview",
+            "src/commands/glossary.rs",
             "pub fn glossary_open_import_preview(\n        app: tauri::AppHandle",
             "mo hop thoai chon tep -- `blocking_pick_file()` chan vong lap su kien",
         ),
         (
-            "glossary_marks_for_chapter",
+            "src/commands/glossary.rs",
             "pub fn glossary_marks_for_chapter(\n        app: tauri::AppHandle",
             "chay Matcher tren TRON van ban mot Chuong, moi luot mo Chuong va moi luot gop/tach",
         ),
         (
-            "glossary_pending_candidates",
+            "src/commands/glossary.rs",
             "pub fn glossary_pending_candidates(\n        app: tauri::AppHandle",
             "goi `suggest_han_viet_batch` cho MOI ung vien cho, o moi luot doc hang cho",
         ),
         (
-            "glossary_confirm_import",
+            "src/commands/glossary.rs",
             "pub fn glossary_confirm_import(\n        app: tauri::AppHandle",
             "chan tren `WriteTicket::wait()` qua tron vong ghi cua mot lo nhap co the toi 16 MiB",
         ),
         (
-            "glossary_lookup_term",
+            "src/commands/glossary.rs",
             "pub fn glossary_lookup_term(\n        app: tauri::AppHandle",
             "nap TRON bang glossary_entry ca hai tang (`load_tier`), o MOI luot go trong dai Them nhanh",
         ),
         (
-            "glossary_list_entries",
+            "src/commands/glossary.rs",
             "pub fn glossary_list_entries(app: tauri::AppHandle",
             "nap TRON bang glossary_entry ca hai tang (`load_tier`) roi dung mot Vec co toan bo Glossary",
         ),
+        (
+            "src/commands/library.rs",
+            "pub fn library_rescan(app: tauri::AppHandle",
+            "quet MOI .atproj trong goc (I/O dong bo) roi ghi qua `store::Writer` -- AC1 doi giao \
+             dien con bam/go duoc suot luot tren mot thu vien lon",
+        ),
+        (
+            "src/commands/library.rs",
+            "pub fn library_choose_root(app: tauri::AppHandle",
+            "mo hop thoai chon thu muc -- `blocking_pick_folder()` chan vong lap su kien",
+        ),
+        (
+            "src/commands/library.rs",
+            "pub fn library_forget_orphan(\n        app: tauri::AppHandle",
+            "mot luot ghi qua `store::Writer` -- cung nhom voi hai vo tren, khong tach rieng \
+             'nang'/'nhe'",
+        ),
     ];
 
-    for (name, sig, why) in cases {
+    for (rel, sig, why) in cases {
+        let path = manifest_dir().join(rel);
+        let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+
         let idx = text.find(sig).unwrap_or_else(|| {
             panic!(
-                "khong tim thay chu ky vo `{name}` -- chu ky da doi? cap nhat ca test nay CUNG LUOT."
+                "khong tim thay chu ky `{sig}` trong `{rel}` -- chu ky da doi? cap nhat ca test \
+                 nay CUNG LUOT."
             )
         });
         // DONG ngay TRUOC chu ky phai LA thuoc tinh `(async)`.
@@ -948,29 +975,161 @@ fn the_blocking_wires_run_off_the_main_thread() {
             .unwrap_or("");
         assert!(
             before == "#[tauri::command(async)]",
-            "vo `{name}` KHONG mang `#[tauri::command(async)]` -- lenh dong bo chay tren \
-             LUONG CHINH, va no CHAN o day: {why}. ⇒ TREO UNG DUNG (do 2026-08-25 tren cua so \
-             that, nhanh hop thoai). Dong doc duoc ngay truoc chu ky: {before:?}"
+            "vo tai `{rel}` (chu ky `{sig}`) KHONG mang `#[tauri::command(async)]` -- lenh dong \
+             bo chay tren LUONG CHINH, va no CHAN o day: {why}. ⇒ TREO UNG DUNG (do 2026-08-25 \
+             tren cua so that, nhanh hop thoai). Dong doc duoc ngay truoc chu ky: {before:?}"
         );
     }
 
-    // Doi chung chieu AM: chuoi `(async)` phai di kem DUNG nam vo tren, khong roi rac cho khac
-    // trong tep -- neu mot lan sua tuong lai rai no khap noi thi ca test nay het canh dung thu.
-    // Dem theo DONG va bo dong chu thich -- `text.matches(...)` tran dem ca chuoi nam
-    // TRONG doc-comment cua chinh cac vo (chung noi ve `(async)`), nen no tra nhieu hon that.
-    // Vi tu phai dem THUOC TINH, khong dem lan nhac ten.
-    let async_cmd_count = text
-        .lines()
-        .map(str::trim_start)
-        .filter(|l| !l.starts_with("//"))
-        .filter(|l| l.starts_with("#[tauri::command(async)]"))
-        .count();
+    // Doi chung chieu AM, THEO TUNG TEP: chuoi `(async)` phai di kem DUNG nam vo mong doi cua
+    // chinh tep do, khong roi rac cho khac -- neu mot lan sua tuong lai rai no khap noi thi ca
+    // test nay het canh dung thu. Dem theo DONG va bo dong chu thich -- `text.matches(...)` tran
+    // dem ca chuoi nam TRONG doc-comment cua chinh cac vo (chung noi ve `(async)`), nen no tra
+    // nhieu hon that. Vi tu phai dem THUOC TINH, khong dem lan nhac ten.
+    let count_async_attrs = |rel: &str| -> usize {
+        let path = manifest_dir().join(rel);
+        let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        text.lines()
+            .map(str::trim_start)
+            .filter(|l| !l.starts_with("//"))
+            .filter(|l| l.starts_with("#[tauri::command(async)]"))
+            .count()
+    };
+
     assert_eq!(
-        async_cmd_count, 7,
-        "dem duoc {async_cmd_count} `#[tauri::command(async)]` trong commands/glossary.rs, mong \
-         DUNG 7 (bay vo CHAN o `cases` tren). Them mot vo chan moi thi them no vao `cases` cua \
-         ca test nay CUNG LUOT, kem mot cau noi vi sao no dat tieu chi; con lai la mot lan rai \
-         thuoc tinh khong co ly do."
+        count_async_attrs("src/commands/glossary.rs"),
+        7,
+        "so `#[tauri::command(async)]` trong commands/glossary.rs phai DUNG 7 (bay vo CHAN o \
+         `cases` tren). Them mot vo chan moi thi them no vao `cases` CUNG LUOT, kem mot cau noi \
+         vi sao no dat tieu chi; con lai la mot lan rai thuoc tinh khong co ly do."
+    );
+    assert_eq!(
+        count_async_attrs("src/commands/library.rs"),
+        3,
+        "so `#[tauri::command(async)]` trong commands/library.rs phai DUNG 3 (ba vo CHAN o \
+         `cases` tren: library_rescan/library_choose_root/library_forget_orphan). Them mot vo \
+         chan moi thi them no vao `cases` CUNG LUOT."
+    );
+}
+
+/// **THÊM Story 5.3.** Đối chứng CHIỀU RỘNG của cổng ngay trên: nó phải THẬT SỰ đọc nhiều hơn
+/// một tệp, không chỉ chấp nhận cú pháp `(tệp, sig, why)` rồi vẫn ngầm trỏ về một tệp DUY
+/// NHẤT. Một cổng "mở rộng" mà tất cả các hàng của `cases` trỏ về CÙNG một tệp là một cổng
+/// vẫn MÙ với đúng tệp mà story này vừa tạo — bài học nguyên văn của
+/// `the_blocking_wires_run_off_the_main_thread`'s doc-comment (mở lần ba).
+#[test]
+fn the_blocking_wires_gate_reads_more_than_one_file() {
+    let distinct_files: std::collections::BTreeSet<&str> =
+        ["src/commands/glossary.rs", "src/commands/library.rs"].into_iter().collect();
+    assert!(
+        distinct_files.len() > 1,
+        "cong the_blocking_wires_run_off_the_main_thread phai doc NHIEU HON MOT tep -- nhan {} \
+         tep: {distinct_files:?}",
+        distinct_files.len()
+    );
+    for rel in distinct_files {
+        assert!(
+            manifest_dir().join(rel).is_file(),
+            "`{rel}` khong ton tai -- danh sach tep cua cong nay da lech khoi thuc te"
+        );
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// P5 (vòng rà bốn lớp, 2026-08-27) — thứ tự ưu tiên của `resolve_library_root` không có gì
+// canh; đảo hai khối `if` vẫn xanh toàn bộ `cargo test` vì `library_root_override()` trả
+// `None` trong một bản dựng test thường (feature `wdio` tắt) -- nhánh e2e không chạy được
+// để dựng một ca HÀNH VI. Đây là một cổng quét NGUỒN, đúng khuôn hai ca ngay trên.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Cắt đúng THÂN HÀM `resolve_library_root` ra khỏi `commands/project.rs` -- không quét cả
+/// tệp, để một chuỗi trùng tên ở một hàm KHÁC không làm ca này đỏ/xanh oan.
+fn resolve_library_root_body() -> String {
+    let path = manifest_dir().join("src/commands/project.rs");
+    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let start = text.find("pub fn resolve_library_root(").unwrap_or_else(|| {
+        panic!("khong tim thay `pub fn resolve_library_root(` trong {}", path.display())
+    });
+    let after_start = &text[start..];
+    // Hàm này ở mức thụt lề 0 (module-level) -- dấu đóng hàm là một dòng chỉ chứa `}`,
+    // khác dấu đóng một khối `if`/`match` bên trong (chúng đều thụt lề).
+    let close_needle = "\n}\n";
+    let end = after_start.find(close_needle).unwrap_or_else(|| {
+        panic!("khong tim thay dau dong ham cua `resolve_library_root`")
+    });
+    after_start[..end].to_owned()
+}
+/// Vị từ THUẦN: `Ok(())` khi mọi `needle` xuất hiện trong `body` theo ĐÚNG thứ tự đã cho
+/// (so vị trí byte của lần khớp ĐẦU TIÊN); `Err(lý do)` nếu không. Tách ra để cổng thật VÀ
+/// đối chứng dương/âm dưới đây gọi CHUNG một hàm -- hai bên không thể trôi khỏi nhau.
+fn needles_appear_in_order(body: &str, needles: &[&str]) -> Result<(), String> {
+    let mut last_pos: Option<usize> = None;
+    let mut last_needle = "";
+    for needle in needles {
+        let Some(pos) = body.find(needle) else {
+            return Err(format!("khong tim thay `{needle}`"));
+        };
+        if let Some(last) = last_pos {
+            if pos <= last {
+                return Err(format!(
+                    "`{needle}` (vi tri byte {pos}) khong dung SAU `{last_needle}` (vi tri byte {last})"
+                ));
+            }
+        }
+        last_pos = Some(pos);
+        last_needle = needle;
+    }
+    Ok(())
+}
+
+/// **Cổng thật.** Thứ tự ưu tiên là một bất biến VIẾT THÀNH LỜI (doc-comment của chính
+/// `resolve_library_root`, và §Always của `5-3-quet-lai-thu-muc.md`: "móc e2e
+/// `library_root_override()` giữ thứ tự ưu tiên đầu tiên, trước cả giá trị người dùng cấu
+/// hình") -- lý do: bộ e2e dựng cửa sổ THẬT, và nếu một `library_root` sống sót từ một phiên
+/// chạy tay trước đó bị đọc TRƯỚC móc e2e, bộ e2e sẽ ghi vào thư mục Library thật của người
+/// chạy.
+#[test]
+fn resolve_library_root_checks_the_e2e_override_before_the_configured_value_before_the_default() {
+    let body = resolve_library_root_body();
+    let needles = ["library_root_override()", "load_global_config(store)", "default_library_root(app)"];
+    needles_appear_in_order(&body, &needles).unwrap_or_else(|reason| {
+        panic!(
+            "thu tu uu tien trong `resolve_library_root` sai: {reason}. Bat bien duoc ghi trong \
+             doc-comment cua chinh ham do va trong story 5.3 (§Always) -- xem \
+             `commands/project.rs::resolve_library_root`."
+        )
+    });
+}
+
+/// **Đối chứng dương** — đảo thứ tự trên một chuỗi dựng tay: vị từ PHẢI bắt được, độc lập
+/// với nội dung cây nguồn hôm nay (cùng khuôn `a_hand_built_call_or_declaration_line_is_caught`
+/// của `library_index_boundary.rs`).
+#[test]
+fn the_order_predicate_would_actually_flag_a_reversed_order() {
+    let reversed_body = "fn resolve_library_root() {
+    let x = default_library_root(app);
+    let y = load_global_config(store);
+    let z = library_root_override();
+}";
+    let needles = ["library_root_override()", "load_global_config(store)", "default_library_root(app)"];
+    assert!(
+        needles_appear_in_order(reversed_body, &needles).is_err(),
+        "vi tu KHONG bat duoc mot chuoi dung tay co thu tu DAO NGUOC -- cong nay dang mu"
+    );
+}
+
+/// **Đối chứng âm** — thứ tự ĐÚNG trên một chuỗi dựng tay không được báo lỗi oan.
+#[test]
+fn the_order_predicate_does_not_flag_the_correct_order() {
+    let correct_body = "fn resolve_library_root() {
+    let a = library_root_override();
+    let b = load_global_config(store);
+    let c = default_library_root(app);
+}";
+    let needles = ["library_root_override()", "load_global_config(store)", "default_library_root(app)"];
+    assert!(
+        needles_appear_in_order(correct_body, &needles).is_ok(),
+        "vi tu bao loi OAN tren mot chuoi co thu tu DUNG"
     );
 }
 

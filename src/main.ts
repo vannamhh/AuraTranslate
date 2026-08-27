@@ -53,6 +53,17 @@ import { applyPreset, panelRing, togglePanel } from './layout/dockController'
 // Vue thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/project.ts` — import nó ở
 // `src/commands/index.ts` giết Kiểm C/D/E.
 import { submitFilePath, submitPastedText } from './modes/libraryImport'
+// ── Story 5.3 — "Quét lại thư mục" (FR99) ────────────────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `libraryImport.ts`: `libraryRescan.ts` là một module Vue
+// thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/library.ts`.
+import {
+  chooseLibraryRootFolder,
+  forgetCurrentLibraryOrphan,
+  nextLibraryOrphan,
+  prevLibraryOrphan,
+  rescanLibraryFolder,
+} from './modes/libraryRescan'
 // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `libraryImport.ts`: `sourcePanelState.ts` dùng `ref` của
@@ -324,6 +335,12 @@ async function boot(): Promise<void> {
       panelRing,
       submitPastedText,
       submitFilePath,
+      // Story 5.3 — "Quét lại thư mục" (FR99).
+      rescanLibraryFolder,
+      chooseLibraryRootFolder,
+      forgetCurrentLibraryOrphan,
+      nextLibraryOrphan,
+      prevLibraryOrphan,
       selectSourceTab,
       toggleHanVietView,
       runLookup,

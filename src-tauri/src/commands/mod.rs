@@ -41,6 +41,7 @@ pub mod chapter;
 pub mod config;
 pub mod dict;
 pub mod glossary;
+pub mod library;
 pub mod pinned;
 pub mod project;
 pub mod segment;

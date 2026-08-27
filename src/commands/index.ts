@@ -208,6 +208,26 @@ export type CommandDeps = {
   /** Nộp `filePath` hiện tại. Handler của `library.import_file` (AC1 nhánh tệp/NFR17). */
   submitFilePath?: () => void
 
+  // ── Story 5.3 — "Quét lại thư mục" (FR99) ───────────────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `submitPastedText`: state sống ở
+  // `src/modes/libraryRescan.ts`, một module Vue thật (`ref`) — import thẳng nó ở đây giết
+  // Kiểm C/D/E cùng lý do `@tauri-apps/api` bị cấm.
+
+  /** Quét lại thư mục gốc đang cấu hình. Handler của `library.rescan` (AC1, AC2 — có phím
+   * mặc định). ⚠️ Cài đặt thật là `async`; `() => void` khớp cùng khuôn `openGlossaryManage`
+   * — promise trả về bị bỏ qua có chủ ý, kết quả đi ra qua các `ref` ở tầng module. */
+  rescanLibraryFolder?: () => void
+  /** Mở hộp thoại chọn thư mục, đổi thư mục gốc rồi quét lại. Handler của
+   * `library.choose_root` (AD-48). */
+  chooseLibraryRootFolder?: () => void
+  /** Gỡ mục mồ côi đang chọn khỏi chỉ mục. Handler của `library.forget_orphan`. */
+  forgetCurrentLibraryOrphan?: () => void
+  /** Chuyển con trỏ xuống mục mồ côi kế tiếp. Handler của `library.orphan_next`. */
+  nextLibraryOrphan?: () => void
+  /** Chuyển con trỏ lên mục mồ côi trước. Handler của `library.orphan_prev`. */
+  prevLibraryOrphan?: () => void
+
   // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `applyPreset`/`submitPastedText`: state sống ở
@@ -825,6 +845,73 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.submitFilePath === undefined) return portMissing('library.import_file', 'submitFilePath')
       deps.submitFilePath()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 5.3 — "QUÉT LẠI THƯ MỤC" (FR99)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `library.rescan` là điểm vào có phím mặc định — `Mod+Alt+K` (họ `Mod+Alt+…` đã dùng cho
+   * `glossary.manage.open`/`…add_term`/`…settings.open`/`…confirm.focus`/`…queue.open`).
+   * ⚠️ `Mod+Alt+R` đã thuộc `editor.restore_segment` (Story 2.5c) — đo 2026-08-27:
+   * `grep -oE "Mod\+Alt\+[A-Za-z0-9]+"` trên tệp này cho `Mod+Alt+K` = 0, còn trống; `R` đã
+   * chiếm (`installCommands()` ném khi đăng ký nếu dùng lại nó, thấy bằng chạy thật
+   * `npm run check:commands`).
+   *
+   * Bốn lệnh còn lại giữ 0 hợp âm mặc định, cùng chủ ý `glossary.manage.next`/`…prev`/
+   * `…edit`/…: nút bấm và mũi tên xử lý bằng `dispatch('<id>')` từ `.vue`, không gọi thẳng
+   * (§Always của spec: "phím tắt và Auto-Lookup phát cùng một dispatch, không gọi thẳng
+   * hàm" — cùng luật áp cho mọi lối vào của một thao tác).
+   */
+  target.register({
+    id: 'library.rescan',
+    labelKey: 'command.library.rescan',
+    keys: ['Mod+Alt+K'],
+    run: () => {
+      if (deps.rescanLibraryFolder === undefined) return portMissing('library.rescan', 'rescanLibraryFolder')
+      deps.rescanLibraryFolder()
+    },
+  })
+  target.register({
+    id: 'library.choose_root',
+    labelKey: 'command.library.choose_root',
+    keys: undefined,
+    run: () => {
+      if (deps.chooseLibraryRootFolder === undefined) {
+        return portMissing('library.choose_root', 'chooseLibraryRootFolder')
+      }
+      deps.chooseLibraryRootFolder()
+    },
+  })
+  target.register({
+    id: 'library.forget_orphan',
+    labelKey: 'command.library.forget_orphan',
+    keys: undefined,
+    run: () => {
+      if (deps.forgetCurrentLibraryOrphan === undefined) {
+        return portMissing('library.forget_orphan', 'forgetCurrentLibraryOrphan')
+      }
+      deps.forgetCurrentLibraryOrphan()
+    },
+  })
+  target.register({
+    id: 'library.orphan_next',
+    labelKey: 'command.library.orphan_next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextLibraryOrphan === undefined) return portMissing('library.orphan_next', 'nextLibraryOrphan')
+      deps.nextLibraryOrphan()
+    },
+  })
+  target.register({
+    id: 'library.orphan_prev',
+    labelKey: 'command.library.orphan_prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevLibraryOrphan === undefined) return portMissing('library.orphan_prev', 'prevLibraryOrphan')
+      deps.prevLibraryOrphan()
     },
   })
 

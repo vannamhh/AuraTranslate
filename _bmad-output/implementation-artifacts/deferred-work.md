@@ -8016,7 +8016,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
 
 - source_spec: `_bmad-output/implementation-artifacts/5-1-mo-hinh-library-hai-tang.md`
   summary: 22 cảnh báo `cargo clippy --all-targets` có sẵn ở bảy tệp, chưa có chủ — và `-D warnings` chỉ phơi ra 8 trong số đó.
-  evidence: `-D warnings` dừng ngay ở crate lib nên KHÔNG bao giờ chạm tới target test — chạy `cargo clippy --all-targets` trần mới thấy đủ: `tests/segment_contract.rs` 12 · `commands/pinned.rs` 3 · `tests/ai_boundary.rs` 2 · `commands/glossary.rs` 2 · `core/scope/resolve.rs` 1 · `core/scope/mod.rs` 1 · `core/glossary/exchange.rs` 1. Tám cái ở tầng lib đo tại baseline `7d1165f` trước mọi thay đổi của story — `useless_conversion` (`commands/glossary.rs:1316,1393`), `redundant_closure` (`commands/pinned.rs:116,164,197`), `redundant_guards` (`core/glossary/exchange.rs:945`), `type_complexity` (`core/scope/resolve.rs:198`, `core/scope/mod.rs:335`). Story 5.1 KHÔNG đẻ thêm cảnh báo nào: `segment_contract.rs` là tệp story có sửa và mang 3 cảnh báo `err_expect`, nhưng ở dòng 1755/3857/3863 — story chỉ sửa 1965/2072/2972/3484/3501/3859/4030/6280/6284, không dòng nào trùng; `ai_boundary.rs` không nằm trong diff. Đáng ghi vì `clippy` KHÔNG phải cổng của kho — chuỗi `cargo clippy` không xuất hiện trong `.github/workflows/ci.yml`, `package.json`, hay `scripts/` — nên nợ này không có đường nào tự lộ ra, và nó đã âm thầm làm một dòng `expected: không cảnh báo` trong §Verification của Story 5.1 thành kỳ vọng không bao giờ đạt được.
+  evidence: `-D warnings` dừng ngay ở crate lib nên KHÔNG bao giờ chạm tới target test — chạy `cargo clippy --all-targets` trần mới thấy đủ: `tests/segment_contract.rs` 12 · `commands/pinned.rs` 3 · `tests/ai_boundary.rs` 2 · `commands/glossary.rs` 2 · `core/scope/resolve.rs` 1 · `core/scope/mod.rs` 1 · `core/glossary/exchange.rs` 1. Tám cái ở tầng lib đo tại baseline `7d1165f` trước mọi thay đổi của story — `useless_conversion` (`commands/glossary.rs:1316,1393`), `redundant_closure` (`commands/pinned.rs:116,164,197`), `redundant_guards` (`core/glossary/exchange.rs:945`), `type_complexity` (`core/scope/resolve.rs:198`, `core/scope/mod.rs:335`). Story 5.1 KHÔNG đẻ thêm cảnh báo nào: `segment_contract.rs` là tệp story có sửa và mang 3 cảnh báo `err_expect`, nhưng ở dòng 1755/3857/3863 — story chỉ sửa 1965/2072/2972/3484/3501/3859/4030/6280/6284, không dòng nào trùng; `ai_boundary.rs` không nằm trong diff. Đáng ghi vì `clippy` KHÔNG phải cổng của kho — chuỗi `cargo clippy` không xuất hiện trong `.github/workflows/ci.yml`, `package.json`, hay `scripts/` — nên nợ này không có đường nào tự lộ ra, và nó đã âm thầm làm một dòng `expected: không cảnh báo` trong §Verification của Story 5.1 thành kỳ vọng không bao giờ đạt được. **Chủ: Ice — quyết định có đưa `cargo clippy --all-targets -D warnings` vào một cổng hay không trước khi bất kỳ story nào dọn 22 cảnh báo này** *(🔵 THÊM 2026-08-27, Story 5.3 — mục này đứng mồ côi ở `check:debt-owner` Kiểm A trước bản vá; vá bằng cách nêu đúng người ra quyết định kế tiếp, không phải một cái tên story giả cho có).*
 
 ## Deferred from: 5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat (2026-08-27)
 
@@ -8075,6 +8075,15 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `ci.yml`, nên một ca e2e mới cũng chưa phải một cổng được canh.
     **(Chủ: Story 5.6 — lưới Tác phẩm là story đầu tiên đọc chỉ mục qua bề mặt sản phẩm, nên nó là chỗ
     đầu tiên một dây nối đứt lộ ra thành màn hình rỗng, và là chỗ rẻ nhất để dựng phép kiểm đầu-tới-cuối.)**
+    🔵 **NỐI TIẾP 2026-08-27 (Story 5.3) — chưa đóng, phạm vi MỞ RỘNG chứ không thu hẹp.**
+    Story này thêm BA chỗ gọi sản phẩm nữa xuyên qua `AppHandle` thật
+    (`commands::library::wire::{library_rescan, library_choose_root, library_forget_orphan}`),
+    và cùng lớp "đoạn nối" y hệt: `tests/library_index_contract.rs` gọi thẳng hàm THUẦN
+    (`Indexer::rebuild`/`forget_orphan`/`list_orphans`), `tests/frontend/libraryRescan.test.ts`
+    (Story 5.3) chỉ canh hành vi module thuần phía TypeScript (`happy-dom`, không phải
+    webview thật) — không ca nào trong hai bộ đó chạm `#[tauri::command]` thật. Bộ e2e của
+    story này vẫn **0** (không có trong Tasks/AC của `5-3-quet-lai-thu-muc.md`, và §Verification
+    của nó cũng không đòi). Chủ giữ nguyên Story 5.6, mở rộng theo đúng nghĩa mục này đã đặt ra.
 
 - source_spec: `_bmad-output/implementation-artifacts/5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat.md`
   summary: **Hai lượt `Indexer::rebuild` chạy chồng có thể xen kẽ và để chỉ mục phản ánh một ảnh chụp
@@ -8088,3 +8097,40 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     đồng thời.
     **(Chủ: Story 5.3 — quét lại thư mục — vì nó sở hữu quét tăng dần và sẽ thêm chỗ gọi `rebuild` thứ ba
     do người dùng bấm, tức là story biến một khả năng lý thuyết thành một cửa sổ thật.)**
+    → ✅ ĐÃ ĐÓNG 2026-08-27 (Story 5.3). `Indexer` nay mang `rebuild_lock: Mutex<()>`
+    (`core/library/indexer.rs`), khoá xuyên suốt CẢ giai đoạn quét đĩa LẪN giai đoạn ghi của
+    `Indexer::rebuild` — không chỉ giai đoạn ghi (`store::Writer` đã nối tiếp phần đó một
+    mình từ trước). Hai lượt gọi `rebuild` đồng thời (khởi động + người dùng bấm "quét lại",
+    đúng chỗ gọi thứ BA mà mục này tiên đoán — `commands::library::wire::library_rescan`)
+    nay PHẢI hoàn tất tuần tự, không xen kẽ. Đo bằng
+    `tests/library_index_contract.rs::two_threads_calling_rebuild_concurrently_converge_to_one_consistent_state`
+    (hai luồng, 20 lượt `rebuild` mỗi luồng, có `Barrier` canh cho khởi động gần như đồng
+    thời) — xanh, hội tụ đúng trạng thái đĩa cuối cùng, không panic/deadlock. ⚠️ Giới hạn thật
+    ghi ngay trong doc-comment của ca đó: không có hook tiêm độ trễ giữa quét và ghi, nên ca
+    này không CHỨNG MINH một ảnh chụp trộn cụ thể sẽ xảy ra nếu thiếu Mutex — nó đối chứng
+    điều đo được (không rơi mất lượt ghi nào, không race). Sửa nghĩa `rebuild` từ xoá-sạch-
+    ghi-lại sang đối chiếu (UPSERT + đánh dấu mồ côi) CÙNG LƯỢT — xem §Design Notes của
+    `5-3-quet-lai-thu-muc.md`.
+
+## Deferred from: 5-3-quet-lai-thu-muc (2026-08-27)
+
+- source_spec: `_bmad-output/implementation-artifacts/5-3-quet-lai-thu-muc.md`
+  summary: **Mở Library hôm nay không có đường ĐỌC THUẦN — mọi lượt hiện danh sách mục mồ
+    côi/ba con số đi qua một lượt QUÉT LẠI TOÀN BỘ** (`library.rescan`, `Indexer::rebuild`),
+    kể cả khi chỉ mục đã có sẵn dữ liệu từ lượt quét lúc khởi động. Chưa có lệnh IPC nào chỉ
+    ĐỌC (`Indexer::list_works`/`list_orphans` không có vỏ `#[tauri::command]` riêng, không
+    quét lại gì).
+  evidence: đo 2026-08-27 — `commands/library.rs` chỉ có ba vỏ, cả ba đều gọi
+    `Indexer::rebuild` (`library_rescan`/`library_choose_root`) hoặc ghi
+    (`library_forget_orphan`); không vỏ nào gọi `list_works`/`list_orphans` một mình.
+    `LibraryMode.vue` (Story 5.3) không tự động nạp gì lúc `onMounted` — màn hình chỉ có dữ
+    liệu SAU khi người dùng bấm "Quét lại"/"Đổi thư mục gốc", đúng phạm vi §Never của story
+    này (màn hình ở story này chỉ có thư mục gốc, nút quét lại, danh sách mục mồ côi và ba con
+    số kết quả — lưới/lọc/sắp xếp thuộc Story 5.6). Với thư viện nhỏ, quét
+    lại toàn bộ mỗi lần mở Library là rẻ (NFR3-5 chưa nghiệm thu đủ điều kiện ở Epic 5); với
+    thư viện lớn (Story 6.18 mới có đường tạo), một lượt mở Library luôn kèm quét lại toàn bộ
+    có thể là chi phí không cần thiết nếu đĩa chưa đổi gì từ lần quét trước.
+    **(Chủ: Story 5.6 — lưới Tác phẩm, lọc và sắp xếp — là story đầu tiên cần "mở Library thì
+    thấy danh sách ngay", nên nó là chỗ tự nhiên quyết định: thêm một lệnh ĐỌC THUẦN riêng
+    (`Indexer::list_works` qua vỏ mới), hay giữ nguyên "mở = quét lại" và chấp nhận chi phí đó
+    tới khi Story 6.18 đo được nó có thật là một vấn đề không.)**
