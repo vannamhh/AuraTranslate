@@ -8115,6 +8115,35 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
 ## Deferred from: 5-3-quet-lai-thu-muc (2026-08-27)
 
 - source_spec: `_bmad-output/implementation-artifacts/5-3-quet-lai-thu-muc.md`
+  summary: **Một lượt e2e ĐỎ chưa chẩn đoán được, trong đó ứng dụng ĐỌC thư mục Library THẬT của
+    người chạy (`~/Documents/AuraTranslate`) thay vì thư mục tạm mà `AURATRANSLATE_E2E_LIBRARY_ROOT`
+    chỉ định.** Không byte nào bị GHI vào đó — đã kiểm.
+  evidence: |-
+    Lượt chạy đầu của `e2e/specs/story-5-3-rescan.e2e.mjs` (2026-08-27, ~07:57): 5/6 đỏ.
+    Ca đầu đọc `.root-value` ra nguyên văn `/Users/hoangnam/Documents/AuraTranslate`, và hai ca
+    sau đọc `.orphan-name` ra `Epochtime` — tên một Tác phẩm THẬT nằm trong thư mục đó, tức chỉ
+    mục đã chứa hàng quét từ thư viện thật. Hai lượt chạy sau, cùng spec, cùng nhị phân: **6/6
+    xanh cả hai**, `RescanReport.root` đúng thư mục tạm. Mẫu tới hôm nay: 2 xanh · 1 đỏ.
+    🔴 **Vế đã kiểm và KHÔNG có vấn đề:** `~/Documents/AuraTranslate` không mọc thêm mục nào
+    (`ls | grep -i e2e` ⇒ 0, mtime thư mục cha vẫn 26/08 sau cả ba lượt). Hàng rào âm ở
+    `wdio.conf.mjs::onComplete` cũng không báo động — nhưng nó so CHỮ KÝ thư mục, tức nó bắt
+    được lượt GHI, **không** bắt được lượt ĐỌC.
+    ⚠️ **Vế KHÔNG giải thích được từ mã, ghi đúng mức độ chắc chắn của nó:** `library_root_override()`
+    được gác hai lớp `cfg(all(debug_assertions, feature = "wdio"))`, `open_global_store` chạy
+    TRƯỚC `open_library_index` nên `Store` đã `manage`, và `resolve_library_root` kiểm override
+    TRƯỚC cấu hình (có cổng quét nguồn từ Story 5.3). Không đường nào trong mã hôm nay giải thích
+    được vì sao một lượt lại phân giải ra thư mục thật. Giả thuyết đã LOẠI: cảnh báo
+    `core.invoke not available after 5s` **có mặt ở cả lượt đỏ lẫn hai lượt xanh** (44 · 62 · tương
+    tự), nên nó không phải chỗ khác nhau — đây là giả thuyết đầu tiên tôi nêu và nó SAI.
+    Nguyên văn hai log đã cất, không suy luận lại từ trí nhớ.
+    Luật của `e2e/AGENTS.md` áp thẳng vào đây: *"Ai gặp một lượt đỏ không tái lập được: bắt nguyên
+    văn trước, đừng chạy lại cho tới khi xanh rồi đi tiếp."*
+    **(Chủ: Ice — cùng chủ với mục "bộ e2e chập chờn, lần đỏ ② chưa chẩn đoán" từ 2026-08-24, và
+    vì phán quyết cần ở đây là một quyết định về HÀNG RÀO: hàng rào âm hôm nay chỉ canh chiều GHI;
+    canh thêm chiều ĐỌC (ví dụ bắt `resolve_library_root` từ chối chạy khi biến e2e có mặt mà kết
+    quả lại nằm ngoài nó) là một cơ chế mới, không phải một lượt vá.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/5-3-quet-lai-thu-muc.md`
   summary: **Mở Library hôm nay không có đường ĐỌC THUẦN — mọi lượt hiện danh sách mục mồ
     côi/ba con số đi qua một lượt QUÉT LẠI TOÀN BỘ** (`library.rescan`, `Indexer::rebuild`),
     kể cả khi chỉ mục đã có sẵn dữ liệu từ lượt quét lúc khởi động. Chưa có lệnh IPC nào chỉ

@@ -55,6 +55,19 @@ deferred:
     location: >-
       src-tauri/tests/project_contract.rs
     severity: low
+  - summary: >-
+      Một lượt e2e đỏ chưa chẩn đoán được, trong đó ứng dụng ĐỌC thư mục Library thật của
+      người chạy thay vì thư mục tạm của bộ e2e; không byte nào bị ghi vào đó.
+    evidence: |-
+      Lượt đầu của `story-5-3-rescan.e2e.mjs` 5/6 đỏ, `.root-value` ra
+      `/Users/hoangnam/Documents/AuraTranslate` và `.orphan-name` ra `Epochtime` (Tác phẩm
+      thật). Hai lượt sau 6/6 xanh, root đúng thư mục tạm. Đã kiểm: thư mục thật không mọc
+      thêm mục nào, mtime không đổi. Không giải thích được từ mã (override gác hai lớp cfg,
+      thứ tự setup đúng, có cổng quét nguồn cho thứ tự ưu tiên). Giả thuyết `core.invoke
+      not available` đã bị LOẠI — cảnh báo đó có ở cả ba lượt.
+    location: >-
+      e2e/specs/story-5-3-rescan.e2e.mjs
+    severity: medium
 ---
 
 <intent-contract>
@@ -314,10 +327,21 @@ Bốn lớp rà độc lập (blind · edge-case · verification-gap · intent-a
 - **Đối chứng GỠ đã chạy thật, không suy luận:** gỡ vế đánh dấu mồ côi ⇒ 3 ca đỏ · gỡ `(async)` ⇒ cổng vỏ-chặn đỏ · nhét `put_config` vào nhánh huỷ hộp thoại ⇒ đúng 1 ca đỏ · ghim cứng `root_missing: false` ở tầng Rust ⇒ đúng 1 ca đỏ (`tests/library_commands_contract.rs:278`) · dựng lại tập vế-hai từ `scan.dirs` ⇒ ca "đường dẫn bị chiếm" đỏ. Mọi lượt đều khôi phục nguyên trạng sau khi đo.
 - Toàn bộ **15 hàng §I/O Matrix** đều có ít nhất một ca ĐÃ CHẠY và xanh.
 
+### Chạy trên ỨNG DỤNG THẬT — bổ sung 2026-08-27
+
+§Manual checks không còn là một mục treo: dựng `e2e/specs/story-5-3-rescan.e2e.mjs` (6 ca) chạy trong **WKWebView thật**, đi trọn đường nút thật → `dispatch` → registry → `invoke` → `Indexer` → DOM. Đây cũng là lần đầu ba vỏ `#[tauri::command(async)]` của story được một phép kiểm chạm tới thay vì chỉ bị so chuỗi chữ ký.
+
+Phủ được: trạng thái CHƯA BIẾT trước lượt quét đầu · `.atproj` mới copy vào xuất hiện sau đúng một lượt quét · chuyển ra ngoài gốc ⇒ mục mồ côi kèm đường dẫn cũ · quay lại ⇒ hết mồ côi, không hàng thứ hai · nút "Gỡ khỏi chỉ mục" · thư mục gốc biến mất nói ra lý do.
+
+**Vẫn KHÔNG phủ, ghi thẳng:** `library.choose_root` mở hộp thoại **native** ngoài webview — WebDriver không chạm tới được, và bấm nó trong một lượt tự động sẽ TREO cửa sổ chờ người thật. Vế "đổi thư mục gốc" ở lại chạy tay. AC6 (*gõ được trong lúc quét*) cũng ở lại chạy tay: dựng một thư viện đủ lớn để đo là dựng một phép đo chập chờn theo tốc độ đĩa người chạy.
+
+Mẫu ba lượt: **2 xanh · 1 đỏ**. Lượt đỏ chưa chẩn đoán được và đã ghi nợ có chủ (xem §Rủi ro #6).
+
 ### Rủi ro còn lại — ghi ra thay vì để người sau tự phát hiện
 
 1. 🔴 **Chỉ mục không còn dẫn xuất trọn vẹn từ đĩa.** Cờ `orphaned` là mẩu trạng thái duy nhất trong `library_work` không suy ra được từ các `.atproj`; xoá `library-index.db` rồi dựng lại làm mọi hàng mồ côi biến mất. §Design Notes cân hai phương án và chọn phương án hẹp hơn (cờ ở chính kho dẫn xuất). **Đây là chỗ đợi Ice chốt** — nếu Ice muốn cờ sống ở `global.db`, đó là một quyết định kiến trúc, không phải một lượt sửa mã.
 2. ⚠️ **Ba vỏ `#[tauri::command]` không ca tự động nào chạm**, và vế THẬT của AC6 (*"gõ được trong lúc quét"*) chỉ nghiệm thu bằng tay. Bộ e2e của story vẫn 0 spec, và bộ e2e nằm ngoài cả `pre-push` lẫn `ci.yml`. Đã ghi nợ có chủ (Story 5.6) và lặp ở frontmatter `deferred`.
-3. ⚠️ **§Manual checks chưa chạy lần nào** — môi trường chạy không có giao diện. Ba mục (đổi tên/chuyển thư mục `.atproj`, đổi thư mục gốc rồi tạo Tác phẩm, gõ trong lúc quét) cần một lượt trên cửa sổ thật của Ice.
+3. 🟡 **§Manual checks đóng MỘT NỬA.** Bốn trong sáu mục nay chạy tự động trên cửa sổ thật (xem §Chạy trên ỨNG DỤNG THẬT). Hai mục còn hở, và chúng hở vì lý do kỹ thuật chứ không vì thiếu thời gian: hộp thoại native không lái được bằng WebDriver, và AC6 cần một thư viện lớn thật.
 4. ⚠️ **`check:debt-owner` đã ĐỎ từ TRƯỚC baseline** — một mục nợ mồ côi của Story 5.1 ở `deferred-work.md`. Đối chứng đã chạy: khôi phục tệp về `c533c62` rồi chạy cổng ⇒ exit 1. Đã vá bằng một dòng nêu Ice là người quyết định (*"có đưa `cargo clippy --all-targets` vào một cổng hay không"*). Việc này **nằm ngoài phạm vi story** và được báo riêng.
 5. ⚠️ **`pre-push` chưa chạy, CI chưa đọc.** Mọi số đo trên đây đến từ macOS của Ice; nửa Windows chưa nói gì.
+6. 🔴 **Một lượt e2e ĐỎ chưa chẩn đoán được, và nó chạm đúng vế dữ liệu thật.** Lượt chạy đầu của spec mới (5/6 đỏ) cho thấy ứng dụng **ĐỌC** `~/Documents/AuraTranslate` — thư viện thật của Ice — thay vì thư mục tạm: `.root-value` ra đường dẫn thật, `.orphan-name` ra `Epochtime`, một Tác phẩm có thật. **Không byte nào bị GHI vào đó** (đã kiểm sau cả ba lượt: 0 mục mang dấu e2e, mtime thư mục cha không đổi). Hai lượt sau xanh sạch. Tôi **không** giải thích được nó từ mã, và giả thuyết đầu tiên tôi nêu (*cầu IPC hỏng*) đã bị chính số đo bác — cảnh báo đó có mặt ở cả ba lượt. Nguyên văn log đã cất, nợ ghi có chủ (Ice). ⚠️ Đáng chú ý: hàng rào âm của `wdio.conf.mjs` so **chữ ký thư mục**, nên nó canh chiều GHI và **không** canh chiều ĐỌC — đúng chỗ lượt này lọt qua.
