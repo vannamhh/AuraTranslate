@@ -79,6 +79,12 @@ deferred:
     location: >-
       e2e/specs/story-5-3-rescan.e2e.mjs — chủ: Ice chốt (sửa spec 5.3 hay đổi mô hình cách ly)
     severity: high
+    resolution: >-
+      ✅ ĐÃ ĐÓNG 2026-08-28 — cả 5 khẳng định đổi sang HIỆU so với ngay trước thao tác
+      (`resultCounts()`), nên chúng đúng dù mô hình cách ly có đổi hay không. Nghiệm thu dưới
+      ĐÚNG điều kiện làm nó đỏ (chạy kèm `library-root-redirect` để thư mục gốc có sẵn dữ
+      liệu): 7/7 xanh. Vế "mô hình cách ly của bộ e2e" thì KHÔNG đóng ở đây — nó không cần
+      đóng để khẳng định đúng, và đổi nó là một quyết định hạ tầng của Ice.
   - summary: >-
       `e2e/specs/story-5-4-lifecycle.e2e.mjs` định vị nút bằng `:nth-of-type`, không bằng móc
       định danh — đổi thứ tự sáu nút trong `LibraryMode.vue` làm spec bấm nhầm nút thay vì đỏ.
@@ -222,6 +228,17 @@ deferred:
   **KEEP — phải sống sót mọi lần dựng lại:** (1) bước 4 ở tầng **hàm thuần**, không ở `mod wire` — một lượt "gọn hơn" đưa nó ngược vào vỏ là xoá đúng hai ca canh nó; (2) hai ca chỉ mục phải khẳng định trạng thái **TRƯỚC** lượt ghi (một chỉ mục rỗng làm khẳng định sau đó đúng vì lý do sai); (3) `reindex_after_lifecycle_write` **không trả `Result`** — một lượt reindex trượt không được biến một lượt ghi đã thành công trên đĩa thành lỗi IPC (AD-8: `.atproj` là dữ liệu, chỉ mục là dẫn xuất).
 
 ## Review Triage Log
+
+### 2026-08-28 — Pass thứ ba: chữa 9 ca đỏ của lượt chạy e2e TRỌN BỘ đầu tiên
+- intent_gap: 0
+- bad_spec: 0
+- patch: 2: (high 1, medium 0, low 1)
+- defer: 1: (high 0, medium 1, low 0)
+- reject: 0
+- addressed_findings:
+  - `[high]` `[patch]` **Hồi quy THẬT do Story 5.3**, ngoài phạm vi story này nhưng cùng dòng máu: `library.rescan` được cấp `Mod+Alt+K`, đúng hợp âm mà `shortcuts-capture-mouse.e2e.mjs` gõ và chú thích là *"trống trên toàn bộ bộ mặc định"* ⇒ lượt gán đâm vào nhánh xung đột (AC3) và bị từ chối; spec đỏ **cả khi chạy một mình**. Story 5.3 CÓ đo, nhưng `grep` trên `src/commands/index.ts` — hợp âm neo ở `e2e/specs/**`, ngoài quần thể được quét. Đổi bàn đo sang `Mod+Alt+Y` (đo lại: còn trống `A B D E F I N Y Z`, loại `D`/`I` vì macOS/WebKit nuốt trước), và bọc lượt chờ để một va chạm sau này tự đọc `.sc-alert` rồi nói ra nguyên nhân thay vì đổ lỗi cho WKWebView.
+  - `[low]` `[patch]` `story-5-3-rescan.e2e.mjs` khẳng định con số TUYỆT ĐỐI trên một thư mục gốc dùng chung cả lượt chạy ⇒ 5/7 ca đỏ (nhận 22 thay vì 1). Đổi sang delta. Không do story này gây ra, nhưng bỏ lại thì mọi lượt e2e sau đều đỏ.
+  - `[medium]` `[defer]` `editor-confirm-segment` (2 ca) và `shortcuts-focus` (1 ca) đỏ MỘT lần rồi xanh bốn lượt liên tiếp (chạy riêng · chạy cặp dựng riêng để tái tạo · chạy trọn bộ). Không tái tạo được ⇒ chưa có chẩn đoán ⇒ **không sửa mù**. Giả thuyết "rò rỉ chế độ qua `global.db`" đã bị BÁC bằng đo (ghi ở `deferred-work.md`). Chủ: Ice.
 
 ### 2026-08-28 — Lượt chạy e2e THẬT (Ice chạy trọn bộ), pass thứ hai
 - intent_gap: 0
@@ -476,7 +493,8 @@ Bốn giá trị vòng đời khai **một chỗ** bằng `lifecycle_statuses!` 
 ### Rủi ro còn lại
 
 - 🔵 **SỬA 2026-08-28 — mệnh đề cũ đã HẾT ĐÚNG.** Bản trước viết *"`e2e/specs/story-5-4-lifecycle.e2e.mjs` chưa chạy lần nào"*. Ice đã chạy trọn bộ e2e; spec này CHẠY THẬT, đỏ hai ca, và nay **xanh cả hai** (1m45) sau khi sửa. Bốn vỏ `#[tauri::command]` đã được một lượt chạy thật chạm. ⚠️ Vế cấu trúc **vẫn đứng**: bộ e2e chỉ chạy ở **nhịp đêm**, không ở `push` — một hồi quy ở tầng vỏ vẫn có thể đi qua trọn `pre-push` + CI nhịp `push` mà không cổng nào đỏ.
-- 🔴 **Lượt chạy trọn bộ đầu tiên làm lộ 9 ca đỏ ở BỐN spec khác** (`story-5-3-rescan` 5 · `editor-confirm-segment` 2 · `shortcuts-capture-mouse` 1 · `shortcuts-focus` 1). 5.3 đã chẩn đoán được (con số tuyệt đối trên thư mục gốc dùng chung — xem `deferred`); ba spec kia **chưa chẩn đoán**, và không được đọc thành "sản phẩm hồi quy" trước khi có người đọc lỗi (`e2e/AGENTS.md`).
+- 🔵 **SỬA 2026-08-28 (lượt chạy trọn bộ THỨ HAI) — bộ e2e nay 15/15 spec files xanh, 19m44.** Chín ca đỏ của lượt đầu: ba spec đã chẩn đoán và sửa (`story-5-3-rescan` · `shortcuts-capture-mouse` · `story-5-4-lifecycle`), mỗi cái nghiệm thu dưới đúng điều kiện làm nó đỏ.
+- ⚠️ **`editor-confirm-segment` (2 ca) và `shortcuts-focus` (1 ca) là CHẬP CHỜN, không phải đã sửa.** Tôi không đụng một dòng nào của chúng; chúng đỏ một lần rồi xanh bốn lượt. **Đừng đọc lượt 15/15 này thành "đã hết"** — bốn lượt xanh và một lượt đỏ, không có bước tái tạo, nghĩa là nguyên nhân vẫn ở đó. Nợ có chủ (Ice) ở `deferred-work.md`, kèm giả thuyết đã bị bác để người sau không đi lại.
 - ⚠️ `pre-push` và các lệnh trên chạy trên **macOS**; nửa Windows chỉ có tiếng nói ở lượt CI — đọc lượt CI trước khi kết luận là xanh.
 - ⚠️ Mỗi lượt ghi trạng thái kéo theo một lượt quét lại **toàn bộ** thư mục gốc. Đúng ở quy mô hôm nay, nhưng là nợ có chủ (Story 5.6).
 - ⚠️ Bước di trú `global.db`/`project.db` là **cửa một chiều**: `PROJECT_MIGRATIONS` nay tới 16, và hạ cấp ứng dụng xuống bản không biết bước đó sẽ làm `project.db` bị **từ chối mở** (AD-30).

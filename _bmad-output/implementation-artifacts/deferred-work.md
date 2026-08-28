@@ -8252,3 +8252,31 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     khi đường mở lại tồn tại, ba lệnh vòng đời của story này tự nhiên mở rộng ra được cho bất
     kỳ Tác phẩm nào, không cần sửa lại chữ ký của chính chúng — `Option<&mut OpenWork>` đã là
     đúng hình dạng, chỉ thiếu đường ĐẶT một `OpenWork` khác vào đó.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/5-4-bon-trang-thai-vong-doi.md`
+  summary: **Hai spec e2e đỏ MỘT LẦN rồi không tái tạo được — `editor-confirm-segment` (2 ca)
+    và `shortcuts-focus` (1 ca).** Chưa có chẩn đoán, và **không được đọc thành "đã sửa"**.
+  evidence: Lượt chạy TRỌN BỘ đầu tiên của kho (Ice chạy 2026-08-28 02:25) đỏ 9 ca ở bốn spec.
+    Ba trong bốn đã chẩn đoán và sửa xong, mỗi cái nghiệm thu dưới ĐÚNG điều kiện làm nó đỏ:
+    `story-5-3-rescan` (khẳng định con số tuyệt đối trên thư mục gốc dùng chung),
+    `shortcuts-capture-mouse` (hồi quy THẬT — Story 5.3 chiếm mất `Mod+Alt+K`),
+    `story-5-4-lifecycle` (một khuyết tật sản phẩm cộng hai lỗi bàn đo).
+    Hai spec trong bảng này thì KHÁC: cả hai **xanh khi chạy một mình**, xanh ở cặp
+    `segment-navigation` → `shortcuts-focus` dựng riêng để tái tạo, và xanh ở lượt chạy trọn
+    bộ sau khi sửa (15/15 spec files, 19m44, 2026-08-28). Tức tôi có **bốn lượt xanh và một
+    lượt đỏ**, không có bước tái tạo nào — nên chúng là **chập chờn**, và một lượt xanh không
+    chứng minh nguyên nhân đã mất.
+    ⚠️ Giả thuyết ĐÃ BỊ BÁC bằng đo, ghi ra để người sau không đi lại: *"rò rỉ chế độ qua
+    `global.db`"* KHÔNG khớp — `shortcuts-focus` nhận tiêu điểm ở `div|cell cell-tgt editing`,
+    một ô lưới đang gõ, mà ô đó chỉ tồn tại khi có Chương đang mở; mỗi spec là một tiến trình
+    mới và `OpenWorkState` khởi tạo `None`, nên không đường nào giải thích được ô đó bằng
+    trạng thái kế thừa. Dấu vết thật của ca `editor-confirm-segment` là `status` đọc ra
+    `draft` thay vì `confirmed` — hình dạng của một lượt ghi CHƯA kịp xuống đĩa, tức nghi vấn
+    nghiêng về **thời điểm**, không về logic.
+    ⇒ Bước kế tiếp đúng là **thu bằng chứng**, không phải sửa: chạy nhịp đêm vài lượt rồi đếm
+    tỷ lệ đỏ; khi đỏ, đọc `.sc-alert`/`status` tại chỗ thay vì đọc lại thông điệp assert.
+    Đừng vá bằng `continue-on-error` hay một vòng chạy lại — cả hai biến job thành thứ không
+    bao giờ đỏ (`e2e/AGENTS.md`).
+    **(Chủ: Ice — cùng chủ với mục "nhịp đêm đỏ hai trên bốn đêm đầu, chết ở CẦU IPC" đã ghi
+    từ 2026-08-24: cả hai là câu hỏi về ĐỘ TIN CẬY của bộ e2e, không về một story cụ thể, và
+    quyết định "chịu chập chờn tới bao giờ" là quyết định của Ice.)**
