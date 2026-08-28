@@ -116,19 +116,44 @@ describe('Story 1.21 · AC2 đường CHUỘT — vòng gán phím trên WKWebVi
     )
 
     // ── Gõ hợp âm ────────────────────────────────────────────────────────────────
-    // `Mod+Alt+K`: trống trên toàn bộ bộ mặc định, nên nó không đụng AC3 (xung đột).
-    await browser.keys(['Meta', 'Alt', 'k'])
+    //
+    // 🔵 SỬA 2026-08-28: `Mod+Alt+K` → `Mod+Alt+Y`, và mệnh đề cũ đã HẾT ĐÚNG.
+    //
+    // ⚠️ Bản trước gõ `Mod+Alt+K` kèm chú thích *"trống trên toàn bộ bộ mặc định"*. Story 5.3
+    // (2026-08-27) cấp ĐÚNG hợp âm đó cho `library.rescan` (`src/commands/index.ts`), nên lượt
+    // gán ở đây đâm vào nhánh XUNG ĐỘT (AC3) và bị từ chối — ca đỏ, và thông điệp đổ lỗi cho
+    // một khuyết tật WKWebView không liên quan. Story 5.3 CÓ đo trước khi cấp phím, nhưng nó
+    // `grep` trên `src/commands/index.ts`; hợp âm này neo ở ĐÂY, ngoài tầm phép đo đó.
+    //
+    // 🔴 Ca này chỉ cần MỘT hợp âm còn trống, không cần hợp âm nào cụ thể. Đo 2026-08-28 bằng
+    // `grep -ohE "Mod\+Alt\+[A-Za-z0-9]+" src/commands/index.ts | sort -u`: còn trống
+    // `A B D E F I N Y Z`. Loại `D` (macOS: ẩn/hiện Dock) và `I` (WebKit: Web Inspector) vì cả
+    // hai bị hệ điều hành/engine nuốt trước khi tới webview. Chọn `Y`.
+    await browser.keys(['Meta', 'Alt', 'y'])
 
-    await browser.waitUntil(async () => (await cell.getText()).trim() !== before, {
-      timeout: 5_000,
-      timeoutMsg:
+    // 🔴 Bắt lượt chờ để một lần va chạm SAU NÀY tự nói ra nguyên nhân. Không có khối này,
+    // mọi lý do khiến ô phím không đổi — xung đột hợp âm, kho từ chối, tiêu điểm sai — đều
+    // đọc lên thành cùng một câu đổ lỗi cho WKWebView, đúng thứ "một lượt ĐỎ nói sai nguyên
+    // nhân" mà chính spec này cảnh báo ở khối `realClick` phía trên.
+    try {
+      await browser.waitUntil(async () => (await cell.getText()).trim() !== before, { timeout: 5_000 })
+    } catch {
+      const alerts = await browser.execute(() =>
+        Array.from(document.querySelectorAll('.sc-alert')).map((node) => (node.textContent || '').trim()),
+      )
+      throw new Error(
         `ô phím của \`${TARGET_COMMAND}\` KHÔNG đổi sau lượt gán bằng chuột (vẫn "${before}").\n` +
-        'Đây là đúng hình dạng khuyết tật WKWebView mà `captureShortcut()` ép tiêu điểm để sửa.',
-    })
+          `Dải cảnh báo của màn hình đang nói: ${JSON.stringify(alerts)}\n` +
+          'Nếu ở đó có câu XUNG ĐỘT thì nguyên nhân là hợp âm này đã bị một lệnh khác chiếm — ' +
+          'đo lại bằng `grep -ohE "Mod\\+Alt\\+[A-Za-z0-9]+" src/commands/index.ts | sort -u` rồi ' +
+          'chọn một hợp âm còn trống, ĐỪNG sửa sản phẩm.\n' +
+          'Nếu dải rỗng thì mới là khuyết tật WKWebView mà `captureShortcut()` ép tiêu điểm để sửa.',
+      )
+    }
 
     const after = (await cell.getText()).trim()
     expect(after).not.toBe(before)
-    expect(after.toLowerCase()).toContain('k')
+    expect(after.toLowerCase()).toContain('y')
 
     // Trả hàng về mặc định — cô lập giữa các ca trong cùng spec (kho nay là kho TẠM).
     await resetRowToDefault()
