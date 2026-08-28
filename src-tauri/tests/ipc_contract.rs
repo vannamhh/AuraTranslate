@@ -488,6 +488,8 @@ fn library_work_list_wire_structs_keep_snake_case_field_names() {
             chapter_count: 1,
             status: Some("paused".to_owned()),
             status_is_override: true,
+            // 🔵 THÊM (2026-08-28, Story 5.5).
+            chapter_done_count: Some(1),
         }],
     };
     let value = serde_json::to_value(&report).expect("WorkListReport phải serialize được");
@@ -517,6 +519,7 @@ fn library_work_list_wire_structs_keep_snake_case_field_names() {
         vec![
             "atproj_path",
             "chapter_count",
+            "chapter_done_count",
             "created_at",
             "genre",
             "name",

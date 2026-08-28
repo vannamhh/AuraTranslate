@@ -224,6 +224,41 @@ fn overriding_the_work_status_wins_over_the_derived_value() {
     cleanup(&root);
 }
 
+/// **THÊM (2026-08-28, Story 5.5)** — §I/O Matrix "Tác phẩm có ghi đè thủ công": 1/2 Chương
+/// `done`, ghi đè `paused` ⇒ `status_is_override = true` **VÀ** tiến độ vẫn đúng số Chương đã
+/// xong THẬT (`Some(1)`), không bị ghi đè kéo theo. Đây là ca canh chỗ nối §Design Notes "Cái
+/// bẫy ở `match status_override`" — đặt phép đếm bên TRONG nhánh `None` sẽ làm ca này đỏ vì
+/// `chapter_done_count` sẽ không bao giờ được tính khi có ghi đè.
+#[test]
+fn overriding_the_work_status_never_changes_the_real_chapter_progress() {
+    let root = temp_dir("override-keeps-progress");
+    let mut opened = open_work(&root, "OverrideProgress");
+    add_chapter(&opened, 2, "not_started"); // Chuong 1 (not_started) + Chuong 2 (not_started)
+
+    let chapter_id = opened.chapter_id;
+    set_chapter_status(Some(&mut opened), chapter_id, "done")
+        .unwrap_or_else(|e| panic!("set_chapter_status: {e:?}"));
+
+    let overridden = set_work_status_override(Some(&mut opened), Some("paused"))
+        .unwrap_or_else(|e| panic!("set_work_status_override: {e:?}"));
+    assert_eq!(overridden.status.as_deref(), Some("paused"));
+    assert!(overridden.status_is_override);
+
+    let on_disk = read_meta_from_disk(&opened.dir);
+    assert_eq!(on_disk.status.as_deref(), Some("paused"));
+    assert!(on_disk.status_is_override);
+    assert_eq!(on_disk.chapter_count, 2);
+    assert_eq!(
+        on_disk.chapter_done_count,
+        Some(1),
+        "ghi de thu cong KHONG BAO GIO duoc phep doi tien do -- 1/2 Chuong done van la 1, \
+         khong phai None hay 0"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
 /// "Chương đổi SAU khi đã ghi đè": đang ghi đè `paused`, rồi mọi Chương thành `done` ⇒ tầng
 /// Tác phẩm VẪN `paused`, `is_override = true` — hệ thống không suy ra đè lên.
 #[test]

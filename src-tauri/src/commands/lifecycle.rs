@@ -78,8 +78,17 @@ fn write_lifecycle_after_change(open: &mut OpenWork) -> Result<WorkLifecycle, Ip
     let meta = WorkMeta::rebuild_from_store(&open.store)?;
 
     if let Err(err) = meta.write_atomic(&open.dir) {
+        // ⚠️ Chẩn đoán KHÔNG lặp lại chuỗi "meta.json" viết thẳng (2026-08-28, Story 5.5) --
+        // `meta_write_boundary.rs` khoá tên tệp CHỈ ở `core/library/meta.rs`; "work metadata
+        // cache" mô tả đúng vai trò của tệp mà không đúc thêm một bản chép tên tệp thứ hai.
+        //
+        // 🔵 ĐO (2026-08-28, vòng rà thứ hai) -- lượt đổi chữ này KHÔNG làm người vận hành
+        // mất đường lần dấu: `{err}` là `MetaError` mà `write_atomic` trả về, và
+        // `MetaError::Io::fmt` (`core/library/meta.rs`) in NGUYÊN đường dẫn đầy đủ, luôn kết
+        // thúc bằng `meta.json` (`meta[<duong-dan>/meta.json] io failed: <chi tiet>`). Câu
+        // log ở đây chỉ đổi phần TIỀN TỐ mô tả thao tác; tên tệp thật vẫn tới log qua `{err}`.
         eprintln!(
-            "lifecycle[{}] meta.json write failed after commit: {err}",
+            "lifecycle[{}] work metadata cache write failed after commit: {err}",
             open.dir.display()
         );
         return Err(crate::core::library::WorkError::from(err).into());
@@ -392,6 +401,7 @@ mod tests {
             // core/lifecycle/mod.rs; chỗ khác chỉ được nhắc qua LifecycleStatus::…".
             status: Some(LifecycleStatus::Paused.as_str().to_owned()),
             status_is_override: true,
+            chapter_done_count: Some(0),
         };
         let lifecycle = WorkLifecycle::from(&meta);
         assert_eq!(lifecycle.status.as_deref(), Some(LifecycleStatus::Paused.as_str()));

@@ -283,6 +283,9 @@ pub struct WorkRow {
     pub chapter_count: u32,
     pub status: Option<String>,
     pub status_is_override: bool,
+    /// 🔵 **THÊM (2026-08-28, Story 5.5)** — số Chương đã xong (FR7), hoặc `None` (*"chưa
+    /// biết"*). Xem doc-comment của `IndexedWork::chapter_done_count`.
+    pub chapter_done_count: Option<u32>,
 }
 
 impl From<IndexedWork> for WorkRow {
@@ -298,6 +301,7 @@ impl From<IndexedWork> for WorkRow {
             chapter_count: work.chapter_count,
             status: work.status,
             status_is_override: work.status_is_override,
+            chapter_done_count: work.chapter_done_count,
         }
     }
 }

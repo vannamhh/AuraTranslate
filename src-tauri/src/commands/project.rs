@@ -328,8 +328,16 @@ pub fn create_work(
     // ⇒ Cuon lai TRON VEN. An toan vi `create_work_folder` tao DOC QUYEN: `dir` chac chan
     // la thu muc cua chinh luot goi nay, khong phai du lieu co san.
     if let Err(err) = meta.write_atomic(&dir) {
+        // ⚠️ Chẩn đoán KHÔNG lặp lại chuỗi "meta.json" viết thẳng (2026-08-28, Story 5.5) --
+        // `meta_write_boundary.rs` khoá tên tệp CHỈ ở `core/library/meta.rs`.
+        //
+        // 🔵 ĐO (2026-08-28, vòng rà thứ hai) -- lượt đổi chữ này KHÔNG làm người vận hành
+        // mất đường lần dấu: `{err}` là `MetaError` mà `write_atomic` trả về, và
+        // `MetaError::Io::fmt` (`core/library/meta.rs`) in NGUYÊN đường dẫn đầy đủ, luôn kết
+        // thúc bằng `meta.json` (`meta[<duong-dan>/meta.json] io failed: <chi tiet>`). Câu
+        // log ở đây chỉ đổi phần TIỀN TỐ mô tả thao tác; tên tệp thật vẫn tới log qua `{err}`.
         eprintln!(
-            "project[{}] meta.json write failed after commit, rolling back: {err}",
+            "project[{}] work metadata cache write failed after commit, rolling back: {err}",
             dir.display()
         );
         store.close();
@@ -1114,7 +1122,11 @@ mod tests {
             .expect("import da commit phai con doc duoc sau spawn Err");
         assert_eq!(rows, vec!["a committed source sentence."]);
         assert!(project_dir.join("project.db").is_file());
-        assert!(project_dir.join("meta.json").is_file());
+        // 🔵 SỬA (2026-08-28, Story 5.5) — dùng `WorkMeta::path_in` thay vì chuỗi `"meta.json"`
+        // viết thẳng (hay nhắc thẳng `META_FILE`): `meta_write_boundary.rs` khoá cả hai hình
+        // dạng đó CHỈ ở `core/library/meta.rs`, và một bản chép tay ở đây là đúng thứ cổng đó
+        // tồn tại để bắt.
+        assert!(crate::core::library::meta::WorkMeta::path_in(&project_dir).is_file());
 
         drop(opened.store);
         guard_test_cleanup(&dir);

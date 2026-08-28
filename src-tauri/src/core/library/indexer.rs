@@ -291,12 +291,18 @@ impl Indexer {
             // 🔵 THÊM (2026-08-27, Story 5.4) — hai cột `status`/`status_is_override` chở
             // NGUYÊN VẸN giá trị mà `WorkMeta::rebuild_from_store` đã tính (chỗ DUY NHẤT
             // tính giá trị suy ra, §Approach của story) — kho này KHÔNG tự tính lại.
+            //
+            // 🔵 THÊM (2026-08-28, Story 5.5) — cột `chapter_done_count` chở NGUYÊN VẸN giá trị
+            // mà `WorkMeta::rebuild_from_store` đã đếm, cùng lý lẽ trên. `rusqlite` chuyển
+            // `Option<u32>` thành `NULL` khi `None` -- không cần chuyển đổi tay như
+            // `status_is_override` (đó là `bool` KHÔNG `Option`, SQLite không có kiểu boolean).
             for (dir, meta) in &kept {
                 tx.execute(
                     "INSERT INTO library_work \
                      (work_id, atproj_path, name, source_lang, genre, created_at, \
-                      updated_at, chapter_count, status, status_is_override) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
+                      updated_at, chapter_count, status, status_is_override, \
+                      chapter_done_count) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
                      ON CONFLICT (work_id) DO UPDATE SET \
                        atproj_path         = excluded.atproj_path, \
                        name                = excluded.name, \
@@ -306,7 +312,8 @@ impl Indexer {
                        updated_at          = excluded.updated_at, \
                        chapter_count       = excluded.chapter_count, \
                        status              = excluded.status, \
-                       status_is_override  = excluded.status_is_override",
+                       status_is_override  = excluded.status_is_override, \
+                       chapter_done_count  = excluded.chapter_done_count",
                     (
                         &meta.work_id,
                         &dir.display().to_string(),
@@ -318,6 +325,7 @@ impl Indexer {
                         meta.chapter_count,
                         &meta.status,
                         i64::from(meta.status_is_override),
+                        meta.chapter_done_count,
                     ),
                 )?;
             }
@@ -484,7 +492,7 @@ impl Indexer {
             })? as usize;
 
             const COLUMNS: &str = "work_id, atproj_path, name, source_lang, genre, created_at, \
-                 updated_at, chapter_count, status, status_is_override";
+                 updated_at, chapter_count, status, status_is_override, chapter_done_count";
 
             let map_row = |row: &Row<'_>| -> SqlResult<IndexedWork> {
                 let status_is_override: i64 = row.get(9)?;
@@ -499,6 +507,7 @@ impl Indexer {
                     chapter_count: row.get(7)?,
                     status: row.get(8)?,
                     status_is_override: status_is_override != 0,
+                    chapter_done_count: row.get(10)?,
                 })
             };
 
@@ -865,6 +874,11 @@ pub struct IndexedWork {
     /// 🔵 **THÊM (2026-08-27, Story 5.4)** — `true` ⇔ [`Self::status`] đến từ ghi đè thủ
     /// công. Vô nghĩa khi `status` là `None`.
     pub status_is_override: bool,
+    /// 🔵 **THÊM (2026-08-28, Story 5.5)** — số Chương ở `chapter.status = 'done'` (FR7), hoặc
+    /// `None` (*"chưa biết"* — hàng đến từ một `meta.json` v1/v2 chưa từng qua
+    /// `WorkMeta::rebuild_from_store` của story này). Độc lập với [`Self::status_is_override`]:
+    /// ghi đè thủ công trạng thái Tác phẩm không bao giờ đổi trường này.
+    pub chapter_done_count: Option<u32>,
 }
 
 /// Kết quả một lượt [`Indexer::list_works`] — `total` LUÔN là tổng số hàng CHƯA LỌC,

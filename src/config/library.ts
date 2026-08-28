@@ -131,6 +131,11 @@ function isIpcError(value: unknown): value is IpcError {
 /**
  * 🔵 **THÊM (2026-08-27, Story 5.4)** — một hàng của `library_work`, khớp
  * `commands::library::WorkRow` phía Rust, `snake_case`.
+ *
+ * 🔵 **THÊM `chapter_done_count` (2026-08-28, Story 5.5)** — `number | null`, KHÔNG
+ * `number | undefined`: `null` là câu trả lời THẬT của Rust cho "chưa biết" (một `meta.json`
+ * chưa từng qua `WorkMeta::rebuild_from_store`), và một hàng thiếu hẳn trường này là hình
+ * dạng SAI phải bị `isWorkRowArray` từ chối, không phải một hàng hợp lệ đọc lên như đã biết.
  */
 export type WorkRow = {
   work_id: string
@@ -143,6 +148,7 @@ export type WorkRow = {
   chapter_count: number
   status: string | null
   status_is_override: boolean
+  chapter_done_count: number | null
 }
 
 /** Kết quả một lượt liệt kê — khớp `commands::library::WorkListReport`. */
@@ -172,7 +178,11 @@ function isWorkRowArray(value: unknown): value is WorkRow[] {
     typeof first.updated_at === 'string' &&
     typeof first.chapter_count === 'number' &&
     (typeof first.status === 'string' || first.status === null) &&
-    typeof first.status_is_override === 'boolean'
+    typeof first.status_is_override === 'boolean' &&
+    // 🔵 THÊM (2026-08-28, Story 5.5) — chấp nhận `number` HOẶC `null`, từ chối `undefined`
+    // (một trường VẮNG MẶT trên dây là hình dạng SAI, không phải "chưa biết" — "chưa biết" là
+    // `null`, một câu trả lời TƯỜNG MINH từ Rust).
+    (typeof first.chapter_done_count === 'number' || first.chapter_done_count === null)
   )
 }
 

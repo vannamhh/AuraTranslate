@@ -219,6 +219,96 @@ fn meta_json_can_be_rebuilt_from_the_database_alone() {
     assert_eq!(rebuilt.source_lang, original_meta.source_lang);
     assert_eq!(rebuilt.genre, original_meta.genre);
     assert_eq!(rebuilt.chapter_count, 1);
+    // 🔵 THÊM (2026-08-28, Story 5.5) — Chương duy nhất vừa tạo ở `not_started`, nên tiến độ
+    // PHẢI là `Some(0)`, KHÔNG `None`: `rebuild_from_store` LUÔN đặt giá trị này.
+    assert_eq!(
+        rebuilt.chapter_done_count,
+        Some(0),
+        "Chuong vua tao o not_started -- tien do phai la Some(0), khong phai None (chua biet)"
+    );
+
+    drop(store);
+    cleanup(&root);
+}
+
+/// **THÊM (2026-08-28, Story 5.5)** — đếm THẬT trên nhiều Chương với trạng thái trộn lẫn,
+/// bao gồm một hàng HỎNG (`status` ngoài danh mục bốn giá trị). Chương thứ hai/ba được chèn
+/// bằng SQL thẳng (không qua một đường sản phẩm nào — hôm nay chưa đường nào tạo Chương thứ
+/// hai, xem `epic-5-context.md`), CHỈ để dựng fixture cho phép đếm.
+#[test]
+fn rebuild_counts_done_chapters_from_the_resolved_set_ignoring_a_corrupt_row() {
+    let root = temp_dir("rebuild-progress-count");
+
+    let opened = create_work_from_text(&root, "Dem Tien Do", "en", "", "van ban".to_owned())
+        .expect("tao tac pham that bai");
+    let store = opened.store;
+
+    // Chuong 1 (co san) -> done; them Chuong 2 (done), Chuong 3 (not_started), Chuong 4 (HONG).
+    store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute("UPDATE chapter SET status = 'done' WHERE ord = 1", [])?;
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (2, NULL, 'c2', 'done', strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (3, NULL, 'c3', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (4, NULL, 'c4', 'this_is_not_a_real_status', \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [],
+            )?;
+            Ok(())
+        })
+        .expect("dung fixture bon Chuong that bai");
+
+    let rebuilt = WorkMeta::rebuild_from_store(&store).expect("dung lai meta.json that bai");
+    assert_eq!(rebuilt.chapter_count, 4, "sam ca hang HONG cung duoc DEM vao tong so Chuong");
+    assert_eq!(
+        rebuilt.chapter_done_count,
+        Some(2),
+        "chi hai Chuong 'done' THAT (1 va 2) duoc dem -- hang hong (4) khong duoc tinh la da xong"
+    );
+
+    drop(store);
+    cleanup(&root);
+}
+
+/// **THÊM (2026-08-28, Story 5.5)** — §I/O Matrix "Tác phẩm 0 Chương": `chapter_count = 0`
+/// ⇒ `chapter_done_count = Some(0)`, KHÔNG chia cho 0 (hàm đếm chạy trên một tập RỖNG, không
+/// một nhánh `if chapter_count == 0` đặc biệt nào ở tầng Rust — phép chia chỉ tồn tại ở tầng
+/// hiển thị, `LibraryMode.vue::progressPercent`). Không đường sản phẩm nào tạo một Tác phẩm 0
+/// Chương hôm nay (`create_work` luôn chèn đúng một Chương) — xoá Chương bằng SQL thẳng để
+/// dựng fixture, cùng khuôn `rebuild_counts_done_chapters_from_the_resolved_set_ignoring_a_corrupt_row`.
+#[test]
+fn rebuild_on_a_work_with_zero_chapters_reports_some_zero_not_none() {
+    let root = temp_dir("rebuild-zero-chapters");
+
+    let opened = create_work_from_text(&root, "Khong Chuong", "en", "", "van ban".to_owned())
+        .expect("tao tac pham that bai");
+    let store = opened.store;
+
+    store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute("DELETE FROM chapter", [])?;
+            Ok(())
+        })
+        .expect("xoa het Chuong that bai");
+
+    let rebuilt = WorkMeta::rebuild_from_store(&store).expect("dung lai meta.json that bai");
+    assert_eq!(rebuilt.chapter_count, 0);
+    assert_eq!(
+        rebuilt.chapter_done_count,
+        Some(0),
+        "0 Chuong -- tien do phai la Some(0), khong phai None va khong panic vi chia cho 0"
+    );
 
     drop(store);
     cleanup(&root);

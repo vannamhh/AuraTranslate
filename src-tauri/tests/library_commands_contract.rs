@@ -90,6 +90,9 @@ fn write_atproj(root: &Path, folder: &str, work_id: &str, name: &str) -> PathBuf
         // thoại), không trạng thái vòng đời; giá trị trung tính.
         status: Some("not_started".to_owned()),
         status_is_override: false,
+        // 🔵 THÊM (2026-08-28, Story 5.5) — cùng lý lẽ ngay trên: tệp này không kiểm tiến độ,
+        // giá trị trung tính `Some(0)`.
+        chapter_done_count: Some(0),
     };
     meta.write_atomic(&dir)
         .unwrap_or_else(|e| panic!("ghi meta.json ở {}: {e}", dir.display()));
@@ -480,6 +483,70 @@ fn the_command_layer_reports_matched_separately_from_total() {
     assert_eq!(all.total, 3);
     assert_eq!(all.matched, all.works.len());
     assert_eq!(all.matched, 3);
+
+    indexer.close();
+    global.close();
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.5 — tiến độ Tác phẩm, đi trọn xuống tầng LỆNH (`WorkRow`).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Dựng một `<folder>.atproj/` với `meta.json` **HÌNH DẠNG V2 THẬT** (trước Story 5.5) — mang
+/// `status`/`status_is_override` (đã có từ Story 5.4) nhưng THIẾU HẲN `chapter_done_count`.
+/// Khác `write_v1_atproj_missing_lifecycle_fields` của `library_index_contract.rs`: ca đó mô
+/// phỏng một `meta.json` TRƯỚC CẢ Story 5.4; ca này mô phỏng đúng lát cắt của §I/O Matrix
+/// story 5.5 — "`meta.json` v2 (trước story này)".
+fn write_v2_atproj_missing_chapter_done_count(root: &Path, folder: &str, work_id: &str, name: &str) -> PathBuf {
+    let dir = root.join(format!("{folder}.atproj"));
+    fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tạo {}: {e}", dir.display()));
+
+    let raw = format!(
+        "{{\n  \"meta_schema_version\": 2,\n  \"work_id\": {work_id:?},\n  \"name\": {name:?},\n  \
+         \"source_lang\": \"en\",\n  \"genre\": \"\",\n  \
+         \"created_at\": \"2026-08-01T00:00:00.000Z\",\n  \
+         \"updated_at\": \"2026-08-01T00:00:00.000Z\",\n  \"chapter_count\": 3,\n  \
+         \"status\": \"done\",\n  \"status_is_override\": false\n}}"
+    );
+    fs::write(dir.join("meta.json"), raw).unwrap_or_else(|e| panic!("ghi meta.json v2 gia: {e}"));
+    fs::write(dir.join("project.db"), b"not a real sqlite file -- AD-9")
+        .unwrap_or_else(|e| panic!("ghi project.db gia: {e}"));
+
+    dir
+}
+
+/// §I/O Matrix: *"`meta.json` v2 (trước story này): khoá `chapter_done_count` vắng mặt ⇒ đọc
+/// ra `None`; Library hiện câu 'chưa biết', không hiện `0 /`"* — đi trọn từ `meta.json` trên
+/// đĩa xuống `WorkRow` ở tầng LỆNH (`commands::library::list_works`), không dừng ở tầng
+/// `Indexer` như `library_index_contract.rs` đã canh.
+#[test]
+fn a_v2_meta_json_missing_chapter_done_count_reaches_the_work_row_as_none() {
+    let dir = temp_dir("list-works-v2-missing-progress");
+    let root = library_root(&dir);
+    fs::create_dir_all(&root).expect("tạo thư mục gốc");
+    let indexer = open_indexer(&dir);
+    let global = open_global(&dir);
+    write_v2_atproj_missing_chapter_done_count(
+        &root,
+        "Old",
+        "11111111-1111-4111-8111-111111111111",
+        "Old Work",
+    );
+    let outcome = indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
+    assert_eq!(outcome.indexed, 1, "meta.json v2 phai doc duoc va vao chi muc, khong bi skip");
+
+    let report = list_works(Some(&indexer), None).expect("list_works");
+    assert_eq!(report.works.len(), 1);
+    assert_eq!(
+        report.works[0].chapter_done_count, None,
+        "khoa chapter_done_count vang mat tren dia phai di THANH None xuong WorkRow, khong \
+         phai Some(0) -- doc lay 'chua biet', khong phai '0 Chuong da xong'"
+    );
+    // `status`/`status_is_override` cua Story 5.4 (da co trong v2) van doc dung, khong bi anh
+    // huong boi khoa moi vang mat.
+    assert_eq!(report.works[0].status.as_deref(), Some("done"));
+    assert!(!report.works[0].status_is_override);
 
     indexer.close();
     global.close();

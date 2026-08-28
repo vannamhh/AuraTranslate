@@ -8033,6 +8033,30 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     không đường mã nào khác ghi lại nó.
     **(Chủ: Story 5.5 — Tiến độ Tác phẩm — sở hữu cơ chế làm `chapter_count`/ngày sửa của
     `meta.json` sống thật, cùng lượt với màn hình tiến độ lần đầu đọc nó.)**
+  → 🟡 **Story 5.5 (2026-08-28) — vế `chapter_count` ĐÃ ĐÓNG bằng một PHÉP ĐO, không bằng một
+    cơ chế mới; vế "ngày sửa" (`work.updated_at`) VẪN MỞ, đã có chủ khác.** Đo lại 2026-08-28
+    (§Design Notes "Đo lại nợ trước khi thi hành nó" của `5-5-tien-do-tac-pham.md`, trên
+    `b4baa1f`): `grep -rn "INSERT INTO chapter" src-tauri/src` ⇒ **một** chỗ
+    (`commands/project.rs:271`, trong `create_work`); `grep -rn "DELETE FROM chapter"
+    src-tauri/src` ⇒ **không** chỗ nào. ⇒ Số Chương của một Tác phẩm chỉ đổi được **lúc tạo**,
+    và `meta.json` được ghi ngay tại đó — `chapter_count` **không thật sự đóng băng theo nghĩa
+    xấu**: giá trị ghi lúc tạo LÀ giá trị sống, vì không đường sản phẩm nào có thể làm nó lệch
+    sau đó. Mệnh đề gốc ở trên ("chỉ mục đóng băng theo") đúng về CƠ CHẾ (một chỗ ghi duy
+    nhất) nhưng sai về HẬU QUẢ cho riêng trường này (không có gì để "sống lại" vì không gì làm
+    nó cũ đi). Story 5.5 vì vậy KHÔNG dựng một cơ chế cập nhật `chapter_count` — nó thêm một
+    đại lượng MỚI (`chapter_done_count`, đếm từ `chapter.status = 'done'`) đi qua ĐÚNG đường
+    ghi đã có (hai chỗ gọi `WorkMeta::rebuild_from_store` + `write_atomic`:
+    `commands/project.rs` sau `create_work`, `commands/lifecycle.rs` sau mỗi lượt đổi trạng
+    thái Chương — chỗ thứ hai do Story 5.4 dựng, SAU lượt đo gốc của mục nợ này), cưỡng chế
+    bằng `src-tauri/tests/meta_write_boundary.rs` (AC4: đúng ba tệp ghi, đúng hai tệp đọc).
+    Vế "ngày sửa" (`work.updated_at`/`chapter.updated_at`) **KHÔNG đóng ở đây** — nó đã được
+    mục "Deferred from: 5-1-…" ở trên chuyển chủ sang **Story 5.6** (2026-08-27, TRƯỚC lượt đo
+    này), và bơm nó vào giao dịch flush làm cổng đang xanh
+    `segment_contract.rs::a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else`
+    đỏ — mở lại một AC đã ký của Story 2.3, ngoài phạm vi một story Library.
+    ⚠️ **Cùng phép đo này CÒN được chép lại ở `src-tauri/AGENTS.md`** (đoạn 🔵 SỬA
+    2026-08-28, Story 5.5, ngay dưới câu "chỉ mục là ẢNH CHỤP lúc tạo") — hai bản chép sẽ
+    lệch ở lần đo lại thứ ba; sửa CẢ HAI khi một trong hai đổi.
 
 - source_spec: `_bmad-output/implementation-artifacts/5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat.md`
   summary: **AC7 chỉ đóng được MỘT NỬA, có chủ** — `Indexer::list_works` (đường ĐỌC) tồn tại

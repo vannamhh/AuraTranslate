@@ -11,6 +11,7 @@
 // Không chuỗi tiếng Việt nào trong tệp này (NFR16, AD-21) — mọi nhãn đi qua `t()`.
 import { onActivated, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
 import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
+import type { WorkRow } from '../config/library'
 import {
   busy,
   createdWork,
@@ -116,6 +117,22 @@ watch(createdWork, (created) => {
 //
 // ⇒ Cả ba trạng thái (vào · rời · thả) đến từ **Rust** qua `on_window_event`, xem
 // `src-tauri/src/lib.rs::wire_drag_drop` và `./libraryImport.ts::wireDragDropOnce`.
+
+/**
+ * Story 5.5 — phần trăm bề rộng thanh tiến độ. THUẦN trình bày (không quy tắc nghiệp vụ,
+ * AD-1): "đã xong" đến nguyên vẹn từ `WorkRow.chapter_done_count` (đã tính ở Rust,
+ * `WorkMeta::rebuild_from_store`), hàm này chỉ đổi một cặp số nguyên thành một tỉ lệ hiển thị.
+ *
+ * `chapter_count === 0` ⇒ `0`, KHÔNG chia cho 0 (`NaN` sẽ làm `width: NaN%` — CSS im lặng bỏ
+ * qua giá trị đó, nhưng đó là một trạng thái không viết ra được, không phải "vẽ ở 0%" như
+ * §I/O Matrix đòi). Chỉ gọi khi `chapter_done_count !== null` — chỗ gọi trong `<template>`
+ * đã canh bằng `v-if`.
+ */
+function progressPercent(work: WorkRow): number {
+  if (work.chapter_count === 0) return 0
+  const done = work.chapter_done_count ?? 0
+  return Math.min(100, Math.round((done / work.chapter_count) * 100))
+}
 </script>
 
 <template>
@@ -402,6 +419,38 @@ watch(createdWork, (created) => {
             }}
           </span>
           <span v-if="work.status_is_override" class="override-marker">{{ t('mode.library.override_marker') }}</span>
+          <!--
+            Story 5.5 — "Tiến độ Tác phẩm" (FR7). `chapter_done_count === null` ⇒ câu "chưa
+            biết" và KHÔNG vẽ thanh (§I/O Matrix: "không hiện 0 /") — một `meta.json` chưa
+            từng qua `WorkMeta::rebuild_from_store` không được phép trông như "0 Chương xong".
+            aura-allow-text: cả hai nhánh đi qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi.
+          -->
+          <span class="work-progress">
+            {{
+              work.chapter_done_count === null
+                ? t('mode.library.works_progress_unknown')
+                : t('mode.library.works_progress', {
+                    done: String(work.chapter_done_count),
+                    total: String(work.chapter_count),
+                  })
+            }}
+          </span>
+          <div
+            v-if="work.chapter_done_count !== null"
+            class="work-progress-track"
+            role="progressbar"
+            :aria-valuemin="0"
+            :aria-valuemax="work.chapter_count"
+            :aria-valuenow="work.chapter_done_count"
+            :aria-valuetext="
+              t('mode.library.works_progress_aria', {
+                done: String(work.chapter_done_count),
+                total: String(work.chapter_count),
+              })
+            "
+          >
+            <div class="work-progress-fill" :style="{ width: progressPercent(work) + '%' }"></div>
+          </div>
         </li>
       </ul>
 
@@ -838,6 +887,12 @@ watch(createdWork, (created) => {
 .works-row {
   display: flex;
   align-items: baseline;
+  /*
+   * 🔵 THÊM `flex-wrap` (2026-08-28, Story 5.5) — thanh tiến độ (`.work-progress-track`) đặt
+   * `flex-basis: 100%` để luôn XUỐNG DÒNG RIÊNG, không chen vào hàng chữ đầu. Bốn `span` cũ
+   * (tên/trạng thái/ghi đè/tiến độ chữ) vẫn cùng một hàng như trước.
+   */
+  flex-wrap: wrap;
   gap: 8px;
   padding: 6px 8px;
   border: 1px solid var(--color-outline);
@@ -868,6 +923,31 @@ watch(createdWork, (created) => {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-primary);
+}
+
+/* Story 5.5 — "Tiến độ Tác phẩm" (FR7). Chữ "k / n" hoặc "chưa biết", cùng cỡ `.work-status`. */
+.work-progress {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/*
+ * Thanh tiến độ — chỉ TOKEN, không màu viết thẳng/gradient/bóng đổ (§Always của story).
+ * `flex-basis: 100%` buộc nó xuống dòng riêng trong `.works-row` đã `flex-wrap`.
+ */
+.work-progress-track {
+  flex-basis: 100%;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-outline);
+  overflow: hidden;
+}
+
+.work-progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
 }
 
 .open-work-block {

@@ -1572,8 +1572,9 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 ///   Library cần biết Tác phẩm nằm ở đâu trên **máy này** để mở nó.
 /// - Sáu cột kế (`name`/`source_lang`/`genre`/`created_at`/`updated_at`/`chapter_count`)
 ///   — **đúng** các trường tương ứng của [`crate::core::library::meta::WorkMeta`], không hơn
-///   không kém. §Never của story 5.2 cấm tường minh: **không** `cover` (chủ Story 5.6),
-///   **không** cột tiến độ (chủ Story 5.5).
+///   không kém. §Never của story 5.2 cấm tường minh: **không** `cover` (chủ Story 5.6).
+///   🔵 **SỬA (2026-08-28, Story 5.5) — mệnh đề "không cột tiến độ (chủ Story 5.5)" đã HẾT
+///   ĐÚNG: đây CHÍNH LÀ story đó, và cột `chapter_done_count` dưới đây là bề mặt của nó.**
 /// 🔵 **SỬA (2026-08-27, phán quyết Ice #1, LẬT quyết định 5.3) — cột `orphaned` đã BỊ GỠ,
 /// `to_version` 2 → 3.** Story 5.3 từng thêm cột này ngay tại đây (`to_version` 1 → 2) vì lúc
 /// đó cờ mồ côi được coi là một mẩu trạng thái của CHÍNH chỉ mục dẫn xuất. Ice chốt lại
@@ -1605,6 +1606,15 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 ///   `status` đã bị GIẢN LƯỢC về một chuỗi duy nhất, không còn phân biệt được "suy ra" với
 ///   "ghi đè" nếu không có nó — Library phải lọc/hiện dấu phân biệt mà KHÔNG mở SQLite của
 ///   từng Tác phẩm).
+/// 🔵 **NÂNG (2026-08-28, Story 5.5) — `to_version` 4 → 5.** Cột mới:
+/// - `chapter_done_count INTEGER` — cho phép `NULL`, đúng khuôn `status`/`status_is_override`
+///   ngay trên. `NULL` **không** nghĩa là `0`; nó nghĩa là **CHƯA BIẾT** — một `meta.json`
+///   v1/v2 (viết trước khi story này tồn tại) không mang trường `chapter_done_count`, và
+///   [`crate::core::library::meta::WorkMeta::chapter_done_count`] đọc nó ra `None`, đi nguyên
+///   vẹn xuống cột này qua chính lượt UPSERT của [`crate::core::library::indexer::Indexer::rebuild`].
+///   Một Tác phẩm đã dịch xong nhiều Chương không được phép hiện `0 / n` chỉ vì chỉ mục chưa
+///   từng thấy tiến độ thật của nó — xem §Design Notes "Vì sao `Option<u32>` chứ không `u32`"
+///   của `5-5-tien-do-tac-pham.md`.
 pub const LIBRARY_WORK_DDL: &str = "\
 CREATE TABLE schema_migration_log (
   version     INTEGER PRIMARY KEY,
@@ -1621,7 +1631,8 @@ CREATE TABLE library_work (
   updated_at          TEXT NOT NULL,
   chapter_count       INTEGER NOT NULL,
   status              TEXT,
-  status_is_override  INTEGER NOT NULL DEFAULT 0
+  status_is_override  INTEGER NOT NULL DEFAULT 0,
+  chapter_done_count  INTEGER
 );";
 
 /// Bộ di trú của `library-index.db` — **đúng MỘT bước, mãi mãi**. Xem doc-comment của
@@ -1648,8 +1659,13 @@ CREATE TABLE library_work (
 /// trú thứ tư). Mọi `library-index.db` ở `to_version` 1, 2, HOẶC 3 bị `Indexer::open`
 /// xoá-và-dựng-lại như một tệp lệch phiên bản bình thường — không mất dữ liệu người dùng
 /// thật (kho này dẫn xuất trọn vẹn từ `.atproj`, AD-8).
+///
+/// 🔵 **NÂNG LẦN TƯ (2026-08-28, Story 5.5): `to_version` 4 → 5** — cột `chapter_done_count`
+/// thêm vào [`LIBRARY_WORK_DDL`] (viết lại TẠI CHỖ, không một bước di trú thứ năm). Mọi
+/// `library-index.db` ở `to_version` 1..4 bị `Indexer::open` xoá-và-dựng-lại như một tệp lệch
+/// phiên bản bình thường — không mất dữ liệu người dùng thật.
 pub const LIBRARY_INDEX_MIGRATIONS: &[Migration] = &[Migration {
-    to_version: 4,
+    to_version: 5,
     sql: LIBRARY_WORK_DDL,
 }];
 

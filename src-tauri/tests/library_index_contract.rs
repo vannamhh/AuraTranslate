@@ -117,6 +117,9 @@ fn write_atproj(
         // dùng `write_atproj_with_status` riêng, xem cuối tệp.
         status: Some("not_started".to_owned()),
         status_is_override: false,
+        // 🔵 THÊM (2026-08-28, Story 5.5) — cùng lý lẽ ngay trên: giá trị trung tính cho các
+        // ca không kiểm tiến độ; ca CẦN kiểm tiến độ dùng `write_atproj_with_progress` riêng.
+        chapter_done_count: Some(0),
     };
     meta.write_atomic(&dir)
         .unwrap_or_else(|e| panic!("ghi meta.json ở {}: {e}", dir.display()));
@@ -180,6 +183,9 @@ fn rebuilding_from_disk_indexes_exactly_n_works_matching_meta_json_field_for_fie
         assert_eq!(row.created_at, "2026-08-01T00:00:00.000Z");
         assert_eq!(row.updated_at, "2026-08-01T00:00:00.000Z");
         assert_eq!(row.chapter_count, *chapter_count);
+        // 🔵 THÊM (2026-08-28, Story 5.5) — `write_atproj` ghi `chapter_done_count: Some(0)`
+        // (giá trị trung tính, xem doc-comment ở đó); đối chứng nó đi trọn xuống `IndexedWork`.
+        assert_eq!(row.chapter_done_count, Some(0));
     }
 
     drop(indexer);
@@ -329,6 +335,86 @@ fn an_index_file_stuck_at_schema_version_zero_is_deleted_and_rebuilt_not_left_ha
     assert_eq!(works.len(), 1);
 
     drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// **THÊM (2026-08-28, vòng rà thứ hai) — AC nói ĐÍCH DANH số 4, và story này vừa nâng
+/// `to_version` 4 → 5.** Hai ca ngay trên đã canh CƠ CHẾ chung (một phiên bản lệch bất kỳ, 99
+/// hoặc 0, bị xoá-và-dựng-lại), nhưng không ca nào dựng ĐÚNG hình dạng bảng `library_work` của
+/// `to_version` 4 (chín cột, KHÔNG có `chapter_done_count`) rồi đối chứng nó lên ĐÚNG 5 kèm cột
+/// mới đọc được. Chép tay DDL cũ ở đây thay vì tái dùng `LIBRARY_WORK_DDL` hiện hành — hằng đó
+/// đã mang cột mới, tái dùng nó sẽ dựng một fixture SAI (không mô phỏng được tệp thật của
+/// người dùng đang ở `to_version` 4).
+///
+/// 🔴 Đối chứng "ca này đỏ được": hạ `LIBRARY_INDEX_MIGRATIONS`/`LIBRARY_WORK_DDL` về lại
+/// `to_version` 4 (gỡ cột `chapter_done_count`) mà KHÔNG gỡ trường tương ứng ở `IndexedWork` ⇒
+/// fixture (đã ở `to_version` 4) khớp target hiện hành nên `Indexer::open` KHÔNG xoá-dựng-lại;
+/// `library_work` trên đĩa vẫn thiếu cột, và `list_works` ném "no such column" — ca này FAIL.
+#[test]
+fn an_index_file_at_schema_version_4_is_deleted_and_rebuilt_at_version_5_with_the_new_column() {
+    let dir = temp_dir("schema-v4-progress-column");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_atproj(&root, "Solo", "id-solo", "Solo", 1);
+
+    let idx = index_path(&dir);
+    {
+        // Hình dạng THẬT của `to_version` 4 (trước Story 5.5) -- mười cột, KHÔNG
+        // `chapter_done_count`. Xem lịch sử `LIBRARY_WORK_DDL` (`core/store/schema.rs`).
+        let conn = rusqlite::Connection::open(&idx).expect("dựng fixture");
+        conn.execute_batch(
+            "PRAGMA journal_mode = delete;\n\
+             CREATE TABLE schema_migration_log (\n\
+               version     INTEGER PRIMARY KEY,\n\
+               applied_at  TEXT NOT NULL,\n\
+               app_version TEXT NOT NULL\n\
+             );\n\
+             CREATE TABLE library_work (\n\
+               work_id             TEXT PRIMARY KEY,\n\
+               atproj_path         TEXT NOT NULL,\n\
+               name                TEXT NOT NULL,\n\
+               source_lang         TEXT NOT NULL,\n\
+               genre               TEXT NOT NULL,\n\
+               created_at          TEXT NOT NULL,\n\
+               updated_at          TEXT NOT NULL,\n\
+               chapter_count       INTEGER NOT NULL,\n\
+               status              TEXT,\n\
+               status_is_override  INTEGER NOT NULL DEFAULT 0\n\
+             );\n\
+             PRAGMA user_version = 4;",
+        )
+        .expect("ghi fixture hinh dang to_version 4");
+    }
+
+    let indexer = Indexer::open(idx.clone()).unwrap_or_else(|e| {
+        panic!(
+            "library-index.db ở to_version 4 phải được XOÁ-VÀ-DỰNG-LẠI, không bị TỪ CHỐI MỞ \
+             (AD-8, kho dẫn xuất): {e}"
+        )
+    });
+    let outcome = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+    assert_eq!(outcome.indexed, 1);
+
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
+    assert_eq!(works.len(), 1);
+    // Cột MỚI phải đọc được (không "no such column") và mang giá trị THẬT -- Chương duy nhất
+    // vừa tạo ở `not_started`, nên `Some(0)`, không phải một giá trị mặc định che dấu việc cột
+    // không tồn tại.
+    assert_eq!(works[0].chapter_done_count, Some(0));
+
+    drop(indexer);
+
+    // Phiên bản trên đĩa phải là 5 -- đối chứng TRỰC TIẾP bằng PRAGMA, không suy luận từ việc
+    // `list_works` không lỗi (một `ALTER` trá hình cũng qua được vế đó).
+    {
+        let conn = rusqlite::Connection::open(&idx).expect("mở lại để kiểm tra");
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .expect("đọc PRAGMA user_version");
+        assert_eq!(version, 5, "library-index.db phải ở đúng to_version 5 sau lượt mở lại");
+    }
+
     drop(global);
     cleanup(&dir);
 }
@@ -635,6 +721,8 @@ fn index_rows_only_appear_after_meta_json_is_already_on_disk() {
         // đời; giá trị trung tính, cùng lý do đã ghi ở `write_atproj`.
         status: Some("not_started".to_owned()),
         status_is_override: false,
+        // 🔵 THÊM (2026-08-28, Story 5.5) — cùng lý lẽ ngay trên, ca này không kiểm tiến độ.
+        chapter_done_count: Some(0),
     };
     meta.write_atomic(&work_dir)
         .unwrap_or_else(|e| panic!("ghi meta.json: {e}"));
@@ -1300,6 +1388,10 @@ fn write_atproj_with_status(
         chapter_count: 1,
         status: status.map(str::to_owned),
         status_is_override,
+        // 🔵 THÊM (2026-08-28, Story 5.5) — hàm này kiểm trạng thái vòng đời, không tiến độ;
+        // ca CẦN kiểm tiến độ (bao gồm "ghi đè thủ công vẫn có tiến độ") dùng
+        // `write_atproj_with_progress` riêng, xem cuối tệp.
+        chapter_done_count: Some(0),
     };
     meta.write_atomic(&dir)
         .unwrap_or_else(|e| panic!("ghi meta.json ở {}: {e}", dir.display()));
@@ -1358,6 +1450,12 @@ fn a_true_v1_meta_json_indexes_with_status_null_and_matches_no_filter() {
     assert_eq!(no_filter.works.len(), 1, "khong loc thi hang status IS NULL van phai co mat");
     assert_eq!(no_filter.works[0].status, None, "meta.json v1 phai doc ra status = None (chua biet)");
     assert!(!no_filter.works[0].status_is_override);
+    // 🔵 THÊM (2026-08-28, Story 5.5) — cùng lý lẽ: khoá `chapter_done_count` cũng vắng mặt
+    // ở một `meta.json` v1 thật, phải đọc ra `None`, KHÔNG `Some(0)`.
+    assert_eq!(
+        no_filter.works[0].chapter_done_count, None,
+        "meta.json v1 phai doc ra chapter_done_count = None (chua biet), khong phai Some(0)"
+    );
 
     let filtered = indexer
         .list_works(Some(LifecycleStatus::ALL))
