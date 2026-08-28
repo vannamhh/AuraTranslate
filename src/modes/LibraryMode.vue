@@ -9,7 +9,7 @@
 // và khối "Trạng thái Tác phẩm đang mở" (ba lệnh vòng đời) nay có mặt ở đây.
 //
 // Không chuỗi tiếng Việt nào trong tệp này (NFR16, AD-21) — mọi nhãn đi qua `t()`.
-import { onActivated, onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
+import { onActivated, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
 import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
 import {
   busy,
@@ -86,6 +86,25 @@ onActivated(() => {
   // phản ánh giá trị mới nhất, không giữ ảnh chụp của lần hiện trước.
   void loadWorks()
   void loadOpenWorkLifecycle()
+})
+
+// 🔵 THÊM (2026-08-28) — KHUYẾT TẬT ĐO ĐƯỢC, tìm ra ở lượt chạy e2e đầu tiên của Story 5.4.
+//
+// `onActivated` là lối vào DUY NHẤT của hai lượt tải trên, và ở lượt khởi động nó chạy khi
+// CHƯA Tác phẩm nào mở — `read_work_lifecycle` trả `work.none_open`, `openWorkLifecycleLoaded`
+// ở lại `false`. Tạo một Tác phẩm ngay tại màn hình này KHÔNG rời chế độ, nên `onActivated`
+// không chạy lại: khối "Tác phẩm đang mở" tiếp tục nói "Chưa có Tác phẩm nào đang mở" trong
+// khi CÓ một Tác phẩm vừa mở, và cả ba nút vòng đời kẹt ở `disabled` cho tới khi người dùng
+// tình cờ chuyển chế độ rồi quay lại. Một màn hình khẳng định điều nó biết là sai — đúng lớp
+// lỗi mà `AGENTS.md::Known pitfalls` đặt lên hàng đầu.
+//
+// ⚠️ Theo dõi `createdWork` chứ không gọi từ `libraryImport.ts`: đường nhập không được biết
+// gì về vòng đời (hai module thuần, hai vai), còn `.vue` này vốn đã là nơi điều phối cả hai
+// lượt tải ở `onActivated` ngay trên.
+watch(createdWork, (created) => {
+  if (created === null) return
+  void loadOpenWorkLifecycle()
+  void loadWorks()
 })
 
 // **KHÔNG có handler `dragenter`/`dragover`/`dragleave`/`drop` của DOM ở đây, và đó là
@@ -268,6 +287,13 @@ onActivated(() => {
       <p class="section-heading">{{ t('mode.library.works_heading') }}</p>
 
       <!--
+        🔵 THÊM (2026-08-28) `data-lifecycle-filter`/`data-lifecycle-action` — MÓC ĐỊNH DANH
+        cho `e2e/specs/story-5-4-lifecycle.e2e.mjs`, cùng khuôn `data-shortcuts-open`
+        (`ShortcutsOverlay`) và `data-col` (lưới) đã có. Trước đó spec định vị bằng
+        `:nth-of-type(n)`: đổi thứ tự sáu nút làm spec bấm NHẦM nút và vẫn xanh, thay vì đỏ ở
+        đúng chỗ vừa đổi. Một móc đọc được là rẻ hơn một lượt đỏ sai nguyên nhân.
+      -->
+      <!--
         🔴 BỐN nút RIÊNG, KHÔNG một `v-for` chọn id động — `check:commands` Kiểm A đòi mỗi
         `@click` là ĐÚNG MỘT lời gọi `dispatch('<id>')` với id LITERAL, đọc TĨNH được từ mã
         nguồn; một biểu thức ba ngôi chọn id lúc chạy không đọc tĩnh được (đã đo: Kiểm A đỏ).
@@ -276,6 +302,7 @@ onActivated(() => {
         <button
           type="button"
           class="btn"
+          data-lifecycle-filter="not_started"
           :aria-pressed="libraryStatusFilter.has('not_started')"
           :disabled="libraryWorksBusy"
           @click="dispatch('library.filter_not_started')"
@@ -285,6 +312,7 @@ onActivated(() => {
         <button
           type="button"
           class="btn"
+          data-lifecycle-filter="in_progress"
           :aria-pressed="libraryStatusFilter.has('in_progress')"
           :disabled="libraryWorksBusy"
           @click="dispatch('library.filter_in_progress')"
@@ -294,6 +322,7 @@ onActivated(() => {
         <button
           type="button"
           class="btn"
+          data-lifecycle-filter="paused"
           :aria-pressed="libraryStatusFilter.has('paused')"
           :disabled="libraryWorksBusy"
           @click="dispatch('library.filter_paused')"
@@ -303,6 +332,7 @@ onActivated(() => {
         <button
           type="button"
           class="btn"
+          data-lifecycle-filter="done"
           :aria-pressed="libraryStatusFilter.has('done')"
           :disabled="libraryWorksBusy"
           @click="dispatch('library.filter_done')"
@@ -312,12 +342,19 @@ onActivated(() => {
         <button
           type="button"
           class="btn"
+          data-lifecycle-action="clear_filter"
           :disabled="libraryWorksBusy || libraryFilterIsEmpty"
           @click="dispatch('library.filter_clear')"
         >
           {{ t('mode.library.clear_filter') }}
         </button>
-        <button type="button" class="btn" :disabled="libraryWorksBusy" @click="dispatch('library.list_works')">
+        <button
+          type="button"
+          class="btn"
+          data-lifecycle-action="list_works"
+          :disabled="libraryWorksBusy"
+          @click="dispatch('library.list_works')"
+        >
           {{ t('mode.library.list_works') }}
         </button>
       </div>
@@ -406,6 +443,7 @@ onActivated(() => {
           <button
             type="button"
             class="btn"
+            data-lifecycle-action="set_override_paused"
             :disabled="openWorkLifecycleBusy || !openWorkLifecycleLoaded"
             @click="dispatch('lifecycle.set_work_override_paused')"
           >
@@ -414,6 +452,7 @@ onActivated(() => {
           <button
             type="button"
             class="btn"
+            data-lifecycle-action="clear_override"
             :disabled="openWorkLifecycleBusy || !openWorkLifecycleLoaded || !openWorkLifecycleIsOverride"
             @click="dispatch('lifecycle.clear_work_override')"
           >
@@ -422,6 +461,7 @@ onActivated(() => {
           <button
             type="button"
             class="btn"
+            data-lifecycle-action="set_chapter_done"
             :disabled="openWorkLifecycleBusy || !openWorkLifecycleLoaded"
             @click="dispatch('lifecycle.set_chapter_done')"
           >

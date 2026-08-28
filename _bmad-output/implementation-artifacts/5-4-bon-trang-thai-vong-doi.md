@@ -47,6 +47,10 @@ deferred:
     location: >-
       src-tauri/src/commands/lifecycle.rs (mod wire) + src-tauri/src/lib.rs generate_handler!
     severity: medium
+    resolution: >-
+      ✅ ĐÃ ĐÓNG 2026-08-28 — Ice chạy trọn bộ e2e; spec này CHẠY THẬT và nay xanh cả hai ca
+      (1m45). Bốn vỏ `#[tauri::command]` đã được một lượt chạy thật chạm. Mệnh đề "chưa chạy
+      lần nào" hết đúng; vế cấu trúc "bộ e2e chỉ chạy ở nhịp đêm" thì VẪN ĐỨNG.
   - summary: >-
       Ánh xạ giá trị vòng đời sang nhãn i18n bị chép tay BA lần trong `LibraryMode.vue` và không
       dẫn xuất từ `LifecycleStatus::label_key()` phía Rust.
@@ -60,6 +64,22 @@ deferred:
       src/modes/LibraryMode.vue — chủ: Story 5.6
     severity: low
   - summary: >-
+      `story-5-3-rescan.e2e.mjs` khẳng định trên CON SỐ TUYỆT ĐỐI ("Đã lập chỉ mục 1") trong
+      khi thư mục gốc Library dùng CHUNG cho cả lượt chạy — 5 trên 7 ca của nó đỏ ở lượt chạy
+      TRỌN BỘ đầu tiên, và sẽ đỏ lại mỗi lượt.
+    evidence: |-
+      `wdio.conf.mjs` §onPrepare cấp MỘT thư mục Library tạm cho cả lượt (`maxInstances: 1`,
+      quyết định có chủ ý), nên mọi spec tạo Tác phẩm đều để lại `.atproj` trong đó. Lượt Ice
+      chạy 2026-08-28: 5.3 nhận "Đã lập chỉ mục 22 · trùng work_id 0 · bỏ qua 0" thay vì 1.
+      Chạy RIÊNG spec đó thì nó xanh — tức đây là một khuyết tật CÁCH LY của spec, không phải
+      hồi quy sản phẩm. Story 5.4 KHÔNG gây ra nó (5.3 chạy TRƯỚC 5.4 trong lượt đó), nhưng
+      spec 5.4 cũng thêm hai Tác phẩm vào cùng thư mục nên nó làm mọi spec sau nặng thêm.
+      Hướng đóng: đổi khẳng định của 5.3 sang DELTA (đếm trước/sau) hoặc lọc theo tên Tác phẩm
+      của chính spec đó, đúng cách spec 5.4 đang làm.
+    location: >-
+      e2e/specs/story-5-3-rescan.e2e.mjs — chủ: Ice chốt (sửa spec 5.3 hay đổi mô hình cách ly)
+    severity: high
+  - summary: >-
       `e2e/specs/story-5-4-lifecycle.e2e.mjs` định vị nút bằng `:nth-of-type`, không bằng móc
       định danh — đổi thứ tự sáu nút trong `LibraryMode.vue` làm spec bấm nhầm nút thay vì đỏ.
     evidence: |-
@@ -69,6 +89,10 @@ deferred:
     location: >-
       e2e/specs/story-5-4-lifecycle.e2e.mjs — chủ: Story 5.6
     severity: low
+    resolution: >-
+      ✅ ĐÃ ĐÓNG 2026-08-28 — thay `:nth-of-type` bằng móc định danh
+      `data-lifecycle-filter`/`data-lifecycle-action` trên `LibraryMode.vue`, cùng khuôn
+      `data-shortcuts-open`/`data-col` đã có trong kho.
 ---
 
 <intent-contract>
@@ -198,6 +222,20 @@ deferred:
   **KEEP — phải sống sót mọi lần dựng lại:** (1) bước 4 ở tầng **hàm thuần**, không ở `mod wire` — một lượt "gọn hơn" đưa nó ngược vào vỏ là xoá đúng hai ca canh nó; (2) hai ca chỉ mục phải khẳng định trạng thái **TRƯỚC** lượt ghi (một chỉ mục rỗng làm khẳng định sau đó đúng vì lý do sai); (3) `reindex_after_lifecycle_write` **không trả `Result`** — một lượt reindex trượt không được biến một lượt ghi đã thành công trên đĩa thành lỗi IPC (AD-8: `.atproj` là dữ liệu, chỉ mục là dẫn xuất).
 
 ## Review Triage Log
+
+### 2026-08-28 — Lượt chạy e2e THẬT (Ice chạy trọn bộ), pass thứ hai
+- intent_gap: 0
+- bad_spec: 0
+- patch: 5: (high 1, medium 2, low 2)
+- defer: 1: (high 1, medium 0, low 0)
+- reject: 0
+- addressed_findings:
+  - `[high]` `[patch]` **Khuyết tật SẢN PHẨM.** `loadOpenWorkLifecycle()` chỉ có lối vào ở `onActivated`, mà lượt đó chạy lúc khởi động khi CHƯA Tác phẩm nào mở. Tạo một Tác phẩm ngay tại Library không rời chế độ ⇒ khối "Tác phẩm đang mở" tiếp tục khẳng định *"Chưa có Tác phẩm nào đang mở"* trong khi có một Tác phẩm vừa mở, và cả ba nút vòng đời kẹt `disabled` cho tới khi người dùng tình cờ đổi chế độ. Thêm `watch(createdWork, …)` ở `LibraryMode.vue`. **Đối chứng đã chạy:** gỡ `watch` ⇒ ca e2e đầu ĐỎ đúng thông điệp, 1 ca kia vẫn xanh; đã khôi phục.
+  - `[medium]` `[patch]` Spec chờ một điều kiện **đã đúng sẵn**: `waitUntil(status !== '')` trong khi dòng đó trước lượt tải đầu ĐÃ mang chữ *"Bấm Tải danh sách…"* ⇒ trả về ngay sau cú bấm, đọc một danh sách chưa render rồi kết luận *"không tìm thấy Tác phẩm"*. Đổi sang chờ đúng thứ quyết định được: hàng mang TÊN đó xuất hiện, và nút đã bấm được.
+  - `[medium]` `[patch]` `await $$()` trên WebdriverIO 9.30.1 trả một đối tượng lặp được nhưng `.map()` KHÔNG trả mảng ⇒ `Promise.all` ném `object is not iterable`. Cả kho không chỗ nào dùng `.map` trên `$$`. Chuyển phép quét DOM vào trong trang bằng `browser.execute`.
+  - `[low]` `[patch]` Ca đầu chạy **~2 phút, sát trần 120 giây của mocha** — xanh ở `--mochaOpts.timeout 400000`, đỏ ở mặc định. Nguyên nhân: mỗi lệnh WebDriver đi qua `ensureActiveWindowFocus`, nên mỗi lượt poll bằng `$()`+`getText()` tốn hai lệnh. Gom mọi phép đọc vào **một** `screenProbe()`. Đo sau khi sửa: **5m38 → 1m45**, xanh ở hạn mức mặc định.
+  - `[low]` `[patch]` Selector theo `:nth-of-type` thay bằng móc `data-lifecycle-*` (đóng một mục hoãn của pass trước).
+  - `[high]` `[defer]` `story-5-3-rescan.e2e.mjs` đỏ 5/7 vì khẳng định trên con số tuyệt đối trong một thư mục gốc dùng CHUNG cả lượt. **Không do story này gây ra** (5.3 chạy trước 5.4 trong lượt đó) và không thuộc phạm vi story này sửa — chủ: Ice chốt.
 
 ### 2026-08-28 — Review pass
 - intent_gap: 0
@@ -437,7 +475,8 @@ Bốn giá trị vòng đời khai **một chỗ** bằng `lifecycle_statuses!` 
 
 ### Rủi ro còn lại
 
-- 🔴 **`e2e/specs/story-5-4-lifecycle.e2e.mjs` chưa chạy lần nào**, và nó là đường DUY NHẤT chạm bốn vỏ `#[tauri::command]` thật. Một mục `generate_handler!` bị rơi hay một lệch camelCase (`chapterId`) sẽ đi qua trọn `pre-push` + CI nhịp `push` mà không cổng nào đỏ. Chạy tay: `npm run test:e2e`, hoặc đợi nhịp đêm. **Đừng đọc "850 ca xanh" thành "chỗ nối đã được canh".**
+- 🔵 **SỬA 2026-08-28 — mệnh đề cũ đã HẾT ĐÚNG.** Bản trước viết *"`e2e/specs/story-5-4-lifecycle.e2e.mjs` chưa chạy lần nào"*. Ice đã chạy trọn bộ e2e; spec này CHẠY THẬT, đỏ hai ca, và nay **xanh cả hai** (1m45) sau khi sửa. Bốn vỏ `#[tauri::command]` đã được một lượt chạy thật chạm. ⚠️ Vế cấu trúc **vẫn đứng**: bộ e2e chỉ chạy ở **nhịp đêm**, không ở `push` — một hồi quy ở tầng vỏ vẫn có thể đi qua trọn `pre-push` + CI nhịp `push` mà không cổng nào đỏ.
+- 🔴 **Lượt chạy trọn bộ đầu tiên làm lộ 9 ca đỏ ở BỐN spec khác** (`story-5-3-rescan` 5 · `editor-confirm-segment` 2 · `shortcuts-capture-mouse` 1 · `shortcuts-focus` 1). 5.3 đã chẩn đoán được (con số tuyệt đối trên thư mục gốc dùng chung — xem `deferred`); ba spec kia **chưa chẩn đoán**, và không được đọc thành "sản phẩm hồi quy" trước khi có người đọc lỗi (`e2e/AGENTS.md`).
 - ⚠️ `pre-push` và các lệnh trên chạy trên **macOS**; nửa Windows chỉ có tiếng nói ở lượt CI — đọc lượt CI trước khi kết luận là xanh.
 - ⚠️ Mỗi lượt ghi trạng thái kéo theo một lượt quét lại **toàn bộ** thư mục gốc. Đúng ở quy mô hôm nay, nhưng là nợ có chủ (Story 5.6).
 - ⚠️ Bước di trú `global.db`/`project.db` là **cửa một chiều**: `PROJECT_MIGRATIONS` nay tới 16, và hạ cấp ứng dụng xuống bản không biết bước đó sẽ làm `project.db` bị **từ chối mở** (AD-30).
