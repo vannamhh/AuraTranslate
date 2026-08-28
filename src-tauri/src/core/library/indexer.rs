@@ -75,7 +75,8 @@ use std::sync::Mutex;
 
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::{
-    LIBRARY_INDEX_MIGRATIONS, ReadHandle, Store, StoreError, StoreKind, StoreSpec, Transaction,
+    LIBRARY_INDEX_MIGRATIONS, ReadHandle, Row, SqlResult, Store, StoreError, StoreKind, StoreSpec,
+    Transaction, params_from_iter,
 };
 
 use super::meta::WorkMeta;
@@ -286,20 +287,26 @@ impl Indexer {
             // `work_id` là khoá chính nên `ON CONFLICT` là cách SQLite tự phân biệt "Tác
             // phẩm này đã có trong chỉ mục" (cập nhật đường dẫn/metadata) với "Tác phẩm mới"
             // (chèn hàng) — không cần một `SELECT` kiểm trùng ở tầng Rust.
+            //
+            // 🔵 THÊM (2026-08-27, Story 5.4) — hai cột `status`/`status_is_override` chở
+            // NGUYÊN VẸN giá trị mà `WorkMeta::rebuild_from_store` đã tính (chỗ DUY NHẤT
+            // tính giá trị suy ra, §Approach của story) — kho này KHÔNG tự tính lại.
             for (dir, meta) in &kept {
                 tx.execute(
                     "INSERT INTO library_work \
                      (work_id, atproj_path, name, source_lang, genre, created_at, \
-                      updated_at, chapter_count) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
+                      updated_at, chapter_count, status, status_is_override) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
                      ON CONFLICT (work_id) DO UPDATE SET \
-                       atproj_path   = excluded.atproj_path, \
-                       name          = excluded.name, \
-                       source_lang   = excluded.source_lang, \
-                       genre         = excluded.genre, \
-                       created_at    = excluded.created_at, \
-                       updated_at    = excluded.updated_at, \
-                       chapter_count = excluded.chapter_count",
+                       atproj_path         = excluded.atproj_path, \
+                       name                = excluded.name, \
+                       source_lang         = excluded.source_lang, \
+                       genre               = excluded.genre, \
+                       created_at          = excluded.created_at, \
+                       updated_at          = excluded.updated_at, \
+                       chapter_count       = excluded.chapter_count, \
+                       status              = excluded.status, \
+                       status_is_override  = excluded.status_is_override",
                     (
                         &meta.work_id,
                         &dir.display().to_string(),
@@ -309,6 +316,8 @@ impl Indexer {
                         &meta.created_at,
                         &meta.updated_at,
                         meta.chapter_count,
+                        &meta.status,
+                        i64::from(meta.status_is_override),
                     ),
                 )?;
             }
@@ -442,20 +451,43 @@ impl Indexer {
     }
 
     /// Đường ĐỌC — mọi hàng của `library_work`, sắp theo `work_id` (tất định; sắp theo
-    /// tên/ngày là việc của Story 5.6, không phải của story này).
+    /// tên/ngày là việc của Story 5.6, không phải của story này), cộng tổng số hàng CHƯA
+    /// LỌC.
     ///
     /// 🔵 **SỬA (2026-08-27, phán quyết Ice #1) — không còn lọc `WHERE orphaned = 0`.** Từ
     /// khi cờ mồ côi chuyển sang `library_orphan` (`global.db`), MỌI hàng còn lại trong
-    /// `library_work` đều đang sống theo định nghĩa — không có gì để lọc nữa. `library_work`
-    /// dẫn xuất TRỌN VẸN trở lại (đúng nghĩa gốc trước Story 5.3).
-    pub fn list_works(&self) -> Result<Vec<IndexedWork>, StoreError> {
+    /// `library_work` đều đang sống theo định nghĩa — không có gì để lọc nữa vì lý do đó.
+    /// `library_work` dẫn xuất TRỌN VẸN trở lại (đúng nghĩa gốc trước Story 5.3).
+    ///
+    /// 🔵 **SỬA (2026-08-27, Story 5.4) — thêm tham số `filter`, thêm `WorksReport::total`.**
+    /// `filter = None` ⇒ mọi hàng (kể cả `status IS NULL`), `matched == total` — đúng §I/O
+    /// Matrix "Không lọc". `filter = Some(...)` lọc **trong SQL** bằng `status IN (...)`
+    /// (AD-1: bộ lọc tính ở Rust/SQL, không ở TypeScript) — một hàng `status IS NULL` không
+    /// bao giờ khớp bất kỳ giá trị nào trong bộ lọc, đúng ngữ nghĩa SQL của `NULL IN (...)`
+    /// (luôn `NULL`/không đúng), nên nó tự động bị loại mà không cần một nhánh `WHERE`
+    /// riêng. `total` VÀ `works` (đã lọc) đọc trong **CÙNG một lượt `Store::read`** — cùng
+    /// một kết nối, cùng một ảnh chụp — để hai con số không bao giờ đến từ hai thời điểm
+    /// khác nhau (đúng lý lẽ mà [`RebuildOutcome::current_orphans`] đã áp cho cặp
+    /// `indexed`/`orphans` ở `rebuild()`).
+    /// ⚠️ **`Some(&[])` nghĩa là "KHÔNG giá trị nào khớp", không phải "không lọc"** — và đó là
+    /// chỗ tầng này CỐ Ý lệch với [`crate::commands::library::list_works`], nơi doc-comment nói
+    /// một bộ lọc rỗng đọc là *không lọc*. Hai câu trả lời đều đúng ở tầng của nó: ở tầng lệnh
+    /// một bộ lọc rỗng đến từ *"người dùng chưa bật nút nào"* (⇒ không lọc, và tầng đó chuẩn
+    /// hoá `Some(&[])` thành `None` TRƯỚC khi gọi xuống); ở tầng này tham số là một **tập giá
+    /// trị**, và tập rỗng khớp 0 hàng theo đúng nghĩa đen. Ghi ra ở đây vì một chỗ gọi Rust
+    /// tương lai đọc doc-comment của tầng lệnh rồi gọi thẳng xuống đây sẽ nhận kết quả NGƯỢC
+    /// với thứ nó chờ, im lặng. (Lượt rà 2026-08-28.)
+    pub fn list_works(&self, filter: Option<&[crate::core::lifecycle::LifecycleStatus]>) -> Result<WorksReport, StoreError> {
         self.store.read(move |conn: ReadHandle<'_>| {
-            let mut stmt = conn.prepare(
-                "SELECT work_id, atproj_path, name, source_lang, genre, created_at, \
-                 updated_at, chapter_count \
-                 FROM library_work ORDER BY work_id",
-            )?;
-            let rows = stmt.query_map([], |row| {
+            let total: usize = conn.query_row("SELECT COUNT(*) FROM library_work", [], |row| {
+                row.get::<_, i64>(0)
+            })? as usize;
+
+            const COLUMNS: &str = "work_id, atproj_path, name, source_lang, genre, created_at, \
+                 updated_at, chapter_count, status, status_is_override";
+
+            let map_row = |row: &Row<'_>| -> SqlResult<IndexedWork> {
+                let status_is_override: i64 = row.get(9)?;
                 Ok(IndexedWork {
                     work_id: row.get(0)?,
                     atproj_path: PathBuf::from(row.get::<_, String>(1)?),
@@ -465,9 +497,38 @@ impl Indexer {
                     created_at: row.get(5)?,
                     updated_at: row.get(6)?,
                     chapter_count: row.get(7)?,
+                    status: row.get(8)?,
+                    status_is_override: status_is_override != 0,
                 })
-            })?;
-            rows.collect()
+            };
+
+            let works: Vec<IndexedWork> = match filter {
+                None => {
+                    let mut stmt = conn.prepare(&format!(
+                        "SELECT {COLUMNS} FROM library_work ORDER BY work_id"
+                    ))?;
+                    let rows = stmt.query_map([], map_row)?;
+                    rows.collect::<SqlResult<Vec<_>>>()?
+                }
+                Some(statuses) if statuses.is_empty() => Vec::new(),
+                Some(statuses) => {
+                    // ⚠️ `statuses` đến từ `LifecycleStatus::ALL` (bốn giá trị đóng, đã qua
+                    // `from_wire` ở tầng lệnh) — không phải chuỗi thô của người dùng, nên xây
+                    // `IN (...)` bằng `format!` ở đây KHÔNG mở một lỗ tiêm SQL: mỗi placeholder
+                    // vẫn là một tham số ràng buộc (`?`), `format!` chỉ dựng số lượng dấu hỏi.
+                    let placeholders =
+                        statuses.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+                    let mut stmt = conn.prepare(&format!(
+                        "SELECT {COLUMNS} FROM library_work WHERE status IN ({placeholders}) \
+                         ORDER BY work_id"
+                    ))?;
+                    let params: Vec<&str> = statuses.iter().map(|s| s.as_str()).collect();
+                    let rows = stmt.query_map(params_from_iter(params.iter()), map_row)?;
+                    rows.collect::<SqlResult<Vec<_>>>()?
+                }
+            };
+
+            Ok(WorksReport { total, works })
         })
     }
 
@@ -716,8 +777,9 @@ impl RebuildOutcome {
     ///
     /// 🔴 **THÊM (vòng rà ba lớp, P7)** — AD-28 đòi `Indexer` *"phát hiện VÀ CẢNH BÁO hai Tác
     /// phẩm trùng `work.id`"*. Trước bản vá, cả hai chỗ gọi sản phẩm (`lib.rs::open_library_index`
-    /// lúc khởi động, `commands::project::wire::reindex_after_create_work` sau khi tạo Tác
-    /// phẩm) đều VỨT `RebuildOutcome` bằng `if let Err(err) = indexer.rebuild(..) { .. }` —
+    /// lúc khởi động, `commands::project::wire::reindex_library` — đổi tên ở Story 5.4, khi
+    /// đó còn tên `reindex_after_create_work` — sau khi tạo Tác phẩm) đều VỨT `RebuildOutcome`
+    /// bằng `if let Err(err) = indexer.rebuild(..) { .. }` —
     /// nghĩa là vế "phát hiện" có giá trị trả về THẬT (có test), nhưng vế "CẢNH BÁO" không có
     /// một đầu ra nào: không ai từng đọc `conflicts`/`skipped` ngoài `tests/**`. Hàm này là
     /// đường CHUNG cho cả hai chỗ gọi — tách ra để chúng không thể trôi khỏi nhau (đúng khuôn
@@ -796,6 +858,27 @@ pub struct IndexedWork {
     pub created_at: String,
     pub updated_at: String,
     pub chapter_count: u32,
+    /// 🔵 **THÊM (2026-08-27, Story 5.4)** — một trong bốn giá trị trên dây của
+    /// [`crate::core::lifecycle::LifecycleStatus`], hoặc `None` (*"chưa biết"* — hàng đến từ
+    /// một `meta.json` v1 chưa từng qua `WorkMeta::rebuild_from_store`).
+    pub status: Option<String>,
+    /// 🔵 **THÊM (2026-08-27, Story 5.4)** — `true` ⇔ [`Self::status`] đến từ ghi đè thủ
+    /// công. Vô nghĩa khi `status` là `None`.
+    pub status_is_override: bool,
+}
+
+/// Kết quả một lượt [`Indexer::list_works`] — `total` LUÔN là tổng số hàng CHƯA LỌC,
+/// `works.len()` là số hàng KHỚP bộ lọc (hoặc bằng `total` khi không lọc). Story 5.4.
+///
+/// 🔴 **KHÔNG một trường `matched: usize` riêng** — nó luôn bằng `works.len()`, và một
+/// trường thứ hai mang cùng con số là hai dữ kiện có thể trôi khỏi nhau (`AGENTS.md::Known
+/// pitfalls`). `commands::library::WorkListReport` (tầng lệnh) mới là nơi trường `matched`
+/// tường minh xuất hiện — ở đó nó đi qua dây IPC, nơi suy luận từ `.length` phía TypeScript
+/// đúng là điều AD-1 cấm.
+#[derive(Debug, Clone)]
+pub struct WorksReport {
+    pub total: usize,
+    pub works: Vec<IndexedWork>,
 }
 
 /// Mọi cách một lượt [`Indexer::rebuild`] hỏng mà KHÔNG phải một `.atproj` con bị bỏ qua (đó

@@ -896,7 +896,7 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
 fn the_blocking_wires_run_off_the_main_thread() {
     // Moi vo CHAN phai mang `(async)` NGAY TREN chu ky cua no. Cot thu hai la chu ky, cot thu
     // ba noi vi sao vo do dat tieu chi -- de mot luot doc sau khong phai suy lai.
-    let cases: [(&str, &str, &str); 10] = [
+    let cases: [(&str, &str, &str); 12] = [
         (
             "src/commands/glossary.rs",
             "pub fn glossary_export_tier(app: tauri::AppHandle",
@@ -948,6 +948,17 @@ fn the_blocking_wires_run_off_the_main_thread() {
             "pub fn library_forget_orphan(\n        app: tauri::AppHandle",
             "mot luot ghi qua `store::Writer` -- cung nhom voi hai vo tren, khong tach rieng \
              'nang'/'nhe'",
+        ),
+        (
+            "src/commands/lifecycle.rs",
+            "pub fn set_chapter_status(\n        app: tauri::AppHandle",
+            "buoc 4 cua khuon bon buoc (`reindex_library`) la mot luot quet TOAN BO thu muc \
+             goc Library, chay SAU luot ghi -- Story 5.4",
+        ),
+        (
+            "src/commands/lifecycle.rs",
+            "pub fn set_work_status_override(\n        app: tauri::AppHandle",
+            "cung ly do `set_chapter_status` ngay tren -- reindex sau moi luot ghi trang thai",
         ),
     ];
 
@@ -1019,8 +1030,13 @@ fn the_blocking_wires_run_off_the_main_thread() {
 /// `the_blocking_wires_run_off_the_main_thread`'s doc-comment (mở lần ba).
 #[test]
 fn the_blocking_wires_gate_reads_more_than_one_file() {
-    let distinct_files: std::collections::BTreeSet<&str> =
-        ["src/commands/glossary.rs", "src/commands/library.rs"].into_iter().collect();
+    let distinct_files: std::collections::BTreeSet<&str> = [
+        "src/commands/glossary.rs",
+        "src/commands/library.rs",
+        "src/commands/lifecycle.rs",
+    ]
+    .into_iter()
+    .collect();
     assert!(
         distinct_files.len() > 1,
         "cong the_blocking_wires_run_off_the_main_thread phai doc NHIEU HON MOT tep -- nhan {} \

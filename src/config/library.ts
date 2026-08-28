@@ -128,10 +128,65 @@ function isIpcError(value: unknown): value is IpcError {
   )
 }
 
+/**
+ * 🔵 **THÊM (2026-08-27, Story 5.4)** — một hàng của `library_work`, khớp
+ * `commands::library::WorkRow` phía Rust, `snake_case`.
+ */
+export type WorkRow = {
+  work_id: string
+  atproj_path: string
+  name: string
+  source_lang: string
+  genre: string
+  created_at: string
+  updated_at: string
+  chapter_count: number
+  status: string | null
+  status_is_override: boolean
+}
+
+/** Kết quả một lượt liệt kê — khớp `commands::library::WorkListReport`. */
+export type WorkListReport = {
+  total: number
+  matched: number
+  works: WorkRow[]
+}
+
+/** Ba trạng thái cho `list_works`. */
+export type WorkListResult = {
+  report: WorkListReport | null
+  error: IpcError | null
+}
+
+function isWorkRowArray(value: unknown): value is WorkRow[] {
+  if (!Array.isArray(value)) return false
+  if (value.length === 0) return true
+  const first = value[0] as Partial<WorkRow>
+  return (
+    typeof first.work_id === 'string' &&
+    typeof first.atproj_path === 'string' &&
+    typeof first.name === 'string' &&
+    typeof first.source_lang === 'string' &&
+    typeof first.genre === 'string' &&
+    typeof first.created_at === 'string' &&
+    typeof first.updated_at === 'string' &&
+    typeof first.chapter_count === 'number' &&
+    (typeof first.status === 'string' || first.status === null) &&
+    typeof first.status_is_override === 'boolean'
+  )
+}
+
+function isWorkListReport(value: unknown): value is WorkListReport {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<WorkListReport>
+  return typeof v.total === 'number' && typeof v.matched === 'number' && isWorkRowArray(v.works)
+}
+
 /** Tên command trên dây. Khớp `src-tauri/src/commands/library.rs` (module `wire`). */
 const CMD_RESCAN = 'library_rescan'
 const CMD_CHOOSE_ROOT = 'library_choose_root'
 const CMD_FORGET_ORPHAN = 'library_forget_orphan'
+const CMD_LIST_WORKS = 'library_list_works'
 
 /** Cùng khuôn `config/project.ts::hasIpcBridge`. */
 function hasIpcBridge(): boolean {
@@ -250,5 +305,31 @@ export async function forgetLibraryOrphan(workId: string, name: string): Promise
     }
     console.info(`[library] không gọi được \`${CMD_FORGET_ORPHAN}\` — chạy ngoài Tauri? ${String(err)}`)
     return { orphans: null, error: null }
+  }
+}
+
+/**
+ * 🔵 **THÊM (2026-08-27, Story 5.4)** — liệt kê + lọc Tác phẩm cho khối "Tác phẩm" của
+ * Library — lệnh `library.list_works`. `filter` rỗng/`undefined` ⇒ không lọc (mọi hàng, kể
+ * cả hàng `status` chưa biết).
+ */
+export async function listLibraryWorks(filter?: readonly string[]): Promise<WorkListResult> {
+  try {
+    const report = await invoke<WorkListReport>(CMD_LIST_WORKS, {
+      filter: filter === undefined || filter.length === 0 ? null : filter,
+    })
+    if (!isWorkListReport(report)) {
+      console.error(`[library] \`${CMD_LIST_WORKS}\` trả một WorkListReport SAI HÌNH DẠNG: ${JSON.stringify(report)}`)
+      return { report: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { report, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { report: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[library] \`${CMD_LIST_WORKS}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { report: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[library] không gọi được \`${CMD_LIST_WORKS}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { report: null, error: null }
   }
 }

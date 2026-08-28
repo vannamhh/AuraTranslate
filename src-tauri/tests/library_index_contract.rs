@@ -3,6 +3,13 @@
 //! ⚠️ Tệp riêng có chủ ý, đúng khuôn `store_contract.rs`/`project_contract.rs`: đây là
 //! **hành vi lúc chạy**; ranh giới cây nguồn của AC2 nằm ở `library_index_boundary.rs`.
 //!
+//! 🔵 **SỬA (2026-08-27, Story 5.4) — `Indexer::list_works()` đổi CHỮ KÝ, mọi ca gọi nó sửa
+//! CƠ HỌC.** Hàm nay nhận `filter: Option<&[LifecycleStatus]>` và trả [`WorksReport { total,
+//! works }`] thay vì thẳng `Vec<IndexedWork>` (bộ lọc bốn trạng thái vòng đời tính TRONG SQL,
+//! §Approach của story). Mọi ca CŨ ở tệp này gọi `.list_works(None)` (giữ ĐÚNG hành vi cũ:
+//! không lọc) rồi đọc `.works` để lấy lại `Vec<IndexedWork>` — không ca nào đổi Ý NGHĨA, chỉ
+//! đổi CÚ PHÁP gọi. Ca MỚI kiểm bộ lọc thật nằm ở cuối tệp.
+//!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! BỐN LUẬT CỦA TỆP NÀY — cùng khuôn `store_contract.rs:8-21`
 //! ─────────────────────────────────────────────────────────────────────────────
@@ -29,6 +36,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::core::library::indexer::{IndexError, Indexer};
 use auratranslate_lib::core::library::meta::{META_SCHEMA_VERSION, WorkMeta};
+use auratranslate_lib::core::lifecycle::LifecycleStatus;
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -103,6 +111,12 @@ fn write_atproj(
         created_at: "2026-08-01T00:00:00.000Z".to_owned(),
         updated_at: "2026-08-01T00:00:00.000Z".to_owned(),
         chapter_count,
+        // 🔵 THÊM (2026-08-27, Story 5.4) — hai trường mới của `WorkMeta`. Đa số ca ở tệp
+        // này không kiểm trạng thái vòng đời (chúng kiểm đường dẫn/xung đột/mồ côi) nên một
+        // giá trị "vừa suy ra, không ghi đè" là trung tính; ca CẦN kiểm trạng thái/bộ lọc
+        // dùng `write_atproj_with_status` riêng, xem cuối tệp.
+        status: Some("not_started".to_owned()),
+        status_is_override: false,
     };
     meta.write_atomic(&dir)
         .unwrap_or_else(|e| panic!("ghi meta.json ở {}: {e}", dir.display()));
@@ -148,7 +162,7 @@ fn rebuilding_from_disk_indexes_exactly_n_works_matching_meta_json_field_for_fie
     assert!(outcome.conflicts.is_empty());
     assert!(outcome.skipped.is_empty());
 
-    let mut works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let mut works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     works.sort_by(|a, b| a.name.cmp(&b.name));
     assert_eq!(works.len(), 3);
 
@@ -205,7 +219,7 @@ fn deleting_the_index_file_then_reopening_rebuilds_all_rows_without_touching_atp
     let outcome = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild lại: {e}"));
     assert_eq!(outcome.indexed, 2, "dựng lại phải cho đủ N hàng như trước");
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 2);
 
     drop(indexer);
@@ -257,7 +271,7 @@ fn a_schema_version_newer_than_supported_is_deleted_and_rebuilt_not_refused() {
     let outcome = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
     assert_eq!(outcome.indexed, 1);
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 1);
     assert_eq!(works[0].work_id, "id-solo");
 
@@ -311,7 +325,7 @@ fn an_index_file_stuck_at_schema_version_zero_is_deleted_and_rebuilt_not_left_ha
     let outcome = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
     assert_eq!(outcome.indexed, 1);
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 1);
 
     drop(indexer);
@@ -342,7 +356,7 @@ fn a_duplicate_work_id_keeps_the_first_entry_and_reports_the_conflict_with_both_
     assert_eq!(conflict.kept_path, first);
     assert_eq!(conflict.duplicate_path, second);
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 1);
     assert_eq!(works[0].name, "First Copy", "mục ĐẦU được giữ, không ghi đè bằng mục sau");
 
@@ -375,7 +389,7 @@ fn an_atproj_missing_meta_json_is_skipped_with_a_reason_while_others_still_index
         "lý do bị bỏ qua phải được GHI LẠI, không rỗng"
     );
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 1);
     assert_eq!(works[0].name, "Good");
 
@@ -463,7 +477,7 @@ fn a_missing_library_root_yields_an_empty_index_with_a_reason_and_creates_no_dir
     );
     assert!(!root.exists(), "rebuild KHÔNG được tự tạo thư mục gốc");
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert!(works.is_empty());
 
     drop(indexer);
@@ -477,9 +491,9 @@ fn a_missing_library_root_yields_an_empty_index_with_a_reason_and_creates_no_dir
 ///
 /// 🔵 **ĐỔI NGỮ NGHĨA (Story 5.3) — bản trước khẳng định bảng bị XOÁ SẠCH.** Trước story này,
 /// `Indexer::clear_for_missing_root` chạy `DELETE FROM library_work` và ca này khẳng định
-/// `list_works()` rỗng làm bằng chứng của điều đó. Nay `root_missing` nghĩa là "tập `.atproj`
+/// `list_works(None)` rỗng làm bằng chứng của điều đó. Nay `root_missing` nghĩa là "tập `.atproj`
 /// liệt kê được là rỗng" ⇒ MỌI hàng đang sống thành MỒ CÔI (`Indexer::mark_all_orphaned_for_missing_root`),
-/// KHÔNG bị xoá — `list_works()` (chỉ trả hàng sống) vẫn rỗng, đúng như bản cũ mong đợi, nhưng
+/// KHÔNG bị xoá — `list_works(None)` (chỉ trả hàng sống) vẫn rỗng, đúng như bản cũ mong đợi, nhưng
 /// vì một lý do khác hẳn: hai hàng cũ còn NGUYÊN trong bảng, dưới dạng mồ côi, đọc được qua
 /// `list_orphans()`. Đây chính là I/O Matrix "Đổi thư mục gốc": chỉ mục nói về THƯ VIỆN, không
 /// nói về đĩa.
@@ -496,8 +510,8 @@ fn a_root_that_existed_with_rows_then_vanishes_leaves_every_row_orphaned_not_del
     assert_eq!(first.indexed, 2, "phải dựng được 2 hàng THẬT trước khi xoá root");
     assert_eq!(
         indexer
-            .list_works()
-            .unwrap_or_else(|e| panic!("list_works: {e}"))
+            .list_works(None)
+            .unwrap_or_else(|e| panic!("list_works: {e}")).works
             .len(),
         2
     );
@@ -514,11 +528,11 @@ fn a_root_that_existed_with_rows_then_vanishes_leaves_every_row_orphaned_not_del
     assert_eq!(second.orphans, 2, "cả hai hàng phải CHUYỂN sang mồ côi ở đúng lượt này");
 
     let works = indexer
-        .list_works()
-        .unwrap_or_else(|e| panic!("list_works sau khi root biến mất: {e}"));
+        .list_works(None)
+        .unwrap_or_else(|e| panic!("list_works sau khi root biến mất: {e}")).works;
     assert!(
         works.is_empty(),
-        "list_works() chỉ trả hàng ĐANG SỐNG -- cả hai hàng vừa thành mồ côi, nên nó rỗng: {works:?}"
+        "list_works(None) chỉ trả hàng ĐANG SỐNG -- cả hai hàng vừa thành mồ côi, nên nó rỗng: {works:?}"
     );
 
     let mut orphans = indexer
@@ -617,6 +631,10 @@ fn index_rows_only_appear_after_meta_json_is_already_on_disk() {
         created_at: "2026-08-01T00:00:00.000Z".to_owned(),
         updated_at: "2026-08-01T00:00:00.000Z".to_owned(),
         chapter_count: 1,
+        // 🔵 THÊM (2026-08-27, Story 5.4) — ca này kiểm THỨ TỰ quét, không trạng thái vòng
+        // đời; giá trị trung tính, cùng lý do đã ghi ở `write_atproj`.
+        status: Some("not_started".to_owned()),
+        status_is_override: false,
     };
     meta.write_atomic(&work_dir)
         .unwrap_or_else(|e| panic!("ghi meta.json: {e}"));
@@ -664,14 +682,14 @@ fn an_unreadable_index_file_is_deleted_and_rebuilt_not_left_broken_forever() {
     // `list_works` phải THÀNH CÔNG ngay sau `open` (trước cả `rebuild`) và trả danh sách
     // RỖNG-ĐÃ-QUÉT — bằng chứng lược đồ đã được dựng lại thật, không phải một kho còn treo.
     let works_before_rebuild = indexer
-        .list_works()
-        .unwrap_or_else(|e| panic!("list_works ngay sau open phải thành công: {e}"));
+        .list_works(None)
+        .unwrap_or_else(|e| panic!("list_works ngay sau open phải thành công: {e}")).works;
     assert!(works_before_rebuild.is_empty());
 
     let outcome = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
     assert_eq!(outcome.indexed, 1, "sau rebuild, Tác phẩm thật trên đĩa phải vào chỉ mục");
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 1);
     assert_eq!(works[0].work_id, "id-solo");
 
@@ -743,7 +761,7 @@ fn moving_an_atproj_within_the_root_updates_the_path_and_keeps_exactly_one_row()
     assert_eq!(outcome.indexed, 1);
     assert_eq!(outcome.orphans, 0, "di chuyển TRONG gốc không tạo mồ côi nào");
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 1, "đúng MỘT hàng, không phải một hàng cũ + một hàng mới");
     assert_eq!(works[0].work_id, "id-move");
     assert_eq!(works[0].atproj_path, new_dir, "atproj_path phải là đường dẫn MỚI");
@@ -773,7 +791,7 @@ fn deleting_an_atproj_marks_it_orphaned_and_keeps_the_stale_path() {
     assert_eq!(outcome.indexed, 0);
     assert_eq!(outcome.orphans, 1);
 
-    assert!(indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}")).is_empty());
+    assert!(indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works.is_empty());
 
     let orphans = indexer.list_orphans(Some(&global)).unwrap_or_else(|e| panic!("list_orphans: {e}"));
     assert_eq!(orphans.len(), 1, "hàng phải Ở LẠI dưới dạng mồ côi, không biến mất");
@@ -839,7 +857,7 @@ fn an_orphan_that_reappears_is_restored_without_a_second_row() {
     assert_eq!(restored.indexed, 1);
     assert_eq!(restored.orphans, 0);
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 1, "KHÔNG tạo hàng thứ hai");
     assert_eq!(works[0].work_id, "id-back");
     assert!(indexer.list_orphans(Some(&global)).unwrap_or_else(|e| panic!("list_orphans: {e}")).is_empty());
@@ -874,7 +892,7 @@ fn switching_to_a_different_root_orphans_the_old_roots_rows_without_touching_its
     assert_eq!(second.indexed, 1, "Tác phẩm của gốc MỚI phải được lập chỉ mục");
     assert_eq!(second.orphans, 1, "hàng của gốc CŨ phải thành mồ côi -- nó không có trong gốc mới");
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 1);
     assert_eq!(works[0].work_id, "id-new", "chỉ Tác phẩm của gốc MỚI được coi là đang sống");
 
@@ -911,7 +929,7 @@ fn a_path_reclaimed_by_a_different_work_orphans_the_old_occupants_row() {
     let first = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild đầu: {e}"));
     assert_eq!(first.indexed, 1);
     assert_eq!(
-        indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"))[0].work_id,
+        indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works[0].work_id,
         "id-a"
     );
 
@@ -923,7 +941,7 @@ fn a_path_reclaimed_by_a_different_work_orphans_the_old_occupants_row() {
     assert_eq!(second.indexed, 1, "chỉ B được lập chỉ mục ở đường dẫn đó");
     assert_eq!(second.orphans, 1, "hàng CŨ của A phải thành mồ côi -- đường dẫn nay thuộc về B, không phải A");
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 1);
     assert_eq!(works[0].work_id, "id-b", "chỉ B được coi là đang sống ở đường dẫn đó");
 
@@ -1076,7 +1094,7 @@ fn forget_orphan_running_alongside_concurrent_rebuilds_never_reports_a_false_not
 
     // Trạng thái CUỐI phải nhất quán: "Alive" vẫn sống, không hàng mồ côi trôi nổi ngoài dự
     // kiến (Ghost đã bị xoá khỏi đĩa suốt ca này, không quay lại).
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 1);
     assert_eq!(works[0].work_id, "id-alive");
 
@@ -1103,7 +1121,7 @@ fn forget_orphan_refuses_a_row_that_is_still_alive() {
         other => panic!("kỳ vọng IndexError::NotOrphaned, nhận {other:?}"),
     }
     assert_eq!(
-        indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}")).len(),
+        indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works.len(),
         1,
         "0 lượt xoá -- hàng phải còn nguyên"
     );
@@ -1176,7 +1194,7 @@ fn two_threads_calling_rebuild_concurrently_converge_to_one_consistent_state() {
         handle.join().expect("một luồng rebuild panic");
     }
 
-    let works = indexer.list_works().unwrap_or_else(|e| panic!("list_works: {e}"));
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
     assert_eq!(works.len(), 2, "trạng thái cuối phải khớp ĐÚNG những gì còn trên đĩa");
     assert!(indexer.list_orphans(Some(&global)).unwrap_or_else(|e| panic!("list_orphans: {e}")).is_empty());
 
@@ -1238,8 +1256,8 @@ fn orphan_write_order_is_fail_safe_write_global_before_deleting_from_index() {
     // ⇒ ĐIỂM MẤU CHỐT của ca này: hàng phải CÒN NGUYÊN trong `library_work` -- bước xoá
     // KHÔNG được chạy trước khi bước ghi `global.db` đã xác nhận thành công.
     let works = indexer
-        .list_works()
-        .unwrap_or_else(|e| panic!("list_works sau lỗi: {e}"));
+        .list_works(None)
+        .unwrap_or_else(|e| panic!("list_works sau lỗi: {e}")).works;
     assert_eq!(
         works.len(),
         1,
@@ -1247,6 +1265,280 @@ fn orphan_write_order_is_fail_safe_write_global_before_deleting_from_index() {
          TRƯỚC khi global.db xác nhận là mất lời nhắc mồ côi VĨNH VIỄN (không còn ở kho nào)"
     );
     assert_eq!(works[0].work_id, "id-gone");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.4 — bốn trạng thái vòng đời, bộ lọc tính TRONG SQL của `Indexer::list_works`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Dựng một `<folder>.atproj/` với `status`/`status_is_override` TƯỜNG MINH — biến thể của
+/// [`write_atproj`] cho các ca cần kiểm CHÍNH trạng thái vòng đời (33 chỗ gọi khác của
+/// `write_atproj` không cần việc đó, xem doc-comment ở đó).
+fn write_atproj_with_status(
+    root: &Path,
+    folder: &str,
+    work_id: &str,
+    name: &str,
+    status: Option<&str>,
+    status_is_override: bool,
+) -> PathBuf {
+    let dir = root.join(format!("{folder}.atproj"));
+    fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tạo {}: {e}", dir.display()));
+
+    let meta = WorkMeta {
+        meta_schema_version: META_SCHEMA_VERSION,
+        work_id: work_id.to_owned(),
+        name: name.to_owned(),
+        source_lang: "en".to_owned(),
+        genre: String::new(),
+        created_at: "2026-08-01T00:00:00.000Z".to_owned(),
+        updated_at: "2026-08-01T00:00:00.000Z".to_owned(),
+        chapter_count: 1,
+        status: status.map(str::to_owned),
+        status_is_override,
+    };
+    meta.write_atomic(&dir)
+        .unwrap_or_else(|e| panic!("ghi meta.json ở {}: {e}", dir.display()));
+    fs::write(dir.join("project.db"), b"not a real sqlite file -- AD-9")
+        .unwrap_or_else(|e| panic!("ghi project.db gia: {e}"));
+
+    dir
+}
+
+/// Dựng một `<folder>.atproj/` với `meta.json` **HÌNH DẠNG V1 THẬT** — tám khoá gốc, THIẾU
+/// HẲN `status`/`status_is_override` (không phải `WorkMeta { status: None, .. }` rồi
+/// serialize, thứ LUÔN ghi `"status":null` tường minh). Đây là bằng chứng của
+/// `#[serde(default)]`: một tệp thật sự KHÔNG BAO GIỜ nhắc tới khoá đó, không phải một tệp
+/// mới nhắc tới khoá đó với giá trị `null`.
+fn write_v1_atproj_missing_lifecycle_fields(root: &Path, folder: &str, work_id: &str, name: &str) -> PathBuf {
+    let dir = root.join(format!("{folder}.atproj"));
+    fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tạo {}: {e}", dir.display()));
+
+    let raw = format!(
+        "{{\n  \"meta_schema_version\": 1,\n  \"work_id\": {work_id:?},\n  \"name\": {name:?},\n  \
+         \"source_lang\": \"en\",\n  \"genre\": \"\",\n  \
+         \"created_at\": \"2026-08-01T00:00:00.000Z\",\n  \
+         \"updated_at\": \"2026-08-01T00:00:00.000Z\",\n  \"chapter_count\": 1\n}}"
+    );
+    fs::write(dir.join("meta.json"), raw).unwrap_or_else(|e| panic!("ghi meta.json v1 gia: {e}"));
+    fs::write(dir.join("project.db"), b"not a real sqlite file -- AD-9")
+        .unwrap_or_else(|e| panic!("ghi project.db gia: {e}"));
+
+    dir
+}
+
+/// **Ca DUY NHẤT chứng minh phương án `Option<String>` khác phương án
+/// mặc-định-`"not_started"`** (§Design Notes của story) — một `meta.json` v1 thật (thiếu hẳn
+/// hai khoá mới) vào chỉ mục với `status IS NULL`, và hàng đó KHÔNG khớp bất kỳ giá trị nào
+/// trong bốn bộ lọc, kể cả khi bộ lọc mang đủ cả bốn.
+///
+/// 🔴 Nếu `WorkMeta::status` từng là `String` với `#[serde(default)]` thay vì
+/// `Option<String>`, giá trị mặc định của `String` (`""`, KHÔNG phải `"not_started"` như một
+/// người đọc lướt có thể đoán) sẽ đi vào `library_work.status`; `""` không khớp
+/// `LifecycleStatus::from_wire` ở bất kỳ đâu trong tầng lệnh, nhưng SQL `status IN (...)`
+/// KHÔNG loại nó theo cùng cơ chế `NULL IN (...)` — nó là một chuỗi thật, không phải `NULL`.
+/// Ca dưới đây khẳng định đúng cơ chế `NULL`, và vì thế phân biệt được hai phương án.
+#[test]
+fn a_true_v1_meta_json_indexes_with_status_null_and_matches_no_filter() {
+    let dir = temp_dir("v1-meta-json-missing-fields");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_v1_atproj_missing_lifecycle_fields(&root, "Old", "id-old", "Old Work");
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let outcome = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+    assert_eq!(outcome.indexed, 1, "meta.json v1 phai doc duoc va vao chi muc, khong bi skip");
+
+    let no_filter = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}"));
+    assert_eq!(no_filter.total, 1);
+    assert_eq!(no_filter.works.len(), 1, "khong loc thi hang status IS NULL van phai co mat");
+    assert_eq!(no_filter.works[0].status, None, "meta.json v1 phai doc ra status = None (chua biet)");
+    assert!(!no_filter.works[0].status_is_override);
+
+    let filtered = indexer
+        .list_works(Some(LifecycleStatus::ALL))
+        .unwrap_or_else(|e| panic!("list_works loc du bon gia tri: {e}"));
+    assert_eq!(filtered.total, 1, "tong so hang KHONG doi theo bo loc");
+    assert!(
+        filtered.works.is_empty(),
+        "hang status IS NULL khong duoc khop bat ky gia tri nao trong bon bo loc: {:?}",
+        filtered.works
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// UPSERT chở đúng `status`/`status_is_override` của `meta.json` — không giá trị nào bị bỏ
+/// rơi giữa `WorkMeta` và `library_work`.
+#[test]
+fn rebuild_upserts_the_status_and_override_flag_from_meta_json() {
+    let dir = temp_dir("status-roundtrip");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_atproj_with_status(&root, "Paused", "id-paused", "Paused Work", Some("paused"), true);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let works = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}")).works;
+    assert_eq!(works.len(), 1);
+    assert_eq!(works[0].status.as_deref(), Some("paused"));
+    assert!(works[0].status_is_override, "ghi de thu cong phai duoc giu nguyen qua UPSERT");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// Mỗi giá trị trong bốn giá trị lọc RIÊNG RẼ được — bốn Tác phẩm, bốn trạng thái khác nhau,
+/// lọc theo từng giá trị chỉ trả đúng một hàng.
+#[test]
+fn each_of_the_four_lifecycle_statuses_filters_independently() {
+    let dir = temp_dir("filter-each-status");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_atproj_with_status(&root, "A", "id-a", "A", Some("not_started"), false);
+    write_atproj_with_status(&root, "B", "id-b", "B", Some("in_progress"), false);
+    write_atproj_with_status(&root, "C", "id-c", "C", Some("paused"), true);
+    write_atproj_with_status(&root, "D", "id-d", "D", Some("done"), false);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    for (status, expected_id) in [
+        (LifecycleStatus::NotStarted, "id-a"),
+        (LifecycleStatus::InProgress, "id-b"),
+        (LifecycleStatus::Paused, "id-c"),
+        (LifecycleStatus::Done, "id-d"),
+    ] {
+        let report = indexer
+            .list_works(Some(&[status]))
+            .unwrap_or_else(|e| panic!("list_works loc {status:?}: {e}"));
+        assert_eq!(report.total, 4, "tong so hang KHONG LOC luon la 4, bat ke bo loc nao");
+        assert_eq!(
+            report.works.len(),
+            1,
+            "loc theo {status:?} phai tra dung MOT hang, nhan {:?}",
+            report.works
+        );
+        assert_eq!(report.works[0].work_id, expected_id);
+    }
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// **THÊM (lượt rà 2026-08-28)** — bộ lọc HAI-TRÊN-BỐN, tổ hợp mà người dùng bấm nhiều nhất
+/// (*"chưa xong"* = `not_started` + `in_progress`). Bốn nút lọc bật/tắt độc lập nhau nên MỌI
+/// tập con đều bấm được, nhưng bộ test chỉ có ca một-giá-trị và ca cả-bốn: một `IN (...)` dựng
+/// sai với đúng hai tham số (thừa/thiếu một dấu `?`) lọt qua cả hai ca đó.
+#[test]
+fn a_two_of_four_filter_returns_exactly_the_two_matching_rows() {
+    let dir = temp_dir("filter-two-of-four");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_atproj_with_status(&root, "A", "id-a", "A", Some("not_started"), false);
+    write_atproj_with_status(&root, "B", "id-b", "B", Some("in_progress"), false);
+    write_atproj_with_status(&root, "C", "id-c", "C", Some("paused"), true);
+    write_atproj_with_status(&root, "D", "id-d", "D", Some("done"), false);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let report = indexer
+        .list_works(Some(&[LifecycleStatus::NotStarted, LifecycleStatus::InProgress]))
+        .unwrap_or_else(|e| panic!("list_works loc hai gia tri: {e}"));
+
+    assert_eq!(report.total, 4, "tong so hang KHONG LOC van la 4");
+    assert_eq!(report.works.len(), 2, "dung HAI hang khop, khong phai 1 va khong phai 4");
+    let mut ids: Vec<&str> = report.works.iter().map(|w| w.work_id.as_str()).collect();
+    ids.sort_unstable();
+    assert_eq!(ids, vec!["id-a", "id-b"], "dung hai hang do, khong phai hai hang bat ky");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// Bộ lọc quét sạch: `matched = 0` MÀ `total > 0` — hai con số đến từ CÙNG một lượt đọc, và
+/// một `total > 0` cùng `matched == 0` phải phân biệt được với "Library trống thật" (nơi cả
+/// hai đều 0).
+#[test]
+fn a_filter_matching_nothing_still_reports_the_unfiltered_total() {
+    let dir = temp_dir("filter-matches-nothing");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_atproj_with_status(&root, "A", "id-a", "A", Some("not_started"), false);
+    write_atproj_with_status(&root, "B", "id-b", "B", Some("not_started"), false);
+    write_atproj_with_status(&root, "C", "id-c", "C", Some("not_started"), false);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let report = indexer
+        .list_works(Some(&[LifecycleStatus::Done]))
+        .unwrap_or_else(|e| panic!("list_works: {e}"));
+    assert_eq!(report.total, 3, "tong so hang trong chi muc, khong lien quan bo loc");
+    assert!(report.works.is_empty(), "khong hang nao mang trang thai Done");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// Không lọc (`filter = None`): mọi hàng, KỂ CẢ hàng `status IS NULL` (mô phỏng một
+/// `meta.json` v1 chưa từng qua `rebuild_from_store`) — `matched == total`.
+#[test]
+fn no_filter_returns_every_row_including_a_row_with_unknown_status() {
+    let dir = temp_dir("no-filter-includes-unknown");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_atproj_with_status(&root, "Known", "id-known", "Known", Some("done"), false);
+    write_atproj_with_status(&root, "Unknown", "id-unknown", "Unknown", None, false);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let report = indexer.list_works(None).unwrap_or_else(|e| panic!("list_works: {e}"));
+    assert_eq!(report.total, 2);
+    assert_eq!(report.works.len(), 2, "khong loc thi ca hang status IS NULL cung phai co mat");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// Một hàng `status IS NULL` (chưa biết) KHÔNG khớp bất kỳ giá trị nào trong bốn -- kể cả khi
+/// bộ lọc mang ĐỦ cả bốn giá trị. `NULL IN (...)` luôn không đúng trong SQL, và đây là ca duy
+/// nhất chứng minh phương án `Option<String>` (thay vì mặc định `"not_started"`) tạo ra khác
+/// biệt QUAN SÁT ĐƯỢC: một mặc định sẽ làm hàng này lọt vào bộ lọc `NotStarted`.
+#[test]
+fn a_row_with_unknown_status_never_matches_any_filter_even_all_four_values_at_once() {
+    let dir = temp_dir("unknown-status-matches-no-filter");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_atproj_with_status(&root, "Unknown", "id-unknown", "Unknown", None, false);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let report = indexer
+        .list_works(Some(LifecycleStatus::ALL))
+        .unwrap_or_else(|e| panic!("list_works: {e}"));
+    assert_eq!(report.total, 1);
+    assert!(
+        report.works.is_empty(),
+        "mot hang status IS NULL khong duoc phep khop bat ky gia tri nao trong bo loc, ke ca \
+         khi bo loc mang du bon gia tri: {:?}",
+        report.works
+    );
 
     drop(indexer);
     drop(global);

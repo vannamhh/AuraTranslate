@@ -414,6 +414,16 @@ message_keys! {
     /// câu này, và hộp thoại chọn thư mục của hệ điều hành đã tự lọc phần lớn ca sai hình
     /// dạng trước khi trả về.
     LibraryRootInvalid => "err.library.root_invalid" [],
+
+    // ── Story 5.4 (FR5/FR6) — ĐÚNG MỘT khoá ─────────────────────────────────────────
+    //
+    // Bề mặt IPC "Bốn trạng thái vòng đời". Danh mục ĐÓNG: ca "chưa Tác phẩm nào mở" tái
+    // dùng `WorkNoneOpen`, ca "chapter_id không tồn tại" tái dùng `SegmentChapterNotFound`
+    // — cả hai đã có ở trên, không đúc khoá thứ hai/ba cho cùng câu.
+    /// Giá trị trạng thái vòng đời ngoài danh mục bốn giá trị đóng của
+    /// [`crate::core::lifecycle::LifecycleStatus`] — đi qua `set_chapter_status` hoặc
+    /// `set_work_status_override`. Không một lượt ghi nào chạy trước khi lỗi này được trả.
+    LifecycleUnknownStatus => "err.lifecycle.unknown_status" ["status"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

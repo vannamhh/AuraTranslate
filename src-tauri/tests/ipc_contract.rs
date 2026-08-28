@@ -468,3 +468,85 @@ fn library_wire_structs_keep_snake_case_field_names() {
          số một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
     );
 }
+
+/// **THÊM Story 5.4.** Đóng băng tên trường `snake_case` của `WorkRow`/`WorkListReport` —
+/// cùng lý lẽ và cùng khuôn [`library_wire_structs_keep_snake_case_field_names`] ngay trên:
+/// một trường mới đi qua IPC mà không ai đối chiếu là đúng thứ ca này tồn tại để chặn.
+#[test]
+fn library_work_list_wire_structs_keep_snake_case_field_names() {
+    let report = auratranslate_lib::commands::library::WorkListReport {
+        total: 4,
+        matched: 1,
+        works: vec![auratranslate_lib::commands::library::WorkRow {
+            work_id: "id-1".to_owned(),
+            atproj_path: "/tmp/x.atproj".to_owned(),
+            name: "Tên".to_owned(),
+            source_lang: "zh".to_owned(),
+            genre: "".to_owned(),
+            created_at: "2026-08-01T00:00:00.000Z".to_owned(),
+            updated_at: "2026-08-01T00:00:00.000Z".to_owned(),
+            chapter_count: 1,
+            status: Some("paused".to_owned()),
+            status_is_override: true,
+        }],
+    };
+    let value = serde_json::to_value(&report).expect("WorkListReport phải serialize được");
+    let mut top_keys: Vec<&str> =
+        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    top_keys.sort_unstable();
+    assert_eq!(
+        top_keys,
+        vec!["matched", "total", "works"],
+        "khoá trên dây của WorkListReport là snake_case. Nhận được: {top_keys:?}."
+    );
+
+    let work_value = value
+        .get("works")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())
+        .expect("works phải mang ít nhất một mục cho ca test này");
+    let mut work_keys: Vec<&str> = work_value
+        .as_object()
+        .expect("một mục works phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    work_keys.sort_unstable();
+    assert_eq!(
+        work_keys,
+        vec![
+            "atproj_path",
+            "chapter_count",
+            "created_at",
+            "genre",
+            "name",
+            "source_lang",
+            "status",
+            "status_is_override",
+            "updated_at",
+            "work_id",
+        ],
+        "khoá trên dây của WorkRow là snake_case. Nhận được: {work_keys:?}. Nghi phạm số một: \
+         `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+}
+
+/// **THÊM Story 5.4.** Đóng băng tên trường `snake_case` của `WorkLifecycle` — struct trả về
+/// của cả ba lệnh vòng đời (`read_work_lifecycle`/`set_chapter_status`/
+/// `set_work_status_override`).
+#[test]
+fn lifecycle_wire_struct_keeps_snake_case_field_names() {
+    let lifecycle = auratranslate_lib::commands::lifecycle::WorkLifecycle {
+        status: Some("paused".to_owned()),
+        status_is_override: true,
+    };
+    let value = serde_json::to_value(&lifecycle).expect("WorkLifecycle phải serialize được");
+    let mut keys: Vec<&str> =
+        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        vec!["status", "status_is_override"],
+        "khoá trên dây của WorkLifecycle là snake_case. Nhận được: {keys:?}."
+    );
+}

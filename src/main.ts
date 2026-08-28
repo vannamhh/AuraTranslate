@@ -64,6 +64,18 @@ import {
   prevLibraryOrphan,
   rescanLibraryFolder,
 } from './modes/libraryRescan'
+// ── Story 5.4 — "Bốn trạng thái vòng đời" (FR5/FR6) ──────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `libraryRescan.ts`: `libraryWorks.ts` là một module Vue
+// thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/library.ts`/`config/lifecycle.ts`.
+import {
+  clearOpenWorkOverride,
+  clearStatusFilter,
+  loadWorks,
+  setOpenChapterStatus,
+  setOpenWorkOverride,
+  toggleStatusFilter,
+} from './modes/libraryWorks'
 // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `libraryImport.ts`: `sourcePanelState.ts` dùng `ref` của
@@ -341,6 +353,16 @@ async function boot(): Promise<void> {
       forgetCurrentLibraryOrphan,
       nextLibraryOrphan,
       prevLibraryOrphan,
+      // Story 5.4 — "Bốn trạng thái vòng đời" (FR5/FR6).
+      loadLibraryWorks: loadWorks,
+      toggleLibraryFilterNotStarted: () => toggleStatusFilter('not_started'),
+      toggleLibraryFilterInProgress: () => toggleStatusFilter('in_progress'),
+      toggleLibraryFilterPaused: () => toggleStatusFilter('paused'),
+      toggleLibraryFilterDone: () => toggleStatusFilter('done'),
+      clearLibraryFilter: clearStatusFilter,
+      setOpenWorkOverridePaused: setOpenWorkOverride,
+      clearOpenWorkOverride,
+      setOpenChapterDone: setOpenChapterStatus,
       selectSourceTab,
       toggleHanVietView,
       runLookup,

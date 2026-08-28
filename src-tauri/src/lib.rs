@@ -332,6 +332,14 @@ pub fn run() {
             crate::commands::library::wire::library_rescan,
             crate::commands::library::wire::library_choose_root,
             crate::commands::library::wire::library_forget_orphan,
+            // Story 5.4 -- "Bon trang thai vong doi" (FR5/FR6). Doc thuan, khong `(async)`.
+            crate::commands::library::wire::library_list_works,
+            // Story 5.4 -- ba lenh vong doi. `read_work_lifecycle` doc thuan; hai lenh ghi
+            // mang `(async)` (buoc reindex la mot luot quet dia toan bo) -- xem doc-comment
+            // cua `commands::lifecycle::wire`.
+            crate::commands::lifecycle::wire::read_work_lifecycle,
+            crate::commands::lifecycle::wire::set_chapter_status,
+            crate::commands::lifecycle::wire::set_work_status_override,
             crate::commands::chapter::wire::read_open_chapter,
             // Story 2.11 — chuyen Chuong trong Workspace (FR26). RUST quyet Chuong ke
             // (Quyet dinh #3(a), Ice ky 2026-08-18): webview chi noi HUONG, va luat "ke la

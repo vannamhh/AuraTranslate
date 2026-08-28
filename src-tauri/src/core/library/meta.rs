@@ -30,7 +30,14 @@ pub const META_FILE: &str = "meta.json";
 
 /// Phiên bản lược đồ **của chính `meta.json`**, độc lập với `PRAGMA user_version` của
 /// `project.db` — hai tệp, hai số phiên bản, đúng AC7.
-pub const META_SCHEMA_VERSION: u32 = 1;
+///
+/// 🔵 **NÂNG 1 → 2 (2026-08-27, Story 5.4)** — hai trường `status`/`status_is_override`
+/// thêm vào [`WorkMeta`]. `WorkMeta::read` chỉ từ chối bản **mới hơn** (xem doc-comment của
+/// hàm đó), nên mọi `meta.json` v1 viết TRƯỚC story này vẫn đọc được sau lượt nâng: cả hai
+/// trường mới đọc ra giá trị mặc định của kiểu (`None`/`false`) qua `#[serde(default)]` —
+/// đúng CHỦ Ý, không phải một khoảng trống. Xem §Design Notes "Vì sao `Option<String>`" của
+/// `5-4-bon-trang-thai-vong-doi.md`.
+pub const META_SCHEMA_VERSION: u32 = 2;
 
 /// Mọi cách đọc/ghi `meta.json` hỏng.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,6 +96,27 @@ pub struct WorkMeta {
     /// Số Chương — **cache** của FR7, AD-33 nêu đích danh đây là thứ `meta.json` cache lại
     /// để Library đọc tiến độ mà không mở SQLite.
     pub chapter_count: u32,
+    /// 🔵 **THÊM (2026-08-27, Story 5.4)** — trạng thái vòng đời hiển thị của Tác phẩm, một
+    /// trong bốn giá trị trên dây của [`crate::core::lifecycle::LifecycleStatus`], hoặc
+    /// `None`.
+    ///
+    /// `#[serde(default)]` — **KHÔNG** `#[serde(default = "...")]` về một giá trị mặc định
+    /// cụ thể: một `meta.json` v1 (viết trước story này) không mang khoá này, và đọc nó ra
+    /// `None` phải nói *CHƯA BIẾT*, không được lặng lẽ trở thành *"Chưa bắt đầu"*. Một Tác
+    /// phẩm đã dịch xong mà hiện "Chưa bắt đầu" trong Library, không một lỗi nào được ném,
+    /// là đúng lớp *"rỗng im lặng"* mà `AGENTS.md::Known pitfalls` gọi tên. [`Self::rebuild_from_store`]
+    /// LUÔN đặt trường này thành `Some(..)` — `None` chỉ tồn tại trên những `meta.json` mà
+    /// đường dựng lại chưa từng chạm tới.
+    #[serde(default)]
+    pub status: Option<String>,
+    /// 🔵 **THÊM (2026-08-27, Story 5.4)** — `true` ⇔ [`Self::status`] đến từ
+    /// `work.status_override` (ghi đè thủ công), `false` ⇔ giá trị suy ra tự động (hoặc
+    /// `status` là `None`, tức chưa biết — cờ này không mang nghĩa gì trong ca đó).
+    ///
+    /// `#[serde(default)]` — `meta.json` v1 không mang khoá này ⇒ `false`, đúng nghĩa "không
+    /// biết có ghi đè hay không" cho một Tác phẩm chưa từng qua đường dựng lại của story này.
+    #[serde(default)]
+    pub status_is_override: bool,
 }
 
 impl WorkMeta {
@@ -183,20 +211,29 @@ impl WorkMeta {
 
     /// Dựng lại `meta.json` từ **`project.db`** — bằng chứng của mệnh đề "dẫn xuất" (AD-33).
     ///
-    /// Đọc hàng `work` (đúng một, `CHECK (id = 1)`) và đếm `chapter`, qua [`Store::read`]
-    /// — không giao dịch ghi nào chạy ở đây.
+    /// Đọc hàng `work` (đúng một, `CHECK (id = 1)`, cộng `status_override`) và cả đếm lẫn
+    /// đọc trạng thái từng `chapter`, qua [`Store::read`] — không giao dịch ghi nào chạy ở
+    /// đây.
+    ///
+    /// 🔵 **THÊM (2026-08-27, Story 5.4)** — `status`/`status_is_override` tính TẠI ĐÂY, chỗ
+    /// DUY NHẤT tính giá trị suy ra (§Approach của story): `work.status_override IS NOT
+    /// NULL` ⇒ giữ nguyên giá trị đó, `is_override = true`; ngược lại gọi
+    /// [`crate::core::lifecycle::derive_work_status`] trên tập trạng thái của MỌI Chương,
+    /// `is_override = false`. Trường này LUÔN `Some(..)` sau một lượt dựng lại — `None` chỉ
+    /// còn tồn tại trên những `meta.json` cũ mà đường này chưa từng chạm tới.
     pub fn rebuild_from_store(store: &Store) -> Result<WorkMeta, StoreError> {
         store.read(|conn: ReadHandle<'_>| {
-            let (work_id, name, source_lang, genre, created_at, updated_at): (
+            let (work_id, name, source_lang, genre, created_at, updated_at, status_override): (
                 String,
                 String,
                 String,
                 String,
                 String,
                 String,
+                Option<String>,
             ) = conn.query_row(
-                "SELECT work_id, name, source_lang, genre, created_at, updated_at \
-                 FROM work WHERE id = 1",
+                "SELECT work_id, name, source_lang, genre, created_at, updated_at, \
+                 status_override FROM work WHERE id = 1",
                 [],
                 |row| {
                     Ok((
@@ -206,12 +243,56 @@ impl WorkMeta {
                         row.get(3)?,
                         row.get(4)?,
                         row.get(5)?,
+                        row.get(6)?,
                     ))
                 },
             )?;
 
             let chapter_count: u32 =
                 conn.query_row("SELECT COUNT(*) FROM chapter", [], |row| row.get(0))?;
+
+            // §Never của story: "không tự suy trạng thái Chương từ trạng thái segment" -- đọc
+            // thẳng `chapter.status`, không đi vòng qua `segment`.
+            let mut stmt = conn.prepare("SELECT status FROM chapter")?;
+            let chapter_status_rows: Vec<String> = stmt
+                .query_map([], |row| row.get::<_, String>(0))?
+                .collect::<crate::core::store::SqlResult<Vec<_>>>()?;
+            drop(stmt);
+
+            let (status, status_is_override) = match status_override {
+                Some(raw) => (Some(raw), true),
+                None => {
+                    // Mọi giá trị ghi qua `commands::lifecycle`/`create_work` đã được
+                    // `LifecycleStatus` cưỡng chế ở tầng Rust trước khi chạm SQL (§Always) --
+                    // `filter_map` ở đây chỉ là lớp phòng thủ cho một hàng cũ/hỏng, không phải
+                    // đường vào bình thường.
+                    //
+                    // 🔴 NHƯNG BỎ QUA IM LẶNG THÌ CẤM (lượt rà 2026-08-28). Nếu MỌI hàng
+                    // `chapter` đều hỏng, `chapters` rỗng và `derive_work_status(&[])` trả
+                    // `NotStarted` -- tức một Tác phẩm CÓ Chương bị khai là "Chua bat dau", và
+                    // hỏng dữ liệu đội lốt một trạng thái hợp lệ. Đúng lớp lỗi trung tâm mà
+                    // `AGENTS.md::Known pitfalls` gọi tên. Không đường nào ở đây trả lỗi ra
+                    // người dùng được (`meta.json` là cache dẫn xuất, và một Tác phẩm không mở
+                    // được vì MỘT hàng hỏng thì tệ hơn), nên nó phải để lại VẾT ở chẩn đoán.
+                    let mut chapters: Vec<crate::core::lifecycle::LifecycleStatus> = Vec::new();
+                    for raw in &chapter_status_rows {
+                        match crate::core::lifecycle::LifecycleStatus::from_wire(raw) {
+                            Some(parsed) => chapters.push(parsed),
+                            None => eprintln!(
+                                "meta[{work_id}] chapter.status khong nam trong danh muc bon gia tri: {raw:?}                                  -- hang nay bi bo qua khi suy ra trang thai Tac pham"
+                            ),
+                        }
+                    }
+                    if chapters.is_empty() && !chapter_status_rows.is_empty() {
+                        eprintln!(
+                            "meta[{work_id}] KHONG hang chapter nao doc duoc ({} hang tren dia)                              -- trang thai suy ra duoi day la not_started vi THIEU du lieu,                              khong phai vi Tac pham chua bat dau",
+                            chapter_status_rows.len()
+                        );
+                    }
+                    let derived = crate::core::lifecycle::derive_work_status(&chapters);
+                    (Some(derived.as_str().to_owned()), false)
+                }
+            };
 
             Ok(WorkMeta {
                 meta_schema_version: META_SCHEMA_VERSION,
@@ -222,6 +303,8 @@ impl WorkMeta {
                 created_at,
                 updated_at,
                 chapter_count,
+                status,
+                status_is_override,
             })
         })
     }

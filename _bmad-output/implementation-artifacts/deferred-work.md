@@ -8095,6 +8095,21 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     `ci.yml` ở nhịp đêm"*. Phần còn thật và còn mở: `library_choose_root` vẫn không ca tự
     động nào chạm (hộp thoại native), và AC6 ("gõ được trong lúc quét") vẫn chỉ nghiệm thu
     bằng tay. Chủ giữ nguyên Story 5.6 cho phần còn hở.
+    🔵 **NỐI TIẾP 2026-08-27 (Story 5.4) — CHỖ GỌI THỨ TƯ, cùng lớp "đoạn nối", MỘT PHẦN
+    ĐƯỢC PHỦ.** `commands::lifecycle::wire::{set_chapter_status, set_work_status_override}`
+    gọi lại `commands::project::wire::reindex_library` (đổi tên từ
+    `reindex_after_create_work` ở chính story này) SAU mỗi lượt ghi trạng thái thành công —
+    chỗ gọi thứ TƯ xuyên `AppHandle` thật. `tests/lifecycle_contract.rs` (Story 5.4) gọi
+    thẳng hàm THUẦN (`set_chapter_status`/`set_work_status_override`), cùng lớp "không chạm
+    `#[tauri::command]` thật" như ba chỗ gọi trước. Khác ba chỗ kia:
+    `e2e/specs/story-5-4-lifecycle.e2e.mjs` (Story 5.4) đi trọn đường nút thật →
+    `set_work_status_override`/`set_chapter_status` → DOM cho ĐÚNG hai kịch bản tối thiểu
+    (ghi đè thủ công hiện dấu phân biệt, một bộ lọc lọc riêng rẽ) — nên chỗ gọi thứ tư này
+    KHÔNG mồ côi hoàn toàn như ba chỗ trước lúc chúng mới sinh ra, nhưng vẫn chưa có ca nào
+    canh RIÊNG mệnh đề "gỡ lượt gọi `reindex_library` khỏi `commands::lifecycle::wire` thì
+    `library_work` không cập nhật" — đối chứng đó chỉ chạy TAY (§Verification của story,
+    "Đối chứng bắt buộc"), không phải một cổng tự động. Chủ giữ nguyên Story 5.6 cho phần
+    "một cổng tự động canh cả bốn chỗ gọi cùng lúc, không đối chứng tay từng story".
 
 - source_spec: `_bmad-output/implementation-artifacts/5-2-chi-muc-library-dan-xuat-mot-duong-ghi-duy-nhat.md`
   summary: **Hai lượt `Indexer::rebuild` chạy chồng có thể xen kẽ và để chỉ mục phản ánh một ảnh chụp
@@ -8185,3 +8200,55 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     thấy danh sách ngay", nên nó là chỗ tự nhiên quyết định: thêm một lệnh ĐỌC THUẦN riêng
     (`Indexer::list_works` qua vỏ mới), hay giữ nguyên "mở = quét lại" và chấp nhận chi phí đó
     tới khi Story 6.18 đo được nó có thật là một vấn đề không.)**
+    🔵 **NỐI TIẾP 2026-08-27 (Story 5.4) — vế "chưa có lệnh IPC nào chỉ ĐỌC" ĐÃ ĐÓNG MỘT
+    NỬA.** Story 5.4 thêm `commands::library::wire::library_list_works` — một vỏ
+    `#[tauri::command]` gọi thẳng `Indexer::list_works(filter)`, KHÔNG quét lại đĩa
+    (không `#[tauri::command(async)]`, không `Indexer::rebuild`). `LibraryMode.vue` nay GỌI
+    nó (khối "Tác phẩm" mới, `dispatch('library.list_works')` cộng auto-load ở `onMounted`),
+    nên câu "màn hình chỉ có dữ liệu SAU khi bấm Quét lại" ở đoạn `evidence` trên **hết đúng
+    một phần**: danh sách Tác phẩm nay tự tải mà KHÔNG cần quét lại. Phần CÒN MỞ, chưa đóng:
+    khối "thư mục gốc + mục mồ côi" của Story 5.3 vẫn đúng như cũ (chỉ có dữ liệu sau khi bấm
+    "Quét lại"/"Đổi thư mục gốc") — hai khối sống cạnh nhau trong CÙNG một `LibraryMode.vue`
+    với hai vòng đời tải khác nhau. Chủ giữ nguyên Story 5.6 cho phần mồ côi/quét lại.
+
+- source_spec: `_bmad-output/implementation-artifacts/5-4-bon-trang-thai-vong-doi.md`
+  summary: **Mỗi lượt ghi trạng thái vòng đời (đổi trạng thái một Chương, hoặc ghi đè/bỏ ghi
+    đè Tác phẩm) kéo theo một lượt `reindex_library` — quét TOÀN BỘ thư mục gốc Library, đọc
+    lại `meta.json` của MỌI `.atproj`, kể cả những Tác phẩm không liên quan gì tới lượt ghi
+    vừa xảy ra.** Trên một thư viện nhỏ chi phí này không đáng kể; trên một thư viện lớn (khi
+    Story 6.18 có đường tạo ra), một cú bấm "Đặt Chương này là Đã xong" sẽ kéo theo cùng chi
+    phí I/O với một lượt "Quét lại" thủ công toàn bộ — một bất cân xứng giữa mức độ thao tác
+    (một Chương) và chi phí nó gây ra (toàn thư viện).
+  evidence: đo 2026-08-27 — `commands::lifecycle::wire::{set_chapter_status,
+    set_work_status_override}` gọi `commands::project::wire::reindex_library(app, root)` sau
+    MỖI lượt ghi thành công; hàm đó gọi `Indexer::rebuild(root, global)`, và
+    `Indexer::rebuild` luôn quét lại `root` bằng `scan_atproj_dirs` — không có đường "chỉ cập
+    nhật đúng một hàng `library_work`" (§Always của story 5.2: "một đường ghi duy nhất", cố ý
+    không tách một đường ghi tăng dần cho một Tác phẩm — xem doc-comment của
+    `Indexer::rebuild`). Đây là phép đánh đổi CÓ CHỦ của Story 5.2, và Story 5.4 chỉ THÊM một
+    chỗ gọi vào đúng cơ chế đã có, không phải một quyết định mới của story này.
+    **(Chủ: Story 5.6 — lưới Tác phẩm, lọc và sắp xếp — cùng món nợ "đường ĐỌC thuần thay cho
+    lượt quét lúc mở Library" ở mục ngay trên: cả hai đòi cùng một quyết định kiến trúc — có
+    tách một đường ghi TĂNG DẦN cho `library_work` hay không, và đó là một quyết định kiến
+    trúc [AD] mới, không phải một lượt tối ưu tiện tay theo `AGENTS.md::Known pitfalls`.)**
+
+- source_spec: `_bmad-output/implementation-artifacts/5-4-bon-trang-thai-vong-doi.md`
+  summary: **Ba lệnh vòng đời (`set_chapter_status`/`set_work_status_override`/
+  `read_work_lifecycle`) chỉ hoạt động trên Tác phẩm ĐANG MỞ** (`OpenWorkState`) — không có
+    đường nào đổi trạng thái của một Tác phẩm khác đang hiện trong danh sách Library mà
+    không phải Tác phẩm đang mở trong Workspace.
+  evidence: cả ba hàm thuần của `commands::lifecycle` nhận `Option<&OpenWork>`/
+    `Option<&mut OpenWork>`, đọc qua `OpenWorkState` — đúng khuôn MỌI bề mặt IPC khác của kho
+    hôm nay (`commands::chapter`, `commands::segment`, …), vì hôm nay `project.db` **duy
+    nhất** ứng dụng mở được là Tác phẩm trong `OpenWorkState`; đường mở lại một `.atproj` đã
+    có trên đĩa CHƯA TỒN TẠI (món nợ kiến trúc trung tâm của Epic 5, ghi ở
+    `epic-5-context.md`). Đây là một GIỚI HẠN THẬT, không phải một thiếu sót của story này —
+    xem §Design Notes "Phạm vi bề mặt, và ràng buộc thật đứng sau nó" của
+    `5-4-bon-trang-thai-vong-doi.md`: danh sách Library ĐỌC trạng thái của MỌI Tác phẩm (qua
+    `library_list_works`, đọc chỉ mục — không cần mở `.atproj`), chỉ việc ĐỔI trạng thái mới
+    bị giới hạn ở Tác phẩm đang mở.
+    **(Chủ: Story 5.6/5.7 — lưới Tác phẩm và mở Chương — cùng chủ với món nợ kiến trúc trung
+    tâm "đường mở lại một `.atproj` đã có trên đĩa" mà `epic-5-context.md` đã giao trước: một
+    khi đường mở lại tồn tại, ba lệnh vòng đời của story này tự nhiên mở rộng ra được cho bất
+    kỳ Tác phẩm nào, không cần sửa lại chữ ký của chính chúng — `Option<&mut OpenWork>` đã là
+    đúng hình dạng, chỉ thiếu đường ĐẶT một `OpenWork` khác vào đó.)**

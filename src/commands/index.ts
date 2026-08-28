@@ -228,6 +228,33 @@ export type CommandDeps = {
   /** Chuyển con trỏ lên mục mồ côi trước. Handler của `library.orphan_prev`. */
   prevLibraryOrphan?: () => void
 
+  // ── Story 5.4 — "Bốn trạng thái vòng đời" (FR5/FR6) ─────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `rescanLibraryFolder`: state sống ở
+  // `src/modes/libraryWorks.ts`, một module Vue thật (`ref`) — import thẳng nó ở đây giết
+  // Kiểm C/D/E cùng lý do `@tauri-apps/api` bị cấm.
+
+  /** Tải (hoặc tải lại) danh sách Tác phẩm theo bộ lọc hiện thời. Handler của
+   * `library.list_works` (có phím mặc định). */
+  loadLibraryWorks?: () => void
+  /** Bật/tắt lọc theo *Chưa bắt đầu*. Handler của `library.filter_not_started`. */
+  toggleLibraryFilterNotStarted?: () => void
+  /** Bật/tắt lọc theo *Đang dịch*. Handler của `library.filter_in_progress`. */
+  toggleLibraryFilterInProgress?: () => void
+  /** Bật/tắt lọc theo *Tạm ngưng*. Handler của `library.filter_paused`. */
+  toggleLibraryFilterPaused?: () => void
+  /** Bật/tắt lọc theo *Đã xong*. Handler của `library.filter_done`. */
+  toggleLibraryFilterDone?: () => void
+  /** Bỏ mọi bộ lọc trạng thái đang bật. Handler của `library.filter_clear`. */
+  clearLibraryFilter?: () => void
+  /** Ghi đè trạng thái Tác phẩm đang mở thành *Tạm ngưng*. Handler của
+   * `lifecycle.set_work_override_paused`. */
+  setOpenWorkOverridePaused?: () => void
+  /** Bỏ ghi đè trạng thái Tác phẩm đang mở. Handler của `lifecycle.clear_work_override`. */
+  clearOpenWorkOverride?: () => void
+  /** Đặt Chương đang mở thành *Đã xong*. Handler của `lifecycle.set_chapter_done`. */
+  setOpenChapterDone?: () => void
+
   // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `applyPreset`/`submitPastedText`: state sống ở
@@ -912,6 +939,112 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.prevLibraryOrphan === undefined) return portMissing('library.orphan_prev', 'prevLibraryOrphan')
       deps.prevLibraryOrphan()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 5.4 — "BỐN TRẠNG THÁI VÒNG ĐỜI" (FR5/FR6)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `library.list_works` là điểm vào có phím mặc định — `Mod+Alt+W` (mnemonic "Works").
+   * ⚠️ Đo 2026-08-27: `grep -oE "Mod\+Alt\+[A-Za-z0-9]+"` trên tệp này cho `Mod+Alt+W` = 0,
+   * còn trống.
+   *
+   * Tám lệnh còn lại giữ 0 hợp âm mặc định, cùng chủ ý các nút lọc/vòng đời khác của kho:
+   * bấm/gõ qua `dispatch('<id>')` từ `.vue`, không gọi thẳng.
+   */
+  target.register({
+    id: 'library.list_works',
+    labelKey: 'command.library.list_works',
+    keys: ['Mod+Alt+W'],
+    run: () => {
+      if (deps.loadLibraryWorks === undefined) return portMissing('library.list_works', 'loadLibraryWorks')
+      deps.loadLibraryWorks()
+    },
+  })
+  target.register({
+    id: 'library.filter_not_started',
+    labelKey: 'command.library.filter_not_started',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleLibraryFilterNotStarted === undefined) {
+        return portMissing('library.filter_not_started', 'toggleLibraryFilterNotStarted')
+      }
+      deps.toggleLibraryFilterNotStarted()
+    },
+  })
+  target.register({
+    id: 'library.filter_in_progress',
+    labelKey: 'command.library.filter_in_progress',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleLibraryFilterInProgress === undefined) {
+        return portMissing('library.filter_in_progress', 'toggleLibraryFilterInProgress')
+      }
+      deps.toggleLibraryFilterInProgress()
+    },
+  })
+  target.register({
+    id: 'library.filter_paused',
+    labelKey: 'command.library.filter_paused',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleLibraryFilterPaused === undefined) {
+        return portMissing('library.filter_paused', 'toggleLibraryFilterPaused')
+      }
+      deps.toggleLibraryFilterPaused()
+    },
+  })
+  target.register({
+    id: 'library.filter_done',
+    labelKey: 'command.library.filter_done',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleLibraryFilterDone === undefined) {
+        return portMissing('library.filter_done', 'toggleLibraryFilterDone')
+      }
+      deps.toggleLibraryFilterDone()
+    },
+  })
+  target.register({
+    id: 'library.filter_clear',
+    labelKey: 'command.library.filter_clear',
+    keys: undefined,
+    run: () => {
+      if (deps.clearLibraryFilter === undefined) return portMissing('library.filter_clear', 'clearLibraryFilter')
+      deps.clearLibraryFilter()
+    },
+  })
+  target.register({
+    id: 'lifecycle.set_work_override_paused',
+    labelKey: 'command.lifecycle.set_work_override_paused',
+    keys: undefined,
+    run: () => {
+      if (deps.setOpenWorkOverridePaused === undefined) {
+        return portMissing('lifecycle.set_work_override_paused', 'setOpenWorkOverridePaused')
+      }
+      deps.setOpenWorkOverridePaused()
+    },
+  })
+  target.register({
+    id: 'lifecycle.clear_work_override',
+    labelKey: 'command.lifecycle.clear_work_override',
+    keys: undefined,
+    run: () => {
+      if (deps.clearOpenWorkOverride === undefined) {
+        return portMissing('lifecycle.clear_work_override', 'clearOpenWorkOverride')
+      }
+      deps.clearOpenWorkOverride()
+    },
+  })
+  target.register({
+    id: 'lifecycle.set_chapter_done',
+    labelKey: 'command.lifecycle.set_chapter_done',
+    keys: undefined,
+    run: () => {
+      if (deps.setOpenChapterDone === undefined) return portMissing('lifecycle.set_chapter_done', 'setOpenChapterDone')
+      deps.setOpenChapterDone()
     },
   })
 

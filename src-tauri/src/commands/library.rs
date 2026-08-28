@@ -1,8 +1,9 @@
-//! Bề mặt IPC "Quét lại thư mục" — Story 5.3, FR99.
+//! Bề mặt IPC "Quét lại thư mục" (Story 5.3, FR99) VÀ đường ĐỌC "Bốn trạng thái vòng đời"
+//! (Story 5.4, FR5/FR6 — chỉ vế LỌC/LIỆT KÊ; vế GHI sống ở `commands::lifecycle`).
 //!
 //! Cùng khuôn `commands::config`/`commands::project`: hai lớp, hàm thuần trước
-//! ([`rescan`]/[`forget_orphan`], nhận `Option<&Indexer>` — thứ `tests/**` gọi được không
-//! cần webview), `#[tauri::command]` chỉ là vỏ mỏng trong `mod wire`.
+//! ([`rescan`]/[`forget_orphan`]/[`list_works`], nhận `Option<&Indexer>` — thứ `tests/**` gọi
+//! được không cần webview), `#[tauri::command]` chỉ là vỏ mỏng trong `mod wire`.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 MODULE NÀY GỌI XUỐNG `Indexer` QUA `try_state` — KHÔNG TỰ DỰNG `StoreSpec`
@@ -28,8 +29,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::core::i18n::{IpcError, MessageKey};
-use crate::core::library::indexer::{IndexError, Indexer, WorkIdConflict};
+use crate::core::library::indexer::{IndexError, Indexer, IndexedWork, WorkIdConflict};
 use crate::core::library::orphan_store::OrphanRecord;
+use crate::core::lifecycle::LifecycleStatus;
 use crate::core::store::{Store, StoreError, StoreKind};
 
 /// Một hàng mồ côi, gói lại cho dây IPC — hình dạng trên dây TRÙNG [`OrphanRecord`] (đường
@@ -158,8 +160,8 @@ pub fn rescan(
 
     let outcome = indexer.rebuild(root, global)?;
     // Cùng đường chẩn đoán CHUNG mà `lib.rs::open_library_index` và
-    // `commands::project::wire::reindex_after_create_work` đã dùng — chỗ gọi thứ BA
-    // (người dùng bấm) không được đứng ngoài quy ước đó.
+    // `commands::project::wire::reindex_library` (đổi tên ở Story 5.4) đã dùng — một chỗ gọi
+    // KHÁC (người dùng bấm "Quét lại") không được đứng ngoài quy ước đó.
     outcome.log_if_notable("rescan");
 
     // `outcome.current_orphans` là ảnh chụp lấy TRONG cùng phạm vi khoá của
@@ -261,12 +263,104 @@ pub fn apply_chosen_root(
     Ok(Some(report))
 }
 
-/// Ba vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.4 — đường ĐỌC "bốn trạng thái vòng đời": danh sách Tác phẩm + bộ lọc.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Một hàng của `library_work`, gói lại cho dây IPC — hình dạng `snake_case`, đóng băng ở
+/// `tests/ipc_contract.rs`.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật mọi struct qua biên (AD-21).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct WorkRow {
+    pub work_id: String,
+    pub atproj_path: String,
+    pub name: String,
+    pub source_lang: String,
+    pub genre: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub chapter_count: u32,
+    pub status: Option<String>,
+    pub status_is_override: bool,
+}
+
+impl From<IndexedWork> for WorkRow {
+    fn from(work: IndexedWork) -> Self {
+        Self {
+            work_id: work.work_id,
+            atproj_path: work.atproj_path.display().to_string(),
+            name: work.name,
+            source_lang: work.source_lang,
+            genre: work.genre,
+            created_at: work.created_at,
+            updated_at: work.updated_at,
+            chapter_count: work.chapter_count,
+            status: work.status,
+            status_is_override: work.status_is_override,
+        }
+    }
+}
+
+/// Kết quả một lượt [`list_works`] — `total` (tổng số hàng CHƯA LỌC) VÀ `matched`
+/// (`works.len()`, tường minh trên dây) trong **MỘT** lượt đọc, để hai con số không bao giờ
+/// đến từ hai ảnh chụp khác nhau (§Always: *"một danh sách rỗng phải nói vì sao rỗng"*).
+///
+/// ⚠️ `matched` LÀ `works.len()` — trường tường minh trên dây có chủ ý (không suy luận từ
+/// `.length` phía TypeScript, AD-1), khác [`crate::core::library::indexer::WorksReport`] ở
+/// tầng dưới, nơi một trường thứ hai mang cùng con số là thứ có thể trôi khỏi nhau nên bị bỏ.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct WorkListReport {
+    pub total: usize,
+    pub matched: usize,
+    pub works: Vec<WorkRow>,
+}
+
+/// **Hàm thuần** — liệt kê + lọc Tác phẩm cho Library, Story 5.4.
+///
+/// Bộ lọc là danh sách chuỗi trên dây (0 hoặc nhiều trong bốn giá trị của
+/// [`LifecycleStatus`]); `filter = None` hoặc `Some(&[])` ⇒ không lọc — mọi hàng, kể cả hàng
+/// `status IS NULL`.
+///
+/// # Lỗi
+/// `indexer = None` ⇒ `library.indexer_missing`; một giá trị trong `filter` ngoài danh mục
+/// bốn giá trị đóng ⇒ `err.lifecycle.unknown_status` `{status}` (tái dùng
+/// [`crate::commands::lifecycle::unknown_status`], KHÔNG im lặng bỏ qua giá trị lạ).
+pub fn list_works(
+    indexer: Option<&Indexer>,
+    filter: Option<&[String]>,
+) -> Result<WorkListReport, IpcError> {
+    let indexer = indexer.ok_or_else(indexer_is_missing)?;
+
+    let parsed_filter: Option<Vec<LifecycleStatus>> = match filter {
+        None => None,
+        Some(raw) if raw.is_empty() => None,
+        Some(raw) => {
+            let mut statuses = Vec::with_capacity(raw.len());
+            for value in raw {
+                let status = LifecycleStatus::from_wire(value)
+                    .ok_or_else(|| crate::commands::lifecycle::unknown_status(value))?;
+                statuses.push(status);
+            }
+            Some(statuses)
+        }
+    };
+
+    let report = indexer.list_works(parsed_filter.as_deref())?;
+    let works: Vec<WorkRow> = report.works.into_iter().map(WorkRow::from).collect();
+    Ok(WorkListReport { total: report.total, matched: works.len(), works })
+}
+
+/// Bốn vỏ `#[tauri::command]` — ba của Story 5.3, cộng [`library_list_works`] của Story 5.4.
+/// **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use tauri::Manager as _;
     use tauri_plugin_dialog::DialogExt as _;
 
-    use super::{OrphanEntry, RescanReport, indexer_is_missing, root_invalid, store_is_missing};
+    use super::{
+        OrphanEntry, RescanReport, WorkListReport, indexer_is_missing, root_invalid,
+        store_is_missing,
+    };
     use crate::core::i18n::IpcError;
     use crate::core::library::indexer::Indexer;
     use crate::core::store::Store;
@@ -353,5 +447,19 @@ pub mod wire {
         let store = app.try_state::<Store>();
         let indexer = app.try_state::<Indexer>();
         super::apply_chosen_root(store.as_deref(), indexer.as_deref(), path.as_deref())
+    }
+
+    /// Vỏ IPC của [`super::list_works`] — Story 5.4.
+    ///
+    /// Đọc thuần khỏi `library-index.db` -- không ghi, không cần `(async)` (khác ba vỏ trên
+    /// của tệp này: chúng chặn vì I/O đồng bộ trên `.atproj`/hộp thoại, còn đây là một câu
+    /// `SELECT` duy nhất qua kết nối đọc của pool).
+    #[tauri::command]
+    pub fn library_list_works(
+        app: tauri::AppHandle,
+        filter: Option<Vec<String>>,
+    ) -> Result<WorkListReport, IpcError> {
+        let indexer = app.try_state::<Indexer>();
+        super::list_works(indexer.as_deref(), filter.as_deref())
     }
 }

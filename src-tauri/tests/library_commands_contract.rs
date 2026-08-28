@@ -1,6 +1,11 @@
 //! Hành vi của **tầng lệnh** Library — Story 5.3, hai hàng §I/O Matrix mà
 //! `library_index_contract.rs` không với tới được.
 //!
+//! 🔵 **SỬA (2026-08-27, Story 5.4)** — `Indexer::list_works()` đổi chữ ký (nhận `filter`,
+//! trả `WorksReport { total, works }`); hai ca ở tệp này gọi `.list_works(None).<...>.works`
+//! để giữ NGUYÊN hành vi cũ (đọc mọi hàng, không lọc) — xem doc-comment tương ứng ở
+//! `library_index_contract.rs` cho lý do đầy đủ.
+//!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! VÌ SAO MỘT TỆP RIÊNG, KHÔNG NHÉT THÊM VÀO `library_index_contract.rs`
 //! ─────────────────────────────────────────────────────────────────────────────
@@ -28,7 +33,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::commands::library::{apply_chosen_root, forget_orphan, rescan};
+use auratranslate_lib::commands::library::{apply_chosen_root, forget_orphan, list_works, rescan};
 use auratranslate_lib::core::library::indexer::Indexer;
 use auratranslate_lib::core::library::meta::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::load_global_config;
@@ -81,6 +86,10 @@ fn write_atproj(root: &Path, folder: &str, work_id: &str, name: &str) -> PathBuf
         created_at: "2026-08-01T00:00:00.000Z".to_owned(),
         updated_at: "2026-08-01T00:00:00.000Z".to_owned(),
         chapter_count: 1,
+        // 🔵 THÊM (2026-08-27, Story 5.4) — tệp này kiểm tầng LỆNH (ba con số/huỷ hộp
+        // thoại), không trạng thái vòng đời; giá trị trung tính.
+        status: Some("not_started".to_owned()),
+        status_is_override: false,
     };
     meta.write_atomic(&dir)
         .unwrap_or_else(|e| panic!("ghi meta.json ở {}: {e}", dir.display()));
@@ -125,7 +134,7 @@ fn a_brand_new_atproj_copied_into_the_root_appears_after_one_rescan() {
         "thêm một Tác phẩm KHÔNG được biến Tác phẩm cũ thành mồ côi"
     );
 
-    let works = indexer.list_works().expect("list_works");
+    let works = indexer.list_works(None).expect("list_works").works;
     let ids: Vec<&str> = works.iter().map(|w| w.work_id.as_str()).collect();
     assert!(ids.contains(&"id-first") && ids.contains(&"id-second"), "cả hai phải còn: {ids:?}");
 
@@ -167,7 +176,7 @@ fn cancelling_the_folder_dialog_writes_no_config_and_leaves_the_index_alone() {
     assert_eq!(cfg.library_root(), None, "huỷ KHÔNG được ghi `library_root` xuống đĩa");
 
     assert!(
-        indexer.list_works().expect("list_works").is_empty(),
+        indexer.list_works(None).expect("list_works").works.is_empty(),
         "huỷ KHÔNG được kéo theo một lượt quét"
     );
 
@@ -396,5 +405,83 @@ fn choosing_a_root_with_no_global_store_reports_a_store_error_instead_of_silentl
     );
 
     drop(indexer);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+//  `commands::library::list_works` — TẦNG LỆNH, thứ mà tầng `Indexer` không với tới
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ THÊM ở lượt rà 2026-08-28. `library_index_contract.rs` canh `Indexer::list_works`, nhưng
+// nó nhận `LifecycleStatus` ĐÃ PHÂN GIẢI — nên hai mệnh đề của tầng lệnh không ca nào chạm:
+// (a) một giá trị lọc lạ trên dây bị TỪ CHỐI chứ không bị bỏ qua im lặng, và (b) `matched`
+// đếm số hàng SAU LỌC chứ không phải `total`. `ipc_contract.rs` dựng `WorkListReport` bằng
+// struct literal nên nó cũng không chạy qua đường này. Vế (b) là đúng lỗi mà doc-comment của
+// chính hàm đó nêu tên: *"Story 3.9 từng bịa `totalCount` bằng chính `filteredCount`"*.
+
+/// Một giá trị lọc ngoài danh mục bốn giá trị phải cho `err.lifecycle.unknown_status` và
+/// KHÔNG chạm SQL — không phải một danh sách rỗng trông như "không có gì khớp".
+#[test]
+fn an_unknown_filter_value_at_the_command_layer_is_refused_not_silently_dropped() {
+    let dir = temp_dir("list-works-unknown-filter");
+    let root = library_root(&dir);
+    fs::create_dir_all(&root).expect("tạo thư mục gốc");
+    let indexer = open_indexer(&dir);
+    let global = open_global(&dir);
+    write_atproj(&root, "Mot", "11111111-1111-4111-8111-111111111111", "Mot");
+    indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
+
+    let filter = vec!["finished".to_owned()];
+    let err = list_works(Some(&indexer), Some(&filter))
+        .expect_err("gia tri loc la phai bi tu choi");
+    assert_eq!(
+        err.code(),
+        "lifecycle.unknown_status",
+        "mot gia tri loc la phai noi ten no, khong duoc tra ve mot danh sach rong"
+    );
+
+    // Đối chứng: cùng lời gọi với một giá trị HỢP LỆ vẫn đi qua bình thường — chứng minh ca
+    // trên đỏ vì giá trị lạ, không vì đường lọc hỏng sẵn.
+    let ok = list_works(Some(&indexer), Some(&vec!["not_started".to_owned()]))
+        .expect("gia tri hop le phai di qua");
+    assert_eq!(ok.matched, 1);
+
+    indexer.close();
+    global.close();
+    cleanup(&dir);
+}
+
+/// `matched` là số hàng SAU LỌC, `total` là số hàng trong chỉ mục — và ca này chỉ có nghĩa khi
+/// hai con số KHÁC nhau. Đây là hàng "bộ lọc quét sạch" của §I/O Matrix đi qua tầng LỆNH.
+#[test]
+fn the_command_layer_reports_matched_separately_from_total() {
+    let dir = temp_dir("list-works-matched-vs-total");
+    let root = library_root(&dir);
+    fs::create_dir_all(&root).expect("tạo thư mục gốc");
+    let indexer = open_indexer(&dir);
+    let global = open_global(&dir);
+    write_atproj(&root, "Mot", "11111111-1111-4111-8111-111111111111", "Mot");
+    write_atproj(&root, "Hai", "22222222-2222-4222-8222-222222222222", "Hai");
+    write_atproj(&root, "Ba", "33333333-3333-4333-8333-333333333333", "Ba");
+    indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
+
+    // Cả ba `.atproj` đều `not_started` (xem `write_atproj`), nên lọc `done` quét sạch.
+    let swept = list_works(Some(&indexer), Some(&vec!["done".to_owned()])).expect("lọc done");
+    assert_eq!(swept.matched, 0, "khong hang nao khop");
+    assert_eq!(
+        swept.total, 3,
+        "total phai la so hang TRONG CHI MUC -- man hinh can no de noi 'bo loc khong khop \
+         hang nao tren 3 Tac pham' thay vi 'Library trong'"
+    );
+    assert!(swept.works.is_empty());
+
+    // Không lọc: hai con số bằng nhau, và `matched` bám theo `works.len()`.
+    let all = list_works(Some(&indexer), None).expect("khong loc");
+    assert_eq!(all.total, 3);
+    assert_eq!(all.matched, all.works.len());
+    assert_eq!(all.matched, 3);
+
+    indexer.close();
+    global.close();
     cleanup(&dir);
 }

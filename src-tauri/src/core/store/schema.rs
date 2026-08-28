@@ -708,6 +708,35 @@ CREATE TABLE work (
   CHECK (id = 1)
 );";
 
+/// Thêm cột `work.status_override` — **bước 16 MỚI** của [`PROJECT_MIGRATIONS`], Story 5.4,
+/// FR6.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 `ALTER TABLE` RIÊNG, KHÔNG SỬA [`WORK_DDL`] TẠI CHỖ — vết sẹo số 4
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Đúng tiền lệ [`SEGMENT_TARGET_TEXT_DDL`]/[`GLOSSARY_CANDIDATE_OCCURRENCE_CONTEXT_DDL`]:
+/// một `project.db` đã di trú qua bước 2 (`WORK_DDL`) KHÔNG BAO GIỜ chạy lại hằng đó — sửa
+/// nó tại chỗ làm kho CŨ (bảng bảy cột) và kho MỚI (bảng tám cột, tạo từ đầu) lệch lược đồ
+/// trong khi cùng báo `user_version = 2`. Cột mới đi bằng một bước MỚI, số **16** — bước
+/// cuối hiện tại của [`PROJECT_MIGRATIONS`] là **15**, và vết sẹo số 4 (xem doc-comment của
+/// hằng đó) đã dạy: đọc chính danh sách `Migration` để biết bước kế tiếp, đừng đếm bằng mắt.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// ⚠️ KHÔNG `CHECK` — cưỡng chế giá trị hợp lệ là việc của tầng Rust
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `status_override` mang một trong bốn giá trị của [`crate::core::lifecycle::LifecycleStatus`]
+/// hoặc `NULL` (= đang suy ra, chưa ghi đè) — đúng khuôn `chapter.status`/`segment.status`/
+/// `config_value.kind`: chuỗi tự do ở tầng SQL, cưỡng chế ở tầng Rust
+/// (`commands::lifecycle::set_work_status_override`), không bằng `CHECK … IN (…)`. Một
+/// `CHECK` ở đây biến mọi lượt nới danh mục bốn giá trị (nếu Ice từng chốt một giá trị thứ
+/// năm) thành một bước di trú riêng cho MỖI kho đã phát hành, trong khi phép cưỡng chế thật
+/// đã nằm ở `LifecycleStatus` phía Rust — nơi trình biên dịch làm việc đó.
+///
+/// `NULL`-hoặc-giá-trị, không một cờ boolean riêng (§Always của story): `status_override IS
+/// NULL` ⇒ đang suy ra; có giá trị ⇒ giữ nguyên giá trị đó bất kể Chương đổi thế nào, cho
+/// tới khi người dùng bỏ ghi đè.
+pub const WORK_STATUS_OVERRIDE_DDL: &str = "ALTER TABLE work ADD COLUMN status_override TEXT;";
+
 /// Lược đồ bảng `chapter` — **bước 1 của `project.db`**, Story 1.15, AC4.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -1239,12 +1268,12 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
     "UPDATE segment SET translation_origin = 'self' WHERE status = 'confirmed';"
 );
 
-/// Bộ di trú của `project.db`. Hôm nay **mười bốn** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
-/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10.
+/// Bộ di trú của `project.db`. Hôm nay **mười lăm** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
+/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4.
 ///
-/// 🔴 **Mười bốn bước, và đích là phiên bản 15.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// 🔴 **Mười lăm bước, và đích là phiên bản 16.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
 /// `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
 ///
 /// ⚠️ Con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
@@ -1315,6 +1344,11 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// một lần rồi (bắt ở code review 2026-08-11) — lần thứ hai, nên nó nay có một cổng thật:
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`.
 /// Kỷ luật của người sửa đã hụt hai lần; một ca test thì không hụt.
+///
+/// 🔵 **CẬP NHẬT 2026-08-27 (Story 5.4):** đích chuyển từ **15** lên **16** — bước
+/// [`WORK_STATUS_OVERRIDE_DDL`] (`work.status_override`, FR6). Câu *"mười bốn bước, đích là
+/// 15"* đã hết đúng, sửa tại chỗ. **KHÔNG** có bước song sinh ở [`GLOBAL_MIGRATIONS`]: bảng
+/// `work` chỉ tồn tại ở `project.db`.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -1458,6 +1492,14 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
         to_version: 15,
         sql: GLOSSARY_ENTRY_ADD_FILE_IMPORT_ORIGIN_DDL,
     },
+    // Story 5.4 -- ghi de trang thai vong doi tang Tac pham (FR6): cot work.status_override.
+    // ALTER TABLE rieng, khong sua WORK_DDL tai cho -- vet seo so 4. Khong co buoc song sinh
+    // o GLOBAL_MIGRATIONS: `work` chi ton tai o project.db.
+    // 16, khong phai 5 -- 5..15 da tieu.
+    Migration {
+        to_version: 16,
+        sql: WORK_STATUS_OVERRIDE_DDL,
+    },
 ];
 
 /// Lược đồ bảng `library_work` — **bước 1, VÀ DUY NHẤT, MÃI MÃI, của `library-index.db`** —
@@ -1529,9 +1571,9 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 ///   phẩm bị copy sang máy khác) — chỉ mục thì **không** theo: nó là dẫn xuất **cục bộ**, và
 ///   Library cần biết Tác phẩm nằm ở đâu trên **máy này** để mở nó.
 /// - Sáu cột kế (`name`/`source_lang`/`genre`/`created_at`/`updated_at`/`chapter_count`)
-///   — **đúng** các trường của [`crate::core::library::meta::WorkMeta`], không hơn không kém.
-///   §Never của story cấm tường minh: **không** `cover` (chủ Story 5.6), **không** cột trạng
-///   thái vòng đời (chủ Story 5.4), **không** cột tiến độ (chủ Story 5.5).
+///   — **đúng** các trường tương ứng của [`crate::core::library::meta::WorkMeta`], không hơn
+///   không kém. §Never của story 5.2 cấm tường minh: **không** `cover` (chủ Story 5.6),
+///   **không** cột tiến độ (chủ Story 5.5).
 /// 🔵 **SỬA (2026-08-27, phán quyết Ice #1, LẬT quyết định 5.3) — cột `orphaned` đã BỊ GỠ,
 /// `to_version` 2 → 3.** Story 5.3 từng thêm cột này ngay tại đây (`to_version` 1 → 2) vì lúc
 /// đó cờ mồ côi được coi là một mẩu trạng thái của CHÍNH chỉ mục dẫn xuất. Ice chốt lại
@@ -1542,6 +1584,27 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 /// trên đĩa ngay bây giờ" — dẫn xuất TRỌN VẸN, không hàng nào sống sót một lượt xoá-dựng-lại.
 /// Xem §Spec Change Log + §Design Notes của `5-3-quet-lai-thu-muc.md` cho lý lẽ đầy đủ và
 /// phương án đã cân.
+///
+/// 🔵 **SỬA (2026-08-27, Story 5.4) — dòng ngay trên "không cột trạng thái vòng đời (chủ
+/// Story 5.4)" đã HẾT ĐÚNG: đây CHÍNH LÀ story đó, và hai cột dưới đây là bề mặt của nó.**
+/// `to_version` 3 → 4. Hai cột mới:
+/// - `status TEXT` — cho phép `NULL`. `NULL` **không** nghĩa là `NotStarted`; nó nghĩa là
+///   **CHƯA BIẾT** — một `meta.json` v1 (viết trước khi story này tồn tại) không mang trường
+///   `status`, và [`crate::core::library::meta::WorkMeta::status`] đọc nó ra `None`, đi
+///   nguyên vẹn xuống cột này qua chính lượt UPSERT của [`crate::core::library::indexer::Indexer::rebuild`].
+///   Một Tác phẩm **đã dịch xong** không được phép hiện *"Chưa bắt đầu"* chỉ vì chỉ mục chưa
+///   từng thấy trạng thái thật của nó — xem §Design Notes "Vì sao `Option<String>`" của
+///   story.
+/// - `status_is_override INTEGER NOT NULL DEFAULT 0` — `1` ⇔ giá trị ở `status` đến từ
+///   `work.status_override` (ghi đè thủ công), `0` ⇔ giá trị suy ra tự động (hoặc `status IS
+///   NULL`, tức chưa biết). `NOT NULL DEFAULT 0` là giá trị AN TOÀN cho một hàng vừa UPSERT
+///   lần đầu — cùng khuôn `occurrence_count`/`is_omitted` ở nơi khác trong kho: SQLite không
+///   có kiểu boolean, `INTEGER` 0/1 là quy ước, không một cờ `boolean` song song với `status`
+///   (§Always: *"ghi đè là `NULL`-hoặc-giá-trị, không phải một cờ boolean riêng"* — câu đó
+///   nói về `work.status_override`; ở ĐÂY, tại kho dẫn xuất, cờ RIÊNG là cần thiết vì
+///   `status` đã bị GIẢN LƯỢC về một chuỗi duy nhất, không còn phân biệt được "suy ra" với
+///   "ghi đè" nếu không có nó — Library phải lọc/hiện dấu phân biệt mà KHÔNG mở SQLite của
+///   từng Tác phẩm).
 pub const LIBRARY_WORK_DDL: &str = "\
 CREATE TABLE schema_migration_log (
   version     INTEGER PRIMARY KEY,
@@ -1549,14 +1612,16 @@ CREATE TABLE schema_migration_log (
   app_version TEXT NOT NULL
 );
 CREATE TABLE library_work (
-  work_id       TEXT PRIMARY KEY,
-  atproj_path   TEXT NOT NULL,
-  name          TEXT NOT NULL,
-  source_lang   TEXT NOT NULL,
-  genre         TEXT NOT NULL,
-  created_at    TEXT NOT NULL,
-  updated_at    TEXT NOT NULL,
-  chapter_count INTEGER NOT NULL
+  work_id             TEXT PRIMARY KEY,
+  atproj_path         TEXT NOT NULL,
+  name                TEXT NOT NULL,
+  source_lang         TEXT NOT NULL,
+  genre               TEXT NOT NULL,
+  created_at          TEXT NOT NULL,
+  updated_at          TEXT NOT NULL,
+  chapter_count       INTEGER NOT NULL,
+  status              TEXT,
+  status_is_override  INTEGER NOT NULL DEFAULT 0
 );";
 
 /// Bộ di trú của `library-index.db` — **đúng MỘT bước, mãi mãi**. Xem doc-comment của
@@ -1577,8 +1642,14 @@ CREATE TABLE library_work (
 /// tệp bị xoá, KHÔNG được chuyển sang `global.db` — đúng lời hứa gốc của AD-8 ("xoá chỉ
 /// mục là an toàn, chỉ mất MỘT LỜI NHẮC, không mất dữ liệu người dùng thật": bản thân `.atproj`
 /// trên đĩa không hề bị chạm). Không mất dữ liệu người dùng THẬT, chỉ mất chính chỉ mục.
+///
+/// 🔵 **NÂNG LẦN BA (2026-08-27, Story 5.4): `to_version` 3 → 4** — hai cột `status`/
+/// `status_is_override` thêm vào [`LIBRARY_WORK_DDL`] (viết lại TẠI CHỖ, không một bước di
+/// trú thứ tư). Mọi `library-index.db` ở `to_version` 1, 2, HOẶC 3 bị `Indexer::open`
+/// xoá-và-dựng-lại như một tệp lệch phiên bản bình thường — không mất dữ liệu người dùng
+/// thật (kho này dẫn xuất trọn vẹn từ `.atproj`, AD-8).
 pub const LIBRARY_INDEX_MIGRATIONS: &[Migration] = &[Migration {
-    to_version: 3,
+    to_version: 4,
     sql: LIBRARY_WORK_DDL,
 }];
 

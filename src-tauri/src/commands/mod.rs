@@ -42,6 +42,7 @@ pub mod config;
 pub mod dict;
 pub mod glossary;
 pub mod library;
+pub mod lifecycle;
 pub mod pinned;
 pub mod project;
 pub mod segment;

@@ -25,14 +25,11 @@ use uuid::Uuid;
 
 use crate::core::i18n::IpcError;
 use crate::core::library::{WorkMeta, create_work_folder, remove_folder};
+use crate::core::lifecycle::LifecycleStatus;
 use crate::core::scope::load_global_config;
 use crate::core::segment::import::{ImportedChapter, import_file, import_text};
 use crate::core::segment::split::split_source_text;
 use crate::core::store::{Store, StoreSpec, Transaction};
-
-/// Trạng thái vòng đời ban đầu của mọi Chương mới (FR5) — **tạm**, chờ Story 2.5 dựng
-/// máy trạng thái đầy đủ. Chuỗi tự do ở tầng SQL, cùng khuôn `config_value.kind`.
-const CHAPTER_STATUS_NOT_STARTED: &str = "not_started";
 
 /// Tên thư mục con dưới `~/Documents/` — AD-23.
 const DOCUMENTS_SUBFOLDER: &str = "AuraTranslate";
@@ -274,7 +271,7 @@ pub fn create_work(
             "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
              VALUES (1, NULL, ?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
              strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
-            (&source_text, CHAPTER_STATUS_NOT_STARTED),
+            (&source_text, LifecycleStatus::NotStarted.as_str()),
         )?;
 
         // 🔴 AC13 — segment ghi xuống **CÙNG** giao dịch với hàng `chapter` sinh ra chúng.
@@ -1700,27 +1697,36 @@ pub mod wire {
         }
     }
 
-    /// Đưa Tác phẩm vừa tạo vào `library-index.db` — Story 5.2, AD-8 "`.atproj` ghi trước,
-    /// chỉ mục ghi sau".
+    /// Đưa Tác phẩm/trạng thái vòng đời vừa ghi vào `library-index.db` — Story 5.2, AD-8
+    /// "`.atproj` ghi trước, chỉ mục ghi sau".
     ///
     /// ─────────────────────────────────────────────────────────────────────────────
-    /// 🔴 VÌ SAO Ở LỚP VỎ, KHÔNG BÊN TRONG `super::create_work` (HÀM THUẦN)
+    /// 🔴 VÌ SAO Ở LỚP VỎ, KHÔNG BÊN TRONG MỘT HÀM THUẦN
     /// ─────────────────────────────────────────────────────────────────────────────
-    /// `Indexer` sống trong state của Tauri — chỉ có ở đây, không có trong `super::create_work`
-    /// (hàm thuần nhận `&Path`, không `AppHandle`, để `tests::` gọi được không cần webview,
-    /// cùng khuôn `src-tauri/AGENTS.md`). Gọi tới đây **chỉ khi** `super::create_work_from_text`/
-    /// `_from_file` đã trả `Ok` — tức `write_atomic` đã chạy xong và `.atproj` đã đầy đủ trên
-    /// đĩa (§Boundaries "Thứ tự ghi") — nên đặt lời gọi này ở lớp vỏ, ngay sau khi hàm thuần
-    /// trả về, giữ NGUYÊN thứ tự mà đặt nó bên trong hàm thuần sẽ cho ra.
+    /// `Indexer` sống trong state của Tauri — chỉ có ở lớp vỏ, không trong các hàm thuần của
+    /// `super::create_work`/`commands::lifecycle` (nhận `&Path`/`Option<&OpenWork>`, không
+    /// `AppHandle`, để `tests::` gọi được không cần webview, cùng khuôn `src-tauri/AGENTS.md`).
+    /// Gọi tới đây **chỉ khi** hàm thuần tương ứng đã trả `Ok` — tức `write_atomic` đã chạy
+    /// xong và `.atproj` đã đầy đủ trên đĩa (§Boundaries "Thứ tự ghi") — nên đặt lời gọi này
+    /// ở lớp vỏ, ngay sau khi hàm thuần trả về, giữ NGUYÊN thứ tự mà đặt nó bên trong hàm
+    /// thuần sẽ cho ra.
     ///
-    /// 🔴 Lỗi chỉ mục **KHÔNG** được làm hỏng `.atproj` đã ghi — chẩn đoán rồi ĐI TIẾP, trả
-    /// `Ok(CreatedWork)` cho người dùng như bình thường. Đây chính là "chỉ mục lỗi không làm
-    /// hỏng `.atproj`" viết bằng mã.
-    fn reindex_after_create_work(app: &tauri::AppHandle, root: &std::path::Path) {
+    /// 🔴 Lỗi chỉ mục **KHÔNG** được làm hỏng lượt ghi đã commit vào `.atproj` — chẩn đoán
+    /// rồi ĐI TIẾP, trả `Ok` cho người dùng như bình thường. Đây chính là "chỉ mục lỗi không
+    /// làm hỏng `.atproj`" viết bằng mã.
+    ///
+    /// 🔵 **SỬA (2026-08-27, Story 5.4) — đổi tên từ `reindex_after_create_work`, và mệnh đề
+    /// "chỗ gọi thứ hai" đã HẾT ĐÚNG.** Tên cũ chỉ đúng khi có ĐÚNG hai chỗ gọi
+    /// (`lib.rs::open_library_index` lúc khởi động, và chính hàm này sau khi tạo Tác phẩm).
+    /// Story này thêm chỗ gọi THỨ BA: `commands::lifecycle::wire` gọi lại đúng hàm này sau
+    /// MỖI lượt ghi trạng thái Chương/ghi đè Tác phẩm (§Always: *"vỏ IPC gọi lại đúng hàm
+    /// reindex đã có, không tự UPDATE library_work"*) — tên mới nói đúng vai trò CHUNG của
+    /// nó (đưa mọi thay đổi vào chỉ mục), không còn khoá vào MỘT sự kiện cụ thể.
+    pub(crate) fn reindex_library(app: &tauri::AppHandle, root: &std::path::Path) {
         use tauri::Manager as _;
 
         let Some(indexer) = app.try_state::<crate::core::library::indexer::Indexer>() else {
-            eprintln!("library[index] Indexer chua duoc quan ly -- bo qua lan dua Tac pham vao chi muc");
+            eprintln!("library[index] Indexer chua duoc quan ly -- bo qua luot dua vao chi muc");
             return;
         };
         // Phan quyet Ice #1 (2026-08-27) -- co mo coi song o `library_orphan` (global.db),
@@ -1731,9 +1737,9 @@ pub mod wire {
         match indexer.rebuild(root, global.as_deref()) {
             // Vòng rà ba lớp, P7 — `RebuildOutcome` không còn bị vứt: xung đột `work_id`/
             // entry bị bỏ qua phải có ÍT NHẤT một dòng chẩn đoán, cùng khuôn `lib.rs::open_library_index`.
-            Ok(outcome) => outcome.log_if_notable("create_work"),
+            Ok(outcome) => outcome.log_if_notable("reindex"),
             Err(err) => {
-                eprintln!("library[index] rebuild sau create_work that bai: {err}");
+                eprintln!("library[index] rebuild that bai: {err}");
             }
         }
     }
@@ -1757,7 +1763,7 @@ pub mod wire {
         let root = resolve_library_root(&app, app.try_state::<Store>().as_deref())?;
         let opened = super::create_work_from_text(&root, &name, &source_lang, &genre, text)?;
         let created = CreatedWork::from_open(&opened);
-        reindex_after_create_work(&app, &root);
+        reindex_library(&app, &root);
         // 🔴 Chốt `work_id`/`chapter_id`/`source_lang` TRƯỚC khi `opened` bị `move` vào
         // `replace_open_work` — Story 3.5, spawn lượt quét SAU khi Tác phẩm đã vào state.
         let work_id = opened.meta.work_id.clone();
@@ -1793,7 +1799,7 @@ pub mod wire {
             std::path::Path::new(&path),
         )?;
         let created = CreatedWork::from_open(&opened);
-        reindex_after_create_work(&app, &root);
+        reindex_library(&app, &root);
         // 🔴 Cùng lý do nhánh `create_work_from_text` ngay trên — chốt trước khi `move`.
         let work_id = opened.meta.work_id.clone();
         let chapter_id = opened.chapter_id;

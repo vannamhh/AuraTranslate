@@ -9,6 +9,7 @@ pub mod export;
 pub mod glossary;
 pub mod i18n;
 pub mod library;
+pub mod lifecycle;
 pub mod matching;
 pub mod scope;
 pub mod segment;

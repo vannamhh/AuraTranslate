@@ -123,6 +123,12 @@ pub use rusqlite::Transaction;
 /// `core::glossary::store::decode_category`), và không có nó thì module đó phải gõ tên
 /// crate để dựng lỗi.
 pub use rusqlite::types::Type as SqlType;
+/// Dựng tham số ràng buộc cho một danh sách ĐỘ DÀI ĐỘNG (`WHERE x IN (?,?,…)`) — Story 5.4.
+///
+/// Tái xuất vì cùng lý do sáu mục trên: `core::library::indexer::Indexer::list_works` cần
+/// dựng số dấu hỏi bằng độ dài bộ lọc (0 đến bốn giá trị của `LifecycleStatus`), và không có
+/// nó thì module đó phải gõ tên crate — đúng thứ `store_boundary.rs` tồn tại để chặn.
+pub use rusqlite::params_from_iter;
 
 /// `err` là vi phạm `UNIQUE` — và ĐÚNG MỘT LỚP đó, không phải một `SQLITE_CONSTRAINT_*` nào
 /// khác (`CHECK`, `TRIGGER`/`RAISE(ABORT)`, `NOT NULL`, …).

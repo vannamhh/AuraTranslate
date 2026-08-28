@@ -3,8 +3,10 @@
 // Story 1.15 thêm đường nhập tối thiểu (AC1/AC8/NFR17): dán văn bản · kéo-thả · ô nhập
 // đường dẫn — đủ để có văn bản mà Story 1.16 hiển thị ở Panel Source.
 //
-// Lưới Tác phẩm, bộ lọc, sắp xếp và bốn trạng thái vòng đời thuộc Epic 5 — đây vẫn là
-// một khung rỗng cho phần đó, chỉ thêm đường vào.
+// Lưới Tác phẩm (bìa, sắp xếp, lọc thể loại/ngôn ngữ) thuộc Story 5.6 — đây vẫn là một
+// khung rỗng cho phần đó. 🔵 SỬA (2026-08-27, Story 5.4) — câu cũ gộp CẢ "bốn trạng thái
+// vòng đời" vào phần chưa dựng đã HẾT ĐÚNG: khối "Tác phẩm" (danh sách phẳng + bốn nút lọc)
+// và khối "Trạng thái Tác phẩm đang mở" (ba lệnh vòng đời) nay có mặt ở đây.
 //
 // Không chuỗi tiếng Việt nào trong tệp này (NFR16, AD-21) — mọi nhãn đi qua `t()`.
 import { onActivated, onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
@@ -38,6 +40,23 @@ import {
   libraryConflictCount,
   librarySkippedCount,
 } from './libraryRescan'
+import {
+  libraryFilterIsEmpty,
+  libraryStatusFilter,
+  libraryWorks,
+  libraryWorksBusy,
+  libraryWorksError,
+  libraryWorksHaveLoaded,
+  libraryWorksMatched,
+  libraryWorksTotal,
+  loadOpenWorkLifecycle,
+  loadWorks,
+  openWorkLifecycleBusy,
+  openWorkLifecycleError,
+  openWorkLifecycleIsOverride,
+  openWorkLifecycleLoaded,
+  openWorkLifecycleStatus,
+} from './libraryWorks'
 import { t, tError } from '../i18n'
 
 const root = useTemplateRef<HTMLElement>('root')
@@ -62,6 +81,11 @@ onBeforeUnmount(() => {
 // tiên Vue gọi `mounted` rồi `activated`, nên điểm vào đã khai xong trước khi dùng.
 onActivated(() => {
   void enterFocus('mode.library')
+  // Story 5.4 — tải lại MỖI LẦN quay về Library: một Chương có thể vừa đổi trạng thái từ
+  // Workspace (qua `lifecycle.set_chapter_done`), và danh sách/khối "Tác phẩm đang mở" phải
+  // phản ánh giá trị mới nhất, không giữ ảnh chụp của lần hiện trước.
+  void loadWorks()
+  void loadOpenWorkLifecycle()
 })
 
 // **KHÔNG có handler `dragenter`/`dragover`/`dragleave`/`drop` của DOM ở đây, và đó là
@@ -229,6 +253,179 @@ onActivated(() => {
             @click="dispatch('library.forget_orphan')"
           >
             {{ t('mode.library.forget_orphan') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!--
+      Story 5.4 — "Bốn trạng thái vòng đời" (FR5/FR6). Danh sách phẳng TỐI THIỂU CÓ CHỦ
+      (§Never: không bìa, không thanh tiến độ, không sắp xếp, không lọc thể loại/ngôn ngữ,
+      không điều hướng lưới bằng bàn phím — Story 5.6 sở hữu phần đó) cộng bốn nút lọc và
+      khối vòng đời cho Tác phẩm đang mở.
+    -->
+    <div class="works-block">
+      <p class="section-heading">{{ t('mode.library.works_heading') }}</p>
+
+      <!--
+        🔴 BỐN nút RIÊNG, KHÔNG một `v-for` chọn id động — `check:commands` Kiểm A đòi mỗi
+        `@click` là ĐÚNG MỘT lời gọi `dispatch('<id>')` với id LITERAL, đọc TĨNH được từ mã
+        nguồn; một biểu thức ba ngôi chọn id lúc chạy không đọc tĩnh được (đã đo: Kiểm A đỏ).
+      -->
+      <div class="filter-actions">
+        <button
+          type="button"
+          class="btn"
+          :aria-pressed="libraryStatusFilter.has('not_started')"
+          :disabled="libraryWorksBusy"
+          @click="dispatch('library.filter_not_started')"
+        >
+          {{ t('lifecycle.not_started') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          :aria-pressed="libraryStatusFilter.has('in_progress')"
+          :disabled="libraryWorksBusy"
+          @click="dispatch('library.filter_in_progress')"
+        >
+          {{ t('lifecycle.in_progress') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          :aria-pressed="libraryStatusFilter.has('paused')"
+          :disabled="libraryWorksBusy"
+          @click="dispatch('library.filter_paused')"
+        >
+          {{ t('lifecycle.paused') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          :aria-pressed="libraryStatusFilter.has('done')"
+          :disabled="libraryWorksBusy"
+          @click="dispatch('library.filter_done')"
+        >
+          {{ t('lifecycle.done') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          :disabled="libraryWorksBusy || libraryFilterIsEmpty"
+          @click="dispatch('library.filter_clear')"
+        >
+          {{ t('mode.library.clear_filter') }}
+        </button>
+        <button type="button" class="btn" :disabled="libraryWorksBusy" @click="dispatch('library.list_works')">
+          {{ t('mode.library.list_works') }}
+        </button>
+      </div>
+
+      <!-- role="status" LUÔN có mặt (không v-if) -- cùng khuôn dải trạng thái của khối quét lại. -->
+      <!-- aura-allow-text: ba nhánh đều qua t()/chuỗi rỗng -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+      <p class="status" role="status">
+        {{
+          !libraryWorksHaveLoaded
+            ? t('mode.library.works_not_loaded')
+            : libraryWorksTotal === 0
+              ? t('mode.library.works_empty')
+              : libraryWorksMatched === 0
+                ? t('mode.library.works_no_match', { total: String(libraryWorksTotal) })
+                : t('mode.library.works_result', { matched: String(libraryWorksMatched), total: String(libraryWorksTotal) })
+        }}
+      </p>
+      <!-- aura-allow-text: như trên, qua tError(). -->
+      <p class="error" role="status">{{ libraryWorksError ? tError(libraryWorksError) : '' }}</p>
+
+      <ul v-if="libraryWorks.length > 0" class="works-list">
+        <li v-for="work in libraryWorks" :key="work.work_id" class="works-row">
+          <!-- aura-allow-text: tên Tác phẩm là DỮ LIỆU người dùng gõ, không một câu UI. -->
+          <span class="work-name">{{ work.name }}</span>
+          <!--
+            aura-allow-text: mọi nhánh đều qua t().
+            🔵 SỬA (2026-08-28, lượt rà) — TÁCH nhánh cuối làm HAI. Bản trước cho `status = null`
+            (`meta.json` v1, thật sự CHƯA BIẾT) và một `status` mang giá trị NGOÀI danh mục bốn
+            (dữ liệu hỏng) đọc lên GIỐNG HỆT nhau, nên một hàng hỏng đội lốt một hàng chưa di
+            trú và không ai lần được. Hai câu khác nhau vì hai trạng thái khác nhau.
+          -->
+          <span class="work-status">
+            {{
+              work.status === 'not_started'
+                ? t('lifecycle.not_started')
+                : work.status === 'in_progress'
+                  ? t('lifecycle.in_progress')
+                  : work.status === 'paused'
+                    ? t('lifecycle.paused')
+                    : work.status === 'done'
+                      ? t('lifecycle.done')
+                      : work.status === null
+                        ? t('mode.library.works_status_unknown')
+                        : t('mode.library.works_status_invalid', { status: work.status })
+            }}
+          </span>
+          <span v-if="work.status_is_override" class="override-marker">{{ t('mode.library.override_marker') }}</span>
+        </li>
+      </ul>
+
+      <div class="open-work-block">
+        <p class="section-heading">{{ t('mode.library.open_work_heading') }}</p>
+        <!--
+          aura-allow-text: mọi nhánh đều qua t().
+          🔵 SỬA (2026-08-28, lượt rà) — nhánh `!openWorkLifecycleLoaded` trước đây LUÔN nói
+          "chưa có Tác phẩm nào đang mở", kể cả khi CÓ Tác phẩm mở nhưng lượt đọc trượt vì một
+          lỗi khác (IPC/kho). Câu đó đẩy người dùng đi mở một Tác phẩm trong khi vấn đề thật
+          nằm ở dòng lỗi ngay dưới. Nay: có lỗi ⇒ nói "chưa đọc được"; không lỗi ⇒ mới được
+          nói "chưa có Tác phẩm nào đang mở".
+        -->
+        <p class="status" role="status">
+          {{
+            !openWorkLifecycleLoaded
+              ? openWorkLifecycleError
+                ? t('mode.library.open_work_lifecycle_unreadable')
+                : t('mode.library.open_work_not_loaded')
+              : openWorkLifecycleStatus === 'not_started'
+                ? t('lifecycle.not_started')
+                : openWorkLifecycleStatus === 'in_progress'
+                  ? t('lifecycle.in_progress')
+                  : openWorkLifecycleStatus === 'paused'
+                    ? t('lifecycle.paused')
+                    : openWorkLifecycleStatus === 'done'
+                      ? t('lifecycle.done')
+                      : openWorkLifecycleStatus === null
+                        ? t('mode.library.works_status_unknown')
+                        : t('mode.library.works_status_invalid', { status: openWorkLifecycleStatus })
+          }}
+          <template v-if="openWorkLifecycleLoaded && openWorkLifecycleIsOverride">
+            {{ t('mode.library.override_marker') }}
+          </template>
+        </p>
+        <!-- aura-allow-text: như trên, qua tError(). -->
+        <p class="error" role="status">{{ openWorkLifecycleError ? tError(openWorkLifecycleError) : '' }}</p>
+        <div class="open-work-actions">
+          <button
+            type="button"
+            class="btn"
+            :disabled="openWorkLifecycleBusy || !openWorkLifecycleLoaded"
+            @click="dispatch('lifecycle.set_work_override_paused')"
+          >
+            {{ t('mode.library.set_override_paused') }}
+          </button>
+          <button
+            type="button"
+            class="btn"
+            :disabled="openWorkLifecycleBusy || !openWorkLifecycleLoaded || !openWorkLifecycleIsOverride"
+            @click="dispatch('lifecycle.clear_work_override')"
+          >
+            {{ t('mode.library.clear_override') }}
+          </button>
+          <button
+            type="button"
+            class="btn"
+            :disabled="openWorkLifecycleBusy || !openWorkLifecycleLoaded"
+            @click="dispatch('lifecycle.set_chapter_done')"
+          >
+            {{ t('mode.library.set_chapter_done') }}
           </button>
         </div>
       </div>
@@ -563,5 +760,86 @@ onActivated(() => {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+/* Story 5.4 — "Bốn trạng thái vòng đời". Cùng khuôn token/cỡ chữ với `.root-block` ở trên. */
+.works-block {
+  max-width: 420px;
+  margin-bottom: var(--space-panel-block);
+  padding-bottom: var(--space-panel-block);
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/*
+ * Nút lọc đang BẬT phân biệt bằng `aria-pressed` (đọc được bằng trình đọc màn hình) VÀ
+ * bằng token màu — cùng khuôn `.dropzone.over` ở trên: không dùng bóng đổ/gradient (AD-21).
+ */
+.filter-actions .btn[aria-pressed='true'] {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.works-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.works-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-outline);
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
+}
+
+.work-name {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  font-weight: var(--weight-ui-md-strong);
+  color: var(--color-on-surface);
+  flex: 1;
+  word-break: break-all;
+}
+
+.work-status {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/*
+ * Dấu ghi đè thủ công — chữ, không ký hiệu đúc mới (§Never của story: "đúc ký hiệu mới cho
+ * dấu 'ghi đè thủ công' -- dấu phân biệt viết thành CHỮ qua t()").
+ */
+.override-marker {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-primary);
+}
+
+.open-work-block {
+  margin-top: var(--space-panel-block);
+  padding-top: var(--space-panel-block);
+  border-top: 1px solid var(--color-outline);
+}
+
+.open-work-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
 }
 </style>

@@ -79,7 +79,11 @@ pub(crate) fn no_work_open() -> IpcError {
 /// ⚠️ **Tái dùng `MessageKey::SegmentChapterNotFound`, KHÔNG một khoá thứ hai.** Cùng câu,
 /// cùng nghĩa, cùng tham số `chapter_id`; hai khoá cho cùng một câu là hai chuỗi phải giữ
 /// khớp nhau bằng kỷ luật. Cùng lập luận `no_work_open` ở trên đã đi qua hai lần.
-fn chapter_not_found(chapter_id: i64) -> IpcError {
+///
+/// ⚠️ `pub(crate)` từ 2026-08-27 (Story 5.4): `commands::lifecycle::set_chapter_status` tái
+/// dùng ĐÚNG hàm này cho ca "`chapter_id` không tồn tại" — cùng lý do `no_work_open` đã lên
+/// `pub(crate)` trước đó, không đúc một bản chép thứ hai cho cùng một `IpcError`.
+pub(crate) fn chapter_not_found(chapter_id: i64) -> IpcError {
     IpcError::new(
         "segment.chapter_not_found",
         MessageKey::SegmentChapterNotFound,
