@@ -264,3 +264,133 @@ export async function openChapter(chapterId: number): Promise<OpenChapterResult>
     return { chapter: null, error: null }
   }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 5.8 — BỐN ADAPTER TỔ CHỨC LẠI CHƯƠNG (FR15, AD-32)
+// ═════════════════════════════════════════════════════════════════════════════════
+// Cùng khuôn ba trạng thái ở trên: một `invoke`, một `try/catch`, không ném. Tham số gửi đi
+// dạng camelCase (`chapterId`, `segmentId`, `title`); trường trả về giữ `snake_case`.
+
+/** Tên command trên dây — Story 5.8. Khớp `commands/chapter.rs::wire`. */
+const CMD_RENAME_CHAPTER = 'rename_chapter'
+const CMD_MOVE_CHAPTER = 'move_chapter'
+const CMD_MERGE_CHAPTER_INTO_PREVIOUS = 'merge_chapter_into_previous'
+const CMD_SPLIT_CHAPTER_AT_SEGMENT = 'split_chapter_at_segment'
+
+/** Ba trạng thái cho [`renameChapter`] — giá trị là `ChapterRow[]` đã dựng lại, không phải
+ * `true` trần: Rust trả danh sách MỚI để chỗ gọi không phải đoán (Task 6 của story). */
+export type RenameChapterResult = {
+  chapters: ChapterRow[] | null
+  error: IpcError | null
+}
+
+/**
+ * **Đổi tên một Chương.** Story 5.8. Không ném — cùng lý do và cùng khuôn [`readOpenChapter`].
+ *
+ * ⚠️ `invoke()` gửi tham số dạng camelCase: `chapterId`, không `chapter_id`. `title` là một
+ * từ đơn nên hai chiều trùng nhau ở đó.
+ */
+export async function renameChapter(chapterId: number, title: string): Promise<RenameChapterResult> {
+  try {
+    const raw = await invoke<unknown>(CMD_RENAME_CHAPTER, { chapterId, title })
+    if (!isChapterRowArray(raw)) {
+      console.error(`[chapter] \`${CMD_RENAME_CHAPTER}\` trả một hình dạng không phải ChapterRow[]: ${String(raw)}`)
+      return { chapters: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { chapters: raw, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { chapters: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[chapter] \`${CMD_RENAME_CHAPTER}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { chapters: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[chapter] không gọi được \`${CMD_RENAME_CHAPTER}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { chapters: null, error: null }
+  }
+}
+
+/** Ba trạng thái cho [`moveChapter`]/[`mergeChapterIntoPrevious`]/[`splitChapterAtSegment`] —
+ * cùng khuôn `SaveChapterPositionResult` (`config/segment.ts`): lệnh chỉ ghi, không trả dữ
+ * liệu, nên giá trị thành công là `true | null`. */
+export type ChapterOrganiseResult = {
+  ok: true | null
+  error: IpcError | null
+}
+
+/**
+ * **Dời một Chương lên/xuống** — hoán vị `ord` với hàng liền kề. Story 5.8. Không ném.
+ *
+ * ⚠️ `invoke()` gửi tham số dạng camelCase: `chapterId`, `direction`.
+ */
+export async function moveChapter(chapterId: number, direction: ChapterDirection): Promise<ChapterOrganiseResult> {
+  try {
+    await invoke<void>(CMD_MOVE_CHAPTER, { chapterId, direction })
+    return { ok: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { ok: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[chapter] \`${CMD_MOVE_CHAPTER}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { ok: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[chapter] không gọi được \`${CMD_MOVE_CHAPTER}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { ok: null, error: null }
+  }
+}
+
+/**
+ * **Gộp một Chương vào Chương liền trước nó.** Story 5.8. Không ném.
+ *
+ * ⚠️ `invoke()` gửi tham số dạng camelCase: `chapterId`.
+ */
+export async function mergeChapterIntoPrevious(chapterId: number): Promise<ChapterOrganiseResult> {
+  try {
+    await invoke<void>(CMD_MERGE_CHAPTER_INTO_PREVIOUS, { chapterId })
+    return { ok: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { ok: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[chapter] \`${CMD_MERGE_CHAPTER_INTO_PREVIOUS}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { ok: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[chapter] không gọi được \`${CMD_MERGE_CHAPTER_INTO_PREVIOUS}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { ok: null, error: null }
+  }
+}
+
+/**
+ * **Tách Chương đang mở tại một câu.** Story 5.8. Không ném. Điểm tách sống ở Editor — hàm
+ * này KHÔNG nhận `chapterId`, chỉ `segmentId` (câu đang có caret); Chương làm việc trên là
+ * Chương đang mở phía Rust (`OpenWork::chapter_id`).
+ *
+ * ⚠️ `invoke()` gửi tham số dạng camelCase: `segmentId`.
+ */
+export async function splitChapterAtSegment(segmentId: number): Promise<ChapterOrganiseResult> {
+  try {
+    await invoke<void>(CMD_SPLIT_CHAPTER_AT_SEGMENT, { segmentId })
+    return { ok: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { ok: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[chapter] \`${CMD_SPLIT_CHAPTER_AT_SEGMENT}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { ok: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[chapter] không gọi được \`${CMD_SPLIT_CHAPTER_AT_SEGMENT}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { ok: null, error: null }
+  }
+}

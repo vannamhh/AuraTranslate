@@ -29,12 +29,13 @@
  * `resetSegmentHistory` — `finishSubmit` là tiền lệ đầy đủ, xem doc-comment của nó) rồi nạp
  * lại NGAY, không để màn hình đứng ở Tác phẩm cũ vì ba chế độ sống trong `<KeepAlive>`.
  */
-import { computed, readonly, ref } from 'vue'
+import { computed, readonly, ref, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { listChapters } from '../config/chapter'
-import type { ChapterRow } from '../config/chapter'
+import { listChapters, mergeChapterIntoPrevious, moveChapter, renameChapter } from '../config/chapter'
+import type { ChapterDirection, ChapterRow } from '../config/chapter'
 import { openWork } from '../config/library'
 import {
+  editorChapterId,
   ensureSegmentsLoaded,
   flushEditorBeforeDiscreteWrite,
   flushChapterPositionNow,
@@ -71,6 +72,19 @@ const openWorkBusy = ref(false)
 const openWorkNotice = ref<OpenWorkNotice | null>(null)
 const openWorkError = ref<IpcError | null>(null)
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔴 STORY 5.8 — TỔ CHỨC LẠI CHƯƠNG (đổi tên · dời lên/xuống · gộp vào Chương liền trước)
+// ─────────────────────────────────────────────────────────────────────────────
+/** Ô nhập tên Chương mới — ghi được cho `v-model`, cùng khuôn `libraryImport.ts::pastedText`
+ * (export TRẦN, không bọc `readonly()`: `LibraryMode.vue` phải ghi được qua `v-model`). */
+export const chapterRenameDraft = ref('')
+const chapterReorgBusy = ref(false)
+/** Kết cục một lượt tổ chức bị CHẶN vì tập chờ Editor chưa sạch — cùng khuôn `OpenWorkNotice`
+ * ngay trên, và cùng hai giá trị: §Always của story chỉ đòi phân biệt được hai ca đó. */
+export type ChapterReorgNotice = 'flush-failed' | 'still-dirty'
+const chapterReorgNotice = ref<ChapterReorgNotice | null>(null)
+const chapterReorgError = ref<IpcError | null>(null)
+
 export const libraryChapters: DeepReadonly<Ref<ChapterRow[]>> = readonly(chapters)
 export const libraryChaptersHaveLoaded: DeepReadonly<Ref<boolean>> = readonly(chaptersHaveLoaded)
 export const libraryChaptersBusy: DeepReadonly<Ref<boolean>> = readonly(chaptersBusy)
@@ -79,6 +93,9 @@ export const libraryChapterCursor: DeepReadonly<Ref<number>> = readonly(chapterC
 export const libraryOpenWorkBusy: DeepReadonly<Ref<boolean>> = readonly(openWorkBusy)
 export const libraryOpenWorkNotice: DeepReadonly<Ref<OpenWorkNotice | null>> = readonly(openWorkNotice)
 export const libraryOpenWorkError: DeepReadonly<Ref<IpcError | null>> = readonly(openWorkError)
+export const libraryChapterReorgBusy: DeepReadonly<Ref<boolean>> = readonly(chapterReorgBusy)
+export const libraryChapterReorgNotice: DeepReadonly<Ref<ChapterReorgNotice | null>> = readonly(chapterReorgNotice)
+export const libraryChapterReorgError: DeepReadonly<Ref<IpcError | null>> = readonly(chapterReorgError)
 
 /**
  * Chương ĐANG CHỌN trong danh sách, hoặc `null` nếu con trỏ ngoài phạm vi (danh sách rỗng,
@@ -88,6 +105,30 @@ export const libraryOpenWorkError: DeepReadonly<Ref<IpcError | null>> = readonly
  */
 export const currentLibraryChapter = computed<ChapterRow | null>(
   () => chapters.value.at(chapterCursor.value) ?? null,
+)
+
+/**
+ * 🔴 **Ô nhập tên đi THEO Chương đang chọn — và ô nhớ này phải được đồng bộ, không để trôi.**
+ *
+ * ⚠️ **Lỗ bắt được ở lượt rà 2026-08-29:** `chapterRenameDraft` là một ô nhớ cấp module, chỉ
+ * được dọn bởi `resetLibraryChapters()`. Không có khối này, dời con trỏ sang một Chương KHÁC
+ * rồi bấm "Đổi tên" **mà không chạm ô nhập** sẽ áp chữ còn sót của Chương TRƯỚC lên Chương
+ * mới — một lượt ghi dữ liệu người dùng, im lặng, không lỗi nào. Cùng hạng *"một kết quả sai
+ * trông như bình thường"* mà `AGENTS.md::Known pitfalls` đặt lên đầu.
+ *
+ * 🔴 **Theo dõi `chapter_id`, KHÔNG theo dõi chính đối tượng hàng.** `loadChapters()` thay cả
+ * mảng ở mỗi lượt nạp (sau mỗi thao tác tổ chức), nên một `watch` trên `currentLibraryChapter`
+ * sẽ bắn cả khi Chương đang chọn KHÔNG đổi — và nó sẽ giẫm lên chữ người dùng đang gõ dở. Danh
+ * tính của "Chương đang chọn" là `chapter_id`, và đó là thứ đáng nghe.
+ *
+ * Mồi bằng tên hiện thời (không phải chuỗi rỗng): lượt đổi tên trở thành một lượt SỬA thấy
+ * được chữ cũ, thay vì một lượt ghi đè mù.
+ */
+watch(
+  () => currentLibraryChapter.value?.chapter_id ?? null,
+  () => {
+    chapterRenameDraft.value = currentLibraryChapter.value?.title ?? ''
+  },
 )
 
 function clampChapterCursor(): void {
@@ -260,6 +301,124 @@ export async function openCurrentChapter(): Promise<void> {
   if (moved) setMode('workspace')
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 5.8 — BỐN THAO TÁC TỔ CHỨC (đổi tên · dời lên · dời xuống · gộp vào Chương trước)
+// ═════════════════════════════════════════════════════════════════════════════════
+// Cùng khuôn CHUNG cho cả bốn: chống hai lượt cùng bay bằng `chapterReorgBusy`, flush TRƯỚC
+// (đọc CẢ BA giá trị — §Always của story), CHẶN kèm câu báo khi khác 'clean', gọi IPC, rồi
+// `await loadChapters()`; nhả cờ bận SAU CÙNG.
+
+/** Nhịp chung của bốn thao tác: khoá + flush + đọc kết quả flush. `null` ⇒ đi tiếp được;
+ * khác `null` ⇒ CHẶN, chỗ gọi phải trả về ngay không phát IPC nào. */
+async function beginChapterReorg(): Promise<boolean> {
+  if (chapterReorgBusy.value) return false
+  chapterReorgBusy.value = true
+  chapterReorgError.value = null
+  chapterReorgNotice.value = null
+
+  const flushed = await flushEditorBeforeDiscreteWrite()
+  if (flushed !== 'clean') {
+    console.error(
+      `[library] to chuc lai Chuong bi CHAN: luot flush tra '${flushed}' — ban dich chua xuong dia`,
+    )
+    chapterReorgNotice.value = flushed === 'failed' ? 'flush-failed' : 'still-dirty'
+    chapterReorgBusy.value = false
+    return false
+  }
+  return true
+}
+
+/** Đổi tên Chương ĐANG CHỌN trong danh sách — lệnh `library.chapter_rename`. No-op trên danh
+ * sách rỗng. */
+export async function renameCurrentChapter(): Promise<void> {
+  const row = currentLibraryChapter.value
+  if (row === null) return
+  if (!(await beginChapterReorg())) return
+
+  const { error } = await renameChapter(row.chapter_id, chapterRenameDraft.value)
+  if (error !== null) {
+    chapterReorgError.value = error
+    chapterReorgBusy.value = false
+    return
+  }
+
+  await loadChapters()
+  chapterReorgBusy.value = false
+}
+
+/** Nhịp chung của `moveCurrentChapterUp`/`moveCurrentChapterDown` — chỉ khác nhau ở hướng. */
+async function moveCurrentChapter(direction: ChapterDirection): Promise<void> {
+  const row = currentLibraryChapter.value
+  if (row === null) return
+  if (!(await beginChapterReorg())) return
+
+  const { error } = await moveChapter(row.chapter_id, direction)
+  if (error !== null) {
+    chapterReorgError.value = error
+    chapterReorgBusy.value = false
+    return
+  }
+
+  await loadChapters()
+  chapterReorgBusy.value = false
+}
+
+/** Dời Chương ĐANG CHỌN lên — lệnh `library.chapter_move_up`. */
+export async function moveCurrentChapterUp(): Promise<void> {
+  await moveCurrentChapter('prev')
+}
+
+/** Dời Chương ĐANG CHỌN xuống — lệnh `library.chapter_move_down`. */
+export async function moveCurrentChapterDown(): Promise<void> {
+  await moveCurrentChapter('next')
+}
+
+/** Gộp Chương ĐANG CHỌN vào Chương liền trước nó — lệnh `library.chapter_merge_up`.
+ *
+ * 🔴 Chương liền trước (A) và Chương đang chọn (B) đều có thể là "Chương đang mở" của Editor
+ * (`editorChapterId`) — B biến mất, A đổi nội dung. Cả hai id lấy được TỪ TRƯỚC lượt gọi IPC:
+ * B là chính hàng đang chọn; A là hàng liền trước nó trong `chapters.value`, danh sách đã
+ * tải sẵn (đúng thứ tự `(ord, id)` mà Rust trả về, `libraryChapters.ts::loadChapters`) —
+ * không cần đoán, không cần một lượt IPC phụ chỉ để hỏi "ai là Chương trước". */
+export async function mergeCurrentChapterUp(): Promise<void> {
+  const row = currentLibraryChapter.value
+  if (row === null) return
+  if (!(await beginChapterReorg())) return
+  // 🔴 ĐỌC SAU lượt flush, và KẸP BIÊN DƯỚI — hai lỗi của bản đầu, cùng bắt được ở lượt rà
+  // 2026-08-29:
+  //   ① `chapters.value.at(chapterCursor.value - 1)` với con trỏ ở **0** cho `.at(-1)`, tức
+  //      phần tử CUỐI mảng, không phải `undefined`. `Array.prototype.at` nhận chỉ số ÂM là
+  //      đếm ngược — một hành vi đúng của ngôn ngữ, đọc ra thành một bug ở đây.
+  //   ② đọc TRƯỚC `beginChapterReorg()` là đọc trước một lượt `await` có thể kéo tới trần
+  //      cứng 5 giây của AD-35, tức một ảnh chụp có thể đã cũ khi lượt IPC bay đi.
+  // Hậu quả của ① hôm nay hẹp (một lượt gộp ở con trỏ 0 luôn bị Rust từ chối bằng
+  // `chapter.at_first`, nên hàm trả về trước khi dùng tới `previousRow`) — nhưng nó là một
+  // giá trị SAI nằm sẵn chờ đường gọi thứ hai, và cửa nó mở ra là *"Editor không nạp lại sau
+  // một lượt gộp"*.
+  const previousRow = chapterCursor.value > 0 ? (chapters.value.at(chapterCursor.value - 1) ?? null) : null
+
+  const { error } = await mergeChapterIntoPrevious(row.chapter_id)
+  if (error !== null) {
+    chapterReorgError.value = error
+    chapterReorgBusy.value = false
+    return
+  }
+
+  // Chương đang mở của Editor bị ẢNH HƯỞNG ⇔ nó là A hoặc B — vứt state Chương của Editor rồi
+  // nạp lại NGAY, cùng khuôn `openWorkById`/`openChapterById` (`resetEditorPanel()` +
+  // `resetSourcePanel()` rồi `ensureChapterLoaded()` + `ensureSegmentsLoaded()`).
+  const openId = editorChapterId.value
+  if (openId !== null && (openId === row.chapter_id || openId === previousRow?.chapter_id)) {
+    resetEditorPanel()
+    resetSourcePanel()
+    await ensureChapterLoaded()
+    await ensureSegmentsLoaded()
+  }
+
+  await loadChapters()
+  chapterReorgBusy.value = false
+}
+
 /**
  * 🔴 Vứt toàn bộ state — `check:panel-refs` đòi mọi ô nhớ cấp module có một đường
  * `reset*()`. Dùng bởi bàn đo/test; sản phẩm không có chỗ gọi (khối này sống suốt phiên).
@@ -275,6 +434,10 @@ export function resetLibraryChapters(): void {
   openWorkBusy.value = false
   openWorkNotice.value = null
   openWorkError.value = null
+  chapterRenameDraft.value = ''
+  chapterReorgBusy.value = false
+  chapterReorgNotice.value = null
+  chapterReorgError.value = null
 }
 
 /** Hình dạng trả về của [`chapterWindow`] — chỉ số MẢNG (nửa mở `[start, end)`), cộng hai

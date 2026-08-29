@@ -20,7 +20,7 @@
 import { nextTick, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { enterFocus } from '../commands'
-import { openAdjacentChapter, openChapter } from '../config/chapter'
+import { openAdjacentChapter, openChapter, splitChapterAtSegment } from '../config/chapter'
 import type { ChapterDirection } from '../config/chapter'
 // 🔵 CODE REVIEW 2026-08-18 — lượt đổi CHƯƠNG phải dọn và nạp lại Panel Source, đúng như lượt
 // đổi TÁC PHẨM đã làm ở `modes/libraryImport.ts`. Xem khối lý do trong [`switchChapter`].
@@ -700,6 +700,10 @@ export function resetEditorPanel(): void {
   // 🔵 **HẾT ĐÚNG 2026-08-18 (Story 2.12, AC5)** — nay CÓ một cổng canh: `check:panel-refs`
   // đỏ khi một ô nhớ cấp module không đi qua một hàm reset và cũng không có miễn trừ có tên.
   datThongBao({})
+  // ⚠️ `splitChapterError` KHÔNG đi qua `datThongBao` (nó chở một `IpcError`, không một mã câu
+  // chữ) — cùng khuôn `regroupError`, và cùng lý do nó phải có mặt Ở ĐÂY bằng tay:
+  // `check:panel-refs` đòi mọi ô nhớ cấp module có một đường `reset*()`.
+  splitChapterError.value = null
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // 🔵 STORY 2.12 — NĂM CỜ/MUTEX TIẾN TRÌNH, và vì sao chúng vào đây chứ không được miễn
@@ -1809,6 +1813,83 @@ export async function openChapterById(targetChapterId: number): Promise<boolean>
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 5.8 — TÁCH CHƯƠNG tại câu đang có tiêu điểm (FR15 · AD-32)
+// ═════════════════════════════════════════════════════════════════════════════════
+// Điểm tách sống ở Editor, không ở Library: `caretSegmentId` là chỗ DUY NHẤT trong kho biết
+// câu nào đang được chọn (§Design Notes "Điểm tách sống ở Editor, không ở Library").
+
+/**
+ * **Tách Chương đang mở tại câu đang có tiêu điểm** — hợp âm `Mod+Shift+Slash`
+ * (`editor.split_chapter`). Story 5.8, Task 16.
+ *
+ * 🔴 *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."* `caretSegmentId === null`
+ * là trạng thái BÌNH THƯỜNG của một panel chỉ-đọc (không câu nào đang được chạm, cùng lý lẽ
+ * doc-comment của [`caretSegmentId`]) — ghi chẩn đoán nêu đích danh rồi trả `false`, và
+ * **KHÔNG một lượt IPC nào được phát** (§I/O Matrix "Tách khi caret trống").
+ *
+ * Flush TRƯỚC (AD-35 vế (c), cùng cửa mọi lệnh ghi rời rạc khác của tệp này) — trượt cũng
+ * KÊU rồi trả `false`, không ném, đúng cùng luật.
+ *
+ * Trả `true` khi Chương THẬT SỰ tách. **Không tự chuyển chế độ** — đó là đoán ý người dùng
+ * (`src/AGENTS.md`).
+ */
+export async function splitChapterHere(): Promise<boolean> {
+  const segmentId = caretSegmentId.value
+  if (segmentId === null) {
+    console.error(
+      '[editor] KHONG tach Chuong: khong co cau nao dang duoc chon (caretSegmentId === null)',
+    )
+    // 🔵 Story 5.8, lượt rà — một dòng `console.error` KHÔNG phải một câu trả lời cho người
+    // dùng. Xem doc-comment của [`splitChapterNotice`] cho phép đo đứng sau khối này.
+    splitChapterError.value = null
+    datThongBao({ splitChapter: 'no-caret' })
+    return false
+  }
+
+  const flushed = await flushEditorBeforeDiscreteWrite()
+  if (flushed !== 'clean') {
+    console.error(
+      `[editor] KHONG tach Chuong: luot flush tra '${flushed}' — ban dich chua xuong dia`,
+    )
+    splitChapterError.value = null
+    datThongBao({ splitChapter: 'flush-failed' })
+    return false
+  }
+
+  const { ok, error } = await splitChapterAtSegment(segmentId)
+  if (error !== null) {
+    console.error(
+      `[editor] tach Chuong TRUOT: ${error.code} (${error.message_key}), retryable=${String(error.retryable)}`,
+    )
+    // ⚠️ Ghi `splitChapterError` TRƯỚC `datThongBao` — cùng thứ tự và cùng lý do
+    // `ghiRegroupNotice` đã dùng: `StatusBar.vue` đọc hai ô trong một lượt render, và một
+    // `'refused'` không kèm lỗi đọc ra thành câu chung của `'flush-failed'`.
+    splitChapterError.value = error
+    datThongBao({ splitChapter: 'refused' })
+    return false
+  }
+  // `ok === null` mà `error === null` ⇒ khong co cau IPC (chay ngoai Tauri) -- cung nhanh moi
+  // adapter khac, khong mot loi nao de hien.
+  if (ok === null) {
+    splitChapterError.value = null
+    datThongBao({ splitChapter: 'refused' })
+    return false
+  }
+
+  // Chuong A (dang mo) vua mat bot cau cuoi sang B -- vut state CU roi nap lai NGAY, cung
+  // khuon `openChapterById`/`switchChapter`.
+  resetEditorPanel()
+  resetSourcePanel()
+  await ensureSegmentsLoaded()
+  await ensureChapterLoaded()
+  // 🔴 SAU `resetEditorPanel()`, không trước: chính nó gọi `datThongBao({})` để vứt state của
+  // Tác phẩm cũ, nên một câu ghi trước lượt đó sẽ bị dọn ngay và người dùng không thấy gì.
+  splitChapterError.value = null
+  datThongBao({ splitChapter: 'split' })
+  return true
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 // 🔴 STORY 2.8 — GỘP và TÁCH tường minh (FR78 · AD-5 · AD-47 ①)
 // ═════════════════════════════════════════════════════════════════════════════════
 
@@ -2067,6 +2148,38 @@ const navNotice = shallowRef<NavNotice | null>(null)
 export const editorNavNotice: DeepReadonly<Ref<NavNotice | null>> = readonly(navNotice)
 
 /**
+ * Kết cục của lượt **tách CHƯƠNG** gần nhất — Story 5.8, ô nhớ câu chữ **thứ TƯ**, và
+ * doc-comment của [`datThongBao`] đã hẹn trước đúng lượt thêm này (*"thêm một ô nhớ thứ tư thì
+ * thêm một trường vào đây và một dòng gán"*).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 VÌ SAO Ô NHỚ NÀY PHẢI TỒN TẠI — MỘT PHÉP ĐO, KHÔNG MỘT LO XA
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ⚠️ **Đo 2026-08-29 (lượt rà):** bản đầu của [`splitChapterHere`] báo MỌI đường trượt bằng
+ * `console.error` và **chỉ thế** — caret trống, flush chưa sạch, và cả `err.chapter.split_leaves_empty`
+ * (ca THƯỜNG NHẤT: gõ hợp âm khi caret đang ở câu đầu Chương). Người dùng gõ `Mod+Shift+Slash`
+ * và màn hình **không đổi một pixel nào**. Đúng lớp *"rỗng IM LẶNG"* mà `AGENTS.md` đặt lên
+ * hàng đầu — và nó lệch hẳn với hai lệnh ANH EM của nó: `editor.merge_segments` và
+ * `editor.split_segment` đều hiện câu từ chối trên `StatusBar` qua `regroupNotice`/`regroupError`.
+ *
+ * ⚠️ **Không tái dùng `RegroupNotice`.** `RegroupNotice` suy ra từ `RegroupResultCode` của lượt
+ * gộp/tách **segment** (AD-5: về hưu + tạo mới); tách CHƯƠNG là AD-32 (thao tác tổ chức, không
+ * đụng văn bản segment nào). Nhồi nó vào cùng một union là gộp hai khái niệm mà `epics.md` gọi
+ * là *"khác biệt cố ý"*, và bảng khoá của `StatusBar` sẽ nói sai một trong hai.
+ *
+ * Danh mục ĐÓNG bốn giá trị ⇒ bảng `Record` ở `StatusBar.vue` đỏ ở `vue-tsc` nếu ai thêm một
+ * giá trị thứ năm mà quên khoá chuỗi — cùng cơ chế ba bảng kia.
+ */
+export type SplitChapterNotice = 'split' | 'no-caret' | 'flush-failed' | 'refused'
+const splitChapterNotice = shallowRef<SplitChapterNotice | null>(null)
+/** Xem [`splitChapterNotice`]. `StatusBar.vue` đọc. */
+export const editorSplitChapterNotice: DeepReadonly<Ref<SplitChapterNotice | null>> =
+  readonly(splitChapterNotice)
+const splitChapterError = shallowRef<IpcError | null>(null)
+/** `IpcError` của nhánh `'refused'` — `StatusBar.vue` đọc nó qua `tError()`. */
+export const editorSplitChapterError: DeepReadonly<Ref<IpcError | null>> = readonly(splitChapterError)
+
+/**
  * 🔴 **CỬA GHI DUY NHẤT CHO CẢ BA Ô NHỚ CỦA THANH TRẠNG THÁI.** Story 2.10, Quyết định #4(b).
  *
  * ─────────────────────────────────────────────────────────────────────────────
@@ -2095,10 +2208,14 @@ function datThongBao(o: {
   confirm?: Exclude<ConfirmResult, 'confirmed' | 'refused'> | null
   regroup?: RegroupNotice | null
   nav?: NavNotice | null
+  // 🔵 Ô thứ TƯ (Story 5.8) — thêm ĐÚNG như doc-comment trên đã hẹn: một trường ở đây, một
+  // dòng gán bên dưới, và mọi chỗ gọi cũ dọn nó mà không phải sửa một dòng nào.
+  splitChapter?: SplitChapterNotice | null
 }): void {
   confirmNotice.value = o.confirm ?? null
   regroupNotice.value = o.regroup ?? null
   navNotice.value = o.nav ?? null
+  splitChapterNotice.value = o.splitChapter ?? null
 }
 
 /**

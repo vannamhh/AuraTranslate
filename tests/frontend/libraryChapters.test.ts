@@ -298,3 +298,270 @@ describe('modes/libraryChapters.ts::openWorkById — cửa chặn khi flush chư
     expect(state.libraryOpenWorkNotice.value).toBe('still-dirty')
   })
 })
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 5.8 — BỐN CHỖ NỐI MỚI CỦA "TỔ CHỨC LẠI CHƯƠNG" (FR15)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 **Vì sao đúng bốn ca này, không nhiều hơn.** Hành vi SQL của bốn thao tác thuộc
+// `src-tauri/tests/project_contract.rs` — đó là đường nghiệm thu của AD-32 (`tests/AGENTS.md`:
+// bốn đường, bốn vai, chọn sai đường là dựng một nguồn sự thật thứ hai). Thứ CHỈ tầng này
+// canh được là bốn mệnh đề về **webview**: cửa chặn flush, lượt nạp lại sau khi ghi, cờ bận
+// khoá nút, và vị từ caret rỗng.
+
+describe('modes/libraryChapters.ts — cửa chặn flush của bốn thao tác tổ chức (Story 5.8)', () => {
+  it("🔴 flush trả `'still-dirty'` ⇒ KHÔNG lệnh tổ chức nào chạy, và câu báo PHÂN BIỆT được", async () => {
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+    mockInvoke.mockClear()
+
+    ketQuaFlush.value = 'still-dirty'
+    await state.renameCurrentChapter()
+
+    const daGhi = mockInvoke.mock.calls.some((c) =>
+      ['rename_chapter', 'move_chapter', 'merge_chapter_into_previous'].includes(String(c[0])),
+    )
+    expect(daGhi).toBe(false)
+    expect(state.libraryChapterReorgNotice.value).toBe('still-dirty')
+  })
+
+  it("🔴 flush trả `'failed'` ⇒ lượt GỘP bị CHẶN, `merge_chapter_into_previous` KHÔNG chạy", async () => {
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+    state.nextChapter() // Con trỏ về hàng thứ hai -- hàng đầu không có Chương nào phía trước.
+    mockInvoke.mockClear()
+
+    ketQuaFlush.value = 'failed'
+    await state.mergeCurrentChapterUp()
+
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'merge_chapter_into_previous')).toBe(false)
+    expect(state.libraryChapterReorgNotice.value).toBe('flush-failed')
+  })
+})
+
+describe('modes/libraryChapters.ts::renameCurrentChapter — Story 5.8', () => {
+  it('đổi tên xong ⇒ danh sách được NẠP LẠI, không đứng ở tên cũ', async () => {
+    ketQuaFlush.value = 'clean'
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+    expect(state.libraryChapters.value[0]?.title).toBe('Chuong Mot')
+
+    // Từ đây trở đi cả `rename_chapter` lẫn `list_chapters` đều trả TÊN MỚI.
+    const doiTen = { ...CHAPTER_ROW_A, title: 'Hoi Mot' }
+    mockInvoke.mockReset()
+    mockInvoke.mockResolvedValue([doiTen])
+    state.chapterRenameDraft.value = 'Hoi Mot'
+
+    await state.renameCurrentChapter()
+
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'rename_chapter')).toBe(true)
+    // Đối chứng chỗ nối: một lượt `list_chapters` THẬT SỰ chạy SAU lượt ghi. Bỏ
+    // `await loadChapters()` khỏi `renameCurrentChapter` làm đúng phép kiểm này đỏ.
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'list_chapters')).toBe(true)
+    expect(state.libraryChapters.value[0]?.title).toBe('Hoi Mot')
+    expect(state.libraryChapterReorgBusy.value).toBe(false)
+  })
+
+  it('🔴 lỗi IPC ⇒ câu lỗi hiện ra và cờ bận được NHẢ (nút không kẹt vĩnh viễn)', async () => {
+    ketQuaFlush.value = 'clean'
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+
+    mockInvoke.mockReset()
+    mockInvoke.mockRejectedValue(WORK_NONE_OPEN_ERROR)
+    await state.renameCurrentChapter()
+
+    expect(state.libraryChapterReorgError.value?.code).toBe('work.none_open')
+    expect(state.libraryChapterReorgBusy.value).toBe(false)
+  })
+})
+
+describe('modes/LibraryMode.vue — nút tổ chức tắt khi KHÔNG có Chương nào đang chọn (Story 5.8)', () => {
+  let wrapper: ReturnType<typeof mount> | null = null
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  it('danh sách chưa tải ⇒ khối tổ chức KHÔNG render (không có nút nào để bấm nhầm)', async () => {
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    wrapper = mount(LibraryMode)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-library-chapter-rename]').exists()).toBe(false)
+    expect(wrapper.find('[data-library-chapter-merge-up]').exists()).toBe(false)
+  })
+
+  it('đã tải, có Chương ⇒ bốn nút tổ chức có mặt và BẤM ĐƯỢC', async () => {
+    ketQuaFlush.value = 'clean'
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    wrapper = mount(LibraryMode)
+    await state.loadChapters()
+    await wrapper.vm.$nextTick()
+
+    for (const attr of [
+      'data-library-chapter-rename',
+      'data-library-chapter-move-up',
+      'data-library-chapter-move-down',
+      'data-library-chapter-merge-up',
+    ]) {
+      const nut = wrapper.find(`[${attr}]`)
+      expect(nut.exists()).toBe(true)
+      expect(nut.attributes('disabled')).toBeUndefined()
+    }
+  })
+})
+
+// 🔴 `splitChapterHere` sống ở `editorPanelState.ts`, không ở `libraryChapters.ts` — điểm
+// tách là một CÂU, và `caretSegmentId` là chỗ duy nhất biết câu nào đang được chọn. Ca dưới
+// đây gọi hàng THẬT (`importOriginal` giữ nguyên mọi export trừ `flushEditorBeforeDiscreteWrite`).
+describe('panels/editorPanelState.ts::splitChapterHere — caret rỗng (Story 5.8)', () => {
+  it('🔴 caret `null` ⇒ 0 lượt `invoke`, trả `false`, KHÔNG ném', async () => {
+    const editor = await import('../../src/panels/editorPanelState')
+    editor.resetEditorPanel()
+    mockInvoke.mockClear()
+
+    const ketQua = await editor.splitChapterHere()
+
+    expect(ketQua).toBe(false)
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'split_chapter_at_segment')).toBe(false)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 5.8 — LƯỢT RÀ 2026-08-29: BỐN LỖ ĐO ĐƯỢC, BỐN CA
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Cả bốn ca dưới đây ra đời từ lượt rà, không từ lượt viết đầu — và mỗi ca đứng trên một phép
+// đo, không một lo xa. Ghi ra ở đây để lượt đọc sau biết chúng canh cái gì.
+
+describe('modes/libraryChapters.ts — ô nhập tên đi THEO Chương đang chọn (Story 5.8, lượt rà)', () => {
+  it('🔴 dời con trỏ sang Chương khác ⇒ ô nhập MỒI lại theo tên Chương mới, không giữ chữ cũ', async () => {
+    ketQuaFlush.value = 'clean'
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+    await Promise.resolve()
+
+    // Con trỏ ở hàng 0 (`Chuong Mot`) -- ô nhập mồi bằng chính tên đó.
+    expect(state.chapterRenameDraft.value).toBe('Chuong Mot')
+
+    // Người dùng gõ dở một cái tên rồi ĐỔI Ý, dời con trỏ sang Chương khác.
+    state.chapterRenameDraft.value = 'Ten go do cho Chuong Mot'
+    state.nextChapter()
+    await Promise.resolve()
+
+    // 🔴 Không có `watch`, ô nhập giữ nguyên "Ten go do cho Chuong Mot" và một lượt bấm "Đổi
+    // tên" sẽ áp nó lên Chương THỨ HAI — một lượt ghi dữ liệu người dùng, im lặng.
+    // `CHAPTER_ROW_UNTITLED.title` là `null` ⇒ ô nhập về rỗng, không giữ chữ của hàng trước.
+    expect(state.chapterRenameDraft.value).toBe('')
+  })
+
+  it('lượt nạp lại danh sách KHÔNG giẫm lên chữ đang gõ dở (watch nghe `chapter_id`, không nghe đối tượng hàng)', async () => {
+    ketQuaFlush.value = 'clean'
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+    await Promise.resolve()
+
+    state.chapterRenameDraft.value = 'Dang go do'
+    // `loadChapters()` thay CẢ MẢNG -- một `watch` trên `currentLibraryChapter` sẽ bắn ở đây.
+    await state.loadChapters()
+    await Promise.resolve()
+
+    expect(state.chapterRenameDraft.value).toBe('Dang go do')
+  })
+})
+
+describe('modes/libraryChapters.ts::mergeCurrentChapterUp — con trỏ ở hàng ĐẦU (Story 5.8, lượt rà)', () => {
+  it('🔴 con trỏ ở 0 ⇒ KHÔNG đọc nhầm hàng CUỐI làm "Chương liền trước" (`.at(-1)` vòng)', async () => {
+    ketQuaFlush.value = 'clean'
+    const CHUONG_CUOI = { chapter_id: 9, ord: 3, title: 'Chuong Cuoi', status: 'done', segment_count: 2 }
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'list_chapters') return Promise.resolve([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED, CHUONG_CUOI])
+      if (cmd === 'merge_chapter_into_previous') return Promise.resolve(null)
+      return Promise.resolve(null)
+    })
+    const state = await import('../../src/modes/libraryChapters')
+    await state.loadChapters()
+    // Con trỏ ở 0 -- `chapters.value.at(-1)` sẽ trả `CHUONG_CUOI`, KHÔNG `undefined`.
+    expect(state.libraryChapterCursor.value).toBe(0)
+
+    await state.mergeCurrentChapterUp()
+
+    // Mệnh đề đáng đo: lượt gọi vẫn đi tới IPC với ĐÚNG hàng đang chọn, và cờ bận được nhả.
+    // (Rust là nơi từ chối bằng `chapter.at_first`; webview không được tự đoán biên.)
+    const goiMerge = mockInvoke.mock.calls.filter((c) => c[0] === 'merge_chapter_into_previous')
+    expect(goiMerge).toHaveLength(1)
+    expect(goiMerge[0]?.[1]).toEqual({ chapterId: CHAPTER_ROW_A.chapter_id })
+    expect(state.libraryChapterReorgBusy.value).toBe(false)
+  })
+})
+
+describe('panels/editorPanelState.ts::splitChapterHere — thân hàm, không chỉ vị từ caret (Story 5.8, lượt rà)', () => {
+  it('🔴 caret `null` ⇒ 0 lượt invoke VÀ một câu hiện ra trên thanh trạng thái', async () => {
+    const editor = await import('../../src/panels/editorPanelState')
+    editor.resetEditorPanel()
+    mockInvoke.mockClear()
+
+    const ketQua = await editor.splitChapterHere()
+
+    expect(ketQua).toBe(false)
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'split_chapter_at_segment')).toBe(false)
+    // 🔴 Vế THỨ HAI, và nó là vế lượt rà thêm vào: một `console.error` không phải một câu trả
+    // lời cho người dùng. Bản đầu để `editorSplitChapterNotice` là `null` ở đây.
+    expect(editor.editorSplitChapterNotice.value).toBe('no-caret')
+  })
+
+  it('🔴 Rust TỪ CHỐI ⇒ câu `refused` mang đúng `IpcError`, không rơi về một câu chung', async () => {
+    const LOI_TACH = {
+      code: 'chapter.split_leaves_empty',
+      message_key: 'err.chapter.split_leaves_empty',
+      params: {},
+      retryable: false,
+    }
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'split_chapter_at_segment') return Promise.reject(LOI_TACH)
+      return Promise.resolve(null)
+    })
+    const editor = await import('../../src/panels/editorPanelState')
+    editor.resetEditorPanel()
+    editor.setEditorCaret(11)
+
+    const ketQua = await editor.splitChapterHere()
+
+    expect(ketQua).toBe(false)
+    expect(editor.editorSplitChapterNotice.value).toBe('refused')
+    expect(editor.editorSplitChapterError.value?.code).toBe('chapter.split_leaves_empty')
+  })
+
+  it('tách THÀNH CÔNG ⇒ nạp lại segment/Chương rồi mới báo, và câu báo SỐNG SÓT lượt reset', async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'split_chapter_at_segment') return Promise.resolve(null)
+      if (cmd === 'read_open_chapter_segments') {
+        return Promise.resolve({ chapter_id: 1, segments: [], caret_segment_id: null })
+      }
+      return Promise.resolve({ chapter_id: 1, source_text: '', source_lang: 'zh' })
+    })
+    const editor = await import('../../src/panels/editorPanelState')
+    editor.resetEditorPanel()
+    editor.setEditorCaret(11)
+
+    const ketQua = await editor.splitChapterHere()
+
+    expect(ketQua).toBe(true)
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'split_chapter_at_segment')).toBe(true)
+    // 🔴 Đối chứng của một BẪY THẬT: `resetEditorPanel()` chạy TRONG hàm này và chính nó gọi
+    // `datThongBao({})`. Ghi câu báo TRƯỚC lượt đó thì nó bị dọn ngay và người dùng không thấy
+    // gì — ca này đỏ nếu thứ tự hai dòng ấy bị đảo.
+    expect(editor.editorSplitChapterNotice.value).toBe('split')
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'read_open_chapter_segments')).toBe(true)
+  })
+})

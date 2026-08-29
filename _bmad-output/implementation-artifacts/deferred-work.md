@@ -8448,3 +8448,75 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     ngưỡng hay thêm một lượt chạy lại — cả hai biến ca thành thứ không bao giờ đỏ.
     **(Chủ: Ice — cùng chủ và cùng hạng với hai mục chập chờn đã ghi từ 2026-08-28
     (`editor-confirm-segment`, `shortcuts-focus`) và mục "nhịp đêm đỏ, chết ở CẦU IPC".)**
+
+## Deferred from: 5-8-to-chuc-lai-chuong-sau-khi-nhap (2026-08-29)
+
+- 🔴 **Lượt TÁCH Chương làm `chapter.source_text` mất khoảng trắng, dòng trống và thụt đầu
+  dòng của bản thô — ở CẢ HAI nửa.**
+  evidence: Không cột nào lưu vị trí của một segment trong `chapter.source_text`, nên tách
+    không có đường giữ nguyên byte. Hai phương án đã cân, và một phương án **đo được là
+    hỏng**: cắt chuỗi thô tại offset dò được bằng cách tìm `segment.source_text` trong đó
+    **hỏng ngay** khi Chương đã đi qua một lượt gộp/tách *segment* của Story 2.8 —
+    `commands/segment.rs::write_regroup` **tạo hàng mới** mang văn bản ghép, và văn bản ghép
+    đó không còn là một chuỗi con của bản thô ⇒ phương án đó bắt buộc phải kèm một nhánh dự
+    phòng, tức **hai bản cài đặt của cùng một quy tắc** (đúng hình dạng `AGENTS.md::Known
+    pitfalls` gọi tên). Phương án đã chọn — nối `segment.source_text` của hàng còn sống bằng
+    `\n` — luôn chạy được, một nhánh.
+    ⚠️ Cái giá đo được **bằng KHÔNG cho mọi chỗ đọc đang tồn tại** (đo 2026-08-29): sau khi
+    một Chương đã có segment, `chapter.source_text` chỉ còn ba chỗ đọc sản phẩm —
+    `src/panels/sourcePanelState.ts::hanCharOccurrenceCount` (**đếm** ký tự Hán),
+    `ensureHanVietLoaded` (**tra** âm theo ký tự), và `src/panels/GridPanel.vue::isEmptyChapter`
+    (`.trim() === ''`); cả ba **không đọc khoảng trắng**. Chỗ đọc thứ tư,
+    `commands/segment.rs::split_chapter_into_segments`, có rào `already_split` nên nó không
+    bao giờ chạy trên một Chương đã tách. Đường quét glossary lúc nhập đọc **segment**
+    (`commands/project.rs::read_chapter_segment_texts`), không đọc `chapter.source_text`.
+    ⇒ Món nợ này phải trả **trước** ngày một chỗ đọc THỨ TƯ cần bản thô đúng từng byte — ví
+    dụ một đường xuất `.docx` giữ định dạng. Nó không đau hôm nay, và nó không tự kêu: không
+    cổng nào đỏ, và biểu hiện là *"bản gốc mất dòng trống"* sau một thao tác không ai nhớ.
+    **(Chủ: Ice — câu hỏi là *"`chapter.source_text` có còn là bản LƯU TRỮ thô hay không"*,
+    một quyết định về mô hình dữ liệu, không một lượt vá của một story cụ thể.)**
+
+- ⚠️ **`work.last_chapter_id` — *"mở Tác phẩm ở Chương nào"* NAY quan sát được, và `open_work`
+  vẫn mở Chương ĐẦU.**
+  evidence: §Design Notes của `5-7-danh-sach-chuong-va-mo-chuong-vao-workspace.md` giao món nợ
+    này cho **Story 5.8** với điều kiện *"khi Chương thứ hai tồn tại thật"*, vì lúc đó
+    `INSERT INTO chapter` xuất hiện đúng **một** lần trong toàn kho (`commands/project.rs:271`,
+    trong `create_work`) nên mọi Tác phẩm có đúng một Chương và câu hỏi ấy **không quan sát
+    được**. Story này thêm chỗ chèn thứ hai (`split_chapter_at_segment`), nên vế điều kiện đã
+    thoả và câu hỏi có nghĩa trở lại.
+    ⚠️ **Nhưng nó vẫn CHƯA đáng chốt, và đây là lý do — không phải một lượt đá đi:** tách
+    Chương là một thao tác SỬA LỖI NHẬP, làm một lần rồi thôi; nó khiến một Tác phẩm **có
+    thể** có nhiều Chương, chưa khiến điều đó thành **thường lệ**. Đường làm nó thành thường
+    lệ là FR14 (nhập hàng loạt, Epic 6), và một quyết định UX về *"mở ở Chương nào"* chốt
+    trước khi có dữ liệu thật về cách người dùng đi lại giữa hàng trăm Chương là đoán trước.
+    Thêm một cột `work.last_chapter_id` hôm nay vẫn là *"một khoá cho tính năng chưa tồn
+    tại"* mà Story 1.7 §Completion Notes #3 cấm.
+    ⇒ Đề xuất chủ kế tiếp: story dựng pipeline nhập của Epic 6 (`6-2-…`), là chỗ đầu tiên một
+    Tác phẩm nhiều Chương ra đời theo đường sản phẩm.
+    **(Chủ: Ice — đề xuất trên là một đề xuất, và giao lại một món nợ sang một Epic khác là
+    quyết định của Ice, không của story đang chạy.)**
+
+- ⚠️ **Bộ e2e KHÔNG đo đường bàn phím của `editor.split_chapter` (`Mod+Shift+Slash`) — lượt
+  tách trong `story-5-8-reorganise-chapters.e2e.mjs` đi qua cầu IPC trần.**
+  evidence: Cùng gốc và cùng phép đo với mục *"Bộ e2e KHÔNG kích hoạt được một `<button>` bằng
+    BÀN PHÍM"* ghi ở §"Deferred from: 5-7…" (đo 2026-08-29): WebDriver gửi phím tới phần tử mà
+    **nó** coi là đang có tiêu điểm, và `document.hasFocus()` là `false` suốt phiên. Spec 5.8
+    vì thế gọi `split_chapter_at_segment` qua `window.__TAURI_INTERNALS__` — nó đo **hợp đồng
+    IPC và hệ quả trên đĩa**, không đo hợp âm. Vị từ *"caret rỗng ⇒ 0 lượt invoke"* có lưới ở
+    `tests/frontend/libraryChapters.test.ts`; thứ **không** có lưới ở đâu cả là *"gõ
+    `Mod+Shift+Slash` trong Editor thì lệnh bắn"*.
+    ⇒ Đây KHÔNG phải một mục thứ hai cần điều tra riêng — nó là cùng một khuyết tật bàn đo,
+    ghi ra ở đây để lượt đọc sau không tưởng nhánh tách đã được phủ bằng bàn phím.
+    **(Chủ: Ice — cùng chủ với mục gốc ở §"Deferred from: 5-7…".)**
+
+- ✅ **`save_chapter_position` chỉ kiểm `chapter_id` tồn tại, KHÔNG kiểm `segment_id` thuộc
+  đúng Chương đó** *(mục `deferred` #1 trong frontmatter của
+  `5-7-danh-sach-chuong-va-mo-chuong-vao-workspace.md`, giao đích danh cho Story 5.8)*
+  → ✅ **ĐÃ ĐÓNG 2026-08-29 (Story 5.8).** Phép kiểm cặp `(chapter_id, segment_id)` nay chạy
+  **trong chính giao dịch ghi** của `commands/segment.rs::save_chapter_position` — không khe
+  hở nào giữa phép kiểm và phép ghi — và một cặp lệch trả `segment.not_found` với **0 hàng
+  ghi**, thay vì đi tiếp rồi đọc lên **giống hệt** ca *"segment đã về hưu"* (hai nguyên nhân
+  khác hẳn đội chung một biểu hiện, đúng lý do mục này được ghi). Điều kiện mà mục gốc chờ đã
+  tới: story này là story đầu tiên có đường sản phẩm làm segment **ĐỔI `chapter_id`**, nên
+  cặp lệch sinh ra được thật. Ca canh:
+  `src-tauri/tests/segment_contract.rs::saving_a_position_whose_segment_belongs_to_another_chapter_writes_nothing`.

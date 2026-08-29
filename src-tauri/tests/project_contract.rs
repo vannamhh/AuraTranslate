@@ -19,14 +19,15 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::chapter::{
-    ChapterDirection, ChapterSwitchOutcome, open_adjacent_chapter, read_open_chapter,
+    ChapterDirection, ChapterSwitchOutcome, merge_chapter_into_previous, move_chapter,
+    open_adjacent_chapter, read_open_chapter, rename_chapter, split_chapter_at_segment,
 };
-use auratranslate_lib::commands::project::{create_work_from_file, create_work_from_text};
+use auratranslate_lib::commands::project::{OpenWork, create_work_from_file, create_work_from_text};
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::{ScopeResolver, Tier, WorkScope};
 use auratranslate_lib::core::segment::import::{import_file, import_text};
-use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
+use auratranslate_lib::core::store::{SqlResult, Store, StoreSpec, Transaction};
 use uuid::Uuid;
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
@@ -2072,4 +2073,968 @@ fn opening_a_chapter_without_a_work_open_reuses_the_named_error() {
         .expect_err("chua Tac pham nao mo phai la mot loi");
     assert_eq!(err.code(), "work.none_open");
     assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 5.8 — TỔ CHỨC LẠI CHƯƠNG SAU KHI NHẬP (FR15, AD-32)
+// ═════════════════════════════════════════════════════════════════════════════════
+// `create_work_from_text` TỰ ĐỘNG tách segment từ văn bản đưa vào (AC13, Story 2.1) — mọi ca
+// dưới đây cần kiểm soát TUYỆT ĐỐI tập hàng `segment`/`chapter` nên gọi nó với văn bản RỖNG
+// (0 segment auto-sinh) rồi tự dựng dữ liệu bằng SQL trần, đúng khuôn `insert_chapter_directly`
+// đã có ở trên.
+
+/// Chèn một hàng `segment` **thẳng bằng SQL**, mọi cột không liệt ở tham số mang giá trị mặc
+/// định vô hại (`target_text = ''`, `status = 'draft'`, `is_omitted = 0`,
+/// `translation_origin = ''`) — trả `segment.id` vừa sinh.
+fn insert_segment_directly(opened: &OpenWork, chapter_id: i64, ord: i64, source_text: &str, retired: bool) -> i64 {
+    let source_text = source_text.to_owned();
+    let retired_at: Option<&'static str> = if retired { Some("2026-08-29T00:00:00.000Z") } else { None };
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO segment (chapter_id, ord, source_text, target_text, \
+                 is_paragraph_end, is_target_paragraph_end, retired_at, status, is_omitted, \
+                 translation_origin, created_at, updated_at) \
+                 VALUES (?1, ?2, ?3, '', 0, 0, ?4, 'draft', 0, '', \
+                 '2026-08-29T00:00:00.000Z', '2026-08-29T00:00:00.000Z')",
+                (chapter_id, ord, &source_text, retired_at),
+            )?;
+            Ok(tx.last_insert_rowid())
+        })
+        .expect("chen segment bang SQL truc tiep that bai")
+}
+
+/// Chèn một hàng `segment_version` **thẳng bằng SQL** — trả `id` vừa sinh.
+fn insert_segment_version_directly(opened: &OpenWork, segment_id: i64, target_text: &str) -> i64 {
+    let target_text = target_text.to_owned();
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO segment_version (segment_id, target_text, created_at) \
+                 VALUES (?1, ?2, '2026-08-29T00:00:00.000Z')",
+                (segment_id, &target_text),
+            )?;
+            Ok(tx.last_insert_rowid())
+        })
+        .expect("chen segment_version bang SQL truc tiep that bai")
+}
+
+fn set_chapter_status_directly(opened: &OpenWork, chapter_id: i64, status: &str) {
+    let status = status.to_owned();
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE chapter SET status = ?1 WHERE id = ?2", (status, chapter_id)))
+        .expect("dat status Chuong bang SQL truc tiep that bai");
+}
+
+fn set_chapter_source_text_directly(opened: &OpenWork, chapter_id: i64, text: &str) {
+    let text = text.to_owned();
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE chapter SET source_text = ?1 WHERE id = ?2", (text, chapter_id)))
+        .expect("dat source_text Chuong bang SQL truc tiep that bai");
+}
+
+fn read_chapter_status(opened: &OpenWork, chapter_id: i64) -> String {
+    opened
+        .store
+        .read(move |conn| conn.query_row("SELECT status FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0)))
+        .expect("doc status Chuong that bai")
+}
+
+fn read_chapter_source_text(opened: &OpenWork, chapter_id: i64) -> String {
+    opened
+        .store
+        .read(move |conn| conn.query_row("SELECT source_text FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0)))
+        .expect("doc source_text Chuong that bai")
+}
+
+fn read_chapter_title(opened: &OpenWork, chapter_id: i64) -> Option<String> {
+    opened
+        .store
+        .read(move |conn| conn.query_row("SELECT title FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0)))
+        .expect("doc title Chuong that bai")
+}
+
+/// `(chapter.id, chapter.ord)` của MỌI Chương, sắp theo `id` — để so sánh "trước/sau" của một
+/// lượt bị TỪ CHỐI (§Always: "một lượt ghi không đi đâu phải nói vì sao ... không một hàng
+/// nào bị chạm").
+fn read_all_chapter_ord(opened: &OpenWork) -> Vec<(i64, i64)> {
+    opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT id, ord FROM chapter ORDER BY id")?;
+            let mapped = stmt.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)))?;
+            mapped.collect::<SqlResult<Vec<(i64, i64)>>>()
+        })
+        .expect("doc (id, ord) cua moi Chuong that bai")
+}
+
+/// Ảnh chụp TOÀN BỘ một hàng `segment` — mọi cột (AD-32 là mệnh đề nghiệm thu chính: gộp/tách
+/// đổi ĐÚNG HAI cột, `chapter_id` và `ord`; mọi cột khác giữ nguyên từng byte).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SegmentSnapshot {
+    id: i64,
+    chapter_id: i64,
+    ord: i64,
+    source_text: String,
+    target_text: String,
+    is_paragraph_end: i64,
+    is_target_paragraph_end: i64,
+    retired_at: Option<String>,
+    status: String,
+    is_omitted: i64,
+    translation_origin: String,
+    created_at: String,
+    updated_at: String,
+}
+
+fn snapshot_segments(opened: &OpenWork) -> Vec<SegmentSnapshot> {
+    opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id, chapter_id, ord, source_text, target_text, is_paragraph_end, \
+                 is_target_paragraph_end, retired_at, status, is_omitted, translation_origin, \
+                 created_at, updated_at FROM segment ORDER BY id",
+            )?;
+            let mapped = stmt.query_map([], |row| {
+                Ok(SegmentSnapshot {
+                    id: row.get(0)?,
+                    chapter_id: row.get(1)?,
+                    ord: row.get(2)?,
+                    source_text: row.get(3)?,
+                    target_text: row.get(4)?,
+                    is_paragraph_end: row.get(5)?,
+                    is_target_paragraph_end: row.get(6)?,
+                    retired_at: row.get(7)?,
+                    status: row.get(8)?,
+                    is_omitted: row.get(9)?,
+                    translation_origin: row.get(10)?,
+                    created_at: row.get(11)?,
+                    updated_at: row.get(12)?,
+                })
+            })?;
+            mapped.collect::<SqlResult<Vec<SegmentSnapshot>>>()
+        })
+        .expect("chup anh toan bo hang segment that bai")
+}
+
+/// Ảnh chụp TOÀN BỘ một hàng `segment_version` — mọi cột.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SegmentVersionSnapshot {
+    id: i64,
+    segment_id: i64,
+    target_text: String,
+    created_at: String,
+}
+
+fn snapshot_segment_versions(opened: &OpenWork) -> Vec<SegmentVersionSnapshot> {
+    opened
+        .store
+        .read(|conn| {
+            let mut stmt =
+                conn.prepare("SELECT id, segment_id, target_text, created_at FROM segment_version ORDER BY id")?;
+            let mapped = stmt.query_map([], |row| {
+                Ok(SegmentVersionSnapshot {
+                    id: row.get(0)?,
+                    segment_id: row.get(1)?,
+                    target_text: row.get(2)?,
+                    created_at: row.get(3)?,
+                })
+            })?;
+            mapped.collect::<SqlResult<Vec<SegmentVersionSnapshot>>>()
+        })
+        .expect("chup anh toan bo hang segment_version that bai")
+}
+
+/// 🔴 **AD-32 là mệnh đề nghiệm thu chính của cả story — GỘP.** Chụp TOÀN BỘ mọi cột của mọi
+/// hàng `segment` cộng mọi hàng `segment_version` TRƯỚC và SAU, rồi khẳng định đúng hai cột
+/// đổi (`chapter_id`, `ord`) trên đúng những hàng đã dời — không một cột nào khác, không một
+/// hàng `segment_version` nào bị đụng.
+#[test]
+fn merging_two_chapters_changes_only_chapter_id_and_ord_on_every_segment_column() {
+    let root = temp_dir("merge-full-columns");
+    let mut opened = create_work_from_text(&root, "Gop Chuong", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+
+    // A: ba câu -- ord 1 (sống), ord 2 (VỀ HƯU), ord 3 (sống). Một lịch sử phiên bản gắn
+    // vào câu 1 -- phải sống sót nguyên vẹn qua lượt gộp.
+    let a1 = insert_segment_directly(&opened, a_id, 1, "A cau mot.", false);
+    let a2 = insert_segment_directly(&opened, a_id, 2, "A cau hai da ve huu.", true);
+    let a3 = insert_segment_directly(&opened, a_id, 3, "A cau ba.", false);
+    insert_segment_version_directly(&opened, a1, "ban dich cu cua A1");
+
+    // B: hai câu, liền ngay sau A.
+    let b_id = insert_chapter_directly(&opened, 2, "");
+    let b1 = insert_segment_directly(&opened, b_id, 1, "B cau mot.", false);
+    let b2 = insert_segment_directly(&opened, b_id, 2, "B cau hai.", false);
+
+    let before = snapshot_segments(&opened);
+    let versions_before = snapshot_segment_versions(&opened);
+    assert_eq!(before.len(), 5, "fixture phai co dung 5 hang segment");
+
+    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+
+    let after = snapshot_segments(&opened);
+    let versions_after = snapshot_segment_versions(&opened);
+
+    assert_eq!(versions_before, versions_after, "khong hang segment_version nao duoc dung toi boi luot gop");
+    assert_eq!(after.len(), 5, "gop KHONG tao/huy mot hang segment nao");
+
+    for (b, a) in before.iter().zip(after.iter()) {
+        assert_eq!(b.id, a.id, "thu tu doc theo id phai giu nguyen");
+        assert_eq!(b.source_text, a.source_text, "id={}", a.id);
+        assert_eq!(b.target_text, a.target_text, "id={}", a.id);
+        assert_eq!(b.is_paragraph_end, a.is_paragraph_end, "id={}", a.id);
+        assert_eq!(b.is_target_paragraph_end, a.is_target_paragraph_end, "id={}", a.id);
+        assert_eq!(b.retired_at, a.retired_at, "id={}", a.id);
+        assert_eq!(b.status, a.status, "id={}", a.id);
+        assert_eq!(b.is_omitted, a.is_omitted, "id={}", a.id);
+        assert_eq!(b.translation_origin, a.translation_origin, "id={}", a.id);
+        assert_eq!(b.created_at, a.created_at, "id={}", a.id);
+        assert_eq!(b.updated_at, a.updated_at, "id={}", a.id);
+    }
+
+    let by_id = |id: i64| after.iter().find(|s| s.id == id).unwrap();
+    assert_eq!(by_id(a1).chapter_id, a_id);
+    assert_eq!(by_id(a1).ord, 1);
+    assert_eq!(by_id(a2).chapter_id, a_id);
+    assert_eq!(by_id(a2).ord, 2);
+    assert_eq!(by_id(a3).chapter_id, a_id);
+    assert_eq!(by_id(a3).ord, 3);
+    assert_eq!(by_id(b1).chapter_id, a_id, "hang cua B phai doi chapter_id sang A");
+    assert_eq!(by_id(b1).ord, 4, "ord cua B tinh tien bang MAX(ord) cu cua A (3)");
+    assert_eq!(by_id(b2).chapter_id, a_id);
+    assert_eq!(by_id(b2).ord, 5);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Bản song sinh của test trên, cho lượt **TÁCH** — cùng phương pháp: chụp toàn bộ cột trước
+/// và sau, khẳng định đúng hai cột đổi. Cũng nghiệm thu AC "Chương mới mang cùng `segment.id`,
+/// `ord` là `1, 2`, lịch sử phiên bản của câu bị tách còn nguyên và vẫn tra được, không câu
+/// nào mang `retired_at`", và §Design Notes "status/title của B chép từ A (title thành NULL)".
+#[test]
+fn splitting_a_chapter_changes_only_chapter_id_and_ord_on_every_segment_column() {
+    let root = temp_dir("split-full-columns");
+    let mut opened = create_work_from_text(&root, "Tach Chuong", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    set_chapter_status_directly(&opened, a_id, "in_progress");
+
+    let s1 = insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
+    let s2 = insert_segment_directly(&opened, a_id, 2, "Cau hai da ve huu.", true);
+    let s3 = insert_segment_directly(&opened, a_id, 3, "Cau ba.", false);
+    let s4 = insert_segment_directly(&opened, a_id, 4, "Cau bon.", false);
+    insert_segment_version_directly(&opened, s3, "ban dich cu cua cau ba");
+
+    let before = snapshot_segments(&opened);
+    let versions_before = snapshot_segment_versions(&opened);
+    assert_eq!(before.len(), 4);
+
+    split_chapter_at_segment(Some(&mut opened), s3).expect("tach that bai");
+
+    let after = snapshot_segments(&opened);
+    let versions_after = snapshot_segment_versions(&opened);
+    assert_eq!(versions_before, versions_after, "lich su phien ban cua cau ba song sot nguyen ven va van tra duoc");
+    assert_eq!(after.len(), 4, "tach KHONG tao/huy mot hang segment nao");
+
+    for (b, a) in before.iter().zip(after.iter()) {
+        assert_eq!(b.id, a.id);
+        assert_eq!(b.source_text, a.source_text, "id={}", a.id);
+        assert_eq!(b.target_text, a.target_text, "id={}", a.id);
+        assert_eq!(b.is_paragraph_end, a.is_paragraph_end, "id={}", a.id);
+        assert_eq!(b.is_target_paragraph_end, a.is_target_paragraph_end, "id={}", a.id);
+        assert_eq!(b.retired_at, a.retired_at, "khong cau nao duoc gan retired_at boi luot tach -- id={}", a.id);
+        assert_eq!(b.status, a.status, "id={}", a.id);
+        assert_eq!(b.is_omitted, a.is_omitted, "id={}", a.id);
+        assert_eq!(b.translation_origin, a.translation_origin, "id={}", a.id);
+        assert_eq!(b.created_at, a.created_at, "id={}", a.id);
+        assert_eq!(b.updated_at, a.updated_at, "id={}", a.id);
+    }
+
+    let by_id = |id: i64| after.iter().find(|s| s.id == id).unwrap();
+    assert_eq!(by_id(s1).chapter_id, a_id);
+    assert_eq!(by_id(s1).ord, 1);
+    assert_eq!(by_id(s2).chapter_id, a_id, "cau da ve huu dung TRUOC diem cat -- o lai A");
+    assert_eq!(by_id(s2).ord, 2);
+
+    let b_id = by_id(s3).chapter_id;
+    assert_ne!(b_id, a_id, "s3 la diem cat -- phai doi sang mot Chuong MOI");
+    assert_eq!(by_id(s3).ord, 1, "cung segment.id, ord danh lai tu 1 trong Chuong moi");
+    assert_eq!(by_id(s4).chapter_id, b_id);
+    assert_eq!(by_id(s4).ord, 2);
+
+    assert_eq!(opened.chapter_id, a_id, "con tro Chuong dang mo giu nguyen A sau lot tach");
+    assert_eq!(opened.meta.chapter_count, 2, "mot Chuong moi da duoc chen -- chapter_count phai theo kip");
+    assert_eq!(read_chapter_status(&opened, b_id), "in_progress", "status cua B chep tu A");
+    assert_eq!(read_chapter_title(&opened, b_id), None, "title cua B luon NULL, khong chep tu A");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Không đường TỔ CHỨC nào được phép cho một segment về hưu — kiểm cả hai chiều (gộp rồi
+/// tách) trên cùng một fixture, đếm `retired_at IS NOT NULL` trước/sau mỗi lượt.
+#[test]
+fn no_segment_is_ever_retired_by_a_chapter_reorganisation() {
+    fn count_retired(opened: &OpenWork) -> i64 {
+        opened
+            .store
+            .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment WHERE retired_at IS NOT NULL", [], |row| row.get(0)))
+            .expect("dem segment ve huu that bai")
+    }
+
+    let root = temp_dir("no-new-retirement");
+    let mut opened = create_work_from_text(&root, "Khong Ve Huu", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    let s1 = insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
+    let s2 = insert_segment_directly(&opened, a_id, 2, "Cau hai.", false);
+    let b_id = insert_chapter_directly(&opened, 2, "");
+    insert_segment_directly(&opened, b_id, 1, "Cau ba.", false);
+
+    assert_eq!(count_retired(&opened), 0);
+    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+    assert_eq!(count_retired(&opened), 0, "gop KHONG duoc cho segment nao ve huu");
+
+    split_chapter_at_segment(Some(&mut opened), s2).expect("tach that bai");
+    assert_eq!(count_retired(&opened), 0, "tach KHONG duoc cho segment nao ve huu");
+
+    let _ = s1;
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §Design Notes "Vì sao gộp `done` + chưa xong ra `in_progress`" — hai ca trong một fixture:
+/// một nửa chưa xong hạ xuống `in_progress`; cả hai nửa `done` giữ `done`.
+#[test]
+fn a_merged_chapter_never_claims_done_when_one_half_was_not_done() {
+    // Ca 1 -- A done, B chua xong ⇒ ha xuong in_progress.
+    let root = temp_dir("merge-status-half-done");
+    let mut opened = create_work_from_text(&root, "Trang Thai Gop Nua", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    set_chapter_status_directly(&opened, a_id, "done");
+    let b_id = insert_chapter_directly(&opened, 2, "");
+    // B mac dinh 'not_started' tu `insert_chapter_directly`.
+
+    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+    assert_eq!(
+        read_chapter_status(&opened, a_id),
+        "in_progress",
+        "done + chua xong phai ha xuong in_progress -- khong duoc khai done cho van ban chua ai xac nhan"
+    );
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+
+    // Ca 2 -- CA HAI done ⇒ giu done.
+    let root2 = temp_dir("merge-status-both-done");
+    let mut opened2 = create_work_from_text(&root2, "Trang Thai Gop Ca Hai", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a2_id = opened2.chapter_id;
+    set_chapter_status_directly(&opened2, a2_id, "done");
+    let b2_id = insert_chapter_directly(&opened2, 2, "");
+    set_chapter_status_directly(&opened2, b2_id, "done");
+
+    merge_chapter_into_previous(Some(&mut opened2), b2_id).expect("gop that bai");
+    assert_eq!(
+        read_chapter_status(&opened2, a2_id),
+        "done",
+        "ca hai nua done thi Chuong gop phai giu done"
+    );
+    let dir2 = opened2.dir.clone();
+    drop(opened2);
+    cleanup(&dir2);
+}
+
+/// §Always "Một lượt ghi không đi đâu phải NÓI VÌ SAO" — dời LÊN ở Chương ĐẦU.
+#[test]
+fn moving_the_first_chapter_up_touches_no_row_and_is_a_named_error() {
+    let root = temp_dir("move-up-at-first");
+    let mut opened = create_work_from_text(&root, "Doi Bien Len", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    insert_chapter_directly(&opened, 2, "");
+
+    let before = read_all_chapter_ord(&opened);
+    let err = move_chapter(Some(&mut opened), a_id, ChapterDirection::Prev)
+        .expect_err("doi len o Chuong dau phai la mot loi CO TEN");
+    assert_eq!(err.code(), "chapter.at_first");
+    assert_eq!(err.message_key(), MessageKey::ChapterAtFirst);
+    assert_eq!(read_all_chapter_ord(&opened), before, "0 hang bi cham");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Bản song sinh, biên CUỐI: dời XUỐNG ở Chương cuối.
+#[test]
+fn moving_the_last_chapter_down_touches_no_row_and_is_a_named_error() {
+    let root = temp_dir("move-down-at-last");
+    let mut opened = create_work_from_text(&root, "Doi Bien Xuong", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    insert_chapter_directly(&opened, 2, "");
+    let c_id = insert_chapter_directly(&opened, 3, "");
+
+    let before = read_all_chapter_ord(&opened);
+    let err = move_chapter(Some(&mut opened), c_id, ChapterDirection::Next)
+        .expect_err("doi xuong o Chuong cuoi phai la mot loi CO TEN");
+    assert_eq!(err.code(), "chapter.at_last");
+    assert_eq!(err.message_key(), MessageKey::ChapterAtLast);
+    assert_eq!(read_all_chapter_ord(&opened), before, "0 hang bi cham");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Bản song sinh thứ hai: GỘP ở Chương đầu (không có Chương liền trước).
+#[test]
+fn merging_the_first_chapter_touches_no_row_and_is_a_named_error() {
+    let root = temp_dir("merge-at-first");
+    let mut opened = create_work_from_text(&root, "Gop O Dau", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id; // Chuong duy nhat -- khong co Chuong lien truoc.
+    insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
+
+    let chapters_before = read_all_chapter_ord(&opened);
+    let segments_before = snapshot_segments(&opened);
+
+    let err = merge_chapter_into_previous(Some(&mut opened), a_id)
+        .expect_err("gop o Chuong dau phai la mot loi CO TEN");
+    assert_eq!(err.code(), "chapter.at_first");
+    assert_eq!(err.message_key(), MessageKey::ChapterAtFirst);
+
+    assert_eq!(read_all_chapter_ord(&opened), chapters_before, "0 hang chapter bi cham");
+    assert_eq!(snapshot_segments(&opened), segments_before, "0 hang segment bi cham");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Tách tại câu đầu" — một Chương rỗng không phải một kết quả có nghĩa.
+#[test]
+fn splitting_at_the_first_segment_is_refused_before_any_write() {
+    let root = temp_dir("split-at-first-segment");
+    let mut opened = create_work_from_text(&root, "Tach O Dau", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    let s1 = insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
+    insert_segment_directly(&opened, a_id, 2, "Cau hai.", false);
+
+    let segments_before = snapshot_segments(&opened);
+    let chapters_before = read_all_chapter_ord(&opened);
+
+    let err = split_chapter_at_segment(Some(&mut opened), s1)
+        .expect_err("tach tai cau DAU phai la mot loi CO TEN -- Chuong con lai se RONG");
+    assert_eq!(err.code(), "chapter.split_leaves_empty");
+    assert_eq!(err.message_key(), MessageKey::ChapterSplitLeavesEmpty);
+
+    assert_eq!(snapshot_segments(&opened), segments_before, "0 hang segment bi cham");
+    assert_eq!(read_all_chapter_ord(&opened), chapters_before, "0 hang chapter bi cham -- khong Chuong moi nao duoc chen");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// `str::trim()` của RUST, không `trim()` của SQLite — một tên chỉ gồm U+3000 (khoảng trắng
+/// toàn chiều rộng) phải lưu thành `NULL`, không một chuỗi trông "có chữ" mà hiện ra trống.
+#[test]
+fn renaming_to_an_ideographic_space_stores_null_not_a_blank_title() {
+    let root = temp_dir("rename-ideographic-space");
+    let mut opened = create_work_from_text(&root, "Doi Ten Rong", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+
+    let rows = rename_chapter(Some(&mut opened), a_id, "\u{3000}").expect("doi ten that bai");
+    let row = rows.iter().find(|r| r.chapter_id == a_id).expect("phai co hang cho Chuong vua doi ten");
+    assert_eq!(row.title, None, "mot ten chi gom U+3000 phai luu thanh NULL, khong mot chuoi trong");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// AC1 — đổi tên đổi ĐÚNG một hàng `chapter`, `updated_at` mới, và **0 hàng `segment`/
+/// `segment_version`** nào bị đụng.
+#[test]
+fn renaming_a_chapter_updates_only_its_own_row_and_leaves_every_segment_untouched() {
+    let root = temp_dir("rename-touches-nothing-else");
+    let mut opened = create_work_from_text(&root, "Doi Ten Sach", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    let s1 = insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
+    insert_segment_version_directly(&opened, s1, "ban dich cu");
+
+    let segments_before = snapshot_segments(&opened);
+    let versions_before = snapshot_segment_versions(&opened);
+
+    let rows = rename_chapter(Some(&mut opened), a_id, "Hoi 1").expect("doi ten that bai");
+    let row = rows.iter().find(|r| r.chapter_id == a_id).expect("phai co hang cho Chuong vua doi ten");
+    assert_eq!(row.title.as_deref(), Some("Hoi 1"));
+
+    assert_eq!(snapshot_segments(&opened), segments_before, "doi ten KHONG duoc cham mot hang segment nao");
+    assert_eq!(snapshot_segment_versions(&opened), versions_before, "doi ten KHONG duoc cham mot hang segment_version nao");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// `chapter_id` lạ ⇒ `segment.chapter_not_found`, đúng khoá đã có — Task 6.
+#[test]
+fn renaming_an_unknown_chapter_id_reuses_the_named_error() {
+    let root = temp_dir("rename-unknown-chapter");
+    let mut opened = create_work_from_text(&root, "Doi Ten Chuong La", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let original = opened.chapter_id;
+
+    let err = rename_chapter(Some(&mut opened), original + 999, "Hoi Moi")
+        .expect_err("chapter_id la phai la mot loi");
+    assert_eq!(err.code(), "segment.chapter_not_found");
+    assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §Always "Chuẩn hoá `chapter.ord` về `1..N` ... TRƯỚC mỗi thao tác" — dựng một dãy `ord`
+/// thưa/trùng `(5, 5, 9)` bằng `insert_chapter_directly`, dời Chương giữa lên, rồi khẳng định
+/// `ord` của cả ba là `1, 2, 3` liên tục.
+///
+/// 🔵 **ĐỔI TÊN 2026-08-29 (lượt rà): `..._after_a_merge_...` → `..._after_a_move_...`.** Tên
+/// cũ nói *"sau một lượt GỘP"* trong khi thân hàm chỉ gọi `move_chapter` — một cái tên khai
+/// nhiều hơn thứ nó đo, tức đúng thứ làm người đọc sau tưởng đường gộp đã có lưới. Đường gộp
+/// nay có ca riêng: [`chapter_ord_stays_dense_from_one_after_a_merge_on_a_sparse_ord_sequence_too`].
+#[test]
+fn chapter_ord_stays_dense_from_one_after_a_move_on_a_sparse_ord_sequence() {
+    let root = temp_dir("move-sparse-ord");
+    let opened_bootstrap = create_work_from_text(&root, "Ord Thua", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let default_id = opened_bootstrap.chapter_id;
+    // Xoá Chương mặc định (0 segment -- văn bản rỗng) để dựng TRỌN ba Chương `ord` thưa/trùng
+    // do chính story này chỉ ra: `(5, 5, 9)`.
+    opened_bootstrap
+        .store
+        .write(move |tx: &Transaction<'_>| tx.execute("DELETE FROM chapter WHERE id = ?1", [default_id]))
+        .expect("xoa Chuong mac dinh that bai");
+    let mut opened = opened_bootstrap;
+
+    let c1 = insert_chapter_directly(&opened, 5, "Chuong mot.");
+    let c2 = insert_chapter_directly(&opened, 5, "Chuong hai.");
+    let c3 = insert_chapter_directly(&opened, 9, "Chuong ba.");
+    // Chuẩn hoá theo `(ord, id)`: c1 (ord=5, id nhỏ hơn) -> 1; c2 (ord=5, id lớn hơn) -> 2;
+    // c3 (ord=9) -> 3. c2 là Chương GIỮA sau chuẩn hoá.
+    opened.chapter_id = c2;
+
+    move_chapter(Some(&mut opened), c2, ChapterDirection::Prev).expect("doi len that bai");
+
+    let rows = read_all_chapter_ord(&opened);
+    let mut ords: Vec<i64> = rows.iter().map(|(_, ord)| *ord).collect();
+    ords.sort_unstable();
+    assert_eq!(ords, vec![1, 2, 3], "ord phai lien tuc tu 1 sau chuan hoa, du dau vao thua/trung");
+
+    let ord_of = |id: i64| rows.iter().find(|(rid, _)| *rid == id).unwrap().1;
+    assert!(ord_of(c2) < ord_of(c1), "doi LEN phai hoan vi c2 len truoc c1");
+    assert!(ord_of(c1) < ord_of(c3), "c3 khong bi dung toi");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// AD-5 "vẫn mở được về ĐÚNG VỊ TRÍ" áp cho lượt TỔ CHỨC CHƯƠNG: một hàng VỀ HƯU giữa hai hàng
+/// SỐNG phải dời CÙNG khối, giữ đúng vị trí tương đối — không bị phép tịnh tiến bỏ lại hay xô
+/// lệch.
+#[test]
+fn a_reorganisation_moves_retired_segments_with_their_living_neighbours() {
+    let root = temp_dir("retired-moves-with-neighbours");
+    let mut opened = create_work_from_text(&root, "Ve Huu Di Cung", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    let a1 = insert_segment_directly(&opened, a_id, 1, "A mot.", false);
+
+    let b_id = insert_chapter_directly(&opened, 2, "");
+    let b1 = insert_segment_directly(&opened, b_id, 1, "B mot.", false);
+    let b2_retired = insert_segment_directly(&opened, b_id, 2, "B hai da ve huu.", true);
+    let b3 = insert_segment_directly(&opened, b_id, 3, "B ba.", false);
+
+    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+
+    let after = snapshot_segments(&opened);
+    let by_id = |id: i64| after.iter().find(|s| s.id == id).unwrap();
+
+    // shift = MAX(ord) cua A truoc gop = 1 (chi co a1).
+    assert_eq!(by_id(a1).ord, 1);
+    assert_eq!(by_id(b1).chapter_id, a_id);
+    assert_eq!(by_id(b1).ord, 2);
+    assert_eq!(by_id(b2_retired).chapter_id, a_id, "hang VE HUU cung phai doi chapter_id");
+    assert_eq!(by_id(b2_retired).ord, 3, "hang VE HUU giu dung vi tri TUONG DOI giua hai hang song ke no");
+    assert!(by_id(b2_retired).retired_at.is_some(), "van con VE HUU -- gop khong hoi sinh no");
+    assert_eq!(by_id(b3).chapter_id, a_id);
+    assert_eq!(by_id(b3).ord, 4, "hang song SAU no van dung ke, khong bi phep tinh tien lam lech");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// AC3/AC4 — con trỏ `OpenWork::chapter_id` dời sang Chương SỐNG SÓT sau một lượt gộp Chương
+/// đang mở, và một lượt `read_open_chapter` kế tiếp **không** trả `segment.chapter_not_found`.
+#[test]
+fn the_open_chapter_cursor_follows_the_surviving_chapter_after_a_merge() {
+    let root = temp_dir("cursor-follows-merge");
+    let mut opened = create_work_from_text(&root, "Con Tro Theo Gop", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    let b_id = insert_chapter_directly(&opened, 2, "");
+    opened.chapter_id = b_id; // B ĐANG MỞ.
+
+    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+
+    assert_eq!(opened.chapter_id, a_id, "B bi xoa -- con tro phai doi sang A SAU khi giao dich commit");
+
+    let reopened = read_open_chapter(Some(&opened)).expect("doc lai Chuong dang mo (A) sau gop phai thanh cong");
+    assert_eq!(reopened.chapter_id, a_id);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §Design Notes "Vì sao `source_text` của lượt GỘP nối thô" — `A.source_text = A.source_text
+/// ‖ "\n\n" ‖ B.source_text`, không mất một byte nào kể cả khi cả hai Chương chưa từng tách
+/// segment (25 Chương Epic 1).
+#[test]
+fn merging_concatenates_raw_source_text_with_a_blank_line_between() {
+    let root = temp_dir("merge-source-text-concat");
+    let mut opened = create_work_from_text(&root, "Noi Van Ban Tho", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    set_chapter_source_text_directly(&opened, a_id, "Van ban A.");
+    let b_id = insert_chapter_directly(&opened, 2, "Van ban B.");
+
+    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+
+    assert_eq!(read_chapter_source_text(&opened, a_id), "Van ban A.\n\nVan ban B.");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §Design Notes "Vì sao `source_text` của lượt TÁCH dựng lại từ segment" — cả hai nửa dựng
+/// lại bằng phép nối `segment.source_text` CÒN SỐNG, phân tách bằng `"\n"`, bỏ qua hàng VỀ HƯU.
+#[test]
+fn splitting_rebuilds_source_text_from_living_segments_joined_by_newline() {
+    let root = temp_dir("split-source-text-rebuild");
+    let mut opened = create_work_from_text(&root, "Dung Lai Van Ban", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
+    insert_segment_directly(&opened, a_id, 2, "Cau ve huu khong duoc dem.", true);
+    let s3 = insert_segment_directly(&opened, a_id, 3, "Cau ba.", false);
+
+    split_chapter_at_segment(Some(&mut opened), s3).expect("tach that bai");
+
+    assert_eq!(read_chapter_source_text(&opened, a_id), "Cau mot.", "A chi con cau SONG dung TRUOC diem cat");
+
+    let b_id = snapshot_segments(&opened).iter().find(|s| s.id == s3).unwrap().chapter_id;
+    assert_eq!(read_chapter_source_text(&opened, b_id), "Cau ba.");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// **Bước 4** — "một lượt tổ chức thành công thì `library_work.chapter_count` phải theo
+/// kịp NGAY", cùng khuôn `lifecycle_contract.rs::setting_a_chapter_status_leaves_the_new_
+/// value_in_the_library_index`. Gọi CHÍNH `merge_chapter_into_previous_indexed` -- đối chứng
+/// để chạy lại về sau (§Verification): gỡ lời gọi `finish_lifecycle_write` khỏi bốn hàm
+/// `*_indexed` rồi chạy `cargo test --locked` ⇒ ca này phải ĐỎ.
+#[test]
+fn merging_two_chapters_leaves_the_smaller_chapter_count_in_the_library_index() {
+    let root = temp_dir("merge-indexed-reaches-library");
+    let side = temp_dir("merge-indexed-reaches-library-side");
+    let indexer = auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
+        .unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let global = Store::open(StoreSpec::global(side.join("global.db"))).unwrap_or_else(|e| panic!("mo global.db: {e}"));
+
+    let mut opened = create_work_from_text(&root, "Gop Chi Muc", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let work_id = opened.meta.work_id.clone();
+    let a_id = opened.chapter_id;
+    let b_id = insert_chapter_directly(&opened, 2, "");
+
+    // `insert_chapter_directly` ghi thẳng bằng SQL, KHÔNG đi qua khuôn bốn bước -- `meta.json`
+    // trên đĩa còn mang `chapter_count = 1` cũ. Dựng lại nó TRƯỚC lượt reindex đầu, đúng bước
+    // 2+3 mà mọi lệnh sản phẩm tự chạy, để phép so sánh "trước/sau" dưới đây so đúng hai lượt
+    // ĐÃ đồng bộ -- không so một chỗ chưa kịp ghi với một chỗ đã ghi.
+    let meta = WorkMeta::rebuild_from_store(&opened.store).unwrap_or_else(|e| panic!("rebuild_from_store: {e}"));
+    meta.write_atomic(&opened.dir).unwrap_or_else(|e| panic!("write_atomic: {e}"));
+    opened.meta = meta;
+
+    // Trạng thái ban đầu phải có mặt trong chỉ mục TRƯỚC khi ca này chứng minh được gì.
+    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(Some(&indexer), Some(&global), &root);
+    let chapter_count_of = |indexer: &auratranslate_lib::core::library::indexer::Indexer| {
+        indexer
+            .list_works(auratranslate_lib::core::library::indexer::WorkQuery::default())
+            .unwrap_or_else(|e| panic!("list_works: {e}"))
+            .works
+            .into_iter()
+            .find(|w| w.work_id == work_id)
+            .map(|w| w.chapter_count)
+    };
+    assert_eq!(chapter_count_of(&indexer), Some(2), "truoc luot gop, chi muc phai mang dung 2 Chuong");
+
+    auratranslate_lib::commands::chapter::merge_chapter_into_previous_indexed(
+        Some(&mut opened),
+        Some(&indexer),
+        Some(&global),
+        &root,
+        b_id,
+    )
+    .unwrap_or_else(|e| panic!("merge_chapter_into_previous_indexed: {e:?}"));
+
+    assert_eq!(
+        chapter_count_of(&indexer),
+        Some(1),
+        "sau luot gop, library_work.chapter_count phai theo kip NGAY -- neu ca nay xanh trong \
+         khi buoc 4 da bi go thi cho noi khong co ai canh"
+    );
+
+    let _ = a_id;
+    drop(opened);
+    indexer.close();
+    global.close();
+    cleanup(&root);
+    cleanup(&side);
+}
+
+/// §I/O Matrix hàng *"Dời lên/xuống"* — **CHỈ cột `ord` đổi**, và đúng trên hai hàng.
+///
+/// 🔴 Ca này ra đời từ lượt rà ma trận, không từ lượt viết đầu.
+/// `chapter_ord_stays_dense_from_one_after_a_merge_on_a_sparse_ord_sequence` đã chạy một lượt
+/// dời, nhưng nó khẳng định về **thứ tự** (`ord` liên tục, c2 lên trước c1) — **không** về
+/// những thứ KHÔNG được đổi. Hàng ma trận nói *"chỉ cột `ord` đổi"*, và một mệnh đề phủ định
+/// chỉ nghiệm thu được bằng một phép chụp trước/sau.
+#[test]
+fn moving_a_chapter_changes_ord_only_and_leaves_titles_status_and_every_segment_untouched() {
+    let root = temp_dir("move-touches-ord-only");
+    let mut opened = create_work_from_text(&root, "Doi Chi Ord", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    rename_chapter(Some(&mut opened), a_id, "Chuong A").expect("dat ten A that bai");
+    set_chapter_status_directly(&opened, a_id, "done");
+    insert_segment_directly(&opened, a_id, 1, "A mot.", false);
+
+    let b_id = insert_chapter_directly(&opened, 2, "Nguyen van B.");
+    rename_chapter(Some(&mut opened), b_id, "Chuong B").expect("dat ten B that bai");
+    insert_segment_directly(&opened, b_id, 1, "B mot.", false);
+    let b2_retired = insert_segment_directly(&opened, b_id, 2, "B hai ve huu.", true);
+
+    let segments_before = snapshot_segments(&opened);
+    let versions_before = snapshot_segment_versions(&opened);
+    let a_source_before = read_chapter_source_text(&opened, a_id);
+    let b_source_before = read_chapter_source_text(&opened, b_id);
+
+    move_chapter(Some(&mut opened), b_id, ChapterDirection::Prev).expect("doi len that bai");
+
+    // ① `ord` ĐỔI, và đúng phép hoán vị.
+    let rows = read_all_chapter_ord(&opened);
+    let ord_of = |id: i64| rows.iter().find(|(rid, _)| *rid == id).unwrap().1;
+    assert_eq!(ord_of(b_id), 1, "B len dau");
+    assert_eq!(ord_of(a_id), 2, "A xuong sau");
+
+    // ② MỌI THỨ KHÁC giữ nguyên -- day la ve ma hang ma tran doi.
+    assert_eq!(read_chapter_title(&opened, a_id).as_deref(), Some("Chuong A"));
+    assert_eq!(read_chapter_title(&opened, b_id).as_deref(), Some("Chuong B"));
+    assert_eq!(read_chapter_status(&opened, a_id), "done", "dat lai thu tu KHONG dung toi status");
+    assert_eq!(read_chapter_source_text(&opened, a_id), a_source_before);
+    assert_eq!(read_chapter_source_text(&opened, b_id), b_source_before);
+    assert_eq!(
+        snapshot_segments(&opened),
+        segments_before,
+        "sap lai Chuong KHONG duoc cham mot cot nao cua bang segment -- ke ca hang da ve huu"
+    );
+    assert_eq!(snapshot_segment_versions(&opened), versions_before);
+    assert!(
+        snapshot_segments(&opened).iter().find(|s| s.id == b2_retired).unwrap().retired_at.is_some(),
+        "hang ve huu van ve huu"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix hàng *"Tách trên `segment_id` lạ"* — một câu KHÔNG thuộc Chương đang mở bị từ
+/// chối bằng khoá đã có, và **0 hàng bị chạm**.
+///
+/// 🔴 Đây là ca phân biệt giữa *"tách"* và *"tách nhầm kho"*: `segment.id` là
+/// `AUTOINCREMENT` trong TỪNG `project.db`, nên một id có thật ở Chương KHÁC đi qua sạch nếu
+/// hàm chỉ kiểm sự tồn tại thay vì kiểm QUYỀN SỞ HỮU.
+#[test]
+fn splitting_on_a_segment_of_another_chapter_is_refused_before_any_write() {
+    let root = temp_dir("split-foreign-segment");
+    let mut opened = create_work_from_text(&root, "Tach Nham Chuong", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    insert_segment_directly(&opened, a_id, 1, "A mot.", false);
+    insert_segment_directly(&opened, a_id, 2, "A hai.", false);
+
+    // Câu này thuộc Chương B, trong khi Chương ĐANG MỞ là A.
+    let b_id = insert_chapter_directly(&opened, 2, "");
+    let b1 = insert_segment_directly(&opened, b_id, 1, "B mot.", false);
+
+    let chapters_before = read_all_chapter_ord(&opened);
+    let segments_before = snapshot_segments(&opened);
+
+    let err = split_chapter_at_segment(Some(&mut opened), b1)
+        .expect_err("tach tren mot cau cua Chuong KHAC phai la mot loi CO TEN");
+    assert_eq!(err.code(), "segment.not_found");
+
+    assert_eq!(read_all_chapter_ord(&opened), chapters_before, "0 hang chapter bi cham");
+    assert_eq!(snapshot_segments(&opened), segments_before, "0 hang segment bi cham");
+
+    // Đối chứng ÂM cho cùng khoá: một `segment_id` chưa từng tồn tại đi cùng đường.
+    let khong_ton_tai = b1 + 9_999;
+    let err2 = split_chapter_at_segment(Some(&mut opened), khong_ton_tai)
+        .expect_err("tach tren mot id khong ton tai phai la mot loi CO TEN");
+    assert_eq!(err2.code(), "segment.not_found");
+    assert_eq!(snapshot_segments(&opened), segments_before, "van 0 hang segment bi cham");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix hàng *"Chưa mở Tác phẩm"* — **cả bốn** lệnh tổ chức tái dùng `work.none_open`,
+/// và không lệnh nào chạm SQL.
+///
+/// ⚠️ Bốn lời gọi, một ca: mệnh đề là *"danh mục ĐÓNG — không đúc khoá thứ hai cho cùng
+/// câu"*, và nó chỉ đọc được khi bốn lượt đứng cạnh nhau. Tách thành bốn ca làm mệnh đề ấy
+/// biến mất khỏi cả bốn.
+#[test]
+fn every_chapter_organise_command_without_a_work_open_reuses_the_named_error() {
+    for err in [
+        rename_chapter(None, 1, "Ten moi").expect_err("khong co Tac pham mo"),
+        move_chapter(None, 1, ChapterDirection::Prev).expect_err("khong co Tac pham mo"),
+        merge_chapter_into_previous(None, 1).expect_err("khong co Tac pham mo"),
+        split_chapter_at_segment(None, 1).expect_err("khong co Tac pham mo"),
+    ] {
+        assert_eq!(err.code(), "work.none_open");
+        assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
+    }
+}
+
+/// §Always *"Một lượt ghi không đi đâu phải NÓI VÌ SAO"* áp cho một `chapter_id` **không tồn
+/// tại** — cả `move_chapter` LẪN `merge_chapter_into_previous`, đúng khuôn
+/// [`renaming_an_unknown_chapter_id_reuses_the_named_error`].
+///
+/// 🔴 **Ca này ra đời từ lượt rà, và nó có một PHÉP ĐO đứng sau.** Trước lượt vá 2026-08-29,
+/// hai hàm này đọc `SELECT ord FROM chapter WHERE id = ?1` bằng `query_row` mà không kiểm hàng
+/// tồn tại; một `chapter_id` lạ cho `QueryReturnedNoRows`, `Store::write` gói nó thành
+/// `StoreError::WriteFailed`, và mã lỗi đi ra là **`store.write_failed`** — đo được bằng cách
+/// chạy đúng hai lời gọi dưới đây trên cây chưa vá. Người dùng đọc một câu LOẠI *"kho hỏng"*
+/// cho một Tác phẩm hoàn toàn lành lặn: đúng lớp lỗi mà Story 2.11 đã sửa MỘT LẦN khi dựng
+/// `chapter_not_found` (xem doc-comment của hàm đó).
+#[test]
+fn moving_or_merging_an_unknown_chapter_id_reuses_the_named_error_not_a_store_error() {
+    let root = temp_dir("unknown-id-move-merge");
+    let mut opened = create_work_from_text(&root, "Id La", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
+    insert_segment_directly(&opened, a_id, 1, "A mot.", false);
+    insert_chapter_directly(&opened, 2, "");
+
+    let chapters_before = read_all_chapter_ord(&opened);
+    let segments_before = snapshot_segments(&opened);
+    // `AUTOINCREMENT` không bao giờ phát lại, nên một số vượt xa mọi id đã cấp là "không tồn
+    // tại" một cách chắc chắn -- không phụ thuộc thứ tự chạy của các ca khác.
+    let khong_ton_tai = 999_999_i64;
+
+    for err in [
+        move_chapter(Some(&mut opened), khong_ton_tai, ChapterDirection::Next)
+            .expect_err("doi mot Chuong khong ton tai phai la mot loi CO TEN"),
+        move_chapter(Some(&mut opened), khong_ton_tai, ChapterDirection::Prev)
+            .expect_err("doi mot Chuong khong ton tai phai la mot loi CO TEN"),
+        merge_chapter_into_previous(Some(&mut opened), khong_ton_tai)
+            .expect_err("gop mot Chuong khong ton tai phai la mot loi CO TEN"),
+    ] {
+        assert_eq!(
+            err.code(),
+            "segment.chapter_not_found",
+            "mot `chapter_id` la la mot loi NGHIEP VU, khong mot loi KHO -- `store.write_failed` \
+             o day la mot cau SAI VE LOAI (khong tep nao hong)"
+        );
+        assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
+    }
+
+    assert_eq!(read_all_chapter_ord(&opened), chapters_before, "0 hang chapter bi cham");
+    assert_eq!(snapshot_segments(&opened), segments_before, "0 hang segment bi cham");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Bản song sinh của [`chapter_ord_stays_dense_from_one_after_a_merge_on_a_sparse_ord_sequence`]
+/// cho đường **GỘP** — ca kia mang chữ *"after_a_merge"* trong tên nhưng chỉ chạy một lượt
+/// `move_chapter`, nên trước ca này `normalize_chapter_ord` **chưa từng** được nghiệm thu trên
+/// đường gộp với một dãy `ord` thưa/trùng. (Tên ca kia đã sửa cùng lượt.)
+#[test]
+fn chapter_ord_stays_dense_from_one_after_a_merge_on_a_sparse_ord_sequence_too() {
+    let root = temp_dir("merge-sparse-ord");
+    let opened_bootstrap = create_work_from_text(&root, "Gop Ord Thua", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let default_id = opened_bootstrap.chapter_id;
+    opened_bootstrap
+        .store
+        .write(move |tx: &Transaction<'_>| tx.execute("DELETE FROM chapter WHERE id = ?1", [default_id]))
+        .expect("xoa Chuong mac dinh that bai");
+    let mut opened = opened_bootstrap;
+
+    let c1 = insert_chapter_directly(&opened, 5, "Chuong mot.");
+    let c2 = insert_chapter_directly(&opened, 5, "Chuong hai.");
+    let c3 = insert_chapter_directly(&opened, 9, "Chuong ba.");
+    let s1 = insert_segment_directly(&opened, c1, 1, "Mot.", false);
+    let s2 = insert_segment_directly(&opened, c2, 1, "Hai.", false);
+    let s3 = insert_segment_directly(&opened, c3, 1, "Ba.", false);
+    opened.chapter_id = c1;
+
+    // Sau chuẩn hoá: c1 → 1, c2 → 2, c3 → 3. Gộp c2 vào c1.
+    merge_chapter_into_previous(Some(&mut opened), c2).expect("gop that bai");
+
+    let rows = read_all_chapter_ord(&opened);
+    let mut ords: Vec<i64> = rows.iter().map(|(_, ord)| *ord).collect();
+    ords.sort_unstable();
+    assert_eq!(ords, vec![1, 2], "hai Chuong con lai phai mang ord lien tuc 1, 2");
+    assert!(rows.iter().any(|(id, ord)| *id == c1 && *ord == 1));
+    assert!(rows.iter().any(|(id, ord)| *id == c3 && *ord == 2), "c3 tinh tien xuong 2, khong con 3");
+
+    let after = snapshot_segments(&opened);
+    let by_id = |id: i64| after.iter().find(|s| s.id == id).unwrap();
+    assert_eq!(by_id(s2).chapter_id, c1, "cau cua c2 di sang c1");
+    assert_eq!(by_id(s2).ord, 2, "tinh tien bang MAX(ord) cua c1 = 1");
+    assert_eq!(by_id(s1).ord, 1);
+    assert_eq!(by_id(s3).chapter_id, c3, "c3 khong bi dung toi");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
 }

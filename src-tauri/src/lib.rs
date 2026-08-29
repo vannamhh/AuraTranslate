@@ -354,6 +354,13 @@ pub fn run() {
             // thanh cong, dung khuon `open_adjacent_chapter`.
             crate::commands::chapter::wire::list_chapters,
             crate::commands::chapter::wire::open_chapter,
+            // Story 5.8 -- "To chuc lai Chuong sau khi nhap" (FR15, AD-32). Bon vo, ca bon
+            // `(async)` -- buoc 4 quet toan bo thu muc goc Library, xem doc-comment cua
+            // `commands::chapter::wire`.
+            crate::commands::chapter::wire::rename_chapter,
+            crate::commands::chapter::wire::move_chapter,
+            crate::commands::chapter::wire::merge_chapter_into_previous,
+            crate::commands::chapter::wire::split_chapter_at_segment,
             crate::commands::dict::wire::read_han_viet,
             crate::commands::dict::wire::lookup_dictionary,
             crate::commands::dict::wire::list_dict_sources,

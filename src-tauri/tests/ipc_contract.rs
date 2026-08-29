@@ -648,3 +648,56 @@ fn chapter_segments_wire_struct_carries_caret_segment_id() {
         "`caret_segment_id: Some(42)` phai serialize thanh so 42"
     );
 }
+
+/// **THÊM Story 5.8.** Bốn vỏ tổ chức Chương phải CÓ MẶT trong `generate_handler![…]`, và
+/// tên tham số của chúng phải đúng thứ `src/config/chapter.ts` gõ ở phía kia của dây.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO CA NÀY TỒN TẠI — MỘT KHOẢNG TRỐNG ĐO ĐƯỢC, KHÔNG MỘT LO XA
+/// ─────────────────────────────────────────────────────────────────────────────
+/// ⚠️ **Đo 2026-08-29:** `grep -rn "generate_handler" src-tauri/tests/` cho **0** kết quả —
+/// trước ca này **không phép kiểm nào** đối chiếu danh sách handler với các `mod wire`. Một
+/// vỏ viết đúng, biên dịch sạch, đi qua cả mười một cổng, mà quên một dòng ở `lib.rs` thì
+/// `invoke()` trả *"command not found"* **chỉ khi người dùng bấm nút** — và bộ e2e hôm nay
+/// chỉ phủ đường chuột của một phần bề mặt.
+///
+/// ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì để người sau tưởng đã xét:** ca này đọc `lib.rs` như
+/// **văn bản**, nên nó chứng minh cái tên CÓ MẶT chứ không chứng minh `tauri::generate_handler`
+/// nhận đúng nó — một macro chỉ được nghiệm thu đầy đủ bằng một webview thật, thứ mà khối
+/// doc-comment đầu tệp này đã phân xử là quá đắt. Nó bắt được lớp lỗi *"quên một dòng"*, và
+/// chỉ lớp đó.
+#[test]
+fn the_four_chapter_organise_wires_are_registered_and_keep_their_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    for wire in [
+        "crate::commands::chapter::wire::rename_chapter",
+        "crate::commands::chapter::wire::move_chapter",
+        "crate::commands::chapter::wire::merge_chapter_into_previous",
+        "crate::commands::chapter::wire::split_chapter_at_segment",
+    ] {
+        assert!(
+            lib_src.contains(wire),
+            "`{wire}` phai co mat trong generate_handler! cua lib.rs. Thieu no thi invoke() tra              \"command not found\" va KHONG cong nao do -- xem doc-comment cua ca test nay."
+        );
+    }
+
+    let chapter_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("chapter.rs");
+    let chapter_src = fs::read_to_string(&chapter_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", chapter_rs.display()));
+
+    // Ten tham so tren day. `invoke()` gui chung o dang camelCase (`chapterId`/`segmentId`/
+    // `title`) du Rust nhan snake_case -- hai chieu khac nhau la cho de sai nhat tren day
+    // (`src/AGENTS.md`), va `src/config/chapter.ts` la cho duy nhat go ca hai.
+    for param in ["chapter_id: i64", "segment_id: i64", "title: String"] {
+        assert!(
+            chapter_src.contains(param),
+            "vo IPC cua commands/chapter.rs phai khai `{param}` -- doi ten tham so la doi DAY,              va `src/config/chapter.ts` gui theo ten cu."
+        );
+    }
+}

@@ -302,6 +302,23 @@ export type CommandDeps = {
    * `openCurrentLibraryWork` (đọc con trỏ hiện thời). */
   openCurrentLibraryChapter?: () => void
 
+  // ── Story 5.8 — "Tổ chức lại Chương sau khi nhập" (FR15, AD-32) ─────────────────
+  //
+  // Ba dep dưới đây TIÊM VÀO cùng cửa và cùng lý do với `openCurrentLibraryChapter` ngay
+  // trên: state sống ở `src/modes/libraryChapters.ts`. Cả ba đọc con trỏ danh sách hiện thời,
+  // không nhận tham số qua `dispatch()` (`keys: undefined`, không hợp âm mặc định).
+
+  /** Đổi tên Chương ĐANG CHỌN (từ `chapterRenameDraft`). Handler của
+   * `library.chapter_rename`. */
+  renameCurrentLibraryChapter?: () => void
+  /** Dời Chương ĐANG CHỌN lên. Handler của `library.chapter_move_up`. */
+  moveCurrentLibraryChapterUp?: () => void
+  /** Dời Chương ĐANG CHỌN xuống. Handler của `library.chapter_move_down`. */
+  moveCurrentLibraryChapterDown?: () => void
+  /** Gộp Chương ĐANG CHỌN vào Chương liền trước nó. Handler của
+   * `library.chapter_merge_up`. */
+  mergeCurrentLibraryChapterUp?: () => void
+
   // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `applyPreset`/`submitPastedText`: state sống ở
@@ -463,6 +480,14 @@ export type CommandDeps = {
    * đó, không vì một hợp đồng nào.
    */
   clearSourceCuts?: () => void
+  /**
+   * **Tách Chương đang mở tại câu đang có tiêu điểm** — Story 5.8, FR15 · AD-32.
+   *
+   * ⚠️ Cùng cái bẫy mà `mergeSegments`/`splitSegment` đã ghi: cổng nối thật là
+   * `editorPanelState.ts::splitChapterHere` (flush trước, vá ảnh chụp sau) — đừng cắm thẳng
+   * `splitChapterAtSegment` của `config/chapter.ts` vào đây.
+   */
+  splitChapter?: () => void
 
   /** Đặt caret vào bề mặt chữ đầu tiên đã đăng ký. Handler của `selection.focus_source`. */
   focusSelectionSource?: () => boolean
@@ -1135,6 +1160,53 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('library.open_chapter', 'openCurrentLibraryChapter')
       }
       deps.openCurrentLibraryChapter()
+    },
+  })
+  // Story 5.8 — bốn thao tác tổ chức lại Chương (FR15, AD-32). `keys: undefined` cho ba lệnh
+  // Library, chép ĐÚNG khuôn `library.work_next` ở trên: bấm/gõ qua `dispatch('<id>')` từ nút
+  // thật, không hợp âm mặc định.
+  target.register({
+    id: 'library.chapter_rename',
+    labelKey: 'command.library.chapter_rename',
+    keys: undefined,
+    run: () => {
+      if (deps.renameCurrentLibraryChapter === undefined) {
+        return portMissing('library.chapter_rename', 'renameCurrentLibraryChapter')
+      }
+      deps.renameCurrentLibraryChapter()
+    },
+  })
+  target.register({
+    id: 'library.chapter_move_up',
+    labelKey: 'command.library.chapter_move_up',
+    keys: undefined,
+    run: () => {
+      if (deps.moveCurrentLibraryChapterUp === undefined) {
+        return portMissing('library.chapter_move_up', 'moveCurrentLibraryChapterUp')
+      }
+      deps.moveCurrentLibraryChapterUp()
+    },
+  })
+  target.register({
+    id: 'library.chapter_move_down',
+    labelKey: 'command.library.chapter_move_down',
+    keys: undefined,
+    run: () => {
+      if (deps.moveCurrentLibraryChapterDown === undefined) {
+        return portMissing('library.chapter_move_down', 'moveCurrentLibraryChapterDown')
+      }
+      deps.moveCurrentLibraryChapterDown()
+    },
+  })
+  target.register({
+    id: 'library.chapter_merge_up',
+    labelKey: 'command.library.chapter_merge_up',
+    keys: undefined,
+    run: () => {
+      if (deps.mergeCurrentLibraryChapterUp === undefined) {
+        return portMissing('library.chapter_merge_up', 'mergeCurrentLibraryChapterUp')
+      }
+      deps.mergeCurrentLibraryChapterUp()
     },
   })
   target.register({
@@ -1875,10 +1947,18 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   // `dispatch` **chính id này**. Hai cửa, MỘT command — cùng khuôn cử chỉ `Backspace` của AC1.
   // ⇒ Đăng ký ở đây **không thừa**: nó là thứ làm phím gán lại được (FR22) và hiện trong bảng
   //   phím của Story 1.21. Gỡ nó đi là rút một tính năng, không dọn một dòng.
+  //
+  // 🔵 **THÊM Story 5.8 — `editor.split_chapter`, `Mod+Shift+Slash`.** Đọc ra thành *"cùng
+  // thao tác [tách], một tầng lớn hơn [Chương thay vì câu]"* — tiền lệ đầy đủ là chính
+  // `editor.split_segment` ngay trên (`Mod+Slash`), và nó mang `Mod` nên đi qua được luật
+  // vùng gõ (`keys.ts:415`) đúng như hai hợp âm kia. Đo 2026-08-29: `grep 'Mod+Shift+'` trên
+  // `src/commands/index.ts` (bản TRƯỚC lượt sửa này) cho **0** — hợp âm còn hoàn toàn trống,
+  // không xung đột nào cần ghi.
   for (const [id, port, chord] of [
     ['editor.merge_segments', 'mergeSegments', 'Mod+M'],
     ['editor.split_segment', 'splitSegment', 'Mod+Slash'],
     ['editor.clear_source_cuts', 'clearSourceCuts', 'Escape'],
+    ['editor.split_chapter', 'splitChapter', 'Mod+Shift+Slash'],
   ] as const) {
     target.register({
       id,

@@ -447,6 +447,26 @@ message_keys! {
     /// `open_work` nhận một `work_id` không có hàng trong `library-index.db`
     /// (`Indexer::find_work` trả `None`). `OpenWorkState` không đổi.
     LibraryWorkNotIndexed => "err.library.work_not_indexed" ["work_id"],
+
+    // ── Story 5.8 (FR15 · AD-32) — ĐÚNG BA khoá mới ─────────────────────────────────
+    //
+    // Bề mặt IPC "Tổ chức lại Chương": đổi tên · dời lên/xuống · gộp vào Chương liền trước ·
+    // tách tại câu đang có caret. Danh mục ĐÓNG: ca "chưa Tác phẩm nào mở" tái dùng
+    // `WorkNoneOpen`, ca "`chapter_id` không tồn tại" tái dùng `SegmentChapterNotFound`, ca
+    // "segment_id lạ / cặp lệch" tái dùng `SegmentNotFound` — cả ba đã có ở trên, không đúc
+    // khoá thứ hai/ba/tư cho cùng câu. Ba khoá dưới đây phủ đúng ba sự thật KHÔNG khoá nào
+    // hiện có nói được: đã ở biên khi dời/gộp, và một lượt tách sẽ để lại một Chương rỗng.
+    /// Dời một Chương LÊN khi nó đã ở vị trí ĐẦU, hoặc gộp một Chương khi không có Chương nào
+    /// liền trước nó — cả hai đều là *"không có hàng liền trước theo `(ord, id)`"*, cùng một
+    /// sự thật cho hai lệnh khác nhau. `chapter_id` là Chương vừa được chỉ. **0 hàng bị chạm.**
+    ChapterAtFirst => "err.chapter.at_first" [],
+    /// Dời một Chương XUỐNG khi nó đã ở vị trí CUỐI — không có hàng liền sau theo `(ord, id)`.
+    /// **0 hàng bị chạm.**
+    ChapterAtLast => "err.chapter.at_last" [],
+    /// Tách tại một câu là câu ĐẦU Chương (hoặc không còn hàng SỐNG nào đứng trước nó) ⇒
+    /// Chương mới sẽ RỖNG — một kết quả không có nghĩa, bị từ chối trước khi chạm SQL ghi nào.
+    /// `chapter_id` là Chương sẽ bị để rỗng (Chương đang mở, phía trước điểm cắt).
+    ChapterSplitLeavesEmpty => "err.chapter.split_leaves_empty" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

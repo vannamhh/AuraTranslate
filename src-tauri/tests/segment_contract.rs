@@ -15,6 +15,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use auratranslate_lib::commands::chapter::split_chapter_at_segment;
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::commands::segment::{
     confirm_segment, flush_segment_targets, read_open_chapter_segments, read_segment_history,
@@ -6800,4 +6801,112 @@ fn saving_a_chapter_position_without_an_open_work_reuses_the_named_error() {
         save_chapter_position(None, 1, 1).expect_err("chua Tac pham nao mo phai la mot loi");
     assert_eq!(err.code(), "work.none_open");
     assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.8 — đóng mục `deferred` #1 của Story 5.7: `save_chapter_position` nay kiểm CẶP
+// `(chapter_id, segment_id)`, không chỉ `chapter_id` tồn tại.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// §I/O Matrix "Ghi vị trí lệch cặp" — `segment_id` tồn tại thật, nhưng thuộc một Chương
+/// KHÁC `chapter_id` được chỉ ⇒ **0 hàng ghi**, `segment.not_found` (đóng mục `deferred` #1
+/// của Story 5.7).
+#[test]
+fn saving_a_position_whose_segment_belongs_to_another_chapter_writes_nothing() {
+    let root = temp_dir("5-8-position-cross-chapter");
+    let opened = create_work_from_text(&root, "5.8 cap lech", "zh", "", "一。".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_a = opened.chapter_id;
+
+    // Chương thứ hai, cùng khuôn `a_segment_id_from_another_chapter_is_refused_and_never_crosses_over`.
+    let chapter_b: i64 = opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 SELECT 2, 'Chuong hai', 'Nhi。', status, created_at, updated_at \
+                 FROM chapter WHERE id = ?1",
+                [chapter_a],
+            )?;
+            let other: i64 = tx.query_row("SELECT id FROM chapter WHERE ord = 2", [], |r| r.get(0))?;
+            tx.execute(
+                "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, created_at, updated_at) \
+                 VALUES (?1, 1, 'Nhi。', 0, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [other],
+            )?;
+            Ok(other)
+        })
+        .expect("bom Chuong thu hai that bai");
+
+    let segment_of_b: i64 = opened
+        .store
+        .read(move |conn| conn.query_row("SELECT id FROM segment WHERE chapter_id = ?1", [chapter_b], |r| r.get(0)))
+        .expect("doc segment cua Chuong B that bai");
+
+    // `chapter_a` CÓ THẬT, `segment_of_b` CÓ THẬT -- nhưng chúng KHÔNG PHẢI một cặp: đúng
+    // hình dạng cặp lệch mà lượt tách của Story 5.8 sinh ra được (segment ĐỔI `chapter_id`).
+    let err = save_chapter_position(Some(&opened), chapter_a, segment_of_b)
+        .expect_err("mot cap (chapter_id, segment_id) lech phai bi tu choi");
+    assert_eq!(err.code(), "segment.not_found");
+    assert_eq!(err.message_key(), MessageKey::SegmentNotFound);
+
+    let rows: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| row.get(0)))
+        .expect("dem hang chapter_position that bai");
+    assert_eq!(rows, 0, "khong hang nao duoc ghi khi cap (chapter_id, segment_id) lech nhau");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Vị trí làm việc theo câu qua lượt tách" — `chapter_position(A) → s` và `s`
+/// dời sang B ⇒ hàng vị trí dời THEO, cùng câu, đúng Chương. `save_chapter_position` trên cặp
+/// CŨ `(A, s)` bị từ chối sau lượt tách vì `s` không còn thuộc A nữa.
+#[test]
+fn a_split_moves_the_remembered_position_row_to_the_new_chapter() {
+    let root = temp_dir("5-8-split-moves-position");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.8 vi tri theo tach",
+        "zh",
+        "",
+        "Cau mot。Cau hai。Cau ba。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
+    let chapter_a = opened.chapter_id;
+
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
+    assert_eq!(loaded.segments.len(), 3, "fixture phai co dung ba cau");
+    let third = loaded.segments[2].id;
+
+    save_chapter_position(Some(&opened), chapter_a, third).expect("ghi vi tri vao cau ba");
+
+    split_chapter_at_segment(Some(&mut opened), third).expect("tach that bai");
+
+    // Chương MỚI B nhận câu 3 (điểm cắt) -- đọc lại chapter_id thật của nó.
+    let chapter_b: i64 = opened
+        .store
+        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [third], |r| r.get(0)))
+        .expect("doc lai chapter_id cua cau ba sau tach");
+    assert_ne!(chapter_b, chapter_a, "cau ba la diem cat -- phai doi sang Chuong moi");
+
+    let (position_chapter, position_segment): (i64, i64) = opened
+        .store
+        .read(|conn| conn.query_row("SELECT chapter_id, segment_id FROM chapter_position", [], |row| Ok((row.get(0)?, row.get(1)?))))
+        .expect("doc hang chapter_position that bai");
+    assert_eq!(position_chapter, chapter_b, "hang vi tri phai doi theo sang Chuong moi");
+    assert_eq!(position_segment, third, "van cung mot cau");
+
+    // Ghi lai tren CAP CU (A, cau ba) sau khi da tach phai bi TU CHOI -- cau ba khong con
+    // thuoc A nua.
+    let err = save_chapter_position(Some(&opened), chapter_a, third)
+        .expect_err("cap CU (A, cau ba) sau lot tach phai bi tu choi");
+    assert_eq!(err.code(), "segment.not_found");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
 }

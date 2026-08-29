@@ -762,9 +762,18 @@ pub const WORK_STATUS_OVERRIDE_DDL: &str = "ALTER TABLE work ADD COLUMN status_o
 ///
 /// ⚠️ **Giới hạn thật, ghi ra thay vì để người sau tưởng đã xét:** KHÔNG `FOREIGN KEY` tới
 /// `chapter` — cùng khuôn cả lược đồ, `PRAGMA foreign_keys` mặc định TẮT trong SQLite, một
-/// khoá ngoại khai ra mà không bật pragma là một lời hứa không ai giữ. Một Chương bị xoá
-/// (Story 5.8) để lại một hàng vị trí mồ côi; vô hại (`chapter_id` không tái dùng —
-/// `AUTOINCREMENT`) nhưng là rác — chủ dọn là Story 5.8, ghi vào `deferred-work.md`.
+/// khoá ngoại khai ra mà không bật pragma là một lời hứa không ai giữ.
+///
+/// 🔵 **SỬA 2026-08-29 (Story 5.8) — mệnh đề "một Chương bị xoá để lại một hàng vị trí mồ
+/// côi" đã HẾT ĐÚNG, và story này chính là chủ đã hứa dọn nó.** `commands::chapter` nay có
+/// đúng một đường xoá hàng `chapter`: `merge_chapter_into_previous`, và nó
+/// `DELETE FROM chapter_position WHERE chapter_id = <Chương bị gộp>` TRONG CÙNG giao dịch
+/// trước khi `DELETE FROM chapter` — không hàng vị trí nào sống sót Chương chủ của nó. Đường
+/// **tách** (`split_chapter_at_segment`) không xoá hàng `chapter` nào — nó chỉ chèn thêm một
+/// Chương — nhưng nó **dời** hàng vị trí của Chương gốc sang Chương mới khi câu vị trí trỏ
+/// tới đã đổi `chapter_id` (`UPDATE chapter_position SET chapter_id = ... WHERE segment_id
+/// IN (...)`), nên không hàng nào bị bỏ lại trỏ vào một `chapter_id` đã dời chỗ mà không có
+/// nó. ⇒ Không còn đường sản phẩm nào tạo ra một hàng `chapter_position` mồ côi.
 pub const CHAPTER_POSITION_DDL: &str = "\
 CREATE TABLE chapter_position (
   chapter_id INTEGER PRIMARY KEY,

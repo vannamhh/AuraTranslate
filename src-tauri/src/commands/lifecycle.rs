@@ -74,7 +74,17 @@ pub(crate) fn unknown_status(status: &str) -> IpcError {
 /// Lỗi ghi `meta.json` **NÓI RA**, không nuốt — cùng lý lẽ `project.rs:317-332`: đường dựng
 /// lại KHÔNG tự chạy lần nữa, nên một `meta.json` vắng mặt/cũ nằm đó cho tới lượt ghi kế
 /// tiếp nếu lỗi này bị nuốt.
-fn write_lifecycle_after_change(open: &mut OpenWork) -> Result<WorkLifecycle, IpcError> {
+///
+/// ⚠️ `pub(crate)` từ 2026-08-29 (Story 5.8) — **hôm nay riêng tư, tên GIỮ NGUYÊN.** Bốn
+/// thao tác tổ chức Chương mới (`commands::chapter::rename_chapter` ·
+/// `move_chapter` · `merge_chapter_into_previous` · `split_chapter_at_segment`) đi qua ĐÚNG
+/// khuôn bốn bước mà hàm này chở (bước 2 + bước 3), và tái dùng nó là cách duy nhất không
+/// đúc một bản chép thứ hai của cùng một khuôn — đo 2026-08-27 đã cho thấy chỗ nối bước 4
+/// **chưa có ai canh** khi khuôn bốn bước bị chép tay một lần rồi (xem
+/// `reindex_after_lifecycle_write`). Đổi TÊN ở đây sẽ mồ côi mọi tham chiếu trong ba tệp
+/// story (`commands/chapter.rs`, `commands/lifecycle.rs`, tài liệu review), nên tên giữ
+/// nguyên, chỉ độ hiển thị đổi.
+pub(crate) fn write_lifecycle_after_change(open: &mut OpenWork) -> Result<WorkLifecycle, IpcError> {
     let meta = WorkMeta::rebuild_from_store(&open.store)?;
 
     if let Err(err) = meta.write_atomic(&open.dir) {

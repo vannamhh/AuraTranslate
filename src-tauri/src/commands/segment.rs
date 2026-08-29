@@ -947,6 +947,24 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
 /// # Lỗi
 /// - `chapter_id` không thuộc `project.db` đang mở ⇒ `segment.chapter_not_found` (tái dùng
 ///   khoá đã có) — KHÔNG hàng nào được ghi.
+/// - `segment_id` không thuộc ĐÚNG `chapter_id` được chỉ (Chương tồn tại, segment tồn tại,
+///   nhưng là một CẶP LỆCH) ⇒ `segment.not_found` — KHÔNG hàng nào được ghi.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔵 THÊM PHÉP KIỂM CẶP (2026-08-29, Story 5.8) — đóng mục `deferred` #1 của Story 5.7
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Trước lượt này hàm chỉ kiểm `chapter_id` có tồn tại, KHÔNG kiểm `segment_id` có THẬT SỰ
+/// thuộc Chương đó. Story 5.8 là story ĐẦU TIÊN sinh ra được một cặp lệch thật: lượt TÁCH
+/// đổi `segment.chapter_id` của một số câu sang một Chương mới, nên một vị trí đã ghi TRƯỚC
+/// lượt tách (`(A, câu 3)`) có thể trỏ vào một segment nay đã thuộc Chương KHÁC. Không kiểm
+/// cặp thì `INSERT ... ON CONFLICT` vẫn ghi thành công một hàng `chapter_position` chỉ vào
+/// một segment không thuộc Chương đó — rỗng im lặng ở dạng tệ nhất: lần mở Chương kế tiếp,
+/// `read_open_chapter_segments` rơi vào nhánh "vị trí trỏ vào segment đã VỀ HƯU" (dòng ~905)
+/// dù nguyên nhân thật là một CẶP LỆCH, một chẩn đoán đúng chữ nhưng sai nguyên nhân.
+///
+/// Khuôn kiểm giống hệt `flush_segment_targets` bước ② (`:2088`): `SELECT COUNT(*) FROM
+/// segment WHERE id = ?1 AND chapter_id = ?2` — 0 hàng nghĩa là segment không tồn tại HOẶC
+/// tồn tại ở một Chương khác; cả hai đều là "cặp lệch" từ góc nhìn của lời gọi này.
 pub fn save_chapter_position(
     open: Option<&OpenWork>,
     chapter_id: i64,
@@ -957,10 +975,15 @@ pub fn save_chapter_position(
     // 🔴 Cùng ô CÓ KIỂU cho lý do từ chối, cùng lý lẽ định lượng đã ghi ở
     // `save_segment_targets` ngay trên: `Store::write` gói MỌI `Err` (kể cả một từ chối
     // nghiệp vụ) thành `StoreError::WriteFailed { detail: String }`, và đoán lại lý do từ
-    // `detail` bằng chuỗi là một chẩn đoán SAI cho hai ca khác hẳn nhau (chapter lạ / kho hỏng
-    // thật).
-    let chapter_missing: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
-    let chapter_missing_in = Arc::clone(&chapter_missing);
+    // `detail` bằng chuỗi là một chẩn đoán SAI cho ba ca khác hẳn nhau (chapter lạ / cặp lệch /
+    // kho hỏng thật).
+    #[derive(Clone, Copy)]
+    enum PositionReject {
+        ChapterMissing,
+        SegmentMismatch,
+    }
+    let reject: Arc<Mutex<Option<PositionReject>>> = Arc::new(Mutex::new(None));
+    let reject_in = Arc::clone(&reject);
 
     let result = open.store.write(move |tx: &Transaction<'_>| {
         // TRONG cùng giao dịch với lượt ghi — không khe hở nào giữa phép kiểm và phép ghi,
@@ -971,9 +994,22 @@ pub fn save_chapter_position(
             |row| row.get(0),
         )?;
         if chapter_rows == 0 {
-            *chapter_missing_in
+            *reject_in
                 .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(PositionReject::ChapterMissing);
+            return Err(SqlError::QueryReturnedNoRows);
+        }
+
+        // 🔵 THÊM (Story 5.8) — phép kiểm CẶP, khuôn có sẵn ở `flush_segment_targets:2088`.
+        let segment_rows: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM segment WHERE id = ?1 AND chapter_id = ?2",
+            (segment_id, chapter_id),
+            |row| row.get(0),
+        )?;
+        if segment_rows == 0 {
+            *reject_in
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(PositionReject::SegmentMismatch);
             return Err(SqlError::QueryReturnedNoRows);
         }
 
@@ -989,14 +1025,14 @@ pub fn save_chapter_position(
 
     match result {
         Ok(()) => Ok(()),
-        Err(_)
-            if *chapter_missing
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) =>
-        {
-            Err(chapter_not_found(chapter_id))
+        Err(err) => {
+            let taken = *reject.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            match taken {
+                Some(PositionReject::ChapterMissing) => Err(chapter_not_found(chapter_id)),
+                Some(PositionReject::SegmentMismatch) => Err(segment_not_found(segment_id)),
+                None => Err(err.into()),
+            }
         }
-        Err(err) => Err(err.into()),
     }
 }
 
@@ -1442,7 +1478,12 @@ pub struct ConfirmOutcome {
 }
 
 /// `segment_id` không có trong `project.db` của Tác phẩm đang mở.
-fn segment_not_found(segment_id: i64) -> IpcError {
+///
+/// ⚠️ `pub(crate)` từ 2026-08-29 (Story 5.8), cùng tiền lệ `no_work_open`/`chapter_not_found`
+/// của `commands::chapter`: `commands::chapter::split_chapter_at_segment` tái dùng ĐÚNG hàm
+/// này cho ca "segment_id không thuộc Chương đang mở" — cùng câu, cùng nghĩa, và một khoá thứ
+/// hai cho nó là hai chuỗi phải giữ khớp nhau bằng kỷ luật.
+pub(crate) fn segment_not_found(segment_id: i64) -> IpcError {
     IpcError::new(
         "segment.not_found",
         MessageKey::SegmentNotFound,

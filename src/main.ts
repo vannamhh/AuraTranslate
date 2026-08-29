@@ -38,6 +38,7 @@ import {
   mergeCurrentSegment,
   setCurrentSegmentOmitted,
   setCurrentSegmentParagraphEnd,
+  splitChapterHere,
   splitCurrentSegment,
   wireExitFlush,
 } from './panels/editorPanelState'
@@ -84,10 +85,14 @@ import {
 // thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/chapter.ts`/`config/library.ts`.
 import {
   loadChapters as loadLibraryChapters,
+  mergeCurrentChapterUp as mergeCurrentLibraryChapterUp,
+  moveCurrentChapterDown as moveCurrentLibraryChapterDown,
+  moveCurrentChapterUp as moveCurrentLibraryChapterUp,
   nextChapter as nextLibraryChapter,
   openCurrentChapter as openCurrentLibraryChapter,
   openCurrentLibraryWork,
   prevChapter as prevLibraryChapter,
+  renameCurrentChapter as renameCurrentLibraryChapter,
 } from './modes/libraryChapters'
 // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────────
 //
@@ -382,6 +387,11 @@ async function boot(): Promise<void> {
       nextLibraryChapter,
       prevLibraryChapter,
       openCurrentLibraryChapter,
+      // Story 5.8 — "Tổ chức lại Chương sau khi nhập" (FR15, AD-32).
+      renameCurrentLibraryChapter,
+      moveCurrentLibraryChapterUp,
+      moveCurrentLibraryChapterDown,
+      mergeCurrentLibraryChapterUp,
       setOpenWorkOverridePaused: setOpenWorkOverride,
       clearOpenWorkOverride,
       setOpenChapterDone: setOpenChapterStatus,
@@ -521,6 +531,19 @@ async function boot(): Promise<void> {
           // cột nguyên văn nên chưa có chỗ nào để cắt. Nó kêu chứ không ném — cùng luật
           // *"hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném"*.
           console.warn(`[grid] khong tach duoc segment: ${result}`)
+        })
+      },
+      // Story 5.8 · FR15/AD-32 — TÁCH CHƯƠNG tại câu đang có tiêu điểm. Cùng cửa
+      // `editorPanelState.ts` với hai dep gộp/tách segment ở trên, KHÔNG thẳng
+      // `splitChapterAtSegment` của `config/chapter.ts` — xem doc-comment của
+      // `CommandDeps.splitChapter`.
+      splitChapter: () => {
+        void splitChapterHere().then((moved) => {
+          if (moved) return
+          // `splitChapterHere()` đã tự ghi chẩn đoán NÊU ĐÍCH DANH lý do (caret trống, flush
+          // trượt, hoặc lỗi Rust) — dòng này chỉ đóng dấu "lệnh vừa gọi không đi tới đâu" ở
+          // đúng cấp độ cảnh báo mà hai dep segment ở trên đã dùng.
+          console.warn('[grid] khong tach duoc Chuong tai cau dang co tieu diem')
         })
       },
       // 🔴 STORY 1.18 — LƯỢT GỠ DEP TỐI THIỂU MÀ STORY 1.17 ĐÃ HẸN.

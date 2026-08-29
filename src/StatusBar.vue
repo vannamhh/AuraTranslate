@@ -36,6 +36,9 @@ import {
   editorLastSavedAt,
   editorRegroupError,
   editorRegroupNotice,
+  // 🔵 Story 5.8 — ô câu chữ THỨ TƯ: lượt tách CHƯƠNG (`editor.split_chapter`, `Mod+Shift+Slash`).
+  editorSplitChapterError,
+  editorSplitChapterNotice,
 } from './panels/editorPanelState'
 // 🔵 Story 3.4b — nhánh THỨ NĂM: bản dịch của một thuật ngữ Glossary đang được rê chuột tới,
 // ở cột nguyên văn của lưới. `hoveredGlossaryTerm` ghi bởi `GridPanel.vue`/`SourceHanViet.vue`
@@ -227,6 +230,47 @@ const regroupNoticeText = computed<string | null>(() => {
 })
 
 /**
+ * 🔴 **Story 5.8 — bảng tra THỨ TƯ, và nó cũng ĐÓNG.**
+ *
+ * ⚠️ **Vì sao nhánh này tồn tại — một phép đo, không một lượt cho đủ bộ.** Đo 2026-08-29 (lượt
+ * rà Story 5.8): bản đầu của `editorPanelState.ts::splitChapterHere` báo MỌI đường trượt bằng
+ * `console.error` và chỉ thế, kể cả ca thường nhất *(gõ hợp âm khi caret ở câu đầu Chương ⇒
+ * `err.chapter.split_leaves_empty`)*. Người dùng gõ `Mod+Shift+Slash` và màn hình **không đổi
+ * một pixel nào** — đúng lớp *"rỗng IM LẶNG"*, và lệch hẳn với hai lệnh ANH EM
+ * (`editor.merge_segments`/`editor.split_segment`) vốn hiện câu từ chối ngay ở bảng trên.
+ *
+ * Cùng cơ chế đóng ba bảng kia: thêm một giá trị vào `SplitChapterNotice` mà quên bảng này ⇒
+ * `vue-tsc` **đỏ**, vì `Record` đòi đủ khoá.
+ */
+const SPLIT_CHAPTER_NOTICE_KEYS: Record<
+  Exclude<NonNullable<typeof editorSplitChapterNotice.value>, 'refused'>,
+  string
+> = {
+  split: 'panel.grid.split_chapter_done',
+  'no-caret': 'panel.grid.split_chapter_no_caret',
+  'flush-failed': 'panel.grid.split_chapter_flush_failed',
+}
+
+/**
+ * Câu của lượt tách Chương gần nhất, hoặc `null`. Nhánh `'refused'` đọc
+ * [`editorSplitChapterError`] — cùng khuôn và cùng lý do `regroupNoticeText` ngay trên: một lượt
+ * từ chối của Rust *(`chapter.split_leaves_empty`, `segment.not_found`)* phải nói ra ĐÚNG lý do
+ * của nó, không rơi về một câu chung.
+ *
+ * ⚠️ `error === null` cùng lúc với `notice === 'refused'` là ca *"không có cầu IPC"* — vẫn phải
+ * nói ra (im lặng ở đây là đúng thứ vừa vá), nên nó mượn câu của `'flush-failed'`: thao tác chưa
+ * xong, dữ liệu còn nguyên.
+ */
+const splitChapterNoticeText = computed<string | null>(() => {
+  const notice = editorSplitChapterNotice.value
+  if (notice === null) return null
+  if (notice !== 'refused') return t(SPLIT_CHAPTER_NOTICE_KEYS[notice])
+  const err = editorSplitChapterError.value
+  if (err === null) return t(SPLIT_CHAPTER_NOTICE_KEYS['flush-failed'])
+  return tError(err)
+})
+
+/**
  * 🔴 **Story 2.10 · AC6 · AC7 — bảng tra THỨ BA, và nó cũng ĐÓNG.**
  *
  * Bốn khoá, đóng trên `NavNotice`. Cùng cơ chế và cùng lý do hai bảng trên: thêm một giá trị
@@ -364,6 +408,18 @@ const glossaryHoverText = computed<string | null>(() => {
       thấy một câu sai chỉ dời chỗ nói dối sang ô nhớ kia; chỗ phải sửa là bất biến ở tệp trạng thái.
     -->
     <span v-else-if="regroupNoticeText !== null" class="notice">{{ regroupNoticeText }}</span>
+    <!--
+      aura-allow-text: KẾT QUẢ của `t()`/`tError()`. 🔵 Story 5.8 — câu của lượt tách CHƯƠNG.
+
+      Đứng NGAY SAU câu gộp/tách segment và TRƯỚC câu điều hướng, cùng thang ưu tiên đã ghi ở
+      hai nhánh trên: một thao tác GHI (tách Chương) khẩn hơn một câu chỉ trả lời một phím điều
+      hướng vừa bấm.
+
+      🔴 Y như ba nhánh trên: thứ tự ở đây **không quan sát được** khi bất biến của
+      `datThongBao` đứng — nó nay gán CẢ BỐN ô ở mọi lời gọi. Thấy một câu sai thì sửa bất biến,
+      đừng sửa thứ tự.
+    -->
+    <span v-else-if="splitChapterNoticeText !== null" class="notice">{{ splitChapterNoticeText }}</span>
     <!--
       aura-allow-text: KẾT QUẢ của `t()`. 🔵 Story 2.10, AC6 · AC7 — câu của lượt điều hướng.
 

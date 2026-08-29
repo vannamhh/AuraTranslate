@@ -72,8 +72,13 @@ import {
 } from './libraryWorks'
 // ── Story 5.7 — "Danh sách Chương và mở Chương vào Workspace" (FR12) ─────────────────
 import {
+  chapterRenameDraft,
   chapterWindow,
+  currentLibraryChapter,
   libraryChapterCursor,
+  libraryChapterReorgBusy,
+  libraryChapterReorgError,
+  libraryChapterReorgNotice,
   libraryChapters,
   libraryChaptersBusy,
   libraryChaptersError,
@@ -836,6 +841,84 @@ watch(libraryChapterCursor, (cursor) => {
           </div>
 
           <!--
+            🔴 Story 5.8 — "Tổ chức lại Chương sau khi nhập" (FR15 · AD-32). Ba thao tác làm
+            việc trên một CHƯƠNG, nên chúng sống ở đây, cạnh con trỏ Chương. Thao tác thứ tư
+            (tách) làm việc trên một CÂU và sống ở Editor — `editor.split_chapter`,
+            `Mod+Shift+Slash`; §Never của story cấm dựng một ô nhập số thứ tự câu ở đây.
+
+            Mỗi `@click` là ĐÚNG MỘT lời gọi `dispatch('<id>')` với id literal — `check:commands`
+            Kiểm A, AD-34 §1.
+
+            ⚠️ `:disabled` đọc CẢ BA cờ bận: một lượt tổ chức đang bay
+            (`libraryChapterReorgBusy`), một lượt tải danh sách (`libraryChaptersBusy`), và một
+            lượt đổi Tác phẩm (`libraryOpenWorkBusy`) — cùng lý do khối 🔴 "CỬA SỔ MỞ NHẦM
+            CHƯƠNG" của `libraryChapters.ts` đã ghi: `chapter.id` là `AUTOINCREMENT` CỤC BỘ
+            trong từng `project.db`, nên một id của Tác phẩm CŨ tồn tại thật trong kho MỚI và
+            một thao tác GHI trên nó đi qua sạch, không một lỗi nào.
+          -->
+          <div v-if="libraryChapters.length > 0" class="chapter-reorg">
+            <label class="chapter-rename">
+              <span>{{ t('mode.library.chapter_rename_label') }}</span>
+              <input v-model="chapterRenameDraft" type="text" autocomplete="off" data-library-chapter-rename-input />
+            </label>
+            <div class="chapter-reorg-buttons">
+              <button
+                type="button"
+                class="btn"
+                data-library-chapter-rename
+                :disabled="libraryChapterReorgBusy || libraryChaptersBusy || libraryOpenWorkBusy || currentLibraryChapter === null"
+                @click="dispatch('library.chapter_rename')"
+              >
+                {{ t('mode.library.chapter_rename_button') }}
+              </button>
+              <button
+                type="button"
+                class="btn"
+                data-library-chapter-move-up
+                :disabled="libraryChapterReorgBusy || libraryChaptersBusy || libraryOpenWorkBusy || currentLibraryChapter === null"
+                @click="dispatch('library.chapter_move_up')"
+              >
+                {{ t('mode.library.chapter_move_up') }}
+              </button>
+              <button
+                type="button"
+                class="btn"
+                data-library-chapter-move-down
+                :disabled="libraryChapterReorgBusy || libraryChaptersBusy || libraryOpenWorkBusy || currentLibraryChapter === null"
+                @click="dispatch('library.chapter_move_down')"
+              >
+                {{ t('mode.library.chapter_move_down') }}
+              </button>
+              <button
+                type="button"
+                class="btn"
+                data-library-chapter-merge-up
+                :disabled="libraryChapterReorgBusy || libraryChaptersBusy || libraryOpenWorkBusy || currentLibraryChapter === null"
+                @click="dispatch('library.chapter_merge_up')"
+              >
+                {{ t('mode.library.chapter_merge_up') }}
+              </button>
+            </div>
+          </div>
+          <!--
+            Câu báo của một lượt tổ chức — cùng khuôn khối `libraryOpenWorkError` ngay trên, và
+            cùng lý do: một lượt CHẶN vì tập chờ Editor chưa sạch KHÔNG phải một `IpcError`,
+            nên nó đi qua `t()` chứ không qua `tError()`.
+            aura-allow-text: mọi nhánh đều qua t()/tError().
+          -->
+          <p class="error" role="status">
+            {{
+              libraryChapterReorgError
+                ? tError(libraryChapterReorgError)
+                : libraryChapterReorgNotice === 'flush-failed'
+                  ? t('mode.library.chapter_reorg_flush_failed')
+                  : libraryChapterReorgNotice === 'still-dirty'
+                    ? t('mode.library.chapter_reorg_still_dirty')
+                    : ''
+            }}
+          </p>
+
+          <!--
             Cuộn CÓ CỬA SỔ (AC2) — `chapterWindow()` là một hàm THUẦN (`libraryChapters.ts`),
             đây chỉ nối `@scroll` → `scrollTop` và render `slice(start, end)` cộng hai `<li>`
             đệm mang chiều cao tính sẵn. KHÔNG một dòng `scrollTop`/`scrollIntoView` nào tính
@@ -1390,6 +1473,44 @@ watch(libraryChapterCursor, (cursor) => {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
+}
+
+/*
+ * Story 5.8 — khối tổ chức lại Chương. Mọi màu và cỡ chữ đến từ token (`check:tokens` Kiểm
+ * B/B2); không bóng đổ, không gradient, không lớp nổi (Kiểm F). `.chapter-rename` chép đúng
+ * hình dạng `.field` của form nhập ở trên thay vì đặt một hình dạng thứ hai cho cùng vai.
+ */
+.chapter-reorg {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chapter-rename {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.chapter-rename input {
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  color: var(--color-on-surface);
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+.chapter-reorg-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 /* Story 5.7 — danh sách Chương, cùng khuôn `.open-work-block` (đường viền trên tách khối). */
