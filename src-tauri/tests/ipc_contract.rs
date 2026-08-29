@@ -491,6 +491,9 @@ fn library_work_list_wire_structs_keep_snake_case_field_names() {
             // 🔵 THÊM (2026-08-28, Story 5.5).
             chapter_done_count: Some(1),
         }],
+        // 🔵 THÊM (2026-08-28, Story 5.6).
+        genres: vec!["Tiên hiệp".to_owned()],
+        source_langs: vec!["zh".to_owned()],
     };
     let value = serde_json::to_value(&report).expect("WorkListReport phải serialize được");
     let mut top_keys: Vec<&str> =
@@ -498,7 +501,7 @@ fn library_work_list_wire_structs_keep_snake_case_field_names() {
     top_keys.sort_unstable();
     assert_eq!(
         top_keys,
-        vec!["matched", "total", "works"],
+        vec!["genres", "matched", "source_langs", "total", "works"],
         "khoá trên dây của WorkListReport là snake_case. Nhận được: {top_keys:?}."
     );
 

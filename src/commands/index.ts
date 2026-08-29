@@ -245,7 +245,14 @@ export type CommandDeps = {
   toggleLibraryFilterPaused?: () => void
   /** Bật/tắt lọc theo *Đã xong*. Handler của `library.filter_done`. */
   toggleLibraryFilterDone?: () => void
-  /** Bỏ mọi bộ lọc trạng thái đang bật. Handler của `library.filter_clear`. */
+  /**
+   * Bỏ mọi bộ lọc đang bật — trạng thái, lĩnh vực, ngôn ngữ nguồn. Handler của
+   * `library.filter_clear`.
+   *
+   * 🔵 **MỞ RỘNG (2026-08-28, Story 5.6)** — trước đó chỉ bỏ lọc trạng thái; hành vi mở rộng
+   * sống Ở PHÍA CUNG CẤP (`libraryWorks.ts::clearStatusFilter`), không phải ở đây — chữ ký
+   * của dep này KHÔNG đổi.
+   */
   clearLibraryFilter?: () => void
   /** Ghi đè trạng thái Tác phẩm đang mở thành *Tạm ngưng*. Handler của
    * `lifecycle.set_work_override_paused`. */
@@ -254,6 +261,22 @@ export type CommandDeps = {
   clearOpenWorkOverride?: () => void
   /** Đặt Chương đang mở thành *Đã xong*. Handler của `lifecycle.set_chapter_done`. */
   setOpenChapterDone?: () => void
+
+  // ── Story 5.6 — "Lưới Tác phẩm, lọc và sắp xếp" ─────────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `loadLibraryWorks`: state sống ở
+  // `src/modes/libraryWorks.ts`. Ba `<select>` (lĩnh vực · ngôn ngữ · sắp xếp) KHÔNG đi qua
+  // `dispatch()` — chúng dùng `@change` (ngoài luật Kiểm A, xem doc-comment
+  // `scripts/check-commands.mjs:33`) và gọi thẳng các hàm mở tường của `libraryWorks.ts` từ
+  // `LibraryMode.vue`, đúng tiền lệ `<select v-model="sourceLang">` đã có trong chính tệp đó.
+  // Chỉ con trỏ ô lưới cần một CẶP LỆNH thật: không có tương đương HTML gốc cho "ô kế
+  // tiếp"/"ô trước" trên một lưới hiển thị-thuần, và AD-34 §1 đòi mỗi `@click` là một
+  // `dispatch('<id>')` — chép ĐÚNG khuôn `library.orphan_next`/`orphan_prev` ở trên.
+
+  /** Chuyển con trỏ lưới Tác phẩm xuống ô kế tiếp. Handler của `library.work_next` (AC7). */
+  nextLibraryWork?: () => void
+  /** Chuyển con trỏ lưới Tác phẩm lên ô trước. Handler của `library.work_prev` (AC7). */
+  prevLibraryWork?: () => void
 
   // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────
   //
@@ -1014,6 +1037,27 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.clearLibraryFilter === undefined) return portMissing('library.filter_clear', 'clearLibraryFilter')
       deps.clearLibraryFilter()
+    },
+  })
+  // Story 5.6 — con trỏ lưới Tác phẩm (AC7). Chép ĐÚNG khuôn `library.orphan_next`/
+  // `orphan_prev` ở trên: 0 hợp âm mặc định, bấm/gõ qua `dispatch('<id>')` từ hai nút thật
+  // (`‹`/`›`) trong `LibraryMode.vue`.
+  target.register({
+    id: 'library.work_next',
+    labelKey: 'command.library.work_next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextLibraryWork === undefined) return portMissing('library.work_next', 'nextLibraryWork')
+      deps.nextLibraryWork()
+    },
+  })
+  target.register({
+    id: 'library.work_prev',
+    labelKey: 'command.library.work_prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevLibraryWork === undefined) return portMissing('library.work_prev', 'prevLibraryWork')
+      deps.prevLibraryWork()
     },
   })
   target.register({

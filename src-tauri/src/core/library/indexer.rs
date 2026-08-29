@@ -458,38 +458,52 @@ impl Indexer {
         })
     }
 
-    /// Đường ĐỌC — mọi hàng của `library_work`, sắp theo `work_id` (tất định; sắp theo
-    /// tên/ngày là việc của Story 5.6, không phải của story này), cộng tổng số hàng CHƯA
-    /// LỌC.
+    /// Đường ĐỌC — mọi hàng của `library_work` khớp [`WorkQuery`], sắp theo khoá sắp của
+    /// chính `query` (mặc định `updated_at DESC`, luôn kèm `, work_id` làm khoá phụ ỔN ĐỊNH —
+    /// AC4), cộng tổng số hàng CHƯA LỌC và hai tập giá trị lựa chọn CHƯA LỌC (`genres`/
+    /// `source_langs`). Story 5.6.
     ///
     /// 🔵 **SỬA (2026-08-27, phán quyết Ice #1) — không còn lọc `WHERE orphaned = 0`.** Từ
     /// khi cờ mồ côi chuyển sang `library_orphan` (`global.db`), MỌI hàng còn lại trong
     /// `library_work` đều đang sống theo định nghĩa — không có gì để lọc nữa vì lý do đó.
     /// `library_work` dẫn xuất TRỌN VẸN trở lại (đúng nghĩa gốc trước Story 5.3).
     ///
-    /// 🔵 **SỬA (2026-08-27, Story 5.4) — thêm tham số `filter`, thêm `WorksReport::total`.**
-    /// `filter = None` ⇒ mọi hàng (kể cả `status IS NULL`), `matched == total` — đúng §I/O
-    /// Matrix "Không lọc". `filter = Some(...)` lọc **trong SQL** bằng `status IN (...)`
-    /// (AD-1: bộ lọc tính ở Rust/SQL, không ở TypeScript) — một hàng `status IS NULL` không
-    /// bao giờ khớp bất kỳ giá trị nào trong bộ lọc, đúng ngữ nghĩa SQL của `NULL IN (...)`
-    /// (luôn `NULL`/không đúng), nên nó tự động bị loại mà không cần một nhánh `WHERE`
-    /// riêng. `total` VÀ `works` (đã lọc) đọc trong **CÙNG một lượt `Store::read`** — cùng
-    /// một kết nối, cùng một ảnh chụp — để hai con số không bao giờ đến từ hai thời điểm
-    /// khác nhau (đúng lý lẽ mà [`RebuildOutcome::current_orphans`] đã áp cho cặp
-    /// `indexed`/`orphans` ở `rebuild()`).
-    /// ⚠️ **`Some(&[])` nghĩa là "KHÔNG giá trị nào khớp", không phải "không lọc"** — và đó là
-    /// chỗ tầng này CỐ Ý lệch với [`crate::commands::library::list_works`], nơi doc-comment nói
-    /// một bộ lọc rỗng đọc là *không lọc*. Hai câu trả lời đều đúng ở tầng của nó: ở tầng lệnh
-    /// một bộ lọc rỗng đến từ *"người dùng chưa bật nút nào"* (⇒ không lọc, và tầng đó chuẩn
-    /// hoá `Some(&[])` thành `None` TRƯỚC khi gọi xuống); ở tầng này tham số là một **tập giá
-    /// trị**, và tập rỗng khớp 0 hàng theo đúng nghĩa đen. Ghi ra ở đây vì một chỗ gọi Rust
-    /// tương lai đọc doc-comment của tầng lệnh rồi gọi thẳng xuống đây sẽ nhận kết quả NGƯỢC
-    /// với thứ nó chờ, im lặng. (Lượt rà 2026-08-28.)
-    pub fn list_works(&self, filter: Option<&[crate::core::lifecycle::LifecycleStatus]>) -> Result<WorksReport, StoreError> {
+    /// 🔵 **SỬA (2026-08-27, Story 5.4) — thêm tham số lọc trạng thái, thêm `WorksReport::total`.**
+    /// Không lọc trạng thái ⇒ mọi hàng (kể cả `status IS NULL`), `matched == total` — đúng
+    /// §I/O Matrix "Không lọc". Lọc trạng thái **trong SQL** bằng `status IN (...)` (AD-1: bộ
+    /// lọc tính ở Rust/SQL, không ở TypeScript) — một hàng `status IS NULL` không bao giờ
+    /// khớp bất kỳ giá trị nào trong bộ lọc, đúng ngữ nghĩa SQL của `NULL IN (...)` (luôn
+    /// `NULL`/không đúng), nên nó tự động bị loại mà không cần một nhánh `WHERE` riêng.
+    ///
+    /// 🔵 **SỬA (2026-08-28, Story 5.6) — nhận một [`WorkQuery`] thay vì tham số `filter` rời
+    /// rạc; thêm lọc `genre`/`source_lang` (`AND`, §I/O Matrix "Ba bộ lọc chồng") và khoá sắp
+    /// (`sort`); thêm `WorksReport::genres`/`source_langs`.** `total`, `works` (đã lọc/sắp)
+    /// VÀ hai tập lựa chọn đọc trong **CÙNG một lượt `Store::read`** — cùng một kết nối, cùng
+    /// một ảnh chụp — để bốn con số/tập không bao giờ đến từ hai thời điểm khác nhau (đúng lý
+    /// lẽ mà [`RebuildOutcome::current_orphans`] đã áp cho cặp `indexed`/`orphans` ở
+    /// `rebuild()`). Hai tập lựa chọn đọc trên bảng **CHƯA LỌC** (§Always/AD-1: suy từ `works`
+    /// đã lọc phía TypeScript làm lựa chọn TEO DẦN — lọc "Tiên hiệp" xong thì mọi lĩnh vực
+    /// khác biến mất khỏi ô chọn, người dùng kẹt không đường quay lại).
+    ///
+    /// ⚠️ **`WorkQuery::status = Some(vec![])` nghĩa là "KHÔNG giá trị nào khớp", không phải
+    /// "không lọc"** — và đó là chỗ tầng này CỐ Ý lệch với
+    /// [`crate::commands::library::list_works`], nơi doc-comment nói một bộ lọc rỗng đọc là
+    /// *không lọc*. Hai câu trả lời đều đúng ở tầng của nó: ở tầng lệnh một bộ lọc rỗng đến từ
+    /// *"người dùng chưa bật nút nào"* (⇒ không lọc, và tầng đó chuẩn hoá bộ lọc rỗng thành
+    /// `None` TRƯỚC khi gọi xuống); ở tầng này tham số là một **tập giá trị**, và tập rỗng
+    /// khớp 0 hàng theo đúng nghĩa đen. Ghi ra ở đây vì một chỗ gọi Rust tương lai đọc
+    /// doc-comment của tầng lệnh rồi gọi thẳng xuống đây sẽ nhận kết quả NGƯỢC với thứ nó
+    /// chờ, im lặng. (Lượt rà 2026-08-28.)
+    pub fn list_works(&self, query: WorkQuery) -> Result<WorksReport, StoreError> {
         self.store.read(move |conn: ReadHandle<'_>| {
             let total: usize = conn.query_row("SELECT COUNT(*) FROM library_work", [], |row| {
                 row.get::<_, i64>(0)
             })? as usize;
+
+            // Hai tập lựa chọn -- luôn trên bảng CHƯA LỌC, luôn trong CÙNG lượt đọc này. Xem
+            // khối doc-comment ngay trên cho lý do (AD-1, "lựa chọn teo dần").
+            let genres = distinct_column(&conn, "genre")?;
+            let source_langs = distinct_column(&conn, "source_lang")?;
 
             const COLUMNS: &str = "work_id, atproj_path, name, source_lang, genre, created_at, \
                  updated_at, chapter_count, status, status_is_override, chapter_done_count";
@@ -511,33 +525,53 @@ impl Indexer {
                 })
             };
 
-            let works: Vec<IndexedWork> = match filter {
-                None => {
-                    let mut stmt = conn.prepare(&format!(
-                        "SELECT {COLUMNS} FROM library_work ORDER BY work_id"
-                    ))?;
-                    let rows = stmt.query_map([], map_row)?;
-                    rows.collect::<SqlResult<Vec<_>>>()?
+            // `Some(vec![])` (§I/O Matrix, ⚠️ ngay trên) ⇒ khớp 0 hàng theo nghĩa đen -- ngắn
+            // mạch TRƯỚC khi dựng `WHERE`, nhưng SAU khi `total`/`genres`/`source_langs` đã
+            // tính, đúng lời hứa "cùng một lượt đọc" cho MỌI nhánh, kể cả nhánh rỗng.
+            if let Some(ref statuses) = query.status {
+                if statuses.is_empty() {
+                    return Ok(WorksReport { total, works: Vec::new(), genres, source_langs });
                 }
-                Some(statuses) if statuses.is_empty() => Vec::new(),
-                Some(statuses) => {
-                    // ⚠️ `statuses` đến từ `LifecycleStatus::ALL` (bốn giá trị đóng, đã qua
-                    // `from_wire` ở tầng lệnh) — không phải chuỗi thô của người dùng, nên xây
-                    // `IN (...)` bằng `format!` ở đây KHÔNG mở một lỗ tiêm SQL: mỗi placeholder
-                    // vẫn là một tham số ràng buộc (`?`), `format!` chỉ dựng số lượng dấu hỏi.
-                    let placeholders =
-                        statuses.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-                    let mut stmt = conn.prepare(&format!(
-                        "SELECT {COLUMNS} FROM library_work WHERE status IN ({placeholders}) \
-                         ORDER BY work_id"
-                    ))?;
-                    let params: Vec<&str> = statuses.iter().map(|s| s.as_str()).collect();
-                    let rows = stmt.query_map(params_from_iter(params.iter()), map_row)?;
-                    rows.collect::<SqlResult<Vec<_>>>()?
-                }
+            }
+
+            // Dựng `WHERE ... AND ...` từ ba bộ lọc ĐỘC LẬP -- §I/O Matrix "Ba bộ lọc chồng":
+            // giao của cả ba, không phải hợp. Mỗi mệnh đề vẫn ràng buộc qua `?` (tham số THẬT),
+            // `format!` chỉ dựng số lượng dấu hỏi/tên cột -- không mở lỗ tiêm SQL, cùng lý lẽ
+            // đã ghi cho nhánh lọc trạng thái ở bản trước.
+            let mut clauses: Vec<String> = Vec::new();
+            let mut params: Vec<&str> = Vec::new();
+
+            let status_values: Option<Vec<&str>> =
+                query.status.as_ref().map(|v| v.iter().map(|s| s.as_str()).collect());
+            if let Some(ref statuses) = status_values {
+                let placeholders = statuses.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+                clauses.push(format!("status IN ({placeholders})"));
+                params.extend(statuses.iter().copied());
+            }
+            if let Some(ref genre) = query.genre {
+                clauses.push("genre = ?".to_owned());
+                params.push(genre.as_str());
+            }
+            if let Some(ref source_lang) = query.source_lang {
+                clauses.push("source_lang = ?".to_owned());
+                params.push(source_lang.as_str());
+            }
+
+            let where_clause =
+                if clauses.is_empty() { String::new() } else { format!("WHERE {}", clauses.join(" AND ")) };
+            // Khoá phụ `, work_id` LUÔN có mặt -- §I/O Matrix "Hai Tác phẩm cùng updated_at":
+            // thứ tự phải ỔN ĐỊNH giữa hai lượt tải khi khoá sắp chính trùng nhau. `work_id` là
+            // UUID v4 (AD-28) -- ổn định vì nó KHÔNG đổi theo thời gian, không vì nó "đẹp".
+            let order_clause = match query.sort {
+                WorkSortKey::UpdatedDesc => "ORDER BY updated_at DESC, work_id",
+                WorkSortKey::NameAsc => "ORDER BY name COLLATE NOCASE, work_id",
             };
 
-            Ok(WorksReport { total, works })
+            let mut stmt = conn.prepare(&format!("SELECT {COLUMNS} FROM library_work {where_clause} {order_clause}"))?;
+            let rows = stmt.query_map(params_from_iter(params.iter()), map_row)?;
+            let works: Vec<IndexedWork> = rows.collect::<SqlResult<Vec<_>>>()?;
+
+            Ok(WorksReport { total, works, genres, source_langs })
         })
     }
 
@@ -590,6 +624,20 @@ impl Indexer {
 
         Ok(orphan_store::list(global)?)
     }
+}
+
+/// **THÊM Story 5.6.** `SELECT DISTINCT <column> FROM library_work`, sắp theo chính giá trị
+/// đó (không dấu phân biệt hoa/thường) để tập lựa chọn hiện ra ổn định giữa hai lượt gọi.
+///
+/// ⚠️ `column` **không phải** dữ liệu người dùng — hai chỗ gọi DUY NHẤT truyền literal
+/// `"genre"`/`"source_lang"` (xem [`Indexer::list_works`]), nên `format!` ở đây dựng TÊN CỘT
+/// từ mã nguồn, không từ dây IPC — không mở lỗ tiêm SQL, cùng lý lẽ đã ghi cho `COLUMNS`/
+/// `placeholders` ở `list_works`.
+fn distinct_column(conn: &ReadHandle<'_>, column: &str) -> SqlResult<Vec<String>> {
+    let mut stmt =
+        conn.prepare(&format!("SELECT DISTINCT {column} FROM library_work ORDER BY {column} COLLATE NOCASE"))?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    rows.collect::<SqlResult<Vec<_>>>()
 }
 
 /// Mọi thư mục con của `root` mang đuôi `.atproj`, **sắp xếp** — thứ tự quét phải tất định để
@@ -881,6 +929,66 @@ pub struct IndexedWork {
     pub chapter_done_count: Option<u32>,
 }
 
+/// Khoá sắp xếp — danh mục ĐÓNG, Story 5.6, FR10. Hai giá trị hôm nay; phân giải qua
+/// [`Self::from_wire`] ở tầng lệnh (`commands::library::list_works`), cùng khuôn
+/// `LifecycleStatus::from_wire` (`core/lifecycle/mod.rs`) — một khoá lạ trên dây ⇒ `IpcError`,
+/// KHÔNG im lặng rơi về mặc định (§Always của story).
+///
+/// ⚠️ **Không một `enum` thứ hai/biến thể thứ ba tiện tay** — thêm một khoá sắp là một quyết
+/// định sản phẩm (thêm một `<option>` + một khoá nhãn `vi.json`), không một dòng mã.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorkSortKey {
+    /// Ngày sửa gần nhất trước — **mặc định** (FR10 nêu nó trước).
+    UpdatedDesc,
+    /// Tên, không phân biệt hoa/thường (`COLLATE NOCASE`).
+    NameAsc,
+}
+
+impl WorkSortKey {
+    pub const ALL: &'static [WorkSortKey] = &[WorkSortKey::UpdatedDesc, WorkSortKey::NameAsc];
+
+    /// Định danh máy đọc — thứ đi trên dây. Không phải nhãn hiển thị (AD-21).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            WorkSortKey::UpdatedDesc => "updated_desc",
+            WorkSortKey::NameAsc => "name_asc",
+        }
+    }
+
+    /// Phân giải một giá trị đến từ dây IPC. `None` ⇒ giá trị ngoài danh mục đóng, chỗ gọi tự
+    /// dựng lỗi (không đoán, không rơi về mặc định).
+    pub fn from_wire(raw: &str) -> Option<WorkSortKey> {
+        match raw {
+            "updated_desc" => Some(WorkSortKey::UpdatedDesc),
+            "name_asc" => Some(WorkSortKey::NameAsc),
+            _ => None,
+        }
+    }
+}
+
+impl Default for WorkSortKey {
+    /// §I/O Matrix "Sắp mặc định": `sort=None` ⇒ `updated_desc`.
+    fn default() -> Self {
+        WorkSortKey::UpdatedDesc
+    }
+}
+
+/// Tham số một lượt [`Indexer::list_works`] — bộ lọc trạng thái (đã có từ Story 5.4) cộng
+/// `genre`/`source_lang`/khoá sắp (Story 5.6), tất cả tính TRONG SQL ở tầng này (AD-1).
+///
+/// `Default` ⇒ không lọc gì, sắp `updated_desc` — đúng "Không lọc" của §I/O Matrix.
+#[derive(Debug, Clone, Default)]
+pub struct WorkQuery {
+    /// `None` ⇒ không lọc trạng thái. `Some(vec![])` ⇒ khớp 0 hàng theo NGHĨA ĐEN — xem ⚠️ ở
+    /// doc-comment của [`Indexer::list_works`].
+    pub status: Option<Vec<crate::core::lifecycle::LifecycleStatus>>,
+    /// `None` ⇒ không lọc lĩnh vực.
+    pub genre: Option<String>,
+    /// `None` ⇒ không lọc ngôn ngữ nguồn.
+    pub source_lang: Option<String>,
+    pub sort: WorkSortKey,
+}
+
 /// Kết quả một lượt [`Indexer::list_works`] — `total` LUÔN là tổng số hàng CHƯA LỌC,
 /// `works.len()` là số hàng KHỚP bộ lọc (hoặc bằng `total` khi không lọc). Story 5.4.
 ///
@@ -889,10 +997,17 @@ pub struct IndexedWork {
 /// pitfalls`). `commands::library::WorkListReport` (tầng lệnh) mới là nơi trường `matched`
 /// tường minh xuất hiện — ở đó nó đi qua dây IPC, nơi suy luận từ `.length` phía TypeScript
 /// đúng là điều AD-1 cấm.
+///
+/// 🔵 **THÊM (2026-08-28, Story 5.6) — `genres`/`source_langs`.** Hai tập giá trị CÓ THẬT,
+/// `DISTINCT` trên bảng CHƯA LỌC, cùng một lượt đọc với `total`/`works` (xem doc-comment của
+/// [`Indexer::list_works`]) — để giao diện dựng `<option>` mà không tự suy diễn từ `works` đã
+/// lọc (AD-1: suy vậy làm lựa chọn TEO DẦN theo mỗi lượt lọc).
 #[derive(Debug, Clone)]
 pub struct WorksReport {
     pub total: usize,
     pub works: Vec<IndexedWork>,
+    pub genres: Vec<String>,
+    pub source_langs: Vec<String>,
 }
 
 /// Mọi cách một lượt [`Indexer::rebuild`] hỏng mà KHÔNG phải một `.atproj` con bị bỏ qua (đó

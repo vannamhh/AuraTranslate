@@ -414,6 +414,11 @@ message_keys! {
     /// câu này, và hộp thoại chọn thư mục của hệ điều hành đã tự lọc phần lớn ca sai hình
     /// dạng trước khi trả về.
     LibraryRootInvalid => "err.library.root_invalid" [],
+    /// **THÊM (2026-08-28, Story 5.6)** — khoá sắp xếp ngoài danh mục hai giá trị đóng của
+    /// [`crate::core::library::indexer::WorkSortKey`] — đi qua `commands::library::list_works`
+    /// trên dây (`sort`). Không một lượt SQL nào chạy trước khi lỗi này được trả (§Always: "một
+    /// khoá lạ trên dây ⇒ IpcError, không im lặng rơi về mặc định").
+    LibraryUnknownSort => "err.library.unknown_sort" ["sort"],
 
     // ── Story 5.4 (FR5/FR6) — ĐÚNG MỘT khoá ─────────────────────────────────────────
     //

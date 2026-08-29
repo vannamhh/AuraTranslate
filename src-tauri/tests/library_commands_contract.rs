@@ -34,7 +34,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::library::{apply_chosen_root, forget_orphan, list_works, rescan};
-use auratranslate_lib::core::library::indexer::Indexer;
+use auratranslate_lib::core::library::indexer::{Indexer, WorkQuery};
 use auratranslate_lib::core::library::meta::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::load_global_config;
 use auratranslate_lib::core::store::{Store, StoreSpec};
@@ -137,7 +137,7 @@ fn a_brand_new_atproj_copied_into_the_root_appears_after_one_rescan() {
         "thêm một Tác phẩm KHÔNG được biến Tác phẩm cũ thành mồ côi"
     );
 
-    let works = indexer.list_works(None).expect("list_works").works;
+    let works = indexer.list_works(WorkQuery::default()).expect("list_works").works;
     let ids: Vec<&str> = works.iter().map(|w| w.work_id.as_str()).collect();
     assert!(ids.contains(&"id-first") && ids.contains(&"id-second"), "cả hai phải còn: {ids:?}");
 
@@ -179,7 +179,7 @@ fn cancelling_the_folder_dialog_writes_no_config_and_leaves_the_index_alone() {
     assert_eq!(cfg.library_root(), None, "huỷ KHÔNG được ghi `library_root` xuống đĩa");
 
     assert!(
-        indexer.list_works(None).expect("list_works").works.is_empty(),
+        indexer.list_works(WorkQuery::default()).expect("list_works").works.is_empty(),
         "huỷ KHÔNG được kéo theo một lượt quét"
     );
 
@@ -435,7 +435,7 @@ fn an_unknown_filter_value_at_the_command_layer_is_refused_not_silently_dropped(
     indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
 
     let filter = vec!["finished".to_owned()];
-    let err = list_works(Some(&indexer), Some(&filter))
+    let err = list_works(Some(&indexer), Some(&filter), None, None, None)
         .expect_err("gia tri loc la phai bi tu choi");
     assert_eq!(
         err.code(),
@@ -445,7 +445,7 @@ fn an_unknown_filter_value_at_the_command_layer_is_refused_not_silently_dropped(
 
     // Đối chứng: cùng lời gọi với một giá trị HỢP LỆ vẫn đi qua bình thường — chứng minh ca
     // trên đỏ vì giá trị lạ, không vì đường lọc hỏng sẵn.
-    let ok = list_works(Some(&indexer), Some(&vec!["not_started".to_owned()]))
+    let ok = list_works(Some(&indexer), Some(&vec!["not_started".to_owned()]), None, None, None)
         .expect("gia tri hop le phai di qua");
     assert_eq!(ok.matched, 1);
 
@@ -469,7 +469,7 @@ fn the_command_layer_reports_matched_separately_from_total() {
     indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
 
     // Cả ba `.atproj` đều `not_started` (xem `write_atproj`), nên lọc `done` quét sạch.
-    let swept = list_works(Some(&indexer), Some(&vec!["done".to_owned()])).expect("lọc done");
+    let swept = list_works(Some(&indexer), Some(&vec!["done".to_owned()]), None, None, None).expect("lọc done");
     assert_eq!(swept.matched, 0, "khong hang nao khop");
     assert_eq!(
         swept.total, 3,
@@ -479,7 +479,7 @@ fn the_command_layer_reports_matched_separately_from_total() {
     assert!(swept.works.is_empty());
 
     // Không lọc: hai con số bằng nhau, và `matched` bám theo `works.len()`.
-    let all = list_works(Some(&indexer), None).expect("khong loc");
+    let all = list_works(Some(&indexer), None, None, None, None).expect("khong loc");
     assert_eq!(all.total, 3);
     assert_eq!(all.matched, all.works.len());
     assert_eq!(all.matched, 3);
@@ -536,7 +536,7 @@ fn a_v2_meta_json_missing_chapter_done_count_reaches_the_work_row_as_none() {
     let outcome = indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
     assert_eq!(outcome.indexed, 1, "meta.json v2 phai doc duoc va vao chi muc, khong bi skip");
 
-    let report = list_works(Some(&indexer), None).expect("list_works");
+    let report = list_works(Some(&indexer), None, None, None, None).expect("list_works");
     assert_eq!(report.works.len(), 1);
     assert_eq!(
         report.works[0].chapter_done_count, None,
@@ -547,6 +547,62 @@ fn a_v2_meta_json_missing_chapter_done_count_reaches_the_work_row_as_none() {
     // huong boi khoa moi vang mat.
     assert_eq!(report.works[0].status.as_deref(), Some("done"));
     assert!(!report.works[0].status_is_override);
+
+    indexer.close();
+    global.close();
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.6 — khoá sắp ở tầng LỆNH: `sort=None` ⇒ mặc định, khoá lạ ⇒ TỪ CHỐI.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// §Always: "một khoá lạ trên dây ⇒ `IpcError`, KHÔNG im lặng rơi về mặc định" — cùng lý lẽ
+/// đã canh cho `filter`, giờ áp dụng cho `sort`.
+#[test]
+fn an_unknown_sort_key_at_the_command_layer_is_refused_not_silently_defaulted() {
+    let dir = temp_dir("list-works-unknown-sort");
+    let root = library_root(&dir);
+    fs::create_dir_all(&root).expect("tạo thư mục gốc");
+    let indexer = open_indexer(&dir);
+    let global = open_global(&dir);
+    write_atproj(&root, "Mot", "11111111-1111-4111-8111-111111111111", "Mot");
+    indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
+
+    let err = list_works(Some(&indexer), None, None, None, Some("bua"))
+        .expect_err("khoa sap la phai bi tu choi");
+    assert_eq!(
+        err.code(),
+        "library.unknown_sort",
+        "mot khoa sap la phai noi ten no, khong duoc am tham roi ve mac dinh"
+    );
+
+    indexer.close();
+    global.close();
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Sắp mặc định": `sort=None` ⇒ `updated_desc` — hai Tác phẩm, cái sửa GẦN ĐÂY
+/// HƠN phải đứng trước khi không truyền `sort`.
+#[test]
+fn no_sort_key_defaults_to_updated_desc() {
+    let dir = temp_dir("list-works-default-sort");
+    let root = library_root(&dir);
+    fs::create_dir_all(&root).expect("tạo thư mục gốc");
+    let indexer = open_indexer(&dir);
+    let global = open_global(&dir);
+    write_atproj(&root, "Old", "11111111-1111-4111-8111-111111111111", "Old");
+    write_atproj(&root, "New", "22222222-2222-4222-8222-222222222222", "New");
+    indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
+
+    let report = list_works(Some(&indexer), None, None, None, None).expect("list_works mac dinh");
+    assert_eq!(report.works.len(), 2);
+    // `write_atproj` (khuôn của tệp `library_index_contract.rs`) ghi CÙNG một `updated_at` cho
+    // mọi hàng -- không đối chứng được thứ tự NGÀY SỬA ở đây (đã canh trọn ở
+    // `library_index_contract.rs::sorting_by_updated_at_orders_the_most_recently_touched_work_first`).
+    // Ca này chỉ canh rằng KHÔNG lỗi nào ném khi `sort` vắng mặt, và tầng lệnh không tự bịa
+    // một chuỗi rỗng cho tham số `sort` (thứ sẽ trượt `WorkSortKey::from_wire`).
+    assert_eq!(report.matched, 2);
 
     indexer.close();
     global.close();

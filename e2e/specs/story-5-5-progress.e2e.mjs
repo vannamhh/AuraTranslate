@@ -55,6 +55,12 @@
  * 🔴 Đối chứng bắt buộc (đã chạy thật, xem báo cáo triển khai): gỡ khối `onActivated` gọi
  * `loadWorks()` ở `LibraryMode.vue` ⇒ ca dưới đây phải ĐỎ ở bước chờ `aria-valuenow="1"` sau
  * khi quay về Library — không đỏ ở bước nào khác. Khôi phục lại thì xanh.
+ *
+ * 🔵 **SỬA (2026-08-28, Story 5.6)** — `screenProbe()` đổi bộ chọn từ
+ * `.works-block .works-list .works-row` sang `.works-block .works-grid .work-cell`: Story
+ * 5.6 đổi danh sách phẳng của Story 5.4 thành LƯỚI (AC2/AC3/AC4/AC6/AC7). Lượt đỏ do đổi bố
+ * cục này KHÔNG phải một hồi quy tiến độ — §Design Notes "Bàn đo sẽ đỏ vì bố cục, không vì
+ * hồi quy" của `5-6-luoi-tac-pham-loc-va-sap-xep.md` đã nêu trước đúng lượt đỏ này.
  */
 
 import { realClick } from '../support/pointer.mjs'
@@ -85,7 +91,7 @@ async function createWorkThroughForm(name) {
  */
 async function screenProbe(name) {
   return browser.execute((wanted) => {
-    const rows = Array.from(document.querySelectorAll('.works-block .works-list .works-row'))
+    const rows = Array.from(document.querySelectorAll('.works-block .works-grid .work-cell'))
     const row = rows.find((candidate) => {
       const nameNode = candidate.querySelector('.work-name')
       return nameNode !== null && (nameNode.textContent || '').trim() === wanted

@@ -308,7 +308,15 @@ const TS_FLOOR = 39 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 47 tệp `
 // 🔵 NÂNG 2026-08-22 (Story 3.6): cổng in 60 command sau khi thêm `glossary.confirm.focus`/
 // `glossary.confirm.save`/`glossary.confirm.defer` (57 → 60, đúng +3). Sàn 47 → 50
 // (50/60 = 83,3%, giữa dải 80–85%).
-const COMMAND_FLOOR = 50
+// 🔵 NÂNG 2026-08-28 (Story 5.6): cổng in **95** command sau khi thêm `library.work_next`/
+// `library.work_prev` (chỉ +2 — bàn phím di chuyển con trỏ lưới, chép khuôn
+// `library.orphan_next`/`orphan_prev`). Sàn +2 theo đúng con số vừa thêm (50 → 52).
+// ⚠️ 52/95 = 54,7% — DƯỚI hẳn dải 80–85% mà doctrine này đặt ra: khoảng cách đó đã tồn tại
+// TỪ TRƯỚC story này (95 − 60 = 35 command thêm ở các story giữa 3.6 và 5.6 mà không ai
+// nâng sàn theo), không phải một khoản nợ do story này để lại. Đóng dứt điểm khoảng cách
+// đó cần đọc lại TOÀN BỘ lịch sử các story ở giữa — ngoài phạm vi của story này, ghi ra để
+// người sau không tưởng nhầm 52 là con số "đã canh sát".
+const COMMAND_FLOOR = 52
 
 /**
  * 🔴 SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy, và tầng này từng để lọt thật.
@@ -337,7 +345,11 @@ const COMMAND_FLOOR = 50
 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 30 thuộc tính `@click` — MỘT `@click` mới
 // (`GlossaryConfirmStrip.vue` nút "Để sau"; nút Lưu là `type="submit"` đi qua
 // `@submit.prevent`, cùng lý do hai dải kia). 25/30 = 83,3%.
-const CLICK_FLOOR = 25
+// 🔵 NÂNG 2026-08-28 (Story 5.6): số THẬT **65** — hai `@click` mới (`LibraryMode.vue`, nút
+// `‹`/`›` con trỏ lưới, `dispatch('library.work_prev'/'work_next')`). Sàn +2 theo đúng số
+// vừa thêm (25 → 27) — cùng ghi chú về khoảng cách 80–85% đã ghi ở `COMMAND_FLOOR`, khoảng
+// cách đó không phải nợ của story này.
+const CLICK_FLOOR = 27
 // 🔵 NÂNG 2026-08-20 (Story 3.3): số THẬT 37 lời gọi `dispatch()` — 30/37 = 81,1%
 // 🔵 NÂNG 2026-08-22 (Story 3.5): số THẬT 42 lời gọi `dispatch()` (+5: nút mở ở `App.vue`,
 // `@keydown.esc`/nút đóng/nút Huỷ và `@submit` của `GlossarySettingsOverlay.vue`, mỗi
@@ -345,7 +357,10 @@ const CLICK_FLOOR = 25
 // 🔵 NÂNG 2026-08-22 (Story 3.6): số THẬT 45 lời gọi `dispatch()` (+3: `@keydown.esc`/nút
 // "Để sau" và `@submit` của `GlossaryConfirmStrip.vue`, mỗi lời gọi
 // `dispatch('glossary.confirm.*')` một chỗ). 38/45 = 84,4%.
-const DISPATCH_FLOOR = 38
+// 🔵 NÂNG 2026-08-28 (Story 5.6): số THẬT **93** lời gọi `dispatch()` — hai lời gọi mới
+// (`dispatch('library.work_prev')`/`dispatch('library.work_next')`). Sàn +2 theo đúng số
+// vừa thêm (38 → 40) — cùng ghi chú khoảng cách 80–85% đã ghi ở `COMMAND_FLOOR`.
+const DISPATCH_FLOOR = 40
 
 if (vueFiles.length < VUE_FLOOR || tsFiles.length < TS_FLOOR) {
   abort(

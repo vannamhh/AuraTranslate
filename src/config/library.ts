@@ -151,11 +151,28 @@ export type WorkRow = {
   chapter_done_count: number | null
 }
 
-/** Kết quả một lượt liệt kê — khớp `commands::library::WorkListReport`. */
+/**
+ * 🔵 **THÊM (2026-08-28, Story 5.6)** — khoá sắp xếp, danh mục ĐÓNG, khớp
+ * `core::library::indexer::WorkSortKey::as_str()` phía Rust. Union ĐÓNG, không `string` trần
+ * — một giá trị lạ phải bị TypeScript từ chối LÚC BIÊN DỊCH ở mọi chỗ gọi tĩnh, đúng cùng
+ * mức chặt mà Rust áp cho `WorkSortKey::from_wire`.
+ */
+export type WorkSortKey = 'updated_desc' | 'name_asc'
+
+/**
+ * Kết quả một lượt liệt kê — khớp `commands::library::WorkListReport`.
+ *
+ * 🔵 **THÊM `genres`/`source_langs` (2026-08-28, Story 5.6)** — hai tập giá trị CÓ THẬT, đã
+ * `DISTINCT` ở Rust trên bảng CHƯA LỌC (AD-1). `LibraryMode.vue` dựng `<option>` từ ĐÂY,
+ * KHÔNG BAO GIỜ tự suy từ `works` (mảng đó ĐÃ bị lọc — suy từ nó làm lựa chọn TEO DẦN theo
+ * mỗi lượt lọc, đúng lỗi mà `AD-1` cấm).
+ */
 export type WorkListReport = {
   total: number
   matched: number
   works: WorkRow[]
+  genres: string[]
+  source_langs: string[]
 }
 
 /** Ba trạng thái cho `list_works`. */
@@ -186,10 +203,26 @@ function isWorkRowArray(value: unknown): value is WorkRow[] {
   )
 }
 
+/**
+ * 🔵 **THÊM (2026-08-28, Story 5.6)** — kiểm KIỂU LÚC CHẠY cho một mảng chuỗi trên dây. Không
+ * đào sâu TỪNG phần tử (cùng mức chặt mà `isWorkRowArray` áp cho `orphans`/`conflicts` ở các
+ * adapter khác của kho) — chỉ cần biết đây THẬT SỰ là một mảng chuỗi, không phải `undefined`
+ * hay một hình dạng khác lọt qua.
+ */
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
 function isWorkListReport(value: unknown): value is WorkListReport {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<WorkListReport>
-  return typeof v.total === 'number' && typeof v.matched === 'number' && isWorkRowArray(v.works)
+  return (
+    typeof v.total === 'number' &&
+    typeof v.matched === 'number' &&
+    isWorkRowArray(v.works) &&
+    isStringArray(v.genres) &&
+    isStringArray(v.source_langs)
+  )
 }
 
 /** Tên command trên dây. Khớp `src-tauri/src/commands/library.rs` (module `wire`). */
@@ -322,11 +355,24 @@ export async function forgetLibraryOrphan(workId: string, name: string): Promise
  * 🔵 **THÊM (2026-08-27, Story 5.4)** — liệt kê + lọc Tác phẩm cho khối "Tác phẩm" của
  * Library — lệnh `library.list_works`. `filter` rỗng/`undefined` ⇒ không lọc (mọi hàng, kể
  * cả hàng `status` chưa biết).
+ *
+ * 🔵 **THÊM `genre`/`sourceLang`/`sort` (2026-08-28, Story 5.6)** — `genre`/`sourceLang`
+ * `undefined` ⇒ không lọc lĩnh vực/ngôn ngữ nguồn tương ứng; `sort` `undefined` ⇒ mặc định
+ * `updated_desc` phía Rust. `sourceLang` gửi camelCase trên dây (`src/AGENTS.md`) — vỏ Rust
+ * nhận `source_lang`, Tauri tự ánh xạ.
  */
-export async function listLibraryWorks(filter?: readonly string[]): Promise<WorkListResult> {
+export async function listLibraryWorks(
+  filter?: readonly string[],
+  genre?: string,
+  sourceLang?: string,
+  sort?: WorkSortKey,
+): Promise<WorkListResult> {
   try {
     const report = await invoke<WorkListReport>(CMD_LIST_WORKS, {
       filter: filter === undefined || filter.length === 0 ? null : filter,
+      genre: genre ?? null,
+      sourceLang: sourceLang ?? null,
+      sort: sort ?? null,
     })
     if (!isWorkListReport(report)) {
       console.error(`[library] \`${CMD_LIST_WORKS}\` trả một WorkListReport SAI HÌNH DẠNG: ${JSON.stringify(report)}`)

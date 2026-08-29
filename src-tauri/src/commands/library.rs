@@ -29,7 +29,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::core::i18n::{IpcError, MessageKey};
-use crate::core::library::indexer::{IndexError, Indexer, IndexedWork, WorkIdConflict};
+use crate::core::library::indexer::{IndexError, Indexer, IndexedWork, WorkIdConflict, WorkQuery, WorkSortKey};
 use crate::core::library::orphan_store::OrphanRecord;
 use crate::core::lifecycle::LifecycleStatus;
 use crate::core::store::{Store, StoreError, StoreKind};
@@ -313,26 +313,50 @@ impl From<IndexedWork> for WorkRow {
 /// ⚠️ `matched` LÀ `works.len()` — trường tường minh trên dây có chủ ý (không suy luận từ
 /// `.length` phía TypeScript, AD-1), khác [`crate::core::library::indexer::WorksReport`] ở
 /// tầng dưới, nơi một trường thứ hai mang cùng con số là thứ có thể trôi khỏi nhau nên bị bỏ.
+///
+/// 🔵 **THÊM (2026-08-28, Story 5.6)** — `genres`/`source_langs`: hai tập giá trị CÓ THẬT,
+/// chép NGUYÊN VẸN từ [`crate::core::library::indexer::WorksReport`] (đã `DISTINCT` trên bảng
+/// CHƯA LỌC ở tầng dưới) — giao diện dựng `<option>` từ ĐÂY, không tự suy từ `works` đã lọc
+/// (AD-1, §Always: suy vậy làm lựa chọn TEO DẦN theo mỗi lượt lọc).
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct WorkListReport {
     pub total: usize,
     pub matched: usize,
     pub works: Vec<WorkRow>,
+    pub genres: Vec<String>,
+    pub source_langs: Vec<String>,
 }
 
-/// **Hàm thuần** — liệt kê + lọc Tác phẩm cho Library, Story 5.4.
+/// Giá trị khoá sắp ngoài danh mục hai giá trị đóng của [`WorkSortKey`] — chép khuôn
+/// [`crate::commands::lifecycle::unknown_status`] (Story 5.6, §Tasks).
+fn unknown_sort(sort: &str) -> IpcError {
+    let mut params = BTreeMap::new();
+    params.insert("sort".to_owned(), sort.to_owned());
+    IpcError::new("library.unknown_sort", MessageKey::LibraryUnknownSort, params, false)
+}
+
+/// **Hàm thuần** — liệt kê + lọc + sắp Tác phẩm cho Library, Story 5.4 (bộ lọc trạng thái) +
+/// Story 5.6 (lĩnh vực · ngôn ngữ nguồn · sắp xếp).
 ///
-/// Bộ lọc là danh sách chuỗi trên dây (0 hoặc nhiều trong bốn giá trị của
-/// [`LifecycleStatus`]); `filter = None` hoặc `Some(&[])` ⇒ không lọc — mọi hàng, kể cả hàng
-/// `status IS NULL`.
+/// Bộ lọc trạng thái là danh sách chuỗi trên dây (0 hoặc nhiều trong bốn giá trị của
+/// [`LifecycleStatus`]); `filter = None` hoặc `Some(&[])` ⇒ không lọc trạng thái — mọi hàng,
+/// kể cả hàng `status IS NULL`. `genre`/`source_lang`: `None` ⇒ không lọc lĩnh vực/ngôn ngữ
+/// tương ứng — KHÔNG chuẩn hoá chuỗi rỗng thành `None` ở đây (đó là việc của tầng gọi, nếu
+/// nó muốn); một `Some("")` lọc đúng nghĩa đen "lĩnh vực RỖNG". `sort = None` ⇒ mặc định
+/// [`WorkSortKey::UpdatedDesc`] (§I/O Matrix "Sắp mặc định").
 ///
 /// # Lỗi
 /// `indexer = None` ⇒ `library.indexer_missing`; một giá trị trong `filter` ngoài danh mục
 /// bốn giá trị đóng ⇒ `err.lifecycle.unknown_status` `{status}` (tái dùng
-/// [`crate::commands::lifecycle::unknown_status`], KHÔNG im lặng bỏ qua giá trị lạ).
+/// [`crate::commands::lifecycle::unknown_status`], KHÔNG im lặng bỏ qua giá trị lạ); `sort`
+/// ngoài danh mục hai giá trị đóng ⇒ `err.library.unknown_sort` `{sort}`, KHÔNG rơi về mặc
+/// định (§Always).
 pub fn list_works(
     indexer: Option<&Indexer>,
     filter: Option<&[String]>,
+    genre: Option<&str>,
+    source_lang: Option<&str>,
+    sort: Option<&str>,
 ) -> Result<WorkListReport, IpcError> {
     let indexer = indexer.ok_or_else(indexer_is_missing)?;
 
@@ -350,9 +374,27 @@ pub fn list_works(
         }
     };
 
-    let report = indexer.list_works(parsed_filter.as_deref())?;
+    let parsed_sort = match sort {
+        None => WorkSortKey::default(),
+        Some(raw) => WorkSortKey::from_wire(raw).ok_or_else(|| unknown_sort(raw))?,
+    };
+
+    let query = WorkQuery {
+        status: parsed_filter,
+        genre: genre.map(str::to_owned),
+        source_lang: source_lang.map(str::to_owned),
+        sort: parsed_sort,
+    };
+
+    let report = indexer.list_works(query)?;
     let works: Vec<WorkRow> = report.works.into_iter().map(WorkRow::from).collect();
-    Ok(WorkListReport { total: report.total, matched: works.len(), works })
+    Ok(WorkListReport {
+        total: report.total,
+        matched: works.len(),
+        works,
+        genres: report.genres,
+        source_langs: report.source_langs,
+    })
 }
 
 /// Bốn vỏ `#[tauri::command]` — ba của Story 5.3, cộng [`library_list_works`] của Story 5.4.
@@ -453,7 +495,9 @@ pub mod wire {
         super::apply_chosen_root(store.as_deref(), indexer.as_deref(), path.as_deref())
     }
 
-    /// Vỏ IPC của [`super::list_works`] — Story 5.4.
+    /// Vỏ IPC của [`super::list_works`] — Story 5.4 (bộ lọc trạng thái) + Story 5.6 (lĩnh vực
+    /// · ngôn ngữ nguồn · sắp xếp). `invoke()` gửi camelCase: `sourceLang` trên dây, không
+    /// `source_lang` (`src/AGENTS.md`).
     ///
     /// Đọc thuần khỏi `library-index.db` -- không ghi, không cần `(async)` (khác ba vỏ trên
     /// của tệp này: chúng chặn vì I/O đồng bộ trên `.atproj`/hộp thoại, còn đây là một câu
@@ -462,8 +506,17 @@ pub mod wire {
     pub fn library_list_works(
         app: tauri::AppHandle,
         filter: Option<Vec<String>>,
+        genre: Option<String>,
+        source_lang: Option<String>,
+        sort: Option<String>,
     ) -> Result<WorkListReport, IpcError> {
         let indexer = app.try_state::<Indexer>();
-        super::list_works(indexer.as_deref(), filter.as_deref())
+        super::list_works(
+            indexer.as_deref(),
+            filter.as_deref(),
+            genre.as_deref(),
+            source_lang.as_deref(),
+            sort.as_deref(),
+        )
     }
 }

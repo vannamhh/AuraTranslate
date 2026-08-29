@@ -1572,9 +1572,20 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 ///   Library cần biết Tác phẩm nằm ở đâu trên **máy này** để mở nó.
 /// - Sáu cột kế (`name`/`source_lang`/`genre`/`created_at`/`updated_at`/`chapter_count`)
 ///   — **đúng** các trường tương ứng của [`crate::core::library::meta::WorkMeta`], không hơn
-///   không kém. §Never của story 5.2 cấm tường minh: **không** `cover` (chủ Story 5.6).
+///   không kém.
 ///   🔵 **SỬA (2026-08-28, Story 5.5) — mệnh đề "không cột tiến độ (chủ Story 5.5)" đã HẾT
 ///   ĐÚNG: đây CHÍNH LÀ story đó, và cột `chapter_done_count` dưới đây là bề mặt của nó.**
+///   🔵 **SỬA (2026-08-28, Story 5.6) — "không `cover` (chủ Story 5.6)" đã HẾT ĐÚNG là "còn
+///   CHỜ Story 5.6 quyết".** Đây CHÍNH LÀ story đó, và quyết định là KHÔNG thêm cột này. Đo
+///   2026-08-28: `grep -rni cover src-tauri/src src` ⇒ 3 kết quả, 0 cái là một trường dữ liệu
+///   (hai là chữ "covering index", một là chính câu đã sửa này); `grep -n "bìa"
+///   _bmad-output/planning-artifacts/epics.md` ⇒ 0 story nào mở một đường cho người dùng ĐẶT
+///   ảnh bìa (FR3 chỉ ghi "ảnh bìa (tuỳ chọn)", không AC nào dựng đường chọn tệp). Một cột
+///   luôn `NULL` cho một giao diện luôn vẽ biểu diễn thay thế là đúng thứ Story 1.7 §Completion
+///   Notes #3 và §Never của Story 5.1 cấm — xem §Design Notes "Vì sao KHÔNG thêm cột `cover` ở
+///   lượt này" của `5-6-luoi-tac-pham-loc-va-sap-xep.md`. Món nợ chuyển sang chủ MỚI: story
+///   ĐẦU TIÊN mở đường cho người dùng ĐẶT một ảnh bìa — story đó chưa tồn tại trong
+///   `epics.md`, nên người quyết định kế tiếp là **Ice**, không một tên story giả cho có.
 /// 🔵 **SỬA (2026-08-27, phán quyết Ice #1, LẬT quyết định 5.3) — cột `orphaned` đã BỊ GỠ,
 /// `to_version` 2 → 3.** Story 5.3 từng thêm cột này ngay tại đây (`to_version` 1 → 2) vì lúc
 /// đó cờ mồ côi được coi là một mẩu trạng thái của CHÍNH chỉ mục dẫn xuất. Ice chốt lại

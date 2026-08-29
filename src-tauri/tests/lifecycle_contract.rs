@@ -484,7 +484,7 @@ fn status_in_index(
     work_id: &str,
 ) -> Option<(Option<String>, bool)> {
     indexer
-        .list_works(None)
+        .list_works(auratranslate_lib::core::library::indexer::WorkQuery::default())
         .unwrap_or_else(|e| panic!("list_works: {e}"))
         .works
         .into_iter()

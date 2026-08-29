@@ -3,15 +3,18 @@
 // Story 1.15 thêm đường nhập tối thiểu (AC1/AC8/NFR17): dán văn bản · kéo-thả · ô nhập
 // đường dẫn — đủ để có văn bản mà Story 1.16 hiển thị ở Panel Source.
 //
-// Lưới Tác phẩm (bìa, sắp xếp, lọc thể loại/ngôn ngữ) thuộc Story 5.6 — đây vẫn là một
-// khung rỗng cho phần đó. 🔵 SỬA (2026-08-27, Story 5.4) — câu cũ gộp CẢ "bốn trạng thái
-// vòng đời" vào phần chưa dựng đã HẾT ĐÚNG: khối "Tác phẩm" (danh sách phẳng + bốn nút lọc)
-// và khối "Trạng thái Tác phẩm đang mở" (ba lệnh vòng đời) nay có mặt ở đây.
+// 🔵 SỬA (2026-08-27, Story 5.4) — câu cũ gộp CẢ "bốn trạng thái vòng đời" vào phần chưa dựng
+// đã HẾT ĐÚNG: khối "Tác phẩm" (danh sách phẳng + bốn nút lọc) và khối "Trạng thái Tác phẩm
+// đang mở" (ba lệnh vòng đời) nay có mặt ở đây.
+// 🔵 SỬA (2026-08-28, Story 5.6) — câu "Lưới Tác phẩm (bìa, sắp xếp, lọc thể loại/ngôn ngữ)
+// thuộc Story 5.6 — đây vẫn là một khung rỗng cho phần đó" đã HẾT ĐÚNG: khối `.works-block`
+// nay là một LƯỚI (`.works-grid`/`.work-cell`, khung bìa + biểu diễn thay thế), ba `<select>`
+// lọc lĩnh vực/ngôn ngữ/sắp xếp, và con trỏ ô (`workCursor`, AC7) đều có mặt.
 //
 // Không chuỗi tiếng Việt nào trong tệp này (NFR16, AD-21) — mọi nhãn đi qua `t()`.
-import { onActivated, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
+import { nextTick, onActivated, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
 import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
-import type { WorkRow } from '../config/library'
+import type { WorkRow, WorkSortKey } from '../config/library'
 import {
   busy,
   createdWork,
@@ -43,7 +46,13 @@ import {
 } from './libraryRescan'
 import {
   libraryFilterIsEmpty,
+  libraryGenreFilter,
+  libraryGenres,
+  librarySortKey,
+  librarySourceLangFilter,
+  librarySourceLangs,
   libraryStatusFilter,
+  libraryWorkCursor,
   libraryWorks,
   libraryWorksBusy,
   libraryWorksError,
@@ -57,6 +66,9 @@ import {
   openWorkLifecycleIsOverride,
   openWorkLifecycleLoaded,
   openWorkLifecycleStatus,
+  setGenreFilter,
+  setSortKey,
+  setSourceLangFilter,
 } from './libraryWorks'
 import { t, tError } from '../i18n'
 
@@ -133,6 +145,55 @@ function progressPercent(work: WorkRow): number {
   const done = work.chapter_done_count ?? 0
   return Math.min(100, Math.round((done / work.chapter_count) * 100))
 }
+
+/**
+ * Story 5.6 — biểu diễn thay thế nhất quán cho khung bìa (AC6): chữ cái đầu của tên, viết
+ * hoa. `name` rỗng/toàn khoảng trắng ⇒ `'?'` (§I/O Matrix "Tên rỗng/khoảng trắng") — KHÔNG
+ * một ô trống, và KHÔNG chuỗi rỗng (một ô trống là chính điều AC6 cấm).
+ */
+function coverInitial(name: string): string {
+  const trimmed = name.trim()
+  if (trimmed.length === 0) return '?'
+  return trimmed.charAt(0).toUpperCase()
+}
+
+/**
+ * Ba `<select>` (lĩnh vực · ngôn ngữ · sắp xếp) dùng `@change`, NGOÀI luật Kiểm A (§Design
+ * Notes "Vì sao `<select>` chứ không thêm nút") — chúng gọi THẲNG các hàm mở tường của
+ * `libraryWorks.ts`, không qua `dispatch()`. Chuỗi rỗng (`<option value="">`) ⇒ bỏ lọc,
+ * đúng quy ước "mọi lĩnh vực"/"mọi ngôn ngữ".
+ */
+function onGenreFilterChange(event: Event): void {
+  const value = (event.target as HTMLSelectElement).value
+  setGenreFilter(value === '' ? null : value)
+}
+function onSourceLangFilterChange(event: Event): void {
+  const value = (event.target as HTMLSelectElement).value
+  setSourceLangFilter(value === '' ? null : value)
+}
+function onSortKeyChange(event: Event): void {
+  const value = (event.target as HTMLSelectElement).value as WorkSortKey
+  setSortKey(value)
+}
+
+// AC7 — ô đang chọn phải LUÔN nhìn thấy được. `workCellRefs` gom MỌI `<li>` của lưới theo
+// đúng thứ tự `v-for` (Vue điền mảng này tự động khi `ref="workCellRefs"` sống trong
+// `v-for`); `flush: 'post'` để DOM đã cập nhật xong trước khi tính lại ô đích (con trỏ có
+// thể đổi CÙNG lượt danh sách rút ngắn, xem `clampWorkCursor` ở `libraryWorks.ts`).
+const workCellRefs = useTemplateRef<HTMLLIElement[]>('workCellRefs')
+watch(
+  libraryWorkCursor,
+  () => {
+    void nextTick(() => {
+      const cell = workCellRefs.value?.[libraryWorkCursor.value]
+      // `block: 'nearest'`/`inline: 'nearest'` — tức thì theo mặc định (không `behavior:
+      // 'smooth'`), cùng chủ ý "không hiệu ứng" mà `GridPanel.vue` §AC8 đã ghi cho cuộn theo
+      // con trỏ.
+      cell?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    })
+  },
+  { flush: 'post' },
+)
 </script>
 
 <template>
@@ -295,10 +356,11 @@ function progressPercent(work: WorkRow): number {
     </div>
 
     <!--
-      Story 5.4 — "Bốn trạng thái vòng đời" (FR5/FR6). Danh sách phẳng TỐI THIỂU CÓ CHỦ
-      (§Never: không bìa, không thanh tiến độ, không sắp xếp, không lọc thể loại/ngôn ngữ,
-      không điều hướng lưới bằng bàn phím — Story 5.6 sở hữu phần đó) cộng bốn nút lọc và
-      khối vòng đời cho Tác phẩm đang mở.
+      Story 5.4 — "Bốn trạng thái vòng đời" (FR5/FR6): bốn nút lọc trạng thái + khối vòng đời
+      cho Tác phẩm đang mở.
+      🔵 SỬA (2026-08-28, Story 5.6) — câu cũ ("danh sách phẳng TỐI THIỂU CÓ CHỦ … Story 5.6
+      sở hữu phần đó") đã HẾT ĐÚNG: lưới (bìa, tiến độ, sắp xếp, lọc lĩnh vực/ngôn ngữ, điều
+      hướng bằng bàn phím) nay có mặt ngay dưới đây.
     -->
     <div class="works-block">
       <p class="section-heading">{{ t('mode.library.works_heading') }}</p>
@@ -376,6 +438,53 @@ function progressPercent(work: WorkRow): number {
         </button>
       </div>
 
+      <!--
+        Story 5.6 — ba `<select>` (lĩnh vực · ngôn ngữ · sắp xếp), tập-mở nên KHÔNG viết được
+        thành nút literal (§Design Notes "Vì sao `<select>` chứ không thêm nút"). `@change`
+        NGOÀI luật Kiểm A (`scripts/check-commands.mjs:33`). `<option>` dựng từ hai mảng DO
+        RUST TRẢ VỀ (`libraryGenres`/`librarySourceLangs`, `DISTINCT` trên bảng CHƯA LỌC) —
+        KHÔNG BAO GIỜ suy từ `libraryWorks` đã lọc (AD-1, §Always).
+      -->
+      <div class="filter-selects">
+        <label class="field">
+          <span>{{ t('mode.library.filter_genre_label') }}</span>
+          <select
+            data-library-genre-filter
+            :value="libraryGenreFilter ?? ''"
+            :disabled="libraryWorksBusy"
+            @change="onGenreFilterChange"
+          >
+            <option value="">{{ t('mode.library.filter_all_genres') }}</option>
+            <!-- aura-allow-text: lĩnh vực là DỮ LIỆU người dùng gõ, không một câu UI. -->
+            <option v-for="genreOption in libraryGenres" :key="genreOption" :value="genreOption">
+              {{ genreOption }}
+            </option>
+          </select>
+        </label>
+        <label class="field">
+          <span>{{ t('mode.library.filter_source_lang_label') }}</span>
+          <select
+            data-library-source-lang-filter
+            :value="librarySourceLangFilter ?? ''"
+            :disabled="libraryWorksBusy"
+            @change="onSourceLangFilterChange"
+          >
+            <option value="">{{ t('mode.library.filter_all_source_langs') }}</option>
+            <!-- aura-allow-text: ngôn ngữ nguồn là DỮ LIỆU (mã ngôn ngữ), không một câu UI. -->
+            <option v-for="langOption in librarySourceLangs" :key="langOption" :value="langOption">
+              {{ langOption }}
+            </option>
+          </select>
+        </label>
+        <label class="field">
+          <span>{{ t('mode.library.sort_label') }}</span>
+          <select data-library-sort :value="librarySortKey" :disabled="libraryWorksBusy" @change="onSortKeyChange">
+            <option value="updated_desc">{{ t('mode.library.sort_updated_desc') }}</option>
+            <option value="name_asc">{{ t('mode.library.sort_name_asc') }}</option>
+          </select>
+        </label>
+      </div>
+
       <!-- role="status" LUÔN có mặt (không v-if) -- cùng khuôn dải trạng thái của khối quét lại. -->
       <!-- aura-allow-text: ba nhánh đều qua t()/chuỗi rỗng -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
       <p class="status" role="status">
@@ -392,8 +501,48 @@ function progressPercent(work: WorkRow): number {
       <!-- aura-allow-text: như trên, qua tError(). -->
       <p class="error" role="status">{{ libraryWorksError ? tError(libraryWorksError) : '' }}</p>
 
-      <ul v-if="libraryWorks.length > 0" class="works-list">
-        <li v-for="work in libraryWorks" :key="work.work_id" class="works-row">
+      <!--
+        Story 5.6 — lưới Tác phẩm (AC2/AC3/AC4/AC6/AC7), thay danh sách phẳng của Story 5.4.
+        Con trỏ (`libraryWorkCursor`) di chuyển bằng HAI NÚT thật (`‹`/`›`, `dispatch()` id
+        literal — Kiểm A) chứ không một `@keydown` tự chế trên từng ô: cùng khuôn
+        `library.orphan_next`/`orphan_prev` đã có trong chính tệp này.
+      -->
+      <div v-if="libraryWorks.length > 0" class="grid-nav">
+        <button
+          type="button"
+          class="btn"
+          data-library-work-prev
+          :aria-label="t('mode.library.work_prev')"
+          @click="dispatch('library.work_prev')"
+        >
+          ‹
+        </button>
+        <span class="grid-nav-position">{{ t('mode.library.work_position', { current: String(libraryWorkCursor + 1), total: String(libraryWorks.length) }) }}</span>
+        <button
+          type="button"
+          class="btn"
+          data-library-work-next
+          :aria-label="t('mode.library.work_next')"
+          @click="dispatch('library.work_next')"
+        >
+          ›
+        </button>
+      </div>
+
+      <ul v-if="libraryWorks.length > 0" class="works-grid" data-library-grid>
+        <li
+          v-for="(work, workIndex) in libraryWorks"
+          ref="workCellRefs"
+          :key="work.work_id"
+          class="work-cell"
+          :class="{ 'work-cell--current': workIndex === libraryWorkCursor }"
+          :aria-current="workIndex === libraryWorkCursor ? 'true' : undefined"
+          data-library-work-cell
+        >
+          <div class="work-cover" role="img" :aria-label="t('mode.library.cover_placeholder_label', { name: work.name })">
+            <!-- aura-allow-text: biểu diễn thay thế là chữ cái đầu của TÊN, dữ liệu người dùng. -->
+            {{ coverInitial(work.name) }}
+          </div>
           <!-- aura-allow-text: tên Tác phẩm là DỮ LIỆU người dùng gõ, không một câu UI. -->
           <span class="work-name">{{ work.name }}</span>
           <!--
@@ -528,8 +677,17 @@ function progressPercent(work: WorkRow): number {
     -->
     <div class="empty">
       <div class="rule" aria-hidden="true"></div>
-      <p class="big">{{ t('mode.library.status') }}</p>
-      <p class="small">{{ t('mode.library.empty_body') }}</p>
+      <!--
+        Story 5.6, AC5 — câu "Library chưa có Tác phẩm nào" (`mode.library.status`) không
+        được phép nói khi ĐÃ có Tác phẩm, và không được nói TRƯỚC khi lượt tải xong (đó là
+        "chưa biết", không phải "không có" — `AGENTS.md::Known pitfalls`). Khối giải thích
+        đứng TRƯỚC form (lời mời nhập) khi library rỗng thật; form vẫn LUÔN hiện (thêm Tác
+        phẩm không bị khoá lại chỉ vì đã có sẵn Tác phẩm khác).
+      -->
+      <template v-if="libraryWorksHaveLoaded && libraryWorksTotal === 0">
+        <p class="big">{{ t('mode.library.status') }}</p>
+        <p class="small">{{ t('mode.library.empty_body') }}</p>
+      </template>
 
       <form class="import-form" @submit.prevent>
         <label class="field">
@@ -875,29 +1033,82 @@ function progressPercent(work: WorkRow): number {
   border-color: var(--color-primary);
 }
 
-.works-list {
+/*
+ * Story 5.6 — ba `<select>` lọc/sắp, cùng khuôn `.field` (đã khai ở trên cho form nhập) —
+ * không đúc thêm một kiểu ô nhập thứ hai cho cùng một vai.
+ */
+.filter-selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.filter-selects .field {
+  min-width: 120px;
+}
+
+/* Story 5.6 — thanh điều hướng con trỏ lưới (AC7). Hai nút `‹`/`›` cộng vị trí "k / n". */
+.grid-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.grid-nav-position {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/* Story 5.6 — lưới Tác phẩm, thay `.works-list` (danh sách phẳng) của Story 5.4. */
+.works-grid {
   list-style: none;
   margin: 10px 0 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
 }
 
-.works-row {
+.work-cell {
   display: flex;
-  align-items: baseline;
-  /*
-   * 🔵 THÊM `flex-wrap` (2026-08-28, Story 5.5) — thanh tiến độ (`.work-progress-track`) đặt
-   * `flex-basis: 100%` để luôn XUỐNG DÒNG RIÊNG, không chen vào hàng chữ đầu. Bốn `span` cũ
-   * (tên/trạng thái/ghi đè/tiến độ chữ) vẫn cùng một hàng như trước.
-   */
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 6px 8px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
   border: 1px solid var(--color-outline);
   border-radius: 4px;
   background: var(--color-surface-sunken);
+}
+
+/*
+ * Ô ĐANG CHỌN (AC7) — phân biệt bằng BỀ RỘNG viền (1px → 2px) CỘNG màu, không chỉ màu
+ * (WCAG AA: một tín hiệu chỉ-màu không đủ cho người không phân biệt được màu sắc). Cùng
+ * chủ ý `.filter-actions .btn[aria-pressed='true']` ở trên — `aria-current` đã tự nói phần
+ * còn lại cho trình đọc màn hình.
+ */
+.work-cell--current {
+  border-width: 2px;
+  border-color: var(--color-primary);
+}
+
+/*
+ * Khung bìa — biểu diễn thay thế NHẤT QUÁN (AC6): ô vuông, chữ cái đầu của tên trên nền
+ * token. KHÔNG ảnh, KHÔNG gradient/bóng đổ (AD-21) — xem §Design Notes "Vì sao KHÔNG thêm
+ * cột `cover`" của story: đây là TOÀN BỘ khung bìa hôm nay, không phải một trạng thái tạm.
+ */
+.work-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
+  background: var(--color-surface-accent);
+  color: var(--color-primary);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  font-weight: var(--weight-ui-md-strong);
 }
 
 .work-name {
@@ -905,7 +1116,6 @@ function progressPercent(work: WorkRow): number {
   font-size: var(--font-ui-sm);
   font-weight: var(--weight-ui-md-strong);
   color: var(--color-on-surface);
-  flex: 1;
   word-break: break-all;
 }
 
@@ -934,10 +1144,11 @@ function progressPercent(work: WorkRow): number {
 
 /*
  * Thanh tiến độ — chỉ TOKEN, không màu viết thẳng/gradient/bóng đổ (§Always của story).
- * `flex-basis: 100%` buộc nó xuống dòng riêng trong `.works-row` đã `flex-wrap`.
+ * 🔵 SỬA (2026-08-28, Story 5.6) — gỡ `flex-basis: 100%`: `.work-cell` nay là
+ * `flex-direction: column` (thay `.works-row` cũ, `flex-wrap: wrap` theo hàng ngang), nên
+ * mọi con đã tự trải hết bề rộng theo mặc định `align-items: stretch` — không cần buộc nữa.
  */
 .work-progress-track {
-  flex-basis: 100%;
   height: 4px;
   border-radius: var(--radius-full);
   background: var(--color-outline);

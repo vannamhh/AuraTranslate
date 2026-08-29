@@ -26,6 +26,13 @@
  *    `lifecycle_contract.rs` (chèn Chương qua SQL trực tiếp).
  * 3. Spec này ghi vào thư mục gốc Library TẠM do `wdio.conf.mjs` cấp qua
  *    `AURATRANSLATE_E2E_LIBRARY_ROOT` — cùng khuôn `story-5-3-rescan.e2e.mjs`.
+ *
+ * 🔵 **SỬA (2026-08-28, Story 5.6)** — ba móc `.works-block .works-list .works-row` đổi
+ * thành `.works-block .works-grid .work-cell`: Story 5.6 đổi danh sách phẳng của Story 5.4
+ * thành LƯỚI. `story-5-6-luoi-tac-pham-loc-va-sap-xep.md::Code Map` chỉ nêu đích danh
+ * `story-5-5-progress.e2e.mjs` là spec phải cập nhật cùng lượt — spec NÀY cũng neo vào cùng
+ * hai lớp CSS đó và bị bỏ sót khỏi danh sách đó; sửa ở đây để §Verification "không spec nào
+ * khác chuyển từ xanh sang đỏ" không bị chính lượt đổi bố cục này phá vỡ.
  */
 
 import { realClick } from '../support/pointer.mjs'
@@ -44,7 +51,7 @@ const LIST_WORKS_BTN = '[data-lifecycle-action="list_works"]'
 const FILTER_NOT_STARTED_BTN = '[data-lifecycle-filter="not_started"]'
 const FILTER_DONE_BTN = '[data-lifecycle-filter="done"]'
 const CLEAR_FILTER_BTN = '[data-lifecycle-action="clear_filter"]'
-const WORKS_ROWS = '.works-block .works-list .works-row'
+const WORKS_ROWS = '.works-block .works-grid .work-cell'
 
 const SET_OVERRIDE_PAUSED_BTN = '[data-lifecycle-action="set_override_paused"]'
 const CLEAR_OVERRIDE_BTN = '[data-lifecycle-action="clear_override"]'
@@ -111,7 +118,7 @@ async function screenProbe() {
     return {
       openStatus: text('.open-work-block p.status'),
       setOverride: button('[data-lifecycle-action="set_override_paused"]'),
-      names: Array.from(document.querySelectorAll('.works-block .works-list .works-row .work-name')).map(
+      names: Array.from(document.querySelectorAll('.works-block .works-grid .work-cell .work-name')).map(
         (node) => (node.textContent || '').trim(),
       ),
     }
@@ -145,7 +152,7 @@ async function workRowNames() {
  */
 async function workRowState(name) {
   return browser.execute((wanted) => {
-    const rows = Array.from(document.querySelectorAll('.works-block .works-list .works-row'))
+    const rows = Array.from(document.querySelectorAll('.works-block .works-grid .work-cell'))
     const row = rows.find((candidate) => {
       const nameNode = candidate.querySelector('.work-name')
       return nameNode !== null && (nameNode.textContent || '').trim() === wanted

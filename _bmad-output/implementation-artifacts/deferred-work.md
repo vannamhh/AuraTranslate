@@ -7987,6 +7987,21 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     nào đọc nó nên không có gì để nghiệm thu ngoài một cột nằm im.
     **(Chủ: Story 5.6 — thêm cột `cover` + di trú `META_SCHEMA_VERSION` 1→2 CÙNG LƯỢT với màn
     hình lưới Tác phẩm đọc nó lần đầu.)**
+  → **KHÔNG LÀM 2026-08-28 (Story 5.6) — tiền đề "Story 5.6 là nơi bìa LẦN ĐẦU được NHÌN
+    THẤY" đã SAI, và điều đó đổi kết luận.** Đo lại trên `2b837fe`: `grep -rni cover
+    src-tauri/src src` ⇒ **3** kết quả, **0** cái là một trường dữ liệu (hai là chữ "covering
+    index", một là chính câu cấm này); `grep -n "bìa" _bmad-output/planning-artifacts/epics.md`
+    ⇒ **0** story nào mở một đường cho người dùng ĐẶT ảnh bìa — FR3 chỉ ghi *"ảnh bìa (tuỳ
+    chọn)"*, không AC nào ở bất kỳ epic nào dựng đường chọn tệp bìa. Thêm cột bây giờ là thêm
+    một cột LUÔN `NULL` cho một giao diện LUÔN vẽ biểu diễn thay thế — đúng thứ Story 1.7
+    §Completion Notes #3 và §Never của Story 5.1 cấm, và đây không phải một lựa chọn giữa hai
+    KẾT QUẢ khác nhau (người dùng nhìn thấy giống hệt cả hai phương án) mà là giữa "có một cột
+    chết" và "không". Story 5.6 dựng khung bìa + biểu diễn thay thế nhất quán (AC2/AC6, chữ
+    cái đầu của tên trên nền token, `?` khi tên rỗng) — quan sát được, đo được, không cột
+    `cover` nào đứng sau nó. **Chủ MỚI: Ice** — quyết định story nào mở đường ĐẦU TIÊN cho
+    người dùng ĐẶT một ảnh bìa (story đó chưa tồn tại trong `epics.md`), không một tên story
+    giả cho có (`check:debt-owner` Kiểm A). Xem §Design Notes "Vì sao KHÔNG thêm cột `cover`
+    ở lượt này" của `5-6-luoi-tac-pham-loc-va-sap-xep.md`.
 
 - source_spec: `_bmad-output/implementation-artifacts/5-1-mo-hinh-library-hai-tang.md`
   summary: **`work.updated_at` không bao giờ sống** — ghi đúng một lần lúc `INSERT`
@@ -8013,6 +8028,24 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     sửa cơ chế ghi. **Chủ chuyển sang Story 5.6** — nơi cột "ngày sửa" của lưới Tác phẩm LẦN
     ĐẦU hiển thị giá trị này, đúng khuôn "story dựng màn hình đầu tiên đọc một trường sở hữu
     luôn quyết định cơ chế làm trường đó sống".
+  → ✅ **ĐÃ ĐÓNG 2026-08-28 (Story 5.6, AC8).** `WorkMeta::rebuild_from_store`
+    (`core/library/meta.rs`) — chỗ DUY NHẤT tính giá trị dẫn xuất, §Approach của story — bỏ
+    `updated_at` khỏi câu `SELECT` chép từ `work` và tính nó bằng
+    `MAX(work.created_at, MAX(chapter.updated_at), MAX(segment.updated_at))`, ba nguồn đang
+    SỐNG (`chapter.updated_at` từ `commands/lifecycle.rs:143`, Story 5.4; `segment.updated_at`
+    từ `commands/segment.rs:1186`/`:709`). **Không** đụng giao dịch flush — cổng
+    `segment_contract.rs::a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else`
+    (AC đã ký của Story 2.3) vẫn xanh, đúng cái giá mà mục nợ này từng nêu để chuyển chủ khỏi
+    Story 5.2 KHÔNG còn phải trả — nguồn dẫn xuất KHÔNG cần một chỗ ghi `meta.json` thứ ba.
+    Đối chứng bắt buộc CHẠY THẬT: gỡ phép tính `MAX`, trả lại lượt chép `work.updated_at` ⇒ ca
+    `project_contract.rs::rebuild_derives_updated_at_from_chapter_updated_at_when_it_is_the_latest`
+    đỏ; khôi phục thì xanh lại. ⚠️ **Dư địa còn lại, KHÔNG được đọc thành "thời gian thực":**
+    `rebuild_from_store` chỉ chạy ở hai chỗ ghi `meta.json` đã có (`create_work`, đổi trạng
+    thái Chương) — một loạt sửa văn bản thuần (không đổi trạng thái Chương nào) đẩy
+    `segment.updated_at` tiến lên nhưng `meta.json` không được ghi lại cho tới lượt kế tiếp.
+    Đóng nốt vế đó cần một chỗ ghi `meta.json` THỨ BA trên đường flush — một **AD MỚI** (kéo
+    theo `reindex_library` quét toàn thư viện mỗi lượt auto-save) — **Chủ: Winston**, xem
+    §Block If của `5-6-luoi-tac-pham-loc-va-sap-xep.md`.
 
 - source_spec: `_bmad-output/implementation-artifacts/5-1-mo-hinh-library-hai-tang.md`
   summary: 22 cảnh báo `cargo clippy --all-targets` có sẵn ở bảy tệp, chưa có chủ — và `-D warnings` chỉ phơi ra 8 trong số đó.

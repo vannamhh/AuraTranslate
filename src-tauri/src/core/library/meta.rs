@@ -258,10 +258,31 @@ impl WorkMeta {
     /// [`crate::core::lifecycle::derive_work_status`] trên tập trạng thái của MỌI Chương,
     /// `is_override = false`. Trường này LUÔN `Some(..)` sau một lượt dựng lại — `None` chỉ
     /// còn tồn tại trên những `meta.json` cũ mà đường này chưa từng chạm tới.
+    ///
+    /// 🔵 **THÊM (2026-08-28, Story 5.6) — `updated_at` nay TÍNH, không còn CHÉP.** Trước bản
+    /// vá, câu `SELECT` chép thẳng `work.updated_at` — cột đó có ĐÚNG MỘT lượt `INSERT`
+    /// (`commands/project.rs:265`, lúc tạo Tác phẩm) và **0** lượt `UPDATE` toàn kho (đo
+    /// 2026-08-28), nên cột "ngày sửa" mà AC4 sắp theo đứng yên vĩnh viễn ở mốc TẠO. Giá trị
+    /// đúng là `MAX(work.created_at, MAX(chapter.updated_at), MAX(segment.updated_at))` — ba
+    /// nguồn ĐANG SỐNG: `chapter.updated_at` từ `commands/lifecycle.rs:143` (Story 5.4),
+    /// `segment.updated_at` từ `commands/segment.rs:1186`/`:709`, `work.created_at` làm SÀN
+    /// cho một Tác phẩm chưa có Chương/segment nào. So sánh CHUỖI đúng bằng so sánh THỜI GIAN
+    /// vì cả ba cột đều ISO-8601 UTC cùng định dạng (Consistency Conventions) — `Vec::max()`
+    /// trên `String` không cần phân tích ngày tháng.
+    ///
+    /// 🔴 **Dư địa còn lại, không được làm tròn lên "đã đóng":** hàm này chỉ chạy sau khi một
+    /// giao dịch ghi đã commit (`commands/project.rs` sau `create_work`,
+    /// `commands/lifecycle.rs` sau mỗi lượt đổi trạng thái Chương — `meta_write_boundary.rs`
+    /// cưỡng chế đúng ba tệp ghi). Một loạt SỬA VĂN BẢN THUẦN không đổi trạng thái Chương nào
+    /// vẫn đẩy `segment.updated_at` tiến lên (`segment.rs:1186`), nhưng `meta.json` không được
+    /// ghi lại cho tới lượt kế tiếp gọi hàm này — `updated_at` "tươi tới lượt ghi `meta.json`
+    /// gần nhất", KHÔNG phải "thời gian thực". Đóng nốt vế đó cần một chỗ ghi `meta.json` THỨ
+    /// BA trên đường flush — một AD MỚI (kéo theo `reindex_library` quét toàn thư viện mỗi lượt
+    /// auto-save), nằm ngoài phạm vi story này (xem §Block If của
+    /// `5-6-luoi-tac-pham-loc-va-sap-xep.md`).
     pub fn rebuild_from_store(store: &Store) -> Result<WorkMeta, StoreError> {
         store.read(|conn: ReadHandle<'_>| {
-            let (work_id, name, source_lang, genre, created_at, updated_at, status_override): (
-                String,
+            let (work_id, name, source_lang, genre, created_at, status_override): (
                 String,
                 String,
                 String,
@@ -269,7 +290,7 @@ impl WorkMeta {
                 String,
                 Option<String>,
             ) = conn.query_row(
-                "SELECT work_id, name, source_lang, genre, created_at, updated_at, \
+                "SELECT work_id, name, source_lang, genre, created_at, \
                  status_override FROM work WHERE id = 1",
                 [],
                 |row| {
@@ -280,10 +301,26 @@ impl WorkMeta {
                         row.get(3)?,
                         row.get(4)?,
                         row.get(5)?,
-                        row.get(6)?,
                     ))
                 },
             )?;
+
+            // `updated_at` DẪN XUẤT -- xem khối doc-comment ngay trên. `MAX(...)` của SQLite
+            // bỏ qua NULL nên `chapter`/`segment` rỗng không làm sập câu truy vấn; sàn luôn có
+            // `created_at` để `unwrap_or` không bao giờ chạm nhánh rỗng thật sự.
+            let chapter_max_updated_at: Option<String> =
+                conn.query_row("SELECT MAX(updated_at) FROM chapter", [], |row| row.get(0))?;
+            let segment_max_updated_at: Option<String> =
+                conn.query_row("SELECT MAX(updated_at) FROM segment", [], |row| row.get(0))?;
+            let updated_at = [
+                Some(created_at.clone()),
+                chapter_max_updated_at,
+                segment_max_updated_at,
+            ]
+            .into_iter()
+            .flatten()
+            .max()
+            .unwrap_or_else(|| created_at.clone());
 
             let chapter_count: u32 =
                 conn.query_row("SELECT COUNT(*) FROM chapter", [], |row| row.get(0))?;

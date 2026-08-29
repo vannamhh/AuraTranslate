@@ -72,6 +72,8 @@ import {
   clearOpenWorkOverride,
   clearStatusFilter,
   loadWorks,
+  nextWork as nextLibraryWork,
+  prevWork as prevLibraryWork,
   setOpenChapterStatus,
   setOpenWorkOverride,
   toggleStatusFilter,
@@ -360,6 +362,9 @@ async function boot(): Promise<void> {
       toggleLibraryFilterPaused: () => toggleStatusFilter('paused'),
       toggleLibraryFilterDone: () => toggleStatusFilter('done'),
       clearLibraryFilter: clearStatusFilter,
+      // Story 5.6 — con trỏ lưới Tác phẩm (AC7).
+      nextLibraryWork,
+      prevLibraryWork,
       setOpenWorkOverridePaused: setOpenWorkOverride,
       clearOpenWorkOverride,
       setOpenChapterDone: setOpenChapterStatus,

@@ -314,6 +314,99 @@ fn rebuild_on_a_work_with_zero_chapters_reports_some_zero_not_none() {
     cleanup(&root);
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.6 — `updated_at` DẪN XUẤT (AC8), MAX(work.created_at, chapter.updated_at,
+// segment.updated_at). Trước story này, cột này được CHÉP từ `work.updated_at` -- một cột
+// với đúng MỘT lượt `INSERT` và 0 lượt `UPDATE` toàn kho, nên nó đứng yên vĩnh viễn ở mốc
+// TẠO. Đối chứng bắt buộc của §Verification (gỡ phép tính `MAX`, xác nhận ca đỏ) chạy TAY,
+// không phải một ca ở đây -- ghi lại trong báo cáo cuối story.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Một Tác phẩm vừa tạo, chưa sửa gì: `updated_at` phải ≥ `created_at` (sàn của MAX).
+///
+/// ⚠️ **KHÔNG khẳng định BẰNG NHAU.** `create_work` chèn `work` rồi `chapter` trong CÙNG một
+/// giao dịch, nhưng mỗi câu `INSERT` tự gọi `strftime('%Y-%m-%dT%H:%M:%fZ','now')` RIÊNG —
+/// hai lời gọi đồng hồ tách rời, không một ảnh chụp thời gian dùng chung cho cả giao dịch.
+/// `chapter` được chèn SAU `work`, nên `chapter.updated_at` thường LỚN HƠN `work.created_at`
+/// vài mili-giây (đo được: một ca trước đó đo lệch 2ms) — đúng, không phải lỗi giờ hệ thống.
+/// Bất biến ĐÚNG là "không bao giờ lùi về TRƯỚC mốc tạo", không phải "bằng hệt mốc tạo".
+#[test]
+fn rebuild_derives_updated_at_no_earlier_than_created_at_for_a_freshly_created_work() {
+    let root = temp_dir("rebuild-updated-at-fresh");
+
+    let opened = create_work_from_text(&root, "Vua Tao", "en", "", "van ban".to_owned())
+        .expect("tao tac pham that bai");
+    let store = opened.store;
+
+    let rebuilt = WorkMeta::rebuild_from_store(&store).expect("dung lai meta.json that bai");
+    assert!(
+        rebuilt.updated_at >= rebuilt.created_at,
+        "updated_at ({}) khong duoc LUI ve TRUOC created_at ({})",
+        rebuilt.updated_at,
+        rebuilt.created_at
+    );
+
+    drop(store);
+    cleanup(&root);
+}
+
+/// AC8 -- một Chương vừa đổi trạng thái (mô phỏng bằng chính câu SQL mà
+/// `commands::lifecycle::set_chapter_status` chạy) đẩy `chapter.updated_at` lên một mốc SAU
+/// `created_at`; `rebuild_from_store` phải đọc ra mốc MỚI đó, không còn đứng yên ở mốc tạo.
+#[test]
+fn rebuild_derives_updated_at_from_chapter_updated_at_when_it_is_the_latest() {
+    let root = temp_dir("rebuild-updated-at-chapter");
+
+    let opened = create_work_from_text(&root, "Cap Nhat Chuong", "en", "", "van ban".to_owned())
+        .expect("tao tac pham that bai");
+    let store = opened.store;
+
+    let later = "2099-01-01T00:00:00.000Z";
+    store
+        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE chapter SET updated_at = ?1 WHERE ord = 1", [later]))
+        .expect("day chapter.updated_at ve sau that bai");
+
+    let rebuilt = WorkMeta::rebuild_from_store(&store).expect("dung lai meta.json that bai");
+    assert_eq!(
+        rebuilt.updated_at, later,
+        "work.updated_at phai TIEN theo chapter.updated_at, khong dung yen o moc tao \
+         (day la doi chung cho AC8)"
+    );
+
+    drop(store);
+    cleanup(&root);
+}
+
+/// Cùng lý lẽ AC8, cho `segment.updated_at` — nguồn CÒN LẠI trong MAX ba nguồn (mốc sửa văn
+/// bản thuần, không đổi trạng thái Chương nào — xem `commands/segment.rs:1186`).
+#[test]
+fn rebuild_derives_updated_at_from_segment_updated_at_when_it_is_the_latest() {
+    let root = temp_dir("rebuild-updated-at-segment");
+
+    let opened = create_work_from_text(&root, "Cap Nhat Doan", "en", "", "cau mot. cau hai.".to_owned())
+        .expect("tao tac pham that bai");
+    let store = opened.store;
+
+    let later = "2099-06-01T00:00:00.000Z";
+    store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET updated_at = ?1 WHERE id = (SELECT MIN(id) FROM segment)",
+                [later],
+            )
+        })
+        .expect("day segment.updated_at ve sau that bai");
+
+    let rebuilt = WorkMeta::rebuild_from_store(&store).expect("dung lai meta.json that bai");
+    assert_eq!(
+        rebuilt.updated_at, later,
+        "mot segment sua SAU created_at/chapter.updated_at phai keo updated_at cua Tac pham theo"
+    );
+
+    drop(store);
+    cleanup(&root);
+}
+
 #[test]
 fn a_newer_meta_schema_is_refused_without_touching_a_single_byte() {
     let root = temp_dir("meta-schema-new");
