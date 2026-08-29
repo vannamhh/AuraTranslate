@@ -272,6 +272,8 @@ const CMD_LIST_WORKS = 'library_list_works'
 /** 🔵 **THÊM Story 5.7.** Khớp `commands::project::wire::open_work`, KHÔNG `commands::library::*`
  * — lệnh này sống ở `commands/project.rs` vì nó ghi vào `OpenWorkState`. */
 const CMD_OPEN_WORK = 'open_work'
+/** 🔵 **THÊM Story 5.9.** Khớp `commands::library::wire::library_search`. */
+const CMD_SEARCH = 'library_search'
 
 /** Cùng khuôn `config/project.ts::hasIpcBridge`. */
 function hasIpcBridge(): boolean {
@@ -455,5 +457,125 @@ export async function openWork(workId: string): Promise<OpenWorkResult> {
     }
     console.info(`[library] không gọi được \`${CMD_OPEN_WORK}\` — chạy ngoài Tauri? ${String(err)}`)
     return { opened: null, error: null }
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 5.9 — "TÌM KIẾM FULL-TEXT XUYÊN LIBRARY" (FR8)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Nửa nào của một segment một hit khớp — khớp `core::library::indexer::SearchField::as_str()`
+ * phía Rust. Union ĐÓNG, không `string` trần (cùng mức chặt `WorkSortKey`).
+ */
+export type SearchField = 'target' | 'source'
+
+/**
+ * Một kết quả tìm kiếm — khớp `commands::library::SearchHit` phía Rust, `snake_case`.
+ *
+ * `segment_id: null` ⇒ hit CẤP CHƯƠNG (Chương chưa tách segment sống nào) — lượt mở kết quả
+ * (`src/modes/librarySearch.ts::openSearchHit`) truyền `null` xuống thành `undefined` cho
+ * `openChapterById`, để Rust quyết con trỏ như mọi lượt mở Chương bình thường.
+ */
+export type SearchHit = {
+  work_id: string
+  work_name: string
+  chapter_id: number
+  chapter_ord: number
+  chapter_title: string | null
+  segment_id: number | null
+  field: SearchField
+  /** Đoạn trích văn bản THUẦN, cặp dấu `‹…›` bao quanh phần khớp — KHÔNG một thẻ HTML nào
+   * (AD-16). Render bằng nội suy Vue thường (`{{ }}`), không bao giờ `v-html`. */
+  snippet: string
+}
+
+/** Kết quả một lượt tìm kiếm — khớp `commands::library::SearchReport`. */
+export type SearchReport = {
+  hits: SearchHit[]
+  /** `hits.length` — trường TƯỜNG MINH từ Rust, không suy từ `.length` phía TypeScript (AD-1). */
+  total: number
+  /** Tổng số hàng CÓ THẬT trong `library_segment`, KHÔNG phụ thuộc truy vấn — phân biệt "chỉ
+   * mục chưa có dòng nào" (`0`) với "có dòng mà không khớp" (`> 0`). */
+  indexed_segments: number
+  /** `true` ⇔ truy vấn dưới 3 ký tự — nửa nguyên văn (trigram) KHÔNG chạy ở lượt này. */
+  short_query: boolean
+  /** 🔴 `true` ⇔ danh sách đã bị trần CẮT — `total` là *"số hàng đang hiện"*, không phải *"số
+   * hàng khớp"*. Giao diện PHẢI nói ra điều đó: một trần cắt trong im lặng biến một con số
+   * thành một lời khai sai. */
+  truncated: boolean
+}
+
+/** Ba trạng thái cho [`searchLibrary`]. */
+export type SearchLibraryResult = {
+  report: SearchReport | null
+  error: IpcError | null
+}
+
+function isSearchField(value: unknown): value is SearchField {
+  return value === 'target' || value === 'source'
+}
+
+function isSearchHit(value: unknown): value is SearchHit {
+  if (typeof value !== 'object' || value === null) return false
+  const hit = value as Partial<SearchHit>
+  return (
+    typeof hit.work_id === 'string' &&
+    typeof hit.work_name === 'string' &&
+    typeof hit.chapter_id === 'number' &&
+    typeof hit.chapter_ord === 'number' &&
+    (typeof hit.chapter_title === 'string' || hit.chapter_title === null) &&
+    (typeof hit.segment_id === 'number' || hit.segment_id === null) &&
+    isSearchField(hit.field) &&
+    typeof hit.snippet === 'string'
+  )
+}
+
+/**
+ * 🔴 **Kiểm MỌI phần tử, không chỉ phần tử đầu.** Bản đầu đọc `value[0]` rồi kết luận cho cả
+ * mảng — một hàng thứ hai sai hình dạng (một lượt đổi lược đồ phía Rust chỉ chạm một nhánh, một
+ * cột mới trả `null` ngoài dự kiến) đi thẳng qua cửa và vào `v-for` của `LibraryMode.vue`. Chi
+ * phí là tuyến tính trên tối đa `MAX_SEARCH_LIMIT` hàng, tức không đáng kể — còn cái giá của
+ * cửa hở là đúng thứ `src/AGENTS.md` gọi tên: *"`IpcError` phía TS là một LỜI KHAI về dữ liệu
+ * đã đi qua IPC, không phải bảo đảm của trình biên dịch"*.
+ */
+function isSearchHitArray(value: unknown): value is SearchHit[] {
+  return Array.isArray(value) && value.every(isSearchHit)
+}
+
+function isSearchReport(value: unknown): value is SearchReport {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<SearchReport>
+  return (
+    isSearchHitArray(v.hits) &&
+    typeof v.total === 'number' &&
+    typeof v.indexed_segments === 'number' &&
+    typeof v.short_query === 'boolean' &&
+    typeof v.truncated === 'boolean'
+  )
+}
+
+/**
+ * Tìm kiếm full-text xuyên TOÀN BỘ Library — lệnh `library.search` (FR8). Không ném — cùng lý
+ * do và cùng khuôn [`listLibraryWorks`]. `query` KHÔNG được `trim()` ở đây — chỗ gọi
+ * (`src/modes/librarySearch.ts`) quyết định khi nào PHÁT lượt IPC này (§I/O Matrix: "truy vấn
+ * rỗng ⇒ 0 lượt IPC").
+ */
+export async function searchLibrary(query: string, limit?: number): Promise<SearchLibraryResult> {
+  try {
+    const report = await invoke<unknown>(CMD_SEARCH, { query, limit: limit ?? null })
+    if (!isSearchReport(report)) {
+      console.error(`[library] \`${CMD_SEARCH}\` trả một SearchReport SAI HÌNH DẠNG: ${JSON.stringify(report)}`)
+      return { report: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { report, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { report: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[library] \`${CMD_SEARCH}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { report: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[library] không gọi được \`${CMD_SEARCH}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { report: null, error: null }
   }
 }

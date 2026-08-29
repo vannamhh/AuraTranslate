@@ -414,6 +414,17 @@ message_keys! {
     /// câu này, và hộp thoại chọn thư mục của hệ điều hành đã tự lọc phần lớn ca sai hình
     /// dạng trước khi trả về.
     LibraryRootInvalid => "err.library.root_invalid" [],
+    // ── Story 5.9 (FR8) — KHÔNG một khoá mới ─────────────────────────────────────────
+    //
+    // Bề mặt IPC "Tìm kiếm full-text xuyên Library". Danh mục ĐÓNG: `commands::library::search_library`
+    // gọi trên `indexer = None` ("chưa mở chỉ mục") tái dùng ĐÚNG khoá `StoreOpenFailed` mà
+    // `list_works`/`rescan` đã dùng (qua `indexer_is_missing()`, params `{"store":
+    // "library_index"}`) — không một biến thể thứ ba cho cùng một sự thật "Indexer chưa được
+    // quản lý". Bốn ca RỖNG còn lại của §I/O Matrix story này (chưa gõ gì · đang tìm · chỉ mục
+    // chưa có dòng nào · truy vấn dưới 3 ký tự · có dòng mà không khớp) KHÔNG một khoá nào ở
+    // đây: chúng là TRẠNG THÁI trong `SearchReport` (`indexed_segments`/`short_query`/`hits`
+    // rỗng), không phải lỗi — mọi câu hiển thị của chúng sống trong `mode.library.search_*`
+    // (`vi.json`), phía Rust chỉ trả DỮ LIỆU (AD-21).
     /// **THÊM (2026-08-28, Story 5.6)** — khoá sắp xếp ngoài danh mục hai giá trị đóng của
     /// [`crate::core::library::indexer::WorkSortKey`] — đi qua `commands::library::list_works`
     /// trên dây (`sort`). Không một lượt SQL nào chạy trước khi lỗi này được trả (§Always: "một

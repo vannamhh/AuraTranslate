@@ -319,6 +319,25 @@ export type CommandDeps = {
    * `library.chapter_merge_up`. */
   mergeCurrentLibraryChapterUp?: () => void
 
+  // ── Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8) ────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `openCurrentLibraryWork`: state sống ở
+  // `src/modes/librarySearch.ts`, một module Vue thật (`ref`) — import thẳng nó ở đây giết
+  // Kiểm C/D/E cùng lý do `@tauri-apps/api` bị cấm.
+
+  /** Chạy một lượt tìm kiếm theo ô nhập hiện thời. Handler của `library.search` (có phím mặc
+   * định). ⚠️ Cài đặt thật là `async`; `() => void` khớp cùng khuôn `rescanLibraryFolder` —
+   * promise trả về bị bỏ qua có chủ ý, kết quả đi ra qua các `ref` ở tầng module. */
+  runLibrarySearch?: () => void
+  /** Chuyển con trỏ danh sách kết quả xuống ô kế tiếp. Handler của `library.search_next` —
+   * chép ĐÚNG khuôn `library.work_next`. */
+  nextLibrarySearchHit?: () => void
+  /** Chuyển con trỏ danh sách kết quả lên ô trước. Handler của `library.search_prev`. */
+  prevLibrarySearchHit?: () => void
+  /** Mở kết quả ĐANG CHỌN vào Workspace. Handler của `library.open_search_hit` — cùng khuôn
+   * `openCurrentLibraryWork` (đọc con trỏ hiện thời, không tham số). */
+  openCurrentLibrarySearchHit?: () => void
+
   // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `applyPreset`/`submitPastedText`: state sống ở
@@ -1209,6 +1228,57 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.mergeCurrentLibraryChapterUp()
     },
   })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 5.9 — "TÌM KIẾM FULL-TEXT XUYÊN LIBRARY" (FR8)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `library.search` là điểm vào có phím mặc định — `Mod+Alt+F` (mnemonic "Find"). Đo
+   * 2026-08-29: `grep -oE "Mod\+Alt\+[A-Za-z0-9]+"` trên tệp này cho `Mod+Alt+F` = 0, còn
+   * trống. `library.open_search_hit` giữ 0 hợp âm mặc định, cùng chủ ý
+   * `library.open_work`/`library.open_chapter`: nút bấm và cú `realClick` xử lý bằng
+   * `dispatch('<id>')` từ `.vue`, không gọi thẳng.
+   */
+  target.register({
+    id: 'library.search',
+    labelKey: 'command.library.search',
+    keys: ['Mod+Alt+F'],
+    run: () => {
+      if (deps.runLibrarySearch === undefined) return portMissing('library.search', 'runLibrarySearch')
+      deps.runLibrarySearch()
+    },
+  })
+  target.register({
+    id: 'library.search_next',
+    labelKey: 'command.library.search_next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextLibrarySearchHit === undefined) return portMissing('library.search_next', 'nextLibrarySearchHit')
+      deps.nextLibrarySearchHit()
+    },
+  })
+  target.register({
+    id: 'library.search_prev',
+    labelKey: 'command.library.search_prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevLibrarySearchHit === undefined) return portMissing('library.search_prev', 'prevLibrarySearchHit')
+      deps.prevLibrarySearchHit()
+    },
+  })
+  target.register({
+    id: 'library.open_search_hit',
+    labelKey: 'command.library.open_search_hit',
+    keys: undefined,
+    run: () => {
+      if (deps.openCurrentLibrarySearchHit === undefined) {
+        return portMissing('library.open_search_hit', 'openCurrentLibrarySearchHit')
+      }
+      deps.openCurrentLibrarySearchHit()
+    },
+  })
+
   target.register({
     id: 'lifecycle.set_work_override_paused',
     labelKey: 'command.lifecycle.set_work_override_paused',

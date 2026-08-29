@@ -277,3 +277,53 @@ describe('editorPanelState.ts::openChapterById — cửa chặn khi flush chưa 
     expect([a, b].filter(Boolean)).toHaveLength(1)
   })
 })
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// § Story 5.9 — `openChapterById(chapterId, targetSegmentId)`: đặt con trỏ vào ĐÚNG câu
+// khớp của một kết quả tìm kiếm, hoặc giữ nguyên con trỏ Rust khi segment đã VỀ HƯU.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+describe('editorPanelState.ts::openChapterById — tham số targetSegmentId (Story 5.9)', () => {
+  beforeEach(() => {
+    resetRecorder()
+    luotMoChuong.length = 0
+    luotGhiViTri.length = 0
+    caretFromRust.value = FIXTURE_SEGMENTS[0].id
+  })
+
+  it('targetSegmentId CÓ trong segments ⇒ đi qua doiConTroToi, caret đổi đúng segment đó', async () => {
+    // Rust sẽ trả về segment ĐẦU nếu không có gì khác quyết -- giữ caretFromRust ở giá trị
+    // MẶC ĐỊNH đó (segment[0]) để phép khẳng định dưới đây không xanh giả do trùng hợp.
+    const state = await tuoi()
+
+    const moDuoc = await state.openChapterById(99, FIXTURE_SEGMENTS[1].id)
+
+    expect(moDuoc).toBe(true)
+    expect(state.editorCaretSegmentId.value).toBe(FIXTURE_SEGMENTS[1].id)
+    expect(state.editorCaretPlacement.value).toBe(FIXTURE_SEGMENTS[1].id)
+  })
+
+  it('🔴 targetSegmentId KHÔNG có trong segments (đã về hưu) ⇒ VẪN mở được Chương, giữ con trỏ Rust quyết, và ghi chẩn đoán', async () => {
+    const consoleErr = vi.spyOn(console, 'error').mockImplementation(() => {})
+    caretFromRust.value = FIXTURE_SEGMENTS[0].id
+    const state = await tuoi()
+
+    const moDuoc = await state.openChapterById(99, 999_999)
+
+    expect(moDuoc).toBe(true)
+    // Lượt mở KHÔNG bị huỷ vì segment lạ -- Chương vẫn mở, con trỏ ở lại giá trị Rust quyết.
+    expect(state.editorCaretPlacement.value).toBe(FIXTURE_SEGMENTS[0].id)
+    expect(consoleErr).toHaveBeenCalled()
+    consoleErr.mockRestore()
+  })
+
+  it('targetSegmentId là `undefined` (hit cấp Chương) ⇒ không chạm logic đặt con trỏ, Rust tự quyết', async () => {
+    caretFromRust.value = FIXTURE_SEGMENTS[2].id
+    const state = await tuoi()
+
+    const moDuoc = await state.openChapterById(99, undefined)
+
+    expect(moDuoc).toBe(true)
+    expect(state.editorCaretPlacement.value).toBe(FIXTURE_SEGMENTS[2].id)
+  })
+})

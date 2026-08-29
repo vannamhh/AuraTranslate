@@ -896,7 +896,7 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
 fn the_blocking_wires_run_off_the_main_thread() {
     // Moi vo CHAN phai mang `(async)` NGAY TREN chu ky cua no. Cot thu hai la chu ky, cot thu
     // ba noi vi sao vo do dat tieu chi -- de mot luot doc sau khong phai suy lai.
-    let cases: [(&str, &str, &str); 16] = [
+    let cases: [(&str, &str, &str); 17] = [
         (
             "src/commands/glossary.rs",
             "pub fn glossary_export_tier(app: tauri::AppHandle",
@@ -948,6 +948,13 @@ fn the_blocking_wires_run_off_the_main_thread() {
             "pub fn library_forget_orphan(\n        app: tauri::AppHandle",
             "mot luot ghi qua `store::Writer` -- cung nhom voi hai vo tren, khong tach rieng \
              'nang'/'nhe'",
+        ),
+        (
+            "src/commands/library.rs",
+            "pub fn library_search(\n        app: tauri::AppHandle",
+            "chay CA HAI chi muc FTS5 (unicode61 + trigram) roi HOP ket qua, va nhanh trigram \
+             con qua mot buoc xac minh chuoi con o Rust tren toan bo ung vien -- Story 5.9, \
+             khong doi bi coi la 'chi mot SELECT nhe' nhu `library_list_works`",
         ),
         (
             "src/commands/lifecycle.rs",
@@ -1037,10 +1044,10 @@ fn the_blocking_wires_run_off_the_main_thread() {
     );
     assert_eq!(
         count_async_attrs("src/commands/library.rs"),
-        3,
-        "so `#[tauri::command(async)]` trong commands/library.rs phai DUNG 3 (ba vo CHAN o \
-         `cases` tren: library_rescan/library_choose_root/library_forget_orphan). Them mot vo \
-         chan moi thi them no vao `cases` CUNG LUOT."
+        4,
+        "so `#[tauri::command(async)]` trong commands/library.rs phai DUNG 4 (bon vo CHAN o \
+         `cases` tren: library_rescan/library_choose_root/library_forget_orphan/library_search \
+         -- Story 5.9 them vo thu tu). Them mot vo chan moi thi them no vao `cases` CUNG LUOT."
     );
     assert_eq!(
         count_async_attrs("src/commands/chapter.rs"),

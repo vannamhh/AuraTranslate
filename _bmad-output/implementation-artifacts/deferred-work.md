@@ -8520,3 +8520,124 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
   tới: story này là story đầu tiên có đường sản phẩm làm segment **ĐỔI `chapter_id`**, nên
   cặp lệch sinh ra được thật. Ca canh:
   `src-tauri/tests/segment_contract.rs::saving_a_position_whose_segment_belongs_to_another_chapter_writes_nothing`.
+
+## Deferred from: 5-9-tim-kiem-full-text-xuyen-library (2026-08-29)
+
+- ⚠️ **Truy vấn 1–2 ký tự không tra được nửa nguyên văn — đặc biệt từ ghép hai chữ Hán
+  (`天下`, `江湖`).**
+  evidence: Đo 2026-08-29, SQLite 3.43.2 (bảng số đầy đủ ở §Design Notes của
+    `5-9-tim-kiem-full-text-xuyen-library.md`): tokenizer `trigram` không lập chỉ mục token
+    dưới 3 ký tự, nên `library_source_fts MATCH '"天下"'` trả **0** hàng trên chính văn bản
+    chứa nó — không lỗi, không cảnh báo, chỉ câm. `SearchReport::short_query` khai trạng thái
+    đó CÓ TÊN trên màn hình (§Always của story), nhưng đó là NÓI RA vùng câm, không phải ĐÓNG
+    nó. Hai phương án đóng, cả hai đều hợp lệ (`AGENTS.md:15`: "hai phương án đều hợp lệ ⇒ nêu
+    cả hai kèm số đo cho Ice chốt"):
+    - **(a) Nhánh `char_idx` thứ ba** — chép khuôn AD-26 của đường từ điển
+      (`core/dict/query.rs::char_idx`, 1–2 ký tự): một bảng đảo ngược `(ký tự, rowid)` trên
+      `library_segment.source_text`, tra bằng `INTERSECT` cho 2 ký tự, không xác minh cho 1 ký
+      tự (đã đo ở đường từ điển: một ký tự có mặt trong `char_idx` ⇔ nó là chuỗi con). Giá: một
+      bảng + chỉ mục thứ ba trong `library-index.db`, một bước dựng lại mỗi lượt `rebuild`
+      (chi phí CPU cộng thêm, chưa đo trên 5.000 Chương — phụ thuộc Story 6.18).
+    - **(b) Hạ sàn `trigram` bằng một chỉ mục PHỤ `remove_diacritics`-style riêng cho chuỗi
+      ngắn** — không khả thi với FTS5 chuẩn (trigram không có tham số "sàn thấp hơn 3"); đường
+      này thực chất quay lại phương án (a) dưới một tên khác, ghi ra để người sau không thử lại
+      và tưởng đã có một lối tắt.
+    ⇒ Phương án (a) là đường THẬT duy nhất; số đo phụ thuộc Story 6.18 (5.000 Chương thật) để
+    biết chi phí CPU của bảng thứ ba có chấp nhận được không trước khi chốt.
+    **(Chủ: Ice — `AGENTS.md:15` đòi trình cả hai phương án kèm số đo, không tự chọn rồi đi
+    tiếp; đây là một quyết định kiến trúc mới, không một dòng vá của story kế tiếp.)**
+
+- 🟡 **Chế độ khoan dung dấu (bỏ qua phân biệt dấu tiếng Việt khi tìm) — câu mời đã có TRÊN
+  MÀN HÌNH, chưa có cửa bấm phía sau nó.**
+  evidence: §I/O Matrix "Không khớp" của story này đòi ca ⑤ (`indexed_segments > 0`, không
+    khớp) *"nói chế độ khoan dung là việc của Story 5.10 — KHÔNG dựng một nút chưa có đường
+    chạy phía sau"*. `mode.library.search_no_match` (`vi.json`) nói đúng câu đó bằng chữ
+    ("chỉ mục PHÂN BIỆT dấu tiếng Việt. Chế độ khoan dung dấu chưa có ở bản này") nhưng KHÔNG
+    một nút/toggle nào đi kèm — đúng ý AD-27 ("`remove_diacritics 2` là chỉ mục PHỤ của Story
+    5.10, không dựng ở đây") và đúng §Never của story ("Không dựng chỉ mục xoá dấu — đó là chế
+    độ khoan dung của Story 5.10").
+    ⇒ Story 5.10 dựng: bảng `library_target_fts_nd` (`remove_diacritics 2`, hậu tố `_nd` đúng
+    khuôn `tools/dict-build/src/schema.rs::SENSE_FTS_ND_DDL`), một nút bật/tắt trên màn hình
+    tìm kiếm, và Rust chạy nhánh đó CHỈ khi người dùng bật — không mặc định (AD-27).
+    **(Chủ: Story 5.10 — đã có tên trong chính story này, không cần Ice chọn lại.)**
+
+- 🟡 **Thu hoạch văn bản chạy TOÀN PHẦN mỗi lượt `Indexer::rebuild` — một guard tăng dần
+  ("chỉ thu hoạch lại Tác phẩm có `updated_at` mới hơn lần quét trước") SẼ SAI ÂM THẦM hôm
+  nay, vì món nợ `work.updated_at`/`chapter.updated_at` (chủ Story 5.6) vẫn còn mở.**
+  evidence: §Design Notes "Vì sao thu hoạch nằm TRONG `rebuild`, không phải một `index_one`"
+    của chính story này ghi lại đúng lý lẽ: `src-tauri/AGENTS.md:29` khai `work.updated_at`/
+    `chapter.updated_at` KHÔNG được bơm vào giao dịch flush (chủ Story 5.6, giữ cổng đang xanh
+    `segment_contract.rs::a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else`).
+    Một guard tăng dần dựa trên `updated_at` hôm nay sẽ đọc "người dùng vừa sửa bản dịch" thành
+    "không gì đổi" ⇒ chỉ mục tìm kiếm giữ CHỮ CŨ — tìm ra câu đã xoá, không tìm ra câu vừa gõ,
+    và **không cổng nào đỏ** vì hành vi đó hợp lệ theo đúng giá trị `updated_at` (sai) trên đĩa.
+    ⇒ Chỉ an toàn thêm guard đó SAU KHI Story 5.6 đóng món nợ `updated_at`. Cho tới lúc đó, mỗi
+    `rebuild` quét lại 100% Tác phẩm là đường ĐÚNG — đắt hơn nhưng không nói dối.
+    **(Chủ: Story 5.6 — món nợ gốc đã có chủ từ trước; mục này chỉ ghi thêm một HỆ QUẢ mới của
+    nó: chặn luôn cả một tối ưu hoá tương lai của thu hoạch tìm kiếm, không riêng gì
+    `chapter_count`/`chapter_done_count` như hai mục cũ đã ghi.)**
+
+- ⚠️ **NFR3 (p95 tìm kiếm) — số đo của story này là SƠ BỘ, không đủ điều kiện đánh dấu đạt.**
+  evidence: `epics.md:334` khai ngưỡng NFR3 là **tạm** `[A6]`; phép đo đủ điều kiện đòi FR14
+    (nhập hàng loạt, Epic 6) để có 5.000 Chương THẬT — chưa tồn tại ở Epic 5. §Auto Run Result
+    của `5-9-tim-kiem-full-text-xuyen-library.md` ghi con số đo trên một `library-index.db`
+    TỔNG HỢP (dựng bằng fixture, không qua sản phẩm), kèm phiên bản toolchain và ngày, và khai
+    RÕ là sơ bộ — đúng §Never của story ("Không đổi ngưỡng NFR3 và không khai NFR3 là đạt").
+    ⇒ Story 6.18 là phép đo đủ điều kiện — nó có đường sinh 5.000 Chương thật qua sản phẩm.
+    **(Chủ: Story 6.18 — đã có tên trong `epics.md`, không cần Ice chọn lại.)**
+
+## Deferred from: 5-9-tim-kiem-full-text-xuyen-library — vòng review (2026-08-29)
+
+- ⚠️ **Không có bước chuẩn hoá Unicode (NFC/NFD) trước khi lập chỉ mục hay trước khi tra.**
+  evidence: `harvest_work_text` và `Indexer::search` đều đưa chuỗi thô vào FTS5. Với một chỉ mục
+    **phân biệt dấu** (AD-27) đó là một cửa rỗng im lặng thật: macOS thường sinh tiếng Việt ở
+    dạng NFD (`a` + U+0301) còn Windows/web thường NFC (U+00E1), nên hai chuỗi TRÔNG GIỐNG HỆT
+    nhau không khớp nhau và không lỗi nào được ném. Nó còn lệch cả vị từ `short_query`:
+    `trimmed.chars().count()` đếm **điểm mã**, nên một từ hai chữ cái dạng NFD đếm ra 4 và lượt
+    tìm đi nhầm nhánh.
+    ⚠️ **Đây là một lớp có sẵn của kho, không phải do story này sinh ra** — `sense_fts`
+    (`remove_diacritics 0`, Epic 1) mang đúng tính chất đó từ trước, và chưa ai đo tỉ lệ NFD
+    thật trong dữ liệu người dùng. ⇒ Phải ĐO trước khi sửa: một lượt chuẩn hoá đặt sai chỗ
+    (chỉ ở truy vấn mà không ở lúc lập chỉ mục, hoặc ngược lại) làm hỏng đúng thứ nó định sửa.
+    **(Chủ: Ice — quyết định áp cho CẢ đường từ điển lẫn đường Library, tức rộng hơn một story.)**
+
+- ⚠️ **Trần ứng viên của nhánh `trigram` sắp theo `(work_id, chapter_ord, segment_ord)`, không
+  theo khả năng khớp — trên một thư viện lớn, ứng viên dương-tính-giả dồn ở các `work_id` đầu
+  bảng chữ cái có thể ăn hết trần trước khi hàng của Tác phẩm sau được đọc.**
+  evidence: `search_source_text` lấy tới `search_candidate_ceiling(limit)` hàng rồi mới xác minh
+    chuỗi con ở Rust. `ORDER BY` là thứ tự KHO, không phải thứ tự liên quan. Đây là biến thể
+    XUYÊN TÁC PHẨM của đúng "Bẫy 11" mà `core/dict/query.rs` đã ghi cho đường từ điển. Hôm nay
+    **chưa đo được**: không đường nào tạo một thư viện đủ lớn để dựng nhiều hơn `ceiling` ứng
+    viên thật (cùng lý do NFR3 chưa nghiệm thu đủ điều kiện).
+    ⇒ Đo ở Story 6.18 cùng lượt với p95; nếu có thật thì `truncated` (đã có trên dây từ lượt rà
+    này) là chỗ báo ra, không phải một con số 0 im lặng.
+    **(Chủ: Story 6.18 — cùng phép đo, cùng điều kiện tiền đề.)**
+
+- ⚠️ **Mỗi thao tác vòng đời/tổ chức Chương nay MỞ `project.db` của MỌI Tác phẩm trong thư
+  viện, không chỉ Tác phẩm vừa sửa.**
+  evidence: `reindex_after_lifecycle_write` (`commands/lifecycle.rs:225`) và
+    `wire::reindex_library` (`commands/project.rs:1933`) gọi `Indexer::rebuild` TOÀN BỘ, và từ
+    story này `rebuild` không còn chỉ đọc `meta.json` — nó mở-đọc-đóng một `project.db` cho mỗi
+    Tác phẩm. Đo 2026-08-29 (rustc 1.97.1, macOS): thu hoạch **50.000 segment** trong MỘT
+    `.atproj` mất **2.180,9 ms**; hình dạng thật (hàng trăm `.atproj`) chưa đo.
+    ⚠️ **Vế "sau MỖI lượt sửa segment" thì KHÔNG đúng** — đo lại trước khi tin: `grep -n
+    "reindex" src-tauri/src/commands/segment.rs` cho **0** kết quả, nên một lượt flush AD-35
+    hay một lượt xác nhận câu KHÔNG kích hoạt `rebuild`. Các chỗ kích hoạt là thao tác RỜI RẠC
+    và thưa (đổi trạng thái Chương, bốn thao tác tổ chức Chương của Story 5.8, tạo Tác phẩm,
+    khởi động, quét lại tay).
+    ⇒ Đường tối ưu hiển nhiên — chỉ thu hoạch lại Tác phẩm có `updated_at` mới — **bị chặn**
+    bởi món nợ `updated_at` (chủ Story 5.6), xem mục ngay trên trong cụm trước.
+    **(Chủ: Story 6.18 — phép đo trên thư viện thật là điều kiện để biết có phải sửa hay không.)**
+
+- ⚠️ **Một lượt `INSERT` hỏng khi ghi hàng văn bản của MỘT Tác phẩm làm trượt cả lượt `rebuild`
+  của toàn thư viện — trong khi một lượt ĐỌC hỏng thì chỉ bỏ qua đúng Tác phẩm đó.**
+  evidence: `harvest_work_text` bắt lỗi theo từng Tác phẩm và dồn vào `RebuildOutcome::text_skipped`
+    (đúng mục tiêu đã viết: *"một lượt thu hoạch trượt cho ĐÚNG MỘT Tác phẩm KHÔNG được làm trượt
+    cả `rebuild`"*). Nhưng vòng `tx.execute("INSERT INTO library_segment …")?` chạy TRONG một
+    `store.write(...)` chung, nên một lỗi SQL ở hàng của Tác phẩm thứ ba huỷ luôn phần đã ghi của
+    Tác phẩm thứ nhất và thứ hai. Bất đối xứng đó chưa được viết ra ở đâu, và chưa ca nào chạm.
+    ⚠️ Chưa dựng được một ca đỏ cho nó ở lượt này: mọi lỗi `INSERT` khả dĩ trên bảng đó đòi một
+    lược đồ hỏng, tức một ca phải giả lập bằng cách phá chính DDL — một hình dạng test cần cân
+    nhắc riêng, không phải một dòng thêm.
+    **(Chủ: Ice — quyết định "một Tác phẩm hỏng thì hỏng riêng nó" có đáng một giao dịch lồng
+    hay một lượt ghi theo từng Tác phẩm hay không là một quyết định kiến trúc, không một bản vá.)**

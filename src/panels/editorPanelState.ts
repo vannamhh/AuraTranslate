@@ -1749,8 +1749,24 @@ export function goToPrevChapter(): void {
  * hỏi nó khi chưa biết Chương nào đang mở là vô nghĩa. Đích của hàm này là **TUYỆT ĐỐI** —
  * một `chapter.id` người dùng vừa chọn trong danh sách — nên nó không cần biết trạng thái nạp
  * của lưới để đúng.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 THÊM (2026-08-29, Story 5.9) — THAM SỐ `targetSegmentId`, CHO KẾT QUẢ TÌM KIẾM
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `src/modes/librarySearch.ts::openSearchHit` cần đặt con trỏ ĐÚNG câu khớp sau khi mở Chương
+ * — không chỉ mở đúng Chương. Sau khi `ensureSegmentsLoaded()` đã nạp xong, nếu
+ * `targetSegmentId` có mặt TRONG `segments.value` (`.some((s) => s.id === targetSegmentId)`),
+ * lượt này đi qua ĐÚNG MỘT đường dời con trỏ (`doiConTroToi`, `:1367` — không một bản thứ
+ * hai, đúng khuôn `goToNextSegment`/`goToPrevSegment`). `targetSegmentId` KHÔNG có trong
+ * `segments` (segment đã VỀ HƯU giữa lúc chỉ mục tìm kiếm quét và lúc người dùng bấm kết quả)
+ * ⇒ giữ nguyên con trỏ mà RUST đã quyết (`caret_segment_id` từ `ensureSegmentsLoaded`), VÀ ghi
+ * một chẩn đoán nêu đích danh — không lượt mở nào bị HUỶ vì chuyện này (§I/O Matrix "Mở một
+ * kết quả đã cũ").
  */
-export async function openChapterById(targetChapterId: number): Promise<boolean> {
+export async function openChapterById(
+  targetChapterId: number,
+  targetSegmentId?: number,
+): Promise<boolean> {
   if (dangChuyenChuong) {
     console.info('[editor] mot luot chuyen Chuong dang bay — bo qua luot nay')
     return false
@@ -1792,6 +1808,23 @@ export async function openChapterById(targetChapterId: number): Promise<boolean>
     // `resetEditorPanel()` đặt `requested = false`, nên lượt gọi này chạy IPC thật.
     await ensureSegmentsLoaded()
     await ensureChapterLoaded()
+
+    // 🔵 THÊM (2026-08-29, Story 5.9) — đặt con trỏ vào ĐÚNG câu khớp của một kết quả tìm
+    // kiếm, SAU khi segments đã nạp xong (danh sách để so `targetSegmentId` vào). Xem khối
+    // doc-comment của hàm này.
+    if (targetSegmentId !== undefined) {
+      if (segments.value.some((s) => s.id === targetSegmentId)) {
+        doiConTroToi(targetSegmentId)
+      } else {
+        // KHÔNG huỷ lượt mở vì chuyện này -- segment đã về hưu giữa lúc chỉ mục tìm kiếm quét
+        // và lúc người dùng bấm kết quả (chỉ mục chưa quét lại). Giữ nguyên con trỏ Rust đã
+        // quyết (`caret_segment_id`, đặt trong `ensureSegmentsLoaded`).
+        console.error(
+          `[editor] mo ket qua tim kiem: segmentId=${targetSegmentId} khong con trong Chuong ` +
+            `${targetChapterId} (co the da ve huu) — giu con tro Rust da quyet`,
+        )
+      }
+    }
 
     // Cùng điều kiện `switchChapter` đã ghi: hai `await` phía trên đi qua hai lệnh IPC RIÊNG,
     // mỗi lệnh một `sequence` không chung khoá — kiểm khớp trước khi nạp dấu Glossary.

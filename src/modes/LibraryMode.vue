@@ -88,6 +88,17 @@ import {
   libraryOpenWorkNotice,
   loadChapters,
 } from './libraryChapters'
+// ── Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8) ─────────────────────────────
+import {
+  librarySearchBusy,
+  librarySearchCursor,
+  librarySearchError,
+  librarySearchHits,
+  librarySearchQuery,
+  librarySearchStatusKey,
+  librarySearchTotal,
+  librarySearchTruncated,
+} from './librarySearch'
 import { t, tError } from '../i18n'
 
 const root = useTemplateRef<HTMLElement>('root')
@@ -435,6 +446,121 @@ watch(libraryChapterCursor, (cursor) => {
           </button>
         </div>
       </div>
+    </div>
+
+    <!--
+      Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8). Đồng thời trên nguyên văn VÀ bản
+      dịch, xuyên MỌI Tác phẩm — không phụ thuộc Tác phẩm nào đang mở/đang chọn trong lưới.
+    -->
+    <div class="search-block">
+      <p class="section-heading">{{ t('mode.library.search_heading') }}</p>
+      <div class="search-form">
+        <label class="field">
+          <span>{{ t('mode.library.search_label') }}</span>
+          <input
+            v-model="librarySearchQuery"
+            type="text"
+            autocomplete="off"
+            data-library-search-input
+            @keyup.enter="dispatch('library.search')"
+          />
+        </label>
+        <button
+          type="button"
+          class="btn"
+          data-library-search-button
+          :disabled="librarySearchBusy"
+          @click="dispatch('library.search')"
+        >
+          {{ t('mode.library.search_button') }}
+        </button>
+      </div>
+
+      <!--
+        role="status" NĂM NHÁNH, LUÔN có mặt (không v-if) — §Always của story: "một danh sách
+        kết quả rỗng phải nói VÌ SAO nó rỗng", năm ca PHÂN BIỆT được, không gộp. Thứ tự ưu tiên
+        khớp đúng `librarySearch.ts` doc-comment đầu tệp.
+        aura-allow-text: mọi nhánh đều qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi.
+      -->
+      <p class="status" role="status" data-library-search-status>
+        {{
+          librarySearchStatusKey === 'searching'
+            ? t('mode.library.search_searching')
+            : librarySearchStatusKey === 'not_typed'
+              ? t('mode.library.search_not_typed')
+              : librarySearchStatusKey === 'index_empty'
+                ? t('mode.library.search_index_empty')
+                : librarySearchStatusKey === 'short_query'
+                  ? t('mode.library.search_short_query')
+                  : librarySearchStatusKey === 'no_match'
+                    ? t('mode.library.search_no_match')
+                    : librarySearchTruncated
+                      ? t('mode.library.search_result_truncated', { total: String(librarySearchTotal) })
+                      : t('mode.library.search_result', { total: String(librarySearchTotal) })
+        }}
+      </p>
+      <!-- aura-allow-text: như trên, qua tError(). -->
+      <p class="error" role="status">{{ librarySearchError ? tError(librarySearchError) : '' }}</p>
+
+      <div v-if="librarySearchHits.length > 0" class="grid-nav">
+        <button
+          type="button"
+          class="btn"
+          data-library-search-prev
+          :aria-label="t('mode.library.search_prev')"
+          @click="dispatch('library.search_prev')"
+        >
+          ‹
+        </button>
+        <span class="grid-nav-position">{{
+          t('mode.library.search_position', {
+            current: String(librarySearchCursor + 1),
+            total: String(librarySearchHits.length),
+          })
+        }}</span>
+        <button
+          type="button"
+          class="btn"
+          data-library-search-next
+          :aria-label="t('mode.library.search_next')"
+          @click="dispatch('library.search_next')"
+        >
+          ›
+        </button>
+      </div>
+
+      <ul v-if="librarySearchHits.length > 0" class="search-results" data-library-search-results>
+        <li
+          v-for="(hit, idx) in librarySearchHits"
+          :key="`${hit.work_id}-${hit.chapter_id}-${hit.segment_id ?? 'chapter'}-${hit.field}`"
+          class="search-hit"
+          :class="{ 'search-hit--current': idx === librarySearchCursor }"
+          :aria-current="idx === librarySearchCursor ? 'true' : undefined"
+          data-library-search-hit
+        >
+          <!-- aura-allow-text: tên Tác phẩm/tiêu đề Chương là DỮ LIỆU người dùng. -->
+          <p class="search-hit-locus">
+            {{ hit.work_name }} · {{ hit.chapter_title ?? t('mode.library.chapter_untitled', { ord: String(hit.chapter_ord) }) }}
+            <!-- aura-allow-text: qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+            <span class="search-hit-field">{{
+              hit.field === 'target' ? t('mode.library.search_field_target') : t('mode.library.search_field_source')
+            }}</span>
+            <!-- aura-allow-text: qua t(). -->
+            <span v-if="hit.segment_id === null" class="search-hit-field">{{ t('mode.library.search_chapter_level') }}</span>
+          </p>
+          <!-- aura-allow-text: đoạn trích là DỮ LIỆU người dùng, văn bản THUẦN (AD-16) -- không v-html. -->
+          <p class="search-hit-snippet">{{ hit.snippet }}</p>
+          <button
+            v-if="idx === librarySearchCursor"
+            type="button"
+            class="btn"
+            data-library-search-open
+            @click="dispatch('library.open_search_hit')"
+          >
+            {{ t('mode.library.search_open_button') }}
+          </button>
+        </li>
+      </ul>
     </div>
 
     <!--
@@ -1573,5 +1699,69 @@ watch(libraryChapterCursor, (cursor) => {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+/* Story 5.9 — "Tìm kiếm full-text xuyên Library". Cùng khuôn token/cỡ chữ với `.root-block`. */
+.search-block {
+  max-width: 420px;
+  margin-bottom: var(--space-panel-block);
+  padding-bottom: var(--space-panel-block);
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.search-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.search-form .field {
+  flex: 1;
+}
+
+.search-results {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-hit {
+  padding: 10px;
+  border: 1px solid var(--color-outline);
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
+}
+
+.search-hit--current {
+  border-color: var(--color-primary);
+}
+
+.search-hit-locus {
+  margin: 0 0 4px;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  font-weight: var(--weight-ui-md-strong);
+  color: var(--color-on-surface);
+}
+
+.search-hit-field {
+  margin-left: 6px;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  font-weight: normal;
+  color: var(--color-on-surface-variant);
+}
+
+.search-hit-snippet {
+  margin: 0 0 8px;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+  word-break: break-word;
 }
 </style>

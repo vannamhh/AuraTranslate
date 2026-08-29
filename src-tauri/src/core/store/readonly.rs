@@ -1,5 +1,10 @@
 //! Một tệp `.db` mở **CHỈ ĐỌC** — đường của dữ liệu từ điển (AD-7, Story 1.11 AC7).
 //!
+//! 🔵 **SỬA (2026-08-29, Story 5.9) — không còn chỉ `StoreKind::Dict`.** `Indexer::rebuild`
+//! (`core/library/indexer.rs`) nay mở `project.db` của mỗi `.atproj` CHỈ ĐỌC qua đây để thu
+//! hoạch văn bản cho tìm kiếm full-text (FR8) — xem doc-comment của [`ReadOnlyDb::open`] cho lý
+//! do đó vẫn là một MIỄN TRỪ CÓ TÊN (`{Dict, Project}`), không một cửa mở tuỳ ý.
+//!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 VÌ SAO ĐƯỜNG NÀY SỐNG Ở `core/store/` CHỨ KHÔNG Ở `core/dict/`
 //! ─────────────────────────────────────────────────────────────────────────────
@@ -59,10 +64,27 @@ impl ReadOnlyDb {
     /// (Story 1.13, nơi biết mình đang mở *lớp* nào và làm gì khi một lớp bị từ chối);
     /// đặt nó ở đây là chôn một chính sách vào một cơ chế.
     pub fn open(path: PathBuf, kind: StoreKind) -> Result<ReadOnlyDb, StoreError> {
-        debug_assert_eq!(
-            kind,
-            StoreKind::Dict,
-            "ReadOnlyDb::open is for StoreKind::Dict only; every other kind goes through Store::open"
+        // 🔵 SỬA (2026-08-29, Story 5.9) — danh sách cho phép mở rộng từ `{Dict}` sang
+        // `{Dict, Project}`, một MIỄN TRỪ CÓ TÊN, không một cửa mở tuỳ ý.
+        //
+        // Vì sao `Project` được thêm: `Indexer::rebuild` (`core/library/indexer.rs`) phải THU
+        // HOẠCH văn bản từ `project.db` của mỗi `.atproj` để dựng `library_segment`/hai chỉ
+        // mục FTS5 (Story 5.9, FR8) — và nó đọc một Tác phẩm mà chính lượt quét **không sở
+        // hữu** (người dùng có thể đang MỞ đúng Tác phẩm đó ở một Store khác cùng lúc). Bốn
+        // thứ `Store::open` sẽ ghi vào tệp (`readonly.rs:19-24`: `READ_WRITE | CREATE`,
+        // `journal_mode = WAL`, bộ di trú, luồng writer) đều SAI ở đây — ba trong bốn là GHI
+        // vào một `.atproj` mà lượt quét không sở hữu, và cái thứ ba (bộ di trú) còn nguy hiểm
+        // riêng: nó sẽ DI TRÚ HÀNG LOẠT cả thư viện chỉ vì người dùng mở Library.
+        //
+        // Vì sao vẫn `debug_assert_eq!`-shape (không nới thành `StoreKind` bất kỳ): một kind
+        // THỨ BA lọt vào đây (`Global`/`Project` dùng sai chỗ/`LibraryIndex`) là một lỗi lập
+        // trình, không một trường hợp hợp lệ chưa tính tới — miễn trừ phải CÓ TÊN và phải CHẾT
+        // ĐƯỢC (khi Story nào đó thật sự cần mở chỉ-đọc một kind thứ ba, danh sách này lại mở
+        // rộng CÓ CHỦ, không tự nó nới ra).
+        debug_assert!(
+            matches!(kind, StoreKind::Dict | StoreKind::Project),
+            "ReadOnlyDb::open is for StoreKind::Dict or StoreKind::Project only; every other \
+             kind goes through Store::open"
         );
 
         // ⚠️ `Tuning::default()` dùng nguyên, nhưng **chỉ hai trường của nó có nghĩa ở
@@ -104,7 +126,8 @@ impl ReadOnlyDb {
         self.readers.close();
     }
 
-    /// Loại kho — [`StoreKind::Dict`] cho mọi tệp từ điển.
+    /// Loại kho — [`StoreKind::Dict`] cho một tệp từ điển, [`StoreKind::Project`] cho một
+    /// `project.db` mở chỉ-đọc để thu hoạch (Story 5.9).
     pub const fn kind(&self) -> StoreKind {
         self.kind
     }

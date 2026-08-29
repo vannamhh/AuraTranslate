@@ -338,6 +338,9 @@ pub fn run() {
             crate::commands::library::wire::library_forget_orphan,
             // Story 5.4 -- "Bon trang thai vong doi" (FR5/FR6). Doc thuan, khong `(async)`.
             crate::commands::library::wire::library_list_works,
+            // Story 5.9 -- "Tim kiem full-text xuyen Library" (FR8). `(async)` -- chay CA HAI
+            // chi muc FTS5 roi hop ket qua, nhanh trigram con xac minh chuoi con o Rust.
+            crate::commands::library::wire::library_search,
             // Story 5.4 -- ba lenh vong doi. `read_work_lifecycle` doc thuan; hai lenh ghi
             // mang `(async)` (buoc reindex la mot luot quet dia toan bo) -- xem doc-comment
             // cua `commands::lifecycle::wire`.

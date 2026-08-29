@@ -22,19 +22,26 @@
 //!    nào chờ).
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 MỌI FIXTURE `.atproj` MANG `project.db` **RÁC** — VÀ ĐÓ LÀ MỘT PHÉP ĐO, KHÔNG PHẢI SƠ SUẤT
+//! 🔵 SỬA (2026-08-29, Story 5.9) — MỆNH ĐỀ "AD-9: KHÔNG BAO GIỜ MỞ `project.db`" ĐÃ HẾT ĐÚNG
 //! ─────────────────────────────────────────────────────────────────────────────
-//! [`write_atproj`] ghi và văn bản KHÔNG PHẢI SQLite hợp lệ vào `project.db`. AD-9 nói
-//! `Indexer` **chỉ đọc `meta.json`**, không bao giờ mở `project.db` — nếu bất kỳ đường nào của
-//! `Indexer` lỡ mở tệp đó, con trỏ vào một payload rác sẽ làm CHÍNH XÁC ca đó panic ngay lập
-//! tức (không phải một `assert` phải nhớ viết riêng). Mọi ca dưới đây, không chỉ một ca được
-//! đặt tên cho AD-9, đều là đối chứng của bất biến đó.
+//! [`write_atproj`] vẫn ghi văn bản KHÔNG PHẢI SQLite hợp lệ vào `project.db` — nhưng câu cũ
+//! ("nếu bất kỳ đường nào của `Indexer` lỡ mở tệp đó ... sẽ panic ngay lập tức") không còn
+//! đúng: `Indexer::rebuild` (Story 5.9, FR8) nay CHỦ ĐỘNG mở `project.db` của mỗi Tác phẩm để
+//! thu hoạch văn bản, và một payload rác ở đó phải bị BẮT gọn (không panic) rồi đếm vào
+//! `RebuildOutcome::text_skipped` — đúng khuôn "một `.atproj` bị bỏ qua không được huỷ cả lượt
+//! quét". Mọi ca ở PHẦN ĐẦU tệp này (trước cụm Story 5.9) vẫn dùng `write_atproj` (project.db
+//! rác) có chủ ý: chúng không kiểm hành vi thu hoạch, và một ca ĐỎ nếu `harvest_work_text`
+//! đổi hành vi thành PANIC-trên-rác thay vì SKIP-có-đếm là đúng bằng chứng cần. Các ca kiểm
+//! HÀNH VI THU HOẠCH/TÌM KIẾM (cụm Story 5.9, cuối tệp) dùng `write_atproj_with_real_project_db`
+//! — `project.db` THẬT, dựng qua đúng đường sản phẩm (`Store::open(StoreSpec::project(..))`).
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::core::library::indexer::{IndexError, Indexer, WorkQuery, WorkSortKey};
+use auratranslate_lib::core::library::indexer::{
+    IndexError, Indexer, SearchField, WorkQuery, WorkSortKey,
+};
 use auratranslate_lib::core::library::meta::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::lifecycle::LifecycleStatus;
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
@@ -352,7 +359,7 @@ fn an_index_file_stuck_at_schema_version_zero_is_deleted_and_rebuilt_not_left_ha
 /// fixture (đã ở `to_version` 4) khớp target hiện hành nên `Indexer::open` KHÔNG xoá-dựng-lại;
 /// `library_work` trên đĩa vẫn thiếu cột, và `list_works` ném "no such column" — ca này FAIL.
 #[test]
-fn an_index_file_at_schema_version_4_is_deleted_and_rebuilt_at_version_5_with_the_new_column() {
+fn an_index_file_at_schema_version_4_is_deleted_and_rebuilt_at_version_6_with_the_new_columns() {
     let dir = temp_dir("schema-v4-progress-column");
     let global = open_global(&dir);
     let root = library_root(&dir);
@@ -405,14 +412,18 @@ fn an_index_file_at_schema_version_4_is_deleted_and_rebuilt_at_version_5_with_th
 
     drop(indexer);
 
-    // Phiên bản trên đĩa phải là 5 -- đối chứng TRỰC TIẾP bằng PRAGMA, không suy luận từ việc
-    // `list_works` không lỗi (một `ALTER` trá hình cũng qua được vế đó).
+    // Phiên bản trên đĩa phải khớp ĐÍCH HIỆN HÀNH -- đối chứng TRỰC TIẾP bằng PRAGMA, không
+    // suy luận từ việc `list_works` không lỗi (một `ALTER` trá hình cũng qua được vế đó).
+    // 🔵 SỬA (2026-08-29, Story 5.9) — đích đã nâng 5 → 6 (`library_segment` + hai chỉ mục
+    // FTS5); fixture ở trên vẫn cố ý dựng hình dạng `to_version` 4 (mười cột) để canh đúng
+    // NHẢY BẬC "một fixture cũ hai bậc vẫn xoá-và-dựng-lại đúng một lần, không dừng nửa
+    // đường" — số đích thay đổi không làm hỏng ý nghĩa ca này.
     {
         let conn = rusqlite::Connection::open(&idx).expect("mở lại để kiểm tra");
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("đọc PRAGMA user_version");
-        assert_eq!(version, 5, "library-index.db phải ở đúng to_version 5 sau lượt mở lại");
+        assert_eq!(version, 6, "library-index.db phải ở đúng to_version 6 sau lượt mở lại");
     }
 
     drop(global);
@@ -1927,6 +1938,870 @@ fn selection_sets_are_distinct_over_the_unfiltered_table_even_while_a_filter_is_
         vec!["en".to_owned(), "zh".to_owned()],
         "source_langs phai liet ke CA HAI ngon ngu, khong teo theo bo loc dang bat: {source_langs:?}"
     );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8). §I/O Matrix.
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ Cụm này KHÔNG dùng `write_atproj` (project.db RÁC) — nó dựng `project.db` THẬT qua
+// [`write_atproj_with_real_project_db`] để `Indexer::rebuild` thu hoạch được văn bản thật.
+// `Transaction`/`Store`/`StoreSpec` đã import ở đầu tệp -- không import lại.
+
+/// Một Chương chưa harvest: `(title, chapter_source_text, segments)`. `segments` RỖNG mô
+/// phỏng "Chương chưa tách segment" (§I/O Matrix) — hàng cấp Chương dùng `chapter_source_text`.
+type FixtureChapter = (Option<&'static str>, &'static str, Vec<(&'static str, &'static str)>);
+
+/// **THÊM Story 5.9.** Dựng một `.atproj` với `project.db` THẬT — `meta.json` qua
+/// [`write_atproj`] (đúng đường ghi sản phẩm), rồi project.db RÁC bị xoá và thay bằng một kho
+/// mở qua ĐÚNG đường sản phẩm (`Store::open(StoreSpec::project(..))`, cùng khuôn
+/// `project_contract.rs`/`segment_contract.rs`), nạp Chương + segment trực tiếp bằng SQL.
+///
+/// Trả về `(thư mục .atproj, Store còn MỞ)` — chỗ gọi tự quyết định đóng NGAY (mô phỏng "Tác
+/// phẩm đã đóng") hay giữ mở qua lượt `rebuild` (mô phỏng "chữ còn trong WAL", §I/O Matrix).
+fn write_atproj_with_real_project_db(
+    root: &Path,
+    folder: &str,
+    work_id: &str,
+    name: &str,
+    chapters: Vec<FixtureChapter>,
+) -> (PathBuf, Store) {
+    let chapter_count = chapters.len() as u32;
+    let dir = write_atproj(root, folder, work_id, name, chapter_count);
+
+    let db_path = dir.join("project.db");
+    fs::remove_file(&db_path)
+        .unwrap_or_else(|e| panic!("xoa project.db rac o {}: {e}", db_path.display()));
+    let store = Store::open(StoreSpec::project(db_path.clone()))
+        .unwrap_or_else(|e| panic!("mo project.db that o {}: {e}", db_path.display()));
+
+    let owned: Vec<(Option<String>, String, Vec<(String, String)>)> = chapters
+        .into_iter()
+        .map(|(title, source, segments)| {
+            (
+                title.map(str::to_owned),
+                source.to_owned(),
+                segments
+                    .into_iter()
+                    .map(|(s, t)| (s.to_owned(), t.to_owned()))
+                    .collect(),
+            )
+        })
+        .collect();
+
+    store
+        .write(move |tx: &Transaction<'_>| {
+            for (idx, (title, chapter_source, segments)) in owned.into_iter().enumerate() {
+                let ord = (idx + 1) as i64;
+                tx.execute(
+                    "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                     VALUES (?1, ?2, ?3, 'draft', '2026-08-29T00:00:00.000Z', '2026-08-29T00:00:00.000Z')",
+                    (ord, &title, &chapter_source),
+                )?;
+                let chapter_id = tx.last_insert_rowid();
+                for (seg_idx, (source_text, target_text)) in segments.into_iter().enumerate() {
+                    let seg_ord = (seg_idx + 1) as i64;
+                    tx.execute(
+                        "INSERT INTO segment \
+                         (chapter_id, ord, source_text, is_paragraph_end, created_at, updated_at, \
+                          target_text, status, is_omitted, translation_origin) \
+                         VALUES (?1, ?2, ?3, 0, '2026-08-29T00:00:00.000Z', \
+                                 '2026-08-29T00:00:00.000Z', ?4, 'confirmed', 0, 'self')",
+                        (chapter_id, seg_ord, &source_text, &target_text),
+                    )?;
+                }
+            }
+            Ok(())
+        })
+        .unwrap_or_else(|e| panic!("ghi fixture project.db that o {}: {e}", db_path.display()));
+
+    (dir, store)
+}
+
+/// Khuôn dùng chung: rebuild rồi tìm kiếm, trả `SearchReport`.
+fn rebuild_and_search(indexer: &Indexer, root: &Path, global: &Store, query: &str, limit: usize) -> auratranslate_lib::core::library::indexer::SearchReport {
+    indexer.rebuild(root, Some(global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+    indexer.search(query, limit).unwrap_or_else(|e| panic!("search({query:?}): {e}"))
+}
+
+#[test]
+fn a_hit_in_the_translation_carries_field_target_work_and_chapter_identity() {
+    let dir = temp_dir("search-target-hit");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (work_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(
+            Some("Chuong Mot"),
+            "irrelevant source",
+            vec![("irrelevant source", "má của tôi rất hiền")],
+        )],
+    );
+    drop(store);
+    let _ = &work_dir;
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    // ⚠️ Truy vấn 3+ ký tự — một truy vấn NGẮN HƠN (như "má", 2 ký tự) sẽ tự đặt
+    // `short_query = true`, thứ ca này không kiểm ở đây (xem
+    // `a_query_under_three_chars_sets_short_query_and_the_source_half_stays_silent` riêng).
+    let report = rebuild_and_search(&indexer, &root, &global, "hiền", 20);
+
+    assert_eq!(report.hits.len(), 1, "phai dung 1 hit: {:?}", report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>());
+    let hit = &report.hits[0];
+    assert_eq!(hit.work_id, "id-solo");
+    assert_eq!(hit.work_name, "Solo");
+    assert_eq!(hit.chapter_ord, 1);
+    assert_eq!(hit.chapter_title.as_deref(), Some("Chuong Mot"));
+    assert_eq!(hit.field, SearchField::Target);
+    assert!(hit.segment_id.is_some());
+    assert!(hit.snippet.contains("hiền"), "snippet phai chua tu khop: {}", hit.snippet);
+    assert_eq!(report.total, 1);
+    assert!(!report.short_query);
+    assert_eq!(report.indexed_segments, 1);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_hit_in_chinese_source_text_carries_field_source() {
+    let dir = temp_dir("search-source-hit-zh");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(
+            Some("C1"),
+            "irrelevant",
+            vec![("天下大势，分久必合，合久必分。", "target irrelevant")],
+        )],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "分久必合", 20);
+
+    assert_eq!(report.hits.len(), 1);
+    assert_eq!(report.hits[0].field, SearchField::Source);
+    assert_eq!(report.hits[0].work_id, "id-solo");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_latin_substring_in_source_text_matches_via_trigram() {
+    let dir = temp_dir("search-source-hit-latin");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("the quick brown fox", "target irrelevant")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "uick bro", 20);
+
+    assert_eq!(report.hits.len(), 1, "chuoi con Latin 8 ky tu phai khop qua trigram");
+    assert_eq!(report.hits[0].field, SearchField::Source);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn diacritics_distinguish_six_near_identical_vietnamese_words_and_only_one_matches() {
+    let dir = temp_dir("search-diacritics");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let variants = ["má", "ma", "mà", "mả", "mã", "mạ"];
+    let segments: Vec<(&str, &str)> = variants.iter().map(|v| ("irrelevant", *v)).collect();
+    let (_dir, store) =
+        write_atproj_with_real_project_db(&root, "Solo", "id-solo", "Solo", vec![(Some("C1"), "irrelevant", segments)]);
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "má", 20);
+
+    assert_eq!(
+        report.hits.len(),
+        1,
+        "chi mot trong sau bien the phai khop -- chi muc PHAI phan biet dau: {:?}",
+        report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>()
+    );
+    assert!(report.hits[0].snippet.contains('m'), "snippet: {}", report.hits[0].snippet);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_match_in_each_half_of_the_same_scan_both_come_back_with_their_own_field() {
+    let dir = temp_dir("search-both-halves");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(
+            Some("C1"),
+            "irrelevant",
+            vec![
+                ("uniquesourcezzz", "má của tôi rất hiền"),
+                ("the quick brown fox", "unrelated target"),
+            ],
+        )],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    // Truy vấn "brown" khớp CHỈ nửa nguồn của segment 2; "má" khớp chỉ nửa dịch của segment 1.
+    // Kiểm riêng cho rõ ràng, rồi kiểm gộp bằng một truy vấn chạm cả hai nửa cùng lúc thật.
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let both = indexer
+        .search("brown", 20)
+        .unwrap_or_else(|e| panic!("search: {e}"));
+    assert_eq!(both.hits.len(), 1);
+    assert_eq!(both.hits[0].field, SearchField::Source);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_hit_in_each_of_two_different_works_both_report_their_own_work_id() {
+    let dir = temp_dir("search-cross-work");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_a, store_a) = write_atproj_with_real_project_db(
+        &root,
+        "Alpha",
+        "id-alpha",
+        "Alpha",
+        vec![(Some("C1"), "irrelevant", vec![("commonqueryword here", "target a")])],
+    );
+    drop(store_a);
+    let (_b, store_b) = write_atproj_with_real_project_db(
+        &root,
+        "Beta",
+        "id-beta",
+        "Beta",
+        vec![(Some("C1"), "irrelevant", vec![("also commonqueryword text", "target b")])],
+    );
+    drop(store_b);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "commonqueryword", 20);
+
+    let mut ids: Vec<&str> = report.hits.iter().map(|h| h.work_id.as_str()).collect();
+    ids.sort_unstable();
+    assert_eq!(ids, vec!["id-alpha", "id-beta"], "hit ca hai Tac pham, moi hit mang dung work_id cua no");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_chapter_with_zero_live_segments_still_matches_at_chapter_level_via_source() {
+    let dir = temp_dir("search-chapter-level");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("Untached"), "unsegmented chapter text zzqq", Vec::new())],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "zzqq", 20);
+
+    assert_eq!(report.hits.len(), 1);
+    assert_eq!(report.hits[0].segment_id, None, "hit cap CHUONG phai mang segment_id = null");
+    assert_eq!(report.hits[0].field, SearchField::Source);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn trigram_matching_is_case_insensitive_before_the_rust_verification_step() {
+    let dir = temp_dir("search-trigram-case");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("the quick BROWN fox", "target irrelevant")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "brown", 20);
+
+    assert_eq!(report.hits.len(), 1, "xac minh phai HA CHU THUONG ca hai ve, khong duoc loai oan hang khop");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_query_under_three_chars_sets_short_query_and_the_source_half_stays_silent() {
+    let dir = temp_dir("search-short-query");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "天下大势，分久必合。", vec![("天下大势", "ma")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    // "天下" (2 ky tu) co that trong ca hai nua -- nhung nua NGUYEN VAN (trigram) cau, chi nua
+    // BAN DICH (unicode61, khop TRON TU) tra loi duoc.
+    let report = indexer.search("天下", 20).unwrap_or_else(|e| panic!("search: {e}"));
+    assert!(report.short_query, "truy van 2 ky tu phai bao short_query = true");
+    assert!(report.hits.is_empty(), "nua nguyen van (trigram) phai CAU o duoi 3 ky tu: {:?}", report.hits.len());
+
+    // "ma" (2 ky tu) khop TRON TU o nua ban dich -- unicode61 khong co san 3-ky-tu.
+    let report_target = indexer.search("ma", 20).unwrap_or_else(|e| panic!("search: {e}"));
+    assert!(report_target.short_query);
+    assert_eq!(report_target.hits.len(), 1, "nua ban dich (unicode61) VAN tra loi duoc duoi 3 ky tu");
+    assert_eq!(report_target.hits[0].field, SearchField::Target);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn an_empty_index_and_a_populated_index_with_no_match_are_distinguishable() {
+    let dir = temp_dir("search-empty-vs-no-match");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+
+    // Ca 1: chi muc HOAN TOAN rong -- chua tung co Tac pham nao.
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild rong: {e}"));
+    let empty_report = indexer.search("bat ky gi", 20).unwrap_or_else(|e| panic!("search: {e}"));
+    assert_eq!(empty_report.indexed_segments, 0, "chi muc RONG phai bao indexed_segments = 0");
+    assert!(empty_report.hits.is_empty());
+
+    // Ca 2: chi muc CO N dong nhung khong khop truy van nay.
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("something", "khong lien quan gi ca")])],
+    );
+    drop(store);
+    let no_match_report = rebuild_and_search(&indexer, &root, &global, "tu khong ton tai zzz", 20);
+    assert!(no_match_report.indexed_segments > 0, "chi muc phai bao N > 0 dong");
+    assert!(no_match_report.hits.is_empty());
+    assert_ne!(
+        empty_report.indexed_segments, no_match_report.indexed_segments,
+        "hai ca phai PHAN BIET duoc qua indexed_segments"
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn fts5_syntax_characters_in_the_query_run_clean_on_both_branches_with_zero_sql_errors() {
+    let dir = temp_dir("search-fts5-syntax");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("state-of-the-art tooling", "má \"trong ngoặc\" NEAR *")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    for query in ["state-of-the-art", "a\"b", "NEAR", "*", "(:^-)"] {
+        let result = indexer.search(query, 20);
+        assert!(result.is_ok(), "truy van {query:?} phai chay SACH, khong SQLITE_ERROR: {result:?}");
+    }
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_project_db_at_a_newer_schema_version_skips_only_its_own_text_and_the_rebuild_does_not_fail() {
+    let dir = temp_dir("search-project-db-too-new");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (work_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("uniquesourcetext", "unique target text")])],
+    );
+    drop(store);
+
+    // Áp `user_version` MỘT bậc CAO HƠN đích thật của `PROJECT_MIGRATIONS` -- mô phỏng một
+    // `project.db` được ghi bởi một phiên bản ứng dụng MỚI HƠN (AD-30).
+    let db_path = work_dir.join("project.db");
+    {
+        let conn = rusqlite::Connection::open(&db_path).expect("mo lai de nang phien ban");
+        let current: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .expect("doc user_version hien tai");
+        conn.pragma_update(None, "user_version", current + 1)
+            .expect("nang user_version len mot bac");
+    }
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let outcome = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| {
+        panic!("mot project.db moi hon KHONG duoc lam trot ca luot rebuild: {e}")
+    });
+
+    assert_eq!(outcome.indexed, 1, "metadata (library_work) van UPSERT tu meta.json binh thuong");
+    assert_eq!(outcome.text_skipped.len(), 1, "dung MOT Tac pham bi bo qua phan van ban");
+    assert_eq!(outcome.text_skipped[0].work_id, "id-solo");
+
+    let report = indexer.search("uniquesourcetext", 20).unwrap_or_else(|e| panic!("search: {e}"));
+    assert!(report.hits.is_empty(), "van ban cua Tac pham bi bo qua khong duoc co mat trong chi muc");
+    assert_eq!(report.indexed_segments, 0);
+
+    let works = indexer.list_works(WorkQuery::default()).unwrap_or_else(|e| panic!("list_works: {e}")).works;
+    assert_eq!(works.len(), 1, "hang library_work van co mat");
+    assert_eq!(works[0].work_id, "id-solo");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_missing_project_db_skips_only_its_own_text_and_counts_it_the_same_way() {
+    let dir = temp_dir("search-project-db-missing");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (work_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("text", "target")])],
+    );
+    drop(store);
+    fs::remove_file(work_dir.join("project.db")).unwrap_or_else(|e| panic!("xoa project.db: {e}"));
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let outcome = indexer
+        .rebuild(&root, Some(&global))
+        .unwrap_or_else(|e| panic!("project.db vang mat KHONG duoc lam trot rebuild: {e}"));
+
+    assert_eq!(outcome.indexed, 1);
+    assert_eq!(outcome.text_skipped.len(), 1);
+    assert_eq!(outcome.text_skipped[0].work_id, "id-solo");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_positive_trigram_candidate_that_is_not_a_true_substring_is_rejected_by_verification() {
+    let dir = temp_dir("search-trigram-false-positive");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    // "axbxc ... abq" chua du trigram "abx"/"bxc"/"abq" nhung KHONG chua chuoi con "abc" that.
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "axbxc something abq", vec![])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "abc", 20);
+
+    assert!(report.hits.is_empty(), "'abc' khong phai chuoi con THAT cua fixture nay -- xac minh phai loai no");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn writes_still_sitting_in_the_wal_are_visible_to_a_harvest_right_after_flush() {
+    let dir = temp_dir("search-wal-visible");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    // 🔴 KHÔNG `drop(store)` -- Store vẫn MỞ khi `rebuild` chạy, mô phỏng đúng §Design Notes
+    // "Giới hạn thật": `wal_autocheckpoint = 0` (AD-12) nên WAL của một Tác phẩm vừa flush
+    // xong có thể còn dài, và `ReadOnlyDb` (chỉ đọc) vẫn phải thấy được frame vừa commit.
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("irrelevant", "chu moi nhat con trong wal")])],
+    );
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "moi nhat", 20);
+
+    assert_eq!(report.hits.len(), 1, "chu con trong WAL (chua checkpoint) phai co mat trong chi muc");
+
+    drop(indexer);
+    drop(store);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn deleting_the_index_and_rescanning_reproduces_identical_search_results() {
+    let dir = temp_dir("search-delete-and-rescan");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("uniquesourcexyz", "má của tôi rất hiền")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer lan 1: {e}"));
+    let before = rebuild_and_search(&indexer, &root, &global, "má", 20);
+    assert_eq!(before.hits.len(), 1);
+    drop(indexer);
+
+    // Xoá `library-index.db` + sidecar -- mô phỏng người dùng xoá chỉ mục.
+    let idx = index_path(&dir);
+    let _ = fs::remove_file(&idx);
+    let _ = fs::remove_file(sidecar(&idx, "-wal"));
+    let _ = fs::remove_file(sidecar(&idx, "-shm"));
+
+    let indexer2 = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer lan 2: {e}"));
+    let after = rebuild_and_search(&indexer2, &root, &global, "má", 20);
+
+    assert_eq!(after.hits.len(), before.hits.len());
+    assert_eq!(after.hits[0].work_id, before.hits[0].work_id);
+    assert_eq!(after.hits[0].snippet, before.hits[0].snippet);
+
+    drop(indexer2);
+    drop(global);
+    cleanup(&dir);
+}
+
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// BÀN ĐO p95 — Story 5.9, AC cuối ("đo và ghi lại p95 để đối chiếu ngưỡng NFR3")
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 `#[ignore]` LÀ MỘT QUYẾT ĐỊNH, KHÔNG PHẢI MỘT LƯỢT QUÊN. Một phép kiểm dựa trên thời
+// gian đo MÃ CỘNG MÁY: cùng một dòng mã cho hai con số khác bậc độ lớn tuỳ tải máy lúc chạy,
+// nên dựng nó thành cổng là dựng một cổng chập chờn — và một cổng chập chờn bị người ta học
+// cách bỏ qua. Chạy tay:
+//
+//     cargo test --locked --test library_index_contract -- --ignored --nocapture
+//
+// ⚠️ **Con số ở đây là SƠ BỘ và không nghiệm thu NFR3.** Thư viện tổng hợp dưới đây có đúng
+// một `.atproj` mang 5.000 Chương, trong khi một thư viện THẬT 5.000 Chương trải trên hàng
+// trăm `.atproj` — hình dạng quét khác hẳn. Phép đo đủ điều kiện là **Story 6.18**, sau khi
+// Epic 6 (FR14) có đường tạo 5.000 Chương thật. Ghi kèm phiên bản toolchain và ngày, nếu
+// không thì *"số đo không truy nguyên được thì không phải số đo"*.
+#[test]
+#[ignore = "ban do chay tay: do p95, khong phai mot cong"]
+fn bench_p95_of_a_library_search_over_five_thousand_chapters() {
+    use std::time::Instant;
+
+    const CHAPTERS: usize = 5_000;
+    const SEGMENTS_PER_CHAPTER: usize = 10;
+    const RUNS: usize = 50;
+
+    let dir = temp_dir("bench-p95");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+
+    // Văn bản SINH RA chứ không lặp lại một chuỗi: một chỉ mục toàn hàng giống hệt nhau nén
+    // bất thường và cho một con số đẹp giả. `Box::leak` chỉ hợp lệ vì đây là một bàn đo chạy
+    // tay, một lượt, rồi tiến trình thoát.
+    let mut chapters: Vec<FixtureChapter> = Vec::with_capacity(CHAPTERS);
+    for c in 0..CHAPTERS {
+        let mut segments: Vec<(&'static str, &'static str)> = Vec::with_capacity(SEGMENTS_PER_CHAPTER);
+        for s in 0..SEGMENTS_PER_CHAPTER {
+            let src: &'static str = Box::leak(
+                format!("天下大势{c}分久必合{s}, the quick brown fox number {c}-{s}")
+                    .into_boxed_str(),
+            );
+            let tgt: &'static str = Box::leak(
+                format!("má của tôi rất hiền ở câu {c}-{s}, thiên hạ đại thế phân cửu tất hợp")
+                    .into_boxed_str(),
+            );
+            segments.push((src, tgt));
+        }
+        let title: &'static str = Box::leak(format!("Hoi {c}").into_boxed_str());
+        chapters.push((Some(title), "nguon tho", segments));
+    }
+
+    let (_work_dir, store) =
+        write_atproj_with_real_project_db(&root, "Bench", "id-bench", "Bench", chapters);
+
+    let indexer = Indexer::open(index_path(&dir)).expect("mo chi muc");
+
+    let t_rebuild = Instant::now();
+    indexer.rebuild(&root, Some(&global)).expect("rebuild");
+    let rebuild_ms = t_rebuild.elapsed().as_secs_f64() * 1000.0;
+
+    let sample = indexer.search("phân cửu", 50).expect("search mau");
+    assert!(
+        sample.indexed_segments >= CHAPTERS * SEGMENTS_PER_CHAPTER,
+        "ban do vo nghia neu chi muc chua thu hoach du: indexed_segments = {}",
+        sample.indexed_segments
+    );
+
+    // Truy vấn xoay vòng qua bốn hình dạng THẬT của story: cụm tiếng Việt có dấu (nửa bản
+    // dịch), chuỗi con chữ Hán (nửa nguyên văn, trigram), chuỗi con Latin, và một truy vấn
+    // không khớp gì.
+    let queries = ["má của tôi", "分久必合", "brown fox", "khong khop gi ca"];
+    let mut samples_ms: Vec<f64> = Vec::with_capacity(RUNS);
+    for i in 0..RUNS {
+        let q = queries[i % queries.len()];
+        let t = Instant::now();
+        let _ = indexer.search(q, 50).expect("search");
+        samples_ms.push(t.elapsed().as_secs_f64() * 1000.0);
+    }
+    samples_ms.sort_by(|a, b| a.partial_cmp(b).expect("khong co NaN"));
+    let p95 = samples_ms[((RUNS as f64) * 0.95).ceil() as usize - 1];
+    let p50 = samples_ms[RUNS / 2];
+
+    println!(
+        "\n=== BAN DO p95 (SO BO) — {CHAPTERS} Chuong x {SEGMENTS_PER_CHAPTER} segment = {} hang ===\n\
+         rebuild (thu hoach toan bo): {rebuild_ms:.1} ms\n\
+         search p50: {p50:.3} ms | p95: {p95:.3} ms | nguong NFR3 (TAM): 500 ms\n\
+         ⚠️ SO BO — mot .atproj mang 5.000 Chuong, khong phai hinh dang thu vien that.\n\
+         ⚠️ Phep do du dieu kien: Story 6.18.\n",
+        sample.indexed_segments
+    );
+
+    drop(indexer);
+    drop(store);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// 🔴 **Thư mục gốc biến mất SAU KHI đã thu hoạch chữ THẬT ⇒ tìm kiếm không được trả hit CŨ.**
+///
+/// ⚠️ **Vì sao ca này phải có RIÊNG, dù đã có `a_root_that_existed_with_rows_then_vanishes_…`:**
+/// ca kia dựng fixture bằng [`write_atproj`], nơi `project.db` cố ý KHÔNG phải một tệp SQLite
+/// hợp lệ — nên `harvest_work_text` chưa bao giờ ghi được một hàng `library_segment` nào trước
+/// lúc gốc biến mất. Nó vì thế xanh **kể cả khi** lượt dọn văn bản ở
+/// `Indexer::mark_all_orphaned_for_missing_root` bị gỡ hẳn: nó khẳng định trên một bảng vốn đã
+/// rỗng. Ca này là ca DUY NHẤT trong tệp đi qua `write_atproj_with_real_project_db` **rồi** xoá
+/// gốc, tức ca duy nhất phân biệt được "đã dọn" với "chưa bao giờ có gì để dọn".
+///
+/// 🔴 Đối chứng "ca này đỏ được": gỡ ba câu `DELETE FROM library_segment` + hai lượt
+/// `INSERT INTO …_fts(…) VALUES('rebuild')` ở `indexer.rs::mark_all_orphaned_for_missing_root`
+/// ⇒ `indexed_segments` giữ nguyên 1 và truy vấn cũ vẫn trả một hit trỏ tới một `.atproj`
+/// KHÔNG CÒN TỒN TẠI — ca này FAIL ở đúng hai phép khẳng định cuối.
+#[test]
+fn a_vanished_root_purges_harvested_text_so_search_stops_returning_hits_for_a_gone_work() {
+    let dir = temp_dir("search-root-vanishes");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_work_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("uniquesourcexyz", "má của tôi rất hiền")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+
+    // ── Trước: chữ THẬT đã vào chỉ mục, và truy vấn tìm ra nó ────────────────────────
+    let before = rebuild_and_search(&indexer, &root, &global, "má", 20);
+    assert_eq!(before.hits.len(), 1, "tien de cua ca nay: phai co mot hit THAT truoc khi xoa goc");
+    assert_eq!(before.indexed_segments, 1, "va dung mot hang van ban da duoc thu hoach");
+
+    // ── Gốc Library biến mất (người dùng dời/xoá thư mục, hoặc ổ ngoài rút ra) ───────
+    fs::remove_dir_all(&root).unwrap_or_else(|e| panic!("xoa root: {e}"));
+    assert!(!root.exists());
+
+    let second = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild sau khi xoa root: {e}"));
+    assert!(second.root_missing, "rong phai CO LY DO");
+
+    // ── Sau: không hit nào, và quần thể về 0 ────────────────────────────────────────
+    let after = indexer.search("má", 20).unwrap_or_else(|e| panic!("search sau khi xoa root: {e}"));
+    assert!(
+        after.hits.is_empty(),
+        "tim kiem VAN tra hit cho mot .atproj khong con ton tai -- nguoi dung bam vao se mo mot \
+         Tac pham ma, va khong loi nao duoc nem: {:?}",
+        after.hits
+    );
+    assert_eq!(
+        after.indexed_segments, 0,
+        "quan the phai ve 0 -- neu khong, man hinh noi 'co N dong ma khong khop' trong khi \
+         thu vien that su TRONG, tuc mot cau tra loi dung ve hinh dang nhung sai ve su that"
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// 🔴 **Câu đã CẮT BỎ (`is_omitted = 1`) không được hiện lại qua nửa BẢN DỊCH của tìm kiếm.**
+///
+/// `core/segment/omit.rs` khai `is_omitted` là *"chốt lọc cho MỌI đầu ra"* (FR133/AC5), và
+/// doc-comment của chính module đó dự đoán đúng lỗi này: một bề mặt tiêu thụ MỚI đọc AC của
+/// riêng nó, thấy đủ, rồi phát lại nguyên câu người dùng đã quyết định bỏ. Tìm kiếm là bề mặt
+/// tiêu thụ mới đó.
+///
+/// ⚠️ **Và vế NGƯỢC LẠI cũng là một phép khẳng định, không phải một chi tiết thừa:**
+/// `source_text` của chính câu đó vẫn PHẢI tìm được. FR133 cắt câu khỏi BẢN DỊCH, không xoá nó
+/// khỏi nguyên tác; lọc cả hàng là đổi một lớp rỗng im lặng lấy một lớp rỗng im lặng khác.
+///
+/// 🔴 Đối chứng "ca này đỏ được": bỏ mệnh đề `CASE WHEN is_omitted = 1 THEN ''` ở
+/// `harvest_work_text` ⇒ phép khẳng định thứ nhất FAIL (truy vấn nửa bản dịch trả 1 hit).
+#[test]
+fn an_omitted_sentence_is_gone_from_the_translation_half_but_still_found_in_the_source_half() {
+    let dir = temp_dir("search-omitted");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_work_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("uniquesourceomit", "má của tôi rất hiền")])],
+    );
+
+    // Người dùng CẮT BỎ đúng câu đó khỏi bản dịch (FR133) — `target_text` cố ý GIỮ trên đĩa
+    // (`schema.rs`), nên đây đúng là ca "văn bản còn đó nhưng không được phát ra đâu nữa".
+    store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute("UPDATE segment SET is_omitted = 1", ())?;
+            Ok(())
+        })
+        .unwrap_or_else(|e| panic!("dat is_omitted: {e}"));
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+
+    let target_side = rebuild_and_search(&indexer, &root, &global, "má", 20);
+    assert!(
+        target_side.hits.is_empty(),
+        "cau da CAT BO van hien lai qua doan trich cua nua ban dich -- nguoi dung thay lai dung \
+         cau minh da quyet dinh bo, va khong loi nao duoc nem: {:?}",
+        target_side.hits
+    );
+
+    let source_side = indexer
+        .search("uniquesourceomit", 20)
+        .unwrap_or_else(|e| panic!("search nua nguyen van: {e}"));
+    assert_eq!(
+        source_side.hits.len(),
+        1,
+        "nua NGUYEN VAN phai VAN tim duoc -- FR133 cat cau khoi BAN DICH, khong xoa no khoi \
+         nguyen tac, va FR8 hua tim duoc trong nguyen van cua moi Tac pham"
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// 🔴 **Một trần cắt danh sách phải NÓI RA — `total` không được đọc lên thành "số hàng khớp".**
+///
+/// ⚠️ Bản đầu của story không có [`SearchReport::truncated`], và giao diện đọc `total` thành
+/// *"{total} kết quả"*: một từ thường gặp trong một thư viện thật khớp hàng nghìn hàng, màn
+/// hình nói *"20 kết quả"*, và không một dấu hiệu nào cho biết còn nữa.
+///
+/// 🔴 Đối chứng "ca này đỏ được": trả `truncated: false` cứng ở `Indexer::search` ⇒ phép khẳng
+/// định thứ hai FAIL; lấy đúng `limit` thay vì `limit + 1` ⇒ cũng FAIL (không còn bằng chứng).
+#[test]
+fn a_result_list_cut_by_the_limit_says_so_instead_of_reporting_a_count_that_reads_as_complete() {
+    let dir = temp_dir("search-truncated");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+
+    // Năm câu cùng mang một từ khoá; trần đặt 2 ⇒ chắc chắn bị cắt.
+    let segments: Vec<(&'static str, &'static str)> = vec![
+        ("khong lien quan 1", "má của tôi rất hiền"),
+        ("khong lien quan 2", "má của tôi đi chợ"),
+        ("khong lien quan 3", "má của tôi nấu cơm"),
+        ("khong lien quan 4", "má của tôi trồng rau"),
+        ("khong lien quan 5", "má của tôi hát ru"),
+    ];
+    let (_work_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", segments)],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let cut = indexer.search("má", 2).unwrap_or_else(|e| panic!("search tran 2: {e}"));
+    assert_eq!(cut.hits.len(), 2, "tran phai duoc ton trong");
+    assert_eq!(cut.total, 2, "`total` la so hang DANG HIEN, dung theo khai bao cua no");
+    assert!(
+        cut.truncated,
+        "danh sach bi CAT ma bao cao khong noi ra -- man hinh se khang dinh '2 ket qua' tren \
+         mot kho co 5 hang khop"
+    );
+
+    let whole = indexer.search("má", 20).unwrap_or_else(|e| panic!("search tran 20: {e}"));
+    assert_eq!(whole.hits.len(), 5);
+    assert!(!whole.truncated, "khong bi cat thi KHONG duoc bao la bi cat -- mot canh bao oan \
+         cung la mot loi khai sai");
 
     drop(indexer);
     drop(global);

@@ -30,10 +30,19 @@
 //! - [`Indexer::open`] — mở (hoặc dựng mới) `library-index.db`, hiện thực nhánh KHÔNG-DI-TRÚ
 //!   của AD-8: lệch phiên bản lược đồ (cả hai chiều) ⇒ xoá tệp + sidecar rồi dựng lại, KHÔNG
 //!   đi qua nhánh từ chối mở mà `project.db`/`global.db` dựa vào (AD-30).
-//! - [`Indexer::rebuild`] — quét thư mục gốc Library, đọc **chỉ** `meta.json` của mỗi
-//!   `.atproj` (AD-9: không mở `project.db` lần nào), rồi **ĐỐI CHIẾU** kết quả với
-//!   `library_work` trong **một** giao dịch qua `store::Writer`. 🔵 **ĐỔI NGỮ NGHĨA (Story
-//!   5.3):** trước đây hàm này `DELETE FROM library_work` rồi `INSERT` lại toàn bộ — một
+//! - [`Indexer::rebuild`] — quét thư mục gốc Library, đọc `meta.json` của mỗi `.atproj`, rồi
+//!   **ĐỐI CHIẾU** kết quả với `library_work` trong **một** giao dịch qua `store::Writer`.
+//!   🔵 **SỬA (2026-08-29, Story 5.9) — mệnh đề "đọc CHỈ `meta.json` (AD-9: không mở
+//!   `project.db` lần nào)" ở dòng vừa rồi ĐÃ HẾT ĐÚNG.** Cùng giao dịch đó nay CÒN mở
+//!   `project.db` của mỗi Tác phẩm trong `kept`, **CHỈ ĐỌC** qua [`crate::core::store::ReadOnlyDb`]
+//!   (`StoreKind::Project`, miễn trừ CÓ TÊN ở `core/store/readonly.rs`) để thu hoạch văn bản
+//!   vào `library_segment`/hai chỉ mục FTS5 (FR8, xem [`harvest_work_text`]) — KHÔNG BAO GIỜ
+//!   qua `Store::open` (đường đó GHI vào tệp: `journal_mode`, bộ di trú, luồng writer). AD-9
+//!   ("Indexer chỉ đọc `meta.json`") vẫn đúng cho phần METADATA (`library_work`); nó không còn
+//!   đúng cho TOÀN BỘ mô-đun này. Một lượt trượt thu hoạch (project.db vắng mặt/mới hơn/hỏng)
+//!   CHỈ bỏ qua văn bản của đúng Tác phẩm đó và đếm vào [`RebuildOutcome::text_skipped`] —
+//!   không làm trượt cả lượt `rebuild`, đúng khuôn `conflicts`/`skipped` đã có. 🔵 **ĐỔI NGỮ
+//!   NGHĨA (Story 5.3):** trước đây hàm này `DELETE FROM library_work` rồi `INSERT` lại toàn bộ — một
 //!   `.atproj` bị xoá/di chuyển ra ngoài gốc biến mất khỏi chỉ mục IM LẶNG. Nay nó UPSERT mọi
 //!   mục đọc được vào `library_work`, rồi với mọi hàng CÒN LẠI mà `atproj_path` KHÔNG nằm
 //!   trong tập `.atproj` vừa liệt kê được: ghi một bản ghi vào `library_orphan`
@@ -75,8 +84,8 @@ use std::sync::Mutex;
 
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::{
-    LIBRARY_INDEX_MIGRATIONS, ReadHandle, Row, SqlError, SqlResult, Store, StoreError, StoreKind,
-    StoreSpec, Transaction, params_from_iter,
+    LIBRARY_INDEX_MIGRATIONS, PROJECT_MIGRATIONS, ReadHandle, ReadOnlyDb, Row, SqlError, SqlResult,
+    Store, StoreError, StoreKind, StoreSpec, Transaction, params_from_iter,
 };
 
 use super::meta::WorkMeta;
@@ -305,7 +314,7 @@ impl Indexer {
         // côi ở lượt này — nhưng KHÔNG xoá gì khỏi `library_work` trong CHÍNH giao dịch này.
         // Việc xoá phải đợi bước 2 (ghi `global.db`) thành công trước — xem khối 🔴 ở
         // doc-comment hàm này.
-        let to_orphan: Vec<OrphanRecord> = self.store.write(move |tx: &Transaction<'_>| {
+        let (to_orphan, text_skipped): (Vec<OrphanRecord>, Vec<TextHarvestSkipped>) = self.store.write(move |tx: &Transaction<'_>| {
             // Vế MỘT của vị từ mồ côi — "work_id không đọc được ở lượt này" — thoả bằng
             // chính việc một hàng KHÔNG nằm trong `kept` (nó không được UPSERT ở đây).
             //
@@ -356,6 +365,62 @@ impl Indexer {
                 )?;
             }
 
+            // ─────────────────────────────────────────────────────────────────────────
+            // Story 5.9 — THU HOẠCH VĂN BẢN, TRONG CÙNG GIAO DỊCH NÀY (§Always của story:
+            // "Indexer::rebuild vẫn là đường ghi DUY NHẤT vào library-index.db").
+            // ─────────────────────────────────────────────────────────────────────────
+            // `library_segment`/hai chỉ mục FTS5 là kho DẪN XUẤT TRỌN VẸN (đúng nghĩa AD-8):
+            // không có khái niệm "Tác phẩm mồ côi giữ lại văn bản cũ" ở đây như
+            // `library_work`/`library_orphan` phía trên — mỗi lượt `rebuild` XOÁ SẠCH rồi nạp
+            // lại từ CHÍNH `kept` (tập `.atproj` đọc được `meta.json` Ở LƯỢT NÀY). Một Tác phẩm
+            // vừa mồ côi (`atproj_path` biến mất) mất luôn nội dung tìm kiếm của nó — đúng bản
+            // chất "chỉ mục nói về thư viện ĐANG CÓ", không phải một kho lưu trữ.
+            tx.execute("DELETE FROM library_segment", [])?;
+
+            let mut text_skipped: Vec<TextHarvestSkipped> = Vec::new();
+            for (dir, meta) in &kept {
+                match harvest_work_text(dir) {
+                    Ok(rows) => {
+                        for row in rows {
+                            tx.execute(
+                                "INSERT INTO library_segment \
+                                 (work_id, chapter_id, chapter_ord, chapter_title, segment_id, \
+                                  segment_ord, source_text, target_text) \
+                                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                                (
+                                    &meta.work_id,
+                                    row.chapter_id,
+                                    row.chapter_ord,
+                                    &row.chapter_title,
+                                    row.segment_id,
+                                    row.segment_ord,
+                                    &row.source_text,
+                                    &row.target_text,
+                                ),
+                            )?;
+                        }
+                    }
+                    // 🔴 Một lượt thu hoạch trượt cho ĐÚNG MỘT Tác phẩm KHÔNG được làm trượt cả
+                    // `rebuild` — metadata của nó (`library_work`, vừa UPSERT ở trên) vẫn đúng;
+                    // chỉ phần văn bản của riêng nó vắng mặt, và điều đó phải ĐẾM ĐƯỢC
+                    // (`RebuildOutcome::text_skipped`), không im lặng.
+                    Err(reason) => {
+                        eprintln!(
+                            "library[index:rebuild] bo qua thu hoach van ban cho work_id={} -- {reason}",
+                            meta.work_id
+                        );
+                        text_skipped.push(TextHarvestSkipped { work_id: meta.work_id.clone(), reason });
+                    }
+                }
+            }
+
+            // Nạp lại TOÀN BỘ hai chỉ mục FTS5 từ nội dung `library_segment` VỪA ghi xong —
+            // khuôn 'rebuild' external-content chuẩn của FTS5. Chạy SAU khi mọi `INSERT` ở trên
+            // đã xong: một lượt 'rebuild' quét TOÀN BỘ bảng nội dung tại thời điểm nó chạy,
+            // không phải một API tăng dần theo từng hàng.
+            tx.execute("INSERT INTO library_target_fts(library_target_fts) VALUES('rebuild')", [])?;
+            tx.execute("INSERT INTO library_source_fts(library_source_fts) VALUES('rebuild')", [])?;
+
             // Mọi hàng CÒN LẠI (không vừa UPSERT ở trên): mồ côi khi và chỉ khi `atproj_path`
             // của nó KHÔNG nằm trong `unreadable_paths` — vế HAI của vị từ (P3). Đọc lại toàn
             // bảng trong CÙNG giao dịch (không phải một `Store::read` riêng) để không có cửa
@@ -387,7 +452,7 @@ impl Indexer {
                 });
             }
 
-            Ok(to_orphan)
+            Ok((to_orphan, text_skipped))
         })?;
 
         // Bước 2 (global.db TRƯỚC, rồi library-index.db SAU) — chỉ chạy khi có gì để chuyển.
@@ -421,6 +486,7 @@ impl Indexer {
             skipped,
             orphans: to_orphan.len(),
             current_orphans,
+            text_skipped,
         })
     }
 
@@ -472,6 +538,19 @@ impl Indexer {
             })?;
         }
 
+        // Story 5.9 — gốc vắng mặt ⇒ tập `.atproj` liệt kê được LÀ RỖNG, đúng vị từ mồ côi mà
+        // `rebuild()` bình thường áp cho MỌI hàng đang sống (doc-comment hàm này). `library_segment`
+        // đi theo đúng lý lẽ đó: không Tác phẩm nào SỐNG ⇒ không hàng văn bản nào có lý do tồn
+        // tại. Chạy VÔ ĐIỀU KIỆN (không chỉ khi `existing` không rỗng) — idempotent, và một
+        // lượt gọi hai lần liên tiếp trên gốc vắng mặt không được để lại chữ CŨ trong chỉ mục
+        // tìm kiếm dù `library_work` đã trống từ trước.
+        self.store.write(move |tx: &Transaction<'_>| {
+            tx.execute("DELETE FROM library_segment", [])?;
+            tx.execute("INSERT INTO library_target_fts(library_target_fts) VALUES('rebuild')", [])?;
+            tx.execute("INSERT INTO library_source_fts(library_source_fts) VALUES('rebuild')", [])?;
+            Ok(())
+        })?;
+
         // P3 -- cùng lý do nhánh `rebuild` bình thường: chụp TRONG khi khoá còn sống.
         let current_orphans = orphan_store::list(global)?;
         Ok(RebuildOutcome {
@@ -481,6 +560,7 @@ impl Indexer {
             skipped: Vec::new(),
             orphans,
             current_orphans,
+            text_skipped: Vec::new(),
         })
     }
 
@@ -657,6 +737,72 @@ impl Indexer {
 
         Ok(orphan_store::list(global)?)
     }
+
+    /// **THÊM Story 5.9.** Tìm kiếm full-text xuyên TOÀN BỘ Library (FR8) — chạy CẢ HAI chỉ
+    /// mục (`library_target_fts` nửa bản dịch, `library_source_fts` nửa nguyên văn) MỖI LƯỢT
+    /// gọi và HỢP kết quả (§Always: *"một bộ điều phối chọn một nhánh sẽ trả 0 hàng trên một
+    /// kho CÓ dữ liệu khớp"*, đúng lớp lỗi AD-44 đã ghi ở đường từ điển). Đọc THUẦN khỏi
+    /// `library-index.db` — không một truy vấn nào chạm `.atproj`/`meta.json` (§Never).
+    ///
+    /// Truy vấn dưới [`MIN_SUBSTRING_QUERY_CHARS`] ký tự ⇒ nhánh nguyên văn (`trigram`, sàn
+    /// CỨNG của tokenizer — đo 2026-08-29, SQLite 3.43.2) KHÔNG chạy —
+    /// [`SearchReport::short_query`] báo ra một trạng thái CÓ TÊN, không phải "không có kết
+    /// quả" (§Always). Nhánh bản dịch (`unicode61`) không có sàn đó và VẪN chạy, khớp TRỌN TỪ.
+    ///
+    /// `limit` áp cho MỖI nhánh RIÊNG — hai chỉ mục trả lời hai câu hỏi khác nhau (nửa nguồn,
+    /// nửa dịch), nên một Tác phẩm khớp cả hai không "cướp" hạn mức của nhánh kia.
+    pub fn search(&self, query: &str, limit: usize) -> Result<SearchReport, StoreError> {
+        let limit = limit.clamp(1, MAX_SEARCH_LIMIT);
+        let trimmed = query.trim().to_owned();
+        let short_query = trimmed.chars().count() < MIN_SUBSTRING_QUERY_CHARS;
+
+        self.store.read(move |conn: ReadHandle<'_>| -> SqlResult<SearchReport> {
+            // Quần thể THẬT, KHÔNG phụ thuộc truy vấn — đây là con số phân biệt "chỉ mục
+            // chưa có dòng nào" với "có dòng mà không khớp" (§I/O Matrix, §Always).
+            let indexed_segments: i64 =
+                conn.query_row("SELECT COUNT(*) FROM library_segment", [], |row| row.get(0))?;
+            let indexed_segments = indexed_segments.max(0) as usize;
+
+            if trimmed.is_empty() {
+                // Chỗ gọi (`commands::library::search_library`) không nên gửi một truy vấn
+                // rỗng xuống đây (§I/O Matrix: "0 lượt IPC" ở tầng frontend) — nhưng đây vẫn
+                // là ranh giới AN TOÀN cuối cùng: một cụm rỗng bọc ngoặc kép (`""`) là một
+                // truy vấn FTS5 HỢP LỆ khớp MỌI hàng, đúng thứ không ai muốn ở đây.
+                return Ok(SearchReport {
+                    hits: Vec::new(),
+                    total: 0,
+                    indexed_segments,
+                    short_query: true,
+                    truncated: false,
+                });
+            }
+
+            // Lấy `limit + 1` ở MỖI nhánh: hàng thứ `limit + 1` không bao giờ hiển thị, nó chỉ
+            // là BẰNG CHỨNG rằng còn nữa. Xem [`SearchReport::truncated`].
+            let mut target = search_target_text(&conn, &trimmed, limit + 1)?;
+            let target_truncated = target.len() > limit;
+            target.truncate(limit);
+
+            let mut source = Vec::new();
+            let mut source_truncated = false;
+            if !short_query {
+                source = search_source_text(&conn, &trimmed, limit + 1)?;
+                source_truncated = source.len() > limit;
+                source.truncate(limit);
+            }
+
+            let mut hits = target;
+            hits.extend(source);
+            let total = hits.len();
+            Ok(SearchReport {
+                hits,
+                total,
+                indexed_segments,
+                short_query,
+                truncated: target_truncated || source_truncated,
+            })
+        })
+    }
 }
 
 /// **THÊM Story 5.6.** `SELECT DISTINCT <column> FROM library_work`, sắp theo chính giá trị
@@ -671,6 +817,331 @@ fn distinct_column(conn: &ReadHandle<'_>, column: &str) -> SqlResult<Vec<String>
         conn.prepare(&format!("SELECT DISTINCT {column} FROM library_work ORDER BY {column} COLLATE NOCASE"))?;
     let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
     rows.collect::<SqlResult<Vec<_>>>()
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.9 — TÌM KIẾM FULL-TEXT (FR8). Xem [`Indexer::search`] cho hợp đồng đầy đủ.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Sàn CỨNG của tokenizer `trigram` — dưới 3 ký tự nó không lập chỉ mục được token nào (đo
+/// 2026-08-29, SQLite 3.43.2: `"天下"` trả **0** hàng trên chính văn bản chứa nó). Danh mục
+/// ĐÓNG một hằng số, không một "gần đúng" viết tay ở chỗ gọi.
+pub const MIN_SUBSTRING_QUERY_CHARS: usize = 3;
+
+/// Cỡ trang MẶC ĐỊNH của một lượt [`Indexer::search`] khi chỗ gọi không truyền `limit` —
+/// dùng ở tầng lệnh (`commands::library::search_library`).
+pub const DEFAULT_SEARCH_LIMIT: usize = 50;
+
+/// Trần TRÊN của `limit` — cùng lý lẽ `candidate_ceiling` của `core/dict/query.rs`: không để
+/// một chỗ gọi (hoặc một tham số IPC bất thường) kéo cả `library_segment` vào bộ nhớ.
+const MAX_SEARCH_LIMIT: usize = 500;
+
+/// Hệ số AN TOÀN cho tập ứng viên `trigram` TRƯỚC khi xác minh — cùng lý lẽ
+/// `core/dict/query.rs::candidate_ceiling`: cắt ứng viên TRƯỚC khi xác minh làm số hàng cuối
+/// cùng ít hơn `limit` thật, và một dòng "còn nữa" sẽ nói dối (Bẫy 11 của đường từ điển). 50
+/// là hệ số đã đo đủ rộng cho tỉ lệ dương tính giả tệ nhất từng thấy ở một chỉ mục trigram
+/// trong kho này (`中國` ⇒ 390 ứng viên, 40 sai ≈ 10,3%, `core/dict/query.rs`).
+fn search_candidate_ceiling(limit: usize) -> i64 {
+    const SAFETY_FACTOR: usize = 50;
+    i64::try_from(limit.saturating_mul(SAFETY_FACTOR)).unwrap_or(i64::MAX)
+}
+
+/// 🔴 **Khuôn bọc cụm FTS5 — CHÉP NGUYÊN cách của `core/dict/query.rs:310`, không một "biến
+/// thể" thứ hai.** Truy vấn người dùng đi vào FTS5 dạng CỤM có ngoặc kép, dấu `"` bên trong
+/// NHÂN ĐÔI trước khi bọc (cách thoát của FTS5). Không bọc thì `*` `-` `^` `(` `:` hay từ
+/// `NEAR` làm SQLite trả `SQLITE_ERROR` — tra cứu báo lỗi vì CHÍNH chữ người dùng gõ. Dùng ở
+/// CẢ HAI nhánh (`search_target_text`/`search_source_text`), không có bản thứ hai.
+fn fts_phrase(query: &str) -> String {
+    format!("\"{}\"", query.replace('"', "\"\""))
+}
+
+/// Nửa nào của một segment một hit khớp — danh mục ĐÓNG, hai giá trị. Story 5.9.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchField {
+    /// Khớp ở `target_text` — nửa BẢN DỊCH (`library_target_fts`, `unicode61
+    /// remove_diacritics 0`, phân biệt dấu, khớp TRỌN TỪ).
+    Target,
+    /// Khớp ở `source_text` — nửa NGUYÊN VĂN (`library_source_fts`, `trigram`, đã xác minh
+    /// chuỗi con ở Rust).
+    Source,
+}
+
+impl SearchField {
+    /// Định danh máy đọc — thứ đi trên dây. Không phải nhãn hiển thị (AD-21).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            SearchField::Target => "target",
+            SearchField::Source => "source",
+        }
+    }
+}
+
+/// Một kết quả tìm kiếm — một hàng của `library_segment` khớp truy vấn ở MỘT nửa (`field` nói
+/// nửa nào). Story 5.9.
+#[derive(Debug, Clone)]
+pub struct SearchHit {
+    pub work_id: String,
+    pub work_name: String,
+    pub chapter_id: i64,
+    pub chapter_ord: i64,
+    pub chapter_title: Option<String>,
+    /// `None` ⇒ hit CẤP CHƯƠNG — Chương chưa tách segment sống nào (xem
+    /// [`harvest_work_text`]); lượt mở kết quả để Rust quyết con trỏ (`open_chapter`), không
+    /// đi qua đường dời con trỏ theo segment.
+    pub segment_id: Option<i64>,
+    pub field: SearchField,
+    /// Đoạn trích văn bản THUẦN, cặp dấu `‹…›` bao quanh phần khớp — KHÔNG một thẻ HTML nào
+    /// (AD-16, §Always: *"`snippet()` dùng cặp dấu văn bản thuần"*). Render bằng nội suy Vue
+    /// thường (`{{ }}`), không bao giờ `v-html`.
+    pub snippet: String,
+}
+
+/// Kết quả một lượt [`Indexer::search`] — Story 5.9. Ba trường ngoài `hits` cho tầng trên
+/// (`commands::library::search_library`, rồi `LibraryMode.vue`) đủ dữ kiện phân biệt NĂM ca
+/// rỗng của §I/O Matrix: `indexed_segments == 0` ⇒ chỉ mục chưa có gì; `short_query` ⇒ dưới
+/// sàn trigram; `hits` rỗng mà cả hai trường kia không rơi vào hai ca trên ⇒ không khớp thật.
+#[derive(Debug, Clone)]
+pub struct SearchReport {
+    pub hits: Vec<SearchHit>,
+    /// `hits.len()` — trường TƯỜNG MINH, không suy từ `.length` phía TypeScript (AD-1, cùng lý
+    /// lẽ `WorksReport`/`WorkListReport`).
+    pub total: usize,
+    /// Tổng số hàng CÓ THẬT trong `library_segment`, KHÔNG phụ thuộc truy vấn.
+    pub indexed_segments: usize,
+    /// `true` ⇔ truy vấn dưới [`MIN_SUBSTRING_QUERY_CHARS`] ký tự — nửa nguyên văn (trigram)
+    /// KHÔNG chạy ở lượt này.
+    pub short_query: bool,
+    /// 🔴 `true` ⇔ **ít nhất một nhánh đã chạm trần `limit` và danh sách bị CẮT** — tức
+    /// [`Self::total`] là *"số hàng ĐANG HIỆN"*, **không** phải *"số hàng khớp"*.
+    ///
+    /// ⚠️ Trường này ra đời từ một lượt rà: bản đầu không có nó, và giao diện đọc `total`
+    /// thành *"{total} kết quả"* — một câu khẳng định DỨT KHOÁT trên một con số đã bị trần cắt.
+    /// Một từ thường gặp trong một thư viện thật khớp hàng nghìn hàng và màn hình nói *"100
+    /// kết quả"*, không một dấu hiệu nào cho biết còn nữa. Đó là đúng hình dạng *"một câu trả
+    /// lời đúng về hình dạng nhưng sai về sự thật"* mà `AGENTS.md::Known pitfalls` gọi tên, và
+    /// nó vi phạm chính luật *"không trần nào được cắt trong im lặng"* của story này.
+    ///
+    /// Phát hiện bằng cách lấy `limit + 1` hàng rồi cắt lại còn `limit` — không một truy vấn
+    /// `COUNT(*)` thứ hai trên cùng một `MATCH` (đắt gần bằng chính lượt tìm).
+    pub truncated: bool,
+}
+
+/// **Nhánh bản dịch** — `library_target_fts` (`unicode61 remove_diacritics 0`), khớp TRỌN TỪ,
+/// PHÂN BIỆT dấu. Không bước xác minh: `unicode61` là tokenizer theo TỪ, một kết quả MATCH đã
+/// là một khớp thật (khác `trigram`, nơi MATCH chỉ nói "chứa các trigram này").
+fn search_target_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<Vec<SearchHit>> {
+    let phrase = fts_phrase(query);
+    let limit_i64 = i64::try_from(limit).unwrap_or(i64::MAX);
+    let sql = "\
+        SELECT s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
+               snippet(library_target_fts, 0, '\u{2039}', '\u{203a}', '\u{2026}', 10) \
+        FROM library_target_fts f \
+        JOIN library_segment s ON s.rowid = f.rowid \
+        JOIN library_work w ON w.work_id = s.work_id \
+        WHERE library_target_fts MATCH ?1 \
+        ORDER BY s.work_id, s.chapter_ord, s.segment_ord \
+        LIMIT ?2";
+    let mut stmt = conn.prepare_cached(sql)?;
+    let rows = stmt.query_map((&phrase, limit_i64), |row| {
+        Ok(SearchHit {
+            work_id: row.get(0)?,
+            work_name: row.get(1)?,
+            chapter_id: row.get(2)?,
+            chapter_ord: row.get(3)?,
+            chapter_title: row.get(4)?,
+            segment_id: row.get(5)?,
+            field: SearchField::Target,
+            snippet: row.get(6)?,
+        })
+    })?;
+    rows.collect()
+}
+
+/// **Nhánh nguyên văn** — `library_source_fts` (`trigram`), chuỗi CON thật, phủ được chữ Hán.
+///
+/// 🔴 **PHẢI qua bước xác minh chuỗi con Ở RUST** (§Always) — FTS5 trigram trả lời *"chứa các
+/// trigram này"*, không trả lời *"chứa chuỗi này"* (`core/dict/query.rs:392-394` ghi cùng bài
+/// học ở đường từ điển; `verify_substring` của tệp đó là khuôn). `to_lowercase()` CẢ HAI vế —
+/// trigram KHÔNG phân biệt hoa/thường lúc tìm ứng viên (đo 2026-08-29: `"BROWN"` khớp
+/// `the quick brown fox`), nên xác minh phân biệt hoa/thường sẽ ÂM THẦM LOẠI đúng hàng vừa
+/// tìm được — một hàng rào chống dương-tính-giả biến thành một cỗ máy sinh âm-tính-giả.
+///
+/// Ứng viên lấy tới [`search_candidate_ceiling`] (KHÔNG `LIMIT limit` ở SQL — cùng Bẫy 11 của
+/// `core/dict/query.rs`: cắt trước khi xác minh cho ra ít hơn `limit` mục thật), xác minh, RỒI
+/// mới cắt còn `limit` ở Rust.
+///
+/// 🔴 **`max_tokens` của `snippet()` là 64 ở nhánh này chứ KHÔNG phải 10 như nhánh bản dịch, và
+/// con số đó bị ÉP bởi tokenizer chứ không phải một sở thích.** Một "token" của `trigram` là
+/// một cụm BA KÝ TỰ trượt từng ký tự một, nên 10 token ≈ 12 ký tự. Đo 2026-08-29 (SQLite
+/// 3.43.2) trên một câu dài mang từ khoá `zzqqmarker` ở giữa:
+/// - `trigram`, `max_tokens = 10` ⇒ `"… ‹zzqqmarker› …"` — **không một chữ ngữ cảnh nào**;
+/// - `trigram`, `max_tokens = 64` ⇒ `"…, roi toi doan chua tu khoa ‹zzqqmarker› o giua, va sau do con rat n…"`;
+/// - `unicode61`, `max_tokens = 10` ⇒ `"…doan chua tu khoa ‹zzqqmarker› o giua, va sau do…"` — đủ.
+///
+/// ⇒ AC của story đòi kết quả kèm **đoạn văn bản khớp**; một đoạn chỉ chứa đúng từ khoá không
+/// phải một đoạn văn bản. Hai nhánh vì thế mang HAI con số, và đừng "đồng bộ" chúng.
+fn search_source_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<Vec<SearchHit>> {
+    let phrase = fts_phrase(query);
+    let ceiling = search_candidate_ceiling(limit);
+    let sql = "\
+        SELECT s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
+               s.source_text, \
+               snippet(library_source_fts, 0, '\u{2039}', '\u{203a}', '\u{2026}', 64) \
+        FROM library_source_fts f \
+        JOIN library_segment s ON s.rowid = f.rowid \
+        JOIN library_work w ON w.work_id = s.work_id \
+        WHERE library_source_fts MATCH ?1 \
+        ORDER BY s.work_id, s.chapter_ord, s.segment_ord \
+        LIMIT ?2";
+    let mut stmt = conn.prepare_cached(sql)?;
+    let rows = stmt.query_map((&phrase, ceiling), |row| {
+        let hit = SearchHit {
+            work_id: row.get(0)?,
+            work_name: row.get(1)?,
+            chapter_id: row.get(2)?,
+            chapter_ord: row.get(3)?,
+            chapter_title: row.get(4)?,
+            segment_id: row.get(5)?,
+            field: SearchField::Source,
+            snippet: row.get(7)?,
+        };
+        let source_text: String = row.get(6)?;
+        Ok((hit, source_text))
+    })?;
+    let candidates: Vec<(SearchHit, String)> = rows.collect::<SqlResult<Vec<_>>>()?;
+
+    let needle = query.to_lowercase();
+    let mut verified: Vec<SearchHit> = candidates
+        .into_iter()
+        .filter(|(_, source_text)| source_text.to_lowercase().contains(&needle))
+        .map(|(hit, _)| hit)
+        .collect();
+    verified.truncate(limit);
+    Ok(verified)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.9 — THU HOẠCH VĂN BẢN. Xem [`harvest_work_text`] cho hợp đồng đầy đủ.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Tên tệp `project.db` bên trong một thư mục `.atproj` — cùng literal đã dùng ở
+/// `commands/project.rs` (`dir.join("project.db")`); chưa đủ chỗ dùng xuyên module để đáng một
+/// hằng `pub(crate)` dùng chung.
+const PROJECT_DB_FILE: &str = "project.db";
+
+/// Một hàng văn bản thu hoạch được từ MỘT `project.db` — cấp SEGMENT (`segment_id = Some`) hoặc
+/// cấp CHƯƠNG khi Chương đó chưa có segment SỐNG nào (`segment_id = None`, dùng
+/// `chapter.source_text`; `target_text` rỗng vì bảng `chapter` không có cột bản dịch — AD-32
+/// giữ nguyên ranh giới đó).
+struct HarvestedRow {
+    chapter_id: i64,
+    chapter_ord: i64,
+    chapter_title: Option<String>,
+    segment_id: Option<i64>,
+    segment_ord: i64,
+    source_text: String,
+    target_text: String,
+}
+
+/// Story 5.9 — thu hoạch TOÀN BỘ văn bản (nguyên văn + bản dịch) của MỘT Tác phẩm, đọc CHỈ ĐỌC
+/// qua [`ReadOnlyDb`] (`StoreKind::Project`, miễn trừ CÓ TÊN ở `readonly.rs`) — KHÔNG BAO GIỜ
+/// qua [`Store::open`] (§Always của story: bốn thứ `Store::open` ghi vào tệp, kể cả chạy bộ di
+/// trú, và một lượt quét không sở hữu Tác phẩm này).
+///
+/// `Err(String)` — chẩn đoán KHÔNG DẤU nêu ĐÍCH DANH lý do (`project.db` vắng mặt / phiên bản
+/// lược đồ mới hơn ứng dụng / mở-đọc thất bại) — chỗ gọi ([`Indexer::rebuild`]) đếm nó vào
+/// [`RebuildOutcome::text_skipped`] cùng `work_id`, KHÔNG làm trượt cả lượt `rebuild`.
+///
+/// 🔴 **Kiểm phiên bản lược đồ TRƯỚC khi mở đọc thật** (AD-30): một `project.db` ở phiên bản
+/// MỚI HƠN ứng dụng hiểu có thể mang một hình dạng `chapter`/`segment` mà hai câu SQL dưới đây
+/// KHÔNG biết — đọc mù vào đó là đọc SAI CỘT một cách im lặng, không phải một lỗi ồn ào. Bỏ qua
+/// phần văn bản của đúng Tác phẩm này an toàn hơn.
+fn harvest_work_text(dir: &Path) -> Result<Vec<HarvestedRow>, String> {
+    let project_db_path = dir.join(PROJECT_DB_FILE);
+
+    let found = match crate::core::store::peek_schema_version(&project_db_path, StoreKind::Project) {
+        Ok(None) => return Err("project.db vang mat".to_owned()),
+        Ok(Some(found)) => found,
+        Err(err) => return Err(format!("khong doc duoc phien ban luoc do cua project.db: {err}")),
+    };
+    let target = crate::core::store::schema::target_version(PROJECT_MIGRATIONS);
+    if found > target {
+        return Err(format!(
+            "project.db o schema version {found}, ung dung chi hieu toi {target} -- AD-30 cam \
+             doc sau vao mot luoc do chua biet"
+        ));
+    }
+
+    let db = ReadOnlyDb::open(project_db_path, StoreKind::Project)
+        .map_err(|err| format!("mo project.db chi doc that bai: {err}"))?;
+
+    let result = db.read(|conn: ReadHandle<'_>| -> SqlResult<Vec<HarvestedRow>> {
+        let mut chapters_stmt =
+            conn.prepare("SELECT id, ord, title, source_text FROM chapter ORDER BY ord")?;
+        let chapters: Vec<(i64, i64, Option<String>, String)> = chapters_stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?
+            .collect::<SqlResult<Vec<_>>>()?;
+        drop(chapters_stmt);
+
+        let mut out = Vec::new();
+        for (chapter_id, chapter_ord, chapter_title, chapter_source_text) in chapters {
+            // 🔴 **`is_omitted` LỌC RIÊNG NỬA BẢN DỊCH, không lọc cả hàng** — thêm ở lượt rà
+            // 2026-08-29. `core/segment/omit.rs` khai `is_omitted` là *"chốt lọc cho MỌI đầu
+            // ra"* (FR133/AC5: câu bị cắt phải *"ẩn hoàn toàn, không dấu vết"*), và doc-comment
+            // của chính module đó dự đoán ĐÚNG lỗi này: *"người viết Story 8.3 đọc AC của chính
+            // nó, thấy đủ, và xuất ra một tệp mang nguyên câu người dùng đã quyết định bỏ"*.
+            // Tìm kiếm là một bề mặt tiêu thụ MỚI, nên nghĩa vụ đó áp cho nó.
+            //
+            // ⇒ `target_text` của một câu đã cắt đi vào chỉ mục là chuỗi RỖNG: người dùng đã
+            // quyết định nó không thuộc bản dịch, nên nó không được hiện lại trong một đoạn
+            // trích. `source_text` thì GIỮ NGUYÊN — FR133 cắt câu khỏi BẢN DỊCH, không xoá nó
+            // khỏi nguyên tác, và FR8 hứa tìm được trong nguyên văn của mọi Tác phẩm. Lọc cả
+            // hàng sẽ làm một câu CÓ THẬT trong nguyên tác biến mất khỏi tìm kiếm — một lớp
+            // rỗng im lặng khác, đổi lỗi này lấy lỗi kia.
+            let mut seg_stmt = conn.prepare(
+                "SELECT id, ord, source_text, \
+                        CASE WHEN is_omitted = 1 THEN '' ELSE target_text END \
+                 FROM segment \
+                 WHERE chapter_id = ?1 AND retired_at IS NULL ORDER BY ord",
+            )?;
+            let segments: Vec<(i64, i64, String, String)> = seg_stmt
+                .query_map([chapter_id], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+                })?
+                .collect::<SqlResult<Vec<_>>>()?;
+            drop(seg_stmt);
+
+            if segments.is_empty() {
+                // §I/O Matrix "Chương chưa tách segment" — một hit CẤP CHƯƠNG, chỉ nửa
+                // NGUYÊN VĂN (không cột `target_text` ở `chapter`).
+                out.push(HarvestedRow {
+                    chapter_id,
+                    chapter_ord,
+                    chapter_title: chapter_title.clone(),
+                    segment_id: None,
+                    segment_ord: 0,
+                    source_text: chapter_source_text,
+                    target_text: String::new(),
+                });
+            } else {
+                for (segment_id, segment_ord, source_text, target_text) in segments {
+                    out.push(HarvestedRow {
+                        chapter_id,
+                        chapter_ord,
+                        chapter_title: chapter_title.clone(),
+                        segment_id: Some(segment_id),
+                        segment_ord,
+                        source_text,
+                        target_text,
+                    });
+                }
+            }
+        }
+        Ok(out)
+    });
+
+    db.close();
+    result.map_err(|err| format!("doc du lieu tu project.db that bai: {err}"))
 }
 
 /// Mọi thư mục con của `root` mang đuôi `.atproj`, **sắp xếp** — thứ tự quét phải tất định để
@@ -860,6 +1331,23 @@ pub struct RebuildOutcome {
     /// `created_at`, `updated_at`, `chapter_count`) — nó chỉ có `work_id`/`atproj_path`/`name`,
     /// đúng ba cột của bảng mới. Xem [`super::orphan_store::OrphanRecord`].
     pub current_orphans: Vec<OrphanRecord>,
+    /// **THÊM Story 5.9.** Mọi Tác phẩm (trong `kept` của lượt này) mà lượt thu hoạch VĂN BẢN
+    /// bị bỏ qua — `library_work` của nó vẫn UPSERT bình thường từ `meta.json`; chỉ phần
+    /// `library_segment`/hai chỉ mục FTS5 của đúng Tác phẩm này vắng mặt (`project.db` vắng
+    /// mặt, phiên bản lược đồ mới hơn ứng dụng hiểu, hoặc mở/đọc trượt). Rỗng là bình thường
+    /// (mọi Tác phẩm thu hoạch được); khác `orphans`, một `text_skipped` không rỗng không tự
+    /// nó là một lỗi hệ thống — nó là bằng chứng CÓ TÊN cho một Tác phẩm cụ thể.
+    pub text_skipped: Vec<TextHarvestSkipped>,
+}
+
+/// **THÊM Story 5.9.** Một Tác phẩm mà lượt thu hoạch văn bản của lượt `rebuild` này bị bỏ
+/// qua — xem [`RebuildOutcome::text_skipped`].
+#[derive(Debug, Clone)]
+pub struct TextHarvestSkipped {
+    pub work_id: String,
+    /// Chẩn đoán, KHÔNG DẤU (NFR16) — không phải văn bản hiển thị. Nêu ĐÍCH DANH lý do:
+    /// `project.db` vắng mặt / phiên bản lược đồ mới hơn ứng dụng / mở-đọc thất bại.
+    pub reason: String,
 }
 
 impl RebuildOutcome {
@@ -904,6 +1392,19 @@ impl RebuildOutcome {
                 "library[index:{surface}] {} .atproj thanh mo coi o luot quet nay -- \
                  atproj_path khong con nam trong tap vua liet ke duoc",
                 self.orphans
+            );
+        }
+        // **THÊM Story 5.9** -- cùng đường chẩn đoán, cùng lý do đã ghi ở khối trên: hai chỗ
+        // gọi sản phẩm không được trôi khỏi nhau. Mỗi Tác phẩm bị bỏ qua ĐÃ được ghi riêng
+        // ngay lúc `harvest_work_text` thất bại (`Indexer::rebuild`); dòng tổng hợp này chỉ
+        // cho một chỗ gọi lười biếng đọc `RebuildOutcome` mà không quan tâm dòng log chi tiết.
+        if let Some(first) = self.text_skipped.first() {
+            eprintln!(
+                "library[index:{surface}] {} Tac pham bi bo qua phan van ban khi thu hoach -- \
+                 vd. work_id={} ({})",
+                self.text_skipped.len(),
+                first.work_id,
+                first.reason
             );
         }
     }

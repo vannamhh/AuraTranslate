@@ -29,7 +29,10 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::core::i18n::{IpcError, MessageKey};
-use crate::core::library::indexer::{IndexError, Indexer, IndexedWork, WorkIdConflict, WorkQuery, WorkSortKey};
+use crate::core::library::indexer::{
+    DEFAULT_SEARCH_LIMIT, IndexError, Indexer, IndexedWork, SearchHit as CoreSearchHit,
+    SearchReport as CoreSearchReport, WorkIdConflict, WorkQuery, WorkSortKey,
+};
 use crate::core::library::orphan_store::OrphanRecord;
 use crate::core::lifecycle::LifecycleStatus;
 use crate::core::store::{Store, StoreError, StoreKind};
@@ -397,7 +400,103 @@ pub fn list_works(
     })
 }
 
-/// Bốn vỏ `#[tauri::command]` — ba của Story 5.3, cộng [`library_list_works`] của Story 5.4.
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Một kết quả tìm kiếm, gói lại cho dây IPC — hình dạng `snake_case`, đóng băng ở
+/// `tests/ipc_contract.rs`. Story 5.9.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật mọi struct qua biên (AD-21).
+/// `field` là `String` ("target"/"source"), KHÔNG một enum Rust lộ ra dây — [`SearchField`]
+/// (`core::library::indexer`) là chi tiết TRIỂN KHAI của lõi; hình dạng trên dây tự nó là hợp
+/// đồng, đúng khuôn `WorkRow`/`IndexedWork` ngay trên.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct SearchHit {
+    pub work_id: String,
+    pub work_name: String,
+    pub chapter_id: i64,
+    pub chapter_ord: i64,
+    pub chapter_title: Option<String>,
+    /// `null` ⇒ hit CẤP CHƯƠNG (Chương chưa tách segment sống nào). Lượt mở kết quả
+    /// (`src/modes/librarySearch.ts::openSearchHit`) truyền nó nguyên vẹn xuống
+    /// `openChapterById(chapterId, segmentId)` — `undefined` khi `null`, để Rust quyết con trỏ.
+    pub segment_id: Option<i64>,
+    pub field: String,
+    /// Đoạn trích văn bản THUẦN, cặp dấu `‹…›` bao quanh phần khớp — KHÔNG một thẻ HTML nào
+    /// (AD-16). Render bằng nội suy Vue thường, không `v-html`.
+    pub snippet: String,
+}
+
+impl From<CoreSearchHit> for SearchHit {
+    fn from(hit: CoreSearchHit) -> Self {
+        Self {
+            work_id: hit.work_id,
+            work_name: hit.work_name,
+            chapter_id: hit.chapter_id,
+            chapter_ord: hit.chapter_ord,
+            chapter_title: hit.chapter_title,
+            segment_id: hit.segment_id,
+            field: hit.field.as_str().to_owned(),
+            snippet: hit.snippet,
+        }
+    }
+}
+
+/// Kết quả một lượt [`search_library`] — Story 5.9. Ba trường ngoài `hits` cho
+/// `src/modes/librarySearch.ts` đủ dữ kiện phân biệt NĂM ca rỗng của §I/O Matrix mà không cần
+/// một lượt IPC thứ hai: `indexed_segments == 0` ⇒ chỉ mục chưa có gì; `short_query` ⇒ dưới
+/// sàn trigram; `hits` rỗng mà cả hai trường kia không rơi vào hai ca trên ⇒ không khớp thật.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SearchReport {
+    pub hits: Vec<SearchHit>,
+    /// `hits.len()` — trường TƯỜNG MINH, không suy từ `.length` phía TypeScript (AD-1, cùng lý
+    /// lẽ `WorkListReport::matched`).
+    pub total: usize,
+    pub indexed_segments: usize,
+    pub short_query: bool,
+    /// 🔴 `true` ⇔ danh sách đã bị trần `limit` CẮT — `total` khi đó là *"số hàng đang hiện"*,
+    /// không phải *"số hàng khớp"*. Xem [`crate::core::library::indexer::SearchReport::truncated`]
+    /// cho lý do trường này tồn tại (một trần cắt trong im lặng là một câu khẳng định sai).
+    pub truncated: bool,
+}
+
+impl From<CoreSearchReport> for SearchReport {
+    fn from(report: CoreSearchReport) -> Self {
+        Self {
+            hits: report.hits.into_iter().map(SearchHit::from).collect(),
+            total: report.total,
+            indexed_segments: report.indexed_segments,
+            short_query: report.short_query,
+            truncated: report.truncated,
+        }
+    }
+}
+
+/// **Hàm thuần** — tìm kiếm full-text xuyên TOÀN BỘ Library (FR8), Story 5.9. `query` KHÔNG
+/// được `trim()`/chuẩn hoá ở đây — đó là việc của tầng gọi (frontend không phát IPC cho một ô
+/// tìm rỗng, §I/O Matrix "Truy vấn rỗng"); [`Indexer::search`] tự an toàn với một chuỗi rỗng
+/// nếu nó lỡ tới đây.
+///
+/// `limit = None` ⇒ [`DEFAULT_SEARCH_LIMIT`] — chỗ gọi (webview) không phải biết con số đó.
+///
+/// # Lỗi
+/// `indexer = None` ⇒ `library.indexer_missing` (tái dùng [`indexer_is_missing`], cùng khuôn
+/// mọi lệnh khác của tệp này — danh mục `MessageKey` ĐÓNG của story chỉ tái dùng khoá đã có,
+/// không đúc khoá mới).
+pub fn search_library(
+    indexer: Option<&Indexer>,
+    query: &str,
+    limit: Option<u32>,
+) -> Result<SearchReport, IpcError> {
+    let indexer = indexer.ok_or_else(indexer_is_missing)?;
+    let limit = limit.map(|l| l as usize).unwrap_or(DEFAULT_SEARCH_LIMIT);
+    let report = indexer.search(query, limit)?;
+    Ok(SearchReport::from(report))
+}
+
+/// Năm vỏ `#[tauri::command]` — ba của Story 5.3, [`library_list_works`] của Story 5.4, cộng
+/// [`library_search`] của Story 5.9.
 /// **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use tauri::Manager as _;
@@ -518,5 +617,23 @@ pub mod wire {
             source_lang.as_deref(),
             sort.as_deref(),
         )
+    }
+
+    /// Vỏ IPC của [`super::search_library`] — Story 5.9, FR8.
+    ///
+    /// 🔴 **`(async)`** — khác [`library_list_works`] (một `SELECT` duy nhất): mỗi lượt tìm
+    /// chạy CẢ HAI chỉ mục FTS5 (§Always: không một bộ điều phối chọn một nhánh), và nhánh
+    /// `trigram` còn kéo theo một bước xác minh chuỗi con Ở RUST trên TOÀN BỘ tập ứng viên
+    /// (`search_candidate_ceiling`, tới 50× `limit`) trước khi cắt còn `limit` — nặng hơn hẳn
+    /// một lượt liệt kê `library_work`. Cổng canh:
+    /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
+    #[tauri::command(async)]
+    pub fn library_search(
+        app: tauri::AppHandle,
+        query: String,
+        limit: Option<u32>,
+    ) -> Result<super::SearchReport, IpcError> {
+        let indexer = app.try_state::<Indexer>();
+        super::search_library(indexer.as_deref(), &query, limit)
     }
 }

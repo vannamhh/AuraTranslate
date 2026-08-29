@@ -94,6 +94,16 @@ import {
   prevChapter as prevLibraryChapter,
   renameCurrentChapter as renameCurrentLibraryChapter,
 } from './modes/libraryChapters'
+// ── Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8) ─────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `libraryChapters.ts`: `librarySearch.ts` là một module Vue
+// thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/library.ts`.
+import {
+  nextLibrarySearchHit,
+  openCurrentLibrarySearchHit,
+  prevLibrarySearchHit,
+  runLibrarySearch,
+} from './modes/librarySearch'
 // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `libraryImport.ts`: `sourcePanelState.ts` dùng `ref` của
@@ -392,6 +402,11 @@ async function boot(): Promise<void> {
       moveCurrentLibraryChapterUp,
       moveCurrentLibraryChapterDown,
       mergeCurrentLibraryChapterUp,
+      // Story 5.9 — "Tim kiem full-text xuyen Library" (FR8).
+      runLibrarySearch,
+      nextLibrarySearchHit,
+      prevLibrarySearchHit,
+      openCurrentLibrarySearchHit,
       setOpenWorkOverridePaused: setOpenWorkOverride,
       clearOpenWorkOverride,
       setOpenChapterDone: setOpenChapterStatus,

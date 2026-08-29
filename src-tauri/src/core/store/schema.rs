@@ -1682,6 +1682,38 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 ///   Một Tác phẩm đã dịch xong nhiều Chương không được phép hiện `0 / n` chỉ vì chỉ mục chưa
 ///   từng thấy tiến độ thật của nó — xem §Design Notes "Vì sao `Option<u32>` chứ không `u32`"
 ///   của `5-5-tien-do-tac-pham.md`.
+///
+/// 🔵 **NÂNG (2026-08-29, Story 5.9): `to_version` 5 → 6.** Thêm bảng nội
+/// dung `library_segment` cộng **hai** chỉ mục FTS5 external-content trên nó —
+/// `library_target_fts` (nửa bản dịch) và `library_source_fts` (nửa nguyên văn).
+/// Đây vẫn là kho DẪN XUẤT: cả ba bảng bị `Indexer::rebuild` xoá-và-ghi-lại mỗi
+/// lượt quét (AD-8), không một hàng nào sống sót ngoài một lượt `rebuild`. Xem
+/// `5-9-tim-kiem-full-text-xuyen-library.md` §Design Notes cho lý do CẢ HAI tokenizer đều
+/// bắt buộc:
+/// - `library_segment` — `work_id`/`chapter_id`/`chapter_ord`/`chapter_title` (chép phẳng, để
+///   một hit tìm kiếm không cần một JOIN xuyên Tác phẩm nào); `segment_id` **NULL
+///   được** cho một hàng cấp CHƯƠNG (Chương chưa từng tách segment —
+///   `chapter.source_text` vẫn có chữ); `segment_ord`; `source_text`/`target_text`.
+/// - `library_target_fts(target_text, content='library_segment', content_rowid='rowid',
+///   tokenize="unicode61 remove_diacritics 0")` — PHÂN BIỆT dấu tiếng Việt (AD-27), khớp
+///   TRỌN TỪ. 🔴 `tokenize` viết TƯỜNG MINH: bỏ nó rơi về
+///   `remove_diacritics 1` **im lặng** (đo 2026-08-29, SQLite 3.43.2) — không lỗi, không
+///   cảnh báo, chỉ sai kết quả.
+/// - `library_source_fts(source_text, content='library_segment', content_rowid='rowid',
+///   tokenize="trigram")` — chuỗi CON thật, phủ được chữ Hán (`unicode61` gộp
+///   một dải Hán liền nhau thành MỘT token, nên nó câm với một từ nằm giữa câu —
+///   đo 2026-08-29). Mọi hàng trigram PHẢI qua bước xác minh chuỗi con ở Rust trước
+///   khi hiển thị (`core/library/indexer.rs`, cùng khuôn
+///   `core/dict/query.rs::verify_substring`) — FTS5 trigram trả lời "chứa các trigram
+///   này", không trả lời "chứa chuỗi này".
+///   ⚠️ **AD-27 đứng vững ở CẢ HAI chỉ mục, và vế này phải ĐO chứ không suy ra từ cái tên.**
+///   `trigram` KHÔNG mang mệnh đề `remove_diacritics` nào ở trên, nên câu hỏi *"nó có lặng lẽ
+///   khoan dung dấu không"* là một câu hỏi thật. Đo 2026-08-29 (SQLite 3.43.2): kho bốn hàng
+///   `khoáng sản` · `khoang trong` · `mái nhà` · `mai sau`, truy vấn `"khoáng"` trả **đúng**
+///   `khoáng sản` và `"khoang"` trả **đúng** `khoang trong` — mặc định của `trigram` là PHÂN
+///   BIỆT dấu (tham số `remove_diacritics` của trigram có từ SQLite 3.45 và mặc định là `0`).
+///   ⇒ Không nửa nào của chỉ mục chính khoan dung dấu; chỉ mục khoan dung là `_nd` của Story
+///   5.10, chưa tồn tại. Thêm `remove_diacritics 1` vào dòng trên là phá AD-27 ở nửa nguyên văn.
 pub const LIBRARY_WORK_DDL: &str = "\
 CREATE TABLE schema_migration_log (
   version     INTEGER PRIMARY KEY,
@@ -1700,7 +1732,24 @@ CREATE TABLE library_work (
   status              TEXT,
   status_is_override  INTEGER NOT NULL DEFAULT 0,
   chapter_done_count  INTEGER
-);";
+);
+CREATE TABLE library_segment (
+  work_id       TEXT    NOT NULL,
+  chapter_id    INTEGER NOT NULL,
+  chapter_ord   INTEGER NOT NULL,
+  chapter_title TEXT,
+  segment_id    INTEGER,
+  segment_ord   INTEGER NOT NULL,
+  source_text   TEXT    NOT NULL,
+  target_text   TEXT    NOT NULL
+);
+CREATE INDEX idx_library_segment_work ON library_segment(work_id);
+CREATE VIRTUAL TABLE library_target_fts USING fts5(
+  target_text, content='library_segment', content_rowid='rowid',
+  tokenize=\"unicode61 remove_diacritics 0\");
+CREATE VIRTUAL TABLE library_source_fts USING fts5(
+  source_text, content='library_segment', content_rowid='rowid',
+  tokenize=\"trigram\");";
 
 /// Bộ di trú của `library-index.db` — **đúng MỘT bước, mãi mãi**. Xem doc-comment của
 /// [`LIBRARY_WORK_DDL`] cho lý do đây KHÔNG phải một thiếu sót: kho dẫn xuất không di trú
@@ -1731,8 +1780,15 @@ CREATE TABLE library_work (
 /// thêm vào [`LIBRARY_WORK_DDL`] (viết lại TẠI CHỖ, không một bước di trú thứ năm). Mọi
 /// `library-index.db` ở `to_version` 1..4 bị `Indexer::open` xoá-và-dựng-lại như một tệp lệch
 /// phiên bản bình thường — không mất dữ liệu người dùng thật.
+///
+/// 🔵 **NÂNG LẦN NĂM (2026-08-29, Story 5.9): `to_version` 5 → 6** — bảng `library_segment`
+/// cộng hai chỉ mục FTS5 `library_target_fts`/`library_source_fts` thêm vào [`LIBRARY_WORK_DDL`]
+/// (viết lại TẠI CHỖ, không một bước di trú thứ sáu). Mọi `library-index.db` ở `to_version`
+/// 1..5 bị `Indexer::open` xoá-và-dựng-lại như một tệp lệch phiên bản bình thường — không mất
+/// dữ liệu người dùng thật (kho này dẫn xuất trọn vẹn từ `.atproj`, AD-8; lượt quét kế tiếp thu
+/// hoạch lại toàn bộ văn bản từ `project.db` của mỗi Tác phẩm).
 pub const LIBRARY_INDEX_MIGRATIONS: &[Migration] = &[Migration {
-    to_version: 5,
+    to_version: 6,
     sql: LIBRARY_WORK_DDL,
 }];
 

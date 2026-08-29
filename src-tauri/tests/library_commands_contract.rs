@@ -33,7 +33,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::commands::library::{apply_chosen_root, forget_orphan, list_works, rescan};
+use auratranslate_lib::commands::library::{
+    apply_chosen_root, forget_orphan, list_works, rescan, search_library,
+};
 use auratranslate_lib::core::library::indexer::{Indexer, WorkQuery};
 use auratranslate_lib::core::library::meta::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::load_global_config;
@@ -267,6 +269,13 @@ fn every_library_command_reports_a_missing_indexer_instead_of_panicking() {
     let choose_err = apply_chosen_root(Some(&global), None, Some(&dir))
         .expect_err("không có Indexer thì lượt quét sau khi chọn phải nói ra");
     assert_eq!(choose_err.code(), "library.indexer_missing");
+
+    // 🔵 THÊM (2026-08-29, Story 5.9) — cùng khuôn ba lệnh trên: `search_library` không được
+    // panic khi `Indexer` chưa quản lý, và nó tái dùng ĐÚNG khoá `library.indexer_missing`
+    // (danh mục MessageKey ĐÓNG của story — không đúc khoá thứ ba).
+    let search_err =
+        search_library(None, "bat ky truy van nao", None).expect_err("không có Indexer thì không tìm được");
+    assert_eq!(search_err.code(), "library.indexer_missing");
 
     drop(global);
     cleanup(&dir);

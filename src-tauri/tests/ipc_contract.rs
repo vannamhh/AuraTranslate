@@ -537,6 +537,62 @@ fn library_work_list_wire_structs_keep_snake_case_field_names() {
     );
 }
 
+/// **THÊM Story 5.9.** Đóng băng tên trường `snake_case` của `SearchHit`/`SearchReport` —
+/// cùng lý lẽ và cùng khuôn [`library_work_list_wire_structs_keep_snake_case_field_names`]
+/// ngay trên.
+#[test]
+fn library_search_wire_structs_keep_snake_case_field_names() {
+    let report = auratranslate_lib::commands::library::SearchReport {
+        hits: vec![auratranslate_lib::commands::library::SearchHit {
+            work_id: "id-1".to_owned(),
+            work_name: "Tên".to_owned(),
+            chapter_id: 7,
+            chapter_ord: 1,
+            chapter_title: Some("Chương Một".to_owned()),
+            segment_id: Some(42),
+            field: "target".to_owned(),
+            snippet: "‹má› của tôi".to_owned(),
+        }],
+        total: 1,
+        indexed_segments: 5,
+        short_query: false,
+        truncated: true,
+    };
+    let value = serde_json::to_value(&report).expect("SearchReport phải serialize được");
+    let mut top_keys: Vec<&str> =
+        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    top_keys.sort_unstable();
+    assert_eq!(
+        top_keys,
+        vec!["hits", "indexed_segments", "short_query", "total", "truncated"],
+        "khoá trên dây của SearchReport là snake_case. Nhận được: {top_keys:?}."
+    );
+
+    let hit_value = value
+        .get("hits")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())
+        .expect("hits phải mang ít nhất một mục cho ca test này");
+    let mut hit_keys: Vec<&str> =
+        hit_value.as_object().expect("một mục hits phải serialize thành object").keys().map(String::as_str).collect();
+    hit_keys.sort_unstable();
+    assert_eq!(
+        hit_keys,
+        vec![
+            "chapter_id",
+            "chapter_ord",
+            "chapter_title",
+            "field",
+            "segment_id",
+            "snippet",
+            "work_id",
+            "work_name",
+        ],
+        "khoá trên dây của SearchHit là snake_case. Nhận được: {hit_keys:?}. Nghi phạm số một: \
+         `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+}
+
 /// **THÊM Story 5.4.** Đóng băng tên trường `snake_case` của `WorkLifecycle` — struct trả về
 /// của cả ba lệnh vòng đời (`read_work_lifecycle`/`set_chapter_status`/
 /// `set_work_status_override`).
@@ -698,6 +754,38 @@ fn the_four_chapter_organise_wires_are_registered_and_keep_their_parameter_names
         assert!(
             chapter_src.contains(param),
             "vo IPC cua commands/chapter.rs phai khai `{param}` -- doi ten tham so la doi DAY,              va `src/config/chapter.ts` gui theo ten cu."
+        );
+    }
+}
+
+/// **THÊM Story 5.9.** `library_search` phải CÓ MẶT trong `generate_handler![…]`, và tham số
+/// của nó phải đúng thứ `src/config/library.ts` gõ ở phía kia của dây — cùng lý lẽ và cùng
+/// khuôn [`the_four_chapter_organise_wires_are_registered_and_keep_their_parameter_names`]
+/// ngay trên (khoảng trống đo được, không một lo xa).
+#[test]
+fn the_library_search_wire_is_registered_and_keeps_its_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    assert!(
+        lib_src.contains("crate::commands::library::wire::library_search"),
+        "`crate::commands::library::wire::library_search` phai co mat trong generate_handler! \
+         cua lib.rs. Thieu no thi invoke() tra \"command not found\" va KHONG cong nao do."
+    );
+
+    let library_rs =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("library.rs");
+    let library_src = fs::read_to_string(&library_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", library_rs.display()));
+
+    // Ten tham so tren day. `invoke()` gui `query`/`limit` (mot tu don, hai chieu trung nhau
+    // o day) -- `src/config/library.ts` la cho duy nhat go ca hai.
+    for param in ["query: String", "limit: Option<u32>"] {
+        assert!(
+            library_src.contains(param),
+            "vo IPC `library_search` (commands/library.rs) phai khai `{param}` -- doi ten tham \
+             so la doi DAY, va `src/config/library.ts` gui theo ten cu."
         );
     }
 }
