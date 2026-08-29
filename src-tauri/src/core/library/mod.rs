@@ -45,18 +45,38 @@ pub enum WorkError {
         /// Lỗi thô, chỉ để chẩn đoán.
         detail: String,
     },
+    /// `meta.json` của một `.atproj` **đã có trên đĩa** mang `meta_schema_version` mới hơn
+    /// bản ứng dụng hiểu — **THÊM Story 5.7**, xem khối comment ngay dưới cho vì sao đây là
+    /// một biến thể MỚI thay vì gộp vào [`Self::CreateFailed`] như `From<MetaError>` từng
+    /// làm trước lượt này.
+    MetaTooNew {
+        /// Phiên bản đọc được.
+        found: u32,
+        /// Phiên bản cao nhất bản ứng dụng này hiểu.
+        supported: u32,
+    },
+    /// Mở lại một `.atproj` **đã có trên đĩa** thất bại vì một lý do KHÁC `meta.json` quá
+    /// mới — thư mục biến mất, quyền đọc, `Store::open` từ chối vì một lý do khác
+    /// `SchemaTooNew` (nhánh đó có `MessageKey` riêng, `store.schema_too_new`, không đi qua
+    /// đây). **THÊM Story 5.7**.
+    OpenFailed {
+        /// Tên hiển thị của Tác phẩm, cho câu báo (`err.work.open_failed`).
+        name: String,
+        /// Lỗi thô, chỉ để chẩn đoán.
+        detail: String,
+    },
 }
 
-// **KHÔNG có biến thể `MetaTooNew` ở đây, và đó là một quyết định** — Ice chốt ở lượt
-// code review 2026-08-06. Cơ chế từ chối một `meta.json` mới hơn **vẫn còn nguyên và vẫn
-// có test** ([`MetaError::SchemaTooNew`] + `WorkMeta::read` +
-// `tests/project_contract.rs::a_newer_meta_schema_is_refused_without_touching_a_single_byte`).
-// Thứ bị gỡ là **bề mặt HIỂN THỊ** của nó: story này không dựng màn hình "mở lại một
-// `.atproj` đã có", nên `WorkMeta::read` không có một chỗ gọi sản phẩm nào, nên một
-// `MessageKey` + một khoá `vi.json` cho nó là **một khoá cho tính năng chưa tồn tại** —
-// đúng thứ Story 1.7 §Completion Notes #3 cấm, và `tests/scope_contract.rs` trích lại
-// nguyên văn. 🔴 **Story nào dựng đường mở lại `.atproj` (ứng viên: Epic 5, lưới Tác phẩm)
-// sở hữu việc thêm lại biến thể này + `MessageKey` + khoá `vi.json` CÙNG MỘT LƯỢT.**
+// 🔵 **SỬA 2026-08-29 (Story 5.7) — khối comment dưới đây đã HẾT ĐÚNG, giữ lại kèm gạch
+// ngang thay vì xoá, đúng luật "mệnh đề hết đúng thì sửa tại chỗ, đừng xoá".** ~~*"KHÔNG có
+// biến thể `MetaTooNew` ở đây... Story nào dựng đường mở lại `.atproj` sở hữu việc thêm lại
+// biến thể này + `MessageKey` + khoá `vi.json` CÙNG MỘT LƯỢT."*~~ Story 5.7 LÀ story đó —
+// `commands::project::open_work` (chỗ gọi sản phẩm ĐẦU TIÊN của `WorkMeta::read`, xem
+// doc-comment của hàm đó ở `core/library/meta.rs`) mở lại một `.atproj` đã có trên đĩa, nên
+// biến thể [`WorkError::MetaTooNew`] + `MessageKey::WorkMetaTooNew` + khoá
+// `err.work.meta_too_new` trong `vi.json` được thêm lại đúng như khối comment cũ đã tiên
+// liệu. Cơ chế từ chối bên dưới ([`MetaError::SchemaTooNew`] + `WorkMeta::read`) không đổi
+// một dòng — chỉ bề mặt HIỂN THỊ của nó, từ "không tồn tại" thành "tồn tại".
 
 impl std::fmt::Display for WorkError {
     /// ⚠️ KHÔNG DẤU — chẩn đoán cho log (NFR16).
@@ -64,6 +84,12 @@ impl std::fmt::Display for WorkError {
         match self {
             WorkError::CreateFailed { detail } => {
                 write!(f, "work create failed: {detail}")
+            }
+            WorkError::MetaTooNew { found, supported } => {
+                write!(f, "work meta schema {found} is newer than supported {supported}")
+            }
+            WorkError::OpenFailed { name, detail } => {
+                write!(f, "work open failed for {name}: {detail}")
             }
         }
     }
@@ -75,12 +101,12 @@ impl From<MetaError> for WorkError {
     fn from(err: MetaError) -> Self {
         match err {
             MetaError::Io { detail, .. } => WorkError::CreateFailed { detail },
-            // ⚠️ Gộp vào `CreateFailed` **có chủ ý** — hai con số giữ lại trong chuỗi chẩn
-            // đoán, không mất. Xem khối comment ở trên về vì sao không có một hạng
-            // lỗi hiển thị riêng cho ca này hôm nay.
-            MetaError::SchemaTooNew { found, supported } => WorkError::CreateFailed {
-                detail: format!("meta schema {found} is newer than supported {supported}"),
-            },
+            // 🔵 **SỬA 2026-08-29 (Story 5.7)** — trước lượt này gộp vào `CreateFailed` bằng
+            // một chuỗi chẩn đoán, vì không chỗ gọi sản phẩm nào của `WorkMeta::read` cần
+            // phân biệt nó với các lỗi tạo mới khác. Nay `open_work` CẦN phân biệt (AC8: câu
+            // báo phải "nói đúng loại lỗi", có `found`/`supported`) ⇒ ánh xạ sang biến thể
+            // riêng thay vì gộp.
+            MetaError::SchemaTooNew { found, supported } => WorkError::MetaTooNew { found, supported },
         }
     }
 }
@@ -94,6 +120,17 @@ impl From<WorkError> for IpcError {
         match err {
             WorkError::CreateFailed { .. } => {
                 IpcError::new("work.create_failed", MessageKey::WorkCreateFailed, BTreeMap::new(), false)
+            }
+            WorkError::MetaTooNew { found, supported } => {
+                let mut params = BTreeMap::new();
+                params.insert("found".to_owned(), found.to_string());
+                params.insert("supported".to_owned(), supported.to_string());
+                IpcError::new("work.meta_too_new", MessageKey::WorkMetaTooNew, params, false)
+            }
+            WorkError::OpenFailed { name, .. } => {
+                let mut params = BTreeMap::new();
+                params.insert("name".to_owned(), name);
+                IpcError::new("work.open_failed", MessageKey::WorkOpenFailed, params, false)
             }
         }
     }

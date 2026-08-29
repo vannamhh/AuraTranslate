@@ -140,6 +140,29 @@ export function isSegmentConfirmed(segment: ChapterSegment): boolean {
 export type ChapterSegments = {
   chapter_id: number
   segments: ChapterSegment[]
+  /**
+   * 🔵 **THÊM Story 5.7 (AC4/AC5)** — `segment.id` nơi caret phải đứng khi Chương vừa nạp,
+   * Rust QUYẾT (không suy ra ở webview). `null` chỉ khi Chương không có segment nào —
+   * `number | null`, KHÔNG `number | undefined`: một trường VẮNG MẶT trên dây là hình dạng
+   * SAI, cùng luật `chapter_done_count` của `config/library.ts::WorkRow`.
+   */
+  caret_segment_id: number | null
+}
+
+/**
+ * 🔵 **THÊM Story 5.7.** Vị từ kiểm kiểu LÚC CHẠY — không đào sâu từng `ChapterSegment`
+ * (cùng mức chặt mà kho đã chấp nhận cho hình dạng này trước story), nhưng kiểm CHẶT
+ * `caret_segment_id`: `number | null`, từ chối `undefined` — một trường vắng mặt trên dây là
+ * hình dạng SAI, không phải "chưa biết".
+ */
+function isChapterSegments(value: unknown): value is ChapterSegments {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ChapterSegments>
+  return (
+    typeof v.chapter_id === 'number' &&
+    Array.isArray(v.segments) &&
+    (typeof v.caret_segment_id === 'number' || v.caret_segment_id === null)
+  )
 }
 
 /** Ba trạng thái, cùng khuôn `SplitChapterResult`. */
@@ -168,6 +191,16 @@ export type SaveOutcome = {
 /** Ba trạng thái, cùng khuôn `SplitChapterResult`. */
 export type SaveSegmentTargetsResult = {
   outcome: SaveOutcome | null
+  error: IpcError | null
+}
+
+/**
+ * 🔵 **THÊM Story 5.7.** Ba trạng thái cho `save_chapter_position` — nhưng vế "giá trị"
+ * không mang gì (lệnh Rust trả `()`), nên `saved: true | null` chỉ nói *"đã ghi"* hay
+ * *"chưa/không ghi được"*, cùng khuôn hai trạng thái còn lại của kho.
+ */
+export type SaveChapterPositionResult = {
+  saved: true | null
   error: IpcError | null
 }
 
@@ -330,6 +363,12 @@ const CMD_SPLIT_CHAPTER = 'split_chapter_into_segments'
 const CMD_READ_SEGMENTS = 'read_open_chapter_segments'
 /** Tên command trên dây — đường **flush** của AD-35, Story 2.3. */
 const CMD_SAVE_TARGETS = 'save_segment_targets'
+/**
+ * 🔵 **THÊM Story 5.7 (AC4/AC6).** Tên command trên dây — vị trí làm việc của một Chương
+ * (`chapter_position`). Nhịp ghi RIÊNG (`panels/positionFlush.ts`), KHÔNG mang bảo đảm
+ * AD-35: mất một lượt là mất MỘT LỜI NHẮC, không mất công việc.
+ */
+const CMD_SAVE_CHAPTER_POSITION = 'save_chapter_position'
 /** Tên command trên dây — máy trạng thái AD-31, Story 2.5. */
 const CMD_CONFIRM_SEGMENT = 'confirm_segment'
 /**
@@ -436,7 +475,13 @@ export async function splitChapterIntoSegments(chapterId: number): Promise<Split
  */
 export async function readOpenChapterSegments(): Promise<ReadChapterSegmentsResult> {
   try {
-    const loaded = await invoke<ChapterSegments>(CMD_READ_SEGMENTS)
+    const loaded = await invoke<unknown>(CMD_READ_SEGMENTS)
+    if (!isChapterSegments(loaded)) {
+      console.error(
+        `[segment] \`${CMD_READ_SEGMENTS}\` trả một ChapterSegments SAI HÌNH DẠNG: ${JSON.stringify(loaded)}`,
+      )
+      return { loaded: null, error: UNKNOWN_IPC_ERROR }
+    }
     return { loaded, error: null }
   } catch (err) {
     if (isIpcError(err)) return { loaded: null, error: err }
@@ -496,6 +541,38 @@ export async function saveSegmentTargets(
 
     console.info(`[segment] không gọi được \`${CMD_SAVE_TARGETS}\` — chạy ngoài Tauri? ${String(err)}`)
     return { outcome: null, error: null }
+  }
+}
+
+/**
+ * **THÊM Story 5.7 (AC4/AC6).** Ghi vị trí caret của một Chương xuống `chapter_position`.
+ * Không ném, cùng lý do và cùng khuôn [`saveSegmentTargets`].
+ *
+ * 🔴 **Không mang bảo đảm AD-35** — một lỗi ở đây là một chẩn đoán cho tầng gọi
+ * (`panels/positionFlush.ts`), KHÔNG một hộp thoại chặn người dùng (§I/O Matrix "Ghi vị
+ * trí": *"Lỗi ghi ⇒ chẩn đoán, KHÔNG hộp thoại"*).
+ */
+export async function saveChapterPosition(
+  chapterId: number,
+  segmentId: number,
+): Promise<SaveChapterPositionResult> {
+  try {
+    await invoke<void>(CMD_SAVE_CHAPTER_POSITION, { chapterId, segmentId })
+    return { saved: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { saved: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[segment] \`${CMD_SAVE_CHAPTER_POSITION}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { saved: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[segment] không gọi được \`${CMD_SAVE_CHAPTER_POSITION}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { saved: null, error: null }
   }
 }
 

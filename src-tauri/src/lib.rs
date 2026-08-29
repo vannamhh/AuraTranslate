@@ -327,6 +327,10 @@ pub fn run() {
             crate::commands::config::wire::delete_config,
             crate::commands::project::wire::create_work_from_text,
             crate::commands::project::wire::create_work_from_file,
+            // Story 5.7 -- mo lai mot `.atproj` DA CO tren dia (FR12). `work_id`, KHONG mot
+            // duong dan he tep -- `atproj_path` phan giai o Rust tu `library-index.db` qua
+            // `Indexer::find_work`.
+            crate::commands::project::wire::open_work,
             // Story 5.3 — "Quet lai thu muc" (FR99). Ba vo, ca ba `(async)` -- xem
             // doc-comment cua `commands::library`.
             crate::commands::library::wire::library_rescan,
@@ -345,6 +349,11 @@ pub fn run() {
             // (Quyet dinh #3(a), Ice ky 2026-08-18): webview chi noi HUONG, va luat "ke la
             // gi" — so sanh bo doi `(ord, id)`, khong `ord + 1` — o lai mot cho.
             crate::commands::chapter::wire::open_adjacent_chapter,
+            // Story 5.7 -- danh sach Chuong (AC2) va mo mot Chuong dich danh (AC3). Danh
+            // sach KHONG mang `source_text`; `open_chapter` doi con tro SAU khi truy van
+            // thanh cong, dung khuon `open_adjacent_chapter`.
+            crate::commands::chapter::wire::list_chapters,
+            crate::commands::chapter::wire::open_chapter,
             crate::commands::dict::wire::read_han_viet,
             crate::commands::dict::wire::lookup_dictionary,
             crate::commands::dict::wire::list_dict_sources,
@@ -365,6 +374,10 @@ pub fn run() {
             // mot lan; cham dung hai cot (`target_text` + `updated_at`). Auto-save KHONG
             // doi trang thai va KHONG tao `SegmentVersion` (AD-31 hang 1).
             crate::commands::segment::wire::save_segment_targets,
+            // Story 5.7 -- vi tri lam viec cua moi Chuong (AC4/AC6). Nhip ghi RIENG
+            // (`positionFlush.ts`), KHONG mang bao dam AD-35: mat mot luot la mat MOT LOI
+            // NHAC, khong mat cong viec.
+            crate::commands::segment::wire::save_chapter_position,
             // Story 2.5 — may trang thai AD-31. Mot lenh RIENG: `save_segment_targets`
             // khong doi mot dong, va cau `UPDATE` cua no van cham dung hai cot (AC8).
             // Thao tac ROI RAC ghi NGAY (AD-35), khong di qua bo dem go 2s/5s.

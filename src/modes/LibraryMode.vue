@@ -12,7 +12,7 @@
 // lọc lĩnh vực/ngôn ngữ/sắp xếp, và con trỏ ô (`workCursor`, AC7) đều có mặt.
 //
 // Không chuỗi tiếng Việt nào trong tệp này (NFR16, AD-21) — mọi nhãn đi qua `t()`.
-import { nextTick, onActivated, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
 import type { WorkRow, WorkSortKey } from '../config/library'
 import {
@@ -70,6 +70,19 @@ import {
   setSortKey,
   setSourceLangFilter,
 } from './libraryWorks'
+// ── Story 5.7 — "Danh sách Chương và mở Chương vào Workspace" (FR12) ─────────────────
+import {
+  chapterWindow,
+  libraryChapterCursor,
+  libraryChapters,
+  libraryChaptersBusy,
+  libraryChaptersError,
+  libraryChaptersHaveLoaded,
+  libraryOpenWorkBusy,
+  libraryOpenWorkError,
+  libraryOpenWorkNotice,
+  loadChapters,
+} from './libraryChapters'
 import { t, tError } from '../i18n'
 
 const root = useTemplateRef<HTMLElement>('root')
@@ -99,6 +112,9 @@ onActivated(() => {
   // phản ánh giá trị mới nhất, không giữ ảnh chụp của lần hiện trước.
   void loadWorks()
   void loadOpenWorkLifecycle()
+  // Story 5.7 — cùng lý do: danh sách Chương của Tác phẩm ĐANG MỞ phải phản ánh giá trị mới
+  // nhất mỗi lần quay lại Library (một Chương có thể vừa đổi trạng thái từ Workspace).
+  void loadChapters()
 })
 
 // 🔵 THÊM (2026-08-28) — KHUYẾT TẬT ĐO ĐƯỢC, tìm ra ở lượt chạy e2e đầu tiên của Story 5.4.
@@ -118,6 +134,9 @@ watch(createdWork, (created) => {
   if (created === null) return
   void loadOpenWorkLifecycle()
   void loadWorks()
+  // Story 5.7 — một Tác phẩm MỚI thay `OpenWorkState`, nên danh sách Chương của nó (một
+  // Chương, fresh) phải nạp lại đúng lý lẽ hai lượt tải ngay trên.
+  void loadChapters()
 })
 
 // **KHÔNG có handler `dragenter`/`dragover`/`dragleave`/`drop` của DOM ở đây, và đó là
@@ -194,6 +213,64 @@ watch(
   },
   { flush: 'post' },
 )
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.7 — DANH SÁCH CHƯƠNG CÓ CỬA SỔ (AC2). `chapterWindow()` (`libraryChapters.ts`)
+// là hàm THUẦN; mọi thứ ĐỌC DOM (chiều cao khung nhìn thật, `scrollTop`) sống ở ĐÂY.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Chiều cao MỘT hàng, PIXEL cố định — không đo hình học thật (§Design Notes: chiều cao thay
+ * đổi theo nội dung sẽ đòi bàn đo/e2e, không thuộc vitest). Dùng CẢ cho `<style>` (chiều cao
+ * mỗi `<li>`) LẪN phép tính cửa sổ, để hai bên không lệch nhau bằng hai con số viết tay.
+ */
+const CHAPTER_ROW_HEIGHT_PX = 40
+/** Chiều cao khung nhìn của `.chapters-list` — khớp `max-height` khai ở `<style scoped>`. */
+const CHAPTER_VIEWPORT_HEIGHT_PX = 240
+/** Số hàng đệm THÊM mỗi đầu — một cú cuộn nhanh không thấy khoảng trắng trước khi Vue vá DOM. */
+const CHAPTER_OVERSCAN = 4
+
+const chaptersScrollTop = ref(0)
+const chaptersScrollRef = useTemplateRef<HTMLUListElement>('chaptersScrollRef')
+
+const chaptersWindowSlice = computed(() =>
+  chapterWindow(
+    chaptersScrollTop.value,
+    CHAPTER_VIEWPORT_HEIGHT_PX,
+    CHAPTER_ROW_HEIGHT_PX,
+    libraryChapters.value.length,
+    CHAPTER_OVERSCAN,
+  ),
+)
+
+const visibleChapters = computed(() =>
+  libraryChapters.value.slice(chaptersWindowSlice.value.start, chaptersWindowSlice.value.end),
+)
+
+function onChaptersScroll(event: Event): void {
+  chaptersScrollTop.value = (event.target as HTMLElement).scrollTop
+}
+
+/**
+ * AC2 — "hàng đang chọn luôn nằm trong cửa sổ". `chapterCursor` đổi bằng hai nút thật
+ * (`‹`/`›`), KHÔNG bằng cuộn chuột — nên khi con trỏ ra khỏi `[start, end)` hiện thời, kéo
+ * `scrollTop` để nó vào lại, rồi đồng bộ xuống phần tử THẬT (`@scroll` chỉ đọc NGƯỢC LẠI,
+ * từ DOM vào `chaptersScrollTop`, nên một lượt đổi LẬP TRÌNH phải tự đẩy xuống).
+ *
+ * ⚠️ KHÔNG cùng cơ chế với `editorCaretPlacement`/AD-3: đây là `scrollTop` của một danh
+ * sách CUỘN ẢO ở Library, không phải vị trí làm việc của Editor (AC4) — hai bề mặt khác
+ * hẳn, chỉ tình cờ cùng từ "cuộn".
+ */
+watch(libraryChapterCursor, (cursor) => {
+  const slice = chaptersWindowSlice.value
+  if (cursor < slice.start) {
+    chaptersScrollTop.value = cursor * CHAPTER_ROW_HEIGHT_PX
+  } else if (cursor >= slice.end) {
+    chaptersScrollTop.value = (cursor + 1) * CHAPTER_ROW_HEIGHT_PX - CHAPTER_VIEWPORT_HEIGHT_PX
+  }
+  const el = chaptersScrollRef.value
+  if (el !== null && el.scrollTop !== chaptersScrollTop.value) el.scrollTop = chaptersScrollTop.value
+})
 </script>
 
 <template>
@@ -600,6 +677,22 @@ watch(
           >
             <div class="work-progress-fill" :style="{ width: progressPercent(work) + '%' }"></div>
           </div>
+          <!--
+            Story 5.7 — "Mở Tác phẩm" (FR12). Cùng khuôn `library.forget_orphan`: thao tác
+            trên `currentLibraryWork` (con trỏ), không một tham số qua `dispatch()` — nên NÚT
+            chỉ hiện ở đúng ô đang chọn (`v-if`), tránh việc bấm nút ở một ô KHÁC ô cursor mà
+            lại mở đúng Tác phẩm cursor đang trỏ tới, một hành vi lệch trực quan.
+          -->
+          <button
+            v-if="workIndex === libraryWorkCursor"
+            type="button"
+            class="btn"
+            data-library-open-work
+            :disabled="libraryOpenWorkBusy"
+            @click="dispatch('library.open_work')"
+          >
+            {{ t('mode.library.open_work_button') }}
+          </button>
         </li>
       </ul>
 
@@ -665,6 +758,131 @@ watch(
           >
             {{ t('mode.library.set_chapter_done') }}
           </button>
+        </div>
+
+        <!--
+          Story 5.7 — "Danh sách Chương và mở Chương vào Workspace" (FR12). Cùng khối với
+          "Trạng thái Tác phẩm đang mở" ở trên: cả hai nói về CHÍNH Tác phẩm đang mở.
+        -->
+        <div class="chapters-block">
+          <p class="section-heading">{{ t('mode.library.chapters_heading') }}</p>
+          <!--
+            role="status" LUÔN có mặt -- §Always của story: "danh sách rỗng phải nói vì sao nó
+            rỗng", ba câu phân biệt được (chưa tải · đã tải rỗng · đã tải có n).
+            aura-allow-text: mọi nhánh đều qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi.
+          -->
+          <p class="status" role="status">
+            {{
+              !libraryChaptersHaveLoaded
+                ? t('mode.library.chapters_not_loaded')
+                : libraryChapters.length === 0
+                  ? t('mode.library.chapters_empty')
+                  : t('mode.library.chapters_result', { total: String(libraryChapters.length) })
+            }}
+          </p>
+          <!-- aura-allow-text: như trên, qua tError(). -->
+          <p class="error" role="status">{{ libraryChaptersError ? tError(libraryChaptersError) : '' }}</p>
+          <!--
+            Câu báo khi `openWorkById` bị CHẶN vì tập chờ Editor chưa sạch (§Always) — KHÔNG
+            phải một `IpcError` (đúng khuôn `err.editor.flush_failed` của `libraryImport.ts`).
+            aura-allow-text: mọi nhánh đều qua t()/tError().
+          -->
+          <p class="error" role="status">
+            {{
+              libraryOpenWorkError
+                ? tError(libraryOpenWorkError)
+                : libraryOpenWorkNotice === 'flush-failed'
+                  ? t('mode.library.open_work_flush_failed')
+                  : libraryOpenWorkNotice === 'still-dirty'
+                    ? t('mode.library.open_work_still_dirty')
+                    : ''
+            }}
+          </p>
+
+          <div v-if="libraryChapters.length > 0" class="grid-nav">
+            <button
+              type="button"
+              class="btn"
+              data-library-chapter-prev
+              :aria-label="t('mode.library.chapter_prev')"
+              @click="dispatch('library.chapter_prev')"
+            >
+              ‹
+            </button>
+            <span class="grid-nav-position">{{
+              t('mode.library.chapter_position', {
+                current: String(libraryChapterCursor + 1),
+                total: String(libraryChapters.length),
+              })
+            }}</span>
+            <button
+              type="button"
+              class="btn"
+              data-library-chapter-next
+              :aria-label="t('mode.library.chapter_next')"
+              @click="dispatch('library.chapter_next')"
+            >
+              ›
+            </button>
+            <button
+              type="button"
+              class="btn"
+              data-library-open-chapter
+              :disabled="libraryChaptersBusy || libraryOpenWorkBusy"
+              @click="dispatch('library.open_chapter')"
+            >
+              {{ t('mode.library.open_chapter_button') }}
+            </button>
+          </div>
+
+          <!--
+            Cuộn CÓ CỬA SỔ (AC2) — `chapterWindow()` là một hàm THUẦN (`libraryChapters.ts`),
+            đây chỉ nối `@scroll` → `scrollTop` và render `slice(start, end)` cộng hai `<li>`
+            đệm mang chiều cao tính sẵn. KHÔNG một dòng `scrollTop`/`scrollIntoView` nào tính
+            vị trí LÀM VIỆC của Editor ở đây — đây là một cơ chế KHÁC hẳn AC4 (AD-3).
+          -->
+          <ul
+            v-if="libraryChapters.length > 0"
+            ref="chaptersScrollRef"
+            class="chapters-list"
+            data-library-chapters-list
+            @scroll="onChaptersScroll"
+          >
+            <li class="chapters-pad" :style="{ height: chaptersWindowSlice.padTop + 'px' }" aria-hidden="true"></li>
+            <li
+              v-for="(chapter, idx) in visibleChapters"
+              :key="chapter.chapter_id"
+              class="chapter-row"
+              :class="{ 'chapter-row--current': chaptersWindowSlice.start + idx === libraryChapterCursor }"
+              :aria-current="chaptersWindowSlice.start + idx === libraryChapterCursor ? 'true' : undefined"
+              data-library-chapter-row
+              :style="{ height: CHAPTER_ROW_HEIGHT_PX + 'px' }"
+            >
+              <!-- aura-allow-text: thứ tự Chương là SỐ ĐẾM (dữ liệu), không một câu UI. -->
+              <span class="chapter-ord">{{ chapter.ord }}</span>
+              <!-- aura-allow-text: tiêu đề Chương là DỮ LIỆU người dùng, `chapter_untitled` qua t(). -->
+              <span class="chapter-title">{{
+                chapter.title ?? t('mode.library.chapter_untitled', { ord: String(chapter.ord) })
+              }}</span>
+              <!-- aura-allow-text: mọi nhánh đều qua t(); chapter.status luôn là một trong bốn giá trị (NOT NULL ở Rust). -->
+              <span class="chapter-status">
+                {{
+                  chapter.status === 'not_started'
+                    ? t('lifecycle.not_started')
+                    : chapter.status === 'in_progress'
+                      ? t('lifecycle.in_progress')
+                      : chapter.status === 'paused'
+                        ? t('lifecycle.paused')
+                        : chapter.status === 'done'
+                          ? t('lifecycle.done')
+                          : chapter.status
+                }}
+              </span>
+              <!-- aura-allow-text: số câu là SỐ ĐẾM (dữ liệu), không một câu UI. -->
+              <span class="chapter-segment-count">{{ chapter.segment_count }}</span>
+            </li>
+            <li class="chapters-pad" :style="{ height: chaptersWindowSlice.padBottom + 'px' }" aria-hidden="true"></li>
+          </ul>
         </div>
       </div>
     </div>
@@ -1172,5 +1390,67 @@ watch(
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* Story 5.7 — danh sách Chương, cùng khuôn `.open-work-block` (đường viền trên tách khối). */
+.chapters-block {
+  margin-top: var(--space-panel-block);
+  padding-top: var(--space-panel-block);
+  border-top: 1px solid var(--color-outline);
+}
+
+/*
+ * `overflow-y: auto` + `max-height` cố định — điều kiện của cuộn CÓ CỬA SỔ (AC2): `@scroll`
+ * chỉ bắn khi phần tử THẬT SỰ cuộn được. `max-height` phải khớp `CHAPTER_VIEWPORT_HEIGHT_PX`
+ * ở `<script setup>` — hai con số lệch nhau làm cửa sổ tính sai so với khung nhìn thật.
+ */
+.chapters-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--color-outline);
+  border-radius: 4px;
+}
+
+.chapters-pad {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chapter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.chapter-row--current {
+  background: var(--color-surface-sunken);
+}
+
+.chapter-ord {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+  min-width: 2em;
+  text-align: right;
+}
+
+.chapter-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-status,
+.chapter-segment-count {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 </style>

@@ -757,6 +757,14 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   → ✅ **ĐÃ ĐÓNG 2026-08-20 (Story 3.3).** `commands::glossary::work_context` (`src-tauri/src/commands/glossary.rs`) là chỗ ĐẦU TIÊN trong mã sản phẩm đọc `&open.scope` — nó nạp `(&Store, &ScopeResolver)` từ `OpenWork` rồi truyền cho `core::glossary::store::resolve_term_for_quick_add`, chỗ này tự gọi `ScopeResolver::apply_override` với dữ liệu THẬT ở cả hai tầng khi một Tác phẩm đang mở. Ba command `glossary_lookup_term`/`glossary_add_term`/`glossary_update_term` là bề mặt IPC đầu tiên của module này (`lib.rs::generate_handler!`). `OpenWork.scope` không còn là một trường chỉ được ĐẶT mà không ai ĐỌC.
 
 - ⚠️ **`err.project.meta_too_new` và `MessageKey::ProjectMetaTooNew` ĐÃ BỊ GỠ ở lượt code review 2026-08-06** — Ice chốt. Cơ chế từ chối một `meta.json` phiên bản mới hơn **vẫn còn nguyên và vẫn có test** (`MetaError::SchemaTooNew` + `WorkMeta::read` + `project_contract.rs::a_newer_meta_schema_is_refused_without_touching_a_single_byte`); thứ bị gỡ là **bề mặt hiển thị** của nó. Lý do: Story 1.15 không dựng màn hình *"mở lại một `.atproj` đã có"*, nên `WorkMeta::read` **không có một chỗ gọi sản phẩm nào**, nên một `MessageKey` + một khoá `vi.json` cho nó là **một khoá cho tính năng chưa tồn tại** — đúng thứ Story 1.7 §Completion Notes #3 cấm và `scope_contract.rs` trích lại nguyên văn. 🔴 **Story nào dựng đường mở lại một `.atproj`** *(ứng viên: Epic 5, lưới Tác phẩm)* **thêm lại cả ba thứ — biến thể `ProjectError`, `MessageKey`, khoá `vi.json` — CÙNG MỘT LƯỢT với màn hình.** **(Chủ: một story hạ tầng kiểm thử kế tiếp.)**
+  → ✅ **ĐÃ ĐÓNG 2026-08-29 (Story 5.7).** `commands::project::open_work` là đường mở lại một
+  `.atproj` đã có trên đĩa, và nó thêm lại đúng ba thứ CÙNG MỘT LƯỢT: biến thể
+  `WorkError::MetaTooNew { found, supported }` (`core/library/mod.rs`, thay cho
+  `ProjectError` — tên đã đổi ở lượt tách `core::library` khỏi `core::project` giữa chừng,
+  không phải một lệch); `MessageKey::WorkMetaTooNew`; khoá `err.work.meta_too_new` trong
+  `vi.json`. Ca nghiệm thu:
+  `project_contract.rs::opening_a_work_with_a_newer_meta_schema_is_refused_without_touching_a_single_byte`
+  (từ chối đúng, và `meta.json` không đổi một byte — đối chứng bằng so sánh byte trước/sau).
 
 - ⚠️ **AC2 đếm "đúng ba thành phần", nhưng một `.atproj` đang SỐNG có NĂM mục trên đĩa** — `project.db-wal` và `project.db-shm` là sidecar của chế độ WAL. `project_contract.rs::creating_a_work_lays_down_exactly_three_things_on_disk` lọc hai tệp đó ra trước khi so, và bộ lọc đó **hợp lý** *(chúng là một phần của chính `project.db`, không phải một tệp lạc)* — nhưng nó là một cách **diễn giải lại** AC2 mà story không khai trong năm độ lệch. 🔴 **Quan trọng cho Epic 5:** `Indexer` quét thư mục sẽ gặp **năm** mục, không phải ba, và một lượt quét cho rằng `.atproj` chỉ chứa đúng ba tên sẽ sai. `close()` chạy TRUNCATE nên `-wal` co về 0 byte, **không** biến mất. **(Chủ: một story hạ tầng kiểm thử kế tiếp.)**
 
@@ -2636,6 +2644,15 @@ tới frame sau vẫn chưa có caret nào)* — đánh dấu như vậy để k
   `segment_contract.rs::typed_text_round_trips_through_the_flush_and_the_load_command` — ghi rồi
   đọc lại qua đúng hai lệnh IPC của sản phẩm. **Chủ: Epic 5** *(nhặt lại cùng lượt dựng đường mở
   lại một Tác phẩm)*.
+  → ✅ **ĐÃ ĐÓNG 2026-08-29 (Story 5.7).** `commands::project::open_work` (vỏ IPC
+  `library.open_work`) là đường mở lại một `.atproj` đã có trên đĩa mà mục này chờ — vế
+  "cách duy nhất mở một Tác phẩm là tạo mới nó" đã hết đúng. Đóng trọn cả hai vế của Task
+  7.2: "mở lại" (hàm `open_work`, ca
+  `project_contract.rs::opening_an_existing_atproj_resolves_with_work_scope_and_keeps_glossary_data`
+  dựng một `.atproj` thật trên đĩa, đóng `Store`, rồi mở lại qua đúng đường sản phẩm) VÀ
+  "chữ còn đó" (ca đó ghi một hàng `glossary_entry` trước khi đóng rồi đọc lại được nguyên
+  vẹn sau khi mở lại — cùng cơ chế SQLite/WAL mà `typed_text_round_trips_...` đã canh cho
+  `target_text`, nay canh cho toàn bộ `project.db`, không riêng một bảng).
 
 - ⚠️ **`panic = "abort"` khiến một lần thoát CỨNG không đi qua đường flush lúc thoát** — món nợ
   **kế thừa** từ `close_global_store`/`close_open_work`, story này **không** đóng nó.
@@ -5002,6 +5019,18 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
 - 🔴 **KHÔNG ĐƯỜNG SẢN PHẨM NÀO SINH RA CHƯƠNG THỨ HAI, nên AC1/AC2 xanh mà chưa ai bấm được.** Đo từ nguồn 2026-08-18: `grep -rn "INSERT INTO chapter" src-tauri/src` = **1** kết quả (`commands/project.rs:138`), và hàng đó chèn `ord = 1` **viết cứng**, một lượt, không vòng lặp; `grep -rn "list_chapters\|read_chapters" src src-tauri/src` = **0**. Trên **mọi** `.atproj` tồn tại hôm nay *(21 Tác phẩm thật, mỗi cái đúng 1 Chương — mục `:559-560`)* không có Chương thứ hai để mở. ⇒ Cơ chế của Story 2.11 **đã dựng trọn** và nghiệm thu bằng **hợp đồng dữ liệu** *(8 ca trong `project_contract.rs` chèn Chương thứ hai bằng SQL trực tiếp — chữ ký #1(a) của Ice)*, nhưng **không đường e2e nào** với tới được một lượt chuyển thành công. 🔴 **Đây là một món nợ, KHÔNG một ca đã xanh** — đừng đọc *"409/0/5 cargo xanh"* thành *"người dùng chuyển Chương được"*. **Chủ: Epic 6** *(FR14 — nhập hàng loạt + mẫu phân tách ⇒ nhiều Chương, `epics.md:662`)*; **Epic 5** cũng mở nhánh này ở FR15 *(gộp/tách/sắp lại Chương, `:663`)*. Khuôn ghi nợ này đã có chữ ký hai lần: #8(a) của Story 2.6 và AC3 của Story 2.7.
 
 - 🔴 **AC5 *(mở lại một Chương ⇒ khôi phục đúng segment và vị trí cuộn)* GIAO TRỌN CHO EPIC 5 — Ice ký Quyết định #4 đường (c), 2026-08-18.** Story 2.11 giao **5/6 AC**, đúng khuôn chữ ký ① của Story 2.9. Ba lý do, cả ba đo được: **①** AC5 phát biểu **nguyên văn FR12**, mà bảng ánh xạ giao FR12 cho **Epic 5** (`epics.md:660`), còn story này khai `Covers: FR26` và chỉ FR26; **②** hôm nay **0** mảnh hạ tầng tồn tại — 0/9 `ScopeKind` cho vị trí đọc (`core/scope/kinds.rs:157-219`) · `config_value` nằm ở `global.db` với cột `value TEXT` phẳng chỉ phục vụ ba loại `GlobalOnly` (`schema.rs:98-105`) · `grep -rn "scroll" src-tauri/src` = **0** · lưới **không** một dòng cuộn tường minh nào *(cuộn đến từ hành vi engine sau `target.focus()`, `GridPanel.vue:903-923`, và đường đó chỉ chạy khi `editorCaretPlacement` được đặt — tức **không** chạy ở luồng mở Chương)*; **③** hạ tầng này có **BA** chỗ tiêu thụ, không riêng 2.11 — **UX-DR34** (`epics.md:601`) đòi y hệt cho lượt **đổi chế độ** (*"rời Workspace sang Chế độ đọc rồi quay lại thì vẫn đúng Chương, đúng câu, đúng vị trí cuộn"*). Chọn hình dạng ở đây là chọn cho cả ba, nên nó thuộc story sở hữu cả ba. ⚠️ **Và khi Epic 5 dựng: `segment.id`, KHÔNG pixel.** AD-3 (`SPINE:93`) nói bằng chữ *"mọi dữ liệu gắn theo segment tham chiếu `id`, không bao giờ tham chiếu vị trí"*; một `scrollTop` pixel vô nghĩa ngay khi người dùng đổi cỡ chữ hoặc kéo sash. Đường pixel đã được trình cho Ice và **bị loại**; chọn lại nó là một **AD mới**. **Chủ: Epic 5.**
+  → ✅ **ĐÃ ĐÓNG 2026-08-29 (Story 5.7), đúng hình dạng đã đòi.** Bảng `chapter_position`
+  (bước 17 của `project.db`) giữ `segment.id` — KHÔNG pixel, đúng AD-3 nguyên văn.
+  `read_open_chapter_segments` trả `caret_segment_id` trong CÙNG một lượt `Store::read` với
+  segment (không hai nguồn sự thật), và webview đặt nó vào `editorCaretPlacement` — đường
+  `focus()` ĐÃ CÓ (`GridPanel.vue:1110`, cùng cơ chế mục này trích dẫn) tự cuộn, KHÔNG một
+  hàm cuộn thứ hai được thêm (`grep -rn "scrollTop\|scrollIntoView" src/` không tăng so với
+  baseline). Ca nghiệm thu: `segment_contract.rs` (vị trí lưu rồi đọc lại đúng; vị trí trỏ
+  vào segment về hưu ⇒ rơi về đầu kèm chẩn đoán; Chương chưa từng mở ⇒ segment đầu; Chương
+  rỗng ⇒ `None`). ⚠️ **Vế "①/③" (UX-DR34, đổi CHẾ ĐỘ — Workspace ↔ Chế độ đọc) VẪN CHƯA đóng**
+  — story này chỉ dựng đường cho lượt mở/đổi CHƯƠNG; Chế độ đọc là Epic 5 sau (5.11–5.13,
+  §Never của chính story 5.7). Mở món nợ mới, hẹp hơn: **Chủ: story dựng Chế độ đọc**
+  (5.11–5.13) — khi đó, đọc lại `chapter_position` là hạ tầng đã có sẵn, không phải dựng lại.
 
 - 🟡 **Tiêu điểm sau một lượt chuyển Chương THÀNH CÔNG — cơ chế đã cài, vế nghiệm thu còn HỞ.** `switchChapter` gọi `await nextTick()` rồi `enterFocus('panel.grid')` *(`editorPanelState.ts`)*, và lý do có bằng chứng: lượt chuyển thay **toàn bộ** hàng của `v-for`, `segment.id` là `AUTOINCREMENT` **theo Tác phẩm** nên Chương mới gần như chắc chắn mang tập khoá khác ⇒ Vue **gỡ** đúng ô `contenteditable` đang giữ tiêu điểm ⇒ trình duyệt trả nó về `document.body`, thứ AD-34 §2 cấm thẳng. 🔴 **Nhưng mệnh đề *"tiêu điểm KHÔNG rơi về `body`"* chưa có đường nghiệm thu nào:** `happy-dom` **không phải** WebKit *(và không bố cục)*, còn e2e thì **không tới được** một lượt chuyển thành công — cùng món nợ với mục thứ nhất ở trên. ⇒ Đã cài, **không** tự chấm đạt. **Chủ: cùng story mở đường sinh Chương thứ hai (Epic 6/FR14)** — nghiệm thu vế này **cùng lượt** với AC1/AC2.
 
@@ -5463,6 +5492,16 @@ trước khi nới** — chúng có mặt để lượt đó có dữ liệu th�
   mở lại là một quyết định kiến trúc của toàn Tác phẩm (menu Thư viện, `Indexer`,
   `library-index.db`), không phải một chi tiết của riêng một bảng. **Chủ: Epic 5** (đường mở
   lại `.atproj`) — nhặt món nợ này cùng lượt với món đã ghi ở `deferred-work.md:2465`.
+  → ✅ **ĐÃ ĐÓNG 2026-08-29 (Story 5.7).** `commands::project::open_work` là chính "quyết
+  định kiến trúc của toàn Tác phẩm" mà mục này đòi — không một đường mở lại tạm bợ riêng cho
+  Glossary. Nó dựng lại `ScopeResolver::with_work` đúng thứ tự `create_work` đã dựng (phân
+  giải `atproj_path` từ `library-index.db` qua `Indexer::find_work` → `WorkMeta::read` →
+  `Store::open` → `ScopeResolver::with_work`), nên MỌI hàm tiêu thụ tầng Work đã có
+  (`entries_eligible_for_injection` và các hàm sau nó) hoạt động đúng ngay khi `.atproj` đó
+  được mở lại — không cần sửa gì thêm ở `core::glossary`. Ca nghiệm thu:
+  `project_contract.rs::opening_an_existing_atproj_resolves_with_work_scope_and_keeps_glossary_data`
+  — ghi một hàng `glossary_entry` tầng Tác phẩm, đóng `Store`, mở lại qua `open_work`, khẳng
+  định `scope.has_work_tier()` VÀ hàng đó đọc lại được nguyên vẹn.
 
 - ⚠️ **`entries_eligible_for_injection(resolver, global, work)` nhận `global`/`work` là
   `BTreeMap` ĐÃ NẠP, còn `load_tier`/`insert_entry`/`confirm_translation` bị cấm gọi ngoài
@@ -8309,6 +8348,17 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     khi đường mở lại tồn tại, ba lệnh vòng đời của story này tự nhiên mở rộng ra được cho bất
     kỳ Tác phẩm nào, không cần sửa lại chữ ký của chính chúng — `Option<&mut OpenWork>` đã là
     đúng hình dạng, chỉ thiếu đường ĐẶT một `OpenWork` khác vào đó.)**
+  → 🟡 **ĐÓNG MỘT NỬA 2026-08-29 (Story 5.7).** Nửa "món nợ kiến trúc trung tâm" đã đóng:
+    `commands::project::open_work` là đường ĐẶT một `OpenWork` khác vào `OpenWorkState` mà
+    mục này chờ, và nó dùng đúng `ScopeResolver`/`OpenWork` đã có — không sửa chữ ký của ba
+    lệnh vòng đời. Nhưng **vế còn hở của chính mục này VẪN CÒN HỞ**: mở lại một Tác phẩm qua
+    `open_work` THAY THẾ Tác phẩm đang mở (đóng Tác phẩm cũ qua `Drop`, đúng mô hình "đúng
+    một Tác phẩm mở tại một thời điểm" mà `OpenWorkState`/`Mutex` đã ký từ Story 1.16) — nó
+    KHÔNG mở ra khả năng đổi trạng thái của MỘT Tác phẩm KHÁC trong khi Tác phẩm hiện tại
+    vẫn đang mở (ví dụ: đổi trạng thái một hàng trong lưới Library mà không rời Tác phẩm
+    đang dịch ở Workspace) — đúng câu hỏi gốc mục này đặt ra. **Chủ: story nào cần đúng khả
+    năng đó** (chưa có ứng viên trong Epic 5/6 hôm nay; ghi lại để không ai tưởng Story 5.7
+    đã đóng trọn).
 
 - source_spec: `_bmad-output/implementation-artifacts/5-4-bon-trang-thai-vong-doi.md`
   summary: **Hai spec e2e đỏ MỘT LẦN rồi không tái tạo được — `editor-confirm-segment` (2 ca)
@@ -8337,3 +8387,64 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Ice — cùng chủ với mục "nhịp đêm đỏ hai trên bốn đêm đầu, chết ở CẦU IPC" đã ghi
     từ 2026-08-24: cả hai là câu hỏi về ĐỘ TIN CẬY của bộ e2e, không về một story cụ thể, và
     quyết định "chịu chập chờn tới bao giờ" là quyết định của Ice.)**
+
+## Deferred from: 5-7-danh-sach-chuong-va-mo-chuong-vao-workspace (2026-08-29)
+
+- 🔴 **Bộ e2e KHÔNG kích hoạt được một `<button>` bằng BÀN PHÍM, nên vế *"làm được bằng bàn
+  phím"* của mọi AC dạng NFR17 hiện **không có đường nghiệm thu THẬT** — kể cả những vế mà
+  spec cũ đã khai là đã đo.**
+  evidence: Đo 2026-08-29 trong **một** lượt chạy `story-5-7-open-chapter.e2e.mjs`, cùng phần
+    tử, cùng phiên: `element.focus()` qua `browser.execute` rồi `browser.keys(['Enter'])` cho
+    `window.__logs` **RỖNG** — không một dòng nào từ handler, tức `@click` chưa từng chạy —
+    trong khi `realClick()` ngay sau đó trên **cùng nút** đổi chế độ sang Workspace và nạp
+    lưới `2` hàng. Nguyên nhân: WebDriver gửi phím tới phần tử mà **nó** coi là đang có tiêu
+    điểm, và một lượt `focus()` không đi qua driver không cập nhật trạng thái ấy.
+    ⚠️ **Hệ quả rộng hơn story này:** `story-5-6-library-grid.e2e.mjs` dựng vế AC7 của Story
+    5.6 trên đúng idiom đó (`focusViaJs` + `browser.keys`), và spec ấy **ĐỎ** — đo bằng cách
+    `git stash` toàn bộ lượt sửa của Story 5.7 rồi chạy riêng nó ở `6b2cb24`: vẫn đỏ, cùng
+    thông điệp `type-ahead 'e' không chọn được lựa chọn`. Tức đây **không** là hồi quy của
+    5.7, và nó **không** được đọc thành "5.6 đã đo xong bằng bàn phím".
+    ⇒ Thứ AC đòi (`Tab` tới nút rồi `Enter`) là hành vi **gốc của HTML/WebKit** trên một
+    `<button>` mang `@click` — không một dòng mã sản phẩm nào. Nhưng *"không có mã để hỏng"*
+    **không phải** một phép đo, và ghi nó thành đạt là đúng lỗi mà `AGENTS.md` cấm
+    (*"Không đánh dấu đạt bằng suy luận"*).
+    ⇒ Đường ra cần thử theo thứ tự, **đo từng cái**: ① `browser.action('key')` của WebDriver
+    BiDi thay cho `browser.keys` sau một lượt `realClick` để lấy tiêu điểm hệ điều hành thật;
+    ② `browser.execute` phát một `KeyboardEvent` **tin cậy được** — không làm được, `isTrusted`
+    là thứ JS không dựng ra; ③ chấp nhận rằng bộ e2e chỉ phủ đường CHUỘT và chuyển vế bàn phím
+    sang một bàn đo chạy tay có tiêu điểm hệ điều hành thật.
+    **(Chủ: Ice — cùng chủ với hai mục "nhịp đêm đỏ, chết ở CẦU IPC" và "hai spec chập chờn":
+    cả ba là câu hỏi về ĐỘ TIN CẬY và PHẠM VI của bộ e2e, không về một story cụ thể.)**
+
+- ⚠️ **`story-5-6-library-grid.e2e.mjs` ĐỎ ở baseline `6b2cb24`, và Story 5.6 vẫn đang mở** —
+  ghi ra để lượt chạy e2e kế tiếp không đọc nhầm nó thành hồi quy của Story 5.7.
+  evidence: `Error: type-ahead 'e' không chọn được lựa chọn "E2eGrid<tag>" sau 10 giây`, tái
+    tạo được **ba** lượt: ở lượt chạy trọn bộ (18 spec, 16 xanh / 2 đỏ), ở lượt chạy riêng
+    spec đó trên cây có lượt sửa của 5.7, và ở lượt chạy riêng trên cây **đã `git stash` sạch**
+    tại `6b2cb24`. Ba lượt, cùng thông điệp ⇒ không phải chập chờn, và không đến từ thư mục
+    gốc dùng chung (lượt chạy riêng có thư mục tạm của chính nó).
+    Nó cùng gốc với mục ngay trên: spec đó chọn `<option>` bằng type-ahead sau một lượt
+    `focusViaJs`, tức cùng idiom mà phép đo vừa bác.
+    **(Chủ: Story 5.6 — spec đó thuộc story đó, và story đó còn `blocked`/`in-progress` chờ Ice
+    chốt giữa hai đường (A)/(B) của §Auto Run Result. Story 5.7 KHÔNG sửa bàn đo của story
+    khác: một lượt sửa ở đó sẽ trộn hai diff mà `AGENTS.md` đòi phải đọc được riêng.)**
+
+- ⚠️ **`story-3-5-review.e2e.mjs` đỏ MỘT LẦN ở lượt chạy trọn bộ rồi xanh khi chạy riêng —
+  CHẬP CHỜN, và KHÔNG được đọc thành "đã sửa".**
+  evidence: Ca `config persisted 6 rồi 5 điều khiển hai Work mới; command trả trước event`
+    đỏ với `Expected: 0 / Received: 1` ở lượt chạy trọn bộ 2026-08-29 (16 xanh / 2 đỏ), trong
+    khi **cùng ca đó xanh** ở lượt chạy trọn bộ ngay trước (cùng ngày, cùng cây, trước lượt vá
+    Story 5.7) **và** xanh khi chạy riêng spec đó trên cây đã vá.
+    Hai phép đo bác giả thuyết "hồi quy của Story 5.7": ① `git diff 6b2cb24 --
+    src-tauri/src/commands/project.rs` lọc theo `spawn_import_scan|create_work_from|
+    keep_committed|GlossaryImportScan|reindex_library` cho **0 dòng** — đường quét khi nhập
+    không bị lượt sửa này chạm; ② lượt chạy riêng xanh.
+    ⚠️ Mệnh đề mà ca này khẳng định là một **cuộc đua theo thời gian**, không một bất biến:
+    *"lệnh IPC trả về TRƯỚC khi sự kiện quét nền tới"*. Nó đúng khi máy rảnh và sai khi máy
+    bận — và lượt đỏ rơi đúng vào một lượt chạy ngay sau nhiều lượt `cargo test`/`wdio` nối
+    tiếp trên cùng máy. ⇒ Nghi vấn nghiêng về **tải máy**, nhưng **một lượt xanh không chứng
+    minh nguyên nhân đã mất**: chưa có bước tái tạo nào.
+    ⇒ Bước kế tiếp đúng là **thu bằng chứng** (đếm tỷ lệ đỏ qua vài nhịp đêm), không phải nới
+    ngưỡng hay thêm một lượt chạy lại — cả hai biến ca thành thứ không bao giờ đỏ.
+    **(Chủ: Ice — cùng chủ và cùng hạng với hai mục chập chờn đã ghi từ 2026-08-28
+    (`editor-confirm-segment`, `shortcuts-focus`) và mục "nhịp đêm đỏ, chết ở CẦU IPC".)**

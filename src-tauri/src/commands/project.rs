@@ -790,6 +790,160 @@ pub fn create_work_from_file(
     create_work(documents_root, name, source_lang, genre, imported)
 }
 
+/// `work_id` không có hàng trong `library-index.db` (`Indexer::find_work` trả `None`) —
+/// hàm dựng lỗi **tách riêng** để [`open_work`] và `wire::open_work` dùng chung MỘT nguồn
+/// sự thật cho câu này (đúng khuôn `no_work_open`/`chapter_not_found` của
+/// `commands::chapter`).
+fn work_not_indexed(work_id: &str) -> IpcError {
+    IpcError::new(
+        "library.work_not_indexed",
+        crate::core::i18n::MessageKey::LibraryWorkNotIndexed,
+        std::collections::BTreeMap::from([("work_id".to_owned(), work_id.to_owned())]),
+        false,
+    )
+}
+
+/// **Hàm thuần** — mở lại một `.atproj` **đã có trên đĩa** (Story 5.7, FR12). Khuôn thứ
+/// tự chép NGUYÊN VĂN của [`create_work`], chỉ thay bước *tạo* bằng bước *đọc*: `WorkMeta::
+/// read` → `Store::open` → chọn `chapter_id` → `ScopeResolver::with_work`.
+///
+/// 🔴 **`indexed: Option<&IndexedWork>`, không `&IndexedWork` trần** — đúng khuôn hai lớp
+/// của `src-tauri/AGENTS.md` ("① một hàm thuần nhận `Option<&Store>`... đây là thứ
+/// `tests/**` gọi được không cần webview"): quyết định *"`work_id` lạ ⇒
+/// `library.work_not_indexed`"* là một QUY TẮC, và `mod wire` bên dưới **không một quy tắc
+/// nào sống ở đó** — nó chỉ gọi `Indexer::find_work` rồi chuyển tiếp `Option` xuống đây
+/// nguyên vẹn, để `tests/project_contract.rs` gọi được ca "work_id lạ" mà không cần một
+/// `tauri::AppHandle` thật (crate này không khai `tauri = { features = ["test-utils"] }`).
+///
+/// 🔴 **KHÔNG `remove_folder` ở BẤT KỲ nhánh lỗi nào** — khác hẳn [`create_work`]: `dir` ở
+/// đây là **dữ liệu có sẵn của người dùng** (một `.atproj` đã tồn tại từ trước, được liệt
+/// vào `library-index.db`), không phải một thư mục mà chính lượt gọi này vừa dựng. Một lỗi
+/// đọc `meta.json`/`project.db` giữa chừng không được phép xoá dữ liệu người dùng — nó chỉ
+/// được phép TỪ CHỐI MỞ.
+///
+/// # Lỗi
+/// - `work_id` không có trong chỉ mục ⇒ `library.work_not_indexed`, `OpenWorkState` không
+///   đổi (chỗ gọi chưa từng thấy `OpenWork` nào để đổi);
+/// - `meta.json` mới hơn bản ứng dụng hiểu ⇒ [`crate::core::library::WorkError::MetaTooNew`]
+///   (`work.meta_too_new`) — không một byte nào bị ghi (AC8);
+/// - `meta.json` đọc trượt vì lý do KHÁC (thư mục biến mất, quyền đọc, …) ⇒
+///   [`crate::core::library::WorkError::OpenFailed`] (`work.open_failed`);
+/// - `project.db` mở trượt (kể cả `SchemaTooNew`) ⇒ lỗi kho (`store.*`), qua
+///   `From<StoreError>`.
+pub fn open_work(
+    work_id: &str,
+    indexed: Option<&crate::core::library::indexer::IndexedWork>,
+) -> Result<OpenWork, IpcError> {
+    let indexed = indexed.ok_or_else(|| work_not_indexed(work_id))?;
+    let dir = indexed.atproj_path.clone();
+
+    let meta = match WorkMeta::read(&dir) {
+        Ok(meta) => meta,
+        Err(crate::core::library::MetaError::SchemaTooNew { found, supported }) => {
+            return Err(crate::core::library::WorkError::MetaTooNew { found, supported }.into());
+        }
+        Err(crate::core::library::MetaError::Io { detail, .. }) => {
+            return Err(
+                crate::core::library::WorkError::OpenFailed { name: indexed.name.clone(), detail }
+                    .into(),
+            );
+        }
+    };
+
+    let db_path = dir.join("project.db");
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // 🔴 KIỂM TỆP CÓ MẶT **TRƯỚC** `Store::open` — NẾU KHÔNG, ĐƯỜNG NÀY GHI VÀO
+    //    DỮ LIỆU NGƯỜI DÙNG Ở ĐÚNG NHÁNH LẼ RA PHẢI TỪ CHỐI
+    // ─────────────────────────────────────────────────────────────────────────────
+    // 🔵 **THÊM 2026-08-29 (lượt review)** — [`Store::open`] đi qua
+    // `pragmas::open_connection`, hàm này mang **`SQLITE_OPEN_CREATE`**
+    // (`core/store/pragmas.rs:45-47`). ⇒ Một `.atproj` còn `meta.json` lành lặn nhưng **mất**
+    // `project.db` (xoá tay, ổ mạng chưa gắn, một lượt đồng bộ dở dang) **không** rơi vào
+    // nhánh `OpenFailed` nào cả: nó ÂM THẦM TẠO một `project.db` RỖNG, chạy trọn 17 bước di
+    // trú lên tệp mới ấy, rồi mới trượt ở câu `SELECT id FROM chapter` phía dưới bằng một lỗi
+    // kho CHUNG CHUNG.
+    //
+    // 🔴 Hai điều sai cùng lúc, và điều thứ nhất nặng hơn: ① hàm này **GHI** vào thư mục của
+    // người dùng ở đúng nhánh mà doc-comment của chính nó tuyên bố *"chỉ được phép TỪ CHỐI
+    // MỞ"* — và tệp rỗng đó ở lại trên đĩa sau khi lượt mở trượt, cạnh một `meta.json` vẫn
+    // khai `chapter_count > 0`, tức hai nửa của một `.atproj` nói ngược nhau; ② câu báo cho
+    // người dùng là một lỗi kho, trong khi sự thật là *"Tác phẩm này thiếu mất `project.db`"*
+    // — đúng lớp *"một câu SAI VỀ LOẠI"* mà Story 2.11 đã phải sửa một lần ở
+    // `commands/chapter.rs::chapter_not_found`.
+    //
+    // ⚠️ Kiểm `exists()` là một phép kiểm CÓ CỬA SỔ ĐUA (tệp có thể biến mất ngay sau đó), và
+    // nó **không** cần đóng cửa sổ ấy để đáng giá: ca thật ở đây là một tệp đã vắng mặt **từ
+    // trước** lượt gọi, không phải một lượt xoá xảy ra đúng trong micro-giây đó. Cùng lý lẽ và
+    // cùng khuôn `Store::peek_schema_version` (`core/store/mod.rs`), nơi vòng rà ba lớp P2 đã
+    // phân xử đúng mệnh đề này cho `library-index.db`.
+    if !db_path.exists() {
+        return Err(crate::core::library::WorkError::OpenFailed {
+            name: indexed.name.clone(),
+            detail: format!("project.db khong ton tai trong {}", dir.display()),
+        }
+        .into());
+    }
+
+    let store = Store::open(StoreSpec::project(db_path))?;
+
+    // Chương đầu theo `(ord, id)` -- §Design Notes "Vì sao KHÔNG có Chương mở gần nhất":
+    // hôm nay mọi Tác phẩm có ĐÚNG một Chương, nên đây luôn là hàng duy nhất; câu SQL vẫn
+    // viết đúng cho khi Chương thứ hai tồn tại (Epic 6/Story 5.8), không đoán trước hình
+    // dạng UX của lượt đó.
+    //
+    // 🔵 **SỬA 2026-08-29 (lượt review)** — `query_row` biến "0 hàng" thành
+    // `QueryReturnedNoRows`, tức một **lỗi KHO**, và người dùng đọc *"khong mo duoc kho du
+    // lieu"* cho một `.atproj` mà tệp không hỏng gì cả. Đây là nguyên văn lớp lỗi mà Story
+    // 2.11 đã sửa ở `commands/chapter.rs::chapter_not_found` (xem doc-comment hàm đó). Một
+    // Tác phẩm **không Chương nào** là một trạng thái của DỮ LIỆU, không của kho ⇒ nó đi ra
+    // bằng `work.open_failed`, mang TÊN Tác phẩm để người dùng nhận ra mình đang nói về cái
+    // nào.
+    //
+    // ⚠️ **Vì sao TÁI DÙNG `OpenFailed` chứ không đúc một `MessageKey` thứ tư.** Hôm nay
+    // **0** đường sản phẩm nào tạo được một Tác phẩm không Chương: `create_work` luôn chèn
+    // đúng một hàng `chapter` trong cùng giao dịch, và **0** đường nào xoá Chương (FR15 là
+    // Story 5.8). Ca này chỉ tới được từ một `project.db` bị sửa tay hoặc hỏng. Một khoá
+    // riêng cho nó hôm nay là *"một khoá cho một nhánh không chỗ gọi nào đi qua"* — đúng thứ
+    // Story 1.7 §Completion Notes #3 cấm. ⇒ Khi **Story 5.8** mở đường xoá Chương, ca này có
+    // một chỗ gọi SẢN PHẨM và **lúc đó** nó đáng một khoá riêng.
+    // 🔴 `query_map().next()` chứ KHÔNG `query_row` — chép nguyên khuôn
+    // `commands/chapter.rs::read_open_chapter`, và vì đúng lý do đã ghi ở đó: `query_row`
+    // biến "0 hàng" thành một `QueryReturnedNoRows`, tức một lỗi KHO. `Option` ở đây là một
+    // trạng thái DỮ LIỆU bình thường, và tầng này đổi nó thành một lỗi CÓ TÊN.
+    //
+    // ⚠️ Và **không** bắt nó bằng cách so chuỗi trong `detail` của `StoreError`: `Store::read`
+    // gói mọi `Err` thành một `detail: String`, nên đoán lại lý do từ chuỗi đó là một chẩn
+    // đoán SAI cho hai ca khác hẳn nhau (0 hàng / kho hỏng thật) — cùng lý lẽ định lượng mà
+    // `commands/segment.rs::save_segment_targets` đã ghi cho ô CÓ KIỂU của nó.
+    let found = match store.read(|conn| {
+        let mut stmt = conn.prepare("SELECT id FROM chapter ORDER BY ord, id LIMIT 1")?;
+        let mut rows = stmt.query_map([], |row| row.get::<_, i64>(0))?;
+        rows.next().transpose()
+    }) {
+        Ok(found) => found,
+        Err(err) => {
+            store.close();
+            return Err(err.into());
+        }
+    };
+
+    let Some(chapter_id) = found else {
+        store.close();
+        return Err(crate::core::library::WorkError::OpenFailed {
+            name: indexed.name.clone(),
+            detail: "project.db khong co hang chapter nao".to_owned(),
+        }
+        .into());
+    };
+
+    let scope = crate::core::scope::ScopeResolver::with_work(crate::core::scope::WorkScope {
+        work_id: meta.work_id.clone(),
+    });
+
+    Ok(OpenWork { dir, store, scope, meta, chapter_id })
+}
+
 /// Kiểu state Tauri quản lý — Tác phẩm đang mở, hoặc chưa mở gì (Task 7).
 ///
 /// ⚠️ `Mutex`, không `RwLock`: đúng một Tác phẩm mở tại một thời điểm, và mọi thao tác
@@ -1672,7 +1826,9 @@ mod tests {
 /// Hai vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use super::{IpcError, OpenWork, replace_open_work, resolve_library_root, spawn_import_scan};
+    use crate::core::i18n::MessageKey;
     use crate::core::library::WorkMeta;
+    use crate::core::library::indexer::Indexer;
     use crate::core::store::Store;
 
     /// Thứ hai lệnh trả về — [`WorkMeta`] **cộng đường dẫn thư mục trên đĩa**.
@@ -1707,6 +1863,46 @@ pub mod wire {
                 folder: open.dir.display().to_string(),
             }
         }
+    }
+
+    /// **THÊM Story 5.7.** Kết quả của [`open_work`] (vỏ IPC) — hình dạng [`CreatedWork`]
+    /// MỞ RỘNG thêm `chapter_id`: mở một Tác phẩm đã có luôn kèm Chương nó sẽ mở (Chương
+    /// đầu theo `(ord, id)`, xem §Design Notes "Vì sao KHÔNG có Chương mở gần nhất" của
+    /// `5-7-danh-sach-chuong-va-mo-chuong-vao-workspace.md`), nên trả cả hai trong MỘT lượt
+    /// IPC thay vì bắt webview gọi thêm `read_open_chapter` ngay sau khi mở.
+    ///
+    /// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên.
+    #[derive(Debug, Clone, serde::Serialize)]
+    pub struct OpenedWork {
+        /// Metadata của Tác phẩm vừa mở lại.
+        pub meta: WorkMeta,
+        /// Đường dẫn **tuyệt đối** tới `<Tên>.atproj/` trên máy này — cùng lý do
+        /// [`CreatedWork::folder`].
+        pub folder: String,
+        /// `chapter.id` của Chương đầu theo `(ord, id)` — đúng nguồn sự thật
+        /// [`OpenWork::chapter_id`], không suy lại ở tầng vỏ.
+        pub chapter_id: i64,
+    }
+
+    impl OpenedWork {
+        /// Gói một [`OpenWork`] thành thứ đi qua dây được — cùng khuôn `CreatedWork::from_open`.
+        fn from_open(open: &OpenWork) -> Self {
+            Self {
+                meta: open.meta.clone(),
+                folder: open.dir.display().to_string(),
+                chapter_id: open.chapter_id,
+            }
+        }
+    }
+
+    /// `Indexer` chưa được quản lý (mở `library-index.db` thất bại lúc khởi động) — tái dùng
+    /// [`MessageKey::StoreOpenFailed`] thay vì đúc một khoá thứ ba, đúng khuôn
+    /// `commands::library::indexer_is_missing` (danh mục đóng của story này chỉ thêm ĐÚNG BA
+    /// khoá: `WorkMetaTooNew`/`WorkOpenFailed`/`LibraryWorkNotIndexed`).
+    fn indexer_is_missing() -> IpcError {
+        let mut params = std::collections::BTreeMap::new();
+        params.insert("store".to_owned(), "library_index".to_owned());
+        IpcError::new("library.indexer_missing", MessageKey::StoreOpenFailed, params, false)
     }
 
     /// Đưa Tác phẩm/trạng thái vòng đời vừa ghi vào `library-index.db` — Story 5.2, AD-8
@@ -1821,5 +2017,28 @@ pub mod wire {
             created,
             || spawn_import_scan(app, work_id, chapter_id, scan_source_lang),
         ))
+    }
+
+    /// Vỏ IPC — mở lại một `.atproj` **đã có trên đĩa** (Story 5.7, FR12).
+    ///
+    /// 🔴 Tham số là `work_id`, KHÔNG một đường dẫn hệ tệp (§Never của story):
+    /// `atproj_path` phân giải Ở RUST, từ `library-index.db`, qua [`Indexer::find_work`] —
+    /// webview không bao giờ tự dựng hay truyền một đường dẫn.
+    #[tauri::command]
+    pub fn open_work(app: tauri::AppHandle, work_id: String) -> Result<OpenedWork, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(indexer) = app.try_state::<Indexer>() else {
+            return Err(indexer_is_missing());
+        };
+
+        // 🔴 **Không một quy tắc nào sống ở đây** — `indexed` (kể cả `None`) chuyển thẳng
+        // xuống hàm thuần [`super::open_work`], nơi quyết định *"`None` ⇒
+        // `library.work_not_indexed`"* thật sự sống (xem doc-comment của hàm đó).
+        let indexed = indexer.find_work(&work_id)?;
+        let opened = super::open_work(&work_id, indexed.as_ref())?;
+        let result = OpenedWork::from_open(&opened);
+        replace_open_work(&app, opened);
+        Ok(result)
     }
 }

@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::commands::segment::{
     confirm_segment, flush_segment_targets, read_open_chapter_segments, read_segment_history,
-    save_segment_targets, set_segment_omitted, split_chapter_into_segments,
+    save_chapter_position, save_segment_targets, set_segment_omitted, split_chapter_into_segments,
     restore_segment_version, unconfirm_edited_segments, SegmentTargetEdit, SplitOutcome,
 };
 use auratranslate_lib::core::i18n::MessageKey;
@@ -606,15 +606,19 @@ fn the_migration_doc_headers_state_the_target_their_array_reaches() {
 /// `work.status_override` (FR6, KHÔNG có bước song sinh ở `GLOBAL_MIGRATIONS` — bảng `work`
 /// chỉ tồn tại ở `project.db`). Danh sách **nguyên văn** dưới đây lại đổi, hàm test lại
 /// không đổi một chữ.
+///
+/// 🔵 **CẬP NHẬT 2026-08-29 (Story 5.7).** Bước **17** ra đời cùng bảng `chapter_position`
+/// (AD-3, KHÔNG có bước song sinh ở `GLOBAL_MIGRATIONS` — bảng đó chỉ tồn tại ở
+/// `project.db`). Danh sách **nguyên văn** dưới đây lại đổi, hàm test lại không đổi một chữ.
 #[test]
 fn the_project_migration_set_matches_the_declared_ladder_step_for_step() {
     let versions: Vec<u32> = PROJECT_MIGRATIONS.iter().map(|m| m.to_version).collect();
 
     assert_eq!(
         versions,
-        vec![1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+        vec![1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
         "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 \
-         -> 12 -> 13 -> 14 -> 15 -> 16 (4 la so da chay)"
+         -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 (4 la so da chay)"
     );
 }
 
@@ -682,8 +686,8 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        16,
-        "buoc 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 VA 16 phai da chay tren mot tep dung o phien ban 4"
+        17,
+        "buoc 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 VA 17 phai da chay tren mot tep dung o phien ban 4"
     );
 
     let has_segment: i64 = migrated
@@ -844,8 +848,8 @@ fn a_project_database_at_version_five_migrates_up_and_keeps_every_segment_row() 
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        16,
-        "buoc 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 VA 16 phai chay tren mot tep dung o phien ban 5"
+        17,
+        "buoc 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 5"
     );
 
     let rows: Vec<(i64, String, String)> = migrated
@@ -906,10 +910,12 @@ fn a_fresh_project_database_lands_at_the_target_with_a_status_column_and_a_versi
     // gia tri term_origin thu tu). Menh de cua ca nay KHONG doi mot chu.
     // 🔵 CAP NHAT 2026-08-27 (Story 5.4): dich 15 → 16 — buoc 16 (work.status_override, FR6).
     // Menh de cua ca nay KHONG doi mot chu.
+    // 🔵 CAP NHAT 2026-08-29 (Story 5.7): dich 16 → 17 — buoc 17 (chapter_position, AD-3).
+    // Menh de cua ca nay KHONG doi mot chu.
     assert_eq!(
         opened.store.schema_version(),
-        16,
-        "mot `project.db` moi phai dung o phien ban 16 (Story 5.4 them work.status_override)"
+        17,
+        "mot `project.db` moi phai dung o phien ban 17 (Story 5.7 them chapter_position)"
     );
 
     let (notnull, default_value): (i64, String) = opened
@@ -1030,8 +1036,8 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        16,
-        "buoc 7, 8, 9, 10, 11, 12, 13, 14, 15 VA 16 phai chay tren mot tep dung o phien ban 6"
+        17,
+        "buoc 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 6"
     );
 
     let rows: Vec<(i64, String, String, String)> = migrated
@@ -1328,8 +1334,8 @@ fn a_project_database_at_version_nine_gains_the_index_and_no_version_row_is_touc
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        16,
-        "buoc 10, 11, 12, 13, 14, 15 VA 16 phai chay tren mot tep dung o phien ban 9"
+        17,
+        "buoc 10, 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 9"
     );
 
     // Index co mat SAU luot di tru -- day la nua "buoc 10 that su da chay".
@@ -1438,8 +1444,8 @@ fn a_project_database_at_version_seven_migrates_up_and_no_old_row_is_omitted() {
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        16,
-        "buoc 8, 9, 10, 11, 12, 13, 14, 15 VA 16 phai chay tren mot tep dung o phien ban 7"
+        17,
+        "buoc 8, 9, 10, 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 7"
     );
 
     let rows: Vec<(i64, String, String, String, i64)> = migrated
@@ -1645,8 +1651,8 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        16,
-        "buoc 9, 10, 11, 12, 13, 14, 15 VA 16 phai chay tren mot tep dung o phien ban 8"
+        17,
+        "buoc 9, 10, 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 8"
     );
 
     let rows: Vec<(i64, i64, i64)> = migrated
@@ -1739,9 +1745,15 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
 /// một fixture dừng ở 16 mô phỏng đúng bản hôm nay ⇒ ca này sẽ **xanh mà không bao giờ chạm
 /// nhánh AD-30**. `STEP_SIXTEEN` → `STEP_SEVENTEEN`; mảng lên `[Migration; 16]`; bước giả
 /// lên `to_version: 17`.
+///
+/// 🔵 **CẬP NHẬT 2026-08-29 (Story 5.7) — fixture nâng từ 17 lên 18**, và đây là **lượt lặp
+/// lại thứ MƯỜI**. Bước 17 (`CHAPTER_POSITION_DDL`, AD-3) nay là một bước **thật**, nên một
+/// fixture dừng ở 17 mô phỏng đúng bản hôm nay ⇒ ca này sẽ **xanh mà không bao giờ chạm
+/// nhánh AD-30**. `STEP_SEVENTEEN` → `STEP_EIGHTEEN`; mảng lên `[Migration; 17]`; bước giả
+/// lên `to_version: 18`.
 #[test]
 fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
-    static STEP_SEVENTEEN: [Migration; 16] = [
+    static STEP_EIGHTEEN: [Migration; 17] = [
         PROJECT_MIGRATIONS[0],
         PROJECT_MIGRATIONS[1],
         PROJECT_MIGRATIONS[2],
@@ -1757,9 +1769,10 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         PROJECT_MIGRATIONS[12],
         PROJECT_MIGRATIONS[13],
         PROJECT_MIGRATIONS[14],
-        // Mot buoc 17 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
+        PROJECT_MIGRATIONS[15],
+        // Mot buoc 18 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
         Migration {
-            to_version: 17,
+            to_version: 18,
             sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
         },
     ];
@@ -1768,18 +1781,18 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
     let db = dir.join("project.db");
 
     let future = Store::open(StoreSpec {
-        migrations: &STEP_SEVENTEEN,
+        migrations: &STEP_EIGHTEEN,
         ..StoreSpec::project(db.clone())
     })
-    .expect("dung fixture o phien ban 17");
-    assert_eq!(future.schema_version(), 17);
+    .expect("dung fixture o phien ban 18");
+    assert_eq!(future.schema_version(), 18);
     drop(future);
 
     let before = fs::metadata(&db).expect("doc metadata truoc").len();
 
     let refused = Store::open(StoreSpec::project(db.clone()));
     let err = refused.err().expect(
-        "mot `project.db` o phien ban 17 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
+        "mot `project.db` o phien ban 18 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
     );
     let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
     assert_eq!(
@@ -5528,8 +5541,8 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        16,
-        "buoc 11, 12, 13, 14, 15 VA 16 phai chay tren mot tep dung o phien ban 10"
+        17,
+        "buoc 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 10"
     );
 
     let after: Vec<(i64, String, String)> = migrated
@@ -6601,4 +6614,190 @@ fn a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default() {
     drop(opened);
     cleanup(&dir);
     cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.7 — vị trí làm việc của Chương (`chapter_position`, AD-3). §I/O Matrix.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// §I/O Matrix "Chương chưa từng mở" — không hàng `chapter_position` nào ⇒ `caret_segment_id`
+/// là segment ĐẦU theo `(ord, id)` (AC5), và một lượt ĐỌC không tự ghi một hàng nào.
+#[test]
+fn a_chapter_never_worked_on_reports_the_first_segment_as_caret_without_writing_a_position_row() {
+    let root = temp_dir("5-7-position-never-worked");
+    let opened =
+        create_work_from_text(&root, "5.7 chua tung mo", "zh", "", "Cau mot。Cau hai。".to_owned())
+            .expect("tao tac pham that bai");
+
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
+    assert_eq!(
+        loaded.caret_segment_id,
+        Some(loaded.segments[0].id),
+        "AC5: Chuong chua tung mo phai roi caret vao segment DAU theo (ord, id)"
+    );
+
+    let rows: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| row.get(0)))
+        .expect("dem hang chapter_position that bai");
+    assert_eq!(rows, 0, "mot luot DOC khong duoc phep tu ghi mot hang chapter_position");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Ghi vị trí" + "Chương đã từng làm việc" — ghi rồi đọc lại TRONG CÙNG một
+/// phiên phải khớp nguyên văn, và `save_chapter_position` là một UPSERT (ghi lần hai GHI ĐÈ,
+/// không cộng dồn).
+#[test]
+fn a_saved_chapter_position_is_reported_back_as_caret_segment_id_and_a_second_save_overwrites_it() {
+    let root = temp_dir("5-7-position-roundtrip");
+    let opened = create_work_from_text(
+        &root,
+        "5.7 vi tri",
+        "zh",
+        "",
+        "Cau mot。Cau hai。Cau ba。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
+
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
+    let second = loaded.segments[1].id;
+    let third = loaded.segments[2].id;
+
+    save_chapter_position(Some(&opened), loaded.chapter_id, second).expect("ghi vi tri that bai");
+    let after_first_save =
+        read_open_chapter_segments(Some(&opened)).expect("nap lai sau lan ghi dau");
+    assert_eq!(
+        after_first_save.caret_segment_id,
+        Some(second),
+        "vi tri da luu phai doc lai DUNG NGUYEN VAN"
+    );
+
+    // UPSERT — ghi lan hai GHI DE, khong cong don thanh hai hang.
+    save_chapter_position(Some(&opened), loaded.chapter_id, third).expect("ghi vi tri lan hai");
+    let after_second_save =
+        read_open_chapter_segments(Some(&opened)).expect("nap lai sau lan ghi hai");
+    assert_eq!(after_second_save.caret_segment_id, Some(third));
+
+    let rows: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| row.get(0)))
+        .expect("dem hang chapter_position that bai");
+    assert_eq!(rows, 1, "UPSERT phai giu DUNG MOT hang cho moi Chuong, khong cong don");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Vị trí trỏ vào segment ĐÃ VỀ HƯU" — rơi về segment ĐẦU còn sống, kèm chẩn
+/// đoán (không được trả một id mà lưới không dựng ô cho).
+#[test]
+fn a_position_pointing_at_a_retired_segment_falls_back_to_the_first_living_segment() {
+    use auratranslate_lib::commands::segment::split_segment;
+
+    let root = temp_dir("5-7-position-retired");
+    let opened = create_work_from_text(
+        &root,
+        "5.7 vi tri ve huu",
+        "zh",
+        "",
+        "Cau dau tien that dai de con tach duoc。Cau hai。Cau ba。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
+
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
+    let first_id = loaded.segments[0].id;
+    save_chapter_position(Some(&opened), loaded.chapter_id, first_id).expect("ghi vi tri vao cau dau");
+
+    // Tach cau DAU -- no VE HUU, hai manh moi ra doi o dau danh sach (ord nho nhat).
+    let cut = loaded.segments[0].source_text.chars().count() / 2;
+    let out = split_segment(Some(&opened), first_id, vec![cut]).expect("tach cau dau that bai");
+    assert!(
+        out.retired.iter().any(|r| r.id == first_id),
+        "cau dau phai VE HUU sau lenh tach"
+    );
+
+    let after = read_open_chapter_segments(Some(&opened)).expect("nap lai sau khi tach");
+    let first_living = after.segments.first().expect("phai con it nhat mot segment song").id;
+    assert_eq!(
+        after.caret_segment_id,
+        Some(first_living),
+        "vi tri tro vao mot segment DA VE HUU phai roi ve segment DAU CON SONG, khong tra ve \
+         mot id ma luoi khong con dung o cho"
+    );
+    assert_ne!(
+        after.caret_segment_id,
+        Some(first_id),
+        "segment da ve huu khong duoc tra ve nguyen id cua no"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Chương không có segment nào" — `caret_segment_id = None`, không một id bịa.
+#[test]
+fn an_empty_chapter_reports_no_caret_segment() {
+    let root = temp_dir("5-7-position-empty-chapter");
+    let opened = create_work_from_text(&root, "5.7 chuong rong", "en", "", "One.".to_owned())
+        .expect("tao tac pham that bai");
+
+    let chapter_id = opened.chapter_id;
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("DELETE FROM segment WHERE chapter_id = ?1", [chapter_id])?;
+            Ok(())
+        })
+        .expect("xoa segment that bai");
+
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
+    assert!(loaded.segments.is_empty());
+    assert_eq!(
+        loaded.caret_segment_id, None,
+        "Chuong khong con segment nao -- caret phai la None, khong mot id bia"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Ghi vị trí cho Chương không thuộc kho" — không hàng nào được ghi, lỗi CÓ TÊN
+/// tái dùng (`segment.chapter_not_found`).
+#[test]
+fn saving_a_chapter_position_for_an_unknown_chapter_is_refused_and_writes_nothing() {
+    let root = temp_dir("5-7-position-unknown-chapter");
+    let opened = create_work_from_text(&root, "5.7 chuong la", "en", "", "One.".to_owned())
+        .expect("tao tac pham that bai");
+
+    let bogus_chapter_id = opened.chapter_id + 999;
+    let err = save_chapter_position(Some(&opened), bogus_chapter_id, 1)
+        .expect_err("chapter_id la phai la mot loi");
+    assert_eq!(err.code(), "segment.chapter_not_found");
+    assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
+
+    let rows: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| row.get(0)))
+        .expect("dem hang chapter_position that bai");
+    assert_eq!(rows, 0, "khong hang nao duoc ghi khi chapter_id sai");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Chưa Tác phẩm nào mở ⇒ `save_chapter_position` trả `project.no_work_open` — cùng khoá
+/// tái dùng với mọi lệnh Chương/segment khác.
+#[test]
+fn saving_a_chapter_position_without_an_open_work_reuses_the_named_error() {
+    let err =
+        save_chapter_position(None, 1, 1).expect_err("chua Tac pham nao mo phai la mot loi");
+    assert_eq!(err.code(), "work.none_open");
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 }

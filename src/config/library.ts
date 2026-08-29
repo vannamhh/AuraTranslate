@@ -225,11 +225,53 @@ function isWorkListReport(value: unknown): value is WorkListReport {
   )
 }
 
+/**
+ * 🔵 **THÊM Story 5.7.** Kết quả `open_work` — khớp `commands::project::wire::OpenedWork`
+ * phía Rust, `snake_case`. Cùng hình dạng `CreatedWork` (`./project.ts`) cộng `chapter_id`:
+ * mở lại một Tác phẩm đã có luôn kèm Chương nó sẽ mở (Chương đầu theo `(ord, id)`).
+ */
+export type OpenedWork = {
+  meta: import('./project').WorkMeta
+  folder: string
+  chapter_id: number
+}
+
+/** Ba trạng thái, cùng khuôn [`WorkListResult`]. */
+export type OpenWorkResult = {
+  opened: OpenedWork | null
+  error: IpcError | null
+}
+
+/**
+ * 🔵 **THÊM Story 5.7.** Vị từ kiểm kiểu LÚC CHẠY cho `OpenedWork` — `IpcError` phía TS là
+ * một lời khai về dữ liệu đã qua dây, không phải bảo đảm của trình biên dịch
+ * (`src/AGENTS.md`). Không đào sâu `meta` (cùng mức chặt mà kho đã chấp nhận cho
+ * `CreatedWork`/`WorkMeta` ở `./project.ts` — chưa adapter nào ở đó kiểm `WorkMeta` lúc
+ * chạy) — chỉ kiểm hình dạng NGOÀI CÙNG mà story này thêm.
+ */
+function isOpenedWork(value: unknown): value is OpenedWork {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<OpenedWork>
+  return (
+    typeof v.meta === 'object' &&
+    // ⚠️ Hình dạng qua IPC là một LỜI KHAI, không một bảo đảm của trình biên dịch: Rust có
+    // thể trả `null` cho `meta` dù kiểu tĩnh nói `WorkMeta | undefined` — cùng lý do dòng
+    // `v.params !== null` của `isIpcError` ở trên đã cần cùng một miễn trừ.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
+    v.meta !== null &&
+    typeof v.folder === 'string' &&
+    typeof v.chapter_id === 'number'
+  )
+}
+
 /** Tên command trên dây. Khớp `src-tauri/src/commands/library.rs` (module `wire`). */
 const CMD_RESCAN = 'library_rescan'
 const CMD_CHOOSE_ROOT = 'library_choose_root'
 const CMD_FORGET_ORPHAN = 'library_forget_orphan'
 const CMD_LIST_WORKS = 'library_list_works'
+/** 🔵 **THÊM Story 5.7.** Khớp `commands::project::wire::open_work`, KHÔNG `commands::library::*`
+ * — lệnh này sống ở `commands/project.rs` vì nó ghi vào `OpenWorkState`. */
+const CMD_OPEN_WORK = 'open_work'
 
 /** Cùng khuôn `config/project.ts::hasIpcBridge`. */
 function hasIpcBridge(): boolean {
@@ -387,5 +429,31 @@ export async function listLibraryWorks(
     }
     console.info(`[library] không gọi được \`${CMD_LIST_WORKS}\` — chạy ngoài Tauri? ${String(err)}`)
     return { report: null, error: null }
+  }
+}
+
+/**
+ * 🔵 **THÊM Story 5.7.** Mở lại một `.atproj` **đã có trên đĩa** (FR12). Không ném — cùng
+ * lý do và cùng khuôn [`listLibraryWorks`].
+ *
+ * 🔴 Tham số là `workId` — KHÔNG một đường dẫn hệ tệp (§Never của story): `atproj_path`
+ * phân giải Ở RUST, từ `library-index.db`.
+ */
+export async function openWork(workId: string): Promise<OpenWorkResult> {
+  try {
+    const opened = await invoke<unknown>(CMD_OPEN_WORK, { workId })
+    if (!isOpenedWork(opened)) {
+      console.error(`[library] \`${CMD_OPEN_WORK}\` trả một OpenedWork SAI HÌNH DẠNG: ${JSON.stringify(opened)}`)
+      return { opened: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { opened, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { opened: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[library] \`${CMD_OPEN_WORK}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { opened: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[library] không gọi được \`${CMD_OPEN_WORK}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { opened: null, error: null }
   }
 }

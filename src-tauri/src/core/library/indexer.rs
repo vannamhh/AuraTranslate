@@ -75,8 +75,8 @@ use std::sync::Mutex;
 
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::{
-    LIBRARY_INDEX_MIGRATIONS, ReadHandle, Row, SqlResult, Store, StoreError, StoreKind, StoreSpec,
-    Transaction, params_from_iter,
+    LIBRARY_INDEX_MIGRATIONS, ReadHandle, Row, SqlError, SqlResult, Store, StoreError, StoreKind,
+    StoreSpec, Transaction, params_from_iter,
 };
 
 use super::meta::WorkMeta;
@@ -99,6 +99,32 @@ fn global_store_missing(surface: &'static str) -> IndexError {
 /// lại vì hằng đó là `const` riêng tư của module kia và không có lý do lộ ra `pub(crate)` chỉ
 /// cho một lần so sánh chuỗi ở đây.
 const ATPROJ_EXTENSION: &str = "atproj";
+
+/// Danh sách cột dùng chung cho [`Indexer::list_works`] và [`Indexer::find_work`] — MỘT
+/// hình dạng hàng, hai mệnh đề `WHERE` khác nhau. Tách ra khỏi thân hàm (Story 5.7) vì
+/// closure `map_row` cũ của `list_works` không chia sẻ được sang một hàm thứ hai.
+const INDEXED_WORK_COLUMNS: &str = "work_id, atproj_path, name, source_lang, genre, created_at, \
+     updated_at, chapter_count, status, status_is_override, chapter_done_count";
+
+/// Ánh xạ một hàng `library_work` (cột đúng thứ tự [`INDEXED_WORK_COLUMNS`]) sang
+/// [`IndexedWork`] — hàm TỰ DO (Story 5.7), không phải closure lồng trong
+/// [`Indexer::list_works`], để [`Indexer::find_work`] gọi lại được.
+fn map_indexed_work_row(row: &Row<'_>) -> SqlResult<IndexedWork> {
+    let status_is_override: i64 = row.get(9)?;
+    Ok(IndexedWork {
+        work_id: row.get(0)?,
+        atproj_path: PathBuf::from(row.get::<_, String>(1)?),
+        name: row.get(2)?,
+        source_lang: row.get(3)?,
+        genre: row.get(4)?,
+        created_at: row.get(5)?,
+        updated_at: row.get(6)?,
+        chapter_count: row.get(7)?,
+        status: row.get(8)?,
+        status_is_override: status_is_override != 0,
+        chapter_done_count: row.get(10)?,
+    })
+}
 
 /// Kho `library-index.db` đã mở. Sở hữu một [`Store`] — `Drop` của nó đóng kho (TRUNCATE có
 /// trần), cùng khuôn `commands::project::OpenWork` (không có `Drop` thủ công ở đây,
@@ -505,26 +531,6 @@ impl Indexer {
             let genres = distinct_column(&conn, "genre")?;
             let source_langs = distinct_column(&conn, "source_lang")?;
 
-            const COLUMNS: &str = "work_id, atproj_path, name, source_lang, genre, created_at, \
-                 updated_at, chapter_count, status, status_is_override, chapter_done_count";
-
-            let map_row = |row: &Row<'_>| -> SqlResult<IndexedWork> {
-                let status_is_override: i64 = row.get(9)?;
-                Ok(IndexedWork {
-                    work_id: row.get(0)?,
-                    atproj_path: PathBuf::from(row.get::<_, String>(1)?),
-                    name: row.get(2)?,
-                    source_lang: row.get(3)?,
-                    genre: row.get(4)?,
-                    created_at: row.get(5)?,
-                    updated_at: row.get(6)?,
-                    chapter_count: row.get(7)?,
-                    status: row.get(8)?,
-                    status_is_override: status_is_override != 0,
-                    chapter_done_count: row.get(10)?,
-                })
-            };
-
             // `Some(vec![])` (§I/O Matrix, ⚠️ ngay trên) ⇒ khớp 0 hàng theo nghĩa đen -- ngắn
             // mạch TRƯỚC khi dựng `WHERE`, nhưng SAU khi `total`/`genres`/`source_langs` đã
             // tính, đúng lời hứa "cùng một lượt đọc" cho MỌI nhánh, kể cả nhánh rỗng.
@@ -567,11 +573,38 @@ impl Indexer {
                 WorkSortKey::NameAsc => "ORDER BY name COLLATE NOCASE, work_id",
             };
 
-            let mut stmt = conn.prepare(&format!("SELECT {COLUMNS} FROM library_work {where_clause} {order_clause}"))?;
-            let rows = stmt.query_map(params_from_iter(params.iter()), map_row)?;
+            let mut stmt = conn.prepare(&format!(
+                "SELECT {INDEXED_WORK_COLUMNS} FROM library_work {where_clause} {order_clause}"
+            ))?;
+            let rows = stmt.query_map(params_from_iter(params.iter()), map_indexed_work_row)?;
             let works: Vec<IndexedWork> = rows.collect::<SqlResult<Vec<_>>>()?;
 
             Ok(WorksReport { total, works, genres, source_langs })
+        })
+    }
+
+    /// **THÊM Story 5.7.** Đường ĐỌC **một hàng** theo `work_id` — cho `open_work`
+    /// (`commands::project.rs`). `atproj_path` phải phân giải ở TẦNG NÀY, không ở tầng lệnh
+    /// (`library_index_boundary.rs` cấm module lệnh mang từ vựng chỉ mục). Dùng lại
+    /// [`INDEXED_WORK_COLUMNS`]/[`map_indexed_work_row`] của [`Self::list_works`] — cùng
+    /// hình dạng hàng, khác mỗi mệnh đề `WHERE`.
+    ///
+    /// Trả `Ok(None)` khi không có hàng khớp -- chỗ gọi (`commands::project::wire::open_work`)
+    /// ánh xạ `None` sang `library.work_not_indexed`, KHÔNG một biến thể lỗi riêng ở đây: đây
+    /// là một truy vấn hợp lệ trả 0 hàng, không phải một điều kiện lỗi của tầng chỉ mục.
+    pub fn find_work(&self, work_id: &str) -> Result<Option<IndexedWork>, StoreError> {
+        self.store.read(move |conn: ReadHandle<'_>| -> SqlResult<Option<IndexedWork>> {
+            // ⚠️ `OptionalExtension::optional()` khong duoc `core::store` tai xuat (xem
+            // `commands/segment.rs:306`) -- bat `QueryReturnedNoRows` bang tay.
+            match conn.query_row(
+                &format!("SELECT {INDEXED_WORK_COLUMNS} FROM library_work WHERE work_id = ?1"),
+                [work_id],
+                map_indexed_work_row,
+            ) {
+                Ok(work) => Ok(Some(work)),
+                Err(SqlError::QueryReturnedNoRows) => Ok(None),
+                Err(err) => Err(err),
+            }
         })
     }
 

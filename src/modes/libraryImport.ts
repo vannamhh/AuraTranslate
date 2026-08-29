@@ -22,7 +22,12 @@ import type { UnlistenFn } from '@tauri-apps/api/event'
 import { createWorkFromFile, createWorkFromText } from '../config/project'
 import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
 import { resetLookupPanel } from '../panels/lookupPanelState'
-import { ensureSegmentsLoaded, flushEditorNow, resetEditorPanel } from '../panels/editorPanelState'
+import {
+  ensureSegmentsLoaded,
+  flushChapterPositionNow,
+  flushEditorNow,
+  resetEditorPanel,
+} from '../panels/editorPanelState'
 import { resetSegmentHistory } from '../panels/segmentHistoryState'
 import type { CreatedWork } from '../config/project'
 import type { IpcError } from '../i18n'
@@ -149,6 +154,13 @@ async function beginSubmit(): Promise<boolean> {
     busy.value = false
     return false
   }
+
+  // 🔵 THÊM Story 5.7 (AC4/AC6) — vị trí làm việc đang chờ ghi cũng thuộc Tác phẩm đang mở
+  // (CŨ), và `resetEditorPanel()` bên trong `finishSubmit` sẽ VỨT nó không ghi. Cùng biên với
+  // `flushEditorNow()` ngay trên, nhưng KHÔNG chặn lượt nộp: mất vị trí chỉ mất một lời nhắc,
+  // không mất bản dịch (§I/O Matrix "Ghi vị trí": "Lỗi ghi ⇒ chẩn đoán, KHÔNG hộp thoại").
+  await flushChapterPositionNow()
+
   return true
 }
 

@@ -429,6 +429,24 @@ message_keys! {
     /// [`crate::core::lifecycle::LifecycleStatus`] — đi qua `set_chapter_status` hoặc
     /// `set_work_status_override`. Không một lượt ghi nào chạy trước khi lỗi này được trả.
     LifecycleUnknownStatus => "err.lifecycle.unknown_status" ["status"],
+
+    // ── Story 5.7 (FR12) — mở lại `.atproj` + danh sách Chương ───────────────────────
+    //
+    // Bề mặt IPC "Mở Tác phẩm" + "Danh sách Chương" + "Mở Chương". Danh mục ĐÓNG: ca
+    // "chưa Tác phẩm nào mở" tái dùng `WorkNoneOpen`, ca "chapter_id không tồn tại" tái
+    // dùng `SegmentChapterNotFound` — cả hai đã có ở trên, không đúc khoá thứ hai/ba cho
+    // cùng câu. `store.schema_too_new` (đã có, `StoreSchemaTooNew`) phủ nhánh `project.db`
+    // mới hơn ứng dụng; ba khoá dưới đây phủ phần còn lại.
+    /// `meta.json` của một `.atproj` đang mở lại mang `meta_schema_version` mới hơn bản
+    /// ứng dụng hiểu — [`crate::core::library::WorkError::MetaTooNew`]. Không một byte nào
+    /// trong `.atproj` bị ghi trước khi lỗi này được trả (AC8).
+    WorkMetaTooNew => "err.work.meta_too_new" ["found", "supported"],
+    /// Mở lại một `.atproj` đã có trên đĩa thất bại vì một lý do KHÁC `meta.json` quá mới
+    /// (thư mục biến mất, quyền đọc, …) — [`crate::core::library::WorkError::OpenFailed`].
+    WorkOpenFailed => "err.work.open_failed" ["name"],
+    /// `open_work` nhận một `work_id` không có hàng trong `library-index.db`
+    /// (`Indexer::find_work` trả `None`). `OpenWorkState` không đổi.
+    LibraryWorkNotIndexed => "err.library.work_not_indexed" ["work_id"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

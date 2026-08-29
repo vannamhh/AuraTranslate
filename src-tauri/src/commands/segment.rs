@@ -230,6 +230,17 @@ pub struct ChapterSegment {
 pub struct ChapterSegments {
     pub chapter_id: i64,
     pub segments: Vec<ChapterSegment>,
+    /// **THÊM Story 5.7 (AC4/AC5)** — `segment.id` nơi caret của Editor phải đứng khi
+    /// Chương vừa nạp, đọc từ bảng `chapter_position`. `None` chỉ khi Chương **không có
+    /// segment nào** — mọi Chương có ít nhất một segment sống LUÔN có một giá trị ở đây,
+    /// kể cả khi chưa từng mở (rơi về segment ĐẦU theo `(ord, id)`, AC5) hay khi hàng vị
+    /// trí trỏ vào một segment đã VỀ HƯU (rơi về segment đầu, kèm chẩn đoán — xem
+    /// [`read_open_chapter_segments`]).
+    ///
+    /// 🔴 Rust QUYẾT giá trị này, webview KHÔNG suy ra (§Always của story): đường
+    /// `editorCaretPlacement` đã có (`GridPanel.vue:1110`) chỉ ĐẶT caret vào đúng
+    /// `segment.id` mà trường này nói, không tự tính "segment đầu" một lần nữa.
+    pub caret_segment_id: Option<i64>,
 }
 
 /// Chương không có trong `project.db` của Tác phẩm đang mở.
@@ -876,13 +887,117 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
         })?;
         let segments = rows.collect::<SqlResult<Vec<ChapterSegment>>>()?;
 
+        // 🔴 **Story 5.7 (AC4/AC5) — TÍNH `caret_segment_id` TRONG CÙNG MỘT LƯỢT `Store::read`
+        // NÀY**, không một lượt đọc riêng: `chapter_position` và `segment` phải đến từ CÙNG
+        // một ảnh chụp, nếu không một lượt gộp/tách chen giữa hai lần đọc có thể trả một
+        // `segment_id` mà `segments` vừa đọc chưa/không còn thấy — đúng lớp lỗi mà AC4 của
+        // `Indexer::list_works` (Story 5.6) đã ghi cho một cặp dữ kiện tương tự.
+        let position: Option<i64> = {
+            let mut stmt =
+                conn.prepare("SELECT segment_id FROM chapter_position WHERE chapter_id = ?1")?;
+            let mut rows = stmt.query_map([chapter_id], |row| row.get::<_, i64>(0))?;
+            rows.next().transpose()?
+        };
+
+        let caret_segment_id = match position {
+            // Hàng vị trí có mặt VÀ segment đó CÒN SỐNG trong danh sách vừa đọc.
+            Some(segment_id) if segments.iter().any(|s| s.id == segment_id) => Some(segment_id),
+            // Hàng vị trí có mặt nhưng segment đó đã VỀ HƯU (gộp/tách, AD-5) — rơi về segment
+            // đầu CÓ LÝ DO, không im lặng (§I/O Matrix "Vị trí trỏ vào segment ĐÃ VỀ HƯU").
+            // ⚠️ Chẩn đoán KHÔNG DẤU (NFR16/Kiểm A `check:i18n`), đây là log không phải văn
+            // bản hiển thị.
+            Some(stale_segment_id) => {
+                eprintln!(
+                    "chapter[{chapter_id}] chapter_position tro vao segment {stale_segment_id} \
+                     da ve huu, roi ve segment dau"
+                );
+                segments.first().map(|s| s.id)
+            }
+            // Chương chưa từng mở (không hàng `chapter_position`) ⇒ segment đầu (AC5).
+            // Chương rỗng (`segments` rỗng) hội tụ về `None` ở cả hai nhánh trên VÀ nhánh
+            // này — đúng §I/O Matrix "Chương không có segment nào ⇒ caret_segment_id = null".
+            None => segments.first().map(|s| s.id),
+        };
+
         Ok(ChapterSegments {
             chapter_id,
             segments,
+            caret_segment_id,
         })
     })?;
 
     Ok(loaded)
+}
+
+/// **THÊM Story 5.7 (AC4/AC6).** Ghi vị trí caret của một Chương xuống `chapter_position` —
+/// hàm thuần, đây là thứ test gọi. `INSERT … ON CONFLICT(chapter_id) DO UPDATE`: một hàng
+/// DUY NHẤT mỗi Chương (`chapter_id` là khoá chính) — mở lại rồi rê caret lần nữa GHI ĐÈ,
+/// không cộng dồn lịch sử vị trí.
+///
+/// 🔴 **Nhịp ghi này KHÔNG mang bảo đảm AD-35** (xem doc-comment của
+/// `src/panels/positionFlush.ts`): mất MỘT lượt ghi vị trí là mất MỘT LỜI NHẮC, không mất
+/// công việc — khác hẳn `save_segment_targets`, nơi mất một lượt là mất bản dịch người dùng
+/// đã gõ. Vì vậy hàm này không cần trần cứng chống mất chữ; lỗi ghi chỉ cần một chẩn đoán ở
+/// TẦNG GỌI, không một hộp thoại chặn người dùng (§I/O Matrix "Ghi vị trí": *"Lỗi ghi ⇒ chẩn
+/// đoán, KHÔNG hộp thoại"*).
+///
+/// `save_segment_targets::UPDATE` (dòng ~1216) **không đổi một dòng** vì lượt này — bảng mới,
+/// không chạm bảng `segment`.
+///
+/// # Lỗi
+/// - `chapter_id` không thuộc `project.db` đang mở ⇒ `segment.chapter_not_found` (tái dùng
+///   khoá đã có) — KHÔNG hàng nào được ghi.
+pub fn save_chapter_position(
+    open: Option<&OpenWork>,
+    chapter_id: i64,
+    segment_id: i64,
+) -> Result<(), IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+
+    // 🔴 Cùng ô CÓ KIỂU cho lý do từ chối, cùng lý lẽ định lượng đã ghi ở
+    // `save_segment_targets` ngay trên: `Store::write` gói MỌI `Err` (kể cả một từ chối
+    // nghiệp vụ) thành `StoreError::WriteFailed { detail: String }`, và đoán lại lý do từ
+    // `detail` bằng chuỗi là một chẩn đoán SAI cho hai ca khác hẳn nhau (chapter lạ / kho hỏng
+    // thật).
+    let chapter_missing: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+    let chapter_missing_in = Arc::clone(&chapter_missing);
+
+    let result = open.store.write(move |tx: &Transaction<'_>| {
+        // TRONG cùng giao dịch với lượt ghi — không khe hở nào giữa phép kiểm và phép ghi,
+        // cùng khuôn `save_segment_targets` bước ①.
+        let chapter_rows: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM chapter WHERE id = ?1",
+            [chapter_id],
+            |row| row.get(0),
+        )?;
+        if chapter_rows == 0 {
+            *chapter_missing_in
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
+            return Err(SqlError::QueryReturnedNoRows);
+        }
+
+        tx.execute(
+            "INSERT INTO chapter_position (chapter_id, segment_id, updated_at) \
+             VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now')) \
+             ON CONFLICT(chapter_id) DO UPDATE SET \
+             segment_id = excluded.segment_id, updated_at = excluded.updated_at",
+            (chapter_id, segment_id),
+        )?;
+        Ok(())
+    });
+
+    match result {
+        Ok(()) => Ok(()),
+        Err(_)
+            if *chapter_missing
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) =>
+        {
+            Err(chapter_not_found(chapter_id))
+        }
+        Err(err) => Err(err.into()),
+    }
 }
 
 /// **Đặt cờ kết đoạn của BẢN DỊCH cho một câu** — hàm thuần, đây là thứ test gọi.
@@ -2637,6 +2752,27 @@ pub mod wire {
         // lại đúng cuộc đua đã ghi ở dưới *(`replace_open_work` trỏ sang Tác phẩm khác giữa
         // lúc lô đang bay)*.
         super::flush_segment_targets(guard.as_ref(), chapter_id, &edits).map(|(_, saved)| saved)
+    }
+
+    /// Vỏ IPC của [`super::save_chapter_position`] — Story 5.7 (AC4/AC6).
+    ///
+    /// ⚠️ `chapter_id`/`segment_id` đi trên dây dưới tên **`chapterId`**/**`segmentId`** —
+    /// `invoke()` gửi tham số ở dạng camelCase.
+    #[tauri::command]
+    pub fn save_chapter_position(
+        app: tauri::AppHandle,
+        chapter_id: i64,
+        segment_id: i64,
+    ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::save_chapter_position(None, chapter_id, segment_id);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::save_chapter_position(guard.as_ref(), chapter_id, segment_id)
     }
 
     /// Vỏ IPC của [`super::confirm_segment`] — Story 2.5, FR24 · AD-31.

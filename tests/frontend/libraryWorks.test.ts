@@ -58,6 +58,10 @@ beforeEach(async () => {
   mockInvoke.mockReset()
   const state = await import('../../src/modes/libraryWorks')
   state.resetLibraryWorks()
+  // 🔵 THÊM Story 5.7 — `LibraryMode.vue` nay mount cả khối "Chương"; vứt state của nó cùng
+  // lượt để một ca của tệp này không đọc lại kết quả của ca trước.
+  const chapters = await import('../../src/modes/libraryChapters')
+  chapters.resetLibraryChapters()
 })
 
 afterEach(() => {
@@ -624,6 +628,17 @@ function mockInvokeForMount(works: unknown[]): void {
       return Promise.resolve({ total: works.length, matched: works.length, works, genres: [], source_langs: [] })
     }
     if (cmd === 'read_work_lifecycle') {
+      return Promise.reject({
+        code: 'work.none_open',
+        message_key: 'err.work.none_open',
+        params: {},
+        retryable: false,
+      })
+    }
+    // 🔵 THÊM Story 5.7 — `LibraryMode.vue::onActivated` nay cũng gọi `list_chapters` (khối
+    // "Chương"). Đây không phải phạm vi của các ca ở tệp này (xem `libraryChapters.test.ts`);
+    // trả cùng lỗi "chưa mở Tác phẩm nào" để không làm tràn console với một reject vô danh.
+    if (cmd === 'list_chapters') {
       return Promise.reject({
         code: 'work.none_open',
         message_key: 'err.work.none_open',

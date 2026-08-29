@@ -20,7 +20,7 @@
 import { nextTick, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { enterFocus } from '../commands'
-import { openAdjacentChapter } from '../config/chapter'
+import { openAdjacentChapter, openChapter } from '../config/chapter'
 import type { ChapterDirection } from '../config/chapter'
 // 🔵 CODE REVIEW 2026-08-18 — lượt đổi CHƯƠNG phải dọn và nạp lại Panel Source, đúng như lượt
 // đổi TÁC PHẨM đã làm ở `modes/libraryImport.ts`. Xem khối lý do trong [`switchChapter`].
@@ -30,6 +30,7 @@ import {
   confirmSegment,
   mergeSegments,
   readOpenChapterSegments,
+  saveChapterPosition,
   saveSegmentTargets,
   setSegmentOmitted,
   setSegmentParagraphEnd,
@@ -38,6 +39,9 @@ import {
 import type { ChapterSegment, RegroupOutcome, SegmentTargetEdit } from '../config/segment'
 import type { IpcError } from '../i18n'
 import { createEditorFlush, EDITOR_RETRY_FLOOR_MS } from './editorFlush'
+// 🔵 THÊM Story 5.7 (AC4/AC6) — nhịp ghi RIÊNG cho vị trí làm việc của Chương, KHÔNG mang
+// bảo đảm AD-35. Xem doc-comment đầu `positionFlush.ts`.
+import { createPositionFlush } from './positionFlush'
 // 🔵 Story 3.4b — funnel của "dấu thuật ngữ Glossary": `switchChapter()` nạp lại sau khi
 // reset (cạnh `ensureChapterLoaded()`), `applyRegroup()` làm mới sau gộp/tách. Xem doc-comment
 // đầu `glossaryMarksState.ts` cho lý do tệp đó KHÔNG import ngược lại tệp này.
@@ -143,6 +147,15 @@ export async function ensureSegmentsLoaded(): Promise<void> {
   chapterId.value = loaded?.chapter_id ?? null
   loadError.value = error
 
+  // 🔵 **THÊM Story 5.7 (AC4/AC5).** `caret_segment_id` là RUST QUYẾT — segment đã lưu vị
+  // trí, segment đầu (Chương chưa từng mở / vị trí trỏ vào segment về hưu), hoặc `null`
+  // (Chương rỗng). Đặt tín hiệu cho watcher `editorCaretPlacement` của `GridPanel.vue` đặt
+  // caret VÀ cuộn qua `focus()` — không một hàm cuộn thứ hai (xem doc-comment của watcher
+  // đó, §AC8 nửa sau). Đặt Ở ĐÂY, không riêng ở `openChapterById`: mọi đường tới đây —
+  // mount Workspace lần đầu, `switchChapter`, `openChapterById` — đều hợp lệ khôi phục vị
+  // trí làm việc, và `readOpenChapterSegments()` luôn mang giá trị này về cùng một lượt đọc.
+  caretPlacement.value = loaded?.caret_segment_id ?? null
+
   // 🔴 Một lượt TRƯỢT không được khoá vĩnh viễn đường nạp — cùng dòng và cùng lý do với
   // `ensureHanVietLoaded`. Một lỗi IPC nhất thời (hay một lượt chạy ngoài Tauri) sẽ biến
   // Panel Editor thành trống **mãi mãi**, kể cả khi `error.retryable`.
@@ -179,6 +192,15 @@ export function setEditorCaret(id: number | null): void {
   caretSegmentId.value = id
   // Rời câu A sang câu B (cả hai khác `null`, và khác nhau) ⇒ flush ngay cho A.
   if (left !== null && id !== null && left !== id) void flushEditorNow()
+
+  // 🔵 THÊM Story 5.7 (AC4/AC6) — mọi lượt caret đổi sang một segment CÓ THẬT ghi lại vị
+  // trí làm việc của Chương đang mở, qua nhịp `positionFlush` (KHÔNG mang bảo đảm AD-35,
+  // xem doc-comment của tệp đó). `id === null` (rời sang panel khác) không xoá vị trí đã
+  // biết — Chương vẫn "đang dở ở câu cuối cùng có tiêu điểm".
+  if (id !== null && chapterId.value !== null) {
+    positionFlush.markMoved(chapterId.value, id, Date.now())
+    armPositionFlushTimer()
+  }
 }
 
 /**
@@ -223,6 +245,58 @@ export function replaceEditorSegment(
 
 /** Nhịp `idle + trần cứng` của AD-35 — một cho cả ứng dụng, sống ngoài vòng đời component. */
 const flush = createEditorFlush()
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔵 THÊM Story 5.7 (AC4/AC6) — NHỊP GHI VỊ TRÍ LÀM VIỆC CỦA CHƯƠNG, KHÔNG MANG AD-35
+// ═════════════════════════════════════════════════════════════════════════════════
+// Cùng khuôn nhịp flush ngay trên (một cho cả ứng dụng, sống ngoài vòng đời component),
+// nhưng nhịp KHÁC: xem doc-comment đầu `positionFlush.ts` cho vì sao mất một lượt ở đây
+// chỉ mất MỘT LỜI NHẮC, không mất công việc.
+const positionFlush = createPositionFlush()
+let positionFlushTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearPositionFlushTimer(): void {
+  if (positionFlushTimer !== null) {
+    clearTimeout(positionFlushTimer)
+    positionFlushTimer = null
+  }
+}
+
+function armPositionFlushTimer(): void {
+  clearPositionFlushTimer()
+  const due = positionFlush.deadline()
+  if (due === null) return
+  positionFlushTimer = setTimeout(() => {
+    positionFlushTimer = null
+    void flushChapterPositionNow()
+  }, Math.max(0, due - Date.now()))
+}
+
+/**
+ * Ghi NGAY vị trí đang chờ, nếu có — gọi ở ba biên (Task 15 ②): TRƯỚC lượt đổi Chương, TRƯỚC
+ * lượt đổi Tác phẩm, và trong `wireExitFlush`. Không ném; lỗi ghi chỉ là một chẩn đoán
+ * (§I/O Matrix "Ghi vị trí": *"Lỗi ghi ⇒ chẩn đoán, KHÔNG hộp thoại"*) — hàm này **không**
+ * mang bảo đảm AD-35 nên nó không cần trả một kết quả có tên cho chỗ gọi phân nhánh theo.
+ */
+export async function flushChapterPositionNow(): Promise<void> {
+  clearPositionFlushTimer()
+  const toWrite = positionFlush.pending()
+  if (toWrite === null) return
+
+  const { error } = await saveChapterPosition(toWrite.chapterId, toWrite.segmentId)
+  const now = Date.now()
+  if (error === null) {
+    positionFlush.onFlushed(now, toWrite)
+  } else {
+    // ⚠️ KHÔNG DẤU — chẩn đoán, không văn bản hiển thị (NFR16). Không hộp thoại: đây là
+    // nhịp ghi KHÔNG mang bảo đảm AD-35.
+    console.error(
+      `[editorPanelState] ghi chapter_position that bai (chapterId=${toWrite.chapterId}, ` +
+        `segmentId=${toWrite.segmentId}): ${error.code}`,
+    )
+  }
+  armPositionFlushTimer()
+}
 
 /**
  * Văn bản đang gõ, theo `segment.id` — **state cục bộ frontend**, ngoại lệ *duy nhất, tường
@@ -537,6 +611,12 @@ export function resetEditorPanel(): void {
   editedText.value = new Map()
   lastSavedAt.value = null
 
+  // 🔵 THÊM Story 5.7 — nhịp ghi vị trí cũng thuộc Tác phẩm/Chương VỪA BỊ THAY, cùng lý lẽ
+  // `flush.reset()` ngay trên. Chỗ gọi phải flush TRƯỚC khi gọi hàm này nếu muốn giữ vị trí
+  // đang chờ (`flushChapterPositionNow()`, Task 15 ②) — `reset()` ở đây VỨT không ghi.
+  clearPositionFlushTimer()
+  positionFlush.reset()
+
   // 🔴 HAI Ô NHỚ NỮA, và bỏ sót chúng là một LỜI NÓI DỐI TRỰC QUAN, không một lượt rò state.
   //
   // 🔵 Thêm 2026-08-15 (code review). Đo được: `segment.id` là `INTEGER PRIMARY KEY
@@ -697,6 +777,9 @@ export async function wireExitFlush(): Promise<() => void> {
       void (async () => {
         try {
           await flushEditorNow()
+          // 🔵 THÊM Story 5.7 (AC4/AC6) — biên thứ ba của flushChapterPositionNow(): thoát
+          // ứng dụng bình thường (AC6 đòi vị trí "khôi phục đúng" sau một lượt đóng-mở lại).
+          await flushChapterPositionNow()
         } finally {
           try {
             await invoke(CMD_CONFIRM_EXIT_FLUSH)
@@ -1493,6 +1576,11 @@ async function switchChapter(direction: ChapterDirection): Promise<boolean> {
       return false
     }
 
+    // 🔵 THÊM Story 5.7 (AC4/AC6) — biên "trước lượt đổi Chương" của `flushChapterPositionNow()`.
+    // KHÔNG chặn: một lượt trượt chỉ mất một lời nhắc (chẩn đoán bên trong hàm đó), không
+    // mất bản dịch — khác hẳn vế `flushEditorBeforeDiscreteWrite()` ngay trên.
+    await flushChapterPositionNow()
+
     // ── ② DỜI CON TRỎ CHƯƠNG phía Rust ─────────────────────────────────────────────
     const { switched, error } = await openAdjacentChapter(direction)
 
@@ -1626,6 +1714,98 @@ export function goToNextChapter(): void {
 /** **Chương trước** — AC2. Xem [`goToNextChapter`]. */
 export function goToPrevChapter(): void {
   void switchChapter('prev')
+}
+
+/**
+ * **Mở một Chương đích danh** — Story 5.7, AC3. Chép TRỌN khuôn [`switchChapter`]: cờ chống
+ * hai lượt cùng bay *(dùng CHUNG `dangChuyenChuong` — cả hai đều là "đang đổi Chương", và
+ * chạy đồng thời là cùng một cuộc đua đúng lý lẽ đã ghi ở đầu hàm kia)*, flush đọc CẢ BA giá
+ * trị, một lượt IPC, dọn state Chương cũ, nạp lại Chương mới, kiểm `chapterId` khớp giữa hai
+ * lượt IPC trước khi nạp dấu Glossary — nguyên văn khuôn của `switchChapter`, chỉ khác bước
+ * ② gọi [`openChapter`] (đích danh) thay vì [`openAdjacentChapter`] (theo hướng).
+ *
+ * Trả `true` khi Chương **thật sự** đổi. Không ném — cùng luật [`switchChapter`].
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔴 **KHÔNG có cửa `editorHasLoaded()` ở đây, và đó là chỗ hàm này KHÁC [`switchChapter`]**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 **GỠ 2026-08-29 (Story 5.7), sau một lượt e2e ĐỎ trong WKWebView thật** — bản đầu chép
+ * cả cửa ấy từ [`switchChapter`], và nó **chặn đúng đường chính của story**:
+ * `openCurrentChapter` chạy khi người dùng đang ở **Library**, nơi Workspace có thể **chưa
+ * mount lần nào** trong phiên. `editorHasLoaded()` đọc `chapterId.value !== null`, mà giá trị
+ * đó chỉ được đặt bởi [`ensureSegmentsLoaded`] — và chỗ gọi nó là `GridPanel.vue::onMounted`.
+ * ⇒ Ở lượt khởi động lạnh, cửa này **luôn** đóng, hàm trả `false`, `setMode('workspace')`
+ * không bao giờ chạy, và màn hình đứng im **không một lỗi nào**.
+ * *(Đo: bàn đo `story-5-7-open-chapter.e2e.mjs` đỏ với `rows: 1`, nút "Mở Chương" tồn tại,
+ * `disabled = false`, hai dải lỗi RỖNG — tức mọi thứ đúng trừ lượt mở.)*
+ *
+ * 🔴 **Và gỡ nó KHÔNG mở một cửa mất chữ nào.** Cửa thật sự canh dữ liệu là lượt flush ở
+ * bước ① ngay dưới, và nó đứng nguyên. Cửa `editorHasLoaded()` ở [`switchChapter`] phục vụ
+ * một mệnh đề khác hẳn: *Chương kề* là một đích **TƯƠNG ĐỐI**, tính từ Chương đang mở, nên
+ * hỏi nó khi chưa biết Chương nào đang mở là vô nghĩa. Đích của hàm này là **TUYỆT ĐỐI** —
+ * một `chapter.id` người dùng vừa chọn trong danh sách — nên nó không cần biết trạng thái nạp
+ * của lưới để đúng.
+ */
+export async function openChapterById(targetChapterId: number): Promise<boolean> {
+  if (dangChuyenChuong) {
+    console.info('[editor] mot luot chuyen Chuong dang bay — bo qua luot nay')
+    return false
+  }
+  dangChuyenChuong = true
+
+  try {
+    // ── ① FLUSH, và ĐỌC KẾT QUẢ — cùng khuôn `switchChapter` bước ① ───────────────
+    const flushed = await flushEditorBeforeDiscreteWrite()
+    if (flushed !== 'clean') {
+      console.error(
+        `[editor] mo Chuong bi CHAN: luot flush tra '${flushed}' — ban dich chua xuong dia`,
+      )
+      ghiNavNotice(flushed === 'failed' ? 'chapter-flush-failed' : 'chapter-still-dirty')
+      return false
+    }
+
+    // Biên "trước lượt đổi Chương" của `flushChapterPositionNow()` — KHÔNG chặn, cùng lý do
+    // đã ghi ở `switchChapter`.
+    await flushChapterPositionNow()
+
+    // ── ② MỞ Chương đích danh phía Rust ────────────────────────────────────────────
+    const { chapter, error } = await openChapter(targetChapterId)
+
+    if (error !== null) {
+      console.error(
+        `[editor] mo Chuong TRUOT: ${error.code} (${error.message_key}), retryable=${String(error.retryable)}`,
+      )
+      ghiNavNotice('chapter-switch-failed')
+      return false
+    }
+    // Không lỗi mà cũng không kết quả ⇒ chạy ngoài Tauri. Cùng nhánh `switchChapter`.
+    if (chapter === null) return false
+
+    // ── ③ DỌN state của Chương cũ, RỒI ④ NẠP Chương mới — cùng khuôn `switchChapter` ──
+    resetEditorPanel()
+    resetSourcePanel()
+
+    // `resetEditorPanel()` đặt `requested = false`, nên lượt gọi này chạy IPC thật.
+    await ensureSegmentsLoaded()
+    await ensureChapterLoaded()
+
+    // Cùng điều kiện `switchChapter` đã ghi: hai `await` phía trên đi qua hai lệnh IPC RIÊNG,
+    // mỗi lệnh một `sequence` không chung khoá — kiểm khớp trước khi nạp dấu Glossary.
+    if (
+      chapterId.value !== null &&
+      sourceChapter.value !== null &&
+      chapterId.value === sourceChapter.value.chapter_id
+    ) {
+      void ensureGlossaryMarksLoaded(chapterId.value, segments.value, sourceChapter.value.source_lang)
+    }
+
+    // ── ⑤ TIÊU ĐIỂM phải Ở LẠI trong lưới — cùng khuôn `switchChapter` ─────────────
+    await nextTick()
+    enterFocus('panel.grid')
+    return true
+  } finally {
+    dangChuyenChuong = false
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

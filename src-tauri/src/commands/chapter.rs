@@ -16,8 +16,15 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔵 THÊM 2026-08-21 (Story 3.4) — ĐÂY LÀ ĐƯỜNG "MỞ CHƯƠNG" MÀ `Jieba` HÂM NÓNG VÀO
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `read_open_chapter`/`open_adjacent_chapter` là hai điểm sản phẩm duy nhất đưa một
-//! `source_lang` mới lên webview (`:119`/`:278` trước lượt sửa này). Cả hai gọi
+//! 🔵 **SỬA 2026-08-29 (Story 5.7) — "HAI điểm duy nhất" nay là BA.** `open_chapter` (mở một
+//! Chương ĐÍCH DANH, story này) là điểm thứ ba, và nó gọi cùng hàm hâm nóng vì cùng lý do.
+//! Mệnh đề "duy nhất" giữ nguyên hình dạng — mọi đường đưa một `source_lang` mới lên webview
+//! đều phải hâm — chỉ con số đổi. *(`open_work` KHÔNG nằm trong danh sách này và đó là đúng:
+//! nó không trả `source_text`/`source_lang` nào lên webview; webview luôn theo sau bằng
+//! `read_open_chapter`, và lượt đó hâm.)*
+//!
+//! `read_open_chapter`/`open_adjacent_chapter`/`open_chapter` là ba điểm sản phẩm duy nhất đưa
+//! một `source_lang` mới lên webview. Cả ba gọi
 //! `core::glossary::warm_jieba_for_source_lang` NGAY sau khi biết `open` tồn tại — đóng
 //! `deferred-work.md:413`: khởi tạo lạnh `Jieba` tốn 179–329 ms, và nó phải rơi vào một
 //! thao tác đã chấp nhận độ trễ đó (mở Chương), không rơi vào đường gõ.
@@ -100,7 +107,7 @@ pub(crate) fn chapter_not_found(chapter_id: i64) -> IpcError {
 /// Chương thứ hai tồn tại. Nay nó đọc [`OpenWork::chapter_id`], nguồn sự thật DUY NHẤT.
 ///
 /// # Lỗi
-/// - chưa Tác phẩm nào mở ⇒ `project.no_work_open`;
+/// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
 /// - hàng `chapter` được chỉ vắng mặt ⇒ `segment.chapter_not_found` *(một lỗi **có tên** —
 ///   xem [`chapter_not_found`])*;
 /// - đường đọc trượt (kho hỏng) ⇒ `store.read_failed` (qua `From<StoreError>`).
@@ -224,7 +231,7 @@ pub struct ChapterSwitch {
 /// đề mà doc-comment này vừa phát biểu.
 ///
 /// # Lỗi
-/// - chưa Tác phẩm nào mở ⇒ `project.no_work_open`;
+/// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
 /// - đi được nhưng hàng đích biến mất giữa hai truy vấn ⇒ `segment.chapter_not_found`;
 /// - đường đọc trượt ⇒ `store.read_failed`.
 pub fn open_adjacent_chapter(
@@ -305,9 +312,107 @@ pub fn open_adjacent_chapter(
     })
 }
 
+/// Một hàng của danh sách Chương — **THÊM Story 5.7 (AC2)**. KHÔNG `source_text` (§Never
+/// của story: Chương lớn nhất có thật là 48.640 ký tự, và 2.000 hàng như thế là một lượt
+/// IPC vô nghĩa cho một màn hình chỉ cần liệt kê).
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ChapterRow {
+    pub chapter_id: i64,
+    pub ord: i64,
+    /// `NULL` ⇒ Chương chưa đặt tên — webview dựng nhãn từ `ord` qua
+    /// `t('mode.library.chapter_untitled', { ord })` (§Always: "danh sách rỗng phải nói vì
+    /// sao nó rỗng" áp dụng tương tự cho một HÀNG thiếu dữ kiện — không để trống im lặng).
+    pub title: Option<String>,
+    /// Trạng thái vòng đời (`chapter.status`), chuỗi tự do ở tầng SQL — cưỡng chế ở tầng
+    /// Rust gọi nó (`commands::lifecycle`), cùng khuôn `IndexedWork::status`.
+    pub status: String,
+    /// Số segment **còn sống** (`retired_at IS NULL`) — cùng bộ lọc [`super::super::segment`]
+    /// dùng cho lưới Editor, không đếm cả hàng đã về hưu.
+    pub segment_count: i64,
+}
+
+/// **Liệt kê Chương của Tác phẩm đang mở** — hàm thuần, đây là thứ test gọi. Story 5.7,
+/// AC2.
+///
+/// Sắp theo `(ord, id)` — cùng bộ đôi so sánh mà [`open_adjacent_chapter`] đã dùng, đúng
+/// khuôn: `ord` không `UNIQUE` (schema.rs), nên khoá phụ `id` giữ thứ tự ỔN ĐỊNH khi hai
+/// Chương trùng `ord`.
+///
+/// # Lỗi
+/// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
+/// - đường đọc trượt ⇒ `store.read_failed`.
+pub fn list_chapters(open: Option<&OpenWork>) -> Result<Vec<ChapterRow>, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+
+    let rows = open.store.read(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT c.id, c.ord, c.title, c.status, \
+             (SELECT COUNT(*) FROM segment s WHERE s.chapter_id = c.id AND s.retired_at IS NULL) \
+             FROM chapter c ORDER BY c.ord, c.id",
+        )?;
+        let mapped = stmt.query_map([], |row| {
+            Ok(ChapterRow {
+                chapter_id: row.get(0)?,
+                ord: row.get(1)?,
+                title: row.get(2)?,
+                status: row.get(3)?,
+                segment_count: row.get(4)?,
+            })
+        })?;
+        mapped.collect::<crate::core::store::SqlResult<Vec<ChapterRow>>>()
+    })?;
+
+    Ok(rows)
+}
+
+/// **Mở một Chương đích danh** — hàm thuần, đây là thứ test gọi. Story 5.7, AC3.
+///
+/// 🔴 KIỂM hàng tồn tại TRƯỚC, dời `OpenWork::chapter_id` SAU khi truy vấn thành công —
+/// đúng luật đã ghi ở [`open_adjacent_chapter`] (dòng *"Con trỏ đổi SAU khi truy vấn thành
+/// công, không trước"*): đặt trước rồi truy vấn trượt là để `OpenWork` trỏ vào một Chương mà
+/// webview chưa bao giờ nạp.
+///
+/// # Lỗi
+/// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
+/// - `chapter_id` không tồn tại ⇒ `segment.chapter_not_found` (tái dùng khoá đã có) — con
+///   trỏ Chương **không đổi**;
+/// - đường đọc trượt ⇒ `store.read_failed`.
+pub fn open_chapter(
+    open: Option<&mut OpenWork>,
+    chapter_id: i64,
+) -> Result<OpenChapter, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+
+    let found = open.store.read(move |conn| {
+        let mut stmt = conn.prepare("SELECT source_text FROM chapter WHERE id = ?1")?;
+        let mut rows = stmt.query_map([chapter_id], |row| row.get::<_, String>(0))?;
+        rows.next().transpose()
+    })?;
+
+    let Some(source_text) = found else {
+        return Err(chapter_not_found(chapter_id));
+    };
+
+    // 🔵 THEM (Story 5.7) — cung ly do da ghi o `read_open_chapter`/`open_adjacent_chapter`:
+    // day cung la mot duong MO CHUONG. Goi lap khong ton gi (LazyLock chi chay ham khoi tao
+    // dung mot lan).
+    crate::core::glossary::warm_jieba_for_source_lang(&open.meta.source_lang);
+
+    // Con tro doi SAU khi truy van thanh cong — xem doc-comment cua ham nay.
+    open.chapter_id = chapter_id;
+
+    Ok(OpenChapter {
+        chapter_id,
+        source_text,
+        source_lang: open.meta.source_lang.clone(),
+    })
+}
+
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
-    use super::{ChapterDirection, ChapterSwitch, IpcError, OpenChapter};
+    use super::{ChapterDirection, ChapterRow, ChapterSwitch, IpcError, OpenChapter};
     use crate::commands::project::OpenWorkState;
 
     /// Vỏ IPC của [`super::read_open_chapter`].
@@ -350,5 +455,39 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::open_adjacent_chapter(guard.as_mut(), direction)
+    }
+
+    /// Vỏ IPC của [`super::list_chapters`]. Story 5.7, AC2.
+    #[tauri::command]
+    pub fn list_chapters(app: tauri::AppHandle) -> Result<Vec<ChapterRow>, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::list_chapters(None);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::list_chapters(guard.as_ref())
+    }
+
+    /// Vỏ IPC của [`super::open_chapter`]. Story 5.7, AC3.
+    ///
+    /// ⚠️ `chapter_id` đi trên dây dưới tên **`chapterId`** — `invoke()` gửi tham số ở dạng
+    /// camelCase.
+    ///
+    /// 🔴 `MutexGuard` giữ **XUYÊN SUỐT** lời gọi, cùng lý do [`open_adjacent_chapter`] ngay
+    /// trên: hàm thuần nhận `&mut` vì nó dời con trỏ Chương.
+    #[tauri::command]
+    pub fn open_chapter(app: tauri::AppHandle, chapter_id: i64) -> Result<OpenChapter, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::open_chapter(None, chapter_id);
+        };
+        let mut guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::open_chapter(guard.as_mut(), chapter_id)
     }
 }

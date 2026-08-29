@@ -278,6 +278,30 @@ export type CommandDeps = {
   /** Chuyển con trỏ lưới Tác phẩm lên ô trước. Handler của `library.work_prev` (AC7). */
   prevLibraryWork?: () => void
 
+  // ── Story 5.7 — "Danh sách Chương và mở Chương vào Workspace" (FR12) ────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `nextLibraryWork`: state sống ở
+  // `src/modes/libraryChapters.ts`, một module Vue thật (`ref`) — import thẳng nó ở đây giết
+  // Kiểm C/D/E cùng lý do `@tauri-apps/api` bị cấm.
+
+  /** Mở lại Tác phẩm ĐANG CHỌN trong lưới (`.atproj` đã có trên đĩa). Handler của
+   * `library.open_work` — cùng khuôn `forgetCurrentLibraryOrphan` (đọc con trỏ hiện thời,
+   * không nhận tham số). ⚠️ Cài đặt thật là `async`; `() => void` khớp cùng khuôn
+   * `rescanLibraryFolder` — promise trả về bị bỏ qua có chủ ý, kết quả đi ra qua các `ref`
+   * ở tầng module. */
+  openCurrentLibraryWork?: () => void
+  /** Liệt kê (hoặc tải lại) Chương của Tác phẩm ĐANG MỞ. Handler của
+   * `library.list_chapters`. */
+  loadLibraryChapters?: () => void
+  /** Chuyển con trỏ danh sách Chương xuống ô kế tiếp. Handler của `library.chapter_next` —
+   * chép ĐÚNG khuôn `library.work_next`. */
+  nextLibraryChapter?: () => void
+  /** Chuyển con trỏ danh sách Chương lên ô trước. Handler của `library.chapter_prev`. */
+  prevLibraryChapter?: () => void
+  /** Mở Chương ĐANG CHỌN vào Workspace. Handler của `library.open_chapter` — cùng khuôn
+   * `openCurrentLibraryWork` (đọc con trỏ hiện thời). */
+  openCurrentLibraryChapter?: () => void
+
   // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `applyPreset`/`submitPastedText`: state sống ở
@@ -1058,6 +1082,59 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.prevLibraryWork === undefined) return portMissing('library.work_prev', 'prevLibraryWork')
       deps.prevLibraryWork()
+    },
+  })
+  // Story 5.7 — mở lại một `.atproj` đã có trên đĩa (FR12). Nút "Mở Tác phẩm" của mỗi ô lưới,
+  // cùng khuôn `library.forget_orphan`: thao tác trên Tác phẩm ĐANG CHỌN, không tham số.
+  target.register({
+    id: 'library.open_work',
+    labelKey: 'command.library.open_work',
+    keys: undefined,
+    run: () => {
+      if (deps.openCurrentLibraryWork === undefined) {
+        return portMissing('library.open_work', 'openCurrentLibraryWork')
+      }
+      deps.openCurrentLibraryWork()
+    },
+  })
+  target.register({
+    id: 'library.list_chapters',
+    labelKey: 'command.library.list_chapters',
+    keys: undefined,
+    run: () => {
+      if (deps.loadLibraryChapters === undefined) return portMissing('library.list_chapters', 'loadLibraryChapters')
+      deps.loadLibraryChapters()
+    },
+  })
+  // Con trỏ danh sách Chương — chép ĐÚNG khuôn `library.work_next`/`work_prev` ở trên: 0
+  // hợp âm mặc định, bấm/gõ qua `dispatch('<id>')` từ hai nút thật (`‹`/`›`).
+  target.register({
+    id: 'library.chapter_next',
+    labelKey: 'command.library.chapter_next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextLibraryChapter === undefined) return portMissing('library.chapter_next', 'nextLibraryChapter')
+      deps.nextLibraryChapter()
+    },
+  })
+  target.register({
+    id: 'library.chapter_prev',
+    labelKey: 'command.library.chapter_prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevLibraryChapter === undefined) return portMissing('library.chapter_prev', 'prevLibraryChapter')
+      deps.prevLibraryChapter()
+    },
+  })
+  target.register({
+    id: 'library.open_chapter',
+    labelKey: 'command.library.open_chapter',
+    keys: undefined,
+    run: () => {
+      if (deps.openCurrentLibraryChapter === undefined) {
+        return portMissing('library.open_chapter', 'openCurrentLibraryChapter')
+      }
+      deps.openCurrentLibraryChapter()
     },
   })
   target.register({

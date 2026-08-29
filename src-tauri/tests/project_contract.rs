@@ -1109,10 +1109,18 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// Mọi bảng KHÔNG PHẢI thực thể tầng — chi tiết/thuộc tính gắn theo `chapter`/`work`
-/// (`segment`/`segment_version`, `glossary_entry`/`glossary_candidate`), sổ sách nội bộ của
-/// chính cơ chế di trú (`schema_migration_log`), hoặc do SQLite tự sinh
-/// (`sqlite_sequence`, mọi bảng dùng `AUTOINCREMENT`).
-const NON_ENTITY_DETAIL_TABLES: [&str; 6] = [
+/// (`segment`/`segment_version`, `glossary_entry`/`glossary_candidate`,
+/// `chapter_position` — Story 5.7), sổ sách nội bộ của chính cơ chế di trú
+/// (`schema_migration_log`), hoặc do SQLite tự sinh (`sqlite_sequence`, mọi bảng dùng
+/// `AUTOINCREMENT`).
+///
+/// 🔵 **THÊM (2026-08-29, Story 5.7) — `chapter_position`.** Không phải một CONTAINER giữa
+/// `work` và `chapter`: nó là một thuộc tính GẮN THEO một hàng `chapter` (vị trí caret của
+/// chính Chương đó), khoá chính là `chapter_id`, cùng vai với `segment`/`segment_version`
+/// gắn theo `chapter`/`segment`. Xem §Design Notes "Vì sao một BẢNG riêng cho vị trí" của
+/// `5-7-danh-sach-chuong-va-mo-chuong-vao-workspace.md`.
+const NON_ENTITY_DETAIL_TABLES: [&str; 7] = [
+    "chapter_position",
     "glossary_candidate",
     "glossary_entry",
     "schema_migration_log",
@@ -1633,4 +1641,435 @@ fn glossary_and_translation_memory_both_resolve_at_the_work_tier() {
         "AD-19: giu nguyen bat dong -- muc Global khong bi khu trung lap hay bi tang Work che \
          mat: {merged:?}"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.7 — mở lại một `.atproj` đã có trên đĩa (`open_work`) + danh sách/mở Chương.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Dựng một [`auratranslate_lib::core::library::indexer::IndexedWork`] khớp một [`OpenWork`]
+/// đã tạo — cùng dữ kiện `library-index.db` sẽ chứa cho Tác phẩm đó (không cần mở
+/// `Indexer` thật cho các ca ở tệp này; `library_index_contract.rs` sở hữu hành vi của
+/// chính `Indexer::find_work`).
+fn indexed_work_from(
+    opened: &auratranslate_lib::commands::project::OpenWork,
+) -> auratranslate_lib::core::library::indexer::IndexedWork {
+    auratranslate_lib::core::library::indexer::IndexedWork {
+        work_id: opened.meta.work_id.clone(),
+        atproj_path: opened.dir.clone(),
+        name: opened.meta.name.clone(),
+        source_lang: opened.meta.source_lang.clone(),
+        genre: opened.meta.genre.clone(),
+        created_at: opened.meta.created_at.clone(),
+        updated_at: opened.meta.updated_at.clone(),
+        chapter_count: opened.meta.chapter_count,
+        status: opened.meta.status.clone(),
+        status_is_override: opened.meta.status_is_override,
+        chapter_done_count: opened.meta.chapter_done_count,
+    }
+}
+
+/// 🔴 **AC1** — mở lại một `.atproj` đã có trên đĩa: `ScopeResolver` phải là `with_work`
+/// (KHÔNG `global_only`), và mọi mục Glossary tầng Tác phẩm ghi ở phiên trước đọc lại được
+/// — nghiệm thu bằng một ca Rust, không bằng suy luận.
+#[test]
+fn opening_an_existing_atproj_resolves_with_work_scope_and_keeps_glossary_data() {
+    let root = temp_dir("open-existing");
+    let opened = create_work_from_text(&root, "Mo Lai", "zh", "", "Noi dung mau.".to_owned())
+        .expect("tao tac pham that bai");
+    let work_id = opened.meta.work_id.clone();
+
+    // Ghi mot muc Glossary tang Tac pham TRUOC khi dong -- AC1 doi no doc lai duoc SAU khi
+    // mo lai.
+    opened
+        .store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO glossary_entry (source_term, translation, note, category, \
+                 term_origin, created_at) VALUES ('Nhan vat A', 'Character A', '', 'person', \
+                 'manual', strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [],
+            )?;
+            Ok(())
+        })
+        .expect("ghi glossary_entry that bai");
+
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    drop(opened); // dong Store truoc khi mo lai -- Windows tu choi mo tep dang mo hai lan.
+
+    let reopened = auratranslate_lib::commands::project::open_work(&work_id, Some(&indexed))
+        .expect("mo lai .atproj that bai");
+
+    assert!(
+        reopened.scope.has_work_tier(),
+        "ScopeResolver cua mot Tac pham vua mo lai phai la with_work, khong global_only"
+    );
+
+    let glossary_count: i64 = reopened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM glossary_entry", [], |row| row.get(0)))
+        .expect("doc glossary_entry that bai");
+    assert_eq!(
+        glossary_count, 1,
+        "muc Glossary tang Tac pham ghi o phien truoc phai doc lai duoc sau khi mo lai"
+    );
+
+    drop(reopened);
+    cleanup(&dir);
+}
+
+/// `work_id` lạ (không có trong chỉ mục) ⇒ `library.work_not_indexed` — một lỗi CÓ TÊN.
+#[test]
+fn opening_a_work_id_that_is_not_indexed_is_a_named_error() {
+    let err = auratranslate_lib::commands::project::open_work("khong-ton-tai", None)
+        .expect_err("work_id la phai la mot loi");
+
+    assert_eq!(err.code(), "library.work_not_indexed");
+    assert_eq!(err.message_key(), MessageKey::LibraryWorkNotIndexed);
+    assert_eq!(err.params().get("work_id").map(String::as_str), Some("khong-ton-tai"));
+    assert!(!err.retryable());
+}
+
+/// Thư mục `.atproj` đã biến mất khỏi đĩa (chỉ mục còn hàng, đĩa thì không) ⇒
+/// `work.open_failed` — KHÔNG một lỗi kho chung chung.
+#[test]
+fn opening_a_work_whose_folder_has_vanished_is_a_named_open_failed_error() {
+    let root = temp_dir("open-vanished");
+    let opened = create_work_from_text(&root, "Bien Mat", "zh", "", "Noi dung.".to_owned())
+        .expect("tao tac pham that bai");
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    drop(opened);
+    fs::remove_dir_all(&dir).expect("xoa thu muc .atproj that bai");
+
+    let err = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect_err("thu muc bien mat phai la mot loi");
+
+    assert_eq!(err.code(), "work.open_failed");
+    assert_eq!(err.message_key(), MessageKey::WorkOpenFailed);
+    assert_eq!(err.params().get("name").map(String::as_str), Some("Bien Mat"));
+
+    cleanup(&root);
+}
+
+/// AC8 — `meta.json` phiên bản MỚI HƠN ⇒ `work.meta_too_new`, kèm `found`/`supported`, và
+/// KHÔNG một byte nào trong `.atproj` bị ghi.
+#[test]
+fn opening_a_work_with_a_newer_meta_schema_is_refused_without_touching_a_single_byte() {
+    let root = temp_dir("open-meta-new");
+    let opened = create_work_from_text(&root, "Phien Ban Tuong Lai", "zh", "", "text".to_owned())
+        .expect("tao tac pham that bai");
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    drop(opened);
+
+    let mut future_meta = WorkMeta::read(&dir).expect("doc meta.json that bai");
+    future_meta.meta_schema_version = META_SCHEMA_VERSION + 1;
+    future_meta.write_atomic(&dir).expect("ghi meta.json phien ban tuong lai that bai");
+    let bytes_before = fs::read(dir.join("meta.json")).expect("doc meta.json that bai");
+
+    let err = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect_err("meta.json phien ban moi hon phai bi tu choi");
+
+    assert_eq!(err.code(), "work.meta_too_new");
+    assert_eq!(err.message_key(), MessageKey::WorkMetaTooNew);
+    assert_eq!(
+        err.params().get("found").map(String::as_str),
+        Some((META_SCHEMA_VERSION + 1).to_string().as_str())
+    );
+    assert_eq!(
+        err.params().get("supported").map(String::as_str),
+        Some(META_SCHEMA_VERSION.to_string().as_str())
+    );
+
+    let bytes_after = fs::read(dir.join("meta.json")).expect("doc meta.json that bai");
+    assert_eq!(
+        bytes_before, bytes_after,
+        "mot lan mo bi tu choi khong duoc phep ghi mot byte nao vao .atproj"
+    );
+
+    cleanup(&root);
+}
+
+/// Mở lại **chính** Tác phẩm đang mở (`work_id` trùng) — hai lượt mở nối tiếp, đóng lượt
+/// trước rồi mới mở lượt sau, đều phải thành công (§I/O Matrix "Mở lại chính Tác phẩm đang
+/// mở").
+#[test]
+fn opening_the_same_work_twice_in_a_row_succeeds() {
+    let root = temp_dir("open-twice");
+    let opened = create_work_from_text(&root, "Mo Lai Hai Lan", "zh", "", "Noi dung.".to_owned())
+        .expect("tao tac pham that bai");
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    drop(opened);
+
+    let first = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect("lan mo thu nhat that bai");
+    drop(first);
+
+    let second = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect("lan mo thu hai (lai chinh Tac pham do) that bai");
+    assert!(second.scope.has_work_tier());
+
+    drop(second);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix hàng *"`project.db` phiên bản MỚI HƠN"* — đo qua **CHÍNH đường `open_work`**,
+/// không chỉ qua `Store::open`.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO CA NÀY TỒN TẠI DÙ CƠ CHẾ ĐÃ CÓ TEST
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `segment_contract.rs::a_project_database_newer_than_the_app_is_refused_and_never_written_to`
+/// đã canh **cơ chế** (AD-30 ở tầng `Store::open`), và nó xanh từ trước story này. Nhưng
+/// `open_work` là một **chỗ nối MỚI** tới cơ chế đó — đường mở lại một `.atproj` chưa từng
+/// tồn tại — và `AGENTS.md::Known pitfalls` ghi bằng chữ: *"một bộ test xanh KHÔNG chứng minh
+/// chỗ nối mới được canh"*, kèm năm lần dính trong bảy ngày ở Epic 3. Một `open_work` nuốt
+/// lỗi kho rồi trả một `IpcError` chung chung *(hoặc tệ hơn: rơi về một nhánh "mở được")* đi
+/// qua **sạch** cả hai bộ ca kia.
+///
+/// ⚠️ Fixture bơm bước **18 GIẢ** lên chính `project.db` vừa tạo — cùng kỹ thuật và cùng lý do
+/// đã ghi ở ca `segment_contract.rs` nói trên. Bước 18 phải là một số **chưa có thật**; khi
+/// `PROJECT_MIGRATIONS` mọc thêm một bước, ca này (và ca kia) phải nâng theo, nếu không nó
+/// **xanh mà không bao giờ chạm nhánh AD-30**.
+#[test]
+fn opening_a_work_whose_project_db_is_newer_than_the_app_is_refused_through_open_work() {
+    use auratranslate_lib::core::store::{Migration, PROJECT_MIGRATIONS};
+
+    let root = temp_dir("open-db-too-new");
+    let opened = create_work_from_text(&root, "Kho Tuong Lai", "zh", "", "Noi dung.".to_owned())
+        .expect("tao tac pham that bai");
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    let db = dir.join("project.db");
+    drop(opened);
+
+    // Mot "ban ung dung tuong lai" chay them dung MOT buoc len `project.db` da co.
+    //
+    // 🔴 `Box::leak` chu KHONG mot mang `static` chep tay, va day la mot lua chon CO LY DO.
+    // `StoreSpec::migrations` doi `&'static [Migration]`. Ca tuong duong o
+    // `segment_contract.rs` giai bang mot mang `static [Migration; N]` liet ke tung phan tu —
+    // va doc-comment cua chinh ca do dem duoc **muoi** luot phai nang tay khi
+    // `PROJECT_MIGRATIONS` moc them mot buoc, moi luot quen la mot ca "xanh ma khong bao gio
+    // cham nhanh AD-30". Dung so THAT cua `PROJECT_MIGRATIONS` roi noi them dung mot buoc
+    // gia lam ca nay TU nang theo. Ro ri mot lan trong mot tien trinh test la mien phi.
+    let mut future_steps: Vec<Migration> = PROJECT_MIGRATIONS.to_vec();
+    let future_version = PROJECT_MIGRATIONS
+        .last()
+        .expect("PROJECT_MIGRATIONS khong duoc rong")
+        .to_version
+        + 1;
+    future_steps.push(Migration {
+        to_version: future_version,
+        sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
+    });
+    let future_steps: &'static [Migration] = Box::leak(future_steps.into_boxed_slice());
+    let future = Store::open(StoreSpec {
+        migrations: future_steps,
+        ..StoreSpec::project(db.clone())
+    })
+    .expect("dung fixture o phien ban tuong lai that bai");
+    assert_eq!(future.schema_version(), future_version);
+    drop(future);
+
+    let bytes_before = fs::metadata(&db).expect("doc metadata truoc").len();
+
+    let err = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect_err("mot `project.db` phien ban moi hon PHAI bi tu choi qua `open_work`");
+
+    assert_eq!(
+        err.message_key(),
+        MessageKey::StoreSchemaTooNew,
+        "phep tu choi phai PHAN BIET DUOC o tang lenh — khong duoc nuot thanh mot loi mo kho \
+         chung chung, va khong duoc doi lop thanh `work.open_failed`"
+    );
+    assert_eq!(err.code(), "store.schema_too_new");
+
+    assert_eq!(
+        fs::metadata(&db).expect("doc metadata sau").len(),
+        bytes_before,
+        "mot lan mo bi tu choi KHONG duoc dung toi mot byte nao cua `project.db` (AD-30)"
+    );
+
+    cleanup(&dir);
+}
+
+/// 🔴 **`meta.json` LÀNH nhưng `project.db` VẮNG ⇒ TỪ CHỐI, và KHÔNG tạo một tệp nào.**
+///
+/// Ca này ra đời ở lượt review 2026-08-29. `Store::open` đi qua `pragmas::open_connection`,
+/// hàm mang `SQLITE_OPEN_CREATE` — nên trước bản vá, `open_work` trên một `.atproj` mất
+/// `project.db` **âm thầm tạo** một kho rỗng ngay trong thư mục của người dùng, chạy trọn
+/// bộ di trú lên nó, rồi mới trượt bằng một lỗi kho chung chung. Hai phép khẳng định dưới
+/// đây khoá **cả hai** vế: câu báo đúng LOẠI, và **đĩa không bị chạm**.
+#[test]
+fn opening_a_work_whose_project_db_is_missing_is_refused_and_creates_no_file() {
+    let root = temp_dir("open-db-missing");
+    let opened = create_work_from_text(&root, "Mat Kho", "zh", "", "Noi dung.".to_owned())
+        .expect("tao tac pham that bai");
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    drop(opened);
+
+    let db = dir.join("project.db");
+    // Xoa ca ba tep cua kho -- `project.db` cong hai sidecar WAL/SHM neu con.
+    fs::remove_file(&db).expect("xoa project.db that bai");
+    let _ = fs::remove_file(dir.join("project.db-wal"));
+    let _ = fs::remove_file(dir.join("project.db-shm"));
+    assert!(!db.exists(), "tien de cua ca nay: project.db phai vang mat");
+
+    let err = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect_err("mot .atproj mat project.db PHAI bi tu choi mo");
+
+    assert_eq!(err.code(), "work.open_failed");
+    assert_eq!(err.message_key(), MessageKey::WorkOpenFailed);
+
+    // 🔴 Ve NANG hon cua ca nay: mot lan tu choi KHONG duoc de lai mot tep nao tren dia.
+    assert!(
+        !db.exists(),
+        "`open_work` da TAO mot `project.db` rong o mot nhanh le ra chi duoc TU CHOI -- \
+         doc-comment cua chinh ham do noi \"chi duoc phep TU CHOI MO\""
+    );
+    assert!(
+        WorkMeta::read(&dir).is_ok(),
+        "`meta.json` cua nguoi dung phai con nguyen sau mot lan mo bi tu choi"
+    );
+
+    cleanup(&dir);
+}
+
+/// 🔴 **`project.db` lành nhưng KHÔNG hàng `chapter` nào ⇒ một lỗi CÓ TÊN, không phải lỗi kho.**
+///
+/// Cùng lớp *"một câu SAI VỀ LOẠI"* mà Story 2.11 đã sửa ở `chapter_not_found`: không tệp nào
+/// hỏng, nên *"khong mo duoc kho du lieu"* là một câu nói dối về nguyên nhân.
+#[test]
+fn opening_a_work_with_no_chapter_rows_is_a_named_error_not_a_store_error() {
+    let root = temp_dir("open-no-chapters");
+    let opened = create_work_from_text(&root, "Khong Chuong", "zh", "", "Noi dung.".to_owned())
+        .expect("tao tac pham that bai");
+    let indexed = indexed_work_from(&opened);
+    let dir = opened.dir.clone();
+    // Xoa het hang `chapter` NGAY TREN kho dang mo, roi tha no de dong tep.
+    opened
+        .store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute("DELETE FROM chapter", [])?;
+            Ok(())
+        })
+        .expect("xoa hang chapter that bai");
+    drop(opened);
+
+    let err = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect_err("mot project.db khong hang chapter nao PHAI bi tu choi mo");
+
+    assert_eq!(
+        err.message_key(),
+        MessageKey::WorkOpenFailed,
+        "phai la mot loi TANG TAC PHAM co ten, khong phai `store.read_failed`"
+    );
+    assert_eq!(err.code(), "work.open_failed");
+
+    cleanup(&dir);
+}
+
+/// AC2 — `list_chapters` trả đúng thứ tự `(ord, id)` và KHÔNG mang `source_text`.
+#[test]
+fn list_chapters_returns_rows_in_ord_id_order_without_source_text() {
+    let root = temp_dir("list-chapters-order");
+    let opened = create_work_from_text(&root, "Liet Ke Chuong", "zh", "", "Chuong mot.".to_owned())
+        .expect("tao tac pham that bai");
+    let second = insert_chapter_directly(&opened, 5, "Chuong nam.");
+    let third = insert_chapter_directly(&opened, 2, "Chuong hai.");
+
+    let rows = auratranslate_lib::commands::chapter::list_chapters(Some(&opened))
+        .expect("liet ke Chuong that bai");
+
+    let ids: Vec<i64> = rows.iter().map(|r| r.chapter_id).collect();
+    assert_eq!(
+        ids,
+        vec![opened.chapter_id, third, second],
+        "thu tu phai la (ord, id) tang dan: ord=1 (Chuong mo dau), ord=2 (third), ord=5 (second)"
+    );
+    assert_eq!(rows.len(), 3);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Chưa Tác phẩm nào mở ⇒ `list_chapters` trả `project.no_work_open` — cùng khoá tái dùng.
+#[test]
+fn list_chapters_without_a_work_open_reuses_the_named_error() {
+    let err = auratranslate_lib::commands::chapter::list_chapters(None)
+        .expect_err("chua Tac pham nao mo phai la mot loi");
+    assert_eq!(err.code(), "work.none_open");
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
+}
+
+/// `title IS NULL` đi qua dây nguyên vẹn — webview dựng nhãn từ `ord`, Rust không tự đoán
+/// một chuỗi thay thế.
+#[test]
+fn list_chapters_carries_a_null_title_through_untouched() {
+    let root = temp_dir("list-chapters-untitled");
+    let opened = create_work_from_text(&root, "Chuong Khong Ten", "zh", "", "Chuong mot.".to_owned())
+        .expect("tao tac pham that bai");
+
+    let rows = auratranslate_lib::commands::chapter::list_chapters(Some(&opened))
+        .expect("liet ke Chuong that bai");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].title, None, "Chuong moi tao chua co tieu de, phai la None qua day");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// AC3 — mở một Chương đích danh dời con trỏ **SAU** khi truy vấn thành công.
+#[test]
+fn opening_a_named_chapter_moves_the_cursor_only_after_a_successful_lookup() {
+    let root = temp_dir("open-chapter-named");
+    let mut opened = create_work_from_text(&root, "Mo Chuong Dich Danh", "zh", "", "Chuong mot.".to_owned())
+        .expect("tao tac pham that bai");
+    let second = insert_chapter_directly(&opened, 2, "Chuong hai.");
+
+    let switched = auratranslate_lib::commands::chapter::open_chapter(Some(&mut opened), second)
+        .expect("mo Chuong dich danh that bai");
+    assert_eq!(switched.chapter_id, second);
+    assert_eq!(opened.chapter_id, second, "con tro Chuong phai doi sang dung Chuong vua mo");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// `chapter_id` lạ ⇒ `segment.chapter_not_found`, con trỏ Chương **không đổi**.
+#[test]
+fn opening_an_unknown_chapter_id_does_not_move_the_cursor() {
+    let root = temp_dir("open-chapter-unknown");
+    let mut opened = create_work_from_text(&root, "Chuong La", "zh", "", "Chuong mot.".to_owned())
+        .expect("tao tac pham that bai");
+    let original = opened.chapter_id;
+
+    let err = auratranslate_lib::commands::chapter::open_chapter(Some(&mut opened), original + 999)
+        .expect_err("chapter_id la phai la mot loi");
+    assert_eq!(err.code(), "segment.chapter_not_found");
+    assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
+    assert_eq!(
+        opened.chapter_id, original,
+        "con tro Chuong KHONG duoc doi khi truy van that bai"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// Chưa Tác phẩm nào mở ⇒ `open_chapter` trả `project.no_work_open`.
+#[test]
+fn opening_a_chapter_without_a_work_open_reuses_the_named_error() {
+    let err = auratranslate_lib::commands::chapter::open_chapter(None, 1)
+        .expect_err("chua Tac pham nao mo phai la mot loi");
+    assert_eq!(err.code(), "work.none_open");
+    assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 }

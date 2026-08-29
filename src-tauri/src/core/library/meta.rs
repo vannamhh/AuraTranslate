@@ -167,6 +167,17 @@ impl WorkMeta {
     /// # Lỗi
     /// [`MetaError::SchemaTooNew`] nếu `meta_schema_version` vượt bản ứng dụng hiểu — không
     /// **không** ghi gì, kể cả khi chỗ gọi định làm vậy sau đó.
+    ///
+    /// 🔵 **SỬA 2026-08-29 (Story 5.7) — mệnh đề "0 chỗ gọi sản phẩm" đã HẾT ĐÚNG.** Trước
+    /// lượt này, hàm này có ĐÚNG một chỗ gọi sản phẩm (`Indexer::rebuild`, lúc quét thư mục
+    /// gốc) và một ca test đã ký cơ chế từ chối
+    /// (`tests/project_contract.rs::a_newer_meta_schema_is_refused_without_touching_a_single_byte`)
+    /// mà không một đường sản phẩm nào gọi tới. Story 5.7 thêm chỗ gọi sản phẩm THỨ HAI:
+    /// `commands::project::open_work` — đường mở lại một `.atproj` **đã có trên đĩa**, món
+    /// nợ kiến trúc trung tâm mà `core/library/mod.rs:50-59` từng ghi là *"chưa tồn tại"*.
+    /// Cơ chế bên dưới không đổi một dòng; chỉ bề mặt HIỂN THỊ của nó đổi, từ "không tồn
+    /// tại" thành "tồn tại" (xem `WorkError::MetaTooNew` + `err.work.meta_too_new`). Cổng
+    /// canh: `meta_write_boundary.rs` mệnh đề (c), nay BA tệp thay vì hai.
     pub fn read(dir: &Path) -> Result<WorkMeta, MetaError> {
         let path = Self::path_in(dir);
         let raw = std::fs::read_to_string(&path).map_err(|e| MetaError::Io {

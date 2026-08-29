@@ -16,10 +16,16 @@
 //! (b) `META_FILE` và chuỗi `"meta.json"` Ở VỊ TRÍ MÃ chỉ được nhắc tới trong
 //!     `core/library/meta.rs` — chỗ DUY NHẤT tên tệp trên đĩa được viết ra; mọi nơi khác phải
 //!     đi qua `WorkMeta::read`/`write_atomic`, không tự lắp một chuỗi `"meta.json"` song song.
-//! (c) `WorkMeta::read` chỉ được NHẮC TỚI Ở VỊ TRÍ MÃ trong `core/library/meta.rs` (định
-//!     nghĩa) và `core/library/indexer.rs` (đường quét sản phẩm DUY NHẤT — AC2 của Story 5.2
-//!     đã đóng việc `Indexer` là nơi duy nhất mở kho dẫn xuất; đây là nửa còn lại, "nơi duy
-//!     nhất đọc `meta.json` lúc quét").
+//! (c) `WorkMeta::read` chỉ được NHẮC TỚI Ở VỊ TRÍ MÃ trong BA tệp: `core/library/meta.rs`
+//!     (định nghĩa), `core/library/indexer.rs` (đường quét sản phẩm — AC2 của Story 5.2 đã
+//!     đóng việc `Indexer` là nơi duy nhất mở kho dẫn xuất; đây là nửa còn lại, "nơi duy
+//!     nhất đọc `meta.json` lúc quét"), và 🔵 **THÊM (2026-08-29, Story 5.7) —
+//!     `commands/project.rs`** (`open_work`, đường mở lại một `.atproj` **đã có trên đĩa**
+//!     mà story 5.5 từng ghi là "chưa tồn tại" — xem doc-comment của `WorkMeta::read`).
+//!     Đây là chỗ đọc thứ BA, không phải một chỗ đi vòng: số chỗ đọc thật sự tăng từ 2 lên
+//!     3, và con số trong cổng tăng theo đúng nó (xem §Design Notes "`meta_write_boundary.rs`
+//!     — vì sao NỚI danh sách chứ không đi vòng" của
+//!     `5-7-danh-sach-chuong-va-mo-chuong-vao-workspace.md`).
 //!
 //! Mỗi mệnh đề mang bốn phần, đúng khuôn `library_index_boundary.rs`:
 //! 1. needle cấm (violations rỗng ngoài `EXEMPT_FILES` tương ứng);
@@ -322,19 +328,23 @@ fn every_meta_file_exemption_matches_a_real_file() {
 // Mệnh đề (c) — `WorkMeta::read` chỉ ở `core/library/meta.rs` + `core/library/indexer.rs`.
 // ═════════════════════════════════════════════════════════════════════════════════
 
-const WORK_META_READ_EXEMPT: [&str; 2] = ["core/library/meta.rs", "core/library/indexer.rs"];
+// 🔵 SUA (2026-08-29, Story 5.7) — tu HAI len BA phan tu. `commands/project.rs::open_work`
+// la cho doc `meta.json` THU BA, va no la mot chu MOI cua mon no ma Story 5.5 da ghi bang
+// chu ("story nay khong dung mot duong mo lai .atproj"). Xem khoi doc-comment dau tep.
+const WORK_META_READ_EXEMPT: [&str; 3] =
+    ["core/library/meta.rs", "core/library/indexer.rs", "commands/project.rs"];
 const WORK_META_READ_NEEDLE: &str = "WorkMeta::read";
 
 #[test]
-fn only_meta_rs_and_indexer_rs_may_call_work_meta_read() {
+fn only_meta_rs_indexer_rs_and_project_rs_may_call_work_meta_read() {
     let (root, files) = all_rust_sources();
     let violations =
         violations_outside(&root, &files, &WORK_META_READ_EXEMPT, &[WORK_META_READ_NEEDLE]);
     assert!(
         violations.is_empty(),
         "{} chỗ ngoài danh mục đóng {:?} nhắc `WorkMeta::read`:\n{}\n\n\
-         `Indexer::rebuild` là đường quét sản phẩm DUY NHẤT đọc `meta.json` — một chỗ đọc thứ \
-         ba là một đường vào chưa được xét.",
+         `Indexer::rebuild` đọc `meta.json` lúc quét, và `commands::project::open_work` đọc nó \
+         lúc MỞ LẠI (Story 5.7) — một chỗ đọc thứ TƯ là một đường vào chưa được xét.",
         violations.len(),
         WORK_META_READ_EXEMPT,
         violations.join("\n")
@@ -355,6 +365,19 @@ fn core_library_indexer_actually_calls_work_meta_read() {
     assert!(
         file_names_one_of_in_code(&file, &[WORK_META_READ_NEEDLE]),
         "`core/library/indexer.rs` không còn gọi `WorkMeta::read` — miễn trừ ở mệnh đề (c) đang \
+         canh một tập RỖNG, tức không còn kiểm gì cả."
+    );
+}
+
+/// **THÊM (2026-08-29, Story 5.7)** — đối chứng dương cho chỗ đọc thứ BA:
+/// `commands/project.rs::open_work` thật sự gọi `WorkMeta::read`, không phải một miễn trừ
+/// canh một tập RỖNG.
+#[test]
+fn commands_project_actually_calls_work_meta_read() {
+    let file = src_root().join("commands/project.rs");
+    assert!(
+        file_names_one_of_in_code(&file, &[WORK_META_READ_NEEDLE]),
+        "`commands/project.rs` không còn gọi `WorkMeta::read` — miễn trừ ở mệnh đề (c) đang \
          canh một tập RỖNG, tức không còn kiểm gì cả."
     );
 }

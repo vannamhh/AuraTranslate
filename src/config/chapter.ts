@@ -87,6 +87,57 @@ export type OpenAdjacentChapterResult = {
   error: IpcError | null
 }
 
+/** Tên command trên dây — Story 5.7, AC2/AC3. Khớp `commands/chapter.rs::wire`. */
+const CMD_LIST_CHAPTERS = 'list_chapters'
+const CMD_OPEN_CHAPTER = 'open_chapter'
+
+/**
+ * Hình dạng `ChapterRow` phía Rust — **`snake_case`, đúng như trên dây**, Story 5.7 AC2.
+ *
+ * ⚠️ KHÔNG `source_text` — Chương lớn nhất có thật là 48.640 ký tự; danh sách chỉ mang dữ
+ * kiện cho một hàng lưới, không nội dung.
+ */
+export type ChapterRow = {
+  chapter_id: number
+  ord: number
+  /** `null` ⇒ Chương chưa đặt tên — webview dựng nhãn từ `ord`. */
+  title: string | null
+  status: string
+  segment_count: number
+}
+
+/** Ba trạng thái, cùng khuôn [`ReadOpenChapterResult`]. */
+export type ListChaptersResult = {
+  chapters: ChapterRow[] | null
+  error: IpcError | null
+}
+
+/** Ba trạng thái, cùng khuôn [`ReadOpenChapterResult`]. */
+export type OpenChapterResult = {
+  chapter: OpenChapter | null
+  error: IpcError | null
+}
+
+/**
+ * Vị từ kiểm kiểu **lúc chạy** cho một hàng `ChapterRow` — `IpcError` phía TS là một lời
+ * khai về dữ liệu đã qua dây, không phải bảo đảm của trình biên dịch (`src/AGENTS.md`).
+ */
+function isChapterRow(value: unknown): value is ChapterRow {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ChapterRow>
+  return (
+    typeof v.chapter_id === 'number' &&
+    typeof v.ord === 'number' &&
+    (v.title === null || typeof v.title === 'string') &&
+    typeof v.status === 'string' &&
+    typeof v.segment_count === 'number'
+  )
+}
+
+function isChapterRowArray(value: unknown): value is ChapterRow[] {
+  return Array.isArray(value) && value.every(isChapterRow)
+}
+
 /**
  * Có cầu IPC của Tauri trong window này không — cùng khuôn `./project.ts::hasIpcBridge`.
  */
@@ -163,5 +214,53 @@ export async function openAdjacentChapter(
       `[chapter] không gọi được \`${CMD_OPEN_ADJACENT_CHAPTER}\` — chạy ngoài Tauri? ${String(err)}`,
     )
     return { switched: null, error: null }
+  }
+}
+
+/**
+ * Liệt kê Chương của Tác phẩm đang mở. Story 5.7, AC2. Không ném — cùng lý do và cùng
+ * khuôn [`readOpenChapter`].
+ */
+export async function listChapters(): Promise<ListChaptersResult> {
+  try {
+    const raw = await invoke<unknown>(CMD_LIST_CHAPTERS)
+    if (!isChapterRowArray(raw)) {
+      console.error(`[chapter] \`${CMD_LIST_CHAPTERS}\` trả một hình dạng không phải ChapterRow[]: ${String(raw)}`)
+      return { chapters: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { chapters: raw, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { chapters: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[chapter] \`${CMD_LIST_CHAPTERS}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { chapters: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[chapter] không gọi được \`${CMD_LIST_CHAPTERS}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { chapters: null, error: null }
+  }
+}
+
+/**
+ * Mở một Chương **đích danh**. Story 5.7, AC3. Không ném — cùng lý do và cùng khuôn
+ * [`readOpenChapter`].
+ *
+ * ⚠️ `invoke()` gửi tham số dạng **camelCase**: `chapterId`, không `chapter_id`.
+ */
+export async function openChapter(chapterId: number): Promise<OpenChapterResult> {
+  try {
+    const chapter = await invoke<OpenChapter>(CMD_OPEN_CHAPTER, { chapterId })
+    return { chapter, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { chapter: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[chapter] \`${CMD_OPEN_CHAPTER}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { chapter: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[chapter] không gọi được \`${CMD_OPEN_CHAPTER}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { chapter: null, error: null }
   }
 }

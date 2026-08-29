@@ -556,3 +556,95 @@ fn lifecycle_wire_struct_keeps_snake_case_field_names() {
         "khoá trên dây của WorkLifecycle là snake_case. Nhận được: {keys:?}."
     );
 }
+
+/// **THÊM Story 5.7.** Đóng băng tên trường `snake_case` của `ChapterRow` — hàng của danh
+/// sách Chương (`list_chapters`). Cùng lý lẽ mọi ca đóng băng khoá khác ở tệp này: một
+/// trường mới đi qua IPC mà không ai đối chiếu là đúng thứ ca này tồn tại để chặn.
+#[test]
+fn chapter_row_wire_struct_keeps_snake_case_field_names() {
+    let row = auratranslate_lib::commands::chapter::ChapterRow {
+        chapter_id: 1,
+        ord: 1,
+        title: None,
+        status: "not_started".to_owned(),
+        segment_count: 0,
+    };
+    let value = serde_json::to_value(&row).expect("ChapterRow phải serialize được");
+    let mut keys: Vec<&str> =
+        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        vec!["chapter_id", "ord", "segment_count", "status", "title"],
+        "khoá trên dây của ChapterRow là snake_case. Nhận được: {keys:?}. Nghi phạm số một: \
+         `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+}
+
+/// **THÊM Story 5.7.** Đóng băng tên trường `snake_case` của `OpenedWork` — kết quả của
+/// `open_work` (mở lại một `.atproj` đã có trên đĩa).
+#[test]
+fn opened_work_wire_struct_keeps_snake_case_field_names() {
+    let meta = auratranslate_lib::core::library::WorkMeta {
+        meta_schema_version: auratranslate_lib::core::library::META_SCHEMA_VERSION,
+        work_id: "id-1".to_owned(),
+        name: "Ten".to_owned(),
+        source_lang: "zh".to_owned(),
+        genre: String::new(),
+        created_at: "2026-08-01T00:00:00.000Z".to_owned(),
+        updated_at: "2026-08-01T00:00:00.000Z".to_owned(),
+        chapter_count: 1,
+        status: Some("not_started".to_owned()),
+        status_is_override: false,
+        chapter_done_count: Some(0),
+    };
+    let opened = auratranslate_lib::commands::project::wire::OpenedWork { meta, folder: "/tmp/x.atproj".to_owned(), chapter_id: 7 };
+    let value = serde_json::to_value(&opened).expect("OpenedWork phải serialize được");
+    let mut keys: Vec<&str> =
+        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        vec!["chapter_id", "folder", "meta"],
+        "khoá trên dây của OpenedWork là snake_case. Nhận được: {keys:?}. Nghi phạm số một: \
+         `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+}
+
+/// **THÊM Story 5.7.** Đóng băng trường MỚI `caret_segment_id` của `ChapterSegments` —
+/// `None` phải serialize thành `null`, không bị `#[serde(skip_serializing_if = "..")]` nào
+/// nuốt mất (đúng lý lẽ AC5: webview phải phân biệt được "chưa có giá trị" với "trường vắng
+/// mặt trên dây").
+#[test]
+fn chapter_segments_wire_struct_carries_caret_segment_id() {
+    let loaded = auratranslate_lib::commands::segment::ChapterSegments {
+        chapter_id: 1,
+        segments: Vec::new(),
+        caret_segment_id: None,
+    };
+    let value = serde_json::to_value(&loaded).expect("ChapterSegments phải serialize được");
+    let object = value.as_object().expect("phải serialize thành object");
+    assert!(
+        object.contains_key("caret_segment_id"),
+        "truong `caret_segment_id` phai co mat tren day, ke ca khi None -- webview phai phan \
+         biet duoc voi mot truong vang mat"
+    );
+    assert_eq!(
+        object.get("caret_segment_id"),
+        Some(&serde_json::Value::Null),
+        "`caret_segment_id: None` phai serialize thanh `null`, khong bi nuot boi mot \
+         `skip_serializing_if`"
+    );
+
+    let with_value = auratranslate_lib::commands::segment::ChapterSegments {
+        chapter_id: 1,
+        segments: Vec::new(),
+        caret_segment_id: Some(42),
+    };
+    let value = serde_json::to_value(&with_value).expect("ChapterSegments phải serialize được");
+    assert_eq!(
+        value.get("caret_segment_id"),
+        Some(&serde_json::Value::from(42)),
+        "`caret_segment_id: Some(42)` phai serialize thanh so 42"
+    );
+}

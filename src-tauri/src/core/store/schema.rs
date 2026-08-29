@@ -737,6 +737,41 @@ CREATE TABLE work (
 /// tới khi người dùng bỏ ghi đè.
 pub const WORK_STATUS_OVERRIDE_DDL: &str = "ALTER TABLE work ADD COLUMN status_override TEXT;";
 
+/// Lược đồ bảng `chapter_position` — **bước 17 MỚI của `project.db`**, Story 5.7, AD-3.
+///
+/// Giữ *"câu đang làm"* của mỗi Chương: `segment_id` là `segment.id` nơi caret đứng lúc
+/// người dùng rời Chương lần gần nhất. Cố ý là `segment.id`, KHÔNG một `scrollTop` pixel —
+/// AD-3 (Ice ký 2026-08-18) cấm tường minh đường pixel, và đường `editorCaretPlacement` đã
+/// có (`GridPanel.vue:1110`) tự cuộn qua `focus()` một khi caret đặt đúng segment.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// ⚠️ VÌ SAO MỘT BẢNG RIÊNG, KHÔNG MỘT CỘT TRÊN `chapter`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// (1) **Vắng hàng là một trạng thái phân biệt được**: AC5 đòi *"Chương chưa từng mở ⇒
+/// segment đầu"* — một cột `chapter.last_segment_id NULL` cũng nói được điều đó, nhưng nói
+/// **cùng chỗ** với dữ liệu nội dung Chương, nên mọi lượt đọc `chapter` (danh sách, tách
+/// segment, vòng đời) kéo theo một cột không liên quan tới vai của lượt đọc đó.
+/// (2) **`chapter` đang bị ba đường đọc/ghi khác chạm** (`WorkMeta::rebuild_from_store`,
+/// `commands/lifecycle.rs` `UPDATE chapter SET status`, `create_work` `INSERT INTO
+/// chapter`) — thêm một cột đổi theo **mỗi lượt rê caret** vào chính bảng đó đặt một giá trị
+/// nhịp-cao cạnh những giá trị nhịp-thấp, và `chapter.updated_at` (thứ `rebuild_from_store`
+/// dùng để tính `updated_at` của Tác phẩm, Story 5.6) sẽ nhảy theo mỗi lượt **đọc** của
+/// người dùng — một hồi quy im lặng cho AC4 của Story 5.6.
+/// (3) **Bảng riêng không đòi `chapter.updated_at` phải đổi**: `chapter_position.updated_at`
+/// là mốc của chính hàng vị trí, tách hẳn.
+///
+/// ⚠️ **Giới hạn thật, ghi ra thay vì để người sau tưởng đã xét:** KHÔNG `FOREIGN KEY` tới
+/// `chapter` — cùng khuôn cả lược đồ, `PRAGMA foreign_keys` mặc định TẮT trong SQLite, một
+/// khoá ngoại khai ra mà không bật pragma là một lời hứa không ai giữ. Một Chương bị xoá
+/// (Story 5.8) để lại một hàng vị trí mồ côi; vô hại (`chapter_id` không tái dùng —
+/// `AUTOINCREMENT`) nhưng là rác — chủ dọn là Story 5.8, ghi vào `deferred-work.md`.
+pub const CHAPTER_POSITION_DDL: &str = "\
+CREATE TABLE chapter_position (
+  chapter_id INTEGER PRIMARY KEY,
+  segment_id INTEGER NOT NULL,
+  updated_at TEXT NOT NULL
+);";
+
 /// Lược đồ bảng `chapter` — **bước 1 của `project.db`**, Story 1.15, AC4.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -1268,13 +1303,13 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
     "UPDATE segment SET translation_origin = 'self' WHERE status = 'confirmed';"
 );
 
-/// Bộ di trú của `project.db`. Hôm nay **mười lăm** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
-/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4.
+/// Bộ di trú của `project.db`. Hôm nay **mười sáu** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
+/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4 · 5.7.
 ///
-/// 🔴 **Mười lăm bước, và đích là phiên bản 16.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// 🔴 **Mười sáu bước, và đích là phiên bản 17.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]` tăng dần nghiêm ngặt), và [`migrate`] lọc theo
-/// `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]` tăng dần nghiêm ngặt), và
+/// [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
 ///
 /// ⚠️ Con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
 /// gỡ ở lượt Ice ký lại 2026-08-11 *(vết sẹo ghi đầy đủ ở cuối doc-comment này)*. Một
@@ -1349,6 +1384,11 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// [`WORK_STATUS_OVERRIDE_DDL`] (`work.status_override`, FR6). Câu *"mười bốn bước, đích là
 /// 15"* đã hết đúng, sửa tại chỗ. **KHÔNG** có bước song sinh ở [`GLOBAL_MIGRATIONS`]: bảng
 /// `work` chỉ tồn tại ở `project.db`.
+///
+/// 🔵 **CẬP NHẬT 2026-08-29 (Story 5.7):** đích chuyển từ **16** lên **17** — bước
+/// [`CHAPTER_POSITION_DDL`] (vị trí làm việc của mỗi Chương, AD-3). Câu *"mười lăm bước,
+/// đích là 16"* đã hết đúng, sửa tại chỗ. **KHÔNG** có bước song sinh ở
+/// [`GLOBAL_MIGRATIONS`]: `chapter_position` chỉ tồn tại ở `project.db`.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -1499,6 +1539,13 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 16,
         sql: WORK_STATUS_OVERRIDE_DDL,
+    },
+    // Story 5.7 -- vi tri lam viec cua moi Chuong (AD-3): bang chapter_position rieng, KHONG
+    // mot cot tren `chapter`. Xem doc-comment cua CHAPTER_POSITION_DDL.
+    // 17, khong phai 5 -- 5..16 da tieu.
+    Migration {
+        to_version: 17,
+        sql: CHAPTER_POSITION_DDL,
     },
 ];
 

@@ -78,6 +78,17 @@ import {
   setOpenWorkOverride,
   toggleStatusFilter,
 } from './modes/libraryWorks'
+// ── Story 5.7 — "Danh sách Chương và mở Chương vào Workspace" (FR12) ─────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `libraryWorks.ts`: `libraryChapters.ts` là một module Vue
+// thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/chapter.ts`/`config/library.ts`.
+import {
+  loadChapters as loadLibraryChapters,
+  nextChapter as nextLibraryChapter,
+  openCurrentChapter as openCurrentLibraryChapter,
+  openCurrentLibraryWork,
+  prevChapter as prevLibraryChapter,
+} from './modes/libraryChapters'
 // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `libraryImport.ts`: `sourcePanelState.ts` dùng `ref` của
@@ -365,6 +376,12 @@ async function boot(): Promise<void> {
       // Story 5.6 — con trỏ lưới Tác phẩm (AC7).
       nextLibraryWork,
       prevLibraryWork,
+      // Story 5.7 — "Danh sách Chương và mở Chương vào Workspace" (FR12).
+      openCurrentLibraryWork,
+      loadLibraryChapters,
+      nextLibraryChapter,
+      prevLibraryChapter,
+      openCurrentLibraryChapter,
       setOpenWorkOverridePaused: setOpenWorkOverride,
       clearOpenWorkOverride,
       setOpenChapterDone: setOpenChapterStatus,
