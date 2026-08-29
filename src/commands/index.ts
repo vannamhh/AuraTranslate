@@ -337,6 +337,16 @@ export type CommandDeps = {
   /** Mở kết quả ĐANG CHỌN vào Workspace. Handler của `library.open_search_hit` — cùng khuôn
    * `openCurrentLibraryWork` (đọc con trỏ hiện thời, không tham số). */
   openCurrentLibrarySearchHit?: () => void
+  // ── Story 5.10 — "Hai chế độ dấu" (FR9) ──────────────────────────────────────────
+  //
+  // Cùng cửa và cùng lý do ba dep ngay trên: state sống ở `src/modes/librarySearch.ts`.
+
+  /** Chuyển tìm kiếm sang chế độ CHÍNH XÁC — chạy lại lượt tìm nếu ô tìm không rỗng. Handler
+   * của `library.search_mode_exact` (không phím mặc định). */
+  setLibrarySearchModeExact?: () => void
+  /** Chuyển tìm kiếm sang chế độ KHOAN DUNG DẤU — cùng khuôn `setLibrarySearchModeExact`.
+   * Handler của `library.search_mode_lenient` (không phím mặc định). */
+  setLibrarySearchModeLenient?: () => void
 
   // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────
   //
@@ -1276,6 +1286,36 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('library.open_search_hit', 'openCurrentLibrarySearchHit')
       }
       deps.openCurrentLibrarySearchHit()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 5.10 — "HAI CHẾ ĐỘ DẤU" (FR9)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * Hai nút chế độ, cùng chủ ý `library.filter_*` (Story 5.4): mỗi lựa chọn một `dispatch` id
+   * RIÊNG, không một nút "đảo". Không phím mặc định — nút bấm là đường vào chính.
+   */
+  target.register({
+    id: 'library.search_mode_exact',
+    labelKey: 'command.library.search_mode_exact',
+    keys: undefined,
+    run: () => {
+      if (deps.setLibrarySearchModeExact === undefined) {
+        return portMissing('library.search_mode_exact', 'setLibrarySearchModeExact')
+      }
+      deps.setLibrarySearchModeExact()
+    },
+  })
+  target.register({
+    id: 'library.search_mode_lenient',
+    labelKey: 'command.library.search_mode_lenient',
+    keys: undefined,
+    run: () => {
+      if (deps.setLibrarySearchModeLenient === undefined) {
+        return portMissing('library.search_mode_lenient', 'setLibrarySearchModeLenient')
+      }
+      deps.setLibrarySearchModeLenient()
     },
   })
 

@@ -48,8 +48,10 @@ const SOURCE_TEXT_A = `Cau khong lien quan gi ca。Cau chua tu khoa ${MARKER} o 
 // (`library_index_contract.rs`), tức nó đúng với ĐỘNG CƠ mà chưa đúng với ĐƯỜNG NGƯỜI DÙNG GÕ.
 // Hai chuỗi dưới đây khác nhau ĐÚNG một dấu sắc và đều ≥ 3 ký tự (sàn cứng của `trigram`).
 // ⚠️ Đặt ở NỬA NGUYÊN VĂN, không nửa bản dịch: `create_work_from_text` không dựng `target_text`
-// (§GIỚI HẠN mục 2). Đo 2026-08-29, SQLite 3.43.2: `trigram` mặc định PHÂN BIỆT dấu —
-// `"khoáng"` khớp `khoáng sản` và KHÔNG khớp `khoang trong`, nên phép đối chứng này có nghĩa.
+// (§GIỚI HẠN mục 2). Đo 2026-08-29, SQLite 3.53.2 nhúng (🔵 sửa tại chỗ 2026-08-29, Story 5.10
+// — bản trước ghi số của `sqlite3` CLI hệ điều hành, không phải động cơ NHÚNG mà `rusqlite`
+// `bundled` liên kết): `trigram` mặc định PHÂN BIỆT dấu — `"khoáng"` khớp `khoáng sản` và
+// KHÔNG khớp `khoang trong`, nên phép đối chứng này có nghĩa.
 const DIA_HIT = `khoáng${RUN_TAG}`
 const DIA_MISS = `khoang${RUN_TAG}`
 const SOURCE_TEXT_B = `Tac pham khac, khong lien quan。Cau mang ${DIA_MISS} khong dau。Cau mang ${DIA_HIT} co dau。`

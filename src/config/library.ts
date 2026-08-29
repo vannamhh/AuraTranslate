@@ -471,6 +471,19 @@ export async function openWork(workId: string): Promise<OpenWorkResult> {
 export type SearchField = 'target' | 'source'
 
 /**
+ * **THÊM Story 5.10 (FR9).** Chế độ dấu của một lượt tìm kiếm — danh mục ĐÓNG, khớp
+ * `core::library::indexer::SearchMode::as_str()`/`from_wire()` phía Rust. Union ĐÓNG, cùng mức
+ * chặt `WorkSortKey`. `'exact'` là mặc định — khoan dung KHÔNG BAO GIỜ là mặc định (AD-27).
+ */
+export type SearchMode = 'exact' | 'lenient'
+
+/**
+ * **THÊM Story 5.10.** Vị từ nào đã tìm ra một hit — khớp
+ * `core::library::indexer::MatchKind::as_str()` phía Rust. Union ĐÓNG.
+ */
+export type MatchKind = 'exact' | 'lenient'
+
+/**
  * Một kết quả tìm kiếm — khớp `commands::library::SearchHit` phía Rust, `snake_case`.
  *
  * `segment_id: null` ⇒ hit CẤP CHƯƠNG (Chương chưa tách segment sống nào) — lượt mở kết quả
@@ -488,6 +501,9 @@ export type SearchHit = {
   /** Đoạn trích văn bản THUẦN, cặp dấu `‹…›` bao quanh phần khớp — KHÔNG một thẻ HTML nào
    * (AD-16). Render bằng nội suy Vue thường (`{{ }}`), không bao giờ `v-html`. */
   snippet: string
+  /** **THÊM Story 5.10.** `'exact'`/`'lenient'` — hit này đến từ chỉ mục CHÍNH hay chỉ mục
+   * khoan dung `_nd`. */
+  match_kind: MatchKind
 }
 
 /** Kết quả một lượt tìm kiếm — khớp `commands::library::SearchReport`. */
@@ -504,6 +520,15 @@ export type SearchReport = {
    * hàng khớp"*. Giao diện PHẢI nói ra điều đó: một trần cắt trong im lặng biến một con số
    * thành một lời khai sai. */
   truncated: boolean
+  /** **THÊM Story 5.10.** Chế độ NGƯỜI DÙNG (hoặc chỗ gọi) đã yêu cầu. */
+  mode: SearchMode
+  /** **THÊM Story 5.10.** Chế độ THỰC SỰ đã chạy — khác `mode` khi [`Self.widened`] là
+   * `true`. */
+  effective_mode: SearchMode
+  /** **THÊM Story 5.10.** `true` ⇔ một lượt TỰ NỚI đã xảy ra: `mode === 'exact'` nhưng lượt
+   * chính xác trả 0 hàng trên một chỉ mục KHÔNG rỗng. Bất biến:
+   * `widened === (mode === 'exact' && effective_mode === 'lenient')`. */
+  widened: boolean
 }
 
 /** Ba trạng thái cho [`searchLibrary`]. */
@@ -514,6 +539,14 @@ export type SearchLibraryResult = {
 
 function isSearchField(value: unknown): value is SearchField {
   return value === 'target' || value === 'source'
+}
+
+function isMatchKind(value: unknown): value is MatchKind {
+  return value === 'exact' || value === 'lenient'
+}
+
+function isSearchMode(value: unknown): value is SearchMode {
+  return value === 'exact' || value === 'lenient'
 }
 
 function isSearchHit(value: unknown): value is SearchHit {
@@ -527,7 +560,8 @@ function isSearchHit(value: unknown): value is SearchHit {
     (typeof hit.chapter_title === 'string' || hit.chapter_title === null) &&
     (typeof hit.segment_id === 'number' || hit.segment_id === null) &&
     isSearchField(hit.field) &&
-    typeof hit.snippet === 'string'
+    typeof hit.snippet === 'string' &&
+    isMatchKind(hit.match_kind)
   )
 }
 
@@ -551,19 +585,24 @@ function isSearchReport(value: unknown): value is SearchReport {
     typeof v.total === 'number' &&
     typeof v.indexed_segments === 'number' &&
     typeof v.short_query === 'boolean' &&
-    typeof v.truncated === 'boolean'
+    typeof v.truncated === 'boolean' &&
+    isSearchMode(v.mode) &&
+    isSearchMode(v.effective_mode) &&
+    typeof v.widened === 'boolean'
   )
 }
 
 /**
- * Tìm kiếm full-text xuyên TOÀN BỘ Library — lệnh `library.search` (FR8). Không ném — cùng lý
- * do và cùng khuôn [`listLibraryWorks`]. `query` KHÔNG được `trim()` ở đây — chỗ gọi
- * (`src/modes/librarySearch.ts`) quyết định khi nào PHÁT lượt IPC này (§I/O Matrix: "truy vấn
- * rỗng ⇒ 0 lượt IPC").
+ * Tìm kiếm full-text xuyên TOÀN BỘ Library — lệnh `library.search` (FR8), mở rộng Story 5.10
+ * (FR9, `mode`). Không ném — cùng lý do và cùng khuôn [`listLibraryWorks`]. `query` KHÔNG được
+ * `trim()` ở đây — chỗ gọi (`src/modes/librarySearch.ts`) quyết định khi nào PHÁT lượt IPC này
+ * (§I/O Matrix: "truy vấn rỗng ⇒ 0 lượt IPC"). `mode` KHÔNG mặc định ở tầng adapter này — chỗ
+ * gọi truyền `undefined` để Rust tự áp `SearchMode::default()` (`exact`, §Always), không đoán
+ * ở TypeScript.
  */
-export async function searchLibrary(query: string, limit?: number): Promise<SearchLibraryResult> {
+export async function searchLibrary(query: string, limit?: number, mode?: SearchMode): Promise<SearchLibraryResult> {
   try {
-    const report = await invoke<unknown>(CMD_SEARCH, { query, limit: limit ?? null })
+    const report = await invoke<unknown>(CMD_SEARCH, { query, limit: limit ?? null, mode: mode ?? null })
     if (!isSearchReport(report)) {
       console.error(`[library] \`${CMD_SEARCH}\` trả một SearchReport SAI HÌNH DẠNG: ${JSON.stringify(report)}`)
       return { report: null, error: UNKNOWN_IPC_ERROR }

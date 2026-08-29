@@ -1697,8 +1697,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 /// - `library_target_fts(target_text, content='library_segment', content_rowid='rowid',
 ///   tokenize="unicode61 remove_diacritics 0")` — PHÂN BIỆT dấu tiếng Việt (AD-27), khớp
 ///   TRỌN TỪ. 🔴 `tokenize` viết TƯỜNG MINH: bỏ nó rơi về
-///   `remove_diacritics 1` **im lặng** (đo 2026-08-29, SQLite 3.43.2) — không lỗi, không
-///   cảnh báo, chỉ sai kết quả.
+///   `remove_diacritics 1` **im lặng** (đo 2026-08-29, SQLite 3.53.2 nhúng — 🔵 sửa tại chỗ
+///   2026-08-29, Story 5.10: bản trước ghi số của `sqlite3` CLI hệ điều hành, không phải động
+///   cơ NHÚNG mà `rusqlite` `bundled` liên kết; xem §Design Notes "Số đo mang tên sai động cơ"
+///   của `5-10-hai-che-do-dau.md`) — không lỗi, không cảnh báo, chỉ sai kết quả.
 /// - `library_source_fts(source_text, content='library_segment', content_rowid='rowid',
 ///   tokenize="trigram")` — chuỗi CON thật, phủ được chữ Hán (`unicode61` gộp
 ///   một dải Hán liền nhau thành MỘT token, nên nó câm với một từ nằm giữa câu —
@@ -1708,12 +1710,18 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 ///   này", không trả lời "chứa chuỗi này".
 ///   ⚠️ **AD-27 đứng vững ở CẢ HAI chỉ mục, và vế này phải ĐO chứ không suy ra từ cái tên.**
 ///   `trigram` KHÔNG mang mệnh đề `remove_diacritics` nào ở trên, nên câu hỏi *"nó có lặng lẽ
-///   khoan dung dấu không"* là một câu hỏi thật. Đo 2026-08-29 (SQLite 3.43.2): kho bốn hàng
-///   `khoáng sản` · `khoang trong` · `mái nhà` · `mai sau`, truy vấn `"khoáng"` trả **đúng**
+///   khoan dung dấu không"* là một câu hỏi thật. Đo 2026-08-29 (SQLite 3.53.2 nhúng): kho bốn
+///   hàng `khoáng sản` · `khoang trong` · `mái nhà` · `mai sau`, truy vấn `"khoáng"` trả **đúng**
 ///   `khoáng sản` và `"khoang"` trả **đúng** `khoang trong` — mặc định của `trigram` là PHÂN
-///   BIỆT dấu (tham số `remove_diacritics` của trigram có từ SQLite 3.45 và mặc định là `0`).
-///   ⇒ Không nửa nào của chỉ mục chính khoan dung dấu; chỉ mục khoan dung là `_nd` của Story
-///   5.10, chưa tồn tại. Thêm `remove_diacritics 1` vào dòng trên là phá AD-27 ở nửa nguyên văn.
+///   BIỆT dấu. 🔵 **SỬA tại chỗ (2026-08-29, Story 5.10)** — câu ngay trên bản trước viết
+///   *"tham số `remove_diacritics` của trigram có từ SQLite 3.45"* như một lý do để KHÔNG xét
+///   nó; mệnh đề đó PHÁI SINH từ một số đo sai xuất xứ (số của `sqlite3` CLI hệ điều hành) và
+///   không còn lý do để đứng: trên 3.53.2 (bản NHÚNG thật) tham số đó CÓ THẬT, và `CREATE VIRTUAL TABLE …
+///   tokenize="trigram remove_diacritics 1"` chạy SẠCH — mặc định của `trigram` vẫn là `0`
+///   (không đặt tường minh thì giữ `0`), đây không phải chuyện tồn tại hay không.
+///   ⇒ Không nửa nào của chỉ mục chính khoan dung dấu; chỉ mục khoan dung là `library_target_fts_nd`
+///   của Story 5.10 (`unicode61 remove_diacritics 2`, chỉ trên NỬA BẢN DỊCH — xem khối "NÂNG
+///   LẦN SÁU" dưới đây). Thêm `remove_diacritics 1` vào dòng trên là phá AD-27 ở nửa nguyên văn.
 pub const LIBRARY_WORK_DDL: &str = "\
 CREATE TABLE schema_migration_log (
   version     INTEGER PRIMARY KEY,
@@ -1749,7 +1757,10 @@ CREATE VIRTUAL TABLE library_target_fts USING fts5(
   tokenize=\"unicode61 remove_diacritics 0\");
 CREATE VIRTUAL TABLE library_source_fts USING fts5(
   source_text, content='library_segment', content_rowid='rowid',
-  tokenize=\"trigram\");";
+  tokenize=\"trigram\");
+CREATE VIRTUAL TABLE library_target_fts_nd USING fts5(
+  target_text, content='library_segment', content_rowid='rowid',
+  tokenize=\"unicode61 remove_diacritics 2\");";
 
 /// Bộ di trú của `library-index.db` — **đúng MỘT bước, mãi mãi**. Xem doc-comment của
 /// [`LIBRARY_WORK_DDL`] cho lý do đây KHÔNG phải một thiếu sót: kho dẫn xuất không di trú
@@ -1787,8 +1798,18 @@ CREATE VIRTUAL TABLE library_source_fts USING fts5(
 /// 1..5 bị `Indexer::open` xoá-và-dựng-lại như một tệp lệch phiên bản bình thường — không mất
 /// dữ liệu người dùng thật (kho này dẫn xuất trọn vẹn từ `.atproj`, AD-8; lượt quét kế tiếp thu
 /// hoạch lại toàn bộ văn bản từ `project.db` của mỗi Tác phẩm).
+///
+/// 🔵 **NÂNG LẦN SÁU (2026-08-29, Story 5.10): `to_version` 6 → 7** — chỉ mục FTS5 PHỤ
+/// `library_target_fts_nd` (`unicode61 remove_diacritics 2`, cùng cột `target_text` của
+/// `library_segment`, ngoài — KHÔNG thay — `library_target_fts` đã có) thêm vào
+/// [`LIBRARY_WORK_DDL`] (viết lại TẠI CHỖ, không một bước di trú thứ bảy). Mọi
+/// `library-index.db` ở `to_version` 1..6 bị `Indexer::open` xoá-và-dựng-lại như một tệp lệch
+/// phiên bản bình thường — không mất dữ liệu người dùng thật, cùng lý lẽ các lần nâng trên.
+/// Đây là chỉ mục "khoan dung dấu" của FR9 (`5-10-hai-che-do-dau.md`, §Approach): nó KHÔNG
+/// thay thế `library_target_fts`, `Indexer::search` chạy chỉ mục CHÍNH trước MỖI LƯỢT (AD-27)
+/// rồi mới quyết định có chạy `_nd` hay không.
 pub const LIBRARY_INDEX_MIGRATIONS: &[Migration] = &[Migration {
-    to_version: 6,
+    to_version: 7,
     sql: LIBRARY_WORK_DDL,
 }];
 

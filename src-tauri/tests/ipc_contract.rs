@@ -537,9 +537,11 @@ fn library_work_list_wire_structs_keep_snake_case_field_names() {
     );
 }
 
-/// **THÊM Story 5.9.** Đóng băng tên trường `snake_case` của `SearchHit`/`SearchReport` —
-/// cùng lý lẽ và cùng khuôn [`library_work_list_wire_structs_keep_snake_case_field_names`]
-/// ngay trên.
+/// **THÊM Story 5.9, mở rộng Story 5.10.** Đóng băng tên trường `snake_case` của
+/// `SearchHit`/`SearchReport` — cùng lý lẽ và cùng khuôn
+/// [`library_work_list_wire_structs_keep_snake_case_field_names`] ngay trên.
+/// 🔵 SỬA (2026-08-29, Story 5.10) — bốn trường MỚI: `SearchHit::match_kind`,
+/// `SearchReport::{mode, effective_mode, widened}`.
 #[test]
 fn library_search_wire_structs_keep_snake_case_field_names() {
     let report = auratranslate_lib::commands::library::SearchReport {
@@ -552,11 +554,15 @@ fn library_search_wire_structs_keep_snake_case_field_names() {
             segment_id: Some(42),
             field: "target".to_owned(),
             snippet: "‹má› của tôi".to_owned(),
+            match_kind: "exact".to_owned(),
         }],
         total: 1,
         indexed_segments: 5,
         short_query: false,
         truncated: true,
+        mode: "exact".to_owned(),
+        effective_mode: "exact".to_owned(),
+        widened: false,
     };
     let value = serde_json::to_value(&report).expect("SearchReport phải serialize được");
     let mut top_keys: Vec<&str> =
@@ -564,7 +570,16 @@ fn library_search_wire_structs_keep_snake_case_field_names() {
     top_keys.sort_unstable();
     assert_eq!(
         top_keys,
-        vec!["hits", "indexed_segments", "short_query", "total", "truncated"],
+        vec![
+            "effective_mode",
+            "hits",
+            "indexed_segments",
+            "mode",
+            "short_query",
+            "total",
+            "truncated",
+            "widened",
+        ],
         "khoá trên dây của SearchReport là snake_case. Nhận được: {top_keys:?}."
     );
 
@@ -583,6 +598,7 @@ fn library_search_wire_structs_keep_snake_case_field_names() {
             "chapter_ord",
             "chapter_title",
             "field",
+            "match_kind",
             "segment_id",
             "snippet",
             "work_id",
@@ -779,9 +795,9 @@ fn the_library_search_wire_is_registered_and_keeps_its_parameter_names() {
     let library_src = fs::read_to_string(&library_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", library_rs.display()));
 
-    // Ten tham so tren day. `invoke()` gui `query`/`limit` (mot tu don, hai chieu trung nhau
-    // o day) -- `src/config/library.ts` la cho duy nhat go ca hai.
-    for param in ["query: String", "limit: Option<u32>"] {
+    // Ten tham so tren day. `invoke()` gui `query`/`limit`/`mode` (mot tu don, hai chieu trung
+    // nhau o day) -- `src/config/library.ts` la cho duy nhat go ca ba. `mode` THEM o Story 5.10.
+    for param in ["query: String", "limit: Option<u32>", "mode: Option<String>"] {
         assert!(
             library_src.contains(param),
             "vo IPC `library_search` (commands/library.rs) phai khai `{param}` -- doi ten tham \

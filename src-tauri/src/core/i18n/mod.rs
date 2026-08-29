@@ -414,22 +414,33 @@ message_keys! {
     /// câu này, và hộp thoại chọn thư mục của hệ điều hành đã tự lọc phần lớn ca sai hình
     /// dạng trước khi trả về.
     LibraryRootInvalid => "err.library.root_invalid" [],
-    // ── Story 5.9 (FR8) — KHÔNG một khoá mới ─────────────────────────────────────────
+    // ── Story 5.9 (FR8) / 5.10 (FR9) — danh mục ĐÓNG nay có HAI khoá ──────────────────
     //
-    // Bề mặt IPC "Tìm kiếm full-text xuyên Library". Danh mục ĐÓNG: `commands::library::search_library`
-    // gọi trên `indexer = None` ("chưa mở chỉ mục") tái dùng ĐÚNG khoá `StoreOpenFailed` mà
-    // `list_works`/`rescan` đã dùng (qua `indexer_is_missing()`, params `{"store":
-    // "library_index"}`) — không một biến thể thứ ba cho cùng một sự thật "Indexer chưa được
-    // quản lý". Bốn ca RỖNG còn lại của §I/O Matrix story này (chưa gõ gì · đang tìm · chỉ mục
-    // chưa có dòng nào · truy vấn dưới 3 ký tự · có dòng mà không khớp) KHÔNG một khoá nào ở
-    // đây: chúng là TRẠNG THÁI trong `SearchReport` (`indexed_segments`/`short_query`/`hits`
-    // rỗng), không phải lỗi — mọi câu hiển thị của chúng sống trong `mode.library.search_*`
-    // (`vi.json`), phía Rust chỉ trả DỮ LIỆU (AD-21).
+    // Bề mặt IPC "Tìm kiếm full-text xuyên Library" (5.9) + "Hai chế độ dấu" (5.10). Danh mục
+    // ĐÓNG: `commands::library::search_library` gọi trên `indexer = None` ("chưa mở chỉ mục")
+    // tái dùng ĐÚNG khoá `StoreOpenFailed` mà `list_works`/`rescan` đã dùng (qua
+    // `indexer_is_missing()`, params `{"store": "library_index"}`) — không một biến thể thứ ba
+    // cho cùng một sự thật "Indexer chưa được quản lý". Khoá THỨ HAI, `LibraryUnknownSearchMode`
+    // ngay dưới, là khoá MỚI DUY NHẤT của Story 5.10 — `mode` trên dây là danh mục ĐÓNG hai giá
+    // trị (`exact`/`lenient`), một chuỗi lạ ⇒ lỗi này, không im lặng rơi về mặc định.
+    // 🔵 SỬA (2026-08-29, Story 5.10) — bốn ca RỖNG của §I/O Matrix Story 5.9 nay là BẢY ca
+    // trạng thái (chưa gõ gì · đang tìm · chỉ mục chưa có dòng nào · truy vấn dưới 3 ký tự ·
+    // không khớp · không khớp SAU KHI ĐÃ NỚI · có kết quả SAU KHI ĐÃ NỚI — hai ca cuối là của
+    // Story 5.10). KHÔNG một khoá nào ở đây cho BẢY ca đó: chúng là TRẠNG THÁI trong
+    // `SearchReport` (`indexed_segments`/`short_query`/`hits`/`widened`/`effective_mode` rỗng
+    // hoặc không), không phải lỗi — mọi câu hiển thị của chúng sống trong `mode.library.search_*`
+    // (`vi.json`), phía Rust chỉ trả DỮ LIỆU (AD-21). Chế độ (`exact`/`lenient`) THÂN nó cũng
+    // không phải lỗi khi hợp lệ — chỉ một GIÁ TRỊ LẠ trên dây mới là lỗi.
     /// **THÊM (2026-08-28, Story 5.6)** — khoá sắp xếp ngoài danh mục hai giá trị đóng của
     /// [`crate::core::library::indexer::WorkSortKey`] — đi qua `commands::library::list_works`
     /// trên dây (`sort`). Không một lượt SQL nào chạy trước khi lỗi này được trả (§Always: "một
     /// khoá lạ trên dây ⇒ IpcError, không im lặng rơi về mặc định").
     LibraryUnknownSort => "err.library.unknown_sort" ["sort"],
+    /// **THÊM (2026-08-29, Story 5.10, FR9)** — khoá chế độ tìm kiếm ngoài danh mục hai giá trị
+    /// đóng của [`crate::core::library::indexer::SearchMode`] — đi qua
+    /// `commands::library::search_library` trên dây (`mode`). Cùng khuôn `LibraryUnknownSort`
+    /// ngay trên: **0** truy vấn SQL nào chạy trước khi lỗi này được trả.
+    LibraryUnknownSearchMode => "err.library.unknown_search_mode" ["mode"],
 
     // ── Story 5.4 (FR5/FR6) — ĐÚNG MỘT khoá ─────────────────────────────────────────
     //

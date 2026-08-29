@@ -39,7 +39,7 @@ use auratranslate_lib::commands::library::{
 use auratranslate_lib::core::library::indexer::{Indexer, WorkQuery};
 use auratranslate_lib::core::library::meta::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::load_global_config;
-use auratranslate_lib::core::store::{Store, StoreSpec};
+use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
@@ -101,6 +101,52 @@ fn write_atproj(root: &Path, folder: &str, work_id: &str, name: &str) -> PathBuf
     fs::write(dir.join("project.db"), b"not a real sqlite file -- AD-9")
         .unwrap_or_else(|e| panic!("ghi project.db giả: {e}"));
 
+    dir
+}
+
+/// **THÊM (vòng rà bốn lớp, Story 5.10, mục 2)** — khuôn THU HẸP của
+/// `library_index_contract.rs::write_atproj_with_real_project_db`: đúng MỘT Chương, MỘT
+/// segment, `project.db` THẬT (khác mọi fixture còn lại của tệp này, cố ý RÁC — xem doc-comment
+/// đầu tệp). Cần thiết vì tầng LỆNH (`commands::library::search_library`) chưa từng chạy qua
+/// `From<CoreSearchHit> for SearchHit` với một hit THẬT — mọi ca khác gọi nó trên fixture 0 hàng.
+fn write_atproj_with_one_real_segment(
+    root: &Path,
+    folder: &str,
+    work_id: &str,
+    name: &str,
+    source_text: &str,
+    target_text: &str,
+) -> PathBuf {
+    let dir = write_atproj(root, folder, work_id, name);
+
+    let db_path = dir.join("project.db");
+    fs::remove_file(&db_path).unwrap_or_else(|e| panic!("xoa project.db rac o {}: {e}", db_path.display()));
+    let store = Store::open(StoreSpec::project(db_path.clone()))
+        .unwrap_or_else(|e| panic!("mo project.db that o {}: {e}", db_path.display()));
+
+    let source_text = source_text.to_owned();
+    let target_text = target_text.to_owned();
+    store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (1, 'C1', 'irrelevant', 'draft', '2026-08-29T00:00:00.000Z', '2026-08-29T00:00:00.000Z')",
+                (),
+            )?;
+            let chapter_id = tx.last_insert_rowid();
+            tx.execute(
+                "INSERT INTO segment \
+                 (chapter_id, ord, source_text, is_paragraph_end, created_at, updated_at, \
+                  target_text, status, is_omitted, translation_origin) \
+                 VALUES (?1, 1, ?2, 0, '2026-08-29T00:00:00.000Z', '2026-08-29T00:00:00.000Z', \
+                         ?3, 'confirmed', 0, 'self')",
+                (chapter_id, &source_text, &target_text),
+            )?;
+            Ok(())
+        })
+        .unwrap_or_else(|e| panic!("ghi fixture project.db that o {}: {e}", db_path.display()));
+
+    drop(store);
     dir
 }
 
@@ -273,8 +319,10 @@ fn every_library_command_reports_a_missing_indexer_instead_of_panicking() {
     // 🔵 THÊM (2026-08-29, Story 5.9) — cùng khuôn ba lệnh trên: `search_library` không được
     // panic khi `Indexer` chưa quản lý, và nó tái dùng ĐÚNG khoá `library.indexer_missing`
     // (danh mục MessageKey ĐÓNG của story — không đúc khoá thứ ba).
-    let search_err =
-        search_library(None, "bat ky truy van nao", None).expect_err("không có Indexer thì không tìm được");
+    // 🔵 SỬA (2026-08-29, Story 5.10) — chữ ký `search_library` thêm tham số thứ TƯ (`mode:
+    // Option<&str>`); `None` ⇒ mặc định `exact`, không đổi phán quyết của ca này.
+    let search_err = search_library(None, "bat ky truy van nao", None, None)
+        .expect_err("không có Indexer thì không tìm được");
     assert_eq!(search_err.code(), "library.indexer_missing");
 
     drop(global);
@@ -612,6 +660,91 @@ fn no_sort_key_defaults_to_updated_desc() {
     // Ca này chỉ canh rằng KHÔNG lỗi nào ném khi `sort` vắng mặt, và tầng lệnh không tự bịa
     // một chuỗi rỗng cho tham số `sort` (thứ sẽ trượt `WorkSortKey::from_wire`).
     assert_eq!(report.matched, 2);
+
+    indexer.close();
+    global.close();
+    cleanup(&dir);
+}
+
+/// **THÊM Story 5.10 (FR9)** — khuôn TRỰC TIẾP của
+/// `an_unknown_sort_key_at_the_command_layer_is_refused_not_silently_defaulted` ngay trên,
+/// cho tham số `mode`: một chuỗi lạ trên dây phải bị TỪ CHỐI, không âm thầm rơi về `exact`.
+#[test]
+fn an_unknown_search_mode_at_the_command_layer_is_refused_not_silently_defaulted() {
+    let dir = temp_dir("search-unknown-mode");
+    let root = library_root(&dir);
+    fs::create_dir_all(&root).expect("tạo thư mục gốc");
+    let indexer = open_indexer(&dir);
+    let global = open_global(&dir);
+    write_atproj(&root, "Mot", "11111111-1111-4111-8111-111111111111", "Mot");
+    indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
+
+    let err = search_library(Some(&indexer), "bat ky truy van nao", None, Some("fuzzy"))
+        .expect_err("mot che do la phai bi tu choi");
+    assert_eq!(
+        err.code(),
+        "library.unknown_search_mode",
+        "mot che do la phai noi ten no, khong duoc am tham roi ve mac dinh"
+    );
+
+    indexer.close();
+    global.close();
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "`mode` vắng mặt": `mode=None` ⇒ chạy như `exact` — mặc định không bao giờ là
+/// khoan dung (AD-27 · AC4). Ca này chỉ canh KHÔNG lỗi nào ném và `mode`/`effective_mode` trả
+/// về đúng `"exact"`; nội dung hit thuộc `library_index_contract.rs`.
+#[test]
+fn no_search_mode_defaults_to_exact() {
+    let dir = temp_dir("search-default-mode");
+    let root = library_root(&dir);
+    fs::create_dir_all(&root).expect("tạo thư mục gốc");
+    let indexer = open_indexer(&dir);
+    let global = open_global(&dir);
+    write_atproj(&root, "Mot", "11111111-1111-4111-8111-111111111111", "Mot");
+    indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
+
+    let report = search_library(Some(&indexer), "bat ky truy van nao", None, None).expect("search mac dinh");
+    assert_eq!(report.mode, "exact", "mode=None phai duoc doc la exact, khong doan mo");
+    assert_eq!(report.effective_mode, "exact");
+    assert!(!report.widened);
+
+    indexer.close();
+    global.close();
+    cleanup(&dir);
+}
+
+/// **THÊM (vòng rà bốn lớp, mục 2)** — `match_kind` trên STRUCT DÂY
+/// (`commands::library::SearchHit`) chưa từng chạy qua `From<CoreSearchHit>` với một hit THẬT
+/// trước ca này: `ipc_contract.rs` chỉ dựng struct TAY (`match_kind: "exact".to_owned()`, bỏ
+/// qua hẳn phép chuyển đổi), và mọi ca khác của tệp này gọi `search_library` trên fixture 0
+/// hàng (`project.db` RÁC). Một hit `khoáng sản` chỉ khớp truy vấn `khoang` qua chỉ mục `_nd`
+/// (§Design Notes của `5-10-hai-che-do-dau.md`) — đúng ca cần `mode = Lenient` để phân biệt.
+///
+/// 🔴 Đối chứng "ca này đỏ được": hạ `impl From<CoreSearchHit> for SearchHit`
+/// (`commands/library.rs`) xuống `match_kind: MatchKind::Exact.as_str().to_owned()` cứng (bỏ
+/// đọc `hit.match_kind.as_str()` — một lỗi chép-dán rất thật, hai dòng bên cạnh nó đúng hình
+/// dạng "đọc trường rồi `.as_str().to_owned()`") ⇒ ca này FAIL, vì hit `lenient` sẽ khai
+/// `"exact"` trên dây.
+#[test]
+fn search_library_carries_a_lenient_match_kind_through_to_the_wire_struct() {
+    let dir = temp_dir("search-match-kind-wire");
+    let root = library_root(&dir);
+    fs::create_dir_all(&root).expect("tạo thư mục gốc");
+    let indexer = open_indexer(&dir);
+    let global = open_global(&dir);
+    write_atproj_with_one_real_segment(&root, "Solo", "id-solo", "Solo", "irrelevant", "khoáng sản");
+    indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
+
+    let report = search_library(Some(&indexer), "khoang", None, Some("lenient")).expect("search lenient");
+    assert_eq!(report.hits.len(), 1, "hit: {:?}", report.hits);
+    assert_eq!(
+        report.hits[0].match_kind, "lenient",
+        "match_kind tren STRUCT DAY phai la 'lenient' -- neu day la 'exact' thi \
+         `From<CoreSearchHit>` da hoa mot hang thay vi doc `hit.match_kind`"
+    );
+    assert_eq!(report.hits[0].field, "target");
 
     indexer.close();
     global.close();

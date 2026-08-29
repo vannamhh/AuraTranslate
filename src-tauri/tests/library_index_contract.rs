@@ -40,7 +40,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::core::library::indexer::{
-    IndexError, Indexer, SearchField, WorkQuery, WorkSortKey,
+    IndexError, Indexer, MatchKind, SearchField, SearchMode, WorkQuery, WorkSortKey,
 };
 use auratranslate_lib::core::library::meta::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::lifecycle::LifecycleStatus;
@@ -418,12 +418,119 @@ fn an_index_file_at_schema_version_4_is_deleted_and_rebuilt_at_version_6_with_th
     // FTS5); fixture ở trên vẫn cố ý dựng hình dạng `to_version` 4 (mười cột) để canh đúng
     // NHẢY BẬC "một fixture cũ hai bậc vẫn xoá-và-dựng-lại đúng một lần, không dừng nửa
     // đường" — số đích thay đổi không làm hỏng ý nghĩa ca này.
+    // 🔵 SỬA (2026-08-29, Story 5.10) — đích lại nâng 6 → 7 (`library_target_fts_nd`); fixture
+    // vẫn dựng hình dạng `to_version` 4, nay là một NHẢY BA BẬC, cùng ý nghĩa ca này không đổi.
     {
         let conn = rusqlite::Connection::open(&idx).expect("mở lại để kiểm tra");
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("đọc PRAGMA user_version");
-        assert_eq!(version, 6, "library-index.db phải ở đúng to_version 6 sau lượt mở lại");
+        assert_eq!(version, 7, "library-index.db phải ở đúng to_version 7 sau lượt mở lại");
+    }
+
+    drop(global);
+    cleanup(&dir);
+}
+
+/// **THÊM Story 5.10** — ca bump DÀNH RIÊNG cho lượt nâng cuối (`to_version` 6 → 7): fixture
+/// dựng ĐÚNG hình dạng `to_version` 6 THẬT (`library_segment` + hai chỉ mục FTS5 CHÍNH, KHÔNG
+/// `library_target_fts_nd`), khuôn TRỰC TIẾP của
+/// `an_index_file_at_schema_version_4_is_deleted_and_rebuilt_at_version_6_with_the_new_columns`
+/// ngay trên. Không chỉ đối chứng `PRAGMA user_version` -- chạy MỘT lượt tìm `mode = Lenient`
+/// SAU migration để chứng minh `library_target_fts_nd` không chỉ TỒN TẠI mà còn HOẠT ĐỘNG
+/// (đúng bài học của story: một cột/bảng đọc được không chứng minh nó được NẠP đúng).
+#[test]
+fn an_index_file_at_schema_version_6_is_deleted_and_rebuilt_at_version_7_with_the_diacritic_index() {
+    let dir = temp_dir("schema-v6-diacritic-index");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+
+    let idx = index_path(&dir);
+    {
+        // Hình dạng THẬT của `to_version` 6 (Story 5.9, TRƯỚC Story 5.10) -- library_segment +
+        // library_target_fts + library_source_fts, KHÔNG library_target_fts_nd.
+        let conn = rusqlite::Connection::open(&idx).expect("dựng fixture");
+        conn.execute_batch(
+            "PRAGMA journal_mode = delete;\n\
+             CREATE TABLE schema_migration_log (\n\
+               version     INTEGER PRIMARY KEY,\n\
+               applied_at  TEXT NOT NULL,\n\
+               app_version TEXT NOT NULL\n\
+             );\n\
+             CREATE TABLE library_work (\n\
+               work_id             TEXT PRIMARY KEY,\n\
+               atproj_path         TEXT NOT NULL,\n\
+               name                TEXT NOT NULL,\n\
+               source_lang         TEXT NOT NULL,\n\
+               genre               TEXT NOT NULL,\n\
+               created_at          TEXT NOT NULL,\n\
+               updated_at          TEXT NOT NULL,\n\
+               chapter_count       INTEGER NOT NULL,\n\
+               status              TEXT,\n\
+               status_is_override  INTEGER NOT NULL DEFAULT 0,\n\
+               chapter_done_count  INTEGER\n\
+             );\n\
+             CREATE TABLE library_segment (\n\
+               work_id       TEXT    NOT NULL,\n\
+               chapter_id    INTEGER NOT NULL,\n\
+               chapter_ord   INTEGER NOT NULL,\n\
+               chapter_title TEXT,\n\
+               segment_id    INTEGER,\n\
+               segment_ord   INTEGER NOT NULL,\n\
+               source_text   TEXT    NOT NULL,\n\
+               target_text   TEXT    NOT NULL\n\
+             );\n\
+             CREATE INDEX idx_library_segment_work ON library_segment(work_id);\n\
+             CREATE VIRTUAL TABLE library_target_fts USING fts5(\n\
+               target_text, content='library_segment', content_rowid='rowid',\n\
+               tokenize=\"unicode61 remove_diacritics 0\");\n\
+             CREATE VIRTUAL TABLE library_source_fts USING fts5(\n\
+               source_text, content='library_segment', content_rowid='rowid',\n\
+               tokenize=\"trigram\");\n\
+             PRAGMA user_version = 6;",
+        )
+        .expect("ghi fixture hinh dang to_version 6");
+    }
+
+    let (_work_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("irrelevant", "Nguyễn Huệ đại phá quân Thanh")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(idx.clone()).unwrap_or_else(|e| {
+        panic!(
+            "library-index.db ở to_version 6 phải được XOÁ-VÀ-DỰNG-LẠI, không bị TỪ CHỐI MỞ \
+             (AD-8, kho dẫn xuất): {e}"
+        )
+    });
+    // Truy vấn KHÔNG DẤU trên chi muc CHINH (mode=Exact) phai 0 hang -- unicode61 rd=0 phan
+    // biet dau -- roi TU NOI sang `library_target_fts_nd` (vua duoc migration nay dung),
+    // tim ra dung hang vua thu hoach. Day la phep do "bang chua khong chi ton tai ma con
+    // NAP DUNG" -- mot bang rong (migration chay nhung khong INSERT ... VALUES('rebuild'))
+    // se cho `hits` rong va `widened` van true nhung khong hit nao, ca nay bat duoc dieu do.
+    let report = rebuild_and_search(&indexer, &root, &global, "nguyen hue", 20, SearchMode::Exact);
+    assert!(report.widened, "chi muc CHINH khong khop -- phai TU NOI");
+    assert_eq!(report.effective_mode, SearchMode::Lenient);
+    assert_eq!(
+        report.hits.len(),
+        1,
+        "library_target_fts_nd phai NAP DUNG va tim ra hang sau migration 6 -> 7: {:?}",
+        report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>()
+    );
+    assert_eq!(report.hits[0].match_kind, MatchKind::Lenient);
+
+    drop(indexer);
+
+    {
+        let conn = rusqlite::Connection::open(&idx).expect("mở lại để kiểm tra");
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .expect("đọc PRAGMA user_version");
+        assert_eq!(version, 7, "library-index.db phải ở đúng to_version 7 sau lượt mở lại");
     }
 
     drop(global);
@@ -2022,10 +2129,19 @@ fn write_atproj_with_real_project_db(
     (dir, store)
 }
 
-/// Khuôn dùng chung: rebuild rồi tìm kiếm, trả `SearchReport`.
-fn rebuild_and_search(indexer: &Indexer, root: &Path, global: &Store, query: &str, limit: usize) -> auratranslate_lib::core::library::indexer::SearchReport {
+/// Khuôn dùng chung: rebuild rồi tìm kiếm, trả `SearchReport`. `mode` THÊM ở Story 5.10 — mọi
+/// ca CŨ của tệp này (trước cụm Story 5.10 ở cuối) gọi với `SearchMode::Exact`, giữ ĐÚNG hành
+/// vi cũ (chỉ chạy chỉ mục CHÍNH).
+fn rebuild_and_search(
+    indexer: &Indexer,
+    root: &Path,
+    global: &Store,
+    query: &str,
+    limit: usize,
+    mode: SearchMode,
+) -> auratranslate_lib::core::library::indexer::SearchReport {
     indexer.rebuild(root, Some(global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
-    indexer.search(query, limit).unwrap_or_else(|e| panic!("search({query:?}): {e}"))
+    indexer.search(query, limit, mode).unwrap_or_else(|e| panic!("search({query:?}): {e}"))
 }
 
 #[test]
@@ -2051,7 +2167,7 @@ fn a_hit_in_the_translation_carries_field_target_work_and_chapter_identity() {
     // ⚠️ Truy vấn 3+ ký tự — một truy vấn NGẮN HƠN (như "má", 2 ký tự) sẽ tự đặt
     // `short_query = true`, thứ ca này không kiểm ở đây (xem
     // `a_query_under_three_chars_sets_short_query_and_the_source_half_stays_silent` riêng).
-    let report = rebuild_and_search(&indexer, &root, &global, "hiền", 20);
+    let report = rebuild_and_search(&indexer, &root, &global, "hiền", 20, SearchMode::Exact);
 
     assert_eq!(report.hits.len(), 1, "phai dung 1 hit: {:?}", report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>());
     let hit = &report.hits[0];
@@ -2090,7 +2206,7 @@ fn a_hit_in_chinese_source_text_carries_field_source() {
     drop(store);
 
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
-    let report = rebuild_and_search(&indexer, &root, &global, "分久必合", 20);
+    let report = rebuild_and_search(&indexer, &root, &global, "分久必合", 20, SearchMode::Exact);
 
     assert_eq!(report.hits.len(), 1);
     assert_eq!(report.hits[0].field, SearchField::Source);
@@ -2116,7 +2232,7 @@ fn a_latin_substring_in_source_text_matches_via_trigram() {
     drop(store);
 
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
-    let report = rebuild_and_search(&indexer, &root, &global, "uick bro", 20);
+    let report = rebuild_and_search(&indexer, &root, &global, "uick bro", 20, SearchMode::Exact);
 
     assert_eq!(report.hits.len(), 1, "chuoi con Latin 8 ky tu phai khop qua trigram");
     assert_eq!(report.hits[0].field, SearchField::Source);
@@ -2138,7 +2254,7 @@ fn diacritics_distinguish_six_near_identical_vietnamese_words_and_only_one_match
     drop(store);
 
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
-    let report = rebuild_and_search(&indexer, &root, &global, "má", 20);
+    let report = rebuild_and_search(&indexer, &root, &global, "má", 20, SearchMode::Exact);
 
     assert_eq!(
         report.hits.len(),
@@ -2180,7 +2296,7 @@ fn a_match_in_each_half_of_the_same_scan_both_come_back_with_their_own_field() {
     indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
 
     let both = indexer
-        .search("brown", 20)
+        .search("brown", 20, SearchMode::Exact)
         .unwrap_or_else(|e| panic!("search: {e}"));
     assert_eq!(both.hits.len(), 1);
     assert_eq!(both.hits[0].field, SearchField::Source);
@@ -2213,7 +2329,7 @@ fn a_hit_in_each_of_two_different_works_both_report_their_own_work_id() {
     drop(store_b);
 
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
-    let report = rebuild_and_search(&indexer, &root, &global, "commonqueryword", 20);
+    let report = rebuild_and_search(&indexer, &root, &global, "commonqueryword", 20, SearchMode::Exact);
 
     let mut ids: Vec<&str> = report.hits.iter().map(|h| h.work_id.as_str()).collect();
     ids.sort_unstable();
@@ -2239,7 +2355,7 @@ fn a_chapter_with_zero_live_segments_still_matches_at_chapter_level_via_source()
     drop(store);
 
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
-    let report = rebuild_and_search(&indexer, &root, &global, "zzqq", 20);
+    let report = rebuild_and_search(&indexer, &root, &global, "zzqq", 20, SearchMode::Exact);
 
     assert_eq!(report.hits.len(), 1);
     assert_eq!(report.hits[0].segment_id, None, "hit cap CHUONG phai mang segment_id = null");
@@ -2265,7 +2381,7 @@ fn trigram_matching_is_case_insensitive_before_the_rust_verification_step() {
     drop(store);
 
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
-    let report = rebuild_and_search(&indexer, &root, &global, "brown", 20);
+    let report = rebuild_and_search(&indexer, &root, &global, "brown", 20, SearchMode::Exact);
 
     assert_eq!(report.hits.len(), 1, "xac minh phai HA CHU THUONG ca hai ve, khong duoc loai oan hang khop");
 
@@ -2293,12 +2409,12 @@ fn a_query_under_three_chars_sets_short_query_and_the_source_half_stays_silent()
 
     // "天下" (2 ky tu) co that trong ca hai nua -- nhung nua NGUYEN VAN (trigram) cau, chi nua
     // BAN DICH (unicode61, khop TRON TU) tra loi duoc.
-    let report = indexer.search("天下", 20).unwrap_or_else(|e| panic!("search: {e}"));
+    let report = indexer.search("天下", 20, SearchMode::Exact).unwrap_or_else(|e| panic!("search: {e}"));
     assert!(report.short_query, "truy van 2 ky tu phai bao short_query = true");
     assert!(report.hits.is_empty(), "nua nguyen van (trigram) phai CAU o duoi 3 ky tu: {:?}", report.hits.len());
 
     // "ma" (2 ky tu) khop TRON TU o nua ban dich -- unicode61 khong co san 3-ky-tu.
-    let report_target = indexer.search("ma", 20).unwrap_or_else(|e| panic!("search: {e}"));
+    let report_target = indexer.search("ma", 20, SearchMode::Exact).unwrap_or_else(|e| panic!("search: {e}"));
     assert!(report_target.short_query);
     assert_eq!(report_target.hits.len(), 1, "nua ban dich (unicode61) VAN tra loi duoc duoi 3 ky tu");
     assert_eq!(report_target.hits[0].field, SearchField::Target);
@@ -2317,7 +2433,7 @@ fn an_empty_index_and_a_populated_index_with_no_match_are_distinguishable() {
     // Ca 1: chi muc HOAN TOAN rong -- chua tung co Tac pham nao.
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
     indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild rong: {e}"));
-    let empty_report = indexer.search("bat ky gi", 20).unwrap_or_else(|e| panic!("search: {e}"));
+    let empty_report = indexer.search("bat ky gi", 20, SearchMode::Exact).unwrap_or_else(|e| panic!("search: {e}"));
     assert_eq!(empty_report.indexed_segments, 0, "chi muc RONG phai bao indexed_segments = 0");
     assert!(empty_report.hits.is_empty());
 
@@ -2330,7 +2446,7 @@ fn an_empty_index_and_a_populated_index_with_no_match_are_distinguishable() {
         vec![(Some("C1"), "irrelevant", vec![("something", "khong lien quan gi ca")])],
     );
     drop(store);
-    let no_match_report = rebuild_and_search(&indexer, &root, &global, "tu khong ton tai zzz", 20);
+    let no_match_report = rebuild_and_search(&indexer, &root, &global, "tu khong ton tai zzz", 20, SearchMode::Exact);
     assert!(no_match_report.indexed_segments > 0, "chi muc phai bao N > 0 dong");
     assert!(no_match_report.hits.is_empty());
     assert_ne!(
@@ -2361,7 +2477,7 @@ fn fts5_syntax_characters_in_the_query_run_clean_on_both_branches_with_zero_sql_
     indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
 
     for query in ["state-of-the-art", "a\"b", "NEAR", "*", "(:^-)"] {
-        let result = indexer.search(query, 20);
+        let result = indexer.search(query, 20, SearchMode::Exact);
         assert!(result.is_ok(), "truy van {query:?} phai chay SACH, khong SQLITE_ERROR: {result:?}");
     }
 
@@ -2405,7 +2521,7 @@ fn a_project_db_at_a_newer_schema_version_skips_only_its_own_text_and_the_rebuil
     assert_eq!(outcome.text_skipped.len(), 1, "dung MOT Tac pham bi bo qua phan van ban");
     assert_eq!(outcome.text_skipped[0].work_id, "id-solo");
 
-    let report = indexer.search("uniquesourcetext", 20).unwrap_or_else(|e| panic!("search: {e}"));
+    let report = indexer.search("uniquesourcetext", 20, SearchMode::Exact).unwrap_or_else(|e| panic!("search: {e}"));
     assert!(report.hits.is_empty(), "van ban cua Tac pham bi bo qua khong duoc co mat trong chi muc");
     assert_eq!(report.indexed_segments, 0);
 
@@ -2463,7 +2579,7 @@ fn a_positive_trigram_candidate_that_is_not_a_true_substring_is_rejected_by_veri
     drop(store);
 
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
-    let report = rebuild_and_search(&indexer, &root, &global, "abc", 20);
+    let report = rebuild_and_search(&indexer, &root, &global, "abc", 20, SearchMode::Exact);
 
     assert!(report.hits.is_empty(), "'abc' khong phai chuoi con THAT cua fixture nay -- xac minh phai loai no");
 
@@ -2489,7 +2605,7 @@ fn writes_still_sitting_in_the_wal_are_visible_to_a_harvest_right_after_flush() 
     );
 
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
-    let report = rebuild_and_search(&indexer, &root, &global, "moi nhat", 20);
+    let report = rebuild_and_search(&indexer, &root, &global, "moi nhat", 20, SearchMode::Exact);
 
     assert_eq!(report.hits.len(), 1, "chu con trong WAL (chua checkpoint) phai co mat trong chi muc");
 
@@ -2514,7 +2630,7 @@ fn deleting_the_index_and_rescanning_reproduces_identical_search_results() {
     drop(store);
 
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer lan 1: {e}"));
-    let before = rebuild_and_search(&indexer, &root, &global, "má", 20);
+    let before = rebuild_and_search(&indexer, &root, &global, "má", 20, SearchMode::Exact);
     assert_eq!(before.hits.len(), 1);
     drop(indexer);
 
@@ -2525,7 +2641,7 @@ fn deleting_the_index_and_rescanning_reproduces_identical_search_results() {
     let _ = fs::remove_file(sidecar(&idx, "-shm"));
 
     let indexer2 = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer lan 2: {e}"));
-    let after = rebuild_and_search(&indexer2, &root, &global, "má", 20);
+    let after = rebuild_and_search(&indexer2, &root, &global, "má", 20, SearchMode::Exact);
 
     assert_eq!(after.hits.len(), before.hits.len());
     assert_eq!(after.hits[0].work_id, before.hits[0].work_id);
@@ -2536,6 +2652,411 @@ fn deleting_the_index_and_rescanning_reproduces_identical_search_results() {
     cleanup(&dir);
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════
+// STORY 5.10 — "HAI CHẾ ĐỘ DẤU" (FR9). Bộ ca cho §I/O Matrix của `5-10-hai-che-do-dau.md`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// §I/O Matrix "Chính xác vẫn thắng" + "Không nới khi chính xác CÓ kết quả" — CÙNG một ca:
+/// một truy vấn khớp CHÍNH XÁC 1 trong sáu biến thể gần giống nhau không được nới, và hit của
+/// nó mang `match_kind = Exact`.
+#[test]
+fn an_exact_hit_wins_and_the_report_shows_exact_mode_with_no_widening() {
+    let dir = temp_dir("mode-exact-wins");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let variants = ["má", "ma", "mà", "mả", "mã", "mạ"];
+    let segments: Vec<(&str, &str)> = variants.iter().map(|v| ("irrelevant", *v)).collect();
+    let (_dir, store) =
+        write_atproj_with_real_project_db(&root, "Solo", "id-solo", "Solo", vec![(Some("C1"), "irrelevant", segments)]);
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "má", 20, SearchMode::Exact);
+
+    assert_eq!(report.hits.len(), 1, "chi mot bien the phai khop CHINH XAC");
+    assert_eq!(report.hits[0].match_kind, MatchKind::Exact);
+    assert_eq!(report.mode, SearchMode::Exact);
+    assert_eq!(report.effective_mode, SearchMode::Exact, "chinh xac CO ket qua thi khong duoc noi");
+    assert!(!report.widened);
+    assert_eq!(report.widened, report.mode == SearchMode::Exact && report.effective_mode == SearchMode::Lenient, "bat bien widened");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Tự nới khi không khớp" — cụm hai token `"ma cua"` không khớp CHÍNH XÁC hàng
+/// `'má của tôi rất hiền'` (khác dấu), nên lượt tự nới phải chạy và tìm ra nó qua `_nd`.
+#[test]
+fn a_zero_hit_exact_query_widens_automatically_and_finds_the_phrase_via_the_nd_index() {
+    let dir = temp_dir("mode-auto-widen-phrase");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("irrelevant", "má của tôi rất hiền")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "ma cua", 20, SearchMode::Exact);
+
+    assert_eq!(report.hits.len(), 1, "lam tron nen tim ra qua _nd sau khi tu noi: {:?}", report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>());
+    assert_eq!(report.hits[0].match_kind, MatchKind::Lenient);
+    assert_eq!(report.mode, SearchMode::Exact);
+    assert_eq!(report.effective_mode, SearchMode::Lenient);
+    assert!(report.widened);
+    assert_eq!(report.widened, report.mode == SearchMode::Exact && report.effective_mode == SearchMode::Lenient, "bat bien widened");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Tự nới, ký tự hai dấu" — đây là ca `remove_diacritics 1` sẽ TRƯỢT (§Always,
+/// đo ở Design Notes của story): `ễ`/`ệ` là ký tự hai dấu, chỉ `remove_diacritics 2` gấp được.
+/// Đồng thời canh §I/O Matrix "Đoạn trích của hit khoan dung": `snippet` giữ chữ GỐC còn dấu.
+#[test]
+fn a_two_diacritic_query_widens_and_the_snippet_keeps_the_original_accented_text() {
+    let dir = temp_dir("mode-auto-widen-two-diacritics");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("irrelevant", "Nguyễn Huệ đại phá quân Thanh")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "nguyen hue", 20, SearchMode::Exact);
+
+    assert_eq!(report.hits.len(), 1, "remove_diacritics 2 phai gap duoc ky tu HAI dau (e, e)");
+    assert_eq!(report.hits[0].match_kind, MatchKind::Lenient);
+    assert!(report.widened);
+    assert_eq!(report.effective_mode, SearchMode::Lenient);
+    // `snippet` phai mang chu GOC con nguyen dau -- _nd lap chi muc tren chinh cot `target_text`,
+    // khong tren mot ban da gap (§Design Notes "Vi sao _nd lap chi muc tren chinh cot target_text").
+    assert!(
+        report.hits[0].snippet.contains("Nguyễn") || report.hits[0].snippet.contains("Huệ"),
+        "doan trich phai giu dau GOC, khong bi bop meo: {}",
+        report.hits[0].snippet
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Không nới trên chỉ mục rỗng" — nới trên một chỉ mục RỖNG sẽ khai "đã nới sang
+/// khoan dung" cho một kho chưa có dòng nào, một câu đúng hình dạng và sai sự thật.
+#[test]
+fn an_empty_index_never_widens_even_on_a_zero_hit_query() {
+    let dir = temp_dir("mode-no-widen-on-empty-index");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild rong: {e}"));
+    let report = indexer.search("bat ky truy van nao", 20, SearchMode::Exact).unwrap_or_else(|e| panic!("search: {e}"));
+
+    assert_eq!(report.indexed_segments, 0);
+    assert!(report.hits.is_empty());
+    assert!(!report.widened, "chi muc RONG khong duoc tu noi -- se khai sai su that");
+    assert_eq!(report.effective_mode, SearchMode::Exact);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Người dùng chọn khoan dung, có cả hai loại" — `"khoang trong"` khớp CHÍNH XÁC,
+/// `"khoáng sản"` chỉ khớp qua `_nd`; cả hai phải có mặt, dán nhãn ĐÚNG theo tập rowid.
+#[test]
+fn an_explicit_lenient_search_returns_both_kinds_labeled_by_rowid_membership() {
+    let dir = temp_dir("mode-explicit-lenient-both-kinds");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("s1", "khoáng sản"), ("s2", "khoang trong")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "khoang", 20, SearchMode::Lenient);
+
+    assert_eq!(report.hits.len(), 2, "ca hai loai phai co mat: {:?}", report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>());
+    assert_eq!(report.mode, SearchMode::Lenient);
+    assert_eq!(report.effective_mode, SearchMode::Lenient);
+    // Nguoi dung TU CHON khoan dung -- day KHONG phai mot luot tu noi.
+    assert!(!report.widened, "widened chi true khi mode=Exact tu chuyen sang Lenient");
+
+    let exact_hit = report.hits.iter().find(|h| h.snippet.contains("khoang trong") || h.snippet.contains("trong"))
+        .unwrap_or_else(|| panic!("thieu hang 'khoang trong': {:?}", report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>()));
+    assert_eq!(exact_hit.match_kind, MatchKind::Exact, "'khoang trong' khop CHINH XAC ca hai chi muc");
+
+    let lenient_hit = report.hits.iter().find(|h| h.snippet.contains("khoáng") || h.snippet.contains("sản"))
+        .unwrap_or_else(|| panic!("thieu hang 'khoang san': {:?}", report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>()));
+    assert_eq!(lenient_hit.match_kind, MatchKind::Lenient, "'khoang san' chi khop qua _nd");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Khoan dung KHÔNG làm mất nửa nguyên văn" — một lượt `mode = Lenient` KHÔNG được
+/// làm biến mất một hit ở `source_text` (chữ Hán): nửa nguyên văn không có nhánh `_nd` và phải
+/// GIỮ NGUYÊN, phân biệt dấu, `match_kind = Exact`.
+#[test]
+fn lenient_mode_never_loses_a_source_half_hit() {
+    let dir = temp_dir("mode-lenient-keeps-source-hit");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("天下大势，分久必合，合久必分。", "target irrelevant")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "分久必合", 20, SearchMode::Lenient);
+
+    assert_eq!(report.hits.len(), 1, "chuyen sang khoan dung KHONG duoc lam mat hit nua nguyen van");
+    assert_eq!(report.hits[0].field, SearchField::Source);
+    assert_eq!(report.hits[0].match_kind, MatchKind::Exact, "nua nguyen van luon Exact -- khong co nhanh _nd");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Nới vẫn 0" — chỉ mục CÓ dữ liệu nhưng truy vấn vô nghĩa: lượt tự nới vẫn chạy
+/// (widened = true) nhưng vẫn 0 hit — giao diện phải nói "đã thử cả hai chế độ", không im lặng.
+#[test]
+fn widening_that_still_finds_nothing_still_reports_widened_true() {
+    let dir = temp_dir("mode-widen-still-zero");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("khong lien quan", "khong lien quan gi ca")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "tu vo nghia khong ton tai zzqq", 20, SearchMode::Exact);
+
+    assert!(report.hits.is_empty());
+    assert!(report.indexed_segments > 0);
+    assert!(report.widened, "chi muc CO du lieu nen phai TU NOI du van 0 hit");
+    assert_eq!(report.effective_mode, SearchMode::Lenient);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Trần cắt ở nhánh `_nd`" — năm hàng cùng khớp qua `_nd` (một truy vấn không dấu
+/// trên năm hàng có dấu), trần đặt 2 ⇒ chắc chắn bị cắt, cùng khuôn
+/// `a_result_list_cut_by_the_limit_says_so_instead_of_reporting_a_count_that_reads_as_complete`.
+#[test]
+fn the_nd_branch_reports_truncated_when_it_hits_the_limit() {
+    let dir = temp_dir("mode-nd-truncated");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let segments: Vec<(&'static str, &'static str)> = vec![
+        ("khong lien quan 1", "má của tôi rất hiền"),
+        ("khong lien quan 2", "má của tôi đi chợ"),
+        ("khong lien quan 3", "má của tôi nấu cơm"),
+        ("khong lien quan 4", "má của tôi trồng rau"),
+        ("khong lien quan 5", "má của tôi hát ru"),
+    ];
+    let (_work_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", segments)],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    // "ma" (khong dau) khong khop CHINH XAC hang nao (moi hang mang "má", co dau) -- chay qua
+    // _nd cho ca nam hang.
+    let cut = indexer.search("ma", 2, SearchMode::Lenient).unwrap_or_else(|e| panic!("search tran 2: {e}"));
+    assert_eq!(cut.hits.len(), 2, "tran phai duoc ton trong o nhanh _nd");
+    assert_eq!(cut.total, 2);
+    assert!(cut.truncated, "danh sach _nd bi CAT ma bao cao khong noi ra");
+
+    let whole = indexer.search("ma", 20, SearchMode::Lenient).unwrap_or_else(|e| panic!("search tran 20: {e}"));
+    assert_eq!(whole.hits.len(), 5);
+    assert!(!whole.truncated);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Truy vấn dưới 3 ký tự, khoan dung" — nửa nguyên văn vẫn CÂM (`short_query`),
+/// nhưng nhánh `_nd` (unicode61, không có sàn 3 ký tự) VẪN chạy.
+#[test]
+fn a_short_query_in_lenient_mode_still_runs_the_nd_branch() {
+    let dir = temp_dir("mode-short-query-lenient");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("irrelevant", "má")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    // "ma" -- 2 ky tu, khong dau -- khong khop CHINH XAC "má" (rd=0 phan biet dau) nhung khop
+    // qua _nd (rd=2 gap dau).
+    let report = rebuild_and_search(&indexer, &root, &global, "ma", 20, SearchMode::Lenient);
+
+    assert!(report.short_query, "truy van 2 ky tu phai bao short_query = true");
+    assert_eq!(report.hits.len(), 1, "nhanh _nd khong co san 3 ky tu -- phai VAN chay: {:?}", report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>());
+    assert_eq!(report.hits[0].match_kind, MatchKind::Lenient);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Ký tự cú pháp FTS5 ở nhánh `_nd`" — cùng bộ truy vấn của
+/// `fts5_syntax_characters_in_the_query_run_clean_on_both_branches_with_zero_sql_errors`, chạy
+/// ở `mode = Lenient` (chạm cả ba chỉ mục trong CÙNG lượt) — **0** `SQLITE_ERROR`.
+#[test]
+fn fts5_syntax_characters_run_clean_on_the_nd_branch_too() {
+    let dir = temp_dir("mode-fts5-syntax-nd");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("state-of-the-art tooling", "má \"trong ngoặc\" NEAR *")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    for query in ["state-of-the-art", "a\"b", "NEAR", "*", "(:^-)"] {
+        let result = indexer.search(query, 20, SearchMode::Lenient);
+        assert!(result.is_ok(), "truy van {query:?} (mode=Lenient) phai chay SACH, khong SQLITE_ERROR: {result:?}");
+    }
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Xoá chỉ mục rồi quét lại" — kết quả CẢ HAI chế độ phải giống hệt một kho vừa
+/// dựng, sau khi xoá `library-index.db` (đang ở `to_version` cũ) và dựng lại.
+#[test]
+fn deleting_the_index_and_rescanning_reproduces_identical_results_in_both_modes() {
+    let dir = temp_dir("mode-delete-and-rescan-both-modes");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("irrelevant", "Nguyễn Huệ đại phá quân Thanh")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer lan 1: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild lan 1: {e}"));
+    let before_exact = indexer.search("Nguyễn Huệ", 20, SearchMode::Exact).unwrap_or_else(|e| panic!("search exact: {e}"));
+    let before_lenient = indexer.search("nguyen hue", 20, SearchMode::Lenient).unwrap_or_else(|e| panic!("search lenient: {e}"));
+    assert_eq!(before_exact.hits.len(), 1);
+    assert_eq!(before_lenient.hits.len(), 1);
+    drop(indexer);
+
+    let idx = index_path(&dir);
+    let _ = fs::remove_file(&idx);
+    let _ = fs::remove_file(sidecar(&idx, "-wal"));
+    let _ = fs::remove_file(sidecar(&idx, "-shm"));
+
+    let indexer2 = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer lan 2: {e}"));
+    indexer2.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild lan 2: {e}"));
+    let after_exact = indexer2.search("Nguyễn Huệ", 20, SearchMode::Exact).unwrap_or_else(|e| panic!("search exact: {e}"));
+    let after_lenient = indexer2.search("nguyen hue", 20, SearchMode::Lenient).unwrap_or_else(|e| panic!("search lenient: {e}"));
+
+    assert_eq!(after_exact.hits.len(), before_exact.hits.len());
+    assert_eq!(after_exact.hits[0].snippet, before_exact.hits[0].snippet);
+    assert_eq!(after_lenient.hits.len(), before_lenient.hits.len());
+    assert_eq!(after_lenient.hits[0].match_kind, before_lenient.hits[0].match_kind);
+
+    drop(indexer2);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// Ca hợp đồng KHOÁ bất biến `widened == (mode == Exact && effective_mode == Lenient)` — chạy
+/// bốn tổ hợp thật (không suy diễn) và đối chứng công thức trực tiếp mỗi lần.
+#[test]
+fn the_widened_flag_always_equals_mode_exact_and_effective_mode_lenient() {
+    let dir = temp_dir("mode-widened-invariant");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("irrelevant", "má của tôi rất hiền")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let cases: [(&str, SearchMode); 4] = [
+        ("má", SearchMode::Exact),      // khop CHINH XAC -- khong noi
+        ("ma cua", SearchMode::Exact),  // 0 hit CHINH XAC tren kho CO du lieu -- tu noi
+        ("má", SearchMode::Lenient),    // nguoi dung tu chon -- khong phai tu noi
+        ("ma cua", SearchMode::Lenient),// nguoi dung tu chon, van khop qua _nd
+    ];
+    for (query, mode) in cases {
+        let report = indexer.search(query, 20, mode).unwrap_or_else(|e| panic!("search({query:?}, {mode:?}): {e}"));
+        assert_eq!(
+            report.widened,
+            report.mode == SearchMode::Exact && report.effective_mode == SearchMode::Lenient,
+            "bat bien vo hieu voi query={query:?} mode={mode:?}: widened={} effective_mode={:?}",
+            report.widened, report.effective_mode
+        );
+    }
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // BÀN ĐO p95 — Story 5.9, AC cuối ("đo và ghi lại p95 để đối chiếu ngưỡng NFR3")
@@ -2596,7 +3117,7 @@ fn bench_p95_of_a_library_search_over_five_thousand_chapters() {
     indexer.rebuild(&root, Some(&global)).expect("rebuild");
     let rebuild_ms = t_rebuild.elapsed().as_secs_f64() * 1000.0;
 
-    let sample = indexer.search("phân cửu", 50).expect("search mau");
+    let sample = indexer.search("phân cửu", 50, SearchMode::Exact).expect("search mau");
     assert!(
         sample.indexed_segments >= CHAPTERS * SEGMENTS_PER_CHAPTER,
         "ban do vo nghia neu chi muc chua thu hoach du: indexed_segments = {}",
@@ -2611,7 +3132,7 @@ fn bench_p95_of_a_library_search_over_five_thousand_chapters() {
     for i in 0..RUNS {
         let q = queries[i % queries.len()];
         let t = Instant::now();
-        let _ = indexer.search(q, 50).expect("search");
+        let _ = indexer.search(q, 50, SearchMode::Exact).expect("search");
         samples_ms.push(t.elapsed().as_secs_f64() * 1000.0);
     }
     samples_ms.sort_by(|a, b| a.partial_cmp(b).expect("khong co NaN"));
@@ -2664,7 +3185,7 @@ fn a_vanished_root_purges_harvested_text_so_search_stops_returning_hits_for_a_go
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
 
     // ── Trước: chữ THẬT đã vào chỉ mục, và truy vấn tìm ra nó ────────────────────────
-    let before = rebuild_and_search(&indexer, &root, &global, "má", 20);
+    let before = rebuild_and_search(&indexer, &root, &global, "má", 20, SearchMode::Exact);
     assert_eq!(before.hits.len(), 1, "tien de cua ca nay: phai co mot hit THAT truoc khi xoa goc");
     assert_eq!(before.indexed_segments, 1, "va dung mot hang van ban da duoc thu hoach");
 
@@ -2676,7 +3197,7 @@ fn a_vanished_root_purges_harvested_text_so_search_stops_returning_hits_for_a_go
     assert!(second.root_missing, "rong phai CO LY DO");
 
     // ── Sau: không hit nào, và quần thể về 0 ────────────────────────────────────────
-    let after = indexer.search("má", 20).unwrap_or_else(|e| panic!("search sau khi xoa root: {e}"));
+    let after = indexer.search("má", 20, SearchMode::Exact).unwrap_or_else(|e| panic!("search sau khi xoa root: {e}"));
     assert!(
         after.hits.is_empty(),
         "tim kiem VAN tra hit cho mot .atproj khong con ton tai -- nguoi dung bam vao se mo mot \
@@ -2732,7 +3253,7 @@ fn an_omitted_sentence_is_gone_from_the_translation_half_but_still_found_in_the_
 
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
 
-    let target_side = rebuild_and_search(&indexer, &root, &global, "má", 20);
+    let target_side = rebuild_and_search(&indexer, &root, &global, "má", 20, SearchMode::Exact);
     assert!(
         target_side.hits.is_empty(),
         "cau da CAT BO van hien lai qua doan trich cua nua ban dich -- nguoi dung thay lai dung \
@@ -2741,7 +3262,7 @@ fn an_omitted_sentence_is_gone_from_the_translation_half_but_still_found_in_the_
     );
 
     let source_side = indexer
-        .search("uniquesourceomit", 20)
+        .search("uniquesourceomit", 20, SearchMode::Exact)
         .unwrap_or_else(|e| panic!("search nua nguyen van: {e}"));
     assert_eq!(
         source_side.hits.len(),
@@ -2789,7 +3310,7 @@ fn a_result_list_cut_by_the_limit_says_so_instead_of_reporting_a_count_that_read
     let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
     indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
 
-    let cut = indexer.search("má", 2).unwrap_or_else(|e| panic!("search tran 2: {e}"));
+    let cut = indexer.search("má", 2, SearchMode::Exact).unwrap_or_else(|e| panic!("search tran 2: {e}"));
     assert_eq!(cut.hits.len(), 2, "tran phai duoc ton trong");
     assert_eq!(cut.total, 2, "`total` la so hang DANG HIEN, dung theo khai bao cua no");
     assert!(
@@ -2798,7 +3319,7 @@ fn a_result_list_cut_by_the_limit_says_so_instead_of_reporting_a_count_that_read
          mot kho co 5 hang khop"
     );
 
-    let whole = indexer.search("má", 20).unwrap_or_else(|e| panic!("search tran 20: {e}"));
+    let whole = indexer.search("má", 20, SearchMode::Exact).unwrap_or_else(|e| panic!("search tran 20: {e}"));
     assert_eq!(whole.hits.len(), 5);
     assert!(!whole.truncated, "khong bi cat thi KHONG duoc bao la bi cat -- mot canh bao oan \
          cung la mot loi khai sai");
@@ -2806,4 +3327,117 @@ fn a_result_list_cut_by_the_limit_says_so_instead_of_reporting_a_count_that_read
     drop(indexer);
     drop(global);
     cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// VÒNG RÀ BỐN LỚP (2026-08-29) — ba mục vá thêm cho `library_index_contract.rs`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// **THÊM (vòng rà bốn lớp, mục 7)** — `an_empty_index_never_widens_even_on_a_zero_hit_query`
+/// chỉ chạy `SearchMode::Exact`. Nhánh `mode == Lenient` ép `effective_mode = Lenient` BẤT KỂ
+/// `indexed_segments` (§Always: người dùng TỰ CHỌN khoan dung, khác lượt TỰ NỚI) — tức nó CÓ
+/// chạy một truy vấn trên `library_target_fts_nd` ngay cả khi chỉ mục rỗng, và chưa ca nào
+/// chạm nhánh đó trước lượt vá này.
+#[test]
+fn an_empty_index_with_mode_lenient_still_returns_a_well_formed_empty_report() {
+    let dir = temp_dir("mode-lenient-on-empty-index");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild rong: {e}"));
+    let report = indexer
+        .search("bat ky truy van nao", 20, SearchMode::Lenient)
+        .unwrap_or_else(|e| panic!("search: {e}"));
+
+    assert_eq!(report.indexed_segments, 0);
+    assert!(report.hits.is_empty());
+    assert_eq!(report.mode, SearchMode::Lenient, "nguoi dung TU CHON -- mode phai chep nguyen");
+    assert_eq!(
+        report.effective_mode,
+        SearchMode::Lenient,
+        "nguoi dung TU CHON thi effective_mode luon la Lenient, ke ca tren kho rong"
+    );
+    assert!(
+        !report.widened,
+        "widened CHI true khi TU NOI (mode=Exact) -- nguoi dung tu chon khong phai tu noi"
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// **THÊM (vòng rà bốn lớp, mục 5)** — GIỚI HẠN CÓ CHỦ, không phải hành vi mong muốn: `đ`/`Đ`
+/// (U+0111/U+0110) KHÔNG được `remove_diacritics` gấp về `d` ở BẤT KỲ mức nào, kể cả mức `2`
+/// mà `library_target_fts_nd` dùng (đo ở §Design Notes của `5-10-hai-che-do-dau.md`:
+/// `remove_diacritics` gỡ DẤU PHỤ TỔ HỢP, còn `đ` là một CHỮ CÁI riêng, không phân rã được
+/// thành `d` + dấu). Mọi ca khoan dung KHÁC của tệp này né đúng chữ này (ví dụ `nguyen hue`
+/// trên `Nguyễn Huệ` — không bao giờ `dai pha`), nên một bộ lưới đi vòng qua đúng lớp ký tự đã
+/// biết là hỏng sẽ không ai biết ngày nó được sửa.
+///
+/// 🔴 ĐÂY LÀ HÀNH VI ĐANG SAI VỚI NGƯỜI DÙNG, ghi lại CÓ CHỦ Ý để ngày món nợ đóng (hàm gấp
+/// dấu trong Rust, `deferred-work.md`, chủ **Ice**) thì CHÍNH CA NÀY phải ĐỎ và buộc người sửa
+/// đọc lại — không một `#[ignore]`, không một `#[should_panic]` mập mờ.
+#[test]
+fn a_query_without_the_d_stroke_still_does_not_find_the_d_stroke_word_documented_gap() {
+    let dir = temp_dir("gap-d-stroke-not-folded");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("irrelevant", "đường phượng bay rất đẹp")])],
+    );
+    drop(store);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(&indexer, &root, &global, "duong phuong", 20, SearchMode::Lenient);
+
+    assert!(
+        report.hits.is_empty(),
+        "GIOI HAN CO CHU (deferred-work.md, chu Ice): remove_diacritics KHONG gap duoc `d` -- \
+         neu ca nay do la vi mon no da dong, xoa doc-comment nay va doi assert thanh len 1: {:?}",
+        report.hits.iter().map(|h| &h.snippet).collect::<Vec<_>>()
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// **THÊM (vòng rà bốn lớp, mục 9)** — `"exact"`/`"lenient"` được chép tay ở BA nơi (lõi Rust,
+/// tầng dây, TypeScript). Ca này khoá khứ hồi CHO CẢ HAI biến thể của `SearchMode`, chạy TRÊN
+/// [`SearchMode::ALL`] — không viết tay một danh sách song song sẽ trôi khỏi enum thật khi ai
+/// đó thêm một biến thể mới mà quên cập nhật `ALL`.
+#[test]
+fn every_search_mode_variant_round_trips_through_as_str_and_from_wire() {
+    assert_eq!(SearchMode::ALL.len(), 2, "danh muc DONG hai gia tri -- ALL troi khoi enum that");
+    for mode in SearchMode::ALL {
+        let wire = mode.as_str();
+        assert_eq!(
+            SearchMode::from_wire(wire),
+            Some(*mode),
+            "SearchMode::from_wire(SearchMode::{mode:?}.as_str()) phai tra ve chinh no"
+        );
+    }
+}
+
+/// **THÊM (vòng rà bốn lớp, mục 9)** — cùng lý lẽ ca ngay trên, cho [`MatchKind`]: không
+/// `from_wire` (nó chỉ đi RA dây), nên ca này khoá "hai biến thể mang hai chuỗi PHÂN BIỆT
+/// nhau, không đứa nào rỗng" — đủ để bắt một lỗi chép-dán làm hai biến thể cùng trả một chuỗi.
+#[test]
+fn every_match_kind_variant_has_a_distinct_non_empty_wire_string() {
+    assert_eq!(MatchKind::ALL.len(), 2, "danh muc DONG hai gia tri -- ALL troi khoi enum that");
+    let wire_strings: Vec<&str> = MatchKind::ALL.iter().map(|k| k.as_str()).collect();
+    for s in &wire_strings {
+        assert!(!s.is_empty(), "MatchKind::as_str() khong duoc rong");
+    }
+    assert_eq!(
+        wire_strings,
+        vec!["exact", "lenient"],
+        "hai bien the phai la hai chuoi PHAN BIET nhau, dung hinh dang da khai"
+    );
 }

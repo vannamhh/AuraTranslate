@@ -36,7 +36,8 @@
 //!   `project.db` lần nào)" ở dòng vừa rồi ĐÃ HẾT ĐÚNG.** Cùng giao dịch đó nay CÒN mở
 //!   `project.db` của mỗi Tác phẩm trong `kept`, **CHỈ ĐỌC** qua [`crate::core::store::ReadOnlyDb`]
 //!   (`StoreKind::Project`, miễn trừ CÓ TÊN ở `core/store/readonly.rs`) để thu hoạch văn bản
-//!   vào `library_segment`/hai chỉ mục FTS5 (FR8, xem [`harvest_work_text`]) — KHÔNG BAO GIỜ
+//!   vào `library_segment`/ba chỉ mục FTS5 (FR8, xem [`harvest_work_text`]; 🔵 hai → ba,
+//!   2026-08-29, Story 5.10: `library_target_fts_nd` — xem [`Indexer::search`]) — KHÔNG BAO GIỜ
 //!   qua `Store::open` (đường đó GHI vào tệp: `journal_mode`, bộ di trú, luồng writer). AD-9
 //!   ("Indexer chỉ đọc `meta.json`") vẫn đúng cho phần METADATA (`library_work`); nó không còn
 //!   đúng cho TOÀN BỘ mô-đun này. Một lượt trượt thu hoạch (project.db vắng mặt/mới hơn/hỏng)
@@ -369,7 +370,7 @@ impl Indexer {
             // Story 5.9 — THU HOẠCH VĂN BẢN, TRONG CÙNG GIAO DỊCH NÀY (§Always của story:
             // "Indexer::rebuild vẫn là đường ghi DUY NHẤT vào library-index.db").
             // ─────────────────────────────────────────────────────────────────────────
-            // `library_segment`/hai chỉ mục FTS5 là kho DẪN XUẤT TRỌN VẸN (đúng nghĩa AD-8):
+            // `library_segment`/ba chỉ mục FTS5 (🔵 hai → ba, Story 5.10) là kho DẪN XUẤT TRỌN VẸN (đúng nghĩa AD-8):
             // không có khái niệm "Tác phẩm mồ côi giữ lại văn bản cũ" ở đây như
             // `library_work`/`library_orphan` phía trên — mỗi lượt `rebuild` XOÁ SẠCH rồi nạp
             // lại từ CHÍNH `kept` (tập `.atproj` đọc được `meta.json` Ở LƯỢT NÀY). Một Tác phẩm
@@ -414,11 +415,12 @@ impl Indexer {
                 }
             }
 
-            // Nạp lại TOÀN BỘ hai chỉ mục FTS5 từ nội dung `library_segment` VỪA ghi xong —
-            // khuôn 'rebuild' external-content chuẩn của FTS5. Chạy SAU khi mọi `INSERT` ở trên
-            // đã xong: một lượt 'rebuild' quét TOÀN BỘ bảng nội dung tại thời điểm nó chạy,
-            // không phải một API tăng dần theo từng hàng.
+            // Nạp lại TOÀN BỘ ba chỉ mục FTS5 (🔵 hai → ba, Story 5.10) từ nội dung
+            // `library_segment` VỪA ghi xong — khuôn 'rebuild' external-content chuẩn của FTS5.
+            // Chạy SAU khi mọi `INSERT` ở trên đã xong: một lượt 'rebuild' quét TOÀN BỘ bảng
+            // nội dung tại thời điểm nó chạy, không phải một API tăng dần theo từng hàng.
             tx.execute("INSERT INTO library_target_fts(library_target_fts) VALUES('rebuild')", [])?;
+            tx.execute("INSERT INTO library_target_fts_nd(library_target_fts_nd) VALUES('rebuild')", [])?;
             tx.execute("INSERT INTO library_source_fts(library_source_fts) VALUES('rebuild')", [])?;
 
             // Mọi hàng CÒN LẠI (không vừa UPSERT ở trên): mồ côi khi và chỉ khi `atproj_path`
@@ -547,6 +549,7 @@ impl Indexer {
         self.store.write(move |tx: &Transaction<'_>| {
             tx.execute("DELETE FROM library_segment", [])?;
             tx.execute("INSERT INTO library_target_fts(library_target_fts) VALUES('rebuild')", [])?;
+            tx.execute("INSERT INTO library_target_fts_nd(library_target_fts_nd) VALUES('rebuild')", [])?;
             tx.execute("INSERT INTO library_source_fts(library_source_fts) VALUES('rebuild')", [])?;
             Ok(())
         })?;
@@ -738,20 +741,54 @@ impl Indexer {
         Ok(orphan_store::list(global)?)
     }
 
-    /// **THÊM Story 5.9.** Tìm kiếm full-text xuyên TOÀN BỘ Library (FR8) — chạy CẢ HAI chỉ
-    /// mục (`library_target_fts` nửa bản dịch, `library_source_fts` nửa nguyên văn) MỖI LƯỢT
-    /// gọi và HỢP kết quả (§Always: *"một bộ điều phối chọn một nhánh sẽ trả 0 hàng trên một
-    /// kho CÓ dữ liệu khớp"*, đúng lớp lỗi AD-44 đã ghi ở đường từ điển). Đọc THUẦN khỏi
-    /// `library-index.db` — không một truy vấn nào chạm `.atproj`/`meta.json` (§Never).
+    /// **THÊM Story 5.9, mở rộng Story 5.10 (FR9 — hai chế độ dấu).** Tìm kiếm full-text xuyên
+    /// TOÀN BỘ Library — chạy CẢ HAI chỉ mục CHÍNH (`library_target_fts` nửa bản dịch,
+    /// `library_source_fts` nửa nguyên văn) MỖI LƯỢT gọi và HỢP kết quả (§Always Story 5.9:
+    /// *"một bộ điều phối chọn một nhánh sẽ trả 0 hàng trên một kho CÓ dữ liệu khớp"*, đúng lớp
+    /// lỗi AD-44 đã ghi ở đường từ điển). Đọc THUẦN khỏi `library-index.db` — không một truy
+    /// vấn nào chạm `.atproj`/`meta.json` (§Never).
     ///
     /// Truy vấn dưới [`MIN_SUBSTRING_QUERY_CHARS`] ký tự ⇒ nhánh nguyên văn (`trigram`, sàn
-    /// CỨNG của tokenizer — đo 2026-08-29, SQLite 3.43.2) KHÔNG chạy —
+    /// CỨNG của tokenizer — đo 2026-08-29, SQLite 3.53.2 nhúng) KHÔNG chạy —
     /// [`SearchReport::short_query`] báo ra một trạng thái CÓ TÊN, không phải "không có kết
     /// quả" (§Always). Nhánh bản dịch (`unicode61`) không có sàn đó và VẪN chạy, khớp TRỌN TỪ.
     ///
     /// `limit` áp cho MỖI nhánh RIÊNG — hai chỉ mục trả lời hai câu hỏi khác nhau (nửa nguồn,
     /// nửa dịch), nên một Tác phẩm khớp cả hai không "cướp" hạn mức của nhánh kia.
-    pub fn search(&self, query: &str, limit: usize) -> Result<SearchReport, StoreError> {
+    ///
+    /// ─────────────────────────────────────────────────────────────────────────────
+    /// 🔴 STORY 5.10 — HAI CHẾ ĐỘ DẤU (FR9), VÀ VÌ SAO CHÍNH XÁC LUÔN CHẠY TRƯỚC
+    /// ─────────────────────────────────────────────────────────────────────────────
+    /// `mode` quyết định chỉ mục CHÍNH có đủ hay cần thêm `library_target_fts_nd`
+    /// (`unicode61 remove_diacritics 2`) — chỉ mục KHOAN DUNG DẤU chỉ tồn tại ở NỬA BẢN DỊCH
+    /// (xem `5-10-hai-che-do-dau.md` §Design Notes "Vì sao nửa nguyên văn không có bản khoan
+    /// dung"). Lượt CHÍNH XÁC (target + source, đúng khuôn Story 5.9) LUÔN chạy TRƯỚC, không
+    /// ngoại lệ — kể cả khi `mode == Lenient`: đây là bằng chứng cho tập rowid dùng để dán nhãn
+    /// [`SearchHit::match_kind`] (xem dưới), và nửa nguyên văn (`source`) không có nhánh `_nd`
+    /// nên nó GIỮ NGUYÊN, phân biệt dấu, ở CẢ HAI chế độ — chuyển chế độ không được làm MẤT một
+    /// hit đã có (§Always).
+    ///
+    /// `effective_mode` là [`SearchMode::Lenient`] khi và chỉ khi:
+    /// - `mode == Lenient` (người dùng chọn tường minh bằng nút), HOẶC
+    /// - `mode == Exact` **và** lượt chính xác trả 0 hàng (`target` VÀ `source` đều rỗng)
+    ///   **và** `indexed_segments > 0` — tự NỚI, `widened = true`. Nới trên một chỉ mục RỖNG
+    ///   sẽ khai *"đã nới sang khoan dung"* cho một kho chưa có dòng nào — một câu đúng hình
+    ///   dạng, sai sự thật (§Always) — nên điều kiện `indexed_segments > 0` là bắt buộc.
+    ///
+    /// `widened == (mode == Exact && effective_mode == Lenient)` là một BẤT BIẾN của hàm này,
+    /// đúng theo cấu tạo (không một nhánh nào gán `widened` ngoài định nghĩa `widened` ở trên).
+    ///
+    /// Khi `effective_mode == Lenient`, nửa BẢN DỊCH đổi nguồn: thay vì đọc `target` (chỉ mục
+    /// CHÍNH), nó đọc `library_target_fts_nd` — vì `_nd` gấp dấu trên CẢ NỘI DUNG lẫn TRUY VẤN
+    /// nên tập kết quả của nó là TẬP CHA của tập `target` (mọi hit chính xác cũng khớp `_nd`,
+    /// đo 2026-08-29). ⇒ Không cộng gộp `target + nd_target` (sẽ đúp mọi hit chính xác); output
+    /// nửa bản dịch ở chế độ khoan dung là ĐÚNG MỘT truy vấn trên `_nd`, dán nhãn theo tập
+    /// rowid của `target` vừa lấy được ở lượt chính xác (§Always: *"nhãn `match_kind` phải đến
+    /// từ một phép đo CÙNG VỊ TỪ, không từ một phép so chuỗi thứ hai"*) — rowid nằm trong tập
+    /// đó ⇒ `Exact`, ngoài ⇒ `Lenient`. Ở lượt TỰ NỚI, `target` vừa đo được RỖNG (đó là lý do
+    /// nới), nên tập rowid rỗng và mọi hit `_nd` là `Lenient` theo cấu tạo — không cần một phép
+    /// so thứ hai.
+    pub fn search(&self, query: &str, limit: usize, mode: SearchMode) -> Result<SearchReport, StoreError> {
         let limit = limit.clamp(1, MAX_SEARCH_LIMIT);
         let trimmed = query.trim().to_owned();
         let short_query = trimmed.chars().count() < MIN_SUBSTRING_QUERY_CHARS;
@@ -774,9 +811,13 @@ impl Indexer {
                     indexed_segments,
                     short_query: true,
                     truncated: false,
+                    mode,
+                    effective_mode: mode,
+                    widened: false,
                 });
             }
 
+            // ── Lượt CHÍNH XÁC — LUÔN chạy TRƯỚC, mỗi lượt, không ngoại lệ (AD-27 · AC1). ──
             // Lấy `limit + 1` ở MỖI nhánh: hàng thứ `limit + 1` không bao giờ hiển thị, nó chỉ
             // là BẰNG CHỨNG rằng còn nữa. Xem [`SearchReport::truncated`].
             let mut target = search_target_text(&conn, &trimmed, limit + 1)?;
@@ -791,7 +832,47 @@ impl Indexer {
                 source.truncate(limit);
             }
 
-            let mut hits = target;
+            let exact_is_empty = target.is_empty() && source.is_empty();
+            let widened = mode == SearchMode::Exact && exact_is_empty && indexed_segments > 0;
+            let effective_mode = if mode == SearchMode::Lenient || widened {
+                SearchMode::Lenient
+            } else {
+                SearchMode::Exact
+            };
+
+            if effective_mode == SearchMode::Exact {
+                let mut hits = target;
+                hits.extend(source);
+                let total = hits.len();
+                return Ok(SearchReport {
+                    hits,
+                    total,
+                    indexed_segments,
+                    short_query,
+                    truncated: target_truncated || source_truncated,
+                    mode,
+                    effective_mode,
+                    widened,
+                });
+            }
+
+            // ── Lượt KHOAN DUNG — chỉ nửa BẢN DỊCH đổi nguồn sang `_nd`; `source` (nguyên
+            // văn) ở trên GIỮ NGUYÊN, phân biệt dấu (§Always: "chuyển chế độ không được làm
+            // MẤT kết quả"). Xem khối doc-comment ở trên cho lý lẽ dán nhãn theo tập rowid.
+            let exact_target_rowids: std::collections::HashSet<i64> =
+                target.iter().map(|hit| hit.rowid).collect();
+            let mut nd_target = search_target_text_nd(&conn, &trimmed, limit + 1)?;
+            let nd_truncated = nd_target.len() > limit;
+            nd_target.truncate(limit);
+            for hit in &mut nd_target {
+                hit.match_kind = if exact_target_rowids.contains(&hit.rowid) {
+                    MatchKind::Exact
+                } else {
+                    MatchKind::Lenient
+                };
+            }
+
+            let mut hits = nd_target;
             hits.extend(source);
             let total = hits.len();
             Ok(SearchReport {
@@ -799,7 +880,10 @@ impl Indexer {
                 total,
                 indexed_segments,
                 short_query,
-                truncated: target_truncated || source_truncated,
+                truncated: nd_truncated || source_truncated,
+                mode,
+                effective_mode,
+                widened,
             })
         })
     }
@@ -824,8 +908,9 @@ fn distinct_column(conn: &ReadHandle<'_>, column: &str) -> SqlResult<Vec<String>
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// Sàn CỨNG của tokenizer `trigram` — dưới 3 ký tự nó không lập chỉ mục được token nào (đo
-/// 2026-08-29, SQLite 3.43.2: `"天下"` trả **0** hàng trên chính văn bản chứa nó). Danh mục
-/// ĐÓNG một hằng số, không một "gần đúng" viết tay ở chỗ gọi.
+/// 2026-08-29, SQLite 3.53.2 nhúng — 🔵 sửa tại chỗ 2026-08-29, Story 5.10, xem doc-comment
+/// `LIBRARY_WORK_DDL` ở `core/store/schema.rs`: `"天下"` trả **0** hàng trên chính văn bản
+/// chứa nó). Danh mục ĐÓNG một hằng số, không một "gần đúng" viết tay ở chỗ gọi.
 pub const MIN_SUBSTRING_QUERY_CHARS: usize = 3;
 
 /// Cỡ trang MẶC ĐỊNH của một lượt [`Indexer::search`] khi chỗ gọi không truyền `limit` —
@@ -876,8 +961,85 @@ impl SearchField {
     }
 }
 
+/// Chế độ một lượt [`Indexer::search`] — danh mục ĐÓNG, hai giá trị. Story 5.10 (FR9). Khuôn
+/// TRỰC TIẾP của [`WorkSortKey`]: `as_str`/`from_wire`/`Default`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchMode {
+    /// Chỉ chạy hai chỉ mục CHÍNH (`library_target_fts`/`library_source_fts`), PHÂN BIỆT dấu
+    /// tiếng Việt ở cả hai (AD-27). **Mặc định** — khoan dung KHÔNG BAO GIỜ là mặc định.
+    Exact,
+    /// Nửa BẢN DỊCH đọc thêm `library_target_fts_nd` (`unicode61 remove_diacritics 2`) — do
+    /// người dùng chọn tường minh, HOẶC do một lượt tự nới (xem [`SearchReport::widened`]).
+    /// Nửa NGUYÊN VĂN không đổi — nó không có chỉ mục `_nd` (§Design Notes của
+    /// `5-10-hai-che-do-dau.md`, "Vì sao nửa nguyên văn không có bản khoan dung").
+    Lenient,
+}
+
+impl SearchMode {
+    /// **THÊM (vòng rà bốn lớp, mục 9)** — danh mục ĐÓNG, cùng khuôn [`WorkSortKey::ALL`]: chỗ
+    /// kiểm khứ hồi (`as_str` ⇄ `from_wire`) chạy TRÊN hằng số này, không viết tay một danh
+    /// sách song song sẽ trôi khỏi enum thật.
+    pub const ALL: &'static [SearchMode] = &[SearchMode::Exact, SearchMode::Lenient];
+
+    /// Định danh máy đọc — thứ đi trên dây. Không phải nhãn hiển thị (AD-21).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            SearchMode::Exact => "exact",
+            SearchMode::Lenient => "lenient",
+        }
+    }
+
+    /// Phân giải một giá trị đến từ dây IPC. `None` ⇒ giá trị ngoài danh mục đóng, chỗ gọi tự
+    /// dựng lỗi (không đoán, không rơi về mặc định) — cùng khuôn [`WorkSortKey::from_wire`].
+    pub fn from_wire(raw: &str) -> Option<SearchMode> {
+        match raw {
+            "exact" => Some(SearchMode::Exact),
+            "lenient" => Some(SearchMode::Lenient),
+            _ => None,
+        }
+    }
+}
+
+impl Default for SearchMode {
+    /// §Always: "khoan dung KHÔNG BAO GIỜ là mặc định" (AD-27 · AC4) — `mode = None` trên dây
+    /// ⇒ `Exact`.
+    fn default() -> Self {
+        SearchMode::Exact
+    }
+}
+
+/// Vị từ nào đã tìm ra một hit — danh mục ĐÓNG, hai giá trị. Story 5.10.
+///
+/// 🔴 **Nhãn này đến từ một PHÉP ĐO CÙNG VỊ TỪ (tập rowid của nhánh chính xác), không từ một
+/// phép so chuỗi thứ hai** — xem doc-comment [`Indexer::search`] cho lý lẽ đầy đủ: một
+/// `raw.contains(query)` nói KHÁC vị từ `unicode61` (khớp TRỌN TỪ) đang dùng để tìm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MatchKind {
+    /// Hit khớp cả ở chỉ mục CHÍNH (`library_target_fts`, phân biệt dấu).
+    Exact,
+    /// Hit CHỈ khớp ở chỉ mục KHOAN DUNG (`library_target_fts_nd`) — rowid của nó KHÔNG nằm
+    /// trong tập rowid mà chỉ mục chính vừa trả về ở CÙNG lượt gọi.
+    Lenient,
+}
+
+impl MatchKind {
+    /// **THÊM (vòng rà bốn lớp, mục 9)** — danh mục ĐÓNG, cùng khuôn [`SearchMode::ALL`].
+    /// `MatchKind` không có `from_wire` (nó chỉ đi RA dây, không bao giờ được PHÂN GIẢI TỪ dây
+    /// — client không gửi `match_kind`), nên hằng số này phục vụ ca kiểm "hai biến thể mang
+    /// hai chuỗi PHÂN BIỆT nhau, không đứa nào rỗng" thay vì một phép khứ hồi `from_wire`.
+    pub const ALL: &'static [MatchKind] = &[MatchKind::Exact, MatchKind::Lenient];
+
+    /// Định danh máy đọc — thứ đi trên dây. Không phải nhãn hiển thị (AD-21).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            MatchKind::Exact => "exact",
+            MatchKind::Lenient => "lenient",
+        }
+    }
+}
+
 /// Một kết quả tìm kiếm — một hàng của `library_segment` khớp truy vấn ở MỘT nửa (`field` nói
-/// nửa nào). Story 5.9.
+/// nửa nào). Story 5.9, mở rộng Story 5.10.
 #[derive(Debug, Clone)]
 pub struct SearchHit {
     pub work_id: String,
@@ -894,12 +1056,23 @@ pub struct SearchHit {
     /// (AD-16, §Always: *"`snippet()` dùng cặp dấu văn bản thuần"*). Render bằng nội suy Vue
     /// thường (`{{ }}`), không bao giờ `v-html`.
     pub snippet: String,
+    /// **THÊM Story 5.10.** Vị từ nào đã tìm ra hit này — `Exact` cho mọi hit của lượt chính
+    /// xác (kể cả nửa nguyên văn, luôn `Exact`); phân biệt `Exact`/`Lenient` chỉ có ý nghĩa cho
+    /// nửa bản dịch ở [`SearchMode::Lenient`]. Đi lên dây thành `match_kind` (`commands::library::SearchHit`).
+    pub match_kind: MatchKind,
+    /// **THÊM Story 5.10.** `rowid` của `library_segment` — dùng NỘI BỘ để dán nhãn
+    /// [`Self::match_kind`] theo tập thành viên (§Always). 🔴 KHÔNG LÊN DÂY: `From<SearchHit>`
+    /// ở `commands::library` không chép trường này — nó là chi tiết TRIỂN KHAI của lõi, không
+    /// phải hợp đồng IPC.
+    pub rowid: i64,
 }
 
-/// Kết quả một lượt [`Indexer::search`] — Story 5.9. Ba trường ngoài `hits` cho tầng trên
-/// (`commands::library::search_library`, rồi `LibraryMode.vue`) đủ dữ kiện phân biệt NĂM ca
-/// rỗng của §I/O Matrix: `indexed_segments == 0` ⇒ chỉ mục chưa có gì; `short_query` ⇒ dưới
-/// sàn trigram; `hits` rỗng mà cả hai trường kia không rơi vào hai ca trên ⇒ không khớp thật.
+/// Kết quả một lượt [`Indexer::search`] — Story 5.9, mở rộng Story 5.10. Ba trường đầu ngoài
+/// `hits` cho tầng trên (`commands::library::search_library`, rồi `LibraryMode.vue`) đủ dữ
+/// kiện phân biệt NĂM ca rỗng của §I/O Matrix Story 5.9: `indexed_segments == 0` ⇒ chỉ mục
+/// chưa có gì; `short_query` ⇒ dưới sàn trigram; `hits` rỗng mà cả hai trường kia không rơi vào
+/// hai ca trên ⇒ không khớp thật. Ba trường cuối (`mode`/`effective_mode`/`widened`) là của
+/// Story 5.10 — xem doc-comment [`Indexer::search`] cho hợp đồng đầy đủ giữa chúng.
 #[derive(Debug, Clone)]
 pub struct SearchReport {
     pub hits: Vec<SearchHit>,
@@ -924,6 +1097,16 @@ pub struct SearchReport {
     /// Phát hiện bằng cách lấy `limit + 1` hàng rồi cắt lại còn `limit` — không một truy vấn
     /// `COUNT(*)` thứ hai trên cùng một `MATCH` (đắt gần bằng chính lượt tìm).
     pub truncated: bool,
+    /// **THÊM Story 5.10.** Chế độ NGƯỜI DÙNG (hoặc chỗ gọi) yêu cầu — chép nguyên tham số đầu
+    /// vào [`Indexer::search`].
+    pub mode: SearchMode,
+    /// **THÊM Story 5.10.** Chế độ THỰC SỰ đã chạy — có thể khác `mode` khi một lượt TỰ NỚI
+    /// xảy ra (xem [`Self::widened`]).
+    pub effective_mode: SearchMode,
+    /// **THÊM Story 5.10.** `true` ⇔ đây là một lượt TỰ NỚI: `mode == Exact` nhưng lượt chính
+    /// xác trả 0 hàng trên một chỉ mục KHÔNG rỗng, nên hệ thống tự chạy thêm `_nd`. Bất biến:
+    /// `widened == (mode == Exact && effective_mode == Lenient)`.
+    pub widened: bool,
 }
 
 /// **Nhánh bản dịch** — `library_target_fts` (`unicode61 remove_diacritics 0`), khớp TRỌN TỪ,
@@ -933,7 +1116,7 @@ fn search_target_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlRe
     let phrase = fts_phrase(query);
     let limit_i64 = i64::try_from(limit).unwrap_or(i64::MAX);
     let sql = "\
-        SELECT s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
+        SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
                snippet(library_target_fts, 0, '\u{2039}', '\u{203a}', '\u{2026}', 10) \
         FROM library_target_fts f \
         JOIN library_segment s ON s.rowid = f.rowid \
@@ -944,14 +1127,53 @@ fn search_target_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlRe
     let mut stmt = conn.prepare_cached(sql)?;
     let rows = stmt.query_map((&phrase, limit_i64), |row| {
         Ok(SearchHit {
-            work_id: row.get(0)?,
-            work_name: row.get(1)?,
-            chapter_id: row.get(2)?,
-            chapter_ord: row.get(3)?,
-            chapter_title: row.get(4)?,
-            segment_id: row.get(5)?,
+            rowid: row.get(0)?,
+            work_id: row.get(1)?,
+            work_name: row.get(2)?,
+            chapter_id: row.get(3)?,
+            chapter_ord: row.get(4)?,
+            chapter_title: row.get(5)?,
+            segment_id: row.get(6)?,
             field: SearchField::Target,
-            snippet: row.get(6)?,
+            // Nhánh CHÍNH XÁC -- mọi hit của nó là `Exact` theo cấu tạo (Story 5.10).
+            match_kind: MatchKind::Exact,
+            snippet: row.get(7)?,
+        })
+    })?;
+    rows.collect()
+}
+
+/// **Nhánh khoan dung của nửa bản dịch** — Story 5.10 (FR9). Khuôn TRỰC TIẾP của
+/// [`search_target_text`] ngay trên, chỉ đổi tên bảng FTS sang `library_target_fts_nd`
+/// (`unicode61 remove_diacritics 2`) và đọc THÊM `s.rowid` (đã có sẵn ở bản khuôn, không phải
+/// một cột mới). `match_kind` gán TẠM `Lenient` ở đây — [`Indexer::search`] sửa lại theo tập
+/// rowid của lượt chính xác TRƯỚC khi trả ra (xem doc-comment của nó), không phải một hằng số
+/// cuối cùng.
+fn search_target_text_nd(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<Vec<SearchHit>> {
+    let phrase = fts_phrase(query);
+    let limit_i64 = i64::try_from(limit).unwrap_or(i64::MAX);
+    let sql = "\
+        SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
+               snippet(library_target_fts_nd, 0, '\u{2039}', '\u{203a}', '\u{2026}', 10) \
+        FROM library_target_fts_nd f \
+        JOIN library_segment s ON s.rowid = f.rowid \
+        JOIN library_work w ON w.work_id = s.work_id \
+        WHERE library_target_fts_nd MATCH ?1 \
+        ORDER BY s.work_id, s.chapter_ord, s.segment_ord \
+        LIMIT ?2";
+    let mut stmt = conn.prepare_cached(sql)?;
+    let rows = stmt.query_map((&phrase, limit_i64), |row| {
+        Ok(SearchHit {
+            rowid: row.get(0)?,
+            work_id: row.get(1)?,
+            work_name: row.get(2)?,
+            chapter_id: row.get(3)?,
+            chapter_ord: row.get(4)?,
+            chapter_title: row.get(5)?,
+            segment_id: row.get(6)?,
+            field: SearchField::Target,
+            match_kind: MatchKind::Lenient,
+            snippet: row.get(7)?,
         })
     })?;
     rows.collect()
@@ -973,7 +1195,8 @@ fn search_target_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlRe
 /// 🔴 **`max_tokens` của `snippet()` là 64 ở nhánh này chứ KHÔNG phải 10 như nhánh bản dịch, và
 /// con số đó bị ÉP bởi tokenizer chứ không phải một sở thích.** Một "token" của `trigram` là
 /// một cụm BA KÝ TỰ trượt từng ký tự một, nên 10 token ≈ 12 ký tự. Đo 2026-08-29 (SQLite
-/// 3.43.2) trên một câu dài mang từ khoá `zzqqmarker` ở giữa:
+/// 3.53.2 nhúng — 🔵 sửa tại chỗ 2026-08-29, Story 5.10) trên một câu dài mang từ khoá
+/// `zzqqmarker` ở giữa:
 /// - `trigram`, `max_tokens = 10` ⇒ `"… ‹zzqqmarker› …"` — **không một chữ ngữ cảnh nào**;
 /// - `trigram`, `max_tokens = 64` ⇒ `"…, roi toi doan chua tu khoa ‹zzqqmarker› o giua, va sau do con rat n…"`;
 /// - `unicode61`, `max_tokens = 10` ⇒ `"…doan chua tu khoa ‹zzqqmarker› o giua, va sau do…"` — đủ.
@@ -984,7 +1207,7 @@ fn search_source_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlRe
     let phrase = fts_phrase(query);
     let ceiling = search_candidate_ceiling(limit);
     let sql = "\
-        SELECT s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
+        SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
                s.source_text, \
                snippet(library_source_fts, 0, '\u{2039}', '\u{203a}', '\u{2026}', 64) \
         FROM library_source_fts f \
@@ -996,16 +1219,20 @@ fn search_source_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlRe
     let mut stmt = conn.prepare_cached(sql)?;
     let rows = stmt.query_map((&phrase, ceiling), |row| {
         let hit = SearchHit {
-            work_id: row.get(0)?,
-            work_name: row.get(1)?,
-            chapter_id: row.get(2)?,
-            chapter_ord: row.get(3)?,
-            chapter_title: row.get(4)?,
-            segment_id: row.get(5)?,
+            rowid: row.get(0)?,
+            work_id: row.get(1)?,
+            work_name: row.get(2)?,
+            chapter_id: row.get(3)?,
+            chapter_ord: row.get(4)?,
+            chapter_title: row.get(5)?,
+            segment_id: row.get(6)?,
             field: SearchField::Source,
-            snippet: row.get(7)?,
+            // Nửa NGUYÊN VĂN không có nhánh `_nd` (§Design Notes của story) -- luôn `Exact`,
+            // kể cả trong một lượt khoan dung (§Always: "chuyển chế độ không làm mất kết quả").
+            match_kind: MatchKind::Exact,
+            snippet: row.get(8)?,
         };
-        let source_text: String = row.get(6)?;
+        let source_text: String = row.get(7)?;
         Ok((hit, source_text))
     })?;
     let candidates: Vec<(SearchHit, String)> = rows.collect::<SqlResult<Vec<_>>>()?;
@@ -1333,7 +1560,7 @@ pub struct RebuildOutcome {
     pub current_orphans: Vec<OrphanRecord>,
     /// **THÊM Story 5.9.** Mọi Tác phẩm (trong `kept` của lượt này) mà lượt thu hoạch VĂN BẢN
     /// bị bỏ qua — `library_work` của nó vẫn UPSERT bình thường từ `meta.json`; chỉ phần
-    /// `library_segment`/hai chỉ mục FTS5 của đúng Tác phẩm này vắng mặt (`project.db` vắng
+    /// `library_segment`/ba chỉ mục FTS5 (🔵 hai → ba, Story 5.10) của đúng Tác phẩm này vắng mặt (`project.db` vắng
     /// mặt, phiên bản lược đồ mới hơn ứng dụng hiểu, hoặc mở/đọc trượt). Rỗng là bình thường
     /// (mọi Tác phẩm thu hoạch được); khác `orphans`, một `text_skipped` không rỗng không tự
     /// nó là một lỗi hệ thống — nó là bằng chứng CÓ TÊN cho một Tác phẩm cụ thể.

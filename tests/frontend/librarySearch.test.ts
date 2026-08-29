@@ -1,14 +1,18 @@
 /**
- * `modes/librarySearch.ts` + `config/library.ts::searchLibrary` — Story 5.9, FR8.
+ * `modes/librarySearch.ts` + `config/library.ts::searchLibrary` — Story 5.9, FR8. Story 5.10
+ * (FR9) thêm hai chế độ dấu.
  *
  * ⚠️ **PHẠM VI** — `happy-dom` canh HÀNH VI của module thuần, không hình học/engine thật
  * (`tests/AGENTS.md`). Bốn mệnh đề dưới đây là những chỗ *"trông như đúng nhưng có thể sai
  * im lặng"* mà story này đặc biệt lo: năm ca rỗng phải phân biệt được (không suy diễn từ một
  * con số một mình), một truy vấn rỗng không được phát IPC, một lượt gõ NHANH không để kết quả
  * CŨ ghi đè kết quả MỚI, và một lượt mở kết quả không bao giờ phát lệnh mở Chương trước khi
- * lượt mở Tác phẩm đã THẬT SỰ xong (không chỉ `await` xong).
+ * lượt mở Tác phẩm đã THẬT SỰ xong (không chỉ `await` xong). Story 5.10 thêm ba mệnh đề: đổi
+ * chế độ khi ô tìm rỗng không phát IPC, đổi chế độ khi có truy vấn CÓ chạy lại đúng `mode`, và
+ * hàng `lenient` mang nhãn phân biệt được trên DOM thật.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
 import type { SearchHit } from '../../src/config/library'
 
 const mockInvoke = vi.fn()
@@ -31,6 +35,21 @@ const SEARCH_HIT_A = {
   segment_id: 42,
   field: 'target' as const,
   snippet: '‹má› của tôi',
+  match_kind: 'exact' as const,
+}
+
+/** **THÊM Story 5.10.** Cùng khuôn `SEARCH_HIT_A`, khác đúng `match_kind` — hit chỉ khớp qua
+ * chỉ mục khoan dung `_nd`. */
+const SEARCH_HIT_LENIENT = {
+  work_id: 'id-b',
+  work_name: 'Beta',
+  chapter_id: 8,
+  chapter_ord: 1,
+  chapter_title: 'Chuong Mot',
+  segment_id: 55,
+  field: 'target' as const,
+  snippet: '‹khoáng› sản',
+  match_kind: 'lenient' as const,
 }
 
 const OPENED_WORK_A = {
@@ -72,45 +91,60 @@ afterEach(() => {
 })
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// `librarySearchStatus()` — hàm THUẦN, năm ca rỗng + ca có kết quả (§I/O Matrix).
+// `librarySearchStatus()` — hàm THUẦN, TÁM trạng thái phân biệt được (§I/O Matrix, Story 5.9 +
+// 5.10 — xem khối 🔵 đầu `librarySearch.ts` cho lý do "tám" chứ không "bảy").
 // ═════════════════════════════════════════════════════════════════════════════════
 
 describe('modes/librarySearch.ts::librarySearchStatus — hàm thuần', () => {
   it('chưa nạp lần nào, không bận ⇒ not_typed', async () => {
     const { librarySearchStatus } = await import('../../src/modes/librarySearch')
-    expect(librarySearchStatus(false, false, 0, 0, false)).toBe('not_typed')
+    expect(librarySearchStatus(false, false, 0, 0, false, false)).toBe('not_typed')
   })
 
   it('chưa nạp lần nào, đang bận ⇒ searching', async () => {
     const { librarySearchStatus } = await import('../../src/modes/librarySearch')
-    expect(librarySearchStatus(false, true, 0, 0, false)).toBe('searching')
+    expect(librarySearchStatus(false, true, 0, 0, false, false)).toBe('searching')
   })
 
-  it('đã nạp, indexedSegments = 0 ⇒ index_empty (bất kể hits/shortQuery)', async () => {
+  it('đã nạp, indexedSegments = 0 ⇒ index_empty (bất kể hits/shortQuery/widened)', async () => {
     const { librarySearchStatus } = await import('../../src/modes/librarySearch')
-    expect(librarySearchStatus(true, false, 0, 0, true)).toBe('index_empty')
-    expect(librarySearchStatus(true, false, 0, 5, false)).toBe('index_empty')
+    expect(librarySearchStatus(true, false, 0, 0, true, false)).toBe('index_empty')
+    expect(librarySearchStatus(true, false, 0, 5, false, false)).toBe('index_empty')
+    expect(librarySearchStatus(true, false, 0, 0, false, true)).toBe('index_empty')
   })
 
-  it('đã nạp, indexedSegments > 0, hits rỗng, short_query ⇒ short_query', async () => {
+  it('đã nạp, indexedSegments > 0, hits rỗng, short_query, KHÔNG widened ⇒ short_query', async () => {
     const { librarySearchStatus } = await import('../../src/modes/librarySearch')
-    expect(librarySearchStatus(true, false, 10, 0, true)).toBe('short_query')
+    expect(librarySearchStatus(true, false, 10, 0, true, false)).toBe('short_query')
   })
 
-  it('đã nạp, indexedSegments > 0, hits rỗng, KHÔNG short_query ⇒ no_match', async () => {
+  it('đã nạp, indexedSegments > 0, hits rỗng, KHÔNG short_query, KHÔNG widened ⇒ no_match', async () => {
     const { librarySearchStatus } = await import('../../src/modes/librarySearch')
-    expect(librarySearchStatus(true, false, 10, 0, false)).toBe('no_match')
+    expect(librarySearchStatus(true, false, 10, 0, false, false)).toBe('no_match')
+  })
+
+  it('🔴 hits rỗng VÀ widened ⇒ no_match_widened — THẮNG short_query dù truy vấn cũng ngắn', async () => {
+    // Story 5.10: một lượt đã TỰ NỚI (đã thử cả hai chế độ) là thông tin đầy đủ hơn "quá
+    // ngắn" — kể cả khi cả hai điều kiện cùng đúng, `no_match_widened` phải thắng.
+    const { librarySearchStatus } = await import('../../src/modes/librarySearch')
+    expect(librarySearchStatus(true, false, 10, 0, false, true)).toBe('no_match_widened')
+    expect(librarySearchStatus(true, false, 10, 0, true, true)).toBe('no_match_widened')
   })
 
   it('🔴 short_query = true NHƯNG có hit thật (nửa bản dịch) ⇒ result, KHÔNG short_query', async () => {
     // Đúng bảng đo của §Design Notes: "ma" (2 ký tự) vẫn khớp TRỌN TỪ ở nửa unicode61.
     const { librarySearchStatus } = await import('../../src/modes/librarySearch')
-    expect(librarySearchStatus(true, false, 10, 1, true)).toBe('result')
+    expect(librarySearchStatus(true, false, 10, 1, true, false)).toBe('result')
   })
 
-  it('đã nạp, có hit ⇒ result', async () => {
+  it('đã nạp, có hit, KHÔNG widened ⇒ result', async () => {
     const { librarySearchStatus } = await import('../../src/modes/librarySearch')
-    expect(librarySearchStatus(true, false, 10, 3, false)).toBe('result')
+    expect(librarySearchStatus(true, false, 10, 3, false, false)).toBe('result')
+  })
+
+  it('🔴 đã nạp, có hit, widened ⇒ result_widened — tách khỏi result thường', async () => {
+    const { librarySearchStatus } = await import('../../src/modes/librarySearch')
+    expect(librarySearchStatus(true, false, 10, 3, false, true)).toBe('result_widened')
   })
 })
 
@@ -133,7 +167,7 @@ describe('modes/librarySearch.ts::runLibrarySearch — truy vấn rỗng', () =>
   it('truy vấn có chữ ⇒ gọi ĐÚNG một lượt `library_search`', async () => {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
       }
       return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
     })
@@ -189,6 +223,9 @@ describe('modes/librarySearch.ts::runLibrarySearch — chống đua giữa hai l
         indexed_segments: 5,
         short_query: false,
         truncated: false,
+        mode: 'exact',
+        effective_mode: 'exact',
+        widened: false,
       })
     })
 
@@ -207,7 +244,7 @@ describe('modes/librarySearch.ts::runLibrarySearch — chống đua giữa hai l
     expect(callCount).toBe(1)
 
     // BÂY GIỜ mới cho lượt đầu (CŨ, truy vấn `ma`) hạ cánh với kết quả RỖNG.
-    resolveFirst({ hits: [], total: 0, indexed_segments: 5, short_query: false, truncated: false })
+    resolveFirst({ hits: [], total: 0, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
     await firstRun
 
     // 🔴 Lượt ghi nhớ phải đã chạy, và phải chạy bằng truy vấn MỚI — không phải truy vấn cũ.
@@ -218,6 +255,255 @@ describe('modes/librarySearch.ts::runLibrarySearch — chống đua giữa hai l
     expect(state.librarySearchHits.value).toEqual([SEARCH_HIT_A])
     expect(state.librarySearchTotal.value).toBe(1)
     expect(state.librarySearchBusy.value).toBe(false)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// STORY 5.10 — "Hai chế độ dấu" (FR9): `setLibrarySearchModeExact`/`setLibrarySearchModeLenient`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+describe('modes/librarySearch.ts::setLibrarySearchModeExact/Lenient', () => {
+  it('🔴 ô tìm RỖNG ⇒ đổi cờ chế độ nhưng KHÔNG phát lượt IPC nào (§I/O Matrix)', async () => {
+    const state = await import('../../src/modes/librarySearch')
+    expect(state.librarySearchQuery.value).toBe('')
+    expect(state.librarySearchMode.value).toBe('exact')
+
+    state.setLibrarySearchModeLenient()
+    // Đổi cờ chạy ĐỒNG BỘ; `runLibrarySearch()` (nếu có gọi) mới là async — chờ một macrotask
+    // để chắc chắn không có lượt IPC nào lặng lẽ bay sau đó.
+    await Promise.resolve()
+
+    expect(state.librarySearchMode.value).toBe('lenient')
+    expect(mockInvoke).not.toHaveBeenCalled()
+  })
+
+  it('🔴 đã có truy vấn ⇒ đổi chế độ CHẠY LẠI lượt tìm, và `mode` gửi đi đúng giá trị mới', async () => {
+    const queriesAndModes: { query?: string; mode?: string }[] = []
+    mockInvoke.mockImplementation((cmd: string, args?: { query?: string; mode?: string }) => {
+      if (cmd !== 'library_search') return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
+      queriesAndModes.push({ query: args?.query, mode: args?.mode })
+      return Promise.resolve({
+        hits: [SEARCH_HIT_LENIENT],
+        total: 1,
+        indexed_segments: 5,
+        short_query: false,
+        truncated: false,
+        mode: 'lenient',
+        effective_mode: 'lenient',
+        widened: false,
+      })
+    })
+
+    const state = await import('../../src/modes/librarySearch')
+    state.librarySearchQuery.value = 'khoang'
+    await state.runLibrarySearch()
+    expect(queriesAndModes).toEqual([{ query: 'khoang', mode: 'exact' }])
+
+    state.setLibrarySearchModeLenient()
+    // `setLibrarySearchModeLenient` gọi lại `runLibrarySearch()` fire-and-forget (khuôn
+    // `rescanLibraryFolder`) -- chờ một lượt microtask để lời gọi IPC kịp phát.
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(queriesAndModes).toEqual([
+      { query: 'khoang', mode: 'exact' },
+      { query: 'khoang', mode: 'lenient' },
+    ])
+    expect(state.librarySearchMode.value).toBe('lenient')
+  })
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 🔴 THÊM (vòng rà bốn lớp, mục 3) — `setLibrarySearchModeExact` chưa từng được GỌI ở tệp
+  // này trước lượt vá này (`grep -rn setLibrarySearchModeExact tests/` cho hai dòng, cả hai
+  // là VĂN BẢN: một chú thích và một tiêu đề `describe`). Hai hàm chỉ khác nhau đúng literal
+  // truyền vào `setLibrarySearchMode(next)` — một lỗi chép-dán (`setLibrarySearchModeExact`
+  // gọi `setLibrarySearchMode('lenient')`) sẽ làm nút "Phân biệt dấu" — đường về chế độ MẶC
+  // ĐỊNH mà AD-27 bắt buộc — hỏng im lặng mà không ca nào đỏ. Ca đối xứng dưới đây bắt đầu từ
+  // `mode = 'lenient'` rồi gọi `setLibrarySearchModeExact()`.
+  // ─────────────────────────────────────────────────────────────────────────────
+  it('🔴 setLibrarySearchModeExact() lật cờ về "exact" VÀ gửi đúng `mode: "exact"` trên dây', async () => {
+    const queriesAndModes: { query?: string; mode?: string }[] = []
+    mockInvoke.mockImplementation((cmd: string, args?: { query?: string; mode?: string }) => {
+      if (cmd !== 'library_search') return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
+      queriesAndModes.push({ query: args?.query, mode: args?.mode })
+      return Promise.resolve({
+        hits: [SEARCH_HIT_A],
+        total: 1,
+        indexed_segments: 5,
+        short_query: false,
+        truncated: false,
+        mode: 'exact',
+        effective_mode: 'exact',
+        widened: false,
+      })
+    })
+
+    const state = await import('../../src/modes/librarySearch')
+    state.librarySearchQuery.value = 'khoang'
+    await state.runLibrarySearch()
+    expect(queriesAndModes).toEqual([{ query: 'khoang', mode: 'exact' }])
+
+    // Chuyển sang lenient trước — cùng khuôn ca ngay trên.
+    state.setLibrarySearchModeLenient()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(state.librarySearchMode.value).toBe('lenient')
+    expect(queriesAndModes.at(-1)).toEqual({ query: 'khoang', mode: 'lenient' })
+
+    // 🔴 Mệnh đề trung tâm: gọi ĐÚNG `setLibrarySearchModeExact`, không phải `Lenient`.
+    state.setLibrarySearchModeExact()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(state.librarySearchMode.value).toBe('exact')
+    expect(queriesAndModes.at(-1)).toEqual({ query: 'khoang', mode: 'exact' })
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// STORY 5.10 — hàng `lenient` mang một nhãn phân biệt được trên DOM THẬT, hàng `exact` thì
+// không (§Always: "hai loại kết quả phân biệt được trên màn hình").
+// ═════════════════════════════════════════════════════════════════════════════════
+
+const WORK_NONE_OPEN_ERROR_FOR_MOUNT = {
+  code: 'work.none_open',
+  message_key: 'err.work.none_open',
+  params: {},
+  retryable: false,
+}
+
+/** 🔵 SỬA (vòng rà bốn lớp, mục 4) — nhận thêm `overrides` để dựng được CẢ TÁM nhánh của
+ * `role="status"`, không chỉ ca "có hit, lenient, không cắt" ban đầu. Mặc định GIỮ NGUYÊN
+ * hành vi cũ (không đổi ca đã có). */
+function mockInvokeForSearchMount(
+  hits: SearchHit[],
+  overrides: Partial<{
+    total: number
+    indexed_segments: number
+    short_query: boolean
+    truncated: boolean
+    mode: string
+    effective_mode: string
+    widened: boolean
+  }> = {},
+): void {
+  mockInvoke.mockImplementation((cmd: string) => {
+    if (cmd === 'library_list_works') {
+      return Promise.resolve({ total: 0, matched: 0, works: [], genres: [], source_langs: [] })
+    }
+    if (cmd === 'read_work_lifecycle') return Promise.reject(WORK_NONE_OPEN_ERROR_FOR_MOUNT)
+    if (cmd === 'list_chapters') return Promise.reject(WORK_NONE_OPEN_ERROR_FOR_MOUNT)
+    if (cmd === 'library_search') {
+      return Promise.resolve({
+        hits,
+        total: overrides.total ?? hits.length,
+        indexed_segments: overrides.indexed_segments ?? 5,
+        short_query: overrides.short_query ?? false,
+        truncated: overrides.truncated ?? false,
+        mode: overrides.mode ?? 'lenient',
+        effective_mode: overrides.effective_mode ?? 'lenient',
+        widened: overrides.widened ?? false,
+      })
+    }
+    return Promise.reject(new Error(`invoke gia khong biet lenh: ${cmd}`))
+  })
+}
+
+describe('modes/LibraryMode.vue — nhãn khoan dung dấu trên DOM thật (mount thật)', () => {
+  let wrapper: ReturnType<typeof mount> | null = null
+
+  afterEach(() => {
+    // 🔴 BẮT BUỘC unmount ở MỌI đường ra — cùng lý do đã ghi ở `libraryChapters.test.ts`:
+    // `declareFocus('mode.library', ..)` ném khi owner TRÙNG nếu lượt trước không nhả.
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  it('hàng `lenient` mang nhãn `data-library-search-hit-lenient`, hàng `exact` thì KHÔNG', async () => {
+    mockInvokeForSearchMount([SEARCH_HIT_A, SEARCH_HIT_LENIENT])
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/librarySearch')
+    wrapper = mount(LibraryMode)
+    await wrapper.vm.$nextTick()
+
+    state.librarySearchQuery.value = 'khoang'
+    await state.runLibrarySearch()
+    await wrapper.vm.$nextTick()
+
+    const rows = wrapper.findAll('[data-library-search-hit]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.find('[data-library-search-hit-lenient]').exists()).toBe(false)
+    expect(rows[1]?.find('[data-library-search-hit-lenient]').exists()).toBe(true)
+  })
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 🔴 THÊM (vòng rà bốn lớp, mục 4) — tám nhánh của `role="status"` được TÍNH đúng ở
+  // `librarySearchStatus` (hàm thuần, đã có lưới) nhưng chưa ca nào đọc CÂU CHỮ THẬT hiện
+  // ra trên DOM cho hai nhánh widened. Một lỗi nối dây giữa khoá trạng thái và bảng ternary
+  // của `LibraryMode.vue` (ví dụ đặt nhánh sai thứ tự) sẽ hiện nhầm câu mà không ca nào đỏ.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  it('🔴 hits rỗng + widened ⇒ DOM hiện đúng câu "đã thử cả chế độ khoan dung dấu"', async () => {
+    mockInvokeForSearchMount([], { widened: true, mode: 'exact', effective_mode: 'lenient' })
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/librarySearch')
+    wrapper = mount(LibraryMode)
+    await wrapper.vm.$nextTick()
+
+    state.librarySearchQuery.value = 'tu vo nghia'
+    await state.runLibrarySearch()
+    await wrapper.vm.$nextTick()
+
+    const status = wrapper.find('[data-library-search-status]')
+    expect(status.text()).toContain('đã thử cả chế độ khoan dung dấu')
+  })
+
+  it('🔴 có hit + widened, KHÔNG cắt ⇒ DOM hiện câu "đã tự chuyển sang khoan dung dấu", không "còn nữa"', async () => {
+    mockInvokeForSearchMount([SEARCH_HIT_LENIENT], { widened: true, mode: 'exact', effective_mode: 'lenient' })
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/librarySearch')
+    wrapper = mount(LibraryMode)
+    await wrapper.vm.$nextTick()
+
+    state.librarySearchQuery.value = 'khoang'
+    await state.runLibrarySearch()
+    await wrapper.vm.$nextTick()
+
+    const status = wrapper.find('[data-library-search-status]')
+    expect(status.text()).toContain('đã tự chuyển sang khoan dung dấu')
+    expect(status.text()).not.toContain('còn nữa')
+  })
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 🔴 THÊM (vòng rà bốn lớp, mục 1) — `result_widened` PHẢI rẽ theo `truncated` NGAY BÊN
+  // TRONG nhánh của nó: một lượt vừa tự nới VỪA bị trần `limit` cắt phải nói CẢ HAI, không
+  // chỉ "đã tự chuyển sang khoan dung dấu" (đúng lớp lỗi mà `SearchReport::truncated` của
+  // Story 5.9 tồn tại để chặn — "không trần nào được cắt trong im lặng").
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  it('🔴 có hit + widened + truncated ⇒ DOM nói CẢ HAI: đã tự nới VÀ còn nữa', async () => {
+    mockInvokeForSearchMount([SEARCH_HIT_LENIENT], {
+      widened: true,
+      truncated: true,
+      mode: 'exact',
+      effective_mode: 'lenient',
+    })
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/librarySearch')
+    wrapper = mount(LibraryMode)
+    await wrapper.vm.$nextTick()
+
+    state.librarySearchQuery.value = 'khoang'
+    await state.runLibrarySearch()
+    await wrapper.vm.$nextTick()
+
+    const status = wrapper.find('[data-library-search-status]')
+    expect(status.text()).toContain('khoan dung dấu')
+    expect(status.text()).toContain('còn nữa')
   })
 })
 
@@ -237,7 +523,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
     mockInvoke.mockImplementation((cmd: string) => {
       callOrder.push(cmd)
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
       }
       if (cmd === 'open_work') return Promise.resolve(OPENED_WORK_A)
       if (cmd === 'open_chapter') return Promise.resolve(OPEN_CHAPTER_A)
@@ -271,7 +557,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
     }
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
       }
       // `invoke()` giả trượt bằng cách NÉM đúng hình dạng IpcError -- cùng khuôn adapter thật.
       if (cmd === 'open_work') return Promise.reject(OPEN_WORK_ERROR)
@@ -292,7 +578,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
     ketQuaFlush.value = 'still-dirty'
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
       }
       return Promise.reject(new Error(`KHONG duoc goi: ${cmd}`))
     })
@@ -323,7 +609,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
   ): void {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [hit], total: 1, indexed_segments: 5, short_query: false, truncated: false })
+        return Promise.resolve({ hits: [hit], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
       }
       if (cmd === 'open_work') return Promise.resolve(OPENED_WORK_A)
       if (cmd === 'open_chapter') return Promise.resolve(OPEN_CHAPTER_A)
@@ -402,15 +688,34 @@ describe('modes/librarySearch.ts::resetLibrarySearch', () => {
   it('vứt sạch state của một lượt tìm trước đó', async () => {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false })
+        // 🔴 SỬA (vòng rà bốn lớp, mục 10) — `mode: 'lenient'` cộng `widened: true` trong CÙNG
+        // một report là một tổ hợp mà `Indexer::search` THẬT không bao giờ phát ra (bất biến
+        // `widened == (mode == exact && effective_mode == lenient)`, khoá ở tầng Rust) — ở đây
+        // nó được chọn CÓ CHỦ Ý, chỉ để đẩy CẢ BA ô nhớ mới (`mode`/`effectiveMode`/`widened`)
+        // ra khỏi giá trị MẶC ĐỊNH trong một lượt, cho `resetLibrarySearch` có gì thật để vứt.
+        return Promise.resolve({
+          hits: [SEARCH_HIT_A],
+          total: 1,
+          indexed_segments: 5,
+          short_query: false,
+          truncated: false,
+          mode: 'lenient',
+          effective_mode: 'lenient',
+          widened: true,
+        })
       }
       return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
     })
 
     const state = await import('../../src/modes/librarySearch')
+    state.setLibrarySearchModeLenient()
     state.librarySearchQuery.value = 'má của tôi'
     await state.runLibrarySearch()
     expect(state.librarySearchHits.value).toHaveLength(1)
+    // Tiền đề của ca: cả ba ô nhớ mới THẬT SỰ đã rời khỏi mặc định trước khi reset.
+    expect(state.librarySearchMode.value).toBe('lenient')
+    expect(state.librarySearchEffectiveMode.value).toBe('lenient')
+    expect(state.librarySearchWidened.value).toBe(true)
 
     state.resetLibrarySearch()
 
@@ -420,6 +725,11 @@ describe('modes/librarySearch.ts::resetLibrarySearch', () => {
     expect(state.librarySearchBusy.value).toBe(false)
     expect(state.librarySearchError.value).toBeNull()
     expect(state.librarySearchCursor.value).toBe(0)
+    // 🔴 THÊM (vòng rà bốn lớp, mục 10) — đúng ba ô mà `check:panel-refs` là lý do chúng có
+    // mặt trong `resetLibrarySearch`; khoan dung KHÔNG BAO GIỜ là mặc định (AD-27 · AC4).
+    expect(state.librarySearchMode.value).toBe('exact')
+    expect(state.librarySearchEffectiveMode.value).toBe('exact')
+    expect(state.librarySearchWidened.value).toBe(false)
   })
 })
 
@@ -474,7 +784,7 @@ describe('modes/librarySearch.ts::librarySearchStatus — lượt tìm THỨ HAI
     // Bản đầu chỉ đọc `busy` trong nhánh `!hasLoaded`, nên màn hình giữ nguyên danh sách của
     // truy vấn TRƯỚC và khai nó là kết quả — cho một truy vấn khác đang nằm trong ô tìm.
     const { librarySearchStatus } = await import('../../src/modes/librarySearch')
-    expect(librarySearchStatus(true, true, 10, 3, false)).toBe('searching')
-    expect(librarySearchStatus(true, true, 10, 0, false)).toBe('searching')
+    expect(librarySearchStatus(true, true, 10, 3, false, false)).toBe('searching')
+    expect(librarySearchStatus(true, true, 10, 0, false, false)).toBe('searching')
   })
 })

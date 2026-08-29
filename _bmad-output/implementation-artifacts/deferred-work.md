@@ -8560,6 +8560,42 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     khuôn `tools/dict-build/src/schema.rs::SENSE_FTS_ND_DDL`), một nút bật/tắt trên màn hình
     tìm kiếm, và Rust chạy nhánh đó CHỈ khi người dùng bật — không mặc định (AD-27).
     **(Chủ: Story 5.10 — đã có tên trong chính story này, không cần Ice chọn lại.)**
+    → ✅ ĐÃ ĐÓNG 2026-08-29 (Story 5.10). `library_target_fts_nd` (`unicode61
+    remove_diacritics 2`) dựng đúng khuôn đã hứa, `LIBRARY_INDEX_MIGRATIONS` bump 6 → 7.
+    `Indexer::search` nhận `SearchMode` (`Exact` mặc định · `Lenient`), tự nới khi chính xác
+    trả 0 hàng trên chỉ mục KHÔNG rỗng (`SearchReport::widened`), và hai nút
+    `library.search_mode_exact`/`_lenient` trên `LibraryMode.vue` cho người dùng chọn thẳng.
+    `mode.library.search_no_match` sửa tại chỗ — câu "chưa có ở bản này" đã hết đúng.
+
+- 🟡 **`đ`/`Đ` (U+0111/U+0110) không được `remove_diacritics` gấp về `d` ở BẤT KỲ mức nào —
+  người dịch gõ `duong`/`duoc`/`dau`/`di` vẫn không tìm ra `đường`/`được`/`đầu`/`đi` kể cả ở
+  chế độ khoan dung dấu.**
+  evidence: Đo 2026-08-29 (SQLite 3.53.2 nhúng, `cargo test --locked`), §Design Notes "Vì sao
+    `remove_diacritics 2`, và vì sao `1` là một cái bẫy" của `5-10-hai-che-do-dau.md`: truy vấn
+    `duong phuong` trên hàng `đường phượng bay` KHÔNG khớp ở `remove_diacritics 0`, `1`, `2`,
+    lẫn `trigram remove_diacritics 1` — chỉ khớp hàng KHÔNG dấu `duong phuong bay`.
+    `remove_diacritics` gỡ DẤU PHỤ TỔ HỢP; `đ` là một CHỮ CÁI riêng, không phân rã được thành
+    `d` + dấu, nên tham số này bất lực với nó ở mọi mức.
+    ⇒ Đóng nó cần một HÀM GẤP DẤU trong Rust (bảng `đ→d` viết tay, hoặc một phép chuẩn hoá
+    Unicode) — đây là một CƠ CHẾ mới, đụng đúng món nợ chuẩn hoá NFC/NFD đang mở, không phải
+    một dòng vá của story kế tiếp.
+    **(Chủ: Ice — `AGENTS.md:15` đòi trình phương án kèm số đo cho Ice chốt, không tự chọn rồi
+    đi tiếp; số đo đã có sẵn ở §Design Notes của `5-10-hai-che-do-dau.md`.)**
+
+- 🟡 **Nửa NGUYÊN VĂN của tìm kiếm Library (`library_source_fts`, `trigram`) không có bản
+  khoan dung dấu — khoan dung ở Story 5.10 chỉ là chuyện của nửa BẢN DỊCH.**
+  evidence: §Design Notes "Vì sao nửa NGUYÊN VĂN không có bản khoan dung" của
+    `5-10-hai-che-do-dau.md`: 🔴 của Story 5.9 buộc mọi hàng `trigram` đi qua một bước XÁC MINH
+    CHUỖI CON ở Rust (`source_text.to_lowercase().contains(&needle)`) vì FTS5 trigram trả lời
+    "chứa các trigram này", không "chứa chuỗi này" — tỉ lệ dương tính giả đo được ở đường từ
+    điển là 10,3%. Một `library_source_fts_nd` (`trigram remove_diacritics 1`, đã đo là DỰNG
+    ĐƯỢC) sẽ trả về những hàng mà `contains()` LUÔN LUÔN loại (văn bản thô còn dấu, truy vấn
+    thì không) — chỉ hai lối: bỏ phép xác minh (mở cửa cho ~10% kết quả sai), hoặc tự cài một
+    hàm gấp dấu trong Rust để xác minh (cùng CƠ CHẾ với món nợ `đ`/`Đ` ngay trên).
+    ⇒ Đóng nó phụ thuộc TRỰC TIẾP vào món nợ hàm gấp dấu ngay trên — không một nhánh nửa vời
+    (bỏ xác minh) được chấp nhận ở story nào, kể cả story đóng món nợ này.
+    **(Chủ: Ice — cùng lý do và cùng số đo với món nợ `đ`/`Đ` ngay trên; hai món nợ đóng CÙNG
+    một quyết định kiến trúc.)**
 
 - 🟡 **Thu hoạch văn bản chạy TOÀN PHẦN mỗi lượt `Indexer::rebuild` — một guard tăng dần
   ("chỉ thu hoạch lại Tác phẩm có `updated_at` mới hơn lần quét trước") SẼ SAI ÂM THẦM hôm

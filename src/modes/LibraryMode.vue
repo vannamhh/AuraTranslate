@@ -89,11 +89,15 @@ import {
   loadChapters,
 } from './libraryChapters'
 // ── Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8) ─────────────────────────────
+// 🔵 SỬA (2026-08-29, Story 5.10) — thêm `librarySearchMode` cho hai nút chế độ + đọc thêm
+// `match_kind` của mỗi hit; `role="status"` mở rộng tám nhánh (đọc thẳng `librarySearchStatusKey`,
+// không cần một export mới cho `widened` — tám giá trị của nó đã chở đủ thông tin).
 import {
   librarySearchBusy,
   librarySearchCursor,
   librarySearchError,
   librarySearchHits,
+  librarySearchMode,
   librarySearchQuery,
   librarySearchStatusKey,
   librarySearchTotal,
@@ -477,9 +481,43 @@ watch(libraryChapterCursor, (cursor) => {
       </div>
 
       <!--
-        role="status" NĂM NHÁNH, LUÔN có mặt (không v-if) — §Always của story: "một danh sách
-        kết quả rỗng phải nói VÌ SAO nó rỗng", năm ca PHÂN BIỆT được, không gộp. Thứ tự ưu tiên
-        khớp đúng `librarySearch.ts` doc-comment đầu tệp.
+        Story 5.10 (FR9) — hai nút chế độ dấu, cùng khuôn nhóm-lựa-chọn của bốn nút lọc trạng
+        thái ở `.filter-actions` bên dưới: mỗi lựa chọn một `dispatch` id RIÊNG (Kiểm A đòi id
+        LITERAL), không một nút "đảo". `aria-pressed` đọc `librarySearchMode` -- AC4: người
+        dùng đọc được chế độ ĐANG CHỌN mà không phải suy ra từ số kết quả.
+      -->
+      <div class="mode-actions">
+        <span class="mode-actions-label">{{ t('mode.library.search_mode_heading') }}</span>
+        <button
+          type="button"
+          class="btn"
+          data-library-search-mode="exact"
+          :aria-pressed="librarySearchMode === 'exact'"
+          @click="dispatch('library.search_mode_exact')"
+        >
+          {{ t('mode.library.search_mode_exact') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          data-library-search-mode="lenient"
+          :aria-pressed="librarySearchMode === 'lenient'"
+          @click="dispatch('library.search_mode_lenient')"
+        >
+          {{ t('mode.library.search_mode_lenient') }}
+        </button>
+      </div>
+
+      <!--
+        role="status" TÁM NHÁNH, LUÔN có mặt (không v-if) — §Always của story: "một danh sách
+        kết quả rỗng phải nói VÌ SAO nó rỗng", tám ca PHÂN BIỆT được, không gộp (xem khối 🔵 đầu
+        `librarySearch.ts` cho lý do "tám" chứ không "bảy"). Thứ tự ưu tiên khớp đúng
+        `librarySearch.ts` doc-comment đầu tệp.
+        🔴 SỬA (vòng rà bốn lớp, mục 1) — `result_widened` PHẢI rẽ theo `librarySearchTruncated`
+        NGAY BÊN TRONG nhánh của nó, cùng lý do `SearchReport::truncated` tồn tại từ Story 5.9:
+        "không trần nào được cắt trong im lặng" là luật của kho, không một nhánh mới nào được
+        miễn — một lượt vừa tự nới VỪA bị trần cắt mà chỉ nói "đã tự chuyển sang khoan dung dấu"
+        thì đúng hình dạng, sai sự thật.
         aura-allow-text: mọi nhánh đều qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi.
       -->
       <p class="status" role="status" data-library-search-status>
@@ -492,11 +530,17 @@ watch(libraryChapterCursor, (cursor) => {
                 ? t('mode.library.search_index_empty')
                 : librarySearchStatusKey === 'short_query'
                   ? t('mode.library.search_short_query')
-                  : librarySearchStatusKey === 'no_match'
-                    ? t('mode.library.search_no_match')
-                    : librarySearchTruncated
-                      ? t('mode.library.search_result_truncated', { total: String(librarySearchTotal) })
-                      : t('mode.library.search_result', { total: String(librarySearchTotal) })
+                  : librarySearchStatusKey === 'no_match_widened'
+                    ? t('mode.library.search_no_match_widened')
+                    : librarySearchStatusKey === 'no_match'
+                      ? t('mode.library.search_no_match')
+                      : librarySearchStatusKey === 'result_widened'
+                        ? librarySearchTruncated
+                          ? t('mode.library.search_result_widened_truncated', { total: String(librarySearchTotal) })
+                          : t('mode.library.search_result_widened', { total: String(librarySearchTotal) })
+                        : librarySearchTruncated
+                          ? t('mode.library.search_result_truncated', { total: String(librarySearchTotal) })
+                          : t('mode.library.search_result', { total: String(librarySearchTotal) })
         }}
       </p>
       <!-- aura-allow-text: như trên, qua tError(). -->
@@ -547,6 +591,11 @@ watch(libraryChapterCursor, (cursor) => {
             }}</span>
             <!-- aura-allow-text: qua t(). -->
             <span v-if="hit.segment_id === null" class="search-hit-field">{{ t('mode.library.search_chapter_level') }}</span>
+            <!-- Story 5.10 -- hit chỉ khớp qua chỉ mục KHOAN DUNG mang một nhãn phân biệt được
+                 (§Always: "hai loại kết quả phân biệt được trên màn hình"). aura-allow-text: qua t(). -->
+            <span v-if="hit.match_kind === 'lenient'" class="search-hit-field search-hit-field--lenient" data-library-search-hit-lenient>{{
+              t('mode.library.search_hit_lenient')
+            }}</span>
           </p>
           <!-- aura-allow-text: đoạn trích là DỮ LIỆU người dùng, văn bản THUẦN (AD-16) -- không v-html. -->
           <p class="search-hit-snippet">{{ hit.snippet }}</p>
@@ -1720,6 +1769,27 @@ watch(libraryChapterCursor, (cursor) => {
   flex: 1;
 }
 
+/* Story 5.10 — hai nút chế độ dấu, cùng khuôn `.filter-actions` (token màu cho trạng thái
+   ĐANG BẬT, không bóng đổ/gradient — AD-21). */
+.mode-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mode-actions-label {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.mode-actions .btn[aria-pressed='true'] {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
 .search-results {
   margin: 10px 0 0;
   padding: 0;
@@ -1754,6 +1824,13 @@ watch(libraryChapterCursor, (cursor) => {
   font-size: var(--font-ui-sm);
   font-weight: normal;
   color: var(--color-on-surface-variant);
+}
+
+/* Story 5.10 — nhãn "khoan dung dấu" trên một hit chỉ khớp qua `_nd`, phân biệt bằng TOKEN
+   MÀU (không bóng đổ/gradient — AD-21), cùng token `--color-primary` đã dùng cho trạng thái
+   ĐANG BẬT của các nút chế độ ngay trên. */
+.search-hit-field--lenient {
+  color: var(--color-primary);
 }
 
 .search-hit-snippet {
