@@ -805,3 +805,88 @@ fn the_library_search_wire_is_registered_and_keeps_its_parameter_names() {
         );
     }
 }
+
+/// **THÊM Story 5.11.** Đóng băng tên trường `snake_case` của ba struct dây mới —
+/// `ReadingSegment`/`ReadingParagraph`/`ReadingChapter` — cùng lý lẽ và cùng khuôn
+/// [`library_search_wire_structs_keep_snake_case_field_names`] ở trên.
+#[test]
+fn reading_wire_structs_keep_snake_case_field_names() {
+    let chapter = auratranslate_lib::commands::segment::ReadingChapter {
+        chapter_id: 1,
+        chapter_ord: 1,
+        chapter_title: Some("Chương Một".to_owned()),
+        paragraphs: vec![auratranslate_lib::commands::segment::ReadingParagraph {
+            segments: vec![auratranslate_lib::commands::segment::ReadingSegment {
+                id: 42,
+                source_text: "原文".to_owned(),
+                target_text: "Bản dịch".to_owned(),
+            }],
+        }],
+    };
+    let value = serde_json::to_value(&chapter).expect("ReadingChapter phải serialize được");
+    let mut top_keys: Vec<&str> =
+        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    top_keys.sort_unstable();
+    assert_eq!(
+        top_keys,
+        vec!["chapter_id", "chapter_ord", "chapter_title", "paragraphs"],
+        "khoá trên dây của ReadingChapter là snake_case. Nhận được: {top_keys:?}. Nghi phạm số \
+         một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+
+    let paragraph_value = value
+        .get("paragraphs")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())
+        .expect("paragraphs phải mang ít nhất một mục cho ca test này");
+    let mut paragraph_keys: Vec<&str> = paragraph_value
+        .as_object()
+        .expect("một mục paragraphs phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    paragraph_keys.sort_unstable();
+    assert_eq!(
+        paragraph_keys,
+        vec!["segments"],
+        "khoá trên dây của ReadingParagraph là snake_case. Nhận được: {paragraph_keys:?}."
+    );
+
+    let segment_value = paragraph_value
+        .get("segments")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())
+        .expect("segments phải mang ít nhất một mục cho ca test này");
+    let mut segment_keys: Vec<&str> = segment_value
+        .as_object()
+        .expect("một mục segments phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    segment_keys.sort_unstable();
+    assert_eq!(
+        segment_keys,
+        vec!["id", "source_text", "target_text"],
+        "khoá trên dây của ReadingSegment là snake_case. Nhận được: {segment_keys:?}. Nghi phạm \
+         số một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+}
+
+/// **THÊM Story 5.11.** `read_reading_chapter` phải CÓ MẶT trong `generate_handler![…]` —
+/// cùng lý lẽ và cùng khuôn
+/// [`the_library_search_wire_is_registered_and_keeps_its_parameter_names`] ở trên.
+/// ⚠️ Không tham số nào đi trên dây (cùng khuôn `read_open_chapter_segments`), nên không
+/// có vế "giữ nguyên tên tham số" để nghiệm thu ở đây.
+#[test]
+fn the_read_reading_chapter_wire_is_registered() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    assert!(
+        lib_src.contains("crate::commands::segment::wire::read_reading_chapter"),
+        "`crate::commands::segment::wire::read_reading_chapter` phai co mat trong \
+         generate_handler! cua lib.rs. Thieu no thi invoke() tra \"command not found\" va \
+         KHONG cong nao do."
+    );
+}

@@ -156,6 +156,18 @@ const CMD_DELETE = 'delete_config'
 export const SCOPE_APP_CONFIG = 'app_config'
 export const KEY_LAYOUT = 'workspace_layout'
 /**
+ * Khoá thứ sáu của cùng cửa `app_config` — Story 5.11, FR9 phím `D`.
+ *
+ * ⚠️ Cùng lý do năm hằng số khác ở tệp này tồn tại: `put_config` nhận `kind`/`key` là
+ * **chuỗi trên dây**, nên một lỗi gõ ở đây không có kiểu nào bắt được — lượt lưu chỉ im
+ * lặng biến mất. Khớp `KEY_THEME` ở `src-tauri/src/core/scope/store.rs:49`.
+ *
+ * `theme` đã ĐỌC được từ `BootstrapConfig.theme` từ Story 1.4/1.8; hằng số này mở đường
+ * GHI đầu tiên cho khoá đó — hôm nay 0 đường đổi theme lúc chạy (`main.ts` chỉ áp một lần
+ * lúc khởi động), và `src/tokens/themeState.ts::setTheme` là chỗ dùng đầu tiên.
+ */
+export const KEY_THEME = 'theme'
+/**
  * Khoá thứ tư của cùng cửa `app_config` — Story 1.19 · AC5.
  *
  * ⚠️ Cùng lý do hai hằng ở trên tồn tại: `put_config` nhận `kind`/`key` là **chuỗi trên

@@ -18,8 +18,11 @@ import './tokens/reset.css'
 // cấm đường đó (AC1).
 import 'dockview-vue/dist/styles/dockview.css'
 import './layout/dockview-theme.css'
-import { applyTheme, DEFAULT_THEME, isTheme } from './tokens'
+import { DEFAULT_THEME, isTheme } from './tokens'
 import { loadFonts } from './tokens/fonts'
+// Story 5.11 — theme nay có một đường ĐỔI lúc chạy (`reading.toggle_theme`, `D`); state
+// module hoá thay `applyTheme()` gọi thẳng — xem doc-comment đầu `tokens/themeState.ts`.
+import { initTheme } from './tokens/themeState'
 import { attachKeyboard, dispatch, installCommands } from './commands'
 import type { ModeId } from './commands'
 import { currentMode, setMode } from './modes/modeState'
@@ -250,6 +253,21 @@ import {
   importOverlayIsOpen,
   openGlossaryImportPreviewOverlay,
 } from './glossaryImportState'
+// ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ──────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `librarySearch.ts`: `readingState.ts` là một module Vue
+// thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/reading.ts`/`config/chapter.ts`.
+import {
+  closeTableOfContents,
+  nextTocChapter,
+  openCurrentTocChapter,
+  openTableOfContents,
+  prevTocChapter,
+  toggleBilingual,
+  setReadingLevel,
+  toggleTuner,
+} from './modes/readingState'
+import { toggleTheme } from './tokens/themeState'
 
 /**
  * Hợp âm trên đĩa là **một chuỗi**; `CommandSpec.keys` là một **mảng**. Đây là chỗ nối.
@@ -328,7 +346,12 @@ async function boot(): Promise<void> {
   // một tệp trên đĩa, tức đúng loại dữ liệu mà kiểu TypeScript không nói được gì về nó.
   // `applyTheme` tự chốt lần nữa lúc chạy (`tokens/index.ts:72`), và hai lớp chốt ở đây rẻ
   // hơn một `documentElement` không có token nào.
-  applyTheme(isTheme(config?.theme) ? config.theme : DEFAULT_THEME)
+  // 🔵 SỬA (Story 5.11) — `setTheme()` thay `applyTheme()` gọi thẳng: nó áp token XONG rồi
+  // mới khởi tạo `currentTheme`/lưu lại (đúng thứ tự applyTheme-trước-mount không đổi, vì
+  // `applyTheme()` chạy ĐỒNG BỘ bên trong `setTheme()`, và lượt lưu là `void`, không chặn).
+  // 🔵 SỬA LẦN HAI (lượt rà 2026-08-30) — `initTheme()`, KHÔNG `setTheme()`: đường khởi động
+  // chỉ ÁP, không GHI. Xem doc-comment của `initTheme` cho hai hệ quả đo được của bản trước.
+  initTheme(isTheme(config?.theme) ? config.theme : DEFAULT_THEME)
 
   // ⚠️ THỨ TỰ BẮT BUỘC #2 — `installCommands()` phải chạy TRƯỚC `mount()`.
   //
@@ -412,6 +435,22 @@ async function boot(): Promise<void> {
       // Story 5.10 — "Hai che do dau" (FR9).
       setLibrarySearchModeExact,
       setLibrarySearchModeLenient,
+      // Story 5.11 — "Che do doc: typography va bo cuc doc dai" (FR11).
+      toggleReadingBilingual: toggleBilingual,
+      setReadingLevelAiry: () => setReadingLevel('lg'),
+      setReadingLevelBalanced: () => setReadingLevel('md'),
+      setReadingLevelDense: () => setReadingLevel('sm'),
+      toggleReadingTuner: toggleTuner,
+      toggleReadingTheme: toggleTheme,
+      openReadingToc: () => {
+        void openTableOfContents()
+      },
+      closeReadingToc: closeTableOfContents,
+      nextReadingTocChapter: nextTocChapter,
+      prevReadingTocChapter: prevTocChapter,
+      openCurrentReadingTocChapter: () => {
+        void openCurrentTocChapter()
+      },
       setOpenWorkOverridePaused: setOpenWorkOverride,
       clearOpenWorkOverride,
       setOpenChapterDone: setOpenChapterStatus,

@@ -380,6 +380,9 @@ pub fn run() {
             // Story 2.2 — nap segment cua Chuong dang mo len Panel Editor. Doc theo
             // `(chapter_id, ord)`, tuc dung index `idx_segment_chapter_ord` cua buoc 5.
             crate::commands::segment::wire::read_open_chapter_segments,
+            // Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11). Doc thuan,
+            // khong `(async)`, cung hang vo tren: mot SELECT nhe, khong ghi.
+            crate::commands::segment::wire::read_reading_chapter,
             // Story 2.3 — duong FLUSH cua AD-35. MOT lo, MOT giao dich, `prepare_cached`
             // mot lan; cham dung hai cot (`target_text` + `updated_at`). Auto-save KHONG
             // doi trang thai va KHONG tao `SegmentVersion` (AD-31 hang 1).

@@ -47,6 +47,9 @@ import { resetLookupPanel } from '../panels/lookupPanelState'
 import { resetSegmentHistory } from '../panels/segmentHistoryState'
 import { setMode } from './modeState'
 import { currentLibraryWork } from './libraryWorks'
+// Story 5.11 — Chế độ đọc mang CÙNG lớp cache module-level (`readingState.ts`), nên nó phải
+// đi cùng lượt vứt state Tác phẩm/Chương này — cùng lý lẽ `resetEditorPanel` đã ghi.
+import { resetReading, resetReadingToc } from './readingState'
 import type { IpcError } from '../i18n'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -260,6 +263,10 @@ export async function openWorkById(workId: string): Promise<void> {
   resetLookupPanel()
   resetEditorPanel()
   resetSegmentHistory()
+  // 🔵 THÊM Story 5.11 — Chế độ đọc mang cùng lớp cache module-level; Tác phẩm cũ bị thay
+  // thì Chương đang đọc của nó cũng phải bị vứt, cùng lượt với bốn dòng trên.
+  resetReading()
+  resetReadingToc()
 
   // Vứt là CHƯA ĐỦ — nạp lại NGAY, cùng lý do `finishSubmit`: ba chế độ sống trong
   // `<KeepAlive>`, không có `mounted` lần thứ hai.
@@ -411,6 +418,10 @@ export async function mergeCurrentChapterUp(): Promise<void> {
   if (openId !== null && (openId === row.chapter_id || openId === previousRow?.chapter_id)) {
     resetEditorPanel()
     resetSourcePanel()
+    // 🔵 THÊM Story 5.11 — `OpenWork::chapter_id` là MỘT con trỏ duy nhất phía Rust, dùng
+    // chung giữa Editor và Chế độ đọc; Chương đang đọc (nếu có) cũng vừa bị gộp/đổi số.
+    resetReading()
+    resetReadingToc()
     await ensureChapterLoaded()
     await ensureSegmentsLoaded()
   }

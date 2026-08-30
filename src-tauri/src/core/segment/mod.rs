@@ -28,8 +28,16 @@
 //! chữ ký #5(a) · #3(b)) không được sống trong một closure `Store::write` mà `tests/**`
 //! gọi không tới.
 
+//! [`reading`] — gom segment thuộc bản dịch thành ĐOẠN cho Chế độ đọc (Story 5.11, FR11).
+//! Lượt gọi ĐẦU TIÊN của [`omit::segments_in_translation`] trên đường sản phẩm — mệnh đề
+//! *"chưa bề mặt nào gọi nó"* ở doc-comment của `omit` hết đúng cho vế Chế độ đọc kể từ
+//! story này (vế bản xuất vẫn mở, Epic 8). Tách đoạn cắt trước-lọc-sau/lọc-trước-cắt-sau
+//! có một ca biên thật (cờ kết đoạn nằm trên chính câu bị cắt bỏ) nên nó ở lại Rust, cùng
+//! lý lẽ [`paragraph`] đã dùng cho AD-37.
+
 pub mod import;
 pub mod omit;
 pub mod paragraph;
+pub mod reading;
 pub mod regroup;
 pub mod split;

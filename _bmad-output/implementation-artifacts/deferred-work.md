@@ -3740,7 +3740,13 @@ Hai khoảng hở cùng hình dạng, hai số phận khác nhau, và cái khác
 định câu đã cắt bỏ không xuất hiện. Đó là **cái chốt**, không phải bề mặt.
 
 ⇒ Vế còn hở là **hai lượt CẮM VÀO chốt đó**: **(Chủ: Epic 5.)**
-- Chế độ đọc → **Epic 5** *(Story 5.11 · 5.12 · 5.13)* **(Chủ: Epic 5 — Story 5.11/5.12/5.13.)**
+- Chế độ đọc → **Epic 5** *(Story 5.11 · 5.12 · 5.13)*
+  → ✅ **ĐÃ ĐÓNG 2026-08-30 (Story 5.11).** `core::segment::reading::paragraphs_in_translation`
+  gọi lại `omit::segments_in_translation` rồi cắt đoạn; `read_reading_chapter` đưa kết quả ra
+  dây; `ReadingMode.vue` render — câu đã cắt bỏ vắng mặt hoàn toàn, không `[…]`, không chỗ
+  trống (AC đầu tiên của story, nghiệm thu bằng `segment_contract.rs` + `readingState.test.ts`
+  ca "gỡ vế lọc ở fixture"). Đánh dấu "cần sửa" (FR119) và đọc liên tục xuyên Chương (FR120)
+  KHÔNG thuộc vế này — hai món đó có chủ riêng: **Story 5.12 · 5.13**.
 - Bản xuất → **Epic 8** *(Story 8.3 · 8.4 · 8.6)*
 
 ### 🔴 CÒN HỞ, và đây là món lớn hơn cả hai mục trên: nghĩa vụ FR133 chỉ phát biểu MỘT CHIỀU
@@ -5031,6 +5037,16 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   — story này chỉ dựng đường cho lượt mở/đổi CHƯƠNG; Chế độ đọc là Epic 5 sau (5.11–5.13,
   §Never của chính story 5.7). Mở món nợ mới, hẹp hơn: **Chủ: story dựng Chế độ đọc**
   (5.11–5.13) — khi đó, đọc lại `chapter_position` là hạ tầng đã có sẵn, không phải dựng lại.
+  → 🟡 **THU HẸP 2026-08-30 (Story 5.11) — vế "đúng CHƯƠNG" của UX-DR34 nay ĐÓNG cho lượt đổi
+  chế độ; vế "đúng VỊ TRÍ CUỘN" thì VẪN HỞ.** `ReadingMode.vue::onActivated` gọi
+  `ensureReadingLoaded()`, và `read_reading_chapter` đọc `OpenWork::chapter_id` — cùng con trỏ
+  Chương mà Workspace dùng — nên rời Workspace sang Chế độ đọc rồi quay lại LUÔN đúng Chương,
+  không cần một mảnh hạ tầng vị trí nào mới. Cái còn hở đúng như đã đo ở trên (2026-08-18):
+  Chế độ đọc là một trang liền mạch cuộn dọc tự nhiên (`overflow: auto` trên `.mode`, không một
+  panel `dockview` nào), và KHÔNG có đường nhớ "đang cuộn tới câu nào" khi rời nó — quay lại
+  Workspace hay quay lại Chế độ đọc lần sau đều rơi về đầu trang. **Chủ: Story 5.12 hoặc 5.13**
+  (mốc "chỉ đọc phần đã xong"/đánh dấu FR119 nhiều khả năng đã cần một neo theo `segment.id` mà
+  vị trí cuộn có thể cắm vào — xem lại `AD-3` trước khi chọn hình dạng, đừng chọn pixel).
 
 - 🟡 **Tiêu điểm sau một lượt chuyển Chương THÀNH CÔNG — cơ chế đã cài, vế nghiệm thu còn HỞ.** `switchChapter` gọi `await nextTick()` rồi `enterFocus('panel.grid')` *(`editorPanelState.ts`)*, và lý do có bằng chứng: lượt chuyển thay **toàn bộ** hàng của `v-for`, `segment.id` là `AUTOINCREMENT` **theo Tác phẩm** nên Chương mới gần như chắc chắn mang tập khoá khác ⇒ Vue **gỡ** đúng ô `contenteditable` đang giữ tiêu điểm ⇒ trình duyệt trả nó về `document.body`, thứ AD-34 §2 cấm thẳng. 🔴 **Nhưng mệnh đề *"tiêu điểm KHÔNG rơi về `body`"* chưa có đường nghiệm thu nào:** `happy-dom` **không phải** WebKit *(và không bố cục)*, còn e2e thì **không tới được** một lượt chuyển thành công — cùng món nợ với mục thứ nhất ở trên. ⇒ Đã cài, **không** tự chấm đạt. **Chủ: cùng story mở đường sinh Chương thứ hai (Epic 6/FR14)** — nghiệm thu vế này **cùng lượt** với AC1/AC2.
 
@@ -8677,3 +8693,54 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     nhắc riêng, không phải một dòng thêm.
     **(Chủ: Ice — quyết định "một Tác phẩm hỏng thì hỏng riêng nó" có đáng một giao dịch lồng
     hay một lượt ghi theo từng Tác phẩm hay không là một quyết định kiến trúc, không một bản vá.)**
+
+---
+
+## Deferred from: 5-11-che-do-doc-typography-va-bo-cuc-doc-dai (2026-08-30)
+
+- 🟡 **`⌘,` KHÔNG được gán cho *Tinh chỉnh* của Chế độ đọc, dù AC gọi đích danh nó — hợp âm đã
+  có chủ từ Story 1.21, và story này CỐ Ý không giành.**
+  evidence: đo 2026-08-30 trên baseline `fc7ca89` — `grep -n "'Mod+Comma'" src/commands/index.ts`
+    cho **đúng một** kết quả (`:2509`, `['shortcuts.open', 'openShortcuts', 'Mod+Comma']`), và
+    `createKeymap` (`src/commands/keys.ts:486`) **ném** khi hai command giành một hợp âm — tức
+    `installCommands()` chạy trước `mount()` sẽ làm ứng dụng KHÔNG khởi động được, không phải một
+    lỗi âm thầm.
+    ⇒ Hai bên có sức nặng **khác nhau, đo được**: chú thích tại chỗ của Story 1.21
+    (`src/commands/index.ts:2507-2508`) tự khai lý do là *"`⌘,` là quy ước Preferences của macOS …
+    và hợp âm đó **chưa ai chiếm**"* — một lựa chọn của dev; còn `epics.md` Story 1.21
+    (`:1952-2010`) nhắc `⌘` hay `Comma` **0 lần**. Ngược lại, `⌘,` của Chế độ đọc nằm thẳng trong
+    AC (`epics.md:4293-4296`) và trong bảng phím của UX-DR46 (`epics.md:629`).
+    ⇒ Đọc theo sức nặng đặc tả, `⌘,` **nên** về `reading.toggle_tuner` và `shortcuts.open` nên đổi
+    sang một hợp âm khác. Story này **không tự làm** vì đó là gỡ một phím tắt ĐANG chạy trên máy
+    người dùng — `AGENTS.md` §Policy: *"hai phương án đều hợp lệ ⇒ nêu cả hai kèm số đo cho Ice
+    chốt, đừng tự chọn rồi đi tiếp"*.
+    ⚠️ **Món nợ nhẹ hơn nó trông, và ghi ra để không ai đọc nó thành một năng lực thiếu:** lớp
+    `ChordOverrides` của Story 1.21 (`ScopeKind::Shortcut`) cho phép Ice **tự gán** `⌘,` cho
+    `reading.toggle_tuner` ngay hôm nay — chỉ cần gỡ nó khỏi `shortcuts.open` trước. Cái thiếu là
+    một **mặc định**, không phải một **năng lực**. Trong lúc chờ, `reading.toggle_tuner` giữ **0
+    hợp âm mặc định** (đúng khuôn `library.open_search_hit`/`library.search_mode_*`) và tới được
+    bằng nút trên thanh công cụ cộng `Tab` + `Enter`/`Space` — NFR17 không hở.
+    **(Chủ: Ice — chọn giữa (a) giữ nguyên như hôm nay, (b) chuyển `⌘,` sang Chế độ đọc và cấp
+    một hợp âm mới cho `shortcuts.open`.)**
+
+- 🟡 **Tuỳ chọn đọc (mức chữ · song ngữ · cỡ chữ/giãn dòng tinh chỉnh) KHÔNG lưu xuống đĩa — mỗi
+  lần khởi động lại rơi về mức Cân.**
+  evidence: `EXPERIENCE.md` §Chế độ đọc viết *"người dịch chỉnh một lần rồi dùng mãi"*, nhưng AC
+    của story chỉ đòi *"Cân (mặc định)"*, nên trạng thái hôm nay **không lệch AC** — nó lệch câu
+    mô tả trải nghiệm. Ba ô ấy sống ở tầng module (`src/modes/readingState.ts`) và `<KeepAlive>`
+    giữ chúng suốt phiên; chúng biến mất khi đóng ứng dụng.
+    ⇒ Đường lưu hiển nhiên — thêm một trường vào `BootstrapConfig` — **bị chặn có lý do**:
+    `src-tauri/src/commands/config.rs::BootstrapConfig` đang có **bảy** trường và
+    `src-tauri/tests/ipc_contract.rs` đóng băng đúng danh sách tên trường đó; mở nó ra là một lượt
+    đổi hình dạng dây, tức §Block If của story này. Đường thứ hai — một `put_config`/`get` riêng
+    ngoài `bootstrap_config` — cần một lượt đọc cấu hình thứ hai lúc khởi động mà hôm nay chưa có
+    khuôn nào.
+    **(Chủ: story kế tiếp mở lại hình dạng `BootstrapConfig` — cùng lượt với bất kỳ trường thứ tám
+    nào, không phải một lượt riêng cho ba ô này.)**
+
+- ⚠️ **Vị trí đọc trong Chế độ đọc không được nhớ — rời chế độ rồi quay lại là về đầu trang.**
+  evidence: xem mục *"🟡 THU HẸP 2026-08-30 (Story 5.11)"* ở cụm *Deferred from: 2-11* phía trên —
+    vế *"đúng Chương"* của UX-DR34 đã đóng ở story này, vế *"đúng vị trí cuộn"* thì chưa.
+    Không mở một mục thứ hai cho cùng một món; dòng này chỉ trỏ tới nó để người đọc cụm 5.11 không
+    phải tự tìm.
+    **(Chủ: Story 5.12 hoặc 5.13 — cùng chủ đã ghi ở mục gốc.)**

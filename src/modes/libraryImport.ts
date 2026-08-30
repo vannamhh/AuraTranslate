@@ -29,6 +29,9 @@ import {
   resetEditorPanel,
 } from '../panels/editorPanelState'
 import { resetSegmentHistory } from '../panels/segmentHistoryState'
+// Story 5.11 — Chế độ đọc mang cùng lớp cache module-level của Tác phẩm đang mở, cùng lý
+// lẽ `resetEditorPanel` đã ghi ở `finishSubmit` bên dưới.
+import { resetReading, resetReadingToc } from './readingState'
 import type { CreatedWork } from '../config/project'
 import type { IpcError } from '../i18n'
 
@@ -182,6 +185,9 @@ function finishSubmit(created: CreatedWork | null, error: IpcError | null): void
     // lượt vứt này. Bỏ nó ra là để Editor hiện segment của Tác phẩm A dưới nhãn Tác phẩm B,
     // đúng đường hỏng mà `resetSourcePanel` đã ghi lại từ code review 2026-08-06.
     resetEditorPanel()
+    // 🔵 THÊM Story 5.11 — Chế độ đọc mang cùng lớp cache module-level, cùng lý do dòng trên.
+    resetReading()
+    resetReadingToc()
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // 🔵 CODE REVIEW BA TẦNG 2026-08-19 — HÀM ĐÃ VIẾT Ở STORY 2.12 MÀ CHƯA NỐI DÂY

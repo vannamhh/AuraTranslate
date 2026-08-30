@@ -18,9 +18,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::chapter::split_chapter_at_segment;
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::commands::segment::{
-    confirm_segment, flush_segment_targets, read_open_chapter_segments, read_segment_history,
-    save_chapter_position, save_segment_targets, set_segment_omitted, split_chapter_into_segments,
-    restore_segment_version, unconfirm_edited_segments, SegmentTargetEdit, SplitOutcome,
+    confirm_segment, flush_segment_targets, read_open_chapter_segments, read_reading_chapter,
+    read_segment_history, save_chapter_position, save_segment_targets, set_segment_omitted,
+    split_chapter_into_segments, restore_segment_version, unconfirm_edited_segments,
+    SegmentTargetEdit, SplitOutcome,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::segment::split::{
@@ -6905,6 +6906,265 @@ fn a_split_moves_the_remembered_position_row_to_the_new_chapter() {
     let err = save_chapter_position(Some(&opened), chapter_a, third)
         .expect_err("cap CU (A, cau ba) sau lot tach phai bi tu choi");
     assert_eq!(err.code(), "segment.not_found");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 5.11 — `read_reading_chapter` VÀ `core::segment::reading::paragraphs_in_translation`
+// ═════════════════════════════════════════════════════════════════════════════════
+// Fixture chung cho cả nhóm: "一。二。\n三。四。\n五。" -- ba đoạn nguồn (2 câu, 2 câu,
+// 1 câu), tách bằng `。` ở tầng CÂU và bằng `\n` ở tầng ĐOẠN (`core::segment::split`). AC2
+// (Story 2.5d) đảm bảo cờ đích SOI GƯƠNG cờ nguồn lúc nhập, nên năm câu này ra khỏi
+// `create_work_from_text` với `is_target_paragraph_end` = `[false, true, false, true, false]`
+// -- đúng khuôn I/O Matrix của story ("câu 2 và 4 mang is_target_paragraph_end = 1").
+
+/// Ids theo đúng thứ tự `(ord, id)` -- cùng thứ tự mà `read_reading_chapter` phải giữ.
+fn ordered_ids(open: &auratranslate_lib::commands::project::OpenWork) -> Vec<i64> {
+    open.store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT id FROM segment ORDER BY ord, id")?;
+            let rows = stmt.query_map([], |row| row.get::<_, i64>(0))?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })
+        .expect("doc danh sach id segment that bai")
+}
+
+fn set_omitted(open: &auratranslate_lib::commands::project::OpenWork, ids: &[i64]) {
+    for &id in ids {
+        open.store
+            .write(move |tx: &Transaction<'_>| {
+                tx.execute("UPDATE segment SET is_omitted = 1 WHERE id = ?1", [id])?;
+                Ok(())
+            })
+            .expect("dat is_omitted = 1 that bai");
+    }
+}
+
+/// Rút gọn `paragraphs` về một dạng dễ so sánh: mỗi đoạn là danh sách các CHỈ SỐ (1-based,
+/// theo `ordered_ids`) của các câu còn sống trong nó -- vị trí thật của id, không giá trị
+/// `id` tuyệt đối (id là `AUTOINCREMENT`, khác nhau giữa các Tác phẩm).
+fn paragraph_shapes(
+    ids: &[i64],
+    chapter: &auratranslate_lib::commands::segment::ReadingChapter,
+) -> Vec<Vec<usize>> {
+    chapter
+        .paragraphs
+        .iter()
+        .map(|p| {
+            p.segments
+                .iter()
+                .map(|s| ids.iter().position(|&id| id == s.id).expect("id la thanh vien") + 1)
+                .collect()
+        })
+        .collect()
+}
+
+/// **Ca thường nhất** — ba đoạn cắt đúng theo cờ ĐÍCH, không một câu nào bị cắt bỏ.
+#[test]
+fn a_chapter_with_no_omissions_groups_into_paragraphs_by_the_target_flag() {
+    let root = temp_dir("5-11-basic-grouping");
+    let opened = create_work_from_text(&root, "5.11 Co ban", "zh", "", "一。二。\n三。四。\n五。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let ids = ordered_ids(&opened);
+    assert_eq!(ids.len(), 5, "fixture phai co dung nam cau");
+
+    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
+    assert_eq!(chapter.chapter_id, opened.chapter_id);
+    assert_eq!(chapter.chapter_ord, 1, "Chuong duy nhat cua mot Tac pham moi tao mang ord = 1");
+    assert_eq!(
+        paragraph_shapes(&ids, &chapter),
+        vec![vec![1, 2], vec![3, 4], vec![5]],
+        "ba doan phai cat dung theo co dich, khop I/O Matrix cua story"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// **Câu đã cắt bỏ vắng mặt hoàn toàn** — không chỗ trống, không `[…]`, không phần tử rỗng.
+#[test]
+fn an_omitted_sentence_leaves_no_trace_in_the_reading_paragraphs() {
+    let root = temp_dir("5-11-omitted-leaves-no-trace");
+    let opened = create_work_from_text(&root, "5.11 Cat bo", "zh", "", "一。二。\n三。四。\n五。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let ids = ordered_ids(&opened);
+    // Cau thu ba: giua doan hai, KHONG mang co ket doan -- cat bo no khong dung cham toi
+    // ranh gioi doan nao ca.
+    set_omitted(&opened, &[ids[2]]);
+
+    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
+    assert_eq!(
+        paragraph_shapes(&ids, &chapter),
+        vec![vec![1, 2], vec![4], vec![5]],
+        "cau 3 phai bien mat hoan toan, khong doan rong nao lot ra day"
+    );
+    for paragraph in &chapter.paragraphs {
+        assert!(
+            paragraph.segments.iter().all(|s| s.id != ids[2]),
+            "id cua cau da cat bo khong duoc xuat hien o bat ky doan nao"
+        );
+    }
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// **Cờ kết đoạn nằm TRÊN chính câu bị cắt bỏ vẫn giữ được ranh giới** — cờ chuyển cho câu
+/// còn sống liền trước; hai đoạn không bị gộp làm một. Đây là ca biên trung tâm của Task 1.
+#[test]
+fn a_paragraph_end_flag_on_an_omitted_sentence_still_closes_the_paragraph() {
+    let root = temp_dir("5-11-flag-transfers-on-omission");
+    let opened = create_work_from_text(&root, "5.11 Co chuyen", "zh", "", "一。二。\n三。四。\n五。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let ids = ordered_ids(&opened);
+    // Cau thu hai: mang co ket doan CUA CHINH NO (dong doan mot) -- cat bo no.
+    set_omitted(&opened, &[ids[1]]);
+
+    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
+    assert_eq!(
+        paragraph_shapes(&ids, &chapter),
+        vec![vec![1], vec![3, 4], vec![5]],
+        "doan phai ket sau cau 1 -- co chuyen cho cau con song lien truoc, KHONG gop doan \
+         mot va doan hai lam mot"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// **Cả một đoạn bị cắt bỏ** ⇒ đoạn đó biến mất trọn vẹn, không một đoạn rỗng nào lọt ra dây.
+#[test]
+fn an_entirely_omitted_paragraph_produces_no_empty_paragraph() {
+    let root = temp_dir("5-11-whole-paragraph-omitted");
+    let opened = create_work_from_text(&root, "5.11 Ca doan", "zh", "", "一。二。\n三。四。\n五。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let ids = ordered_ids(&opened);
+    // Doan hai tron ven: cau ba VA cau bon.
+    set_omitted(&opened, &[ids[2], ids[3]]);
+
+    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
+    assert_eq!(
+        paragraph_shapes(&ids, &chapter),
+        vec![vec![1, 2], vec![5]],
+        "doan giua phai bien mat TRON VEN -- khong mot doan rong nao dai dien cho no"
+    );
+    assert!(
+        chapter.paragraphs.iter().all(|p| !p.segments.is_empty()),
+        "khong doan nao duoc phep rong"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// **Chương rỗng** ⇒ `paragraphs` rỗng, `chapter_id` vẫn đúng — không lỗi.
+#[test]
+fn an_empty_chapter_reads_as_zero_paragraphs_with_no_error() {
+    let root = temp_dir("5-11-empty-chapter");
+    let opened = create_work_from_text(&root, "5.11 Rong", "zh", "", "   \n  ".to_owned())
+        .expect("tao tac pham that bai");
+
+    let ids = ordered_ids(&opened);
+    assert!(ids.is_empty(), "fixture phai khong co segment nao");
+
+    let chapter = read_reading_chapter(Some(&opened)).expect("Chuong rong khong duoc la mot loi");
+    assert_eq!(chapter.chapter_id, opened.chapter_id);
+    assert!(chapter.paragraphs.is_empty(), "Chuong rong ⇒ paragraphs rong");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// **Mọi câu đều cắt bỏ** ⇒ `paragraphs` rỗng — và đây là một trạng thái KHÁC "Chương rỗng"
+/// ở tầng gọi được (bàn giao câu trạng thái khác nhau là việc của Vue; tầng này chỉ đảm bảo
+/// dữ liệu đủ để phân biệt: `paragraphs` rỗng nhưng phải có `id` segment trên dây ở một lệnh
+/// khác để phân biệt hai ca -- xem `readingState.ts` phía frontend).
+#[test]
+fn a_chapter_where_every_sentence_is_omitted_reads_as_zero_paragraphs() {
+    let root = temp_dir("5-11-all-omitted");
+    let opened = create_work_from_text(&root, "5.11 Het cat bo", "zh", "", "一。二。\n三。四。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let ids = ordered_ids(&opened);
+    assert_eq!(ids.len(), 4, "fixture phai co dung bon cau");
+    set_omitted(&opened, &ids);
+
+    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
+    assert!(
+        chapter.paragraphs.is_empty(),
+        "moi cau da cat bo ⇒ paragraphs rong, dung khuon Chuong rong nhung tu MOT du kien khac"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// **Chưa mở Tác phẩm nào** ⇒ `err.work.none_open` — cùng khoá mà `read_open_chapter_segments`
+/// đã dùng, không một khoá thứ hai cho cùng một câu (§Design Notes của story: tái dùng
+/// `no_work_open()`).
+#[test]
+fn reading_a_chapter_without_an_open_work_fails_with_work_none_open() {
+    let err = read_reading_chapter(None).expect_err("khong Tac pham nao mo phai bi tu choi");
+    assert_eq!(err.code(), "work.none_open");
+}
+
+/// **Câu CHƯA DỊCH vẫn ở nguyên trong đoạn** — hàng *"Câu chưa dịch"* của I/O Matrix Story 5.11.
+///
+/// 🔴 Vì sao ca này tồn tại riêng, khi năm ca trên đã kiểm CẤU TRÚC đoạn: cả năm ca ấy so
+/// `paragraph_shapes` -- một phép so theo **vị trí**, mù với nội dung. Một lượt cài "bỏ qua câu
+/// rỗng cho trang đọc sạch" sẽ đi qua trọn vẹn năm ca đó. `target_text` rỗng nghĩa là *chưa dịch*,
+/// **không** phải *đã cắt bỏ*: hai trục độc lập (`commands/segment.rs` §`is_omitted`), và Chế độ
+/// đọc không được tự bịa ra nội dung lẫn tự giấu một câu người dùng chưa làm tới.
+#[test]
+fn an_untranslated_sentence_stays_in_its_paragraph_with_an_empty_string() {
+    let root = temp_dir("5-11-untranslated-stays");
+    let opened = create_work_from_text(&root, "5.11 Chua dich", "zh", "", "一。二。\n三。四。\n五。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let ids = ordered_ids(&opened);
+    // Dich cau 1 va cau 2, DE NGUYEN cau 3 chua dich (chuoi rong) trong cung doan voi cau 4.
+    flush_segment_targets(
+        Some(&opened),
+        opened.chapter_id,
+        &[edit(ids[0], "Mot."), edit(ids[1], "Hai."), edit(ids[3], "Bon.")],
+    )
+    .expect("ghi ban dich that bai");
+
+    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
+    assert_eq!(
+        paragraph_shapes(&ids, &chapter),
+        vec![vec![1, 2], vec![3, 4], vec![5]],
+        "cau chua dich KHONG duoc bien mat -- cau truc doan phai y het ca khong cat bo nao"
+    );
+
+    let third = chapter
+        .paragraphs
+        .iter()
+        .flat_map(|p| p.segments.iter())
+        .find(|s| s.id == ids[2])
+        .expect("cau 3 phai co mat tren day");
+    assert_eq!(third.target_text, "", "cau chua dich mang chuoi RONG, khong mot noi dung bia ra");
+
+    let fourth = chapter
+        .paragraphs
+        .iter()
+        .flat_map(|p| p.segments.iter())
+        .find(|s| s.id == ids[3])
+        .expect("cau 4 phai co mat tren day");
+    assert_eq!(fourth.target_text, "Bon.", "cau da dich mang dung ban dich da ghi");
 
     let dir = opened.dir.clone();
     drop(opened);

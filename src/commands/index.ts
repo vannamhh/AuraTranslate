@@ -775,6 +775,39 @@ export type CommandDeps = {
   confirmGlossaryImportPreview?: () => void
   /** Huỷ lượt nhập đang xem trước. Handler của `glossary.import.cancel`. */
   cancelGlossaryImportPreview?: () => void
+
+  // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ─────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với mọi state module Vue thật khác ở trên: state
+  // sống ở `src/modes/readingState.ts` (song ngữ, ba mức chữ, mục lục) và
+  // `src/tokens/themeState.ts` (theme) — import thẳng chúng ở đây giết Kiểm C/D/E.
+
+  /** Bật/tắt cột song ngữ. Handler của `reading.toggle_bilingual` (`B`). */
+  toggleReadingBilingual?: () => void
+  /** Mức Thoáng (62ch/19px/1.95). Handler của `reading.level_airy` (`1`). */
+  setReadingLevelAiry?: () => void
+  /** Mức Cân — mặc định (68ch/17,5px/1.8). Handler của `reading.level_balanced` (`2`). */
+  setReadingLevelBalanced?: () => void
+  /** Mức Đặc (76ch/16px/1.66). Handler của `reading.level_dense` (`3`). */
+  setReadingLevelDense?: () => void
+  /** Mở/đóng khối tinh chỉnh cỡ chữ · giãn dòng. Handler của `reading.toggle_tuner` —
+   * **không hợp âm mặc định** (§Design Notes: `⌘,` đã có chủ, chờ Ice chốt). */
+  toggleReadingTuner?: () => void
+  /** Đảo sáng ↔ tối. Handler của `reading.toggle_theme` (`D`) — TOÀN ứng dụng, không chỉ
+   * Chế độ đọc (`src/tokens/themeState.ts::toggleTheme`). */
+  toggleReadingTheme?: () => void
+  /** Mở lớp phủ mục lục. Handler của `reading.toc` (`Mod+L`). */
+  openReadingToc?: () => void
+  /** Đóng lớp phủ mục lục. Handler của `reading.toc_close` (không hợp âm mặc định). */
+  closeReadingToc?: () => void
+  /** Chuyển con trỏ mục lục xuống Chương kế tiếp. Handler của `reading.toc_next`. */
+  nextReadingTocChapter?: () => void
+  /** Chuyển con trỏ mục lục lên Chương trước. Handler của `reading.toc_prev`. */
+  prevReadingTocChapter?: () => void
+  /** Mở Chương ĐANG CHỌN trong mục lục vào Chế độ đọc. Handler của `reading.toc_open`.
+   * ⚠️ Cài đặt thật là `async`; `() => void` khớp cùng khuôn `rescanLibraryFolder` — promise
+   * trả về bị bỏ qua có chủ ý. */
+  openCurrentReadingTocChapter?: () => void
 }
 
 /**
@@ -1316,6 +1349,123 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('library.search_mode_lenient', 'setLibrarySearchModeLenient')
       }
       deps.setLibrarySearchModeLenient()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 5.11 — "CHẾ ĐỘ ĐỌC: TYPOGRAPHY VÀ BỐ CỤC ĐỌC DÀI" (FR11)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * Sáu phím TRẦN (`B` · `1` · `2` · `3` · `D` cộng hợp âm `Mod+L`) — UX-DR46. `keys.ts`
+   * đã có luật vùng gõ (`isTypingZone`) chặn chúng trong mọi `INPUT`/`TEXTAREA`/`SELECT`/
+   * `contenteditable`, và phím TRẦN là TOÀN ỨNG DỤNG (không phạm vi theo chế độ — xem
+   * §Design Notes "Phím trần là TOÀN ỨNG DỤNG" của story). `reading.toggle_tuner` **không**
+   * hợp âm mặc định: `⌘,` đã có chủ (`shortcuts.open`), và đó là một quyết định của Ice —
+   * xem §Design Notes.
+   */
+  target.register({
+    id: 'reading.toggle_bilingual',
+    labelKey: 'command.reading.toggle_bilingual',
+    keys: ['B'],
+    run: () => {
+      if (deps.toggleReadingBilingual === undefined) return portMissing('reading.toggle_bilingual', 'toggleReadingBilingual')
+      deps.toggleReadingBilingual()
+    },
+  })
+  target.register({
+    id: 'reading.level_airy',
+    labelKey: 'command.reading.level_airy',
+    keys: ['1'],
+    run: () => {
+      if (deps.setReadingLevelAiry === undefined) return portMissing('reading.level_airy', 'setReadingLevelAiry')
+      deps.setReadingLevelAiry()
+    },
+  })
+  target.register({
+    id: 'reading.level_balanced',
+    labelKey: 'command.reading.level_balanced',
+    keys: ['2'],
+    run: () => {
+      if (deps.setReadingLevelBalanced === undefined) {
+        return portMissing('reading.level_balanced', 'setReadingLevelBalanced')
+      }
+      deps.setReadingLevelBalanced()
+    },
+  })
+  target.register({
+    id: 'reading.level_dense',
+    labelKey: 'command.reading.level_dense',
+    keys: ['3'],
+    run: () => {
+      if (deps.setReadingLevelDense === undefined) return portMissing('reading.level_dense', 'setReadingLevelDense')
+      deps.setReadingLevelDense()
+    },
+  })
+  target.register({
+    id: 'reading.toggle_tuner',
+    labelKey: 'command.reading.toggle_tuner',
+    // 🔴 KHÔNG hợp âm mặc định — §Design Notes "⌘, đã có chủ". Nút trên thanh công cụ là
+    // đường vào chính; Tab + Enter/Space phủ NFR17.
+    keys: undefined,
+    run: () => {
+      if (deps.toggleReadingTuner === undefined) return portMissing('reading.toggle_tuner', 'toggleReadingTuner')
+      deps.toggleReadingTuner()
+    },
+  })
+  target.register({
+    id: 'reading.toggle_theme',
+    labelKey: 'command.reading.toggle_theme',
+    keys: ['D'],
+    run: () => {
+      if (deps.toggleReadingTheme === undefined) return portMissing('reading.toggle_theme', 'toggleReadingTheme')
+      deps.toggleReadingTheme()
+    },
+  })
+  target.register({
+    id: 'reading.toc',
+    labelKey: 'command.reading.toc',
+    keys: ['Mod+L'],
+    run: () => {
+      if (deps.openReadingToc === undefined) return portMissing('reading.toc', 'openReadingToc')
+      deps.openReadingToc()
+    },
+  })
+  target.register({
+    id: 'reading.toc_next',
+    labelKey: 'command.reading.toc_next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextReadingTocChapter === undefined) return portMissing('reading.toc_next', 'nextReadingTocChapter')
+      deps.nextReadingTocChapter()
+    },
+  })
+  target.register({
+    id: 'reading.toc_prev',
+    labelKey: 'command.reading.toc_prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevReadingTocChapter === undefined) return portMissing('reading.toc_prev', 'prevReadingTocChapter')
+      deps.prevReadingTocChapter()
+    },
+  })
+  target.register({
+    id: 'reading.toc_open',
+    labelKey: 'command.reading.toc_open',
+    keys: undefined,
+    run: () => {
+      if (deps.openCurrentReadingTocChapter === undefined) {
+        return portMissing('reading.toc_open', 'openCurrentReadingTocChapter')
+      }
+      deps.openCurrentReadingTocChapter()
+    },
+  })
+  target.register({
+    id: 'reading.toc_close',
+    labelKey: 'command.reading.toc_close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeReadingToc === undefined) return portMissing('reading.toc_close', 'closeReadingToc')
+      deps.closeReadingToc()
     },
   })
 

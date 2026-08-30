@@ -14,10 +14,19 @@ Ba chế độ đầu là **ngang hàng**, không phân cấp, và chuyển bằ
 | `dockview`, dock/undock/tab, preset bố cục, khung panel | **1.14** *(lưới 2×2 + bốn panel — **superseded** bởi **2.5b**: hai preset Ⓑ-1/Ⓑ-2, **ba** panel)* | ✅ đã dựng |
 | Bốn trạng thái rỗng của UX-DR31 *(cần nội dung thật mới viết đúng)* | **1.14 / 1.15 / 5.x** | ⬜ |
 | Nội dung Library: lưới Tác phẩm, bộ lọc, sắp xếp, vòng đời | **Epic 5** | ⬜ |
-| Nội dung Chế độ đọc: typography đọc dài, song ngữ, ba mức chữ | **Epic 5** | ⬜ |
+| Nội dung Chế độ đọc: typography đọc dài, song ngữ, ba mức chữ | **5.11** | ✅ đã dựng |
 | Review Mode | **Epic 8** | ⬜ |
 
-Ba tệp `.vue` hôm nay là **khung rỗng có chủ ý**: một câu trạng thái lấy từ `vi.json`, gốc mang `tabindex="-1"`, và một điểm vào focus đã khai. Đừng đổ nội dung vào chúng trước story sở hữu.
+🔵 **SỬA 2026-08-30 (Story 5.11)** — hàng "Nội dung Chế độ đọc" hết đúng ở `⬜`: typography ba
+mức (đúng token `read-*`), song ngữ, mục lục và cắt bỏ (qua `read_reading_chapter` +
+`core::segment::reading`) đã dựng. `ReadingMode.vue` KHÔNG còn là khung rỗng — câu dưới đây chỉ
+còn đúng cho **hai tệp** (`LibraryMode.vue` phần "đánh dấu đã xong" của UX-DR31, `ReviewMode.vue`).
+Đánh dấu *"cần sửa"* (FR119) và đọc liên tục xuyên Chương/mốc *"chỉ đọc phần đã xong"* (FR120)
+vẫn **⬜** — có chủ riêng: **Story 5.12 · 5.13**.
+
+Ba tệp `.vue` khai *"khung rỗng có chủ ý"* trong doc-comment của chính chúng khi CHƯA có story sở
+hữu chạm vào: một câu trạng thái lấy từ `vi.json`, gốc mang `tabindex="-1"`, và một điểm vào
+focus đã khai. Đừng đổ nội dung vào một khung còn ⬜ ở bảng trên trước story sở hữu.
 
 ---
 

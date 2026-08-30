@@ -8,6 +8,12 @@
 //! `core::export` có sáu dòng và **không một dòng mã**; `ReadingMode.vue` tự ghi *"khung
 //! rỗng có chủ ý"*.
 //!
+//! 🔵 **SỬA 2026-08-30 (Story 5.11) — mệnh đề "chưa bề mặt nào gọi nó" HẾT ĐÚNG cho vế
+//! Chế độ đọc.** `core::segment::reading::paragraphs_in_translation` là lượt gọi ĐẦU TIÊN
+//! trên đường sản phẩm — nó gọi lại đúng [`segments_in_translation`] bên dưới, không chép
+//! một vị từ `!is_omitted` thứ hai. Vế bản xuất (Epic 8) thì VẪN đúng — "hai bề mặt kia chỉ
+//! việc gọi" nay còn lại đúng MỘT bề mặt chưa gọi, không phải hai.
+//!
 //! ⚠️ Và có một khoảng hở đặc tả **thật**: nghĩa vụ *"ẩn hoàn toàn"* chỉ được phát biểu
 //! **một chiều**, từ FR133 áp xuống. Các FR xuất bản *(FR87 · FR88 · FR89 · FR121 · FR130 ·
 //! FR131)* và các Story của Epic 5 *(5.11–5.13)* / Epic 8 *(8.3 · 8.4 · 8.6)* — **không AC
@@ -22,6 +28,12 @@
 //! 🔴 **Đây KHÔNG phải "dựng Chế độ đọc"**, và AC5 **vẫn không đóng trọn** ở story này: không
 //! có bề mặt nào để nghiệm thu *"không dấu vết, không `[…]`, không chỗ trống"*. Phần đó là
 //! 🟡, ghi nợ có chủ ở `deferred-work.md`. Đừng đọc module này thành *"AC5 xong"*.
+//!
+//! 🔵 **SỬA 2026-08-30 (Story 5.11) — mệnh đề ngay trên HẾT ĐÚNG cho vế Chế độ đọc.** Story
+//! 5.11 dựng bề mặt thật (`ReadingMode.vue` + `read_reading_chapter`) và nghiệm thu đúng câu
+//! *"không dấu vết, không `[…]`, không chỗ trống"* cho vế đó — xem AC đầu tiên của
+//! `5-11-che-do-doc-typography-va-bo-cuc-doc-dai.md`. Vế bản xuất (Epic 8) VẪN 🟡, ghi nợ có
+//! chủ ở `deferred-work.md` — đừng đọc câu này thành *"AC5 xong trọn"*.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! ⚠️ MỘT CÁI BẪY ĐỌC: LOẠI SUY XLIFF CHỈ ĐÚNG MỘT NỬA
