@@ -39,10 +39,11 @@ use std::sync::{Arc, Mutex};
 
 use crate::commands::project::OpenWork;
 use crate::core::i18n::{IpcError, MessageKey};
+use crate::core::lifecycle::LifecycleStatus;
 use crate::core::segment::paragraph::{ParagraphFlags, at_end_of_chapter};
 use crate::core::segment::regroup::{NewSegment, SegmentPart, merge, split_at};
 use crate::core::segment::split::{SplitSegment, split_source_text};
-use crate::core::store::{SqlError, SqlResult, Transaction};
+use crate::core::store::{ReadHandle, SqlError, SqlResult, Transaction};
 
 /// Kết quả một lượt tách tường minh — thứ đi ra qua dây.
 ///
@@ -759,6 +760,52 @@ pub fn restore_segment_version(
     }
 }
 
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 THÊM Story 5.12 (Task 1) — BẢN DUY NHẤT CỦA CÂU `SELECT` CHÍN CỘT
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Trước lượt này có **hai** bản chép của chính câu `SELECT` dưới đây — một ở
+/// `read_open_chapter_segments`, một ở `read_reading_chapter` (Story 5.11) — và Story 5.11 tự
+/// ghi món nợ 🟡 cho chuyện đó: *"sửa bộ lọc ở một nơi làm Chế độ đọc và Workspace nói khác
+/// nhau về cùng một Chương"*. `read_reading_run` (Story 5.12) cần gọi câu này **mỗi Chương
+/// trong cả một dãy** — để nguyên hai bản chép thì thành ba, càng khó giữ khớp. Đây là hàm
+/// **DUY NHẤT** phát ra câu `SELECT` đó; mọi chỗ cần segment còn sống của một Chương gọi lại
+/// nó, không viết tay một câu `SELECT` thứ hai.
+///
+/// ⚠️ Nhận [`ReadHandle`] (tái xuất bởi `core::store`, KHÔNG `rusqlite::Connection` trực
+/// tiếp — AD-11, `store_boundary.rs::only_core_store_may_name_rusqlite`), không `&OpenWork`:
+/// chỗ gọi phải nằm sẵn TRONG một closure của
+/// [`crate::core::store::Store::read`] — hàm này không tự mở lượt đọc riêng, đúng lý lẽ mọi
+/// lượt đọc của cùng một ảnh chụp phải chung một `Store::read` (xem doc-comment
+/// `read_reading_run`/`caret_segment_id` ngay dưới).
+fn select_chapter_segments(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<Vec<ChapterSegment>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
+         is_omitted, is_target_paragraph_end \
+         FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL ORDER BY ord, id",
+    )?;
+    let rows = stmt.query_map([chapter_id], |row| {
+        // ⚠️ `is_paragraph_end` la INTEGER 0/1 duoi SQLite (khong co kieu boolean); phep
+        // doi sang `bool` la viec cua tang nay, dung khuon `chapter.status`.
+        let flag: i64 = row.get(4)?;
+        // ⚠️ `is_omitted` cung la INTEGER 0/1 -- cung phep doi, cung ly do (Story 2.5c).
+        let omitted: i64 = row.get(7)?;
+        // ⚠️ `is_target_paragraph_end` cung la INTEGER 0/1 (Story 2.5d, buoc 9).
+        let target_para_end: i64 = row.get(8)?;
+        Ok(ChapterSegment {
+            id: row.get(0)?,
+            ord: row.get(1)?,
+            source_text: row.get(2)?,
+            target_text: row.get(3)?,
+            is_paragraph_end: flag != 0,
+            retired_at: row.get(5)?,
+            status: row.get(6)?,
+            is_omitted: omitted != 0,
+            is_target_paragraph_end: target_para_end != 0,
+        })
+    })?;
+    rows.collect::<SqlResult<Vec<ChapterSegment>>>()
+}
+
 /// Nạp trọn bộ segment của Chương **đang mở** — **hàm thuần, đây là thứ test gọi**.
 /// Story 2.2, AC13.
 ///
@@ -860,32 +907,7 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
     let chapter_id = open.chapter_id;
 
     let loaded = open.store.read(move |conn| {
-        let mut stmt = conn.prepare(
-            "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
-             is_omitted, is_target_paragraph_end \
-             FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL ORDER BY ord, id",
-        )?;
-        let rows = stmt.query_map([chapter_id], |row| {
-            // ⚠️ `is_paragraph_end` la INTEGER 0/1 duoi SQLite (khong co kieu boolean); phep
-            // doi sang `bool` la viec cua tang nay, dung khuon `chapter.status`.
-            let flag: i64 = row.get(4)?;
-            // ⚠️ `is_omitted` cung la INTEGER 0/1 -- cung phep doi, cung ly do (Story 2.5c).
-            let omitted: i64 = row.get(7)?;
-            // ⚠️ `is_target_paragraph_end` cung la INTEGER 0/1 (Story 2.5d, buoc 9).
-            let target_para_end: i64 = row.get(8)?;
-            Ok(ChapterSegment {
-                id: row.get(0)?,
-                ord: row.get(1)?,
-                source_text: row.get(2)?,
-                target_text: row.get(3)?,
-                is_paragraph_end: flag != 0,
-                retired_at: row.get(5)?,
-                status: row.get(6)?,
-                is_omitted: omitted != 0,
-                is_target_paragraph_end: target_para_end != 0,
-            })
-        })?;
-        let segments = rows.collect::<SqlResult<Vec<ChapterSegment>>>()?;
+        let segments = select_chapter_segments(conn, chapter_id)?;
 
         // 🔴 **Story 5.7 (AC4/AC5) — TÍNH `caret_segment_id` TRONG CÙNG MỘT LƯỢT `Store::read`
         // NÀY**, không một lượt đọc riêng: `chapter_position` và `segment` phải đến từ CÙNG
@@ -930,19 +952,36 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// 🔴 STORY 5.11 — BỀ MẶT ĐỌC-THUẦN CHO CHẾ ĐỘ ĐỌC (FR11)
+// 🔴 STORY 5.12 — MỘT LƯỢT ĐỌC (`ReadingRun`): CHỈ CÁC CHƯƠNG ĐÃ `Done` (FR120)
 // ═════════════════════════════════════════════════════════════════════════════════
-// Ba struct dưới đây là hình dạng RIÊNG của Chế độ đọc — không dùng lại `ChapterSegment`/
-// `ChapterSegments` của Editor. Editor cần chín trường (vạch lề, xác nhận, cắt bỏ…); Chế
-// độ đọc không có công cụ biên tập nào (§Always của story) và không được phép mang một
-// đường nào tới `is_omitted` qua dây — trộn hai hình dạng là để một byte biên tập rò sang
-// một bề mặt chỉ-đọc.
+// 🔵 SỬA 2026-08-30 (Story 5.12) — mệnh đề cũ ở đây (Story 5.11) khai "hình dạng dây đã
+// CHỐT ở bốn trường" cho một Chương ĐƠN, đọc bất kể `chapter.status`. Mệnh đề đó HẾT ĐÚNG:
+// `read_reading_chapter` chưa từng nhìn cột `status` một lần nào, và hệ quả đo được là mở
+// một Chương đang dịch dở rồi bấm `⌘3` ném nguyên văn tiếng Trung ra giữa trang đọc tiếng
+// Việt — đúng thứ FR120 tồn tại để chặn (§Design Notes "Vì sao Chương đang mở chưa xong ⇒
+// không hiện gì" của story này). `readingState.ts:16-25` phía frontend dựa vào chính mệnh
+// đề đã sai đó để đi vòng một lượt IPC phụ (`listChapters()`) — sửa tại chỗ cùng lượt.
+//
+// Bề mặt đọc nay là MỘT LƯỢT ĐỌC (`ReadingRun`): Rust chọn dãy Chương LIÊN TIẾP ở trạng thái
+// `Done` bắt đầu TẠI Chương đang mở, trả kèm một MỐC BIÊN (`ReadingFrontier`) nói vì sao dãy
+// dừng ở đó. Chương chưa `Done` không bao giờ rời `project.db` — cùng kỷ luật `is_omitted`
+// đã dùng ở [`paragraphs_in_translation`]: webview không có gì để lọc vì không có gì được
+// gửi (§Always của story).
+//
+// Bốn struct dưới đây là hình dạng RIÊNG của Chế độ đọc — không dùng lại `ChapterSegment`/
+// `ChapterSegments` của Editor, cùng lý lẽ đã ghi ở Story 5.11: Editor cần chín trường (vạch
+// lề, xác nhận, cắt bỏ…); Chế độ đọc không có công cụ biên tập nào và không được phép mang
+// một đường nào tới `is_omitted` qua dây.
 
-/// Một câu, cho Chế độ đọc — Story 5.11.
+/// Một câu, cho Chế độ đọc — Story 5.11, **thêm** `is_confirmed` ở Story 5.12.
 ///
-/// ⚠️ **KHÔNG** `is_omitted`, `is_paragraph_end`, `status`: câu đã cắt bỏ không bao giờ đi
-/// tới đây (lọc ở [`paragraphs_in_translation`]), và cấu trúc đoạn đã được RÚT GỌN thành
-/// hình dạng `ReadingParagraph` trước khi ra dây — webview không có gì để tự tính lại.
+/// ⚠️ **KHÔNG** `is_omitted`, `is_paragraph_end`, `status` NGUYÊN VĂN: câu đã cắt bỏ không
+/// bao giờ đi tới đây (lọc ở [`paragraphs_in_translation`]), và cấu trúc đoạn đã được RÚT
+/// GỌN thành hình dạng `ReadingParagraph` trước khi ra dây — webview không có gì để tự tính
+/// lại. `is_confirmed` là NGOẠI LỆ có chủ ý duy nhất: nó là kết quả của một phép so `status
+/// == SEGMENT_STATUS_CONFIRMED`, không phải chuỗi `status` thô — AC6 đòi trang đọc gạch chấm
+/// nhẹ câu **chưa xác nhận** trong một Chương đã `Done` (đặt `Done` bằng tay không đồng
+/// nghĩa với mọi câu đã ký), và webview không được tự đoán điều đó từ một trường vắng mặt.
 ///
 /// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -950,6 +989,7 @@ pub struct ReadingSegment {
     pub id: i64,
     pub source_text: String,
     pub target_text: String,
+    pub is_confirmed: bool,
 }
 
 /// Một đoạn — nhóm các [`ReadingSegment`] liên tiếp thuộc CÙNG một đoạn của bản dịch,
@@ -959,7 +999,8 @@ pub struct ReadingParagraph {
     pub segments: Vec<ReadingSegment>,
 }
 
-/// Chương đang mở, đã gom đoạn cho Chế độ đọc — thứ [`read_reading_chapter`] trả ra dây.
+/// Một Chương trong dãy đọc, đã gom đoạn — thứ [`read_reading_run`] trả ra dây, một phần tử
+/// của [`ReadingRun::chapters`].
 ///
 /// `chapter_ord`/`chapter_title` đi kèm để trang đọc dựng được tiêu đề Chương mà không cần
 /// một lệnh IPC thứ hai — cùng lý lẽ `chapter_id` đã có sẵn trên [`ChapterSegments`].
@@ -970,79 +1011,174 @@ pub struct ReadingChapter {
     /// `NULL` ⇒ Chương chưa đặt tên — cùng ngữ nghĩa `ChapterRow::title` (Story 5.7).
     pub chapter_title: Option<String>,
     pub paragraphs: Vec<ReadingParagraph>,
+    /// **THÊM Story 5.12.** Số hàng `segment` CÒN SỐNG của Chương này, đếm TRONG CÙNG lượt
+    /// đọc — KHÔNG một `COUNT(*)` thứ hai, KHÔNG một lệnh IPC phụ (`listChapters()`) như
+    /// `readingState.ts` (Story 5.11) từng làm để phân biệt "Chương rỗng" với "mọi câu đã
+    /// cắt bỏ". Dữ kiện này đã nằm sẵn trong dãy `ChapterSegment` TRƯỚC khi lọc cắt bỏ —
+    /// đưa nó lên dây tốn một `i64` mỗi Chương và xoá nguyên một nhánh trạng thái
+    /// (`'empty-unknown'`) ở webview cùng lý do nó ra đời đã biến mất (§Design Notes của
+    /// story: "một nhánh biến mất vì NGUYÊN NHÂN của nó biến mất").
+    pub segment_count: i64,
 }
 
-/// **Đọc Chương đang mở, đã gom đoạn** — hàm thuần, đây là thứ test gọi. Story 5.11.
+/// Vì sao dãy đọc DỪNG ở nơi nó dừng — **phân biệt được**, không một `Option` trần (cùng lý
+/// lẽ [`crate::commands::chapter::ChapterSwitchOutcome`]: *"Rỗng IM LẶNG bị cấm; rỗng CÓ LÝ
+/// DO thì không"*).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub enum ReadingFrontierKind {
+    /// Chương ngay sau dãy vừa đọc **chưa** `Done` ⇒ trường `chapter` của [`ReadingFrontier`]
+    /// nêu đích danh nó.
+    #[serde(rename = "next-not-done")]
+    NextNotDone,
+    /// Mọi Chương từ Chương đang mở tới hết Tác phẩm đều `Done` — không Chương nào chặn.
+    #[serde(rename = "end-of-work")]
+    EndOfWork,
+}
+
+/// Chương đứng CHẶN dãy đọc — trường `chapter` của [`ReadingFrontier`] khi
+/// `kind == NextNotDone`.
 ///
-/// Đọc `segment` **và** `chapter.ord`/`chapter.title` trong **cùng một** [`crate::core::store::Store::read`]
-/// — cùng lý do §Story 2.11 đã ghi cho `caret_segment_id` ở [`read_open_chapter_segments`]:
-/// hai lượt đọc rời nhau là hai ảnh chụp có thể lệch nhau nếu một lượt ghi chen giữa.
+/// 🔴 `status` là CHUỖI THÔ trên cột `chapter.status` (chuỗi tự do ở tầng SQL, không
+/// `CHECK`), KHÔNG phải một `LifecycleStatus` đã phân giải — mốc biên phải chở được đúng
+/// nguyên văn của một giá trị **lạ** (§I/O Matrix "Trạng thái lạ": dãy dừng trước nó, và
+/// `frontier.chapter.status` mang nguyên văn giá trị đó). Webview tra nhãn hiển thị qua bảng
+/// `lifecycle.*`; không khớp thì hiện chuỗi thô — đó là ca "giá trị lạ" đọc lên như một điều
+/// bất thường, không rơi vào một nhãn nào đó (§Design Notes của story).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ReadingFrontierChapter {
+    pub chapter_id: i64,
+    pub chapter_ord: i64,
+    pub chapter_title: Option<String>,
+    pub status: String,
+}
+
+/// Mốc biên giới của một lượt đọc — thứ nói VÌ SAO dãy `ReadingRun::chapters` dừng ở đó,
+/// khuôn trực tiếp [`crate::commands::chapter::ChapterSwitch`].
 ///
-/// Cắt đoạn đi qua [`crate::core::segment::reading::paragraphs_in_translation`] — chốt lọc
-/// cắt bỏ VÀ phép chuyển cờ kết đoạn sống Ở ĐÓ, không lặp lại một mảnh nào ở đây.
+/// 🔴 `chapter` là `Some` **khi và chỉ khi** `kind == ReadingFrontierKind::NextNotDone` —
+/// cùng mệnh đề đã ký ở `ChapterSwitch::chapter`, viết ra thành chữ vì một `Option` có điều
+/// kiện mà không phát biểu điều kiện là một hợp đồng ngầm.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ReadingFrontier {
+    pub kind: ReadingFrontierKind,
+    pub chapter: Option<ReadingFrontierChapter>,
+}
+
+/// Một lượt đọc trọn vẹn — thứ [`read_reading_run`] trả ra dây. Story 5.12.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ReadingRun {
+    pub chapters: Vec<ReadingChapter>,
+    pub frontier: ReadingFrontier,
+}
+
+/// **Đọc một LƯỢT ĐỌC bắt đầu tại Chương đang mở** — hàm thuần, đây là thứ test gọi.
+/// Story 5.12, FR120.
+///
+/// Đọc danh sách Chương, đếm `segment_count` VÀ mọi `ChapterSegment` của mọi Chương trong
+/// dãy trong **MỘT** [`crate::core::store::Store::read`] duy nhất — cùng lý do §Story 2.11
+/// đã ghi cho `caret_segment_id` ở [`read_open_chapter_segments`]: hai lượt đọc rời nhau là
+/// hai ảnh chụp có thể lệch nhau nếu một lượt ghi (đổi trạng thái, gộp/tách Chương) chen
+/// giữa.
+///
+/// # Thuật toán
+/// ① `SELECT id, ord, title, status` mọi Chương, `ORDER BY ord, id` (cùng bộ đôi so sánh mà
+/// `commands::chapter` dùng cho mọi lượt đọc theo thứ tự — `ord` cố ý KHÔNG `UNIQUE`).
+/// ② Tìm vị trí `open.chapter_id` trong danh sách đó; vắng mặt (hàng Chương đã biến mất
+/// giữa lúc mở Chương và lúc vào Chế độ đọc) ⇒ `Err(chapter_not_found(...))`.
+/// ③ Từ vị trí đó đi TỚI, lấy TIỀN TỐ liên tiếp mà
+/// `LifecycleStatus::from_wire(&status) == Some(Done)` — một giá trị lạ (ngoài bốn giá trị)
+/// đọc thành KHÔNG `Done`, dãy dừng NGAY tại đó, không đoán, không bỏ qua im lặng (§Always).
+/// ④ Với mỗi Chương của tiền tố, gọi [`select_chapter_segments`] rồi
+/// [`crate::core::segment::reading::paragraphs_in_translation`] — `segment_count` đếm từ
+/// CHÍNH dãy vừa đọc, không một `COUNT(*)` thứ hai.
+/// ⑤ Dựng `frontier`: hàng ngay sau tiền tố ⇒ `NextNotDone` kèm dữ liệu hàng đó (kể cả khi
+/// tiền tố RỖNG — hàng đó khi ấy chính là Chương đang mở); hết bảng ⇒ `EndOfWork` + `None`.
 ///
 /// # Lỗi
 /// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
-/// - đường đọc trượt ⇒ `store.read_failed`.
-pub fn read_reading_chapter(open: Option<&OpenWork>) -> Result<ReadingChapter, IpcError> {
+/// - `OpenWork::chapter_id` không còn trong bảng `chapter` ⇒ `segment.chapter_not_found`;
+/// - đường đọc trượt (kho hỏng) ⇒ `store.read_failed` (qua `From<StoreError>`).
+pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
-    let chapter_id = open.chapter_id;
+    let current_chapter_id = open.chapter_id;
 
-    let (chapter_ord, chapter_title, segments) = open.store.read(move |conn| {
-        let (ord, title): (i64, Option<String>) = conn.query_row(
-            "SELECT ord, title FROM chapter WHERE id = ?1",
-            [chapter_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )?;
+    let found = open.store.read(move |conn| {
+        let mut stmt = conn.prepare("SELECT id, ord, title, status FROM chapter ORDER BY ord, id")?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })?
+            .collect::<SqlResult<Vec<(i64, i64, Option<String>, String)>>>()?;
 
-        // Cùng câu `SELECT` của [`read_open_chapter_segments`] — chín cột, cùng bộ lọc
-        // `retired_at IS NULL`, cùng thứ tự `(ord, id)`.
-        let mut stmt = conn.prepare(
-            "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
-             is_omitted, is_target_paragraph_end \
-             FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL ORDER BY ord, id",
-        )?;
-        let rows = stmt.query_map([chapter_id], |row| {
-            let flag: i64 = row.get(4)?;
-            let omitted: i64 = row.get(7)?;
-            let target_para_end: i64 = row.get(8)?;
-            Ok(ChapterSegment {
-                id: row.get(0)?,
-                ord: row.get(1)?,
-                source_text: row.get(2)?,
-                target_text: row.get(3)?,
-                is_paragraph_end: flag != 0,
-                retired_at: row.get(5)?,
-                status: row.get(6)?,
-                is_omitted: omitted != 0,
-                is_target_paragraph_end: target_para_end != 0,
-            })
-        })?;
-        let segments = rows.collect::<SqlResult<Vec<ChapterSegment>>>()?;
+        let Some(start) = rows.iter().position(|(id, ..)| *id == current_chapter_id) else {
+            // Hàng Chương đang mở đã biến mất khỏi `project.db` giữa lúc mở Chương và lúc
+            // vào Chế độ đọc — tầng này báo `None`, tầng trên đổi nó thành lỗi CÓ TÊN.
+            return Ok(None);
+        };
 
-        Ok((ord, title, segments))
+        // Tiền tố các Chương `Done` LIÊN TIẾP, bắt đầu TẠI Chương đang mở — một giá trị
+        // `status` lạ (không nằm trong bốn giá trị của `LifecycleStatus`) đọc thành KHÔNG
+        // `Done`, dãy dừng ngay tại đó (§I/O Matrix "Trạng thái lạ").
+        let mut prefix_end = start;
+        while prefix_end < rows.len() {
+            let is_done = LifecycleStatus::from_wire(&rows[prefix_end].3) == Some(LifecycleStatus::Done);
+            if !is_done {
+                break;
+            }
+            prefix_end += 1;
+        }
+
+        let mut chapters = Vec::with_capacity(prefix_end - start);
+        for (chapter_id, chapter_ord, title, _status) in &rows[start..prefix_end] {
+            let segments = select_chapter_segments(conn, *chapter_id)?;
+            let segment_count = segments.len() as i64;
+            let paragraphs = crate::core::segment::reading::paragraphs_in_translation(&segments)
+                .into_iter()
+                .map(|group| ReadingParagraph {
+                    segments: group
+                        .into_iter()
+                        .map(|s| ReadingSegment {
+                            id: s.id,
+                            source_text: s.source_text.clone(),
+                            target_text: s.target_text.clone(),
+                            is_confirmed: s.status == SEGMENT_STATUS_CONFIRMED,
+                        })
+                        .collect(),
+                })
+                .collect();
+            chapters.push(ReadingChapter {
+                chapter_id: *chapter_id,
+                chapter_ord: *chapter_ord,
+                chapter_title: title.clone(),
+                paragraphs,
+                segment_count,
+            });
+        }
+
+        let frontier = if prefix_end < rows.len() {
+            let (chapter_id, chapter_ord, title, status) = &rows[prefix_end];
+            ReadingFrontier {
+                kind: ReadingFrontierKind::NextNotDone,
+                chapter: Some(ReadingFrontierChapter {
+                    chapter_id: *chapter_id,
+                    chapter_ord: *chapter_ord,
+                    chapter_title: title.clone(),
+                    status: status.clone(),
+                }),
+            }
+        } else {
+            ReadingFrontier { kind: ReadingFrontierKind::EndOfWork, chapter: None }
+        };
+
+        Ok(Some(ReadingRun { chapters, frontier }))
     })?;
 
-    let paragraphs = crate::core::segment::reading::paragraphs_in_translation(&segments)
-        .into_iter()
-        .map(|group| ReadingParagraph {
-            segments: group
-                .into_iter()
-                .map(|s| ReadingSegment {
-                    id: s.id,
-                    source_text: s.source_text.clone(),
-                    target_text: s.target_text.clone(),
-                })
-                .collect(),
-        })
-        .collect();
-
-    Ok(ReadingChapter {
-        chapter_id,
-        chapter_ord,
-        chapter_title,
-        paragraphs,
-    })
+    found.ok_or_else(|| chapter_not_found(current_chapter_id))
 }
 
 /// **THÊM Story 5.7 (AC4/AC6).** Ghi vị trí caret của một Chương xuống `chapter_position` —
@@ -2829,7 +2965,7 @@ fn ket_qua_regroup(
 pub mod wire {
     use super::{
         ChapterSegments, ConfirmOutcome, IpcError, OmitOutcome, ParagraphEndOutcome, SaveOutcome,
-        ReadingChapter, RegroupOutcome, RestoreOutcome, SegmentTargetEdit, SegmentVersionRow,
+        ReadingRun, RegroupOutcome, RestoreOutcome, SegmentTargetEdit, SegmentVersionRow,
         SplitOutcome,
     };
     use crate::commands::project::OpenWorkState;
@@ -2875,23 +3011,29 @@ pub mod wire {
         super::read_open_chapter_segments(guard.as_ref())
     }
 
-    /// Vỏ IPC của [`super::read_reading_chapter`] — Story 5.11 (FR11).
+    /// Vỏ IPC của [`super::read_reading_run`] — Story 5.12 (FR120).
+    ///
+    /// 🔵 **Đổi tên tại chỗ 2026-08-30 (Story 5.12)** — vỏ này trước mang tên
+    /// `read_reading_chapter` (Story 5.11); tên trên dây LÀ tên hàm, và một lệnh đọc cùng bề
+    /// mặt Chế độ đọc dưới hai tên là hai nguồn sự thật. `src/config/reading.ts` đổi tên gọi
+    /// theo CÙNG lượt.
     ///
     /// ⚠️ **Không tham số nào đi trên dây**, cùng khuôn [`read_open_chapter_segments`] ngay
-    /// trên. ⚠️ **Không** `(async)`: một `SELECT` nhẹ, cùng hạng
-    /// `read_open_chapter_segments` — `commands/segment.rs` không nằm trong bảng
-    /// `count_async_attrs` của `config_invariants.rs`.
+    /// trên. ⚠️ **Không** `(async)`: cùng hạng đọc-thuần với vỏ nó thay thế —
+    /// `commands/segment.rs` không nằm trong bảng `count_async_attrs` của
+    /// `config_invariants.rs` (xem §Design Notes của story cho phép đo quy mô đứng sau quyết
+    /// định này, và món nợ có chủ khi quy mô đó đổi — Story 5.14).
     #[tauri::command]
-    pub fn read_reading_chapter(app: tauri::AppHandle) -> Result<ReadingChapter, IpcError> {
+    pub fn read_reading_run(app: tauri::AppHandle) -> Result<ReadingRun, IpcError> {
         use tauri::Manager as _;
 
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::read_reading_chapter(None);
+            return super::read_reading_run(None);
         };
         let guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::read_reading_chapter(guard.as_ref())
+        super::read_reading_run(guard.as_ref())
     }
 
     /// Vỏ IPC của [`super::save_segment_targets`] — đường flush của AD-35. Story 2.3.

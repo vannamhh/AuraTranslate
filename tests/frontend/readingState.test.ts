@@ -1,15 +1,22 @@
 /**
- * `config/reading.ts` + `modes/readingState.ts` + `modes/ReadingMode.vue` — Story 5.11.
+ * `config/reading.ts` + `modes/readingState.ts` + `modes/ReadingMode.vue` — Story 5.11 ·
+ * Story 5.12 (FR120).
  *
  * ⚠️ **PHẠM VI** — `happy-dom` canh HÀNH VI, không hình học (`tests/AGENTS.md`). Mọi mệnh đề
  * về bố cục thật (bề rộng cột, vị trí lề song ngữ) thuộc bàn đo e2e
- * (`story-5-11-reading-mode.e2e.mjs`), không tệp này.
+ * (`story-5-11-reading-mode.e2e.mjs`/`story-5-12-reading-frontier.e2e.mjs`), không tệp này.
  *
  * 🔴 Đối chứng trung tâm của tệp: câu đã cắt bỏ không bao giờ tới được webview vì Rust đã lọc
  * TRƯỚC khi dữ liệu rời `project.db` — Vue không có, và không cần, một đường lọc thứ hai. Ca
  * "gỡ vế lọc ở fixture" bên dưới là phép GỠ THẬT (đổi dữ liệu giả để mô phỏng một Rust ĐÃ QUÊN
  * lọc), không một lượt chèn thêm — nếu Vue có ẩn một `v-if="!s.is_omitted"` thì ca đó vẫn cho
  * ra 2 câu; nó cho ra 3 câu, chứng minh không có đường lọc nào ở tầng này.
+ *
+ * 🔵 SỬA TẠI CHỖ (2026-08-30, Story 5.12) — bề mặt đổi từ MỘT Chương (`ReadingChapter` trần)
+ * sang MỘT LƯỢT ĐỌC (`ReadingRun`). Mọi fixture dưới đây dựng một `ReadingRun` (mảng
+ * `chapters` + `frontier`) thay vì một `ReadingChapter` đơn; các ca dựa trên hình dạng cũ
+ * (`chapterHasSegments`, nhánh `'empty-unknown'`, đọc thẳng `readingChapter`) đã SỬA theo —
+ * xem `deferred-work.md`/Code Map của story cho lý lẽ đầy đủ.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
@@ -31,15 +38,41 @@ const OTHER_ERROR = {
   retryable: false,
 }
 
-type ReadingSegmentFixture = { id: number; source_text: string; target_text: string }
+type ReadingSegmentFixture = { id: number; source_text: string; target_text: string; is_confirmed?: boolean }
 
-function chapterFixture(paragraphs: ReadingSegmentFixture[][]) {
+/** Một `ReadingChapter` fixture — `segment_count` mặc định đếm đúng số câu của `paragraphs`
+ * (ca thường nhất: không câu nào bị cắt bỏ), ghi đè được cho ca "mọi câu đã cắt bỏ". */
+function chapterFixture(
+  paragraphs: ReadingSegmentFixture[][],
+  overrides: Partial<{ chapter_id: number; chapter_ord: number; chapter_title: string | null; segment_count: number }> = {},
+) {
+  const segmentCount = paragraphs.reduce((sum, p) => sum + p.length, 0)
   return {
     chapter_id: 1,
     chapter_ord: 1,
     chapter_title: 'Chuong Mot',
-    paragraphs: paragraphs.map((segments) => ({ segments })),
+    paragraphs: paragraphs.map((segments) => ({
+      segments: segments.map((s) => ({ is_confirmed: true, ...s })),
+    })),
+    segment_count: segmentCount,
+    ...overrides,
   }
+}
+
+/** Mốc biên "hết Tác phẩm" — dùng mặc định cho mọi `runFixture` không quan tâm mốc biên. */
+function endOfWorkFrontier() {
+  return { kind: 'end-of-work' as const, chapter: null }
+}
+
+function nextNotDoneFrontier(overrides: Partial<{ chapter_id: number; chapter_ord: number; chapter_title: string | null; status: string }> = {}) {
+  return {
+    kind: 'next-not-done' as const,
+    chapter: { chapter_id: 2, chapter_ord: 2, chapter_title: 'Chuong Hai', status: 'in_progress', ...overrides },
+  }
+}
+
+function runFixture(chapters: ReturnType<typeof chapterFixture>[], frontier: ReturnType<typeof endOfWorkFrontier | typeof nextNotDoneFrontier> = endOfWorkFrontier()) {
+  return { chapters, frontier }
 }
 
 function chapterRow(overrides: Partial<{ chapter_id: number; ord: number; title: string | null; status: string; segment_count: number }> = {}) {
@@ -55,40 +88,40 @@ beforeEach(async () => {
 })
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// `config/reading.ts::readReadingChapter` — ba trạng thái, cùng khuôn mọi adapter khác.
+// `config/reading.ts::readReadingRun` — ba trạng thái, cùng khuôn mọi adapter khác.
 // ═════════════════════════════════════════════════════════════════════════════════
 
-describe('config/reading.ts::readReadingChapter', () => {
-  it('đọc được ⇒ { chapter, error: null }', async () => {
-    mockInvoke.mockResolvedValueOnce(chapterFixture([[{ id: 1, source_text: 'a', target_text: 'b' }]]))
-    const { readReadingChapter } = await import('../../src/config/reading')
-    const result = await readReadingChapter()
+describe('config/reading.ts::readReadingRun', () => {
+  it('đọc được ⇒ { run, error: null }', async () => {
+    mockInvoke.mockResolvedValueOnce(runFixture([chapterFixture([[{ id: 1, source_text: 'a', target_text: 'b' }]])]))
+    const { readReadingRun } = await import('../../src/config/reading')
+    const result = await readReadingRun()
     expect(result.error).toBeNull()
-    expect(result.chapter?.chapter_id).toBe(1)
-    expect(result.chapter?.paragraphs).toHaveLength(1)
+    expect(result.run?.chapters[0]?.chapter_id).toBe(1)
+    expect(result.run?.chapters[0]?.paragraphs).toHaveLength(1)
   })
 
-  it('Rust trả lời bằng một lỗi ⇒ { chapter: null, error }', async () => {
+  it('Rust trả lời bằng một lỗi ⇒ { run: null, error }', async () => {
     mockInvoke.mockRejectedValueOnce(WORK_NONE_OPEN_ERROR)
-    const { readReadingChapter } = await import('../../src/config/reading')
-    const result = await readReadingChapter()
-    expect(result.chapter).toBeNull()
+    const { readReadingRun } = await import('../../src/config/reading')
+    const result = await readReadingRun()
+    expect(result.run).toBeNull()
     expect(result.error?.code).toBe('work.none_open')
   })
 
-  it('không có cầu IPC (chạy ngoài Tauri) ⇒ { chapter: null, error: null }', async () => {
+  it('không có cầu IPC (chạy ngoài Tauri) ⇒ { run: null, error: null }', async () => {
     mockInvoke.mockRejectedValueOnce(new Error('khong co cau IPC trong window nay'))
-    const { readReadingChapter } = await import('../../src/config/reading')
-    const result = await readReadingChapter()
-    expect(result.chapter).toBeNull()
+    const { readReadingRun } = await import('../../src/config/reading')
+    const result = await readReadingRun()
+    expect(result.run).toBeNull()
     expect(result.error).toBeNull()
   })
 
-  it('hình dạng sai (thiếu `paragraphs`) ⇒ lỗi hồi phòng, không ném', async () => {
-    mockInvoke.mockResolvedValueOnce({ chapter_id: 1, chapter_ord: 1, chapter_title: null })
-    const { readReadingChapter } = await import('../../src/config/reading')
-    const result = await readReadingChapter()
-    expect(result.chapter).toBeNull()
+  it('hình dạng sai (thiếu `frontier`) ⇒ lỗi hồi phòng, không ném', async () => {
+    mockInvoke.mockResolvedValueOnce({ chapters: [] })
+    const { readReadingRun } = await import('../../src/config/reading')
+    const result = await readReadingRun()
+    expect(result.run).toBeNull()
     expect(result.error?.code).toBe('ipc.unknown')
   })
 })
@@ -109,11 +142,13 @@ describe('modes/ReadingMode.vue — segment đã cắt bỏ', () => {
     // Fixture ĐÃ LỌC — giống đúng một lượt đọc thật: câu 2 (bị cắt bỏ) đã vắng mặt khỏi
     // `paragraphs` (AC5), không phải bị Vue ẩn đi.
     mockInvoke.mockResolvedValueOnce(
-      chapterFixture([
-        [
-          { id: 1, source_text: 'Mot.', target_text: 'Cau mot.' },
-          { id: 3, source_text: 'Ba.', target_text: 'Cau ba.' },
-        ],
+      runFixture([
+        chapterFixture([
+          [
+            { id: 1, source_text: 'Mot.', target_text: 'Cau mot.' },
+            { id: 3, source_text: 'Ba.', target_text: 'Cau ba.' },
+          ],
+        ]),
       ]),
     )
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
@@ -131,12 +166,14 @@ describe('modes/ReadingMode.vue — segment đã cắt bỏ', () => {
     // phỏng một hồi quy phía Rust. Nếu `ReadingMode.vue` giấu một đường lọc riêng
     // (`v-if="!s.is_omitted"`) thì ca này vẫn cho 2 span; nó cho 3, chứng minh không có.
     mockInvoke.mockResolvedValueOnce(
-      chapterFixture([
-        [
-          { id: 1, source_text: 'Mot.', target_text: 'Cau mot.' },
-          { id: 2, source_text: 'Hai.', target_text: 'Cau hai dang le da bi cat bo.' },
-          { id: 3, source_text: 'Ba.', target_text: 'Cau ba.' },
-        ],
+      runFixture([
+        chapterFixture([
+          [
+            { id: 1, source_text: 'Mot.', target_text: 'Cau mot.' },
+            { id: 2, source_text: 'Hai.', target_text: 'Cau hai dang le da bi cat bo.' },
+            { id: 3, source_text: 'Ba.', target_text: 'Cau ba.' },
+          ],
+        ]),
       ]),
     )
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
@@ -152,7 +189,7 @@ describe('modes/ReadingMode.vue — segment đã cắt bỏ', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// `role="status"` — bảy nhánh phân biệt được nhau qua `data-reading-status`.
+// `role="status"` — tám nhánh phân biệt được nhau qua `data-reading-status`.
 // ═════════════════════════════════════════════════════════════════════════════════
 
 describe('modes/ReadingMode.vue — role="status" phân biệt được các ca', () => {
@@ -195,7 +232,7 @@ describe('modes/ReadingMode.vue — role="status" phân biệt được các ca'
     expect(status().kind).toBe('pending')
     expect(status().text).not.toBe('')
 
-    resolveInvoke(chapterFixture([]))
+    resolveInvoke(runFixture([]))
     await pending
   })
 
@@ -222,27 +259,31 @@ describe('modes/ReadingMode.vue — role="status" phân biệt được các ca'
     expect(status().kind).toBe('error')
   })
 
-  it('Chương KHÔNG có segment nào ⇒ "empty-chapter"', async () => {
-    mockInvoke.mockImplementation((cmd: string) => {
-      if (cmd === 'read_reading_chapter') return Promise.resolve(chapterFixture([]))
-      if (cmd === 'list_chapters') return Promise.resolve([chapterRow({ segment_count: 0 })])
-      return Promise.reject(new Error(`invoke gia khong biet lenh: ${cmd}`))
-    })
+  it('dãy đọc RỖNG (Chương đang mở chưa `done`) ⇒ "frontier-only"', async () => {
+    mockInvoke.mockResolvedValueOnce(runFixture([], nextNotDoneFrontier({ chapter_id: 1, chapter_ord: 1 })))
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
     wrapper = mount(ReadingMode)
     await state.ensureReadingLoaded()
     await wrapper.vm.$nextTick()
 
-    expect(status().kind).toBe('empty-chapter')
+    expect(status().kind).toBe('frontier-only')
+    expect(status().text).not.toBe('')
   })
 
-  it('🔴 MỌI câu đều cắt bỏ ⇒ "all-omitted" — KHÁC "empty-chapter" dù `paragraphs` cùng rỗng', async () => {
-    mockInvoke.mockImplementation((cmd: string) => {
-      if (cmd === 'read_reading_chapter') return Promise.resolve(chapterFixture([]))
-      if (cmd === 'list_chapters') return Promise.resolve([chapterRow({ segment_count: 4 })])
-      return Promise.reject(new Error(`invoke gia khong biet lenh: ${cmd}`))
-    })
+  it('dãy có Chương nhưng KHÔNG segment nào ⇒ "empty-chapters"', async () => {
+    mockInvoke.mockResolvedValueOnce(runFixture([chapterFixture([], { segment_count: 0 })]))
+    const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
+    const state = await import('../../src/modes/readingState')
+    wrapper = mount(ReadingMode)
+    await state.ensureReadingLoaded()
+    await wrapper.vm.$nextTick()
+
+    expect(status().kind).toBe('empty-chapters')
+  })
+
+  it('🔴 MỌI câu đều cắt bỏ ⇒ "all-omitted" — KHÁC "empty-chapters" dù `paragraphs` cùng rỗng', async () => {
+    mockInvoke.mockResolvedValueOnce(runFixture([chapterFixture([], { segment_count: 4 })]))
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
     wrapper = mount(ReadingMode)
@@ -251,12 +292,12 @@ describe('modes/ReadingMode.vue — role="status" phân biệt được các ca'
 
     expect(status().kind).toBe('all-omitted')
     // Câu trạng thái không được RỖNG (khác "content"), và bản thân `kind` đã khác
-    // "empty-chapter" ở phép so trên — hai ca cùng `paragraphs = []` nhưng hai câu khác nhau.
+    // "empty-chapters" ở phép so trên — hai ca cùng `paragraphs = []` nhưng hai câu khác nhau.
     expect(status().text).not.toBe('')
   })
 
-  it('Chương có nội dung ⇒ "content", câu trạng thái RỖNG (đoạn văn tự nói đủ)', async () => {
-    mockInvoke.mockResolvedValueOnce(chapterFixture([[{ id: 1, source_text: 'a', target_text: 'b' }]]))
+  it('lượt đọc có nội dung ⇒ "content", câu trạng thái RỖNG (đoạn văn tự nói đủ)', async () => {
+    mockInvoke.mockResolvedValueOnce(runFixture([chapterFixture([[{ id: 1, source_text: 'a', target_text: 'b' }]])]))
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
     wrapper = mount(ReadingMode)
@@ -282,9 +323,7 @@ describe('modes/ReadingMode.vue — không bề mặt biên tập nào', () => {
   })
 
   it('không `[data-col]`, không `contenteditable`, không nút xác nhận', async () => {
-    mockInvoke.mockResolvedValueOnce(
-      chapterFixture([[{ id: 1, source_text: 'Mot.', target_text: 'Cau mot.' }]]),
-    )
+    mockInvoke.mockResolvedValueOnce(runFixture([chapterFixture([[{ id: 1, source_text: 'Mot.', target_text: 'Cau mot.' }]])]))
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
     wrapper = mount(ReadingMode)
@@ -409,15 +448,17 @@ describe('modes/readingState — mở một Chương từ mục lục (nhánh TH
    * KHÔNG làm một ca nào đỏ.
    */
   it('nạp lại nội dung, đóng mục lục, và trả tiêu điểm về Chế độ đọc', async () => {
-    const chapterOne = chapterFixture([[{ id: 1, source_text: 'Mot.', target_text: 'Cau mot.' }]])
-    const chapterTwo = chapterFixture([[{ id: 9, source_text: 'Chin.', target_text: 'Cau chin.' }]])
+    const chapterOne = runFixture([chapterFixture([[{ id: 1, source_text: 'Mot.', target_text: 'Cau mot.' }]])])
+    const chapterTwo = runFixture([
+      chapterFixture([[{ id: 9, source_text: 'Chin.', target_text: 'Cau chin.' }]], { chapter_id: 2, chapter_ord: 2, chapter_title: 'Chuong Hai' }),
+    ])
     let readCount = 0
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'list_chapters') {
         return Promise.resolve([chapterRow({ chapter_id: 1 }), chapterRow({ chapter_id: 2, ord: 2, title: 'Chuong Hai' })])
       }
       if (cmd === 'open_chapter') return Promise.resolve({ chapter_id: 2, source_text: 'x', source_lang: 'zh' })
-      if (cmd === 'read_reading_chapter') {
+      if (cmd === 'read_reading_run') {
         readCount += 1
         return Promise.resolve(readCount === 1 ? chapterOne : chapterTwo)
       }
@@ -435,32 +476,11 @@ describe('modes/readingState — mở một Chương từ mục lục (nhánh TH
 
     await state.openCurrentTocChapter()
 
-    // ① Nội dung được nạp LẠI — một vòng `read_reading_chapter` thứ hai đã đi.
+    // ① Nội dung được nạp LẠI — một vòng `read_reading_run` thứ hai đã đi.
     expect(readCount).toBe(2)
-    expect(state.readingChapter.value?.paragraphs[0]?.segments[0]?.id).toBe(9)
+    expect(state.readingRun.value?.chapters[0]?.paragraphs[0]?.segments[0]?.id).toBe(9)
     // ② Lớp phủ đóng lại.
     expect(state.readingTocOpen.value).toBe(false)
-  })
-})
-
-describe('modes/readingState — trang rỗng mà lượt đo "vì sao rỗng" TRƯỢT', () => {
-  /**
-   * 🔴 Hàng I/O *"Chương rỗng"* và *"mọi câu đã cắt bỏ"* được phân biệt bằng một vòng
-   * `list_chapters` PHỤ. Bản đầu để vòng ấy trượt rơi thẳng vào `'empty-chapter'` — tức màn
-   * hình khẳng định *"Chương này chưa có câu nào"* cho một Chương mà người dùng vừa cắt bỏ
-   * hết. Đó đúng là lớp lỗi *rỗng im lặng*, chỉ ở chiều ngược: không phải im, mà nói SAI.
-   */
-  it('`list_chapters` trượt ⇒ "empty-unknown", KHÔNG "empty-chapter"', async () => {
-    mockInvoke.mockImplementation((cmd: string) => {
-      if (cmd === 'read_reading_chapter') return Promise.resolve(chapterFixture([]))
-      if (cmd === 'list_chapters') return Promise.reject(OTHER_ERROR)
-      return Promise.resolve(null)
-    })
-
-    const state = await import('../../src/modes/readingState')
-    await state.ensureReadingLoaded()
-
-    expect(state.readingStatusKind.value).toBe('empty-unknown')
   })
 })
 
@@ -479,11 +499,13 @@ describe('modes/ReadingMode.vue — hai câu trong một đoạn không được
    */
   it('có ĐÚNG một dấu cách giữa hai câu, và không dấu cách thừa ở đầu/cuối đoạn', async () => {
     mockInvoke.mockResolvedValueOnce(
-      chapterFixture([
-        [
-          { id: 1, source_text: 'Mot.', target_text: 'Cau mot.' },
-          { id: 2, source_text: 'Hai.', target_text: 'Cau hai.' },
-        ],
+      runFixture([
+        chapterFixture([
+          [
+            { id: 1, source_text: 'Mot.', target_text: 'Cau mot.' },
+            { id: 2, source_text: 'Hai.', target_text: 'Cau hai.' },
+          ],
+        ]),
       ]),
     )
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')

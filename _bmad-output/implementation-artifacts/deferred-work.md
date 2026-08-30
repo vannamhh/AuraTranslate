@@ -3743,10 +3743,22 @@ Hai khoảng hở cùng hình dạng, hai số phận khác nhau, và cái khác
 - Chế độ đọc → **Epic 5** *(Story 5.11 · 5.12 · 5.13)*
   → ✅ **ĐÃ ĐÓNG 2026-08-30 (Story 5.11).** `core::segment::reading::paragraphs_in_translation`
   gọi lại `omit::segments_in_translation` rồi cắt đoạn; `read_reading_chapter` đưa kết quả ra
-  dây; `ReadingMode.vue` render — câu đã cắt bỏ vắng mặt hoàn toàn, không `[…]`, không chỗ
-  trống (AC đầu tiên của story, nghiệm thu bằng `segment_contract.rs` + `readingState.test.ts`
-  ca "gỡ vế lọc ở fixture"). Đánh dấu "cần sửa" (FR119) và đọc liên tục xuyên Chương (FR120)
-  KHÔNG thuộc vế này — hai món đó có chủ riêng: **Story 5.12 · 5.13**.
+  dây (🔵 **SỬA 2026-08-30, Story 5.12** — hàm này đã ĐỔI TÊN thành `read_reading_run`, xem mục
+  ngay dưới; câu ở đây giữ nguyên vì nó mô tả đúng trạng thái tại NGÀY đóng); `ReadingMode.vue`
+  render — câu đã cắt bỏ vắng mặt hoàn toàn, không `[…]`, không chỗ trống (AC đầu tiên của
+  story, nghiệm thu bằng `segment_contract.rs` + `readingState.test.ts` ca "gỡ vế lọc ở
+  fixture"). Đánh dấu "cần sửa" (FR119) và đọc liên tục xuyên Chương (FR120) KHÔNG thuộc vế
+  này — hai món đó có chủ riêng: **Story 5.12 · 5.13**.
+  → ✅ **ĐÃ ĐÓNG 2026-08-30 (Story 5.12), vế FR120.** Bề mặt đọc đổi từ MỘT Chương
+  (`read_reading_chapter`) thành MỘT LƯỢT ĐỌC (`read_reading_run` → `ReadingRun`): Rust chọn
+  dãy Chương liên tiếp ở `LifecycleStatus::from_wire(...) == Some(Done)` bắt đầu TẠI Chương
+  đang mở, trả kèm `ReadingFrontier` nói vì sao dãy dừng ở đó (`next-not-done` kèm Chương chặn
+  và nhãn trạng thái, hoặc `end-of-work`). Chương chưa `done` không rời `project.db` — cùng kỷ
+  luật `is_omitted`. Nghiệm thu: `segment_contract.rs` (khối "STORY 5.12", phủ trọn §I/O
+  Matrix) · `ipc_contract.rs` (khoá dây + hai chuỗi biến thể đóng băng) ·
+  `tests/frontend/readingFrontier.test.ts` + `readingUnconfirmed.test.ts` (mới) ·
+  `e2e/specs/story-5-12-reading-frontier.e2e.mjs` (mới, chạy tay). Đánh dấu "cần sửa" (FR119)
+  VẪN có chủ riêng: **Story 5.13**.
 - Bản xuất → **Epic 8** *(Story 8.3 · 8.4 · 8.6)*
 
 ### 🔴 CÒN HỞ, và đây là món lớn hơn cả hai mục trên: nghĩa vụ FR133 chỉ phát biểu MỘT CHIỀU
@@ -5047,6 +5059,12 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   Workspace hay quay lại Chế độ đọc lần sau đều rơi về đầu trang. **Chủ: Story 5.12 hoặc 5.13**
   (mốc "chỉ đọc phần đã xong"/đánh dấu FR119 nhiều khả năng đã cần một neo theo `segment.id` mà
   vị trí cuộn có thể cắm vào — xem lại `AD-3` trước khi chọn hình dạng, đừng chọn pixel).
+  → 🟡 **THU HẸP 2026-08-30 (Story 5.12) — chủ về MỘT, không còn "hoặc".** Story 5.12 đã dựng
+  xong bề mặt *"chỉ đọc phần đã xong"* (`ReadingRun`/`ReadingFrontier`, xem mục Chế độ đọc ở
+  trên) mà **không** đụng tới vị trí cuộn: `resetReading()`/`openFrontierInWorkspace()` vứt
+  TOÀN BỘ state đọc khi đổi Chương, không có một neo cuộn nào ra đời ở đây để mà cắm vào — mệnh
+  đề *"đã cần một neo ở 5.12"* của ngày 2026-08-18 không thành hiện thực. Vị trí cuộn VẪN HỞ
+  nguyên vẹn, và giờ chỉ còn MỘT story có thể đóng nó, không còn "hoặc". **Chủ: Story 5.13.**
 
 - 🟡 **Tiêu điểm sau một lượt chuyển Chương THÀNH CÔNG — cơ chế đã cài, vế nghiệm thu còn HỞ.** `switchChapter` gọi `await nextTick()` rồi `enterFocus('panel.grid')` *(`editorPanelState.ts`)*, và lý do có bằng chứng: lượt chuyển thay **toàn bộ** hàng của `v-for`, `segment.id` là `AUTOINCREMENT` **theo Tác phẩm** nên Chương mới gần như chắc chắn mang tập khoá khác ⇒ Vue **gỡ** đúng ô `contenteditable` đang giữ tiêu điểm ⇒ trình duyệt trả nó về `document.body`, thứ AD-34 §2 cấm thẳng. 🔴 **Nhưng mệnh đề *"tiêu điểm KHÔNG rơi về `body`"* chưa có đường nghiệm thu nào:** `happy-dom` **không phải** WebKit *(và không bố cục)*, còn e2e thì **không tới được** một lượt chuyển thành công — cùng món nợ với mục thứ nhất ở trên. ⇒ Đã cài, **không** tự chấm đạt. **Chủ: cùng story mở đường sinh Chương thứ hai (Epic 6/FR14)** — nghiệm thu vế này **cùng lượt** với AC1/AC2.
 
@@ -8743,4 +8761,39 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     vế *"đúng Chương"* của UX-DR34 đã đóng ở story này, vế *"đúng vị trí cuộn"* thì chưa.
     Không mở một mục thứ hai cho cùng một món; dòng này chỉ trỏ tới nó để người đọc cụm 5.11 không
     phải tự tìm.
-    **(Chủ: Story 5.12 hoặc 5.13 — cùng chủ đã ghi ở mục gốc.)**
+    🔵 **SỬA 2026-08-30 (Story 5.12)** — mục gốc vừa THU HẸP chủ về MỘT (Story 5.12 đã dựng
+    xong bề mặt "chỉ đọc phần đã xong" mà không đụng vị trí cuộn); câu ở đây SỬA THEO.
+    **(Chủ: Story 5.13 — duy nhất, cùng chủ đã ghi ở mục gốc.)**
+
+## Deferred from: 5-12-che-do-doc-chi-doc-phan-da-xong (2026-08-30)
+
+- 🟡 **`↵` (Enter) trên nút *Dịch tiếp Chương N* của mốc biên KHÔNG có hợp âm mặc định, dù
+  mockup vẽ nó — cùng hạng món nợ `⌘,` mà Story 5.11 đã mở.**
+  evidence: `src/commands/registry.ts` không có khái niệm "hợp âm chỉ sống trong một chế độ"
+    (đã đo và ghi ở §Design Notes Story 5.11). Một `Enter` TRẦN đăng ký toàn ứng dụng sẽ bắn cả
+    ở Library — nơi `Enter` là cử chỉ tự nhiên để mở Tác phẩm đang chọn — và ở Workspace, không
+    riêng Chế độ đọc. Lệnh `reading.continue_in_workspace` vì thế đăng ký **0 hợp âm mặc định**;
+    đường vào chính là `<button>` trên thanh công cụ cộng `Tab` + `Enter`/`Space` (NFR17 không hở).
+    `ChordOverrides` (Story 1.21) cho phép Ice tự gán hợp âm này ngay hôm nay — cái thiếu là
+    **mặc định**, không phải **năng lực**.
+    **(Chủ: Ice — chọn một hợp âm mặc định cho `reading.continue_in_workspace`, hoặc để trống
+    vĩnh viễn và chỉ dựa vào `ChordOverrides`.)**
+
+- 🟡 **`read_reading_run` mang HAI chi phí quy mô độc lập, chưa đo ở quy mô lớn — không phải một.**
+  evidence: đo tại baseline `e36599e` (2026-08-30) — chưa đường sản phẩm nào tạo Chương thứ hai
+    ngoài `split_chapter_at_segment` (Story 5.8), và FR14 (nhập hàng loạt, sinh nhiều Chương một
+    lượt) là **Epic 6**. Một Tác phẩm thật hôm nay có 1–2 Chương, cùng hạng chi phí với
+    `read_open_chapter_segments` đang chạy — đó là lý do vỏ IPC của lệnh này **không** `(async)`.
+    **①** nạp TRỌN mọi segment của mọi Chương `done` trong dãy vào bộ nhớ trong MỘT lượt
+    `Store::read` — O(tổng số segment của dãy). **②** 🔵 **THÊM (lượt rà 2026-08-30, Bản vá 8,
+    review vòng bốn lớp) — câu SQL ĐẦU TIÊN của hàm (`SELECT id, ord, title, status FROM
+    chapter`) quét MỌI hàng `chapter` của TOÀN BỘ Tác phẩm, không riêng phần nằm trong dãy —
+    O(tổng số Chương), một chi phí ĐỘC LẬP với ①, và nó chạy dù dãy dừng ngay tại Chương đang mở
+    (§I/O Matrix "Chạm biên ngay").** Mục trước của lượt rà này chỉ kể chi phí ①, bỏ sót ②.
+    ⚠️ **Ngưỡng nó hỏng:** ở quy mô Epic 6 (5.000 Chương giả định của NFR3/NFR4/NFR5), chi phí ①
+    cho một Tác phẩm dịch xong hoàn toàn — một dãy đọc **toàn bộ Tác phẩm** trong một lượt — vượt
+    trần bộ nhớ nhàn rỗi 300 MB trước khi vượt bất cứ thứ gì khác; chi phí ② thì hỏng SỚM HƠN,
+    ngay cả khi dãy dừng ở Chương đầu tiên, vì nó không phụ thuộc dãy dừng ở đâu.
+    **(Chủ: Story 5.14 — đóng CẢ HAI chi phí cùng một lượt đo ba ngưỡng NFR3/NFR4/NFR5; không
+    mở mục thứ hai cho ②, và không phải một lời nhắc trôi nổi mà là một phép đo phải chạy trước
+    khi Epic 6 sinh dữ liệu ở quy mô đó.)**

@@ -30,8 +30,9 @@
 //! 🟡, ghi nợ có chủ ở `deferred-work.md`. Đừng đọc module này thành *"AC5 xong"*.
 //!
 //! 🔵 **SỬA 2026-08-30 (Story 5.11) — mệnh đề ngay trên HẾT ĐÚNG cho vế Chế độ đọc.** Story
-//! 5.11 dựng bề mặt thật (`ReadingMode.vue` + `read_reading_chapter`) và nghiệm thu đúng câu
-//! *"không dấu vết, không `[…]`, không chỗ trống"* cho vế đó — xem AC đầu tiên của
+//! 5.11 dựng bề mặt thật (`ReadingMode.vue` + `read_reading_chapter`, **đổi tên thành
+//! `read_reading_run` ở Story 5.12** — cùng chốt lọc, cùng câu nghiệm thu) và nghiệm thu đúng
+//! câu *"không dấu vết, không `[…]`, không chỗ trống"* cho vế đó — xem AC đầu tiên của
 //! `5-11-che-do-doc-typography-va-bo-cuc-doc-dai.md`. Vế bản xuất (Epic 8) VẪN 🟡, ghi nợ có
 //! chủ ở `deferred-work.md` — đừng đọc câu này thành *"AC5 xong trọn"*.
 //!

@@ -15,6 +15,8 @@ Ba chế độ đầu là **ngang hàng**, không phân cấp, và chuyển bằ
 | Bốn trạng thái rỗng của UX-DR31 *(cần nội dung thật mới viết đúng)* | **1.14 / 1.15 / 5.x** | ⬜ |
 | Nội dung Library: lưới Tác phẩm, bộ lọc, sắp xếp, vòng đời | **Epic 5** | ⬜ |
 | Nội dung Chế độ đọc: typography đọc dài, song ngữ, ba mức chữ | **5.11** | ✅ đã dựng |
+| Đọc liên tục qua Chương đã xong và mốc biên (FR120) | **5.12** | ✅ đã dựng |
+| Đánh dấu chỗ cần sửa khi đang đọc (FR119) | **5.13** | ⬜ |
 | Review Mode | **Epic 8** | ⬜ |
 
 🔵 **SỬA 2026-08-30 (Story 5.11)** — hàng "Nội dung Chế độ đọc" hết đúng ở `⬜`: typography ba
@@ -23,6 +25,12 @@ mức (đúng token `read-*`), song ngữ, mục lục và cắt bỏ (qua `read
 còn đúng cho **hai tệp** (`LibraryMode.vue` phần "đánh dấu đã xong" của UX-DR31, `ReviewMode.vue`).
 Đánh dấu *"cần sửa"* (FR119) và đọc liên tục xuyên Chương/mốc *"chỉ đọc phần đã xong"* (FR120)
 vẫn **⬜** — có chủ riêng: **Story 5.12 · 5.13**.
+
+🔵 **SỬA TẠI CHỖ 2026-08-30 (Story 5.12)** — vế FR120 của mục ngay trên hết đúng ở `⬜`: bề mặt
+đọc đổi từ MỘT Chương (`read_reading_chapter`) thành MỘT LƯỢT ĐỌC (`read_reading_run` →
+`ReadingRun`) chỉ gồm Chương `Done`, kèm một mốc biên (`.frontier`) nói vì sao dãy dừng — xem
+hàng riêng "Đọc liên tục qua Chương đã xong và mốc biên" ở trên. Đánh dấu chỗ cần sửa (FR119)
+**VẪN `⬜`**, chủ riêng **Story 5.13** — không đụng ở lượt này.
 
 Ba tệp `.vue` khai *"khung rỗng có chủ ý"* trong doc-comment của chính chúng khi CHƯA có story sở
 hữu chạm vào: một câu trạng thái lấy từ `vi.json`, gốc mang `tabindex="-1"`, và một điểm vào

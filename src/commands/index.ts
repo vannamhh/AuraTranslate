@@ -808,6 +808,13 @@ export type CommandDeps = {
    * ⚠️ Cài đặt thật là `async`; `() => void` khớp cùng khuôn `rescanLibraryFolder` — promise
    * trả về bị bỏ qua có chủ ý. */
   openCurrentReadingTocChapter?: () => void
+
+  // ── Story 5.12 — "Chế độ đọc chỉ đọc phần đã xong" (FR120) ─────────────────────
+  /** Đi tiếp từ mốc biên sang Workspace với Chương chặn đã mở. Handler của
+   * `reading.continue_in_workspace` — **0 hợp âm mặc định** (§Design Notes: một `Enter`
+   * TRẦN bắn cả trong Library, `registry` không có phạm vi theo chế độ). ⚠️ Cài đặt thật
+   * là `async`; `() => void` khớp cùng khuôn `openCurrentReadingTocChapter`. */
+  continueFromReadingFrontier?: () => void
 }
 
 /**
@@ -1466,6 +1473,29 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.closeReadingToc === undefined) return portMissing('reading.toc_close', 'closeReadingToc')
       deps.closeReadingToc()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 5.12 — "CHẾ ĐỘ ĐỌC CHỈ ĐỌC PHẦN ĐÃ XONG" (FR120)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 **0 hợp âm mặc định.** Mockup vẽ `↵` trên nút *Dịch tiếp*, nhưng AC không đòi một
+   * hợp âm nào — đòi *"một đường sang Workspace"*, và `<button>` + `Tab`/`Enter` đã đủ
+   * theo NFR17. `registry.ts` không có khái niệm "hợp âm chỉ sống trong một chế độ" — một
+   * `Enter` TRẦN đăng ký toàn ứng dụng sẽ bắn cả ở Library (nơi `Enter` là cử chỉ tự nhiên
+   * để mở Tác phẩm đang chọn). Vế `↵` thành món nợ có chủ Ice, cùng hạng `⌘,` của Story
+   * 5.11 (xem §Design Notes).
+   */
+  target.register({
+    id: 'reading.continue_in_workspace',
+    labelKey: 'command.reading.continue_in_workspace',
+    keys: undefined,
+    run: () => {
+      if (deps.continueFromReadingFrontier === undefined) {
+        return portMissing('reading.continue_in_workspace', 'continueFromReadingFrontier')
+      }
+      deps.continueFromReadingFrontier()
     },
   })
 

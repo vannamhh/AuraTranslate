@@ -145,7 +145,7 @@ describe('modes/readingState.ts::resetReading — KHÔNG dọn ba ô tuỳ chọ
     expect(state.effectiveLineHeight.value).toBe(1.9)
 
     // Nhóm nội dung THÌ bị dọn.
-    expect(state.readingChapter.value).toBeNull()
+    expect(state.readingRun.value).toBeNull()
     expect(state.readingHasLoaded.value).toBe(false)
   })
 })

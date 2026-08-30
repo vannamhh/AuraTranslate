@@ -88,3 +88,27 @@ export function tError(err: IpcError, params?: MessageParams): string {
   }
   return t(key, params ?? err.params)
 }
+
+/**
+ * **THÊM Story 5.12** (lượt rà 2026-08-30, Bản vá 7). Có khoá này trong `vi.json` hay
+ * không — dùng để phân biệt một giá trị ĐÃ BIẾT với một giá trị LẠ, KHÔNG phải để hiển
+ * thị (đó vẫn là việc của `t()`).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * VÌ SAO HÀM NÀY TỒN TẠI — đóng một mắt xích còn thiếu, không phải một tiện ích chung
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `src-tauri/tests/lifecycle_contract.rs::every_lifecycle_status_label_key_exists_in_vi_json`
+ * đã nối **Rust → `vi.json`**: mỗi `LifecycleStatus` khai một `label_key()`, và cổng đó
+ * khẳng định khoá ấy có mặt trong `vi.json`. Nhưng mắt xích **`vi.json` → phía dùng nó**
+ * (ví dụ `ReadingMode.vue::frontierStatusLabel`, phân biệt "trạng thái đã biết" với "trạng
+ * thái lạ" cho §I/O Matrix "Trạng thái lạ") trước đây tự chép tay bốn giá trị
+ * (`not_started`/`in_progress`/`paused`/`done`) vào một `Set` — một bản chép THỨ BA của
+ * cùng bốn giá trị, không cổng nào nối nó với hai đầu kia. Một giá trị đổi ở Rust sẽ để
+ * bản chép này trỏ vào hư không, và nhánh "giá trị lạ hiện chuỗi thô" âm thầm nuốt một
+ * giá trị HỢP LỆ — đúng hạng lỗi mà `is_han` (hai bản chép, có cổng kiểm chéo) đã dạy.
+ *
+ * ⇒ Đọc thẳng `vi.json` (nguồn đã có, không một bảng chép mới) thay vì liệt kê lại.
+ */
+export function hasMessageKey(key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(catalog, key)
+}

@@ -16,12 +16,13 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::chapter::split_chapter_at_segment;
+use auratranslate_lib::commands::lifecycle::set_chapter_status;
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::commands::segment::{
-    confirm_segment, flush_segment_targets, read_open_chapter_segments, read_reading_chapter,
+    confirm_segment, flush_segment_targets, read_open_chapter_segments, read_reading_run,
     read_segment_history, save_chapter_position, save_segment_targets, set_segment_omitted,
     split_chapter_into_segments, restore_segment_version, unconfirm_edited_segments,
-    SegmentTargetEdit, SplitOutcome,
+    ReadingFrontierKind, SegmentTargetEdit, SplitOutcome, SEGMENT_STATUS_CONFIRMED,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::segment::split::{
@@ -6913,15 +6914,23 @@ fn a_split_moves_the_remembered_position_row_to_the_new_chapter() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// 🔴 STORY 5.11 — `read_reading_chapter` VÀ `core::segment::reading::paragraphs_in_translation`
+// 🔴 STORY 5.11/5.12 — `read_reading_run` VÀ `core::segment::reading::paragraphs_in_translation`
 // ═════════════════════════════════════════════════════════════════════════════════
-// Fixture chung cho cả nhóm: "一。二。\n三。四。\n五。" -- ba đoạn nguồn (2 câu, 2 câu,
+// 🔵 SỬA 2026-08-30 (Story 5.12) — khối này trước gọi `read_reading_chapter` (Story 5.11),
+// đọc một Chương ĐƠN bất kể `chapter.status`. Đường đó nay là `read_reading_run`, đọc một
+// LƯỢT ĐỌC chỉ gồm các Chương `Done` — mọi ca dưới đây SỬA TẠI CHỖ: mỗi fixture đặt Chương
+// đang đọc thành `Done` (`set_chapter_status`) trước khi gọi, và đọc `run.chapters[0]` thay
+// vì đọc thẳng một `ReadingChapter`. Khối ca MỚI (từ `a_continuous_run_stops_before_...`
+// trở xuống) phủ trọn §I/O Matrix của Story 5.12 — mốc biên, giá trị lạ, `is_confirmed`,
+// `segment_count`.
+//
+// Fixture chung cho nhóm gom đoạn: "一。二。\n三。四。\n五。" -- ba đoạn nguồn (2 câu, 2 câu,
 // 1 câu), tách bằng `。` ở tầng CÂU và bằng `\n` ở tầng ĐOẠN (`core::segment::split`). AC2
 // (Story 2.5d) đảm bảo cờ đích SOI GƯƠNG cờ nguồn lúc nhập, nên năm câu này ra khỏi
 // `create_work_from_text` với `is_target_paragraph_end` = `[false, true, false, true, false]`
-// -- đúng khuôn I/O Matrix của story ("câu 2 và 4 mang is_target_paragraph_end = 1").
+// -- đúng khuôn I/O Matrix của Story 5.11 ("câu 2 và 4 mang is_target_paragraph_end = 1").
 
-/// Ids theo đúng thứ tự `(ord, id)` -- cùng thứ tự mà `read_reading_chapter` phải giữ.
+/// Ids theo đúng thứ tự `(ord, id)` -- cùng thứ tự mà `read_reading_run` phải giữ.
 fn ordered_ids(open: &auratranslate_lib::commands::project::OpenWork) -> Vec<i64> {
     open.store
         .read(|conn| {
@@ -6943,9 +6952,47 @@ fn set_omitted(open: &auratranslate_lib::commands::project::OpenWork, ids: &[i64
     }
 }
 
-/// Rút gọn `paragraphs` về một dạng dễ so sánh: mỗi đoạn là danh sách các CHỈ SỐ (1-based,
-/// theo `ordered_ids`) của các câu còn sống trong nó -- vị trí thật của id, không giá trị
-/// `id` tuyệt đối (id là `AUTOINCREMENT`, khác nhau giữa các Tác phẩm).
+/// **THÊM Story 5.12.** Chương ĐANG MỞ chỉ đi vào dãy đọc khi nó `Done` — mọi fixture của
+/// nhóm gom đoạn (kế thừa từ Story 5.11) phải đặt trạng thái này TRƯỚC khi gọi
+/// `read_reading_run`. Đi qua `set_chapter_status` — đường DUY NHẤT ghi `chapter.status`
+/// (Code Map của story), không một `UPDATE` tay.
+fn make_done(open: &mut auratranslate_lib::commands::project::OpenWork, chapter_id: i64) {
+    set_chapter_status(Some(open), chapter_id, "done").expect("dat trang thai done that bai");
+}
+
+/// **THÊM Story 5.12.** Đặt `chapter.status` bằng SQL TRỰC TIẾP — dùng CHỈ cho ca "trạng
+/// thái lạ" (một giá trị ngoài bốn giá trị của `LifecycleStatus`): `set_chapter_status` từ
+/// chối một giá trị như vậy ở tầng Rust (§Always), nên không đường sản phẩm nào ghi được nó
+/// — đúng cách bộ ca của Story 5.4 đã dựng ca tương tự ("Ca hợp đồng dựng trạng thái đó bằng
+/// SQL trực tiếp").
+fn set_chapter_status_raw(open: &auratranslate_lib::commands::project::OpenWork, chapter_id: i64, status: &str) {
+    let status = status.to_owned();
+    open.store
+        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE chapter SET status = ?1 WHERE id = ?2", (status, chapter_id)))
+        .expect("dat status Chuong bang SQL truc tiep that bai");
+}
+
+/// **THÊM Story 5.12.** Đặt `segment.status` bằng SQL TRỰC TIẾP — chỉ dùng để dựng fixture
+/// "câu đã xác nhận"/"câu chưa xác nhận" mà không phải lo điều kiện `target_text` không rỗng
+/// của `confirm_segment` (AC13/AC14 của Story 2.7, không liên quan gì tới story này).
+fn set_segment_status_directly(open: &auratranslate_lib::commands::project::OpenWork, segment_id: i64, status: &str) {
+    let status = status.to_owned();
+    open.store
+        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE segment SET status = ?1 WHERE id = ?2", (status, segment_id)))
+        .expect("dat status segment truc tiep that bai");
+}
+
+/// **THÊM Story 5.12.** Xoá hẳn một hàng `chapter` bằng SQL TRỰC TIẾP — dựng ca "hàng Chương
+/// biến mất" của §I/O Matrix; không đường sản phẩm nào xoá Chương hôm nay.
+fn delete_chapter_row_directly(open: &auratranslate_lib::commands::project::OpenWork, chapter_id: i64) {
+    open.store
+        .write(move |tx: &Transaction<'_>| tx.execute("DELETE FROM chapter WHERE id = ?1", [chapter_id]))
+        .expect("xoa hang chapter truc tiep that bai");
+}
+
+/// Rút gọn `paragraphs` của MỘT `ReadingChapter` về một dạng dễ so sánh: mỗi đoạn là danh
+/// sách các CHỈ SỐ (1-based, theo `ordered_ids`) của các câu còn sống trong nó -- vị trí thật
+/// của id, không giá trị `id` tuyệt đối (id là `AUTOINCREMENT`, khác nhau giữa các Tác phẩm).
 fn paragraph_shapes(
     ids: &[i64],
     chapter: &auratranslate_lib::commands::segment::ReadingChapter,
@@ -6966,19 +7013,28 @@ fn paragraph_shapes(
 #[test]
 fn a_chapter_with_no_omissions_groups_into_paragraphs_by_the_target_flag() {
     let root = temp_dir("5-11-basic-grouping");
-    let opened = create_work_from_text(&root, "5.11 Co ban", "zh", "", "一。二。\n三。四。\n五。".to_owned())
+    let mut opened = create_work_from_text(&root, "5.11 Co ban", "zh", "", "一。二。\n三。四。\n五。".to_owned())
         .expect("tao tac pham that bai");
+    let chapter_id_to_mark_done = opened.chapter_id;
+    make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
     assert_eq!(ids.len(), 5, "fixture phai co dung nam cau");
 
-    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    assert_eq!(run.chapters.len(), 1, "mot Tac pham mot Chuong done ⇒ dung mot Chuong trong day");
+    let chapter = &run.chapters[0];
     assert_eq!(chapter.chapter_id, opened.chapter_id);
     assert_eq!(chapter.chapter_ord, 1, "Chuong duy nhat cua mot Tac pham moi tao mang ord = 1");
     assert_eq!(
-        paragraph_shapes(&ids, &chapter),
+        paragraph_shapes(&ids, chapter),
         vec![vec![1, 2], vec![3, 4], vec![5]],
         "ba doan phai cat dung theo co dich, khop I/O Matrix cua story"
+    );
+    assert_eq!(
+        run.frontier.kind,
+        ReadingFrontierKind::EndOfWork,
+        "mot Chuong duy nhat, da done ⇒ het Tac pham, khong Chuong nao chan"
     );
 
     let dir = opened.dir.clone();
@@ -6990,17 +7046,20 @@ fn a_chapter_with_no_omissions_groups_into_paragraphs_by_the_target_flag() {
 #[test]
 fn an_omitted_sentence_leaves_no_trace_in_the_reading_paragraphs() {
     let root = temp_dir("5-11-omitted-leaves-no-trace");
-    let opened = create_work_from_text(&root, "5.11 Cat bo", "zh", "", "一。二。\n三。四。\n五。".to_owned())
+    let mut opened = create_work_from_text(&root, "5.11 Cat bo", "zh", "", "一。二。\n三。四。\n五。".to_owned())
         .expect("tao tac pham that bai");
+    let chapter_id_to_mark_done = opened.chapter_id;
+    make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
     // Cau thu ba: giua doan hai, KHONG mang co ket doan -- cat bo no khong dung cham toi
     // ranh gioi doan nao ca.
     set_omitted(&opened, &[ids[2]]);
 
-    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    let chapter = &run.chapters[0];
     assert_eq!(
-        paragraph_shapes(&ids, &chapter),
+        paragraph_shapes(&ids, chapter),
         vec![vec![1, 2], vec![4], vec![5]],
         "cau 3 phai bien mat hoan toan, khong doan rong nao lot ra day"
     );
@@ -7021,16 +7080,19 @@ fn an_omitted_sentence_leaves_no_trace_in_the_reading_paragraphs() {
 #[test]
 fn a_paragraph_end_flag_on_an_omitted_sentence_still_closes_the_paragraph() {
     let root = temp_dir("5-11-flag-transfers-on-omission");
-    let opened = create_work_from_text(&root, "5.11 Co chuyen", "zh", "", "一。二。\n三。四。\n五。".to_owned())
+    let mut opened = create_work_from_text(&root, "5.11 Co chuyen", "zh", "", "一。二。\n三。四。\n五。".to_owned())
         .expect("tao tac pham that bai");
+    let chapter_id_to_mark_done = opened.chapter_id;
+    make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
     // Cau thu hai: mang co ket doan CUA CHINH NO (dong doan mot) -- cat bo no.
     set_omitted(&opened, &[ids[1]]);
 
-    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    let chapter = &run.chapters[0];
     assert_eq!(
-        paragraph_shapes(&ids, &chapter),
+        paragraph_shapes(&ids, chapter),
         vec![vec![1], vec![3, 4], vec![5]],
         "doan phai ket sau cau 1 -- co chuyen cho cau con song lien truoc, KHONG gop doan \
          mot va doan hai lam mot"
@@ -7045,16 +7107,19 @@ fn a_paragraph_end_flag_on_an_omitted_sentence_still_closes_the_paragraph() {
 #[test]
 fn an_entirely_omitted_paragraph_produces_no_empty_paragraph() {
     let root = temp_dir("5-11-whole-paragraph-omitted");
-    let opened = create_work_from_text(&root, "5.11 Ca doan", "zh", "", "一。二。\n三。四。\n五。".to_owned())
+    let mut opened = create_work_from_text(&root, "5.11 Ca doan", "zh", "", "一。二。\n三。四。\n五。".to_owned())
         .expect("tao tac pham that bai");
+    let chapter_id_to_mark_done = opened.chapter_id;
+    make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
     // Doan hai tron ven: cau ba VA cau bon.
     set_omitted(&opened, &[ids[2], ids[3]]);
 
-    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    let chapter = &run.chapters[0];
     assert_eq!(
-        paragraph_shapes(&ids, &chapter),
+        paragraph_shapes(&ids, chapter),
         vec![vec![1, 2], vec![5]],
         "doan giua phai bien mat TRON VEN -- khong mot doan rong nao dai dien cho no"
     );
@@ -7068,56 +7133,12 @@ fn an_entirely_omitted_paragraph_produces_no_empty_paragraph() {
     cleanup(&dir);
 }
 
-/// **Chương rỗng** ⇒ `paragraphs` rỗng, `chapter_id` vẫn đúng — không lỗi.
-#[test]
-fn an_empty_chapter_reads_as_zero_paragraphs_with_no_error() {
-    let root = temp_dir("5-11-empty-chapter");
-    let opened = create_work_from_text(&root, "5.11 Rong", "zh", "", "   \n  ".to_owned())
-        .expect("tao tac pham that bai");
-
-    let ids = ordered_ids(&opened);
-    assert!(ids.is_empty(), "fixture phai khong co segment nao");
-
-    let chapter = read_reading_chapter(Some(&opened)).expect("Chuong rong khong duoc la mot loi");
-    assert_eq!(chapter.chapter_id, opened.chapter_id);
-    assert!(chapter.paragraphs.is_empty(), "Chuong rong ⇒ paragraphs rong");
-
-    let dir = opened.dir.clone();
-    drop(opened);
-    cleanup(&dir);
-}
-
-/// **Mọi câu đều cắt bỏ** ⇒ `paragraphs` rỗng — và đây là một trạng thái KHÁC "Chương rỗng"
-/// ở tầng gọi được (bàn giao câu trạng thái khác nhau là việc của Vue; tầng này chỉ đảm bảo
-/// dữ liệu đủ để phân biệt: `paragraphs` rỗng nhưng phải có `id` segment trên dây ở một lệnh
-/// khác để phân biệt hai ca -- xem `readingState.ts` phía frontend).
-#[test]
-fn a_chapter_where_every_sentence_is_omitted_reads_as_zero_paragraphs() {
-    let root = temp_dir("5-11-all-omitted");
-    let opened = create_work_from_text(&root, "5.11 Het cat bo", "zh", "", "一。二。\n三。四。".to_owned())
-        .expect("tao tac pham that bai");
-
-    let ids = ordered_ids(&opened);
-    assert_eq!(ids.len(), 4, "fixture phai co dung bon cau");
-    set_omitted(&opened, &ids);
-
-    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
-    assert!(
-        chapter.paragraphs.is_empty(),
-        "moi cau da cat bo ⇒ paragraphs rong, dung khuon Chuong rong nhung tu MOT du kien khac"
-    );
-
-    let dir = opened.dir.clone();
-    drop(opened);
-    cleanup(&dir);
-}
-
 /// **Chưa mở Tác phẩm nào** ⇒ `err.work.none_open` — cùng khoá mà `read_open_chapter_segments`
 /// đã dùng, không một khoá thứ hai cho cùng một câu (§Design Notes của story: tái dùng
 /// `no_work_open()`).
 #[test]
-fn reading_a_chapter_without_an_open_work_fails_with_work_none_open() {
-    let err = read_reading_chapter(None).expect_err("khong Tac pham nao mo phai bi tu choi");
+fn reading_a_run_without_an_open_work_fails_with_work_none_open() {
+    let err = read_reading_run(None).expect_err("khong Tac pham nao mo phai bi tu choi");
     assert_eq!(err.code(), "work.none_open");
 }
 
@@ -7131,8 +7152,10 @@ fn reading_a_chapter_without_an_open_work_fails_with_work_none_open() {
 #[test]
 fn an_untranslated_sentence_stays_in_its_paragraph_with_an_empty_string() {
     let root = temp_dir("5-11-untranslated-stays");
-    let opened = create_work_from_text(&root, "5.11 Chua dich", "zh", "", "一。二。\n三。四。\n五。".to_owned())
+    let mut opened = create_work_from_text(&root, "5.11 Chua dich", "zh", "", "一。二。\n三。四。\n五。".to_owned())
         .expect("tao tac pham that bai");
+    let chapter_id_to_mark_done = opened.chapter_id;
+    make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
     // Dich cau 1 va cau 2, DE NGUYEN cau 3 chua dich (chuoi rong) trong cung doan voi cau 4.
@@ -7143,9 +7166,10 @@ fn an_untranslated_sentence_stays_in_its_paragraph_with_an_empty_string() {
     )
     .expect("ghi ban dich that bai");
 
-    let chapter = read_reading_chapter(Some(&opened)).expect("doc Chuong doc that bai");
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    let chapter = &run.chapters[0];
     assert_eq!(
-        paragraph_shapes(&ids, &chapter),
+        paragraph_shapes(&ids, chapter),
         vec![vec![1, 2], vec![3, 4], vec![5]],
         "cau chua dich KHONG duoc bien mat -- cau truc doan phai y het ca khong cat bo nao"
     );
@@ -7165,6 +7189,344 @@ fn an_untranslated_sentence_stays_in_its_paragraph_with_an_empty_string() {
         .find(|s| s.id == ids[3])
         .expect("cau 4 phai co mat tren day");
     assert_eq!(fourth.target_text, "Bon.", "cau da dich mang dung ban dich da ghi");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 5.12 — MỐC BIÊN (`ReadingFrontier`), GIÁ TRỊ LẠ, `is_confirmed`, `segment_count`
+// ═════════════════════════════════════════════════════════════════════════════════
+// Mỗi tên hàm dưới đây là MỘT hàng của §I/O & Edge-Case Matrix — xem tên hàng tương ứng
+// trong doc-comment kèm theo.
+
+/// §I/O Matrix "Đọc liên tục" — dãy BA Chương `done` liên tiếp, dừng TRƯỚC Chương thứ tư
+/// `in_progress`; `frontier.kind = "next-not-done"`, `frontier.chapter` nêu đích danh Chương
+/// thứ tư.
+///
+/// Dựng bốn Chương một-câu-mỗi-Chương bằng BA lượt `split_chapter_at_segment` liên tiếp,
+/// dời con trỏ `opened.chapter_id` sang nửa SAU sau mỗi lượt (`split_chapter_at_segment` GIỮ
+/// NGUYÊN con trỏ ở nửa TRƯỚC — xem doc-comment của nó — nên phải tự dời để lượt tách kế tiếp
+/// nhắm đúng Chương chứa segment cần cắt).
+#[test]
+fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
+    let root = temp_dir("5-12-continuous-run-stops-at-not-done");
+    let mut opened = create_work_from_text(&root, "5.12 Lien tuc", "zh", "", "一。\n二。\n三。\n四。".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_a = opened.chapter_id;
+
+    let ids = ordered_ids(&opened);
+    assert_eq!(ids.len(), 4, "fixture phai co dung bon cau, mot cau mot Chuong sau khi tach");
+
+    let (id2, id3, id4) = (ids[1], ids[2], ids[3]);
+
+    // Tach lan 1: A = [cau 1], moi = [cau 2, cau 3, cau 4].
+    split_chapter_at_segment(Some(&mut opened), id2).expect("tach lan 1 that bai");
+    let chapter_b: i64 = opened
+        .store
+        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [id2], |r| r.get(0)))
+        .expect("doc chapter_id cua cau 2 sau tach lan 1");
+    opened.chapter_id = chapter_b;
+
+    // Tach lan 2: B = [cau 2], moi = [cau 3, cau 4].
+    split_chapter_at_segment(Some(&mut opened), id3).expect("tach lan 2 that bai");
+    let chapter_c: i64 = opened
+        .store
+        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [id3], |r| r.get(0)))
+        .expect("doc chapter_id cua cau 3 sau tach lan 2");
+    opened.chapter_id = chapter_c;
+
+    // Tach lan 3: C = [cau 3], moi = [cau 4].
+    split_chapter_at_segment(Some(&mut opened), id4).expect("tach lan 3 that bai");
+    let chapter_d: i64 = opened
+        .store
+        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [id4], |r| r.get(0)))
+        .expect("doc chapter_id cua cau 4 sau tach lan 3");
+
+    make_done(&mut opened, chapter_a);
+    make_done(&mut opened, chapter_b);
+    make_done(&mut opened, chapter_c);
+    set_chapter_status(Some(&mut opened), chapter_d, "in_progress").expect("dat in_progress that bai");
+
+    opened.chapter_id = chapter_a;
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+
+    assert_eq!(run.chapters.len(), 3, "dung ba Chuong done duoc dua vao day");
+    assert_eq!(
+        run.chapters.iter().map(|c| c.chapter_id).collect::<Vec<_>>(),
+        vec![chapter_a, chapter_b, chapter_c],
+        "day phai theo dung thu tu (ord, id), bat dau TAI Chuong dang mo"
+    );
+    assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
+    let frontier_chapter = run.frontier.chapter.as_ref().expect("kind == NextNotDone ⇒ chapter phai Some");
+    assert_eq!(frontier_chapter.chapter_id, chapter_d, "moc bien phai neu dich danh Chuong thu tu");
+    assert_eq!(frontier_chapter.status, "in_progress");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Chạm biên ngay" — Chương đang mở CHƯA `done` ⇒ `chapters` rỗng, mốc biên trỏ
+/// vào CHÍNH Chương đang mở.
+#[test]
+fn opening_a_not_done_chapter_yields_an_empty_run_with_the_frontier_on_itself() {
+    let root = temp_dir("5-12-frontier-on-self");
+    let mut opened = create_work_from_text(&root, "5.12 Cham bien", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_id = opened.chapter_id;
+    set_chapter_status(Some(&mut opened), chapter_id, "in_progress").expect("dat in_progress that bai");
+
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    assert!(run.chapters.is_empty(), "Chuong dang mo chua done ⇒ khong Chuong nao vao day");
+    assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
+    let frontier_chapter = run.frontier.chapter.as_ref().expect("kind == NextNotDone ⇒ chapter phai Some");
+    assert_eq!(frontier_chapter.chapter_id, chapter_id, "moc bien phai tro vao CHINH Chuong dang mo");
+    assert_eq!(frontier_chapter.status, "in_progress");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Hết Tác phẩm" — mọi Chương từ Chương đang mở tới cuối đều `done` ⇒
+/// `frontier.kind = "end-of-work"`, `frontier.chapter = None`.
+#[test]
+fn every_remaining_chapter_being_done_yields_an_end_of_work_frontier() {
+    let root = temp_dir("5-12-end-of-work");
+    let mut opened = create_work_from_text(&root, "5.12 Het tac pham", "zh", "", "一。\n二。".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_a = opened.chapter_id;
+
+    let ids = ordered_ids(&opened);
+    split_chapter_at_segment(Some(&mut opened), ids[1]).expect("tach that bai");
+    let chapter_b: i64 = opened
+        .store
+        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [ids[1]], |r| r.get(0)))
+        .expect("doc chapter_id cua cau 2 sau tach");
+
+    make_done(&mut opened, chapter_a);
+    make_done(&mut opened, chapter_b);
+    opened.chapter_id = chapter_a;
+
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    assert_eq!(run.chapters.len(), 2, "ca hai Chuong done deu phai vao day");
+    assert_eq!(run.frontier.kind, ReadingFrontierKind::EndOfWork);
+    assert!(run.frontier.chapter.is_none(), "kind == EndOfWork ⇒ chapter phai None");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Trạng thái lạ" — Chương kế mang `status = "finished"` (ngoài bốn giá trị của
+/// `LifecycleStatus`) ⇒ dãy DỪNG TRƯỚC nó, và `frontier.chapter.status` mang NGUYÊN VĂN giá
+/// trị lạ đó — không đoán, không rơi vào một nhãn nào đó.
+#[test]
+fn an_unknown_status_value_blocks_the_run_and_travels_verbatim_on_the_frontier() {
+    let root = temp_dir("5-12-unknown-status");
+    let mut opened = create_work_from_text(&root, "5.12 Trang thai la", "zh", "", "一。\n二。".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_a = opened.chapter_id;
+    make_done(&mut opened, chapter_a);
+
+    let ids = ordered_ids(&opened);
+    split_chapter_at_segment(Some(&mut opened), ids[1]).expect("tach that bai");
+    let chapter_b: i64 = opened
+        .store
+        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [ids[1]], |r| r.get(0)))
+        .expect("doc chapter_id cua cau 2 sau tach");
+    // "finished" NGOAI bon gia tri cua LifecycleStatus -- set_chapter_status se tu choi no,
+    // nen day la ca DUY NHAT trong khoi nay phai dat status bang SQL truc tiep.
+    set_chapter_status_raw(&opened, chapter_b, "finished");
+    opened.chapter_id = chapter_a;
+
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    assert_eq!(run.chapters.len(), 1, "day phai dung truoc Chuong mang gia tri la");
+    assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
+    let frontier_chapter = run.frontier.chapter.as_ref().expect("kind == NextNotDone ⇒ chapter phai Some");
+    assert_eq!(frontier_chapter.chapter_id, chapter_b);
+    assert_eq!(
+        frontier_chapter.status, "finished",
+        "mot gia tri la phai di ra day NGUYEN VAN, khong duoc doan thanh mot trang thai da biet"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Câu chưa xác nhận" — Chương `done`, ba câu `draft` (chưa xác nhận) giữa các
+/// câu `confirmed` ⇒ đúng ba câu ấy mang `is_confirmed = false`, các câu còn lại
+/// `is_confirmed = true` — dấu hiệu đến từ CHÍNH `segment.status`, không một phép đoán.
+#[test]
+fn unconfirmed_sentences_in_a_done_chapter_carry_is_confirmed_false() {
+    let root = temp_dir("5-12-unconfirmed-sentences");
+    let mut opened = create_work_from_text(&root, "5.12 Chua xac nhan", "zh", "", "一。二。三。四。五。".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_id_to_mark_done = opened.chapter_id;
+    make_done(&mut opened, chapter_id_to_mark_done);
+
+    let ids = ordered_ids(&opened);
+    assert_eq!(ids.len(), 5, "fixture phai co dung nam cau");
+    // Cau 1, 3, 5 xac nhan; cau 2 va 4 (mac dinh 'draft' luc tao) giu nguyen CHUA xac nhan.
+    set_segment_status_directly(&opened, ids[0], SEGMENT_STATUS_CONFIRMED);
+    set_segment_status_directly(&opened, ids[2], SEGMENT_STATUS_CONFIRMED);
+    set_segment_status_directly(&opened, ids[4], SEGMENT_STATUS_CONFIRMED);
+
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    let all_segments: Vec<_> = run.chapters[0].paragraphs.iter().flat_map(|p| p.segments.iter()).collect();
+    assert_eq!(all_segments.len(), 5);
+    for segment in &all_segments {
+        let should_be_confirmed = segment.id == ids[0] || segment.id == ids[2] || segment.id == ids[4];
+        assert_eq!(
+            segment.is_confirmed, should_be_confirmed,
+            "segment id={} phai mang is_confirmed={should_be_confirmed}",
+            segment.id
+        );
+    }
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// **THÊM (lượt rà 2026-08-30, Bản vá 10)** — hai bộ lọc chạy trên CÙNG một dãy segment
+/// (`omit::segments_in_translation` cắt câu đã cắt bỏ; `is_confirmed` đánh dấu câu chưa ký)
+/// nhưng trước ca này chỉ được kiểm RỜI NHAU, mỗi ca một fixture riêng. Ca này trộn cả hai
+/// trong CÙNG một Chương `done`: câu đã cắt bỏ phải vắng mặt HOÀN TOÀN (đúng AC5/AC6 của
+/// Story 5.11), và trong số câu CÒN SỐNG, câu chưa ký phải mang `is_confirmed = false` ĐÚNG
+/// CHỖ của nó — không bị lệch vị trí bởi việc mấy câu kia đã biến mất.
+#[test]
+fn omitted_and_unconfirmed_sentences_coexist_correctly_in_the_same_done_chapter() {
+    let root = temp_dir("5-12-omitted-and-unconfirmed-mixed");
+    let mut opened = create_work_from_text(&root, "5.12 Tron", "zh", "", "一。二。三。四。五。".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_id_to_mark_done = opened.chapter_id;
+    make_done(&mut opened, chapter_id_to_mark_done);
+
+    let ids = ordered_ids(&opened);
+    assert_eq!(ids.len(), 5, "fixture phai co dung nam cau");
+    // Cau 2 va cau 4: cat bo. Cau 1: xac nhan. Cau 3 va cau 5: giu nguyen 'draft' mac dinh.
+    set_omitted(&opened, &[ids[1], ids[3]]);
+    set_segment_status_directly(&opened, ids[0], SEGMENT_STATUS_CONFIRMED);
+
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    let chapter = &run.chapters[0];
+    assert_eq!(chapter.segment_count, 5, "segment_count dem CA cau da cat bo");
+
+    let all_segments: Vec<_> = chapter.paragraphs.iter().flat_map(|p| p.segments.iter()).collect();
+    let surviving_ids: Vec<i64> = all_segments.iter().map(|s| s.id).collect();
+    assert_eq!(
+        surviving_ids,
+        vec![ids[0], ids[2], ids[4]],
+        "cau da cat bo (2 va 4) phai VANG MAT HOAN TOAN, con lai dung ba cau theo dung thu tu"
+    );
+
+    let by_id = |id: i64| all_segments.iter().find(|s| s.id == id).expect("segment con song phai co mat");
+    assert!(by_id(ids[0]).is_confirmed, "cau 1 da ky ⇒ is_confirmed = true");
+    assert!(!by_id(ids[2]).is_confirmed, "cau 3 van 'draft' ⇒ is_confirmed = false, DUNG CHO cua no");
+    assert!(!by_id(ids[4]).is_confirmed, "cau 5 van 'draft' ⇒ is_confirmed = false, DUNG CHO cua no");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Xong bằng tay" — Chương đặt `done` THỦ CÔNG trong khi còn ba câu `draft` ⇒
+/// hành vi Y HỆT ca trên: không đường mã nào phân biệt *"đã xong bằng tay"* với *"đã xong"*
+/// (không một cờ `manually_set` nào được đọc ở `read_reading_run`).
+#[test]
+fn manually_marking_a_chapter_done_behaves_identically_to_any_other_done_chapter() {
+    let root = temp_dir("5-12-manual-done");
+    let mut opened = create_work_from_text(&root, "5.12 Xong bang tay", "zh", "", "一。二。三。".to_owned())
+        .expect("tao tac pham that bai");
+
+    let ids = ordered_ids(&opened);
+    assert_eq!(ids.len(), 3, "fixture phai co dung ba cau, ca ba deu 'draft' mac dinh");
+
+    // Dat done THU CONG trong khi ca ba cau van 'draft' -- khong xac nhan cau nao truoc.
+    let chapter_id_to_mark_done = opened.chapter_id;
+    make_done(&mut opened, chapter_id_to_mark_done);
+
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    let all_segments: Vec<_> = run.chapters[0].paragraphs.iter().flat_map(|p| p.segments.iter()).collect();
+    assert_eq!(all_segments.len(), 3, "ca ba cau phai ra day -- 'done' khong xoa cau nao");
+    assert!(
+        all_segments.iter().all(|s| !s.is_confirmed),
+        "ca ba cau van 'draft' ⇒ ca ba mang is_confirmed = false, dung khuon ca tren"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Chương `done` rỗng" — Chương `done`, 0 segment còn sống ⇒ `paragraphs = []`
+/// VÀ `segment_count = 0`.
+#[test]
+fn a_done_chapter_with_no_segments_reads_as_zero_paragraphs_and_zero_segment_count() {
+    let root = temp_dir("5-12-empty-chapter");
+    let mut opened = create_work_from_text(&root, "5.12 Rong", "zh", "", "   \n  ".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_id_to_mark_done = opened.chapter_id;
+    make_done(&mut opened, chapter_id_to_mark_done);
+
+    let ids = ordered_ids(&opened);
+    assert!(ids.is_empty(), "fixture phai khong co segment nao");
+
+    let run = read_reading_run(Some(&opened)).expect("Chuong rong khong duoc la mot loi");
+    let chapter = &run.chapters[0];
+    assert_eq!(chapter.chapter_id, opened.chapter_id);
+    assert!(chapter.paragraphs.is_empty(), "Chuong rong ⇒ paragraphs rong");
+    assert_eq!(chapter.segment_count, 0, "Chuong rong ⇒ segment_count = 0");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Mọi câu cắt bỏ" — Chương `done`, mọi segment `is_omitted = 1` ⇒
+/// `paragraphs = []` NHƯNG `segment_count > 0` — đây là dữ kiện phân biệt hai ca "rỗng" khác
+/// nhau mà `readingState.ts` dùng, không một lệnh IPC phụ.
+#[test]
+fn a_chapter_where_every_sentence_is_omitted_reads_as_zero_paragraphs_but_positive_segment_count() {
+    let root = temp_dir("5-12-all-omitted");
+    let mut opened = create_work_from_text(&root, "5.12 Het cat bo", "zh", "", "一。二。\n三。四。".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_id_to_mark_done = opened.chapter_id;
+    make_done(&mut opened, chapter_id_to_mark_done);
+
+    let ids = ordered_ids(&opened);
+    assert_eq!(ids.len(), 4, "fixture phai co dung bon cau");
+    set_omitted(&opened, &ids);
+
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    let chapter = &run.chapters[0];
+    assert!(
+        chapter.paragraphs.is_empty(),
+        "moi cau da cat bo ⇒ paragraphs rong, dung khuon Chuong rong nhung tu MOT du kien khac"
+    );
+    assert_eq!(chapter.segment_count, 4, "segment_count dem CA cau da cat bo -- day la dau hieu phan biet voi Chuong that su rong");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Hàng Chương biến mất" — `OpenWork.chapter_id` không còn trong bảng `chapter`
+/// ⇒ `segment.chapter_not_found`, không một `store.read_failed` chung chung.
+#[test]
+fn a_vanished_open_chapter_row_fails_with_chapter_not_found() {
+    let root = temp_dir("5-12-vanished-chapter");
+    let opened = create_work_from_text(&root, "5.12 Bien mat", "zh", "", "一。".to_owned())
+        .expect("tao tac pham that bai");
+    let chapter_id = opened.chapter_id;
+    delete_chapter_row_directly(&opened, chapter_id);
+
+    let err = read_reading_run(Some(&opened)).expect_err("hang Chuong da bien mat phai bi tu choi");
+    assert_eq!(err.code(), "segment.chapter_not_found");
 
     let dir = opened.dir.clone();
     drop(opened);

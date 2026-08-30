@@ -806,35 +806,69 @@ fn the_library_search_wire_is_registered_and_keeps_its_parameter_names() {
     }
 }
 
-/// **THÊM Story 5.11.** Đóng băng tên trường `snake_case` của ba struct dây mới —
-/// `ReadingSegment`/`ReadingParagraph`/`ReadingChapter` — cùng lý lẽ và cùng khuôn
-/// [`library_search_wire_structs_keep_snake_case_field_names`] ở trên.
+/// **SỬA TẠI CHỖ Story 5.12** (trước: `reading_wire_structs_keep_snake_case_field_names`,
+/// Story 5.11). Đóng băng tên trường `snake_case` của NĂM struct dây — `ReadingSegment`
+/// (**thêm** `is_confirmed`) / `ReadingParagraph` / `ReadingChapter` (**thêm**
+/// `segment_count`) / `ReadingFrontierChapter` / `ReadingFrontier` — VÀ hai chuỗi biến thể
+/// của `ReadingFrontierKind` trên dây (`"next-not-done"` · `"end-of-work"`), cùng lý lẽ và
+/// cùng khuôn [`library_search_wire_structs_keep_snake_case_field_names`] ở trên.
 #[test]
 fn reading_wire_structs_keep_snake_case_field_names() {
-    let chapter = auratranslate_lib::commands::segment::ReadingChapter {
-        chapter_id: 1,
-        chapter_ord: 1,
-        chapter_title: Some("Chương Một".to_owned()),
-        paragraphs: vec![auratranslate_lib::commands::segment::ReadingParagraph {
-            segments: vec![auratranslate_lib::commands::segment::ReadingSegment {
-                id: 42,
-                source_text: "原文".to_owned(),
-                target_text: "Bản dịch".to_owned(),
+    let run = auratranslate_lib::commands::segment::ReadingRun {
+        chapters: vec![auratranslate_lib::commands::segment::ReadingChapter {
+            chapter_id: 1,
+            chapter_ord: 1,
+            chapter_title: Some("Chương Một".to_owned()),
+            paragraphs: vec![auratranslate_lib::commands::segment::ReadingParagraph {
+                segments: vec![auratranslate_lib::commands::segment::ReadingSegment {
+                    id: 42,
+                    source_text: "原文".to_owned(),
+                    target_text: "Bản dịch".to_owned(),
+                    is_confirmed: true,
+                }],
             }],
+            segment_count: 1,
         }],
+        frontier: auratranslate_lib::commands::segment::ReadingFrontier {
+            kind: auratranslate_lib::commands::segment::ReadingFrontierKind::NextNotDone,
+            chapter: Some(auratranslate_lib::commands::segment::ReadingFrontierChapter {
+                chapter_id: 2,
+                chapter_ord: 2,
+                chapter_title: None,
+                status: "in_progress".to_owned(),
+            }),
+        },
     };
-    let value = serde_json::to_value(&chapter).expect("ReadingChapter phải serialize được");
+    let value = serde_json::to_value(&run).expect("ReadingRun phải serialize được");
     let mut top_keys: Vec<&str> =
         value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
     top_keys.sort_unstable();
     assert_eq!(
         top_keys,
-        vec!["chapter_id", "chapter_ord", "chapter_title", "paragraphs"],
-        "khoá trên dây của ReadingChapter là snake_case. Nhận được: {top_keys:?}. Nghi phạm số \
-         một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+        vec!["chapters", "frontier"],
+        "khoá trên dây của ReadingRun là snake_case. Nhận được: {top_keys:?}."
     );
 
-    let paragraph_value = value
+    let chapter_value = value
+        .get("chapters")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())
+        .expect("chapters phải mang ít nhất một mục cho ca test này");
+    let mut chapter_keys: Vec<&str> = chapter_value
+        .as_object()
+        .expect("một mục chapters phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    chapter_keys.sort_unstable();
+    assert_eq!(
+        chapter_keys,
+        vec!["chapter_id", "chapter_ord", "chapter_title", "paragraphs", "segment_count"],
+        "khoá trên dây của ReadingChapter là snake_case. Nhận được: {chapter_keys:?}. Nghi phạm \
+         số một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+
+    let paragraph_value = chapter_value
         .get("paragraphs")
         .and_then(|v| v.as_array())
         .and_then(|a| a.first())
@@ -866,27 +900,87 @@ fn reading_wire_structs_keep_snake_case_field_names() {
     segment_keys.sort_unstable();
     assert_eq!(
         segment_keys,
-        vec!["id", "source_text", "target_text"],
+        vec!["id", "is_confirmed", "source_text", "target_text"],
         "khoá trên dây của ReadingSegment là snake_case. Nhận được: {segment_keys:?}. Nghi phạm \
          số một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
     );
+
+    let frontier_value = value.get("frontier").expect("frontier phải có mặt trên dây");
+    let mut frontier_keys: Vec<&str> = frontier_value
+        .as_object()
+        .expect("frontier phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    frontier_keys.sort_unstable();
+    assert_eq!(
+        frontier_keys,
+        vec!["chapter", "kind"],
+        "khoá trên dây của ReadingFrontier là snake_case. Nhận được: {frontier_keys:?}."
+    );
+    assert_eq!(
+        frontier_value.get("kind").and_then(|v| v.as_str()),
+        Some("next-not-done"),
+        "ReadingFrontierKind::NextNotDone phải serialize thành chuỗi \"next-not-done\" NGUYÊN \
+         VĂN — webview khớp đúng chuỗi này, không một biến thể nào khác."
+    );
+
+    let frontier_chapter_value =
+        frontier_value.get("chapter").expect("chapter phải có mặt khi kind == NextNotDone");
+    let mut frontier_chapter_keys: Vec<&str> = frontier_chapter_value
+        .as_object()
+        .expect("frontier.chapter phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    frontier_chapter_keys.sort_unstable();
+    assert_eq!(
+        frontier_chapter_keys,
+        vec!["chapter_id", "chapter_ord", "chapter_title", "status"],
+        "khoá trên dây của ReadingFrontierChapter là snake_case. Nhận được: \
+         {frontier_chapter_keys:?}."
+    );
+
+    // Biến thể còn lại của `ReadingFrontierKind` — chuỗi NGUYÊN VĂN cũng phải đóng băng,
+    // không chỉ biến thể đã kiểm ở trên.
+    let end_of_work = auratranslate_lib::commands::segment::ReadingFrontier {
+        kind: auratranslate_lib::commands::segment::ReadingFrontierKind::EndOfWork,
+        chapter: None,
+    };
+    let end_value = serde_json::to_value(&end_of_work).expect("ReadingFrontier phải serialize được");
+    assert_eq!(
+        end_value.get("kind").and_then(|v| v.as_str()),
+        Some("end-of-work"),
+        "ReadingFrontierKind::EndOfWork phải serialize thành chuỗi \"end-of-work\" NGUYÊN VĂN."
+    );
+    assert_eq!(
+        end_value.get("chapter"),
+        Some(&serde_json::Value::Null),
+        "chapter phải là null khi kind == EndOfWork."
+    );
 }
 
-/// **THÊM Story 5.11.** `read_reading_chapter` phải CÓ MẶT trong `generate_handler![…]` —
-/// cùng lý lẽ và cùng khuôn
+/// **SỬA TẠI CHỖ Story 5.12** (trước: `the_read_reading_chapter_wire_is_registered`, Story
+/// 5.11). `read_reading_run` phải CÓ MẶT trong `generate_handler![…]`, và tên CŨ
+/// `read_reading_chapter` không còn — cùng lý lẽ và cùng khuôn
 /// [`the_library_search_wire_is_registered_and_keeps_its_parameter_names`] ở trên.
 /// ⚠️ Không tham số nào đi trên dây (cùng khuôn `read_open_chapter_segments`), nên không
 /// có vế "giữ nguyên tên tham số" để nghiệm thu ở đây.
 #[test]
-fn the_read_reading_chapter_wire_is_registered() {
+fn the_read_reading_run_wire_is_registered() {
     let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
     assert!(
-        lib_src.contains("crate::commands::segment::wire::read_reading_chapter"),
-        "`crate::commands::segment::wire::read_reading_chapter` phai co mat trong \
+        lib_src.contains("crate::commands::segment::wire::read_reading_run"),
+        "`crate::commands::segment::wire::read_reading_run` phai co mat trong \
          generate_handler! cua lib.rs. Thieu no thi invoke() tra \"command not found\" va \
          KHONG cong nao do."
+    );
+    assert!(
+        !lib_src.contains("crate::commands::segment::wire::read_reading_chapter"),
+        "ten CU `read_reading_chapter` khong duoc con lai trong generate_handler! -- hai lenh \
+         doc cung mot be mat Che do doc la hai nguon su that."
     );
 }

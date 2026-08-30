@@ -261,6 +261,7 @@ import {
   closeTableOfContents,
   nextTocChapter,
   openCurrentTocChapter,
+  openFrontierInWorkspace,
   openTableOfContents,
   prevTocChapter,
   toggleBilingual,
@@ -450,6 +451,10 @@ async function boot(): Promise<void> {
       prevReadingTocChapter: prevTocChapter,
       openCurrentReadingTocChapter: () => {
         void openCurrentTocChapter()
+      },
+      // Story 5.12 — "Che do doc chi doc phan da xong" (FR120).
+      continueFromReadingFrontier: () => {
+        void openFrontierInWorkspace()
       },
       setOpenWorkOverridePaused: setOpenWorkOverride,
       clearOpenWorkOverride,

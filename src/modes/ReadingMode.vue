@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // Chế độ 3/3 — đọc lại bản dịch đã hoàn thành, không có công cụ biên tập. Story 1.6 ·
-// AC3 · AC4. Story 5.11 đổ chữ THẬT vào đây: typography ba mức, song ngữ, mục lục.
+// AC3 · AC4. Story 5.11 đổ chữ THẬT vào đây: typography ba mức, song ngữ, mục lục. Story
+// 5.12 đổi bề mặt từ MỘT Chương thành MỘT LƯỢT ĐỌC (`ReadingRun`, FR120): chỉ Chương
+// `Done` mới ra trang, và cuối trang luôn có một mốc biên nói vì sao dãy dừng ở đó.
 //
 // 🔵 SỬA (2026-08-30, Story 5.11) — khối chú thích cũ tự khai "KHUNG RỖNG có chủ ý" và
 // cảnh báo "body chạy ở ui-md, giãn dòng 1.5 — dưới sàn 1.66, không phép kiểm nào canh
@@ -12,12 +14,14 @@
 // không nút xác nhận, không panel, không `contenteditable`, không lưới hai cột. Chỉ
 // bản dịch — song ngữ (nếu bật) hiện nguyên văn ở LỀ, không chen vào dòng đọc.
 //
-// 🔴 Cắt bỏ VÀ cấu trúc đoạn đều đến từ Rust (`read_reading_chapter`) — không một
-// `v-if="!s.is_omitted"` nào ở đây, vì không CÓ `is_omitted` để mà lọc: chốt lọc đã chạy
-// xong trước khi dữ liệu này rời `project.db` (AD-1, xem `core/segment/reading.rs`).
+// 🔴 Cắt bỏ, cấu trúc đoạn, VÀ chọn Chương nào được đọc đều đến từ Rust
+// (`read_reading_run`) — không một `v-if="!s.is_omitted"` nào ở đây (không CÓ `is_omitted`
+// để mà lọc), và không một đường nào ở tệp này hỏi `chapter.status` để quyết định hiển thị
+// hay không (§Always của Story 5.12): trang chỉ render thứ Rust ĐÃ gửi.
 import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
+import type { DeepReadonly } from 'vue'
 import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
-import { t, tError } from '../i18n'
+import { hasMessageKey, t, tError } from '../i18n'
 import { currentTheme } from '../tokens/themeState'
 import {
   currentReadingLevel,
@@ -26,7 +30,7 @@ import {
   ensureReadingLoaded,
   READING_LINE_HEIGHT_FLOOR,
   readingBilingual,
-  readingChapter,
+  readingRun,
   readingLoadError,
   readingStatusKind,
   readingStyle,
@@ -40,6 +44,7 @@ import {
   setFontSize,
   setLineHeight,
 } from './readingState'
+import type { ReadingChapter, ReadingFrontierChapter } from '../config/reading'
 
 const root = useTemplateRef<HTMLElement>('root')
 const tocPanel = useTemplateRef<HTMLElement>('tocPanel')
@@ -84,6 +89,9 @@ onActivated(() => {
  * ternary dài: mỗi nhánh gọi ĐÚNG MỘT `t()`/`tError()`, không một biểu thức trộn — cùng
  * khuôn mà `check:i18n` Kiểm A2 đòi (xem `<!-- aura-allow-text -->` ngay dưới template,
  * vì bản thân biến này không "bắt đầu bằng `t(`" ở góc nhìn tĩnh của cổng).
+ *
+ * 🔵 SỬA TẠI CHỖ (2026-08-30, Story 5.12) — bốn nhánh cuối đổi hẳn theo hình dạng
+ * `ReadingRun`: không còn `'empty-chapter'`/`'empty-unknown'` của một Chương đơn.
  */
 const statusMessage = computed(() => {
   switch (readingStatusKind.value) {
@@ -96,14 +104,12 @@ const statusMessage = computed(() => {
       return t('mode.reading.status_no_work')
     case 'error':
       return readingLoadError.value === null ? '' : tError(readingLoadError.value)
-    case 'empty-chapter':
-      return t('mode.reading.status_empty')
+    case 'frontier-only':
+      return t('mode.reading.status_frontier_only')
     case 'all-omitted':
       return t('mode.reading.status_all_omitted')
-    // 🔵 THÊM (rà 2026-08-30) — nhánh thứ TÁM. Trang rỗng mà lượt đo "vì sao rỗng" vừa
-    // TRƯỢT: câu này nói ra đúng chừng đó, không khẳng định hộ một trong hai ca kia.
-    case 'empty-unknown':
-      return t('mode.reading.status_empty_unknown')
+    case 'empty-chapters':
+      return t('mode.reading.status_empty_chapters')
   }
 })
 
@@ -125,6 +131,86 @@ function onLineHeightInput(event: Event): void {
 function untitled(ord: number): string {
   return t('mode.reading.chapter_untitled', { ord: String(ord) })
 }
+
+/** Nhãn hiển thị của một Chương — tên thật nếu có, ngược lại nhãn "Chương {ord}". */
+function chapterLabel(chapter: { chapter_ord: number; chapter_title: string | null }): string {
+  return chapter.chapter_title ?? untitled(chapter.chapter_ord)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 5.12 — MỐC BIÊN (`.frontier`)
+// ═════════════════════════════════════════════════════════════════════════════════
+// Bốn `computed` dưới đây dựng câu chữ của khối `.frontier` — mỗi cái đúng MỘT `t()`,
+// cùng kỷ luật `statusMessage`. Tham số mang DỮ LIỆU (tên Chương, nhãn trạng thái đã tra),
+// không mang CÂU — định dạng câu là việc của khoá `vi.json`, không việc của đây.
+
+/**
+ * Nhãn trạng thái cho mốc biên — `chapter.status` NGOÀI bốn giá trị `LifecycleStatus`
+ * (§I/O Matrix "Trạng thái lạ") hiện NGUYÊN VĂN, không tra nhãn.
+ *
+ * 🔵 SỬA (rà 2026-08-30, Bản vá 7) — bản trước chép tay bốn giá trị vào một `Set` RIÊNG,
+ * bản chép THỨ BA của cùng bốn giá trị mà `LifecycleStatus`/`vi.json` đã khai — không cổng
+ * nào nối nó với hai đầu kia. Nay hỏi THẲNG `vi.json` qua [`hasMessageKey`], đóng đúng mắt
+ * xích còn thiếu (xem doc-comment của hàm đó) thay vì một bản chép thứ tư.
+ */
+function frontierStatusLabel(status: string): string {
+  const key = `lifecycle.${status}`
+  return hasMessageKey(key) ? t(key) : status
+}
+
+/**
+ * Câu nói dãy vừa đọc từ Chương nào tới Chương nào — hoặc dãy rỗng (AC5).
+ *
+ * 🔵 SỬA (rà 2026-08-30, Bản vá 6) — dãy ĐÚNG MỘT Chương (ca THƯỜNG NHẤT hôm nay: chưa
+ * đường sản phẩm nào tạo Chương thứ hai ngoài `split_chapter_at_segment`) đi qua một khoá
+ * RIÊNG (`frontier_range_single`) thay vì `frontier_range` — bản trước cho "từ Chương 1 đến
+ * Chương 1" khi `first === last`, một câu đúng nghĩa đen nhưng đọc như lỗi lặp từ.
+ */
+const frontierRangeText = computed(() => {
+  const run = readingRun.value
+  if (run === null) return ''
+  const first = run.chapters.at(0)
+  const last = run.chapters.at(-1)
+  if (first === undefined || last === undefined) return t('mode.reading.frontier_range_empty')
+  if (run.chapters.length === 1) return t('mode.reading.frontier_range_single', { ten: chapterLabel(first) })
+  return t('mode.reading.frontier_range', { tu: chapterLabel(first), den: chapterLabel(last) })
+})
+
+/** Câu nói Chương nào chặn kèm nhãn trạng thái — chỉ có nghĩa khi `kind === 'next-not-done'`. */
+const frontierBlockedText = computed(() => {
+  const frontier = readingRun.value?.frontier
+  if (frontier === undefined || frontier.kind !== 'next-not-done') return ''
+  const blocked: DeepReadonly<ReadingFrontierChapter> | null = frontier.chapter
+  if (blocked === null) return ''
+  return t('mode.reading.frontier_blocked', {
+    title: chapterLabel(blocked),
+    status_label: frontierStatusLabel(blocked.status),
+  })
+})
+
+/** Câu nói hết Tác phẩm — chỉ có nghĩa khi `kind === 'end-of-work'`. */
+const frontierEndOfWorkText = computed(() => {
+  const frontier = readingRun.value?.frontier
+  return frontier !== undefined && frontier.kind === 'end-of-work' ? t('mode.reading.frontier_end_of_work') : ''
+})
+
+/** Chữ trên nút *Dịch tiếp Chương N* — chỉ có nghĩa khi `kind === 'next-not-done'`. */
+const frontierButtonText = computed(() => {
+  const chapter = readingRun.value?.frontier.chapter
+  return chapter === null || chapter === undefined ? '' : t('mode.reading.frontier_button', { ord: String(chapter.chapter_ord) })
+})
+
+/** Vì sao MỘT Chương của dãy không hiện câu nào — Chương rỗng, hoặc mọi câu đã cắt bỏ. */
+function chapterEmptyNote(chapter: DeepReadonly<ReadingChapter>): string {
+  return chapter.segment_count > 0 ? t('mode.reading.chapter_all_omitted') : t('mode.reading.chapter_empty')
+}
+
+/**
+ * Chương của dãy đọc, hay một mảng RỖNG khi chưa nạp — tránh phối `v-if`/`v-for` trên
+ * CÙNG một `<template>` (Vue 3 cảnh báo cách đó, và giá trị `null` sẽ ném ngay khi
+ * `v-for` cố đọc `.chapters` của nó).
+ */
+const runChapters = computed<DeepReadonly<ReadingChapter>[]>(() => [...(readingRun.value?.chapters ?? [])])
 </script>
 
 <template>
@@ -218,65 +304,116 @@ function untitled(ord: number): string {
 
     <!-- role="status" LUÔN có mặt, không v-if trên chính node -- TÁM nhánh phân biệt
          được qua `data-reading-status`, không chỉ qua chữ hiển thị.
-         🔵 SỬA (rà 2026-08-30) — BẢY thành TÁM: `empty-unknown` tách khỏi `empty-chapter`,
+         🔵 SỬA TẠI CHỖ (2026-08-30, Story 5.12) — bốn nhánh cuối đổi tên theo `ReadingRun`,
          xem `readingStatusKind` ở `readingState.ts`. -->
     <!-- aura-allow-text: `statusMessage` là một computed đã tự đi qua t()/tError() bên
          trong phần kịch bản phía trên -- xem doc-comment của nó ngay trên. -->
     <p class="status" role="status" :data-reading-status="readingStatusKind">{{ statusMessage }}</p>
 
-    <div v-if="readingChapter !== null && readingChapter.paragraphs.length > 0" class="page">
-      <!--
-        🔵 SỬA (rà 2026-08-30) — GỠ `aria-hidden="true"`. Nguyên văn là NỘI DUNG người dùng
-        bật lên có chủ ý (`B`), không một hoạ tiết trang trí; ẩn nó khỏi trình đọc màn hình là
-        dựng đúng một cột chữ mà người dùng bàn phím/AT không với tới được — ngược NFR17.
-        🔵 SỬA cùng lượt — ngăn câu bằng MỘT DẤU CÁCH, không `join('')`: hai câu dán liền nhau
-        là một lỗi đọc thật. ⚠️ Dấu cách hơi thừa với nguyên văn tiếng Trung (`。` đã tự chở
-        khoảng nghỉ), và ta KHÔNG rẽ nhánh theo ngôn ngữ ở đây vì `ReadingChapter` không chở
-        `source_lang` trên dây — món nợ có chủ ở `deferred-work.md`, không một phép đoán tại chỗ.
-      -->
-      <div v-if="readingBilingual" class="margin">
-        <!-- aura-allow-text: nguyên văn là DỮ LIỆU của Tác phẩm, không câu giao diện. -->
-        <p v-for="(paragraph, index) in readingChapter.paragraphs" :key="index" class="source-note">
-          {{ paragraph.segments.map((s) => s.source_text).join(' ') }}
-        </p>
-      </div>
-      <!--
-        🔴 `font-size`/`line-height` KHÔNG đi thẳng vào `:style` — `check:tokens` Kiểm B2 đòi
-        hai thuộc tính đó luôn là `var(--font-…)`/`var(--leading-…)` LITERAL trong khối kiểu
-        scoped bên dưới. Giá trị HIỆU LỰC (token thuần, hoặc override từ thanh trượt) đi qua
-        HAI biến CSS riêng (`--reading-font-size`/`--reading-line-height`, không nằm trong
-        danh sách thuộc tính Kiểm B2 canh) rồi khối kiểu đó đọc lại bằng `var(...)`.
-        🔵 SỬA (rà 2026-08-30) — câu cũ nói `max-width` đi thẳng. Thước nay là `width` (xem khối
-        🔵 của `readingStyle`); `width` cũng không nằm trong danh sách Kiểm B2 canh, nên nó vẫn
-        đi thẳng, và giá trị vẫn LUÔN là token `ch`.
-      -->
-      <div
-        class="column"
-        :style="{
-          '--reading-font-size': readingStyle.fontSize,
-          '--reading-line-height': readingStyle.lineHeight,
-          width: readingStyle.measure,
-        }"
+    <!--
+      🔴 THÊM (Story 5.12) — vòng lặp CHƯƠNG bọc ngoài khối `.page`: mỗi Chương của
+      `readingRun.chapters` (đã lọc `Done` ở Rust) sinh MỘT `.page` (lề song ngữ + cột dịch)
+      của riêng nó. Dãy rỗng (§I/O Matrix "Chạm biên ngay") ⇒ không `.page` nào render, chỉ
+      `.frontier` bên dưới còn lại trên trang.
+    -->
+    <!--
+      🔵 SỬA (rà 2026-08-30, Bản vá 4) — `<section>`, không `<div>`, và tiêu đề Chương hạ
+      xuống `<h2>` (xem template bên trong). Bản trước mỗi Chương một `<h1>` ngang hàng, nên
+      một dãy bốn Chương cho ra BỐN `<h1>` rồi một `<h2>` (mốc biên) treo dưới cái CUỐI cùng
+      — cây tiêu đề nói sai cấu trúc trang cho trình đọc màn hình. `<section>` là nội dung
+      PHÂN ĐOẠN có tên (qua `<h2>` bên trong nó, theo thuật toán outline HTML), và mốc biên
+      giữ `<h2>` NGANG HÀNG — đúng thứ tự đọc tuyến tính "Chương 1, Chương 2, …, Mốc biên".
+    -->
+    <template v-for="chapter in runChapters" :key="chapter.chapter_id">
+      <section class="page">
+        <!--
+          🔵 SỬA (rà 2026-08-30) — GỠ `aria-hidden="true"`. Nguyên văn là NỘI DUNG người dùng
+          bật lên có chủ ý (`B`), không một hoạ tiết trang trí; ẩn nó khỏi trình đọc màn hình là
+          dựng đúng một cột chữ mà người dùng bàn phím/AT không với tới được — ngược NFR17.
+          🔵 SỬA cùng lượt — ngăn câu bằng MỘT DẤU CÁCH, không `join('')`: hai câu dán liền nhau
+          là một lỗi đọc thật. ⚠️ Dấu cách hơi thừa với nguyên văn tiếng Trung (`。` đã tự chở
+          khoảng nghỉ), và ta KHÔNG rẽ nhánh theo ngôn ngữ ở đây vì `ReadingChapter` không chở
+          `source_lang` trên dây — món nợ có chủ ở `deferred-work.md`, không một phép đoán tại chỗ.
+        -->
+        <div v-if="readingBilingual" class="margin">
+          <!-- aura-allow-text: nguyên văn là DỮ LIỆU của Tác phẩm, không câu giao diện. -->
+          <p v-for="(paragraph, index) in chapter.paragraphs" :key="index" class="source-note">
+            {{ paragraph.segments.map((s) => s.source_text).join(' ') }}
+          </p>
+        </div>
+        <!--
+          🔴 `font-size`/`line-height` KHÔNG đi thẳng vào `:style` — `check:tokens` Kiểm B2 đòi
+          hai thuộc tính đó luôn là `var(--font-…)`/`var(--leading-…)` LITERAL trong khối kiểu
+          scoped bên dưới. Giá trị HIỆU LỰC (token thuần, hoặc override từ thanh trượt) đi qua
+          HAI biến CSS riêng (`--reading-font-size`/`--reading-line-height`, không nằm trong
+          danh sách thuộc tính Kiểm B2 canh) rồi khối kiểu đó đọc lại bằng `var(...)`.
+          🔵 SỬA (rà 2026-08-30) — câu cũ nói `max-width` đi thẳng. Thước nay là `width` (xem khối
+          🔵 của `readingStyle`); `width` cũng không nằm trong danh sách Kiểm B2 canh, nên nó vẫn
+          đi thẳng, và giá trị vẫn LUÔN là token `ch`.
+        -->
+        <div
+          class="column"
+          :style="{
+            '--reading-font-size': readingStyle.fontSize,
+            '--reading-line-height': readingStyle.lineHeight,
+            width: readingStyle.measure,
+          }"
+        >
+          <!-- aura-allow-text: `chapterLabel()` trả tên Chương (dữ liệu) hoặc gọi `untitled()`
+               (qua t()) cho hàng chưa đặt tên -- không một biểu thức trộn nào lộ ra template. -->
+          <h2 class="chapter-title">{{ chapterLabel(chapter) }}</h2>
+          <template v-if="chapter.paragraphs.length > 0">
+            <p v-for="(paragraph, index) in chapter.paragraphs" :key="index" class="paragraph">
+              <!--
+                aura-allow-text: bản dịch là DỮ LIỆU của Tác phẩm, không câu giao diện.
+                🔴 **DẤU CÁCH GIỮA HAI CÂU LÀ MỘT NỘI DUNG, KHÔNG MỘT KHOẢNG TRẮNG THỪA** — bắt ở
+                lượt rà 2026-08-30. Bản đầu viết hai `<span>` liền nhau không gì ngăn, nên một đoạn
+                hai câu render thành *"…giữa bóng tối.Gió thổi tới…"*. Bản dựng UX
+                (`mockups/reading-mode.html`) không dính vì HTML nguồn của nó XUỐNG DÒNG giữa hai
+                `<span>` và khoảng trắng ấy co lại thành một dấu cách; một `v-for` trên một dòng thì
+                không có gì để co. Bàn đo e2e dùng `toContain` nên mù với chỗ này.
+                ⚠️ Dấu cách đặt Ở ĐẦU mọi câu TRỪ câu đầu — đặt ở CUỐI sẽ để lại một khoảng trắng
+                lơ lửng sau câu chót của mỗi đoạn.
+                🔴 THÊM (Story 5.12, AC6) — `:class="{ unconfirmed: !segment.is_confirmed }"`: câu
+                CHƯA xác nhận mang gạch chấm nhẹ, dấu hiệu đến từ `is_confirmed` trên dây.
+              -->
+              <span
+                v-for="(segment, i) in paragraph.segments"
+                :key="segment.id"
+                :class="{ unconfirmed: !segment.is_confirmed }"
+                >{{ i === 0 ? '' : ' ' }}{{ segment.target_text }}</span
+              >
+            </p>
+          </template>
+          <!-- aura-allow-text: `chapterEmptyNote()` tự đi qua t() bên trong. -->
+          <p v-else class="chapter-note">{{ chapterEmptyNote(chapter) }}</p>
+        </div>
+      </section>
+    </template>
+
+    <!--
+      🔴 THÊM (Story 5.12) — MỐC BIÊN, luôn có mặt khi một lượt đọc đã nạp (kể cả dãy rỗng):
+      nó là lý do trang dừng ở đó, không phải một phần thưởng chỉ hiện khi có nội dung.
+    -->
+    <div v-if="readingRun !== null" class="frontier">
+      <h2 class="frontier-heading">{{ t('mode.reading.frontier_heading') }}</h2>
+      <!-- aura-allow-text: `frontierRangeText` là một computed đã tự đi qua t() bên trong
+           phần kịch bản phía trên -- xem doc-comment của nó ngay trên. -->
+      <p class="frontier-range">{{ frontierRangeText }}</p>
+      <!-- aura-allow-text: `frontierBlockedText` tự đi qua t() bên trong. -->
+      <p v-if="readingRun.frontier.kind === 'next-not-done'" class="frontier-note" data-reading-frontier-kind="next-not-done">{{ frontierBlockedText }}</p>
+      <!-- aura-allow-text: `frontierEndOfWorkText` tự đi qua t() bên trong. -->
+      <p v-else class="frontier-note" data-reading-frontier-kind="end-of-work">{{ frontierEndOfWorkText }}</p>
+      <button
+        v-if="readingRun.frontier.kind === 'next-not-done'"
+        type="button"
+        class="btn"
+        data-reading-frontier-continue
+        @click="dispatch('reading.continue_in_workspace')"
       >
-        <!-- aura-allow-text: nhánh trái là tên Chương (dữ liệu); nhánh phải qua t(). -->
-        <h1 class="chapter-title">{{ readingChapter.chapter_title ?? untitled(readingChapter.chapter_ord) }}</h1>
-        <p v-for="(paragraph, index) in readingChapter.paragraphs" :key="index" class="paragraph">
-          <!--
-            aura-allow-text: bản dịch là DỮ LIỆU của Tác phẩm, không câu giao diện.
-            🔴 **DẤU CÁCH GIỮA HAI CÂU LÀ MỘT NỘI DUNG, KHÔNG MỘT KHOẢNG TRẮNG THỪA** — bắt ở
-            lượt rà 2026-08-30. Bản đầu viết hai `<span>` liền nhau không gì ngăn, nên một đoạn
-            hai câu render thành *"…giữa bóng tối.Gió thổi tới…"*. Bản dựng UX
-            (`mockups/reading-mode.html`) không dính vì HTML nguồn của nó XUỐNG DÒNG giữa hai
-            `<span>` và khoảng trắng ấy co lại thành một dấu cách; một `v-for` trên một dòng thì
-            không có gì để co. Bàn đo e2e dùng `toContain` nên mù với chỗ này.
-            ⚠️ Dấu cách đặt Ở ĐẦU mọi câu TRỪ câu đầu — đặt ở CUỐI sẽ để lại một khoảng trắng
-            lơ lửng sau câu chót của mỗi đoạn.
-          -->
-          <span v-for="(segment, i) in paragraph.segments" :key="segment.id"
-            >{{ i === 0 ? '' : ' ' }}{{ segment.target_text }}</span
-          >
-        </p>
-      </div>
+        <!-- aura-allow-text: `frontierButtonText` tự đi qua t() bên trong. -->
+        {{ frontierButtonText }}
+      </button>
     </div>
 
     <!--
@@ -437,6 +574,49 @@ function untitled(ord: number): string {
 
 .paragraph {
   margin: 0 0 1em 0;
+}
+
+/* Câu CHƯA xác nhận (Story 5.12, AC6) — gạch chấm nhẹ dưới chân, không đổi màu chữ và
+   không `opacity` (Kiểm D cấm opacity lùi chữ). `ornament` là token vai `stroke` ĐÃ CÓ,
+   đúng giá trị `--orn` mà mockup dùng cho `.s.unconf` -- 0 cặp tương phản mới. */
+.unconfirmed {
+  border-bottom: 1px dotted var(--color-ornament);
+}
+
+.chapter-note {
+  margin: 0 0 var(--space-panel-block) 0;
+  color: var(--color-on-surface-variant);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  font-family: var(--face-ui-md);
+}
+
+/* Mốc biên (Story 5.12) — chỉ token đã có: vạch ngăn dùng `--color-outline`, chữ phụ dùng
+   `--color-on-surface-variant`. Không `box-shadow`, không gradient, không `opacity` lùi chữ. */
+.frontier {
+  margin-top: var(--space-panel-block);
+  padding-top: var(--space-panel-block);
+  border-top: 1px solid var(--color-outline);
+}
+
+.frontier-heading {
+  margin: 0 0 var(--space-panel-block) 0;
+  font-size: var(--font-ui-md-strong);
+  line-height: var(--leading-ui-md-strong);
+  font-weight: var(--weight-ui-md-strong);
+  font-family: var(--face-ui-md-strong);
+}
+
+/* 🔵 SỬA (rà 2026-08-30, Bản vá 9) — `.frontier-blocked` đổi tên `.frontier-note`: lớp đó
+   dùng cho CẢ HAI nhánh (`next-not-done` VÀ `end-of-work`), và "blocked" nói sai một nửa số
+   ca -- nhánh `end-of-work` không hề bị chặn, nó báo tin đã đọc hết. */
+.frontier-range,
+.frontier-note {
+  margin: 0 0 var(--space-panel-inline) 0;
+  color: var(--color-on-surface-variant);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  font-family: var(--face-ui-md);
 }
 
 .toc-overlay {

@@ -1,6 +1,6 @@
 /**
- * State của Chế độ đọc — Story 5.11, FR11. Ba nhóm, một tệp: nội dung Chương đang đọc,
- * mục lục, và ba tuỳ chọn typography.
+ * State của Chế độ đọc — Story 5.11, FR11 · Story 5.12, FR120. Ba nhóm, một tệp: nội dung
+ * lượt đọc, mục lục, và ba tuỳ chọn typography.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔴 VÌ SAO STATE SỐNG Ở ĐÂY, KHÔNG TRONG `ReadingMode.vue`
@@ -12,83 +12,89 @@
  * `installCommands()` từ `src/main.ts`, đúng cửa mọi state module khác đã đi qua.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * ⚠️ VÌ SAO "CHƯƠNG RỖNG" VÀ "MỌI CÂU ĐÃ CẮT BỎ" LÀ HAI TRẠNG THÁI PHẢI PHÂN BIỆT ĐƯỢC
+ * 🔵 SỬA 2026-08-30 (Story 5.12) — mệnh đề cũ ở đây hết đúng, xoá luôn nguyên nhân
  * ─────────────────────────────────────────────────────────────────────────────
- * `ReadingChapter.paragraphs` RỖNG trong CẢ HAI trường hợp (Rust không mang thêm một
- * trường đếm segment — hình dạng dây đã CHỐT ở bốn trường, xem `commands/segment.rs`).
- * AC cuối của story đòi hai câu trạng thái KHÁC NHAU cho hai ca đó. Không có tín hiệu nào
- * khác trong chính `ReadingChapter`, nên `ensureReadingLoaded()` gọi THÊM `listChapters()`
- * (đã có sẵn cho mục lục, Story 5.7) — NHƯNG chỉ khi `paragraphs` rỗng, để không trả thêm
- * một vòng IPC cho ca thường nhất (Chương có nội dung). `ChapterRow.segment_count` đếm mọi
- * hàng CÒN SỐNG bất kể cắt bỏ hay chưa (`commands/chapter.rs::fetch_chapter_rows`), nên
- * `segment_count > 0` cùng với `paragraphs = []` chỉ có thể nghĩa là "mọi câu đã cắt bỏ".
+ * Bản trước (Story 5.11) khai *"`ReadingChapter.paragraphs` rỗng trong CẢ HAI trường hợp
+ * — Chương rỗng và mọi câu đã cắt bỏ — nên `ensureReadingLoaded()` phải gọi THÊM
+ * `listChapters()` để phân biệt, cộng một nhánh thứ tám `'empty-unknown'` cho ca lượt hỏi
+ * phụ đó TRƯỢT"*. Mệnh đề đó hết đúng: `ReadingChapter` (nay là một phần tử của
+ * `ReadingRun::chapters`) mang sẵn `segment_count` — đếm trong CHÍNH lượt đọc, không một
+ * lượt IPC phụ. Nhánh `'empty-unknown'` không còn lý do tồn tại vì NGUYÊN NHÂN của nó (lượt
+ * hỏi phụ có thể trượt) đã biến mất — gỡ cả `chapterHasSegments`, cả lượt `listChapters()`
+ * phụ trong `ensureReadingLoaded`, cả nhánh này.
  */
 import { computed, readonly, ref, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { enterFocus } from '../commands'
 import { listChapters } from '../config/chapter'
 import type { ChapterRow } from '../config/chapter'
-import { readReadingChapter } from '../config/reading'
-import type { ReadingChapter } from '../config/reading'
+import { readReadingRun } from '../config/reading'
+import type { ReadingRun } from '../config/reading'
 import { openChapterById } from '../panels/editorPanelState'
+import { setMode } from './modeState'
 import type { IpcError } from '../i18n'
 import { tokens } from '../tokens'
 import type { TypographyToken } from '../tokens'
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// ① NỘI DUNG — Chương đang đọc
+// ① NỘI DUNG — lượt đọc hiện tại (Story 5.12: `ReadingRun`, không còn một Chương đơn)
 // ═════════════════════════════════════════════════════════════════════════════════
 
-const chapter = shallowRef<ReadingChapter | null>(null)
+const run = shallowRef<ReadingRun | null>(null)
 /** `true` sau khi lượt nạp ĐẦU TIÊN đã trả lời — trước đó là "chưa biết", không "rỗng". */
 const hasLoaded = ref(false)
 const pending = ref(false)
 const loadError = shallowRef<IpcError | null>(null)
-/** `null` = chưa xác định được (chưa cần hỏi, hoặc lượt hỏi phụ trượt) — xem doc-comment
- * đầu tệp. `true`/`false` chỉ có ý nghĩa khi `chapter.value.paragraphs.length === 0`. */
-const chapterHasSegments = ref<boolean | null>(null)
 let sequence = 0
 let requested = false
 
-export const readingChapter: DeepReadonly<Ref<ReadingChapter | null>> = readonly(chapter)
+export const readingRun: DeepReadonly<Ref<ReadingRun | null>> = readonly(run)
 export const readingHasLoaded: DeepReadonly<Ref<boolean>> = readonly(hasLoaded)
 export const readingPending: DeepReadonly<Ref<boolean>> = readonly(pending)
 export const readingLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
 
-/** Bảy nhánh phân biệt được của `role="status"` — Task 14 của story. */
+/**
+ * Tám nhánh phân biệt được của `role="status"` — **SỬA TẠI CHỖ Story 5.12**: bốn nhánh
+ * đầu không đổi tên; bốn nhánh sau đổi hẳn theo hình dạng `ReadingRun` (không còn
+ * `'empty-chapter'`/`'empty-unknown'` của một Chương đơn).
+ *
+ * - `'content'` — CẢ dãy có ít nhất một đoạn ở BẤT KỲ Chương nào trong nó.
+ * - `'frontier-only'` — dãy RỖNG (`chapters.length === 0`, §I/O Matrix "Chạm biên ngay":
+ *   Chương đang mở chưa `done`) — trang chỉ có mốc biên.
+ * - `'all-omitted'` — dãy có Chương, KHÔNG đoạn nào, nhưng tổng `segment_count` toàn dãy
+ *   dương — mọi câu của mọi Chương trong dãy đều đã cắt bỏ.
+ * - `'empty-chapters'` — dãy có Chương, KHÔNG đoạn nào, tổng `segment_count` toàn dãy
+ *   bằng 0 — mọi Chương trong dãy đều thật sự rỗng.
+ */
 export type ReadingStatusKind =
   | 'not-loaded'
   | 'pending'
   | 'no-work'
   | 'error'
-  | 'empty-chapter'
-  | 'all-omitted'
-  | 'empty-unknown'
   | 'content'
+  | 'frontier-only'
+  | 'all-omitted'
+  | 'empty-chapters'
 
 export const readingStatusKind: ComputedRef<ReadingStatusKind> = computed(() => {
   if (pending.value) return 'pending'
   if (!hasLoaded.value) return 'not-loaded'
   if (loadError.value !== null) return loadError.value.code === 'work.none_open' ? 'no-work' : 'error'
-  const loaded = chapter.value
-  // Phòng hờ: không lỗi mà cũng không Chương là một hình dạng không xảy ra trên sản phẩm
+  const loaded = run.value
+  // Phòng hờ: không lỗi mà cũng không lượt đọc là một hình dạng không xảy ra trên sản phẩm
   // thật (adapter chỉ trả `null` VỚI một lỗi, hoặc khi không có cầu IPC — ca đó `hasLoaded`
   // vẫn lên `true` để tránh khoá màn hình, và ta không có gì để nói ngoài "lỗi").
   if (loaded === null) return 'error'
-  if (loaded.paragraphs.length > 0) return 'content'
-  // 🔴 BA nhánh cho một `paragraphs` rỗng, không hai — bắt ở lượt rà 2026-08-30.
-  // `chapterHasSegments === null` nghĩa là **CHƯA BIẾT** (lượt `listChapters()` phụ đã
-  // TRƯỢT, hoặc hàng Chương không có trong danh sách), KHÔNG phải *"Chương rỗng"*. Gộp nó
-  // vào `'empty-chapter'` là để màn hình khẳng định dứt khoát một điều nó vừa không đo
-  // được — đúng lớp lỗi *rỗng im lặng* mà `AGENTS.md` gọi là lớp lỗi trung tâm của dự án,
-  // và ở đây nó nói SAI với người dùng đã cắt bỏ mọi câu của một Chương.
-  if (chapterHasSegments.value === null) return 'empty-unknown'
-  return chapterHasSegments.value ? 'all-omitted' : 'empty-chapter'
+  if (loaded.chapters.length === 0) return 'frontier-only'
+  if (loaded.chapters.some((c) => c.paragraphs.length > 0)) return 'content'
+  const totalSegments = loaded.chapters.reduce((sum, c) => sum + c.segment_count, 0)
+  return totalSegments > 0 ? 'all-omitted' : 'empty-chapters'
 })
 
 /**
- * Nạp Chương đang mở — **idempotent**: gọi lại ở mỗi lượt `onActivated` chỉ chạy IPC ở
- * lượt ĐẦU TIÊN, đúng khuôn `editorPanelState.ts::ensureSegmentsLoaded`.
+ * Nạp lượt đọc bắt đầu tại Chương đang mở — **idempotent**: gọi lại ở mỗi lượt
+ * `onActivated` chỉ chạy IPC ở lượt ĐẦU TIÊN, đúng khuôn
+ * `editorPanelState.ts::ensureSegmentsLoaded`.
  */
 export async function ensureReadingLoaded(): Promise<void> {
   if (requested) return
@@ -98,26 +104,12 @@ export async function ensureReadingLoaded(): Promise<void> {
   const mine = ++sequence
   pending.value = true
 
-  const { chapter: loaded, error } = await readReadingChapter()
+  const { run: loaded, error } = await readReadingRun()
   if (mine !== sequence) return
 
-  let hasSegments: boolean | null = null
-  if (loaded !== null && loaded.paragraphs.length === 0) {
-    // Ca MƠ HỒ duy nhất — xem doc-comment đầu tệp. Một vòng IPC PHỤ, chỉ trả giá ở đây.
-    const { chapters, error: chaptersError } = await listChapters()
-    if (mine !== sequence) return
-    if (chaptersError === null && chapters !== null) {
-      const row: ChapterRow | undefined = chapters.find((c) => c.chapter_id === loaded.chapter_id)
-      hasSegments = row === undefined ? null : row.segment_count > 0
-    }
-  } else if (loaded !== null) {
-    hasSegments = true
-  }
-
   pending.value = false
-  chapter.value = loaded
+  run.value = loaded
   loadError.value = error
-  chapterHasSegments.value = hasSegments
   hasLoaded.value = true
 
   // Một lượt TRƯỢT không được khoá vĩnh viễn đường nạp — cùng lý do `ensureSegmentsLoaded`.
@@ -132,17 +124,50 @@ export function reloadReading(): Promise<void> {
 
 /**
  * Vứt state NỘI DUNG — gọi ở mọi chỗ đang gọi `resetEditorPanel()`/`resetSourcePanel()`
- * khi đổi Tác phẩm/Chương (Task 13 của story). KHÔNG dọn nhóm ③ (typography) — đó là tuỳ
- * chọn ứng dụng, xem `resetReadingPreferences()`.
+ * khi đổi Tác phẩm/Chương (Task 13 của story 5.11, và [`openFrontierInWorkspace`] của
+ * story này). KHÔNG dọn nhóm ③ (typography) — đó là tuỳ chọn ứng dụng, xem
+ * `resetReadingPreferences()`.
  */
 export function resetReading(): void {
   sequence += 1
   requested = false
-  chapter.value = null
+  run.value = null
   hasLoaded.value = false
   pending.value = false
   loadError.value = null
-  chapterHasSegments.value = null
+}
+
+/**
+ * **THÊM Story 5.12.** Đi tiếp từ mốc biên — bấm nút *Dịch tiếp Chương N* trên
+ * `.frontier`, handler của lệnh `reading.continue_in_workspace`.
+ *
+ * `frontier.chapter === null` (mốc `end-of-work`, không Chương nào chặn) ⇒ ghi chẩn đoán
+ * và trả — **không ném**: hàm này chạy từ một `dispatch()`, cùng luật "hàm chạy từ một
+ * hợp âm/lệnh KHÔNG BAO GIỜ ném" (`src/AGENTS.md`). Nút trên `.frontier` vốn chỉ hiện khi
+ * `kind === 'next-not-done'` nên nhánh này không nên tới được từ chuột — nó phòng thủ cho
+ * đường bàn phím/lệnh gọi thẳng.
+ *
+ * `openChapterById` trả `false` (flush chặn, lỗi IPC…) ⇒ **không đổi chế độ**: người dùng
+ * ở lại Chế độ đọc để thấy chẩn đoán mà `openChapterById` đã ghi, đúng khuôn
+ * `openCurrentChapter` (`libraryChapters.ts`).
+ *
+ * `true` ⇒ vứt TOÀN BỘ state đọc (`resetReading` + `resetReadingToc`) rồi chuyển
+ * Workspace — lượt vào Chế độ đọc kế tiếp phải nạp lại từ con trỏ Chương MỚI, không giữ
+ * lại dãy của Chương cũ.
+ */
+export async function openFrontierInWorkspace(): Promise<void> {
+  const frontierChapter = run.value?.frontier.chapter ?? null
+  if (frontierChapter === null) {
+    console.error('[reading] moc bien khong co Chuong nao de mo sang Workspace (kind = end-of-work?)')
+    return
+  }
+
+  const moved = await openChapterById(frontierChapter.chapter_id)
+  if (!moved) return
+
+  resetReading()
+  resetReadingToc()
+  setMode('workspace')
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
