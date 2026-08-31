@@ -212,16 +212,16 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     //    duoi day van chi la NEO.
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        16,
+        17,
         "`PROJECT_MIGRATIONS` phai co muoi sau buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
          6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
          10 cua Story 2.6, 11 cua Story 2.7, 12 cua Story 3.1, 13 cua Story 3.2, \
-         14 cua Story 3.5, 15 cua Story 3.10, 16 cua Story 5.4, 17 cua Story 5.7"
+         14 cua Story 3.5, 15 cua Story 3.10, 16 cua Story 5.4, 17 cua Story 5.7, 18 cua Story 5.13"
     );
     assert_eq!(
         opened.store.schema_version(),
-        17,
-        "mot `project.db` moi phai dung o phien ban 17 (so 4 da chay)"
+        18,
+        "mot `project.db` moi phai dung o phien ban 18 (so 4 da chay)"
     );
 
     let has_table: i64 = opened

@@ -1111,7 +1111,7 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
 
 /// Mọi bảng KHÔNG PHẢI thực thể tầng — chi tiết/thuộc tính gắn theo `chapter`/`work`
 /// (`segment`/`segment_version`, `glossary_entry`/`glossary_candidate`,
-/// `chapter_position` — Story 5.7), sổ sách nội bộ của chính cơ chế di trú
+/// `chapter_position` — Story 5.7; `reading_mark` — Story 5.13), sổ sách nội bộ của chính cơ chế di trú
 /// (`schema_migration_log`), hoặc do SQLite tự sinh (`sqlite_sequence`, mọi bảng dùng
 /// `AUTOINCREMENT`).
 ///
@@ -1120,10 +1120,11 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
 /// chính Chương đó), khoá chính là `chapter_id`, cùng vai với `segment`/`segment_version`
 /// gắn theo `chapter`/`segment`. Xem §Design Notes "Vì sao một BẢNG riêng cho vị trí" của
 /// `5-7-danh-sach-chuong-va-mo-chuong-vao-workspace.md`.
-const NON_ENTITY_DETAIL_TABLES: [&str; 7] = [
+const NON_ENTITY_DETAIL_TABLES: [&str; 8] = [
     "chapter_position",
     "glossary_candidate",
     "glossary_entry",
+    "reading_mark",
     "schema_migration_log",
     "segment",
     "segment_version",

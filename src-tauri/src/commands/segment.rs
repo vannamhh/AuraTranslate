@@ -34,7 +34,7 @@
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — `scripts/check-i18n.mjs` Kiểm A quét
 //! `src-tauri/**/*.rs`.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
 use crate::commands::project::OpenWork;
@@ -990,6 +990,107 @@ pub struct ReadingSegment {
     pub source_text: String,
     pub target_text: String,
     pub is_confirmed: bool,
+    /// Marker bền vững thuộc Tác phẩm đang mở. Rust quyết bằng `reading_mark.segment_id`;
+    /// webview chỉ render, không tự giữ một danh sách song song để đoán.
+    pub is_marked: bool,
+}
+
+/// Một marker đã phân giải để hiển thị và điều hướng — Story 5.13, FR119.
+///
+/// `segment_id`/văn bản thuộc câu GỐC; `chapter_id` và thứ tự thuộc NEO SỐNG. Vì vậy một
+/// lượt tổ chức lại Chương tự hiện đúng Chương mới mà không cần cập nhật hàng marker.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ReadingMark {
+    pub segment_id: i64,
+    pub navigation_segment_id: i64,
+    pub chapter_id: i64,
+    pub chapter_ord: i64,
+    pub chapter_title: Option<String>,
+    pub source_text: String,
+    pub target_text: String,
+    pub is_retired: bool,
+    pub marked_at: String,
+}
+
+fn select_reading_marks(conn: ReadHandle<'_>) -> SqlResult<Vec<ReadingMark>> {
+    let stored_count: i64 = conn.query_row("SELECT COUNT(*) FROM reading_mark", [], |row| row.get(0))?;
+    let mut stmt = conn.prepare(
+        "SELECT m.segment_id, m.navigation_segment_id, a.chapter_id, c.ord, c.title, \
+                original.source_text, original.target_text, original.retired_at IS NOT NULL, \
+                m.marked_at \
+         FROM reading_mark m \
+         JOIN segment original ON original.id = m.segment_id \
+         JOIN segment a ON a.id = m.navigation_segment_id AND a.retired_at IS NULL \
+         JOIN chapter c ON c.id = a.chapter_id \
+         ORDER BY c.ord, a.ord, m.segment_id",
+    )?;
+    let marks = stmt.query_map([], |row| {
+        Ok(ReadingMark {
+            segment_id: row.get(0)?,
+            navigation_segment_id: row.get(1)?,
+            chapter_id: row.get(2)?,
+            chapter_ord: row.get(3)?,
+            chapter_title: row.get(4)?,
+            source_text: row.get(5)?,
+            target_text: row.get(6)?,
+            is_retired: row.get(7)?,
+            marked_at: row.get(8)?,
+        })
+    })?
+    .collect::<SqlResult<Vec<_>>>()?;
+
+    // `reading_mark` cố ý không có FK vì kho tắt `PRAGMA foreign_keys`. Do đó INNER JOIN
+    // một mình nó có thể biến một neo thiếu/retired thành danh sách ngắn hơn mà không lỗi —
+    // đúng lớp "rỗng im lặng" đã hụt ba lần. Đếm trong cùng snapshot khiến bất biến hỏng
+    // đi ra `store.read_failed`, không được ngụy trang thành "không có marker".
+    if i64::try_from(marks.len()).unwrap_or(i64::MAX) != stored_count {
+        return Err(SqlError::InvalidQuery);
+    }
+    Ok(marks)
+}
+
+/// Đánh dấu một câu sống. `INSERT OR IGNORE` biến lần bấm `M` thứ hai thành đúng thao tác
+/// idempotent, không thành toggle/gỡ. Phép kiểm câu sống và lượt chèn ở cùng transaction.
+pub fn mark_reading_segment(
+    open: Option<&OpenWork>,
+    segment_id: i64,
+) -> Result<ReadingMark, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    let missing = Arc::new(Mutex::new(false));
+    let missing_in = Arc::clone(&missing);
+    let result = open.store.write(move |tx: &Transaction<'_>| {
+        let live: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM segment WHERE id = ?1 AND retired_at IS NULL",
+            [segment_id],
+            |row| row.get(0),
+        )?;
+        if live == 0 {
+            *missing_in.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = true;
+            return Err(SqlError::QueryReturnedNoRows);
+        }
+        tx.execute(
+            "INSERT OR IGNORE INTO reading_mark (segment_id, navigation_segment_id, marked_at) \
+             VALUES (?1, ?1, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+            [segment_id],
+        )?;
+        select_reading_marks(tx)?.into_iter().find(|m| m.segment_id == segment_id).ok_or(
+            SqlError::QueryReturnedNoRows,
+        )
+    });
+    match result {
+        Ok(mark) => Ok(mark),
+        Err(_err) if *missing.lock().unwrap_or_else(std::sync::PoisonError::into_inner) => {
+            Err(segment_not_found(segment_id))
+        }
+        Err(err) => Err(err.into()),
+    }
+}
+
+/// Liệt kê marker của đúng Tác phẩm đang mở. `project.db` là biên cách ly Work; không nhận
+/// `work_id` từ webview nên không có đường trộn dữ liệu giữa hai kho.
+pub fn list_reading_marks(open: Option<&OpenWork>) -> Result<Vec<ReadingMark>, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    open.store.read(select_reading_marks).map_err(Into::into)
 }
 
 /// Một đoạn — nhóm các [`ReadingSegment`] liên tiếp thuộc CÙNG một đoạn của bản dịch,
@@ -1133,6 +1234,21 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
             prefix_end += 1;
         }
 
+        // Cùng snapshot với nội dung. Không một lượt IPC/Store::read phụ có thể chen một
+        // thao tác `M` vào giữa rồi cho trang hiện chữ và marker từ hai thời điểm khác nhau.
+        let marked_ids: BTreeSet<i64> = {
+            // Story 5.13 yêu cầu trạng thái marker đi cùng chính snapshot đọc nội dung. LEFT JOIN
+            // bắt đầu từ `segment` giữ hình dạng đó minh bạch: segment không marker vẫn vào run,
+            // còn `m.segment_id IS NOT NULL` chỉ tạo tập membership — không có một IPC phụ có thể
+            // chen một lượt ghi giữa nội dung và trạng thái.
+            let mut stmt = conn.prepare(
+                "SELECT s.id FROM segment s \
+                 LEFT JOIN reading_mark m ON m.segment_id = s.id \
+                 WHERE m.segment_id IS NOT NULL",
+            )?;
+            stmt.query_map([], |row| row.get(0))?.collect::<SqlResult<BTreeSet<i64>>>()?
+        };
+
         let mut chapters = Vec::with_capacity(prefix_end - start);
         for (chapter_id, chapter_ord, title, _status) in &rows[start..prefix_end] {
             let segments = select_chapter_segments(conn, *chapter_id)?;
@@ -1147,6 +1263,7 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
                             source_text: s.source_text.clone(),
                             target_text: s.target_text.clone(),
                             is_confirmed: s.status == SEGMENT_STATUS_CONFIRMED,
+                            is_marked: marked_ids.contains(&s.id),
                         })
                         .collect(),
                 })
@@ -2688,6 +2805,18 @@ fn write_regroup(
         }
     }
 
+    // ⑤ REBASE NEO MARKER trong CHÍNH giao dịch retire + insert. `segment_id` gốc không
+    // đổi; chỉ `navigation_segment_id` đang trỏ vào bất kỳ hàng vừa về hưu nào chuyển sang
+    // ID mới đầu tiên. Lượt regroup sau lại bắt neo ấy nếu chính ID mới tiếp tục về hưu.
+    if let Some(first_new_id) = new_ids.first().copied() {
+        let mut stmt = tx.prepare_cached(
+            "UPDATE reading_mark SET navigation_segment_id = ?1 WHERE navigation_segment_id = ?2",
+        )?;
+        for retired_id in retire {
+            stmt.execute((first_new_id, retired_id))?;
+        }
+    }
+
     Ok(new_ids)
 }
 
@@ -2965,7 +3094,7 @@ fn ket_qua_regroup(
 pub mod wire {
     use super::{
         ChapterSegments, ConfirmOutcome, IpcError, OmitOutcome, ParagraphEndOutcome, SaveOutcome,
-        ReadingRun, RegroupOutcome, RestoreOutcome, SegmentTargetEdit, SegmentVersionRow,
+        ReadingMark, ReadingRun, RegroupOutcome, RestoreOutcome, SegmentTargetEdit, SegmentVersionRow,
         SplitOutcome,
     };
     use crate::commands::project::OpenWorkState;
@@ -3034,6 +3163,31 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::read_reading_run(guard.as_ref())
+    }
+
+    /// Vỏ IPC mỏng cho marker Chế độ đọc. `segmentId` là tên camelCase phía webview.
+    #[tauri::command]
+    pub fn mark_reading_segment(
+        app: tauri::AppHandle,
+        segment_id: i64,
+    ) -> Result<ReadingMark, IpcError> {
+        use tauri::Manager as _;
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::mark_reading_segment(None, segment_id);
+        };
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::mark_reading_segment(guard.as_ref(), segment_id)
+    }
+
+    /// Vỏ IPC mỏng cho danh sách marker của Tác phẩm đang mở.
+    #[tauri::command]
+    pub fn list_reading_marks(app: tauri::AppHandle) -> Result<Vec<ReadingMark>, IpcError> {
+        use tauri::Manager as _;
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::list_reading_marks(None);
+        };
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::list_reading_marks(guard.as_ref())
     }
 
     /// Vỏ IPC của [`super::save_segment_targets`] — đường flush của AD-35. Story 2.3.

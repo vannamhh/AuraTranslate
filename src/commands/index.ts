@@ -815,6 +815,16 @@ export type CommandDeps = {
    * TRẦN bắn cả trong Library, `registry` không có phạm vi theo chế độ). ⚠️ Cài đặt thật
    * là `async`; `() => void` khớp cùng khuôn `openCurrentReadingTocChapter`. */
   continueFromReadingFrontier?: () => void
+  /** Đánh dấu câu đang aim; không aim là no-op. Handler `reading.mark_aimed` (`M`). */
+  markAimedReadingSegment?: () => void
+  /** Mở câu đang aim vào Workspace. Chỉ được dispatch từ Enter cục bộ trên wrapper. */
+  openAimedReadingSegment?: () => void
+  /** Mở/đóng/điều hướng danh sách marker của Tác phẩm. */
+  openReadingMarks?: () => void
+  closeReadingMarks?: () => void
+  nextReadingMark?: () => void
+  prevReadingMark?: () => void
+  openCurrentReadingMark?: () => void
 }
 
 /**
@@ -1498,6 +1508,52 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.continueFromReadingFrontier()
     },
   })
+
+  /** Story 5.13 — `M` chỉ đánh dấu; Enter chỉ sống cục bộ trong `ReadingMode.vue`. */
+  target.register({
+    id: 'reading.mark_aimed',
+    labelKey: 'command.reading.mark_aimed',
+    keys: ['M'],
+    run: () => {
+      if (deps.markAimedReadingSegment === undefined) return portMissing('reading.mark_aimed', 'markAimedReadingSegment')
+      deps.markAimedReadingSegment()
+    },
+  })
+  target.register({
+    id: 'reading.open_aimed',
+    labelKey: 'command.reading.open_aimed',
+    keys: undefined,
+    run: () => {
+      if (deps.openAimedReadingSegment === undefined) return portMissing('reading.open_aimed', 'openAimedReadingSegment')
+      deps.openAimedReadingSegment()
+    },
+  })
+  target.register({
+    id: 'reading.marks',
+    labelKey: 'command.reading.marks',
+    keys: undefined,
+    run: () => {
+      if (deps.openReadingMarks === undefined) return portMissing('reading.marks', 'openReadingMarks')
+      deps.openReadingMarks()
+    },
+  })
+  for (const [id, labelKey, port] of [
+    ['reading.marks_close', 'command.reading.marks_close', 'closeReadingMarks'],
+    ['reading.marks_next', 'command.reading.marks_next', 'nextReadingMark'],
+    ['reading.marks_prev', 'command.reading.marks_prev', 'prevReadingMark'],
+    ['reading.marks_open', 'command.reading.marks_open', 'openCurrentReadingMark'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey,
+      keys: undefined,
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
 
   target.register({
     id: 'lifecycle.set_work_override_paused',

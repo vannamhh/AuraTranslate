@@ -23,14 +23,14 @@
  * hỏi phụ có thể trượt) đã biến mất — gỡ cả `chapterHasSegments`, cả lượt `listChapters()`
  * phụ trong `ensureReadingLoaded`, cả nhánh này.
  */
-import { computed, readonly, ref, shallowRef } from 'vue'
+import { computed, nextTick, readonly, ref, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { enterFocus } from '../commands'
 import { listChapters } from '../config/chapter'
 import type { ChapterRow } from '../config/chapter'
-import { readReadingRun } from '../config/reading'
-import type { ReadingRun } from '../config/reading'
-import { openChapterById } from '../panels/editorPanelState'
+import { listReadingMarks, markReadingSegment, readReadingRun } from '../config/reading'
+import type { ReadingMark, ReadingRun, ReadingSegment } from '../config/reading'
+import { openChapterById, requestCurrentEditorCaretPlacement } from '../panels/editorPanelState'
 import { setMode } from './modeState'
 import type { IpcError } from '../i18n'
 import { tokens } from '../tokens'
@@ -45,6 +45,9 @@ const run = shallowRef<ReadingRun | null>(null)
 const hasLoaded = ref(false)
 const pending = ref(false)
 const loadError = shallowRef<IpcError | null>(null)
+const aimedSegmentId = ref<number | null>(null)
+const anchorSegmentId = ref<number | null>(null)
+const markerError = shallowRef<IpcError | null>(null)
 let sequence = 0
 let requested = false
 
@@ -52,6 +55,9 @@ export const readingRun: DeepReadonly<Ref<ReadingRun | null>> = readonly(run)
 export const readingHasLoaded: DeepReadonly<Ref<boolean>> = readonly(hasLoaded)
 export const readingPending: DeepReadonly<Ref<boolean>> = readonly(pending)
 export const readingLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
+export const readingAimedSegmentId: DeepReadonly<Ref<number | null>> = readonly(aimedSegmentId)
+export const readingAnchorSegmentId: DeepReadonly<Ref<number | null>> = readonly(anchorSegmentId)
+export const readingMarkerError: DeepReadonly<Ref<IpcError | null>> = readonly(markerError)
 
 /**
  * Tám nhánh phân biệt được của `role="status"` — **SỬA TẠI CHỖ Story 5.12**: bốn nhánh
@@ -128,13 +134,160 @@ export function reloadReading(): Promise<void> {
  * story này). KHÔNG dọn nhóm ③ (typography) — đó là tuỳ chọn ứng dụng, xem
  * `resetReadingPreferences()`.
  */
-export function resetReading(): void {
+export function resetReading(options: { preserveAnchor?: boolean } = {}): void {
   sequence += 1
   requested = false
   run.value = null
   hasLoaded.value = false
   pending.value = false
   loadError.value = null
+  aimedSegmentId.value = null
+  markerError.value = null
+  if (options.preserveAnchor !== true) anchorSegmentId.value = null
+  resetReadingMarks()
+}
+
+function findReadingSegment(segmentId: number): { chapterId: number; segment: ReadingSegment } | null {
+  for (const chapter of run.value?.chapters ?? []) {
+    for (const paragraph of chapter.paragraphs) {
+      const segment = paragraph.segments.find((row) => row.id === segmentId)
+      if (segment !== undefined) return { chapterId: chapter.chapter_id, segment }
+    }
+  }
+  return null
+}
+
+/** Aim chỉ là state tương tác; không một lượt ghi nào xảy ra khi hover/focus. */
+export function setReadingAim(segmentId: number): void {
+  aimedSegmentId.value = segmentId
+}
+
+/**
+ * Ghi neo vị trí đọc mà KHÔNG đổi aim thao tác. `ReadingMode.vue` gọi cửa này lúc rời
+ * chế độ sau một lượt cuộn bằng trackpad: câu ở đầu vùng nhìn là vị trí cần trở lại,
+ * nhưng nó không tự nhiên trở thành câu mà phím `M` được phép đánh dấu.
+ */
+export function setReadingAnchor(segmentId: number): void {
+  if (findReadingSegment(segmentId) !== null) anchorSegmentId.value = segmentId
+}
+
+export function clearReadingAim(segmentId?: number): void {
+  if (segmentId === undefined || aimedSegmentId.value === segmentId) aimedSegmentId.value = null
+}
+
+/** Handler của `reading.mark_aimed` (`M`). Không aim là no-op có chủ ý. */
+export async function markAimedReadingSegment(): Promise<void> {
+  const segmentId = aimedSegmentId.value
+  if (segmentId === null || findReadingSegment(segmentId) === null) return
+  const mine = sequence
+  const { mark, error } = await markReadingSegment(segmentId)
+  if (mine !== sequence) return
+  markerError.value = error
+  if (mark === null) return
+
+  // `shallowRef`: thay nguyên cây để Vue nhìn thấy cờ marker vừa được Rust xác nhận.
+  const current = run.value
+  if (current === null) return
+  run.value = {
+    ...current,
+    chapters: current.chapters.map((chapter) => ({
+      ...chapter,
+      paragraphs: chapter.paragraphs.map((paragraph) => ({
+        ...paragraph,
+        segments: paragraph.segments.map((segment) =>
+          segment.id === segmentId ? { ...segment, is_marked: true } : segment,
+        ),
+      })),
+    })),
+  }
+}
+
+/** Enter cục bộ trên wrapper: mở đúng `(chapter_id, segment_id)`, rồi mới đổi mode. */
+export async function openAimedReadingSegment(): Promise<void> {
+  const segmentId = aimedSegmentId.value
+  if (segmentId === null) return
+  const found = findReadingSegment(segmentId)
+  if (found === null) return
+  const moved = await openChapterById(found.chapterId, segmentId)
+  if (!moved) return
+  anchorSegmentId.value = segmentId
+  resetReading({ preserveAnchor: true })
+  resetReadingToc()
+  setMode('workspace')
+  await nextTick()
+  requestCurrentEditorCaretPlacement()
+  await nextTick()
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// ② DANH SÁCH MARKER THEO TÁC PHẨM
+// ═════════════════════════════════════════════════════════════════════════════════
+
+const marksOpen = ref(false)
+const marks = shallowRef<ReadingMark[]>([])
+const marksHaveLoaded = ref(false)
+const marksBusy = ref(false)
+const marksError = shallowRef<IpcError | null>(null)
+const marksCursor = ref(0)
+let marksSequence = 0
+
+export const readingMarksOpen: DeepReadonly<Ref<boolean>> = readonly(marksOpen)
+export const readingMarks: DeepReadonly<Ref<ReadingMark[]>> = readonly(marks)
+export const readingMarksHaveLoaded: DeepReadonly<Ref<boolean>> = readonly(marksHaveLoaded)
+export const readingMarksBusy: DeepReadonly<Ref<boolean>> = readonly(marksBusy)
+export const readingMarksError: DeepReadonly<Ref<IpcError | null>> = readonly(marksError)
+export const readingMarksCursor: DeepReadonly<Ref<number>> = readonly(marksCursor)
+
+export async function openReadingMarks(): Promise<void> {
+  // Hai overlay đều `aria-modal`; cho chúng cùng tồn tại khiến Tab lọt qua hai lớp và lượt
+  // đóng lớp trên trả focus về trang dù lớp dưới vẫn mở. Một cửa vào phải đóng cửa kia.
+  tocOpen.value = false
+  marksOpen.value = true
+  const mine = ++marksSequence
+  marksBusy.value = true
+  const { marks: loaded, error } = await listReadingMarks()
+  if (mine !== marksSequence) return
+  marksBusy.value = false
+  marks.value = loaded ?? []
+  marksError.value = error
+  marksHaveLoaded.value = true
+  marksCursor.value = 0
+}
+
+export function closeReadingMarks(): void {
+  marksOpen.value = false
+}
+
+export function nextReadingMark(): void {
+  if (marks.value.length > 0) marksCursor.value = Math.min(marksCursor.value + 1, marks.value.length - 1)
+}
+
+export function prevReadingMark(): void {
+  if (marks.value.length > 0) marksCursor.value = Math.max(marksCursor.value - 1, 0)
+}
+
+export async function openCurrentReadingMark(): Promise<void> {
+  const mark = marks.value.at(marksCursor.value)
+  if (mark === undefined) return
+  const moved = await openChapterById(mark.chapter_id, mark.navigation_segment_id)
+  if (!moved) return
+  anchorSegmentId.value = mark.navigation_segment_id
+  resetReading({ preserveAnchor: true })
+  resetReadingToc()
+  setMode('workspace')
+  await nextTick()
+  requestCurrentEditorCaretPlacement()
+  await nextTick()
+}
+
+export function resetReadingMarks(): void {
+  marksSequence += 1
+  marksOpen.value = false
+  marks.value = []
+  marksHaveLoaded.value = false
+  marksBusy.value = false
+  marksError.value = null
+  marksCursor.value = 0
 }
 
 /**
@@ -171,7 +324,7 @@ export async function openFrontierInWorkspace(): Promise<void> {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// ② MỤC LỤC
+// ③ MỤC LỤC
 // ═════════════════════════════════════════════════════════════════════════════════
 
 const tocOpen = ref(false)
@@ -197,6 +350,7 @@ export const readingTocCursor: DeepReadonly<Ref<number>> = readonly(tocCursor)
  * `if` chặn trước làm màn hình phải tự bịa lý do).
  */
 export async function openTableOfContents(): Promise<void> {
+  marksOpen.value = false
   tocOpen.value = true
 
   const mine = ++tocSequence
@@ -270,7 +424,7 @@ export function resetReadingToc(): void {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// ③ TYPOGRAPHY — tuỳ chọn ỨNG DỤNG, không theo Tác phẩm
+// ④ TYPOGRAPHY — tuỳ chọn ỨNG DỤNG, không theo Tác phẩm
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔴 KHÔNG đưa vào `resetReading()` — xem `resetReadingPreferences()` ở cuối nhóm này.
 // Không lưu xuống đĩa ở story này (§Never — món nợ có chủ, `deferred-work.md`).

@@ -34,7 +34,7 @@ function chapterFixture(
     chapter_ord: ord,
     chapter_title: null,
     paragraphs: paragraphs.map((segments) => ({
-      segments: segments.map((s) => ({ is_confirmed: true, ...s })),
+      segments: segments.map((s) => ({ is_confirmed: true, is_marked: false, ...s })),
     })),
     segment_count: segmentCount,
     ...overrides,

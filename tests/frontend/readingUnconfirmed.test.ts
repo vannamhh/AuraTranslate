@@ -13,7 +13,13 @@ import { mount } from '@vue/test-utils'
 const mockInvoke = vi.fn()
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args: unknown[]) => mockInvoke(...args) }))
 
-type SegmentFixture = { id: number; source_text: string; target_text: string; is_confirmed?: boolean }
+type SegmentFixture = {
+  id: number
+  source_text: string
+  target_text: string
+  is_confirmed?: boolean
+  is_marked?: boolean
+}
 
 function chapterFixture(chapterId: number, ord: number, paragraphs: SegmentFixture[][]) {
   return {
@@ -48,14 +54,14 @@ describe('modes/ReadingMode.vue — câu chưa xác nhận mang lớp `unconfirm
       chapters: [
         chapterFixture(1, 1, [
           [
-            { id: 1, source_text: 'Mot.', target_text: 'Cau mot.', is_confirmed: true },
-            { id: 2, source_text: 'Hai.', target_text: 'Cau hai.', is_confirmed: false },
+            { id: 1, source_text: 'Mot.', target_text: 'Cau mot.', is_confirmed: true, is_marked: false },
+            { id: 2, source_text: 'Hai.', target_text: 'Cau hai.', is_confirmed: false, is_marked: false },
           ],
         ]),
         chapterFixture(2, 2, [
           [
-            { id: 3, source_text: 'Ba.', target_text: 'Cau ba.', is_confirmed: false },
-            { id: 4, source_text: 'Bon.', target_text: 'Cau bon.', is_confirmed: true },
+            { id: 3, source_text: 'Ba.', target_text: 'Cau ba.', is_confirmed: false, is_marked: false },
+            { id: 4, source_text: 'Bon.', target_text: 'Cau bon.', is_confirmed: true, is_marked: false },
           ],
         ]),
       ],
@@ -68,7 +74,7 @@ describe('modes/ReadingMode.vue — câu chưa xác nhận mang lớp `unconfirm
     await state.ensureReadingLoaded()
     await wrapper.vm.$nextTick()
 
-    const spans = wrapper.findAll('.column .paragraph span')
+    const spans = wrapper.findAll('.column .paragraph .reading-segment')
     expect(spans).toHaveLength(4)
 
     const unconfirmedTexts = spans.filter((s) => s.classes('unconfirmed')).map((s) => s.text())
@@ -84,7 +90,7 @@ describe('modes/ReadingMode.vue — câu chưa xác nhận mang lớp `unconfirm
   it('mọi câu đã xác nhận ⇒ KHÔNG span nào mang lớp `unconfirmed`', async () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [
-        chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'Cau mot.', is_confirmed: true }]]),
+        chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'Cau mot.', is_confirmed: true, is_marked: false }]]),
       ],
       frontier: { kind: 'end-of-work', chapter: null },
     })
@@ -94,7 +100,7 @@ describe('modes/ReadingMode.vue — câu chưa xác nhận mang lớp `unconfirm
     await state.ensureReadingLoaded()
     await wrapper.vm.$nextTick()
 
-    const spans = wrapper.findAll('.column .paragraph span')
+    const spans = wrapper.findAll('.column .paragraph .reading-segment')
     expect(spans).toHaveLength(1)
     expect(spans.filter((s) => s.classes('unconfirmed'))).toHaveLength(0)
   })
@@ -115,7 +121,7 @@ describe('config/reading.ts::readReadingRun — `is_confirmed` THIẾU làm adap
           chapter_ord: 1,
           chapter_title: null,
           // Segment KHÔNG mang `is_confirmed` -- mô phỏng một hình dạng dây đã trượt.
-          paragraphs: [{ segments: [{ id: 1, source_text: 'a', target_text: 'b' }] }],
+          paragraphs: [{ segments: [{ id: 1, source_text: 'a', target_text: 'b', is_marked: false }] }],
           segment_count: 1,
         },
       ],
@@ -136,7 +142,7 @@ describe('config/reading.ts::readReadingRun — `is_confirmed` THIẾU làm adap
           chapter_id: 1,
           chapter_ord: 1,
           chapter_title: null,
-          paragraphs: [{ segments: [{ id: 1, source_text: 'a', target_text: 'b' }] }],
+          paragraphs: [{ segments: [{ id: 1, source_text: 'a', target_text: 'b', is_marked: false }] }],
           segment_count: 1,
         },
       ],

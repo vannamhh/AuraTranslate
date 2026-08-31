@@ -894,6 +894,23 @@ export function clearEditorCaretPlacement(): void {
 }
 
 /**
+ * Phát lại yêu cầu đặt DOM caret cho segment mà state Editor ĐÃ chọn.
+ *
+ * `openChapterById(chapterId, targetSegmentId)` có thể chạy khi Workspace đang bị
+ * `<KeepAlive>` deactive (Reading → Workspace). Watcher của `GridPanel` khi ấy vẫn sống và
+ * tiêu thụ `caretPlacement`, nhưng DOM panel đang bị giấu; tới lúc Workspace active,
+ * `WorkspaceMode.onActivated` đặt focus vào gốc và segment đích không còn là
+ * `document.activeElement`. Cửa này chỉ phát lại TÍN HIỆU DOM sau khi mode đã active:
+ * không đổi `caretSegmentId`, không flush, không tạo một đường dời con trỏ thứ hai.
+ */
+export function requestCurrentEditorCaretPlacement(): boolean {
+  const id = caretSegmentId.value
+  if (id === null) return false
+  caretPlacement.value = id
+  return true
+}
+
+/**
  * **Xác nhận câu đang có con trỏ** — FR24, và đây là chỗ giao ba mệnh đề cùng lúc.
  *
  * ─────────────────────────────────────────────────────────────────────────────

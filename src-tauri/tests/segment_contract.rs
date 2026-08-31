@@ -19,9 +19,10 @@ use auratranslate_lib::commands::chapter::split_chapter_at_segment;
 use auratranslate_lib::commands::lifecycle::set_chapter_status;
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::commands::segment::{
-    confirm_segment, flush_segment_targets, read_open_chapter_segments, read_reading_run,
-    read_segment_history, save_chapter_position, save_segment_targets, set_segment_omitted,
-    split_chapter_into_segments, restore_segment_version, unconfirm_edited_segments,
+    confirm_segment, flush_segment_targets, list_reading_marks, mark_reading_segment,
+    merge_segments, read_open_chapter_segments, read_reading_run, read_segment_history,
+    restore_segment_version, save_chapter_position, save_segment_targets, set_segment_omitted,
+    split_chapter_into_segments, split_segment, unconfirm_edited_segments,
     ReadingFrontierKind, SegmentTargetEdit, SplitOutcome, SEGMENT_STATUS_CONFIRMED,
 };
 use auratranslate_lib::core::i18n::MessageKey;
@@ -47,6 +48,209 @@ fn temp_dir(tag: &str) -> PathBuf {
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 5.13 — marker bền vững khi đọc (`reading_mark`, FR119). §I/O Matrix.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn marking_a_live_reading_segment_is_idempotent_and_the_same_reading_snapshot_reports_it() {
+    let root = temp_dir("5-13-mark-idempotent");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.13 danh dau",
+        "zh",
+        "",
+        "Cau mot。Cau hai。".to_owned(),
+    )
+    .expect("tao Tac pham that bai");
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment");
+    let id = loaded.segments[1].id;
+
+    let first = mark_reading_segment(Some(&opened), id).expect("danh dau lan dau");
+    let second = mark_reading_segment(Some(&opened), id).expect("danh dau lan hai");
+    assert_eq!(first.segment_id, id);
+    assert_eq!(first.marked_at, second.marked_at, "bam M lan hai khong duoc tao/toggle marker");
+    let rows: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM reading_mark", [], |r| r.get(0)))
+        .expect("dem marker");
+    assert_eq!(rows, 1, "INSERT idempotent phai giu dung mot hang");
+
+    let chapter_id = opened.chapter_id;
+    set_chapter_status(Some(&mut opened), chapter_id, "done").expect("dat Chuong done");
+    let reading = read_reading_run(Some(&opened)).expect("doc ReadingRun");
+    let wire = &reading.chapters[0].paragraphs[0].segments;
+    assert!(wire.iter().any(|s| s.id == id && s.is_marked));
+    assert!(wire.iter().any(|s| s.id != id && !s.is_marked));
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+#[test]
+fn reading_marks_reject_no_work_and_unknown_ids_without_creating_rows() {
+    assert_eq!(mark_reading_segment(None, 1).unwrap_err().code(), "work.none_open");
+    assert_eq!(list_reading_marks(None).unwrap_err().code(), "work.none_open");
+
+    let root = temp_dir("5-13-mark-unknown");
+    let opened = create_work_from_text(&root, "5.13 la", "zh", "", "Mot cau。".to_owned())
+        .expect("tao Tac pham");
+    assert_eq!(
+        mark_reading_segment(Some(&opened), 999_999).unwrap_err().code(),
+        "segment.not_found"
+    );
+    assert!(list_reading_marks(Some(&opened)).expect("liet ke").is_empty());
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_dangling_reading_mark_anchor_is_an_error_instead_of_a_silently_short_list() {
+    let root = temp_dir("5-13-mark-dangling-anchor");
+    let opened = create_work_from_text(&root, "5.13 neo hong", "zh", "", "Mot cau。".to_owned())
+        .expect("tao Tac pham");
+    let segment_id = read_open_chapter_segments(Some(&opened)).expect("nap segment").segments[0].id;
+    mark_reading_segment(Some(&opened), segment_id).expect("danh dau");
+    opened
+        .store
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE reading_mark SET navigation_segment_id = ?1 WHERE segment_id = ?2",
+                [999_999_i64, segment_id],
+            )?;
+            Ok(())
+        })
+        .expect("tao neo hong doi chung");
+
+    assert_eq!(
+        list_reading_marks(Some(&opened)).unwrap_err().code(),
+        "store.read_failed",
+        "neo hong khong duoc bien mat nhu mot danh sach hop le ngan hon",
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_mark_keeps_its_original_identity_while_repeated_regroup_rebases_the_live_anchor() {
+    let root = temp_dir("5-13-mark-regroup-repeat");
+    let opened = create_work_from_text(
+        &root,
+        "5.13 regroup",
+        "zh",
+        "",
+        "Cau mot。Cau hai。Cau ba。".to_owned(),
+    )
+    .expect("tao Tac pham");
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment");
+    let original = loaded.segments[1].id;
+    mark_reading_segment(Some(&opened), original).expect("danh dau");
+
+    let merged = merge_segments(Some(&opened), original).expect("gop lan mot");
+    let first_anchor = merged.new_segments[0].id;
+    let after_merge = list_reading_marks(Some(&opened)).expect("liet ke sau gop");
+    assert_eq!(after_merge.len(), 1);
+    assert_eq!(after_merge[0].segment_id, original, "danh tinh goc khong doi");
+    assert_eq!(after_merge[0].navigation_segment_id, first_anchor);
+    assert!(after_merge[0].is_retired, "ghi chu retired den tu segment goc");
+
+    let cut = merged.new_segments[0].source_text.chars().count() / 2;
+    let split = split_segment(Some(&opened), first_anchor, vec![cut]).expect("tach lan hai");
+    let after_split = list_reading_marks(Some(&opened)).expect("liet ke sau tach");
+    assert_eq!(after_split[0].segment_id, original);
+    assert_eq!(after_split[0].navigation_segment_id, split.new_segments[0].id);
+    assert_ne!(after_split[0].navigation_segment_id, first_anchor);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_failed_marker_rebase_rolls_back_the_whole_regroup_transaction() {
+    let root = temp_dir("5-13-mark-regroup-rollback");
+    let opened = create_work_from_text(
+        &root,
+        "5.13 rollback",
+        "zh",
+        "",
+        "Cau mot。Cau hai。".to_owned(),
+    )
+    .expect("tao Tac pham");
+    let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment");
+    let original = loaded.segments[1].id;
+    mark_reading_segment(Some(&opened), original).expect("danh dau");
+    opened
+        .store
+        .write(|tx| {
+            tx.execute_batch(
+                "CREATE TRIGGER reject_reading_mark_rebase \
+                 BEFORE UPDATE OF navigation_segment_id ON reading_mark \
+                 BEGIN SELECT RAISE(ABORT, 'reject rebase'); END;",
+            )
+        })
+        .expect("tao trigger doi chung");
+
+    assert!(merge_segments(Some(&opened), original).is_err(), "trigger phai lam regroup truot");
+    let after = read_open_chapter_segments(Some(&opened)).expect("nap lai");
+    assert_eq!(after.segments.len(), 2, "retire + insert phai rollback cung marker rebase");
+    assert!(after.segments.iter().any(|s| s.id == original && s.retired_at.is_none()));
+    let mark = list_reading_marks(Some(&opened)).expect("liet ke").remove(0);
+    assert_eq!(mark.navigation_segment_id, original);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_mark_list_follows_the_live_anchor_to_its_new_chapter_and_never_crosses_work_stores() {
+    let root_a = temp_dir("5-13-mark-work-a");
+    let root_b = temp_dir("5-13-mark-work-b");
+    let mut a = create_work_from_text(
+        &root_a,
+        "5.13 A",
+        "zh",
+        "",
+        "Cau mot。Cau hai。Cau ba。".to_owned(),
+    )
+    .expect("tao A");
+    let b = create_work_from_text(&root_b, "5.13 B", "zh", "", "Cau khac。".to_owned())
+        .expect("tao B");
+    let loaded = read_open_chapter_segments(Some(&a)).expect("nap A");
+    let moving = loaded.segments[1].id;
+    mark_reading_segment(Some(&a), moving).expect("danh dau A");
+    assert!(list_reading_marks(Some(&b)).expect("liet ke B").is_empty());
+
+    let old_chapter = a.chapter_id;
+    split_chapter_at_segment(Some(&mut a), moving).expect("tach Chuong tai marker");
+    let mark = list_reading_marks(Some(&a)).expect("liet ke A").remove(0);
+    assert_ne!(mark.chapter_id, old_chapter, "Chuong phai lay tu neo song sau to chuc lai");
+    let navigation_segment_id = mark.navigation_segment_id;
+    let anchor_chapter: i64 = a
+        .store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT chapter_id FROM segment WHERE id = ?1",
+                [navigation_segment_id],
+                |row| row.get(0),
+            )
+        })
+        .expect("doc Chuong cua neo song");
+    assert_eq!(mark.chapter_id, anchor_chapter);
+
+    let dir_a = a.dir.clone();
+    let dir_b = b.dir.clone();
+    drop(a);
+    drop(b);
+    cleanup(&dir_a);
+    cleanup(&dir_b);
 }
 
 fn cleanup(dir: &Path) {
@@ -619,9 +823,9 @@ fn the_project_migration_set_matches_the_declared_ladder_step_for_step() {
 
     assert_eq!(
         versions,
-        vec![1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+        vec![1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
         "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 \
-         -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 (4 la so da chay)"
+         -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 (4 la so da chay)"
     );
 }
 
@@ -689,8 +893,8 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        17,
-        "buoc 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 VA 17 phai da chay tren mot tep dung o phien ban 4"
+        18,
+        "buoc 5..18 phai da chay tren mot tep dung o phien ban 4"
     );
 
     let has_segment: i64 = migrated
@@ -851,8 +1055,8 @@ fn a_project_database_at_version_five_migrates_up_and_keeps_every_segment_row() 
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        17,
-        "buoc 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 5"
+        18,
+        "buoc 6..18 phai chay tren mot tep dung o phien ban 5"
     );
 
     let rows: Vec<(i64, String, String)> = migrated
@@ -917,8 +1121,8 @@ fn a_fresh_project_database_lands_at_the_target_with_a_status_column_and_a_versi
     // Menh de cua ca nay KHONG doi mot chu.
     assert_eq!(
         opened.store.schema_version(),
-        17,
-        "mot `project.db` moi phai dung o phien ban 17 (Story 5.7 them chapter_position)"
+        18,
+        "mot `project.db` moi phai dung o phien ban 18 (Story 5.13 them reading_mark)"
     );
 
     let (notnull, default_value): (i64, String) = opened
@@ -1039,8 +1243,8 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        17,
-        "buoc 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 6"
+        18,
+        "buoc 7..18 phai chay tren mot tep dung o phien ban 6"
     );
 
     let rows: Vec<(i64, String, String, String)> = migrated
@@ -1337,8 +1541,8 @@ fn a_project_database_at_version_nine_gains_the_index_and_no_version_row_is_touc
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        17,
-        "buoc 10, 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 9"
+        18,
+        "buoc 10..18 phai chay tren mot tep dung o phien ban 9"
     );
 
     // Index co mat SAU luot di tru -- day la nua "buoc 10 that su da chay".
@@ -1447,8 +1651,8 @@ fn a_project_database_at_version_seven_migrates_up_and_no_old_row_is_omitted() {
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        17,
-        "buoc 8, 9, 10, 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 7"
+        18,
+        "buoc 8..18 phai chay tren mot tep dung o phien ban 7"
     );
 
     let rows: Vec<(i64, String, String, String, i64)> = migrated
@@ -1654,8 +1858,8 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        17,
-        "buoc 9, 10, 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 8"
+        18,
+        "buoc 9..18 phai chay tren mot tep dung o phien ban 8"
     );
 
     let rows: Vec<(i64, i64, i64)> = migrated
@@ -1754,9 +1958,12 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
 /// fixture dừng ở 17 mô phỏng đúng bản hôm nay ⇒ ca này sẽ **xanh mà không bao giờ chạm
 /// nhánh AD-30**. `STEP_SEVENTEEN` → `STEP_EIGHTEEN`; mảng lên `[Migration; 17]`; bước giả
 /// lên `to_version: 18`.
+///
+/// 🔵 **CẬP NHẬT 2026-08-31 (Story 5.13) — fixture nâng từ 18 lên 19.** Bước 18
+/// (`READING_MARK_DDL`) nay là bước thật; một fixture dừng ở 18 không còn mới hơn app.
 #[test]
 fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
-    static STEP_EIGHTEEN: [Migration; 17] = [
+    static STEP_NINETEEN: [Migration; 18] = [
         PROJECT_MIGRATIONS[0],
         PROJECT_MIGRATIONS[1],
         PROJECT_MIGRATIONS[2],
@@ -1773,9 +1980,10 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         PROJECT_MIGRATIONS[13],
         PROJECT_MIGRATIONS[14],
         PROJECT_MIGRATIONS[15],
-        // Mot buoc 18 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
+        PROJECT_MIGRATIONS[16],
+        // Mot buoc 19 GIA — day la "mot ban ung dung tuong lai" nhin tu hom nay.
         Migration {
-            to_version: 18,
+            to_version: 19,
             sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
         },
     ];
@@ -1784,18 +1992,18 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
     let db = dir.join("project.db");
 
     let future = Store::open(StoreSpec {
-        migrations: &STEP_EIGHTEEN,
+        migrations: &STEP_NINETEEN,
         ..StoreSpec::project(db.clone())
     })
-    .expect("dung fixture o phien ban 18");
-    assert_eq!(future.schema_version(), 18);
+    .expect("dung fixture o phien ban 19");
+    assert_eq!(future.schema_version(), 19);
     drop(future);
 
     let before = fs::metadata(&db).expect("doc metadata truoc").len();
 
     let refused = Store::open(StoreSpec::project(db.clone()));
     let err = refused.err().expect(
-        "mot `project.db` o phien ban 18 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
+        "mot `project.db` o phien ban 19 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
     );
     let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
     assert_eq!(
@@ -5544,8 +5752,8 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
     // FR6) ra doi. Menh de van khong doi.
     assert_eq!(
         migrated.schema_version(),
-        17,
-        "buoc 11, 12, 13, 14, 15, 16 VA 17 phai chay tren mot tep dung o phien ban 10"
+        18,
+        "buoc 11..18 phai chay tren mot tep dung o phien ban 10"
     );
 
     let after: Vec<(i64, String, String)> = migrated

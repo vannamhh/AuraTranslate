@@ -14,6 +14,7 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args: unknown[]) => mockInv
 const mockOpenChapterById = vi.fn()
 vi.mock('../../src/panels/editorPanelState', () => ({
   openChapterById: (...args: unknown[]) => mockOpenChapterById(...args),
+  requestCurrentEditorCaretPlacement: vi.fn(),
 }))
 
 const mockSetMode = vi.fn()
@@ -28,8 +29,8 @@ const WORK_NONE_OPEN_ERROR = {
   retryable: false,
 }
 
-function segment(overrides: Partial<{ id: number; source_text: string; target_text: string; is_confirmed: boolean }> = {}) {
-  return { id: 1, source_text: 'a', target_text: 'b', is_confirmed: true, ...overrides }
+function segment(overrides: Partial<{ id: number; source_text: string; target_text: string; is_confirmed: boolean; is_marked: boolean }> = {}) {
+  return { id: 1, source_text: 'a', target_text: 'b', is_confirmed: true, is_marked: false, ...overrides }
 }
 
 function chapter(overrides: Partial<{ chapter_id: number; chapter_ord: number; chapter_title: string | null; segment_count: number }> = {}) {

@@ -259,10 +259,17 @@ import {
 // thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/reading.ts`/`config/chapter.ts`.
 import {
   closeTableOfContents,
+  closeReadingMarks,
+  markAimedReadingSegment,
+  nextReadingMark,
   nextTocChapter,
+  openAimedReadingSegment,
+  openCurrentReadingMark,
   openCurrentTocChapter,
   openFrontierInWorkspace,
+  openReadingMarks,
   openTableOfContents,
+  prevReadingMark,
   prevTocChapter,
   toggleBilingual,
   setReadingLevel,
@@ -455,6 +462,22 @@ async function boot(): Promise<void> {
       // Story 5.12 — "Che do doc chi doc phan da xong" (FR120).
       continueFromReadingFrontier: () => {
         void openFrontierInWorkspace()
+      },
+      // Story 5.13 -- marker khi doc. `M` chi ghi marker; mo aimed/list khong co phim global.
+      markAimedReadingSegment: () => {
+        void markAimedReadingSegment()
+      },
+      openAimedReadingSegment: () => {
+        void openAimedReadingSegment()
+      },
+      openReadingMarks: () => {
+        void openReadingMarks()
+      },
+      closeReadingMarks,
+      nextReadingMark,
+      prevReadingMark,
+      openCurrentReadingMark: () => {
+        void openCurrentReadingMark()
       },
       setOpenWorkOverridePaused: setOpenWorkOverride,
       clearOpenWorkOverride,

@@ -825,6 +825,7 @@ fn reading_wire_structs_keep_snake_case_field_names() {
                     source_text: "原文".to_owned(),
                     target_text: "Bản dịch".to_owned(),
                     is_confirmed: true,
+                    is_marked: true,
                 }],
             }],
             segment_count: 1,
@@ -900,7 +901,7 @@ fn reading_wire_structs_keep_snake_case_field_names() {
     segment_keys.sort_unstable();
     assert_eq!(
         segment_keys,
-        vec!["id", "is_confirmed", "source_text", "target_text"],
+        vec!["id", "is_confirmed", "is_marked", "source_text", "target_text"],
         "khoá trên dây của ReadingSegment là snake_case. Nhận được: {segment_keys:?}. Nghi phạm \
          số một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
     );
@@ -982,5 +983,52 @@ fn the_read_reading_run_wire_is_registered() {
         !lib_src.contains("crate::commands::segment::wire::read_reading_chapter"),
         "ten CU `read_reading_chapter` khong duoc con lai trong generate_handler! -- hai lenh \
          doc cung mot be mat Che do doc la hai nguon su that."
+    );
+
+    for wire in ["mark_reading_segment", "list_reading_marks"] {
+        assert!(
+            lib_src.contains(&format!("crate::commands::segment::wire::{wire}")),
+            "wire marker `{wire}` phai co mat trong generate_handler!"
+        );
+    }
+    let segment_rs =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment.rs");
+    let segment_src = fs::read_to_string(&segment_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", segment_rs.display()));
+    assert!(
+        segment_src.contains("pub fn mark_reading_segment(\n        app: tauri::AppHandle,\n        segment_id: i64,"),
+        "wire mark_reading_segment phai giu tham so `segment_id` (webview gui `segmentId`)"
+    );
+}
+
+#[test]
+fn reading_mark_wire_fields_stay_snake_case() {
+    let mark = auratranslate_lib::commands::segment::ReadingMark {
+        segment_id: 1,
+        navigation_segment_id: 7,
+        chapter_id: 2,
+        chapter_ord: 3,
+        chapter_title: Some("Chương Ba".to_owned()),
+        source_text: "原文".to_owned(),
+        target_text: "Bản dịch".to_owned(),
+        is_retired: true,
+        marked_at: "2026-08-31T00:00:00.000Z".to_owned(),
+    };
+    let value = serde_json::to_value(mark).expect("ReadingMark serialize");
+    let mut keys: Vec<&str> = value.as_object().expect("object").keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        vec![
+            "chapter_id",
+            "chapter_ord",
+            "chapter_title",
+            "is_retired",
+            "marked_at",
+            "navigation_segment_id",
+            "segment_id",
+            "source_text",
+            "target_text",
+        ]
     );
 }

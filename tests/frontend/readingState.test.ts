@@ -52,7 +52,7 @@ function chapterFixture(
     chapter_ord: 1,
     chapter_title: 'Chuong Mot',
     paragraphs: paragraphs.map((segments) => ({
-      segments: segments.map((s) => ({ is_confirmed: true, ...s })),
+      segments: segments.map((s) => ({ is_confirmed: true, is_marked: false, ...s })),
     })),
     segment_count: segmentCount,
     ...overrides,
@@ -157,7 +157,7 @@ describe('modes/ReadingMode.vue — segment đã cắt bỏ', () => {
     await state.ensureReadingLoaded()
     await wrapper.vm.$nextTick()
 
-    const spans = wrapper.findAll('.column .paragraph span')
+    const spans = wrapper.findAll('.column .paragraph .segment-text')
     expect(spans.map((s) => s.text())).toEqual(['Cau mot.', 'Cau ba.'])
   })
 
@@ -182,7 +182,7 @@ describe('modes/ReadingMode.vue — segment đã cắt bỏ', () => {
     await state.ensureReadingLoaded()
     await wrapper.vm.$nextTick()
 
-    const spans = wrapper.findAll('.column .paragraph span')
+    const spans = wrapper.findAll('.column .paragraph .segment-text')
     expect(spans).toHaveLength(3)
     expect(spans.map((s) => s.text())).toContain('Cau hai dang le da bi cat bo.')
   })
@@ -514,6 +514,8 @@ describe('modes/ReadingMode.vue — hai câu trong một đoạn không được
     await state.ensureReadingLoaded()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.paragraph').text()).toBe('Cau mot. Cau hai.')
+    expect(
+      wrapper.findAll('.paragraph .segment-text').map((s) => s.element.textContent).join(''),
+    ).toBe('Cau mot. Cau hai.')
   })
 })

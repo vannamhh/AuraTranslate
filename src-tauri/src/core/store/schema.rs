@@ -781,6 +781,24 @@ CREATE TABLE chapter_position (
   updated_at TEXT NOT NULL
 );";
 
+/// Lược đồ bảng `reading_mark` — **bước 18 của `project.db`**, Story 5.13, FR119.
+///
+/// Hai ID có hai vai không được nhập làm một: `segment_id` là danh tính câu người dùng đã
+/// đánh dấu và không đổi kể cả khi câu về hưu; `navigation_segment_id` là câu CÒN SỐNG để
+/// mở đúng vị trí hôm nay. `commands::segment::write_regroup` chuyển vế thứ hai trong cùng
+/// giao dịch retire + insert, nên một marker không bao giờ phải rơi về `ord` khả biến.
+///
+/// Không lưu `chapter_id`: tổ chức lại Chương giữ nguyên `segment.id` nhưng đổi
+/// `segment.chapter_id`; danh sách phải hỏi Chương của neo sống tại thời điểm đọc. Cũng không
+/// khai `FOREIGN KEY` — `PRAGMA foreign_keys` của kho cố ý tắt, một khoá ngoại ở đây chỉ là
+/// lời hứa không được cưỡng chế (cùng lý do [`CHAPTER_POSITION_DDL`]).
+pub const READING_MARK_DDL: &str = "\
+CREATE TABLE reading_mark (
+  segment_id INTEGER PRIMARY KEY,
+  navigation_segment_id INTEGER NOT NULL,
+  marked_at TEXT NOT NULL
+);";
+
 /// Lược đồ bảng `chapter` — **bước 1 của `project.db`**, Story 1.15, AC4.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -1312,12 +1330,12 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
     "UPDATE segment SET translation_origin = 'self' WHERE status = 'confirmed';"
 );
 
-/// Bộ di trú của `project.db`. Hôm nay **mười sáu** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
-/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4 · 5.7.
+/// Bộ di trú của `project.db`. Hôm nay **mười bảy** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
+/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4 · 5.7 · 5.13.
 ///
-/// 🔴 **Mười sáu bước, và đích là phiên bản 17.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// 🔴 **Mười bảy bước, và đích là phiên bản 18.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]` tăng dần nghiêm ngặt), và
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]` tăng dần nghiêm ngặt), và
 /// [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
 ///
 /// ⚠️ Con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
@@ -1398,6 +1416,10 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// [`CHAPTER_POSITION_DDL`] (vị trí làm việc của mỗi Chương, AD-3). Câu *"mười lăm bước,
 /// đích là 16"* đã hết đúng, sửa tại chỗ. **KHÔNG** có bước song sinh ở
 /// [`GLOBAL_MIGRATIONS`]: `chapter_position` chỉ tồn tại ở `project.db`.
+///
+/// 🔵 **CẬP NHẬT 2026-08-31 (Story 5.13):** đích chuyển từ **17** lên **18** — bước
+/// [`READING_MARK_DDL`] (marker khi đọc, FR119). Câu *"mười sáu bước, đích là 17"* đã hết
+/// đúng, sửa tại chỗ. Bảng chỉ tồn tại trong `project.db`: marker thuộc đúng một Tác phẩm.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -1555,6 +1577,12 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 17,
         sql: CHAPTER_POSITION_DDL,
+    },
+    // Story 5.13 -- marker khi doc (FR119): danh tinh goc + neo dieu huong con song.
+    // 18, khong phai 5 -- 5..17 da tieu.
+    Migration {
+        to_version: 18,
+        sql: READING_MARK_DDL,
     },
 ];
 

@@ -18,20 +18,30 @@
 // (`read_reading_run`) — không một `v-if="!s.is_omitted"` nào ở đây (không CÓ `is_omitted`
 // để mà lọc), và không một đường nào ở tệp này hỏi `chapter.status` để quyết định hiển thị
 // hay không (§Always của Story 5.12): trang chỉ render thứ Rust ĐÃ gửi.
-import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, useTemplateRef, watch } from 'vue'
 import type { DeepReadonly } from 'vue'
 import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
 import { hasMessageKey, t, tError } from '../i18n'
 import { currentTheme } from '../tokens/themeState'
 import {
   currentReadingLevel,
+  clearReadingAim,
   effectiveFontSize,
   effectiveLineHeight,
   ensureReadingLoaded,
   READING_LINE_HEIGHT_FLOOR,
   readingBilingual,
+  readingAnchorSegmentId,
+  readingAimedSegmentId,
   readingRun,
   readingLoadError,
+  readingMarkerError,
+  readingMarks,
+  readingMarksBusy,
+  readingMarksCursor,
+  readingMarksError,
+  readingMarksHaveLoaded,
+  readingMarksOpen,
   readingStatusKind,
   readingStyle,
   readingTocBusy,
@@ -41,13 +51,17 @@ import {
   readingTocHaveLoaded,
   readingTocOpen,
   readingTunerOpen,
+  setReadingAnchor,
   setFontSize,
   setLineHeight,
+  setReadingAim,
 } from './readingState'
 import type { ReadingChapter, ReadingFrontierChapter } from '../config/reading'
 
 const root = useTemplateRef<HTMLElement>('root')
 const tocPanel = useTemplateRef<HTMLElement>('tocPanel')
+const marksPanel = useTemplateRef<HTMLElement>('marksPanel')
+let readingModeActive = false
 
 /**
  * Tiêu điểm đi theo lớp phủ mục lục — 🔵 THÊM ở lượt rà 2026-08-30 (NFR17).
@@ -70,8 +84,76 @@ watch(readingTocOpen, async (open) => {
     panel.focus()
     return
   }
-  void enterFocus('mode.reading')
+  if (readingModeActive) void enterFocus('mode.reading')
 })
+
+watch(readingMarksOpen, async (open) => {
+  await nextTick()
+  if (open) {
+    const panel = marksPanel.value
+    if (panel === null) {
+      console.warn('[reading] danh sach marker mo nhung panel vang mat')
+      return
+    }
+    panel.focus()
+    return
+  }
+  if (readingModeActive) void enterFocus('mode.reading')
+})
+
+/** Neo đọc là `segment.id`; pixel chỉ được ĐO lúc dựng DOM, không bao giờ được lưu. */
+async function restoreReadingAnchor(): Promise<void> {
+  const loaded = readingRun.value
+  const anchor = readingAnchorSegmentId.value
+  if (loaded === null || anchor === null) return
+  await nextTick()
+  if (!readingModeActive) return
+  const host = root.value
+  if (host === null) return
+  const exact = host.querySelector<HTMLElement>(`[data-reading-segment="${String(anchor)}"]`)
+  if (exact !== null) {
+    exact.scrollIntoView({ block: 'center', inline: 'nearest' })
+    return
+  }
+  const first = host.querySelector<HTMLElement>('[data-reading-segment]')
+  console.warn(`[reading] neo segment ${String(anchor)} khong con tren trang — roi ve cau song dau tien`)
+  const fallbackId = Number(first?.dataset.readingSegment)
+  if (Number.isSafeInteger(fallbackId)) setReadingAnchor(fallbackId)
+  first?.scrollIntoView({ block: 'center', inline: 'nearest' })
+}
+
+watch(readingRun, (loaded, previous) => {
+  // Chỉ lượt NẠP đầu từ `null` mới cần khôi phục. Aim không cuộn, và lượt `M` thay cây
+  // `ReadingRun` để bật `is_marked` cũng không được kéo câu về giữa màn hình.
+  if (loaded !== null && previous === null) void restoreReadingAnchor()
+})
+
+/**
+ * Chụp câu gần mép trên vùng đọc nhất NGAY TRƯỚC khi `<KeepAlive>` deactive component.
+ * Đây là phép đo hình học nhất thời để chọn một ID; `DOMRect.top` không đi vào state hay
+ * xuống đĩa. Không dùng `aimedSegmentId`: cuộn trackpad không trao quyền cho `M` đánh dấu.
+ */
+function rememberReadingViewportAnchor(): void {
+  const host = root.value
+  if (host === null) return
+  const boundary = host.getBoundingClientRect().top
+  let nearest: { id: number; distance: number } | null = null
+  let lastLiveId: number | null = null
+  for (const node of host.querySelectorAll<HTMLElement>('[data-reading-segment]')) {
+    const rawId = node.dataset.readingSegment
+    const id = rawId === undefined ? Number.NaN : Number(rawId)
+    if (!Number.isSafeInteger(id)) continue
+    lastLiveId = id
+    const rect = node.getBoundingClientRect()
+    if (rect.bottom <= boundary) continue
+    const distance = Math.abs(rect.top - boundary)
+    if (nearest === null || distance < nearest.distance) nearest = { id, distance }
+  }
+  // Ở cuối trang, frontier có thể nằm trong viewport trong khi MỌI câu đã trôi lên trên
+  // mép host. Khi ấy giữ neo cũ là sai vị trí; câu sống cuối là neo gần nhất còn có nghĩa.
+  const captured = nearest?.id ?? lastLiveId
+  if (captured !== null) setReadingAnchor(captured)
+}
 
 onMounted(() => {
   declareFocus('mode.reading', () => root.value)
@@ -80,9 +162,56 @@ onBeforeUnmount(() => {
   releaseFocus('mode.reading')
 })
 onActivated(() => {
+  readingModeActive = true
   void enterFocus('mode.reading')
-  void ensureReadingLoaded()
+  void ensureReadingLoaded().then(restoreReadingAnchor)
 })
+onDeactivated(() => {
+  rememberReadingViewportAnchor()
+  readingModeActive = false
+  clearReadingAim()
+})
+
+function onSegmentFocusOut(event: FocusEvent, segmentId: number): void {
+  const wrapper = event.currentTarget as HTMLElement
+  const next = event.relatedTarget
+  if (!(next instanceof Node) || !wrapper.contains(next)) clearReadingAim(segmentId)
+}
+
+function onSegmentMouseLeave(event: MouseEvent, segmentId: number): void {
+  const wrapper = event.currentTarget as HTMLElement
+  if (!wrapper.matches(':focus-within')) clearReadingAim(segmentId)
+}
+
+/** Giữ Tab trong overlay `aria-modal`; không có dependency/focus utility thứ hai. */
+function trapOverlayTab(event: KeyboardEvent, panel: HTMLElement | null): void {
+  if (panel === null) return
+  const controls = [...panel.querySelectorAll<HTMLElement>('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')]
+    .filter((node) => !node.hasAttribute('hidden'))
+  const first = controls.at(0)
+  const last = controls.at(-1)
+  if (first === undefined || last === undefined) return
+  if (event.shiftKey && (document.activeElement === first || !panel.contains(document.activeElement))) {
+    event.preventDefault()
+    last.focus()
+    return
+  }
+  if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+/**
+ * `Enter` chỉ thuộc wrapper, không ăn lượt Enter của nút marker bên trong. Viết điều kiện
+ * tường minh thay cho modifier `.self` vì `check:layout` cố ý từ chối mọi member global
+ * chưa khai; đồng thời chỉ `preventDefault()` SAU khi biết đây đúng là cử chỉ mở câu.
+ */
+function onReadingSegmentEnter(event: KeyboardEvent): void {
+  if (event.target !== event.currentTarget) return
+  event.preventDefault()
+  void dispatch('reading.open_aimed')
+}
 
 /**
  * Câu trạng thái — TÁM nhánh của [`readingStatusKind`]. Một `switch` thay vì một chuỗi
@@ -273,7 +402,14 @@ const runChapters = computed<DeepReadonly<ReadingChapter>[]>(() => [...(readingR
       <button type="button" class="btn" data-reading-toc :aria-expanded="readingTocOpen" @click="dispatch('reading.toc')">
         {{ t('mode.reading.toc') }}
       </button>
+      <button type="button" class="btn" data-reading-marks :aria-expanded="readingMarksOpen" @click="dispatch('reading.marks')">
+        {{ t('mode.reading.marks_button') }}
+      </button>
     </div>
+
+    <!-- aura-allow-text: lỗi marker đi qua tError; đặt cạnh toolbar để một lỗi ghi ở đầu
+         Tác phẩm dài không nằm im ngoài viewport tận sau mốc biên. -->
+    <p class="marker-error" role="status">{{ readingMarkerError === null ? '' : tError(readingMarkerError) }}</p>
 
     <div v-if="readingTunerOpen" class="tuner">
       <label class="tuner-row">
@@ -380,8 +516,28 @@ const runChapters = computed<DeepReadonly<ReadingChapter>[]>(() => [...(readingR
               <span
                 v-for="(segment, i) in paragraph.segments"
                 :key="segment.id"
-                :class="{ unconfirmed: !segment.is_confirmed }"
-                >{{ i === 0 ? '' : ' ' }}{{ segment.target_text }}</span
+                class="reading-segment"
+                :class="{
+                  unconfirmed: !segment.is_confirmed,
+                  marked: segment.is_marked,
+                  aimed: readingAimedSegmentId === segment.id,
+                }"
+                :data-reading-segment="segment.id"
+                tabindex="0"
+                @mouseenter="setReadingAim(segment.id)"
+                @mouseleave="onSegmentMouseLeave($event, segment.id)"
+                @focusin="setReadingAim(segment.id)"
+                @focusout="onSegmentFocusOut($event, segment.id)"
+                @keydown.enter="onReadingSegmentEnter"
+                ><!-- aura-allow-text: bản dịch là DỮ LIỆU Tác phẩm; biểu thức đầu chỉ ngăn câu. -->
+                <span class="segment-text">{{ i === 0 ? '' : ' ' }}{{ segment.target_text }}</span>
+                <button
+                  type="button"
+                  tabindex="-1"
+                  class="mark-affordance"
+                  :aria-disabled="segment.is_marked ? 'true' : undefined"
+                  @click="dispatch('reading.mark_aimed')"
+                ><!-- aura-allow-text: cả hai nhánh đều đi qua t(). -->{{ segment.is_marked ? t('mode.reading.marked') : t('mode.reading.mark_action') }}</button></span
               >
             </p>
           </template>
@@ -416,6 +572,44 @@ const runChapters = computed<DeepReadonly<ReadingChapter>[]>(() => [...(readingR
       </button>
     </div>
 
+    <div
+      v-if="readingMarksOpen"
+      class="toc-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reading-marks-heading"
+      @keydown.esc="dispatch('reading.marks_close')"
+      @keydown.tab="trapOverlayTab($event, marksPanel)"
+    >
+      <div ref="marksPanel" class="toc-panel" tabindex="-1">
+        <p id="reading-marks-heading" class="toc-heading">{{ t('mode.reading.marks_heading') }}</p>
+        <!-- aura-allow-text: nhánh có chữ đi qua t(); nhánh còn lại là chuỗi rỗng. -->
+        <p role="status">{{ readingMarksBusy ? t('mode.reading.marks_loading') : '' }}</p>
+        <!-- aura-allow-text: lỗi dây đi qua tError()/chuỗi rỗng. -->
+        <p role="status">{{ readingMarksError === null ? '' : tError(readingMarksError) }}</p>
+        <!-- aura-allow-text: cả hai nhánh đi qua t()/chuỗi rỗng. -->
+        <p role="status">{{ readingMarksHaveLoaded && readingMarksError === null && readingMarks.length === 0 ? t('mode.reading.marks_empty') : '' }}</p>
+        <ul class="toc-list">
+          <li
+            v-for="(mark, index) in readingMarks"
+            :key="mark.segment_id"
+            :class="{ current: index === readingMarksCursor }"
+            :aria-current="index === readingMarksCursor ? 'true' : undefined"
+          >
+            <!-- aura-allow-text: target_text/chapter_title là dữ liệu Tác phẩm. -->
+            <span>{{ mark.chapter_title ?? untitled(mark.chapter_ord) }} — {{ mark.target_text === '' ? mark.source_text : mark.target_text }}</span>
+            <span v-if="mark.is_retired" class="retired-note">{{ t('mode.reading.marks_retired') }}</span>
+          </li>
+        </ul>
+        <div class="toc-actions">
+          <button type="button" class="btn" :disabled="readingMarksBusy || readingMarks.length === 0" @click="dispatch('reading.marks_prev')">{{ t('mode.reading.marks_prev') }}</button>
+          <button type="button" class="btn" :disabled="readingMarksBusy || readingMarks.length === 0" @click="dispatch('reading.marks_next')">{{ t('mode.reading.marks_next') }}</button>
+          <button type="button" class="btn" :disabled="readingMarksBusy || readingMarks.length === 0" @click="dispatch('reading.marks_open')">{{ t('mode.reading.marks_open') }}</button>
+          <button type="button" class="btn" @click="dispatch('reading.marks_close')">{{ t('mode.reading.marks_close') }}</button>
+        </div>
+      </div>
+    </div>
+
     <!--
       🔵 SỬA (rà 2026-08-30) — BA lỗ bàn phím của lớp phủ này, cả ba đều ngược NFR17:
       ① lớp phủ mở ra mà KHÔNG gì nhận tiêu điểm ⇒ người dùng bấm `⌘L` rồi phải Tab mò từ
@@ -433,6 +627,7 @@ const runChapters = computed<DeepReadonly<ReadingChapter>[]>(() => [...(readingR
       role="dialog"
       aria-modal="true"
       @keydown.esc="dispatch('reading.toc_close')"
+      @keydown.tab="trapOverlayTab($event, tocPanel)"
     >
       <div ref="tocPanel" class="toc-panel" tabindex="-1">
         <p class="toc-heading">{{ t('mode.reading.toc_heading') }}</p>
@@ -581,6 +776,55 @@ const runChapters = computed<DeepReadonly<ReadingChapter>[]>(() => [...(readingR
    đúng giá trị `--orn` mà mockup dùng cho `.s.unconf` -- 0 cặp tương phản mới. */
 .unconfirmed {
   border-bottom: 1px dotted var(--color-ornament);
+}
+
+.reading-segment {
+  display: inline;
+  position: relative;
+  border-radius: var(--radius-default);
+}
+
+.reading-segment:focus,
+.reading-segment:hover {
+  background: var(--color-surface-accent);
+}
+
+.reading-segment.marked {
+  background: var(--color-surface-tm);
+}
+
+.mark-affordance {
+  display: none;
+  position: absolute;
+  inset-inline-start: 100%;
+  inset-block-start: 0;
+  /* aura-allow-z-index: thứ tự sơn trong cùng dòng để nút tuyệt đối không nằm dưới chữ câu kế, không elevation */
+  z-index: 1;
+  white-space: nowrap;
+  margin-inline-start: var(--space-panel-inline);
+  background: var(--color-surface);
+  color: var(--color-tm-text);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  font-family: var(--face-ui-sm);
+}
+
+.reading-segment:hover .mark-affordance,
+.reading-segment.aimed .mark-affordance,
+.reading-segment:focus-within .mark-affordance {
+  display: inline;
+}
+
+.marker-error,
+.retired-note {
+  color: var(--color-tm-text);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  font-family: var(--face-ui-sm);
+}
+
+.retired-note {
+  display: block;
 }
 
 .chapter-note {

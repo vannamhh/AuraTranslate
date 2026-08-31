@@ -3759,6 +3759,13 @@ Hai khoảng hở cùng hình dạng, hai số phận khác nhau, và cái khác
   `tests/frontend/readingFrontier.test.ts` + `readingUnconfirmed.test.ts` (mới) ·
   `e2e/specs/story-5-12-reading-frontier.e2e.mjs` (mới, chạy tay). Đánh dấu "cần sửa" (FR119)
   VẪN có chủ riêng: **Story 5.13**.
+  → ✅ **ĐÃ ĐÓNG 2026-08-31 (Story 5.13), vế FR119.** `reading_mark` sống trong
+  `project.db`, giữ `segment_id` gốc và `navigation_segment_id` sống; `M` ghi idempotent ngay
+  trong Chế độ đọc, danh sách chỉ đọc Work đang mở và mở đúng segment. `write_regroup` rebase
+  neo trong cùng transaction qua cả gộp rồi tách, nhưng không xoá danh tính marker đã về hưu.
+  Nghiệm thu: `segment_contract.rs` (idempotence · no-work/unknown · cách ly Work/Chương ·
+  rollback · regroup lặp) · `tests/frontend/readingMarks.test.ts` ·
+  `e2e/specs/story-5-13-reading-marks.e2e.mjs` (WKWebView 605.1.15, xanh 1/1 ngày 2026-08-31).
 - Bản xuất → **Epic 8** *(Story 8.3 · 8.4 · 8.6)*
 
 ### 🔴 CÒN HỞ, và đây là món lớn hơn cả hai mục trên: nghĩa vụ FR133 chỉ phát biểu MỘT CHIỀU
@@ -5065,6 +5072,13 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   TOÀN BỘ state đọc khi đổi Chương, không có một neo cuộn nào ra đời ở đây để mà cắm vào — mệnh
   đề *"đã cần một neo ở 5.12"* của ngày 2026-08-18 không thành hiện thực. Vị trí cuộn VẪN HỞ
   nguyên vẹn, và giờ chỉ còn MỘT story có thể đóng nó, không còn "hoặc". **Chủ: Story 5.13.**
+  → ✅ **ĐÃ ĐÓNG 2026-08-31 (Story 5.13).** Chế độ đọc giữ
+  `readingAnchorSegmentId`; lúc rời mode nó đo câu gần mép trên để chỉ lưu `segment.id`, không
+  lưu `scrollTop`/pixel, và lúc active gọi `scrollIntoView` trên đúng ID sau render. Đường mở
+  marker retired thay neo sang `navigation_segment_id` sống và phát lại caret DOM chỉ sau khi
+  Workspace đã active, nên Enter/danh sách cùng mở đúng câu. Bằng chứng:
+  `readingMarks.test.ts` tách neo khỏi aim và từ chối ID lạ; ca WKWebView Story 5.13 đổi chữ lên
+  28 px, đi Reading → Workspace → Reading rồi thấy đúng neo sống sau hai lượt regroup.
 
 - 🟡 **Tiêu điểm sau một lượt chuyển Chương THÀNH CÔNG — cơ chế đã cài, vế nghiệm thu còn HỞ.** `switchChapter` gọi `await nextTick()` rồi `enterFocus('panel.grid')` *(`editorPanelState.ts`)*, và lý do có bằng chứng: lượt chuyển thay **toàn bộ** hàng của `v-for`, `segment.id` là `AUTOINCREMENT` **theo Tác phẩm** nên Chương mới gần như chắc chắn mang tập khoá khác ⇒ Vue **gỡ** đúng ô `contenteditable` đang giữ tiêu điểm ⇒ trình duyệt trả nó về `document.body`, thứ AD-34 §2 cấm thẳng. 🔴 **Nhưng mệnh đề *"tiêu điểm KHÔNG rơi về `body`"* chưa có đường nghiệm thu nào:** `happy-dom` **không phải** WebKit *(và không bố cục)*, còn e2e thì **không tới được** một lượt chuyển thành công — cùng món nợ với mục thứ nhất ở trên. ⇒ Đã cài, **không** tự chấm đạt. **Chủ: cùng story mở đường sinh Chương thứ hai (Epic 6/FR14)** — nghiệm thu vế này **cùng lượt** với AC1/AC2.
 
@@ -8764,6 +8778,9 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     🔵 **SỬA 2026-08-30 (Story 5.12)** — mục gốc vừa THU HẸP chủ về MỘT (Story 5.12 đã dựng
     xong bề mặt "chỉ đọc phần đã xong" mà không đụng vị trí cuộn); câu ở đây SỬA THEO.
     **(Chủ: Story 5.13 — duy nhất, cùng chủ đã ghi ở mục gốc.)**
+    → ✅ **ĐÃ ĐÓNG 2026-08-31 (Story 5.13)** — xem mục gốc *Deferred from: 2-11*:
+    neo là `segment.id`, không pixel; e2e WKWebView đã đổi typography rồi xác nhận neo sống
+    sau hai lượt regroup giao vùng nhìn.
 
 ## Deferred from: 5-12-che-do-doc-chi-doc-phan-da-xong (2026-08-30)
 

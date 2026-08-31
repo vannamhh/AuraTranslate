@@ -33,6 +33,30 @@ export type ReadingSegment = {
   source_text: string
   target_text: string
   is_confirmed: boolean
+  is_marked: boolean
+}
+
+/** Marker đã phân giải — văn bản từ câu gốc, Chương/vị trí từ neo còn sống. */
+export type ReadingMark = {
+  segment_id: number
+  navigation_segment_id: number
+  chapter_id: number
+  chapter_ord: number
+  chapter_title: string | null
+  source_text: string
+  target_text: string
+  is_retired: boolean
+  marked_at: string
+}
+
+export type MarkReadingSegmentResult = {
+  mark: ReadingMark | null
+  error: IpcError | null
+}
+
+export type ListReadingMarksResult = {
+  marks: ReadingMark[] | null
+  error: IpcError | null
 }
 
 /**
@@ -127,8 +151,29 @@ function isReadingSegment(value: unknown): value is ReadingSegment {
     typeof v.id === 'number' &&
     typeof v.source_text === 'string' &&
     typeof v.target_text === 'string' &&
-    typeof v.is_confirmed === 'boolean'
+    typeof v.is_confirmed === 'boolean' &&
+    typeof v.is_marked === 'boolean'
   )
+}
+
+function isReadingMark(value: unknown): value is ReadingMark {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ReadingMark>
+  return (
+    typeof v.segment_id === 'number' &&
+    typeof v.navigation_segment_id === 'number' &&
+    typeof v.chapter_id === 'number' &&
+    typeof v.chapter_ord === 'number' &&
+    (typeof v.chapter_title === 'string' || v.chapter_title === null) &&
+    typeof v.source_text === 'string' &&
+    typeof v.target_text === 'string' &&
+    typeof v.is_retired === 'boolean' &&
+    typeof v.marked_at === 'string'
+  )
+}
+
+function isReadingMarkArray(value: unknown): value is ReadingMark[] {
+  return Array.isArray(value) && value.every(isReadingMark)
 }
 
 /** 🔴 Kiểm MỌI phần tử, không chỉ phần tử đầu — cùng lý lẽ `config/library.ts::isSearchHitArray`. */
@@ -214,6 +259,8 @@ const UNKNOWN_IPC_ERROR: IpcError = {
 
 /** Tên command trên dây. Khớp `src-tauri/src/commands/segment.rs` (module `wire`). */
 const CMD_READ_READING_RUN = 'read_reading_run'
+const CMD_MARK_READING_SEGMENT = 'mark_reading_segment'
+const CMD_LIST_READING_MARKS = 'list_reading_marks'
 
 /**
  * Đọc lượt đọc bắt đầu tại Chương đang mở. Không ném — cùng lý do và cùng khuôn
@@ -241,5 +288,46 @@ export async function readReadingRun(): Promise<ReadReadingRunResult> {
     // để hiện lên; trạng thái thứ BA của I/O Matrix.
     console.info(`[reading] không gọi được \`${CMD_READ_READING_RUN}\` — chạy ngoài Tauri? ${String(err)}`)
     return { run: null, error: null }
+  }
+}
+
+/** Đánh dấu idempotent một câu. Không ném và không đổi lỗi thành state marker giả. */
+export async function markReadingSegment(segmentId: number): Promise<MarkReadingSegmentResult> {
+  try {
+    const raw = await invoke<unknown>(CMD_MARK_READING_SEGMENT, { segmentId })
+    if (!isReadingMark(raw) || raw.segment_id !== segmentId) {
+      // `segment_id` là danh tính của chính yêu cầu này, không chỉ một trường có kiểu số.
+      // Chấp nhận marker của ID khác rồi tô ID đã yêu cầu sẽ dựng state thành công giả — cùng
+      // lớp lỗi payload hợp hình dạng nhưng sai bất biến mà `isReadingFrontier` đã chặn.
+      console.error(`[reading] \`${CMD_MARK_READING_SEGMENT}\` trả payload marker sai hình dạng hoặc sai segment_id`)
+      return { mark: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { mark: raw, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { mark: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[reading] \`${CMD_MARK_READING_SEGMENT}\` trượt bằng lỗi không phải IpcError: ${String(err)}`)
+      return { mark: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { mark: null, error: null }
+  }
+}
+
+/** Danh sách marker của Tác phẩm đang mở. Payload sai là lỗi, không phải danh sách rỗng. */
+export async function listReadingMarks(): Promise<ListReadingMarksResult> {
+  try {
+    const raw = await invoke<unknown>(CMD_LIST_READING_MARKS)
+    if (!isReadingMarkArray(raw)) {
+      console.error(`[reading] \`${CMD_LIST_READING_MARKS}\` trả payload danh sách sai hình dạng`)
+      return { marks: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { marks: raw, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { marks: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[reading] \`${CMD_LIST_READING_MARKS}\` trượt bằng lỗi không phải IpcError: ${String(err)}`)
+      return { marks: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { marks: null, error: null }
   }
 }
