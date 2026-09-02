@@ -493,6 +493,12 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 
 **FR33.** **Tab Hán Việt:** hiển thị âm Hán Việt cho từng ký tự tiếng Trung trong văn bản nguồn.
 
+**FR135.** **Double-click ở tab Hán Việt chọn trọn CỤM TỪ, không một âm tiết.** Ở tab nguyên văn tiếng Trung, double-click đã chọn được cả cụm từ; tab Hán Việt phải giữ đúng hành vi ấy — cùng một văn bản, cùng một thao tác, cùng một đơn vị chọn. Đơn vị ở đây là **từ**, không phải **segment**: AD-4 *(ranh giới segment tính một lần lúc nhập)* nói về đơn vị khác và FR này không đụng tới nó.
+
+> **Căn cứ — bộ tách từ đã có sẵn trong engine, không phải thứ phải xây.** Phân tích đầu tiên kết luận *"phải tự xây bộ tách từ, cần `jieba-rs` ở Rust, một story lớn"*. Sai, và Ice lật nó bằng một quan sát: engine đã tách từ đúng ở tab nguyên văn. Truy được qua `Intl.Segmenter` ⇒ **0 phụ thuộc mới · 0 dòng Rust** (NFR15). Vùng chọn nằm trong danh sách năng lực frontend được giữ theo AD-1, nên đây không phải một quy tắc nghiệp vụ rơi xuống TypeScript.
+> ⚠️ **Vế còn hở:** `Intl.Segmenter` trên **WKWebView** chưa đo — NFR14 *(hai nền tảng)* chưa nghiệm thu cho đường này.
+> ➕ **FR này ghi lại một năng lực ĐÃ PHÁT HÀNH** *(Story 1.18b, `done` 2026-08-07)* mà PRD chưa bao giờ đặc tả. Thêm 2026-09-02 qua `correct-course`.
+
 **FR34.** Mục từ **tiếng Anh** phải có nhãn từ loại và nghĩa tiếng Việt.
 
 **FR35.** Mục từ **tiếng Trung** phải có nhãn từ loại và ít nhất một ví dụ cách dùng khi nguồn có dữ liệu. Ở v1, nhãn từ loại và bản dịch ví dụ **bằng tiếng Anh được chấp nhận** và phải được **đánh dấu rõ là nhãn ngoại ngữ**.

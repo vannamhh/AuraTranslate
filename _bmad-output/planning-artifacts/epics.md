@@ -840,7 +840,7 @@ Người dịch mở AuraTranslate, đưa một văn bản tiếng Trung hoặc 
 
 Epic này cũng đặt xuống các bất biến mà chín epic sau đều dựa vào — và chúng nằm ở đây **không phải vì gọn, mà vì rẻ nếu làm từ dòng code đầu tiên và rất đắt nếu vá sau**: cây nguồn theo Structural Seed, ba cổng, `store::Writer` nối tiếp, hình dạng `.atproj`, `CommandRegistry`, bộ token đã kiểm tương phản, `vi.json`, và pipeline dựng dữ liệu từ điển có checksum.
 
-**FRs covered:** FR13 *(nhánh dán tay + `.txt`/`.md`)*, FR16, FR17, FR18, FR19, FR21, FR22, FR27, FR28, FR29, FR30, FR31, FR32, FR33, FR34, FR35, FR36, FR37, FR38, FR39, FR40, FR41, FR96, FR97, FR102, FR103, FR104
+**FRs covered:** FR13 *(nhánh dán tay + `.txt`/`.md`)*, FR16, FR17, FR18, FR19, FR21, FR22, FR27, FR28, FR29, FR30, FR31, FR32, FR33, FR34, FR35, FR36, FR37, FR38, FR39, FR40, FR41, FR96, FR97, FR102, FR103, FR104, FR135
 
 **NFRs:** NFR1, NFR6, NFR7, NFR8 *(từ điển)*, NFR9 *(`.atproj`)*, NFR13, NFR14 *(thiết lập)*, NFR15, NFR16, NFR17
 
@@ -1483,6 +1483,33 @@ So that cặp Anh → Việt có nền dữ liệu như cặp Trung → Việt �
 
 ---
 
+### Story 1.10c: Âm Hán Việt — đúng nguồn và đúng nhãn
+
+> ➕ **Story THÊM 2026-09-02 qua `correct-course`** — xem `sprint-change-proposal-2026-09-02.md`.
+> **Vì sao nó thiếu:** story này sinh ra từ **một phép đo**, không từ một mục backlog. Task 0 của Story 1.16 đo `dict-core.db` thật và phát hiện cột `dict_entry.han_viet` của **lớp nền** mang **âm Nôm**, không phải âm Hán Việt. Ice chốt 2026-08-06 *(đóng tầng dữ liệu TRƯỚC, giao diện SAU)* và story đóng cùng ngày — `epics.md` chưa bao giờ được bù lại.
+
+**Covers:** **Không FR mới.** Sửa **chất lượng dữ liệu** đứng dưới **FR33** *(âm Hán Việt từng ký tự)* và **FR113** *(đề xuất bản dịch bằng âm Hán Việt — đóng ở Story 3.7)*; mở rộng nền của FR27–FR32. **NFR6** *(đo lại)* · NFR13 · NFR14 · NFR15
+
+As a người dịch,
+I want âm Hán Việt trong công cụ là **âm Hán Việt thật**,
+So that tab Hán Việt và đề xuất Glossary không dạy tôi sai một chữ nào.
+
+🔴 **Số đo có TRƯỚC khi story mở** (2026-08-06, trên dữ liệu thật): `tools/dict-build/src/sources/unihan.rs:116` nạp `Unihan kVietnamese` thẳng vào `dict_entry.han_viet`. Unicode định nghĩa trường đó là *"the Vietnamese pronunciation(s) of this character"* — với chữ **Nôm** thì đó **chính là âm Nôm**. Đối chiếu Thiều Chửu trên phần giao **3.239** ký tự: **1.243 = 38,4 %** cho âm đầu khác nhau *(繭 → `kén` vs `kiển`; `kén` là từ thuần Việt)*.
+
+**Given** lớp nền đang mang âm Nôm ở cột `han_viet` · **When** dựng lại dữ liệu từ điển
+**Then** `kVietnamese` **đổi vai** sang một cột `nom_reading` riêng — **không mất một byte** dữ liệu nào
+**And** `dict_entry.han_viet` mang **đúng một** ngữ nghĩa ở **mọi** tệp `.db`
+**And** nguồn nền thứ **bảy** `en-wiktionary-vi` nạp âm đọc **có gắn nhãn**
+**And** lớp gỡ rời thứ **ba** `tran-van-chanh` — 🔴 **còn bản quyền, tác giả còn sống**; đóng gói rời chính vì rủi ro đó, và **FR36 vẫn đúng** *(gỡ = xoá đúng một tệp)*
+**And** lỗi Unihan **không tái diễn được**: lưới `nom_guard` cưỡng chế bằng máy, nghiệm thu **đỏ-rồi-xanh** trên dữ liệu thật
+**And** lược đồ lên **v2** ở **cả hai bờ**, và bờ đọc **từ chối đúng chiều** *(AD-30 — mở tiến, không mở lùi)*
+**And** `dict-manifest.toml` cập nhật **trọn bốn** SHA-256, checksum **tái lập được**
+**And** **NFR6** phải có số **đo thật** trước khi đánh dấu đạt — không suy luận, không mượn số cũ
+
+**Chặn Story 1.16** *(tab Hán Việt)* và **đầu độc Story 3.7** *(FR113)* nếu không đóng trước. **Vị trí thật:** nối tiếp 1-9 · 1-10 · 1-10b; chạy **sau** 1-15 theo thứ tự thời gian, **trước** 1-16.
+
+---
+
 ### Story 1.11: Ba nhánh truy vấn tiếng Trung
 
 **Covers:** FR39 · NFR1
@@ -1872,6 +1899,31 @@ So that tôi không phải copy, paste hay chuyển cửa sổ hàng trăm lần
 **Given** ngắt kết nối mạng
 **When** tra cứu
 **Then** mọi đường tra cứu vẫn hoạt động đầy đủ
+
+---
+
+### Story 1.18b: Tách từ tiếng Trung cho tab Hán Việt — double-click chọn CỤM TỪ
+
+> ➕ **Story THÊM 2026-09-02 qua `correct-course`** — xem `sprint-change-proposal-2026-09-02.md`.
+> **Vì sao nó thiếu:** story sinh ra từ **một lượt nghiệm thu tay**, không từ `epics.md`. Ice bắt bằng mắt 2026-08-07 *("ở phần văn bản gốc thì double click sẽ chọn được cả cụm từ, vậy tại sao khi chuyển sang phần Hán Việt lại không chọn được")* và chốt thành story riêng; nó đóng cùng ngày. Lúc đó **không FR nào đặc tả nó** — chỗ hở PRD ấy nay đóng bằng **FR135**, thêm cùng lượt `correct-course` này.
+
+**Covers:** **FR135** *(mới)*. **NFR1** *(p95 < 100 ms — Auto-Lookup chạm bề mặt này hàng trăm lần mỗi Chương)* · **NFR13** · **NFR14** · **NFR15** *(0 phụ thuộc mới)* · NFR16 · **NFR17**
+
+As a người dịch,
+I want double-click ở tab Hán Việt chọn được **cả cụm từ** đúng như ở tab nguyên văn,
+So that tôi tra một từ ghép bằng **hai cú bấm** thay vì phải kéo chọn thủ công từng lần.
+
+🔴 **Phân tích đầu tiên SAI, và Ice đã lật nó — đừng đi lại vào hố đó.** Kết luận ban đầu: *"phải tự xây bộ tách từ, cần `jieba-rs` ở Rust, một story lớn"*. Sai — bộ tách từ **đã có sẵn trong engine**, nó chính là thứ làm double-click hoạt động đúng ở tab nguyên văn. Truy qua **`Intl.Segmenter`** ⇒ **0 phụ thuộc mới · 0 dòng Rust**.
+
+**Given** tab Hán Việt đang chọn theo **âm tiết** · **When** người dịch double-click một từ ghép
+**Then** vùng chọn trùm **cả cụm từ**, ở **cả hai kiểu xem**
+**And** hành vi **đối chiếu được** với tab nguyên văn — cùng văn bản, cùng thao tác, cùng đơn vị chọn
+**And** ranh giới **AD-17** ghi thành **CHỮ**, không để suy luận: Matcher vẫn là **đúng một** cài đặt khớp ngôn ngữ ở Rust, và story này **không đụng** nó *(đơn vị ở đây là **từ**, không phải **segment** — AD-4 nói về đơn vị khác)*
+**And** 🔴 **AC6 của Story 1.16** *(vùng chọn kiểu song song = đúng ký tự nguồn)* và **AC12 của Story 1.18** *(truy vấn Auto-Lookup không lẫn âm)* được **ĐO LẠI**, không suy từ số cũ
+**And** **AC11 của Story 1.18** *(bôi đen bằng bàn phím — `Selection.modify()`)* **không hồi quy** *(NFR17)*
+**And** trần render **đo lại**, không chép số cũ; sàn quần thể của cổng nâng theo số **THẬT**
+
+🔴 **Hai vế story này khai là KHÔNG nghiệm thu được, và ghi thẳng thay vì đánh dấu đạt (AC11):** ① `Intl.Segmenter` trên **WKWebView** chưa đo — cùng kỷ luật món nợ hai nền tảng mà 1.6/1.14/1.16/1.17/1.18 đã giữ; ② chất lượng tách từ trên văn bản **tiểu thuyết** thật *(tên riêng, từ cổ, thành ngữ)* — mẫu đã đo chỉ là văn bản **tin tức**; các ca ICU cắt sai phải liệt kê có thật, không thay bằng một lời khẳng định *"tách tốt"*.
 
 ---
 
