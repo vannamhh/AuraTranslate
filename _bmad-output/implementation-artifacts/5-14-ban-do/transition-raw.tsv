@@ -1,0 +1,13 @@
+session	fixture	transition	budget_s	elapsed_ms	status	note
+1	full	reading	1800	22422	ok	
+1	full	back_library	1800	461	ok	
+1	frontier	reading	1800	124	ok	
+1	frontier	back_library	1800	145	ok	
+2	full	reading	1800	17788	ok	
+2	full	back_library	1800	1979	ok	
+2	frontier	reading	1800	108	ok	
+2	frontier	back_library	1800	124	ok	
+3	full	reading	1800	1902	ok	
+3	full	back_library	1800	2088	ok	
+3	frontier	reading	1800	123	ok	
+3	frontier	back_library	1800	126	ok	

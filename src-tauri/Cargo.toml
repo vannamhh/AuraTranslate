@@ -105,6 +105,10 @@ tauri-plugin-wdio-webdriver = { version = "=1.3.0", optional = true }
 # `[dependencies]` vừa đóng, và không cổng nào ngoài `check-deps` sẽ đỏ.
 [features]
 wdio = ["dep:tauri-plugin-wdio-webdriver"]
+# 🔴 Feature đo này CHỈ tồn tại để Story 5.14 chạy app release trên HOME nháp. Nó không
+# kéo dependency mới, không thuộc `default`, và command tương ứng bị loại trọn khỏi bản
+# phát hành thường. Ice cho phép riêng 2026-09-02; xem `lib.rs::story_5_14_bench`.
+story-5-14-bench = []
 
 # Giữ nguyên profile mà Story 1.1 đã đo dung lượng `.dmg` trên đó — đổi ở đây là làm
 # số đo NFR6 của Story 1.1 hết so sánh được.
@@ -114,6 +118,29 @@ lto = true
 opt-level = "s"
 panic = "abort"
 strip = true
+
+# 🔴 Profile đo của Story 5.14 — KHÔNG phải một biến thể release để phát hành.
+#
+# `[lib] crate-type` có `staticlib` + `cdylib` + `rlib`, và `[profile.release]` khai
+# `panic = "abort"`. Một test target thì Cargo LUÔN dựng bằng `unwind` (harness cần
+# `catch_unwind`), nên dưới profile `release` Cargo dựng `auratranslate_lib` HAI lần —
+# một bản `abort` cho staticlib/cdylib, một bản `unwind` cho rlib — và cả hai ghi đè
+# nhau ở đúng bốn đường: `deps/libauratranslate_lib.{a,dylib,dylib.dSYM,rlib}`
+# (`cargo` cảnh báo `output filename collision`, rust-lang/cargo#6313). Bản nào ghi
+# sau thì thắng, nên `cargo test --release` xanh hay đỏ tuỳ thứ tự lượt dựng trước đó:
+# đo 2026-09-02, cùng một cây mã cho `segment_contract` đỏ lượt 15:44 rồi xanh lượt
+# 18:22, còn `library_index_contract` đi ngược lại — lỗi đổi phía, không đổi mã.
+#
+# `panic = "unwind"` ở đây làm lib chỉ còn MỘT bản, nên va chạm không còn chỗ xảy ra.
+# Nó KHÔNG đổi thứ được đo: một test target chỉ link được lib `unwind`, nên mọi lượt
+# bench release đã từng xanh đều vốn chạy trên `unwind` rồi — profile này chỉ biến cái
+# trước nay là may rủi thành tất định. Bốn khoá còn lại thừa kế nguyên từ `release`.
+#
+# ⚠️ `[profile.release]` ở trên KHÔNG bị chạm, và app cho NFR4/NFR5 vẫn do
+# `build.sh` dựng bằng `--release` — số `.dmg` NFR6 của Story 1.1 giữ nguyên đối chứng.
+[profile.bench-release]
+inherits = "release"
+panic = "unwind"
 
 # ── Lint ────────────────────────────────────────────────────────────────────────────
 #

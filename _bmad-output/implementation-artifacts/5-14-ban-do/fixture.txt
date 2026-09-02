@@ -1,0 +1,8 @@
+works=1
+chapters=5000
+segments=50000
+fixture_bytes=8921434
+fixture_MB=8.921
+fixture_MiB=8.508
+project_db_bytes=8921088
+shape=one synthetic Work; 5000 chapters; 10 live confirmed segments/chapter

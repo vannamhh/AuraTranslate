@@ -3067,7 +3067,7 @@ fn the_widened_flag_always_equals_mode_exact_and_effective_mode_lenient() {
 // nên dựng nó thành cổng là dựng một cổng chập chờn — và một cổng chập chờn bị người ta học
 // cách bỏ qua. Chạy tay:
 //
-//     cargo test --locked --test library_index_contract -- --ignored --nocapture
+//     cargo test --release --locked --test library_index_contract -- --ignored --nocapture
 //
 // ⚠️ **Con số ở đây là SƠ BỘ và không nghiệm thu NFR3.** Thư viện tổng hợp dưới đây có đúng
 // một `.atproj` mang 5.000 Chương, trong khi một thư viện THẬT 5.000 Chương trải trên hàng
@@ -3081,7 +3081,45 @@ fn bench_p95_of_a_library_search_over_five_thousand_chapters() {
 
     const CHAPTERS: usize = 5_000;
     const SEGMENTS_PER_CHAPTER: usize = 10;
-    const RUNS: usize = 50;
+    const WARMUPS_PER_CASE: usize = 10;
+    const RUNS_PER_CASE: usize = 200;
+    const LIMIT: usize = 50;
+
+    #[derive(Clone, Copy)]
+    struct BenchCase {
+        name: &'static str,
+        query: &'static str,
+        requested_mode: SearchMode,
+        effective_mode: SearchMode,
+        widened: bool,
+        field: SearchField,
+        hits: usize,
+        truncated: bool,
+    }
+
+    fn assert_case(
+        case: BenchCase,
+        report: &auratranslate_lib::core::library::indexer::SearchReport,
+    ) {
+        assert_eq!(report.indexed_segments, 50_000, "{}: quần thể chỉ mục sai", case.name);
+        assert_eq!(report.mode, case.requested_mode, "{}: mode yêu cầu sai", case.name);
+        assert_eq!(report.effective_mode, case.effective_mode, "{}: mode hiệu lực sai", case.name);
+        assert_eq!(report.widened, case.widened, "{}: cờ tự nới sai", case.name);
+        assert_eq!(report.total, case.hits, "{}: số hit sai", case.name);
+        assert_eq!(report.hits.len(), case.hits, "{}: số hàng hit sai", case.name);
+        assert_eq!(report.truncated, case.truncated, "{}: cờ cắt trần sai", case.name);
+        assert!(
+            report.hits.iter().all(|hit| hit.field == case.field),
+            "{}: hit lọt sang nửa văn bản khác",
+            case.name
+        );
+    }
+
+    fn nearest_rank(sorted: &[f64], quantile: f64) -> f64 {
+        assert!(!sorted.is_empty(), "phân vị không có mẫu");
+        let rank = (quantile * sorted.len() as f64).ceil() as usize;
+        sorted[rank.saturating_sub(1).min(sorted.len() - 1)]
+    }
 
     let dir = temp_dir("bench-p95");
     let global = open_global(&dir);
@@ -3117,35 +3155,109 @@ fn bench_p95_of_a_library_search_over_five_thousand_chapters() {
     indexer.rebuild(&root, Some(&global)).expect("rebuild");
     let rebuild_ms = t_rebuild.elapsed().as_secs_f64() * 1000.0;
 
-    let sample = indexer.search("phân cửu", 50, SearchMode::Exact).expect("search mau");
-    assert!(
-        sample.indexed_segments >= CHAPTERS * SEGMENTS_PER_CHAPTER,
-        "ban do vo nghia neu chi muc chua thu hoach du: indexed_segments = {}",
-        sample.indexed_segments
-    );
+    let chapter_count: i64 = store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter", [], |row| row.get(0)))
+        .expect("đếm Chương fixture");
+    let segment_count: i64 = store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment", [], |row| row.get(0)))
+        .expect("đếm segment fixture");
+    assert_eq!(chapter_count, CHAPTERS as i64, "fixture phải có đúng 5.000 Chương");
+    assert_eq!(segment_count, (CHAPTERS * SEGMENTS_PER_CHAPTER) as i64, "fixture phải có đúng 50.000 segment");
 
-    // Truy vấn xoay vòng qua bốn hình dạng THẬT của story: cụm tiếng Việt có dấu (nửa bản
-    // dịch), chuỗi con chữ Hán (nửa nguyên văn, trigram), chuỗi con Latin, và một truy vấn
-    // không khớp gì.
-    let queries = ["má của tôi", "分久必合", "brown fox", "khong khop gi ca"];
-    let mut samples_ms: Vec<f64> = Vec::with_capacity(RUNS);
-    for i in 0..RUNS {
-        let q = queries[i % queries.len()];
-        let t = Instant::now();
-        let _ = indexer.search(q, 50, SearchMode::Exact).expect("search");
-        samples_ms.push(t.elapsed().as_secs_f64() * 1000.0);
+    // Năm ca đứng RIÊNG: p95 của một ca chậm không được chìm trong một vector trộn. Hai ca
+    // `ma cua toi` cùng truy vấn nhưng khác ý định để bắt riêng chi phí tự nới và người dùng
+    // chọn khoan dung. Các assertions chạy cả ở warm-up lẫn mẫu thật: một số nhanh từ sai
+    // mode, rỗng hoặc mất cờ `truncated` bị vô hiệu ngay tại nguồn.
+    let cases = [
+        BenchCase {
+            name: "target_exact_truncated",
+            query: "má của tôi",
+            requested_mode: SearchMode::Exact,
+            effective_mode: SearchMode::Exact,
+            widened: false,
+            field: SearchField::Target,
+            hits: LIMIT,
+            truncated: true,
+        },
+        BenchCase {
+            name: "source_han_truncated",
+            query: "分久必合",
+            requested_mode: SearchMode::Exact,
+            effective_mode: SearchMode::Exact,
+            widened: false,
+            field: SearchField::Source,
+            hits: LIMIT,
+            truncated: true,
+        },
+        BenchCase {
+            name: "source_latin_unique",
+            query: "brown fox number 3210-7",
+            requested_mode: SearchMode::Exact,
+            effective_mode: SearchMode::Exact,
+            widened: false,
+            field: SearchField::Source,
+            hits: 1,
+            truncated: false,
+        },
+        BenchCase {
+            name: "target_auto_widen_truncated",
+            query: "ma cua toi",
+            requested_mode: SearchMode::Exact,
+            effective_mode: SearchMode::Lenient,
+            widened: true,
+            field: SearchField::Target,
+            hits: LIMIT,
+            truncated: true,
+        },
+        BenchCase {
+            name: "target_explicit_lenient_truncated",
+            query: "ma cua toi",
+            requested_mode: SearchMode::Lenient,
+            effective_mode: SearchMode::Lenient,
+            widened: false,
+            field: SearchField::Target,
+            hits: LIMIT,
+            truncated: true,
+        },
+    ];
+
+    let mut worst_p95 = 0.0_f64;
+    for case in cases {
+        for _ in 0..WARMUPS_PER_CASE {
+            let report = indexer.search(case.query, LIMIT, case.requested_mode).expect("search warm-up");
+            assert_case(case, &report);
+        }
+
+        let mut samples_ms = Vec::with_capacity(RUNS_PER_CASE);
+        for _ in 0..RUNS_PER_CASE {
+            let started = Instant::now();
+            let report = indexer.search(case.query, LIMIT, case.requested_mode).expect("search mẫu");
+            let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
+            assert_case(case, &report);
+            samples_ms.push(elapsed_ms);
+        }
+        samples_ms.sort_by(|a, b| a.partial_cmp(b).expect("mẫu không có NaN"));
+        let p50 = nearest_rank(&samples_ms, 0.50);
+        let p95 = nearest_rank(&samples_ms, 0.95);
+        let p99 = nearest_rank(&samples_ms, 0.99);
+        let worst = *samples_ms.last().expect("đã có 200 mẫu");
+        worst_p95 = worst_p95.max(p95);
+        println!(
+            "NFR3_CASE\t{}\tquery={}\twarmups={}\tsamples={}\tp50_ms={:.6}\tp95_ms={:.6}\tp99_ms={:.6}\tworst_ms={:.6}",
+            case.name,
+            case.query,
+            WARMUPS_PER_CASE,
+            RUNS_PER_CASE,
+            p50,
+            p95,
+            p99,
+            worst
+        );
     }
-    samples_ms.sort_by(|a, b| a.partial_cmp(b).expect("khong co NaN"));
-    let p95 = samples_ms[((RUNS as f64) * 0.95).ceil() as usize - 1];
-    let p50 = samples_ms[RUNS / 2];
 
     println!(
-        "\n=== BAN DO p95 (SO BO) — {CHAPTERS} Chuong x {SEGMENTS_PER_CHAPTER} segment = {} hang ===\n\
-         rebuild (thu hoach toan bo): {rebuild_ms:.1} ms\n\
-         search p50: {p50:.3} ms | p95: {p95:.3} ms | nguong NFR3 (TAM): 500 ms\n\
-         ⚠️ SO BO — mot .atproj mang 5.000 Chuong, khong phai hinh dang thu vien that.\n\
-         ⚠️ Phep do du dieu kien: Story 6.18.\n",
-        sample.indexed_segments
+        "NFR3_SUMMARY\tworks=1\tchapters={CHAPTERS}\tsegments={}\trebuild_ms={rebuild_ms:.6}\tworst_case_p95_ms={worst_p95:.6}\tthreshold_ms=500\tprofile=release\tverdict=so_bo",
+        CHAPTERS * SEGMENTS_PER_CHAPTER
     );
 
     drop(indexer);

@@ -257,6 +257,316 @@ pub const DRAG_LEAVE_EVENT: &str = "aura://file-drag-leave";
 /// canh vế đó bằng máy.
 const DICT_RESOURCE_DIR: &str = "dict";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Bàn đo release Story 5.14 — bề mặt TẠM, bị loại khỏi bản phát hành thường.
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Ice cho phép 2026-09-02 một command feature-gated để bàn đo có thể điều khiển đúng app
+// release (khong wdio/debug). Hai dieu giu no khong thanh duong san pham:
+//
+// 1. `story-5-14-bench` khong nam trong `default`, nen `generate_handler!` cua ban phat
+//    hanh thuong khong co ten command nay.
+// 2. Command tu choi moi phase-file nam ngoai HOME nhap `/tmp/auratranslate-5-14-*/home`.
+//    No chi doc mot tep ten co dinh trong HOME do, va chi ghi marker vao `global.db` cung
+//    HOME. Khong mo cong, khong them dependency, khong doi CSP/ATS, khong cham thu vien that.
+//
+// Native `eval` khong doc duoc closure Vue trong isolated world cua WKWebView. Vi vay no chi
+// bam tab THAT cua san pham, doi DOM THAT dat dung dang roi goi LAI command de xac nhan. Marker
+// `reading` mang dem DOM 50.000/0, vi mot marker chi "da sang Reading" khong chung minh duoc
+// full-run va frontier da tach rieng (review 2026-09-02, spec 5.14).
+#[cfg(feature = "story-5-14-bench")]
+mod story_5_14_bench {
+    use std::ffi::OsString;
+    use std::path::{Path, PathBuf};
+    use std::thread;
+    use std::time::{Duration, Instant};
+
+    use tauri::Manager as _;
+
+    use crate::core::scope;
+    use crate::core::store::Store;
+
+    const PHASE_FILE: &str = ".auratranslate-5-14-phase";
+    const SCRATCH_PREFIX: &str = "auratranslate-5-14-";
+    const MARKER_PREFIX: &str = "__5_14_";
+    const MARKER_SUFFIX: &str = "__";
+    const MAX_MARKER_VALUE_BYTES: usize = 16 * 1024;
+    /// Trần liveness của bộ điều phối pha. 600 s là mặc định cũ; biến môi trường cho phép
+    /// bàn đo nới nó khi đang ĐO chính thời gian một pha, thay vì để một `die` ở 600 s biến
+    /// "chưa xong trong 600 s" thành "không tới Reading" — hai mệnh đề khác nhau.
+    /// Chỉ đọc trong build có feature `story-5-14-bench`.
+    const PHASE_WAIT_BUDGET_DEFAULT_SECS: u64 = 600;
+
+    fn phase_wait_budget() -> Duration {
+        let secs = std::env::var("AURA_5_14_PHASE_BUDGET_SECS")
+            .ok()
+            .and_then(|raw| raw.parse::<u64>().ok())
+            .filter(|secs| *secs > 0)
+            .unwrap_or(PHASE_WAIT_BUDGET_DEFAULT_SECS);
+        Duration::from_secs(secs)
+    }
+
+    fn bench_home() -> Result<PathBuf, String> {
+        let raw_home: OsString = std::env::var_os("HOME")
+            .ok_or_else(|| "story-5-14 HOME is absent".to_owned())?;
+        let home = PathBuf::from(raw_home);
+        let canonical_home = home
+            .canonicalize()
+            .map_err(|err| format!("story-5-14 cannot canonicalize HOME: {err}"))?;
+        let scratch = canonical_home
+            .parent()
+            .ok_or_else(|| "story-5-14 HOME has no scratch parent".to_owned())?;
+        let scratch_name = scratch
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| "story-5-14 scratch name is not utf-8".to_owned())?;
+        if !scratch_name.starts_with(SCRATCH_PREFIX) {
+            return Err(format!(
+                "story-5-14 refuses HOME outside scratch prefix: {}",
+                canonical_home.display()
+            ));
+        }
+        Ok(canonical_home)
+    }
+
+    fn phase_path() -> Result<PathBuf, String> {
+        let home = bench_home()?;
+        let path = home.join(PHASE_FILE);
+        let metadata = std::fs::symlink_metadata(&path)
+            .map_err(|err| format!("story-5-14 cannot inspect phase file: {err}"))?;
+        if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+            return Err("story-5-14 phase file must be one regular file under scratch HOME".to_owned());
+        }
+        Ok(path)
+    }
+
+    fn read_phase(path: &Path) -> Result<String, String> {
+        let raw = std::fs::read_to_string(path)
+            .map_err(|err| format!("story-5-14 cannot read phase file: {err}"))?;
+        let phase = raw.trim();
+        match phase {
+            "library" | "reading-full" | "reading-frontier" | "back-library" | "discard" => {
+                Ok(phase.to_owned())
+            }
+            _ => Err(format!("story-5-14 phase is outside the reviewed state machine: {phase:?}")),
+        }
+    }
+
+    fn marker_key(marker: &str) -> Result<String, String> {
+        match marker {
+            "usable" | "invalid" | "reading" | "back_library" => {
+                Ok(format!("{MARKER_PREFIX}{marker}{MARKER_SUFFIX}"))
+            }
+            _ => Err(format!("story-5-14 marker is outside the reviewed allowlist: {marker:?}")),
+        }
+    }
+
+    fn put_marker(app: &tauri::AppHandle, marker: &str, value: &str) -> Result<(), String> {
+        if value.len() > MAX_MARKER_VALUE_BYTES {
+            return Err("story-5-14 marker exceeds the reviewed byte limit".to_owned());
+        }
+        serde_json::from_str::<serde_json::Value>(value)
+            .map_err(|err| format!("story-5-14 marker is not JSON: {err}"))?;
+        let store = app
+            .try_state::<Store>()
+            .ok_or_else(|| "story-5-14 global store was not managed".to_owned())?;
+        scope::save_value(&store, "app_config", &marker_key(marker)?, value)
+            .map_err(|err| format!("story-5-14 cannot persist marker: {err}"))
+    }
+
+    fn open_the_one_fixture_through_product_wire(app: &tauri::AppHandle) -> Result<(), String> {
+        let indexer = app
+            .try_state::<crate::core::library::indexer::Indexer>()
+            .ok_or_else(|| "story-5-14 library index was not managed".to_owned())?;
+        let report = indexer
+            .list_works(crate::core::library::indexer::WorkQuery::default())
+            .map_err(|err| format!("story-5-14 cannot list indexed fixture: {err}"))?;
+        let ids: Vec<&str> = report
+            .works
+            .iter()
+            .filter(|work| work.name == "5.14 Fixture")
+            .map(|work| work.work_id.as_str())
+            .collect();
+        let [work_id] = ids.as_slice() else {
+            return Err(format!(
+                "story-5-14 requires exactly one indexed 5.14 Fixture, found {}",
+                ids.len()
+            ));
+        };
+        // Gọi đúng vỏ `open_work` của sản phẩm, không tự chép `find_work`/swap state
+        // trong harness. Do đọc từ Library và Reading phản ánh cùng luồng thực tế.
+        crate::commands::project::wire::open_work(app.clone(), (*work_id).to_owned())
+            .map(|_| ())
+            .map_err(|err| format!("story-5-14 cannot open indexed fixture: {err:?}"))
+    }
+
+    fn eval_reading(
+        app: &tauri::AppHandle,
+        expected_status: &str,
+        expected_segments: usize,
+    ) -> Result<(), String> {
+        let window = app
+            .get_webview_window(super::MAIN_WINDOW_LABEL)
+            .ok_or_else(|| "story-5-14 main window is absent".to_owned())?;
+        let script = format!(
+            r#"(function pollStory514Reading() {{
+  const tabs = document.querySelectorAll('.mode-tab');
+  const tab = tabs.item(2);
+  if (!(tab instanceof HTMLElement)) {{ setTimeout(pollStory514Reading, 25); return; }}
+  if (!tab.classList.contains('on')) {{ tab.click(); }}
+  const status = document.querySelector('[data-reading-status]');
+  const segments = document.querySelectorAll('[data-reading-segment]').length;
+  const frontier = document.querySelector('[data-reading-frontier-kind]');
+  if (status instanceof HTMLElement && status.dataset.readingStatus === '{expected_status}' &&
+      segments === {expected_segments} && frontier instanceof HTMLElement) {{
+    const bridge = window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke;
+    if (typeof bridge === 'function') {{
+      bridge('story_5_14_mark_and_wait_phase', {{
+        marker: 'reading',
+        value: JSON.stringify({{ status: '{expected_status}', segments, frontier: frontier.dataset.readingFrontierKind }}),
+        after: 'ack',
+      }}).catch(function () {{}});
+    }}
+    return;
+  }}
+  setTimeout(pollStory514Reading, 25);
+}})();"#,
+        );
+        window
+            .eval(&script)
+            .map_err(|err| format!("story-5-14 cannot evaluate Reading DOM probe: {err}"))
+    }
+
+    fn eval_back_library(app: &tauri::AppHandle) -> Result<(), String> {
+        let window = app
+            .get_webview_window(super::MAIN_WINDOW_LABEL)
+            .ok_or_else(|| "story-5-14 main window is absent".to_owned())?;
+        let script = r#"(function pollStory514Library() {
+  const tabs = document.querySelectorAll('.mode-tab');
+  const tab = tabs.item(0);
+  if (!(tab instanceof HTMLElement)) { setTimeout(pollStory514Library, 25); return; }
+  if (!tab.classList.contains('on')) { tab.click(); }
+  const grid = document.querySelector('[data-library-grid]');
+  const cells = grid ? grid.querySelectorAll('[data-library-work-cell]') : [];
+  const name = cells.length === 1 ? cells[0].querySelector('.work-name') : null;
+  if (name instanceof HTMLElement && name.textContent.trim() === '5.14 Fixture') {
+    const bridge = window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke;
+    if (typeof bridge === 'function') {
+      bridge('story_5_14_mark_and_wait_phase', {
+        marker: 'back_library',
+        value: JSON.stringify({ works: cells.length, work_name: name.textContent.trim() }),
+        after: 'ack',
+      }).catch(function () {});
+    }
+    return;
+  }
+  setTimeout(pollStory514Library, 25);
+})();"#;
+        window
+            .eval(script)
+            .map_err(|err| format!("story-5-14 cannot evaluate Library DOM probe: {err}"))
+    }
+
+    /// 🔴 Vòng chờ này KHÔNG được chạy trên luồng phục vụ command.
+    ///
+    /// Đo 2026-09-02: khi `story_5_14_mark_and_wait_phase` (một `pub fn` đồng bộ) gọi thẳng
+    /// hàm này, lời gọi `usable` của probe giữ luôn luồng ấy suốt cả trần. `eval_reading` bơm
+    /// được script, nhưng script phải `invoke` NGƯỢC LẠI mới đánh dấu được — mà lời gọi thứ
+    /// hai không bao giờ tới lượt. Nó tự khoá, và vì nút thắt nằm TRƯỚC lượt dựng DOM nên hỏng
+    /// y hệt nhau ở fixture 50.000 segment lẫn fixture 0 segment (3.586.916 ms và 586.480 ms).
+    ///
+    /// Cả 57 command khác của dự án cũng là `pub fn` — điều đó KHÔNG bào chữa: không cái nào
+    /// chờ quá một nhịp. Cùng hình dạng với mục AI-7 (`blocking_pick_file` treo cửa sổ).
+    fn wait_for_phases(app: &tauri::AppHandle, path: &Path) -> Result<String, String> {
+        let started = Instant::now();
+        let budget = phase_wait_budget();
+        let mut last_phase = String::new();
+        loop {
+            if started.elapsed() > budget {
+                return Err(format!(
+                    "story-5-14 phase controller exceeded the {}-second liveness budget",
+                    budget.as_secs()
+                ));
+            }
+            let phase = read_phase(path)?;
+            if phase != last_phase {
+                match phase.as_str() {
+                    "library" => {}
+                    "reading-full" => eval_reading(app, "content", 50_000)?,
+                    "reading-frontier" => eval_reading(app, "frontier-only", 0)?,
+                    "back-library" => eval_back_library(app)?,
+                    "discard" => return Ok("discard".to_owned()),
+                    _ => return Err("story-5-14 phase escaped allowlist after validation".to_owned()),
+                }
+                last_phase = phase;
+            }
+            thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    /// Chạy bộ điều phối pha trên luồng RIÊNG. Lỗi được ghi thành marker `invalid` để lượt
+    /// hỏng vẫn để lại dấu vết thay vì im lặng — probe không còn `await` được nó nữa.
+    fn spawn_phase_controller(app: tauri::AppHandle, path: PathBuf) {
+        thread::spawn(move || {
+            if let Err(detail) = wait_for_phases(&app, &path) {
+                let payload = serde_json::json!({
+                    "epoch_ms": 0,
+                    "detail": detail,
+                })
+                .to_string();
+                let _ = put_marker(&app, "invalid", &payload);
+            }
+        });
+    }
+
+    /// Command duy nhat cua feature bench. `after = ack` chi duoc phep cho marker do script
+    /// native tao; `usable` la loi goi duy nhat duoc phep giu mo state machine cua runner.
+    #[tauri::command]
+    pub fn story_5_14_mark_and_wait_phase(
+        app: tauri::AppHandle,
+        marker: String,
+        value: String,
+        after: String,
+    ) -> Result<String, String> {
+        let path = phase_path()?;
+        match marker.as_str() {
+            "usable" => {
+                if after != "library" || read_phase(&path)? != "library" {
+                    return Err("story-5-14 usable marker may start only from the library phase".to_owned());
+                }
+                open_the_one_fixture_through_product_wire(&app)?;
+                put_marker(&app, &marker, &value)?;
+                // Trả về NGAY để luồng command rảnh phục vụ lời gọi `reading`/`back_library`
+                // mà script native sắp phát. Bộ điều phối pha sống trên luồng riêng của nó.
+                spawn_phase_controller(app.clone(), path);
+                Ok("library".to_owned())
+            }
+            "invalid" => {
+                if after != "done" {
+                    return Err("story-5-14 invalid marker must terminate its probe".to_owned());
+                }
+                put_marker(&app, &marker, &value)?;
+                Ok("done".to_owned())
+            }
+            "reading" => {
+                if after != "ack" {
+                    return Err("story-5-14 Reading marker may only acknowledge native DOM".to_owned());
+                }
+                put_marker(&app, &marker, &value)?;
+                Ok("ack".to_owned())
+            }
+            "back_library" => {
+                if after != "ack" {
+                    return Err("story-5-14 Library marker may only acknowledge native DOM".to_owned());
+                }
+                put_marker(&app, &marker, &value)?;
+                Ok("ack".to_owned())
+            }
+            _ => Err(format!("story-5-14 marker is outside the reviewed allowlist: {marker:?}")),
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(debug_assertions)]
@@ -471,6 +781,10 @@ pub fn run() {
             // Story 2.3 — nua thu hai cua cai bat tay AD-35 ve (e): webview bao "flush xong,
             // dong di". Xem `wire_exit_flush`.
             confirm_exit_flush,
+            // Ice cho phep 2026-09-02: command chi co trong feature bench release cua Story
+            // 5.14. Ban mac dinh khong mang ten nay, mot cong moi, hay dependency moi.
+            #[cfg(feature = "story-5-14-bench")]
+            story_5_14_bench::story_5_14_mark_and_wait_phase,
         ])
         .setup(move |app| {
             #[cfg(debug_assertions)]

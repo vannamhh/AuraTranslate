@@ -26,6 +26,7 @@ use auratranslate_lib::commands::segment::{
     ReadingFrontierKind, SegmentTargetEdit, SplitOutcome, SEGMENT_STATUS_CONFIRMED,
 };
 use auratranslate_lib::core::i18n::MessageKey;
+use auratranslate_lib::core::library::meta::WorkMeta;
 use auratranslate_lib::core::segment::split::{
     split_source_text, EN_ABBREVIATIONS, LANG_CHINESE, SplitSegment,
 };
@@ -7739,4 +7740,206 @@ fn a_vanished_open_chapter_row_fails_with_chapter_not_found() {
     let dir = opened.dir.clone();
     drop(opened);
     cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Bàn đo Story 5.14 — hai chi phí độc lập của `read_reading_run` ở 5.000 Chương.
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 `#[ignore]` vì đây là số mã + máy, không phải cổng đúng/sai. Chạy release bằng:
+//
+//     cargo test --release --locked --test segment_contract \
+//       bench_reading_run_over_five_thousand_chapters -- --ignored --nocapture
+//
+// Fixture có cùng hình dạng với bàn đo NFR3: một Work, 5.000 Chương, 10 segment/Chương.
+// Pha frontier chạy TRƯỚC khi nạp segment để đo riêng lượt quét bảng Chương; pha full chạy
+// SAU khi đủ 50.000 segment và mọi Chương `done`. Không lấy hiệu hai số để suy một số thứ
+// ba: hai đường trả hình dạng output khác nhau và được công bố riêng.
+#[test]
+#[ignore = "bàn đo release chạy tay cho Story 5.14, không phải một cổng"]
+fn bench_reading_run_over_five_thousand_chapters() {
+    use std::time::Instant;
+
+    const CHAPTERS: usize = 5_000;
+    const SEGMENTS_PER_CHAPTER: usize = 10;
+    const WARMUPS: usize = 10;
+    const SAMPLES: usize = 30;
+
+    fn nearest_rank(sorted: &[f64], quantile: f64) -> f64 {
+        assert!(!sorted.is_empty(), "phân vị không có mẫu");
+        let rank = (quantile * sorted.len() as f64).ceil() as usize;
+        sorted[rank.saturating_sub(1).min(sorted.len() - 1)]
+    }
+
+    fn print_elapsed(name: &str, mut samples_ms: Vec<f64>) {
+        samples_ms.sort_by(|a, b| a.partial_cmp(b).expect("mẫu không có NaN"));
+        println!(
+            "READING_RUN_CASE\t{}\twarmups={}\tsamples={}\tp50_ms={:.6}\tp95_ms={:.6}\tp99_ms={:.6}\tworst_ms={:.6}",
+            name,
+            WARMUPS,
+            SAMPLES,
+            nearest_rank(&samples_ms, 0.50),
+            nearest_rank(&samples_ms, 0.95),
+            nearest_rank(&samples_ms, 0.99),
+            samples_ms.last().expect("đã có mẫu")
+        );
+    }
+
+    let root = temp_dir("5-14-reading-run-bench");
+    let opened = create_work_from_text(&root, "5.14 Fixture", "zh", "bench", "   ".to_owned())
+        .expect("tạo Work fixture");
+    let current_chapter_id = opened.chapter_id;
+
+    // `create_work_from_text` đã dựng Chương thứ nhất. Thêm 4.999 Chương trong MỘT giao
+    // dịch để thời gian dựng fixture không trộn vào elapsed cần đo.
+    opened
+        .store
+        .write(|tx: &Transaction<'_>| {
+            for ord in 2..=CHAPTERS {
+                let title = format!("Chương {ord}");
+                let source = format!("Nguồn Chương {ord}");
+                tx.execute(
+                    "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                     VALUES (?1, ?2, ?3, 'not_started', '2026-09-01T00:00:00.000Z', \
+                             '2026-09-01T00:00:00.000Z')",
+                    (ord as i64, &title, &source),
+                )?;
+            }
+            Ok(())
+        })
+        .expect("nạp 5.000 Chương");
+
+    let (chapter_count, segment_count): (i64, i64) = opened
+        .store
+        .read(|conn| {
+            Ok((
+                conn.query_row("SELECT COUNT(*) FROM chapter", [], |row| row.get(0))?,
+                conn.query_row("SELECT COUNT(*) FROM segment", [], |row| row.get(0))?,
+            ))
+        })
+        .expect("đếm fixture frontier");
+    assert_eq!(chapter_count, CHAPTERS as i64, "frontier phải quét đúng 5.000 Chương");
+    assert_eq!(segment_count, 0, "frontier phải đứng trước lượt nạp segment để cô lập chi phí");
+
+    for _ in 0..WARMUPS {
+        let run = read_reading_run(Some(&opened)).expect("đọc warm-up frontier");
+        assert!(run.chapters.is_empty(), "Chương đầu chưa done ⇒ không nạp dãy segment");
+        assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
+        assert_eq!(run.frontier.chapter.as_ref().map(|c| c.chapter_id), Some(current_chapter_id));
+    }
+    let mut frontier_samples = Vec::with_capacity(SAMPLES);
+    for _ in 0..SAMPLES {
+        let started = Instant::now();
+        let run = read_reading_run(Some(&opened)).expect("đọc mẫu frontier");
+        let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
+        assert!(run.chapters.is_empty(), "frontier không được lẫn output full-run");
+        assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
+        frontier_samples.push(elapsed_ms);
+    }
+    print_elapsed("frontier_5000_chapters_0_segments", frontier_samples);
+
+    // Pha thứ hai chuyển ĐÚNG 5.000 Chương sang `done` và nạp ĐÚNG 50.000 segment. Mọi
+    // trường người dùng không đồng ý đổi không liên quan: đây là CSDL tổng hợp chỉ sống trong
+    // thư mục tạm của test; `translation_origin='self'` vẫn nói thật về target fixture.
+    opened
+        .store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE chapter SET status = 'done', updated_at = '2026-09-01T00:00:00.000Z'",
+                [],
+            )?;
+            let chapter_ids = {
+                let mut stmt = tx.prepare("SELECT id, ord FROM chapter ORDER BY ord, id")?;
+                stmt.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)))?
+                    .collect::<auratranslate_lib::core::store::SqlResult<Vec<_>>>()?
+            };
+            assert_eq!(chapter_ids.len(), CHAPTERS, "danh sách nạp segment phải đủ 5.000 Chương");
+            for (chapter_id, chapter_ord) in chapter_ids {
+                for segment_ord in 1..=SEGMENTS_PER_CHAPTER {
+                    let source = format!("天下大势 Chương {chapter_ord} câu {segment_ord}");
+                    let target = format!("Bản dịch Chương {chapter_ord} câu {segment_ord}");
+                    let paragraph_end = i64::from(segment_ord == SEGMENTS_PER_CHAPTER);
+                    tx.execute(
+                        "INSERT INTO segment \
+                         (chapter_id, ord, source_text, is_paragraph_end, created_at, updated_at, \
+                          target_text, status, is_omitted, translation_origin) \
+                         VALUES (?1, ?2, ?3, ?4, '2026-09-01T00:00:00.000Z', \
+                                 '2026-09-01T00:00:00.000Z', ?5, 'confirmed', 0, 'self')",
+                        (chapter_id, segment_ord as i64, &source, paragraph_end, &target),
+                    )?;
+                }
+            }
+            Ok(())
+        })
+        .expect("nạp 50.000 segment");
+
+    let (chapter_count, segment_count): (i64, i64) = opened
+        .store
+        .read(|conn| {
+            Ok((
+                conn.query_row("SELECT COUNT(*) FROM chapter WHERE status = 'done'", [], |row| row.get(0))?,
+                conn.query_row("SELECT COUNT(*) FROM segment WHERE retired_at IS NULL", [], |row| row.get(0))?,
+            ))
+        })
+        .expect("đếm fixture full-run");
+    assert_eq!(chapter_count, CHAPTERS as i64, "full-run phải có đúng 5.000 Chương done");
+    assert_eq!(segment_count, (CHAPTERS * SEGMENTS_PER_CHAPTER) as i64, "full-run phải có đúng 50.000 segment sống");
+
+    let rebuilt_meta = WorkMeta::rebuild_from_store(&opened.store).expect("dựng lại meta fixture");
+    rebuilt_meta.write_atomic(&opened.dir).expect("ghi meta fixture");
+
+    for _ in 0..WARMUPS {
+        let run = read_reading_run(Some(&opened)).expect("đọc warm-up full-run");
+        assert_eq!(run.chapters.len(), CHAPTERS);
+        assert_eq!(run.frontier.kind, ReadingFrontierKind::EndOfWork);
+    }
+    let mut full_samples = Vec::with_capacity(SAMPLES);
+    for _ in 0..SAMPLES {
+        let started = Instant::now();
+        let run = read_reading_run(Some(&opened)).expect("đọc mẫu full-run");
+        let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
+        let returned_segments: usize = run
+            .chapters
+            .iter()
+            .flat_map(|chapter| &chapter.paragraphs)
+            .map(|paragraph| paragraph.segments.len())
+            .sum();
+        assert_eq!(run.chapters.len(), CHAPTERS, "full-run phải trả đủ Chương");
+        assert_eq!(returned_segments, CHAPTERS * SEGMENTS_PER_CHAPTER, "full-run phải trả đủ segment");
+        assert_eq!(run.frontier.kind, ReadingFrontierKind::EndOfWork);
+        full_samples.push(elapsed_ms);
+    }
+    print_elapsed("full_run_5000_chapters_50000_segments", full_samples);
+
+    println!(
+        "READING_RUN_SUMMARY\tworks=1\tchapters={CHAPTERS}\tsegments={}\tprofile=release\tverdict=so_bo",
+        CHAPTERS * SEGMENTS_PER_CHAPTER
+    );
+
+    let work_dir = opened.dir.clone();
+    drop(opened);
+
+    // Harness release có thể xin giữ lại CHÍNH fixture vừa được assertions xác nhận. Hàng
+    // rào tên thư mục + đích rỗng ngăn một biến môi trường gõ nhầm ghi đè dữ liệu thật.
+    if let Some(export_root) = std::env::var_os("AURA_5_14_EXPORT_LIBRARY_ROOT").map(PathBuf::from) {
+        let raw = export_root.to_string_lossy();
+        assert!(
+            raw.contains("auratranslate-5-14-"),
+            "đích export phải là HOME nháp có marker auratranslate-5-14-, nhận {raw}"
+        );
+        if export_root.exists() {
+            assert!(
+                fs::read_dir(&export_root).expect("đọc đích export").next().is_none(),
+                "đích export phải rỗng: {}",
+                export_root.display()
+            );
+        } else {
+            fs::create_dir_all(&export_root).expect("tạo đích export");
+        }
+        let folder_name = work_dir.file_name().expect("fixture có tên thư mục");
+        fs::rename(&work_dir, export_root.join(folder_name)).expect("chuyển fixture sang HOME nháp");
+        println!("READING_RUN_EXPORT\t{}", export_root.display());
+    }
+
+    cleanup(&root);
 }

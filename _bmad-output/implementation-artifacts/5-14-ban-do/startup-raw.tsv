@@ -1,0 +1,10 @@
+session	fixture	temperature	elapsed_ms	status	note
+1	full	cold	4364.883	ok	pre-spawn tới marker grid có đúng fixture
+1	full	warm	4083.545	ok	pre-spawn tới marker grid có đúng fixture
+1	frontier	warm	1947.309	ok	pre-spawn tới marker grid có đúng fixture
+2	full	cold	2581.373	ok	pre-spawn tới marker grid có đúng fixture
+2	full	warm	1960.737	ok	pre-spawn tới marker grid có đúng fixture
+2	frontier	warm	2171.055	ok	pre-spawn tới marker grid có đúng fixture
+3	full	cold	1889.224	ok	pre-spawn tới marker grid có đúng fixture
+3	full	warm	1869.401	ok	pre-spawn tới marker grid có đúng fixture
+3	frontier	warm	2148.691	ok	pre-spawn tới marker grid có đúng fixture
