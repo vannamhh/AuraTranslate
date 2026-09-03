@@ -8814,3 +8814,49 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Story 5.14 — đóng CẢ HAI chi phí cùng một lượt đo ba ngưỡng NFR3/NFR4/NFR5; không
     mở mục thứ hai cho ②, và không phải một lời nhắc trôi nổi mà là một phép đo phải chạy trước
     khi Epic 6 sinh dữ liệu ở quy mô đó.)**
+    → ✅ **ĐÓNG 2026-09-02 (Story 5.14).** Đo cả hai chi phí **tách rời**, release, 10 warmup +
+    30 mẫu mỗi hình dạng, trên fixture 5.000 Chương/50.000 segment: chi phí **②** (quét toàn bảng
+    `chapter`, dãy dừng ngay Chương đầu) p50 **2,922 ms** · p95 3,272 ms; chi phí **①+②** (dãy đọc
+    trọn Tác phẩm) p50 **179,744 ms** · p95 198,362 ms. Cả hai **dưới** trần NFR1/NFR3 hiện hành.
+    ⚠️ Nhưng cảnh báo *"① vượt trần bộ nhớ 300 MB trước khi vượt thứ khác"* thì **ĐÚNG và nay có
+    số**: pha Reading fixture full đo 894,570 MB — xem mục NFR5 mở dưới đây. Số thô:
+    `5-14-ban-do/reading-run-raw.tsv`.
+
+## Deferred from: 5-14-do-nfr3-nfr4-nfr5-va-ghi-lai-trang-thai-ba-nguong-tam (2026-09-02)
+
+- 🔴 **NFR5 vượt trần 300 MB khoảng ba lần, và nó vượt NGAY Ở PHA NHÀN RỖI — không phải chỉ khi
+  mở Chương.**
+  evidence: đo 2026-09-02 tại `a5947e4`, release, 180 mẫu idle hợp lệ (mỗi mẫu = PID app cộng
+    WebKit mới sinh; mẫu chỉ có PID app bị từ chối bằng một hàng rào tự kiểm đỏ). phys_footprint
+    lớn nhất **894.570.496 byte · 894,570 MB · 853,129 MiB** ở pha Reading fixture full. Con số
+    đáng lo hơn nằm ở fixture **frontier**: pha `library`, **chưa mở một Chương nào**, đã
+    **305,476 MB** — tức trần bị vượt trước cả thao tác đầu tiên của người dùng. Đối chứng cùng
+    lượt: `back_library_keepalive` của fixture full giữ RSS **1.112,900 MB**, nên `<KeepAlive>`
+    KHÔNG trả lại bộ nhớ của dãy đọc khi rời Chế độ đọc.
+    **(Chủ: Ice — phán định trước Epic 6. Ba đường tách được: nới A8 theo số thật · ảo hoá dãy đọc
+    (`ReadingMode.vue:463-527` đang `v-for` phẳng, một nút DOM mỗi segment) · hoặc thả dãy khi
+    `<KeepAlive>` deactivate. Số sơ bộ trên fixture tổng hợp, KHÔNG được dùng để sửa ngưỡng —
+    Story 6.18 mới đóng Q4.)**
+
+- 🔴 **NFR4 vượt trần 3 giây, nhưng biên độ giữa các phiên LỚN HƠN khoảng cách còn lại tới trần —
+  một phán quyết trên 3 phiên là mỏng.**
+  evidence: 9 lần khởi động, 2026-09-02, `a5947e4`, release. cold median **2.581,373 ms** (dưới
+    trần) nhưng max **4.364,883 ms** (vượt); warm median 2.054,714 ms, max 4.083,545 ms. Ba phiên
+    cho cold lần lượt 4.364,883 · 2.581,373 · 1.889,224 ms — **chênh 2,3 lần**. `environment.txt`
+    ghi load average tụt 11,20 → 8,70 trong chính lượt chạy, nên nghi vấn đầu là điều kiện máy chứ
+    không phải mã. Cùng hình dạng đã có tên: một lượt đo mang theo cả tải máy, không riêng mã.
+    **(Chủ: Story 6.18 — đo lại với máy rảnh và cỡ mẫu đủ để median có nghĩa; đây là điều kiện để
+    A7 hiệu chỉnh được, không phải một con số để chốt hôm nay.)**
+
+- ⚠️ **Bàn đo 5.14 chưa có ca nào bắt được CHÍNH NÓ: một khoá chờ tự gây đã lọt qua vòng review
+  2026-09-02 rồi ăn trọn hai lượt đo.**
+  evidence: `story_5_14_mark_and_wait_phase` là `#[tauri::command] pub fn` đồng bộ mà chờ trong
+    `wait_for_phases` tới hết trần liveness, nên nó giữ luôn luồng phục vụ command; script native
+    `eval_reading` bơm được nhưng lời gọi `invoke` ngược để đánh dấu không bao giờ tới lượt. Vì nút
+    thắt nằm TRƯỚC lượt dựng DOM, nó hỏng y hệt nhau ở fixture 50.000 segment (3.586.916 ms) và
+    fixture 0 segment (586.480 ms) — chính sự giống nhau ấy là thứ chỉ ra nguyên nhân. Đã vá bằng
+    `spawn_phase_controller` (luồng riêng): cùng fixture frontier, 586.480 ms hết giờ → **172 ms**.
+    Hai lượt đo đã mất vì nó, và vòng review vốn được lập ra để chặn đúng hạng lỗi này.
+    Cùng hình dạng với mục AI-7 (`blocking_pick_file` treo cửa sổ vì chỗ tham chiếu khai `async fn`).
+    **(Chủ: Ice — quyết xem bàn đo có phải mang một ca tự kiểm cho chính đường điều phối pha không,
+    hay chấp nhận rằng harness chỉ được nghiệm thu bằng một lượt chạy thật.)**

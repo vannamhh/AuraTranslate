@@ -126,20 +126,20 @@ development_status:
   epic-4-retrospective: optional
 
   epic-5: in-progress
-  5-1-mô-hình-library-hai-tầng: review
-  5-2-chỉ-mục-library-dẫn-xuất-một-đường-ghi-duy-nhất: review
+  5-1-mô-hình-library-hai-tầng: done
+  5-2-chỉ-mục-library-dẫn-xuất-một-đường-ghi-duy-nhất: done
   5-3-quét-lại-thư-mục: done
   5-4-bốn-trạng-thái-vòng-đời: done
   5-5-tiến-độ-tác-phẩm: done
   5-6-lưới-tác-phẩm-lọc-và-sắp-xếp: in-progress
-  5-7-danh-sách-chương-và-mở-chương-vào-workspace: review
-  5-8-tổ-chức-lại-chương-sau-khi-nhập: review
-  5-9-tìm-kiếm-full-text-xuyên-library: review
-  5-10-hai-chế-độ-dấu: review
-  5-11-chế-độ-đọc-typography-và-bố-cục-đọc-dài: review
-  5-12-chế-độ-đọc-chỉ-đọc-phần-đã-xong: review
+  5-7-danh-sách-chương-và-mở-chương-vào-workspace: done
+  5-8-tổ-chức-lại-chương-sau-khi-nhập: done
+  5-9-tìm-kiếm-full-text-xuyên-library: done
+  5-10-hai-chế-độ-dấu: done
+  5-11-chế-độ-đọc-typography-và-bố-cục-đọc-dài: done
+  5-12-chế-độ-đọc-chỉ-đọc-phần-đã-xong: done
   5-13-đánh-dấu-chỗ-cần-sửa-khi-đang-đọc: done
-  5-14-đo-nfr3-nfr4-nfr5-và-ghi-lại-trạng-thái-ba-ngưỡng-tạm: in-progress
+  5-14-đo-nfr3-nfr4-nfr5-và-ghi-lại-trạng-thái-ba-ngưỡng-tạm: done
   epic-5-retrospective: optional
 
   epic-6: backlog

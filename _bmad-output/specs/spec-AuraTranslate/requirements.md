@@ -402,11 +402,13 @@ Phần lớn ngưỡng dưới đây **không phải phỏng đoán** — chúng
 |---|---|---|---|
 | **NFR1** | Độ trễ Auto-Lookup **đầu-cuối**: từ lúc thả chuột sau khi bôi đen tới lúc kết quả hiển thị ở Panel Lookup | **p95 < 100 ms** **[A1]** | Backend đo được p50 0,022 ms · p95 0,046 ms, payload 679 byte — backend chỉ tiêu 0,05 ms. **Toàn bộ phần còn lại (~99,95 ms) dành cho vòng IPC Tauri và render frontend** |
 | **NFR2** | Auto-save không làm gián đoạn thao tác gõ | **Không frame nào vượt 50 ms** trong lúc auto-save chạy | Cụ thể hoá "không có gai trễ"; là điều kiện nghiệm thu cho R9 |
-| **NFR3** | Tìm kiếm full-text toàn Library | **p95 < 500 ms** trên thư viện 5.000 Chương | **[A6]** Ngưỡng tạm, hiệu chỉnh ở Giai đoạn 3 |
-| **NFR4** | Khởi động ứng dụng tới lúc Library dùng được | **< 3 giây** trên thư viện 5.000 Chương | **[A7]** Ngưỡng tạm |
-| **NFR5** | Bộ nhớ khi nhàn rỗi | **< 300 MB** | **[A8]** Ngưỡng tạm. Baseline Tauri v2 là 20–100 MB; phần dôi dành cho chỉ mục và Tác phẩm đang mở |
+| **NFR3** | Tìm kiếm full-text toàn Library | **p95 < 500 ms** trên thư viện 5.000 Chương | **[A6]** Ngưỡng tạm, hiệu chỉnh ở Giai đoạn 3. **Đo sơ bộ 2026-09-02** (Story 5.14, fixture tổng hợp): p95 xấu nhất từng ca **57,981 ms** — dưới ngưỡng |
+| **NFR4** | Khởi động ứng dụng tới lúc Library dùng được | **< 3 giây** trên thư viện 5.000 Chương | **[A7]** Ngưỡng tạm. 🔴 **Đo sơ bộ 2026-09-02**: cold median 2.581,373 ms, **max 4.364,883 ms** — **vượt ngưỡng**; biên độ giữa phiên lớn hơn khoảng cách tới trần |
+| **NFR5** | Bộ nhớ khi nhàn rỗi | **< 300 MB** | **[A8]** Ngưỡng tạm. Baseline Tauri v2 là 20–100 MB; phần dôi dành cho chỉ mục và Tác phẩm đang mở. 🔴 **Đo sơ bộ 2026-09-02**: lớn nhất **894,570 MB · 853,129 MiB** (pha Reading, fixture full) — **vượt ngưỡng ~3 lần**; pha `library` fixture frontier đã 305,476 MB |
 
 > Vì sao vẫn đặt ngưỡng dù chưa đo được (NFR3–NFR5): **một ngưỡng tạm sai vẫn nghiệm thu được và vẫn buộc người xây dựng phải đo; một tính từ thì không.**
+>
+> 🔵 **2026-09-02 — ba ngưỡng này nay CÓ số, và chúng vẫn là ngưỡng tạm.** Story 5.14 đo trên một fixture **tổng hợp** (một Work, 5.000 Chương, 50.000 segment dựng thẳng vào HOME nháp), **không** phải thư viện tạo qua đường nhập của sản phẩm — nên mọi phán quyết đều **sơ bộ** và **không ngưỡng nào được sửa theo chúng**. Q4 vẫn mở; Story 6.18 mới là phép đo nghiệm thu. Số thô, điều kiện máy và tải: `_bmad-output/implementation-artifacts/5-14-ban-do/`.
 
 ### Dữ liệu & lưu trữ
 

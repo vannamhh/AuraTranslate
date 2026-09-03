@@ -2,7 +2,7 @@
 title: 'Story 5.14: Đo NFR3, NFR4, NFR5 và ghi lại trạng thái ba ngưỡng tạm'
 type: 'chore'
 created: '2026-09-01'
-status: 'in-progress'
+status: 'review'
 baseline_commit: 'af470305777b566fd0b8151a742798ac4851ffc8'
 review_loop_iteration: 1
 context:
@@ -71,16 +71,36 @@ một p95. Không sửa ngưỡng để đổi màu và không đóng A6–A8/Q4
 
 **Execution:**
 
-- [ ] `src-tauri/tests/{library_index_contract,segment_contract}.rs` — fixture dùng chung và bench
+- [x] `src-tauri/tests/{library_index_contract,segment_contract}.rs` — fixture dùng chung và bench
   `#[ignore]` có assertions, phân vị tách ca, elapsed frontier/full-run.
-- [ ] `_bmad-output/implementation-artifacts/5-14-ban-do/` — README, probe/build/run với cây sạch,
+  *Bằng chứng: `NFR3_CASE` (`library_index_contract.rs:3246`) và `READING_RUN_CASE`
+  (`segment_contract.rs:7777`) in phân vị tách từng ca; 330 + 559 `assert`.*
+- [x] `_bmad-output/implementation-artifacts/5-14-ban-do/` — README, probe/build/run với cây sạch,
   HOME nháp, dấu sống, hàng rào dữ liệu thật và cleanup có trap.
-- [ ] Chạy ≥3 phiên; NFR4 lạnh/ấm, NFR5 10 mẫu idle/pha cho app + WebKit; lưu TSV, env và báo cáo.
-- [ ] `_bmad-output/specs/spec-AuraTranslate/{SPEC.md,requirements.md}` — nối trạng thái sơ bộ vào
+  *Bằng chứng: đủ năm tệp; `trap cleanup EXIT INT TERM HUP` (`run.sh:75`); hàng rào cây sạch
+  (`run.sh:24-38`) đã CHẶN thật một lượt khi ba tệp quy hoạch còn bẩn.*
+- [x] Chạy ≥3 phiên; NFR4 lạnh/ấm, NFR5 10 mẫu idle/pha cho app + WebKit; lưu TSV, env và báo cáo.
+  *Bằng chứng: lượt 2026-09-02 xanh trọn — 9/9 launch, 12/12 chuyển pha, 180 hàng bộ nhớ (0 hàng
+  không `ok`), 15 hàng NFR3, 2 hàng `read_reading_run`; `REPORT.md` + `environment.txt` sinh lại.*
+- [x] `_bmad-output/specs/spec-AuraTranslate/{SPEC.md,requirements.md}` — nối trạng thái sơ bộ vào
   A6–A8/Q4/NFR3–5, giữ nguyên ngưỡng/Q4.
-- [ ] `deferred-work.md` · `sprint-status.yaml` — cập nhật đúng mức bằng chứng; Story 6.18 vẫn backlog.
-- [ ] Lượt review 2026-09-02 — harness fail-closed với ma trận raw, provenance và DOM/PID; release
+  *A6 dưới ngưỡng · A7 và A8 vượt, đều ghi "sơ bộ". Không ngưỡng nào bị sửa; Q4 giữ nguyên MỞ và
+  ghi rõ điều kiện đóng là Story 6.18 trên thư viện tạo qua FR14.*
+- [x] `deferred-work.md` · `sprint-status.yaml` — cập nhật đúng mức bằng chứng; Story 6.18 vẫn backlog.
+  *Đóng món nợ hai chi phí `read_reading_run` bằng số đo tách rời; mở ba món mới (NFR5 vượt trần ở
+  pha nhàn rỗi · NFR4 mỏng vì biên độ · bàn đo chưa tự kiểm được đường điều phối pha). `npm run
+  check:debt-owner` xanh: 0/404 mục mở thiếu Chủ. 5.14 `in-progress`, 6.18 vẫn `backlog`.*
+- [x] Lượt review 2026-09-02 — harness fail-closed với ma trận raw, provenance và DOM/PID; release
   command chỉ tồn tại trong `story-5-14-bench` theo quyền Ice vừa cấp.
+  *Bằng chứng fail-closed là một lần TỪ CHỐI thật: `summarize.mjs` bác ma trận 1/9 ("NFR4 cần đúng
+  9 lần launch ok") thay vì tổng hợp một bộ dở. Command chỉ tồn tại sau `cfg(feature =
+  "story-5-14-bench")`, không thuộc `default`.*
+
+🔴 **Một khuyết của chính vòng review này, ghi ra thay vì lặng lẽ tích ô:** nó đã để lọt một khoá
+chờ tự gây trong `story_5_14_mark_and_wait_phase` (`pub fn` đồng bộ chờ tới hết trần liveness ⇒
+giữ luôn luồng phục vụ command ⇒ marker Reading không bao giờ tới). Hai lượt đo mất trắng vì nó
+(3.586.916 ms và 586.480 ms), và nó chỉ lộ ra khi fixture 0 segment hỏng Y HỆT fixture 50.000
+segment. Đã vá bằng `spawn_phase_controller`; đối chứng 586.480 ms → 172 ms. Đã ghi thành nợ có chủ.
 
 **Acceptance Criteria:**
 
