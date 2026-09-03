@@ -2,7 +2,7 @@
 title: 'Story 5.6: Lưới Tác phẩm, lọc và sắp xếp'
 type: 'feature'
 created: '2026-08-28'
-status: 'blocked'
+status: 'done'
 baseline_revision: '2b837fe1e836649f407385c89f1ff674a7904a13'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -98,7 +98,7 @@ Tác phẩm nào".
 | Con trỏ khi danh sách rỗng | `matched = 0` | Không ô nào đang chọn; `next`/`prev` là no-op, không ném | Không lỗi |
 | Library rỗng | `total = 0`, đã tải | Khối `.empty` hiện; lưới không hiện | Không lỗi |
 | Chưa tải xong | `worksHaveLoaded = false` | **Không** nói "chưa có Tác phẩm nào"; nói "chưa tải" | Không lỗi |
-| `updated_at` chưa dựng lại | `meta.json` v1/v2 chưa qua `rebuild_from_store` | Vẫn sắp được (giá trị lúc tạo), lưới ghi rõ đó là mốc tạo | Không lỗi |
+| `updated_at` chưa dựng lại | `meta.json` v1/v2 chưa qua `rebuild_from_store` | Vẫn sắp được theo mốc tạo (giá trị ban đầu trong `meta.json`) | Không lỗi |
 
 </intent-contract>
 
@@ -276,6 +276,13 @@ Tác phẩm nào".
 
 ## Spec Change Log
 
+- **2026-09-03 (Phương án A — Chốt điểm nghẽn Matrix Audit & đóng story)**:
+  Sửa hàng ma trận "`updated_at` chưa dựng lại": bỏ vế *"lưới ghi rõ đó là mốc tạo"* vì AC2
+  không đòi hiển thị ngày sửa trên ô lưới và §Never cấm bump schema. Bổ sung ca kiểm thử
+  `sorting_by_updated_at_with_v1_meta_json_orders_by_initial_timestamp` trong
+  `src-tauri/tests/library_index_contract.rs`. Xác nhận mã nguồn đã nằm ở master tại commit
+  `6b2cb24`. Chuyển status thành `done`.
+
 ## Review Triage Log
 
 ## Design Notes
@@ -398,56 +405,28 @@ Story 5.5 §Design Notes đã mắc một lần.
 
 ## Auto Run Result
 
-Status: blocked
-Blocking condition: matrix ambiguity
+Status: done
+Completed At: 2026-09-03
+Resolution: Chốt Phương án (A) (Ice duyệt 2026-09-03)
 
-Dừng ở **step-03 → Matrix Test Audit**, SAU khi mọi lệnh §Verification đã xanh. Mã đã dựng
-nằm nguyên trên đĩa, chưa commit.
+### Điểm nghẽn đã giải quyết — Chốt Phương án (A)
 
-### Chỗ chặn — một mâu thuẫn trong chính spec này, không phải lỗi thi hành
+Điểm chặn ban đầu tại **step-03 → Matrix Test Audit** do mâu thuẫn giữa hàng ma trận
+*"`updated_at` chưa dựng lại"* (đòi hỏi *"lưới ghi rõ đó là mốc tạo"*) và điều kiện §Never
+(cấm bump `META_SCHEMA_VERSION`).
 
-Hàng ma trận **"`updated_at` chưa dựng lại"** viết:
-
-> `meta.json` v1/v2 chưa qua `rebuild_from_store` ⇒ *Vẫn sắp được (giá trị lúc tạo), **lưới ghi
-> rõ đó là mốc tạo***
-
-Hai vế, và cả hai đều hở:
-
-① **Không ca nào phủ hàng này.** Đo: `sorting_by_updated_at_orders_the_most_recently_touched_work_first`
-không dựng hàng `status = None` nào; `a_true_v1_meta_json_indexes_with_status_null_and_matches_no_filter`
-(ca cũ, Story 5.4) có dựng `meta.json` v1 thật nhưng **không gọi một lượt sắp xếp nào**. Giao
-của hai ca là rỗng.
-
-② **Vế "lưới ghi rõ đó là mốc tạo" KHÔNG dựng được** dưới chính §Never của spec này, và đó là
-lỗi của tôi lúc viết spec. Để lưới nói được câu đó, nó phải phân biệt được một `meta.json` đã
-qua `rebuild_from_store` với một cái chưa. Các dấu hiệu sẵn có đều **không** làm được việc đó:
-- `status === null` / `chapter_done_count === null` chỉ nhận ra `meta.json` **v1/v2**. Một
-  `meta.json` **v3** ghi TRƯỚC story này cũng mang `updated_at` đóng băng nhưng `status` khác
-  `null` — nó lọt qua dấu hiệu này im lặng.
-- So `updated_at == created_at` cũng không phân biệt được: một Tác phẩm **vừa tạo** hợp lệ
-  cũng có đúng đẳng thức đó.
-- Dấu hiệu duy nhất phân biệt được là **bump `META_SCHEMA_VERSION` 3→4** — mà §Never của
-  chính spec này cấm tường minh ("không bump `META_SCHEMA_VERSION`").
-
-⇒ Hàng ma trận đòi một hành vi mà cùng spec đó cấm phương tiện thực hiện. Giao thức step-03
-nói rõ: *"never edit the expectation to match the code"* — nên tôi **không** sửa hàng ma trận
-cho khớp mã đã dựng, và dừng.
-
-### Hai đường gỡ, bạn chọn
-
-**(A) Hạ vế thứ hai — rẻ, và có lý.** Bỏ mệnh đề *"lưới ghi rõ đó là mốc tạo"*, giữ vế
-*"Vẫn sắp được"*, rồi thêm một ca sắp xếp trên hàng `meta.json` v1. Lý lẽ đỡ nó: AC2 của epic
-liệt kê đúng bốn thứ mỗi ô phải mang (bìa · tên · tiến độ · trạng thái) — **ngày sửa không
-nằm trong đó**, và lưới hôm nay không hiển thị ngày, nên nó không khẳng định điều gì sai với
-người dùng. Thiệt hại thật thu về đúng một điều: một Tác phẩm có `meta.json` ghi trước story
-này bị **xếp theo ngày TẠO** trong lượt sắp "ngày sửa gần nhất", cho tới lần đổi trạng thái
-Chương kế tiếp.
-
-**(B) Bump `META_SCHEMA_VERSION` 3→4** để lưới phân biệt được và nói thật. Đắt hơn: một lượt
-di trú, và nó lật một câu §Never mà spec đã ký.
-
-Tôi nghiêng về **(A)** — nhưng đây là lật một mệnh đề trong `<intent-contract>`, không phải
-việc tôi tự quyết khi chạy không người trực.
+Theo quyết định của Ice ngày 2026-09-03, đã chốt **Phương án (A)**:
+1. **Sửa hàng ma trận:** bỏ mệnh đề *"lưới ghi rõ đó là mốc tạo"*, chỉ giữ *"Vẫn sắp được theo mốc
+   tạo (giá trị ban đầu trong `meta.json`)"*. Lý lẽ: AC2 của Epic chỉ đòi hỏi 4 phần tử trên ô
+   lưới (khung bìa, tên, tiến độ, trạng thái), không hiển thị ngày sửa. Lưới hiện tại không đưa
+   thông tin sai lệch đến người dùng.
+2. **Bổ sung ca kiểm thử:** ca `sorting_by_updated_at_with_v1_meta_json_orders_by_initial_timestamp`
+   trong `src-tauri/tests/library_index_contract.rs` chứng minh một tác phẩm mang `meta.json` v1
+   cũ (chưa qua rebuild) được sắp xếp đúng và ổn định theo mốc tạo. Ca test đã chạy thật và xanh.
+3. **Hiện trạng mã nguồn:** Mã nguồn của Story 5.6 đã nằm trên nhánh `master` tại commit
+   `6b2cb24` (2026-08-29, *feat(libraryWorks): enhance filtering and sorting capabilities*).
+   Mệnh đề cũ *"Mã đã dựng nằm nguyên trên đĩa, chưa commit"* được sửa thành mệnh đề đúng này.
+   Story chính thức hoàn thành (`done`), đóng Action Item AI-8 của Epic 5.
 
 ### Nghiệm thu ĐÃ CHẠY và ĐÃ XANH (tôi tự chạy, không lấy báo cáo của agent)
 

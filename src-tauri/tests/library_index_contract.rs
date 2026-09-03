@@ -1935,6 +1935,35 @@ fn sorting_by_updated_at_orders_the_most_recently_touched_work_first() {
     cleanup(&dir);
 }
 
+/// §I/O Matrix "`updated_at` chưa dựng lại" (Phương án A) — `meta.json` v1/v2 chưa qua
+/// `rebuild_from_store` vẫn sắp xếp được theo mốc tạo (giá trị ban đầu trong `meta.json`),
+/// không ném lỗi và thứ tự ổn định.
+#[test]
+fn sorting_by_updated_at_with_v1_meta_json_orders_by_initial_timestamp() {
+    let dir = temp_dir("sort-v1-meta-json");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+
+    // Dựng 1 tác phẩm v1 (mốc 2026-08-01)
+    write_v1_atproj_missing_lifecycle_fields(&root, "OldV1", "id-v1-old", "Old V1");
+    // Dựng 1 tác phẩm v3 mới hơn (mốc 2026-08-20)
+    write_atproj_full(&root, "NewV3", "id-v3-new", "New V3", "", "en", "not_started", "2026-08-20T00:00:00.000Z");
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let outcome = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+    assert_eq!(outcome.indexed, 2, "ca hai phai vao chi muc thanh cong");
+
+    let report = indexer
+        .list_works(WorkQuery { sort: WorkSortKey::UpdatedDesc, ..Default::default() })
+        .unwrap_or_else(|e| panic!("list_works: {e}"));
+    let ids: Vec<&str> = report.works.iter().map(|w| w.work_id.as_str()).collect();
+    assert_eq!(ids, vec!["id-v3-new", "id-v1-old"], "v3 moi hon dung truoc, v1 cu dung sau theo updated_at: {ids:?}");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
 /// §I/O Matrix "Sắp theo tên" — `ORDER BY name COLLATE NOCASE, work_id`, không phân biệt
 /// hoa/thường.
 #[test]

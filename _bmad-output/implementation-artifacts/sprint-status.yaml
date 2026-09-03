@@ -131,7 +131,7 @@ development_status:
   5-3-quét-lại-thư-mục: done
   5-4-bốn-trạng-thái-vòng-đời: done
   5-5-tiến-độ-tác-phẩm: done
-  5-6-lưới-tác-phẩm-lọc-và-sắp-xếp: in-progress
+  5-6-lưới-tác-phẩm-lọc-và-sắp-xếp: done
   5-7-danh-sách-chương-và-mở-chương-vào-workspace: done
   5-8-tổ-chức-lại-chương-sau-khi-nhập: done
   5-9-tìm-kiếm-full-text-xuyên-library: done
@@ -815,7 +815,7 @@ action_items:
       va chot duong (A) hay (B) cho cho chan META_SCHEMA_VERSION. Muc duy nhat dung
       giua Epic 5 va mot phan quyet accepted"
     owner: "Ice"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
   - id: "epic-5-retro-item-58-ai-9-doi-nhip-doc-ci-mot-luot-gh-run-lis"
     epic: 5
