@@ -8961,3 +8961,33 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     thuộc một cổng tĩnh; nó thuộc bàn đo chạy tay hoặc e2e.
     **(Chủ: Ice — quyết xem có gộp hai đoạn vào MỘT live region không, và phép đo nào nghiệm thu
     được vế ấy. NFR17 là chỗ luật này sống.)**
+
+## Deferred from: 6-1-mui-tham-do-ba-lua-chon-thu-vien (2026-09-03)
+
+- 🟡 **FR126 (dò bảng mã GBK/Big5) ghim được crate nhưng KHÔNG đo được — `fixtures/encoding/`
+  có 0 mẫu thật, và Story 6.1 bị cấm tường minh tự sinh chúng.**
+  evidence: `chardetng` 1.0.0 + `encoding_rs` 0.8.35 đã ghim vào `Cargo.toml` (rà NFR15 xong,
+    xem `ARCHITECTURE-SPINE.md` §Stack + §Deferred). Bàn đo
+    `chardetng_records_the_true_and_guessed_label_of_every_encoding_fixture_or_fails_loudly_on_zero_samples`
+    (`src-tauri/tests/webimport_probe.rs`) quét `_bmad-output/implementation-artifacts/6-1-ban-do/
+    fixtures/encoding/*.txt`: **0 tệp**. Spec §Never cấm tự sinh fixture bằng cách mã hoá ngược từ
+    UTF-8 qua `encoding_rs` rồi bảo `chardetng` đọc lại — đó là một vòng tròn, không chở BOM lẫn
+    lộn/tệp trộn mã/dòng meta ASCII đầu tệp mà dữ liệu THẬT mới có. Bàn đo tự phân biệt đúng "chưa
+    đo" với "đã đo, tỉ lệ 0%": thoát mã **101** (khác 0) khi thư mục rỗng, không lặng lẽ ghi một
+    TSV trống rồi trôi qua như đã đạt.
+    **(Chủ: Ice — cấp `.txt` GBK/Big5 thật vào `6-1-ban-do/fixtures/encoding/`, quy ước tên
+    `<mô-tả>__<NHÃN>.txt` ghi ở `README.md` của thư mục đó, rồi chạy lại đúng bàn đo trên. Câu hỏi
+    CRATE đã đóng — chỉ còn thiếu SỐ ĐO; không ai được suy phán quyết FR126 từ hàng Stack đã ghim.)**
+
+- ⚠️ **`is_probably_readable()` của `dom_smoothie` chấm SAI một bài báo THẬT thành "không giống
+  bài viết" — âm tính giả trên nội dung dạng tóm tắt video ngắn.**
+  evidence: đo 2026-09-03 trên 7 mẫu epochtimes.com thật (`6-1-ban-do/extraction-raw.tsv`, mẫu
+    `a04`, 192 ký tự bóc được, đối chiếu tay với `#post_content` của chính HTML cho 265 ký tự thật
+    — đây LÀ một bài báo hợp lệ, không phải trang lỗi). Heuristic của `dom_smoothie` (ngưỡng điểm
+    + độ dài tối thiểu 140) chấm cờ `is_probably_readable = false` cho nó, giống hệt cờ đúng của
+    mẫu `a07` (trang chủ, không phải bài). Nếu màn xem trước của FR123 (Story 6.9) dùng cờ này để
+    tự động ẩn/gắn nhãn "cần xem", một bài thật sẽ bị xử lý như trang lỗi.
+    **(Chủ: Story 6.9 — khi dựng màn xem trước, không dùng `is_probably_readable()` làm điều kiện
+    DUY NHẤT để phân loại "cần xem"; cân nhắc kèm ngưỡng `char_count`/`paragraph_count` đo được từ
+    bàn đo này, hoặc luôn hiện xem trước bất kể cờ — bộ lọc "cần xem" là Story 6.10, không phải một
+    quyết định ngầm ở đây.)**

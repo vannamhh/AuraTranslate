@@ -1,0 +1,17 @@
+# Danh sách bài báo THẬT dùng cho mũi thăm dò bóc nội dung (dom_smoothie, FR123) — Story 6.1.
+# Một dòng một URL. Dòng bắt đầu bằng `#` là chú thích, bị bỏ qua.
+#
+# Nguồn: epochtimes.com (ấn bản Hoa văn của The Epoch Times — `/gb/` = giản thể, `/b5/` =
+# phồn thể), chốt theo Approach của spec này. Sáu dòng đầu là bài báo thật (ca thuận, FR123);
+# dòng cuối là một trang KHÔNG phải bài báo (trang chủ ấn bản Phồn thể — danh sách tiêu đề),
+# dùng cho ca "trang không phải bài" trong ma trận I/O.
+#
+# HTML tải về nằm ở `fixtures/html/<id>.html` (id = SHA-256 rút gọn của URL), do
+# `webimport_probe.rs` tự tải khi chưa có cache — KHÔNG commit (`.gitignore: fixtures/`).
+https://www.epochtimes.com/gb/26/8/31/n14840292.htm
+https://www.epochtimes.com/b5/26/8/31/n14840300.htm
+https://www.epochtimes.com/gb/26/8/1/n14821642.htm
+https://www.epochtimes.com/b5/26/8/27/n14837938.htm
+https://www.epochtimes.com/gb/26/7/12/n14808015.htm
+https://www.epochtimes.com/b5/26/8/29/n14839195.htm
+https://www.epochtimes.com/b5/

@@ -48,8 +48,12 @@ docx-rs = "=0.4.22"           # core::export (AD-38)
 # rơi vào kho giả. Story 4.3 chỉ cần dùng; nếu đổi feature thì đọc lại chỗ này trước.
 keyring = "=4.1.6"
 # core::ai (điểm ra mạng 1) và core::webimport::Fetcher (điểm ra mạng 3), AD-15.
-# Chưa có một dòng mã nào gọi tới ở story này — xem Completion Notes về AC5.
-reqwest = "=0.13.4"
+# Feature `blocking` bật ở Story 6.1 để mũi thăm dò gọi được `reqwest::blocking` — không
+# thêm crate mới (feature này chỉ bật `tokio/sync` cộng hai crate ĐÃ SẴN trong Cargo.lock
+# từ trước, `futures-channel` 0.3.33 và `futures-util` 0.3.33, qua bắc cầu của chính
+# `reqwest`/`hyper`), đo `cargo tree` xác nhận 0 dòng mới từ riêng feature này. `Fetcher`
+# thật (Story 6.7+) tự quyết lại có cần `blocking` hay đi hẳn đường async của Tauri.
+reqwest = { version = "=0.13.4", features = ["blocking"] }
 # core::store::schema (work.id UUID v4, AD-28). Story 1.15: đã có BẮC CẦU qua `tauri`
 # (Cargo.lock trước story này đã khoá `uuid 1.24.0`), nên khai tường minh ở đây thêm
 # ĐÚNG 0 byte payload vào cây. Ghim bằng `=`, không bằng cú pháp mặc định của Cargo —
@@ -65,6 +69,26 @@ uuid = { version = "=1.24.0", features = ["v4"] }
 # nguồn đã tải `~/.cargo/registry/src/…/tauri-plugin-dialog-2.7.2/Cargo.toml:27` — tương thích
 # GPLv3 chiều vào. Ghim `=` theo lệ của kho.
 tauri-plugin-dialog = "=2.7.2"
+
+# ── Ba crate của mũi thăm dò Story 6.1 (FR123/FR126, core::webimport) ────────────────
+#
+# Rà NFR15 TRƯỚC khi ghim ở đây (lượt sáu, `ARCHITECTURE-SPINE.md` §Stack): mở tệp giấy
+# phép trong `~/.cargo/registry/src/…` mà đọc, không tin trường `license`. Cả ba dễ dãi,
+# tương thích GPLv3 chiều đi vào — bảng rà đầy đủ (đường dẫn tệp + dòng đầu) nằm ở spine.
+#
+# core::webimport::Extractor (bóc nội dung chính, FR123, AD-40) — cổng Readability còn
+# được bảo trì (`readability` 0.3.0 đứng im từ 12/2023, không chọn). Kéo theo một cây con
+# 12 gói MỚI, trong đó `cssparser`/`cssparser-macros`/`selectors` là MPL-2.0 — GPL-compatible
+# theo điều khoản 3.3 của chính văn bản MPL 2.0, ghi rõ ở spine vì đây là hạng giấy phép đầu
+# tiên khác nhóm dễ dãi thường lệ lọt vào cây.
+dom_smoothie = "=0.18.0"
+# core::webimport — dò bảng mã cho nguồn không tự khai (.txt/.md/HTTP, FR126). Bộ dò của
+# Firefox cho nội dung web cũ, đúng bài toán GBK/Big5. KHÔNG kéo thêm gói bắc cầu nào.
+chardetng = "=1.0.0"
+# core::webimport — giải mã theo bảng mã `chardetng` dò được. ĐÃ bắc cầu qua `reqwest`
+# 0.13.4 và `quick-xml` 0.41.0 từ trước story này (`Cargo.lock` đã khoá 0.8.35) — khai
+# tường minh ở đây thêm ĐÚNG 0 byte payload vào cây, chỉ ghim số cho khớp bảng Stack.
+encoding_rs = "=0.8.35"
 
 # ── Bộ lái cửa sổ Tauri THẬT — Ice chốt 2026-08-11 ──────────────────────────────────
 #
