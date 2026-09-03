@@ -75,6 +75,14 @@ describe('Story 5.11 — Chế độ đọc: typography và bố cục đọc d�
       what: 'lượt flush thứ HAI (câu hai, kích hoạt bởi nhịp idle của riêng nó)',
     })
 
+    // Story 5.12: Chế độ đọc chỉ nạp Chương có trạng thái `done` (FR120).
+    // Đặt Chương đang mở thành `done` qua IPC trước khi chuyển sang Chế độ đọc.
+    await browser.execute(async () => {
+      const internals = window.__TAURI_INTERNALS__
+      const chapter = await internals.invoke('read_open_chapter')
+      await internals.invoke('set_chapter_status', { chapterId: chapter.chapter_id, status: 'done' })
+    })
+
     // `Mod+3` — `mode.reading`. `Mod` phân giải thành `Meta` trên macOS.
     await browser.keys(['Meta', '3'])
 

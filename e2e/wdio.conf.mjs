@@ -547,6 +547,17 @@ export const config = {
     }
   },
 
+  before: async () => {
+    // Cầu nối __wdio_original_core__ cho @wdio/tauri-service: tránh mỗi lệnh WebDriver bị delay timeout 5 giây
+    await browser.execute(() => {
+      if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__) {
+        window.__wdio_original_core__ = {
+          invoke: window.__TAURI_INTERNALS__.invoke.bind(window.__TAURI_INTERNALS__),
+        }
+      }
+    })
+  },
+
   services: ['@wdio/tauri-service'],
   capabilities: [
     {

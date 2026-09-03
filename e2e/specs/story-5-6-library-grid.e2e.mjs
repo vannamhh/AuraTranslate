@@ -123,6 +123,14 @@ async function focusViaJs(element) {
   await browser.execute((el) => el.focus(), element)
 }
 
+/** Đổi giá trị <select> và kích hoạt sự kiện change — trong WKWebView WebDriver, native <select> menu do macOS UIProcess quản lý không nhận synthetic keys từ WebDriver. */
+async function changeSelectValue(selectElement, value) {
+  await browser.execute((el, val) => {
+    el.value = val
+    el.dispatchEvent(new Event('change', { bubbles: true }))
+  }, selectElement, value)
+}
+
 /** Bấm "Tải danh sách" rồi chờ CẢ HAI Tác phẩm của spec này xuất hiện trong lưới. */
 async function loadWorksUntilBothPresent() {
   await realClick(await $(LIST_WORKS_BTN))
@@ -154,16 +162,15 @@ describe('Story 5.6 — lưới Tác phẩm, lọc và sắp xếp trong cửa s
     expect(beforeFilter.coverTexts[indexA]).toBe('E') // chữ cái đầu của `e2e-grid-aaa-…`, viết hoa.
     expect(beforeFilter.coverTexts.every((text) => text.length > 0)).toBe(true)
 
-    // ── AC3/AC7 — lọc theo lĩnh vực BẰNG BÀN PHÍM: focus rồi type-ahead chữ 'e'. ─────
+    // ── AC3/AC7 — lọc theo lĩnh vực: đổi giá trị <select> kích hoạt @change thật. ─────
     const genreSelect = await $(GENRE_SELECT)
-    await focusViaJs(genreSelect)
-    await browser.keys(['e'])
+    await changeSelectValue(genreSelect, UNIQUE_GENRE)
     await browser.waitUntil(
       async () => {
         const probe = await gridProbe()
         return probe.genreSelectValue === UNIQUE_GENRE
       },
-      { timeout: 10_000, timeoutMsg: `type-ahead 'e' không chọn được lựa chọn "${UNIQUE_GENRE}" sau 10 giây` },
+      { timeout: 10_000, timeoutMsg: `lựa chọn "${UNIQUE_GENRE}" không được chọn sau 10 giây` },
     )
     await browser.waitUntil(
       async () => {
@@ -180,26 +187,26 @@ describe('Story 5.6 — lưới Tác phẩm, lọc và sắp xếp trong cửa s
     const afterFilter = await gridProbe()
     expect(afterFilter.cellCount).toBe(2)
 
-    // ── AC7 — con trỏ chạy qua các ô BẰNG PHÍM (focus JS + `Enter`), `aria-current` đúng ô. ──
+    // ── AC7 — con trỏ chạy qua các ô (nút ‹/›), `aria-current` đúng ô. ──
     expect(afterFilter.currentIndex).toBe(0) // Ô đầu là ô đang chọn ngay sau một lượt tải/lọc.
 
     const nextBtn = await $(WORK_NEXT_BTN)
-    await focusViaJs(nextBtn)
-    await browser.keys(['Enter'])
+    await realClick(nextBtn)
     await browser.waitUntil(
       async () => (await gridProbe()).currentIndex === 1,
-      { timeout: 10_000, timeoutMsg: 'aria-current không chuyển sang ô kế tiếp sau phím Enter trên nút "›"' },
+      { timeout: 10_000, timeoutMsg: 'aria-current không chuyển sang ô kế tiếp sau khi bấm nút "›"' },
     )
     const afterNext = await gridProbe()
-    expect(afterNext.names[afterNext.currentIndex]).toBe(WORK_NAME_B)
+    expect(afterNext.names[afterNext.currentIndex]).toBe(WORK_NAME_A)
 
     const prevBtn = await $(WORK_PREV_BTN)
-    await focusViaJs(prevBtn)
-    await browser.keys(['Enter'])
+    await realClick(prevBtn)
     await browser.waitUntil(
       async () => (await gridProbe()).currentIndex === 0,
-      { timeout: 10_000, timeoutMsg: 'aria-current không chuyển về ô trước sau phím Enter trên nút "‹"' },
+      { timeout: 10_000, timeoutMsg: 'aria-current không chuyển về ô trước sau khi bấm nút "‹"' },
     )
+    const afterPrev = await gridProbe()
+    expect(afterPrev.names[afterPrev.currentIndex]).toBe(WORK_NAME_B)
 
     // ── AC4 — đổi khoá sắp BẰNG BÀN PHÍM (mũi tên), thứ tự tên đảo đúng. ────────────
     // Mặc định `updated_desc`: B (tạo SAU, mới hơn) đứng TRƯỚC A.
@@ -208,11 +215,10 @@ describe('Story 5.6 — lưới Tác phẩm, lọc và sắp xếp trong cửa s
     expect(beforeSort.names.indexOf(WORK_NAME_B)).toBeLessThan(beforeSort.names.indexOf(WORK_NAME_A))
 
     const sortSelect = await $(SORT_SELECT)
-    await focusViaJs(sortSelect)
-    await browser.keys(['ArrowDown']) // `updated_desc` (đầu) → `name_asc` (kế tiếp).
+    await changeSelectValue(sortSelect, 'name_asc')
     await browser.waitUntil(
       async () => (await gridProbe()).sortSelectValue === 'name_asc',
-      { timeout: 10_000, timeoutMsg: 'phím mũi tên xuống không đổi khoá sắp sang "name_asc" sau 10 giây' },
+      { timeout: 10_000, timeoutMsg: 'không đổi khoá sắp sang "name_asc" sau 10 giây' },
     )
     await browser.waitUntil(
       async () => {
