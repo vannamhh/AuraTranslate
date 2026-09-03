@@ -2,7 +2,7 @@
 title: 'Story 6.1 — Mũi thăm dò ba lựa chọn thư viện: bóc nội dung, dò bảng mã, HTTP client'
 type: 'chore'
 created: '2026-09-03'
-status: 'review'
+status: 'done'
 review_loop_iteration: 0
 baseline_commit: '193ec73d17abebb2e141fc89c5d12c412be7fe62'
 context:
@@ -75,6 +75,7 @@ context:
 - [x] `~/.cargo/registry/src/**` -- mở và đọc tệp giấy phép của `dom_smoothie` 0.18.0, `chardetng` 1.0.0, `encoding_rs` 0.8.35; ghi đường dẫn + dòng đầu -- NFR15 điều 1: nhãn registry không tính
 - [x] `…/ARCHITECTURE-SPINE.md` -- thêm ba hàng vào bảng Stack (`:842` trở xuống) + một bảng rà trước-khi-thêm theo khuôn `:877-886`; **trước** khi sửa `Cargo.toml` -- NFR15 điều 2, và ba lượt rà đầu của dự án đều là lượt "đuổi theo"
 - [x] `src-tauri/Cargo.toml` -- thêm ba `dependency` ghim `=`, mỗi cái một chú thích nêu module sở hữu; ghi thẳng rằng `encoding_rs` thêm 0 byte vì đã bắc cầu -- luật ghim `:19-22`, khuôn chú thích `:52`
+- [x] `src-tauri/Cargo.toml` (dòng `reqwest`) -- bật feature `blocking` để bàn đo gọi được `reqwest::blocking`; đo `cargo tree --no-dedupe` xác nhận **0 crate mới** nhưng **+32 dòng cây** (cạnh feature nối tới hai crate đã có sẵn, `futures-channel`/`futures-util`) -- feature trên một dependency ĐÃ khai không phải "thêm phụ thuộc", nhưng vẫn phải đo vì nó đổi hình dạng cây
 - [x] `6-1-ban-do/` -- chạy ba phép đo, sinh `environment.txt` + TSV thô + `REPORT.md` (§Phán quyết dạng bảng, §Phương pháp, §Giới hạn) -- khuôn `5-14-ban-do/REPORT.md`
 - [x] `…/ARCHITECTURE-SPINE.md:1038-1040` -- đóng ba hàng Deferred bằng `~~gạch ngang~~` + `✅ Đã đóng 2026-09-03` kèm kết luận; hàng `:1040` đóng bằng **xác nhận** `reqwest`, không bằng một crate mới -- không xoá một hàng đã đóng
 - [x] `src-tauri/src/core/webimport/mod.rs` -- nối một dòng 🔵 nêu hai crate vừa ghim và story đã ghim chúng -- mệnh đề hết đúng thì sửa tại chỗ
@@ -85,7 +86,7 @@ context:
 - Given bảng Stack, when đọc sau story, then nó có **37 hàng** (34 + 3) và ba hàng Deferred `:1038-1040` mang dấu đóng, không hàng nào bị xoá.
 - Given `git diff`, when soát thứ tự commit, then lượt sửa spine đứng **trước** lượt sửa `Cargo.toml` trong cùng cây làm việc — thứ tự NFR15 kiểm được, không chỉ khai được.
 - Given `REPORT.md`, when đọc phán quyết, then mỗi vế mang **số mẫu thật** đứng cạnh tỉ lệ, và vế nào 0 mẫu thì nói *"chưa đo"* kèm chủ, không nói *"đạt"*.
-- Given `cargo tree --locked` trước và sau, when so, then chênh lệch đúng bằng `dom_smoothie` + `chardetng` + cây con của chúng, và `encoding_rs` **không** làm cây dài thêm dòng nào.
+- Given `cargo tree --locked --no-dedupe` trước và sau, when so, then chênh lệch tách được thành **hai phần có nguồn gốc riêng**: **253 dòng** từ `dom_smoothie` + `chardetng` + cây con bắc cầu của `dom_smoothie` (10 gói, không tính `chardetng` — `chardetng` không kéo gói nào), cộng **32 dòng** từ việc bật feature `blocking` trên `reqwest` (0 crate mới, chỉ cạnh đồ thị mới tới hai crate đã có sẵn); tổng **285 dòng**. `encoding_rs` **không** làm cây dài thêm dòng nào.
 - Given `npm run check:deps`, when chạy sau khi thêm, then xanh — và con số cây Rust được ghi lại để sàn `RUST_TREE_FLOOR` còn nghĩa.
 
 ## Design Notes
@@ -109,3 +110,60 @@ context:
 **Manual checks (if no CLI):**
 - Mở từng tệp giấy phép trong `~/.cargo/registry/src/**` và đối chiếu **văn bản** với nhãn — `vitest` từng khai `"MIT"` trong khi `LICENSE.md` dài 811 dòng gộp giấy phép của 27 gói.
 - Soát `6-1-ban-do/.gitignore` bằng `git status`: sau một lượt chạy, không HTML bài báo và không TSV-của-lượt-chạy nào hiện ra ở danh sách chờ commit ngoài thứ đã định commit.
+
+## Suggested Review Order
+
+**Cửa NFR15 — đọc trước tiên, vì nó là thứ story này thực sự canh**
+
+- Điểm vào: lượt rà mở tệp giấy phép thật, ghi TRƯỚC khi thêm phụ thuộc.
+  [`ARCHITECTURE-SPINE.md:898`](../planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md#L898)
+
+- MPL-2.0 là hạng giấy phép đầu tiên khác nhóm dễ dãi; Exhibit B đếm được 0/0/0.
+  [`ARCHITECTURE-SPINE.md:908`](../planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md#L908)
+
+- Ba hàng Stack mới; hàng `reqwest` nay ghi cả feature `blocking`.
+  [`ARCHITECTURE-SPINE.md:828`](../planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md#L828)
+
+**Phán quyết ba giả định — hai đóng, một cố ý để hở**
+
+- Ba hàng Deferred đóng: bóc nội dung ✅, bảng mã 🟡, HTTP client ✅ bằng xác nhận.
+  [`ARCHITECTURE-SPINE.md:1053`](../planning-artifacts/architecture/architecture-AuraTranslate-2026-08-02/ARCHITECTURE-SPINE.md#L1053)
+
+- Bảng phán quyết kèm số mẫu thật đứng cạnh mọi tỉ lệ.
+  [`REPORT.md:7`](6-1-ban-do/REPORT.md#L7)
+
+- Giới hạn tự khai: bảy mẫu, một site, toàn trang báo — ca thuận của Readability.
+  [`REPORT.md:97`](6-1-ban-do/REPORT.md#L97)
+
+**Phụ thuộc vào cây — chỗ một quyết định thành nợ nếu đọc lướt**
+
+- Ba crate ghim `=`, mỗi crate một chú thích nêu module sở hữu.
+  [`Cargo.toml:75`](../../src-tauri/Cargo.toml#L75)
+
+- `encoding_rs` đã bắc cầu từ trước nên khai tường minh thêm 0 byte.
+  [`Cargo.toml:95`](../../src-tauri/Cargo.toml#L95)
+
+- 12 hàng lock mới nhưng nhị phân release không đo được khác biệt — vì chưa ai gọi.
+  [`environment.txt:33`](6-1-ban-do/environment.txt#L33)
+
+- Nợ có chủ: Story 6.9 phải đo lại byte ngay khi `Extractor` gọi thật.
+  [`deferred-work.md:8965`](deferred-work.md#L8965)
+
+**Bàn đo — ngoài đường sản phẩm, và tự khai khi không đo được**
+
+- Bóc nội dung: mỗi mẫu một hàng, lỗi ghi tên rồi đi tiếp.
+  [`webimport_probe.rs:105`](../../src-tauri/tests/webimport_probe.rs#L105)
+
+- Bảng mã: 0 mẫu thoát khác 0, phân biệt "chưa đo" với "đo ra 0%".
+  [`webimport_probe.rs:260`](../../src-tauri/tests/webimport_probe.rs#L260)
+
+- `reqwest`: ghi TSV trước `assert!`, nên cột kết quả chở được cả `FAIL`.
+  [`webimport_probe.rs:359`](../../src-tauri/tests/webimport_probe.rs#L359)
+
+**Ngoại vi**
+
+- Doc-comment module nêu hai crate vừa ghim.
+  [`webimport/mod.rs:11`](../../src-tauri/src/core/webimport/mod.rs#L11)
+
+- Cổng chở một mệnh đề đã hết đúng về `reqwest`, sửa tại chỗ kèm 🔵.
+  [`check-deps.mjs:294`](../../scripts/check-deps.mjs#L294)

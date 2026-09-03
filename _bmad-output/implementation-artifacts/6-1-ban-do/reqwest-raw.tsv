@@ -1,4 +1,4 @@
 scenario	result	detail
-redirect_blocked_cross_host	OK	status=301 Moved Permanently; chain=["http://127.0.0.1:51805/final"]; server_b_reached=0
-size_capped_streamed_read	OK	advertised=20971520; cap=1048576; actually_read=1070760
-fetch_err_connection_refused	OK	error sending request for url (http://127.0.0.1:51814/nope)
+redirect_blocked_cross_host	OK	status=301 Moved Permanently; chain=["http://127.0.0.1:54771/final"]; server_b_reached=0
+size_capped_streamed_read	OK	advertised=20971520; cap=1048576; actually_read=1087248
+fetch_err_connection_refused	OK	port=54776; attempt=1/5; error sending request for url (http://127.0.0.1:54776/nope)

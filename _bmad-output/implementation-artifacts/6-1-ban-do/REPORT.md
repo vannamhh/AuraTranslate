@@ -11,6 +11,7 @@ Ngày đo, commit, máy, OS, toolchain nằm trong `environment.txt`. Ba bàn đ
 | FR123 — `dom_smoothie` bóc đúng nội dung chính? | **7** (6 bài báo + 1 trang không phải bài) | 7/7 fetch+extract không lỗi; 6/6 bài: tiêu đề đúng, mở bài đúng, độ đầy đủ nội dung 72–99% so với vùng bài viết thật trong HTML (không lẫn menu/quảng cáo); 1/1 trang không phải bài bị chấm đúng là "không giống bài viết" | **Đạt** cho ca thuận trên site đã đo — ghim `dom_smoothie` 0.18.0 |
 | FR126 — `chardetng`/`encoding_rs` dò đúng GBK/Big5? | **0** | Thư mục `fixtures/encoding/` rỗng — Ice chưa cấp fixture, Story 6.1 bị cấm tự sinh | **Chưa đo** — không phải "đạt 0%". Crate đã ghim, số đo còn thiếu; nợ chủ Ice ở `deferred-work.md` |
 | `reqwest` — đủ ba năng lực cho `Fetcher`? | **3** (một ca mỗi năng lực, trên server cục bộ) | Chặn 1/1 chuyển hướng khác host (server bị chặn nhận 0 kết nối); cắt luồng ở 1.048.576/20.971.520 byte quảng cáo; 1/1 lỗi kết nối được nhận diện đúng | **Đạt** — xác nhận `reqwest` (đã ghim từ Story 1.2), không cần crate mới |
+| Chi phí byte NFR6 của 12 gói mới (`dom_smoothie`+`chardetng`+cây con)? | **2** bản dựng `--release` (baseline `193ec73`, cây hiện tại) | Delta = **−16 byte** trên 8.102.176 byte — trong biên độ nhiễu, KHÔNG một chi phí đo được | **Chưa đo được cái cần đo** — đây là "đã ghim, chưa gọi", không phải "đường nhập tốn bao nhiêu"; đo lại thuộc Story 6.9 |
 
 ## Phương pháp
 
@@ -51,10 +52,47 @@ không cần mạng ngoài:
   `Location`, chuỗi chuyển hướng ghi lại đúng 1 chặng, server B nhận **0** kết nối.
 - *Kích thước*: server C khai `Content-Length: 20.971.520` rồi stream. Client đọc qua
   `impl Read for Response` (không `.bytes()`/`.text()`) với đệm 64 KiB, dừng khi vượt trần
-  1.048.576 byte rồi `drop` ngay. Đo: `actually_read = 1.110.628` byte (dừng ngay sau khi
-  vượt trần, không đọc hết 20 MiB quảng cáo).
+  1.048.576 byte rồi `drop` ngay. ⚠️ **`actually_read` PHỤ THUỘC LƯỢT CHẠY** — nó dừng ở
+  biên `read()` đầu tiên vượt qua trần, và biên đó dao động theo cỡ gói TCP/độ trễ loopback
+  của máy đang chạy lúc đó. Sáu lượt đo thật cho sáu giá trị khác nhau: 1.063.244 ·
+  1.070.760 · 1.079.212 · 1.063.556 · 1.055.364 · 1.110.628 byte (khoảng 1,01–1,06× trần).
+  Bất biến được nghiệm thu KHÔNG phải một con số cụ thể — nó là **`1.048.576 ≤
+  actually_read ≪ 20.971.520`**: lượt đọc luôn dừng ngay sau khi vượt trần, không bao giờ
+  nạp trọn 20 MiB quảng cáo. Giá trị của LƯỢT GHI VÀO REPORT NÀY nằm trong `reqwest-raw.tsv`
+  tại thời điểm ghi — đọc trực tiếp từ đó, đừng chép một con số ra đây rồi coi nó là hằng
+  số.
 - *Mạng hỏng*: bind rồi thả một cổng (không ai lắng nghe), gửi yêu cầu, trần thời gian 2s.
   Đo: `Err` với `is_connect() == true`.
+
+**Chi phí byte NFR6.** Theo đúng khuôn Story 3.10b (`ARCHITECTURE-SPINE.md:896`): hai bản
+dựng `cargo build --release --locked --manifest-path src-tauri/Cargo.toml`, cùng một `dist/`
+KHÔNG dựng lại giữa hai lượt (`diff -rq` xác nhận hai `dist/` giống hệt — story này không đổi
+tệp frontend nào). Baseline dựng trong một `git worktree` riêng tại `193ec73`
+(`/private/tmp/aura-6-1-p5/baseline/`), cây hiện tại dựng tại chỗ.
+
+| Bản dựng | Đường dẫn | Byte |
+| --- | --- | ---: |
+| baseline `193ec73` | `/private/tmp/aura-6-1-p5/baseline/src-tauri/target/release/auratranslate` | 8.102.176 |
+| cây hiện tại (Story 6.1 + patch rà đối kháng) | `src-tauri/target/release/auratranslate` | 8.102.160 |
+| **Delta** | | **−16** |
+
+Bốn điều PHẢI đọc cùng con số này, không tách riêng:
+
+1. **Delta ≈ 0 nghĩa là "không đo được khác biệt", không phải "rẻ".** So với Story 3.10b
+   (+156.392 byte cho ĐÚNG MỘT phụ thuộc), đây là một hạng độ lớn khác hẳn.
+2. **Lý do là cơ chế, xác nhận bằng `nm`/`strings` trên nhị phân sau:** **0** ký hiệu của
+   `dom_smoothie`/`chardetng`/10 gói bắc cầu có mặt trong nhị phân cuối, dù cả mười `.rlib` đã
+   biên dịch trong `target/release/deps/`. Trình liên kết loại bỏ trọn vì `core/webimport/mod.rs`
+   vẫn chỉ có doc-comment — chưa một dòng mã SẢN PHẨM nào gọi tới; chỉ nhị phân TEST liên kết thật.
+3. 🔴 **Phạm vi hẹp — dễ trích sai nhất:** con số này đo *"đã ghim, chưa gọi"*, không đo *"đường
+   nhập tốn bao nhiêu"*. Nó hết đúng ngay khi Story 6.9 gọi `dom_smoothie` thật. Đo lại là nợ có
+   chủ **Story 6.9** (`deferred-work.md`) — đừng suy ra dư địa NFR6 đã an toàn từ con số này.
+4. ⚠️ **Giới hạn phương pháp:** hai đường dẫn tuyệt đối lệch độ dài (33 ký tự so với 46), mà
+   `OUT_DIR`/`file!()` nhúng vào nhị phân — gây một sai lệch hệ thống cỡ vài chục byte, cùng bậc
+   độ lớn với chính −16 byte. Phép đo chỉ đủ sức nói "không có khác biệt đáng kể", không đủ sức
+   khẳng định đúng con số −16.
+
+Ăn **~0%** dư địa NFR6 còn lại (3.104.634 byte, chủ Story 10.1) — với đúng caveat của mục 3.
 
 ## Giới hạn
 
@@ -70,9 +108,13 @@ không cần mạng ngoài:
 - **`is_probably_readable()` có ít nhất một âm tính giả đã quan sát** (mẫu `a04`) — ghi nợ
   cho Story 6.9 (màn xem trước) đừng dùng cờ này làm điều kiện duy nhất phân loại "cần
   xem".
-- Cây `cargo tree --no-dedupe` thêm hai phần tách được: **253** dòng từ cây con
-  `dom_smoothie`+`chardetng` (12 gói mới), và **32** dòng từ việc bật feature `blocking`
-  trên `reqwest` (không gói mới — chỉ bật lại cạnh đồ thị đã có). Xem `ARCHITECTURE-SPINE.md`
-  §Stack cho rà giấy phép đầy đủ, bao gồm ghi chú `MPL-2.0` của ba gói bắc cầu qua
-  `dom_smoothie` (`cssparser`/`cssparser-macros`/`selectors`) — hạng giấy phép đầu tiên
-  khác nhóm dễ dãi thường lệ, vẫn tương thích GPLv3 chiều đi vào.
+- Cây `cargo tree --no-dedupe` thêm hai phần tách được: **253** dòng từ `dom_smoothie` +
+  `chardetng` + cây con bắc cầu CỦA RIÊNG `dom_smoothie` (**10** gói — không phải 12:
+  `chardetng` không kéo gói nào, `cfg-if`/`encoding_rs` trong `dependencies` của nó đã có
+  sẵn từ trước), cộng **32** dòng từ việc bật feature `blocking` trên `reqwest` (0 gói mới
+  — chỉ bật lại cạnh đồ thị tới hai crate đã có sẵn). 12 hàng MỚI trong `Cargo.lock` = 2
+  crate ứng viên (`dom_smoothie` + `chardetng`) + 10 gói bắc cầu đó. Xem `ARCHITECTURE-SPINE.md`
+  §Stack cho rà giấy phép đầy đủ — bảng đúng khuôn AD-48 ghi đường dẫn tệp/`grep` đã chạy cho
+  ba gói MPL-2.0 (`cssparser`/`cssparser-macros`/`selectors`, một trong ba — `selectors` —
+  không ship tệp `LICENSE` nào, bằng chứng là header từng tệp `.rs`) — hạng giấy phép đầu
+  tiên khác nhóm dễ dãi thường lệ, vẫn tương thích GPLv3 chiều đi vào.

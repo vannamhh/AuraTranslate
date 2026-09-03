@@ -51,8 +51,10 @@ keyring = "=4.1.6"
 # Feature `blocking` bật ở Story 6.1 để mũi thăm dò gọi được `reqwest::blocking` — không
 # thêm crate mới (feature này chỉ bật `tokio/sync` cộng hai crate ĐÃ SẴN trong Cargo.lock
 # từ trước, `futures-channel` 0.3.33 và `futures-util` 0.3.33, qua bắc cầu của chính
-# `reqwest`/`hyper`), đo `cargo tree` xác nhận 0 dòng mới từ riêng feature này. `Fetcher`
-# thật (Story 6.7+) tự quyết lại có cần `blocking` hay đi hẳn đường async của Tauri.
+# `reqwest`/`hyper`); đo `cargo tree --no-dedupe` xác nhận **0 crate mới** nhưng **+32
+# dòng cây** (các cạnh feature mới nối tới hai crate đã sẵn đó, không phải gói mới —
+# `6-1-ban-do/environment.txt`). `Fetcher` thật (Story 6.7+) tự quyết lại có cần
+# `blocking` hay đi hẳn đường async của Tauri.
 reqwest = { version = "=0.13.4", features = ["blocking"] }
 # core::store::schema (work.id UUID v4, AD-28). Story 1.15: đã có BẮC CẦU qua `tauri`
 # (Cargo.lock trước story này đã khoá `uuid 1.24.0`), nên khai tường minh ở đây thêm
@@ -78,9 +80,11 @@ tauri-plugin-dialog = "=2.7.2"
 #
 # core::webimport::Extractor (bóc nội dung chính, FR123, AD-40) — cổng Readability còn
 # được bảo trì (`readability` 0.3.0 đứng im từ 12/2023, không chọn). Kéo theo một cây con
-# 12 gói MỚI, trong đó `cssparser`/`cssparser-macros`/`selectors` là MPL-2.0 — GPL-compatible
-# theo điều khoản 3.3 của chính văn bản MPL 2.0, ghi rõ ở spine vì đây là hạng giấy phép đầu
-# tiên khác nhóm dễ dãi thường lệ lọt vào cây.
+# **10 gói bắc cầu MỚI** (KHÔNG tính chính nó, KHÔNG tính `chardetng` — hàng dưới đây
+# không kéo gì thêm), trong đó `cssparser`/`cssparser-macros`/`selectors` là MPL-2.0 —
+# GPL-compatible theo điều khoản 3.3 của chính văn bản MPL 2.0, ghi rõ ở spine vì đây là
+# hạng giấy phép đầu tiên khác nhóm dễ dãi thường lệ lọt vào cây. 12 hàng MỚI trong
+# `Cargo.lock` = `dom_smoothie` + `chardetng` (hai crate ứng viên) cộng 10 gói bắc cầu này.
 dom_smoothie = "=0.18.0"
 # core::webimport — dò bảng mã cho nguồn không tự khai (.txt/.md/HTTP, FR126). Bộ dò của
 # Firefox cho nội dung web cũ, đúng bài toán GBK/Big5. KHÔNG kéo thêm gói bắc cầu nào.

@@ -8991,3 +8991,21 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     DUY NHẤT để phân loại "cần xem"; cân nhắc kèm ngưỡng `char_count`/`paragraph_count` đo được từ
     bàn đo này, hoặc luôn hiện xem trước bất kể cờ — bộ lọc "cần xem" là Story 6.10, không phải một
     quyết định ngầm ở đây.)**
+
+- 🔴 **Chi phí byte NFR6 THẬT của `dom_smoothie` (FR123) chưa đo được — con số −16 byte của Story
+  6.1 chỉ đo trạng thái "đã ghim, chưa gọi", không đo đường nhập.**
+  evidence: đo 2026-09-03 (lượt rà đối kháng), hai bản dựng `cargo build --release --locked` dùng
+    chung một `dist/` (đối chiếu `diff -rq` giống hệt): baseline `193ec73` = **8.102.176 byte** →
+    cây hiện tại = **8.102.160 byte**, delta **−16 byte**. `nm`/`strings` trên nhị phân sau xác
+    nhận **0** ký hiệu của `dom_smoothie`/`chardetng`/cây con 10 gói bắc cầu (`html5ever` ·
+    `markup5ever` · `selectors` · `cssparser` · …) — dù cả mười `.rlib` đã biên dịch trong
+    `target/release/deps/`, trình liên kết loại bỏ TRỌN vì `core/webimport/mod.rs` vẫn chỉ có
+    doc-comment, chưa một dòng mã sản phẩm nào gọi tới. ⚠️ Delta đo được còn nằm trong biên độ
+    nhiễu của chính phương pháp: hai lượt dựng ở hai đường dẫn tuyệt đối lệch độ dài (33 ký tự so
+    với 46), mà `OUT_DIR`/`file!()` nhúng vào nhị phân — nên −16 chỉ chứng minh được "không có
+    khác biệt đáng kể", không chứng minh được một con số chính xác.
+    **(Chủ: Story 6.9 — đo lại byte nhị phân `--release` NGAY SAU khi `Extractor` thật gọi
+    `dom_smoothie::Readability::parse()` lần đầu, cùng khuôn Story 3.10b/6.1 (hai bản dựng, cùng
+    một `dist/`, ghi cả hai số + delta vào spine). Đây là lúc `html5ever`/`markup5ever`/`selectors`/
+    `cssparser` thật sự vào nhị phân và dư địa NFR6 mới có một con số đáng tin. KHÔNG suy ra "dư địa
+    NFR6 an toàn" từ con số −16 của Story 6.1.)**

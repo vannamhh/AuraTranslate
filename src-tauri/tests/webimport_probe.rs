@@ -19,6 +19,19 @@
 //!       -- --ignored --nocapture
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
+//! 🔵 SỬA 2026-09-03 (lượt rà đối kháng) — GHI HÀNG RỒI MỚI ASSERT
+//! ─────────────────────────────────────────────────────────────────────────────
+//! Bản đầu của ba bàn đo này `panic!`/`.unwrap()` GIỮA vòng lặp thu mẫu, trước khi
+//! `write_tsv` chạy — một mẫu lỗi (URL hỏng, tệp cache hỏng, tệp fixture không đọc được)
+//! xoá sạch MỌI hàng đã thu được của các mẫu KHÁC, và cột `result` của bàn đo `reqwest`
+//! không bao giờ chở được gì ngoài `OK` vì nhánh lỗi luôn panic trước khi kịp ghi dòng. Cả
+//! hai đều là hình dạng "rỗng im lặng" mà `AGENTS.md` gọi là lỗi trung tâm của dự án — ở
+//! đây nó lấy hình dạng "một dòng in ra hai câu trần trụi im lặng, hay TSV không ghi được
+//! gì". Luật áp dụng thống nhất từ đây: **ghi một hàng có tên rồi mới tới mẫu sau; lỗi hạ
+//! tầng (tệp commit vắng mặt, 0 mẫu — xem ma trận I/O của spec) vẫn được phép panic, vì nó
+//! không phải một PHÉP ĐO của mẫu nào cả.**
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
 //! VÌ SAO KHÔNG `use dom_query::...` HAY `use tendril::...`
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Cả hai crate là phụ thuộc BẮC CẦU của `dom_smoothie` — không khai tường minh trong
@@ -125,38 +138,26 @@ fn dom_smoothie_records_one_tsv_row_of_extraction_measurements_per_real_fetched_
         let id = format!("a{:02}", idx + 1);
         let cache_path = fixtures_dir.join(format!("{id}.html"));
 
-        let html = if cache_path.is_file() {
-            fs::read_to_string(&cache_path).ok()
-        } else {
-            match client.get(*url).send().and_then(|r| r.error_for_status()) {
-                Ok(resp) => match resp.text() {
-                    Ok(body) => {
-                        let _ = fs::write(&cache_path, &body);
-                        Some(body)
-                    }
-                    Err(e) => {
-                        println!("EXTRACT_SAMPLE\t{id}\tfetch_err\tđọc thân trả về: {e}");
-                        None
-                    }
-                },
-                Err(e) => {
-                    println!("EXTRACT_SAMPLE\t{id}\tfetch_err\t{e}");
-                    None
-                }
+        let (html, cache_note) = match fetch_or_cached(&client, &cache_path, url, &id) {
+            Ok(pair) => pair,
+            Err(reason) => {
+                fetch_err += 1;
+                println!("EXTRACT_SAMPLE\t{id}\t{reason}");
+                rows.push(format!("{id}\t{url}\t\t\t\t\t\t\t{reason}"));
+                continue;
             }
-        };
-
-        let Some(html) = html else {
-            fetch_err += 1;
-            rows.push(format!(
-                "{id}\t{url}\t\t\t\t\t\t\tfetch_err"
-            ));
-            continue;
         };
         fetch_ok += 1;
 
-        let mut readability = Readability::new(html, Some(url), None)
-            .unwrap_or_else(|e| panic!("{id}: URL không tuyệt đối ({url}): {e}"));
+        let mut readability = match Readability::new(html, Some(*url), None) {
+            Ok(r) => r,
+            Err(e) => {
+                extract_err += 1;
+                let reason = format!("{cache_note}extract_err: URL không tuyệt đối ({url}): {e}");
+                rows.push(format!("{id}\t{url}\t\t\t\t\t\t\t{reason}"));
+                continue;
+            }
+        };
         let is_readable = readability.is_probably_readable();
 
         match readability.parse() {
@@ -169,7 +170,7 @@ fn dom_smoothie_records_one_tsv_row_of_extraction_measurements_per_real_fetched_
                 let chars: Vec<char> = text.chars().collect();
                 let head: String = chars.iter().take(80).collect();
                 let tail: String = chars.iter().rev().take(80).collect::<Vec<_>>().into_iter().rev().collect();
-                let note = if is_readable { "" } else { "khong_giong_bai_viet" };
+                let note = if is_readable { cache_note } else { format!("{cache_note}khong_giong_bai_viet") };
                 rows.push(format!(
                     "{id}\t{url}\t{is_readable}\t{char_count}\t{paragraph_count}\t{}\t{}\t{}\t{note}",
                     tsv_escape(&article.title),
@@ -180,7 +181,7 @@ fn dom_smoothie_records_one_tsv_row_of_extraction_measurements_per_real_fetched_
             Err(e) => {
                 extract_err += 1;
                 rows.push(format!(
-                    "{id}\t{url}\t{is_readable}\t\t\t\t\t\textract_err: {e}"
+                    "{id}\t{url}\t{is_readable}\t\t\t\t\t\t{cache_note}extract_err: {e}"
                 ));
             }
         }
@@ -199,8 +200,47 @@ fn dom_smoothie_records_one_tsv_row_of_extraction_measurements_per_real_fetched_
     assert_eq!(rows.len(), urls.len(), "phải ghi đúng một hàng cho mỗi URL, không bỏ sót");
 }
 
+/// Trả HTML của `url`: đọc cache nếu có VÀ đọc được; cache vắng mặt hoặc HỎNG (quyền, mã
+/// hoá không phải UTF-8, tệp bị cắt giữa chừng) đều rơi xuống tải lại từ mạng — một cache
+/// hỏng không được phép âm thầm đóng băng vĩnh viễn dưới nhãn `fetch_err` sai nguồn gốc.
+/// `Ok` trả `(html, cache_note)`, `cache_note` rỗng trừ khi cache vừa được refetch (khi đó
+/// nó mang tiền tố để người đọc TSV biết cache cũ đã hỏng, không phải trùng hợp).
+fn fetch_or_cached(
+    client: &reqwest::blocking::Client,
+    cache_path: &Path,
+    url: &str,
+    id: &str,
+) -> Result<(String, String), String> {
+    if cache_path.is_file() {
+        match fs::read_to_string(cache_path) {
+            Ok(body) => return Ok((body, String::new())),
+            Err(e) => {
+                println!(
+                    "EXTRACT_SAMPLE\t{id}\tcache_err\t{}: {e} — xoá cache hỏng, tải lại",
+                    cache_path.display()
+                );
+                let _ = fs::remove_file(cache_path);
+                // Rơi xuống nhánh tải mạng bên dưới — KHÔNG return ở đây.
+            }
+        }
+    }
+
+    let resp = client
+        .get(url)
+        .send()
+        .map_err(|e| format!("fetch_err: {e}"))?;
+    let resp = resp
+        .error_for_status()
+        .map_err(|e| format!("fetch_err: {e}"))?;
+    let body = resp
+        .text()
+        .map_err(|e| format!("fetch_err: đọc thân trả về: {e}"))?;
+    let _ = fs::write(cache_path, &body);
+    Ok((body, "cache_da_refetch: ".to_string()))
+}
+
 fn tsv_escape(s: &str) -> String {
-    s.replace('\t', " ").replace('\n', " ").replace('\r', " ")
+    s.replace(['\t', '\n', '\r'], " ")
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -212,7 +252,9 @@ fn tsv_escape(s: &str) -> String {
 // đọc lại là một vòng tròn. Quy ước tên tệp: `<mô-tả>__<NHÃN>.txt`, `NHÃN` là một trong năm
 // bảng của FR126 (`UTF-8` · `GB18030` · `GBK` · `BIG5` · `UTF-16`, không phân biệt hoa
 // thường) — xem `README.md` của thư mục này. 0 tệp ⇒ bàn đo THOÁT KHÁC 0 (assert đỏ) —
-// phân biệt tường minh với "đã đo, tỉ lệ 0%", đúng ma trận I/O của spec.
+// phân biệt tường minh với "đã đo, tỉ lệ 0%", đúng ma trận I/O của spec. Một tệp KHÔNG đọc
+// được (quyền, TOCTOU) trong một thư mục KHÔNG rỗng là chuyện khác hẳn — đó không phải lỗi
+// hạ tầng của TOÀN bộ đo, chỉ của MỘT mẫu, nên nó ghi một hàng lỗi rồi qua mẫu kế tiếp.
 #[test]
 #[ignore = "ban do can fixture that cua Ice trong fixtures/encoding/, khong phai mot cong"]
 fn chardetng_records_the_true_and_guessed_label_of_every_encoding_fixture_or_fails_loudly_on_zero_samples(
@@ -239,6 +281,7 @@ fn chardetng_records_the_true_and_guessed_label_of_every_encoding_fixture_or_fai
     let mut rows = Vec::new();
     let mut matched = 0usize;
     for path in &files {
+        let fname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
         let file_name = path
             .file_stem()
             .and_then(|s| s.to_str())
@@ -246,12 +289,23 @@ fn chardetng_records_the_true_and_guessed_label_of_every_encoding_fixture_or_fai
             .to_string();
         let Some((sample_id, true_label)) = file_name.rsplit_once("__") else {
             rows.push(format!(
-                "{file_name}\t\tKHONG_DOC_DUOC_TEN\t\t\tten_tep_thieu_dau___LABEL"
+                "{file_name}\t\tKHONG_DOC_DUOC_TEN\t\t\t{fname}\tten_tep_thieu_dau___LABEL"
             ));
             continue;
         };
 
-        let bytes = fs::read(path).unwrap_or_else(|e| panic!("đọc {}: {e}", path.display()));
+        let bytes = match fs::read(path) {
+            Ok(b) => b,
+            Err(e) => {
+                // Một tệp không đọc được (quyền, hoặc tệp vừa bị xoá giữa `read_dir` và
+                // `read` — TOCTOU thật) là lỗi CỦA MẪU NÀY, không phải lỗi hạ tầng của cả
+                // lượt đo. Ghi rõ rồi tiếp mẫu sau, đừng panic mất hết các hàng đã thu.
+                rows.push(format!(
+                    "{sample_id}\t{true_label}\tDOC_LOI\tfalse\t\t{fname}\tread_err: {e}"
+                ));
+                continue;
+            }
+        };
         let mut detector = EncodingDetector::new(Iso2022JpDetection::Deny);
         detector.feed(&bytes, true);
         let guess = detector.guess(None, Utf8Detection::Allow);
@@ -265,17 +319,16 @@ fn chardetng_records_the_true_and_guessed_label_of_every_encoding_fixture_or_fai
         }
 
         rows.push(format!(
-            "{sample_id}\t{true_label}\t{}\t{}\t{}\t{}",
+            "{sample_id}\t{true_label}\t{}\t{}\t{}\t{fname}\t",
             guess.name(),
             is_match,
             bytes.len(),
-            path.file_name().and_then(|n| n.to_str()).unwrap_or(""),
         ));
     }
 
     write_tsv(
         "encoding-raw.tsv",
-        "id\ttrue_label\tguessed_label\tmatch\tbyte_len\tfile_name",
+        "id\ttrue_label\tguessed_label\tmatch\tbyte_len\tfile_name\tnote",
         &rows,
     );
     println!(
@@ -295,26 +348,41 @@ fn normalize_label(s: &str) -> String {
 // ═════════════════════════════════════════════════════════════════════════════════
 // Bàn đo 3 — ba năng lực `reqwest` cần cho `Fetcher` (chặn chuyển hướng theo chặng, cắt
 // thân theo dòng chảy, báo lỗi mạng). Server cục bộ — xem doc-comment đầu file.
+//
+// 🔵 SỬA 2026-09-03 — mỗi ca trả về `(bool, String)` (đạt?, chi tiết) thay vì `assert!`
+// TRƯỚC khi ghi TSV. `write_tsv` luôn chạy trước lượt `assert!` cuối cùng, nên cột
+// `result` giờ CHỞ được cả `FAIL` — trước đây nó không bao giờ chở nổi gì ngoài `OK` vì
+// nhánh thất bại panic trước khi kịp ghi dòng, một cột không mang thông tin.
 // ═════════════════════════════════════════════════════════════════════════════════
 #[test]
 #[ignore = "ban do dung server localhost, chay duoc nhung tach khoi cargo test mac dinh"]
 fn reqwest_blocks_a_cross_host_redirect_caps_a_streamed_body_and_reports_a_dead_connection() {
+    let cases: [(&str, (bool, String)); 3] = [
+        ("redirect_blocked_cross_host", redirect_case()),
+        ("size_capped_streamed_read", size_cap_case()),
+        ("fetch_err_connection_refused", network_failure_case()),
+    ];
+
     let mut rows = Vec::new();
+    let mut failed: Vec<&str> = Vec::new();
+    for (name, (ok, detail)) in &cases {
+        rows.push(format!("{name}\t{}\t{detail}", if *ok { "OK" } else { "FAIL" }));
+        if !*ok {
+            failed.push(name);
+        }
+    }
 
-    rows.push(redirect_case());
-    rows.push(size_cap_case());
-    rows.push(network_failure_case());
+    write_tsv("reqwest-raw.tsv", "scenario\tresult\tdetail", &rows);
 
-    write_tsv(
-        "reqwest-raw.tsv",
-        "scenario\tresult\tdetail",
-        &rows,
+    assert!(
+        failed.is_empty(),
+        "các năng lực sau KHÔNG đạt — xem reqwest-raw.tsv cột result/detail: {failed:?}"
     );
 }
 
 /// Server A trả 301 sang server B (cổng khác = "host khác" giả lập). Chính sách chặn
 /// dựa trên PORT đích (đứng cho domain) và server B không bao giờ được nối tới.
-fn redirect_case() -> String {
+fn redirect_case() -> (bool, String) {
     let reached_b = Arc::new(AtomicU64::new(0));
     let reached_b_clone = Arc::clone(&reached_b);
     let (port_b, _handle_b) = spawn_once(move |mut stream| {
@@ -344,35 +412,52 @@ fn redirect_case() -> String {
         }
     });
 
-    let client = reqwest::blocking::Client::builder()
+    let client = match reqwest::blocking::Client::builder()
         .redirect(policy)
         .timeout(Duration::from_secs(5))
         .build()
-        .expect("dựng client reqwest");
+    {
+        Ok(c) => c,
+        Err(e) => return (false, format!("dựng client reqwest thất bại: {e}")),
+    };
 
-    let resp = client
-        .get(format!("http://127.0.0.1:{port_a}/start"))
-        .send()
-        .expect("gửi yêu cầu ban đầu");
+    let resp = match client.get(format!("http://127.0.0.1:{port_a}/start")).send() {
+        Ok(r) => r,
+        Err(e) => return (false, format!("gửi yêu cầu ban đầu thất bại: {e}")),
+    };
 
     let status = resp.status();
     let has_location = resp.headers().contains_key("location");
     let chain_recorded = chain.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let b_reached = reached_b.load(Ordering::SeqCst);
 
-    assert!(status.is_redirection(), "chặn đúng chỗ phải trả nguyên 3xx, không đi tiếp");
-    assert!(has_location, "chặn đúng chỗ vẫn phải giữ header Location cho người gọi đọc");
-    assert_eq!(chain_recorded, vec![location.clone()], "chuỗi chuyển hướng phải ghi lại được đúng một chặng bị chặn");
-    assert_eq!(b_reached, 0, "server bị chặn (khác host/port) TUYỆT ĐỐI không được nhận kết nối");
+    let mut violations = Vec::new();
+    if !status.is_redirection() {
+        violations.push(format!("status={status} không phải 3xx — đã ĐI TIẾP thay vì chặn"));
+    }
+    if !has_location {
+        violations.push("thiếu header Location trên response đã chặn".to_string());
+    }
+    if chain_recorded != vec![location.clone()] {
+        violations.push(format!(
+            "chuỗi chuyển hướng sai: {chain_recorded:?} (kỳ vọng đúng 1 chặng: [{location}])"
+        ));
+    }
+    if b_reached != 0 {
+        violations.push(format!("server bị chặn NHẬN kết nối {b_reached} lần (kỳ vọng 0)"));
+    }
 
-    format!(
-        "redirect_blocked_cross_host\tOK\tstatus={status}; chain={chain_recorded:?}; server_b_reached={b_reached}"
-    )
+    let detail = format!("status={status}; chain={chain_recorded:?}; server_b_reached={b_reached}");
+    if violations.is_empty() {
+        (true, detail)
+    } else {
+        (false, format!("{detail}; VI PHẠM: {}", violations.join(" | ")))
+    }
 }
 
 /// Server C khai `Content-Length` rất lớn rồi stream thân trả về; client đọc qua
 /// `std::io::Read` (không `.bytes()`/`.text()`) và DỪNG khi vượt trần, không nạp trọn.
-fn size_cap_case() -> String {
+fn size_cap_case() -> (bool, String) {
     const ADVERTISED_LEN: usize = 20 * 1024 * 1024; // 20 MiB — đủ lớn để "nạp trọn" là sai lầm rõ ràng.
     const CAP: usize = 1024 * 1024; // 1 MiB — trần giả lập của phép đo.
 
@@ -398,64 +483,127 @@ fn size_cap_case() -> String {
         }
     });
 
-    let client = reqwest::blocking::Client::builder()
+    let client = match reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
-        .expect("dựng client reqwest");
-    let mut resp = client
-        .get(format!("http://127.0.0.1:{port}/big"))
-        .send()
-        .expect("gửi yêu cầu");
+    {
+        Ok(c) => c,
+        Err(e) => return (false, format!("dựng client reqwest thất bại: {e}")),
+    };
+    let mut resp = match client.get(format!("http://127.0.0.1:{port}/big")).send() {
+        Ok(r) => r,
+        Err(e) => return (false, format!("gửi yêu cầu thất bại: {e}")),
+    };
 
     let mut buf = [0u8; 64 * 1024];
     let mut read_total = 0usize;
+    // 🔵 SỬA 2026-09-03 — trước đây `resp.read(&mut buf).unwrap_or(0)` biến MỌI `Err`
+    // (kể cả một lỗi truyền tải thật) thành `0`, tức "coi như EOF". Một EOF thật sự (server
+    // đóng kết nối) và một lỗi đọc thật (kết nối hỏng giữa chừng) là hai điều KHÁC NHAU
+    // hoàn toàn, và bàn đo trước đây không phân biệt được — giờ `match` tách rõ ba nhánh.
+    let mut read_violation: Option<String> = None;
     loop {
-        let n = resp.read(&mut buf).unwrap_or(0);
-        if n == 0 {
-            break;
-        }
-        read_total += n;
-        if read_total >= CAP {
-            break; // Cắt theo dòng chảy — drop `resp` ngay sau vòng lặp, không đọc tiếp.
+        match resp.read(&mut buf) {
+            Ok(0) => {
+                if read_total < CAP {
+                    read_violation = Some(format!(
+                        "EOF sớm ở {read_total} byte — trước khi chạm trần {CAP}, kết nối \
+                         kết thúc ngoài ý muốn"
+                    ));
+                }
+                break;
+            }
+            Ok(n) => {
+                read_total += n;
+                if read_total >= CAP {
+                    break; // Cắt theo dòng chảy — drop `resp` ngay sau vòng lặp, không đọc tiếp.
+                }
+            }
+            Err(e) => {
+                read_violation = Some(format!("lỗi đọc THẬT (không phải EOF): {e}"));
+                break;
+            }
         }
     }
     drop(resp);
 
-    assert!(
-        read_total < ADVERTISED_LEN,
-        "phải dừng TRƯỚC khi đọc hết {ADVERTISED_LEN} byte quảng cáo"
-    );
-    assert!(
-        read_total >= CAP,
-        "phải đọc được ít nhất tới trần {CAP} byte trước khi cắt"
-    );
+    let mut violations = Vec::new();
+    if let Some(v) = read_violation {
+        violations.push(v);
+    }
+    if read_total >= ADVERTISED_LEN {
+        violations.push(format!("đọc hết {read_total} byte — không hề dừng trước {ADVERTISED_LEN}"));
+    }
+    if read_total < CAP {
+        violations.push(format!("chỉ đọc được {read_total} byte — chưa chạm trần {CAP}"));
+    }
 
-    format!(
-        "size_capped_streamed_read\tOK\tadvertised={ADVERTISED_LEN}; cap={CAP}; actually_read={read_total}"
-    )
+    // ⚠️ `actually_read` PHỤ THUỘC LƯỢT CHẠY — nó dừng ở biên `read()` bất kỳ vượt qua
+    // CAP lần đầu tiên, và biên đó dao động theo cỡ gói TCP/độ trễ loopback của máy đang
+    // chạy. Đừng đọc con số cụ thể trong TSV như một hằng số; bất biến được nghiệm thu là
+    // "CAP ≤ actually_read ≪ ADVERTISED_LEN", không phải một giá trị đúng-một-số.
+    let detail = format!("advertised={ADVERTISED_LEN}; cap={CAP}; actually_read={read_total}");
+    if violations.is_empty() {
+        (true, detail)
+    } else {
+        (false, format!("{detail}; VI PHẠM: {}", violations.join(" | ")))
+    }
 }
 
 /// Không server nào lắng nghe ở cổng này — "mạng hỏng" tất định trên loopback.
-fn network_failure_case() -> String {
-    // Bind rồi drop ngay để lấy một cổng chắc chắn KHÔNG có ai lắng nghe khi ta gọi tới.
-    let port = {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind cổng tạm");
-        listener.local_addr().expect("local_addr").port()
-    };
+fn network_failure_case() -> (bool, String) {
+    const MAX_ATTEMPTS: usize = 5;
 
-    let client = reqwest::blocking::Client::builder()
+    let client = match reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()
-        .expect("dựng client reqwest");
-    let result = client.get(format!("http://127.0.0.1:{port}/nope")).send();
+    {
+        Ok(c) => c,
+        Err(e) => return (false, format!("dựng client reqwest thất bại: {e}")),
+    };
 
-    let err = result.expect_err("kết nối phải thất bại — không ai lắng nghe ở cổng này");
-    assert!(
-        err.is_connect() || err.is_timeout(),
-        "lỗi phải được nhận diện là lỗi KẾT NỐI/hết giờ, không phải một loại khác: {err}"
-    );
+    for attempt in 1..=MAX_ATTEMPTS {
+        // Bind rồi drop ngay để lấy một cổng khả năng cao KHÔNG có ai lắng nghe. Đây vẫn
+        // là một cửa sổ TOCTOU về lý thuyết (một tiến trình khác trên máy bind đúng cổng
+        // này trong đúng khoảnh khắc ta vừa thả nó) — vòng lặp dưới đây TỰ PHÁT HIỆN ca đó
+        // (connect thành công thay vì bị từ chối) và thử một cổng MỚI, thay vì âm thầm
+        // chấp nhận một kết quả may rủi làm phép đo đã xong.
+        let port = {
+            let listener = TcpListener::bind("127.0.0.1:0").expect("bind cổng tạm");
+            listener.local_addr().expect("local_addr").port()
+        };
 
-    format!("fetch_err_connection_refused\tOK\t{err}")
+        match client.get(format!("http://127.0.0.1:{port}/nope")).send() {
+            Err(e) if e.is_connect() || e.is_timeout() => {
+                return (true, format!("port={port}; attempt={attempt}/{MAX_ATTEMPTS}; {e}"));
+            }
+            Err(e) => {
+                return (
+                    false,
+                    format!(
+                        "port={port}; attempt={attempt}/{MAX_ATTEMPTS}; lỗi SAI LOẠI (không \
+                         phải connect/timeout): {e}"
+                    ),
+                );
+            }
+            Ok(resp) => {
+                println!(
+                    "NETWORK_FAILURE_CASE\tTOCTOU\tport={port} bất ngờ CÓ người lắng nghe \
+                     (status={}), thử cổng khác",
+                    resp.status()
+                );
+                continue;
+            }
+        }
+    }
+
+    (
+        false,
+        format!(
+            "{MAX_ATTEMPTS} lần thử liên tiếp đều có ai đó lắng nghe ở cổng vừa thả — TOCTOU \
+             thật, không phải lỗi bàn đo"
+        ),
+    )
 }
 
 /// Server tối giản: chấp nhận ĐÚNG MỘT kết nối, đọc và bỏ qua request, gọi `respond` để
