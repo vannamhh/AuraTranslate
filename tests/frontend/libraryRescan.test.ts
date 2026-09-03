@@ -20,6 +20,8 @@ const RESCAN_REPORT_ONE_ORPHAN = {
   conflicts: [],
   skipped: 0,
   orphans: [{ work_id: 'id-orphan', name: 'Ghost Work', atproj_path: '/tmp/library/Ghost.atproj' }],
+  // 🔵 THÊM (retro Epic 5, AI-2/AI-3 — 2026-09-03) -- trường mới, bắt buộc trên dây.
+  text_skipped: [],
 }
 
 beforeEach(async () => {
@@ -101,6 +103,7 @@ describe('modes/libraryRescan.ts — con trỏ mồ côi kẹp lại sau khi m�
         { work_id: 'id-a', name: 'A', atproj_path: '/tmp/A.atproj' },
         { work_id: 'id-b', name: 'B', atproj_path: '/tmp/B.atproj' },
       ],
+      text_skipped: [],
     }
     mockInvoke.mockResolvedValueOnce(twoOrphans)
     const state = await import('../../src/modes/libraryRescan')
@@ -143,6 +146,7 @@ describe('P1 (vòng rà bốn lớp, 2026-08-27) — `root_missing` phải phân
       conflicts: [],
       skipped: 0,
       orphans: [],
+      text_skipped: [],
     })
     const state = await import('../../src/modes/libraryRescan')
 
@@ -213,6 +217,38 @@ describe('config/library.ts — kiểm KIỂU LÚC CHẠY cho `RescanReport` (P1
 
     Reflect.deleteProperty(window, '__TAURI_INTERNALS__')
   })
+
+  /**
+   * **THÊM (retro Epic 5, vòng rà lần hai, mục 2 — 2026-09-03)** — đối chứng GỠ cho
+   * `isTextSkippedEntryArray`: bản đầu chỉ đọc `value[0]` rồi kết luận cho cả mảng (đúng lỗ
+   * hổng mà `isSearchHitArray` đã ghi lại bằng chữ ở `config/library.ts`). Mục ĐẦU hợp lệ,
+   * mục THỨ HAI sai hình dạng (`reason` là số thay vì chuỗi) -- nếu guard chỉ soi mục đầu, ca
+   * này sẽ đi qua trót lọt.
+   */
+  it('`RescanReport.text_skipped` có mục THỨ HAI sai hình dạng ⇒ cả báo cáo bị từ chối', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      root: '/tmp/library',
+      root_missing: false,
+      indexed: 2,
+      conflicts: [],
+      skipped: 0,
+      orphans: [],
+      text_skipped: [
+        { work_id: 'id-a', reason: 'schema_too_old' },
+        { work_id: 'id-b', reason: 42 }, // hình dạng SAI -- `reason` phải là chuỗi.
+      ],
+    })
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true })
+
+    const { rescanLibrary } = await import('../../src/config/library')
+    const result = await rescanLibrary()
+
+    expect(result.report).toBeNull()
+    expect(result.error).not.toBeNull()
+    expect(result.error?.code).toBe('ipc.unknown')
+
+    Reflect.deleteProperty(window, '__TAURI_INTERNALS__')
+  })
 })
 
 describe('phán quyết Ice #3 (2026-08-27) — dữ liệu xung đột có cấu trúc, không chỉ một con số', () => {
@@ -227,6 +263,7 @@ describe('phán quyết Ice #3 (2026-08-27) — dữ liệu xung đột có cấ
       ],
       skipped: 0,
       orphans: [],
+      text_skipped: [],
     })
     const state = await import('../../src/modes/libraryRescan')
 
@@ -290,6 +327,47 @@ describe('P1 vòng rà THỨ HAI (2026-08-27) — huỷ hộp thoại chọn th�
     expect(state.libraryIndexedCount.value).toBe(indexedBefore)
     expect(state.libraryConflictCount.value).toBe(conflictsBefore)
     expect(state.librarySkippedCount.value).toBe(skippedBefore)
+  })
+})
+
+describe('retro Epic 5, AI-2/AI-3 (2026-09-03) — text_skipped không còn bị VỨT', () => {
+  it('`rescanLibraryFolder()` với `text_skipped` chở hai mục cập nhật `libraryTextSkippedCount`', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      root: '/tmp/library',
+      root_missing: false,
+      indexed: 47,
+      conflicts: [],
+      skipped: 0,
+      orphans: [],
+      text_skipped: [
+        { work_id: 'id-old-1', reason: 'schema_too_old' },
+        { work_id: 'id-old-2', reason: 'schema_too_old' },
+      ],
+    })
+    const state = await import('../../src/modes/libraryRescan')
+
+    await state.rescanLibraryFolder()
+
+    expect(state.libraryTextSkippedCount.value).toBe(2)
+  })
+
+  it('`resetLibraryRescan()` đưa `libraryTextSkippedCount` về 0', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      root: '/tmp/library',
+      root_missing: false,
+      indexed: 1,
+      conflicts: [],
+      skipped: 0,
+      orphans: [],
+      text_skipped: [{ work_id: 'id-old-1', reason: 'schema_too_old' }],
+    })
+    const state = await import('../../src/modes/libraryRescan')
+    await state.rescanLibraryFolder()
+    expect(state.libraryTextSkippedCount.value).toBe(1)
+
+    state.resetLibraryRescan()
+
+    expect(state.libraryTextSkippedCount.value).toBe(0)
   })
 })
 

@@ -19,7 +19,7 @@
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { chooseLibraryRoot, forgetLibraryOrphan, rescanLibrary } from '../config/library'
-import type { ConflictEntry, OrphanEntry } from '../config/library'
+import type { ConflictEntry, OrphanEntry, TextSkippedEntry } from '../config/library'
 import type { IpcError } from '../i18n'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,6 +39,10 @@ const indexedCount = ref(0)
 const conflicts = ref<ConflictEntry[]>([])
 const conflictCount = ref(0)
 const skippedCount = ref(0)
+// **THÊM (retro Epic 5, AI-2/AI-3 — 2026-09-03)** — thay vì bị vứt, số Tác phẩm bị bỏ qua PHẦN
+// VĂN BẢN ở lượt quét gần nhất. Đếm từ `.length`, cùng khuôn `conflictCount`/`skippedCount`
+// ngay trên — một nguồn sự thật DUY NHẤT.
+const textSkippedCount = ref(0)
 const rescanBusy = ref(false)
 const libraryScanHasLoaded = ref(false)
 const lastError = ref<IpcError | null>(null)
@@ -55,6 +59,7 @@ export const libraryIndexedCount: DeepReadonly<Ref<number>> = readonly(indexedCo
 export const libraryConflicts: DeepReadonly<Ref<ConflictEntry[]>> = readonly(conflicts)
 export const libraryConflictCount: DeepReadonly<Ref<number>> = readonly(conflictCount)
 export const librarySkippedCount: DeepReadonly<Ref<number>> = readonly(skippedCount)
+export const libraryTextSkippedCount: DeepReadonly<Ref<number>> = readonly(textSkippedCount)
 export const libraryRescanBusy: DeepReadonly<Ref<boolean>> = readonly(rescanBusy)
 export const libraryScanHasLoadedState: DeepReadonly<Ref<boolean>> = readonly(libraryScanHasLoaded)
 export const libraryRescanError: DeepReadonly<Ref<IpcError | null>> = readonly(lastError)
@@ -91,6 +96,7 @@ function applyReport(report: {
   conflicts: ConflictEntry[]
   skipped: number
   orphans: OrphanEntry[]
+  text_skipped: TextSkippedEntry[]
 }): void {
   libraryRoot.value = report.root
   rootMissing.value = report.root_missing
@@ -102,6 +108,9 @@ function applyReport(report: {
   conflictCount.value = report.conflicts.length
   skippedCount.value = report.skipped
   orphans.value = report.orphans
+  // **THÊM (retro Epic 5, AI-2/AI-3)** -- cùng lý lẽ `conflictCount`: suy từ `.length`, không
+  // nhận một con số rời từ Rust.
+  textSkippedCount.value = report.text_skipped.length
   libraryScanHasLoaded.value = true
   clampCursor()
 }
@@ -205,6 +214,7 @@ export function resetLibraryRescan(): void {
   conflicts.value = []
   conflictCount.value = 0
   skippedCount.value = 0
+  textSkippedCount.value = 0
   rescanBusy.value = false
   libraryScanHasLoaded.value = false
   lastError.value = null

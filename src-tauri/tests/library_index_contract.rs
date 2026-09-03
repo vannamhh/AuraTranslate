@@ -40,7 +40,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::core::library::indexer::{
-    IndexError, Indexer, MatchKind, SearchField, SearchMode, WorkQuery, WorkSortKey,
+    HarvestSkipReason, IndexError, Indexer, MINIMUM_HARVEST_SCHEMA_VERSION, MatchKind,
+    SearchField, SearchMode, WorkQuery, WorkSortKey,
 };
 use auratranslate_lib::core::library::meta::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::lifecycle::LifecycleStatus;
@@ -2557,6 +2558,183 @@ fn a_missing_project_db_skips_only_its_own_text_and_counts_it_the_same_way() {
     assert_eq!(outcome.indexed, 1);
     assert_eq!(outcome.text_skipped.len(), 1);
     assert_eq!(outcome.text_skipped[0].work_id, "id-solo");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// **THÊM (retro Epic 5, AI-2 — 2026-09-03).** Bản đối xứng với
+/// `a_project_db_at_a_newer_schema_version_skips_only_its_own_text_and_the_rebuild_does_not_fail`
+/// ngay trên -- CHIỀU CŨ. `harvest_work_text` trước bản vá này chỉ chặn `found > target`; một
+/// `project.db` CŨ hơn sàn lọt cửa rồi gãy ở câu SQL đọc `segment.is_omitted` bằng một lỗi
+/// SQLite THÔ (`no such column: is_omitted`) -- đúng đo ở thư viện thật của Ice, 35/47 Tác
+/// phẩm (§Design Notes của spec retro AI-2/AI-3).
+///
+/// Dựng đúng hình dạng một `project.db` THẬT ở phiên bản NGAY DƯỚI sàn: hạ `user_version`
+/// xuống `MINIMUM_HARVEST_SCHEMA_VERSION - 1` VÀ gỡ cột `segment.is_omitted` (cột đó chỉ tồn
+/// tại từ bước 8 của `PROJECT_MIGRATIONS`) -- không chỉ hạ số phiên bản một mình (điều đó sẽ
+/// không tái lập được lỗi SQL thô, vì cột vẫn còn).
+///
+/// 🔴 **Số đo LÀ hằng số, không phải literal** (vòng rà lần hai) — một literal `7`/`8` trong ca
+/// này có thể trôi khỏi `MINIMUM_HARVEST_SCHEMA_VERSION` một cách im lặng (đổi hằng số ở
+/// `indexer.rs` mà không ai sửa ca test) và ca vẫn XANH vì nó không còn đo đúng cái nó đặt tên
+/// nữa -- cùng khuôn `tests/dict_sources.rs` dùng cho `MINIMUM_SCHEMA_VERSION - 1`.
+#[test]
+fn a_project_db_older_than_the_harvest_floor_skips_only_its_own_text_and_the_rebuild_does_not_fail() {
+    let dir = temp_dir("search-project-db-too-old");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (work_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("uniquesourcetext", "unique target text")])],
+    );
+    drop(store);
+
+    {
+        let db_path = work_dir.join("project.db");
+        let conn = rusqlite::Connection::open(&db_path).expect("mo lai de ha phien ban");
+        conn.pragma_update(None, "user_version", i64::from(MINIMUM_HARVEST_SCHEMA_VERSION - 1))
+            .expect("ha user_version xuong ngay duoi san");
+        conn.execute("ALTER TABLE segment DROP COLUMN is_omitted", [])
+            .expect("go cot is_omitted -- dung hinh dang mot project.db THAT ngay duoi san");
+    }
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let outcome = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| {
+        panic!("mot project.db CU hon san KHONG duoc lam trot ca luot rebuild: {e}")
+    });
+
+    assert_eq!(outcome.indexed, 1, "metadata (library_work) van UPSERT tu meta.json binh thuong");
+    assert_eq!(outcome.text_skipped.len(), 1, "dung MOT Tac pham bi bo qua phan van ban");
+    assert_eq!(outcome.text_skipped[0].work_id, "id-solo");
+    assert_eq!(
+        outcome.text_skipped[0].reason,
+        HarvestSkipReason::SchemaTooOld {
+            found: MINIMUM_HARVEST_SCHEMA_VERSION - 1,
+            minimum: MINIMUM_HARVEST_SCHEMA_VERSION,
+        },
+        "ly do phai la mot GIA TRI co ten, khong mot chuoi SQL tho"
+    );
+
+    let report = indexer
+        .search("uniquesourcetext", 20, SearchMode::Exact)
+        .unwrap_or_else(|e| panic!("search: {e}"));
+    assert!(report.hits.is_empty(), "van ban cua Tac pham bi bo qua khong duoc co mat trong chi muc");
+    assert_eq!(report.indexed_segments, 0);
+
+    let works = indexer.list_works(WorkQuery::default()).unwrap_or_else(|e| panic!("list_works: {e}")).works;
+    assert_eq!(works.len(), 1, "hang library_work van co mat");
+    assert_eq!(works[0].work_id, "id-solo");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// **THÊM (vòng rà lần hai, mục 3 — 2026-09-03).** Biên CÒN LẠI của
+/// `MINIMUM_HARVEST_SCHEMA_VERSION` chưa có ca nào đo: ca ngay trên canh `found < minimum`
+/// (trượt), nhưng `found == minimum` PHẢI thu hoạch được bình thường -- nếu phép kiểm ở
+/// `harvest_work_text` lỡ viết `<=` thay vì `<`, đúng con số 8 sẽ bị từ chối oan và không ca
+/// nào ở đây bắt được, vì mọi ca "harvest thành công" khác của tệp này chạy trên
+/// `project.db` ở đích mới nhất (`target_version`), không đứng NGAY TRÊN sàn.
+#[test]
+fn a_project_db_exactly_at_the_harvest_floor_harvests_successfully() {
+    let dir = temp_dir("search-project-db-at-the-floor");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (work_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "irrelevant", vec![("uniquesourcetext", "unique target text")])],
+    );
+    drop(store);
+
+    {
+        let db_path = work_dir.join("project.db");
+        let conn = rusqlite::Connection::open(&db_path).expect("mo lai de dat dung san");
+        conn.pragma_update(None, "user_version", i64::from(MINIMUM_HARVEST_SCHEMA_VERSION))
+            .expect("dat user_version dung bang san");
+    }
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let outcome = indexer
+        .rebuild(&root, Some(&global))
+        .unwrap_or_else(|e| panic!("rebuild o dung san KHONG duoc trot: {e}"));
+
+    assert_eq!(outcome.indexed, 1);
+    assert!(
+        outcome.text_skipped.is_empty(),
+        "found == MINIMUM_HARVEST_SCHEMA_VERSION phai THU HOACH duoc, khong bi tu choi: {:?}",
+        outcome.text_skipped
+    );
+
+    let report = indexer
+        .search("uniquesourcetext", 20, SearchMode::Exact)
+        .unwrap_or_else(|e| panic!("search: {e}"));
+    assert_eq!(report.hits.len(), 1, "van ban o DUNG san phai co mat trong chi muc: {:?}", report.hits);
+    assert_eq!(report.indexed_segments, 1);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// **THÊM (retro Epic 5, AI-3 — 2026-09-03).** `SearchReport::works_total`/`works_with_text` —
+/// độ phủ cấp TÁC PHẨM, đo TẠI LÚC TRUY VẤN, độc lập với `RebuildOutcome::text_skipped`. Hai
+/// Tác phẩm, một trượt thu hoạch (phiên bản mới hơn đích) ⇒ `works_total == 2 &&
+/// works_with_text == 1`.
+#[test]
+fn search_report_counts_works_total_and_works_with_text_at_query_time() {
+    let dir = temp_dir("search-coverage-gap");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+
+    let (_dir_alpha, store_alpha) = write_atproj_with_real_project_db(
+        &root,
+        "Alpha",
+        "id-alpha",
+        "Alpha",
+        vec![(Some("C1"), "irrelevant", vec![("something", "muc tieu alpha")])],
+    );
+    drop(store_alpha);
+
+    let (work_dir_beta, store_beta) = write_atproj_with_real_project_db(
+        &root,
+        "Beta",
+        "id-beta",
+        "Beta",
+        vec![(Some("C1"), "irrelevant", vec![("something else", "muc tieu beta")])],
+    );
+    drop(store_beta);
+    {
+        // Nâng `user_version` của Beta MỘT bậc cao hơn đích -- thu hoạch của riêng Beta trượt
+        // (chiều MỚI, cùng khuôn ca `a_project_db_at_a_newer_schema_version_...` ở trên),
+        // trong khi `library_work` của cả hai Tác phẩm vẫn UPSERT bình thường.
+        let db_path = work_dir_beta.join("project.db");
+        let conn = rusqlite::Connection::open(&db_path).expect("mo lai de nang phien ban");
+        let current: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .expect("doc user_version hien tai");
+        conn.pragma_update(None, "user_version", current + 1)
+            .expect("nang user_version len mot bac");
+    }
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let outcome = indexer.rebuild(&root, Some(&global)).unwrap_or_else(|e| panic!("rebuild: {e}"));
+    assert_eq!(outcome.indexed, 2);
+    assert_eq!(outcome.text_skipped.len(), 1, "dung Beta bi bo qua phan van ban");
+
+    let report = indexer
+        .search("something", 20, SearchMode::Exact)
+        .unwrap_or_else(|e| panic!("search: {e}"));
+    assert_eq!(report.works_total, 2, "ca hai Tac pham deu co mat trong library_work");
+    assert_eq!(report.works_with_text, 1, "chi Alpha co van ban trong chi muc");
 
     drop(indexer);
     drop(global);

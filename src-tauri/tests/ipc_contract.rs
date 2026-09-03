@@ -415,6 +415,11 @@ fn library_wire_structs_keep_snake_case_field_names() {
             name: "Tên".to_owned(),
             atproj_path: "/tmp/x.atproj".to_owned(),
         }],
+        // 🔵 THÊM (retro Epic 5, AI-2/AI-3 — 2026-09-03) -- trường mới, đóng băng cùng lượt.
+        text_skipped: vec![auratranslate_lib::commands::library::TextSkippedEntry {
+            work_id: "id-3".to_owned(),
+            reason: "schema_too_old".to_owned(),
+        }],
     };
     let value = serde_json::to_value(&report).expect("RescanReport phải serialize được");
     let mut top_keys: Vec<&str> = value
@@ -426,8 +431,26 @@ fn library_wire_structs_keep_snake_case_field_names() {
     top_keys.sort_unstable();
     assert_eq!(
         top_keys,
-        vec!["conflicts", "indexed", "orphans", "root", "root_missing", "skipped"],
+        vec!["conflicts", "indexed", "orphans", "root", "root_missing", "skipped", "text_skipped"],
         "khoá trên dây của RescanReport là snake_case. Nhận được: {top_keys:?}."
+    );
+
+    let text_skipped_value = value
+        .get("text_skipped")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())
+        .expect("text_skipped phải mang ít nhất một mục cho ca test này");
+    let mut text_skipped_keys: Vec<&str> = text_skipped_value
+        .as_object()
+        .expect("một mục text_skipped phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    text_skipped_keys.sort_unstable();
+    assert_eq!(
+        text_skipped_keys,
+        vec!["reason", "work_id"],
+        "khoá trên dây của TextSkippedEntry là snake_case. Nhận được: {text_skipped_keys:?}."
     );
 
     let orphan_value = value
@@ -563,6 +586,9 @@ fn library_search_wire_structs_keep_snake_case_field_names() {
         mode: "exact".to_owned(),
         effective_mode: "exact".to_owned(),
         widened: false,
+        // 🔵 THÊM (retro Epic 5, AI-3 — 2026-09-03) -- hai trường mới, đóng băng cùng lượt.
+        works_total: 47,
+        works_with_text: 12,
     };
     let value = serde_json::to_value(&report).expect("SearchReport phải serialize được");
     let mut top_keys: Vec<&str> =
@@ -579,6 +605,8 @@ fn library_search_wire_structs_keep_snake_case_field_names() {
             "total",
             "truncated",
             "widened",
+            "works_total",
+            "works_with_text",
         ],
         "khoá trên dây của SearchReport là snake_case. Nhận được: {top_keys:?}."
     );

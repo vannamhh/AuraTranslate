@@ -43,6 +43,7 @@ import {
   libraryScanHasLoadedState,
   libraryConflictCount,
   librarySkippedCount,
+  libraryTextSkippedCount,
 } from './libraryRescan'
 import {
   libraryFilterIsEmpty,
@@ -92,8 +93,11 @@ import {
 // 🔵 SỬA (2026-08-29, Story 5.10) — thêm `librarySearchMode` cho hai nút chế độ + đọc thêm
 // `match_kind` của mỗi hit; `role="status"` mở rộng tám nhánh (đọc thẳng `librarySearchStatusKey`,
 // không cần một export mới cho `widened` — tám giá trị của nó đã chở đủ thông tin).
+// 🔵 SỬA (retro Epic 5, AI-3 — 2026-09-03) — thêm `librarySearchCoverageGapState`, bề mặt ĐỘC
+// LẬP với `librarySearchStatusKey` (§Always: "phải hiện cả khi có kết quả").
 import {
   librarySearchBusy,
+  librarySearchCoverageGapState,
   librarySearchCursor,
   librarySearchError,
   librarySearchHits,
@@ -359,6 +363,7 @@ watch(libraryChapterCursor, (cursor) => {
                 indexed: String(libraryIndexedCount),
                 conflicts: String(libraryConflictCount),
                 skipped: String(librarySkippedCount),
+                text_skipped: String(libraryTextSkippedCount),
               })
             : ''
         }}
@@ -545,6 +550,28 @@ watch(libraryChapterCursor, (cursor) => {
       </p>
       <!-- aura-allow-text: như trên, qua tError(). -->
       <p class="error" role="status">{{ librarySearchError ? tError(librarySearchError) : '' }}</p>
+
+      <!--
+        🔴 THÊM (retro Epic 5, AI-3 — 2026-09-03) — bề mặt ĐỘC LẬP với khối `role="status"` tám
+        nhánh ngay trên: nó phải hiện được CẢ KHI có kết quả (§Always). Một `v-if` RIÊNG theo
+        `librarySearchCoverageGapState` (hàm thuần `librarySearchCoverageGap`), KHÔNG một nhánh
+        chèn vào cây ba ngôi tám nhánh ở trên (§Code Map: "không sửa cây ba ngôi này").
+        🔵 SỬA (vòng rà lần hai, mục 5 — 2026-09-03): GỠ class `status-coverage-gap` — nó không
+        mang một quy tắc CSS nào (`grep -c status-coverage-gap` trên khối CSS của tệp này = 0),
+        tức một selector chết. Chọn GỠ thay vì dựng một quy tắc mới: chưa có quyết định thiết kế nào
+        cho một hình dạng RIÊNG của dòng này (nó dùng lại nguyên `.status` đã có, đúng nhóm với
+        `.error` ngay dưới) — dựng token cho một khác biệt thị giác CHƯA AI YÊU CẦU là bịa thêm
+        phạm vi ngoài spec. `data-library-search-coverage-gap` vẫn ở lại làm móc chọn cho test.
+        aura-allow-text: qua t().
+      -->
+      <p v-if="librarySearchCoverageGapState !== null" class="status" role="status" data-library-search-coverage-gap>
+        {{
+          t('mode.library.search_coverage_gap', {
+            missing: String(librarySearchCoverageGapState.missing),
+            total: String(librarySearchCoverageGapState.total),
+          })
+        }}
+      </p>
 
       <div v-if="librarySearchHits.length > 0" class="grid-nav">
         <button

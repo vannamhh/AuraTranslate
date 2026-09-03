@@ -31,7 +31,8 @@ use std::path::Path;
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::library::indexer::{
     DEFAULT_SEARCH_LIMIT, IndexError, Indexer, IndexedWork, SearchHit as CoreSearchHit,
-    SearchMode, SearchReport as CoreSearchReport, WorkIdConflict, WorkQuery, WorkSortKey,
+    SearchMode, SearchReport as CoreSearchReport, TextHarvestSkipped, WorkIdConflict, WorkQuery,
+    WorkSortKey,
 };
 use crate::core::library::orphan_store::OrphanRecord;
 use crate::core::lifecycle::LifecycleStatus;
@@ -89,6 +90,30 @@ impl From<WorkIdConflict> for ConflictEntry {
     }
 }
 
+/// **THÊM (retro Epic 5, AI-2/AI-3 — 2026-09-03)** — một Tác phẩm mà lượt thu hoạch VĂN BẢN
+/// của lượt quét này bị bỏ qua, gói lại cho dây IPC. Trước bản vá này `RescanReport` VỨT hẳn
+/// `RebuildOutcome::text_skipped` (`grep -rn "text_skipped\|textSkipped" src/` = 0) — người
+/// dùng gõ một câu tìm, nhận "không tìm thấy", và không một pixel nào nói rằng phần lớn thư
+/// viện chưa vào chỉ mục.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật mọi struct qua biên (AD-21). `reason`
+/// là [`crate::core::library::indexer::HarvestSkipReason::code`] — mã máy đọc ỔN ĐỊNH, KHÔNG
+/// chuỗi chẩn đoán thô (AD-21 cấm lỗi SQLite nguyên văn đi qua dây).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct TextSkippedEntry {
+    pub work_id: String,
+    pub reason: String,
+}
+
+impl From<TextHarvestSkipped> for TextSkippedEntry {
+    fn from(entry: TextHarvestSkipped) -> Self {
+        Self {
+            work_id: entry.work_id,
+            reason: entry.reason.code().to_owned(),
+        }
+    }
+}
+
 /// Kết quả một lượt [`rescan`] — ba con số của AC1 cộng danh sách mồ côi hiện tại (sau lượt
 /// quét này), để một lượt gọi `library.rescan` là đủ cho cả màn hình, không cần một lệnh
 /// đọc riêng ngay sau đó.
@@ -114,6 +139,10 @@ pub struct RescanReport {
     pub conflicts: Vec<ConflictEntry>,
     pub skipped: usize,
     pub orphans: Vec<OrphanEntry>,
+    /// 🔵 **THÊM (retro Epic 5, AI-2/AI-3 — 2026-09-03)** — thay vì VỨT
+    /// `RebuildOutcome::text_skipped`, chở NGUYÊN nó (mã lý do + `work_id`) — đúng khuôn
+    /// `conflicts`/`orphans` ngay trên: một lượt gọi `library.rescan` là đủ cho cả màn hình.
+    pub text_skipped: Vec<TextSkippedEntry>,
 }
 
 /// `Indexer` chưa được quản lý (mở `library-index.db` thất bại lúc khởi động) — tái dùng
@@ -178,6 +207,8 @@ pub fn rescan(
         conflicts: outcome.conflicts.into_iter().map(ConflictEntry::from).collect(),
         skipped: outcome.skipped.len(),
         orphans: outcome.current_orphans.into_iter().map(OrphanEntry::from).collect(),
+        // 🔵 THÊM (retro Epic 5, AI-2/AI-3) -- thay vì vứt, chở NGUYÊN mã lý do + work_id.
+        text_skipped: outcome.text_skipped.into_iter().map(TextSkippedEntry::from).collect(),
     })
 }
 
@@ -482,6 +513,14 @@ pub struct SearchReport {
     /// chính xác trả 0 hàng trên một chỉ mục KHÔNG rỗng). Bất biến:
     /// `widened == (mode == "exact" && effective_mode == "lenient")`.
     pub widened: bool,
+    /// **THÊM (retro Epic 5, AI-3 — 2026-09-03).** Tổng số Tác phẩm ĐANG có mặt trong chỉ mục
+    /// — xem [`crate::core::library::indexer::SearchReport::works_total`]. Bề mặt ĐỘC LẬP với
+    /// `hits`/`total`: phải hiện được cả khi lượt tìm CÓ kết quả (`3 kết quả` trong khi 35/47
+    /// Tác phẩm vô hình là đúng thứ trường này tồn tại để nói ra).
+    pub works_total: usize,
+    /// **THÊM (retro Epic 5, AI-3).** Số Tác phẩm CÓ văn bản trong chỉ mục — xem
+    /// [`crate::core::library::indexer::SearchReport::works_with_text`].
+    pub works_with_text: usize,
 }
 
 impl From<CoreSearchReport> for SearchReport {
@@ -495,6 +534,8 @@ impl From<CoreSearchReport> for SearchReport {
             mode: report.mode.as_str().to_owned(),
             effective_mode: report.effective_mode.as_str().to_owned(),
             widened: report.widened,
+            works_total: report.works_total,
+            works_with_text: report.works_with_text,
         }
     }
 }

@@ -8860,3 +8860,104 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     Cùng hình dạng với mục AI-7 (`blocking_pick_file` treo cửa sổ vì chỗ tham chiếu khai `async fn`).
     **(Chủ: Ice — quyết xem bàn đo có phải mang một ca tự kiểm cho chính đường điều phối pha không,
     hay chấp nhận rằng harness chỉ được nghiệm thu bằng một lượt chạy thật.)**
+
+## Deferred from: retro Epic 5 — lượt sửa AI-2/AI-3 (2026-09-03)
+
+Ice chốt 2026-09-03: lượt build này chỉ ôm **G1** (AI-2 + AI-3, cùng một mục tiêu người dùng
+"rỗng có lý do", trải hai tầng). Ba mục Dev còn lại của retro tách ra vì mỗi mục review/test/merge
+riêng được mà không phá hai mục kia. Ba mục dưới đây **không** chép lại nội dung action item —
+chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ không thành nguồn sự thật thứ hai.
+
+- ⚠️ **AI-5 — 10 spec e2e đỏ 7 đêm liên tiếp, nguyên nhân chưa phân xử.**
+  evidence: tách khỏi lượt sửa AI-2/AI-3 vì phạm vi của nó chưa đóng được: bước đầu bắt buộc là
+    chạy **trọn 24 spec một lượt** trên máy Ice (~13 phút) để tách "lượt đầy đủ so với lượt lẻ"
+    khỏi "runner so với máy Ice" — một spec chạy lẻ đã XANH (F4), nên đó là một lượt điều tra,
+    không phải một bản vá. Gộp nó vào cùng spec sẽ kéo dài G1 và làm diff của G1 không đọc được
+    một mình.
+    **(Chủ: `epic-5-retro-item-54-…` trong `sprint-status.yaml` — owner Dev, status open.)**
+
+- ⚠️ **AI-6 — bàn đo 5.14 chưa khai giới hạn "0 lớp từ điển".**
+  evidence: tách vì nó chạm `5-14-ban-do/REPORT.md` + `environment.txt`, không chạm một dòng mã
+    sản phẩm nào; không phụ thuộc và không bị phụ thuộc bởi G1.
+    **(Chủ: `epic-5-retro-item-55-…` trong `sprint-status.yaml` — owner Dev, status open.)**
+
+- ⚠️ **AI-7 — 5 commit Epic 5 không quy nạp được về story nào bằng máy.**
+  evidence: tách vì nó là một bảng ánh xạ trong `epic-5-context.md` cộng một dòng quy ước kho;
+    độc lập hoàn toàn với đường mã của G1.
+    **(Chủ: `epic-5-retro-item-56-…` trong `sprint-status.yaml` — owner Dev, status open.)**
+
+- ⚠️ **Vế FR8 còn lại: 35 Tác phẩm ở `user_version` ≤ 7 vẫn nằm ngoài chỉ mục tìm kiếm cho
+  tới khi có một đường nâng cấp.**
+  evidence: spec `spec-epic-5-retro-ai-2-ai-3-san-phien-ban-va-be-mat-bo-qua.md` (AI-2/AI-3) cài
+    `MINIMUM_HARVEST_SCHEMA_VERSION = 8` và làm chỗ hở NÓI RA ĐƯỢC (sàn phiên bản có tên, độ phủ
+    `works_total`/`works_with_text` trên `SearchReport`) — nó KHÔNG đưa 35 Tác phẩm đó vào chỉ
+    mục. §Never của spec cấm tường minh: không `Store::open` trên `project.db` của một Tác phẩm
+    khác trong lượt quét (Store::open chạy bộ di trú, tức GHI vào một Tác phẩm mà lượt quét
+    không sở hữu — §Always của Story 5.9). Đo trên thư viện thật của Ice 2026-09-03: phân bố
+    `v3×21 · v5×1 · v6×10 · v7×3 · v11–18×12`, tức 35/47 Tác phẩm (74,5%) đứng ngoài chỉ mục
+    cho tới khi từng Tác phẩm được MỞ MỘT LẦN qua ứng dụng hiện tại (đường duy nhất chạy
+    `PROJECT_MIGRATIONS` hôm nay) rồi quét lại. Chưa có một đường NÂNG CẤP HÀNG LOẠT, an toàn
+    (không ghi vào một Tác phẩm không sở hữu) nào được thiết kế.
+    **(Chủ: Ice — quyết trước khi Epic 6 mở. Câu hỏi cần trả lời: có đáng dựng một đường di trú
+    hàng loạt có kiểm soát — ví dụ một lệnh "Mở rồi đóng ngay" tuần tự qua từng `.atproj`, chạy
+    dưới sự đồng ý tường minh của người dùng — hay giữ nguyên đường hiện tại (mở tay từng Tác
+    phẩm) và chỉ dựa vào dòng độ phủ mới để người dùng TỰ BIẾT cần làm gì.)**
+
+## Deferred from: lượt nghiệm thu AI-2/AI-3 — phát hiện ngoài phạm vi spec (2026-09-03)
+
+- 🔴 **Bộ vitest CHẬP CHỜN ở lượt ĐẦY ĐỦ, và `pre-push` chạy đúng lượt đầy đủ ấy — nên nó chặn
+  push một cách không tất định.**
+  evidence: đo 2026-09-03 tại `9cf8914` khi nghiệm thu spec AI-2/AI-3, bốn lượt `npm run test`
+    trọn bộ trên macOS 15.7.9 của Ice:
+    | Cây | Kết quả | `environment` |
+    |---|---|---|
+    | có bản vá AI-2/AI-3 | 4 tệp đỏ · 4 ca đỏ / 773 | 164,89 s |
+    | có bản vá AI-2/AI-3 | 4 tệp đỏ · 5 ca đỏ / 773 | — |
+    | **baseline** (stash, `9cf8914` sạch) | **0 đỏ · 766/766** | 137,47 s |
+    | **baseline** (stash, `9cf8914` sạch) | 3 tệp đỏ · 4 ca đỏ / 766 | 166,78 s |
+    Mọi ca đỏ là `Test timed out in 5000ms` và tất cả nằm ở bốn tệp Editor/Glossary
+    (`editorClearSourceCuts` · `editorTypingZone` · `glossaryHoverSelection` ·
+    `glossaryMarksRefresh`) — **0/4 tệp đó import bất cứ module nào lượt sửa này chạm** (đo:
+    `grep -l "librarySearch\|libraryRescan\|config/library"` trên cả bốn = 0 khớp). Chạy RIÊNG
+    bốn tệp ấy: **42/42 xanh trong 6,42 s**. ⇒ Nguyên nhân là **trần 5.000 ms mặc định của
+    vitest gặp tải của lượt đầy đủ**, không phải một khuyết tật sản phẩm, và **không** phải hồi
+    quy của AI-2/AI-3 — nó đỏ ở CẢ HAI phía, mà một triệu chứng có ở cả hai phía là bằng chứng
+    zero. `vitest.config.*` hôm nay **không** khai `testTimeout`.
+    ⚠️ Điều đáng lo không phải mấy ca đỏ, mà là: lượt baseline THỨ NHẤT xanh 766/766. Một lượt
+    xanh của bộ này **không** chứng minh bộ đang xanh — đúng hình dạng mà `wdio.conf.mjs` đã đặt
+    tên cho bộ e2e (*"một bộ cho kết quả khác nhau giữa lượt đầy đủ và lượt lẻ là một bộ KHÔNG
+    dùng được"*), nay đo được ở nửa vitest, tức ở một cổng CÓ trong `pre-push` và CÓ trong CI.
+    **(Chủ: Ice — quyết trước khi Epic 6 mở. Ba đường tách được: nâng `testTimeout` theo một số
+    ĐO ĐƯỢC (không phải một số cho hết đỏ) · tách bốn tệp mount-nặng ra một `poolOption` riêng ·
+    hoặc nhận rằng bốn ca ấy đo mã CỘNG máy và viết lại chúng cho tất định. Đường thứ nhất là
+    đường rẻ nhất và cũng là đường dễ thành "hạ ngưỡng cho cổng hết đỏ" nhất — nếu chọn nó thì
+    con số phải đến từ một phép đo trên máy tải cao, ghi kèm ngày.)**
+
+## Deferred from: vòng rà spec AI-2/AI-3 (2026-09-03)
+
+- ⚠️ **Backend dựng một lý do CÓ TÊN cho từng Tác phẩm, frontend chỉ đọc `.length` của nó — nên
+  người dùng biết "35 Tác phẩm chưa vào chỉ mục" mà không biết TÁC PHẨM NÀO và VÌ SAO.**
+  source_spec: `spec-epic-5-retro-ai-2-ai-3-san-phien-ban-va-be-mat-bo-qua.md`
+  evidence: `HarvestSkipReason` có sáu biến thể và một `code()` ổn định đi qua dây trong
+    `RescanReport.text_skipped[]` (`work_id` + `reason`), nhưng `src/modes/libraryRescan.ts` chỉ
+    giữ `report.text_skipped.length` — cặp `work_id`/`reason` không vào một `ref` nào và không
+    được render ở đâu, KHÁC hẳn `conflicts`/`orphans` vốn giữ và hiện trọn mục. Spec này chỉ đòi
+    "hiện số `text_skipped`" nên mã KHỚP spec — chỗ hở nằm ở spec, không ở lượt thi hành. Hệ quả:
+    dòng độ phủ nói được *"có một chỗ thủng"* nhưng không dẫn người dùng tới thao tác nào cụ thể,
+    và với Ice hôm nay thì đúng 35 Tác phẩm ở `v ≤ 7` đều cần **cùng một** thao tác — điều mà
+    một danh sách sẽ nói ra còn một con số thì không.
+    **(Chủ: Ice — cùng lượt quyết với món nợ FR8 ngay trên, vì hai mục cùng trả lời một câu hỏi:
+    người dùng làm gì tiếp theo. Ba đường: danh sách trong khối kết quả quét lại · một dòng gộp
+    theo `reason` · hay giữ con số và dựa vào đường nâng cấp hàng loạt nếu đường ấy được dựng.)**
+
+- ⚠️ **Hai vùng `role="status"` liền kề trong `LibraryMode.vue` cùng đổi trên một lượt trả kết
+  quả tìm kiếm, và chưa ai đo trình đọc màn hình đọc chúng theo thứ tự nào.**
+  source_spec: `spec-epic-5-retro-ai-2-ai-3-san-phien-ban-va-be-mat-bo-qua.md`
+  evidence: khối trạng thái tám nhánh (`data-library-search-status`) và dòng độ phủ mới
+    (`data-library-search-coverage-gap`, `LibraryMode.vue:561`) đều là live region và đều cập
+    nhật trong cùng một lượt `runLibrarySearch`. Hai live region cùng bắn có thể chồng tiếng hoặc
+    đảo thứ tự. ⚠️ Chưa đo — đây là một mệnh đề về hành vi trong engine THẬT cộng một trình đọc
+    màn hình thật, nên nó **không** thuộc vitest (`happy-dom` không phải WebKit) và cũng không
+    thuộc một cổng tĩnh; nó thuộc bàn đo chạy tay hoặc e2e.
+    **(Chủ: Ice — quyết xem có gộp hai đoạn vào MỘT live region không, và phép đo nào nghiệm thu
+    được vế ấy. NFR17 là chỗ luật này sống.)**

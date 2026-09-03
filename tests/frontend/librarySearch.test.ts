@@ -149,6 +149,31 @@ describe('modes/librarySearch.ts::librarySearchStatus — hàm thuần', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════════════════════
+// `librarySearchCoverageGap()` — hàm THUẦN, retro Epic 5 AI-3. Bề mặt ĐỘC LẬP với
+// `librarySearchStatus`: thủng · không thủng · `worksTotal === 0`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+describe('modes/librarySearch.ts::librarySearchCoverageGap — hàm thuần', () => {
+  it('thủng: worksWithText < worksTotal ⇒ { missing, total }', async () => {
+    const { librarySearchCoverageGap } = await import('../../src/modes/librarySearch')
+    expect(librarySearchCoverageGap(47, 12)).toEqual({ missing: 35, total: 47 })
+  })
+
+  it('không thủng: worksWithText === worksTotal ⇒ null (không một chuỗi rỗng)', async () => {
+    const { librarySearchCoverageGap } = await import('../../src/modes/librarySearch')
+    expect(librarySearchCoverageGap(47, 47)).toBeNull()
+  })
+
+  it('🔴 worksTotal === 0 ⇒ null — chỉ mục rỗng hẳn KHÔNG phải một chỗ thủng', async () => {
+    // §I/O Matrix "Chỉ mục rỗng hẳn": `library_segment` = 0 hàng, `library_work` = 0 ⇒
+    // `index_empty` đã nói đủ; dòng độ phủ không được ĐÈ lên nó bằng "0/0 Tác phẩm chưa vào
+    // chỉ mục" — một câu đúng hình dạng, sai sự thật.
+    const { librarySearchCoverageGap } = await import('../../src/modes/librarySearch')
+    expect(librarySearchCoverageGap(0, 0)).toBeNull()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
 // `runLibrarySearch()` — truy vấn rỗng KHÔNG phát IPC (§I/O Matrix).
 // ═════════════════════════════════════════════════════════════════════════════════
 
@@ -167,7 +192,7 @@ describe('modes/librarySearch.ts::runLibrarySearch — truy vấn rỗng', () =>
   it('truy vấn có chữ ⇒ gọi ĐÚNG một lượt `library_search`', async () => {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
       }
       return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
     })
@@ -226,6 +251,8 @@ describe('modes/librarySearch.ts::runLibrarySearch — chống đua giữa hai l
         mode: 'exact',
         effective_mode: 'exact',
         widened: false,
+        works_total: 5,
+        works_with_text: 5,
       })
     })
 
@@ -244,7 +271,7 @@ describe('modes/librarySearch.ts::runLibrarySearch — chống đua giữa hai l
     expect(callCount).toBe(1)
 
     // BÂY GIỜ mới cho lượt đầu (CŨ, truy vấn `ma`) hạ cánh với kết quả RỖNG.
-    resolveFirst({ hits: [], total: 0, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
+    resolveFirst({ hits: [], total: 0, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
     await firstRun
 
     // 🔴 Lượt ghi nhớ phải đã chạy, và phải chạy bằng truy vấn MỚI — không phải truy vấn cũ.
@@ -291,6 +318,8 @@ describe('modes/librarySearch.ts::setLibrarySearchModeExact/Lenient', () => {
         mode: 'lenient',
         effective_mode: 'lenient',
         widened: false,
+        works_total: 5,
+        works_with_text: 5,
       })
     })
 
@@ -335,6 +364,8 @@ describe('modes/librarySearch.ts::setLibrarySearchModeExact/Lenient', () => {
         mode: 'exact',
         effective_mode: 'exact',
         widened: false,
+        works_total: 5,
+        works_with_text: 5,
       })
     })
 
@@ -385,6 +416,8 @@ function mockInvokeForSearchMount(
     mode: string
     effective_mode: string
     widened: boolean
+    works_total: number
+    works_with_text: number
   }> = {},
 ): void {
   mockInvoke.mockImplementation((cmd: string) => {
@@ -403,6 +436,8 @@ function mockInvokeForSearchMount(
         mode: overrides.mode ?? 'lenient',
         effective_mode: overrides.effective_mode ?? 'lenient',
         widened: overrides.widened ?? false,
+        works_total: overrides.works_total ?? 5,
+        works_with_text: overrides.works_with_text ?? 5,
       })
     }
     return Promise.reject(new Error(`invoke gia khong biet lenh: ${cmd}`))
@@ -435,6 +470,48 @@ describe('modes/LibraryMode.vue — nhãn khoan dung dấu trên DOM thật (mou
     expect(rows).toHaveLength(2)
     expect(rows[0]?.find('[data-library-search-hit-lenient]').exists()).toBe(false)
     expect(rows[1]?.find('[data-library-search-hit-lenient]').exists()).toBe(true)
+  })
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 🔴 THÊM (retro Epic 5, AI-3 — 2026-09-03) — dòng độ phủ ĐỘC LẬP với khối `role="status"`
+  // tám nhánh: nó phải hiện được CẢ KHI có kết quả (§Always). §I/O Matrix "Tìm trên chỉ mục
+  // thủng": `works_total = 47`, `works_with_text = 12` ⇒ màn hình hiện CẢ "1 kết quả" LẪN
+  // "35/47 Tác phẩm chưa vào chỉ mục".
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  it('🔴 chỉ mục THỦNG ⇒ dòng độ phủ hiện ĐỒNG THỜI với số kết quả, không thay thế nó', async () => {
+    mockInvokeForSearchMount([SEARCH_HIT_A], { works_total: 47, works_with_text: 12 })
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/librarySearch')
+    wrapper = mount(LibraryMode)
+    await wrapper.vm.$nextTick()
+
+    state.librarySearchQuery.value = 'khoang'
+    await state.runLibrarySearch()
+    await wrapper.vm.$nextTick()
+
+    const status = wrapper.find('[data-library-search-status]')
+    expect(status.text()).toContain('1 kết quả')
+
+    const coverageGap = wrapper.find('[data-library-search-coverage-gap]')
+    expect(coverageGap.exists()).toBe(true)
+    expect(coverageGap.text()).toContain('35/47')
+  })
+
+  it('🔴 chỉ mục ĐẦY ĐỦ (worksWithText === worksTotal) ⇒ dòng độ phủ KHÔNG render', async () => {
+    mockInvokeForSearchMount([SEARCH_HIT_A], { works_total: 47, works_with_text: 47 })
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/librarySearch')
+    wrapper = mount(LibraryMode)
+    await wrapper.vm.$nextTick()
+
+    state.librarySearchQuery.value = 'khoang'
+    await state.runLibrarySearch()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-library-search-coverage-gap]').exists()).toBe(false)
   })
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -523,7 +600,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
     mockInvoke.mockImplementation((cmd: string) => {
       callOrder.push(cmd)
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
       }
       if (cmd === 'open_work') return Promise.resolve(OPENED_WORK_A)
       if (cmd === 'open_chapter') return Promise.resolve(OPEN_CHAPTER_A)
@@ -557,7 +634,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
     }
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
       }
       // `invoke()` giả trượt bằng cách NÉM đúng hình dạng IpcError -- cùng khuôn adapter thật.
       if (cmd === 'open_work') return Promise.reject(OPEN_WORK_ERROR)
@@ -578,7 +655,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
     ketQuaFlush.value = 'still-dirty'
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
       }
       return Promise.reject(new Error(`KHONG duoc goi: ${cmd}`))
     })
@@ -609,7 +686,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
   ): void {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [hit], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false })
+        return Promise.resolve({ hits: [hit], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
       }
       if (cmd === 'open_work') return Promise.resolve(OPENED_WORK_A)
       if (cmd === 'open_chapter') return Promise.resolve(OPEN_CHAPTER_A)
@@ -702,6 +779,8 @@ describe('modes/librarySearch.ts::resetLibrarySearch', () => {
           mode: 'lenient',
           effective_mode: 'lenient',
           widened: true,
+          works_total: 5,
+          works_with_text: 5,
         })
       }
       return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
@@ -716,6 +795,9 @@ describe('modes/librarySearch.ts::resetLibrarySearch', () => {
     expect(state.librarySearchMode.value).toBe('lenient')
     expect(state.librarySearchEffectiveMode.value).toBe('lenient')
     expect(state.librarySearchWidened.value).toBe(true)
+    // **THÊM (retro Epic 5, AI-3)** — cùng tiền đề: đã rời khỏi 0 trước khi reset.
+    expect(state.librarySearchWorksTotal.value).toBe(5)
+    expect(state.librarySearchWorksWithText.value).toBe(5)
 
     state.resetLibrarySearch()
 
@@ -730,6 +812,10 @@ describe('modes/librarySearch.ts::resetLibrarySearch', () => {
     expect(state.librarySearchMode.value).toBe('exact')
     expect(state.librarySearchEffectiveMode.value).toBe('exact')
     expect(state.librarySearchWidened.value).toBe(false)
+    // **THÊM (retro Epic 5, AI-3)** — độ phủ cấp Tác phẩm cũng phải về 0, không giữ số của
+    // lượt tìm trước.
+    expect(state.librarySearchWorksTotal.value).toBe(0)
+    expect(state.librarySearchWorksWithText.value).toBe(0)
   })
 })
 

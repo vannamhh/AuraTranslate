@@ -33,6 +33,17 @@ export type ConflictEntry = {
   duplicate_path: string
 }
 
+/**
+ * **THÊM (retro Epic 5, AI-2/AI-3 — 2026-09-03)** — một Tác phẩm mà lượt thu hoạch VĂN BẢN của
+ * lượt quét này bị bỏ qua, khớp `commands::library::TextSkippedEntry` phía Rust, `snake_case`.
+ * `reason` là một MÃ MÁY ĐỌC ổn định (`schema_too_old` · `schema_too_new` · `project_db_missing`
+ * · …), không một chuỗi chẩn đoán thô.
+ */
+export type TextSkippedEntry = {
+  work_id: string
+  reason: string
+}
+
 /** Kết quả một lượt quét — khớp `commands::library::RescanReport`. */
 export type RescanReport = {
   /** Thư mục gốc VỪA quét — chỉ Rust biết bộ phân giải (móc e2e ⇒ cấu hình ⇒ mặc định) đã
@@ -55,6 +66,12 @@ export type RescanReport = {
   conflicts: ConflictEntry[]
   skipped: number
   orphans: OrphanEntry[]
+  /**
+   * 🔵 **THÊM (retro Epic 5, AI-2/AI-3 — 2026-09-03)** — thay vì VỨT, chở NGUYÊN mã lý do +
+   * `work_id` của mỗi Tác phẩm bị bỏ qua phần văn bản ở lượt quét này. Đúng khuôn
+   * `conflicts`/`orphans` ngay trên.
+   */
+  text_skipped: TextSkippedEntry[]
 }
 
 /** Ba trạng thái, cùng khuôn `CreateWorkResult`. */
@@ -100,6 +117,27 @@ function isConflictEntryArray(value: unknown): value is ConflictEntry[] {
   )
 }
 
+function isTextSkippedEntry(value: unknown): value is TextSkippedEntry {
+  if (typeof value !== 'object' || value === null) return false
+  const entry = value as Partial<TextSkippedEntry>
+  return typeof entry.work_id === 'string' && typeof entry.reason === 'string'
+}
+
+/**
+ * 🔵 **THÊM (retro Epic 5, AI-2/AI-3)** — kiểm MỌI phần tử qua `.every()`, KHÔNG chỉ mục ĐẦU.
+ *
+ * ⚠️ Cố tình KHÔNG chép khuôn `isConflictEntryArray` ngay trên (kiểm `Array.isArray` cộng
+ * hình dạng của mục ĐẦU): sibling đó mang ĐÚNG lỗ hổng mà `isSearchHitArray` (~500 dòng dưới)
+ * đã ghi lại bằng chữ — "Kiểm MỌI phần tử, không chỉ phần tử đầu. Bản đầu đọc `value[0]` rồi
+ * kết luận cho cả mảng" — và một hàng THỨ HAI sai hình dạng (một lượt Rust đổi lược đồ chỉ
+ * chạm một nhánh) đi thẳng qua cửa. `isConflictEntryArray` giữ nguyên lỗ đó: nó có TRƯỚC hàm
+ * này, ngoài phạm vi lượt sửa này (không đụng một mã đã đứng yên để tránh một diff không liên
+ * quan tới AI-2/AI-3), nhưng KHÔNG được dùng làm khuôn cho một hàm MỚI viết hôm nay.
+ */
+function isTextSkippedEntryArray(value: unknown): value is TextSkippedEntry[] {
+  return Array.isArray(value) && value.every(isTextSkippedEntry)
+}
+
 function isRescanReport(value: unknown): value is RescanReport {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<RescanReport>
@@ -109,7 +147,8 @@ function isRescanReport(value: unknown): value is RescanReport {
     typeof v.indexed === 'number' &&
     isConflictEntryArray(v.conflicts) &&
     typeof v.skipped === 'number' &&
-    Array.isArray(v.orphans)
+    Array.isArray(v.orphans) &&
+    isTextSkippedEntryArray(v.text_skipped)
   )
 }
 
@@ -529,6 +568,12 @@ export type SearchReport = {
    * chính xác trả 0 hàng trên một chỉ mục KHÔNG rỗng. Bất biến:
    * `widened === (mode === 'exact' && effective_mode === 'lenient')`. */
   widened: boolean
+  /** **THÊM (retro Epic 5, AI-3 — 2026-09-03).** Tổng số Tác phẩm ĐANG có mặt trong chỉ mục —
+   * độc lập với `hits`/`total`, phải hiện được cả khi lượt tìm CÓ kết quả. */
+  works_total: number
+  /** **THÊM (retro Epic 5, AI-3).** Số Tác phẩm CÓ ÍT NHẤT một dòng văn bản trong chỉ mục, đo
+   * TẠI LÚC TRUY VẤN. `works_total - works_with_text` là số Tác phẩm chưa vào chỉ mục. */
+  works_with_text: number
 }
 
 /** Ba trạng thái cho [`searchLibrary`]. */
@@ -588,7 +633,9 @@ function isSearchReport(value: unknown): value is SearchReport {
     typeof v.truncated === 'boolean' &&
     isSearchMode(v.mode) &&
     isSearchMode(v.effective_mode) &&
-    typeof v.widened === 'boolean'
+    typeof v.widened === 'boolean' &&
+    typeof v.works_total === 'number' &&
+    typeof v.works_with_text === 'number'
   )
 }
 

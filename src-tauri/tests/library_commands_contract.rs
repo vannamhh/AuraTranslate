@@ -36,7 +36,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::library::{
     apply_chosen_root, forget_orphan, list_works, rescan, search_library,
 };
-use auratranslate_lib::core::library::indexer::{Indexer, WorkQuery};
+use auratranslate_lib::core::library::indexer::{Indexer, MINIMUM_HARVEST_SCHEMA_VERSION, WorkQuery};
 use auratranslate_lib::core::library::meta::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::load_global_config;
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
@@ -745,6 +745,101 @@ fn search_library_carries_a_lenient_match_kind_through_to_the_wire_struct() {
          `From<CoreSearchHit>` da hoa mot hang thay vi doc `hit.match_kind`"
     );
     assert_eq!(report.hits[0].field, "target");
+
+    indexer.close();
+    global.close();
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// retro Epic 5, AI-2/AI-3 (vòng rà lần hai, mục 1) — hai `From` ở BIÊN IPC chưa từng chạy
+// qua một lượt gọi THẬT của `commands::library::rescan`/`search_library` trước cụm này.
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 LỖ HỔNG ĐÃ ĐO ĐƯỢC, KHÔNG PHẢI NGHI NGỜ (vòng rà lần hai): đảo `works_total`/
+// `works_with_text` trong `From<CoreSearchReport> for SearchReport` (`commands/library.rs`)
+// và CHẠY TOÀN BỘ BỘ TEST RUST -- 35/35 crate test giữ nguyên `ok`, 0 lỗi. `ipc_contract.rs`
+// chỉ dựng struct TAY (không đi qua `From`); `library_index_contract.rs` chỉ đọc
+// `core::library::indexer::SearchReport` (TRƯỚC lượt chuyển đổi). Không tệp nào gọi
+// `commands::library::search_library`/`rescan` trên một fixture có SỐ LỆCH NHAU rồi đọc lại
+// hai trường này qua đúng cổng IPC. `grep "text_skipped\|works_total\|works_with_text"
+// tests/library_commands_contract.rs` cho 0 trước cụm ca này.
+
+/// Hai Tác phẩm: MỘT harvest được (`project.db` THẬT, đích mới nhất), MỘT trượt vì lược đồ
+/// CŨ hơn sàn (đúng khuôn `a_project_db_older_than_the_harvest_floor_…` của
+/// `library_index_contract.rs`) — dựng MỘT LẦN, dùng CHUNG cho cả hai lời khẳng định dưới
+/// đây (`rescan` rồi `search_library`, cùng `indexer`/`global`, không dựng lại chỉ mục giữa
+/// chừng).
+#[test]
+fn rescan_and_search_library_report_the_two_new_wire_fields_through_the_real_conversions() {
+    let dir = temp_dir("commands-text-skipped-and-coverage");
+    let root = library_root(&dir);
+    fs::create_dir_all(&root).expect("tạo thư mục gốc");
+    let global = open_global(&dir);
+    let indexer = open_indexer(&dir);
+
+    // Tác phẩm HARVEST ĐƯỢC — `project.db` THẬT, đích mới nhất, một segment tìm được.
+    write_atproj_with_one_real_segment(
+        &root,
+        "Fresh",
+        "id-fresh",
+        "Fresh",
+        "irrelevant nguon",
+        "uniquefreshtargettext",
+    );
+
+    // Tác phẩm TRƯỢT THU HOẠCH — `project.db` THẬT nhưng bị hạ NGAY DƯỚI sàn, đúng khuôn
+    // `a_project_db_older_than_the_harvest_floor_…`.
+    let old_dir = write_atproj_with_one_real_segment(
+        &root,
+        "OldSchema",
+        "id-old-schema",
+        "OldSchema",
+        "irrelevant nguon cu",
+        "irrelevant dich cu",
+    );
+    {
+        let db_path = old_dir.join("project.db");
+        let conn = rusqlite::Connection::open(&db_path).expect("mo lai de ha phien ban");
+        conn.pragma_update(None, "user_version", i64::from(MINIMUM_HARVEST_SCHEMA_VERSION - 1))
+            .expect("ha user_version xuong ngay duoi san");
+        conn.execute("ALTER TABLE segment DROP COLUMN is_omitted", [])
+            .expect("go cot is_omitted -- dung hinh dang mot project.db THAT ngay duoi san");
+    }
+
+    // ── Lời khẳng định 1: `rescan()` THẬT, không hàm thuần nội bộ nào của `Indexer` ──
+    let report = rescan(Some(&indexer), Some(&global), &root).expect("rescan");
+    assert_eq!(report.indexed, 2, "metadata cua CA HAI Tac pham van UPSERT binh thuong");
+    assert_eq!(
+        report.text_skipped.len(),
+        1,
+        "dung MOT Tac pham bi bo qua phan van ban: {:?}",
+        report.text_skipped
+    );
+    assert_eq!(report.text_skipped[0].work_id, "id-old-schema");
+    // 🔴 Mã lý do ĐI QUA `From<TextHarvestSkipped> for TextSkippedEntry` thật -- không dựng
+    // tay struct này. Nếu `From` đọc `.diagnostic()` thay vì `.code()`, chuỗi ở đây sẽ là một
+    // câu chẩn đoán dài mang cả số phiên bản, không phải mã ổn định `"schema_too_old"`.
+    assert_eq!(
+        report.text_skipped[0].reason,
+        "schema_too_old",
+        "reason tren day PHAI la ma on dinh tu HarvestSkipReason::code(), khong phai \
+         HarvestSkipReason::diagnostic() (mot chuoi tho, dai, mang so phien ban)"
+    );
+
+    // ── Lời khẳng định 2: `search_library()` THẬT, cùng chỉ mục vừa `rescan()` dựng ──
+    let search = search_library(Some(&indexer), "uniquefreshtargettext", None, None)
+        .expect("search_library");
+    assert_eq!(search.hits.len(), 1, "chi Tac pham harvest duoc moi co van ban de khop: {:?}", search.hits);
+    // 🔴 Hai khẳng định RIÊNG BIỆT, giá trị KHÁC NHAU (2 ≠ 1) — một phép đảo `works_total`/
+    // `works_with_text` trong `From<CoreSearchReport>` sẽ làm ĐÚNG MỘT trong hai dòng dưới
+    // đây đỏ (không phải cả hai cùng lúc đổi bù cho nhau, vì `assert_eq!` so một hằng cụ thể
+    // cho từng vế, không so lẫn nhau).
+    assert_eq!(search.works_total, 2, "works_total phai dem CA HAI hang library_work");
+    assert_eq!(
+        search.works_with_text, 1,
+        "works_with_text chi dem Tac pham THAT SU co van ban trong chi muc"
+    );
 
     indexer.close();
     global.close();

@@ -59,6 +59,11 @@ const query = ref('')
 const hits = ref<SearchHit[]>([])
 const total = ref(0)
 const indexedSegments = ref(0)
+// **THÊM (retro Epic 5, AI-3 — 2026-09-03).** Độ phủ cấp Tác phẩm của lượt tìm gần nhất — chép
+// nguyên `SearchReport.works_total`/`works_with_text`. Bề mặt ĐỘC LẬP với `hits`/`total`: xem
+// [`librarySearchCoverageGap`].
+const worksTotal = ref(0)
+const worksWithText = ref(0)
 const shortQuery = ref(false)
 /** Xem [`librarySearchTruncated`]. */
 const truncated = ref(false)
@@ -87,6 +92,10 @@ export const librarySearchQuery = query
 export const librarySearchHits: DeepReadonly<Ref<SearchHit[]>> = readonly(hits)
 export const librarySearchTotal: DeepReadonly<Ref<number>> = readonly(total)
 export const librarySearchIndexedSegments: DeepReadonly<Ref<number>> = readonly(indexedSegments)
+/** Xem [`librarySearchCoverageGap`]. */
+export const librarySearchWorksTotal: DeepReadonly<Ref<number>> = readonly(worksTotal)
+/** Xem [`librarySearchCoverageGap`]. */
+export const librarySearchWorksWithText: DeepReadonly<Ref<number>> = readonly(worksWithText)
 export const librarySearchShortQuery: DeepReadonly<Ref<boolean>> = readonly(shortQuery)
 /** 🔴 `true` ⇔ danh sách đã bị trần CẮT — `librarySearchTotal` khi đó là *"số hàng đang
  * hiện"*, không phải *"số hàng khớp"*. Giao diện phải nói ra: một trần cắt trong im lặng biến
@@ -182,6 +191,31 @@ export const librarySearchStatusKey = computed<LibrarySearchStatus>(() =>
 )
 
 /**
+ * **THÊM (retro Epic 5, AI-3 — 2026-09-03).** Hàm THUẦN — độ phủ cấp Tác phẩm của lượt tìm gần
+ * nhất. Trả `{ missing, total }` khi chỉ mục THỦNG (`worksWithText < worksTotal`), `null` khi
+ * không có gì để nói (`worksTotal === 0` — chỉ mục rỗng hẳn, đã có bề mặt `index_empty` riêng;
+ * hoặc chỉ mục ĐẦY ĐỦ, `worksWithText === worksTotal`).
+ *
+ * ⚠️ Bề mặt này ĐỘC LẬP với `librarySearchStatusKey`: nó phải hiện được CẢ KHI có kết quả — một
+ * lượt trả "3 kết quả" trong lúc 35/47 Tác phẩm vô hình khỏi chỉ mục là đúng thứ lỗi mà spec
+ * retro AI-2/AI-3 tồn tại để sửa. `LibraryMode.vue` dùng hàm này qua một `v-if` RIÊNG, không
+ * gộp vào bảng ternary tám nhánh của `role="status"` hiện có.
+ */
+export function librarySearchCoverageGap(
+  worksTotalValue: number,
+  worksWithTextValue: number,
+): { missing: number; total: number } | null {
+  if (worksTotalValue === 0) return null
+  if (worksWithTextValue >= worksTotalValue) return null
+  return { missing: worksTotalValue - worksWithTextValue, total: worksTotalValue }
+}
+
+/** `computed` đọc live -- cùng khuôn `librarySearchStatusKey`. */
+export const librarySearchCoverageGapState = computed<{ missing: number; total: number } | null>(() =>
+  librarySearchCoverageGap(worksTotal.value, worksWithText.value),
+)
+
+/**
  * Chạy một lượt tìm kiếm theo [`librarySearchQuery`] hiện thời — lệnh `library.search`.
  *
  * 🔴 **Truy vấn RỖNG (sau `trim()`) ⇒ 0 lượt IPC** (§I/O Matrix "Truy vấn rỗng / chỉ khoảng
@@ -197,6 +231,10 @@ export async function runLibrarySearch(): Promise<void> {
     hits.value = []
     total.value = 0
     indexedSegments.value = 0
+    // **THÊM (retro Epic 5, AI-3)** — cùng lý lẽ `indexedSegments`: ô tìm rỗng nghĩa là "chưa
+    // có lượt tìm nào để mô tả", nên `librarySearchCoverageGap` phải trả `null` (worksTotal = 0).
+    worksTotal.value = 0
+    worksWithText.value = 0
     shortQuery.value = false
     truncated.value = false
     hasLoaded.value = false
@@ -246,6 +284,8 @@ export async function runLibrarySearch(): Promise<void> {
   hits.value = result.report.hits
   total.value = result.report.total
   indexedSegments.value = result.report.indexed_segments
+  worksTotal.value = result.report.works_total
+  worksWithText.value = result.report.works_with_text
   shortQuery.value = result.report.short_query
   truncated.value = result.report.truncated
   effectiveMode.value = result.report.effective_mode
@@ -333,6 +373,8 @@ export function resetLibrarySearch(): void {
   hits.value = []
   total.value = 0
   indexedSegments.value = 0
+  worksTotal.value = 0
+  worksWithText.value = 0
   shortQuery.value = false
   truncated.value = false
   hasLoaded.value = false

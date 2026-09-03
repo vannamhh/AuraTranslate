@@ -407,8 +407,9 @@ impl Indexer {
                     // (`RebuildOutcome::text_skipped`), không im lặng.
                     Err(reason) => {
                         eprintln!(
-                            "library[index:rebuild] bo qua thu hoach van ban cho work_id={} -- {reason}",
-                            meta.work_id
+                            "library[index:rebuild] bo qua thu hoach van ban cho work_id={} -- {}",
+                            meta.work_id,
+                            reason.diagnostic()
                         );
                         text_skipped.push(TextHarvestSkipped { work_id: meta.work_id.clone(), reason });
                     }
@@ -800,6 +801,21 @@ impl Indexer {
                 conn.query_row("SELECT COUNT(*) FROM library_segment", [], |row| row.get(0))?;
             let indexed_segments = indexed_segments.max(0) as usize;
 
+            // **THÊM (retro Epic 5, AI-3).** Độ phủ cấp TÁC PHẨM, đo TẠI LÚC TRUY VẤN trong
+            // CÙNG closure — KHÔNG đọc `RebuildOutcome::text_skipped` (§Design Notes của spec
+            // retro AI-2/AI-3: con số đó chỉ sống trong bộ nhớ của lượt `rebuild` gần nhất
+            // trong tiến trình này và biến mất sau khi khởi động lại; hai `COUNT` này luôn nói
+            // đúng trạng thái trên đĩa).
+            let works_total: i64 =
+                conn.query_row("SELECT COUNT(*) FROM library_work", [], |row| row.get(0))?;
+            let works_total = works_total.max(0) as usize;
+            let works_with_text: i64 = conn.query_row(
+                "SELECT COUNT(DISTINCT work_id) FROM library_segment",
+                [],
+                |row| row.get(0),
+            )?;
+            let works_with_text = works_with_text.max(0) as usize;
+
             if trimmed.is_empty() {
                 // Chỗ gọi (`commands::library::search_library`) không nên gửi một truy vấn
                 // rỗng xuống đây (§I/O Matrix: "0 lượt IPC" ở tầng frontend) — nhưng đây vẫn
@@ -814,6 +830,8 @@ impl Indexer {
                     mode,
                     effective_mode: mode,
                     widened: false,
+                    works_total,
+                    works_with_text,
                 });
             }
 
@@ -853,6 +871,8 @@ impl Indexer {
                     mode,
                     effective_mode,
                     widened,
+                    works_total,
+                    works_with_text,
                 });
             }
 
@@ -884,6 +904,8 @@ impl Indexer {
                 mode,
                 effective_mode,
                 widened,
+                works_total,
+                works_with_text,
             })
         })
     }
@@ -1107,6 +1129,19 @@ pub struct SearchReport {
     /// xác trả 0 hàng trên một chỉ mục KHÔNG rỗng, nên hệ thống tự chạy thêm `_nd`. Bất biến:
     /// `widened == (mode == Exact && effective_mode == Lenient)`.
     pub widened: bool,
+    /// **THÊM (retro Epic 5, AI-3 — 2026-09-03).** `SELECT COUNT(*) FROM library_work` — tổng
+    /// số Tác phẩm ĐANG có mặt trong chỉ mục, đếm TRONG CÙNG `read` closure với
+    /// [`Self::indexed_segments`], KHÔNG đọc [`RebuildOutcome::text_skipped`] (thứ chỉ sống
+    /// trong bộ nhớ của lượt `rebuild` gần nhất trong tiến trình này và biến mất sau khi khởi
+    /// động lại — xem §Design Notes của spec retro AI-2/AI-3 cho lý lẽ đầy đủ). Điền ở MỌI
+    /// nhánh, kể cả truy vấn rỗng.
+    pub works_total: usize,
+    /// **THÊM (retro Epic 5, AI-3).** `SELECT COUNT(DISTINCT work_id) FROM library_segment` —
+    /// số Tác phẩm CÓ ÍT NHẤT một dòng văn bản trong chỉ mục, đo TẠI LÚC TRUY VẤN. `works_total
+    /// - works_with_text` là số Tác phẩm chưa vào chỉ mục tìm kiếm — bề mặt ĐỘC LẬP với số kết
+    /// quả (`total`/`hits`): một lượt trả kết quả vẫn phải hiện dòng này nếu chỉ mục THỦNG
+    /// (§Always: "phải hiện cả khi có kết quả").
+    pub works_with_text: usize,
 }
 
 /// **Nhánh bản dịch** — `library_target_fts` (`unicode61 remove_diacritics 0`), khớp TRỌN TỪ,
@@ -1256,6 +1291,108 @@ fn search_source_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlRe
 /// hằng `pub(crate)` dùng chung.
 const PROJECT_DB_FILE: &str = "project.db";
 
+/// **THÊM (retro Epic 5, AI-2 — 2026-09-03).** Sàn DƯỚI của lượt thu hoạch văn bản —
+/// [`harvest_work_text`] trước bản vá này chỉ kiểm chiều TRÊN (`found > target`, AD-30), đúng
+/// cái bẫy mà `core/dict/layer.rs::MINIMUM_SCHEMA_VERSION` đã cảnh báo bằng chữ cho một module
+/// khác: một `project.db` CŨ hơn lọt cửa rồi gãy ở giữa đường bằng một lỗi SQLite thô.
+///
+/// = **8**, và con số này suy được từ CHÍNH cột mà câu SQL trong hàm này gõ đích danh, không từ
+/// một mẫu quan sát: `SELECT … is_omitted … FROM segment` cần `SEGMENT_OMITTED_DDL`
+/// (`core/store/schema.rs`), **bước 8** của `PROJECT_MIGRATIONS`. Mọi cột KHÁC mà hàm này đọc
+/// đã có từ sớm hơn: `chapter` từ bước 3 (`CHAPTER_DDL`), `segment.retired_at` từ bước 5
+/// (`SEGMENT_DDL`), `segment.target_text` từ bước 6 (`SEGMENT_TARGET_TEXT_DDL`).
+///
+/// 🔴 **LUẬT: một lượt nâng `PROJECT_MIGRATIONS` mà đường đọc TRÊN gõ thêm một cột MỚI ⇒ nâng
+/// CẢ hằng này, ghi ngay tại đây.** Không hạ sàn, không thêm một nhánh `CASE WHEN` dò cột để
+/// "cứu" một tệp cũ — đó là dựng một lược đồ THỨ HAI cho cùng một số phiên bản, đúng lớp lỗi mà
+/// `core/store/schema.rs::PROJECT_MIGRATIONS` đã cấm bằng chữ ("vết sẹo số 4").
+pub const MINIMUM_HARVEST_SCHEMA_VERSION: u32 = 8;
+
+/// **THÊM (retro Epic 5, AI-2/AI-3 — 2026-09-03).** Vì sao một lượt thu hoạch văn bản của MỘT
+/// Tác phẩm bị bỏ qua — cùng khuôn [`crate::core::dict::layer::SkipReason`] (AD-44 ④: "Rỗng im
+/// lặng bị cấm; rỗng có lý do thì không"). [`harvest_work_text`] trả biến thể này thay vì một
+/// `String` chẩn đoán rời như bản trước — chỗ gọi ([`Indexer::rebuild`]) đếm nó vào
+/// [`RebuildOutcome::text_skipped`] cùng `work_id`, và bề mặt IPC
+/// (`commands::library::TextSkippedEntry::reason`) mang [`Self::code`] đi lên dây — KHÔNG một
+/// chuỗi chẩn đoán thô (AD-21: struct qua dây không mang lỗi SQLite nguyên văn).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HarvestSkipReason {
+    /// `project.db` không có mặt trên đĩa.
+    DbMissing,
+    /// Mở tệp được nhưng không đọc nổi `PRAGMA user_version`.
+    VersionUnreadable {
+        /// Lỗi thô, chỉ để chẩn đoán.
+        detail: String,
+    },
+    /// 🔴 Lược đồ MỚI HƠN ứng dụng hiểu (AD-30 — không đọc sau vào một lược đồ chưa biết).
+    SchemaTooNew {
+        /// `PRAGMA user_version` đọc được từ `project.db`.
+        found: u32,
+        /// Đích của `PROJECT_MIGRATIONS` mà ứng dụng này hiểu.
+        target: u32,
+    },
+    /// 🔴 Lược đồ CŨ HƠN [`MINIMUM_HARVEST_SCHEMA_VERSION`] — đường đọc dưới đây gõ đích danh
+    /// `segment.is_omitted`, cột chưa tồn tại dưới sàn đó.
+    SchemaTooOld {
+        /// `PRAGMA user_version` đọc được từ `project.db`.
+        found: u32,
+        /// [`MINIMUM_HARVEST_SCHEMA_VERSION`].
+        minimum: u32,
+    },
+    /// Mở-đọc `project.db` thất bại (quyền, khoá tệp, tệp hỏng…).
+    OpenFailed {
+        /// Lỗi thô, chỉ để chẩn đoán.
+        detail: String,
+    },
+    /// Mở được, nhưng đọc `chapter`/`segment` thất bại.
+    ReadFailed {
+        /// Lỗi thô, chỉ để chẩn đoán.
+        detail: String,
+    },
+}
+
+impl HarvestSkipReason {
+    /// Mã máy đọc, ổn định — thứ đi lên dây (`commands::library::TextSkippedEntry::reason`).
+    /// KHÔNG phải chẩn đoán cho log (đó là [`Self::diagnostic`]); cùng vai
+    /// [`crate::core::dict::layer::SkipReason::wire_code`].
+    pub(crate) fn code(&self) -> &'static str {
+        match self {
+            HarvestSkipReason::DbMissing => "project_db_missing",
+            HarvestSkipReason::VersionUnreadable { .. } => "version_unreadable",
+            HarvestSkipReason::SchemaTooNew { .. } => "schema_too_new",
+            HarvestSkipReason::SchemaTooOld { .. } => "schema_too_old",
+            HarvestSkipReason::OpenFailed { .. } => "open_failed",
+            HarvestSkipReason::ReadFailed { .. } => "read_failed",
+        }
+    }
+
+    /// Chẩn đoán KHÔNG DẤU cho `eprintln!` (NFR16) — không phải văn bản hiển thị, không đi
+    /// qua dây.
+    pub(crate) fn diagnostic(&self) -> String {
+        match self {
+            HarvestSkipReason::DbMissing => "project.db vang mat".to_owned(),
+            HarvestSkipReason::VersionUnreadable { detail } => {
+                format!("khong doc duoc phien ban luoc do cua project.db: {detail}")
+            }
+            HarvestSkipReason::SchemaTooNew { found, target } => format!(
+                "project.db o schema version {found}, ung dung chi hieu toi {target} -- AD-30 cam \
+                 doc sau vao mot luoc do chua biet"
+            ),
+            HarvestSkipReason::SchemaTooOld { found, minimum } => format!(
+                "project.db o schema version {found}, duoi san {minimum} ma duong doc van ban nay \
+                 con doc noi -- mo Tac pham nay bang ung dung hien tai it nhat mot lan de di tru \
+                 roi quet lai"
+            ),
+            HarvestSkipReason::OpenFailed { detail } => {
+                format!("mo project.db chi doc that bai: {detail}")
+            }
+            HarvestSkipReason::ReadFailed { detail } => {
+                format!("doc du lieu tu project.db that bai: {detail}")
+            }
+        }
+    }
+}
+
 /// Một hàng văn bản thu hoạch được từ MỘT `project.db` — cấp SEGMENT (`segment_id = Some`) hoặc
 /// cấp CHƯƠNG khi Chương đó chưa có segment SỐNG nào (`segment_id = None`, dùng
 /// `chapter.source_text`; `target_text` rỗng vì bảng `chapter` không có cột bản dịch — AD-32
@@ -1275,32 +1412,40 @@ struct HarvestedRow {
 /// qua [`Store::open`] (§Always của story: bốn thứ `Store::open` ghi vào tệp, kể cả chạy bộ di
 /// trú, và một lượt quét không sở hữu Tác phẩm này).
 ///
-/// `Err(String)` — chẩn đoán KHÔNG DẤU nêu ĐÍCH DANH lý do (`project.db` vắng mặt / phiên bản
-/// lược đồ mới hơn ứng dụng / mở-đọc thất bại) — chỗ gọi ([`Indexer::rebuild`]) đếm nó vào
-/// [`RebuildOutcome::text_skipped`] cùng `work_id`, KHÔNG làm trượt cả lượt `rebuild`.
+/// `Err(HarvestSkipReason)` — nêu ĐÍCH DANH lý do (`project.db` vắng mặt / phiên bản lược đồ
+/// mới hơn ứng dụng / phiên bản lược đồ CŨ hơn [`MINIMUM_HARVEST_SCHEMA_VERSION`] / mở-đọc thất
+/// bại) — chỗ gọi ([`Indexer::rebuild`]) đếm nó vào [`RebuildOutcome::text_skipped`] cùng
+/// `work_id`, KHÔNG làm trượt cả lượt `rebuild`.
 ///
-/// 🔴 **Kiểm phiên bản lược đồ TRƯỚC khi mở đọc thật** (AD-30): một `project.db` ở phiên bản
-/// MỚI HƠN ứng dụng hiểu có thể mang một hình dạng `chapter`/`segment` mà hai câu SQL dưới đây
-/// KHÔNG biết — đọc mù vào đó là đọc SAI CỘT một cách im lặng, không phải một lỗi ồn ào. Bỏ qua
-/// phần văn bản của đúng Tác phẩm này an toàn hơn.
-fn harvest_work_text(dir: &Path) -> Result<Vec<HarvestedRow>, String> {
+/// 🔴 **Kiểm phiên bản lược đồ TRƯỚC khi mở đọc thật, CẢ HAI CHIỀU** (AD-30 cho chiều trên;
+/// [`MINIMUM_HARVEST_SCHEMA_VERSION`] cho chiều dưới, thêm ở retro Epic 5 AI-2): một `project.db`
+/// ở phiên bản MỚI HƠN ứng dụng hiểu có thể mang một hình dạng `chapter`/`segment` mà hai câu
+/// SQL dưới đây KHÔNG biết — đọc mù vào đó là đọc SAI CỘT một cách im lặng, không phải một lỗi
+/// ồn ào. Một `project.db` CŨ HƠN sàn thì THIẾU cột `segment.is_omitted` mà câu SQL thứ hai gõ
+/// đích danh — không kiểm trước thì nó không đọc sai cột, nó GÃY bằng một lỗi SQLite thô
+/// (`no such column: is_omitted`), đúng chỗ hở mà spec retro AI-2/AI-3 sửa. Bỏ qua phần văn bản
+/// của đúng Tác phẩm này an toàn hơn cả hai chiều.
+fn harvest_work_text(dir: &Path) -> Result<Vec<HarvestedRow>, HarvestSkipReason> {
     let project_db_path = dir.join(PROJECT_DB_FILE);
 
     let found = match crate::core::store::peek_schema_version(&project_db_path, StoreKind::Project) {
-        Ok(None) => return Err("project.db vang mat".to_owned()),
+        Ok(None) => return Err(HarvestSkipReason::DbMissing),
         Ok(Some(found)) => found,
-        Err(err) => return Err(format!("khong doc duoc phien ban luoc do cua project.db: {err}")),
+        Err(err) => return Err(HarvestSkipReason::VersionUnreadable { detail: err.to_string() }),
     };
     let target = crate::core::store::schema::target_version(PROJECT_MIGRATIONS);
     if found > target {
-        return Err(format!(
-            "project.db o schema version {found}, ung dung chi hieu toi {target} -- AD-30 cam \
-             doc sau vao mot luoc do chua biet"
-        ));
+        return Err(HarvestSkipReason::SchemaTooNew { found, target });
+    }
+    if found < MINIMUM_HARVEST_SCHEMA_VERSION {
+        return Err(HarvestSkipReason::SchemaTooOld {
+            found,
+            minimum: MINIMUM_HARVEST_SCHEMA_VERSION,
+        });
     }
 
     let db = ReadOnlyDb::open(project_db_path, StoreKind::Project)
-        .map_err(|err| format!("mo project.db chi doc that bai: {err}"))?;
+        .map_err(|err| HarvestSkipReason::OpenFailed { detail: err.to_string() })?;
 
     let result = db.read(|conn: ReadHandle<'_>| -> SqlResult<Vec<HarvestedRow>> {
         let mut chapters_stmt =
@@ -1368,7 +1513,7 @@ fn harvest_work_text(dir: &Path) -> Result<Vec<HarvestedRow>, String> {
     });
 
     db.close();
-    result.map_err(|err| format!("doc du lieu tu project.db that bai: {err}"))
+    result.map_err(|err| HarvestSkipReason::ReadFailed { detail: err.to_string() })
 }
 
 /// Mọi thư mục con của `root` mang đuôi `.atproj`, **sắp xếp** — thứ tự quét phải tất định để
@@ -1569,12 +1714,17 @@ pub struct RebuildOutcome {
 
 /// **THÊM Story 5.9.** Một Tác phẩm mà lượt thu hoạch văn bản của lượt `rebuild` này bị bỏ
 /// qua — xem [`RebuildOutcome::text_skipped`].
+///
+/// 🔵 **SỬA (retro Epic 5, AI-2/AI-3 — 2026-09-03) — `reason` đổi từ `String` sang
+/// [`HarvestSkipReason`].** Một chẩn đoán rời không nói được "lý do này có tên không" — bản
+/// trước là đúng lớp lỗi mà [`crate::core::dict::layer::SkipReason`] (AD-44 ④) tồn tại để
+/// tránh. `Display`/`eprintln!` giờ đọc [`HarvestSkipReason::diagnostic`]; bề mặt IPC đọc
+/// [`HarvestSkipReason::code`].
 #[derive(Debug, Clone)]
 pub struct TextHarvestSkipped {
     pub work_id: String,
-    /// Chẩn đoán, KHÔNG DẤU (NFR16) — không phải văn bản hiển thị. Nêu ĐÍCH DANH lý do:
-    /// `project.db` vắng mặt / phiên bản lược đồ mới hơn ứng dụng / mở-đọc thất bại.
-    pub reason: String,
+    /// Vì sao — một GIÁ TRỊ có tên, không một chuỗi chẩn đoán rời.
+    pub reason: HarvestSkipReason,
 }
 
 impl RebuildOutcome {
@@ -1631,7 +1781,7 @@ impl RebuildOutcome {
                  vd. work_id={} ({})",
                 self.text_skipped.len(),
                 first.work_id,
-                first.reason
+                first.reason.diagnostic()
             );
         }
     }
