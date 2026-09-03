@@ -41,7 +41,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: 09-02-2026 18:01
+last_updated: 09-03-2026 08:45
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -140,7 +140,7 @@ development_status:
   5-12-chế-độ-đọc-chỉ-đọc-phần-đã-xong: done
   5-13-đánh-dấu-chỗ-cần-sửa-khi-đang-đọc: done
   5-14-đo-nfr3-nfr4-nfr5-và-ghi-lại-trạng-thái-ba-ngưỡng-tạm: done
-  epic-5-retrospective: optional
+  epic-5-retrospective: done
 
   epic-6: backlog
   6-1-mũi-thăm-dò-ba-lựa-chọn-thư-viện: backlog
@@ -749,3 +749,87 @@ action_items:
     owner: "Dev"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-08-26.md"
+  - id: "epic-5-retro-item-50-ai-1-cap-cho-story-10-1-mot-dieu-kien-kh"
+    epic: 5
+    action: "AI-1 — Cap cho Story 10.1 mot dieu kien khoi hanh: dong goi resources/dict/
+      phai kem cong \"so lop nap duoc > 0 tren ban dung dong goi\", VA mot duong de
+      may dev cung thay tu dien (chep vao target/{debug,release}/dict hoac bien moi
+      truong hai lop kieu AD-45). Khong co ve thu hai thi F1 con nguyen toi ngay phat
+      hanh"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
+  - id: "epic-5-retro-item-51-ai-2-cai-san-phien-ban-cho-harvest_work_"
+    epic: 5
+    action: "AI-2 — Cai san phien ban cho harvest_work_text (indexer.rs:1289-1300):
+      tu choi found < MINIMUM bang mot bien the SkipReason co ten, dung khuon core/dict/layer.rs::MINIMUM_SCHEMA_VERSION.
+      Kem ca doi chung do cho chieu CU o library_index_contract.rs, doi xung voi :2490"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
+  - id: "epic-5-retro-item-52-ai-3-noi-rebuildoutcome-text_skipped-len"
+    epic: 5
+    action: "AI-3 — Noi RebuildOutcome::text_skipped len giao dien. Hom nay grep text_skipped
+      src/ = 0. Man hinh tim kiem phai phan biet \"da tim, khong khop\" voi \"N/M
+      Tac pham chua vao chi muc\" (AD-44 muc 4)"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
+  - id: "epic-5-retro-item-53-ai-4-quyet-hinh-dang-lam-tuoi-chi-muc-ti"
+    epic: 5
+    action: "AI-4 — Quyet hinh dang lam tuoi chi muc tim kiem: dung lai khi vao Library,
+      chi muc tang dan, hay giu nguyen va noi ra \"chi muc tinh toi HH:MM\". Do 2026-09-03:
+      grep reindex commands/segment.rs = 0"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
+  - id: "epic-5-retro-item-54-ai-5-chan-doan-10-spec-e2e-do-va-dua-bo"
+    epic: 5
+    action: "AI-5 — Chan doan 10 spec e2e do va dua bo ve xanh TRUOC khi Epic 6 mo.
+      Buoc dau bat buoc: chay tron bo 24 spec MOT LUOT tren may Ice — phep duy nhat
+      tach duoc \"luot day du vs luot le\" khoi \"runner vs may Ice\". Mot spec chay
+      le da xanh nen khong dung lam bang chung"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
+  - id: "epic-5-retro-item-55-ai-6-ghi-gioi-han-0-lop-tu-dien-vao-5-14"
+    epic: 5
+    action: "AI-6 — Ghi gioi han \"0 lop tu dien\" vao 5-14-ban-do/REPORT.md va environment.txt,
+      them so lop nap duoc vao tap truong moi truong cua ban do, va chuyen tiep dieu
+      kien sang Story 6.18"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
+  - id: "epic-5-retro-item-56-ai-7-anh-xa-5-commit-khong-ten-story-95b"
+    epic: 5
+    action: "AI-7 — Anh xa 5 commit khong ten story (95b54e3=5.1, 6b2cb24=5.6, af47030=5.13,
+      a27e58f/ff90e2a=5.14) vao mot bang trong epic-5-context.md. Khong viet lai lich
+      su. Ghi vao quy uoc kho rang tieu de commit la giao dien may doc"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
+  - id: "epic-5-retro-item-57-ai-8-sua-cau-da-het-dung-trong-5-6-luoi"
+    epic: 5
+    action: "AI-8 — Sua cau da het dung trong 5-6-luoi-tac-pham-loc-va-sap-xep.md
+      (\"Ma da dung nam nguyen tren dia, chua commit\" — thuc te da o master tai 6b2cb24)
+      va chot duong (A) hay (B) cho cho chan META_SCHEMA_VERSION. Muc duy nhat dung
+      giua Epic 5 va mot phan quyet accepted"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
+  - id: "epic-5-retro-item-58-ai-9-doi-nhip-doc-ci-mot-luot-gh-run-lis"
+    epic: 5
+    action: "AI-9 — Doi nhip doc CI: mot luot gh run list sau moi lan push story len
+      review, va cam ghi done khi luot schedule gan nhat do ma chua co mot dong ghi
+      ly do. Muc lap lan thu BA (retro Epic 1 muc B7, retro Epic 3 AI-8) — can mot
+      CONG, khong mot loi nhac"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
+  - id: "epic-5-retro-item-59-ai-10-quyet-so-phan-15-muc-retro-epic-3"
+    epic: 5
+    action: "AI-10 — Quyet so phan 15 muc retro Epic 3 dang open truoc khi so no phinh
+      them. Do 2026-09-03: 15/15 van open, va AI-12 di lui (3 ban chep thanh 5)"
+    owner: "Ice"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-03.md"
