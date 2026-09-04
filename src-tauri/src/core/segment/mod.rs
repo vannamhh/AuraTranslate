@@ -44,6 +44,12 @@
 //! có một ca biên thật (cờ kết đoạn nằm trên chính câu bị cắt bỏ) nên nó ở lại Rust, cùng
 //! lý lẽ [`paragraph`] đã dùng cho AD-37.
 
+//! [`encoding`] — phát hiện bảng mã cho [`pipeline::Step::DecodeEncoding`] (Story 6.3,
+//! FR126, AD-39). Ba trạng thái tin cậy là luật CỦA TA, không của `chardetng` — xem
+//! doc-comment đầu tệp cho phép đo. `sniff_bom` → `detect` → `render_candidates` là chuỗi
+//! chỉ đọc, KHÔNG bước nào trong đó thay đổi [`pipeline::PIPELINE_ORDER`].
+
+pub mod encoding;
 pub mod import;
 pub mod omit;
 pub mod paragraph;

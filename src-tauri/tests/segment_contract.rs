@@ -17,7 +17,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::chapter::split_chapter_at_segment;
 use auratranslate_lib::commands::lifecycle::set_chapter_status;
-use auratranslate_lib::commands::project::create_work_from_text;
+use auratranslate_lib::commands::project::{
+    cancel_import_preview, confirm_import_with_encoding, create_work, create_work_from_text,
+    preview_import_encoding, stash_pending_import_source, ConfidenceWire, EncodingCandidateWire,
+    ImportEncodingPreview, PendingImportSourceState,
+};
 use auratranslate_lib::commands::segment::{
     confirm_segment, flush_segment_targets, list_reading_marks, mark_reading_segment,
     merge_segments, read_open_chapter_segments, read_reading_run, read_segment_history,
@@ -8218,8 +8222,10 @@ fn invalid_bytes_under_the_declared_encoding_are_rejected_not_replaced() {
 
     let err = run_import(input).expect_err("byte không hợp lệ với UTF-8 phải bị từ chối");
     assert!(
-        matches!(err, ImportError::NotUtf8 { .. }),
-        "phải là biến thể NotUtf8 đang có, không phải một hạng lỗi mới: {err:?}"
+        matches!(err, ImportError::UndecodableBytes { .. }),
+        // 🔵 SỬA (2026-09-04, Story 6.3) — `NotUtf8` đổi tên thành `UndecodableBytes`
+        // (cộng trường `encoding`) cùng lượt bộ dò bảng mã ra đời — cùng byte, cùng nhánh.
+        "phải là biến thể UndecodableBytes đang có, không phải một hạng lỗi mới: {err:?}"
     );
 }
 
@@ -8285,4 +8291,494 @@ fn an_empty_order_is_rejected() {
         matches!(err, ImportError::InvalidPipelineOrder { .. }),
         "phải là biến thể InvalidPipelineOrder, nhận: {err:?}"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.3 — bảng mã: phát hiện và dải đối chiếu năm bản dựng thật (FR126)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Hành vi LÚC CHẠY của `commands::project::{preview_import_encoding,
+// confirm_import_with_encoding, cancel_import_preview, stash_pending_import_source,
+// create_work}` cộng `core::segment::encoding`. Phép kiểm TĨNH trên cây nguồn sống ở
+// `segment_encoding_boundary.rs`.
+
+fn fresh_pending_source() -> PendingImportSourceState {
+    PendingImportSourceState::new(None)
+}
+
+fn read_chapter_source_text_6_3(opened: &auratranslate_lib::commands::project::OpenWork, chapter_id: i64) -> String {
+    opened
+        .store
+        .read(move |conn| conn.query_row("SELECT source_text FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0)))
+        .expect("doc source_text Chuong that bai")
+}
+
+// ── I/O Matrix: BOM ⇒ tự khai, dải KHÔNG MỞ MẶC ĐỊNH -- nhưng KHÔNG rỗng ─────────
+
+/// 🔴 SỬA (vòng rà đối kháng 2, mục 7) — bản trước khẳng định `candidates.is_empty()` ở
+/// đây, gộp "dải không mở MẶC ĐỊNH" (quyết định HIỂN THỊ, tầng frontend --
+/// `importPreviewState.ts::importPreviewStripIsOpen`) với "dải RỖNG THẬT" (một MẤT MÁT DỮ
+/// LIỆU). Một BOM đứng trước byte THẬT vẫn có đủ byte để dò -- xem doc-comment
+/// `verdict_and_candidates` -- nên `candidates` phải đủ NĂM ô, y hệt ca tin cậy cao/thấp,
+/// để `E` (`openImportPreviewCandidatePicker`) còn có gì mà mở nếu bảng mã BOM khai hoá ra
+/// KHÔNG giải mã được thật.
+#[test]
+fn preview_of_a_utf8_bom_file_is_self_declared_but_still_carries_all_five_real_candidates() {
+    let mut bytes = vec![0xEF, 0xBB, 0xBF];
+    bytes.extend_from_slice("Chương một".as_bytes());
+    let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "bom.txt".to_owned() });
+
+    let preview = preview_import_encoding(&shape);
+
+    assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
+    assert_eq!(
+        preview.candidates.len(),
+        5,
+        "BOM co byte THAT dang sau -- dai phai du NAM o, khong phai mot 'cau hoi gia'"
+    );
+    let utf8_cell = preview.candidates.iter().find(|c| c.label == "UTF-8").unwrap();
+    // ⚠️ `render_candidates` giải mã CẢ cửa sổ thô, kể cả ba byte BOM (`render_candidates`
+    // không biết -- và không cần biết -- ca gọi nó là "tự khai" hay "đang đoán"): ba byte đó
+    // giải mã UTF-8 ra ĐÚNG MỘT ký tự `U+FEFF` vô hình đứng trước chữ thật. `contains`,
+    // không `==`, để không đối chứng nhầm vào một chi tiết KHÔNG phải điều test này canh.
+    let rendered = utf8_cell.preview.as_deref().unwrap_or("");
+    assert!(
+        rendered.contains("Chương"),
+        "o UTF-8 phai la ban dung THAT, khong phai None -- day la diem E dung de thoat, thay: {rendered:?}"
+    );
+}
+
+// ── I/O Matrix: văn bản dán tay ⇒ tự khai ───────────────────────────────────────
+
+#[test]
+fn preview_of_pasted_text_is_self_declared_with_no_bytes_to_sniff() {
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText("dan tay".to_owned()));
+
+    let preview = preview_import_encoding(&shape);
+
+    assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
+    assert!(preview.candidates.is_empty());
+}
+
+// ── I/O Matrix: tệp thuần ASCII ⇒ tự đoán, tin cậy cao ──────────────────────────
+
+#[test]
+fn preview_of_pure_ascii_bytes_is_high_confidence_with_five_identical_candidates() {
+    let shape = PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes: b"Chapter One: plain ascii content.".to_vec(),
+        label: "ascii.txt".to_owned(),
+    });
+
+    let preview = preview_import_encoding(&shape);
+
+    assert_eq!(preview.confidence, ConfidenceWire::High);
+    // 🔵 SỬA (2026-09-04, vòng rà lại spec 6.3) — "candidates rỗng khi tin cậy cao" đã HẾT
+    // ĐÚNG: I/O Matrix hàng ASCII nói nguyên văn "NĂM bản dựng cho CÙNG một chuỗi, không có
+    // gì để chọn" — năm bản dựng LUÔN tồn tại (`ImportEncodingPreview::candidates`, xem
+    // doc-comment); "dải không mở" là quyết định TẦNG HIỂN THỊ dựa trên `confidence`
+    // (`src/importPreviewState.ts`), không phải Rust giấu dữ liệu.
+    assert_eq!(preview.candidates.len(), 5, "nam ban dung LUON co mat, bat ke tin cay");
+    // Bốn ứng viên BYTE-ĐƠN-VỊ (UTF-8/GB18030/GBK/Big5) phải giải ra CÙNG một chuỗi trên
+    // ASCII thuần — ô "UTF-16" cố ý bị LOẠI (cùng lý do các ca khác của tệp này): giải mã
+    // ASCII bằng UTF-16LE cho ra chữ ĐÔI, khác hẳn bốn ô kia một cách TỰ NHIÊN.
+    let byte_candidates: Vec<_> = preview.candidates.iter().filter(|c| c.label != "UTF-16").collect();
+    let first_preview = &byte_candidates[0].preview;
+    for c in &byte_candidates {
+        assert_eq!(
+            &c.preview, first_preview,
+            "ASCII thuan -- moi ung vien byte-don-vi phai giai ma ra CUNG mot chuoi (nhan {})",
+            c.label
+        );
+    }
+}
+
+// ── I/O Matrix + ca DƯƠNG (c) vòng rà 1: tệp GBK mở đầu 12 ký tự ASCII ──────────
+// ⇒ tin cậy THẤP, dải năm ô, GBK và GB18030 hiện chữ y hệt.
+
+#[test]
+fn preview_of_a_gbk_file_with_a_short_ascii_header_opens_the_strip_with_five_cells() {
+    let (bytes, _, had_errors) =
+        encoding_rs::GBK.encode("Chapter 01\r\n萧炎在东临村口的一处石壁上练习着最基础的吐纳法门。");
+    assert!(!had_errors, "fixture phai ma hoa GBK sach");
+    let shape = PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes: bytes.into_owned(),
+        label: "gbk-header.txt".to_owned(),
+    });
+
+    let preview = preview_import_encoding(&shape);
+
+    assert_eq!(
+        preview.confidence,
+        ConfidenceWire::Low,
+        "tieu de ASCII ngan (12 ky tu) khong duoc che khuat sai lech o phan con lai"
+    );
+    assert_eq!(preview.candidates.len(), 5);
+    assert_eq!(
+        preview.candidates.iter().map(|c| c.label.as_str()).collect::<Vec<_>>(),
+        vec!["UTF-8", "GB18030", "GBK", "Big5", "UTF-16"]
+    );
+    let gb18030 = preview.candidates.iter().find(|c| c.label == "GB18030").expect("o GB18030");
+    let gbk = preview.candidates.iter().find(|c| c.label == "GBK").expect("o GBK");
+    assert_eq!(gb18030.preview, gbk.preview, "GBK va GB18030 phai hien chu Y HET");
+}
+
+// ── I/O Matrix: một ứng viên không giải mã được ⇒ "không ra chữ", ô khác không đổi ──
+
+#[test]
+fn preview_marks_an_undecodable_candidate_without_touching_the_others() {
+    let shape = PipelineShape::Blob(ChapterInput::RawBytes {
+        // 0xFF khong bao gio la mot lead byte hop le trong UTF-8/GBK/GB18030/Big5.
+        bytes: vec![0xFF, 0xFF, 0xFF, 0xFF],
+        label: "bad.bin".to_owned(),
+    });
+
+    let preview = preview_import_encoding(&shape);
+
+    assert_eq!(preview.confidence, ConfidenceWire::Low);
+    assert_eq!(preview.candidates.len(), 5);
+    // Bốn ứng viên BYTE-ĐƠN-VỊ (UTF-8/GB18030/GBK/Big5) đều thất bại trên `0xFF 0xFF 0xFF
+    // 0xFF` — ô "UTF-16" cố ý bị LOẠI khỏi khẳng định này: UTF-16 gần như luôn giải mã
+    // được (mỗi cặp byte là một code unit hợp lệ, kể cả khi vô nghĩa) — đúng lý do nó bị
+    // loại khỏi phép biểu quyết "cùng một chuỗi" (xem doc-comment đầu tệp
+    // `core/segment/encoding.rs`).
+    for c in preview.candidates.iter().filter(|c| c.label != "UTF-16") {
+        assert!(c.preview.is_none(), "nhan {}: ky vong 'khong ra chu'", c.label);
+    }
+}
+
+// ── Ca DƯƠNG bắt buộc (a), vòng rà 1: nhập với GBK đã chọn ⇒ đọc lại ĐÚNG chữ Hán ──
+
+#[test]
+fn confirming_with_gbk_chosen_writes_back_the_exact_source_chinese_text() {
+    let root = temp_dir("6-3-confirm-gbk");
+    const TEXT: &str = "萧炎在东临村口的一处石壁上练习着最基础的吐纳法门。";
+    let (bytes, _, had_errors) = encoding_rs::GBK.encode(TEXT);
+    assert!(!had_errors);
+    let shape = PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes: bytes.into_owned(),
+        label: "gbk.txt".to_owned(),
+    });
+
+    let pending = fresh_pending_source();
+    stash_pending_import_source(&pending, shape);
+
+    let opened = confirm_import_with_encoding(&root, &pending, "GBK Confirm", "zh", "", "GBK")
+        .unwrap_or_else(|e| panic!("xac nhan GBK that bai: {e:?}"));
+
+    let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
+    assert_eq!(source_text, TEXT, "van ban doc lai phai DUNG chu Han nguon");
+
+    drop(opened.store);
+    cleanup(&root);
+}
+
+// ── Vòng rà đối kháng 2, mục 14: hai lượt xác nhận CHỒNG NHAU trên CÙNG một nguồn ──
+
+/// Trước bản vá mục 14: `confirm_import_with_encoding` thả khoá `PendingImportSourceState`
+/// ngay sau khi đọc xong `shape`, rồi mới gọi `create_work` (không giữ khoá qua phần ghi
+/// đĩa). Hai lời gọi CHỒNG NHAU trên CÙNG một nguồn đang chờ (mô phỏng ở đây bằng hai
+/// luồng thật, không chỉ hai lời gọi tuần tự) đều đọc được `shape` TRƯỚC KHI bên kia dọn ô
+/// — cả hai `create_work` đều chạy, sinh HAI Tác phẩm từ MỘT nguồn. Sau bản vá, khoá được
+/// giữ xuyên suốt hàm: lượt thứ hai (dù luồng nào chạy trước) phải đợi lượt thứ nhất xong
+/// rồi mới đọc `state`, thấy `None`, và bị từ chối sạch.
+#[test]
+fn two_concurrent_confirms_on_the_same_pending_source_produce_exactly_one_work_not_two() {
+    let root = temp_dir("6-3-confirm-race");
+    let shape = PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes: b"plain ascii race fixture".to_vec(),
+        label: "race.txt".to_owned(),
+    });
+
+    let pending = fresh_pending_source();
+    stash_pending_import_source(&pending, shape);
+
+    let results = std::thread::scope(|scope| {
+        let h1 =
+            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race A", "en", "", "UTF-8"));
+        let h2 =
+            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race B", "en", "", "UTF-8"));
+        [h1.join().expect("luong 1 panic"), h2.join().expect("luong 2 panic")]
+    });
+
+    let successes: Vec<_> = results.iter().filter(|r| r.is_ok()).collect();
+    let failures: Vec<_> = results.iter().filter(|r| r.is_err()).collect();
+    assert_eq!(
+        successes.len(),
+        1,
+        "ky vong DUNG MOT lan xac nhan thanh cong tu MOT nguon dang cho, thay: {results:?}"
+    );
+    assert_eq!(failures.len(), 1, "luot con lai phai bi tu choi (nguon dang cho da bi dọn)");
+    for err in &failures {
+        let Err(e) = err else { unreachable!() };
+        assert_eq!(
+            e.code(), "import.no_pending_source",
+            "luot thua phai bi tu choi vi HET nguon, khong phai vi mot ly do khac: {e:?}"
+        );
+    }
+
+    for r in results {
+        if let Ok(opened) = r {
+            drop(opened.store);
+        }
+    }
+    cleanup(&root);
+}
+
+// ── Ca DƯƠNG bắt buộc (b), vòng rà 1: tệp UTF-16BE có BOM trọn đường ────────────
+// ⇒ văn bản lưu bằng văn bản nguồn — đối chứng defect #1: nhãn "UTF-16" gộp LE/BE,
+// một lượt quay vòng bảng mã → nhãn → bảng mã cứng LE sẽ làm chữ đảo byte.
+
+#[test]
+fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_order_corruption()
+ {
+    let root = temp_dir("6-3-utf16be");
+    const TEXT: &str = "Chương một: một đoạn văn bản.";
+    // ⚠️ `encoding_rs::UTF_16BE.encode(..)` KHÔNG mã hoá sang UTF-16BE — doc-comment của
+    // chính `Encoding::new_encoder`: "the output encoding of UTF-16BE, UTF-16LE, and
+    // replacement is UTF-8. There is no encoder for UTF-16BE, UTF-16LE... themselves."
+    // `.encode()` trên các bảng đó âm thầm trả byte UTF-8. Dựng tay bằng
+    // `str::encode_utf16()` + big-endian cho ĐÚNG fixture.
+    let mut bytes = vec![0xFE, 0xFF]; // BOM UTF-16BE
+    for unit in TEXT.encode_utf16() {
+        bytes.extend_from_slice(&unit.to_be_bytes());
+    }
+    let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "utf16be.txt".to_owned() });
+
+    let preview = preview_import_encoding(&shape);
+    assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared, "BOM -- nguon tu khai");
+    assert_eq!(
+        preview.selected_encoding, "UTF-16BE",
+        "wire_id phai giu DUNG thu tu byte -- khong roi ve LE"
+    );
+
+    let pending = fresh_pending_source();
+    stash_pending_import_source(&pending, shape);
+    let opened =
+        confirm_import_with_encoding(&root, &pending, "UTF-16BE", "en", "", &preview.selected_encoding)
+            .unwrap_or_else(|e| panic!("xac nhan UTF-16BE that bai: {e:?}"));
+
+    let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
+    assert_eq!(source_text, TEXT, "chu phai doc duoc, KHONG phai chu dao byte");
+
+    drop(opened.store);
+    cleanup(&root);
+}
+
+// ── Ca DƯƠNG bắt buộc (d), vòng rà 1: huỷ rồi xác nhận ⇒ 0 Tác phẩm được tạo ────
+
+#[test]
+fn cancelling_then_confirming_creates_zero_works() {
+    let root = temp_dir("6-3-cancel-then-confirm");
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText("van ban dan tay".to_owned()));
+
+    let pending = fresh_pending_source();
+    stash_pending_import_source(&pending, shape);
+    cancel_import_preview(&pending);
+
+    let err = confirm_import_with_encoding(&root, &pending, "Huy Roi Xac Nhan", "en", "", "UTF-8")
+        .expect_err("xac nhan sau khi huy phai bi tu choi");
+    assert_eq!(err.message_key(), MessageKey::ImportNoPendingSource);
+
+    let entries: Vec<_> = fs::read_dir(&root).unwrap().collect();
+    assert!(entries.is_empty(), "0 Tac pham nao duoc tao sau khi huy roi xac nhan");
+
+    cleanup(&root);
+}
+
+// ── I/O Matrix: xác nhận với bảng mã đã chọn, byte không giải mã được ───────────
+// ⇒ từ chối tường minh, nêu đích danh bảng mã, VÀ ô đang chờ GIỮ NGUYÊN (chọn một
+// ứng viên khác rồi xác nhận lại không đòi đọc nguồn lần hai).
+
+#[test]
+fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_source_for_a_retry()
+ {
+    let root = temp_dir("6-3-wrong-encoding-retry");
+    const TEXT: &str = "萧炎登场";
+    let (bytes, _, had_errors) = encoding_rs::GBK.encode(TEXT);
+    assert!(!had_errors);
+    let shape = PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes: bytes.into_owned(),
+        label: "gbk.txt".to_owned(),
+    });
+
+    let pending = fresh_pending_source();
+    stash_pending_import_source(&pending, shape);
+
+    // 1) chọn NHẦM UTF-8 -- ngữ pháp byte UTF-8 chặt, byte GBK cua chu Han hau nhu chac
+    // chan vi pham no.
+    let err = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "UTF-8")
+        .expect_err("byte GBK phai TU CHOI duoi UTF-8");
+    assert_eq!(err.message_key(), MessageKey::ImportUndecodableBytes);
+    assert_eq!(err.params().get("encoding").map(String::as_str), Some("UTF-8"));
+    assert!(
+        fs::read_dir(&root).unwrap().next().is_none(),
+        "lan xac nhan SAI khong duoc tao gi ca"
+    );
+
+    // 2) chọn LẠI đúng GBK -- KHÔNG cần đọc nguồn lần hai, ô đang chờ vẫn còn từ (1).
+    let opened = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "GBK")
+        .unwrap_or_else(|e| panic!("xac nhan lai voi GBK phai thanh cong: {e:?}"));
+    let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
+    assert_eq!(source_text, TEXT);
+
+    drop(opened.store);
+    cleanup(&root);
+}
+
+// ── §Design Notes: nhãn không nhận ra ⇒ IpcError tường minh, KHÔNG rơi về UTF-8 ─
+
+#[test]
+fn confirming_with_an_unrecognized_encoding_wire_id_is_refused_explicitly() {
+    let root = temp_dir("6-3-unrecognized-encoding");
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText("abc".to_owned()));
+    let pending = fresh_pending_source();
+    stash_pending_import_source(&pending, shape);
+
+    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "not-a-real-encoding")
+        .expect_err("nhan la khong nhan ra phai bi tu choi");
+    assert_eq!(err.message_key(), MessageKey::ImportUnrecognizedEncoding);
+    assert!(fs::read_dir(&root).unwrap().next().is_none());
+
+    cleanup(&root);
+}
+
+/// 🔴 Vòng rà đối kháng 2, mục 6 — `Shift_JIS` là một nhãn WHATWG HỢP LỆ (khác
+/// "not-a-real-encoding" ở ca ngay trên, chuỗi đó sai cú pháp từ đầu) nhưng NGOÀI FR126.
+/// Đối chứng cho đúng mệnh đề doc-comment `encoding_for_wire_id` tự khai.
+#[test]
+fn confirming_with_a_whatwg_valid_label_outside_fr126_is_refused_explicitly() {
+    let root = temp_dir("6-3-shift-jis-outside-fr126");
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText("abc".to_owned()));
+    let pending = fresh_pending_source();
+    stash_pending_import_source(&pending, shape);
+
+    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "Shift_JIS")
+        .expect_err("Shift_JIS la nhan WHATWG hop le nhung NGOAI FR126 -- phai bi tu choi");
+    assert_eq!(err.message_key(), MessageKey::ImportUnrecognizedEncoding);
+    assert!(fs::read_dir(&root).unwrap().next().is_none());
+
+    cleanup(&root);
+}
+
+// ── §Design Notes: dải đặt sai vị trí (`already_chaptered`) đọc thành tự khai UTF-8 ──
+// Ca phòng thủ: `PipelineShape::Chapters` không có bề mặt sản phẩm nào dựng ở story này,
+// nhưng `preview_import_encoding` phải khớp kiểu cạn hết mà không panic — 🔴 xác nhận
+// hàm KHÔNG được tự tạo một đường ghi giả trên một hình dạng nó không thật sự thử.
+
+#[test]
+fn preview_of_an_already_chaptered_shape_with_no_units_is_self_declared_not_a_panic() {
+    let shape = PipelineShape::Chapters(Vec::new());
+    let preview = preview_import_encoding(&shape);
+    assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
+    assert!(preview.candidates.is_empty());
+}
+
+// ── §Verification: `cargo tree` không đổi qua story này là bằng chứng thủ công, không
+// một test Rust nào canh được số dòng `cargo tree` — bỏ qua ở đây có chủ ý.
+
+/// `create_work` với tham số `encoding` mới — hành vi KHÔNG đổi khi truyền UTF-8, đúng
+/// đường `create_work_from_text`/`create_work_from_file` cũ vẫn đi qua.
+#[test]
+fn create_work_with_utf8_encoding_behaves_identically_to_the_pre_story_default() {
+    let root = temp_dir("6-3-create-work-utf8-unchanged");
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText("khong doi hanh vi".to_owned()));
+
+    let opened = create_work(&root, "UTF8 Khong Doi", "en", "", shape, encoding_rs::UTF_8)
+        .unwrap_or_else(|e| panic!("tao Tac pham UTF-8 that bai: {e:?}"));
+
+    let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
+    assert_eq!(source_text, "khong doi hanh vi");
+
+    drop(opened.store);
+    cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Vòng rà đối kháng 2, mục 2 — hình dạng JSON của `ImportEncodingPreview` không ca nào
+// khẳng định. Đo (2026-09-04): thêm `#[serde(rename_all = "camelCase")]` lên struct đó →
+// `cargo test` 0 ca đỏ VÀ `vitest` 792 xanh — `isImportEncodingPreview` (frontend) bác
+// payload câm lặng, `UNKNOWN_IPC_ERROR`, tính năng chết sạch mà mọi cổng vẫn xanh. Khuôn
+// `pinned_contract.rs::the_pinned_wire_shape_matches_what_the_frontend_reads`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
+    let preview = ImportEncodingPreview {
+        confidence: ConfidenceWire::Low,
+        selected_encoding: "GBK".to_owned(),
+        candidates: vec![
+            EncodingCandidateWire {
+                label: "UTF-8".to_owned(),
+                encoding: "UTF-8".to_owned(),
+                preview: None,
+            },
+            EncodingCandidateWire {
+                label: "GBK".to_owned(),
+                encoding: "GBK".to_owned(),
+                preview: Some("萧炎".to_owned()),
+            },
+        ],
+    };
+
+    let json = serde_json::to_value(&preview).expect("serialize ImportEncodingPreview");
+    let object = json.as_object().expect("ImportEncodingPreview phai serialize thanh object");
+
+    // Ba tên trường cấp một -- `src/config/project.ts::ImportEncodingPreview` doc ba tên
+    // NGUYEN VAN nay. `#[serde(rename_all = "camelCase")]` se doi `selected_encoding` thanh
+    // `selectedEncoding` -- dung DIEM chet ma Ice do duoc.
+    assert_eq!(
+        object.keys().collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from([
+            &"confidence".to_owned(),
+            &"selected_encoding".to_owned(),
+            &"candidates".to_owned()
+        ]),
+        "ImportEncodingPreview phai serialize DUNG BA ten truong snake_case nay, khong hon khong kem"
+    );
+    assert_eq!(object.get("selected_encoding"), Some(&serde_json::Value::String("GBK".to_owned())));
+
+    // `Confidence::LowGuess` -> `ConfidenceWire::Low` -> tren day PHAI la chuoi "low" (khoa
+    // `#[serde(rename_all = "snake_case")]` tren enum) -- frontend so sanh LITERAL voi
+    // 'self_declared'/'high'/'low' (`src/config/project.ts::ImportConfidence`).
+    assert_eq!(object.get("confidence"), Some(&serde_json::Value::String("low".to_owned())));
+
+    let candidates = object.get("candidates").and_then(|v| v.as_array()).expect("candidates la mang");
+    assert_eq!(candidates.len(), 2);
+
+    let first = candidates[0].as_object().expect("candidate[0] la object");
+    assert_eq!(
+        first.keys().collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from([&"label".to_owned(), &"encoding".to_owned(), &"preview".to_owned()]),
+        "EncodingCandidateWire phai serialize DUNG ba ten truong nay"
+    );
+    // 🔴 `preview: None` PHAI di ra la `null` CO MAT, khong mot truong bi bo di -- mot
+    // truong VANG MAT doc ra `undefined` phia TypeScript, mot gia tri THU BA ma
+    // `isImportEncodingPreview`/template khong nhanh nao xu.
+    assert_eq!(
+        first.get("preview"),
+        Some(&serde_json::Value::Null),
+        "preview=None phai di ra `null` CO MAT, khong bi bo qua khoi object JSON"
+    );
+
+    let second = candidates[1].as_object().expect("candidate[1] la object");
+    assert_eq!(second.get("label"), Some(&serde_json::Value::String("GBK".to_owned())));
+    assert_eq!(second.get("encoding"), Some(&serde_json::Value::String("GBK".to_owned())));
+    assert_eq!(second.get("preview"), Some(&serde_json::Value::String("萧炎".to_owned())));
+}
+
+/// Ba giá trị `ConfidenceWire` — cả ba, không chỉ giá trị `Low` mà ca ngay trên đã canh.
+#[test]
+fn every_confidence_wire_variant_serializes_to_the_exact_snake_case_string_the_frontend_compares() {
+    let cases: [(ConfidenceWire, &str); 3] = [
+        (ConfidenceWire::SelfDeclared, "self_declared"),
+        (ConfidenceWire::High, "high"),
+        (ConfidenceWire::Low, "low"),
+    ];
+    for (variant, expected) in cases {
+        assert_eq!(
+            serde_json::to_value(variant).expect("serialize ConfidenceWire"),
+            serde_json::Value::String(expected.to_owned()),
+            "ConfidenceWire::{variant:?} phai serialize thanh chuoi {expected:?}"
+        );
+    }
 }

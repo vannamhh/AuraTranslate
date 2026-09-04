@@ -208,6 +208,23 @@ export type CommandDeps = {
   /** Nộp `filePath` hiện tại. Handler của `library.import_file` (AC1 nhánh tệp/NFR17). */
   submitFilePath?: () => void
 
+  // ── Story 6.3 — màn xem trước bảng mã (FR126) ───────────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `submitPastedText`: state sống ở
+  // `src/importPreviewState.ts`, một module Vue thật (`ref`) — import thẳng nó ở đây giết
+  // Kiểm C/D/E.
+
+  /** Buộc mở dải năm ứng viên dù tin cậy cao/tự khai (`EXPERIENCE.md:182`). Handler của
+   * `import.preview.open_picker` (`E`) — KHÔNG gọi Rust, chỉ đổi cờ hiển thị (Rust luôn cấp
+   * đủ dữ liệu, xem `commands::project::ImportEncodingPreview::candidates`). */
+  openImportPreviewCandidatePicker?: () => void
+  /** Xác nhận lượt nhập với ứng viên đang chọn. Handler của `import.preview.confirm`
+   * (`Mod+Alt+Enter`) — `async`, kết quả TIÊU THỤ ở `main.ts` (đóng vòng nộp form qua
+   * `finishImportSubmission`), không bỏ qua như `submitPastedText`. */
+  confirmImportPreview?: () => void
+  /** Huỷ lượt xem trước — 0 lượt ghi. Handler của `import.preview.cancel`. */
+  cancelImportPreview?: () => void
+
   // ── Story 5.3 — "Quét lại thư mục" (FR99) ───────────────────────────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `submitPastedText`: state sống ở
@@ -1023,6 +1040,61 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.submitFilePath === undefined) return portMissing('library.import_file', 'submitFilePath')
       deps.submitFilePath()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 6.3 — MÀN XEM TRƯỚC BẢNG MÃ (FR126)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * Ba lệnh — mở bộ chọn, xác nhận, huỷ. "Chọn một ứng viên" KHÔNG phải một lệnh: `dispatch`
+   * không nhận tham số (§Design Notes spec 6.3), nên năm ô của dải đi qua `<input
+   * type="radio">` + `@change` trong `ImportPreviewOverlay.vue` — đúng khuôn `@change` của
+   * các radio quyết định bất đồng ở `GlossaryImportOverlay.vue` (Kiểm A của
+   * `check:commands` chỉ canh `@click`, nên đây nằm NGOÀI phạm vi của nó một cách có tiền lệ).
+   *
+   * `EXPERIENCE.md:182` liệt `E` ("mở bộ chọn bảng mã") trong bảng phím của MÀN HÌNH ĐẦY ĐỦ
+   * (khối J/K/Space/[]/R/⌥←/⌥→/⌥W còn lại là tầng 2/3 — Story 6.9/6.5/6.10, CHƯA dựng). `E`
+   * riêng nó dựng được ở story này: Rust LUÔN tính đủ năm bản dựng khi có byte để dò
+   * (`commands::project::ImportEncodingPreview::candidates`, không còn giấu theo
+   * `confidence`), nên buộc mở chỉ đổi một cờ HIỂN THỊ, không cần gọi Rust lần hai.
+   */
+  target.register({
+    id: 'import.preview.open_picker',
+    labelKey: 'command.import.preview.open_picker',
+    keys: ['E'],
+    run: () => {
+      if (deps.openImportPreviewCandidatePicker === undefined) {
+        return portMissing('import.preview.open_picker', 'openImportPreviewCandidatePicker')
+      }
+      deps.openImportPreviewCandidatePicker()
+    },
+  })
+  target.register({
+    id: 'import.preview.confirm',
+    labelKey: 'command.import.preview.confirm',
+    // ⚠️ KHÔNG `Mod+Enter` — đã thuộc `editor.confirm_segment` (kiểm tra thật của
+    // `commandRegistry.register()` ném khi hai command giành một hợp âm). Lớp phủ này là
+    // MODAL (Editor không thể có tiêu điểm đồng thời), nhưng `installCommands()` đăng ký
+    // TOÀN BỘ command một lần, không theo ngữ cảnh — nên hợp âm vẫn phải DUY NHẤT toàn cục.
+    keys: ['Mod+Alt+Enter'],
+    run: () => {
+      if (deps.confirmImportPreview === undefined) {
+        return portMissing('import.preview.confirm', 'confirmImportPreview')
+      }
+      deps.confirmImportPreview()
+    },
+  })
+  target.register({
+    id: 'import.preview.cancel',
+    labelKey: 'command.import.preview.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelImportPreview === undefined) {
+        return portMissing('import.preview.cancel', 'cancelImportPreview')
+      }
+      deps.cancelImportPreview()
     },
   })
 

@@ -802,6 +802,121 @@ fn the_four_chapter_organise_wires_are_registered_and_keep_their_parameter_names
     }
 }
 
+/// **THÊM Story 6.3 (FR126).** Ba vỏ của màn xem trước bảng mã phải CÓ MẶT trong
+/// `generate_handler![…]`, và tham số của chúng phải đúng thứ `src/config/project.ts` gõ ở
+/// phía kia của dây — cùng lý lẽ và cùng khuôn
+/// [`the_four_chapter_organise_wires_are_registered_and_keep_their_parameter_names`] ngay
+/// trên (khoảng trống đo được, không một lo xa — quên MỘT dòng ở `lib.rs` thì `invoke()` trả
+/// "command not found" chỉ khi người dùng bấm nút).
+#[test]
+fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    for wire in [
+        "crate::commands::project::wire::preview_import_encoding_from_text",
+        "crate::commands::project::wire::preview_import_encoding_from_file",
+        "crate::commands::project::wire::confirm_import_with_encoding",
+    ] {
+        assert!(
+            lib_src.contains(wire),
+            "`{wire}` phai co mat trong generate_handler! cua lib.rs. Thieu no thi invoke() tra              \"command not found\" va KHONG cong nao do -- xem doc-comment cua ca test nay."
+        );
+    }
+
+    // 🔴 SỬA (vòng rà đối kháng 2, mục 1) — `PendingImportSourceState` phải được `app.manage(...)`
+    // TRƯỚC khi webview có thể gọi bất kỳ vỏ nào ở trên, nếu không hai vỏ xem trước rơi vào
+    // `try_state::<PendingImportSourceState>() == None`. Đo (2026-09-04): xoá dòng này rồi
+    // `cargo test --no-fail-fast` cho exit=0/0 ca đỏ TRƯỚC khi có assert này — chức năng
+    // nhập chết hoàn toàn mà không cổng nào thấy. Cùng lớp lỗi "quên một dòng trong `lib.rs`"
+    // mà cụm assert `generate_handler!` ngay trên tồn tại để chặn, mở rộng sang dòng đăng ký
+    // trạng thái.
+    assert!(
+        lib_src.contains("app.manage(crate::commands::project::PendingImportSourceState::new(None));"),
+        "thieu `app.manage(crate::commands::project::PendingImportSourceState::new(None))` trong          `lib.rs` -- hai vo xem truoc roi vao nhanh state-chua-quan-ly, va (sau vong ra doi khang          2) tra loi tuong minh thay vi `eprintln!` roi van `Ok`."
+    );
+
+    // 🔴 SỬA (vòng rà đối kháng 2, mục 16) — bản trước chỉ hỏi "chuỗi `text: String` có xuất
+    // hiện Ở ĐÂU ĐÓ trong tệp 2.400+ dòng không", không biết VỎ NÀO sở hữu THAM SỐ NÀO. Một
+    // vỏ mới đổi tên tham số trong khi một hàm KHÁC còn mang cùng token vẫn để cổng này
+    // xanh. Neo vào ĐÚNG khối `pub fn <tên>(...)` của từng vỏ, khớp TOÀN BỘ danh sách tham
+    // số (thứ tự + tên + kiểu), không chỉ một chuỗi con rời rạc.
+    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("project.rs");
+    let project_src = fs::read_to_string(&project_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
+
+    // 🔴 Neo vào `pub mod wire {` TRƯỚC khi bóc — `confirm_import_with_encoding` có HAI khối
+    // `pub fn` cùng tên trong tệp này (hàm THUẦN ở `super`, `:1076`, cộng vỏ IPC ở `wire`,
+    // `:2403`), với danh sách tham số KHÁC HẲN nhau. Tìm không neo sẽ khớp nhầm khối đầu
+    // tiên (hàm thuần) — đúng bẫy mà đối chứng dương ngay dưới chứng minh được.
+    let wire_mod_start = project_src
+        .find("\npub mod wire {")
+        .unwrap_or_else(|| panic!("khong tim thay `pub mod wire {{` trong commands/project.rs"));
+    let wire_src = &project_src[wire_mod_start..];
+
+    for (fn_name, expected_params) in [
+        ("preview_import_encoding_from_text", "app: tauri::AppHandle,\n        text: String,"),
+        ("preview_import_encoding_from_file", "app: tauri::AppHandle,\n        path: String,"),
+        (
+            "confirm_import_with_encoding",
+            "app: tauri::AppHandle,\n        name: String,\n        source_lang: String,\n        genre: String,\n        encoding: String,",
+        ),
+    ] {
+        let params = fn_param_list(wire_src, fn_name);
+        assert_eq!(
+            params.trim(),
+            expected_params,
+            "vo `{fn_name}` trong `pub mod wire` cua commands/project.rs khong con dung danh sach tham so          mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts` la cho duy nhat go lai          theo dung ten/thu tu do."
+        );
+    }
+}
+
+/// Bóc danh sách tham số của khối `pub fn <fn_name>(...)` ĐẦU TIÊN trong `src` — neo vào
+/// ĐÚNG chữ ký hàm đó, không phải một chuỗi con rời rạc bất kỳ đâu trong tệp. Giả định (đúng
+/// cho cả ba vỏ Story 6.3): thân tham số không chứa dấu `)` nào (không kiểu generic lồng
+/// ngoặc tròn) — chữ ký cắt tại dấu `)` đầu tiên SAU `pub fn <fn_name>(`.
+///
+/// ⚠️ `src` PHẢI được chỗ gọi thu hẹp tới đúng phạm vi trước (`pub mod wire { … }`) khi tệp
+/// có nhiều khối `pub fn <fn_name>` cùng tên — hàm này khớp CÁI ĐẦU TIÊN trong `src` truyền
+/// vào, không phân biệt module. Xem đối chứng dương ngay dưới cho ca bẫy đó.
+fn fn_param_list(src: &str, fn_name: &str) -> String {
+    let needle = format!("pub fn {fn_name}(");
+    let start = src
+        .find(&needle)
+        .unwrap_or_else(|| panic!("khong tim thay `{needle}` trong nguon"));
+    let after_open = start + needle.len();
+    let close = src[after_open..]
+        .find(')')
+        .unwrap_or_else(|| panic!("khong tim thay dau `)` dong tham so cho `{fn_name}`"));
+    src[after_open..after_open + close].to_owned()
+}
+
+/// Đối chứng dương cho [`fn_param_list`] — khuôn `segment_encoding_boundary.rs`: chứng minh
+/// hàm bóc THẬT SỰ khớp đúng khối, không khớp lung tung/khớp rỗng oan; VÀ chứng minh cạm
+/// bẫy "hai khối cùng tên" là có thật (đúng hình dạng `confirm_import_with_encoding` trong
+/// `commands/project.rs`) — không thu hẹp phạm vi trước thì hàm khớp nhầm khối ĐẦU TIÊN.
+#[test]
+fn fn_param_list_would_actually_bind_to_the_right_function_block() {
+    let src = "pub fn foo(a: i32, b: String) -> bool { true }\npub fn bar(c: u8) -> u8 { c }";
+    assert_eq!(fn_param_list(src, "foo"), "a: i32, b: String");
+    assert_eq!(fn_param_list(src, "bar"), "c: u8");
+
+    // Ca bẫy — hai khối CÙNG TÊN, tham số KHÁC nhau. Không thu hẹp phạm vi ⇒ khớp nhầm.
+    let duped =
+        "pub fn same(x: u8) -> u8 { x }\nmod inner {\n  pub fn same(y: String, z: bool) -> bool { z }\n}";
+    assert_eq!(
+        fn_param_list(duped, "same"),
+        "x: u8",
+        "khong thu hep pham vi -- PHAI khop khoi DAU TIEN, dung boi canh cua bay nay"
+    );
+    let inner_start = duped.find("mod inner {").expect("fixture phai co `mod inner {`");
+    assert_eq!(fn_param_list(&duped[inner_start..], "same"), "y: String, z: bool");
+}
+
 /// **THÊM Story 5.9.** `library_search` phải CÓ MẶT trong `generate_handler![…]`, và tham số
 /// của nó phải đúng thứ `src/config/library.ts` gõ ở phía kia của dây — cùng lý lẽ và cùng
 /// khuôn [`the_four_chapter_organise_wires_are_registered_and_keep_their_parameter_names`]

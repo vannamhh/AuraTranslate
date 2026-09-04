@@ -27,8 +27,9 @@ use crate::core::i18n::IpcError;
 use crate::core::library::{WorkMeta, create_work_folder, remove_folder};
 use crate::core::lifecycle::LifecycleStatus;
 use crate::core::scope::load_global_config;
-use crate::core::segment::import::{import_file, import_text};
-use crate::core::segment::pipeline::{PipelineInput, PipelineShape, run_import};
+use crate::core::segment::encoding::{self, Confidence, EncodingCandidate, EncodingVerdict};
+use crate::core::segment::import::{ImportError, import_file, import_text};
+use crate::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
 use crate::core::store::{Store, StoreSpec, Transaction};
 
 /// Tên thư mục con dưới `~/Documents/` — AD-23.
@@ -228,9 +229,19 @@ fn resolve_configured_library_root(store: Option<&Store>) -> Option<String> {
 /// khai `chapter_pattern: None` — Never clause của spec 6.2), nên hành vi quan sát được
 /// KHÔNG đổi; đường đi đã tổng quát cho Story 6.6/6.7 (N > 1) mà không cần sửa lại hàm này.
 ///
+/// 🔵 **SỬA 2026-09-04 (Story 6.3) — thêm tham số `encoding`, ĐIỂM TIÊM DUY NHẤT của bảng
+/// mã đã chọn/đã dò.** Trước story này hàm luôn khai UTF-8 cứng qua
+/// [`PipelineInput::default_shaped`]; giờ chỗ gọi CHỌN [`PipelineInput::with_encoding`] hay
+/// `default_shaped` — `create_work_from_text`/`create_work_from_file` (không đổi chữ ký,
+/// dùng bởi `tests/**` và đường sản phẩm KHÔNG đi qua xem trước bảng mã) truyền
+/// [`encoding_rs::UTF_8`]; `wire::confirm_import_with_encoding` (Story 6.3, đường CÓ xem
+/// trước) truyền bảng mã người dùng đã xác nhận. Đây VẪN là chỗ gọi [`run_import`] DUY NHẤT
+/// của cả crate (`segment_pipeline_boundary.rs::run_import_is_the_one_product_call_site`)
+/// — không một chỗ gọi thứ hai nào được mở (§Always spec 6.3).
+///
 /// # Lỗi
 /// - dựng thư mục trượt ⇒ `project.create_failed`;
-/// - chuỗi pipeline trượt (ví dụ byte không hợp lệ với bảng mã đã khai) ⇒ lỗi nhập
+/// - chuỗi pipeline trượt (ví dụ byte không hợp lệ với bảng mã ĐÃ CHỌN) ⇒ lỗi nhập
 ///   (`import.*`), qua `From<ImportError>`;
 /// - mở/ghi `project.db` trượt ⇒ lỗi kho (`store.*`), qua `From<StoreError>`.
 pub fn create_work(
@@ -239,6 +250,7 @@ pub fn create_work(
     source_lang: &str,
     genre: &str,
     shape: PipelineShape,
+    encoding: &'static encoding_rs::Encoding,
 ) -> Result<OpenWork, IpcError> {
     let dir = create_work_folder(documents_root, name)?;
 
@@ -266,8 +278,14 @@ pub fn create_work(
     // 🔴 `chapter_pattern: None` — Never clause của spec 6.2: mẫu phân tách NGƯỜI DÙNG cấu
     // hình được là Story 6.6; sản phẩm hôm nay không có bề mặt nào đưa một mẫu vào, nên
     // bước 5 của chuỗi luôn là no-op và N luôn là 1, đúng hành vi hôm nay.
-    let outcome = match run_import(PipelineInput::default_shaped(shape, source_lang_owned.clone()))
-    {
+    //
+    // 🔵 SỬA 2026-09-04 (Story 6.3) — `with_encoding`, không còn `default_shaped` cứng
+    // UTF-8: `encoding` giờ là tham số của chính `create_work` (xem doc-comment hàm này).
+    let outcome = match run_import(PipelineInput::with_encoding(
+        shape,
+        encoding,
+        source_lang_owned.clone(),
+    )) {
         Ok(outcome) => outcome,
         Err(err) => {
             store.close();
@@ -416,6 +434,12 @@ pub fn create_work(
 }
 
 /// **Hàm thuần** — nhánh dán văn bản của AC1.
+///
+/// 🔵 **KHÔNG đổi hành vi (Story 6.3)** — vẫn khai UTF-8 cứng qua `encoding_rs::UTF_8` (văn
+/// bản dán tay là `ChapterInput::AlreadyText`, bước giải mã bỏ qua vế transcode cho hình
+/// dạng đó dù tham số này là gì — xem doc-comment `pipeline::decode_unit`). Đường sản phẩm
+/// CÓ xem trước bảng mã là `wire::confirm_import_with_encoding`; hàm này ở lại cho
+/// `tests/**` và mọi chỗ gọi không đi qua màn xem trước.
 pub fn create_work_from_text(
     documents_root: &Path,
     name: &str,
@@ -423,7 +447,7 @@ pub fn create_work_from_text(
     genre: &str,
     text: String,
 ) -> Result<OpenWork, IpcError> {
-    create_work(documents_root, name, source_lang, genre, import_text(text))
+    create_work(documents_root, name, source_lang, genre, import_text(text), encoding_rs::UTF_8)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -833,6 +857,10 @@ fn spawn_import_scan(
 /// **Hàm thuần** — nhánh tệp của AC1 (kéo-thả **hoặc** ô nhập đường dẫn; cả hai đã
 /// resolve thành một `path` thật ở lớp gọi, xem AD-1/AD-16).
 ///
+/// 🔵 **KHÔNG đổi hành vi (Story 6.3)** — vẫn khai UTF-8 cứng. Đường sản phẩm CÓ xem trước
+/// bảng mã là `wire::confirm_import_with_encoding`; hàm này ở lại cho `tests/**` và mọi chỗ
+/// gọi không đi qua màn xem trước (cùng lý do `create_work_from_text`).
+///
 /// # Lỗi
 /// `.docx` hay định dạng khác ⇒ `import.unsupported_format` (AC8), **trước khi** thư mục
 /// `.atproj` được tạo — [`import_file`] từ chối theo phần mở rộng trước khi mở tệp.
@@ -844,7 +872,256 @@ pub fn create_work_from_file(
     path: &Path,
 ) -> Result<OpenWork, IpcError> {
     let shape = import_file(path)?;
-    create_work(documents_root, name, source_lang, genre, shape)
+    create_work(documents_root, name, source_lang, genre, shape, encoding_rs::UTF_8)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.3 — màn xem trước bảng mã (FR126) — phát hiện, dải đối chiếu, xác nhận
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 BYTE CỦA NGUỒN ĐỌC ĐÚNG MỘT LẦN (§Always spec 6.3)
+// ─────────────────────────────────────────────────────────────────────────────
+// `wire::preview_import_encoding_from_text`/`_from_file` đọc nguồn (dán tay: nhận thẳng
+// `String` qua IPC; tệp: [`import_file`] gọi `std::fs::read` MỘT LẦN) rồi CẤT [`PipelineShape`]
+// đã đọc vào [`PendingImportSourceState`] — một Ô DUY NHẤT, cùng khuôn
+// `commands::glossary::PendingImportState`. `wire::confirm_import_with_encoding` CLONE
+// (không đọc lại từ đĩa/webview) từ ô đó để chạy [`create_work`] — một lượt xác nhận trượt
+// (ví dụ `import.undecodable_bytes` vì người dùng chọn nhầm ứng viên) GIỮ NGUYÊN ô đang chờ,
+// nên chọn một ứng viên khác rồi xác nhận lại không đòi đọc tệp/dán lại văn bản lần hai. Ô
+// chỉ bị THAY khi một lượt xem trước MỚI mở (ghi đè) — không có vỏ dây riêng cho "huỷ": mở
+// một lượt xem trước MỚI hoặc khởi động lại tiến trình là hai cách duy nhất ô này trống lại,
+// và cả hai đều vô hại (0 byte nào từng xuống đĩa từ ô này — chỉ [`confirm_import_with_encoding`]
+// mới gọi [`create_work`]). "Huỷ" thật sự là một quyết định TẦNG GIAO DIỆN (frontend chặn
+// `dispatch('import.preview.confirm')` sau khi đóng lớp phủ — xem `src/importPreviewState.ts`).
+
+/// Nguồn ĐANG CHỜ của một lượt xem trước bảng mã.
+pub struct PendingImportSource {
+    pub shape: PipelineShape,
+}
+
+/// Kiểu state Tauri quản lý — `None` == không lượt xem trước nào đang treo, cùng khuôn
+/// `commands::glossary::PendingImportState`.
+pub type PendingImportSourceState = std::sync::Mutex<Option<PendingImportSource>>;
+
+/// Một ô trong dải năm ứng viên — hình dạng DÂY của [`EncodingCandidate`].
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct EncodingCandidateWire {
+    /// Nhãn FR126 cho MẮT NGƯỜI (`"UTF-8"`, `"GB18030"`, …).
+    pub label: String,
+    /// Định danh KHÔNG MẤT MÁT (`Encoding::name()`) — gửi lại y nguyên ở lượt xác nhận.
+    pub encoding: String,
+    /// Bản dựng thật, tối đa 8 ký tự — `null` khi bảng mã này "không ra chữ" trên cửa sổ
+    /// bằng chứng.
+    pub preview: Option<String>,
+}
+
+impl From<EncodingCandidate> for EncodingCandidateWire {
+    fn from(c: EncodingCandidate) -> Self {
+        Self { label: c.label.to_owned(), encoding: c.wire_id.to_owned(), preview: c.preview }
+    }
+}
+
+/// Ba trạng thái tin cậy trên dây — DỮ LIỆU (AD-21: Rust không gửi câu). Frontend tự dịch
+/// qua `t()` bằng ba khoá cố định (`mode.library.preview.confidence_*`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfidenceWire {
+    SelfDeclared,
+    High,
+    Low,
+}
+
+impl From<Confidence> for ConfidenceWire {
+    fn from(c: Confidence) -> Self {
+        match c {
+            Confidence::SelfDeclared => ConfidenceWire::SelfDeclared,
+            Confidence::HighGuess => ConfidenceWire::High,
+            Confidence::LowGuess => ConfidenceWire::Low,
+        }
+    }
+}
+
+/// Kết quả một lượt xem trước bảng mã — trả về từ hai vỏ `preview_import_encoding_from_*`.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ImportEncodingPreview {
+    pub confidence: ConfidenceWire,
+    /// Bảng mã đang CHỌN — `EncodingCandidateWire::encoding` của ô mặc định.
+    pub selected_encoding: String,
+    /// Dải năm ô — RỖNG khi `confidence != low` (dải KHÔNG mở, §Always spec 6.3: "không có
+    /// trạng thái lỗi cho bảng mã đoán sai" áp dụng SAU khi người dùng đã thấy dải, không
+    /// phải một lý do để giấu nó khi tin cậy cao/tự khai — dải RỖNG ở ca đó vì không có gì
+    /// để mắt chọn, không phải vì bị che).
+    ///
+    /// 🔴 **LUÔN đủ NĂM ô khi có byte thô để dò** (`RawBytes`/`Chapters` mang byte), BẤT KỂ
+    /// `confidence` — I/O Matrix spec 6.3 hàng "Tệp thuần ASCII": *"năm bản dựng cho CÙNG
+    /// một chuỗi, không có gì để chọn"* — năm bản dựng ĐÃ TỒN TẠI ở ca đó, chỉ trùng nhau.
+    /// Việc dải có MỞ hay không (hiện strip cho người dùng thấy) là quyết định của TẦNG HIỂN
+    /// THỊ dựa trên `confidence` (`src/importPreviewState.ts`), không phải một quyết định
+    /// Rust đưa ra bằng cách giấu dữ liệu — giữ dữ liệu luôn sẵn sàng là điều kiện để người
+    /// dùng ép mở dải thủ công (`E`) kể cả khi tin cậy cao, mà không cần một lượt gọi Rust
+    /// thứ hai. Rỗng CHỈ xảy ra ở nhánh tự khai thật (`AlreadyText`) — ở đó không có gì để
+    /// mà dò, không phải "có nhưng bị giấu".
+    pub candidates: Vec<EncodingCandidateWire>,
+}
+
+/// **Hàm thuần** — dò bảng mã cho `shape` VỪA ĐỌC (không tự đọc gì, không tự lưu state —
+/// chỗ gọi ở `mod wire` chịu trách nhiệm cả hai việc đó, đúng khuôn hai lớp
+/// `src-tauri/AGENTS.md`).
+///
+/// I/O Matrix spec 6.3: `AlreadyText` (văn bản dán tay) ⇒ tự khai, KHÔNG byte nào để dò
+/// ⇒ dải rỗng thật (không phải bị giấu). `RawBytes` ⇒ [`encoding::detect`] CỘNG
+/// [`encoding::render_candidates`] LUÔN LUÔN — xem doc-comment [`ImportEncodingPreview::candidates`]
+/// cho lý do "luôn đủ năm ô" bất kể `confidence`.
+pub fn preview_import_encoding(shape: &PipelineShape) -> ImportEncodingPreview {
+    fn verdict_and_candidates(bytes: &[u8]) -> (EncodingVerdict, Vec<EncodingCandidateWire>) {
+        let verdict = encoding::detect(bytes);
+        // 🔴 SỬA (vòng rà đối kháng 2, mục 7) — bản trước ép `candidates` RỖNG cho MỌI
+        // `SelfDeclared`, gộp CHUNG hai ca khác hẳn nhau dưới MỘT nhãn tin cậy: ① byte RỖNG
+        // (không có gì để mà dò — "tự khai THẬT", đúng như doc-comment hàm này ĐÃ khai:
+        // *"AlreadyText ⇒ KHÔNG byte nào để dò ⇒ dải rỗng THẬT"*) và ② một BOM đứng trước
+        // byte THẬT (`sniff_bom` trả `Some`, `bytes` không rỗng) — case NÀY có đủ byte để dò
+        // y hệt ca tin cậy cao/thấp, chỉ là ta CHỌN tin BOM làm mặc định. Ép rỗng ở ca ② biến
+        // "dải KHÔNG MỞ mặc định" (quyết định HIỂN THỊ, đúng I/O Matrix) thành "dải KHÔNG
+        // TỒN TẠI" (một MẤT MÁT DỮ LIỆU) — khi bảng mã BOM khai KHÔNG giải mã được thật (BOM
+        // UTF-16LE đứng trước byte hỏng, ví dụ), lượt xác nhận trượt bằng `UndecodableBytes`
+        // và người dùng bấm `E` (`openImportPreviewCandidatePicker`) THẤY NO-OP vì
+        // `candidates.length === 0` — NGÕ CỤT, không đường lùi nào ngoài đóng lớp phủ, bỏ cả
+        // lượt nhập. Đúng câu doc-comment hàm này đã tự khai ("RawBytes ⇒ detect CỘNG
+        // render_candidates LUÔN LUÔN") và đúng doc-comment [`ImportEncodingPreview::candidates`]
+        // ("Rỗng CHỈ xảy ra ở nhánh tự khai THẬT (AlreadyText)... không phải 'có nhưng bị
+        // giấu'") — mã bây giờ khớp lời khai của chính nó: CHỈ byte RỖNG mới cho dải rỗng
+        // thật; một BOM đứng trước byte thật vẫn có đủ năm ô, `E` vẫn mở được nó làm lối
+        // thoát khi bảng mã BOM khai hoá ra sai.
+        let candidates = if bytes.is_empty() {
+            Vec::new()
+        } else {
+            encoding::render_candidates(bytes).into_iter().map(EncodingCandidateWire::from).collect()
+        };
+        (verdict, candidates)
+    }
+
+    let self_declared_utf8 = || EncodingVerdict {
+        encoding: encoding_rs::UTF_8,
+        confidence: Confidence::SelfDeclared,
+    };
+
+    let (verdict, candidates) = match shape {
+        PipelineShape::Blob(ChapterInput::AlreadyText(_)) => (self_declared_utf8(), Vec::new()),
+        PipelineShape::Blob(ChapterInput::RawBytes { bytes, .. }) => verdict_and_candidates(bytes),
+        // ⚠️ Sản phẩm hôm nay không có bề mặt nào dựng `PipelineShape::Chapters` TRƯỚC màn
+        // xem trước bảng mã (danh sách URL là Story 6.7) — nhánh này chỉ tồn tại để khớp
+        // kiểu (`match` cạn hết). Dò trên đơn vị ĐẦU khi nó mang byte thô; tự khai khi rỗng
+        // hoặc đơn vị đầu đã là văn bản.
+        PipelineShape::Chapters(chapters) => match chapters.first() {
+            Some(ChapterInput::RawBytes { bytes, .. }) => verdict_and_candidates(bytes),
+            Some(ChapterInput::AlreadyText(_)) | None => (self_declared_utf8(), Vec::new()),
+        },
+    };
+
+    ImportEncodingPreview {
+        confidence: verdict.confidence.into(),
+        selected_encoding: verdict.encoding.name().to_owned(),
+        candidates,
+    }
+}
+
+/// `confirm_import_with_encoding` gọi khi [`PendingImportSourceState`] rỗng — hộp thoại xem
+/// trước đã bị dọn (huỷ ở tầng giao diện, đóng Tác phẩm, hoặc một lượt xem trước KHÁC đã ghi
+/// đè) trước khi lượt xác nhận này tới nơi. Cùng khuôn `GlossaryNoPendingImport`.
+fn no_pending_import_source() -> IpcError {
+    IpcError::new(
+        "import.no_pending_source",
+        crate::core::i18n::MessageKey::ImportNoPendingSource,
+        std::collections::BTreeMap::new(),
+        false,
+    )
+}
+
+/// **Hàm thuần** — ghi `shape` vào `state`, ghi ĐÈ lượt xem trước cũ nếu có. Đúng khuôn hai
+/// lớp `src-tauri/AGENTS.md`: nhận thẳng `&PendingImportSourceState`, không `AppHandle`, để
+/// `tests::` gọi được không cần webview. Gọi bởi `wire::preview_import_encoding_from_text`/
+/// `_from_file`, NGAY SAU [`preview_import_encoding`] — đúng thứ tự "đọc rồi mới cất" (§Always
+/// spec 6.3: byte đọc đúng một lần).
+pub fn stash_pending_import_source(state: &PendingImportSourceState, shape: PipelineShape) {
+    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    *guard = Some(PendingImportSource { shape });
+}
+
+/// **Hàm thuần** — dọn ô đang chờ.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// ⚠️ VÌ SAO KHÔNG CÓ VỎ IPC RIÊNG — "huỷ" LÀ MỘT QUYẾT ĐỊNH TẦNG GIAO DIỆN
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Task list spec 6.3 chỉ đòi ĐÚNG BA vỏ dây (hai `preview_import_encoding_from_*` cộng
+/// `confirm_import_with_encoding`) — không một vỏ thứ tư cho "huỷ". Sản phẩm hôm nay chặn
+/// một lượt `confirm` sau khi huỷ hoàn toàn ở TẦNG GIAO DIỆN: `dispatch('import.preview.confirm')`
+/// không bao giờ được gọi sau khi `src/importPreviewState.ts::cancelImportPreview()` đã xoá
+/// state cục bộ và đóng lớp phủ (defect #5 của vòng rà 1 nằm ở CHÍNH chỗ đó, không ở Rust).
+///
+/// Hàm này ở lại như một hàm THUẦN, không có chỗ gọi sản phẩm nào (0 chỗ gọi từ `mod wire`),
+/// vì đó là điều kiện DUY NHẤT để hàng ma trận I/O *"huỷ rồi xác nhận ⇒ 0 Tác phẩm được
+/// tạo"* kiểm được TRONG `tests/**` — không có cách nào khác để một `tests/**` (chỉ gọi
+/// hàm thuần, không webview) mô phỏng "người dùng đã huỷ" mà không có một hàm dọn state
+/// tường minh. [`tests`] gọi hàm này rồi khẳng định [`confirm_import_with_encoding`] từ chối
+/// và 0 thư mục `.atproj` được tạo.
+pub fn cancel_import_preview(state: &PendingImportSourceState) {
+    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    *guard = None;
+}
+
+/// **Hàm thuần** — lõi của lượt xác nhận: giải `encoding_wire_id`, CLONE (không `take`, xem
+/// doc-comment [`PendingImportSourceState`]) nguồn đang chờ, gọi [`create_work`], rồi dọn ô
+/// đang chờ khi và chỉ khi THÀNH CÔNG. Tách khỏi `wire::confirm_import_with_encoding` đúng
+/// khuôn hai lớp — `tests::` gọi được không cần `tauri::AppHandle`.
+///
+/// # Lỗi
+/// - `encoding_wire_id` không giải ngược được ⇒ `import.unrecognized_encoding` (KHÔNG âm
+///   thầm rơi về UTF-8, §Design Notes spec 6.3);
+/// - `state` rỗng ⇒ `import.no_pending_source`;
+/// - [`create_work`] trượt (ví dụ byte không giải mã được với CHÍNH bảng mã đã chọn) ⇒ lỗi
+///   của nó, đi thẳng — ô đang chờ GIỮ NGUYÊN (không dọn trên đường lỗi), để một lượt xác
+///   nhận KẾ TIẾP với một ứng viên khác không đòi đọc nguồn lần hai.
+pub fn confirm_import_with_encoding(
+    documents_root: &Path,
+    state: &PendingImportSourceState,
+    name: &str,
+    source_lang: &str,
+    genre: &str,
+    encoding_wire_id: &str,
+) -> Result<OpenWork, IpcError> {
+    let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
+        IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
+    })?;
+
+    // 🔴 SỬA (vòng rà đối kháng 2, mục 14) — GIỮ NGUYÊN một `MutexGuard` cho TRỌN vẹn phần
+    // đọc-rồi-ghi, không thả khoá giữa lúc đọc `shape` (clone) và lúc gọi [`create_work`].
+    // Bản trước thả khoá ngay sau khi đọc xong `shape` rồi mới gọi `create_work` — hai lượt
+    // gọi hàm này CHỒNG NHAU (hai lời gọi IPC đến gần như cùng lúc, ví dụ một bộ fixture
+    // e2e gọi thẳng `internals.invoke('confirm_import_with_encoding', …)` hai lần liền,
+    // vòng chặn `confirming` ở `importPreviewState.ts` là JS-side, không chắn được một lời
+    // gọi thô bỏ qua tầng đó) đều đọc được CÙNG một `shape` (chưa ai xoá), đều
+    // `create_work` THÀNH CÔNG ⇒ HAI Tác phẩm từ MỘT nguồn đang chờ. Giữ khoá xuyên suốt
+    // biến `confirm_import_with_encoding` thành một đoạn TỚI HẠN đúng nghĩa: lượt THỨ HAI
+    // phải đợi lượt thứ nhất xong (kể cả phần ghi đĩa của `create_work`) rồi mới đọc được
+    // `state`, lúc đó `guard` đã là `None` (đã dọn ở cuối lượt thứ nhất) ⇒ trả
+    // `no_pending_import_source` — TỪ CHỐI SẠCH, không ghi đè, không Tác phẩm thứ hai.
+    //
+    // Không đổi hành vi CA THƯỜNG (một lượt xác nhận duy nhất, không chồng): `shape` vẫn chỉ
+    // bị dọn khi và chỉ khi `create_work` thành công — GIỮ NGUYÊN trên đường lỗi, đúng doc-
+    // comment ở trên (lượt xác nhận lại với một ứng viên khác không đòi đọc nguồn lần hai).
+    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let shape = guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?;
+
+    let opened = create_work(documents_root, name, source_lang, genre, shape, chosen)?;
+
+    // Thành công — dọn ô đang chờ, VẪN dưới CÙNG một khoá đã giữ từ đầu hàm.
+    *guard = None;
+
+    Ok(opened)
 }
 
 /// `work_id` không có hàng trong `library-index.db` (`Indexer::find_work` trả `None`) —
@@ -1880,9 +2157,12 @@ mod tests {
     }
 }
 
-/// Hai vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
+/// Nhiều vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
-    use super::{IpcError, OpenWork, replace_open_work, resolve_library_root, spawn_import_scan};
+    use super::{
+        ImportEncodingPreview, IpcError, OpenWork, PendingImportSourceState,
+        no_pending_import_source, replace_open_work, resolve_library_root, spawn_import_scan,
+    };
     use crate::core::i18n::MessageKey;
     use crate::core::library::WorkMeta;
     use crate::core::library::indexer::Indexer;
@@ -2013,6 +2293,20 @@ pub mod wire {
     ///
     /// ⚠️ Trả về [`CreatedWork`] — vỏ **không** trả `OpenWork` ra ngoài (nó mang `Store`,
     /// không `Serialize`); quản lý `OpenWork` trong state qua [`replace_open_work`].
+    ///
+    /// 🔴 **VÌ SAO VỎ NÀY Ở LẠI, DÙ 0 CHỖ GỌI SẢN PHẨM (vòng rà đối kháng 2, mục 5)** —
+    /// `src/**` không còn chỗ nào gọi tới đây kể từ Story 6.3 (nộp form đi qua màn xem
+    /// trước bảng mã, xem `wire::confirm_import_with_encoding`), và adapter TS
+    /// `createWorkFromText` (`src/config/project.ts`) đã bị XOÁ vì lý do đó. Vỏ RUST này
+    /// KHÔNG bị xoá theo: 15+ tệp `e2e/specs/**` gọi thẳng
+    /// `internals.invoke('create_work_from_text', {...})` để dựng fixture NHANH, cố ý đi
+    /// đường IPC trực tiếp — bỏ qua UI, bỏ qua màn xem trước, đúng ý đồ của một bàn fixture
+    /// (xem `e2e/support/workspace.mjs`). Xoá vỏ này phá TOÀN BỘ hạ tầng đó.
+    ///
+    /// Bất biến "không byte nào xuống đĩa trước khi xác nhận" (§Always spec 6.3) vì thế là
+    /// một mệnh đề về ĐƯỜNG SẢN PHẨM (`src/**`), không phải về TOÀN BỘ bề mặt IPC — cổng
+    /// canh nó là `tests/frontend/noProductPathBypassesEncodingPreview.test.ts` (quét
+    /// `src/**`, không quét `e2e/**` — `e2e/**` được PHÉP đi tắt có chủ ý).
     #[tauri::command]
     pub fn create_work_from_text(
         app: tauri::AppHandle,
@@ -2044,7 +2338,8 @@ pub mod wire {
         ))
     }
 
-    /// Vỏ IPC của [`super::create_work_from_file`].
+    /// Vỏ IPC của [`super::create_work_from_file`]. Cùng lý do "ở lại dù 0 chỗ gọi sản
+    /// phẩm" với `create_work_from_text` ngay trên — đọc doc-comment ở đó.
     #[tauri::command]
     pub fn create_work_from_file(
         app: tauri::AppHandle,
@@ -2066,6 +2361,106 @@ pub mod wire {
         let created = CreatedWork::from_open(&opened);
         reindex_library(&app, &root);
         // 🔴 Cùng lý do nhánh `create_work_from_text` ngay trên — chốt trước khi `move`.
+        let work_id = opened.meta.work_id.clone();
+        let chapter_id = opened.chapter_id;
+        let scan_source_lang = source_lang.clone();
+        replace_open_work(&app, opened);
+        Ok(super::keep_committed_import_when_scan_spawn_fails(
+            created,
+            || spawn_import_scan(app, work_id, chapter_id, scan_source_lang),
+        ))
+    }
+
+    /// Vỏ IPC — nhánh DÁN VĂN BẢN của màn xem trước bảng mã (Story 6.3, FR126). Văn bản dán
+    /// tay đã LÀ `String` từ lúc rời webview — không byte thô nào để đọc lại, nên đây KHÔNG
+    /// thể trượt bằng chính lượt đọc (`Result` vẫn cần: xem lỗi "state chưa quản lý" dưới
+    /// đây).
+    /// **Không một quy tắc nào sống ở đây** — đọc [`super::preview_import_encoding`] và
+    /// [`super::stash_pending_import_source`].
+    ///
+    /// # Lỗi
+    /// - [`PendingImportSourceState`] chưa được `app.manage(...)` (lỗi cấu hình `setup()`) ⇒
+    ///   `import.no_pending_source`, TƯỜNG MINH. 🔴 SỬA (vòng rà đối kháng 2, mục 1) — bản
+    ///   trước `eprintln!` rồi vẫn trả `Ok(preview)`: người dùng thấy màn xem trước chạy
+    ///   BÌNH THƯỜNG, chọn một ứng viên, bấm "Xác nhận" — rồi mọi lượt xác nhận đều trượt
+    ///   với `no_pending_source`, không một manh mối nào giải thích vì sao. Đây là một lượt
+    ///   XUỐNG CẤP IM LẶNG đúng lớp lỗi mà AGENTS.md gọi tên là trung tâm của dự án.
+    #[tauri::command]
+    pub fn preview_import_encoding_from_text(
+        app: tauri::AppHandle,
+        text: String,
+    ) -> Result<ImportEncodingPreview, IpcError> {
+        use tauri::Manager as _;
+        let Some(state) = app.try_state::<PendingImportSourceState>() else {
+            return Err(no_pending_import_source());
+        };
+        let shape = super::import_text(text);
+        let preview = super::preview_import_encoding(&shape);
+        super::stash_pending_import_source(&state, shape);
+        Ok(preview)
+    }
+
+    /// Vỏ IPC — nhánh TỆP của màn xem trước bảng mã (Story 6.3, FR126). [`import_file`] đọc
+    /// byte thô ĐÚNG MỘT LẦN ở đây; `confirm_import_with_encoding` CLONE từ
+    /// [`PendingImportSourceState`], không đọc lại đĩa.
+    ///
+    /// # Lỗi
+    /// - [`PendingImportSourceState`] chưa được quản lý ⇒ `import.no_pending_source`, cùng lý
+    ///   do nhánh DÁN VĂN BẢN ngay trên.
+    #[tauri::command]
+    pub fn preview_import_encoding_from_file(
+        app: tauri::AppHandle,
+        path: String,
+    ) -> Result<ImportEncodingPreview, IpcError> {
+        use tauri::Manager as _;
+        let Some(state) = app.try_state::<PendingImportSourceState>() else {
+            return Err(no_pending_import_source());
+        };
+        let shape = super::import_file(std::path::Path::new(&path))?;
+        let preview = super::preview_import_encoding(&shape);
+        super::stash_pending_import_source(&state, shape);
+        Ok(preview)
+    }
+
+    /// Vỏ IPC — xác nhận lượt nhập với bảng mã đã chọn (Story 6.3, FR126). **Không một quy
+    /// tắc nào sống ở đây** — lõi là [`super::confirm_import_with_encoding`] (hàm thuần,
+    /// điểm gọi [`super::create_work`] DUY NHẤT của đường CÓ xem trước bảng mã — không một
+    /// chỗ gọi `run_import` thứ hai, §Always spec 6.3); vỏ này chỉ phân giải thư mục gốc,
+    /// gói kết quả thành [`CreatedWork`], và nối tiếp lượt tái lập chỉ mục + quét Glossary
+    /// đúng khuôn `create_work_from_text`/`create_work_from_file`.
+    ///
+    /// # Lỗi
+    /// - `encoding` không giải ngược được thành một bảng mã ⇒ `import.unrecognized_encoding`,
+    ///   TƯỜNG MINH, không âm thầm rơi về UTF-8 (§Design Notes spec 6.3);
+    /// - không có lượt xem trước nào đang treo ⇒ `import.no_pending_source`;
+    /// - byte không giải mã được với CHÍNH bảng mã đã chọn ⇒ `import.undecodable_bytes`, nêu
+    ///   đích danh bảng mã đó — ô đang chờ GIỮ NGUYÊN, chọn một ứng viên khác rồi xác nhận
+    ///   lại không đòi đọc nguồn lần hai.
+    #[tauri::command]
+    pub fn confirm_import_with_encoding(
+        app: tauri::AppHandle,
+        name: String,
+        source_lang: String,
+        genre: String,
+        encoding: String,
+    ) -> Result<CreatedWork, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(pending_state) = app.try_state::<PendingImportSourceState>() else {
+            return Err(no_pending_import_source());
+        };
+        let root = resolve_library_root(&app, app.try_state::<Store>().as_deref())?;
+        let opened = super::confirm_import_with_encoding(
+            &root,
+            &pending_state,
+            &name,
+            &source_lang,
+            &genre,
+            &encoding,
+        )?;
+
+        let created = CreatedWork::from_open(&opened);
+        reindex_library(&app, &root);
         let work_id = opened.meta.work_id.clone();
         let chapter_id = opened.chapter_id;
         let scan_source_lang = source_lang.clone();

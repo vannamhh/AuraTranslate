@@ -637,6 +637,12 @@ pub fn run() {
             crate::commands::config::wire::delete_config,
             crate::commands::project::wire::create_work_from_text,
             crate::commands::project::wire::create_work_from_file,
+            // Story 6.3 (FR126) -- man xem truoc bang ma: hai vo doc (dan tay/tep, doc byte
+            // cua nguon DUNG MOT LAN, cat vao PendingImportSourceState) cong mot vo xac nhan
+            // (clone tu o dang cho, goi `create_work` voi bang ma da chon).
+            crate::commands::project::wire::preview_import_encoding_from_text,
+            crate::commands::project::wire::preview_import_encoding_from_file,
+            crate::commands::project::wire::confirm_import_with_encoding,
             // Story 5.7 -- mo lai mot `.atproj` DA CO tren dia (FR12). `work_id`, KHONG mot
             // duong dan he tep -- `atproj_path` phan giai o Rust tu `library-index.db` qua
             // `Indexer::find_work`.
@@ -1021,6 +1027,10 @@ fn open_work_slot(app: &tauri::App) {
     // canh OpenWorkState vi lo dang treo o tang Work phai chet cung Tac pham dang mo no --
     // xem close_open_work.
     app.manage(crate::commands::glossary::PendingImportState::new(None));
+    // Story 6.3 (FR126) -- nguon dang cho cua man xem truoc bang ma (Task list spec 6.3:
+    // "byte cua nguon doc DUNG MOT LAN"). Cung khuon PendingImportState ngay tren; khong
+    // rang buoc nao voi OpenWork (mot luot xem truoc chua tung tao Tac pham nao).
+    app.manage(crate::commands::project::PendingImportSourceState::new(None));
 }
 
 /// Mở `$APPDATA/library-index.db` và đưa nó vào state — **Story 5.2**, cùng khuôn

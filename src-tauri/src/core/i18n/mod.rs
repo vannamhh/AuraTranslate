@@ -135,16 +135,37 @@ message_keys! {
     // ─────────────────────────────────────────────────────────────────────────
     // TẦNG TÁC PHẨM + ĐƯỜNG NHẬP — Story 1.15 (AD-9 · AD-33 · AD-39)
     //
-    // Bốn khoá, và đúng bốn: `.docx`/bảng mã lạ bị từ chối TRƯỚC khi chạm đĩa
-    // (AC8) là lỗi ĐƯỜNG NHẬP, không phải lỗi kho — `StoreError` không có biến
-    // thể nào mô tả đúng "định dạng chưa nhận". `meta.json` mang số phiên bản
-    // RIÊNG của chính nó (AC7), độc lập với `PRAGMA user_version` của `project.db`.
+    // 🔵 SỬA (2026-09-04, Story 6.3) — "Bốn khoá, và đúng bốn" đã HẾT ĐÚNG cho danh sách
+    // NGUYÊN VĂN: `ImportNotUtf8` CHUYỂN xuống khối glossary (Story 3.3) — khoá đó dùng
+    // CHUNG với `GlossaryError::ImportNotUtf8` (epic 3), và di chuyển nó tới đây (khối chủ
+    // ĐÚNG của nó, đứng cạnh khối vẫn dùng nó) làm rõ điều đó thay vì để nó "mượn ngầm" một
+    // khối không còn liên quan (§Spec Change Log, vòng rà 1, spec 6.3). Bốn khoá bên dưới
+    // vẫn đúng bốn, chỉ đổi MỘT: `ImportUndecodableBytes` thay `ImportNotUtf8` (đổi tên +
+    // thêm tham số `encoding`) — `.docx`/bảng mã lạ bị từ chối TRƯỚC khi chạm đĩa (AC8) là
+    // lỗi ĐƯỜNG NHẬP, không phải lỗi kho — `StoreError` không có biến thể nào mô tả đúng
+    // "định dạng chưa nhận". `meta.json` mang số phiên bản RIÊNG của chính nó (AC7), độc
+    // lập với `PRAGMA user_version` của `project.db`.
     // ─────────────────────────────────────────────────────────────────────────
     /// Định dạng tệp đưa vào chưa được nhận ở phiên bản hiện tại (`.docx`, v.v.) — AC8.
     /// `format` là phần mở rộng đọc được, dữ liệu chứ không phải câu.
     ImportUnsupportedFormat => "err.import.unsupported_format" ["format"],
-    /// Nội dung tệp không giải mã được bằng UTF-8 — Quyết định #6, cùng khuôn với `.docx`.
-    ImportNotUtf8 => "err.import.not_utf8" ["path"],
+    /// 🔵 **ĐỔI TÊN 2026-09-04 (Story 6.3)** — trước đây `ImportNotUtf8`, khoá cứng UTF-8
+    /// (Quyết định #6). Từ story này bảng mã ĐÃ CHỌN có thể là bất kỳ nhãn nào trong FR126
+    /// (`core::segment::encoding`) — `path` VÀ `encoding` (tên WHATWG của bảng mã đã chọn,
+    /// "nêu đích danh bảng mã đã chọn", I/O Matrix spec 6.3) đều bắt buộc.
+    ImportUndecodableBytes => "err.import.undecodable_bytes" ["path", "encoding"],
+    /// **THÊM 2026-09-04 (Story 6.3)** — `wire_id` gửi lên ở lượt xác nhận bảng mã không
+    /// giải ngược được thành một `&'static encoding_rs::Encoding`
+    /// (`core::segment::encoding::encoding_for_wire_id`). Không đường sản phẩm nào lái tới
+    /// nhánh này hôm nay (webview chỉ gửi lại một `wire_id` mà chính Rust vừa cấp) — có mặt
+    /// để "không nhận ra ⇒ IpcError tường minh, KHÔNG âm thầm rơi về UTF-8" là một hợp đồng
+    /// KIỂU, không một lời hứa bằng chữ.
+    ImportUnrecognizedEncoding => "err.import.unrecognized_encoding" ["encoding"],
+    /// **THÊM 2026-09-04 (Story 6.3)** — `confirm_import_with_encoding` gọi khi
+    /// `PendingImportSourceState` rỗng: lượt xem trước đã bị dọn (một lượt xem trước KHÁC
+    /// ghi đè, hoặc tiến trình khởi động lại) trước khi lượt xác nhận này tới nơi. Cùng
+    /// khuôn `GlossaryNoPendingImport` (Story 3.10b).
+    ImportNoPendingSource => "err.import.no_pending_source" [],
     /// Tệp đưa vào không có phần mở rộng nào — hạng RIÊNG, không phải
     /// `ImportUnsupportedFormat` với `format` rỗng (nó cho ra một câu vỡ). Code review
     /// 2026-08-06.
@@ -357,13 +378,26 @@ message_keys! {
     // ── Story 3.10b (AD-48 · FR49/NFR9) — BỐN khoá MỚI, ba tái dùng ─────────────────
     //
     // Hộp thoại chọn tệp nối vào xuất/nhập Glossary. Ba ca I/O mượn khoá CHUNG với
-    // `core::segment::import` vì câu ĐÚNG là câu chung, không câu riêng của Glossary:
-    // `ImportTooLarge` (["size","limit"], `core::glossary::store::GlossaryError::
+    // `core::segment::import` (khoá thứ hai của bộ ba, `ImportNotUtf8`, chuyển hẳn XUỐNG
+    // ĐÂY 2026-09-04 — xem doc-comment nó) vì câu ĐÚNG là câu chung, không câu riêng của
+    // Glossary: `ImportTooLarge` (["size","limit"], `core::glossary::store::GlossaryError::
     // ImportFileTooLarge` dùng trần 16 MiB thay vì 100 MiB — cùng khoá, hai con số
     // khác), `ImportNotUtf8` (["path"], `GlossaryError::ImportNotUtf8`), `IoReadFailed`
     // (["path"], `GlossaryError::ImportReadFailed` — lỗi mở/đọc tệp KHÁC hai ca trên,
     // ví dụ quyền truy cập). Bốn khoá dưới đây RIÊNG vì không khoá nào hiện có nói đúng
     // bốn sự thật này.
+    /// 🔵 **CHUYỂN XUỐNG ĐÂY 2026-09-04 (Story 6.3, vòng rà 1).** Trước story này khoá này
+    /// khai ở khối "Story 1.15" (`core::segment::import::ImportError::NotUtf8`) — chỉ thị
+    /// gốc của Story 6.3 định GỠ nó với tiền đề *"khoá này chỉ thuộc `core::segment`"*,
+    /// nhưng tiền đề đó SAI: `GlossaryError::ImportNotUtf8` (`core/glossary/store.rs:522`,
+    /// Story 3.10b) dùng CHUNG khoá này cho lỗi hộp thoại chọn tệp nhập CSV/TSV — mượn
+    /// ngầm từ một khối vừa đổi ý nghĩa. `core::segment::import::ImportError` giờ dùng
+    /// [`MessageKey::ImportUndecodableBytes`] (khoá RIÊNG, thêm tham số `encoding`); khoá
+    /// NÀY ở lại — khai lại TẠI ĐÂY, cạnh chủ THẬT của nó — cho một tệp Glossary không giải
+    /// mã được bằng UTF-8 (`String::from_utf8`, KHÔNG `_lossy`) — Glossary KHÔNG dò bảng mã
+    /// (dò bảng mã là phạm vi `core::segment`/Epic 6, không mở rộng sang Glossary ở story
+    /// này).
+    ImportNotUtf8 => "err.import.not_utf8" ["path"],
     /// Ghi tệp xuất thất bại (hệ điều hành từ chối, hết dung lượng, …) — §Ask First của
     /// spec: "ghi nguyên tử bị hệ điều hành từ chối ở một thư mục người dùng chọn".
     /// `path` là đường dẫn người dùng vừa chọn — dữ liệu, không phải câu.

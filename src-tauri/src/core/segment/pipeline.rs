@@ -153,7 +153,8 @@ pub enum ChapterInput {
         /// [`Step::DecodeEncoding`] (bước 1 của chuỗi), không phải việc của bước đầu vào.
         bytes: Vec<u8>,
         /// Tên/đường dẫn nguồn, CHỈ để chẩn đoán khi [`Step::DecodeEncoding`] trượt
-        /// (`ImportError::NotUtf8::path`). Rỗng là hợp lệ khi nguồn không có một cái tên có
+        /// (`ImportError::UndecodableBytes::path`, đổi tên 2026-09-04 Story 6.3 — xem
+        /// doc-comment biến thể đó). Rỗng là hợp lệ khi nguồn không có một cái tên có
         /// nghĩa (nhánh này chỉ thật sự được đọc trên đường LỖI).
         label: String,
     },
@@ -184,11 +185,18 @@ pub enum PipelineShape {
 /// bước 1 và bước 5 cần biết để chạy.
 pub struct PipelineInput {
     pub shape: PipelineShape,
-    /// Bảng mã ĐÃ KHAI cho [`Step::DecodeEncoding`] — KHÔNG dò (Story 6.3 mới dò bằng
-    /// `chardetng`). Đường sản phẩm luôn khai [`encoding_rs::UTF_8`]
-    /// ([`PipelineInput::default_shaped`], Never clause của spec 6.2) — một encoding khác
-    /// chỉ `tests/**` khai, để dựng đối chứng AD-39 cần byte THẬT SỰ đổi hình dạng qua bước
-    /// giải mã (§Design Notes "Vì sao ca đối chứng cần byte chưa giải mã" của spec 6.2).
+    /// Bảng mã ĐÃ KHAI cho [`Step::DecodeEncoding`].
+    ///
+    /// 🔵 **SỬA 2026-09-04 (Story 6.3) — "KHÔNG dò" đã HẾT ĐÚNG.** Bản Story 6.2 khai cứng
+    /// UTF-8 trên mọi đường sản phẩm; `core::segment::encoding::detect` (mới, Story 6.3)
+    /// giờ dò thật, và `commands::project::preview_import_encoding` +
+    /// [`PipelineInput::with_encoding`] là đường sản phẩm khai một bảng mã KHÁC UTF-8.
+    /// [`PipelineInput::default_shaped`] VẪN khai UTF-8 cứng — nó ở lại cho hai chỗ gọi
+    /// KHÔNG đi qua xem trước bảng mã: `commands::project::create_work_from_text`/
+    /// `create_work_from_file` (hai hàm thuần cũ, vẫn được `tests/**` gọi trực tiếp rất
+    /// nhiều nơi) và mọi ca `tests/**` dựng đối chứng AD-39 cần byte THẬT SỰ đổi hình dạng
+    /// qua bước giải mã (§Design Notes "Vì sao ca đối chứng cần byte chưa giải mã" của spec
+    /// 6.2) mà không cần dò gì cả.
     pub encoding: &'static encoding_rs::Encoding,
     /// Mẫu phân tách của [`Step::SplitChapters`] — chuỗi con literal, KHÔNG regex, và KHÔNG
     /// cấu hình được bởi người dùng ở story này (Story 6.6 sở hữu mẫu thật, cấu hình được).
@@ -209,6 +217,20 @@ impl PipelineInput {
             chapter_pattern: None,
             source_lang: source_lang.into(),
         }
+    }
+
+    /// **THÊM 2026-09-04 (Story 6.3)** — cấu hình mang một bảng mã ĐÃ CHỌN, đứng CẠNH
+    /// [`PipelineInput::default_shaped`] (§Always spec 6.3: không sửa/xoá constructor cũ).
+    /// Đường sản phẩm dùng hàm này khi người dùng đã xác nhận một ứng viên ở màn xem trước
+    /// bảng mã (`commands::project::confirm_import_with_encoding`) — `chapter_pattern` vẫn
+    /// `None` (Never clause của spec 6.2/6.3: mẫu phân tách người dùng cấu hình được là
+    /// Story 6.6, không thuộc phạm vi này).
+    pub fn with_encoding(
+        shape: PipelineShape,
+        encoding: &'static encoding_rs::Encoding,
+        source_lang: impl Into<String>,
+    ) -> Self {
+        PipelineInput { shape, encoding, chapter_pattern: None, source_lang: source_lang.into() }
     }
 }
 
@@ -360,7 +382,12 @@ pub fn run_import_with_order(
                 // bản trước dùng `String::from_utf8_lossy`, ghi `U+FFFD` vào văn bản TRONG
                 // IM LẶNG — đúng lớp lỗi "rỗng/hỏng ngầm" mà AGENTS.md gọi tên là trung tâm
                 // của dự án), không phải một lượt thay ký tự.
-                Unit::Undecoded { label, .. } => return Err(ImportError::NotUtf8 { path: label }),
+                Unit::Undecoded { label, .. } => {
+                    return Err(ImportError::UndecodableBytes {
+                        path: label,
+                        encoding: encoding.name().to_owned(),
+                    });
+                }
             };
             Ok(ImportedChapter { source_text, segments: s.unwrap_or_default() })
         })
@@ -406,11 +433,17 @@ fn decode_unit(unit: Unit, encoding: &'static encoding_rs::Encoding) -> Result<U
         Unit::Decoded(t) => Ok(Unit::Decoded(strip_bom(t))),
         Unit::Undecoded { bytes, label } => {
             let text = if encoding == encoding_rs::UTF_8 {
-                String::from_utf8(bytes).map_err(|_| ImportError::NotUtf8 { path: label })?
+                String::from_utf8(bytes).map_err(|_| ImportError::UndecodableBytes {
+                    path: label,
+                    encoding: encoding.name().to_owned(),
+                })?
             } else {
                 encoding
                     .decode_without_bom_handling_and_without_replacement(&bytes)
-                    .ok_or(ImportError::NotUtf8 { path: label })?
+                    .ok_or_else(|| ImportError::UndecodableBytes {
+                        path: label,
+                        encoding: encoding.name().to_owned(),
+                    })?
                     .into_owned()
             };
             Ok(Unit::Decoded(strip_bom(text)))

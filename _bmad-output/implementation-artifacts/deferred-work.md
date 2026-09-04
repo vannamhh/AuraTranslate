@@ -9055,6 +9055,16 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   nào để mà hiện.** `run_import`/`run_import_with_order` chạy trọn hết bảy bước rồi trả thẳng kết
   quả cho `commands::project::create_work` ghi xuống — không có điểm dừng giữa chừng nào để
   người dùng xem/sửa trước khi ghi. **Chủ: Story 6.5.**
+  → 🟡 (2026-09-04, Story 6.3). Bề mặt IPC/UI **đã có** — `ImportPreviewOverlay.vue` dựng ba
+  tầng theo đúng thứ tự nhân quả AD-39 spine `:502` (bảng mã → ranh giới nội dung → luật làm
+  sạch), và `commands::project::{preview_import_encoding_from_text,_from_file,
+  confirm_import_with_encoding}` là điểm DỪNG GIỮA CHỪNG thật: byte đọc xong, `create_work`
+  (bước ghi) CHỈ chạy sau khi người dùng bấm "Xác nhận". Vế còn hở, tách CHÍNH XÁC theo hai
+  tầng còn thân rỗng: tầng RANH GIỚI NỘI DUNG (bóc `dom_smoothie`, sửa bằng bàn phím) — **Chủ:
+  Story 6.9**; tầng LUẬT LÀM SẠCH (danh sách mẫu, xem/sửa/tắt, hiện thứ sắp xoá) — **Chủ:
+  Story 6.5** (không đổi). Cả hai tầng LUÔN HIỆN trên màn hình (không `v-if` ẩn khi rỗng) và
+  LUÔN nói ra lý do rỗng kèm tên chủ (`mode.library.preview.tier_empty_story_6_9`/`_6_5`,
+  `src/importPreviewState.ts::importPreviewEmptyReasonForTier`) — đúng §Always spec 6.3.
 - ⚠️ **"Một `.docx` bỏ qua bước giải mã bảng mã" (AD-39 spine `:500`) nghiệm thu ở story này
   BẰNG HÌNH DẠNG, không bằng một `.docx` thật.** `segment_contract.rs::an_already_text_shape_skips_the_transcode_half_of_the_decode_step`
   chứng minh `Step::DecodeEncoding` bỏ qua vế transcode cho `ChapterInput::AlreadyText` — đúng
@@ -9063,6 +9073,11 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   viện ĐỌC vẫn Deferred — xem `Deferred from: 6-1-mui-tham-do-ba-lua-chon-thu-vien`), nên mệnh đề
   chỉ đúng cho một hình dạng dựng tay, không cho một tệp `.docx` sản phẩm thật đi qua. **Chủ:
   Story 6.12** cho ca `.docx` thật.
+  → 🟡 (2026-09-04, Story 6.3). Nhánh "nguồn tự khai" của `Confidence::SelfDeclared`
+  (`core/segment/encoding.rs`) đã dựng ĐÚNG cho `ChapterInput::AlreadyText` (khớp hình dạng
+  `.docx` SẼ đến dưới, theo bảng hình dạng AD-39) và nghiệm thu được bằng test
+  (`segment_contract.rs::preview_of_pasted_text_is_self_declared_with_no_bytes_to_sniff`),
+  nhưng vẫn CHƯA có một tệp `.docx` thật đi qua — mệnh đề gốc không đổi. **Chủ: Story 6.12.**
 
 - ⚠️ **`ImportError::NotUtf8` sẽ thành một NHÃN SAI đúng vào ngày Story 6.3 hạ cánh.** Story 6.2
   cho `Step::DecodeEncoding` giải mã theo một bảng mã **được khai**, và biến thể lỗi dùng lại cho
@@ -9073,6 +9088,13 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   Rust mà để `MessageKey::ImportNotUtf8` đứng yên là nhét một miễn trừ chứ không sửa nguồn. Hôm
   nay đường sản phẩm chỉ khai được UTF-8 nên thông điệp vẫn ĐÚNG — nó sai đúng lúc 6.3 làm nó sai.
   ⇒ Đổi **cả hai nửa trong CÙNG một lượt**, ở story tạo ra cái sai. **Chủ: Story 6.3.**
+  → ✅ ĐÃ ĐÓNG 2026-09-04 (Story 6.3). `ImportError::NotUtf8` đổi tên thành `UndecodableBytes`
+  (thêm trường `encoding`, `core/segment/import.rs`); `MessageKey::ImportNotUtf8` đổi thành
+  `ImportUndecodableBytes` (`err.import.undecodable_bytes`, tham số `path`+`encoding`) —
+  CẢ HAI nửa cùng một lượt. `GlossaryError::ImportNotUtf8` (Story 3.10b, epic 3) dùng CHUNG
+  khoá `err.import.not_utf8` cũ — khoá đó KHÔNG bị gỡ, chỉ khai LẠI trong khối glossary của
+  `core/i18n/mod.rs` để có chủ tường minh (vòng rà 1 của spec 6.3 bác tiền đề "chỉ thuộc
+  core::segment" của chỉ thị gốc).
 
 - ⚠️ **`PipelineInput.encoding: &'static encoding_rs::Encoding` rò một kiểu thư viện thứ ba ra bề
   mặt công khai của `core/segment/`.** Mọi chỗ dựng một `PipelineInput` vì thế phải phụ thuộc
@@ -9082,3 +9104,153 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   0 — chi phí thật chỉ đọc được khi đường URL (6.7) và đường `.docx` (6.12) cũng phải dựng kiểu
   này. Nếu tới lúc đó vẫn chỉ một chỗ dựng thì đây là một mục **KHÔNG LÀM** có lý do, không phải
   một món nợ. **Chủ: Story 6.7.**
+  → 🔵 SỬA (2026-09-04, Story 6.3) — "chỉ có đúng một chỗ dựng" đã HẾT ĐÚNG, mệnh đề GHÉP NỐI
+  gốc vẫn ĐỨNG NGUYÊN. `create_work` (hàm thuần) nay nhận `encoding` làm tham số TƯỜNG MINH
+  (không còn ẩn sau `PipelineInput::default_shaped`) — CẢ HAI chỗ gọi sản phẩm
+  (`create_work_from_text`/`create_work_from_file` khai `encoding_rs::UTF_8` cứng, và
+  `commands::project::confirm_import_with_encoding` khai bảng mã người dùng đã chọn qua
+  `core::segment::encoding::encoding_for_wire_id`) đều phụ thuộc `encoding_rs`. Phép đo *"nó
+  tốn bao nhiêu"* vẫn CHƯA đọc được (chi phí thật chỉ lộ khi đường URL/6.7 và `.docx`/6.12
+  cũng phải dựng kiểu này) — Chủ giữ nguyên Story 6.7.
+
+- ⚠️ **Tỉ lệ dò đúng của `chardetng` trên GBK/Big5 THẬT — CHƯA có số đo (0 mẫu).** Bàn đo
+  `src-tauri/tests/webimport_probe.rs:260` (`chardetng_records_the_true_and_guessed_label_of_every_encoding_fixture_or_fails_loudly_on_zero_samples`)
+  vẫn `#[ignore]` và giữ nguyên nhánh đỏ 0-mẫu (§Never spec 6.3: KHÔNG tự sinh fixture
+  GBK/Big5 bằng cách mã hoá rồi bảo chính bộ dò đọc lại — đó là một vòng tròn, không phải một
+  phép đo). `core/segment/encoding.rs` đã dựng và nghiệm thu ĐẦY ĐỦ luật CỦA TA (ba trạng
+  thái tin cậy, thứ tự BOM-trước-đoán, loại UTF-16 khỏi biểu quyết) bằng byte GBK/Big5 DỰNG
+  TAY (`encoding_rs::GBK.encode(...)`) — điều đó kiểm được ĐƯỜNG DÂY và LUẬT, không kiểm được
+  **`chardetng` đoán đúng bao nhiêu phần trăm trên dữ liệu thật**. Cần Ice cấp fixture GBK/Big5
+  thật (tệp `.txt`/`.md` thật, không phải văn bản UTF-8 mã hoá lại) vào
+  `src-tauri/tests/fixtures/encoding/` (thư mục CHƯA tồn tại) trước khi bàn đo chạy được.
+  **Chủ: Ice.**
+
+- ⚠️ **Nhánh "nguồn tự khai" bảng mã qua `charset` của HTTP (`Content-Type` header/`<meta
+  charset>`) CHƯA có đường nhập nào để nghiệm thu.** `core::segment::encoding::Confidence::SelfDeclared`
+  hôm nay chỉ có hai nguồn: BOM (`sniff_bom`) và `ChapterInput::AlreadyText`. Một phản hồi
+  HTTP tự khai `charset` qua header là một nguồn THỨ BA đáng lẽ cũng phải rơi vào
+  `SelfDeclared` (nguồn đã nói cho ta biết, không cần đoán) — nhưng `Fetcher` (Story 6.7)
+  chưa tồn tại nên không có byte HTTP nào để mà thử. **Chủ: Story 6.7.**
+
+- ⚠️ **"Chọn một ứng viên khác PHẢI chạy lại chuỗi từ bước một" (một dòng 🔴 của §Tasks spec
+  6.3, ô `src/importPreviewState.ts`) — bản thi hành chọn một đường KHÁC, không phải đường
+  spec ghi.** Spec đòi: đổi `selectedEncoding` phải chạy lại TRỌN chuỗi bảy bước AD-39 với
+  bảng mã mới rồi dựng lại cả ba tầng đang hiện. `selectImportPreviewCandidate()`
+  (`src/importPreviewState.ts`) làm khác: nó chỉ đổi một `ref` cục bộ, đọc lại bản dựng đã
+  có SẴN trong `preview.candidates` — bản dựng đó đến từ
+  `core::segment::encoding::render_candidates`, hàm giải mã CẢ NĂM ứng viên một lần lúc mở
+  màn xem trước, KHÔNG phải từ một lượt `run_import` chạy lại. Chuỗi bảy bước thật chỉ chạy
+  MỘT LẦN, ở `confirm_import_with_encoding`, sau khi người dùng đã chốt ứng viên.
+  ⇒ Đây là một CHỆCH khỏi mệnh đề 🔴, không phải một cách đọc khác của cùng mệnh đề.
+
+  **Vì sao hôm nay không quan sát được khác biệt — phép đo, không suy luận:**
+  `core/segment/pipeline.rs` (`run_import_with_order`, nhánh `match` của `Step`) cho thấy
+  BA trong bốn bước còn lại của chuỗi là THÂN RỖNG: `Step::ExtractMainContent` (`:341`,
+  Story 6.9), `Step::CleanByRules` (`:345`, Story 6.5), `Step::NormalizeParagraphsAndWhitespace`
+  (`:349`, Story 6.4) — cả ba chỉ `trace.push(step); flow` rồi trả nguyên `flow`, không đổi
+  một byte nào của `Unit::Decoded`. Chỉ `Step::DecodeEncoding` (bước 1) và
+  `Step::SplitChapters`/`Step::SplitSegments` (bước 5/7) có cơ chế thật. Vì bước 1 là bước
+  DUY NHẤT mà bảng mã can thiệp, và `render_candidates` ĐÃ giải mã đúng bảng mã đó (cùng
+  `decode_prefix_streaming` mà `Step::DecodeEncoding` production dùng, trên cùng cửa sổ
+  bằng chứng) — kết quả hiển thị ở tầng 1 khi đổi ứng viên TRÙNG với kết quả một lượt
+  `run_import` thật sự sẽ cho ra, MIỄN LÀ bước 2-4 vẫn là no-op. Tầng 2/3 luôn rỗng
+  (`importPreviewEmptyReasonForTier`), nên không có gì ở đó để mà khác nhau giữa hai đường.
+
+  **Rủi ro cụ thể cho story dựng thân đầu tiên cho tầng 2 hoặc tầng 3:** ngay khi
+  `Step::ExtractMainContent` (6.9) hoặc `Step::CleanByRules` (6.5) có một cơ chế thật (đọc
+  `Unit::Decoded` rồi biến đổi nó), tầng 2/3 của màn xem trước sẽ hiện ranh giới nội dung/
+  luật làm sạch tính trên bảng mã ĐẦU TIÊN mà `preview_import_encoding` chọn — KHÔNG phải
+  bảng mã người dùng vừa đổi sang trong dải — vì `selectImportPreviewCandidate()` không gọi
+  lại `run_import`. Người dùng đổi bảng mã, thấy chữ tầng 1 đúng, nhưng tầng 2/3 (nếu đã có
+  thân) vẫn hiện kết quả tính trên bảng mã CŨ — một hình dạng "trông như đang chạy" nhưng
+  hỏng đúng lúc nó bắt đầu có nghĩa. **Chủ: story dựng thân ĐẦU TIÊN cho tầng 2 hoặc tầng 3
+  (ứng viên gần nhất: Story 6.9, hoặc Story 6.5 nếu 6.5 đi trước) — sửa
+  `selectImportPreviewCandidate()` để nó thật sự gọi lại chuỗi (thêm một lượt gọi Rust chạy
+  `run_import` trong bộ nhớ trên nguồn đang chờ, không ghi đĩa) TRƯỚC khi dựng thân cho tầng
+  đó, không phải sau.**
+
+- ⚠️ **`PipelineShape::Chapters` chọn MỘT bảng mã cho `chapters.first()` rồi áp uống nó lên
+  MỌI đơn vị `RawBytes` trong cùng danh sách — vòng rà đối kháng 2, mục 21.** Hai chỗ:
+  `commands::project::preview_import_encoding`
+  (`PipelineShape::Chapters(chapters) => match chapters.first() { Some(RawBytes{bytes,..}) =>
+  verdict_and_candidates(bytes), ... }`) chỉ dò/dựng dải năm ứng viên trên đơn vị ĐẦU TIÊN;
+  `core/segment/pipeline.rs::run_import_with_order` (`Step::DecodeEncoding`) sau đó gọi
+  `decode_unit(u, encoding)` với ĐÚNG MỘT `encoding` (bảng mã người dùng đã chốt từ màn xem
+  trước) cho TỪNG phần tử của `Vec<ChapterInput>` — kể cả những phần tử KHÔNG phải
+  `chapters[0]`. `ChapterInput::AlreadyText` tự bỏ qua vế transcode (`decode_unit` khớp
+  `Unit::Decoded(t) => Ok(Unit::Decoded(strip_bom(t)))`, an toàn với MỌI `encoding` truyền
+  vào — không phải chỗ hở), nhưng `ChapterInput::RawBytes` ở vị trí thứ 2 trở đi bị giải mã
+  bằng bảng mã tính từ vị trí ĐẦU. Nếu một danh sách URL (Story 6.7) tương lai trộn nhiều
+  nguồn có bảng mã THẬT khác nhau (link A trả GBK, link B trả UTF-8), mọi `RawBytes` sau
+  link đầu bị "mượn" bảng mã của link đầu — hoặc ra rác lặng lẽ (nếu vẫn giải mã được, không
+  `Malformed`) hoặc trượt `UndecodableBytes` cho một lỗi không nói đúng NGUYÊN NHÂN (bảng mã
+  SAI cho ĐÚNG đơn vị đó, không phải "byte hỏng").
+
+  **Vì sao hôm nay không quan sát được — phép đo, không suy luận:** `grep -rn
+  "PipelineShape::Chapters(" src-tauri/src/` (ngoài `tests/**`) cho đúng HAI dòng, cả hai là
+  nhánh `match` xử lý hình dạng đó (`pipeline.rs:324`, `project.rs:1019`) — **0** chỗ trong
+  `src-tauri/src/` DỰNG một `PipelineShape::Chapters(vec![...])` với dữ liệu thật. Sản phẩm
+  hôm nay chỉ đi qua `PipelineShape::Blob` (một đơn vị, không có "đơn vị thứ hai" nào để mà
+  mượn nhầm bảng mã của đơn vị đầu). Hai nhánh `match` ở trên tồn tại CHỈ để khớp kiểu cạn
+  hết mà không panic (đúng chú thích tại chỗ, `project.rs:1015`), không phải một đường được
+  thử.
+
+  **Chủ: Story 6.7 (danh sách URL, nguồn ĐẦU TIÊN thực sự dựng `PipelineShape::Chapters` với
+  N > 1 phần tử `RawBytes` có nguồn gốc khác nhau).** Trước khi 6.7 cho phép một danh sách
+  URL với NHIỀU đơn vị `RawBytes` đi tới màn xem trước, phải chọn một trong hai đường: ①
+  chạy `preview_import_encoding`/dò bảng mã ĐỘC LẬP cho từng đơn vị (mỗi `RawBytes` trong
+  danh sách có dải năm ứng viên VÀ bảng mã đã chọn RIÊNG — đúng ADR "mỗi nguồn tự khai bảng
+  mã của chính nó"), hoặc ② nếu SẢN PHẨM cố tình chọn "một bảng mã cho CẢ danh sách" (ví dụ
+  vì mọi URL trong MỘT lượt nhập luôn cùng một site, cùng một charset khai báo), phải VIẾT RA
+  quyết định đó tường minh ở doc-comment `PipelineInput::encoding` (hôm nay doc-comment đó
+  chỉ nói "bảng mã ĐÃ khai", không nói "khai cho MỘT hay cho TẤT CẢ N đơn vị").
+
+- ⚠️ **`EVIDENCE_WINDOW_BYTES` (4 KiB) chỉ soi phần ĐẦU tệp — một tệp mở đầu bằng ASCII rồi
+  đổi bảng mã ở phần sau bị đoán sai TOÀN BỘ, không chỉ ở phần đầu — vòng rà đối kháng 2, mục
+  20.** `evidence_window(bytes)` (`core/segment/encoding.rs:64-66`) cắt `bytes[..bytes.len()
+  .min(4096)]` — CẢ `detect()` (phán quyết `Confidence`) LẪN `render_candidates()` (dải năm
+  ô) chỉ nhìn 4 KiB đó. Một tệp thật (ví dụ: một thông báo bản quyền/lời tựa tiếng Anh dài
+  hơn 4 KiB đứng TRƯỚC nội dung tiếng Trung GBK/Big5 thật) khiến `chardetng` đoán UTF-8 với
+  tin cậy CAO trên cửa sổ ASCII thuần — HÀNG MA TRẬN "Tệp thuần ASCII ⇒ tự đoán, tin cậy cao"
+  đã ĐÓNG BĂNG (I/O Matrix, chữ ký Ice) áp ĐÚNG cho cửa sổ đó. Nhưng `Step::DecodeEncoding`
+  (`core/segment/pipeline.rs::decode_unit`) sau đó áp bảng mã đã CHỐT (UTF-8) lên TOÀN BỘ
+  `bytes` của tệp, không chỉ 4 KiB đầu — phần GBK/Big5 phía sau vỡ vụn hoặc trượt
+  `UndecodableBytes` cho một tệp mà con người nhìn vào biết ngay "đây là chữ Hán, không phải
+  UTF-8", trong khi hệ thống báo "tin cậy CAO, đã tự chọn xong".
+
+  **Vì sao KHÔNG sửa ở lượt vá này — đo, không chỉ đoán:** đây không phải một khoảng trống
+  chưa quyết, mà là HỆ QUẢ TRỰC TIẾP của một hàng ma trận I/O đã ĐÓNG BĂNG. Sửa "tệp thuần
+  ASCII không còn tự động là tin cậy cao" là LẬT quyết định đó, không phải vá một khiếm
+  khuyết cạnh nó — nằm ngoài quyền của một lượt vá vòng rà đối kháng (đúng lập trường đã ghi:
+  một hàng `frozen` thì agent không tự hạ thành nợ được). Mở RỘNG cửa sổ bằng chứng (ví dụ
+  toàn bộ tệp, hay nhiều điểm lấy mẫu rải trong tệp thay vì chỉ phần đầu) là một lựa chọn
+  THIẾT KẾ cần Ice chọn — đổi phí tổn (decode CẢ tệp lên tới trần 100 MB
+  `super::import::MAX_IMPORT_BYTES` chỉ để ĐOÁN, trước cả khi người dùng xác nhận có đáng
+  không?), không phải một lỗi lập trình có đúng-một-đường-sửa.
+
+  **Chủ: Ice quyết chiến lược lấy mẫu (mở cửa sổ / lấy mẫu nhiều điểm / giữ nguyên và đổi câu
+  cảnh báo) — sau đó, story nào cầm quyết định đó thi hành.**
+
+- ⚠️ **Nhánh "`chardetng` đoán TRÚNG một bảng FR126 nhưng chính bảng ấy giải mã TRƯỢT" chưa
+  có cổng, và lý do từ chối vá là một phép LẤY MẪU, không phải một phép chứng minh.** Vòng rà
+  đối kháng 2 (2026-09-04) nêu ca này: `detect` ở nhánh `Some(i)` chọn thẳng
+  `FR126_CANDIDATE_ENCODINGS[i]` mà KHÔNG kiểm ứng viên ấy có giải mã được không, nên ô mặc
+  định của dải có thể hiện "không ra chữ" và lượt xác nhận trượt ngay. Lượt vá **từ chối sửa**,
+  căn cứ: dò 13 mẫu byte biên (Big5/GBK/GB18030) và không mẫu nào tái lập được. ⚠️ **Con số 13
+  ấy là lời khai của lượt vá, tôi (điều phối) KHÔNG tự chạy lại**; và kể cả có chạy lại thì 13
+  mẫu chứng minh "chưa quan sát thấy", không chứng minh "không thể xảy ra" — `chardetng` chấm
+  điểm thống kê còn `decode_without_bom_handling_and_without_replacement` từ chối theo hình
+  dạng byte, hai tiêu chí khác nhau nên không có gì cấm chúng lệch nhau. Việc cần làm: hoặc
+  thêm một dòng rơi-về-ứng-viên-giải-mã-được (rẻ, và làm mệnh đề đúng theo CẤU TRÚC), hoặc
+  tìm một đầu vào tái lập được rồi biến nó thành cổng. **Chủ: Story 6.5** — story đầu tiên
+  chạm lại `detect` khi dựng thân tầng 3.
+
+- ⚠️ **`ImportPreviewOverlay.vue` mới có test dựng DOM cho MỘT phần bề mặt.** Vòng rà 2 nêu
+  "0 test dựng DOM"; lượt vá thêm 4 ca `mount()` thật cho chip tin cậy và hai khối tầng rỗng —
+  đóng một nửa. **Còn chưa ai canh:** bẫy Tab (`trapTab`, điều kiện để `aria-modal="true"`
+  không nói dối), nút Xác nhận/Huỷ và trạng thái `:disabled` khi `confirming`, tương tác radio
+  chọn ứng viên (đường `@change` → `selectImportPreviewCandidate`, mà chính tệp khai là nằm
+  NGOÀI Kiểm A của `check:commands` nên không cổng nào khác thấy), đường trả tiêu điểm
+  `data-import-preview-open`, và ba nhánh render `unknown`/`ipc_unavailable`/`error`. Tiền lệ
+  có sẵn: `tests/frontend/glossaryConfirmStripTemplate.test.ts`. **Chủ: Story 6.5** — story
+  dựng thân tầng 3 sẽ chạm lại chính component này.

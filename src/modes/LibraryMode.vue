@@ -1218,6 +1218,7 @@ watch(libraryChapterCursor, (cursor) => {
         <button
           type="button"
           class="btn"
+          data-import-preview-open
           :disabled="busy || pastedText.trim() === ''"
           @click="dispatch('library.import_text')"
         >
@@ -1246,6 +1247,7 @@ watch(libraryChapterCursor, (cursor) => {
         <button
           type="button"
           class="btn"
+          data-import-preview-open
           :disabled="busy || filePath.trim() === ''"
           @click="dispatch('library.import_file')"
         >

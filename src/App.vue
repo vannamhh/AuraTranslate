@@ -62,6 +62,10 @@ import GlossaryManageOverlay from './GlossaryManageOverlay.vue'
 // BÊN TRONG `GlossaryManageOverlay`, nhưng dựng ở cùng tầng gốc như mọi lớp phủ khác —
 // `z-index` (11, trên 10 của Manage) là thứ giữ nó xếp ĐÚNG lớp, không phải vị trí trong DOM.
 import GlossaryImportOverlay from './GlossaryImportOverlay.vue'
+// Story 6.3 — lớp phủ "Xem trước lượt nhập — bảng mã" (FR126), lớp phủ THỨ TÁM. Mở TỪ
+// `LibraryMode.vue` (nộp form) nhưng dựng ở cùng tầng gốc như mọi lớp phủ khác — luật của
+// kho: "LibraryMode.vue không mở lớp phủ" (§Code Map spec 6.3).
+import ImportPreviewOverlay from './ImportPreviewOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -363,6 +367,9 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 3.10b · AD-48 — cùng khuôn: lớp phủ tự quản `v-if` qua `importOverlayIsOpen`. -->
     <GlossaryImportOverlay />
+
+    <!-- Story 6.3 · FR126 — cùng khuôn: lớp phủ tự quản `v-if` qua `importPreviewIsOpen`. -->
+    <ImportPreviewOverlay />
   </main>
 </template>
 

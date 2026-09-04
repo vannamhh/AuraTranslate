@@ -86,16 +86,20 @@ tauri-plugin-dialog = "=2.7.2"
 # hạng giấy phép đầu tiên khác nhóm dễ dãi thường lệ lọt vào cây. 12 hàng MỚI trong
 # `Cargo.lock` = `dom_smoothie` + `chardetng` (hai crate ứng viên) cộng 10 gói bắc cầu này.
 dom_smoothie = "=0.18.0"
-# core::webimport — dò bảng mã cho nguồn không tự khai (.txt/.md/HTTP, FR126). Bộ dò của
+# 🔵 SỬA 2026-09-04 (Story 6.3) — chủ ĐỔI từ `core::webimport` sang `core::segment`: bộ dò
+# thật sống ở `core::segment::encoding` (`sniff_bom` → `detect` → `render_candidates`), gọi
+# từ `commands::project::preview_import_encoding`. `core::webimport` vẫn 0 dòng mã (stub,
+# Story 6.2/6.7/6.9) — chủ khai ở đây từng đúng lúc `chardetng` mới CHỈ được ghim, chưa được
+# gọi; nay nó có chỗ gọi thật, và mệnh đề cũ (`core::webimport`) đã HẾT ĐÚNG.
+# core::segment — dò bảng mã cho nguồn không tự khai (.txt/.md/HTTP, FR126). Bộ dò của
 # Firefox cho nội dung web cũ, đúng bài toán GBK/Big5. KHÔNG kéo thêm gói bắc cầu nào.
 chardetng = "=1.0.0"
-# 🔵 SỬA 2026-09-04 (Story 6.2) — chủ ĐỔI từ `core::webimport` sang `core::segment`: bước
-# giải mã của chuỗi AD-39 (`core::segment::pipeline::Step::DecodeEncoding`) là chỗ DÙNG THẬT
-# đầu tiên, gọi `Encoding::decode_without_bom_handling_and_without_replacement`. `chardetng`
-# (dò bảng mã, Story 6.3) VẪN ở `core::webimport` — chưa dựng ở story này (Không dựng bộ dò
-# bảng mã, §Never của spec 6.2). ĐÃ bắc cầu qua `reqwest` 0.13.4 và `quick-xml` 0.41.0 từ
-# trước story này (`Cargo.lock` đã khoá 0.8.35) — dùng lại ở đây thêm ĐÚNG 0 byte payload
-# vào cây, không mở cửa NFR15 nào mới.
+# core::segment — bước giải mã của chuỗi AD-39
+# (`core::segment::pipeline::Step::DecodeEncoding`), gọi
+# `Encoding::decode_without_bom_handling_and_without_replacement` — chỗ DÙNG THẬT đầu tiên
+# từ Story 6.2. ĐÃ bắc cầu qua `reqwest` 0.13.4 và `quick-xml` 0.41.0 từ trước Story 6.2
+# (`Cargo.lock` đã khoá 0.8.35) — dùng lại ở đây thêm ĐÚNG 0 byte payload vào cây, không mở
+# cửa NFR15 nào mới.
 encoding_rs = "=0.8.35"
 
 # ── Bộ lái cửa sổ Tauri THẬT — Ice chốt 2026-08-11 ──────────────────────────────────

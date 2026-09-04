@@ -30,9 +30,18 @@
 //!   chế THẬT (so khớp literal), nhưng KHÔNG cấu hình được bởi người dùng; production luôn
 //!   truyền `chapter_pattern: None` ⇒ N = 1 KHÔNG ĐỔI. Mẫu cấu hình được là Story 6.6.
 //! - **Chuẩn hoá xuống dòng/khoảng trắng** (FR124/125) — vẫn THÂN RỖNG, Story 6.4/6.5.
-//! - **Dò bảng mã** (FR126) — vẫn CHỈ giải mã theo MỘT bảng mã ĐÃ KHAI (mặc định UTF-8,
-//!   Quyết định #6 cũ không đổi); bộ DÒ là Story 6.3. AD-4 đóng băng ranh giới segment tính
-//!   lúc nhập, nên văn bản giải mã sai ghi xuống hôm nay vẫn là dữ liệu không sửa lại được.
+//! - **Dò bảng mã** (FR126) — 🔵 **SỬA 2026-09-04 (Story 6.3) — "vẫn CHỈ giải mã theo MỘT
+//!   bảng mã ĐÃ KHAI (mặc định UTF-8)" đã HẾT ĐÚNG.** Bộ dò thật giờ sống ở
+//!   [`super::encoding`] (`sniff_bom` → `detect` → `render_candidates`, ba trạng thái tin
+//!   cậy là luật CỦA TA, `chardetng` không cấp điểm số nào — xem doc-comment module đó).
+//!   `commands::project::preview_import_encoding` gọi nó và
+//!   `commands::project::confirm_import_with_encoding` khai bảng mã NGƯỜI DÙNG đã chọn qua
+//!   [`super::pipeline::PipelineInput::with_encoding`] — hai hàm cũ
+//!   (`create_work_from_text`/`create_work_from_file`) VẪN khai cứng UTF-8
+//!   (`PipelineInput::default_shaped`), giữ nguyên cho `tests/**` và mọi chỗ gọi không đi
+//!   qua màn xem trước. AD-4 đóng băng ranh giới segment tính lúc nhập, nên văn bản giải mã
+//!   sai — hoặc sai vì người dùng chọn nhầm ứng viên — vẫn là dữ liệu không sửa lại được
+//!   sau khi đã ghi xuống; đó là lý do màn xem trước tồn tại TRƯỚC khi ghi, không sau.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -75,15 +84,26 @@ pub enum ImportError {
         /// không có phần mở rộng nào.
         format: String,
     },
-    /// Nội dung không giải mã được bằng bảng mã ĐÃ KHAI (Quyết định #6). 🔵 **SỬA 2026-09-04
-    /// (Story 6.2)** — bảng mã đã khai luôn là UTF-8 trên đường sản phẩm, nhưng biến thể
-    /// này giờ dùng chung cho bất kỳ bảng mã nào `tests/**` khai qua
-    /// `PipelineInput::encoding` (§Design Notes "Bảng mã đã khai khác bộ dò bảng mã" của
-    /// spec 6.2) — không có bộ dò nào tham gia ở story này.
-    NotUtf8 {
+    /// Nội dung không giải mã được bằng bảng mã ĐÃ KHAI/ĐÃ CHỌN (Quyết định #6, Story 1.15).
+    ///
+    /// 🔵 **ĐỔI TÊN 2026-09-04 (Story 6.3) — `NotUtf8` → `UndecodableBytes`, cộng trường
+    /// `encoding`.** Bản Story 6.2 chỉ đặt tên đúng cho MỘT trường hợp (bảng mã đã khai
+    /// LUÔN là UTF-8 trên đường sản phẩm); từ story này bảng mã có thể là bất kỳ nhãn nào
+    /// trong FR126 mà người dùng đã CHỌN ở màn xem trước (`core::segment::encoding`), nên
+    /// `NotUtf8` trở thành một NHÃN SAI đúng vào ngày GBK/Big5/GB18030/UTF-16 khai được —
+    /// nợ đã ghi chủ Story 6.3 ở `deferred-work.md` (khối 6.2). Đây là đường lỗi DUY NHẤT
+    /// còn lại cho bảng mã: byte không giải mã được với chính bảng mã ĐÃ CHỌN (§Always spec
+    /// 6.3 — "không có trạng thái lỗi cho bảng mã đoán sai", đoán sai chỉ ra chữ không đọc
+    /// được, mắt phân xử; đây là ca byte THẬT SỰ không hợp lệ với bảng đã chọn).
+    UndecodableBytes {
         /// Đường dẫn/tên nguồn, cho chẩn đoán và cho tham số `path` của
-        /// [`MessageKey::ImportNotUtf8`].
+        /// [`MessageKey::ImportUndecodableBytes`].
         path: String,
+        /// Tên WHATWG của bảng mã ĐÃ CHỌN (`Encoding::name()`, ví dụ `"GBK"`) — dữ liệu,
+        /// không phải câu (AD-21). Tham số `encoding` của
+        /// [`MessageKey::ImportUndecodableBytes`] — I/O Matrix spec 6.3: "Xác nhận với
+        /// bảng mã đã chọn... Từ chối tường minh, nêu ĐÍCH DANH bảng mã đã chọn".
+        encoding: String,
     },
     /// Đọc tệp trượt ở tầng I/O — quyền, tệp không tồn tại, ổ đĩa rút giữa chừng.
     ReadFailed {
@@ -119,6 +139,18 @@ pub enum ImportError {
         /// Chẩn đoán CHỈ cho log (không đi vào `IpcError`, `Unknown` không nhận tham số).
         detail: String,
     },
+    /// 🔵 **THÊM 2026-09-04 (Story 6.3)** — `commands::project::confirm_import_with_encoding`
+    /// nhận một `wire_id` không giải ngược được thành `&'static encoding_rs::Encoding` qua
+    /// [`crate::core::segment::encoding::encoding_for_wire_id`]. §Design Notes spec 6.3,
+    /// "Nhãn đi qua dây phải KHÔNG MẤT MÁT": *"một nhãn KHÔNG NHẬN RA là một vi phạm hợp
+    /// đồng ⇒ `IpcError` tường minh, KHÔNG âm thầm rơi về UTF-8"*. Đường sản phẩm luôn
+    /// truyền một `wire_id` mà chính Rust vừa cấp ở lượt xem trước
+    /// (`EncodingCandidate::wire_id`), nên nhánh này chỉ chạm khi webview gửi một chuỗi lạ
+    /// (lỗi lập trình phía frontend, hoặc một phiên rất cũ mang khoá đã đổi hình dạng).
+    UnrecognizedEncoding {
+        /// Chuỗi wire nhận được — dữ liệu, không phải câu.
+        wire_id: String,
+    },
 }
 
 impl std::fmt::Display for ImportError {
@@ -128,7 +160,9 @@ impl std::fmt::Display for ImportError {
             ImportError::UnsupportedFormat { format } => {
                 write!(f, "import: unsupported format {format:?}")
             }
-            ImportError::NotUtf8 { path } => write!(f, "import[{path}]: not valid utf-8"),
+            ImportError::UndecodableBytes { path, encoding } => {
+                write!(f, "import[{path}]: undecodable bytes for encoding {encoding}")
+            }
             ImportError::ReadFailed { path, detail } => {
                 write!(f, "import[{path}]: read failed: {detail}")
             }
@@ -140,6 +174,9 @@ impl std::fmt::Display for ImportError {
             }
             ImportError::InvalidPipelineOrder { detail } => {
                 write!(f, "import: invalid pipeline order: {detail}")
+            }
+            ImportError::UnrecognizedEncoding { wire_id } => {
+                write!(f, "import: unrecognized encoding wire id {wire_id:?}")
             }
         }
     }
@@ -162,10 +199,16 @@ impl From<ImportError> for IpcError {
                     false,
                 )
             }
-            ImportError::NotUtf8 { path } => {
+            ImportError::UndecodableBytes { path, encoding } => {
                 let mut params = BTreeMap::new();
                 params.insert("path".to_owned(), path);
-                IpcError::new("import.not_utf8", MessageKey::ImportNotUtf8, params, false)
+                params.insert("encoding".to_owned(), encoding);
+                IpcError::new(
+                    "import.undecodable_bytes",
+                    MessageKey::ImportUndecodableBytes,
+                    params,
+                    false,
+                )
             }
             ImportError::ReadFailed { path, .. } => {
                 let mut params = BTreeMap::new();
@@ -208,6 +251,16 @@ impl From<ImportError> for IpcError {
                     "import.invalid_pipeline_order",
                     MessageKey::Unknown,
                     BTreeMap::new(),
+                    false,
+                )
+            }
+            ImportError::UnrecognizedEncoding { wire_id } => {
+                let mut params = BTreeMap::new();
+                params.insert("encoding".to_owned(), wire_id);
+                IpcError::new(
+                    "import.unrecognized_encoding",
+                    MessageKey::ImportUnrecognizedEncoding,
+                    params,
                     false,
                 )
             }

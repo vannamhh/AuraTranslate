@@ -1070,7 +1070,8 @@ fn the_workspace_layout_survives_a_write_and_a_reopen() {
 /// ⚠️ **Story 1.15 phá mệnh đề này ở TẦNG DỰ ÁN, có ý thức — không ở test này.** Tên
 /// ca đọc như một lời hứa toàn cục *"mọi lỗi command đều là lỗi kho"*, nhưng
 /// `commands::project::create_work_from_file` giờ trả `import.unsupported_format` /
-/// `import.not_utf8` khi `.docx` hay bảng mã lạ bị từ chối — hai lỗi xảy ra **trước** khi
+/// `import.undecodable_bytes` (🔵 SỬA 2026-09-04, Story 6.3 — đổi tên từ `import.not_utf8`
+/// cùng lượt bộ dò bảng mã ra đời) khi `.docx` hay bảng mã lạ bị từ chối — hai lỗi xảy ra **trước** khi
 /// có gì chạm `project.db`, nên gọi chúng là "lỗi kho" sẽ sai hơn. Ca này **chỉ** còn đúng
 /// cho hai hàm của `commands::config`, và tên của nó không còn là một phát biểu đúng cho
 /// toàn dự án — xem `tests/project_contract.rs::a_docx_rejection_carries_the_dedicated_message_key`

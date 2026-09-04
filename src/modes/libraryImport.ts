@@ -15,11 +15,28 @@
  * `togglePanel` của `src/layout/dockController.ts`. Module này là **phía cung cấp**:
  * `LibraryMode.vue` đọc/ghi các `ref` ở đây qua `v-model`; `src/main.ts` nối
  * `submitPastedText` / `submitFilePath` vào `installCommands({...})`.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🔵 SỬA 2026-09-04 (Story 6.3, FR126) — nộp form KHÔNG còn tạo Tác phẩm trực tiếp.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `submitPastedText`/`submitFilePath` giờ mở màn xem trước bảng mã
+ * (`src/importPreviewState.ts::openImportPreviewFromText`/`openImportPreviewFromFile`) —
+ * đúng bất biến "không byte nào xuống đĩa trước khi người dùng xác nhận"
+ * (`libraryImport.ts:276-330` cũ, nay ÁP CẢ cho nhánh dán văn bản, không chỉ nhánh tệp).
+ * Việc TẠO Tác phẩm thật (`create_work`) chỉ xảy ra sau khi người dùng bấm "Xác nhận" trong
+ * `ImportPreviewOverlay.vue`, đi qua `confirmImportPreview()` rồi tới
+ * [`finishImportSubmission`] (đổi tên từ `finishSubmit` cũ, giờ EXPORT vì `main.ts` gọi nó
+ * SAU khi lượt xác nhận — không còn ngay trong `submitPastedText`/`submitFilePath` nữa).
  */
 import { ref } from 'vue'
 import { listen } from '@tauri-apps/api/event'
 import type { UnlistenFn } from '@tauri-apps/api/event'
-import { createWorkFromFile, createWorkFromText } from '../config/project'
+import {
+  importPreviewIsOpen,
+  importPreviewLastSubmittedFrom,
+  openImportPreviewFromFile,
+  openImportPreviewFromText,
+} from '../importPreviewState'
 import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
 import { resetLookupPanel } from '../panels/lookupPanelState'
 import {
@@ -97,6 +114,7 @@ export const createdWork = ref<CreatedWork | null>(null)
  */
 export const noticeKey = ref<string | null>(null)
 
+
 /**
  * Lượt flush bản dịch cũ trượt ⇒ **dừng** lượt tạo Tác phẩm. Story 2.3 · code review 2026-08-13.
  *
@@ -167,8 +185,15 @@ async function beginSubmit(): Promise<boolean> {
   return true
 }
 
-function finishSubmit(created: CreatedWork | null, error: IpcError | null): void {
-  busy.value = false
+/**
+ * Đóng vòng nộp form — gọi SAU khi lượt xác nhận bảng mã trả về (`main.ts`, handler của
+ * `import.preview.confirm`). 🔵 **ĐỔI TÊN 2026-09-04 (Story 6.3)** từ `finishSubmit` (trước
+ * đây `private`, gọi ngay trong `submitPastedText`/`submitFilePath`) — EXPORT vì lượt tạo
+ * Tác phẩm thật giờ xảy ra ở `confirmImportPreview()` (`src/importPreviewState.ts`), một
+ * lượt async tách biệt khỏi hàm nộp form ban đầu; `busy` KHÔNG còn được hạ ở đây (nó đã hạ
+ * ngay sau khi màn xem trước MỞ — xem `submitPastedText`), thân hàm còn lại giữ NGUYÊN VẸN.
+ */
+export function finishImportSubmission(created: CreatedWork | null, error: IpcError | null): void {
   lastError.value = error
   createdWork.value = created
 
@@ -240,37 +265,63 @@ function finishSubmit(created: CreatedWork | null, error: IpcError | null): void
     // cũng chỉ gọi `ensureSegmentsLoaded()` ở `onMounted`, và `<KeepAlive>` làm lượt hiện
     // thứ hai trở đi không có `mounted`.
     void ensureSegmentsLoaded()
+
+    // 🔵 THÊM Story 6.3 — xoá ĐÚNG ô đã nộp thành công (nhánh dán hoặc nhánh tệp, theo
+    // `importPreviewLastSubmittedFrom` — sống ở `importPreviewState.ts`, đọc CHỈ Ở ĐÂY,
+    // không đặt lại: xem doc-comment của nó cho lý do KHÔNG xoá tại chỗ này. Trước story
+    // này mỗi nhánh tự xoá ô của chính nó ngay tại `submitPastedText`/`submitFilePath`; giờ
+    // việc TẠO Tác phẩm dời sang `confirmImportPreview()` (async, tách rời), nên chỗ DUY
+    // NHẤT biết "đã tạo xong" là ở đây.
+    if (importPreviewLastSubmittedFrom.value === 'text') {
+      pastedText.value = ''
+    } else if (importPreviewLastSubmittedFrom.value === 'file') {
+      filePath.value = ''
+    }
   }
 }
 
-/** Nhánh dán văn bản — nộp `pastedText` hiện tại. */
+/** Nhánh dán văn bản — mở màn xem trước bảng mã cho `pastedText` hiện tại (Story 6.3). */
 export async function submitPastedText(): Promise<void> {
-  if (busy.value) return
+  // 🔴 SỬA (vòng rà đối kháng 2, mục 9) — `busy` KHÔNG còn phủ cửa sổ ghi thật. `busy` hạ
+  // NGAY sau khi màn xem trước MỞ (`submitPastedText`/`submitFilePath` tự hạ nó vài dòng
+  // dưới), rồi lượt GHI thật (`create_work` phía Rust) chỉ chạy SAU đó, ở
+  // `confirmImportPreview()` — một cửa sổ mà nút "Nhập" đã hết `:disabled` từ lâu, chỉ còn
+  // bị chặn THỊ GIÁC bởi lớp phủ scrim của `ImportPreviewOverlay.vue` (`z-index: 11,
+  // position: fixed, inset: 0`). Chuột không xuyên qua được lớp phủ đó, nhưng
+  // `dispatch('library.import_text')` là một command ĐÃ ĐĂNG KÝ (`commands/index.ts`) — một
+  // lối vào không đi qua DOM (bàn phím toàn cục, palette lệnh nếu có) vẫn gọi thẳng được
+  // hàm này trong khi lớp phủ đang mở, mở một lượt xem trước THỨ HAI đè lên nguồn đang chờ
+  // mà lượt xác nhận ĐẦU đang dùng — cùng lớp rủi ro "state bị ghi đè giữa chừng" mà mục 4/14
+  // đã đóng ở hai góc khác. Chặn Ở ĐÂY (không chỉ `busy`) đóng góc còn lại: `importPreviewIsOpen`
+  // đúng suốt từ lúc mở tới lúc huỷ/xác nhận xong — cửa sổ nó phủ RỘNG HƠN `busy`.
+  if (busy.value || importPreviewIsOpen.value) return
   // ⚠️ Chốt ở ĐÂY, không chỉ ở `:disabled` của nút: `dispatch('library.import_text')`
   // là một command đã đăng ký, và một lối vào tương lai (palette, phím tắt) sẽ đi thẳng
   // qua đây mà không đi qua thuộc tính DOM nào.
   if (pastedText.value.trim() === '') return
   // ⚠️ `beginSubmit` trả `false` khi bản dịch cũ chưa chạm WAL — đi tiếp là mất nó im lặng.
   if (!(await beginSubmit())) return
-  const result = await createWorkFromText(name.value, sourceLang.value, genre.value, pastedText.value)
-  finishSubmit(result.created, result.error)
-  if (result.created) {
-    pastedText.value = ''
-  }
+  // 🔵 SỬA Story 6.3 — KHÔNG còn `createWorkFromText` ở đây: nộp form mở màn xem trước bảng
+  // mã (`ImportPreviewOverlay.vue`); tạo Tác phẩm thật chỉ xảy ra sau khi người dùng bấm
+  // "Xác nhận" trong đó — [`finishImportSubmission`] đóng vòng lúc đó, không ở đây.
+  // `openImportPreviewFromText` tự chốt nhánh `'text'` (`importPreviewState.ts`).
+  await openImportPreviewFromText(name.value, sourceLang.value, genre.value, pastedText.value)
+  busy.value = false
 }
 
-/** Nhánh tệp — nộp `filePath` hiện tại (ô nhập đường dẫn, bàn phím **hoặc** kéo-thả). */
+/** Nhánh tệp — mở màn xem trước bảng mã cho `filePath` hiện tại (ô nhập đường dẫn, bàn phím
+ * **hoặc** kéo-thả — Story 6.3, NFR17 giữ nguyên). */
 export async function submitFilePath(): Promise<void> {
-  if (busy.value) return
+  // Cùng lý do và cùng khoá với `submitPastedText` (mục 9) — `importPreviewIsOpen` phủ
+  // đúng cửa sổ THẬT (mở → huỷ/xác nhận xong), `busy` chỉ phủ tới lúc màn xem trước MỞ.
+  if (busy.value || importPreviewIsOpen.value) return
   const path = filePath.value.trim()
   if (path === '') return
   // ⚠️ Cùng lý do và cùng chốt với `submitPastedText`.
   if (!(await beginSubmit())) return
-  const result = await createWorkFromFile(name.value, sourceLang.value, genre.value, path)
-  finishSubmit(result.created, result.error)
-  if (result.created) {
-    filePath.value = ''
-  }
+  // `openImportPreviewFromFile` tự chốt nhánh `'file'` (`importPreviewState.ts`).
+  await openImportPreviewFromFile(name.value, sourceLang.value, genre.value, path)
+  busy.value = false
 }
 
 /**

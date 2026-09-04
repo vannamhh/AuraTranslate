@@ -63,10 +63,6 @@ function isIpcError(value: unknown): value is IpcError {
   )
 }
 
-/** Tên command trên dây. Khớp `src-tauri/src/commands/project.rs` (module `wire`). */
-const CMD_CREATE_FROM_TEXT = 'create_work_from_text'
-const CMD_CREATE_FROM_FILE = 'create_work_from_file'
-
 /**
  * Có cầu IPC của Tauri trong window này không.
  *
@@ -110,22 +106,126 @@ async function callCreateWork(cmd: string, args: Record<string, unknown>): Promi
   }
 }
 
-/** Nhánh dán văn bản của AC1. */
-export async function createWorkFromText(
-  name: string,
-  sourceLang: string,
-  genre: string,
-  text: string,
-): Promise<CreateWorkResult> {
-  return callCreateWork(CMD_CREATE_FROM_TEXT, { name, sourceLang, genre, text })
+// 🔴 SỬA (vòng rà đối kháng 2, mục 5) — `createWorkFromText`/`createWorkFromFile` (adapter
+// TS cho vỏ `wire::create_work_from_text`/`wire::create_work_from_file`) BỊ XOÁ khỏi đây.
+// Từ Story 6.3, nộp form KHÔNG còn gọi thẳng chúng (`libraryImport.ts` đi qua màn xem
+// trước bảng mã, `previewImportEncodingFromText`/`_FromFile` rồi `confirmImportWithEncoding`
+// — xem `src/modes/libraryImport.ts::submitPastedText`/`submitFilePath`). Đo (2026-09-04):
+// `grep` toàn `src/`, `tests/frontend/` cho 0 chỗ gọi PRODUCT nào của hai hàm này — chỉ hai
+// chú thích còn nhắc TÊN chúng.
+//
+// ⚠️ **VỎ RUST (`wire::create_work_from_text`/`wire::create_work_from_file`) KHÔNG bị xoá**
+// — chúng vẫn đăng ký trong `generate_handler!` (`lib.rs:638-639`) và vẫn là hạ tầng test
+// SỐNG: 15+ tệp `e2e/specs/**` gọi thẳng `internals.invoke('create_work_from_text', {...})`
+// để dựng fixture nhanh (đi ĐƯỜNG IPC trực tiếp, cố ý BỎ QUA UI — xem
+// `e2e/support/workspace.mjs`). Xoá vỏ Rust sẽ phá TOÀN BỘ hạ tầng fixture đó.
+//
+// ⇒ Quyết định: adapter TS (lớp DUY NHẤT một dòng frontend sản phẩm tương lai có thể gọi
+// mà không cố ý) bị xoá — thu hẹp bề mặt có thể bị lạm dụng xuống còn "gọi thẳng
+// `invoke('create_work_from_text', …)` bằng tay", một hành động rõ ràng có chủ ý, không
+// phải một lượt `import` tình cờ. Vỏ Rust ở lại, có tên, có lý do, không phải xác chết.
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story 6.3 — màn xem trước bảng mã (FR126). Khớp `commands::project::{
+// ImportEncodingPreview, EncodingCandidateWire, ConfidenceWire, wire::preview_import_encoding_from_text,
+// wire::preview_import_encoding_from_file, wire::confirm_import_with_encoding }`.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Ba trạng thái tin cậy — DỮ LIỆU (AD-21), Rust không gửi câu. `snake_case` đúng như trên
+ * dây (`#[serde(rename_all = "snake_case")]` phía `ConfidenceWire`). */
+export type ImportConfidence = 'self_declared' | 'high' | 'low'
+
+/** Một ô trong dải năm ứng viên — khớp `commands::project::EncodingCandidateWire`. */
+export type EncodingCandidateWire = {
+  label: string
+  encoding: string
+  preview: string | null
 }
 
-/** Nhánh tệp của AC1 — kéo-thả **hoặc** ô nhập đường dẫn, cả hai gọi cùng một hàm này. */
-export async function createWorkFromFile(
+/** Kết quả một lượt xem trước bảng mã — khớp `commands::project::ImportEncodingPreview`. */
+export type ImportEncodingPreview = {
+  confidence: ImportConfidence
+  selected_encoding: string
+  candidates: EncodingCandidateWire[]
+}
+
+/** Ba trạng thái, cùng khuôn `CreateWorkResult`. */
+export type ImportEncodingPreviewResult = {
+  preview: ImportEncodingPreview | null
+  error: IpcError | null
+}
+
+const CMD_PREVIEW_FROM_TEXT = 'preview_import_encoding_from_text'
+const CMD_PREVIEW_FROM_FILE = 'preview_import_encoding_from_file'
+const CMD_CONFIRM_WITH_ENCODING = 'confirm_import_with_encoding'
+
+function isEncodingCandidateWire(value: unknown): value is EncodingCandidateWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<EncodingCandidateWire>
+  return (
+    typeof v.label === 'string' &&
+    typeof v.encoding === 'string' &&
+    (v.preview === null || typeof v.preview === 'string')
+  )
+}
+
+// 🔴 SỬA (vòng rà đối kháng 2, mục 23) — bản trước chỉ hỏi `Array.isArray(v.candidates)`,
+// không hỏi PHẦN TỬ của mảng có đúng hình dạng không. Một mảng `[{}]` (hoặc bất kỳ rác nào)
+// đi lọt Kiểm TYPE này rồi `undefined` hiện thẳng lên dải (`candidate.label`/`.encoding` đọc
+// ra `undefined`, `ImportPreviewOverlay.vue` không có nhánh nào xử) — đúng lớp "kiểm kiểu
+// LÚC CHẠY hờ hững" mà `src/AGENTS.md` cảnh báo.
+function isImportEncodingPreview(value: unknown): value is ImportEncodingPreview {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ImportEncodingPreview>
+  return (
+    (v.confidence === 'self_declared' || v.confidence === 'high' || v.confidence === 'low') &&
+    typeof v.selected_encoding === 'string' &&
+    Array.isArray(v.candidates) &&
+    v.candidates.every(isEncodingCandidateWire)
+  )
+}
+
+async function callPreviewImportEncoding(
+  cmd: string,
+  args: Record<string, unknown>,
+): Promise<ImportEncodingPreviewResult> {
+  try {
+    const preview = await invoke<ImportEncodingPreview>(cmd, args)
+    if (!isImportEncodingPreview(preview)) {
+      // 🔴 Kiểm kiểu LÚC CHẠY cho dữ liệu qua dây (`src/AGENTS.md`) — `IpcError` phía TS là
+      // một lời khai, không phải bảo đảm của trình biên dịch.
+      console.error(`[project] \`${cmd}\` tra ve mot hinh dang khong dung ImportEncodingPreview`)
+      return { preview: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { preview, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { preview: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[project] \`${cmd}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { preview: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[project] không gọi được \`${cmd}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { preview: null, error: null }
+  }
+}
+
+/** Nhánh DÁN VĂN BẢN của màn xem trước bảng mã (Story 6.3, FR126). */
+export async function previewImportEncodingFromText(text: string): Promise<ImportEncodingPreviewResult> {
+  return callPreviewImportEncoding(CMD_PREVIEW_FROM_TEXT, { text })
+}
+
+/** Nhánh TỆP của màn xem trước bảng mã (Story 6.3, FR126). */
+export async function previewImportEncodingFromFile(path: string): Promise<ImportEncodingPreviewResult> {
+  return callPreviewImportEncoding(CMD_PREVIEW_FROM_FILE, { path })
+}
+
+/** Xác nhận lượt nhập với bảng mã đã chọn — cùng hình dạng trả về `CreateWorkResult`
+ * (`created`/`error`), vì lệnh này TẠO một Tác phẩm y hệt `create_work_from_text`/`_from_file`. */
+export async function confirmImportWithEncoding(
   name: string,
   sourceLang: string,
   genre: string,
-  path: string,
+  encoding: string,
 ): Promise<CreateWorkResult> {
-  return callCreateWork(CMD_CREATE_FROM_FILE, { name, sourceLang, genre, path })
+  return callCreateWork(CMD_CONFIRM_WITH_ENCODING, { name, sourceLang, genre, encoding })
 }

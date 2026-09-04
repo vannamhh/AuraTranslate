@@ -56,7 +56,16 @@ import { applyPreset, panelRing, togglePanel } from './layout/dockController'
 // ⚠️ Cùng lý do và cùng cửa với ba cổng bố cục ở trên: `libraryImport.ts` là một module
 // Vue thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/project.ts` — import nó ở
 // `src/commands/index.ts` giết Kiểm C/D/E.
-import { submitFilePath, submitPastedText } from './modes/libraryImport'
+import { finishImportSubmission, submitFilePath, submitPastedText } from './modes/libraryImport'
+// ── Story 6.3 — màn xem trước bảng mã (FR126) ────────────────────────────────────────
+//
+// ⚠️ Cùng lý do và cùng cửa với `libraryImport.ts`: `importPreviewState.ts` là một module
+// Vue thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/project.ts`.
+import {
+  cancelImportPreview,
+  confirmImportPreview,
+  openImportPreviewCandidatePicker,
+} from './importPreviewState'
 // ── Story 5.3 — "Quét lại thư mục" (FR99) ────────────────────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `libraryImport.ts`: `libraryRescan.ts` là một module Vue
@@ -408,6 +417,20 @@ async function boot(): Promise<void> {
       panelRing,
       submitPastedText,
       submitFilePath,
+      // Story 6.3 — màn xem trước bảng mã (FR126). `confirmImportPreview` KHÔNG bỏ qua kết
+      // quả (khác `submitPastedText`): thành công hay trượt đều phải đóng vòng nộp form
+      // qua `finishImportSubmission` — reset panel/nạp lại Chương chỉ chạy SAU khi Rust đã
+      // ghi (hoặc từ chối) thật.
+      openImportPreviewCandidatePicker,
+      confirmImportPreview: () => {
+        void (async () => {
+          const result = await confirmImportPreview()
+          if (result.created !== null || result.error !== null) {
+            finishImportSubmission(result.created, result.error)
+          }
+        })()
+      },
+      cancelImportPreview,
       // Story 5.3 — "Quét lại thư mục" (FR99).
       rescanLibraryFolder,
       chooseLibraryRootFolder,

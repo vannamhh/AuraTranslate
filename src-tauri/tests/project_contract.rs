@@ -553,8 +553,11 @@ fn repeated_names_keep_climbing_the_suffix_instead_of_colliding() {
     cleanup(&root);
 }
 
+// 🔵 SỬA (2026-09-04, Story 6.3) — đổi tên hàm: tên cũ mang chuỗi `not_utf8` bên trong, chính
+// điều mà §Verification spec 6.3 đòi hỏi phải KHÔNG còn xuất hiện trên đường nhập tài liệu
+// sau lượt đổi tên `ImportError::NotUtf8` → `UndecodableBytes`. Hành vi ca này không đổi.
 #[test]
-fn text_that_is_not_utf8_is_refused_the_same_way_a_docx_is() {
+fn text_undecodable_under_the_declared_encoding_is_refused_the_same_way_a_docx_is() {
     let root = temp_dir("not-utf8");
     let source_dir = temp_dir("not-utf8-src");
 
@@ -571,10 +574,14 @@ fn text_that_is_not_utf8_is_refused_the_same_way_a_docx_is() {
     // chỉ đọc byte thô, và lỗi này giờ nảy ra TỪ `run_import` SAU KHI thư mục đã được tạo —
     // doc-comment của `create_work` khẳng định nó "cuộn lại TRỌN VẸN" trên đường đó. Phép
     // kiểm thư mục rỗng ngay dưới đây là cổng cho đúng mệnh đề ấy.
+    // 🔵 SỬA (2026-09-04, Story 6.3) — khoá đổi tên cùng lượt `ImportError::NotUtf8` →
+    // `UndecodableBytes` (đường lỗi bảng mã ĐÃ CHỌN không giải mã được, không còn khoá cứng
+    // "not_utf8"). Đây là đổi tên, không phải mệnh đề nới: cùng byte, cùng nhánh, cùng
+    // `create_work_from_file` (đường mặc định UTF-8) trượt đúng chỗ cũ.
     assert_eq!(
         err.message_key(),
-        MessageKey::ImportNotUtf8,
-        "loi phai la `import.not_utf8` -- cung khoa voi doc-comment cua `ImportError::NotUtf8`"
+        MessageKey::ImportUndecodableBytes,
+        "loi phai la `import.undecodable_bytes` -- cung khoa voi doc-comment cua `ImportError::UndecodableBytes`"
     );
 
     let entries: Vec<_> = fs::read_dir(&root).unwrap().collect();
@@ -602,7 +609,9 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
         ChapterInput::AlreadyText("Chuong hai noi tiep.".to_owned()),
         ChapterInput::AlreadyText("Chuong ba ket thuc.".to_owned()),
     ]);
-    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape)
+    // 🔵 SỬA (2026-09-04, Story 6.3) — `create_work` thêm tham số `encoding`; ca này không
+    // canh bảng mã, giữ UTF-8 để hành vi cũ không đổi.
+    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8)
         .expect("tao Tac pham voi N > 1 Chuong that bai");
 
     let rows: Vec<(i64, i64, String)> = opened

@@ -24,21 +24,35 @@
  *
  * ⚠️ **Giới hạn thật, ghi ra thay vì để người sau tưởng đã được canh:** tệp này canh vế *"có
  * gọi không"* trên đường `submitPastedText`. Nó **không** canh nhánh `submitFilePath` — hai
- * nhánh đi qua **cùng** một `finishSubmit`, và đó là điểm nghẽn mà chú thích tại chỗ gọi là
- * *"điểm nghẽn DUY NHẤT mà cả hai nhánh nhập đều đi qua"*. Một mệnh đề, một đường.
+ * nhánh đi qua **cùng** một `finishImportSubmission`, và đó là điểm nghẽn mà chú thích tại
+ * chỗ gọi là *"điểm nghẽn DUY NHẤT mà cả hai nhánh nhập đều đi qua"*. Một mệnh đề, một đường.
+ *
+ * 🔵 **SỬA 2026-09-04 (Story 6.3, FR126) — `submitPastedText()` không còn tự tạo Tác phẩm.**
+ * Trước story này, gọi `submitPastedText()` MỘT LẦN là đủ để `finishSubmit` chạy (nhập
+ * thẳng qua `createWorkFromText`). Từ story này, nộp form chỉ MỞ màn xem trước bảng mã
+ * (`importPreviewState.ts::openImportPreviewFromText`) — việc TẠO Tác phẩm dời sang
+ * `confirmImportPreview()`, và `finishImportSubmission` (đổi tên từ `finishSubmit`, nay
+ * EXPORT) chỉ chạy SAU lượt xác nhận đó. Ca dưới đây lái qua ĐÚNG hai bước sản phẩm, khớp
+ * đúng cách `main.ts` nối `import.preview.confirm` (`confirmImportPreview()` rồi
+ * `finishImportSubmission(created, error)` — xem `src/main.ts`).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { readFixture } from './support/segmentFixture'
 
-/** Tác phẩm mà lượt nhập giả lập trả về — chỉ cần khác `null` để `finishSubmit` đi vào nhánh dọn. */
+/** Tác phẩm mà lượt nhập giả lập trả về — chỉ cần khác `null` để `finishImportSubmission` đi
+ * vào nhánh dọn. */
 const TAC_PHAM_MOI = { work_id: 'w-moi', name: 'Tac pham B', chapter_count: 1 }
 
 vi.mock('../../src/config/project', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/project')>()
   return {
     ...actual,
-    createWorkFromText: async () => ({ created: TAC_PHAM_MOI, error: null }),
+    previewImportEncodingFromText: async () => ({
+      preview: { confidence: 'self_declared', selected_encoding: 'UTF-8', candidates: [] },
+      error: null,
+    }),
+    confirmImportWithEncoding: async () => ({ created: TAC_PHAM_MOI, error: null }),
   }
 })
 
@@ -55,10 +69,11 @@ beforeEach(() => {
 })
 
 describe('🔴 đổi Tác phẩm ⇒ state lịch sử phiên bản KHÔNG sống sót', () => {
-  it('`submitPastedText()` gọi `resetSegmentHistory()` — hộp thoại đóng và `segmentId` về `null`', async () => {
+  it('nộp rồi xác nhận gọi `resetSegmentHistory()` — hộp thoại đóng và `segmentId` về `null`', async () => {
     const history = await import('../../src/panels/segmentHistoryState')
     const editor = await import('../../src/panels/editorPanelState')
     const nhap = await import('../../src/modes/libraryImport')
+    const preview = await import('../../src/importPreviewState')
 
     // Dựng đúng trạng thái nguy hiểm: một câu đã nhắm, hộp thoại lịch sử ĐANG MỞ.
     await editor.ensureSegmentsLoaded()
@@ -67,12 +82,19 @@ describe('🔴 đổi Tác phẩm ⇒ state lịch sử phiên bản KHÔNG số
     expect(history.historyIsOpen.value).toBe(true)
     expect(history.historySegmentId.value).not.toBeNull()
 
-    // Đúng đường sản phẩm — không một setter chỉ-test nào, không gọi thẳng `resetSegmentHistory`.
+    // Đúng đường sản phẩm, BƯỚC MỘT — nộp form chỉ MỞ màn xem trước, không tạo gì cả.
     nhap.pastedText.value = 'Cau nguyen van cua Tac pham moi.'
     await nhap.submitPastedText()
+    expect(preview.importPreviewIsOpen.value).toBe(true)
+    expect(nhap.createdWork.value).toBeNull()
 
-    // Tiền đề của ca: lượt nhập phải THÀNH CÔNG, không thì `finishSubmit` không vào nhánh dọn
-    // và ca sẽ xanh vì một lý do sai.
+    // Đúng đường sản phẩm, BƯỚC HAI — xác nhận, rồi đóng vòng nộp form đúng khuôn
+    // `main.ts`'s handler của `import.preview.confirm`.
+    const result = await preview.confirmImportPreview()
+    nhap.finishImportSubmission(result.created, result.error)
+
+    // Tiền đề của ca: lượt nhập phải THÀNH CÔNG, không thì `finishImportSubmission` không
+    // vào nhánh dọn và ca sẽ xanh vì một lý do sai.
     expect(nhap.createdWork.value).not.toBeNull()
 
     expect(history.historyIsOpen.value).toBe(false)
