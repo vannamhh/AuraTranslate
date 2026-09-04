@@ -210,10 +210,16 @@ pub struct SplitSegment {
 /// # Bất biến của giá trị trả về
 ///
 /// 1. Không segment nào rỗng hoặc chỉ khoảng trắng.
-/// 2. Không segment nào chứa `\n` hay `\r` — vế `\r` là AC11, mà `deferred-work.md:561`
-///    giao đích danh cho story này: dữ liệu THẬT trên đĩa mang `\r\n` chưa chuẩn hoá, và
-///    chuẩn hoá thật (FR124/FR125) là Epic 6. Bộ tách **không** chuẩn hoá
-///    `chapter.source_text`; nó tự phòng thủ bằng cách coi `\r` là khoảng trắng.
+/// 2. Không segment nào chứa `\n` hay `\r` — vế `\r` là AC11. 🔵 **SỬA 2026-09-04 (Story
+///    6.4, FR124/FR125)** — mệnh đề cũ ở đây ("chuẩn hoá thật là Epic 6, bộ tách chỉ tự
+///    phòng thủ") hết đúng: bước 4 của chuỗi AD-39 (`pipeline::normalize::normalize`,
+///    GỌI TRƯỚC bước 7 gọi hàm này) nay chuẩn hoá `\r\n`/`\r` trần thành `\n` thật trên
+///    CHÍNH `chapter.source_text` sẽ ghi xuống đĩa — không còn `\r` nào sống tới đây trên
+///    đường sản phẩm. Vế phòng thủ ở dòng `if ch == '\n' || ch == '\r'` ngay dưới **vẫn ở
+///    lại**, không xoá: bộ tách này còn được gọi trực tiếp bởi `tests/**` trên văn bản
+///    CHƯA qua bước 4 (đối chứng AD-39 với một `order` bị đảo), và bởi
+///    `commands::segment::split_chapter_into_segments` trên dữ liệu CŨ đã có trên đĩa từ
+///    trước Story 6.4 (chưa được chuẩn hoá, và cố ý KHÔNG di trú — xem §Never spec 6.4).
 /// 3. Văn bản rỗng hoặc chỉ khoảng trắng ⇒ `Vec` rỗng. Chỗ gọi phải chịu được một Chương
 ///    **0 segment**.
 pub fn split_source_text(source_text: &str, source_lang: &str) -> Vec<SplitSegment> {
@@ -335,6 +341,35 @@ fn absorb_trailing_closers(text: &str, from: usize) -> usize {
         end += ch.len_utf8();
     }
     end
+}
+
+/// Dòng `line` (đã TRIM hai đầu — chỗ gọi bảo đảm, xem `core::segment::normalize`) có kết
+/// thúc một câu hay không — vị từ mà [`super::normalize`] cần để quyết định NỐI hai dòng
+/// (Story 6.4, FR124/FR125).
+///
+/// 🔴 **Chỗ DUY NHẤT ngoài chính vòng lặp của [`split_source_text`] đọc bảng kết câu** —
+/// dựng TRÊN [`is_terminator`] và [`absorb_trailing_closers`] đang có, không chép lại một
+/// bảng thứ hai: `pub(super)` (không `pub`) giữ đúng mệnh đề *"`split` là chỗ DUY NHẤT
+/// trong kho biết bảng chữ cái kết câu"* (`mod.rs:19-23`, cưỡng chế bởi
+/// `tests/segment_boundary.rs`) — chỉ module CHA (`core::segment`, tức anh em `normalize`)
+/// gọi được, không lộ ra ngoài crate.
+///
+/// Thuật toán: bỏ các dấu đóng ở ĐUÔI dòng trước (cùng bảng [`TRAILING_CLOSERS`] mà
+/// [`absorb_trailing_closers`] dùng — ca ma trận I/O *"Dấu kết + dấu đóng"*: `"「走吧。」"`
+/// kết thúc bằng `」`, phải bỏ nó ra mới thấy `。` bên dưới), rồi xét KÝ TỰ liền trước đó có
+/// phải dấu kết câu hay không. Dòng rỗng (sau trim) hoặc dòng chỉ toàn dấu đóng ⇒ `false` —
+/// không có gì để mà kết thúc một câu.
+pub(super) fn line_ends_a_sentence(line: &str, chinese: bool) -> bool {
+    let mut rest = line;
+    loop {
+        let Some(ch) = rest.chars().next_back() else {
+            return false; // dòng rỗng, hoặc đã bóc hết tới dấu đóng cuối cùng
+        };
+        if !TRAILING_CLOSERS.contains(&ch) {
+            return is_terminator(ch, chinese);
+        }
+        rest = &rest[..rest.len() - ch.len_utf8()];
+    }
 }
 
 /// Hút **toàn bộ** đuôi kết câu: dấu đóng và dấu kết câu **xen kẽ nhau**, tới khi không bên
@@ -485,5 +520,50 @@ fn en_run_is_boundary(text: &str, run_start: usize, run_end: usize, closed_end: 
     match text[next_start..].chars().next() {
         None => true,
         Some(c) => c.is_uppercase() || OPENING_MARKS.contains(&c),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // 🔴 THÊM (vá vòng rà 1, mục 6, Story 6.4) — `line_ends_a_sentence` là một seam
+    // `pub(super)` MỚI mà chỉ `normalize.rs` từng chạm gián tiếp (qua hành vi NỐI DÒNG của
+    // chính nó, khong phai qua ca test rieng cho vi tu nay). Bon ca duoi day khoa TRUC TIEP
+    // bon hinh dang ma tran I/O da liet: dau ket tran, dau ket cong dau dong, khong dau
+    // ket, dong rong -- ca hai nhanh ngon ngu.
+
+    #[test]
+    fn a_bare_terminator_ends_a_sentence_in_both_language_branches() {
+        assert!(line_ends_a_sentence("Cau da xong.", false), "en: dau cham tran");
+        assert!(line_ends_a_sentence("他走了。", true), "zh: dau cham tran");
+    }
+
+    #[test]
+    fn a_terminator_followed_by_a_closer_still_ends_a_sentence() {
+        // zh: dau dong TRAILING_CLOSERS dung sau dau ket cau -- phai bi bo qua truoc khi xet.
+        assert!(line_ends_a_sentence("「走吧。」", true));
+        // en: dau ngoac kep ASCII dung sau dau cham -- cung mot bang TRAILING_CLOSERS.
+        assert!(line_ends_a_sentence("He said \"Done.\"", false));
+    }
+
+    #[test]
+    fn a_line_with_no_terminator_does_not_end_a_sentence() {
+        assert!(!line_ends_a_sentence("khong dau ket cau nao ca", false));
+        assert!(!line_ends_a_sentence("第一章 khong dau ket", true));
+    }
+
+    #[test]
+    fn a_blank_line_never_ends_a_sentence() {
+        assert!(!line_ends_a_sentence("", false));
+        assert!(!line_ends_a_sentence("", true));
+    }
+
+    // Doi chung duong bo sung -- mot dong CHI toan dau dong (khong con gi phia sau khi boc
+    // het) cung phai tra false, khong panic: `rest.chars().next_back()` tra `None` dung luc
+    // rong, nhanh do da co trong than ham (xem match ... => return false).
+    #[test]
+    fn a_line_that_is_only_closers_does_not_panic_and_is_false() {
+        assert!(!line_ends_a_sentence("」」」", true));
     }
 }

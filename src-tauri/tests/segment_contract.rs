@@ -20,7 +20,7 @@ use auratranslate_lib::commands::lifecycle::set_chapter_status;
 use auratranslate_lib::commands::project::{
     cancel_import_preview, confirm_import_with_encoding, create_work, create_work_from_text,
     preview_import_encoding, stash_pending_import_source, ConfidenceWire, EncodingCandidateWire,
-    ImportEncodingPreview, PendingImportSourceState,
+    ImportEncodingPreview, NormalizedPreviewWire, PendingImportSourceState,
 };
 use auratranslate_lib::commands::segment::{
     confirm_segment, flush_segment_targets, list_reading_marks, mark_reading_segment,
@@ -32,6 +32,7 @@ use auratranslate_lib::commands::segment::{
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::meta::WorkMeta;
 use auratranslate_lib::core::segment::import::ImportError;
+use auratranslate_lib::core::segment::normalize;
 use auratranslate_lib::core::segment::pipeline::{
     ChapterInput, PipelineInput, PipelineShape, Step, PIPELINE_ORDER, run_import,
     run_import_with_order,
@@ -8017,12 +8018,24 @@ fn splitting_chapters_before_decoding_reproduces_the_ad_39_symptom_exactly_one_c
         "thứ tự SAI (tách Chương TRƯỚC giải mã) phải cho ĐÚNG 1 Chương — mẫu phân tách UTF-8 \
          chạy trên byte GBK chưa giải mã, không khớp gì, cả khối ra đúng một Chương"
     );
-    // 🔵 THÊM (vòng rà đối kháng 2026-09-04) — không chỉ ĐẾM Chương, còn khẳng định VĂN BẢN:
-    // toàn bộ nội dung phải giải mã ĐÚNG và NGUYÊN VẸN (0 byte mất), dù việc tách đã thất bại.
+    // 🔵 SỬA 2026-09-04 (Story 6.4) — không còn so với `AD_39_GBK_FIXTURE_TEXT` NGUYÊN VĂN.
+    // Trước story này, bước 4 (`NormalizeParagraphsAndWhitespace`) là no-op nên "giải mã
+    // xong" và "văn bản cuối cùng" là MỘT: so trực tiếp với fixture gốc chứng minh được cả
+    // hai. Nay bước 4 CÓ THÂN THẬT và vẫn chạy (`wrong_order` chỉ đảo `SplitChapters` lên
+    // trước `DecodeEncoding`, không đụng vị trí bước 4) — ba dòng `"第一章 X"` của fixture
+    // KHÔNG dòng nào kết thúc bằng dấu kết câu và KHÔNG có dòng trống ngăn cách, nên luật
+    // gộp dòng của Story 6.4 nối cả ba thành MỘT dòng (nhánh zh, dấu nối rỗng) — đúng luật
+    // đã tài liệu ở §Design Notes spec 6.4 "Luật gộp dòng, và cái nó KHÔNG cứu được". Mệnh
+    // đề THẬT SỰ cần chứng minh ở đây — "giải mã ĐÚNG bảng mã đã khai" — giờ đối chứng bằng
+    // cách so với bản đã CHUẨN HOÁ của chính fixture, không phải bản thô: nếu giải mã ra
+    // SAI ký tự (bảng mã sai/lệch byte), bản chuẩn hoá cũng sẽ sai theo, nên phép so này
+    // không mất khả năng bắt lỗi giải mã, chỉ đổi ĐIỂM SO cho khớp bước 4 đã có thân.
     assert_eq!(
-        outcome.chapters[0].source_text, AD_39_GBK_FIXTURE_TEXT,
-        "Chương duy nhất phải mang ĐÚNG và NGUYÊN VẸN văn bản gốc đã giải mã — bước giải mã \
-         (chạy Ở VỊ TRÍ THỨ HAI trong thứ tự sai) vẫn phải thành công trên đúng bảng mã đã khai"
+        outcome.chapters[0].source_text, "第一章 mot第一章 hai第一章 ba",
+        "Chương duy nhất phải mang văn bản gốc đã giải mã ĐÚNG rồi CHUẨN HOÁ (bước 4 chạy \
+         thật, Story 6.4) — ba dòng không dấu kết câu, không dòng trống ngăn cách, bị nối \
+         thành một dòng ở nhánh zh (dấu nối rỗng); giải mã SAI bảng mã sẽ cho ra một chuỗi \
+         KHÁC ở đây, không phải chuỗi này"
     );
 }
 
@@ -8054,8 +8067,13 @@ fn splitting_chapters_after_decoding_finds_the_pattern_and_produces_n_chapters()
     // `!segments.is_empty()`; mất CHỮ (ví dụ do một lượt `trim()` xoá khoảng trắng đầu dòng
     // có chủ ý) là VÔ HÌNH với hai phép kiểm đó. Khẳng định VĂN BẢN từng Chương, NGUYÊN VĂN
     // (không trim) — khớp đúng phép tách trên `AD_39_GBK_FIXTURE_TEXT.split("第一章")`.
-    assert_eq!(outcome.chapters[0].source_text, " mot\n");
-    assert_eq!(outcome.chapters[1].source_text, " hai\n");
+    // 🔵 SỬA 2026-09-04 (Story 6.4) — KHÔNG còn `"\n"` ở đuôi hai Chương đầu. `PIPELINE_ORDER`
+    // đặt bước 4 (chuẩn hoá) TRƯỚC bước 5 (tách Chương) — khi bước 5 chạy, `NormalizeParagraphsAndWhitespace`
+    // ĐÃ nối trọn khối blob thành MỘT dòng (cùng luật gộp không dấu kết câu/không dòng trống
+    // đã giải thích ở đối chứng ngay trên), nên phép tách theo mẫu `"第一章"` chạy trên một
+    // chuỗi KHÔNG còn `\n` nào — ba mảnh tách ra vì thế cũng không còn `\n` nào ở đuôi.
+    assert_eq!(outcome.chapters[0].source_text, " mot");
+    assert_eq!(outcome.chapters[1].source_text, " hai");
     assert_eq!(outcome.chapters[2].source_text, " ba");
     for (i, chapter) in outcome.chapters.iter().enumerate() {
         assert!(
@@ -8230,7 +8248,10 @@ fn invalid_bytes_under_the_declared_encoding_are_rejected_not_replaced() {
 }
 
 /// AC6 — bước thân rỗng vẫn phải NÓI ĐƯỢC là đã đi qua, không biến mất khỏi vết chạy chỉ vì
-/// nó không làm gì.
+/// nó không làm gì. 🔵 **SỬA 2026-09-04 (Story 6.4)** — từ "bốn bước thân rỗng" xuống "ba":
+/// `NormalizeParagraphsAndWhitespace` không còn no-op (`normalize::normalize`), nhưng vẫn
+/// PHẢI nói ra trong `trace` y hệt lúc còn rỗng — mệnh đề AC6 áp cho MỌI bước, không chỉ ba
+/// bước còn thân rỗng.
 #[test]
 fn every_step_of_pipeline_order_appears_in_the_trace_even_the_empty_bodied_ones() {
     let input = PipelineInput::default_shaped(
@@ -8241,8 +8262,8 @@ fn every_step_of_pipeline_order_appears_in_the_trace_even_the_empty_bodied_ones(
     assert_eq!(
         outcome.trace.as_slice(),
         PIPELINE_ORDER.as_slice(),
-        "vết chạy phải liệt ĐỦ bảy bước, kể cả bốn bước thân rỗng (bóc/làm sạch/chuẩn hoá/\
-         xem trước) — một bước thân rỗng không được biến mất khỏi vết chỉ vì nó không làm gì"
+        "vết chạy phải liệt ĐỦ bảy bước, kể cả ba bước còn thân rỗng (bóc/làm sạch/xem \
+         trước) — một bước thân rỗng không được biến mất khỏi vết chỉ vì nó không làm gì"
     );
 }
 
@@ -8328,7 +8349,7 @@ fn preview_of_a_utf8_bom_file_is_self_declared_but_still_carries_all_five_real_c
     bytes.extend_from_slice("Chương một".as_bytes());
     let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "bom.txt".to_owned() });
 
-    let preview = preview_import_encoding(&shape);
+    let preview = preview_import_encoding(&shape, "en");
 
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert_eq!(
@@ -8354,10 +8375,20 @@ fn preview_of_a_utf8_bom_file_is_self_declared_but_still_carries_all_five_real_c
 fn preview_of_pasted_text_is_self_declared_with_no_bytes_to_sniff() {
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("dan tay".to_owned()));
 
-    let preview = preview_import_encoding(&shape);
+    let preview = preview_import_encoding(&shape, "en");
 
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert!(preview.candidates.is_empty());
+    // 🔴 Vá vòng rà 1, mục 1 — đường DÁN VĂN BẢN TAY (0 ứng viên) vẫn phải chở một bản
+    // chuẩn hoá THẬT, dựng từ CHÍNH văn bản đã dán -- không phải một trường rỗng/vắng mặt.
+    let normalized = preview
+        .self_declared_normalized
+        .as_ref()
+        .expect("0 ung vien van phai co self_declared_normalized");
+    assert_eq!(normalized.text, "dan tay");
+    assert_eq!(normalized.joined_lines, 0);
+    assert_eq!(normalized.blank_lines_removed, 0);
+    assert!(!normalized.window_truncated);
 }
 
 // ── I/O Matrix: tệp thuần ASCII ⇒ tự đoán, tin cậy cao ──────────────────────────
@@ -8369,7 +8400,7 @@ fn preview_of_pure_ascii_bytes_is_high_confidence_with_five_identical_candidates
         label: "ascii.txt".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape);
+    let preview = preview_import_encoding(&shape, "en");
 
     assert_eq!(preview.confidence, ConfidenceWire::High);
     // 🔵 SỬA (2026-09-04, vòng rà lại spec 6.3) — "candidates rỗng khi tin cậy cao" đã HẾT
@@ -8405,7 +8436,7 @@ fn preview_of_a_gbk_file_with_a_short_ascii_header_opens_the_strip_with_five_cel
         label: "gbk-header.txt".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape);
+    let preview = preview_import_encoding(&shape, "en");
 
     assert_eq!(
         preview.confidence,
@@ -8432,7 +8463,7 @@ fn preview_marks_an_undecodable_candidate_without_touching_the_others() {
         label: "bad.bin".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape);
+    let preview = preview_import_encoding(&shape, "en");
 
     assert_eq!(preview.confidence, ConfidenceWire::Low);
     assert_eq!(preview.candidates.len(), 5);
@@ -8544,7 +8575,7 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
     }
     let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "utf16be.txt".to_owned() });
 
-    let preview = preview_import_encoding(&shape);
+    let preview = preview_import_encoding(&shape, "en");
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared, "BOM -- nguon tu khai");
     assert_eq!(
         preview.selected_encoding, "UTF-16BE",
@@ -8668,9 +8699,13 @@ fn confirming_with_a_whatwg_valid_label_outside_fr126_is_refused_explicitly() {
 #[test]
 fn preview_of_an_already_chaptered_shape_with_no_units_is_self_declared_not_a_panic() {
     let shape = PipelineShape::Chapters(Vec::new());
-    let preview = preview_import_encoding(&shape);
+    let preview = preview_import_encoding(&shape, "en");
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert!(preview.candidates.is_empty());
+    // Không đơn vị nào ⇒ không văn bản nào để mà chuẩn hoá — RỖNG THẬT, nhưng trường vẫn
+    // `Some(..)` (đồng bộ với mọi ca `candidates` rỗng khác), không `None`.
+    let normalized = preview.self_declared_normalized.as_ref().expect("van phai co truong nay");
+    assert_eq!(normalized.text, "");
 }
 
 // ── §Verification: `cargo tree` không đổi qua story này là bằng chứng thủ công, không
@@ -8711,29 +8746,44 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
                 label: "UTF-8".to_owned(),
                 encoding: "UTF-8".to_owned(),
                 preview: None,
+                normalized: None,
             },
             EncodingCandidateWire {
                 label: "GBK".to_owned(),
                 encoding: "GBK".to_owned(),
                 preview: Some("萧炎".to_owned()),
+                normalized: Some(NormalizedPreviewWire {
+                    text: "萧炎".to_owned(),
+                    joined_lines: 0,
+                    blank_lines_removed: 0,
+                    window_truncated: false,
+                }),
             },
         ],
+        self_declared_normalized: None,
     };
 
     let json = serde_json::to_value(&preview).expect("serialize ImportEncodingPreview");
     let object = json.as_object().expect("ImportEncodingPreview phai serialize thanh object");
 
-    // Ba tên trường cấp một -- `src/config/project.ts::ImportEncodingPreview` doc ba tên
-    // NGUYEN VAN nay. `#[serde(rename_all = "camelCase")]` se doi `selected_encoding` thanh
+    // Bon ten truong cap mot (Story 6.4 vong ra 1 them `self_declared_normalized`) --
+    // `src/config/project.ts::ImportEncodingPreview` doc bon ten NGUYEN VAN nay.
+    // `#[serde(rename_all = "camelCase")]` se doi `selected_encoding` thanh
     // `selectedEncoding` -- dung DIEM chet ma Ice do duoc.
     assert_eq!(
         object.keys().collect::<std::collections::BTreeSet<_>>(),
         std::collections::BTreeSet::from([
             &"confidence".to_owned(),
             &"selected_encoding".to_owned(),
-            &"candidates".to_owned()
+            &"candidates".to_owned(),
+            &"self_declared_normalized".to_owned(),
         ]),
-        "ImportEncodingPreview phai serialize DUNG BA ten truong snake_case nay, khong hon khong kem"
+        "ImportEncodingPreview phai serialize DUNG BON ten truong snake_case nay, khong hon khong kem"
+    );
+    assert_eq!(
+        object.get("self_declared_normalized"),
+        Some(&serde_json::Value::Null),
+        "self_declared_normalized=None (candidates khong rong) phai di ra `null` CO MAT"
     );
     assert_eq!(object.get("selected_encoding"), Some(&serde_json::Value::String("GBK".to_owned())));
 
@@ -8748,22 +8798,45 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
     let first = candidates[0].as_object().expect("candidate[0] la object");
     assert_eq!(
         first.keys().collect::<std::collections::BTreeSet<_>>(),
-        std::collections::BTreeSet::from([&"label".to_owned(), &"encoding".to_owned(), &"preview".to_owned()]),
-        "EncodingCandidateWire phai serialize DUNG ba ten truong nay"
+        std::collections::BTreeSet::from([
+            &"label".to_owned(),
+            &"encoding".to_owned(),
+            &"preview".to_owned(),
+            &"normalized".to_owned(),
+        ]),
+        "EncodingCandidateWire phai serialize DUNG bon ten truong nay (Story 6.4 them `normalized`)"
     );
-    // 🔴 `preview: None` PHAI di ra la `null` CO MAT, khong mot truong bi bo di -- mot
-    // truong VANG MAT doc ra `undefined` phia TypeScript, mot gia tri THU BA ma
+    // 🔴 `preview: None`/`normalized: None` PHAI di ra la `null` CO MAT, khong mot truong bi
+    // bo di -- mot truong VANG MAT doc ra `undefined` phia TypeScript, mot gia tri THU BA ma
     // `isImportEncodingPreview`/template khong nhanh nao xu.
     assert_eq!(
         first.get("preview"),
         Some(&serde_json::Value::Null),
         "preview=None phai di ra `null` CO MAT, khong bi bo qua khoi object JSON"
     );
+    assert_eq!(
+        first.get("normalized"),
+        Some(&serde_json::Value::Null),
+        "normalized=None phai di ra `null` CO MAT, khong bi bo qua khoi object JSON"
+    );
 
     let second = candidates[1].as_object().expect("candidate[1] la object");
     assert_eq!(second.get("label"), Some(&serde_json::Value::String("GBK".to_owned())));
     assert_eq!(second.get("encoding"), Some(&serde_json::Value::String("GBK".to_owned())));
     assert_eq!(second.get("preview"), Some(&serde_json::Value::String("萧炎".to_owned())));
+    let second_normalized =
+        second.get("normalized").and_then(|v| v.as_object()).expect("normalized la object khi Some");
+    assert_eq!(
+        second_normalized.keys().collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from([
+            &"text".to_owned(),
+            &"joined_lines".to_owned(),
+            &"blank_lines_removed".to_owned(),
+            &"window_truncated".to_owned(),
+        ]),
+        "NormalizedPreviewWire phai serialize DUNG bon ten truong snake_case nay"
+    );
+    assert_eq!(second_normalized.get("text"), Some(&serde_json::Value::String("萧炎".to_owned())));
 }
 
 /// Ba giá trị `ConfidenceWire` — cả ba, không chỉ giá trị `Low` mà ca ngay trên đã canh.
@@ -8781,4 +8854,158 @@ fn every_confidence_wire_variant_serializes_to_the_exact_snake_case_string_the_f
             "ConfidenceWire::{variant:?} phai serialize thanh chuoi {expected:?}"
         );
     }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// §Story 6.4 — chuẩn hoá xuống dòng và khoảng trắng (FR124/FR125, AD-39 bước 4). Ba ca
+// DƯƠNG bắt buộc của Task list spec 6.4, cộng ca "chạy hai lần cho cùng chuỗi" (bất động).
+// Phép kiểm TĨNH trên cây nguồn (ai gọi `normalize::`, `normalize.rs` không mang bảng kết
+// câu) sống ở `segment_normalize_boundary.rs`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Ca DƯƠNG bắt buộc (a) — `run_import` trên byte CRLF ⇒ `source_text` đọc lại từ
+/// `project.db` **0 ký tự `\r`**. Đi qua `create_work` (đường sản phẩm THẬT, gọi
+/// `run_import` một lần rồi ghi `chapter.source_text` — `commands/project.rs:348-353`),
+/// không gọi `run_import` trực tiếp, để đối chứng đúng cái AC4/AC5 khai: kết quả chuẩn hoá
+/// LÀ thứ được lưu, không phải một lớp hiển thị đắp thêm.
+#[test]
+fn a_crlf_source_written_through_create_work_has_zero_carriage_returns_when_read_back() {
+    let root = temp_dir("6-4-crlf-round-trip");
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText(
+        "Chuong mot.\r\nMot doan van thu hai.\r\n\r\nMot doan thu ba.\r\n".to_owned(),
+    ));
+
+    let opened = create_work(&root, "CRLF Round Trip", "en", "", shape, encoding_rs::UTF_8)
+        .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+
+    let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
+    assert!(
+        !source_text.contains('\r'),
+        "chapter.source_text van con `\\r` sau khi doc lai tu project.db: {source_text:?}"
+    );
+    assert_eq!(
+        source_text, "Chuong mot.\nMot doan van thu hai.\n\nMot doan thu ba.",
+        "chuoi doc lai phai la ban da CHUAN HOA that su, khong chi thieu `\\r`"
+    );
+
+    drop(opened.store);
+    cleanup(&root);
+}
+
+/// Ca DƯƠNG bắt buộc (b) — văn bản ngắt giữa câu ⇒ **một** segment, không hai. Ở TẦNG
+/// PIPELINE (`run_import`, không phải tầng `split_source_text` mà `segment_contract.rs` đã
+/// canh từ Story 2.1) — trước Story 6.4, cùng đầu vào này ra HAI segment, đúng thứ bug
+/// report ở §Intent spec 6.4 mô tả.
+#[test]
+fn a_pipeline_run_joins_a_mid_sentence_break_into_one_segment_not_two() {
+    let input = PipelineInput::default_shaped(
+        PipelineShape::Blob(ChapterInput::AlreadyText(
+            "Han nhin ve phia\nngon nui xa.".to_owned(),
+        )),
+        "en",
+    );
+    let outcome = run_import(input).expect("run_import khong duoc loi");
+
+    assert_eq!(outcome.chapters.len(), 1);
+    let segments = &outcome.chapters[0].segments;
+    assert_eq!(
+        segments.len(),
+        1,
+        "dong bi ngat GIUA CAU phai cho DUNG MOT segment o tang pipeline, thay {} segment: {:?}",
+        segments.len(),
+        segments.iter().map(|s| &s.text).collect::<Vec<_>>()
+    );
+    assert_eq!(segments[0].text, "Han nhin ve phia ngon nui xa.");
+}
+
+/// Ca DƯƠNG bắt buộc (c) — chạy `normalize` hai lần ⇒ cùng chuỗi (bất động/idempotent).
+#[test]
+fn running_normalize_twice_on_the_same_text_yields_the_same_string() {
+    let text = "Doan mot khong co dau cham\ncau tiep theo.\n\nDoan hai.";
+    let once = normalize::normalize(text, "en");
+    let twice = normalize::normalize(&once.text, "en");
+    assert_eq!(once.text, twice.text, "chuan hoa lan hai tren chinh ket qua lan dau phai cho lai Y HET");
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Vá vòng rà 1, mục 4 — `.normalized` đi ra từ `render_candidates` THẬT (qua
+// `preview_import_encoding`, chỗ gọi sản phẩm) phải có ca quan sát. Trước lượt vá này,
+// `grep -rn '\.normalized' src-tauri/tests/` chỉ khớp một ca dựng `NormalizedPreviewWire`
+// BẰNG TAY — dây nối thật (`render_candidates` → `normalize::normalize_window`) sống KHÔNG
+// AI CANH.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Nguồn DÀI HƠN `EVIDENCE_WINDOW_BYTES` (4096 byte, hằng riêng của `encoding.rs`, không
+/// import được — đo bằng độ dài `bytes` thật) ⇒ mỗi ứng viên phải khai `window_truncated ==
+/// true`. Dùng ASCII thuần lặp lại để BỐN ứng viên byte-đơn-vị (UTF-8/GB18030/GBK/Big5)
+/// cùng giải mã sạch — mệnh đề đang canh là CỜ `window_truncated`, không phải bảng mã nào
+/// thắng.
+#[test]
+fn a_source_longer_than_the_evidence_window_marks_every_candidate_window_truncated() {
+    // Moi dong "Cau so N." (khoang 11-13 byte) x nhieu lan -- vuot 4096 byte de chac chan
+    // cat cua so, va moi dong KET THUC bang dau cham nen khong co gi de NOI (doi chung nay
+    // chi do rieng co `window_truncated`, khong lan sang luat noi dong).
+    let mut text = String::new();
+    for i in 0..500 {
+        text.push_str(&format!("Cau so {i}.\n"));
+    }
+    assert!(text.len() > 4096, "fixture phai vuot cua so bang chung that su: {} byte", text.len());
+
+    let shape = PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes: text.clone().into_bytes(),
+        label: "long.txt".to_owned(),
+    });
+    let preview = preview_import_encoding(&shape, "en");
+
+    assert_eq!(preview.candidates.len(), 5, "nguon co byte de do -- du nam o");
+    for candidate in &preview.candidates {
+        let Some(normalized) = &candidate.normalized else {
+            // UTF-16 tren ASCII thuan gan nhu luon "khong ra chu" -- bo qua dung mot o do,
+            // cung mien tru ma cac ca khac cua tep nay da dung (label != "UTF-16").
+            assert_eq!(candidate.label, "UTF-16", "chi UTF-16 duoc phep khong co .normalized o day");
+            continue;
+        };
+        assert!(
+            normalized.window_truncated,
+            "nhan {}: nguon dai hon cua so bang chung phai khai window_truncated == true",
+            candidate.label
+        );
+    }
+}
+
+/// CÙNG byte ngắt giữa câu (không dấu kết câu ở cuối dòng đầu), chạy `preview_import_encoding`
+/// với `source_lang` `"en"` rồi `"zh"` ⇒ hai `.normalized.text` của CÙNG một ứng viên
+/// (UTF-8) phải KHÁC NHAU đúng dấu nối (`" "` cho en, `""` cho zh) — dây nối
+/// (`regroup::source_joiner`) phải THẬT SỰ tới được `render_candidates`, không chỉ tới
+/// `pipeline.rs`.
+#[test]
+fn the_same_mid_sentence_bytes_normalize_differently_by_source_lang_through_render_candidates() {
+    let bytes = b"Line one without a period\nLine two.".to_vec();
+    let shape_for = || PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes: bytes.clone(),
+        label: "mid-sentence.txt".to_owned(),
+    });
+
+    let preview_en = preview_import_encoding(&shape_for(), "en");
+    let preview_zh = preview_import_encoding(&shape_for(), "zh");
+
+    let utf8_en = preview_en
+        .candidates
+        .iter()
+        .find(|c| c.label == "UTF-8")
+        .and_then(|c| c.normalized.as_ref())
+        .expect("UTF-8 phai ra chu va co .normalized");
+    let utf8_zh = preview_zh
+        .candidates
+        .iter()
+        .find(|c| c.label == "UTF-8")
+        .and_then(|c| c.normalized.as_ref())
+        .expect("UTF-8 phai ra chu va co .normalized");
+
+    assert_eq!(utf8_en.text, "Line one without a period Line two.", "en: noi bang MOT dau cach");
+    assert_eq!(utf8_zh.text, "Line one without a periodLine two.", "zh: noi bang chuoi RONG");
+    assert_ne!(
+        utf8_en.text, utf8_zh.text,
+        "hai nhanh ngon ngu phai cho ra hai chuoi KHAC NHAU -- day noi phai that su chay toi day"
+    );
 }

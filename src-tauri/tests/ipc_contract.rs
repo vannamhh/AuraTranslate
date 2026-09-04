@@ -859,8 +859,19 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
     let wire_src = &project_src[wire_mod_start..];
 
     for (fn_name, expected_params) in [
-        ("preview_import_encoding_from_text", "app: tauri::AppHandle,\n        text: String,"),
-        ("preview_import_encoding_from_file", "app: tauri::AppHandle,\n        path: String,"),
+        // 🔵 SỬA 2026-09-04 (Story 6.4) — thêm tham số `source_lang: String` vào CẢ HAI vỏ
+        // xem trước: `encoding::render_candidates` cần biết nhánh Trung/Anh để dựng bản
+        // chuẩn hoá của mỗi ứng viên (`normalize::normalize`) — KHÔNG một lệnh mới, `source_lang`
+        // đã có sẵn ở form phía frontend trước khi lệnh này chạy (xem doc-comment
+        // `preview_import_encoding_from_text` ở `commands/project.rs`).
+        (
+            "preview_import_encoding_from_text",
+            "app: tauri::AppHandle,\n        text: String,\n        source_lang: String,",
+        ),
+        (
+            "preview_import_encoding_from_file",
+            "app: tauri::AppHandle,\n        path: String,\n        source_lang: String,",
+        ),
         (
             "confirm_import_with_encoding",
             "app: tauri::AppHandle,\n        name: String,\n        source_lang: String,\n        genre: String,\n        encoding: String,",

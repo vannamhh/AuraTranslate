@@ -765,18 +765,23 @@ fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
 }
 
 /// Quyết định của Ice ở lượt code review 2026-08-06 — BOM là tạo tác **giải mã**, cắt ở
-/// story này; CRLF là **chuẩn hoá**, không đụng (Epic 6).
+/// story này; CRLF là **chuẩn hoá**, không đụng **ở Story 1.15/6.2** (khi bước 4 còn thân
+/// rỗng).
 ///
 /// 🔴 `EF BB BF` là UTF-8 **hợp lệ**, nên nó đi lọt `String::from_utf8` mà không cổng
 /// nào kêu — và AD-4 đóng băng ranh giới segment tính lúc nhập, nên một `U+FEFF` nằm lại
 /// sẽ thành ký tự đầu của segment #1 **vĩnh viễn**.
 /// 🔵 **SỬA 2026-09-04 (Story 6.2, AD-39)** — strip BOM đã chuyển vào
 /// `core::segment::pipeline::Step::DecodeEncoding` (xem doc-comment `strip_bom` ở đó). Mệnh
-/// đề của Ice (2026-08-06) KHÔNG đổi: BOM là tạo tác giải mã, cắt; CRLF là chuẩn hoá, không
-/// đụng. Đường quan sát đổi: `import_file` chỉ còn đọc byte thô, nên phải chạy qua
-/// `run_import` để bước giải mã thật sự thực thi.
+/// đề của Ice (2026-08-06) KHÔNG đổi Ở LƯỢT ĐÓ: BOM là tạo tác giải mã, cắt; CRLF là chuẩn
+/// hoá, không đụng (bước 4 khi đó vẫn thân rỗng). Đường quan sát đổi: `import_file` chỉ còn
+/// đọc byte thô, nên phải chạy qua `run_import` để bước giải mã thật sự thực thi.
+/// 🔵 **SỬA THÊM 2026-09-04 (Story 6.4, FR124/FR125) — vế "CRLF không đụng" đã HẾT ĐÚNG.**
+/// `Step::NormalizeParagraphsAndWhitespace` (bước 4) nay chạy THẬT, SAU bước giải mã — CRLF
+/// bị thống nhất thành `\n` trên CHÍNH đường `run_import` mà ca này gọi. Tên ca và assertion
+/// đổi theo; vế BOM (bước 1) không đổi.
 #[test]
-fn a_utf8_bom_is_stripped_but_line_endings_are_left_alone() {
+fn a_utf8_bom_is_stripped_and_crlf_is_now_normalized_by_step_four() {
     let root = temp_dir("bom");
     let source_dir = temp_dir("bom-src");
 
@@ -795,9 +800,17 @@ fn a_utf8_bom_is_stripped_but_line_endings_are_left_alone() {
         imported.source_text.starts_with("CHUONG MOT"),
         "van ban phai bat dau bang ky tu that dau tien"
     );
+    // "CHUONG MOT" khong ket bang dau ket cau (khong `.`/`!`/`?`) nen luat gop dong cua
+    // Story 6.4 noi no voi dong ke tiep bang mot dau cach (nhanh "en") -- dung luat da tai
+    // lieu o `core::segment::normalize`.
+    assert_eq!(
+        imported.source_text, "CHUONG MOT Cau hai",
+        "CRLF phai duoc THONG NHAT thanh khong gian trong roi NOI dong -- buoc 4 (Story 6.4) \
+         chay that tren duong nay"
+    );
     assert!(
-        imported.source_text.contains("\r\n"),
-        "CRLF phai duoc GIU NGUYEN — chuan hoa xuong dong la FR124/125, Epic 6"
+        !imported.source_text.contains('\r'),
+        "khong con `\\r` nao sau khi buoc 4 chay that"
     );
 
     // Chỉ cắt ở ĐẦU: một U+FEFF giữa văn bản là zero-width no-break space, nội dung thật.

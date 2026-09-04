@@ -49,8 +49,16 @@
 //! doc-comment đầu tệp cho phép đo. `sniff_bom` → `detect` → `render_candidates` là chuỗi
 //! chỉ đọc, KHÔNG bước nào trong đó thay đổi [`pipeline::PIPELINE_ORDER`].
 
+//! [`normalize`] — thân THẬT của [`pipeline::Step::NormalizeParagraphsAndWhitespace`], bước
+//! 4 của chuỗi AD-39 (Story 6.4, FR124/FR125). Hàm thuần: thống nhất xuống dòng → trim hai
+//! đầu mỗi dòng → gộp dòng giữa câu + thu dòng trống về một. GỌI [`split::line_ends_a_sentence`]
+//! và [`regroup::source_joiner`] cho hai bảng đã có chủ — không dựng bảng thứ hai; mệnh đề
+//! *"`split` là chỗ duy nhất biết bảng kết câu"* ở đoạn trên vẫn đúng, `line_ends_a_sentence`
+//! chỉ mở thêm một cửa `pub(super)` cạnh bảng đó, không lộ nó ra ngoài `core::segment`.
+
 pub mod encoding;
 pub mod import;
+pub mod normalize;
 pub mod omit;
 pub mod paragraph;
 pub mod pipeline;

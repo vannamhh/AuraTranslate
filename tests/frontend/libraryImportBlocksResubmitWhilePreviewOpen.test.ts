@@ -27,8 +27,8 @@ vi.mock('../../src/config/project', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/project')>()
   return {
     ...actual,
-    previewImportEncodingFromText: (text: string) => previewTextMock(text),
-    previewImportEncodingFromFile: (path: string) => previewFileMock(path),
+    previewImportEncodingFromText: (text: string, sourceLang: string) => previewTextMock(text, sourceLang),
+    previewImportEncodingFromFile: (path: string, sourceLang: string) => previewFileMock(path, sourceLang),
     confirmImportWithEncoding: (name: string, sourceLang: string, genre: string, encoding: string) =>
       confirmMock(name, sourceLang, genre, encoding),
   }
@@ -46,12 +46,33 @@ function preview(): ImportEncodingPreview {
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [
-      { label: 'UTF-8', encoding: 'UTF-8', preview: null },
-      { label: 'GB18030', encoding: 'gb18030', preview: '萧炎' },
-      { label: 'GBK', encoding: 'GBK', preview: '萧炎' },
-      { label: 'Big5', encoding: 'Big5', preview: '達鍁' },
-      { label: 'UTF-16', encoding: 'UTF-16LE', preview: '扡摣' },
+      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null },
+      {
+        label: 'GB18030',
+        encoding: 'gb18030',
+        preview: '萧炎',
+        normalized: { text: '萧炎', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+      },
+      {
+        label: 'GBK',
+        encoding: 'GBK',
+        preview: '萧炎',
+        normalized: { text: '萧炎', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+      },
+      {
+        label: 'Big5',
+        encoding: 'Big5',
+        preview: '達鍁',
+        normalized: { text: '達鍁', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+      },
+      {
+        label: 'UTF-16',
+        encoding: 'UTF-16LE',
+        preview: '扡摣',
+        normalized: { text: '扡摣', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+      },
     ],
+    self_declared_normalized: null,
   }
 }
 

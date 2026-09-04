@@ -749,6 +749,20 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   ⚠️ **Vế Epic 6 VẪN MỞ:** `chapter.source_text` trên đĩa **không** được chuẩn hoá — story
   này cố ý không chạm nó (chuẩn hoá thật là FR124/FR125). Bộ tách chỉ **tự phòng thủ**.
   **Chủ phần còn lại: Story 6.4/6.5.**
+  → 🟡 **VẾ FR125 ĐÓNG CHO ĐƯỜNG NHẬP TỚI, THÊM 2026-09-04 (Story 6.4).** Bước 4 của chuỗi
+  AD-39 (`core::segment::normalize::normalize`, GỌI từ `pipeline.rs` nhánh
+  `Step::NormalizeParagraphsAndWhitespace`) nay chạy THẬT, TRƯỚC bước 7 (tách segment):
+  thống nhất `\r\n`/`\r` trần thành `\n`, trim hai đầu mỗi dòng, nối dòng ngắt giữa câu. Mọi
+  `chapter.source_text` ghi xuống TỪ NAY qua `create_work` không còn mang `\r` nào — cưỡng
+  chế bởi `segment_contract.rs::a_crlf_source_written_through_create_work_has_zero_carriage_returns_when_read_back`
+  (đọc lại từ chính `project.db`, không phải một phép so trên bộ nhớ) cộng
+  `segment_normalize_boundary.rs`. ⚠️ **Vế CHƯA đóng — §Never spec 6.4 cấm tường minh:**
+  mọi `chapter.source_text` ĐÃ CÓ trên đĩa (nhập TRƯỚC Story 6.4) vẫn mang `\r\n`/khoảng
+  trắng chưa chuẩn hoá — story này **không** di trú dữ liệu cũ, và không được phép tự ý làm
+  vậy (một lượt ghi lên dữ liệu người dùng đã có không phải quyết định của một story thi
+  hành). Món nợ di trú tách RIÊNG, chủ **Ice** — xem mục mới ở `Deferred from:
+  6-4-chuan-hoa-xuong-dong-va-khoang-trang` cuối tệp này. Story 6.5 (luật làm sạch) không
+  đổi, vẫn hoàn toàn mở.
 
 - ⚠️ **Trần nhập 100 MB là một con số TẠM, chưa ai đo** — `core::segment::import::MAX_IMPORT_BYTES`, Ice chốt 2026-08-06 ở lượt code review. Nó tồn tại để một tệp bệnh hoạn không giết tiến trình (`fs::read` trọn tệp + `String` + bind SQLite ≈ 3 bản trong bộ nhớ, trên **luồng invoke đồng bộ**, và `panic = "abort"` biến cạn bộ nhớ thành giết cả tiến trình). **Chưa ai đo đỉnh RSS thật** cho một tệp 100 MB đi hết chuỗi, và nó **không** phải một phép đo về *"bao nhiêu thì Editor còn dùng được"*. Còn hai lỗ nữa ghi ra thay vì giấu: ① một **cửa sổ đua** giữa `metadata()` và `read()` *(tệp phình ra ở giữa)* — đóng nó đòi đọc theo khối có trần, mà nhập theo khối là Epic 6; ② lượt nhập vẫn **chặn luồng invoke**, không có tiến độ nào ngoài cờ `busy`. **Chủ: Story 2.4** *(đo `Tuning`)* cho con số, **Epic 6** cho đường đọc theo khối.
 
@@ -9065,6 +9079,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   Story 6.5** (không đổi). Cả hai tầng LUÔN HIỆN trên màn hình (không `v-if` ẩn khi rỗng) và
   LUÔN nói ra lý do rỗng kèm tên chủ (`mode.library.preview.tier_empty_story_6_9`/`_6_5`,
   `src/importPreviewState.ts::importPreviewEmptyReasonForTier`) — đúng §Always spec 6.3.
+  → 🟡 **THÊM MỘT TẦNG THỨ BA — 2026-09-04 (Story 6.4).** Liệt kê "hai tầng còn thân rỗng"
+  ở trên đã bỏ sót một khoảng trống: bản đếm gốc chỉ nhắc tầng 2 (Story 6.9) và tầng 3
+  (Story 6.5), KHÔNG có chỗ nào canh việc bước 4 (chuẩn hoá đoạn/khoảng trắng, FR124/FR125)
+  cũng cần một tầng xem trước riêng — đây chính là "D3, không tầng nào cho FR125" mà spec
+  6.4 đặt tên. Story 6.4 đóng khoảng trống đó: một tầng MỚI (`ImportPreviewOverlay.vue`, chèn
+  giữa tầng 1 và tầng 2 cũ) hiện văn bản đã chuẩn hoá của ứng viên đang chọn cộng hai số đếm
+  thiệt hại (`joined_lines`, `blank_lines_removed`) và phạm vi cửa sổ bằng chữ khi cửa sổ bị
+  cắt — CÓ THÂN ngay từ story này, không nằm trong danh sách "còn thân rỗng" nữa. Tầng 2
+  (Story 6.9) và tầng 3 (Story 6.5) không đổi, vẫn hoàn toàn mở.
 - ⚠️ **"Một `.docx` bỏ qua bước giải mã bảng mã" (AD-39 spine `:500`) nghiệm thu ở story này
   BẰNG HÌNH DẠNG, không bằng một `.docx` thật.** `segment_contract.rs::an_already_text_shape_skips_the_transcode_half_of_the_decode_step`
   chứng minh `Step::DecodeEncoding` bỏ qua vế transcode cho `ChapterInput::AlreadyText` — đúng
@@ -9168,6 +9191,21 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `selectImportPreviewCandidate()` để nó thật sự gọi lại chuỗi (thêm một lượt gọi Rust chạy
   `run_import` trong bộ nhớ trên nguồn đang chờ, không ghi đĩa) TRƯỚC khi dựng thân cho tầng
   đó, không phải sau.**
+  → 🔵 **SỬA 2026-09-04 (Story 6.4) — tiền đề "BA trong bốn bước còn lại là THÂN RỖNG" HẾT
+  ĐÚNG cho `Step::NormalizeParagraphsAndWhitespace`; KẾT LUẬN của mục nợ này KHÔNG hết đúng
+  theo.** Bước 4 nay gọi `core::segment::normalize::normalize` thật (`pipeline.rs`) — chỉ
+  còn HAI bước thân rỗng (`ExtractMainContent`, `CleanByRules`). Ice đã kiểm lại tiền đề
+  thay vì nhận nó (đúng lề lối "mục bị bác đáng đọc lại bằng tiền đề khác" — một tiền đề sai
+  không tự làm kết luận sai): §Design Notes spec 6.4 *"Vì sao bản dựng đi kèm sẵn KHÔNG phải
+  là né tránh nợ D2"* đo lại và tìm một LÝ DO KHÁC, hẹp hơn, cho CÙNG kết luận — riêng bước
+  4, chuẩn hoá là hàm THUẦN của văn bản ĐÃ GIẢI MÃ và không gì khác (không đọc `chapter_id`,
+  không đọc trạng thái ngoài chuỗi), nên "dựng sẵn năm bản qua `render_candidates`" và "chạy
+  lại `run_import` cho ứng viên đã chọn" cho ra CÙNG một kết quả ở bước 4 — quan sát không
+  phân biệt được hai đường, đúng như bước 1 (bảng mã) đã đúng trước đó. ⇒ **D2 VẪN MỞ, KHÔNG
+  đóng ở đây** — lý lẽ hẹp trên chỉ đúng cho bước 1 và bước 4 (cả hai đều là hàm thuần của
+  văn bản đã giải mã); nó KHÔNG suy rộng sang tầng 2 (Story 6.9) hay tầng 3 (Story 6.5), vì
+  cả hai phụ thuộc trạng thái NGOÀI chuỗi đã giải mã (mô hình DOM đã bóc, danh sách luật làm
+  sạch cấu hình được) — "Rủi ro cụ thể" và "Chủ" ở trên không đổi.
 
 - ⚠️ **`PipelineShape::Chapters` chọn MỘT bảng mã cho `chapters.first()` rồi áp uống nó lên
   MỌI đơn vị `RawBytes` trong cùng danh sách — vòng rà đối kháng 2, mục 21.** Hai chỗ:
@@ -9254,3 +9292,123 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `data-import-preview-open`, và ba nhánh render `unknown`/`ipc_unavailable`/`error`. Tiền lệ
   có sẵn: `tests/frontend/glossaryConfirmStripTemplate.test.ts`. **Chủ: Story 6.5** — story
   dựng thân tầng 3 sẽ chạm lại chính component này.
+
+## Deferred from: 6-4-chuan-hoa-xuong-dong-va-khoang-trang (2026-09-04)
+
+- ⚠️ **Di trú `chapter.source_text` ĐÃ CÓ trên đĩa (nhập TRƯỚC Story 6.4) — CHƯA làm, và
+  không được làm ở đây.** Story 6.4 chuẩn hoá xuống dòng/khoảng trắng CHỈ cho đường NHẬP
+  TỚI (bước 4 của chuỗi AD-39, chạy lúc `create_work`) — mọi Chương đã nhập từ trước (kể cả
+  những Chương nhập trong lúc Epic 6 đang dựng, trước lượt Story 6.4 merge) vẫn mang
+  `\r\n`/khoảng trắng đầu-cuối dòng/dòng bị ngắt giữa câu y nguyên trong `chapter.source_text`
+  trên đĩa. §Never spec 6.4 cấm tường minh: *"Không di trú `chapter.source_text` đã có trên
+  đĩa"* — đây là quyết định có chủ, không phải một khoảng trống quên làm: chuẩn hoá lại dữ
+  liệu đã dịch một phần đụng tới AD-4 (ranh giới segment đóng băng lúc nhập) theo một cách
+  khác — sửa VĂN BẢN NGUỒN của một segment đã có `id` bền, có thể có bản dịch, có lịch sử,
+  không phải sửa RANH GIỚI của nó, nhưng vẫn là một lượt ghi lên dữ liệu người dùng đã tồn
+  tại mà không ai yêu cầu. **Câu hỏi cho Ice:** có cần một lượt di trú một-lần (rà mọi
+  `chapter.source_text`, chuẩn hoá, ghi lại — CHỈ đổi cột đó, không đụng `segment`/ranh giới
+  đã tách) hay không, và nếu có thì cho Chương đã có bản dịch xử lý thế nào (nguồn đổi nhưng
+  bản dịch neo theo `segment.source_text` cũ, không theo `chapter.source_text`, nên rủi ro
+  thấp hơn thoạt nhìn — nhưng vẫn cần Ice xác nhận trước khi ai đó viết một script di trú).
+  **Chủ: Ice.**
+
+- ⚠️ **FR132 ("N Chương cần xem", Story 6.10) chưa liệt dấu hiệu FR125 (số dòng đã nối bởi
+  bước chuẩn hoá) vào danh sách "cần xem" — một khoảng trống QUY HOẠCH, không tự sửa PRD.**
+  `prd.md:335` liệt các dấu hiệu khiến một Chương vào nhóm "cần xem" (tin cậy bảng mã thấp,
+  luật làm sạch khớp, …) nhưng KHÔNG nhắc tới số dòng bị NỐI bởi bước 4 — trong khi chính
+  luật gộp dòng của Story 6.4 (§Design Notes "Luật gộp dòng, và cái nó KHÔNG cứu được") biết
+  trước nó sẽ nối OAN một tiêu đề không dấu chấm đứng riêng dòng vào câu kế, nếu không có
+  dòng trống ngăn cách. Một Chương với `joined_lines` cao là một tín hiệu THẬT rằng văn bản
+  nguồn có thể đã bị nối sai, và người dịch nên xem lại — đúng hình dạng mà FR132 tồn tại để
+  gom. Cổng đã có: 0 (FR132/Story 6.10 chưa dựng ở thời điểm Story 6.4). **Chủ: Story
+  6.10** — khi dựng bộ lọc "cần xem", thêm `joined_lines` (đếm trên TOÀN Chương, không phải
+  cửa sổ bằng chứng — xem mục ngay dưới) vào danh sách dấu hiệu, và cập nhật `prd.md:335`
+  cùng lượt.
+
+- ⚠️ **Số đếm `joined_lines`/`blank_lines_removed` của Story 6.4 chỉ tính trên CỬA SỔ BẰNG
+  CHỨNG (tối đa `EVIDENCE_WINDOW_BYTES` byte đầu), KHÔNG phải trên TOÀN Chương.** Đây là một
+  giới hạn đã ghi ra tường minh trên dây (`NormalizedCandidate::window_truncated` /
+  `NormalizedPreviewWire::window_truncated`) và trên màn hình (tầng mới của
+  `ImportPreviewOverlay.vue` nói "chỉ xem trước phần đầu Chương" khi cờ đó bật) — không phải
+  một mất mát im lặng. Nhưng nó có nghĩa: một Chương DÀI (vượt cửa sổ) có thể còn hàng chục
+  dòng bị nối/dòng trống bị xoá NGOÀI cửa sổ mà người dùng không thấy số đếm cho tới khi xác
+  nhận. Đây là ĐÚNG khoảng trống mà FR132/Story 6.10 tồn tại để lấp — số đếm trên TOÀN
+  Chương cần một lượt chạy `normalize()` đầy đủ (không windowed), hợp lý hơn để làm SAU khi
+  Chương đã có trong `project.db` (Story 6.10 có bối cảnh "N Chương cần xem" ở cấp Thư viện,
+  không phải cấp một lượt xem trước trước-khi-ghi). **Chủ: Story 6.10.**
+
+- ⚠️ **Tiêu đề KHÔNG dấu chấm đứng riêng một dòng, TRONG THÂN một Chương (không phải dòng
+  đầu), vẫn bị luật gộp dòng của Story 6.4 nối OAN vào câu kế nếu không có dòng trống ngăn
+  cách.** §Design Notes spec 6.4 "Luật gộp dòng, và cái nó KHÔNG cứu được" đo và ghi ra giới
+  hạn này thay vì vá bằng một ngưỡng độ dài dòng (một con số phù thuỷ chưa đo) hay một luật
+  "dòng ngắn thì đừng nối" (bác oan thoại ngắn) — cả hai phương án chặn đều bị loại có lý do.
+  Story 6.6 (tách Chương theo mẫu phân tách) bóc tiêu đề CHƯƠNG ra khỏi thân TRƯỚC khi luật
+  gộp chạy, đóng vế phổ biến nhất (tiêu đề đứng ĐẦU Chương). Vế còn lại — một tiêu đề phụ/
+  đề mục con đứng TRONG thân Chương (không phải dòng đầu, ví dụ phân cảnh trong một Chương
+  dài) — KHÔNG được Story 6.6 chạm tới, và KHÔNG có cổng nào canh nó hôm nay: nó là một sự
+  vắng mặt đã đặt tên, không phải một cổng đã có rồi bị bỏ sót. Tầng xem trước của Story 6.4
+  cho thấy thiệt hại này qua `joined_lines` TRƯỚC khi xác nhận (người dùng có thể thấy số
+  đếm cao bất thường và điều tra bằng mắt), nhưng không có cơ chế TỰ ĐỘNG phân biệt "tiêu đề
+  bị nối oan" với "dòng ngắt giữa câu hợp lệ". **Chủ: Story 6.6** — khi dựng mẫu phân tách
+  Chương, cân nhắc liệu cùng cơ chế mẫu có mở rộng được cho đề mục con trong thân hay không;
+  nếu không, ghi rõ giới hạn đó tiếp tục mở cho ai đọc sau.
+
+## Deferred from: 6-4-chuan-hoa-xuong-dong-va-khoang-trang — vá vòng rà 1 (2026-09-05)
+
+- ⚠️ **Bản xem trước chuẩn hoá tính trên byte VỪA GIẢI MÃ (bước 1), còn bản SẢN PHẨM ghi
+  xuống đĩa chuẩn hoá ở bước 4 — TỨC SAU bước 2 (bóc nội dung chính) và bước 3 (làm sạch
+  theo luật).** `core::segment::encoding::render_candidates`/`normalized_self_declared` gọi
+  `normalize::normalize`/`normalize_window` NGAY trên văn bản vừa ra khỏi
+  `decode_prefix_streaming` — tức mô phỏng lại đúng bước 1 rồi nhảy thẳng sang bước 4, bỏ qua
+  vị trí thật của bước 2/3 trong `PIPELINE_ORDER`. Hôm nay hai bước đó là NO-OP
+  (`Step::ExtractMainContent`, `Step::CleanByRules` — Story 6.9/6.5 chưa dựng thân), nên hai
+  đường (xem trước và sản phẩm) cho CÙNG một kết quả — quan sát không phân biệt được, đúng
+  lý lẽ mà §Design Notes spec 6.4 "Vì sao bản dựng đi kèm sẵn KHÔNG phải là né tránh nợ D2"
+  đã dùng cho riêng bước 1. ⚠️ **Lý lẽ đó KHÔNG suy rộng được sang đây một khi 6.9/6.5 cho
+  thân thật:** ngày `Step::ExtractMainContent` bóc bớt nội dung (ví dụ cắt quảng cáo chèn
+  giữa bài) hoặc `Step::CleanByRules` xoá một mẫu rác, bản xem trước chuẩn hoá TRÊN VĂN BẢN
+  CHƯA BÓC/CHƯA LÀM SẠCH — AC6 của `epics.md` ("màn xem trước hiện văn bản đã chuẩn hoá —
+  ĐÚNG THỨ SẼ ĐƯỢC GHI") khi đó SAI trong im lặng: người dùng thấy một bản dựng khác bản
+  thật sẽ ghi xuống, không cổng nào đỏ vì không cổng nào so hai đường. **Chủ: Story 6.5 /
+  Story 6.9** — story đầu tiên dựng thân thật cho bước 2 hoặc bước 3 phải hoặc (a) chạy lại
+  TRỌN chuỗi tới đúng bước 4 khi dựng bản xem trước (khác cơ chế theo-ứng-viên hôm nay), hoặc
+  (b) đo và ghi rõ vì sao hai đường vẫn cho cùng kết quả trong phạm vi riêng của bước đó,
+  cùng khuôn phép kiểm mà spec 6.4 đã áp cho bước 1.
+
+- ⚠️ **`normalize::normalize` chạy HAI lượt `.replace()` toàn bộ buffer (`\r\n` → `\n` rồi
+  `\r` → `\n`) kể cả khi văn bản không mang một ký tự `\r` nào** — tức MỌI Chương từ một
+  nguồn KHÔNG PHẢI Windows (đa số) vẫn trả hai lượt quét O(n) trên toàn `chapter.source_text`
+  ở bước 4, thêm vào chi phí giải mã (bước 1) và tách segment (bước 7) đã có. Chưa đo được
+  đây có phải chi phí đáng kể hay không trên một Chương ở trần `MAX_IMPORT_BYTES` (100 MB) —
+  `String::replace` của Rust đã tối ưu (một lượt quét byte, không alloc khi 0 khớp nhờ
+  `Cow`-like short-circuit ở tầng `str`), nên phí tổn thật có thể không đáng kể, nhưng đó là
+  MỘT LỜI KHAI CHƯA ĐO, không phải một phép đo. **Chủ: Story 6.18** (đo lại NFR3/NFR4/NFR5
+  trên thư viện 5.000 Chương thật) — đo cùng lượt với những chi phí khác của chuỗi nhập, kết
+  luận rồi mới quyết có đáng tối ưu (ví dụ: một lượt `contains('\r')` gác trước hai lượt
+  `replace`) hay không.
+
+- ⚠️ **Ghi chú peak-RSS 100 MB (`deferred-work.md`, mục Story 1.15 cũ — "chưa ai đo đỉnh RSS
+  thật cho một tệp 100 MB đi hết chuỗi") chưa tính lượt QUÉT MỚI mà bước 4 thêm vào.** Bước 4
+  (Story 6.4) thêm ít nhất hai lượt `.replace()` toàn buffer (xem mục ngay trên) cộng một
+  lượt dựng lại `Vec<&str>`/`Vec<String>` cho từng dòng/đoạn trong `normalize()` — mỗi lượt
+  là một bản sao/cấu trúc dữ liệu tạm thời cỡ cùng độ lớn với Chương đang xử lý. Con số đỉnh
+  RSS cũ (nếu có) không phản ánh chi phí này. **Chủ: Story 6.18** — cùng lượt đo lại
+  NFR3/NFR4/NFR5, đo luôn đỉnh RSS thật của TOÀN chuỗi bảy bước (không riêng bước 4) trên thư
+  viện 5.000 Chương, không suy từ số cũ của Story 1.15.
+
+- ⚠️ **Chín tệp vitest mang ca phụ thuộc TẢI MÁY — đỏ giả khi máy bận, và điều đó CÓ SẴN
+  trước Story 6.4.** Đo 2026-09-05 bằng phép đối chứng cùng tải: cây story ở load 215-237 cho
+  **17 đỏ / 805 xanh (822)**; cất công việc story vào stash rồi chạy LẠI cùng bộ ở load
+  258-276 cho **12 đỏ / 795 xanh (807)** — **cùng đúng chín tệp**: `editorChapterSwitch` ·
+  `editorClearSourceCuts` · `editorNavNotice` · `editorTypingZone` · `glossaryHoverSelection` ·
+  `glossaryMarksRefresh` · `glossaryQuickAddStrip` · `segmentHistory` · `statusBar`. Cùng bộ ấy
+  cho **817/817 xanh** ở một lượt máy rảnh. ⇒ Số ca đỏ tăng theo tải, tập TỆP thì không đổi và
+  không tệp nào nằm trong diff của story.
+  🔴 **Vì sao đây là nợ chứ không phải nhiễu:** một bộ test đỏ theo tải máy dạy người đọc bỏ
+  qua màu đỏ — đúng thói quen làm một hồi quy THẬT lọt qua. Nó cũng làm mọi lượt "chạy lại cho
+  xanh" thành một phép đo vô nghĩa. Hôm nay chưa cổng nào phân biệt được "đỏ vì mã" với "đỏ vì
+  máy", và `pre-push` chạy trên chính máy này.
+  ⚠️ Chưa đo: các ca ấy đỏ vì `testTimeout` mặc định hay vì trôi timer giả (`vi.useFakeTimers`);
+  hai nguyên nhân đòi hai lượt sửa khác nhau, và đoán bừa một trong hai sẽ vá nhầm chỗ.
+  **Chủ: Ice** — chọn giữa nâng `testTimeout`, ghim `pool`/`maxWorkers` cho nhóm tệp này, hay
+  chuyển chúng sang timer giả tất định.

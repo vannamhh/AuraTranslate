@@ -35,6 +35,12 @@ async function freshState() {
   return import('../../src/importPreviewState')
 }
 
+/** Bản dựng chuẩn hoá tối giản cho fixture — nội dung không quan trọng, chỉ hình dạng đúng
+ * (Story 6.4). `text` trùng `preview` cho dễ đọc log khi một ca đỏ. */
+function normalizedFor(text: string): ImportEncodingPreview['candidates'][number]['normalized'] {
+  return { text, joined_lines: 0, blank_lines_removed: 0, window_truncated: false }
+}
+
 /** Rust LUÔN cấp đủ năm ô khi có byte để dò, kể cả tin cậy CAO (I/O Matrix "Tệp thuần ASCII":
  * "năm bản dựng cho CÙNG một chuỗi") — chỉ khác `lowConfidencePreview()` ở việc cả năm ô
  * (trừ UTF-16) đọc ra CÙNG một chuỗi. */
@@ -43,17 +49,35 @@ function highConfidencePreview(): ImportEncodingPreview {
     confidence: 'high',
     selected_encoding: 'UTF-8',
     candidates: [
-      { label: 'UTF-8', encoding: 'UTF-8', preview: 'plain ascii' },
-      { label: 'GB18030', encoding: 'gb18030', preview: 'plain ascii' },
-      { label: 'GBK', encoding: 'GBK', preview: 'plain ascii' },
-      { label: 'Big5', encoding: 'Big5', preview: 'plain ascii' },
-      { label: 'UTF-16', encoding: 'UTF-16LE', preview: '灱慩⁮獡楣' },
+      { label: 'UTF-8', encoding: 'UTF-8', preview: 'plain ascii', normalized: normalizedFor('plain ascii') },
+      {
+        label: 'GB18030',
+        encoding: 'gb18030',
+        preview: 'plain ascii',
+        normalized: normalizedFor('plain ascii'),
+      },
+      { label: 'GBK', encoding: 'GBK', preview: 'plain ascii', normalized: normalizedFor('plain ascii') },
+      { label: 'Big5', encoding: 'Big5', preview: 'plain ascii', normalized: normalizedFor('plain ascii') },
+      {
+        label: 'UTF-16',
+        encoding: 'UTF-16LE',
+        preview: '灱慩⁮獡楣',
+        normalized: normalizedFor('灱慩⁮獡楣'),
+      },
     ],
+    // candidates khong rong -- doc .normalized cua ung vien dang chon, khong doc truong nay.
+    self_declared_normalized: null,
   }
 }
 
+/** Vá vòng rà 1, mục 1 — nhánh TỰ KHAI (0 ứng viên) vẫn phải chở một bản chuẩn hoá THẬT. */
 function selfDeclaredPreview(): ImportEncodingPreview {
-  return { confidence: 'self_declared', selected_encoding: 'UTF-8', candidates: [] }
+  return {
+    confidence: 'self_declared',
+    selected_encoding: 'UTF-8',
+    candidates: [],
+    self_declared_normalized: normalizedFor('van ban dan tay'),
+  }
 }
 
 function lowConfidencePreview(): ImportEncodingPreview {
@@ -61,12 +85,18 @@ function lowConfidencePreview(): ImportEncodingPreview {
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [
-      { label: 'UTF-8', encoding: 'UTF-8', preview: null },
-      { label: 'GB18030', encoding: 'gb18030', preview: '萧炎在东临' },
-      { label: 'GBK', encoding: 'GBK', preview: '萧炎在东临' },
-      { label: 'Big5', encoding: 'Big5', preview: '達鍁誗' },
-      { label: 'UTF-16', encoding: 'UTF-16LE', preview: '扡摣捥' },
+      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null },
+      {
+        label: 'GB18030',
+        encoding: 'gb18030',
+        preview: '萧炎在东临',
+        normalized: normalizedFor('萧炎在东临'),
+      },
+      { label: 'GBK', encoding: 'GBK', preview: '萧炎在东临', normalized: normalizedFor('萧炎在东临') },
+      { label: 'Big5', encoding: 'Big5', preview: '達鍁誗', normalized: normalizedFor('達鍁誗') },
+      { label: 'UTF-16', encoding: 'UTF-16LE', preview: '扡摣捥', normalized: normalizedFor('扡摣捥') },
     ],
+    self_declared_normalized: null,
   }
 }
 

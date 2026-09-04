@@ -29,7 +29,10 @@
 //! - **Tách Chương** (FR14) — có mặt trong [`super::pipeline::PIPELINE_ORDER`] với một cơ
 //!   chế THẬT (so khớp literal), nhưng KHÔNG cấu hình được bởi người dùng; production luôn
 //!   truyền `chapter_pattern: None` ⇒ N = 1 KHÔNG ĐỔI. Mẫu cấu hình được là Story 6.6.
-//! - **Chuẩn hoá xuống dòng/khoảng trắng** (FR124/125) — vẫn THÂN RỖNG, Story 6.4/6.5.
+//! - **Chuẩn hoá xuống dòng/khoảng trắng** (FR124/125) — 🔵 **SỬA 2026-09-04 (Story 6.4) —
+//!   "vẫn THÂN RỖNG" đã HẾT ĐÚNG.** [`super::normalize::normalize`] nay chạy thật ở
+//!   [`super::pipeline::Step::NormalizeParagraphsAndWhitespace`] (bước 4), TRƯỚC bước 7
+//!   (tách segment) — xem doc-comment module đó. Luật làm sạch (Story 6.5) vẫn mở.
 //! - **Dò bảng mã** (FR126) — 🔵 **SỬA 2026-09-04 (Story 6.3) — "vẫn CHỈ giải mã theo MỘT
 //!   bảng mã ĐÃ KHAI (mặc định UTF-8)" đã HẾT ĐÚNG.** Bộ dò thật giờ sống ở
 //!   [`super::encoding`] (`sniff_bom` → `detect` → `render_candidates`, ba trạng thái tin

@@ -32,6 +32,7 @@ import {
   importPreviewLoadError,
   importPreviewSelectedCandidate,
   importPreviewSelectedEncoding,
+  importPreviewSelectedNormalized,
   importPreviewStatus,
   importPreviewStripIsOpen,
   selectImportPreviewCandidate,
@@ -64,6 +65,25 @@ function tierEmptyMessageKey(reason: 'story_6_9' | 'story_6_5'): string {
       return 'mode.library.preview.tier_empty_story_6_9'
     case 'story_6_5':
       return 'mode.library.preview.tier_empty_story_6_5'
+  }
+}
+
+/**
+ * Tầng chuẩn hoá (Story 6.4, FR124/FR125) KHÔNG có bản dựng để hiện vì đúng MỘT trong hai lý
+ * do — chưa CHỌN ứng viên nào (dải rỗng thật, nhánh tự khai `AlreadyText`/rỗng) hoặc ứng
+ * viên ĐANG chọn "không ra chữ" (`candidate.normalized === null`, đồng bộ `preview === null`).
+ * Cùng khuôn `tierEmptyMessageKey` — `switch` cạn, không ghép chuỗi khoá.
+ */
+function normalizedTierEmptyReason(): 'no_candidate' | 'undecodable' {
+  return importPreviewSelectedCandidate.value === null ? 'no_candidate' : 'undecodable'
+}
+
+function normalizedTierEmptyMessageKey(reason: 'no_candidate' | 'undecodable'): string {
+  switch (reason) {
+    case 'no_candidate':
+      return 'mode.library.preview.tier_normalized_empty_no_candidate'
+    case 'undecodable':
+      return 'mode.library.preview.tier_normalized_empty_undecodable'
   }
 }
 
@@ -229,6 +249,45 @@ function onEscapeCancel(): void {
               </label>
             </div>
           </template>
+        </section>
+
+        <!-- ═══ Tầng chuẩn hoá — xuống dòng & khoảng trắng (CÓ THÂN, Story 6.4) ═══ -->
+        <section class="ip-tier" aria-labelledby="ip-tier-normalized-title">
+          <h3 id="ip-tier-normalized-title" class="ip-tier-title">
+            {{ t('mode.library.preview.tier_normalized_title') }}
+          </h3>
+
+          <template v-if="importPreviewSelectedNormalized !== null">
+            <p class="ip-normalized-counts">
+              <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
+              {{
+                t('mode.library.preview.tier_normalized_joined_lines', {
+                  count: String(importPreviewSelectedNormalized.joined_lines),
+                })
+              }}
+              ·
+              {{
+                t('mode.library.preview.tier_normalized_blank_lines_removed', {
+                  count: String(importPreviewSelectedNormalized.blank_lines_removed),
+                })
+              }}
+            </p>
+            <p v-if="importPreviewSelectedNormalized.window_truncated" class="ip-normalized-window-note">
+              {{ t('mode.library.preview.tier_normalized_window_truncated') }}
+            </p>
+            <p v-if="importPreviewSelectedNormalized.text !== ''" class="ip-normalized-text">
+              <!-- aura-allow-text: DỮ LIỆU (bản dựng đã chuẩn hoá thật từ Rust, KHÔNG markup — AD-16). -->
+              {{ importPreviewSelectedNormalized.text }}
+            </p>
+            <!-- Vá vòng rà 1, mục 2 — `text === ''` (cửa sổ không đủ MỘT dòng trọn vẹn, hoặc
+                 nguồn chỉ toàn khoảng trắng) phải nói RA, không để lại một đoạn trắng câm. -->
+            <p v-else class="ip-normalized-window-note">
+              {{ t('mode.library.preview.tier_normalized_text_empty') }}
+            </p>
+          </template>
+          <p v-else class="ip-tier-empty-reason">
+            {{ t(normalizedTierEmptyMessageKey(normalizedTierEmptyReason())) }}
+          </p>
         </section>
 
         <!-- ═══════════════ Tầng 2 — ranh giới nội dung (RỖNG, có chủ) ═══════════════ -->
@@ -443,6 +502,29 @@ function onEscapeCancel(): void {
 
 .ip-candidate-undecodable {
   color: var(--color-on-surface-variant);
+}
+
+/* Vá vòng rà 1, mục 7 — hai luật trùng nguyên văn (`.ip-normalized-counts` ·
+   `.ip-normalized-window-note`) gộp làm một; `.ip-normalized-window-note` còn dùng lại cho
+   nhánh "text rỗng" (cùng cỡ chữ, cùng vai trò: một dòng chú thích phụ dưới hai số đếm). */
+.ip-normalized-counts,
+.ip-normalized-window-note {
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/* 🔴 §Always spec 6.4 — cùng luật tầng bảng mã: mẫu chữ đã chuẩn hoá ở CỠ `read`. */
+.ip-normalized-text {
+  margin: 0;
+  font-family: var(--face-read-md);
+  font-size: var(--font-read-md);
+  line-height: var(--leading-read-md);
+  color: var(--color-on-surface);
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .ip-tier-empty-reason {

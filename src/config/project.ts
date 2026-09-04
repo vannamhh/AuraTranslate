@@ -129,17 +129,29 @@ async function callCreateWork(cmd: string, args: Record<string, unknown>): Promi
 // Story 6.3 — màn xem trước bảng mã (FR126). Khớp `commands::project::{
 // ImportEncodingPreview, EncodingCandidateWire, ConfidenceWire, wire::preview_import_encoding_from_text,
 // wire::preview_import_encoding_from_file, wire::confirm_import_with_encoding }`.
+// Story 6.4 (FR124/FR125) thêm `NormalizedPreviewWire` + trường `normalized` trên
+// `EncodingCandidateWire` — không đổi ba lệnh dây, không thêm lệnh mới.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /** Ba trạng thái tin cậy — DỮ LIỆU (AD-21), Rust không gửi câu. `snake_case` đúng như trên
  * dây (`#[serde(rename_all = "snake_case")]` phía `ConfidenceWire`). */
 export type ImportConfidence = 'self_declared' | 'high' | 'low'
 
+/** Bản dựng đã chuẩn hoá của một ứng viên, cộng hai số đếm thiệt hại — khớp
+ * `commands::project::NormalizedPreviewWire` (Story 6.4, FR124/FR125). */
+export type NormalizedPreviewWire = {
+  text: string
+  joined_lines: number
+  blank_lines_removed: number
+  window_truncated: boolean
+}
+
 /** Một ô trong dải năm ứng viên — khớp `commands::project::EncodingCandidateWire`. */
 export type EncodingCandidateWire = {
   label: string
   encoding: string
   preview: string | null
+  normalized: NormalizedPreviewWire | null
 }
 
 /** Kết quả một lượt xem trước bảng mã — khớp `commands::project::ImportEncodingPreview`. */
@@ -147,6 +159,9 @@ export type ImportEncodingPreview = {
   confidence: ImportConfidence
   selected_encoding: string
   candidates: EncodingCandidateWire[]
+  /** Story 6.4, vá vòng rà 1 — bản chuẩn hoá cho nhánh TỰ KHAI (0 ứng viên). `null` khi
+   * `candidates` không rỗng (đọc `.normalized` của ứng viên đang chọn thay). */
+  self_declared_normalized: NormalizedPreviewWire | null
 }
 
 /** Ba trạng thái, cùng khuôn `CreateWorkResult`. */
@@ -159,13 +174,29 @@ const CMD_PREVIEW_FROM_TEXT = 'preview_import_encoding_from_text'
 const CMD_PREVIEW_FROM_FILE = 'preview_import_encoding_from_file'
 const CMD_CONFIRM_WITH_ENCODING = 'confirm_import_with_encoding'
 
+function isNormalizedPreviewWire(value: unknown): value is NormalizedPreviewWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<NormalizedPreviewWire>
+  return (
+    typeof v.text === 'string' &&
+    typeof v.joined_lines === 'number' &&
+    typeof v.blank_lines_removed === 'number' &&
+    typeof v.window_truncated === 'boolean'
+  )
+}
+
 function isEncodingCandidateWire(value: unknown): value is EncodingCandidateWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<EncodingCandidateWire>
   return (
     typeof v.label === 'string' &&
     typeof v.encoding === 'string' &&
-    (v.preview === null || typeof v.preview === 'string')
+    (v.preview === null || typeof v.preview === 'string') &&
+    // 🔴 Story 6.4 — thiếu vế NÀY thì `undefined` (trường vắng mặt, ví dụ một backend cũ
+    // chưa nâng cấp) lọt qua Kiểm TYPE này y hệt bẫy vòng rà đối kháng 2 mục 23 đã vá cho
+    // `candidates`: `.vue` đọc `candidate.normalized.text` trên `undefined` rồi vỡ trắng
+    // màn hình thay vì hiện lý do rỗng.
+    (v.normalized === null || isNormalizedPreviewWire(v.normalized))
   )
 }
 
@@ -181,7 +212,10 @@ function isImportEncodingPreview(value: unknown): value is ImportEncodingPreview
     (v.confidence === 'self_declared' || v.confidence === 'high' || v.confidence === 'low') &&
     typeof v.selected_encoding === 'string' &&
     Array.isArray(v.candidates) &&
-    v.candidates.every(isEncodingCandidateWire)
+    v.candidates.every(isEncodingCandidateWire) &&
+    // Story 6.4, vá vòng rà 1 — thiếu vế này thì `undefined` (backend cũ chưa nâng cấp) lọt
+    // qua Kiểm TYPE rồi `.vue` đọc `preview.self_declared_normalized.text` trên `undefined`.
+    (v.self_declared_normalized === null || isNormalizedPreviewWire(v.self_declared_normalized))
   )
 }
 
@@ -209,14 +243,25 @@ async function callPreviewImportEncoding(
   }
 }
 
-/** Nhánh DÁN VĂN BẢN của màn xem trước bảng mã (Story 6.3, FR126). */
-export async function previewImportEncodingFromText(text: string): Promise<ImportEncodingPreviewResult> {
-  return callPreviewImportEncoding(CMD_PREVIEW_FROM_TEXT, { text })
+/** Nhánh DÁN VĂN BẢN của màn xem trước bảng mã (Story 6.3, FR126).
+ *
+ * 🔵 THÊM 2026-09-04 (Story 6.4) — tham số `sourceLang`: bảng dựng chuẩn hoá của mỗi ứng
+ * viên rẽ nhánh Trung/Anh (`Encoding::render_candidates` phía Rust). KHÔNG phải một lệnh
+ * mới, không một lượt gọi thêm — `sourceLang` đã có sẵn ở form TRƯỚC khi lệnh này chạy. */
+export async function previewImportEncodingFromText(
+  text: string,
+  sourceLang: string,
+): Promise<ImportEncodingPreviewResult> {
+  return callPreviewImportEncoding(CMD_PREVIEW_FROM_TEXT, { text, sourceLang })
 }
 
-/** Nhánh TỆP của màn xem trước bảng mã (Story 6.3, FR126). */
-export async function previewImportEncodingFromFile(path: string): Promise<ImportEncodingPreviewResult> {
-  return callPreviewImportEncoding(CMD_PREVIEW_FROM_FILE, { path })
+/** Nhánh TỆP của màn xem trước bảng mã (Story 6.3, FR126). Tham số `sourceLang` — xem
+ * doc-comment [`previewImportEncodingFromText`]. */
+export async function previewImportEncodingFromFile(
+  path: string,
+  sourceLang: string,
+): Promise<ImportEncodingPreviewResult> {
+  return callPreviewImportEncoding(CMD_PREVIEW_FROM_FILE, { path, sourceLang })
 }
 
 /** Xác nhận lượt nhập với bảng mã đã chọn — cùng hình dạng trả về `CreateWorkResult`

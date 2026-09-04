@@ -96,8 +96,14 @@ pub const ORIGIN_NONE: &str = "";
 ///
 /// ⚠️ **Mọi giá trị khác `"zh"` đi nhánh khoảng trắng**, đúng luật mặc định mà
 /// [`super::split`] đã khai bằng chữ.
+///
+/// 🔵 **MỞ `pub(super)` 2026-09-04 (Story 6.4, FR124/FR125)** — chủ THỨ HAI xuất hiện:
+/// `core::segment::normalize::normalize` GỌI hàm này để nối dòng giữa câu, đúng luật §Always
+/// spec 6.4 *"bảng ngôn ngữ nối không dấu cách: `regroup::source_joiner` là chủ duy nhất"*.
+/// `pub(super)` (không `pub`) giữ nguyên phạm vi trong `core::segment` — không lộ ra ngoài
+/// module cha, chỉ thêm MỘT chỗ gọi được phép, không dựng một bảng thứ hai.
 #[must_use]
-fn source_joiner(source_lang: &str) -> &'static str {
+pub(super) fn source_joiner(source_lang: &str) -> &'static str {
     if source_lang == LANG_CHINESE {
         ""
     } else {

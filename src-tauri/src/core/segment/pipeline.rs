@@ -36,12 +36,13 @@
 //! đầu [`run_import_with_order`] — xem doc-comment của nó.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 BỐN BƯỚC THÂN RỖNG — CÓ CHỦ Ý, MỖI BƯỚC MỘT STORY CHỦ (§Never của spec 6.2)
+//! 🔴 BA BƯỚC THÂN RỖNG — CÓ CHỦ Ý, MỖI BƯỚC MỘT STORY CHỦ (§Never của spec 6.2)
 //! ─────────────────────────────────────────────────────────────────────────────
+//! 🔵 **SỬA 2026-09-04 (Story 6.4)** — từ "BỐN bước" xuống "BA bước": [`Step::NormalizeParagraphsAndWhitespace`]
+//! không còn no-op, xem nhánh `match` của nó ngay dưới ([`normalize::normalize`]).
 //! [`Step::ExtractMainContent`] (`dom_smoothie`, Story 6.9), [`Step::CleanByRules`]
-//! (Story 6.5), [`Step::NormalizeParagraphsAndWhitespace`] (Story 6.4),
-//! [`Step::Preview`] (Story 6.5/6.9) — cả bốn là no-op trong `match` của
-//! [`run_import_with_order`]. Chúng CÓ MẶT trong [`PIPELINE_ORDER`] và trong
+//! (Story 6.5), [`Step::Preview`] (Story 6.5/6.9) — ba bước CÒN LẠI là no-op trong `match`
+//! của [`run_import_with_order`]. Chúng CÓ MẶT trong [`PIPELINE_ORDER`] và trong
 //! [`PipelineOutput::trace`] của MỌI lượt chạy — một bước thân rỗng vẫn phải NÓI ĐƯỢC là đã
 //! đi qua, không được biến mất khỏi vết chạy chỉ vì nó không làm gì (AC6 của spec 6.2). Vết
 //! chạy được ghi TỪ BÊN TRONG mỗi nhánh `match`, không phải một `trace.push` chung sau vòng
@@ -63,6 +64,7 @@
 //! (AD-11 giữ MỘT writer duy nhất nối tiếp; CPU trong closure ghi chặn MỌI lượt ghi khác).
 
 use super::import::{ImportError, ImportedChapter};
+use super::normalize;
 use super::split::{SplitSegment, split_source_text};
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -82,7 +84,8 @@ pub enum Step {
     ExtractMainContent,
     /// Bước 3 — làm sạch theo luật. THÂN RỖNG (Story 6.5).
     CleanByRules,
-    /// Bước 4 — chuẩn hoá đoạn & khoảng trắng. THÂN RỖNG (Story 6.4).
+    /// Bước 4 — chuẩn hoá đoạn & khoảng trắng ([`normalize::normalize`], Story 6.4,
+    /// FR124/FR125). 🔵 SỬA 2026-09-04 — KHÔNG còn thân rỗng.
     NormalizeParagraphsAndWhitespace,
     /// Bước 5 — tách Chương theo mẫu phân tách. Có cơ chế thật (so khớp literal), nhưng
     /// KHÔNG phải mẫu người dùng cấu hình được (Story 6.6) — xem doc-comment
@@ -346,9 +349,30 @@ pub fn run_import_with_order(
                 trace.push(step);
                 flow
             }
+            // 🔴 THÂN THẬT — Story 6.4, FR124/FR125, AD-39 bước 4. GỌI `normalize::normalize`,
+            // không viết lại nội tuyến (Task list spec 6.4) — mọi luật (bảng kết câu, bảng
+            // nối theo ngôn ngữ) sống ở `split.rs`/`regroup.rs`, module này chỉ GỌI chúng.
+            // `trace.push` Ở LẠI BÊN TRONG nhánh (AC6 spec 6.2, doc-comment đầu tệp) —
+            // KHÔNG gộp vào một `trace.push` chung sau vòng lặp.
             Step::NormalizeParagraphsAndWhitespace => {
+                let Flow { units: old_units, segments, already_chaptered } = flow;
+                let units = old_units
+                    .into_iter()
+                    .map(|u| match u {
+                        Unit::Decoded(text) => {
+                            Unit::Decoded(normalize::normalize(&text, &source_lang).text)
+                        }
+                        // `Unit::Undecoded` ở bước này là BẤT KHẢ trên mọi thứ tự HỢP LỆ
+                        // (`validate_order` đã kiểm — bước 1 luôn đứng trước bước 4). Giữ
+                        // nguyên là phòng thủ cho một thứ tự SAI (đối chứng AD-39 đặt bước
+                        // này TRƯỚC giải mã): `normalize` cần `&str`, không có nghĩa gì để
+                        // chạy nó trên byte thô — cùng khuôn `split_segments_step` ngay
+                        // dưới, cũng bỏ qua `Unit::Undecoded` vì cùng lý do.
+                        other @ Unit::Undecoded { .. } => other,
+                    })
+                    .collect();
                 trace.push(step);
-                flow
+                Flow { units, segments, already_chaptered }
             }
             Step::SplitChapters => {
                 let next = split_chapters_step(flow, chapter_pattern.as_deref());
@@ -465,8 +489,11 @@ fn decode_unit(unit: Unit, encoding: &'static encoding_rs::Encoding) -> Result<U
 /// nhập, nên một `U+FEFF` nằm lại sẽ trở thành ký tự đầu của segment #1 VĨNH VIỄN.
 ///
 /// CRLF thì NGƯỢC LẠI và cố ý KHÔNG đụng ở đây — xuống dòng LÀ chuẩn hoá văn bản thật
-/// (FR124/125, Epic 6), khác tầng với BOM. Chỉ cắt ở ĐẦU: một `U+FEFF` ở giữa văn bản là
-/// zero-width no-break space, một ký tự thật của nội dung.
+/// (FR124/125), khác TẦNG với BOM. 🔵 **SỬA 2026-09-04 (Story 6.4)** — "Epic 6" ở câu trên
+/// từng là một lời hẹn tương lai; nay là một chỗ CỤ THỂ: bước 4 của chuỗi AD-39
+/// (`Step::NormalizeParagraphsAndWhitespace`, [`normalize::normalize`], ĐỨNG SAU bước NÀY).
+/// Chỉ cắt ở ĐẦU: một `U+FEFF` ở giữa văn bản là zero-width no-break space, một ký tự thật
+/// của nội dung.
 fn strip_bom(raw: String) -> String {
     match raw.strip_prefix('\u{feff}') {
         Some(rest) => rest.to_owned(),
@@ -547,9 +574,13 @@ fn split_chapters_step(mut flow: Flow, pattern: Option<&str>) -> Flow {
 ///
 /// 🔵 **SỬA (vòng rà đối kháng 2026-09-04) — KHÔNG còn `.map(str::trim)` trên mảnh giữ
 /// lại.** Bản trước trim mỗi mảnh trước khi lưu — đó là CHUẨN HOÁ KHOẢNG TRẮNG, việc của
-/// [`Step::NormalizeParagraphsAndWhitespace`] (thân rỗng, Story 6.4 sở hữu), không phải việc
-/// của bước NÀY; nó từng xoá mất khoảng trắng đầu dòng/tiêu đề có chủ ý của người viết ngay
-/// trong `source_text` được lưu. `s.trim().is_empty()` chỉ dùng để QUYẾT ĐỊNH có giữ một
+/// [`Step::NormalizeParagraphsAndWhitespace`], không phải việc của bước NÀY (bước 5 đứng
+/// SAU bước 4 trong [`PIPELINE_ORDER`]); nó từng xoá mất khoảng trắng đầu dòng/tiêu đề có
+/// chủ ý của người viết ngay trong `source_text` được lưu. 🔵 **SỬA THÊM 2026-09-04 (Story
+/// 6.4)** — bước 4 KHÔNG còn "thân rỗng": [`normalize::normalize`] nay trim thật hai đầu
+/// MỖI DÒNG trước khi bước này chạy; mệnh đề "không trim ở ĐÂY" vẫn đúng và giờ có một lý do
+/// MẠNH hơn (không phải "chưa ai làm", mà "đã có nơi làm ĐÚNG, làm lại ở đây là một nguồn sự
+/// thật thứ hai"). `s.trim().is_empty()` chỉ dùng để QUYẾT ĐỊNH có giữ một
 /// mảnh hay không (một khoảng trống thuần giữa hai lần khớp liền nhau không phải một
 /// Chương) — KHÔNG áp lên giá trị trả về, mảnh giữ lại đi ra NGUYÊN VĂN. Nếu không mảnh nào
 /// còn lại (mẫu không khớp, hoặc chỉ khớp ở đầu/cuối), trả nguyên văn bản làm MỘT Chương —

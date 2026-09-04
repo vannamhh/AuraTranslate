@@ -27,7 +27,9 @@ use crate::core::i18n::IpcError;
 use crate::core::library::{WorkMeta, create_work_folder, remove_folder};
 use crate::core::lifecycle::LifecycleStatus;
 use crate::core::scope::load_global_config;
-use crate::core::segment::encoding::{self, Confidence, EncodingCandidate, EncodingVerdict};
+use crate::core::segment::encoding::{
+    self, Confidence, EncodingCandidate, EncodingVerdict, NormalizedCandidate,
+};
 use crate::core::segment::import::{ImportError, import_file, import_text};
 use crate::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
 use crate::core::store::{Store, StoreSpec, Transaction};
@@ -903,6 +905,31 @@ pub struct PendingImportSource {
 /// `commands::glossary::PendingImportState`.
 pub type PendingImportSourceState = std::sync::Mutex<Option<PendingImportSource>>;
 
+/// Bản dựng đã CHUẨN HOÁ của một ứng viên, cộng hai số đếm thiệt hại — hình dạng DÂY của
+/// [`NormalizedCandidate`] (Story 6.4, FR124/FR125).
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct NormalizedPreviewWire {
+    pub text: String,
+    pub joined_lines: usize,
+    pub blank_lines_removed: usize,
+    /// `true` ⇒ `text` không phải TOÀN Chương (nguồn dài hơn cửa sổ bằng chứng, dòng cuối
+    /// đã bị bỏ) — frontend nói ra phạm vi cửa sổ bằng chữ khi trường này là `true`.
+    pub window_truncated: bool,
+}
+
+impl From<NormalizedCandidate> for NormalizedPreviewWire {
+    fn from(n: NormalizedCandidate) -> Self {
+        Self {
+            text: n.text,
+            joined_lines: n.joined_lines,
+            blank_lines_removed: n.blank_lines_removed,
+            window_truncated: n.window_truncated,
+        }
+    }
+}
+
 /// Một ô trong dải năm ứng viên — hình dạng DÂY của [`EncodingCandidate`].
 ///
 /// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật với mọi struct qua biên IPC.
@@ -915,11 +942,20 @@ pub struct EncodingCandidateWire {
     /// Bản dựng thật, tối đa 8 ký tự — `null` khi bảng mã này "không ra chữ" trên cửa sổ
     /// bằng chứng.
     pub preview: Option<String>,
+    /// Bản dựng ĐÃ CHUẨN HOÁ cộng hai số đếm — `null` đồng bộ với `preview` (Story 6.4).
+    /// §Always spec 6.4: bản dựng này đi kèm sẵn trên dây cho CẢ NĂM ô, điều kiện để đổi
+    /// ứng viên vẫn là 0 lời gọi IPC (`importPreviewEncoding.test.ts:123,161,192`).
+    pub normalized: Option<NormalizedPreviewWire>,
 }
 
 impl From<EncodingCandidate> for EncodingCandidateWire {
     fn from(c: EncodingCandidate) -> Self {
-        Self { label: c.label.to_owned(), encoding: c.wire_id.to_owned(), preview: c.preview }
+        Self {
+            label: c.label.to_owned(),
+            encoding: c.wire_id.to_owned(),
+            preview: c.preview,
+            normalized: c.normalized.map(NormalizedPreviewWire::from),
+        }
     }
 }
 
@@ -966,6 +1002,18 @@ pub struct ImportEncodingPreview {
     /// thứ hai. Rỗng CHỈ xảy ra ở nhánh tự khai thật (`AlreadyText`) — ở đó không có gì để
     /// mà dò, không phải "có nhưng bị giấu".
     pub candidates: Vec<EncodingCandidateWire>,
+    /// 🔴 **THÊM 2026-09-04 (Story 6.4, vá vòng rà 1, mục 1).** Bản dựng chuẩn hoá cộng hai
+    /// số đếm cho nhánh **TỰ KHAI** — `Some(..)` chính xác khi `candidates` RỖNG (không có
+    /// ứng viên nào để mà đọc `.normalized` từ đó), `None` khi `candidates` không rỗng (năm
+    /// ô đã tự mang bản dựng riêng, đọc từ đó — không lặp dữ liệu ở đây).
+    ///
+    /// AC6 của `epics.md` ("màn xem trước hiện văn bản đã chuẩn hoá — đúng thứ sẽ được ghi")
+    /// áp cho MỌI đường qua xem trước, không riêng đường có ứng viên bảng mã — cơ chế
+    /// theo-ứng-viên (`EncodingCandidateWire::normalized`) không phủ được đường DÁN VĂN BẢN
+    /// TAY (`ChapterInput::AlreadyText`, 0 ứng viên): không có trường này, luật gộp dòng vẫn
+    /// chạy và AD-4 đóng băng kết quả, mà người dùng không thấy gì (§Spec Change Log, Vòng
+    /// rà 1). Dựng từ [`encoding::normalized_self_declared`].
+    pub self_declared_normalized: Option<NormalizedPreviewWire>,
 }
 
 /// **Hàm thuần** — dò bảng mã cho `shape` VỪA ĐỌC (không tự đọc gì, không tự lưu state —
@@ -976,8 +1024,13 @@ pub struct ImportEncodingPreview {
 /// ⇒ dải rỗng thật (không phải bị giấu). `RawBytes` ⇒ [`encoding::detect`] CỘNG
 /// [`encoding::render_candidates`] LUÔN LUÔN — xem doc-comment [`ImportEncodingPreview::candidates`]
 /// cho lý do "luôn đủ năm ô" bất kể `confidence`.
-pub fn preview_import_encoding(shape: &PipelineShape) -> ImportEncodingPreview {
-    fn verdict_and_candidates(bytes: &[u8]) -> (EncodingVerdict, Vec<EncodingCandidateWire>) {
+///
+/// 🔵 **THÊM 2026-09-04 (Story 6.4) — tham số `source_lang`.** [`encoding::render_candidates`]
+/// cần nó để dựng bản chuẩn hoá của mỗi ứng viên (vị từ kết câu + dấu nối rẽ nhánh
+/// Trung/Anh). KHÔNG phải một lượt đọc thêm: `source_lang` đã có sẵn ở tầng frontend trước
+/// khi màn xem trước mở (`sourceLang` của form nhập, `src/modes/libraryImport.ts`).
+pub fn preview_import_encoding(shape: &PipelineShape, source_lang: &str) -> ImportEncodingPreview {
+    let verdict_and_candidates = |bytes: &[u8]| -> (EncodingVerdict, Vec<EncodingCandidateWire>) {
         let verdict = encoding::detect(bytes);
         // 🔴 SỬA (vòng rà đối kháng 2, mục 7) — bản trước ép `candidates` RỖNG cho MỌI
         // `SelfDeclared`, gộp CHUNG hai ca khác hẳn nhau dưới MỘT nhãn tin cậy: ① byte RỖNG
@@ -999,10 +1052,13 @@ pub fn preview_import_encoding(shape: &PipelineShape) -> ImportEncodingPreview {
         let candidates = if bytes.is_empty() {
             Vec::new()
         } else {
-            encoding::render_candidates(bytes).into_iter().map(EncodingCandidateWire::from).collect()
+            encoding::render_candidates(bytes, source_lang)
+                .into_iter()
+                .map(EncodingCandidateWire::from)
+                .collect()
         };
         (verdict, candidates)
-    }
+    };
 
     let self_declared_utf8 = || EncodingVerdict {
         encoding: encoding_rs::UTF_8,
@@ -1022,10 +1078,36 @@ pub fn preview_import_encoding(shape: &PipelineShape) -> ImportEncodingPreview {
         },
     };
 
+    // 🔴 THÊM 2026-09-04 (Story 6.4, vá vòng rà 1, mục 1) — `candidates` RỖNG (tự khai
+    // thật, HOẶC byte rỗng) vẫn phải chở một bản chuẩn hoá. Văn bản nguồn cho nó là chuỗi
+    // dán tay THẬT khi có (`AlreadyText`), hoặc chuỗi rỗng khi không có gì để mà tự khai —
+    // `normalize::normalize("", ..)` hợp lệ, không phải một ca đặc biệt phải né.
+    let self_declared_normalized = candidates.is_empty().then(|| {
+        let text = self_declared_source_text(shape);
+        NormalizedPreviewWire::from(encoding::normalized_self_declared(text, source_lang))
+    });
+
     ImportEncodingPreview {
         confidence: verdict.confidence.into(),
         selected_encoding: verdict.encoding.name().to_owned(),
         candidates,
+        self_declared_normalized,
+    }
+}
+
+/// Văn bản THẬT của nhánh tự khai, nếu có — chỗ gọi DUY NHẤT là `preview_import_encoding`,
+/// đúng lúc `candidates` đã RỖNG. `RawBytes` không có văn bản (chưa giải mã, và nếu tới đây
+/// thì `bytes` đã rỗng — không có gì để mà giải mã) ⇒ chuỗi rỗng, không phải `None`: một
+/// chuỗi rỗng qua `normalize::normalize` là một giá trị HỢP LỆ (xem ca ma trận I/O "Chỉ
+/// khoảng trắng"), không phải một trường hợp phải tránh gọi.
+fn self_declared_source_text(shape: &PipelineShape) -> &str {
+    match shape {
+        PipelineShape::Blob(ChapterInput::AlreadyText(text)) => text,
+        PipelineShape::Chapters(chapters) => match chapters.first() {
+            Some(ChapterInput::AlreadyText(text)) => text,
+            _ => "",
+        },
+        _ => "",
     }
 }
 
@@ -2378,6 +2460,11 @@ pub mod wire {
     /// **Không một quy tắc nào sống ở đây** — đọc [`super::preview_import_encoding`] và
     /// [`super::stash_pending_import_source`].
     ///
+    /// 🔵 **THÊM 2026-09-04 (Story 6.4) — tham số `source_lang`.** KHÔNG phải một command
+    /// mới, KHÔNG một lượt đọc thêm: `sourceLang` đã có sẵn ở form phía frontend TRƯỚC khi
+    /// lệnh này được gọi (`src/importPreviewState.ts::openWith` đã nhận nó làm tham số từ
+    /// trước Story 6.3) — chỉ là trước story này chưa có lý do để gửi nó xuống.
+    ///
     /// # Lỗi
     /// - [`PendingImportSourceState`] chưa được `app.manage(...)` (lỗi cấu hình `setup()`) ⇒
     ///   `import.no_pending_source`, TƯỜNG MINH. 🔴 SỬA (vòng rà đối kháng 2, mục 1) — bản
@@ -2389,13 +2476,14 @@ pub mod wire {
     pub fn preview_import_encoding_from_text(
         app: tauri::AppHandle,
         text: String,
+        source_lang: String,
     ) -> Result<ImportEncodingPreview, IpcError> {
         use tauri::Manager as _;
         let Some(state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
         let shape = super::import_text(text);
-        let preview = super::preview_import_encoding(&shape);
+        let preview = super::preview_import_encoding(&shape, &source_lang);
         super::stash_pending_import_source(&state, shape);
         Ok(preview)
     }
@@ -2411,13 +2499,14 @@ pub mod wire {
     pub fn preview_import_encoding_from_file(
         app: tauri::AppHandle,
         path: String,
+        source_lang: String,
     ) -> Result<ImportEncodingPreview, IpcError> {
         use tauri::Manager as _;
         let Some(state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
         let shape = super::import_file(std::path::Path::new(&path))?;
-        let preview = super::preview_import_encoding(&shape);
+        let preview = super::preview_import_encoding(&shape, &source_lang);
         super::stash_pending_import_source(&state, shape);
         Ok(preview)
     }

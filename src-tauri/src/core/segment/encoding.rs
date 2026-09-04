@@ -55,6 +55,12 @@ const VOTING_CANDIDATE_INDICES: [usize; 4] = [0, 1, 2, 3];
 /// (12 ký tự trong ca hồi quy vòng rà đối kháng 2026-09-04) trong khi vẫn giới hạn chi phí
 /// cho một tệp ở trần [`super::import::MAX_IMPORT_BYTES`] (100 MB) — decode một cửa sổ nhỏ,
 /// không toàn bộ tệp.
+/// 🔵 **SỬA 2026-09-04 (vòng rà 1, mục 3) — trở lại `private`.** Bản trước mở `pub(crate)`
+/// với lý do "`commands::project` cần con số này" — SAI, đo được bằng `grep`: không dòng
+/// nào ngoài tệp này đọc nó. Quyết định "nguồn có bị cắt ngắn hay không"
+/// (`window_truncated`) tính RIÊNG trong từng hàm CỦA TỆP NÀY ([`render_candidates`],
+/// [`normalized_self_declared`]) — `commands::project` chỉ nhận kết quả ĐÃ TÍNH qua
+/// [`NormalizedCandidate`], không tự so `bytes.len()` với hằng số này.
 const EVIDENCE_WINDOW_BYTES: usize = 4096;
 
 /// Số ký tự hiển thị của mỗi ô trong dải năm ứng viên — UX pattern epic 6: *"kèm bản dựng
@@ -214,6 +220,25 @@ pub fn detect(bytes: &[u8]) -> EncodingVerdict {
     EncodingVerdict { encoding, confidence }
 }
 
+/// Bản dựng đã CHUẨN HOÁ của TOÀN cửa sổ bằng chứng cho MỘT ứng viên bảng mã (Story 6.4,
+/// FR124/FR125) — khác `EncodingCandidate::preview` (cắt ngắn [`PREVIEW_CHARS`] ký tự cho
+/// dải bảng mã): trường này KHÔNG cắt ngắn theo ký tự, chỉ theo DÒNG (xem
+/// [`super::normalize::normalize_window`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NormalizedCandidate {
+    /// Văn bản sau ba phép chuẩn hoá — cùng thứ sẽ được LƯU nếu ứng viên này được chọn.
+    pub text: String,
+    /// Số lần hai dòng bị nối làm một trong cửa sổ này.
+    pub joined_lines: usize,
+    /// Số dòng trống bị xoá để thu mỗi run dòng trống liên tiếp về đúng một, trong cửa sổ
+    /// này.
+    pub blank_lines_removed: usize,
+    /// `true` khi nguồn DÀI HƠN cửa sổ bằng chứng — `text` không phải TOÀN Chương, và dòng
+    /// cuối đã bị bỏ (xem [`super::normalize::normalize_window`]). Số của TOÀN Chương chưa
+    /// có ở phiên bản này — nợ chủ Story 6.10 (`deferred-work.md`).
+    pub window_truncated: bool,
+}
+
 /// Một ô trong dải năm ứng viên.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EncodingCandidate {
@@ -228,14 +253,30 @@ pub struct EncodingCandidate {
     /// Bản dựng thật, tối đa [`PREVIEW_CHARS`] ký tự — `None` = "không ra chữ" với bảng mã
     /// này (byte không hợp lệ trong cửa sổ bằng chứng).
     pub preview: Option<String>,
+    /// Bản dựng ĐÃ CHUẨN HOÁ cộng hai số đếm — `None` đồng bộ với `preview` (bảng mã này
+    /// "không ra chữ", không có gì để mà chuẩn hoá). Story 6.4, §Always spec 6.4: "bản dựng
+    /// chuẩn hoá và số đếm của CẢ NĂM ứng viên đi kèm sẵn trên dây" — điều kiện để đổi ứng
+    /// viên vẫn là 0 lời gọi IPC.
+    pub normalized: Option<NormalizedCandidate>,
 }
 
 /// Dựng dải NĂM Ô — một bản dựng thật cho mỗi nhãn FR126, theo ĐÚNG thứ tự
 /// [`FR126_LABELS`]. Cắt ngắn hiển thị (6-8 ký tự) là việc CỦA HÀM NÀY và chỉ của nó — phán
 /// quyết tin cậy ([`detect`]) không bao giờ so trên bản đã cắt (xem doc-comment đầu tệp).
-pub fn render_candidates(bytes: &[u8]) -> Vec<EncodingCandidate> {
+///
+/// 🔵 **THÊM 2026-09-04 (Story 6.4) — tham số `source_lang`.** Chuẩn hoá cần biết nhánh
+/// Trung/Anh cho vị từ kết câu VÀ dấu nối (`normalize::normalize`) — không suy được từ
+/// `bytes`. Đây KHÔNG phải một lời gọi IPC thứ hai: `source_lang` đã có sẵn ở tầng frontend
+/// TRƯỚC khi màn xem trước mở (`sourceLang` của form nhập), chỉ là trước story này chưa có
+/// chỗ nào cần nó ở đây.
+pub fn render_candidates(bytes: &[u8], source_lang: &str) -> Vec<EncodingCandidate> {
     let window = evidence_window(bytes);
     let five = decode_all_five(window);
+    // Nguồn DÀI HƠN cửa sổ ⇒ `window` là một tiền tố CẮT NGẮN của một Chương dài hơn — bản
+    // dựng chuẩn hoá của MỖI ứng viên phải bỏ dòng cuối (xem `NormalizedCandidate::window_truncated`
+    // và `normalize_window`). Nguồn NGẮN HƠN HOẶC BẰNG cửa sổ ⇒ `window` LÀ toàn bộ nguồn,
+    // không có gì để mà bỏ.
+    let window_truncated = bytes.len() > EVIDENCE_WINDOW_BYTES;
 
     FR126_LABELS
         .iter()
@@ -245,8 +286,65 @@ pub fn render_candidates(bytes: &[u8]) -> Vec<EncodingCandidate> {
             label,
             wire_id: encoding.name(),
             preview: decoded.as_ref().map(|s| truncate_chars(s, PREVIEW_CHARS)),
+            normalized: decoded.as_ref().map(|full_text| {
+                normalized_candidate(full_text, source_lang, window_truncated)
+            }),
         })
         .collect()
+}
+
+/// Bản dựng chuẩn hoá cho MỘT ứng viên — tách khỏi `render_candidates` chỉ để đặt tên cho
+/// "vì sao `max_bytes` là `text.len() - 1` khi `window_truncated`" ở một chỗ.
+///
+/// `normalize_window` tự nó chỉ so `text.len()` với `max_bytes` để quyết có cắt/bỏ dòng
+/// cuối hay không (xem doc-comment của nó) — nó không biết `window` này có phải một tiền tố
+/// CẮT NGẮN của một nguồn dài hơn hay không, vì `full_text` ở đây LÀ toàn bộ `window` đã
+/// giải mã, không dài hơn chính nó. Ép `max_bytes = full_text.len() - 1` khi
+/// `window_truncated` là cách BUỘC nhánh "phải cắt, phải bỏ dòng cuối" chạy, không phải một
+/// phép đo có ý nghĩa của riêng con số `- 1`.
+fn normalized_candidate(
+    full_text: &str,
+    source_lang: &str,
+    window_truncated: bool,
+) -> NormalizedCandidate {
+    let normalized = if window_truncated {
+        super::normalize::normalize_window(full_text, source_lang, full_text.len().saturating_sub(1))
+    } else {
+        super::normalize::normalize(full_text, source_lang)
+    };
+    NormalizedCandidate {
+        text: normalized.text,
+        joined_lines: normalized.joined_lines,
+        blank_lines_removed: normalized.blank_lines_removed,
+        window_truncated,
+    }
+}
+
+/// Bản dựng chuẩn hoá cho nhánh **TỰ KHAI** (0 ứng viên) — Story 6.4, vá vòng rà 1 mục 1.
+///
+/// 🔴 **Vì sao cần hàm RIÊNG, không tái dùng [`normalized_candidate`].** Cơ chế theo-ứng-viên
+/// đặt `full_text` là một CỬA SỔ ĐÃ CẮT (`evidence_window` chạy trước khi giải mã, trên byte
+/// thô), nên `normalized_candidate` phải BUỘC nhánh windowed bằng mẹo `len() - 1`. Ở đây
+/// `text` là văn bản THẬT — hoặc chuỗi đã dán tay nguyên vẹn (`ChapterInput::AlreadyText`),
+/// hoặc chuỗi rỗng khi không có gì để mà tự khai (0 byte) — nằm TRỌN trong bộ nhớ, không
+/// qua bước cắt byte nào trước đó. `text.len()` so trực tiếp với [`EVIDENCE_WINDOW_BYTES`]
+/// (CÙNG hằng số cửa sổ mà tầng ứng viên dùng, không một trần thứ hai) là đủ để
+/// [`super::normalize::normalize_window`] tự quyết đúng: dài hơn cửa sổ ⇒ cắt + bỏ dòng
+/// cuối; ngắn hơn hoặc bằng ⇒ chuẩn hoá TRỌN VẸN, không có gì để mà bỏ.
+///
+/// Đường sản phẩm DUY NHẤT: `commands::project::preview_import_encoding`, khi `candidates`
+/// rỗng — xem doc-comment ở đó cho ba ca gọi tới đây (`AlreadyText` thật, byte rỗng, danh
+/// sách Chương rỗng/không mang byte).
+#[must_use]
+pub fn normalized_self_declared(text: &str, source_lang: &str) -> NormalizedCandidate {
+    let window_truncated = text.len() > EVIDENCE_WINDOW_BYTES;
+    let normalized = super::normalize::normalize_window(text, source_lang, EVIDENCE_WINDOW_BYTES);
+    NormalizedCandidate {
+        text: normalized.text,
+        joined_lines: normalized.joined_lines,
+        blank_lines_removed: normalized.blank_lines_removed,
+        window_truncated,
+    }
 }
 
 /// Đi NGƯỢC từ [`EncodingCandidate::wire_id`] (hoặc bất kỳ tên WHATWG hợp lệ nào) về
@@ -403,7 +501,7 @@ mod tests {
     #[test]
     fn gbk_and_gb18030_candidates_render_the_identical_string() {
         let (gbk_bytes, _, _) = GBK.encode("萧炎登场");
-        let candidates = render_candidates(&gbk_bytes);
+        let candidates = render_candidates(&gbk_bytes, "en");
         assert_eq!(candidates.len(), 5);
         assert_eq!(candidates[1].label, "GB18030");
         assert_eq!(candidates[2].label, "GBK");
@@ -415,7 +513,7 @@ mod tests {
 
     #[test]
     fn render_candidates_is_always_five_cells_in_fr126_order() {
-        let candidates = render_candidates(b"plain ascii text");
+        let candidates = render_candidates(b"plain ascii text", "en");
         assert_eq!(
             candidates.iter().map(|c| c.label).collect::<Vec<_>>(),
             FR126_LABELS.to_vec()
@@ -460,7 +558,7 @@ mod tests {
         assert_eq!(decode_prefix_streaming(GBK, b"   \n\t  "), None);
         assert_eq!(decode_prefix_streaming(BIG5, b"   \n\t  "), None);
 
-        let candidates = render_candidates(b"   \n\t  ");
+        let candidates = render_candidates(b"   \n\t  ", "en");
         for label in ["UTF-8", "GB18030", "GBK", "Big5"] {
             let cell = candidates.iter().find(|c| c.label == label).unwrap();
             assert_eq!(cell.preview, None, "o {label} phai la None cho input toan khoang trang");

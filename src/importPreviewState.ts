@@ -33,7 +33,12 @@ import {
   previewImportEncodingFromFile,
   previewImportEncodingFromText,
 } from './config/project'
-import type { CreatedWork, EncodingCandidateWire, ImportEncodingPreview } from './config/project'
+import type {
+  CreatedWork,
+  EncodingCandidateWire,
+  ImportEncodingPreview,
+  NormalizedPreviewWire,
+} from './config/project'
 import type { IpcError } from './i18n'
 
 /**
@@ -130,6 +135,29 @@ export const importPreviewSelectedCandidate = computed<EncodingCandidateWire | n
 })
 
 /**
+ * Bản dựng ĐÃ CHUẨN HOÁ hiện hành, cộng hai số đếm — dùng bởi tầng MỚI (Story 6.4,
+ * FR124/FR125). Hai nguồn, ĐÚNG một trong hai đang có mặt tại một thời điểm:
+ * - Có ứng viên đang chọn ⇒ đọc `candidate.normalized` (`null` khi ứng viên đó "không ra
+ *   chữ", đồng bộ `candidate.preview === null`).
+ * - KHÔNG ứng viên nào (đường DÁN VĂN BẢN TAY, `candidates` rỗng) ⇒ đọc
+ *   `preview.self_declared_normalized` — vá vòng rà 1, mục 1: cơ chế theo-ứng-viên không
+ *   phủ được đường này, và không có nhánh này thì luật gộp dòng chạy mà người dùng không
+ *   thấy gì (§Spec Change Log, Vòng rà 1).
+ *
+ * 🔴 **Đổi ứng viên đổi computed này NGAY, 0 lời gọi IPC** — cùng lý lẽ
+ * [`importPreviewSelectedCandidate`]: Rust đã dựng sẵn bản chuẩn hoá của CẢ NĂM ứng viên
+ * VÀ của nhánh tự khai trên dây (`§Always` spec 6.4), computed này chỉ ĐỌC lại từ
+ * `preview.value` đang có, không gọi gì thêm.
+ */
+export const importPreviewSelectedNormalized = computed<NormalizedPreviewWire | null>(() => {
+  const p = preview.value
+  if (p === null) return null
+  const candidate = importPreviewSelectedCandidate.value
+  if (candidate !== null) return candidate.normalized
+  return p.self_declared_normalized
+})
+
+/**
  * Hai tầng CHƯA có thân (§Always spec 6.3) — lý do RỖNG kèm tên story chủ, không phải một
  * chuỗi hiển thị (khoá `mode.library.preview.tier_empty_*`, frontend tự `t()`).
  */
@@ -195,7 +223,7 @@ export async function openImportPreviewFromText(
   genre: string,
   text: string,
 ): Promise<void> {
-  await openWith(() => previewImportEncodingFromText(text), 'text', name, sourceLang, genre)
+  await openWith(() => previewImportEncodingFromText(text, sourceLang), 'text', name, sourceLang, genre)
 }
 
 /** Mở màn xem trước — nhánh TỆP. Gọi từ handler tiêm của `library.import_file`. */
@@ -205,7 +233,7 @@ export async function openImportPreviewFromFile(
   genre: string,
   path: string,
 ): Promise<void> {
-  await openWith(() => previewImportEncodingFromFile(path), 'file', name, sourceLang, genre)
+  await openWith(() => previewImportEncodingFromFile(path, sourceLang), 'file', name, sourceLang, genre)
 }
 
 /**
