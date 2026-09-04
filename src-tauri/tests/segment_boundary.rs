@@ -305,20 +305,30 @@ fn the_chapter_read_path_never_calls_the_splitter() {
 // AC8 vế hai — không đường nào tự động tách lại toàn bộ Thư viện
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// Bộ tách có **đúng hai** chỗ gọi trên đường sản phẩm, và cả hai đều đã đặt tên:
-/// `create_work` (Chương mới, cùng giao dịch — AC13) và lệnh tách tường minh (Chương cũ,
-/// một Chương một lượt — Quyết định #4).
+/// Bộ tách có **đúng một** chỗ gọi sản phẩm NGOÀI `core/segment/`: lệnh tách tường minh
+/// (Chương cũ, một Chương một lượt — Quyết định #4 của `commands::segment`).
 ///
-/// Một chỗ gọi **thứ ba** là thứ phải có người ký: nó hoặc là một đường tính ngầm (AC3), hoặc
-/// là một đường tách hàng loạt (AC8 vế hai). Ca này bắt cả hai bằng một phép đếm.
+/// 🔵 **SỬA 2026-09-04 (Story 6.2, AD-39) — từ "đúng HAI" xuống "đúng MỘT".** Trước story
+/// này, `commands/project.rs::create_work` cũng gọi thẳng `split_source_text` (Chương MỚI,
+/// cùng giao dịch — AC13 cũ). Story 6.2 dời lời gọi đó vào `core/segment/pipeline.rs`
+/// (bước 7 của chuỗi AD-39, "tách segment + cờ kết đoạn"), nơi `SEGMENT_DIR` miễn trừ nó
+/// khỏi phép quét này — [`the_pipeline_module_actually_calls_the_splitter`] ngay dưới là
+/// đối chứng dương rằng chỗ gọi đó THẬT SỰ có mặt, không phải biến mất khỏi cả hai nơi.
+/// `commands/project.rs` giờ chỉ gọi `run_import` (`core::segment::pipeline`), không còn tự
+/// tách gì — xem `segment_pipeline_boundary.rs::run_import_is_the_one_product_call_site`.
+///
+/// Một chỗ gọi **thứ hai** ngoài `core/segment/` là thứ phải có người ký: nó hoặc là một
+/// đường tính ngầm (AC3), hoặc là một đường tách hàng loạt (AC8 vế hai). Ca này bắt cả hai
+/// bằng một phép đếm.
 #[test]
-fn the_splitter_has_exactly_two_product_call_sites() {
+fn the_splitter_has_exactly_one_product_call_site_outside_core_segment() {
     let (root, files) = rust_sources();
 
     let mut call_sites: Vec<String> = Vec::new();
     for file in &files {
         let rel = rel_posix(&root, file);
-        // Chính module định nghĩa bộ tách không phải một chỗ gọi.
+        // Chính module định nghĩa bộ tách, và pipeline dùng nó — không phải một "chỗ gọi
+        // ngoài" theo nghĩa của phép kiểm này.
         if rel.starts_with(SEGMENT_DIR) {
             continue;
         }
@@ -332,27 +342,45 @@ fn the_splitter_has_exactly_two_product_call_sites() {
         }
     }
 
-    // Hai lời gọi + hai dòng `use` mang tên hàm vào phạm vi = 4 dòng khớp.
-    let expected: [&str; 2] = ["commands/project.rs", "commands/segment.rs"];
-    for file in expected {
+    // 🔵 SỬA (vòng rà đối kháng 2026-09-04, item 11) — khôi phục ĐẾM CHÍNH XÁC. Bản đầu chỉ
+    // kiểm THÀNH VIÊN ("có mặt ở tệp đã ký, không có mặt ở tệp khác") — một phép kiểm thành
+    // viên thuần xanh y hệt dù `commands/segment.rs` mọc từ 2 chỗ khớp (1 `use` + 1 lời gọi)
+    // lên 5, 10, hay bất kỳ số nào, miễn là KHÔNG có chỗ khớp ở một tệp khác. Task của spec
+    // 6.2 ghi rõ "cổng dời theo mã, không được nới" — số thật hôm nay là 2
+    // (`commands/segment.rs:45` dòng `use`, `:334` lời gọi), và đó là con số cổng này phải
+    // giữ, không phải một tập hợp tên tệp.
+    assert_eq!(
+        call_sites.len(),
+        2,
+        "số dòng khớp `split_source_text` ngoài `core/segment/` đã đổi — kỳ vọng ĐÚNG 2 (một          dòng `use` + một lời gọi, cả hai trong `commands/segment.rs`), tìm thấy {}:
+{}",
+        call_sites.len(),
+        call_sites.join("
+")
+    );
+    for site in &call_sites {
         assert!(
-            call_sites.iter().any(|c| c.starts_with(file)),
-            "`{file}` phải gọi bộ tách — nếu nó không còn gọi, một trong hai đường nhập đã mất \
-             phép tách. Các chỗ gọi tìm thấy:\n{}",
-            call_sites.join("\n")
+            site.starts_with("commands/segment.rs"),
+            "chỗ khớp phải ở `commands/segment.rs` — tìm thấy: {site}"
         );
     }
+}
 
-    let unexpected: Vec<&String> = call_sites
-        .iter()
-        .filter(|c| !expected.iter().any(|f| c.starts_with(f)))
-        .collect();
-
+/// Đối chứng dương: `core/segment/pipeline.rs` **thật sự** gọi bộ tách — không có ca này,
+/// phép kiểm trên xanh y hệt trên một cây mà bước 7 của chuỗi ĐÃ MẤT lời gọi (xoá tay, hoặc
+/// một lượt viết lại bằng tay thay vì "Gọi, đừng viết lại" — Code Map của spec 6.2).
+#[test]
+fn the_pipeline_module_actually_calls_the_splitter() {
+    // 🔵 SỬA (vòng rà đối kháng 2026-09-04, item 12) — bản đầu dùng `text.contains(..)` trên
+    // TOÀN VĂN BẢN tệp; một lời gọi bị comment hoặc một dòng doc-comment nhắc chuỗi này vẫn
+    // giữ ca xanh. Lọc chú thích qua `is_comment`, đúng khuôn mọi phép kiểm khác của tệp này.
+    let text = read(&src_root().join("core/segment/pipeline.rs"));
+    let has_call = text.lines().filter(|line| !is_comment(line)).any(|line| line.contains("split_source_text("));
     assert!(
-        unexpected.is_empty(),
-        "bộ tách có chỗ gọi ngoài hai đường đã ký:\n{unexpected:#?}\n\n\
-         AC3 cấm một đường tính ngầm lúc nạp Chương; AC8 vế hai cấm một đường tự động tách lại \
-         toàn bộ Thư viện. Một chỗ gọi thứ ba phải có người ký, không phải một hiệu ứng phụ."
+        has_call,
+        "`core/segment/pipeline.rs` không còn gọi `split_source_text` (ngoài chú thích) — \
+         bước 7 của chuỗi AD-39 (\"tách segment + cờ kết đoạn\") phải GỌI bộ tách sẵn có, \
+         không viết lại nó."
     );
 }
 

@@ -1,41 +1,46 @@
-//! Chuỗi pipeline nhập tối thiểu — AD-39, Story 1.15, AC1/AC8.
+//! Bước ĐẦU VÀO của chuỗi pipeline nhập — AD-39, Story 1.15 (AC1/AC8), Story 6.2.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 BA ĐƯỜNG VÀO, ĐÚNG MỘT HÀM THUẦN — AD-39:498
+//! 🔵 **SỬA 2026-09-04 (Story 6.2) — mô-đun này KHÔNG CÒN cài chuỗi, chỉ CUNG CẤP bước 0.**
+//! ─────────────────────────────────────────────────────────────────────────────
+//! Bản Story 1.15 (giữ nguyên ở lịch sử git, không phải ở đây) cài cả "phân loại nguồn →
+//! giải mã → chuẩn hoá tối thiểu → tạo 1 Chương" trong CHÍNH tệp này. AD-39 (spine
+//! `:473-482`) khai bảy bước dùng CHUNG mọi nguồn, và một mô-đun nguồn "chỉ cung cấp bước
+//! đầu vào rồi trao lại" (spine `:498`) — nên bước GIẢI MÃ và [`strip_bom`] (trước đây ở
+//! đây) đã CHUYỂN sang [`super::pipeline`], nơi chúng là [`super::pipeline::Step::DecodeEncoding`].
+//! Tệp này giờ chỉ còn: đọc byte/nhận văn bản, từ chối phần mở rộng/kích thước KHÔNG hợp
+//! lệ TRƯỚC khi trao đi (AC8 — hai việc này KHÔNG phải một phần của chuỗi bảy bước, chúng
+//! xảy ra TRƯỚC khi có gì để mà chảy trong chuỗi), rồi trả về một
+//! [`super::pipeline::PipelineShape`] — giá trị mà [`super::pipeline::run_import`] tiêu thụ.
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! 🔴 BA ĐƯỜNG VÀO, ĐÚNG MỘT HÌNH DẠNG — AD-39:498
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Dán văn bản · kéo-thả *(nhận đường dẫn qua `tauri://drag-drop`)* · ô nhập đường dẫn.
-//! Hai đường sau gặp nhau ở [`import_file`] (`std::fs::read` → giải mã), rồi cả ba đổ vào
-//! **cùng** [`import_text`] — không module nào giữ một bản sao của bước "chuẩn hoá tối
-//! thiểu". [`import_file`] và [`import_text`] là **hàm thuần**: không `tauri::`, không
-//! `rusqlite` — đọc tệp qua `std::fs` là chuyện bình thường ở `core/**` (chỉ `ports/**` bị
-//! cấm chạm filesystem; ranh giới đó không áp ở đây).
+//! [`import_text`] và [`import_file`] là **hàm thuần**: không `tauri::`, không `rusqlite` —
+//! đọc tệp qua `std::fs` là chuyện bình thường ở `core/**` (chỉ `ports/**` bị cấm chạm
+//! filesystem; ranh giới đó không áp ở đây).
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 THỨ TỰ CỐ ĐỊNH — LỆNH GHI Ở CUỐI (AD-39:485)
+//! 🔵 **SỬA 2026-09-04 (Story 6.2) — "BA BƯỚC CHỪA CHỖ" cũ đã hết đúng MỘT NỬA.**
 //! ─────────────────────────────────────────────────────────────────────────────
-//! `phân loại nguồn → giải mã (UTF-8) → chuẩn hoá tối thiểu → tạo 1 Chương → ghi`.
-//! Module này dừng lại ở **"tạo 1 Chương"** — nó trả về [`ImportedChapter`], một giá trị
-//! thuần; bước **"ghi"** cần `Store::write` (SQL), nên nó sống ở `commands::project`
-//! (Task 6 của story), không ở đây. AD-39 cấm chèn một bước biến đổi văn bản **sau**
-//! lệnh ghi — module này không cho phép điều đó xảy ra vì nó không hề biết tới lệnh ghi.
-//!
-//! ─────────────────────────────────────────────────────────────────────────────
-//! BA BƯỚC CHỪA CHỖ, KHÔNG CÀI — quyết định có chủ ý, không phải thiếu sót
-//! ─────────────────────────────────────────────────────────────────────────────
-//! - **Tách Chương** (FR14) — Epic 6. Story này tạo đúng MỘT Chương từ toàn bộ văn bản.
-//! - **Làm sạch xuống dòng/khoảng trắng** (FR124/125) — Story 6.4/6.5.
-//! - **Dò bảng mã** (FR126: UTF-8/GB18030/GBK/Big5/UTF-16) — Story 6.1-6.3. Story này
-//!   **chỉ** nhận UTF-8 và từ chối tường minh mọi thứ khác (Quyết định #6) — AD-4 đóng
-//!   băng ranh giới segment tính lúc nhập, nên văn bản giải mã sai ghi xuống hôm nay là
-//!   dữ liệu Epic 6 không sửa lại được.
-//!
-//! `chuẩn hoá tối thiểu` trong [`import_text`] vì thế là một bước **có mặt nhưng rỗng** —
-//! đúng vị trí trong chuỗi, sẵn sàng cho ba story trên, không phải một bước bị bỏ quên.
+//! Bản Story 1.15 khai ba bước "để trống": tách Chương, làm sạch xuống dòng/khoảng trắng,
+//! dò bảng mã. Sau Story 6.2:
+//! - **Tách Chương** (FR14) — có mặt trong [`super::pipeline::PIPELINE_ORDER`] với một cơ
+//!   chế THẬT (so khớp literal), nhưng KHÔNG cấu hình được bởi người dùng; production luôn
+//!   truyền `chapter_pattern: None` ⇒ N = 1 KHÔNG ĐỔI. Mẫu cấu hình được là Story 6.6.
+//! - **Chuẩn hoá xuống dòng/khoảng trắng** (FR124/125) — vẫn THÂN RỖNG, Story 6.4/6.5.
+//! - **Dò bảng mã** (FR126) — vẫn CHỈ giải mã theo MỘT bảng mã ĐÃ KHAI (mặc định UTF-8,
+//!   Quyết định #6 cũ không đổi); bộ DÒ là Story 6.3. AD-4 đóng băng ranh giới segment tính
+//!   lúc nhập, nên văn bản giải mã sai ghi xuống hôm nay vẫn là dữ liệu không sửa lại được.
 
 use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::core::i18n::{IpcError, MessageKey};
+
+use super::pipeline::{ChapterInput, PipelineShape};
+use super::split::SplitSegment;
 
 /// Hai phần mở rộng được nhận ở đường tối thiểu này (FR13 nhánh tối thiểu). `.docx` và mọi
 /// thứ khác đóng ở Epic 6 — xem AC8.
@@ -56,9 +61,6 @@ const SUPPORTED_EXTENSIONS: [&str; 2] = ["txt", "md"];
 /// tiến trình.
 const MAX_IMPORT_BYTES: u64 = 100 * 1024 * 1024;
 
-/// Dấu thứ tự byte UTF-8 (`EF BB BF`) — xem [`strip_bom`].
-const BOM: char = '\u{feff}';
-
 /// Mọi cách đường nhập từ chối một tệp/nội dung — AC8.
 ///
 /// ⚠️ Vì sao đây KHÔNG PHẢI `StoreError`: cả hai biến thể xảy ra **trước** khi có gì chạm
@@ -73,9 +75,14 @@ pub enum ImportError {
         /// không có phần mở rộng nào.
         format: String,
     },
-    /// Nội dung tệp không giải mã được bằng UTF-8 (Quyết định #6).
+    /// Nội dung không giải mã được bằng bảng mã ĐÃ KHAI (Quyết định #6). 🔵 **SỬA 2026-09-04
+    /// (Story 6.2)** — bảng mã đã khai luôn là UTF-8 trên đường sản phẩm, nhưng biến thể
+    /// này giờ dùng chung cho bất kỳ bảng mã nào `tests/**` khai qua
+    /// `PipelineInput::encoding` (§Design Notes "Bảng mã đã khai khác bộ dò bảng mã" của
+    /// spec 6.2) — không có bộ dò nào tham gia ở story này.
     NotUtf8 {
-        /// Đường dẫn tệp, cho chẩn đoán và cho tham số `path` của [`MessageKey::ImportNotUtf8`].
+        /// Đường dẫn/tên nguồn, cho chẩn đoán và cho tham số `path` của
+        /// [`MessageKey::ImportNotUtf8`].
         path: String,
     },
     /// Đọc tệp trượt ở tầng I/O — quyền, tệp không tồn tại, ổ đĩa rút giữa chừng.
@@ -98,6 +105,20 @@ pub enum ImportError {
         /// Trần, tính bằng byte.
         limit: u64,
     },
+    /// 🔵 **THÊM (vòng rà đối kháng 2026-09-04) — `order` truyền cho
+    /// `pipeline::run_import_with_order` không phải một hoán vị hợp lệ của bảy biến thể
+    /// `pipeline::Step`** (thiếu bước, thừa bước, hoặc một bước lặp lại).
+    ///
+    /// ⚠️ CHỈ xảy ra khi CHÍNH MÃ RUST vi phạm hợp đồng của hàm đó — đường sản phẩm luôn
+    /// truyền `&PIPELINE_ORDER` không đổi (`pipeline::run_import`); không đầu vào NGƯỜI
+    /// DÙNG nào lái được tới nhánh này. Dùng [`crate::core::i18n::MessageKey::Unknown`]
+    /// (khoá dự phòng AD-21, KHÔNG tham số) khi chuyển sang `IpcError` — một câu tường
+    /// minh cho người dùng không cần tồn tại, vì ca này không bao giờ chạm một bề mặt IPC
+    /// thật.
+    InvalidPipelineOrder {
+        /// Chẩn đoán CHỈ cho log (không đi vào `IpcError`, `Unknown` không nhận tham số).
+        detail: String,
+    },
 }
 
 impl std::fmt::Display for ImportError {
@@ -116,6 +137,9 @@ impl std::fmt::Display for ImportError {
             }
             ImportError::TooLarge { size, limit } => {
                 write!(f, "import: file is {size} bytes, limit is {limit}")
+            }
+            ImportError::InvalidPipelineOrder { detail } => {
+                write!(f, "import: invalid pipeline order: {detail}")
             }
         }
     }
@@ -176,69 +200,63 @@ impl From<ImportError> for IpcError {
                 params.insert("limit".to_owned(), limit.to_string());
                 IpcError::new("import.too_large", MessageKey::ImportTooLarge, params, false)
             }
+            ImportError::InvalidPipelineOrder { .. } => {
+                // 🔴 KHÔNG BAO GIỜ chạm người dùng thật (xem doc-comment biến thể) —
+                // `MessageKey::Unknown` là khoá dự phòng AD-21, đúng chỗ cho một lỗi
+                // "không nên tồn tại" mà vẫn phải là kiểu, không phải một `panic!`.
+                IpcError::new(
+                    "import.invalid_pipeline_order",
+                    MessageKey::Unknown,
+                    BTreeMap::new(),
+                    false,
+                )
+            }
         }
     }
 }
 
-/// Kết quả của một lượt nhập tối thiểu: **đúng một** Chương, nguyên khối, sẵn sàng ghi.
+/// Kết quả của một lượt chạy chuỗi cho MỘT Chương — sẵn sàng ghi.
 ///
-/// Không mang `segment` nào (Quyết định #4) — chỉ văn bản nguyên khối của Chương.
+/// 🔵 **SỬA 2026-09-04 (Story 6.2) — "đúng một Chương" và "không mang segment" đã hết
+/// đúng.** Kiểu này KHÔNG đổi hình dạng (vẫn đúng một `source_text` + segment của CHÍNH
+/// Chương đó), nhưng chỗ dựng nó đổi: trước đây `import_text`/`import_file` tự dựng, giờ
+/// [`super::pipeline::run_import`] dựng — MỘT lượt gọi giờ trả về `Vec<ImportedChapter>`
+/// (N = 1 trên đường sản phẩm hôm nay, tổng quát hơn cho Story 6.6/6.7 sau này).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedChapter {
-    /// Văn bản nguồn của Chương, sau bước "chuẩn hoá tối thiểu".
+    /// Văn bản nguồn của Chương, sau khi chuỗi bảy bước AD-39 đã chạy hết.
     pub source_text: String,
+    /// Segment cấp câu + cờ kết đoạn của CHÍNH Chương này — bước 7 của chuỗi
+    /// ([`super::pipeline::Step::SplitSegments`], gọi [`super::split::split_source_text`]
+    /// đã có), tính SẴN ở đây để `commands::project::create_work` chỉ còn việc GHI, không
+    /// còn tự tính (AC13 không đổi: vẫn ghi cùng giao dịch với hàng `chapter`).
+    pub segments: Vec<SplitSegment>,
 }
 
-/// **Hàm thuần duy nhất** mà cả ba đường vào của AC1 đổ vào (AD-39:498).
-///
-/// Bước "chuẩn hoá tối thiểu" của chuỗi AD-39 — vẫn **rỗng có chủ ý** (FR124/125 là Epic
-/// 6). Thứ duy nhất chạy ở đây là [`strip_bom`], và nó **không phải** bước chuẩn hoá —
-/// xem doc-comment của hàm đó.
-pub fn import_text(raw: String) -> ImportedChapter {
-    ImportedChapter {
-        source_text: strip_bom(raw),
-    }
+/// Bước ĐẦU VÀO — nhánh dán văn bản của AC1. Trả về [`PipelineShape`], KHÔNG tự giải mã/
+/// strip BOM (chuyển vào [`super::pipeline`], xem doc-comment đầu tệp) — văn bản dán tay
+/// vốn đã LÀ `String` (không có bảng mã nào để mà giải), nên hình dạng đúng là
+/// [`ChapterInput::AlreadyText`].
+pub fn import_text(raw: String) -> PipelineShape {
+    PipelineShape::Blob(ChapterInput::AlreadyText(raw))
 }
 
-/// Cắt dấu thứ tự byte (`U+FEFF`) ở **đầu** chuỗi, nếu có.
-///
-/// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 ĐÂY LÀ BƯỚC **GIẢI MÃ**, KHÔNG PHẢI BƯỚC **CHUẨN HOÁ** CỦA EPIC 6
-/// ─────────────────────────────────────────────────────────────────────────────
-/// Ranh giới này là thứ giữ cho story không lấn sang FR124/125, nên nó phải được nói rõ:
-/// BOM là một **tạo tác của phép mã hoá**, không phải một đặc điểm của văn bản. Mọi bộ
-/// giải mã UTF-8 nghiêm túc đều nuốt nó. Cắt nó hoàn tất đúng bước mà **Quyết định #6** đã
-/// giao cho story này *(giải mã, không đoán bảng mã)* — nó **không** chạm tới xuống
-/// dòng, khoảng trắng hay bất cứ thứ gì Epic 6 sở hữu.
-///
-/// 🔴 Vì sao KHÔNG hoãn được sang Epic 6 — lập luận y hệt Quyết định #6: `EF BB BF` là
-/// UTF-8 **hợp lệ**, nên nó đi lọt `String::from_utf8` mà không một cổng nào kêu. AD-4
-/// đóng băng ranh giới segment tính **một lần lúc nhập**, nên một `U+FEFF` nằm lại sẽ trở
-/// thành ký tự đầu của **segment #1**, với một `segment.id` mà AD-3 nói **không bao giờ**
-/// được tái dùng. ⇒ Epic 6 **không sửa lại được**. Mọi tệp `.txt` do Notepad của Windows
-/// lưu ở dạng "UTF-8" đều mang nó.
-///
-/// ⚠️ **CRLF thì ngược lại, và story này không CỐ Ý KHÔNG ĐỤNG** — xuống dòng **là** chuẩn hoá
-/// văn bản thật (FR124/125), nó đổi chỗ ngắt đoạn, tức là đụng thẳng vào thứ Story 2.1 và
-/// Epic 6 sở hữu. Sửa nó ở đây đúng là cái bẫy *"bộ tách tạm"* mà §ĐỌC TRƯỚC TIÊN ② cấm.
-/// Ghi thành nợ trong `deferred-work.md`, không cài. *(Ice chốt, code review 2026-08-06.)*
-///
-/// Chỉ cắt ở **đầu**: một `U+FEFF` ở giữa văn bản là zero-width no-break space, một ký
-/// tự thật của nội dung — cắt nó là sửa văn bản của người dùng.
-fn strip_bom(raw: String) -> String {
-    match raw.strip_prefix(BOM) {
-        Some(rest) => rest.to_owned(),
-        None => raw,
-    }
-}
-
-/// Đường tệp (kéo-thả **hoặc** ô nhập đường dẫn — cả hai nhận một đường dẫn thật, không
-/// phải nội dung tệp đã đọc sẵn từ webview, xem AD-1/AD-16).
+/// Bước ĐẦU VÀO — nhánh tệp của AC1 (kéo-thả **hoặc** ô nhập đường dẫn — cả hai nhận một
+/// đường dẫn thật, không phải nội dung tệp đã đọc sẵn từ webview, xem AD-1/AD-16).
 ///
 /// Thứ tự: từ chối theo phần mở rộng **trước khi mở tệp** (không đọc một byte cho
-/// `.docx`) → `std::fs::read` → giải mã UTF-8 (`String::from_utf8`, **không** `_lossy` —
-/// Bẫy 8) → đổ vào [`import_text`].
-pub fn import_file(path: &Path) -> Result<ImportedChapter, ImportError> {
+/// `.docx`) → hỏi kích thước trước khi đọc → `std::fs::read` → trả [`PipelineShape`] mang
+/// byte THÔ, CHƯA giải mã.
+///
+/// 🔵 **SỬA 2026-09-04 (Story 6.2) — hàm này KHÔNG còn tự giải mã.** Trước story này, bước
+/// cuối là `String::from_utf8` nghiêm (Bẫy 8) rồi đổ vào `import_text`. Giải mã giờ là
+/// [`super::pipeline::Step::DecodeEncoding`] — cùng phép giải mã NGHIÊM đó (không `_lossy`),
+/// chỉ dời sang chuỗi để mọi nguồn (kể cả URL/song ngữ các story sau) đi qua ĐÚNG một chỗ.
+/// Hệ quả quan sát được duy nhất: một tệp không hợp lệ với bảng mã đã khai giờ thất bại ở
+/// [`super::pipeline::run_import`] (sau khi thư mục `.atproj` đã tạo) thay vì ngay ở hàm
+/// này — `commands::project::create_work` cuộn lại TRỌN VẸN trên lỗi đó, cùng khuôn đã có
+/// cho lỗi ghi `meta.json`, nên KHÔNG `.atproj` nào bị bỏ lại nửa vời (AC8 không đổi).
+pub fn import_file(path: &Path) -> Result<PipelineShape, ImportError> {
     reject_unsupported_extension(path)?;
 
     // 🔴 Hỏi KÍCH THƯỚC trước khi đọc — không đọc rồi mới đo. `metadata` là một lượt
@@ -266,11 +284,10 @@ pub fn import_file(path: &Path) -> Result<ImportedChapter, ImportError> {
         detail: e.to_string(),
     })?;
 
-    let text = String::from_utf8(bytes).map_err(|_| ImportError::NotUtf8 {
-        path: path.display().to_string(),
-    })?;
-
-    Ok(import_text(text))
+    Ok(PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes,
+        label: path.display().to_string(),
+    }))
 }
 
 /// Từ chối một phần mở rộng chưa được nhận — **trước** khi mở tệp, không đọc một byte.

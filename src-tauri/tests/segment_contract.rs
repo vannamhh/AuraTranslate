@@ -27,6 +27,11 @@ use auratranslate_lib::commands::segment::{
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::meta::WorkMeta;
+use auratranslate_lib::core::segment::import::ImportError;
+use auratranslate_lib::core::segment::pipeline::{
+    ChapterInput, PipelineInput, PipelineShape, Step, PIPELINE_ORDER, run_import,
+    run_import_with_order,
+};
 use auratranslate_lib::core::segment::split::{
     split_source_text, EN_ABBREVIATIONS, LANG_CHINESE, SplitSegment,
 };
@@ -7942,4 +7947,342 @@ fn bench_reading_run_over_five_thousand_chapters() {
     }
 
     cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.2 — pipeline nhập, thứ tự CỐ ĐỊNH dùng CHUNG mọi nguồn (AD-39)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Hành vi LÚC CHẠY của `core::segment::pipeline` — không `Store`, không filesystem, đúng
+// khuôn "hàm thuần" mà `import_text`/`split_source_text` đã có. Phép kiểm TĨNH trên cây
+// nguồn (chỗ gọi, thứ tự khai báo) sống ở `segment_pipeline_boundary.rs`.
+
+/// Văn bản GỐC (đã giải mã đúng) dùng chung cho cặp đối chứng thứ-tự-sai/thứ-tự-đúng của
+/// AD-39. Mẫu "第一章" lặp lại BA lần — nếu bước tách Chương chạy TRÊN VĂN BẢN ĐÃ GIẢI MÃ,
+/// mẫu khớp và cho ra BA Chương; nếu nó chạy trên byte CHƯA giải mã, mẫu (byte UTF-8) không
+/// khớp gì trên byte GBK.
+const AD_39_GBK_FIXTURE_TEXT: &str = "第一章 mot\n第一章 hai\n第一章 ba";
+
+/// Mã hoá [`AD_39_GBK_FIXTURE_TEXT`] sang GBK — dùng CHUNG một nguồn cho cả hai vế của cặp
+/// đối chứng (vòng rà đối kháng 2026-09-04, item 19: hai fixture GIỐNG HỆT từng bị chép đôi
+/// ở hai test riêng — sửa một bên mà quên bên kia sẽ làm lệch chính cặp đối chứng mà AC5
+/// của spec 6.2 dựa lên). §Design Notes "Vì sao ca đối chứng cần byte chưa giải mã" của spec
+/// 6.2 giải thích vì sao fixture PHẢI là một bảng mã nhiều byte KHÁC UTF-8 (ở đây: GBK) —
+/// UTF-8 giữ nguyên byte nên hai thứ tự cho cùng một kết quả trên đầu vào UTF-8, và ca test
+/// sẽ xanh mà chẳng chứng minh gì.
+fn ad_39_gbk_fixture_bytes() -> Vec<u8> {
+    let (bytes, _, had_errors) = encoding_rs::GBK.encode(AD_39_GBK_FIXTURE_TEXT);
+    assert!(!had_errors, "fixture phải mã hoá GBK sạch — không có gì để giả lập lỗi");
+    bytes.into_owned()
+}
+
+/// Đối chứng cho AD-39 (spine `:470`) — chính triệu chứng mà spec 6.2 tồn tại để chặn: đặt
+/// bước tách Chương TRƯỚC bước giải mã.
+#[test]
+fn splitting_chapters_before_decoding_reproduces_the_ad_39_symptom_exactly_one_chapter_no_error() {
+    let wrong_order: Vec<Step> = vec![
+        Step::SplitChapters, // TRƯỚC giải mã — đúng khuyết tật AD-39 mô tả
+        Step::DecodeEncoding,
+        Step::ExtractMainContent,
+        Step::CleanByRules,
+        Step::NormalizeParagraphsAndWhitespace,
+        Step::Preview,
+        Step::SplitSegments,
+    ];
+
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::RawBytes {
+            bytes: ad_39_gbk_fixture_bytes(),
+            label: "gbk-fixture.txt".to_owned(),
+        }),
+        // Bảng mã ĐÃ KHAI đúng (GBK, khớp byte thật) — không có bộ dò nào tham gia ở story
+        // này (§Design Notes "Bảng mã đã khai khác bộ dò bảng mã"). Nếu bước giải mã KHÔNG
+        // chạy trước khi lỗi có cơ hội xảy ra, không lỗi nào được ném — đó CHÍNH LÀ khuyết
+        // tật, không phải một sơ suất của fixture.
+        encoding: encoding_rs::GBK,
+        chapter_pattern: Some("第一章".to_owned()),
+        source_lang: "zh".to_owned(),
+    };
+
+    let outcome = run_import_with_order(&wrong_order, input)
+        .expect("thứ tự SAI không được ném lỗi — đó CHÍNH LÀ khuyết tật AD-39 mô tả");
+
+    assert_eq!(
+        outcome.chapters.len(),
+        1,
+        "thứ tự SAI (tách Chương TRƯỚC giải mã) phải cho ĐÚNG 1 Chương — mẫu phân tách UTF-8 \
+         chạy trên byte GBK chưa giải mã, không khớp gì, cả khối ra đúng một Chương"
+    );
+    // 🔵 THÊM (vòng rà đối kháng 2026-09-04) — không chỉ ĐẾM Chương, còn khẳng định VĂN BẢN:
+    // toàn bộ nội dung phải giải mã ĐÚNG và NGUYÊN VẸN (0 byte mất), dù việc tách đã thất bại.
+    assert_eq!(
+        outcome.chapters[0].source_text, AD_39_GBK_FIXTURE_TEXT,
+        "Chương duy nhất phải mang ĐÚNG và NGUYÊN VẸN văn bản gốc đã giải mã — bước giải mã \
+         (chạy Ở VỊ TRÍ THỨ HAI trong thứ tự sai) vẫn phải thành công trên đúng bảng mã đã khai"
+    );
+}
+
+/// Đối chứng dương của ca trên: CÙNG fixture, thứ tự ĐÚNG (`PIPELINE_ORDER`) phải tìm thấy
+/// mẫu và tách ra CẢ BA Chương — chứng minh khác biệt QUAN SÁT ĐƯỢC giữa hai thứ tự, không
+/// phải một cơ chế luôn-trả-một-Chương bất kể thứ tự.
+#[test]
+fn splitting_chapters_after_decoding_finds_the_pattern_and_produces_n_chapters() {
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::RawBytes {
+            bytes: ad_39_gbk_fixture_bytes(),
+            label: "gbk-fixture.txt".to_owned(),
+        }),
+        encoding: encoding_rs::GBK,
+        chapter_pattern: Some("第一章".to_owned()),
+        source_lang: "zh".to_owned(),
+    };
+
+    let outcome =
+        run_import_with_order(&PIPELINE_ORDER, input).expect("thứ tự ĐÚNG không được ném lỗi");
+
+    assert_eq!(
+        outcome.chapters.len(),
+        3,
+        "thứ tự ĐÚNG (giải mã TRƯỚC tách Chương) phải tìm thấy CẢ BA lần khớp mẫu — đối \
+         chứng cho AC2/AC5 của spec 6.2: thứ tự LÀ DỮ LIỆU, và nó THẬT SỰ tạo khác biệt"
+    );
+    // 🔵 THÊM (vòng rà đối kháng 2026-09-04, item 6) — bản trước chỉ đếm `len()` và
+    // `!segments.is_empty()`; mất CHỮ (ví dụ do một lượt `trim()` xoá khoảng trắng đầu dòng
+    // có chủ ý) là VÔ HÌNH với hai phép kiểm đó. Khẳng định VĂN BẢN từng Chương, NGUYÊN VĂN
+    // (không trim) — khớp đúng phép tách trên `AD_39_GBK_FIXTURE_TEXT.split("第一章")`.
+    assert_eq!(outcome.chapters[0].source_text, " mot\n");
+    assert_eq!(outcome.chapters[1].source_text, " hai\n");
+    assert_eq!(outcome.chapters[2].source_text, " ba");
+    for (i, chapter) in outcome.chapters.iter().enumerate() {
+        assert!(
+            !chapter.segments.is_empty(),
+            "Chương {i} phải có segment — bước 7 của chuỗi (SplitSegments) đã chạy"
+        );
+    }
+}
+
+/// Hình dạng "tự khai bảng mã" (`.docx`, Story 6.12; cùng hình dạng cho văn bản dán tay) —
+/// bước giải mã BỎ QUA vế transcode hoàn toàn, đúng bảng hình dạng AD-39 (spine `:486-491`,
+/// `:500`).
+#[test]
+fn an_already_text_shape_skips_the_transcode_half_of_the_decode_step() {
+    // Khai một bảng mã "SAI" (Big5) có chủ ý — nếu bước giải mã có chạm tới TRANSCODE thật
+    // cho hình dạng này, một bảng mã sai khai ở đây sẽ làm hỏng/ném lỗi trên một chuỗi ĐÃ
+    // là UTF-8 hợp lệ. Nó không được, vì hình dạng AlreadyText bỏ qua đúng vế đó.
+    let text = "văn bản tiếng Việt có dấu, đã là chữ, không phải byte".to_owned();
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::AlreadyText(text.clone())),
+        encoding: encoding_rs::BIG5,
+        chapter_pattern: None,
+        source_lang: "vi".to_owned(),
+    };
+
+    let outcome = run_import(input).expect("hình dạng AlreadyText không được lỗi");
+    assert_eq!(
+        outcome.chapters[0].source_text, text,
+        "bước giải mã phải BỎ QUA hoàn toàn vế transcode cho hình dạng AlreadyText — văn \
+         bản đi qua KHÔNG ĐỔI"
+    );
+}
+
+/// 🔵 THÊM (vòng rà đối kháng 2026-09-04, item 7) — hồi quy cho nhánh `Unit::Decoded` của
+/// `decode_unit`: đối chứng "sửa nhánh đó thành trả nguyên `Unit::Decoded(t)` (bỏ
+/// `strip_bom`) — cả bộ test vẫn xanh" đã đo được TRƯỚC ca này (ca BOM duy nhất trước đây,
+/// `project_contract.rs::a_utf8_bom_is_stripped_but_line_endings_are_left_alone`, chỉ đi
+/// qua nhánh BYTE). Dán tay là hình dạng `AlreadyText`/`Unit::Decoded` — phải đi qua ca RIÊNG.
+#[test]
+fn a_pasted_leading_bom_is_stripped_through_the_already_text_shape_too() {
+    let input = PipelineInput::default_shaped(
+        PipelineShape::Blob(ChapterInput::AlreadyText("\u{feff}CHUONG MOT".to_owned())),
+        "en",
+    );
+    let outcome = run_import(input).expect("run_import không được lỗi");
+    assert_eq!(
+        outcome.chapters[0].source_text, "CHUONG MOT",
+        "BOM dán đầu văn bản (hình dạng AlreadyText) phải bị cắt — cùng hành vi với đường đọc \
+         tệp, xem doc-comment `decode_unit`"
+    );
+}
+
+/// Hình dạng "đã chia Chương" (một link = một Chương, Story 6.7 sau này) — bước tách Chương
+/// BỎ QUA, ra ĐÚNG số đơn vị vào, đúng bảng hình dạng AD-39.
+#[test]
+fn an_already_chapters_shape_skips_chapter_splitting_and_keeps_the_input_unit_count() {
+    let input = PipelineInput {
+        shape: PipelineShape::Chapters(vec![
+            ChapterInput::AlreadyText("Chuong A".to_owned()),
+            ChapterInput::AlreadyText("Chuong B".to_owned()),
+            ChapterInput::AlreadyText("Chuong C".to_owned()),
+        ]),
+        encoding: encoding_rs::UTF_8,
+        // Cố tình đặt MỘT mẫu — vẫn phải bị BỎ QUA, vì hình dạng đã là N đơn vị.
+        chapter_pattern: Some("Chuong".to_owned()),
+        source_lang: "en".to_owned(),
+    };
+
+    let outcome = run_import(input).expect("hình dạng đã-chia-Chương không được lỗi");
+    assert_eq!(
+        outcome.chapters.len(),
+        3,
+        "bước tách Chương phải BỎ QUA khi hình dạng đầu vào đã là N đơn vị — ra ĐÚNG số đơn \
+         vị vào"
+    );
+    assert_eq!(outcome.chapters[0].source_text, "Chuong A");
+    assert_eq!(outcome.chapters[1].source_text, "Chuong B");
+    assert_eq!(outcome.chapters[2].source_text, "Chuong C");
+}
+
+/// 🔵 THÊM (vòng rà đối kháng 2026-09-04, item 5) — bản đầu rẽ nhánh bằng `units.len() != 1`,
+/// mà một `PipelineShape::Chapters` với ĐÚNG MỘT phần tử (một danh sách URL Story 6.7 có
+/// đúng một link) có CÙNG độ dài quan sát được với một `Blob` chưa tách. Ca trên (ba phần
+/// tử) không phân biệt được hai lý do "bỏ qua"; ca NÀY buộc phải rẽ theo HÌNH DẠNG khai báo,
+/// không theo độ dài — kể cả khi có sẵn một mẫu khớp được.
+#[test]
+fn a_single_element_chapters_shape_is_not_split_even_though_its_length_matches_a_blob() {
+    let input = PipelineInput {
+        shape: PipelineShape::Chapters(vec![ChapterInput::AlreadyText(
+            "Chuong A co mau Chuong ben trong".to_owned(),
+        )]),
+        encoding: encoding_rs::UTF_8,
+        // Mẫu THẬT SỰ khớp bên trong văn bản — nếu bước tách suy nhầm đây là một `Blob`
+        // (vì độ dài quan sát được là 1), nó sẽ tách văn bản này làm hai.
+        chapter_pattern: Some("Chuong".to_owned()),
+        source_lang: "en".to_owned(),
+    };
+
+    let outcome = run_import(input).expect("hình dạng đã-chia-Chương (1 phần tử) không được lỗi");
+    assert_eq!(
+        outcome.chapters.len(),
+        1,
+        "một `PipelineShape::Chapters` với ĐÚNG MỘT phần tử vẫn là hình dạng ĐÃ CHIA Chương \
+         — không được đem đi tách thêm dù mẫu khớp được bên trong"
+    );
+    assert_eq!(outcome.chapters[0].source_text, "Chuong A co mau Chuong ben trong");
+}
+
+/// 🔵 THÊM (vòng rà đối kháng 2026-09-04, item 20) — nhánh `pattern.is_empty()` của
+/// `split_on_literal` (`Unit::Decoded`) chưa từng bị chạm bởi ca nào.
+#[test]
+fn an_empty_chapter_pattern_is_a_no_op_for_decoded_text() {
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::AlreadyText("khong mau nao ca".to_owned())),
+        encoding: encoding_rs::UTF_8,
+        chapter_pattern: Some(String::new()),
+        source_lang: "en".to_owned(),
+    };
+    let outcome = run_import(input).expect("mẫu rỗng không được lỗi");
+    assert_eq!(outcome.chapters.len(), 1);
+    assert_eq!(outcome.chapters[0].source_text, "khong mau nao ca");
+}
+
+/// 🔵 THÊM (vòng rà đối kháng 2026-09-04, item 20) — nhánh `pattern.is_empty()` của
+/// `split_on_literal_bytes` (`Unit::Undecoded`) chỉ chạm được qua một thứ tự SAI (`SplitChapters`
+/// trước `DecodeEncoding`, cùng khuôn đối chứng AD-39) — đúng thứ tự thì lúc `SplitChapters`
+/// chạy, đơn vị đã là `Unit::Decoded`.
+#[test]
+fn an_empty_chapter_pattern_is_a_no_op_for_raw_bytes_too() {
+    let wrong_order: Vec<Step> = vec![
+        Step::SplitChapters,
+        Step::DecodeEncoding,
+        Step::ExtractMainContent,
+        Step::CleanByRules,
+        Step::NormalizeParagraphsAndWhitespace,
+        Step::Preview,
+        Step::SplitSegments,
+    ];
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::RawBytes {
+            bytes: b"khong mau nao ca".to_vec(),
+            label: "x.txt".to_owned(),
+        }),
+        encoding: encoding_rs::UTF_8,
+        chapter_pattern: Some(String::new()),
+        source_lang: "en".to_owned(),
+    };
+    let outcome = run_import_with_order(&wrong_order, input).expect("mẫu rỗng không được lỗi");
+    assert_eq!(outcome.chapters.len(), 1);
+    assert_eq!(outcome.chapters[0].source_text, "khong mau nao ca");
+}
+
+/// Byte không hợp lệ với bảng mã đã khai — từ chối tường minh, đúng biến thể `ImportError`
+/// đang có (không phải một hạng lỗi mới, không phải một ký tự thay thế `U+FFFD`).
+#[test]
+fn invalid_bytes_under_the_declared_encoding_are_rejected_not_replaced() {
+    let input = PipelineInput::default_shaped(
+        PipelineShape::Blob(ChapterInput::RawBytes {
+            bytes: vec![0x66, 0x69, 0x6c, 0x65, 0x80, 0x81],
+            label: "bad.txt".to_owned(),
+        }),
+        "en",
+    );
+
+    let err = run_import(input).expect_err("byte không hợp lệ với UTF-8 phải bị từ chối");
+    assert!(
+        matches!(err, ImportError::NotUtf8 { .. }),
+        "phải là biến thể NotUtf8 đang có, không phải một hạng lỗi mới: {err:?}"
+    );
+}
+
+/// AC6 — bước thân rỗng vẫn phải NÓI ĐƯỢC là đã đi qua, không biến mất khỏi vết chạy chỉ vì
+/// nó không làm gì.
+#[test]
+fn every_step_of_pipeline_order_appears_in_the_trace_even_the_empty_bodied_ones() {
+    let input = PipelineInput::default_shaped(
+        PipelineShape::Blob(ChapterInput::AlreadyText("abc".to_owned())),
+        "en",
+    );
+    let outcome = run_import(input).expect("run_import không được lỗi");
+    assert_eq!(
+        outcome.trace.as_slice(),
+        PIPELINE_ORDER.as_slice(),
+        "vết chạy phải liệt ĐỦ bảy bước, kể cả bốn bước thân rỗng (bóc/làm sạch/chuẩn hoá/\
+         xem trước) — một bước thân rỗng không được biến mất khỏi vết chỉ vì nó không làm gì"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// item 3 (vòng rà đối kháng 2026-09-04) — `order` phải là một HOÁN VỊ hợp lệ, kiểm TRƯỚC
+// khi chạy bước nào. Bản đầu nhận `&[Step]` bất kỳ: một bước TRÙNG có thể chạy lại một biến
+// đổi không idempotent, một bước THIẾU để lại trạng thái dở mà KHÔNG lỗi nào ném.
+// ─────────────────────────────────────────────────────────────────────────────────
+
+fn any_shaped_input() -> PipelineInput {
+    PipelineInput::default_shaped(
+        PipelineShape::Blob(ChapterInput::AlreadyText("abc".to_owned())),
+        "en",
+    )
+}
+
+#[test]
+fn a_duplicated_step_in_the_order_is_rejected_before_any_step_runs() {
+    let mut order: Vec<Step> = PIPELINE_ORDER.to_vec();
+    order.push(Step::DecodeEncoding); // 8 bước — DecodeEncoding xuất hiện HAI lần
+    let err = run_import_with_order(&order, any_shaped_input())
+        .expect_err("một bước TRÙNG phải bị từ chối trước khi chạy bước nào");
+    assert!(
+        matches!(err, ImportError::InvalidPipelineOrder { .. }),
+        "phải là biến thể InvalidPipelineOrder, nhận: {err:?}"
+    );
+}
+
+#[test]
+fn a_missing_step_in_the_order_is_rejected_before_any_step_runs() {
+    let order: Vec<Step> =
+        PIPELINE_ORDER.iter().copied().filter(|s| *s != Step::DecodeEncoding).collect(); // 6 bước — DecodeEncoding vắng mặt
+    let err = run_import_with_order(&order, any_shaped_input())
+        .expect_err("một bước THIẾU phải bị từ chối trước khi chạy bước nào");
+    assert!(
+        matches!(err, ImportError::InvalidPipelineOrder { .. }),
+        "phải là biến thể InvalidPipelineOrder, nhận: {err:?}"
+    );
+}
+
+#[test]
+fn an_empty_order_is_rejected() {
+    let err = run_import_with_order(&[], any_shaped_input())
+        .expect_err("một mảng RỖNG phải bị từ chối, không chạy trọn mà không làm gì");
+    assert!(
+        matches!(err, ImportError::InvalidPipelineOrder { .. }),
+        "phải là biến thể InvalidPipelineOrder, nhận: {err:?}"
+    );
 }

@@ -27,8 +27,8 @@ use crate::core::i18n::IpcError;
 use crate::core::library::{WorkMeta, create_work_folder, remove_folder};
 use crate::core::lifecycle::LifecycleStatus;
 use crate::core::scope::load_global_config;
-use crate::core::segment::import::{ImportedChapter, import_file, import_text};
-use crate::core::segment::split::split_source_text;
+use crate::core::segment::import::{import_file, import_text};
+use crate::core::segment::pipeline::{PipelineInput, PipelineShape, run_import};
 use crate::core::store::{Store, StoreSpec, Transaction};
 
 /// Tên thư mục con dưới `~/Documents/` — AD-23.
@@ -214,23 +214,31 @@ fn resolve_configured_library_root(store: Option<&Store>) -> Option<String> {
     }
 }
 
-/// **Hàm thuần** — tạo một Tác phẩm mới trên đĩa từ một [`ImportedChapter`] đã có sẵn.
+/// **Hàm thuần** — tạo một Tác phẩm mới trên đĩa từ một [`PipelineShape`] đã có sẵn.
 ///
 /// Thứ tự: dựng thư mục (`core::library::atproj`) → mở `project.db`
-/// (`StoreSpec::project`) → **ghi** hàng `work` + hàng `chapter` trong MỘT giao dịch →
+/// (`StoreSpec::project`) → chạy TRỌN chuỗi pipeline AD-39 (`run_import`, bước 1-7) →
+/// **ghi** hàng `work` + N hàng `chapter` (+ segment của mỗi Chương) trong MỘT giao dịch →
 /// dựng lại `meta.json` từ `project.db` vừa commit (Quyết định #3, AD-33) → ghi `meta.json`
 /// nguyên tử NGAY SAU giao dịch. Bất kỳ bước nào trượt ⇒ dọn thư mục, không để lại
 /// `.atproj/` nửa vời (AC8).
 ///
+/// 🔵 **SỬA 2026-09-04 (Story 6.2, AD-39) — nhận `PipelineShape`, không còn `ImportedChapter`
+/// đơn lẻ; ghi N Chương, không còn đúng một.** N = 1 trên đường sản phẩm hôm nay (chuỗi
+/// khai `chapter_pattern: None` — Never clause của spec 6.2), nên hành vi quan sát được
+/// KHÔNG đổi; đường đi đã tổng quát cho Story 6.6/6.7 (N > 1) mà không cần sửa lại hàm này.
+///
 /// # Lỗi
 /// - dựng thư mục trượt ⇒ `project.create_failed`;
+/// - chuỗi pipeline trượt (ví dụ byte không hợp lệ với bảng mã đã khai) ⇒ lỗi nhập
+///   (`import.*`), qua `From<ImportError>`;
 /// - mở/ghi `project.db` trượt ⇒ lỗi kho (`store.*`), qua `From<StoreError>`.
 pub fn create_work(
     documents_root: &Path,
     name: &str,
     source_lang: &str,
     genre: &str,
-    imported: ImportedChapter,
+    shape: PipelineShape,
 ) -> Result<OpenWork, IpcError> {
     let dir = create_work_folder(documents_root, name)?;
 
@@ -247,17 +255,51 @@ pub fn create_work(
     let name_owned = name.to_owned();
     let source_lang_owned = source_lang.to_owned();
     let genre_owned = genre.to_owned();
-    let source_text = imported.source_text;
 
-    // 🔴 Story 2.1, AC3 + AD-39: ranh giới segment tính **ở đây, một lần, lúc nhập** — và
-    // không đường mã nào tính lại lúc nạp Chương.
+    // 🔴 AD-39 — TOÀN BỘ chuỗi bảy bước chạy **ở đây, một lần, lúc nhập**, và **NGOÀI**
+    // closure ghi bên dưới, có chủ ý — cùng lý do Quyết định #3 cũ của Story 1.15 vẫn giữ:
+    // AD-11 giữ **một** writer duy nhất nối tiếp (một `Connection` `move` vào một thread,
+    // job đi qua `mpsc::channel`), nên thời gian CPU bên trong closure **chặn mọi lượt ghi
+    // khác của tiến trình**. Một Chương dài đi qua chuỗi trong closure là một lượt khoá
+    // hàng đợi ghi mà auto-save của Editor (NFR2) phải xếp sau.
     //
-    // 🔴 Và nó chạy **NGOÀI** closure ghi, có chủ ý. AD-11 giữ **một** writer duy nhất nối
-    // tiếp (một `Connection` `move` vào một thread, job đi qua `mpsc::channel`), nên thời
-    // gian CPU bên trong closure **chặn mọi lượt ghi khác của tiến trình**. Một Chương dài
-    // đi qua bộ tách trong closure là một lượt khoá hàng đợi ghi mà auto-save của Editor
-    // (NFR2) phải xếp sau — cùng Quyết định #3 của Story 1.15 đã cấm `fs::write` ở đó.
-    let segments = split_source_text(&source_text, source_lang);
+    // 🔴 `chapter_pattern: None` — Never clause của spec 6.2: mẫu phân tách NGƯỜI DÙNG cấu
+    // hình được là Story 6.6; sản phẩm hôm nay không có bề mặt nào đưa một mẫu vào, nên
+    // bước 5 của chuỗi luôn là no-op và N luôn là 1, đúng hành vi hôm nay.
+    let outcome = match run_import(PipelineInput::default_shaped(shape, source_lang_owned.clone()))
+    {
+        Ok(outcome) => outcome,
+        Err(err) => {
+            store.close();
+            remove_folder(&dir);
+            return Err(err.into());
+        }
+    };
+    let chapters = outcome.chapters;
+
+    // 🔴 SỬA (vòng rà đối kháng 2026-09-04, item 4) — bán kính nổ của một `.expect()` bên
+    // TRONG closure ghi là TOÀN TIẾN TRÌNH: `panic = "abort"` giết ngay khi giao dịch đang
+    // mở, không unwind, không rollback. Cả hai bất biến dưới đây được validate ở NGOÀI
+    // closure, TRƯỚC khi giao dịch mở — không phải vì chúng có thể xảy ra hôm nay (chuỗi
+    // sản phẩm luôn N = 1, `chapter_pattern: None`), mà vì `run_import` là một seam CÔNG
+    // KHAI (`PipelineShape::Chapters` cho phép N tuỳ ý), và "không thể" là một quan sát về
+    // đường sản phẩm HÔM NAY, không phải một hợp đồng kiểu mà trình biên dịch cưỡng chế.
+    if chapters.is_empty() {
+        store.close();
+        remove_folder(&dir);
+        return Err(crate::core::library::WorkError::CreateFailed {
+            detail: "pipeline nhap tra ve 0 Chuong -- khong co gi de ghi".to_owned(),
+        }
+        .into());
+    }
+    if i64::try_from(chapters.len()).is_err() {
+        store.close();
+        remove_folder(&dir);
+        return Err(crate::core::library::WorkError::CreateFailed {
+            detail: format!("so Chuong ({}) vuot i64 -- khong the ghi cot ord", chapters.len()),
+        }
+        .into());
+    }
 
     // 🔴 Quyết định #3: job ghi CHỈ SQL — không `fs::write` nào bên trong closure này.
     let write_result = store.write(move |tx: &Transaction<'_>| {
@@ -267,28 +309,43 @@ pub fn create_work(
              strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
             (&work_id, &name_owned, &source_lang_owned, &genre_owned),
         )?;
-        tx.execute(
-            "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
-             VALUES (1, NULL, ?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
-             strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
-            (&source_text, LifecycleStatus::NotStarted.as_str()),
-        )?;
 
-        // 🔴 AC13 — segment ghi xuống **CÙNG** giao dịch với hàng `chapter` sinh ra chúng.
-        // Một Chương tồn tại mà segment của nó chưa tồn tại là **đúng** trạng thái
-        // `segment_count = 0` mà `deferred-work.md:542` bắt story này dọn; dựng lại nó ở
-        // đường nhập mới là dựng lại chính món nợ.
+        // 🔴 AC13 (không đổi) — segment ghi xuống **CÙNG** giao dịch với hàng `chapter`
+        // sinh ra chúng. Segment đã tính SẴN trong `chapter.segments` (bước 7 của chuỗi,
+        // chạy trong `run_import` NGOÀI closure này) — không tính lại ở đây.
         //
-        // `last_insert_rowid()` đọc **trong** giao dịch, ngay sau lượt chèn của chính nó —
-        // `Store::write` giữ một writer duy nhất nối tiếp, nên không lượt chèn nào khác
-        // chen được vào giữa hai dòng này.
-        let chapter_id = tx.last_insert_rowid();
-        crate::commands::segment::insert_segments(tx, chapter_id, &segments)?;
-        // 🔵 2026-08-18 (Story 2.11) — `chapter_id` đi RA khỏi closure thay vì bị bỏ.
-        // `OpenWork::chapter_id` phải được đặt bằng chính hàng vừa chèn; đọc lại nó bằng
-        // một câu `ORDER BY ord LIMIT 1` sau giao dịch là dựng lại đúng lối suy-ra-động mà
-        // trường ấy tồn tại để xoá.
-        Ok(chapter_id)
+        // 🔴 AD-39, N Chương (N = 1 ở story này) — `ord` liên tục từ 1, cùng giao dịch với
+        // hàng `work`. `OpenWork::chapter_id` chốt vào Chương ĐẦU TIÊN — Story 2.11 xoá
+        // hẳn lối suy-ra-động (`ORDER BY ord LIMIT 1`); N > 1 là mối bận tâm của story sở
+        // hữu năng lực đó (6.6/6.7), không phải story này.
+        //
+        // 🔴 KHÔNG `Option<i64>` + `.expect()` — `chapters` đã được xác nhận KHÔNG RỖNG
+        // và `chapters.len()` đã được xác nhận VỪA `i64` ở NGOÀI closure này (vòng rà đối
+        // kháng 2026-09-04, item 4). `is_first`/`i as i64` vì thế an toàn theo CẤU TRÚC,
+        // không phải theo linh cảm "thực tế không xảy ra".
+        let mut first_chapter_id: i64 = 0;
+        let mut is_first = true;
+        for (i, chapter) in chapters.iter().enumerate() {
+            let ord = i as i64 + 1;
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (?1, NULL, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                (ord, &chapter.source_text, LifecycleStatus::NotStarted.as_str()),
+            )?;
+
+            // `last_insert_rowid()` đọc **trong** giao dịch, ngay sau lượt chèn của chính
+            // nó — `Store::write` giữ một writer duy nhất nối tiếp, nên không lượt chèn
+            // nào khác chen được vào giữa hai dòng này.
+            let chapter_id = tx.last_insert_rowid();
+            crate::commands::segment::insert_segments(tx, chapter_id, &chapter.segments)?;
+            if is_first {
+                first_chapter_id = chapter_id;
+                is_first = false;
+            }
+        }
+
+        Ok(first_chapter_id)
     });
 
     let chapter_id = match write_result {
@@ -786,8 +843,8 @@ pub fn create_work_from_file(
     genre: &str,
     path: &Path,
 ) -> Result<OpenWork, IpcError> {
-    let imported = import_file(path)?;
-    create_work(documents_root, name, source_lang, genre, imported)
+    let shape = import_file(path)?;
+    create_work(documents_root, name, source_lang, genre, shape)
 }
 
 /// `work_id` không có hàng trong `library-index.db` (`Indexer::find_work` trả `None`) —

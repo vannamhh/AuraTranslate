@@ -3,13 +3,22 @@
 //! ID segment bền và không bao giờ tái dùng (AD-3). Ranh giới tính một lần lúc nhập,
 //! không bao giờ tính lại (AD-4). Gộp/tách là "về hưu + tạo mới", không sửa tại chỗ (AD-5).
 //!
-//! [`import`] — chuỗi pipeline nhập tối thiểu (Story 1.15): dán văn bản, kéo-thả, ô nhập
-//! đường dẫn đổ vào **cùng một** hàm thuần. Nó **không** tạo `segment` nào; nó chỉ dựng
-//! `chapter.source_text` nguyên khối.
+//! [`import`] — bước ĐẦU VÀO của chuỗi pipeline nhập (Story 1.15/6.2): dán văn bản, kéo-thả,
+//! ô nhập đường dẫn đổ vào **cùng một** hình dạng ([`pipeline::PipelineShape`]). 🔵 **SỬA
+//! 2026-09-04 (Story 6.2)** — module này KHÔNG còn tự tạo `segment` HAY tự giải mã; cả hai
+//! đã chuyển vào [`pipeline`] (bước 1 và bước 7 của chuỗi AD-39). Nó chỉ còn đọc byte/nhận
+//! văn bản và từ chối phần mở rộng/kích thước không hợp lệ TRƯỚC khi trao đi.
 //!
-//! [`split`] — bộ tách câu cấp CÂU và cờ kết đoạn (Story 2.1, FR23, AD-37). Hàm thuần,
-//! chạy **một lần** lúc nhập; kết quả ghi xuống `project.db` và không đường mã nào tính lại
-//! lúc nạp Chương (AC3). Đây là chỗ DUY NHẤT trong kho biết bảng chữ cái kết câu —
+//! [`pipeline`] — chuỗi nhập BẢY BƯỚC, thứ tự CỐ ĐỊNH, dùng CHUNG mọi nguồn (AD-39, Story
+//! 6.2). Tiêu thụ một hằng [`pipeline::PIPELINE_ORDER`] khai thứ tự LÀ DỮ LIỆU — điều kiện
+//! để một thứ tự SAI dựng được thành một giá trị test chạy qua ĐÚNG bộ chạy sản phẩm, thay
+//! vì chỉ quét chữ trên mã nguồn. `commands::project::create_work` là chỗ gọi sản phẩm DUY
+//! NHẤT của [`pipeline::run_import`].
+//!
+//! [`split`] — bộ tách câu cấp CÂU và cờ kết đoạn (Story 2.1, FR23, AD-37; GỌI bởi
+//! [`pipeline::Step::SplitSegments`], bước 7 của chuỗi AD-39). Hàm thuần, chạy **một lần**
+//! lúc nhập; kết quả ghi xuống `project.db` và không đường mã nào tính lại lúc nạp Chương
+//! (AC3). Đây là chỗ DUY NHẤT trong kho biết bảng chữ cái kết câu —
 //! `tests/segment_boundary.rs` cưỡng chế mệnh đề đó trên cả cây nguồn.
 
 //! [`omit`] — chốt LỌC cho mọi đầu ra (Story 2.5c, FR133, AC5). Một câu người dùng đã cắt
@@ -38,6 +47,7 @@
 pub mod import;
 pub mod omit;
 pub mod paragraph;
+pub mod pipeline;
 pub mod reading;
 pub mod regroup;
 pub mod split;

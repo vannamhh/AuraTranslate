@@ -56,9 +56,11 @@ impl Delimiter {
 const COLUMNS: [&str; 6] =
     ["source_term", "translation", "note", "category", "term_origin", "created_at"];
 
-/// Dấu thứ tự byte UTF-8 (`EF BB BF`) — cùng khuôn `core::segment::import::strip_bom`.
+/// Dấu thứ tự byte UTF-8 (`EF BB BF`) — cùng khuôn `core::segment::pipeline::strip_bom`.
+/// 🔵 **SỬA 2026-09-04 (Story 6.2)** — con trỏ đổi vì hàm gốc dời từ `core::segment::import`
+/// sang `core::segment::pipeline` (bước giải mã của chuỗi AD-39); bản CHÉP ở đây không đổi.
 ///
-/// ⚠️ Bản CHÉP, không `use` hàm kia: nó là `fn` riêng tư của `core::segment::import`
+/// ⚠️ Bản CHÉP, không `use` hàm kia: nó là `fn` riêng tư của `core::segment::pipeline`
 /// (không `pub`), và module này cố ý không phụ thuộc `core::segment` cho một việc một
 /// dòng — xem Code Map của spec 3.10 ("khuôn chép", không "tái dùng").
 fn strip_bom(raw: &str) -> &str {

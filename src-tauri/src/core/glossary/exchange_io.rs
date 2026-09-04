@@ -28,7 +28,9 @@ use super::store::GlossaryError;
 /// tức ~80 MiB cho một tệp chạm trần. Chấp nhận được; trần cao hơn thì không.
 pub const MAX_GLOSSARY_IMPORT_BYTES: u64 = 16 * 1024 * 1024;
 
-/// Dấu thứ tự byte UTF-8 (`EF BB BF`) — khuôn chép `core::segment::import::strip_bom`.
+/// Dấu thứ tự byte UTF-8 (`EF BB BF`) — khuôn chép `core::segment::pipeline::strip_bom`.
+/// 🔵 **SỬA 2026-09-04 (Story 6.2)** — con trỏ đổi vì hàm gốc dời từ `core::segment::import`
+/// sang `core::segment::pipeline` (bước giải mã của chuỗi AD-39); bản CHÉP ở đây không đổi.
 /// Chỉ cắt ở ĐẦU: một `U+FEFF` giữa văn bản là nội dung thật.
 fn strip_bom(raw: &str) -> &str {
     raw.strip_prefix('\u{feff}').unwrap_or(raw)

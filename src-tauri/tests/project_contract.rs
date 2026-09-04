@@ -22,11 +22,16 @@ use auratranslate_lib::commands::chapter::{
     ChapterDirection, ChapterSwitchOutcome, merge_chapter_into_previous, move_chapter,
     open_adjacent_chapter, read_open_chapter, rename_chapter, split_chapter_at_segment,
 };
-use auratranslate_lib::commands::project::{OpenWork, create_work_from_file, create_work_from_text};
+use auratranslate_lib::commands::project::{
+    OpenWork, create_work, create_work_from_file, create_work_from_text,
+};
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::{ScopeResolver, Tier, WorkScope};
 use auratranslate_lib::core::segment::import::{import_file, import_text};
+use auratranslate_lib::core::segment::pipeline::{
+    ChapterInput, PipelineInput, PipelineShape, run_import,
+};
 use auratranslate_lib::core::store::{SqlResult, Store, StoreSpec, Transaction};
 use uuid::Uuid;
 
@@ -556,32 +561,131 @@ fn text_that_is_not_utf8_is_refused_the_same_way_a_docx_is() {
     // 0x80 mot minh khong phai mot chuoi UTF-8 hop le o bat ky vi tri nao.
     let bad_path = write_file(&source_dir, "bad.txt", &[0x66, 0x69, 0x6c, 0x65, 0x80, 0x81]);
 
-    let result = create_work_from_file(&root, "Khong Phai Utf8", "zh", "", &bad_path);
-    assert!(result.is_err(), "noi dung khong phai UTF-8 phai bi tu choi");
+    let err = create_work_from_file(&root, "Khong Phai Utf8", "zh", "", &bad_path)
+        .expect_err("noi dung khong phai UTF-8 phai bi tu choi");
+
+    // 🔵 SỬA (vòng rà đối kháng 2026-09-04, item 9) — khẳng định RÕ khoá lỗi, để ca này
+    // nói được nó đang canh CHÍNH THẤT BẠI CỦA CHUỖI PIPELINE (`run_import`), không phải
+    // một thất bại tầng khác trùng hợp cũng cho `is_err()`. Trước Story 6.2, `import_file`
+    // tự kiểm UTF-8 và trả lỗi TRƯỚC KHI `.atproj` được tạo; sau Story 6.2, `import_file`
+    // chỉ đọc byte thô, và lỗi này giờ nảy ra TỪ `run_import` SAU KHI thư mục đã được tạo —
+    // doc-comment của `create_work` khẳng định nó "cuộn lại TRỌN VẸN" trên đường đó. Phép
+    // kiểm thư mục rỗng ngay dưới đây là cổng cho đúng mệnh đề ấy.
+    assert_eq!(
+        err.message_key(),
+        MessageKey::ImportNotUtf8,
+        "loi phai la `import.not_utf8` -- cung khoa voi doc-comment cua `ImportError::NotUtf8`"
+    );
 
     let entries: Vec<_> = fs::read_dir(&root).unwrap().collect();
     assert!(
         entries.is_empty(),
-        "khong thu muc .atproj nao duoc tao khi noi dung khong phai UTF-8"
+        "khong thu muc .atproj nao duoc tao khi noi dung khong phai UTF-8 -- `create_work`          phai cuon lai TRON VEN sau khi `run_import` (chay SAU khi thu muc da tao) tra loi"
     );
 
     cleanup(&root);
     cleanup(&source_dir);
 }
 
+/// 🔵 **THÊM (vòng rà đối kháng 2026-09-04, item 8)** — đường ghi N > 1 của `create_work`
+/// (vòng `ord` 1..N, `first_chapter_id`, `insert_segments` mỗi Chương, `meta.json` dựng lại
+/// trên N Chương) là mã sản phẩm MỚI của Story 6.2 mà 0 ca nào từng chạm: sản phẩm hôm nay
+/// luôn truyền `chapter_pattern: None` (N = 1), và không test nào lái `create_work` bằng
+/// hình dạng `PipelineShape::Chapters`. Ca này gọi thẳng `create_work` (hàm THUẦN, không cần
+/// một `tauri::AppHandle`) với ba đơn vị đã-là-Chương và đọc lại TRỰC TIẾP từ `project.db`.
+#[test]
+fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_more_than_one() {
+    let root = temp_dir("n-chapters");
+
+    let shape = PipelineShape::Chapters(vec![
+        ChapterInput::AlreadyText("Chuong mot. Cau hai.".to_owned()),
+        ChapterInput::AlreadyText("Chuong hai noi tiep.".to_owned()),
+        ChapterInput::AlreadyText("Chuong ba ket thuc.".to_owned()),
+    ]);
+    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape)
+        .expect("tao Tac pham voi N > 1 Chuong that bai");
+
+    let rows: Vec<(i64, i64, String)> = opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT id, ord, source_text FROM chapter ORDER BY ord")?;
+            let mut rows_iter = stmt.query([])?;
+            let mut out = Vec::new();
+            while let Some(row) = rows_iter.next()? {
+                out.push((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?, row.get::<_, String>(2)?));
+            }
+            Ok(out)
+        })
+        .expect("doc lai chapter that bai");
+
+    assert_eq!(rows.len(), 3, "phai co dung 3 hang chapter, N Chuong day du");
+    assert_eq!(rows[0].1, 1, "Chuong dau tien phai mang ord = 1");
+    assert_eq!(rows[1].1, 2, "Chuong thu hai phai mang ord = 2");
+    assert_eq!(rows[2].1, 3, "Chuong thu ba phai mang ord = 3");
+    assert_eq!(rows[0].2, "Chuong mot. Cau hai.");
+    assert_eq!(rows[1].2, "Chuong hai noi tiep.");
+    assert_eq!(rows[2].2, "Chuong ba ket thuc.");
+
+    // segment phai ton tai cho MOI Chuong, khong chi Chuong dau -- AC13 khong doi tren N > 1.
+    for (chapter_id, ord, _) in &rows {
+        let seg_count: i64 = opened
+            .store
+            .read(move |conn| {
+                conn.query_row(
+                    "SELECT COUNT(*) FROM segment WHERE chapter_id = ?1",
+                    [chapter_id],
+                    |row| row.get(0),
+                )
+            })
+            .expect("dem segment that bai");
+        assert!(seg_count > 0, "Chuong ord={ord} (id={chapter_id}) phai co segment");
+    }
+
+    // OpenWork.chapter_id phai chot vao Chuong DAU TIEN (ord = 1), khong phai Chuong cuoi.
+    assert_eq!(
+        opened.chapter_id, rows[0].0,
+        "OpenWork::chapter_id phai tro dung Chuong ord = 1, khong phai Chuong duoc chen sau cung"
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// 🔵 **SỬA 2026-09-04 (Story 6.2, AD-39)** — `import_text`/`import_file` không còn tự
+/// chạy hết chuỗi (chúng chỉ còn cung cấp BƯỚC ĐẦU VÀO, xem
+/// `core::segment::import` doc-comment). Mệnh đề của ca này KHÔNG đổi — dán văn bản và đọc
+/// tệp vẫn phải cho CÙNG một kết quả — chỉ đường quan sát nó đổi: chạy cả hai hình dạng qua
+/// `run_import` rồi so `source_text` của Chương đầu ra.
 #[test]
 fn pasted_text_and_a_read_file_travel_the_same_import_path() {
     let source_dir = temp_dir("same-path");
     let content = "mot doan van ban giong het nhau\nqua ca hai duong";
 
-    let from_paste = import_text(content.to_owned());
+    let from_paste = run_import(PipelineInput::default_shaped(import_text(content.to_owned()), "en"))
+        .expect("run_import (dan van ban) that bai");
 
     let path = write_file(&source_dir, "sample.txt", content.as_bytes());
-    let from_file = import_file(&path).expect("doc tep .txt hop le that bai");
+    let file_shape = import_file(&path).expect("doc tep .txt hop le that bai");
+    let from_file = run_import(PipelineInput::default_shaped(file_shape, "en"))
+        .expect("run_import (doc tep) that bai");
+
+    // 🔵 SỬA (vòng rà đối kháng 2026-09-04, item 15) — bản đầu index thẳng `chapters[0]` mà
+    // không khẳng định `len() == 1` trước: một kết quả RỖNG (ví dụ do một lượt refactor sau
+    // này lỡ tay tách văn bản này) sẽ PANIC ở chỗ index, không phải một thông điệp trượt
+    // (`assert_eq!`) đọc được. Khẳng định độ dài TRƯỚC khi vào so nội dung.
+    assert_eq!(from_paste.chapters.len(), 1, "dan van ban phai cho dung 1 Chuong");
+    assert_eq!(from_file.chapters.len(), 1, "doc tep phai cho dung 1 Chuong");
 
     assert_eq!(
-        from_paste.source_text, from_file.source_text,
-        "dan van ban va doc tep phai di qua CUNG mot ham thuan va cho ra cung mot ket qua"
+        from_paste.chapters[0].source_text, from_file.chapters[0].source_text,
+        "dan van ban va doc tep phai di qua CUNG mot chuoi va cho ra cung mot ket qua"
+    );
+    // 🔵 THÊM (vòng rà đối kháng 2026-09-04, item 15) — chuỗi nay CŨNG sinh `segments`
+    // (bước 7); so cả hai vế làm mệnh đề "cùng một chuỗi" MẠNH HƠN mà không tốn thêm gì --
+    // hai segment khác nhau trên cùng một `source_text` sẽ vô hình nếu chỉ so văn bản.
+    assert_eq!(
+        from_paste.chapters[0].segments, from_file.chapters[0].segments,
+        "dan van ban va doc tep phai cho CUNG mot tap segment, khong chi cung van ban"
     );
 
     cleanup(&source_dir);
@@ -657,13 +761,22 @@ fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
 /// 🔴 `EF BB BF` là UTF-8 **hợp lệ**, nên nó đi lọt `String::from_utf8` mà không cổng
 /// nào kêu — và AD-4 đóng băng ranh giới segment tính lúc nhập, nên một `U+FEFF` nằm lại
 /// sẽ thành ký tự đầu của segment #1 **vĩnh viễn**.
+/// 🔵 **SỬA 2026-09-04 (Story 6.2, AD-39)** — strip BOM đã chuyển vào
+/// `core::segment::pipeline::Step::DecodeEncoding` (xem doc-comment `strip_bom` ở đó). Mệnh
+/// đề của Ice (2026-08-06) KHÔNG đổi: BOM là tạo tác giải mã, cắt; CRLF là chuẩn hoá, không
+/// đụng. Đường quan sát đổi: `import_file` chỉ còn đọc byte thô, nên phải chạy qua
+/// `run_import` để bước giải mã thật sự thực thi.
 #[test]
 fn a_utf8_bom_is_stripped_but_line_endings_are_left_alone() {
     let root = temp_dir("bom");
     let source_dir = temp_dir("bom-src");
 
     let path = write_file(&source_dir, "notepad.txt", b"\xEF\xBB\xBFCHUONG MOT\r\nCau hai");
-    let imported = import_file(&path).expect("tep UTF-8 co BOM phai nhap duoc");
+    let shape = import_file(&path).expect("tep UTF-8 co BOM phai nhap duoc");
+    let imported = run_import(PipelineInput::default_shaped(shape, "en"))
+        .expect("run_import that bai")
+        .chapters
+        .remove(0);
 
     assert!(
         !imported.source_text.starts_with('\u{feff}'),
@@ -680,7 +793,11 @@ fn a_utf8_bom_is_stripped_but_line_endings_are_left_alone() {
 
     // Chỉ cắt ở ĐẦU: một U+FEFF giữa văn bản là zero-width no-break space, nội dung thật.
     let inner = write_file(&source_dir, "giua.txt", "AB\u{feff}CD".as_bytes());
-    let imported_inner = import_file(&inner).expect("nhap that bai");
+    let inner_shape = import_file(&inner).expect("nhap that bai");
+    let imported_inner = run_import(PipelineInput::default_shaped(inner_shape, "en"))
+        .expect("run_import that bai")
+        .chapters
+        .remove(0);
     assert_eq!(imported_inner.source_text, "AB\u{feff}CD");
 
     cleanup(&root);

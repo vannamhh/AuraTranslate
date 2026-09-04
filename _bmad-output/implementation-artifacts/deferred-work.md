@@ -2949,6 +2949,18 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   **không lộ ra dưới dạng một cổng đỏ không ai hiểu**. Ba đường sẽ có lúc đó: đổi hợp âm của lệnh
   nhập · đổi hợp âm của lệnh xác nhận · hoặc dựng khái niệm *"hợp âm theo chế độ"* trong registry
   *(lượt đắt nhất, và nó chạm AD-34)*. **Chủ: Story 6.2.**
+  🔵 **SỬA 2026-09-04 (Story 6.2, đo được) — "Chủ: Story 6.2" ở trên HẾT ĐÚNG.** Story 6.2
+  (pipeline nhập bảy bước, `core/segment/pipeline.rs`) đăng ký **0** lệnh và **0** hợp âm vào
+  `CommandRegistry` — nó không chạm bề mặt UI nào (§Never của spec 6.2: "Không đăng ký lệnh
+  hay hợp âm nào vào `CommandRegistry`", và `npm run check:commands` xanh trên story này đúng
+  vì không có gì để đỏ). Nó vì thế KHÔNG phải chỗ hai hợp âm `⌘↵` thật sự VA nhau. ⇒ **Chủ
+  mới: Story 6.5** (đóng số cụ thể, vòng rà đối kháng 2026-09-04, item 18 — "chưa xác định
+  số" không tra được vào `sprint-status.yaml`). `epic-6-context.md` §UX & Interaction
+  Patterns khai đích danh `⌘↵` là phím "xác nhận toàn bộ" của MÀN XEM TRƯỚC, và cùng sổ này
+  (mục "Deferred from: 6-2-…", dưới) đã giao "Màn xem trước luôn hiện kết quả sau TOÀN BỘ
+  chuỗi" cho ĐÚNG Story 6.5 — hai mệnh đề cùng một bề mặt, cùng một chủ. Nếu Story 6.5 dựng
+  xong màn xem trước mà QUYẾT ĐỊNH đặt lệnh xác nhận ở một story con khác trong dải 6.5-6.9,
+  người đóng mục này nối tiếp một dòng `→` nêu rõ, không đổi số ở đây bằng cách xoá.
 
 - ⚠️ **AD-35 vế (c) — *"xác nhận ⇒ flush trước"* — KHÔNG cưỡng chế được ở tầng Rust.**
   `commands::segment::wire::confirm_segment` chỉ đọc thứ **đã ở trên đĩa**; nó không biết gì về
@@ -9009,3 +9021,64 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     một `dist/`, ghi cả hai số + delta vào spine). Đây là lúc `html5ever`/`markup5ever`/`selectors`/
     `cssparser` thật sự vào nhị phân và dư địa NFR6 mới có một con số đáng tin. KHÔNG suy ra "dư địa
     NFR6 an toàn" từ con số −16 của Story 6.1.)**
+
+## Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)
+
+- ⚠️ **"Ba đường nhập file, URL và song ngữ khác nhau CHỈ ở bước đầu vào" (AC epic 6) chưa
+  nghiệm thu được — hôm nay chỉ có đường file/dán tay.** Story 6.2 dựng `core/segment/pipeline.rs`
+  với hằng `PIPELINE_ORDER` và `PipelineShape::Blob`/`Chapters` đủ tổng quát để cắm thêm một
+  đường nguồn mà không sửa lại chuỗi (`ChapterInput::RawBytes`/`AlreadyText` là chỗ cắm), nhưng
+  mệnh đề "ba đường CHỈ khác ở bước đầu vào" chỉ đếm được khi đường URL (FR122, Story 6.7) và
+  đường song ngữ (FR115, Story 6.16) thật sự tồn tại và đi qua đúng chuỗi đó. **Chủ: Story 6.7**,
+  đóng trọn ở **Story 6.16** (đường song ngữ là đường cuối cùng cắm vào, đủ ba đường để đối chiếu).
+  ⚠️ **Bẫy đo được, chưa đóng, ghi ra cho Story 6.7 đừng lặp:**
+  `commands::project::create_work` chốt `OpenWork::chapter_id` bằng
+  `first_chapter_id.expect("run_import luon tra ve it nhat mot Chuong")` — đúng với MỌI
+  hình dạng mà đường sản phẩm hôm nay dựng được (`PipelineShape::Blob` luôn ra đúng 1 đơn vị),
+  nhưng SAI nếu một đường sản phẩm tương lai truyền `PipelineShape::Chapters(vec![])` (ví dụ
+  một danh sách URL rỗng lọt qua một lượt kiểm ở tầng trên). `panic = "abort"` biến ca đó
+  thành giết cả tiến trình, không phải một `IpcError` hiện ra được. Story 6.7 (nguồn ĐẦU
+  TIÊN thực sự tạo được `Chapters` với số phần tử do người dùng quyết định) phải hoặc chặn
+  danh sách rỗng ở TẦNG TRÊN trước khi gọi `create_work`, hoặc đổi `.expect()` này thành một
+  `IpcError` tường minh.
+  → 🔵 **SỬA 2026-09-04, CÙNG story, sau vòng rà đối kháng — mệnh đề trên đã HẾT ĐÚNG ở vế
+  MÃ, còn nguyên ở vế LUẬT.** Vòng rà bắt đúng bẫy này, và lượt vá đã chọn đường thứ hai:
+  `commands::project::create_work:287` nay từ chối `chapters.is_empty()` bằng
+  `WorkError::CreateFailed` **TRƯỚC KHI** mở giao dịch, và `first_chapter_id` không còn là
+  `Option` + `.expect()` (`:326`, `:343`, `:348`). ⇒ Story 6.7 **không còn thừa kế** quả mìn
+  này. Vế còn đứng: một danh sách URL rỗng vẫn nên bị chặn ở TẦNG TRÊN kèm một thông điệp nói
+  đúng chuyện gì xảy ra, chứ không rơi xuống tận đây mới thành `CreateFailed` — đó là một câu
+  hỏi về thông điệp cho người dùng, không còn là một câu hỏi về `panic`. **Chủ: Story 6.7.**
+- ⚠️ **"Màn xem trước luôn hiện kết quả sau TOÀN BỘ chuỗi" (AD-39 spine `:502`) chưa nghiệm thu
+  được — bước xem trước có mặt trong thứ tự và đứng đúng chỗ (sau tách Chương, trước tách
+  segment, `Step::Preview` trong `PIPELINE_ORDER`), nhưng thân nó RỖNG và chưa có bề mặt IPC/UI
+  nào để mà hiện.** `run_import`/`run_import_with_order` chạy trọn hết bảy bước rồi trả thẳng kết
+  quả cho `commands::project::create_work` ghi xuống — không có điểm dừng giữa chừng nào để
+  người dùng xem/sửa trước khi ghi. **Chủ: Story 6.5.**
+- ⚠️ **"Một `.docx` bỏ qua bước giải mã bảng mã" (AD-39 spine `:500`) nghiệm thu ở story này
+  BẰNG HÌNH DẠNG, không bằng một `.docx` thật.** `segment_contract.rs::an_already_text_shape_skips_the_transcode_half_of_the_decode_step`
+  chứng minh `Step::DecodeEncoding` bỏ qua vế transcode cho `ChapterInput::AlreadyText` — đúng
+  hình dạng mà một `.docx` sẽ đến dưới dạng, theo bảng hình dạng AD-39 (spine `:486-491`). Nhưng
+  chưa thư viện nào ĐỌC `.docx` thật tồn tại trong kho (`docx-rs` đã ghim cho GHI, Story 5.x; thư
+  viện ĐỌC vẫn Deferred — xem `Deferred from: 6-1-mui-tham-do-ba-lua-chon-thu-vien`), nên mệnh đề
+  chỉ đúng cho một hình dạng dựng tay, không cho một tệp `.docx` sản phẩm thật đi qua. **Chủ:
+  Story 6.12** cho ca `.docx` thật.
+
+- ⚠️ **`ImportError::NotUtf8` sẽ thành một NHÃN SAI đúng vào ngày Story 6.3 hạ cánh.** Story 6.2
+  cho `Step::DecodeEncoding` giải mã theo một bảng mã **được khai**, và biến thể lỗi dùng lại cho
+  mọi bảng mã — nên khi 6.3 mở đường khai GBK/Big5, một tệp GBK hỏng sẽ báo cho người dùng rằng
+  tệp của họ *"không phải UTF-8"*, một câu đúng hình dạng và sai sự thật. Vòng rà đề nghị đổi tên
+  ngay; **không làm ở 6.2 một cách CỐ Ý**: `message_key` là một danh mục ĐÓNG khai bằng
+  `message_keys!` (`core/i18n/`) và đồng bộ với `vi.json` bằng test chạy trên `ALL`, nên đổi nửa
+  Rust mà để `MessageKey::ImportNotUtf8` đứng yên là nhét một miễn trừ chứ không sửa nguồn. Hôm
+  nay đường sản phẩm chỉ khai được UTF-8 nên thông điệp vẫn ĐÚNG — nó sai đúng lúc 6.3 làm nó sai.
+  ⇒ Đổi **cả hai nửa trong CÙNG một lượt**, ở story tạo ra cái sai. **Chủ: Story 6.3.**
+
+- ⚠️ **`PipelineInput.encoding: &'static encoding_rs::Encoding` rò một kiểu thư viện thứ ba ra bề
+  mặt công khai của `core/segment/`.** Mọi chỗ dựng một `PipelineInput` vì thế phải phụ thuộc
+  `encoding_rs` — trong một kho mà NFR15 gác từng crate mới và mỗi dòng `Cargo.toml` phải nêu
+  module sở hữu, đây là một quyết định ghép nối chứ không một chi tiết. Không sửa ở 6.2 vì hôm nay
+  chỉ có đúng một chỗ dựng (`commands::project::create_work`) nên phép đo *"nó tốn bao nhiêu"* cho
+  0 — chi phí thật chỉ đọc được khi đường URL (6.7) và đường `.docx` (6.12) cũng phải dựng kiểu
+  này. Nếu tới lúc đó vẫn chỉ một chỗ dựng thì đây là một mục **KHÔNG LÀM** có lý do, không phải
+  một món nợ. **Chủ: Story 6.7.**
