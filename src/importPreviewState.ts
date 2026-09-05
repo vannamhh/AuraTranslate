@@ -5,10 +5,13 @@
  * 🔴 KHUÔN `glossaryImportState.ts` — vé `sequence`, export qua `readonly()`, một hàm
  * `reset*()` nuốt TOÀN BỘ state cấp module (`check:panel-refs` Kiểm A).
  * ─────────────────────────────────────────────────────────────────────────────
- * Ba tầng theo thứ tự nhân quả (bảng mã → ranh giới nội dung → luật làm sạch), nhưng CHỈ
- * tầng 1 có thân ở story này — tầng 2 (Story 6.9) và tầng 3 (Story 6.5) LUÔN rỗng, và
- * [`importPreviewEmptyReasonForTier`] nói ra vì sao (§Always spec 6.3: "rỗng phải nói vì
- * sao nó rỗng", khuôn `glossaryImportState.ts::importEmptyReasonFor`).
+ * Ba tầng theo thứ tự nhân quả (bảng mã → ranh giới nội dung → luật làm sạch).
+ *
+ * 🔵 **SỬA 2026-09-05 (Story 6.5) — "chỉ tầng 1 có thân" đã HẾT ĐÚNG.** Tầng 3 (luật làm
+ * sạch) nay có thân thật ([`importPreviewSelectedCleanup`] + bốn hành động CRUD luật ngay
+ * dưới) — chỉ còn tầng 2 (ranh giới nội dung, Story 6.9) rỗng, và
+ * [`importPreviewEmptyReasonForTier`] (hẹp lại còn tham số `2`) nói ra vì sao (§Always spec
+ * 6.3: "rỗng phải nói vì sao nó rỗng", khuôn `glossaryImportState.ts::importEmptyReasonFor`).
  *
  * 🔴 **Chọn một ứng viên khác KHÔNG gọi lại Rust** — `preview.candidates` đã mang bản dựng
  * thật của MỖI ứng viên (`core::segment::encoding::render_candidates` giải mã CẢ NĂM trên
@@ -29,11 +32,18 @@
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import {
+  cleanupAddRule,
+  cleanupDeleteRule,
+  cleanupEditRule,
+  cleanupSetEnabled,
   confirmImportWithEncoding,
   previewImportEncodingFromFile,
   previewImportEncodingFromText,
 } from './config/project'
 import type {
+  CleanupPreviewWire,
+  CleanupRuleKindWire,
+  CleanupRuleTierWire,
   CreatedWork,
   EncodingCandidateWire,
   ImportEncodingPreview,
@@ -87,6 +97,45 @@ const pendingGenre = ref('')
  */
 const lastSubmittedFrom = ref<'text' | 'file' | null>(null)
 
+/**
+ * **THÊM (Story 6.5)** — bản sao của nguồn ĐANG XEM TRƯỚC, giữ Ở ĐÂY (không chỉ ở
+ * `PendingImportSourceState` phía Rust): một lượt thêm/sửa/xoá/bật-tắt luật làm sạch phải
+ * dựng lại xem trước (§Always spec 6.5 — "bật/tắt và mọi lượt soạn là một lượt ghi THẬT
+ * rồi dựng lại xem trước"), và điều đó cần gọi lại ĐÚNG `previewImportEncodingFrom{Text,File}`
+ * với ĐÚNG văn bản/đường dẫn ban đầu — JS không đọc lại được từ `PendingImportSourceState`
+ * (kho đó chỉ sống phía Rust). Đúng MỘT trong hai ô có giá trị tại một thời điểm, khớp
+ * `lastSubmittedFrom`.
+ */
+const pendingText = ref<string | null>(null)
+const pendingPath = ref<string | null>(null)
+
+/** Lỗi của lượt CRUD luật làm sạch gần nhất (thêm/sửa/xoá/bật-tắt) — TÁCH khỏi
+ * `confirmError` (lỗi của lượt XÁC NHẬN toàn bộ Tác phẩm, ngữ nghĩa khác hẳn). */
+const cleanupActionError = ref<IpcError | null>(null)
+
+/**
+ * **THÊM (vòng rà 2026-09-06)** — BỐN cờ "đang gửi" RIÊNG, một cho mỗi hành động CRUD luật
+ * làm sạch. Trước lượt này, cả bốn hàm mượn `confirming` (cờ của hành động XÁC NHẬN TOÀN BỘ
+ * Tác phẩm, ngữ nghĩa khác hẳn) làm lớp chặn DUY NHẤT — `confirming` không bao giờ `true`
+ * trong lúc một lượt CRUD đang bay, nên nhấn hai lần liền một nút (Thêm/Lưu/Xoá/tick) gửi
+ * HAI lượt IPC chồng nhau, không cổng nào chặn. Khuôn `GlossaryQuickAdd.vue::quickAddSaving`
+ * (một cờ khoá nguyên khối `<fieldset>`), nhân bốn vì bốn hành động độc lập nhau.
+ */
+const cleanupAdding = ref(false)
+const cleanupSavingEdit = ref(false)
+const cleanupDeleting = ref(false)
+const cleanupToggling = ref(false)
+
+/**
+ * **THÊM (vòng rà 2026-09-06)** — khoá `${tier}:${id}` của luật đang CHỜ XÁC NHẬN xoá, hoặc
+ * `null`. Khuôn `glossaryManageState.ts::deletePendingKey`/`manageDeletePending`: xoá một
+ * luật là một nhịp KHÔNG HOÀN TÁC ĐƯỢC (mất một luật người dùng tự soạn, không phải một lượt
+ * bật/tắt có thể bấm lại) — nhịp MỘT chỉ đổi khoá này (0 lời gọi IPC), nhịp HAI (bấm lại ĐÚNG
+ * luật đó) mới ghi thật. Chọn "xoá"/"sửa" một luật KHÁC, hay một lượt tải lại thành công, làm
+ * khoá này tan (xem `deleteImportPreviewCleanupRule`/`onStartEditCleanupRule`).
+ */
+const cleanupDeletePendingKey = ref<string | null>(null)
+
 /** Buộc dải năm ứng viên MỞ dù tin cậy cao/tự khai — `E` (`EXPERIENCE.md:182`, "mở bộ chọn
  * bảng mã"). Rust LUÔN tính đủ năm bản dựng khi có byte để dò (`ImportEncodingPreview::candidates`),
  * nên buộc mở không đòi một lượt gọi Rust thứ hai — chỉ đổi cờ HIỂN THỊ ở đây. */
@@ -109,6 +158,16 @@ export const importPreviewStripForcedOpen: DeepReadonly<Ref<boolean>> = readonly
  * (xem doc-comment [`lastSubmittedFrom`] cho lý do ô này sống ở đây). */
 export const importPreviewLastSubmittedFrom: DeepReadonly<Ref<'text' | 'file' | null>> =
   readonly(lastSubmittedFrom)
+export const importPreviewCleanupActionError: DeepReadonly<Ref<IpcError | null>> =
+  readonly(cleanupActionError)
+export const importPreviewCleanupAdding: DeepReadonly<Ref<boolean>> = readonly(cleanupAdding)
+export const importPreviewCleanupSavingEdit: DeepReadonly<Ref<boolean>> = readonly(cleanupSavingEdit)
+export const importPreviewCleanupDeleting: DeepReadonly<Ref<boolean>> = readonly(cleanupDeleting)
+export const importPreviewCleanupToggling: DeepReadonly<Ref<boolean>> = readonly(cleanupToggling)
+/** Khoá `${tier}:${id}` của luật đang CHỜ XÁC NHẬN xoá — `.vue` so bằng chuỗi để biết HÀNG
+ * nào đang hiện trạng thái "bấm lại để xoá thật" (xem doc-comment `cleanupDeletePendingKey`). */
+export const importPreviewCleanupDeletePendingKey: DeepReadonly<Ref<string | null>> =
+  readonly(cleanupDeletePendingKey)
 
 /** Dải năm ô mở khi và chỉ khi tin cậy THẤP **hoặc** người dùng đã buộc mở bằng `E` — một
  * điều kiện, một chỗ. Rust luôn cấp đủ dữ liệu (`ImportEncodingPreview::candidates`); đây
@@ -158,11 +217,32 @@ export const importPreviewSelectedNormalized = computed<NormalizedPreviewWire | 
 })
 
 /**
- * Hai tầng CHƯA có thân (§Always spec 6.3) — lý do RỖNG kèm tên story chủ, không phải một
- * chuỗi hiển thị (khoá `mode.library.preview.tier_empty_*`, frontend tự `t()`).
+ * Khối làm sạch (tầng 3) hiện hành — Story 6.5. CÙNG khuôn
+ * [`importPreviewSelectedNormalized`]: đọc `candidate.cleanup` khi có ứng viên đang chọn,
+ * rơi về `preview.self_declared_cleanup` khi không (đường dán văn bản tay, 0 ứng viên).
+ *
+ * 🔴 **Đổi ứng viên đổi computed này NGAY, 0 lời gọi IPC** — Rust đã dựng sẵn khối làm sạch
+ * của CẢ NĂM ứng viên VÀ của nhánh tự khai trên dây, computed này chỉ ĐỌC lại.
  */
-export function importPreviewEmptyReasonForTier(tier: 2 | 3): 'story_6_9' | 'story_6_5' {
-  return tier === 2 ? 'story_6_9' : 'story_6_5'
+export const importPreviewSelectedCleanup = computed<CleanupPreviewWire | null>(() => {
+  const p = preview.value
+  if (p === null) return null
+  const candidate = importPreviewSelectedCandidate.value
+  if (candidate !== null) return candidate.cleanup
+  return p.self_declared_cleanup
+})
+
+/**
+ * Tầng 2 CHƯA có thân (§Always spec 6.3) — lý do RỖNG kèm tên story chủ, không phải một
+ * chuỗi hiển thị (khoá `mode.library.preview.tier_empty_*`, frontend tự `t()`).
+ *
+ * 🔵 **SỬA 2026-09-05 (Story 6.5) — nhánh `3` đã CHẾT.** Tầng 3 (luật làm sạch) nay CÓ THÂN
+ * (xem [`importPreviewSelectedCleanup`]) — chỉ tầng 2 (ranh giới nội dung, Story 6.9) còn
+ * rỗng. Tham số hẹp lại còn `2` để TypeScript bắt được mọi chỗ gọi cũ còn truyền `3`.
+ */
+export function importPreviewEmptyReasonForTier(tier: 2): 'story_6_9' {
+  void tier
+  return 'story_6_9'
 }
 
 type PreviewCall = () => ReturnType<typeof previewImportEncodingFromText>
@@ -188,6 +268,12 @@ async function openWith(
   pendingGenre.value = genre
   confirming.value = false
   confirmError.value = null
+  cleanupActionError.value = null
+  cleanupAdding.value = false
+  cleanupSavingEdit.value = false
+  cleanupDeleting.value = false
+  cleanupToggling.value = false
+  cleanupDeletePendingKey.value = null
   stripForcedOpen.value = false
 
   const result = await call()
@@ -223,6 +309,8 @@ export async function openImportPreviewFromText(
   genre: string,
   text: string,
 ): Promise<void> {
+  pendingText.value = text
+  pendingPath.value = null
   await openWith(() => previewImportEncodingFromText(text, sourceLang), 'text', name, sourceLang, genre)
 }
 
@@ -233,6 +321,8 @@ export async function openImportPreviewFromFile(
   genre: string,
   path: string,
 ): Promise<void> {
+  pendingPath.value = path
+  pendingText.value = null
   await openWith(() => previewImportEncodingFromFile(path, sourceLang), 'file', name, sourceLang, genre)
 }
 
@@ -253,6 +343,152 @@ export function selectImportPreviewCandidate(encoding: string): void {
   if (preview.value === null) return
   if (!preview.value.candidates.some((c) => c.encoding === encoding)) return
   selectedEncoding.value = encoding
+}
+
+/**
+ * Dựng lại xem trước bằng ĐÚNG nguồn đang treo (`pendingText`/`pendingPath`) — **THÊM
+ * (Story 6.5)**, chỗ gọi sản phẩm DUY NHẤT là bốn hàm CRUD luật ngay dưới. Khác `openWith`:
+ * KHÔNG đổi `lastSubmittedFrom`/`pendingName`/`pendingSourceLang`/`pendingGenre` (đây là một
+ * lượt TẢI LẠI, không phải một lượt MỞ mới), và cố giữ nguyên ứng viên đang chọn nếu nó vẫn
+ * còn trong dải mới.
+ */
+async function reloadImportPreviewAfterRuleChange(): Promise<void> {
+  const from = lastSubmittedFrom.value
+  if (from === null) return // chưa mở lượt xem trước nào — không có gì để tải lại
+
+  // Một lượt tải lại (dù do THÊM/SỬA/BẬT-TẮT nào gọi tới) làm tan mọi "chờ xác nhận xoá" còn
+  // đứng trên MỘT hàng khác — danh sách sắp được dựng lại từ đầu, một khoá cũ trỏ vào một
+  // luật có thể đã đổi hình dạng không nên tiếp tục hiện "bấm lại để xoá thật".
+  cleanupDeletePendingKey.value = null
+
+  sequence += 1
+  const mySequence = sequence
+  const keepEncoding = selectedEncoding.value
+
+  const result =
+    from === 'text'
+      ? await previewImportEncodingFromText(pendingText.value ?? '', pendingSourceLang.value)
+      : await previewImportEncodingFromFile(pendingPath.value ?? '', pendingSourceLang.value)
+  if (mySequence !== sequence) return // một lượt mở/huỷ/tải lại MỚI đã vượt mặt lượt này
+
+  if (result.error !== null) {
+    status.value = 'error'
+    loadError.value = result.error
+    return
+  }
+  if (result.preview === null) {
+    status.value = 'ipc_unavailable'
+    loadError.value = null
+    return
+  }
+
+  preview.value = result.preview
+  selectedEncoding.value = result.preview.candidates.some((c) => c.encoding === keepEncoding)
+    ? keepEncoding
+    : result.preview.selected_encoding
+  status.value = 'loaded'
+  loadError.value = null
+}
+
+/**
+ * Bốn hành động CRUD luật làm sạch — mỗi hành động là một lượt GHI THẬT (§Always spec 6.5)
+ * rồi dựng lại xem trước qua [`reloadImportPreviewAfterRuleChange`]. Chặn trong lúc
+ * `confirming` (cùng lý do [`selectImportPreviewCandidate`]) — không sửa luật trong khi một
+ * lượt xác nhận đang bay — **cộng** cờ "đang gửi" RIÊNG của CHÍNH hành động đó (vòng rà
+ * 2026-09-06: bốn cờ tách biệt, không còn mượn `confirming` làm lớp chặn tái vào DUY NHẤT —
+ * xem doc-comment [`cleanupAdding`]).
+ */
+export async function addImportPreviewCleanupRule(
+  tier: CleanupRuleTierWire,
+  pattern: string,
+  kind: CleanupRuleKindWire,
+): Promise<void> {
+  if (confirming.value || cleanupAdding.value) return
+  cleanupAdding.value = true
+  try {
+    const result = await cleanupAddRule(tier, pattern, kind)
+    cleanupActionError.value = result.error
+    if (result.error === null) await reloadImportPreviewAfterRuleChange()
+  } finally {
+    cleanupAdding.value = false
+  }
+}
+
+export async function editImportPreviewCleanupRule(
+  tier: CleanupRuleTierWire,
+  id: number,
+  pattern: string,
+  kind: CleanupRuleKindWire,
+): Promise<void> {
+  if (confirming.value || cleanupSavingEdit.value) return
+  cleanupSavingEdit.value = true
+  try {
+    const result = await cleanupEditRule(tier, id, pattern, kind)
+    cleanupActionError.value = result.error
+    if (result.error === null) await reloadImportPreviewAfterRuleChange()
+  } finally {
+    cleanupSavingEdit.value = false
+  }
+}
+
+function cleanupRuleKey(tier: CleanupRuleTierWire, id: number): string {
+  return `${tier}:${id}`
+}
+
+/**
+ * Xoá luật `(tier, id)` — **HAI NHỊP** (vòng rà 2026-09-06, khuôn
+ * `glossaryManageState.ts::deleteGlossaryManageEntry`): xoá một luật người dùng tự soạn
+ * KHÔNG HOÀN TÁC ĐƯỢC, nên nhịp MỘT (khoá `(tier, id)` chưa khớp
+ * [`cleanupDeletePendingKey`]) chỉ đổi trạng thái sang "chờ xác nhận" — **0** lời gọi IPC.
+ * Nhịp HAI (gọi LẠI với ĐÚNG `(tier, id)` đó) mới ghi thật. Gọi với một `(tier, id)` KHÁC ở
+ * nhịp một của luật đó (đổi ý, chọn xoá hàng khác) làm khoá cũ tan — cùng hành vi
+ * `deletePendingKey` (một ref, không phải một tập).
+ */
+export async function deleteImportPreviewCleanupRule(tier: CleanupRuleTierWire, id: number): Promise<void> {
+  if (confirming.value || cleanupDeleting.value) return
+  const key = cleanupRuleKey(tier, id)
+  if (cleanupDeletePendingKey.value !== key) {
+    // Nhịp MỘT — chỉ đổi trạng thái, KHÔNG một lượt IPC nào (§Always spec 6.5 áp dụng cho
+    // GHI thật; đây chưa phải một lượt ghi).
+    cleanupDeletePendingKey.value = key
+    cleanupActionError.value = null
+    return
+  }
+
+  // Nhịp HAI — xác nhận: ghi thật. Tan khoá TRƯỚC khi gọi IPC (cùng lý do
+  // `deleteGlossaryManageEntry`: một lượt tải lại/lỗi giữa chừng không được để lại một khoá
+  // "chờ xác nhận" mồ côi trỏ vào một luật ĐÃ xoá hoặc đã đổi hình dạng).
+  cleanupDeletePendingKey.value = null
+  cleanupDeleting.value = true
+  try {
+    const result = await cleanupDeleteRule(tier, id)
+    cleanupActionError.value = result.error
+    if (result.error === null) await reloadImportPreviewAfterRuleChange()
+  } finally {
+    cleanupDeleting.value = false
+  }
+}
+
+/** Tan trạng thái "chờ xác nhận xoá" mà KHÔNG xoá gì — gọi khi bắt đầu sửa một luật (đổi ý
+ * sang một hành động khác trên cùng danh sách). */
+export function cancelImportPreviewCleanupDeletePending(): void {
+  cleanupDeletePendingKey.value = null
+}
+
+export async function toggleImportPreviewCleanupRule(
+  tier: CleanupRuleTierWire,
+  id: number,
+  enabled: boolean,
+): Promise<void> {
+  if (confirming.value || cleanupToggling.value) return
+  cleanupToggling.value = true
+  try {
+    const result = await cleanupSetEnabled(tier, id, enabled)
+    cleanupActionError.value = result.error
+    if (result.error === null) await reloadImportPreviewAfterRuleChange()
+  } finally {
+    cleanupToggling.value = false
+  }
 }
 
 /**
@@ -302,6 +538,14 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
   pendingSourceLang.value = ''
   pendingGenre.value = ''
   stripForcedOpen.value = false
+  pendingText.value = null
+  pendingPath.value = null
+  cleanupActionError.value = null
+  cleanupAdding.value = false
+  cleanupSavingEdit.value = false
+  cleanupDeleting.value = false
+  cleanupToggling.value = false
+  cleanupDeletePendingKey.value = null
   return { created: result.created, error: null }
 }
 
@@ -351,4 +595,12 @@ export function resetImportPreview(): void {
   pendingGenre.value = ''
   stripForcedOpen.value = false
   lastSubmittedFrom.value = null
+  pendingText.value = null
+  pendingPath.value = null
+  cleanupActionError.value = null
+  cleanupAdding.value = false
+  cleanupSavingEdit.value = false
+  cleanupDeleting.value = false
+  cleanupToggling.value = false
+  cleanupDeletePendingKey.value = null
 }

@@ -45,6 +45,9 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
     // "undecodable" — hai chuyện khác hẳn nhau (candidate.normalized === null nghĩa là
     // "không ra chữ", không phải "chưa nạp xong fixture").
     normalized: { text: 'plain ascii', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+    // Story 6.5 — cùng lý do `normalized`: khối làm sạch đi kèm sẵn trên MỖI ô. `null` đồng
+    // bộ với `normalized: null` (bảng mã "không ra chữ") — xem ca dành riêng cho nhánh đó.
+    cleanup: { text: 'plain ascii', spans: [], rules: [], window_truncated: false, final_text: 'plain ascii' },
     ...over,
   }
 }
@@ -54,8 +57,10 @@ function preview(over: Partial<ImportEncodingPreview> = {}): ImportEncodingPrevi
     selected_encoding: 'UTF-8',
     confidence: 'high',
     candidates: [candidate()],
-    // candidates mac dinh KHONG rong -- doc .normalized cua ung vien, khong doc truong nay.
+    // candidates mac dinh KHONG rong -- doc .normalized/.cleanup cua ung vien, khong doc
+    // hai truong nay.
     self_declared_normalized: null,
+    self_declared_cleanup: null,
     ...over,
   }
 }
@@ -90,16 +95,18 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
     state.resetImportPreview()
   })
 
-  it('tầng 2/3 rỗng dựng đúng lý do (story_6_9 / story_6_5)', async () => {
+  // 🔵 SỬA 2026-09-05 (Story 6.5) — "tầng 2/3 rỗng" đã HẾT ĐÚNG cho tầng 3: nó nay CÓ THÂN
+  // khi ứng viên mang `cleanup` (mặc định của `candidate()` từ story này). Chỉ tầng 2 còn
+  // rỗng — ca dành cho tầng 3 rỗng (ứng viên "không ra chữ") đứng riêng ngay dưới.
+  it('tầng 2 rỗng dựng đúng lý do (story_6_9)', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
     await state.openImportPreviewFromText('Ten', 'en', '', 'text')
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     const reasons = wrapper.findAll('.ip-tier-empty-reason')
-    expect(reasons).toHaveLength(2)
+    expect(reasons).toHaveLength(1)
     expect(reasons[0]?.text()).toContain('Story 6.9')
-    expect(reasons[1]?.text()).toContain('Story 6.5')
 
     wrapper.unmount()
     state.resetImportPreview()
@@ -134,8 +141,9 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
     expect(wrapper.find('.ip-normalized-counts').text()).toContain('2')
     // `window_truncated: true` ⇒ ghi chú phạm vi cửa sổ phải hiện ra bằng chữ.
     expect(wrapper.find('.ip-normalized-window-note').exists()).toBe(true)
-    // Tầng mới KHÔNG rơi vào nhánh rỗng — chỉ tầng 2/3 (2 ca) còn `.ip-tier-empty-reason`.
-    expect(wrapper.findAll('.ip-tier-empty-reason')).toHaveLength(2)
+    // Tầng mới KHÔNG rơi vào nhánh rỗng — CHỈ tầng 2 còn `.ip-tier-empty-reason` (tầng 3 nay
+    // CÓ THÂN, ứng viên mặc định mang `cleanup`).
+    expect(wrapper.findAll('.ip-tier-empty-reason')).toHaveLength(1)
 
     wrapper.unmount()
     state.resetImportPreview()
@@ -146,7 +154,9 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
   it('tầng chuẩn hoá rơi vào nhánh rỗng khi ứng viên đang chọn "không ra chữ"', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({
-      preview: preview({ candidates: [candidate({ preview: null, normalized: null })] }),
+      // Story 6.5 — `cleanup: null` ĐỒNG BỘ với `normalized: null` (cùng một sự thật: bảng
+      // mã này không ra chữ), đúng bất biến mà Rust luôn giữ giữa hai trường.
+      preview: preview({ candidates: [candidate({ preview: null, normalized: null, cleanup: null })] }),
       error: null,
     })
     await state.openImportPreviewFromText('Ten', 'en', '', 'text')
@@ -154,7 +164,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
 
     expect(wrapper.find('.ip-normalized-text').exists()).toBe(false)
-    // Ba tầng rỗng: tầng chuẩn hoá (undecodable) + tầng 2 (6.9) + tầng 3 (6.5).
+    // Ba tầng rỗng: tầng chuẩn hoá (undecodable) + tầng 2 (6.9) + tầng 3 (undecodable).
     expect(wrapper.findAll('.ip-tier-empty-reason')).toHaveLength(3)
 
     wrapper.unmount()
@@ -175,6 +185,16 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
           joined_lines: 1,
           blank_lines_removed: 0,
           window_truncated: false,
+        },
+        // Story 6.5 — cùng lý do `self_declared_normalized` ngay trên: thiếu trường này thì
+        // tầng 3 rơi vào nhánh rỗng "chưa chọn được ứng viên", và nhánh đó CHIA SẺ tiền tố
+        // câu với đúng chuỗi ca này khẳng định VẮNG MẶT ở dưới — false negative nếu bỏ sót.
+        self_declared_cleanup: {
+          text: 'Van ban da dan roi noi lai.',
+          spans: [],
+          rules: [],
+          window_truncated: false,
+          final_text: 'Van ban da dan roi noi lai.',
         },
       }),
       error: null,

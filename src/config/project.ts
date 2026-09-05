@@ -146,12 +146,59 @@ export type NormalizedPreviewWire = {
   window_truncated: boolean
 }
 
+/** Nhãn tầng của một luật làm sạch — Story 6.5. Danh tính một luật trên dây là CẶP
+ * `(tier, id)`, không phải `id` trần: hai tầng đánh số ĐỘC LẬP. */
+export type CleanupRuleTierWire = 'global' | 'work'
+
+/** Hai hình dạng mẫu — Story 6.5. */
+export type CleanupRuleKindWire = 'literal' | 'regex'
+
+/** Một luật kèm hai số đếm — khớp `commands::project::CleanupRuleReportWire`. */
+export type CleanupRuleReportWire = {
+  tier: CleanupRuleTierWire
+  id: number
+  pattern: string
+  kind: CleanupRuleKindWire
+  enabled: boolean
+  count_in_chapter: number
+  /** 🔵 Nợ có chủ (Story 6.6/6.7) — hôm nay LUÔN bằng `count_in_chapter`, xem doc-comment
+   * Rust `CleanupRuleReportWire::count_in_import`. */
+  count_in_import: number
+}
+
+/** Một chỗ khớp CỦA LUẬT ĐANG BẬT — điểm mã, nửa-mở `[start, end)`. Chỉ luật bật mới xuất
+ * hiện ở đây (tắt một luật ⇒ chỗ vừa gạch ngang trở về nguyên trạng NGAY). */
+export type CleanupSpanWire = {
+  tier: CleanupRuleTierWire
+  id: number
+  start: number
+  end: number
+}
+
+/** Khối làm sạch của MỘT ứng viên/đường tự khai — tầng 3 (Story 6.5). Khớp
+ * `commands::project::CleanupPreviewWire`. */
+export type CleanupPreviewWire = {
+  /** Văn bản ĐÃ GIẢI MÃ, TRƯỚC khi luật xoá gì — thứ `spans` đánh dấu gạch ngang lên. */
+  text: string
+  spans: CleanupSpanWire[]
+  rules: CleanupRuleReportWire[]
+  /** `true` ⇒ `text` không phải TOÀN Chương. */
+  window_truncated: boolean
+  /** Văn bản CUỐI CÙNG (sau cả làm sạch VÀ chuẩn hoá) — khi `window_truncated === false`,
+   * PHẢI giống hệt từng byte với `source_text` mà xác nhận ghi xuống (đóng nợ
+   * `deferred-work.md:9359`). */
+  final_text: string
+}
+
 /** Một ô trong dải năm ứng viên — khớp `commands::project::EncodingCandidateWire`. */
 export type EncodingCandidateWire = {
   label: string
   encoding: string
   preview: string | null
   normalized: NormalizedPreviewWire | null
+  /** Story 6.5 — khối làm sạch (tầng 3) của CHÍNH ứng viên này. `null` đồng bộ với
+   * `preview`/`normalized` (bảng mã này "không ra chữ"). */
+  cleanup: CleanupPreviewWire | null
 }
 
 /** Kết quả một lượt xem trước bảng mã — khớp `commands::project::ImportEncodingPreview`. */
@@ -162,6 +209,9 @@ export type ImportEncodingPreview = {
   /** Story 6.4, vá vòng rà 1 — bản chuẩn hoá cho nhánh TỰ KHAI (0 ứng viên). `null` khi
    * `candidates` không rỗng (đọc `.normalized` của ứng viên đang chọn thay). */
   self_declared_normalized: NormalizedPreviewWire | null
+  /** Story 6.5 — khối làm sạch (tầng 3) cho nhánh TỰ KHAI, cùng điều kiện `null`/`Some` với
+   * `self_declared_normalized`. */
+  self_declared_cleanup: CleanupPreviewWire | null
 }
 
 /** Ba trạng thái, cùng khuôn `CreateWorkResult`. */
@@ -185,6 +235,53 @@ function isNormalizedPreviewWire(value: unknown): value is NormalizedPreviewWire
   )
 }
 
+function isCleanupRuleTierWire(value: unknown): value is CleanupRuleTierWire {
+  return value === 'global' || value === 'work'
+}
+
+function isCleanupRuleKindWire(value: unknown): value is CleanupRuleKindWire {
+  return value === 'literal' || value === 'regex'
+}
+
+function isCleanupSpanWire(value: unknown): value is CleanupSpanWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<CleanupSpanWire>
+  return (
+    isCleanupRuleTierWire(v.tier) &&
+    typeof v.id === 'number' &&
+    typeof v.start === 'number' &&
+    typeof v.end === 'number'
+  )
+}
+
+function isCleanupRuleReportWire(value: unknown): value is CleanupRuleReportWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<CleanupRuleReportWire>
+  return (
+    isCleanupRuleTierWire(v.tier) &&
+    typeof v.id === 'number' &&
+    typeof v.pattern === 'string' &&
+    isCleanupRuleKindWire(v.kind) &&
+    typeof v.enabled === 'boolean' &&
+    typeof v.count_in_chapter === 'number' &&
+    typeof v.count_in_import === 'number'
+  )
+}
+
+function isCleanupPreviewWire(value: unknown): value is CleanupPreviewWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<CleanupPreviewWire>
+  return (
+    typeof v.text === 'string' &&
+    Array.isArray(v.spans) &&
+    v.spans.every(isCleanupSpanWire) &&
+    Array.isArray(v.rules) &&
+    v.rules.every(isCleanupRuleReportWire) &&
+    typeof v.window_truncated === 'boolean' &&
+    typeof v.final_text === 'string'
+  )
+}
+
 function isEncodingCandidateWire(value: unknown): value is EncodingCandidateWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<EncodingCandidateWire>
@@ -196,7 +293,9 @@ function isEncodingCandidateWire(value: unknown): value is EncodingCandidateWire
     // chưa nâng cấp) lọt qua Kiểm TYPE này y hệt bẫy vòng rà đối kháng 2 mục 23 đã vá cho
     // `candidates`: `.vue` đọc `candidate.normalized.text` trên `undefined` rồi vỡ trắng
     // màn hình thay vì hiện lý do rỗng.
-    (v.normalized === null || isNormalizedPreviewWire(v.normalized))
+    (v.normalized === null || isNormalizedPreviewWire(v.normalized)) &&
+    // 🔴 Story 6.5 — cùng lý do: thiếu vế này thì `undefined` lọt lên `.vue`.
+    (v.cleanup === null || isCleanupPreviewWire(v.cleanup))
   )
 }
 
@@ -215,7 +314,9 @@ function isImportEncodingPreview(value: unknown): value is ImportEncodingPreview
     v.candidates.every(isEncodingCandidateWire) &&
     // Story 6.4, vá vòng rà 1 — thiếu vế này thì `undefined` (backend cũ chưa nâng cấp) lọt
     // qua Kiểm TYPE rồi `.vue` đọc `preview.self_declared_normalized.text` trên `undefined`.
-    (v.self_declared_normalized === null || isNormalizedPreviewWire(v.self_declared_normalized))
+    (v.self_declared_normalized === null || isNormalizedPreviewWire(v.self_declared_normalized)) &&
+    // Story 6.5 — cùng lý do.
+    (v.self_declared_cleanup === null || isCleanupPreviewWire(v.self_declared_cleanup))
   )
 }
 
@@ -273,4 +374,79 @@ export async function confirmImportWithEncoding(
   encoding: string,
 ): Promise<CreateWorkResult> {
   return callCreateWork(CMD_CONFIRM_WITH_ENCODING, { name, sourceLang, genre, encoding })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story 6.5 — luật làm sạch lúc nhập (FR124, AD-18). Khớp `commands::cleanup::{
+// wire::cleanup_add_rule, wire::cleanup_edit_rule, wire::cleanup_delete_rule,
+// wire::cleanup_set_enabled }`.
+//
+// 🔴 **KHÔNG adapter cho `wire::cleanup_list_rules`** — vòng rà 2026-09-06 gỡ
+// `cleanupListRules`/`CleanupRuleWire`/`CleanupRuleListResult`: lệnh Rust CÒN đăng ký
+// (`commands::cleanup::wire::cleanup_list_rules`, `lib.rs::generate_handler!`), nhưng adapter
+// JS của nó không một chỗ gọi nào trong `src/**` (màn xem trước đọc danh sách luật qua
+// `EncodingCandidateWire.cleanup.rules`/`ImportEncodingPreview.self_declared_cleanup.rules` —
+// dữ liệu đã ĐI KÈM lượt xem trước, không cần một lệnh liệt kê riêng). Nếu một bề mặt MỚI
+// (ví dụ màn quản lý luật độc lập, ngoài lượt nhập) cần liệt kê hai tầng mà KHÔNG đi qua xem
+// trước, thêm lại adapter này KÈM chỗ gọi đó trong CÙNG một lượt.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CMD_CLEANUP_ADD_RULE = 'cleanup_add_rule'
+const CMD_CLEANUP_EDIT_RULE = 'cleanup_edit_rule'
+const CMD_CLEANUP_DELETE_RULE = 'cleanup_delete_rule'
+const CMD_CLEANUP_SET_ENABLED = 'cleanup_set_enabled'
+
+/** Ba trạng thái — `ok: true` chính xác khi `error === null`. */
+export type CleanupWriteResult = {
+  ok: boolean
+  error: IpcError | null
+}
+
+async function callCleanupWrite(cmd: string, args: Record<string, unknown>): Promise<CleanupWriteResult> {
+  try {
+    await invoke(cmd, args)
+    return { ok: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { ok: false, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[project] \`${cmd}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { ok: false, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[project] không gọi được \`${cmd}\` — chạy ngoài Tauri?`)
+    return { ok: false, error: null }
+  }
+}
+
+/** Thêm một luật mới vào tầng `tier`. */
+export async function cleanupAddRule(
+  tier: CleanupRuleTierWire,
+  pattern: string,
+  kind: CleanupRuleKindWire,
+): Promise<CleanupWriteResult> {
+  return callCleanupWrite(CMD_CLEANUP_ADD_RULE, { tier, pattern, kind })
+}
+
+/** Sửa mẫu/hình dạng của luật `(tier, id)`. */
+export async function cleanupEditRule(
+  tier: CleanupRuleTierWire,
+  id: number,
+  pattern: string,
+  kind: CleanupRuleKindWire,
+): Promise<CleanupWriteResult> {
+  return callCleanupWrite(CMD_CLEANUP_EDIT_RULE, { tier, id, pattern, kind })
+}
+
+/** Xoá luật `(tier, id)`. */
+export async function cleanupDeleteRule(tier: CleanupRuleTierWire, id: number): Promise<CleanupWriteResult> {
+  return callCleanupWrite(CMD_CLEANUP_DELETE_RULE, { tier, id })
+}
+
+/** Bật/tắt luật `(tier, id)` — MỘT lượt ghi thật (§Always spec 6.5), không trạng thái chỉ
+ * sống trong bộ nhớ frontend. */
+export async function cleanupSetEnabled(
+  tier: CleanupRuleTierWire,
+  id: number,
+  enabled: boolean,
+): Promise<CleanupWriteResult> {
+  return callCleanupWrite(CMD_CLEANUP_SET_ENABLED, { tier, id, enabled })
 }

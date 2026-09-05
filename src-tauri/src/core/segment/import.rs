@@ -32,7 +32,11 @@
 //! - **Chuẩn hoá xuống dòng/khoảng trắng** (FR124/125) — 🔵 **SỬA 2026-09-04 (Story 6.4) —
 //!   "vẫn THÂN RỖNG" đã HẾT ĐÚNG.** [`super::normalize::normalize`] nay chạy thật ở
 //!   [`super::pipeline::Step::NormalizeParagraphsAndWhitespace`] (bước 4), TRƯỚC bước 7
-//!   (tách segment) — xem doc-comment module đó. Luật làm sạch (Story 6.5) vẫn mở.
+//!   (tách segment) — xem doc-comment module đó.
+//! - **Luật làm sạch** (FR124) — 🔵 **SỬA 2026-09-05 (Story 6.5) — "vẫn mở" đã HẾT ĐÚNG.**
+//!   [`crate::core::cleanup::apply`] nay chạy thật ở
+//!   [`super::pipeline::Step::CleanByRules`] (bước 3), TRƯỚC bước 4 (chuẩn hoá) — xem
+//!   doc-comment module đó.
 //! - **Dò bảng mã** (FR126) — 🔵 **SỬA 2026-09-04 (Story 6.3) — "vẫn CHỈ giải mã theo MỘT
 //!   bảng mã ĐÃ KHAI (mặc định UTF-8)" đã HẾT ĐÚNG.** Bộ dò thật giờ sống ở
 //!   [`super::encoding`] (`sniff_bom` → `detect` → `render_candidates`, ba trạng thái tin
@@ -154,6 +158,16 @@ pub enum ImportError {
         /// Chuỗi wire nhận được — dữ liệu, không phải câu.
         wire_id: String,
     },
+    /// 🔵 **THÊM 2026-09-05 (Story 6.5)** — [`super::pipeline::Step::CleanByRules`] gọi
+    /// [`crate::core::cleanup::apply`] và nhận [`crate::core::cleanup::CleanupError`]: một
+    /// luật `regex` đã LƯU không biên dịch được. Không nên xảy ra trên đường sản phẩm —
+    /// `core::cleanup::store::add_rule`/`edit_rule` biên dịch thử TRƯỚC khi ghi (§Always
+    /// spec 6.5) — cùng lớp "lỗi lập trình không nên tồn tại" với
+    /// [`ImportError::InvalidPipelineOrder`].
+    InvalidCleanupPattern {
+        /// Chẩn đoán CHỈ cho log (không đi vào `IpcError`, `Unknown` không nhận tham số).
+        detail: String,
+    },
 }
 
 impl std::fmt::Display for ImportError {
@@ -180,6 +194,9 @@ impl std::fmt::Display for ImportError {
             }
             ImportError::UnrecognizedEncoding { wire_id } => {
                 write!(f, "import: unrecognized encoding wire id {wire_id:?}")
+            }
+            ImportError::InvalidCleanupPattern { detail } => {
+                write!(f, "import: invalid cleanup pattern: {detail}")
             }
         }
     }
@@ -267,6 +284,16 @@ impl From<ImportError> for IpcError {
                     false,
                 )
             }
+            ImportError::InvalidCleanupPattern { .. } => {
+                // 🔴 KHÔNG BAO GIỜ chạm người dùng thật (xem doc-comment biến thể) — cùng
+                // khuôn `InvalidPipelineOrder`.
+                IpcError::new(
+                    "import.invalid_cleanup_pattern",
+                    MessageKey::Unknown,
+                    BTreeMap::new(),
+                    false,
+                )
+            }
         }
     }
 }
@@ -287,6 +314,14 @@ pub struct ImportedChapter {
     /// đã có), tính SẴN ở đây để `commands::project::create_work` chỉ còn việc GHI, không
     /// còn tự tính (AC13 không đổi: vẫn ghi cùng giao dịch với hàng `chapter`).
     pub segments: Vec<SplitSegment>,
+    /// **THÊM 2026-09-05 (Story 6.5)** — báo cáo của [`super::pipeline::Step::CleanByRules`]
+    /// (bước 3) cho CHÍNH Chương này. `None` khi bước 3 không tạo được báo cáo cho đơn vị
+    /// này — nhánh `Unit::Undecoded` bất khả trên mọi thứ tự HỢP LỆ (cùng lý do
+    /// `Unit::Undecoded` bất khả ở bước 4, xem `pipeline.rs`), hoặc khi
+    /// [`super::pipeline::Step::SplitChapters`] tách MỘT đơn vị thành N sau khi bước 3 đã
+    /// chạy (chỉ `tests/**` khai `chapter_pattern: Some(..)` mới chạm nhánh này — đường sản
+    /// phẩm luôn `None`, N = 1, báo cáo không bao giờ bị reset).
+    pub cleanup_report: Option<crate::core::cleanup::CleanupReport>,
 }
 
 /// Bước ĐẦU VÀO — nhánh dán văn bản của AC1. Trả về [`PipelineShape`], KHÔNG tự giải mã/

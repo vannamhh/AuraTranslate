@@ -615,10 +615,10 @@ CREATE TABLE library_orphan (
   name        TEXT NOT NULL
 );";
 
-/// Bộ di trú của `global.db`. Hôm nay **sáu** bước — Story 1.7 · 1.8 · 1.20 · 3.1 · 3.10 ·
-/// phán quyết Ice #1 (Story 5.3, 2026-08-27).
+/// Bộ di trú của `global.db`. Hôm nay **bảy** bước — Story 1.7 · 1.8 · 1.20 · 3.1 · 3.10 ·
+/// phán quyết Ice #1 (Story 5.3, 2026-08-27) · 6.5 (2026-09-05).
 ///
-/// 🔴 **Sáu bước, và đích là phiên bản 6.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔴 **Bảy bước, và đích là phiên bản 7.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -646,6 +646,10 @@ CREATE TABLE library_orphan (
 /// 🔵 **CẬP NHẬT 2026-08-27 (phán quyết Ice #1, Story 5.3):** đích chuyển từ **5** lên **6** —
 /// bước [`LIBRARY_ORPHAN_DDL`] (bảng `library_orphan`, cờ mồ côi của Library chuyển từ
 /// `library-index.db` sang đây). Câu *"năm bước, đích là 5"* đã hết đúng, sửa tại chỗ.
+///
+/// 🔵 **CẬP NHẬT 2026-09-05 (Story 6.5):** đích chuyển từ **6** lên **7** — bước
+/// [`IMPORT_CLEANUP_RULE_DDL`] (tầng Global của bảng luật làm sạch, AD-18, CÙNG một hằng
+/// với bước 19 của `project.db`). Câu *"sáu bước, đích là 6"* đã hết đúng, sửa tại chỗ.
 pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 1,
@@ -677,6 +681,13 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 6,
         sql: LIBRARY_ORPHAN_DDL,
+    },
+    // Story 6.5 -- tang Global cua bang luat lam sach (AD-18/FR124): bang
+    // import_cleanup_rule, CUNG mot hang voi buoc 19 cua project.db. Xem doc-comment cua
+    // IMPORT_CLEANUP_RULE_DDL.
+    Migration {
+        to_version: 7,
+        sql: IMPORT_CLEANUP_RULE_DDL,
     },
 ];
 
@@ -797,6 +808,64 @@ CREATE TABLE reading_mark (
   segment_id INTEGER PRIMARY KEY,
   navigation_segment_id INTEGER NOT NULL,
   marked_at TEXT NOT NULL
+);";
+
+/// Lược đồ bảng `import_cleanup_rule` — **bước song sinh MỚI** ở CẢ HAI kho (`global.db`
+/// bước 7, `project.db` bước 19) — Story 6.5, AD-18 · FR124.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 MỘT HẰNG, HAI CHỖ GỌI — cùng khuôn `GLOSSARY_ENTRY_DDL`
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `ScopeKind::ImportCleanupRule` khai `Semantics::Merge` (`core/scope/kinds.rs:192-198`):
+/// hai tầng ĐỘC LẬP, mỗi tầng đánh số `id` riêng — Toàn cục #1 và Tác phẩm #1 cùng tồn
+/// tại và không đội lốt nhau (danh tính trên dây là cặp `(tier, id)`, không phải `id`
+/// trần — xem doc-comment `core::cleanup::CleanupRule`). Một bảng chép SQL hai lần (thay
+/// vì một hằng dùng hai lần) là hai nguồn sự thật có thể trôi khỏi nhau.
+///
+/// `id INTEGER PRIMARY KEY AUTOINCREMENT` — cùng lý do `GLOSSARY_ENTRY_DDL`/`CHAPTER_DDL`:
+/// `AUTOINCREMENT` không tái dùng một `id` đã xoá (AD-3), dù ở đây hậu quả nhẹ hơn (không
+/// ai giữ tham chiếu chéo lâu dài tới một luật đã xoá), giữ thống nhất với mọi bảng khác
+/// của dự án vẫn rẻ hơn một ngoại lệ phải nhớ.
+///
+/// `kind` phân biệt `'literal'` (so khớp chuỗi con nguyên văn) và `'regex'` (biểu thức
+/// chính quy, biên dịch bằng crate `regex`, rà NFR15 ở spine §Stack) — `CHECK` cưỡng chế
+/// đúng hai giá trị, cùng khuôn `category`/`term_origin` của `GLOSSARY_ENTRY_DDL`.
+///
+/// `enabled` là `INTEGER` `0`/`1` (SQLite không có kiểu boolean riêng) — luật tắt vẫn ở
+/// lại bảng, vẫn được ĐẾM (`core::cleanup::apply` chạy trên MỌI luật bất kể `enabled`),
+/// chỉ không được XOÁ khỏi văn bản (§Always spec 6.5: "tắt đổi việc xoá, không đổi việc
+/// đo").
+///
+/// `ord` là cột thứ tự hiển thị — cùng khuôn `chapter.ord` (AD-3, AD-32): tách khỏi `id`
+/// để thứ tự hiển thị sắp lại được (luật mới thêm luôn vào cuối) mà không đụng danh tính.
+/// **Không** `UNIQUE` trên `ord` — story này không có lệnh sắp xếp lại, `ord` chỉ tăng dần
+/// tự nhiên theo thứ tự thêm.
+///
+/// Rào rỗng liệt TRỌN 25 điểm mã `White_Space` (`src-tauri/AGENTS.md:37` — `trim()` của
+/// SQLite chỉ cắt dấu cách ASCII), cùng tập `GLOSSARY_ENTRY_DDL` đã khai triển tay — một
+/// mẫu `"\u{3000}  "` bị từ chối ở CHÍNH tầng này, không chỉ ở tầng lệnh Rust
+/// (`core::cleanup::store::validate_pattern`) — hai lớp phải cùng nói một ngôn ngữ.
+///
+/// Không `FOREIGN KEY`/không khoá ngoại tới bất kỳ bảng nào — `PRAGMA foreign_keys` của
+/// kho cố ý tắt (cùng lý do `READING_MARK_DDL`/`CHAPTER_POSITION_DDL`), và luật làm sạch
+/// không tham chiếu một hàng nào khác.
+pub const IMPORT_CLEANUP_RULE_DDL: &str = "\
+CREATE TABLE import_cleanup_rule (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  pattern    TEXT    NOT NULL,
+  kind       TEXT    NOT NULL,
+  enabled    INTEGER NOT NULL DEFAULT 1,
+  ord        INTEGER NOT NULL,
+  created_at TEXT    NOT NULL,
+  CHECK (kind IN ('literal','regex')),
+  CHECK (enabled IN (0,1)),
+  CHECK (trim(pattern, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)
+                          || char(133) || char(160) || char(5760)
+                          || char(8192) || char(8193) || char(8194) || char(8195)
+                          || char(8196) || char(8197) || char(8198) || char(8199)
+                          || char(8200) || char(8201) || char(8202)
+                          || char(8232) || char(8233) || char(8239) || char(8287)
+                          || char(12288)) <> '')
 );";
 
 /// Lược đồ bảng `chapter` — **bước 1 của `project.db`**, Story 1.15, AC4.
@@ -1330,12 +1399,12 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
     "UPDATE segment SET translation_origin = 'self' WHERE status = 'confirmed';"
 );
 
-/// Bộ di trú của `project.db`. Hôm nay **mười bảy** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
-/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4 · 5.7 · 5.13.
+/// Bộ di trú của `project.db`. Hôm nay **mười tám** bước — Story 1.15 · 2.1 · 2.2 · 2.5 ·
+/// 2.5c · 2.5d · 2.6 · 2.7 · 3.1 · 3.2 · 3.5 · 3.10 · 5.4 · 5.7 · 5.13 · 6.5.
 ///
-/// 🔴 **Mười bảy bước, và đích là phiên bản 18.** Số **4** bị **bỏ trống có chủ ý** — xem vết
+/// 🔴 **Mười tám bước, và đích là phiên bản 19.** Số **4** bị **bỏ trống có chủ ý** — xem vết
 /// sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
-/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]` tăng dần nghiêm ngặt), và
+/// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]` tăng dần nghiêm ngặt), và
 /// [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không làm bước nào bị bỏ qua.
 ///
 /// ⚠️ Con số này đọc **bảy**, không sáu: bước 4 mà bản đầu của Story 1.20 thêm vào đã bị
@@ -1420,6 +1489,10 @@ pub const SEGMENT_TRANSLATION_ORIGIN_DDL: &str = concat!(
 /// 🔵 **CẬP NHẬT 2026-08-31 (Story 5.13):** đích chuyển từ **17** lên **18** — bước
 /// [`READING_MARK_DDL`] (marker khi đọc, FR119). Câu *"mười sáu bước, đích là 17"* đã hết
 /// đúng, sửa tại chỗ. Bảng chỉ tồn tại trong `project.db`: marker thuộc đúng một Tác phẩm.
+///
+/// 🔵 **CẬP NHẬT 2026-09-05 (Story 6.5):** đích chuyển từ **18** lên **19** — bước
+/// [`IMPORT_CLEANUP_RULE_DDL`] (tầng Tác phẩm của bảng luật làm sạch, AD-18, CÙNG một hằng
+/// với bước 7 của `global.db`). Câu *"mười bảy bước, đích là 18"* đã hết đúng, sửa tại chỗ.
 ///
 /// ⚠️ **Mỗi bước một hằng, không gộp** — và đó là hệ quả của một ràng buộc kỹ thuật, ghi ra
 /// thay vì giấu: `Migration::sql` là `&'static str`, và `concat!` (thứ duy nhất nối được
@@ -1583,6 +1656,14 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 18,
         sql: READING_MARK_DDL,
+    },
+    // Story 6.5 -- tang Tac pham cua bang luat lam sach (AD-18/FR124): bang
+    // import_cleanup_rule, CUNG mot hang voi buoc 7 cua global.db. Xem doc-comment cua
+    // IMPORT_CLEANUP_RULE_DDL.
+    // 19, khong phai 5 -- 5..18 da tieu.
+    Migration {
+        to_version: 19,
+        sql: IMPORT_CLEANUP_RULE_DDL,
     },
 ];
 

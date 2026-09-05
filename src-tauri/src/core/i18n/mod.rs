@@ -523,6 +523,27 @@ message_keys! {
     /// Chương mới sẽ RỖNG — một kết quả không có nghĩa, bị từ chối trước khi chạm SQL ghi nào.
     /// `chapter_id` là Chương sẽ bị để rỗng (Chương đang mở, phía trước điểm cắt).
     ChapterSplitLeavesEmpty => "err.chapter.split_leaves_empty" [],
+
+    // ── Story 6.5 (FR124 · AD-18) — bốn khoá, luật làm sạch lúc nhập ────────────────
+    //
+    // Bề mặt IPC `commands::cleanup` (liệt · thêm · sửa · xoá · bật/tắt). Danh mục ĐÓNG:
+    // `store.open_failed`/`store.write_failed` (đã có) phủ mọi lỗi KHO thô; bốn khoá dưới
+    // đây phủ đúng bốn sự thật không khoá kho nào nói được.
+    /// Mẫu rỗng/chỉ khoảng trắng sau khi trim — thêm/sửa một luật bị từ chối TRƯỚC khi mở
+    /// giao dịch, bảng không đổi một hàng.
+    CleanupEmptyPattern => "err.cleanup.empty_pattern" [],
+    /// Mẫu `kind = 'regex'` không biên dịch được (crate `regex::Regex::new`) — thêm/sửa bị
+    /// từ chối TRƯỚC khi mở giao dịch, cùng lý do [`MessageKey::CleanupEmptyPattern`].
+    CleanupInvalidRegex => "err.cleanup.invalid_regex" [],
+    /// Sửa/bật-tắt một luật bằng `(tier, id)` mà `id` không khớp hàng nào trong tầng đó —
+    /// luật đã bị xoá giữa chừng, hoặc một `id` cũ còn kẹt ở webview.
+    CleanupRuleMissing => "err.cleanup.rule_missing" [],
+    /// Chọn tầng Tác phẩm cho một luật khi chưa có Tác phẩm nào đang mở.
+    CleanupWorkTierUnavailable => "err.cleanup.work_tier_unavailable" [],
+    /// `ScopeResolver::apply_merge` từ chối bên trong `core::cleanup::store::CleanupStoreError::
+    /// Scope` — lỗi LẬP TRÌNH, không nên xảy ra trên đường gọi đúng (xem doc-comment của
+    /// `core::scope::ScopeError`). KHÔNG tham số, cùng lý do `GlossaryScopeError`.
+    CleanupScopeError => "err.cleanup.scope_error" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

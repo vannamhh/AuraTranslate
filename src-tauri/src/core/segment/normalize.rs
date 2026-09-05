@@ -163,8 +163,35 @@ pub fn normalize(text: &str, source_lang: &str) -> Normalized {
 /// làm nó SAI. Ngắn thì đọc được, sai thì không.
 #[must_use]
 pub fn normalize_window(text: &str, source_lang: &str, max_bytes: usize) -> Normalized {
+    match window_safe_prefix(text, max_bytes) {
+        Some(prefix) => normalize(&prefix, source_lang),
+        None => Normalized { text: String::new(), joined_lines: 0, blank_lines_removed: 0 },
+    }
+}
+
+/// Phần THUẦN của [`normalize_window`] — cắt cửa sổ AN TOÀN (bỏ dòng dang dở ở biên, rồi bỏ
+/// nốt dòng trọn vẹn cuối cùng vì quyết định nối của nó vẫn phụ thuộc phần đã cắt), KHÔNG
+/// gọi [`normalize`].
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO TÁCH RIÊNG — Story 6.5
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `tests/segment_normalize_boundary.rs::the_normalize_functions_have_exactly_four_named_product_call_sites`
+/// đếm ĐÚNG BỐN chỗ gọi sản phẩm của [`normalize`]/[`normalize_window`] (một trong
+/// `pipeline.rs`, ba trong `encoding.rs`). `commands::project` cần cắt cửa sổ AN TOÀN cho
+/// một ứng viên/đường tự khai RỒI đưa qua chuỗi pipeline thật (`run_pipeline`, đóng nợ
+/// `deferred-work.md:9359`) thay vì tự gọi [`normalize`] một lần nữa — gọi thẳng
+/// [`normalize_window`] ở đó sẽ là chỗ gọi sản phẩm THỨ NĂM và làm cổng đó đỏ. Hàm này
+/// mang tên KHÁC (không phải `normalize`/`normalize_window`), nên [`commands::project`] gọi
+/// được nó mà không chạm mệnh đề cổng đang canh — [`Step::NormalizeParagraphsAndWhitespace`]
+/// bên trong pipeline vẫn là nơi DUY NHẤT thật sự gọi [`normalize`] trên văn bản đã cắt.
+///
+/// [`commands::project`]: crate::commands::project
+/// [`Step::NormalizeParagraphsAndWhitespace`]: super::pipeline::Step::NormalizeParagraphsAndWhitespace
+#[must_use]
+pub fn window_safe_prefix(text: &str, max_bytes: usize) -> Option<String> {
     if text.len() <= max_bytes {
-        return normalize(text, source_lang);
+        return Some(text.to_owned());
     }
 
     let mut boundary = max_bytes.min(text.len());
@@ -176,7 +203,7 @@ pub fn normalize_window(text: &str, source_lang: &str, max_bytes: usize) -> Norm
     let cut_at_last_break = match truncated.rfind(['\n', '\r']) {
         Some(idx) => &truncated[..idx],
         // Cửa sổ không chứa nổi MỘT ranh giới dòng nào — không dòng nào TRỌN VẸN để hiện.
-        None => return Normalized { text: String::new(), joined_lines: 0, blank_lines_removed: 0 },
+        None => return None,
     };
 
     // `cut_at_last_break` giờ chỉ mang các dòng TRỌN VẸN (mỗi dòng được bao bởi `\n`/`\r`
@@ -187,7 +214,7 @@ pub fn normalize_window(text: &str, source_lang: &str, max_bytes: usize) -> Norm
     let mut lines: Vec<&str> = unified.split('\n').collect();
     lines.pop(); // dòng TRỌN VẸN cuối — quyết định nối của nó nằm ngoài cửa sổ, bỏ.
 
-    normalize(&lines.join("\n"), source_lang)
+    Some(lines.join("\n"))
 }
 
 #[cfg(test)]

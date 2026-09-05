@@ -41,6 +41,12 @@ function normalizedFor(text: string): ImportEncodingPreview['candidates'][number
   return { text, joined_lines: 0, blank_lines_removed: 0, window_truncated: false }
 }
 
+/** Khối làm sạch tối giản, 0 luật — Story 6.5. Các ca của tệp này canh dải bảng mã, không
+ * canh nội dung tầng 3 (xem `importPreviewCleanup.test.ts` cho ca đó). */
+function cleanupFor(text: string): ImportEncodingPreview['candidates'][number]['cleanup'] {
+  return { text, spans: [], rules: [], window_truncated: false, final_text: text }
+}
+
 /** Rust LUÔN cấp đủ năm ô khi có byte để dò, kể cả tin cậy CAO (I/O Matrix "Tệp thuần ASCII":
  * "năm bản dựng cho CÙNG một chuỗi") — chỉ khác `lowConfidencePreview()` ở việc cả năm ô
  * (trừ UTF-16) đọc ra CÙNG một chuỗi. */
@@ -49,24 +55,45 @@ function highConfidencePreview(): ImportEncodingPreview {
     confidence: 'high',
     selected_encoding: 'UTF-8',
     candidates: [
-      { label: 'UTF-8', encoding: 'UTF-8', preview: 'plain ascii', normalized: normalizedFor('plain ascii') },
+      {
+        label: 'UTF-8',
+        encoding: 'UTF-8',
+        preview: 'plain ascii',
+        normalized: normalizedFor('plain ascii'),
+        cleanup: cleanupFor('plain ascii'),
+      },
       {
         label: 'GB18030',
         encoding: 'gb18030',
         preview: 'plain ascii',
         normalized: normalizedFor('plain ascii'),
+        cleanup: cleanupFor('plain ascii'),
       },
-      { label: 'GBK', encoding: 'GBK', preview: 'plain ascii', normalized: normalizedFor('plain ascii') },
-      { label: 'Big5', encoding: 'Big5', preview: 'plain ascii', normalized: normalizedFor('plain ascii') },
+      {
+        label: 'GBK',
+        encoding: 'GBK',
+        preview: 'plain ascii',
+        normalized: normalizedFor('plain ascii'),
+        cleanup: cleanupFor('plain ascii'),
+      },
+      {
+        label: 'Big5',
+        encoding: 'Big5',
+        preview: 'plain ascii',
+        normalized: normalizedFor('plain ascii'),
+        cleanup: cleanupFor('plain ascii'),
+      },
       {
         label: 'UTF-16',
         encoding: 'UTF-16LE',
         preview: '灱慩⁮獡楣',
         normalized: normalizedFor('灱慩⁮獡楣'),
+        cleanup: cleanupFor('灱慩⁮獡楣'),
       },
     ],
     // candidates khong rong -- doc .normalized cua ung vien dang chon, khong doc truong nay.
     self_declared_normalized: null,
+    self_declared_cleanup: null,
   }
 }
 
@@ -77,6 +104,7 @@ function selfDeclaredPreview(): ImportEncodingPreview {
     selected_encoding: 'UTF-8',
     candidates: [],
     self_declared_normalized: normalizedFor('van ban dan tay'),
+    self_declared_cleanup: cleanupFor('van ban dan tay'),
   }
 }
 
@@ -85,18 +113,38 @@ function lowConfidencePreview(): ImportEncodingPreview {
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [
-      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null },
+      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null, cleanup: null },
       {
         label: 'GB18030',
         encoding: 'gb18030',
         preview: '萧炎在东临',
         normalized: normalizedFor('萧炎在东临'),
+        cleanup: cleanupFor('萧炎在东临'),
       },
-      { label: 'GBK', encoding: 'GBK', preview: '萧炎在东临', normalized: normalizedFor('萧炎在东临') },
-      { label: 'Big5', encoding: 'Big5', preview: '達鍁誗', normalized: normalizedFor('達鍁誗') },
-      { label: 'UTF-16', encoding: 'UTF-16LE', preview: '扡摣捥', normalized: normalizedFor('扡摣捥') },
+      {
+        label: 'GBK',
+        encoding: 'GBK',
+        preview: '萧炎在东临',
+        normalized: normalizedFor('萧炎在东临'),
+        cleanup: cleanupFor('萧炎在东临'),
+      },
+      {
+        label: 'Big5',
+        encoding: 'Big5',
+        preview: '達鍁誗',
+        normalized: normalizedFor('達鍁誗'),
+        cleanup: cleanupFor('達鍁誗'),
+      },
+      {
+        label: 'UTF-16',
+        encoding: 'UTF-16LE',
+        preview: '扡摣捥',
+        normalized: normalizedFor('扡摣捥'),
+        cleanup: cleanupFor('扡摣捥'),
+      },
     ],
     self_declared_normalized: null,
+    self_declared_cleanup: null,
   }
 }
 
@@ -243,15 +291,14 @@ describe('importPreviewState — chọn một ứng viên khác', () => {
   })
 })
 
-describe('importPreviewState — hai tầng rỗng nói ra lý do và tên chủ', () => {
-  it('tầng 2 (ranh giới nội dung) rỗng vì Story 6.9', async () => {
+// 🔵 SỬA 2026-09-05 (Story 6.5) — describe cũ "hai tầng rỗng" đã HẾT ĐÚNG. Tầng 3 (luật
+// làm sạch) nay CÓ THÂN (xem `importPreviewCleanup.test.ts`); `importPreviewEmptyReasonForTier`
+// hẹp lại còn tham số `2`, nên ca cũ cho tham số `3` không còn BIÊN DỊCH được — xoá, không
+// để nó lặng lẽ sai. Chỉ còn MỘT tầng rỗng.
+describe('importPreviewState — tầng 2 (ranh giới nội dung) rỗng, nói ra lý do và tên chủ', () => {
+  it('tầng 2 rỗng vì Story 6.9', async () => {
     const state = await freshState()
     expect(state.importPreviewEmptyReasonForTier(2)).toBe('story_6_9')
-  })
-
-  it('tầng 3 (luật làm sạch) rỗng vì Story 6.5', async () => {
-    const state = await freshState()
-    expect(state.importPreviewEmptyReasonForTier(3)).toBe('story_6_5')
   })
 })
 

@@ -40,6 +40,10 @@ libsqlite3-sys = "=0.38.1"
 jieba-rs = "=0.10.3"          # core::matching — nhánh tiếng Trung (AD-17)
 tantivy-stemmers = "=0.4.0"   # core::matching — nhánh tiếng Anh (AD-17)
 docx-rs = "=0.4.22"           # core::export (AD-38)
+# core::cleanup — luật làm sạch dạng biểu thức chính quy (Story 6.5, FR124). Rà NFR15
+# lượt bảy (spine §Stack, 2026-09-05): MIT OR Apache-2.0, đã ghim sẵn trong Cargo.lock từ
+# trước (bắc cầu qua jieba-rs/tantivy-stemmers) — khai tường minh ở đây thêm 0 byte payload.
+regex = "=1.13.1"
 # TRỰC TIẾP, không qua `tauri-plugin-keyring` (AD-29). core::ai / Story 4.3.
 # Feature mặc định `v1` đã kéo sẵn backend gốc của cả ba nền tảng
 # (`apple-native-keyring-store/keychain` · `windows-native-keyring-store` ·

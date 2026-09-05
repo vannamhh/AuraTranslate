@@ -36,13 +36,15 @@
 //! đầu [`run_import_with_order`] — xem doc-comment của nó.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! 🔴 BA BƯỚC THÂN RỖNG — CÓ CHỦ Ý, MỖI BƯỚC MỘT STORY CHỦ (§Never của spec 6.2)
+//! 🔴 HAI BƯỚC THÂN RỖNG — CÓ CHỦ Ý, MỖI BƯỚC MỘT STORY CHỦ (§Never của spec 6.2)
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔵 **SỬA 2026-09-04 (Story 6.4)** — từ "BỐN bước" xuống "BA bước": [`Step::NormalizeParagraphsAndWhitespace`]
 //! không còn no-op, xem nhánh `match` của nó ngay dưới ([`normalize::normalize`]).
-//! [`Step::ExtractMainContent`] (`dom_smoothie`, Story 6.9), [`Step::CleanByRules`]
-//! (Story 6.5), [`Step::Preview`] (Story 6.5/6.9) — ba bước CÒN LẠI là no-op trong `match`
-//! của [`run_import_with_order`]. Chúng CÓ MẶT trong [`PIPELINE_ORDER`] và trong
+//! 🔵 **SỬA 2026-09-05 (Story 6.5)** — từ "BA bước" xuống "HAI bước":
+//! [`Step::CleanByRules`] cũng không còn no-op, xem nhánh `match` của nó ngay dưới
+//! ([`crate::core::cleanup::apply`]). [`Step::ExtractMainContent`] (`dom_smoothie`, Story
+//! 6.9), [`Step::Preview`] (Story 6.9) — hai bước CÒN LẠI là no-op trong `match` của
+//! [`run_import_with_order`]. Chúng CÓ MẶT trong [`PIPELINE_ORDER`] và trong
 //! [`PipelineOutput::trace`] của MỌI lượt chạy — một bước thân rỗng vẫn phải NÓI ĐƯỢC là đã
 //! đi qua, không được biến mất khỏi vết chạy chỉ vì nó không làm gì (AC6 của spec 6.2). Vết
 //! chạy được ghi TỪ BÊN TRONG mỗi nhánh `match`, không phải một `trace.push` chung sau vòng
@@ -82,7 +84,8 @@ pub enum Step {
     DecodeEncoding,
     /// Bước 2 — bóc nội dung chính. THÂN RỖNG (Story 6.9, `dom_smoothie`).
     ExtractMainContent,
-    /// Bước 3 — làm sạch theo luật. THÂN RỖNG (Story 6.5).
+    /// Bước 3 — làm sạch theo luật ([`crate::core::cleanup::apply`], Story 6.5, FR124).
+    /// 🔵 SỬA 2026-09-05 — KHÔNG còn thân rỗng.
     CleanByRules,
     /// Bước 4 — chuẩn hoá đoạn & khoảng trắng ([`normalize::normalize`], Story 6.4,
     /// FR124/FR125). 🔵 SỬA 2026-09-04 — KHÔNG còn thân rỗng.
@@ -208,17 +211,26 @@ pub struct PipelineInput {
     /// `work.source_lang` — bước 7 ([`split_source_text`]) rẽ nhánh Trung/Anh theo trường
     /// này (AD-18: không đoán từ nội dung).
     pub source_lang: String,
+    /// **THÊM 2026-09-05 (Story 6.5)** — luật làm sạch ĐÃ PHÂN GIẢI (hai tầng đã hợp nhất
+    /// qua `ScopeResolver::apply_merge` ở chỗ gọi, xem
+    /// `core::cleanup::store::resolve_two_tiers`) cho [`Step::CleanByRules`] (bước 3).
+    /// Rỗng ⇒ bước 3 là no-op thật (không luật nào để mà áp — khác "thân rỗng theo thiết
+    /// kế" của bản Story 6.2, đây là "0 luật vì người dùng chưa soạn", Ice chốt xuất xưởng
+    /// 0 luật mặc định, spec 6.5 §Intent).
+    pub cleanup_rules: Vec<crate::core::cleanup::CleanupRule>,
 }
 
 impl PipelineInput {
-    /// Cấu hình MẶC ĐỊNH của đường sản phẩm hôm nay — UTF-8, không mẫu phân tách. Xem
-    /// doc-comment các trường `encoding`/`chapter_pattern` ở trên cho lý do.
+    /// Cấu hình MẶC ĐỊNH của đường sản phẩm hôm nay — UTF-8, không mẫu phân tách, không
+    /// luật làm sạch. Xem doc-comment các trường `encoding`/`chapter_pattern` ở trên cho
+    /// lý do.
     pub fn default_shaped(shape: PipelineShape, source_lang: impl Into<String>) -> Self {
         PipelineInput {
             shape,
             encoding: encoding_rs::UTF_8,
             chapter_pattern: None,
             source_lang: source_lang.into(),
+            cleanup_rules: Vec::new(),
         }
     }
 
@@ -227,13 +239,29 @@ impl PipelineInput {
     /// Đường sản phẩm dùng hàm này khi người dùng đã xác nhận một ứng viên ở màn xem trước
     /// bảng mã (`commands::project::confirm_import_with_encoding`) — `chapter_pattern` vẫn
     /// `None` (Never clause của spec 6.2/6.3: mẫu phân tách người dùng cấu hình được là
-    /// Story 6.6, không thuộc phạm vi này).
+    /// Story 6.6, không thuộc phạm vi này). `cleanup_rules` rỗng — dùng
+    /// [`PipelineInput::with_cleanup_rules`] để đính luật vào SAU khi dựng.
     pub fn with_encoding(
         shape: PipelineShape,
         encoding: &'static encoding_rs::Encoding,
         source_lang: impl Into<String>,
     ) -> Self {
-        PipelineInput { shape, encoding, chapter_pattern: None, source_lang: source_lang.into() }
+        PipelineInput {
+            shape,
+            encoding,
+            chapter_pattern: None,
+            source_lang: source_lang.into(),
+            cleanup_rules: Vec::new(),
+        }
+    }
+
+    /// **THÊM 2026-09-05 (Story 6.5)** — builder đính `cleanup_rules` vào một cấu hình đã
+    /// dựng, đứng CẠNH hai constructor trên (không sửa/xoá chúng — §Always spec 6.5 lặp lại
+    /// đúng luật mà Story 6.3 đã theo cho `with_encoding`).
+    #[must_use]
+    pub fn with_cleanup_rules(mut self, rules: Vec<crate::core::cleanup::CleanupRule>) -> Self {
+        self.cleanup_rules = rules;
+        self
     }
 }
 
@@ -248,6 +276,7 @@ impl std::fmt::Debug for PipelineInput {
             .field("encoding", &self.encoding.name())
             .field("chapter_pattern", &self.chapter_pattern)
             .field("source_lang", &self.source_lang)
+            .field("cleanup_rules", &self.cleanup_rules)
             .finish()
     }
 }
@@ -300,6 +329,13 @@ struct Flow {
     /// là hình dạng "đã chia Chương" và không được đem đi tách lại, dù độ dài quan sát được
     /// trùng với độ dài của một `Blob` chưa tách).
     already_chaptered: bool,
+    /// **THÊM 2026-09-05 (Story 6.5)** — báo cáo [`Step::CleanByRules`] cho từng phần tử
+    /// `units`, SONG SONG theo INDEX — cùng khuôn `segments`. `None` = chưa có báo cáo (bước
+    /// 3 chưa chạy, hoặc đơn vị này là `Unit::Undecoded` khi bước 3 chạy). Reset về
+    /// `vec![None; n]` khi [`split_chapters_step`] THẬT SỰ đổi số phần tử — cùng lý do
+    /// `segments` reset ở đó: một báo cáo tính cho ĐƠN VỊ TRƯỚC khi tách không còn khớp
+    /// INDEX nào có nghĩa sau khi tách.
+    cleanup_reports: Vec<Option<crate::core::cleanup::CleanupReport>>,
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -320,34 +356,69 @@ pub fn run_import_with_order(
 ) -> Result<PipelineOutput, ImportError> {
     validate_order(order)?;
 
-    let PipelineInput { shape, encoding, chapter_pattern, source_lang } = input;
+    let PipelineInput { shape, encoding, chapter_pattern, source_lang, cleanup_rules } = input;
 
     let (initial_units, already_chaptered): (Vec<Unit>, bool) = match shape {
         PipelineShape::Blob(c) => (vec![Unit::from(c)], false),
         PipelineShape::Chapters(cs) => (cs.into_iter().map(Unit::from).collect(), true),
     };
     let n = initial_units.len();
-    let mut flow = Flow { units: initial_units, segments: vec![None; n], already_chaptered };
+    let mut flow = Flow {
+        units: initial_units,
+        segments: vec![None; n],
+        already_chaptered,
+        cleanup_reports: vec![None; n],
+    };
 
     let mut trace: Vec<Step> = Vec::with_capacity(order.len());
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
-                let Flow { units: old_units, segments, already_chaptered } = flow;
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports } = flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 for u in old_units {
                     units.push(decode_unit(u, encoding)?);
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered }
+                Flow { units, segments, already_chaptered, cleanup_reports }
             }
             Step::ExtractMainContent => {
                 trace.push(step);
                 flow
             }
+            // 🔴 THÂN THẬT — Story 6.5, FR124, AD-39 bước 3. GỌI `core::cleanup::apply`,
+            // không viết lại nội tuyến (cùng luật "gọi xuống, đừng chép lại" mà bước 4 —
+            // Story 6.4 — đã theo cho `normalize::normalize`). `trace.push` Ở LẠI BÊN TRONG
+            // nhánh (AC6 spec 6.2, doc-comment đầu tệp).
             Step::CleanByRules => {
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports: _ } =
+                    flow;
+                let mut units = Vec::with_capacity(old_units.len());
+                let mut cleanup_reports = Vec::with_capacity(old_units.len());
+                for u in old_units {
+                    match u {
+                        Unit::Decoded(text) => {
+                            let cleaned = crate::core::cleanup::apply(&text, &cleanup_rules)
+                                .map_err(|e| ImportError::InvalidCleanupPattern {
+                                    detail: e.to_string(),
+                                })?;
+                            cleanup_reports.push(Some(crate::core::cleanup::CleanupReport {
+                                matches: cleaned.matches,
+                                per_rule_counts: cleaned.per_rule_counts,
+                            }));
+                            units.push(Unit::Decoded(cleaned.text));
+                        }
+                        // `Unit::Undecoded` ở bước này là BẤT KHẢ trên mọi thứ tự HỢP LỆ
+                        // (bước 1 luôn đứng trước bước 3) — giữ nguyên là phòng thủ cho một
+                        // thứ tự SAI, cùng khuôn `NormalizeParagraphsAndWhitespace` ngay dưới.
+                        other @ Unit::Undecoded { .. } => {
+                            cleanup_reports.push(None);
+                            units.push(other);
+                        }
+                    }
+                }
                 trace.push(step);
-                flow
+                Flow { units, segments, already_chaptered, cleanup_reports }
             }
             // 🔴 THÂN THẬT — Story 6.4, FR124/FR125, AD-39 bước 4. GỌI `normalize::normalize`,
             // không viết lại nội tuyến (Task list spec 6.4) — mọi luật (bảng kết câu, bảng
@@ -355,7 +426,7 @@ pub fn run_import_with_order(
             // `trace.push` Ở LẠI BÊN TRONG nhánh (AC6 spec 6.2, doc-comment đầu tệp) —
             // KHÔNG gộp vào một `trace.push` chung sau vòng lặp.
             Step::NormalizeParagraphsAndWhitespace => {
-                let Flow { units: old_units, segments, already_chaptered } = flow;
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports } = flow;
                 let units = old_units
                     .into_iter()
                     .map(|u| match u {
@@ -372,7 +443,7 @@ pub fn run_import_with_order(
                     })
                     .collect();
                 trace.push(step);
-                Flow { units, segments, already_chaptered }
+                Flow { units, segments, already_chaptered, cleanup_reports }
             }
             Step::SplitChapters => {
                 let next = split_chapters_step(flow, chapter_pattern.as_deref());
@@ -395,7 +466,8 @@ pub fn run_import_with_order(
         .units
         .into_iter()
         .zip(flow.segments)
-        .map(|(u, s)| -> Result<ImportedChapter, ImportError> {
+        .zip(flow.cleanup_reports)
+        .map(|((u, s), cleanup_report)| -> Result<ImportedChapter, ImportError> {
             let source_text = match u {
                 Unit::Decoded(t) => t,
                 // 🔴 KHÔNG THỂ xảy ra sau `validate_order`: `DecodeEncoding` xuất hiện ĐÚNG
@@ -413,7 +485,7 @@ pub fn run_import_with_order(
                     });
                 }
             };
-            Ok(ImportedChapter { source_text, segments: s.unwrap_or_default() })
+            Ok(ImportedChapter { source_text, segments: s.unwrap_or_default(), cleanup_report })
         })
         .collect::<Result<Vec<_>, ImportError>>()?;
 
@@ -567,6 +639,12 @@ fn split_chapters_step(mut flow: Flow, pattern: Option<&str>) -> Flow {
     // Reset — số phần tử vừa đổi, một `Some(..)` cũ (nếu có, từ một thứ tự bị đảo NGOÀI
     // phạm vi đối chứng chính thức) không còn khớp INDEX nào có nghĩa.
     flow.segments = vec![None; n];
+    // 🔴 THÊM 2026-09-05 (Story 6.5) — cùng lý do `segments` ngay trên: một báo cáo làm sạch
+    // tính cho đơn vị TRƯỚC khi tách (bước 3 đứng TRƯỚC bước 5 trong `PIPELINE_ORDER`) không
+    // còn khớp INDEX nào có nghĩa sau khi tách thành N mảnh. Đường sản phẩm không chạm
+    // nhánh này (`chapter_pattern` luôn `None` ⇒ hàm này return sớm ở trên) — chỉ
+    // `tests/**` khai một mẫu thật mới tới được đây.
+    flow.cleanup_reports = vec![None; n];
     flow
 }
 

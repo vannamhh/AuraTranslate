@@ -21,42 +21,55 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockInvoke = vi.fn()
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args: unknown[]) => mockInvoke(...args) }))
 
+/** Khối làm sạch tối giản, 0 luật — Story 6.5. Hình dạng THẬT của
+ * `commands::project::CleanupPreviewWire`. */
+function cleanupFor(text: string): Record<string, unknown> {
+  return { text, spans: [], rules: [], window_truncated: false, final_text: text }
+}
+
 /** Payload dây HỢP LỆ — hình dạng THẬT mà `commands::project::ImportEncodingPreview` (Rust,
  * `serde::Serialize` KHÔNG `rename_all`) trả về. Story 6.4 thêm `normalized` trên mỗi ô —
- * `null` đồng bộ với `preview: null`, một object khi `preview` có chữ. */
+ * `null` đồng bộ với `preview: null`, một object khi `preview` có chữ. Story 6.5 thêm
+ * `cleanup` trên mỗi ô + `self_declared_cleanup`, cùng luật đồng bộ `null`. */
 function validWirePreview(): Record<string, unknown> {
   return {
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [
-      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null },
+      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null, cleanup: null },
       {
         label: 'GB18030',
         encoding: 'gb18030',
         preview: '萧炎',
         normalized: { text: '萧炎', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+        cleanup: cleanupFor('萧炎'),
       },
       {
         label: 'GBK',
         encoding: 'GBK',
         preview: '萧炎',
         normalized: { text: '萧炎', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+        cleanup: cleanupFor('萧炎'),
       },
       {
         label: 'Big5',
         encoding: 'Big5',
         preview: '達鍁',
         normalized: { text: '達鍁', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+        cleanup: cleanupFor('達鍁'),
       },
       {
         label: 'UTF-16',
         encoding: 'UTF-16LE',
         preview: '扡摣',
         normalized: { text: '扡摣', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+        cleanup: cleanupFor('扡摣'),
       },
     ],
-    // candidates khong rong -- doc .normalized cua ung vien dang chon, khong doc truong nay.
+    // candidates khong rong -- doc .normalized/.cleanup cua ung vien dang chon, khong doc
+    // hai truong nay.
     self_declared_normalized: null,
+    self_declared_cleanup: null,
   }
 }
 
@@ -191,6 +204,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
       selected_encoding: 'UTF-8',
       candidates: [],
       self_declared_normalized: { text: 'da dan', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+      self_declared_cleanup: cleanupFor('da dan'),
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
@@ -209,5 +223,120 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
 
     expect(result.error).toBeNull()
     expect(result.preview?.candidates).toHaveLength(5)
+  })
+
+  // ── Story 6.5 — khối làm sạch (tầng 3) trên dây ──────────────────────────────────
+
+  // Cùng lý lẽ mục 23/vá vòng rà 1 đã áp cho `normalized` — `cleanup` VẮNG MẶT (không phải
+  // `null`) phải bác CẢ payload, không lọt qua thành `undefined` hiện lên `.vue`.
+  it('candidates[].cleanup VẮNG MẶT (thiếu trường, không phải null) làm CẢ payload bị bác', async () => {
+    mockInvoke.mockResolvedValue({
+      confidence: 'high',
+      selected_encoding: 'UTF-8',
+      candidates: [
+        {
+          label: 'UTF-8',
+          encoding: 'UTF-8',
+          preview: 'abc',
+          normalized: { text: 'abc', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+          // thieu `cleanup` han
+        },
+      ],
+      self_declared_normalized: null,
+      self_declared_cleanup: null,
+    })
+    const { previewImportEncodingFromText } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromText('x', 'en')
+
+    expect(result.preview).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  it('candidates[].cleanup.spans THIẾU một trường con (`end` vắng mặt) làm CẢ payload bị bác', async () => {
+    mockInvoke.mockResolvedValue({
+      confidence: 'high',
+      selected_encoding: 'UTF-8',
+      candidates: [
+        {
+          label: 'UTF-8',
+          encoding: 'UTF-8',
+          preview: 'abc',
+          normalized: { text: 'abc', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+          cleanup: {
+            text: 'abc',
+            spans: [{ tier: 'global', id: 1, start: 0 }], // thieu `end`
+            rules: [],
+            window_truncated: false,
+            final_text: 'abc',
+          },
+        },
+      ],
+      self_declared_normalized: null,
+      self_declared_cleanup: null,
+    })
+    const { previewImportEncodingFromText } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromText('x', 'en')
+
+    expect(result.preview).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  it('self_declared_cleanup VẮNG MẶT (thiếu trường, không phải null) làm CẢ payload bị bác', async () => {
+    const payload = validWirePreview()
+    delete payload.self_declared_cleanup
+    mockInvoke.mockResolvedValue(payload)
+    const { previewImportEncodingFromText } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromText('x', 'en')
+
+    expect(result.preview).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  // Ca DƯƠNG — một khối làm sạch mang luật + span THẬT (không rỗng) phải đi qua nguyên vẹn,
+  // không bị Kiểm TYPE cắt bớt trường nào.
+  it('payload mang khối làm sạch KHÔNG rỗng (luật + span thật) đi qua nguyên vẹn', async () => {
+    mockInvoke.mockResolvedValue({
+      confidence: 'high',
+      selected_encoding: 'UTF-8',
+      candidates: [
+        {
+          label: 'UTF-8',
+          encoding: 'UTF-8',
+          preview: 'quang cao abc',
+          normalized: { text: 'quang cao abc', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+          cleanup: {
+            text: 'quang cao abc',
+            spans: [{ tier: 'global', id: 1, start: 0, end: 9 }],
+            rules: [
+              {
+                tier: 'global',
+                id: 1,
+                pattern: 'quang cao',
+                kind: 'literal',
+                enabled: true,
+                count_in_chapter: 1,
+                count_in_import: 1,
+              },
+            ],
+            window_truncated: false,
+            final_text: 'abc',
+          },
+        },
+      ],
+      self_declared_normalized: null,
+      self_declared_cleanup: null,
+    })
+    const { previewImportEncodingFromText } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromText('quang cao abc', 'en')
+
+    expect(result.error).toBeNull()
+    const cleanup = result.preview?.candidates[0]?.cleanup
+    expect(cleanup?.spans).toHaveLength(1)
+    expect(cleanup?.rules[0]?.pattern).toBe('quang cao')
+    expect(cleanup?.final_text).toBe('abc')
   })
 })

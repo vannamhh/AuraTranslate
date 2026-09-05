@@ -80,14 +80,15 @@ fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
 
     assert_eq!(
         store.schema_version(),
-        6,
-        "`GLOBAL_MIGRATIONS` co sau buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
+        7,
+        "`GLOBAL_MIGRATIONS` co bay buoc (1.7 so di tru, 1.8 `config_value`, 1.20 \
          `pinned_entry`, 3.1 `glossary_entry`, 3.10 gia tri term_origin thu tu, phan quyet \
-         Ice #1 bang library_orphan), nen mot `global.db` moi phai ket thuc o phien ban 6"
+         Ice #1 bang library_orphan, 6.5 bang import_cleanup_rule), nen mot `global.db` moi \
+         phai ket thuc o phien ban 7"
     );
     assert_eq!(
         GLOBAL_MIGRATIONS.len(),
-        6,
+        7,
         "so buoc va so phien ban dich phai di cung nhau"
     );
 
@@ -136,7 +137,9 @@ fn an_older_global_database_migrates_up_and_keeps_its_rows() {
     // gia tri term_origin thu tu. Menh de van khong doi.
     // 🔵 CAP NHAT 2026-08-27 (phan quyet Ice #1, Story 5.3): dich 5 → 6 — buoc `library_orphan`.
     // Menh de van khong doi: di tru khong dung toi cau hinh cu.
-    assert_eq!(migrated.schema_version(), 6, "buoc 3, 4, 5 va 6 phai da chay");
+    // 🔵 CAP NHAT 2026-09-05 (Story 6.5): dich 6 → 7 — buoc `import_cleanup_rule`. Menh de
+    // van khong doi: di tru khong dung toi cau hinh cu.
+    assert_eq!(migrated.schema_version(), 7, "buoc 3, 4, 5, 6 va 7 phai da chay");
 
     let theme: String = migrated
         .read(|conn| {
@@ -210,18 +213,22 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     // 🔵 CAP NHAT 2026-08-29 (Story 5.7): muoi lam buoc → MUOI SAU, dich 16 → 17 (bang
     //    `chapter_position`, AD-3, KHONG co buoc song sinh o `GLOBAL_MIGRATIONS`). Hai con so
     //    duoi day van chi la NEO.
+    // 🔵 CAP NHAT 2026-09-05 (Story 6.5): muoi bay buoc → MUOI TAM, dich 18 → 19 (bang
+    //    `import_cleanup_rule`, AD-18/FR124, CUNG mot hang voi buoc 7 cua `global.db`). Hai
+    //    con so duoi day van chi la NEO -- ly do them bang, khong phai mot ky vong da noi.
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        17,
-        "`PROJECT_MIGRATIONS` phai co muoi sau buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
+        18,
+        "`PROJECT_MIGRATIONS` phai co muoi tam buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
          6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
          10 cua Story 2.6, 11 cua Story 2.7, 12 cua Story 3.1, 13 cua Story 3.2, \
-         14 cua Story 3.5, 15 cua Story 3.10, 16 cua Story 5.4, 17 cua Story 5.7, 18 cua Story 5.13"
+         14 cua Story 3.5, 15 cua Story 3.10, 16 cua Story 5.4, 17 cua Story 5.7, 18 cua Story \
+         5.13, 19 cua Story 6.5"
     );
     assert_eq!(
         opened.store.schema_version(),
-        18,
-        "mot `project.db` moi phai dung o phien ban 18 (so 4 da chay)"
+        19,
+        "mot `project.db` moi phai dung o phien ban 19 (so 4 da chay)"
     );
 
     let has_table: i64 = opened

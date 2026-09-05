@@ -258,6 +258,14 @@ pub struct EncodingCandidate {
     /// chuẩn hoá và số đếm của CẢ NĂM ứng viên đi kèm sẵn trên dây" — điều kiện để đổi ứng
     /// viên vẫn là 0 lời gọi IPC.
     pub normalized: Option<NormalizedCandidate>,
+    /// **THÊM 2026-09-05 (Story 6.5)** — bản dựng AN TOÀN (cửa sổ đã cắt, KHÔNG chuẩn hoá —
+    /// xem [`super::normalize::window_safe_prefix`]) mà `commands::project` nạp vào chuỗi
+    /// pipeline thật (`run_pipeline`) để tính báo cáo làm sạch cho ứng viên này, đóng nợ
+    /// `deferred-work.md:9359`. `None` đồng bộ với `preview`/`normalized` (bảng mã này
+    /// "không ra chữ"), hoặc khi cửa sổ không đủ một dòng trọn vẹn để hiện (đồng bộ
+    /// `NormalizedCandidate.text == ""`). KHÔNG phải một trường trên dây — `commands::project`
+    /// đọc nó nội bộ rồi bỏ, không forward nguyên văn qua IPC.
+    pub pipeline_window: Option<String>,
 }
 
 /// Dựng dải NĂM Ô — một bản dựng thật cho mỗi nhãn FR126, theo ĐÚNG thứ tự
@@ -289,8 +297,23 @@ pub fn render_candidates(bytes: &[u8], source_lang: &str) -> Vec<EncodingCandida
             normalized: decoded.as_ref().map(|full_text| {
                 normalized_candidate(full_text, source_lang, window_truncated)
             }),
+            pipeline_window: decoded
+                .as_ref()
+                .and_then(|full_text| pipeline_window_for(full_text, window_truncated)),
         })
         .collect()
+}
+
+/// Bản dựng AN TOÀN (cửa sổ đã cắt, chưa chuẩn hoá) cho MỘT ứng viên — cùng khuôn
+/// `normalized_candidate` (mẹo `len() - 1` ép nhánh windowed chạy khi `window_truncated`),
+/// nhưng gọi [`super::normalize::window_safe_prefix`] thay vì [`super::normalize::normalize_window`]
+/// — xem doc-comment của hàm đó cho lý do KHÔNG được gọi thẳng `normalize_window` ở đây.
+fn pipeline_window_for(full_text: &str, window_truncated: bool) -> Option<String> {
+    if window_truncated {
+        super::normalize::window_safe_prefix(full_text, full_text.len().saturating_sub(1))
+    } else {
+        Some(full_text.to_owned())
+    }
 }
 
 /// Bản dựng chuẩn hoá cho MỘT ứng viên — tách khỏi `render_candidates` chỉ để đặt tên cho
@@ -345,6 +368,14 @@ pub fn normalized_self_declared(text: &str, source_lang: &str) -> NormalizedCand
         blank_lines_removed: normalized.blank_lines_removed,
         window_truncated,
     }
+}
+
+/// Cùng lý do [`normalized_self_declared`] — bản AN TOÀN (cửa sổ đã cắt, CHƯA chuẩn hoá)
+/// cho nhánh TỰ KHAI, để `commands::project` nạp vào chuỗi pipeline thật. Xem doc-comment
+/// [`super::normalize::window_safe_prefix`] cho lý do không gọi thẳng `normalize_window`.
+#[must_use]
+pub fn pipeline_window_for_self_declared(text: &str) -> Option<String> {
+    super::normalize::window_safe_prefix(text, EVIDENCE_WINDOW_BYTES)
 }
 
 /// Đi NGƯỢC từ [`EncodingCandidate::wire_id`] (hoặc bất kỳ tên WHATWG hợp lệ nào) về

@@ -66,5 +66,33 @@ export default defineConfig({
     // tường minh. Cùng lý do `verbatimModuleSyntax` bật trong `tsconfig.json`: một cái tên
     // xuất hiện từ hư không là một cái tên `vue-tsc` phải được dạy riêng để thấy.
     globals: false,
+    // ─────────────────────────────────────────────────────────────────────────
+    // 🔴 THÊM 2026-09-05 (Story 6.5, phán quyết Ice) — CỔNG PHẢI ĐO MÃ, KHÔNG ĐO MÁY
+    // ─────────────────────────────────────────────────────────────────────────
+    // Chín tệp trong cây này mang ca phụ thuộc TẢI MÁY: chúng mount component thật rồi
+    // `await` một mốc, và `testTimeout` mặc định là 5 000 ms — nên phán quyết của chúng
+    // là một phép đo của MÃ **cộng** MÁY. Đo được ở Story 6.5 (2026-09-05, cùng máy,
+    // cùng lượt):
+    //   • nền chưa có story, `npm run test` song song ......... 822/822 xanh, 27,43 s
+    //   • có story, `npm run test` song song .................. 835 xanh / **5 ĐỎ**, 37,09 s
+    //   • cùng cây, `--no-file-parallelism` ................... 840/840 xanh, 98,65 s
+    //   • bốn tệp đỏ chạy RIÊNG ............................... 42/42 xanh
+    // Cả bốn tệp đỏ (`editorClearSourceCuts` · `editorTypingZone` · `glossaryHoverSelection`
+    // · `glossaryMarksRefresh`) KHÔNG nạp một tệp nào Story 6.5 chạm — `src/config/project.ts`
+    // chỉ có ba chỗ import và không chỗ nào nằm trên đường của chúng. ⇒ Story 6.5 không đổi
+    // hành vi của chúng; nó chỉ đẩy tải worker qua một ngưỡng VỐN ĐÃ lung lay (tệp nặng nhất
+    // kho, `glossaryMarksRefresh`, đã mất 3,28 s ngay cả khi chạy tuần tự).
+    //
+    // Hai lối vá bị loại, mỗi cái vì một lý do đo được: nâng `testTimeout` là HẠ NGƯỠNG cho
+    // hết đỏ (`src-tauri/AGENTS.md` cấm đúng hình dạng đó — cho exit 0 trên một sản phẩm
+    // đang hỏng); hạ `maxWorkers` xuống một con số cố định là một con số phù thuỷ chưa đo
+    // trên máy CI, tức vẫn để nguyên lớp lỗi "xanh ở máy Ice, đỏ ở CI" mà `AGENTS.md:28`
+    // đã ghi thành luật.
+    //
+    // ⚠️ Giá phải trả, ghi ra thay vì làm nhẹ đi: mỗi lượt `npm run test` đi từ ~27 s lên
+    // ~99 s, trên CẢ `pre-push` LẪN CI. Đổi lại, một lượt xanh nói về mã. Gốc rễ — bốn tệp
+    // kia không được phụ thuộc wall-clock — là một món nợ CÓ CHỦ, không phải thứ story này
+    // im lặng nhận.
+    fileParallelism: false,
   },
 })

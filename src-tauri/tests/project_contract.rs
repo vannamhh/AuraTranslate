@@ -611,7 +611,7 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
     ]);
     // 🔵 SỬA (2026-09-04, Story 6.3) — `create_work` thêm tham số `encoding`; ca này không
     // canh bảng mã, giữ UTF-8 để hành vi cũ không đổi.
-    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8)
+    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new())
         .expect("tao Tac pham voi N > 1 Chuong that bai");
 
     let rows: Vec<(i64, i64, String)> = opened
@@ -1259,10 +1259,16 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
 /// chính Chương đó), khoá chính là `chapter_id`, cùng vai với `segment`/`segment_version`
 /// gắn theo `chapter`/`segment`. Xem §Design Notes "Vì sao một BẢNG riêng cho vị trí" của
 /// `5-7-danh-sach-chuong-va-mo-chuong-vao-workspace.md`.
-const NON_ENTITY_DETAIL_TABLES: [&str; 8] = [
+///
+/// 🔵 **THÊM (2026-09-05, Story 6.5) — `import_cleanup_rule`.** Bảng luật làm sạch
+/// (AD-18, `Semantics::Merge`) không GẮN theo `chapter`/`work` nào — nó là dữ liệu tầng
+/// Tác phẩm ĐỘC LẬP, đúng vai với `glossary_entry` (cũng hai tầng, cũng không phải một
+/// container giữa Work và Chapter).
+const NON_ENTITY_DETAIL_TABLES: [&str; 9] = [
     "chapter_position",
     "glossary_candidate",
     "glossary_entry",
+    "import_cleanup_rule",
     "reading_mark",
     "schema_migration_log",
     "segment",

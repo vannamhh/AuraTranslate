@@ -46,33 +46,38 @@ function preview(): ImportEncodingPreview {
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [
-      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null },
+      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null, cleanup: null },
       {
         label: 'GB18030',
         encoding: 'gb18030',
         preview: '萧炎',
         normalized: { text: '萧炎', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+        cleanup: { text: '萧炎', spans: [], rules: [], window_truncated: false, final_text: '萧炎' },
       },
       {
         label: 'GBK',
         encoding: 'GBK',
         preview: '萧炎',
         normalized: { text: '萧炎', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+        cleanup: { text: '萧炎', spans: [], rules: [], window_truncated: false, final_text: '萧炎' },
       },
       {
         label: 'Big5',
         encoding: 'Big5',
         preview: '達鍁',
         normalized: { text: '達鍁', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+        cleanup: { text: '達鍁', spans: [], rules: [], window_truncated: false, final_text: '達鍁' },
       },
       {
         label: 'UTF-16',
         encoding: 'UTF-16LE',
         preview: '扡摣',
         normalized: { text: '扡摣', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+        cleanup: { text: '扡摣', spans: [], rules: [], window_truncated: false, final_text: '扡摣' },
       },
     ],
     self_declared_normalized: null,
+    self_declared_cleanup: null,
   }
 }
 

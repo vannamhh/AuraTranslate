@@ -829,6 +829,7 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `dom_smoothie` *(core::webimport::Extractor — Story 6.1)* | 0.18.0 | MIT ✓ |
 | `chardetng` *(core::webimport — dò bảng mã, Story 6.1)* | 1.0.0 | Apache-2.0 OR MIT ✓ |
 | `encoding_rs` *(core::webimport — giải mã theo bảng mã đã dò, Story 6.1; đã bắc cầu qua `reqwest`/`quick-xml` trước story này, khai tường minh thêm 0 byte)* | 0.8.35 | (Apache-2.0 OR MIT) AND BSD-3-Clause ✓ |
+| `regex` *(core::cleanup — luật làm sạch dạng biểu thức chính quy, Story 6.5; đã có sẵn trong `Cargo.lock` từ trước — bắc cầu qua `jieba-rs`/`tantivy-stemmers` — khai tường minh thêm 0 byte)* | =1.13.1 | MIT OR Apache-2.0 ✓ |
 | `similar` **hoặc** `dissimilar` | 3.1.1 / mới nhất | Apache-2.0 / Apache-2.0 OR MIT |
 | `uuid` *(feature `v4`)* | 1.24.0 | MIT OR Apache-2.0 ✓ |
 | `tauri-plugin-wdio-webdriver` *(`optional`, feature `wdio`, chỉ debug — AD-45)* | 1.3.0 | MIT ✓ |
@@ -916,6 +917,14 @@ Cả ba dễ dãi và tương thích GPL v3 theo chiều đi vào; `chardetng`/`
 | `selectors` 0.38.0 | `MPL-2.0` | **KHÔNG có tệp `LICENSE*` nào trong bản `.crate`** — bằng chứng giấy phép duy nhất là header từng tệp nguồn | **16/16** tệp `.rs` mang header Exhibit A giống hai hàng trên; không Exhibit B. NFR15 điều 1 nói "mở tệp giấy phép mà đọc" — với gói này, thứ mở được là HEADER, không phải một tệp `LICENSE`, và điều đó phải ghi ra thay vì để người sau tưởng đã có một tệp riêng được đọc |
 
 Theo đúng AC "bảng Stack có 37 hàng (34+3)", mười gói bắc cầu này (bảy dễ dãi + ba MPL-2.0 ở trên) **không** có hàng riêng trong bảng Stack — ba tên gốc (`dom_smoothie`/`chardetng`/`encoding_rs`) là thứ Story 6.1 khai tường minh; bảng con này ghi ra để rà giấy phép của ba gói MPL-2.0 là một PHÉP KIỂM (đường dẫn + `grep` đã chạy), không chỉ một đoạn văn xuôi kể lại.
+
+**Rà NFR15 lượt bảy — 2026-09-05, Story 6.5 (luật làm sạch dạng regex, FR124).** Lượt rà **TRƯỚC khi thêm dòng vào `Cargo.toml`**, cùng khuôn các lượt trước: mở tệp giấy phép **trong `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-1.13.1/` mà đọc**, không tin trường `license`. `Cargo.lock` (trước khi sửa `Cargo.toml`) đã ghim sẵn `regex 1.13.1` — bắc cầu qua `jieba-rs`/`tantivy-stemmers` (cả hai dùng `regex` cho vị từ khớp mẫu nội bộ của chúng) — nên khai tường minh ở đây **0 byte payload mới**; `regex-automata` 0.4.16/0.4.18, `regex-syntax` 0.8.11 và `regex-lite` 0.1.9 cũng đã có sẵn, không phải hàng mới của lượt này.
+
+| Crate | Trường `license` | Tệp đã mở | Dòng đầu |
+|---|---|---|---|
+| `regex` 1.13.1 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | `Copyright (c) 2014 The Rust Project Developers` (MIT) · `Apache License` (APACHE) |
+
+Dễ dãi, tương thích GPL v3 theo chiều đi vào. Ghim bằng `=` (`regex = "=1.13.1"`) trong `Cargo.toml` của `core::cleanup` — lock chỉ giữ đúng số này tới lần `cargo update` đầu tiên, đúng quy ước ghim của cả bảng.
 
 SQLite đến từ `libsqlite3-sys` feature `bundled` — phiên bản do crate ghim, không phải SQLite của hệ điều hành. Sàn tối thiểu mà kiến trúc cần: FTS5 `trigram` (≥ 3.34) và `remove_diacritics 0` (≥ 3.27); mọi bản `bundled` hiện hành đều vượt xa.
 

@@ -56,10 +56,20 @@ context:
 | Không nối qua dòng trống | `"Hắn nhìn về phía\n\nngọn núi xa."` | giữ nguyên ranh giới đoạn, **không** nối | N/A |
 | CRLF / CR trần | `"A。\r\nB。"` · `"A。\rB。"` | cả hai thành `"A。\nB。"` | N/A |
 | Trim hai đầu dòng | `"\u{3000}\u{3000}他走了。   \n"` | `"他走了。"` — U+3000 và dấu cách đuôi biến mất | N/A |
-| Chỉ khoảng trắng | `"\u{3000}\n \t \r\n "` | `""` ⇒ Chương **0 segment**, chỗ gọi đã chịu được | `ImportError::EmptyImport` như hôm nay |
+| Chỉ khoảng trắng | `"\u{3000}\n \t \r\n "` | `""` ⇒ Chương **0 segment**, chỗ gọi đã chịu được | 🔵 N/A — xem ghi chú dưới bảng |
 | Bất động | văn bản đã chuẩn hoá | chạy lần hai cho **cùng chuỗi** (idempotent) | N/A |
 | Cửa sổ xem trước | văn bản dài hơn cửa sổ | bản dựng cắt ở ranh giới dòng, **bỏ dòng cuối**; màn hình nói ra phạm vi | N/A |
 | Đổi ứng viên | người dùng chọn ô khác | bản dựng + số đếm đổi ngay, **0 lời gọi IPC** | N/A |
+
+🔵 **SỬA 2026-09-05 (Story 6.5, phán quyết Ice) — mệnh đề `ImportError::EmptyImport` ở cột xử lý
+lỗi của hàng "Chỉ khoảng trắng" HẾT ĐÚNG, và thật ra chưa bao giờ đúng.** Biến thể ấy không tồn
+tại: `grep -rn "EmptyImport" src-tauri/src/` cho **0** kết quả, và `ImportError` có đúng tám biến
+thể, không biến thể nào tên thế. Hành vi thật (đo 2026-09-05, `cleanup_contract.rs::a_rule_that_matches_the_entire_chapter_creates_a_chapter_with_empty_source_text_not_an_error`):
+một Chương đơn trở nên rỗng thì được **tạo bình thường** với `source_text` rỗng và **0 segment** —
+`create_work` chỉ từ chối khi có **0 Chương**. Cột *Expected Output* của hàng này vốn đã nói đúng
+điều đó (*"Chương 0 segment, chỗ gọi đã chịu được"*); chỉ cột xử lý lỗi là bịa ra một cái tên.
+⚠️ Ghi ở đây vì hàng này **đã bị chép nguyên sang spec 6.5** và suýt sinh ra một lượt sửa mã cho
+khớp một mệnh đề sai — sửa một chỗ mà bỏ chỗ kia là để nó tái sinh ở story sau.
 
 </frozen-after-approval>
 

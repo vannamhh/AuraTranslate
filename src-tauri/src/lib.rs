@@ -643,6 +643,14 @@ pub fn run() {
             crate::commands::project::wire::preview_import_encoding_from_text,
             crate::commands::project::wire::preview_import_encoding_from_file,
             crate::commands::project::wire::confirm_import_with_encoding,
+            // Story 6.5 -- luat lam sach luc nhap (FR124, AD-18). Nam vo: liet hai tang da
+            // hop nhat · them · sua · xoa · bat/tat -- bon vo sau dinh tuyen theo tier nguoi
+            // dung chon, danh tinh mot luat la CAP (tier, id).
+            crate::commands::cleanup::wire::cleanup_list_rules,
+            crate::commands::cleanup::wire::cleanup_add_rule,
+            crate::commands::cleanup::wire::cleanup_edit_rule,
+            crate::commands::cleanup::wire::cleanup_delete_rule,
+            crate::commands::cleanup::wire::cleanup_set_enabled,
             // Story 5.7 -- mo lai mot `.atproj` DA CO tren dia (FR12). `work_id`, KHONG mot
             // duong dan he tep -- `atproj_path` phan giai o Rust tu `library-index.db` qua
             // `Indexer::find_work`.

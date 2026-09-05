@@ -2204,6 +2204,15 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   sạch của Story 6.5). **Không vá ở đây**, và cố ý không: một luật *"đừng cắt trong một hàng
   bảng"* nhét vào `core/segment/split.rs` là đưa kiến thức Markdown xuống một tầng không biết
   định dạng nào. **Chủ: Story 6.5** (luật làm sạch) hoặc **6.12** (đọc `.docx` có bảng).
+  → 🔵 **CHUYỂN CHỦ 2026-09-05 (Story 6.5) — không phải vá, một quyết định phạm vi.** Luật làm
+  sạch mà Story 6.5 dựng (`core::cleanup::apply`) chỉ biết XOÁ theo một mẫu văn bản khớp
+  được (literal/regex) trên một chuỗi phẳng — nó không biết "hàng bảng Markdown" là gì, và
+  giữ nguyên đúng ranh giới đó là §Never của chính spec 6.5 ("không tách Chương, không bóc
+  khối nội dung — đó là việc của FR14/FR123"). Ca sai ở đây là một câu bị CẮT GIỮA HÀNG BẢNG,
+  không phải một đoạn RÁC cần xoá — không luật xoá nào của Story 6.5 (dù có sẵn hay do người
+  dùng tự thêm) sửa được nó, vì vấn đề là ranh giới CÂU/KHỐI, không phải sự CÓ MẶT của một mẫu
+  văn bản. ⇒ **Chủ chuyển trọn về Story 6.12** (đọc `.docx`/Markdown có cấu trúc bảng thật —
+  nơi duy nhất có đủ ngữ cảnh để biết "đây là một hàng bảng" trước khi đưa xuống bộ tách câu).
 
 - 🔴 **Luật thứ NĂM của bộ tách do một phép đo dựng ra, ngoài bốn luật của Quyết định #5 —
   Ice có thể lật.** *"Một câu phải có ít nhất một chữ"*: một dấu kết câu không chốt ranh giới
@@ -2975,6 +2984,15 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   chuỗi" cho ĐÚNG Story 6.5 — hai mệnh đề cùng một bề mặt, cùng một chủ. Nếu Story 6.5 dựng
   xong màn xem trước mà QUYẾT ĐỊNH đặt lệnh xác nhận ở một story con khác trong dải 6.5-6.9,
   người đóng mục này nối tiếp một dòng `→` nêu rõ, không đổi số ở đây bằng cách xoá.
+  → ✅ ĐÃ ĐÓNG 2026-09-05 (Story 6.5) — đo, không suy luận. `grep -n "keys:" src/commands/index.ts`
+  cho thấy `import.preview.confirm` (`:1075-1081`) đã đăng ký `Mod+Alt+Enter`, KHÔNG
+  `Mod+Enter` — Story 6.3 đã làm việc này, trước cả lượt của Story 6.5. Story 6.5 (luật làm
+  sạch, tầng 3 của màn xem trước) đăng ký **0** lệnh và **0** hợp âm mới vào `CommandRegistry`
+  (bốn thao tác thêm/sửa/xoá/bật-tắt luật đi qua `<form @submit.prevent>`/`<form
+  @reset.prevent>`, không phải qua bàn phím toàn cục) — `npm run check:commands` xanh, số
+  `@click` không đổi (101, như trước lượt này). ⇒ Va chạm `⌘↵` không xảy ra ở đây, và Story
+  6.5 không phải chủ thật của nó. Mục nợ hết hiệu lực — không còn ai đăng ký `⌘↵` cho "xác
+  nhận nhập" để mà va với `editor.confirm_segment`.
 
 - ⚠️ **AD-35 vế (c) — *"xác nhận ⇒ flush trước"* — KHÔNG cưỡng chế được ở tầng Rust.**
   `commands::segment::wire::confirm_segment` chỉ đọc thứ **đã ở trên đĩa**; nó không biết gì về
@@ -3848,6 +3866,16 @@ không bao giờ là màu của chữ. Mọi chữ, kể cả nhãn 10px, tối 
 `on-surface-variant`"*.
 ⇒ Hai dòng đó **đã sửa cùng lượt** — chúng là đúng cái *"nửa là MỘT DÒNG CHUỖI thì rơi"* mà
 lượt ra mã 2.5b đã gọi tên thành một **khuôn lặp lại ba lần**. 🔴 Đây là lần **thứ tư**.
+
+→ 🔵 **TUÂN THỦ XÁC NHẬN 2026-09-05 (Story 6.5) — không phải một lần đóng, chỉ ghi lại phép
+tự kiểm đã chạy.** `ImportPreviewOverlay.vue` (tầng 3 mới, hiện thứ sắp xoá bằng
+`.ip-cleanup-struck`) dùng `text-decoration: line-through` kèm `text-decoration-color:
+var(--color-ornament)` cho phần văn bản bị luật làm sạch đánh dấu — ĐÚNG khuôn
+`DESIGN.md:213` ("`ornament`... không bao giờ là màu của chữ"), KHÔNG đặt `color:
+var(--color-ornament)` ở đâu trong file. `npm run check:tokens` xanh sau lượt này, và tự thử
+đặt `color: var(--color-ornament)` vào `.ip-cleanup-struck` để xem cổng có bắt được không —
+cổng ĐỎ đúng như `check-tokens.mjs` hứa, rồi trả lại. Luật không đổi, chỉ thêm một chỗ nữa đã
+tuân thủ nó.
 
 **Chủ: Ice** — món còn lại **không** phải một dòng chữ nữa mà là một câu hỏi về quy trình:
 `DESIGN.md` §components hôm nay **không có cổng nào canh**, nên nó trôi khỏi mã mỗi story và
@@ -9088,6 +9116,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   thiệt hại (`joined_lines`, `blank_lines_removed`) và phạm vi cửa sổ bằng chữ khi cửa sổ bị
   cắt — CÓ THÂN ngay từ story này, không nằm trong danh sách "còn thân rỗng" nữa. Tầng 2
   (Story 6.9) và tầng 3 (Story 6.5) không đổi, vẫn hoàn toàn mở.
+  → 🟡 **TẦNG 3 XONG, TẦNG 2 CÒN MỞ — 2026-09-05 (Story 6.5).** `Step::CleanByRules`
+  (`core/segment/pipeline.rs`) nay gọi `core::cleanup::apply` thật — không còn `trace.push(step);
+  flow` rỗng. Tầng 3 của `ImportPreviewOverlay.vue` CÓ THÂN: văn bản đánh dấu gạch ngang cho
+  span sắp xoá, danh sách luật hai bậc (Toàn cục/Dự án) qua `ScopeResolver::apply_merge`, ba
+  thao tác FR124 (xem/sửa/tắt) cộng thêm/xoá. Rule đăng ký **0** rule mặc định (Ice chốt
+  2026-09-05) — bảng trống tới khi người dùng tự thêm, và `mode.library.preview.tier_cleanup_*`
+  nói rõ lý do rỗng khi chưa có luật nào, đúng khuôn "LUÔN hiện, LUÔN nói ra vì sao" ở trên.
+  Tầng 2 (ranh giới nội dung, `Step::ExtractMainContent`) **không đổi, vẫn hoàn toàn mở** —
+  **Chủ: Story 6.9** không đổi.
 - ⚠️ **"Một `.docx` bỏ qua bước giải mã bảng mã" (AD-39 spine `:500`) nghiệm thu ở story này
   BẰNG HÌNH DẠNG, không bằng một `.docx` thật.** `segment_contract.rs::an_already_text_shape_skips_the_transcode_half_of_the_decode_step`
   chứng minh `Step::DecodeEncoding` bỏ qua vế transcode cho `ChapterInput::AlreadyText` — đúng
@@ -9206,6 +9243,21 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   văn bản đã giải mã); nó KHÔNG suy rộng sang tầng 2 (Story 6.9) hay tầng 3 (Story 6.5), vì
   cả hai phụ thuộc trạng thái NGOÀI chuỗi đã giải mã (mô hình DOM đã bóc, danh sách luật làm
   sạch cấu hình được) — "Rủi ro cụ thể" và "Chủ" ở trên không đổi.
+  → ✅ **ĐÓNG CHO TẦNG 3 — 2026-09-05 (Story 6.5), bằng đường KHÁC đường spec 6.3 ban đầu đòi
+  (được phép — spec 6.3 chỉ đòi ĐÚNG KẾT QUẢ, không đòi đúng cơ chế).** `selectImportPreviewCandidate()`
+  KHÔNG được sửa để gọi lại `run_import` — thay vào đó, `commands::project::preview_import_encoding`
+  chạy `run_pipeline` (chuỗi bảy bước thật, qua `PipelineInput::with_cleanup_rules`) MỘT LẦN
+  cho MỖI ứng viên trong dải năm ô (cộng nhánh tự khai), rồi đóng gói sẵn khối làm sạch của
+  từng ứng viên vào `EncodingCandidateWire.cleanup`/`ImportEncodingPreview.self_declared_cleanup`.
+  Đổi ứng viên ở frontend chỉ đọc lại đúng phần tử mảng đã có sẵn — vẫn **0 lệnh IPC** khi
+  chuyển ứng viên (bất biến của Story 6.4, `importPreviewEncoding.test.ts:192-211` không đổi).
+  ⇒ Rủi ro "tầng 3 hiện kết quả tính trên bảng mã CŨ" không còn: tầng 3 của MỌI ứng viên đều
+  đã tính đúng trên bảng mã CỦA CHÍNH NÓ từ lúc mở màn xem trước, không phải tính một lần trên
+  ứng viên đầu rồi dùng chung. Nghiệm thu bằng contract test
+  `cleanup_contract.rs::preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules`
+  (so khớp byte-for-byte giữa văn bản xem trước và văn bản `confirm_import_with_encoding` thật
+  sự ghi xuống). **Tầng 2 (Story 6.9) không đổi — rủi ro và Chủ ở trên vẫn nguyên**, vì tầng 2
+  chưa có thân nào để mà đo.
 
 - ⚠️ **`PipelineShape::Chapters` chọn MỘT bảng mã cho `chapters.first()` rồi áp uống nó lên
   MỌI đơn vị `RawBytes` trong cùng danh sách — vòng rà đối kháng 2, mục 21.** Hai chỗ:
@@ -9282,6 +9334,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   thêm một dòng rơi-về-ứng-viên-giải-mã-được (rẻ, và làm mệnh đề đúng theo CẤU TRÚC), hoặc
   tìm một đầu vào tái lập được rồi biến nó thành cổng. **Chủ: Story 6.5** — story đầu tiên
   chạm lại `detect` khi dựng thân tầng 3.
+  → 🟡 **CHƯA CHẠM — 2026-09-05 (Story 6.5), đo bằng diff, không suy luận.**
+  `git diff --stat -- src-tauri/src/core/segment/encoding.rs` của lượt này: 31 dòng THÊM, 0
+  dòng XOÁ — toàn bộ là trường mới (`pipeline_window`) và hàm mới
+  (`pipeline_window_for`/`pipeline_window_for_self_declared`) phục vụ việc dựng khối làm sạch
+  cho từng ứng viên; `detect()` không bị sửa một dòng nào. Story 6.5 dựng thân tầng 3 (luật
+  làm sạch) chứ không chạm lại đường DÒ bảng mã của tầng 1 — hai việc độc lập. ⇒ Mục nợ này
+  **giữ nguyên, chưa đóng, chủ vẫn đứng tên Story 6.5** vì chưa story nào khác nhận, nhưng
+  người đọc tiếp không nên hiểu "Story 6.5 đã dựng thân tầng 3" ⇒ "mục nợ này đã đóng theo" —
+  hai mệnh đề không kéo theo nhau.
 
 - ⚠️ **`ImportPreviewOverlay.vue` mới có test dựng DOM cho MỘT phần bề mặt.** Vòng rà 2 nêu
   "0 test dựng DOM"; lượt vá thêm 4 ca `mount()` thật cho chip tin cậy và hai khối tầng rỗng —
@@ -9292,6 +9353,19 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `data-import-preview-open`, và ba nhánh render `unknown`/`ipc_unavailable`/`error`. Tiền lệ
   có sẵn: `tests/frontend/glossaryConfirmStripTemplate.test.ts`. **Chủ: Story 6.5** — story
   dựng thân tầng 3 sẽ chạm lại chính component này.
+  → 🟡 **ĐÓNG MỘT PHẦN NỮA — 2026-09-05 (Story 6.5), KHÔNG đóng hết, đọc kỹ trước khi tưởng
+  đã xong.** `tests/frontend/importPreviewCleanup.test.ts` (15 ca mới) dựng DOM thật cho ĐÚNG
+  bề mặt tầng 3 mới: văn bản đánh dấu gạch ngang (`.ip-cleanup-struck`), danh sách luật (tên,
+  tầng, hai số đếm), toggle qua `@change`, thêm/sửa/xoá qua bốn `<form>` (`.ip-cleanup-action-form`
+  theo index, `.ip-cleanup-edit-form`). **Vẫn CHƯA ai canh, y nguyên danh sách gốc:** bẫy Tab
+  (`trapTab`), nút Xác nhận/Huỷ và `:disabled` khi `confirming`, tương tác radio chọn ứng
+  viên, đường trả tiêu điểm `data-import-preview-open`, ba nhánh render
+  `unknown`/`ipc_unavailable`/`error` — none trong số này thuộc phạm vi "luật làm sạch" của
+  spec 6.5 (§Never: không được lan sang khảo sát lại các mặt khác của overlay). **Chủ giữ
+  nguyên Story 6.5 CHO PHẦN CÒN LẠI** — không tự động chuyển, vì không có story nào khác đã
+  cam kết chạm `ImportPreviewOverlay.vue` trước khi bề mặt đó (Tab trap, ba nhánh trạng thái)
+  đổi hình dạng lần nữa; người đóng tiếp cần đọc lại danh sách này, không giả định nó đã đóng
+  chỉ vì lần trước "story dựng thân tầng 3" đã chạm file.
 
 ## Deferred from: 6-4-chuan-hoa-xuong-dong-va-khoang-trang (2026-09-04)
 
@@ -9374,6 +9448,18 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   TRỌN chuỗi tới đúng bước 4 khi dựng bản xem trước (khác cơ chế theo-ứng-viên hôm nay), hoặc
   (b) đo và ghi rõ vì sao hai đường vẫn cho cùng kết quả trong phạm vi riêng của bước đó,
   cùng khuôn phép kiểm mà spec 6.4 đã áp cho bước 1.
+  → 🟡 **ĐÓNG MỘT NỬA 2026-09-05 (Story 6.5) — vế BƯỚC 3 đóng bằng đường (a).**
+  `commands::project::cleanup_preview_for` chạy TRỌN chuỗi thật (`run_pipeline`/`run_import`,
+  qua `PipelineInput::with_cleanup_rules`) cho MỖI ứng viên VÀ cho nhánh tự khai, rồi đọc
+  `PipelineOutput::chapters[0].cleanup_report`/`.source_text` — không còn mô phỏng riêng bước
+  1 rồi nhảy sang bước 4. Vì cơ chế là "chạy TRỌN chuỗi", nó tự động đúng luôn cho bước 2 một
+  khi Story 6.9 cho `Step::ExtractMainContent` một thân thật — không cần sửa lại chỗ này lần
+  nữa. **Vế BƯỚC 2 (tầng "chuẩn hoá" hiện có, Story 6.4) vẫn MỞ, không đổi** —
+  `EncodingCandidateWire.normalized`/`self_declared_normalized` vẫn gọi thẳng
+  `normalize::normalize`/`normalize_window` trên văn bản CHƯA áp luật làm sạch (giữ nguyên có
+  chủ ý — xem doc-comment `segment_normalize_boundary.rs::the_normalize_functions_have_exactly_four_named_product_call_sites`,
+  bốn chỗ gọi ĐÃ ĐÓNG BĂNG). Đóng đủ khi Story 6.9 dựng bước 2 và người kế thừa chọn đường
+  (a) hoặc (b) cho riêng cặp bước 2/bước 4 đó — cùng khuôn chính debt này.
 
 - ⚠️ **`normalize::normalize` chạy HAI lượt `.replace()` toàn bộ buffer (`\r\n` → `\n` rồi
   `\r` → `\n`) kể cả khi văn bản không mang một ký tự `\r` nào** — tức MỌI Chương từ một
@@ -9412,3 +9498,115 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   hai nguyên nhân đòi hai lượt sửa khác nhau, và đoán bừa một trong hai sẽ vá nhầm chỗ.
   **Chủ: Ice** — chọn giữa nâng `testTimeout`, ghim `pool`/`maxWorkers` cho nhóm tệp này, hay
   chuyển chúng sang timer giả tất định.
+  → 🟡 **ĐÓNG MỘT NỬA 2026-09-05 (Story 6.5) — Ice chốt phương án thứ hai, ở dạng rộng nhất:
+  `fileParallelism: false` cho TOÀN cây (`vitest.config.ts`), không phải ghim riêng nhóm tệp.**
+  Vế "cổng phân biệt được đỏ-vì-mã với đỏ-vì-máy" ĐÃ ĐÓNG: không còn tranh chấp worker thì
+  phán quyết chỉ còn phụ thuộc mã. Phép đo đỡ quyết định này, cùng máy cùng lượt: nền chưa có
+  story `npm run test` song song 822/822 xanh (27,43 s) · có story 835 xanh **5 ĐỎ** (37,09 s) ·
+  cùng cây `--no-file-parallelism` 840/840 xanh (98,65 s) · bốn tệp đỏ chạy RIÊNG 42/42 xanh.
+  Cả bốn tệp đỏ KHÔNG nạp một tệp nào Story 6.5 chạm (`src/config/project.ts` chỉ có ba chỗ
+  import, không chỗ nào trên đường của chúng) ⇒ story không đổi hành vi của chúng, chỉ đẩy tải
+  qua một ngưỡng vốn đã lung lay.
+  ⚠️ Vế CÒN HỞ, và nó là vế gốc: bốn tệp ấy vẫn phụ thuộc wall-clock, chỉ là không còn ai
+  tranh chấp với chúng nữa. Câu hỏi "đỏ vì `testTimeout` hay vì trôi timer giả" VẪN chưa đo.
+  Và cái giá đã trả bằng số: mỗi lượt `npm run test` đi từ ~27 s lên ~99 s, trên cả `pre-push`
+  lẫn CI. **Chủ vế còn hở: Ice** — gỡ phụ thuộc wall-clock khỏi bốn tệp
+  (`editorClearSourceCuts` · `editorTypingZone` · `glossaryHoverSelection` ·
+  `glossaryMarksRefresh`) rồi mới bật lại song song được.
+
+## Deferred from: 6-5-luat-lam-sach-lo-ra-va-hien-thu-sap-xoa (2026-09-05)
+
+- ⚠️ **Không phím `R` (hay bất kỳ hợp âm nào) cho "khớp luật với khối đang chọn" — cố ý viết
+  ra thay vì làm mềm đi.** §Design Notes của spec 6.5 gợi ý một thao tác "bật/tắt một luật làm
+  sạch cho ĐÚNG khối văn bản đang chọn" (hẹp hơn bật/tắt luật cho TOÀN BỘ lần nhập). Không dựng
+  ở đây: thao tác đó cần một **bề mặt "khối nội dung đã chọn"** — Chương đã tách khối
+  (`Step::ExtractMainContent`, FR123, Story 6.9) — mà hôm nay CHƯA TỒN TẠI; `core::cleanup`
+  làm việc trên TOÀN BỘ văn bản một Chương, không có khái niệm "khối" nào để mà khớp/bật/tắt
+  theo khối. Dựng một phím `R` bây giờ sẽ hoặc (a) giả vờ có khối bằng cách chọn văn bản DOM
+  tuỳ ý — phá lằn ranh AD-16 (Rust gửi dữ liệu có cấu trúc, không phải Vue tự suy luận cấu trúc
+  từ văn bản thô), hoặc (b) chỉ bật/tắt luật cho CẢ Chương dưới một cái tên nói dối ("khối" mà
+  thực ra là "Chương"). Cả hai đều tệ hơn không làm. **Chủ: Story 6.9** — story đầu tiên có một
+  mô hình khối thật (từ bóc `dom_smoothie`) sẽ có đúng dữ liệu để thêm thao tác này, và lúc đó
+  mới chọn phím/hợp âm (kiểm trùng với `check:commands` trên TOÀN BỘ registry, không chỉ chế
+  độ đang mở).
+
+- ⚠️ **Số "trong cả lần nhập" == số "trong Chương này" khi một lần nhập chỉ có ĐÚNG MỘT
+  Chương — không phải một lỗi đếm, một sự trùng hợp về HÌNH DẠNG hôm nay.** `CleanupRuleReportWire`
+  mang hai số riêng (`count_in_chapter`/`count_in_import`) và `core::cleanup::apply` chạy trên
+  văn bản của TỪNG Chương độc lập rồi `per_rule_counts` được cộng dồn ở tầng gọi
+  (`commands::project`) qua tất cả Chương của lần nhập. Hôm nay **đường sản phẩm chỉ có
+  `PipelineShape::Blob` (đúng 1 Chương)** — `PipelineShape::Chapters(N>1)` chưa có nguồn nào
+  dựng thật (xem mục nợ `PipelineShape::Chapters chọn MỘT bảng mã...` ở
+  `Deferred from: 6-2-...`, Chủ Story 6.7), nên hai số LUÔN bằng nhau trong mọi phép kiểm chạy
+  được hôm nay — hai contract test của Story 6.5 (`cleanup_contract.rs`) không phân biệt được
+  "cộng đúng qua nhiều Chương" với "chỉ có một Chương nên cộng gì cũng ra chính nó", cùng lớp
+  rủi ro với mục nợ D2 ở trên. **Chủ: Story 6.6 (tách nhiều Chương từ một nguồn, FR14) hoặc
+  Story 6.7 (danh sách URL nhiều Chương)** — story đầu tiên dựng thật
+  `PipelineShape::Chapters(N>1)` phải thêm MỘT ca kiểm cho đúng: một lần nhập N≥2 Chương, một
+  luật khớp ở NHIỀU Chương với số khớp KHÁC NHAU mỗi Chương, và khẳng định
+  `count_in_import == Σ count_in_chapter` qua các Chương ĐÚNG BẰNG tổng đã tính tay, không chỉ
+  bằng `count_in_chapter` của một Chương duy nhất.
+
+- 🔴 **ĐÃ VÁ 2026-09-06 — hai số đếm của mỗi luật bị tính trên CỬA SỔ HIỂN THỊ, không phải
+  trên TOÀN Chương như doc-comment/§Always spec 6.5 đã khai.** Phát hiện bằng một ca test
+  chèn thẳng (không phải điều phối tự suy): `cleanup_contract.rs::counts_cover_the_whole_chapter_even_when_the_rendered_window_is_truncated`
+  gieo một luật literal khớp hai chỗ — một trong 4096 byte đầu, một sau hơn 4096 byte đệm —
+  và bắt `count_in_chapter == 1` (đỏ) thay vì `2`. Nguyên nhân: `cleanup_preview_for` (cũ)
+  nhận thẳng `window` (bản dựng ĐÃ CẮT của tầng hiển thị) làm đầu vào chạy chuỗi
+  (`run_pipeline`), nên `core::cleanup::apply` — và vì thế `per_rule_counts`/`matches` —
+  chỉ thấy phần văn bản LỌT vào cửa sổ 4 KiB đầu; một luật khớp 40 lần trên cả Chương mà chỉ
+  4 KiB đầu lọt cửa sổ sẽ hiện "khớp 2 chỗ" — đúng lớp "xoá nhầm mà không ai biết" mà FR124
+  tồn tại để chặn (một luật tưởng chỉ khớp vài chỗ, người dùng bật nó lên, xoá sạch hàng chục
+  chỗ chưa từng thấy).
+  **Sửa:** `cleanup_preview_for` (`commands::project`) nay nhận `PipelineShape` MANG TOÀN VĂN
+  BẢN (byte thô CẢ tệp cho một ứng viên — `encoding::encoding_for_wire_id(c.wire_id)` phân
+  giải lại bảng mã của ứng viên đó để chạy chuỗi thật trên FULL bytes, không chỉ cửa sổ bằng
+  chứng; chuỗi tự khai CẢ Chương cho nhánh `AlreadyText`) và chạy `run_pipeline` trên đó —
+  `per_rule_counts`/`matches` tính đúng trên TOÀN Chương. `display_window` (bản dựng đã cắt cũ)
+  chỉ còn dùng để (a) giới hạn `text` hiển thị, (b) lọc `spans` xuống còn những chỗ khớp NẰM
+  TRONG cửa sổ (`m.end <= display_window.chars().count()` — một chỗ khớp sau biên cửa sổ vẫn
+  được ĐẾM, chỉ không có gì để mà gạch ngang trên phần đang hiện), và (c) cắt `final_text`
+  xuống cùng cửa sổ CHỈ để hiển thị (`window_safe_prefix`), không đổi số đã đếm.
+  `preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules` (ca đối chứng
+  byte-for-byte khi KHÔNG cắt cửa sổ) vẫn xanh KHÔNG nới kỳ vọng — nhánh `window_truncated ==
+  false` không cắt `final_text`, giữ nguyên bất biến cũ.
+  ⚠️ **Bài học ghi lại cho người đọc sau:** lượt đóng story ban đầu (2026-09-05) đã khẳng
+  định "spec §Always... hai con số đo trên TOÀN văn bản" ĐẠT mà KHÔNG có một ca kiểm chèn thật
+  đối chứng đúng chỗ "cửa sổ bị cắt NHƯNG luật khớp cả trong lẫn ngoài cửa sổ" — 15 ca hợp
+  đồng ban đầu đều dùng văn bản NGẮN HƠN cửa sổ hoặc không kiểm số đếm khi bị cắt, nên khuyết
+  tật này xanh sạch suốt một vòng kiểm đầy đủ (`cargo test --locked`, `check:*`) mà vẫn sai —
+  đúng lớp "kiểm chứng dương có thể khoá chỗ mù" (một test dương không có ca ÂM ở đúng biên).
+  **Chủ: Story 6.5 — mục đã vá và nghiệm thu cùng lượt này, không ai cần theo dõi tiếp.**
+
+- ⚠️ **Frontend giữ một BẢN CHÉP THỨ HAI của toàn bộ nguồn nhập trong bộ nhớ renderer, suốt
+  vòng đời màn xem trước.** `src/importPreviewState.ts` nay cất `pendingText`/`pendingPath` chỉ
+  để một hành động CRUD luật làm sạch nộp lại đúng nguồn ấy cho Rust
+  (`reloadImportPreviewAfterRuleChange`). Trước Story 6.5 frontend KHÔNG cần bản chép nào —
+  Rust sở hữu nguồn đang chờ qua `PendingImportSourceState`, và frontend chỉ cầm một khoá.
+  Với một Chương dán tay lớn, đây là gấp đôi thứ renderer giữ, cho một lý do thuần cơ chế.
+  ⚠️ Chưa đo: ngưỡng nào thì bản chép ấy đáng kể so với chính DOM của màn xem trước — nêu ra
+  như một hình dạng đáng xét lại, không như một con số đã có. Hai đường thay thế đều chưa đo:
+  cho Rust tự nhớ nguồn giữa hai lượt xem trước (nó ĐÃ có `PendingImportSourceState`, chỉ chưa
+  có lối đọc lại), hoặc một lệnh "dựng lại xem trước từ nguồn đang chờ" không cần tham số nguồn.
+  **Chủ: Story 6.10** — story đầu tiên đưa xem trước lên quy mô hàng chục Chương, tức story đầu
+  tiên mà con số này thôi là giả thuyết.
+
+- ⚠️ **Không bề mặt nào soạn được luật làm sạch tầng Tác phẩm — chỉ tầng Toàn cục soạn được
+  (phán quyết Ice, vòng rà 2026-09-06).** `ImportPreviewOverlay.vue::onAddCleanupRule` hard-code
+  `tier = 'global'`, không còn ô chọn tầng. Lý do đo được:
+  `commands::project::store_for_tier` (qua `commands::cleanup::cleanup_add_rule`/`edit_rule`)
+  phân giải tầng Tác phẩm từ `OpenWorkState` — Tác phẩm ĐANG MỞ — mà màn xem trước nhập (nơi
+  DUY NHẤT hôm nay có form soạn luật) đang TẠO một Tác phẩm CHƯA TỒN TẠI, nên một ô chọn "Tác
+  phẩm" ở đúng màn đó hoặc trượt (`cleanup.work_tier_unavailable`), hoặc — nếu một Tác phẩm
+  KHÁC tình cờ đang mở cùng lúc — đính luật vào `project.db` của Tác phẩm đó, im lặng, đúng lớp
+  "luật ẩn xoá nhầm" mà FR124 tồn tại để chặn (§Spec Change Log spec 6.5, vòng rà 1: chính bề
+  mặt dựng ra để chặn lỗi đó suýt tự đẻ ra nó). Nửa ĐỌC/HỢP NHẤT của tầng Tác phẩm **không đổi**
+  — `ScopeResolver::apply_merge` vẫn hợp nhất cả hai tầng bình thường khi có Tác phẩm mở, và
+  `cleanup_add_rule`/`edit_rule`/`delete_rule`/`set_enabled` ở tầng LỆNH vẫn tổng quát, nhận
+  `tier: Work` hợp lệ (xem doc-comment `commands::cleanup::cleanup_add_rule`) — chỉ MÀN XEM
+  TRƯỚC NHẬP không còn đường gọi nó với `Work`.
+  **Chủ: Ice** — cần một bề mặt MỚI, sống ở một màn mà Tác phẩm ĐÃ TỒN TẠI (ví dụ một màn Cài
+  đặt/Quản lý luật của chính Tác phẩm đó, mở SAU khi Tác phẩm đã được tạo — khác hẳn màn xem
+  trước NHẬP, nơi Tác phẩm đích luôn chưa tồn tại tại thời điểm soạn) — CHƯA có story nào đặt
+  tên cho màn đó trong `epics.md`, nên Ice quyết định nó thuộc story nào (mở rộng Story 6.9 ra
+  ngoài riêng tầng 2, hay một story quản lý Tác phẩm mới) trước khi giao lại cho dev.
