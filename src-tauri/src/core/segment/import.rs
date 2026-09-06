@@ -26,9 +26,11 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! Bản Story 1.15 khai ba bước "để trống": tách Chương, làm sạch xuống dòng/khoảng trắng,
 //! dò bảng mã. Sau Story 6.2:
-//! - **Tách Chương** (FR14) — có mặt trong [`super::pipeline::PIPELINE_ORDER`] với một cơ
-//!   chế THẬT (so khớp literal), nhưng KHÔNG cấu hình được bởi người dùng; production luôn
-//!   truyền `chapter_pattern: None` ⇒ N = 1 KHÔNG ĐỔI. Mẫu cấu hình được là Story 6.6.
+//! - **Tách Chương** (FR14) — có mặt trong [`super::pipeline::PIPELINE_ORDER`]. 🔵 **SỬA
+//!   2026-09-05 (Story 6.6) — "KHÔNG cấu hình được bởi người dùng" đã HẾT ĐÚNG.** Màn xem
+//!   trước nhập nay cấu hình được một mẫu THẬT (literal hoặc regex,
+//!   [`super::chapterpattern::ChapterPattern`]), và bước 5 tách theo VỊ TRÍ khớp — xem
+//!   doc-comment `super::pipeline::split_chapters_step`.
 //! - **Chuẩn hoá xuống dòng/khoảng trắng** (FR124/125) — 🔵 **SỬA 2026-09-04 (Story 6.4) —
 //!   "vẫn THÂN RỖNG" đã HẾT ĐÚNG.** [`super::normalize::normalize`] nay chạy thật ở
 //!   [`super::pipeline::Step::NormalizeParagraphsAndWhitespace`] (bước 4), TRƯỚC bước 7
@@ -168,6 +170,22 @@ pub enum ImportError {
         /// Chẩn đoán CHỈ cho log (không đi vào `IpcError`, `Unknown` không nhận tham số).
         detail: String,
     },
+    /// **THÊM 2026-09-05 (Story 6.6)** — mẫu phân tách Chương `kind = "regex"` không biên
+    /// dịch được (`core::segment::chapterpattern::compile`). KHÁC
+    /// [`ImportError::InvalidCleanupPattern`]/[`ImportError::InvalidPipelineOrder`]: đây LÀ
+    /// một đường lỗi NGƯỜI DÙNG THẬT sự — mẫu phân tách không đi qua một bước lưu-trước-khi-
+    /// dùng như luật làm sạch (nó là tham số MỖI LƯỢT NHẬP), nên một mẫu hỏng ĐẾN ĐƯỢC tới
+    /// đây trên đường sản phẩm mỗi khi người dùng gõ một regex chưa đóng ngoặc. `commands::
+    /// project` biên dịch thử NGAY khi nhận mẫu từ dây (trước khi gọi `run_pipeline`) nên
+    /// biến thể này thường được ném TRƯỚC khi chạm `run_pipeline` — vẫn khai trong
+    /// [`ImportError`] (không phải một kiểu lỗi riêng ở `commands::project`) vì nó là một
+    /// cách "chuỗi nhập trượt", cùng họ với `InvalidCleanupPattern`.
+    InvalidChapterPattern {
+        /// Chẩn đoán cho log VÀ tham số `detail` của
+        /// [`crate::core::i18n::MessageKey::ImportInvalidChapterPattern`] — KHÔNG DẤU
+        /// (NFR16), vì `regex::Error::to_string()` là chẩn đoán máy, không phải câu người.
+        detail: String,
+    },
 }
 
 impl std::fmt::Display for ImportError {
@@ -197,6 +215,9 @@ impl std::fmt::Display for ImportError {
             }
             ImportError::InvalidCleanupPattern { detail } => {
                 write!(f, "import: invalid cleanup pattern: {detail}")
+            }
+            ImportError::InvalidChapterPattern { detail } => {
+                write!(f, "import: invalid chapter pattern: {detail}")
             }
         }
     }
@@ -294,6 +315,20 @@ impl From<ImportError> for IpcError {
                     false,
                 )
             }
+            ImportError::InvalidChapterPattern { detail } => {
+                // 🔴 KHÁC hai nhánh ngay trên — ĐÂY LÀ một lỗi NGƯỜI DÙNG THẬT (xem
+                // doc-comment biến thể), nên khoá là `ImportInvalidChapterPattern` THẬT,
+                // KHÔNG `Unknown`. `detail` (chẩn đoán máy của `regex::Error`) chỉ đi vào
+                // log, KHÔNG vào `params` — cùng luật `CleanupInvalidRegex` (0 tham số):
+                // câu hiển thị không cần lặp lại lỗi cú pháp regex thô cho người dùng.
+                eprintln!("import[chapter_pattern] mau khong bien dich duoc: {detail}");
+                IpcError::new(
+                    "import.invalid_chapter_pattern",
+                    MessageKey::ImportInvalidChapterPattern,
+                    BTreeMap::new(),
+                    false,
+                )
+            }
         }
     }
 }
@@ -303,8 +338,10 @@ impl From<ImportError> for IpcError {
 /// 🔵 **SỬA 2026-09-04 (Story 6.2) — "đúng một Chương" và "không mang segment" đã hết
 /// đúng.** Kiểu này KHÔNG đổi hình dạng (vẫn đúng một `source_text` + segment của CHÍNH
 /// Chương đó), nhưng chỗ dựng nó đổi: trước đây `import_text`/`import_file` tự dựng, giờ
-/// [`super::pipeline::run_import`] dựng — MỘT lượt gọi giờ trả về `Vec<ImportedChapter>`
-/// (N = 1 trên đường sản phẩm hôm nay, tổng quát hơn cho Story 6.6/6.7 sau này).
+/// [`super::pipeline::run_import`] dựng — MỘT lượt gọi trả về `Vec<ImportedChapter>`. 🔵
+/// **SỬA 2026-09-05 (Story 6.6)** — "N = 1 trên đường sản phẩm hôm nay" đã HẾT ĐÚNG: mẫu
+/// phân tách Chương (`PipelineInput::chapter_pattern`) là một bề mặt SẢN PHẨM thật từ story
+/// này, và N > 1 là một kết quả THẬT khi mẫu khớp được nhiều lần.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedChapter {
     /// Văn bản nguồn của Chương, sau khi chuỗi bảy bước AD-39 đã chạy hết.
@@ -319,9 +356,17 @@ pub struct ImportedChapter {
     /// này — nhánh `Unit::Undecoded` bất khả trên mọi thứ tự HỢP LỆ (cùng lý do
     /// `Unit::Undecoded` bất khả ở bước 4, xem `pipeline.rs`), hoặc khi
     /// [`super::pipeline::Step::SplitChapters`] tách MỘT đơn vị thành N sau khi bước 3 đã
-    /// chạy (chỉ `tests/**` khai `chapter_pattern: Some(..)` mới chạm nhánh này — đường sản
-    /// phẩm luôn `None`, N = 1, báo cáo không bao giờ bị reset).
+    /// chạy. 🔵 **SỬA 2026-09-05 (Story 6.6)** — "chỉ `tests/**` khai `chapter_pattern:
+    /// Some(..)`" đã HẾT ĐÚNG: màn xem trước nhập là một bề mặt SẢN PHẨM có thể khai mẫu
+    /// thật ⇒ N > 1 và `cleanup_report` reset về `None` cho mọi Chương kết quả là một
+    /// đường THẬT trên sản phẩm, không chỉ trong test — xem
+    /// `commands::project::cleanup_preview_for` cho cách tầng gọi bù lại số liệu tổng.
     pub cleanup_report: Option<crate::core::cleanup::CleanupReport>,
+    /// **THÊM 2026-09-05 (Story 6.6)** — dòng tiêu đề của Chương này, đọc từ CHÍNH dòng khớp
+    /// mẫu phân tách (`pipeline::title_line_of`), TRIM hai đầu. `None` khi: mẫu không được
+    /// cấu hình, mẫu không khớp gì (một Chương duy nhất), hoặc đây là Chương lời tựa (phần
+    /// văn bản TRƯỚC khớp đầu tiên — §Always spec 6.6: không bao giờ vứt, luôn hiện ra).
+    pub title: Option<String>,
 }
 
 /// Bước ĐẦU VÀO — nhánh dán văn bản của AC1. Trả về [`PipelineShape`], KHÔNG tự giải mã/

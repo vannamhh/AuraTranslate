@@ -864,17 +864,21 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
         // chuẩn hoá của mỗi ứng viên (`normalize::normalize`) — KHÔNG một lệnh mới, `source_lang`
         // đã có sẵn ở form phía frontend trước khi lệnh này chạy (xem doc-comment
         // `preview_import_encoding_from_text` ở `commands/project.rs`).
+        //
+        // 🔵 SỬA 2026-09-05 (Story 6.6) — thêm tham số `chapter_pattern:
+        // Option<ChapterPatternWire>` vào CẢ BA vỏ: mẫu phân tách Chương là tham số MỖI LƯỢT
+        // NHẬP (§Always spec 6.6), gửi lại ở MỌI lượt xem trước VÀ xác nhận.
         (
             "preview_import_encoding_from_text",
-            "app: tauri::AppHandle,\n        text: String,\n        source_lang: String,",
+            "app: tauri::AppHandle,\n        text: String,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,",
         ),
         (
             "preview_import_encoding_from_file",
-            "app: tauri::AppHandle,\n        path: String,\n        source_lang: String,",
+            "app: tauri::AppHandle,\n        path: String,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,",
         ),
         (
             "confirm_import_with_encoding",
-            "app: tauri::AppHandle,\n        name: String,\n        source_lang: String,\n        genre: String,\n        encoding: String,",
+            "app: tauri::AppHandle,\n        name: String,\n        source_lang: String,\n        genre: String,\n        encoding: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,",
         ),
     ] {
         let params = fn_param_list(wire_src, fn_name);

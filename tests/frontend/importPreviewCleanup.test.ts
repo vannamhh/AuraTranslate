@@ -89,6 +89,7 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
     preview: 'dau quang cao cuoi',
     normalized: { text: 'dau quang cao cuoi', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
     cleanup: cleanup(),
+    chapters: null,
     ...over,
   }
 }
@@ -100,6 +101,7 @@ function preview(over: Partial<ImportEncodingPreview> = {}): ImportEncodingPrevi
     candidates: [candidate()],
     self_declared_normalized: null,
     self_declared_cleanup: null,
+    self_declared_chapters: null,
     ...over,
   }
 }
@@ -316,6 +318,39 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
     expect(cleanupSetEnabledMock).toHaveBeenCalledWith('global', 1, false)
     expect(state.importPreviewSelectedCleanup.value?.spans).toHaveLength(0)
     expect(state.importPreviewSelectedCleanup.value?.rules[0]?.enabled).toBe(false)
+  })
+
+  it('mẫu phân tách HỎNG còn đứng trong ô + một lượt bật/tắt luật làm sạch KHÔNG được sụp cả lớp phủ (vòng rà đối kháng 3, mục 2)', async () => {
+    const state = await freshState()
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+    previewTextMock.mockClear()
+
+    const chapterPatternErr = {
+      code: 'import.invalid_chapter_pattern',
+      message_key: 'err.import.invalid_chapter_pattern',
+      params: {},
+      retryable: false,
+    }
+    // Gõ mẫu HỎNG — `runImportPreviewReload` gửi lại mẫu này, Rust trả lỗi.
+    previewTextMock.mockResolvedValue({ preview: null, error: chapterPatternErr })
+    await state.setImportPreviewChapterPattern('[unclosed', 'regex')
+    expect(state.importPreviewStatus.value).toBe('loaded') // đúng đường sửa mẫu đã có sẵn
+
+    const oldPreview = state.importPreview.value
+
+    // Một hành động KHÁC HẲN tầng (bật/tắt MỘT luật làm sạch) kích hoạt tải lại —
+    // `runImportPreviewReload` gửi lại ĐÚNG mẫu hỏng hiện hành, Rust trả lại ĐÚNG lỗi đó.
+    cleanupSetEnabledMock.mockResolvedValue({ ok: true, error: null })
+    previewTextMock.mockResolvedValue({ preview: null, error: chapterPatternErr })
+
+    await state.toggleImportPreviewCleanupRule('global', 1, false)
+
+    // Lỗi phải đi vào `chapterPatternError` — KHÔNG lật `status`/`preview` vì một nguyên
+    // nhân đến từ Ô MẪU, không phải từ luật vừa bật/tắt.
+    expect(state.importPreviewChapterPatternError.value).toEqual(chapterPatternErr)
+    expect(state.importPreviewStatus.value).toBe('loaded')
+    expect(state.importPreview.value).toEqual(oldPreview)
   })
 })
 

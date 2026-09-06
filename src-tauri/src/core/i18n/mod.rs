@@ -544,6 +544,17 @@ message_keys! {
     /// Scope` — lỗi LẬP TRÌNH, không nên xảy ra trên đường gọi đúng (xem doc-comment của
     /// `core::scope::ScopeError`). KHÔNG tham số, cùng lý do `GlossaryScopeError`.
     CleanupScopeError => "err.cleanup.scope_error" [],
+
+    // ── Story 6.6 (FR14 · AD-39 bước 5) — MỘT khoá, và đúng một ─────────────────────
+    //
+    // Mẫu phân tách Chương là một tham số MỖI LƯỢT NHẬP (không một bảng, không lệnh
+    // riêng) — chỉ MỘT sự thật không khoá nào hiện có nói được: mẫu `kind = "regex"`
+    // không biên dịch được. KHÔNG tham số — cùng lý do `CleanupInvalidRegex`: câu hiển
+    // thị không cần lặp lại chẩn đoán cú pháp regex thô của crate `regex` cho người dùng.
+    /// Mẫu phân tách Chương `kind = "regex"` không biên dịch được
+    /// (`core::segment::chapterpattern::compile`) — màn xem trước GIỮ NGUYÊN kết quả CŨ,
+    /// hiện thông báo này thay vì chạy chuỗi trên một mẫu hỏng.
+    ImportInvalidChapterPattern => "err.import.invalid_chapter_pattern" [],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

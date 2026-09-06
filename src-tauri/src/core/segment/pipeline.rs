@@ -51,12 +51,12 @@
 //! lặp — một `trace.push` chung phản ánh đúng `order` truyền vào, không phản ánh việc handler
 //! có thật sự chạy hay không.
 //!
-//! [`Step::SplitChapters`] KHÔNG nằm trong bốn bước trên — xem doc-comment của nó: nó có một
-//! cơ chế thật (so khớp chuỗi con literal), nhưng KHÔNG PHẢI mẫu phân tách NGƯỜI DÙNG cấu
-//! hình được (đó là Story 6.6); sản phẩm hôm nay không có bề mặt nào đưa một mẫu vào, nên
-//! [`PipelineInput::chapter_pattern`] luôn `None` trên đường sản phẩm ⇒ bước này vẫn là no-op
-//! trong thực tế, N = 1, hành vi không đổi. Cơ chế thật chỉ được `tests/**` gọi tới — đó là
-//! điều kiện để đối chứng AD-39 dựng được (xem doc-comment [`split_chapters_step`]).
+//! [`Step::SplitChapters`] KHÔNG nằm trong bốn bước trên — xem doc-comment của nó.
+//! 🔵 **SỬA 2026-09-05 (Story 6.6) — "KHÔNG PHẢI mẫu người dùng cấu hình được" đã HẾT
+//! ĐÚNG.** Bản Story 6.2 chỉ so khớp chuỗi con literal và không có bề mặt nào đưa một mẫu
+//! vào ([`PipelineInput::chapter_pattern`] luôn `None` trên đường sản phẩm). Từ Story 6.6,
+//! màn xem trước nhập cấu hình được cả literal LẪN regex, và bước này tách theo VỊ TRÍ khớp
+//! (giữ tiêu đề ở đầu Chương mới) — xem doc-comment [`split_chapters_step`] cho cơ chế thật.
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 CHỈ MỘT WRITER — KHÔNG `Store`/`Transaction` Ở ĐÂY
@@ -65,6 +65,7 @@
 //! [`run_import`] TRƯỚC khi mở giao dịch ghi — cùng lý do Quyết định #3 cũ của Story 1.15
 //! (AD-11 giữ MỘT writer duy nhất nối tiếp; CPU trong closure ghi chặn MỌI lượt ghi khác).
 
+use super::chapterpattern::ChapterPattern;
 use super::import::{ImportError, ImportedChapter};
 use super::normalize;
 use super::split::{SplitSegment, split_source_text};
@@ -90,8 +91,8 @@ pub enum Step {
     /// Bước 4 — chuẩn hoá đoạn & khoảng trắng ([`normalize::normalize`], Story 6.4,
     /// FR124/FR125). 🔵 SỬA 2026-09-04 — KHÔNG còn thân rỗng.
     NormalizeParagraphsAndWhitespace,
-    /// Bước 5 — tách Chương theo mẫu phân tách. Có cơ chế thật (so khớp literal), nhưng
-    /// KHÔNG phải mẫu người dùng cấu hình được (Story 6.6) — xem doc-comment
+    /// Bước 5 — tách Chương theo mẫu phân tách. 🔵 SỬA 2026-09-05 (Story 6.6) — mẫu NGƯỜI
+    /// DÙNG cấu hình được (literal hoặc regex), tách theo VỊ TRÍ khớp — xem doc-comment
     /// [`split_chapters_step`].
     SplitChapters,
     /// Bước 6 — xem trước + sửa tay. THÂN RỖNG (Story 6.5/6.9).
@@ -204,10 +205,14 @@ pub struct PipelineInput {
     /// qua bước giải mã (§Design Notes "Vì sao ca đối chứng cần byte chưa giải mã" của spec
     /// 6.2) mà không cần dò gì cả.
     pub encoding: &'static encoding_rs::Encoding,
-    /// Mẫu phân tách của [`Step::SplitChapters`] — chuỗi con literal, KHÔNG regex, và KHÔNG
-    /// cấu hình được bởi người dùng ở story này (Story 6.6 sở hữu mẫu thật, cấu hình được).
-    /// `None` ⇒ bước 5 là no-op, giữ N = 1 — đúng hành vi sản phẩm hôm nay.
-    pub chapter_pattern: Option<String>,
+    /// Mẫu phân tách của [`Step::SplitChapters`] — literal HOẶC regex, tham số MỖI LƯỢT
+    /// NHẬP (Story 6.6, FR14). `None` ⇒ bước 5 là no-op, giữ N = 1.
+    ///
+    /// 🔵 **SỬA 2026-09-05 (Story 6.6) — kiểu đổi từ `Option<String>` sang
+    /// `Option<ChapterPattern>`.** Bản Story 6.2 chỉ khai được chuỗi con literal; từ story
+    /// này người dùng cấu hình được cả hình dạng regex ngay trên màn xem trước nhập — xem
+    /// [`super::chapterpattern::ChapterPattern`].
+    pub chapter_pattern: Option<ChapterPattern>,
     /// `work.source_lang` — bước 7 ([`split_source_text`]) rẽ nhánh Trung/Anh theo trường
     /// này (AD-18: không đoán từ nội dung).
     pub source_lang: String,
@@ -263,6 +268,15 @@ impl PipelineInput {
         self.cleanup_rules = rules;
         self
     }
+
+    /// **THÊM 2026-09-05 (Story 6.6)** — builder đính `chapter_pattern` vào một cấu hình đã
+    /// dựng, cùng khuôn [`Self::with_cleanup_rules`] (không sửa/xoá hai constructor cũ —
+    /// §Always spec 6.6 lặp lại đúng luật mà Story 6.3/6.5 đã theo).
+    #[must_use]
+    pub fn with_chapter_pattern(mut self, pattern: Option<ChapterPattern>) -> Self {
+        self.chapter_pattern = pattern;
+        self
+    }
 }
 
 /// Thủ công vì `encoding_rs::Encoding` không tự `Debug` — in TÊN NHÃN WHATWG
@@ -281,8 +295,9 @@ impl std::fmt::Debug for PipelineInput {
     }
 }
 
-/// Kết quả một lượt chạy chuỗi — N Chương (N = 1 ở story này, xem `chapter_pattern: None`),
-/// cộng vết chạy.
+/// Kết quả một lượt chạy chuỗi — N Chương (N = 1 khi không có mẫu phân tách; 🔵 SỬA
+/// 2026-09-05, Story 6.6 — N > 1 là một kết quả THẬT trên đường sản phẩm khi
+/// `chapter_pattern` khớp được nhiều lần), cộng vết chạy.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PipelineOutput {
     pub chapters: Vec<ImportedChapter>,
@@ -336,6 +351,12 @@ struct Flow {
     /// `segments` reset ở đó: một báo cáo tính cho ĐƠN VỊ TRƯỚC khi tách không còn khớp
     /// INDEX nào có nghĩa sau khi tách.
     cleanup_reports: Vec<Option<crate::core::cleanup::CleanupReport>>,
+    /// **THÊM 2026-09-05 (Story 6.6)** — tiêu đề của từng phần tử `units`, SONG SONG theo
+    /// INDEX — cùng khuôn `segments`/`cleanup_reports`. `None` = không có tiêu đề (Chương
+    /// lời tựa trước khớp đầu tiên, hoặc mẫu không khớp gì/không được cấu hình). Reset về
+    /// `vec![None; n]` khi [`split_chapters_step`] THẬT SỰ đổi số phần tử — cùng lý do
+    /// `segments`/`cleanup_reports` reset ở đó.
+    chapter_titles: Vec<Option<String>>,
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -368,19 +389,21 @@ pub fn run_import_with_order(
         segments: vec![None; n],
         already_chaptered,
         cleanup_reports: vec![None; n],
+        chapter_titles: vec![None; n],
     };
 
     let mut trace: Vec<Step> = Vec::with_capacity(order.len());
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports } = flow;
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles } =
+                    flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 for u in old_units {
                     units.push(decode_unit(u, encoding)?);
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles }
             }
             Step::ExtractMainContent => {
                 trace.push(step);
@@ -391,8 +414,13 @@ pub fn run_import_with_order(
             // Story 6.4 — đã theo cho `normalize::normalize`). `trace.push` Ở LẠI BÊN TRONG
             // nhánh (AC6 spec 6.2, doc-comment đầu tệp).
             Step::CleanByRules => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports: _ } =
-                    flow;
+                let Flow {
+                    units: old_units,
+                    segments,
+                    already_chaptered,
+                    cleanup_reports: _,
+                    chapter_titles,
+                } = flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 let mut cleanup_reports = Vec::with_capacity(old_units.len());
                 for u in old_units {
@@ -418,7 +446,7 @@ pub fn run_import_with_order(
                     }
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles }
             }
             // 🔴 THÂN THẬT — Story 6.4, FR124/FR125, AD-39 bước 4. GỌI `normalize::normalize`,
             // không viết lại nội tuyến (Task list spec 6.4) — mọi luật (bảng kết câu, bảng
@@ -426,7 +454,8 @@ pub fn run_import_with_order(
             // `trace.push` Ở LẠI BÊN TRONG nhánh (AC6 spec 6.2, doc-comment đầu tệp) —
             // KHÔNG gộp vào một `trace.push` chung sau vòng lặp.
             Step::NormalizeParagraphsAndWhitespace => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports } = flow;
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles } =
+                    flow;
                 let units = old_units
                     .into_iter()
                     .map(|u| match u {
@@ -443,10 +472,10 @@ pub fn run_import_with_order(
                     })
                     .collect();
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles }
             }
             Step::SplitChapters => {
-                let next = split_chapters_step(flow, chapter_pattern.as_deref());
+                let next = split_chapters_step(flow, chapter_pattern.as_ref())?;
                 trace.push(step);
                 next
             }
@@ -467,7 +496,8 @@ pub fn run_import_with_order(
         .into_iter()
         .zip(flow.segments)
         .zip(flow.cleanup_reports)
-        .map(|((u, s), cleanup_report)| -> Result<ImportedChapter, ImportError> {
+        .zip(flow.chapter_titles)
+        .map(|(((u, s), cleanup_report), title)| -> Result<ImportedChapter, ImportError> {
             let source_text = match u {
                 Unit::Decoded(t) => t,
                 // 🔴 KHÔNG THỂ xảy ra sau `validate_order`: `DecodeEncoding` xuất hiện ĐÚNG
@@ -485,7 +515,7 @@ pub fn run_import_with_order(
                     });
                 }
             };
-            Ok(ImportedChapter { source_text, segments: s.unwrap_or_default(), cleanup_report })
+            Ok(ImportedChapter { source_text, segments: s.unwrap_or_default(), cleanup_report, title })
         })
         .collect::<Result<Vec<_>, ImportError>>()?;
 
@@ -580,38 +610,47 @@ fn strip_bom(raw: String) -> String {
 /// Bước 5.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 ĐÂY LÀ CƠ CHẾ TỐI THIỂU, KHÔNG PHẢI MẪU NGƯỜI DÙNG CẤU HÌNH ĐƯỢC (Story 6.6)
+/// 🔵 **SỬA 2026-09-05 (Story 6.6) — mẫu người dùng cấu hình được, tách theo VỊ TRÍ.**
 /// ─────────────────────────────────────────────────────────────────────────────
-/// So khớp CHUỖI CON LITERAL (không regex, không tiêu đề thông minh, không cấu hình theo
-/// Tác phẩm) — đủ để chứng minh THỨ TỰ có ý nghĩa thật (điều kiện của AC5 spec 6.2), KHÔNG
-/// đủ và KHÔNG định thay thế mẫu thật của Story 6.6. Sản phẩm hôm nay không có bề mặt nào
-/// đưa một `chapter_pattern` vào [`PipelineInput`] — `commands::project::create_work` luôn
-/// khai `None` ([`PipelineInput::default_shaped`]) ⇒ bước này LUÔN LÀ NO-OP trên đường sản
-/// phẩm, N = 1, hành vi không đổi. Chỉ `tests/**` khai `Some(..)`.
+/// Trước story này bước 5 chỉ là một cơ chế tối thiểu (so khớp chuỗi con literal qua
+/// `str::split`, KHÔNG cấu hình được bởi người dùng) — đủ để chứng minh THỨ TỰ có ý nghĩa
+/// thật (AC5 spec 6.2), không hơn. Từ story này [`PipelineInput::chapter_pattern`] mang một
+/// [`ChapterPattern`] THẬT (literal HOẶC regex), và nhánh `Unit::Decoded` tách theo **VỊ TRÍ
+/// KHỚP** — Chương thứ *i* là dải nửa-mở `[start_i, start_{i+1})` — thay vì `str::split`:
+/// `split` XOÁ dấu phân tách khỏi mọi mảnh, nên một mẫu TIÊU ĐỀ cấu hình được sẽ cho ra N
+/// Chương mà KHÔNG Chương nào còn tiêu đề — khuyết tật ngữ nghĩa mà §Design Notes spec 6.6
+/// "Vì sao tách theo VỊ TRÍ" gọi tên. Dòng khớp ở lại NGUYÊN VẸN ở ĐẦU Chương mới, và
+/// [`title_line_of`] đọc `title` từ chính dòng đó.
+///
+/// Văn bản TRƯỚC khớp đầu tiên (lời tựa, mục lục) LUÔN LUÔN giữ làm Chương `ord = 1` với
+/// `title = None` — KHÔNG BAO GIỜ bị vứt (§Always spec 6.6: mất byte im lặng bị cấm).
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
-/// 🔴 CHỖ TRIỆU CHỨNG AD-39 SỐNG — nhánh `Unit::Undecoded`
+/// 🔴 CHỖ TRIỆU CHỨNG AD-39 SỐNG — nhánh `Unit::Undecoded`, GIỮ NGUYÊN literal-byte thuần
 /// ─────────────────────────────────────────────────────────────────────────────
 /// Khi bước này chạy TRƯỚC [`Step::DecodeEncoding`] (một thứ tự SAI), đơn vị đang chảy vẫn
-/// là byte thô theo bảng mã đã khai (ví dụ GBK). Mẫu phân tách là một `&str` Rust — bao giờ
-/// cũng là byte UTF-8. Tìm CHUỖI BYTE UTF-8 của mẫu bên trong byte GBK: byte GBK của một chữ
-/// Hán không trùng byte UTF-8 của CHÍNH chữ đó (hai bảng mã khác nhau ở tầng byte), nên phép
-/// tìm dưới đây trả 0 khớp một cách TỰ NHIÊN — không ép, không bắt lỗi giả. Kết quả: một
-/// mảnh DUY NHẤT, y hệt input, KHÔNG NÉM LỖI NÀO. Đây CHÍNH LÀ câu spine `:470` mô tả — cả
-/// file ra đúng một Chương, không lỗi nào được ném. Nếu bước này chạy SAU khi đã giải mã
-/// đúng, mẫu (cũng UTF-8) khớp trên văn bản đã giải mã đúng và tách ra nhiều Chương thật —
-/// khác biệt QUAN SÁT ĐƯỢC đó là đối chứng cho AC5 (spine `:498`, §Design Notes spec 6.2).
+/// là byte thô theo bảng mã đã khai (ví dụ GBK). Với mẫu `Literal`, mẫu phân tách là một
+/// `&str` Rust — bao giờ cũng là byte UTF-8; tìm CHUỖI BYTE UTF-8 của mẫu bên trong byte GBK:
+/// byte GBK của một chữ Hán không trùng byte UTF-8 của CHÍNH chữ đó (hai bảng mã khác nhau ở
+/// tầng byte), nên phép tìm trả 0 khớp một cách TỰ NHIÊN — không ép, không bắt lỗi giả. Kết
+/// quả: một mảnh DUY NHẤT, y hệt input, KHÔNG NÉM LỖI NÀO — đúng câu spine `:470`. Với mẫu
+/// `Regex`, một regex engine trên `&[u8]` CÓ THỂ khớp được ở đây (nó không biết gì về bảng
+/// mã) và sẽ PHÁ đúng cặp đối chứng AD-39 — vì vậy nhánh này KHÔNG bao giờ biên dịch/chạy một
+/// regex trên byte thô: mẫu `Regex` gặp `Unit::Undecoded` LUÔN cho 0 khớp, cùng ngữ nghĩa với
+/// `Literal` không khớp (§Always spec 6.6). Nếu bước này chạy SAU khi đã giải mã đúng, mẫu
+/// khớp trên văn bản đã giải mã đúng và tách ra nhiều Chương thật — khác biệt QUAN SÁT ĐƯỢC
+/// đó là đối chứng cho AC5 (spine `:498`, §Design Notes spec 6.2).
 ///
 /// Chỉ chạm hình dạng [`PipelineShape::Blob`] — rẽ theo [`Flow::already_chaptered`] (HÌNH
 /// DẠNG khai báo), KHÔNG suy từ `units.len()` (vòng rà đối kháng 2026-09-04: một
 /// [`PipelineShape::Chapters`] với ĐÚNG MỘT phần tử có cùng độ dài quan sát được với một
 /// `Blob` chưa tách, nhưng phải BỎ QUA — đúng bảng hình dạng AD-39, spine `:486-491`).
-fn split_chapters_step(mut flow: Flow, pattern: Option<&str>) -> Flow {
+fn split_chapters_step(mut flow: Flow, pattern: Option<&ChapterPattern>) -> Result<Flow, ImportError> {
     if flow.already_chaptered {
-        return flow;
+        return Ok(flow);
     }
     let Some(pattern) = pattern else {
-        return flow;
+        return Ok(flow);
     };
 
     // Bất biến: hình dạng `Blob` khởi tạo ĐÚNG MỘT đơn vị, và không bước nào TRƯỚC bước này
@@ -620,68 +659,136 @@ fn split_chapters_step(mut flow: Flow, pattern: Option<&str>) -> Flow {
     // `None`) — an toàn hơn `.into_iter().next().expect(..)` của bản trước (vòng rà đối
     // kháng 2026-09-04, item 4: panic trên đường ghi/tính pipeline không có kiểu).
     let Some(unit) = flow.units.pop() else {
-        return flow; // rỗng bất thường — không có gì để tách, giữ nguyên trạng thái rỗng
+        return Ok(flow); // rỗng bất thường — không có gì để tách, giữ nguyên trạng thái rỗng
     };
 
-    let pieces: Vec<Unit> = match unit {
-        Unit::Decoded(text) => split_on_literal(&text, pattern)
-            .into_iter()
-            .map(|s| Unit::Decoded(s.to_owned()))
-            .collect(),
-        Unit::Undecoded { bytes, label } => split_on_literal_bytes(&bytes, pattern.as_bytes())
-            .into_iter()
-            .map(|b| Unit::Undecoded { bytes: b.to_vec(), label: label.clone() })
-            .collect(),
+    let pieces: Vec<(Unit, Option<String>)> = match unit {
+        Unit::Decoded(text) => split_on_positions(&text, pattern)?,
+        Unit::Undecoded { bytes, label } => match pattern.kind {
+            // Nhánh AD-39 — GIỮ NGUYÊN literal-byte thuần, không đụng tới (§Always spec 6.6).
+            super::chapterpattern::ChapterPatternKind::Literal => {
+                split_on_literal_bytes(&bytes, pattern.pattern.as_bytes())
+                    .into_iter()
+                    .map(|b| (Unit::Undecoded { bytes: b.to_vec(), label: label.clone() }, None))
+                    .collect()
+            }
+            // Regex trên byte CHƯA giải mã luôn 0 khớp — không biên dịch/chạy gì cả, cùng
+            // ngữ nghĩa AD-39 với nhánh Literal không khớp ở trên.
+            super::chapterpattern::ChapterPatternKind::Regex => {
+                vec![(Unit::Undecoded { bytes, label }, None)]
+            }
+        },
     };
 
     let n = pieces.len();
-    flow.units = pieces;
+    let (units, titles): (Vec<Unit>, Vec<Option<String>>) = pieces.into_iter().unzip();
+    flow.units = units;
     // Reset — số phần tử vừa đổi, một `Some(..)` cũ (nếu có, từ một thứ tự bị đảo NGOÀI
     // phạm vi đối chứng chính thức) không còn khớp INDEX nào có nghĩa.
     flow.segments = vec![None; n];
-    // 🔴 THÊM 2026-09-05 (Story 6.5) — cùng lý do `segments` ngay trên: một báo cáo làm sạch
-    // tính cho đơn vị TRƯỚC khi tách (bước 3 đứng TRƯỚC bước 5 trong `PIPELINE_ORDER`) không
-    // còn khớp INDEX nào có nghĩa sau khi tách thành N mảnh. Đường sản phẩm không chạm
-    // nhánh này (`chapter_pattern` luôn `None` ⇒ hàm này return sớm ở trên) — chỉ
-    // `tests/**` khai một mẫu thật mới tới được đây.
+    // 🔴 **SỬA 2026-09-05 (Story 6.6) — KHÔNG còn vứt báo cáo của luật làm sạch.**
+    //
+    // ─────────────────────────────────────────────────────────────────────────────
+    // 🔴 VÌ SAO GẮN LẠI VÀO CHƯƠNG ĐẦU, KHÔNG PHÂN BỔ THEO TỪNG CHƯƠNG
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Bản Story 6.5 reset thẳng về `vec![None; n]` — đúng khi N luôn là 1 (mẫu phân tách
+    // chưa cấu hình được), nhưng SAI khi N > 1 THẬT SỰ xảy ra (Story 6.6): một luật CÓ khớp
+    // sẽ hiện `count_in_chapter = 0` — một lời NÓI DỐI tệ hơn cả "yếu", đúng lớp lỗi rỗng-im-
+    // lặng mà AGENTS.md gọi tên là trung tâm của dự án. Không có cách nào phân bổ ĐÚNG báo
+    // cáo (tính trên văn bản TRƯỚC bước 4 chuẩn hoá) theo ranh giới N Chương (tính SAU bước 4)
+    // mà không có một cơ chế theo dõi vị trí xuyên bước chuẩn hoá — cơ chế đó CHƯA TỒN TẠI, và
+    // dựng nó không phải phạm vi story này (`commands::project::cleanup_and_chapters_preview_for`
+    // ghi rõ giới hạn này). Gắn NGUYÊN VẸN báo cáo (đo trên TOÀN blob) vào Chương ĐẦU —
+    // `count_in_import` (tổng qua N Chương, tính ở `commands::project`) và `count_in_chapter`
+    // (đọc từ Chương đầu) vì thế bằng nhau khi N Chương đến từ MẪU PHÂN TÁCH — con số ĐÚNG
+    // (không bịa), chỉ không CHI TIẾT theo Chương. Khác `PipelineShape::Chapters` (N đơn vị
+    // NGAY TỪ ĐẦU, KHÔNG đi qua hàm này — `already_chaptered` return sớm ở đầu hàm): ở đó bước
+    // 3 lặp `apply` một lần MỖI ĐƠN VỊ nên mỗi Chương đã có báo cáo THẬT của riêng nó, hai số
+    // trên THỰC SỰ khác nhau khi có ý nghĩa để khác nhau.
+    let whole_blob_report = flow.cleanup_reports.into_iter().next().flatten();
     flow.cleanup_reports = vec![None; n];
-    flow
-}
-
-/// So khớp trên `&str` — nhánh `Unit::Decoded` của [`split_chapters_step`].
-///
-/// 🔵 **SỬA (vòng rà đối kháng 2026-09-04) — KHÔNG còn `.map(str::trim)` trên mảnh giữ
-/// lại.** Bản trước trim mỗi mảnh trước khi lưu — đó là CHUẨN HOÁ KHOẢNG TRẮNG, việc của
-/// [`Step::NormalizeParagraphsAndWhitespace`], không phải việc của bước NÀY (bước 5 đứng
-/// SAU bước 4 trong [`PIPELINE_ORDER`]); nó từng xoá mất khoảng trắng đầu dòng/tiêu đề có
-/// chủ ý của người viết ngay trong `source_text` được lưu. 🔵 **SỬA THÊM 2026-09-04 (Story
-/// 6.4)** — bước 4 KHÔNG còn "thân rỗng": [`normalize::normalize`] nay trim thật hai đầu
-/// MỖI DÒNG trước khi bước này chạy; mệnh đề "không trim ở ĐÂY" vẫn đúng và giờ có một lý do
-/// MẠNH hơn (không phải "chưa ai làm", mà "đã có nơi làm ĐÚNG, làm lại ở đây là một nguồn sự
-/// thật thứ hai"). `s.trim().is_empty()` chỉ dùng để QUYẾT ĐỊNH có giữ một
-/// mảnh hay không (một khoảng trống thuần giữa hai lần khớp liền nhau không phải một
-/// Chương) — KHÔNG áp lên giá trị trả về, mảnh giữ lại đi ra NGUYÊN VĂN. Nếu không mảnh nào
-/// còn lại (mẫu không khớp, hoặc chỉ khớp ở đầu/cuối), trả nguyên văn bản làm MỘT Chương —
-/// không có mẫu khớp nghĩa là không có gì để tách, không phải một danh sách rỗng.
-fn split_on_literal<'a>(text: &'a str, pattern: &str) -> Vec<&'a str> {
-    if pattern.is_empty() {
-        return vec![text];
+    if let (Some(report), Some(first)) = (whole_blob_report, flow.cleanup_reports.first_mut()) {
+        *first = Some(report);
     }
-    let parts: Vec<&str> = text.split(pattern).filter(|s| !s.trim().is_empty()).collect();
-    if parts.is_empty() { vec![text] } else { parts }
+    flow.chapter_titles = titles;
+    Ok(flow)
 }
 
-/// So khớp trên byte thô — nhánh `Unit::Undecoded` của [`split_chapters_step`]. Cùng LUẬT
-/// "không khớp ⇒ trả nguyên bản" và "mảnh giữ lại đi ra NGUYÊN VĂN, không cắt gì" với
-/// [`split_on_literal`] — nhưng phép NHẬN BIẾT "rỗng" KHÔNG THỂ giống nhau, và đó không phải
-/// một chỗ lệch cần vá: [`split_on_literal`] nhận biết khoảng trắng qua `char::is_whitespace`
-/// trên một `&str` ĐÃ BIẾT bảng mã (luôn UTF-8); ở ĐÂY dữ liệu là byte THÔ theo một bảng mã
-/// CHƯA giải mã (đó chính là điều kiện để triệu chứng AD-39 dựng được, xem doc-comment
-/// [`split_chapters_step`]) — không có cách nào an toàn để nhận diện "khoảng trắng" trên byte
-/// của một bảng mã tuỳ ý mà không giải mã nó trước, và giải mã Ở ĐÂY sẽ là một bước giải mã
-/// THỨ HAI ngoài [`Step::DecodeEncoding`]. Vì vậy chỉ lát byte ĐỘ DÀI 0 bị loại. Viết tay vì
-/// `[u8]` không có `split` theo một CHUỖI CON tuỳ ý trong thư viện chuẩn (chỉ có tách theo
-/// một phần tử/vị từ trên từng phần tử).
+/// Tách `text` tại VỊ TRÍ khớp của `pattern` — Chương thứ *i* là dải nửa-mở
+/// `[start_i, start_{i+1})`, cùng quy ước mà `SegmentTermSpan`/`CleanupSpanWire` đã dùng khắp
+/// kho. Dòng khớp ở lại NGUYÊN VẸN Ở ĐẦU mảnh — không `str::split` (xem doc-comment
+/// [`split_chapters_step`] cho lý do). Không khớp chỗ nào ⇒ trả nguyên văn bản làm MỘT
+/// Chương, `title = None` (không có mẫu khớp nghĩa là không có gì để tách).
+///
+/// Phần TRƯỚC khớp đầu tiên (nếu có) là một Chương RIÊNG, `title = None` — lời tựa/mục lục
+/// không bao giờ bị vứt (§Always spec 6.6).
+/// 🔴 **SỬA (vòng nghiệm thu 2026-09-06) — mẫu hỏng KHÔNG còn bị nuốt thành "không khớp
+/// gì".** Bản đầu gọi `.unwrap_or_default()` trên `match_starts`, biến một `Err` (regex
+/// không biên dịch được) thành `Vec` rỗng ⇒ một Chương DUY NHẤT, KHÔNG lỗi nào ném — đúng
+/// lớp lỗi "rỗng im lặng" mà `AGENTS.md` gọi tên là trung tâm của dự án, và lệch với chính
+/// module anh em: [`Step::CleanByRules`] (nhánh `match` ngay trên trong hàm này) TRUYỀN lỗi
+/// của `core::cleanup::apply` lên thành [`ImportError::InvalidCleanupPattern`], không nuốt.
+/// `commands::project::resolve_chapter_pattern` biên dịch thử mẫu TRƯỚC khi gọi
+/// `run_pipeline` nên nhánh lỗi ở đây không nên chạm tới trên đường sản phẩm — nhưng đó là
+/// rào của MỘT CHỖ GỌI, còn [`run_import`]/[`run_import_with_order`] là seam CÔNG KHAI
+/// (`tests/**` gọi thẳng, và `segment_pipeline_boundary.rs` tồn tại chính vì thế) — một lời
+/// gọi khác không đi qua `resolve_chapter_pattern` xứng đáng nhận lại đúng lỗi, không một
+/// Chương giả trông như bình thường.
+fn split_on_positions(text: &str, pattern: &ChapterPattern) -> Result<Vec<(Unit, Option<String>)>, ImportError> {
+    let starts = pattern
+        .match_starts(text)
+        .map_err(|e| ImportError::InvalidChapterPattern { detail: e.to_string() })?;
+    if starts.is_empty() {
+        return Ok(vec![(Unit::Decoded(text.to_owned()), None)]);
+    }
+
+    let mut pieces = Vec::with_capacity(starts.len() + 1);
+    if starts[0] > 0 {
+        pieces.push((Unit::Decoded(text[..starts[0]].to_owned()), None));
+    }
+    for (i, &start) in starts.iter().enumerate() {
+        let end = starts.get(i + 1).copied().unwrap_or(text.len());
+        let piece = &text[start..end];
+        pieces.push((Unit::Decoded(piece.to_owned()), title_line_of(piece)));
+    }
+    Ok(pieces)
+}
+
+/// Tiêu đề HIỂN THỊ của một Chương vừa tách — dòng ĐẦU của `piece` (dòng chứa vị trí khớp),
+/// TRIM hai đầu. CHỈ dùng cho cột `title`; KHÔNG áp lên `source_text` được lưu (`piece` giữ
+/// NGUYÊN VĂN trong [`split_on_positions`]). Dòng trim rỗng ⇒ `None` (không có gì gọi là tiêu
+/// đề).
+///
+/// 🔴 **SỬA 2026-09-06 (vòng rà đối kháng 3, mục 1) — một mảnh CHỈ CÓ ĐÚNG MỘT DÒNG không có
+/// dòng tiêu đề RIÊNG BIỆT với thân.** Bản trước gọi `.lines().next().unwrap_or(piece)` VÔ
+/// ĐIỀU KIỆN: khi bước 4 ([`normalize::normalize`], luôn chạy TRƯỚC bước này trong
+/// [`PIPELINE_ORDER`]) gộp một nguồn KHÔNG có dòng trống ngăn cách tiêu đề khỏi thân thành
+/// ĐÚNG MỘT dòng (luật gộp của bước 4: nối khi dòng không kết bằng dấu kết câu VÀ hai dòng
+/// cùng một đoạn), "dòng đầu" của `piece` LÀ CHÍNH `piece` — cả thân Chương (có thể dài hàng
+/// nghìn ký tự) đi thẳng vào cột `chapter.title` của `project.db`. Quy tắc sửa là CẤU TRÚC
+/// (đếm SỐ DÒNG của `piece`), KHÔNG một ngưỡng ĐỘ DÀI nào (hằng số phù thuỷ bị cấm) — một
+/// mảnh đúng một dòng không có cách nào tách "tiêu đề" khỏi "thân" một cách có nghĩa, nên
+/// `title = None`. Piece CÓ từ hai dòng trở lên (kể cả khi dòng thứ hai là dòng trống, tức
+/// nguồn gốc có dòng trống ngăn cách) giữ nguyên hành vi cũ: dòng đầu, trim, rỗng ⇒ `None`.
+fn title_line_of(piece: &str) -> Option<String> {
+    let mut lines = piece.lines();
+    let first_line = lines.next()?;
+    if lines.next().is_none() {
+        // Đúng một dòng — không có gì để tách "tiêu đề" ra khỏi "thân" (xem doc-comment).
+        return None;
+    }
+    let trimmed = first_line.trim();
+    if trimmed.is_empty() { None } else { Some(trimmed.to_owned()) }
+}
+
+/// So khớp trên byte thô — nhánh `Unit::Undecoded` với mẫu `Literal` của
+/// [`split_chapters_step`] — GIỮ NGUYÊN chưa từng đổi kể từ Story 6.2 (chính là dụng cụ đo
+/// AD-39, §Design Notes spec 6.6 "Vì sao nhánh byte ở lại literal"). "không khớp ⇒ trả
+/// nguyên bản", chỉ lát byte ĐỘ DÀI 0 bị loại (không có cách nào an toàn để nhận diện
+/// "khoảng trắng" trên byte của một bảng mã CHƯA giải mã mà không giải mã nó trước — giải mã
+/// Ở ĐÂY sẽ là một bước giải mã THỨ HAI ngoài [`Step::DecodeEncoding`]). Viết tay vì `[u8]`
+/// không có `split` theo một CHUỖI CON tuỳ ý trong thư viện chuẩn (chỉ có tách theo một phần
+/// tử/vị từ trên từng phần tử).
 fn split_on_literal_bytes<'a>(data: &'a [u8], pattern: &[u8]) -> Vec<&'a [u8]> {
     if pattern.is_empty() {
         return vec![data];

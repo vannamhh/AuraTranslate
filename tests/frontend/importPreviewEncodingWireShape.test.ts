@@ -27,22 +27,30 @@ function cleanupFor(text: string): Record<string, unknown> {
   return { text, spans: [], rules: [], window_truncated: false, final_text: text }
 }
 
+/** Khối tách Chương tối giản, một Chương duy nhất — Story 6.6. Hình dạng THẬT của
+ * `commands::project::ChapterSplitPreviewWire`. */
+function chaptersFor(title: string): Record<string, unknown> {
+  return { chapter_count: 1, chapters: [{ ord: 1, title, length: title.length }] }
+}
+
 /** Payload dây HỢP LỆ — hình dạng THẬT mà `commands::project::ImportEncodingPreview` (Rust,
  * `serde::Serialize` KHÔNG `rename_all`) trả về. Story 6.4 thêm `normalized` trên mỗi ô —
  * `null` đồng bộ với `preview: null`, một object khi `preview` có chữ. Story 6.5 thêm
- * `cleanup` trên mỗi ô + `self_declared_cleanup`, cùng luật đồng bộ `null`. */
+ * `cleanup` trên mỗi ô + `self_declared_cleanup`. Story 6.6 thêm `chapters` trên mỗi ô +
+ * `self_declared_chapters`, cùng luật đồng bộ `null`. */
 function validWirePreview(): Record<string, unknown> {
   return {
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [
-      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null, cleanup: null },
+      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null, cleanup: null, chapters: null },
       {
         label: 'GB18030',
         encoding: 'gb18030',
         preview: '萧炎',
         normalized: { text: '萧炎', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
         cleanup: cleanupFor('萧炎'),
+        chapters: chaptersFor('萧炎'),
       },
       {
         label: 'GBK',
@@ -50,6 +58,7 @@ function validWirePreview(): Record<string, unknown> {
         preview: '萧炎',
         normalized: { text: '萧炎', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
         cleanup: cleanupFor('萧炎'),
+        chapters: chaptersFor('萧炎'),
       },
       {
         label: 'Big5',
@@ -57,6 +66,7 @@ function validWirePreview(): Record<string, unknown> {
         preview: '達鍁',
         normalized: { text: '達鍁', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
         cleanup: cleanupFor('達鍁'),
+        chapters: chaptersFor('達鍁'),
       },
       {
         label: 'UTF-16',
@@ -64,12 +74,14 @@ function validWirePreview(): Record<string, unknown> {
         preview: '扡摣',
         normalized: { text: '扡摣', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
         cleanup: cleanupFor('扡摣'),
+        chapters: chaptersFor('扡摣'),
       },
     ],
-    // candidates khong rong -- doc .normalized/.cleanup cua ung vien dang chon, khong doc
-    // hai truong nay.
+    // candidates khong rong -- doc .normalized/.cleanup/.chapters cua ung vien dang chon,
+    // khong doc bon truong nay.
     self_declared_normalized: null,
     self_declared_cleanup: null,
+    self_declared_chapters: null,
   }
 }
 
@@ -83,7 +95,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue(validWirePreview())
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('plain ascii', 'en')
+    const result = await previewImportEncodingFromText('plain ascii', 'en', null)
 
     expect(result.error).toBeNull()
     expect(result.preview).not.toBeNull()
@@ -104,7 +116,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('plain ascii', 'en')
+    const result = await previewImportEncodingFromText('plain ascii', 'en', null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -121,7 +133,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('plain ascii', 'en')
+    const result = await previewImportEncodingFromText('plain ascii', 'en', null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -135,7 +147,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en')
+    const result = await previewImportEncodingFromText('x', 'en', null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -153,7 +165,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en')
+    const result = await previewImportEncodingFromText('x', 'en', null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -176,7 +188,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en')
+    const result = await previewImportEncodingFromText('x', 'en', null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -190,7 +202,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue(payload)
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en')
+    const result = await previewImportEncodingFromText('x', 'en', null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -205,10 +217,11 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
       candidates: [],
       self_declared_normalized: { text: 'da dan', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
       self_declared_cleanup: cleanupFor('da dan'),
+      self_declared_chapters: chaptersFor('da dan'),
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('da dan', 'en')
+    const result = await previewImportEncodingFromText('da dan', 'en', null)
 
     expect(result.error).toBeNull()
     expect(result.preview?.candidates).toHaveLength(0)
@@ -219,7 +232,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue(validWirePreview())
     const { previewImportEncodingFromFile } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromFile('/tmp/gbk.txt', 'zh')
+    const result = await previewImportEncodingFromFile('/tmp/gbk.txt', 'zh', null)
 
     expect(result.error).toBeNull()
     expect(result.preview?.candidates).toHaveLength(5)
@@ -244,10 +257,11 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
       ],
       self_declared_normalized: null,
       self_declared_cleanup: null,
+      self_declared_chapters: null,
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en')
+    const result = await previewImportEncodingFromText('x', 'en', null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -270,14 +284,16 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
             window_truncated: false,
             final_text: 'abc',
           },
+          chapters: null,
         },
       ],
       self_declared_normalized: null,
       self_declared_cleanup: null,
+      self_declared_chapters: null,
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en')
+    const result = await previewImportEncodingFromText('x', 'en', null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -289,7 +305,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     mockInvoke.mockResolvedValue(payload)
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('x', 'en')
+    const result = await previewImportEncodingFromText('x', 'en', null)
 
     expect(result.preview).toBeNull()
     expect(result.error).not.toBeNull()
@@ -324,19 +340,133 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
             window_truncated: false,
             final_text: 'abc',
           },
+          chapters: chaptersFor('quang cao abc'),
         },
       ],
       self_declared_normalized: null,
       self_declared_cleanup: null,
+      self_declared_chapters: null,
     })
     const { previewImportEncodingFromText } = await import('../../src/config/project')
 
-    const result = await previewImportEncodingFromText('quang cao abc', 'en')
+    const result = await previewImportEncodingFromText('quang cao abc', 'en', null)
 
     expect(result.error).toBeNull()
     const cleanup = result.preview?.candidates[0]?.cleanup
     expect(cleanup?.spans).toHaveLength(1)
     expect(cleanup?.rules[0]?.pattern).toBe('quang cao')
     expect(cleanup?.final_text).toBe('abc')
+  })
+
+  // ── Story 6.6 — khối tách Chương (tầng 4) trên dây ────────────────────────────────
+
+  // Cùng lý lẽ đã áp cho `cleanup` (Story 6.5) — `chapters` VẮNG MẶT (không phải `null`)
+  // phải bác CẢ payload, không lọt qua thành `undefined` hiện lên `.vue`.
+  it('candidates[].chapters VẮNG MẶT (thiếu trường, không phải null) làm CẢ payload bị bác', async () => {
+    mockInvoke.mockResolvedValue({
+      confidence: 'high',
+      selected_encoding: 'UTF-8',
+      candidates: [
+        {
+          label: 'UTF-8',
+          encoding: 'UTF-8',
+          preview: 'abc',
+          normalized: { text: 'abc', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+          cleanup: cleanupFor('abc'),
+          // thieu `chapters` han
+        },
+      ],
+      self_declared_normalized: null,
+      self_declared_cleanup: null,
+      self_declared_chapters: null,
+    })
+    const { previewImportEncodingFromText } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromText('x', 'en', null)
+
+    expect(result.preview).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  it('self_declared_chapters VẮNG MẶT (thiếu trường, không phải null) làm CẢ payload bị bác', async () => {
+    const payload = validWirePreview()
+    delete payload.self_declared_chapters
+    mockInvoke.mockResolvedValue(payload)
+    const { previewImportEncodingFromText } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromText('x', 'en', null)
+
+    expect(result.preview).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  // Ca DƯƠNG — một khối tách Chương mang N > 1 Chương THẬT (title + length) phải đi qua
+  // nguyên vẹn, không bị Kiểm TYPE cắt bớt trường nào.
+  it('payload mang khối tách Chương N > 1 Chương đi qua nguyên vẹn', async () => {
+    mockInvoke.mockResolvedValue({
+      confidence: 'high',
+      selected_encoding: 'UTF-8',
+      candidates: [
+        {
+          label: 'UTF-8',
+          encoding: 'UTF-8',
+          preview: 'Chuong 1 Chuong 2',
+          normalized: {
+            text: 'Chuong 1 Chuong 2',
+            joined_lines: 0,
+            blank_lines_removed: 0,
+            window_truncated: false,
+          },
+          cleanup: cleanupFor('Chuong 1 Chuong 2'),
+          chapters: {
+            chapter_count: 2,
+            chapters: [
+              { ord: 1, title: 'Chuong 1', length: 8 },
+              { ord: 2, title: 'Chuong 2', length: 8 },
+            ],
+          },
+        },
+      ],
+      self_declared_normalized: null,
+      self_declared_cleanup: null,
+      self_declared_chapters: null,
+    })
+    const { previewImportEncodingFromText } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromText('x', 'en', null)
+
+    expect(result.error).toBeNull()
+    const chapters = result.preview?.candidates[0]?.chapters
+    expect(chapters?.chapter_count).toBe(2)
+    expect(chapters?.chapters).toHaveLength(2)
+    expect(chapters?.chapters[1]?.title).toBe('Chuong 2')
+  })
+
+  // ── Story 6.6 — tham số `chapterPattern` gửi lên Rust ĐÚNG HÌNH DẠNG dây ──────────
+
+  it('chapterPattern null gửi nguyên văn `null` cho invoke, không bị đúc thành một object rỗng', async () => {
+    mockInvoke.mockResolvedValue(validWirePreview())
+    const { previewImportEncodingFromText } = await import('../../src/config/project')
+
+    await previewImportEncodingFromText('van ban', 'en', null)
+
+    expect(mockInvoke).toHaveBeenCalledWith('preview_import_encoding_from_text', {
+      text: 'van ban',
+      sourceLang: 'en',
+      chapterPattern: null,
+    })
+  })
+
+  it('chapterPattern { pattern, kind } gửi ĐÚNG hình dạng { pattern, kind } cho invoke', async () => {
+    mockInvoke.mockResolvedValue(validWirePreview())
+    const { previewImportEncodingFromFile } = await import('../../src/config/project')
+
+    await previewImportEncodingFromFile('/tmp/x.txt', 'zh', { pattern: '第.*章', kind: 'regex' })
+
+    expect(mockInvoke).toHaveBeenCalledWith('preview_import_encoding_from_file', {
+      path: '/tmp/x.txt',
+      sourceLang: 'zh',
+      chapterPattern: { pattern: '第.*章', kind: 'regex' },
+    })
   })
 })

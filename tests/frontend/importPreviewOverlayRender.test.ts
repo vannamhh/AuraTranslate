@@ -48,6 +48,9 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
     // Story 6.5 — cùng lý do `normalized`: khối làm sạch đi kèm sẵn trên MỖI ô. `null` đồng
     // bộ với `normalized: null` (bảng mã "không ra chữ") — xem ca dành riêng cho nhánh đó.
     cleanup: { text: 'plain ascii', spans: [], rules: [], window_truncated: false, final_text: 'plain ascii' },
+    // Story 6.6 — cùng lý do `cleanup`: khối tách Chương đi kèm sẵn trên MỖI ô. `null` đồng
+    // bộ với `normalized: null`/`cleanup: null` (bảng mã "không ra chữ").
+    chapters: { chapter_count: 1, chapters: [{ ord: 1, title: null, length: 11 }] },
     ...over,
   }
 }
@@ -61,6 +64,7 @@ function preview(over: Partial<ImportEncodingPreview> = {}): ImportEncodingPrevi
     // hai truong nay.
     self_declared_normalized: null,
     self_declared_cleanup: null,
+    self_declared_chapters: null,
     ...over,
   }
 }
@@ -195,6 +199,13 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
           rules: [],
           window_truncated: false,
           final_text: 'Van ban da dan roi noi lai.',
+        },
+        // Story 6.6 — cùng lý do `self_declared_cleanup` ngay trên: thiếu trường này thì
+        // tầng 4 rơi vào nhánh rỗng "chưa chọn được ứng viên", chia sẻ tiền tố câu với
+        // đúng chuỗi ca này khẳng định VẮNG MẶT ở dưới.
+        self_declared_chapters: {
+          chapter_count: 1,
+          chapters: [{ ord: 1, title: null, length: 27 }],
         },
       }),
       error: null,

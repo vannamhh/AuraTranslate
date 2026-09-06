@@ -28,6 +28,7 @@ use crate::core::i18n::IpcError;
 use crate::core::library::{WorkMeta, create_work_folder, remove_folder};
 use crate::core::lifecycle::LifecycleStatus;
 use crate::core::scope::load_global_config;
+use crate::core::segment::chapterpattern::{ChapterPattern, ChapterPatternKind};
 use crate::core::segment::encoding::{
     self, Confidence, EncodingCandidate, EncodingVerdict, NormalizedCandidate,
 };
@@ -236,6 +237,34 @@ fn run_pipeline(
     run_import(input)
 }
 
+/// Mẫu phân tách Chương trên dây — Story 6.6 (FR14). `None` ⇒ không mẫu, bước 5 no-op (N=1).
+///
+/// `kind` là [`ChapterPatternKind`] TRỰC TIẾP (không một hàm `from_wire` viết tay ở lớp vỏ) —
+/// cùng khuôn `CleanupRuleTier`/`CleanupRuleKind`: `serde::Deserialize` được khai NGAY trên
+/// kiểu core, Tauri giải mã tham số thẳng thành nó.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ChapterPatternWire {
+    pub pattern: String,
+    pub kind: ChapterPatternKind,
+}
+
+/// Phân giải mẫu phân tách Chương đến từ dây — **hàm thuần**. Mẫu `kind = "regex"` được
+/// BIÊN DỊCH THỬ ngay ở đây, TRƯỚC khi `run_pipeline` chạy (§I/O Matrix spec 6.6: "Regex
+/// không biên dịch được → Từ chối, xem trước giữ kết quả CŨ, hiện thông báo") — cùng luật mà
+/// `core::cleanup::store::validate_pattern` đã theo cho luật làm sạch: lưu/dùng một mẫu hỏng
+/// KHÔNG BAO GIỜ tới được `run_pipeline`, một cổng biên dịch riêng ở đó là thừa.
+pub fn resolve_chapter_pattern(
+    wire: Option<ChapterPatternWire>,
+) -> Result<Option<ChapterPattern>, ImportError> {
+    let Some(wire) = wire else { return Ok(None) };
+    if wire.kind == ChapterPatternKind::Regex {
+        if let Err(err) = crate::core::segment::chapterpattern::compile(&wire.pattern) {
+            return Err(ImportError::InvalidChapterPattern { detail: err.to_string() });
+        }
+    }
+    Ok(Some(ChapterPattern { kind: wire.kind, pattern: wire.pattern }))
+}
+
 /// **Hàm thuần** — tạo một Tác phẩm mới trên đĩa từ một [`PipelineShape`] đã có sẵn.
 ///
 /// Thứ tự: dựng thư mục (`core::library::atproj`) → mở `project.db`
@@ -246,9 +275,11 @@ fn run_pipeline(
 /// `.atproj/` nửa vời (AC8).
 ///
 /// 🔵 **SỬA 2026-09-04 (Story 6.2, AD-39) — nhận `PipelineShape`, không còn `ImportedChapter`
-/// đơn lẻ; ghi N Chương, không còn đúng một.** N = 1 trên đường sản phẩm hôm nay (chuỗi
-/// khai `chapter_pattern: None` — Never clause của spec 6.2), nên hành vi quan sát được
-/// KHÔNG đổi; đường đi đã tổng quát cho Story 6.6/6.7 (N > 1) mà không cần sửa lại hàm này.
+/// đơn lẻ; ghi N Chương, không còn đúng một.** 🔵 **SỬA 2026-09-05 (Story 6.6) — "N = 1 trên
+/// đường sản phẩm hôm nay" đã HẾT ĐÚNG.** Hàm nay nhận thêm tham số `chapter_pattern`
+/// (`Option<ChapterPattern>`) và N > 1 là một kết quả THẬT trên đường sản phẩm khi người
+/// dùng cấu hình một mẫu khớp được nhiều lần — đường đi đã tổng quát từ Story 6.2, không cần
+/// sửa lại hàm này lần nữa.
 ///
 /// 🔵 **SỬA 2026-09-04 (Story 6.3) — thêm tham số `encoding`, ĐIỂM TIÊM DUY NHẤT của bảng
 /// mã đã chọn/đã dò.** Trước story này hàm luôn khai UTF-8 cứng qua
@@ -273,6 +304,7 @@ pub fn create_work(
     shape: PipelineShape,
     encoding: &'static encoding_rs::Encoding,
     cleanup_rules: Vec<crate::core::cleanup::CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
 ) -> Result<OpenWork, IpcError> {
     let dir = create_work_folder(documents_root, name)?;
 
@@ -297,9 +329,10 @@ pub fn create_work(
     // khác của tiến trình**. Một Chương dài đi qua chuỗi trong closure là một lượt khoá
     // hàng đợi ghi mà auto-save của Editor (NFR2) phải xếp sau.
     //
-    // 🔴 `chapter_pattern: None` — Never clause của spec 6.2: mẫu phân tách NGƯỜI DÙNG cấu
-    // hình được là Story 6.6; sản phẩm hôm nay không có bề mặt nào đưa một mẫu vào, nên
-    // bước 5 của chuỗi luôn là no-op và N luôn là 1, đúng hành vi hôm nay.
+    // 🔵 SỬA 2026-09-05 (Story 6.6) — "chapter_pattern: None" (Never clause của spec 6.2) đã
+    // HẾT ĐÚNG: `chapter_pattern` giờ là tham số THẬT của chính `create_work`, tới từ màn
+    // xem trước nhập. `None` vẫn hợp lệ (không mẫu ⇒ bước 5 no-op, N = 1) — chỉ không còn là
+    // giá trị DUY NHẤT có thể tới đây.
     //
     // 🔵 SỬA 2026-09-04 (Story 6.3) — `with_encoding`, không còn `default_shaped` cứng
     // UTF-8: `encoding` giờ là tham số của chính `create_work` (xem doc-comment hàm này).
@@ -307,7 +340,8 @@ pub fn create_work(
     // đây nữa — xem doc-comment của hàm đó), cộng `cleanup_rules` đã phân giải.
     let outcome = match run_pipeline(
         PipelineInput::with_encoding(shape, encoding, source_lang_owned.clone())
-            .with_cleanup_rules(cleanup_rules),
+            .with_cleanup_rules(cleanup_rules)
+            .with_chapter_pattern(chapter_pattern),
     ) {
         Ok(outcome) => outcome,
         Err(err) => {
@@ -321,10 +355,12 @@ pub fn create_work(
     // 🔴 SỬA (vòng rà đối kháng 2026-09-04, item 4) — bán kính nổ của một `.expect()` bên
     // TRONG closure ghi là TOÀN TIẾN TRÌNH: `panic = "abort"` giết ngay khi giao dịch đang
     // mở, không unwind, không rollback. Cả hai bất biến dưới đây được validate ở NGOÀI
-    // closure, TRƯỚC khi giao dịch mở — không phải vì chúng có thể xảy ra hôm nay (chuỗi
-    // sản phẩm luôn N = 1, `chapter_pattern: None`), mà vì `run_import` là một seam CÔNG
-    // KHAI (`PipelineShape::Chapters` cho phép N tuỳ ý), và "không thể" là một quan sát về
-    // đường sản phẩm HÔM NAY, không phải một hợp đồng kiểu mà trình biên dịch cưỡng chế.
+    // closure, TRƯỚC khi giao dịch mở.
+    // 🔵 SỬA 2026-09-05 (Story 6.6) — "chuỗi sản phẩm luôn N = 1" đã HẾT ĐÚNG (mẫu phân tách
+    // cho N > 1 thật trên đường sản phẩm). Hai bất biến dưới vẫn kiểm ở đây vì lý do KHÁC,
+    // không đổi: `run_import` là một seam CÔNG KHAI (`PipelineShape::Chapters` cho phép N
+    // tuỳ ý), và một Chương RỖNG hay N vượt `i64` là ĐIỀU KIỆN BIÊN của chính N > 1, không
+    // phải một điều kiện chỉ tồn tại lúc chuỗi còn luôn N = 1.
     if chapters.is_empty() {
         store.close();
         remove_folder(&dir);
@@ -355,10 +391,10 @@ pub fn create_work(
         // sinh ra chúng. Segment đã tính SẴN trong `chapter.segments` (bước 7 của chuỗi,
         // chạy trong `run_import` NGOÀI closure này) — không tính lại ở đây.
         //
-        // 🔴 AD-39, N Chương (N = 1 ở story này) — `ord` liên tục từ 1, cùng giao dịch với
-        // hàng `work`. `OpenWork::chapter_id` chốt vào Chương ĐẦU TIÊN — Story 2.11 xoá
-        // hẳn lối suy-ra-động (`ORDER BY ord LIMIT 1`); N > 1 là mối bận tâm của story sở
-        // hữu năng lực đó (6.6/6.7), không phải story này.
+        // 🔵 SỬA 2026-09-05 (Story 6.6) — "N = 1 ở story này" đã HẾT ĐÚNG: `ord` liên tục từ
+        // 1, cùng giao dịch với hàng `work`, cho N THẬT (mẫu phân tách có thể khớp nhiều
+        // lần). `OpenWork::chapter_id` chốt vào Chương ĐẦU TIÊN — Story 2.11 xoá hẳn lối
+        // suy-ra-động (`ORDER BY ord LIMIT 1`).
         //
         // 🔴 KHÔNG `Option<i64>` + `.expect()` — `chapters` đã được xác nhận KHÔNG RỖNG
         // và `chapters.len()` đã được xác nhận VỪA `i64` ở NGOÀI closure này (vòng rà đối
@@ -368,11 +404,14 @@ pub fn create_work(
         let mut is_first = true;
         for (i, chapter) in chapters.iter().enumerate() {
             let ord = i as i64 + 1;
+            // 🔵 SỬA 2026-09-05 (Story 6.6) — `title` bơm từ `chapter.title` (dòng khớp mẫu
+            // phân tách, `None` cho Chương lời tựa hoặc khi không có mẫu) thay vì `NULL`
+            // cứng.
             tx.execute(
                 "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
-                 VALUES (?1, NULL, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
+                 VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
                  strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
-                (ord, &chapter.source_text, LifecycleStatus::NotStarted.as_str()),
+                (ord, &chapter.title, &chapter.source_text, LifecycleStatus::NotStarted.as_str()),
             )?;
 
             // `last_insert_rowid()` đọc **trong** giao dịch, ngay sau lượt chèn của chính
@@ -478,6 +517,7 @@ pub fn create_work_from_text(
         import_text(text),
         encoding_rs::UTF_8,
         Vec::new(),
+        None,
     )
 }
 
@@ -911,6 +951,7 @@ pub fn create_work_from_file(
         shape,
         encoding_rs::UTF_8,
         Vec::new(),
+        None,
     )
 }
 
@@ -988,6 +1029,11 @@ pub struct EncodingCandidateWire {
     /// dựng an toàn của ứng viên này. `null` đồng bộ với `preview`/`normalized` (bảng mã
     /// này "không ra chữ").
     pub cleanup: Option<CleanupPreviewWire>,
+    /// **THÊM 2026-09-05 (Story 6.6)** — khối tách Chương (tầng 4): số Chương nhận ra, kèm
+    /// `title`/độ dài từng Chương, tính bằng CHÍNH lượt chạy chuỗi thật đã dựng `cleanup` ở
+    /// trên (không một lượt `run_pipeline` thứ hai chỉ cho khối này). `null` đồng bộ với
+    /// `cleanup` (bảng mã này "không ra chữ").
+    pub chapters: Option<ChapterSplitPreviewWire>,
 }
 
 /// Nhãn tầng của một luật làm sạch, trên dây — Story 6.5.
@@ -1021,11 +1067,15 @@ pub struct CleanupRuleReportWire {
     /// Số chỗ khớp trong Chương ĐANG XEM TRƯỚC — trên TOÀN văn bản, kể cả khi luật đã tắt
     /// (§Always spec 6.5: "tắt đổi việc xoá, không đổi việc đo").
     pub count_in_chapter: usize,
-    /// Số chỗ khớp trong CẢ lần nhập. 🔵 **Nợ có chủ (Story 6.6/6.7, `deferred-work.md`)** —
-    /// hôm nay LUÔN bằng `count_in_chapter`: một lượt xem trước chỉ hiện đúng MỘT Chương
-    /// (`PipelineShape::Blob`), nên "cả lần nhập" và "Chương này" là cùng một tập. Con số
-    /// KHÔNG sai — nó đúng cho một lần nhập một Chương — nhưng sẽ khác đi khi 6.6/6.7 dựng
-    /// lần nhập nhiều Chương.
+    /// Số chỗ khớp trong CẢ lần nhập. 🔵 **SỬA 2026-09-05 (Story 6.6) — 🟡 đóng MỘT PHẦN nợ
+    /// `deferred-work.md:9535`, không trọn vẹn.** "LUÔN bằng `count_in_chapter`" đã HẾT ĐÚNG
+    /// cho [`PipelineShape::Chapters`] (N đơn vị NGAY TỪ ĐẦU — mỗi Chương có báo cáo THẬT
+    /// của riêng nó, hai số THỰC SỰ khác nhau khi có ý nghĩa để khác nhau) — nhưng hình dạng
+    /// đó CHƯA có đường sản phẩm nào dựng ra (Story 6.7 sẽ là đường đầu tiên). Trên đường
+    /// SẢN PHẨM THẬT của CHÍNH story này (`Blob` + `chapter_pattern`), mệnh đề CŨ vẫn đúng:
+    /// hai số LUÔN BẰNG NHAU (đúng số, không bịa — xem doc-comment
+    /// [`cleanup_and_chapters_preview_for`] mục "GIỚI HẠN THẬT" cho lý do kiến trúc). N = 1
+    /// (mặc định, không mẫu) thì hai số vẫn bằng nhau, đúng hành vi cũ.
     pub count_in_import: usize,
 }
 
@@ -1087,6 +1137,53 @@ pub struct CleanupPreviewWire {
     pub final_text: String,
 }
 
+/// Một Chương trong khối tách Chương (Story 6.6, tầng 4) — số thứ tự, tiêu đề, độ dài.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ChapterSplitPreviewEntryWire {
+    /// 1-based, liên tục — cùng quy ước với cột `ord` của bảng `chapter`.
+    pub ord: i64,
+    /// Dòng khớp mẫu phân tách, `None` cho Chương lời tựa (trước khớp đầu tiên) hoặc khi
+    /// mẫu không khớp/không được cấu hình.
+    pub title: Option<String>,
+    /// Độ dài `source_text` của Chương này, tính bằng ĐIỂM MÃ (không phải byte) — Task list
+    /// spec 6.6.
+    pub length: usize,
+}
+
+/// Khối tách Chương của MỘT ứng viên/đường tự khai — tầng 4 (Story 6.6, FR14).
+///
+/// 🔴 **Mang TOÀN BỘ N Chương, không chỉ ba đầu/ba cuối.** §Never spec 6.6 cấm mọi ngưỡng/cờ
+/// "đáng ngờ" — AC5 ("chỗ bắt nhầm nhìn thấy được") đạt bằng đường YẾU HƠN nhưng KHÔNG NÓI
+/// DỐI: mọi Chương mang `title`/`length`, và người dùng SẮP XẾP theo `length` để tự phát
+/// hiện chỗ bất thường (§Design Notes "Vì sao KHÔNG có cờ đáng ngờ"). Sắp theo độ dài đòi
+/// nhìn thấy MỌI Chương, không chỉ một cửa sổ cố định — tầng hiển thị
+/// (`ImportPreviewOverlay.vue`) tự co gọn về "ba đầu, `⋯`, ba cuối" làm khung nhìn MẶC ĐỊNH,
+/// và mở rộng khi người dùng bấm sắp xếp.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ChapterSplitPreviewWire {
+    pub chapter_count: usize,
+    pub chapters: Vec<ChapterSplitPreviewEntryWire>,
+}
+
+fn build_chapter_split_preview_wire(
+    chapters: &[crate::core::segment::import::ImportedChapter],
+) -> ChapterSplitPreviewWire {
+    ChapterSplitPreviewWire {
+        chapter_count: chapters.len(),
+        chapters: chapters
+            .iter()
+            .enumerate()
+            .map(|(i, c)| ChapterSplitPreviewEntryWire {
+                ord: i as i64 + 1,
+                title: c.title.clone(),
+                length: c.source_text.chars().count(),
+            })
+            .collect(),
+    }
+}
+
 /// Ba trạng thái tin cậy trên dây — DỮ LIỆU (AD-21: Rust không gửi câu). Frontend tự dịch
 /// qua `t()` bằng ba khoá cố định (`mode.library.preview.confidence_*`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -1145,6 +1242,9 @@ pub struct ImportEncodingPreview {
     /// **THÊM 2026-09-05 (Story 6.5)** — khối làm sạch (tầng 3) cho nhánh TỰ KHAI, cùng
     /// điều kiện `Some`/`None` với [`Self::self_declared_normalized`].
     pub self_declared_cleanup: Option<CleanupPreviewWire>,
+    /// **THÊM 2026-09-05 (Story 6.6)** — khối tách Chương (tầng 4) cho nhánh TỰ KHAI, cùng
+    /// điều kiện `Some`/`None` với [`Self::self_declared_normalized`].
+    pub self_declared_chapters: Option<ChapterSplitPreviewWire>,
 }
 
 /// Chạy chuỗi pipeline thật trên `shape` — **TOÀN Chương, KHÔNG cắt cửa sổ** — để tính khối
@@ -1173,9 +1273,38 @@ pub struct ImportEncodingPreview {
 /// tuyến tính theo kích cỡ văn bản). Ở quy mô này, tổng chi phí một lượt mở màn xem trước
 /// nằm dưới một khung hình ở 60 Hz (~16 ms) TÍNH TRÊN MỖI lượt `run_pipeline`, và dưới một
 /// phần mười giây cho TOÀN BỘ dải năm ứng viên — không cần ghi nợ hiệu năng ở quy mô đo
-/// được hôm nay. **Chưa đo**: một Chương ở quy mô hàng MB (nếu FR124/Story 6.6+ sau này cho
-/// phép một Chương lớn hơn nhiều so với một chương tiểu thuyết điển hình) — nếu ngày đó tới,
-/// đo lại trước khi tin, đừng suy tuyến tính từ con số ở đây.
+/// được hôm nay.
+///
+/// 🔵 **ĐO LẠI 2026-09-05 (Story 6.6) — nguồn NHIỀU CHƯƠNG THẬT, không suy tuyến tính từ số
+/// cũ.** Mốc trên đo TRÊN MỘT Chương; story này thêm khối tách Chương (tầng 4,
+/// [`ChapterSplitPreviewWire`]) và số Chương thật có thể lên tới 2.000 (trần I/O Matrix spec
+/// 6.6, hàng "Xác nhận N Chương"). `cleanup_contract.rs::perf_probe_chapter_split_preview_on_two_thousand_chapters`
+/// dựng đúng 2.000 Chương (~125.000 byte, một mẫu regex + một luật literal) và đo đường tự
+/// khai (1 lượt `run_pipeline`, CỘNG THÊM việc dựng khối tách cho cả 2.000 Chương): **~42-45
+/// ms** (ba lượt đo lặp lại, máy phát triển của Ice, không tải nền, build KHÔNG tối ưu —
+/// `cargo test` mặc định, không `--release`). Chi phí THÊM của khối tách Chương so với một
+/// lượt `run_pipeline` không-tách-Chương cùng cỡ dữ liệu là NHỎ so với tổng — số đo không
+/// tách riêng được hai phần vì chúng chạy trong CÙNG một lượt gọi, và tách riêng đòi hai lượt
+/// đo trên hai bản build khác nhau (không làm ở đây, không cần thiết ở quy mô này).
+///
+/// 🔴 **SỬA (vòng rà đối kháng 3, mục 7) — "45 ms vẫn dưới một phần mười giây" đã bị RÚT LẠI,
+/// KHÔNG suy tuyến tính từ số trên.** Số ~42-45 ms ngay trên chỉ đo đường TỰ KHAI
+/// (`ChapterInput::AlreadyText`, ĐÚNG MỘT lượt `run_pipeline`) — đường FR126 THẬT (`RawBytes`,
+/// dò bảng mã) gọi [`encoding_candidate_wire`] → [`cleanup_and_chapters_preview_for`] MỘT LẦN
+/// CHO MỖI ứng viên trong NĂM ([`ImportEncodingPreview::candidates`] luôn đủ năm khi có byte
+/// để dò), tức CÙNG khối lượng việc (2.000 Chương, một luật) chạy tối đa NĂM LẦN mỗi lượt tải
+/// màn xem trước — không phải một. Suy tuyến tính (`5 × 45 ms ≈ 225 ms`) bị CẤM tự ý tin mà
+/// không đo (Ice, 2026-09-05); `cleanup_contract.rs::perf_probe_chapter_split_preview_on_five_candidates_with_two_thousand_chapters`
+/// đo THẲNG đường năm ứng viên trên CÙNG khối lượng: **~242-286 ms TOÀN BỘ** (bốn lượt đo lặp
+/// lại, máy phát triển của Ice, không tải nền, build DEBUG không tối ưu) — cùng cỡ độ lớn với
+/// suy tuyến tính (không lệch bậc), nhưng là số ĐO ĐƯỢC, không phải số SUY RA. Ở quy mô 2.000
+/// Chương, đường năm ứng viên KHÔNG còn dưới một phần mười giây — dưới một phần BA giây. Đây
+/// vẫn là biên TRÊN hiếm gặp (I/O Matrix spec 6.6 gọi 2.000 Chương là TRẦN, không phải trung
+/// vị); không ghi nợ hiệu năng mới ở mức đo được hôm nay, chỉ SỬA câu khẳng định cho khớp con
+/// số đã đo. **Chưa đo**: một Chương ĐƠN LẺ ở quy mô hàng MB (nếu FR124/Epic
+/// 6 sau này cho phép một Chương lớn hơn nhiều so với một chương tiểu thuyết điển hình), và
+/// build `--release` (số đo trên là DEBUG, chậm hơn đáng kể so với bản phát hành thật) — nếu
+/// ngày đó tới, đo lại trước khi tin, đừng suy tuyến tính từ con số ở đây.
 ///
 /// Nay `shape` mang
 /// TOÀN VĂN BẢN thật (byte thô CẢ tệp cho ứng viên, hoặc chuỗi tự khai CẢ Chương), và
@@ -1188,34 +1317,102 @@ pub struct ImportEncodingPreview {
 /// được với bảng mã của MỘT ứng viên (`Err(ImportError::UndecodableBytes)`, có thể xảy ra ở
 /// một chỗ SAU cửa sổ bằng chứng — trước lượt sửa này không đường nào chạm tới đó để mà lộ
 /// ra) rơi về CÙNG một báo cáo rỗng, không làm vỡ dải năm ô.
-fn cleanup_preview_for(
+/// 🔵 **SỬA 2026-09-05 (Story 6.6) — nhận thêm `chapter_pattern`, trả kèm khối tách Chương.**
+/// `outcome.chapters` giờ đọc TOÀN BỘ (không còn `.into_iter().next()`) — mẫu phân tách có
+/// thể cho ra N Chương, và khối tách Chương (tầng 4) cần cả N để hiện title/độ dài từng
+/// Chương. Vẫn ĐÚNG MỘT lượt `run_pipeline` cho cả hai khối (làm sạch + tách Chương).
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// 🔴 VÌ SAO `count_in_import` = TỔNG `per_rule_counts` QUA MỌI CHƯƠNG, KHÔNG MỘT LƯỢT
+/// `cleanup::apply` THỨ HAI
+/// ─────────────────────────────────────────────────────────────────────────────
+/// `cleanup_boundary.rs::the_cleanup_apply_function_has_exactly_one_named_product_call_site`
+/// khoá `core::cleanup::apply` ở ĐÚNG MỘT chỗ gọi (`pipeline.rs::Step::CleanByRules`) — một
+/// bản nháp sớm của hàm này gọi `apply` LẦN THỨ HAI ở đây để tính lại số khớp riêng từng
+/// Chương, và cổng đó ĐỎ NGAY (đo 2026-09-06: `cargo test --test cleanup_boundary` báo 2 chỗ
+/// gọi, đòi đúng 1). Thay vào đó, `count_in_import` CHỈ CỘNG DỒN các `per_rule_counts` mà
+/// CHÍNH `Step::CleanByRules` đã tính — không tính lại gì. Với [`PipelineShape::Chapters`]
+/// (N đơn vị NGAY TỪ ĐẦU, `already_chaptered = true`), bước 3 lặp `apply` một lần cho MỖI
+/// đơn vị (một chỗ gọi nguồn, N lần chạy) nên `outcome.chapters[i].cleanup_report` là báo cáo
+/// THẬT của riêng Chương đó — tổng của chúng đúng là `count_in_import`, đóng nợ
+/// `deferred-work.md:9535`.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// ⚠️ GIỚI HẠN THẬT — mẫu phân tách (`Blob` + `chapter_pattern`) KHÔNG đạt độ chi tiết đó
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Bước 3 (`CleanByRules`) đứng TRƯỚC bước 5 (`SplitChapters`) trong `PIPELINE_ORDER` — với
+/// hình dạng `Blob`, luật làm sạch chạy trên TOÀN blob dưới dạng MỘT đơn vị, TRƯỚC KHI mẫu
+/// phân tách cắt nó ra N Chương ở bước 5. Không có cách nào — trong ĐÚNG một chỗ gọi
+/// `apply`, với `PIPELINE_ORDER` không đổi — để biết TRƯỚC bước 3 rằng văn bản sẽ tách thành
+/// N Chương. `pipeline::split_chapters_step` vì thế GIỮ LẠI báo cáo của TOÀN blob và gán nó
+/// cho Chương ĐẦU (`ord = 1`) thay vì vứt nó (bản trước RESET nó về `None`, làm
+/// `count_in_chapter` hiện SAI SỐ 0 cho một luật thật sự có khớp — một hồi quy tệ hơn cả
+/// "yếu"). Kết quả: `count_in_chapter`/`count_in_import` LUÔN BẰNG NHAU khi N Chương đến từ
+/// `chapter_pattern` (đúng số TOÀN tài liệu, không sai, chỉ không CHI TIẾT theo Chương) —
+/// khác `PipelineShape::Chapters` ở trên, nơi hai số THẬT SỰ khác nhau khi có ý nghĩa để khác
+/// nhau. **Chủ của việc chi tiết hoá theo Chương cho `chapter_pattern`:** cần một cơ chế
+/// theo dõi vị trí xuyên bước chuẩn hoá (bước 4) chưa tồn tại — ghi vào `deferred-work.md`,
+/// không phải việc của story này.
+/// 🔴 **`pub`, không riêng tư (vòng nghiệm thu 2026-09-06)** — bản đầu để hàm này riêng tư và
+/// đối chứng nợ `deferred-work.md:9535` tự cộng `per_rule_counts` NGAY TRONG ca test, so với
+/// số tính tay: ca đó khẳng định phép cộng CỦA CHÍNH CA TEST đúng, không khẳng định phép cộng
+/// mà HÀM NÀY (chỗ SẢN PHẨM thật sinh `count_in_import`) làm ra — một đột biến đổi dòng gán
+/// `count_in_import` bên dưới đi thẳng vào một hằng số vẫn để ca đó XANH. Cùng khuôn hai lớp
+/// `src-tauri/AGENTS.md` (hàm thuần `pub`, `tests/**` gọi trực tiếp không cần webview) mà
+/// `resolve_chapter_pattern` đã theo — xem `cleanup_contract.rs::count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chapters_with_different_match_counts`.
+pub fn cleanup_and_chapters_preview_for(
     shape: PipelineShape,
     encoding: &'static encoding_rs::Encoding,
+    chapter_pattern: Option<&ChapterPattern>,
     display_window: &str,
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
     window_truncated: bool,
-) -> CleanupPreviewWire {
-    let input =
-        PipelineInput::with_encoding(shape, encoding, source_lang).with_cleanup_rules(cleanup_rules.to_vec());
+) -> (CleanupPreviewWire, ChapterSplitPreviewWire) {
+    let input = PipelineInput::with_encoding(shape, encoding, source_lang)
+        .with_cleanup_rules(cleanup_rules.to_vec())
+        .with_chapter_pattern(chapter_pattern.cloned());
 
-    let (final_text_full, report) = match run_pipeline(input) {
-        Ok(outcome) => match outcome.chapters.into_iter().next() {
-            Some(chapter) => (chapter.source_text, chapter.cleanup_report),
-            None => (display_window.to_owned(), None),
-        },
+    let chapters = match run_pipeline(input) {
+        Ok(outcome) => outcome.chapters,
         Err(err) => {
-            eprintln!("cleanup[preview] chuoi pipeline that bai, roi ve bao cao rong: {err}");
-            (display_window.to_owned(), None)
+            eprintln!("import[preview] chuoi pipeline that bai, roi ve bao cao rong: {err}");
+            Vec::new()
         }
     };
 
-    build_cleanup_preview_wire(display_window, final_text_full, cleanup_rules, report, window_truncated)
+    let chapters_wire = build_chapter_split_preview_wire(&chapters);
+
+    let (final_text_full, chapter0_report) = match chapters.first() {
+        Some(chapter) => (chapter.source_text.clone(), chapter.cleanup_report.clone()),
+        None => (display_window.to_owned(), None),
+    };
+
+    let mut import_totals: std::collections::BTreeMap<crate::core::cleanup::CleanupRuleKey, usize> =
+        std::collections::BTreeMap::new();
+    for chapter in &chapters {
+        if let Some(report) = &chapter.cleanup_report {
+            for (key, count) in &report.per_rule_counts {
+                *import_totals.entry(*key).or_insert(0) += count;
+            }
+        }
+    }
+
+    let cleanup_wire = build_cleanup_preview_wire(
+        display_window,
+        final_text_full,
+        cleanup_rules,
+        chapter0_report,
+        import_totals,
+        window_truncated,
+    );
+    (cleanup_wire, chapters_wire)
 }
 
 /// Dựng [`CleanupPreviewWire`] từ một [`crate::core::cleanup::CleanupReport`] ĐÃ CÓ (hoặc
-/// `None` khi bước 3 không tạo được báo cáo) — tách khỏi [`cleanup_preview_for`] để chỗ gọi
-/// KHÔNG chạy chuỗi (báo cáo rỗng) dùng lại được đúng phép dựng hình dạng dây.
+/// `None` khi bước 3 không tạo được báo cáo) — tách khỏi
+/// [`cleanup_and_chapters_preview_for`] để chỗ gọi KHÔNG chạy chuỗi (báo cáo rỗng) dùng lại
+/// được đúng phép dựng hình dạng dây.
 ///
 /// `display_window`: bản dựng ĐÃ CẮT AN TOÀN của văn bản TRƯỚC khi xoá gì (cùng cửa sổ tầng
 /// 1 hiển thị) — trở thành `text` trên dây thẳng, không qua `report` (đóng khuyết tật
@@ -1223,12 +1420,18 @@ fn cleanup_preview_for(
 /// thì KHÔNG được phép dài hơn cửa sổ). `final_text_full` là văn bản CUỐI CÙNG của TOÀN
 /// Chương — cắt xuống cửa sổ CHỈ khi `window_truncated` (giữ nguyên bất biến "không cắt khi
 /// không cần cắt" mà `preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules`
-/// khoá).
+/// khoá). `import_totals` — **THÊM 2026-09-05 (Story 6.6)** — tổng số khớp MỖI luật qua TOÀN
+/// lần nhập; CÓ THỂ khác `report`'s per-chapter counts khi N > 1 đến từ
+/// [`PipelineShape::Chapters`] (🟡 đóng MỘT PHẦN nợ `deferred-work.md:9535` — hình dạng đó
+/// chưa có đường sản phẩm nào dựng ra). Trên đường sản phẩm THẬT (`Blob` + `chapter_pattern`)
+/// và khi N = 1, chỗ gọi truyền CÙNG map với `report.per_rule_counts` nên hai số bằng nhau
+/// như trước story (không đổi hành vi đường cũ).
 fn build_cleanup_preview_wire(
     display_window: &str,
     final_text_full: String,
     cleanup_rules: &[CleanupRule],
     report: Option<crate::core::cleanup::CleanupReport>,
+    import_totals: std::collections::BTreeMap<crate::core::cleanup::CleanupRuleKey, usize>,
     window_truncated: bool,
 ) -> CleanupPreviewWire {
     // Chỉ luật ĐANG BẬT được phép xuất hiện trong `spans` — luật tắt vẫn đếm (§Always spec
@@ -1264,20 +1467,24 @@ fn build_cleanup_preview_wire(
         })
         .collect();
 
-    // 🔵 Nợ có chủ (Story 6.6/6.7) — `count_in_import` LUÔN bằng `count_in_chapter` hôm nay,
-    // xem doc-comment `CleanupRuleReportWire::count_in_import`.
+    // 🔵 SỬA 2026-09-05 (Story 6.6) — `count_in_import` đọc từ `import_totals` (tổng qua N
+    // Chương khi mẫu phân tách cho N > 1), KHÔNG còn LUÔN bằng `count_in_chapter` — đóng nợ
+    // `deferred-work.md:9535`. Xem doc-comment `cleanup_and_chapters_preview_for` cho cách
+    // `import_totals` được tính.
     let rules = cleanup_rules
         .iter()
         .map(|rule| {
-            let count = counts.get(&(rule.tier, rule.id)).copied().unwrap_or(0);
+            let key = (rule.tier, rule.id);
+            let count_in_chapter = counts.get(&key).copied().unwrap_or(0);
+            let count_in_import = import_totals.get(&key).copied().unwrap_or(0);
             CleanupRuleReportWire {
                 tier: rule.tier.into(),
                 id: rule.id,
                 pattern: rule.pattern.clone(),
                 kind: rule.kind.as_str().to_owned(),
                 enabled: rule.enabled,
-                count_in_chapter: count,
-                count_in_import: count,
+                count_in_chapter,
+                count_in_import,
             }
         })
         .collect();
@@ -1299,34 +1506,56 @@ fn build_cleanup_preview_wire(
 /// làm sạch cần `source_lang`/`cleanup_rules`, hai tham số một `From` không nhận được).
 ///
 /// 🔴 **SỬA 2026-09-06** — nhận thêm `full_bytes` (byte thô TRỌN VẸN của đơn vị đang xem
-/// trước, KHÔNG cắt cửa sổ): `cleanup_preview_for` cần TOÀN bộ byte để chạy chuỗi thật với
-/// ĐÚNG bảng mã của ứng viên này (`encoding::encoding_for_wire_id(c.wire_id)`), không phải
-/// văn bản window đã giải mã sẵn — xem doc-comment `cleanup_preview_for`.
+/// trước, KHÔNG cắt cửa sổ): `cleanup_and_chapters_preview_for` cần TOÀN bộ byte để chạy
+/// chuỗi thật với ĐÚNG bảng mã của ứng viên này (`encoding::encoding_for_wire_id(c.wire_id)`),
+/// không phải văn bản window đã giải mã sẵn.
+/// 🔵 **SỬA 2026-09-05 (Story 6.6)** — nhận thêm `chapter_pattern`, trả kèm `chapters`.
 fn encoding_candidate_wire(
     c: EncodingCandidate,
     full_bytes: &[u8],
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
+    chapter_pattern: Option<&ChapterPattern>,
 ) -> EncodingCandidateWire {
     // `pipeline_window`/`normalized` đồng bộ `Some`/`None` với nhau (cả hai tính từ
     // CÙNG `decoded.as_ref()` bên trong `render_candidates`) — an toàn đọc `window_truncated`
     // từ `normalized` khi `pipeline_window` có giá trị.
     let window_truncated = c.normalized.as_ref().is_some_and(|n| n.window_truncated);
-    let cleanup = c.pipeline_window.as_deref().map(|window| {
-        match encoding::encoding_for_wire_id(c.wire_id) {
+    let (cleanup, chapters) = match c.pipeline_window.as_deref() {
+        Some(window) => match encoding::encoding_for_wire_id(c.wire_id) {
             Some(encoding) => {
                 let shape = PipelineShape::Blob(ChapterInput::RawBytes {
                     bytes: full_bytes.to_vec(),
                     label: String::new(),
                 });
-                cleanup_preview_for(shape, encoding, window, source_lang, cleanup_rules, window_truncated)
+                let (cleanup_wire, chapters_wire) = cleanup_and_chapters_preview_for(
+                    shape,
+                    encoding,
+                    chapter_pattern,
+                    window,
+                    source_lang,
+                    cleanup_rules,
+                    window_truncated,
+                );
+                (Some(cleanup_wire), Some(chapters_wire))
             }
             // Không nên xảy ra — `c.wire_id` đến từ `Encoding::name()` của chính một trong
             // năm bảng mã FR126, luôn phân giải lại được. Rơi về báo cáo rỗng thay vì làm vỡ
             // cả dải, giữ đúng khuôn dung thứ lỗi của hàm này.
-            None => build_cleanup_preview_wire(window, window.to_owned(), cleanup_rules, None, window_truncated),
-        }
-    });
+            None => (
+                Some(build_cleanup_preview_wire(
+                    window,
+                    window.to_owned(),
+                    cleanup_rules,
+                    None,
+                    std::collections::BTreeMap::new(),
+                    window_truncated,
+                )),
+                Some(build_chapter_split_preview_wire(&[])),
+            ),
+        },
+        None => (None, None),
+    };
 
     EncodingCandidateWire {
         label: c.label.to_owned(),
@@ -1334,6 +1563,7 @@ fn encoding_candidate_wire(
         preview: c.preview,
         normalized: c.normalized.map(NormalizedPreviewWire::from),
         cleanup,
+        chapters,
     }
 }
 
@@ -1358,6 +1588,7 @@ pub fn preview_import_encoding(
     shape: &PipelineShape,
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
+    chapter_pattern: Option<&ChapterPattern>,
 ) -> ImportEncodingPreview {
     let verdict_and_candidates = |bytes: &[u8]| -> (EncodingVerdict, Vec<EncodingCandidateWire>) {
         let verdict = encoding::detect(bytes);
@@ -1383,7 +1614,7 @@ pub fn preview_import_encoding(
         } else {
             encoding::render_candidates(bytes, source_lang)
                 .into_iter()
-                .map(|c| encoding_candidate_wire(c, bytes, source_lang, cleanup_rules))
+                .map(|c| encoding_candidate_wire(c, bytes, source_lang, cleanup_rules, chapter_pattern))
                 .collect()
         };
         (verdict, candidates)
@@ -1418,17 +1649,19 @@ pub fn preview_import_encoding(
 
     // 🔴 THÊM 2026-09-05 (Story 6.5) — cùng điều kiện `Some`/`None` với `self_declared_normalized`
     // ở trên (đọc `window_truncated` từ đó thay vì tính lại — cùng phép đo, một chỗ).
-    let self_declared_cleanup = self_declared_normalized.as_ref().map(|normalized| {
+    // 🔵 SỬA 2026-09-05 (Story 6.6) — cũng dựng `self_declared_chapters` CÙNG một lượt.
+    let self_declared_pair = self_declared_normalized.as_ref().map(|normalized| {
         let text = self_declared_source_text(shape);
         match encoding::pipeline_window_for_self_declared(text) {
             Some(window) => {
                 // 🔴 SỬA 2026-09-06 — `shape` mang văn bản TOÀN VẸN (`text`, không phải
-                // `window`) để `cleanup_preview_for` chạy chuỗi trên CẢ Chương; `window` chỉ
-                // còn vai trò giới hạn hiển thị. Xem doc-comment `cleanup_preview_for`.
+                // `window`) để `cleanup_and_chapters_preview_for` chạy chuỗi trên CẢ Chương;
+                // `window` chỉ còn vai trò giới hạn hiển thị.
                 let full_shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned()));
-                cleanup_preview_for(
+                cleanup_and_chapters_preview_for(
                     full_shape,
                     encoding_rs::UTF_8,
+                    chapter_pattern,
                     &window,
                     source_lang,
                     cleanup_rules,
@@ -1437,15 +1670,23 @@ pub fn preview_import_encoding(
             }
             // Cùng ca "cửa sổ không đủ một dòng trọn vẹn" của `normalized_self_declared` —
             // `final_text` rỗng đồng bộ với `NormalizedPreviewWire.text == ""` ở đó.
-            None => build_cleanup_preview_wire(
-                text,
-                String::new(),
-                cleanup_rules,
-                None,
-                normalized.window_truncated,
+            None => (
+                build_cleanup_preview_wire(
+                    text,
+                    String::new(),
+                    cleanup_rules,
+                    None,
+                    std::collections::BTreeMap::new(),
+                    normalized.window_truncated,
+                ),
+                build_chapter_split_preview_wire(&[]),
             ),
         }
     });
+    let (self_declared_cleanup, self_declared_chapters) = match self_declared_pair {
+        Some((cleanup, chapters)) => (Some(cleanup), Some(chapters)),
+        None => (None, None),
+    };
 
     ImportEncodingPreview {
         confidence: verdict.confidence.into(),
@@ -1453,6 +1694,7 @@ pub fn preview_import_encoding(
         candidates,
         self_declared_normalized,
         self_declared_cleanup,
+        self_declared_chapters,
     }
 }
 
@@ -1541,6 +1783,7 @@ pub fn confirm_import_with_encoding(
     genre: &str,
     encoding_wire_id: &str,
     cleanup_rules: Vec<CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
 ) -> Result<OpenWork, IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
         IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
@@ -1565,8 +1808,16 @@ pub fn confirm_import_with_encoding(
     let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let shape = guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?;
 
-    let opened =
-        create_work(documents_root, name, source_lang, genre, shape, chosen, cleanup_rules)?;
+    let opened = create_work(
+        documents_root,
+        name,
+        source_lang,
+        genre,
+        shape,
+        chosen,
+        cleanup_rules,
+        chapter_pattern,
+    )?;
 
     // Thành công — dọn ô đang chờ, VẪN dưới CÙNG một khoá đã giữ từ đầu hàm.
     *guard = None;
@@ -2882,19 +3133,25 @@ pub mod wire {
     ///   BÌNH THƯỜNG, chọn một ứng viên, bấm "Xác nhận" — rồi mọi lượt xác nhận đều trượt
     ///   với `no_pending_source`, không một manh mối nào giải thích vì sao. Đây là một lượt
     ///   XUỐNG CẤP IM LẶNG đúng lớp lỗi mà AGENTS.md gọi tên là trung tâm của dự án.
+    /// 🔵 **THÊM 2026-09-05 (Story 6.6) — tham số `chapter_pattern`.** Mẫu phân tách Chương
+    /// là tham số MỖI LƯỢT NHẬP (§Always spec 6.6) — KHÔNG lưu ở đâu cả giữa hai lượt gọi,
+    /// frontend gửi lại nó ở MỌI lượt xem trước/xác nhận (`src/importPreviewState.ts`).
     #[tauri::command]
     pub fn preview_import_encoding_from_text(
         app: tauri::AppHandle,
         text: String,
         source_lang: String,
+        chapter_pattern: Option<super::ChapterPatternWire>,
     ) -> Result<ImportEncodingPreview, IpcError> {
         use tauri::Manager as _;
         let Some(state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
+        let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
         let cleanup_rules = resolve_cleanup_rules(&app);
         let shape = super::import_text(text);
-        let preview = super::preview_import_encoding(&shape, &source_lang, &cleanup_rules);
+        let preview =
+            super::preview_import_encoding(&shape, &source_lang, &cleanup_rules, pattern.as_ref());
         super::stash_pending_import_source(&state, shape);
         Ok(preview)
     }
@@ -2906,19 +3163,24 @@ pub mod wire {
     /// # Lỗi
     /// - [`PendingImportSourceState`] chưa được quản lý ⇒ `import.no_pending_source`, cùng lý
     ///   do nhánh DÁN VĂN BẢN ngay trên.
+    /// 🔵 **THÊM 2026-09-05 (Story 6.6) — tham số `chapter_pattern`**, cùng lý do nhánh DÁN
+    /// VĂN BẢN ngay trên.
     #[tauri::command]
     pub fn preview_import_encoding_from_file(
         app: tauri::AppHandle,
         path: String,
         source_lang: String,
+        chapter_pattern: Option<super::ChapterPatternWire>,
     ) -> Result<ImportEncodingPreview, IpcError> {
         use tauri::Manager as _;
         let Some(state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
+        let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
         let cleanup_rules = resolve_cleanup_rules(&app);
         let shape = super::import_file(std::path::Path::new(&path))?;
-        let preview = super::preview_import_encoding(&shape, &source_lang, &cleanup_rules);
+        let preview =
+            super::preview_import_encoding(&shape, &source_lang, &cleanup_rules, pattern.as_ref());
         super::stash_pending_import_source(&state, shape);
         Ok(preview)
     }
@@ -2937,6 +3199,9 @@ pub mod wire {
     /// - byte không giải mã được với CHÍNH bảng mã đã chọn ⇒ `import.undecodable_bytes`, nêu
     ///   đích danh bảng mã đó — ô đang chờ GIỮ NGUYÊN, chọn một ứng viên khác rồi xác nhận
     ///   lại không đòi đọc nguồn lần hai.
+    /// 🔵 **THÊM 2026-09-05 (Story 6.6) — tham số `chapter_pattern`.** Xem trước và xác nhận
+    /// phải trùng từng byte (§Always spec 6.6) — frontend gửi lại CÙNG mẫu đã dùng ở lượt
+    /// xem trước gần nhất, không một cơ chế "nhớ mẫu" nào ở tầng Rust.
     #[tauri::command]
     pub fn confirm_import_with_encoding(
         app: tauri::AppHandle,
@@ -2944,12 +3209,14 @@ pub mod wire {
         source_lang: String,
         genre: String,
         encoding: String,
+        chapter_pattern: Option<super::ChapterPatternWire>,
     ) -> Result<CreatedWork, IpcError> {
         use tauri::Manager as _;
 
         let Some(pending_state) = app.try_state::<PendingImportSourceState>() else {
             return Err(no_pending_import_source());
         };
+        let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
         // 🔴 Nạp luật NGAY LÚC XÁC NHẬN, không tái dùng bộ đã nạp lúc xem trước — luật có
         // thể đã đổi giữa hai nhịp qua một lượt bật/tắt/soạn khác (§Always spec 6.5).
         let cleanup_rules = resolve_cleanup_rules(&app);
@@ -2962,6 +3229,7 @@ pub mod wire {
             &genre,
             &encoding,
             cleanup_rules,
+            pattern,
         )?;
 
         let created = CreatedWork::from_open(&opened);

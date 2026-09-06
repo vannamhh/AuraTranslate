@@ -91,6 +91,26 @@ fn all_rust_sources() -> Vec<(String, String)> {
         .collect()
 }
 
+/// Phần văn bản TRƯỚC dòng `#[cfg(test)]` ĐẦU TIÊN — chép NGUYÊN VĂN từ
+/// `cleanup_boundary.rs::text_before_first_cfg_test_line` (Story 6.6, vá theo bài học đã ghi
+/// ở đó): quét `code_lines(text)` TRẦN trên TOÀN tệp bắt được cả một khối `#[cfg(test)]` của
+/// CHÍNH tệp đang quét — một ca test dựng tay gọi `run_import(`/`run_import_with_order(` để
+/// dựng đối chứng bị đếm NHẦM thành "chỗ gọi sản phẩm thứ hai", cổng đỏ OAN trên một cây hợp
+/// lệ. Không dùng chung hàm với `cleanup_boundary.rs` (mỗi tệp `*_boundary.rs` độc lập,
+/// không phụ thuộc chéo) — chép lại, không tái cấu trúc thành thư viện dùng chung.
+fn text_before_first_cfg_test_line(text: &str) -> &str {
+    let mut end = text.len();
+    let mut offset = 0usize;
+    for line in text.split_inclusive('\n') {
+        if line.trim() == "#[cfg(test)]" {
+            end = offset;
+            break;
+        }
+        offset += line.len();
+    }
+    &text[..end]
+}
+
 /// Dòng **mã** của một khối văn bản: `(số dòng 1-based, nội dung đã trim đầu)`. Chỉ dòng bắt
 /// đầu bằng `//` bị bỏ qua — một doc-comment giải thích một ranh giới không phải một lời gọi
 /// vượt qua nó, cùng luật mọi tệp `*_boundary.rs` khác áp.
@@ -179,7 +199,10 @@ fn run_import_is_the_one_product_call_site() {
             // nghĩa của phép kiểm này.
             continue;
         }
-        for (line, code) in code_lines(text) {
+        // 🔴 SỬA 2026-09-05 (Story 6.6) — cắt về PHẦN SẢN PHẨM trước khi quét (xem
+        // doc-comment `text_before_first_cfg_test_line`), không quét `text` TRẦN nữa.
+        let product_only = text_before_first_cfg_test_line(text);
+        for (line, code) in code_lines(product_only) {
             if line_calls_run_import_with_order(code) {
                 run_import_with_order_sites.push(format!("{rel}:{line}  {code}"));
             }
@@ -275,4 +298,25 @@ fn the_pipeline_module_actually_defines_run_import() {
         "`core/segment/pipeline.rs` không còn định nghĩa `pub fn run_import` (ngoài chú \
          thích) -- bộ chạy sản phẩm đã biến mất"
     );
+}
+
+/// Đối chứng dương của [`text_before_first_cfg_test_line`] — chép NGUYÊN VĂN cặp ca tự-kiểm
+/// của `cleanup_boundary.rs` (Story 6.6, cùng lý do "gọi nó trong MỌI assert thật" của bài
+/// học `cleanup_boundary.rs:136-141`).
+#[test]
+fn text_before_first_cfg_test_line_is_not_fooled_by_a_comment_mentioning_the_attribute() {
+    let text = "fn a() {}\n// mot chu thich nhac lai chuoi \"#[cfg(test)]\" o day\nfn b() {}\n#[cfg(test)]\nmod tests {}\n";
+    let got = text_before_first_cfg_test_line(text);
+    assert_eq!(
+        got, "fn a() {}\n// mot chu thich nhac lai chuoi \"#[cfg(test)]\" o day\nfn b() {}\n",
+        "phai cat tai DONG khop NGUYEN VAN `#[cfg(test)]`, khong cat som tai dong chu thich \
+         chi NHAC LAI chuoi do"
+    );
+}
+
+/// Ca ÂM của cùng hàm — không có dòng `#[cfg(test)]` nào ⇒ trả NGUYÊN VĂN toàn bộ input.
+#[test]
+fn text_before_first_cfg_test_line_returns_the_whole_text_when_there_is_no_such_line() {
+    let text = "fn a() {}\nfn b() {}\n";
+    assert_eq!(text_before_first_cfg_test_line(text), text);
 }

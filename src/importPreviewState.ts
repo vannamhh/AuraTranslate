@@ -41,12 +41,16 @@ import {
   previewImportEncodingFromText,
 } from './config/project'
 import type {
+  ChapterPatternInput,
+  ChapterPatternKindWire,
+  ChapterSplitPreviewWire,
   CleanupPreviewWire,
   CleanupRuleKindWire,
   CleanupRuleTierWire,
   CreatedWork,
   EncodingCandidateWire,
   ImportEncodingPreview,
+  ImportEncodingPreviewResult,
   NormalizedPreviewWire,
 } from './config/project'
 import type { IpcError } from './i18n'
@@ -136,6 +140,45 @@ const cleanupToggling = ref(false)
  */
 const cleanupDeletePendingKey = ref<string | null>(null)
 
+/**
+ * **THÊM (Story 6.6)** — mẫu phân tách Chương ĐANG GÕ, tham số MỖI LƯỢT NHẬP (§Always spec
+ * 6.6: KHÔNG một cơ chế "nhớ mẫu" nào — Ice chốt 2026-09-05 mặc định KHÔNG nhớ giữa hai lượt
+ * nhập, xem §Ask First của spec). Chuỗi rỗng ⇒ không mẫu (no-op, N = 1) — xem
+ * [`chapterPatternWire`].
+ */
+const chapterPatternText = ref('')
+const chapterPatternKind = ref<ChapterPatternKindWire>('literal')
+
+/** Cờ "đang gửi" của lượt tải lại xem trước SAU MỘT LẦN SỬA MẪU — TÁCH khỏi
+ * `cleanupAdding`/`cleanupSavingEdit`/… (bốn cờ của bốn hành động luật làm sạch, ngữ nghĩa
+ * khác hẳn: sửa MẪU không phải một lượt GHI luật). */
+const chapterPatternSending = ref(false)
+
+/**
+ * Lỗi RIÊNG của lượt sửa mẫu gần nhất — TÁCH khỏi `loadError` (lỗi của lượt MỞ màn xem
+ * trước). §I/O Matrix spec 6.6, hàng "Regex không biên dịch được": *"xem trước GIỮ kết quả
+ * CŨ, hiện thông báo"* — nếu dùng chung `loadError`/`status`, một mẫu hỏng sẽ lật `status`
+ * sang `'error'` và `.vue` đổi hẳn nhánh render, NUỐT MẤT dải/khối vừa hiện thay vì giữ
+ * nguyên nó. Xem [`reloadImportPreviewAfterChapterPatternChange`].
+ */
+const chapterPatternError = ref<IpcError | null>(null)
+
+/**
+ * Mã lỗi IPC của MỘT mẫu phân tách Chương không biên dịch được
+ * (`core::segment::import::ImportError::InvalidChapterPattern`, khoá hiển thị
+ * `err.import.invalid_chapter_pattern`) — dùng để RẼ NHÁNH lỗi này ra khỏi mọi lỗi tải lại
+ * KHÁC. **SỬA (vòng rà đối kháng 3, mục 2)**: [`runImportPreviewReload`] gửi lại
+ * [`chapterPatternWire`] HIỆN HÀNH ở MỌI lượt gọi — kể cả một lượt CRUD luật làm sạch
+ * ([`reloadImportPreviewAfterRuleChange`]) hoàn toàn không đụng tới ô mẫu. Một mẫu hỏng còn
+ * đứng nguyên trong ô rồi một hành động KHÁC (bật/tắt một luật) kích hoạt tải lại sẽ nhận lại
+ * ĐÚNG lỗi này lần nữa — nếu nhánh xử lý lỗi ở đó không tách riêng, nó lật `status` sang
+ * `'error'` vô điều kiện và xoá sạch dải bảng mã/danh sách luật/danh sách Chương đang hiện,
+ * dù nguyên nhân chỉ là ô mẫu, không phải luật vừa đổi. Xử lý PHẢI giống hệt
+ * [`reloadImportPreviewAfterChapterPatternChange`]: đi vào [`chapterPatternError`], GIỮ
+ * NGUYÊN `status`/`preview`.
+ */
+const CHAPTER_PATTERN_INVALID_CODE = 'import.invalid_chapter_pattern'
+
 /** Buộc dải năm ứng viên MỞ dù tin cậy cao/tự khai — `E` (`EXPERIENCE.md:182`, "mở bộ chọn
  * bảng mã"). Rust LUÔN tính đủ năm bản dựng khi có byte để dò (`ImportEncodingPreview::candidates`),
  * nên buộc mở không đòi một lượt gọi Rust thứ hai — chỉ đổi cờ HIỂN THỊ ở đây. */
@@ -168,6 +211,13 @@ export const importPreviewCleanupToggling: DeepReadonly<Ref<boolean>> = readonly
  * nào đang hiện trạng thái "bấm lại để xoá thật" (xem doc-comment `cleanupDeletePendingKey`). */
 export const importPreviewCleanupDeletePendingKey: DeepReadonly<Ref<string | null>> =
   readonly(cleanupDeletePendingKey)
+export const importPreviewChapterPatternText: DeepReadonly<Ref<string>> = readonly(chapterPatternText)
+export const importPreviewChapterPatternKind: DeepReadonly<Ref<ChapterPatternKindWire>> =
+  readonly(chapterPatternKind)
+export const importPreviewChapterPatternSending: DeepReadonly<Ref<boolean>> =
+  readonly(chapterPatternSending)
+export const importPreviewChapterPatternError: DeepReadonly<Ref<IpcError | null>> =
+  readonly(chapterPatternError)
 
 /** Dải năm ô mở khi và chỉ khi tin cậy THẤP **hoặc** người dùng đã buộc mở bằng `E` — một
  * điều kiện, một chỗ. Rust luôn cấp đủ dữ liệu (`ImportEncodingPreview::candidates`); đây
@@ -233,6 +283,22 @@ export const importPreviewSelectedCleanup = computed<CleanupPreviewWire | null>(
 })
 
 /**
+ * Khối tách Chương (tầng 4) hiện hành — Story 6.6. CÙNG khuôn
+ * [`importPreviewSelectedCleanup`]: đọc `candidate.chapters` khi có ứng viên đang chọn, rơi
+ * về `preview.self_declared_chapters` khi không.
+ *
+ * 🔴 **Đổi ứng viên đổi computed này NGAY, 0 lời gọi IPC** — Rust đã dựng sẵn khối tách
+ * Chương của CẢ NĂM ứng viên VÀ của nhánh tự khai trên dây, computed này chỉ ĐỌC lại.
+ */
+export const importPreviewSelectedChapters = computed<ChapterSplitPreviewWire | null>(() => {
+  const p = preview.value
+  if (p === null) return null
+  const candidate = importPreviewSelectedCandidate.value
+  if (candidate !== null) return candidate.chapters
+  return p.self_declared_chapters
+})
+
+/**
  * Tầng 2 CHƯA có thân (§Always spec 6.3) — lý do RỖNG kèm tên story chủ, không phải một
  * chuỗi hiển thị (khoá `mode.library.preview.tier_empty_*`, frontend tự `t()`).
  *
@@ -275,6 +341,13 @@ async function openWith(
   cleanupToggling.value = false
   cleanupDeletePendingKey.value = null
   stripForcedOpen.value = false
+  // §Ask First spec 6.6: KHÔNG nhớ mẫu phân tách giữa hai lượt nhập — mỗi lượt MỞ mới bắt
+  // đầu từ rỗng, kể cả khi lượt trước đó vừa dùng một mẫu.
+  chapterPatternText.value = ''
+  chapterPatternKind.value = 'literal'
+  chapterPatternSending.value = false
+  chapterPatternError.value = null
+  pendingChapterPatternEdit = null
 
   const result = await call()
   if (mySequence !== sequence) return // Một lượt mở/huỷ MỚI đã vượt mặt lượt này.
@@ -311,7 +384,13 @@ export async function openImportPreviewFromText(
 ): Promise<void> {
   pendingText.value = text
   pendingPath.value = null
-  await openWith(() => previewImportEncodingFromText(text, sourceLang), 'text', name, sourceLang, genre)
+  await openWith(
+    () => previewImportEncodingFromText(text, sourceLang, null),
+    'text',
+    name,
+    sourceLang,
+    genre,
+  )
 }
 
 /** Mở màn xem trước — nhánh TỆP. Gọi từ handler tiêm của `library.import_file`. */
@@ -323,7 +402,13 @@ export async function openImportPreviewFromFile(
 ): Promise<void> {
   pendingPath.value = path
   pendingText.value = null
-  await openWith(() => previewImportEncodingFromFile(path, sourceLang), 'file', name, sourceLang, genre)
+  await openWith(
+    () => previewImportEncodingFromFile(path, sourceLang, null),
+    'file',
+    name,
+    sourceLang,
+    genre,
+  )
 }
 
 /**
@@ -345,37 +430,79 @@ export function selectImportPreviewCandidate(encoding: string): void {
   selectedEncoding.value = encoding
 }
 
+/** Mẫu phân tách Chương hiện hành, dạng dây — chuỗi rỗng (hoặc CHỈ khoảng trắng) ⇒ `null`
+ * (không mẫu, no-op, N = 1). Chỗ gọi DUY NHẤT khi cần gửi tham số `chapterPattern` cho một
+ * trong ba lệnh IPC.
+ *
+ * 🔴 **SỬA (vòng rà đối kháng 3, mục 5) — gác bằng `.trim()`, không `.length` trần.** Bản
+ * trước chỉ kiểm `length === 0`, nên một ô CHỈ CÓ khoảng trắng bị gửi đi như một mẫu literal
+ * THẬT (một mẫu vô nghĩa với người dùng, nhưng vẫn hợp lệ ở tầng dây) — lệch với chính hai ô
+ * luật làm sạch (`onAddCleanupRule`/`onSaveEditCleanupRule` ở `.vue`), vốn gác bằng
+ * `.trim() === ''`. Giá trị GỬI ĐI vẫn NGUYÊN VĂN (`chapterPatternText.value`, không trim) —
+ * `.trim()` chỉ dùng để XÉT rỗng, cùng quy ước hai ô luật làm sạch (khoảng trắng ĐẦU/CUỐI một
+ * mẫu literal thật có thể có nghĩa, ví dụ `"Chuong "`). */
+function chapterPatternWire(): ChapterPatternInput | null {
+  if (chapterPatternText.value.trim().length === 0) return null
+  return { pattern: chapterPatternText.value, kind: chapterPatternKind.value }
+}
+
 /**
- * Dựng lại xem trước bằng ĐÚNG nguồn đang treo (`pendingText`/`pendingPath`) — **THÊM
- * (Story 6.5)**, chỗ gọi sản phẩm DUY NHẤT là bốn hàm CRUD luật ngay dưới. Khác `openWith`:
- * KHÔNG đổi `lastSubmittedFrom`/`pendingName`/`pendingSourceLang`/`pendingGenre` (đây là một
- * lượt TẢI LẠI, không phải một lượt MỞ mới), và cố giữ nguyên ứng viên đang chọn nếu nó vẫn
- * còn trong dải mới.
+ * Lõi DÙNG CHUNG của mọi lượt "tải lại xem trước bằng ĐÚNG nguồn đang treo" — **THÊM (Story
+ * 6.5, mở rộng Story 6.6)**. Gửi lại `chapterPatternWire()` HIỆN HÀNH ở MỌI lượt gọi (dù do
+ * một lượt CRUD luật làm sạch hay một lượt sửa mẫu kích hoạt) — hai tầng không trôi khỏi
+ * nhau: sửa luật không được âm thầm làm rớt mẫu đang gõ, và ngược lại. `null` khi chưa mở
+ * lượt xem trước nào (không có gì để tải lại).
+ */
+async function runImportPreviewReload(): Promise<{ result: ImportEncodingPreviewResult; mySequence: number } | null> {
+  const from = lastSubmittedFrom.value
+  if (from === null) return null // chưa mở lượt xem trước nào — không có gì để tải lại
+
+  sequence += 1
+  const mySequence = sequence
+  const pattern = chapterPatternWire()
+
+  const result =
+    from === 'text'
+      ? await previewImportEncodingFromText(pendingText.value ?? '', pendingSourceLang.value, pattern)
+      : await previewImportEncodingFromFile(pendingPath.value ?? '', pendingSourceLang.value, pattern)
+  return { result, mySequence }
+}
+
+/**
+ * Dựng lại xem trước SAU MỘT LƯỢT CRUD LUẬT LÀM SẠCH — chỗ gọi sản phẩm DUY NHẤT là bốn hàm
+ * CRUD luật ngay dưới. Khác `openWith`: KHÔNG đổi
+ * `lastSubmittedFrom`/`pendingName`/`pendingSourceLang`/`pendingGenre` (đây là một lượt TẢI
+ * LẠI, không phải một lượt MỞ mới), và cố giữ nguyên ứng viên đang chọn nếu nó vẫn còn trong
+ * dải mới.
  */
 async function reloadImportPreviewAfterRuleChange(): Promise<void> {
-  const from = lastSubmittedFrom.value
-  if (from === null) return // chưa mở lượt xem trước nào — không có gì để tải lại
-
   // Một lượt tải lại (dù do THÊM/SỬA/BẬT-TẮT nào gọi tới) làm tan mọi "chờ xác nhận xoá" còn
   // đứng trên MỘT hàng khác — danh sách sắp được dựng lại từ đầu, một khoá cũ trỏ vào một
   // luật có thể đã đổi hình dạng không nên tiếp tục hiện "bấm lại để xoá thật".
   cleanupDeletePendingKey.value = null
 
-  sequence += 1
-  const mySequence = sequence
   const keepEncoding = selectedEncoding.value
-
-  const result =
-    from === 'text'
-      ? await previewImportEncodingFromText(pendingText.value ?? '', pendingSourceLang.value)
-      : await previewImportEncodingFromFile(pendingPath.value ?? '', pendingSourceLang.value)
+  const outcome = await runImportPreviewReload()
+  if (outcome === null) return
+  const { result, mySequence } = outcome
   if (mySequence !== sequence) return // một lượt mở/huỷ/tải lại MỚI đã vượt mặt lượt này
 
   if (result.error !== null) {
+    if (result.error.code === CHAPTER_PATTERN_INVALID_CODE) {
+      // 🔴 SỬA (vòng rà đối kháng 3, mục 2) — xem doc-comment [`CHAPTER_PATTERN_INVALID_CODE`].
+      // Lỗi này là CỦA Ô MẪU, không phải của luật làm sạch vừa đổi — không được lật
+      // `status`/`preview` vì một nguyên nhân KHÁC tầng.
+      chapterPatternError.value = result.error
+      return
+    }
     status.value = 'error'
     loadError.value = result.error
     return
   }
+  // Một lượt tải lại THÀNH CÔNG (dù mẫu phân tách hiện hành có hay không) chứng minh mẫu
+  // ĐANG GỬI biên dịch được — một `chapterPatternError` cũ (nếu còn từ một lượt sửa mẫu
+  // trước) đã hết hiệu lực, cùng logic thành công của [`reloadImportPreviewAfterChapterPatternChange`].
+  chapterPatternError.value = null
   if (result.preview === null) {
     status.value = 'ipc_unavailable'
     loadError.value = null
@@ -388,6 +515,92 @@ async function reloadImportPreviewAfterRuleChange(): Promise<void> {
     : result.preview.selected_encoding
   status.value = 'loaded'
   loadError.value = null
+}
+
+/**
+ * Dựng lại xem trước SAU MỘT LƯỢT SỬA MẪU PHÂN TÁCH — **THÊM (Story 6.6)**, chỗ gọi sản
+ * phẩm DUY NHẤT là [`setImportPreviewChapterPattern`] ngay dưới. Tái dùng ĐÚNG đường
+ * [`runImportPreviewReload`] mà luật làm sạch đã dùng (§Design Notes spec 6.6: *"'Cập nhật
+ * ngay' ĐÃ có cơ chế, đừng dựng cái thứ hai"*) — chỉ khác Ở CÁCH XỬ LÝ LỖI: một mẫu regex
+ * không biên dịch được phải GIỮ NGUYÊN kết quả CŨ (§I/O Matrix spec 6.6), nên nhánh lỗi ở
+ * đây KHÔNG đụng `status`/`loadError`/`preview` — chỉ báo lỗi RIÊNG qua `chapterPatternError`.
+ */
+async function reloadImportPreviewAfterChapterPatternChange(): Promise<void> {
+  const keepEncoding = selectedEncoding.value
+  const outcome = await runImportPreviewReload()
+  if (outcome === null) return
+  const { result, mySequence } = outcome
+  if (mySequence !== sequence) return
+
+  if (result.error !== null) {
+    // 🔴 KHÔNG đụng `status`/`loadError`/`preview` — xem doc-comment hàm này.
+    chapterPatternError.value = result.error
+    return
+  }
+  chapterPatternError.value = null
+  if (result.preview === null) {
+    status.value = 'ipc_unavailable'
+    loadError.value = null
+    return
+  }
+
+  preview.value = result.preview
+  selectedEncoding.value = result.preview.candidates.some((c) => c.encoding === keepEncoding)
+    ? keepEncoding
+    : result.preview.selected_encoding
+  status.value = 'loaded'
+  loadError.value = null
+}
+
+/** Lượt gõ CUỐI CÙNG đến trong khi một lượt sửa mẫu KHÁC còn đang bay — **THÊM (vòng rà đối
+ * kháng 3, mục 4)**. `null` khi không có gì đang chờ. Chỉ giữ lượt CUỐI: một lượt trung gian
+ * (nếu có ba lượt @change dồn lại trong lúc lượt đầu bay) bị GHI ĐÈ có chủ ý — chỉ giá trị
+ * SAU CÙNG có ý nghĩa gửi lên Rust, cùng khuôn "vé `sequence`" mà module này dùng khắp nơi để
+ * bỏ qua kết quả CŨ hơn. */
+let pendingChapterPatternEdit: { text: string; kind: ChapterPatternKindWire } | null = null
+
+/**
+ * Sửa mẫu phân tách Chương — lệnh `import.preview.set_chapter_pattern` (`@change` của ô
+ * nhập/chọn kind, KHÔNG `@click`, AD-34). Đúng MỘT vòng IPC khi giá trị THẬT SỰ đổi — một
+ * lượt `@change` không đổi gì (ví dụ blur không sửa gì) không gọi Rust lần nào.
+ *
+ * 🔴 **SỬA (vòng rà đối kháng 3, mục 4) — một lượt `@change` đến trong lúc lượt trước còn bay
+ * KHÔNG còn bị nuốt im lặng.** Bản trước `return` sớm khi `chapterPatternSending`, không ghi
+ * gì lại — ô nhập và trạng thái đã cam kết (`chapterPatternText`) trôi khỏi nhau vĩnh viễn
+ * nếu lượt đó không bao giờ được gõ lại. Từ bản này, một lượt đến trong lúc đang bay được XẾP
+ * HÀNG vào [`pendingChapterPatternEdit`] (đè lượt cũ nếu có) và tự chạy lại NGAY sau khi lượt
+ * đang bay xong (`finally` bên dưới) — không cần một `@change` khác kích hoạt.
+ */
+export async function setImportPreviewChapterPattern(
+  text: string,
+  kind: ChapterPatternKindWire,
+): Promise<void> {
+  if (confirming.value) return
+  if (chapterPatternSending.value) {
+    pendingChapterPatternEdit = { text, kind }
+    return
+  }
+
+  const changed = text !== chapterPatternText.value || kind !== chapterPatternKind.value
+  chapterPatternText.value = text
+  chapterPatternKind.value = kind
+  if (changed) {
+    chapterPatternSending.value = true
+    try {
+      await reloadImportPreviewAfterChapterPatternChange()
+    } finally {
+      chapterPatternSending.value = false
+    }
+  }
+
+  // Một lượt gõ MỚI đã xếp hàng trong lúc lượt này (nếu `changed`) còn bay — chạy nó NGAY,
+  // đúng MỘT lượt đệ quy mỗi lần (một lượt thứ ba xếp chồng trong lúc lượt NÀY chạy sẽ được
+  // xử lý bởi CHÍNH lượt đệ quy này, không phải ở đây).
+  if (pendingChapterPatternEdit !== null) {
+    const next = pendingChapterPatternEdit
+    pendingChapterPatternEdit = null
+    await setImportPreviewChapterPattern(next.text, next.kind)
+  }
 }
 
 /**
@@ -495,9 +708,21 @@ export async function toggleImportPreviewCleanupRule(
  * Xác nhận — lệnh `import.preview.confirm`. Thành công ⇒ đóng lớp phủ (Tác phẩm đã ghi).
  * Trượt ⇒ hiện lỗi, lớp phủ Ở LẠI MỞ, ô đang chờ phía Rust GIỮ NGUYÊN — chọn ứng viên khác
  * rồi xác nhận lại không đòi đọc nguồn lần hai (`commands::project::confirm_import_with_encoding`).
+ *
+ * 🔴 **SỬA (vòng rà đối kháng 3, mục 3) — chặn khi `chapterPatternSending` còn bay.** Tham số
+ * gửi đi ([`chapterPatternWire`]) đọc TRỰC TIẾP `chapterPatternText`/`chapterPatternKind` —
+ * cùng ô mà một lượt tải lại mẫu ĐANG BAY có thể đang đọc ĐỂ GỬI một giá trị KHÁC. Không chặn
+ * ở đây, `create_work` có thể ghi bằng một mẫu MỚI HƠN mẫu của chính bản xem trước đang hiện
+ * trên màn hình — phá thẳng AC "xem trước và xác nhận trùng nhau từng byte". Cùng lý do
+ * `confirming` đã chặn bốn hành động CRUD luật làm sạch phía trên.
  */
 export async function confirmImportPreview(): Promise<{ created: CreatedWork | null; error: IpcError | null }> {
-  if (confirming.value || preview.value === null || selectedEncoding.value === null) {
+  if (
+    confirming.value ||
+    chapterPatternSending.value ||
+    preview.value === null ||
+    selectedEncoding.value === null
+  ) {
     return { created: null, error: null }
   }
 
@@ -510,6 +735,7 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
     pendingSourceLang.value,
     pendingGenre.value,
     selectedEncoding.value,
+    chapterPatternWire(),
   )
   if (mySequence !== sequence) return { created: null, error: null }
 
@@ -546,6 +772,11 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
   cleanupDeleting.value = false
   cleanupToggling.value = false
   cleanupDeletePendingKey.value = null
+  chapterPatternText.value = ''
+  chapterPatternKind.value = 'literal'
+  chapterPatternSending.value = false
+  chapterPatternError.value = null
+  pendingChapterPatternEdit = null
   return { created: result.created, error: null }
 }
 
@@ -603,4 +834,9 @@ export function resetImportPreview(): void {
   cleanupDeleting.value = false
   cleanupToggling.value = false
   cleanupDeletePendingKey.value = null
+  chapterPatternText.value = ''
+  chapterPatternKind.value = 'literal'
+  chapterPatternSending.value = false
+  chapterPatternError.value = null
+  pendingChapterPatternEdit = null
 }

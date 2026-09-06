@@ -175,6 +175,35 @@ export type CleanupSpanWire = {
   end: number
 }
 
+/** Hai hình dạng mẫu phân tách Chương — Story 6.6 (FR14). */
+export type ChapterPatternKindWire = 'literal' | 'regex'
+
+/** Mẫu phân tách Chương gửi lên Rust — tham số MỖI LƯỢT NHẬP (không lưu ở đâu cả giữa hai
+ * lượt nhập, §Always spec 6.6). `null` ⇒ không mẫu, bước 5 no-op (N = 1). */
+export type ChapterPatternInput = {
+  pattern: string
+  kind: ChapterPatternKindWire
+}
+
+/** Một Chương trong khối tách Chương (tầng 4) — khớp
+ * `commands::project::ChapterSplitPreviewEntryWire`. */
+export type ChapterSplitPreviewEntryWire = {
+  ord: number
+  /** Dòng khớp mẫu phân tách, `null` cho Chương lời tựa hoặc khi mẫu không khớp/chưa cấu
+   * hình. */
+  title: string | null
+  /** Độ dài `source_text`, tính bằng ĐIỂM MÃ. */
+  length: number
+}
+
+/** Khối tách Chương của MỘT ứng viên/đường tự khai — tầng 4 (Story 6.6). Mang TOÀN BỘ N
+ * Chương (không chỉ ba đầu/ba cuối) — tầng hiển thị tự co gọn khung nhìn mặc định và mở
+ * rộng khi sắp xếp theo độ dài. Khớp `commands::project::ChapterSplitPreviewWire`. */
+export type ChapterSplitPreviewWire = {
+  chapter_count: number
+  chapters: ChapterSplitPreviewEntryWire[]
+}
+
 /** Khối làm sạch của MỘT ứng viên/đường tự khai — tầng 3 (Story 6.5). Khớp
  * `commands::project::CleanupPreviewWire`. */
 export type CleanupPreviewWire = {
@@ -199,6 +228,9 @@ export type EncodingCandidateWire = {
   /** Story 6.5 — khối làm sạch (tầng 3) của CHÍNH ứng viên này. `null` đồng bộ với
    * `preview`/`normalized` (bảng mã này "không ra chữ"). */
   cleanup: CleanupPreviewWire | null
+  /** Story 6.6 — khối tách Chương (tầng 4) của CHÍNH ứng viên này. `null` đồng bộ với
+   * `cleanup` (bảng mã này "không ra chữ"). */
+  chapters: ChapterSplitPreviewWire | null
 }
 
 /** Kết quả một lượt xem trước bảng mã — khớp `commands::project::ImportEncodingPreview`. */
@@ -212,6 +244,9 @@ export type ImportEncodingPreview = {
   /** Story 6.5 — khối làm sạch (tầng 3) cho nhánh TỰ KHAI, cùng điều kiện `null`/`Some` với
    * `self_declared_normalized`. */
   self_declared_cleanup: CleanupPreviewWire | null
+  /** Story 6.6 — khối tách Chương (tầng 4) cho nhánh TỰ KHAI, cùng điều kiện `null`/`Some`
+   * với `self_declared_normalized`. */
+  self_declared_chapters: ChapterSplitPreviewWire | null
 }
 
 /** Ba trạng thái, cùng khuôn `CreateWorkResult`. */
@@ -282,6 +317,26 @@ function isCleanupPreviewWire(value: unknown): value is CleanupPreviewWire {
   )
 }
 
+function isChapterSplitPreviewEntryWire(value: unknown): value is ChapterSplitPreviewEntryWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ChapterSplitPreviewEntryWire>
+  return (
+    typeof v.ord === 'number' &&
+    (v.title === null || typeof v.title === 'string') &&
+    typeof v.length === 'number'
+  )
+}
+
+function isChapterSplitPreviewWire(value: unknown): value is ChapterSplitPreviewWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ChapterSplitPreviewWire>
+  return (
+    typeof v.chapter_count === 'number' &&
+    Array.isArray(v.chapters) &&
+    v.chapters.every(isChapterSplitPreviewEntryWire)
+  )
+}
+
 function isEncodingCandidateWire(value: unknown): value is EncodingCandidateWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<EncodingCandidateWire>
@@ -295,7 +350,9 @@ function isEncodingCandidateWire(value: unknown): value is EncodingCandidateWire
     // màn hình thay vì hiện lý do rỗng.
     (v.normalized === null || isNormalizedPreviewWire(v.normalized)) &&
     // 🔴 Story 6.5 — cùng lý do: thiếu vế này thì `undefined` lọt lên `.vue`.
-    (v.cleanup === null || isCleanupPreviewWire(v.cleanup))
+    (v.cleanup === null || isCleanupPreviewWire(v.cleanup)) &&
+    // 🔴 Story 6.6 — cùng lý do.
+    (v.chapters === null || isChapterSplitPreviewWire(v.chapters))
   )
 }
 
@@ -316,7 +373,9 @@ function isImportEncodingPreview(value: unknown): value is ImportEncodingPreview
     // qua Kiểm TYPE rồi `.vue` đọc `preview.self_declared_normalized.text` trên `undefined`.
     (v.self_declared_normalized === null || isNormalizedPreviewWire(v.self_declared_normalized)) &&
     // Story 6.5 — cùng lý do.
-    (v.self_declared_cleanup === null || isCleanupPreviewWire(v.self_declared_cleanup))
+    (v.self_declared_cleanup === null || isCleanupPreviewWire(v.self_declared_cleanup)) &&
+    // Story 6.6 — cùng lý do.
+    (v.self_declared_chapters === null || isChapterSplitPreviewWire(v.self_declared_chapters))
   )
 }
 
@@ -348,32 +407,42 @@ async function callPreviewImportEncoding(
  *
  * 🔵 THÊM 2026-09-04 (Story 6.4) — tham số `sourceLang`: bảng dựng chuẩn hoá của mỗi ứng
  * viên rẽ nhánh Trung/Anh (`Encoding::render_candidates` phía Rust). KHÔNG phải một lệnh
- * mới, không một lượt gọi thêm — `sourceLang` đã có sẵn ở form TRƯỚC khi lệnh này chạy. */
+ * mới, không một lượt gọi thêm — `sourceLang` đã có sẵn ở form TRƯỚC khi lệnh này chạy.
+ *
+ * 🔵 THÊM 2026-09-05 (Story 6.6) — tham số `chapterPattern`: mẫu phân tách Chương là tham số
+ * MỖI LƯỢT NHẬP (§Always spec 6.6) — KHÔNG lưu ở đâu cả giữa hai lượt nhập, gửi lại `null`
+ * khi người dùng chưa gõ mẫu nào. */
 export async function previewImportEncodingFromText(
   text: string,
   sourceLang: string,
+  chapterPattern: ChapterPatternInput | null,
 ): Promise<ImportEncodingPreviewResult> {
-  return callPreviewImportEncoding(CMD_PREVIEW_FROM_TEXT, { text, sourceLang })
+  return callPreviewImportEncoding(CMD_PREVIEW_FROM_TEXT, { text, sourceLang, chapterPattern })
 }
 
-/** Nhánh TỆP của màn xem trước bảng mã (Story 6.3, FR126). Tham số `sourceLang` — xem
- * doc-comment [`previewImportEncodingFromText`]. */
+/** Nhánh TỆP của màn xem trước bảng mã (Story 6.3, FR126). Tham số `sourceLang`/`chapterPattern`
+ * — xem doc-comment [`previewImportEncodingFromText`]. */
 export async function previewImportEncodingFromFile(
   path: string,
   sourceLang: string,
+  chapterPattern: ChapterPatternInput | null,
 ): Promise<ImportEncodingPreviewResult> {
-  return callPreviewImportEncoding(CMD_PREVIEW_FROM_FILE, { path, sourceLang })
+  return callPreviewImportEncoding(CMD_PREVIEW_FROM_FILE, { path, sourceLang, chapterPattern })
 }
 
 /** Xác nhận lượt nhập với bảng mã đã chọn — cùng hình dạng trả về `CreateWorkResult`
- * (`created`/`error`), vì lệnh này TẠO một Tác phẩm y hệt `create_work_from_text`/`_from_file`. */
+ * (`created`/`error`), vì lệnh này TẠO một Tác phẩm y hệt `create_work_from_text`/`_from_file`.
+ *
+ * 🔵 THÊM 2026-09-05 (Story 6.6) — tham số `chapterPattern`: PHẢI là CÙNG mẫu mà lượt xem
+ * trước gần nhất vừa hiện (§Always spec 6.6: xem trước và xác nhận phải trùng từng byte). */
 export async function confirmImportWithEncoding(
   name: string,
   sourceLang: string,
   genre: string,
   encoding: string,
+  chapterPattern: ChapterPatternInput | null,
 ): Promise<CreateWorkResult> {
-  return callCreateWork(CMD_CONFIRM_WITH_ENCODING, { name, sourceLang, genre, encoding })
+  return callCreateWork(CMD_CONFIRM_WITH_ENCODING, { name, sourceLang, genre, encoding, chapterPattern })
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

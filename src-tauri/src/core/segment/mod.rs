@@ -56,6 +56,7 @@
 //! *"`split` là chỗ duy nhất biết bảng kết câu"* ở đoạn trên vẫn đúng, `line_ends_a_sentence`
 //! chỉ mở thêm một cửa `pub(super)` cạnh bảng đó, không lộ nó ra ngoài `core::segment`.
 
+pub mod chapterpattern;
 pub mod encoding;
 pub mod import;
 pub mod normalize;

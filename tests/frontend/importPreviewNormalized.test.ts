@@ -51,7 +51,7 @@ function candidate(
 ): EncodingCandidateWire {
   // Story 6.5 — `cleanup` không phải mối quan tâm của tệp này (canh riêng ở
   // `importPreviewCleanup.test.ts`); `null` giữ nguyên hình dạng cũ cho mọi ca ở đây.
-  return { label, encoding, preview, normalized: n, cleanup: null }
+  return { label, encoding, preview, normalized: n, cleanup: null, chapters: null }
 }
 
 /** Dải năm ô, tin cậy thấp — mỗi ô mang một bản chuẩn hoá KHÁC NHAU rõ rệt để phép chọn
@@ -71,6 +71,7 @@ function fivecandidatePreview(): ImportEncodingPreview {
     // candidates khong rong -- doc .normalized cua ung vien dang chon, khong doc truong nay.
     self_declared_normalized: null,
     self_declared_cleanup: null,
+    self_declared_chapters: null,
   }
 }
 
@@ -82,6 +83,7 @@ function selfDeclaredPreview(n: NormalizedPreviewWire): ImportEncodingPreview {
     candidates: [],
     self_declared_normalized: n,
     self_declared_cleanup: null,
+    self_declared_chapters: null,
   }
 }
 

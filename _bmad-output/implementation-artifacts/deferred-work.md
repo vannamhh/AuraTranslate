@@ -9426,6 +9426,39 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   bị nối oan" với "dòng ngắt giữa câu hợp lệ". **Chủ: Story 6.6** — khi dựng mẫu phân tách
   Chương, cân nhắc liệu cùng cơ chế mẫu có mở rộng được cho đề mục con trong thân hay không;
   nếu không, ghi rõ giới hạn đó tiếp tục mở cho ai đọc sau.
+  → 🟡 **ĐÓNG MỘT PHẦN 2026-09-05 (Story 6.6) — vế tiêu đề ĐẦU Chương đóng, vế đề mục con
+  TRONG thân vẫn mở.** Sửa nửa lý do trước khi đóng: bước 5 (`SplitChapters`) đứng SAU bước 4
+  (chuẩn hoá, luật gộp dòng) trong `PIPELINE_ORDER` — KHÔNG ĐỔI, KHÔNG THỂ đổi (§Always spec
+  6.6) — nên tiêu đề Chương KHÔNG được "bóc ra TRƯỚC khi luật gộp chạy" như mục nợ này từng
+  suy đoán; luật gộp LUÔN chạy trước. Cơ chế đóng thật là KHÁC: `normalize::normalize` không
+  bao giờ nối một dòng NGANG QUA một dòng trống (`a_blank_line_is_never_joined_across`, đã có
+  từ Story 6.4) — nên một tiêu đề Chương đứng RIÊNG MỘT DÒNG, có dòng trống ngăn với thân
+  ngay sau nó (định dạng phổ biến của văn bản chương hồi thật), sống sót qua bước 4 KHÔNG bị
+  nối, và `pipeline::title_line_of` (bước 5) đọc đúng dòng đó làm `title`. Một tiêu đề KHÔNG
+  có dòng trống ngăn cách (dính liền thân ngay dòng kế) VẪN bị nối — cùng khuyết tật cũ, chỉ
+  là giờ nó lộ ra RÕ RÀNG HƠN.
+  🔵 **SỬA 2026-09-06 (vòng rà đối kháng 3, mục 1) — hai câu trên hết đúng.** Bản trước viết
+  *"`title` khi đó là CẢ dòng đã nối (tiêu đề + một phần thân)"* và trỏ đối chứng
+  `segment_contract.rs::splitting_chapters_after_decoding_finds_the_pattern_and_produces_n_chapters`
+  với chú *"`title` == toàn bộ nội dung Chương"*. Đó chính là khuyết tật đã VÁ: `title_line_of`
+  nay đo SỐ DÒNG của mảnh — một mảnh CHỈ MỘT dòng không có dòng tiêu đề RIÊNG nên `title =
+  None`, và ca đối chứng ấy nay khẳng định đúng `None`. ⇒ Trạng thái thật hôm nay: tiêu đề
+  KHÔNG có dòng trống ngăn cách thì KHÔNG bị ghi sai vào cột `title` nữa (nó rỗng, một lời khai
+  ĐÚNG), nhưng nó cũng KHÔNG được nhận diện — thân Chương vẫn mang tiêu đề nằm lẫn bên trong.
+  Đây là mất NĂNG LỰC, không phải hỏng DỮ LIỆU, và vế ấy vẫn mở.
+  ⚠️ **Vế MỚI, cùng gốc, chưa ai canh:** một mẫu **neo dòng** (`^…`, đúng dạng mà
+  `mockups/library-and-import.html:179` dạy) khớp **0 lần** trên nguồn không có dòng trống —
+  đo 2026-09-06: `"Chuong 1 Mot\nnoi dung\nChuong 2 Hai\nnoi dung"` + `^Chuong \d+` cho ĐÚNG
+  MỘT Chương, không lỗi nào ném, vì bước 4 đã nối cả khối thành một dòng trước khi `^` được
+  đánh giá. Cùng mẫu ấy trên nguồn CÓ dòng trống cho 2 Chương đúng. Màn xem trước hiện
+  *"nhận ra 1 Chương"* nên người dùng THẤY được, tức không phải rỗng im lặng — nhưng mẫu mà
+  chính tài liệu thiết kế dạy lại là mẫu hỏng trên một hình dạng nguồn phổ biến.
+  **Chủ: Ice** — bốn đường đi tiếp (chấp nhận + cảnh báo trên màn · khớp mẫu trên văn bản
+  TRƯỚC bước 4 · đổi thứ tự bước 4/5 · sửa mẫu mặc định trong mockup) và ba đường giữa đụng
+  AD-39, tức cần một `AD` mới chứ không phải một dòng mã. Ice chốt trước khi giao lại cho dev.
+  **Vế đề mục con TRONG
+  thân** vẫn hoàn toàn MỞ, không đổi — Story 6.6 chỉ tách Chương ở TẦNG TRÊN CÙNG, không đệ
+  quy vào thân. **Chủ vế còn mở: Story 6.10** (không đổi).
 
 ## Deferred from: 6-4-chuan-hoa-xuong-dong-va-khoang-trang — vá vòng rà 1 (2026-09-05)
 
@@ -9546,6 +9579,40 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   luật khớp ở NHIỀU Chương với số khớp KHÁC NHAU mỗi Chương, và khẳng định
   `count_in_import == Σ count_in_chapter` qua các Chương ĐÚNG BẰNG tổng đã tính tay, không chỉ
   bằng `count_in_chapter` của một Chương duy nhất.
+  → 🟡 **ĐÓNG MỘT PHẦN 2026-09-06 (Story 6.6). Bản đầu ghi ✅ ngày 2026-09-05; vòng nghiệm
+  thu 2026-09-06 đo ra đó là khai RỘNG HƠN thứ đo được, sửa tại chỗ.**
+  `cleanup_contract.rs::count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chapters_with_different_match_counts`
+  gọi THẲNG `commands::project::cleanup_and_chapters_preview_for` (hàm SẢN PHẨM sinh
+  `count_in_import` trên dây, không phải chuỗi pipeline thô) với `PipelineShape::Chapters(3)`
+  (2 khớp / 3 khớp / 0 khớp mỗi Chương — ba số THẬT SỰ khác nhau) và đọc `count_in_import`
+  TỪ `CleanupRuleReportWire` mà hàm đó trả về, khẳng định nó đúng bằng tổng tính tay (5) —
+  đối chứng đột biến (đổi dòng gán `count_in_import` thành `count_in_chapter` rồi chạy lại)
+  làm ca này ĐỎ, xác nhận nó thật sự canh phép cộng của sản phẩm, không tự cộng trong ca test.
+  ⚠️ **Phần CÒN HỞ, không được đóng bằng ca trên:** `PipelineShape::Chapters` là hình dạng
+  CHƯA đường sản phẩm nào dựng ra (danh sách URL Story 6.7 sẽ là đường ĐẦU TIÊN) — ca đóng nợ
+  chứng minh CƠ CHẾ cộng dồn đúng khi N Chương đã có báo cáo riêng từ đầu, nhưng KHÔNG chứng
+  minh gì cho đường SẢN PHẨM THẬT của chính Story 6.6 (`Blob` + `chapter_pattern`), nơi
+  `count_in_chapter`/`count_in_import` vẫn LUÔN BẰNG NHAU (xem mục nợ MỚI ngay dưới cho lý do
+  kiến trúc). **Chủ vế còn hở: Story 6.7** — story đầu tiên dựng THẬT một bề mặt sản phẩm
+  đưa `PipelineShape::Chapters(N>1)` vào `preview_import_encoding`/`cleanup_and_chapters_preview_for`
+  phải tự kiểm lại mệnh đề này trên chính đường đó (không chỉ trên `PipelineShape::Chapters`
+  dựng tay trong test), trước khi coi mục nợ gốc là đóng trọn vẹn.
+
+- ⚠️ **MỚI 2026-09-05 (Story 6.6) — mục nợ vừa mở, TÁCH RIÊNG khỏi mục vừa đóng MỘT PHẦN
+  ngay trên: đóng nợ đó qua `PipelineShape::Chapters` KHÔNG kéo theo việc đóng cho mẫu phân
+  tách của CHÍNH Story 6.6 (`Blob` + `chapter_pattern`).** Với `Blob`, bước 3
+  (`CleanByRules`) chạy TRÊN TOÀN blob dưới dạng MỘT đơn vị TRƯỚC KHI bước 5
+  (`SplitChapters`) tách nó ra N Chương — không có báo cáo riêng cho từng Chương kết quả để
+  mà cộng khác nhau, vì tại thời điểm luật chạy, N Chương đó CHƯA TỒN TẠI.
+  `pipeline::split_chapters_step` giữ nguyên báo cáo TOÀN BLOB và gán cho Chương đầu (thay
+  vì vứt về `None` như bản Story 6.5 — vá một hồi quy: `None` sẽ hiện `count_in_chapter = 0`
+  SAI cho một luật thật sự có khớp) nên `count_in_chapter`/`count_in_import` LUÔN BẰNG NHAU
+  (đúng số, không bịa, chỉ không CHI TIẾT theo Chương) khi N Chương đến từ mẫu phân tách —
+  xem doc-comment `commands::project::cleanup_and_chapters_preview_for` cho lý lẽ đầy đủ.
+  **Chủ: Ice** — đóng vế này đòi một cơ chế theo dõi vị trí xuyên bước chuẩn hoá (bước 4)
+  chưa hề tồn tại trong kho; đây là một quyết định kiến trúc (chi phí xây/độ phức tạp so với
+  lợi ích một con số chi tiết hơn), không phải một việc mặc định giao cho story kế tiếp chạm
+  Chương — Ice chốt có đáng xây hay không, và story nào, sau khi đã đo.
 
 - 🔴 **ĐÃ VÁ 2026-09-06 — hai số đếm của mỗi luật bị tính trên CỬA SỔ HIỂN THỊ, không phải
   trên TOÀN Chương như doc-comment/§Always spec 6.5 đã khai.** Phát hiện bằng một ca test
@@ -9610,3 +9677,91 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   trước NHẬP, nơi Tác phẩm đích luôn chưa tồn tại tại thời điểm soạn) — CHƯA có story nào đặt
   tên cho màn đó trong `epics.md`, nên Ice quyết định nó thuộc story nào (mở rộng Story 6.9 ra
   ngoài riêng tầng 2, hay một story quản lý Tác phẩm mới) trước khi giao lại cho dev.
+
+## Deferred from: 6-6-tach-chuong-theo-mau-phan-tach — tách phạm vi ở bước định tuyến (2026-09-05)
+
+- ⚠️ **AC7 của `epics.md` §Story 6.6 — *"người dùng chọn nhiều file cùng lúc; mỗi file thành
+  một Chương HOẶC được tách tiếp theo mẫu, theo lựa chọn của người dùng"* — KHÔNG nằm trong
+  Story 6.6.** Ice chốt tách 2026-09-05 ở bước kiểm đa-mục-tiêu của `bmad-build`. Đây là một
+  năng lực CHƯA DỰNG, không phải một chỗ lệch spec: AC ấy vẫn đúng và `epics.md` KHÔNG được
+  sửa cho khớp mã (luật §Story và spec của `AGENTS.md`).
+  **Ba phép đo dẫn tới lượt tách, ghi ra để lượt sau không phải đo lại:**
+  ① Bề mặt vào hôm nay chỉ dựng hình dạng `Blob`: `core::segment::import::import_text` trả
+  `PipelineShape::Blob(ChapterInput::AlreadyText)` và `import_file` trả
+  `PipelineShape::Blob(ChapterInput::RawBytes)` — đo 2026-09-05, không đường sản phẩm nào dựng
+  `PipelineShape::Chapters(N>1)`.
+  ② Kho CHƯA có hộp thoại chọn nhiều tệp cho đường nhập: `blocking_pick_file` xuất hiện đúng
+  một chỗ sản phẩm, `commands::glossary` (đường CSV/TSV của Story 3.10b), và nó là hộp thoại
+  MỘT tệp.
+  ③ Bề mặt ấy chở một bẫy ĐÃ CÓ TÊN, không dùng chung với phần còn lại của Story 6.6: giữ một
+  `MutexGuard` xuyên suốt một hộp thoại CHẶN treo chính vòng lặp sự kiện mà hộp thoại đang chạy
+  trên đó — `commands::glossary` doc-comment quanh `:1266-1305` mô tả đủ, và `lib.rs:479` xếp
+  nó cùng hình dạng với mục AI-7. Một hộp thoại đa chọn cho đường nhập phải đi qua đúng bẫy đó.
+  ⚠️ **Chiều phụ thuộc là MỘT chiều, và đó là lý do tách được:** AC7 không ship một mình được
+  — chọn N tệp thì màn xem trước phải hiện N Chương, mà bề mặt xem trước nhiều Chương chính là
+  thứ Story 6.6 dựng. Chiều ngược lại thì được: 6.6 (tách MỘT nguồn theo mẫu) nghiệm thu trọn
+  vẹn mà không cần AC7. ⇒ Đây là TUẦN TỰ, không phải hai việc song song; đừng đọc lượt tách này
+  thành "AC7 là tuỳ chọn".
+  **Chủ: Story 6.6b** — một story mới đứng NGAY SAU 6.6 và TRƯỚC 6.7, chưa có trong
+  `epics.md`/`sprint-status.yaml`. 🔴 Thêm nó vào hai tệp đó là một mục quy hoạch còn thiếu, tức
+  phải đi qua `correct-course`, không phải một dòng dev tự thêm — cho tới lúc đó mục này mang
+  chủ trên GIẤY, và Ice là người kích hoạt lượt ấy.
+
+## Deferred from: 6-6-tach-chuong-theo-mau-phan-tach (2026-09-05)
+
+- 🔴 **Cờ "đáng ngờ" + nút lọc cho danh sách Chương — Ice CHỐT 2026-09-05 KHÔNG làm ở Story
+  6.6.** Mockup (`library-and-import.html:196-212`) vẽ một hộp *"N dòng khớp mẫu nhưng đáng
+  ngờ"* kèm nút lọc, định nghĩa bằng *"ngắn bất thường hoặc nằm giữa một Chương khác"`. Cả hai
+  vế đòi một hằng số ngưỡng chưa đo được trước khi có một kho truyện thật — đúng lý lẽ đã loại
+  phương án "dòng ngắn thì đừng nối" ở Story 6.4. Story 6.6 đóng AC5 bằng đường YẾU HƠN nhưng
+  KHÔNG NÓI DỐI: mọi Chương hiện `title`/độ dài, sắp xếp được theo độ dài (xem §Design Notes
+  "Vì sao KHÔNG có cờ 'đáng ngờ'" của spec 6.6). **Chủ: Story 6.10** — story đã sở hữu bộ lọc
+  "cần xem", và một trong bốn nguồn tín hiệu của nó chính là kết quả tách Chương của story này.
+
+- 🔴 **`spawn_import_scan` chỉ quét Chương ĐẦU — N−1 Chương còn lại của một lượt nhập nhiều
+  Chương không được quét ứng viên Glossary, và không cổng nào đỏ vì chuyện đó.** Ice CHỐT
+  2026-09-05 không mở rộng cơ chế này ở Story 6.6: quét N Chương chạm luồng nền, bộ đếm thế hệ
+  `ImportScanGeneration`, và một chi phí ở quy mô 2.000 Chương (trần đo trong I/O Matrix spec
+  6.6) mà chưa ai đo. `commands::project::spawn_import_scan` vẫn nhận đúng MỘT `chapter_id`
+  (`OpenWork::chapter_id`, luôn là Chương `ord = 1`) — hành vi không đổi so với trước story,
+  chỉ là bây giờ "1 trên N Chương được quét" là một khoảng trống LỚN HƠN nhiều so với "1 trên 1
+  Chương" (N luôn = 1) mà cơ chế này được viết cho ban đầu. **Chủ: Story 6.10** — story sở hữu
+  quy mô "N Chương thật" đầu tiên của Library.
+
+- ⚠️ **`⌥W`/`⌥←`/`⌥→` (điều hướng nhanh giữa các Chương trong danh sách tách) chưa đăng ký.**
+  Đo 2026-09-05: `Alt+` trần chưa ai chiếm trong `check:commands` registry, nhưng ba hợp âm này
+  thuộc tầng 2 (bên trong lớp phủ xem trước) và là năng lực của Story 6.10 (bộ lọc "cần xem" —
+  điều hướng nhanh giữa các Chương ĐÁNG NGỜ). Đăng ký chúng ở Story 6.6, khi chưa có "Chương
+  đáng ngờ" nào để mà nhảy tới, là một hợp âm không có đối tượng — một đường chết. **Chủ: Story
+  6.10.**
+
+## Deferred from: spec-6-6-tach-chuong-theo-mau-phan-tach — vòng rà đối kháng 3 (2026-09-06)
+
+- ⚠️ **Không có TRẦN nào cho số Chương một mẫu sinh ra, ở bất kỳ tầng nào.** Đo 2026-09-06:
+  `grep` tìm hằng số giới hạn trong `core/segment/pipeline.rs`, `core/segment/chapterpattern.rs`
+  và `commands/project.rs` cho **0 kết quả**. Một mẫu rộng (một ký tự thường gặp, hoặc một
+  regex khớp gần như mọi vị trí) sinh N Chương tỉ lệ với độ dài tài liệu, và **toàn bộ** N hàng
+  `ChapterSplitPreviewEntryWire` đi qua IPC ở **mỗi** lượt `@change` của ô mẫu — trên đường năm
+  ứng viên FR126 thì nhân thêm năm lần. Số đo hiện có dừng ở 2.000 Chương (~242-286 ms cho năm
+  ứng viên); chưa ai đo hình dạng bệnh lý. ⚠️ Đặt một trần là một con số phải ĐO, không phải
+  một hằng số chọn bừa — Ice đã cấm hằng số phù thuỷ 2026-09-05, nên lượt đóng mục này phải mang
+  theo một phép đo thật trên nguồn bệnh lý, hoặc một cơ chế không cần hằng số (ví dụ cắt danh
+  sách gửi lên dây mà vẫn khai số tổng đúng). **Chủ: Story 6.10** — story đầu tiên đưa màn xem
+  trước lên quy mô hàng chục/hàng nghìn Chương, tức story đầu tiên mà con số này thôi là giả thuyết.
+
+- ⚠️ **Tầng 3 (luật làm sạch) của màn xem trước ghim vĩnh viễn vào Chương ĐẦU.**
+  `commands::project::cleanup_and_chapters_preview_for` dựng khối làm sạch từ `chapters.first()`.
+  Trước Story 6.6 điều đó vô hại vì N luôn bằng 1; nay một mẫu phân tách cho N Chương thì
+  **không đường nào xem được luật làm sạch khớp ở đâu trong Chương 2..N**. Người dùng bật một
+  luật rồi chỉ kiểm chứng được nó trên một phần N của thứ nó sắp xoá — đúng lớp rủi ro mà FR124
+  tồn tại để chặn, thu hẹp lại chứ chưa mở ra. Không cổng nào đỏ vì chuyện này.
+  **Chủ: Story 6.10** — cùng story sở hữu điều hướng Chương trong màn xem trước (`⌥←`/`⌥→`),
+  tức nơi "xem tầng 3 của Chương đang chọn" có một đối tượng để bám vào.
+
+- ⚠️ **`ChapterPattern::match_starts` biên dịch lại regex mỗi lượt gọi, không cache.**
+  `resolve_chapter_pattern` biên dịch một lần CHỈ để nghiệm thu rồi vứt `Regex` đi; `match_starts`
+  biên dịch lại từ chuỗi ở mỗi lượt `run_pipeline` — tức tối đa 6-7 lần cho MỘT lượt tải lại xem
+  trước (năm ứng viên + đường tự khai + lượt xác nhận). Chưa đo phần chi phí này trong con số
+  242-286 ms đã ghi, nên chưa biết nó đáng kể hay không — nêu ra như một hình dạng đáng xét lại,
+  KHÔNG như một khuyết tật đã chứng minh. **Chủ: Story 6.18** — lượt đo lại ba ngưỡng NFR trên
+  thư viện 5.000 Chương thật là chỗ đầu tiên con số này có nghĩa.

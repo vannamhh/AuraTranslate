@@ -32,6 +32,7 @@ use auratranslate_lib::commands::segment::{
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::meta::WorkMeta;
 use auratranslate_lib::core::segment::import::ImportError;
+use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
 use auratranslate_lib::core::segment::normalize;
 use auratranslate_lib::core::segment::pipeline::{
     ChapterInput, PipelineInput, PipelineShape, Step, PIPELINE_ORDER, run_import,
@@ -8017,7 +8018,7 @@ fn splitting_chapters_before_decoding_reproduces_the_ad_39_symptom_exactly_one_c
         // chạy trước khi lỗi có cơ hội xảy ra, không lỗi nào được ném — đó CHÍNH LÀ khuyết
         // tật, không phải một sơ suất của fixture.
         encoding: encoding_rs::GBK,
-        chapter_pattern: Some("第一章".to_owned()),
+        chapter_pattern: Some(ChapterPattern::literal("第一章")),
         source_lang: "zh".to_owned(),
         cleanup_rules: Vec::new(),
     };
@@ -8063,7 +8064,7 @@ fn splitting_chapters_after_decoding_finds_the_pattern_and_produces_n_chapters()
             label: "gbk-fixture.txt".to_owned(),
         }),
         encoding: encoding_rs::GBK,
-        chapter_pattern: Some("第一章".to_owned()),
+        chapter_pattern: Some(ChapterPattern::literal("第一章")),
         source_lang: "zh".to_owned(),
         cleanup_rules: Vec::new(),
     };
@@ -8079,16 +8080,27 @@ fn splitting_chapters_after_decoding_finds_the_pattern_and_produces_n_chapters()
     );
     // 🔵 THÊM (vòng rà đối kháng 2026-09-04, item 6) — bản trước chỉ đếm `len()` và
     // `!segments.is_empty()`; mất CHỮ (ví dụ do một lượt `trim()` xoá khoảng trắng đầu dòng
-    // có chủ ý) là VÔ HÌNH với hai phép kiểm đó. Khẳng định VĂN BẢN từng Chương, NGUYÊN VĂN
-    // (không trim) — khớp đúng phép tách trên `AD_39_GBK_FIXTURE_TEXT.split("第一章")`.
-    // 🔵 SỬA 2026-09-04 (Story 6.4) — KHÔNG còn `"\n"` ở đuôi hai Chương đầu. `PIPELINE_ORDER`
-    // đặt bước 4 (chuẩn hoá) TRƯỚC bước 5 (tách Chương) — khi bước 5 chạy, `NormalizeParagraphsAndWhitespace`
-    // ĐÃ nối trọn khối blob thành MỘT dòng (cùng luật gộp không dấu kết câu/không dòng trống
-    // đã giải thích ở đối chứng ngay trên), nên phép tách theo mẫu `"第一章"` chạy trên một
-    // chuỗi KHÔNG còn `\n` nào — ba mảnh tách ra vì thế cũng không còn `\n` nào ở đuôi.
-    assert_eq!(outcome.chapters[0].source_text, " mot");
-    assert_eq!(outcome.chapters[1].source_text, " hai");
-    assert_eq!(outcome.chapters[2].source_text, " ba");
+    // có chủ ý) là VÔ HÌNH với hai phép kiểm đó. Khẳng định VĂN BẢN từng Chương, NGUYÊN VĂN.
+    // 🔵 SỬA 2026-09-05 (Story 6.6) — mảnh giữ lại KHÔNG còn " mot"/" hai"/" ba" (bản
+    // `str::split` cũ XOÁ dấu phân tách khỏi mọi mảnh). Tách theo VỊ TRÍ giữ NGUYÊN dòng khớp
+    // ở ĐẦU mỗi Chương mới — xem §Design Notes "Vì sao tách theo VỊ TRÍ" của spec 6.6.
+    assert_eq!(outcome.chapters[0].source_text, "第一章 mot");
+    assert_eq!(outcome.chapters[1].source_text, "第一章 hai");
+    assert_eq!(outcome.chapters[2].source_text, "第一章 ba");
+    // 🔴 SỬA 2026-09-06 (vòng rà đối kháng 3, mục 1) — bản TRƯỚC khẳng định `title =
+    // Some("第一章 mot")` với lý do CHÍNH nó ghi ra: "ca này không còn dấu xuống dòng nào
+    // sau bước 4 ⇒ title trùng hết cả nội dung Chương" — đó CHÍNH LÀ khuyết tật đã sửa
+    // (`title_line_of` giờ đo SỐ DÒNG: một mảnh CHỈ MỘT dòng không có tiêu đề RIÊNG,
+    // `title = None`, xem doc-comment `title_line_of`). `source_text` NGAY TRÊN không đổi —
+    // chỉ cột `title` (một trường HIỂN THỊ RIÊNG, không đụng `source_text` đã lưu) đổi.
+    for (i, chapter) in outcome.chapters.iter().enumerate() {
+        assert_eq!(
+            chapter.title, None,
+            "Chuong {i}: manh CHI MOT dong (khong dau xuong dong sau buoc 4) khong co tieu de \
+             RIENG -- title phai la None: {:?}",
+            chapter.source_text
+        );
+    }
     for (i, chapter) in outcome.chapters.iter().enumerate() {
         assert!(
             !chapter.segments.is_empty(),
@@ -8153,7 +8165,7 @@ fn an_already_chapters_shape_skips_chapter_splitting_and_keeps_the_input_unit_co
         ]),
         encoding: encoding_rs::UTF_8,
         // Cố tình đặt MỘT mẫu — vẫn phải bị BỎ QUA, vì hình dạng đã là N đơn vị.
-        chapter_pattern: Some("Chuong".to_owned()),
+        chapter_pattern: Some(ChapterPattern::literal("Chuong")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
     };
@@ -8184,7 +8196,7 @@ fn a_single_element_chapters_shape_is_not_split_even_though_its_length_matches_a
         encoding: encoding_rs::UTF_8,
         // Mẫu THẬT SỰ khớp bên trong văn bản — nếu bước tách suy nhầm đây là một `Blob`
         // (vì độ dài quan sát được là 1), nó sẽ tách văn bản này làm hai.
-        chapter_pattern: Some("Chuong".to_owned()),
+        chapter_pattern: Some(ChapterPattern::literal("Chuong")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
     };
@@ -8206,7 +8218,7 @@ fn an_empty_chapter_pattern_is_a_no_op_for_decoded_text() {
     let input = PipelineInput {
         shape: PipelineShape::Blob(ChapterInput::AlreadyText("khong mau nao ca".to_owned())),
         encoding: encoding_rs::UTF_8,
-        chapter_pattern: Some(String::new()),
+        chapter_pattern: Some(ChapterPattern::literal("")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
     };
@@ -8236,13 +8248,284 @@ fn an_empty_chapter_pattern_is_a_no_op_for_raw_bytes_too() {
             label: "x.txt".to_owned(),
         }),
         encoding: encoding_rs::UTF_8,
-        chapter_pattern: Some(String::new()),
+        chapter_pattern: Some(ChapterPattern::literal("")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
     };
     let outcome = run_import_with_order(&wrong_order, input).expect("mẫu rỗng không được lỗi");
     assert_eq!(outcome.chapters.len(), 1);
     assert_eq!(outcome.chapters[0].source_text, "khong mau nao ca");
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.6 — mẫu phân tách Chương NGƯỜI DÙNG cấu hình được (FR14), tách theo VỊ TRÍ
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Tách theo VỊ TRÍ giữ dòng tiêu đề Ở ĐẦU Chương mới — khác `str::split` (xoá dấu phân
+/// tách). Ba dòng tiêu đề CÁCH NHAU bởi dòng trống — luật gộp dòng của Story 6.4 KHÔNG nối
+/// chúng lại (khác đối chứng AD-39 dùng chung một fixture không dòng trống).
+#[test]
+fn splitting_by_position_keeps_the_matched_title_line_at_the_front_of_each_new_chapter() {
+    let text = "Chuong 1: Mo Dau\n\nnoi dung chuong mot.\n\nChuong 2: Tiep Theo\n\nnoi dung chuong hai.";
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned())),
+        encoding: encoding_rs::UTF_8,
+        chapter_pattern: Some(ChapterPattern::regex(r"^Chuong \d+:.*$")),
+        source_lang: "en".to_owned(),
+        cleanup_rules: Vec::new(),
+    };
+
+    let outcome = run_import(input).expect("mau regex hop le khong duoc loi");
+
+    assert_eq!(outcome.chapters.len(), 2, "hai lan khop mau phai cho ra hai Chuong");
+    assert!(
+        outcome.chapters[0].source_text.starts_with("Chuong 1: Mo Dau"),
+        "Chuong moi phai BAT DAU bang dong tieu de, khong bi str::split xoa mat: {:?}",
+        outcome.chapters[0].source_text
+    );
+    assert!(
+        outcome.chapters[1].source_text.starts_with("Chuong 2: Tiep Theo"),
+        "Chuong thu hai cung phai giu dong tieu de o dau: {:?}",
+        outcome.chapters[1].source_text
+    );
+    assert_eq!(
+        outcome.chapters[0].title.as_deref(),
+        Some("Chuong 1: Mo Dau"),
+        "title phai doc dung tu CHINH dong khop, KHONG phai toan bo noi dung Chuong"
+    );
+    assert_eq!(outcome.chapters[1].title.as_deref(), Some("Chuong 2: Tiep Theo"));
+}
+
+/// Hàng "Mẫu literal khớp N chỗ" của I/O Matrix spec 6.6 — mẫu LITERAL (không regex) khớp
+/// đúng ba lần, tiêu đề và thân TÁCH BIỆT rõ (khác đối chứng AD-39 nơi title trùng cả thân
+/// vì fixture không có dòng trống).
+#[test]
+fn a_literal_pattern_matching_three_times_yields_three_chapters_each_starting_with_its_title_line() {
+    let text = "第一章\n\nnoi dung mot.\n\n第一章\n\nnoi dung hai.\n\n第一章\n\nnoi dung ba.";
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned())),
+        encoding: encoding_rs::UTF_8,
+        chapter_pattern: Some(ChapterPattern::literal("第一章")),
+        source_lang: "zh".to_owned(),
+        cleanup_rules: Vec::new(),
+    };
+
+    let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
+
+    assert_eq!(outcome.chapters.len(), 3, "ba lan khop mau literal phai cho ra dung ba Chuong");
+    for (i, chapter) in outcome.chapters.iter().enumerate() {
+        assert!(
+            chapter.source_text.starts_with("第一章"),
+            "Chuong {i} phai BAT DAU bang dong tieu de: {:?}",
+            chapter.source_text
+        );
+        assert_eq!(
+            chapter.title.as_deref(),
+            Some("第一章"),
+            "title phai la CHINH dong khop, tach biet voi than Chuong"
+        );
+        assert_ne!(
+            chapter.source_text, "第一章",
+            "source_text phai con NGUYEN VEN ca than Chuong, khong chi con dong tieu de"
+        );
+    }
+}
+
+/// Văn bản TRƯỚC khớp đầu tiên (lời tựa/mục lục) KHÔNG BAO GIỜ bị vứt — thành Chương `ord = 1`
+/// với `title = None`, đúng §Always spec 6.6.
+#[test]
+fn text_before_the_first_match_becomes_its_own_untitled_chapter_instead_of_being_dropped() {
+    let text = "Loi tua cua tac gia, khong co tieu de nao khop mau o day.\n\nChuong 1: Bat Dau\n\nnoi dung.";
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned())),
+        encoding: encoding_rs::UTF_8,
+        chapter_pattern: Some(ChapterPattern::regex(r"^Chuong \d+:.*$")),
+        source_lang: "en".to_owned(),
+        cleanup_rules: Vec::new(),
+    };
+
+    let outcome = run_import(input).expect("mau regex hop le khong duoc loi");
+
+    assert_eq!(
+        outcome.chapters.len(),
+        2,
+        "mot lan khop + mot doan loi tua truoc no phai cho ra HAI Chuong (N+1), khong phai N"
+    );
+    assert_eq!(
+        outcome.chapters[0].title, None,
+        "Chuong loi tua khong co dong khop nao de lam tieu de"
+    );
+    assert!(
+        outcome.chapters[0].source_text.contains("Loi tua cua tac gia"),
+        "noi dung loi tua phai con NGUYEN VEN, khong bi vut: {:?}",
+        outcome.chapters[0].source_text
+    );
+    assert_eq!(outcome.chapters[1].title.as_deref(), Some("Chuong 1: Bat Dau"));
+}
+
+/// Hàng "Regex khớp độ dài 0" của I/O Matrix spec 6.6 — `x*` khớp chuỗi RỖNG ở mọi vị trí
+/// không có `x`; lọc Ở NGUỒN (`ChapterPattern::match_starts`) ⇒ 0 chỗ khớp thật ⇒ MỘT
+/// Chương, không tách thành N ký tự.
+#[test]
+fn a_zero_length_regex_chapter_pattern_is_filtered_at_the_source_and_yields_one_chapter() {
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::AlreadyText("abcd".to_owned())),
+        encoding: encoding_rs::UTF_8,
+        chapter_pattern: Some(ChapterPattern::regex("x*")),
+        source_lang: "en".to_owned(),
+        cleanup_rules: Vec::new(),
+    };
+    let outcome = run_import(input).expect("mau khop do dai 0 khong duoc la loi");
+    assert_eq!(
+        outcome.chapters.len(),
+        1,
+        "khop RONG phai bi loc o nguon -- khong duoc tach thanh N ky tu"
+    );
+    assert_eq!(outcome.chapters[0].source_text, "abcd");
+}
+
+/// Mẫu không khớp chỗ nào (sai chữ/sai bảng mã) ⇒ ĐÚNG MỘT Chương, `title = None`, KHÔNG lỗi
+/// nào ném — cùng khuôn hàng "Mẫu không khớp chỗ nào" của I/O Matrix spec 6.6.
+#[test]
+fn a_pattern_matching_nothing_yields_exactly_one_untitled_chapter_not_an_error() {
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::AlreadyText("khong co gi khop ca".to_owned())),
+        encoding: encoding_rs::UTF_8,
+        chapter_pattern: Some(ChapterPattern::literal("KHONG_TUNG_XUAT_HIEN")),
+        source_lang: "en".to_owned(),
+        cleanup_rules: Vec::new(),
+    };
+    let outcome = run_import(input).expect("mau khong khop khong duoc la loi");
+    assert_eq!(outcome.chapters.len(), 1);
+    assert_eq!(outcome.chapters[0].title, None);
+    assert_eq!(outcome.chapters[0].source_text, "khong co gi khop ca");
+}
+
+/// 🔴 SỬA 2026-09-06 (vòng rà đối kháng 3, mục 1) — một mảnh CHỈ CÓ ĐÚNG MỘT DÒNG không có
+/// "dòng tiêu đề" tách biệt khỏi thân; `title_line_of` đo SỐ DÒNG (`piece.lines()`), KHÔNG
+/// một ngưỡng độ dài nào (Ice cấm hằng số phù thuỷ 2026-09-05). Nguồn THẬT được đo:
+/// `"Chuong 1 Mot\nnoi dung mot\nChuong 2 Hai\nnoi dung hai"` — KHÔNG một dòng trống nào ngăn
+/// tiêu đề khỏi thân, nên bước 4 (chuẩn hoá, [`normalize::normalize`], đứng TRƯỚC bước 5 —
+/// luật gộp "nối CHỈ KHI dòng kết thúc mà KHÔNG có dấu kết câu, VÀ hai dòng nằm trong CÙNG
+/// một đoạn") gộp CẢ BỐN dòng gốc thành ĐÚNG HAI dòng (một dòng mỗi Chương, không dấu kết
+/// câu nào chặn) TRƯỚC KHI bước 5 tách theo vị trí — bản trước dùng `.lines().next()` vô
+/// điều kiện nên "tiêu đề" trở thành TOÀN BỘ thân đã gộp, một chuỗi có thể dài hàng nghìn ký
+/// tự đi thẳng vào cột `chapter.title` của `project.db`.
+#[test]
+fn a_chapter_piece_collapsed_to_a_single_line_by_normalization_has_no_title() {
+    let text = "Chuong 1 Mot\nnoi dung mot\nChuong 2 Hai\nnoi dung hai";
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned())),
+        encoding: encoding_rs::UTF_8,
+        chapter_pattern: Some(ChapterPattern::literal("Chuong ")),
+        source_lang: "en".to_owned(),
+        cleanup_rules: Vec::new(),
+    };
+    let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
+
+    assert_eq!(outcome.chapters.len(), 2, "hai lan khop mau literal phai cho ra dung hai Chuong");
+    for (i, chapter) in outcome.chapters.iter().enumerate() {
+        assert_eq!(
+            chapter.title, None,
+            "Chuong {i}: mot manh CHI MOT dong khong co dong tieu de RIENG voi than -- title \
+             phai la None, khong phai nuot ca than: {:?}",
+            chapter.source_text
+        );
+    }
+    // Bằng chứng bước 4 THẬT SỰ đã gộp — nếu còn `\n` thì ca này không còn đo đúng điều nó
+    // định đo (bước 4 gộp dòng chưa chạy, hoặc chạy sai thứ tự).
+    assert!(
+        !outcome.chapters[0].source_text.contains('\n'),
+        "gia dinh cua ca nay la buoc 4 gop MOI dong thanh mot -- neu con '\\n' o day thi day \
+         khong con la doi chung cho khuyet tat dang sua: {:?}",
+        outcome.chapters[0].source_text
+    );
+}
+
+/// Đối chứng dương của ca ngay trên — CÙNG mẫu, nguồn CÓ dòng trống ngăn tiêu đề khỏi thân:
+/// luật gộp của bước 4 "Một dòng trống LUÔN LUÔN là ranh giới đoạn — không bao giờ nối qua
+/// nó" giữ nguyên hai dòng tách biệt, nên `title` vẫn đọc ĐÚNG dòng khớp — mảnh MỘT dòng
+/// không phải là hình dạng nguồn DUY NHẤT ca trên phải phân biệt đúng.
+#[test]
+fn a_chapter_piece_with_a_blank_line_separator_keeps_its_title() {
+    let text = "Chuong 1 Mot\n\nnoi dung mot\n\nChuong 2 Hai\n\nnoi dung hai";
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned())),
+        encoding: encoding_rs::UTF_8,
+        chapter_pattern: Some(ChapterPattern::literal("Chuong ")),
+        source_lang: "en".to_owned(),
+        cleanup_rules: Vec::new(),
+    };
+    let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
+
+    assert_eq!(outcome.chapters.len(), 2);
+    assert_eq!(
+        outcome.chapters[0].title.as_deref(),
+        Some("Chuong 1 Mot"),
+        "co dong trong ngan cach -- tieu de PHAI con, khac han ca khong co dong trong ngay tren"
+    );
+    assert_eq!(outcome.chapters[1].title.as_deref(), Some("Chuong 2 Hai"));
+}
+
+/// Mẫu `kind = Regex` gặp nhánh `Unit::Undecoded` (thứ tự SAI, byte GBK chưa giải mã) ⇒ 0
+/// khớp, CÙNG NGỮ NGHĨA với nhánh `Literal` không khớp — KHÔNG một regex engine nào được phép
+/// chạy trên byte thô (§Always spec 6.6: phá đúng cặp đối chứng AD-39 nếu làm vậy).
+#[test]
+fn a_regex_chapter_pattern_never_runs_against_undecoded_bytes() {
+    let wrong_order: Vec<Step> = vec![
+        Step::SplitChapters,
+        Step::DecodeEncoding,
+        Step::ExtractMainContent,
+        Step::CleanByRules,
+        Step::NormalizeParagraphsAndWhitespace,
+        Step::Preview,
+        Step::SplitSegments,
+    ];
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::RawBytes {
+            bytes: ad_39_gbk_fixture_bytes(),
+            label: "gbk-fixture.txt".to_owned(),
+        }),
+        encoding: encoding_rs::GBK,
+        // `.` trong regex khớp GẦN NHƯ mọi byte hợp lệ UTF-8 — nếu nhánh Undecoded lỡ chạy
+        // regex trên byte GBK thô, mẫu rộng này rất dễ "khớp" một cách tình cờ.
+        chapter_pattern: Some(ChapterPattern::regex(".")),
+        source_lang: "zh".to_owned(),
+        cleanup_rules: Vec::new(),
+    };
+
+    let outcome = run_import_with_order(&wrong_order, input)
+        .expect("thu tu SAI khong duoc nem loi, dung cau spine :470");
+    assert_eq!(
+        outcome.chapters.len(),
+        1,
+        "mau Regex gap byte CHUA giai ma phai cho 0 khop, cung ngu nghia AD-39 voi Literal"
+    );
+}
+
+/// 🔴 SỬA (vòng nghiệm thu 2026-09-06) — một mẫu regex KHÔNG BIÊN DỊCH ĐƯỢC đi qua thẳng
+/// `run_import`/`run_import_with_order` (seam CÔNG KHAI, KHÔNG đi qua
+/// `commands::project::resolve_chapter_pattern`) phải TRẢ VỀ LỖI — không được nuốt thành
+/// "không khớp gì" rồi âm thầm trả một Chương trông như bình thường. Cùng khuôn
+/// `Step::CleanByRules` (`core::cleanup::apply` lỗi ⇒ `ImportError::InvalidCleanupPattern`,
+/// không nuốt).
+#[test]
+fn an_invalid_chapter_pattern_regex_propagates_an_error_instead_of_being_swallowed_as_no_match() {
+    let input = PipelineInput {
+        shape: PipelineShape::Blob(ChapterInput::AlreadyText("bat ky van ban nao".to_owned())),
+        encoding: encoding_rs::UTF_8,
+        chapter_pattern: Some(ChapterPattern::regex("[unclosed")),
+        source_lang: "en".to_owned(),
+        cleanup_rules: Vec::new(),
+    };
+
+    let err = run_import(input).expect_err(
+        "mau regex hong phai la Err -- khong duoc nuot thanh mot Chuong trong nhu binh thuong",
+    );
+    assert!(
+        matches!(err, ImportError::InvalidChapterPattern { .. }),
+        "loi phai la ImportError::InvalidChapterPattern, khong phai mot hang loi khac: {err:?}"
+    );
 }
 
 /// Byte không hợp lệ với bảng mã đã khai — từ chối tường minh, đúng biến thể `ImportError`
@@ -8368,7 +8651,7 @@ fn preview_of_a_utf8_bom_file_is_self_declared_but_still_carries_all_five_real_c
     bytes.extend_from_slice("Chương một".as_bytes());
     let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "bom.txt".to_owned() });
 
-    let preview = preview_import_encoding(&shape, "en", &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None);
 
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert_eq!(
@@ -8394,7 +8677,7 @@ fn preview_of_a_utf8_bom_file_is_self_declared_but_still_carries_all_five_real_c
 fn preview_of_pasted_text_is_self_declared_with_no_bytes_to_sniff() {
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("dan tay".to_owned()));
 
-    let preview = preview_import_encoding(&shape, "en", &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None);
 
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert!(preview.candidates.is_empty());
@@ -8419,7 +8702,7 @@ fn preview_of_pure_ascii_bytes_is_high_confidence_with_five_identical_candidates
         label: "ascii.txt".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape, "en", &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None);
 
     assert_eq!(preview.confidence, ConfidenceWire::High);
     // 🔵 SỬA (2026-09-04, vòng rà lại spec 6.3) — "candidates rỗng khi tin cậy cao" đã HẾT
@@ -8455,7 +8738,7 @@ fn preview_of_a_gbk_file_with_a_short_ascii_header_opens_the_strip_with_five_cel
         label: "gbk-header.txt".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape, "en", &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None);
 
     assert_eq!(
         preview.confidence,
@@ -8482,7 +8765,7 @@ fn preview_marks_an_undecodable_candidate_without_touching_the_others() {
         label: "bad.bin".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape, "en", &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None);
 
     assert_eq!(preview.confidence, ConfidenceWire::Low);
     assert_eq!(preview.candidates.len(), 5);
@@ -8512,7 +8795,7 @@ fn confirming_with_gbk_chosen_writes_back_the_exact_source_chinese_text() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
 
-    let opened = confirm_import_with_encoding(&root, &pending, "GBK Confirm", "zh", "", "GBK", Vec::new())
+    let opened = confirm_import_with_encoding(&root, &pending, "GBK Confirm", "zh", "", "GBK", Vec::new(), None)
         .unwrap_or_else(|e| panic!("xac nhan GBK that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -8544,9 +8827,9 @@ fn two_concurrent_confirms_on_the_same_pending_source_produce_exactly_one_work_n
 
     let results = std::thread::scope(|scope| {
         let h1 =
-            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race A", "en", "", "UTF-8", Vec::new()));
+            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race A", "en", "", "UTF-8", Vec::new(), None));
         let h2 =
-            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race B", "en", "", "UTF-8", Vec::new()));
+            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race B", "en", "", "UTF-8", Vec::new(), None));
         [h1.join().expect("luong 1 panic"), h2.join().expect("luong 2 panic")]
     });
 
@@ -8594,7 +8877,7 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
     }
     let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "utf16be.txt".to_owned() });
 
-    let preview = preview_import_encoding(&shape, "en", &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None);
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared, "BOM -- nguon tu khai");
     assert_eq!(
         preview.selected_encoding, "UTF-16BE",
@@ -8604,7 +8887,7 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
     let opened =
-        confirm_import_with_encoding(&root, &pending, "UTF-16BE", "en", "", &preview.selected_encoding, Vec::new())
+        confirm_import_with_encoding(&root, &pending, "UTF-16BE", "en", "", &preview.selected_encoding, Vec::new(), None)
             .unwrap_or_else(|e| panic!("xac nhan UTF-16BE that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -8625,7 +8908,7 @@ fn cancelling_then_confirming_creates_zero_works() {
     stash_pending_import_source(&pending, shape);
     cancel_import_preview(&pending);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Huy Roi Xac Nhan", "en", "", "UTF-8", Vec::new())
+    let err = confirm_import_with_encoding(&root, &pending, "Huy Roi Xac Nhan", "en", "", "UTF-8", Vec::new(), None)
         .expect_err("xac nhan sau khi huy phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportNoPendingSource);
 
@@ -8656,7 +8939,7 @@ fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_
 
     // 1) chọn NHẦM UTF-8 -- ngữ pháp byte UTF-8 chặt, byte GBK cua chu Han hau nhu chac
     // chan vi pham no.
-    let err = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "UTF-8", Vec::new())
+    let err = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "UTF-8", Vec::new(), None)
         .expect_err("byte GBK phai TU CHOI duoi UTF-8");
     assert_eq!(err.message_key(), MessageKey::ImportUndecodableBytes);
     assert_eq!(err.params().get("encoding").map(String::as_str), Some("UTF-8"));
@@ -8666,7 +8949,7 @@ fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_
     );
 
     // 2) chọn LẠI đúng GBK -- KHÔNG cần đọc nguồn lần hai, ô đang chờ vẫn còn từ (1).
-    let opened = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "GBK", Vec::new())
+    let opened = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "GBK", Vec::new(), None)
         .unwrap_or_else(|e| panic!("xac nhan lai voi GBK phai thanh cong: {e:?}"));
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
     assert_eq!(source_text, TEXT);
@@ -8684,7 +8967,7 @@ fn confirming_with_an_unrecognized_encoding_wire_id_is_refused_explicitly() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "not-a-real-encoding", Vec::new())
+    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "not-a-real-encoding", Vec::new(), None)
         .expect_err("nhan la khong nhan ra phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportUnrecognizedEncoding);
     assert!(fs::read_dir(&root).unwrap().next().is_none());
@@ -8702,7 +8985,7 @@ fn confirming_with_a_whatwg_valid_label_outside_fr126_is_refused_explicitly() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "Shift_JIS", Vec::new())
+    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "Shift_JIS", Vec::new(), None)
         .expect_err("Shift_JIS la nhan WHATWG hop le nhung NGOAI FR126 -- phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportUnrecognizedEncoding);
     assert!(fs::read_dir(&root).unwrap().next().is_none());
@@ -8718,7 +9001,7 @@ fn confirming_with_a_whatwg_valid_label_outside_fr126_is_refused_explicitly() {
 #[test]
 fn preview_of_an_already_chaptered_shape_with_no_units_is_self_declared_not_a_panic() {
     let shape = PipelineShape::Chapters(Vec::new());
-    let preview = preview_import_encoding(&shape, "en", &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None);
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert!(preview.candidates.is_empty());
     // Không đơn vị nào ⇒ không văn bản nào để mà chuẩn hoá — RỖNG THẬT, nhưng trường vẫn
@@ -8737,7 +9020,7 @@ fn create_work_with_utf8_encoding_behaves_identically_to_the_pre_story_default()
     let root = temp_dir("6-3-create-work-utf8-unchanged");
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("khong doi hanh vi".to_owned()));
 
-    let opened = create_work(&root, "UTF8 Khong Doi", "en", "", shape, encoding_rs::UTF_8, Vec::new())
+    let opened = create_work(&root, "UTF8 Khong Doi", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None)
         .unwrap_or_else(|e| panic!("tao Tac pham UTF-8 that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -8767,6 +9050,7 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
                 preview: None,
                 normalized: None,
                 cleanup: None,
+                chapters: None,
             },
             EncodingCandidateWire {
                 label: "GBK".to_owned(),
@@ -8779,6 +9063,7 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
                     window_truncated: false,
                 }),
                 cleanup: None,
+                chapters: None,
             },
         ],
         self_declared_normalized: None,
@@ -8786,6 +9071,8 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
         // (khối làm sạch, tầng 3), không thêm bảng — lý do sửa hai bộ khẳng định "hình dạng
         // dây" ngay dưới, đúng ngoại lệ mà AC spec 6.5 cho phép.
         self_declared_cleanup: None,
+        // 🔵 THÊM (Story 6.6) — cùng lý do ngay trên, khối tách Chương (tầng 4).
+        self_declared_chapters: None,
     };
 
     let json = serde_json::to_value(&preview).expect("serialize ImportEncodingPreview");
@@ -8804,6 +9091,8 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
             &"self_declared_normalized".to_owned(),
             // 🔵 THÊM (Story 6.5) — khối làm sạch (tầng 3) cho nhánh tự khai.
             &"self_declared_cleanup".to_owned(),
+            // 🔵 THÊM (Story 6.6) — khối tách Chương (tầng 4) cho nhánh tự khai.
+            &"self_declared_chapters".to_owned(),
         ]),
         "ImportEncodingPreview phai serialize DUNG NAM ten truong snake_case nay, khong hon khong kem"
     );
@@ -8832,9 +9121,11 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
             &"normalized".to_owned(),
             // 🔵 THÊM (Story 6.5) — khối làm sạch (tầng 3) của chính ứng viên này.
             &"cleanup".to_owned(),
+            // 🔵 THÊM (Story 6.6) — khối tách Chương (tầng 4) của chính ứng viên này.
+            &"chapters".to_owned(),
         ]),
         "EncodingCandidateWire phai serialize DUNG NAM ten truong nay (Story 6.4 them \
-         `normalized`, Story 6.5 them `cleanup`)"
+         `normalized`, Story 6.5 them `cleanup`, Story 6.6 them `chapters`)"
     );
     // 🔴 `preview: None`/`normalized: None` PHAI di ra la `null` CO MAT, khong mot truong bi
     // bo di -- mot truong VANG MAT doc ra `undefined` phia TypeScript, mot gia tri THU BA ma
@@ -8910,7 +9201,7 @@ fn a_crlf_source_written_through_create_work_has_zero_carriage_returns_when_read
         "Chuong mot.\r\nMot doan van thu hai.\r\n\r\nMot doan thu ba.\r\n".to_owned(),
     ));
 
-    let opened = create_work(&root, "CRLF Round Trip", "en", "", shape, encoding_rs::UTF_8, Vec::new())
+    let opened = create_work(&root, "CRLF Round Trip", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None)
         .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -8990,7 +9281,7 @@ fn a_source_longer_than_the_evidence_window_marks_every_candidate_window_truncat
         bytes: text.clone().into_bytes(),
         label: "long.txt".to_owned(),
     });
-    let preview = preview_import_encoding(&shape, "en", &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None);
 
     assert_eq!(preview.candidates.len(), 5, "nguon co byte de do -- du nam o");
     for candidate in &preview.candidates {
@@ -9021,8 +9312,8 @@ fn the_same_mid_sentence_bytes_normalize_differently_by_source_lang_through_rend
         label: "mid-sentence.txt".to_owned(),
     });
 
-    let preview_en = preview_import_encoding(&shape_for(), "en", &[]);
-    let preview_zh = preview_import_encoding(&shape_for(), "zh", &[]);
+    let preview_en = preview_import_encoding(&shape_for(), "en", &[], None);
+    let preview_zh = preview_import_encoding(&shape_for(), "zh", &[], None);
 
     let utf8_en = preview_en
         .candidates

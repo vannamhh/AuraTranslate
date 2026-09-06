@@ -47,6 +47,12 @@ function cleanupFor(text: string): ImportEncodingPreview['candidates'][number]['
   return { text, spans: [], rules: [], window_truncated: false, final_text: text }
 }
 
+/** Khối tách Chương tối giản, một Chương duy nhất — Story 6.6. Các ca của tệp này canh
+ * dải bảng mã, không canh nội dung tầng 4 (xem `importPreviewChapters.test.ts` cho ca đó). */
+function chaptersFor(title: string): ImportEncodingPreview['candidates'][number]['chapters'] {
+  return { chapter_count: 1, chapters: [{ ord: 1, title, length: title.length }] }
+}
+
 /** Rust LUÔN cấp đủ năm ô khi có byte để dò, kể cả tin cậy CAO (I/O Matrix "Tệp thuần ASCII":
  * "năm bản dựng cho CÙNG một chuỗi") — chỉ khác `lowConfidencePreview()` ở việc cả năm ô
  * (trừ UTF-16) đọc ra CÙNG một chuỗi. */
@@ -61,6 +67,7 @@ function highConfidencePreview(): ImportEncodingPreview {
         preview: 'plain ascii',
         normalized: normalizedFor('plain ascii'),
         cleanup: cleanupFor('plain ascii'),
+        chapters: chaptersFor('plain ascii'),
       },
       {
         label: 'GB18030',
@@ -68,6 +75,7 @@ function highConfidencePreview(): ImportEncodingPreview {
         preview: 'plain ascii',
         normalized: normalizedFor('plain ascii'),
         cleanup: cleanupFor('plain ascii'),
+        chapters: chaptersFor('plain ascii'),
       },
       {
         label: 'GBK',
@@ -75,6 +83,7 @@ function highConfidencePreview(): ImportEncodingPreview {
         preview: 'plain ascii',
         normalized: normalizedFor('plain ascii'),
         cleanup: cleanupFor('plain ascii'),
+        chapters: chaptersFor('plain ascii'),
       },
       {
         label: 'Big5',
@@ -82,6 +91,7 @@ function highConfidencePreview(): ImportEncodingPreview {
         preview: 'plain ascii',
         normalized: normalizedFor('plain ascii'),
         cleanup: cleanupFor('plain ascii'),
+        chapters: chaptersFor('plain ascii'),
       },
       {
         label: 'UTF-16',
@@ -89,11 +99,13 @@ function highConfidencePreview(): ImportEncodingPreview {
         preview: '灱慩⁮獡楣',
         normalized: normalizedFor('灱慩⁮獡楣'),
         cleanup: cleanupFor('灱慩⁮獡楣'),
+        chapters: chaptersFor('灱慩⁮獡楣'),
       },
     ],
     // candidates khong rong -- doc .normalized cua ung vien dang chon, khong doc truong nay.
     self_declared_normalized: null,
     self_declared_cleanup: null,
+    self_declared_chapters: null,
   }
 }
 
@@ -105,6 +117,7 @@ function selfDeclaredPreview(): ImportEncodingPreview {
     candidates: [],
     self_declared_normalized: normalizedFor('van ban dan tay'),
     self_declared_cleanup: cleanupFor('van ban dan tay'),
+    self_declared_chapters: chaptersFor('van ban dan tay'),
   }
 }
 
@@ -113,13 +126,14 @@ function lowConfidencePreview(): ImportEncodingPreview {
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [
-      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null, cleanup: null },
+      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null, cleanup: null, chapters: null },
       {
         label: 'GB18030',
         encoding: 'gb18030',
         preview: '萧炎在东临',
         normalized: normalizedFor('萧炎在东临'),
         cleanup: cleanupFor('萧炎在东临'),
+        chapters: chaptersFor('萧炎在东临'),
       },
       {
         label: 'GBK',
@@ -127,6 +141,7 @@ function lowConfidencePreview(): ImportEncodingPreview {
         preview: '萧炎在东临',
         normalized: normalizedFor('萧炎在东临'),
         cleanup: cleanupFor('萧炎在东临'),
+        chapters: chaptersFor('萧炎在东临'),
       },
       {
         label: 'Big5',
@@ -134,6 +149,7 @@ function lowConfidencePreview(): ImportEncodingPreview {
         preview: '達鍁誗',
         normalized: normalizedFor('達鍁誗'),
         cleanup: cleanupFor('達鍁誗'),
+        chapters: chaptersFor('達鍁誗'),
       },
       {
         label: 'UTF-16',
@@ -141,10 +157,12 @@ function lowConfidencePreview(): ImportEncodingPreview {
         preview: '扡摣捥',
         normalized: normalizedFor('扡摣捥'),
         cleanup: cleanupFor('扡摣捥'),
+        chapters: chaptersFor('扡摣捥'),
       },
     ],
     self_declared_normalized: null,
     self_declared_cleanup: null,
+    self_declared_chapters: null,
   }
 }
 
@@ -365,6 +383,34 @@ describe('importPreviewState — xác nhận', () => {
     // Vé vẫn còn NGAY SAU thành công — `finishImportSubmission` (ở `libraryImport.ts`) đọc
     // nó SAU khi `confirmImportPreview()` trả về, không phải bên trong nó.
     expect(state.importPreviewLastSubmittedFrom.value).toBe('file')
+  })
+
+  it('🔴 vòng rà đối kháng 3, mục 3 — xác nhận bị CHẶN trong lúc một lượt tải lại mẫu Chương còn đang bay', async () => {
+    const state = await freshState()
+    previewTextMock.mockResolvedValue({ preview: highConfidencePreview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'plain ascii')
+    previewTextMock.mockClear()
+
+    let resolvePatternReload!: (value: { preview: ImportEncodingPreview; error: null }) => void
+    previewTextMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePatternReload = resolve
+      }),
+    )
+
+    const patternPromise = state.setImportPreviewChapterPattern('mau-moi', 'literal')
+    // Lượt sửa mẫu đang bay — cờ sending phải true NGAY (đồng bộ, trước await đầu tiên).
+    expect(state.importPreviewChapterPatternSending.value).toBe(true)
+
+    // Xác nhận TRONG LÚC lượt trên còn bay phải là no-op — tham số gửi đi
+    // (`chapterPatternWire()`) đọc TRỰC TIẾP ô đang được lượt tải lại kia có thể đang ĐỔI.
+    const result = await state.confirmImportPreview()
+
+    expect(result).toEqual({ created: null, error: null })
+    expect(confirmMock).not.toHaveBeenCalled()
+
+    resolvePatternReload({ preview: highConfidencePreview(), error: null })
+    await patternPromise
   })
 })
 

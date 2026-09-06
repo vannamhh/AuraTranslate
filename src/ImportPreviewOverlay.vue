@@ -32,6 +32,10 @@ import {
   deleteImportPreviewCleanupRule,
   editImportPreviewCleanupRule,
   importPreview,
+  importPreviewChapterPatternError,
+  importPreviewChapterPatternKind,
+  importPreviewChapterPatternSending,
+  importPreviewChapterPatternText,
   importPreviewCleanupActionError,
   importPreviewCleanupAdding,
   importPreviewCleanupDeletePendingKey,
@@ -44,15 +48,19 @@ import {
   importPreviewIsOpen,
   importPreviewLoadError,
   importPreviewSelectedCandidate,
+  importPreviewSelectedChapters,
   importPreviewSelectedCleanup,
   importPreviewSelectedEncoding,
   importPreviewSelectedNormalized,
   importPreviewStatus,
   importPreviewStripIsOpen,
   selectImportPreviewCandidate,
+  setImportPreviewChapterPattern,
   toggleImportPreviewCleanupRule,
 } from './importPreviewState'
 import type {
+  ChapterPatternKindWire,
+  ChapterSplitPreviewEntryWire,
   CleanupRuleKindWire,
   CleanupRuleReportWire,
   CleanupRuleTierWire,
@@ -263,6 +271,76 @@ async function onAddCleanupRule(): Promise<void> {
   await addImportPreviewCleanupRule('global', newRulePattern.value, newRuleKind.value)
   newRulePattern.value = ''
 }
+
+/**
+ * Tầng tách Chương (tầng 4, Story 6.6) — CÙNG điều kiện rỗng với tầng làm sạch
+ * ([`normalizedTierEmptyReason`]): `candidate.chapters`/`self_declared_chapters` đồng bộ
+ * `null` với `candidate.cleanup`/`self_declared_cleanup` (cả hai tính từ CÙNG lượt chạy
+ * chuỗi thật cho ứng viên đó).
+ */
+function chaptersTierEmptyMessageKey(reason: 'no_candidate' | 'undecodable'): string {
+  switch (reason) {
+    case 'no_candidate':
+      return 'mode.library.preview.tier_chapters_empty_no_candidate'
+    case 'undecodable':
+      return 'mode.library.preview.tier_chapters_empty_undecodable'
+  }
+}
+
+/**
+ * Ô nhập mẫu phân tách Chương — bản NHÁP cục bộ, đồng bộ MỘT CHIỀU từ state module (reset
+ * khi mở lượt xem trước mới/huỷ/xác nhận — §Ask First spec 6.6: KHÔNG nhớ mẫu giữa hai lượt
+ * nhập). Hành động chỉ gửi lên Rust ở `@change` (mất tiêu điểm/Enter cho ô chữ, chọn lại cho
+ * ô kind) — KHÔNG mỗi phím gõ, đúng "MỘT vòng IPC" của §I/O Matrix spec 6.6.
+ */
+const chapterPatternDraft = ref(importPreviewChapterPatternText.value)
+const chapterPatternKindDraft = ref<ChapterPatternKindWire>(importPreviewChapterPatternKind.value)
+
+watch(importPreviewChapterPatternText, (value) => {
+  chapterPatternDraft.value = value
+})
+watch(importPreviewChapterPatternKind, (value) => {
+  chapterPatternKindDraft.value = value
+})
+
+function onChapterPatternChange(): void {
+  void setImportPreviewChapterPattern(chapterPatternDraft.value, chapterPatternKindDraft.value)
+}
+
+/**
+ * Sắp theo độ dài — ĐƯỜNG DUY NHẤT để chỗ bắt nhầm tự lộ ra (AC5 spec 6.6, §Design Notes "Vì
+ * sao KHÔNG có cờ đáng ngờ"). State HIỂN THỊ THUẦN, không một lượt IPC nào — Rust đã cấp sẵn
+ * độ dài của MỌI Chương. Toggle qua `@change` của một checkbox (không `@click`, AD-34).
+ */
+const chapterSortByLength = ref(false)
+
+function onToggleChapterSortByLength(event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement)) return
+  chapterSortByLength.value = target.checked
+}
+
+/** MỌI Chương, sắp NGẮN NHẤT trước — 14 mảnh 38-51 chữ lên đầu danh sách giữa những mảnh
+ * 4.000 chữ (đúng ví dụ §Design Notes spec 6.6). */
+const chapterEntriesSortedByLength = computed<ChapterSplitPreviewEntryWire[]>(() => {
+  const chapters = importPreviewSelectedChapters.value
+  if (chapters === null) return []
+  return [...chapters.chapters].sort((a, b) => a.length - b.length)
+})
+
+/** Khung nhìn MẶC ĐỊNH (chưa sắp xếp) — ba Chương đầu, `⋯`, ba Chương cuối, đúng Task list
+ * spec 6.6. N ≤ 6 thì hiện TRỌN, không cắt (không có gì để mà `⋯`). */
+const chapterEntriesDefaultWindow = computed<{
+  first: ChapterSplitPreviewEntryWire[]
+  last: ChapterSplitPreviewEntryWire[]
+  showEllipsis: boolean
+}>(() => {
+  const chapters = importPreviewSelectedChapters.value
+  if (chapters === null) return { first: [], last: [], showEllipsis: false }
+  const list = chapters.chapters
+  if (list.length <= 6) return { first: list, last: [], showEllipsis: false }
+  return { first: list.slice(0, 3), last: list.slice(-3), showEllipsis: true }
+})
 
 /** 🔴 UX-DR17 — trả tiêu điểm về chỗ cũ. Khuôn và lý lẽ chép từ `GlossaryImportOverlay.vue`. */
 let returnFocusTo: HTMLElement | null = null
@@ -631,6 +709,112 @@ function onEscapeCancel(): void {
           </template>
           <p v-else class="ip-tier-empty-reason">
             {{ t(cleanupTierEmptyMessageKey(normalizedTierEmptyReason())) }}
+          </p>
+        </section>
+
+        <!-- ═══════════════ Tầng 4 — tách Chương (CÓ THÂN, Story 6.6) ═══════════════════ -->
+        <section class="ip-tier" aria-labelledby="ip-tier-4-title">
+          <h3 id="ip-tier-4-title" class="ip-tier-title">{{ t('mode.library.preview.tier4_title') }}</h3>
+
+          <template v-if="importPreviewSelectedChapters !== null">
+            <form class="ip-chapters-pattern-row" @submit.prevent>
+              <!-- 🔴 KHÔNG `@click` — `@change` mang tham số (giá trị ô/kind), cùng lý do
+                   dải bảng mã và luật làm sạch dùng `@change` thay vì `dispatch()` trần
+                   (§Design Notes spec 6.3). -->
+              <label class="ip-chapters-pattern-label">
+                {{ t('mode.library.preview.chapters_pattern_label') }}
+                <input
+                  v-model="chapterPatternDraft"
+                  type="text"
+                  class="ip-chapters-pattern-input"
+                  :placeholder="t('mode.library.preview.chapters_pattern_placeholder')"
+                  :disabled="importPreviewConfirming || importPreviewChapterPatternSending"
+                  @change="onChapterPatternChange"
+                />
+              </label>
+              <select
+                v-model="chapterPatternKindDraft"
+                class="ip-chapters-pattern-kind"
+                :disabled="importPreviewConfirming || importPreviewChapterPatternSending"
+                @change="onChapterPatternChange"
+              >
+                <option value="literal">{{ t('mode.library.preview.cleanup_kind_literal') }}</option>
+                <option value="regex">{{ t('mode.library.preview.cleanup_kind_regex') }}</option>
+              </select>
+            </form>
+
+            <p v-if="importPreviewChapterPatternError !== null" class="ip-chapters-error" role="alert">
+              <!-- aura-allow-text: KẾT QUẢ của `tError()`. §I/O Matrix spec 6.6: mẫu hỏng GIỮ
+                   NGUYÊN danh sách bên dưới, chỉ thêm dòng báo lỗi này. -->
+              {{ tError(importPreviewChapterPatternError) }}
+            </p>
+
+            <p class="ip-chapters-count">
+              <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
+              {{ t('mode.library.preview.chapters_count', { count: String(importPreviewSelectedChapters.chapter_count) }) }}
+            </p>
+
+            <label class="ip-chapters-sort-toggle">
+              <input
+                type="checkbox"
+                :checked="chapterSortByLength"
+                @change="onToggleChapterSortByLength($event)"
+              />
+              {{ t('mode.library.preview.chapters_sort_by_length') }}
+            </label>
+
+            <ul class="ip-chapters-list">
+              <template v-if="chapterSortByLength">
+                <li v-for="entry in chapterEntriesSortedByLength" :key="entry.ord" class="ip-chapters-entry">
+                  <!-- aura-allow-text: DỮ LIỆU (số thứ tự Chương từ Rust, KHÔNG markup — AD-16). -->
+                  <span class="ip-chapters-ord">{{ entry.ord }}</span>
+                  <span v-if="entry.title !== null" class="ip-chapters-title">
+                    <!-- aura-allow-text: DỮ LIỆU (dòng khớp mẫu, KHÔNG markup — AD-16). -->
+                    {{ entry.title }}
+                  </span>
+                  <span v-else class="ip-chapters-title ip-chapters-title-none">
+                    {{ t('mode.library.preview.chapters_no_title') }}
+                  </span>
+                  <span class="ip-chapters-length">
+                    {{ t('mode.library.preview.chapters_length', { count: String(entry.length) }) }}
+                  </span>
+                </li>
+              </template>
+              <template v-else>
+                <li v-for="entry in chapterEntriesDefaultWindow.first" :key="entry.ord" class="ip-chapters-entry">
+                  <!-- aura-allow-text: DỮ LIỆU (số thứ tự Chương từ Rust, KHÔNG markup — AD-16). -->
+                  <span class="ip-chapters-ord">{{ entry.ord }}</span>
+                  <span v-if="entry.title !== null" class="ip-chapters-title">
+                    <!-- aura-allow-text: DỮ LIỆU (dòng khớp mẫu, KHÔNG markup — AD-16). -->
+                    {{ entry.title }}
+                  </span>
+                  <span v-else class="ip-chapters-title ip-chapters-title-none">
+                    {{ t('mode.library.preview.chapters_no_title') }}
+                  </span>
+                  <span class="ip-chapters-length">
+                    {{ t('mode.library.preview.chapters_length', { count: String(entry.length) }) }}
+                  </span>
+                </li>
+                <li v-if="chapterEntriesDefaultWindow.showEllipsis" class="ip-chapters-ellipsis" aria-hidden="true">⋯</li>
+                <li v-for="entry in chapterEntriesDefaultWindow.last" :key="entry.ord" class="ip-chapters-entry">
+                  <!-- aura-allow-text: DỮ LIỆU (số thứ tự Chương từ Rust, KHÔNG markup — AD-16). -->
+                  <span class="ip-chapters-ord">{{ entry.ord }}</span>
+                  <span v-if="entry.title !== null" class="ip-chapters-title">
+                    <!-- aura-allow-text: DỮ LIỆU (dòng khớp mẫu, KHÔNG markup — AD-16). -->
+                    {{ entry.title }}
+                  </span>
+                  <span v-else class="ip-chapters-title ip-chapters-title-none">
+                    {{ t('mode.library.preview.chapters_no_title') }}
+                  </span>
+                  <span class="ip-chapters-length">
+                    {{ t('mode.library.preview.chapters_length', { count: String(entry.length) }) }}
+                  </span>
+                </li>
+              </template>
+            </ul>
+          </template>
+          <p v-else class="ip-tier-empty-reason">
+            {{ t(chaptersTierEmptyMessageKey(normalizedTierEmptyReason())) }}
           </p>
         </section>
 
@@ -1064,6 +1248,126 @@ function onEscapeCancel(): void {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-error);
+}
+
+/* ── Story 6.6 — tầng 4, tách Chương ────────────────────────────────────────────── */
+
+.ip-chapters-pattern-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+}
+
+.ip-chapters-pattern-label {
+  display: flex;
+  flex: 1;
+  min-width: 12ch;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ip-chapters-pattern-input {
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  color: var(--color-on-surface);
+  background: var(--color-background);
+  border: 1px solid var(--color-outline);
+  padding: calc(var(--space-unit) * 1);
+}
+
+.ip-chapters-pattern-kind {
+  flex: none;
+  align-self: flex-end;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface);
+  background: var(--color-background);
+  border: 1px solid var(--color-outline);
+}
+
+.ip-chapters-error {
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-error);
+}
+
+.ip-chapters-count {
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ip-chapters-sort-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+}
+
+.ip-chapters-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ip-chapters-entry {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  border: 1px solid var(--color-outline);
+}
+
+.ip-chapters-ord {
+  flex: none;
+  min-width: 3ch;
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  color: var(--color-on-surface-variant);
+  text-align: right;
+}
+
+.ip-chapters-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ip-chapters-title-none {
+  color: var(--color-on-surface-variant);
+}
+
+.ip-chapters-length {
+  flex: none;
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  color: var(--color-on-surface-variant);
+}
+
+.ip-chapters-ellipsis {
+  text-align: center;
+  color: var(--color-on-surface-variant);
 }
 
 .ip-tier-empty-reason {

@@ -23,11 +23,13 @@ use auratranslate_lib::commands::chapter::{
     open_adjacent_chapter, read_open_chapter, rename_chapter, split_chapter_at_segment,
 };
 use auratranslate_lib::commands::project::{
-    OpenWork, create_work, create_work_from_file, create_work_from_text,
+    ChapterPatternWire, OpenWork, create_work, create_work_from_file, create_work_from_text,
+    resolve_chapter_pattern,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::{ScopeResolver, Tier, WorkScope};
+use auratranslate_lib::core::segment::chapterpattern::{ChapterPattern, ChapterPatternKind};
 use auratranslate_lib::core::segment::import::{import_file, import_text};
 use auratranslate_lib::core::segment::pipeline::{
     ChapterInput, PipelineInput, PipelineShape, run_import,
@@ -611,17 +613,23 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
     ]);
     // 🔵 SỬA (2026-09-04, Story 6.3) — `create_work` thêm tham số `encoding`; ca này không
     // canh bảng mã, giữ UTF-8 để hành vi cũ không đổi.
-    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new())
+    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None)
         .expect("tao Tac pham voi N > 1 Chuong that bai");
 
-    let rows: Vec<(i64, i64, String)> = opened
+    let rows: Vec<(i64, i64, String, String)> = opened
         .store
         .read(|conn| {
-            let mut stmt = conn.prepare("SELECT id, ord, source_text FROM chapter ORDER BY ord")?;
+            let mut stmt =
+                conn.prepare("SELECT id, ord, source_text, status FROM chapter ORDER BY ord")?;
             let mut rows_iter = stmt.query([])?;
             let mut out = Vec::new();
             while let Some(row) = rows_iter.next()? {
-                out.push((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?, row.get::<_, String>(2)?));
+                out.push((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ));
             }
             Ok(out)
         })
@@ -634,9 +642,13 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
     assert_eq!(rows[0].2, "Chuong mot. Cau hai.");
     assert_eq!(rows[1].2, "Chuong hai noi tiep.");
     assert_eq!(rows[2].2, "Chuong ba ket thuc.");
+    // 🔵 THÊM (Story 6.6) — "mọi hàng status = not_started" đúng cho N > 1, không chỉ N = 1.
+    for (id, ord, _, status) in &rows {
+        assert_eq!(status, "not_started", "Chuong id={id} ord={ord} phai mang status not_started");
+    }
 
     // segment phai ton tai cho MOI Chuong, khong chi Chuong dau -- AC13 khong doi tren N > 1.
-    for (chapter_id, ord, _) in &rows {
+    for (chapter_id, ord, _, _) in &rows {
         let seg_count: i64 = opened
             .store
             .read(move |conn| {
@@ -658,6 +670,111 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
 
     drop(opened);
     cleanup(&root);
+}
+
+/// 🔵 **THÊM (Story 6.6)** — cùng mệnh đề "N Chương ghi đủ" ở trên, nhưng N đến từ MẪU PHÂN
+/// TÁCH áp lên một `PipelineShape::Blob` (cơ chế THẬT của story này), không phải
+/// `PipelineShape::Chapters` viết tay. Khẳng định thêm `title` — cột mới của story này.
+#[test]
+fn create_work_writes_titles_and_continuous_ord_when_n_chapters_come_from_a_chapter_pattern() {
+    let root = temp_dir("n-chapters-from-pattern");
+
+    let text = "Chuong 1: Mo Dau\n\nnoi dung mot.\n\nChuong 2: Tiep Theo\n\nnoi dung hai.\n\nChuong 3: Ket Thuc\n\nnoi dung ba.";
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned()));
+    let pattern = ChapterPattern::regex(r"^Chuong \d+:.*$");
+
+    let opened = create_work(
+        &root,
+        "Mau Phan Tach",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        Some(pattern),
+    )
+    .expect("tao Tac pham voi mau phan tach that bai");
+
+    let rows: Vec<(i64, i64, Option<String>, String, String)> = opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn
+                .prepare("SELECT id, ord, title, source_text, status FROM chapter ORDER BY ord")?;
+            let mut rows_iter = stmt.query([])?;
+            let mut out = Vec::new();
+            while let Some(row) = rows_iter.next()? {
+                out.push((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ));
+            }
+            Ok(out)
+        })
+        .expect("doc lai chapter that bai");
+
+    assert_eq!(rows.len(), 3, "ba lan khop mau phai cho ra dung ba hang chapter");
+    for (i, (_, ord, title, source_text, status)) in rows.iter().enumerate() {
+        assert_eq!(*ord, i as i64 + 1, "ord phai lien tuc tu 1");
+        assert_eq!(status, "not_started");
+        assert!(
+            source_text.starts_with(title.as_deref().unwrap_or_default()),
+            "source_text cua moi Chuong phai BAT DAU bang dong tieu de cua chinh no: title={title:?} source_text={source_text:?}"
+        );
+    }
+    assert_eq!(rows[0].2.as_deref(), Some("Chuong 1: Mo Dau"));
+    assert_eq!(rows[1].2.as_deref(), Some("Chuong 2: Tiep Theo"));
+    assert_eq!(rows[2].2.as_deref(), Some("Chuong 3: Ket Thuc"));
+
+    for (chapter_id, ord, _, _, _) in &rows {
+        let seg_count: i64 = opened
+            .store
+            .read(move |conn| {
+                conn.query_row(
+                    "SELECT COUNT(*) FROM segment WHERE chapter_id = ?1",
+                    [chapter_id],
+                    |row| row.get(0),
+                )
+            })
+            .expect("dem segment that bai");
+        assert!(seg_count > 0, "Chuong ord={ord} (id={chapter_id}) phai co segment");
+    }
+
+    drop(opened);
+    cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.6 — I/O Matrix "Regex không biên dịch được" — resolve_chapter_pattern TỪ CHỐI
+// Ở NGUỒN, không tới run_pipeline
+// ═════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn resolve_chapter_pattern_rejects_an_invalid_regex_before_touching_the_pipeline() {
+    let wire = ChapterPatternWire { pattern: "[unclosed".to_owned(), kind: ChapterPatternKind::Regex };
+    let err = resolve_chapter_pattern(Some(wire)).expect_err("mau regex hong phai bi tu choi");
+    assert!(
+        matches!(err, auratranslate_lib::core::segment::import::ImportError::InvalidChapterPattern { .. }),
+        "loi phai la ImportError::InvalidChapterPattern, khong phai mot hang loi khac: {err:?}"
+    );
+}
+
+#[test]
+fn resolve_chapter_pattern_accepts_a_valid_regex_and_a_valid_literal() {
+    let regex_wire = ChapterPatternWire { pattern: r"^Chuong \d+".to_owned(), kind: ChapterPatternKind::Regex };
+    let resolved = resolve_chapter_pattern(Some(regex_wire)).expect("mau regex hop le khong duoc loi");
+    assert_eq!(resolved, Some(ChapterPattern::regex(r"^Chuong \d+")));
+
+    let literal_wire = ChapterPatternWire { pattern: "Chuong".to_owned(), kind: ChapterPatternKind::Literal };
+    let resolved = resolve_chapter_pattern(Some(literal_wire)).expect("mau literal khong duoc loi");
+    assert_eq!(resolved, Some(ChapterPattern::literal("Chuong")));
+}
+
+#[test]
+fn resolve_chapter_pattern_of_none_is_none() {
+    assert_eq!(resolve_chapter_pattern(None).expect("None khong duoc loi"), None);
 }
 
 /// 🔵 **SỬA 2026-09-04 (Story 6.2, AD-39)** — `import_text`/`import_file` không còn tự
