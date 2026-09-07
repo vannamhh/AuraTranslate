@@ -44,6 +44,7 @@ import {
   importPreviewCleanupToggling,
   importPreviewConfirmError,
   importPreviewConfirming,
+  importPreviewDomainLogDomainCount,
   importPreviewEmptyReasonForTier,
   importPreviewIsOpen,
   importPreviewLastSubmittedFrom,
@@ -931,6 +932,21 @@ function onEscapeCancel(): void {
         {{ t('mode.library.preview.confirming') }}
       </p>
 
+      <!--
+        🔴 Story 6.8 (NFR19) — dòng tóm tắt nhật ký domain. ĐẶT Ở ĐÂY, NGOÀI khối bốn tầng
+        (khối đó đóng ở `</template>` phía trên, xem doc-comment §Code Map spec 6.8): một
+        mục hỏng làm bốn tầng biến mất (`importPreview === null`), nhưng đây chính là lúc
+        mạng đã bị gọi NHIỀU NHẤT — dòng này phải sống sót qua chính ca đó. `v-if > 0`: một
+        lượt dán chưa bấm tải chưa hề gọi mạng, chân màn không được có dòng domain nào
+        (I/O Matrix spec 6.8, hàng 1).
+      -->
+      <p v-if="importPreviewDomainLogDomainCount > 0" class="ip-domain-log-summary" role="status">
+        {{ t('mode.library.preview.domain_log_summary', { count: String(importPreviewDomainLogDomainCount) }) }}
+        <button type="button" class="ip-domain-log-view" @click="dispatch('settings.privacy.open')">
+          {{ t('mode.library.preview.domain_log_view') }}
+        </button>
+      </p>
+
       <p class="ip-hint">{{ t('mode.library.preview.hint_no_write_before_confirm') }}</p>
 
       <div class="ip-actions">
@@ -1572,6 +1588,28 @@ function onEscapeCancel(): void {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.ip-domain-log-summary {
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/* Khuôn mockup `web-import.html:393` — "xem" gạch chân, KHÔNG một màu nhấn thứ hai
+   (`check:tokens` Kiểm D cấm màu phân loại/`opacity` trung gian, không miễn trừ). */
+.ip-domain-log-view {
+  padding: 0;
+  margin-left: calc(var(--space-unit) * 1);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-decoration: underline;
 }
 
 .ip-actions {

@@ -138,6 +138,12 @@ const urlImportBusy = ref(false)
 /** Lỗi hạ tầng của lượt tải-lại/bỏ một mục (ví dụ cầu IPC vắng giữa chừng) — KHÁC lỗi CỦA
  * TỪNG MỤC (đã nằm trong `item.error`, hiển thị inline trên hàng của chính nó). */
 const urlImportError = ref<IpcError | null>(null)
+/** 🔵 **THÊM Story 6.8 (NFR19)** — số domain PHÂN BIỆT trong nhật ký của CẢ PHIÊN CHẠY, đọc
+ * thẳng từ `UrlImportBatchWire.domain_log_domain_count` của lượt tải/tải-lại/bỏ GẦN NHẤT
+ * (xem doc-comment [`applyUrlImportBatch`]). Chân màn hiện dòng *"Đã gọi N domain · xem"*
+ * khi và CHỈ KHI số này lớn hơn 0 — 0 nghĩa là chưa gọi mạng lần nào (I/O Matrix spec 6.8:
+ * "Dán N link, chưa bấm ⇒ 0 lời gọi mạng ⇒ chân màn không có dòng domain nào"). */
+const domainLogDomainCount = ref(0)
 
 /** Lỗi của lượt CRUD luật làm sạch gần nhất (thêm/sửa/xoá/bật-tắt) — TÁCH khỏi
  * `confirmError` (lỗi của lượt XÁC NHẬN toàn bộ Tác phẩm, ngữ nghĩa khác hẳn). */
@@ -247,6 +253,12 @@ export const importPreviewChapterPatternError: DeepReadonly<Ref<IpcError | null>
 /** Danh sách mục-theo-link của lượt nhập URL đang mở — rỗng khi `lastSubmittedFrom !==
  * 'urls'`. Xem doc-comment [`urlImportItems`]. */
 export const importPreviewUrlItems: DeepReadonly<Ref<UrlImportItemWire[]>> = readonly(urlImportItems)
+/** 🔵 **THÊM Story 6.8 (NFR19)** — số domain PHÂN BIỆT trong nhật ký của CẢ PHIÊN CHẠY, tại
+ * thời điểm lượt tải/tải-lại/bỏ GẦN NHẤT trả lời. `0` ⇔ chưa gọi mạng lần nào TRONG lượt
+ * xem trước này (không nhất thiết `0` của cả phiên — một Tác phẩm trước đó có thể đã gọi
+ * mạng, và số này chỉ được LÀM MỚI khi chính lớp phủ URL đang mở gọi một trong ba lệnh).
+ * `ImportPreviewOverlay.vue` chỉ hiện dòng tóm tắt khi số này `> 0`. */
+export const importPreviewDomainLogDomainCount: DeepReadonly<Ref<number>> = readonly(domainLogDomainCount)
 export const importPreviewUrlImportBusy: DeepReadonly<Ref<boolean>> = readonly(urlImportBusy)
 export const importPreviewUrlImportError: DeepReadonly<Ref<IpcError | null>> = readonly(urlImportError)
 /** `true` ⇔ còn ít nhất một mục hỏng trong danh sách URL — điều kiện KHOÁ nút xác nhận
@@ -497,6 +509,7 @@ export async function openImportPreviewFromUrls(
   chapterPatternError.value = null
   pendingChapterPatternEdit = null
   urlImportItems.value = []
+  domainLogDomainCount.value = 0
   urlImportBusy.value = false
   urlImportError.value = null
 
@@ -522,6 +535,7 @@ export async function openImportPreviewFromUrls(
   }
 
   urlImportItems.value = result.batch.items
+  domainLogDomainCount.value = result.batch.domain_log_domain_count
   // `encoding_preview === null` ⇔ còn mục hỏng/danh sách rỗng (đồng bộ với
   // `commands::project::sync_pending_from_url_items` phía Rust) — KHÔNG có gì để hiện ở tầng
   // 1-4, nhưng lớp phủ VẪN mở để người dùng thấy danh sách mục và sửa (bỏ/tải lại).
@@ -542,6 +556,7 @@ export async function openImportPreviewFromUrls(
 function applyUrlImportBatch(batch: NonNullable<Awaited<ReturnType<typeof startUrlImport>>['batch']>): void {
   const keepEncoding = selectedEncoding.value
   urlImportItems.value = batch.items
+  domainLogDomainCount.value = batch.domain_log_domain_count
   if (batch.encoding_preview === null) {
     preview.value = null
     selectedEncoding.value = null
@@ -969,6 +984,7 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
   chapterPatternError.value = null
   pendingChapterPatternEdit = null
   urlImportItems.value = []
+  domainLogDomainCount.value = 0
   urlImportBusy.value = false
   urlImportError.value = null
   return { created: result.created, error: null }
@@ -1034,6 +1050,7 @@ export function resetImportPreview(): void {
   chapterPatternError.value = null
   pendingChapterPatternEdit = null
   urlImportItems.value = []
+  domainLogDomainCount.value = 0
   urlImportBusy.value = false
   urlImportError.value = null
 }

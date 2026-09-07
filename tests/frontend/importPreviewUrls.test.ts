@@ -105,14 +105,25 @@ function minimalPreview(chapterCount: number): ImportEncodingPreview {
   }
 }
 
-function batchAllOk(urls: string[]): UrlImportBatchWire {
-  return { items: urls.map((u) => item(u, true)), encoding_preview: minimalPreview(urls.length) }
+/** `domainLogDomainCount` khớp mặc định số URL — mỗi URL của các ca trong tệp này là một
+ * host phân biệt (Story 6.8, NFR19). Tham số RIÊNG cho các ca cần một con số khác. */
+function batchAllOk(urls: string[], domainLogDomainCount = urls.length): UrlImportBatchWire {
+  return {
+    items: urls.map((u) => item(u, true)),
+    encoding_preview: minimalPreview(urls.length),
+    domain_log_domain_count: domainLogDomainCount,
+  }
 }
 
-function batchWithOneBroken(urls: string[], brokenIndex: number): UrlImportBatchWire {
+function batchWithOneBroken(
+  urls: string[],
+  brokenIndex: number,
+  domainLogDomainCount = urls.length,
+): UrlImportBatchWire {
   return {
     items: urls.map((u, i) => item(u, i !== brokenIndex)),
     encoding_preview: null,
+    domain_log_domain_count: domainLogDomainCount,
   }
 }
 
@@ -315,6 +326,47 @@ describe('ImportPreviewOverlay.vue — P5 (vòng rà đối kháng bước 4): n
     await wrapper.vm.$nextTick()
     expect(state.importPreviewUrlImportBusy.value).toBe(false)
     expect((wrapper.find('.ip-act-primary').element as HTMLButtonElement).disabled).toBe(false)
+
+    wrapper.unmount()
+  })
+})
+
+describe('ImportPreviewOverlay.vue — Story 6.8: dòng tóm tắt nhật ký domain (NFR19)', () => {
+  it('0 domain ⇒ chân màn KHÔNG có dòng tóm tắt (chưa gọi mạng lần nào)', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    const urls = ['https://a.example/1']
+    // `domain_log_domain_count: 0` mô phỏng đúng "danh sách toàn mục hỏng ngay từ InvalidUrl"
+    // — 0 lời gọi mạng thật ra tới, 0 bản ghi nhật ký.
+    startUrlImportMock.mockResolvedValue({ batch: batchAllOk(urls, 0), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.ip-domain-log-summary').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('N domain ⇒ dòng tóm tắt hiện đúng số, kể cả khi CÒN MỘT MỤC HỎNG (importPreview === null)', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    const urls = ['https://a.example/1', 'https://b.example/2']
+    // 🔴 Đúng ca AC dựng ra để bắt: một mục hỏng làm BỐN TẦNG biến mất
+    // (`importPreview === null`), NHƯNG mạng đã bị gọi (mục tốt VẪN tải) — dòng tóm tắt phải
+    // sống sót qua đúng ca này, không được sống BÊN TRONG khối bốn tầng.
+    startUrlImportMock.mockResolvedValue({ batch: batchWithOneBroken(urls, 1, 2), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    expect(state.importPreview.value).toBeNull() // tiền điều kiện: đúng "bốn tầng biến mất"
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    const summary = wrapper.find('.ip-domain-log-summary')
+    expect(summary.exists()).toBe(true)
+    expect(summary.text()).toContain('2')
+
+    const viewButton = wrapper.find('.ip-domain-log-view')
+    expect(viewButton.exists()).toBe(true)
 
     wrapper.unmount()
   })

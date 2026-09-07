@@ -1,9 +1,13 @@
 //! Nhập từ web. Hai nửa, hai ranh giới cứng (AD-40, AD-41):
 //!
 //! - `Fetcher` ([`fetcher::fetch`]) = ĐIỂM RA MẠNG THỨ BA của toàn ứng dụng (AD-15). Nó chỉ
-//!   tải, KHÔNG phân tích nội dung. Canh bởi allowlist một-lần-nhập (AD-41, Story 6.8 —
-//!   chưa dựng ở đây).
+//!   tải, KHÔNG phân tích nội dung. Canh bởi allowlist một-lần-nhập ([`allowlist::Allowlist`],
+//!   AD-41, Story 6.8) — cưỡng chế BÊN TRONG `fetcher::fetch`, không ở chỗ gọi.
 //! - `Extractor` ([`extractor::extract`]) KHÔNG BAO GIỜ chạm mạng.
+//!
+//! Nhật ký domain ([`domain_log`]) — NFR19, Story 6.8 — sống theo PHIÊN CHẠY ứng dụng, tách
+//! khỏi cả hai nửa trên: `fetcher::fetch` chỉ TRẢ VỀ các bản ghi phát sinh trong lượt gọi của
+//! nó, chỗ gọi (`commands::project`) mới nối chúng vào [`domain_log::DomainLogState`].
 //!
 //! Nội dung nhập từ ngoài không bao giờ render thành HTML (AD-16) — [`extractor::extract`]
 //! trả văn bản thuần, và `Article::content` (HTML) không bao giờ rời `extractor.rs`.
@@ -42,9 +46,13 @@
 //! TASK 1 — xem doc-comment đầu `extractor.rs` (`TextMode::Formatted` giữ ranh giới đoạn).
 //! ─────────────────────────────────────────────────────────────────────────────
 
+pub mod allowlist;
+pub mod domain_log;
 pub mod extractor;
 pub mod fetcher;
 
+pub use allowlist::{Allowlist, AllowlistDecision, ResourceKind, Tier};
+pub use domain_log::{DomainLogDecision, DomainLogEntry, DomainLogState, append_domain_log_entries, distinct_domain_count, read_domain_log};
 pub use extractor::{ExtractError, extract};
 pub use fetcher::{FetchError, FetchedPage, MAX_RESPONSE_BYTES, REQUEST_TIMEOUT, fetch, looks_like_html};
 
@@ -79,7 +87,14 @@ impl From<FetchError> for WebImportItemFailureReason {
     fn from(e: FetchError) -> Self {
         match e {
             FetchError::InvalidUrl { .. } => WebImportItemFailureReason::InvalidUrl,
-            FetchError::RedirectBlockedCrossHost => WebImportItemFailureReason::RedirectBlocked,
+            // 🔵 Story 6.8 — `NotAllowlisted` (tên cũ `RedirectBlockedCrossHost`) vẫn ánh xạ
+            // sang `RedirectBlocked`: trên đường sản phẩm THẬT (`commands::project` dựng
+            // allowlist từ CHÍNH danh sách URL đang tải), host của URL gốc LUÔN nằm trong
+            // allowlist — biến thể này chỉ bắn được ở đó qua một CHẶNG CHUYỂN HƯỚNG, nên
+            // "RedirectBlocked" vẫn đúng sự thật cho người dùng. Ca "bị chặn ngay từ host
+            // gốc" chỉ xảy ra khi `fetch()` được gọi TRỰC TIẾP với một allowlist không khớp
+            // (đường kiểm ở `webimport_contract.rs`, không một chỗ gọi sản phẩm nào).
+            FetchError::NotAllowlisted => WebImportItemFailureReason::RedirectBlocked,
             FetchError::HttpStatus { .. } => WebImportItemFailureReason::HttpStatus,
             FetchError::TooLarge => WebImportItemFailureReason::TooLarge,
             FetchError::ConnectFailed { .. } => WebImportItemFailureReason::ConnectFailed,

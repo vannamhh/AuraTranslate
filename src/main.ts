@@ -267,6 +267,11 @@ import {
   importOverlayIsOpen,
   openGlossaryImportPreviewOverlay,
 } from './glossaryImportState'
+// ── Story 6.8 — lớp phủ "Cài đặt" (NFR19, AD-41) ──────────────────────────────────────
+//
+// Cùng lý do và cùng cửa với mọi state module Vue thật khác ở trên: `settingsState.ts` dùng
+// `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/project.ts`.
+import { closeSettings, openSettings, openSettingsToPrivacy, settingsOverlayIsOpen } from './settingsState'
 // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ──────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `librarySearch.ts`: `readingState.ts` là một module Vue
@@ -778,6 +783,10 @@ async function boot(): Promise<void> {
       cancelGlossaryImportPreview: () => {
         void cancelGlossaryImportPreview()
       },
+      // Story 6.8 · NFR19 — lớp phủ "Cài đặt".
+      openSettings,
+      openSettingsToPrivacy,
+      closeSettings,
     })
 
     // `void` tường minh: `attachKeyboard` trả về hàm gỡ, `noUnusedLocals` đang bật, và cửa
@@ -813,7 +822,12 @@ async function boot(): Promise<void> {
         glossarySettingsOverlayIsOpen.value ||
         queueOverlayIsOpen.value ||
         manageOverlayIsOpen.value ||
-        importOverlayIsOpen.value,
+        importOverlayIsOpen.value ||
+        // Story 6.8 — cùng lý do `attributionIsOpen`: `SettingsOverlay.vue` khai
+        // `aria-modal="true"` và `trapTab`; không chặn ở đây thì một hợp âm đổi preset bố
+        // cục phía sau nó vẫn chạy được, gọi `api.clear()` và làm `returnFocusTo` của lớp
+        // phủ ôm một node đã rời DOM (UX-DR17 vỡ im lặng, đúng khuyết tật Story 1.19 đã bắt).
+        settingsOverlayIsOpen.value,
     })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng

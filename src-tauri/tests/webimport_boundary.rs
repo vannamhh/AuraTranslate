@@ -1,8 +1,8 @@
-//! Ranh giới cây nguồn của Story 6.7 — AD-40 (hai nửa `Fetcher`/`Extractor`), AD-15/AD-41
-//! (điểm ra mạng thứ ba, đóng khung), AD-16 (0 chuỗi đánh dấu rời module).
+//! Ranh giới cây nguồn của Story 6.7 + 6.8 — AD-40 (hai nửa `Fetcher`/`Extractor`), AD-15/
+//! AD-41 (điểm ra mạng thứ ba, đóng khung), AD-16 (0 chuỗi đánh dấu rời module).
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! BỐN MỆNH ĐỀ, đúng khuôn `cleanup_boundary.rs`/`segment_pipeline_boundary.rs`
+//! NĂM MỆNH ĐỀ, đúng khuôn `cleanup_boundary.rs`/`segment_pipeline_boundary.rs`
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 1. **`core/webimport/fetcher.rs` mang 0 dòng gõ `dom_smoothie`/`Readability`** — `Fetcher`
 //!    không bao giờ phân tích nội dung (AD-40).
@@ -13,6 +13,15 @@
 //!    — điểm ra mạng thứ ba (AD-15) không rò rỉ sang một module thứ tư.
 //! 4. **0 dòng nào để `Article::content` (HTML) rời `core/webimport/extractor.rs`** — AD-16
 //!    §Rule mục 1/2.
+//! 5. 🔵 **THÊM Story 6.8 — `core/webimport/allowlist.rs` mang 0 dòng gõ
+//!    `TcpStream`/`blocking::Client`** — `Allowlist::decide` là một phép QUYẾT ĐỊNH thuần
+//!    (AD-41: luật "tầng 2 chỉ ảnh" sống trong KIỂU), không bao giờ tự mở một kết nối hay
+//!    gửi một yêu cầu — đó là việc của MỘT MÌNH `Fetcher` (mệnh đề chỗ-duy-nhất-cưỡng-chế,
+//!    §Always spec 6.8). 🔴 Không dùng chung `NETWORK_TOKENS` của mệnh đề 2: `allowlist.rs`
+//!    HỢP LỆ gọi `reqwest::Url::parse` để bóc host từ một chuỗi URL (phân tích CHUỖI, không
+//!    một byte nào đi qua dây) — cấm nguyên chữ `reqwest` ở đây sẽ bắt oan chính chỗ gọi hợp
+//!    lệ đó. Xem tệp `spec-6-8-allowlist-mang-hai-tang-va-nhat-ky-domain.md` §Code Map:
+//!    "cổng hôm nay mù với tệp mới" — mệnh đề này đóng đúng lỗ đó.
 //!
 //! Sàn quần thể + kiểm chứng dương (ca dương + ca âm cho MỖI vị từ) là bắt buộc, khuôn
 //! `cleanup_boundary.rs`.
@@ -188,6 +197,14 @@ fn the_content_parsing_token_check_would_actually_flag_a_seeded_violation_and_ig
         "ca DƯƠNG: một dòng gõ dom_smoothie/Readability phải bị vị từ bắt"
     );
     assert!(
+        line_names_any_forbidden_token(
+            "    let _ = reqwest::blocking::get(\"http://x.test\");",
+            &ALLOWLIST_CONNECTION_TOKENS
+        ),
+        "ca DƯƠNG: `reqwest::blocking::get` là một hàm TỰ DO không đi qua `Client` — chính lỗ \
+         mà bản đầu của mệnh đề 5 để hở (đo 2026-09-07, cổng xanh trên một lời gọi mạng thật)"
+    );
+    assert!(
         !line_names_any_forbidden_token(
             "    let client = reqwest::blocking::Client::builder();",
             &CONTENT_PARSING_TOKENS
@@ -323,6 +340,62 @@ fn the_article_content_field_check_would_actually_flag_a_seeded_violation_and_ig
     assert!(
         !line_reads_article_content_field("    let text = article.text_content.to_string();"),
         "ca ÂM: đọc `article.text_content` (văn bản thuần, không phải HTML) không được bị bắt oan"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Mệnh đề 5 (Story 6.8) — allowlist.rs mang 0 dòng gõ TcpStream/blocking::Client
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔵 **SỬA 2026-09-07 (vòng rà Story 6.8) — `"blocking::Client"` một mình KHÔNG đủ, đo được.**
+/// Bản đầu liệt `["TcpStream", "blocking::Client"]`. Gieo `reqwest::blocking::get("http://x.test")`
+/// — một hàm TỰ DO, không đi qua một `Client` nào — vào `allowlist.rs` rồi chạy cổng: **14 ca
+/// xanh, 0 đỏ**. Cổng mù đúng thứ nó dựng ra để cấm. ⇒ cắt tại `"blocking::"`, thứ phủ CẢ
+/// `reqwest::blocking::Client`, `reqwest::blocking::get`, lẫn dạng `use reqwest::blocking;`
+/// rồi gõ `blocking::get(...)`. 🔴 Vẫn KHÔNG cấm nguyên chữ `reqwest`: `reqwest::Url::parse`
+/// là chỗ gọi HỢP LỆ duy nhất còn lại (phân tích CHUỖI, 0 byte qua dây) — xem ca ÂM bên dưới.
+const ALLOWLIST_CONNECTION_TOKENS: [&str; 2] = ["TcpStream", "blocking::"];
+
+#[test]
+fn allowlist_carries_zero_lines_naming_a_socket_or_an_http_client_type() {
+    let text = text_of("core/webimport/allowlist.rs");
+    let offenders: Vec<String> = code_lines(text_before_first_cfg_test_line(&text))
+        .filter(|(_, code)| line_names_any_forbidden_token(code, &ALLOWLIST_CONNECTION_TOKENS))
+        .map(|(line, code)| format!("core/webimport/allowlist.rs:{line}  {code}"))
+        .collect();
+    assert!(
+        offenders.is_empty(),
+        "`Allowlist::decide` là một phép quyết định THUẦN (AD-41) — nó không bao giờ tự mở \
+         kết nối hay gửi yêu cầu, việc đó là của MỘT MÌNH `Fetcher`. Tìm thấy dòng gõ \
+         TcpStream/blocking::Client:\n{}",
+        offenders.join("\n")
+    );
+}
+
+#[test]
+fn the_allowlist_connection_token_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code() {
+    assert!(
+        line_names_any_forbidden_token(
+            "    let c = reqwest::blocking::Client::builder().build().unwrap();",
+            &ALLOWLIST_CONNECTION_TOKENS
+        ),
+        "ca DƯƠNG: một dòng dựng `blocking::Client` phải bị vị từ bắt"
+    );
+    assert!(
+        line_names_any_forbidden_token(
+            "    let s = TcpStream::connect(\"127.0.0.1:0\").unwrap();",
+            &ALLOWLIST_CONNECTION_TOKENS
+        ),
+        "ca DƯƠNG: một dòng gõ `TcpStream` phải bị vị từ bắt"
+    );
+    assert!(
+        !line_names_any_forbidden_token(
+            "    reqwest::Url::parse(url).ok().and_then(|u| u.host_str().map(str::to_owned))",
+            &ALLOWLIST_CONNECTION_TOKENS
+        ),
+        "ca ÂM: phân giải host bằng `reqwest::Url::parse` (chuỗi, không kết nối) không được bị \
+         bắt oan — đây chính là lý do mệnh đề này KHÔNG dùng chung `NETWORK_TOKENS` của mệnh \
+         đề 2 (`reqwest` là một từ khoá quá rộng cho tệp này)"
     );
 }
 

@@ -543,6 +543,10 @@ export type UrlImportItemWire = {
 export type UrlImportBatchWire = {
   items: UrlImportItemWire[]
   encoding_preview: ImportEncodingPreview | null
+  /** 🔵 **THÊM Story 6.8 (NFR19)** — số domain PHÂN BIỆT trong nhật ký của CẢ PHIÊN CHẠY tại
+   * thời điểm trả lời, không chỉ lượt gọi vừa rồi. Chân màn xem trước đọc trực tiếp trường
+   * này cho dòng *"Đã gọi N domain · xem"* — không một lệnh IPC thứ hai chỉ để có một số. */
+  domain_log_domain_count: number
 }
 
 /** Ba trạng thái, cùng khuôn `ImportEncodingPreviewResult`. */
@@ -573,7 +577,8 @@ function isUrlImportBatchWire(value: unknown): value is UrlImportBatchWire {
   return (
     Array.isArray(v.items) &&
     v.items.every(isUrlImportItemWire) &&
-    (v.encoding_preview === null || isImportEncodingPreview(v.encoding_preview))
+    (v.encoding_preview === null || isImportEncodingPreview(v.encoding_preview)) &&
+    typeof v.domain_log_domain_count === 'number'
   )
 }
 
@@ -611,4 +616,65 @@ export async function reloadUrlImportItem(index: number, sourceLang: string): Pr
 /** Bỏ một mục ở vị trí `index` — 0 lời gọi mạng. */
 export async function removeUrlImportItem(index: number, sourceLang: string): Promise<UrlImportBatchResult> {
   return callUrlImportBatch(CMD_REMOVE_URL_IMPORT_ITEM, { index, sourceLang })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story 6.8 — Allowlist mạng hai tầng và nhật ký domain (NFR19, AD-41). Khớp
+// `commands::project::{DomainLogEntryWire, wire::list_domain_log}`.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Một bản ghi THÔ — khớp `commands::project::DomainLogEntryWire`. `kind`/`tier` đi qua như
+ * DỮ LIỆU (chuỗi định danh máy, AD-21) — `domainLogKindLabelKey`/`domainLogReasonKeyFor`
+ * (`settingsState.ts`) ánh xạ sang câu, cùng khuôn `cleanupTierLabelKey`. */
+export type DomainLogEntryWire = {
+  at_epoch_ms: number
+  domain: string
+  kind: 'page' | 'image'
+  allowed: boolean
+  tier: 'tier1' | 'tier2' | 'denied'
+}
+
+function isDomainLogEntryWire(value: unknown): value is DomainLogEntryWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<DomainLogEntryWire>
+  return (
+    typeof v.at_epoch_ms === 'number' &&
+    typeof v.domain === 'string' &&
+    (v.kind === 'page' || v.kind === 'image') &&
+    typeof v.allowed === 'boolean' &&
+    (v.tier === 'tier1' || v.tier === 'tier2' || v.tier === 'denied')
+  )
+}
+
+/** Tên command trên dây. Khớp `commands::project::wire::list_domain_log`. */
+const CMD_LIST_DOMAIN_LOG = 'list_domain_log'
+
+/** Kết quả một lượt đọc nhật ký domain. `entries === null` chỉ khi Rust trả một hình dạng
+ * KHÔNG đúng `DomainLogEntryWire[]` hoặc không có cầu IPC — lệnh này phía Rust không có
+ * nhánh lỗi (đọc thẳng một `Mutex<Vec<_>>`), cùng khuôn `ReadHanVietResult`. */
+export type ListDomainLogResult = {
+  entries: DomainLogEntryWire[] | null
+  error: IpcError | null
+}
+
+/** Đọc TOÀN BỘ nhật ký domain THÔ của phiên chạy hiện tại (§Always spec 6.8: "không phân
+ * trang, không xem thêm che bớt hàng") — gộp theo domain là việc của tầng trình bày
+ * (`settingsState.ts`), không của adapter này. Không ném. */
+export async function listDomainLog(): Promise<ListDomainLogResult> {
+  try {
+    const entries = await invoke<DomainLogEntryWire[]>(CMD_LIST_DOMAIN_LOG)
+    if (!Array.isArray(entries) || !entries.every(isDomainLogEntryWire)) {
+      console.error(`[project] \`${CMD_LIST_DOMAIN_LOG}\` tra ve mot hinh dang khong dung DomainLogEntryWire[]`)
+      return { entries: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { entries, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { entries: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[project] \`${CMD_LIST_DOMAIN_LOG}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { entries: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[project] không gọi được \`${CMD_LIST_DOMAIN_LOG}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { entries: null, error: null }
+  }
 }

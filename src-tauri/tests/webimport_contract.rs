@@ -1,8 +1,8 @@
-//! Cổng HỢP ĐỒNG của Story 6.7 — hành vi thật của `Fetcher`/`Extractor`, cộng đường "N link
-//! ⇒ N Chương" ở tầng `commands::project`. Chép `spawn_once` từ bàn đo 6.1
-//! (`webimport_probe.rs`) — server HTTP thô tự dựng, không framework, không mạng ngoài.
+//! Cổng HỢP ĐỒNG của Story 6.7 + 6.8 — hành vi thật của `Fetcher`/`Extractor`/`Allowlist`,
+//! cộng đường "N link ⇒ N Chương" ở tầng `commands::project`. Chép `spawn_once` từ bàn đo
+//! 6.1 (`webimport_probe.rs`) — server HTTP thô tự dựng, không framework, không mạng ngoài.
 //!
-//! Bảy ca THẬT (không `#[ignore]`), đúng Task list spec 6.7:
+//! Bảy ca THẬT của Story 6.7 (không `#[ignore]`), đúng Task list spec 6.7:
 //! - chặn chuyển hướng khác host (server bị chặn nhận **0** kết nối)
 //! - cắt theo dòng chảy (`CAP ≤ đọc ≪ quảng cáo`, không một con số)
 //! - lỗi kết nối phân loại đúng
@@ -10,6 +10,11 @@
 //! - trang bóc rỗng thành mục hỏng
 //! - N link giữ đúng thứ tự
 //! - mục hỏng giữ đúng **vị trí**
+//!
+//! 🔵 **Story 6.8 — bốn ca AD-41 bắt buộc (spine `:542`) cộng ca tầng 2**, ở cuối tệp. Ca
+//! "chặn chuyển hướng khác host" của 6.7 (`a_cross_host_redirect_is_blocked...`) đổi TÊN và
+//! MỆNH ĐỀ — nó xanh nhờ *"không trong allowlist"*, không còn nhờ *"khác host"* (§Design
+//! Notes spec 6.8) — và một ca MỚI phủ chiều ngược lại (hai host CÙNG tầng 1 ⇒ theo được).
 
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -23,7 +28,8 @@ use auratranslate_lib::core::segment::import::{ImportError, web_import_item_fail
 use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
 use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
 use auratranslate_lib::core::webimport::{
-    FetchError, WebImportItemFailureReason, extract, fetch, looks_like_html,
+    Allowlist, DomainLogDecision, FetchError, ResourceKind, WebImportItemFailureReason, extract, fetch,
+    looks_like_html,
 };
 
 /// Server tối giản: chấp nhận ĐÚNG MỘT kết nối, đọc và bỏ qua request, gọi `respond` để viết
@@ -67,15 +73,18 @@ fn ok_html_response(body: &str) -> String {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// Ca 1 — chặn chuyển hướng khác host, server đích 0 kết nối
+// Ca 1 (Story 6.8: MỆNH ĐỀ ĐỔI) — chặn chuyển hướng ra host NGOÀI allowlist, 0 kết nối
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// `127.0.0.1` và `localhost` là HAI CHUỖI HOST KHÁC NHAU theo `Url::host_str()`, dù cùng trỏ
-// về loopback — đủ để mô phỏng "host khác" thật mà không cần DNS/mạng ngoài (chính sách bị
-// chặn TRƯỚC khi có cơ hội kết nối tới `localhost`, nên việc nó có phân giải được hay không
-// không quan trọng).
+// 🔵 **Story 6.8 — tên cũ `a_cross_host_redirect_is_blocked_and_...`, mệnh đề đổi từ "khác
+// host" sang "không trong allowlist" (§Design Notes spec 6.8).** `127.0.0.1` và `localhost`
+// là HAI CHUỖI HOST KHÁC NHAU theo `Url::host_str()`, dù cùng trỏ về loopback — đủ để mô
+// phỏng "host ngoài allowlist" thật mà không cần DNS/mạng ngoài. `allowlist` ở đây chỉ chứa
+// host của `port_a` (URL gốc) — `localhost` (đích chuyển hướng) không hề có mặt, đúng ca
+// "ngoài allowlist", KHÔNG chỉ "khác host" (xem ca kế tiếp: hai host khác nhau NHƯNG cùng
+// allowlist thì ĐƯỢC theo).
 #[test]
-fn a_cross_host_redirect_is_blocked_and_the_target_host_receives_zero_connections() {
+fn a_redirect_to_a_host_outside_the_allowlist_is_blocked_and_the_target_host_receives_zero_connections() {
     let reached_b = Arc::new(AtomicUsize::new(0));
     let reached_b_clone = Arc::clone(&reached_b);
     let (port_b, _handle_b) = spawn_once(move |mut stream| {
@@ -92,16 +101,49 @@ fn a_cross_host_redirect_is_blocked_and_the_target_host_receives_zero_connection
         let _ = stream.write_all(body.as_bytes());
     });
 
-    let result = fetch(&format!("http://127.0.0.1:{port_a}/start"));
+    let start_url = format!("http://127.0.0.1:{port_a}/start");
+    let allowlist = Allowlist::from_urls([start_url.as_str()]);
+    let (result, _log) = fetch(&start_url, &allowlist, ResourceKind::Page);
 
     assert!(
-        matches!(result, Err(FetchError::RedirectBlockedCrossHost)),
-        "kỳ vọng `RedirectBlockedCrossHost`, nhận: {result:?}"
+        matches!(result, Err(FetchError::NotAllowlisted)),
+        "kỳ vọng `NotAllowlisted`, nhận: {result:?}"
     );
     assert_eq!(
         reached_b.load(Ordering::SeqCst),
         0,
         "server đích của chuyển hướng bị chặn phải nhận ĐÚNG 0 kết nối"
+    );
+}
+
+/// **MỚI (Story 6.8)** — chiều NGƯỢC LẠI của ca trên: hai host KHÁC NHAU nhưng CÙNG có mặt
+/// trong allowlist (cả hai đều được coi là "URL người dùng đã dán" ở đây) ⇒ chuyển hướng
+/// được PHÉP THEO. Đóng đúng khoảng trống mà §Design Notes spec 6.8 nêu — trước bản vá,
+/// KHÔNG ca nào phủ chiều này (mọi chuyển hướng khác host đều bị chặn tuyệt đối).
+#[test]
+fn a_redirect_between_two_hosts_both_inside_the_allowlist_is_followed() {
+    let (port_b, _handle_b) = spawn_once(move |mut stream| {
+        let _ = stream.write_all(ok_html_response("noi dung that o host B").as_bytes());
+    });
+    let location = format!("http://localhost:{port_b}/final");
+    let location_for_server = location.clone();
+    let (port_a, _handle_a) = spawn_once(move |mut stream| {
+        let body = format!(
+            "HTTP/1.1 301 Moved Permanently\r\nLocation: {location_for_server}\r\nContent-Length: 0\r\n\r\n"
+        );
+        let _ = stream.write_all(body.as_bytes());
+    });
+
+    let start_url = format!("http://127.0.0.1:{port_a}/start");
+    // Cả HAI host — `127.0.0.1` (gốc) VÀ `localhost` (đích chuyển hướng) — đều trong danh
+    // sách dán, đúng khuôn "hai host tầng 1" của I/O Matrix spec 6.8.
+    let allowlist = Allowlist::from_urls([start_url.as_str(), location.as_str()]);
+    let (result, _log) = fetch(&start_url, &allowlist, ResourceKind::Page);
+
+    let page = result.expect("hai host cung allowlist -- chuyen huong phai duoc theo");
+    assert!(
+        String::from_utf8_lossy(&page.bytes).contains("noi dung that o host B"),
+        "phai nhan duoc noi dung THAT tu host B, khong dung lai o response 301 cua host A"
     );
 }
 
@@ -140,7 +182,9 @@ fn a_response_advertising_far_more_than_the_cap_is_cut_off_mid_stream() {
         }
     });
 
-    let result = fetch(&format!("http://127.0.0.1:{port}/big"));
+    let url = format!("http://127.0.0.1:{port}/big");
+    let allowlist = Allowlist::from_urls([url.as_str()]);
+    let (result, _log) = fetch(&url, &allowlist, ResourceKind::Page);
     assert!(matches!(result, Err(FetchError::TooLarge)), "kỳ vọng `TooLarge`, nhận: {result:?}");
 
     // Chờ luồng server ghi nốt vài khối cuối (đóng kết nối phía client không đồng bộ tức thì
@@ -170,7 +214,9 @@ fn a_dead_connection_is_classified_as_connect_failed_not_some_other_error() {
             let listener = TcpListener::bind("127.0.0.1:0").expect("bind cổng tạm");
             listener.local_addr().expect("local_addr").port()
         };
-        match fetch(&format!("http://127.0.0.1:{port}/nope")) {
+        let url = format!("http://127.0.0.1:{port}/nope");
+        let allowlist = Allowlist::from_urls([url.as_str()]);
+        match fetch(&url, &allowlist, ResourceKind::Page).0 {
             Err(FetchError::ConnectFailed { .. }) => return,
             Err(FetchError::Timeout { .. }) => return, // hệ điều hành có thể trả timeout thay vì refused
             other => {
@@ -233,7 +279,7 @@ fn n_links_are_fetched_sequentially_and_a_broken_item_keeps_its_position() {
         format!("http://127.0.0.1:{dead_port}/b"),
         format!("http://127.0.0.1:{port_ok_2}/c"),
     ];
-    let items = fetch_url_import_items(urls.clone());
+    let (items, _log) = fetch_url_import_items(urls.clone());
 
     assert_eq!(items.len(), 3, "phải giữ đúng N mục, không rơi rớt cái nào");
     for (i, item) in items.iter().enumerate() {
@@ -250,7 +296,7 @@ fn n_links_are_fetched_sequentially_and_a_broken_item_keeps_its_position() {
 /// Danh sách rỗng/toàn dòng trắng ⇒ 0 mục (đóng vế I/O Matrix "Danh sách rỗng").
 #[test]
 fn blank_and_empty_lines_are_dropped_before_counting_and_never_produce_an_item() {
-    let items = fetch_url_import_items(vec!["   ".to_owned(), "".to_owned(), "\t".to_owned()]);
+    let (items, _log) = fetch_url_import_items(vec!["   ".to_owned(), "".to_owned(), "\t".to_owned()]);
     assert!(items.is_empty(), "dòng rỗng/toàn khoảng trắng không được sinh ra một mục nào");
 }
 
@@ -260,7 +306,7 @@ fn blank_and_empty_lines_are_dropped_before_counting_and_never_produce_an_item()
 /// hoặc treo — cả hai đều làm assert dưới đây SAI.
 #[test]
 fn a_garbage_line_becomes_one_broken_item_with_zero_network_calls() {
-    let items = fetch_url_import_items(vec!["day khong phai url".to_owned()]);
+    let (items, _log) = fetch_url_import_items(vec!["day khong phai url".to_owned()]);
     assert_eq!(items.len(), 1);
     assert!(items[0].error.is_some(), "dòng rác phải thành một mục hỏng");
     assert!(items[0].raw.is_none());
@@ -317,7 +363,7 @@ fn perf_probe_twenty_links_end_to_end_fetch_plus_extract_plus_pipeline() {
     let urls: Vec<String> = ports.iter().map(|p| format!("http://127.0.0.1:{p}/a")).collect();
 
     let t0 = std::time::Instant::now();
-    let items = fetch_url_import_items(urls);
+    let (items, _log) = fetch_url_import_items(urls);
     let fetch_elapsed = t0.elapsed();
     assert!(items.iter().all(|it| it.error.is_none()), "ca do khong duoc phep co muc hong: {items:?}");
 
@@ -409,7 +455,7 @@ fn a_response_that_is_not_html_becomes_one_broken_item_carrying_the_not_html_rea
     });
 
     let url = format!("http://127.0.0.1:{port}/tai-lieu.pdf");
-    let items = fetch_url_import_items(vec![url.clone()]);
+    let (items, _log) = fetch_url_import_items(vec![url.clone()]);
 
     assert_eq!(items.len(), 1, "mục hỏng vẫn phải GIỮ CHỖ — hai con số N link · N Chương bằng nhau");
     assert!(items[0].raw.is_none(), "byte không phải HTML không được đi tiếp vào `Extractor`");
@@ -429,7 +475,7 @@ fn a_404_becomes_one_broken_item_carrying_the_http_status_reason_and_the_numeric
     });
 
     let url = format!("http://127.0.0.1:{port}/khong-ton-tai");
-    let items = fetch_url_import_items(vec![url.clone()]);
+    let (items, _log) = fetch_url_import_items(vec![url.clone()]);
 
     assert_eq!(items.len(), 1);
     assert!(items[0].raw.is_none());
@@ -573,7 +619,7 @@ fn a_blocked_cross_host_redirect_reaches_the_user_as_the_redirect_blocked_reason
     });
 
     let url = format!("http://127.0.0.1:{port_a}/start");
-    let items = fetch_url_import_items(vec![url.clone()]);
+    let (items, _log) = fetch_url_import_items(vec![url.clone()]);
 
     assert_eq!(items.len(), 1);
     assert_eq!(
@@ -609,7 +655,7 @@ fn an_oversized_body_reaches_the_user_as_the_too_large_reason() {
     });
 
     let url = format!("http://127.0.0.1:{port}/qua-lon");
-    let items = fetch_url_import_items(vec![url.clone()]);
+    let (items, _log) = fetch_url_import_items(vec![url.clone()]);
 
     assert_eq!(items.len(), 1);
     assert_eq!(
@@ -624,7 +670,7 @@ fn an_oversized_body_reaches_the_user_as_the_too_large_reason() {
 #[test]
 fn a_garbage_line_reaches_the_user_as_the_invalid_url_reason_not_a_network_failure() {
     let url = "day khong phai url";
-    let items = fetch_url_import_items(vec![url.to_owned()]);
+    let (items, _log) = fetch_url_import_items(vec![url.to_owned()]);
 
     assert_eq!(items.len(), 1);
     assert_eq!(
@@ -648,7 +694,7 @@ fn a_dead_port_reaches_the_user_as_a_network_reason_and_never_as_a_content_reaso
         l.local_addr().expect("addr").port()
     };
     let url = format!("http://127.0.0.1:{dead_port}/chet");
-    let items = fetch_url_import_items(vec![url.clone()]);
+    let (items, _log) = fetch_url_import_items(vec![url.clone()]);
     let got = items[0].error.as_ref().expect("phải có lý do");
 
     let is_network = got
@@ -678,7 +724,7 @@ fn a_dead_port_reaches_the_user_as_a_network_reason_and_never_as_a_content_reaso
 #[test]
 fn a_zero_width_no_break_space_never_makes_the_fetched_count_differ_from_the_on_screen_count() {
     // ① Dòng CHỈ có BOM — JS đếm 0, Rust phải cũng cho 0 mục.
-    let items = fetch_url_import_items(vec!["\u{FEFF}".to_owned(), "  \u{FEFF} ".to_owned()]);
+    let (items, _log) = fetch_url_import_items(vec!["\u{FEFF}".to_owned(), "  \u{FEFF} ".to_owned()]);
     assert!(
         items.is_empty(),
         "một dòng chỉ có U+FEFF không được sinh ra mục nào — màn hình đếm 0, nếu Rust đếm 1 thì \
@@ -692,7 +738,7 @@ fn a_zero_width_no_break_space_never_makes_the_fetched_count_differ_from_the_on_
         l.local_addr().expect("addr").port()
     };
     let bare = format!("http://127.0.0.1:{dead_port}/co-bom");
-    let items = fetch_url_import_items(vec![format!("\u{FEFF}{bare}")]);
+    let (items, _log) = fetch_url_import_items(vec![format!("\u{FEFF}{bare}")]);
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].url, bare, "BOM đầu dòng phải được cắt, URL còn lại nguyên vẹn");
     assert_ne!(
@@ -704,7 +750,7 @@ fn a_zero_width_no_break_space_never_makes_the_fetched_count_differ_from_the_on_
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// P2 (vòng rà đối kháng bước 4) — trần số chặng chuyển hướng CÙNG HOST
+// P2 (vòng rà đối kháng bước 4) — trần số chặng chuyển hướng, dưới một host ĐƯỢC allowlist
 // ═════════════════════════════════════════════════════════════════════════════════
 //
 // `redirect::Policy::custom` THAY TRỌN chính sách mặc định của `reqwest` — trần ~10 chặng
@@ -712,6 +758,10 @@ fn a_zero_width_no_break_space_never_makes_the_fetched_count_differ_from_the_on_
 // (không bị AD-41 chặn vì host không đổi) chỉ dừng lại nhờ `REQUEST_TIMEOUT` (20 s) và bị báo
 // SAI cho người dùng là `Timeout`. Server dưới đây chấp nhận NHIỀU kết nối liên tiếp, mỗi lần
 // trả một 302 trỏ VỀ CHÍNH nó — một vòng lặp không bao giờ tự dừng nếu không có trần.
+//
+// 🔵 **Story 6.8** — `allowlist` PHẢI chứa host này, nếu không hop ĐẦU TIÊN đã bị AD-41 chặn
+// (`NotAllowlisted`) trước khi vòng lặp có cơ hội chạy, và ca này không còn kiểm được đúng
+// thứ nó dựng ra để canh (trần SỐ CHẶNG, không phải chuyện allowlist).
 #[test]
 fn a_same_host_redirect_loop_is_capped_and_not_misreported_as_a_timeout() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind cổng tạm");
@@ -737,7 +787,9 @@ fn a_same_host_redirect_loop_is_capped_and_not_misreported_as_a_timeout() {
         }
     });
 
-    let result = fetch(&format!("http://127.0.0.1:{port}/loop"));
+    let url = format!("http://127.0.0.1:{port}/loop");
+    let allowlist = Allowlist::from_urls([url.as_str()]);
+    let (result, _log) = fetch(&url, &allowlist, ResourceKind::Page);
 
     assert!(
         !matches!(result, Err(FetchError::Timeout { .. })),
@@ -750,25 +802,28 @@ fn a_same_host_redirect_loop_is_capped_and_not_misreported_as_a_timeout() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-// P3 (vòng rà đối kháng bước 4) — một 3xx LÀNH không phải `RedirectBlockedCrossHost`
+// P3 (vòng rà đối kháng bước 4) — một 3xx LÀNH không phải `NotAllowlisted`
 // ═════════════════════════════════════════════════════════════════════════════════
 //
 // `status().is_redirection()` một mình không phân biệt được "bị chính sách chặn" khỏi "máy
 // chủ tự trả một 3xx làm phản hồi CUỐI" (không có `Location`, ví dụ 304 Not Modified). Trước
-// bản vá này, ca dưới đây bị báo SAI là `RedirectBlockedCrossHost` dù chưa từng có một chặng
-// nào bị chặn — server chỉ nhận ĐÚNG MỘT kết nối.
+// bản vá này, ca dưới đây bị báo SAI là `NotAllowlisted` dù chưa từng có một chặng nào bị
+// chặn — server chỉ nhận ĐÚNG MỘT kết nối. `allowlist` chứa CHÍNH host này để loại trừ khả
+// năng "bị chặn vì không allowlist" khỏi ca kiểm — thứ ca này canh là chuyện KHÁC hẳn.
 #[test]
 fn a_benign_3xx_with_no_location_header_is_not_reported_as_a_blocked_redirect() {
     let (port, _h) = spawn_once(|mut stream| {
         let _ = stream.write_all(b"HTTP/1.1 304 Not Modified\r\nContent-Length: 0\r\n\r\n");
     });
 
-    let result = fetch(&format!("http://127.0.0.1:{port}/khong-doi"));
+    let url = format!("http://127.0.0.1:{port}/khong-doi");
+    let allowlist = Allowlist::from_urls([url.as_str()]);
+    let (result, _log) = fetch(&url, &allowlist, ResourceKind::Page);
 
     assert!(
-        !matches!(result, Err(FetchError::RedirectBlockedCrossHost)),
+        !matches!(result, Err(FetchError::NotAllowlisted)),
         "một 304 KHÔNG có `Location` chưa từng bị chính sách chặn — không được báo \
-         `RedirectBlockedCrossHost`: {result:?}"
+         `NotAllowlisted`: {result:?}"
     );
     assert!(
         matches!(result, Err(FetchError::HttpStatus { status: 304 })),
@@ -799,4 +854,134 @@ fn looks_like_html_matches_the_exact_mime_type_not_a_substring() {
         "chuỗi `text/html` xuất hiện trong MỘT THAM SỐ không được làm cả kiểu MIME khớp"
     );
     assert!(!looks_like_html(None), "máy chủ không khai content-type phải bị coi là KHÔNG PHẢI HTML");
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// STORY 6.8 — BỐN CA AD-41 BẮT BUỘC (spine `:542`) + CA TẦNG 2
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// AD-41 (`ARCHITECTURE-SPINE.md:542`) đòi nguyên văn: *"từ chối host ngoài hai tầng; từ
+// chối chuyển hướng ra ngoài; từ chối tài liệu ở tầng 2; không lời gọi nào khi người dùng
+// không bấm"*. Bốn `#[test]` dưới đây ứng ĐÚNG bốn mệnh đề đó, theo thứ tự; ca "chuyển
+// hướng ra ngoài" chính là `a_redirect_to_a_host_outside_the_allowlist_is_blocked_and_...`
+// đã viết lại ở đầu tệp (Ca 1) — không lặp một bản thứ hai ở đây.
+
+/// AD-41, mệnh đề 1 — **"từ chối host ngoài hai tầng"**. Allowlist RỖNG (không tier1, không
+/// tier2) ⇒ `fetch` từ chối NGAY host của chính URL gốc, TRƯỚC khi `send()` chạy — máy chủ
+/// đích nhận ĐÚNG 0 kết nối (đo bằng `AtomicUsize`, không bằng mã trả về — đúng kỷ luật
+/// Acceptance Criteria đầu tiên của spec 6.8).
+#[test]
+fn ad41_case_1_a_host_outside_both_tiers_is_denied_before_any_connection_opens() {
+    let reached = Arc::new(AtomicUsize::new(0));
+    let reached_clone = Arc::clone(&reached);
+    let (port, _handle) = spawn_once(move |mut stream| {
+        reached_clone.fetch_add(1, Ordering::SeqCst);
+        let _ = stream.write_all(ok_html_response("khong duoc phep toi day").as_bytes());
+    });
+
+    let url = format!("http://127.0.0.1:{port}/ngoai-allowlist");
+    // Allowlist KHÔNG được dựng từ chính `url` — mô phỏng đúng "host chưa từng có trong danh
+    // sách dán", khác các test khác trong tệp này (chúng luôn tự allowlist host mình gọi).
+    let allowlist = Allowlist::default();
+    let (result, log) = fetch(&url, &allowlist, ResourceKind::Page);
+
+    assert!(matches!(result, Err(FetchError::NotAllowlisted)), "ky vong NotAllowlisted, nhan: {result:?}");
+    assert_eq!(reached.load(Ordering::SeqCst), 0, "may chu dich phai nhan DUNG 0 ket noi");
+    assert_eq!(log.len(), 1, "mot ban ghi nhat ky cho lan bi tu choi nay");
+    assert!(matches!(log[0].decision, DomainLogDecision::Denied), "ban ghi phai la TU CHOI, khong phai cho phep");
+}
+
+/// AD-41, mệnh đề 3 — **"từ chối tài liệu ở tầng 2"**. Luật *"tầng 2 chỉ ảnh, không bao giờ
+/// tài liệu"* phải sống trong KIỂU (`Allowlist::decide` — một `match` cạn trên
+/// [`ResourceKind`]), không trong một `if` rời ở chỗ gọi (§Always spec 6.8). Host CHỈ có mặt
+/// ở tầng 2 (không tier1) + xin `Document` ⇒ từ chối, 0 kết nối — dù CHÍNH host đó, xin
+/// `Image`, lẽ ra được phép (xem ca ngay dưới).
+#[test]
+fn ad41_case_3_a_document_request_to_a_tier_2_only_host_is_denied() {
+    let reached = Arc::new(AtomicUsize::new(0));
+    let reached_clone = Arc::clone(&reached);
+    let (port, _handle) = spawn_once(move |mut stream| {
+        reached_clone.fetch_add(1, Ordering::SeqCst);
+        let _ = stream.write_all(ok_html_response("tai lieu khong duoc phep o tang 2").as_bytes());
+    });
+
+    let url = format!("http://127.0.0.1:{port}/bai-viet");
+    let host = reqwest::Url::parse(&url).expect("URL hop le").host_str().expect("co host").to_owned();
+    let allowlist = Allowlist::default().with_tier2_hosts([host]);
+    let (result, _log) = fetch(&url, &allowlist, ResourceKind::Page);
+
+    assert!(
+        matches!(result, Err(FetchError::NotAllowlisted)),
+        "tai lieu tu mot host CHI o tang 2 phai bi tu choi: {result:?}"
+    );
+    assert_eq!(reached.load(Ordering::SeqCst), 0, "may chu dich phai nhan DUNG 0 ket noi");
+}
+
+/// Ca đối chứng cho mệnh đề 3 — CÙNG host tầng 2, xin `Image` thay vì `Document` ⇒ ĐƯỢC PHÉP
+/// (I/O Matrix spec 6.8: *"Ảnh từ host tầng 2 → Cho phép"*). Không có ca này, mệnh đề 3 ở
+/// trên có thể xanh vì một lý do SAI (ví dụ: allowlist rỗng bị đọc nhầm là "luôn từ chối",
+/// không phải "đúng tầng 2 thì từ chối Document").
+#[test]
+fn an_image_request_to_a_tier_2_only_host_is_allowed() {
+    let (port, _handle) = spawn_once(|mut stream| {
+        let _ = stream.write_all(ok_html_response("anh duoc phep o tang 2").as_bytes());
+    });
+
+    let url = format!("http://127.0.0.1:{port}/anh.jpg");
+    let host = reqwest::Url::parse(&url).expect("URL hop le").host_str().expect("co host").to_owned();
+    let allowlist = Allowlist::default().with_tier2_hosts([host]);
+    let (result, _log) = fetch(&url, &allowlist, ResourceKind::Image);
+
+    result.expect("anh tu mot host tang 2 phai duoc CHO PHEP");
+}
+
+/// AD-41, mệnh đề 4 — **"không lời gọi nào khi người dùng không bấm"**. Dựng một
+/// [`Allowlist`] từ danh sách URL KHÔNG tự phát sinh bất kỳ kết nối mạng nào — `from_urls`
+/// chỉ phân giải host bằng `Url::parse` (thuần, không DNS/socket). Ca này là một đối chứng
+/// CHỐNG HỒI QUY: một lượt sửa sau này lỡ thêm một bước xác thực host qua mạng vào
+/// `Allowlist::from_urls` (ví dụ "thử kết nối trước để biết host có tồn tại") sẽ làm ca này
+/// đỏ — chính điều mệnh đề 4 cấm.
+#[test]
+fn ad41_case_4_building_an_allowlist_makes_no_network_call_on_its_own() {
+    let reached = Arc::new(AtomicUsize::new(0));
+    let reached_clone = Arc::clone(&reached);
+    let (port, handle) = spawn_once(move |mut stream| {
+        reached_clone.fetch_add(1, Ordering::SeqCst);
+        let _ = stream.write_all(ok_html_response("khong ai duoc goi toi day").as_bytes());
+    });
+
+    let url = format!("http://127.0.0.1:{port}/chua-bam");
+    let _allowlist = Allowlist::from_urls([url.as_str()]);
+
+    // KHÔNG một lời gọi `fetch(...)` nào ở đây — đúng mô phỏng "N dòng dán vào ô, chưa bấm
+    // nút tải" (I/O Matrix spec 6.8, hàng 1). Cho server một khoảng ngắn để lộ ra một kết
+    // nối NẾU CÓ (nó không nên có) trước khi kiểm bộ đếm.
+    thread::sleep(Duration::from_millis(50));
+    assert_eq!(
+        reached.load(Ordering::SeqCst),
+        0,
+        "dung Allowlist tu danh sach URL KHONG duoc tu phat sinh mot ket noi mang nao"
+    );
+
+    drop(handle);
+}
+
+/// Đối chứng — [`fetch_url_import_items`] cũng phải NỐI ĐƯỢC nhật ký domain của MỌI mục,
+/// không chỉ mục đầu (mỗi mục là một lượt `fetch` riêng, allowlist dùng CHUNG cho cả danh
+/// sách — xem doc-comment [`fetch_url_import_items`]).
+#[test]
+fn fetch_url_import_items_returns_one_domain_log_entry_per_item() {
+    let (port_a, _ha) = spawn_once(|mut s| {
+        let _ = s.write_all(ok_html_response(&html_page_with_paragraphs()).as_bytes());
+    });
+    let (port_b, _hb) = spawn_once(|mut s| {
+        let _ = s.write_all(ok_html_response(&html_page_with_paragraphs()).as_bytes());
+    });
+
+    let urls = vec![format!("http://127.0.0.1:{port_a}/a"), format!("http://127.0.0.1:{port_b}/b")];
+    let (items, log) = fetch_url_import_items(urls);
+
+    assert_eq!(items.len(), 2);
+    assert!(items.iter().all(|it| it.error.is_none()), "hai host deu trong allowlist tu chinh danh sach");
+    assert_eq!(log.len(), 2, "mot ban ghi nhat ky cho MOI muc, ca hai deu CHO PHEP");
 }

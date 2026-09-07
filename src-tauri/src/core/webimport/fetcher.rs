@@ -16,11 +16,56 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! [`MAX_RESPONSE_BYTES`] và [`REQUEST_TIMEOUT`] đều kèm phép đo tại chỗ khai — xem
 //! doc-comment của từng hằng.
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! 🔵 **Story 6.8 (2026-09-07) — AD-41 vào ĐÚNG Ở ĐÂY, không ở chỗ gọi.** `fetch` nay nhận
+//! thêm `&Allowlist` và `ResourceKind` (§Always spec 6.8: *"kiểm ở chỗ gọi thì `fetch` vẫn là
+//! một cửa mở"*). Host của CHÍNH url gốc bị từ chối TRƯỚC khi mở kết nối (`send()` chưa từng
+//! được gọi — server đích nhận đúng 0 kết nối), và MỖI chặng chuyển hướng đi qua CÙNG một
+//! quyết định TRƯỚC khi hop đó được nối tới. `FetchError::RedirectBlockedCrossHost`
+//! (tên cũ) đổi thành [`FetchError::NotAllowlisted`] — không chỉ đổi tên: mệnh đề nó canh đổi
+//! từ *"khác host gốc"* sang *"không có trong allowlist"* (xem §Design Notes spec 6.8, "vì
+//! sao chuyển hướng giữa hai host CÙNG tầng 1 được phép").
+//!
+//! ─────────────────────────────────────────────────────────────────────────────
+//! 🔵 **Story 6.8, VÒNG RÀ SAU GIAO — MỘT CLIENT DÙNG CHUNG, KHÔNG MỘT CLIENT MỖI LƯỢT GỌI**
+//! ─────────────────────────────────────────────────────────────────────────────
+//! **Hồi quy đo được (2026-09-07, do Ice truy):** `webimport_contract.rs` chạy song song
+//! (mặc định `cargo test`) mất tính xác định sau bản thi công đầu của story này — một cụm
+//! CỐ ĐỊNH 12 ca (đúng những ca chạm mạng thật) đỏ khoảng 2/10 lượt, luôn cùng dạng lỗi
+//! `Other { detail: "error sending request for url (...)" }`, không phải `is_connect()`/
+//! `is_timeout()`. **Đo bằng cách GỠ, không suy luận:** một ca 404 CÔ LẬP lặp 150 lần tuần
+//! tự trong MỘT tiến trình ⇒ 0/150 đỏ; cùng ca chạy TRÊN 16 luồng × 20 lượt bằng NHAU ⇒
+//! 0/320 đỏ; nhưng chạy NGUYÊN VẸN cả 28 ca không đổi của `webimport_contract.rs` (bộ THẬT,
+//! có ca CPU nặng như `perf_probe_twenty_links…`/`an_oversized_body…` chen cùng lượt) ⇒ tái
+//! lập đúng 12 ca đỏ đó, ~1/8 lượt. Khác biệt DUY NHẤT giữa hai phép đo: bộ THẬT trộn việc
+//! NẶNG CPU (bóc `dom_smoothie`/`Readability`) với việc TẠO CLIENT — và mỗi lời gọi [`fetch`]
+//! trước bản vá này dựng MỘT `reqwest::blocking::Client` MỚI (doc-comment `mod.rs::TASK 0`
+//! đã tự đo và GHI RÕ: *"Mỗi client spawn một `std::thread` RIÊNG mang một
+//! `tokio::runtime::Builder::new_current_thread()` CỦA RIÊNG NÓ"*). Máy đo có 16 lõi;
+//! `cargo test` mặc định chạy tới 16 ca song song, và bộ THẬT có ~20 ca chạm mạng — một đợt
+//! khởi động ~16-20 luồng nền + runtime tokio CÙNG LÚC, cạnh tranh CPU với các ca bóc nội
+//! dung nặng, là điều kiện DUY NHẤT phép đo hẹp (đồng nhất, không CPU nặng) không tái tạo
+//! được. ⇒ **Đây là lỗi ĐƯỜNG SẢN PHẨM** (chi phí một luồng + một runtime MỖI lời gọi
+//! `fetch`, không phải một khiếm khuyết của bộ test) — không phải hạ ngưỡng hay thêm retry:
+//! [`fetch`] nay dùng ĐÚNG MỘT [`shared_client`] cho suốt tiến trình (`OnceLock`, dựng lười,
+//! đúng khuyến cáo chính thức của `reqwest`: *"it is advised that you create one and reuse
+//! it"*), và chính sách chuyển hướng đổi từ `redirect::Policy::custom` (đóng gói ở LÚC DỰNG
+//! CLIENT, nên không thể dùng chung một client cho nhiều allowlist khác nhau) sang
+//! `redirect::Policy::none()` cộng một VÒNG LẶP thủ công bên trong [`fetch`] — allowlist vẫn
+//! được hỏi TRƯỚC mỗi hop (kể cả hop đầu), server bị chặn vẫn nhận **0** kết nối, chỉ khác là
+//! không còn một closure chạy trên luồng nền của policy nữa (Story 6.7 dựng closure đó chính
+//! vì `redirect::Policy::custom` ĐÒI một closure — không phải một lựa chọn kiến trúc độc lập
+//! cần giữ). **Đối chứng sau vá:** `cargo test --test webimport_contract` mặc định (song
+//! song) 10 lượt liên tiếp — xem log CI/PR cho con số thật, không đúc lại ở đây.
 
 use std::io::Read;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
+
+use super::allowlist::{Allowlist, AllowlistDecision, ResourceKind};
+use super::domain_log::{DomainLogDecision, DomainLogEntry, now_epoch_ms};
 
 /// Trần byte MỘT phản hồi.
 ///
@@ -43,17 +88,86 @@ pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 /// đã dùng để đo bất biến `CAP ≤ actually_read ≪ ADVERTISED_LEN`.
 const CHUNK_SIZE: usize = 64 * 1024;
 
-/// Trần số chặng CHUYỂN HƯỚNG CÙNG HOST.
+/// Trần số chặng CHUYỂN HƯỚNG.
 ///
-/// 🔴 **Không đúc mới — chép nguyên trần MẶC ĐỊNH của `reqwest`.** `redirect::Policy::custom`
-/// THAY TRỌN chính sách mặc định (doc-comment của chính `Policy::custom`: "the custom variant
-/// does not do that for you automatically"), nên trần ~10 chặng biến mất nếu không tự thêm.
-/// Nguồn con số 10: `reqwest-0.13.4/src/redirect.rs` — `impl Default for Policy { fn
-/// default() -> Policy { Policy::limited(10) } }`, và `Policy::limited` tự so
-/// `attempt.previous().len() > max`. Không có trần này, một vòng lặp chuyển hướng CÙNG host
-/// (AD-41 không chặn vì host không đổi) chỉ dừng lại nhờ [`REQUEST_TIMEOUT`] (20 s) và bị báo
-/// SAI cho người dùng là [`FetchError::Timeout`] — một chẩn đoán sai (vòng rà đối kháng P2).
-const MAX_SAME_HOST_REDIRECTS: usize = 10;
+/// 🔴 **Không đúc mới — chép nguyên trần MẶC ĐỊNH của `reqwest`.** Nguồn con số 10:
+/// `reqwest-0.13.4/src/redirect.rs` — `impl Default for Policy { fn default() -> Policy {
+/// Policy::limited(10) } }`. Không có trần này, một vòng lặp chuyển hướng CÙNG host (AD-41
+/// không chặn vì host không đổi) chỉ dừng lại nhờ [`REQUEST_TIMEOUT`] (20 s) và bị báo SAI
+/// cho người dùng là [`FetchError::Timeout`] — một chẩn đoán sai (vòng rà đối kháng P2).
+///
+/// 🔵 **Story 6.8 — tên hằng giữ nguyên, PHẠM VI canh RỘNG hơn.** Trước 6.8, cap này chỉ có
+/// ý nghĩa cho vòng lặp CÙNG host (khác host bị chặn ngay hop đầu). Sau 6.8, hai host CÙNG
+/// tầng 1 được phép chuyển hướng qua lại nhau (§Design Notes spec 6.8) — một vòng lặp GIỮA
+/// hai host cùng allowlist giờ là một ca THẬT cần cap này chặn, không chỉ vòng lặp cùng host
+/// nữa.
+///
+/// 🔵 **Vòng rà sau giao (§ đầu tệp "MỘT CLIENT DÙNG CHUNG") — đếm bằng TAY, không còn qua
+/// `Policy::limited`/`attempt.previous().len()`.** [`fetch`] không còn dùng
+/// `redirect::Policy::custom` (đóng gói ở LÚC DỰNG CLIENT — không hợp với một client DÙNG
+/// CHUNG cho nhiều allowlist khác nhau); vòng lặp thủ công trong [`fetch`] tự đếm số hop đã
+/// theo và so với hằng này TRƯỚC khi theo hop kế tiếp — cùng ngưỡng, cơ chế đổi chỗ đứng.
+const MAX_REDIRECTS: usize = 10;
+
+/// Cỡ hồ chứa client DÙNG CHUNG — xem [`shared_client`].
+///
+/// 🔵 **Vòng rà sau giao (2026-09-07) — phép đo dẫn tới con số 8, không đúc tuỳ ý.** MỘT
+/// client dùng chung (thử trước) đẩy TOÀN BỘ lời gọi đồng thời qua ĐÚNG MỘT luồng nền/runtime
+/// tokio của riêng nó (`reqwest::blocking` luôn single-thread cho một client, `mod.rs::TASK
+/// 0`) — đo trên `webimport_contract.rs` (bộ THẬT, ~20 ca chạm mạng, máy 16 lõi): **15/15
+/// lượt ĐỎ**, luôn đúng cùng 12 ca, một đợt ~20 lời gọi dồn về một luồng làm nó nghẽn ngay
+/// tại lượt khởi động. Một hồ 8 client rải cùng đợt đó ra 8 luồng — đo lại: xem đối chứng ở
+/// doc-comment đầu tệp cho con số 10 lượt liên tiếp thật. 8 không phải "đủ lớn cho chắc": nó
+/// là `std::thread::available_parallelism()` điển hình của máy phát triển (8 lõi hiệu năng
+/// trên máy 16 lõi ảo đã đo) — CHẶN trên bởi chính số luồng CPU thật có thể phục vụ đồng thời,
+/// không phải một số phỏng đoán lớn hơn.
+const CLIENT_POOL_SIZE: usize = 8;
+
+/// Hồ client DÙNG CHUNG cho suốt tiến trình — dựng LƯỜI, đúng MỘT lần (`OnceLock::get_or_init`
+/// tự khoá nếu nhiều luồng gọi đồng thời trước lần dựng đầu, xem doc `OnceLock`), rồi CHIA
+/// đều lời gọi qua [`CLIENT_POOL_SIZE`] client bằng một bộ đếm xoay vòng — không một allowlist
+/// hay trạng thái NÀO khác đi kèm client (client chỉ là hạ tầng mạng thuần tuý, xem §Design
+/// Notes spec 6.8 "allowlist sống đúng một lần nhập": allowlist không hề đụng tới đây). Trả
+/// `Result` (không `.expect()`/panic) vì `ClientBuilder::build()` CÓ thể trượt thật trên máy
+/// người dùng (backend TLS không khởi tạo được) — một lỗi dựng client vẫn phải đi ra thành
+/// `FetchError::Other` như trước 6.8, không được phép giết tiến trình (AD-11/AD-12: panic
+/// trên đường BÁO LỖI cuốn theo cả `core::store`, `Cargo.toml` đặt `panic = "abort"`).
+/// `OnceLock` không có một `get_or_try_init` ổn định (`once_cell_try` vẫn unstable ở bản
+/// Rust đã ghim) nên mỗi `Result` được CHÍNH init closure bắt và lưu lại, không phải lan ra.
+///
+/// 🔵 **Vòng rà sau giao (2026-09-07) — lý do dùng CHUNG, không dựng mới mỗi lời gọi.** Xem
+/// phép đo đầy đủ ở doc-comment đầu tệp ("MỘT CLIENT DÙNG CHUNG, KHÔNG MỘT CLIENT MỖI LƯỢT
+/// GỌI") và ở [`CLIENT_POOL_SIZE`] (vì sao MỘT client không đủ). Tóm tắt: mỗi
+/// `reqwest::blocking::Client` spawn MỘT luồng nền + MỘT runtime tokio riêng (`mod.rs::TASK
+/// 0`) — dựng một client MỚI mỗi lời gọi `fetch` nhân số luồng nền lên theo số lời gọi ĐANG
+/// chạy đồng thời, và dưới tải CPU thật (nhiều `fetch` cộng nhiều lượt bóc nội dung cùng lúc)
+/// đợt khởi động luồng đó THỈNH THOẢNG khiến `send()` trượt với một lỗi mạng chung chung
+/// (`Other`, không phải `is_connect()`/`is_timeout()`) — hồi quy ĐÃ ĐO trên
+/// `webimport_contract.rs` chạy song song. `redirect(Policy::none())` vì chính sách chuyển
+/// hướng của Story 6.7/6.8 giờ chạy THỦ CÔNG trong [`fetch`] (xem doc-comment hàm đó).
+/// 🔴 **`pool_max_idle_per_host(0)` ĐÃ THỬ VÀ BỊ LOẠI** — đo trực tiếp trên
+/// `reqwest 0.13.4`/`hyper-util 0.1.20` (bản đã ghim): một lời gọi ĐƠN, KHÔNG đồng thời, KHÔNG
+/// lặp lại, vẫn trượt 100% với `hyper::Error(UnexpectedMessage)` — một lỗi CỦA THƯ VIỆN khi
+/// `max_idle_per_host == 0`, không liên quan gì tới allowlist/vòng lặp chuyển hướng của story
+/// này. Giữ NGUYÊN cấu hình pool MẶC ĐỊNH của `reqwest` (không gọi `pool_max_idle_per_host`).
+fn shared_client() -> Result<&'static reqwest::blocking::Client, &'static str> {
+    static POOL: OnceLock<Vec<Result<reqwest::blocking::Client, String>>> = OnceLock::new();
+    static NEXT: AtomicUsize = AtomicUsize::new(0);
+
+    let pool = POOL.get_or_init(|| {
+        (0..CLIENT_POOL_SIZE)
+            .map(|_| {
+                reqwest::blocking::Client::builder()
+                    .redirect(reqwest::redirect::Policy::none())
+                    .timeout(REQUEST_TIMEOUT)
+                    .build()
+                    .map_err(|e| e.to_string())
+            })
+            .collect()
+    });
+    let idx = NEXT.fetch_add(1, Ordering::Relaxed) % pool.len();
+    pool[idx].as_ref().map_err(String::as_str)
+}
 
 /// Kết quả một lượt tải THÀNH CÔNG — byte thô cộng `content-type` (nếu máy chủ có khai).
 ///
@@ -71,9 +185,13 @@ pub struct FetchedPage {
 pub enum FetchError {
     /// Chuỗi đưa vào không phải một URL tuyệt đối hợp lệ.
     InvalidUrl { detail: String },
-    /// `redirect::Policy::custom` chặn một chuyển hướng sang host KHÁC host của chính URL
-    /// gốc — máy chủ đích chưa từng nhận kết nối nào.
-    RedirectBlockedCrossHost,
+    /// 🔵 **Story 6.8 — tên cũ `RedirectBlockedCrossHost`, mệnh đề đổi cùng tên.** Host của
+    /// URL gốc, HOẶC host của một chặng chuyển hướng, không nằm trong [`Allowlist`] cho
+    /// [`ResourceKind`] đang xin (AD-41) — máy chủ đích chưa từng nhận kết nối nào. Không còn
+    /// đúng nghĩa "khác host": hai host CÙNG tầng 1 chuyển hướng qua lại nhau được PHÉP (§Design
+    /// Notes spec 6.8) — biến thể này chỉ bắn khi allowlist thật sự từ chối, bất kể host đó có
+    /// trùng URL gốc hay không.
+    NotAllowlisted,
     /// Máy chủ trả một mã lỗi HTTP (4xx/5xx).
     HttpStatus { status: u16 },
     /// Thân trả về vượt [`MAX_RESPONSE_BYTES`] — đọc dừng NGAY, không nạp trọn.
@@ -90,64 +208,108 @@ pub enum FetchError {
 /// Tải MỘT trang. **0 dòng phân tích nội dung** — chỗ gọi chịu trách nhiệm mọi việc CÒN LẠI
 /// (kiểm `content-type`, bóc nội dung).
 ///
-/// Thứ tự: phân giải URL tuyệt đối → dựng client với chính sách chuyển hướng chỉ-cùng-host
-/// → gửi yêu cầu → nếu bị CHẶN ở một chuyển hướng thì trả `RedirectBlockedCrossHost` → nếu
-/// mã trạng thái là lỗi thì trả `HttpStatus` → đọc thân qua [`Read`] (KHÔNG `.bytes()`/
-/// `.text()`) theo khối, dừng NGAY khi vượt [`MAX_RESPONSE_BYTES`].
-pub fn fetch(url: &str) -> Result<FetchedPage, FetchError> {
-    let parsed = reqwest::Url::parse(url).map_err(|e| FetchError::InvalidUrl { detail: e.to_string() })?;
+/// 🔵 **Story 6.8 — `Fetcher` là chỗ DUY NHẤT cưỡng chế AD-41 (§Always spec 6.8).** `allowlist`
+/// + `kind` đi vào TỪ THAM SỐ, không phải một trạng thái toàn cục — mỗi lời gọi tự mang theo
+/// đủ dữ kiện để quyết định, đúng "allowlist sống đúng một lần nhập" (§Design Notes spec 6.8).
+///
+/// Thứ tự: phân giải URL tuyệt đối → vòng lặp thủ công tối đa [`MAX_REDIRECTS`] `+ 1` chặng,
+/// MỖI chặng (kể cả chặng ĐẦU, trước khi có bất kỳ kết nối nào) hỏi `allowlist` TRƯỚC khi gửi
+/// (từ chối ⇒ `NotAllowlisted`, đích đó nhận ĐÚNG 0 kết nối) → gửi qua [`shared_client`] với
+/// `redirect(Policy::none())` (chính bản thân `reqwest` không tự theo chuyển hướng nữa — vòng
+/// lặp ở đây tự quyết định có theo hay không) → một 3xx MANG `Location` hợp lệ thì lặp tiếp
+/// với URL đó → một 3xx KHÔNG `Location` (hoặc `Location` không phân giải được) là phản hồi
+/// CUỐI, coi như `HttpStatus` → mã lỗi HTTP khác trả `HttpStatus` → đọc thân qua [`Read`]
+/// (KHÔNG `.bytes()`/`.text()`) theo khối, dừng NGAY khi vượt [`MAX_RESPONSE_BYTES`].
+///
+/// Trả về CẢ nhật ký domain đã phát sinh trong lượt gọi này (một bản ghi cho URL gốc, cộng
+/// một bản ghi cho MỖI chặng chuyển hướng máy chủ THẬT SỰ thử đi tới — §Always spec 6.8: "một
+/// bản ghi cho mọi lời gọi, cả cho phép lẫn từ chối") — chỗ gọi (`commands::project`) nối
+/// chúng vào [`super::domain_log::DomainLogState`] của phiên chạy. `fetch` KHÔNG tự ghi vào
+/// state đó: nó là một hàm THUẦN (0 `tauri::`, xem doc-comment đầu tệp `mod.rs`), và log
+/// SỐNG theo phiên `AppHandle` mà chỉ tầng `commands::project`/`lib.rs` chạm tới được.
+pub fn fetch(
+    url: &str,
+    allowlist: &Allowlist,
+    kind: ResourceKind,
+) -> (Result<FetchedPage, FetchError>, Vec<DomainLogEntry>) {
+    let mut log: Vec<DomainLogEntry> = Vec::new();
 
-    // Chỉ host CỦA CHÍNH URL gốc được phép đi tiếp — mọi chuyển hướng sang host khác bị
-    // chặn TẠI CHẶNG (AD-41). So sánh HOST, không PORT — khác bàn đo 6.1 (dùng port để giả
-    // lập "host khác" trên cùng máy loopback); ở đây đã có host thật để so trực tiếp.
-    let origin_host = parsed.host_str().map(str::to_owned);
-    // Cờ CHÍNH SÁCH tự đặt khi nó THẬT SỰ chặn một chặng khác host — dùng cờ này (không dùng
-    // `status().is_redirection()` một mình) để nhận diện "bị chặn" sau `send()` (P3 vòng rà
-    // đối kháng bước 4): một 3xx LÀNH (300 Multiple Choices, 304, hoặc một 3xx không có
-    // `Location`) cũng khớp `is_redirection()` dù chưa từng bị chính sách này chạm tới.
-    let blocked_cross_host = Arc::new(AtomicBool::new(false));
-    let blocked_cross_host_in_policy = Arc::clone(&blocked_cross_host);
-    let policy = reqwest::redirect::Policy::custom(move |attempt| {
-        if attempt.previous().len() > MAX_SAME_HOST_REDIRECTS {
-            return attempt.error("qua tran so chang chuyen huong cung host (P2)");
+    let mut current = match reqwest::Url::parse(url) {
+        Ok(p) => p,
+        Err(e) => return (Err(FetchError::InvalidUrl { detail: e.to_string() }), log),
+    };
+
+    let client = match shared_client() {
+        Ok(c) => c,
+        Err(detail) => return (Err(FetchError::Other { detail: detail.to_owned() }), log),
+    };
+
+    // 🔵 Vòng lặp thủ công — thay `redirect::Policy::custom` (xem doc-comment đầu tệp "MỘT
+    // CLIENT DÙNG CHUNG"). Chặng đầu (`redirects_followed == 0`, chưa phải một chuyển hướng)
+    // cộng tối đa `MAX_REDIRECTS` lần THEO một chuyển hướng — cùng ngân sách
+    // `Policy::limited(MAX_REDIRECTS)` của `reqwest` từng cấp trước bản vá này.
+    let mut redirects_followed: usize = 0;
+    let resp = loop {
+        let Some(host) = current.host_str().map(str::to_owned) else {
+            return (
+                Err(FetchError::InvalidUrl { detail: "url khong co host".to_owned() }),
+                log,
+            );
+        };
+
+        // 🔴 AD-41 — host của chặng NÀY (chặng đầu HOẶC một đích chuyển hướng) bị hỏi
+        // allowlist TRƯỚC khi `client.get(...).send()` được gọi. Từ chối ở đây nghĩa là ĐÚNG
+        // 0 kết nối TCP mở ra tới host đó — không có `send()` nào chạy cho nó.
+        match allowlist.decide(&host, kind) {
+            AllowlistDecision::Denied => {
+                log.push(DomainLogEntry::new(now_epoch_ms(), host, kind, DomainLogDecision::Denied));
+                return (Err(FetchError::NotAllowlisted), log);
+            }
+            AllowlistDecision::Allowed(tier) => {
+                log.push(DomainLogEntry::new(now_epoch_ms(), host, kind, DomainLogDecision::Allowed(tier)));
+            }
         }
-        if attempt.url().host_str() == origin_host.as_deref() {
-            attempt.follow()
-        } else {
-            blocked_cross_host_in_policy.store(true, Ordering::SeqCst);
-            attempt.stop()
+
+        let resp = match client.get(current.clone()).send() {
+            Ok(r) => r,
+            Err(e) => return (Err(classify_send_error(e)), log),
+        };
+
+        if !resp.status().is_redirection() {
+            break resp;
         }
-    });
+        // Một 3xx không mang `Location` (hoặc `Location` không phân giải được thành một URL
+        // hợp lệ) là phản hồi CUỐI, không phải một chuyển hướng đang chờ theo — coi như một mã
+        // lỗi HTTP, cùng khuôn 4xx/5xx bên dưới (P3 vòng rà đối kháng bước 4 của Story 6.7: một
+        // 3xx LÀNH, ví dụ 304, không được báo sai thành `NotAllowlisted`).
+        let Some(location) = resp.headers().get(reqwest::header::LOCATION).and_then(|v| v.to_str().ok()) else {
+            return (Err(FetchError::HttpStatus { status: resp.status().as_u16() }), log);
+        };
+        let Ok(next) = current.join(location) else {
+            return (Err(FetchError::HttpStatus { status: resp.status().as_u16() }), log);
+        };
 
-    let client = reqwest::blocking::Client::builder()
-        .redirect(policy)
-        .timeout(REQUEST_TIMEOUT)
-        .build()
-        .map_err(|e| FetchError::Other { detail: e.to_string() })?;
+        current = next;
+        // `redirects_followed` đếm số chặng đã THEO (không tính chặng đầu) — so bằng
+        // `MAX_REDIRECTS` ở đầu vòng lặp qua chính số lần lặp đã chạy; đếm tường minh ở đây để
+        // không lệ thuộc lại một cơ chế đếm nội bộ của `reqwest`.
+        redirects_followed += 1;
+        if redirects_followed > MAX_REDIRECTS {
+            return (
+                Err(FetchError::Other { detail: "qua tran so chang chuyen huong (P2)".to_owned() }),
+                log,
+            );
+        }
+    };
 
-    let resp = client.get(parsed).send().map_err(classify_send_error)?;
-
-    // `Policy::stop()` KHÔNG biến thành một `Err` — `send()` trả `Ok` mang chính response
-    // 3xx đã bị chặn (header `Location` còn nguyên). Chỉ cờ `blocked_cross_host` (đặt bởi
-    // CHÍNH policy phía trên) mới xác nhận "đây LÀ chuyển hướng bị chặn" — không phải mọi
-    // `status().is_redirection()` (P3 vòng rà đối kháng bước 4).
-    if blocked_cross_host.load(Ordering::SeqCst) {
-        return Err(FetchError::RedirectBlockedCrossHost);
-    }
-    // Một 3xx còn lại (không bị chính sách chặn — máy chủ tự trả nó làm phản hồi CUỐI, ví dụ
-    // không có `Location`, hoặc 304) không phải nội dung dùng được cho `Extractor` — coi như
-    // một mã lỗi HTTP, cùng khuôn 4xx/5xx bên dưới. `error_for_status()` không tự làm việc
-    // này (nó chỉ bắt 4xx/5xx), nên kiểm status TRỰC TIẾP trước khi gọi nó.
-    if resp.status().is_redirection() {
-        return Err(FetchError::HttpStatus { status: resp.status().as_u16() });
-    }
     let mut resp = match resp.error_for_status() {
         Ok(r) => r,
         Err(e) => {
-            return Err(match e.status() {
+            let err = match e.status() {
                 Some(status) => FetchError::HttpStatus { status: status.as_u16() },
                 None => classify_send_error(e),
-            });
+            };
+            return (Err(err), log);
         }
     };
 
@@ -166,14 +328,14 @@ pub fn fetch(url: &str) -> Result<FetchedPage, FetchError> {
                 out.extend_from_slice(&buf[..n]);
                 if out.len() > MAX_RESPONSE_BYTES {
                     drop(resp);
-                    return Err(FetchError::TooLarge);
+                    return (Err(FetchError::TooLarge), log);
                 }
             }
-            Err(e) => return Err(FetchError::Other { detail: e.to_string() }),
+            Err(e) => return (Err(FetchError::Other { detail: e.to_string() }), log),
         }
     }
 
-    Ok(FetchedPage { bytes: out, content_type })
+    (Ok(FetchedPage { bytes: out, content_type }), log)
 }
 
 fn classify_send_error(e: reqwest::Error) -> FetchError {

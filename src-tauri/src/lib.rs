@@ -649,6 +649,9 @@ pub fn run() {
             crate::commands::project::wire::start_url_import,
             crate::commands::project::wire::reload_url_import_item,
             crate::commands::project::wire::remove_url_import_item,
+            // Story 6.8 (NFR19, AD-41) -- doc nhat ky domain cua ca phien chay, cho Cai dat
+            // > Quyen rieng tu. Khong async -- doc mot Mutex<Vec<_>> trong bo nho, 0 mang.
+            crate::commands::project::wire::list_domain_log,
             // Story 6.5 -- luat lam sach luc nhap (FR124, AD-18). Nam vo: liet hai tang da
             // hop nhat · them · sua · xoa · bat/tat -- bon vo sau dinh tuyen theo tier nguoi
             // dung chon, danh tinh mot luat la CAP (tier, id).
@@ -1050,6 +1053,12 @@ fn open_work_slot(app: &tauri::App) {
     // PendingImportSource trong bo nho"). Dong bo hai o nay la viec cua
     // commands::project::sync_pending_from_url_items, khong phai mot rang buoc lap o day.
     app.manage(crate::commands::project::UrlImportItemsState::new(None));
+    // Story 6.8 (NFR19, AD-41) -- nhat ky domain THO cua CA PHIEN CHAY ung dung, khong theo
+    // Tac pham dang mo (§Always spec 6.8: "song theo phien chay ung dung"). `&tauri::App`
+    // chi co o `setup` -- day la nguyen nhan dung phia doi tuong luc chay ket luan ra dung
+    // pham vi la PHIEN CHAY, khong phai mot cau chon tuy y. `.manage` DUNG MOT LAN o day,
+    // khong o dau khac trong toan crate.
+    app.manage(crate::core::webimport::DomainLogState::new(Vec::new()));
 }
 
 /// Mở `$APPDATA/library-index.db` và đưa nó vào state — **Story 5.2**, cùng khuôn

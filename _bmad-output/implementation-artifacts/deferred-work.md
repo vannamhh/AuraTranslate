@@ -9939,8 +9939,14 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   link hai lần hôm nay cho hai Chương giống hệt, tải hai lần qua mạng. Không hàng nào của I/O
   Matrix nói về ca này, không ca test nào ghim nó ⇒ đây là một hành vi CHƯA AI CHỌN, không phải
   một hành vi đã chốt. ⚠️ Liên quan AD-41 *"không tải lại ảnh đã có"* — cùng loại câu hỏi
-  (khử trùng theo khoá gì) ở một tầng khác. **Chủ: Story 6.8** — story sở hữu allowlist và
-  nhật ký domain, tức nơi "đã gọi domain/URL này chưa" lần đầu có một chỗ để sống.
+  (khử trùng theo khoá gì) ở một tầng khác. 🔵 **SỬA 2026-09-07 (Story 6.8) — mệnh đề "Chủ:
+  Story 6.8" ở dòng ngay trên đã HẾT ĐÚNG: Story 6.8 đã chạy và KHÔNG nhận câu hỏi này** —
+  §Never của spec 6.8 nói thẳng: *"Không khử trùng URL trùng lặp — quyết định sản phẩm, chưa
+  ai chọn"*. Allowlist/nhật ký domain của 6.8 dựng KHÔNG dựa vào một khái niệm "đã gọi
+  domain/URL này chưa" (allowlist là TẬP host, không phải một bộ nhớ lịch sử cuộc gọi; nhật
+  ký ghi THÔ mọi lần gọi, không khử trùng gì). **Chủ: Ice** — đây vẫn là một quyết định sản
+  phẩm (khử trùng theo khoá gì: URL nguyên văn, URL chuẩn hoá, hay nội dung sau khi tải), và
+  chưa story nào nhận nó.
 
 - ⚠️ **Tầng 2 của màn xem trước chỉ hiện văn bản đã bóc của Chương ĐẦU.** Với một danh sách N
   link, tải lại hay soát một mục thứ k > 1 không làm tầng 2 đổi gì — người dùng thao tác trên
@@ -9976,3 +9982,44 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   tạo client chứ không phải chờ mạng. Chưa đo trên danh sách lớn. Dùng LẠI một client cho cả
   lượt nhập là hình dạng hiển nhiên hơn, nhưng nó chạm chính sách chuyển hướng (mỗi URL có một
   `origin_host` riêng) nên không phải một dòng sửa. **Chủ: Story 6.18.**
+
+## Deferred from: 6-8-allowlist-mang-hai-tang-va-nhat-ky-domain (2026-09-07)
+
+- ⚠️ **AC "không tải lại ảnh đã có" (AD-41 spine `:536`) KHÔNG dựng được ở story này.** Story
+  6.8 dựng allowlist hai tầng + nhật ký domain, nhưng **0** bảng ảnh, **0** cột `source_url`
+  tồn tại trong lược đồ 19 — không có gì để mà so sánh "đã có" với. Bản thân việc TẢI ảnh
+  (`ResourceKind::Image`) cũng **0** chỗ gọi sản phẩm hôm nay (§Never spec 6.8) — chỉ
+  `Allowlist::decide`/`fetcher.rs` phủ được bằng test. **Chủ: Story 6.11** — story sở hữu
+  `ASSET`/`source_url`, tức nơi "ảnh này đã có chưa" lần đầu có một cột để hỏi.
+
+- ⚠️ **Hàng tầng `AI` trong bảng nhật ký domain (mockup `web-import.html:439-443`) không
+  dựng.** `core/ai/mod.rs` hôm nay **10 dòng, 0 dòng mã** — điểm ra mạng thứ NHẤT của AD-15
+  (`TranslationProvider`) chưa tồn tại, nên chưa có gì để mà ghi vào CÙNG nhật ký này. Mockup
+  vẽ hàng đó là vẽ TRƯỚC (§Never spec 6.8). Domain log của Story 6.8 chỉ ghi lời gọi qua
+  `Fetcher` (điểm ra mạng thứ BA) — khi Epic 4 dựng `TranslationProvider` thật, câu hỏi "nó
+  có ghi vào CÙNG nhật ký này hay một nhật ký riêng" là một quyết định CHƯA CÓ AI CHỌN (không
+  chỉ một chỗ thiếu mã — bảng thiết kế `DomainLogEntry`/`ResourceKind` hôm nay không có chỗ
+  cho một điểm ra mạng không đi qua `Allowlist` hai tầng, vì AI không có khái niệm "tầng 1/
+  tầng 2" nào cả). **Chủ: Epic 4.**
+
+- ⚠️ **Khung Cài đặt — mười trên mười một mục nav CHƯA có thân, và việc GOM chúng vào MỘT
+  màn Cài đặt duy nhất chưa story nào nhận.** `SettingsOverlay.vue` (Story 6.8) dựng đủ 11 mục
+  nav + thân thật cho ĐÚNG một mục (`privacy`, AD-41/NFR19). Mười mục còn lại đã có NĂNG LỰC
+  thật ở NƠI KHÁC trong ứng dụng — `GlossarySettingsOverlay.vue` (Story 3.5, ngưỡng quét
+  Glossary), `ShortcutsOverlay.vue` (Story 1.21, phím tắt), preset bố cục (Story 1.14) — hoặc
+  chưa dựng chút nào (AI/Prompt → Epic 4 · Translation Memory → Epic 7 · Chế độ đọc → Epic 5 ·
+  Dữ liệu & sao lưu/Từ điển & nguồn → Epic 1 · Cập nhật → Epic 10, đo từ `epics.md §
+  Traceability`, xem `settingsSectionOwnerLabel` trong `src/settingsState.ts`). **Việc GOM**
+  các bề mặt rời rạc đó vào một khung Cài đặt duy nhất — thay vì để `Ngưỡng quét Glossary`/
+  `Phím tắt` tiếp tục sống như những lớp phủ ĐỘC LẬP — là câu hỏi CHƯA CÓ AI CHỌN, và câu hỏi
+  đó **rộng hơn** bất kỳ Epic đơn lẻ nào ở trên (nó chạm TẤT CẢ chúng cùng lúc). **Chủ: Ice**
+  — quyết định sản phẩm "có gom hay không, gom lúc nào", không phải một chi tiết cài đặt.
+
+- ⚠️ **Thứ tự và tên 11 mục nav Cài đặt là một quyết định TẠM, không phải một lời chốt.**
+  §Ask First của spec 6.8 nêu đích danh câu hỏi này CHƯA CÓ CÂU TRẢ LỜI. Lượt thi công giữ
+  nguyên thứ tự 10 mục của mockup (`settings.html:145-156`) và thêm `privacy` vào CUỐI (lựa
+  chọn ít giả định nhất) — xem doc-comment đầu `src/settingsState.ts`. Cùng câu hỏi đó,
+  `Ngưỡng quét Glossary` (`vi.json:179`, hôm nay là lớp phủ RIÊNG, Story 3.5) đã KHÔNG được
+  dọn vào mục `glossary` của Cài đặt — mục đó vẫn rỗng như chín mục kia. **Chủ: Ice** — cần
+  một câu trả lời tường minh trước khi một story sau này viết lại thứ tự/coi thứ tự này là
+  đã chốt.

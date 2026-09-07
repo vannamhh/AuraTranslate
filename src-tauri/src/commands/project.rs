@@ -1964,13 +1964,59 @@ impl From<&UrlImportItem> for UrlImportItemWire {
 pub struct UrlImportBatchWire {
     pub items: Vec<UrlImportItemWire>,
     pub encoding_preview: Option<ImportEncodingPreview>,
+    /// 🔵 **THÊM Story 6.8** — số domain PHÂN BIỆT trong nhật ký của CẢ PHIÊN CHẠY (không chỉ
+    /// lượt gọi vừa rồi) tại thời điểm trả lời — chân màn xem trước đọc trực tiếp trường này
+    /// (mockup *"Đã gọi **N** domain · xem"*), không một lệnh IPC thứ hai chỉ để có một số.
+    /// `wire::start_url_import`/`reload_url_import_item`/`remove_url_import_item` cùng tính
+    /// qua `wire::domain_log_domain_count` — ba vỏ, một nguồn.
+    pub domain_log_domain_count: usize,
+}
+
+/// Hình dạng DÂY của một [`webimport::DomainLogEntry`] — Story 6.8, NFR19. `kind`/`decision`
+/// đi qua như DỮ LIỆU (chuỗi định danh máy, AD-21), KHÔNG một câu — cùng khuôn
+/// `CleanupRuleTierWire` (`Global`/`Work`, `cleanupTierLabelKey` phía TS ánh xạ sang câu).
+/// Frontend dựng câu "vì sao được phép/từ chối" bằng một hàm THUẦN có nhánh mặc định, không
+/// nhận nguyên văn từ Rust.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct DomainLogEntryWire {
+    pub at_epoch_ms: u64,
+    pub domain: String,
+    /// `"document"` | `"image"` — khớp [`webimport::ResourceKind`], `serde(rename_all =
+    /// "snake_case")` trên chính kiểu đó (định nghĩa ở `core::webimport::allowlist`).
+    pub kind: webimport::ResourceKind,
+    pub allowed: bool,
+    /// `"tier1"` | `"tier2"` | `"denied"` — tầng đã CẤP PHÉP khi `allowed == true`; luôn
+    /// `"denied"` khi `allowed == false`. Một trường DUY NHẤT (không `Option<Tier>` +
+    /// `bool` rời) để phía TS không phải tự đối chiếu hai trường có nhất quán không.
+    pub tier: &'static str,
+}
+
+impl From<&webimport::DomainLogEntry> for DomainLogEntryWire {
+    fn from(entry: &webimport::DomainLogEntry) -> Self {
+        let (allowed, tier) = match entry.decision {
+            webimport::DomainLogDecision::Allowed(webimport::Tier::One) => (true, "tier1"),
+            webimport::DomainLogDecision::Allowed(webimport::Tier::Two) => (true, "tier2"),
+            webimport::DomainLogDecision::Denied => (false, "denied"),
+        };
+        DomainLogEntryWire { at_epoch_ms: entry.at_epoch_ms, domain: entry.domain.clone(), kind: entry.kind, allowed, tier }
+    }
 }
 
 /// Tải MỘT URL và phân loại kết quả thành [`UrlImportItem`] — **0 dòng phân tích nội dung
 /// ngoài việc đọc header `content-type`** (kiểm giao thức, không phải nội dung; xem
-/// doc-comment [`webimport::looks_like_html`]).
-fn fetch_url_import_item(url: &str) -> UrlImportItem {
-    match webimport::fetch(url) {
+/// doc-comment [`webimport::looks_like_html`]). Trả kèm nhật ký domain phát sinh từ CHÍNH
+/// lượt gọi này (§Always spec 6.8: "một bản ghi cho mọi lời gọi") — chỗ gọi nối vào
+/// [`webimport::DomainLogState`] của phiên chạy; hàm này (và [`webimport::fetch`] bên dưới
+/// nó) không tự ghi vào state Tauri nào — cả hai đều là hàm THUẦN.
+///
+/// 🔴 **`ResourceKind::Page` LUÔN LUÔN** — đây là chỗ gọi sản phẩm DUY NHẤT của
+/// [`webimport::fetch`] hôm nay, và nó tải đúng những gì người dùng đã dán (một bài viết),
+/// không bao giờ một ảnh. `ResourceKind::Image` chỉ có mặt trong kiểu để bốn mệnh đề bắt
+/// buộc của AD-41 phát biểu được (xem doc-comment đầu `core::webimport::allowlist`) — Story
+/// 6.11 sẽ là chỗ gọi sản phẩm ĐẦU TIÊN của nó.
+fn fetch_url_import_item(url: &str, allowlist: &webimport::Allowlist) -> (UrlImportItem, Vec<webimport::DomainLogEntry>) {
+    let (result, log) = webimport::fetch(url, allowlist, webimport::ResourceKind::Page);
+    let item = match result {
         Ok(page) => {
             if webimport::looks_like_html(page.content_type.as_deref()) {
                 UrlImportItem { url: url.to_owned(), raw: Some(page.bytes), error: None }
@@ -1994,7 +2040,8 @@ fn fetch_url_import_item(url: &str) -> UrlImportItem {
                 error: Some(web_import_item_failure_ipc_error(url, reason, http_status)),
             }
         }
-    }
+    };
+    (item, log)
 }
 
 /// Bước ĐẦU VÀO — TRIM mỗi dòng, BỎ dòng rỗng khi đếm (I/O Matrix spec 6.7: "Dòng rỗng bỏ
@@ -2022,12 +2069,33 @@ fn trim_like_the_paste_box(line: &str) -> &str {
     line.trim_matches(|c: char| c.is_whitespace() || c == '\u{FEFF}')
 }
 
-pub fn fetch_url_import_items(urls: Vec<String>) -> Vec<UrlImportItem> {
-    urls.into_iter()
-        .map(|s| trim_like_the_paste_box(&s).to_owned())
-        .filter(|s| !s.is_empty())
-        .map(|u| fetch_url_import_item(&u))
-        .collect()
+/// 🔵 **Story 6.8** — chữ ký đổi: trả kèm nhật ký domain của CẢ lượt (`log`), và tự dựng
+/// [`webimport::Allowlist`] từ CHÍNH `urls` đã TRIM/lọc rỗng — allowlist một-lần-nhập đúng
+/// theo CẤU TẠO (§Design Notes spec 6.8): không có `Allowlist` nào tồn tại NGOÀI thân hàm
+/// này, nên không có gì để mà rò rỉ sang lượt nhập kế tiếp.
+pub fn fetch_url_import_items(urls: Vec<String>) -> (Vec<UrlImportItem>, Vec<webimport::DomainLogEntry>) {
+    let trimmed: Vec<String> =
+        urls.into_iter().map(|s| trim_like_the_paste_box(&s).to_owned()).filter(|s| !s.is_empty()).collect();
+    let allowlist = webimport::Allowlist::from_urls(trimmed.iter().map(String::as_str));
+
+    let mut log = Vec::new();
+    let items = trimmed
+        .into_iter()
+        .map(|u| {
+            let (item, entries) = fetch_url_import_item(&u, &allowlist);
+            log.extend(entries);
+            item
+        })
+        .collect();
+    (items, log)
+}
+
+/// Allowlist cho một lượt TẢI LẠI một mục — dựng từ URL của **TOÀN BỘ** danh sách hiện tại
+/// (`items`), không chỉ URL của mục đang tải lại: allowlist là một-lần-NHẬP, và tải lại vẫn
+/// thuộc CÙNG lần nhập với lượt [`fetch_url_import_items`] ban đầu (`UrlImportItemsState`
+/// giữ nguyên danh sách đó giữa các lượt gọi — xem doc-comment [`UrlImportItemsState`]).
+fn allowlist_from_items(items: &[UrlImportItem]) -> webimport::Allowlist {
+    webimport::Allowlist::from_urls(items.iter().map(|it| it.url.as_str()))
 }
 
 /// Dựng [`PipelineShape::Chapters`] từ `items` khi và CHỈ KHI danh sách KHÔNG rỗng, KHÔNG mục
@@ -2077,14 +2145,18 @@ fn url_import_encoding_preview(
 
 /// Dựng [`UrlImportBatchWire`] từ trạng thái HIỆN TẠI — dùng chung bởi cả ba lệnh
 /// (tải/tải lại/bỏ một mục) để không có ba lượt lắp dây khác nhau cho CÙNG một hình dạng.
+/// `domain_log_domain_count` đi vào từ THAM SỐ (đọc từ [`webimport::DomainLogState`] ở lớp
+/// vỏ) — hàm này ở lại **thuần**, không tự cầm `AppHandle`/`State` nào.
 fn url_import_batch_wire(
     items: &[UrlImportItem],
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
+    domain_log_domain_count: usize,
 ) -> UrlImportBatchWire {
     UrlImportBatchWire {
         items: items.iter().map(UrlImportItemWire::from).collect(),
         encoding_preview: url_import_encoding_preview(items, source_lang, cleanup_rules),
+        domain_log_domain_count,
     }
 }
 
@@ -3147,6 +3219,7 @@ pub mod wire {
     use crate::core::library::indexer::Indexer;
     use crate::core::scope::ScopeResolver;
     use crate::core::store::Store;
+    use crate::core::webimport;
 
     /// Luật làm sạch ĐÃ PHÂN GIẢI (hai tầng hợp nhất qua `ScopeResolver::apply_merge`) cho
     /// lượt gọi HIỆN TẠI — Story 6.5. Đọc CẢ HAI tầng MỖI LƯỢT gọi (không cache): `global.db`
@@ -3184,6 +3257,45 @@ pub mod wire {
             Err(err) => {
                 eprintln!("cleanup[rules] phan giai that bai, roi ve 0 luat: {err}");
                 Vec::new()
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Story 6.8 (NFR19, AD-41) — nhật ký domain: nối bản ghi + đọc số domain phân biệt.
+    // ─────────────────────────────────────────────────────────────────────────
+    //
+    // 🔴 Cả hai hàm dưới đây coi `webimport::DomainLogState` VẮNG MẶT là một lỗi LẮP DÂY
+    // (`lib.rs::open_work_slot` không `.manage` nó), không phải một lý do để chặn thao tác
+    // sản phẩm chính (tải/tải lại một URL) — cùng triết lý `resolve_cleanup_rules` ngay
+    // trên: một tiện ích bổ trợ (ở đây là TÍNH MINH BẠCH, không phải đường ghi chính) trượt
+    // thì rơi về giá trị AN TOÀN kèm chẩn đoán, không làm sập cả lượt IPC.
+
+    /// Nối `entries` vào nhật ký của phiên chạy — best-effort, xem lý do ở trên.
+    fn append_domain_log(app: &tauri::AppHandle, entries: Vec<webimport::DomainLogEntry>) {
+        use tauri::Manager as _;
+
+        if entries.is_empty() {
+            return;
+        }
+        match app.try_state::<webimport::DomainLogState>() {
+            Some(state) => webimport::append_domain_log_entries(&state, entries),
+            None => eprintln!(
+                "webimport[domain_log] DomainLogState chua duoc quan ly - bo qua {} ban ghi",
+                entries.len()
+            ),
+        }
+    }
+
+    /// Số domain PHÂN BIỆT trong nhật ký của cả phiên chạy — best-effort, xem lý do ở trên.
+    fn domain_log_domain_count(app: &tauri::AppHandle) -> usize {
+        use tauri::Manager as _;
+
+        match app.try_state::<webimport::DomainLogState>() {
+            Some(state) => webimport::distinct_domain_count(&state),
+            None => {
+                eprintln!("webimport[domain_log] DomainLogState chua duoc quan ly - dem tra ve 0");
+                0
             }
         }
     }
@@ -3579,9 +3691,10 @@ pub mod wire {
         };
         let cleanup_rules = resolve_cleanup_rules(&app);
 
-        let items = super::fetch_url_import_items(urls);
+        let (items, log_entries) = super::fetch_url_import_items(urls);
+        append_domain_log(&app, log_entries);
         super::sync_pending_from_url_items(&pending_state, &items);
-        let wire = super::url_import_batch_wire(&items, &source_lang, &cleanup_rules);
+        let wire = super::url_import_batch_wire(&items, &source_lang, &cleanup_rules, domain_log_domain_count(&app));
 
         let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         *guard = Some(items);
@@ -3614,12 +3727,19 @@ pub mod wire {
             return Err(super::url_import_internal_error());
         };
         // Đúng MỘT lời gọi mạng — `fetch_url_import_item` gọi thẳng `webimport::fetch`,
-        // không có vòng lặp nào bọc quanh nó ở đây.
-        if let Some(slot) = items.get_mut(index) {
-            *slot = super::fetch_url_import_item(&url);
-        }
+        // không có vòng lặp nào bọc quanh nó ở đây. Allowlist dựng từ TOÀN BỘ danh sách hiện
+        // tại (§Always spec 6.8) — xem doc-comment [`super::allowlist_from_items`].
+        let allowlist = super::allowlist_from_items(items.as_slice());
+        let log_entries = if let Some(slot) = items.get_mut(index) {
+            let (new_item, log_entries) = super::fetch_url_import_item(&url, &allowlist);
+            *slot = new_item;
+            log_entries
+        } else {
+            Vec::new()
+        };
+        append_domain_log(&app, log_entries);
         super::sync_pending_from_url_items(&pending_state, items);
-        Ok(super::url_import_batch_wire(items, &source_lang, &cleanup_rules))
+        Ok(super::url_import_batch_wire(items, &source_lang, &cleanup_rules, domain_log_domain_count(&app)))
     }
 
     /// Vỏ IPC — bỏ MỘT mục khỏi danh sách (I/O Matrix spec 6.7: "N−1 link · N−1 Chương — hai
@@ -3649,6 +3769,29 @@ pub mod wire {
         }
         items.remove(index);
         super::sync_pending_from_url_items(&pending_state, items);
-        Ok(super::url_import_batch_wire(items, &source_lang, &cleanup_rules))
+        Ok(super::url_import_batch_wire(items, &source_lang, &cleanup_rules, domain_log_domain_count(&app)))
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Story 6.8 (NFR19) — đọc TOÀN BỘ nhật ký domain của phiên chạy, cho Cài đặt › Quyền
+    // riêng tư. KHÔNG `(async)` — chỉ đọc một `Mutex<Vec<_>>` trong bộ nhớ, 0 mạng, 0 đĩa.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Vỏ IPC — đọc TOÀN BỘ nhật ký domain THÔ của phiên chạy hiện tại (§Always spec 6.8:
+    /// "không phân trang, không xem thêm che bớt hàng" — trả nguyên mảng, gộp là việc của
+    /// tầng trình bày). Thiếu [`webimport::DomainLogState`] (lỗi lắp dây) ⇒ mảng RỖNG, cùng
+    /// khuôn best-effort của `append_domain_log`/`domain_log_domain_count` — một màn Cài đặt
+    /// trống vẫn tốt hơn một lỗi chặn cả lớp phủ vì một sự cố ở một tính năng phụ trợ.
+    #[tauri::command]
+    pub fn list_domain_log(app: tauri::AppHandle) -> Vec<super::DomainLogEntryWire> {
+        use tauri::Manager as _;
+
+        match app.try_state::<webimport::DomainLogState>() {
+            Some(state) => webimport::read_domain_log(&state).iter().map(super::DomainLogEntryWire::from).collect(),
+            None => {
+                eprintln!("webimport[domain_log] DomainLogState chua duoc quan ly - tra ve mang rong");
+                Vec::new()
+            }
+        }
     }
 }

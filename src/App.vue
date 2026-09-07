@@ -66,6 +66,10 @@ import GlossaryImportOverlay from './GlossaryImportOverlay.vue'
 // `LibraryMode.vue` (nộp form) nhưng dựng ở cùng tầng gốc như mọi lớp phủ khác — luật của
 // kho: "LibraryMode.vue không mở lớp phủ" (§Code Map spec 6.3).
 import ImportPreviewOverlay from './ImportPreviewOverlay.vue'
+// Story 6.8 (NFR19, AD-41) — lớp phủ "Cài đặt", lớp phủ THỨ CHÍN. Mở TỪ nút titlebar
+// (`data-settings-open`) VÀ từ dòng tóm tắt nhật ký domain ở chân `ImportPreviewOverlay`
+// (`settings.privacy.open`, mở THẲNG vào mục Quyền riêng tư) — hai cửa vào, một lớp phủ.
+import SettingsOverlay from './SettingsOverlay.vue'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -289,6 +293,20 @@ function focusOnPointerDown(event: MouseEvent) {
       >
         {{ t('command.glossary.manage.open') }}
       </button>
+
+      <!--
+        Story 6.8 — ĐƯỜNG VÀO lớp phủ Cài đặt. Cùng khuôn bốn nút ngay trên:
+        `data-settings-open` là đường lui của tiêu điểm (UX-DR17).
+      -->
+      <button
+        type="button"
+        class="titlebar-act"
+        data-settings-open
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('settings.open')"
+      >
+        {{ t('command.settings.open') }}
+      </button>
     </header>
 
     <!--
@@ -370,6 +388,9 @@ function focusOnPointerDown(event: MouseEvent) {
 
     <!-- Story 6.3 · FR126 — cùng khuôn: lớp phủ tự quản `v-if` qua `importPreviewIsOpen`. -->
     <ImportPreviewOverlay />
+
+    <!-- Story 6.8 · NFR19 — cùng khuôn: lớp phủ tự quản `v-if` qua `settingsOverlayIsOpen`. -->
+    <SettingsOverlay />
   </main>
 </template>
 

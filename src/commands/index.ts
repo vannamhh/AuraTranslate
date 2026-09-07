@@ -795,6 +795,15 @@ export type CommandDeps = {
   /** Huỷ lượt nhập đang xem trước. Handler của `glossary.import.cancel`. */
   cancelGlossaryImportPreview?: () => void
 
+  // ── Story 6.8 — lớp phủ "Cài đặt" (NFR19, AD-41) ────────────────────────────────
+  /** Mở lớp phủ vào mục ĐANG CHỌN gần nhất. Handler của `settings.open`. */
+  openSettings?: () => void
+  /** Mở lớp phủ THẲNG vào mục Quyền riêng tư. Handler của `settings.privacy.open` — dòng
+   * tóm tắt nhật ký domain ở chân `ImportPreviewOverlay.vue` dispatch command này. */
+  openSettingsToPrivacy?: () => void
+  /** Đóng lớp phủ — KHÔNG dọn nhật ký đã tải. Handler của `settings.close`. */
+  closeSettings?: () => void
+
   // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ─────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với mọi state module Vue thật khác ở trên: state
@@ -2808,6 +2817,54 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.import.cancel', 'cancelGlossaryImportPreview')
       }
       deps.cancelGlossaryImportPreview()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 6.8 — "CÀI ĐẶT" (NFR19, AD-41)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * `settings.open` mở lớp phủ vào mục ĐANG CHỌN gần nhất; `settings.privacy.open` mở
+   * THẲNG vào Quyền riêng tư — chỗ gọi DUY NHẤT là dòng tóm tắt nhật ký domain ở chân
+   * `ImportPreviewOverlay.vue` (§Always spec 6.8: dòng đó phải đi qua `dispatch`, cùng luật
+   * Kiểm A của `check:commands`). AC spec 6.8 đòi mở được "bằng nút titlebar VÀ bằng phím
+   * tắt" — `Mod+Comma` (quy ước Preferences macOS) đã thuộc `shortcuts.open`, nên
+   * `settings.open` dùng `Mod+Alt+Comma` (họ `Mod+Alt+…` đã dùng cho phần lớn lớp phủ khác,
+   * `Comma` là mã phím có sẵn trong `NAMED_CODES`, xem `shortcuts.open` ngay trên). Hai
+   * command còn lại giữ 0 hợp âm mặc định — tới được bằng nút titlebar/Tab bên trong lớp phủ.
+   */
+  target.register({
+    id: 'settings.open',
+    labelKey: 'command.settings.open',
+    keys: ['Mod+Alt+Comma'],
+    run: () => {
+      if (deps.openSettings === undefined) {
+        return portMissing('settings.open', 'openSettings')
+      }
+      deps.openSettings()
+    },
+  })
+  target.register({
+    id: 'settings.privacy.open',
+    labelKey: 'command.settings.privacy.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openSettingsToPrivacy === undefined) {
+        return portMissing('settings.privacy.open', 'openSettingsToPrivacy')
+      }
+      deps.openSettingsToPrivacy()
+    },
+  })
+  target.register({
+    id: 'settings.close',
+    labelKey: 'command.settings.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeSettings === undefined) {
+        return portMissing('settings.close', 'closeSettings')
+      }
+      deps.closeSettings()
     },
   })
 
