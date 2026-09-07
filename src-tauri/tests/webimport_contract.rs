@@ -16,8 +16,10 @@
 //! MỆNH ĐỀ — nó xanh nhờ *"không trong allowlist"*, không còn nhờ *"khác host"* (§Design
 //! Notes spec 6.8) — và một ca MỚI phủ chiều ngược lại (hai host CÙNG tầng 1 ⇒ theo được).
 
+use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -28,8 +30,8 @@ use auratranslate_lib::core::segment::import::{ImportError, web_import_item_fail
 use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
 use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
 use auratranslate_lib::core::webimport::{
-    Allowlist, DomainLogDecision, FetchError, ResourceKind, WebImportItemFailureReason, extract, fetch,
-    looks_like_html,
+    Allowlist, BlockBody, DomainLogDecision, FetchError, ResourceKind, WebImportItemFailureReason, extract,
+    fetch, looks_like_html,
 };
 
 /// Server tối giản: chấp nhận ĐÚNG MỘT kết nối, đọc và bỏ qua request, gọi `respond` để viết
@@ -233,12 +235,53 @@ fn a_dead_connection_is_classified_as_connect_failed_not_some_other_error() {
 // Ca 4 — bóc ra văn bản KHÔNG chứa `<` của thẻ
 // ═════════════════════════════════════════════════════════════════════════════════
 
+/// 🔴 **SỬA 2026-09-07 (Story 6.9) — mệnh đề đổi nghĩa khi `extract` trả một mô hình KHỐI,
+/// không còn một `String` phẳng.** Không nhánh `BlockBody` nào (kể cả `Image`, kể cả một khối
+/// `machine_kept == false` — "ornament" cũng đi qua đúng dây, đó là điểm của story này) được
+/// mang `<` của thẻ HTML gốc — AD-16 §Rule mục 1/2 áp cho TOÀN mô hình, không riêng phần
+/// "giữ".
 #[test]
 fn extracted_text_never_contains_an_angle_bracket_from_the_source_markup() {
-    let html = html_page_with_paragraphs();
-    let text = extract(&html, "https://example.com/bai-viet").expect("bóc thành công");
-    assert!(!text.contains('<'), "văn bản đã bóc không được chứa `<` của thẻ HTML: {text:?}");
-    assert!(text.contains("Doan mot"), "văn bản đã bóc phải giữ lại nội dung thật: {text:?}");
+    let html = "<html><head><title>Bai viet</title></head><body>\
+        <nav><a href=\"/menu\">Menu</a></nav>\
+        <article><h1>Tieu de bai viet</h1>\
+        <p>Doan mot co du chu de duoc Readability chon lam noi dung chinh cua trang, \
+        nhieu chu hon de vuot nguong do dai toi thieu can thiet.</p>\
+        <p>Doan hai tiep tuc noi dung that su cua bai viet, khong phai menu hay quang cao, \
+        du dai de dom_smoothie cham diem cao cho khoi nay mot cach ro rang.</p>\
+        </article>\
+        <aside><p>Binh luan cua doc gia, khong lien quan noi dung bai viet chinh, day chi la \
+        rac quanh bai de kiem tra bo loc co loai duoc no khong.</p></aside>\
+        </body></html>"
+        .to_owned();
+    let blocks = extract(&html, "https://example.com/bai-viet").expect("bóc thành công");
+    assert!(!blocks.is_empty(), "trang có nội dung thật phải cho ít nhất một khối");
+
+    let mut saw_kept_text = false;
+    for block in &blocks {
+        match &block.body {
+            BlockBody::Paragraph(text) | BlockBody::Caption(text) => {
+                assert!(!text.contains('<'), "thân khối không được chứa `<` của thẻ HTML: {text:?}");
+                if block.machine_kept {
+                    saw_kept_text = true;
+                }
+            }
+            BlockBody::Image { src, alt } => {
+                if let Some(src) = src {
+                    assert!(!src.contains('<'), "src ảnh không được chứa `<`: {src:?}");
+                }
+                if let Some(alt) = alt {
+                    assert!(!alt.contains('<'), "alt ảnh không được chứa `<`: {alt:?}");
+                }
+            }
+        }
+    }
+    assert!(saw_kept_text, "phải có ít nhất một khối `machine_kept` mang nội dung thật");
+    assert!(
+        blocks.iter().any(|b| !b.machine_kept),
+        "trang có `<nav>`/`<aside>` phải cho ít nhất một khối bị loại (ornament) — nếu không, \
+         ca này không kiểm được điều nó tuyên bố kiểm (phủ cả nhánh ornament)"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -984,4 +1027,85 @@ fn fetch_url_import_items_returns_one_domain_log_entry_per_item() {
     assert_eq!(items.len(), 2);
     assert!(items.iter().all(|it| it.error.is_none()), "hai host deu trong allowlist tu chinh danh sach");
     assert_eq!(log.len(), 2, "mot ban ghi nhat ky cho MOI muc, ca hai deu CHO PHEP");
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.9 — Đối chứng đỏ ② (§Verification spec 6.9): phủ khối trên BẢY mẫu bàn đo 6.1
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// `a07.html` có **0** thẻ `<p>` — ca quyết định của Task list spec 6.9 (bộ chọn khối vòng 1
+/// chỉ phủ `p, img, figcaption`, mất trắng nội dung dạng tiêu đề/danh sách của trang này).
+/// Đường dẫn TƯƠNG ĐỐI với `CARGO_MANIFEST_DIR` (`src-tauri/`).
+fn fixture_html(name: &str) -> String {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("_bmad-output")
+        .join("implementation-artifacts")
+        .join("6-1-ban-do")
+        .join("fixtures")
+        .join("html")
+        .join(name);
+    fs::read_to_string(&path).unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", path.display()))
+}
+
+/// Như trước — trả CHÍNH chuỗi `text_content` (cấu hình `TextMode::Formatted`, ĐÚNG khuôn
+/// `extractor::extract`), dùng làm mốc so BẰNG TỪNG KÝ TỰ, độc lập với mô hình khối —
+/// **THÊM 2026-09-07 (vòng rà bước 4, mục 12)** để so BẰNG TỪNG KÝ TỰ với văn bản ghép từ
+/// khối, không chỉ so ĐỘ DÀI.
+fn fixture_text_content(html: &str, url: &str) -> String {
+    let config = dom_smoothie::Config { text_mode: dom_smoothie::TextMode::Formatted, ..Default::default() };
+    let mut readability = dom_smoothie::Readability::new(html.to_owned(), Some(url), Some(config))
+        .expect("Readability::new");
+    let article = readability.parse().expect("parse");
+    article.text_content.to_string()
+}
+
+/// 🔴 **Đối chứng đỏ ② — phủ khối, bảy mẫu bàn đo 6.1.**
+///
+/// 🔴 **SỬA 2026-09-07 (vòng rà bước 4, mục 12) — sàn 60% ĐO YẾU HƠN điều AC thật sự đòi, và
+/// SAI CẢ CHO a07.** Bản trước chỉ hỏi "văn bản ghép có KHÔNG NGẮN HƠN ĐÁNG KỂ `text_content`
+/// không" (sàn 60% độ dài, áp cho SÁU mẫu a01-a06) — một ngưỡng GẦN ĐÚNG cho một cơ chế mà
+/// chính doc-comment đầu `extractor.rs` khai là SO KHỚP CHÍNH XÁC, không khoan dung. Đo LẠI
+/// cả sáu mẫu đó (không override — đúng điều kiện AC "trùng đúng đầu ra Story 6.7" áp):
+/// `joined == text_content` **THẬT SỰ đúng TỪNG KÝ TỰ trên cả sáu**, không chỉ "đủ gần" — sàn
+/// 60% vì vậy che mất một hồi quy thật (ví dụ một khối bị rớt/gán sai vị trí nhưng đủ ngắn để
+/// vẫn qua sàn 60%). Ca này giờ so BẰNG (`assert_eq!`) cho a01-a06, đúng độ mạnh mà AC đòi.
+///
+/// 🔴 `a07.html` (0 thẻ `<p>`) là ca QUYẾT ĐỊNH của Task list spec 6.9: trước bản vá gốc nó
+/// cho **0 khối** ⇒ Chương ghi xuống RỖNG. Ca ĐÓ đã đóng (assert "không rỗng" áp cho cả bảy
+/// mẫu, giữ NGUYÊN). 🔴 **Sàn 60% KHÔNG áp cho `a07.html` — đo thật (2026-09-07) cho ra
+/// 107/218 ký tự = 49%, DƯỚI 60%, một cách CHÍNH ĐÁNG, không phải một hồi quy cần vá.**
+/// `a07.html` là trang chủ (không phải bài viết) — chính doc-comment Task 1 của
+/// `extractor.rs` (Story 6.7) đã ghi nhận: nhãn điều hướng/thời gian đăng ("3小時"…)/tiêu đề
+/// mục ("熱門排行"…) chiếm gần hết `text_content` của CHÍNH Readability, và những nhãn NGẮN,
+/// LẶP LẠI đó (ví dụ ba khối cùng là "2小時") khớp CHÍNH XÁC ở NHIỀU vị trí — DP tối đa hoá
+/// tổng ký tự đôi khi phải BỎ một khớp ngắn để giữ trật tự cho một khớp khác nặng hơn (đúng
+/// cơ chế), và trên một trang TOÀN nhãn ngắn như thế này, phần "bỏ" đó cộng dồn thành gần một
+/// nửa. Không một hằng ngưỡng nào (60% hay khác) có nghĩa thật ở đây — ca này giữ ĐÚNG hai
+/// đối chứng mà spec đòi cho `a07` (không 0 khối, văn bản ghép không rỗng), không hơn.
+#[test]
+fn extract_covers_all_seven_bench_fixtures_without_losing_headings_or_list_items() {
+    for name in ["a01.html", "a02.html", "a03.html", "a04.html", "a05.html", "a06.html", "a07.html"] {
+        let html = fixture_html(name);
+        let url = format!("https://example.com/{name}");
+        let blocks = extract(&html, &url).unwrap_or_else(|e| panic!("{name}: extract that bai: {e:?}"));
+        assert!(!blocks.is_empty(), "{name}: phải cho ít nhất một khối");
+
+        let effective_kept: Vec<bool> = blocks.iter().map(|b| b.machine_kept).collect();
+        let joined = auratranslate_lib::core::segment::pipeline::join_kept_blocks(&blocks, &effective_kept);
+        assert!(!joined.trim().is_empty(), "{name}: văn bản ghép từ khối đang giữ không được rỗng");
+
+        if name == "a07.html" {
+            // Ngoại lệ CÓ CHỦ, xem doc-comment hàm này — hai đối chứng ngay trên (không rỗng
+            // khối/văn bản) là TẤT CẢ những gì có nghĩa thật cho riêng mẫu này.
+            continue;
+        }
+
+        let text_content = fixture_text_content(&html, &url);
+        assert_eq!(
+            joined, text_content,
+            "{name}: văn bản ghép từ khối (0 override) phải trùng ĐÚNG TỪNG KÝ TỰ với \
+             text_content -- đây là AC 'trùng đúng đầu ra Story 6.7', không phải một sàn %"
+        );
+    }
 }

@@ -56,6 +56,27 @@
 //! [`the_platform_document_exemption_does_not_swallow_a_compound_entity_name`]) — hẹp đúng
 //! bằng hình dạng thật, không rộng hơn.
 //!
+//! 🔵 **THÊM 2026-09-07 (Story 6.9) — hình dạng THỨ TƯ, cùng nguyên tắc, một crate NGOÀI
+//! khác.** `core/webimport/extractor.rs` cần kiểu `Document` của `dom_query` (mô hình DOM một
+//! trang HTML — hoàn toàn không liên quan "Tác phẩm") để duyệt lại HTML gốc bằng CSS
+//! selector.
+//!
+//! 🔴 **SỬA 2026-09-07 (vòng rà bước 4, mục 23) — câu giải thích BẢN TRƯỚC khai SAI.** Bản
+//! trước viết "Rust không cho phép đổi tên MỘT kiểu do crate khác `pub` khai" — SAI: `use
+//! dom_query::{Document as HtmlDocument, NodeId};` (đúng dòng `extractor.rs:87` của story
+//! này) chính là một phép đổi tên như vậy, và nó BIÊN DỊCH — cả tệp sau dòng đó gọi kiểu bằng
+//! `HtmlDocument`, không một lần `Document` trần nào còn cần thiết ở phần thân. Điều THẬT SỰ
+//! không tránh được, và là thứ khiến hình dạng thứ tư này vẫn phải tồn tại: CHÍNH DÒNG `use`
+//! đổi tên đó vẫn buộc phải đánh vần tên XUẤT GỐC của crate (`Document`, không phải bí danh)
+//! ở vế bên phải `as` — một bí danh chỉ đặt tên MỚI cho chỗ dùng, nó không xoá được nhu cầu
+//! nêu tên CŨ đúng một lần để trình biên dịch biết đang đổi tên cái gì. Cơ chế/phạm vi miễn
+//! trừ ([`is_dom_query_document_type_reference`]) không đổi — chỉ câu giải thích LÝ DO cần nó
+//! được viết lại cho khớp sự thật. [`is_dom_query_document_type_reference`] nhận diện đúng
+//! hai hình dạng THẬT đo được (`dom_query::Document::from(...)` VÀ dòng `use
+//! dom_query::{…Document…}`) — hẹp đúng bằng đó, không rộng hơn (xem ca đối chứng dương trong
+//! [`platform_apis_are_never_flagged`]: một `Document` TRẦN không kèm `dom_query::` vẫn bị
+//! bắt bình thường).
+//!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 🔴 HAI CÂY NGUỒN, HAI CÁCH BỎ COMMENT — VÌ SAO KHÔNG DÙNG CHUNG MỘT HÀM
 //! ─────────────────────────────────────────────────────────────────────────────
@@ -351,6 +372,28 @@ fn is_platform_document_type_reference(code: &str, at: usize) -> bool {
     i > 0 && bytes[i - 1] == b':'
 }
 
+/// **THÊM 2026-09-07 (Story 6.9)** — `code` mang `Document` tại byte-offset `at` như một
+/// THAM CHIẾU KIỂU CỦA `dom_query` (crate ngoài, `core::webimport::extractor` — mô hình DOM
+/// của MỘT TRANG HTML, không liên quan gì tới "Tác phẩm"), không phải một thực thể ta đặt
+/// tên. Hai hình dạng ĐÚNG lúc chạm chỗ này:
+/// - `dom_query::Document` (đường dẫn ĐỦ, ví dụ `dom_query::Document::from(html)`) — `at`
+///   đứng NGAY SAU literal `dom_query::`;
+/// - `use dom_query::{…Document…}` — một dòng `use` liệt kê nhiều mục từ CHÍNH crate đó.
+///
+/// Cùng nguyên tắc §API NỀN TẢNG KHÔNG PHẢI TÊN THỰC THỂ đã lập cho
+/// [`is_platform_document_type_reference`] (kiểu DOM toàn cục của TypeScript) — mở rộng
+/// nguyên tắc đó sang MỘT hình dạng thật thứ hai: dùng lại tên kiểu của một crate NGOÀI không
+/// phải là "đặt tên một thực thể tầng Tác phẩm". Hẹp đúng bằng hai hình dạng thật đo được ở
+/// `core/webimport/extractor.rs` (2026-09-07), không rộng hơn — không khớp một `Document`
+/// đứng một mình không kèm `dom_query::` hay `use dom_query::`.
+fn is_dom_query_document_type_reference(code: &str, at: usize) -> bool {
+    if code[..at].ends_with("dom_query::") {
+        return true;
+    }
+    let trimmed = code.trim_start();
+    trimmed.starts_with("use dom_query::")
+}
+
 /// Vị từ THUẦN, dùng bởi CẢ cổng thật lẫn mọi ca đối chứng bên dưới — hai bên không thể lệch
 /// nhau bằng cách trùng lặp phép so chuỗi ở hai chỗ khác nhau (đúng khuôn
 /// `ai_boundary.rs::line_names_a_forbidden_ai_dependency`).
@@ -372,8 +415,9 @@ fn line_names_a_forbidden_entity(code: &str) -> Option<&'static str> {
             let before_ok = at == 0 || !is_word_byte(bytes[at - 1]);
 
             if before_ok {
-                let is_platform =
-                    word == "Document" && is_platform_document_type_reference(&masked, at);
+                let is_platform = word == "Document"
+                    && (is_platform_document_type_reference(&masked, at)
+                        || is_dom_query_document_type_reference(&masked, at));
                 if !is_platform {
                     return Some(word);
                 }
@@ -600,6 +644,28 @@ fn platform_apis_are_never_flagged() {
         None,
         "ca AM: `target: Document` la kieu DOM toan cuc (lib.dom.d.ts) o vi tri KIEU cua \
          TypeScript, khong phai mot thuc the ta dat ten -- xem is_platform_document_type_reference"
+    );
+    // 🔵 THÊM Story 6.9 — hai hình dạng thật của `dom_query::Document` (`core/webimport/
+    // extractor.rs`), xem `is_dom_query_document_type_reference`.
+    assert_eq!(
+        line_names_a_forbidden_entity("    let document = dom_query::Document::from(html);"),
+        None,
+        "ca AM: `dom_query::Document` la kieu cua mot crate NGOAI (mo hinh DOM mot trang \
+         HTML), khong phai mot thuc the tang Tac pham ta dat ten"
+    );
+    assert_eq!(
+        line_names_a_forbidden_entity("use dom_query::{Document as HtmlDocument, NodeId};"),
+        None,
+        "ca AM: mot dong use dom_query lam gom `Document` liet ke tu CHINH crate do van la \
+         tham chieu kieu hop le, du dat bi danh khac"
+    );
+    // Vế chặt: một `Document` KHÔNG kèm `dom_query::`/`use dom_query::` vẫn phải bị bắt —
+    // exemption hẹp đúng bằng hình dạng thật, không rộng hơn.
+    assert_eq!(
+        line_names_a_forbidden_entity("    let document = Document::from(html);"),
+        Some("Document"),
+        "ca DUONG: mot `Document` TRAN (khong `dom_query::` di truoc) van phai bi bat -- \
+         exemption khong duoc rong hon dung hai hinh dang that"
     );
 }
 

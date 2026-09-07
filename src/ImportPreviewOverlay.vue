@@ -32,6 +32,10 @@ import {
   deleteImportPreviewCleanupRule,
   editImportPreviewCleanupRule,
   importPreview,
+  importPreviewBlockActionError,
+  importPreviewBlockFocusedIndex,
+  importPreviewBlockRangeMissingStartNotice,
+  importPreviewBlockRangeStart,
   importPreviewChapterPatternError,
   importPreviewChapterPatternKind,
   importPreviewChapterPatternSending,
@@ -47,8 +51,10 @@ import {
   importPreviewDomainLogDomainCount,
   importPreviewEmptyReasonForTier,
   importPreviewIsOpen,
+  importPreviewJumpToCleanupRulesSignal,
   importPreviewLastSubmittedFrom,
   importPreviewLoadError,
+  importPreviewSelectedBlocks,
   importPreviewSelectedCandidate,
   importPreviewSelectedChapters,
   importPreviewSelectedCleanup,
@@ -66,6 +72,7 @@ import {
   toggleImportPreviewCleanupRule,
 } from './importPreviewState'
 import type {
+  BlockWire,
   ChapterPatternKindWire,
   ChapterSplitPreviewEntryWire,
   CleanupRuleKindWire,
@@ -437,6 +444,162 @@ function onEscapeCancel(): void {
   if (importPreviewConfirming.value) return
   dispatch('import.preview.cancel')
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * Story 6.9 — sửa ranh giới bóc bằng bàn phím (FR123)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * Hai số ở đầu tầng — đếm CỤC BỘ trên `importPreviewSelectedBlocks.value.blocks` (dữ liệu đã
+ * áp override, Rust đã tính `kept` HIỆU LỰC — không tính lại gì ở đây, chỉ đếm).
+ */
+const tier2Counts = computed<{ kept: number; excluded: number } | null>(() => {
+  const blocks = importPreviewSelectedBlocks.value?.blocks
+  if (blocks === undefined) return null
+  let kept = 0
+  for (const block of blocks) {
+    if (block.kept) kept += 1
+  }
+  return { kept, excluded: blocks.length - kept }
+})
+
+/** Ba vạch lề hiển thị — `switch` cạn, cùng khuôn [`confidenceMessageKey`]/[`tierEmptyMessageKey`]
+ * (không ghép chuỗi khoá bằng nội suy). */
+function blockStateMessageKey(block: BlockWire): string {
+  if (!block.kept) return 'mode.library.preview.tier2_state_dropped'
+  return block.confirmed
+    ? 'mode.library.preview.tier2_state_kept_confirmed'
+    : 'mode.library.preview.tier2_state_kept_guessed'
+}
+
+/** Class CSS của một khối — vạch lề (border-left) đổi màu theo TRẠNG THÁI, tiêu điểm bàn
+ * phím đổi RIÊNG (khối `primary`, §Always spec 6.9: không qua `box-shadow`, Kiểm F cấm tuyệt
+ * đối). Hai điều kiện ĐỘC LẬP — một khối có thể VỪA `dropped` VỪA đang giữ tiêu điểm. */
+function blockStateClass(block: BlockWire, index: number): Record<string, boolean> {
+  return {
+    'ip-block-dropped': !block.kept,
+    'ip-block-kept-guessed': block.kept && !block.confirmed,
+    'ip-block-kept-confirmed': block.kept && block.confirmed,
+    'ip-block-focused': index === importPreviewBlockFocusedIndex.value,
+  }
+}
+
+/** `id` DOM ổn định của một khối — dùng cho `aria-activedescendant`, cùng khuôn
+ * `GlossaryManageOverlay.vue::manageOptionId`. */
+function blockDomId(index: number): string {
+  return `ip-block-${index}`
+}
+
+/**
+ * Handler DOM CỤC BỘ trên `.ip-scrim` — KHÔNG một hợp âm toàn cục (xem doc-comment
+ * `commands/index.ts` tại chỗ đăng ký sáu command tương ứng). Cùng khuôn
+ * `GlossaryManageOverlay.vue::onKeydown`: lọc `ctrl/meta/alt` VÀ target là trường nhập
+ * (kể cả `<button>`/`contenteditable`) TRƯỚC MỌI NHÁNH — nếu không, `Space` trên nút
+ * "Xác nhận"/"Huỷ"/dải bảng mã sẽ bị `preventDefault()` cướp mất, đúng khuyết tật mà spec 6.9
+ * đo được ở `keys.ts`.
+ *
+ * 🔴 **SỬA 2026-09-07 (vòng rà bước 4, mục 8) — thêm `contenteditable` vào bộ lọc trường
+ * nhập.** Bốn kiểu `HTMLInputElement`/`HTMLTextAreaElement`/`HTMLSelectElement`/
+ * `HTMLButtonElement` không phủ một vùng `contenteditable` (không tồn tại trong màn HIỆN
+ * TẠI, nhưng đây là bộ lọc CHUNG cho cả `.ip-scrim` — một trường soạn thảo thêm sau sẽ lặng
+ * lẽ lọt qua nếu bộ lọc không tự khai đủ điều kiện của chính nó).
+ *
+ * 🔴 **SỬA 2026-09-07 (vòng rà bước 4, mục 8) — return sớm khi `importPreviewSelectedBlocks
+ * === null`.** Đường KHÔNG phải URL (dán văn bản/tệp) không có khái niệm "khối" — trước bản
+ * vá này, `Space` ở đó vẫn bị `preventDefault()` (dispatch rơi vào no-op ở tầng state, nhưng
+ * phím GIỮ NGUYÊN bị cướp mất khỏi mọi chỗ khác trên trang, ví dụ một `<textarea>` KHÔNG bị
+ * bộ lọc `isFormField` bắt vì nó nằm NGOÀI cây `.ip-scrim` nhưng vẫn nhận `keydown` bị bọc
+ * — điều này không xảy ra ở đây vì `.ip-scrim` chỉ bắt sự kiện bên trong nó, nhưng giữ return
+ * sớm là đúng ĐẦU TIÊN vì lý do ngữ nghĩa: các phím này không có gì để làm khi tầng 2 không
+ * tồn tại).
+ */
+function onTier2Keydown(event: KeyboardEvent): void {
+  if (event.ctrlKey || event.metaKey || event.altKey) return
+
+  const target = event.target
+  const isFormField =
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target instanceof HTMLButtonElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  if (isFormField) return
+
+  if (importPreviewSelectedBlocks.value === null) return
+
+  switch (event.key) {
+    case 'j':
+    case 'J':
+      event.preventDefault()
+      dispatch('import.preview.block_next')
+      return
+    case 'k':
+    case 'K':
+      event.preventDefault()
+      dispatch('import.preview.block_prev')
+      return
+    case ' ':
+    case 'Spacebar': // Safari cũ
+      // 🔴 SỬA 2026-09-07 (vòng rà bước 4, mục 7) — chặn AUTO-REPEAT. Giữ `Space` xuống phát
+      // một chuỗi `keydown` lặp (`event.repeat === true` từ lần thứ hai) — không chặn thì
+      // MỘT lượt giữ phím gửi NHIỀU lệnh `tier2_block_set_kept` chồng nhau (mỗi lệnh MỘT lượt
+      // ghi thật, §Always spec 6.9), đảo trạng thái qua lại vô ích và tốn N lượt IPC cho một
+      // cử chỉ người dùng chỉ định làm MỘT LẦN — cùng khuôn `GlossaryManageOverlay.vue:336`
+      // (gác `event.repeat` trên một hành động phá huỷ/đảo trạng thái).
+      if (event.repeat) return
+      event.preventDefault()
+      dispatch('import.preview.block_toggle_kept')
+      return
+    case '[':
+      event.preventDefault()
+      dispatch('import.preview.block_mark_range_start')
+      return
+    case ']':
+      event.preventDefault()
+      dispatch('import.preview.block_confirm_range')
+      return
+    case 'r':
+    case 'R':
+      event.preventDefault()
+      dispatch('import.preview.jump_to_cleanup_rules')
+      return
+    default:
+      return
+  }
+}
+
+/**
+ * `<ol role="listbox">` — template ref RIÊNG (khuôn `GlossaryManageOverlay.vue::list`,
+ * §doc-comment tại đó). `tabindex="-1"` (template) + `.focus()` ở đây khi tiêu điểm khối đổi
+ * (`J`/`K`) là ĐIỀU KIỆN để `aria-activedescendant` trên chính `<ol>` có nghĩa với trình đọc
+ * màn hình — ARIA 1.2 chỉ tôn trọng thuộc tính đó trên phần tử ĐANG giữ tiêu điểm DOM thật,
+ * và trước bản vá này không phần tử nào trong tầng 2 từng nhận `focus()` cả (mục 10, vòng rà
+ * bước 4).
+ */
+const blocksList = useTemplateRef<HTMLElement>('blocksList')
+
+/** `J`/`K` — cuộn khối mới vào tầm nhìn (mục 9) VÀ chuyển tiêu điểm DOM sang `<ol>` (mục 10).
+ * Không `{ immediate: true }` — chỉ cuộn/focus khi tiêu điểm THẬT SỰ đổi qua một thao tác
+ * điều hướng, không phải lúc mở màn (tiêu điểm ban đầu vẫn ở `panel`, giữ khuôn hiện có). */
+watch(importPreviewBlockFocusedIndex, (index) => {
+  void nextTick(() => {
+    document.getElementById(blockDomId(index))?.scrollIntoView({ block: 'nearest' })
+    blocksList.value?.focus()
+  })
+})
+
+/** `R` — cuộn + đặt tiêu điểm sang tầng 3 (§Spec Change Log spec 6.9). */
+const cleanupTierSection = useTemplateRef<HTMLElement>('cleanupTierSection')
+watch(importPreviewJumpToCleanupRulesSignal, () => {
+  void nextTick(() => {
+    const el = cleanupTierSection.value
+    if (el === null) return
+    el.scrollIntoView({ block: 'nearest' })
+    el.focus()
+  })
+})
+
+
 </script>
 
 <template>
@@ -445,6 +608,7 @@ function onEscapeCancel(): void {
     class="ip-scrim"
     @keydown.esc="onEscapeCancel"
     @keydown.tab="trapTab($event)"
+    @keydown="onTier2Keydown"
   >
     <section ref="panel" class="ip-panel" tabindex="-1" role="dialog" aria-modal="true">
       <header class="ip-head">
@@ -616,16 +780,13 @@ function onEscapeCancel(): void {
         </section>
 
         <!--
-          ═══════════ Tầng 2 — ranh giới nội dung ═══════════
-          🔵 SỬA 2026-09-06 (Story 6.7) — nay CÓ THÂN cho nhánh URL: văn bản ĐÃ BÓC (qua
-          `Extractor`, `webimport::extract`) của mục ĐẦU TIÊN trong danh sách — cùng văn bản
-          mà tầng 3 đang đánh dấu gạch ngang lên (`importPreviewSelectedCleanup.final_text`,
-          không một lượt tính lại). ⚠️ **Giới hạn thật, ghi ra**: đây là văn bản của Chương
-          ĐẦU TIÊN, không phải "mục đang chọn" trong danh sách — dây hôm nay chưa mang văn
-          bản riêng cho từng Chương ngoài Chương đầu (`ChapterSplitPreviewEntryWire` chỉ có
-          `ord`/`title`/`length`, không có `source_text`). Xem đủ N Chương (chỉ độ dài/tiêu
-          đề, không nội dung) ở tầng 4 ngay dưới. Đường tệp/dán tay (Story 6.9) vẫn RỖNG,
-          không đổi.
+          ═══════════ Tầng 2 — ranh giới nội dung (Story 6.9, FR123) ═══════════
+          🔴 THAY TRỌN (2026-09-07, Story 6.9) — dãy khối cả trang thay cho một đoạn văn liền.
+          Khối bị thuật toán loại VẪN hiện (đánh dấu "Đã loại") — `Space`/`[`/`]` cần chúng
+          làm đối tượng để sửa bóc THIẾU, không riêng bóc THỪA (§Design Notes spec 6.9).
+          ⚠️ Giới hạn thật KHÔNG đổi (`tier2_url_first_note`): dãy khối là của Chương ĐẦU TIÊN
+          trong danh sách URL, không phải "mục đang chọn". Đường tệp/dán tay vẫn RỖNG — lý do
+          nay là "nguồn này không bóc gì" (khoá `tier_empty_story_6_9` viết lại).
         -->
         <section
           class="ip-tier"
@@ -633,11 +794,68 @@ function onEscapeCancel(): void {
           aria-labelledby="ip-tier-2-title"
         >
           <h3 id="ip-tier-2-title" class="ip-tier-title">{{ t('mode.library.preview.tier2_title') }}</h3>
+          <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
+          <p v-if="tier2Counts !== null" class="ip-tier2-counts">
+            {{ t('mode.library.preview.tier2_counts', { kept: String(tier2Counts.kept), excluded: String(tier2Counts.excluded) }) }}
+          </p>
           <template v-if="importPreviewLastSubmittedFrom === 'urls'">
             <p class="ip-normalized-window-note">{{ t('mode.library.preview.tier2_url_first_note') }}</p>
-            <p v-if="importPreviewSelectedCleanup !== null" class="ip-normalized-text">
-              <!-- aura-allow-text: DỮ LIỆU (văn bản đã bóc thật từ Rust, KHÔNG markup — AD-16). -->
-              {{ importPreviewSelectedCleanup.final_text }}
+            <p
+              v-if="importPreviewBlockRangeMissingStartNotice"
+              class="ip-tier2-range-notice"
+              role="status"
+            >
+              {{ t('mode.library.preview.tier2_range_missing_start') }}
+            </p>
+            <p v-if="importPreviewBlockActionError !== null" class="ip-tier2-range-notice" role="alert">
+              <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+              {{ tError(importPreviewBlockActionError) }}
+            </p>
+            <ol
+              v-if="importPreviewSelectedBlocks !== null && importPreviewSelectedBlocks.blocks.length > 0"
+              ref="blocksList"
+              class="ip-blocks"
+              role="listbox"
+              tabindex="-1"
+              :aria-label="t('mode.library.preview.tier2_title')"
+              :aria-activedescendant="blockDomId(importPreviewBlockFocusedIndex)"
+            >
+              <template v-for="(block, index) in importPreviewSelectedBlocks.blocks" :key="index">
+                <!--
+                  Mốc `[` — vạch "Đầu vùng giữ" đứng NGAY TRƯỚC khối tại `importPreviewBlockRangeStart`
+                  (mục 9, vòng rà bước 4; bản dựng khoá `web-import.html:284`). CHỈ trên đường
+                  URL (`v-if` cha đã chốt `importPreviewLastSubmittedFrom === 'urls'`) — mốc
+                  không có nghĩa gì ở đường khác vì tầng 2 rỗng ở đó.
+                -->
+                <li v-if="importPreviewBlockRangeStart === index" class="ip-block-range-marker" role="presentation">
+                  {{ t('mode.library.preview.tier2_range_start_marker') }}
+                </li>
+                <li
+                  :id="blockDomId(index)"
+                  class="ip-block"
+                  :class="blockStateClass(block, index)"
+                  role="option"
+                  :aria-selected="index === importPreviewBlockFocusedIndex"
+                >
+                  <div class="ip-block-gutter" aria-hidden="true"></div>
+                  <div class="ip-block-body">
+                    <p class="ip-block-tag">{{ t(blockStateMessageKey(block)) }}</p>
+                    <p v-if="block.body.kind === 'paragraph' || block.body.kind === 'caption'" class="ip-block-text">
+                      <!-- aura-allow-text: DỮ LIỆU (thân khối đã bóc thật từ Rust, KHÔNG markup — AD-16). -->
+                      {{ block.body.text }}
+                    </p>
+                    <p v-else class="ip-block-text">
+                      <!-- aura-allow-text: DỮ LIỆU (alt/src ảnh, KHÔNG markup — AD-16). Story
+                           6.9: mô hình chở nhánh Image, 0 chỗ gọi sản phẩm cho tới 6.11/6.13 —
+                           hiện `alt`/`src` thô làm chỗ giữ chỗ. -->
+                      {{ block.body.alt ?? block.body.src ?? '' }}
+                    </p>
+                  </div>
+                </li>
+              </template>
+            </ol>
+            <p v-else-if="importPreviewSelectedBlocks !== null" class="ip-tier-empty-reason">
+              {{ t('mode.library.preview.tier2_empty_blocks') }}
             </p>
             <p v-else class="ip-tier-empty-reason">
               {{ t(cleanupTierEmptyMessageKey(normalizedTierEmptyReason())) }}
@@ -649,7 +867,7 @@ function onEscapeCancel(): void {
         </section>
 
         <!-- ═══════════════ Tầng 3 — luật làm sạch (CÓ THÂN, Story 6.5) ═══════════════════ -->
-        <section class="ip-tier" aria-labelledby="ip-tier-3-title">
+        <section ref="cleanupTierSection" class="ip-tier" tabindex="-1" aria-labelledby="ip-tier-3-title">
           <h3 id="ip-tier-3-title" class="ip-tier-title">{{ t('mode.library.preview.tier3_title') }}</h3>
 
           <template v-if="importPreviewSelectedCleanup !== null">
@@ -1158,6 +1376,123 @@ function onEscapeCancel(): void {
   color: var(--color-on-surface);
   word-break: break-word;
   white-space: pre-wrap;
+}
+
+/* ── Story 6.9 — tầng 2, dãy khối cả trang (FR123) ──────────────────────────────── */
+
+.ip-tier2-counts {
+  margin: calc(var(--space-unit) * -1) 0 calc(var(--space-unit) * 2) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ip-tier2-range-notice {
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-error);
+}
+
+.ip-blocks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-outline);
+}
+
+/* Mốc `[` — vạch "Đầu vùng giữ" (mục 9, vòng rà bước 4). Cùng chữ `.ip-tier2-range-notice`
+   (một cảnh báo/hướng dẫn tầng 2), khác MÀU — đây KHÔNG phải lỗi, dùng `primary` (cùng tông
+   tiêu điểm bàn phím `.ip-block-focused`) thay `error`. */
+.ip-block-range-marker {
+  padding: calc(var(--space-unit) * 0.5) calc(var(--space-unit) * 2);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-primary);
+  border-bottom: 1px solid var(--color-outline);
+}
+
+/* 🔴 §Always spec 6.9 — tiêu điểm bàn phím dùng `primary` qua `border-left`, KHÔNG
+   `box-shadow` (Kiểm F cấm tuyệt đối, không miễn trừ). Vạch TRẠNG THÁI (giữ/loại) sống RIÊNG
+   ở `.ip-block-gutter` — hai tín hiệu độc lập, một khối có thể vừa `dropped` vừa đang giữ
+   tiêu điểm. */
+.ip-block {
+  display: flex;
+  border-bottom: 1px solid var(--color-outline);
+  border-left: 2px solid transparent;
+}
+
+.ip-block:last-child {
+  border-bottom: none;
+}
+
+.ip-block-focused {
+  border-left-color: var(--color-primary);
+}
+
+/* Vạch TRẠNG THÁI — cùng ngữ pháp vạch lề segment của `GridPanel.vue`
+   (`confirmed`/`tm-rule`/`ornament`, EXPERIENCE.md:89-92). Mặc định "giữ · máy đoán". */
+.ip-block-gutter {
+  flex: none;
+  /* ⚠️ KHÔNG `var(--space-gutter-width)` — spine đo được (`panels/GridPanel.vue:1795`) rằng
+     khoá `spacing.gutter-width` của `tokens.json` KHÔNG được `check:tokens` đối chiếu với
+     `var()` thật (một tham chiếu sai tên là CSS CHẾT ÂM THẦM, 0 cổng canh) — dùng thẳng
+     `--space-unit` đã xác nhận CÓ tồn tại thay vì tin một tên chưa ai kiểm. */
+  width: calc(var(--space-unit) * 2);
+  background-color: var(--color-tm-rule);
+}
+
+.ip-block-kept-confirmed .ip-block-gutter {
+  background-color: var(--color-confirmed);
+}
+
+.ip-block-dropped .ip-block-gutter {
+  background-color: var(--color-ornament);
+}
+
+.ip-block-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
+}
+
+/* §Always spec 6.9 — "phân biệt bằng ĐỘ LÙI, không màu nhấn thứ hai" (EXPERIENCE.md:95):
+   khối loại chìm xuống `surface-sunken`, chữ rút về `on-surface-variant`. */
+.ip-block-dropped {
+  background: var(--color-surface-sunken);
+}
+
+.ip-block-tag {
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  font-weight: var(--weight-ui-label);
+  line-height: var(--leading-ui-label);
+  letter-spacing: var(--tracking-ui-label);
+  color: var(--color-on-surface-variant);
+}
+
+.ip-block-text {
+  margin: 0;
+  font-family: var(--face-read-md);
+  font-size: var(--font-read-md);
+  line-height: var(--leading-read-md);
+  color: var(--color-on-surface);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* §Always spec 6.9 — khối đã loại đổi CẢ thang chữ (đọc → giao diện), không chỉ màu. Token
+   `ui-md-wrap` — token họ `ui` DUY NHẤT khai `wraps: true`, đúng vai cho thân khối nhiều
+   dòng (KHÔNG `ui-label`, 11px/`wraps: false`, sai vai — xem doc-comment Task list spec 6.9). */
+.ip-block-dropped .ip-block-text {
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-on-surface-variant);
 }
 
 /* ── Story 6.5 — tầng 3, luật làm sạch ──────────────────────────────────────────── */

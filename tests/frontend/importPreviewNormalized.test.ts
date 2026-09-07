@@ -51,7 +51,8 @@ function candidate(
 ): EncodingCandidateWire {
   // Story 6.5 — `cleanup` không phải mối quan tâm của tệp này (canh riêng ở
   // `importPreviewCleanup.test.ts`); `null` giữ nguyên hình dạng cũ cho mọi ca ở đây.
-  return { label, encoding, preview, normalized: n, cleanup: null, chapters: null }
+  // Story 6.9 — cùng lý do cho `blocks` (canh riêng ở `importPreviewBlocks.test.ts`).
+  return { label, encoding, preview, normalized: n, cleanup: null, chapters: null, blocks: null }
 }
 
 /** Dải năm ô, tin cậy thấp — mỗi ô mang một bản chuẩn hoá KHÁC NHAU rõ rệt để phép chọn

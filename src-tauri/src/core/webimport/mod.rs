@@ -53,7 +53,7 @@ pub mod fetcher;
 
 pub use allowlist::{Allowlist, AllowlistDecision, ResourceKind, Tier};
 pub use domain_log::{DomainLogDecision, DomainLogEntry, DomainLogState, append_domain_log_entries, distinct_domain_count, read_domain_log};
-pub use extractor::{ExtractError, extract};
+pub use extractor::{Block, BlockBody, ExtractError, extract};
 pub use fetcher::{FetchError, FetchedPage, MAX_RESPONSE_BYTES, REQUEST_TIMEOUT, fetch, looks_like_html};
 
 /// Lý do một MỤC trong danh sách URL nhập thất bại — tám nhánh, đúng tám lý do phân biệt

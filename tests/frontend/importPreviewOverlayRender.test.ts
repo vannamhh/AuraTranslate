@@ -51,6 +51,10 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
     // Story 6.6 — cùng lý do `cleanup`: khối tách Chương đi kèm sẵn trên MỖI ô. `null` đồng
     // bộ với `normalized: null`/`cleanup: null` (bảng mã "không ra chữ").
     chapters: { chapter_count: 1, chapters: [{ ord: 1, title: null, length: 11 }] },
+    // Story 6.9 — khối tầng 2 (ranh giới bóc) đi kèm sẵn trên MỖI ô, cùng lý do `chapters`.
+    // `null` đồng bộ với ba trường trên (bảng mã "không ra chữ") — xem ca dành riêng cho
+    // nhánh có khối thật trong tệp test của story đó.
+    blocks: null,
     ...over,
   }
 }
@@ -102,7 +106,10 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
   // 🔵 SỬA 2026-09-05 (Story 6.5) — "tầng 2/3 rỗng" đã HẾT ĐÚNG cho tầng 3: nó nay CÓ THÂN
   // khi ứng viên mang `cleanup` (mặc định của `candidate()` từ story này). Chỉ tầng 2 còn
   // rỗng — ca dành cho tầng 3 rỗng (ứng viên "không ra chữ") đứng riêng ngay dưới.
-  it('tầng 2 rỗng dựng đúng lý do (story_6_9)', async () => {
+  // 🔵 SỬA 2026-09-07 (Story 6.9) — lý do rỗng viết lại: "chưa dựng" đã hết đúng (tầng 2 nay
+  // CÓ THÂN cho nhánh URL) — đường dán văn bản (nhánh của CHÍNH ca này) vẫn rỗng, nhưng vì
+  // "nguồn này không bóc nội dung chính", không phải vì tính năng chưa tồn tại.
+  it('tầng 2 rỗng (đường dán văn bản) dựng đúng lý do MỚI — không bóc, không phải "chưa dựng"', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
     await state.openImportPreviewFromText('Ten', 'en', '', 'text')
@@ -110,7 +117,8 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     const reasons = wrapper.findAll('.ip-tier-empty-reason')
     expect(reasons).toHaveLength(1)
-    expect(reasons[0]?.text()).toContain('Story 6.9')
+    expect(reasons[0]?.text()).not.toContain('Story 6.9')
+    expect(reasons[0]?.text()).toContain('URL')
 
     wrapper.unmount()
     state.resetImportPreview()

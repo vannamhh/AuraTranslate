@@ -90,6 +90,7 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
     normalized: { text: 'dau quang cao cuoi', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
     cleanup: cleanup(),
     chapters: null,
+    blocks: null,
     ...over,
   }
 }

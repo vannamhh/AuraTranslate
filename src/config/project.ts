@@ -196,6 +196,29 @@ export type ChapterSplitPreviewEntryWire = {
   length: number
 }
 
+/** Thân một khối — khớp `commands::project::BlockBodyWire` (`#[serde(tag = "kind", rename_all
+ * = "snake_case")]` trên `webimport::BlockBody`). Ba nhánh: đoạn văn/tiêu đề/mục danh sách/
+ * trích dẫn, ảnh, chú thích ảnh — Story 6.9, FR123. */
+export type BlockBodyWire =
+  | { kind: 'paragraph'; text: string }
+  | { kind: 'image'; src: string | null; alt: string | null }
+  | { kind: 'caption'; text: string }
+
+/** Một khối trên dây — khớp `commands::project::BlockWire`. `kept`/`confirmed` là giá trị
+ * HIỆU LỰC (đã áp override), suy ra đúng ba vạch lề hiển thị:
+ * `!kept` ⇒ "Đã loại"; `kept && !confirmed` ⇒ "Giữ · máy đoán"; `kept && confirmed` ⇒ "Giữ". */
+export type BlockWire = {
+  body: BlockBodyWire
+  kept: boolean
+  confirmed: boolean
+}
+
+/** Khối tầng 2 (ranh giới bóc) của MỘT ứng viên — Story 6.9, FR123. Khớp
+ * `commands::project::ChapterBlocksPreviewWire`. */
+export type ChapterBlocksPreviewWire = {
+  blocks: BlockWire[]
+}
+
 /** Khối tách Chương của MỘT ứng viên/đường tự khai — tầng 4 (Story 6.6). Mang TOÀN BỘ N
  * Chương (không chỉ ba đầu/ba cuối) — tầng hiển thị tự co gọn khung nhìn mặc định và mở
  * rộng khi sắp xếp theo độ dài. Khớp `commands::project::ChapterSplitPreviewWire`. */
@@ -231,6 +254,10 @@ export type EncodingCandidateWire = {
   /** Story 6.6 — khối tách Chương (tầng 4) của CHÍNH ứng viên này. `null` đồng bộ với
    * `cleanup` (bảng mã này "không ra chữ"). */
   chapters: ChapterSplitPreviewWire | null
+  /** **THÊM Story 6.9** — khối tầng 2 (ranh giới bóc) của CHÍNH ứng viên này. `null` khi
+   * `extract_main_content == false` (đường tệp/dán tay) — KHÔNG đồng bộ `null`/`Some` với
+   * `cleanup`: một bảng mã "không ra chữ" cũng cho `blocks == null`, cùng lý do đó. */
+  blocks: ChapterBlocksPreviewWire | null
 }
 
 /** Kết quả một lượt xem trước bảng mã — khớp `commands::project::ImportEncodingPreview`. */
@@ -327,6 +354,32 @@ function isChapterSplitPreviewEntryWire(value: unknown): value is ChapterSplitPr
   )
 }
 
+function isBlockBodyWire(value: unknown): value is BlockBodyWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<BlockBodyWire> & { kind?: unknown }
+  if (v.kind === 'paragraph' || v.kind === 'caption') {
+    return typeof (v as { text?: unknown }).text === 'string'
+  }
+  if (v.kind === 'image') {
+    const src = (v as { src?: unknown }).src
+    const alt = (v as { alt?: unknown }).alt
+    return (src === null || typeof src === 'string') && (alt === null || typeof alt === 'string')
+  }
+  return false
+}
+
+function isBlockWire(value: unknown): value is BlockWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<BlockWire>
+  return isBlockBodyWire(v.body) && typeof v.kept === 'boolean' && typeof v.confirmed === 'boolean'
+}
+
+function isChapterBlocksPreviewWire(value: unknown): value is ChapterBlocksPreviewWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ChapterBlocksPreviewWire>
+  return Array.isArray(v.blocks) && v.blocks.every(isBlockWire)
+}
+
 function isChapterSplitPreviewWire(value: unknown): value is ChapterSplitPreviewWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<ChapterSplitPreviewWire>
@@ -352,7 +405,9 @@ function isEncodingCandidateWire(value: unknown): value is EncodingCandidateWire
     // 🔴 Story 6.5 — cùng lý do: thiếu vế này thì `undefined` lọt lên `.vue`.
     (v.cleanup === null || isCleanupPreviewWire(v.cleanup)) &&
     // 🔴 Story 6.6 — cùng lý do.
-    (v.chapters === null || isChapterSplitPreviewWire(v.chapters))
+    (v.chapters === null || isChapterSplitPreviewWire(v.chapters)) &&
+    // 🔴 Story 6.9 — cùng lý do: thiếu vế này thì `undefined` lọt lên `.vue`.
+    (v.blocks === null || isChapterBlocksPreviewWire(v.blocks))
   )
 }
 
@@ -616,6 +671,39 @@ export async function reloadUrlImportItem(index: number, sourceLang: string): Pr
 /** Bỏ một mục ở vị trí `index` — 0 lời gọi mạng. */
 export async function removeUrlImportItem(index: number, sourceLang: string): Promise<UrlImportBatchResult> {
   return callUrlImportBatch(CMD_REMOVE_URL_IMPORT_ITEM, { index, sourceLang })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story 6.9 — sửa ranh giới bóc bằng bàn phím (FR123). Khớp
+// `commands::project::wire::{tier2_block_set_kept, tier2_block_confirm_range}` — cả hai trả
+// LẠI `UrlImportBatchWire` TƯƠI (cùng hình dạng ba lệnh URL ở trên, dùng lại `callUrlImportBatch`),
+// vì tầng 2 chỉ có nghĩa trên đường URL (§Always spec 6.7/6.9 — `extract_main_content` chỉ
+// `true` ở đó).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CMD_TIER2_BLOCK_SET_KEPT = 'tier2_block_set_kept'
+const CMD_TIER2_BLOCK_CONFIRM_RANGE = 'tier2_block_confirm_range'
+
+/** Đổi trạng thái giữ/loại của khối `index` (`Space`) — 0 lời gọi mạng, chỉ đổi
+ * `Tier2BlockOverridesState` trong bộ nhớ Rust rồi dựng lại xem trước. */
+export async function tier2BlockSetKept(
+  index: number,
+  kept: boolean,
+  sourceLang: string,
+): Promise<UrlImportBatchResult> {
+  return callUrlImportBatch(CMD_TIER2_BLOCK_SET_KEPT, { index, kept, sourceLang })
+}
+
+/** Đặt dải `[start, end]` thành giữ, mọi khối NGOÀI dải thành loại — một lượt (`]`). `total`
+ * đến từ CHÍNH mảng khối frontend đang hiện (xem doc-comment
+ * `commands::project::block_overrides_for_range`). */
+export async function tier2BlockConfirmRange(
+  start: number,
+  end: number,
+  total: number,
+  sourceLang: string,
+): Promise<UrlImportBatchResult> {
+  return callUrlImportBatch(CMD_TIER2_BLOCK_CONFIRM_RANGE, { start, end, total, sourceLang })
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

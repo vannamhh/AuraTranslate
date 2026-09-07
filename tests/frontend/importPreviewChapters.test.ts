@@ -79,6 +79,7 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
       final_text: 'Chuong 1: Mo Dau Chuong 2: Tiep Theo',
     },
     chapters: chapters(),
+    blocks: null,
     ...over,
   }
 }

@@ -23,9 +23,11 @@ use auratranslate_lib::commands::chapter::{
     open_adjacent_chapter, read_open_chapter, rename_chapter, split_chapter_at_segment,
 };
 use auratranslate_lib::commands::project::{
-    ChapterPatternWire, OpenWork, UrlImportItem, UrlImportItemsState, chapters_shape_if_all_ok,
+    ChapterPatternWire, OpenWork, Tier2BlockOverridesState, UrlImportItem, UrlImportItemsState,
+    block_overrides_for_range, chapters_shape_if_all_ok,
     clear_url_import_items_after_successful_confirm, create_work, create_work_from_file,
-    create_work_from_text, resolve_chapter_pattern,
+    create_work_from_text, mutated_index_invalidates_tier2_blocks, reset_block_overrides,
+    resolve_chapter_pattern, set_block_override,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
@@ -614,7 +616,7 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
     ]);
     // 🔵 SỬA (2026-09-04, Story 6.3) — `create_work` thêm tham số `encoding`; ca này không
     // canh bảng mã, giữ UTF-8 để hành vi cũ không đổi.
-    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None)
+    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new())
         .expect("tao Tac pham voi N > 1 Chuong that bai");
 
     let rows: Vec<(i64, i64, String, String)> = opened
@@ -693,6 +695,7 @@ fn create_work_writes_titles_and_continuous_ord_when_n_chapters_come_from_a_chap
         encoding_rs::UTF_8,
         Vec::new(),
         Some(pattern),
+        Vec::new(),
     )
     .expect("tao Tac pham voi mau phan tach that bai");
 
@@ -794,7 +797,7 @@ fn n_chapters_from_a_url_list_write_clean_text_ord_and_segments_for_every_chapte
     let shape = chapters_shape_if_all_ok(&items)
         .expect("toan bo muc OK phai cho ra Some(PipelineShape::Chapters)");
 
-    let opened = create_work(&root, "Tu URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None)
+    let opened = create_work(&root, "Tu URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new())
         .expect("tao Tac pham tu danh sach URL that bai");
 
     let rows: Vec<(i64, i64, String, String)> = opened
@@ -3485,4 +3488,90 @@ fn chapter_ord_stays_dense_from_one_after_a_merge_on_a_sparse_ord_sequence_too()
     let dir = opened.dir.clone();
     drop(opened);
     cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.9 — THÊM 2026-09-07 (vòng rà bước 4, mục 13/14). `block_overrides_for_range`,
+// `set_block_override`, `reset_block_overrides` + `mutated_index_invalidates_tier2_blocks` là
+// bốn hàm THUẦN, `pub`, đúng khuôn `chapters_shape_if_all_ok` ngay trên — doc-comment của
+// `reset_block_overrides` (`commands/project.rs`) tự khai "Hàm thuần, `pub` để
+// `tests/project_contract.rs` gọi được không cần `tauri::AppHandle`", nên bốn ca dưới đây
+// sống ở ĐÚNG tệp đó, không phải một `#[cfg(test)] mod tests` nội bộ của `commands/project.rs`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn block_overrides_for_range_forces_true_inside_the_range_regardless_of_machine_kept() {
+    // Dải [1, 3] trên 5 khối, bất kể máy đoán gì trước đó — TRONG dải LUÔN `Some(true)`.
+    let machine_kept = vec![false, true, false, true, false];
+    let patch = block_overrides_for_range(1, 3, &machine_kept);
+    assert_eq!(patch, vec![None, Some(true), Some(true), Some(true), None]);
+}
+
+#[test]
+fn block_overrides_for_range_outside_the_range_only_forces_false_when_machine_had_kept_it() {
+    // 🔴 Mục 6 (vòng rà bước 4) — NGOÀI dải, chỉ ép `Some(false)` cho khối máy ĐANG giữ
+    // (một sửa THẬT, đáng "confirmed"); khối máy ĐÃ loại từ đầu giữ `None` (không ai xác
+    // nhận gì cả — ép `Some(false)` ở đó sẽ là một lời khai "đã xác nhận" không có thật).
+    let machine_kept = vec![true, true, false, true, false];
+    // Dải giữ là [2, 2] — mọi khối khác đều NGOÀI dải.
+    let patch = block_overrides_for_range(2, 2, &machine_kept);
+    assert_eq!(
+        patch,
+        vec![Some(false), Some(false), Some(true), Some(false), None],
+        "chi so 0/1/3 (may DANG giu) phai thanh Some(false); chi so 4 (may DA loai) phai la None"
+    );
+}
+
+#[test]
+fn block_overrides_for_range_swaps_a_reversed_start_and_end_instead_of_panicking() {
+    let machine_kept = vec![false, false, false];
+    // `]` trước `[` không nên xảy ra (frontend chặn), nhưng hàm THUẦN phải xử AN TOÀN.
+    assert_eq!(
+        block_overrides_for_range(2, 0, &machine_kept),
+        block_overrides_for_range(0, 2, &machine_kept)
+    );
+}
+
+#[test]
+fn block_overrides_for_range_on_an_empty_page_returns_an_empty_patch() {
+    let machine_kept: Vec<bool> = Vec::new();
+    assert_eq!(block_overrides_for_range(0, 0, &machine_kept), Vec::<Option<bool>>::new());
+}
+
+#[test]
+fn set_block_override_rejects_an_index_at_or_past_total_blocks() {
+    let mut overrides: Vec<Option<bool>> = Vec::new();
+    assert_eq!(
+        set_block_override(&mut overrides, 3, true, 3),
+        Err(()),
+        "index 3 tren tong so 3 khoi (chi so hop le 0..=2) phai bi TU CHOI, khong duoc \
+         lang le noi vector toi index + 1 nhu ban truoc vong ra buoc 4"
+    );
+    assert!(overrides.is_empty(), "mot lan ghi bi tu choi khong duoc de lai dau vet nao");
+}
+
+#[test]
+fn set_block_override_accepts_an_index_within_total_blocks_and_grows_the_vector_with_none() {
+    let mut overrides: Vec<Option<bool>> = Vec::new();
+    assert_eq!(set_block_override(&mut overrides, 2, true, 5), Ok(()));
+    assert_eq!(
+        overrides,
+        vec![None, None, Some(true), None, None],
+        "vector phai noi toi total_blocks (5), cac o chua ai sua giu None"
+    );
+}
+
+#[test]
+fn reset_block_overrides_clears_the_vector_back_to_empty() {
+    let state: Tier2BlockOverridesState = std::sync::Mutex::new(vec![Some(true), None, Some(false)]);
+    reset_block_overrides(&state);
+    assert!(state.lock().unwrap().is_empty());
+}
+
+#[test]
+fn mutated_index_invalidates_tier2_blocks_is_true_only_at_index_zero() {
+    assert!(mutated_index_invalidates_tier2_blocks(0));
+    assert!(!mutated_index_invalidates_tier2_blocks(1));
+    assert!(!mutated_index_invalidates_tier2_blocks(2));
+    assert!(!mutated_index_invalidates_tier2_blocks(usize::MAX));
 }

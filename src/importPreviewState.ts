@@ -29,7 +29,7 @@
  * (Rust chỉ có BA vỏ: hai xem trước + một xác nhận — xem doc-comment
  * `commands::project::cancel_import_preview`).
  */
-import { computed, readonly, ref } from 'vue'
+import { computed, readonly, ref, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import {
   cleanupAddRule,
@@ -42,6 +42,8 @@ import {
   reloadUrlImportItem,
   removeUrlImportItem,
   startUrlImport,
+  tier2BlockConfirmRange,
+  tier2BlockSetKept,
 } from './config/project'
 import type {
   ChapterPatternInput,
@@ -55,6 +57,7 @@ import type {
   ImportEncodingPreview,
   ImportEncodingPreviewResult,
   NormalizedPreviewWire,
+  ChapterBlocksPreviewWire,
   UrlImportItemWire,
 } from './config/project'
 import type { IpcError } from './i18n'
@@ -173,6 +176,34 @@ const cleanupToggling = ref(false)
 const cleanupDeletePendingKey = ref<string | null>(null)
 
 /**
+ * **THÊM (Story 6.9)** — trạng thái điều hướng bàn phím tầng 2 (ranh giới bóc), sống Ở ĐÂY
+ * (không trong `.vue`, cùng lý do mọi state khác của lớp phủ này) vì nó phải sống sót qua
+ * lượt xem trước dựng lại (`Space`/`[`/`]` gọi IPC rồi Rust trả về một `preview` MỚI, index
+ * đang chọn không được nhảy về 0 chỉ vì mảng khối vừa được thay bằng một mảng CÙNG NỘI DUNG).
+ *
+ * `blockFocusedIndex` — chỉ số khối ĐANG CHỌN trong `importPreviewSelectedBlocks.value.blocks`
+ * (J/K di chuyển). `blockRangeStart` — mốc `[` (chỉ số khối tại thời điểm bấm), `null` khi
+ * chưa đặt. `blockRangeMissingStartNotice` — I/O Matrix spec 6.9 "`]` trước `[` ⇒ kêu, không
+ * ném": `confirmImportPreviewBlockRange` bật cờ này thay vì gọi Rust khi chưa có mốc đầu.
+ */
+const blockFocusedIndex = ref(0)
+const blockRangeStart = ref<number | null>(null)
+const blockRangeMissingStartNotice = ref(false)
+/** Cờ "đang gửi" của `Space` — TÁCH khỏi `blockRangeConfirming` (thao tác khác hẳn, cùng lý
+ * do bốn cờ CRUD luật làm sạch tách nhau). */
+const blockToggling = ref(false)
+/** Cờ "đang gửi" của `]`. */
+const blockRangeConfirming = ref(false)
+/** Lỗi hạ tầng của lượt `Space`/`]` gần nhất (state Tauri chưa quản lý, …) — KHÁC lỗi CỦA
+ * TỪNG MỤC URL (`urlImportError`) và lỗi xác nhận toàn bộ Tác phẩm (`confirmError`). */
+const blockActionError = ref<IpcError | null>(null)
+/** Đếm lượt bấm `R` — `ImportPreviewOverlay.vue` watch số này để cuộn/đặt tiêu điểm sang
+ * tầng 3 (§Spec Change Log spec 6.9: "R nhảy sang tầng 3", không khớp luật theo khối). Một số
+ * tăng dần (không phải boolean) để hai lượt bấm `R` LIÊN TIẾP (tầng 3 đã có tiêu điểm từ lượt
+ * trước) vẫn kích hoạt lại `watch` — Vue không bắn `watch` khi giá trị mới trùng giá trị cũ. */
+const jumpToCleanupRulesSignal = ref(0)
+
+/**
  * **THÊM (Story 6.6)** — mẫu phân tách Chương ĐANG GÕ, tham số MỖI LƯỢT NHẬP (§Always spec
  * 6.6: KHÔNG một cơ chế "nhớ mẫu" nào — Ice chốt 2026-09-05 mặc định KHÔNG nhớ giữa hai lượt
  * nhập, xem §Ask First của spec). Chuỗi rỗng ⇒ không mẫu (no-op, N = 1) — xem
@@ -243,6 +274,15 @@ export const importPreviewCleanupToggling: DeepReadonly<Ref<boolean>> = readonly
  * nào đang hiện trạng thái "bấm lại để xoá thật" (xem doc-comment `cleanupDeletePendingKey`). */
 export const importPreviewCleanupDeletePendingKey: DeepReadonly<Ref<string | null>> =
   readonly(cleanupDeletePendingKey)
+export const importPreviewBlockFocusedIndex: DeepReadonly<Ref<number>> = readonly(blockFocusedIndex)
+export const importPreviewBlockRangeStart: DeepReadonly<Ref<number | null>> = readonly(blockRangeStart)
+export const importPreviewBlockRangeMissingStartNotice: DeepReadonly<Ref<boolean>> =
+  readonly(blockRangeMissingStartNotice)
+export const importPreviewBlockToggling: DeepReadonly<Ref<boolean>> = readonly(blockToggling)
+export const importPreviewBlockRangeConfirming: DeepReadonly<Ref<boolean>> = readonly(blockRangeConfirming)
+export const importPreviewBlockActionError: DeepReadonly<Ref<IpcError | null>> = readonly(blockActionError)
+export const importPreviewJumpToCleanupRulesSignal: DeepReadonly<Ref<number>> =
+  readonly(jumpToCleanupRulesSignal)
 export const importPreviewChapterPatternText: DeepReadonly<Ref<string>> = readonly(chapterPatternText)
 export const importPreviewChapterPatternKind: DeepReadonly<Ref<ChapterPatternKindWire>> =
   readonly(chapterPatternKind)
@@ -351,6 +391,39 @@ export const importPreviewSelectedChapters = computed<ChapterSplitPreviewWire | 
 })
 
 /**
+ * Khối tầng 2 (ranh giới bóc) hiện hành — Story 6.9. KHÁC ba computed theo-ứng-viên ở trên:
+ * KHÔNG rơi về một trường `self_declared_*` — tầng 2 chỉ có nghĩa trên đường URL
+ * (`extract_main_content` chỉ `true` ở đó, §Always spec 6.7/6.9), và đường đó LUÔN có ứng
+ * viên (byte HTML thật luôn đi qua dò bảng mã) — nhánh tự khai (`candidate === null`, dán văn
+ * bản tay) không có khái niệm "khối" để mà rơi về.
+ */
+export const importPreviewSelectedBlocks = computed<ChapterBlocksPreviewWire | null>(() => {
+  const candidate = importPreviewSelectedCandidate.value
+  return candidate !== null ? candidate.blocks : null
+})
+
+// 🔴 Giữ `blockFocusedIndex` LUÔN trong phạm vi hợp lệ — dải khối có thể đổi ĐỘ DÀI dưới
+// chân nó (đổi ứng viên bảng mã, hoặc một lượt `Space`/`]` dựng lại xem trước với cấu trúc
+// khối có thể khác — Quyết định #2 §Spec Change Log spec 6.9 chấp nhận rủi ro hẹp này). Một
+// chỉ số vượt quá mảng mới sẽ làm `blocks[blockFocusedIndex.value]` đọc ra `undefined` và mọi
+// phép so `kept`/`confirmed` đọc trên nó vỡ IM LẶNG — đúng lớp lỗi AGENTS.md gọi tên là trung
+// tâm của dự án.
+watch(importPreviewSelectedBlocks, (blocks) => {
+  const length = blocks?.blocks.length ?? 0
+  if (length === 0) {
+    blockFocusedIndex.value = 0
+    blockRangeStart.value = null
+    return
+  }
+  if (blockFocusedIndex.value >= length) {
+    blockFocusedIndex.value = length - 1
+  }
+  if (blockRangeStart.value !== null && blockRangeStart.value >= length) {
+    blockRangeStart.value = null
+  }
+})
+
+/**
  * Tầng 2 CHƯA có thân (§Always spec 6.3) — lý do RỖNG kèm tên story chủ, không phải một
  * chuỗi hiển thị (khoá `mode.library.preview.tier_empty_*`, frontend tự `t()`).
  *
@@ -400,6 +473,13 @@ async function openWith(
   chapterPatternSending.value = false
   chapterPatternError.value = null
   pendingChapterPatternEdit = null
+  blockFocusedIndex.value = 0
+  blockRangeStart.value = null
+  blockRangeMissingStartNotice.value = false
+  blockToggling.value = false
+  blockRangeConfirming.value = false
+  blockActionError.value = null
+  jumpToCleanupRulesSignal.value = 0
 
   const result = await call()
   if (mySequence !== sequence) return // Một lượt mở/huỷ MỚI đã vượt mặt lượt này.
@@ -512,6 +592,13 @@ export async function openImportPreviewFromUrls(
   domainLogDomainCount.value = 0
   urlImportBusy.value = false
   urlImportError.value = null
+  blockFocusedIndex.value = 0
+  blockRangeStart.value = null
+  blockRangeMissingStartNotice.value = false
+  blockToggling.value = false
+  blockRangeConfirming.value = false
+  blockActionError.value = null
+  jumpToCleanupRulesSignal.value = 0
 
   const result = await startUrlImport(urls, sourceLang)
   if (mySequence !== sequence) return // một lượt mở/huỷ MỚI đã vượt mặt lượt này
@@ -551,12 +638,25 @@ export async function openImportPreviewFromUrls(
 }
 
 /** Cập nhật state SAU một lượt tải-lại/bỏ-một-mục — dùng chung bởi
- * [`reloadImportPreviewUrlItem`]/[`removeImportPreviewUrlItem`]. Cố giữ nguyên ứng viên đang
- * chọn nếu nó vẫn còn trong dải mới, cùng khuôn [`reloadImportPreviewAfterRuleChange`]. */
+ * [`reloadImportPreviewUrlItem`]/[`removeImportPreviewUrlItem`]/[`toggleImportPreviewBlockKept`]/
+ * [`confirmImportPreviewBlockRange`]. Cố giữ nguyên ứng viên đang chọn nếu nó vẫn còn trong dải
+ * mới, cùng khuôn [`reloadImportPreviewAfterRuleChange`].
+ *
+ * 🔴 **SỬA 2026-09-07 (vòng rà bước 4, mục 11) — dọn `blockRangeMissingStartNotice`.** MỌI
+ * lượt tới đây dựng lại `UrlImportBatchWire` TƯƠI (tải lại/bỏ một mục, hoặc chính lượt
+ * `Space`/`]` vừa thành công) — cấu trúc khối tầng 2 có thể đã đổi (mục 0 bị tải lại/bỏ),
+ * làm một cảnh báo "`]` trước `[`" còn treo từ TRƯỚC lượt này hết còn đúng ngữ cảnh (mốc `[`
+ * cũ, nếu còn, đã bị chính `watch(importPreviewSelectedBlocks, ...)` xét lại rồi). Không dọn
+ * ở đây thì cảnh báo cũ có thể đứng treo VĨNH VIỄN qua một thao tác không liên quan gì tới
+ * `]`. `blockActionError` KHÔNG dọn ở đây — hai chỗ gọi tầng 2 ([`toggleImportPreviewBlockKept`]/
+ * [`confirmImportPreviewBlockRange`]) tự dọn nó NGAY TRƯỚC khi gọi hàm này (đường thành
+ * công), giữ nguyên đường LỖI (hàm này không được gọi khi `result.error !== null`).
+ */
 function applyUrlImportBatch(batch: NonNullable<Awaited<ReturnType<typeof startUrlImport>>['batch']>): void {
   const keepEncoding = selectedEncoding.value
   urlImportItems.value = batch.items
   domainLogDomainCount.value = batch.domain_log_domain_count
+  blockRangeMissingStartNotice.value = false
   if (batch.encoding_preview === null) {
     preview.value = null
     selectedEncoding.value = null
@@ -606,6 +706,114 @@ export async function removeImportPreviewUrlItem(index: number): Promise<void> {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story 6.9 — sửa ranh giới bóc bằng bàn phím (FR123). Sáu handler của sáu command
+// `import.preview.block_*`/`import.preview.jump_to_cleanup_rules` (`src/commands/index.ts`),
+// gọi từ handler DOM cục bộ trên scrim của `ImportPreviewOverlay.vue` — KHÔNG một hợp âm
+// toàn cục (đo `keys.ts:510-513`, xem doc-comment `commands/index.ts::CommandDeps`).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** `J`/xuống — không vòng lặp qua đầu (chạm cuối dải thì dừng, không "quay lại 0" gây mất
+ * phương hướng). No-op khi tầng 2 rỗng.
+ *
+ * 🔴 **SỬA 2026-09-07 (vòng rà bước 4, mục 11) — dọn `blockActionError`.** Một lỗi ghi
+ * (`Space`/`]` trượt) treo trên khối K đứng yên vô thời hạn nếu người dùng chỉ ĐIỀU HƯỚNG
+ * sang khối khác mà không thử ghi lại — dọn ở đây để một lượt di chuyển đọc lại được coi là
+ * "đã thấy lỗi, đang xem khối khác", cùng tinh thần dọn `blockActionError` trên MỌI đường
+ * thành công khác trong tệp này. */
+export function nextImportPreviewBlock(): void {
+  const length = importPreviewSelectedBlocks.value?.blocks.length ?? 0
+  if (length === 0) return
+  blockFocusedIndex.value = Math.min(blockFocusedIndex.value + 1, length - 1)
+  blockActionError.value = null
+}
+
+/** `K`/lên — cùng khuôn [`nextImportPreviewBlock`], dừng ở 0. */
+export function prevImportPreviewBlock(): void {
+  const length = importPreviewSelectedBlocks.value?.blocks.length ?? 0
+  if (length === 0) return
+  blockFocusedIndex.value = Math.max(blockFocusedIndex.value - 1, 0)
+  blockActionError.value = null
+}
+
+/**
+ * `Space` — đảo trạng thái giữ/loại của khối ĐANG CHỌN. Đây LÀ một lượt ghi THẬT (§Always
+ * spec 6.9: trạng thái phải đi xuống Rust) — chặn khi một lượt khác đang bay, cùng khuôn bốn
+ * cờ CRUD luật làm sạch ([`toggleImportPreviewCleanupRule`]).
+ */
+export async function toggleImportPreviewBlockKept(): Promise<void> {
+  if (confirming.value || blockToggling.value) return
+  const blocks = importPreviewSelectedBlocks.value?.blocks
+  if (blocks === undefined) return
+  const current = blocks[blockFocusedIndex.value]
+  if (current === undefined) return
+
+  blockToggling.value = true
+  try {
+    const result = await tier2BlockSetKept(blockFocusedIndex.value, !current.kept, pendingSourceLang.value)
+    if (result.error !== null) {
+      blockActionError.value = result.error
+      return
+    }
+    if (result.batch === null) return
+    blockActionError.value = null
+    applyUrlImportBatch(result.batch)
+  } finally {
+    blockToggling.value = false
+  }
+}
+
+/** `[` — đặt mốc ĐẦU vùng giữ tại khối đang chọn. KHÔNG gọi Rust (chỉ một mốc CỤC BỘ chờ
+ * `]`) — cùng lý do [`selectImportPreviewCandidate`] không gọi Rust. */
+export function markImportPreviewBlockRangeStart(): void {
+  const length = importPreviewSelectedBlocks.value?.blocks.length ?? 0
+  if (length === 0) return
+  blockRangeStart.value = blockFocusedIndex.value
+  blockRangeMissingStartNotice.value = false
+}
+
+/**
+ * `]` — đặt dải `[blockRangeStart, blockFocusedIndex]` thành giữ, mọi khối NGOÀI dải thành
+ * loại, MỘT LƯỢT (I/O Matrix spec 6.9). Chưa có mốc `[` ⇒ **kêu, không ném**
+ * ([`blockRangeMissingStartNotice`] bật, 0 lời gọi IPC) — đúng I/O Matrix "`]` trước `[`".
+ */
+export async function confirmImportPreviewBlockRange(): Promise<void> {
+  if (confirming.value || blockRangeConfirming.value) return
+  const length = importPreviewSelectedBlocks.value?.blocks.length ?? 0
+  if (length === 0) return
+  if (blockRangeStart.value === null) {
+    blockRangeMissingStartNotice.value = true
+    return
+  }
+
+  blockRangeConfirming.value = true
+  try {
+    const result = await tier2BlockConfirmRange(
+      blockRangeStart.value,
+      blockFocusedIndex.value,
+      length,
+      pendingSourceLang.value,
+    )
+    if (result.error !== null) {
+      blockActionError.value = result.error
+      return
+    }
+    if (result.batch === null) return
+    blockActionError.value = null
+    blockRangeStart.value = null
+    applyUrlImportBatch(result.batch)
+  } finally {
+    blockRangeConfirming.value = false
+  }
+}
+
+/** `R` — nhảy sang tầng 3 (§Spec Change Log spec 6.9: KHÔNG khớp luật theo khối, một điều
+ * hướng thật). `ImportPreviewOverlay.vue` watch [`importPreviewJumpToCleanupRulesSignal`] để
+ * cuộn/đặt tiêu điểm — state module không cầm DOM. */
+export function jumpImportPreviewToCleanupRules(): void {
+  jumpToCleanupRulesSignal.value += 1
+}
+
 /**
  * Chọn một ứng viên khác trong dải — KHÔNG gọi Rust (xem doc-comment đầu tệp). `dispatch`
  * không nhận tham số (§Design Notes spec 6.3), nên đây là handler `@click`/`@keydown` của
@@ -623,6 +831,11 @@ export function selectImportPreviewCandidate(encoding: string): void {
   if (preview.value === null) return
   if (!preview.value.candidates.some((c) => c.encoding === encoding)) return
   selectedEncoding.value = encoding
+  // 🔴 SỬA 2026-09-07 (vòng rà bước 4, mục 11) — mỗi ứng viên mang MỘT dãy khối RIÊNG (cùng
+  // Chương, khác bảng mã dựng chữ) — một cảnh báo/lỗi tầng 2 đứng từ ứng viên CŨ không còn
+  // gắn với dữ liệu người dùng đang nhìn thấy sau khi đổi ô.
+  blockRangeMissingStartNotice.value = false
+  blockActionError.value = null
 }
 
 /** Mẫu phân tách Chương hiện hành, dạng dây — chuỗi rỗng (hoặc CHỈ khoảng trắng) ⇒ `null`
@@ -1053,4 +1266,11 @@ export function resetImportPreview(): void {
   domainLogDomainCount.value = 0
   urlImportBusy.value = false
   urlImportError.value = null
+  blockFocusedIndex.value = 0
+  blockRangeStart.value = null
+  blockRangeMissingStartNotice.value = false
+  blockToggling.value = false
+  blockRangeConfirming.value = false
+  blockActionError.value = null
+  jumpToCleanupRulesSignal.value = 0
 }

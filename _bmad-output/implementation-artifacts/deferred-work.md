@@ -9311,8 +9311,33 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ứng viên đầu rồi dùng chung. Nghiệm thu bằng contract test
   `cleanup_contract.rs::preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules`
   (so khớp byte-for-byte giữa văn bản xem trước và văn bản `confirm_import_with_encoding` thật
-  sự ghi xuống). **Tầng 2 (Story 6.9) không đổi — rủi ro và Chủ ở trên vẫn nguyên**, vì tầng 2
-  chưa có thân nào để mà đo.
+  sự ghi xuống).
+  → ✅ **ĐÓNG CHO TẦNG 2 — 2026-09-07 (Story 6.9), CÙNG CƠ CHẾ đã đóng cho tầng 3.**
+  `commands::project::encoding_candidate_wire` gọi `cleanup_and_chapters_preview_for` (chuỗi
+  bảy bước thật, `PipelineInput::with_extract_main_content(true)`) MỘT LẦN cho MỖI ứng viên
+  trong dải năm ô, rồi đóng gói khối tầng 2 của ĐÚNG ứng viên đó vào
+  `EncodingCandidateWire.blocks`. Đổi ứng viên (`E` rồi chọn hàng khác) chỉ đọc lại phần tử
+  mảng đã có sẵn — dãy khối của MỌI ứng viên đã tính đúng trên bảng mã của CHÍNH NÓ từ lúc mở
+  màn xem trước, không phải tính một lần trên ứng viên đầu rồi dùng chung.
+  🔴 **SỬA 2026-09-07 (vòng rà bước 4, mục 25) — bằng chứng TRÍCH DẪN ban đầu YẾU, đã bù.**
+  Bản đóng đầu tiên chỉ trích `cleanup_contract.rs::preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_non_empty_block_override`
+  làm nghiệm thu — ca đó dùng byte ASCII và chỉ đọc candidate UTF-8. ASCII giải mã Y HỆT dưới
+  MỌI bảng mã byte-đơn-vị (UTF-8/GB18030/GBK/Big5), nên phép so đó KHÔNG PHÂN BIỆT ĐƯỢC "mỗi
+  ứng viên tự giải mã bằng bảng mã của chính nó" khỏi một cài đặt lỗi "luôn giải mã bằng
+  UTF-8/ứng viên đầu rồi dùng chung cho cả năm ô" — hai cài đặt SAI/ĐÚNG đó cho ra CÙNG kết
+  quả trên input ASCII (đúng lớp "triệu chứng có ở cả hai phía không phải nguyên nhân"). Kết
+  luận đóng ở trên vẫn ĐÚNG — nhưng vì đọc mã (`encoding_candidate_wire` gọi
+  `encoding::encoding_for_wire_id(c.wire_id)`, bảng mã CỦA ĐÚNG ứng viên `c`), không phải vì
+  ca test đã trích. Đã thêm nghiệm thu THẬT SỰ phân biệt được hai giả thuyết:
+  `cleanup_contract.rs::each_candidates_tier2_blocks_are_decoded_with_that_candidates_own_encoding_not_a_shared_one`
+  (byte GBK thật, tiếng Trung — ứng viên GBK phải đọc ra `萧炎` chứ không phải mojibake của
+  UTF-8; đối chứng đỏ đã chạy: ép `cleanup_and_chapters_preview_for` dùng `encoding_rs::UTF_8`
+  bất kể ứng viên nào ⇒ ca này ĐỎ đúng — "undecodable bytes for encoding UTF-8" — rồi trả lại
+  mã gốc, ca xanh lại).
+  ⚠️ **Một rủi ro HẸP HƠN, KHÁC HẲN, vẫn mở — xem mục nợ MỚI "`Tier2BlockOverridesState` dùng
+  chung một vector theo INDEX cho cả năm ứng viên" ngay dưới `## Deferred from: 6-9-…`**: đây
+  không phải "tính trên bảng mã cũ" (đã đóng), mà là "override theo CHỈ SỐ có thể trỏ sai
+  khối nếu đổi ứng viên làm cấu trúc khối lệch nhau".
 
 - ⚠️ **`PipelineShape::Chapters` chọn MỘT bảng mã cho `chapters.first()` rồi áp uống nó lên
   MỌI đơn vị `RawBytes` trong cùng danh sách — vòng rà đối kháng 2, mục 21.** Hai chỗ:
@@ -9557,6 +9582,18 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chủ ý — xem doc-comment `segment_normalize_boundary.rs::the_normalize_functions_have_exactly_four_named_product_call_sites`,
   bốn chỗ gọi ĐÃ ĐÓNG BĂNG). Đóng đủ khi Story 6.9 dựng bước 2 và người kế thừa chọn đường
   (a) hoặc (b) cho riêng cặp bước 2/bước 4 đó — cùng khuôn chính debt này.
+  🔵 **CẬP NHẬT 2026-09-07 (Story 6.9) — TIỀN ĐỀ ĐỂ ĐÓNG vế BƯỚC 2 nay có thật, nhưng CHƯA
+  ĐÓNG.** `Step::ExtractMainContent` nay có thân THẬT (`webimport::extract` trả mô hình khối,
+  ghép văn bản từ khối đang giữ) — điều kiện "một khi 6.9 cho thân thật" mà đoạn trên chờ đã
+  xảy ra. Hệ quả: phân kỳ mà đoạn trên mô tả KHÔNG CÒN LÀ GIẢ ĐỊNH — nó QUAN SÁT ĐƯỢC THẬT trên
+  đường URL (đường DUY NHẤT `extract_main_content == true`): `EncodingCandidateWire.normalized`
+  vẫn chuẩn hoá byte VỪA GIẢI MÃ (HTML thô, trước khi bóc), trong khi văn bản THẬT sẽ ghi
+  xuống đã qua bóc + làm sạch + chuẩn hoá — hai số đếm "X chỗ nối giữa câu · Y dòng trống thừa"
+  ở tầng chuẩn hoá của màn xem trước KHÔNG khớp với Chương thật sẽ tạo ra. Story 6.9 KHÔNG sửa
+  `render_candidates`/`normalized_self_declared` (ngoài phạm vi AC của spec 6.9 — chỉ đòi sửa
+  RANH GIỚI BÓC ở tầng 2, không đòi sửa lại tầng chuẩn hoá ở tầng 1). **Chủ vế còn mở: Ice** —
+  chọn đường (a) hay (b) cho riêng cặp bước 2/bước 4 trên đường URL trước khi giao một story
+  sau sửa nó.
 
 - ⚠️ **`normalize::normalize` chạy HAI lượt `.replace()` toàn bộ buffer (`\r\n` → `\n` rồi
   `\r` → `\n`) kể cả khi văn bản không mang một ký tự `\r` nào** — tức MỌI Chương từ một
@@ -9626,6 +9663,18 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   mô hình khối thật (từ bóc `dom_smoothie`) sẽ có đúng dữ liệu để thêm thao tác này, và lúc đó
   mới chọn phím/hợp âm (kiểm trùng với `check:commands` trên TOÀN BỘ registry, không chỉ chế
   độ đang mở).
+  → 🟡 **ĐÓNG MỘT PHẦN 2026-09-07 (Story 6.9).** Mô hình khối thật đã dựng
+  (`core::webimport::extractor::Block`), và `R` nay đăng ký (`import.preview.jump_to_cleanup_rules`,
+  `keys: undefined`, handler DOM cục bộ trên scrim — khuôn `GlossaryQueueOverlay.vue`) — nhưng
+  KHÔNG làm việc "khớp luật với khối đang chọn" mà debt này mô tả. §Spec Change Log spec 6.9
+  chốt: `core::cleanup::apply` chưa nhận PHẠM VI KÝ TỰ (một luật chỉ áp trong vùng của một
+  khối) — dựng đúng nghĩa "khớp theo khối" đòi thay đổi đó, một thay đổi kiến trúc NGOÀI AC
+  của spec 6.9 (AC chỉ đòi sửa RANH GIỚI BÓC, không đòi sửa PHẠM VI LUẬT LÀM SẠCH). Đường đã
+  chọn: `R` cuộn/đặt tiêu điểm sang tầng 3 — một điều hướng thật, không giả bộ có một cơ chế
+  khớp-theo-khối chưa tồn tại. **Vế "khớp luật theo khối" VẪN MỞ. Chủ: Ice** — cần chốt phạm
+  vi (thêm tham số phạm vi ký tự vào `core::cleanup::apply`, hay một cơ chế khác) trước khi
+  giao một story sau dựng nó; đây là quyết định kiến trúc, không phải một lượt vá tiện tay
+  của dev kế thừa.
 
 - ⚠️ **Số "trong cả lần nhập" == số "trong Chương này" khi một lần nhập chỉ có ĐÚNG MỘT
   Chương — không phải một lỗi đếm, một sự trùng hợp về HÌNH DẠNG hôm nay.** `CleanupRuleReportWire`
@@ -10023,3 +10072,70 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   dọn vào mục `glossary` của Cài đặt — mục đó vẫn rỗng như chín mục kia. **Chủ: Ice** — cần
   một câu trả lời tường minh trước khi một story sau này viết lại thứ tự/coi thứ tự này là
   đã chốt.
+
+## Deferred from: 6-9-boc-noi-dung-chinh-va-sua-ranh-gioi-bang-ban-phim (2026-09-07)
+
+- ⚠️ **Nhánh `BlockBody::Image`/`BlockBody::Caption` có mặt trong mô hình khối nhưng 0 chỗ
+  gọi SẢN PHẨM nào tiêu thụ chúng.** `webimport::extract` chở đúng ba nhánh thân (đoạn văn ·
+  ảnh · chú thích ảnh) — Task list spec 6.9 đòi mô hình phải chở CẢ hai nhánh phi-văn-bản đó
+  để không phải đổi hình dạng dữ liệu một lần nữa khi FR127 (tải ảnh về `.atproj`) hay hiển
+  thị ảnh trong bản dịch tới lượt. Hôm nay `ImportPreviewOverlay.vue` chỉ HIỆN chúng ở tầng 2
+  (đọc `alt`/`src` thô làm chỗ giữ chỗ, `Đối chứng` một cách thụ động) — không đường sản phẩm
+  nào tải ảnh về đĩa, gắn nó vào Chương, hay đổi cách nó được dịch. `infer_image_kept_state`
+  (heuristic suy `machine_kept` của một ảnh từ khối văn bản LÂN CẬN gần nhất, vì ảnh không có
+  "chữ" để so khớp với `text_content`) cũng chưa qua thử nghiệm với dữ liệu thật ngoài bảy mẫu
+  bàn đo 6.1. **Chủ: Story 6.11 (hiển thị ảnh trong bản dịch) / Story 6.13 (tải ảnh về
+  `.atproj`, FR127)** — story nào chạm bề mặt ảnh trước sẽ là nơi đầu tiên tiêu thụ hai nhánh
+  này, và cũng là nơi đầu tiên có dữ liệu thật để đo lại `infer_image_kept_state`.
+
+- ⚠️ **`Tier2BlockOverridesState` dùng CHUNG một vector override cho cả năm ứng viên bảng mã,
+  áp theo INDEX khối — không tách theo ứng viên.** Quyết định #2 §Spec Change Log spec 6.9:
+  giản lược khả thi vì cấu trúc DOM/số khối bất biến qua năm bảng mã (chỉ nội dung CHỮ khác
+  nhau, do năm ứng viên chỉ khác nhau ở cách GIẢI MÃ cùng một chuỗi byte HTML, không phải năm
+  tài liệu HTML khác nhau) — trong trường hợp BÌNH THƯỜNG, đây là một giả định đúng. **Rủi ro
+  hẹp, chưa đo:** một ứng viên GIẢI MÃ SAI (ví dụ chọn nhầm UTF-8 cho byte GBK) có thể sinh ra
+  văn bản trong đó các thẻ HTML bị hỏng dạng (nếu byte của chính CÚ PHÁP thẻ — hiếm nhưng
+  không loại trừ được với một số bảng mã đa byte) khiến `dom_query`/`Readability` phân tích ra
+  một CẤU TRÚC khối khác hẳn (số khối khác, thứ tự khác) so với ứng viên đúng. Nếu người dùng
+  đã bấm `Space`/`[`/`]` trên ứng viên SAI rồi mới đổi sang ứng viên ĐÚNG (qua `E`), các chỉ
+  số override đã đặt có thể trỏ NHẦM khối trên cấu trúc mới — một khối vô tội bị đảo trạng
+  thái mà người dùng không hề chạm tới, hoặc một khối người dùng vừa sửa quay lại trạng thái
+  máy đoán mà không có cảnh báo nào. **Chủ: Ice** — cần quyết định trước khi một story sau xử
+  lý: (a) đo trên dữ liệu thật xem rủi ro này có THỰC SỰ xảy ra hay chỉ là lý thuyết (một bảng
+  mã đa byte giải sai HIẾM KHI tạo ra cú pháp thẻ HTML hợp lệ khác — ASCII `<`/`>`/`=`/`"` gần
+  như luôn giữ nguyên byte qua mọi bảng mã phổ biến), hay (b) dựng cơ chế phát hiện "cấu trúc
+  khối đã đổi" (so số khối/thứ tự) và RESET override kèm cảnh báo khi phát hiện lệch.
+
+- ⚠️ **Vế "khớp một luật làm sạch với ĐÚNG khối đang chọn" (kế thừa từ Story 6.5, đóng lại ở
+  Story 6.9 bằng đường khác — xem mục `## Deferred from: 6-5-…` phía trên) đòi
+  `core::cleanup::apply` nhận thêm PHẠM VI KÝ TỰ.** Ghi lại ở đây để không phải lật lại lịch
+  sử: đây là NGUYÊN NHÂN kỹ thuật vì sao `R` của Story 6.9 chỉ là một điều hướng ("nhảy sang
+  tầng 3"), không phải một hành động khớp-theo-khối như Story 6.5 từng gợi ý. **Chủ: Ice** —
+  quyết định kiến trúc (thêm tham số phạm vi ký tự vào `core::cleanup::apply`, hay một cơ chế
+  khác) trước khi giao một story sau dựng thao tác này.
+
+- ⚠️ **Không phép đo hiệu năng nào trên đường XEM TRƯỚC URL, và story này vừa làm nó nặng lên
+  đáng kể.** Mỗi lượt bấm `Space`/`[`/`]` chạy lại trọn chuỗi cho **cả năm** ứng viên bảng mã,
+  và từ Story 6.9 mỗi lượt cõng thêm: một lượt `Readability::parse()` **cộng** một lượt
+  `dom_query::Document::from` trên HTML gốc (hai lần phân tích HTML, có chủ ý — xem doc-comment
+  `extractor.rs`), cộng `assign_matches_by_max_weight_order_preserving_dp` có độ phức tạp bậc
+  hai theo số cặp (khối × lần xuất hiện). Kho có văn hoá `perf_probe_*` (bốn ca ở
+  `cleanup_contract.rs`) nhưng **cả bốn dùng `Blob(AlreadyText)`**, tức `extract_main_content
+  == false`, nên **0 ca nào chạm đường này**. ⇒ Một hồi quy hiệu năng ở đây đi qua trọn 1247 ca
+  Rust + 910 ca vitest + tám cổng mà không ai đỏ. **Chủ: Story 6.10** — story đưa đường nhập
+  lên quy mô hàng chục Chương (`epic-6-context.md:60`: *"6.9, 6.6, 6.3, 6.5 nuôi trực tiếp vào
+  6.10"*), tức story đầu tiên mà con số này thật sự có nghĩa. *(Nêu ở vòng rà bước 4 của Story
+  6.9 bởi cả lớp rà mù lẫn lớp verification-gap; không sửa ở 6.9 vì §Verification của spec 6.9
+  không đòi một bàn đo, và đúc một ngưỡng hiệu năng không có phép đo chống lưng là đúng lớp lỗi
+  mà `AGENTS.md` cấm.)*
+
+- ⚠️ **Hàng I/O Matrix "Trang 0 khối" của spec 6.9 mô tả một trạng thái mà mã hôm nay gần như
+  không tới được.** Lưới an toàn cuối `build_blocks` đẩy một khối chứa trọn `text_content` khi
+  không khối chữ nào được dựng, nên `ChapterBlocksPreviewWire.blocks == []` chỉ xảy ra khi
+  chính `text_content` rỗng — mà ca đó đã bị `ExtractionEmpty` chặn TRƯỚC đó. ⇒ Nhánh
+  `v-else-if` và khoá `mode.library.preview.tier2_empty_blocks` trong `ImportPreviewOverlay.vue`
+  là một đường **chưa ai đi qua**, và không ca test nào dựng được nó. Đây KHÔNG phải một khuyết
+  tật (lưới an toàn tồn tại để không ghi Chương rỗng — đúng thứ vòng 1 đã hụt), mà là một hàng
+  matrix nay mô tả sai hiện thực. **Chủ: Ice** — khối `<frozen-after-approval>` chỉ Ice sửa
+  được: hoặc bỏ hàng đó, hoặc giữ nhánh UI như một hàng rào phòng thủ và ghi rõ nó là đường
+  chết có chủ ý. *(Nêu ở vòng rà bước 4 của Story 6.9, lớp verification-gap.)*

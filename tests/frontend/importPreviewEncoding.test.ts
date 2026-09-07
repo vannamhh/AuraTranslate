@@ -68,6 +68,7 @@ function highConfidencePreview(): ImportEncodingPreview {
         normalized: normalizedFor('plain ascii'),
         cleanup: cleanupFor('plain ascii'),
         chapters: chaptersFor('plain ascii'),
+        blocks: null,
       },
       {
         label: 'GB18030',
@@ -76,6 +77,7 @@ function highConfidencePreview(): ImportEncodingPreview {
         normalized: normalizedFor('plain ascii'),
         cleanup: cleanupFor('plain ascii'),
         chapters: chaptersFor('plain ascii'),
+        blocks: null,
       },
       {
         label: 'GBK',
@@ -84,6 +86,7 @@ function highConfidencePreview(): ImportEncodingPreview {
         normalized: normalizedFor('plain ascii'),
         cleanup: cleanupFor('plain ascii'),
         chapters: chaptersFor('plain ascii'),
+        blocks: null,
       },
       {
         label: 'Big5',
@@ -92,6 +95,7 @@ function highConfidencePreview(): ImportEncodingPreview {
         normalized: normalizedFor('plain ascii'),
         cleanup: cleanupFor('plain ascii'),
         chapters: chaptersFor('plain ascii'),
+        blocks: null,
       },
       {
         label: 'UTF-16',
@@ -100,6 +104,7 @@ function highConfidencePreview(): ImportEncodingPreview {
         normalized: normalizedFor('灱慩⁮獡楣'),
         cleanup: cleanupFor('灱慩⁮獡楣'),
         chapters: chaptersFor('灱慩⁮獡楣'),
+        blocks: null,
       },
     ],
     // candidates khong rong -- doc .normalized cua ung vien dang chon, khong doc truong nay.
@@ -126,7 +131,7 @@ function lowConfidencePreview(): ImportEncodingPreview {
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [
-      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null, cleanup: null, chapters: null },
+      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null, cleanup: null, chapters: null, blocks: null },
       {
         label: 'GB18030',
         encoding: 'gb18030',
@@ -134,6 +139,7 @@ function lowConfidencePreview(): ImportEncodingPreview {
         normalized: normalizedFor('萧炎在东临'),
         cleanup: cleanupFor('萧炎在东临'),
         chapters: chaptersFor('萧炎在东临'),
+        blocks: null,
       },
       {
         label: 'GBK',
@@ -142,6 +148,7 @@ function lowConfidencePreview(): ImportEncodingPreview {
         normalized: normalizedFor('萧炎在东临'),
         cleanup: cleanupFor('萧炎在东临'),
         chapters: chaptersFor('萧炎在东临'),
+        blocks: null,
       },
       {
         label: 'Big5',
@@ -150,6 +157,7 @@ function lowConfidencePreview(): ImportEncodingPreview {
         normalized: normalizedFor('達鍁誗'),
         cleanup: cleanupFor('達鍁誗'),
         chapters: chaptersFor('達鍁誗'),
+        blocks: null,
       },
       {
         label: 'UTF-16',
@@ -158,6 +166,7 @@ function lowConfidencePreview(): ImportEncodingPreview {
         normalized: normalizedFor('扡摣捥'),
         cleanup: cleanupFor('扡摣捥'),
         chapters: chaptersFor('扡摣捥'),
+        blocks: null,
       },
     ],
     self_declared_normalized: null,

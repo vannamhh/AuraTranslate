@@ -19,8 +19,9 @@ use auratranslate_lib::commands::chapter::split_chapter_at_segment;
 use auratranslate_lib::commands::lifecycle::set_chapter_status;
 use auratranslate_lib::commands::project::{
     cancel_import_preview, confirm_import_with_encoding, create_work, create_work_from_text,
-    preview_import_encoding, stash_pending_import_source, ConfidenceWire, EncodingCandidateWire,
-    ImportEncodingPreview, NormalizedPreviewWire, PendingImportSourceState,
+    preview_import_encoding, stash_pending_import_source, BlockBodyWire, BlockWire,
+    ChapterBlocksPreviewWire, ConfidenceWire, EncodingCandidateWire, ImportEncodingPreview,
+    NormalizedPreviewWire, PendingImportSourceState,
 };
 use auratranslate_lib::commands::segment::{
     confirm_segment, flush_segment_targets, list_reading_marks, mark_reading_segment,
@@ -8022,6 +8023,7 @@ fn splitting_chapters_before_decoding_reproduces_the_ad_39_symptom_exactly_one_c
         source_lang: "zh".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
 
     let outcome = run_import_with_order(&wrong_order, input)
@@ -8069,6 +8071,7 @@ fn splitting_chapters_after_decoding_finds_the_pattern_and_produces_n_chapters()
         source_lang: "zh".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
 
     let outcome =
@@ -8127,6 +8130,7 @@ fn an_already_text_shape_skips_the_transcode_half_of_the_decode_step() {
         source_lang: "vi".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
 
     let outcome = run_import(input).expect("hình dạng AlreadyText không được lỗi");
@@ -8172,6 +8176,7 @@ fn an_already_chapters_shape_skips_chapter_splitting_and_keeps_the_input_unit_co
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
 
     let outcome = run_import(input).expect("hình dạng đã-chia-Chương không được lỗi");
@@ -8204,6 +8209,7 @@ fn a_single_element_chapters_shape_is_not_split_even_though_its_length_matches_a
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
 
     let outcome = run_import(input).expect("hình dạng đã-chia-Chương (1 phần tử) không được lỗi");
@@ -8227,6 +8233,7 @@ fn an_empty_chapter_pattern_is_a_no_op_for_decoded_text() {
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
     let outcome = run_import(input).expect("mẫu rỗng không được lỗi");
     assert_eq!(outcome.chapters.len(), 1);
@@ -8258,6 +8265,7 @@ fn an_empty_chapter_pattern_is_a_no_op_for_raw_bytes_too() {
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
     let outcome = run_import_with_order(&wrong_order, input).expect("mẫu rỗng không được lỗi");
     assert_eq!(outcome.chapters.len(), 1);
@@ -8281,6 +8289,7 @@ fn splitting_by_position_keeps_the_matched_title_line_at_the_front_of_each_new_c
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
 
     let outcome = run_import(input).expect("mau regex hop le khong duoc loi");
@@ -8317,6 +8326,7 @@ fn a_literal_pattern_matching_three_times_yields_three_chapters_each_starting_wi
         source_lang: "zh".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
 
     let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
@@ -8352,6 +8362,7 @@ fn text_before_the_first_match_becomes_its_own_untitled_chapter_instead_of_being
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
 
     let outcome = run_import(input).expect("mau regex hop le khong duoc loi");
@@ -8385,6 +8396,7 @@ fn a_zero_length_regex_chapter_pattern_is_filtered_at_the_source_and_yields_one_
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
     let outcome = run_import(input).expect("mau khop do dai 0 khong duoc la loi");
     assert_eq!(
@@ -8406,6 +8418,7 @@ fn a_pattern_matching_nothing_yields_exactly_one_untitled_chapter_not_an_error()
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
     let outcome = run_import(input).expect("mau khong khop khong duoc la loi");
     assert_eq!(outcome.chapters.len(), 1);
@@ -8433,6 +8446,7 @@ fn a_chapter_piece_collapsed_to_a_single_line_by_normalization_has_no_title() {
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
     let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
 
@@ -8469,6 +8483,7 @@ fn a_chapter_piece_with_a_blank_line_separator_keeps_its_title() {
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
     let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
 
@@ -8507,6 +8522,7 @@ fn a_regex_chapter_pattern_never_runs_against_undecoded_bytes() {
         source_lang: "zh".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
 
     let outcome = run_import_with_order(&wrong_order, input)
@@ -8533,6 +8549,7 @@ fn an_invalid_chapter_pattern_regex_propagates_an_error_instead_of_being_swallow
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
         extract_main_content: false,
+        block_overrides: Vec::new(),
     };
 
     let err = run_import(input).expect_err(
@@ -8667,7 +8684,7 @@ fn preview_of_a_utf8_bom_file_is_self_declared_but_still_carries_all_five_real_c
     bytes.extend_from_slice("Chương một".as_bytes());
     let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "bom.txt".to_owned() });
 
-    let preview = preview_import_encoding(&shape, "en", &[], None);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
 
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert_eq!(
@@ -8693,7 +8710,7 @@ fn preview_of_a_utf8_bom_file_is_self_declared_but_still_carries_all_five_real_c
 fn preview_of_pasted_text_is_self_declared_with_no_bytes_to_sniff() {
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("dan tay".to_owned()));
 
-    let preview = preview_import_encoding(&shape, "en", &[], None);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
 
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert!(preview.candidates.is_empty());
@@ -8718,7 +8735,7 @@ fn preview_of_pure_ascii_bytes_is_high_confidence_with_five_identical_candidates
         label: "ascii.txt".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape, "en", &[], None);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
 
     assert_eq!(preview.confidence, ConfidenceWire::High);
     // 🔵 SỬA (2026-09-04, vòng rà lại spec 6.3) — "candidates rỗng khi tin cậy cao" đã HẾT
@@ -8754,7 +8771,7 @@ fn preview_of_a_gbk_file_with_a_short_ascii_header_opens_the_strip_with_five_cel
         label: "gbk-header.txt".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape, "en", &[], None);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
 
     assert_eq!(
         preview.confidence,
@@ -8781,7 +8798,7 @@ fn preview_marks_an_undecodable_candidate_without_touching_the_others() {
         label: "bad.bin".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape, "en", &[], None);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
 
     assert_eq!(preview.confidence, ConfidenceWire::Low);
     assert_eq!(preview.candidates.len(), 5);
@@ -8811,7 +8828,7 @@ fn confirming_with_gbk_chosen_writes_back_the_exact_source_chinese_text() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
 
-    let opened = confirm_import_with_encoding(&root, &pending, "GBK Confirm", "zh", "", "GBK", Vec::new(), None)
+    let opened = confirm_import_with_encoding(&root, &pending, "GBK Confirm", "zh", "", "GBK", Vec::new(), None, Vec::new())
         .unwrap_or_else(|e| panic!("xac nhan GBK that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -8843,9 +8860,9 @@ fn two_concurrent_confirms_on_the_same_pending_source_produce_exactly_one_work_n
 
     let results = std::thread::scope(|scope| {
         let h1 =
-            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race A", "en", "", "UTF-8", Vec::new(), None));
+            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race A", "en", "", "UTF-8", Vec::new(), None, Vec::new()));
         let h2 =
-            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race B", "en", "", "UTF-8", Vec::new(), None));
+            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race B", "en", "", "UTF-8", Vec::new(), None, Vec::new()));
         [h1.join().expect("luong 1 panic"), h2.join().expect("luong 2 panic")]
     });
 
@@ -8893,7 +8910,7 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
     }
     let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "utf16be.txt".to_owned() });
 
-    let preview = preview_import_encoding(&shape, "en", &[], None);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared, "BOM -- nguon tu khai");
     assert_eq!(
         preview.selected_encoding, "UTF-16BE",
@@ -8903,7 +8920,7 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
     let opened =
-        confirm_import_with_encoding(&root, &pending, "UTF-16BE", "en", "", &preview.selected_encoding, Vec::new(), None)
+        confirm_import_with_encoding(&root, &pending, "UTF-16BE", "en", "", &preview.selected_encoding, Vec::new(), None, Vec::new())
             .unwrap_or_else(|e| panic!("xac nhan UTF-16BE that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -8924,7 +8941,7 @@ fn cancelling_then_confirming_creates_zero_works() {
     stash_pending_import_source(&pending, shape);
     cancel_import_preview(&pending);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Huy Roi Xac Nhan", "en", "", "UTF-8", Vec::new(), None)
+    let err = confirm_import_with_encoding(&root, &pending, "Huy Roi Xac Nhan", "en", "", "UTF-8", Vec::new(), None, Vec::new())
         .expect_err("xac nhan sau khi huy phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportNoPendingSource);
 
@@ -8955,7 +8972,7 @@ fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_
 
     // 1) chọn NHẦM UTF-8 -- ngữ pháp byte UTF-8 chặt, byte GBK cua chu Han hau nhu chac
     // chan vi pham no.
-    let err = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "UTF-8", Vec::new(), None)
+    let err = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "UTF-8", Vec::new(), None, Vec::new())
         .expect_err("byte GBK phai TU CHOI duoi UTF-8");
     assert_eq!(err.message_key(), MessageKey::ImportUndecodableBytes);
     assert_eq!(err.params().get("encoding").map(String::as_str), Some("UTF-8"));
@@ -8965,7 +8982,7 @@ fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_
     );
 
     // 2) chọn LẠI đúng GBK -- KHÔNG cần đọc nguồn lần hai, ô đang chờ vẫn còn từ (1).
-    let opened = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "GBK", Vec::new(), None)
+    let opened = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "GBK", Vec::new(), None, Vec::new())
         .unwrap_or_else(|e| panic!("xac nhan lai voi GBK phai thanh cong: {e:?}"));
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
     assert_eq!(source_text, TEXT);
@@ -8983,7 +9000,7 @@ fn confirming_with_an_unrecognized_encoding_wire_id_is_refused_explicitly() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "not-a-real-encoding", Vec::new(), None)
+    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "not-a-real-encoding", Vec::new(), None, Vec::new())
         .expect_err("nhan la khong nhan ra phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportUnrecognizedEncoding);
     assert!(fs::read_dir(&root).unwrap().next().is_none());
@@ -9001,7 +9018,7 @@ fn confirming_with_a_whatwg_valid_label_outside_fr126_is_refused_explicitly() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "Shift_JIS", Vec::new(), None)
+    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "Shift_JIS", Vec::new(), None, Vec::new())
         .expect_err("Shift_JIS la nhan WHATWG hop le nhung NGOAI FR126 -- phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportUnrecognizedEncoding);
     assert!(fs::read_dir(&root).unwrap().next().is_none());
@@ -9017,7 +9034,7 @@ fn confirming_with_a_whatwg_valid_label_outside_fr126_is_refused_explicitly() {
 #[test]
 fn preview_of_an_already_chaptered_shape_with_no_units_is_self_declared_not_a_panic() {
     let shape = PipelineShape::Chapters(Vec::new());
-    let preview = preview_import_encoding(&shape, "en", &[], None);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert!(preview.candidates.is_empty());
     // Không đơn vị nào ⇒ không văn bản nào để mà chuẩn hoá — RỖNG THẬT, nhưng trường vẫn
@@ -9036,7 +9053,7 @@ fn create_work_with_utf8_encoding_behaves_identically_to_the_pre_story_default()
     let root = temp_dir("6-3-create-work-utf8-unchanged");
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("khong doi hanh vi".to_owned()));
 
-    let opened = create_work(&root, "UTF8 Khong Doi", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None)
+    let opened = create_work(&root, "UTF8 Khong Doi", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new())
         .unwrap_or_else(|e| panic!("tao Tac pham UTF-8 that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -9067,6 +9084,8 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
                 normalized: None,
                 cleanup: None,
                 chapters: None,
+                // 🔵 THÊM (Story 6.9) — khối tầng 2 (ranh giới bóc).
+                blocks: None,
             },
             EncodingCandidateWire {
                 label: "GBK".to_owned(),
@@ -9080,6 +9099,7 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
                 }),
                 cleanup: None,
                 chapters: None,
+                blocks: None,
             },
         ],
         self_declared_normalized: None,
@@ -9139,9 +9159,12 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
             &"cleanup".to_owned(),
             // 🔵 THÊM (Story 6.6) — khối tách Chương (tầng 4) của chính ứng viên này.
             &"chapters".to_owned(),
+            // 🔵 THÊM (Story 6.9) — khối tầng 2 (ranh giới bóc) của chính ứng viên này.
+            &"blocks".to_owned(),
         ]),
-        "EncodingCandidateWire phai serialize DUNG NAM ten truong nay (Story 6.4 them \
-         `normalized`, Story 6.5 them `cleanup`, Story 6.6 them `chapters`)"
+        "EncodingCandidateWire phai serialize DUNG SAU ten truong nay (Story 6.4 them \
+         `normalized`, Story 6.5 them `cleanup`, Story 6.6 them `chapters`, Story 6.9 them \
+         `blocks`)"
     );
     // 🔴 `preview: None`/`normalized: None` PHAI di ra la `null` CO MAT, khong mot truong bi
     // bo di -- mot truong VANG MAT doc ra `undefined` phia TypeScript, mot gia tri THU BA ma
@@ -9161,6 +9184,11 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
         Some(&serde_json::Value::Null),
         "cleanup=None (Story 6.5) phai di ra `null` CO MAT, khong bi bo qua khoi object JSON"
     );
+    assert_eq!(
+        first.get("blocks"),
+        Some(&serde_json::Value::Null),
+        "blocks=None (Story 6.9, extract_main_content == false) phai di ra `null` CO MAT"
+    );
 
     let second = candidates[1].as_object().expect("candidate[1] la object");
     assert_eq!(second.get("label"), Some(&serde_json::Value::String("GBK".to_owned())));
@@ -9179,6 +9207,118 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
         "NormalizedPreviewWire phai serialize DUNG bon ten truong snake_case nay"
     );
     assert_eq!(second_normalized.get("text"), Some(&serde_json::Value::String("萧炎".to_owned())));
+}
+
+/// **THÊM (Story 6.9)** — hình dạng dây của `ChapterBlocksPreviewWire`/`BlockWire`/
+/// `BlockBodyWire`, VỚI DỮ LIỆU THẬT: cả BA nhánh thân (`paragraph`/`image`/`caption`) VÀ cả
+/// BA vạch lề hiển thị (loại/giữ-máy-đoán/giữ-đã-xác-nhận). Task list spec 6.9: "vòng 1 chỉ
+/// nối `blocks: None`, tức chưa một `BlockWire` nào đi qua serde" — ca này đóng đúng lỗ đó.
+///
+/// 🔴 Đây CŨNG là đối chứng đỏ ④ của §Verification spec 6.9: thêm
+/// `#[serde(rename_all = "camelCase")]` lên `ChapterBlocksPreviewWire` (hoặc `BlockWire`)
+/// phải làm các `assert_eq!` khoá TÊN dưới đây đỏ ngay — không cần một ca riêng để "chứng
+/// minh nó đỏ được", phép so CHÍNH XÁC từng tên khoá literal đã tự làm việc đó.
+#[test]
+fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_three_visible_states() {
+    let wire = ChapterBlocksPreviewWire {
+        blocks: vec![
+            // Vạch "Đã loại" — máy loại, người dùng chưa chạm.
+            BlockWire {
+                body: BlockBodyWire::Paragraph { text: "Khung điều hướng, không phải bài viết".to_owned() },
+                kept: false,
+                confirmed: false,
+            },
+            // Vạch "Giữ · máy đoán" — máy giữ, người dùng chưa chạm.
+            BlockWire {
+                body: BlockBodyWire::Paragraph { text: "Đoạn thân bài thật, máy giữ đúng".to_owned() },
+                kept: true,
+                confirmed: false,
+            },
+            // Vạch "Giữ" (đã xác nhận) — người dùng vừa bấm `Space` trên một khối máy loại.
+            BlockWire {
+                body: BlockBodyWire::Caption { text: "Chú thích ảnh, người dùng vừa xác nhận giữ".to_owned() },
+                kept: true,
+                confirmed: true,
+            },
+            BlockWire {
+                body: BlockBodyWire::Image {
+                    src: Some("https://example.com/anh.jpg".to_owned()),
+                    alt: Some("Mô tả ảnh".to_owned()),
+                },
+                kept: true,
+                confirmed: false,
+            },
+            BlockWire {
+                body: BlockBodyWire::Image { src: None, alt: None },
+                kept: false,
+                confirmed: false,
+            },
+        ],
+    };
+
+    let json = serde_json::to_value(&wire).expect("serialize ChapterBlocksPreviewWire");
+    let object = json.as_object().expect("ChapterBlocksPreviewWire phai serialize thanh object");
+    assert_eq!(
+        object.keys().collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from([&"blocks".to_owned()]),
+        "ChapterBlocksPreviewWire chi mang DUNG mot truong `blocks`"
+    );
+
+    let blocks = object.get("blocks").and_then(|v| v.as_array()).expect("blocks la mang");
+    assert_eq!(blocks.len(), 5);
+
+    for block in blocks {
+        let obj = block.as_object().expect("moi khoi la object");
+        assert_eq!(
+            obj.keys().collect::<std::collections::BTreeSet<_>>(),
+            std::collections::BTreeSet::from([&"body".to_owned(), &"kept".to_owned(), &"confirmed".to_owned()]),
+            "BlockWire phai serialize DUNG BA ten truong nay: body/kept/confirmed"
+        );
+    }
+
+    // Khối 0 — "Đã loại".
+    assert_eq!(blocks[0]["kept"], serde_json::Value::Bool(false));
+    assert_eq!(blocks[0]["confirmed"], serde_json::Value::Bool(false));
+    let body0 = blocks[0]["body"].as_object().expect("body la object");
+    assert_eq!(
+        body0.keys().collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from([&"kind".to_owned(), &"text".to_owned()]),
+        "BlockBodyWire::Paragraph phai serialize DUNG hai truong `kind`+`text` (the noi \
+         internally-tagged cua serde, khong long duoi mot truong con)"
+    );
+    assert_eq!(body0["kind"], serde_json::Value::String("paragraph".to_owned()));
+    assert_eq!(
+        body0["text"],
+        serde_json::Value::String("Khung điều hướng, không phải bài viết".to_owned())
+    );
+
+    // Khối 1 — "Giữ · máy đoán".
+    assert_eq!(blocks[1]["kept"], serde_json::Value::Bool(true));
+    assert_eq!(blocks[1]["confirmed"], serde_json::Value::Bool(false));
+
+    // Khối 2 — "Giữ" đã xác nhận, thân `caption`.
+    assert_eq!(blocks[2]["kept"], serde_json::Value::Bool(true));
+    assert_eq!(blocks[2]["confirmed"], serde_json::Value::Bool(true));
+    assert_eq!(blocks[2]["body"]["kind"], serde_json::Value::String("caption".to_owned()));
+    assert_eq!(
+        blocks[2]["body"]["text"],
+        serde_json::Value::String("Chú thích ảnh, người dùng vừa xác nhận giữ".to_owned())
+    );
+
+    // Khối 3 — `image`, đủ `src`/`alt`.
+    let body3 = blocks[3]["body"].as_object().expect("body la object");
+    assert_eq!(
+        body3.keys().collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from([&"kind".to_owned(), &"src".to_owned(), &"alt".to_owned()]),
+        "BlockBodyWire::Image phai serialize DUNG ba truong `kind`+`src`+`alt`"
+    );
+    assert_eq!(body3["kind"], serde_json::Value::String("image".to_owned()));
+    assert_eq!(body3["src"], serde_json::Value::String("https://example.com/anh.jpg".to_owned()));
+    assert_eq!(body3["alt"], serde_json::Value::String("Mô tả ảnh".to_owned()));
+
+    // Khối 4 — `image` voi `src`/`alt` deu `None` -- phai la `null` CO MAT, khong bi bo qua.
+    assert_eq!(blocks[4]["body"]["src"], serde_json::Value::Null);
+    assert_eq!(blocks[4]["body"]["alt"], serde_json::Value::Null);
 }
 
 /// Ba giá trị `ConfidenceWire` — cả ba, không chỉ giá trị `Low` mà ca ngay trên đã canh.
@@ -9217,7 +9357,7 @@ fn a_crlf_source_written_through_create_work_has_zero_carriage_returns_when_read
         "Chuong mot.\r\nMot doan van thu hai.\r\n\r\nMot doan thu ba.\r\n".to_owned(),
     ));
 
-    let opened = create_work(&root, "CRLF Round Trip", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None)
+    let opened = create_work(&root, "CRLF Round Trip", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new())
         .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -9297,7 +9437,7 @@ fn a_source_longer_than_the_evidence_window_marks_every_candidate_window_truncat
         bytes: text.clone().into_bytes(),
         label: "long.txt".to_owned(),
     });
-    let preview = preview_import_encoding(&shape, "en", &[], None);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
 
     assert_eq!(preview.candidates.len(), 5, "nguon co byte de do -- du nam o");
     for candidate in &preview.candidates {
@@ -9328,8 +9468,8 @@ fn the_same_mid_sentence_bytes_normalize_differently_by_source_lang_through_rend
         label: "mid-sentence.txt".to_owned(),
     });
 
-    let preview_en = preview_import_encoding(&shape_for(), "en", &[], None);
-    let preview_zh = preview_import_encoding(&shape_for(), "zh", &[], None);
+    let preview_en = preview_import_encoding(&shape_for(), "en", &[], None, &[]);
+    let preview_zh = preview_import_encoding(&shape_for(), "zh", &[], None, &[]);
 
     let utf8_en = preview_en
         .candidates

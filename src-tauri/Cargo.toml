@@ -105,6 +105,14 @@ chardetng = "=1.0.0"
 # (`Cargo.lock` đã khoá 0.8.35) — dùng lại ở đây thêm ĐÚNG 0 byte payload vào cây, không mở
 # cửa NFR15 nào mới.
 encoding_rs = "=0.8.35"
+# 🔵 THÊM 2026-09-07 (Story 6.9) — `core::webimport::extractor` nâng `dom_query` từ bắc cầu
+# (đã có trong `Cargo.lock` từ Story 6.1, qua `dom_smoothie`) thành phụ thuộc TRỰC TIẾP: mô
+# hình khối giữ/loại đòi một lượt duyệt lại HTML GỐC bằng CSS selector mà `dom_smoothie::Article`
+# không phơi ra (nó chỉ trả phần ĐÃ giữ). Ghim `=`, khớp ĐÚNG bản `dom_smoothie` 0.18.0 đã kéo —
+# 0 gói MỚI vào `Cargo.lock` (đo `cargo tree` 2026-09-06, spine `:909`), LICENSE (MIT) đã mở đọc
+# trong nguồn đã tải (`~/.cargo/registry/src/…/dom_query-0.28.0/LICENSE`). Hàng Stack spine
+# ghi TRƯỚC dòng này (NFR15) — xem `ARCHITECTURE-SPINE.md` §Stack.
+dom_query = "=0.28.0"
 
 # ── Bộ lái cửa sổ Tauri THẬT — Ice chốt 2026-08-11 ──────────────────────────────────
 #

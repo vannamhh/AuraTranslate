@@ -227,6 +227,32 @@ export type CommandDeps = {
   /** Huỷ lượt xem trước — 0 lượt ghi. Handler của `import.preview.cancel`. */
   cancelImportPreview?: () => void
 
+  // ── Story 6.9 — sửa ranh giới bóc bằng bàn phím (FR123) ─────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `cancelImportPreview`: state sống ở
+  // `src/importPreviewState.ts`. Sáu dep này KHÔNG được gọi bởi `attachKeymap` (không
+  // `keys[]`) — chỉ bởi handler DOM cục bộ của `ImportPreviewOverlay.vue`, xem doc-comment
+  // tại chỗ đăng ký sáu command tương ứng.
+
+  /** Chuyển tiêu điểm khối xuống khối kế tiếp (`J`). Handler của `import.preview.block_next`. */
+  nextImportPreviewBlock?: () => void
+  /** Chuyển tiêu điểm khối lên khối trước (`K`). Handler của `import.preview.block_prev`. */
+  prevImportPreviewBlock?: () => void
+  /** Đảo trạng thái giữ/loại của khối đang chọn (`Space`) — MỘT lượt ghi thật xuống
+   * `Tier2BlockOverridesState`. Handler của `import.preview.block_toggle_kept`. ⚠️ `async`;
+   * kết quả đi ra qua các `ref` ở tầng module, cùng khuôn `rescanLibraryFolder`. */
+  toggleImportPreviewBlockKept?: () => void
+  /** Đặt mốc ĐẦU vùng giữ tại khối đang chọn (`[`) — 0 lời gọi IPC. Handler của
+   * `import.preview.block_mark_range_start`. */
+  markImportPreviewBlockRangeStart?: () => void
+  /** Đặt dải `[mốc, khối đang chọn]` thành giữ, mọi khối ngoài dải thành loại, một lượt
+   * (`]`). Handler của `import.preview.block_confirm_range`. ⚠️ `async`, cùng khuôn
+   * `toggleImportPreviewBlockKept`. */
+  confirmImportPreviewBlockRange?: () => void
+  /** Nhảy sang tầng 3 — luật làm sạch (`R`, §Spec Change Log spec 6.9). Handler của
+   * `import.preview.jump_to_cleanup_rules`. */
+  jumpImportPreviewToCleanupRules?: () => void
+
   // ── Story 5.3 — "Quét lại thư mục" (FR99) ───────────────────────────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `submitPastedText`: state sống ở
@@ -1076,10 +1102,13 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * `check:commands` chỉ canh `@click`, nên đây nằm NGOÀI phạm vi của nó một cách có tiền lệ).
    *
    * `EXPERIENCE.md:182` liệt `E` ("mở bộ chọn bảng mã") trong bảng phím của MÀN HÌNH ĐẦY ĐỦ
-   * (khối J/K/Space/[]/R/⌥←/⌥→/⌥W còn lại là tầng 2/3 — Story 6.9/6.5/6.10, CHƯA dựng). `E`
+   * (khối J/K/Space/[]/R/⌥←/⌥→/⌥W còn lại là tầng 2/3 — Story 6.9/6.5/6.10). `E`
    * riêng nó dựng được ở story này: Rust LUÔN tính đủ năm bản dựng khi có byte để dò
    * (`commands::project::ImportEncodingPreview::candidates`, không còn giấu theo
    * `confidence`), nên buộc mở chỉ đổi một cờ HIỂN THỊ, không cần gọi Rust lần hai.
+   * 🔵 **SỬA 2026-09-07 (Story 6.9) — J/K/Space/[/]/R nay CÓ THÂN**, xem sáu command
+   * `import.preview.block_*`/`…jump_to_cleanup_rules` ngay dưới. `⌥←`/`⌥→`/`⌥W` (điều hướng
+   * Chương) VẪN CHƯA dựng — ngoài phạm vi story này (tầng 2 giới hạn Chương đầu tiên).
    */
   target.register({
     id: 'import.preview.open_picker',
@@ -1116,6 +1145,86 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('import.preview.cancel', 'cancelImportPreview')
       }
       deps.cancelImportPreview()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 6.9 — SỬA RANH GIỚI BÓC BẰNG BÀN PHÍM (FR123)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * Cả sáu `keys: undefined` — KHÔNG một hợp âm trần toàn cục (đo 2026-09-07,
+   * `keys.ts:510-513`: một hợp âm không mang `⌘`/`Ctrl` chỉ bị nuốt khi tiêu điểm ở vùng gõ,
+   * và `isTypingZone` KHÔNG phủ `<button>` — một `Space` trần sẽ `preventDefault()` MỌI nút
+   * của cả ứng dụng). `ImportPreviewOverlay.vue` gắn một handler DOM CỤC BỘ trên scrim (khuôn
+   * `GlossaryQueueOverlay.vue::onKeydown`/`GlossaryManageOverlay.vue::onKeydown`) rồi gọi
+   * `dispatch('<id>')` — command vẫn đăng ký ở đây (thoả AC "mọi phím là command", `check:commands`
+   * liệt được nó trong màn phím tắt), chỉ KHÔNG có `keys[]` để `attachKeymap` bắt toàn cục.
+   */
+  target.register({
+    id: 'import.preview.block_next',
+    labelKey: 'command.import.preview.block_next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextImportPreviewBlock === undefined) {
+        return portMissing('import.preview.block_next', 'nextImportPreviewBlock')
+      }
+      deps.nextImportPreviewBlock()
+    },
+  })
+  target.register({
+    id: 'import.preview.block_prev',
+    labelKey: 'command.import.preview.block_prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevImportPreviewBlock === undefined) {
+        return portMissing('import.preview.block_prev', 'prevImportPreviewBlock')
+      }
+      deps.prevImportPreviewBlock()
+    },
+  })
+  target.register({
+    id: 'import.preview.block_toggle_kept',
+    labelKey: 'command.import.preview.block_toggle_kept',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleImportPreviewBlockKept === undefined) {
+        return portMissing('import.preview.block_toggle_kept', 'toggleImportPreviewBlockKept')
+      }
+      deps.toggleImportPreviewBlockKept()
+    },
+  })
+  target.register({
+    id: 'import.preview.block_mark_range_start',
+    labelKey: 'command.import.preview.block_mark_range_start',
+    keys: undefined,
+    run: () => {
+      if (deps.markImportPreviewBlockRangeStart === undefined) {
+        return portMissing('import.preview.block_mark_range_start', 'markImportPreviewBlockRangeStart')
+      }
+      deps.markImportPreviewBlockRangeStart()
+    },
+  })
+  target.register({
+    id: 'import.preview.block_confirm_range',
+    labelKey: 'command.import.preview.block_confirm_range',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmImportPreviewBlockRange === undefined) {
+        return portMissing('import.preview.block_confirm_range', 'confirmImportPreviewBlockRange')
+      }
+      deps.confirmImportPreviewBlockRange()
+    },
+  })
+  target.register({
+    id: 'import.preview.jump_to_cleanup_rules',
+    labelKey: 'command.import.preview.jump_to_cleanup_rules',
+    keys: undefined,
+    run: () => {
+      if (deps.jumpImportPreviewToCleanupRules === undefined) {
+        return portMissing('import.preview.jump_to_cleanup_rules', 'jumpImportPreviewToCleanupRules')
+      }
+      deps.jumpImportPreviewToCleanupRules()
     },
   })
 

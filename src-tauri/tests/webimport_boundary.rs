@@ -1,8 +1,8 @@
-//! Ranh giới cây nguồn của Story 6.7 + 6.8 — AD-40 (hai nửa `Fetcher`/`Extractor`), AD-15/
-//! AD-41 (điểm ra mạng thứ ba, đóng khung), AD-16 (0 chuỗi đánh dấu rời module).
+//! Ranh giới cây nguồn của Story 6.7 + 6.8 + 6.9 — AD-40 (hai nửa `Fetcher`/`Extractor`),
+//! AD-15/AD-41 (điểm ra mạng thứ ba, đóng khung), AD-16 (0 chuỗi đánh dấu rời module).
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
-//! NĂM MỆNH ĐỀ, đúng khuôn `cleanup_boundary.rs`/`segment_pipeline_boundary.rs`
+//! SÁU MỆNH ĐỀ, đúng khuôn `cleanup_boundary.rs`/`segment_pipeline_boundary.rs`
 //! ─────────────────────────────────────────────────────────────────────────────
 //! 1. **`core/webimport/fetcher.rs` mang 0 dòng gõ `dom_smoothie`/`Readability`** — `Fetcher`
 //!    không bao giờ phân tích nội dung (AD-40).
@@ -22,6 +22,12 @@
 //!    một byte nào đi qua dây) — cấm nguyên chữ `reqwest` ở đây sẽ bắt oan chính chỗ gọi hợp
 //!    lệ đó. Xem tệp `spec-6-8-allowlist-mang-hai-tang-va-nhat-ky-domain.md` §Code Map:
 //!    "cổng hôm nay mù với tệp mới" — mệnh đề này đóng đúng lỗ đó.
+//! 6. 🔵 **THÊM Story 6.9 — `core/webimport/extractor.rs` mang ÍT NHẤT một dòng THÂN MÃ THẬT
+//!    gọi `dom_query::Document::from`** — mô hình khối giữ/loại đòi một lượt phân tích LẠI
+//!    HTML gốc (doc-comment đầu `extractor.rs` mục 2), không chỉ đọc `text_content` phẳng như
+//!    trước. 🔴 Quét `code_lines` (đã lọc chú thích) — vòng rà 1 nhắc đúng token này CHỈ trong
+//!    doc-comment rồi quên gọi thật, và bốn mệnh đề 1-5 ở trên không canh nổi lỗ đó (chúng
+//!    canh RANH GIỚI, không canh "có mô hình khối THẬT").
 //!
 //! Sàn quần thể + kiểm chứng dương (ca dương + ca âm cho MỖI vị từ) là bắt buộc, khuôn
 //! `cleanup_boundary.rs`.
@@ -397,6 +403,64 @@ fn the_allowlist_connection_token_check_would_actually_flag_a_seeded_violation_a
          bắt oan — đây chính là lý do mệnh đề này KHÔNG dùng chung `NETWORK_TOKENS` của mệnh \
          đề 2 (`reqwest` là một từ khoá quá rộng cho tệp này)"
     );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Mệnh đề 6 (Story 6.9) — `extractor.rs` mang mô hình khối THẬT trong THÂN MÃ, không chỉ
+// trong doc-comment
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 **Đo được, không phải một sở thích.** Vòng rà 1 của spec 6.9 dùng đúng token
+// `dom_query`/`Vec<Block>` trong DOC-COMMENT đầu tệp để mô tả cơ chế, rồi lại quên gọi
+// `dom_query::Document::from` trong THÂN thật — cả `webimport_boundary.rs::the_scanned_tree_is_large_enough_to_be_real`
+// lẫn bốn mệnh đề 1-5 ở trên đều KHÔNG canh nổi lỗ đó (chúng canh "không có mạng"/"không đọc
+// `.content`", không canh "có mô hình khối THẬT"). Gỡ sạch thân duyệt DOM thứ hai (giữ nguyên
+// doc-comment mô tả nó) phải làm mệnh đề dưới đây ĐỎ — đối chứng đỏ ③ của §Verification spec
+// 6.9.
+
+/// `code` gọi `dom_query::Document::from(...)` — chữ ký thật của lượt phân tích HTML GỐC lần
+/// thứ hai (xem doc-comment đầu tệp mục 2). Vị từ THUẦN, hẹp có chủ ý (đúng khuôn
+/// `line_reads_article_content_field` ở trên).
+fn line_parses_the_original_document_a_second_time(code: &str) -> bool {
+    code.contains("Document::from")
+}
+
+#[test]
+fn extractor_carries_at_least_one_line_of_real_code_that_reparses_the_original_document() {
+    let text = text_of("core/webimport/extractor.rs");
+    let hits = code_lines(text_before_first_cfg_test_line(&text))
+        .filter(|(_, code)| line_parses_the_original_document_a_second_time(code))
+        .count();
+    assert!(
+        hits > 0,
+        "`extractor.rs` phải có ít nhất một dòng THÂN MÃ (không phải doc-comment) gọi \
+         `dom_query::Document::from` — mô hình khối (Story 6.9) đòi một lượt phân tích LẠI \
+         HTML GỐC, không chỉ đọc `article.text_content` như trước. Vòng rà 1 nhắc đúng token \
+         này CHỈ trong doc-comment, để lượt duyệt thân bị gỡ vẫn xanh; mệnh đề này quét \
+         `code_lines` (đã lọc chú thích), không quét toàn văn."
+    );
+}
+
+/// Đối chứng THẬT cho mệnh đề trên — chép khuôn
+/// `a_forbidden_token_seeded_only_inside_a_cfg_test_block_is_not_counted_against_the_product_code`:
+/// một chú thích NHẮC token đúng không được tính là "thân mã có thật".
+#[test]
+fn the_reparse_check_would_actually_flag_a_gutted_body_that_only_mentions_it_in_a_comment() {
+    let gutted = "//! dùng `dom_query::Document::from` để duyệt lại HTML gốc\npub fn extract() {}\n";
+    let hits = code_lines(text_before_first_cfg_test_line(gutted))
+        .filter(|(_, code)| line_parses_the_original_document_a_second_time(code))
+        .count();
+    assert_eq!(
+        hits, 0,
+        "ca ÂM: một chú thích NHẮC LẠI `dom_query::Document::from` không được tính là thân mã \
+         có thật — nếu tính, mệnh đề chính không đỏ được khi thân bị gỡ mà doc-comment còn"
+    );
+
+    let real = "pub fn extract() {\n    let doc = dom_query::Document::from(html);\n}\n";
+    let hits_real = code_lines(text_before_first_cfg_test_line(real))
+        .filter(|(_, code)| line_parses_the_original_document_a_second_time(code))
+        .count();
+    assert_eq!(hits_real, 1, "ca DƯƠNG: một dòng mã THẬT gọi `Document::from` phải bị đếm");
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

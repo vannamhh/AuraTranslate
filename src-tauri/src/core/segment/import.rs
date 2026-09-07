@@ -433,6 +433,15 @@ pub struct ImportedChapter {
     /// cấu hình, mẫu không khớp gì (một Chương duy nhất), hoặc đây là Chương lời tựa (phần
     /// văn bản TRƯỚC khớp đầu tiên — §Always spec 6.6: không bao giờ vứt, luôn hiện ra).
     pub title: Option<String>,
+    /// **THÊM 2026-09-07 (Story 6.9)** — mô hình khối CẢ TRANG mà
+    /// [`super::pipeline::Step::ExtractMainContent`] vừa dựng cho Chương này, DỮ LIỆU THÔ
+    /// (`Block::machine_kept`, CHƯA áp `PipelineInput::block_overrides` — bước đó chỉ dùng
+    /// override để GHÉP `source_text`, không sửa lại chính mô hình). `None` khi bước 2 không
+    /// chạy cho Chương này (`extract_main_content == false` — đường tệp/dán tay, mọi Chương
+    /// SAU Chương đầu tiên của đường URL cũng mang `Some` — §Never spec 6.9 chỉ giới hạn
+    /// TẦNG HIỂN THỊ ở Chương đầu, không giới hạn dữ liệu domain này). `commands::project`
+    /// dựng dây tầng 2 từ trường này, đọc lại CÙNG override đã dùng để ghép `source_text`.
+    pub blocks: Option<Vec<crate::core::webimport::Block>>,
 }
 
 /// Bước ĐẦU VÀO — nhánh dán văn bản của AC1. Trả về [`PipelineShape`], KHÔNG tự giải mã/

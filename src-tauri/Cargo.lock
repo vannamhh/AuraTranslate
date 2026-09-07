@@ -247,6 +247,7 @@ version = "0.1.0"
 dependencies = [
  "chardetng",
  "docx-rs",
+ "dom_query 0.28.0",
  "dom_smoothie",
  "encoding_rs",
  "jieba-rs",

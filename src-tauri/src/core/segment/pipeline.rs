@@ -42,9 +42,16 @@
 //! không còn no-op, xem nhánh `match` của nó ngay dưới ([`normalize::normalize`]).
 //! 🔵 **SỬA 2026-09-05 (Story 6.5)** — từ "BA bước" xuống "HAI bước":
 //! [`Step::CleanByRules`] cũng không còn no-op, xem nhánh `match` của nó ngay dưới
-//! ([`crate::core::cleanup::apply`]). [`Step::ExtractMainContent`] (`dom_smoothie`, Story
-//! 6.9), [`Step::Preview`] (Story 6.9) — hai bước CÒN LẠI là no-op trong `match` của
-//! [`run_import_with_order`]. Chúng CÓ MẶT trong [`PIPELINE_ORDER`] và trong
+//! ([`crate::core::cleanup::apply`]).
+//! 🔵 **SỬA 2026-09-06 (Story 6.7) — từ "HAI bước" xuống "MỘT bước".** [`Step::ExtractMainContent`]
+//! không còn no-op — mệnh đề "Story 6.9" ngay dưới đây từng đúng, ĐÃ HẾT ĐÚNG từ Story 6.7:
+//! AD-16 buộc kéo thuật toán bóc lên trước màn xem trước bắt buộc (§Design Notes spec 6.7),
+//! sớm hơn một story so với dự kiến ban đầu của `epics.md`. Story 6.9 (tiếp) đổi chữ ký
+//! `extract` từ trả `String` phẳng sang trả `Vec<webimport::Block>` (mô hình khối giữ/loại) —
+//! xem [`join_kept_blocks`]/[`effective_kept_for_blocks`] ngay dưới bước 5 — nhưng đó là một
+//! thay đổi HÌNH DẠNG của một bước ĐÃ có thân, không phải bước đó CHUYỂN từ rỗng sang có thân.
+//! [`Step::Preview`] (Story 6.9) — bước CÒN LẠI là no-op trong `match` của
+//! [`run_import_with_order`]. Nó CÓ MẶT trong [`PIPELINE_ORDER`] và trong
 //! [`PipelineOutput::trace`] của MỌI lượt chạy — một bước thân rỗng vẫn phải NÓI ĐƯỢC là đã
 //! đi qua, không được biến mất khỏi vết chạy chỉ vì nó không làm gì (AC6 của spec 6.2). Vết
 //! chạy được ghi TỪ BÊN TRONG mỗi nhánh `match`, không phải một `trace.push` chung sau vòng
@@ -69,6 +76,7 @@ use super::chapterpattern::ChapterPattern;
 use super::import::{ImportError, ImportedChapter};
 use super::normalize;
 use super::split::{SplitSegment, split_source_text};
+use crate::core::webimport::{Block, BlockBody};
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // Bước — enum trần, và thứ tự là DỮ LIỆU (xem doc-comment đầu tệp)
@@ -83,7 +91,9 @@ use super::split::{SplitSegment, split_source_text};
 pub enum Step {
     /// Bước 1 — giải mã bảng mã ĐÃ KHAI (mặc định UTF-8; dò bảng mã là Story 6.3).
     DecodeEncoding,
-    /// Bước 2 — bóc nội dung chính. THÂN RỖNG (Story 6.9, `dom_smoothie`).
+    /// Bước 2 — bóc nội dung chính (`dom_smoothie`, Story 6.7). 🔵 **SỬA 2026-09-07 (Story
+    /// 6.9)** — "THÂN RỖNG" hết đúng từ Story 6.7; từ story này thân trả về mô hình khối
+    /// giữ/loại (`webimport::Block`), không còn một `String` phẳng.
     ExtractMainContent,
     /// Bước 3 — làm sạch theo luật ([`crate::core::cleanup::apply`], Story 6.5, FR124).
     /// 🔵 SỬA 2026-09-05 — KHÔNG còn thân rỗng.
@@ -251,6 +261,20 @@ pub struct PipelineInput {
     /// `label` của CHÍNH đơn vị đó (xem [`Flow::labels`]) làm URL để `dom_smoothie` phân
     /// giải đường dẫn tương đối bên trong tài liệu.
     pub extract_main_content: bool,
+    /// **THÊM 2026-09-07 (Story 6.9)** — trạng thái giữ/loại người dùng đã ĐẶT BẰNG TAY cho
+    /// khối của Chương ĐẦU TIÊN (`units[0]`, giới hạn `tier2_url_first_note` — §Never spec
+    /// 6.9), theo INDEX trong `Vec<webimport::Block>` mà [`Step::ExtractMainContent`] vừa
+    /// dựng cho đơn vị đó. `overrides[i] == Some(v)` ⇒ khối `i` GIỮ (`v == true`) hay LOẠI
+    /// (`v == false`) bất kể `Block::machine_kept` nói gì; `None`/ngoài phạm vi ⇒ dùng
+    /// `machine_kept`. RỖNG (mặc định, [`Self::default_shaped`]/[`Self::with_encoding`]) ⇒
+    /// mọi khối dùng nguyên `machine_kept` — đúng hành vi "chưa ai sửa gì".
+    ///
+    /// 🔴 Chỉ `units[0]` đọc trường này (`Step::ExtractMainContent` áp nó cho phần tử ĐẦU
+    /// TIÊN của `old_units`, các phần tử sau dùng nguyên `machine_kept`) — hai lý do: ①
+    /// `Tier2BlockOverridesState` phía `commands::project` dùng CHUNG một vector cho cả năm
+    /// ứng viên bảng mã (Quyết định #2, §Spec Change Log spec 6.9), không tách theo Chương;
+    /// ② tầng 2 chưa mở rộng ra ngoài Chương đầu tiên (§Never spec 6.9).
+    pub block_overrides: Vec<Option<bool>>,
 }
 
 impl PipelineInput {
@@ -265,6 +289,7 @@ impl PipelineInput {
             source_lang: source_lang.into(),
             cleanup_rules: Vec::new(),
             extract_main_content: false,
+            block_overrides: Vec::new(),
         }
     }
 
@@ -287,6 +312,7 @@ impl PipelineInput {
             source_lang: source_lang.into(),
             cleanup_rules: Vec::new(),
             extract_main_content: false,
+            block_overrides: Vec::new(),
         }
     }
 
@@ -318,6 +344,15 @@ impl PipelineInput {
         self.extract_main_content = extract;
         self
     }
+
+    /// **THÊM 2026-09-07 (Story 6.9)** — builder đính `block_overrides` vào một cấu hình đã
+    /// dựng, cùng khuôn ba builder trên (không sửa/xoá constructor cũ). Chỉ `units[0]` đọc
+    /// trường này — xem doc-comment [`Self::block_overrides`].
+    #[must_use]
+    pub fn with_block_overrides(mut self, overrides: Vec<Option<bool>>) -> Self {
+        self.block_overrides = overrides;
+        self
+    }
 }
 
 /// Thủ công vì `encoding_rs::Encoding` không tự `Debug` — in TÊN NHÃN WHATWG
@@ -333,6 +368,7 @@ impl std::fmt::Debug for PipelineInput {
             .field("source_lang", &self.source_lang)
             .field("cleanup_rules", &self.cleanup_rules)
             .field("extract_main_content", &self.extract_main_content)
+            .field("block_overrides", &self.block_overrides)
             .finish()
     }
 }
@@ -411,6 +447,15 @@ struct Flow {
     /// bao giờ bị reset trên đường đó; giữ đúng khuôn cho MỌI thứ tự hợp lệ mà `tests/**`
     /// dựng được (kể cả một hoán vị đặt `SplitChapters` chạy trên `Blob`).
     labels: Vec<String>,
+    /// **THÊM 2026-09-07 (Story 6.9)** — mô hình khối CẢ TRANG mà [`Step::ExtractMainContent`]
+    /// vừa dựng cho từng phần tử `units`, SONG SONG theo INDEX — cùng khuôn `labels`. `None` =
+    /// bước 2 không chạy cho đơn vị này (`extract_main_content == false`, đường tệp/dán tay).
+    /// Đây là dữ liệu THÔ (`Block::machine_kept`, chưa áp `PipelineInput::block_overrides`) —
+    /// `commands::project` tự áp lại overrides khi dựng dây, dùng ĐÚNG hàm
+    /// [`effective_kept_for_blocks`] mà chính bước này gọi để GHÉP văn bản, để hai nơi không
+    /// lệch nhau. Reset về `vec![None; n]` khi [`split_chapters_step`] THẬT SỰ đổi số phần tử
+    /// — cùng lý do `labels` reset ở đó (không xảy ra trên đường sản phẩm, cùng lý lẽ).
+    blocks: Vec<Option<Vec<crate::core::webimport::Block>>>,
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -438,6 +483,7 @@ pub fn run_import_with_order(
         source_lang,
         cleanup_rules,
         extract_main_content,
+        block_overrides,
     } = input;
 
     // `labels` phải được đọc TRƯỚC khi `ChapterInput` bị `Unit::from` tiêu thụ —
@@ -468,54 +514,78 @@ pub fn run_import_with_order(
         cleanup_reports: vec![None; n],
         chapter_titles: vec![None; n],
         labels: initial_labels,
+        blocks: vec![None; n],
     };
 
     let mut trace: Vec<Step> = Vec::with_capacity(order.len());
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels } =
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks } =
                     flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 for u in old_units {
                     units.push(decode_unit(u, encoding)?);
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks }
             }
-            // 🔴 THÂN THẬT — Story 6.7, AD-39 bước 2. `extract_main_content == false` (đường
-            // tệp/dán tay — §Always spec 6.7) GIỮ NGUYÊN thân rỗng như mọi story trước; chỉ
-            // `true` (đường URL) mới GỌI XUỐNG `webimport::extract`, không viết lại nội
-            // tuyến (cùng luật "gọi xuống, đừng chép lại" của bước 3/bước 4).
-            // `trace.push` Ở LẠI BÊN TRONG nhánh (AC6 spec 6.2, doc-comment đầu tệp).
+            // 🔴 THÂN THẬT — Story 6.7 (bóc), Story 6.9 (mô hình khối + trạng thái sửa tay),
+            // AD-39 bước 2. `extract_main_content == false` (đường tệp/dán tay — §Always spec
+            // 6.7) GIỮ NGUYÊN thân rỗng như mọi story trước; chỉ `true` (đường URL) mới GỌI
+            // XUỐNG `webimport::extract`, không viết lại nội tuyến (cùng luật "gọi xuống, đừng
+            // chép lại" của bước 3/bước 4). `trace.push` Ở LẠI BÊN TRONG nhánh (AC6 spec 6.2,
+            // doc-comment đầu tệp).
+            //
+            // 🔴 **SỬA 2026-09-07 (Story 6.9) — `extract` nay trả `Vec<Block>`, không `String`
+            // phẳng.** Văn bản ghi xuống là kết quả GHÉP các khối ĐANG GIỮ (xem
+            // [`join_kept_blocks`]) — "giữ" là `Block::machine_kept`, TRỪ khi
+            // [`PipelineInput::block_overrides`] ghi đè cho ĐÚNG đơn vị ĐẦU TIÊN (`index ==
+            // 0` — giới hạn "chỉ Chương đầu tiên", §Never spec 6.9; xem doc-comment trường
+            // đó). Mô hình khối THÔ (chưa áp override) được giữ lại ở `Flow::blocks` để
+            // `commands::project` dựng lại dây tầng 2 — CÙNG hàm [`effective_kept_for_blocks`]
+            // áp override ở CẢ HAI nơi, để văn bản ghi xuống và dây hiển thị không lệch nhau.
             Step::ExtractMainContent => {
                 if !extract_main_content {
                     trace.push(step);
                     flow
                 } else {
-                    let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels } =
+                    let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks: _ } =
                         flow;
                     let mut units = Vec::with_capacity(old_units.len());
-                    for (u, label) in old_units.into_iter().zip(labels.iter()) {
+                    let mut blocks: Vec<Option<Vec<crate::core::webimport::Block>>> =
+                        Vec::with_capacity(old_units.len());
+                    for (index, (u, label)) in old_units.into_iter().zip(labels.iter()).enumerate() {
                         match u {
                             Unit::Decoded(html) => {
-                                let extracted = crate::core::webimport::extract(&html, label)
+                                let page_blocks = crate::core::webimport::extract(&html, label)
                                     .map_err(|e| ImportError::WebImportItemFailed {
                                         url: label.clone(),
                                         reason:
                                             crate::core::webimport::WebImportItemFailureReason::ExtractionEmpty,
                                         detail: e.detail,
                                     })?;
-                                units.push(Unit::Decoded(extracted));
+                                // Chỉ đơn vị ĐẦU TIÊN đọc `block_overrides` — xem doc-comment
+                                // `PipelineInput::block_overrides`.
+                                let overrides_for_unit: &[Option<bool>] =
+                                    if index == 0 { &block_overrides } else { &[] };
+                                let effective_kept =
+                                    effective_kept_for_blocks(&page_blocks, overrides_for_unit);
+                                let joined = join_kept_blocks(&page_blocks, &effective_kept);
+                                units.push(Unit::Decoded(joined));
+                                blocks.push(Some(page_blocks));
                             }
                             // Bất khả trên mọi thứ tự HỢP LỆ (bước 1 luôn đứng trước bước 2)
                             // — giữ nguyên là phòng thủ cho một thứ tự SAI, cùng khuôn các
                             // nhánh `Unit::Undecoded` khác trong hàm này.
-                            other @ Unit::Undecoded { .. } => units.push(other),
+                            other @ Unit::Undecoded { .. } => {
+                                units.push(other);
+                                blocks.push(None);
+                            }
                         }
                     }
                     trace.push(step);
-                    Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels }
+                    Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks }
                 }
             }
             // 🔴 THÂN THẬT — Story 6.5, FR124, AD-39 bước 3. GỌI `core::cleanup::apply`,
@@ -530,6 +600,7 @@ pub fn run_import_with_order(
                     cleanup_reports: _,
                     chapter_titles,
                     labels,
+                    blocks,
                 } = flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 let mut cleanup_reports = Vec::with_capacity(old_units.len());
@@ -556,7 +627,7 @@ pub fn run_import_with_order(
                     }
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks }
             }
             // 🔴 THÂN THẬT — Story 6.4, FR124/FR125, AD-39 bước 4. GỌI `normalize::normalize`,
             // không viết lại nội tuyến (Task list spec 6.4) — mọi luật (bảng kết câu, bảng
@@ -564,7 +635,7 @@ pub fn run_import_with_order(
             // `trace.push` Ở LẠI BÊN TRONG nhánh (AC6 spec 6.2, doc-comment đầu tệp) —
             // KHÔNG gộp vào một `trace.push` chung sau vòng lặp.
             Step::NormalizeParagraphsAndWhitespace => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels } =
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks } =
                     flow;
                 let units = old_units
                     .into_iter()
@@ -582,7 +653,7 @@ pub fn run_import_with_order(
                     })
                     .collect();
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks }
             }
             Step::SplitChapters => {
                 let next = split_chapters_step(flow, chapter_pattern.as_ref())?;
@@ -607,7 +678,8 @@ pub fn run_import_with_order(
         .zip(flow.segments)
         .zip(flow.cleanup_reports)
         .zip(flow.chapter_titles)
-        .map(|(((u, s), cleanup_report), title)| -> Result<ImportedChapter, ImportError> {
+        .zip(flow.blocks)
+        .map(|((((u, s), cleanup_report), title), blocks)| -> Result<ImportedChapter, ImportError> {
             let source_text = match u {
                 Unit::Decoded(t) => t,
                 // 🔴 KHÔNG THỂ xảy ra sau `validate_order`: `DecodeEncoding` xuất hiện ĐÚNG
@@ -625,7 +697,7 @@ pub fn run_import_with_order(
                     });
                 }
             };
-            Ok(ImportedChapter { source_text, segments: s.unwrap_or_default(), cleanup_report, title })
+            Ok(ImportedChapter { source_text, segments: s.unwrap_or_default(), cleanup_report, title, blocks })
         })
         .collect::<Result<Vec<_>, ImportError>>()?;
 
@@ -711,6 +783,85 @@ fn strip_bom(raw: String) -> String {
         Some(rest) => rest.to_owned(),
         None => raw,
     }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Bước 2 (tiếp) — Story 6.9: áp `block_overrides` rồi GHÉP văn bản từ khối ĐANG GIỮ
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Trạng thái giữ HIỆU LỰC của từng khối trong `blocks` — `overrides[i]` thắng
+/// `blocks[i].machine_kept` khi có mặt (`Some`), đúng thứ tự index; `overrides` ngắn hơn
+/// `blocks` (kể cả rỗng — trường hợp phổ biến, "chưa ai sửa gì") là hợp lệ, phần còn lại dùng
+/// nguyên `machine_kept`. **Hàm thuần, dùng CHUNG** bởi [`join_kept_blocks`] (bước ghép văn
+/// bản, ở trên) VÀ `commands::project` (dựng dây tầng 2 hiển thị cho người dùng) — hai nơi đọc
+/// override phải thấy CÙNG MỘT kết quả, nếu không màn hình sẽ hiện một trạng thái mà văn bản
+/// ghi xuống không khớp.
+pub fn effective_kept_for_blocks(blocks: &[Block], overrides: &[Option<bool>]) -> Vec<bool> {
+    blocks
+        .iter()
+        .enumerate()
+        .map(|(i, b)| overrides.get(i).copied().flatten().unwrap_or(b.machine_kept))
+        .collect()
+}
+
+/// Ghép văn bản từ các khối ĐANG GIỮ (`effective_kept[i] == true`), theo ĐÚNG thứ tự tài
+/// liệu — bỏ qua `BlockBody::Image` (không có "chữ" để ghép) và mọi thân rỗng.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// KHUÔN NỐI — chính xác khi KHÔNG override (AC "trùng đúng Story 6.7"), best-effort khi CÓ
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Hai khối liền nhau trong đầu ra chỉ được nối bằng `Block::exact_gap_before` (khoảng trắng
+/// GỐC, byte-for-byte từ `text_content`) khi chúng CŨNG là một cặp `machine_kept` LIỀN KỀ
+/// TRONG DÃY GỐC (không khối `machine_kept` nào khác đứng giữa chúng theo INDEX TUYỆT ĐỐI) —
+/// đây là điều kiện DUY NHẤT khiến `exact_gap_before` có nghĩa (xem doc-comment trường đó ở
+/// `extractor.rs`). Khi không ai sửa gì, MỌI cặp liền kề trong đầu ra đều thoả điều kiện này
+/// theo cấu trúc (`effective_kept == machine_kept`), nên phép ghép tái tạo lại ĐÚNG TỪNG BYTE
+/// `text_content` mà [`crate::core::webimport::extract`] đã đọc. Khi người dùng đã bấm
+/// `Space`/`[`/`]` làm lệch cặp liền kề đó (loại một khối gốc đứng giữa, hoặc thêm một khối
+/// gốc bị loại vào giữa), không còn khoảng trắng GỐC nào để mà đọc — dùng khuôn nối DỰ PHÒNG
+/// (`Block::is_list_item`: một dòng đơn cho `<li>`, hai dòng cho mọi khối khác, đúng luật
+/// `elem_require_linebreak`/`li` của `dom_query::node::text_formatting::format_text` mà
+/// `TextMode::Formatted` dùng — xem doc-comment đầu `extractor.rs`). AC vòng rà chỉ đòi băng
+/// qua đúng CA KHÔNG OVERRIDE; ca CÓ OVERRIDE chỉ cần Rust là nơi DUY NHẤT ghép (AD-1) và tự
+/// nhất quán giữa xem trước và đĩa (AC "trùng từng byte" — cả hai gọi ĐÚNG hàm này).
+pub fn join_kept_blocks(blocks: &[Block], effective_kept: &[bool]) -> String {
+    let mut out = String::new();
+    let mut last_machine_kept_idx: Option<usize> = None;
+    let mut last_emitted_idx: Option<usize> = None;
+
+    for (i, b) in blocks.iter().enumerate() {
+        let text: Option<&str> = match &b.body {
+            BlockBody::Paragraph(t) | BlockBody::Caption(t) => Some(t.as_str()),
+            BlockBody::Image { .. } => None,
+        };
+        let is_kept = effective_kept.get(i).copied().unwrap_or(b.machine_kept);
+
+        if is_kept {
+            if let Some(t) = text {
+                if !t.is_empty() {
+                    if let Some(prev) = last_emitted_idx {
+                        let exact_pair_is_original_neighbors =
+                            b.machine_kept && last_machine_kept_idx == Some(prev);
+                        if exact_pair_is_original_neighbors {
+                            out.push_str(&b.exact_gap_before);
+                        } else if blocks[prev].is_list_item {
+                            out.push('\n');
+                        } else {
+                            out.push_str("\n\n");
+                        }
+                    }
+                    out.push_str(t);
+                    last_emitted_idx = Some(i);
+                }
+            }
+        }
+
+        if b.machine_kept && text.is_some() {
+            last_machine_kept_idx = Some(i);
+        }
+    }
+
+    out
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -829,6 +980,11 @@ fn split_chapters_step(mut flow: Flow, pattern: Option<&ChapterPattern>) -> Resu
     // Không có nhãn nào có ý nghĩa để mà phân bổ (bước này chỉ chạy trên `Blob`, chưa từng
     // mang một URL thật), nên chuỗi rỗng cho MỌI phần tử là đúng, không phải một xấp xỉ.
     flow.labels = vec![String::new(); n];
+    // Cùng khuôn reset của `labels` — xem doc-comment `Flow::blocks`. Bước này chỉ chạy trên
+    // `Blob` (return sớm khi `already_chaptered`, đúng nhánh mà `extract_main_content = true`
+    // luôn đi cùng `Chapters`), nên `blocks` ở đây luôn TOÀN `None` trước lượt reset này —
+    // gán lại `vec![None; n]` không mất dữ liệu có nghĩa nào.
+    flow.blocks = vec![None; n];
     Ok(flow)
 }
 

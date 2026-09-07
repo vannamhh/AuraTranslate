@@ -22,8 +22,9 @@ use auratranslate_lib::commands::cleanup::{
     cleanup_list_rules, cleanup_set_enabled,
 };
 use auratranslate_lib::commands::project::{
-    OpenWork, PendingImportSourceState, cleanup_and_chapters_preview_for, confirm_import_with_encoding,
-    create_work, preview_import_encoding, stash_pending_import_source,
+    BlockBodyWire, OpenWork, PendingImportSourceState, cleanup_and_chapters_preview_for,
+    confirm_import_with_encoding, create_work, preview_import_encoding, set_block_override,
+    stash_pending_import_source,
 };
 use auratranslate_lib::core::cleanup::{CleanupRule, CleanupRuleKind, CleanupRuleTier};
 use auratranslate_lib::core::i18n::MessageKey;
@@ -69,6 +70,7 @@ fn open_work_real(documents_root: &Path) -> OpenWork {
         encoding_rs::UTF_8,
         Vec::new(),
     None,
+    Vec::new(),
 )
     .expect("tao OpenWork that bai")
 }
@@ -102,6 +104,7 @@ fn zero_rules_leaves_source_text_byte_for_byte_unchanged() {
         encoding_rs::UTF_8,
         Vec::new(),
     None,
+    Vec::new(),
 )
     .expect("tao tac pham that bai");
 
@@ -138,6 +141,7 @@ fn confirming_an_import_with_an_enabled_literal_rule_removes_every_match_from_th
         encoding_rs::UTF_8,
         vec![rule],
     None,
+    Vec::new(),
 )
     .expect("tao tac pham that bai");
 
@@ -176,6 +180,7 @@ fn a_regex_rule_matches_per_line_across_a_multi_line_chapter() {
         encoding_rs::UTF_8,
         vec![rule],
     None,
+    Vec::new(),
 )
     .expect("tao tac pham that bai");
 
@@ -387,7 +392,7 @@ fn disabling_a_previously_matched_rule_removes_its_span_immediately_but_keeps_it
         None,
     )
     .expect("phan giai hai tang");
-    let preview_on = preview_import_encoding(&shape, "en", &rules_on, None);
+    let preview_on = preview_import_encoding(&shape, "en", &rules_on, None, &[]);
     let cleanup_on = preview_on
         .self_declared_cleanup
         .as_ref()
@@ -404,7 +409,7 @@ fn disabling_a_previously_matched_rule_removes_its_span_immediately_but_keeps_it
         None,
     )
     .expect("phan giai hai tang sau khi tat");
-    let preview_off = preview_import_encoding(&shape, "en", &rules_off, None);
+    let preview_off = preview_import_encoding(&shape, "en", &rules_off, None, &[]);
     let cleanup_off = preview_off
         .self_declared_cleanup
         .as_ref()
@@ -441,7 +446,7 @@ fn pasted_text_with_zero_encoding_candidates_still_gets_a_full_cleanup_block() {
     .expect("phan giai hai tang");
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("truoc xoa sau".to_owned()));
-    let preview = preview_import_encoding(&shape, "en", &rules, None);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[]);
 
     assert!(preview.candidates.is_empty(), "duong AlreadyText phai cho 0 ung vien bang ma");
     let cleanup = preview
@@ -483,7 +488,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
     let text = "dau truyen. quang cao. cuoi truyen.".to_owned();
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
 
-    let preview = preview_import_encoding(&shape, "en", &rules, None);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[]);
     let cleanup = preview
         .self_declared_cleanup
         .as_ref()
@@ -501,6 +506,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
         "UTF-8",
         rules,
         None,
+        Vec::new(),
     )
     .expect("xac nhan that bai");
 
@@ -515,6 +521,208 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
     drop(opened.store);
     drop(global);
     cleanup_dir(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 Story 6.9 — nối bất biến "xem trước và xác nhận trùng từng byte" sang hình dạng
+// `Chapters(RawBytes)` CÓ OVERRIDE KHÁC RỖNG (Đối chứng đỏ ① của §Verification spec 6.9)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Ca `preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules` ở trên
+// dùng `Blob(AlreadyText)` — `extract_main_content == false`, 0 khối nào tồn tại, nên nó
+// KHÔNG THỂ đỏ vì lỗi "đường ghi bỏ qua override" (vòng rà 1 đã hụt đúng lỗi này: `create_work`
+// không truyền `block_overrides` xuống `PipelineInput`). Ca này dựng hình dạng THẬT của đường
+// URL (`Chapters(RawBytes)`, `extract_main_content == true`) với MỘT override khác rỗng, rồi
+// đối chiếu văn bản TRÊN ĐĨA với `final_text` mà `preview_import_encoding` (CÙNG override) vừa
+// hiện — đúng cặp mà AC🔴 của spec 6.9 đòi.
+#[test]
+fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_non_empty_block_override() {
+    let root = temp_dir("preview-confirm-agree-block-override");
+
+    // Cùng fixture đã đo ở `webimport_contract.rs`
+    // (`extracted_text_never_contains_an_angle_bracket_from_the_source_markup`) — đo được
+    // BỐN khối: tiêu đề + hai đoạn thân bài `machine_kept == true` (mục 0-2), một khối
+    // `<aside>` `machine_kept == false` (mục 3, "Binh luan cua doc gia...").
+    let html = "<html><head><title>Bai viet</title></head><body>\
+         <nav><a href=\"/menu\">Menu</a></nav>\
+         <article><h1>Tieu de bai viet</h1>\
+         <p>Doan mot co du chu de duoc Readability chon lam noi dung chinh cua trang, \
+         nhieu chu hon de vuot nguong do dai toi thieu can thiet.</p>\
+         <p>Doan hai tiep tuc noi dung that su cua bai viet, khong phai menu hay quang cao, \
+         du dai de dom_smoothie cham diem cao cho khoi nay mot cach ro rang.</p>\
+         </article>\
+         <aside><p>Binh luan cua doc gia, khong lien quan noi dung bai viet chinh, day chi la \
+         rac quanh bai de kiem tra bo loc co loai duoc no khong.</p></aside>\
+         </body></html>"
+        .to_owned();
+    let url = "https://example.com/bai-viet".to_owned();
+    let shape_for_preview = PipelineShape::Chapters(vec![ChapterInput::RawBytes {
+        bytes: html.clone().into_bytes(),
+        label: url.clone(),
+    }]);
+
+    // 🔴 SỬA 2026-09-07 (vòng rà bước 4, mục 24) — bản trước khai "khối 0 ('Menu')" ở đây
+    // VÀ "ép khối 0 GIỮ" ở lượt 2 bên dưới: SAI CHỈ SỐ. Khối override THẬT SỰ trong ca này
+    // là khối 3 (`<aside>`, bình luận độc giả — xem assert `baseline_blocks.blocks[3]` ngay
+    // dưới VÀ `set_block_override(&mut overrides, 3, …)` ở lượt 2); "Menu" nằm trong `<nav>`,
+    // vốn không tạo ra một `Candidate` nào cả (không khớp `BLOCK_SELECTOR`) nên không có
+    // "khối 0" nào ứng với nó để mà loại/giữ. Lượt 1 (KHÔNG override) chỉ để xác nhận khối 3
+    // THẬT SỰ bị máy loại, nên ép nó GIỮ ở lượt 2 là một thay đổi QUAN SÁT ĐƯỢC (văn bản DÀI
+    // HƠN), không phải một override vô hại trùng với máy đã quyết.
+    let baseline = preview_import_encoding(&shape_for_preview, "en", &[], None, &[]);
+    let baseline_candidate = baseline
+        .candidates
+        .iter()
+        .find(|c| c.encoding == "UTF-8")
+        .expect("phai co ung vien UTF-8");
+    let baseline_blocks = baseline_candidate
+        .blocks
+        .as_ref()
+        .expect("extract_main_content == true tren duong URL phai cho Some(blocks)");
+    assert!(
+        !baseline_blocks.blocks[3].kept,
+        "tien de: khoi 3 (<aside>, binh luan) phai bi MAY LOAI that su — neu khong, ca nay \
+         khong do duoc gi khi ai go .with_block_overrides() khoi create_work"
+    );
+    let baseline_text = baseline_candidate
+        .cleanup
+        .as_ref()
+        .expect("UTF-8 phai ra chu")
+        .final_text
+        .clone();
+
+    // Lượt 2 (CÓ override) — ép khối 3 GIỮ (`Space` trên một khối `ornament`, đúng I/O Matrix
+    // spec 6.9: "khối thành `confirmed`, văn bản sẽ ghi DÀI RA").
+    let mut overrides: Vec<Option<bool>> = Vec::new();
+    set_block_override(&mut overrides, 3, true, baseline_blocks.blocks.len())
+        .expect("index 3 phai nam trong tong so khoi that cua baseline");
+
+    let preview_with_override =
+        preview_import_encoding(&shape_for_preview, "en", &[], None, &overrides);
+    let candidate_with_override = preview_with_override
+        .candidates
+        .iter()
+        .find(|c| c.encoding == "UTF-8")
+        .expect("phai co ung vien UTF-8");
+    let blocks_with_override = candidate_with_override
+        .blocks
+        .as_ref()
+        .expect("Some(blocks) khong doi giua hai luot");
+    assert!(blocks_with_override.blocks[3].kept, "override phai thang machine_kept");
+    assert!(blocks_with_override.blocks[3].confirmed, "override co mat o vi tri 3 => confirmed");
+    let final_text_with_override = candidate_with_override
+        .cleanup
+        .as_ref()
+        .expect("UTF-8 phai ra chu")
+        .final_text
+        .clone();
+    // 🔴 SỬA 2026-09-07 (vòng rà bước 4, mục 24) — bản trước SO SÁNH bằng `.len()` (BYTE)
+    // nhưng IN ra bằng `.chars().count()` (KÝ TỰ) — hai đơn vị LỆCH NHAU trong CÙNG một
+    // assert, nên một lượt đọc log khi ca này đỏ thấy hai con số không phải là thứ vừa được
+    // so. Cả hai vế giờ CÙNG một đơn vị (ký tự) — đúng thứ AC quan tâm ("văn bản dài ra" là
+    // một mệnh đề về NỘI DUNG, không phải về số byte UTF-8 chiếm dụng).
+    assert!(
+        final_text_with_override.chars().count() > baseline_text.chars().count(),
+        "vach lai I/O Matrix spec 6.9: giu mot khoi ornament phai lam van ban DAI RA \
+         (baseline {} ky tu, co override {} ky tu)",
+        baseline_text.chars().count(),
+        final_text_with_override.chars().count()
+    );
+
+    // Xác nhận THẬT — CÙNG override, qua ĐÚNG đường ghi `create_work` (`confirm_import_with_encoding`).
+    let shape_for_confirm = PipelineShape::Chapters(vec![ChapterInput::RawBytes {
+        bytes: html.into_bytes(),
+        label: url,
+    }]);
+    let state: PendingImportSourceState = std::sync::Mutex::new(None);
+    stash_pending_import_source(&state, shape_for_confirm);
+    let opened = confirm_import_with_encoding(
+        &root,
+        &state,
+        "Preview Confirm Agree Block Override",
+        "en",
+        "",
+        "UTF-8",
+        Vec::new(),
+        None,
+        overrides,
+    )
+    .expect("xac nhan that bai");
+
+    let written = read_source_text(&opened);
+    assert_eq!(
+        written, final_text_with_override,
+        "🔴 DUONG GHI BO QUA OVERRIDE — day la ca ma vong ra 1 da HUT: `create_work` phai ap \
+         `block_overrides` giong het `preview_import_encoding` vua hien; neu ai go \
+         `.with_block_overrides(...)` khoi `create_work`, dong nay do (van ban tren dia roi ve \
+         phan doan may (baseline), khong con khop voi ban xem truoc da hien)"
+    );
+    assert_ne!(
+        written, baseline_text,
+        "tien de kep: neu dong nay bang baseline_text thi override khong he co tac dung o \
+         DUONG GHI, dung cach vo hieu hoa ma ca nay ton tai de bat"
+    );
+
+    drop(opened.store);
+    cleanup_dir(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 🔴 Story 6.9 — SỬA 2026-09-07 (vòng rà bước 4, mục 25): bằng chứng THẬT cho lời khai
+// "ĐÓNG CHO TẦNG 2" của D2 (`deferred-work.md`, khoản "Ba trong bốn bước còn lại là THÂN
+// RỖNG").
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// Ca `preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_non_empty_block_override`
+// ở trên chỉ dùng byte ASCII và chỉ đọc candidate UTF-8 — ASCII giải mã Y HỆT dưới MỌI bảng
+// mã byte-đơn-vị (UTF-8/GB18030/GBK/Big5, xem
+// `segment_contract.rs::preview_of_an_ascii_only_file_...`), nên ca đó KHÔNG PHÂN BIỆT ĐƯỢC
+// "mỗi ứng viên tự giải mã bằng bảng mã CỦA CHÍNH NÓ" (lời khai D2) khỏi một cài đặt lỗi
+// "luôn giải mã bằng UTF-8/ứng viên đầu rồi dùng chung cho cả năm ô" — hai cài đặt đó cho ra
+// CÙNG kết quả trên input ASCII, đúng lớp chứng cứ yếu mà `AGENTS.md` gọi tên là "triệu
+// chứng có ở cả hai phía không phải nguyên nhân". Ca NÀY dùng byte GBK THẬT (tiếng Trung,
+// giải mã SAI dưới UTF-8 thành mojibake) để hai giả thuyết đó TÁCH RA được: nếu tầng 2 của
+// ứng viên GBK đọc ra CHỮ TRUNG THẬT (không phải mojibake), cơ chế đúng như lời khai (đúng
+// điều `commands::project::encoding_candidate_wire` đọc thấy khi kiểm mã: nó gọi
+// `encoding::encoding_for_wire_id(c.wire_id)` — bảng mã CỦA ĐÚNG ứng viên `c`, không phải
+// một hằng số dùng chung); nếu nó đọc ra mojibake, lời khai sai.
+#[test]
+fn each_candidates_tier2_blocks_are_decoded_with_that_candidates_own_encoding_not_a_shared_one() {
+    let html_text = "<html><body><article><h1>Chuong 01</h1>\
+         <p>萧炎在东临村口的一处石壁上练习着最基础的吐纳法门，为了能夠早日突破斗之力三段，甚至\
+         每天都要练到深夜才肯罢休，日复一日从未松懈过半分，只求有朝一日能夠离开这个令人窒息的\
+         偏僻山村。</p></article></body></html>";
+    let (bytes, _, had_errors) = encoding_rs::GBK.encode(html_text);
+    assert!(!had_errors, "fixture phai ma hoa GBK sach");
+    let shape = PipelineShape::Chapters(vec![ChapterInput::RawBytes {
+        bytes: bytes.into_owned(),
+        label: "https://example.com/gbk-article".to_owned(),
+    }]);
+
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
+    let gbk_candidate = preview.candidates.iter().find(|c| c.label == "GBK").expect("phai co o GBK");
+    let gbk_blocks = gbk_candidate
+        .blocks
+        .as_ref()
+        .expect("extract_main_content == true tren duong URL phai cho Some(blocks), ke ca ung vien khong duoc chon mac dinh");
+
+    let gbk_text: String = gbk_blocks
+        .blocks
+        .iter()
+        .filter_map(|b| match &b.body {
+            BlockBodyWire::Paragraph { text } => Some(text.clone()),
+            BlockBodyWire::Caption { text } => Some(text.clone()),
+            BlockBodyWire::Image { .. } => None,
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    assert!(
+        gbk_text.contains("萧炎"),
+        "ung vien GBK phai TU GIAI MA bang CHINH bang ma cua no -- doc duoc chu Trung THAT, \
+         khong phai mojibake tu mot bang ma khac (vi du UTF-8 cua ung vien dau) bi dung chung \
+         cho ca nam o. Khoi doc duoc: {gbk_text:?}"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -555,6 +763,7 @@ fn a_rule_that_matches_the_entire_chapter_creates_a_chapter_with_empty_source_te
         encoding_rs::UTF_8,
         vec![rule],
     None,
+    Vec::new(),
 )
     .expect(
         "hanh vi THAT hom nay: create_work KHONG tu choi mot Chuong don co source_text rong \
@@ -674,7 +883,7 @@ fn counts_cover_the_whole_chapter_even_when_the_rendered_window_is_truncated() {
     let text = format!("QUANGCAO dau chuong.\n{filler}QUANGCAO cuoi chuong.\n");
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
-    let preview = preview_import_encoding(&shape, "en", &rules, None);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[]);
     let cleanup =
         preview.self_declared_cleanup.as_ref().expect("nhanh tu khai phai co khoi lam sach");
 
@@ -761,7 +970,7 @@ fn a_match_straddling_the_window_boundary_is_clipped_to_it_not_dropped() {
             .expect("phan giai hai tang");
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
-    let preview = preview_import_encoding(&shape, "en", &rules, None);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[]);
     let cleanup =
         preview.self_declared_cleanup.as_ref().expect("nhanh tu khai phai co khoi lam sach");
 
@@ -843,7 +1052,7 @@ fn perf_probe_six_full_pipeline_runs_on_one_large_chapter() {
     // Đường TỰ KHAI (1 lượt `run_pipeline` trên TOÀN văn bản).
     let shape_self_declared = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
     let t0 = std::time::Instant::now();
-    let preview_self = preview_import_encoding(&shape_self_declared, "zh", &rules, None);
+    let preview_self = preview_import_encoding(&shape_self_declared, "zh", &rules, None, &[]);
     let self_declared_elapsed = t0.elapsed();
     assert!(preview_self.self_declared_cleanup.is_some(), "tien de: nhanh tu khai phai co khoi");
 
@@ -851,7 +1060,7 @@ fn perf_probe_six_full_pipeline_runs_on_one_large_chapter() {
     let shape_candidates =
         PipelineShape::Blob(ChapterInput::RawBytes { bytes: text.into_bytes(), label: String::new() });
     let t1 = std::time::Instant::now();
-    let preview_candidates = preview_import_encoding(&shape_candidates, "zh", &rules, None);
+    let preview_candidates = preview_import_encoding(&shape_candidates, "zh", &rules, None, &[]);
     let candidates_elapsed = t1.elapsed();
     assert_eq!(preview_candidates.candidates.len(), 5, "tien de: du nam o FR126");
 
@@ -955,7 +1164,7 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
         ChapterInput::AlreadyText(chapter_2),
         ChapterInput::AlreadyText(chapter_3),
     ]);
-    let (cleanup_wire, _chapters_wire) = cleanup_and_chapters_preview_for(
+    let (cleanup_wire, _chapters_wire, _blocks_wire) = cleanup_and_chapters_preview_for(
         shape_for_wire,
         encoding_rs::UTF_8,
         None,
@@ -964,6 +1173,7 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
         &[rule.clone()],
         false,
         false,
+        &[],
     );
 
     assert_eq!(cleanup_wire.rules.len(), 1, "dung mot luat duoc gieo");
@@ -1036,6 +1246,7 @@ fn preview_and_confirm_agree_byte_for_byte_when_a_chapter_pattern_yields_n_chapt
         "UTF-8",
         rules,
         Some(pattern),
+        Vec::new(),
     )
     .expect("xac nhan that bai");
 
@@ -1100,7 +1311,7 @@ fn perf_probe_chapter_split_preview_on_two_thousand_chapters() {
     );
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text));
     let t0 = std::time::Instant::now();
-    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern));
+    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern), &[]);
     let elapsed = t0.elapsed();
 
     let chapters =
@@ -1157,7 +1368,7 @@ fn perf_probe_chapter_split_preview_on_five_candidates_with_two_thousand_chapter
         label: "perf-5-candidates.txt".to_owned(),
     });
     let t0 = std::time::Instant::now();
-    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern));
+    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern), &[]);
     let elapsed = t0.elapsed();
 
     assert_eq!(

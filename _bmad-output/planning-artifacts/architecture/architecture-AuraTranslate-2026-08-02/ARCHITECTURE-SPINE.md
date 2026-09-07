@@ -830,6 +830,7 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `chardetng` *(core::webimport — dò bảng mã, Story 6.1)* | 1.0.0 | Apache-2.0 OR MIT ✓ |
 | `encoding_rs` *(core::webimport — giải mã theo bảng mã đã dò, Story 6.1; đã bắc cầu qua `reqwest`/`quick-xml` trước story này, khai tường minh thêm 0 byte)* | 0.8.35 | (Apache-2.0 OR MIT) AND BSD-3-Clause ✓ |
 | `regex` *(core::cleanup — luật làm sạch dạng biểu thức chính quy, Story 6.5; đã có sẵn trong `Cargo.lock` từ trước — bắc cầu qua `jieba-rs`/`tantivy-stemmers` — khai tường minh thêm 0 byte)* | =1.13.1 | MIT OR Apache-2.0 ✓ |
+| `dom_query` *(core::webimport::Extractor — Story 6.9, nâng từ bắc cầu của `dom_smoothie` (dòng `:909`) thành phụ thuộc TRỰC TIẾP: `extractor.rs` cần duyệt lại HTML GỐC bằng CSS selector để dựng mô hình khối giữ/loại — `Article::content` của `dom_smoothie` không phơi ra đủ, xem §Design Notes spec 6.9. Đã có sẵn trong `Cargo.lock` từ Story 6.1, LICENSE đã mở đọc trong nguồn đã tải (`~/.cargo/registry/src/…/dom_query-0.28.0/LICENSE`) — 0 gói MỚI vào `Cargo.lock`, chỉ đổi từ bắc cầu sang khai tường minh)* | =0.28.0 | MIT ✓ |
 | `similar` **hoặc** `dissimilar` | 3.1.1 / mới nhất | Apache-2.0 / Apache-2.0 OR MIT |
 | `uuid` *(feature `v4`)* | 1.24.0 | MIT OR Apache-2.0 ✓ |
 | `tauri-plugin-wdio-webdriver` *(`optional`, feature `wdio`, chỉ debug — AD-45)* | 1.3.0 | MIT ✓ |

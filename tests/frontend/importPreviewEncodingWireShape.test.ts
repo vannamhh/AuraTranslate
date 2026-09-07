@@ -33,6 +33,13 @@ function chaptersFor(title: string): Record<string, unknown> {
   return { chapter_count: 1, chapters: [{ ord: 1, title, length: title.length }] }
 }
 
+/** Khối tầng 2 tối giản, một khối `paragraph` đang giữ, chưa ai xác nhận — Story 6.9. Hình
+ * dạng THẬT của `commands::project::ChapterBlocksPreviewWire` (`BlockWire`/`BlockBodyWire`
+ * đúng khuôn `#[serde(tag = "kind", rename_all = "snake_case")]`). */
+function blocksFor(text: string): Record<string, unknown> {
+  return { blocks: [{ body: { kind: 'paragraph', text }, kept: true, confirmed: false }] }
+}
+
 /** Payload dây HỢP LỆ — hình dạng THẬT mà `commands::project::ImportEncodingPreview` (Rust,
  * `serde::Serialize` KHÔNG `rename_all`) trả về. Story 6.4 thêm `normalized` trên mỗi ô —
  * `null` đồng bộ với `preview: null`, một object khi `preview` có chữ. Story 6.5 thêm
@@ -43,7 +50,7 @@ function validWirePreview(): Record<string, unknown> {
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [
-      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null, cleanup: null, chapters: null },
+      { label: 'UTF-8', encoding: 'UTF-8', preview: null, normalized: null, cleanup: null, chapters: null, blocks: null },
       {
         label: 'GB18030',
         encoding: 'gb18030',
@@ -51,6 +58,7 @@ function validWirePreview(): Record<string, unknown> {
         normalized: { text: '萧炎', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
         cleanup: cleanupFor('萧炎'),
         chapters: chaptersFor('萧炎'),
+        blocks: blocksFor('萧炎'),
       },
       {
         label: 'GBK',
@@ -59,6 +67,7 @@ function validWirePreview(): Record<string, unknown> {
         normalized: { text: '萧炎', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
         cleanup: cleanupFor('萧炎'),
         chapters: chaptersFor('萧炎'),
+        blocks: blocksFor('萧炎'),
       },
       {
         label: 'Big5',
@@ -67,6 +76,7 @@ function validWirePreview(): Record<string, unknown> {
         normalized: { text: '達鍁', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
         cleanup: cleanupFor('達鍁'),
         chapters: chaptersFor('達鍁'),
+        blocks: blocksFor('達鍁'),
       },
       {
         label: 'UTF-16',
@@ -75,6 +85,7 @@ function validWirePreview(): Record<string, unknown> {
         normalized: { text: '扡摣', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
         cleanup: cleanupFor('扡摣'),
         chapters: chaptersFor('扡摣'),
+        blocks: blocksFor('扡摣'),
       },
     ],
     // candidates khong rong -- doc .normalized/.cleanup/.chapters cua ung vien dang chon,
@@ -341,6 +352,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
             final_text: 'abc',
           },
           chapters: chaptersFor('quang cao abc'),
+          blocks: blocksFor('quang cao abc'),
         },
       ],
       self_declared_normalized: null,
@@ -425,6 +437,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
               { ord: 2, title: 'Chuong 2', length: 8 },
             ],
           },
+          blocks: blocksFor('Chuong 1 Chuong 2'),
         },
       ],
       self_declared_normalized: null,
@@ -440,6 +453,118 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     expect(chapters?.chapter_count).toBe(2)
     expect(chapters?.chapters).toHaveLength(2)
     expect(chapters?.chapters[1]?.title).toBe('Chuong 2')
+  })
+
+  // ── Story 6.9 — khối tầng 2, ranh giới bóc (FR123) trên dây ───────────────────────
+
+  // Cùng lý lẽ đã áp cho `cleanup`/`chapters` — `blocks` VẮNG MẶT (không phải `null`) phải
+  // bác CẢ payload, không lọt qua thành `undefined` hiện lên `.vue`.
+  it('candidates[].blocks VẮNG MẶT (thiếu trường, không phải null) làm CẢ payload bị bác', async () => {
+    mockInvoke.mockResolvedValue({
+      confidence: 'high',
+      selected_encoding: 'UTF-8',
+      candidates: [
+        {
+          label: 'UTF-8',
+          encoding: 'UTF-8',
+          preview: 'abc',
+          normalized: { text: 'abc', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+          cleanup: cleanupFor('abc'),
+          chapters: chaptersFor('abc'),
+          // thieu `blocks` han
+        },
+      ],
+      self_declared_normalized: null,
+      self_declared_cleanup: null,
+      self_declared_chapters: null,
+    })
+    const { previewImportEncodingFromText } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromText('x', 'en', null)
+
+    expect(result.preview).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  it('candidates[].blocks[].body THIẾU `kind` làm CẢ payload bị bác', async () => {
+    mockInvoke.mockResolvedValue({
+      confidence: 'high',
+      selected_encoding: 'UTF-8',
+      candidates: [
+        {
+          label: 'UTF-8',
+          encoding: 'UTF-8',
+          preview: 'abc',
+          normalized: { text: 'abc', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
+          cleanup: cleanupFor('abc'),
+          chapters: chaptersFor('abc'),
+          blocks: { blocks: [{ body: { text: 'abc' }, kept: true, confirmed: false }] }, // thieu `kind`
+        },
+      ],
+      self_declared_normalized: null,
+      self_declared_cleanup: null,
+      self_declared_chapters: null,
+    })
+    const { previewImportEncodingFromText } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromText('x', 'en', null)
+
+    expect(result.preview).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  // Ca DƯƠNG — một dãy khối THẬT (ba nhánh thân, ba vạch lề) phải đi qua nguyên vẹn, không bị
+  // Kiểm TYPE cắt bớt trường nào — khuôn `the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_three_visible_states`
+  // phía Rust (`segment_contract.rs`), cùng payload thật để hai bên không lệch nhau.
+  it('payload mang dãy khối tầng 2 THẬT (ba nhánh thân, ba vạch lề) đi qua nguyên vẹn', async () => {
+    mockInvoke.mockResolvedValue({
+      confidence: 'high',
+      selected_encoding: 'UTF-8',
+      candidates: [
+        {
+          label: 'UTF-8',
+          encoding: 'UTF-8',
+          preview: 'Khung dieu huong. Doan than bai.',
+          normalized: {
+            text: 'Khung dieu huong. Doan than bai.',
+            joined_lines: 0,
+            blank_lines_removed: 0,
+            window_truncated: false,
+          },
+          cleanup: cleanupFor('Khung dieu huong. Doan than bai.'),
+          chapters: chaptersFor('Khung dieu huong. Doan than bai.'),
+          blocks: {
+            blocks: [
+              { body: { kind: 'paragraph', text: 'Khung dieu huong' }, kept: false, confirmed: false },
+              { body: { kind: 'paragraph', text: 'Doan than bai' }, kept: true, confirmed: false },
+              { body: { kind: 'caption', text: 'Chu thich anh' }, kept: true, confirmed: true },
+              { body: { kind: 'image', src: 'https://example.com/a.jpg', alt: null }, kept: true, confirmed: false },
+            ],
+          },
+        },
+      ],
+      self_declared_normalized: null,
+      self_declared_cleanup: null,
+      self_declared_chapters: null,
+    })
+    const { previewImportEncodingFromText } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromText('x', 'en', null)
+
+    expect(result.error).toBeNull()
+    const blocks = result.preview?.candidates[0]?.blocks?.blocks
+    expect(blocks).toHaveLength(4)
+    expect(blocks?.[0]).toEqual({
+      body: { kind: 'paragraph', text: 'Khung dieu huong' },
+      kept: false,
+      confirmed: false,
+    })
+    expect(blocks?.[2]).toEqual({ body: { kind: 'caption', text: 'Chu thich anh' }, kept: true, confirmed: true })
+    expect(blocks?.[3]).toEqual({
+      body: { kind: 'image', src: 'https://example.com/a.jpg', alt: null },
+      kept: true,
+      confirmed: false,
+    })
   })
 
   // ── Story 6.6 — tham số `chapterPattern` gửi lên Rust ĐÚNG HÌNH DẠNG dây ──────────

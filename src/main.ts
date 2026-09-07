@@ -69,7 +69,13 @@ import {
 import {
   cancelImportPreview,
   confirmImportPreview,
+  confirmImportPreviewBlockRange,
+  jumpImportPreviewToCleanupRules,
+  markImportPreviewBlockRangeStart,
+  nextImportPreviewBlock,
   openImportPreviewCandidatePicker,
+  prevImportPreviewBlock,
+  toggleImportPreviewBlockKept,
 } from './importPreviewState'
 // ── Story 5.3 — "Quét lại thư mục" (FR99) ────────────────────────────────────────────
 //
@@ -442,6 +448,15 @@ async function boot(): Promise<void> {
         })()
       },
       cancelImportPreview,
+      // Story 6.9 — sửa ranh giới bóc bằng bàn phím (FR123). Sáu hàm THUẦN, cùng cửa và cùng
+      // lý do `cancelImportPreview` — không cần một closure `async` gói ở đây, kết quả IPC
+      // đi ra qua các `ref` ở tầng module (cùng khuôn `rescanLibraryFolder`).
+      nextImportPreviewBlock,
+      prevImportPreviewBlock,
+      toggleImportPreviewBlockKept,
+      markImportPreviewBlockRangeStart,
+      confirmImportPreviewBlockRange,
+      jumpImportPreviewToCleanupRules,
       // Story 5.3 — "Quét lại thư mục" (FR99).
       rescanLibraryFolder,
       chooseLibraryRootFolder,

@@ -297,6 +297,14 @@ pub fn resolve_chapter_pattern(
 /// - chuỗi pipeline trượt (ví dụ byte không hợp lệ với bảng mã ĐÃ CHỌN) ⇒ lỗi nhập
 ///   (`import.*`), qua `From<ImportError>`;
 /// - mở/ghi `project.db` trượt ⇒ lỗi kho (`store.*`), qua `From<StoreError>`.
+///
+/// 🔴 **THÊM 2026-09-07 (Story 6.9) — tham số `block_overrides`, đúng cái vòng rà 1 đã hụt.**
+/// Trạng thái giữ/loại người dùng đặt bằng `Space`/`[`/`]` ở tầng 2 PHẢI đi tới đây — đây là
+/// đường DUY NHẤT ghi Chương xuống `.atproj` (doc-comment ở trên). Không truyền tham số này
+/// (hoặc truyền `Vec::new()` một cách sai) làm đĩa nhận phán đoán MÁY trong khi màn hình đã
+/// hiện sửa tay — `wire::confirm_import_with_encoding` là chỗ gọi PHẢI đọc
+/// `Tier2BlockOverridesState` rồi truyền NGUYÊN VẸN vào đây, reset state đó SAU KHI ghi
+/// xong (không phải TRƯỚC — một lượt xác nhận trượt giữ nguyên override để thử lại).
 pub fn create_work(
     documents_root: &Path,
     name: &str,
@@ -306,6 +314,7 @@ pub fn create_work(
     encoding: &'static encoding_rs::Encoding,
     cleanup_rules: Vec<crate::core::cleanup::CleanupRule>,
     chapter_pattern: Option<ChapterPattern>,
+    block_overrides: Vec<Option<bool>>,
 ) -> Result<OpenWork, IpcError> {
     let dir = create_work_folder(documents_root, name)?;
 
@@ -359,7 +368,8 @@ pub fn create_work(
         PipelineInput::with_encoding(shape, encoding, source_lang_owned.clone())
             .with_cleanup_rules(cleanup_rules)
             .with_chapter_pattern(chapter_pattern)
-            .with_extract_main_content(extract_main_content),
+            .with_extract_main_content(extract_main_content)
+            .with_block_overrides(block_overrides),
     ) {
         Ok(outcome) => outcome,
         Err(err) => {
@@ -536,6 +546,7 @@ pub fn create_work_from_text(
         encoding_rs::UTF_8,
         Vec::new(),
         None,
+        Vec::new(),
     )
 }
 
@@ -970,6 +981,7 @@ pub fn create_work_from_file(
         encoding_rs::UTF_8,
         Vec::new(),
         None,
+        Vec::new(),
     )
 }
 
@@ -1052,6 +1064,13 @@ pub struct EncodingCandidateWire {
     /// trên (không một lượt `run_pipeline` thứ hai chỉ cho khối này). `null` đồng bộ với
     /// `cleanup` (bảng mã này "không ra chữ").
     pub chapters: Option<ChapterSplitPreviewWire>,
+    /// **THÊM 2026-09-07 (Story 6.9)** — khối tầng 2 (ranh giới bóc): dãy khối cả trang của
+    /// Chương ĐẦU TIÊN, tính bằng cách chạy CHÍNH chuỗi pipeline thật đã dựng `cleanup`/
+    /// `chapters` ở trên (không một lượt `run_pipeline` thứ hai). `null` khi
+    /// `extract_main_content == false` (đường tệp/dán tay — I/O Matrix: "rỗng kèm câu nói vì
+    /// sao", khoá `tier_empty_story_6_9`) — KHÔNG đồng bộ `null`/`Some` với `cleanup`: một
+    /// bảng mã "không ra chữ" (`cleanup == null`) cũng cho `blocks == null`, cùng lý do.
+    pub blocks: Option<ChapterBlocksPreviewWire>,
 }
 
 /// Nhãn tầng của một luật làm sạch, trên dây — Story 6.5.
@@ -1200,6 +1219,170 @@ fn build_chapter_split_preview_wire(
             })
             .collect(),
     }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.9 — tầng 2 (bóc nội dung chính + sửa ranh giới bằng bàn phím, FR123)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Thân một khối trên dây — khớp `webimport::BlockBody`, gắn thẻ `kind` (AD-21: dữ liệu định
+/// danh máy, không một câu). Trường thân đặt tên `body` ở [`BlockWire`], không ở đây — kiểu
+/// này CHÍNH LÀ nội dung `body`.
+///
+/// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt — cùng luật mọi kiểu qua biên IPC; `kind` dùng
+/// `rename_all = "snake_case"` RIÊNG (ba giá trị "paragraph"/"image"/"caption", không phải
+/// tên trường).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum BlockBodyWire {
+    Paragraph { text: String },
+    Image { src: Option<String>, alt: Option<String> },
+    Caption { text: String },
+}
+
+impl From<&webimport::BlockBody> for BlockBodyWire {
+    fn from(b: &webimport::BlockBody) -> Self {
+        match b {
+            webimport::BlockBody::Paragraph(t) => BlockBodyWire::Paragraph { text: t.clone() },
+            webimport::BlockBody::Image { src, alt } => {
+                BlockBodyWire::Image { src: src.clone(), alt: alt.clone() }
+            }
+            webimport::BlockBody::Caption(t) => BlockBodyWire::Caption { text: t.clone() },
+        }
+    }
+}
+
+/// Một khối trên dây — thân CỘNG hai cờ trực giao suy ra đủ ba vạch lề hiển thị (§Spec Change
+/// Log spec 6.9, KEEP mục ①): `kept == false` ⇒ "Đã loại"; `kept && !confirmed` ⇒ "Giữ · máy
+/// đoán"; `kept && confirmed` ⇒ "Giữ". `kept`/`confirmed` là giá trị HIỆU LỰC (đã áp
+/// `Tier2BlockOverridesState`, xem [`build_chapter_blocks_preview_wire`]) — KHÔNG phải
+/// `Block::machine_kept` trần.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct BlockWire {
+    pub body: BlockBodyWire,
+    pub kept: bool,
+    /// `true` ⇔ người dùng đã ĐẶT TAY trạng thái này (`Tier2BlockOverridesState` mang
+    /// `Some(_)` ở đúng chỉ số này) — phân biệt "Giữ · máy đoán" khỏi "Giữ" đã xác nhận.
+    pub confirmed: bool,
+}
+
+/// Khối tầng 2 của MỘT ứng viên — Story 6.9, FR123. `None` (ở [`EncodingCandidateWire::blocks`])
+/// khi tầng không áp dụng (`extract_main_content == false`, đường tệp/dán tay — I/O Matrix:
+/// "Tầng 2 rỗng KÈM CÂU NÓI VÌ SAO", khoá `tier_empty_story_6_9`); `Some` với `blocks` RỖNG khi
+/// áp dụng nhưng trang không có khối nào (I/O Matrix "Trang 0 khối" — cực hiếm, xem lưới an
+/// toàn ở `extractor.rs::build_blocks`, trong thực tế trang thật LUÔN có ít nhất một khối).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ChapterBlocksPreviewWire {
+    pub blocks: Vec<BlockWire>,
+}
+
+/// Dựng [`ChapterBlocksPreviewWire`] từ Chương ĐẦU TIÊN (`chapters.first()` — giới hạn
+/// `tier2_url_first_note`, §Never spec 6.9) VÀ override hiện hành, dùng ĐÚNG
+/// [`crate::core::segment::pipeline::effective_kept_for_blocks`] mà bước 2 của chuỗi đã gọi
+/// để ghép `source_text` — hai nơi PHẢI thấy cùng một trạng thái "giữ" (xem doc-comment hàm
+/// đó). `None` khi Chương không tồn tại hoặc `extract_main_content == false`
+/// (`chapter.blocks.is_none()`).
+fn build_chapter_blocks_preview_wire(
+    chapter: Option<&crate::core::segment::import::ImportedChapter>,
+    block_overrides: &[Option<bool>],
+) -> Option<ChapterBlocksPreviewWire> {
+    let blocks = chapter?.blocks.as_ref()?;
+    let effective_kept =
+        crate::core::segment::pipeline::effective_kept_for_blocks(blocks, block_overrides);
+    let wire_blocks = blocks
+        .iter()
+        .enumerate()
+        .map(|(i, b)| BlockWire {
+            body: BlockBodyWire::from(&b.body),
+            kept: effective_kept.get(i).copied().unwrap_or(b.machine_kept),
+            confirmed: block_overrides.get(i).is_some_and(|o| o.is_some()),
+        })
+        .collect();
+    Some(ChapterBlocksPreviewWire { blocks: wire_blocks })
+}
+
+/// Khuôn `(start, end, machine_kept) -> Vec<Option<bool>>` — hàm THUẦN cạnh
+/// `wire::tier2_block_confirm_range` (`src-tauri/AGENTS.md:11` cấm luật trong vỏ). Trả một
+/// patch ĐẦY ĐỦ `machine_kept.len()` phần tử: `Some(true)` trong dải `[start, end]` (bao gồm
+/// hai đầu) — I/O Matrix spec 6.9: "khối 3–9 confirmed, MỌI khối NGOÀI dải ornament, MỘT
+/// LƯỢT". `start > end` (không nên tới đây — frontend chặn `]` trước `[`) được XỬ AN TOÀN
+/// bằng cách hoán đổi, không panic và không âm thầm bỏ qua.
+///
+/// 🔴 **SỬA 2026-09-07 (vòng rà bước 4, mục 6) — tham số `machine_kept: &[bool]`, KHÔNG
+/// `total: usize` trần.** Bản trước ép NGOÀI dải luôn `Some(false)` — kể cả một khối máy đã
+/// ĐÚNG loại từ đầu (`machine_kept[i] == false`). `Some(false)` mang nghĩa "người dùng ĐÃ
+/// XÁC NHẬN loại" (`confirmed == true`, xem [`BlockWire`]) — gán nó cho một khối máy chưa hề
+/// sai là một lời khai KHÔNG THẬT ("người xác nhận" một điều không ai chạm tới), và làm mất
+/// đúng phân biệt "máy đoán" khỏi "người xác nhận" mà toàn bộ `Tier2BlockOverridesState`
+/// dựng lên để giữ. Quy tắc ĐÚNG, đo trên chính AC ("mọi khối ngoài dải bị loại"): ngoài dải,
+/// một khối máy ĐANG giữ (`machine_kept[i] == true`) cần bị ép — đó là sửa THẬT một quyết
+/// định sai của máy, nên `Some(false)`; một khối máy ĐÃ loại (`machine_kept[i] == false`)
+/// không cần ép gì — giữ `None` (chưa ai xác nhận, đúng với sự thật) mới đúng, không phải vì
+/// tiện mà vì đó là "đủ ép trạng thái ĐÚNG với AC, không thừa một xác nhận không ai làm".
+pub fn block_overrides_for_range(start: usize, end: usize, machine_kept: &[bool]) -> Vec<Option<bool>> {
+    let (lo, hi) = if start <= end { (start, end) } else { (end, start) };
+    machine_kept
+        .iter()
+        .enumerate()
+        .map(|(i, &was_kept)| {
+            let in_range = i >= lo && i <= hi;
+            if in_range {
+                Some(true)
+            } else if was_kept {
+                // Ngoài dải, máy ĐANG giữ — AC buộc loại, đây là SỬA thật ⇒ xác nhận.
+                Some(false)
+            } else {
+                // Ngoài dải, máy ĐÃ loại từ đầu — không có gì để "xác nhận", giữ None.
+                None
+            }
+        })
+        .collect()
+}
+
+/// Đặt/gỡ override của MỘT khối theo chỉ số — hàm THUẦN cạnh `wire::tier2_block_set_kept`.
+/// Vector NGẮN HƠN `total_blocks` được nới bằng `None` (chưa ai sửa khối đó) trước khi ghi.
+///
+/// 🔴 **SỬA 2026-09-07 (vòng rà bước 4, mục 5) — tham số `total_blocks: usize` cộng
+/// `Result<(), ()>`.** Bản trước nới vector tới `index + 1` KHÔNG so `index` với tổng số
+/// khối thật của trang — một `index` từ một lượt hiển thị CŨ (trang đã tải lại, số khối đổi)
+/// vẫn được ghi lặng lẽ, tạo một override "ma" không khối nào trên trang MỚI trỏ tới, hoặc
+/// ngược lại đọc-nhầm sang một khối KHÁC nếu tổng số khối co lại rồi phình ra trùng chỉ số.
+/// Chỗ gọi (`wire::tier2_block_set_kept`) giờ PHẢI tự đo `total_blocks` THẬT (qua
+/// [`current_tier2_machine_kept`]) trước khi gọi hàm này, và `Err(())` nghĩa là `index` không
+/// còn khớp trang hiện hành — chỗ gọi từ chối ghi thay vì đoán.
+pub fn set_block_override(
+    overrides: &mut Vec<Option<bool>>,
+    index: usize,
+    kept: bool,
+    total_blocks: usize,
+) -> Result<(), ()> {
+    if index >= total_blocks {
+        return Err(());
+    }
+    if overrides.len() < total_blocks {
+        overrides.resize(total_blocks, None);
+    }
+    overrides[index] = Some(kept);
+    Ok(())
+}
+
+/// Đo `machine_kept` THẬT của Chương ĐẦU TIÊN đường URL, HIỆN HÀNH — dùng chung bởi hai vỏ
+/// `tier2_block_*` để có một TỔNG SỐ KHỐI đáng tin trước khi ghi override (mục 5/6, vòng rà
+/// bước 4). Chạy [`url_import_encoding_preview`] với override RỖNG (`&[]`) — ở đó `kept`
+/// của mỗi khối CHÍNH LÀ `machine_kept` trần (không override nào áp) — rồi lấy `blocks` của
+/// ứng viên ĐẦU TIÊN mang `Some(blocks)` (năm ứng viên override cùng Chương nên
+/// `machine_kept`/tổng số khối giống hệt nhau ở bất kỳ ứng viên nào có `Some`; lấy ứng viên
+/// đầu tránh phải biết trước bảng mã nào "ra chữ"). `None` khi danh sách còn mục hỏng/rỗng
+/// hoặc `extract_main_content == false` (không có gì để mà đếm) — chỗ gọi coi đó là lỗi lắp
+/// dây/trạng thái cũ, từ chối ghi thay vì đoán một tổng số khối.
+fn current_tier2_machine_kept(
+    items: &[UrlImportItem],
+    source_lang: &str,
+    cleanup_rules: &[CleanupRule],
+) -> Option<Vec<bool>> {
+    let preview = url_import_encoding_preview(items, source_lang, cleanup_rules, &[])?;
+    let blocks = preview.candidates.iter().find_map(|c| c.blocks.as_ref())?;
+    Some(blocks.blocks.iter().map(|b| b.kept).collect())
 }
 
 /// Ba trạng thái tin cậy trên dây — DỮ LIỆU (AD-21: Rust không gửi câu). Frontend tự dịch
@@ -1384,6 +1567,10 @@ pub struct ImportEncodingPreview {
 /// `PipelineShape::Chapters` (đường URL). Vì vậy hàm này KHÔNG suy `extract_main_content` từ
 /// hình dạng `shape` nhận được (luôn `Blob` sau khi gói) — chỗ gọi phải truyền tường minh,
 /// tính từ hình dạng GỐC (`preview_import_encoding`, tham số cùng tên).
+/// 🔴 **THÊM tham số `block_overrides` 2026-09-07 (Story 6.9).** Cùng lý do `extract_main_content`
+/// ở trên: `shape` GÓI LẠI thành `Blob` bên trong [`encoding_candidate_wire`], nhưng override
+/// là trạng thái của người dùng cho ĐƠN VỊ ĐẦU TIÊN của hình dạng GỐC — chỗ gọi truyền tường
+/// minh từ `Tier2BlockOverridesState`, không suy từ `shape` đã gói.
 pub fn cleanup_and_chapters_preview_for(
     shape: PipelineShape,
     encoding: &'static encoding_rs::Encoding,
@@ -1393,11 +1580,13 @@ pub fn cleanup_and_chapters_preview_for(
     cleanup_rules: &[CleanupRule],
     window_truncated: bool,
     extract_main_content: bool,
-) -> (CleanupPreviewWire, ChapterSplitPreviewWire) {
+    block_overrides: &[Option<bool>],
+) -> (CleanupPreviewWire, ChapterSplitPreviewWire, Option<ChapterBlocksPreviewWire>) {
     let input = PipelineInput::with_encoding(shape, encoding, source_lang)
         .with_cleanup_rules(cleanup_rules.to_vec())
         .with_chapter_pattern(chapter_pattern.cloned())
-        .with_extract_main_content(extract_main_content);
+        .with_extract_main_content(extract_main_content)
+        .with_block_overrides(block_overrides.to_vec());
 
     let chapters = match run_pipeline(input) {
         Ok(outcome) => outcome.chapters,
@@ -1408,6 +1597,7 @@ pub fn cleanup_and_chapters_preview_for(
     };
 
     let chapters_wire = build_chapter_split_preview_wire(&chapters);
+    let blocks_wire = build_chapter_blocks_preview_wire(chapters.first(), block_overrides);
 
     let (final_text_full, chapter0_report) = match chapters.first() {
         Some(chapter) => (chapter.source_text.clone(), chapter.cleanup_report.clone()),
@@ -1432,7 +1622,7 @@ pub fn cleanup_and_chapters_preview_for(
         import_totals,
         window_truncated,
     );
-    (cleanup_wire, chapters_wire)
+    (cleanup_wire, chapters_wire, blocks_wire)
 }
 
 /// Dựng [`CleanupPreviewWire`] từ một [`crate::core::cleanup::CleanupReport`] ĐÃ CÓ (hoặc
@@ -1548,19 +1738,20 @@ fn encoding_candidate_wire(
     chapter_pattern: Option<&ChapterPattern>,
     label: &str,
     extract_main_content: bool,
+    block_overrides: &[Option<bool>],
 ) -> EncodingCandidateWire {
     // `pipeline_window`/`normalized` đồng bộ `Some`/`None` với nhau (cả hai tính từ
     // CÙNG `decoded.as_ref()` bên trong `render_candidates`) — an toàn đọc `window_truncated`
     // từ `normalized` khi `pipeline_window` có giá trị.
     let window_truncated = c.normalized.as_ref().is_some_and(|n| n.window_truncated);
-    let (cleanup, chapters) = match c.pipeline_window.as_deref() {
+    let (cleanup, chapters, blocks) = match c.pipeline_window.as_deref() {
         Some(window) => match encoding::encoding_for_wire_id(c.wire_id) {
             Some(encoding) => {
                 let shape = PipelineShape::Blob(ChapterInput::RawBytes {
                     bytes: full_bytes.to_vec(),
                     label: label.to_owned(),
                 });
-                let (cleanup_wire, chapters_wire) = cleanup_and_chapters_preview_for(
+                let (cleanup_wire, chapters_wire, blocks_wire) = cleanup_and_chapters_preview_for(
                     shape,
                     encoding,
                     chapter_pattern,
@@ -1569,8 +1760,9 @@ fn encoding_candidate_wire(
                     cleanup_rules,
                     window_truncated,
                     extract_main_content,
+                    block_overrides,
                 );
-                (Some(cleanup_wire), Some(chapters_wire))
+                (Some(cleanup_wire), Some(chapters_wire), blocks_wire)
             }
             // Không nên xảy ra — `c.wire_id` đến từ `Encoding::name()` của chính một trong
             // năm bảng mã FR126, luôn phân giải lại được. Rơi về báo cáo rỗng thay vì làm vỡ
@@ -1585,9 +1777,10 @@ fn encoding_candidate_wire(
                     window_truncated,
                 )),
                 Some(build_chapter_split_preview_wire(&[])),
+                None,
             ),
         },
-        None => (None, None),
+        None => (None, None, None),
     };
 
     EncodingCandidateWire {
@@ -1597,6 +1790,7 @@ fn encoding_candidate_wire(
         normalized: c.normalized.map(NormalizedPreviewWire::from),
         cleanup,
         chapters,
+        blocks,
     }
 }
 
@@ -1617,11 +1811,15 @@ fn encoding_candidate_wire(
 /// (hai tầng đã hợp nhất ở `mod wire`, xem `core::cleanup::store::resolve_two_tiers`) —
 /// mỗi ứng viên VÀ đường tự khai nay chạy qua chuỗi pipeline thật (`run_pipeline`) để tính
 /// khối làm sạch (tầng 3), đóng nợ `deferred-work.md:9359`.
+/// 🔴 **THÊM tham số `block_overrides` 2026-09-07 (Story 6.9).** Cùng khuôn `label`/
+/// `extract_main_content` ngay dưới — chỉ có nghĩa cho đơn vị ĐẦU của `PipelineShape::Chapters`
+/// (đường URL); nhánh `Blob`/tự khai truyền `&[]` (không bao giờ đọc tới).
 pub fn preview_import_encoding(
     shape: &PipelineShape,
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
     chapter_pattern: Option<&ChapterPattern>,
+    block_overrides: &[Option<bool>],
 ) -> ImportEncodingPreview {
     // 🔴 **THÊM tham số `label`/`extract_main_content` 2026-09-06 (Story 6.7).** `label` là
     // nhãn (URL, cho đơn vị đến từ danh sách nhập URL; rỗng cho mọi nguồn khác) của đơn vị
@@ -1666,6 +1864,7 @@ pub fn preview_import_encoding(
                         chapter_pattern,
                         label,
                         extract_main_content,
+                        block_overrides,
                     )
                 })
                 .collect()
@@ -1716,7 +1915,7 @@ pub fn preview_import_encoding(
                 // `window`) để `cleanup_and_chapters_preview_for` chạy chuỗi trên CẢ Chương;
                 // `window` chỉ còn vai trò giới hạn hiển thị.
                 let full_shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned()));
-                cleanup_and_chapters_preview_for(
+                let (cleanup, chapters, _blocks) = cleanup_and_chapters_preview_for(
                     full_shape,
                     encoding_rs::UTF_8,
                     chapter_pattern,
@@ -1726,9 +1925,13 @@ pub fn preview_import_encoding(
                     normalized.window_truncated,
                     // Nhánh TỰ KHAI luôn là văn bản dán tay (`AlreadyText`) — KHÔNG BAO GIỜ
                     // là đường URL (đường đó luôn mang `RawBytes`) — `extract_main_content`
-                    // luôn `false` ở đây, cùng lý do `Blob` ở nhánh trên.
+                    // luôn `false` ở đây, cùng lý do `Blob` ở nhánh trên. `_blocks` luôn
+                    // `None` (bước 2 không chạy) — nhánh tự khai không có tầng 2, §Never spec
+                    // 6.9.
                     false,
-                )
+                    &[],
+                );
+                (cleanup, chapters)
             }
             // Cùng ca "cửa sổ không đủ một dòng trọn vẹn" của `normalized_self_declared` —
             // `final_text` rỗng đồng bộ với `NormalizedPreviewWire.text == ""` ở đó.
@@ -1837,6 +2040,10 @@ pub fn cancel_import_preview(state: &PendingImportSourceState) {
 /// có thể đã đổi giữa hai nhịp qua một lượt bật/tắt/soạn khác) mà [`preview_import_encoding`]
 /// vừa dùng để hiện — đây là chỗ đóng nợ `deferred-work.md:9359` cho NỬA GHI: `create_work`
 /// nhận đúng luật đó, không một bộ luật thứ hai.
+/// 🔴 **THÊM 2026-09-07 (Story 6.9) — tham số `block_overrides`, đúng cái vòng rà 1 đã hụt.**
+/// `wire::confirm_import_with_encoding` đọc `Tier2BlockOverridesState` NGAY LÚC XÁC NHẬN
+/// (cùng kỷ luật "đọc lại lúc xác nhận, không tái dùng bộ lúc xem trước" mà `cleanup_rules`
+/// đã theo) rồi truyền vào đây; state đó chỉ được RESET ở lớp vỏ SAU KHI hàm này trả `Ok`.
 pub fn confirm_import_with_encoding(
     documents_root: &Path,
     state: &PendingImportSourceState,
@@ -1846,6 +2053,7 @@ pub fn confirm_import_with_encoding(
     encoding_wire_id: &str,
     cleanup_rules: Vec<CleanupRule>,
     chapter_pattern: Option<ChapterPattern>,
+    block_overrides: Vec<Option<bool>>,
 ) -> Result<OpenWork, IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
         IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
@@ -1879,6 +2087,7 @@ pub fn confirm_import_with_encoding(
         chosen,
         cleanup_rules,
         chapter_pattern,
+        block_overrides,
     )?;
 
     // Thành công — dọn ô đang chờ, VẪN dưới CÙNG một khoá đã giữ từ đầu hàm.
@@ -1924,6 +2133,49 @@ pub struct UrlImportItem {
 /// Trạng thái từng mục, sống CẠNH [`PendingImportSourceState`] trong bộ nhớ (§Task list spec
 /// 6.7) — `None` == chưa có lượt dán URL nào đang treo, cùng khuôn `PendingImportSourceState`.
 pub type UrlImportItemsState = std::sync::Mutex<Option<Vec<UrlImportItem>>>;
+
+/// **THÊM 2026-09-07 (Story 6.9)** — trạng thái giữ/loại người dùng đã ĐẶT BẰNG TAY cho khối
+/// của Chương đầu tiên, sống CẠNH [`UrlImportItemsState`] trong bộ nhớ. `overrides[i] ==
+/// Some(v)` ⇒ khối `i` giữ (`v`); `None`/ngoài phạm vi ⇒ dùng `machine_kept` — cùng ngữ nghĩa
+/// [`crate::core::segment::pipeline::PipelineInput::block_overrides`], mà trường này CHÍNH LÀ
+/// nguồn cấp giá trị.
+///
+/// 🔴 **Rỗng (Vec trần, KHÔNG một `Option` bọc ngoài) là trạng thái "chưa ai sửa gì" — khác
+/// [`PendingImportSourceState`]/[`UrlImportItemsState`] (nơi `None` phân biệt "chưa mở lượt
+/// nào" khỏi "đã mở, danh sách rỗng").** Tầng 2 không cần phân biệt đó: một vector rỗng LUÔN
+/// nghĩa là "không có override nào", dù đó là vì chưa mở lượt xem trước, hay vì đã mở nhưng
+/// người dùng chưa bấm `Space`/`[`/`]` lần nào — hai ca đó xử lý GIỐNG HỆT nhau (dùng nguyên
+/// `machine_kept`), nên một `Option` bọc ngoài không thêm được thông tin nào.
+///
+/// **Reset khi nào (cả bốn ở lớp vỏ `wire`, KHÔNG ở các hàm thuần — reset là một quyết định
+/// VÒNG ĐỜI của lượt xem trước, không phải của phép tính):**
+/// `preview_import_encoding_from_text`/`_from_file` (mở một lượt MỚI — text/file không bao
+/// giờ đọc tầng 2, nhưng dọn sạch cho nhất quán vòng đời) và `start_url_import` (danh sách
+/// HOÀN TOÀN MỚI — cấu trúc khối của Chương đầu chắc chắn khác, một override cũ áp nhầm chỉ
+/// số sẽ SAI Ý NGHĨA, không chỉ lỗi thời) LUÔN reset. `reload_url_import_item`/
+/// `remove_url_import_item` CHỈ reset khi `index == 0` (mục 0 chính là Chương tầng 2 đang
+/// hiển thị) — sửa/bỏ một mục KHÁC không đụng tới cấu trúc khối của mục 0, giữ nguyên override
+/// là đúng, không phải một giản lược.
+pub type Tier2BlockOverridesState = std::sync::Mutex<Vec<Option<bool>>>;
+
+/// Dọn sạch [`Tier2BlockOverridesState`] — cùng khuôn
+/// [`clear_url_import_items_after_successful_confirm`]. **Hàm thuần, `pub`** để
+/// `tests/project_contract.rs` gọi được không cần `tauri::AppHandle`.
+pub fn reset_block_overrides(state: &Tier2BlockOverridesState) {
+    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    guard.clear();
+}
+
+/// Vị từ THUẦN — mục vừa sửa/tải lại/bỏ ở `index` có làm cấu trúc khối của Chương tầng 2
+/// (LUÔN là mục 0 của danh sách URL, xem doc-comment `Tier2BlockOverridesState` mục "Reset
+/// khi nào") SAI Ý NGHĨA hay không. **THÊM 2026-09-07 (vòng rà bước 4, mục 14)** — tách khỏi
+/// hai chỗ gọi `if index == 0 { reset_tier2_block_overrides(&app); }` bên trong
+/// `wire::reload_url_import_item`/`wire::remove_url_import_item` để `tests/**` gọi được quy
+/// tắc này KHÔNG cần dựng một `tauri::AppHandle` (`src-tauri/AGENTS.md:11`: quy tắc sống ở
+/// hàm thuần, vỏ chỉ chuyển tiếp).
+pub fn mutated_index_invalidates_tier2_blocks(index: usize) -> bool {
+    index == 0
+}
 
 /// P6 (vòng rà đối kháng bước 4) — dọn [`UrlImportItemsState`] khi và CHỈ KHI `create_work`
 /// vừa THÀNH CÔNG. Trước bản vá này, `wire::confirm_import_with_encoding` chỉ dọn
@@ -2138,24 +2390,31 @@ fn url_import_encoding_preview(
     items: &[UrlImportItem],
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
+    block_overrides: &[Option<bool>],
 ) -> Option<ImportEncodingPreview> {
     let shape = chapters_shape_if_all_ok(items)?;
-    Some(preview_import_encoding(&shape, source_lang, cleanup_rules, None))
+    Some(preview_import_encoding(&shape, source_lang, cleanup_rules, None, block_overrides))
 }
 
 /// Dựng [`UrlImportBatchWire`] từ trạng thái HIỆN TẠI — dùng chung bởi cả ba lệnh
-/// (tải/tải lại/bỏ một mục) để không có ba lượt lắp dây khác nhau cho CÙNG một hình dạng.
-/// `domain_log_domain_count` đi vào từ THAM SỐ (đọc từ [`webimport::DomainLogState`] ở lớp
-/// vỏ) — hàm này ở lại **thuần**, không tự cầm `AppHandle`/`State` nào.
+/// (tải/tải lại/bỏ một mục) VÀ hai lệnh MỚI Story 6.9 (đặt/gỡ override một khối, đặt dải) để
+/// không có năm lượt lắp dây khác nhau cho CÙNG một hình dạng. `domain_log_domain_count` đi
+/// vào từ THAM SỐ (đọc từ [`webimport::DomainLogState`] ở lớp vỏ) — hàm này ở lại **thuần**,
+/// không tự cầm `AppHandle`/`State` nào.
+///
+/// 🔴 **THÊM 2026-09-07 (Story 6.9) — tham số `block_overrides`.** Đường URL là đường DUY
+/// NHẤT `extract_main_content == true` đi qua được (§Always spec 6.7/6.9) — tầng 2 CHỈ có
+/// nghĩa ở đây, nên đây CŨNG là chỗ DUY NHẤT override cần chảy vào lượt xem trước.
 fn url_import_batch_wire(
     items: &[UrlImportItem],
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
+    block_overrides: &[Option<bool>],
     domain_log_domain_count: usize,
 ) -> UrlImportBatchWire {
     UrlImportBatchWire {
         items: items.iter().map(UrlImportItemWire::from).collect(),
-        encoding_preview: url_import_encoding_preview(items, source_lang, cleanup_rules),
+        encoding_preview: url_import_encoding_preview(items, source_lang, cleanup_rules, block_overrides),
         domain_log_domain_count,
     }
 }
@@ -3205,13 +3464,15 @@ mod tests {
         drop(store);
         root_test_cleanup(&dir);
     }
+
 }
 
 /// Nhiều vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use super::{
         ImportEncodingPreview, IpcError, OpenWork, OpenWorkState, PendingImportSourceState,
-        no_pending_import_source, replace_open_work, resolve_library_root, spawn_import_scan,
+        Tier2BlockOverridesState, no_pending_import_source, replace_open_work,
+        resolve_library_root, spawn_import_scan,
     };
     use crate::core::cleanup::CleanupRule;
     use crate::core::i18n::MessageKey;
@@ -3258,6 +3519,38 @@ pub mod wire {
                 eprintln!("cleanup[rules] phan giai that bai, roi ve 0 luat: {err}");
                 Vec::new()
             }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Story 6.9 — trạng thái giữ/loại khối tầng 2, `Tier2BlockOverridesState`.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Đọc bản sao HIỆN HÀNH của `Tier2BlockOverridesState` — best-effort RỖNG khi state chưa
+    /// được `.manage(...)` (lỗi lắp dây ở `lib.rs`), cùng triết lý `resolve_cleanup_rules`:
+    /// một tiện ích bổ trợ trượt không được làm sập cả lượt IPC chính.
+    fn resolve_tier2_block_overrides(app: &tauri::AppHandle) -> Vec<Option<bool>> {
+        use tauri::Manager as _;
+
+        match app.try_state::<Tier2BlockOverridesState>() {
+            Some(state) => {
+                let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                guard.clone()
+            }
+            None => {
+                eprintln!("webimport[tier2] Tier2BlockOverridesState chua duoc quan ly, roi ve 0 override");
+                Vec::new()
+            }
+        }
+    }
+
+    /// Dọn `Tier2BlockOverridesState` — best-effort (state vắng mặt không phải một lỗi để mà
+    /// ném, cùng lý do [`resolve_tier2_block_overrides`]).
+    fn reset_tier2_block_overrides(app: &tauri::AppHandle) {
+        use tauri::Manager as _;
+
+        if let Some(state) = app.try_state::<Tier2BlockOverridesState>() {
+            super::reset_block_overrides(&state);
         }
     }
 
@@ -3539,8 +3832,17 @@ pub mod wire {
         let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
         let cleanup_rules = resolve_cleanup_rules(&app);
         let shape = super::import_text(text);
-        let preview =
-            super::preview_import_encoding(&shape, &source_lang, &cleanup_rules, pattern.as_ref());
+        // Story 6.9 — đường dán văn bản KHÔNG BAO GIỜ bóc nội dung chính (`extract_main_content
+        // == false`), nên `&[]` không mất gì; dọn `Tier2BlockOverridesState` cho nhất quán
+        // VÒNG ĐỜI của một lượt xem trước MỚI (xem doc-comment kiểu đó).
+        reset_tier2_block_overrides(&app);
+        let preview = super::preview_import_encoding(
+            &shape,
+            &source_lang,
+            &cleanup_rules,
+            pattern.as_ref(),
+            &[],
+        );
         super::stash_pending_import_source(&state, shape);
         Ok(preview)
     }
@@ -3568,8 +3870,16 @@ pub mod wire {
         let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
         let cleanup_rules = resolve_cleanup_rules(&app);
         let shape = super::import_file(std::path::Path::new(&path))?;
-        let preview =
-            super::preview_import_encoding(&shape, &source_lang, &cleanup_rules, pattern.as_ref());
+        // Story 6.9 — cùng lý do nhánh DÁN VĂN BẢN ở trên: đường tệp KHÔNG BAO GIỜ bóc nội
+        // dung chính.
+        reset_tier2_block_overrides(&app);
+        let preview = super::preview_import_encoding(
+            &shape,
+            &source_lang,
+            &cleanup_rules,
+            pattern.as_ref(),
+            &[],
+        );
         super::stash_pending_import_source(&state, shape);
         Ok(preview)
     }
@@ -3609,6 +3919,12 @@ pub mod wire {
         // 🔴 Nạp luật NGAY LÚC XÁC NHẬN, không tái dùng bộ đã nạp lúc xem trước — luật có
         // thể đã đổi giữa hai nhịp qua một lượt bật/tắt/soạn khác (§Always spec 6.5).
         let cleanup_rules = resolve_cleanup_rules(&app);
+        // 🔴 **THÊM 2026-09-07 (Story 6.9) — đúng cái vòng rà 1 đã hụt.** Đọc
+        // `Tier2BlockOverridesState` NGAY LÚC XÁC NHẬN (cùng kỷ luật `cleanup_rules` ở trên),
+        // truyền NGUYÊN VẸN xuống `create_work` — state đó chỉ RESET ở dưới, SAU KHI `?` đã
+        // xác nhận thành công (đường lỗi giữ nguyên override để người dùng thử lại một ứng
+        // viên bảng mã khác mà không mất lượt sửa tay vừa làm).
+        let block_overrides = resolve_tier2_block_overrides(&app);
         let root = resolve_library_root(&app, app.try_state::<Store>().as_deref())?;
         let opened = super::confirm_import_with_encoding(
             &root,
@@ -3619,7 +3935,9 @@ pub mod wire {
             &encoding,
             cleanup_rules,
             pattern,
+            block_overrides,
         )?;
+        reset_tier2_block_overrides(&app);
 
         // P6 (vòng rà đối kháng bước 4) — `create_work` VỪA thành công (dòng trên đã `?`
         // sớm trên lỗi): dọn `UrlImportItemsState` CÙNG kỷ luật với `PendingImportSourceState`
@@ -3694,7 +4012,17 @@ pub mod wire {
         let (items, log_entries) = super::fetch_url_import_items(urls);
         append_domain_log(&app, log_entries);
         super::sync_pending_from_url_items(&pending_state, &items);
-        let wire = super::url_import_batch_wire(&items, &source_lang, &cleanup_rules, domain_log_domain_count(&app));
+        // Story 6.9 — danh sách HOÀN TOÀN MỚI, dọn override CŨ trước khi dựng dây (xem
+        // doc-comment `Tier2BlockOverridesState` mục "Reset khi nào").
+        reset_tier2_block_overrides(&app);
+        let block_overrides = resolve_tier2_block_overrides(&app);
+        let wire = super::url_import_batch_wire(
+            &items,
+            &source_lang,
+            &cleanup_rules,
+            &block_overrides,
+            domain_log_domain_count(&app),
+        );
 
         let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         *guard = Some(items);
@@ -3739,7 +4067,19 @@ pub mod wire {
         };
         append_domain_log(&app, log_entries);
         super::sync_pending_from_url_items(&pending_state, items);
-        Ok(super::url_import_batch_wire(items, &source_lang, &cleanup_rules, domain_log_domain_count(&app)))
+        // Story 6.9 — CHỈ mục 0 (Chương tầng 2 đang hiển thị) làm override cũ SAI Ý NGHĨA khi
+        // tải lại — xem doc-comment `Tier2BlockOverridesState` mục "Reset khi nào".
+        if super::mutated_index_invalidates_tier2_blocks(index) {
+            reset_tier2_block_overrides(&app);
+        }
+        let block_overrides = resolve_tier2_block_overrides(&app);
+        Ok(super::url_import_batch_wire(
+            items,
+            &source_lang,
+            &cleanup_rules,
+            &block_overrides,
+            domain_log_domain_count(&app),
+        ))
     }
 
     /// Vỏ IPC — bỏ MỘT mục khỏi danh sách (I/O Matrix spec 6.7: "N−1 link · N−1 Chương — hai
@@ -3769,7 +4109,144 @@ pub mod wire {
         }
         items.remove(index);
         super::sync_pending_from_url_items(&pending_state, items);
-        Ok(super::url_import_batch_wire(items, &source_lang, &cleanup_rules, domain_log_domain_count(&app)))
+        // Story 6.9 — cùng lý do `reload_url_import_item`: chỉ mục 0 làm cấu trúc khối của
+        // Chương tầng 2 khác đi.
+        if super::mutated_index_invalidates_tier2_blocks(index) {
+            reset_tier2_block_overrides(&app);
+        }
+        let block_overrides = resolve_tier2_block_overrides(&app);
+        Ok(super::url_import_batch_wire(
+            items,
+            &source_lang,
+            &cleanup_rules,
+            &block_overrides,
+            domain_log_domain_count(&app),
+        ))
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Story 6.9 — sửa ranh giới BÓC bằng bàn phím (FR123): hai lệnh ghi override, cả hai trả
+    // lại `UrlImportBatchWire` TƯƠI, cùng khuôn ba lệnh URL ngay trên (đặt/gỡ trạng thái rồi
+    // dựng lại dây từ CHÍNH state đó — không một lệnh "làm mới" riêng).
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Vỏ IPC — đổi trạng thái giữ/loại của MỘT khối (`Space`). **0 lời gọi mạng**: chỉ đổi
+    /// `Tier2BlockOverridesState` trong bộ nhớ rồi dựng lại xem trước từ byte ĐÃ TẢI
+    /// (`UrlImportItemsState`). Không một quy tắc nào sống ở đây — [`super::set_block_override`]
+    /// là hàm thuần (`src-tauri/AGENTS.md:11`).
+    ///
+    /// 🔴 **SỬA 2026-09-07 (vòng rà bước 4, mục 5) — đo `total_blocks` THẬT qua
+    /// [`super::current_tier2_machine_kept`] trước khi ghi**, KHÔNG tin `index` một cách mù.
+    /// `index` ngoài phạm vi trang HIỆN HÀNH (trang vừa tải lại, số khối đổi từ dưới lượt
+    /// hiển thị cũ của frontend) ⇒ [`super::url_import_internal_error`] — từ chối ghi một
+    /// override "ma", thay vì lặng lẽ nới vector tới một chỉ số không khối nào trỏ tới.
+    #[tauri::command]
+    pub fn tier2_block_set_kept(
+        app: tauri::AppHandle,
+        index: usize,
+        kept: bool,
+        source_lang: String,
+    ) -> Result<super::UrlImportBatchWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(items_state) = app.try_state::<super::UrlImportItemsState>() else {
+            return Err(super::url_import_internal_error());
+        };
+        let Some(overrides_state) = app.try_state::<Tier2BlockOverridesState>() else {
+            return Err(super::url_import_internal_error());
+        };
+        let cleanup_rules = resolve_cleanup_rules(&app);
+
+        {
+            let guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let Some(items) = guard.as_ref() else {
+                return Err(super::url_import_internal_error());
+            };
+            let Some(machine_kept) =
+                super::current_tier2_machine_kept(items, &source_lang, &cleanup_rules)
+            else {
+                return Err(super::url_import_internal_error());
+            };
+            let mut overrides_guard =
+                overrides_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            if super::set_block_override(&mut overrides_guard, index, kept, machine_kept.len())
+                .is_err()
+            {
+                return Err(super::url_import_internal_error());
+            }
+        }
+
+        let guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(items) = guard.as_ref() else {
+            return Err(super::url_import_internal_error());
+        };
+        let block_overrides = resolve_tier2_block_overrides(&app);
+        Ok(super::url_import_batch_wire(
+            items,
+            &source_lang,
+            &cleanup_rules,
+            &block_overrides,
+            domain_log_domain_count(&app),
+        ))
+    }
+
+    /// Vỏ IPC — đặt CẢ MỘT DẢI `[start, end]` thành giữ, MỌI khối NGOÀI dải thành loại, một
+    /// lượt (`[`/`]`, I/O Matrix spec 6.9).
+    ///
+    /// 🔴 **SỬA 2026-09-07 (vòng rà bước 4, mục 5/6) — `total` frontend gửi lên giờ chỉ là
+    /// một CHỮ KÝ để đối chiếu, KHÔNG còn là nguồn sự thật.** Vỏ tự đo `machine_kept` THẬT
+    /// qua [`super::current_tier2_machine_kept`] (đọc byte ĐÃ TẢI, không tin bất kỳ số nào
+    /// frontend gửi lên); `total != machine_kept.len()` ⇒ trạng thái frontend đang hiện đã
+    /// CŨ (trang vừa tải lại từ dưới tay) ⇒ [`super::url_import_internal_error`], từ chối
+    /// dựng một patch trên một tổng số khối không còn đúng với trang hiện hành.
+    #[tauri::command]
+    pub fn tier2_block_confirm_range(
+        app: tauri::AppHandle,
+        start: usize,
+        end: usize,
+        total: usize,
+        source_lang: String,
+    ) -> Result<super::UrlImportBatchWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(items_state) = app.try_state::<super::UrlImportItemsState>() else {
+            return Err(super::url_import_internal_error());
+        };
+        let Some(overrides_state) = app.try_state::<Tier2BlockOverridesState>() else {
+            return Err(super::url_import_internal_error());
+        };
+        let cleanup_rules = resolve_cleanup_rules(&app);
+
+        {
+            let guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let Some(items) = guard.as_ref() else {
+                return Err(super::url_import_internal_error());
+            };
+            let Some(machine_kept) =
+                super::current_tier2_machine_kept(items, &source_lang, &cleanup_rules)
+            else {
+                return Err(super::url_import_internal_error());
+            };
+            if total != machine_kept.len() {
+                return Err(super::url_import_internal_error());
+            }
+            let mut overrides_guard =
+                overrides_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            *overrides_guard = super::block_overrides_for_range(start, end, &machine_kept);
+        }
+
+        let guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(items) = guard.as_ref() else {
+            return Err(super::url_import_internal_error());
+        };
+        let block_overrides = resolve_tier2_block_overrides(&app);
+        Ok(super::url_import_batch_wire(
+            items,
+            &source_lang,
+            &cleanup_rules,
+            &block_overrides,
+            domain_log_domain_count(&app),
+        ))
     }
 
     // ─────────────────────────────────────────────────────────────────────────

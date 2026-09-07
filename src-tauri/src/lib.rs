@@ -652,6 +652,11 @@ pub fn run() {
             // Story 6.8 (NFR19, AD-41) -- doc nhat ky domain cua ca phien chay, cho Cai dat
             // > Quyen rieng tu. Khong async -- doc mot Mutex<Vec<_>> trong bo nho, 0 mang.
             crate::commands::project::wire::list_domain_log,
+            // Story 6.9 (FR123) -- sua ranh gioi BOC bang ban phim: hai vo ghi
+            // Tier2BlockOverridesState roi tra lai UrlImportBatchWire TUOI, khong async -- 0
+            // mang, chi doi state trong bo nho roi chay lai chuoi pipeline that.
+            crate::commands::project::wire::tier2_block_set_kept,
+            crate::commands::project::wire::tier2_block_confirm_range,
             // Story 6.5 -- luat lam sach luc nhap (FR124, AD-18). Nam vo: liet hai tang da
             // hop nhat · them · sua · xoa · bat/tat -- bon vo sau dinh tuyen theo tier nguoi
             // dung chon, danh tinh mot luat la CAP (tier, id).
@@ -1059,6 +1064,11 @@ fn open_work_slot(app: &tauri::App) {
     // pham vi la PHIEN CHAY, khong phai mot cau chon tuy y. `.manage` DUNG MOT LAN o day,
     // khong o dau khac trong toan crate.
     app.manage(crate::core::webimport::DomainLogState::new(Vec::new()));
+    // Story 6.9 (FR123) -- trang thai giu/loai khoi tang 2 nguoi dung dat bang tay, song CANH
+    // UrlImportItemsState (chi co nghia khi mot lot xem truoc URL dang mo). Vec RONG la trang
+    // thai "chua ai sua gi" -- khong can mot Option boc ngoai, xem doc-comment
+    // Tier2BlockOverridesState.
+    app.manage(crate::commands::project::Tier2BlockOverridesState::new(Vec::new()));
 }
 
 /// Mở `$APPDATA/library-index.db` và đưa nó vào state — **Story 5.2**, cùng khuôn

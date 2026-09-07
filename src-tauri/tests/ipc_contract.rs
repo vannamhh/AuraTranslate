@@ -883,8 +883,8 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
     ] {
         let params = fn_param_list(wire_src, fn_name);
         assert_eq!(
-            params.trim(),
-            expected_params,
+            normalize_param_list(&params),
+            normalize_param_list(expected_params),
             "vo `{fn_name}` trong `pub mod wire` cua commands/project.rs khong con dung danh sach tham so          mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts` la cho duy nhat go lai          theo dung ten/thu tu do."
         );
     }
@@ -941,8 +941,73 @@ fn the_three_url_import_wires_are_registered_and_keep_their_parameter_names() {
     ] {
         let params = fn_param_list(wire_src, fn_name);
         assert_eq!(
-            params.trim(),
-            expected_params,
+            normalize_param_list(&params),
+            normalize_param_list(expected_params),
+            "vo `{fn_name}` trong `pub mod wire` cua commands/project.rs khong con dung danh sach tham so          mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts` la cho duy nhat go lai          theo dung ten/thu tu do."
+        );
+    }
+}
+
+/// **THÊM Story 6.9 (FR123).** `list_domain_log` (Story 6.8) TRÔI qua trọn một story mà không
+/// một cổng nào canh nó có mặt trong `generate_handler!`/`app.manage(DomainLogState)` — đóng
+/// lỗ đó CÙNG LƯỢT với hai vỏ mới của story này (sửa ranh giới bóc bằng bàn phím), theo đúng
+/// khuôn [`the_three_url_import_wires_are_registered_and_keep_their_parameter_names`] ngay
+/// trên.
+#[test]
+fn the_domain_log_wire_and_the_two_tier2_block_wires_are_registered_and_keep_their_parameter_names()
+{
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    for wire in [
+        "crate::commands::project::wire::list_domain_log",
+        "crate::commands::project::wire::tier2_block_set_kept",
+        "crate::commands::project::wire::tier2_block_confirm_range",
+    ] {
+        assert!(
+            lib_src.contains(wire),
+            "`{wire}` phai co mat trong generate_handler! cua lib.rs. Thieu no thi invoke() tra              \"command not found\" chi khi nguoi dung bam nut."
+        );
+    }
+
+    for managed in [
+        "app.manage(crate::core::webimport::DomainLogState::new(Vec::new()));",
+        "app.manage(crate::commands::project::Tier2BlockOverridesState::new(Vec::new()));",
+    ] {
+        assert!(
+            lib_src.contains(managed),
+            "thieu `{managed}` trong `lib.rs` -- cac vo o tren roi vao nhanh state-chua-quan-ly."
+        );
+    }
+
+    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("project.rs");
+    let project_src = fs::read_to_string(&project_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
+
+    let wire_mod_start = project_src
+        .find("\npub mod wire {")
+        .unwrap_or_else(|| panic!("khong tim thay `pub mod wire {{` trong commands/project.rs"));
+    let wire_src = &project_src[wire_mod_start..];
+
+    for (fn_name, expected_params) in [
+        ("list_domain_log", "app: tauri::AppHandle"),
+        (
+            "tier2_block_set_kept",
+            "app: tauri::AppHandle,\n        index: usize,\n        kept: bool,\n        source_lang: String,",
+        ),
+        (
+            "tier2_block_confirm_range",
+            "app: tauri::AppHandle,\n        start: usize,\n        end: usize,\n        total: usize,\n        source_lang: String,",
+        ),
+    ] {
+        let params = fn_param_list(wire_src, fn_name);
+        assert_eq!(
+            normalize_param_list(&params),
+            normalize_param_list(expected_params),
             "vo `{fn_name}` trong `pub mod wire` cua commands/project.rs khong con dung danh sach tham so          mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts` la cho duy nhat go lai          theo dung ten/thu tu do."
         );
     }
@@ -966,6 +1031,23 @@ fn fn_param_list(src: &str, fn_name: &str) -> String {
         .find(')')
         .unwrap_or_else(|| panic!("khong tim thay dau `)` dong tham so cho `{fn_name}`"));
     src[after_open..after_open + close].to_owned()
+}
+
+/// Chuẩn hoá KHOẢNG TRẮNG của một danh sách tham số — CHỈ so TÊN/KIỂU/THỨ TỰ, không so
+/// CÁCH XUỐNG DÒNG/THỤT LỀ. **THÊM 2026-09-07 (vòng rà bước 4, mục 27).**
+///
+/// 🔴 **SỬA — bản trước so `params.trim() == expected_params` TRÊN NGUYÊN VĂN, kể cả
+/// `\n        ` (xuống dòng + thụt lề 8 dấu cách) bên trong chuỗi hằng.** `fn_param_list` bóc
+/// NGUYÊN VĂN từ mã nguồn — một lượt `cargo fmt` đổi độ rộng dòng (ví dụ gộp một danh sách
+/// tham số DÀI xuống MỘT dòng, hoặc đổi số dấu cách thụt lề) làm ba ca này ĐỎ dù tên/kiểu/thứ
+/// tự tham số KHÔNG đổi một ký tự nào — đúng cái mà chính câu message của assert tuyên bố nó
+/// canh ("đổi tên/thứ tự tham số LÀ đổi DÂY", không phải "đổi cách xuống dòng là đổi dây").
+/// Một phép so nhạy với khoảng trắng KHÔNG-CÓ-NGHĨA là một LỜI KHAI SAI về điều cổng này
+/// đang bảo vệ. Chuẩn hoá bằng cách gộp MỌI dải khoảng trắng (dấu cách/tab/xuống dòng) liên
+/// tiếp thành một dấu cách — Rust không phân biệt hai kiểu đó về mặt cú pháp, nên chuẩn hoá
+/// không thể che giấu một khác biệt THẬT về tên/kiểu/thứ tự.
+fn normalize_param_list(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// Đối chứng dương cho [`fn_param_list`] — khuôn `segment_encoding_boundary.rs`: chứng minh
