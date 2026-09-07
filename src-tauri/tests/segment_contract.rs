@@ -8021,6 +8021,7 @@ fn splitting_chapters_before_decoding_reproduces_the_ad_39_symptom_exactly_one_c
         chapter_pattern: Some(ChapterPattern::literal("第一章")),
         source_lang: "zh".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
 
     let outcome = run_import_with_order(&wrong_order, input)
@@ -8067,6 +8068,7 @@ fn splitting_chapters_after_decoding_finds_the_pattern_and_produces_n_chapters()
         chapter_pattern: Some(ChapterPattern::literal("第一章")),
         source_lang: "zh".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
 
     let outcome =
@@ -8124,6 +8126,7 @@ fn an_already_text_shape_skips_the_transcode_half_of_the_decode_step() {
         chapter_pattern: None,
         source_lang: "vi".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
 
     let outcome = run_import(input).expect("hình dạng AlreadyText không được lỗi");
@@ -8168,6 +8171,7 @@ fn an_already_chapters_shape_skips_chapter_splitting_and_keeps_the_input_unit_co
         chapter_pattern: Some(ChapterPattern::literal("Chuong")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
 
     let outcome = run_import(input).expect("hình dạng đã-chia-Chương không được lỗi");
@@ -8199,6 +8203,7 @@ fn a_single_element_chapters_shape_is_not_split_even_though_its_length_matches_a
         chapter_pattern: Some(ChapterPattern::literal("Chuong")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
 
     let outcome = run_import(input).expect("hình dạng đã-chia-Chương (1 phần tử) không được lỗi");
@@ -8221,6 +8226,7 @@ fn an_empty_chapter_pattern_is_a_no_op_for_decoded_text() {
         chapter_pattern: Some(ChapterPattern::literal("")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
     let outcome = run_import(input).expect("mẫu rỗng không được lỗi");
     assert_eq!(outcome.chapters.len(), 1);
@@ -8251,6 +8257,7 @@ fn an_empty_chapter_pattern_is_a_no_op_for_raw_bytes_too() {
         chapter_pattern: Some(ChapterPattern::literal("")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
     let outcome = run_import_with_order(&wrong_order, input).expect("mẫu rỗng không được lỗi");
     assert_eq!(outcome.chapters.len(), 1);
@@ -8273,6 +8280,7 @@ fn splitting_by_position_keeps_the_matched_title_line_at_the_front_of_each_new_c
         chapter_pattern: Some(ChapterPattern::regex(r"^Chuong \d+:.*$")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
 
     let outcome = run_import(input).expect("mau regex hop le khong duoc loi");
@@ -8308,6 +8316,7 @@ fn a_literal_pattern_matching_three_times_yields_three_chapters_each_starting_wi
         chapter_pattern: Some(ChapterPattern::literal("第一章")),
         source_lang: "zh".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
 
     let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
@@ -8342,6 +8351,7 @@ fn text_before_the_first_match_becomes_its_own_untitled_chapter_instead_of_being
         chapter_pattern: Some(ChapterPattern::regex(r"^Chuong \d+:.*$")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
 
     let outcome = run_import(input).expect("mau regex hop le khong duoc loi");
@@ -8374,6 +8384,7 @@ fn a_zero_length_regex_chapter_pattern_is_filtered_at_the_source_and_yields_one_
         chapter_pattern: Some(ChapterPattern::regex("x*")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
     let outcome = run_import(input).expect("mau khop do dai 0 khong duoc la loi");
     assert_eq!(
@@ -8394,6 +8405,7 @@ fn a_pattern_matching_nothing_yields_exactly_one_untitled_chapter_not_an_error()
         chapter_pattern: Some(ChapterPattern::literal("KHONG_TUNG_XUAT_HIEN")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
     let outcome = run_import(input).expect("mau khong khop khong duoc la loi");
     assert_eq!(outcome.chapters.len(), 1);
@@ -8420,6 +8432,7 @@ fn a_chapter_piece_collapsed_to_a_single_line_by_normalization_has_no_title() {
         chapter_pattern: Some(ChapterPattern::literal("Chuong ")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
     let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
 
@@ -8455,6 +8468,7 @@ fn a_chapter_piece_with_a_blank_line_separator_keeps_its_title() {
         chapter_pattern: Some(ChapterPattern::literal("Chuong ")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
     let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
 
@@ -8492,6 +8506,7 @@ fn a_regex_chapter_pattern_never_runs_against_undecoded_bytes() {
         chapter_pattern: Some(ChapterPattern::regex(".")),
         source_lang: "zh".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
 
     let outcome = run_import_with_order(&wrong_order, input)
@@ -8517,6 +8532,7 @@ fn an_invalid_chapter_pattern_regex_propagates_an_error_instead_of_being_swallow
         chapter_pattern: Some(ChapterPattern::regex("[unclosed")),
         source_lang: "en".to_owned(),
         cleanup_rules: Vec::new(),
+        extract_main_content: false,
     };
 
     let err = run_import(input).expect_err(

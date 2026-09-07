@@ -39,6 +39,9 @@ import {
   confirmImportWithEncoding,
   previewImportEncodingFromFile,
   previewImportEncodingFromText,
+  reloadUrlImportItem,
+  removeUrlImportItem,
+  startUrlImport,
 } from './config/project'
 import type {
   ChapterPatternInput,
@@ -52,6 +55,7 @@ import type {
   ImportEncodingPreview,
   ImportEncodingPreviewResult,
   NormalizedPreviewWire,
+  UrlImportItemWire,
 } from './config/project'
 import type { IpcError } from './i18n'
 
@@ -99,7 +103,11 @@ const pendingGenre = ref('')
  * (thành công) không còn biết xoá ô nào. Ô này không bị đụng tới khi TRƯỢT — chỉ
  * [`resetImportPreview`] (huỷ, hoặc mở một lượt xem trước MỚI) mới đổi nó.
  */
-const lastSubmittedFrom = ref<'text' | 'file' | null>(null)
+// 🔵 SỬA 2026-09-06 (Story 6.7) — biến thể thứ BA, `'urls'`. Danh sách URL là một nhánh "đã
+// mở lượt xem trước" mới, khác `'text'`/`'file'` ở chỗ nguồn KHÔNG sống trong
+// `pendingText`/`pendingPath` — nó sống ở `urlImportItems` (mỗi mục giữ trạng thái RIÊNG,
+// không phải MỘT chuỗi/đường dẫn duy nhất).
+const lastSubmittedFrom = ref<'text' | 'file' | 'urls' | null>(null)
 
 /**
  * **THÊM (Story 6.5)** — bản sao của nguồn ĐANG XEM TRƯỚC, giữ Ở ĐÂY (không chỉ ở
@@ -112,6 +120,24 @@ const lastSubmittedFrom = ref<'text' | 'file' | null>(null)
  */
 const pendingText = ref<string | null>(null)
 const pendingPath = ref<string | null>(null)
+
+/**
+ * **THÊM (Story 6.7)** — ô THỨ BA, song song với `pendingText`/`pendingPath` — danh sách
+ * mục-theo-link của lượt nhập URL đang mở. Mỗi mục mang vị trí (INDEX trong mảng), URL, và
+ * kết quả (`ok`/`error`) — khác `pendingText`/`pendingPath` (một GIÁ TRỊ trần), đây là N giá
+ * trị SONG SONG với hình dạng `PipelineShape::Chapters` phía Rust.
+ *
+ * 🔴 **Đây là dữ liệu ĐÃ TẢI, không phải `pastedUrls`** (ô đó sống ở `libraryImport.ts`, chỉ
+ * là NỘI DUNG Ô DÁN — hai con số *"N link · sẽ tạo N Chương"* tính từ nó, 0 IPC). `urlImportItems`
+ * chỉ có giá trị SAU khi người dùng đã bấm nút tải (`openImportPreviewFromUrls` đã chạy).
+ */
+const urlImportItems = ref<UrlImportItemWire[]>([])
+/** Cờ "đang gửi" của tải-lại/bỏ MỘT mục — TÁCH khỏi `opening` (mở CẢ lượt) và bốn cờ CRUD
+ * luật làm sạch (ngữ nghĩa khác hẳn: đây là thao tác trên MỘT MỤC trong danh sách URL). */
+const urlImportBusy = ref(false)
+/** Lỗi hạ tầng của lượt tải-lại/bỏ một mục (ví dụ cầu IPC vắng giữa chừng) — KHÁC lỗi CỦA
+ * TỪNG MỤC (đã nằm trong `item.error`, hiển thị inline trên hàng của chính nó). */
+const urlImportError = ref<IpcError | null>(null)
 
 /** Lỗi của lượt CRUD luật làm sạch gần nhất (thêm/sửa/xoá/bật-tắt) — TÁCH khỏi
  * `confirmError` (lỗi của lượt XÁC NHẬN toàn bộ Tác phẩm, ngữ nghĩa khác hẳn). */
@@ -199,7 +225,7 @@ export const importPreviewConfirmError: DeepReadonly<Ref<IpcError | null>> = rea
 export const importPreviewStripForcedOpen: DeepReadonly<Ref<boolean>> = readonly(stripForcedOpen)
 /** Nhánh đã mở lượt xem trước đang hiện — đọc bởi `libraryImport.ts::finishImportSubmission`
  * (xem doc-comment [`lastSubmittedFrom`] cho lý do ô này sống ở đây). */
-export const importPreviewLastSubmittedFrom: DeepReadonly<Ref<'text' | 'file' | null>> =
+export const importPreviewLastSubmittedFrom: DeepReadonly<Ref<'text' | 'file' | 'urls' | null>> =
   readonly(lastSubmittedFrom)
 export const importPreviewCleanupActionError: DeepReadonly<Ref<IpcError | null>> =
   readonly(cleanupActionError)
@@ -218,6 +244,20 @@ export const importPreviewChapterPatternSending: DeepReadonly<Ref<boolean>> =
   readonly(chapterPatternSending)
 export const importPreviewChapterPatternError: DeepReadonly<Ref<IpcError | null>> =
   readonly(chapterPatternError)
+/** Danh sách mục-theo-link của lượt nhập URL đang mở — rỗng khi `lastSubmittedFrom !==
+ * 'urls'`. Xem doc-comment [`urlImportItems`]. */
+export const importPreviewUrlItems: DeepReadonly<Ref<UrlImportItemWire[]>> = readonly(urlImportItems)
+export const importPreviewUrlImportBusy: DeepReadonly<Ref<boolean>> = readonly(urlImportBusy)
+export const importPreviewUrlImportError: DeepReadonly<Ref<IpcError | null>> = readonly(urlImportError)
+/** `true` ⇔ còn ít nhất một mục hỏng trong danh sách URL — điều kiện KHOÁ nút xác nhận
+ * (§Always spec 6.7). Tính CỤC BỘ từ `urlImportItems` — Rust đã tự khoá THẬT qua
+ * `PendingImportSourceState` (một lượt `confirmImportWithEncoding` khi còn mục hỏng luôn trả
+ * `import.no_pending_source`); computed này CHỈ để tầng hiển thị disable nút SỚM, không phải
+ * nguồn sự thật duy nhất. */
+export const importPreviewUrlListHasBrokenItem = computed<boolean>(() => {
+  if (lastSubmittedFrom.value !== 'urls') return false
+  return urlImportItems.value.length === 0 || urlImportItems.value.some((it) => !it.ok)
+})
 
 /** Dải năm ô mở khi và chỉ khi tin cậy THẤP **hoặc** người dùng đã buộc mở bằng `E` — một
  * điều kiện, một chỗ. Rust luôn cấp đủ dữ liệu (`ImportEncodingPreview::candidates`); đây
@@ -412,6 +452,146 @@ export async function openImportPreviewFromFile(
 }
 
 /**
+ * Mở màn xem trước — nhánh DANH SÁCH URL (Story 6.7, FR122). Gọi từ handler tiêm của
+ * `library.import_urls`, SAU khi `urls` đã được lọc dòng rỗng ở `libraryImport.ts` (hai con
+ * số hiển thị TRƯỚC khi bấm nút tính từ CHÍNH phép lọc đó — tính lại ở đây không đổi kết
+ * quả, chỉ là cùng một phép lọc chạy hai lần).
+ *
+ * ⚠️ **KHÔNG tái dùng `openWith`** — hàm đó giả định một `PreviewCall` trả về
+ * `ImportEncodingPreviewResult` (một `preview` trần); URL trả về `UrlImportBatchResult`
+ * (`items` CỘNG một `encoding_preview` CÓ THỂ `null` khi còn mục hỏng). Thân hàm dưới đây lặp
+ * lại phần khởi tạo của `openWith` một cách có chủ ý — xem doc-comment `UrlImportBatchWire`
+ * ở `config/project.ts` cho lý do hai hình dạng không gộp được vào MỘT hàm chung mà không
+ * làm `openWith` mất khả năng đọc.
+ */
+export async function openImportPreviewFromUrls(
+  name: string,
+  sourceLang: string,
+  genre: string,
+  urls: string[],
+): Promise<void> {
+  if (opening.value) return
+
+  opening.value = true
+  sequence += 1
+  const mySequence = sequence
+
+  lastSubmittedFrom.value = 'urls'
+  pendingName.value = name
+  pendingSourceLang.value = sourceLang
+  pendingGenre.value = genre
+  pendingText.value = null
+  pendingPath.value = null
+  confirming.value = false
+  confirmError.value = null
+  cleanupActionError.value = null
+  cleanupAdding.value = false
+  cleanupSavingEdit.value = false
+  cleanupDeleting.value = false
+  cleanupToggling.value = false
+  cleanupDeletePendingKey.value = null
+  stripForcedOpen.value = false
+  chapterPatternText.value = ''
+  chapterPatternKind.value = 'literal'
+  chapterPatternSending.value = false
+  chapterPatternError.value = null
+  pendingChapterPatternEdit = null
+  urlImportItems.value = []
+  urlImportBusy.value = false
+  urlImportError.value = null
+
+  const result = await startUrlImport(urls, sourceLang)
+  if (mySequence !== sequence) return // một lượt mở/huỷ MỚI đã vượt mặt lượt này
+
+  opening.value = false
+  overlayOpen.value = true
+
+  if (result.error !== null) {
+    status.value = 'error'
+    loadError.value = result.error
+    preview.value = null
+    selectedEncoding.value = null
+    return
+  }
+  if (result.batch === null) {
+    status.value = 'ipc_unavailable'
+    loadError.value = null
+    preview.value = null
+    selectedEncoding.value = null
+    return
+  }
+
+  urlImportItems.value = result.batch.items
+  // `encoding_preview === null` ⇔ còn mục hỏng/danh sách rỗng (đồng bộ với
+  // `commands::project::sync_pending_from_url_items` phía Rust) — KHÔNG có gì để hiện ở tầng
+  // 1-4, nhưng lớp phủ VẪN mở để người dùng thấy danh sách mục và sửa (bỏ/tải lại).
+  if (result.batch.encoding_preview === null) {
+    preview.value = null
+    selectedEncoding.value = null
+  } else {
+    preview.value = result.batch.encoding_preview
+    selectedEncoding.value = result.batch.encoding_preview.selected_encoding
+  }
+  status.value = 'loaded'
+  loadError.value = null
+}
+
+/** Cập nhật state SAU một lượt tải-lại/bỏ-một-mục — dùng chung bởi
+ * [`reloadImportPreviewUrlItem`]/[`removeImportPreviewUrlItem`]. Cố giữ nguyên ứng viên đang
+ * chọn nếu nó vẫn còn trong dải mới, cùng khuôn [`reloadImportPreviewAfterRuleChange`]. */
+function applyUrlImportBatch(batch: NonNullable<Awaited<ReturnType<typeof startUrlImport>>['batch']>): void {
+  const keepEncoding = selectedEncoding.value
+  urlImportItems.value = batch.items
+  if (batch.encoding_preview === null) {
+    preview.value = null
+    selectedEncoding.value = null
+    return
+  }
+  preview.value = batch.encoding_preview
+  selectedEncoding.value = batch.encoding_preview.candidates.some((c) => c.encoding === keepEncoding)
+    ? keepEncoding
+    : batch.encoding_preview.selected_encoding
+}
+
+/** Tải lại ĐÚNG MỘT mục hỏng ở vị trí `index` — I/O Matrix spec 6.7: "đúng 1 lời gọi mạng".
+ * No-op khi chưa mở lượt URL nào, hoặc một lượt khác đang bay. */
+export async function reloadImportPreviewUrlItem(index: number): Promise<void> {
+  if (confirming.value || urlImportBusy.value || lastSubmittedFrom.value !== 'urls') return
+  urlImportBusy.value = true
+  try {
+    const result = await reloadUrlImportItem(index, pendingSourceLang.value)
+    if (result.error !== null) {
+      urlImportError.value = result.error
+      return
+    }
+    if (result.batch === null) return
+    urlImportError.value = null
+    applyUrlImportBatch(result.batch)
+  } finally {
+    urlImportBusy.value = false
+  }
+}
+
+/** Bỏ một mục ở vị trí `index` — I/O Matrix spec 6.7: "N−1 link · N−1 Chương, hai số cùng
+ * giảm". **0 lời gọi mạng.** */
+export async function removeImportPreviewUrlItem(index: number): Promise<void> {
+  if (confirming.value || urlImportBusy.value || lastSubmittedFrom.value !== 'urls') return
+  urlImportBusy.value = true
+  try {
+    const result = await removeUrlImportItem(index, pendingSourceLang.value)
+    if (result.error !== null) {
+      urlImportError.value = result.error
+      return
+    }
+    if (result.batch === null) return
+    urlImportError.value = null
+    applyUrlImportBatch(result.batch)
+  } finally {
+    urlImportBusy.value = false
+  }
+}
+
+/**
  * Chọn một ứng viên khác trong dải — KHÔNG gọi Rust (xem doc-comment đầu tệp). `dispatch`
  * không nhận tham số (§Design Notes spec 6.3), nên đây là handler `@click`/`@keydown` của
  * mỗi ô, KHÔNG một command `dispatch('<id>')` — cùng khuôn `onDecisionChange` của
@@ -456,6 +636,17 @@ function chapterPatternWire(): ChapterPatternInput | null {
 async function runImportPreviewReload(): Promise<{ result: ImportEncodingPreviewResult; mySequence: number } | null> {
   const from = lastSubmittedFrom.value
   if (from === null) return null // chưa mở lượt xem trước nào — không có gì để tải lại
+
+  // 🔴 **THÊM (Story 6.7)** — nhánh URL KHÔNG có một lệnh "tải lại xem trước, giữ nguyên byte
+  // đã tải" (thân hàm dưới đây chỉ biết `previewImportEncodingFromText`/`_from_file`, hai
+  // lệnh nhận lại NGUYÊN VĂN dán tay/đường dẫn — URL không có "nguyên văn" kiểu đó, N link
+  // đã tải sống trong `UrlImportItemsState` phía Rust). Một lượt CRUD luật làm sạch hay sửa
+  // mẫu phân tách trong lúc xem một lượt URL vì thế KHÔNG dựng lại xem trước — GIỚI HẠN THẬT,
+  // ghi ra thay vì giả vờ nó hoạt động: người dùng sửa luật làm sạch trong khi màn URL đang mở
+  // sẽ không thấy khối làm sạch cập nhật cho tới lượt xác nhận thật (luật vẫn được NẠP LẠI
+  // đúng lúc xác nhận, `confirm_import_with_encoding` luôn đọc luật NGAY LÚC XÁC NHẬN — chỉ
+  // riêng BẢN XEM TRƯỚC không tự làm mới).
+  if (from === 'urls') return null
 
   sequence += 1
   const mySequence = sequence
@@ -777,6 +968,9 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
   chapterPatternSending.value = false
   chapterPatternError.value = null
   pendingChapterPatternEdit = null
+  urlImportItems.value = []
+  urlImportBusy.value = false
+  urlImportError.value = null
   return { created: result.created, error: null }
 }
 
@@ -839,4 +1033,7 @@ export function resetImportPreview(): void {
   chapterPatternSending.value = false
   chapterPatternError.value = null
   pendingChapterPatternEdit = null
+  urlImportItems.value = []
+  urlImportBusy.value = false
+  urlImportError.value = null
 }

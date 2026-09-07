@@ -643,6 +643,12 @@ pub fn run() {
             crate::commands::project::wire::preview_import_encoding_from_text,
             crate::commands::project::wire::preview_import_encoding_from_file,
             crate::commands::project::wire::confirm_import_with_encoding,
+            // Story 6.7 (FR122) -- nhap tu URL bang danh sach link. Ba vo: tai tuan tu
+            // (async), tai lai DUNG MOT muc (async), bo mot muc (khong async -- 0 mang).
+            // Xac nhan TAI DUNG `confirm_import_with_encoding` o tren, khong mot vo moi.
+            crate::commands::project::wire::start_url_import,
+            crate::commands::project::wire::reload_url_import_item,
+            crate::commands::project::wire::remove_url_import_item,
             // Story 6.5 -- luat lam sach luc nhap (FR124, AD-18). Nam vo: liet hai tang da
             // hop nhat · them · sua · xoa · bat/tat -- bon vo sau dinh tuyen theo tier nguoi
             // dung chon, danh tinh mot luat la CAP (tier, id).
@@ -1039,6 +1045,11 @@ fn open_work_slot(app: &tauri::App) {
     // "byte cua nguon doc DUNG MOT LAN"). Cung khuon PendingImportState ngay tren; khong
     // rang buoc nao voi OpenWork (mot luot xem truoc chua tung tao Tac pham nao).
     app.manage(crate::commands::project::PendingImportSourceState::new(None));
+    // Story 6.7 (FR122) -- trang thai tung muc cua danh sach URL dang nhap, song CANH
+    // PendingImportSourceState (Task list spec 6.7: "trang thai tung muc song canh
+    // PendingImportSource trong bo nho"). Dong bo hai o nay la viec cua
+    // commands::project::sync_pending_from_url_items, khong phai mot rang buoc lap o day.
+    app.manage(crate::commands::project::UrlImportItemsState::new(None));
 }
 
 /// Mở `$APPDATA/library-index.db` và đưa nó vào state — **Story 5.2**, cùng khuôn

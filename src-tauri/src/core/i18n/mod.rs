@@ -555,6 +555,33 @@ message_keys! {
     /// (`core::segment::chapterpattern::compile`) — màn xem trước GIỮ NGUYÊN kết quả CŨ,
     /// hiện thông báo này thay vì chạy chuỗi trên một mẫu hỏng.
     ImportInvalidChapterPattern => "err.import.invalid_chapter_pattern" [],
+
+    // ── Story 6.7 (AD-15 · AD-40 · AD-41 · FR122) — TÁM khoá, và đúng tám ───────────
+    //
+    // Bề mặt IPC "Nhập từ URL bằng danh sách link". Một MỤC hỏng giữ vị trí, mang MỘT trong
+    // tám lý do này (I/O Matrix spec 6.7) — ánh xạ DUY NHẤT ở
+    // `core::segment::import::web_import_item_failure_ipc_error`, dùng chung cho cả bảy lý
+    // do xảy ra Ở TẦNG `commands::project` (trước khi có gì để chạy pipeline) LẪN lý do thứ
+    // tám (`ExtractionEmpty`) ném TỪ TRONG chuỗi (`ImportError::WebImportItemFailed`).
+    /// Dòng dán vào không phải một URL tuyệt đối hợp lệ — **0 lời gọi mạng** cho dòng đó.
+    ImportWebInvalidUrl => "err.import.web_invalid_url" ["url"],
+    /// Máy chủ trả một mã lỗi HTTP (4xx/5xx). `status` là mã số đọc được — dữ liệu, không
+    /// phải câu (AD-21).
+    ImportWebHttpStatus => "err.import.web_http_status" ["url", "status"],
+    /// Hết thời gian chờ (`reqwest::Error::is_timeout()`).
+    ImportWebTimeout => "err.import.web_timeout" ["url"],
+    /// Không kết nối được — DNS, bị từ chối, … (`reqwest::Error::is_connect()`).
+    ImportWebConnectFailed => "err.import.web_connect_failed" ["url"],
+    /// Một chuyển hướng sang host KHÁC bị chặn tại chặng (AD-41) — máy chủ đích **0** kết nối.
+    ImportWebRedirectBlocked => "err.import.web_redirect_blocked" ["url"],
+    /// Thân trả về vượt trần byte một phản hồi (`core::webimport::MAX_RESPONSE_BYTES`).
+    ImportWebTooLarge => "err.import.web_too_large" ["url"],
+    /// `content-type` của phản hồi không phải HTML — `Extractor` KHÔNG được gọi trên byte
+    /// đó (§Always spec 6.7).
+    ImportWebNotHtml => "err.import.web_not_html" ["url"],
+    /// `Extractor` chạy nhưng không bóc được nội dung chính (rỗng/quá ngắn) — KHÔNG rơi về
+    /// HTML thô, đó là rỗng im lặng đổi hình dạng (§Design Notes spec 6.7).
+    ImportWebExtractionEmpty => "err.import.web_extraction_empty" ["url"],
 }
 
 /// 🔴 `Serialize` VIẾT TAY, và đây là chỗ dễ hỏng im lặng nhất của cả story.

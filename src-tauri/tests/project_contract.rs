@@ -23,8 +23,9 @@ use auratranslate_lib::commands::chapter::{
     open_adjacent_chapter, read_open_chapter, rename_chapter, split_chapter_at_segment,
 };
 use auratranslate_lib::commands::project::{
-    ChapterPatternWire, OpenWork, create_work, create_work_from_file, create_work_from_text,
-    resolve_chapter_pattern,
+    ChapterPatternWire, OpenWork, UrlImportItem, UrlImportItemsState, chapters_shape_if_all_ok,
+    clear_url_import_items_after_successful_confirm, create_work, create_work_from_file,
+    create_work_from_text, resolve_chapter_pattern,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
@@ -744,6 +745,190 @@ fn create_work_writes_titles_and_continuous_ord_when_n_chapters_come_from_a_chap
 
     drop(opened);
     cleanup(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.7 — N Chương đến từ danh sách URL (AD-15 · AD-40 · FR122)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+fn html_fixture_page(marker: &str) -> String {
+    format!(
+        "<html><head><title>Bai {marker}</title></head><body><article><h1>Tieu de {marker}</h1>\
+         <p>Doan mot cua bai {marker} du dai de Readability chon lam noi dung chinh, khong \
+         phai menu hay quang cao cua trang.</p>\
+         <p>Doan hai cua bai {marker} tiep tuc noi dung that su, giu cho tong do dai vuot \
+         qua nguong toi thieu can thiet.</p>\
+         <p>Doan ba cua bai {marker} dong y nghia, dam bao dom_smoothie cham diem cao cho \
+         khoi nay so voi menu/footer xung quanh.</p>\
+         </article></body></html>"
+    )
+}
+
+/// AC — N Chương đến TỪ DANH SÁCH URL: `ord` 1..N đúng thứ tự đã dán, mọi hàng
+/// `not_started`, `source_text` KHÔNG CHỨA chuỗi đánh dấu (AD-16), segment đủ mọi Chương.
+/// Xây `UrlImportItem` tay (không mạng thật) rồi đi ĐÚNG con đường sản phẩm:
+/// `chapters_shape_if_all_ok` → `create_work` — cùng hai hàm mà `commands::project::wire::
+/// start_url_import`/`confirm_import_with_encoding` gọi.
+#[test]
+fn n_chapters_from_a_url_list_write_clean_text_ord_and_segments_for_every_chapter() {
+    let root = temp_dir("n-chapters-from-url-list");
+
+    let items = vec![
+        UrlImportItem {
+            url: "https://example.com/bai-mot".to_owned(),
+            raw: Some(html_fixture_page("MOT").into_bytes()),
+            error: None,
+        },
+        UrlImportItem {
+            url: "https://example.com/bai-hai".to_owned(),
+            raw: Some(html_fixture_page("HAI").into_bytes()),
+            error: None,
+        },
+        UrlImportItem {
+            url: "https://example.com/bai-ba".to_owned(),
+            raw: Some(html_fixture_page("BA").into_bytes()),
+            error: None,
+        },
+    ];
+
+    let shape = chapters_shape_if_all_ok(&items)
+        .expect("toan bo muc OK phai cho ra Some(PipelineShape::Chapters)");
+
+    let opened = create_work(&root, "Tu URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None)
+        .expect("tao Tac pham tu danh sach URL that bai");
+
+    let rows: Vec<(i64, i64, String, String)> = opened
+        .store
+        .read(|conn| {
+            let mut stmt =
+                conn.prepare("SELECT id, ord, source_text, status FROM chapter ORDER BY ord")?;
+            let mut rows_iter = stmt.query([])?;
+            let mut out = Vec::new();
+            while let Some(row) = rows_iter.next()? {
+                out.push((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ));
+            }
+            Ok(out)
+        })
+        .expect("doc lai chapter that bai");
+
+    assert_eq!(rows.len(), 3, "phai co dung 3 Chuong, mot cho moi link");
+    for (i, (id, ord, source_text, status)) in rows.iter().enumerate() {
+        assert_eq!(*ord, i as i64 + 1, "ord phai lien tuc, dung THU TU da dan");
+        assert_eq!(status, "not_started", "Chuong id={id} phai mang status not_started");
+        assert!(
+            !source_text.contains('<') && !source_text.contains('>'),
+            "source_text cua Chuong id={id} phai KHONG chua chuoi danh dau HTML (AD-16): {source_text:?}"
+        );
+    }
+    assert!(rows[0].2.contains("MOT"), "Chuong 1 phai giu noi dung cua bai MOT");
+    assert!(rows[1].2.contains("HAI"), "Chuong 2 phai giu noi dung cua bai HAI");
+    assert!(rows[2].2.contains("BA"), "Chuong 3 phai giu noi dung cua bai BA");
+
+    for (chapter_id, ord, _, _) in &rows {
+        let seg_count: i64 = opened
+            .store
+            .read(move |conn| {
+                conn.query_row(
+                    "SELECT COUNT(*) FROM segment WHERE chapter_id = ?1",
+                    [chapter_id],
+                    |row| row.get(0),
+                )
+            })
+            .expect("dem segment that bai");
+        assert!(seg_count > 0, "Chuong ord={ord} (id={chapter_id}) phai co segment");
+    }
+
+    drop(opened);
+    cleanup(&root);
+}
+
+/// AC — còn MỘT mục hỏng trong danh sách ⇒ `chapters_shape_if_all_ok` trả `None`, và vì
+/// `commands::project::sync_pending_from_url_items` chỉ `stash_pending_import_source` khi
+/// hàm này trả `Some`, một lượt `confirm_import_with_encoding` kế tiếp sẽ luôn trả
+/// `import.no_pending_source` — **0 hàng ghi xuống**, không có `create_work` nào từng chạy.
+#[test]
+fn a_single_broken_item_in_the_url_list_yields_no_shape_to_confirm_zero_rows_would_ever_be_written() {
+    let items = vec![
+        UrlImportItem {
+            url: "https://example.com/tot".to_owned(),
+            raw: Some(html_fixture_page("TOT").into_bytes()),
+            error: None,
+        },
+        UrlImportItem {
+            url: "https://example.com/hong".to_owned(),
+            raw: None,
+            error: Some(auratranslate_lib::core::i18n::IpcError::new(
+                "import.web_item_failed",
+                MessageKey::ImportWebTimeout,
+                BTreeMap::from([("url".to_owned(), "https://example.com/hong".to_owned())]),
+                false,
+            )),
+        },
+    ];
+
+    assert!(
+        chapters_shape_if_all_ok(&items).is_none(),
+        "con MOT muc hong thi KHONG duoc co Some(shape) nao -- do la dieu kien duy nhat \
+         khoa nut xac nhan that (khong chi khoa o tang hien thi)"
+    );
+}
+
+/// Danh sách RỖNG cũng phải trả `None` — đóng vế còn mở của nợ `:9067` ("danh sách URL
+/// rỗng"), cùng điều kiện với "còn mục hỏng".
+#[test]
+fn an_empty_url_list_yields_no_shape_to_confirm_either() {
+    assert!(chapters_shape_if_all_ok(&[]).is_none());
+}
+
+/// P1 (vòng rà đối kháng bước 4) — không kiểu nào cưỡng chế bất biến "đúng một trong
+/// `raw`/`error` là `Some`" trên `UrlImportItem`. Dựng tay đúng trạng thái VỠ bất biến đó
+/// (cả hai đều `None`) và khẳng định `chapters_shape_if_all_ok` trả `None` thay vì lặng lẽ
+/// dựng một Chương RỖNG từ `unwrap_or_default()` — đúng lớp lỗi "rỗng im lặng" mà
+/// `AGENTS.md` gọi là trung tâm của dự án.
+#[test]
+fn an_item_with_neither_raw_nor_error_set_yields_no_shape_instead_of_a_silent_empty_chapter() {
+    let items = vec![
+        UrlImportItem {
+            url: "https://example.com/tot".to_owned(),
+            raw: Some(html_fixture_page("TOT").into_bytes()),
+            error: None,
+        },
+        UrlImportItem { url: "https://example.com/vo-bat-bien".to_owned(), raw: None, error: None },
+    ];
+
+    assert!(
+        chapters_shape_if_all_ok(&items).is_none(),
+        "mot muc vo bat bien (raw=None VA error=None) phai lam ham nay tra None -- KHONG duoc \
+         dung mot Chuong RONG tu unwrap_or_default()"
+    );
+}
+
+/// P6 (vòng rà đối kháng bước 4) — `UrlImportItemsState` phải được dọn CÙNG kỷ luật với
+/// `PendingImportSourceState`: chỉ dọn khi `create_work` THÀNH CÔNG. Trước bản vá, không chỗ
+/// gọi SẢN PHẨM nào dọn ô này — byte HTML thô của N link nằm lại trong bộ nhớ mãi mãi sau khi
+/// Tác phẩm đã tạo xong. Không có `tauri::test`/`MockRuntime` trong crate này, nên đây là ca
+/// trực tiếp trên hàm THUẦN `clear_url_import_items_after_successful_confirm`.
+#[test]
+fn url_import_items_state_is_wiped_after_a_successful_confirm() {
+    let state: UrlImportItemsState = std::sync::Mutex::new(Some(vec![UrlImportItem {
+        url: "https://example.com/con-lai".to_owned(),
+        raw: Some(b"<html></html>".to_vec()),
+        error: None,
+    }]));
+
+    clear_url_import_items_after_successful_confirm(&state);
+
+    let guard = state.lock().expect("khoa state that bai");
+    assert!(
+        guard.is_none(),
+        "UrlImportItemsState phai la None sau mot luot xac nhan THANH CONG -- byte HTML tho \
+         khong duoc nam lai trong bo nho"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

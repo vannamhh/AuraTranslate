@@ -300,6 +300,61 @@ fn the_pipeline_module_actually_defines_run_import() {
     );
 }
 
+/// **THÊM Story 6.7** — bước 2 (`Step::ExtractMainContent`) nay có THÂN THẬT, cùng khuôn
+/// mệnh đề "gọi xuống, đừng chép lại" mà `cleanup_boundary.rs::the_pipeline_module_actually_calls_the_cleanup_module`
+/// (bước 3) và `segment_normalize_boundary.rs::the_pipeline_module_actually_calls_the_normalize_module`
+/// (bước 4) đã dựng. Cắt về PHẦN SẢN PHẨM trước khi quét (`text_before_first_cfg_test_line`)
+/// — cùng lý do hai mệnh đề anh em: một lời gọi CHỈ sống trong khối `#[cfg(test)]` của chính
+/// `pipeline.rs` không được tính là "pipeline.rs gọi `webimport::extract`".
+fn line_calls_webimport_extract(code: &str) -> bool {
+    code.contains("webimport::extract(")
+}
+
+#[test]
+fn the_pipeline_module_actually_calls_the_webimport_module() {
+    let text = fs::read_to_string(src_root().join("core/segment/pipeline.rs"))
+        .expect("đọc core/segment/pipeline.rs thất bại");
+    let product_only = text_before_first_cfg_test_line(&text);
+    let has_call = code_lines(product_only).any(|(_, code)| line_calls_webimport_extract(code));
+    assert!(
+        has_call,
+        "`core/segment/pipeline.rs` không gọi `webimport::extract` (ngoài chú thích, ngoài \
+         khối `#[cfg(test)]`) — bước 2 của chuỗi AD-39 (\"bóc nội dung chính\") phải GỌI thân \
+         thật, không viết lại nội tuyến hay để trống."
+    );
+}
+
+/// Đối chứng dương — [`line_calls_webimport_extract`] nổ được trên một dòng vi phạm dựng
+/// tay, và KHÔNG nổ oan trên một dòng bình thường không nhắc tới nó.
+#[test]
+fn the_webimport_extract_call_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code() {
+    assert!(
+        line_calls_webimport_extract(
+            "                                let extracted = crate::core::webimport::extract(&html, label)?;"
+        ),
+        "ca DƯƠNG: một dòng gọi `webimport::extract` phải bị vị từ bắt"
+    );
+    assert!(
+        !line_calls_webimport_extract("    let n = normalize::normalize(&text, &source_lang);"),
+        "ca ÂM: một dòng KHÔNG gọi `webimport::extract` không được bị bắt oan"
+    );
+}
+
+/// Đối chứng dương THỨ HAI — một lời gọi CHỈ sống trong khối `#[cfg(test)]` của CHÍNH tệp
+/// không được tính là "pipeline.rs gọi webimport::extract" (cùng bẫy mà `cleanup_boundary.rs`
+/// đã bắt cho bước 3).
+#[test]
+fn a_call_living_only_inside_the_pipeline_files_own_test_block_does_not_count_as_the_webimport_call() {
+    let seeded_file = "fn step() {\n    // than that da bi go, khong con goi webimport::extract nua\n}\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn seeded() {\n        let _ = crate::core::webimport::extract(\"x\", \"y\");\n    }\n}\n";
+    let product_only = text_before_first_cfg_test_line(seeded_file);
+    let has_call = code_lines(product_only).any(|(_, code)| line_calls_webimport_extract(code));
+    assert!(
+        !has_call,
+        "một lời gọi CHỈ sống trong khối `#[cfg(test)]` không được tính là 'pipeline.rs gọi \
+         webimport::extract'"
+    );
+}
+
 /// Đối chứng dương của [`text_before_first_cfg_test_line`] — chép NGUYÊN VĂN cặp ca tự-kiểm
 /// của `cleanup_boundary.rs` (Story 6.6, cùng lý do "gọi nó trong MỌI assert thật" của bài
 /// học `cleanup_boundary.rs:136-141`).

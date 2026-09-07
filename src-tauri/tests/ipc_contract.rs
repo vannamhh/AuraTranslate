@@ -890,6 +890,64 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
     }
 }
 
+/// **THÊM Story 6.7 (FR122).** Ba vỏ "Nhập từ URL bằng danh sách link" phải CÓ MẶT trong
+/// `generate_handler![…]`, và tham số phải đúng thứ `src/config/project.ts` gõ ở phía kia của
+/// dây — cùng khuôn [`the_three_import_encoding_preview_wires_are_registered_and_keep_their_parameter_names`]
+/// ngay trên.
+#[test]
+fn the_three_url_import_wires_are_registered_and_keep_their_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    for wire in [
+        "crate::commands::project::wire::start_url_import",
+        "crate::commands::project::wire::reload_url_import_item",
+        "crate::commands::project::wire::remove_url_import_item",
+    ] {
+        assert!(
+            lib_src.contains(wire),
+            "`{wire}` phai co mat trong generate_handler! cua lib.rs. Thieu no thi invoke() tra              \"command not found\" chi khi nguoi dung bam nut."
+        );
+    }
+
+    assert!(
+        lib_src.contains("app.manage(crate::commands::project::UrlImportItemsState::new(None));"),
+        "thieu `app.manage(crate::commands::project::UrlImportItemsState::new(None))` trong `lib.rs`          -- ba vo o tren roi vao nhanh state-chua-quan-ly."
+    );
+
+    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("project.rs");
+    let project_src = fs::read_to_string(&project_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
+
+    let wire_mod_start = project_src
+        .find("\npub mod wire {")
+        .unwrap_or_else(|| panic!("khong tim thay `pub mod wire {{` trong commands/project.rs"));
+    let wire_src = &project_src[wire_mod_start..];
+
+    for (fn_name, expected_params) in [
+        ("start_url_import", "app: tauri::AppHandle,\n        urls: Vec<String>,\n        source_lang: String,"),
+        (
+            "reload_url_import_item",
+            "app: tauri::AppHandle,\n        index: usize,\n        source_lang: String,",
+        ),
+        (
+            "remove_url_import_item",
+            "app: tauri::AppHandle,\n        index: usize,\n        source_lang: String,",
+        ),
+    ] {
+        let params = fn_param_list(wire_src, fn_name);
+        assert_eq!(
+            params.trim(),
+            expected_params,
+            "vo `{fn_name}` trong `pub mod wire` cua commands/project.rs khong con dung danh sach tham so          mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts` la cho duy nhat go lai          theo dung ten/thu tu do."
+        );
+    }
+}
+
 /// Bóc danh sách tham số của khối `pub fn <fn_name>(...)` ĐẦU TIÊN trong `src` — neo vào
 /// ĐÚNG chữ ký hàm đó, không phải một chuỗi con rời rạc bất kỳ đâu trong tệp. Giả định (đúng
 /// cho cả ba vỏ Story 6.3): thân tham số không chứa dấu `)` nào (không kiểu generic lồng

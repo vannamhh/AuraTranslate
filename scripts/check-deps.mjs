@@ -174,6 +174,12 @@ const BANNED_CRATES = [
   ['tauri-plugin-keyring', 'AD-29 — dùng crate `keyring` trực tiếp'],
   ['tauri-wire', 'payload 679 byte'],
   ['tauri-plugin-sql', 'AD-11 — dùng `rusqlite` trực tiếp'],
+  // 🔴 THÊM 2026-09-06 (Story 6.7) — đo cùng ngày: 0 kết quả toàn kho (`grep plugin-http`),
+  // tức KHÔNG cổng nào chặn nó trước story này (Code Map spec 6.7: "⚠️ @tauri-apps/
+  // plugin-http không bị chặn ở đâu cả"). `core/webimport::Fetcher` dùng `reqwest::blocking`
+  // trực tiếp — một plugin HTTP song song là đường TẮT đi vòng qua điểm ra mạng thứ ba DUY
+  // NHẤT (AD-15), không được phép tồn tại cạnh nó.
+  ['tauri-plugin-http', 'AD-15 — Fetcher dùng `reqwest::blocking` trực tiếp, không plugin'],
 ]
 
 for (const [crate, why] of BANNED_CRATES) {
@@ -224,6 +230,9 @@ const BANNED_NPM = [
   '@tauri-apps/plugin-sql',
   '@tauri-apps/plugin-dialog',
   '@tauri-apps/plugin-stronghold',
+  // 🔴 THÊM 2026-09-06 (Story 6.7) — cùng lý do `tauri-plugin-http` ở `BANNED_CRATES` ngay
+  // trên: nửa npm của cùng một plugin, cũng phải bị chặn.
+  '@tauri-apps/plugin-http',
 ]
 
 for (const pkg of BANNED_NPM) {
@@ -297,7 +306,12 @@ console.log('Ghi chú cho người rà soát: `reqwest` CÓ trong cây phụ thu
 console.log('vi phạm AC5. Bảng Stack cài trọn ở Story 1.2. 🔵 SỬA 2026-09-03 (Story 6.1) —')
 console.log('mệnh đề "chưa một dòng mã nào gọi tới" hết đúng cho TOÀN KHO: bàn đo')
 console.log('`src-tauri/tests/webimport_probe.rs` gọi `reqwest::blocking` để đo trực tiếp ba')
-console.log('năng lực cần cho `Fetcher`. Vẫn đúng cho ĐƯỜNG SẢN PHẨM — `tests/**` không vào')
-console.log("bản phát hành. AC5 nói 'không có LỜI GỌI ra ngoài nào' TỪ SẢN PHẨM; ba điểm ra")
-console.log('mạng của AD-15 mở ở Story 4.x, 6.7, 10.7.')
+console.log('năng lực cần cho `Fetcher`.')
+console.log('🔵 SỬA 2026-09-06 (Story 6.7) — mệnh đề "vẫn đúng cho ĐƯỜNG SẢN PHẨM" (bản trước')
+console.log('của ghi chú này) đã HẾT ĐÚNG. `core::webimport::fetcher::fetch` (gọi từ')
+console.log('`commands::project`, đường nhập URL) là chỗ gọi SẢN PHẨM THẬT của `reqwest`,')
+console.log('không chỉ một bàn đo trong `tests/**` nữa. Đây KHÔNG phải một vi phạm AC5 — AD-15')
+console.log("khai đúng BA điểm ra mạng có chủ, và đây là điểm THỨ BA (`Fetcher`, story 6.7);")
+console.log('AC5 cấm SDK/thư viện thu thập dữ liệu ẨN, không cấm chính điểm ra mạng đã ký.')
+console.log('Ba điểm ra mạng của AD-15: Story 4.x (AI) · 6.7 (Fetcher, ĐÃ MỞ) · 10.7.')
 process.exit(0)

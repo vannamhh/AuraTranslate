@@ -9063,6 +9063,38 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     một `dist/`, ghi cả hai số + delta vào spine). Đây là lúc `html5ever`/`markup5ever`/`selectors`/
     `cssparser` thật sự vào nhị phân và dư địa NFR6 mới có một con số đáng tin. KHÔNG suy ra "dư địa
     NFR6 an toàn" từ con số −16 của Story 6.1.)**
+    → ✅ **ĐÃ ĐÓNG 2026-09-06 (Story 6.7 — không phải 6.9: `Extractor` thật hạ cánh ở đây, xem
+    §Design Notes spec 6.7 "Vì sao thuật toán bóc vào 6.7").** `core::webimport::extractor::extract`
+    (gọi từ `Step::ExtractMainContent`, chạy thật khi `extract_main_content = true` — đường URL)
+    là chỗ gọi SẢN PHẨM ĐẦU TIÊN của `dom_smoothie::Readability::parse()`. Đo đúng khuôn cũ: hai
+    bản dựng `cargo build --release --locked`, CÙNG một `dist/` (đối chiếu `diff -rq` giống hệt,
+    dist mang ĐẦY ĐỦ frontend Story 6.7 ở CẢ HAI lượt — cách ly phần đổi do Rust, không lẫn phần
+    đổi do frontend), baseline dựng trong `git worktree` tại `d990e1c4f11d86facbc00468e47b4ed1b0ef9ece`
+    (commit trước lượt code Story 6.7, `spec-6-7-…md::baseline_commit`):
+
+    | Bản dựng | Byte |
+    | --- | ---: |
+    | baseline `d990e1c4` (`Extractor`/`Fetcher` vẫn stub) | **9.370.872** |
+    | cây hiện tại (Story 6.7 — `Fetcher`+`Extractor` thật, gọi từ `commands::project`) | **13.739.088** |
+    | **Delta** | **+4.368.216 byte (≈4,166 MiB)** |
+
+    Xác nhận CƠ CHẾ bằng `strings` (nhị phân release đã `strip`, `nm` không còn ký hiệu để mà
+    đếm — khác điều kiện đo của Story 6.1): chuỗi `"dom_smoothie"` xuất hiện **5** lần trong nhị
+    phân hiện tại, **0** lần trong baseline; chuỗi `"html5ever"` xuất hiện **7** lần trong nhị
+    phân hiện tại, **0** lần trong baseline — đúng như dự đoán "trình liên kết chỉ giữ lại
+    những gì THẬT SỰ được gọi tới". macOS, cùng máy với mọi phép đo khác của story này.
+    ⚠️ **Giới hạn của phép đo này, ghi ra thay vì giấu:** máy đo đang ở `load average` 15 phút
+    > 100 trên 16 lõi tại thời điểm hai lượt dựng chạy song song (xem ghi chú tương tự ở
+    `perf_probe_twenty_links_end_to_end_fetch_plus_extract_plus_pipeline`,
+    `webimport_contract.rs`) — điều đó ảnh hưởng THỜI GIAN dựng (mỗi lượt build mất ~14-15
+    phút), KHÔNG ảnh hưởng KÍCH THƯỚC nhị phân đầu ra (kích thước là hàm của mã nguồn + cấu
+    hình trình biên dịch, không phải của tải CPU lúc biên dịch) — số byte trên đáng tin dù thời
+    gian dựng bị kéo dài bất thường. Ăn **≈4,37 MB / 3.104.634 byte dư địa NFR6 còn lại** (Story
+    6.1 đo dư địa đó, chủ Story 10.1) — tức đã VƯỢT dư địa từng ghi nhận tại thời điểm Story 6.1
+    đo (**140%**, không phải một tỉ lệ nhỏ). ⚠️ **Ghi rõ để Story 10.1 không bị bất ngờ**: dư
+    địa NFR6 cần được TÍNH LẠI TOÀN BỘ (không chỉ cộng dồn delta của các story rời rạc) trước
+    khi đóng bất kỳ quyết định ngân sách byte nào — số 3.104.634 của Story 6.1 đã lỗi thời ngay
+    từ dòng này.
 
 ## Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)
 
@@ -9091,6 +9123,16 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   này. Vế còn đứng: một danh sách URL rỗng vẫn nên bị chặn ở TẦNG TRÊN kèm một thông điệp nói
   đúng chuyện gì xảy ra, chứ không rơi xuống tận đây mới thành `CreateFailed` — đó là một câu
   hỏi về thông điệp cho người dùng, không còn là một câu hỏi về `panic`. **Chủ: Story 6.7.**
+  → 🟡 **2026-09-06 (Story 6.7) — vế PANIC đóng, vế THÔNG ĐIỆP thì KHÔNG.** Danh sách URL
+  rỗng không còn cách nào chạm tới `create_work`: `LibraryMode.vue` khoá nút
+  (`:disabled="busy || pastedUrlCount === 0"`), `libraryImport.ts::submitPastedUrls` tự
+  `return` sớm khi `pastedUrlLines.value.length === 0`, và
+  `commands::project::chapters_shape_if_all_ok` trả `None` cho một `items` rỗng (nếu một
+  đường gọi khác trong tương lai bỏ qua hai lớp trên) — ba lớp độc lập, không phải một.
+  Nhưng KHÔNG lớp nào hiện một CÂU giải thích: nút chỉ im lặng ở trạng thái khoá, không một
+  `noticeKey`/`tError()` nào nói "dán ít nhất một link trước". Vế "một thông điệp nói đúng
+  chuyện gì xảy ra" (đúng nguyên văn nợ gốc) vẫn mở. **Chủ tiếp: story nào chạm lại form nhập
+  URL kế tiếp** (ứng viên: Story 6.8 — allowlist domain, cũng chạm cùng form).
 - ⚠️ **"Màn xem trước luôn hiện kết quả sau TOÀN BỘ chuỗi" (AD-39 spine `:502`) chưa nghiệm thu
   được — bước xem trước có mặt trong thứ tự và đứng đúng chỗ (sau tách Chương, trước tách
   segment, `Step::Preview` trong `PIPELINE_ORDER`), nhưng thân nó RỖNG và chưa có bề mặt IPC/UI
@@ -9191,6 +9233,19 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   HTTP tự khai `charset` qua header là một nguồn THỨ BA đáng lẽ cũng phải rơi vào
   `SelfDeclared` (nguồn đã nói cho ta biết, không cần đoán) — nhưng `Fetcher` (Story 6.7)
   chưa tồn tại nên không có byte HTTP nào để mà thử. **Chủ: Story 6.7.**
+  → 🔵 **SỬA 2026-09-06 (Story 6.7) — `Fetcher` nay TỒN TẠI THẬT, mệnh đề gốc "chưa tồn tại"
+  đã HẾT ĐÚNG — nhưng vẫn CHƯA đóng.** `core::webimport::fetcher::fetch` đọc header
+  `content-type` (`FetchedPage::content_type`) NHƯNG chỉ dùng nó cho một quyết định NHỊ PHÂN
+  ("có phải HTML không", `looks_like_html`) — `charset` bên trong `Content-Type` (ví dụ
+  `text/html; charset=GB2312`) KHÔNG được đọc, và Ice chốt 2026-09-06 rằng URL import dùng
+  MỘT bảng mã cho cả danh sách, dò từ `chapters.first()` bằng CHÍNH bộ dò `chardetng` sẵn có
+  (`core::segment::encoding::detect`) — không một đường `SelfDeclared` nào mới được mở. Nợ
+  gốc vẫn đúng nguyên văn, chỉ đổi TIỀN ĐỀ ("Fetcher chưa tồn tại" → "Fetcher tồn tại nhưng
+  cố ý không đọc `charset`", quyết định kiến trúc §Design Notes spec 6.7 "Vì sao một bảng mã
+  cho cả danh sách"). **Chủ MỚI: chưa có** — không story nào trong `epics.md`/`sprint-status.yaml`
+  hôm nay giao nhiệm vụ "đọc `charset` HTTP làm nguồn `SelfDeclared` thứ ba"; đây là một khả
+  năng kỹ thuật đã có đủ dữ liệu để làm (byte HTTP giờ có thật) nhưng chưa ai xin làm. Cần
+  Ice cấp một story hoặc gộp vào phạm vi Story 6.8 (allowlist domain, cũng chạm `Fetcher`).
 
 - ⚠️ **"Chọn một ứng viên khác PHẢI chạy lại chuỗi từ bước một" (một dòng 🔴 của §Tasks spec
   6.3, ô `src/importPreviewState.ts`) — bản thi hành chọn một đường KHÁC, không phải đường
@@ -9294,6 +9349,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   vì mọi URL trong MỘT lượt nhập luôn cùng một site, cùng một charset khai báo), phải VIẾT RA
   quyết định đó tường minh ở doc-comment `PipelineInput::encoding` (hôm nay doc-comment đó
   chỉ nói "bảng mã ĐÃ khai", không nói "khai cho MỘT hay cho TẤT CẢ N đơn vị").
+  → ✅ **ĐÃ ĐÓNG 2026-09-06 (Story 6.7), đường ②.** Ice chốt 2026-09-06: giữ hình dạng hôm
+  nay (một bảng mã cho cả danh sách, chốt từ `chapters.first()` — cùng cơ chế
+  `preview_import_encoding` đã có từ Story 6.3, không sửa một dòng pipeline nào cho vế bảng
+  mã). Quyết định đã VIẾT THÀNH CHỮ tại đúng chỗ nợ này đòi:
+  `core::segment::pipeline::PipelineInput::encoding` doc-comment nay nêu rõ đây là "một bảng
+  mã cho CẢ danh sách", cộng ca hở còn lại (link A trả GBK, link B trả UTF-8 ⇒ B bị giải mã
+  sai bằng bảng mã của A) — xem §Design Notes "Vì sao một bảng mã cho cả danh sách" của spec
+  6.7 cho lý lẽ đầy đủ. Đường ① (dò độc lập từng đơn vị) vẫn MỞ, có chủ mới nếu Ice muốn theo
+  đuổi sau này — không phải Story 6.7.
 
 - ⚠️ **`EVIDENCE_WINDOW_BYTES` (4 KiB) chỉ soi phần ĐẦU tệp — một tệp mở đầu bằng ASCII rồi
   đổi bảng mã ở phần sau bị đoán sai TOÀN BỘ, không chỉ ở phần đầu — vòng rà đối kháng 2, mục
@@ -9765,3 +9829,150 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   242-286 ms đã ghi, nên chưa biết nó đáng kể hay không — nêu ra như một hình dạng đáng xét lại,
   KHÔNG như một khuyết tật đã chứng minh. **Chủ: Story 6.18** — lượt đo lại ba ngưỡng NFR trên
   thư viện 5.000 Chương thật là chỗ đầu tiên con số này có nghĩa.
+
+## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link — tách phạm vi ở bước định tuyến (2026-09-06)
+
+- ⚠️ **Nửa sau AC2 của `epics.md` §Story 6.7 — *"tạo Tác phẩm mới, HOẶC thêm Chương vào một
+  Tác phẩm sẵn có"* — KHÔNG nằm trong Story 6.7.** Ice chốt tách 2026-09-06 ở bước kiểm
+  đa-mục-tiêu của `bmad-build`. Đây là một năng lực CHƯA DỰNG, không phải một chỗ lệch spec:
+  AC ấy vẫn đúng và `epics.md` KHÔNG được sửa cho khớp mã (luật §Story và spec của `AGENTS.md`).
+  **Ba phép đo dẫn tới lượt tách, ghi ra để lượt sau không phải đo lại (đo 2026-09-06, HEAD
+  `d990e1c4f11d86facbc00468e47b4ed1b0ef9ece`, cây sạch):**
+  ① Năng lực này chưa có MỘT DÒNG nào: `grep` `add_chapter|append_chapter|import_chapter` trên
+  `src-tauri/src` cho **0** kết quả, và cùng phép grep (kèm hai dạng camelCase `addChapter`/
+  `appendChapter`) trên `src/` cũng cho **0** kết quả.
+  ② Đường xác nhận nhập hôm nay luôn **TẠO** một Tác phẩm chưa tồn tại, không có nhánh nào
+  nhận một Tác phẩm đích: `commands::project::confirm_import_with_encoding` (`project.rs:1778`)
+  gọi thẳng `create_work` (`:1811`), và ba vỏ `create_work*` (`:299`, `:505`, `:938`) không vỏ
+  nào nhận một `work_id` đích. Đây cùng một giới hạn kiến trúc đã buộc Story 6.5 thu hẹp tầng
+  "Tác phẩm" của luật làm sạch.
+  ③ Chỉ bề mặt ĐỌC là có sẵn: `library_list_works` (`commands/library.rs:682`) và
+  `CMD_LIST_WORKS` (`src/config/library.ts:310`). ⇒ Phần còn thiếu là một lệnh GHI mới ở Rust,
+  một adapter TS mới, và một bề mặt chọn đích — hạ tầng mới hoàn toàn, không phải một dòng thêm.
+  ⚠️ **Chiều phụ thuộc ở đây là HAI chiều tự do — khác mục 6.6b.** Mục này thuộc tầng Library,
+  không thuộc đường URL: dựng xong thì đường nhập từ tệp và đường dán tay cũng hưởng. Story 6.7
+  nghiệm thu trọn vẹn mà không cần nó (màn xem trước vốn luôn tạo Tác phẩm mới), và nó dựng được
+  trên bất kỳ đường nhập nào mà không cần đường URL. ⇒ Đây là hai việc SONG SONG, không phải
+  tuần tự — đừng đọc lượt tách này thành "6.7 phải xong trước".
+  ⚠️ Chi phí đã biết của lượt tách, ghi ra thay vì làm nhẹ đi: mockup `web-import.html:198-208`
+  vẽ chọn đích **cùng một cột phải** với tên Tác phẩm và ngôn ngữ nguồn. Story 6.7 dựng cột đó
+  chỉ với "Tác phẩm mới"; lượt đóng mục này chạm lại đúng khối ấy để thêm lựa chọn thứ hai và
+  một bộ chọn Tác phẩm đích. Một lần sờ lại có giới hạn, không phải viết lại.
+  **Chủ: Story 6.7b** — một story mới đứng sau 6.7, chưa có trong `epics.md`/`sprint-status.yaml`.
+  🔴 Thêm nó vào hai tệp đó là một mục quy hoạch còn thiếu, tức phải đi qua `correct-course`,
+  không phải một dòng dev tự thêm — cho tới lúc đó mục này mang chủ trên GIẤY, và Ice là người
+  kích hoạt lượt ấy. ⚠️ Sổ này nay mang **HAI** mục cùng hình dạng đó (6.6b và 6.7b); một lượt
+  `correct-course` xử được cả hai.
+
+## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link (2026-09-06)
+
+- ⚠️ **Tỉ lệ bóc sai của `dom_smoothie`/`Extractor` mới đo trên MỘT site tin tức
+  (`epochtimes.com`, 7 mẫu, bàn đo 6.1) — chưa nói gì về trang đọc truyện chữ, blog cá nhân,
+  hay diễn đàn.** Story 6.7 dựng `Extractor` thật (`core::webimport::extractor::extract`)
+  đúng theo số đo đã có của bàn đo 6.1, nhưng KHÔNG thêm một mẫu đo nào trên site đọc truyện
+  — đây là đối tượng chính mà FR122/FR123 nhắm tới (danh sách URL để nhập TRUYỆN, không phải
+  bài báo). §Giới hạn của `6-1-ban-do/REPORT.md` đã ghi rõ điều này từ trước, chưa ai đóng.
+  **Chủ: Story 6.10** — khi màn xem trước có đường thật để nạp URL từ một trang đọc truyện,
+  đo lại tỉ lệ bóc đúng trên nguồn đó, so với con số 72–99% đã đo trên báo.
+
+- ⚠️ **`spawn_import_scan` (`commands/project.rs:776`) vẫn chỉ quét Chương ĐẦU khi một lượt
+  nhập URL tạo ra N > 1 Chương.** Hàm này nhận đúng MỘT `chapter_id` (comment tại chỗ gọi
+  `:776` ghi thẳng "nhận đúng MỘT chapter_id") — với đường file/dán tay cũ, N luôn là 1 (trừ
+  khi có mẫu phân tách, Story 6.6, cùng giới hạn đã có) nên hành vi này vô hại; với đường URL,
+  N Chương là kết quả THƯỜNG XUYÊN (mỗi link một Chương), và N−1 Chương còn lại không được
+  quét ứng viên Glossary/TM khi vừa nhập — người dùng phải tự mở từng Chương một để kích hoạt
+  quét. Không phải một lỗi (dữ liệu vẫn đúng, không mất), nhưng là một khoảng hụt trải nghiệm
+  chưa ai đo. **Chủ: Story 6.10** — mở rộng `spawn_import_scan` (hoặc một cơ chế quét theo lô)
+  để quét cả N Chương của một lượt nhập URL, không chỉ Chương đầu.
+
+- ⚠️ **`Extractor` bỏ TOÀN BỘ ảnh/caption/alt-text — `core::webimport::extractor::extract`
+  chỉ trả `text_content`, không bao giờ đọc `Article::content` (HTML, nơi ảnh còn sống).**
+  Đây là một quyết định CÓ CHỦ Ý của Story 6.7 (§Never: "Không ảnh, không caption, không
+  alt-text — Extractor của 6.7 chỉ trả văn bản"), không phải một sơ suất — nhưng nó là một
+  giới hạn thật của trải nghiệm nhập URL: một bài viết/chương có hình minh hoạ ý nghĩa sẽ mất
+  hình đó vĩnh viễn ngay từ lượt nhập, không có đường phục hồi sau này (AD-4 đóng băng
+  `source_text` lúc nhập). **Chủ: Story 6.11/6.13** (đã có chủ từ trước theo epics.md — ghi
+  lại ở đây để nợ này có mặt cạnh nợ ①②③ của cùng story, dễ tra theo một chỗ).
+
+## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link — vòng rà bước 3 (2026-09-07)
+
+- ⚠️ **Vế *"quá ngắn"* của hàng I/O Matrix *"trang bóc ra rỗng"* KHÔNG được dựng ở Story 6.7 —
+  chỉ vế *"rỗng tuyệt đối"*.** `core::webimport::extractor::extract` từ chối khi và chỉ khi
+  `text_content.trim().is_empty()`; không có ngưỡng độ dài nào. **Phép đo dẫn tới mục này
+  (2026-09-07):** một trang chỉ có `<html><body><nav><a href="/x">m</a></nav></body></html>`
+  đi TRỌN chuỗi và cho ra một `ImportedChapter` với `source_text: "m"` — một Chương **một ký
+  tự**, không lỗi nào ném, không cổng nào đỏ. Đó là rỗng-im-lặng đổi hình dạng, đúng lớp lỗi
+  trung tâm của dự án, chỉ nhỏ hơn.
+  **Vì sao KHÔNG vá ở 6.7 — Ice chốt 2026-09-07:** *"quá ngắn"* đòi một hằng số ngưỡng, và số
+  duy nhất đang có là bảy mẫu của bàn đo 6.1 trên **một** site (`epochtimes.com`): 325 · 589 ·
+  3.545 · **192** · 3.727 · 483 ký tự. Bài THẬT ngắn nhất là 192, nên một sàn tuyệt đối phải
+  nằm dưới đó — và chính `6-1-ban-do/REPORT.md` khai bảy mẫu một site *"không nói gì"* về site
+  khác. Đặt một hằng số ở đây là đúng thứ Ice đã cấm ở Story 6.6 (*"không ngưỡng, không cờ"*).
+  ⚠️ Cũng KHÔNG dùng `is_probably_readable()` thay thế: bàn đo 6.1 quan sát được ít nhất một
+  âm tính giả (mẫu `a04`, bài thật 192 ký tự bị cờ báo `false`) và đã ghi nợ dặn đừng lấy cờ
+  đó làm điều kiện duy nhất.
+  **Chủ: Story 6.10** — story sở hữu bộ lọc *"cần xem"*, và `epic-6-context.md` định nghĩa tín
+  hiệu này là *"phần bóc ngắn bất thường so với **trung vị các Chương khác**"*: một phép so
+  TƯƠNG ĐỐI cần N Chương, không cần một hằng số nào. Đó là chỗ duy nhất câu hỏi này trả lời
+  được mà không bịa một con số.
+
+## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link — vòng rà đối kháng bước 4 (2026-09-07)
+
+- ⚠️ **Không có TRẦN số link cho một lượt dán, ở bất kỳ tầng nào.** Đo 2026-09-07: `grep`
+  `MAX_URL|MAX_LINKS|max_links` trên `src-tauri/src/` cho **0** kết quả. §Ask First của spec
+  6.7 nêu đích danh *"trần số link"* là một ngưỡng cần phép đo, nhưng lượt thi công không dựng
+  và cũng không hỏi. ⚠️ Ghi rõ vì sao đây KHÔNG phải một bản vá hiển nhiên: một cái trần CẮT
+  BỚT phá đúng bất biến trung tâm của story — dán 150 link mà trần 100 thì *N link* khác *N
+  Chương*, tức chính điều AC4 dựng một test để bắt. Nếu có trần, nó phải là **từ chối cả danh
+  sách kèm lý do**, không phải cắt bớt; và con số phải đo trên một lượt nhập thật chứ không
+  chọn bừa. **Chủ: Ice** — đây là một quyết định sản phẩm (bao nhiêu link là "quá nhiều" cho
+  một lượt), không phải một chi tiết cài đặt.
+
+- ⚠️ **Không có phản hồi tiến độ trong lúc tải N link.** `start_url_import` tải tuần tự trọn N
+  link trong MỘT lời gọi lệnh, và frontend chỉ đổi trạng thái khi cả lô xong. Đo 2026-09-07:
+  20 link cục bộ mất ~5,0 s tổng; một danh sách 50 link tới site thật sẽ lâu hơn nhiều, và
+  người dùng nhìn một màn hình đứng yên không biết đã xong mấy link. Khuôn có sẵn để dùng:
+  `spawn_import_scan` (`project.rs:776`) đã phát sự kiện qua `app.emit` kèm bộ đếm thế hệ.
+  **Chủ: Story 6.10** — story đầu tiên đưa màn xem trước lên quy mô hàng chục Chương thật.
+
+- ⚠️ **URL TRÙNG trong danh sách không được xử lý, và cũng không được quyết.** Dán cùng một
+  link hai lần hôm nay cho hai Chương giống hệt, tải hai lần qua mạng. Không hàng nào của I/O
+  Matrix nói về ca này, không ca test nào ghim nó ⇒ đây là một hành vi CHƯA AI CHỌN, không phải
+  một hành vi đã chốt. ⚠️ Liên quan AD-41 *"không tải lại ảnh đã có"* — cùng loại câu hỏi
+  (khử trùng theo khoá gì) ở một tầng khác. **Chủ: Story 6.8** — story sở hữu allowlist và
+  nhật ký domain, tức nơi "đã gọi domain/URL này chưa" lần đầu có một chỗ để sống.
+
+- ⚠️ **Tầng 2 của màn xem trước chỉ hiện văn bản đã bóc của Chương ĐẦU.** Với một danh sách N
+  link, tải lại hay soát một mục thứ k > 1 không làm tầng 2 đổi gì — người dùng thao tác trên
+  mục 2 mà "Ranh giới nội dung" vẫn hiện mục 1. Cùng hình dạng với mục nợ tầng 3 đã ghi ở vòng
+  rà Story 6.6 (`cleanup_and_chapters_preview_for` ghim vào `chapters.first()`), và cùng lý do
+  chưa gỡ được: chưa có đường điều hướng Chương trong lớp phủ. **Chủ: Story 6.10** — story sở
+  hữu `⌥←`/`⌥→`, tức nơi "xem tầng 2 của Chương đang chọn" có một đối tượng để bám.
+
+- ⚠️ **Sửa luật làm sạch hoặc mẫu phân tách trong lúc màn URL đang mở thì bản xem trước KHÔNG
+  tự dựng lại, và người dùng không được báo gì.** `importPreviewState.ts::runImportPreviewReload`
+  có nhánh `if (from === 'urls') return null` kèm doc-comment tự khai đây là giới hạn thật (byte
+  đã tải sống trong `UrlImportItemsState` phía Rust, không có lệnh "dựng lại xem trước, giữ
+  nguyên byte"). Luật vẫn được nạp lại đúng lúc xác nhận nên KHÔNG có ca ghi sai — nhưng lượt
+  CRUD trả về im lặng, nên người dùng sửa một luật rồi thấy màn hình không đổi và không biết vì
+  sao. ⚠️ Giới hạn này mới chỉ sống trong một chú thích mã; luật của kho đòi nó có mặt ở đây kèm
+  chủ. **Chủ: Story 6.10.**
+
+- ⚠️ **Bộ `webimport_contract.rs` có ca phụ thuộc WALL-CLOCK và đã quan sát được một lượt đỏ
+  giả.** Đo 2026-09-07: một lượt chạy ngay sau khi biên dịch xong cho **4 ca đỏ**
+  (`a_response_that_is_not_html…`, `an_oversized_body…`, `a_response_advertising_far_more…`,
+  `a_blocked_cross_host_redirect…`); **5 lượt liên tiếp sau đó đều 19/19 xanh**, ổn định
+  7,1-7,7 s. Nguyên nhân khả dĩ: hai ca nặng theo thời gian (trần `REQUEST_TIMEOUT` 20 s, và
+  một luồng 200 MiB) chạy song song dưới tải biên dịch trên máy đang ở `load average` 19-30
+  trên 16 lõi. ⚠️ Đây là một rủi ro CI THẬT, không phải một lượt xui: CI chạy trên máy chia sẻ
+  và `.github/workflows/ci.yml` cấm `continue-on-error` lẫn vòng chạy lại có chủ ý. Cần một
+  hình dạng không phụ thuộc wall-clock cho hai ca đó, hoặc một phép đo trên runner CI thật
+  trước khi tin bộ này ổn định. **Chủ: Story 6.18** — lượt đo lại ba ngưỡng NFR là chỗ đầu tiên
+  hành vi dưới tải có một bàn đo thật.
+
+- ⚠️ **Mỗi link dựng một `reqwest::blocking::Client` MỚI — một luồng hệ điều hành cộng một
+  runtime tokio cho MỖI URL.** Đo 2026-09-07 (`perf_probe_twenty_links…`): tổng ~5,0 s cho 20
+  link cục bộ, trong đó ~2,0 s là `sleep` của chính bàn đo, phần lớn còn lại là chi phí khởi
+  tạo client chứ không phải chờ mạng. Chưa đo trên danh sách lớn. Dùng LẠI một client cho cả
+  lượt nhập là hình dạng hiển nhiên hơn, nhưng nó chạm chính sách chuyển hướng (mỗi URL có một
+  `origin_host` riêng) nên không phải một dòng sửa. **Chủ: Story 6.18.**

@@ -204,6 +204,25 @@ pub struct PipelineInput {
     /// nhiều nơi) và mọi ca `tests/**` dựng đối chứng AD-39 cần byte THẬT SỰ đổi hình dạng
     /// qua bước giải mã (§Design Notes "Vì sao ca đối chứng cần byte chưa giải mã" của spec
     /// 6.2) mà không cần dò gì cả.
+    ///
+    /// 🔵 **SỬA 2026-09-07 (Story 6.7) — trường này là MỘT bảng mã cho **CẢ** danh sách, và
+    /// điều đó là một QUYẾT ĐỊNH, không phải một chỗ chưa làm.** Với
+    /// [`PipelineShape::Chapters`] mang N đơn vị (đường nhập URL, N link ⇒ N Chương),
+    /// `Step::DecodeEncoding` gọi `decode_unit(u, encoding)` với **cùng một** giá trị này cho
+    /// **mọi** đơn vị; bảng mã ấy được chốt từ đơn vị **ĐẦU TIÊN** ở tầng lệnh
+    /// (`commands::project::preview_import_encoding`, nhánh `PipelineShape::Chapters` dò trên
+    /// `chapters.first()`). Ice chốt 2026-09-06, đường ② của mục nợ *"`PipelineShape::Chapters`
+    /// chọn MỘT bảng mã"* trong `deferred-work.md`.
+    ///
+    /// ⚠️ **Ca còn hở, ghi ra thay vì để người sau tưởng đã xét:** link A trả GBK còn link B
+    /// trả UTF-8 thì B bị giải mã bằng bảng mã của A — hoặc ra chữ rác một cách lặng lẽ (nếu
+    /// byte của B vẫn giải mã được qua GBK, không `Malformed`), hoặc trượt
+    /// [`ImportError::UndecodableBytes`] với một lý do **không nói đúng nguyên nhân** (bảng mã
+    /// SAI cho đúng đơn vị đó, không phải "byte hỏng"). Đổi lại: 0 dòng mã pipeline đổi, đường
+    /// [`PipelineShape::Blob`] không bị chạm, và một dải năm ứng viên duy nhất đúng như mockup
+    /// vẽ. Đường ① (dò ĐỘC LẬP từng đơn vị, mỗi đơn vị một dải ứng viên và một bảng mã riêng)
+    /// vẫn MỞ cho một story sau — nó là một thay đổi hình dạng của trường này, không phải một
+    /// bản vá tại chỗ.
     pub encoding: &'static encoding_rs::Encoding,
     /// Mẫu phân tách của [`Step::SplitChapters`] — literal HOẶC regex, tham số MỖI LƯỢT
     /// NHẬP (Story 6.6, FR14). `None` ⇒ bước 5 là no-op, giữ N = 1.
@@ -223,6 +242,15 @@ pub struct PipelineInput {
     /// kế" của bản Story 6.2, đây là "0 luật vì người dùng chưa soạn", Ice chốt xuất xưởng
     /// 0 luật mặc định, spec 6.5 §Intent).
     pub cleanup_rules: Vec<crate::core::cleanup::CleanupRule>,
+    /// **THÊM 2026-09-06 (Story 6.7)** — cờ MỘT chiều cho [`Step::ExtractMainContent`] (bước
+    /// 2). `false` (mặc định — [`Self::default_shaped`]/[`Self::with_encoding`] đều đặt
+    /// `false`) ⇒ bước 2 GIỮ NGUYÊN thân rỗng như mọi story trước (đường tệp/dán tay KHÔNG
+    /// bị `dom_smoothie` chạm tới — §Always spec 6.7: "đường tệp/dán tay không bị bóc").
+    /// `true` (chỉ đường nhập URL, qua [`Self::with_extract_main_content`]) ⇒ bước 2 gọi
+    /// xuống [`crate::core::webimport::extract`] cho từng đơn vị `Unit::Decoded`, dùng
+    /// `label` của CHÍNH đơn vị đó (xem [`Flow::labels`]) làm URL để `dom_smoothie` phân
+    /// giải đường dẫn tương đối bên trong tài liệu.
+    pub extract_main_content: bool,
 }
 
 impl PipelineInput {
@@ -236,6 +264,7 @@ impl PipelineInput {
             chapter_pattern: None,
             source_lang: source_lang.into(),
             cleanup_rules: Vec::new(),
+            extract_main_content: false,
         }
     }
 
@@ -257,6 +286,7 @@ impl PipelineInput {
             chapter_pattern: None,
             source_lang: source_lang.into(),
             cleanup_rules: Vec::new(),
+            extract_main_content: false,
         }
     }
 
@@ -277,6 +307,17 @@ impl PipelineInput {
         self.chapter_pattern = pattern;
         self
     }
+
+    /// **THÊM 2026-09-06 (Story 6.7)** — builder đính `extract_main_content` vào một cấu
+    /// hình đã dựng, cùng khuôn [`Self::with_cleanup_rules`]/[`Self::with_chapter_pattern`]
+    /// (không sửa/xoá hai constructor cũ). Chỉ đường nhập URL (`commands::project`) gọi hàm
+    /// này với `true`; mọi chỗ gọi khác (kể cả `tests/**` không cố ý dựng đối chứng cho bước
+    /// 2) giữ mặc định `false`.
+    #[must_use]
+    pub fn with_extract_main_content(mut self, extract: bool) -> Self {
+        self.extract_main_content = extract;
+        self
+    }
 }
 
 /// Thủ công vì `encoding_rs::Encoding` không tự `Debug` — in TÊN NHÃN WHATWG
@@ -291,6 +332,7 @@ impl std::fmt::Debug for PipelineInput {
             .field("chapter_pattern", &self.chapter_pattern)
             .field("source_lang", &self.source_lang)
             .field("cleanup_rules", &self.cleanup_rules)
+            .field("extract_main_content", &self.extract_main_content)
             .finish()
     }
 }
@@ -357,6 +399,18 @@ struct Flow {
     /// `vec![None; n]` khi [`split_chapters_step`] THẬT SỰ đổi số phần tử — cùng lý do
     /// `segments`/`cleanup_reports` reset ở đó.
     chapter_titles: Vec<Option<String>>,
+    /// **THÊM 2026-09-06 (Story 6.7)** — nhãn (URL, cho đơn vị đến từ danh sách nhập URL;
+    /// rỗng cho mọi nguồn khác) của từng phần tử `units`, SONG SONG theo INDEX — cùng khuôn
+    /// `segments`/`cleanup_reports`/`chapter_titles`. [`Step::ExtractMainContent`] đọc
+    /// trường này để biết URL nào truyền cho `dom_smoothie` phân giải đường dẫn tương đối.
+    /// Reset về `vec![String::new(); n]` khi [`split_chapters_step`] THẬT SỰ đổi số phần tử
+    /// — cùng lý do ba trường kia reset ở đó (một nhãn tính cho ĐƠN VỊ TRƯỚC khi tách không
+    /// còn khớp INDEX nào có nghĩa sau khi tách). Trong thực tế điều này không xảy ra trên
+    /// đường sản phẩm: `extract_main_content = true` chỉ đi cùng `PipelineShape::Chapters`
+    /// (đã chia Chương, bước 5 bỏ qua — xem `Flow::already_chaptered`), nên `labels` không
+    /// bao giờ bị reset trên đường đó; giữ đúng khuôn cho MỌI thứ tự hợp lệ mà `tests/**`
+    /// dựng được (kể cả một hoán vị đặt `SplitChapters` chạy trên `Blob`).
+    labels: Vec<String>,
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -377,11 +431,34 @@ pub fn run_import_with_order(
 ) -> Result<PipelineOutput, ImportError> {
     validate_order(order)?;
 
-    let PipelineInput { shape, encoding, chapter_pattern, source_lang, cleanup_rules } = input;
+    let PipelineInput {
+        shape,
+        encoding,
+        chapter_pattern,
+        source_lang,
+        cleanup_rules,
+        extract_main_content,
+    } = input;
 
-    let (initial_units, already_chaptered): (Vec<Unit>, bool) = match shape {
-        PipelineShape::Blob(c) => (vec![Unit::from(c)], false),
-        PipelineShape::Chapters(cs) => (cs.into_iter().map(Unit::from).collect(), true),
+    // `labels` phải được đọc TRƯỚC khi `ChapterInput` bị `Unit::from` tiêu thụ —
+    // `Unit::Decoded` (nhánh `AlreadyText`) không giữ lại nhãn, nên đây là nơi DUY NHẤT còn
+    // thấy nó cho cả hai hình dạng đơn vị.
+    fn label_of(c: &ChapterInput) -> String {
+        match c {
+            ChapterInput::RawBytes { label, .. } => label.clone(),
+            ChapterInput::AlreadyText(_) => String::new(),
+        }
+    }
+
+    let (initial_units, initial_labels, already_chaptered): (Vec<Unit>, Vec<String>, bool) = match shape {
+        PipelineShape::Blob(c) => {
+            let label = label_of(&c);
+            (vec![Unit::from(c)], vec![label], false)
+        }
+        PipelineShape::Chapters(cs) => {
+            let labels: Vec<String> = cs.iter().map(label_of).collect();
+            (cs.into_iter().map(Unit::from).collect(), labels, true)
+        }
     };
     let n = initial_units.len();
     let mut flow = Flow {
@@ -390,24 +467,56 @@ pub fn run_import_with_order(
         already_chaptered,
         cleanup_reports: vec![None; n],
         chapter_titles: vec![None; n],
+        labels: initial_labels,
     };
 
     let mut trace: Vec<Step> = Vec::with_capacity(order.len());
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles } =
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels } =
                     flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 for u in old_units {
                     units.push(decode_unit(u, encoding)?);
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels }
             }
+            // 🔴 THÂN THẬT — Story 6.7, AD-39 bước 2. `extract_main_content == false` (đường
+            // tệp/dán tay — §Always spec 6.7) GIỮ NGUYÊN thân rỗng như mọi story trước; chỉ
+            // `true` (đường URL) mới GỌI XUỐNG `webimport::extract`, không viết lại nội
+            // tuyến (cùng luật "gọi xuống, đừng chép lại" của bước 3/bước 4).
+            // `trace.push` Ở LẠI BÊN TRONG nhánh (AC6 spec 6.2, doc-comment đầu tệp).
             Step::ExtractMainContent => {
-                trace.push(step);
-                flow
+                if !extract_main_content {
+                    trace.push(step);
+                    flow
+                } else {
+                    let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels } =
+                        flow;
+                    let mut units = Vec::with_capacity(old_units.len());
+                    for (u, label) in old_units.into_iter().zip(labels.iter()) {
+                        match u {
+                            Unit::Decoded(html) => {
+                                let extracted = crate::core::webimport::extract(&html, label)
+                                    .map_err(|e| ImportError::WebImportItemFailed {
+                                        url: label.clone(),
+                                        reason:
+                                            crate::core::webimport::WebImportItemFailureReason::ExtractionEmpty,
+                                        detail: e.detail,
+                                    })?;
+                                units.push(Unit::Decoded(extracted));
+                            }
+                            // Bất khả trên mọi thứ tự HỢP LỆ (bước 1 luôn đứng trước bước 2)
+                            // — giữ nguyên là phòng thủ cho một thứ tự SAI, cùng khuôn các
+                            // nhánh `Unit::Undecoded` khác trong hàm này.
+                            other @ Unit::Undecoded { .. } => units.push(other),
+                        }
+                    }
+                    trace.push(step);
+                    Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels }
+                }
             }
             // 🔴 THÂN THẬT — Story 6.5, FR124, AD-39 bước 3. GỌI `core::cleanup::apply`,
             // không viết lại nội tuyến (cùng luật "gọi xuống, đừng chép lại" mà bước 4 —
@@ -420,6 +529,7 @@ pub fn run_import_with_order(
                     already_chaptered,
                     cleanup_reports: _,
                     chapter_titles,
+                    labels,
                 } = flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 let mut cleanup_reports = Vec::with_capacity(old_units.len());
@@ -446,7 +556,7 @@ pub fn run_import_with_order(
                     }
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels }
             }
             // 🔴 THÂN THẬT — Story 6.4, FR124/FR125, AD-39 bước 4. GỌI `normalize::normalize`,
             // không viết lại nội tuyến (Task list spec 6.4) — mọi luật (bảng kết câu, bảng
@@ -454,7 +564,7 @@ pub fn run_import_with_order(
             // `trace.push` Ở LẠI BÊN TRONG nhánh (AC6 spec 6.2, doc-comment đầu tệp) —
             // KHÔNG gộp vào một `trace.push` chung sau vòng lặp.
             Step::NormalizeParagraphsAndWhitespace => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles } =
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels } =
                     flow;
                 let units = old_units
                     .into_iter()
@@ -472,7 +582,7 @@ pub fn run_import_with_order(
                     })
                     .collect();
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels }
             }
             Step::SplitChapters => {
                 let next = split_chapters_step(flow, chapter_pattern.as_ref())?;
@@ -652,6 +762,10 @@ fn split_chapters_step(mut flow: Flow, pattern: Option<&ChapterPattern>) -> Resu
     let Some(pattern) = pattern else {
         return Ok(flow);
     };
+    // `extract_main_content = true` chỉ đi cùng `PipelineShape::Chapters` (đã chia Chương,
+    // return sớm ở nhánh `already_chaptered` ngay trên) — nhánh này không bao giờ chạm
+    // `labels` mang URL thật trên đường sản phẩm; xử SỚM để phần bên dưới không cần bận
+    // tâm giữ nhãn cho một phần tử duy nhất trước khi tách.
 
     // Bất biến: hình dạng `Blob` khởi tạo ĐÚNG MỘT đơn vị, và không bước nào TRƯỚC bước này
     // (trong bất kỳ hoán vị HỢP LỆ nào — `validate_order` đã kiểm ở đầu
@@ -711,6 +825,10 @@ fn split_chapters_step(mut flow: Flow, pattern: Option<&ChapterPattern>) -> Resu
         *first = Some(report);
     }
     flow.chapter_titles = titles;
+    // Cùng khuôn reset của `segments`/`chapter_titles` — xem doc-comment `Flow::labels`.
+    // Không có nhãn nào có ý nghĩa để mà phân bổ (bước này chỉ chạy trên `Blob`, chưa từng
+    // mang một URL thật), nên chuỗi rỗng cho MỌI phần tử là đúng, không phải một xấp xỉ.
+    flow.labels = vec![String::new(); n];
     Ok(flow)
 }
 

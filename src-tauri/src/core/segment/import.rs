@@ -186,6 +186,29 @@ pub enum ImportError {
         /// (NFR16), vì `regex::Error::to_string()` là chẩn đoán máy, không phải câu người.
         detail: String,
     },
+    /// **THÊM 2026-09-06 (Story 6.7)** — [`super::pipeline::Step::ExtractMainContent`]
+    /// (bước 2, chỉ chạy thật khi `extract_main_content == true` — đường nhập URL) gọi
+    /// [`crate::core::webimport::extract`] và nhận `Err`. Đây là ca DUY NHẤT của
+    /// `ImportError` xảy ra TRÊN đường nhập URL sau khi TOÀN BỘ N link đã tải THÀNH CÔNG —
+    /// một mục tải được nhưng bóc RA RỖNG (I/O Matrix spec 6.7: *"Trang bóc ra rỗng"*).
+    ///
+    /// ⚠️ Bảy trong tám lý do của [`crate::core::webimport::WebImportItemFailureReason`]
+    /// (URL không hợp lệ, HTTP lỗi, timeout, không kết nối, chuyển hướng bị chặn, vượt trần,
+    /// không phải HTML) xảy ra Ở TẦNG `commands::project` TRƯỚC KHI có gì để mà chạy
+    /// `run_import` — biến thể NÀY chỉ phủ nhánh còn lại (`ExtractionEmpty`), nhánh duy nhất
+    /// nằm THỰC SỰ bên trong chuỗi bảy bước.
+    WebImportItemFailed {
+        /// URL của mục thất bại — dữ liệu, không phải câu.
+        url: String,
+        /// Luôn là [`crate::core::webimport::WebImportItemFailureReason::ExtractionEmpty`]
+        /// trên đường ĐI QUA BIẾN THỂ NÀY (xem cảnh báo ở trên) — giữ kiểu ĐẦY ĐỦ (không thu
+        /// hẹp còn một `bool`) để `commands::project` dùng LẠI đúng một hàm ánh xạ
+        /// `WebImportItemFailureReason -> IpcError` cho cả bảy lý do tầng ngoài LẪN lý do
+        /// duy nhất tầng trong này — một nguồn ánh xạ, không hai.
+        reason: crate::core::webimport::WebImportItemFailureReason,
+        /// Chẩn đoán CHỈ cho log — không dấu (NFR16), không đi vào `IpcError`.
+        detail: String,
+    },
 }
 
 impl std::fmt::Display for ImportError {
@@ -218,6 +241,9 @@ impl std::fmt::Display for ImportError {
             }
             ImportError::InvalidChapterPattern { detail } => {
                 write!(f, "import: invalid chapter pattern: {detail}")
+            }
+            ImportError::WebImportItemFailed { url, reason, detail } => {
+                write!(f, "import[webimport {url}]: {reason:?}: {detail}")
             }
         }
     }
@@ -329,8 +355,48 @@ impl From<ImportError> for IpcError {
                     false,
                 )
             }
+            ImportError::WebImportItemFailed { url, reason, detail } => {
+                eprintln!("import[webimport {url}]: {reason:?}: {detail}");
+                // `ExtractionEmpty` — nhánh DUY NHẤT `ImportError` mang, không có mã HTTP.
+                web_import_item_failure_ipc_error(&url, reason, None)
+            }
         }
     }
+}
+
+/// Ánh xạ DUY NHẤT `WebImportItemFailureReason -> IpcError` — dùng CHUNG bởi
+/// `From<ImportError>` ở trên (nhánh `ExtractionEmpty`, ném từ TRONG chuỗi pipeline) VÀ
+/// `commands::project` (bảy nhánh còn lại, xảy ra TRƯỚC khi có gì để mà chạy pipeline — một
+/// URL rác, một mã lỗi HTTP, một chuyển hướng bị chặn, … không đi qua `ImportError` vì
+/// `run_import` chưa từng được gọi cho mục đó). Một nguồn ánh xạ, không hai — tám khoá
+/// `err.import.web_*` (`core::i18n`) và tên biến thể ở đây phải khớp nhau 1:1
+/// (`ipc_contract.rs` khoá cả tám). `http_status` chỉ có nghĩa cho
+/// [`crate::core::webimport::WebImportItemFailureReason::HttpStatus`] — bỏ qua ở bảy nhánh
+/// còn lại.
+pub fn web_import_item_failure_ipc_error(
+    url: &str,
+    reason: crate::core::webimport::WebImportItemFailureReason,
+    http_status: Option<u16>,
+) -> IpcError {
+    use crate::core::webimport::WebImportItemFailureReason as Reason;
+
+    let mut params = BTreeMap::new();
+    params.insert("url".to_owned(), url.to_owned());
+
+    let key = match reason {
+        Reason::InvalidUrl => MessageKey::ImportWebInvalidUrl,
+        Reason::HttpStatus => {
+            params.insert("status".to_owned(), http_status.map_or_else(|| "?".to_owned(), |s| s.to_string()));
+            MessageKey::ImportWebHttpStatus
+        }
+        Reason::Timeout => MessageKey::ImportWebTimeout,
+        Reason::ConnectFailed => MessageKey::ImportWebConnectFailed,
+        Reason::RedirectBlocked => MessageKey::ImportWebRedirectBlocked,
+        Reason::TooLarge => MessageKey::ImportWebTooLarge,
+        Reason::NotHtml => MessageKey::ImportWebNotHtml,
+        Reason::ExtractionEmpty => MessageKey::ImportWebExtractionEmpty,
+    };
+    IpcError::new("import.web_item_failed", key, params, false)
 }
 
 /// Kết quả của một lượt chạy chuỗi cho MỘT Chương — sẵn sàng ghi.

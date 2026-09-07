@@ -25,6 +25,8 @@ import {
   name,
   noticeKey,
   pastedText,
+  pastedUrlCount,
+  pastedUrls,
   sourceLang,
   unwireDragDrop,
   wireDragDropOnce,
@@ -1253,6 +1255,32 @@ watch(libraryChapterCursor, (cursor) => {
         >
           {{ t('mode.library.submit_file') }}
         </button>
+
+        <!--
+          Story 6.7 (FR122) — nhập từ URL bằng danh sách link, một link mỗi dòng.
+
+          🔴 Hai con số ngay dưới ("N link · sẽ tạo N Chương") tính CỤC BỘ trên
+          `pastedUrls` (`pastedUrlCount`, `libraryImport.ts`) — 0 lời gọi IPC, 0 lời gọi
+          mạng cho tới khi nút TẢI được bấm. `role="status"` để trình đọc màn hình công
+          bố con số ĐỔI khi gõ, cùng khuôn dải trạng thái ở cuối form.
+        -->
+        <label class="field">
+          <span>{{ t('mode.library.field_urls') }}</span>
+          <textarea v-model="pastedUrls" rows="6" placeholder="https://…"></textarea>
+        </label>
+        <!-- aura-allow-text: qua t(), Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+        <p class="url-count" role="status">
+          {{ pastedUrlCount > 0 ? t('mode.library.url_count', { count: String(pastedUrlCount) }) : '' }}
+        </p>
+        <button
+          type="button"
+          class="btn"
+          data-import-preview-open
+          :disabled="busy || pastedUrlCount === 0"
+          @click="dispatch('library.import_urls')"
+        >
+          {{ t('mode.library.submit_urls') }}
+        </button>
       </form>
 
       <!--
@@ -1305,6 +1333,16 @@ watch(libraryChapterCursor, (cursor) => {
 }
 
 .notice {
+  margin: 4px 0 0;
+  min-height: 1em;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+/* Story 6.7 — hai con số "N link · sẽ tạo N Chương", computed CỤC BỘ (0 IPC). */
+.url-count {
   margin: 4px 0 0;
   min-height: 1em;
   font-family: var(--face-ui-sm);

@@ -32,9 +32,10 @@ use crate::core::segment::chapterpattern::{ChapterPattern, ChapterPatternKind};
 use crate::core::segment::encoding::{
     self, Confidence, EncodingCandidate, EncodingVerdict, NormalizedCandidate,
 };
-use crate::core::segment::import::{ImportError, import_file, import_text};
+use crate::core::segment::import::{ImportError, import_file, import_text, web_import_item_failure_ipc_error};
 use crate::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
 use crate::core::store::{Store, StoreSpec, Transaction};
+use crate::core::webimport::{self, WebImportItemFailureReason};
 
 /// Tên thư mục con dưới `~/Documents/` — AD-23.
 const DOCUMENTS_SUBFOLDER: &str = "AuraTranslate";
@@ -338,10 +339,27 @@ pub fn create_work(
     // UTF-8: `encoding` giờ là tham số của chính `create_work` (xem doc-comment hàm này).
     // 🔵 SỬA 2026-09-05 (Story 6.5) — qua `run_pipeline` (không gọi `run_import` thẳng ở
     // đây nữa — xem doc-comment của hàm đó), cộng `cleanup_rules` đã phân giải.
+    //
+    // 🔴 **THÊM 2026-09-06 (Story 6.7)** — `extract_main_content` chốt vào HÌNH DẠNG đầu
+    // vào, không phải một tham số riêng của `create_work`. `Chapters(RawBytes, ..)` — byte
+    // HTML CHƯA giải mã — là hình dạng DUY NHẤT mà danh sách URL (Story 6.7) dựng ra; không
+    // đường sản phẩm nào khác (dán tay, tệp) từng tạo ra nó. 🔴 **Điều kiện KHÔNG ĐƠN GIẢN
+    // là "shape là `Chapters`"** — `tests/project_contract.rs::create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_more_than_one`
+    // dựng tay một `Chapters(AlreadyText, ..)` từ TRƯỚC story này để kiểm thuần cơ chế ghi N
+    // Chương, không liên quan gì tới web — một điều kiện chỉ nhìn biến thể `Chapters` sẽ gọi
+    // `webimport::extract("Chuong mot...", "")` (nhãn RỖNG, không phải URL tuyệt đối) và làm
+    // ca đó ĐỎ OAN. Đúng điều kiện: hình dạng LÀ `Chapters` VÀ đơn vị ĐẦU là `RawBytes` (byte
+    // thô CHƯA giải mã — dấu hiệu THẬT của "đến từ mạng", `AlreadyText` không bao giờ cần
+    // bóc, dù đứng trong hình dạng nào).
+    let extract_main_content = matches!(
+        &shape,
+        PipelineShape::Chapters(cs) if matches!(cs.first(), Some(ChapterInput::RawBytes { .. }))
+    );
     let outcome = match run_pipeline(
         PipelineInput::with_encoding(shape, encoding, source_lang_owned.clone())
             .with_cleanup_rules(cleanup_rules)
-            .with_chapter_pattern(chapter_pattern),
+            .with_chapter_pattern(chapter_pattern)
+            .with_extract_main_content(extract_main_content),
     ) {
         Ok(outcome) => outcome,
         Err(err) => {
@@ -1360,6 +1378,12 @@ pub struct ImportEncodingPreview {
 /// `count_in_import` bên dưới đi thẳng vào một hằng số vẫn để ca đó XANH. Cùng khuôn hai lớp
 /// `src-tauri/AGENTS.md` (hàm thuần `pub`, `tests/**` gọi trực tiếp không cần webview) mà
 /// `resolve_chapter_pattern` đã theo — xem `cleanup_contract.rs::count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chapters_with_different_match_counts`.
+/// **THÊM tham số `extract_main_content` 2026-09-06 (Story 6.7).** `shape` ở đây thường là
+/// một `PipelineShape::Blob` được GÓI LẠI từ byte của MỘT đơn vị (xem chỗ gọi ở
+/// [`encoding_candidate_wire`]) — kể cả khi shape GỐC (trước khi gói) là
+/// `PipelineShape::Chapters` (đường URL). Vì vậy hàm này KHÔNG suy `extract_main_content` từ
+/// hình dạng `shape` nhận được (luôn `Blob` sau khi gói) — chỗ gọi phải truyền tường minh,
+/// tính từ hình dạng GỐC (`preview_import_encoding`, tham số cùng tên).
 pub fn cleanup_and_chapters_preview_for(
     shape: PipelineShape,
     encoding: &'static encoding_rs::Encoding,
@@ -1368,10 +1392,12 @@ pub fn cleanup_and_chapters_preview_for(
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
     window_truncated: bool,
+    extract_main_content: bool,
 ) -> (CleanupPreviewWire, ChapterSplitPreviewWire) {
     let input = PipelineInput::with_encoding(shape, encoding, source_lang)
         .with_cleanup_rules(cleanup_rules.to_vec())
-        .with_chapter_pattern(chapter_pattern.cloned());
+        .with_chapter_pattern(chapter_pattern.cloned())
+        .with_extract_main_content(extract_main_content);
 
     let chapters = match run_pipeline(input) {
         Ok(outcome) => outcome.chapters,
@@ -1510,12 +1536,18 @@ fn build_cleanup_preview_wire(
 /// chuỗi thật với ĐÚNG bảng mã của ứng viên này (`encoding::encoding_for_wire_id(c.wire_id)`),
 /// không phải văn bản window đã giải mã sẵn.
 /// 🔵 **SỬA 2026-09-05 (Story 6.6)** — nhận thêm `chapter_pattern`, trả kèm `chapters`.
+/// 🔴 **SỬA 2026-09-06 (Story 6.7)** — nhận thêm `label`/`extract_main_content`: `shape` dựng
+/// BÊN TRONG hàm này LUÔN là `Blob` (một đơn vị đang xem), kể cả khi hình dạng NGOÀI là
+/// `Chapters` — hai tham số mới đi qua NGUYÊN VẸN từ hình dạng ngoài đó, không suy lại từ
+/// `Blob` đã gói (xem doc-comment [`cleanup_and_chapters_preview_for`]).
 fn encoding_candidate_wire(
     c: EncodingCandidate,
     full_bytes: &[u8],
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
     chapter_pattern: Option<&ChapterPattern>,
+    label: &str,
+    extract_main_content: bool,
 ) -> EncodingCandidateWire {
     // `pipeline_window`/`normalized` đồng bộ `Some`/`None` với nhau (cả hai tính từ
     // CÙNG `decoded.as_ref()` bên trong `render_candidates`) — an toàn đọc `window_truncated`
@@ -1526,7 +1558,7 @@ fn encoding_candidate_wire(
             Some(encoding) => {
                 let shape = PipelineShape::Blob(ChapterInput::RawBytes {
                     bytes: full_bytes.to_vec(),
-                    label: String::new(),
+                    label: label.to_owned(),
                 });
                 let (cleanup_wire, chapters_wire) = cleanup_and_chapters_preview_for(
                     shape,
@@ -1536,6 +1568,7 @@ fn encoding_candidate_wire(
                     source_lang,
                     cleanup_rules,
                     window_truncated,
+                    extract_main_content,
                 );
                 (Some(cleanup_wire), Some(chapters_wire))
             }
@@ -1590,7 +1623,17 @@ pub fn preview_import_encoding(
     cleanup_rules: &[CleanupRule],
     chapter_pattern: Option<&ChapterPattern>,
 ) -> ImportEncodingPreview {
-    let verdict_and_candidates = |bytes: &[u8]| -> (EncodingVerdict, Vec<EncodingCandidateWire>) {
+    // 🔴 **THÊM tham số `label`/`extract_main_content` 2026-09-06 (Story 6.7).** `label` là
+    // nhãn (URL, cho đơn vị đến từ danh sách nhập URL; rỗng cho mọi nguồn khác) của đơn vị
+    // ĐANG XEM TRƯỚC — cần thiết để `dom_smoothie` (bên trong `webimport::extract`) phân
+    // giải đường dẫn tương đối; RỖNG không phải một URL tuyệt đối hợp lệ và sẽ làm
+    // `Readability::new` từ chối. `extract_main_content` chốt vào HÌNH DẠNG NGOÀI (`shape`
+    // của CHÍNH `preview_import_encoding`, không phải `shape` đã bị gói lại thành `Blob` bên
+    // trong `encoding_candidate_wire`) — xem doc-comment tại chỗ gọi.
+    let verdict_and_candidates = |bytes: &[u8],
+                                   label: &str,
+                                   extract_main_content: bool|
+     -> (EncodingVerdict, Vec<EncodingCandidateWire>) {
         let verdict = encoding::detect(bytes);
         // 🔴 SỬA (vòng rà đối kháng 2, mục 7) — bản trước ép `candidates` RỖNG cho MỌI
         // `SelfDeclared`, gộp CHUNG hai ca khác hẳn nhau dưới MỘT nhãn tin cậy: ① byte RỖNG
@@ -1614,7 +1657,17 @@ pub fn preview_import_encoding(
         } else {
             encoding::render_candidates(bytes, source_lang)
                 .into_iter()
-                .map(|c| encoding_candidate_wire(c, bytes, source_lang, cleanup_rules, chapter_pattern))
+                .map(|c| {
+                    encoding_candidate_wire(
+                        c,
+                        bytes,
+                        source_lang,
+                        cleanup_rules,
+                        chapter_pattern,
+                        label,
+                        extract_main_content,
+                    )
+                })
                 .collect()
         };
         (verdict, candidates)
@@ -1626,14 +1679,19 @@ pub fn preview_import_encoding(
     };
 
     let (verdict, candidates) = match shape {
+        // `Blob` = đường tệp/dán tay — KHÔNG BAO GIỜ bóc nội dung chính (§Always spec 6.7).
         PipelineShape::Blob(ChapterInput::AlreadyText(_)) => (self_declared_utf8(), Vec::new()),
-        PipelineShape::Blob(ChapterInput::RawBytes { bytes, .. }) => verdict_and_candidates(bytes),
-        // ⚠️ Sản phẩm hôm nay không có bề mặt nào dựng `PipelineShape::Chapters` TRƯỚC màn
-        // xem trước bảng mã (danh sách URL là Story 6.7) — nhánh này chỉ tồn tại để khớp
-        // kiểu (`match` cạn hết). Dò trên đơn vị ĐẦU khi nó mang byte thô; tự khai khi rỗng
-        // hoặc đơn vị đầu đã là văn bản.
+        PipelineShape::Blob(ChapterInput::RawBytes { bytes, label }) => {
+            verdict_and_candidates(bytes, label, false)
+        }
+        // 🔵 **SỬA 2026-09-06 (Story 6.7) — "sản phẩm hôm nay không có bề mặt nào dựng
+        // `PipelineShape::Chapters`" đã HẾT ĐÚNG.** Danh sách URL là bề mặt SẢN PHẨM đầu
+        // tiên (và duy nhất) dựng hình dạng này — `extract_main_content = true` cho MỌI ứng
+        // viên bảng mã tính từ đơn vị ĐẦU (chốt bảng mã từ `chapters.first()`, §Always spec
+        // 6.7 "một bảng mã cho cả danh sách"), và `label` là URL thật của CHÍNH đơn vị đó
+        // (cần cho `dom_smoothie` phân giải đường dẫn tương đối).
         PipelineShape::Chapters(chapters) => match chapters.first() {
-            Some(ChapterInput::RawBytes { bytes, .. }) => verdict_and_candidates(bytes),
+            Some(ChapterInput::RawBytes { bytes, label }) => verdict_and_candidates(bytes, label, true),
             Some(ChapterInput::AlreadyText(_)) | None => (self_declared_utf8(), Vec::new()),
         },
     };
@@ -1666,6 +1724,10 @@ pub fn preview_import_encoding(
                     source_lang,
                     cleanup_rules,
                     normalized.window_truncated,
+                    // Nhánh TỰ KHAI luôn là văn bản dán tay (`AlreadyText`) — KHÔNG BAO GIỜ
+                    // là đường URL (đường đó luôn mang `RawBytes`) — `extract_main_content`
+                    // luôn `false` ở đây, cùng lý do `Blob` ở nhánh trên.
+                    false,
                 )
             }
             // Cùng ca "cửa sổ không đủ một dòng trọn vẹn" của `normalized_self_declared` —
@@ -1823,6 +1885,221 @@ pub fn confirm_import_with_encoding(
     *guard = None;
 
     Ok(opened)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.7 — Nhập từ URL bằng danh sách link (AD-15 · AD-40 · AD-41 · FR122)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔴 KHÔNG MỘT ĐƯỜNG `create_work` THỨ HAI — TÁI DÙNG TOÀN BỘ MÁY XEM TRƯỚC BẢNG MÃ CŨ
+// ─────────────────────────────────────────────────────────────────────────────
+// N link đã tải thành công dựng ĐÚNG một [`PipelineShape::Chapters`] — hình dạng
+// `preview_import_encoding`/`confirm_import_with_encoding` (Story 6.3) đã biết xử từ
+// `chapters.first()` (xem `PipelineShape::Chapters` trong `preview_import_encoding` —
+// "danh sách URL là Story 6.7", nhánh đó viết sẵn từ Story 6.3). [`start_url_import`] vì
+// thế KHÔNG gọi [`create_work`] trực tiếp: nó `stash_pending_import_source` đúng như hai
+// nhánh dán-văn-bản/tệp, và màn xác nhận CUỐI CÙNG đi qua [`confirm_import_with_encoding`]
+// KHÔNG ĐỔI MỘT DÒNG — dải năm ứng viên bảng mã, khối làm sạch (tầng 3), khối tách Chương
+// (tầng 4, ở đây luôn hiện ĐÚNG N Chương vì `already_chaptered = true` khiến bước 5 bỏ qua)
+// đều MIỄN PHÍ. Điều kiện DUY NHẤT: `PendingImportSourceState` phải được ĐỒNG BỘ với danh
+// sách mục hiện tại SAU MỌI thao tác (tải, tải lại một mục, bỏ một mục) — xem
+// [`sync_pending_from_url_items`].
+
+/// Một MỤC trong danh sách URL đang chờ — byte thô THÀNH CÔNG, HOẶC một [`IpcError`] mang
+/// đúng MỘT trong tám lý do của [`WebImportItemFailureReason`]. Đúng MỘT trong hai, không
+/// cả hai — không kiểu Rust nào ép được bất biến "đúng một trong hai trường" ở ĐÂY mà không
+/// một `enum` (giữ `struct` phẳng để `UrlImportItemWire::from` không phải `match`), nên
+/// mọi hàm DỰNG giá trị này (không phải `derive`) đều đặt ĐÚNG MỘT trong `raw`/`error`.
+#[derive(Debug, Clone)]
+pub struct UrlImportItem {
+    /// URL đã dán — TRIM, không rỗng (dòng rỗng bị lọc TRƯỚC khi tới đây).
+    pub url: String,
+    /// Byte HTML thô — `Some` khi tải THÀNH CÔNG và `content-type` là HTML.
+    pub raw: Option<Vec<u8>>,
+    /// Lý do thất bại — `Some` khi `raw` là `None`.
+    pub error: Option<IpcError>,
+}
+
+/// Trạng thái từng mục, sống CẠNH [`PendingImportSourceState`] trong bộ nhớ (§Task list spec
+/// 6.7) — `None` == chưa có lượt dán URL nào đang treo, cùng khuôn `PendingImportSourceState`.
+pub type UrlImportItemsState = std::sync::Mutex<Option<Vec<UrlImportItem>>>;
+
+/// P6 (vòng rà đối kháng bước 4) — dọn [`UrlImportItemsState`] khi và CHỈ KHI `create_work`
+/// vừa THÀNH CÔNG. Trước bản vá này, `wire::confirm_import_with_encoding` chỉ dọn
+/// [`PendingImportSourceState`] (`*guard = None` trong [`confirm_import_with_encoding`] ở
+/// trên) — `UrlImportItemsState` không hề bị chạm ở bất kỳ đâu ngoài ba lệnh dây
+/// `start_url_import`/`reload_url_import_item`/`remove_url_import_item`. Hệ quả: byte HTML
+/// thô của N link nằm lại trong bộ nhớ sau khi Tác phẩm đã tạo xong, và một danh sách CŨ vẫn
+/// còn đó nếu người dùng mở lại màn nhập URL. **Hàm thuần, `pub`** — không có `tauri::test`/
+/// `MockRuntime` trong crate này (`Cargo.toml` không khai `test-utils`), nên đây là cách DUY
+/// NHẤT để `tests/project_contract.rs` phủ được đường dọn này mà không cần dựng một
+/// `tauri::AppHandle` thật.
+pub fn clear_url_import_items_after_successful_confirm(items_state: &UrlImportItemsState) {
+    let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    *guard = None;
+}
+
+/// Hình dạng DÂY của [`UrlImportItem`] — vị trí là INDEX trong `Vec` (frontend giữ nguyên
+/// thứ tự, không sắp lại), `error` mang `IpcError` ĐẦY ĐỦ (khoá i18n + tham số) để frontend
+/// dịch bằng `tError()`, cùng khuôn mọi lỗi IPC khác của dự án.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct UrlImportItemWire {
+    pub url: String,
+    pub ok: bool,
+    pub error: Option<IpcError>,
+}
+
+impl From<&UrlImportItem> for UrlImportItemWire {
+    fn from(item: &UrlImportItem) -> Self {
+        UrlImportItemWire { url: item.url.clone(), ok: item.error.is_none(), error: item.error.clone() }
+    }
+}
+
+/// Kết quả trả về của cả ba lệnh (tải danh sách, tải lại một mục, bỏ một mục) — danh sách
+/// mục HIỆN TẠI cộng xem trước bảng mã khi TOÀN BỘ đã OK. `encoding_preview: None` là điều
+/// kiện đủ để frontend biết nút xác nhận phải khoá (đồng bộ với
+/// [`sync_pending_from_url_items`] — cùng điều kiện, không suy luận riêng ở tầng hiển thị).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct UrlImportBatchWire {
+    pub items: Vec<UrlImportItemWire>,
+    pub encoding_preview: Option<ImportEncodingPreview>,
+}
+
+/// Tải MỘT URL và phân loại kết quả thành [`UrlImportItem`] — **0 dòng phân tích nội dung
+/// ngoài việc đọc header `content-type`** (kiểm giao thức, không phải nội dung; xem
+/// doc-comment [`webimport::looks_like_html`]).
+fn fetch_url_import_item(url: &str) -> UrlImportItem {
+    match webimport::fetch(url) {
+        Ok(page) => {
+            if webimport::looks_like_html(page.content_type.as_deref()) {
+                UrlImportItem { url: url.to_owned(), raw: Some(page.bytes), error: None }
+            } else {
+                UrlImportItem {
+                    url: url.to_owned(),
+                    raw: None,
+                    error: Some(web_import_item_failure_ipc_error(url, WebImportItemFailureReason::NotHtml, None)),
+                }
+            }
+        }
+        Err(e) => {
+            let http_status = match &e {
+                webimport::FetchError::HttpStatus { status } => Some(*status),
+                _ => None,
+            };
+            let reason = WebImportItemFailureReason::from(e);
+            UrlImportItem {
+                url: url.to_owned(),
+                raw: None,
+                error: Some(web_import_item_failure_ipc_error(url, reason, http_status)),
+            }
+        }
+    }
+}
+
+/// Bước ĐẦU VÀO — TRIM mỗi dòng, BỎ dòng rỗng khi đếm (I/O Matrix spec 6.7: "Dòng rỗng bỏ
+/// khi đếm; dòng rác thành mục hỏng"), rồi tải TUẦN TỰ ĐÚNG THỨ TỰ đã dán. **Hàm thuần** —
+/// không `tauri::`, `tests/**` gọi được trực tiếp.
+/// Cắt hai đầu một dòng dán vào **đúng như `String.prototype.trim()` của JS làm** — thứ
+/// `src/modes/libraryImport.ts::pastedUrlLines` dùng để đếm hai con số *N link · N Chương*.
+///
+/// 🔴 **ĐO 2026-09-07 (vòng rà bước 4) — `str::trim()` của Rust KHÔNG bằng `trim()` của JS,
+/// và chỗ lệch nằm đúng trên một ký tự người dùng hay dán phải.** Đo trực tiếp cả hai bên trên
+/// bốn ký tự: `U+00A0`, `U+2028`, `U+200B` cho kết quả GIỐNG nhau, nhưng **`U+FEFF`** (BOM /
+/// zero-width no-break space) thì JS coi là khoảng trắng còn Rust **không** (`char::is_whitespace`
+/// theo thuộc tính Unicode `White_Space`, và `U+FEFF` không có thuộc tính đó).
+///
+/// Hai ca hỏng THẬT mà chỗ lệch này sinh ra, cả hai đều đánh vào bất biến trung tâm của story:
+/// ① một dòng CHỈ có `U+FEFF` — JS cắt thành rỗng nên KHÔNG đếm, Rust giữ nên sinh THÊM một
+/// mục ⇒ *N link* trên màn hình khác số Chương sắp tạo, đúng thứ AC4 dựng một test để bắt.
+/// ② một URL hợp lệ mang BOM ở ĐẦU (dán từ Windows/Excel/trang web là ca thường gặp) — JS cắt
+/// nên màn hình đếm nó là link hợp lệ, Rust giữ nên `Url::parse` trượt ⇒ mục hỏng oan, nút xác
+/// nhận khoá, và người dùng không có cách nào nhìn ra một ký tự vô hình.
+///
+/// ⇒ Cắt thêm `U+FEFF`. Không mở rộng gì khác: ba ký tự còn lại đã khớp, và một phép cắt RỘNG
+/// HƠN JS lại tạo ra chỗ lệch theo chiều ngược lại.
+fn trim_like_the_paste_box(line: &str) -> &str {
+    line.trim_matches(|c: char| c.is_whitespace() || c == '\u{FEFF}')
+}
+
+pub fn fetch_url_import_items(urls: Vec<String>) -> Vec<UrlImportItem> {
+    urls.into_iter()
+        .map(|s| trim_like_the_paste_box(&s).to_owned())
+        .filter(|s| !s.is_empty())
+        .map(|u| fetch_url_import_item(&u))
+        .collect()
+}
+
+/// Dựng [`PipelineShape::Chapters`] từ `items` khi và CHỈ KHI danh sách KHÔNG rỗng, KHÔNG mục
+/// nào mang lỗi, VÀ mọi mục không-lỗi thật sự mang `raw` — `None` khi còn một mục hỏng (đúng
+/// lúc nút xác nhận phải KHOÁ, §Always spec 6.7), danh sách rỗng (đóng vế còn mở của nợ
+/// `:9067`), hoặc một mục vỡ bất biến "đúng một trong `raw`/`error` là `Some`" (không kiểu nào
+/// cưỡng chế bất biến đó — 🔴 vỡ thì hàm này KHÔNG được lặng lẽ dựng một Chương RỖNG từ
+/// `unwrap_or_default()`, đó chính là lớp lỗi "rỗng im lặng" mà `AGENTS.md` gọi là trung tâm
+/// của dự án; trả `None` giống hệt đường "còn mục hỏng" là lựa chọn AN TOÀN duy nhất). **Hàm
+/// thuần, `pub`** để `tests/project_contract.rs` gọi trực tiếp — chứng minh "còn MỘT mục hỏng
+/// ⇒ 0 hàng ghi xuống" mà không cần dựng một `tauri::AppHandle`.
+pub fn chapters_shape_if_all_ok(items: &[UrlImportItem]) -> Option<PipelineShape> {
+    if items.is_empty() || items.iter().any(|it| it.error.is_some()) {
+        return None;
+    }
+    let mut chapters = Vec::with_capacity(items.len());
+    for it in items {
+        let bytes = it.raw.clone()?;
+        chapters.push(ChapterInput::RawBytes { bytes, label: it.url.clone() });
+    }
+    Some(PipelineShape::Chapters(chapters))
+}
+
+/// Đồng bộ [`PendingImportSourceState`] với `items` HIỆN TẠI — gọi lại sau MỌI thao tác đổi
+/// danh sách (tải lần đầu, tải lại một mục, bỏ một mục). Còn mục hỏng hoặc danh sách rỗng ⇒
+/// DỌN ô đang chờ (một lượt `confirm_import_with_encoding` kế tiếp trả `no_pending_source`
+/// — nút xác nhận khoá THẬT, không chỉ khoá ở tầng hiển thị). Toàn bộ mục OK ⇒ GHI ĐÈ ô đang
+/// chờ bằng [`PipelineShape::Chapters`] mới dựng từ CHÍNH danh sách này.
+fn sync_pending_from_url_items(pending: &PendingImportSourceState, items: &[UrlImportItem]) {
+    match chapters_shape_if_all_ok(items) {
+        Some(shape) => stash_pending_import_source(pending, shape),
+        None => cancel_import_preview(pending),
+    }
+}
+
+/// Xem trước bảng mã cho danh sách URL — `None` khi còn mục hỏng/danh sách rỗng (đồng bộ
+/// với [`sync_pending_from_url_items`]: không có gì hợp lệ để mà dò bảng mã). Chốt từ đơn vị
+/// ĐẦU — [`PipelineInput::encoding`] doc-comment "một bảng mã cho cả danh sách".
+fn url_import_encoding_preview(
+    items: &[UrlImportItem],
+    source_lang: &str,
+    cleanup_rules: &[CleanupRule],
+) -> Option<ImportEncodingPreview> {
+    let shape = chapters_shape_if_all_ok(items)?;
+    Some(preview_import_encoding(&shape, source_lang, cleanup_rules, None))
+}
+
+/// Dựng [`UrlImportBatchWire`] từ trạng thái HIỆN TẠI — dùng chung bởi cả ba lệnh
+/// (tải/tải lại/bỏ một mục) để không có ba lượt lắp dây khác nhau cho CÙNG một hình dạng.
+fn url_import_batch_wire(
+    items: &[UrlImportItem],
+    source_lang: &str,
+    cleanup_rules: &[CleanupRule],
+) -> UrlImportBatchWire {
+    UrlImportBatchWire {
+        items: items.iter().map(UrlImportItemWire::from).collect(),
+        encoding_preview: url_import_encoding_preview(items, source_lang, cleanup_rules),
+    }
+}
+
+/// Lỗi dự phòng cho một nhánh KHÔNG NÊN xảy ra trên đường sản phẩm — state Tauri chưa được
+/// `.manage(...)` (lỗi lắp dây ở `lib.rs`), hoặc một `index` ngoài phạm vi danh sách hiện tại
+/// (frontend luôn gửi một index đọc từ CHÍNH mảng nó đang hiện). Cùng khuôn
+/// [`ImportError::InvalidPipelineOrder`]/`InvalidCleanupPattern` — [`MessageKey::Unknown`],
+/// không tự đúc một khoá mới cho một nhánh không chỗ gọi SẢN PHẨM nào đi qua.
+fn url_import_internal_error() -> IpcError {
+    IpcError::new(
+        "import.web_internal_error",
+        crate::core::i18n::MessageKey::Unknown,
+        std::collections::BTreeMap::new(),
+        false,
+    )
 }
 
 /// `work_id` không có hàng trong `library-index.db` (`Indexer::find_work` trả `None`) —
@@ -3232,6 +3509,14 @@ pub mod wire {
             pattern,
         )?;
 
+        // P6 (vòng rà đối kháng bước 4) — `create_work` VỪA thành công (dòng trên đã `?`
+        // sớm trên lỗi): dọn `UrlImportItemsState` CÙNG kỷ luật với `PendingImportSourceState`
+        // (chỉ dọn khi thành công). Best-effort: state vắng mặt là một lỗi lắp dây ở
+        // `lib.rs`, không phải lý do để báo hỏng một Tác phẩm VỪA tạo xong thành công.
+        if let Some(items_state) = app.try_state::<super::UrlImportItemsState>() {
+            super::clear_url_import_items_after_successful_confirm(&items_state);
+        }
+
         let created = CreatedWork::from_open(&opened);
         reindex_library(&app, &root);
         let work_id = opened.meta.work_id.clone();
@@ -3265,5 +3550,105 @@ pub mod wire {
         let result = OpenedWork::from_open(&opened);
         replace_open_work(&app, opened);
         Ok(result)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Story 6.7 — Nhập từ URL bằng danh sách link (AD-15 · AD-40 · AD-41 · FR122)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Vỏ IPC — tải TUẦN TỰ đúng thứ tự đã dán, dựng trạng thái từng mục, ĐỒNG BỘ
+    /// [`PendingImportSourceState`] (khoá/mở xác nhận tự động qua máy Story 6.3 — xem
+    /// doc-comment [`super::sync_pending_from_url_items`]).
+    ///
+    /// `#[tauri::command(async)]` trên một hàm ĐỒNG BỘ — khuôn đã có 17 tiền lệ
+    /// (`library.rs:640`) để `reqwest::blocking` (gọi tuần tự, có thể mất tới N × 20 giây)
+    /// không chặn luồng chính (Task 0 — xem `core::webimport` doc-comment cho phép đo).
+    #[tauri::command(async)]
+    pub fn start_url_import(
+        app: tauri::AppHandle,
+        urls: Vec<String>,
+        source_lang: String,
+    ) -> Result<super::UrlImportBatchWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(items_state) = app.try_state::<super::UrlImportItemsState>() else {
+            return Err(super::url_import_internal_error());
+        };
+        let Some(pending_state) = app.try_state::<PendingImportSourceState>() else {
+            return Err(no_pending_import_source());
+        };
+        let cleanup_rules = resolve_cleanup_rules(&app);
+
+        let items = super::fetch_url_import_items(urls);
+        super::sync_pending_from_url_items(&pending_state, &items);
+        let wire = super::url_import_batch_wire(&items, &source_lang, &cleanup_rules);
+
+        let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        *guard = Some(items);
+        Ok(wire)
+    }
+
+    /// Vỏ IPC — tải lại ĐÚNG MỘT mục hỏng (I/O Matrix spec 6.7: "đúng 1 lời gọi mạng, chỉ
+    /// tới URL của mục k"). Trượt lần nữa ⇒ mục mang lý do MỚI (có thể khác lý do cũ).
+    #[tauri::command(async)]
+    pub fn reload_url_import_item(
+        app: tauri::AppHandle,
+        index: usize,
+        source_lang: String,
+    ) -> Result<super::UrlImportBatchWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(items_state) = app.try_state::<super::UrlImportItemsState>() else {
+            return Err(super::url_import_internal_error());
+        };
+        let Some(pending_state) = app.try_state::<PendingImportSourceState>() else {
+            return Err(no_pending_import_source());
+        };
+        let cleanup_rules = resolve_cleanup_rules(&app);
+
+        let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(items) = guard.as_mut() else {
+            return Err(super::url_import_internal_error());
+        };
+        let Some(url) = items.get(index).map(|it| it.url.clone()) else {
+            return Err(super::url_import_internal_error());
+        };
+        // Đúng MỘT lời gọi mạng — `fetch_url_import_item` gọi thẳng `webimport::fetch`,
+        // không có vòng lặp nào bọc quanh nó ở đây.
+        if let Some(slot) = items.get_mut(index) {
+            *slot = super::fetch_url_import_item(&url);
+        }
+        super::sync_pending_from_url_items(&pending_state, items);
+        Ok(super::url_import_batch_wire(items, &source_lang, &cleanup_rules))
+    }
+
+    /// Vỏ IPC — bỏ MỘT mục khỏi danh sách (I/O Matrix spec 6.7: "N−1 link · N−1 Chương — hai
+    /// số cùng giảm"). **0 lời gọi mạng.** Không `(async)` — chỉ đổi state trong bộ nhớ.
+    #[tauri::command]
+    pub fn remove_url_import_item(
+        app: tauri::AppHandle,
+        index: usize,
+        source_lang: String,
+    ) -> Result<super::UrlImportBatchWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(items_state) = app.try_state::<super::UrlImportItemsState>() else {
+            return Err(super::url_import_internal_error());
+        };
+        let Some(pending_state) = app.try_state::<PendingImportSourceState>() else {
+            return Err(no_pending_import_source());
+        };
+        let cleanup_rules = resolve_cleanup_rules(&app);
+
+        let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let Some(items) = guard.as_mut() else {
+            return Err(super::url_import_internal_error());
+        };
+        if index >= items.len() {
+            return Err(super::url_import_internal_error());
+        }
+        items.remove(index);
+        super::sync_pending_from_url_items(&pending_state, items);
+        Ok(super::url_import_batch_wire(items, &source_lang, &cleanup_rules))
     }
 }

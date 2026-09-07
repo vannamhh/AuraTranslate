@@ -28,7 +28,7 @@
  * [`finishImportSubmission`] (đổi tên từ `finishSubmit` cũ, giờ EXPORT vì `main.ts` gọi nó
  * SAU khi lượt xác nhận — không còn ngay trong `submitPastedText`/`submitFilePath` nữa).
  */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { listen } from '@tauri-apps/api/event'
 import type { UnlistenFn } from '@tauri-apps/api/event'
 import {
@@ -36,6 +36,7 @@ import {
   importPreviewLastSubmittedFrom,
   openImportPreviewFromFile,
   openImportPreviewFromText,
+  openImportPreviewFromUrls,
 } from '../importPreviewState'
 import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
 import { resetLookupPanel } from '../panels/lookupPanelState'
@@ -88,6 +89,42 @@ export const pastedText = ref('')
 
 /** Nội dung ô nhập đường dẫn (AC1 nhánh b — vá NFR17: đường bàn phím cho nhánh tệp). */
 export const filePath = ref('')
+
+/**
+ * **THÊM (Story 6.7, FR122)** — nội dung ô dán danh sách URL, MỖI DÒNG một link.
+ *
+ * 🔴 **Đây là NGUỒN DUY NHẤT của hai con số "N link · sẽ tạo N Chương"** — [`pastedUrlLines`]/
+ * [`pastedUrlCount`] tính CỤC BỘ trên ref này, JS thuần, **0 IPC**. Đây CHÍNH LÀ đối chứng
+ * cấu tạo cho AC "chưa bấm nút ⇒ 0 lời gọi mạng, 0 lời gọi IPC": không có đường mã nào ở đây
+ * gọi `invoke(...)`, nên không cách nào hai con số này "vô tình" kích hoạt một lượt gọi.
+ */
+export const pastedUrls = ref('')
+
+/**
+ * Danh sách URL đã TRIM, bỏ dòng rỗng — cùng phép lọc mà Rust
+ * (`commands::project::fetch_url_import_items`) áp lại LẦN THỨ HAI khi lệnh thật chạy (phòng
+ * thủ kép, không phải kỳ vọng trùng lặp công việc — xem doc-comment `startUrlImport` ở
+ * `config/project.ts`).
+ *
+ * 🔵 **SỬA 2026-09-07 (vòng rà bước 4) — câu "cùng phép lọc" ở trên từng SAI, đo được.**
+ * `str::trim()` của Rust không cắt `U+FEFF` (BOM) trong khi `String.prototype.trim()` của JS
+ * có cắt, nên hai bên đếm khác nhau đúng ở ký tự mà người dán từ Windows/Excel/trang web hay
+ * mang theo. Rust nay cắt qua `commands::project::trim_like_the_paste_box` — xem doc-comment
+ * của hàm đó cho phép đo và hai ca hỏng. Sửa Ở PHÍA RUST có chủ ý: con số người dùng NHÌN
+ * THẤY là con số phải đúng, nên nó là chuẩn, không phải thứ đi chỉnh cho khớp máy. Không phân biệt "URL hợp lệ hay không" — đó là việc của Rust khi
+ * lệnh thật chạy; ở đây chỉ ĐẾM, không TẢI.
+ */
+export const pastedUrlLines = computed<string[]>(() =>
+  pastedUrls.value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== ''),
+)
+
+/** Hai con số hiển thị TRƯỚC khi bấm nút — "N link · sẽ tạo N Chương" (cùng N, khuôn mockup
+ * `web-import.html:219`, "màn hình tự tố cáo": ai đó thêm một đường tự quét mục lục thì hai
+ * con số lệch nhau, không ai phải nhớ đi kiểm). */
+export const pastedUrlCount = computed<number>(() => pastedUrlLines.value.length)
 
 /** Đang có một lượt gọi IPC dở dang — vô hiệu hoá nút trong lúc chờ. */
 export const busy = ref(false)
@@ -276,6 +313,9 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
       pastedText.value = ''
     } else if (importPreviewLastSubmittedFrom.value === 'file') {
       filePath.value = ''
+    } else if (importPreviewLastSubmittedFrom.value === 'urls') {
+      // 🔵 THÊM Story 6.7 — cùng lý lẽ hai nhánh trên, ba biến thể `'text'`/`'file'`/`'urls'`.
+      pastedUrls.value = ''
     }
   }
 }
@@ -321,6 +361,19 @@ export async function submitFilePath(): Promise<void> {
   if (!(await beginSubmit())) return
   // `openImportPreviewFromFile` tự chốt nhánh `'file'` (`importPreviewState.ts`).
   await openImportPreviewFromFile(name.value, sourceLang.value, genre.value, path)
+  busy.value = false
+}
+
+/** Nhánh danh sách URL (Story 6.7, FR122) — tải TUẦN TỰ đúng thứ tự đã dán rồi mở màn xem
+ * trước. Cùng khuôn chốt của `submitPastedText`/`submitFilePath`: `busy || importPreviewIsOpen`
+ * kiểm TRONG HÀM (không chỉ `:disabled` trên nút), `beginSubmit()` chạy TRƯỚC. */
+export async function submitPastedUrls(): Promise<void> {
+  if (busy.value || importPreviewIsOpen.value) return
+  const urls = pastedUrlLines.value
+  if (urls.length === 0) return
+  if (!(await beginSubmit())) return
+  // `openImportPreviewFromUrls` tự chốt nhánh `'urls'` (`importPreviewState.ts`).
+  await openImportPreviewFromUrls(name.value, sourceLang.value, genre.value, urls)
   busy.value = false
 }
 

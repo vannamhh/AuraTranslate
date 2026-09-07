@@ -153,26 +153,38 @@ fn chardetng_is_named_in_exactly_one_product_file_inside_core_segment() {
         files_with_hits[0]
     );
 
-    // `core/webimport/` vẫn 0 dòng mã — AC2 spec 6.3: "core/webimport/ vẫn 0 dòng mã". Bàn
-    // đo Story 6.1 (`webimport_probe.rs`) nêu tên `chardetng` nhưng nó là `tests/**`, ngoài
-    // phạm vi phép quét này (chỉ `src-tauri/src/**`).
+    // 🔵 **SỬA 2026-09-06 (Story 6.7) — "`core/webimport/` vẫn 0 dòng mã" đã HẾT ĐÚNG.**
+    // Mệnh đề gốc (AC2 spec 6.3) khai đúng cho trạng thái *"stub, chưa story nào cần đến
+    // module"* — Story 6.7 mở nó ra thật (`Fetcher`/`Extractor`), nên đếm-dòng-bằng-0 giờ chỉ
+    // còn ĐÚNG là *"đã ĐÓNG mãi mãi"*, không phải hiện trạng. Mệnh đề THẬT vẫn giữ nguyên ý
+    // nghĩa ban đầu của phép kiểm này (Mệnh đề 2 — "`chardetng` ở ĐÚNG MỘT tệp, không rò rỉ
+    // sang module khác"): `core/webimport/` (module bóc nội dung + tải mạng CỦA RIÊNG NÓ, AD-
+    // 40) không được PHÉP tự dò bảng mã bằng `chardetng` — bộ dò bảng mã CHỈ sống ở
+    // `core/segment/encoding.rs`, và điều đó đã được khẳng định ở `files_with_hits[0]` phía
+    // trên (đúng MỘT tệp, đúng đường dẫn đó). Giữ lại một khẳng định HẸP hơn, vẫn đúng nghĩa:
+    // `core/webimport/` không nêu tên `chardetng` — cách diễn đạt CŨ ("0 dòng mã") kiểm được
+    // điều này chỉ vì nó kiểm NHIỀU HƠN mức cần (0 dòng mã nói riêng ⇒ 0 dòng gõ `chardetng`
+    // nói chung), và phần "nhiều hơn" đó nay sai với thực tế đã ký (Story 6.7 §Intent).
     let webimport_files: Vec<&(String, String)> =
         files.iter().filter(|(rel, _)| rel.starts_with(WEBIMPORT_DIR)).collect();
-    // 🔴 SỬA (vòng rà đối kháng 2, mục 17) — sàn quần thể RIÊNG cho thư mục con này. Không
-    // có nó, xoá HẲN `core/webimport/` làm `webimport_code_lines` cộng trên MỘT DANH SÁCH
-    // RỖNG, ra 0 một cách VÔ NGHĨA — cổng "xanh" mà không còn gì để mà kiểm.
     assert!(
         !webimport_files.is_empty(),
-        "`core/webimport/` phải có ÍT NHẤT MỘT tệp (`mod.rs`, stub) — 0 tệp làm phép đếm \
-         dòng mã ngay dưới xanh một cách VÔ NGHĨA (cộng trên danh sách rỗng), không phải vì \
-         mô-đun đó thật sự 0 dòng mã"
+        "`core/webimport/` phải có ÍT NHẤT MỘT tệp — 0 tệp làm phép quét ngay dưới xanh một \
+         cách VÔ NGHĨA (quét trên danh sách rỗng), không phải vì module đó thật sự sạch"
     );
-    let webimport_code_lines: usize =
-        webimport_files.iter().map(|(_, text)| code_lines(text).count()).sum();
-    assert_eq!(
-        webimport_code_lines, 0,
-        "`core/webimport/` phải vẫn 0 dòng mã (stub, Story 6.2/6.7/6.9) — bộ dò bảng mã sống \
-         ở `core/segment/encoding.rs`, không mở `core/webimport/` ra"
+    let webimport_chardetng_hits: Vec<String> = webimport_files
+        .iter()
+        .flat_map(|(rel, text)| {
+            code_lines(text)
+                .filter(|(_, code)| line_names_chardetng(code))
+                .map(move |(line, code)| format!("{rel}:{line}  {code}"))
+        })
+        .collect();
+    assert!(
+        webimport_chardetng_hits.is_empty(),
+        "`core/webimport/` không được nêu tên `chardetng` — bộ dò bảng mã sống DUY NHẤT ở \
+         `core/segment/encoding.rs` (đã khẳng định ở assert phía trên), tìm thấy:\n{}",
+        webimport_chardetng_hits.join("\n")
     );
 }
 

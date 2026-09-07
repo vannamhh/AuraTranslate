@@ -519,3 +519,96 @@ export async function cleanupSetEnabled(
 ): Promise<CleanupWriteResult> {
   return callCleanupWrite(CMD_CLEANUP_SET_ENABLED, { tier, id, enabled })
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story 6.7 — Nhập từ URL bằng danh sách link (AD-15 · AD-40 · AD-41 · FR122). Khớp
+// `commands::project::{UrlImportItemWire, UrlImportBatchWire, wire::start_url_import,
+// wire::reload_url_import_item, wire::remove_url_import_item}`.
+//
+// 🔴 Hai con số *"N link · sẽ tạo N Chương"* KHÔNG đi qua đây — chúng là computed CỤC BỘ
+// trên `pastedUrls` (đếm dòng non-empty, JS thuần, 0 IPC). Ba lệnh dưới đây chỉ chạy SAU
+// khi người dùng đã bấm nút tải.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Một mục trong danh sách URL — khớp `commands::project::UrlImportItemWire`. */
+export type UrlImportItemWire = {
+  url: string
+  ok: boolean
+  error: IpcError | null
+}
+
+/** Kết quả CẢ BA lệnh (tải/tải lại/bỏ một mục) — khớp `commands::project::UrlImportBatchWire`.
+ * `encoding_preview === null` là điều kiện ĐỦ để biết nút xác nhận phải khoá — cùng điều
+ * kiện mà Rust dùng để đồng bộ `PendingImportSourceState` (không suy luận riêng ở đây). */
+export type UrlImportBatchWire = {
+  items: UrlImportItemWire[]
+  encoding_preview: ImportEncodingPreview | null
+}
+
+/** Ba trạng thái, cùng khuôn `ImportEncodingPreviewResult`. */
+export type UrlImportBatchResult = {
+  batch: UrlImportBatchWire | null
+  error: IpcError | null
+}
+
+const CMD_START_URL_IMPORT = 'start_url_import'
+const CMD_RELOAD_URL_IMPORT_ITEM = 'reload_url_import_item'
+const CMD_REMOVE_URL_IMPORT_ITEM = 'remove_url_import_item'
+
+function isUrlImportItemWire(value: unknown): value is UrlImportItemWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<UrlImportItemWire>
+  return (
+    typeof v.url === 'string' &&
+    typeof v.ok === 'boolean' &&
+    // Thiếu vế `null` thì một mục lỗi mang `error: undefined` lọt qua Kiểm TYPE này, đúng
+    // bẫy mà mọi trường "tuỳ chọn qua dây" khác trong tệp này đã bị bắt.
+    (v.error === null || isIpcError(v.error))
+  )
+}
+
+function isUrlImportBatchWire(value: unknown): value is UrlImportBatchWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<UrlImportBatchWire>
+  return (
+    Array.isArray(v.items) &&
+    v.items.every(isUrlImportItemWire) &&
+    (v.encoding_preview === null || isImportEncodingPreview(v.encoding_preview))
+  )
+}
+
+async function callUrlImportBatch(cmd: string, args: Record<string, unknown>): Promise<UrlImportBatchResult> {
+  try {
+    const batch = await invoke<UrlImportBatchWire>(cmd, args)
+    if (!isUrlImportBatchWire(batch)) {
+      console.error(`[project] \`${cmd}\` tra ve mot hinh dang khong dung UrlImportBatchWire`)
+      return { batch: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { batch, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { batch: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[project] \`${cmd}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { batch: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[project] không gọi được \`${cmd}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { batch: null, error: null }
+  }
+}
+
+/** Tải TUẦN TỰ đúng thứ tự đã dán — `urls` đã TRIM/lọc dòng rỗng ở tầng gọi
+ * (`libraryImport.ts::submitPastedUrls`), Rust lọc lại lần nữa cho chắc (phòng thủ kép,
+ * không phải kỳ vọng trùng lặp công việc). */
+export async function startUrlImport(urls: string[], sourceLang: string): Promise<UrlImportBatchResult> {
+  return callUrlImportBatch(CMD_START_URL_IMPORT, { urls, sourceLang })
+}
+
+/** Tải lại ĐÚNG MỘT mục hỏng ở vị trí `index` — đúng 1 lời gọi mạng. */
+export async function reloadUrlImportItem(index: number, sourceLang: string): Promise<UrlImportBatchResult> {
+  return callUrlImportBatch(CMD_RELOAD_URL_IMPORT_ITEM, { index, sourceLang })
+}
+
+/** Bỏ một mục ở vị trí `index` — 0 lời gọi mạng. */
+export async function removeUrlImportItem(index: number, sourceLang: string): Promise<UrlImportBatchResult> {
+  return callUrlImportBatch(CMD_REMOVE_URL_IMPORT_ITEM, { index, sourceLang })
+}

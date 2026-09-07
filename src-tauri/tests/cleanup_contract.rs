@@ -963,6 +963,7 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
         "en",
         &[rule.clone()],
         false,
+        false,
     );
 
     assert_eq!(cleanup_wire.rules.len(), 1, "dung mot luat duoc gieo");

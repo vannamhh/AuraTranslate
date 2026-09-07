@@ -207,6 +207,8 @@ export type CommandDeps = {
   submitPastedText?: () => void
   /** Nộp `filePath` hiện tại. Handler của `library.import_file` (AC1 nhánh tệp/NFR17). */
   submitFilePath?: () => void
+  /** Nộp `pastedUrls` hiện tại. Handler của `library.import_urls` (Story 6.7, FR122). */
+  submitPastedUrls?: () => void
 
   // ── Story 6.3 — màn xem trước bảng mã (FR126) ───────────────────────────────────
   //
@@ -1040,6 +1042,16 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.submitFilePath === undefined) return portMissing('library.import_file', 'submitFilePath')
       deps.submitFilePath()
+    },
+  })
+  /** `library.import_urls` — Story 6.7 (FR122). Cố ý KHÔNG gán phím, cùng lý do
+   * `library.import_text`/`library.import_file` ngay trên. */
+  target.register({
+    id: 'library.import_urls',
+    labelKey: 'command.library.import_urls',
+    run: () => {
+      if (deps.submitPastedUrls === undefined) return portMissing('library.import_urls', 'submitPastedUrls')
+      deps.submitPastedUrls()
     },
   })
 
