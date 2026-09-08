@@ -9501,6 +9501,17 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   (bước 5), nên trên đường `Blob` + mẫu phân tách chỉ Chương đầu có số đếm quy về được — cùng hình
   dạng `cleanup_match_count`. AC *"không đo được khác sạch"* thêm vào `epics.md` cùng ngày là chủ
   của mệnh đề đó.
+  → ✅ **ĐÓNG TRỌN 2026-09-08 (Story 6.10) — vế thi công hết mở.** `joined_line_count` giữ lại
+  đúng chỗ vứt (`pipeline.rs::Step::NormalizeParagraphsAndWhitespace`, vào
+  `Flow::joined_line_counts`), đi ra dây thành `ChapterSplitPreviewEntryWire::joined_line_count_in_chapter`
+  (`Option<usize>`, KHÔNG phải `joined_lines` trần — né đúng tên đã bị chiếm ở
+  `NormalizedPreviewWire`), và nối vào hàng rào Tukey (`core::segment::review::classify`,
+  nguyên nhân `HighJoinedLines`). 🔴 **Sửa lại chính giới hạn ngay trên cho đúng thực tế:**
+  trên đường `Blob` con số này là `None` cho CẢ N Chương (kể cả `ord = 1`) — KHÁC
+  `cleanup_match_count` (nơi `ord = 1` giữ được số thật, vì `cleanup_report` được tính SAU khi
+  Chương đã có văn bản riêng, còn `joined_line_count` được tính TRƯỚC khi tách, lúc chỉ có MỘT
+  đơn vị là TOÀN TÀI LIỆU — xem Design Notes spec 6.10 "Vì sao `Blob` không cho `ord = 1` con
+  số FR125, trong khi `cleanup` thì có").
 
 - ⚠️ **Số đếm `joined_lines`/`blank_lines_removed` của Story 6.4 chỉ tính trên CỬA SỔ BẰNG
   CHỨNG (tối đa `EVIDENCE_WINDOW_BYTES` byte đầu), KHÔNG phải trên TOÀN Chương.** Đây là một
@@ -9529,6 +9540,10 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   ⚠️ **Nguy cơ đặt tên, ghi ra trước khi ai đó vấp:** `NormalizedPreviewWire.joined_lines`
   (`project.rs:1023`, theo ỨNG VIÊN, có cửa sổ) và số per-Chương sắp thêm là **hai đại lượng khác
   nhau**. Đừng đặt trùng tên trần `joined_lines` trên `ChapterSplitPreviewEntryWire`.
+  → ✅ **ĐÓNG 2026-09-08 (Story 6.10).** Tên né đúng như cảnh báo:
+  `joined_line_count_in_chapter` (quy ước `count_in_chapter` đã có ở `CleanupRuleReportWire`),
+  không phải `joined_lines` trần — hai đại lượng đứng cạnh nhau trên cùng một struct dây
+  (`EncodingCandidateWire`) mà không trùng tên.
 
 - ⚠️ **Tiêu đề KHÔNG dấu chấm đứng riêng một dòng, TRONG THÂN một Chương (không phải dòng
   đầu), vẫn bị luật gộp dòng của Story 6.4 nối OAN vào câu kế nếu không có dòng trống ngăn
@@ -9860,6 +9875,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   KHÔNG NÓI DỐI: mọi Chương hiện `title`/độ dài, sắp xếp được theo độ dài (xem §Design Notes
   "Vì sao KHÔNG có cờ 'đáng ngờ'" của spec 6.6). **Chủ: Story 6.10** — story đã sở hữu bộ lọc
   "cần xem", và một trong bốn nguồn tín hiệu của nó chính là kết quả tách Chương của story này.
+  → ✅ **ĐÓNG 2026-09-08 (Story 6.10).** Cờ "đáng ngờ" dựng bằng hàng rào Tukey (`1,5 × IQR`,
+  quy ước có tên — KHÔNG phải hằng số tuyệt đối bị cấm) trên ba tín hiệu so-tương-đối
+  (`length`/`cleanup_match_count`/`joined_line_count`, `core::segment::review::classify`).
+  Nút lọc là `⌥W` (`import.preview.chapter_filter_toggle`, `keys: undefined` + handler DOM
+  cục bộ), co cả tầng 4 lẫn danh sách mục URL về nhóm cần xem. Cổng canh:
+  `src-tauri/src/core/segment/review.rs::tests` (sáu ca, kể cả đối chứng đỏ IQR-suy-biến),
+  `src-tauri/tests/review_contract.rs` (bốn ca tầng dây), `tests/frontend/importPreviewChapters.test.ts`
+  (bật/tắt/0-cần-xem/dời con trỏ), `tests/frontend/importPreviewOverlayRender.test.ts` (bốn
+  ca DOM thật cho `⌥W`, kể cả đối chứng đỏ `event.code` so với `event.key`).
 
 - 🔴 **`spawn_import_scan` chỉ quét Chương ĐẦU — N−1 Chương còn lại của một lượt nhập nhiều
   Chương không được quét ứng viên Glossary, và không cổng nào đỏ vì chuyện đó.** Ice CHỐT
@@ -9899,6 +9923,16 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   (`⌥←`/`⌥→` dispatch đúng lệnh qua registry thật, `⌥`+`j` KHÔNG rơi vào `block_next`, auto-repeat
   không bắn một tràng, lớp phủ đóng thì `.ip-scrim` biến mất khỏi DOM — không còn gì để mà bắn
   `keydown` lên). Vế `⌥W` (bộ lọc "cần xem") VẪN MỞ, Chủ: Story 6.10, không đổi.
+  → ✅ **ĐÓNG 2026-09-08 (Story 6.10) — vế `⌥W` (bộ lọc "cần xem").** Command mới
+  `import.preview.chapter_filter_toggle`, `keys: undefined`, đúng khuôn `keys: undefined` +
+  handler DOM cục bộ mà mục này tự khai — handler THỨ BA (`onChapterFilterKeydown`,
+  `ImportPreviewOverlay.vue`), so `event.code === 'KeyW'` (KHÔNG `event.key` — trên macOS `⌥W`
+  gõ ra `∑`), KHÔNG nới hai handler đã có. Nối vào `onScrimKeydown` cùng hai handler kia. Đối
+  chứng: `tests/frontend/importPreviewOverlayRender.test.ts` (`⌥W` dispatch đúng lệnh qua
+  registry thật kể cả khi `event.key` mang ký tự macOS thật `'∑'`, auto-repeat không bắn một
+  tràng, `w` trần không bắn gì, lớp phủ đóng thì không bắn gì — cùng khuôn bốn ca của
+  `⌥←`/`⌥→`). Ba story này giờ mang ĐÚNG BA handler DOM cục bộ trên `.ip-scrim`, không phải
+  hai.
 
 - ⚠️ **Con trỏ Chương (`⌥←`/`⌥→`, Story 6.10a) chỉ hoạt động THẬT trên đường URL — no-op có
   chủ ý trên đường tệp/dán tay, KỂ CẢ khi mẫu phân tách cho N > 1 Chương.** Tầng 4 (tóm tắt)
@@ -9949,6 +9983,19 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   6.10** — story đó dựng bộ lọc "cần xem" trên CÙNG tầng 4 và sẽ chạm chính danh sách này;
   thêm một đường chọn bằng chuột ở đây trước khi biết bộ lọc sắp xếp lại hàng ra sao là dựng
   một bề mặt sắp bị sửa.
+  ⚠️ **VẪN MỞ 2026-09-08 (Story 6.10) — đo ra một xung đột kiến trúc, không phải một chỗ chưa
+  làm.** `check-commands.mjs` Kiểm A (AD-34 §1): "mọi `@click`/`v-on:click` trong `src/**/*.vue`
+  là ĐÚNG MỘT lời gọi `dispatch('<id trần, không tham số>')`" — cưỡng chế TOÀN CÂY, không có
+  lối miễn trừ theo tệp. `dispatch(id: CommandId): void` không nhận tham số (`src/commands/index.ts`).
+  Chọn MỘT hàng cụ thể trong `chapterEntriesRendered` (đã sắp/lọc, `ord` không còn trùng chỉ số
+  mảng) đòi truyền `ord` — không có đường `@click` nào diễn đạt được lời gọi có tham số đó mà
+  không phá Kiểm A. Đã cân nhắc và LOẠI: ① `@mousedown`/`@dblclick` né được phép quét (Kiểm A
+  chỉ canh `@click`) nhưng chỉ né được CHỮ, không né được Ý của AD-34 ("handler chuột chỉ được
+  đi qua dispatch registry") — một đường lách chữ không phải một lượt đóng nợ; ② một command
+  MỚI cho MỖI `ord` là vô hạn command, không khả thi. **Chủ: Ice** — cần MỘT trong hai: nới
+  Kiểm A cho một hình dạng `@click` tham số hoá CÓ TÊN (một quyết định kiến trúc, không phải
+  một dòng dev tự nới cổng), hoặc một cơ chế "cell click" khác AD-34 chưa lường trước. Cho tới
+  lúc đó, chọn Chương vẫn CHỈ đi qua bàn phím (`⌥←`/`⌥→`).
 
 - ⚠️ **Con trỏ Chương VÔ HÌNH khi Chương đang chọn rơi vào phần bị co gọn của khung nhìn mặc
   định.** Tầng 4 co danh sách về "ba đầu · `⋯` · ba cuối" khi chưa bật sắp-theo-độ-dài; một
@@ -9959,6 +10006,13 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   trên con trỏ, không gắn trên cờ sắp xếp), nên hàng vừa hiện ra vẫn phải tự tìm. **Chủ: Story
   6.10** — cùng lý do: bộ lọc "cần xem" đổi chính tập hàng hiện ra, và khung nhìn nào đúng chỉ
   trả lời được sau khi biết bộ lọc trình bày ra sao.
+  → ✅ **ĐÓNG 2026-09-08 (Story 6.10) — cả hai vế.** `chapterEntriesRendered` (một `v-for` DUY
+  NHẤT, thay ba nhánh cũ) nay tính "hiện ĐỦ, không co gọn" (`chaptersShowAll`) trên BA điều
+  kiện độc lập: sắp theo độ dài, bộ lọc "cần xem" bật, VÀ — đóng đúng vế đầu của mục này — con
+  trỏ (`⌥←`/`⌥→`) đang đứng ở một Chương nằm NGOÀI hai dải `[0,3)`/`[N-3,N)` mà khung nhìn mặc
+  định render. Vế thứ hai (sắp xếp không cuộn) đóng bằng một `watch([chapterSortByLength,
+  importPreviewChapterFilterActive], …)` THỨ HAI, cùng thân với watcher con trỏ đã có. Đối
+  chứng: `tests/frontend/importPreviewChapters.test.ts` (tầng 4 dựng đúng danh sách).
 
 - ⚠️ **Mỗi lượt dời con trỏ sao chép byte của N Chương HAI LẦN, ngoài chi phí `run_pipeline`
   O(N) đã ghi.** `chapters_shape_for_view` clone `raw` của mọi mục OK mỗi lượt gọi, rồi
@@ -10123,6 +10177,12 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   hiệu này là *"phần bóc ngắn bất thường so với **trung vị các Chương khác**"*: một phép so
   TƯƠNG ĐỐI cần N Chương, không cần một hằng số nào. Đó là chỗ duy nhất câu hỏi này trả lời
   được mà không bịa một con số.
+  → ✅ **ĐÓNG 2026-09-08 (Story 6.10).** Phép so tương đối dựng bằng hàng rào Tukey trên
+  `length` (`core::segment::review::classify`, nguyên nhân `ShortLength`, chỉ xét hàng rào
+  DƯỚI) — một trang bóc ra "quá ngắn" so với các Chương khác trong CÙNG lượt nhập giờ bị gắn
+  cờ *cần xem*, không cần một ngưỡng ký tự tuyệt đối nào. Câu hỏi gốc ("quá ngắn là bao
+  nhiêu ký tự") trả lời được đúng như dự đoán: nó không cần trả lời bằng MỘT con số — nó trả
+  lời bằng một PHÉP SO.
 
 ## Deferred from: 6-7-nhap-tu-url-bang-danh-sach-link — vòng rà đối kháng bước 4 (2026-09-07)
 
@@ -10345,3 +10405,113 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   matrix nay mô tả sai hiện thực. **Chủ: Ice** — khối `<frozen-after-approval>` chỉ Ice sửa
   được: hoặc bỏ hàng đó, hoặc giữ nhánh UI như một hàng rào phòng thủ và ghi rõ nó là đường
   chết có chủ ý. *(Nêu ở vòng rà bước 4 của Story 6.9, lớp verification-gap.)*
+
+## Deferred from: 6-10-bo-loc-can-xem (2026-09-08)
+
+- ⚠️ **`check-panel-refs.mjs::FILE_FLOOR = 39` đã lỗi thời — số THẬT hôm nay là 63 tệp `.ts`
+  dưới `src/**`, tức sàn đang đứng ở 61,9 %, dưới hẳn dải 80–85 % mà chính cổng đó khai
+  (`:551`) và tự cảnh báo (`:552`).** Đo 2026-09-08: `find src -name '*.ts' | wc -l` = **63**.
+  Món nợ này **KHÔNG do Story 6.10 gây ra** — sàn đã trôi qua nhiều story cộng dồn tệp `.ts`
+  mới mà không ai nâng lại số, và story này không thêm tệp `.ts` mới đủ để tự mình đẩy sàn qua
+  ngưỡng cần chú ý (chỉ sửa các tệp có sẵn: `config/project.ts`, `importPreviewState.ts`,
+  `commands/index.ts`, `main.ts`). Ghi ra theo đúng lời dặn của `code map` spec 6.10: *"đừng
+  lặng lẽ sửa sàn"*. **Chủ: Ice** — nâng `FILE_FLOOR` lên một số THẬT đo lại (ví dụ ~53, giữa
+  80–85 % của 63) là một quyết định về SÀN, không phải một chi tiết cài đặt; cần một story/lượt
+  riêng đo lại cả bốn cổng cùng họ (`check-i18n`/`check-commands`/`check-tokens`/
+  `check-panel-refs`) một lượt, không phải sửa lẻ từng cổng.
+
+- ⚠️ **Danh sách tầng 4 (tách Chương) vẫn KHÔNG chọn được bằng chuột — nợ 6.10a CHƯA đóng được
+  vì một xung đột kiến trúc, không phải vì chưa làm tới.** Xem chi tiết đầy đủ tại chỗ mục nợ
+  gốc (`deferred-work.md`, mục *"Danh sách tầng 4 khai `role='listbox'`/`role='option'` nhưng
+  KHÔNG chọn được bằng chuột"*, Story 6.10a) — tóm tắt: `check-commands.mjs` Kiểm A (AD-34 §1)
+  cấm MỌI `@click` không phải `dispatch('<id trần>')` trên TOÀN `src/**/*.vue`, và `dispatch()`
+  không nhận tham số — chọn một hàng cụ thể (`ord`) không diễn đạt được qua nó. Story 6.10 ĐÃ
+  dựng đủ dữ liệu (`needs_review`/`ord` trên mỗi hàng) và một hàm state hoàn chỉnh
+  (`selectImportPreviewChapter`, xoá lại vì không có đường `@click` hợp lệ để gọi nó) — phần
+  còn thiếu là một quyết định kiến trúc của Ice, không phải một dòng dev. **Chủ: Ice.**
+
+- 🔴 **`cargo test --locked` trên máy Ice CÓ LÚC đỏ 13–14 ca của `webimport_contract.rs` —
+  nguyên nhân là Application Firewall của macOS chặn binary test, KHÔNG phải một dòng mã.** Đo 2026-09-08 trong lượt nghiệm thu Story 6.10:
+  ① thông báo thật là `Err(Other { detail: "error sending request for url
+  (http://127.0.0.1:<port>/…)" })`, và lý do tới người dùng thành `ImportWebConnectFailed`
+  thay vì lý do THẬT (`TooLarge` · `NotHtml` · `RedirectBlocked` · `HttpStatus`) — tức nhóm ca
+  dựng máy chủ HTTP cục bộ không nhận được kết nối;
+  ② `socketfilterfw --getglobalstate` = **enabled**, `--getallowsigned` khai *"Automatically
+  allow built-in signed software **DISABLED**"*, và binary vừa dựng **không** có trong danh
+  sách 62 app được phép (`--listapps | grep -c "target/debug"` = **0**);
+  ③ cùng bộ ca chạy **5,47 s / 30 xanh** trên một binary ĐÃ được cấp phép, và **80,04 s /
+  14 đỏ** trên binary vừa biên dịch lại — thời lượng gấp ~15 lần chính là các lượt hết giờ
+  chờ kết nối.
+  🔴 **KHÔNG do Story 6.10 gây ra, đã đo bằng phép GỠ thật:** stash toàn bộ phần Rust của
+  story cộng dời hai tệp mới ra ngoài cây rồi chạy lại ⇒ baseline `83d5c88` cho **14 đỏ**,
+  tức NHIỀU HƠN lượt có story (**13 đỏ**). Một lỗi có ở cả hai phía thì không phải lỗi của
+  thứ đang bị nghi.
+  🔵 **SỬA TẠI CHỖ CÙNG NGÀY — mệnh đề "mỗi khi biên dịch LẠI" đã HẾT ĐÚNG.** Bản đầu của mục
+  này viết điều kiện kích hoạt là *"mỗi lượt biên dịch lại"*, suy từ chuỗi xanh·xanh·đỏ·đỏ·đỏ·đỏ.
+  Lượt vá của vòng rà bước 4 biên dịch lại CẢ Rust rồi chạy `cargo test --locked` toàn bộ ⇒
+  **1.267 xanh, 0 đỏ**, `webimport_contract` 30/30. ⇒ Nguyên nhân (firewall chặn binary) vẫn
+  đứng — nó là quan sát trực tiếp từ thông báo lỗi cộng `socketfilterfw`; thứ **chưa** pin được
+  là ĐIỀU KIỆN KÍCH HOẠT. Đừng đọc mục này thành "tất định theo lượt biên dịch", và cũng đừng
+  đọc lượt xanh này thành "đã hết" — một lỗi chập chờn ở một nhóm ca AD-41 là thứ phải đóng
+  bằng phép đo, không bằng một lượt may.
+  ⚠️ **Vì sao đây là nợ chứ không phải một ghi chú:** `.githooks/pre-push` chạy
+  `cargo test --locked`, nên cửa đẩy sẽ ĐỎ vì một lý do không liên quan tới thay đổi nào —
+  và đường thoát rẻ nhất (`--no-verify`) làm mất luôn mười một cổng còn lại. Nguy hơn: một
+  lượt đỏ 13 ca trông giống hệt một hồi quy thật, nên nó vừa gây báo động giả vừa có thể
+  CHE một hồi quy thật ở chính nhóm ca đó. Ba lượt đầu phiên này XANH (binary do lượt trước
+  dựng, đã được cấp phép) rồi đỏ tất định sau lượt biên dịch lại — nên nó KHÔNG đọc được
+  thành "chập chờn".
+  **Chủ: Ice** — cần MỘT trong ba, và cả ba đều là quyết định về môi trường/hạ tầng chứ không
+  phải một dòng dev: ① cấp phép sẵn cho `src-tauri/target/debug/deps/**` trong firewall (đổi
+  cấu hình máy, phải Ice đồng ý); ② cho nhóm ca dựng máy chủ cục bộ một cờ `#[ignore]` có tên
+  cùng khuôn `webimport_probe.rs` đã làm, tức chuyển chúng ra NGOÀI `pre-push` giống
+  `check:scope`/`check:scope:bundled` và bộ e2e — 🔴 nhưng đó là **hạ một cổng thật xuống chạy
+  tay**, đúng loại đánh đổi mà `AGENTS.md` bắt viết ra chứ không lặng lẽ làm; ③ giữ nguyên và
+  chấp nhận rằng nghiệm thu nhóm ca này chỉ tin được trên CI Linux/Windows, kèm một dòng ghi
+  ở `AGENTS.md` để người sau không mất một buổi truy nguyên như lượt này.
+
+## Deferred from: spec-6-10-bo-loc-can-xem — vòng rà đối kháng bước 4 (2026-09-08)
+
+- 🔴 **Lượt nhập có link hỏng nhưng DƯỚI bốn Chương thì hai con số KHÔNG hiện, và `⌥W` nay là
+  một no-op — người dùng không có đường nào thấy "1 cần xem".** Ca thật: dán 4 link, 1 hỏng ⇒
+  3 Chương ⇒ dưới bốn giá trị đo được ⇒ không hàng rào nào tồn tại ⇒ `any_signal_participated
+  === false`, nên khối chip bị `v-if` thay bằng dòng *"chưa đủ Chương để so"* — trong khi
+  `needs_review_count` **thật sự bằng 1** và con số ấy KHÔNG phụ thuộc hàng rào nào (link hỏng
+  là một phép đo trực tiếp, quyết định #2 Ice ký 2026-09-08).
+  ⚠️ **Đây là hệ quả của một quyết định phân loại tôi tự đưa ra trong vòng rà, ghi ra thay vì
+  để nó thành một hành vi không ai biết vì sao.** Lớp rà `edge-case` bắt được rằng `⌥W` bật
+  được bộ lọc trong ca này rồi để lại một màn hình không trạng thái (tầng 4 rỗng, không chip).
+  Tôi chọn phép vá HẸP — chặn luôn chiều BẬT — vì nó nhất quán với hàng *"0 mục cần xem ⇒ bộ
+  lọc không bật, không kêu, không ném"* đã ký trong ma trận, và vì đường còn lại (hiện hai con
+  số khi không có hàng rào) sẽ khai `clean_count` = TẤT CẢ Chương, tức đúng lời nói dối mà AC
+  *"không đo được khác sạch"* sinh ra để chặn. ⇒ Phép vá đúng, nhưng nó **đóng lại một thông
+  tin thật** thay vì trình bày nó.
+  **Chủ: Ice** — cần chốt một trong hai, và cả hai đều là quyết định sản phẩm: ① tách hai con số
+  thành hai vế độc lập, để vế *"N cần xem"* hiện được từ link hỏng ngay cả khi không hàng rào
+  nào tồn tại, còn vế *"M sạch"* thì im lặng kèm lý do; ② giữ nguyên hôm nay và chấp nhận rằng
+  dưới bốn Chương thì màn hình chỉ nói *"chưa đủ Chương để so"*, người dùng đọc link hỏng ở
+  danh sách link. Đường ① đúng hơn về thông tin nhưng đòi hai vế của chip tách rời — một hình
+  dạng dây khác với thứ spec 6.10 đã ký, nên không phải một dòng dev tự thêm.
+
+- ⚠️ **`chapter_detail_for_index` chạy lại TRỌN `classify()` (sắp ba mảng + dựng ba hàng rào)
+  ở MỖI lượt dời con trỏ, chỉ để đọc `chapter_count` rồi vứt phần còn lại.** Đường lazy-detail
+  gọi `cleanup_and_chapters_preview_for` → `build_chapter_split_preview_wire` → `classify`, và
+  chú thích ngay tại chỗ gọi cũng thừa nhận kết quả *"không lộ ra ngoài hàm này"*. Với một lượt
+  nhập 50 link mà người dùng bấm `⌥←`/`⌥→` qua lại, chi phí ấy lặp mỗi lần.
+  ⚠️ **CHƯA CÓ SỐ ĐO** — không perf-probe nào chạm đường này (bàn đo 2.000 Chương hiện có
+  (`cleanup_contract.rs:1293`) đo đường EAGER, và mỗi Chương của nó ~70 byte). Không đo thì
+  không biết nó có đáng sửa không, và kho này cấm đánh dấu đạt bằng suy luận. **Chủ: Story
+  6.18** — story đó đã sở hữu việc đo lại NFR3/NFR4/NFR5 trên thư viện 5.000 Chương thật, tức
+  cùng bề mặt và cùng loại phép đo; gom vào đó rẻ hơn dựng một bàn đo riêng bây giờ.
+  🔵 Cùng họ với món nợ 6.10a *"mỗi lượt dời con trỏ clone byte của N Chương hai lần"* — hai
+  mục nên được đo CÙNG một lượt, vì chúng nằm trên đúng một đường.
+
+- ⚠️ **Bật bộ lọc ép hiện TRỌN danh sách, không ảo hoá — chưa ai đo ở quy mô nghìn Chương.**
+  `chaptersShowAll` trả `true` ngay khi bộ lọc bật, không xét số hàng CÒN LẠI sau lọc. Đây là
+  một đánh đổi CÓ CHỦ Ý của story (§Design Notes spec 6.10: bỏ co gọn để ca `aria-activedescendant`
+  trỏ vào hàng đã bị lọc khỏi DOM không tồn tại được), và nó lặp đúng hình dạng mà cờ
+  sắp-theo-độ-dài đã có từ Story 6.6 — tức KHÔNG phải một hồi quy. Nhưng ở một lượt nhập nghìn
+  Chương mà phần lớn bị gắn cờ, danh sách có thể phình ra hàng nghìn `<li>`.
+  ⚠️ Chưa có phép đo nào, và trần số Chương một mẫu phân tách sinh ra cũng đang là một món nợ mở
+  riêng. **Chủ: Story 6.18** — cùng lý do mục trên: nó là câu hỏi về quy mô thật, phải đo trên
+  thư viện thật chứ không trên fixture tổng hợp.

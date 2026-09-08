@@ -269,6 +269,17 @@ export type CommandDeps = {
    * `import.preview.chapter_prev`. */
   prevImportPreviewChapter?: () => void
 
+  // ── Story 6.10 — bộ lọc "cần xem" (`⌥W`) ─────────────────────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `nextImportPreviewChapter`/`prevImportPreviewChapter`
+  // ngay trên: `⌥` không phải phím bổ trợ CHÍNH, nên hợp âm toàn cục vẫn nuốt `⌥W` khi lớp
+  // phủ đã đóng — `ImportPreviewOverlay.vue` gắn một handler DOM CỤC BỘ THỨ BA trên scrim, so
+  // `event.code === 'KeyW'` (KHÔNG `event.key` — trên macOS `⌥W` gõ ra `∑`), rồi `dispatch(...)`.
+
+  /** Bật/tắt bộ lọc "cần xem" (`⌥W`) — Story 6.10. Handler của
+   * `import.preview.chapter_filter_toggle`. */
+  toggleImportPreviewChapterFilter?: () => void
+
   // ── Story 5.3 — "Quét lại thư mục" (FR99) ───────────────────────────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `submitPastedText`: state sống ở
@@ -1277,6 +1288,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('import.preview.chapter_prev', 'prevImportPreviewChapter')
       }
       deps.prevImportPreviewChapter()
+    },
+  })
+  target.register({
+    id: 'import.preview.chapter_filter_toggle',
+    labelKey: 'command.import.preview.chapter_filter_toggle',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleImportPreviewChapterFilter === undefined) {
+        return portMissing('import.preview.chapter_filter_toggle', 'toggleImportPreviewChapterFilter')
+      }
+      deps.toggleImportPreviewChapterFilter()
     },
   })
 

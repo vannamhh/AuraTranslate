@@ -456,6 +456,24 @@ struct Flow {
     /// lệch nhau. Reset về `vec![None; n]` khi [`split_chapters_step`] THẬT SỰ đổi số phần tử
     /// — cùng lý do `labels` reset ở đó (không xảy ra trên đường sản phẩm, cùng lý lẽ).
     blocks: Vec<Option<Vec<crate::core::webimport::Block>>>,
+    /// **THÊM 2026-09-08 (Story 6.10)** — số LẦN [`normalize::normalize`] đã NỐI hai dòng làm
+    /// một cho từng phần tử `units`, SONG SONG theo INDEX — cùng khuôn `cleanup_reports`.
+    /// Được GÁN tại [`Step::NormalizeParagraphsAndWhitespace`] (bước 4), đọc từ
+    /// [`normalize::Normalized::joined_lines`] mà bước đó ĐÃ TÍNH RỒI VỨT trước bản sửa này
+    /// (`pipeline.rs:644` trước đây chỉ giữ `.text`) — xem doc-comment `Step::NormalizeParagraphsAndWhitespace`
+    /// nhánh `match` ngay dưới cho cách con số này được gán.
+    ///
+    /// 🔴 **RESET VỀ `None` TOÀN BỘ khi [`split_chapters_step`] THẬT SỰ đổi số phần tử — KHÁC
+    /// `cleanup_reports`, KHÔNG gắn báo cáo của toàn blob vào Chương ĐẦU.** Trên đường `Blob`,
+    /// bước 4 (chuẩn hoá) chạy TRƯỚC bước 5 (tách Chương) trong [`PIPELINE_ORDER`] — lúc bước 4
+    /// chạy chỉ có MỘT đơn vị là TOÀN TÀI LIỆU, nên con số nối dòng đo được thuộc về TÀI LIỆU,
+    /// không thuộc về Chương nào. Gán nó cho Chương 1 (như `cleanup_reports` làm) sẽ cho Chương
+    /// 1 một số cao vô lý — nó gánh cả N-1 Chương kia — và đẩy chính nó qua hàng rào Tukey một
+    /// cách oan uổng (§Design Notes spec 6.10 "Vì sao `Blob` không cho `ord = 1` con số FR125,
+    /// trong khi `cleanup` thì có"). Trên [`PipelineShape::Chapters`] (đã chia Chương từ đầu,
+    /// `already_chaptered = true`, [`split_chapters_step`] return sớm, KHÔNG đụng trường này),
+    /// con số của mỗi Chương là THẬT (bước 4 chạy trên TỪNG đơn vị riêng).
+    joined_line_counts: Vec<Option<usize>>,
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -515,20 +533,21 @@ pub fn run_import_with_order(
         chapter_titles: vec![None; n],
         labels: initial_labels,
         blocks: vec![None; n],
+        joined_line_counts: vec![None; n],
     };
 
     let mut trace: Vec<Step> = Vec::with_capacity(order.len());
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks } =
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts } =
                     flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 for u in old_units {
                     units.push(decode_unit(u, encoding)?);
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts }
             }
             // 🔴 THÂN THẬT — Story 6.7 (bóc), Story 6.9 (mô hình khối + trạng thái sửa tay),
             // AD-39 bước 2. `extract_main_content == false` (đường tệp/dán tay — §Always spec
@@ -550,7 +569,7 @@ pub fn run_import_with_order(
                     trace.push(step);
                     flow
                 } else {
-                    let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks: _ } =
+                    let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks: _, joined_line_counts } =
                         flow;
                     let mut units = Vec::with_capacity(old_units.len());
                     let mut blocks: Vec<Option<Vec<crate::core::webimport::Block>>> =
@@ -585,7 +604,7 @@ pub fn run_import_with_order(
                         }
                     }
                     trace.push(step);
-                    Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks }
+                    Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts }
                 }
             }
             // 🔴 THÂN THẬT — Story 6.5, FR124, AD-39 bước 3. GỌI `core::cleanup::apply`,
@@ -601,6 +620,7 @@ pub fn run_import_with_order(
                     chapter_titles,
                     labels,
                     blocks,
+                    joined_line_counts,
                 } = flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 let mut cleanup_reports = Vec::with_capacity(old_units.len());
@@ -627,33 +647,47 @@ pub fn run_import_with_order(
                     }
                 }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts }
             }
             // 🔴 THÂN THẬT — Story 6.4, FR124/FR125, AD-39 bước 4. GỌI `normalize::normalize`,
             // không viết lại nội tuyến (Task list spec 6.4) — mọi luật (bảng kết câu, bảng
             // nối theo ngôn ngữ) sống ở `split.rs`/`regroup.rs`, module này chỉ GỌI chúng.
             // `trace.push` Ở LẠI BÊN TRONG nhánh (AC6 spec 6.2, doc-comment đầu tệp) —
             // KHÔNG gộp vào một `trace.push` chung sau vòng lặp.
+            //
+            // 🔴 **SỬA 2026-09-08 (Story 6.10) — `joined_lines` KHÔNG còn bị VỨT.** Bản trước
+            // chỉ giữ `.text` của [`normalize::Normalized`], ném thẳng `.joined_lines` — số
+            // FR125 đã tính RỒI trên chính TOÀN VĂN từng đơn vị, tại đúng chỗ này. Nay số đó
+            // được GÁN vào `Flow::joined_line_counts` cùng INDEX — xem doc-comment trường đó
+            // cho lý do đây là con số THẬT trên [`PipelineShape::Chapters`] nhưng KHÔNG quy về
+            // được Chương nào trên `Blob` (bị [`split_chapters_step`] reset về `None` ngay sau).
             Step::NormalizeParagraphsAndWhitespace => {
-                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks } =
+                let Flow { units: old_units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts: _ } =
                     flow;
-                let units = old_units
-                    .into_iter()
-                    .map(|u| match u {
+                let mut units = Vec::with_capacity(old_units.len());
+                let mut joined_line_counts = Vec::with_capacity(old_units.len());
+                for u in old_units {
+                    match u {
                         Unit::Decoded(text) => {
-                            Unit::Decoded(normalize::normalize(&text, &source_lang).text)
+                            let normalized = normalize::normalize(&text, &source_lang);
+                            joined_line_counts.push(Some(normalized.joined_lines));
+                            units.push(Unit::Decoded(normalized.text));
                         }
                         // `Unit::Undecoded` ở bước này là BẤT KHẢ trên mọi thứ tự HỢP LỆ
                         // (`validate_order` đã kiểm — bước 1 luôn đứng trước bước 4). Giữ
                         // nguyên là phòng thủ cho một thứ tự SAI (đối chứng AD-39 đặt bước
                         // này TRƯỚC giải mã): `normalize` cần `&str`, không có nghĩa gì để
                         // chạy nó trên byte thô — cùng khuôn `split_segments_step` ngay
-                        // dưới, cũng bỏ qua `Unit::Undecoded` vì cùng lý do.
-                        other @ Unit::Undecoded { .. } => other,
-                    })
-                    .collect();
+                        // dưới, cũng bỏ qua `Unit::Undecoded` vì cùng lý do. `None` ở đây là
+                        // "không đo được", đúng nghĩa `Flow::joined_line_counts`.
+                        other @ Unit::Undecoded { .. } => {
+                            joined_line_counts.push(None);
+                            units.push(other);
+                        }
+                    }
+                }
                 trace.push(step);
-                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks }
+                Flow { units, segments, already_chaptered, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts }
             }
             Step::SplitChapters => {
                 let next = split_chapters_step(flow, chapter_pattern.as_ref())?;
@@ -679,7 +713,8 @@ pub fn run_import_with_order(
         .zip(flow.cleanup_reports)
         .zip(flow.chapter_titles)
         .zip(flow.blocks)
-        .map(|((((u, s), cleanup_report), title), blocks)| -> Result<ImportedChapter, ImportError> {
+        .zip(flow.joined_line_counts)
+        .map(|(((((u, s), cleanup_report), title), blocks), joined_line_count)| -> Result<ImportedChapter, ImportError> {
             let source_text = match u {
                 Unit::Decoded(t) => t,
                 // 🔴 KHÔNG THỂ xảy ra sau `validate_order`: `DecodeEncoding` xuất hiện ĐÚNG
@@ -697,7 +732,14 @@ pub fn run_import_with_order(
                     });
                 }
             };
-            Ok(ImportedChapter { source_text, segments: s.unwrap_or_default(), cleanup_report, title, blocks })
+            Ok(ImportedChapter {
+                source_text,
+                segments: s.unwrap_or_default(),
+                cleanup_report,
+                title,
+                blocks,
+                joined_line_count,
+            })
         })
         .collect::<Result<Vec<_>, ImportError>>()?;
 
@@ -985,6 +1027,13 @@ fn split_chapters_step(mut flow: Flow, pattern: Option<&ChapterPattern>) -> Resu
     // luôn đi cùng `Chapters`), nên `blocks` ở đây luôn TOÀN `None` trước lượt reset này —
     // gán lại `vec![None; n]` không mất dữ liệu có nghĩa nào.
     flow.blocks = vec![None; n];
+    // 🔴 **THÊM 2026-09-08 (Story 6.10) — RESET VỀ `None` CHO CẢ N, KHÔNG gắn vào Chương đầu
+    // như `cleanup_reports` làm ngay trên.** Con số nối dòng đo được TRƯỚC bước này (bước 4
+    // luôn đứng trước bước 5 trong `PIPELINE_ORDER`) là của TOÀN TÀI LIỆU — thuộc về tài liệu,
+    // không thuộc về Chương nào, kể cả `ord = 1` (xem doc-comment `Flow::joined_line_counts`
+    // cho lý do đầy đủ, và Design Notes spec 6.10 "Vì sao `Blob` không cho `ord = 1` con số
+    // FR125, trong khi `cleanup` thì có").
+    flow.joined_line_counts = vec![None; n];
     Ok(flow)
 }
 

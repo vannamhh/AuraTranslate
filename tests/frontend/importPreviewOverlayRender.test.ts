@@ -51,7 +51,14 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
     cleanup: { text: 'plain ascii', spans: [], rules: [], window_truncated: false, final_text: 'plain ascii' },
     // Story 6.6 — cùng lý do `cleanup`: khối tách Chương đi kèm sẵn trên MỖI ô. `null` đồng
     // bộ với `normalized: null`/`cleanup: null` (bảng mã "không ra chữ").
-    chapters: { chapter_count: 1, chapters: [{ ord: 1, title: null, length: 11, cleanup_match_count: 0 }] },
+    chapters: {
+      chapter_count: 1,
+      chapters: [{ ord: 1, title: null, length: 11, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] }],
+      broken_item_count: 0,
+      needs_review_count: 0,
+      clean_count: 1,
+      any_signal_participated: false,
+    },
     // Story 6.9 — khối tầng 2 (ranh giới bóc) đi kèm sẵn trên MỖI ô, cùng lý do `chapters`.
     // `null` đồng bộ với ba trường trên (bảng mã "không ra chữ") — xem ca dành riêng cho
     // nhánh có khối thật trong tệp test của story đó.
@@ -222,7 +229,11 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
         // đúng chuỗi ca này khẳng định VẮNG MẶT ở dưới.
         self_declared_chapters: {
           chapter_count: 1,
-          chapters: [{ ord: 1, title: null, length: 27, cleanup_match_count: 0 }],
+          chapters: [{ ord: 1, title: null, length: 27, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] }],
+          broken_item_count: 0,
+          needs_review_count: 0,
+          clean_count: 1,
+          any_signal_participated: false,
         },
       }),
       error: null,
@@ -386,5 +397,186 @@ describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`
     expect(prevMock).not.toHaveBeenCalled()
 
     wrapper.unmount()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.10 — bộ lọc "cần xem", tầng BÀN PHÍM DOM THẬT (`⌥W`)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 Đối chứng đỏ ③ của §Verification spec 6.10 — `⌥W` PHẢI so `event.code === 'KeyW'`, KHÔNG
+// `event.key`: trên macOS `⌥W` gõ ra `∑`, nên mọi ca dưới đây dựng sự kiện với CẢ HAI trường
+// (`code: 'KeyW'`, `key: '∑'`) — một handler lỡ so `event.key === 'w'` sẽ KHÔNG BAO GIỜ khớp
+// và mọi ca "phải bắn lệnh" ở đây sẽ đỏ.
+
+describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬT (`⌥W`)', () => {
+  it('⌥W (event.code === KeyW, event.key === macOS ∑) bắn import.preview.chapter_filter_toggle', async () => {
+    const toggleMock = vi.fn()
+    const { state, ImportPreviewOverlay } = await freshOverlay({ toggleImportPreviewChapterFilter: toggleMock })
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const scrim = wrapper.get('.ip-scrim')
+
+    await scrim.trigger('keydown', { code: 'KeyW', key: '∑', altKey: true })
+    expect(toggleMock).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('giữ ⌥W cho auto-repeat KHÔNG bắn một tràng lệnh — chỉ lần đầu', async () => {
+    const toggleMock = vi.fn()
+    const { state, ImportPreviewOverlay } = await freshOverlay({ toggleImportPreviewChapterFilter: toggleMock })
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const scrim = wrapper.get('.ip-scrim')
+
+    await scrim.trigger('keydown', { code: 'KeyW', key: '∑', altKey: true })
+    await scrim.trigger('keydown', { code: 'KeyW', key: '∑', altKey: true, repeat: true })
+    await scrim.trigger('keydown', { code: 'KeyW', key: '∑', altKey: true, repeat: true })
+    expect(toggleMock).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('`w` TRẦN (không `⌥`) KHÔNG bắn lệnh lọc', async () => {
+    const toggleMock = vi.fn()
+    const { state, ImportPreviewOverlay } = await freshOverlay({ toggleImportPreviewChapterFilter: toggleMock })
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const scrim = wrapper.get('.ip-scrim')
+
+    await scrim.trigger('keydown', { code: 'KeyW', key: 'w' })
+    expect(toggleMock).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('lớp phủ ĐÃ ĐÓNG — `⌥W` không đổi gì (0 command nào bắn)', async () => {
+    const toggleMock = vi.fn()
+    const { state, ImportPreviewOverlay } = await freshOverlay({ toggleImportPreviewChapterFilter: toggleMock })
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    state.cancelImportPreview()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.ip-scrim').exists()).toBe(false)
+
+    expect(toggleMock).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+})
+
+/** N Chương với phán quyết `needs_review` đặt thẳng theo `flags` — Rust là nơi tính (AD-1),
+ * fixture chở KẾT QUẢ của nó. */
+function chaptersWithFlags(flags: boolean[]) {
+  const needs = flags.filter(Boolean).length
+  return {
+    chapter_count: flags.length,
+    chapters: flags.map((needsReview, i) => ({
+      ord: i + 1,
+      title: `Chuong ${i + 1}`,
+      length: 100 + i,
+      cleanup_match_count: 0,
+      joined_line_count_in_chapter: null,
+      needs_review: needsReview,
+      review_causes: needsReview ? (['short_length'] as const).slice() : [],
+    })),
+    broken_item_count: 0,
+    needs_review_count: needs,
+    clean_count: flags.length - needs,
+    any_signal_participated: true,
+  }
+}
+
+describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" đổi thứ HIỆN RA (Story 6.10)', () => {
+  /**
+   * I/O Matrix spec 6.10, hàng *"Bấm `⌥W`"* — vế **tầng 4**: co về Chương cần xem, và **bỏ
+   * co gọn**.
+   *
+   * 🔴 **Vì sao phải khẳng định `⋯` BIẾN MẤT, không chỉ đếm hàng.** §Design Notes spec 6.10
+   * chọn "lọc thì bỏ co gọn" chính để ca `aria-activedescendant` trỏ vào một hàng đã bị lọc
+   * khỏi DOM **không tồn tại được**. Một phép lọc giữ nguyên co gọn vẫn cho đúng số hàng ở
+   * fixture nhỏ — nên ca này gieo **mười** Chương để co gọn THẬT SỰ đang bật trước khi lọc,
+   * và khẳng định cả hai chiều.
+   */
+  it('bật lọc: tầng 4 chỉ còn Chương cần xem, và `⋯` biến mất', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    const flags = [false, true, false, false, false, false, false, true, false, false]
+    previewTextMock.mockResolvedValue({
+      preview: preview({ candidates: [candidate({ chapters: chaptersWithFlags(flags) })] }),
+      error: null,
+    })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+
+    // Tien de: 10 Chuong, chua loc ⇒ khung nhin mac dinh CO GON that su dang bat.
+    expect(wrapper.findAll('.ip-chapters-ellipsis').length).toBe(1)
+    expect(wrapper.findAll('.ip-chapters-entry').length).toBe(6)
+
+    state.toggleImportPreviewChapterFilter()
+    await wrapper.vm.$nextTick()
+
+    expect(state.importPreviewChapterFilterActive.value).toBe(true)
+    expect(wrapper.findAll('.ip-chapters-entry').length).toBe(2)
+    expect(wrapper.findAll('.ip-chapters-ellipsis').length).toBe(0)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  /**
+   * I/O Matrix spec 6.10, hàng *"Bảng mã tin cậy thấp"* — cờ **cấp lượt nhập**, nằm **NGOÀI**
+   * hai con số.
+   *
+   * 🔴 **Đây là quyết định #3 Ice ký 2026-09-08, và trước ca này KHÔNG ai canh nó.** Lý do nó
+   * được ký: gắn cờ tin cậy thấp lên cả N Chương làm hai số thành `50/0` — tức bộ lọc mất tác
+   * dụng **đúng lúc cần nhất**. Ca này gieo `confidence: 'low'` trên mười Chương mà chỉ hai
+   * Chương cần xem, rồi khẳng định hai con số vẫn là `2/8` chứ KHÔNG phải `10/0`, trong khi
+   * dòng cảnh báo tin cậy thấp **vẫn hiện** ở chỗ riêng của nó.
+   */
+  it('tin cậy thấp hiện cảnh báo RIÊNG, KHÔNG nhân thành N Chương cần xem', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    const flags = [false, true, false, false, false, false, false, true, false, false]
+    previewTextMock.mockResolvedValue({
+      preview: preview({
+        confidence: 'low',
+        candidates: [candidate({ chapters: chaptersWithFlags(flags) })],
+      }),
+      error: null,
+    })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+
+    expect(wrapper.find('.ip-confidence-chip').text()).toContain('độ tin cậy thấp')
+
+    const bar = wrapper.find('.ip-chapter-filter-bar').text()
+    expect(bar).toContain('2 Chương cần xem')
+    expect(bar).toContain('8 Chương sạch')
+    // 🔴 Ve NGUOC quan trong nhat: tin cay thap KHONG duoc nhan thanh `10 can xem / 0 sach`.
+    expect(bar).not.toContain('10 Chương cần xem')
+    expect(bar).not.toContain('0 Chương sạch')
+    expect(state.importPreviewSelectedChapters.value?.needs_review_count).toBe(2)
+    expect(state.importPreviewSelectedChapters.value?.clean_count).toBe(8)
+
+    wrapper.unmount()
+    state.resetImportPreview()
   })
 })

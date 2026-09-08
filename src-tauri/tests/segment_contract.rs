@@ -22,6 +22,7 @@ use auratranslate_lib::commands::project::{
     preview_import_encoding, stash_pending_import_source, BlockBodyWire, BlockWire,
     ChapterBlocksPreviewWire, ChapterSplitPreviewEntryWire, ChapterSplitPreviewWire, ConfidenceWire,
     EncodingCandidateWire, ImportEncodingPreview, NormalizedPreviewWire, PendingImportSourceState,
+    ReviewCauseWire,
 };
 use auratranslate_lib::commands::segment::{
     confirm_segment, flush_segment_targets, list_reading_marks, mark_reading_segment,
@@ -8684,7 +8685,7 @@ fn preview_of_a_utf8_bom_file_is_self_declared_but_still_carries_all_five_real_c
     bytes.extend_from_slice("Chương một".as_bytes());
     let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "bom.txt".to_owned() });
 
-    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0);
 
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert_eq!(
@@ -8710,7 +8711,7 @@ fn preview_of_a_utf8_bom_file_is_self_declared_but_still_carries_all_five_real_c
 fn preview_of_pasted_text_is_self_declared_with_no_bytes_to_sniff() {
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("dan tay".to_owned()));
 
-    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0);
 
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert!(preview.candidates.is_empty());
@@ -8735,7 +8736,7 @@ fn preview_of_pure_ascii_bytes_is_high_confidence_with_five_identical_candidates
         label: "ascii.txt".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0);
 
     assert_eq!(preview.confidence, ConfidenceWire::High);
     // 🔵 SỬA (2026-09-04, vòng rà lại spec 6.3) — "candidates rỗng khi tin cậy cao" đã HẾT
@@ -8771,7 +8772,7 @@ fn preview_of_a_gbk_file_with_a_short_ascii_header_opens_the_strip_with_five_cel
         label: "gbk-header.txt".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0);
 
     assert_eq!(
         preview.confidence,
@@ -8798,7 +8799,7 @@ fn preview_marks_an_undecodable_candidate_without_touching_the_others() {
         label: "bad.bin".to_owned(),
     });
 
-    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0);
 
     assert_eq!(preview.confidence, ConfidenceWire::Low);
     assert_eq!(preview.candidates.len(), 5);
@@ -8910,7 +8911,7 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
     }
     let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "utf16be.txt".to_owned() });
 
-    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0);
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared, "BOM -- nguon tu khai");
     assert_eq!(
         preview.selected_encoding, "UTF-16BE",
@@ -9034,7 +9035,7 @@ fn confirming_with_a_whatwg_valid_label_outside_fr126_is_refused_explicitly() {
 #[test]
 fn preview_of_an_already_chaptered_shape_with_no_units_is_self_declared_not_a_panic() {
     let shape = PipelineShape::Chapters(Vec::new());
-    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0);
     assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared);
     assert!(preview.candidates.is_empty());
     // Không đơn vị nào ⇒ không văn bản nào để mà chuẩn hoá — RỖNG THẬT, nhưng trường vẫn
@@ -9329,23 +9330,48 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
 /// 6.10a: đổi tên MỘT trường bằng `#[serde(rename = ...)]` (hoặc thêm
 /// `rename_all = "camelCase")]` lên `ChapterSplitPreviewEntryWire`) phải làm phép so khoá
 /// dưới đây ĐỎ ngay.
+///
+/// 🔵 **SỬA 2026-09-08 (Story 6.10) — `cleanup_match_count` đổi sang `Option<usize>`, cộng ba
+/// trường mới (`joined_line_count_in_chapter`/`needs_review`/`review_causes`) — fixture VÀ
+/// bảng khoá dưới đây đều sửa theo.** 🔴 Đối chứng đỏ ④ của §Verification spec 6.10: đặt
+/// `#[serde(rename_all = "camelCase")]` lên `ChapterSplitPreviewEntryWire` rồi chạy lại phải
+/// làm phép so khoá bên dưới ĐỎ (`needs_review`/`review_causes` là từ ghép, khác ghi chú
+/// spec 6.9 nơi mọi trường là từ đơn).
 #[test]
 fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers() {
     let wire = ChapterSplitPreviewWire {
         chapter_count: 3,
+        clean_count: 1,
+        needs_review_count: 2,
+        broken_item_count: 0,
+        any_signal_participated: true,
         chapters: vec![
             ChapterSplitPreviewEntryWire {
                 ord: 1,
                 title: Some("Chương 1: Mở Đầu".to_owned()),
                 length: 120,
-                cleanup_match_count: 2,
+                cleanup_match_count: Some(2),
+                joined_line_count_in_chapter: Some(1),
+                needs_review: true,
+                review_causes: vec![ReviewCauseWire::HighCleanupMatches],
             },
-            ChapterSplitPreviewEntryWire { ord: 2, title: None, length: 340, cleanup_match_count: 0 },
+            ChapterSplitPreviewEntryWire {
+                ord: 2,
+                title: None,
+                length: 340,
+                cleanup_match_count: Some(0),
+                joined_line_count_in_chapter: None,
+                needs_review: true,
+                review_causes: vec![ReviewCauseWire::NotMeasured],
+            },
             ChapterSplitPreviewEntryWire {
                 ord: 3,
                 title: Some("Chương 3: Kết".to_owned()),
                 length: 58,
-                cleanup_match_count: 5,
+                cleanup_match_count: Some(5),
+                joined_line_count_in_chapter: Some(0),
+                needs_review: false,
+                review_causes: vec![],
             },
         ],
     };
@@ -9354,10 +9380,22 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
     let object = json.as_object().expect("ChapterSplitPreviewWire phai serialize thanh object");
     assert_eq!(
         object.keys().collect::<std::collections::BTreeSet<_>>(),
-        std::collections::BTreeSet::from([&"chapter_count".to_owned(), &"chapters".to_owned()]),
-        "ChapterSplitPreviewWire phai serialize DUNG hai ten truong snake_case nay"
+        std::collections::BTreeSet::from([
+            &"chapter_count".to_owned(),
+            &"chapters".to_owned(),
+            &"clean_count".to_owned(),
+            &"needs_review_count".to_owned(),
+            &"broken_item_count".to_owned(),
+            &"any_signal_participated".to_owned(),
+        ]),
+        "ChapterSplitPreviewWire phai serialize DUNG sau ten truong snake_case nay (Story 6.10 \
+         them bon truong tom tat cap lot nhap)"
     );
     assert_eq!(object.get("chapter_count"), Some(&serde_json::Value::Number(3.into())));
+    assert_eq!(object.get("clean_count"), Some(&serde_json::Value::Number(1.into())));
+    assert_eq!(object.get("needs_review_count"), Some(&serde_json::Value::Number(2.into())));
+    assert_eq!(object.get("broken_item_count"), Some(&serde_json::Value::Number(0.into())));
+    assert_eq!(object.get("any_signal_participated"), Some(&serde_json::Value::Bool(true)));
 
     let chapters = object.get("chapters").and_then(|v| v.as_array()).expect("chapters la mang");
     assert_eq!(chapters.len(), 3, "ca nay phai mang THAT SU nhieu Chuong, khong phai mot ca N=1");
@@ -9369,26 +9407,43 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
             &"ord".to_owned(),
             &"title".to_owned(),
             &"length".to_owned(),
-            // THÊM (Story 6.10a) — trục tóm tắt eager moi: so khop luat lam sach CUA CHINH
-            // Chuong nay, phuc vu phep so trung vi cua Story 6.10 sau nay.
             &"cleanup_match_count".to_owned(),
+            // THÊM (Story 6.10) — hai truong FR125/phan quyet moi.
+            &"joined_line_count_in_chapter".to_owned(),
+            &"needs_review".to_owned(),
+            &"review_causes".to_owned(),
         ]),
-        "ChapterSplitPreviewEntryWire phai serialize DUNG bon ten truong nay (Story 6.10a them \
-         `cleanup_match_count`)"
+        "ChapterSplitPreviewEntryWire phai serialize DUNG bay ten truong nay (Story 6.10 them \
+         `joined_line_count_in_chapter`/`needs_review`/`review_causes`)"
     );
     assert_eq!(first.get("ord"), Some(&serde_json::Value::Number(1.into())));
     assert_eq!(first.get("title"), Some(&serde_json::Value::String("Chương 1: Mở Đầu".to_owned())));
     assert_eq!(first.get("length"), Some(&serde_json::Value::Number(120.into())));
     assert_eq!(first.get("cleanup_match_count"), Some(&serde_json::Value::Number(2.into())));
+    assert_eq!(first.get("needs_review"), Some(&serde_json::Value::Bool(true)));
+    assert_eq!(
+        first.get("review_causes"),
+        Some(&serde_json::Value::Array(vec![serde_json::Value::String("high_cleanup_matches".to_owned())]))
+    );
 
-    // Chương giữa — `title: None` phải ra `null` CÓ MẶT, và `cleanup_match_count: 0` là một
-    // SỐ THẬT (không phải một chỗ chưa tính), không bị lẫn với `null`.
+    // Chương giữa — `title: None` phải ra `null` CÓ MẶT; `cleanup_match_count: Some(0)` là
+    // một SỐ THẬT (luật không khớp gì) — KHÁC HẲN `joined_line_count_in_chapter: None`
+    // (không đo được cho Chương này), và `null` không bị lẫn với `Some(0)`.
     let second = chapters[1].as_object().expect("chapters[1] la object");
     assert_eq!(second.get("title"), Some(&serde_json::Value::Null));
     assert_eq!(second.get("cleanup_match_count"), Some(&serde_json::Value::Number(0.into())));
+    assert_eq!(second.get("joined_line_count_in_chapter"), Some(&serde_json::Value::Null));
+    assert_eq!(second.get("needs_review"), Some(&serde_json::Value::Bool(true)));
+    assert_eq!(
+        second.get("review_causes"),
+        Some(&serde_json::Value::Array(vec![serde_json::Value::String("not_measured".to_owned())])),
+        "gia tri null duoi mot hang rao la CAN XEM voi nguyen nhan NotMeasured, khong bao gio sach"
+    );
 
     // Ba Chương phải mang BA bộ số RIÊNG — không phải ba lần cùng một fixture chép lại.
     let third = chapters[2].as_object().expect("chapters[2] la object");
+    assert_eq!(third.get("needs_review"), Some(&serde_json::Value::Bool(false)));
+    assert_eq!(third.get("review_causes"), Some(&serde_json::Value::Array(vec![])));
     assert_ne!(first.get("length"), second.get("length"));
     assert_ne!(second.get("length"), third.get("length"));
     assert_ne!(first.get("cleanup_match_count"), third.get("cleanup_match_count"));
@@ -9510,7 +9565,7 @@ fn a_source_longer_than_the_evidence_window_marks_every_candidate_window_truncat
         bytes: text.clone().into_bytes(),
         label: "long.txt".to_owned(),
     });
-    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0);
 
     assert_eq!(preview.candidates.len(), 5, "nguon co byte de do -- du nam o");
     for candidate in &preview.candidates {
@@ -9541,8 +9596,8 @@ fn the_same_mid_sentence_bytes_normalize_differently_by_source_lang_through_rend
         label: "mid-sentence.txt".to_owned(),
     });
 
-    let preview_en = preview_import_encoding(&shape_for(), "en", &[], None, &[]);
-    let preview_zh = preview_import_encoding(&shape_for(), "zh", &[], None, &[]);
+    let preview_en = preview_import_encoding(&shape_for(), "en", &[], None, &[], 0);
+    let preview_zh = preview_import_encoding(&shape_for(), "zh", &[], None, &[], 0);
 
     let utf8_en = preview_en
         .candidates

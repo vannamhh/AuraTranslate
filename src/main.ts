@@ -78,6 +78,7 @@ import {
   prevImportPreviewBlock,
   prevImportPreviewChapter,
   toggleImportPreviewBlockKept,
+  toggleImportPreviewChapterFilter,
 } from './importPreviewState'
 // ── Story 5.3 — "Quét lại thư mục" (FR99) ────────────────────────────────────────────
 //
@@ -463,6 +464,9 @@ async function boot(): Promise<void> {
       // lý do sáu hàm Story 6.9 ngay trên.
       nextImportPreviewChapter,
       prevImportPreviewChapter,
+      // Story 6.10 — bộ lọc "cần xem" (`⌥W`). Hàm THUẦN, cùng cửa và cùng lý do hai hàm ngay
+      // trên.
+      toggleImportPreviewChapterFilter,
       // Story 5.3 — "Quét lại thư mục" (FR99).
       rescanLibraryFolder,
       chooseLibraryRootFolder,

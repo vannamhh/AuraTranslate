@@ -1174,7 +1174,34 @@ pub struct CleanupPreviewWire {
     pub final_text: String,
 }
 
-/// Một Chương trong khối tách Chương (Story 6.6, tầng 4) — số thứ tự, tiêu đề, độ dài.
+/// Nguyên nhân *cần xem* trên dây — khớp `core::segment::review::ReviewCause`, BỐN khoá
+/// literal ĐÓNG (§Always spec 6.10: "bốn nhãn nguyên nhân là bốn khoá literal riêng qua một
+/// `switch` cạn" — frontend không nội suy khoá, `check:i18n` phải thấy literal).
+///
+/// ⚠️ `#[serde(rename_all = "snake_case")]` — bốn nhánh, không phải tên trường.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewCauseWire {
+    ShortLength,
+    HighCleanupMatches,
+    HighJoinedLines,
+    NotMeasured,
+}
+
+impl From<crate::core::segment::review::ReviewCause> for ReviewCauseWire {
+    fn from(c: crate::core::segment::review::ReviewCause) -> Self {
+        use crate::core::segment::review::ReviewCause;
+        match c {
+            ReviewCause::ShortLength => ReviewCauseWire::ShortLength,
+            ReviewCause::HighCleanupMatches => ReviewCauseWire::HighCleanupMatches,
+            ReviewCause::HighJoinedLines => ReviewCauseWire::HighJoinedLines,
+            ReviewCause::NotMeasured => ReviewCauseWire::NotMeasured,
+        }
+    }
+}
+
+/// Một Chương trong khối tách Chương (Story 6.6, tầng 4) — số thứ tự, tiêu đề, độ dài, phán
+/// quyết *cần xem*/*sạch* (Story 6.10).
 ///
 /// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -1187,17 +1214,37 @@ pub struct ChapterSplitPreviewEntryWire {
     /// Độ dài `source_text` của Chương này, tính bằng ĐIỂM MÃ (không phải byte) — Task list
     /// spec 6.6.
     pub length: usize,
-    /// **THÊM 2026-09-08 (Story 6.10a)** — tổng số chỗ khớp luật làm sạch CỦA CHÍNH Chương
-    /// này (`chapter.cleanup_report.per_rule_counts` cộng dồn qua MỌI luật, kể cả luật đã
-    /// tắt — cùng quy ước "tắt đổi việc xoá, không đổi việc đo" của
-    /// [`CleanupRuleReportWire::count_in_chapter`]). Đây LÀ trục tóm tắt **eager** mà Story
-    /// 6.10 cần cho phép so trung vị (§Design Notes: "6.10 cần SỐ trên mọi Chương, không cần
-    /// văn bản") — story NÀY chỉ cấp con số, không dựng bộ lọc/ngưỡng nào lên nó (§Never).
-    /// `0` khi Chương không có báo cáo làm sạch (bước 3 không tạo được, hoặc — đường
-    /// `Blob` + `chapter_pattern` — Chương này không phải Chương ord=1, xem "GIỚI HẠN THẬT"
-    /// ở doc-comment [`cleanup_and_chapters_preview_for`]) — `0` ở đây là một SỐ THẬT ("không
-    /// đo được cho Chương này"), không phải một giá trị giữ chỗ để né `Option`.
-    pub cleanup_match_count: usize,
+    /// **THÊM 2026-09-08 (Story 6.10a).** 🔵 **SỬA 2026-09-08 (Story 6.10) — `usize` →
+    /// `Option<usize>`, doc-comment cũ đã HẾT ĐÚNG.** Bản 6.10a lập luận `0` ở đây là "một SỐ
+    /// THẬT (không đo được cho Chương này)" — đúng chỗ HAI NGHĨA bị hàn vào một số `0` mà Story
+    /// 6.10 tồn tại để tách: `Some(0)` = *luật thật sự không khớp gì* (đo được, bằng không);
+    /// `None` = *không đo được cho Chương này* (bước 3 không tạo được báo cáo, hoặc — đường
+    /// `Blob` + `chapter_pattern` — Chương này không phải Chương `ord = 1`, xem "GIỚI HẠN THẬT"
+    /// ở doc-comment [`cleanup_and_chapters_preview_for`]). Trộn hai nghĩa vào `0` làm một
+    /// Chương CHƯA AI ĐO trông giống một Chương ĐÃ ĐO VÀ SẠCH — đúng lớp lỗi rỗng-im-lặng mà
+    /// `AGENTS.md` gọi tên là trung tâm của dự án (AC 2026-09-08). Tổng CỦA CHÍNH Chương này
+    /// (`chapter.cleanup_report.per_rule_counts` cộng dồn qua MỌI luật, kể cả luật đã tắt —
+    /// cùng quy ước "tắt đổi việc xoá, không đổi việc đo" của
+    /// [`CleanupRuleReportWire::count_in_chapter`]) — trục tóm tắt **eager** mà hàng rào Tukey
+    /// của Story 6.10 đọc trực tiếp (`core::segment::review::classify`).
+    pub cleanup_match_count: Option<usize>,
+    /// **THÊM 2026-09-08 (Story 6.10)** — số LẦN bước 4 (chuẩn hoá) đã NỐI hai dòng làm một,
+    /// CỦA CHÍNH Chương này (FR125, khớp `ImportedChapter::joined_line_count`). 🔴 Tên
+    /// KHÔNG phải `joined_lines` trần — tên đó đã thuộc [`NormalizedPreviewWire::joined_lines`]
+    /// với nghĩa KHÁC (theo ứng viên bảng mã, có cửa sổ `EVIDENCE_WINDOW_BYTES`); tên này theo
+    /// quy ước `count_in_chapter` đã có ở [`CleanupRuleReportWire`]. `None` = *không đo được
+    /// cho Chương này* — trên đường `Blob` con số đo được TRƯỚC khi tách Chương thuộc về TOÀN
+    /// TÀI LIỆU, không quy về Chương nào được, kể cả `ord = 1` (xem doc-comment
+    /// `core::segment::pipeline::Flow::joined_line_counts`); trên đường `Chapters` (URL) con
+    /// số của mỗi Chương là THẬT.
+    pub joined_line_count_in_chapter: Option<usize>,
+    /// **THÊM 2026-09-08 (Story 6.10)** — phán quyết của hàng rào Tukey
+    /// (`core::segment::review::classify`) trên CHÍNH Chương này. Đây LÀ phán quyết tính LÚC
+    /// CHẠY, không lưu xuống đĩa (§Never spec 6.10) — `needs_review == !review_causes.is_empty()`
+    /// là một bất biến giữ bởi phía Rust, không phải hai trường độc lập.
+    pub needs_review: bool,
+    /// Danh mục nguyên nhân *cần xem* — RỖNG khi và chỉ khi `needs_review == false`.
+    pub review_causes: Vec<ReviewCauseWire>,
 }
 
 /// Khối tách Chương của MỘT ứng viên/đường tự khai — tầng 4 (Story 6.6, FR14).
@@ -1209,31 +1256,91 @@ pub struct ChapterSplitPreviewEntryWire {
 /// nhìn thấy MỌI Chương, không chỉ một cửa sổ cố định — tầng hiển thị
 /// (`ImportPreviewOverlay.vue`) tự co gọn về "ba đầu, `⋯`, ba cuối" làm khung nhìn MẶC ĐỊNH,
 /// và mở rộng khi người dùng bấm sắp xếp.
+///
+/// 🔵 **SỬA 2026-09-08 (Story 6.10) — lệnh cấm "cờ đáng ngờ" ở trên là một lượt HOÃN, không
+/// phải một lượt CẤM VĨNH VIỄN, và bản sửa này chính là lúc nó được thi hành.**
+/// `deferred-work.md` (mục "Cờ 'đáng ngờ' + nút lọc cho danh sách Chương") ghi rõ lý do hoãn:
+/// *"Cả hai vế đòi một hằng số ngưỡng CHƯA ĐO ĐƯỢC trước khi có một kho truyện thật"* — đó là
+/// lý do loại một NGƯỠNG TUYỆT ĐỐI (một độ dài ký tự cụ thể, một số lần khớp cụ thể), KHÔNG
+/// phải lý do loại mọi phép so. `needs_review`/`review_causes` dưới đây (Story 6.10) là đúng
+/// cờ đó, dựng bằng hàng rào Tukey — một phép so TƯƠNG ĐỐI giữa các Chương trong CÙNG lượt
+/// nhập (`core::segment::review::classify`), không một hằng số tuyệt đối nào. Chip
+/// `title`/`length` SẮP-XẾP-ĐƯỢC ở trên VẪN giữ nguyên — đây là một lớp bổ sung, không phải
+/// một lượt thay thế.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ChapterSplitPreviewWire {
     pub chapter_count: usize,
     pub chapters: Vec<ChapterSplitPreviewEntryWire>,
+    /// **THÊM 2026-09-08 (Story 6.10)** — số mục URL HỎNG của CẢ lượt nhập (`error.is_some()`
+    /// trên `UrlImportItemWire`) — `0` trên đường tệp/dán tay (không có khái niệm "mục hỏng").
+    /// Đi vào [`build_chapter_split_preview_wire`] qua THAM SỐ, KHÔNG tính lại ở đây (§Always
+    /// spec 6.10: "hai con số do RUST cộng, kể cả vế link hỏng"). Link hỏng KHÔNG BAO GIỜ trở
+    /// thành một hàng trong `chapters` (§Always spec 6.10, phương án C) — con số này đứng
+    /// TÁCH BIỆT để tầng hiển thị ghép câu *"X Chương + Y link hỏng"* mà không phải tự cộng gì.
+    pub broken_item_count: usize,
+    /// **THÊM 2026-09-08 (Story 6.10)** — `N` của chip *"N cần xem · M sạch"`. BẰNG số Chương
+    /// mang `needs_review == true` CỘNG `broken_item_count` — một link hỏng LUÔN LUÔN cần chú
+    /// ý (nó hỏng), nên nó được cộng vào vế CẦN XEM (§Always spec 6.10: "kể cả vế link hỏng").
+    /// Rust cộng con số này — không phải một phép cộng ở tầng hiển thị (AD-1).
+    pub needs_review_count: usize,
+    /// **THÊM 2026-09-08 (Story 6.10)** — `M` của chip — số Chương mang `needs_review ==
+    /// false`. KHÔNG BAO GIỜ cộng `broken_item_count` (link hỏng không phải Chương, và không
+    /// bao giờ "sạch" — nó hỏng).
+    pub clean_count: usize,
+    /// **THÊM 2026-09-08 (Story 6.10)** — `true` khi ÍT NHẤT một trong ba tín hiệu so-tương-đối
+    /// (`length`/`cleanup_match_count`/`joined_line_count`) có hàng rào tồn tại cho lượt nhập
+    /// này (`core::segment::review::SignalParticipation::any`). `false` ⇒ KHÔNG tín hiệu nào
+    /// tham gia (dưới bốn giá trị đo được cho CẢ ba, hoặc mọi hàng rào đều suy biến) —
+    /// `needs_review_count`/`clean_count` khi đó KHÔNG được đọc như "đã đo và sạch": tầng hiển
+    /// thị phải nói *"chưa đủ Chương để so"* thay vì khai `0 cần xem` (§Always spec 6.10, AC
+    /// 2026-09-08 — "không đo được không bao giờ rơi vào nhánh sạch", áp cho CẢ LƯỢT NHẬP khi
+    /// trường này là `false`).
+    pub any_signal_participated: bool,
 }
 
+/// Dựng khối tách Chương (tầng 4) — TÍNH LUÔN phán quyết *cần xem*/*sạch* bằng hàng rào Tukey
+/// (`core::segment::review::classify`, Story 6.10) trên chính ba số tóm tắt vừa đọc từ
+/// `chapters`. `broken_item_count` đi vào qua THAM SỐ — chỗ gọi trên đường tệp/dán tay truyền
+/// `0` (§Always spec 6.10: "đường tệp/dán tay truyền 0"), đường URL truyền số mục
+/// `error.is_some()` của CẢ danh sách (xem `url_import_encoding_preview`).
 fn build_chapter_split_preview_wire(
     chapters: &[crate::core::segment::import::ImportedChapter],
+    broken_item_count: usize,
 ) -> ChapterSplitPreviewWire {
+    let metrics: Vec<crate::core::segment::review::ChapterMetrics> = chapters
+        .iter()
+        .map(|c| crate::core::segment::review::ChapterMetrics {
+            length: c.source_text.chars().count(),
+            cleanup_match_count: c.cleanup_report.as_ref().map(|r| r.per_rule_counts.values().sum()),
+            joined_line_count: c.joined_line_count,
+        })
+        .collect();
+    let outcome = crate::core::segment::review::classify(&metrics);
+
+    let entries: Vec<ChapterSplitPreviewEntryWire> = chapters
+        .iter()
+        .zip(metrics.iter())
+        .zip(outcome.verdicts.iter())
+        .enumerate()
+        .map(|(i, ((c, m), verdict))| ChapterSplitPreviewEntryWire {
+            ord: i as i64 + 1,
+            title: c.title.clone(),
+            length: m.length,
+            cleanup_match_count: m.cleanup_match_count,
+            joined_line_count_in_chapter: m.joined_line_count,
+            needs_review: verdict.needs_review,
+            review_causes: verdict.causes.iter().map(|&cause| ReviewCauseWire::from(cause)).collect(),
+        })
+        .collect();
+
+    let needs_review_chapters = entries.iter().filter(|e| e.needs_review).count();
     ChapterSplitPreviewWire {
-        chapter_count: chapters.len(),
-        chapters: chapters
-            .iter()
-            .enumerate()
-            .map(|(i, c)| ChapterSplitPreviewEntryWire {
-                ord: i as i64 + 1,
-                title: c.title.clone(),
-                length: c.source_text.chars().count(),
-                cleanup_match_count: c
-                    .cleanup_report
-                    .as_ref()
-                    .map(|r| r.per_rule_counts.values().sum())
-                    .unwrap_or(0),
-            })
-            .collect(),
+        chapter_count: entries.len(),
+        clean_count: entries.len() - needs_review_chapters,
+        needs_review_count: needs_review_chapters + broken_item_count,
+        broken_item_count,
+        any_signal_participated: outcome.participation.any(),
+        chapters: entries,
     }
 }
 
@@ -1607,6 +1714,10 @@ pub struct ImportEncodingPreview {
 /// `chapter_report = None`, `final_text` rơi về `display_window`) — CÙNG hình dạng "không có
 /// gì để hiện" mà chỗ gọi vốn đã xử lý cho ca `chapters.first() == None`, không một nhánh lỗi
 /// mới.
+/// 🔴 **THÊM tham số `broken_item_count` 2026-09-08 (Story 6.10).** Số mục URL hỏng của CẢ
+/// lượt nhập — chỉ có nghĩa cho đường URL; mọi chỗ gọi khác (đường tệp/dán tay, chi tiết LAZY
+/// của `chapter_detail_for_index`) truyền `0` (§Always spec 6.10: "đường tệp/dán tay truyền
+/// 0"). Đi thẳng vào [`build_chapter_split_preview_wire`] — hàm này không cộng/trừ gì lên nó.
 pub fn cleanup_and_chapters_preview_for(
     shape: PipelineShape,
     encoding: &'static encoding_rs::Encoding,
@@ -1618,6 +1729,7 @@ pub fn cleanup_and_chapters_preview_for(
     extract_main_content: bool,
     block_overrides: &[Option<bool>],
     detail_chapter_index: usize,
+    broken_item_count: usize,
 ) -> (CleanupPreviewWire, ChapterSplitPreviewWire, Option<ChapterBlocksPreviewWire>) {
     let input = PipelineInput::with_encoding(shape, encoding, source_lang)
         .with_cleanup_rules(cleanup_rules.to_vec())
@@ -1633,7 +1745,7 @@ pub fn cleanup_and_chapters_preview_for(
         }
     };
 
-    let chapters_wire = build_chapter_split_preview_wire(&chapters);
+    let chapters_wire = build_chapter_split_preview_wire(&chapters, broken_item_count);
     let detail_chapter = chapters.get(detail_chapter_index);
     // 🔴 SỬA (vòng rà đối kháng bước 4, P1) — `block_overrides` CHỈ có nghĩa cho đơn vị 0 của
     // `shape` GỐC (`PipelineInput::block_overrides` doc-comment: "Chỉ `units[0]` đọc trường
@@ -1785,6 +1897,9 @@ fn build_cleanup_preview_wire(
 /// (`c` — kết quả `encoding::render_candidates`) GIỮ NGUYÊN chốt từ đơn vị ĐẦU (§Always: "một
 /// bảng mã cho cả danh sách") — chỗ gọi (`preview_import_encoding`) không đổi vế đó.
 /// 🔵 **SỬA 2026-09-05 (Story 6.6)** — nhận thêm `chapter_pattern`, trả kèm `chapters`.
+/// 🔴 **THÊM tham số `broken_item_count` 2026-09-08 (Story 6.10)** — cùng lý do tham số cùng
+/// tên ở [`cleanup_and_chapters_preview_for`]; chỗ gọi (`preview_import_encoding`) truyền
+/// tường minh, không suy từ `shape`.
 fn encoding_candidate_wire(
     c: EncodingCandidate,
     shape: &PipelineShape,
@@ -1793,6 +1908,7 @@ fn encoding_candidate_wire(
     chapter_pattern: Option<&ChapterPattern>,
     extract_main_content: bool,
     block_overrides: &[Option<bool>],
+    broken_item_count: usize,
 ) -> EncodingCandidateWire {
     // `pipeline_window`/`normalized` đồng bộ `Some`/`None` với nhau (cả hai tính từ
     // CÙNG `decoded.as_ref()` bên trong `render_candidates`) — an toàn đọc `window_truncated`
@@ -1816,6 +1932,7 @@ fn encoding_candidate_wire(
                     extract_main_content,
                     block_overrides,
                     0,
+                    broken_item_count,
                 );
                 (Some(cleanup_wire), Some(chapters_wire), blocks_wire)
             }
@@ -1831,7 +1948,7 @@ fn encoding_candidate_wire(
                     std::collections::BTreeMap::new(),
                     window_truncated,
                 )),
-                Some(build_chapter_split_preview_wire(&[])),
+                Some(build_chapter_split_preview_wire(&[], broken_item_count)),
                 None,
             ),
         },
@@ -1869,12 +1986,20 @@ fn encoding_candidate_wire(
 /// 🔴 **THÊM tham số `block_overrides` 2026-09-07 (Story 6.9).** Chỉ có nghĩa cho đơn vị ĐẦU
 /// của `PipelineShape::Chapters` (đường URL); nhánh `Blob`/tự khai truyền `&[]` (không bao
 /// giờ đọc tới).
+/// 🔴 **THÊM tham số `broken_item_count` 2026-09-08 (Story 6.10).** Số mục URL hỏng của CẢ
+/// lượt nhập — chảy vào `encoding_candidate_wire` cho MỌI ứng viên trên nhánh CÓ byte để dò
+/// (`Blob(RawBytes)`/`Chapters`); nhánh TỰ KHAI (`AlreadyText`) luôn hardcode `0` bên trong
+/// hàm này (§Always spec 6.10: nhánh đó CHÍNH LÀ "đường dán tay" — không bao giờ là đường
+/// URL, xem doc-comment `PipelineInput::extract_main_content`). Chỗ gọi trên đường tệp/dán
+/// tay (`wire::preview_import_encoding_from_text`/`_from_file`) truyền `0`; đường URL
+/// (`url_import_encoding_preview`) truyền số mục `error.is_some()` của `UrlImportItemsState`.
 pub fn preview_import_encoding(
     shape: &PipelineShape,
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
     chapter_pattern: Option<&ChapterPattern>,
     block_overrides: &[Option<bool>],
+    broken_item_count: usize,
 ) -> ImportEncodingPreview {
     // 🔵 **SỬA 2026-09-08 (Story 6.10a) — bỏ tham số `label` riêng, thêm `shape` (hình dạng
     // GỐC nguyên vẹn).** `label` từng cần thiết vì hình dạng nạp vào pipeline bị GÓI LẠI
@@ -1917,6 +2042,7 @@ pub fn preview_import_encoding(
                         chapter_pattern,
                         extract_main_content,
                         block_overrides,
+                        broken_item_count,
                     )
                 })
                 .collect()
@@ -1983,6 +2109,9 @@ pub fn preview_import_encoding(
                     false,
                     &[],
                     0,
+                    // Nhánh TỰ KHAI không bao giờ có mục URL để mà hỏng (xem doc-comment
+                    // tham số `broken_item_count` ở `preview_import_encoding`) — `0` cố định.
+                    0,
                 );
                 (cleanup, chapters)
             }
@@ -1997,7 +2126,7 @@ pub fn preview_import_encoding(
                     std::collections::BTreeMap::new(),
                     normalized.window_truncated,
                 ),
-                build_chapter_split_preview_wire(&[]),
+                build_chapter_split_preview_wire(&[], 0),
             ),
         }
     });
@@ -2132,6 +2261,11 @@ pub fn chapter_detail_for_index(
         extract_main_content,
         block_overrides,
         chapter_index,
+        // Chi tiết LAZY của MỘT Chương — `chapters_wire` ở đây chỉ dùng để đọc
+        // `chapter_count` (dòng ngay dưới), không lộ ra ngoài hàm này, nên số mục hỏng không
+        // có ý nghĩa để mà truyền (0 an toàn, xem doc-comment tham số `broken_item_count` ở
+        // `cleanup_and_chapters_preview_for`).
+        0,
     );
     if chapter_index >= chapters_wire.chapter_count {
         return None;
@@ -2591,6 +2725,10 @@ fn sync_pending_from_url_items(pending: &PendingImportSourceState, items: &[UrlI
 /// hỏng. Nút xác nhận khoá KHÔNG còn phụ thuộc kết quả hàm này (xem doc-comment
 /// [`chapters_shape_for_view`]) — `sync_pending_from_url_items` (đường GHI) vẫn gọi
 /// [`chapters_shape_if_all_ok`] y nguyên.
+/// 🔴 **THÊM 2026-09-08 (Story 6.10)** — đếm số mục `error.is_some()` của CẢ `items` rồi
+/// truyền vào [`preview_import_encoding`] — đây là chỗ DUY NHẤT tính `broken_item_count` cho
+/// đường URL, đọc thẳng từ `items` (không từ danh sách Chương — link hỏng không bao giờ vào
+/// đó, §Always spec 6.10).
 fn url_import_encoding_preview(
     items: &[UrlImportItem],
     source_lang: &str,
@@ -2598,7 +2736,8 @@ fn url_import_encoding_preview(
     block_overrides: &[Option<bool>],
 ) -> Option<ImportEncodingPreview> {
     let shape = chapters_shape_for_view(items)?;
-    Some(preview_import_encoding(&shape, source_lang, cleanup_rules, None, block_overrides))
+    let broken_item_count = items.iter().filter(|it| it.error.is_some()).count();
+    Some(preview_import_encoding(&shape, source_lang, cleanup_rules, None, block_overrides, broken_item_count))
 }
 
 /// Dựng [`UrlImportBatchWire`] từ trạng thái HIỆN TẠI — dùng chung bởi cả ba lệnh
@@ -4047,6 +4186,9 @@ pub mod wire {
             &cleanup_rules,
             pattern.as_ref(),
             &[],
+            // Đường tệp/dán tay — 0 mục URL để mà hỏng (§Always spec 6.10: "đường tệp/dán
+            // tay truyền 0").
+            0,
         );
         super::stash_pending_import_source(&state, shape);
         Ok(preview)
@@ -4084,6 +4226,9 @@ pub mod wire {
             &cleanup_rules,
             pattern.as_ref(),
             &[],
+            // Đường tệp/dán tay — 0 mục URL để mà hỏng (§Always spec 6.10: "đường tệp/dán
+            // tay truyền 0").
+            0,
         );
         super::stash_pending_import_source(&state, shape);
         Ok(preview)

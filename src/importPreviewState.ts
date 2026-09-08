@@ -224,6 +224,14 @@ const chapterDetailLoading = ref(false)
 const chapterDetailError = ref<IpcError | null>(null)
 
 /**
+ * **THÊM (Story 6.10)** — bộ lọc "cần xem" (`⌥W`), state HIỂN THỊ THUẦN — 0 lời gọi IPC (Rust
+ * đã cấp sẵn `needs_review`/`review_causes` cho MỌI Chương). `true` ⇒ tầng 4 co về Chương
+ * `needs_review === true`, danh sách mục URL co về mục hỏng — cùng thao tác, hai danh sách
+ * (§Design Notes spec 6.10: "Hai danh sách, một thao tác").
+ */
+const chapterFilterActive = ref(false)
+
+/**
  * **THÊM (Story 6.6)** — mẫu phân tách Chương ĐANG GÕ, tham số MỖI LƯỢT NHẬP (§Always spec
  * 6.6: KHÔNG một cơ chế "nhớ mẫu" nào — Ice chốt 2026-09-05 mặc định KHÔNG nhớ giữa hai lượt
  * nhập, xem §Ask First của spec). Chuỗi rỗng ⇒ không mẫu (no-op, N = 1) — xem
@@ -311,6 +319,8 @@ export const importPreviewChapterDetailLoading: DeepReadonly<Ref<boolean>> =
 /** Lỗi RIÊNG của lượt dựng chi tiết Chương gần nhất. */
 export const importPreviewChapterDetailError: DeepReadonly<Ref<IpcError | null>> =
   readonly(chapterDetailError)
+/** Bộ lọc "cần xem" (`⌥W`) đang bật hay không — Story 6.10. */
+export const importPreviewChapterFilterActive: DeepReadonly<Ref<boolean>> = readonly(chapterFilterActive)
 export const importPreviewChapterPatternText: DeepReadonly<Ref<string>> = readonly(chapterPatternText)
 export const importPreviewChapterPatternKind: DeepReadonly<Ref<ChapterPatternKindWire>> =
   readonly(chapterPatternKind)
@@ -536,6 +546,7 @@ async function openWith(
   blockActionError.value = null
   jumpToCleanupRulesSignal.value = 0
   chapterCursor.value = 0
+  chapterFilterActive.value = false
   chapterDetailCleanup.value = null
   chapterDetailBlocks.value = null
   chapterDetailLoading.value = false
@@ -660,6 +671,7 @@ export async function openImportPreviewFromUrls(
   blockActionError.value = null
   jumpToCleanupRulesSignal.value = 0
   chapterCursor.value = 0
+  chapterFilterActive.value = false
   chapterDetailCleanup.value = null
   chapterDetailBlocks.value = null
   chapterDetailLoading.value = false
@@ -1037,6 +1049,57 @@ export function nextImportPreviewChapter(): void {
 /** `⌥←` — handler của `import.preview.chapter_prev`. */
 export function prevImportPreviewChapter(): void {
   moveImportPreviewChapterCursor(-1)
+}
+
+/**
+ * `⌥W` — handler của `import.preview.chapter_filter_toggle` (Story 6.10). Bật/tắt bộ lọc
+ * "cần xem" — state HIỂN THỊ THUẦN, 0 lời gọi IPC (Rust đã cấp sẵn `needs_review` cho MỌI
+ * Chương lúc tải xem trước). No-op khi lớp phủ đã đóng (I/O Matrix: "Không thao tác nào của
+ * màn nhập xảy ra").
+ *
+ * TẮT một bộ lọc đang bật LUÔN được phép. BẬT bị chặn khi `needs_review_count === 0` (I/O
+ * Matrix: "Bộ lọc không bật... Không kêu, không ném") — tầng hiển thị (`ImportPreviewOverlay.vue`)
+ * tự nói ra *"không có Chương nào cần xem"* bằng cách ĐỌC LẠI đúng con số này, không qua một
+ * cờ lỗi riêng.
+ *
+ * 🔴 **SỬA (vòng rà đối kháng bước 4, 2026-09-08) — BẬT cũng bị chặn khi `!any_signal_participated`.**
+ * `needs_review_count > 0` KHÔNG đủ để BẬT an toàn: link hỏng CỘNG vào con số đó bất kể hàng
+ * rào có tồn tại hay không (§Always spec 6.10 — "kể cả vế link hỏng"). Ca thật: dán 4 link,
+ * 1 hỏng ⇒ 3 Chương thật, dưới bốn giá trị đo được ⇒ KHÔNG hàng rào nào tồn tại
+ * (`any_signal_participated === false`) ⇒ 0 Chương `needs_review`, nhưng `needs_review_count
+ * === 1` (từ link hỏng) khiến điều kiện CŨ cho BẬT. Bật xong: tầng 4 RỖNG HẲN (không Chương
+ * nào `needs_review`) VÀ chip biến mất luôn (`ImportPreviewOverlay.vue` thay cả khối bằng dòng
+ * "chưa đủ Chương để so" khi `!any_signal_participated`) — người dùng mất trạng thái, mất lối
+ * tắt. Điều kiện chặn BẬT giờ đọc CẢ hai cờ Rust đã cấp sẵn, cùng khuôn no-op đã có (không
+ * kêu, không ném).
+ */
+export function toggleImportPreviewChapterFilter(): void {
+  if (!overlayOpen.value) return
+  if (chapterFilterActive.value) {
+    chapterFilterActive.value = false
+    return
+  }
+  const chapters = importPreviewSelectedChapters.value
+  if (chapters === null || chapters.needs_review_count === 0 || !chapters.any_signal_participated) return
+  chapterFilterActive.value = true
+  // Chương đang chọn (con trỏ) vừa bị lọc khỏi DOM (nó SẠCH) — dời con trỏ tới Chương CẦN XEM
+  // đầu tiên (I/O Matrix: "Con trỏ dời tới Chương cần xem đầu tiên"). `loadImportPreviewChapterDetail`
+  // tự no-op ngoài đường URL (xem doc-comment của nó) — gọi vô điều kiện ở đây an toàn.
+  //
+  // 🔴 `tsconfig.json` không bật `noUncheckedIndexedAccess` — so trực tiếp `chapterCursor`
+  // với `.length` (đúng khuôn `toggleImportPreviewBlockKept`) thay vì đọc `[index]` rồi so
+  // `undefined` (kiểu tĩnh coi phép so đó luôn sai).
+  const currentIsClean =
+    chapterCursor.value >= 0 &&
+    chapterCursor.value < chapters.chapters.length &&
+    !chapters.chapters[chapterCursor.value].needs_review
+  if (currentIsClean) {
+    const firstNeedsReview = chapters.chapters.findIndex((c) => c.needs_review)
+    if (firstNeedsReview !== -1) {
+      chapterCursor.value = firstNeedsReview
+      void loadImportPreviewChapterDetail(firstNeedsReview)
+    }
+  }
 }
 
 /**
@@ -1505,6 +1568,7 @@ export function resetImportPreview(): void {
   blockActionError.value = null
   jumpToCleanupRulesSignal.value = 0
   chapterCursor.value = 0
+  chapterFilterActive.value = false
   chapterDetailCleanup.value = null
   chapterDetailBlocks.value = null
   chapterDetailLoading.value = false

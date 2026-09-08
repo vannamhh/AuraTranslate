@@ -50,7 +50,14 @@ function cleanupFor(text: string): ImportEncodingPreview['candidates'][number]['
 /** Khối tách Chương tối giản, một Chương duy nhất — Story 6.6. Các ca của tệp này canh
  * dải bảng mã, không canh nội dung tầng 4 (xem `importPreviewChapters.test.ts` cho ca đó). */
 function chaptersFor(title: string): ImportEncodingPreview['candidates'][number]['chapters'] {
-  return { chapter_count: 1, chapters: [{ ord: 1, title, length: title.length, cleanup_match_count: 0 }] }
+  return {
+    chapter_count: 1,
+    chapters: [{ ord: 1, title, length: title.length, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] }],
+    broken_item_count: 0,
+    needs_review_count: 0,
+    clean_count: 1,
+    any_signal_participated: false,
+  }
 }
 
 /** Rust LUÔN cấp đủ năm ô khi có byte để dò, kể cả tin cậy CAO (I/O Matrix "Tệp thuần ASCII":

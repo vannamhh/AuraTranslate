@@ -392,7 +392,7 @@ fn disabling_a_previously_matched_rule_removes_its_span_immediately_but_keeps_it
         None,
     )
     .expect("phan giai hai tang");
-    let preview_on = preview_import_encoding(&shape, "en", &rules_on, None, &[]);
+    let preview_on = preview_import_encoding(&shape, "en", &rules_on, None, &[], 0);
     let cleanup_on = preview_on
         .self_declared_cleanup
         .as_ref()
@@ -409,7 +409,7 @@ fn disabling_a_previously_matched_rule_removes_its_span_immediately_but_keeps_it
         None,
     )
     .expect("phan giai hai tang sau khi tat");
-    let preview_off = preview_import_encoding(&shape, "en", &rules_off, None, &[]);
+    let preview_off = preview_import_encoding(&shape, "en", &rules_off, None, &[], 0);
     let cleanup_off = preview_off
         .self_declared_cleanup
         .as_ref()
@@ -446,7 +446,7 @@ fn pasted_text_with_zero_encoding_candidates_still_gets_a_full_cleanup_block() {
     .expect("phan giai hai tang");
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("truoc xoa sau".to_owned()));
-    let preview = preview_import_encoding(&shape, "en", &rules, None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0);
 
     assert!(preview.candidates.is_empty(), "duong AlreadyText phai cho 0 ung vien bang ma");
     let cleanup = preview
@@ -488,7 +488,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
     let text = "dau truyen. quang cao. cuoi truyen.".to_owned();
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
 
-    let preview = preview_import_encoding(&shape, "en", &rules, None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0);
     let cleanup = preview
         .self_declared_cleanup
         .as_ref()
@@ -569,7 +569,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_no
     // "khối 0" nào ứng với nó để mà loại/giữ. Lượt 1 (KHÔNG override) chỉ để xác nhận khối 3
     // THẬT SỰ bị máy loại, nên ép nó GIỮ ở lượt 2 là một thay đổi QUAN SÁT ĐƯỢC (văn bản DÀI
     // HƠN), không phải một override vô hại trùng với máy đã quyết.
-    let baseline = preview_import_encoding(&shape_for_preview, "en", &[], None, &[]);
+    let baseline = preview_import_encoding(&shape_for_preview, "en", &[], None, &[], 0);
     let baseline_candidate = baseline
         .candidates
         .iter()
@@ -598,7 +598,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_no
         .expect("index 3 phai nam trong tong so khoi that cua baseline");
 
     let preview_with_override =
-        preview_import_encoding(&shape_for_preview, "en", &[], None, &overrides);
+        preview_import_encoding(&shape_for_preview, "en", &[], None, &overrides, 0);
     let candidate_with_override = preview_with_override
         .candidates
         .iter()
@@ -699,7 +699,7 @@ fn each_candidates_tier2_blocks_are_decoded_with_that_candidates_own_encoding_no
         label: "https://example.com/gbk-article".to_owned(),
     }]);
 
-    let preview = preview_import_encoding(&shape, "en", &[], None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0);
     let gbk_candidate = preview.candidates.iter().find(|c| c.label == "GBK").expect("phai co o GBK");
     let gbk_blocks = gbk_candidate
         .blocks
@@ -883,7 +883,7 @@ fn counts_cover_the_whole_chapter_even_when_the_rendered_window_is_truncated() {
     let text = format!("QUANGCAO dau chuong.\n{filler}QUANGCAO cuoi chuong.\n");
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
-    let preview = preview_import_encoding(&shape, "en", &rules, None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0);
     let cleanup =
         preview.self_declared_cleanup.as_ref().expect("nhanh tu khai phai co khoi lam sach");
 
@@ -970,7 +970,7 @@ fn a_match_straddling_the_window_boundary_is_clipped_to_it_not_dropped() {
             .expect("phan giai hai tang");
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
-    let preview = preview_import_encoding(&shape, "en", &rules, None, &[]);
+    let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0);
     let cleanup =
         preview.self_declared_cleanup.as_ref().expect("nhanh tu khai phai co khoi lam sach");
 
@@ -1052,7 +1052,7 @@ fn perf_probe_six_full_pipeline_runs_on_one_large_chapter() {
     // Đường TỰ KHAI (1 lượt `run_pipeline` trên TOÀN văn bản).
     let shape_self_declared = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
     let t0 = std::time::Instant::now();
-    let preview_self = preview_import_encoding(&shape_self_declared, "zh", &rules, None, &[]);
+    let preview_self = preview_import_encoding(&shape_self_declared, "zh", &rules, None, &[], 0);
     let self_declared_elapsed = t0.elapsed();
     assert!(preview_self.self_declared_cleanup.is_some(), "tien de: nhanh tu khai phai co khoi");
 
@@ -1060,7 +1060,7 @@ fn perf_probe_six_full_pipeline_runs_on_one_large_chapter() {
     let shape_candidates =
         PipelineShape::Blob(ChapterInput::RawBytes { bytes: text.into_bytes(), label: String::new() });
     let t1 = std::time::Instant::now();
-    let preview_candidates = preview_import_encoding(&shape_candidates, "zh", &rules, None, &[]);
+    let preview_candidates = preview_import_encoding(&shape_candidates, "zh", &rules, None, &[], 0);
     let candidates_elapsed = t1.elapsed();
     assert_eq!(preview_candidates.candidates.len(), 5, "tien de: du nam o FR126");
 
@@ -1175,6 +1175,7 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
         false,
         &[],
         0,
+        0,
     );
 
     assert_eq!(cleanup_wire.rules.len(), 1, "dung mot luat duoc gieo");
@@ -1234,13 +1235,18 @@ fn cleanup_and_chapters_preview_for_returns_the_summary_of_every_chapter_and_the
         false,
         &[],
         2, // con trỏ ở Chương thứ BA (chỉ số 2), KHÔNG phải Chương 0
+        0,
     );
 
     // Tóm tắt — MỌI Chương, không đổi vì con trỏ.
+    // 🔵 SỬA 2026-09-08 (Story 6.10) — `cleanup_match_count: usize` → `Option<usize>`: `0`
+    // trần hết đúng, chỗ đây LÀ đo được thật (`PipelineShape::Chapters`, mỗi Chương có báo
+    // cáo THẬT của riêng nó — xem doc-comment `ChapterSplitPreviewEntryWire::cleanup_match_count`)
+    // nên cả ba đều bọc `Some(..)`, không `None`.
     assert_eq!(chapters_wire.chapter_count, 3);
-    assert_eq!(chapters_wire.chapters[0].cleanup_match_count, 1);
-    assert_eq!(chapters_wire.chapters[1].cleanup_match_count, 2);
-    assert_eq!(chapters_wire.chapters[2].cleanup_match_count, 0);
+    assert_eq!(chapters_wire.chapters[0].cleanup_match_count, Some(1));
+    assert_eq!(chapters_wire.chapters[1].cleanup_match_count, Some(2));
+    assert_eq!(chapters_wire.chapters[2].cleanup_match_count, Some(0));
 
     // Chi tiết — của ĐÚNG Chương con trỏ đang chọn (chỉ số 2), KHÔNG phải Chương 0.
     assert_eq!(
@@ -1278,6 +1284,7 @@ fn a_detail_chapter_index_past_the_new_chapter_count_falls_back_to_the_empty_det
         false,
         &[],
         5, // ngoai pham vi -- chi co 1 Chuong (chi so 0)
+        0,
     );
     assert_eq!(chapters_wire.chapter_count, 1);
     assert!(blocks_wire.is_none());
@@ -1411,7 +1418,7 @@ fn chapter_detail_for_index_refuses_a_nonzero_index_on_a_blob_shape_even_when_a_
     // Tiền đề — mẫu THẬT SỰ tách `shape` (một đơn vị `Blob`) ra hai Chương, nên phép so biên
     // ở tầng ngoài (`chapter_index >= chapters_wire.chapter_count`) KHÔNG chặn được `1`.
     let (_, chapters_wire, _) = cleanup_and_chapters_preview_for(
-        shape.clone(), encoding_rs::UTF_8, Some(&pattern), "", "en", &[], false, false, &[], 0,
+        shape.clone(), encoding_rs::UTF_8, Some(&pattern), "", "en", &[], false, false, &[], 0, 0,
     );
     assert_eq!(chapters_wire.chapter_count, 2, "tien de: mau phai tach ra dung hai Chuong");
 
@@ -1546,7 +1553,7 @@ fn perf_probe_chapter_split_preview_on_two_thousand_chapters() {
     );
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text));
     let t0 = std::time::Instant::now();
-    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern), &[]);
+    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern), &[], 0);
     let elapsed = t0.elapsed();
 
     let chapters =
@@ -1603,7 +1610,7 @@ fn perf_probe_chapter_split_preview_on_five_candidates_with_two_thousand_chapter
         label: "perf-5-candidates.txt".to_owned(),
     });
     let t0 = std::time::Instant::now();
-    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern), &[]);
+    let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern), &[], 0);
     let elapsed = t0.elapsed();
 
     assert_eq!(

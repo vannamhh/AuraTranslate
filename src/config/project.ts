@@ -185,6 +185,11 @@ export type ChapterPatternInput = {
   kind: ChapterPatternKindWire
 }
 
+/** Nguyên nhân *cần xem* — khớp `commands::project::ReviewCauseWire`, BỐN khoá literal ĐÓNG
+ * (Story 6.10, §Always: "bốn nhãn nguyên nhân là bốn khoá literal riêng qua một `switch`
+ * cạn"). */
+export type ReviewCauseWire = 'short_length' | 'high_cleanup_matches' | 'high_joined_lines' | 'not_measured'
+
 /** Một Chương trong khối tách Chương (tầng 4) — khớp
  * `commands::project::ChapterSplitPreviewEntryWire`. */
 export type ChapterSplitPreviewEntryWire = {
@@ -194,10 +199,23 @@ export type ChapterSplitPreviewEntryWire = {
   title: string | null
   /** Độ dài `source_text`, tính bằng ĐIỂM MÃ. */
   length: number
-  /** **THÊM Story 6.10a** — tổng số chỗ khớp luật làm sạch CỦA CHÍNH Chương này (kể cả luật
-   * đã tắt — cùng quy ước `count_in_chapter`). Trục tóm tắt EAGER phục vụ Story 6.10 (phép so
-   * trung vị) — story này chỉ cấp con số, KHÔNG dựng bộ lọc/ngưỡng nào lên nó. */
-  cleanup_match_count: number
+  /** **THÊM Story 6.10a.** 🔵 **SỬA Story 6.10 — `number` → `number | null`.** `null` = *không
+   * đo được cho Chương này*; một SỐ (kể cả `0`) = *luật thật sự khớp/không khớp gì, đã đo*.
+   * Trục tóm tắt EAGER mà hàng rào Tukey của Story 6.10 đọc trực tiếp
+   * (`core::segment::review::classify`). */
+  cleanup_match_count: number | null
+  /** **THÊM Story 6.10** — số LẦN bước chuẩn hoá đã nối hai dòng làm một, CỦA CHÍNH Chương
+   * này (FR125). `null` = không đo được cho Chương này (trên đường `Blob`, con số đo được
+   * TRƯỚC khi tách Chương thuộc về TOÀN TÀI LIỆU, không quy về Chương nào được — kể cả
+   * Chương đầu). KHÔNG nhầm với `NormalizedPreviewWire.joined_lines` (nghĩa KHÁC: theo ứng
+   * viên bảng mã, có cửa sổ). */
+  joined_line_count_in_chapter: number | null
+  /** **THÊM Story 6.10** — phán quyết hàng rào Tukey trên CHÍNH Chương này, tính LÚC CHẠY
+   * (không lưu xuống đĩa). `needs_review === (review_causes.length > 0)` là một bất biến do
+   * Rust giữ. */
+  needs_review: boolean
+  /** Danh mục nguyên nhân *cần xem* — RỖNG khi và chỉ khi `needs_review === false`. */
+  review_causes: ReviewCauseWire[]
 }
 
 /** Thân một khối — khớp `commands::project::BlockBodyWire` (`#[serde(tag = "kind", rename_all
@@ -229,6 +247,20 @@ export type ChapterBlocksPreviewWire = {
 export type ChapterSplitPreviewWire = {
   chapter_count: number
   chapters: ChapterSplitPreviewEntryWire[]
+  /** **THÊM Story 6.10** — số mục URL HỎNG của CẢ lượt nhập, `0` trên đường tệp/dán tay. Rust
+   * cộng — KHÔNG tự cộng ở tầng hiển thị (AD-1). */
+  broken_item_count: number
+  /** **THÊM Story 6.10** — `N` của chip *"N cần xem · M sạch"*. BẰNG số Chương
+   * `needs_review === true` CỘNG `broken_item_count` (một link hỏng LUÔN cần chú ý). */
+  needs_review_count: number
+  /** **THÊM Story 6.10** — `M` của chip — số Chương `needs_review === false`. KHÔNG BAO GIỜ
+   * cộng `broken_item_count`. */
+  clean_count: number
+  /** **THÊM Story 6.10** — `true` khi ÍT NHẤT một trong ba tín hiệu so-tương-đối có hàng rào
+   * tồn tại cho lượt nhập này. `false` ⇒ KHÔNG tín hiệu nào tham gia (dưới bốn Chương, hoặc
+   * mọi hàng rào đều suy biến) — tầng hiển thị PHẢI nói *"chưa đủ Chương để so"* thay vì khai
+   * `0 cần xem`. */
+  any_signal_participated: boolean
 }
 
 /** Khối làm sạch của MỘT ứng viên/đường tự khai — tầng 3 (Story 6.5). Khớp
@@ -348,6 +380,15 @@ function isCleanupPreviewWire(value: unknown): value is CleanupPreviewWire {
   )
 }
 
+function isReviewCauseWire(value: unknown): value is ReviewCauseWire {
+  return (
+    value === 'short_length' ||
+    value === 'high_cleanup_matches' ||
+    value === 'high_joined_lines' ||
+    value === 'not_measured'
+  )
+}
+
 function isChapterSplitPreviewEntryWire(value: unknown): value is ChapterSplitPreviewEntryWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<ChapterSplitPreviewEntryWire>
@@ -355,7 +396,11 @@ function isChapterSplitPreviewEntryWire(value: unknown): value is ChapterSplitPr
     typeof v.ord === 'number' &&
     (v.title === null || typeof v.title === 'string') &&
     typeof v.length === 'number' &&
-    typeof v.cleanup_match_count === 'number'
+    (v.cleanup_match_count === null || typeof v.cleanup_match_count === 'number') &&
+    (v.joined_line_count_in_chapter === null || typeof v.joined_line_count_in_chapter === 'number') &&
+    typeof v.needs_review === 'boolean' &&
+    Array.isArray(v.review_causes) &&
+    v.review_causes.every(isReviewCauseWire)
   )
 }
 
@@ -391,7 +436,11 @@ function isChapterSplitPreviewWire(value: unknown): value is ChapterSplitPreview
   return (
     typeof v.chapter_count === 'number' &&
     Array.isArray(v.chapters) &&
-    v.chapters.every(isChapterSplitPreviewEntryWire)
+    v.chapters.every(isChapterSplitPreviewEntryWire) &&
+    typeof v.broken_item_count === 'number' &&
+    typeof v.needs_review_count === 'number' &&
+    typeof v.clean_count === 'number' &&
+    typeof v.any_signal_participated === 'boolean'
   )
 }
 

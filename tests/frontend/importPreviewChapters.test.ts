@@ -62,9 +62,13 @@ function chapters(over: Partial<ChapterSplitPreviewWire> = {}): ChapterSplitPrev
   return {
     chapter_count: 2,
     chapters: [
-      { ord: 1, title: 'Chuong 1: Mo Dau', length: 20, cleanup_match_count: 0 },
-      { ord: 2, title: 'Chuong 2: Tiep Theo', length: 25, cleanup_match_count: 0 },
+      { ord: 1, title: 'Chuong 1: Mo Dau', length: 20, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] },
+      { ord: 2, title: 'Chuong 2: Tiep Theo', length: 25, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] },
     ],
+    broken_item_count: 0,
+    needs_review_count: 0,
+    clean_count: 2,
+    any_signal_participated: false,
     ...over,
   }
 }
@@ -91,6 +95,35 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
     blocks: null,
     ...over,
   }
+}
+
+/**
+ * **THÊM (Story 6.10)** — một ứng viên bảng mã mang N Chương với phán quyết `needs_review`
+ * ĐẶT THẲNG theo `flags`, cộng hai con số tổng khớp đúng `flags`. Rust là nơi tính phán quyết
+ * (AD-1) nên fixture ở đây chở KẾT QUẢ của nó, không tính lại — cùng khuôn `chapters()` trên.
+ */
+function candidateWithChapters(encoding: string, flags: boolean[]): EncodingCandidateWire {
+  const needs = flags.filter(Boolean).length
+  return candidate({
+    label: encoding,
+    encoding,
+    chapters: {
+      chapter_count: flags.length,
+      chapters: flags.map((needsReview, i) => ({
+        ord: i + 1,
+        title: `Chuong ${i + 1}`,
+        length: 20,
+        cleanup_match_count: 0,
+        joined_line_count_in_chapter: null,
+        needs_review: needsReview,
+        review_causes: needsReview ? (['short_length'] as const).slice() : [],
+      })),
+      broken_item_count: 0,
+      needs_review_count: needs,
+      clean_count: flags.length - needs,
+      any_signal_participated: true,
+    },
+  })
 }
 
 function preview(over: Partial<ImportEncodingPreview> = {}): ImportEncodingPreview {
@@ -129,7 +162,7 @@ describe('importPreviewState — importPreviewSelectedChapters', () => {
             encoding: 'GBK',
             chapters: chapters({
               chapter_count: 1,
-              chapters: [{ ord: 1, title: null, length: 5, cleanup_match_count: 0 }],
+              chapters: [{ ord: 1, title: null, length: 5, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] }],
             }),
           }),
         ],
@@ -170,7 +203,7 @@ describe('importPreviewState — importPreviewSelectedChapters', () => {
       preview: preview({
         confidence: 'self_declared',
         candidates: [],
-        self_declared_chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 9, cleanup_match_count: 0 }] }),
+        self_declared_chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 9, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] }] }),
       }),
       error: null,
     })
@@ -356,7 +389,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       preview: preview({
         candidates: [
           candidate({
-            chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 800, cleanup_match_count: 0 }] }),
+            chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 800, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] }] }),
           }),
         ],
       }),
@@ -381,9 +414,9 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
             chapters: chapters({
               chapter_count: 3,
               chapters: [
-                { ord: 1, title: 'Dai', length: 4000, cleanup_match_count: 0 },
-                { ord: 2, title: 'Ngan Bat Thuong', length: 40, cleanup_match_count: 0 },
-                { ord: 3, title: 'Dai Nua', length: 3800, cleanup_match_count: 0 },
+                { ord: 1, title: 'Dai', length: 4000, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] },
+                { ord: 2, title: 'Ngan Bat Thuong', length: 40, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] },
+                { ord: 3, title: 'Dai Nua', length: 3800, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] },
               ],
             }),
           }),
@@ -409,7 +442,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
 
   it('N > 6 Chương ⇒ khung nhìn mặc định chỉ hiện ba đầu, `⋯`, ba cuối', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
-    const many = Array.from({ length: 9 }, (_, i) => ({ ord: i + 1, title: `Chuong ${i + 1}`, length: 100 + i, cleanup_match_count: 0 }))
+    const many = Array.from({ length: 9 }, (_, i) => ({ ord: i + 1, title: `Chuong ${i + 1}`, length: 100 + i, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] }))
     previewTextMock.mockResolvedValue({
       preview: preview({
         candidates: [candidate({ chapters: chapters({ chapter_count: 9, chapters: many }) })],
@@ -475,6 +508,224 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
     wrapper.unmount()
     state.resetImportPreview()
   })
+
+  /**
+   * **THÊM (vòng rà đối kháng bước 4, 2026-09-08)** — `reviewCauseMessageKey` (`switch` cạn,
+   * bốn nhánh) chưa từng bị chạm bởi một fixture mang `high_cleanup_matches`/`high_joined_lines`
+   * trước ca này — mọi fixture khác chỉ dùng `short_length` hoặc `[]`. Hoán đổi nội dung hai
+   * nhánh đó (hoặc bất kỳ trong bốn) sẽ làm ca này đỏ.
+   */
+  it('bốn nguyên nhân review_causes đọc ĐÚNG chữ vi.json, không lẫn nhánh', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({
+      preview: preview({
+        candidates: [
+          candidate({
+            chapters: chapters({
+              chapter_count: 4,
+              chapters: [
+                {
+                  ord: 1,
+                  title: 'C1',
+                  length: 3,
+                  cleanup_match_count: 0,
+                  joined_line_count_in_chapter: 0,
+                  needs_review: true,
+                  review_causes: ['short_length'],
+                },
+                {
+                  ord: 2,
+                  title: 'C2',
+                  length: 500,
+                  cleanup_match_count: 99,
+                  joined_line_count_in_chapter: 0,
+                  needs_review: true,
+                  review_causes: ['high_cleanup_matches'],
+                },
+                {
+                  ord: 3,
+                  title: 'C3',
+                  length: 500,
+                  cleanup_match_count: 0,
+                  joined_line_count_in_chapter: 99,
+                  needs_review: true,
+                  review_causes: ['high_joined_lines'],
+                },
+                {
+                  ord: 4,
+                  title: 'C4',
+                  length: 500,
+                  cleanup_match_count: null,
+                  joined_line_count_in_chapter: 0,
+                  needs_review: true,
+                  review_causes: ['not_measured'],
+                },
+              ],
+            }),
+          }),
+        ],
+      }),
+      error: null,
+    })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    const rows = wrapper.findAll('.ip-chapters-entry')
+    expect(rows).toHaveLength(4)
+    expect(rows[0]?.find('.ip-chapters-review-cause').text()).toBe('Ngắn bất thường')
+    expect(rows[1]?.find('.ip-chapters-review-cause').text()).toBe('Xoá quá nhiều')
+    expect(rows[2]?.find('.ip-chapters-review-cause').text()).toBe('Nối dòng cao')
+    expect(rows[3]?.find('.ip-chapters-review-cause').text()).toBe('Không đo được')
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  /**
+   * **THÊM (vòng rà đối kháng bước 4, 2026-09-08)** — một hàng vừa là con trỏ (`⌥←`/`⌥→`,
+   * Story 6.10a) VỪA `needs_review` (Story 6.10) phải giữ CẢ HAI lớp CSS, không luật nào nuốt
+   * luật kia. Chương 0 là con trỏ MẶC ĐỊNH (0 lời gọi IPC cần thiết để dựng ca này) — gán
+   * `needs_review: true` cho CHÍNH Chương đó là đủ để dựng cả hai điều kiện cùng lúc.
+   */
+  it('một hàng vừa là con trỏ VỪA cần xem giữ CẢ HAI lớp CSS', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({
+      preview: preview({
+        candidates: [
+          candidate({
+            chapters: chapters({
+              chapter_count: 2,
+              chapters: [
+                {
+                  ord: 1,
+                  title: 'C1',
+                  length: 3,
+                  cleanup_match_count: 0,
+                  joined_line_count_in_chapter: 0,
+                  needs_review: true,
+                  review_causes: ['short_length'],
+                },
+                { ord: 2, title: 'C2', length: 500, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [] },
+              ],
+            }),
+          }),
+        ],
+      }),
+      error: null,
+    })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    expect(state.importPreviewChapterCursor.value).toBe(0) // Chuong 0 la con tro mac dinh.
+    const first = wrapper.findAll('.ip-chapters-entry')[0]
+    expect(first.classes()).toContain('ip-chapters-entry-current')
+    expect(first.classes()).toContain('ip-chapters-entry-needs-review')
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  /**
+   * **THÊM (vòng rà đối kháng bước 4, 2026-09-08)** — nhánh `v-else` "chưa đủ Chương để so"
+   * (`any_signal_participated === false`) chưa từng được DỰNG trong một ca DOM nào trước đây.
+   */
+  it('any_signal_participated === false — hiện dòng "chưa đủ Chương để so", KHÔNG hiện chip', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({
+      preview: preview({
+        candidates: [
+          candidate({
+            chapters: chapters({
+              chapter_count: 3,
+              chapters: [
+                { ord: 1, title: 'C1', length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [] },
+                { ord: 2, title: 'C2', length: 20, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [] },
+                { ord: 3, title: 'C3', length: 30, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [] },
+              ],
+              needs_review_count: 0,
+              clean_count: 3,
+              any_signal_participated: false,
+            }),
+          }),
+        ],
+      }),
+      error: null,
+    })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    expect(wrapper.find('.ip-chapter-filter-note').text()).toBe('Chưa đủ Chương để so')
+    expect(wrapper.find('.ip-chapter-filter-chip-needs-review').exists()).toBe(false)
+    expect(wrapper.find('.ip-chapter-filter-chip-clean').exists()).toBe(false)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  /**
+   * **THÊM (vòng rà đối kháng bước 4, 2026-09-08)** — đóng nợ 6.10a "con trỏ vô hình khi rơi
+   * vào phần bị co gọn" (`chaptersShowAll`, nhánh `cursor >= 3 && cursor < chapter_count - 3`)
+   * chưa từng được DỰNG trong một ca DOM nào. Dựng 9 Chương (URL, không sắp/lọc), dời con trỏ
+   * tới chỉ số 4 (nằm giữa dải bị elide mặc định — `[0,3)`/`[6,9)` được render, `[3,6)` bị
+   * `⋯` thay thế khi KHÔNG có lý do để hiện đủ).
+   */
+  it('con trỏ dời vào vùng bị co gọn (N ≥ 7, không sắp/lọc) — danh sách tự hiện ĐỦ, `⋯` biến mất', async () => {
+    const nineChapters: ChapterSplitPreviewWire = {
+      chapter_count: 9,
+      chapters: Array.from({ length: 9 }, (_, i) => ({
+        ord: i + 1,
+        title: `Chuong ${i + 1}`,
+        length: 100 + i,
+        cleanup_match_count: 0,
+        joined_line_count_in_chapter: 0,
+        needs_review: false,
+        review_causes: [],
+      })),
+      broken_item_count: 0,
+      needs_review_count: 0,
+      clean_count: 9,
+      any_signal_participated: false,
+    }
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({
+      batch: {
+        items: ['a', 'b', 'c'].map(urlItem),
+        encoding_preview: preview({ candidates: [candidate({ chapters: nineChapters })] }),
+        domain_log_domain_count: 1,
+      },
+      error: null,
+    })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    previewChapterDetailMock.mockResolvedValue({
+      detail: { cleanup: { text: '', spans: [], rules: [], window_truncated: false, final_text: 'x' }, blocks: null },
+      error: null,
+    })
+
+    const ImportPreviewOverlay = (await import('../../src/ImportPreviewOverlay.vue')).default
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    // Truoc khi doi con tro: khung nhin mac dinh co gon, `⋯` co mat.
+    expect(wrapper.find('.ip-chapters-ellipsis').exists()).toBe(true)
+    expect(wrapper.findAll('.ip-chapters-entry')).toHaveLength(6) // ba dau + ba cuoi
+
+    // Doi con tro toi chi so 4 (Chuong 5) -- nam giua dai bi elide [3,6).
+    for (let i = 0; i < 4; i += 1) {
+      state.nextImportPreviewChapter()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    expect(state.importPreviewChapterCursor.value).toBe(4)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.ip-chapters-ellipsis').exists()).toBe(false)
+    expect(wrapper.findAll('.ip-chapters-entry')).toHaveLength(9)
+    const list = wrapper.get('.ip-chapters-list')
+    expect(list.attributes('aria-activedescendant')).toBe('ip-chapter-5')
+    expect(wrapper.find('#ip-chapter-5').attributes('aria-selected')).toBe('true')
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
 })
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -492,10 +743,14 @@ function threeChapters(): ChapterSplitPreviewWire {
   return {
     chapter_count: 3,
     chapters: [
-      { ord: 1, title: 'Chuong 1', length: 100, cleanup_match_count: 1 },
-      { ord: 2, title: 'Chuong 2', length: 200, cleanup_match_count: 2 },
-      { ord: 3, title: 'Chuong 3', length: 300, cleanup_match_count: 3 },
+      { ord: 1, title: 'Chuong 1', length: 100, cleanup_match_count: 1, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] },
+      { ord: 2, title: 'Chuong 2', length: 200, cleanup_match_count: 2, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] },
+      { ord: 3, title: 'Chuong 3', length: 300, cleanup_match_count: 3, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] },
     ],
+    broken_item_count: 0,
+    needs_review_count: 0,
+    clean_count: 3,
+    any_signal_participated: false,
   }
 }
 
@@ -811,6 +1066,244 @@ describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
     expect(document.activeElement).toBe(list.element)
 
     wrapper.unmount()
+    state.resetImportPreview()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.10 — bộ lọc "cần xem" (`⌥W`), tầng STATE (0 lời gọi IPC, Rust đã cấp sẵn
+// `needs_review`/`review_causes` cho MỌI Chương lúc tải xem trước).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/** Ba Chương — Chương 0 "cần xem" (`ShortLength`), hai Chương 1/2 "sạch". `needs_review_count`/
+ * `clean_count`/`any_signal_participated` khớp ĐÚNG dữ liệu Chương (Rust cộng, không tính lại
+ * ở test). */
+function mixedChapters(): ChapterSplitPreviewWire {
+  return {
+    chapter_count: 3,
+    chapters: [
+      {
+        ord: 1,
+        title: 'Chuong ngan',
+        length: 3,
+        cleanup_match_count: 0,
+        joined_line_count_in_chapter: 0,
+        needs_review: true,
+        review_causes: ['short_length'],
+      },
+      {
+        ord: 2,
+        title: 'Chuong binh thuong 1',
+        length: 500,
+        cleanup_match_count: 0,
+        joined_line_count_in_chapter: 0,
+        needs_review: false,
+        review_causes: [],
+      },
+      {
+        ord: 3,
+        title: 'Chuong binh thuong 2',
+        length: 520,
+        cleanup_match_count: 0,
+        joined_line_count_in_chapter: 0,
+        needs_review: false,
+        review_causes: [],
+      },
+    ],
+    broken_item_count: 0,
+    needs_review_count: 1,
+    clean_count: 2,
+    any_signal_participated: true,
+  }
+}
+
+describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
+  it('mặc định bộ lọc TẮT', async () => {
+    const state = await freshState()
+    previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: mixedChapters() })] }), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    expect(state.importPreviewChapterFilterActive.value).toBe(false)
+
+    state.resetImportPreview()
+  })
+
+  it('bật rồi tắt lại — bấm hai lần đảo trạng thái, 0 lời gọi IPC', async () => {
+    const state = await freshState()
+    previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: mixedChapters() })] }), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    state.toggleImportPreviewChapterFilter()
+    expect(state.importPreviewChapterFilterActive.value).toBe(true)
+    state.toggleImportPreviewChapterFilter()
+    expect(state.importPreviewChapterFilterActive.value).toBe(false)
+    expect(previewChapterDetailMock).not.toHaveBeenCalled()
+
+    state.resetImportPreview()
+  })
+
+  it('0 mục cần xem — bộ lọc KHÔNG bật, không kêu, không ném', async () => {
+    const state = await freshState()
+    const allClean = chapters() // fixture mac dinh cua tep nay: hai Chuong, ca hai `needs_review: false`
+    previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: allClean })] }), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    expect(allClean.needs_review_count).toBe(0) // tien de cua fixture
+
+    expect(() => state.toggleImportPreviewChapterFilter()).not.toThrow()
+    expect(state.importPreviewChapterFilterActive.value).toBe(false)
+
+    state.resetImportPreview()
+  })
+
+  /**
+   * **THÊM (vòng rà đối kháng bước 4, 2026-09-08)** — ca THẬT đã lần ra: 4 link, 1 hỏng ⇒ 3
+   * Chương thật ⇒ DƯỚI bốn giá trị đo được ⇒ KHÔNG hàng rào nào tồn tại
+   * (`any_signal_participated === false`), 0 Chương `needs_review`, NHƯNG `needs_review_count
+   * === 1` (CỘNG từ `broken_item_count`, §Always spec 6.10: "kể cả vế link hỏng"). Bản trước
+   * chỉ chặn BẬT bằng `needs_review_count === 0` — điều kiện đó SAI ở đây (`=== 1`) nên bộ lọc
+   * BẬT được, làm tầng 4 rỗng hẳn VÀ chip biến mất (thay bằng "chưa đủ Chương để so") — mất
+   * trạng thái, mất lối tắt.
+   */
+  it('4 link 1 hỏng (any_signal_participated === false, needs_review_count === 1 từ link hỏng) — bộ lọc KHÔNG bật', async () => {
+    const state = await freshState()
+    const threeRealChaptersOneBrokenLink: ChapterSplitPreviewWire = {
+      chapter_count: 3,
+      chapters: [
+        { ord: 1, title: 'C1', length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [] },
+        { ord: 2, title: 'C2', length: 20, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [] },
+        { ord: 3, title: 'C3', length: 30, cleanup_match_count: 0, joined_line_count_in_chapter: 0, needs_review: false, review_causes: [] },
+      ],
+      broken_item_count: 1,
+      needs_review_count: 1, // TU link hong -- KHONG Chuong nao needs_review that.
+      clean_count: 3,
+      any_signal_participated: false, // duoi bon gia tri do duoc.
+    }
+    startUrlImportMock.mockResolvedValue({
+      batch: {
+        items: [
+          { url: 'a', ok: true, error: null },
+          { url: 'b', ok: true, error: null },
+          { url: 'c', ok: true, error: null },
+          {
+            url: 'd',
+            ok: false,
+            error: { code: 'import.web_item_failed', message_key: 'err.import.web_invalid_url', params: {}, retryable: false },
+          },
+        ],
+        encoding_preview: preview({ candidates: [candidate({ chapters: threeRealChaptersOneBrokenLink })] }),
+        domain_log_domain_count: 4,
+      },
+      error: null,
+    })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c', 'd'])
+    expect(state.importPreviewSelectedChapters.value?.needs_review_count).toBe(1)
+    expect(state.importPreviewSelectedChapters.value?.any_signal_participated).toBe(false)
+
+    state.toggleImportPreviewChapterFilter()
+
+    expect(state.importPreviewChapterFilterActive.value).toBe(false)
+
+    state.resetImportPreview()
+  })
+
+  it('bật lọc khi con trỏ đứng ở Chương SẠCH — con trỏ dời tới Chương cần xem đầu tiên', async () => {
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({
+      batch: {
+        items: [{ url: 'a', ok: true, error: null }, { url: 'b', ok: true, error: null }, { url: 'c', ok: true, error: null }],
+        encoding_preview: preview({ candidates: [candidate({ chapters: mixedChapters() })] }),
+        domain_log_domain_count: 1,
+      },
+      error: null,
+    })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    previewChapterDetailMock.mockResolvedValue({
+      detail: { cleanup: { text: '', spans: [], rules: [], window_truncated: false, final_text: 'chuong 1' }, blocks: null },
+      error: null,
+    })
+    // Con trỏ dời sang Chương 1 (chỉ số 1, `needs_review: false` trong `mixedChapters()`).
+    state.nextImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(state.importPreviewChapterCursor.value).toBe(1)
+
+    state.toggleImportPreviewChapterFilter()
+
+    // Chương 1 (chỉ số 1) SẠCH, vừa bị lọc khỏi DOM — con trỏ phải dời tới Chương CẦN XEM đầu
+    // tiên (chỉ số 0, `mixedChapters()[0].needs_review === true`).
+    expect(state.importPreviewChapterFilterActive.value).toBe(true)
+    expect(state.importPreviewChapterCursor.value).toBe(0)
+
+    state.resetImportPreview()
+  })
+
+  it('lớp phủ ĐÃ ĐÓNG — bật lọc không đổi gì', async () => {
+    const state = await freshState()
+    previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: mixedChapters() })] }), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    state.cancelImportPreview()
+
+    state.toggleImportPreviewChapterFilter()
+    expect(state.importPreviewChapterFilterActive.value).toBe(false)
+  })
+
+  it('một lượt mở MỚI (huỷ + mở lại) reset cờ lọc về TẮT', async () => {
+    const state = await freshState()
+    previewTextMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: mixedChapters() })] }), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+    state.toggleImportPreviewChapterFilter()
+    expect(state.importPreviewChapterFilterActive.value).toBe(true)
+
+    state.cancelImportPreview()
+    await state.openImportPreviewFromText('Ten2', 'en', '', 'noi dung khac')
+
+    expect(state.importPreviewChapterFilterActive.value).toBe(false)
+
+    state.resetImportPreview()
+  })
+})
+
+/**
+ * I/O Matrix spec 6.10, hàng *"Đổi ứng viên bảng mã khi bộ lọc đang bật"* — phán quyết tính
+ * lại trên số của ứng viên MỚI, và bộ lọc **giữ trạng thái bật**.
+ *
+ * 🔴 **Vì sao hàng này cần một ca riêng.** `toggleImportPreviewChapterFilter` là chỗ DUY NHẤT
+ * đặt `chapterFilterActive = true`, còn ba chỗ đặt `false` đều là lượt MỞ/RESET
+ * (`openWith`, `openImportPreviewFromUrls`, `resetImportPreview`). Cờ vì thế sống sót qua một
+ * lượt đổi ứng viên **do cấu trúc**, không do một dòng mã nào nói ra — tức đúng loại bất biến
+ * mà lượt tới sẽ phá mà không cổng nào đỏ. Ma trận đã ký gọi tên nó (*"Không âm thầm tắt lọc"*)
+ * nên nó phải có chủ ở đây.
+ */
+describe('importPreviewState — đổi ứng viên bảng mã KHÔNG tắt bộ lọc (Story 6.10)', () => {
+  it('bật lọc rồi đổi ứng viên — lọc VẪN bật, phán quyết đọc theo ứng viên mới', async () => {
+    const state = await freshState()
+    // Hai ung vien mang HAI phan quyet khac nhau -- de khang dinh "doc theo ung vien moi"
+    // khong the xanh nho ca hai giong het nhau.
+    previewTextMock.mockResolvedValue({
+      preview: {
+        selected_encoding: 'UTF-8',
+        confidence: 'low',
+        candidates: [
+          candidateWithChapters('UTF-8', [false, true, false, false]),
+          candidateWithChapters('GBK', [true, true, true, false]),
+        ],
+        self_declared_normalized: null,
+        self_declared_cleanup: null,
+        self_declared_chapters: null,
+      },
+      error: null,
+    })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text')
+
+    state.toggleImportPreviewChapterFilter()
+    expect(state.importPreviewChapterFilterActive.value).toBe(true)
+    expect(state.importPreviewSelectedChapters.value?.needs_review_count).toBe(1)
+
+    state.selectImportPreviewCandidate('GBK')
+
+    expect(state.importPreviewChapterFilterActive.value).toBe(true)
+    expect(state.importPreviewSelectedChapters.value?.needs_review_count).toBe(3)
+    expect(state.importPreviewSelectedChapters.value?.clean_count).toBe(1)
+
     state.resetImportPreview()
   })
 })

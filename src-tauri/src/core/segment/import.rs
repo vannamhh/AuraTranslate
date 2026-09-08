@@ -442,6 +442,15 @@ pub struct ImportedChapter {
     /// TẦNG HIỂN THỊ ở Chương đầu, không giới hạn dữ liệu domain này). `commands::project`
     /// dựng dây tầng 2 từ trường này, đọc lại CÙNG override đã dùng để ghép `source_text`.
     pub blocks: Option<Vec<crate::core::webimport::Block>>,
+    /// **THÊM 2026-09-08 (Story 6.10)** — số LẦN [`super::pipeline::Step::NormalizeParagraphsAndWhitespace`]
+    /// (bước 4) đã NỐI hai dòng làm một, cho CHÍNH Chương này — con số FR125 đã tính rồi bị
+    /// vứt trước bản sửa này (`pipeline.rs`, xem doc-comment `super::pipeline::Flow::joined_line_counts`
+    /// cho cơ chế đầy đủ). `None` = *không đo được cho Chương này*, KHÔNG BAO GIỜ mặc định hoá
+    /// thành `0` — trên [`super::pipeline::PipelineShape::Blob`] con số đo được TRƯỚC khi tách
+    /// Chương thuộc về TOÀN TÀI LIỆU, không quy về Chương nào được (kể cả `ord = 1`); trên
+    /// [`super::pipeline::PipelineShape::Chapters`] (đã chia Chương từ đầu) con số của mỗi
+    /// Chương là THẬT.
+    pub joined_line_count: Option<usize>,
 }
 
 /// Bước ĐẦU VÀO — nhánh dán văn bản của AC1. Trả về [`PipelineShape`], KHÔNG tự giải mã/

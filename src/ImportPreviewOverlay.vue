@@ -40,6 +40,7 @@ import {
   importPreviewChapterCursor,
   importPreviewChapterDetailError,
   importPreviewChapterDetailLoading,
+  importPreviewChapterFilterActive,
   importPreviewChapterPatternError,
   importPreviewChapterPatternKind,
   importPreviewChapterPatternSending,
@@ -84,6 +85,7 @@ import type {
   CleanupRuleTierWire,
   CleanupSpanWire,
   ImportConfidence,
+  ReviewCauseWire,
 } from './config/project'
 
 /**
@@ -346,18 +348,70 @@ const chapterEntriesSortedByLength = computed<ChapterSplitPreviewEntryWire[]>(()
   return [...chapters.chapters].sort((a, b) => a.length - b.length)
 })
 
-/** Khung nhìn MẶC ĐỊNH (chưa sắp xếp) — ba Chương đầu, `⋯`, ba Chương cuối, đúng Task list
- * spec 6.6. N ≤ 6 thì hiện TRỌN, không cắt (không có gì để mà `⋯`). */
-const chapterEntriesDefaultWindow = computed<{
-  first: ChapterSplitPreviewEntryWire[]
-  last: ChapterSplitPreviewEntryWire[]
-  showEllipsis: boolean
-}>(() => {
+/**
+ * **THÊM (Story 6.10)** — bốn nhãn nguyên nhân *cần xem*, `switch` cạn (khuôn
+ * [`confidenceMessageKey`] — bốn khoá literal riêng, `check:i18n` phải thấy được).
+ */
+function reviewCauseMessageKey(cause: ReviewCauseWire): string {
+  switch (cause) {
+    case 'short_length':
+      return 'mode.library.preview.review_cause_short_length'
+    case 'high_cleanup_matches':
+      return 'mode.library.preview.review_cause_high_cleanup_matches'
+    case 'high_joined_lines':
+      return 'mode.library.preview.review_cause_high_joined_lines'
+    case 'not_measured':
+      return 'mode.library.preview.review_cause_not_measured'
+  }
+}
+
+/**
+ * **THÊM (Story 6.10)** — một hàng của danh sách RENDER được, sau khi đã áp SẮP XẾP + LỌC +
+ * CO GỌN. Một discriminated union (thay vì ba mảng `first`/`last`/`showEllipsis` rời) để MỘT
+ * `v-for` DUY NHẤT vẽ được cả hàng Chương lẫn hàng `⋯` — đóng nợ "hợp nhất ba nhánh `v-for`"
+ * (§Task list spec 6.10) TRƯỚC khi thêm chiều lọc thứ ba, đúng thứ tự spec đòi.
+ */
+type ChapterRenderRow = { kind: 'entry'; entry: ChapterSplitPreviewEntryWire } | { kind: 'ellipsis' }
+
+/**
+ * **THÊM (Story 6.10)** — `true` ⇒ hiện ĐỦ danh sách, không co gọn ba-đầu/`⋯`/ba-cuối. Sắp
+ * theo độ dài (Story 6.6) và bộ lọc "cần xem" (Story 6.10) đều cần nhìn thấy MỌI hàng đang có
+ * — co gọn một trong hai chế độ đó lại đúng là khuyết tật mà §Design Notes spec 6.10 "Vì sao
+ * bộ lọc bật thì bỏ co gọn" mô tả (một `id` cho hàng đã bị lọc/nằm ngoài cửa sổ khỏi DOM ⇒
+ * `aria-activedescendant` treo).
+ *
+ * 🔵 **THÊM nhánh thứ ba — con trỏ (`⌥←`/`⌥→`) đứng giữa vùng bị co gọn.** Đóng nợ 6.10a
+ * *"con trỏ Chương VÔ HÌNH khi Chương đang chọn rơi vào phần bị co gọn"* NGAY TRÊN danh sách
+ * này (§Design Notes spec 6.10), thay vì dựng một bề mặt thứ hai: khung nhìn mặc định chỉ
+ * render `[0,3)` và `[N-3,N)` — một con trỏ nằm NGOÀI hai dải đó (`3 <= cursor < N-3`) không
+ * có hàng nào trên DOM để mà trỏ tới, bất kể story này có tồn tại hay không.
+ */
+const chaptersShowAll = computed<boolean>(() => {
+  if (chapterSortByLength.value || importPreviewChapterFilterActive.value) return true
   const chapters = importPreviewSelectedChapters.value
-  if (chapters === null) return { first: [], last: [], showEllipsis: false }
-  const list = chapters.chapters
-  if (list.length <= 6) return { first: list, last: [], showEllipsis: false }
-  return { first: list.slice(0, 3), last: list.slice(-3), showEllipsis: true }
+  if (chapters === null) return false
+  const cursor = importPreviewChapterCursor.value
+  return cursor >= 3 && cursor < chapters.chapter_count - 3
+})
+
+/**
+ * Danh sách RENDER được của tầng 4 — MỘT nguồn sự thật cho cả `<ul>` LẪN [`currentChapterDomId`]
+ * ngay dưới, thay ba nhánh `v-for` cũ (`chapterEntriesSortedByLength`/`.first`/`.last`).
+ * Thứ tự áp: sắp xếp (nếu bật) → lọc "cần xem" (nếu bật) → co gọn (CHỈ khi cả hai đều tắt và
+ * N > 6, đúng Task list spec 6.6).
+ */
+const chapterEntriesRendered = computed<ChapterRenderRow[]>(() => {
+  const chapters = importPreviewSelectedChapters.value
+  if (chapters === null) return []
+  const sorted = chapterSortByLength.value ? chapterEntriesSortedByLength.value : chapters.chapters
+  const filtered = importPreviewChapterFilterActive.value ? sorted.filter((entry) => entry.needs_review) : sorted
+
+  if (chaptersShowAll.value || filtered.length <= 6) {
+    return filtered.map((entry) => ({ kind: 'entry', entry }) as const)
+  }
+  const first = filtered.slice(0, 3).map((entry) => ({ kind: 'entry', entry }) as const)
+  const last = filtered.slice(-3).map((entry) => ({ kind: 'entry', entry }) as const)
+  return [...first, { kind: 'ellipsis' } as const, ...last]
 })
 
 /**
@@ -372,18 +426,15 @@ function chapterDomId(ord: number): string {
 /**
  * `id` của Chương con trỏ đang chọn, CHỈ khi nó thật sự có mặt trong khung nhìn ĐANG HIỆN —
  * `aria-activedescendant` trỏ vào một `id` không tồn tại là vô nghĩa với trình đọc màn hình
- * (con trỏ có thể đứng ở một Chương bị khung nhìn mặc định CO GỌN elide, ví dụ Chương 5 trên
- * 9 Chương không sắp xếp — chỉ ba đầu/ba cuối được render). `undefined` (bỏ thuộc tính) an
- * toàn hơn một tham chiếu treo.
+ * (con trỏ có thể đứng ở một Chương bị khung nhìn mặc định CO GỌN elide, hoặc — Story 6.10 —
+ * bị chính bộ lọc "cần xem" lọc khỏi DOM). `undefined` (bỏ thuộc tính) an toàn hơn một tham
+ * chiếu treo.
  */
 const currentChapterDomId = computed<string | null>(() => {
-  const chapters = importPreviewSelectedChapters.value
-  if (chapters === null) return null
   const ord = importPreviewChapterCursor.value + 1
-  const rendered = chapterSortByLength.value
-    ? chapterEntriesSortedByLength.value
-    : [...chapterEntriesDefaultWindow.value.first, ...chapterEntriesDefaultWindow.value.last]
-  return rendered.some((entry) => entry.ord === ord) ? chapterDomId(ord) : null
+  return chapterEntriesRendered.value.some((row) => row.kind === 'entry' && row.entry.ord === ord)
+    ? chapterDomId(ord)
+    : null
 })
 
 /** `<ul role="listbox">` của tầng 4 — cùng khuôn `blocksList` (Story 6.9): template ref RIÊNG
@@ -396,6 +447,18 @@ const chaptersList = useTemplateRef<HTMLElement>('chaptersList')
  * `watch(importPreviewBlockFocusedIndex, ...)` ngay dưới. No-op khi Chương hiện tại bị khung
  * nhìn mặc định elide (`currentChapterDomId === null`) — không có gì trên DOM để mà cuộn tới. */
 watch(importPreviewChapterCursor, () => {
+  void nextTick(() => {
+    const id = currentChapterDomId.value
+    if (id === null) return
+    document.getElementById(id)?.scrollIntoView({ block: 'nearest' })
+    chaptersList.value?.focus()
+  })
+})
+
+/** **THÊM (Story 6.10)** — cuộn tới hàng con trỏ đang chọn khi cờ SẮP XẾP hoặc LỌC đổi (tập
+ * hàng đang render vừa đổi dưới chân con trỏ) — cùng thân với watch ngay trên, tách riêng vì
+ * nguồn kích hoạt khác hẳn (đổi TẬP HÀNH ĐANG HIỆN, không đổi CON TRỎ). */
+watch([chapterSortByLength, importPreviewChapterFilterActive], () => {
   void nextTick(() => {
     const id = currentChapterDomId.value
     if (id === null) return
@@ -654,15 +717,49 @@ function onChapterCursorKeydown(event: KeyboardEvent): void {
 }
 
 /**
- * Điểm nối DUY NHẤT của scrim tới HAI handler độc lập ngay trên — Vue chỉ cho MỘT `@keydown`
+ * Handler DOM CỤC BỘ THỨ BA trên `.ip-scrim` — **Story 6.10** (`⌥W`, bộ lọc "cần xem").
+ *
+ * 🔴 **`event.code === 'KeyW'`, KHÔNG `event.key`.** Trên macOS `⌥W` gõ ra `∑` — `event.key`
+ * sẽ KHÔNG BAO GIỜ là `'w'` (khuyết tật cùng lớp mà `keys.ts:406` đã ghi đích danh cho
+ * `Alt+M` → `µ`; `keys.ts:509` so `code` cho đúng lý do này). Cặp `⌥←`/`⌥→` của
+ * [`onChapterCursorKeydown`] né được khuyết tật này vì `⌥` không biến đổi phím mũi tên — khuôn
+ * của nó KHÔNG chép thẳng sang được ở đây (§Design Notes spec 6.10 "Vì sao `event.code`").
+ *
+ * 🔴 **KHÔNG nới [`onTier2Keydown`] hay [`onChapterCursorKeydown`]** — mỗi handler tự gác vị
+ * từ của mình, cùng lý lẽ đã áp cho cặp handler thứ nhất/thứ hai.
+ */
+function onChapterFilterKeydown(event: KeyboardEvent): void {
+  if (!event.altKey || event.ctrlKey || event.metaKey) return
+  if (event.code !== 'KeyW') return
+
+  const target = event.target
+  const isFormField =
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target instanceof HTMLButtonElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  if (isFormField) return
+
+  // Giữ phím xuống phát một chuỗi `keydown` lặp — cùng khuôn guard `event.repeat` của hai
+  // handler ngay trên.
+  if (event.repeat) return
+
+  event.preventDefault()
+  dispatch('import.preview.chapter_filter_toggle')
+}
+
+/**
+ * Điểm nối DUY NHẤT của scrim tới BA handler độc lập ngay trên — Vue chỉ cho MỘT `@keydown`
  * trần trên một phần tử (một `@keydown` thứ hai là lỗi biên dịch "duplicate attribute"), nên
- * đây là một hàm TỔNG HỢP thuần tuý gọi cả hai theo thứ tự, KHÔNG đọc/ghi gì của riêng nó —
+ * đây là một hàm TỔNG HỢP thuần tuý gọi cả ba theo thứ tự, KHÔNG đọc/ghi gì của riêng nó —
  * mỗi handler vẫn tự gác vị từ của chính nó (`altKey` cho cái này, phủ định `altKey` cho cái
  * kia), không phải một lượt "nới" cái nào cả.
  */
 function onScrimKeydown(event: KeyboardEvent): void {
   onTier2Keydown(event)
   onChapterCursorKeydown(event)
+  onChapterFilterKeydown(event)
 }
 
 /**
@@ -748,38 +845,66 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
             {{ tError(importPreviewUrlImportError) }}
           </p>
           <ul class="ip-url-items">
-            <li v-for="(item, i) in importPreviewUrlItems" :key="i" class="ip-url-item" :class="{ 'ip-url-item-broken': !item.ok }">
-              <!-- aura-allow-text: DỮ LIỆU (vị trí 1-based trong danh sách, KHÔNG markup — AD-16). -->
-              <span class="ip-url-position">{{ i + 1 }}</span>
-              <!-- aura-allow-text: DỮ LIỆU (URL người dùng tự dán). -->
-              <span class="ip-url-address">{{ item.url }}</span>
-              <span v-if="item.ok" class="ip-url-ok">{{ t('mode.library.preview.url_item_ok') }}</span>
-              <span v-else-if="item.error !== null" class="ip-url-reason" role="alert">
-                <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
-                {{ tError(item.error) }}
-              </span>
-              <form class="ip-url-action-form" @submit.prevent="onReloadUrlItem(i)">
-                <button
-                  v-if="!item.ok"
-                  type="submit"
-                  class="ip-url-reload"
-                  :disabled="importPreviewConfirming || importPreviewUrlImportBusy"
-                >
-                  {{ t('mode.library.preview.url_item_reload') }}
-                </button>
-              </form>
-              <form class="ip-url-action-form" @submit.prevent="onRemoveUrlItem(i)">
-                <button
-                  type="submit"
-                  class="ip-url-remove"
-                  :disabled="importPreviewConfirming || importPreviewUrlImportBusy"
-                  :aria-label="t('mode.library.preview.url_item_remove_aria_label', { url: item.url })"
-                >
-                  {{ t('mode.library.preview.url_item_remove') }}
-                </button>
-              </form>
-            </li>
+            <!--
+              Story 6.10 — `⌥W` co danh sách này về mục HỎNG (cùng thao tác với tầng 4 ngay
+              dưới). `v-if` trên `<li>` BÊN TRONG `<template v-for>` (KHÔNG cùng phần tử với
+              `v-for` — Vue 3 tính `v-if` TRƯỚC `v-for` trên CÙNG một thẻ, nên `item` sẽ chưa
+              vào phạm vi) — chỉ số `i` giữ NGUYÊN vị trí thật trong `importPreviewUrlItems`
+              cho `onReloadUrlItem(i)`/`onRemoveUrlItem(i)`, hai hàm đó gọi Rust bằng CHÍNH
+              chỉ số đó.
+            -->
+            <template v-for="(item, i) in importPreviewUrlItems" :key="i">
+              <li
+                v-if="!importPreviewChapterFilterActive || !item.ok"
+                class="ip-url-item"
+                :class="{ 'ip-url-item-broken': !item.ok }"
+              >
+                <!-- aura-allow-text: DỮ LIỆU (vị trí 1-based trong danh sách, KHÔNG markup — AD-16). -->
+                <span class="ip-url-position">{{ i + 1 }}</span>
+                <!-- aura-allow-text: DỮ LIỆU (URL người dùng tự dán). -->
+                <span class="ip-url-address">{{ item.url }}</span>
+                <span v-if="item.ok" class="ip-url-ok">{{ t('mode.library.preview.url_item_ok') }}</span>
+                <span v-else-if="item.error !== null" class="ip-url-reason" role="alert">
+                  <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                  {{ tError(item.error) }}
+                </span>
+                <form class="ip-url-action-form" @submit.prevent="onReloadUrlItem(i)">
+                  <button
+                    v-if="!item.ok"
+                    type="submit"
+                    class="ip-url-reload"
+                    :disabled="importPreviewConfirming || importPreviewUrlImportBusy"
+                  >
+                    {{ t('mode.library.preview.url_item_reload') }}
+                  </button>
+                </form>
+                <form class="ip-url-action-form" @submit.prevent="onRemoveUrlItem(i)">
+                  <button
+                    type="submit"
+                    class="ip-url-remove"
+                    :disabled="importPreviewConfirming || importPreviewUrlImportBusy"
+                    :aria-label="t('mode.library.preview.url_item_remove_aria_label', { url: item.url })"
+                  >
+                    {{ t('mode.library.preview.url_item_remove') }}
+                  </button>
+                </form>
+              </li>
+            </template>
           </ul>
+          <!--
+            🔴 SỬA (vòng rà đối kháng bước 4, 2026-09-08) — RỖNG CÓ LÝ DO, không RỖNG IM LẶNG.
+            Bộ lọc bật được vì tầng 4 có Chương `needs_review` trong khi `broken_item_count ===
+            0` ⇒ `<ul>` phía trên render 0 `<li>` (mọi mục đều `ok`) mà không một dòng nào nói
+            vì sao — đúng lớp lỗi trung tâm của kho (`AGENTS.md` §Known pitfalls). Cùng khuôn
+            `chapter_filter_none_needs_review` của tầng 4.
+          -->
+          <p
+            v-if="importPreviewChapterFilterActive && importPreviewUrlItems.every((item) => item.ok)"
+            class="ip-tier-empty-reason"
+            role="status"
+          >
+            {{ t('mode.library.preview.url_list_none_broken') }}
+          </p>
         </section>
 
       <template v-if="importPreview !== null">
@@ -1189,6 +1314,71 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
               {{ t('mode.library.preview.chapters_count', { count: String(importPreviewSelectedChapters.chapter_count) }) }}
             </p>
 
+            <!--
+              ═══════ Chip "cần xem"/"sạch" + dòng tách hai vế (Story 6.10, FR132) ═══════
+              🔴 Hai con số DO RUST CỘNG (AD-1) — `needs_review_count`/`clean_count` đọc THẲNG
+              từ dây, không tính lại ở đây. `any_signal_participated === false` ⇒ KHÔNG hàng
+              rào nào tồn tại cho lượt nhập này — nói "chưa đủ Chương để so" THAY VÌ khai
+              `0 cần xem` (§Always spec 6.10, AC 2026-09-08).
+            -->
+            <div class="ip-chapter-filter-bar">
+              <template v-if="importPreviewSelectedChapters.any_signal_participated">
+                <!-- 🔴 SỬA (vòng rà đối kháng bước 4, 2026-09-08) — `:disabled` KHÔNG được
+                     khoá chiều TẮT. Bản trước chỉ xét `needs_review_count === 0`, nên nếu bộ
+                     lọc ĐANG BẬT rồi một lượt tải lại/bỏ mục làm số đó về 0, nút hoá `disabled`
+                     — người dùng KẸT ở trạng thái lọc, chỉ còn bàn phím (`⌥W`) thoát được. Thêm
+                     `&& !importPreviewChapterFilterActive`: TẮT một bộ lọc đang bật luôn được
+                     phép, cùng khuôn `toggleImportPreviewChapterFilter` (`importPreviewState.ts`). -->
+                <button
+                  type="button"
+                  class="ip-chapter-filter-chip ip-chapter-filter-chip-needs-review"
+                  :class="{ 'ip-chapter-filter-chip-active': importPreviewChapterFilterActive }"
+                  :disabled="importPreviewSelectedChapters.needs_review_count === 0 && !importPreviewChapterFilterActive"
+                  @click="dispatch('import.preview.chapter_filter_toggle')"
+                >
+                  <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
+                  {{
+                    t('mode.library.preview.chapter_filter_chip_needs_review', {
+                      count: String(importPreviewSelectedChapters.needs_review_count),
+                    })
+                  }}
+                </button>
+                <span class="ip-chapter-filter-chip ip-chapter-filter-chip-clean">
+                  {{
+                    t('mode.library.preview.chapter_filter_chip_clean', {
+                      count: String(importPreviewSelectedChapters.clean_count),
+                    })
+                  }}
+                </span>
+                <!-- aura-allow-text: hợp âm bàn phím CỐ ĐỊNH (⌥W) — DỮ LIỆU ký hiệu phím, không
+                     phải câu văn cần dịch, cùng khuôn `ShortcutsOverlay.vue` (hợp âm đã định
+                     dạng). -->
+                <kbd class="ip-chapter-filter-key" aria-hidden="true">⌥W</kbd>
+                <p v-if="importPreviewSelectedChapters.needs_review_count === 0" class="ip-chapter-filter-note">
+                  {{ t('mode.library.preview.chapter_filter_none_needs_review') }}
+                </p>
+              </template>
+              <p v-else class="ip-chapter-filter-note" role="status">
+                {{ t('mode.library.preview.chapter_filter_insufficient_data') }}
+              </p>
+
+              <p class="ip-chapter-filter-breakdown">
+                <!-- aura-allow-text: KẾT QUẢ của `t()`, hai tham số là DỮ LIỆU (Rust đã cộng). -->
+                {{
+                  t('mode.library.preview.chapter_filter_breakdown', {
+                    chapters: String(importPreviewSelectedChapters.chapter_count),
+                    broken: String(importPreviewSelectedChapters.broken_item_count),
+                  })
+                }}
+              </p>
+
+              <!-- 🔴 Cờ bảng mã tin cậy thấp — NGOÀI hai con số (§Never spec 6.10: "không nhân
+                   cờ tin cậy thấp thành N Chương cần xem"). -->
+              <p v-if="importPreview?.confidence === 'low'" class="ip-chapter-filter-low-confidence" role="status">
+                {{ t('mode.library.preview.chapter_filter_low_confidence_warning') }}
+              </p>
+            </div>
+
             <label class="ip-chapters-sort-toggle">
               <input
                 type="checkbox"
@@ -1198,6 +1388,12 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
               {{ t('mode.library.preview.chapters_sort_by_length') }}
             </label>
 
+            <!--
+              ═══════ MỘT `v-for` DUY NHẤT cho tầng 4 (Story 6.10) ═══════
+              Thay ba nhánh cũ (`chapterEntriesSortedByLength`/`.first`/`.last`) —
+              [`chapterEntriesRendered`] đã áp sẵn sắp xếp + lọc + co gọn theo ĐÚNG một thứ tự;
+              `⋯` giờ là một PHẦN TỬ trong CHÍNH mảng đó, không một `<li v-if>` rời đứng cạnh.
+            -->
             <ul
               ref="chaptersList"
               class="ip-chapters-list"
@@ -1206,74 +1402,40 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
               :aria-label="t('mode.library.preview.tier4_title')"
               :aria-activedescendant="currentChapterDomId ?? undefined"
             >
-              <template v-if="chapterSortByLength">
+              <template v-for="row in chapterEntriesRendered" :key="row.kind === 'entry' ? row.entry.ord : 'ellipsis'">
+                <li v-if="row.kind === 'ellipsis'" class="ip-chapters-ellipsis" aria-hidden="true">⋯</li>
                 <li
-                  v-for="entry in chapterEntriesSortedByLength"
-                  :id="chapterDomId(entry.ord)"
-                  :key="entry.ord"
+                  v-else
+                  :id="chapterDomId(row.entry.ord)"
                   class="ip-chapters-entry"
-                  :class="{ 'ip-chapters-entry-current': entry.ord - 1 === importPreviewChapterCursor }"
+                  :class="{
+                    'ip-chapters-entry-current': row.entry.ord - 1 === importPreviewChapterCursor,
+                    'ip-chapters-entry-needs-review': row.entry.needs_review,
+                  }"
                   role="option"
-                  :aria-selected="entry.ord - 1 === importPreviewChapterCursor"
+                  :aria-selected="row.entry.ord - 1 === importPreviewChapterCursor"
                 >
                   <!-- aura-allow-text: DỮ LIỆU (số thứ tự Chương từ Rust, KHÔNG markup — AD-16). -->
-                  <span class="ip-chapters-ord">{{ entry.ord }}</span>
-                  <span v-if="entry.title !== null" class="ip-chapters-title">
+                  <span class="ip-chapters-ord">{{ row.entry.ord }}</span>
+                  <span v-if="row.entry.title !== null" class="ip-chapters-title">
                     <!-- aura-allow-text: DỮ LIỆU (dòng khớp mẫu, KHÔNG markup — AD-16). -->
-                    {{ entry.title }}
+                    {{ row.entry.title }}
                   </span>
                   <span v-else class="ip-chapters-title ip-chapters-title-none">
                     {{ t('mode.library.preview.chapters_no_title') }}
                   </span>
                   <span class="ip-chapters-length">
-                    {{ t('mode.library.preview.chapters_length', { count: String(entry.length) }) }}
+                    {{ t('mode.library.preview.chapters_length', { count: String(row.entry.length) }) }}
                   </span>
-                </li>
-              </template>
-              <template v-else>
-                <li
-                  v-for="entry in chapterEntriesDefaultWindow.first"
-                  :id="chapterDomId(entry.ord)"
-                  :key="entry.ord"
-                  class="ip-chapters-entry"
-                  :class="{ 'ip-chapters-entry-current': entry.ord - 1 === importPreviewChapterCursor }"
-                  role="option"
-                  :aria-selected="entry.ord - 1 === importPreviewChapterCursor"
-                >
-                  <!-- aura-allow-text: DỮ LIỆU (số thứ tự Chương từ Rust, KHÔNG markup — AD-16). -->
-                  <span class="ip-chapters-ord">{{ entry.ord }}</span>
-                  <span v-if="entry.title !== null" class="ip-chapters-title">
-                    <!-- aura-allow-text: DỮ LIỆU (dòng khớp mẫu, KHÔNG markup — AD-16). -->
-                    {{ entry.title }}
-                  </span>
-                  <span v-else class="ip-chapters-title ip-chapters-title-none">
-                    {{ t('mode.library.preview.chapters_no_title') }}
-                  </span>
-                  <span class="ip-chapters-length">
-                    {{ t('mode.library.preview.chapters_length', { count: String(entry.length) }) }}
-                  </span>
-                </li>
-                <li v-if="chapterEntriesDefaultWindow.showEllipsis" class="ip-chapters-ellipsis" aria-hidden="true">⋯</li>
-                <li
-                  v-for="entry in chapterEntriesDefaultWindow.last"
-                  :id="chapterDomId(entry.ord)"
-                  :key="entry.ord"
-                  class="ip-chapters-entry"
-                  :class="{ 'ip-chapters-entry-current': entry.ord - 1 === importPreviewChapterCursor }"
-                  role="option"
-                  :aria-selected="entry.ord - 1 === importPreviewChapterCursor"
-                >
-                  <!-- aura-allow-text: DỮ LIỆU (số thứ tự Chương từ Rust, KHÔNG markup — AD-16). -->
-                  <span class="ip-chapters-ord">{{ entry.ord }}</span>
-                  <span v-if="entry.title !== null" class="ip-chapters-title">
-                    <!-- aura-allow-text: DỮ LIỆU (dòng khớp mẫu, KHÔNG markup — AD-16). -->
-                    {{ entry.title }}
-                  </span>
-                  <span v-else class="ip-chapters-title ip-chapters-title-none">
-                    {{ t('mode.library.preview.chapters_no_title') }}
-                  </span>
-                  <span class="ip-chapters-length">
-                    {{ t('mode.library.preview.chapters_length', { count: String(entry.length) }) }}
+                  <span v-if="row.entry.needs_review" class="ip-chapters-needs-review-badge">
+                    {{ t('mode.library.preview.chapters_needs_review_badge') }}
+                    <span
+                      v-for="cause in row.entry.review_causes"
+                      :key="cause"
+                      class="ip-chapters-review-cause"
+                    >
+                      {{ t(reviewCauseMessageKey(cause)) }}
+                    </span>
                   </span>
                 </li>
               </template>
@@ -1996,6 +2158,101 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-chapters-ellipsis {
   text-align: center;
   color: var(--color-on-surface-variant);
+}
+
+/* Story 6.10 — hàng Chương "cần xem", phân biệt bằng SẮC ĐỘ + VIỀN (§Always: không bóng đổ,
+   không gradient — `check-tokens.mjs` Kiểm F). `border-left` giữ vai trò con trỏ (§Story
+   6.10a `.ip-chapters-entry-current` ngay trên) — hàng cần xem đổi `border` NGOÀI thay vì
+   trùng cạnh, hai tín hiệu không đè lên nhau.
+
+   🔴 SỬA (vòng rà đối kháng bước 4, 2026-09-08) — BA thuộc tính TỪNG CẠNH, KHÔNG rút gọn
+   `border-color`. `border-color` đặt CẢ BỐN cạnh (kể cả trái), và luật này đứng SAU
+   `.ip-chapters-entry-current` trong cùng tệp với CÙNG độ đặc hiệu (một lớp) — CSS xử theo
+   THỨ TỰ NGUỒN khi đặc hiệu bằng nhau, nên bản rút gọn NUỐT `border-left-color: var(--color-
+   primary)` của con trỏ trên một hàng vừa là con trỏ vừa cần xem. Chừa `border-left-color` lại
+   cho ĐÚNG MỘT luật (`.ip-chapters-entry-current`) sở hữu — không phụ thuộc thứ tự nguồn nữa. */
+.ip-chapters-entry-needs-review {
+  border-top-color: var(--color-error);
+  border-right-color: var(--color-error);
+  border-bottom-color: var(--color-error);
+}
+
+.ip-chapters-needs-review-badge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  flex: none;
+  padding: 0 calc(var(--space-unit) * 1);
+  border: 1px solid var(--color-error);
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  color: var(--color-error);
+}
+
+.ip-chapters-review-cause {
+  color: var(--color-on-surface-variant);
+}
+
+/* Story 6.10 — chip "N cần xem · M sạch" + dòng tách hai vế + cờ tin cậy thấp. */
+.ip-chapter-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+}
+
+.ip-chapter-filter-chip {
+  margin: 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  border: 1px solid var(--color-outline);
+  background: none;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+button.ip-chapter-filter-chip {
+  cursor: pointer;
+}
+
+button.ip-chapter-filter-chip:disabled {
+  cursor: default;
+}
+
+.ip-chapter-filter-chip-needs-review {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.ip-chapter-filter-chip-active {
+  border-width: 2px;
+}
+
+.ip-chapter-filter-key {
+  padding: 0 calc(var(--space-unit) * 1);
+  border: 1px solid var(--color-outline);
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  color: var(--color-on-surface-variant);
+}
+
+.ip-chapter-filter-note,
+.ip-chapter-filter-breakdown {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ip-chapter-filter-low-confidence {
+  margin: 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  border: 1px solid var(--color-error);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-error);
 }
 
 .ip-tier-empty-reason {

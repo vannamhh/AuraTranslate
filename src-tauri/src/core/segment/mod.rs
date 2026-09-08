@@ -56,6 +56,10 @@
 //! *"`split` là chỗ duy nhất biết bảng kết câu"* ở đoạn trên vẫn đúng, `line_ends_a_sentence`
 //! chỉ mở thêm một cửa `pub(super)` cạnh bảng đó, không lộ nó ra ngoài `core::segment`.
 
+//! [`review`] — phán quyết *cần xem*/*sạch* cho từng Chương (Story 6.10, FR132). Hàng rào
+//! Tukey (`1,5 × IQR`, tên riêng) trên ba số tóm tắt đã có (`length`/`cleanup_match_count`/
+//! `joined_line_count`) — module THUẦN, không đọc dây, không đọc kho.
+
 pub mod chapterpattern;
 pub mod encoding;
 pub mod import;
@@ -65,4 +69,5 @@ pub mod paragraph;
 pub mod pipeline;
 pub mod reading;
 pub mod regroup;
+pub mod review;
 pub mod split;

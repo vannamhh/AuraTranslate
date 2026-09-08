@@ -100,7 +100,11 @@ function minimalPreview(chapterCount: number): ImportEncodingPreview {
     },
     self_declared_chapters: {
       chapter_count: chapterCount,
-      chapters: Array.from({ length: chapterCount }, (_, i) => ({ ord: i + 1, title: null, length: 10, cleanup_match_count: 0 })),
+      chapters: Array.from({ length: chapterCount }, (_, i) => ({ ord: i + 1, title: null, length: 10, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [] })),
+      broken_item_count: 0,
+      needs_review_count: 0,
+      clean_count: chapterCount,
+      any_signal_participated: false,
     },
   }
 }
@@ -423,5 +427,68 @@ describe('importPreviewState — resetImportPreview vứt sạch state của nh�
     expect(state.importPreviewUrlItems.value).toEqual([])
     expect(state.importPreviewLastSubmittedFrom.value).toBeNull()
     expect(state.importPreviewIsOpen.value).toBe(false)
+  })
+})
+
+/**
+ * I/O Matrix spec 6.10, hàng *"Bấm `⌥W`"* — vế **danh sách mục URL**: co về **mục hỏng**.
+ *
+ * 🔴 **Vì sao ca này sống ở ĐÂY chứ không ở `importPreviewOverlayRender.test.ts`.** Vế này chỉ
+ * quan sát được trên đường URL, và khung mock sáu-lời-gọi cùng `freshOverlay()` dựng DOM thật
+ * đã có sẵn trong tệp này — dựng lại chúng ở tệp kia là một nguồn sự thật thứ hai.
+ *
+ * ⚠️ Ice chốt phương án **C** ngày 2026-09-08: *"hai danh sách, một thao tác"*. Một lượt bấm
+ * `⌥W` co **cả hai**; vế tầng 4 có chủ riêng ở `importPreviewOverlayRender.test.ts`. Ca này
+ * canh đúng nửa còn lại, và nó là nửa dễ quên vì `ord` của Chương KHÔNG hề trỏ ngược về mục
+ * URL nào (`chapters_shape_for_view` lọc bỏ mục hỏng rồi đánh lại `ord` liên tục).
+ */
+describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" co danh sách mục URL về mục hỏng', () => {
+  it('bật lọc: 5 mục còn hiện đúng 1 mục HỎNG, và nút xác nhận vẫn KHOÁ', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    const urls = [
+      'https://a.example/1',
+      'https://b.example/2',
+      'https://c.example/3',
+      'https://d.example/4',
+      'https://e.example/5',
+    ]
+    const batch = batchWithOneBroken(urls, 2)
+    // Bon Chuong OK deu SACH; con so `can xem` den TRON VEN tu mot link hong -- dung hinh
+    // dang Rust cong o `build_chapter_split_preview_wire`.
+    batch.encoding_preview!.self_declared_chapters = {
+      chapter_count: 4,
+      chapters: Array.from({ length: 4 }, (_, i) => ({
+        ord: i + 1,
+        title: null,
+        length: 100 + i,
+        cleanup_match_count: 0,
+        joined_line_count_in_chapter: null,
+        needs_review: false,
+        review_causes: [],
+      })),
+      broken_item_count: 1,
+      needs_review_count: 1,
+      clean_count: 4,
+      any_signal_participated: true,
+    }
+    startUrlImportMock.mockResolvedValue({ batch, error: null })
+
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+
+    expect(wrapper.findAll('.ip-url-item').length).toBe(5)
+    expect(wrapper.findAll('.ip-url-item-broken').length).toBe(1)
+
+    state.toggleImportPreviewChapterFilter()
+    await wrapper.vm.$nextTick()
+
+    expect(state.importPreviewChapterFilterActive.value).toBe(true)
+    expect(wrapper.findAll('.ip-url-item').length).toBe(1)
+    expect(wrapper.findAll('.ip-url-item-broken').length).toBe(1)
+    // 🔴 Bat bien 6.7 KHONG duoc noi theo bo loc -- xem duoc va ghi duoc la hai menh de.
+    expect(state.importPreviewCanConfirm.value).toBe(false)
+
+    wrapper.unmount()
+    state.resetImportPreview()
   })
 })

@@ -392,7 +392,7 @@ fn a_broken_item_at_position_three_still_lets_the_other_four_chapters_preview_wh
     // Vị từ XEM — MỚI, bỏ qua mục hỏng, dựng được 4 Chương từ 4 mục OK.
     let view_shape = chapters_shape_for_view(&items)
         .expect("chapters_shape_for_view (vị từ XEM) phải dựng được từ 4 mục OK còn lại");
-    let preview = preview_import_encoding(&view_shape, "en", &[], None, &[]);
+    let preview = preview_import_encoding(&view_shape, "en", &[], None, &[], 0);
     assert!(!preview.candidates.is_empty(), "còn byte OK để dò -- dải ứng viên không được rỗng");
     let chapters_summary = preview.candidates[0]
         .chapters
