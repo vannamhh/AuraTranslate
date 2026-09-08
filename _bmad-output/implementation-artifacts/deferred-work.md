@@ -9487,6 +9487,20 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   6.10** — khi dựng bộ lọc "cần xem", thêm `joined_lines` (đếm trên TOÀN Chương, không phải
   cửa sổ bằng chứng — xem mục ngay dưới) vào danh sách dấu hiệu, và cập nhật `prd.md:335`
   cùng lượt.
+  → 🟡 **ĐÓNG MỘT NỬA 2026-09-08 (`correct-course`, lượt thứ hai trong ngày).** Vế **quy hoạch**
+  đã đóng: FR125 nay có tên trong FR132 ở `prd.md:335`, trong `epics.md:92`, trong UX-DR29
+  (`epics.md:587`), trong AC Story 6.10 (`epics.md:4982`) và trong `EXPERIENCE.md:142` — năm chỗ,
+  khớp nhau. **Vế thi công CÒN HỞ, Chủ vẫn Story 6.10:** dựng số đếm per-Chương và nối nó vào phép
+  so trung vị.
+  ⇒ **Một mệnh đề của chính mục này hết đúng, sửa tại chỗ:** nó dặn *"đếm trên TOÀN Chương, không
+  phải cửa sổ bằng chứng — xem mục ngay dưới"* như thể phải dựng mới. Đo 2026-09-08:
+  `pipeline.rs:644` **đã** chạy `normalize::normalize()` trên toàn văn từng đơn vị rồi **vứt** hai
+  số đếm, chỉ giữ `.text`. Cửa sổ `EVIDENCE_WINDOW_BYTES` chỉ áp cho dải năm ứng viên bảng mã
+  (`encoding.rs:287`). ⇒ việc còn lại là **giữ con số**, không phải tính lại nó.
+  ⚠️ **Giới hạn kèm theo, đã có chủ:** AD-39 đặt bước chuẩn hoá (bước 4) TRƯỚC bước tách Chương
+  (bước 5), nên trên đường `Blob` + mẫu phân tách chỉ Chương đầu có số đếm quy về được — cùng hình
+  dạng `cleanup_match_count`. AC *"không đo được khác sạch"* thêm vào `epics.md` cùng ngày là chủ
+  của mệnh đề đó.
 
 - ⚠️ **Số đếm `joined_lines`/`blank_lines_removed` của Story 6.4 chỉ tính trên CỬA SỔ BẰNG
   CHỨNG (tối đa `EVIDENCE_WINDOW_BYTES` byte đầu), KHÔNG phải trên TOÀN Chương.** Đây là một
@@ -9499,6 +9513,22 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   Chương cần một lượt chạy `normalize()` đầy đủ (không windowed), hợp lý hơn để làm SAU khi
   Chương đã có trong `project.db` (Story 6.10 có bối cảnh "N Chương cần xem" ở cấp Thư viện,
   không phải cấp một lượt xem trước trước-khi-ghi). **Chủ: Story 6.10.**
+  🔵 **SỬA 2026-09-08 (`correct-course`) — hai mệnh đề của mục này hết đúng, và chúng kéo nhau.**
+  ① *"số đếm trên TOÀN Chương cần một lượt chạy `normalize()` đầy đủ (không windowed)"* — **lượt
+  đó đã chạy rồi**, mỗi đơn vị một lần, ngay trên đường xem trước (`pipeline.rs:644`). Cửa sổ chỉ
+  giới hạn **dải năm ứng viên bảng mã** (`encoding.rs:287`), không giới hạn lượt pipeline thật.
+  ② *"Story 6.10 có bối cảnh 'N Chương cần xem' ở cấp Thư viện, không phải cấp một lượt xem trước
+  trước-khi-ghi"* — **sai**. FR132 (`prd.md:333`), AC Story 6.10 và UX-DR29 đều đặt bộ lọc ở **màn
+  xem trước nhập**. Kết luận *"hợp lý hơn để làm SAU khi Chương đã có trong `project.db`"* dựng
+  trên tiền đề ấy, nên nó **rơi theo**.
+  ⇒ **Phạm vi còn lại hẹp hơn nhiều, và vẫn thật:** hai số đếm hiện trên **tầng 1** (dải ứng viên,
+  `NormalizedPreviewWire`) vẫn là số **có cửa sổ**, và `window_truncated` là thứ duy nhất nói ra
+  điều đó. Bộ lọc của Story 6.10 **không** đọc con số ấy — nó đọc số per-Chương từ pipeline.
+  **Chủ: Story 6.10** giữ nguyên cho vế nối dây; vế *"tầng 1 hiện số có cửa sổ"* là một giới hạn
+  đã ghi ra, không phải nợ.
+  ⚠️ **Nguy cơ đặt tên, ghi ra trước khi ai đó vấp:** `NormalizedPreviewWire.joined_lines`
+  (`project.rs:1023`, theo ỨNG VIÊN, có cửa sổ) và số per-Chương sắp thêm là **hai đại lượng khác
+  nhau**. Đừng đặt trùng tên trần `joined_lines` trên `ChapterSplitPreviewEntryWire`.
 
 - ⚠️ **Tiêu đề KHÔNG dấu chấm đứng riêng một dòng, TRONG THÂN một Chương (không phải dòng
   đầu), vẫn bị luật gộp dòng của Story 6.4 nối OAN vào câu kế nếu không có dòng trống ngăn

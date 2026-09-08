@@ -89,7 +89,7 @@ FR127: **Ảnh trong nội dung tải từ web được tải về và lưu bên
 
 FR128: **Xuất xứ tài liệu nguồn, ghi ở tầng Chương** — bốn trường: tên tác giả bài gốc · tên báo/website nguồn · URL bài gốc · ngày đăng bài gốc. Tự điền khi nhập từ URL, **sửa lại được**, và **nhập tay được** cả khi văn bản đến từ file hoặc dán trực tiếp.
 
-FR132: **Bộ lọc "cần xem" trên màn hình xem trước nhập** — đầu màn luôn hiện **hai con số** (*N Chương cần xem* · *M Chương sạch*) kèm **một thao tác lọc** về nhóm đầu. Áp cho **mọi đường nhập** đi qua màn xem trước. Một Chương vào nhóm *cần xem* khi có dấu hiệu cần mắt người: bảng mã đoán độ tin cậy thấp (FR126), ranh giới bóc bất thường (FR123), luật làm sạch khớp chỗ nghi ngờ (FR124), hoặc **link hỏng** (FR122). Bộ lọc **không bỏ qua** Chương nào — nó đổi thứ tự chú ý, không đổi phạm vi nhập. 🔵 *(Sửa 2026-09-08 qua `correct-course`: nguyên nhân thứ tư ở đây trước viết "số Chương tách ra không khớp số đơn vị đầu vào (FR14)", lệch với AC của chính Story 6.10 và với `EXPERIENCE.md:142` — cả hai viết "link hỏng". Hai trên ba, và Ice chốt theo nghĩa đó cùng ngày. Vế "N link ≠ N Chương" KHÔNG mất: nó đã có chủ riêng ở AC4 của Story 6.7, nơi hai con số bằng nhau là một bằng chứng quan sát được.)*
+FR132: **Bộ lọc "cần xem" trên màn hình xem trước nhập** — đầu màn luôn hiện **hai con số** (*N Chương cần xem* · *M Chương sạch*) kèm **một thao tác lọc** về nhóm đầu. Áp cho **mọi đường nhập** đi qua màn xem trước. Một Chương vào nhóm *cần xem* khi có dấu hiệu cần mắt người: bảng mã đoán độ tin cậy thấp (FR126), ranh giới bóc bất thường (FR123), luật làm sạch khớp chỗ nghi ngờ (FR124), **số dòng bị bước chuẩn hoá nối lại bất thường** (FR125), hoặc **link hỏng** (FR122). Bộ lọc **không bỏ qua** Chương nào — nó đổi thứ tự chú ý, không đổi phạm vi nhập. 🔵 *(Sửa 2026-09-08 qua `correct-course`: nguyên nhân thứ tư ở đây trước viết "số Chương tách ra không khớp số đơn vị đầu vào (FR14)", lệch với AC của chính Story 6.10 và với `EXPERIENCE.md:142` — cả hai viết "link hỏng". Hai trên ba, và Ice chốt theo nghĩa đó cùng ngày. Vế "N link ≠ N Chương" KHÔNG mất: nó đã có chủ riêng ở AC4 của Story 6.7, nơi hai con số bằng nhau là một bằng chứng quan sát được.)* 🔵 *(Nới 2026-09-08 qua `correct-course` — **lượt thứ hai cùng ngày**, sau khi bước 2 của `bmad-build` đo được rằng `pipeline.rs:644` tính `joined_lines` trên toàn văn từng đơn vị rồi vứt đi, chỉ giữ `.text`. Dấu hiệu FR125 vì thế tốn 0 phép tính mới, và nới TRƯỚC khi dựng rẻ hơn nới lần hai. Nguồn: `deferred-work.md:9478`.)*
 
 #### C2 — Workspace (FR16–FR26, FR42, FR44, FR78, FR117, FR129, FR133, FR134)
 
@@ -584,7 +584,7 @@ UX-DR27: **Trạng thái AI năm giá trị** — chưa cấu hình · đang sin
 
 UX-DR28: **Trạng thái bảng mã ba giá trị** — nguồn tự khai (`.docx`, HTTP có `charset` tin được) · tự đoán tin cậy cao · tự đoán tin cậy thấp. **Chỉ giá trị thứ ba mở dải đối chiếu năm ứng viên.** Không có trạng thái lỗi.
 
-UX-DR29: **Trạng thái một Chương trong lần nhập nhiều link: sạch hoặc cần xem.** *Cần xem* gom bốn nguyên nhân: bảng mã tin cậy thấp · phần bóc ra **ngắn bất thường so với trung vị** các Chương khác · luật làm sạch xoá quá nhiều · link hỏng. **Bộ đếm ở đầu màn xem trước luôn hiện cả hai con số.**
+UX-DR29: **Trạng thái một Chương trong lần nhập nhiều link: sạch hoặc cần xem.** *Cần xem* gom **năm** nguyên nhân: bảng mã tin cậy thấp · phần bóc ra **ngắn bất thường so với trung vị** các Chương khác · luật làm sạch xoá quá nhiều · **số dòng bị bước chuẩn hoá nối lại cao bất thường** · link hỏng. **Bộ đếm ở đầu màn xem trước luôn hiện cả hai con số.**
 
 UX-DR30: **"Đã lưu N giây trước" ở thanh trạng thái** — không hộp thoại, **không dấu chấm "chưa lưu" gây lo lắng** (NFR18 bảo đảm mất tối đa 5 giây).
 
@@ -4979,11 +4979,21 @@ So that tôi không bấm xác nhận mù ở Chương thứ mười.
 
 **Given** trạng thái *cần xem*
 **When** xác định
-**Then** gom **bốn** nguyên nhân: bảng mã tin cậy thấp · phần bóc ra **ngắn bất thường so với trung vị các Chương khác** · luật làm sạch xoá quá nhiều · link hỏng
+**Then** gom **năm** nguyên nhân: bảng mã tin cậy thấp · phần bóc ra **ngắn bất thường so với trung vị các Chương khác** · luật làm sạch xoá quá nhiều · **số dòng bị bước chuẩn hoá nối lại cao bất thường so với trung vị các Chương khác** · link hỏng
 
 **Given** một Chương *cần xem*
 **When** hiển thị
 **Then** nêu rõ **nguyên nhân nào** khiến nó được xếp vào nhóm đó
+
+**Given** một dấu hiệu **không đo được** cho một Chương *(AD-39 đặt bước chuẩn hoá (FR125) và bước làm sạch
+(FR124) TRƯỚC bước tách Chương (FR14), nên trên đường tệp/dán tay + mẫu phân tách chỉ Chương đầu có số đếm thật)*
+**When** phân loại
+**Then** Chương đó **không** được xếp vào nhóm *sạch* dựa trên dấu hiệu ấy
+**And** trạng thái *không đo được* **phân biệt được** với *đã đo và sạch*
+🔵 *(Thêm 2026-09-08 qua `correct-course`. Không có AC này thì trung vị của N−1 số `0` là `0`, và màn hình
+khẳng định "M Chương sạch" cho những Chương chưa ai đo — đúng lớp rỗng-im-lặng mà `AGENTS.md` §Known
+pitfalls dẫn ra ba lần. Áp cho CẢ nguyên nhân "luật làm sạch xoá quá nhiều" LẪN nguyên nhân FR125 mới,
+nên viết ở AC rẻ hơn để mỗi story tự phát hiện lại.)*
 
 **Given** phím `⌥W`
 **When** bấm

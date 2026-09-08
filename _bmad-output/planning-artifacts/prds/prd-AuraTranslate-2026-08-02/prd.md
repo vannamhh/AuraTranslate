@@ -332,7 +332,13 @@ Màn xem trước hiện phần đã bóc của **từng Chương** và cho ngư
 
 **FR132.** **Bộ lọc "cần xem" trên màn hình xem trước nhập.** Đầu màn xem trước luôn hiển thị **hai con số** — *`N` Chương cần xem* và *`M` Chương sạch* — kèm **một thao tác lọc** đưa danh sách về chỉ nhóm cần xem. Áp cho **mọi đường nhập** đi qua màn xem trước, không riêng đường URL.
 
-Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu hiệu cần mắt người: bảng mã đoán được với độ tin cậy thấp (FR126), ranh giới nội dung bóc ra bất thường (FR123), luật làm sạch khớp vào chỗ nghi ngờ (FR124), hoặc số Chương tách ra không khớp số đơn vị đầu vào (FR14).
+Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu hiệu cần mắt người: bảng mã đoán được với độ tin cậy thấp (FR126), ranh giới nội dung bóc ra bất thường (FR123), luật làm sạch khớp vào chỗ nghi ngờ (FR124), **số dòng bị bước chuẩn hoá nối lại bất thường (FR125)**, hoặc **link hỏng (FR122)**.
+
+> 🔵 *(Sửa 2026-09-08 qua `correct-course` — **hai** mệnh đề trong một câu, sửa cùng lượt vì cùng một câu.*
+>
+> *① **Thêm dấu hiệu FR125.** Luật gộp dòng của Story 6.4 tự ghi ra rằng nó nối oan một tiêu đề không dấu chấm đứng riêng dòng vào câu kế khi không có dòng trống ngăn cách — hư hại thật trên văn bản nguồn, và số dòng bị nối cao bất thường là tín hiệu duy nhất báo nó **trước** khi ghi xuống đĩa. Con số ấy đã được tính sẵn trên toàn văn từng đơn vị rồi bị vứt (`pipeline.rs:644` giữ `.text`, bỏ hai số đếm), nên dấu hiệu này tốn 0 phép tính mới.*
+>
+> *② **Vế cuối hết đúng.** Trước viết "số Chương tách ra không khớp số đơn vị đầu vào (FR14)". Ba nguồn khác đã ghi "link hỏng": `epics.md:92`, AC Story 6.10, `EXPERIENCE.md:142` — hai trong ba đã được lượt `correct-course` 2026-09-08 sửa, còn PRD sót lại vì lượt đó chỉ đọc `:333` rồi kết luận "PRD không cần sửa". Vế "N link ≠ N Chương" **không mất**: nó có chủ riêng ở AC4 của Story 6.7, nơi hai con số bằng nhau là một bằng chứng quan sát được.)*
 
 > **🔑 Vì sao đây là một FR chứ không phải một tiện ích giao diện:** FR123, FR124 và FR126 đều bắt buộc có **màn xem trước để người dùng duyệt**, và cả ba đều dựa trên giả định *người dùng thật sự nhìn*. Giả định đó **đúng ở quy mô một Chương và sai ở quy mô năm mươi**. Dán 50 link mà bắt duyệt tay 50 màn xem trước thì tới lần thứ mười người dùng sẽ bấm xác nhận mù — và khi đó **mục đích của cả ba FR kia mất sạch**, trong khi màn hình vẫn hiện ra đầy đủ và không có gì báo rằng nó đã ngừng có tác dụng.
 >

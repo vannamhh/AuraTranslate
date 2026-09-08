@@ -152,3 +152,86 @@ XANH, `spec-6-9…md:168`). Đừng đọc lượt xanh của nó thành "hợp 
 `spec-6-9…md:161-162` ghi **1230 ca Rust / 44 binary** và **909 ca vitest / 69 tệp**, `fileParallelism: false`
 ⇒ một lượt vitest ~98 s. ⚠️ Đây là số **chép lại**, không phải số tôi đo — lượt build sau phải chạy và đo lại,
 đừng chép tiếp.
+
+---
+
+## 9. Bốn quyết định Ice chốt ở lượt `bmad-build` 2026-09-08 (bước 2, dừng trước khi soạn spec)
+
+Ghi nguyên vẹn để lượt `correct-course` và lượt build sau không phải hỏi lại. Baseline: `b42be3b`,
+cây sạch. Ba lượt điều tra đi trước bốn câu hỏi này; số đo của chúng nằm ở §10.
+
+1. 🔴 **Quy tắc ngưỡng — HÀNG RÀO TUKEY, không phải một tỉ lệ so trung vị.** *Ngắn bất thường* =
+   dưới `Q1 − 1,5 × IQR`; *xoá quá nhiều* = trên `Q3 + 1,5 × IQR`. Một cơ chế cho hai tín hiệu,
+   đúng AC. Lý do chọn: hằng `1,5` là quy ước thống kê **có tên** (Tukey 1977), không phải một số
+   tự đúc — nên nó đi qua được lệnh cấm hằng số phù thuỷ 2026-09-05 theo đúng lý do lệnh cấm ấy
+   tồn tại; và hàng rào **tự thích nghi theo độ tản**, nên một lượt nhập N Chương dài đều nhau
+   không bị cờ oan.
+   ⚠️ **Giá phải trả, phải xử lý tường minh:** tứ phân vị vô nghĩa khi N nhỏ. `N = 1` thì
+   *"các Chương khác"* không tồn tại; N nhỏ thì `IQR = 0` là chuyện thường. Cả hai ca phải khai
+   **"không đo được"** và phân biệt được với *"sạch"* — chứ không rơi vào nhánh sạch.
+
+2. **Hợp âm `⌘↵` — GIỮ `Mod+Alt+Enter`, nợ `deferred-work.md:9943` đứng nguyên.** Không đụng bàn
+   phím Epic 2 trong story này. AC `⌘↵` mô tả đích đến và **không sai** vì đường đi chưa tới —
+   đúng luật *"năng lực chưa dựng ≠ lệch spec"*. Không sửa `epics.md` cho khớp mã.
+
+3. 🔴 **Nguyên nhân thứ năm `joined_lines` — MỞ `correct-course` TRƯỚC.** Lượt `bmad-build`
+   2026-09-08 **dừng ở bước 2** vì lý do này. Thêm dấu hiệu thứ năm là sửa FR132 (`prd.md:335`)
+   và AC của Story 6.10 trong `epics.md` — một mục quy hoạch, và kho định tuyến việc đó qua
+   `correct-course` (tiền lệ 3.4b 2026-08-21, 3.10b 2026-08-25, và chính lượt tách 6.10a
+   2026-09-08). ⇒ Bộ lọc ra đời đã đủ **năm** tín hiệu thay vì phải nới lần hai.
+   Mục nợ nguồn: `deferred-work.md:9478` (kèm `:9498` — `joined_lines` hôm nay chỉ đếm trên
+   **cửa sổ bằng chứng**, không trên toàn Chương; hai vế phải đi cùng nhau).
+
+4. 🔴 **`cleanup_match_count` đổi thành `Option<usize>`.** `null` = *không đo được cho Chương này*;
+   `Some(0)` = *luật thật sự không khớp gì*. Đây là phép **sửa NGUỒN cho nó nói thật**, không phải
+   một cờ vá bên ngoài.
+   **Vì sao bắt buộc:** trên đường `Blob` + mẫu phân tách, chỉ Chương `ord == 1` có `cleanup_report`
+   (`project.rs:1196-1199`, giới hạn pipeline đã ký ở 6.10a). Mọi Chương `ord >= 2` cho `0`, và trên
+   dây con số ấy không phân biệt được với một phép đo thật. ⇒ Trung vị của N−1 số `0` là `0`, và bộ
+   lọc sẽ khai *"M Chương sạch"* cho những Chương **chưa ai đo** — đúng biến thể Story 3.9 mà
+   `AGENTS.md` §Known pitfalls dẫn ra.
+   **Hai chỗ phải sửa tại chỗ kèm 🔵 và ngày:** `src-tauri/tests/segment_contract.rs:9333` (ca khoá
+   hình dạng dây, fixture đang đặt `cleanup_match_count: 0` làm *"số thật"*) và vị từ kiểm kiểu
+   `src/config/project.ts:357`.
+
+## 10. Số đo mới của lượt 2026-09-08 (bmad-build bước 2) — thứ lật một mệnh đề cũ
+
+- 🔵 **Cổng: MƯỜI MỘT, không phải "tám".** `check-gates.mjs` tự in *"11 cổng trong .githooks/pre-push"*.
+  Cụm *"tám cổng"* ở commit `24d07c4` và `deferred-work.md:10290` là số **tường thuật đã cũ**, không
+  phải số đo. Có 12 tệp `check-*.mjs`; 11 cổng = 10 tệp cộng `check:lint` (là `eslint`, không phải
+  một `.mjs`), và `check:scope`/`check:scope:bundled` cố ý ngoài pre-push.
+- 🔵 **40 tệp test Rust, không phải "44 binary".** `spec-6-10a:154` chép lại con số "44" đúng vào
+  lượt mà `:168` của chính nó cảnh báo *"đừng chép tiếp một con số không phải mình đo"*. Số nền ca
+  test (`1.255` Rust / `928` vitest) cũng là số **đã ghi**, chưa đo lại — lượt build sau phải tự chạy.
+- 🔴 **Nguyên nhân ④ chưa có chỗ đứng trong danh sách Chương.** `chapters_shape_for_view`
+  (`project.rs:2565-2569`) **lọc bỏ** mục hỏng bằng `filter_map`, và `ord` được đánh lại `1..M` liên
+  tục (`:1227`). Doc-comment `:2554-2556` chỉ khai bất biến vị trí cho danh sách `items`, **không**
+  cho danh sách Chương. ⇒ Hai danh sách song song lệch chỉ số, không trường nào trỏ ngược. Quyết định
+  #2 của §4 (*"link hỏng thành một Chương cần xem"*) vì thế đòi một phép hợp nhất mà Rust chưa dựng,
+  và mọi ánh xạ *"hàng thứ k trên màn" → `chapter_index`* phải đi qua phép lọc đó.
+- **Nguyên nhân ① đã sẵn, không cần trường mới.** `ConfidenceWire` (`project.rs:1415`, ba nhánh) ra
+  tới frontend ở cấp lượt nhập qua `ImportEncodingPreview::confidence` (`:1436`), đọc ở
+  `importPreviewState.ts:364`. Đúng hình dạng quyết định #3 của §4 đòi.
+- **Trung vị phía Rust: 0 dòng.** Bản duy nhất trong kho là `percentile()` ở
+  `src/panels/lookupTiming.ts:90` — TypeScript, thuộc panel đo tra cứu. Lượt build phải viết mới và
+  khai tường minh nó khớp hay cố ý lệch quy ước của bản kia, đừng để hai định nghĩa âm thầm khác nhau.
+- ⚠️ **`⌥W` trên macOS gõ ra `∑`** — `event.key` sẽ không bao giờ là `'w'`. Phải so
+  `event.code === 'KeyW'`, đúng thứ `keys.ts:509` làm. `keys.ts:406` đã ghi đích danh một khuyết tật
+  cùng lớp (`Alt+M` gõ ra `µ`). Cặp `⌥←`/`⌥→` của 6.10a né được vì phím mũi tên không bị `⌥` biến đổi,
+  nên khuôn của nó **không** chép thẳng sang được.
+- ⚠️ **Phép co gọn tầng 4 va thẳng vào một chiều lọc.** `chapterEntriesDefaultWindow`
+  (`ImportPreviewOverlay.vue:359-361`) cắt `slice(0,3)`/`slice(-3)` trên mảng **gốc**, và
+  `currentChapterDomId` (`:381-387`) dựng lại danh sách rendered từ hai nhánh. Một chế độ lọc thứ ba
+  làm biểu thức đó trả một `id` cho hàng **đã bị lọc khỏi DOM** ⇒ `aria-activedescendant` treo. Thứ tự
+  *lọc trước hay cắt trước* là một quyết định phải viết ra. Cộng thêm: ba nhánh `v-for` (`:1210`,
+  `:1234`, `:1257`) lặp cùng một khối `<li>`, nên thêm một chiều mà không hợp nhất là ba chỗ phải sửa.
+- 🔴 **`check:commands` KHÔNG canh hợp âm có an toàn không** — `grep lacksPrimaryMod` trên
+  `scripts/check-commands.mjs` cho **0** kết quả; Kiểm E (`:1673-1679`) chỉ dựng keymap thật và bắt
+  **va chạm**. ⇒ Một `Alt+W` trần đăng ký toàn cục sẽ đi qua cổng **XANH**. Kỷ luật `keys: undefined`
+  cộng handler DOM cục bộ phải tự giữ, không trông cậy cổng.
+- 🔵 **`deferred-work.md:9903` hết đúng.** Nó khai phép vá `NEGATIVE_OWNER_RE` *"thêm `chưa ai`,
+  `chưa story`, `chưa xác định`"*, nhưng `check-debt-owner.mjs:192-193` hôm nay chỉ có bảy cụm và
+  **không** có `chưa story`, `chưa xác định` — lượt rà sau đó đã gỡ hai cụm tự đúc. Sửa câu ở sổ nợ.
+- ⚠️ **`FILE_FLOOR = 39` của `check-panel-refs.mjs:555` đã lỗi thời.** `find src -name '*.ts'` đếm
+  **63** tệp hôm nay ⇒ 39/63 = **61,9 %**, tụt xa dưới dải 80–85 % mà chính doc-comment `:551` đặt ra,
+  và `:552` tự cảnh báo *"một sàn cũ là một sàn vô nghĩa"*. Món nợ này chưa có chủ.
