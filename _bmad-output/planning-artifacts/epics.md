@@ -89,7 +89,7 @@ FR127: **Ảnh trong nội dung tải từ web được tải về và lưu bên
 
 FR128: **Xuất xứ tài liệu nguồn, ghi ở tầng Chương** — bốn trường: tên tác giả bài gốc · tên báo/website nguồn · URL bài gốc · ngày đăng bài gốc. Tự điền khi nhập từ URL, **sửa lại được**, và **nhập tay được** cả khi văn bản đến từ file hoặc dán trực tiếp.
 
-FR132: **Bộ lọc "cần xem" trên màn hình xem trước nhập** — đầu màn luôn hiện **hai con số** (*N Chương cần xem* · *M Chương sạch*) kèm **một thao tác lọc** về nhóm đầu. Áp cho **mọi đường nhập** đi qua màn xem trước. Một Chương vào nhóm *cần xem* khi có dấu hiệu cần mắt người: bảng mã đoán độ tin cậy thấp (FR126), ranh giới bóc bất thường (FR123), luật làm sạch khớp chỗ nghi ngờ (FR124), hoặc số Chương tách ra không khớp số đơn vị đầu vào (FR14). Bộ lọc **không bỏ qua** Chương nào — nó đổi thứ tự chú ý, không đổi phạm vi nhập.
+FR132: **Bộ lọc "cần xem" trên màn hình xem trước nhập** — đầu màn luôn hiện **hai con số** (*N Chương cần xem* · *M Chương sạch*) kèm **một thao tác lọc** về nhóm đầu. Áp cho **mọi đường nhập** đi qua màn xem trước. Một Chương vào nhóm *cần xem* khi có dấu hiệu cần mắt người: bảng mã đoán độ tin cậy thấp (FR126), ranh giới bóc bất thường (FR123), luật làm sạch khớp chỗ nghi ngờ (FR124), hoặc **link hỏng** (FR122). Bộ lọc **không bỏ qua** Chương nào — nó đổi thứ tự chú ý, không đổi phạm vi nhập. 🔵 *(Sửa 2026-09-08 qua `correct-course`: nguyên nhân thứ tư ở đây trước viết "số Chương tách ra không khớp số đơn vị đầu vào (FR14)", lệch với AC của chính Story 6.10 và với `EXPERIENCE.md:142` — cả hai viết "link hỏng". Hai trên ba, và Ice chốt theo nghĩa đó cùng ngày. Vế "N link ≠ N Chương" KHÔNG mất: nó đã có chủ riêng ở AC4 của Story 6.7, nơi hai con số bằng nhau là một bằng chứng quan sát được.)*
 
 #### C2 — Workspace (FR16–FR26, FR42, FR44, FR78, FR117, FR129, FR133, FR134)
 
@@ -779,7 +779,7 @@ Mỗi FR trong dãy FR1–FR132 ánh xạ về **đúng một epic chủ trì** 
 | FR129 ⇄ | Epic 6 ⇄ Epic 7 | Caption là Segment vai `caption` (AD-42). *Phần cấu trúc ở 6.13; phần nghiệm thu TM ở 7.1* |
 | FR130 | Epic 8 | Chọn cách xuất ảnh: link gốc hay file ảnh |
 | FR131 | Epic 8 | Khối ghi nguồn, mặc định tắt |
-| FR132 | Epic 6 | Bộ lọc "cần xem" trên màn xem trước — *N cần xem · M sạch* |
+| FR132 | Epic 6 | Bộ lọc "cần xem" trên màn xem trước — *N cần xem · M sạch*. **Nền (đường dữ liệu theo từng Chương): Story 6.10a · bộ lọc: Story 6.10** 🔵 *(tách 2026-09-08 qua `correct-course`, cùng khuôn tách theo TẦNG của lượt 3.4b)* |
 
 **Tổng kiểm:** 132/132 FR được ánh xạ. Epic 1: 27 · Epic 2: 9 · Epic 3: **12** · Epic 4: **14** · Epic 5: 17 · Epic 6: **16** · Epic 7: 10 · Epic 8: 13 · Epic 9: 7 · Epic 10: 8.
 
@@ -4902,9 +4902,65 @@ So that một tỉ lệ sai chấp nhận được vẫn ra một công cụ dù
 
 ---
 
+### Story 6.10a: Xem trước theo từng Chương và điều hướng Chương
+
+**Covers:** FR132 *(nửa nền — đường dữ liệu theo từng Chương; nửa bộ lọc ở Story 6.10)*
+**Nghiệm thu lại ở quy mô N Chương:** FR123, FR124
+
+> 🔵 *(Thêm 2026-09-08 qua `correct-course` — `sprint-change-proposal-2026-09-08-story-6-10.md`.
+> Điều tra 2026-09-08 đo được rằng màn xem trước tính cả bốn tầng từ byte của riêng đơn vị ĐẦU
+> (`project.rs:1891-1893` → `:1749-1752`), nên hai con số của FR132 chưa có dữ liệu để bám. Phép tách
+> theo **TẦNG, không theo mục tiêu** — cùng khuôn lượt 3.4b, và vẫn là một mục tiêu người dùng duy
+> nhất. Story này đóng hai mục nợ đã có tên từ trước: `deferred-work.md:9865` và `:10000`.)*
+
+As a người dịch dán 50 link cùng lúc,
+I want soát được từng Chương một, không chỉ Chương đầu,
+So that thứ tôi duyệt là thứ sắp ghi xuống, chứ không phải một mẫu đại diện.
+
+**Acceptance Criteria:**
+
+**Given** một lượt nhập nhiều Chương
+**When** màn xem trước dựng
+**Then** mỗi Chương mang dữ liệu của **chính nó** ở cả tầng ranh giới bóc lẫn tầng luật làm sạch
+**And** không Chương nào mượn số của Chương khác
+
+**Given** màn xem trước đa-Chương
+**When** bấm `⌥←` hoặc `⌥→`
+**Then** con trỏ *Chương đang chọn* dời một bước trong cùng lần nhập
+**And** tầng ranh giới bóc và tầng luật làm sạch hiện dữ liệu của **đúng Chương đó**
+
+**Given** con trỏ đang ở Chương đầu hoặc Chương cuối
+**When** bấm `⌥←` hoặc `⌥→` theo chiều đi ra
+**Then** nó **dừng**, không cuộn vòng — cuộn vòng ở một danh sách 50 Chương làm người dùng mất chỗ đứng
+
+**Given** một danh sách N link trong đó có link hỏng
+**When** dựng xem trước
+**Then** N−1 Chương tải được vẫn hiện đầy đủ, và mục hỏng **giữ chỗ tại đúng vị trí** kèm một trong tám lý do
+🔴 **And** nút xác nhận vẫn **KHOÁ** — bất biến Story 6.7 không đổi. *Xem được* và *ghi được* là hai mệnh đề khác nhau, và lượt nghiệm thu phải có hai ca riêng cho chúng.
+
+**Given** một lượt nhập và **không thao tác tay nào**
+**When** xác nhận
+**Then** byte ghi xuống `.atproj` **trùng đúng** kết quả trước story này — story này đổi thứ **xem được**, không đổi thứ **ghi xuống**
+
+**Given** lớp phủ xem trước đã đóng
+**When** bấm `⌥←`/`⌥→`
+**Then** không thao tác nào của màn nhập xảy ra
+⚠️ `⌥` **không phải** phím bổ trợ chính (`keys.ts:415` `lacksPrimaryMod = !m.meta && !m.ctrl`) ⇒ ba hợp âm này rơi đúng nhánh mà Story 6.9 đo là không an toàn cho hợp âm trần; theo khuôn `keys: undefined` + handler DOM cục bộ.
+
+---
+
 ### Story 6.10: Bộ lọc "cần xem"
 
-**Covers:** FR132
+**Covers:** FR132 *(vế bộ lọc — nửa nền ở Story 6.10a)*
+
+> 🔵 *(Thu hẹp 2026-09-08 qua `correct-course` — nửa **nền** tách sang **Story 6.10a**; cặp phím
+> `⌥←`/`⌥→` theo sang đó vì nó là điều hướng, không phải lọc. Bốn quyết định Ice chốt cùng ngày:
+> ① bảng mã tin cậy thấp là **cờ cấp lượt nhập**, ngoài hai con số — gắn cờ cả N làm hai số thành
+> 50/0, tức bộ lọc mất tác dụng đúng lúc cần nhất; ② *"luật làm sạch xoá quá nhiều"* dùng **cùng
+> phép so trung vị** như vế *"bóc ra ngắn bất thường"*, một cơ chế cho hai tín hiệu và không hằng
+> số phù thuỷ nào; ③ link hỏng thành một Chương *"cần xem"*, dựng được nhờ Story 6.10a; ④ story
+> giữ nguyên id `6-10` vì `Story 6.10` đang được tham chiếu **30 lần**, trong đó 8 lần ở bốn spec
+> đã `done` và frozen.)*
 
 As a người dịch dán 50 link cùng lúc,
 I want công cụ chỉ cho tôi những Chương thật sự cần nhìn,
@@ -4933,13 +4989,17 @@ So that tôi không bấm xác nhận mù ở Chương thứ mười.
 **When** bấm
 **Then** lọc về **chỉ nhóm cần xem**
 
-**Given** phím `⌥←` và `⌥→`
-**When** bấm
-**Then** đi Chương trước / Chương sau trong cùng lần nhập
+🔵 *(Cặp AC phím `⌥←`/`⌥→` — "đi Chương trước / Chương sau trong cùng lần nhập" — **chuyển sang Story
+6.10a** ngày 2026-09-08. Nó là điều hướng chứ không phải lọc, và nó cần một con trỏ *Chương đang chọn*
+mà story này không dựng. AC không mất, nó đổi chỗ.)*
 
 **Given** phím `⌘↵`
 **When** bấm
 **Then** xác nhận nhập toàn bộ
+⚠️ *(2026-09-08: năng lực này **đã có** — `import.preview.confirm`. Chỉ hợp âm khác AC: `Mod+Enter` đã
+thuộc `editor.confirm_segment` (`src/commands/index.ts:2157`) và `createKeymap` **ném** khi hai command
+giành một hợp âm (`keys.ts:472-478`), nên hôm nay nó né bằng `Mod+Alt+Enter` (`:1131`). Chọn hợp âm cuối
+cùng là một quyết định sản phẩm — nợ **Chủ: Ice** ở `deferred-work.md`.)*
 
 ---
 

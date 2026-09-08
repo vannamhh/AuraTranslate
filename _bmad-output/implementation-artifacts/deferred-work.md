@@ -9847,6 +9847,31 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   điều hướng nhanh giữa các Chương ĐÁNG NGỜ). Đăng ký chúng ở Story 6.6, khi chưa có "Chương
   đáng ngờ" nào để mà nhảy tới, là một hợp âm không có đối tượng — một đường chết. **Chủ: Story
   6.10.**
+  → 🟡 **TÁCH LÀM ĐÔI 2026-09-08 (`correct-course`)** — ba hợp âm nay thuộc hai story: `⌥←`/`⌥→`
+  (điều hướng Chương) **Chủ: Story 6.10a**; `⌥W` (lọc về nhóm cần xem) **Chủ: Story 6.10**.
+  ⚠️ **Phần CÒN HỞ, và nó lớn hơn mệnh đề gốc.** Mệnh đề *"`Alt+` trần chưa ai chiếm trong registry"*
+  vẫn ĐÚNG (đo lại 2026-09-08: `Alt+W`, `Alt+ArrowLeft`, `Alt+ArrowRight` trần đều trống; đã chiếm là
+  `Mod+Alt+W` `src/commands/index.ts:1313` và `Mod+Alt+Arrow*` `:1044`). Nhưng *"chưa ai chiếm"*
+  **không** kéo theo *"đăng ký toàn cục là an toàn"*: `src/commands/keys.ts:415`
+  `lacksPrimaryMod = (m) => !m.meta && !m.ctrl` — `⌥` **không phải** phím bổ trợ chính, nên ba hợp âm
+  này rơi ĐÚNG nhánh mà Story 6.9 đo là không an toàn cho hợp âm trần (`isTypingZone` `:434` không phủ
+  `<button>`). Rủi ro còn lại và có thật: `preventDefault()` chạy trước mọi thứ (`:512`), nên một hợp âm
+  toàn cục vẫn nuốt phím **khi lớp phủ đã đóng**. ⇒ Cả hai story theo khuôn `keys: undefined` + handler
+  DOM cục bộ của 6.9. ⚠️ Chỗ hở thứ hai: `onTier2Keydown` (`src/ImportPreviewOverlay.vue:517`) `return`
+  ngay với `altKey`/`metaKey`, nên đường DOM cục bộ HÔM NAY không chở được `⌥`/`⌘` — cần một handler
+  thứ hai, **không** phải nới vị từ đó (nới nó làm `⌥`+`j` rơi vào nhánh `j`).
+
+- ⚠️ **Hợp âm `⌘↵` mà AC của Story 6.10 đòi đã có chủ khác: `editor.confirm_segment`.**
+  Đo 2026-09-08: `src/commands/index.ts:2157` khai `keys: ['Mod+Enter']` cho lệnh xác nhận segment của
+  Epic 2, và `createKeymap` **NÉM** khi hai command giành một hợp âm (`src/commands/keys.ts:472-478`).
+  Đây không phải một lỗi runtime âm thầm — `check-commands.mjs:1670-1685` dựng keymap từ bộ command
+  THẬT trên **cả hai** nhánh `isMac`, nên va chạm là một cổng ĐỎ. Story 6.7 đã né bằng
+  `Mod+Alt+Enter` (`index.ts:1131`, lý do ghi tại `:1127-1130`), nên **năng lực "xác nhận nhập toàn
+  bộ" ĐÃ CÓ** — chỉ hợp âm khác thứ AC và mockup (`web-import.html:395`) vẽ. Ba đường đi, mỗi đường
+  một cái giá: giữ `⌥⌘↵` (lệch AC) · đổi phím của `editor.confirm_segment` (chạm Epic 2 đã `done`) ·
+  bắt `⌘↵` bằng handler DOM cục bộ trong lớp phủ (một đường thứ hai mà `check:commands` không nhìn
+  thấy). **Chủ: Ice** — chọn hợp âm cho một lệnh đã có hai chỗ dùng là một quyết định sản phẩm, không
+  phải một chi tiết cài đặt.
 
 ## Deferred from: spec-6-6-tach-chuong-theo-mau-phan-tach — vòng rà đối kháng 3 (2026-09-06)
 
@@ -9868,8 +9893,11 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   **không đường nào xem được luật làm sạch khớp ở đâu trong Chương 2..N**. Người dùng bật một
   luật rồi chỉ kiểm chứng được nó trên một phần N của thứ nó sắp xoá — đúng lớp rủi ro mà FR124
   tồn tại để chặn, thu hẹp lại chứ chưa mở ra. Không cổng nào đỏ vì chuyện này.
-  **Chủ: Story 6.10** — cùng story sở hữu điều hướng Chương trong màn xem trước (`⌥←`/`⌥→`),
-  tức nơi "xem tầng 3 của Chương đang chọn" có một đối tượng để bám vào.
+  **Chủ: Story 6.10a** 🔵 *(đổi chủ 2026-09-08 qua `correct-course`, trước là Story 6.10 —
+  `sprint-change-proposal-2026-09-08-story-6-10.md`. Lý do gán vẫn nguyên văn: story sở hữu điều
+  hướng Chương trong màn xem trước (`⌥←`/`⌥→`), tức nơi "xem tầng 3 của Chương đang chọn" có một
+  đối tượng để bám vào. Thứ đổi là story đó nay tên 6.10a, và mục này là một phần THÂN của nó chứ
+  không còn là một món nợ bên lề.)*
 
 - ⚠️ **`ChapterPattern::match_starts` biên dịch lại regex mỗi lượt gọi, không cache.**
   `resolve_chapter_pattern` biên dịch một lần CHỈ để nghiệm thu rồi vứt `Regex` đi; `match_starts`
@@ -10001,8 +10029,10 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   link, tải lại hay soát một mục thứ k > 1 không làm tầng 2 đổi gì — người dùng thao tác trên
   mục 2 mà "Ranh giới nội dung" vẫn hiện mục 1. Cùng hình dạng với mục nợ tầng 3 đã ghi ở vòng
   rà Story 6.6 (`cleanup_and_chapters_preview_for` ghim vào `chapters.first()`), và cùng lý do
-  chưa gỡ được: chưa có đường điều hướng Chương trong lớp phủ. **Chủ: Story 6.10** — story sở
-  hữu `⌥←`/`⌥→`, tức nơi "xem tầng 2 của Chương đang chọn" có một đối tượng để bám.
+  chưa gỡ được: chưa có đường điều hướng Chương trong lớp phủ. **Chủ: Story 6.10a** 🔵 *(đổi chủ
+  2026-09-08 qua `correct-course`, trước là Story 6.10. Lý do gán không đổi — story sở hữu
+  `⌥←`/`⌥→` là nơi "xem tầng 2 của Chương đang chọn" có một đối tượng để bám; story đó nay tên
+  6.10a, và mục này là một phần THÂN của nó.)*
 
 - ⚠️ **Sửa luật làm sạch hoặc mẫu phân tách trong lúc màn URL đang mở thì bản xem trước KHÔNG
   tự dựng lại, và người dùng không được báo gì.** `importPreviewState.ts::runImportPreviewReload`
@@ -10011,7 +10041,9 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   nguyên byte"). Luật vẫn được nạp lại đúng lúc xác nhận nên KHÔNG có ca ghi sai — nhưng lượt
   CRUD trả về im lặng, nên người dùng sửa một luật rồi thấy màn hình không đổi và không biết vì
   sao. ⚠️ Giới hạn này mới chỉ sống trong một chú thích mã; luật của kho đòi nó có mặt ở đây kèm
-  chủ. **Chủ: Story 6.10.**
+  chủ. **Chủ: Story 6.10a.** 🔵 *(đổi chủ 2026-09-08 qua `correct-course`, trước là Story 6.10 —
+  nó nằm trên cùng một đường dựng lại xem trước theo từng Chương mà 6.10a mở, nên gán cho story
+  bộ lọc là gán cho một story không chạm `runImportPreviewReload`.)*
 
 - ⚠️ **Bộ `webimport_contract.rs` có ca phụ thuộc WALL-CLOCK và đã quan sát được một lượt đỏ
   giả.** Đo 2026-09-07: một lượt chạy ngay sau khi biên dịch xong cho **4 ca đỏ**

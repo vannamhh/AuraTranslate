@@ -41,7 +41,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-03-2026 13:04
-last_updated: 09-08-2026 00:15
+last_updated: 09-08-2026 09:40
 project: AuraTranslate
 project_key: NOKEY
 tracking_system: file-system
@@ -152,6 +152,10 @@ development_status:
   6-7-nhập-từ-url-bằng-danh-sách-link: review
   6-8-allowlist-mạng-hai-tầng-và-nhật-ký-domain: review
   6-9-bóc-nội-dung-chính-và-sửa-ranh-giới-bằng-bàn-phím: review
+  # 2026-09-08 THEM 6-10a qua correct-course (sprint-change-proposal-2026-09-08-story-6-10.md).
+  #   Thu tu thi hanh: 6-10a -> 6-10. Id `6-10` GIU NGUYEN vi "Story 6.10" dang duoc tham chieu
+  #   30 lan, trong do 8 lan o bon spec da done va frozen. Ice chot phuong an (a) 2026-09-08.
+  6-10a-xem-trước-theo-từng-chương-và-điều-hướng-chương: backlog
   6-10-bộ-lọc-cần-xem: backlog
   6-11-ảnh-tải-về-atproj-neo-vị-trí-và-url-gốc: backlog
   6-12-đọc-docx: backlog
