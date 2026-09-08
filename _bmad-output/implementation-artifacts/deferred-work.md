@@ -9860,6 +9860,85 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   DOM cục bộ của 6.9. ⚠️ Chỗ hở thứ hai: `onTier2Keydown` (`src/ImportPreviewOverlay.vue:517`) `return`
   ngay với `altKey`/`metaKey`, nên đường DOM cục bộ HÔM NAY không chở được `⌥`/`⌘` — cần một handler
   thứ hai, **không** phải nới vị từ đó (nới nó làm `⌥`+`j` rơi vào nhánh `j`).
+  → ✅ **ĐÓNG 2026-09-08 (Story 6.10a) — vế `⌥←`/`⌥→` (điều hướng Chương).** Hai command mới
+  `import.preview.chapter_next`/`chapter_prev`, `keys: undefined`, đúng khuôn `keys: undefined` +
+  handler DOM cục bộ mà mục này tự khai. Handler thứ hai (`onChapterCursorKeydown`,
+  `ImportPreviewOverlay.vue`) dựng RIÊNG, KHÔNG nới `onTier2Keydown` — đúng cảnh báo "chỗ hở thứ
+  hai" ở trên; hai handler nối vào scrim qua một hàm tổng hợp thuần tuý (`onScrimKeydown`, Vue chỉ
+  cho một `@keydown` trần/phần tử). Đối chứng: `tests/frontend/importPreviewOverlayRender.test.ts`
+  (`⌥←`/`⌥→` dispatch đúng lệnh qua registry thật, `⌥`+`j` KHÔNG rơi vào `block_next`, auto-repeat
+  không bắn một tràng, lớp phủ đóng thì `.ip-scrim` biến mất khỏi DOM — không còn gì để mà bắn
+  `keydown` lên). Vế `⌥W` (bộ lọc "cần xem") VẪN MỞ, Chủ: Story 6.10, không đổi.
+
+- ⚠️ **Con trỏ Chương (`⌥←`/`⌥→`, Story 6.10a) chỉ hoạt động THẬT trên đường URL — no-op có
+  chủ ý trên đường tệp/dán tay, KỂ CẢ khi mẫu phân tách cho N > 1 Chương.** Tầng 4 (tóm tắt)
+  vẫn hiện đủ N Chương cho `Blob` + `chapter_pattern` (không đổi từ Story 6.6), nhưng lệnh IPC
+  lazy `preview_chapter_detail` chỉ đọc `UrlImportItemsState` — không có nhánh cho hình dạng
+  `Blob`. `moveImportPreviewChapterCursor` (`importPreviewState.ts`) vì vậy chặn CỨNG mọi lượt
+  dời con trỏ khi `lastSubmittedFrom !== 'urls'`, kể cả khi `chapter_count > 1` — lựa chọn AN
+  TOÀN thay vì để tầng 2/3 hiện RỖNG cho một Chương k > 0 chưa có chi tiết để mà dựng (một hồi
+  quy tệ hơn "chưa dựng").
+  🔵 **SỬA 2026-09-08 (vòng nghiệm thu Story 6.10a) — mệnh đề ngay dưới đây SAI, sửa tại chỗ
+  thay vì để nó lặng lẽ sai.** Bản trước viết *"I/O Matrix spec 6.10a chỉ đóng băng hàng
+  'N = 1, con trỏ không đi đâu được' — hàng 'N > 1 do mẫu phân tách, đường tệp/dán tay' KHÔNG
+  có trong ma trận đã ký, đây là một khoảng trống được PHÁT HIỆN khi thi công"*. Đọc lại khối
+  `<frozen-after-approval>`: hàng đó **LÀ HÀNG 1** của ma trận (*"Tệp một khối + mẫu phân tách
+  cho 3 Chương | `Blob(RawBytes)` + `ChapterPattern`"*), tức một hợp đồng **đã ký**, không phải
+  một khoảng trống. ⚠️ Lượt thi công còn dựng một ca test tên *"… đúng I/O Matrix"* khoá chặt
+  hành vi ngược lại — một ca XANH bảo kê một mệnh đề sai. Thứ **đúng** trong lập luận cũ là
+  **lý do kỹ thuật**, và nó đứng nguyên: `pipeline.rs:960-976` cho đường `Blob` đúng MỘT báo
+  cáo làm sạch. ⇒ Ice chốt cùng ngày: **sửa hàng 1 của ma trận** cho khai đúng thứ đạt được
+  (§Spec Change Log spec 6.10a), phần còn lại ở lại đây làm nợ **có chủ**. **Chủ: Ice** — dựng
+  hay không dựng một cơ chế theo dõi vị trí xuyên bước chuẩn hoá là một quyết định kiến trúc
+  (nhiều khả năng một `AD` mới), không phải một chi tiết cài đặt mà dev tự nhận.
+  Mở rộng `chapter_detail_for_index` sang hình dạng `Blob` đòi trả lời trước
+  câu hỏi ở mục "GIỚI HẠN THẬT" cạnh đó (tầng 3 của `Blob` + mẫu chỉ có MỘT báo cáo thật, gán
+  cho `ord = 1`, vì bước làm sạch đứng TRƯỚC bước tách Chương trong `PIPELINE_ORDER`) — không
+  giải quyết được câu hỏi đó thì mở rộng con trỏ sang đây chỉ đổi "chưa dựng" thành "dựng sai".
+
+- ⚠️ **`NEGATIVE_OWNER_RE` của `check:debt-owner` là một danh sách CẤM, nên nó luôn thua một
+  cách nói mới.** Đo 2026-09-08 (vòng nghiệm thu Story 6.10a): ba mục nợ ghi `Chủ: chưa ai nhận`
+  đi qua cổng SẠCH — cụm đó không khớp nhánh nào trong `chưa gán|chưa có|chưa cần|không ai|chưa
+  chốt|trống`, nên `detectOwner` trả `positive = true` và Kiểm A báo `mở KHÔNG có Chủ: 0`. Ba
+  mục MỒ CÔI đi qua đúng cái cổng dựng ra để chặn nợ mồ côi. Đã vá tại chỗ (thêm `chưa ai`,
+  `chưa story`, `chưa xác định`) kèm đối chứng hai chiều: gieo `Chủ: chưa ai nhận` ⇒ đếm 1;
+  gieo `Chủ: Story 6.11` ⇒ đếm 0; GỠ phép vá rồi gieo lại ca âm ⇒ đếm 0 (tái lập chỗ mù).
+  ⚠️ **Phần CÒN HỞ:** phép vá chỉ nới danh sách cấm, không đổi CHIỀU của vị từ — *"để ngỏ"*,
+  *"tính sau"*, *"TBD"* vẫn lọt. Vị từ đúng hoàn toàn là một danh sách **CHO PHÉP** (tên
+  story/epic/người thật), và đổi chiều nó sẽ làm cổng đỏ trên những mục lịch sử viết tự do
+  ⇒ phải đo số mục bị chạm TRƯỚC khi đổi. **Chủ: Ice** — đây là một quyết định về hình dạng sổ
+  nợ (và về việc chấp nhận một lượt đỏ hàng loạt để dọn), không phải một chi tiết cài đặt.
+
+- ⚠️ **Danh sách tầng 4 khai `role="listbox"`/`role="option"` nhưng KHÔNG chọn được bằng
+  chuột.** Story 6.10a gắn `role`/`aria-selected`/`aria-activedescendant` lên danh sách tách
+  Chương, nhưng con trỏ chỉ dời được bằng `⌥←`/`⌥→` — không handler `@click` nào trên hàng.
+  Khuôn ARIA listbox ngầm định mục chọn được bằng trỏ chuột, nên đây là một lời khai vai trò
+  mà bề mặt không thực hiện. Bất tiện rõ nhất khi kết hợp "sắp theo độ dài": người dùng nhìn
+  thấy ngay Chương ngắn bất thường nhưng vẫn phải bấm mũi tên nhiều lần mới tới được nó.
+  ⚠️ Không phải một hồi quy — trước story này không có con trỏ nào để mà chọn. **Chủ: Story
+  6.10** — story đó dựng bộ lọc "cần xem" trên CÙNG tầng 4 và sẽ chạm chính danh sách này;
+  thêm một đường chọn bằng chuột ở đây trước khi biết bộ lọc sắp xếp lại hàng ra sao là dựng
+  một bề mặt sắp bị sửa.
+
+- ⚠️ **Con trỏ Chương VÔ HÌNH khi Chương đang chọn rơi vào phần bị co gọn của khung nhìn mặc
+  định.** Tầng 4 co danh sách về "ba đầu · `⋯` · ba cuối" khi chưa bật sắp-theo-độ-dài; một
+  Chương ở giữa không có hàng nào trong DOM, nên `aria-activedescendant` trả `null`, không
+  hàng nào tô sáng, không cuộn, không focus — chỉ dòng chữ "Chương k/N" đổi số. Với một lượt
+  nhập vài chục Chương, phần lớn quãng đường dời con trỏ gần như không có phản hồi thị giác.
+  Cùng mục này: bật cờ sắp-theo-độ-dài KHÔNG cuộn tới Chương đang chọn (watcher cuộn chỉ gắn
+  trên con trỏ, không gắn trên cờ sắp xếp), nên hàng vừa hiện ra vẫn phải tự tìm. **Chủ: Story
+  6.10** — cùng lý do: bộ lọc "cần xem" đổi chính tập hàng hiện ra, và khung nhìn nào đúng chỉ
+  trả lời được sau khi biết bộ lọc trình bày ra sao.
+
+- ⚠️ **Mỗi lượt dời con trỏ sao chép byte của N Chương HAI LẦN, ngoài chi phí `run_pipeline`
+  O(N) đã ghi.** `chapters_shape_for_view` clone `raw` của mọi mục OK mỗi lượt gọi, rồi
+  `chapter_detail_for_index` `shape.clone()` thêm một lần nữa trước khi đưa vào
+  `cleanup_and_chapters_preview_for`. Mục nợ O(N) cạnh đây chỉ nói tới chi phí chạy lại
+  pipeline, không nói tới phép nhân đôi việc sao chép này. ⚠️ **Chưa ai đo bằng số** — với 50
+  link mỗi mục vài trăm KB thì đây là hàng chục MB mỗi lần bấm `⌥→`, nhưng đó là số học chứ
+  chưa phải một phép đo, và bàn đo 2000 Chương hiện có dùng Chương tổng hợp ~70 byte nên nó
+  KHÔNG chạm tới được chuyện này. **Chủ: Story 6.10** — cùng chủ với mục "chưa có phép đo hiệu
+  năng nào trên đường xem trước URL"; đo một lượt cho cả hai thay vì hai lượt rời.
 
 - ⚠️ **Hợp âm `⌘↵` mà AC của Story 6.10 đòi đã có chủ khác: `editor.confirm_segment`.**
   Đo 2026-09-08: `src/commands/index.ts:2157` khai `keys: ['Mod+Enter']` cho lệnh xác nhận segment của
@@ -9898,6 +9977,28 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   hướng Chương trong màn xem trước (`⌥←`/`⌥→`), tức nơi "xem tầng 3 của Chương đang chọn" có một
   đối tượng để bám vào. Thứ đổi là story đó nay tên 6.10a, và mục này là một phần THÂN của nó chứ
   không còn là một món nợ bên lề.)*
+  → 🟡 **ĐÓNG MỘT NỬA 2026-09-08 (Story 6.10a).** 🔵 *(Bản đầu của lượt thi công đánh `✅ ĐÓNG`
+  rồi liệt kê ngay bên dưới đúng cái ca mà THÂN mục này mô tả — "mẫu phân tách cho N Chương" —
+  là giới hạn còn lại. Hạ xuống 🟡 ở vòng nghiệm thu cùng ngày: luật kho cấm làm tròn lên, và
+  ở đây phần còn hở KHÔNG phải một vế bên lề mà chính là ca gốc.)*
+  `cleanup_and_chapters_preview_for` nay nhận
+  `detail_chapter_index: usize` — chi tiết tầng 3 (`text`/`spans`/`rules`/`final_text`) dựng cho
+  Chương CON TRỎ đang chọn, không còn LUÔN `chapters.first()`; tóm tắt (`chapters_wire`, mọi
+  Chương) và tổng cả lần nhập (`import_totals`) không đổi. Con trỏ dời qua lệnh IPC lazy mới
+  `preview_chapter_detail` (`⌥←`/`⌥→`, đường URL). Đối chứng đỏ thật (§Verification spec 6.10a,
+  đối chứng ①): GỠ phép truyền `detail_chapter_index` (trả về `chapters.first()`) rồi chạy
+  `cleanup_contract.rs` — ba ca MỚI đỏ (`cleanup_and_chapters_preview_for_returns_the_summary_of_every_chapter_and_the_detail_of_the_chosen_one`,
+  `a_detail_chapter_index_past_the_new_chapter_count_falls_back_to_the_empty_detail_shape`,
+  `chapter_detail_for_index_rebuilds_the_detail_of_the_requested_chapter_with_a_known_encoding`);
+  trả lại — xanh, đã tự kiểm tay trước khi nộp. ⚠️ **Giới hạn CÒN LẠI, kế thừa nguyên văn từ
+  "GIỚI HẠN THẬT" ở doc-comment hàm đó, KHÔNG đóng ở đây**: đường `Blob` + `chapter_pattern`
+  (file/dán tay) vẫn chỉ có MỘT báo cáo làm sạch thật (của toàn blob, gán cho `ord = 1`) vì bước 3
+  đứng TRƯỚC bước 5 tách Chương trong `PIPELINE_ORDER` — con trỏ dời sang Chương k > 0 của hình
+  dạng đó không có báo cáo RIÊNG để mà hiện (khác đường URL, nơi `PipelineShape::Chapters` cho
+  N báo cáo thật NGAY TỪ ĐẦU). Cần một cơ chế theo dõi vị trí xuyên bước chuẩn hoá chưa tồn tại —
+  vẫn là việc của một story khác. **Chủ: Ice** 🔵 *(gán 2026-09-08 ở vòng nghiệm thu — bản đầu
+  ghi "chưa ai nhận", một mục MỒ CÔI trái AGENTS.md. Gán cho Ice vì dựng cơ chế theo dõi vị trí
+  xuyên bước chuẩn hoá gần như chắc chắn là một `AD` mới, và spine cấm dev tự cấp số AD.)*
 
 - ⚠️ **`ChapterPattern::match_starts` biên dịch lại regex mỗi lượt gọi, không cache.**
   `resolve_chapter_pattern` biên dịch một lần CHỈ để nghiệm thu rồi vứt `Regex` đi; `match_starts`
@@ -10033,6 +10134,29 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   2026-09-08 qua `correct-course`, trước là Story 6.10. Lý do gán không đổi — story sở hữu
   `⌥←`/`⌥→` là nơi "xem tầng 2 của Chương đang chọn" có một đối tượng để bám; story đó nay tên
   6.10a, và mục này là một phần THÂN của nó.)*
+  → 🟡 **ĐÓNG MỘT PHẦN 2026-09-08 (Story 6.10a).** Tầng 2 (`blocks_wire`) nay dựng theo ĐÚNG
+  `detail_chapter_index` giống tầng 3 (cùng phép sửa `cleanup_and_chapters_preview_for`) —
+  `⌥←`/`⌥→` dời con trỏ thật sự đổi khối đang hiện, qua `preview_chapter_detail`. ⚠️ **Phần
+  CÒN HỞ, ghi ra thay vì giấu**: `Tier2BlockOverridesState` (`project.rs`) vẫn là MỘT
+  `Vec<Option<bool>>` cho ĐÚNG đơn vị 0 của hình dạng gốc (không đổi ở story này — xem §Design
+  Notes spec 6.10a "Chỗ chưa có câu trả lời hiển nhiên"). Con trỏ ở Chương k > 0 hiện khối
+  ĐÚNG (đọc `machine_kept` khi không override), nhưng người dùng KHÔNG sửa được khối của
+  Chương k > 0 bằng `Space`/`[`/`]` — ba phím đó (`tier2_block_set_kept`/`_confirm_range`) vẫn
+  ghi vào state chỉ có ý nghĩa cho Chương 0, không đi theo con trỏ. Tách override theo Chương
+  là câu hỏi CHƯA có câu trả lời (số khối đổi khi đổi ứng viên bảng mã, override theo INDEX mất
+  neo nếu áp nhầm Chương) — **Chủ: Ice** 🔵 *(gán 2026-09-08 ở vòng nghiệm thu — bản đầu ghi
+  "chưa ai nhận", mồ côi. §Ask First spec 6.10a đã khai TRƯỚC lượt thi công rằng chỗ này là một
+  cửa DỪNG thuộc Ice, nên chủ đã có sẵn, chỉ chưa được viết ra.)*, cần đo/chốt trước khi mở.
+  🔴 **SỬA (vòng rà đối kháng bước 4, P1) — mệnh đề "hiện khối ĐÚNG (đọc `machine_kept` khi
+  không override)" ngay trên đứng KHÔNG VỮNG trước phép vá này.** Đo được: `Tier2BlockOverridesState`
+  (đơn vị 0) bị `build_chapter_blocks_preview_wire` áp THEO CHỈ SỐ lên BẤT KỲ `chapter` nào
+  truyền vào — khi CÓ override (không phải "khi không override" như câu trên giả định), con
+  trỏ ở Chương k > 0 hiện khối SAI: `kept` bị bẻ theo override của Chương 0, và `confirmed`
+  khai "người dùng đã xác nhận" cho một khối chưa ai từng chạm. Đã vá: `cleanup_and_chapters_preview_for`
+  chỉ chuyển `block_overrides` xuống khi `detail_chapter_index == 0`, lát RỖNG cho mọi Chương
+  khác. Đối chứng: `cleanup_contract.rs::block_overrides_of_chapter_zero_do_not_leak_into_the_blocks_of_a_different_chapter`
+  (ĐỎ khi gỡ phép vá, đã tự kiểm tay). Câu "hiện khối ĐÚNG" ở trên nay đúng KHÔNG ĐIỀU KIỆN,
+  không còn cần vế "khi không override" — phần CÒN HỞ (override không đi theo con trỏ) không đổi.
 
 - ⚠️ **Sửa luật làm sạch hoặc mẫu phân tách trong lúc màn URL đang mở thì bản xem trước KHÔNG
   tự dựng lại, và người dùng không được báo gì.** `importPreviewState.ts::runImportPreviewReload`
@@ -10044,6 +10168,15 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chủ. **Chủ: Story 6.10a.** 🔵 *(đổi chủ 2026-09-08 qua `correct-course`, trước là Story 6.10 —
   nó nằm trên cùng một đường dựng lại xem trước theo từng Chương mà 6.10a mở, nên gán cho story
   bộ lọc là gán cho một story không chạm `runImportPreviewReload`.)*
+  → ⚠️ **VẪN MỞ 2026-09-08 (Story 6.10a) — đã ĐO, chưa đóng.** `runImportPreviewReload` nhánh
+  `from === 'urls'` GIỮ NGUYÊN `return null`, không đổi. Story này mở một đường LAZY RIÊNG
+  (`preview_chapter_detail`, chỉ dựng lại tầng 2/3 của MỘT Chương khi CON TRỎ dời) — đường đó
+  KHÔNG chạm/không thay thế `runImportPreviewReload` (đường đó dựng lại TOÀN BỘ xem trước sau
+  một lượt CRUD luật/sửa mẫu). Sửa một luật làm sạch hay mẫu phân tách trong lúc màn URL đang
+  mở vẫn im lặng không đổi gì trên màn hình — mệnh đề gốc còn nguyên. **Chủ vẫn: Story 6.10a**,
+  chưa ai đóng — ghi lại đúng câu §Ask First của spec 6.10a: mở rộng đường XEM là việc CỦA
+  story này, nhưng đường "dựng lại TOÀN BỘ xem trước URL sau một lượt CRUD" là một cơ chế khác,
+  chưa được yêu cầu và chưa được thi công ở đây.
 
 - ⚠️ **Bộ `webimport_contract.rs` có ca phụ thuộc WALL-CLOCK và đã quan sát được một lượt đỏ
   giả.** Đo 2026-09-07: một lượt chạy ngay sau khi biên dịch xong cho **4 ca đỏ**
@@ -10160,6 +10293,17 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   6.9 bởi cả lớp rà mù lẫn lớp verification-gap; không sửa ở 6.9 vì §Verification của spec 6.9
   không đòi một bàn đo, và đúc một ngưỡng hiệu năng không có phép đo chống lưng là đúng lớp lỗi
   mà `AGENTS.md` cấm.)*
+  → 🔵 **NỐI TIẾP 2026-09-08 (Story 6.10a) — thêm một đường tương tự, KHÔNG đóng mục này.**
+  Lệnh IPC lazy mới `preview_chapter_detail` (`⌥←`/`⌥→` dời con trỏ) chạy LẠI TRỌN VẸN
+  `run_pipeline` trên TOÀN `shape` (mọi N Chương của đường URL) MỖI LƯỢT dời con trỏ — cùng lớp
+  "chưa đo trên đường XEM TRƯỚC URL" mà mục này khai, dù NHẸ HƠN `Space`/`[`/`]` một bậc (MỘT
+  bảng mã đã chọn, không năm ứng viên — xem doc-comment `commands::project::
+  chapter_detail_for_index` mục "Chưa cắt còn một đơn vị"). Lý do KHÔNG cắt shape còn một đơn vị
+  (chi phí O(1) thay vì O(N)) đã ghi tại chỗ: cắt sẽ đặt đơn vị được yêu cầu vào VỊ TRÍ 0, làm
+  override tầng 2 thật của Chương 0 (nếu có) bị áp NHẦM khi xem một Chương khác — an toàn được
+  chọn thay vì tốc độ, có chủ, chưa đo bằng số. **Chủ: Story 6.10** — cùng chủ, cùng lý do: đây
+  là story đầu tiên mà quy mô N Chương thật khiến chi phí O(N) mỗi lượt dời con trỏ có nghĩa để
+  mà đo.
 
 - ⚠️ **Hàng I/O Matrix "Trang 0 khối" của spec 6.9 mô tả một trạng thái mà mã hôm nay gần như
   không tới được.** Lưới an toàn cuối `build_blocks` đẩy một khối chứa trọn `text_content` khi

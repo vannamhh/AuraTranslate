@@ -378,6 +378,29 @@ pub fn pipeline_window_for_self_declared(text: &str) -> Option<String> {
     super::normalize::window_safe_prefix(text, EVIDENCE_WINDOW_BYTES)
 }
 
+/// **THÊM 2026-09-08 (Story 6.10a)** — bản dựng AN TOÀN (cửa sổ đã cắt, CHƯA chuẩn hoá) cho
+/// MỘT bảng mã ĐÃ BIẾT (không dò, không năm ứng viên) — dùng bởi lệnh IPC lazy dựng lại chi
+/// tiết tầng 2/3 khi con trỏ Chương dời sang một Chương KHÁC Chương 0 (`commands::project::
+/// chapter_detail_for_index`). Cùng khuôn [`render_candidates`]/`pipeline_window_for` (một
+/// cửa sổ bằng chứng, giải mã DÒNG CHẢY qua [`decode_prefix_streaming`]) nhưng cho ĐÚNG MỘT
+/// bảng mã đã chọn thay vì cả năm ứng viên FR126 — con trỏ đã ở sau bước chọn ứng viên, không
+/// cần dò lại.
+///
+/// `None` khi bảng mã này "không ra chữ" trên cửa sổ bằng chứng của CHÍNH Chương này (byte
+/// hỏng, hoặc chỉ toàn khoảng trắng — cùng khuôn [`decode_prefix_streaming`]) — chỗ gọi rơi
+/// về "không có gì để hiện", không đoán.
+#[must_use]
+pub fn pipeline_window_for_known_encoding(
+    bytes: &[u8],
+    encoding: &'static Encoding,
+) -> Option<(String, bool)> {
+    let window = evidence_window(bytes);
+    let decoded = decode_prefix_streaming(encoding, window)?;
+    let window_truncated = bytes.len() > EVIDENCE_WINDOW_BYTES;
+    let safe = pipeline_window_for(&decoded, window_truncated)?;
+    Some((safe, window_truncated))
+}
+
 /// Đi NGƯỢC từ [`EncodingCandidate::wire_id`] (hoặc bất kỳ tên WHATWG hợp lệ nào) về
 /// `&'static Encoding` — dùng ở lượt xác nhận, KHÔNG suy từ [`FR126_LABELS`] (mất thông tin
 /// thứ tự byte của UTF-16, xem doc-comment [`EncodingCandidate::wire_id`]).

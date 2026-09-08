@@ -253,6 +253,22 @@ export type CommandDeps = {
    * `import.preview.jump_to_cleanup_rules`. */
   jumpImportPreviewToCleanupRules?: () => void
 
+  // ── Story 6.10a — con trỏ *Chương đang chọn* (`⌥←`/`⌥→`) ────────────────────────
+  //
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với sáu dep Story 6.9 ngay trên: state sống ở
+  // `src/importPreviewState.ts`. Hai dep này KHÔNG được gọi bởi `attachKeymap` (không
+  // `keys[]`) — `⌥` không phải phím bổ trợ CHÍNH (`keys.ts`), nên hợp âm toàn cục vẫn nuốt
+  // `⌥←`/`⌥→` khi lớp phủ đã đóng; `ImportPreviewOverlay.vue` gắn một handler DOM CỤC BỘ THỨ
+  // HAI trên scrim (KHÔNG nới `onTier2Keydown` — xem doc-comment tại đó) rồi `dispatch('<id>')`.
+
+  /** Dời con trỏ Chương SANG PHẢI (`⌥→`) — dừng ở Chương cuối, không kêu. Handler của
+   * `import.preview.chapter_next`. ⚠️ `async`; kết quả (chi tiết tầng 2/3 của Chương mới) đi
+   * ra qua các `ref` ở tầng module, cùng khuôn `toggleImportPreviewBlockKept`. */
+  nextImportPreviewChapter?: () => void
+  /** Dời con trỏ Chương SANG TRÁI (`⌥←`) — dừng ở Chương đầu, không kêu. Handler của
+   * `import.preview.chapter_prev`. */
+  prevImportPreviewChapter?: () => void
+
   // ── Story 5.3 — "Quét lại thư mục" (FR99) ───────────────────────────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `submitPastedText`: state sống ở
@@ -1102,13 +1118,16 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * `check:commands` chỉ canh `@click`, nên đây nằm NGOÀI phạm vi của nó một cách có tiền lệ).
    *
    * `EXPERIENCE.md:182` liệt `E` ("mở bộ chọn bảng mã") trong bảng phím của MÀN HÌNH ĐẦY ĐỦ
-   * (khối J/K/Space/[]/R/⌥←/⌥→/⌥W còn lại là tầng 2/3 — Story 6.9/6.5/6.10). `E`
+   * (khối J/K/Space/[]/R/⌥←/⌥→/⌥W còn lại là tầng 2/3 — Story 6.9/6.5/6.10a/6.10). `E`
    * riêng nó dựng được ở story này: Rust LUÔN tính đủ năm bản dựng khi có byte để dò
    * (`commands::project::ImportEncodingPreview::candidates`, không còn giấu theo
    * `confidence`), nên buộc mở chỉ đổi một cờ HIỂN THỊ, không cần gọi Rust lần hai.
    * 🔵 **SỬA 2026-09-07 (Story 6.9) — J/K/Space/[/]/R nay CÓ THÂN**, xem sáu command
-   * `import.preview.block_*`/`…jump_to_cleanup_rules` ngay dưới. `⌥←`/`⌥→`/`⌥W` (điều hướng
-   * Chương) VẪN CHƯA dựng — ngoài phạm vi story này (tầng 2 giới hạn Chương đầu tiên).
+   * `import.preview.block_*`/`…jump_to_cleanup_rules` ngay dưới.
+   * 🔵 **SỬA 2026-09-08 (Story 6.10a) — "`⌥←`/`⌥→`/`⌥W` VẪN CHƯA dựng" hết đúng MỘT NỬA.**
+   * `⌥←`/`⌥→` (điều hướng Chương) nay CÓ THÂN, xem hai command `import.preview.chapter_*`
+   * ngay dưới sáu command Story 6.9. `⌥W` (bộ lọc "cần xem") VẪN CHƯA dựng — thuộc Story 6.10,
+   * ngoài phạm vi story này (§Never: "không dựng bộ lọc 'cần xem'").
    */
   target.register({
     id: 'import.preview.open_picker',
@@ -1225,6 +1244,39 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('import.preview.jump_to_cleanup_rules', 'jumpImportPreviewToCleanupRules')
       }
       deps.jumpImportPreviewToCleanupRules()
+    },
+  })
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * 🔴 STORY 6.10a — CON TRỎ *CHƯƠNG ĐANG CHỌN* (`⌥←`/`⌥→`)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   *
+   * Cả hai `keys: undefined` — cùng lý do sáu command Story 6.9 ngay trên (`⌥` không phải
+   * phím bổ trợ CHÍNH, `keys.ts` — hợp âm toàn cục vẫn nuốt phím khi lớp phủ đã đóng).
+   * `ImportPreviewOverlay.vue` gắn handler DOM THỨ HAI trên scrim, KHÔNG nới `onTier2Keydown`
+   * (nới vị từ chặn `altKey` ở đó sẽ làm `⌥`+`j` rơi vào nhánh `j` — xem doc-comment tại đó).
+   */
+  target.register({
+    id: 'import.preview.chapter_next',
+    labelKey: 'command.import.preview.chapter_next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextImportPreviewChapter === undefined) {
+        return portMissing('import.preview.chapter_next', 'nextImportPreviewChapter')
+      }
+      deps.nextImportPreviewChapter()
+    },
+  })
+  target.register({
+    id: 'import.preview.chapter_prev',
+    labelKey: 'command.import.preview.chapter_prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevImportPreviewChapter === undefined) {
+        return portMissing('import.preview.chapter_prev', 'prevImportPreviewChapter')
+      }
+      deps.prevImportPreviewChapter()
     },
   })
 

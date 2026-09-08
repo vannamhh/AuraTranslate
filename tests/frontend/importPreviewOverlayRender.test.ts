@@ -23,6 +23,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import type { CommandDeps } from '../../src/commands'
 import type { EncodingCandidateWire, ImportEncodingPreview } from '../../src/config/project'
 
 const previewTextMock = vi.fn()
@@ -50,7 +51,7 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
     cleanup: { text: 'plain ascii', spans: [], rules: [], window_truncated: false, final_text: 'plain ascii' },
     // Story 6.6 — cùng lý do `cleanup`: khối tách Chương đi kèm sẵn trên MỖI ô. `null` đồng
     // bộ với `normalized: null`/`cleanup: null` (bảng mã "không ra chữ").
-    chapters: { chapter_count: 1, chapters: [{ ord: 1, title: null, length: 11 }] },
+    chapters: { chapter_count: 1, chapters: [{ ord: 1, title: null, length: 11, cleanup_match_count: 0 }] },
     // Story 6.9 — khối tầng 2 (ranh giới bóc) đi kèm sẵn trên MỖI ô, cùng lý do `chapters`.
     // `null` đồng bộ với ba trường trên (bảng mã "không ra chữ") — xem ca dành riêng cho
     // nhánh có khối thật trong tệp test của story đó.
@@ -73,13 +74,21 @@ function preview(over: Partial<ImportEncodingPreview> = {}): ImportEncodingPrevi
   }
 }
 
-async function freshOverlay() {
+/**
+ * `deps` — **THÊM (Story 6.10a)** para nạp `CommandDeps` THẬT qua `installCommands()`, cùng
+ * khuôn `importPreviewBlocks.test.ts::freshOverlay`. Rỗng ở mọi ca CŨ (không đổi hành vi của
+ * chúng — `installCommands({})` vẫn đăng ký đủ mọi command, chỉ thiếu dep thì `dispatch()`
+ * gọi `portMissing(...)` thay vì ném).
+ */
+async function freshOverlay(deps: Partial<CommandDeps> = {}) {
   vi.resetModules()
   previewTextMock.mockReset()
 
+  const commands = await import('../../src/commands')
+  commands.installCommands(deps as CommandDeps)
   const state = await import('../../src/importPreviewState')
   const ImportPreviewOverlay = (await import('../../src/ImportPreviewOverlay.vue')).default
-  return { state, ImportPreviewOverlay }
+  return { commands, state, ImportPreviewOverlay }
 }
 
 beforeEach(() => {
@@ -213,7 +222,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
         // đúng chuỗi ca này khẳng định VẮNG MẶT ở dưới.
         self_declared_chapters: {
           chapter_count: 1,
-          chapters: [{ ord: 1, title: null, length: 27 }],
+          chapters: [{ ord: 1, title: null, length: 27, cleanup_match_count: 0 }],
         },
       }),
       error: null,
@@ -254,5 +263,128 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
 
     wrapper.unmount()
     state.resetImportPreview()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.10a — con trỏ *Chương đang chọn*, tầng BÀN PHÍM DOM THẬT (`⌥←`/`⌥→`)
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 Đối chứng cho handler THỨ HAI (`onChapterCursorKeydown`, KHÔNG nới `onTier2Keydown`):
+// `⌥` cộng một phím CŨNG thuộc tầng 2 (`j`) không được rơi vào nhánh tầng 2 — nếu nới vị từ
+// chặn `altKey` của `onTier2Keydown` thay vì dựng handler riêng, `⌥`+`j` sẽ bắn nhầm
+// `import.preview.block_next`.
+
+describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`⌥→`)', () => {
+  it('⌥→ bắn import.preview.chapter_next, ⌥← bắn import.preview.chapter_prev', async () => {
+    const nextMock = vi.fn()
+    const prevMock = vi.fn()
+    const { state, ImportPreviewOverlay } = await freshOverlay({
+      nextImportPreviewChapter: nextMock,
+      prevImportPreviewChapter: prevMock,
+    })
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const scrim = wrapper.get('.ip-scrim')
+
+    await scrim.trigger('keydown', { key: 'ArrowRight', altKey: true })
+    expect(nextMock).toHaveBeenCalledTimes(1)
+    await scrim.trigger('keydown', { key: 'ArrowLeft', altKey: true })
+    expect(prevMock).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('giữ ⌥→ cho auto-repeat KHÔNG bắn một tràng lệnh — chỉ lần đầu', async () => {
+    const nextMock = vi.fn()
+    const { state, ImportPreviewOverlay } = await freshOverlay({ nextImportPreviewChapter: nextMock })
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const scrim = wrapper.get('.ip-scrim')
+
+    await scrim.trigger('keydown', { key: 'ArrowRight', altKey: true })
+    await scrim.trigger('keydown', { key: 'ArrowRight', altKey: true, repeat: true })
+    await scrim.trigger('keydown', { key: 'ArrowRight', altKey: true, repeat: true })
+    expect(nextMock).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('mũi tên TRẦN (không `⌥`) KHÔNG bắn lệnh Chương — thiếu bổ trợ chính', async () => {
+    const nextMock = vi.fn()
+    const { state, ImportPreviewOverlay } = await freshOverlay({ nextImportPreviewChapter: nextMock })
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const scrim = wrapper.get('.ip-scrim')
+
+    await scrim.trigger('keydown', { key: 'ArrowRight' })
+    expect(nextMock).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('`⌥`+`j` KHÔNG bắn import.preview.block_next — handler tầng 2 vẫn chặn `altKey`', async () => {
+    const nextBlockMock = vi.fn()
+    const nextChapterMock = vi.fn()
+    const { state, ImportPreviewOverlay } = await freshOverlay({
+      nextImportPreviewBlock: nextBlockMock,
+      nextImportPreviewChapter: nextChapterMock,
+    })
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const scrim = wrapper.get('.ip-scrim')
+
+    await scrim.trigger('keydown', { key: 'j', altKey: true })
+    expect(nextBlockMock).not.toHaveBeenCalled()
+    // `j` không phải `ArrowLeft`/`ArrowRight` — handler Chương cũng không bắn gì.
+    expect(nextChapterMock).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('lớp phủ ĐÃ ĐÓNG — `⌥→`/`⌥←` không đổi gì (0 command nào bắn, cùng khuôn "không thao tác")', async () => {
+    const nextMock = vi.fn()
+    const prevMock = vi.fn()
+    const { state, ImportPreviewOverlay } = await freshOverlay({
+      nextImportPreviewChapter: nextMock,
+      prevImportPreviewChapter: prevMock,
+    })
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung')
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    // Đóng lớp phủ THẬT (huỷ) — `.ip-scrim` biến mất khỏi DOM (`v-if="importPreviewIsOpen"`).
+    state.cancelImportPreview()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.ip-scrim').exists()).toBe(false)
+
+    // Không còn `.ip-scrim` để mà bắn `keydown` lên — đúng nghĩa "không thao tác nào của màn
+    // nhập xảy ra" (I/O Matrix spec 6.10a): không có phần tử nào trong cây của lớp phủ còn
+    // sống để nhận sự kiện, nên `nextMock`/`prevMock` chắc chắn không thể bị gọi qua đường
+    // bàn phím của NÓ nữa — đối chứng THÊM ở tầng state (`importPreviewChapterCursor.test`,
+    // hàm `nextImportPreviewChapter()` gọi trực tiếp) đã khẳng định no-op tuyệt đối, xem
+    // `importPreviewChapters.test.ts`.
+    expect(nextMock).not.toHaveBeenCalled()
+    expect(prevMock).not.toHaveBeenCalled()
+
+    wrapper.unmount()
   })
 })

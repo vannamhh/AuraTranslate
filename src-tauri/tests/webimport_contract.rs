@@ -25,7 +25,9 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use auratranslate_lib::commands::project::{chapters_shape_if_all_ok, fetch_url_import_items};
+use auratranslate_lib::commands::project::{
+    chapters_shape_for_view, chapters_shape_if_all_ok, fetch_url_import_items, preview_import_encoding,
+};
 use auratranslate_lib::core::segment::import::{ImportError, web_import_item_failure_ipc_error};
 use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
 use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
@@ -334,6 +336,73 @@ fn n_links_are_fetched_sequentially_and_a_broken_item_keeps_its_position() {
         "mục 2 (cổng chết) phải thất bại, GIỮ VỊ TRÍ thứ hai — không bị đẩy xuống cuối"
     );
     assert!(items[2].error.is_none() && items[2].raw.is_some(), "mục 3 (tốt) phải thành công");
+}
+
+/// **THÊM (Story 6.10a)** — 5 link, link #3 (index 2) hỏng ⇒ màn xem trước vẫn DỰNG ĐƯỢC với
+/// 4 Chương (vị từ XEM, `chapters_shape_for_view`), mục #3 GIỮ CHỖ TẠI VỊ TRÍ 3, VÀ nút xác
+/// nhận vẫn KHOÁ (vị từ GHI, `chapters_shape_if_all_ok` vẫn trả `None`) — hai khẳng định
+/// trong MỘT ca, đúng khuyến cáo Task list spec 6.10a: đây là chỗ dễ trộn hai vị từ nhất.
+///
+/// 🔴 Đối chứng đỏ ② của §Verification spec 6.10a: cho `chapters_shape_for_view` BỎ QUA mục
+/// hỏng (đã đúng, không đổi) **và** cho `chapters_shape_if_all_ok` CŨNG bỏ qua mục hỏng (một
+/// đột biến giả định trộn hai vị từ) ⇒ assert `chapters_shape_if_all_ok(&items).is_none()`
+/// dưới đây phải ĐỎ. Nếu nó XANH trên một sản phẩm đã trộn, hai vị từ đang bị lẫn.
+#[test]
+fn a_broken_item_at_position_three_still_lets_the_other_four_chapters_preview_while_the_write_predicate_stays_locked()
+ {
+    let (port_ok_1, _h1) = spawn_once(|mut stream| {
+        let _ = stream.write_all(ok_html_response(&html_page_with_paragraphs()).as_bytes());
+    });
+    let (port_ok_2, _h2) = spawn_once(|mut stream| {
+        let _ = stream.write_all(ok_html_response(&html_page_with_paragraphs()).as_bytes());
+    });
+    // Cổng KHÔNG ai lắng nghe — mục thứ BA (index 2, "#3" 1-based) hỏng có chủ ý.
+    let dead_port = {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind cổng tạm");
+        listener.local_addr().expect("local_addr").port()
+    };
+    let (port_ok_3, _h3) = spawn_once(|mut stream| {
+        let _ = stream.write_all(ok_html_response(&html_page_with_paragraphs()).as_bytes());
+    });
+    let (port_ok_4, _h4) = spawn_once(|mut stream| {
+        let _ = stream.write_all(ok_html_response(&html_page_with_paragraphs()).as_bytes());
+    });
+
+    let urls = vec![
+        format!("http://127.0.0.1:{port_ok_1}/a"),
+        format!("http://127.0.0.1:{port_ok_2}/b"),
+        format!("http://127.0.0.1:{dead_port}/c"),
+        format!("http://127.0.0.1:{port_ok_3}/d"),
+        format!("http://127.0.0.1:{port_ok_4}/e"),
+    ];
+    let (items, _log) = fetch_url_import_items(urls);
+    assert_eq!(items.len(), 5, "phải giữ đúng 5 mục");
+    assert!(items[2].error.is_some(), "mục #3 (cổng chết) phải hỏng");
+    for i in [0usize, 1, 3, 4] {
+        assert!(items[i].error.is_none() && items[i].raw.is_some(), "mục {i} phải OK");
+    }
+
+    // Vị từ GHI — KHÔNG đổi, vẫn khoá vì còn MỘT mục hỏng.
+    assert!(
+        chapters_shape_if_all_ok(&items).is_none(),
+        "chapters_shape_if_all_ok (vị từ GHI) phải vẫn trả None khi còn mục #3 hỏng -- nút \
+         xác nhận phải KHOÁ"
+    );
+
+    // Vị từ XEM — MỚI, bỏ qua mục hỏng, dựng được 4 Chương từ 4 mục OK.
+    let view_shape = chapters_shape_for_view(&items)
+        .expect("chapters_shape_for_view (vị từ XEM) phải dựng được từ 4 mục OK còn lại");
+    let preview = preview_import_encoding(&view_shape, "en", &[], None, &[]);
+    assert!(!preview.candidates.is_empty(), "còn byte OK để dò -- dải ứng viên không được rỗng");
+    let chapters_summary = preview.candidates[0]
+        .chapters
+        .as_ref()
+        .expect("ứng viên đầu phải mang khối tách Chương (tầng 4)");
+    assert_eq!(
+        chapters_summary.chapter_count, 4,
+        "màn xem trước phải hiện ĐỦ 4 Chương từ 4 mục OK, không đợi mục #5 (thứ năm, thật ra \
+         là mục hỏng thứ ba) sạch mới có gì để xem"
+    );
 }
 
 /// Danh sách rỗng/toàn dòng trắng ⇒ 0 mục (đóng vế I/O Matrix "Danh sách rỗng").

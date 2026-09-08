@@ -22,9 +22,9 @@ use auratranslate_lib::commands::cleanup::{
     cleanup_list_rules, cleanup_set_enabled,
 };
 use auratranslate_lib::commands::project::{
-    BlockBodyWire, OpenWork, PendingImportSourceState, cleanup_and_chapters_preview_for,
-    confirm_import_with_encoding, create_work, preview_import_encoding, set_block_override,
-    stash_pending_import_source,
+    BlockBodyWire, OpenWork, PendingImportSourceState, chapter_detail_for_index,
+    cleanup_and_chapters_preview_for, confirm_import_with_encoding, create_work,
+    preview_import_encoding, set_block_override, stash_pending_import_source,
 };
 use auratranslate_lib::core::cleanup::{CleanupRule, CleanupRuleKind, CleanupRuleTier};
 use auratranslate_lib::core::i18n::MessageKey;
@@ -1174,6 +1174,7 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
         false,
         false,
         &[],
+        0,
     );
 
     assert_eq!(cleanup_wire.rules.len(), 1, "dung mot luat duoc gieo");
@@ -1191,6 +1192,240 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
         rule_wire.count_in_chapter, rule_wire.count_in_import,
         "hai so nay phai THAT SU khac nhau o day -- neu bang nhau, ca nay khong chung minh \
          duoc gi ve phep CONG, chi chung minh duoc mot phep sao chep"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.10a — con trỏ *Chương đang chọn*: `cleanup_and_chapters_preview_for` trả tóm tắt
+// cho MỌI Chương cộng chi tiết cho MỘT Chương chỉ định (`detail_chapter_index`), không còn
+// LUÔN LUÔN `chapters.first()`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// 🔴 **Đối chứng đỏ ① của §Verification spec 6.10a** — nếu ai GỠ phép truyền
+/// `detail_chapter_index` (trả nó về `chapters.first()` cứng), ca này phải ĐỎ: ba Chương ở
+/// đây mang VĂN BẢN THẬT SỰ khác nhau, nên `final_text`/`text` của Chương 2 (chỉ số 2) không
+/// thể trùng với Chương 0 nếu con trỏ thật sự chảy xuống hàm sản phẩm.
+#[test]
+fn cleanup_and_chapters_preview_for_returns_the_summary_of_every_chapter_and_the_detail_of_the_chosen_one() {
+    let rule = CleanupRule {
+        tier: CleanupRuleTier::Global,
+        id: 1,
+        pattern: "QUANGCAO".to_owned(),
+        kind: CleanupRuleKind::Literal,
+        enabled: true,
+    };
+    let chapter_0 = "QUANGCAO dau. noi dung Chuong khong.".to_owned();
+    let chapter_1 = "QUANGCAO mot. QUANGCAO hai. noi dung Chuong mot.".to_owned();
+    let chapter_2 = "khong co gi de xoa o Chuong hai ca, van ban rieng.".to_owned();
+
+    let shape = PipelineShape::Chapters(vec![
+        ChapterInput::AlreadyText(chapter_0.clone()),
+        ChapterInput::AlreadyText(chapter_1.clone()),
+        ChapterInput::AlreadyText(chapter_2.clone()),
+    ]);
+    let (cleanup_wire, chapters_wire, _blocks_wire) = cleanup_and_chapters_preview_for(
+        shape,
+        encoding_rs::UTF_8,
+        None,
+        &chapter_2,
+        "en",
+        &[rule.clone()],
+        false,
+        false,
+        &[],
+        2, // con trỏ ở Chương thứ BA (chỉ số 2), KHÔNG phải Chương 0
+    );
+
+    // Tóm tắt — MỌI Chương, không đổi vì con trỏ.
+    assert_eq!(chapters_wire.chapter_count, 3);
+    assert_eq!(chapters_wire.chapters[0].cleanup_match_count, 1);
+    assert_eq!(chapters_wire.chapters[1].cleanup_match_count, 2);
+    assert_eq!(chapters_wire.chapters[2].cleanup_match_count, 0);
+
+    // Chi tiết — của ĐÚNG Chương con trỏ đang chọn (chỉ số 2), KHÔNG phải Chương 0.
+    assert_eq!(
+        cleanup_wire.final_text, chapter_2,
+        "final_text phai la van ban CUA CHINH Chuong con tro dang chon (chi so 2) -- neu day \
+         la van ban Chuong 0, con tro da bi GO khoi ham san pham"
+    );
+    assert_ne!(
+        cleanup_wire.final_text, chapter_0,
+        "doi chung do -- Chuong 0 va Chuong 2 phai mang van ban THAT SU khac nhau o day"
+    );
+    let rule_wire = &cleanup_wire.rules[0];
+    assert_eq!(
+        rule_wire.count_in_chapter, 0,
+        "count_in_chapter phai la so khop CUA CHUONG CON TRO DANG CHON (Chuong 2, 0 cho khop)"
+    );
+}
+
+/// Con trỏ ngoài phạm vi (mẫu phân tách vừa đổi làm N đổi) rơi về "không có gì để hiện" —
+/// cùng hình dạng mà `chapters.first() == None` vốn đã xử lý, không một nhánh lỗi mới.
+#[test]
+fn a_detail_chapter_index_past_the_new_chapter_count_falls_back_to_the_empty_detail_shape() {
+    let shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText("chi mot Chuong o day".to_owned())]);
+    let (cleanup_wire, chapters_wire, blocks_wire) = cleanup_and_chapters_preview_for(
+        shape,
+        encoding_rs::UTF_8,
+        None,
+        // `display_window` RỖNG có chủ ý — "khong co Chuong o chi so nay" phai roi ve CHINH
+        // `display_window` (khong doan van ban tu mot Chuong khac), va rong la cach de nhat
+        // de phan biet no voi van ban that cua Chuong 0.
+        "",
+        "en",
+        &[],
+        false,
+        false,
+        &[],
+        5, // ngoai pham vi -- chi co 1 Chuong (chi so 0)
+    );
+    assert_eq!(chapters_wire.chapter_count, 1);
+    assert!(blocks_wire.is_none());
+    assert_eq!(
+        cleanup_wire.final_text, "",
+        "khong co Chuong nao o chi so 5 -- final_text phai rong, khong doan bang Chuong 0"
+    );
+}
+
+/// **THÊM (Story 6.10a)** — `chapter_detail_for_index` (lõi của lệnh IPC lazy
+/// `preview_chapter_detail`) chạy MỘT bảng mã ĐÃ BIẾT, KHÔNG dò lại năm ứng viên, và trả về
+/// chi tiết của ĐÚNG Chương yêu cầu.
+#[test]
+fn chapter_detail_for_index_rebuilds_the_detail_of_the_requested_chapter_with_a_known_encoding() {
+    let rule = CleanupRule {
+        tier: CleanupRuleTier::Global,
+        id: 1,
+        pattern: "QUANGCAO".to_owned(),
+        kind: CleanupRuleKind::Literal,
+        enabled: true,
+    };
+    let chapter_0 = "QUANGCAO Chuong khong.".to_owned();
+    let chapter_1 = "Chuong mot, khong co gi de xoa.".to_owned();
+    let shape = PipelineShape::Chapters(vec![
+        ChapterInput::AlreadyText(chapter_0.clone()),
+        ChapterInput::AlreadyText(chapter_1.clone()),
+    ]);
+
+    let (cleanup, blocks) = chapter_detail_for_index(
+        &shape,
+        1,
+        encoding_rs::UTF_8,
+        None,
+        "en",
+        &[rule],
+        false,
+        &[],
+    )
+    .expect("Chuong 1 ton tai, phai tra ve chi tiet");
+    assert_eq!(cleanup.final_text, chapter_1);
+    assert!(blocks.is_none(), "extract_main_content == false -- khong co tang 2");
+
+    assert!(
+        chapter_detail_for_index(&shape, 9, encoding_rs::UTF_8, None, "en", &[], false, &[]).is_none(),
+        "chi so ngoai pham vi phai tra None, khong doan mot Chuong khac"
+    );
+}
+
+/// 🔴 **Đối chứng P1 (vòng rà đối kháng bước 4)** — `block_overrides` là trạng thái của ĐÚNG
+/// đơn vị 0 của hình dạng gốc (`PipelineInput::block_overrides` doc-comment), nhưng
+/// `build_chapter_blocks_preview_wire` áp nó THEO CHỈ SỐ lên bất kỳ Chương nào được truyền
+/// vào. Trước bản vá, con trỏ ở Chương 1 (khác đơn vị 0) mà đã có override từ Chương 0 sẽ
+/// khiến Chương 1 hiện SAI: `kept` bị bẻ theo override của Chương KHÁC, và `confirmed` khai
+/// "người dùng đã xác nhận" cho một khối chưa ai từng chạm.
+///
+/// Ca này khẳng định: `chapter_detail_for_index` cho Chương 1 với một `block_overrides` gieo
+/// (giả lập người dùng đã bấm `Space` trên khối 0 CỦA CHƯƠNG 0) phải cho kết quả GIỐNG HỆT
+/// một lượt gọi KHÔNG override nào (`confirmed` toàn `false`, `kept` khớp `machine_kept`) —
+/// override đó không có gì để mà áp lên Chương 1.
+#[test]
+fn block_overrides_of_chapter_zero_do_not_leak_into_the_blocks_of_a_different_chapter() {
+    let html_for = |title: &str, text: &str| {
+        format!("<html><body><article><h1>{title}</h1><p>{text}</p></article></body></html>")
+    };
+    let shape = PipelineShape::Chapters(vec![
+        ChapterInput::RawBytes {
+            bytes: html_for("Chuong 0", "noi dung chuong khong that su rieng biet cua no").into_bytes(),
+            label: "https://example.com/0".to_owned(),
+        },
+        ChapterInput::RawBytes {
+            bytes: html_for("Chuong 1", "noi dung chuong mot hoan toan khac chuong kia").into_bytes(),
+            label: "https://example.com/1".to_owned(),
+        },
+    ]);
+
+    // Đường cơ sở — KHÔNG override nào — `confirmed` toàn `false`, `kept` LÀ `machine_kept`
+    // (theo đúng định nghĩa `effective_kept_for_blocks` với `overrides` rỗng).
+    let (_, baseline_blocks) =
+        chapter_detail_for_index(&shape, 1, encoding_rs::UTF_8, None, "en", &[], true, &[])
+            .expect("Chuong 1 ton tai, phai co chi tiet");
+    let baseline = baseline_blocks.expect("extract_main_content == true phai cho Some(blocks)");
+    assert!(!baseline.blocks.is_empty(), "tien de: trang phai co it nhat mot khoi de ma so sanh");
+    assert!(baseline.blocks.iter().all(|b| !b.confirmed), "tien de: duong co so khong co override");
+
+    // Gieo override — giả lập người dùng đã bấm `Space` trên khối 0 CỦA CHƯƠNG 0
+    // (`Tier2BlockOverridesState` chỉ mang ý nghĩa cho đơn vị 0 của hình dạng gốc).
+    let block_overrides_of_chapter_zero = vec![Some(false)];
+
+    let (_, k1_blocks) = chapter_detail_for_index(
+        &shape,
+        1, // con trỏ ở Chương 1, KHÁC đơn vị mang override
+        encoding_rs::UTF_8,
+        None,
+        "en",
+        &[],
+        true,
+        &block_overrides_of_chapter_zero,
+    )
+    .expect("Chuong 1 ton tai, phai co chi tiet");
+    let k1 = k1_blocks.expect("extract_main_content == true phai cho Some(blocks)");
+
+    assert!(
+        k1.blocks.iter().all(|b| !b.confirmed),
+        "override cua Chuong 0 KHONG duoc phep 'xac nhan' bat ky khoi nao cua Chuong 1 -- \
+         nguoi dung chua he cham vao no. Ca nay do se ĐỎ neu P1 chua duoc va."
+    );
+    let k1_kept: Vec<bool> = k1.blocks.iter().map(|b| b.kept).collect();
+    let baseline_kept: Vec<bool> = baseline.blocks.iter().map(|b| b.kept).collect();
+    assert_eq!(
+        k1_kept, baseline_kept,
+        "kept cua Chuong 1 phai khop CHINH XAC voi duong co so (= machine_kept that) -- \
+         override cua Chuong 0 khong duoc phep be no theo CHI SO"
+    );
+}
+
+/// 🔴 **Đối chứng P5 (vòng rà đối kháng bước 4)** — `PipelineShape::Blob` cấp bản dựng cửa sổ
+/// bằng chứng từ ĐÚNG MỘT đơn vị (`ChapterInput` chưa qua bước tách Chương). Một mẫu phân
+/// tách có thể cho `chapters_wire.chapter_count > 1` — chỉ số Chương ngoài `[0]` khi đó KHÔNG
+/// bị chặn bởi phép so `chapter_index >= chapters_wire.chapter_count` (đơn vị đã tách RA
+/// nhiều Chương), nên đây là ca DUY NHẤT lộ được lưới an toàn của CHÍNH
+/// `display_window_for_chapter` — nếu phép vá bị gỡ, hàm sẽ lặng lẽ trả về cửa sổ bằng chứng
+/// của TOÀN blob (tức nội dung Chương 0) dưới nhãn Chương 1.
+#[test]
+fn chapter_detail_for_index_refuses_a_nonzero_index_on_a_blob_shape_even_when_a_pattern_would_yield_more_than_one_chapter() {
+    use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
+
+    let text = "Chuong 1: Mo Dau\n\nnoi dung mot.\n\nChuong 2: Tiep Theo\n\nnoi dung hai.".to_owned();
+    let pattern = ChapterPattern::regex(r"^Chuong \d+:.*$");
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text));
+
+    // Tiền đề — mẫu THẬT SỰ tách `shape` (một đơn vị `Blob`) ra hai Chương, nên phép so biên
+    // ở tầng ngoài (`chapter_index >= chapters_wire.chapter_count`) KHÔNG chặn được `1`.
+    let (_, chapters_wire, _) = cleanup_and_chapters_preview_for(
+        shape.clone(), encoding_rs::UTF_8, Some(&pattern), "", "en", &[], false, false, &[], 0,
+    );
+    assert_eq!(chapters_wire.chapter_count, 2, "tien de: mau phai tach ra dung hai Chuong");
+
+    assert!(
+        chapter_detail_for_index(&shape, 1, encoding_rs::UTF_8, Some(&pattern), "en", &[], false, &[])
+            .is_none(),
+        "Blob chi mang MOT don vi (chua qua buoc tach) -- chi so 1 phai tra None, khong doan \
+         bang cua so bang chung cua don vi 0 (Chuong 1) duoi nhan Chuong 2"
+    );
+    // Chỉ số 0 vẫn hợp lệ — đối chứng ÂM để chắc chắn phép vá không chặn nhầm ca đúng.
+    assert!(
+        chapter_detail_for_index(&shape, 0, encoding_rs::UTF_8, Some(&pattern), "en", &[], false, &[])
+            .is_some(),
+        "chi so 0 tren Blob van phai hop le -- day la doi chung AM cho phep va P5"
     );
 }
 

@@ -1013,6 +1013,42 @@ fn the_domain_log_wire_and_the_two_tier2_block_wires_are_registered_and_keep_the
     }
 }
 
+/// **THÊM Story 6.10a.** `preview_chapter_detail` (con trỏ *Chương đang chọn* — chi tiết tầng
+/// 2/3 LAZY khi con trỏ dời) là lệnh IPC MỚI DUY NHẤT của story này — §Always: "lệnh mới phải
+/// vào `generate_handler!` VÀ có một ca test mang tên nó", đúng khuôn hai ca ngay trên.
+#[test]
+fn the_preview_chapter_detail_wire_is_registered_and_keeps_its_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    assert!(
+        lib_src.contains("crate::commands::project::wire::preview_chapter_detail"),
+        "`crate::commands::project::wire::preview_chapter_detail` phai co mat trong          generate_handler! cua lib.rs. Thieu no thi invoke() tra \"command not found\" chi khi          nguoi dung bam nut."
+    );
+
+    let project_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("project.rs");
+    let project_src = fs::read_to_string(&project_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_rs.display()));
+
+    let wire_mod_start = project_src
+        .find("\npub mod wire {")
+        .unwrap_or_else(|| panic!("khong tim thay `pub mod wire {{` trong commands/project.rs"));
+    let wire_src = &project_src[wire_mod_start..];
+
+    let params = fn_param_list(wire_src, "preview_chapter_detail");
+    assert_eq!(
+        normalize_param_list(&params),
+        normalize_param_list(
+            "app: tauri::AppHandle,\n        chapter_index: usize,\n        encoding: String,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,"
+        ),
+        "vo `preview_chapter_detail` trong `pub mod wire` cua commands/project.rs khong con dung          danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va `src/config/project.ts`          la cho duy nhat go lai theo dung ten/thu tu do."
+    );
+}
+
 /// Bóc danh sách tham số của khối `pub fn <fn_name>(...)` ĐẦU TIÊN trong `src` — neo vào
 /// ĐÚNG chữ ký hàm đó, không phải một chuỗi con rời rạc bất kỳ đâu trong tệp. Giả định (đúng
 /// cho cả ba vỏ Story 6.3): thân tham số không chứa dấu `)` nào (không kiểu generic lồng

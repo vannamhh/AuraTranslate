@@ -194,6 +194,10 @@ export type ChapterSplitPreviewEntryWire = {
   title: string | null
   /** Độ dài `source_text`, tính bằng ĐIỂM MÃ. */
   length: number
+  /** **THÊM Story 6.10a** — tổng số chỗ khớp luật làm sạch CỦA CHÍNH Chương này (kể cả luật
+   * đã tắt — cùng quy ước `count_in_chapter`). Trục tóm tắt EAGER phục vụ Story 6.10 (phép so
+   * trung vị) — story này chỉ cấp con số, KHÔNG dựng bộ lọc/ngưỡng nào lên nó. */
+  cleanup_match_count: number
 }
 
 /** Thân một khối — khớp `commands::project::BlockBodyWire` (`#[serde(tag = "kind", rename_all
@@ -350,7 +354,8 @@ function isChapterSplitPreviewEntryWire(value: unknown): value is ChapterSplitPr
   return (
     typeof v.ord === 'number' &&
     (v.title === null || typeof v.title === 'string') &&
-    typeof v.length === 'number'
+    typeof v.length === 'number' &&
+    typeof v.cleanup_match_count === 'number'
   )
 }
 
@@ -593,8 +598,15 @@ export type UrlImportItemWire = {
 }
 
 /** Kết quả CẢ BA lệnh (tải/tải lại/bỏ một mục) — khớp `commands::project::UrlImportBatchWire`.
- * `encoding_preview === null` là điều kiện ĐỦ để biết nút xác nhận phải khoá — cùng điều
- * kiện mà Rust dùng để đồng bộ `PendingImportSourceState` (không suy luận riêng ở đây). */
+ *
+ * 🔵 **SỬA 2026-09-08 (Story 6.10a) — "`encoding_preview === null` là điều kiện ĐỦ để biết nút
+ * xác nhận phải khoá" đã HẾT ĐÚNG.** Vị từ XEM phía Rust (`chapters_shape_for_view`) nay bỏ
+ * qua mục hỏng để vẫn dựng `encoding_preview` từ các mục OK còn lại — nó khác `null` NGAY CẢ
+ * KHI còn mục hỏng. Nút xác nhận khoá theo vị từ GHI RIÊNG
+ * (`importPreviewCanConfirm`/`importPreviewUrlListHasBrokenItem`, tính CỤC BỘ trên
+ * `items[].ok`, `src/importPreviewState.ts`) — KHÔNG còn đọc trường này. `encoding_preview
+ * === null` giờ chỉ còn nghĩa "không có gì để mà xem" (danh sách rỗng, hoặc KHÔNG mục OK
+ * nào). */
 export type UrlImportBatchWire = {
   items: UrlImportItemWire[]
   encoding_preview: ImportEncodingPreview | null
@@ -704,6 +716,75 @@ export async function tier2BlockConfirmRange(
   sourceLang: string,
 ): Promise<UrlImportBatchResult> {
   return callUrlImportBatch(CMD_TIER2_BLOCK_CONFIRM_RANGE, { start, end, total, sourceLang })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story 6.10a — con trỏ *Chương đang chọn*: chi tiết LAZY (tầng 2/3) cho Chương thứ k khi con
+// trỏ dời (`⌥←`/`⌥→`). Khớp `commands::project::{ChapterDetailWire, wire::preview_chapter_detail}`.
+// Chỉ có nghĩa trên đường URL (`PipelineShape::Chapters`, §Always spec 6.7/6.9/6.10a).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Chi tiết tầng 2/3 của MỘT Chương — khớp `commands::project::ChapterDetailWire`. */
+export type ChapterDetailWire = {
+  cleanup: CleanupPreviewWire
+  blocks: ChapterBlocksPreviewWire | null
+}
+
+function isChapterDetailWire(value: unknown): value is ChapterDetailWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ChapterDetailWire>
+  return (
+    v.cleanup !== undefined &&
+    isCleanupPreviewWire(v.cleanup) &&
+    (v.blocks === null || isChapterBlocksPreviewWire(v.blocks))
+  )
+}
+
+/** Tên command trên dây. Khớp `commands::project::wire::preview_chapter_detail`. */
+const CMD_PREVIEW_CHAPTER_DETAIL = 'preview_chapter_detail'
+
+/** Ba trạng thái, cùng khuôn `UrlImportBatchResult`. `detail === null` mà `error === null`
+ * nghĩa là `chapterIndex` không còn khớp trạng thái hiện hành (mẫu phân tách vừa đổi làm N
+ * đổi, hoặc bảng mã đã chọn "không ra chữ" cho Chương này) — chỗ gọi coi đó là CŨ, không
+ * đoán. */
+export type ChapterDetailResult = {
+  detail: ChapterDetailWire | null
+  error: IpcError | null
+}
+
+/** Dựng lại tầng 2/3 cho Chương thứ `chapterIndex` (0-based) — với bảng mã ĐÃ CHỌN (không dò
+ * lại, không lặp năm ứng viên). `chapterPattern` gửi lại HIỆN HÀNH, cùng quy ước mọi lệnh
+ * `preview_import_encoding_from_*`/`confirm_import_with_encoding` (§Always spec 6.6: mẫu là
+ * tham số MỖI LƯỢT NHẬP, không lưu ở đâu cả giữa hai lượt gọi). */
+export async function previewChapterDetail(
+  chapterIndex: number,
+  encoding: string,
+  sourceLang: string,
+  chapterPattern: ChapterPatternInput | null,
+): Promise<ChapterDetailResult> {
+  try {
+    const detail = await invoke<ChapterDetailWire>(CMD_PREVIEW_CHAPTER_DETAIL, {
+      chapterIndex,
+      encoding,
+      sourceLang,
+      chapterPattern,
+    })
+    if (!isChapterDetailWire(detail)) {
+      console.error(`[project] \`${CMD_PREVIEW_CHAPTER_DETAIL}\` tra ve mot hinh dang khong dung ChapterDetailWire`)
+      return { detail: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { detail, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { detail: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(
+        `[project] \`${CMD_PREVIEW_CHAPTER_DETAIL}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { detail: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[project] không gọi được \`${CMD_PREVIEW_CHAPTER_DETAIL}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { detail: null, error: null }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -73,8 +73,10 @@ import {
   jumpImportPreviewToCleanupRules,
   markImportPreviewBlockRangeStart,
   nextImportPreviewBlock,
+  nextImportPreviewChapter,
   openImportPreviewCandidatePicker,
   prevImportPreviewBlock,
+  prevImportPreviewChapter,
   toggleImportPreviewBlockKept,
 } from './importPreviewState'
 // ── Story 5.3 — "Quét lại thư mục" (FR99) ────────────────────────────────────────────
@@ -457,6 +459,10 @@ async function boot(): Promise<void> {
       markImportPreviewBlockRangeStart,
       confirmImportPreviewBlockRange,
       jumpImportPreviewToCleanupRules,
+      // Story 6.10a — con trỏ *Chương đang chọn* (`⌥←`/`⌥→`). Hai hàm THUẦN, cùng cửa và cùng
+      // lý do sáu hàm Story 6.9 ngay trên.
+      nextImportPreviewChapter,
+      prevImportPreviewChapter,
       // Story 5.3 — "Quét lại thư mục" (FR99).
       rescanLibraryFolder,
       chooseLibraryRootFolder,

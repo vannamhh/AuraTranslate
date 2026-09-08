@@ -657,6 +657,11 @@ pub fn run() {
             // mang, chi doi state trong bo nho roi chay lai chuoi pipeline that.
             crate::commands::project::wire::tier2_block_set_kept,
             crate::commands::project::wire::tier2_block_confirm_range,
+            // Story 6.10a -- con tro *Chuong dang chon*: mot lenh IPC MOI dung lai chi tiet
+            // tang 2/3 cho Chuong thu k khi con tro doi (`⌥←`/`⌥→`). Khong async -- byte da
+            // tai song trong UrlImportItemsState (AD-41), chi chay lai chuoi pipeline trong
+            // bo nho, 0 mang.
+            crate::commands::project::wire::preview_chapter_detail,
             // Story 6.5 -- luat lam sach luc nhap (FR124, AD-18). Nam vo: liet hai tang da
             // hop nhat · them · sua · xoa · bat/tat -- bon vo sau dinh tuyen theo tier nguoi
             // dung chon, danh tinh mot luat la CAP (tier, id).

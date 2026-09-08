@@ -37,6 +37,7 @@ import {
   cleanupEditRule,
   cleanupSetEnabled,
   confirmImportWithEncoding,
+  previewChapterDetail,
   previewImportEncodingFromFile,
   previewImportEncodingFromText,
   reloadUrlImportItem,
@@ -204,6 +205,25 @@ const blockActionError = ref<IpcError | null>(null)
 const jumpToCleanupRulesSignal = ref(0)
 
 /**
+ * **THÊM (Story 6.10a)** — con trỏ *Chương đang chọn*, 0-based, index vào
+ * `importPreviewSelectedChapters.value.chapters`. `⌥←`/`⌥→` dời con trỏ; Chương 0 đọc THẲNG
+ * từ `candidate.cleanup`/`.blocks` (đã có sẵn EAGER, 0 lời gọi IPC) — bốn ô dưới đây chỉ có
+ * ý nghĩa khi con trỏ KHÁC 0 (chi tiết LAZY, xem [`loadImportPreviewChapterDetail`]).
+ */
+const chapterCursor = ref(0)
+/** Chi tiết tầng 3 (làm sạch) của Chương con trỏ đang trỏ tới — `null` khi con trỏ ở Chương 0
+ * hoặc lượt dựng lazy đang bay/vừa trượt. */
+const chapterDetailCleanup = ref<CleanupPreviewWire | null>(null)
+/** Chi tiết tầng 2 (khối) của Chương con trỏ đang trỏ tới — cùng điều kiện `chapterDetailCleanup`. */
+const chapterDetailBlocks = ref<ChapterBlocksPreviewWire | null>(null)
+/** Cờ "đang gửi" của lệnh IPC lazy `preview_chapter_detail` — chặn hai lượt dời con trỏ chồng
+ * lệnh (khuôn `event.repeat` guard ở tầng `.vue` cộng lớp phòng thủ THỨ HAI ở đây). */
+const chapterDetailLoading = ref(false)
+/** Lỗi RIÊNG của lượt dựng chi tiết Chương gần nhất — TÁCH khỏi mọi lỗi khác, cùng lý do
+ * `blockActionError` tách khỏi `urlImportError`/`confirmError`. */
+const chapterDetailError = ref<IpcError | null>(null)
+
+/**
  * **THÊM (Story 6.6)** — mẫu phân tách Chương ĐANG GÕ, tham số MỖI LƯỢT NHẬP (§Always spec
  * 6.6: KHÔNG một cơ chế "nhớ mẫu" nào — Ice chốt 2026-09-05 mặc định KHÔNG nhớ giữa hai lượt
  * nhập, xem §Ask First của spec). Chuỗi rỗng ⇒ không mẫu (no-op, N = 1) — xem
@@ -283,6 +303,14 @@ export const importPreviewBlockRangeConfirming: DeepReadonly<Ref<boolean>> = rea
 export const importPreviewBlockActionError: DeepReadonly<Ref<IpcError | null>> = readonly(blockActionError)
 export const importPreviewJumpToCleanupRulesSignal: DeepReadonly<Ref<number>> =
   readonly(jumpToCleanupRulesSignal)
+/** Con trỏ *Chương đang chọn* — Story 6.10a. 0-based. */
+export const importPreviewChapterCursor: DeepReadonly<Ref<number>> = readonly(chapterCursor)
+/** `true` ⇔ đang bay một lượt dựng lại chi tiết Chương (`⌥←`/`⌥→` vừa bấm). */
+export const importPreviewChapterDetailLoading: DeepReadonly<Ref<boolean>> =
+  readonly(chapterDetailLoading)
+/** Lỗi RIÊNG của lượt dựng chi tiết Chương gần nhất. */
+export const importPreviewChapterDetailError: DeepReadonly<Ref<IpcError | null>> =
+  readonly(chapterDetailError)
 export const importPreviewChapterPatternText: DeepReadonly<Ref<string>> = readonly(chapterPatternText)
 export const importPreviewChapterPatternKind: DeepReadonly<Ref<ChapterPatternKindWire>> =
   readonly(chapterPatternKind)
@@ -309,6 +337,22 @@ export const importPreviewUrlImportError: DeepReadonly<Ref<IpcError | null>> = r
 export const importPreviewUrlListHasBrokenItem = computed<boolean>(() => {
   if (lastSubmittedFrom.value !== 'urls') return false
   return urlImportItems.value.length === 0 || urlImportItems.value.some((it) => !it.ok)
+})
+
+/**
+ * **THÊM (Story 6.10a)** — vị từ GHI cho nút xác nhận, TÁCH khỏi `importPreview !== null`
+ * (vị từ XEM). Trước story này hai vị từ trùng nhau TRÊN ĐƯỜNG URL (`encoding_preview` phía
+ * Rust là `null` chính xác khi còn mục hỏng), nên `importPreview === null` từng là một cách
+ * ĐỌC ĐÚNG (dù gián tiếp) của "còn mục hỏng". Story 6.10a đổi vị từ XEM (`chapters_shape_for_view`,
+ * bỏ qua mục hỏng để vẫn dựng được xem trước cho các mục OK) — `importPreview` nay khác `null`
+ * NGAY CẢ KHI còn mục hỏng, nên đọc nó để khoá nút là ĐÚNG lỗi mà §Always story 6.10a cấm
+ * ("trộn vị từ XEM với vị từ GHI"). Đường URL đọc thẳng [`importPreviewUrlListHasBrokenItem`]
+ * (đã có sẵn từ Story 6.7, tính CỤC BỘ trên `urlImportItems[].ok` — không đọc `preview`);
+ * đường tệp/dán tay không có khái niệm "mục hỏng", giữ nguyên `preview !== null`.
+ */
+export const importPreviewCanConfirm = computed<boolean>(() => {
+  if (lastSubmittedFrom.value === 'urls') return !importPreviewUrlListHasBrokenItem.value
+  return preview.value !== null
 })
 
 /** Dải năm ô mở khi và chỉ khi tin cậy THẤP **hoặc** người dùng đã buộc mở bằng `E` — một
@@ -365,8 +409,15 @@ export const importPreviewSelectedNormalized = computed<NormalizedPreviewWire | 
  *
  * 🔴 **Đổi ứng viên đổi computed này NGAY, 0 lời gọi IPC** — Rust đã dựng sẵn khối làm sạch
  * của CẢ NĂM ứng viên VÀ của nhánh tự khai trên dây, computed này chỉ ĐỌC lại.
+ *
+ * 🔵 **SỬA (Story 6.10a) — con trỏ Chương KHÁC 0 đọc từ chi tiết LAZY, không còn LUÔN Chương
+ * 0.** `candidate.cleanup`/`self_declared_cleanup` (Rust dựng EAGER) là chi tiết của ĐÚNG
+ * Chương 0 (§Design Notes: "tóm tắt eager, chi tiết lazy") — con trỏ dời sang Chương k > 0
+ * đọc [`chapterDetailCleanup`] (dựng qua lệnh IPC lazy `preview_chapter_detail` khi con trỏ
+ * dời, xem [`loadImportPreviewChapterDetail`]), `null` trong lúc đang bay/vừa trượt.
  */
 export const importPreviewSelectedCleanup = computed<CleanupPreviewWire | null>(() => {
+  if (chapterCursor.value !== 0) return chapterDetailCleanup.value
   const p = preview.value
   if (p === null) return null
   const candidate = importPreviewSelectedCandidate.value
@@ -396,8 +447,12 @@ export const importPreviewSelectedChapters = computed<ChapterSplitPreviewWire | 
  * (`extract_main_content` chỉ `true` ở đó, §Always spec 6.7/6.9), và đường đó LUÔN có ứng
  * viên (byte HTML thật luôn đi qua dò bảng mã) — nhánh tự khai (`candidate === null`, dán văn
  * bản tay) không có khái niệm "khối" để mà rơi về.
+ *
+ * 🔵 **SỬA (Story 6.10a)** — cùng lý do [`importPreviewSelectedCleanup`]: con trỏ Chương khác
+ * 0 đọc từ [`chapterDetailBlocks`] (chi tiết LAZY), không còn LUÔN của Chương 0.
  */
 export const importPreviewSelectedBlocks = computed<ChapterBlocksPreviewWire | null>(() => {
+  if (chapterCursor.value !== 0) return chapterDetailBlocks.value
   const candidate = importPreviewSelectedCandidate.value
   return candidate !== null ? candidate.blocks : null
 })
@@ -480,6 +535,11 @@ async function openWith(
   blockRangeConfirming.value = false
   blockActionError.value = null
   jumpToCleanupRulesSignal.value = 0
+  chapterCursor.value = 0
+  chapterDetailCleanup.value = null
+  chapterDetailBlocks.value = null
+  chapterDetailLoading.value = false
+  chapterDetailError.value = null
 
   const result = await call()
   if (mySequence !== sequence) return // Một lượt mở/huỷ MỚI đã vượt mặt lượt này.
@@ -599,6 +659,11 @@ export async function openImportPreviewFromUrls(
   blockRangeConfirming.value = false
   blockActionError.value = null
   jumpToCleanupRulesSignal.value = 0
+  chapterCursor.value = 0
+  chapterDetailCleanup.value = null
+  chapterDetailBlocks.value = null
+  chapterDetailLoading.value = false
+  chapterDetailError.value = null
 
   const result = await startUrlImport(urls, sourceLang)
   if (mySequence !== sequence) return // một lượt mở/huỷ MỚI đã vượt mặt lượt này
@@ -623,9 +688,12 @@ export async function openImportPreviewFromUrls(
 
   urlImportItems.value = result.batch.items
   domainLogDomainCount.value = result.batch.domain_log_domain_count
-  // `encoding_preview === null` ⇔ còn mục hỏng/danh sách rỗng (đồng bộ với
-  // `commands::project::sync_pending_from_url_items` phía Rust) — KHÔNG có gì để hiện ở tầng
-  // 1-4, nhưng lớp phủ VẪN mở để người dùng thấy danh sách mục và sửa (bỏ/tải lại).
+  // 🔵 SỬA 2026-09-08 (Story 6.10a) — `encoding_preview === null` KHÔNG còn ⇔ "còn mục hỏng".
+  // Vị từ XEM phía Rust (`chapters_shape_for_view`) nay bỏ qua mục hỏng để vẫn dựng được xem
+  // trước từ các mục OK còn lại — `null` chỉ còn đúng khi KHÔNG mục OK nào (danh sách rỗng,
+  // hoặc MỌI mục đều hỏng). KHÔNG có gì để hiện ở tầng 1-4 trong ca đó, nhưng lớp phủ VẪN mở
+  // để người dùng thấy danh sách mục và sửa (bỏ/tải lại). Nút xác nhận khoá hay không đọc
+  // [`importPreviewCanConfirm`] RIÊNG (vị từ GHI), không đọc trường này.
   if (result.batch.encoding_preview === null) {
     preview.value = null
     selectedEncoding.value = null
@@ -660,12 +728,16 @@ function applyUrlImportBatch(batch: NonNullable<Awaited<ReturnType<typeof startU
   if (batch.encoding_preview === null) {
     preview.value = null
     selectedEncoding.value = null
+    // THÊM (Story 6.10a) — 0 Chương hợp lệ để mà xem, kẹp con trỏ về 0 + dọn chi tiết lazy.
+    syncChapterCursorAfterUrlBatch()
     return
   }
   preview.value = batch.encoding_preview
   selectedEncoding.value = batch.encoding_preview.candidates.some((c) => c.encoding === keepEncoding)
     ? keepEncoding
     : batch.encoding_preview.selected_encoding
+  // THÊM (Story 6.10a) — số Chương có thể đã đổi dưới chân con trỏ (tải lại/bỏ một mục URL).
+  syncChapterCursorAfterUrlBatch()
 }
 
 /** Tải lại ĐÚNG MỘT mục hỏng ở vị trí `index` — I/O Matrix spec 6.7: "đúng 1 lời gọi mạng".
@@ -744,9 +816,16 @@ export function prevImportPreviewBlock(): void {
 export async function toggleImportPreviewBlockKept(): Promise<void> {
   if (confirming.value || blockToggling.value) return
   const blocks = importPreviewSelectedBlocks.value?.blocks
-  if (blocks === undefined) return
+  // 🔵 SỬA (dọn nợ lint phát hiện khi làm Story 6.10a, KHÔNG liên quan tới con trỏ Chương) —
+  // `tsconfig.json` không bật `noUncheckedIndexedAccess`, nên `blocks[i]` được TypeScript
+  // gõ THẲNG là `BlockWire` (không `| undefined`) — một phép so `current === undefined` sau
+  // đó là "logic không bao giờ đúng" THẬT theo kiểu tĩnh (`@typescript-eslint/no-unnecessary-condition`
+  // đúng khi báo lỗi), dù Ý ĐỊNH chạy (chặn `blockFocusedIndex` ngoài phạm vi) vẫn hợp lệ. So
+  // trực tiếp với `blocks.length` diễn đạt ĐÚNG ý định đó bằng một kiểu THẬT SỰ đúng.
+  if (blocks === undefined || blockFocusedIndex.value < 0 || blockFocusedIndex.value >= blocks.length) {
+    return
+  }
   const current = blocks[blockFocusedIndex.value]
-  if (current === undefined) return
 
   blockToggling.value = true
   try {
@@ -836,6 +915,148 @@ export function selectImportPreviewCandidate(encoding: string): void {
   // gắn với dữ liệu người dùng đang nhìn thấy sau khi đổi ô.
   blockRangeMissingStartNotice.value = false
   blockActionError.value = null
+  // 🔴 THÊM (Story 6.10a) — con trỏ Chương GIỮ NGUYÊN qua một lượt đổi ứng viên (AC spec
+  // 6.10a: "hiện Chương k, không nhảy về Chương 0"); chi tiết của Chương k > 0 phải dựng LẠI
+  // với bảng mã MỚI — Chương 0 không cần (đọc thẳng `candidate.cleanup`/`.blocks` mới, đã đủ).
+  if (chapterCursor.value !== 0) void loadImportPreviewChapterDetail(chapterCursor.value)
+}
+
+/**
+ * Token của lượt gọi [`loadImportPreviewChapterDetail`] GẦN NHẤT — **THÊM (vòng rà đối
+ * kháng bước 4, P3)**. TÁCH khỏi `sequence` (ô đó mang nghĩa "phiên xem trước": mở/huỷ/xác
+ * nhận) vì hai lượt gọi chi tiết CHO CÙNG index (đổi ứng viên bảng mã hai lần liên tiếp, hoặc
+ * một lượt `syncChapterCursorAfterUrlBatch` xen vào giữa một lượt đổi ứng viên) không đổi
+ * `sequence` — bản trước so `chapterCursor.value !== index`, thứ KHÔNG phân biệt được hai
+ * lượt gọi cùng index, nên lượt trả về SAU CÙNG thắng bất kể nó cũ hơn.
+ */
+let chapterDetailRequestToken = 0
+
+/**
+ * Dựng lại chi tiết tầng 2/3 cho Chương thứ `index` — **Story 6.10a**, chỗ gọi sản phẩm là
+ * [`moveImportPreviewChapterCursor`]/[`selectImportPreviewCandidate`] (đổi ứng viên khi con
+ * trỏ khác 0)/[`syncChapterCursorAfterUrlBatch`]. Chương 0 đọc THẲNG từ `candidate.cleanup`/
+ * `.blocks` (đã có sẵn EAGER) — hàm này chỉ DỌN hai ô override, KHÔNG gọi Rust.
+ *
+ * 🔴 **CHỈ hoạt động trên đường URL** (`lastSubmittedFrom === 'urls'`) — lệnh
+ * `preview_chapter_detail` phía Rust đọc `UrlImportItemsState`, không có nhánh cho đường
+ * tệp/dán tay (`Blob` + `chapter_pattern`, có thể N > 1 Chương nhưng chi tiết Chương k > 0
+ * CHƯA dựng ở story này — nợ MỚI, ghi ở `deferred-work.md`, không phải một sơ suất im lặng).
+ *
+ * 🔴 **SỬA (vòng rà đối kháng bước 4, P2) — lỗi/trạng thái CŨ phải DỌN chi tiết đang hiện.**
+ * Bản trước `return` trên cả hai nhánh `result.error !== null`/`result.detail === null` mà
+ * không đụng `chapterDetailCleanup`/`chapterDetailBlocks` — nhưng con trỏ đã dời sang `index`
+ * TRƯỚC lượt gọi này, nên tầng 2/3 tiếp tục hiện chi tiết của Chương CŨ dưới nhãn "Chương
+ * `index`" (kèm một dòng lỗi, nếu có). Rỗng CÓ LÝ DO, không phải nội dung sai — cùng nguyên
+ * tắc mà nửa Rust (`display_window_for_chapter`/`chapter_detail_for_index`) đã theo (trả
+ * `None` thay vì đoán).
+ *
+ * 🔵 **SỬA (vòng rà đối kháng bước 4, P4) — gửi `chapterPattern: null`, không còn
+ * `chapterPatternWire()`.** Đường eager (`url_import_encoding_preview`, `project.rs`) truyền
+ * `chapter_pattern: None` CỨNG cho MỌI ứng viên trên đường URL — `PipelineShape::Chapters`
+ * luôn `already_chaptered = true` nên `Step::SplitChapters` bỏ qua tham số này VÔ ĐIỀU KIỆN
+ * (`pipeline.rs::split_chapters_step`, nhánh `already_chaptered` return sớm). Gửi
+ * `chapterPatternWire()` ở đây tạo ra hai đầu vào KHÁC NHAU cho Chương 0 (eager, `None`) và
+ * Chương k (lazy, mẫu ĐANG GÕ) trên GIẤY — vô hại HÔM NAY vì tham số bị bỏ qua như nhau ở cả
+ * hai, nhưng là đúng lớp sai lệch mà story này tồn tại để chặn nếu `split_chapters_step` đổi
+ * hành vi sau này. Khớp NGUYÊN VĂN đường eager: `null`.
+ */
+async function loadImportPreviewChapterDetail(index: number): Promise<void> {
+  chapterDetailRequestToken += 1
+  const myToken = chapterDetailRequestToken
+  chapterDetailError.value = null
+  if (index === 0) {
+    chapterDetailCleanup.value = null
+    chapterDetailBlocks.value = null
+    return
+  }
+  if (lastSubmittedFrom.value !== 'urls') return // giới hạn thật, xem doc-comment hàm này
+  const encoding = selectedEncoding.value
+  if (encoding === null) return
+
+  const mySequence = sequence
+  chapterDetailLoading.value = true
+  try {
+    const result = await previewChapterDetail(index, encoding, pendingSourceLang.value, null)
+    // Một lượt mở/huỷ MỚI (sequence đổi) hoặc một lượt dựng chi tiết KHÁC (kể cả cho CÙNG
+    // index — token đổi bất kể `chapterCursor` có đổi hay không) đã vượt mặt lượt này — kết
+    // quả trễ không còn khớp bất kỳ thứ gì đang hiện.
+    if (mySequence !== sequence || myToken !== chapterDetailRequestToken) return
+    if (result.error !== null) {
+      // P2 — dọn chi tiết ĐANG HIỆN (của Chương/ứng viên CŨ): rỗng có lý do, không phải nội
+      // dung sai gắn nhãn Chương mới.
+      chapterDetailCleanup.value = null
+      chapterDetailBlocks.value = null
+      chapterDetailError.value = result.error
+      return
+    }
+    if (result.detail === null) {
+      // P2 — cùng lý do trên: trạng thái CŨ (N vừa đổi dưới chân) — không đoán, không giữ lại
+      // chi tiết của một Chương/ứng viên khác dưới nhãn "Chương index".
+      chapterDetailCleanup.value = null
+      chapterDetailBlocks.value = null
+      return
+    }
+    chapterDetailCleanup.value = result.detail.cleanup
+    chapterDetailBlocks.value = result.detail.blocks
+  } finally {
+    if (myToken === chapterDetailRequestToken) chapterDetailLoading.value = false
+  }
+}
+
+/**
+ * Dời con trỏ Chương — `direction` `+1` (`⌥→`) hoặc `-1` (`⌥←`). **Dừng ở hai đầu, KHÔNG cuộn
+ * vòng** (§Never spec 6.10a) — không kêu, không lời gọi IPC. No-op khi lớp phủ đã đóng hoặc
+ * một lượt dựng chi tiết KHÁC đang bay (chặn chồng lệnh — lớp phòng thủ THỨ HAI, cạnh guard
+ * `event.repeat` ở tầng `.vue`).
+ *
+ * 🔴 **No-op ngoài đường URL, kể cả khi N > 1** (đường tệp/dán tay + mẫu phân tách CÓ THỂ
+ * tách ra N > 1 Chương — tầng 4 vẫn hiện tóm tắt đủ N). Chi tiết Chương k > 0 của hình dạng
+ * đó CHƯA dựng ở story này ([`loadImportPreviewChapterDetail`] chỉ gọi Rust trên đường URL) —
+ * dời con trỏ ở đây sẽ làm tầng 2/3 hiện RỖNG thay vì Chương 0 đã biết, một hồi quy TỆ HƠN
+ * "chưa dựng". An toàn duy nhất: giữ con trỏ đứng yên ở 0, cùng tinh thần I/O Matrix spec
+ * 6.10a hàng "N = 1 — con trỏ tồn tại nhưng không đi đâu được", tổng quát hoá cho MỌI N trên
+ * đường này. Nợ MỚI (mở rộng chi tiết lazy sang đường tệp/dán tay), ghi ở `deferred-work.md`.
+ */
+function moveImportPreviewChapterCursor(direction: 1 | -1): void {
+  if (!overlayOpen.value) return
+  if (lastSubmittedFrom.value !== 'urls') return
+  if (chapterDetailLoading.value) return
+  const chapters = importPreviewSelectedChapters.value
+  if (chapters === null || chapters.chapter_count === 0) return
+  const next = chapterCursor.value + direction
+  if (next < 0 || next >= chapters.chapter_count) return
+  chapterCursor.value = next
+  void loadImportPreviewChapterDetail(next)
+}
+
+/** `⌥→` — handler của `import.preview.chapter_next`. */
+export function nextImportPreviewChapter(): void {
+  moveImportPreviewChapterCursor(1)
+}
+
+/** `⌥←` — handler của `import.preview.chapter_prev`. */
+export function prevImportPreviewChapter(): void {
+  moveImportPreviewChapterCursor(-1)
+}
+
+/**
+ * Giữ con trỏ Chương trong phạm vi hợp lệ SAU một lượt dựng lại xem trước đường URL (tải
+ * lại/bỏ một mục, đặt/gỡ override tầng 2) — số Chương có thể đổi dưới chân con trỏ. Chỉ số
+ * VƯỢT QUÁ bị KẸP về Chương CUỐI (danh sách rỗng ⇒ về 0) — luôn dựng lại chi tiết cho vị trí
+ * cuối cùng, kể cả khi vị trí không đổi (dữ liệu bảng mã/khối phía dưới có thể đã đổi).
+ */
+function syncChapterCursorAfterUrlBatch(): void {
+  const chapters = importPreviewSelectedChapters.value
+  const count = chapters?.chapter_count ?? 0
+  if (count === 0) {
+    chapterCursor.value = 0
+    chapterDetailCleanup.value = null
+    chapterDetailBlocks.value = null
+    chapterDetailError.value = null
+    return
+  }
+  if (chapterCursor.value >= count) chapterCursor.value = count - 1
+  void loadImportPreviewChapterDetail(chapterCursor.value)
 }
 
 /** Mẫu phân tách Chương hiện hành, dạng dây — chuỗi rỗng (hoặc CHỈ khoảng trắng) ⇒ `null`
@@ -1134,12 +1355,18 @@ export async function toggleImportPreviewCleanupRule(
  * ở đây, `create_work` có thể ghi bằng một mẫu MỚI HƠN mẫu của chính bản xem trước đang hiện
  * trên màn hình — phá thẳng AC "xem trước và xác nhận trùng nhau từng byte". Cùng lý do
  * `confirming` đã chặn bốn hành động CRUD luật làm sạch phía trên.
+ *
+ * 🔵 **SỬA (Story 6.10a) — gác bằng [`importPreviewCanConfirm`] (vị từ GHI), KHÔNG còn
+ * `preview.value === null` trần.** Xem doc-comment computed đó: trên đường URL, `preview`
+ * nay có thể khác `null` dù còn mục hỏng (vị từ XEM đã đổi) — gác bằng nó ở đây sẽ cho một
+ * lượt xác nhận ĐI QUA tầng state trong khi Rust vẫn từ chối (`no_pending_source`, đúng
+ * nhưng TRỄ một vòng IPC), và trên màn hình nút xác nhận phải đọc ĐÚNG cùng vị từ này.
  */
 export async function confirmImportPreview(): Promise<{ created: CreatedWork | null; error: IpcError | null }> {
   if (
     confirming.value ||
     chapterPatternSending.value ||
-    preview.value === null ||
+    !importPreviewCanConfirm.value ||
     selectedEncoding.value === null
   ) {
     return { created: null, error: null }
@@ -1236,6 +1463,10 @@ export function cancelImportPreview(): void {
  */
 export function resetImportPreview(): void {
   sequence += 1
+  // P3 (vòng rà đối kháng bước 4) — vô hiệu hoá mọi lượt gọi `loadImportPreviewChapterDetail`
+  // ĐANG BAY, cùng lý do `sequence += 1` ngay trên (một lượt huỷ/mở MỚI làm mọi kết quả trễ
+  // hết còn khớp bất kỳ thứ gì đang hiện).
+  chapterDetailRequestToken += 1
   overlayOpen.value = false
   status.value = 'unknown'
   loadError.value = null
@@ -1273,4 +1504,9 @@ export function resetImportPreview(): void {
   blockRangeConfirming.value = false
   blockActionError.value = null
   jumpToCleanupRulesSignal.value = 0
+  chapterCursor.value = 0
+  chapterDetailCleanup.value = null
+  chapterDetailBlocks.value = null
+  chapterDetailLoading.value = false
+  chapterDetailError.value = null
 }

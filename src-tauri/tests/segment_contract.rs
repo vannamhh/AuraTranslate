@@ -20,8 +20,8 @@ use auratranslate_lib::commands::lifecycle::set_chapter_status;
 use auratranslate_lib::commands::project::{
     cancel_import_preview, confirm_import_with_encoding, create_work, create_work_from_text,
     preview_import_encoding, stash_pending_import_source, BlockBodyWire, BlockWire,
-    ChapterBlocksPreviewWire, ConfidenceWire, EncodingCandidateWire, ImportEncodingPreview,
-    NormalizedPreviewWire, PendingImportSourceState,
+    ChapterBlocksPreviewWire, ChapterSplitPreviewEntryWire, ChapterSplitPreviewWire, ConfidenceWire,
+    EncodingCandidateWire, ImportEncodingPreview, NormalizedPreviewWire, PendingImportSourceState,
 };
 use auratranslate_lib::commands::segment::{
     confirm_segment, flush_segment_targets, list_reading_marks, mark_reading_segment,
@@ -9319,6 +9319,79 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
     // Khối 4 — `image` voi `src`/`alt` deu `None` -- phai la `null` CO MAT, khong bi bo qua.
     assert_eq!(blocks[4]["body"]["src"], serde_json::Value::Null);
     assert_eq!(blocks[4]["body"]["alt"], serde_json::Value::Null);
+}
+
+/// **THÊM (Story 6.10a)** — hình dạng dây của `ChapterSplitPreviewWire`/`ChapterSplitPreviewEntryWire`,
+/// VỚI DỮ LIỆU THẬT (≥ 2 mục, đủ trường tóm tắt). Đo 2026-09-08: KHÔNG ca nào trong kho từng
+/// đọc `ChapterSplitPreviewWire.chapters[]` cho N > 1 Chương THẬT trước bản vá này — cả hai
+/// fixture của `the_import_encoding_preview_wire_shape_keeps_snake_case_field_names` đặt
+/// `chapters: None`. Ca này đóng đúng lỗ đó, và là đối chứng đỏ ③ của §Verification spec
+/// 6.10a: đổi tên MỘT trường bằng `#[serde(rename = ...)]` (hoặc thêm
+/// `rename_all = "camelCase")]` lên `ChapterSplitPreviewEntryWire`) phải làm phép so khoá
+/// dưới đây ĐỎ ngay.
+#[test]
+fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers() {
+    let wire = ChapterSplitPreviewWire {
+        chapter_count: 3,
+        chapters: vec![
+            ChapterSplitPreviewEntryWire {
+                ord: 1,
+                title: Some("Chương 1: Mở Đầu".to_owned()),
+                length: 120,
+                cleanup_match_count: 2,
+            },
+            ChapterSplitPreviewEntryWire { ord: 2, title: None, length: 340, cleanup_match_count: 0 },
+            ChapterSplitPreviewEntryWire {
+                ord: 3,
+                title: Some("Chương 3: Kết".to_owned()),
+                length: 58,
+                cleanup_match_count: 5,
+            },
+        ],
+    };
+
+    let json = serde_json::to_value(&wire).expect("serialize ChapterSplitPreviewWire");
+    let object = json.as_object().expect("ChapterSplitPreviewWire phai serialize thanh object");
+    assert_eq!(
+        object.keys().collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from([&"chapter_count".to_owned(), &"chapters".to_owned()]),
+        "ChapterSplitPreviewWire phai serialize DUNG hai ten truong snake_case nay"
+    );
+    assert_eq!(object.get("chapter_count"), Some(&serde_json::Value::Number(3.into())));
+
+    let chapters = object.get("chapters").and_then(|v| v.as_array()).expect("chapters la mang");
+    assert_eq!(chapters.len(), 3, "ca nay phai mang THAT SU nhieu Chuong, khong phai mot ca N=1");
+
+    let first = chapters[0].as_object().expect("chapters[0] la object");
+    assert_eq!(
+        first.keys().collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from([
+            &"ord".to_owned(),
+            &"title".to_owned(),
+            &"length".to_owned(),
+            // THÊM (Story 6.10a) — trục tóm tắt eager moi: so khop luat lam sach CUA CHINH
+            // Chuong nay, phuc vu phep so trung vi cua Story 6.10 sau nay.
+            &"cleanup_match_count".to_owned(),
+        ]),
+        "ChapterSplitPreviewEntryWire phai serialize DUNG bon ten truong nay (Story 6.10a them \
+         `cleanup_match_count`)"
+    );
+    assert_eq!(first.get("ord"), Some(&serde_json::Value::Number(1.into())));
+    assert_eq!(first.get("title"), Some(&serde_json::Value::String("Chương 1: Mở Đầu".to_owned())));
+    assert_eq!(first.get("length"), Some(&serde_json::Value::Number(120.into())));
+    assert_eq!(first.get("cleanup_match_count"), Some(&serde_json::Value::Number(2.into())));
+
+    // Chương giữa — `title: None` phải ra `null` CÓ MẶT, và `cleanup_match_count: 0` là một
+    // SỐ THẬT (không phải một chỗ chưa tính), không bị lẫn với `null`.
+    let second = chapters[1].as_object().expect("chapters[1] la object");
+    assert_eq!(second.get("title"), Some(&serde_json::Value::Null));
+    assert_eq!(second.get("cleanup_match_count"), Some(&serde_json::Value::Number(0.into())));
+
+    // Ba Chương phải mang BA bộ số RIÊNG — không phải ba lần cùng một fixture chép lại.
+    let third = chapters[2].as_object().expect("chapters[2] la object");
+    assert_ne!(first.get("length"), second.get("length"));
+    assert_ne!(second.get("length"), third.get("length"));
+    assert_ne!(first.get("cleanup_match_count"), third.get("cleanup_match_count"));
 }
 
 /// Ba giá trị `ConfidenceWire` — cả ba, không chỉ giá trị `Low` mà ca ngay trên đã canh.

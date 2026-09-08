@@ -100,7 +100,7 @@ function minimalPreview(chapterCount: number): ImportEncodingPreview {
     },
     self_declared_chapters: {
       chapter_count: chapterCount,
-      chapters: Array.from({ length: chapterCount }, (_, i) => ({ ord: i + 1, title: null, length: 10 })),
+      chapters: Array.from({ length: chapterCount }, (_, i) => ({ ord: i + 1, title: null, length: 10, cleanup_match_count: 0 })),
     },
   }
 }
@@ -115,6 +115,13 @@ function batchAllOk(urls: string[], domainLogDomainCount = urls.length): UrlImpo
   }
 }
 
+/**
+ * 🔵 SỬA 2026-09-08 (Story 6.10a) — `encoding_preview` KHÔNG còn `null`. Vị từ XEM phía Rust
+ * (`chapters_shape_for_view`) nay BỎ QUA mục hỏng để vẫn dựng được xem trước từ các mục OK
+ * còn lại (`urls.length - 1` Chương ở đây) — `null` chỉ còn đúng khi KHÔNG mục OK nào. Nút
+ * xác nhận khoá qua `importPreviewCanConfirm` (đọc `items[].ok` cục bộ), KHÔNG còn qua
+ * `encoding_preview === null`.
+ */
 function batchWithOneBroken(
   urls: string[],
   brokenIndex: number,
@@ -122,7 +129,7 @@ function batchWithOneBroken(
 ): UrlImportBatchWire {
   return {
     items: urls.map((u, i) => item(u, i !== brokenIndex)),
-    encoding_preview: null,
+    encoding_preview: minimalPreview(urls.length - 1),
     domain_log_domain_count: domainLogDomainCount,
   }
 }
@@ -182,7 +189,7 @@ describe('importPreviewState — openImportPreviewFromUrls giữ đúng thứ t�
     expect(startUrlImportMock).toHaveBeenCalledWith(urls, 'en')
   })
 
-  it('còn MỘT mục hỏng ⇒ `importPreview` là `null` — nút xác nhận khoá', async () => {
+  it('còn MỘT mục hỏng ⇒ `importPreview` VẪN dựng được (vị từ XEM), nhưng nút xác nhận khoá (vị từ GHI)', async () => {
     const { state } = await freshState()
     const urls = ['https://a.example/1', 'https://b.example/2', 'https://c.example/3']
     startUrlImportMock.mockResolvedValue({ batch: batchWithOneBroken(urls, 1), error: null })
@@ -190,9 +197,13 @@ describe('importPreviewState — openImportPreviewFromUrls giữ đúng thứ t�
     await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
 
     expect(state.importPreviewUrlItems.value[1]?.ok).toBe(false)
-    expect(state.importPreview.value).toBeNull()
+    // 🔵 Story 6.10a — vị từ XEM bỏ qua mục hỏng, `importPreview` khác `null` (2 Chương OK).
+    expect(state.importPreview.value).not.toBeNull()
+    expect(state.importPreviewSelectedChapters.value?.chapter_count).toBe(2)
+    // Vị từ GHI (nút xác nhận) đọc RIÊNG, vẫn khoá đúng vì còn một mục hỏng.
+    expect(state.importPreviewCanConfirm.value).toBe(false)
 
-    // `confirmImportPreview` phải NO-OP (0 lời gọi IPC thêm) khi `preview === null`.
+    // `confirmImportPreview` phải NO-OP (0 lời gọi IPC thêm) khi `importPreviewCanConfirm === false`.
     const before = totalIpcCalls()
     const result = await state.confirmImportPreview()
     expect(result).toEqual({ created: null, error: null })
@@ -274,7 +285,7 @@ describe('ImportPreviewOverlay.vue — nhánh URL dựng được không vỡ, n
     wrapper.unmount()
   })
 
-  it('còn một mục hỏng: danh sách hiện, tầng 1-4 KHÔNG hiện, nút xác nhận BỊ khoá', async () => {
+  it('còn một mục hỏng: danh sách hiện, tầng 1-4 hiện CHO MỤC OK (Story 6.10a), nút xác nhận VẪN BỊ khoá', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const urls = ['https://a.example/1', 'https://b.example/2']
     startUrlImportMock.mockResolvedValue({ batch: batchWithOneBroken(urls, 1), error: null })
@@ -285,9 +296,32 @@ describe('ImportPreviewOverlay.vue — nhánh URL dựng được không vỡ, n
 
     expect(wrapper.find('.ip-url-list').exists()).toBe(true)
     expect(wrapper.findAll('.ip-url-item').length).toBe(2)
-    expect(wrapper.find('.ip-tier-1').exists()).toBe(false)
+    // 🔵 Story 6.10a — vị từ XEM bỏ qua mục hỏng: bốn tầng NAY HIỆN cho mục OK còn lại, thay
+    // vì biến mất hoàn toàn như trước story này.
+    expect(wrapper.find('.ip-tier-1').exists()).toBe(true)
+    // Nút xác nhận vẫn khoá — vị từ GHI (`importPreviewCanConfirm`) TÁCH khỏi vị từ XEM ở trên.
     const confirmButton = wrapper.find('.ip-act-primary')
     expect(confirmButton.exists()).toBe(true)
+    expect((confirmButton.element as HTMLButtonElement).disabled).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('MỌI mục đều hỏng: bốn tầng biến mất (rỗng có lý do), nút xác nhận khoá', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    const urls = ['https://a.example/1', 'https://b.example/2']
+    startUrlImportMock.mockResolvedValue({
+      batch: { items: urls.map((u) => item(u, false)), encoding_preview: null, domain_log_domain_count: urls.length },
+      error: null,
+    })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.ip-tier-1').exists()).toBe(false)
+    expect(wrapper.find('.ip-url-locked-reason').exists()).toBe(true)
+    const confirmButton = wrapper.find('.ip-act-primary')
     expect((confirmButton.element as HTMLButtonElement).disabled).toBe(true)
 
     wrapper.unmount()
@@ -348,13 +382,17 @@ describe('ImportPreviewOverlay.vue — Story 6.8: dòng tóm tắt nhật ký do
     wrapper.unmount()
   })
 
-  it('N domain ⇒ dòng tóm tắt hiện đúng số, kể cả khi CÒN MỘT MỤC HỎNG (importPreview === null)', async () => {
+  it('N domain ⇒ dòng tóm tắt hiện đúng số, kể cả khi MỌI MỤC ĐỀU HỎNG (importPreview === null)', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const urls = ['https://a.example/1', 'https://b.example/2']
-    // 🔴 Đúng ca AC dựng ra để bắt: một mục hỏng làm BỐN TẦNG biến mất
-    // (`importPreview === null`), NHƯNG mạng đã bị gọi (mục tốt VẪN tải) — dòng tóm tắt phải
-    // sống sót qua đúng ca này, không được sống BÊN TRONG khối bốn tầng.
-    startUrlImportMock.mockResolvedValue({ batch: batchWithOneBroken(urls, 1, 2), error: null })
+    // 🔴 Đúng ca AC dựng ra để bắt: bốn tầng biến mất (`importPreview === null` — 🔵 Story
+    // 6.10a: nay chỉ đúng khi MỌI mục đều hỏng, không còn đúng cho "còn MỘT mục hỏng"),
+    // NHƯNG mạng đã bị gọi (cả hai lượt fetch đều chạy, dù cả hai đều trượt) — dòng tóm tắt
+    // phải sống sót qua đúng ca này, không được sống BÊN TRONG khối bốn tầng.
+    startUrlImportMock.mockResolvedValue({
+      batch: { items: urls.map((u) => item(u, false)), encoding_preview: null, domain_log_domain_count: 2 },
+      error: null,
+    })
     await state.openImportPreviewFromUrls('Ten', 'en', '', urls)
     expect(state.importPreview.value).toBeNull() // tiền điều kiện: đúng "bốn tầng biến mất"
 

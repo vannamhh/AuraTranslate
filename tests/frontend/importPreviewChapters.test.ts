@@ -16,14 +16,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import type {
+  ChapterDetailWire,
   ChapterSplitPreviewWire,
   EncodingCandidateWire,
   ImportEncodingPreview,
+  UrlImportBatchWire,
+  UrlImportItemWire,
 } from '../../src/config/project'
 
 const previewTextMock = vi.fn()
 const previewFileMock = vi.fn()
 const confirmMock = vi.fn()
+const startUrlImportMock = vi.fn()
+const previewChapterDetailMock = vi.fn()
 
 vi.mock('../../src/config/project', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/project')>()
@@ -32,6 +37,8 @@ vi.mock('../../src/config/project', async (importOriginal) => {
     previewImportEncodingFromText: (...args: unknown[]) => previewTextMock(...args),
     previewImportEncodingFromFile: (...args: unknown[]) => previewFileMock(...args),
     confirmImportWithEncoding: (...args: unknown[]) => confirmMock(...args),
+    startUrlImport: (...args: unknown[]) => startUrlImportMock(...args),
+    previewChapterDetail: (...args: unknown[]) => previewChapterDetailMock(...args),
   }
 })
 
@@ -40,6 +47,8 @@ async function freshState() {
   previewTextMock.mockReset()
   previewFileMock.mockReset()
   confirmMock.mockReset()
+  startUrlImportMock.mockReset()
+  previewChapterDetailMock.mockReset()
   return import('../../src/importPreviewState')
 }
 
@@ -53,8 +62,8 @@ function chapters(over: Partial<ChapterSplitPreviewWire> = {}): ChapterSplitPrev
   return {
     chapter_count: 2,
     chapters: [
-      { ord: 1, title: 'Chuong 1: Mo Dau', length: 20 },
-      { ord: 2, title: 'Chuong 2: Tiep Theo', length: 25 },
+      { ord: 1, title: 'Chuong 1: Mo Dau', length: 20, cleanup_match_count: 0 },
+      { ord: 2, title: 'Chuong 2: Tiep Theo', length: 25, cleanup_match_count: 0 },
     ],
     ...over,
   }
@@ -120,7 +129,7 @@ describe('importPreviewState — importPreviewSelectedChapters', () => {
             encoding: 'GBK',
             chapters: chapters({
               chapter_count: 1,
-              chapters: [{ ord: 1, title: null, length: 5 }],
+              chapters: [{ ord: 1, title: null, length: 5, cleanup_match_count: 0 }],
             }),
           }),
         ],
@@ -161,7 +170,7 @@ describe('importPreviewState — importPreviewSelectedChapters', () => {
       preview: preview({
         confidence: 'self_declared',
         candidates: [],
-        self_declared_chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 9 }] }),
+        self_declared_chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 9, cleanup_match_count: 0 }] }),
       }),
       error: null,
     })
@@ -347,7 +356,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       preview: preview({
         candidates: [
           candidate({
-            chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 800 }] }),
+            chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 800, cleanup_match_count: 0 }] }),
           }),
         ],
       }),
@@ -372,9 +381,9 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
             chapters: chapters({
               chapter_count: 3,
               chapters: [
-                { ord: 1, title: 'Dai', length: 4000 },
-                { ord: 2, title: 'Ngan Bat Thuong', length: 40 },
-                { ord: 3, title: 'Dai Nua', length: 3800 },
+                { ord: 1, title: 'Dai', length: 4000, cleanup_match_count: 0 },
+                { ord: 2, title: 'Ngan Bat Thuong', length: 40, cleanup_match_count: 0 },
+                { ord: 3, title: 'Dai Nua', length: 3800, cleanup_match_count: 0 },
               ],
             }),
           }),
@@ -400,7 +409,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
 
   it('N > 6 Chương ⇒ khung nhìn mặc định chỉ hiện ba đầu, `⋯`, ba cuối', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
-    const many = Array.from({ length: 9 }, (_, i) => ({ ord: i + 1, title: `Chuong ${i + 1}`, length: 100 + i }))
+    const many = Array.from({ length: 9 }, (_, i) => ({ ord: i + 1, title: `Chuong ${i + 1}`, length: 100 + i, cleanup_match_count: 0 }))
     previewTextMock.mockResolvedValue({
       preview: preview({
         candidates: [candidate({ chapters: chapters({ chapter_count: 9, chapters: many }) })],
@@ -462,6 +471,344 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
     expect(wrapper.find('.ip-chapters-error').exists()).toBe(true)
     // Danh sách CŨ vẫn còn — không bị "vỡ trắng" ra một thông báo lỗi thay thế toàn bộ tầng.
     expect(wrapper.findAll('.ip-chapters-entry')).toHaveLength(2)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Story 6.10a — con trỏ *Chương đang chọn* (`⌥←`/`⌥→`). Chỉ có nghĩa trên đường URL
+// (`PipelineShape::Chapters`) — khuôn `importPreviewUrls.test.ts` cho fixture URL.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+function urlItem(url: string): UrlImportItemWire {
+  return { url, ok: true, error: null }
+}
+
+/** Ba Chương thật (N = 3), mỗi Chương một bộ số tóm tắt RIÊNG — cùng khuôn đối chứng Rust
+ * `cleanup_and_chapters_preview_for_returns_the_summary_of_every_chapter_and_the_detail_of_the_chosen_one`. */
+function threeChapters(): ChapterSplitPreviewWire {
+  return {
+    chapter_count: 3,
+    chapters: [
+      { ord: 1, title: 'Chuong 1', length: 100, cleanup_match_count: 1 },
+      { ord: 2, title: 'Chuong 2', length: 200, cleanup_match_count: 2 },
+      { ord: 3, title: 'Chuong 3', length: 300, cleanup_match_count: 3 },
+    ],
+  }
+}
+
+function urlBatch(): UrlImportBatchWire {
+  const urls = ['https://a.example/1', 'https://a.example/2', 'https://a.example/3']
+  const encodingPreview: ImportEncodingPreview = preview({
+    candidates: [
+      candidate({
+        cleanup: {
+          text: 'chuong 0',
+          spans: [],
+          rules: [],
+          window_truncated: false,
+          final_text: 'chuong 0',
+        },
+        blocks: { blocks: [] },
+        chapters: threeChapters(),
+      }),
+    ],
+  })
+  return {
+    items: urls.map(urlItem),
+    encoding_preview: encodingPreview,
+    domain_log_domain_count: 1,
+  }
+}
+
+/** Cùng `urlBatch()` nhưng HAI ứng viên bảng mã — cho ca AC "đổi ứng viên khi con trỏ ở
+ * Chương k > 0 không nhảy về Chương 0". */
+function urlBatchTwoCandidates(): UrlImportBatchWire {
+  const urls = ['https://a.example/1', 'https://a.example/2', 'https://a.example/3']
+  const encodingPreview: ImportEncodingPreview = preview({
+    candidates: [
+      candidate({
+        encoding: 'UTF-8',
+        cleanup: { text: 'utf8 chuong 0', spans: [], rules: [], window_truncated: false, final_text: 'utf8 chuong 0' },
+        blocks: { blocks: [] },
+        chapters: threeChapters(),
+      }),
+      candidate({
+        label: 'GBK',
+        encoding: 'GBK',
+        cleanup: { text: 'gbk chuong 0', spans: [], rules: [], window_truncated: false, final_text: 'gbk chuong 0' },
+        blocks: { blocks: [] },
+        chapters: threeChapters(),
+      }),
+    ],
+  })
+  return {
+    items: urls.map(urlItem),
+    encoding_preview: encodingPreview,
+    domain_log_domain_count: 1,
+  }
+}
+
+function chapterDetail(label: string): ChapterDetailWire {
+  return {
+    cleanup: { text: label, spans: [], rules: [], window_truncated: false, final_text: label },
+    blocks: { blocks: [] },
+  }
+}
+
+describe('importPreviewState — con trỏ Chương (Story 6.10a)', () => {
+  it('mặc định con trỏ ở Chương 0, đọc thẳng chi tiết của ứng viên (0 lời gọi IPC lazy)', async () => {
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+
+    expect(state.importPreviewChapterCursor.value).toBe(0)
+    expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('chuong 0')
+    expect(previewChapterDetailMock).not.toHaveBeenCalled()
+
+    state.resetImportPreview()
+  })
+
+  it('⌥→ dời con trỏ sang Chương 1, dựng chi tiết LAZY qua đúng một lời gọi IPC', async () => {
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
+
+    state.nextImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(state.importPreviewChapterCursor.value).toBe(1)
+    expect(previewChapterDetailMock).toHaveBeenCalledTimes(1)
+    expect(previewChapterDetailMock).toHaveBeenCalledWith(1, 'UTF-8', 'en', null)
+    expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('chuong 1')
+
+    state.resetImportPreview()
+  })
+
+  it('P4 (vòng rà đối kháng bước 4) — luôn gửi chapterPattern: null, kể cả khi ô mẫu đang gõ khác rỗng', async () => {
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    // Ô mẫu phân tách ĐANG GÕ khác rỗng — đường eager (`url_import_encoding_preview` phía
+    // Rust) truyền `chapter_pattern: None` CỨNG cho MỌI ứng viên trên đường URL bất kể ô này;
+    // lệnh lazy phải khớp NGUYÊN VĂN, không được gửi mẫu đang gõ.
+    await state.setImportPreviewChapterPattern('Chuong', 'literal')
+    previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
+
+    state.nextImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(previewChapterDetailMock).toHaveBeenCalledWith(1, 'UTF-8', 'en', null)
+
+    state.resetImportPreview()
+  })
+
+  it('P2 (vòng rà đối kháng bước 4) — lỗi phải DỌN chi tiết đang hiện, không giữ Chương cũ dưới nhãn Chương mới', async () => {
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
+    state.nextImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('chuong 1')
+
+    // Lượt dựng chi tiết KẾ TIẾP (Chương 2) trượt — chi tiết của Chương 1 KHÔNG được phép
+    // tiếp tục hiện dưới nhãn "Chương 2".
+    previewChapterDetailMock.mockResolvedValue({
+      detail: null,
+      error: { code: 'ipc.unknown', message_key: 'err.unknown', params: {}, retryable: false },
+    })
+    state.nextImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(state.importPreviewChapterCursor.value).toBe(2)
+    expect(state.importPreviewSelectedCleanup.value).toBeNull()
+    expect(state.importPreviewChapterDetailError.value).not.toBeNull()
+
+    state.resetImportPreview()
+  })
+
+  it('P2 (vòng rà đối kháng bước 4) — trạng thái CŨ (detail: null) cũng phải DỌN chi tiết đang hiện', async () => {
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
+    state.nextImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('chuong 1')
+
+    // Mẫu phân tách vừa đổi làm N đổi dưới chân — Rust trả trạng thái CŨ (`detail: null`,
+    // `error: null`), KHÔNG được giữ lại chi tiết của Chương 1 dưới nhãn Chương 2.
+    previewChapterDetailMock.mockResolvedValue({ detail: null, error: null })
+    state.nextImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(state.importPreviewChapterCursor.value).toBe(2)
+    expect(state.importPreviewSelectedCleanup.value).toBeNull()
+
+    state.resetImportPreview()
+  })
+
+  it('P3 (vòng rà đối kháng bước 4) — hai lượt gọi CÙNG index, lượt ĐẦU resolve SAU lượt SAU: dữ liệu hiện ra phải là của lượt SAU', async () => {
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoCandidates(), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+
+    let resolveFirst!: (v: { detail: ChapterDetailWire | null; error: null }) => void
+    let resolveSecond!: (v: { detail: ChapterDetailWire | null; error: null }) => void
+    previewChapterDetailMock
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)))
+
+    // Hai lượt gọi liên tiếp CHO CÙNG index 1 (đổi ứng viên bảng mã hai lần liên tiếp trong
+    // lúc con trỏ đứng yên ở 1 — mô phỏng bằng cách gọi thẳng `selectImportPreviewCandidate`
+    // hai lần, KHÔNG dời con trỏ giữa hai lượt).
+    state.nextImportPreviewChapter() // 0 -> 1, lượt gọi ĐẦU (index 1)
+    await Promise.resolve()
+    state.selectImportPreviewCandidate('GBK') // vẫn index 1, lượt gọi SAU (index 1)
+    await Promise.resolve()
+
+    expect(previewChapterDetailMock).toHaveBeenCalledTimes(2)
+
+    // Lượt SAU (thứ hai) resolve TRƯỚC.
+    resolveSecond({ detail: chapterDetail('tu luot sau'), error: null })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    // Lượt ĐẦU (thứ nhất, CŨ HƠN) resolve SAU — kết quả của nó phải bị BỎ, không được ghi đè
+    // dữ liệu của lượt sau.
+    resolveFirst({ detail: chapterDetail('tu luot dau, cu hon'), error: null })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('tu luot sau')
+
+    state.resetImportPreview()
+  })
+
+  it('dừng ở Chương cuối — không kêu, không lời gọi IPC', async () => {
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('x'), error: null })
+
+    state.nextImportPreviewChapter() // 0 -> 1
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    state.nextImportPreviewChapter() // 1 -> 2 (Chương cuối, index 2 của 3 Chương)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(state.importPreviewChapterCursor.value).toBe(2)
+    previewChapterDetailMock.mockClear()
+
+    state.nextImportPreviewChapter() // đứng yên
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(state.importPreviewChapterCursor.value).toBe(2)
+    expect(previewChapterDetailMock).not.toHaveBeenCalled()
+
+    state.resetImportPreview()
+  })
+
+  it('dừng ở Chương đầu — ⌥← ở Chương 0 đứng yên, không lời gọi IPC', async () => {
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+
+    state.prevImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(state.importPreviewChapterCursor.value).toBe(0)
+    expect(previewChapterDetailMock).not.toHaveBeenCalled()
+
+    state.resetImportPreview()
+  })
+
+  it('lớp phủ đã đóng — dời con trỏ là no-op tuyệt đối', async () => {
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    state.resetImportPreview() // đóng lớp phủ, cursor về 0
+
+    state.nextImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(state.importPreviewChapterCursor.value).toBe(0)
+    expect(previewChapterDetailMock).not.toHaveBeenCalled()
+  })
+
+  // 🔵 **SỬA 2026-09-08 (vòng nghiệm thu) — tên cũ viện dẫn SAI thẩm quyền.** Ca này từng tên
+  // "… đúng I/O Matrix", nhưng hàng 1 của ma trận spec 6.10a lúc đó đòi ĐIỀU NGƯỢC LẠI (tầng 3
+  // theo Chương đang chọn trên chính đường `Blob` + mẫu phân tách) — tức một ca XANH khoá chặt
+  // một hành vi TRÁI hợp đồng đã ký, và tự xưng là hợp đồng cho phép. Thẩm quyền THẬT của hành
+  // vi này là một giới hạn của pipeline, không phải một điều khoản của ma trận: `pipeline.rs`
+  // §`split_chapters_step` — bước làm sạch chạy trên TOÀN blob TRƯỚC bước tách Chương, nên chỉ
+  // `ord = 1` có `CleanupReport` thật. Ice đã sửa hàng 1 cho khai đúng giới hạn đó (2026-09-08);
+  // tên ca nay trỏ vào NGUYÊN NHÂN, không trỏ vào một tài liệu nói ngược.
+  it('đường tệp/dán tay (N > 1 do mẫu phân tách) — con trỏ KHÔNG đi đâu được: `Blob` chỉ có MỘT báo cáo làm sạch, ở `ord = 1`', async () => {
+    const state = await freshState()
+    previewTextMock.mockResolvedValue({ preview: preview(), error: null }) // N = 2, đường text
+    await state.openImportPreviewFromText('Ten', 'en', '', 'x')
+
+    state.nextImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(state.importPreviewChapterCursor.value).toBe(0)
+    expect(previewChapterDetailMock).not.toHaveBeenCalled()
+
+    state.resetImportPreview()
+  })
+
+  it('AC — đổi ứng viên bảng mã khi con trỏ ở Chương k > 0: hiện Chương k, KHÔNG nhảy về Chương 0', async () => {
+    const state = await freshState()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatchTwoCandidates(), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    expect(state.importPreviewSelectedEncoding.value).toBe('UTF-8')
+
+    // Dời con trỏ sang Chương 1 (chỉ số 1) trên ứng viên UTF-8.
+    previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1 utf8'), error: null })
+    state.nextImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(state.importPreviewChapterCursor.value).toBe(1)
+    expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('chuong 1 utf8')
+
+    // Đổi ứng viên sang GBK — con trỏ PHẢI giữ nguyên ở 1, và chi tiết dựng lại VỚI bảng mã MỚI.
+    previewChapterDetailMock.mockClear()
+    previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1 gbk'), error: null })
+    state.selectImportPreviewCandidate('GBK')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(state.importPreviewSelectedEncoding.value).toBe('GBK')
+    expect(state.importPreviewChapterCursor.value).toBe(1) // KHÔNG nhảy về 0
+    expect(previewChapterDetailMock).toHaveBeenCalledTimes(1)
+    expect(previewChapterDetailMock).toHaveBeenCalledWith(1, 'GBK', 'en', null)
+    expect(state.importPreviewSelectedCleanup.value?.final_text).toBe('chuong 1 gbk')
+
+    state.resetImportPreview()
+  })
+
+  it('DOM THẬT — dời con trỏ đổi `aria-selected`/`aria-activedescendant` của tầng 4, đúng khuôn `blocksList`', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch(), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', ['a', 'b', 'c'])
+    previewChapterDetailMock.mockResolvedValue({ detail: chapterDetail('chuong 1'), error: null })
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    const list = wrapper.get('.ip-chapters-list')
+    expect(list.attributes('aria-activedescendant')).toBe('ip-chapter-1')
+    const rows = wrapper.findAll('.ip-chapters-entry')
+    expect(rows[0]?.attributes('aria-selected')).toBe('true')
+    expect(rows[1]?.attributes('aria-selected')).toBe('false')
+
+    state.nextImportPreviewChapter()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await wrapper.vm.$nextTick()
+
+    expect(list.attributes('aria-activedescendant')).toBe('ip-chapter-2')
+    const rowsAfter = wrapper.findAll('.ip-chapters-entry')
+    expect(rowsAfter[0]?.attributes('aria-selected')).toBe('false')
+    expect(rowsAfter[1]?.attributes('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(list.element)
 
     wrapper.unmount()
     state.resetImportPreview()

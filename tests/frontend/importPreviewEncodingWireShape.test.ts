@@ -30,7 +30,7 @@ function cleanupFor(text: string): Record<string, unknown> {
 /** Khối tách Chương tối giản, một Chương duy nhất — Story 6.6. Hình dạng THẬT của
  * `commands::project::ChapterSplitPreviewWire`. */
 function chaptersFor(title: string): Record<string, unknown> {
-  return { chapter_count: 1, chapters: [{ ord: 1, title, length: title.length }] }
+  return { chapter_count: 1, chapters: [{ ord: 1, title, length: title.length, cleanup_match_count: 0 }] }
 }
 
 /** Khối tầng 2 tối giản, một khối `paragraph` đang giữ, chưa ai xác nhận — Story 6.9. Hình
@@ -433,8 +433,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
           chapters: {
             chapter_count: 2,
             chapters: [
-              { ord: 1, title: 'Chuong 1', length: 8 },
-              { ord: 2, title: 'Chuong 2', length: 8 },
+              { ord: 1, title: 'Chuong 1', length: 8, cleanup_match_count: 0 },
+              { ord: 2, title: 'Chuong 2', length: 8, cleanup_match_count: 0 },
             ],
           },
           blocks: blocksFor('Chuong 1 Chuong 2'),

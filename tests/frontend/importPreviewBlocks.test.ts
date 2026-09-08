@@ -104,7 +104,7 @@ function previewWithBlocks(blocks: BlockWire[]): ImportEncodingPreview {
         preview: 'noi dung',
         normalized: { text: 'noi dung', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
         cleanup: { text: 'noi dung', spans: [], rules: [], window_truncated: false, final_text: 'noi dung' },
-        chapters: { chapter_count: 1, chapters: [{ ord: 1, title: null, length: 8 }] },
+        chapters: { chapter_count: 1, chapters: [{ ord: 1, title: null, length: 8, cleanup_match_count: 0 }] },
         blocks: blocksWire(blocks),
       },
     ],

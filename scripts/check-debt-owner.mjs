@@ -170,8 +170,27 @@ const BLOCK_START_RE = /^## /
 
 /** Cụm phủ định — `Chủ:` chứa các cụm này KHÔNG phải một chủ thật. Đo được 2026-08-19: 24 ca
  *  `chưa gán`, 1 ca `không ai`, 1 ca `chưa cần` (trong một trích dẫn lịch sử — mục đó có MỘT
- *  `Chủ:` khác, thật, ở chỗ khác — xem `hasPositive` bên dưới, "có MỘT chủ thật ⇒ có chủ"). */
-const NEGATIVE_OWNER_RE = /^(chưa gán|chưa có|chưa cần|không ai|chưa chốt|trống)\b/iu
+ *  `Chủ:` khác, thật, ở chỗ khác — xem `hasPositive` bên dưới, "có MỘT chủ thật ⇒ có chủ").
+ *
+ *  🔵 **SỬA 2026-09-08 (vòng nghiệm thu Story 6.10a) — thêm `chưa ai`, CHỈ `chưa ai`.**
+ *  Danh sách trên là một phép ĐẾM trên sổ nợ NGÀY 2026-08-19, và nó đã được đọc nhầm thành một
+ *  phép liệt kê ĐẦY ĐỦ mọi cách nói "không có chủ". Đo 2026-09-08: một lượt thi công ghi một
+ *  mục `Chủ: chưa ai nhận` — cụm đó KHÔNG khớp nhánh nào ở trên (`chưa gán`/`chưa có`/`chưa cần`/
+ *  `chưa chốt` đều khác, và `không ai` khác `chưa ai`) ⇒ `detectOwner` trả `positive = true`,
+ *  Kiểm A báo `mở KHÔNG có Chủ: 0`, và mục mồ côi đó đi qua đúng cái cổng dựng ra để chặn nợ
+ *  mồ côi. Sửa NGUỒN cho vị từ nói thật, không nhận một ngoại lệ.
+ *  🔴 **SỬA (vòng rà đối kháng bước 4) — RÚT `chưa story`/`chưa xác định`.** Bản vá đầu thêm cả
+ *  hai cụm này KÈM `chưa ai`, nhưng phép đo 2026-09-08 chỉ QUAN SÁT ĐƯỢC `chưa ai` trong sổ nợ
+ *  thật — hai cụm kia là SUY ĐOÁN "có thể ai đó sẽ viết vậy", đúng lớp lỗi mà chính đoạn văn
+ *  này đang mô tả ("một phép ĐẾM bị đọc thành một phép liệt kê ĐẦY ĐỦ"), chỉ khác chiều: lần
+ *  này là TỰ đúc thêm hai nhánh không có bằng chứng thay vì bỏ sót một nhánh có thật. Giữ ĐÚNG
+ *  cụm đã đo; thêm cụm mới thì thêm lại phép đo đi kèm, không suy đoán trước.
+ *  ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện:** đây vẫn là một danh sách CỤM
+ *  ĐÓNG, tức vẫn thua một cách nói mới chưa ai nghĩ ra ("để ngỏ", "tính sau", …). Vị từ đúng
+ *  hoàn toàn phải là danh sách CHO PHÉP (tên story/epic/người), không phải danh sách CẤM —
+ *  đổi chiều nó là một quyết định về sổ nợ, `Chủ: Ice`. */
+const NEGATIVE_OWNER_RE =
+  /^(chưa gán|chưa có|chưa cần|chưa ai|không ai|chưa chốt|trống)\b/iu
 
 /** Tìm mọi `Chủ:` (kể cả bọc `**`) trong văn bản một mục; trả về có ít nhất MỘT chủ THẬT. */
 function detectOwner(text) {
@@ -358,6 +377,21 @@ const SELFTEST_CASES = [
     'bullet cấp hai (`  - 🟡`) lồng bên trong KHÔNG đổi trạng thái mục cha',
     '- Việc T, không chủ nào ghi ở mục cha.\n  - 🟡 một ghi chú con, không phải trạng thái cha.',
     true, // mục cha vẫn "open" — bullet cấp hai không phải dòng `→`
+  ],
+  // 🔴 THÊM (vòng rà đối kháng bước 4, P7) — hai ca đối chứng CHO CHÍNH phép vá `NEGATIVE_OWNER_RE`
+  // vừa thêm `chưa ai` (đo được 2026-09-08: ba mục nợ thật của Story 6.10a từng ghi cụm này và
+  // lọt qua cổng như một chủ THẬT). Hai ca này ở ĐÂY, không ở một tệp test riêng — mệnh đề
+  // "`NEGATIVE_OWNER_RE` khớp đúng cụm đã đo" đã có chủ là Kiểm B, hai chỗ canh một mệnh đề là
+  // hai nguồn sự thật.
+  [
+    '`Chủ: chưa ai nhận` — PHỦ ĐỊNH (đo được 2026-09-08), phải là MỒ CÔI',
+    '- Một việc chưa xong. **Chủ: chưa ai nhận.**',
+    true,
+  ],
+  [
+    '`Chủ: Story 6.11` — một chủ THẬT, KHÔNG được bị `chưa ai` bắt nhầm (đối chứng ÂM)',
+    '- Một việc chưa xong. **Chủ: Story 6.11.**',
+    false,
   ],
 ]
 

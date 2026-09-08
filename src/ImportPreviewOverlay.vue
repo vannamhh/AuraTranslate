@@ -36,6 +36,10 @@ import {
   importPreviewBlockFocusedIndex,
   importPreviewBlockRangeMissingStartNotice,
   importPreviewBlockRangeStart,
+  importPreviewCanConfirm,
+  importPreviewChapterCursor,
+  importPreviewChapterDetailError,
+  importPreviewChapterDetailLoading,
   importPreviewChapterPatternError,
   importPreviewChapterPatternKind,
   importPreviewChapterPatternSending,
@@ -356,6 +360,50 @@ const chapterEntriesDefaultWindow = computed<{
   return { first: list.slice(0, 3), last: list.slice(-3), showEllipsis: true }
 })
 
+/**
+ * **THÊM (Story 6.10a)** — `id` DOM ổn định của một hàng tầng 4, dùng cho
+ * `aria-activedescendant` — cùng khuôn `blockDomId` (Story 6.9). Khoá theo `ord` (1-based,
+ * ổn định qua mọi lượt sắp xếp lại), KHÔNG theo chỉ số mảng (đổi khi sắp theo độ dài).
+ */
+function chapterDomId(ord: number): string {
+  return `ip-chapter-${ord}`
+}
+
+/**
+ * `id` của Chương con trỏ đang chọn, CHỈ khi nó thật sự có mặt trong khung nhìn ĐANG HIỆN —
+ * `aria-activedescendant` trỏ vào một `id` không tồn tại là vô nghĩa với trình đọc màn hình
+ * (con trỏ có thể đứng ở một Chương bị khung nhìn mặc định CO GỌN elide, ví dụ Chương 5 trên
+ * 9 Chương không sắp xếp — chỉ ba đầu/ba cuối được render). `undefined` (bỏ thuộc tính) an
+ * toàn hơn một tham chiếu treo.
+ */
+const currentChapterDomId = computed<string | null>(() => {
+  const chapters = importPreviewSelectedChapters.value
+  if (chapters === null) return null
+  const ord = importPreviewChapterCursor.value + 1
+  const rendered = chapterSortByLength.value
+    ? chapterEntriesSortedByLength.value
+    : [...chapterEntriesDefaultWindow.value.first, ...chapterEntriesDefaultWindow.value.last]
+  return rendered.some((entry) => entry.ord === ord) ? chapterDomId(ord) : null
+})
+
+/** `<ul role="listbox">` của tầng 4 — cùng khuôn `blocksList` (Story 6.9): template ref RIÊNG
+ * để `.focus()` được khi con trỏ dời, điều kiện để `aria-activedescendant` có nghĩa với
+ * trình đọc màn hình (ARIA 1.2 chỉ tôn trọng thuộc tính đó trên phần tử ĐANG giữ tiêu điểm
+ * DOM thật). */
+const chaptersList = useTemplateRef<HTMLElement>('chaptersList')
+
+/** `⌥←`/`⌥→` — cuộn Chương mới vào tầm nhìn VÀ chuyển tiêu điểm DOM sang `<ul>`, cùng khuôn
+ * `watch(importPreviewBlockFocusedIndex, ...)` ngay dưới. No-op khi Chương hiện tại bị khung
+ * nhìn mặc định elide (`currentChapterDomId === null`) — không có gì trên DOM để mà cuộn tới. */
+watch(importPreviewChapterCursor, () => {
+  void nextTick(() => {
+    const id = currentChapterDomId.value
+    if (id === null) return
+    document.getElementById(id)?.scrollIntoView({ block: 'nearest' })
+    chaptersList.value?.focus()
+  })
+})
+
 /** 🔴 UX-DR17 — trả tiêu điểm về chỗ cũ. Khuôn và lý lẽ chép từ `GlossaryImportOverlay.vue`. */
 let returnFocusTo: HTMLElement | null = null
 
@@ -463,6 +511,11 @@ const tier2Counts = computed<{ kept: number; excluded: number } | null>(() => {
   return { kept, excluded: blocks.length - kept }
 })
 
+/** **THÊM (Story 6.10a)** — tổng số Chương của lượt xem trước hiện hành, `0` khi chưa có gì
+ * để đếm (đường tệp/dán tay không mẫu, hoặc chưa có `preview`) — dùng để quyết định có hiện
+ * ghi chú vị trí con trỏ (`ip-chapter-cursor-note`) hay không. */
+const chapterCursorTotal = computed<number>(() => importPreviewSelectedChapters.value?.chapter_count ?? 0)
+
 /** Ba vạch lề hiển thị — `switch` cạn, cùng khuôn [`confidenceMessageKey`]/[`tierEmptyMessageKey`]
  * (không ghép chuỗi khoá bằng nội suy). */
 function blockStateMessageKey(block: BlockWire): string {
@@ -569,6 +622,50 @@ function onTier2Keydown(event: KeyboardEvent): void {
 }
 
 /**
+ * Handler DOM CỤC BỘ THỨ HAI trên `.ip-scrim` — **Story 6.10a** (`⌥←`/`⌥→`, con trỏ Chương).
+ *
+ * 🔴 **KHÔNG nới [`onTier2Keydown`] ngay trên** — vị từ chặn ở đó (`event.altKey` ⇒ `return`
+ * sớm) đúng Ý, không phải một lỗ hổng: nới nó ra để cho `⌥` lọt qua sẽ làm `⌥`+`j` rơi vào
+ * nhánh `j` (`:539`) và bật/tắt một khối trong khi người dùng đang định đi Chương — một thao
+ * tác PHÁ HUỶ nhìn thấy được, trên một bề mặt sắp ghi xuống đĩa (§Design Notes spec 6.10a).
+ * Handler NÀY làm NGƯỢC LẠI: CHỈ nhận `altKey === true` VÀ `ctrl`/`meta` đều `false` — hai vị
+ * từ tách bạch giữ mỗi handler nói đúng một chuyện.
+ */
+function onChapterCursorKeydown(event: KeyboardEvent): void {
+  if (!event.altKey || event.ctrlKey || event.metaKey) return
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+
+  const target = event.target
+  const isFormField =
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target instanceof HTMLButtonElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  if (isFormField) return
+
+  // Giữ phím xuống phát một chuỗi `keydown` lặp — cùng khuôn guard `event.repeat` của `Space`
+  // ở [`onTier2Keydown`] ngay trên: không chặn thì một lượt giữ phím bắn một tràng lời gọi
+  // IPC (I/O Matrix spec 6.10a: "không bắn một tràng IPC").
+  if (event.repeat) return
+
+  event.preventDefault()
+  dispatch(event.key === 'ArrowRight' ? 'import.preview.chapter_next' : 'import.preview.chapter_prev')
+}
+
+/**
+ * Điểm nối DUY NHẤT của scrim tới HAI handler độc lập ngay trên — Vue chỉ cho MỘT `@keydown`
+ * trần trên một phần tử (một `@keydown` thứ hai là lỗi biên dịch "duplicate attribute"), nên
+ * đây là một hàm TỔNG HỢP thuần tuý gọi cả hai theo thứ tự, KHÔNG đọc/ghi gì của riêng nó —
+ * mỗi handler vẫn tự gác vị từ của chính nó (`altKey` cho cái này, phủ định `altKey` cho cái
+ * kia), không phải một lượt "nới" cái nào cả.
+ */
+function onScrimKeydown(event: KeyboardEvent): void {
+  onTier2Keydown(event)
+  onChapterCursorKeydown(event)
+}
+
+/**
  * `<ol role="listbox">` — template ref RIÊNG (khuôn `GlossaryManageOverlay.vue::list`,
  * §doc-comment tại đó). `tabindex="-1"` (template) + `.focus()` ở đây khi tiêu điểm khối đổi
  * (`J`/`K`) là ĐIỀU KIỆN để `aria-activedescendant` trên chính `<ol>` có nghĩa với trình đọc
@@ -608,7 +705,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
     class="ip-scrim"
     @keydown.esc="onEscapeCancel"
     @keydown.tab="trapTab($event)"
-    @keydown="onTier2Keydown"
+    @keydown="onScrimKeydown"
   >
     <section ref="panel" class="ip-panel" tabindex="-1" role="dialog" aria-modal="true">
       <header class="ip-head">
@@ -784,9 +881,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
           🔴 THAY TRỌN (2026-09-07, Story 6.9) — dãy khối cả trang thay cho một đoạn văn liền.
           Khối bị thuật toán loại VẪN hiện (đánh dấu "Đã loại") — `Space`/`[`/`]` cần chúng
           làm đối tượng để sửa bóc THIẾU, không riêng bóc THỪA (§Design Notes spec 6.9).
-          ⚠️ Giới hạn thật KHÔNG đổi (`tier2_url_first_note`): dãy khối là của Chương ĐẦU TIÊN
-          trong danh sách URL, không phải "mục đang chọn". Đường tệp/dán tay vẫn RỖNG — lý do
-          nay là "nguồn này không bóc gì" (khoá `tier_empty_story_6_9` viết lại).
+          🔵 SỬA 2026-09-08 (Story 6.10a) — "dãy khối là của Chương ĐẦU TIÊN, không phải 'mục
+          đang chọn'" đã HẾT ĐÚNG. Dãy khối nay là của Chương *con trỏ đang chọn*
+          (`importPreviewChapterCursor`, xem `ip-chapter-cursor-note` ngay dưới) — `⌥←`/`⌥→`
+          dời con trỏ. Đường tệp/dán tay vẫn RỖNG — lý do là "nguồn này không bóc gì" (khoá
+          `tier_empty_story_6_9`).
         -->
         <section
           class="ip-tier"
@@ -798,8 +897,31 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
           <p v-if="tier2Counts !== null" class="ip-tier2-counts">
             {{ t('mode.library.preview.tier2_counts', { kept: String(tier2Counts.kept), excluded: String(tier2Counts.excluded) }) }}
           </p>
+          <!--
+            **THÊM (Story 6.10a)** — vị trí con trỏ Chương, CHỈ có nghĩa trên đường URL với
+            hơn một Chương (`chapterCursorTotal > 1` — N = 1 thì "con trỏ tồn tại nhưng không
+            đi đâu được", I/O Matrix spec 6.10a, không cần hiện một dòng vô nghĩa "Chương 1/1").
+          -->
+          <p
+            v-if="importPreviewLastSubmittedFrom === 'urls' && chapterCursorTotal > 1"
+            class="ip-chapter-cursor-note"
+            role="status"
+          >
+            <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (con trỏ + tổng số Chương). -->
+            {{
+              t('mode.library.preview.chapter_cursor_note', {
+                current: String(importPreviewChapterCursor + 1),
+                total: String(chapterCursorTotal),
+              })
+            }}
+            <span v-if="importPreviewChapterDetailLoading">{{ t('mode.library.preview.chapter_cursor_loading') }}</span>
+          </p>
+          <p v-if="importPreviewChapterDetailError !== null" class="ip-tier2-range-notice" role="alert">
+            <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+            {{ tError(importPreviewChapterDetailError) }}
+          </p>
           <template v-if="importPreviewLastSubmittedFrom === 'urls'">
-            <p class="ip-normalized-window-note">{{ t('mode.library.preview.tier2_url_first_note') }}</p>
+            <p class="ip-normalized-window-note">{{ t('mode.library.preview.tier2_current_chapter_note') }}</p>
             <p
               v-if="importPreviewBlockRangeMissingStartNotice"
               class="ip-tier2-range-notice"
@@ -1076,9 +1198,24 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
               {{ t('mode.library.preview.chapters_sort_by_length') }}
             </label>
 
-            <ul class="ip-chapters-list">
+            <ul
+              ref="chaptersList"
+              class="ip-chapters-list"
+              role="listbox"
+              tabindex="-1"
+              :aria-label="t('mode.library.preview.tier4_title')"
+              :aria-activedescendant="currentChapterDomId ?? undefined"
+            >
               <template v-if="chapterSortByLength">
-                <li v-for="entry in chapterEntriesSortedByLength" :key="entry.ord" class="ip-chapters-entry">
+                <li
+                  v-for="entry in chapterEntriesSortedByLength"
+                  :id="chapterDomId(entry.ord)"
+                  :key="entry.ord"
+                  class="ip-chapters-entry"
+                  :class="{ 'ip-chapters-entry-current': entry.ord - 1 === importPreviewChapterCursor }"
+                  role="option"
+                  :aria-selected="entry.ord - 1 === importPreviewChapterCursor"
+                >
                   <!-- aura-allow-text: DỮ LIỆU (số thứ tự Chương từ Rust, KHÔNG markup — AD-16). -->
                   <span class="ip-chapters-ord">{{ entry.ord }}</span>
                   <span v-if="entry.title !== null" class="ip-chapters-title">
@@ -1094,7 +1231,15 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                 </li>
               </template>
               <template v-else>
-                <li v-for="entry in chapterEntriesDefaultWindow.first" :key="entry.ord" class="ip-chapters-entry">
+                <li
+                  v-for="entry in chapterEntriesDefaultWindow.first"
+                  :id="chapterDomId(entry.ord)"
+                  :key="entry.ord"
+                  class="ip-chapters-entry"
+                  :class="{ 'ip-chapters-entry-current': entry.ord - 1 === importPreviewChapterCursor }"
+                  role="option"
+                  :aria-selected="entry.ord - 1 === importPreviewChapterCursor"
+                >
                   <!-- aura-allow-text: DỮ LIỆU (số thứ tự Chương từ Rust, KHÔNG markup — AD-16). -->
                   <span class="ip-chapters-ord">{{ entry.ord }}</span>
                   <span v-if="entry.title !== null" class="ip-chapters-title">
@@ -1109,7 +1254,15 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   </span>
                 </li>
                 <li v-if="chapterEntriesDefaultWindow.showEllipsis" class="ip-chapters-ellipsis" aria-hidden="true">⋯</li>
-                <li v-for="entry in chapterEntriesDefaultWindow.last" :key="entry.ord" class="ip-chapters-entry">
+                <li
+                  v-for="entry in chapterEntriesDefaultWindow.last"
+                  :id="chapterDomId(entry.ord)"
+                  :key="entry.ord"
+                  class="ip-chapters-entry"
+                  :class="{ 'ip-chapters-entry-current': entry.ord - 1 === importPreviewChapterCursor }"
+                  role="option"
+                  :aria-selected="entry.ord - 1 === importPreviewChapterCursor"
+                >
                   <!-- aura-allow-text: DỮ LIỆU (số thứ tự Chương từ Rust, KHÔNG markup — AD-16). -->
                   <span class="ip-chapters-ord">{{ entry.ord }}</span>
                   <span v-if="entry.title !== null" class="ip-chapters-title">
@@ -1132,11 +1285,13 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
         </section>
       </template>
       <!--
-        `importPreview === null` — chỉ chạm được qua nhánh URL còn mục hỏng/danh sách rỗng
-        (§Always spec 6.7: `sync_pending_from_url_items` phía Rust dọn `PendingImportSourceState`
-        đúng lúc này). Bốn tầng KHÔNG hiện — không có gì hợp lệ để mà xem trước — nhưng danh
-        sách mục-theo-link ở TRÊN vẫn hiện, và người dùng SỬA được nó (bỏ/tải lại) mà không
-        cần đóng lớp phủ.
+        🔵 SỬA 2026-09-08 (Story 6.10a) — `importPreview === null` KHÔNG còn đồng nghĩa "còn
+        mục hỏng". Vị từ XEM (`chapters_shape_for_view`, phía Rust) nay BỎ QUA mục hỏng để vẫn
+        dựng được xem trước từ các mục OK còn lại — nhánh này giờ chỉ chạm được khi KHÔNG mục
+        OK nào (danh sách rỗng, hoặc MỌI mục đều hỏng, I/O Matrix: "rỗng có lý do"). Nút xác
+        nhận KHOÁ hay không đọc [`importPreviewCanConfirm`] (vị từ GHI) RIÊNG, không đọc nhánh
+        này — một mục hỏng còn lại (không phải TẤT CẢ) vẫn hiện đủ bốn tầng cho các mục OK,
+        nhưng nút vẫn khoá.
       -->
       <p v-else class="ip-tier-empty-reason ip-url-locked-reason" role="status">
         {{ t('mode.library.preview.url_list_locked') }}
@@ -1171,7 +1326,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
         <button
           type="button"
           class="ip-act ip-act-primary"
-          :disabled="importPreviewConfirming || importPreview === null || importPreviewUrlImportBusy"
+          :disabled="importPreviewConfirming || !importPreviewCanConfirm || importPreviewUrlImportBusy"
           @click="dispatch('import.preview.confirm')"
         >
           {{ t('command.import.preview.confirm') }}
@@ -1394,6 +1549,16 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-error);
+}
+
+/* Story 6.10a — vị trí con trỏ Chương, cùng vai trò/cỡ chữ với `.ip-tier2-counts` ngay trên
+   (một dòng chú thích phụ, không phải một cảnh báo). */
+.ip-chapter-cursor-note {
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 
 .ip-blocks {
@@ -1788,6 +1953,13 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   gap: calc(var(--space-unit) * 2);
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   border: 1px solid var(--color-outline);
+  border-left: 2px solid transparent;
+}
+
+/* Story 6.10a — Chương con trỏ đang chọn, cùng khuôn `.ip-block-focused` (§Always spec 6.9:
+   `border-left` màu `primary`, KHÔNG `box-shadow`). */
+.ip-chapters-entry-current {
+  border-left-color: var(--color-primary);
 }
 
 .ip-chapters-ord {
