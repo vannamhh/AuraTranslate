@@ -32,8 +32,9 @@ use crate::core::i18n::{IpcError, MessageKey};
 
 /// Mọi cách một thao tác ở tầng Tác phẩm hỏng mà **không phải** lỗi kho SQLite.
 ///
-/// ⚠️ Vì sao đây KHÔNG chỉ là `StoreError` được đổi tên: `.docx` bị từ chối hay tệp
-/// nửa vời bị dọn dẹp đều xảy ra **trước** hoặc **ngoài** một giao dịch SQL —
+/// ⚠️ Vì sao đây KHÔNG chỉ là `StoreError` được đổi tên: một định dạng chưa nhận (🔵 SỬA
+/// 2026-09-09, Story 6.12 — `.pdf`, không còn `.docx`: nó được nhận từ story đó) bị từ chối
+/// hay tệp nửa vời bị dọn dẹp đều xảy ra **trước** hoặc **ngoài** một giao dịch SQL —
 /// `tests/scope_contract.rs::every_command_error_comes_from_the_store_vocabulary` đúng khi
 /// đỏ trên chúng nếu chúng bị nhét vào `StoreError`, vì AC8 của story này PHÁ mệnh đề "mọi
 /// lỗi command đều từ từ vựng kho" một cách có ý thức (xem `tests/scope_contract.rs` và

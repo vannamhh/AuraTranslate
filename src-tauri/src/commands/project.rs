@@ -360,6 +360,11 @@ pub fn create_work(
     chapter_pattern: Option<ChapterPattern>,
     block_overrides: Vec<Option<bool>>,
     domain_log_state: &webimport::DomainLogState,
+    // 🔴 **THÊM 2026-09-09 (Story 6.12)** — khối + ảnh nhúng của một `.docx`, đọc SẴN bởi
+    // `import_file` (nó không đi qua `Step::ExtractMainContent`, đó là bóc HTML). `None` cho
+    // mọi đường khác (dán tay, `.txt`/`.md`, URL). Xem doc-comment
+    // [`crate::core::segment::import::DocxSidecar`] cho giới hạn "chỉ Chương đầu tiên".
+    docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
 ) -> Result<OpenWork, IpcError> {
     let dir = create_work_folder(documents_root, name)?;
 
@@ -461,7 +466,19 @@ pub fn create_work(
             return Err(err.into());
         }
     };
-    let chapters = outcome.chapters;
+    let mut chapters = outcome.chapters;
+
+    // 🔴 **THÊM 2026-09-09 (Story 6.12)** — khối + ảnh `.docx` gắn vào Chương ĐẦU TIÊN ở
+    // đây, NGAY SAU khi chuỗi bảy bước đã ổn định số Chương. `.docx` không đi qua
+    // `Step::ExtractMainContent` (đó là bóc HTML qua `dom_smoothie`, `.docx` không phải
+    // HTML) nên `chapter.blocks` vẫn `None` tới đây cho MỌI đường `.docx` — đây là chỗ DUY
+    // NHẤT nó được gán. Cùng giới hạn "chỉ Chương đầu" mà `block_overrides` đã theo cho
+    // đường URL (Story 6.9) — xem doc-comment `DocxSidecar`.
+    if let Some(sidecar) = &docx_sidecar {
+        if let Some(first) = chapters.first_mut() {
+            first.blocks = Some(sidecar.blocks.clone());
+        }
+    }
 
     // 🔴 THÊM 2026-09-09 (D10 vòng rà đối kháng 3 lớp) — `chapter_urls` (dựng TRƯỚC
     // `run_pipeline`, một phần tử mỗi ĐƠN VỊ đầu vào, xem trên) và `chapters` (SAU khi bảy
@@ -531,6 +548,8 @@ pub fn create_work(
     // `Meta::write_atomic` — job ghi bên dưới CHỈ SQL); một ảnh trượt tải KHÔNG dừng hàm này (đếm
     // vào `images_failed`, log chẩn đoán), nhưng ghi BYTE trượt giữa chừng (đĩa đầy) THÌ
     // dừng — cùng khuôn mọi lỗi khác của hàm này (dọn `.atproj` nửa vời, AC8).
+    let docx_images: &[crate::core::docx::DocxImage] =
+        docx_sidecar.as_ref().map(|s| s.images.as_slice()).unwrap_or(&[]);
     let image_prep = match prepare_chapter_images(
         &dir,
         &chapters,
@@ -539,6 +558,7 @@ pub fn create_work(
         &cleanup_rules_for_images,
         &source_lang_owned,
         domain_log_state,
+        docx_images,
     ) {
         Ok(prep) => prep,
         Err(err) => {
@@ -719,7 +739,13 @@ struct SavedAsset {
     /// mà máy chủ chuyển hướng sang host khác sẽ hiển thị SAI xuất xứ cho người dùng hôm nay.
     /// **Chủ: Story 6.14** (màn hình đầu tiên THẬT SỰ hiển thị `source_url` cho người dùng
     /// đọc) — `deferred-work.md`.
-    source_url: String,
+    ///
+    /// 🔵 **SỬA 2026-09-09 (Story 6.12) — kiểu đổi từ `String` sang `Option<String>`.** Ảnh
+    /// nhúng `.docx` không có URL nào để mà ghi — `NULL` đã hợp lệ theo lược đồ
+    /// (`schema.rs` — `ASSET_DDL`, `source_url` là cột DUY NHẤT cho `NULL`, doc-comment tại
+    /// đó nói thẳng nó dành cho ảnh không đến từ mạng). `Some(url)` cho đường mạng (Story
+    /// 6.11), `None` cho đường `.docx` (Story 6.12).
+    source_url: Option<String>,
     byte_len: i64,
     content_type: String,
 }
@@ -745,6 +771,11 @@ struct ImagePrepOutcome {
 /// có" áp cho MỌI kết quả trong cùng lượt nhập — một host trả 404 lặp lại ở tám Chương không
 /// đáng tám lượt gọi mạng giống hệt nhau, đúng tinh thần I/O Matrix "0 lời gọi mạng; dùng lại
 /// (kết quả đã có)".
+/// 🔵 **THÊM `Clone` 2026-09-09 (Story 6.12)** — cache tra theo URL (`prepare_chapter_images`)
+/// nay trả một bản CLONE thay vì một tham chiếu mượn, để cùng một vòng lặp xử lý được CẢ
+/// nhánh `Remote` (tra cache) LẪN nhánh `Local` (không cache, không mượn gì) mà không phải
+/// hai kiểu trả về khác nhau — ba trường đều rẻ để clone (hai `String` ngắn, một `i64`).
+#[derive(Clone)]
 struct CachedFetch {
     file_name: String,
     byte_len: i64,
@@ -779,6 +810,17 @@ struct CachedFetch {
 /// Cả hai nhánh khiến `create_work` dọn SẠCH `.atproj` (không phải hàm này — nó chỉ trả
 /// `Err`, chỗ gọi mới `remove_folder`). MỌI lý do khác (host ngoài tầng 2, MIME sai, mạng
 /// lỗi, neo không tính được) chỉ đếm vào `images_failed`, KHÔNG BAO GIỜ trả `Err`.
+/// **THÊM 2026-09-09 (Story 6.12)** — nguồn byte của một [`PendingImage`]: mạng (Story 6.11)
+/// hoặc byte đã đọc SẴN từ zip `.docx` (Story 6.12, không mạng, không `Allowlist`).
+enum PendingImageSource {
+    /// URL tuyệt đối đã phân giải — đi qua `fetch_and_write_one_asset` (mạng, dedup theo
+    /// URL, Allowlist tầng 2).
+    Remote { resolved_url: String },
+    /// Byte đã có sẵn trong bộ nhớ (ảnh nhúng `.docx`) — đi thẳng
+    /// [`write_local_asset_bytes`], không dedup theo URL (không có URL để mà khoá).
+    Local { bytes: Vec<u8>, content_type: String },
+}
+
 fn prepare_chapter_images(
     dir: &Path,
     chapters: &[crate::core::segment::import::ImportedChapter],
@@ -787,15 +829,18 @@ fn prepare_chapter_images(
     cleanup_rules: &[crate::core::cleanup::CleanupRule],
     source_lang: &str,
     domain_log_state: &webimport::DomainLogState,
+    // 🔴 **THÊM 2026-09-09 (Story 6.12)** — ảnh nhúng `.docx` của Chương ĐẦU TIÊN (rỗng cho
+    // mọi đường khác). Xem doc-comment [`crate::core::segment::import::DocxSidecar`].
+    docx_images: &[crate::core::docx::DocxImage],
 ) -> Result<ImagePrepOutcome, IpcError> {
     use crate::core::segment::pipeline::effective_kept_for_blocks;
     use crate::core::webimport::BlockBody;
 
-    /// Một ảnh GIỮ mà neo ĐÃ tính được — sẵn sàng đi vào hàng đợi tải.
+    /// Một ảnh GIỮ mà neo ĐÃ tính được — sẵn sàng đi vào hàng đợi tải/ghi.
     struct PendingImage {
         chapter_index: usize,
         anchor_after_segment_ord: i64,
-        resolved_url: String,
+        source: PendingImageSource,
     }
 
     let mut pending: Vec<PendingImage> = Vec::new();
@@ -826,16 +871,24 @@ fn prepare_chapter_images(
                 continue;
             }
 
-            let Some(src) = src else {
+            // 🔴 **THÊM 2026-09-09 (Story 6.12)** — ảnh `.docx` không có URL (`src` luôn
+            // `None` cho hình dạng đó, xem doc-comment `BlockBody::Image`); byte thật của nó
+            // đã được đọc SẴN lúc `import_file` chạy và chỉ sống ở Chương ĐẦU TIÊN (cùng
+            // giới hạn `block_overrides`). Tìm theo `block_idx` TRƯỚC khi coi `src: None` là
+            // một lỗi.
+            let local_image = if i == 0 { docx_images.iter().find(|d| d.block_index == block_idx) } else { None };
+
+            if src.is_none() && local_image.is_none() {
                 images_failed = images_failed.saturating_add(1);
                 eprintln!(
-                    "asset[src] anh khong co thuoc tinh src -- bo qua (chuong {i}, khoi {block_idx})"
+                    "asset[src] anh khong co thuoc tinh src va khong co byte .docx tuong ung \
+                     -- bo qua (chuong {i}, khoi {block_idx})"
                 );
                 continue;
-            };
+            }
 
-            // Neo TRƯỚC mạng — một ảnh không neo được thì không đáng một lượt tải (tránh một
-            // tệp mồ côi không hàng `asset` nào trỏ tới, xem doc-comment hàm này).
+            // Neo TRƯỚC mạng/ghi tệp — một ảnh không neo được thì không đáng một lượt tải
+            // (tránh một tệp mồ côi không hàng `asset` nào trỏ tới, xem doc-comment hàm này).
             let anchor_after_segment_ord = match crate::core::segment::anchor::compute_anchor(
                 blocks,
                 &effective_kept,
@@ -856,21 +909,36 @@ fn prepare_chapter_images(
                 }
             };
 
-            match webimport::assets::resolve_absolute_url(src, page_url) {
-                Ok(resolved_url) => pending.push(PendingImage {
-                    chapter_index: i,
-                    anchor_after_segment_ord,
-                    resolved_url,
-                }),
-                Err(_err) => {
-                    images_failed = images_failed.saturating_add(1);
-                    // E4 (vòng rà đối kháng 2, 3 lớp) — `ResolveUrlError::detail` nhúng
-                    // NGUYÊN VĂN `src` (URL người dùng đã dán/trang chứa) — KHÔNG in ra
-                    // stderr, kể cả bản release. Vị trí (chương/khối) đủ để chẩn đoán cục bộ
-                    // mà không lộ URL.
-                    eprintln!("asset[url] khong phan giai duoc src (chuong {i}, khoi {block_idx})");
+            let source = if let Some(img) = local_image {
+                // Ảnh `.docx` nhúng — 0 mạng, 0 `Allowlist` (§Always spec 6.12).
+                PendingImageSource::Local { bytes: img.bytes.clone(), content_type: img.content_type.clone() }
+            } else if let Some(src) = src {
+                match webimport::assets::resolve_absolute_url(src, page_url) {
+                    Ok(resolved_url) => PendingImageSource::Remote { resolved_url },
+                    Err(_err) => {
+                        images_failed = images_failed.saturating_add(1);
+                        // E4 (vòng rà đối kháng 2, 3 lớp) — `ResolveUrlError::detail` nhúng
+                        // NGUYÊN VĂN `src` (URL người dùng đã dán/trang chứa) — KHÔNG in ra
+                        // stderr, kể cả bản release. Vị trí (chương/khối) đủ để chẩn đoán cục
+                        // bộ mà không lộ URL.
+                        eprintln!("asset[url] khong phan giai duoc src (chuong {i}, khoi {block_idx})");
+                        continue;
+                    }
                 }
-            }
+            } else {
+                // KHÔNG THỂ xảy ra: điều kiện ngay trên đã xác nhận `src.is_some() ||
+                // local_image.is_some()`, và nhánh `local_image` vừa xử ở trên — trả một
+                // lỗi ĐẾM được thay vì `unreachable!()` (`panic = "abort"`), cùng khuôn mọi
+                // bất biến nội bộ khác của hàm này (xem `# Lỗi` doc-comment).
+                images_failed = images_failed.saturating_add(1);
+                eprintln!(
+                    "asset[bat_bien] nhanh khong the xay ra: src/local_image deu None sau \
+                     khi da kiem co nguon (chuong {i}, khoi {block_idx})"
+                );
+                continue;
+            };
+
+            pending.push(PendingImage { chapter_index: i, anchor_after_segment_ord, source });
         }
     }
 
@@ -878,11 +946,18 @@ fn prepare_chapter_images(
         return Ok(ImagePrepOutcome { saved: Vec::new(), images_saved: 0, images_failed });
     }
 
-    // 🔴 Tầng 2 dựng từ ĐÚNG những host của ảnh sẽ thử tải — không tầng 1 (pha này KHÔNG BAO
-    // GIỜ tải Trang, §Always spec 6.11). Tầng 1 rỗng ⇒ `Allowlist::decide` cho `ResourceKind::Page`
-    // luôn `Denied`, vô hại vì hàm này chỉ gọi `fetch(..., ResourceKind::Image)`.
-    let tier2_hosts: std::collections::BTreeSet<String> =
-        pending.iter().filter_map(|p| webimport::assets::host_of(&p.resolved_url)).collect();
+    // 🔴 Tầng 2 dựng từ ĐÚNG những host MẠNG của ảnh sẽ thử tải — không tầng 1 (pha này KHÔNG
+    // BAO GIỜ tải Trang, §Always spec 6.11), và không đọc ảnh `.docx` (0 host — chúng không
+    // đi qua mạng, §Always spec 6.12: "Không dựng Allowlist nào trên đường này"). Tầng 1
+    // rỗng ⇒ `Allowlist::decide` cho `ResourceKind::Page` luôn `Denied`, vô hại vì hàm này
+    // chỉ gọi `fetch(..., ResourceKind::Image)`.
+    let tier2_hosts: std::collections::BTreeSet<String> = pending
+        .iter()
+        .filter_map(|p| match &p.source {
+            PendingImageSource::Remote { resolved_url } => webimport::assets::host_of(resolved_url),
+            PendingImageSource::Local { .. } => None,
+        })
+        .collect();
     let allowlist = webimport::Allowlist::default().with_tier2_hosts(tier2_hosts);
 
     let assets_dir = dir.join("assets");
@@ -890,15 +965,27 @@ fn prepare_chapter_images(
     let mut saved: Vec<SavedAsset> = Vec::new();
 
     for p in &pending {
-        let cached = match cache.entry(p.resolved_url.clone()) {
-            std::collections::hash_map::Entry::Occupied(e) => e.into_mut(),
-            std::collections::hash_map::Entry::Vacant(e) => {
-                // 🔵 B1 — `fetch_and_write_one_asset` PUSH THẲNG vào `domain_log_state` bên
-                // trong nó (trước bước ghi tệp có thể trượt); `?` ở đây không còn vứt mất một
-                // Vec cục bộ nào — cái duy nhất `?` lan ra là `IpcError` của chính lượt ghi
-                // byte trượt, nhật ký thì đã AN TOÀN từ trước đó rồi.
-                let outcome = fetch_and_write_one_asset(&p.resolved_url, &allowlist, &assets_dir, domain_log_state)?;
-                e.insert(outcome)
+        // 🔵 SỬA 2026-09-09 (Story 6.12) — nhánh theo `PendingImageSource`. Dedup theo URL
+        // (khuôn Story 6.11) chỉ có nghĩa cho `Remote`; `Local` (ảnh `.docx`) không có URL
+        // để mà khoá cache, và ghi thẳng qua [`write_local_asset_bytes`] — 0 mạng, 0
+        // `Allowlist`, 0 `DomainLogState` (bảng đó chỉ ghi nhận lượt RA MẠNG, §Always spec 6.8).
+        let cached: Option<CachedFetch> = match &p.source {
+            PendingImageSource::Remote { resolved_url } => {
+                if let Some(existing) = cache.get(resolved_url) {
+                    existing.clone()
+                } else {
+                    // 🔵 B1 — `fetch_and_write_one_asset` PUSH THẲNG vào `domain_log_state`
+                    // bên trong nó (trước bước ghi tệp có thể trượt); `?` ở đây không còn
+                    // vứt mất một Vec cục bộ nào — cái duy nhất `?` lan ra là `IpcError` của
+                    // chính lượt ghi byte trượt, nhật ký thì đã AN TOÀN từ trước đó rồi.
+                    let outcome =
+                        fetch_and_write_one_asset(resolved_url, &allowlist, &assets_dir, domain_log_state)?;
+                    cache.insert(resolved_url.clone(), outcome.clone());
+                    outcome
+                }
+            }
+            PendingImageSource::Local { bytes, content_type } => {
+                write_local_asset_bytes(bytes, content_type, &assets_dir)?
             }
         };
 
@@ -906,10 +993,15 @@ fn prepare_chapter_images(
             Some(c) => saved.push(SavedAsset {
                 chapter_index: p.chapter_index,
                 anchor_after_segment_ord: p.anchor_after_segment_ord,
-                file_name: c.file_name.clone(),
-                source_url: p.resolved_url.clone(),
+                file_name: c.file_name,
+                source_url: match &p.source {
+                    PendingImageSource::Remote { resolved_url } => Some(resolved_url.clone()),
+                    // 🔴 `NULL` — §Always spec 6.12: ảnh `.docx` không đến từ mạng, đúng
+                    // nghĩa cột `source_url` đã khai từ Story 6.11 (schema.rs).
+                    PendingImageSource::Local { .. } => None,
+                },
                 byte_len: c.byte_len,
-                content_type: c.content_type.clone(),
+                content_type: c.content_type,
             }),
             None => images_failed = images_failed.saturating_add(1),
         }
@@ -968,8 +1060,15 @@ fn prepare_chapter_images(
 /// chỉ cắt ASCII, `str::trim()` của Rust thì không có giới hạn đó), nên vế này ĐƠN GIẢN HƠN
 /// bản SQL, không phải một bản chép kém trung thành hơn.
 fn saved_asset_satisfies_asset_check_constraints(saved: &SavedAsset) -> bool {
+    // 🔵 SỬA 2026-09-09 (Story 6.12) — `source_url` nay `Option<String>` (NULL hợp lệ cho
+    // ảnh `.docx`, xem doc-comment trường đó). Vị từ khớp ĐÚNG CHECK của `ASSET_DDL`:
+    // `source_url IS NULL OR trim(source_url, ...) <> ''`.
+    let source_url_ok = match &saved.source_url {
+        None => true,
+        Some(s) => !s.trim().is_empty(),
+    };
     !saved.file_name.trim().is_empty()
-        && !saved.source_url.trim().is_empty()
+        && source_url_ok
         && !saved.content_type.trim().is_empty()
         && saved.byte_len >= 0
         && saved.anchor_after_segment_ord >= 0
@@ -1014,12 +1113,18 @@ fn saved_asset_chapter_index_is_in_range(saved: &SavedAsset, chapters_len: usize
 /// `&mut Vec`.** `Vec<DomainLogEntry>` do `fetch()` trả về được PUSH THẲNG vào state ngay tại
 /// đây — TRƯỚC bước ghi byte (dòng có thể trả `Err` và khiến hàm này thoát sớm). Nhờ vậy nhật
 /// ký của lượt gọi NÀY luôn an toàn trước khi có cơ hội bị `?` cuốn mất ở tầng gọi.
-fn fetch_and_write_one_asset(
+/// 🔵 **SỬA 2026-09-09 (Story 6.12) — tách thành HAI NỬA, đúng Task list spec 6.12.** Bản
+/// Story 6.11 làm cả hai việc ("lấy byte qua mạng" + "ghi + dựng hàng") trong MỘT hàm; đường
+/// `.docx` cần nửa THỨ HAI (ghi + dựng hàng) mà không đi qua nửa ĐẦU (mạng) — xem
+/// [`write_local_asset_bytes`] ngay dưới, hàm DUY NHẤT ghi byte xuống đĩa bây giờ. Nửa NÀY
+/// (mạng) trả `Ok(None)` cho MỌI lý do khiến ảnh không có byte: mạng lỗi/host bị chặn/HTTP
+/// lỗi (`FetchError`), hoặc MIME không phải ảnh raster (§Never spec 6.11: SVG bị loại) —
+/// TRƯỚC khi gọi nửa ghi, nên nửa ghi không cần biết gì về mạng/nhật ký domain.
+fn fetch_asset_bytes_over_network(
     url: &str,
     allowlist: &webimport::Allowlist,
-    assets_dir: &Path,
     domain_log_state: &webimport::DomainLogState,
-) -> Result<Option<CachedFetch>, IpcError> {
+) -> Result<Option<(Vec<u8>, String)>, IpcError> {
     let (result, mut log) = webimport::fetch(url, allowlist, webimport::ResourceKind::Image);
 
     let page = match result {
@@ -1034,7 +1139,7 @@ fn fetch_and_write_one_asset(
         }
     };
 
-    let Some(ext) = webimport::assets::extension_for_mime(page.content_type.as_deref()) else {
+    let Some(_ext) = webimport::assets::extension_for_mime(page.content_type.as_deref()) else {
         // E4 (vòng rà đối kháng 2, 3 lớp) — KHÔNG in URL người dùng ra stderr; `content_type`
         // (một chuỗi MIME, không phải dữ liệu định danh cá nhân) đủ để chẩn đoán cục bộ.
         eprintln!("asset[mime] mime khong phai anh raster: {:?}", page.content_type);
@@ -1047,27 +1152,57 @@ fn fetch_and_write_one_asset(
         webimport::append_domain_log_entries(domain_log_state, log);
         return Ok(None);
     };
-    // MIME đã CHUẨN HOÁ lấy THẲNG từ content-type của phản hồi (D1 vòng rà đối kháng 3 lớp) —
-    // không dựng lại từ đuôi tệp bằng một bảng `match` thứ ba song song với
-    // `RASTER_IMAGE_MIMES`/nhánh của `extension_for_mime`. `ext` vừa được `extension_for_mime`
-    // xác nhận là MỘT TRONG BỐN kiểu ĐÃ CHẤP NHẬN, nên `normalized_mime` của CHÍNH
-    // `content_type` này (đọc CÙNG một `content_type`, cùng phép chuẩn hoá nội bộ) không thể
-    // trả `None` — bất biến này chứng minh được bằng ĐỌC MÃ, không suy diễn.
-    //
-    // 🔵 SỬA (vòng rà đối kháng 2, mục B1) — trả `Err` thay vì `unreachable!()`. Dù bất biến
-    // trên ĐÚNG hôm nay, `Cargo.toml` đặt `panic = "abort"` — MỘT LƯỢT SAU tách rời logic của
-    // hai hàm (ví dụ một trong hai đổi bảng MIME mà quên đổi bảng kia) sẽ biến một điều kiện
-    // "không thể" thành một điều kiện THẬT, và khi đó `unreachable!()` giết NGUYÊN tiến trình
-    // thay vì trả một lỗi có thể phục hồi — đúng lớp lỗi mà B1 (chapters/chapter_urls) vừa
-    // sửa ở `create_work`. Phòng thủ ở ĐÂY không tốn gì (một nhánh `Err` thay vì panic).
-    //
-    // `append_domain_log_entries` chạy TRƯỚC nhánh `Err` này (không sau) — cùng lý lẽ B1:
-    // chặng mạng ĐÃ hoàn tất (log đã có nội dung thật) không được phép biến mất chỉ vì một
-    // bước XỬ LÝ sau đó (dù chỉ là một bất biến nội bộ, không phải I/O) gặp trục trặc.
+    // `append_domain_log_entries` chạy TRƯỚC bất kỳ nhánh `Err` nào bên dưới — chặng mạng ĐÃ
+    // hoàn tất (log đã có nội dung thật) không được phép biến mất chỉ vì một bước XỬ LÝ sau
+    // đó (dù chỉ là một bất biến nội bộ, không phải I/O) gặp trục trặc.
     webimport::append_domain_log_entries(domain_log_state, log);
 
+    // MIME đã CHUẨN HOÁ lấy THẲNG từ content-type của phản hồi (D1 vòng rà đối kháng 3 lớp) —
+    // không dựng lại từ đuôi tệp. `_ext` vừa được `extension_for_mime` xác nhận là MỘT TRONG
+    // BỐN kiểu ĐÃ CHẤP NHẬN, nên `normalized_mime` của CHÍNH `content_type` này không thể trả
+    // `None` — bất biến chứng minh được bằng ĐỌC MÃ. Trả `Err` thay vì `unreachable!()` (xem
+    // lý lẽ B1 gốc, giữ nguyên qua lượt tách): `panic = "abort"` giết NGUYÊN tiến trình nếu
+    // một lượt sau tách rời hai bảng MIME mà quên đổi đồng bộ.
     let Some(normalized_content_type) = webimport::normalized_mime(page.content_type.as_deref()) else {
-        eprintln!("asset[mime] bat bien noi bo vo (extension_for_mime nhan {ext} nhung normalized_mime tra None)");
+        eprintln!(
+            "asset[mime] bat bien noi bo vo (extension_for_mime nhan {_ext} nhung normalized_mime tra None)"
+        );
+        return Err(IpcError::new(
+            "work.create_failed",
+            MessageKey::WorkCreateFailed,
+            std::collections::BTreeMap::new(),
+            false,
+        ));
+    };
+
+    Ok(Some((page.bytes, normalized_content_type)))
+}
+
+/// Ghi byte ảnh xuống đĩa + dựng [`CachedFetch`] — NỬA HAI của cả đường mạng (Story 6.11)
+/// LẪN đường `.docx` (Story 6.12); đường DUY NHẤT `fs::write` của cả pha ảnh.
+///
+/// `content_type` PHẢI đã là một trong bốn MIME ảnh raster đã chấp nhận (hoặc một biến thể
+/// mà [`webimport::assets::normalized_mime`] chuẩn hoá về đúng một trong bốn đó) —
+/// `content_type` KHÔNG thuộc danh mục đó (MIME lạ suy từ đuôi tệp media `.docx`, ví dụ
+/// `bmp`/`emf`/`wmf`) trả `Ok(None)`, đúng khuôn "MIME ngoài danh mục 4 ⇒ bỏ ảnh,
+/// `images_failed`" của I/O Matrix — KHÔNG một nhánh `Err` riêng cho ca này.
+///
+/// 🔵 **SỬA (vòng rà đối kháng 3, mục T4, kế thừa qua lượt tách 2026-09-09)** — `Err` không
+/// CHỈ cho ghi byte thất bại: bất biến nội bộ `normalized_mime` vỡ (xem `# Lỗi` doc-comment
+/// `prepare_chapter_images`) cũng trả `Err`, cùng lý do B1 gốc (`panic = "abort"`).
+fn write_local_asset_bytes(
+    bytes: &[u8],
+    content_type: &str,
+    assets_dir: &Path,
+) -> Result<Option<CachedFetch>, IpcError> {
+    let Some(ext) = webimport::assets::extension_for_mime(Some(content_type)) else {
+        eprintln!("asset[mime] mime khong phai anh raster: {content_type:?}");
+        return Ok(None);
+    };
+    let Some(normalized_content_type) = webimport::normalized_mime(Some(content_type)) else {
+        eprintln!(
+            "asset[mime] bat bien noi bo vo (extension_for_mime nhan {ext} nhung normalized_mime tra None)"
+        );
         return Err(IpcError::new(
             "work.create_failed",
             MessageKey::WorkCreateFailed,
@@ -1080,18 +1215,11 @@ fn fetch_and_write_one_asset(
     let path = assets_dir.join(&file_name);
     // D3 (vòng rà đối kháng 3 lớp) — CỐ Ý KHÔNG dùng khuôn ghi-nguyên-tử của
     // `core::library::meta::Meta::write_atomic`/`core::glossary::exchange_io::write_export_file`
-    // (tạm cạnh đích → sync → rename) ở đây, dù Task list ban đầu viện dẫn đúng khuôn đó. Lý
-    // do: cả hai khuôn kia tồn tại để bảo vệ một tệp ĐÍCH đã có từ TRƯỚC khỏi bị GHI ĐÈ dở
-    // dang (meta.json đang dùng, tệp xuất người dùng chỉ định) — nếu `rename` không chạy tới,
-    // bản CŨ vẫn còn nguyên. Ở đây `path` là một tên UUID hoàn toàn MỚI, chưa từng tồn tại,
-    // và KHÔNG ai đọc `path` này cho tới khi hàng `INSERT INTO asset` trỏ tới nó được COMMIT
-    // — điều chỉ xảy ra ở nhánh `Ok`. Nếu `fs::write` trượt giữa chừng (đĩa đầy), hàm này trả
-    // `Err`, và MỌI đường gọi nó (`prepare_chapter_images` → `create_work`) đều
-    // `remove_folder(&dir)` xoá NGUYÊN `.atproj` vừa tạo — bao gồm cả tệp cụt vừa ghi dở, nếu
-    // có. Không có cửa sổ nào để một tệp cụt bị đọc nhầm là một ảnh thật: nguyên tử ở tầng
-    // TỆP là thừa khi tầng NGOÀI nó (thư mục `.atproj`) đã nguyên tử theo kiểu "tất cả hoặc
-    // không gì" bằng `remove_folder`.
-    if let Err(e) = std::fs::write(&path, &page.bytes) {
+    // (tạm cạnh đích → sync → rename) ở đây — xem lý lẽ đầy đủ tại doc-comment gốc (giữ
+    // nguyên qua lượt tách): `path` là một tên UUID hoàn toàn MỚI, KHÔNG ai đọc nó cho tới khi
+    // hàng `INSERT INTO asset` được COMMIT; một `fs::write` trượt giữa chừng khiến chỗ gọi
+    // (`prepare_chapter_images` → `create_work`) `remove_folder(&dir)` xoá NGUYÊN `.atproj`.
+    if let Err(e) = std::fs::write(&path, bytes) {
         eprintln!("asset[ghi] ghi byte anh xuong dia that bai ({}): {e}", path.display());
         return Err(IpcError::new(
             "asset.write_failed",
@@ -1101,21 +1229,32 @@ fn fetch_and_write_one_asset(
         ));
     }
 
-    // ⚠️ NÓI RA (vòng rà đối kháng 2, mục D7) — `unwrap_or(i64::MAX)` là một lượt LÀM TRÒN,
-    // đối nghịch bề mặt với kỷ luật "không làm tròn im lặng" mà `compute_anchor` (B2/B3)
-    // vừa được sửa để theo. HAI KỶ LUẬT KHÔNG THẬT SỰ MÂU THUẪN: `compute_anchor` làm tròn
-    // một VỊ TRÍ (một anchor sai đặt ảnh vào GIỮA một câu — dữ liệu SAI, không phân biệt
-    // được với dữ liệu ĐÚNG); ở ĐÂY là một con số CHẨN ĐOÁN (`byte_len`, không ảnh hưởng anh
-    // hiển thị đúng hay sai) và nhánh tràn KHÔNG THỂ XẢY RA trong thực tế — `page.bytes.len()`
-    // bị `fetcher.rs::MAX_RESPONSE_BYTES` (20 MiB) chặn TRƯỚC khi tới đây, và 20 MiB nằm sâu
-    // trong `i64::MAX`. Trả một `i64::MAX` bão hoà ("ít nhất lớn cỡ này") trung thực hơn một
-    // panic/`Err` làm trượt cả ảnh vì một con số hiển thị, cho một nhánh không ai từng chạm
-    // được. Giữ nguyên, có lý do tại chỗ — không phải một lối tắt bị quên.
+    // ⚠️ NÓI RA (vòng rà đối kháng 2, mục D7) — `unwrap_or(i64::MAX)` là một lượt LÀM TRÒN có
+    // chủ (giữ nguyên qua lượt tách): một con số CHẨN ĐOÁN (`byte_len`), tràn KHÔNG THỂ XẢY RA
+    // trong thực tế trên đường mạng (`fetcher.rs::MAX_RESPONSE_BYTES` 20 MiB) lẫn đường
+    // `.docx` (`MAX_IMPORT_BYTES` 100 MB chặn cả tệp `.docx`, một ảnh nhúng không thể lớn hơn
+    // chính tệp chứa nó).
     Ok(Some(CachedFetch {
         file_name,
-        byte_len: i64::try_from(page.bytes.len()).unwrap_or(i64::MAX),
+        byte_len: i64::try_from(bytes.len()).unwrap_or(i64::MAX),
         content_type: normalized_content_type,
     }))
+}
+
+/// Tải + ghi ĐÚNG MỘT ảnh MẠNG (đã qua dedup ở [`prepare_chapter_images`]) — hợp hai nửa
+/// [`fetch_asset_bytes_over_network`] + [`write_local_asset_bytes`]. Đường `.docx` KHÔNG gọi
+/// hàm này — nó gọi thẳng [`write_local_asset_bytes`] (§Always spec 6.12: "Không dựng
+/// Allowlist nào trên đường này").
+fn fetch_and_write_one_asset(
+    url: &str,
+    allowlist: &webimport::Allowlist,
+    assets_dir: &Path,
+    domain_log_state: &webimport::DomainLogState,
+) -> Result<Option<CachedFetch>, IpcError> {
+    let Some((bytes, content_type)) = fetch_asset_bytes_over_network(url, allowlist, domain_log_state)? else {
+        return Ok(None);
+    };
+    write_local_asset_bytes(&bytes, &content_type, assets_dir)
 }
 
 /// **Hàm thuần** — nhánh dán văn bản của AC1.
@@ -1145,6 +1284,8 @@ pub fn create_work_from_text(
         None,
         Vec::new(),
         &std::sync::Mutex::new(Vec::new()),
+        // Văn bản dán tay không bao giờ có một `DocxSidecar` — xem doc-comment kiểu đó.
+        None,
     )
 }
 
@@ -1560,8 +1701,10 @@ fn spawn_import_scan(
 /// gọi không đi qua màn xem trước (cùng lý do `create_work_from_text`).
 ///
 /// # Lỗi
-/// `.docx` hay định dạng khác ⇒ `import.unsupported_format` (AC8), **trước khi** thư mục
-/// `.atproj` được tạo — [`import_file`] từ chối theo phần mở rộng trước khi mở tệp.
+/// Một phần mở rộng chưa nhận (không phải `.txt`/`.md`/`.docx`) ⇒ `import.unsupported_format`
+/// (AC8), **trước khi** thư mục `.atproj` được tạo — [`import_file`] từ chối theo phần mở
+/// rộng trước khi mở tệp. 🔵 **SỬA 2026-09-09 (Story 6.12)** — `.docx` không còn ví dụ ở đây,
+/// nó nay ĐƯỢC nhận.
 pub fn create_work_from_file(
     documents_root: &Path,
     name: &str,
@@ -1569,8 +1712,9 @@ pub fn create_work_from_file(
     genre: &str,
     path: &Path,
 ) -> Result<OpenWork, IpcError> {
-    let shape = import_file(path)?;
-    // Đường Blob KHÔNG BAO GIỜ có ảnh — cùng lý do `create_work_from_text`.
+    let (shape, docx_sidecar) = import_file(path)?;
+    // Đường Blob KHÔNG BAO GIỜ có ảnh MẠNG — `.docx` (Story 6.12) CÓ THỂ có ảnh NHÚNG, mang
+    // trong `docx_sidecar`, truyền NGUYÊN VẸN xuống `create_work`.
     create_work(
         documents_root,
         name,
@@ -1582,6 +1726,7 @@ pub fn create_work_from_file(
         None,
         Vec::new(),
         &std::sync::Mutex::new(Vec::new()),
+        docx_sidecar,
     )
 }
 
@@ -1607,6 +1752,11 @@ pub fn create_work_from_file(
 /// Nguồn ĐANG CHỜ của một lượt xem trước bảng mã.
 pub struct PendingImportSource {
     pub shape: PipelineShape,
+    /// **THÊM 2026-09-09 (Story 6.12)** — khối + ảnh nhúng nếu `shape` đến từ một `.docx`
+    /// (xem doc-comment [`crate::core::segment::import::DocxSidecar`]). `None` cho mọi
+    /// đường khác. `confirm_import_with_encoding` CLONE trường này y hệt `shape` — cùng
+    /// vòng đời (giữ nguyên trên đường lỗi, dọn chỉ khi `create_work` thành công).
+    pub docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
 }
 
 /// Kiểu state Tauri quản lý — `None` == không lượt xem trước nào đang treo, cùng khuôn
@@ -2899,9 +3049,15 @@ fn no_pending_import_source() -> IpcError {
 /// `tests::` gọi được không cần webview. Gọi bởi `wire::preview_import_encoding_from_text`/
 /// `_from_file`, NGAY SAU [`preview_import_encoding`] — đúng thứ tự "đọc rồi mới cất" (§Always
 /// spec 6.3: byte đọc đúng một lần).
-pub fn stash_pending_import_source(state: &PendingImportSourceState, shape: PipelineShape) {
+pub fn stash_pending_import_source(
+    state: &PendingImportSourceState,
+    shape: PipelineShape,
+    // 🔴 **THÊM 2026-09-09 (Story 6.12).** `.docx` là đường DUY NHẤT truyền `Some` —
+    // `preview_import_encoding_from_text` và mọi đường KHÁC truyền `None`.
+    docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
+) {
     let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    *guard = Some(PendingImportSource { shape });
+    *guard = Some(PendingImportSource { shape, docx_sidecar });
 }
 
 /// **Hàm thuần** — dọn ô đang chờ.
@@ -2983,6 +3139,10 @@ pub fn confirm_import_with_encoding(
     // comment ở trên (lượt xác nhận lại với một ứng viên khác không đòi đọc nguồn lần hai).
     let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let shape = guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?;
+    // 🔴 **THÊM 2026-09-09 (Story 6.12)** — CÙNG khoá, CÙNG lượt đọc với `shape` ngay trên
+    // (không một `MutexGuard` thứ hai) — `docx_sidecar` phải sống sót/biến mất ĐÚNG lúc
+    // `shape` sống sót/biến mất, hai trường của CÙNG MỘT `PendingImportSource`.
+    let docx_sidecar = guard.as_ref().and_then(|p| p.docx_sidecar.clone());
 
     let opened = create_work(
         documents_root,
@@ -2995,6 +3155,7 @@ pub fn confirm_import_with_encoding(
         chapter_pattern,
         block_overrides,
         domain_log_state,
+        docx_sidecar,
     )?;
 
     // Thành công — dọn ô đang chờ, VẪN dưới CÙNG một khoá đã giữ từ đầu hàm.
@@ -3332,7 +3493,9 @@ pub fn chapters_shape_for_view(items: &[UrlImportItem]) -> Option<PipelineShape>
 /// chờ bằng [`PipelineShape::Chapters`] mới dựng từ CHÍNH danh sách này.
 fn sync_pending_from_url_items(pending: &PendingImportSourceState, items: &[UrlImportItem]) {
     match chapters_shape_if_all_ok(items) {
-        Some(shape) => stash_pending_import_source(pending, shape),
+        // Đường URL không bao giờ mang một `DocxSidecar` (đó là đường tệp `.docx`, Story
+        // 6.12) — `None` cố định.
+        Some(shape) => stash_pending_import_source(pending, shape, None),
         None => cancel_import_preview(pending),
     }
 }
@@ -4445,7 +4608,7 @@ mod tests {
             chapter_index: 0,
             anchor_after_segment_ord: 1,
             file_name: "abc123.jpg".to_owned(),
-            source_url: "https://example.test/a.jpg".to_owned(),
+            source_url: Some("https://example.test/a.jpg".to_owned()),
             byte_len: 10,
             content_type: "image/jpeg".to_owned(),
         }
@@ -4456,6 +4619,20 @@ mod tests {
         assert!(saved_asset_satisfies_asset_check_constraints(&well_formed_saved_asset()));
     }
 
+    /// **THÊM 2026-09-09 (Story 6.12)** — `source_url: None` (ảnh `.docx` nhúng) phải THOẢ
+    /// mãn CHECK, đúng khuôn `ASSET_DDL` (`source_url IS NULL OR trim(...) <> ''`) — ca ÂM
+    /// đi kèm với "source_url rỗng phải bị bắt" ngay dưới, chứng minh vị từ phân biệt được
+    /// `None` (hợp lệ) khỏi `Some("")` (không hợp lệ).
+    #[test]
+    fn a_saved_asset_with_no_source_url_still_satisfies_the_check_constraint() {
+        let mut docx_asset = well_formed_saved_asset();
+        docx_asset.source_url = None;
+        assert!(
+            saved_asset_satisfies_asset_check_constraints(&docx_asset),
+            "source_url: None (anh .docx) phai duoc CHAP NHAN, dung nghia NULL cua ASSET_DDL"
+        );
+    }
+
     #[test]
     fn saved_asset_check_constraints_catch_a_violation_on_each_field_one_at_a_time() {
         let mut bad = well_formed_saved_asset();
@@ -4463,8 +4640,8 @@ mod tests {
         assert!(!saved_asset_satisfies_asset_check_constraints(&bad), "file_name toan khoang trang phai bi bat");
 
         let mut bad = well_formed_saved_asset();
-        bad.source_url = String::new();
-        assert!(!saved_asset_satisfies_asset_check_constraints(&bad), "source_url rong phai bi bat");
+        bad.source_url = Some(String::new());
+        assert!(!saved_asset_satisfies_asset_check_constraints(&bad), "source_url la Some(\"\") phai bi bat");
 
         let mut bad = well_formed_saved_asset();
         bad.content_type = "\u{3000}".to_owned();
@@ -4902,7 +5079,8 @@ pub mod wire {
             // tay truyền 0").
             0,
         );
-        super::stash_pending_import_source(&state, shape);
+        // Văn bản dán tay không bao giờ có một `DocxSidecar` (xem doc-comment kiểu đó).
+        super::stash_pending_import_source(&state, shape, None);
         Ok(preview)
     }
 
@@ -4928,9 +5106,9 @@ pub mod wire {
         };
         let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
         let cleanup_rules = resolve_cleanup_rules(&app);
-        let shape = super::import_file(std::path::Path::new(&path))?;
+        let (shape, docx_sidecar) = super::import_file(std::path::Path::new(&path))?;
         // Story 6.9 — cùng lý do nhánh DÁN VĂN BẢN ở trên: đường tệp KHÔNG BAO GIỜ bóc nội
-        // dung chính.
+        // dung chính (kể cả `.docx` — Story 6.12: nó không đi qua `dom_smoothie`).
         reset_tier2_block_overrides(&app);
         let preview = super::preview_import_encoding(
             &shape,
@@ -4942,7 +5120,7 @@ pub mod wire {
             // tay truyền 0").
             0,
         );
-        super::stash_pending_import_source(&state, shape);
+        super::stash_pending_import_source(&state, shape, docx_sidecar);
         Ok(preview)
     }
 

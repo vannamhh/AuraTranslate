@@ -141,13 +141,15 @@ message_keys! {
     // ĐÚNG của nó, đứng cạnh khối vẫn dùng nó) làm rõ điều đó thay vì để nó "mượn ngầm" một
     // khối không còn liên quan (§Spec Change Log, vòng rà 1, spec 6.3). Bốn khoá bên dưới
     // vẫn đúng bốn, chỉ đổi MỘT: `ImportUndecodableBytes` thay `ImportNotUtf8` (đổi tên +
-    // thêm tham số `encoding`) — `.docx`/bảng mã lạ bị từ chối TRƯỚC khi chạm đĩa (AC8) là
-    // lỗi ĐƯỜNG NHẬP, không phải lỗi kho — `StoreError` không có biến thể nào mô tả đúng
-    // "định dạng chưa nhận". `meta.json` mang số phiên bản RIÊNG của chính nó (AC7), độc
-    // lập với `PRAGMA user_version` của `project.db`.
+    // thêm tham số `encoding`) — một định dạng chưa nhận (🔵 SỬA 2026-09-09, Story 6.12:
+    // `.docx` không còn ví dụ, nó được nhận — ví dụ nay là `.pdf`)/bảng mã lạ bị từ chối
+    // TRƯỚC khi chạm đĩa (AC8) là lỗi ĐƯỜNG NHẬP, không phải lỗi kho — `StoreError` không có
+    // biến thể nào mô tả đúng "định dạng chưa nhận". `meta.json` mang số phiên bản RIÊNG của
+    // chính nó (AC7), độc lập với `PRAGMA user_version` của `project.db`.
     // ─────────────────────────────────────────────────────────────────────────
-    /// Định dạng tệp đưa vào chưa được nhận ở phiên bản hiện tại (`.docx`, v.v.) — AC8.
-    /// `format` là phần mở rộng đọc được, dữ liệu chứ không phải câu.
+    /// Định dạng tệp đưa vào chưa được nhận ở phiên bản hiện tại (`.pdf`, v.v. — 🔵 SỬA
+    /// 2026-09-09, Story 6.12: `.docx` không còn một ví dụ, nó được nhận từ `core::docx`) —
+    /// AC8. `format` là phần mở rộng đọc được, dữ liệu chứ không phải câu.
     ImportUnsupportedFormat => "err.import.unsupported_format" ["format"],
     /// 🔵 **ĐỔI TÊN 2026-09-04 (Story 6.3)** — trước đây `ImportNotUtf8`, khoá cứng UTF-8
     /// (Quyết định #6). Từ story này bảng mã ĐÃ CHỌN có thể là bất kỳ nhãn nào trong FR126
@@ -173,6 +175,11 @@ message_keys! {
     /// Tệp vượt trần kích thước nhập (100 MB — Ice chốt 2026-08-06). `size`/`limit` là
     /// **số byte thô**: dữ liệu, không phải câu (AD-21).
     ImportTooLarge => "err.import.too_large" ["size", "limit"],
+    /// **THÊM 2026-09-09 (Story 6.12)** — `.docx` không đọc được (không phải zip hợp lệ,
+    /// zip cắt cụt, `word/document.xml` hỏng XML). `path` là tệp đưa vào.
+    DocxUnreadable => "err.docx.unreadable" ["path"],
+    /// **THÊM 2026-09-09 (Story 6.12)** — `.docx` đọc được nhưng 0 đoạn có chữ.
+    DocxEmptyText => "err.docx.empty_text" ["path"],
     /// Không dựng được `<Tên>.atproj/` trên đĩa (AC2, AC8).
     WorkCreateFailed => "err.work.create_failed" [],
     /// Đường đọc Chương gọi trước khi có Tác phẩm nào mở (Story 1.16, AC8) —

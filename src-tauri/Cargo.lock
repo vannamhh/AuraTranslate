@@ -253,6 +253,7 @@ dependencies = [
  "jieba-rs",
  "keyring",
  "libsqlite3-sys",
+ "quick-xml 0.41.0",
  "regex",
  "reqwest",
  "rusqlite",
@@ -264,6 +265,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-wdio-webdriver",
  "uuid",
+ "zip",
 ]
 
 [[package]]

@@ -72,6 +72,7 @@ fn open_work_real(documents_root: &Path) -> OpenWork {
     None,
     Vec::new(),
 &std::sync::Mutex::new(Vec::new()),
+None,
 )
     .expect("tao OpenWork that bai")
 }
@@ -107,6 +108,7 @@ fn zero_rules_leaves_source_text_byte_for_byte_unchanged() {
     None,
     Vec::new(),
 &std::sync::Mutex::new(Vec::new()),
+None,
 )
     .expect("tao tac pham that bai");
 
@@ -145,6 +147,7 @@ fn confirming_an_import_with_an_enabled_literal_rule_removes_every_match_from_th
     None,
     Vec::new(),
 &std::sync::Mutex::new(Vec::new()),
+None,
 )
     .expect("tao tac pham that bai");
 
@@ -185,6 +188,7 @@ fn a_regex_rule_matches_per_line_across_a_multi_line_chapter() {
     None,
     Vec::new(),
 &std::sync::Mutex::new(Vec::new()),
+None,
 )
     .expect("tao tac pham that bai");
 
@@ -500,7 +504,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
     assert!(!cleanup.window_truncated, "tien de: van ban phai lot tron cua so");
 
     let state: PendingImportSourceState = std::sync::Mutex::new(None);
-    stash_pending_import_source(&state, shape);
+    stash_pending_import_source(&state, shape, None);
     let opened = confirm_import_with_encoding(
         &root,
         &state,
@@ -640,7 +644,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_no
         label: url,
     }]);
     let state: PendingImportSourceState = std::sync::Mutex::new(None);
-    stash_pending_import_source(&state, shape_for_confirm);
+    stash_pending_import_source(&state, shape_for_confirm, None);
     let opened = confirm_import_with_encoding(
         &root,
         &state,
@@ -771,6 +775,7 @@ fn a_rule_that_matches_the_entire_chapter_creates_a_chapter_with_empty_source_te
     None,
     Vec::new(),
 &std::sync::Mutex::new(Vec::new()),
+None,
 )
     .expect(
         "hanh vi THAT hom nay: create_work KHONG tu choi mot Chuong don co source_text rong \
@@ -1485,7 +1490,7 @@ fn preview_and_confirm_agree_byte_for_byte_when_a_chapter_pattern_yields_n_chapt
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text));
     let state: PendingImportSourceState = std::sync::Mutex::new(None);
-    stash_pending_import_source(&state, shape);
+    stash_pending_import_source(&state, shape, None);
     let opened = confirm_import_with_encoding(
         &root,
         &state,

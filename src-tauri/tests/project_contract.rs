@@ -442,23 +442,26 @@ fn a_newer_meta_schema_is_refused_without_touching_a_single_byte() {
     cleanup(&root);
 }
 
+/// 🔵 **SỬA 2026-09-09 (Story 6.12) — đổi mẫu từ `.docx` sang `.pdf`.** `.docx` được NHẬN từ
+/// story này (`core::docx`) — dùng nó làm ví dụ "định dạng chưa nhận" hết đúng. `.pdf` giữ
+/// nguyên tinh thần ca gốc (một phần mở rộng ngoài `.txt`/`.md`/`.docx`).
 #[test]
-fn a_docx_is_refused_before_a_single_byte_is_written() {
-    let root = temp_dir("docx-refused");
-    let source_dir = temp_dir("docx-refused-src");
+fn an_unsupported_extension_is_refused_before_a_single_byte_is_written() {
+    let root = temp_dir("pdf-refused");
+    let source_dir = temp_dir("pdf-refused-src");
 
-    // ⚠️ Tep .docx nay KHONG TON TAI tren dia. Neu duong tu choi lo mo tep truoc khi kiem
+    // ⚠️ Tep .pdf nay KHONG TON TAI tren dia. Neu duong tu choi lo mo tep truoc khi kiem
     // dinh dang, ca nay se that bai voi mot loi I/O khac thay vi UnsupportedFormat — do
     // chinh la bang chung "tu choi truoc khi mo tep, khong doc mot byte nao".
-    let fake_docx = source_dir.join("khong-ton-tai.docx");
+    let fake_pdf = source_dir.join("khong-ton-tai.pdf");
 
-    let result = create_work_from_file(&root, "Tu Choi Docx", "zh", "", &fake_docx);
-    assert!(result.is_err(), "mot tep .docx phai bi tu choi");
+    let result = create_work_from_file(&root, "Tu Choi Pdf", "zh", "", &fake_pdf);
+    assert!(result.is_err(), "mot tep .pdf phai bi tu choi");
 
     let entries: Vec<_> = fs::read_dir(&root).unwrap().collect();
     assert!(
         entries.is_empty(),
-        "khong thu muc .atproj nao duoc tao khi .docx bi tu choi"
+        "khong thu muc .atproj nao duoc tao khi .pdf bi tu choi"
     );
 
     cleanup(&root);
@@ -482,8 +485,9 @@ fn a_docx_is_refused_before_a_single_byte_is_written() {
 // đã tồn tại đều bị bỏ qua và lượt gọi nhận một tên mới. Đó chính là điều làm đường xoá
 // nhầm **không tới được nữa**, và nó là một bất biến **theo cấu trúc**, không phải
 // theo một phép kiểm lúc chạy. Vế "không để lại thư mục nửa vời" của AC8 vì thế được
-// canh bằng ba ca **từ chối trước khi ghi** ở trên/dưới (`.docx`, không UTF-8, quá
-// nặng) — cả ba assert thư mục gốc **rỗng tuyệt đối**.
+// canh bằng ba ca **từ chối trước khi ghi** ở trên/dưới (định dạng chưa nhận — 🔵 SỬA
+// 2026-09-09, Story 6.12: mẫu đổi từ `.docx` sang `.pdf` vì `.docx` nay ĐƯỢC nhận —
+// không UTF-8, quá nặng) — cả ba assert thư mục gốc **rỗng tuyệt đối**.
 #[test]
 fn creating_a_work_over_an_existing_folder_never_touches_it() {
     let root = temp_dir("name-collision");
@@ -562,7 +566,10 @@ fn repeated_names_keep_climbing_the_suffix_instead_of_colliding() {
 // điều mà §Verification spec 6.3 đòi hỏi phải KHÔNG còn xuất hiện trên đường nhập tài liệu
 // sau lượt đổi tên `ImportError::NotUtf8` → `UndecodableBytes`. Hành vi ca này không đổi.
 #[test]
-fn text_undecodable_under_the_declared_encoding_is_refused_the_same_way_a_docx_is() {
+// 🔵 SỬA 2026-09-09 (Story 6.12) — tên ca đổi mốc so sánh từ `.docx` sang `.pdf`, đúng ca
+// "định dạng chưa nhận" ngay phía trên đã đổi (`.docx` nay được nhận, không còn là ví dụ
+// "từ chối trước khi tạo .atproj").
+fn text_undecodable_under_the_declared_encoding_is_refused_the_same_way_an_unsupported_extension_is() {
     let root = temp_dir("not-utf8");
     let source_dir = temp_dir("not-utf8-src");
 
@@ -616,7 +623,7 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
     ]);
     // 🔵 SỬA (2026-09-04, Story 6.3) — `create_work` thêm tham số `encoding`; ca này không
     // canh bảng mã, giữ UTF-8 để hành vi cũ không đổi.
-    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
+    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()), None)
         .expect("tao Tac pham voi N > 1 Chuong that bai");
 
     let rows: Vec<(i64, i64, String, String)> = opened
@@ -697,6 +704,7 @@ fn create_work_writes_titles_and_continuous_ord_when_n_chapters_come_from_a_chap
         Some(pattern),
         Vec::new(),
     &std::sync::Mutex::new(Vec::new()),
+    None,
 )
     .expect("tao Tac pham voi mau phan tach that bai");
 
@@ -798,7 +806,7 @@ fn n_chapters_from_a_url_list_write_clean_text_ord_and_segments_for_every_chapte
     let shape = chapters_shape_if_all_ok(&items)
         .expect("toan bo muc OK phai cho ra Some(PipelineShape::Chapters)");
 
-    let opened = create_work(&root, "Tu URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
+    let opened = create_work(&root, "Tu URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()), None)
         .expect("tao Tac pham tu danh sach URL that bai");
 
     let rows: Vec<(i64, i64, String, String)> = opened
@@ -980,7 +988,7 @@ fn pasted_text_and_a_read_file_travel_the_same_import_path() {
         .expect("run_import (dan van ban) that bai");
 
     let path = write_file(&source_dir, "sample.txt", content.as_bytes());
-    let file_shape = import_file(&path).expect("doc tep .txt hop le that bai");
+    let (file_shape, _docx_sidecar) = import_file(&path).expect("doc tep .txt hop le that bai");
     let from_file = run_import(PipelineInput::default_shaped(file_shape, "en"))
         .expect("run_import (doc tep) that bai");
 
@@ -1006,16 +1014,22 @@ fn pasted_text_and_a_read_file_travel_the_same_import_path() {
     cleanup(&source_dir);
 }
 
-/// Đối chứng dương AC8 — `.docx` bị từ chối bằng đúng khoá `MessageKey`, không bằng
-/// một lỗi kho chung chung.
+/// Đối chứng dương AC8 — một định dạng chưa nhận bị từ chối bằng đúng khoá `MessageKey`,
+/// không bằng một lỗi kho chung chung.
+///
+/// 🔵 **SỬA 2026-09-09 (Story 6.12) — đổi mẫu từ `.docx` sang `.pdf`.** Bản trước dùng
+/// `.docx` làm ví dụ "định dạng chưa nhận" — story này nhận `.docx` (`core::docx`), nên mệnh
+/// đề gốc của ca này hết đúng cho riêng tên tệp, không hết đúng cho cơ chế nó canh (một
+/// phần mở rộng NGOÀI `.txt`/`.md`/`.docx` vẫn phải mang đúng `MessageKey`). `.pdf` giữ
+/// nguyên cơ chế được canh.
 #[test]
-fn a_docx_rejection_carries_the_dedicated_message_key() {
-    let root = temp_dir("docx-key");
-    let source_dir = temp_dir("docx-key-src");
-    let fake_docx = source_dir.join("tai-lieu.docx");
+fn an_unsupported_extension_rejection_carries_the_dedicated_message_key() {
+    let root = temp_dir("pdf-key");
+    let source_dir = temp_dir("pdf-key-src");
+    let fake_pdf = source_dir.join("tai-lieu.pdf");
 
-    let err = create_work_from_file(&root, "Khoa Loi", "zh", "", &fake_docx)
-        .expect_err(".docx phai bi tu choi");
+    let err = create_work_from_file(&root, "Khoa Loi", "zh", "", &fake_pdf)
+        .expect_err(".pdf phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportUnsupportedFormat);
     assert!(!err.retryable(), "tu choi dinh dang khong the sua bang cach bam lai");
 
@@ -1092,7 +1106,7 @@ fn a_utf8_bom_is_stripped_and_crlf_is_now_normalized_by_step_four() {
     let source_dir = temp_dir("bom-src");
 
     let path = write_file(&source_dir, "notepad.txt", b"\xEF\xBB\xBFCHUONG MOT\r\nCau hai");
-    let shape = import_file(&path).expect("tep UTF-8 co BOM phai nhap duoc");
+    let (shape, _docx_sidecar) = import_file(&path).expect("tep UTF-8 co BOM phai nhap duoc");
     let imported = run_import(PipelineInput::default_shaped(shape, "en"))
         .expect("run_import that bai")
         .chapters
@@ -1121,7 +1135,7 @@ fn a_utf8_bom_is_stripped_and_crlf_is_now_normalized_by_step_four() {
 
     // Chỉ cắt ở ĐẦU: một U+FEFF giữa văn bản là zero-width no-break space, nội dung thật.
     let inner = write_file(&source_dir, "giua.txt", "AB\u{feff}CD".as_bytes());
-    let inner_shape = import_file(&inner).expect("nhap that bai");
+    let (inner_shape, _docx_sidecar) = import_file(&inner).expect("nhap that bai");
     let imported_inner = run_import(PipelineInput::default_shaped(inner_shape, "en"))
         .expect("run_import that bai")
         .chapters

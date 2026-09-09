@@ -1071,10 +1071,12 @@ fn the_workspace_layout_survives_a_write_and_a_reopen() {
 /// ca đọc như một lời hứa toàn cục *"mọi lỗi command đều là lỗi kho"*, nhưng
 /// `commands::project::create_work_from_file` giờ trả `import.unsupported_format` /
 /// `import.undecodable_bytes` (🔵 SỬA 2026-09-04, Story 6.3 — đổi tên từ `import.not_utf8`
-/// cùng lượt bộ dò bảng mã ra đời) khi `.docx` hay bảng mã lạ bị từ chối — hai lỗi xảy ra **trước** khi
-/// có gì chạm `project.db`, nên gọi chúng là "lỗi kho" sẽ sai hơn. Ca này **chỉ** còn đúng
-/// cho hai hàm của `commands::config`, và tên của nó không còn là một phát biểu đúng cho
-/// toàn dự án — xem `tests/project_contract.rs::a_docx_rejection_carries_the_dedicated_message_key`
+/// cùng lượt bộ dò bảng mã ra đời) khi một định dạng chưa nhận (🔵 SỬA 2026-09-09, Story
+/// 6.12 — `.docx` không còn là ví dụ, nó ĐƯỢC nhận; `.pdf` là ví dụ mới) hay bảng mã lạ bị
+/// từ chối — hai lỗi xảy ra **trước** khi có gì chạm `project.db`, nên gọi chúng là "lỗi
+/// kho" sẽ sai hơn. Ca này **chỉ** còn đúng cho hai hàm của `commands::config`, và tên của
+/// nó không còn là một phát biểu đúng cho toàn dự án — xem
+/// `tests/project_contract.rs::an_unsupported_extension_rejection_carries_the_dedicated_message_key`
 /// cho vế tương ứng của `commands::project`.
 #[test]
 fn every_command_error_comes_from_the_store_vocabulary() {

@@ -39,7 +39,21 @@ rusqlite = { version = "=0.40.1", features = ["bundled"] }
 libsqlite3-sys = "=0.38.1"
 jieba-rs = "=0.10.3"          # core::matching — nhánh tiếng Trung (AD-17)
 tantivy-stemmers = "=0.4.0"   # core::matching — nhánh tiếng Anh (AD-17)
-docx-rs = "=0.4.22"           # core::export (AD-38)
+docx-rs = "=0.4.22"           # core::export (AD-38) -- bo GHI .docx; tu 6.12 them vai bo
+                               # SINH FIXTURE cho tests/fixtures_docx.rs. 0 loi goi doc san pham.
+# core::docx -- doc OOXML .docx bang zip + quick-xml (Story 6.12, Quyet dinh Ice 2026-09-09:
+# TU DOC, khong goi docx_rs::read_docx -- 140 diem panic trong docx-rs/src/reader/ duoi
+# panic = "abort" lam mot cong "tep hong" khong dong duoc). Ca hai vao cay qua DUNG
+# docx-rs (`cargo tree -i`, do 2026-09-09) => khai truc tiep them 0 goi, 0 phien ban.
+# NFR15: LICENSE (MIT) cua ca hai da mo doc trong nguon da tai, ghi o spine :803 TRUOC dong nay.
+# ⚠️ `default-features = false, features = ["deflate"]` KHOP CHINH XAC khai bao cua chinh
+# docx-rs cho zip (`~/.cargo/registry/src/…/docx-rs-0.4.22/Cargo.toml:282-285`) -- .docx dung
+# DEFLATE thuong, khong ma hoa/bzip2/lzma/zstd/xz. Bat default features (bo "time"/"aes-crypto"/
+# "bzip2"/… -- xem `zip-8.6.0/Cargo.toml:84-93`) se doi hoi `time >=0.3.47`, XUNG DOT voi
+# `time 0.3.45` da khoa qua `cookie` (tauri) -- do duoc bang `cargo check --locked` do truoc khi
+# sua thanh dong nay.
+zip = { version = "=8.6.0", default-features = false, features = ["deflate"] }
+quick-xml = "=0.41.0"          # core::docx -- phan tich XML cua word/document.xml + rels
 # core::cleanup — luật làm sạch dạng biểu thức chính quy (Story 6.5, FR124). Rà NFR15
 # lượt bảy (spine §Stack, 2026-09-05): MIT OR Apache-2.0, đã ghim sẵn trong Cargo.lock từ
 # trước (bắc cầu qua jieba-rs/tantivy-stemmers) — khai tường minh ở đây thêm 0 byte payload.

@@ -96,3 +96,7 @@ _bmad/
 # workflow DUY NHẤT của dự án (AC4 của Story 1.3) và nó BẮT BUỘC ở lại trong index.
 # ⇒ Ignore đúng thư mục con, không ignore `.github/`.
 .github/agents/
+
+# Story 6.12 — bàn đo AD-38 (`docx_probe.rs`) quét tệp `.docx` Word THẬT mà Ice tự thả vào;
+# 0 mẫu commit được vào git (bằng chứng nhị phân, không phải mã nguồn).
+src-tauri/tests/fixtures/docx/

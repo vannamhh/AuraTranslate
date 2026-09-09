@@ -831,6 +831,8 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `encoding_rs` *(core::webimport — giải mã theo bảng mã đã dò, Story 6.1; đã bắc cầu qua `reqwest`/`quick-xml` trước story này, khai tường minh thêm 0 byte)* | 0.8.35 | (Apache-2.0 OR MIT) AND BSD-3-Clause ✓ |
 | `regex` *(core::cleanup — luật làm sạch dạng biểu thức chính quy, Story 6.5; đã có sẵn trong `Cargo.lock` từ trước — bắc cầu qua `jieba-rs`/`tantivy-stemmers` — khai tường minh thêm 0 byte)* | =1.13.1 | MIT OR Apache-2.0 ✓ |
 | `dom_query` *(core::webimport::Extractor — Story 6.9, nâng từ bắc cầu của `dom_smoothie` (dòng `:909`) thành phụ thuộc TRỰC TIẾP: `extractor.rs` cần duyệt lại HTML GỐC bằng CSS selector để dựng mô hình khối giữ/loại — `Article::content` của `dom_smoothie` không phơi ra đủ, xem §Design Notes spec 6.9. Đã có sẵn trong `Cargo.lock` từ Story 6.1, LICENSE đã mở đọc trong nguồn đã tải (`~/.cargo/registry/src/…/dom_query-0.28.0/LICENSE`) — 0 gói MỚI vào `Cargo.lock`, chỉ đổi từ bắc cầu sang khai tường minh)* | =0.28.0 | MIT ✓ |
+| `zip` *(core::docx — Story 6.12, đọc kho zip của `.docx`. Đã có sẵn trong `Cargo.lock` từ trước qua `docx-rs` (bắc cầu, `cargo tree -i zip` xác nhận 2026-09-09) — khai tường minh ở đây thêm 0 gói MỚI, chỉ đổi từ bắc cầu sang trực tiếp. LICENSE (MIT) đã mở đọc trong nguồn đã tải, xem Rà NFR15 lượt tám ngay dưới)* | =8.6.0 | MIT ✓ |
+| `quick-xml` *(core::docx — Story 6.12, phân tích `word/document.xml`/rels. `Cargo.lock` mang HAI phiên bản của crate này (0.38.4 qua `tauri`→`plist`, 0.41.0 qua `docx-rs`) — khai đúng **0.41.0** để không thêm một phiên bản thứ ba; 0 gói MỚI, LICENSE (MIT) đã mở đọc trong nguồn đã tải, xem Rà NFR15 lượt tám ngay dưới)* | =0.41.0 | MIT ✓ |
 | `similar` **hoặc** `dissimilar` | 3.1.1 / mới nhất | Apache-2.0 / Apache-2.0 OR MIT |
 | `uuid` *(feature `v4`)* | 1.24.0 | MIT OR Apache-2.0 ✓ |
 | `tauri-plugin-wdio-webdriver` *(`optional`, feature `wdio`, chỉ debug — AD-45)* | 1.3.0 | MIT ✓ |
@@ -926,6 +928,15 @@ Theo đúng AC "bảng Stack có 37 hàng (34+3)", mười gói bắc cầu này
 | `regex` 1.13.1 | `MIT OR Apache-2.0` | `LICENSE-MIT` · `LICENSE-APACHE` | `Copyright (c) 2014 The Rust Project Developers` (MIT) · `Apache License` (APACHE) |
 
 Dễ dãi, tương thích GPL v3 theo chiều đi vào. Ghim bằng `=` (`regex = "=1.13.1"`) trong `Cargo.toml` của `core::cleanup` — lock chỉ giữ đúng số này tới lần `cargo update` đầu tiên, đúng quy ước ghim của cả bảng.
+
+**Rà NFR15 lượt tám — 2026-09-09, Story 6.12 (đọc `.docx`, AD-38).** Lượt rà **TRƯỚC khi sửa `Cargo.toml`**, cùng khuôn mọi lượt trước: mở tệp giấy phép **trong `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/…` mà đọc**, không tin trường `license`. `cargo tree -i zip` và `cargo tree -i quick-xml@0.41.0` (đo 2026-09-09) xác nhận cả hai vào cây qua ĐÚNG `docx-rs` — khai tường minh ở đây thêm **0 gói, 0 phiên bản** (chỉ đổi từ bắc cầu sang trực tiếp).
+
+| Crate | Trường `license` | Tệp đã mở | Dòng đầu |
+|---|---|---|---|
+| `zip` 8.6.0 | `MIT` | `LICENSE` | `The MIT License (MIT)` |
+| `quick-xml` 0.41.0 | `MIT` | `LICENSE-MIT.md` | `The MIT License (MIT)` |
+
+Cả hai dễ dãi, tương thích GPL v3 theo chiều đi vào. Ghim bằng `=` trong `Cargo.toml` của `core::docx` — lock chỉ giữ đúng số này tới lần `cargo update` đầu tiên, đúng quy ước ghim của cả bảng. `quick-xml` 0.38.4 (qua `tauri`→`plist`) vẫn ở lại trong `Cargo.lock`, không đổi — khai `0.41.0` tường minh để không thêm một phiên bản thứ ba, không thay thế phiên bản kia.
 
 SQLite đến từ `libsqlite3-sys` feature `bundled` — phiên bản do crate ghim, không phải SQLite của hệ điều hành. Sàn tối thiểu mà kiến trúc cần: FTS5 `trigram` (≥ 3.34) và `remove_diacritics 0` (≥ 3.27); mọi bản `bundled` hiện hành đều vượt xa.
 

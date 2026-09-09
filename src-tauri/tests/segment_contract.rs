@@ -8838,7 +8838,7 @@ fn confirming_with_gbk_chosen_writes_back_the_exact_source_chinese_text() {
     });
 
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape);
+    stash_pending_import_source(&pending, shape, None);
 
     let opened = confirm_import_with_encoding(&root, &pending, "GBK Confirm", "zh", "", "GBK", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .unwrap_or_else(|e| panic!("xac nhan GBK that bai: {e:?}"));
@@ -8868,7 +8868,7 @@ fn two_concurrent_confirms_on_the_same_pending_source_produce_exactly_one_work_n
     });
 
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape);
+    stash_pending_import_source(&pending, shape, None);
 
     let results = std::thread::scope(|scope| {
         let h1 =
@@ -8930,7 +8930,7 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
     );
 
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape);
+    stash_pending_import_source(&pending, shape, None);
     let opened =
         confirm_import_with_encoding(&root, &pending, "UTF-16BE", "en", "", &preview.selected_encoding, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
             .unwrap_or_else(|e| panic!("xac nhan UTF-16BE that bai: {e:?}"));
@@ -8950,7 +8950,7 @@ fn cancelling_then_confirming_creates_zero_works() {
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("van ban dan tay".to_owned()));
 
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape);
+    stash_pending_import_source(&pending, shape, None);
     cancel_import_preview(&pending);
 
     let err = confirm_import_with_encoding(&root, &pending, "Huy Roi Xac Nhan", "en", "", "UTF-8", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
@@ -8980,7 +8980,7 @@ fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_
     });
 
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape);
+    stash_pending_import_source(&pending, shape, None);
 
     // 1) chọn NHẦM UTF-8 -- ngữ pháp byte UTF-8 chặt, byte GBK cua chu Han hau nhu chac
     // chan vi pham no.
@@ -9010,7 +9010,7 @@ fn confirming_with_an_unrecognized_encoding_wire_id_is_refused_explicitly() {
     let root = temp_dir("6-3-unrecognized-encoding");
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("abc".to_owned()));
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape);
+    stash_pending_import_source(&pending, shape, None);
 
     let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "not-a-real-encoding", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .expect_err("nhan la khong nhan ra phai bi tu choi");
@@ -9028,7 +9028,7 @@ fn confirming_with_a_whatwg_valid_label_outside_fr126_is_refused_explicitly() {
     let root = temp_dir("6-3-shift-jis-outside-fr126");
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("abc".to_owned()));
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape);
+    stash_pending_import_source(&pending, shape, None);
 
     let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "Shift_JIS", Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
         .expect_err("Shift_JIS la nhan WHATWG hop le nhung NGOAI FR126 -- phai bi tu choi");
@@ -9065,7 +9065,7 @@ fn create_work_with_utf8_encoding_behaves_identically_to_the_pre_story_default()
     let root = temp_dir("6-3-create-work-utf8-unchanged");
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("khong doi hanh vi".to_owned()));
 
-    let opened = create_work(&root, "UTF8 Khong Doi", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
+    let opened = create_work(&root, "UTF8 Khong Doi", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()), None)
         .unwrap_or_else(|e| panic!("tao Tac pham UTF-8 that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
@@ -9496,7 +9496,7 @@ fn a_crlf_source_written_through_create_work_has_zero_carriage_returns_when_read
         "Chuong mot.\r\nMot doan van thu hai.\r\n\r\nMot doan thu ba.\r\n".to_owned(),
     ));
 
-    let opened = create_work(&root, "CRLF Round Trip", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()))
+    let opened = create_work(&root, "CRLF Round Trip", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), &std::sync::Mutex::new(Vec::new()), None)
         .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);

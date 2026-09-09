@@ -6,6 +6,7 @@
 pub mod ai;
 pub mod cleanup;
 pub mod dict;
+pub mod docx;
 pub mod export;
 pub mod glossary;
 pub mod i18n;

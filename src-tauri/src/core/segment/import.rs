@@ -60,9 +60,11 @@ use crate::core::i18n::{IpcError, MessageKey};
 use super::pipeline::{ChapterInput, PipelineShape};
 use super::split::SplitSegment;
 
-/// Hai phần mở rộng được nhận ở đường tối thiểu này (FR13 nhánh tối thiểu). `.docx` và mọi
-/// thứ khác đóng ở Epic 6 — xem AC8.
-const SUPPORTED_EXTENSIONS: [&str; 2] = ["txt", "md"];
+/// Ba phần mở rộng được nhận (FR13). 🔵 **SỬA 2026-09-09 (Story 6.12) — "`.docx` đóng ở Epic
+/// 6" đã HẾT ĐÚNG.** `.docx` nay được nhận, qua [`crate::core::docx::read_docx`] (module
+/// riêng, không qua `core::webimport/`) — xem nhánh `.docx` của [`import_file`]. Mọi thứ khác
+/// vẫn đóng — xem AC8.
+const SUPPORTED_EXTENSIONS: [&str; 3] = ["txt", "md", "docx"];
 
 /// Trần kích thước một tệp nhập — **100 MB**, Ice chốt ở lượt code review 2026-08-06.
 ///
@@ -87,10 +89,12 @@ const MAX_IMPORT_BYTES: u64 = 100 * 1024 * 1024;
 /// điều đó — xem ghi chú tại chỗ nó bị khoanh lại có ý thức trong `tests/project_contract.rs`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImportError {
-    /// Phần mở rộng chưa được nhận — `.docx`, hoặc bất kỳ thứ gì khác `.txt`/`.md`.
+    /// Phần mở rộng chưa được nhận — bất kỳ thứ gì khác `.txt`/`.md`/`.docx`. 🔵 **SỬA
+    /// 2026-09-09 (Story 6.12)** — `.docx` không còn ví dụ ở đây, nó rời sang nhánh chấp
+    /// nhận của [`import_file`].
     UnsupportedFormat {
-        /// Phần mở rộng đọc được (không có dấu chấm), thường thấy: `"docx"`. Rỗng nếu tệp
-        /// không có phần mở rộng nào.
+        /// Phần mở rộng đọc được (không có dấu chấm), thường thấy: `"epub"`, `"pdf"`. Rỗng
+        /// nếu tệp không có phần mở rộng nào.
         format: String,
     },
     /// Nội dung không giải mã được bằng bảng mã ĐÃ KHAI/ĐÃ CHỌN (Quyết định #6, Story 1.15).
@@ -133,6 +137,29 @@ pub enum ImportError {
         size: u64,
         /// Trần, tính bằng byte.
         limit: u64,
+    },
+    /// **THÊM 2026-09-09 (Story 6.12)** — `.docx` không đọc được: không phải zip hợp lệ (kể
+    /// cả một tệp KHÁC đổi đuôi thành `.docx` — nhận theo NỘI DUNG, không theo tên), zip cắt
+    /// cụt, hoặc `word/document.xml` hỏng XML. Đúng MỘT lỗi cho cả ba ca của Ma trận I/O
+    /// spec 6.12 ("Tệp hỏng"/"Đuôi `.docx`, không phải zip") — người dùng không cần phân biệt
+    /// LÝ DO kỹ thuật, chỉ cần biết tệp chưa nhập được.
+    DocxUnreadable {
+        /// Đường dẫn tệp — tham số `path` của [`MessageKey::DocxUnreadable`].
+        path: String,
+        /// Chẩn đoán [`crate::core::docx::DocxError`] — CHỈ cho log (KHÔNG DẤU, NFR16),
+        /// không đi vào `IpcError`.
+        detail: String,
+    },
+    /// **THÊM 2026-09-09 (Story 6.12)** — `.docx` đọc được nhưng 0 đoạn có chữ (Ma trận I/O
+    /// "Rỗng"). ⚠️ Đo được: `.txt`/`.md` KHÔNG có một guard tương đương hôm nay (một tệp
+    /// `.txt` rỗng đi trọn đường sản phẩm, tạo một Chương với `source_text` rỗng, 0 segment,
+    /// không lỗi nào ném) — spec 6.12 gọi đây là "cùng khuôn tệp rỗng của .txt" nhưng khuôn
+    /// đó chưa từng được cài; biến thể NÀY là guard THẬT ĐẦU TIÊN của dự án cho nội dung
+    /// rỗng ở đường nhập tệp, chỉ áp cho `.docx`. Ghi ra thay vì để người sau đọc doc-comment
+    /// và tưởng `.txt`/`.md` đã có cùng cơ chế.
+    DocxEmptyText {
+        /// Đường dẫn tệp.
+        path: String,
     },
     /// 🔵 **THÊM (vòng rà đối kháng 2026-09-04) — `order` truyền cho
     /// `pipeline::run_import_with_order` không phải một hoán vị hợp lệ của bảy biến thể
@@ -230,6 +257,12 @@ impl std::fmt::Display for ImportError {
             ImportError::TooLarge { size, limit } => {
                 write!(f, "import: file is {size} bytes, limit is {limit}")
             }
+            ImportError::DocxUnreadable { path, detail } => {
+                write!(f, "import[{path}]: docx unreadable: {detail}")
+            }
+            ImportError::DocxEmptyText { path } => {
+                write!(f, "import[{path}]: docx has 0 paragraphs with text")
+            }
             ImportError::InvalidPipelineOrder { detail } => {
                 write!(f, "import: invalid pipeline order: {detail}")
             }
@@ -309,6 +342,17 @@ impl From<ImportError> for IpcError {
                 params.insert("size".to_owned(), size.to_string());
                 params.insert("limit".to_owned(), limit.to_string());
                 IpcError::new("import.too_large", MessageKey::ImportTooLarge, params, false)
+            }
+            ImportError::DocxUnreadable { path, detail } => {
+                eprintln!("import[{path}] docx khong doc duoc: {detail}");
+                let mut params = BTreeMap::new();
+                params.insert("path".to_owned(), path);
+                IpcError::new("docx.unreadable", MessageKey::DocxUnreadable, params, false)
+            }
+            ImportError::DocxEmptyText { path } => {
+                let mut params = BTreeMap::new();
+                params.insert("path".to_owned(), path);
+                IpcError::new("docx.empty_text", MessageKey::DocxEmptyText, params, false)
             }
             ImportError::InvalidPipelineOrder { .. } => {
                 // 🔴 KHÔNG BAO GIỜ chạm người dùng thật (xem doc-comment biến thể) —
@@ -461,27 +505,52 @@ pub fn import_text(raw: String) -> PipelineShape {
     PipelineShape::Blob(ChapterInput::AlreadyText(raw))
 }
 
+/// **THÊM 2026-09-09 (Story 6.12)** — phần đi kèm mà [`import_file`] trả cho `.docx`, mang
+/// dữ liệu mà chuỗi bảy bước AD-39 KHÔNG có chỗ chở (nó chỉ mang `String`/byte thô, không
+/// mang khối/ảnh) nhưng pha ảnh Story 6.11 (`commands::project::prepare_chapter_images`) cần
+/// để nối đúng ảnh nhúng vào đúng vị trí. `None` cho mọi phần mở rộng khác — không byte nào
+/// bị đọc thừa, không cấu trúc nào bị dựng thừa cho `.txt`/`.md`.
+///
+/// 🔴 **Chỉ Chương ĐẦU TIÊN đọc trường này** — cùng giới hạn mà
+/// [`super::pipeline::PipelineInput::block_overrides`] đã theo (Story 6.9): một mẫu phân
+/// tách Chương (Story 6.6) áp lên văn bản `.docx` (cạnh hiếm, ngoài Ma trận I/O spec 6.12)
+/// làm N > 1 Chương, và chỉ Chương `ord = 1` có `blocks`/ảnh — nợ có chủ nếu Ice cần mở rộng.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocxSidecar {
+    /// Đoạn + ảnh của TOÀN tài liệu, cùng hình dạng mà `core::webimport::Extractor` dùng cho
+    /// HTML — gắn vào `ImportedChapter::blocks` của Chương đầu tiên sau khi `run_pipeline`
+    /// chạy xong (`commands::project::create_work`), để `core::segment::anchor::compute_anchor`
+    /// tái dùng nguyên vẹn.
+    pub blocks: Vec<crate::core::webimport::Block>,
+    /// Byte thật của mọi ảnh nhúng phân giải được, theo chỉ số khối trong `blocks`.
+    pub images: Vec<crate::core::docx::DocxImage>,
+}
+
 /// Bước ĐẦU VÀO — nhánh tệp của AC1 (kéo-thả **hoặc** ô nhập đường dẫn — cả hai nhận một
 /// đường dẫn thật, không phải nội dung tệp đã đọc sẵn từ webview, xem AD-1/AD-16).
 ///
-/// Thứ tự: từ chối theo phần mở rộng **trước khi mở tệp** (không đọc một byte cho
-/// `.docx`) → hỏi kích thước trước khi đọc → `std::fs::read` → trả [`PipelineShape`] mang
-/// byte THÔ, CHƯA giải mã.
+/// Thứ tự: từ chối theo phần mở rộng **trước khi mở tệp** → hỏi kích thước trước khi đọc →
+/// `std::fs::read` → trả [`PipelineShape`] mang byte THÔ CHƯA giải mã (`.txt`/`.md`) HOẶC
+/// văn bản ĐÃ giải mã cộng [`DocxSidecar`] (`.docx` — Story 6.12).
 ///
-/// 🔵 **SỬA 2026-09-04 (Story 6.2) — hàm này KHÔNG còn tự giải mã.** Trước story này, bước
-/// cuối là `String::from_utf8` nghiêm (Bẫy 8) rồi đổ vào `import_text`. Giải mã giờ là
-/// [`super::pipeline::Step::DecodeEncoding`] — cùng phép giải mã NGHIÊM đó (không `_lossy`),
-/// chỉ dời sang chuỗi để mọi nguồn (kể cả URL/song ngữ các story sau) đi qua ĐÚNG một chỗ.
-/// Hệ quả quan sát được duy nhất: một tệp không hợp lệ với bảng mã đã khai giờ thất bại ở
-/// [`super::pipeline::run_import`] (sau khi thư mục `.atproj` đã tạo) thay vì ngay ở hàm
-/// này — `commands::project::create_work` cuộn lại TRỌN VẸN trên lỗi đó, cùng khuôn đã có
-/// cho lỗi ghi `meta.json`, nên KHÔNG `.atproj` nào bị bỏ lại nửa vời (AC8 không đổi).
-pub fn import_file(path: &Path) -> Result<PipelineShape, ImportError> {
+/// 🔵 **SỬA 2026-09-04 (Story 6.2) — hàm này KHÔNG còn tự giải mã (`.txt`/`.md`).** Giải mã
+/// của hai định dạng đó vẫn là [`super::pipeline::Step::DecodeEncoding`] — xem doc-comment cũ
+/// giữ nguyên bên dưới cho lý do. `.docx` KHÔNG đi qua bước đó: nó **tự khai bảng mã** (OOXML
+/// luôn UTF-8 trong `word/document.xml`), nên hình dạng đúng là
+/// [`ChapterInput::AlreadyText`] — cùng hộc với văn bản dán tay (§Design Notes spec 6.12).
+///
+/// 🔵 **SỬA 2026-09-09 (Story 6.12) — chữ ký đổi từ `Result<PipelineShape, _>` sang
+/// `Result<(PipelineShape, Option<DocxSidecar>), _>`.** Đây là thay đổi DUY NHẤT của story
+/// này lên chữ ký hàm thuần đã có — mọi chỗ gọi (`commands::project::create_work_from_file`,
+/// `wire::preview_import_encoding_from_file`, `tests/project_contract.rs`) đọc `.0` khi không
+/// cần sidecar.
+pub fn import_file(path: &Path) -> Result<(PipelineShape, Option<DocxSidecar>), ImportError> {
     reject_unsupported_extension(path)?;
 
     // 🔴 Hỏi KÍCH THƯỚC trước khi đọc — không đọc rồi mới đo. `metadata` là một lượt
     // `stat`, không nạp một byte nội dung nào; đo sau khi `fs::read` thì bộ nhớ đã cạn
-    // xong rồi mới biết. Xem [`MAX_IMPORT_BYTES`].
+    // xong rồi mới biết. Xem [`MAX_IMPORT_BYTES`]. Áp CHO CẢ `.docx` (Ma trận I/O spec 6.12
+    // "Quá cỡ": từ chối TRƯỚC khi đọc zip).
     //
     // ⚠️ Vẫn còn một cửa sổ đua (tệp phình ra giữa `stat` và `read`) — không đóng ở
     // story này: nó đòi đọc theo khối có trần, và đường nhập theo khối là Epic 6.
@@ -504,10 +573,30 @@ pub fn import_file(path: &Path) -> Result<PipelineShape, ImportError> {
         detail: e.to_string(),
     })?;
 
-    Ok(PipelineShape::Blob(ChapterInput::RawBytes {
-        bytes,
-        label: path.display().to_string(),
-    }))
+    // `reject_unsupported_extension` ở trên đã xác nhận phần mở rộng nằm trong
+    // `SUPPORTED_EXTENSIONS` — đọc lại một lần nữa ở đây (không tái dùng một biến đã tính)
+    // vì nhánh `.docx` cần chính giá trị hạ chữ thường này.
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+
+    if ext == "docx" {
+        let path_display = path.display().to_string();
+        let parsed = crate::core::docx::read_docx(&bytes).map_err(|e| match e {
+            crate::core::docx::DocxError::EmptyText => {
+                ImportError::DocxEmptyText { path: path_display.clone() }
+            }
+            other => ImportError::DocxUnreadable { path: path_display.clone(), detail: other.to_string() },
+        })?;
+        let sidecar = DocxSidecar { blocks: parsed.blocks, images: parsed.images };
+        return Ok((PipelineShape::Blob(ChapterInput::AlreadyText(parsed.text)), Some(sidecar)));
+    }
+
+    Ok((
+        PipelineShape::Blob(ChapterInput::RawBytes {
+            bytes,
+            label: path.display().to_string(),
+        }),
+        None,
+    ))
 }
 
 /// Từ chối một phần mở rộng chưa được nhận — **trước** khi mở tệp, không đọc một byte.

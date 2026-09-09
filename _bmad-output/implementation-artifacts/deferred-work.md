@@ -2213,6 +2213,18 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   dùng tự thêm) sửa được nó, vì vấn đề là ranh giới CÂU/KHỐI, không phải sự CÓ MẶT của một mẫu
   văn bản. ⇒ **Chủ chuyển trọn về Story 6.12** (đọc `.docx`/Markdown có cấu trúc bảng thật —
   nơi duy nhất có đủ ngữ cảnh để biết "đây là một hàng bảng" trước khi đưa xuống bộ tách câu).
+  → ✅ **ĐÃ ĐÓNG 2026-09-09 (Story 6.12) — cho `.docx`.** `core::docx::read_docx` đọc `w:tc`
+  (ô bảng) thành một danh sách ĐOẠN RIÊNG (mỗi `w:p` trong ô — kể cả một đoạn mang hai câu —
+  là một `BlockBody::Paragraph` độc lập, ngăn cách `"\n\n"` với đoạn/ô kế tiếp), nên
+  `core::segment::split` không bao giờ có cơ hội cắt vắt qua ranh giới ô — nghiệm thu bằng
+  `docx_contract.rs::no_segment_crosses_a_table_cell_boundary_after_writing_the_whole_document`
+  (đi TRỌN đường sản phẩm, không chỉ `read_docx` một mình). ⚠️ **Hẹp hơn tiêu đề gốc, ghi ra
+  thay vì để đọc lướt thành "mọi bảng đã đóng":** ca fixture GỐC của mục nợ này là một BẢNG
+  MARKDOWN dạng `|...|...|` trong một tệp `.txt`/`.md` dán tay — đường đó VẪN HỞ NGUYÊN VẸN
+  (`core::segment::split`/`normalize` không biết cú pháp `|` là gì, và không story nào dựng
+  một bộ đọc Markdown có cấu trúc). Mục nợ ✅ ở đây chỉ đóng đúng phạm vi mà "Chủ chuyển trọn"
+  đã thu hẹp về (bảng `.docx` — hình dạng dữ liệu CÓ CẤU TRÚC, không phải cú pháp văn bản
+  phẳng) — bàn Markdown-bảng-phẳng là một mục nợ MỚI, chưa có chủ, ghi ở cuối tệp này.
 
 - 🔴 **Luật thứ NĂM của bộ tách do một phép đo dựng ra, ngoài bốn luật của Quyết định #5 —
   Ice có thể lật.** *"Một câu phải có ít nhất một chữ"*: một dấu kết câu không chốt ranh giới
@@ -9180,6 +9192,19 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   `.docx` SẼ đến dưới, theo bảng hình dạng AD-39) và nghiệm thu được bằng test
   (`segment_contract.rs::preview_of_pasted_text_is_self_declared_with_no_bytes_to_sniff`),
   nhưng vẫn CHƯA có một tệp `.docx` thật đi qua — mệnh đề gốc không đổi. **Chủ: Story 6.12.**
+  → 🟡 **ĐÓNG MỘT NỬA 2026-09-09 (Story 6.12).** Vế "một tệp `.docx` đi TRỌN đường sản phẩm"
+  ĐÃ ĐÓNG: `core::docx::read_docx` (mới, tự đọc OOXML bằng `zip`+`quick-xml`, Quyết định Ice
+  2026-09-09 — không gọi `docx_rs::read_docx`, 140 điểm panic trong `docx-rs/src/reader/`)
+  đi qua `import_file` → `PipelineShape::Blob(ChapterInput::AlreadyText)` → `run_pipeline` →
+  `create_work`, nghiệm thu bằng `docx_contract.rs::docx_files_enter_the_pipeline_as_already_text_not_raw_bytes`
+  VÀ một ca đi trọn tới đĩa (`a_docx_with_an_embedded_image_writes_a_real_file_and_a_null_source_url_asset_row`).
+  Vế "do WORD THẬT sinh ra" VẪN HỞ — fixture của `docx_contract.rs` tự sinh bằng `docx-rs`
+  (bộ GHI), chứng minh luật đọc CỦA TA đúng với OOXML CỦA TA tự tạo, không chứng minh Word
+  thật (đặc biệt VML `<w:pict>` của Word cũ, namespace lạ) sinh ra cùng hình dạng —
+  `docx_probe.rs` (bàn đo `#[ignore]`, `_bmad-output/implementation-artifacts/6-12-ban-do/`)
+  báo **0 mẫu — chưa đo** đúng khuôn FR126 (`6-1-ban-do/REPORT.md:12`), không một dấu tích.
+  **Chủ: Ice** — thả tệp `.docx` Word thật vào `src-tauri/tests/fixtures/docx/` (gitignore)
+  rồi chạy lại bàn đo.
 
 - ⚠️ **`ImportError::NotUtf8` sẽ thành một NHÃN SAI đúng vào ngày Story 6.3 hạ cánh.** Story 6.2
   cho `Step::DecodeEncoding` giải mã theo một bảng mã **được khai**, và biến thể lỗi dùng lại cho
@@ -10822,3 +10847,115 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   chủ: Ice — quyết định có cần chuyển phép kiểm tồn tại lên TRƯỚC `normalize_chapter_ord`
   hay không (một thay đổi hành vi ngoài phạm vi story 6.11 — Story 5.8 sở hữu hàm này); ghi
   nợ, không sửa trong story này.
+
+- source_spec: `spec-6-12-doc-docx.md`
+  summary: `core::docx` chỉ đọc ảnh nhúng dạng DrawingML (`<w:drawing>`/`a:blip`) và một phần
+  VML (`<w:pict>`/`v:imagedata`, chỉ đọc `r:id`, không kiểm định dạng khung) — ảnh SVG/EMF/WMF/
+  BMP/TIFF bị MIME suy từ đuôi tệp media từ chối ở tầng gọi (`extension_for_mime`, danh mục
+  đóng bốn kiểu), đếm vào `images_failed`, không panic, không mất Chương.
+  evidence: "`core/docx/mod.rs::mime_for_media_extension` chỉ ánh xạ `png`/`jpg`/`jpeg`/`gif`/
+  `webp` sang một MIME ảnh raster thật; nhánh `other` trả `application/octet-stream; ext=...`,
+  một chuỗi mà `core::webimport::assets::extension_for_mime` LUÔN từ chối (không nằm trong
+  `RASTER_IMAGE_MIMES`). Word thật hay nhúng ảnh dạng EMF/WMF (đồ hoạ vector Windows) khi dán
+  từ Excel/PowerPoint — chưa đo được tỉ lệ thật trên tài liệu Word thật (xem mục 6-12-ban-do
+  ngay trên, cùng nguyên nhân 0 mẫu)."
+  chủ: Ice — quyết định mở rộng danh mục ảnh ĐÓNG bốn kiểu (rủi ro: SVG là markup, đã bị
+  loại có chủ ở Story 6.11 vì lý do bảo mật AD-16, không nên mở lại riêng cho `.docx`) là quyết
+  định sản phẩm, không phải một lượt vá kỹ thuật nhỏ.
+
+- source_spec: `spec-6-12-doc-docx.md`
+  summary: `core::docx::read_docx` không đọc header/footer/footnote/endnote/ghi chú của
+  `.docx` (`word/header*.xml`, `word/footer*.xml`, `word/footnotes.xml`, `word/endnotes.xml`,
+  `word/comments.xml`) — chỉ `word/document.xml` (thân tài liệu) được phân tích.
+  evidence: "`core/docx/mod.rs::read_docx` chỉ gọi `read_zip_entry` cho `word/document.xml` và
+  `word/_rels/document.xml.rels`; năm loại tệp trên không được liệt tên ở đâu trong mô-đun.
+  Với một tài liệu Word thật có header/footer chứa tiêu đề Chương lặp lại mỗi trang, nội dung
+  đó KHÔNG BAO GIỜ vào `DocxParsed::text` — im lặng, không lỗi nào ném."
+  chủ: Ice — cần quyết định liệu header/footer có nên vào văn bản Chương (rủi ro lặp N
+  lần nếu Word lưu một bản riêng mỗi trang) trước khi cài, không phải một lượt đọc-thêm-file
+  đơn giản.
+
+- source_spec: `spec-6-12-doc-docx.md`
+  summary: một `w:tbl` LỒNG bên trong một ô của bảng cha bị bỏ qua HOÀN TOÀN (đọc byte để cân
+  bằng cây XML, không đếm vào `TableShape` của bảng cha, không đọc văn bản bên trong) — nội
+  dung của bảng lồng biến mất khỏi cả văn bản LẪN cấu trúc đếm AD-38.
+  evidence: "`core/docx/mod.rs::parse_cell`, nhánh `local == \"tbl\"`: gọi thẳng
+  `reader.read_to_end(e.name())` rồi bỏ qua, không đệ quy vào `parse_table`. Một bảng Word thật
+  với một bảng con lồng trong một ô (khuôn phổ biến cho layout phức tạp) sẽ mất TOÀN BỘ nội
+  dung của bảng con — không phải một phép đếm sai, mà một khoảng RỖNG IM LẶNG."
+  chủ: Ice — đệ quy `parse_table`/`parse_cell` là khả thi về kỹ thuật (không đổi hình dạng
+  `TableShape`/`Block`), nhưng cần quyết định NGỮ NGHĨA trước: bảng con tính là một `TableShape`
+  RIÊNG trong danh sách phẳng, hay lồng vào `paragraphs_per_cell` của ô cha (đổi kiểu đó từ
+  `Vec<usize>` sang một cấu trúc cây)? Đây là quyết định hình dạng dữ liệu, không phải một
+  lượt vá.
+
+- source_spec: `spec-6-12-doc-docx.md`
+  summary: nợ `:2214` ("câu bị cắt giữa ô bảng") chỉ đóng cho `.docx` (bảng CÓ CẤU TRÚC,
+  `w:tbl`/`w:tr`/`w:tc`) — ca fixture GỐC của mục nợ đó là một bảng MARKDOWN dạng
+  `|cột|cột|` bên trong một tệp `.txt`/`.md` dán tay, và đường đó VẪN HỞ NGUYÊN VẸN.
+  evidence: "`core::segment::split`/`core::segment::normalize` không biết cú pháp `|...|...|`
+  là gì — không story nào (kể cả 6.12) dựng một bộ đọc Markdown CÓ CẤU TRÚC. Một người dùng dán
+  một bảng Markdown vào ô nhập văn bản, hoặc nhập một tệp `.md` chứa bảng đó, vẫn gặp lại ĐÚNG
+  ca sai gốc (một câu trong ô bị cắt tại dấu chấm, cho một segment mang `|` mồ côi) — 0 dòng mã
+  nào của Story 6.12 chạm tới đường đó (`.docx`/`.md` là hai định dạng khác nhau, và
+  `SUPPORTED_EXTENSIONS` không đổi ý nghĩa của `.md`: nó vẫn đi qua `Step::DecodeEncoding` như
+  văn bản phẳng, không qua `core::docx`)."
+  chủ: Ice — một bộ đọc Markdown-bảng-CÓ-CẤU-TRÚC (song song với `core::docx` cho `.docx`)
+  là phạm vi ngoài Epic 6 hôm nay; ghi nợ để không ai tưởng ":2214 đã đóng cho mọi định dạng".
+
+- source_spec: `spec-6-12-doc-docx.md`
+  summary: `tests/asset_contract.rs` (Story 6.11) đỏ ngẫu nhiên — tới **12/19 ca** — khi chạy
+  bằng mặc định của `cargo test` (đa luồng trong CÙNG một binary); ĐO ĐƯỢC nguyên nhân là
+  tranh chấp CPU/scheduler giữa nhiều `TcpListener`/luồng-đua-chmod/`thread::sleep` chạy
+  ĐỒNG THỜI trong CÙNG tệp, không phải một hồi quy chức năng của Story 6.12.
+  evidence: "Đo 2026-09-09, máy Ice (macOS, không tải khác lúc đo cuối): `cargo test --locked
+  --test asset_contract` (mặc định, đa luồng) — 7/19 xanh, 12/19 đỏ (mọi ca đỏ đều dựng
+  `TcpListener`/luồng canh sleep-based); CÙNG BINARY với `-- --test-threads=1` — 19/19 xanh,
+  lặp lại 3/3 lượt liên tiếp không đổi kết quả. Đối chứng ĐỘC LẬP trên baseline `d58cb77`
+  (TRƯỚC Story 6.12, qua `git worktree add`, không đụng cây làm việc): ca
+  `a_disk_write_failure_mid_asset_write_fails_the_whole_import_and_removes_the_atproj_folder`
+  MỘT MÌNH cũng đỏ ngẫu nhiên (10/10 xanh một đợt, rồi 8/10 và 7/20 xanh ở các đợt sau — biến
+  thiên mạnh giữa các đợt đo do TẢI MÁY của chính phiên đo, không phải một hằng số) — tức
+  mã ĐỌC/GHI byte ảnh (giống hệt cả hai phía, chỉ đổi cấu trúc gọi hàm ở Story 6.12: tách
+  `fetch_and_write_one_asset` thành hai nửa) không phải biến số quyết định; BIẾN SỐ THẬT là
+  cách `cargo test` xếp lịch luồng cho các ca dựng TCP/sleep thật trong CÙNG một tệp. Đây
+  đúng lớp lỗi mà `AGENTS.md`/bộ nhớ dự án đã gọi tên: một test dựa trên đồng hồ tường (wall-
+  clock) đo mã CỘNG tải máy, không đo riêng mã."
+  ĐO BỔ SUNG 2026-09-09 (phiên điều phối, đối chứng CÙNG ĐƯỜNG DẪN — mạnh hơn đối chứng
+  worktree ở trên vì nó khoá luôn biến "chỗ đặt binary"): baseline `d58cb77` dựng với
+  `CARGO_TARGET_DIR` trỏ vào ĐÚNG `src-tauri/target` của repo, chạy mặc định đa luồng —
+  **7 xanh / 12 đỏ**, cùng bộ 12 ca. CÙNG baseline đó dựng vào một target dir dưới
+  `/private/tmp` — **19 xanh**. Cây Story 6.12 trong repo — 12 đỏ, 12 đỏ, rồi **19 xanh** ba
+  lượt liên tiếp không đổi mã. ⇒ Mã KHÔNG phải biến số; hai lượt đỏ giống hệt nhau KHÔNG đủ
+  để kết luận tất định.
+  chủ: Ice — quyết định có cần thêm `--test-threads=1` cho riêng `asset_contract.rs` (ví dụ
+  qua `#[test]` + một cơ chế khoá tuần tự nội bộ, hoặc tách các ca dựng TCP thật sang một
+  target `#[ignore]` chạy tay như `webimport_probe.rs`/`docx_probe.rs`) hay chấp nhận rủi ro
+  đỏ ngẫu nhiên này ở CI/pre-push — đây là quyết định kiến trúc bộ test của Story 6.11, ngoài
+  phạm vi Story 6.12 để tự quyết định sửa.
+
+- source_spec: `spec-6-12-doc-docx.md`
+  summary: bắt được sau code review — `DocxSidecar::blocks` gắn TRỌN VẸN vào Chương ĐẦU
+  TIÊN (`chapters.first_mut()`, `commands::project::create_work`), nhưng `.docx` vẫn đi qua
+  `Step::SplitChapters`; một mẫu phân tách Chương THẬT (Story 6.6, FR14) cho N > 1 Chương
+  trên một văn bản `.docx` là một đường sản phẩm có thật, không chỉ lý thuyết. Đo được: ảnh
+  đứng SAU ranh giới phân tách (thuộc Chương thứ hai trở đi) KHÔNG bị lưu sai vào Chương đầu
+  — `compute_anchor` tự kiểm bắt được độ lệch và ảnh đó TRƯỢT có thể phân biệt được — nhưng
+  nó cũng KHÔNG được lưu vào Chương thật của nó (Chương ≥ 1 luôn có `blocks: None`, ảnh của
+  chính nó không bao giờ được thăm từ phía Chương đó).
+  evidence: "`docx_contract.rs::an_image_after_a_chapter_split_boundary_fails_distinguishably_instead_of_being_saved_to_the_wrong_chapter`
+  đo trên một `.docx` hai Chương (mẫu `^Chuong \\d+:.*$`), mỗi Chương một ảnh: `images_saved
+  == 1` (chỉ ảnh Chương đầu), `images_failed == 1` (ảnh Chương hai, KHÔNG bị lưu nhầm),
+  đúng MỘT hàng `asset` và hàng đó thuộc `opened.chapter_id` (Chương đầu). Cơ chế: `blocks`
+  của Chương đầu là danh sách KHÔNG BỊ CẮT của toàn tài liệu, nên `prepare_chapter_images`
+  vẫn 'thấy' ảnh Chương hai từ vòng lặp của Chương đầu và gọi `compute_anchor` trên
+  `source_text` ĐÃ BỊ CẮT của Chương đầu — tự kiểm của `compute_anchor` (Story 6.11, B2/B3)
+  đúng như thiết kế bắt được prefix không khớp và trả `AnchorError`, không làm tròn. Giới
+  hạn này đã tự khai trong doc-comment `DocxSidecar` (`core/segment/import.rs`) từ trước —
+  mục nợ này chỉ đưa nó vào `deferred-work.md` kèm phép đo, đúng luật 'không mục nào mồ côi'."
+  chủ: Ice — mở rộng `DocxSidecar`/pha ảnh để mỗi Chương (không riêng Chương đầu) tự cắt lát
+  đúng phần `blocks` của chính nó SAU khi `Step::SplitChapters` chạy (đổi hình dạng dữ liệu,
+  cần biết vị trí Chương ord=N bắt đầu ở đâu trong danh sách `blocks` phẳng của toàn tài
+  liệu) là một thay đổi cấu trúc ngoài phạm vi một lượt vá nhỏ; hoặc chấp nhận giới hạn này
+  (ảnh sau ranh giới phân tách luôn trượt có thể phân biệt được, không bao giờ sai Chương)
+  như một hành vi ĐỦ AN TOÀN cho tới khi có nhu cầu thật.

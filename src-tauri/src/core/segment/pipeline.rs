@@ -159,9 +159,12 @@ fn validate_order(order: &[Step]) -> Result<(), ImportError> {
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /// Hình dạng của MỘT đơn vị nội dung ở bước đầu vào — do module nguồn cung cấp:
-/// `core::segment::import` cho file/dán tay hôm nay; `webimport`/`export` cho URL/`.docx`
-/// các story sau (AD-39 `:498` — "chỉ cung cấp bước đầu vào, không giữ bản sao của các bước
-/// dùng chung").
+/// `core::segment::import` cho file (`.txt`/`.md`/`.docx`, qua `core::docx` cho định dạng
+/// cuối — Story 6.12)/dán tay; `webimport` cho URL. 🔵 **SỬA 2026-09-09 (Story 6.12)** —
+/// câu cũ dự đoán bước 0 của `.docx` sẽ sống ở `webimport`/`export`; nó sống ở
+/// `core::segment::import` (gọi `core::docx::read_docx`), module RIÊNG không phải hai module
+/// đó (AD-39 `:498` — "chỉ cung cấp bước đầu vào, không giữ bản sao của các bước dùng
+/// chung").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChapterInput {
     /// Byte thô, chưa giải mã — nguồn KHÔNG tự khai bảng mã (`.txt`, `.md`, phản hồi HTTP).
